@@ -17,6 +17,14 @@
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "GameFramework/Actor.h"
+// --- Debug snapshot + wor.* console command ---
+#include "Currency/CurrencyComponentDebug.h" // GetWalletString — reuse the wallet formatter
+#include "Engine/World.h"
+#include "Engine/GameInstance.h"
+#include "Engine/Engine.h" // GEngine on-screen debug
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/Pawn.h"
+#include "HAL/IConsoleManager.h"
 
 bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int32 Count, bool bRefined)
 {
@@ -1114,4 +1122,73 @@ bool UEconomyService::DowngradeAbility(AActor *Owner, const UAbilityData *Abilit
     }
 
     return TryDowngradeEntry(Currency, Instance->Tier, Instance->Ability->Tier, ECurrencyType::SkillEssence);
+}
+
+// ==================== DEBUG ====================
+
+FString UEconomyService::GetEconomyString(AActor *Owner) const
+{
+    if (!Owner)
+    {
+        return TEXT("[Economy] Owner=<null>");
+    }
+
+    // Read-only resolution of the same components the dismantle / level / downgrade paths require.
+    // A missing component is the dominant cause of those calls returning false, so the checklist is
+    // the economy-specific diagnostic the wallet line alone does not give.
+    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    UCrystalInventoryComponent *CrystalInv = Owner->FindComponentByClass<UCrystalInventoryComponent>();
+    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
+    UEvolutionInventoryComponent *EvoInv = Owner->FindComponentByClass<UEvolutionInventoryComponent>();
+    ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>();
+
+    const TCHAR *Y = TEXT("Y");
+    const TCHAR *N = TEXT("N");
+
+    return FString::Printf(
+        TEXT("[Economy] Owner=%s | Authority=%s\n")
+        TEXT("  Components: Currency=%s CrystalInv=%s Inventory=%s EvolutionInv=%s Loadout=%s\n")
+        TEXT("  Wallet: %s"),
+        *Owner->GetName(), Owner->HasAuthority() ? Y : N,
+        Currency ? Y : N, CrystalInv ? Y : N, Inv ? Y : N, EvoInv ? Y : N, Loadout ? Y : N,
+        *UCurrencyComponentDebug::GetWalletString(Currency));
+}
+
+void UEconomyService::PrintEconomy(AActor *Owner) const
+{
+    const FString Snapshot = GetEconomyString(Owner);
+    UE_LOG(LogTemp, Display, TEXT("%s"), *Snapshot);
+    if (GEngine)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Green, Snapshot);
+    }
+}
+
+// FAutoConsoleCommandWithWorld — NOT UFUNCTION(Exec / CallInEditor). A UGameInstanceSubsystem is not
+// on the engine's FExec chain and has no Details panel, so neither trigger fires. Console commands
+// resolve from any class. "wor." prefix groups them. State is PIE-only, so the chain is null-checked.
+namespace
+{
+    static FAutoConsoleCommandWithWorld GPrintEconomyCmd(
+        TEXT("wor.PrintEconomy"),
+        TEXT("Snapshot the played character's economy: authority, component checklist, wallet (PIE debug)."),
+        FConsoleCommandWithWorldDelegate::CreateLambda(
+            [](UWorld *World)
+            {
+                UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+                UEconomyService *Economy = GI ? GI->GetSubsystem<UEconomyService>() : nullptr;
+                if (!Economy)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[EconomyService] wor.PrintEconomy: no subsystem (no PIE world?)."));
+                    return;
+                }
+                APlayerController *PC = World->GetFirstPlayerController();
+                APawn *Pawn = PC ? PC->GetPawn() : nullptr;
+                if (!Pawn)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[EconomyService] wor.PrintEconomy: no played pawn to inspect."));
+                    return;
+                }
+                Economy->PrintEconomy(Pawn);
+            }));
 }

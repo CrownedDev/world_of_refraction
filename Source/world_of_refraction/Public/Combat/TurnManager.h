@@ -309,8 +309,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager|Debug")
 	void DebugPrintPendingTurns();
 
-	/** Log TurnBelt in DebugPrintTurnOrder's slot format so output diffs by eye. */
-	UFUNCTION(Exec, BlueprintCallable, Category = "Turn Manager|Debug")
+	/** Log TurnBelt in DebugPrintTurnOrder's slot format so output diffs by eye.
+	 *  Console trigger is wor.PrintBelt (in the .cpp) — a UGameInstanceSubsystem
+	 *  is not on the engine's Exec dispatch chain. */
+	UFUNCTION(BlueprintCallable, Category = "Turn Manager|Debug")
 	void DebugPrintBelt();
 
 private:

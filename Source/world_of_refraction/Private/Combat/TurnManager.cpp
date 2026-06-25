@@ -13,6 +13,8 @@
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Engine/GameInstance.h"
+#include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
 
 // File-local: ETurnType -> label for debug prints.
 static const TCHAR *TurnTypeToString(ETurnType Type)
@@ -752,4 +754,28 @@ void UTurnManager::DebugPrintBelt()
 			   TurnTypeToString(TurnBelt[i].Type));
 	}
 	UE_LOG(LogTemp, Display, TEXT("======================"));
+}
+
+// FAutoConsoleCommandWithWorld — NOT UFUNCTION(Exec). A UGameInstanceSubsystem is not on the
+// engine's FExec dispatch chain, so an Exec here silently no-ops. Console commands resolve from
+// any class. "wor." prefix groups them. State is PIE-only, so the chain is null-checked.
+namespace
+{
+	static FAutoConsoleCommandWithWorld GPrintBeltCmd(
+		TEXT("wor.PrintBelt"),
+		TEXT("Log the turn belt in DebugPrintTurnOrder's slot format (PIE debug)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+				UTurnManager *Mgr = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+				if (Mgr)
+				{
+					Mgr->DebugPrintBelt();
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[TurnManager] wor.PrintBelt: no subsystem (no PIE world?)."));
+				}
+			}));
 }

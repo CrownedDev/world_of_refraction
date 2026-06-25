@@ -23,6 +23,8 @@
 #include "Equipment/Weapons/WeaponManager.h"
 #include "Equipment/Crystals/CrystalManager.h"
 #include "Engine/World.h"
+#include "Engine/GameInstance.h"
+#include "HAL/IConsoleManager.h"
 #include "TimerManager.h"
 #include "Equipment/Rings/RingManager.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -6841,4 +6843,28 @@ void UActionExecutor::DebugForceResetAsync()
 		PendingExecutionCharData = nullptr;
 		bWaitingForAnimationEnd = false;
 	}
+}
+
+// FAutoConsoleCommandWithWorld — NOT UFUNCTION(Exec). A UGameInstanceSubsystem is not on the
+// engine's FExec dispatch chain, so an Exec here silently no-ops. Console commands resolve from
+// any class. "wor." prefix groups them. State is PIE-only, so the chain is null-checked.
+namespace
+{
+	static FAutoConsoleCommandWithWorld GForceResetCmd(
+		TEXT("wor.ForceReset"),
+		TEXT("Force-reset a stuck async action execution context on the ActionExecutor (PIE debug)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+				UActionExecutor *Mgr = GI ? GI->GetSubsystem<UActionExecutor>() : nullptr;
+				if (Mgr)
+				{
+					Mgr->DebugForceResetAsync();
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] wor.ForceReset: no subsystem (no PIE world?)."));
+				}
+			}));
 }

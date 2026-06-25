@@ -5,6 +5,9 @@
 #include "Combat/Grid/CombatGridConstants.h"
 #include "DrawDebugHelpers.h"
 #include "Character/CharacterDataComponent.h"
+#include "Engine/World.h"
+#include "Engine/GameInstance.h"
+#include "HAL/IConsoleManager.h"
 
 void UCombatGridSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -307,6 +310,50 @@ void UCombatGridSubsystem::AutoAssignTeam(const TArray<AActor *> &TeamActors, in
 }
 
 // ==================== DEBUG ====================
+
+// FAutoConsoleCommandWithWorld — NOT UFUNCTION(CallInEditor). A UGameInstanceSubsystem has no
+// Details panel, so a CallInEditor button never renders. Console commands resolve from any class.
+// "wor." prefix groups them. State is PIE-only, so the chain is null-checked.
+namespace
+{
+    UCombatGridSubsystem *ResolveGridFromWorld(UWorld *World)
+    {
+        UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+        return GI ? GI->GetSubsystem<UCombatGridSubsystem>() : nullptr;
+    }
+
+    static FAutoConsoleCommandWithWorld GGridPositionsCmd(
+        TEXT("wor.GridPositions"),
+        TEXT("Log all current combat-grid actor positions (PIE debug)."),
+        FConsoleCommandWithWorldDelegate::CreateLambda(
+            [](UWorld *World)
+            {
+                if (UCombatGridSubsystem *Grid = ResolveGridFromWorld(World))
+                {
+                    Grid->DebugLogAllPositions();
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] wor.GridPositions: no subsystem (no PIE world?)."));
+                }
+            }));
+
+    static FAutoConsoleCommandWithWorld GGridModifiersCmd(
+        TEXT("wor.GridModifiers"),
+        TEXT("Log positional modifiers for all combat-grid actors (PIE debug)."),
+        FConsoleCommandWithWorldDelegate::CreateLambda(
+            [](UWorld *World)
+            {
+                if (UCombatGridSubsystem *Grid = ResolveGridFromWorld(World))
+                {
+                    Grid->DebugLogModifiers();
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] wor.GridModifiers: no subsystem (no PIE world?)."));
+                }
+            }));
+}
 
 void UCombatGridSubsystem::DebugLogAllPositions() const
 {

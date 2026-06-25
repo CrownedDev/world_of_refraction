@@ -61,7 +61,9 @@ public:
      *  listener count on OnWeatherChanged. The listener count is the critical
      *  diagnostic: if it reports 0 during combat, no consumer is bound and the
      *  broadcast goes nowhere. */
-    UFUNCTION(BlueprintCallable, CallInEditor, Category = "Weather|Debug")
+    /** Console trigger: wor.PrintWeather (in the .cpp). No CallInEditor — a
+     *  UGameInstanceSubsystem has no Details panel to host a button. */
+    UFUNCTION(BlueprintCallable, Category = "Weather|Debug")
     void PrintWeatherState() const;
 
     /** Same content as PrintWeatherState, returned as FString for UI / inspection

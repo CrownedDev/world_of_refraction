@@ -23,24 +23,65 @@ Two distinct hubs with different roles, currencies, and what they operate on:
 
 **Run hub flow (the in-run loop):**
 1. **Draft** — offered ~3 inventories drawn from your own pool → **pick 1** → build your loadout from it. The draft is a curated SLICE, not your whole pool (you may own 100 of everything; a run takes ~10 — "take 10, get to the end"). Gives enough for a full loadout, but loadout SLOTS constrain what you keep:
-   - **Base loadout caps:** 1 weapon, 2 rings, 5 spells. Raised by **persistent buffs** (account progression — early runs tight, capacity grows over time).
+   - **Base loadout slots → max (account progression via §8 perks):** the 3 drafted loadouts each FILL these slots; the slot COUNT grows by spending essence on §8 account perks (account-wide — unlock once, applies to all characters). Base→max:
+
+     | GEAR slot  | Base | Max |
+     | ---------- | ---- | --- |
+     | Weapons    | 1    | 5   |
+     | Rings      | 2    | 5   |
+     | Evolutions | 1    | 5   |
+
+     ⚠️ **Account perks grow the GEAR COUNT only** (how many weapons/rings/evolutions you start a run with). They do NOT change skill caps.
+
+     **Skill caps are SEPARATE + ALREADY BUILT (not account-perk-driven):** how many spells/abilities each gear piece holds is the existing TIER-GATED slot system — **6 per gear piece** (F=1…A/S=6, SlotsForContainerTier), **up to 12 abilities** on an ability-crystal'd weapon, **24 spells** total for a Caster (MAX_SPELL_SLOTS/MAX_RING_SPELLS = 6 each). These are EQUIP caps on gear, untouched by the draft.
+
+     **The mechanic:** at run-start, **3 loadouts spawn** (the draft), each a **slice of your owned (account-wide) pool** — what you own shapes what can be drafted. You pick 1. Each loadout fills your starting GEAR slots (small early — 1 weapon/2 rings/1 evo — growing to 5/5/5 as you unlock §8 slot perks). The skills on that gear use the existing per-piece caps. **In-run pickups are usable THAT run but don't carry** — next run you draft fresh from base slots (roguelite reset; account progression = more GEAR options, NOT carried power — the healthy axis).
+
+     **In-run skill growth (NEW — the within-run progression):** you START a run with **3 abilities + 3 spells** and **upgrade up to 12 each WITHIN the run** — the run itself is where your skill kit grows (the roguelite "start lean, get stronger" beat). The 12/12 are the run-MAX (not per-gear equip caps — those stay the existing tier-gated 6-per-piece). You work to gain skills as the run progresses.
+
+**Draft generation uses the existing DROP-CHANCE weighting:** when the 3 loadouts spawn (pool slices), WHICH items surface is weighted by the existing Luck-biased drop/quality curve (F/E/D/C/B/A/S, §11) — rarer items appear less often, common more often. Reuses the built drop-weighting; no new roll system.
+
+**Auto-dedupe — keep the stronger, BANKED AT RUN-END (the earlier deferred idea, now locked):** if you find something you ALREADY OWN, the **STRONGER copy goes into your run inventory** (you use it the rest of the run). The **permanent keep happens ONLY at run-END** — completing the run banks the stronger into your pool (weaker → essence); **dying/failing the run loses the found upgrade** (you keep your original pool copy). So: in-run = use the stronger immediately; permanent = a REWARD FOR FINISHING. Consistent with the death rule (§7 — run progress is volatile; the persistent haul survives, but in-run FINDS bank only on completion). Risk/reward: found great gear is yours to USE all run, but yours to KEEP only if you finish.
+
+### Trial = the run (narrative + structure)
+
+**The frame:** characters are trying to **get their memories back**; **trials** are how — fight through enemy encounters, succeed, recover memories. A **trial = a run = a sequence of enemy encounters** (the combat loop). Structure (fixed count / variable / escalating) **DEFERRED** — concept locked, shape TBD.
+
+**Hubs map to this:** **village** = general/local hub (home base, between trials) · **trial hub** = the run hub (prep/draft/workshop for a trial).
+
+**Succeed → keep what you earned in the trial** (the finish-to-bank rule). Death/fail → forfeit the at-risk gains.
+
+**Partial bank via a VENDOR (mid-trial risk management):** instead of blanket all-or-nothing, a **mid-trial vendor lets you RETURN a few items** — banked safely even if you later die. The number you can return per trial **starts at 1, max 5** (account-perk-scaled, like gear slots). So partial-banking is PLAYER-CONTROLLED: "push deeper, or stop and lock in these items?" (This is the return-to-pool flow, available mid-trial, capped per trial.)
+
+**World Stats — in-trial, run-scoped, passive-scaled start:** World Stat Points are **earned in-trial** (defeating enemies / completing the trial) and **spent to build THIS character's stats DURING the run** — run-scoped (reset each trial; consistent with the existing run-volatile WSP rule). **Passives raise the STARTING amount** (thinking ~4 max to start) — account progression lets you begin a trial with more WSP. So WSP is the in-trial character-building currency: earn fighting → spend to power up this trial → reset next trial; passives set the floor.
+
+**Class shapes what's USABLE from a draft — off-class gear RETURNS for Gold (kept, not scrapped):** Generic uses TWO weapons; other classes (Caster/Resonator) may use no/fewer weapons (Resonator is ring-based). So a class won't use everything it drafts. Off-class drafted gear (e.g. a Resonator's weapon) → **RETURN to the account-wide pool for Gold** — the item is KEPT (a Generic can use it later; the pool is shared), NOT destroyed. **No essence from return.** You only get essence by deliberately DISMANTLING (which destroys the item). So off-class gear is never waste — return it (Gold now, kept for another character), don't scrap it. Reinforces the faucet split: RETURN = pool + Gold (item kept) · DISMANTLE = essence (item destroyed) · BREAK = pool + essence (forced salvage).
+
+**Skill slotting + special-gear override (already built):** you fill a gear piece's skill slots with abilities/spells YOU OWN ("I have a weapon + abilities, let me use them together"). Special gear may come with skills PRE-ATTACHED — but it's TAKE-IT-OR-LEAVE-IT: you can use the attached skills OR replace them with your own (the existing AssignedSpells/AssignedAbilities sequential override). Not forced.
    - Surplus beyond your slots → **returned for Gold** (that's the "why return" — you're given more than fits).
-   - **Themed inventories (designed, requirement-gated):** the 3 options are normally RANDOM, BUT if you meet all the requirements for a specific themed inventory (hand-designed builds), you have a CHANCE to be offered it as one of the options. Discovery/reward mechanic — assemble the requirements → chance to draft a curated themed build. *(Themed inventory definitions + their requirements = a design+content task, deferred with the pool arc.)*
+   - **Themed inventories — NARRATIVE memory-recovery (designed):** a themed inventory is a **specific character's actual kit** — "this is the loadout [character] used." Ties to the core narrative (recovering memories): assembling a character's kit = **a recovered memory made playable**. The theme can be anything (element/playstyle/concept) but the FRAMING is narrative.
+     - **Whose kits:** a MIX — **legendary figures, NPCs, and your own past selves**. Wide narrative net (lore legends to embody, world NPCs, recovered memories of who you were).
+     - **Requirement = own the EXACT specific items** that character used (a collection/discovery hunt — find the precise gear to reconstruct their kit). Exact, not category — precise + collectible ("found the last piece of [Legend]'s loadout").
+     - **Payoff = NARRATIVE UNLOCK** — assembling a kit recovers the memory (a story/lore beat). Reward is narrative, not (just) power — fits the memory-recovery core.
+     - **Definitions = `UThemedInventoryData` asset per character** (their exact gear list + lore beat; the character can set loadouts in it).
+     - **⭐ PLAYER-CREATED PRESETS (also draftable):** players save their own preset loadouts, which ALSO have a chance to appear as draft options (only if you OWN the preset's items — same ownership rule as authored themes). Makes the themed-draft pool INFINITE + personal (your favorite builds resurface), not just finite hand-designed themes.
+     - **The 3-way draft option model:** each draft slot can be (a) a RANDOM pool slice, (b) an AUTHORED themed inventory (legend/NPC/past-self, if you own the exact kit), or (c) a PLAYER PRESET (your saved build, if you own its items).
+     - **Chance model (anti-dilution — VALIDATED against roguelite discourse):** START = a chance that ONE themed/preset loadout appears among the 3 options per run. **Persistent effects INCREASE it** (the chance AND eventually the NUMBER of themed slots — a maxed account sees 2-3 themed options). ⚠️ The increase is the **ANTI-DILUTION mechanism**: as your eligible-theme pool GROWS (more kits assembled, more presets saved), the per-theme chance would otherwise SHRINK ("pool dilution" — the documented roguelite failure where unlocking more makes finding any one thing rarer). The persistent increase keeps themes FINDABLE as the pool grows. **Weighting:** which eligible theme fills the slot is weighted — boost a RECENTLY-COMPLETED kit so a freshly-assembled memory is likely to show up soon (the "I just finished [Legend]'s kit → now I get to play it!" payoff). *(Theme definitions + content = a design+content task; the SYSTEM is designed here.)*
 2. **Build** — keep what you'll use this run.
 3. **Return** — surplus → back to pool (you still OWN it — "I'll use it a different run") → **Gold**. NOT a loss; you keep the unlock, get Gold now.
 4. **Shop** — buy gear/skills for the run with Gold (run shop).
 
 **Hub composition — services + shops (LOCKED):**
 
-| Service / Shop               | Local hub | Run hub | Cost                                                                  |
-| ---------------------------- | --------- | ------- | --------------------------------------------------------------------- |
-| **Purchase**                 | ✅ Prisms  | ✅ Gold  | currency differs BY HUB; stock by per-item flag (main / run / both)   |
-| **Upgrade** (item tier-up)   | —         | ✅       | upgrade essence + ½ Reality (NOT Gold) — build power *during* the run |
-| **Downgrade** (respec)       | ✅         | ✅       | partial essence refund (½ step, no Reality)                           |
-| **Repair** (fix broken gear) | ✅         | ✅       | (cost TBD)                                                            |
-| **Roll / Reroll** (stats)    | ✅         | ✅       | Reality + Prisms                                                      |
-| **Merge** (crystals)         | ✅         | ✅       | Prisms                                                                |
-| **Draft / Return**           | —         | ✅       | Gold (return surplus → pool + Gold)                                   |
+| Service / Shop               | Local hub | Run hub | Cost                                                                                                                    |
+| ---------------------------- | --------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Purchase**                 | ✅ Prisms  | ✅ Gold  | currency differs BY HUB; stock by per-item flag (main / run / both)                                                     |
+| **Upgrade** (item tier-up)   | —         | ✅       | upgrade essence + ½ Reality (NOT Gold) — build power *during* the run                                                   |
+| **Downgrade** (respec)       | ✅         | ✅       | partial essence refund (½ step, no Reality)                                                                             |
+| **Repair** (fix broken gear) | ✅         | ✅       | **flat by tier** (F cheap → S more); cheap upkeep. **Gold at run hub, Prisms at local hub** (currency-follows-location) |
+| **Roll / Reroll** (stats)    | ✅         | ✅       | Reality + Prisms                                                                                                        |
+| **Merge** (crystals)         | ✅         | ✅       | Prisms                                                                                                                  |
+| **Draft / Return**           | —         | ✅       | Gold (return surplus → pool + Gold)                                                                                     |
 
 **The rule:** the HUB determines **purchase** currency (Prisms local / Gold run); **services carry their own designed cost regardless of hub** (upgrade=essence anywhere, roll=Reality+Prisms anywhere, merge=Prisms anywhere). So Prisms IS spendable in the run hub — just for services (roll/merge), not for buying gear (that's Gold). Item-to-shop assignment is a per-item FLAG (sold-in-main / sold-in-run / both), so the same item type can appear in both shops at different currencies.
 
@@ -87,6 +128,8 @@ Same destination (pool), different trigger + reward. Kept separate so the reward
 - **Evolutions are gear** (3rd gear type alongside weapons/rings) — pool-persistent, drawn per-run, same rules.
 - **Break splits by item type:**
   - **Gear + skills (weapons/rings/spells/abilities + EVOLUTIONS)** → **return to pool (damaged, repairable) + essence.** Durable layer — not destroyed; goes back to the pool to be fixed (repair = new mechanic, NPC, for a cost).
+
+  **Repair cost (RESOLVED):** **FLAT by tier** (F cheap → S more), regardless of how much durability is missing — a simple per-tier price, not damage-scaled. **Cheap — a light maintenance tax**: gear is the durable layer you KEEP, so repair shouldn't punish use (don't compete with the big sinks — essence/Reality). **Currency-follows-location: Gold at the run hub, Prisms at the local hub** (repair is in BOTH hubs; you pay the local currency). Numbers (the per-tier Gold/Prisms values) = a tuning pass.
   - **Items (crystals/stones)** → **CONSUMED.** The burn-fuel layer — broken (or run-end) = gone (→ essence). No pool-return, no repair. You just lose them.
   *(⚠️ INTERIM: clusters iv + B currently DESTROY + essence for everything, because the pool doesn't exist to return to. The essence yield is correct + final; the "gear/skills return to pool instead of destroy" half layers on with the pool arc. Crystals are ALREADY correct (consumed + essence — no change needed for them).)*
 - **Locked-on-gear evolutions:** some weapons/rings come with a built-in evolution crystal that CAN'T be removed — it **counts toward the 5/run** (bringing that weapon uses an evo slot).
@@ -106,6 +149,43 @@ Same destination (pool), different trigger + reward. Kept separate so the reward
 So crystals are a **per-run expenditure**: gear is the durable frame (reverts to bare, persists), crystals are the fuel (slot → use → consumed). This ties the crystal economy together — merging (produce higher crystals) + dismantle→essence (recycle) feed the per-run burn. Pre-attach saves clicks, not crystals (still deducted on spawn).
 
 **Design principle — meta-progression health (validated against roguelite discourse):** Player sentiment strongly favors meta-progression that **expands OPTIONS/variety** (the praised pattern: bigger pool, more builds) over **permanent STAT/power inflation** (the criticized pattern: early runs feel weak, progression = grind-gate). WoR sits mostly on the GOOD side (the pool = option-expansion; per-run draft + crystal-burn = fresh build each run, the "temporary layer" that keeps runs distinct — cf. Rogue Core, Slay the Spire). **The watch-point: the LEVELING system is persistent power growth — the criticized axis.** Counterbalances that keep it healthy (all already designed): draft constraints (1 weapon / 2 rings / 5 spells), 5-evo-per-run cap, crystal consumption (re-build item layer each run), themed inventories, and difficulty scaling. **Build rule: leveling should make MORE options viable, not crown ONE** (the tier×quality split + draft-as-slice help — a leveled "unique F" competes with a base S; you don't always draw your favorite). If leveling ever makes one loadout strictly best → the draft degrades to "always pick that" → the criticized grind. Keep leveling broadening, not dominating.
+
+### Pool scope — ACCOUNT-WIDE shared, skins the only per-character exception (LOCKED)
+
+**The pool is ACCOUNT-WIDE** — all characters share ONE owned collection (weapons, rings, evolutions, spells, abilities, crystals, currency, essence) — **gear AND skills are account-wide** (confirmed). Plus the §8 slot-expansion perks are account-wide (unlock once, all characters). Everything account-wide EXCEPT skins. No per-character inventory ownership; every character draws from the same pool. Your account IS your collection; characters are just who you take into a run.
+
+**Cosmetics are ACCOUNT-WIDE (shared) — EXCEPT skins.** Chosen styles (defense style, infusion style, etc.) apply across all characters → can live on the pool, shared like everything else. **Skins** are the character-specific exception — and when built ("when the time comes"), skins will likely be **an entry on the CHARACTER DATA** (not the pool), keyed per-character. So: cosmetic STYLES = account-wide pool; SKINS = per-character on character data, deferred.
+
+**Cosmetic-loadout spec (SCOPED, DEFERRED — "when the time comes"):** Survey confirmed the clean shape:
+- **Options on UCosmeticsData:** add `FCosmeticStyleSet` struct (StyleId + the overridable axes: dodge L/R, block, parry montages + InfusionDisplay) + `TArray<FCosmeticStyleSet> StyleLoadouts`. Bare fields = the default; per-field fallback (null field in a chosen set → bare default, so partial sets work).
+- **Pick on the pool:** an ACCOUNT-WIDE style selection (SaveGame, alongside wallet) — styles are shared across characters, so a single account-level pick (not per-character). Store the FName StyleId (not asset ref) — sidesteps the disk-save soft-pointer caveat. ⚠️ (Survey assumed per-character keying because chars have different UCosmeticsData assets — revisit: if all characters share a style choice, a single FName works; if a char's UCosmeticsData lacks the chosen style, fall through to its default. SKINS, separately, will be per-character on character data — deferred.)
+- **Resolver:** `ULoadoutComponent::ResolveStyleSet()` — pick-set-and-loadout-exists? → use; else nullptr. Every cosmetic read funnels through ~6 LoadoutComponent getters (ONE chokepoint — external callers DefenseSystem/InfusionVFX never change). Each getter: resolved field non-null? → use; else bare default. Parry keeps its weapon-override on top.
+- **Parity-safe** (no pick → default → byte-identical). Cluster: (i) slots [struct+array+pool map], (ii) wiring [resolver+5 getter repoints]. Picker UI = later.
+- **Precedent:** the parry-per-weapon override (LoadoutComponent GetParryMontage) is the exact pattern to copy.
+- Alternatives don't exist yet — build the mechanism, ship with one (default) until style sets authored. (Character A's skin ≠ Character B's). The cosmetic/skin PICK is keyed per-character; everything else in the pool is shared. *(Cosmetic system deferred — "when the time comes." The pool itself is flat/account-wide now; the per-character cosmetic layer is a later addition.)*
+
+**⚠️ This OVERRIDES the earlier §9 "items are per-character (CharacterId owner)" note** — the simpler account-wide-shared model is locked. No CharacterId keying on inventory; the pool is flat + shared. (The §9 PlayerState mapping still applies for the persistent-vs-run-volatile axis; just the per-character-inventory split is dropped in favor of account-wide.)
+
+### Pool structure — 3 organizational categories + filter layer (LOCKED)
+
+The pool is STRUCTURED (not a flat type-mirror) — organized how a player browses their collection. Categories are ORGANIZATIONAL (browse/filter grouping); typed storage stays distinct underneath.
+
+| Category      | Contains                                               | Storage model                         | Display                        |
+| ------------- | ------------------------------------------------------ | ------------------------------------- | ------------------------------ |
+| **Knowledge** | spells (FSpellInstance) + abilities (FAbilityInstance) | instance lists                        | individual items               |
+| **Armoury**   | weapons + rings + evolutions (all 3 gear types)        | instance lists                        | individual items               |
+| **Items**     | crystals + stones                                      | **counted stacks** (FCrystalId→int32) | **stacks with ×N quantities**  |
+| *(Wallet)*    | currency (5 scalars + 14 typed essence)                | value-block                           | separate from the 3 categories |
+
+**Items sub-buckets (2, pool-level only — storage untouched):** **Crystals** (gems, IsGemType) + **Augment Stones** (stat stones + ability stones — everything non-gem). Split via the existing CrystalTypeHelpers classification at the POOL/browse layer; run-side storage stays one pile (deeper storage split deferred). Items are COUNTED STACKS (fungible, no quality, tier is the stack key) — shown as ×N, not expanded to individual rows.
+
+**Filter design (fixed axes):** `FPoolFilter` (Element / WeaponType / School / Tier / Quality — optional per axis, BP-friendly bUseX+X pairs) + an **accessor/translator layer** (the architectural core — hides where each attribute lives: instance vs asset-deref vs key, per type) + per-category getters (GetKnowledge/GetArmoury/GetItems applying only valid axes) + `QueryAll` (cross-category, element is the natural cross-axis). Quality applies to Knowledge+Armoury only (crystals have none). Asset derefs (element-on-spell, weapon-type, school) are cheap (always-loaded). The accessor layer is SHARED by pool + run inventory.
+
+**Attribute homes (the filter crux — element lives in 3 places):**
+- Element: spells=asset (ESpellElement), weapons/rings=instance-via-slotted-crystal, crystals=key (FCrystalId). One unified enum (ESpellElement), three lookups → the accessor layer reconciles.
+- Weapon-type: weapons/abilities=asset. School: spells=asset. Tier: instance (gear/skills) / key (crystals). Quality: instance (gear/skills) / N/A (crystals).
+
+**Inventory convergence (deferred, small):** the run inventory already stores by-type distinct — so converging it to the 3-category model is a THIN category-accessor facade (GetKnowledge=Spells+Abilities, etc.) + sharing the accessor/filter layer. No storage refactor, no migration. Build the structured pool first; facade the run later.
 
 **⚠️ POOL — DISCOVERY SURVEY FINDINGS (2026-06, scope correction):** The pool is MORE than a repointing pass — three things the design assumed exist DON'T:
 1. **No persistent layer** — every owned thing (weapons/rings/spells/crystals/CURRENCY) lives on the run-scoped Blueprint character. Nothing survives PIE/app restart. No home above the character.
@@ -136,11 +216,39 @@ So crystals are a **per-run expenditure**: gear is the durable frame (reverts to
 
 The hub round-table has service NPCs gating maintenance/upgrade/removal. **Players can ATTACH (self-service), but UPGRADING and REMOVING go through the relevant NPC.** This makes the hub meaningful and gives each action a *place*.
 
-| NPC              | Handles   | Services                                                                                              |
-| ---------------- | --------- | ----------------------------------------------------------------------------------------------------- |
-| **Blacksmith**   | weapons   | upgrade (tier-up), remove crystals/attachments                                                        |
-| **Jeweler**      | rings     | upgrade (tier-up), remove crystals/attachments                                                        |
-| **Spiritualist** | evolution | upgrade (tier-up) evolution, remove evolution (from primary OR gear), attach evolution to weapon/ring |
+| NPC              | Handles                | Services                                                                                                                                                                    |
+| ---------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Blacksmith**   | weapons                | upgrade (tier-up), remove attachments; **weapon-crystals** (sell/refine/attach to weapons)                                                                                  |
+| **Jeweler**      | rings                  | upgrade (tier-up), remove attachments; **ring-crystals** (sell/refine/attach to rings)                                                                                      |
+| **Stone Smith**  | augment stones         | sell/buy, refine, **attach** augment stones (any gear — not split by target)                                                                                                |
+| **Spiritualist** | evolution              | upgrade (tier-up) evolution, remove evolution (from primary OR gear), attach evolution to weapon/ring                                                                       |
+| **Spiritualist** | evolution + **FUSION** | evolution services (attach/upgrade/unslot) + **fusing** (combine 2 attachables → fusion stone, attach to gear). The 'advanced augmentation' NPC — no separate Fusion Smith. |
+
+**Attachment-service organizing principle:** crystals split **by target gear** (Blacksmith=weapon-crystals, Jeweler=ring-crystals — each gear-smith owns their gear's crystals); stones → **one specialist** (Stone Smith, any target); **fusion → the Spiritualist** (folded in — evolution + fusion are both 'advanced augmentation'; no separate Fusion Smith). Crystals piggyback on the gear-smith who owns that gear; stones/fusion are distinct enough for dedicated smiths.
+
+**Crystal vs stone refining (domain model — VERIFIED against code):** "Refined" is a **GEM-only** concept (a gem's slottable form: raw gem → refined gem). **Stones never refine** — verified: nothing in code produces/reads a refined stone. So crystal storage splits **3 maps**: GemItem (raw), GemRefined (slottable), StoneItem (consumable stones). NO StoneRefined (dead — no producer/consumer).
+- **Consumable stones** (DamageStone/HealingStone/etc.) live in StoneItem (use-path).
+- **Attach-only stones** (AbilityStone, FusionStone) live in NEITHER map — they attach via **equipment authoring** (designed onto the asset, inflated by FromAttachedItem), not from an inventory pool.
+
+**⚠️ KEY FINDING — refine→attach machinery is UNBUILT (gems AND stones):** there's currently NO runtime "refine a crystal" path and NO "attach from inventory pool onto gear" debit path. Gear attachments are AUTHORED on the equipment asset (seeded at creation), not pulled from inventory. RefinedCrystals is populated only by merge/authoring, consumed only by merge/dismantle — never by an equip-onto-gear path. **So the smith services below (refine crystals, attach to gear, stone-smith refining) are largely NEW systems to build, not existing wiring.**
+
+**Smith services = new systems (scope honestly):**
+- **Crystal cut/refine** (raw gem → refined): a new RefineCrystal op (GemItem → GemRefined). Unbuilt.
+- **Attach-from-pool onto gear** (refined gem / stone → socketed on weapon/ring, debiting inventory): a new attach-debit path. Unbuilt (today attachments are authored-only).
+- **Stone-smith "refining"**: stones have NO refined form today — a stone refine-form would be a genuinely new mechanic if wanted (not "keep an existing map"). Optional future.
+
+**Spiritualist owns FUSION (folded in — decision):** the Spiritualist combines crystals/stones → a **fusion stone**, and attaches it (plus evolutions) to gear. Fusion stones are PLAYER-CREATED (you fuse 2 attachables you own), NOT looted. **The fusion MECHANIC is already built + Live** (FusionStones.md): valid pair = stat-stone + one contributor (crystal/stat-stone/ability-stone), never evolution; keeps both halves' effects + a tier-scaled bonus% to a chosen substat (formula (TierValue(A)+TierValue(B))/2); FFusionId identity, EAttachedItemKind::Fusion slot, half-essence break — all built. **Still open (the genuine gaps):** (1) the SPIRITUALIST as the fusion SERVICE/NPC interaction (the crafting action at a cost — "Phase 3 crafting"); (2) ring-mounted fusion stones (planned: a crystal-containing fusion stone allowed on rings; bare stat/ability stays weapon-only) — designed, not built.
+- ✅ RESOLVED: a fusion stone IS the player-created product of fusing 2 attachables (already built + Live — FusionStones.md). The Spiritualist performs the fusion.
+
+**⚠️ RUNTIME ATTACH-OP GAP (the connector NPC attach services need):** "If we had UI, is it plug-and-play?" — answer is MIXED, split by attachment type (verified):
+- ✅ **Evolution attach/detach is BUILT** — `UInventoryComponent::AttachEvolutionToWeapon`/`AttachEvolutionToRing` + remove variants exist. UI plug-and-play. (So the Spiritualist's EVOLUTION half works.)
+- ✅ **Crystal DETACH built** (`RemoveCrystalFromWeapon`/`Ring`); all loadout management built.
+- ❌ **Crystal ATTACH = GAP** — no runtime `AttachCrystal*`; `AttachedItem` is written only at build-time (`FromAttachedItem`). Socketing a crystal at runtime needs a new op.
+- ❌ **Fusion ATTACH = GAP** — no runtime `AttachFusion`. The Spiritualist attaching a FUSION STONE to gear has NO backend op to call yet. (The slot holds Fusion fine; nothing PUTS it there at runtime.)
+- ❌ **`OnInventoryChanged` delegate = GAP** — inventory broadcasts nothing on mutation; flagged "build FIRST" (the foundation signal UI/loot react to).
+- **Authored pre-attach WORKS** (a weapon designed with a fusion/crystal baked in inflates via `FromAttachedItem`).
+- **Templated, not from-scratch:** the evolution attach methods are the TEMPLATE — crystal/fusion attach mirror them. Bounded build. Full runtime-gap catalogue lives in `InstanceBasedRuntimeLayer_Design.md` (wider codebase; this is the attach subset).
+- **So:** NPC attach services need crystal/fusion `Attach*` ops + `OnInventoryChanged` before UI can be plug-and-play. Evolution-attach is the one already done.
 
 **Self-service (no NPC):** attaching an evolution to the **primary slot** (player clicks the evolution → confirmation → slotted). Everything else (level, remove, attach-to-gear) is NPC-gated.
 
@@ -246,15 +354,24 @@ Two growth currencies, **split by category** (both single scalars), each a per-c
 - **Build dependency:** the deconstruct *action* needs tier-on-instance (to read a dupe's current tier) + the skill collections — a **step-7 spend-layer feature**, not part of the currency-wallet build. The wallet only needs `AddEssence(pool, n)` (which it has); deconstruct calls it later.
 - **Guard:** the ½ spread keeps acquiring-and-keeping worthwhile vs scrap-everything — dismantling returns less than building, so you can't farm-scrap-rebuild for free value.
 
-### 3.1 Effect Transfer (deferred — own design thread)
+### 3.1 Spiritualist Effect Crafting (designed — was "Effect Transfer")
 
-**Idea:** dismantling shouldn't *only* give raw essence — it could optionally **extract the item's aspect/effect** as a transferable buff instead of (or alongside) the essence. You break a Fire weapon → choose: take its essence value, OR harvest its "fire aspect" as a buff you bank. The buff can land as:
-- a **persistent buff** (account-level, permanent — lives in §8 perks), or
-- a **gear buff** (grafted onto a specific item you own).
+**Reframed:** NOT extraction-from-dismantle. It's a **Spiritualist crafting service** (their 3rd role: evolution + fusion + **effect crafting**) — the Spiritualist **rolls tiered effects onto your gear**.
 
-This is the Destiny-2/PoE-imprint model — salvage gives currency *and* lets you transfer an item's identity onto something you keep. Makes dismantle a richer choice: scrap for essence, or harvest the special property.
+**The system:**
+- **Universal 4 effect slots per gear piece** — no gear ever exceeds 4. Slots are UNLOCKED (start 1 → up to 4) via **§8 account perks** (account-wide, like the gear-draft slots). Flat cap, not tier-driven.
+- **Effects are TIERED F-S** — a rolled effect arrives at a random tier; tier scales its strength (F=weak … S=strong). ⚠️ **NET-NEW:** effects have NO tier axis today (`FSkillEffect`/`UEffectDefinition` are untiered) — adding a tier to effects (so they roll/scale) is the one genuinely new piece this needs.
+- **Fixed catalog** — ANY authored effect can roll (no gear-type/element gating; the full effect pool is available to any gear).
+- **Pure-random gacha** — pay → roll → random effect at a random tier → slots into one of the gear's (up to 4) slots. **Rerollable** (don't like it → reroll).
+- **Currency: roll = GOLD, reroll = REALITY** (Reality is the reshape/reroll signature element — thematically the reroll currency across the game).
 
-**Status: DEFERRED — own design pass.** This is a meatier system than the essence-source change (needs: what counts as an "aspect," how many buff slots gear has, can aspects stack, extraction cost). Not scoped here. Flagged so it isn't lost — revisit as the **Effect Transfer** arc after the core essence/dismantle loop is built.
+**Sits on existing machinery:**
+- Lands in **`AppliedBuffs`** (the designed home — `InventorySystem_Design.md`'s `FItemInstance.AppliedBuffs`, "stamped effect snapshots"; now Spiritualist-stamped not shop-stamped).
+- Effect unit = **`UEffectDefinition`** (exists; has a `Price` hook already).
+- Stacking = the existing **def-identity merge** (same effect+state → merge; different → separate).
+- Roll = mirrors the existing **tier-roll / drop-curve** system.
+
+**Still open (smaller):** the effect-tier scaling rule (how F-S maps to an effect's magnitude — per-effect, or a universal multiplier?); reroll cost curve in Reality; whether a roll can target a slot or always fills the next open one. The SYSTEM is designed; these are tuning + the effect-tier-axis build.
 - **PIE-tunable:** the ½ spread (vs ⅓ for costlier scrapping); cumulative-to-tier (fairer) vs per-step (stingier) — locked at ½ × cumulative.
 
 **Tier-up cost (per step), partial-spend allowed:**
@@ -602,26 +719,47 @@ Turn-based **roguelite** (meta-progression persists). Gear cushions low world st
 
 ## 8. Persistent buffs — account perks (essence sink, permanent)
 
-Permanent run-start advantages bought with Essence, surviving death. They **raise the floor**, they do not skip the climb. Lean toward *perceivable* perks (felt immediately) over invisible % boosts.
+Permanent run-start advantages bought with Essence, surviving death. They **raise the floor**, they do not skip the climb. Lean toward *perceivable* perks (felt immediately) over invisible % boosts. **Account-wide** — unlock once, applies to every character (consistent with the account-wide pool).
 
-**Guard-rail:** keep floor-raisers small — especially World Stat head-start — or the run-axis (which resets on death) gets hollowed out by stacked perks.
+**Structure — TIERED TRACKS:** most perks are incremental tracks you buy up step-by-step (e.g. Weapon Slot 1→2→3→4→5), each step costing more essence than the last. A few are single one-off unlocks. This is the connective tissue — nearly every progression mechanic designed this session routes through here.
 
-| Perk                    | Effect                                                                              | Cap                     | Scope     |
-| ----------------------- | ----------------------------------------------------------------------------------- | ----------------------- | --------- |
-| **Head Start**          | begin each run with +N World Stat Points pre-allocated                              | ≤ ~half max (≤10 of 21) | permanent |
-| **Starting Purse**      | begin each run with +X Gold                                                         | small                   | permanent |
-| **Signature Weapon**    | one owned high-tier weapon guaranteed into the run draft                            | 1                       | permanent |
-| **Signature Spell**     | one owned high-tier spell guaranteed into the run draft                             | 1                       | permanent |
-| **Roll Budget**         | gear bonus-stat / resistance rolls generate from a larger budget                    | modest                  | permanent |
-| **Baseline Resistance** | begin with a small flat resistance pool                                             | small                   | permanent |
-| **Extra Draft**         | +1 inventory option at run-start draft                                              | 1                       | permanent |
-| **Drop-Grade Shift**    | every drop rolls one grade better (curve shifts up a step; S-odds apply at A, etc.) | —                       | permanent |
+**Guard-rail:** keep floor-raisers small — especially the WSP head-start — or the run-axis (which resets on death) gets hollowed out by stacked perks.
 
-**Why essence:** it's the long-tail currency — once a core loadout is maxed, account perks give players something to keep pouring essence into.
+### Slot-expansion tracks (the draft/gear capacity — this session)
+| Track               | Steps | Effect                                                                                   |
+| ------------------- | ----- | ---------------------------------------------------------------------------------------- |
+| **Weapon Slots**    | 1 → 5 | how many weapons each drafted loadout starts with                                        |
+| **Ring Slots**      | 2 → 5 | how many rings each drafted loadout starts with                                          |
+| **Evolution Slots** | 1 → 5 | how many evolutions each drafted loadout starts with                                     |
+| **Effect Slots**    | 1 → 4 | effect-craft slots PER GEAR PIECE (Spiritualist effect crafting, §3.1) — universal cap 4 |
+| **Vendor Return**   | 1 → 5 | items you can bank at the mid-trial vendor (partial-bank, §7)                            |
 
-**Open:** exact essence cost per perk; per-perk caps (table is structure + guard-rails, not final tuning).
+### Run-start floor tracks
+| Track                   | Steps / Cap | Effect                                                                                                                               |
+| ----------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **WSP Head Start**      | up to ~4    | begin each run with +N World Stat Points pre-allocated (CAP ~4 — small, keep the run-axis meaningful; reconciled from the older ≤10) |
+| **Starting Purse**      | small       | begin each run with +X Gold                                                                                                          |
+| **Baseline Resistance** | small       | begin with a small flat resistance pool                                                                                              |
+| **Roll Budget**         | modest      | gear bonus-stat / resistance rolls generate from a larger budget                                                                     |
 
----
+### Themed-inventory tracks (anti-dilution, §1 draft)
+| Track             | Effect                                                                                                                                       |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Themed Chance** | raises the chance a themed/preset loadout appears in the draft — THE ANTI-DILUTION lever (keeps themes findable as your eligible pool grows) |
+| **Themed Slots**  | raises the NUMBER of themed options that can appear (1 → 2-3 at a maxed account)                                                             |
+
+### Single one-off unlocks
+| Perk                 | Effect                                                                        | Cap        |
+| -------------------- | ----------------------------------------------------------------------------- | ---------- |
+| **Extra Draft**      | +1 inventory OPTION at the run-start draft (4 options to pick from, not 3)    | 1          |
+| **Signature Weapon** | one owned high-tier weapon guaranteed into the run draft                      | 1          |
+| **Signature Spell**  | one owned high-tier spell guaranteed into the run draft                       | 1          |
+| **Drop-Grade Shift** | every drop rolls one grade better (curve shifts up a step; S-odds at A, etc.) | 1          |
+| **Reroll Charge**    | +1 gear reroll/run (the §12.2 perk hook)                                      | per design |
+
+**Why essence:** it's the long-tail currency — once a core loadout is maxed, account perks give players something to keep pouring essence into. Tiered tracks deepen the sink (each step costs more).
+
+**Open (numbers only — structure is locked):** exact essence cost per track step; the cost CURVE per track (linear vs escalating); final per-track caps. The tables above are structure + guard-rails, not final tuning.
 
 ## 9. Open items
 

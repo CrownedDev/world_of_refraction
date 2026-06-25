@@ -171,12 +171,14 @@ public:
 
     // ==================== DEBUG ====================
 
-    /** Log all current positions */
-    UFUNCTION(BlueprintCallable, Category = "Combat Grid|Debug", CallInEditor)
+    /** Log all current positions. Console trigger: wor.GridPositions (in the .cpp).
+     *  No CallInEditor — a UGameInstanceSubsystem has no Details panel to host a button. */
+    UFUNCTION(BlueprintCallable, Category = "Combat Grid|Debug")
     void DebugLogAllPositions() const;
 
-    /** Log modifiers for all actors */
-    UFUNCTION(BlueprintCallable, Category = "Combat Grid|Debug", CallInEditor)
+    /** Log modifiers for all actors. Console trigger: wor.GridModifiers (in the .cpp).
+     *  No CallInEditor — a UGameInstanceSubsystem has no Details panel to host a button. */
+    UFUNCTION(BlueprintCallable, Category = "Combat Grid|Debug")
     void DebugLogModifiers() const;
 
     /** Draw debug visualization of grid in world */

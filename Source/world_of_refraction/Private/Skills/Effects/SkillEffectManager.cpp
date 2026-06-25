@@ -18,6 +18,8 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Engine/GameInstance.h"
+#include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
 
 // ========================================
 // SUBSYSTEM LIFECYCLE
@@ -327,6 +329,71 @@ void USkillEffectManager::ApplyEquipmentEffects(
 			ApplyEffect(Target, Runtime, nullptr, Source.EffectName, -1);
 		}
 	}
+}
+
+// FAutoConsoleCommandWithWorld — NOT UFUNCTION(Exec). A UGameInstanceSubsystem is not on the
+// engine's FExec dispatch chain, so an Exec here silently no-ops. Console commands resolve from
+// any class. "wor." prefix groups them. State is PIE-only, so the chain is null-checked.
+namespace
+{
+	static FAutoConsoleCommandWithWorld GStartingEffectsCmd(
+		TEXT("wor.StartingEffects"),
+		TEXT("Inspect the active combatant's starting effects per gear source (PIE debug)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+				USkillEffectManager *Mgr = GI ? GI->GetSubsystem<USkillEffectManager>() : nullptr;
+				if (Mgr)
+				{
+					Mgr->WOR_StartingEffects();
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] wor.StartingEffects: no subsystem (no PIE world?)."));
+				}
+			}));
+
+	static FAutoConsoleCommandWithWorld GPrintAllEffectsCmd(
+		TEXT("wor.PrintAllEffects"),
+		TEXT("Print active effects for every tracked actor (PIE debug)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+				USkillEffectManager *Mgr = GI ? GI->GetSubsystem<USkillEffectManager>() : nullptr;
+				if (Mgr)
+				{
+					Mgr->DebugPrintAllEffects();
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] wor.PrintAllEffects: no subsystem (no PIE world?)."));
+				}
+			}));
+
+	static FAutoConsoleCommandWithWorld GPrintEffectsCmd(
+		TEXT("wor.PrintEffects"),
+		TEXT("Print active effects for the active combatant (PIE debug)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+				USkillEffectManager *Mgr = GI ? GI->GetSubsystem<USkillEffectManager>() : nullptr;
+				if (!Mgr)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] wor.PrintEffects: no subsystem (no PIE world?)."));
+					return;
+				}
+				UTurnManager *TurnMgr = GI->GetSubsystem<UTurnManager>();
+				AActor *Actor = TurnMgr ? TurnMgr->GetCurrentActor() : nullptr;
+				if (!Actor)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] wor.PrintEffects: no active combatant (combat not active?)."));
+					return;
+				}
+				Mgr->DebugPrintEffects(Actor);
+			}));
 }
 
 void USkillEffectManager::WOR_StartingEffects()

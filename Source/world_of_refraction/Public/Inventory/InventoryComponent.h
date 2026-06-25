@@ -30,6 +30,7 @@ class UInventoryData;
 class UCharacterData;
 class UCrystalInventoryComponent;
 class UEvolutionInventoryComponent;
+class UPoolSubsystem;
 
 /**
  * UInventoryComponent
@@ -51,6 +52,18 @@ public:
     /** Initialize inventory from CharacterData template */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Setup")
     void InitializeFromCharacterData(UCharacterData *CharacterData);
+
+    /** DRAW the run inventory FROM the account pool instead of the authored asset
+     *  (Pool Draw step 2). Mirrors InitializeFromInventoryAsset's CLEAR + POPULATE,
+     *  but WHOLE-ENTRY copies the pool's owned instances — preserving instance
+     *  identity (PersistentID / Tier / Quality / InstanceID). Does NOT re-run the
+     *  asset factories (which would mint new GUIDs and reset tier to asset-base).
+     *  SavedLoadouts still inflate from the owner's authored CharacterData->Inventory,
+     *  resolved against the freshly-drawn owned inventory. NOT YET wired into
+     *  InitializeFromCharacterData — reachable only via the wor.DrawFromPool debug
+     *  command until step 3 (the pool-if-present-else-authored branch). */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Setup")
+    void InitializeFromPool(UPoolSubsystem *Pool);
 
     /** Learned spells (max 50) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Spells")
@@ -265,6 +278,18 @@ public:
     /** Get inventory summary for debug */
     UFUNCTION(BlueprintPure, Category = "Inventory|Debug")
     FString GetInventorySummary() const;
+
+    /** Per-INSTANCE state dump (the diff tool for the pool draw — counts alone can't
+     *  prove instance state survived). Lists, per owned item, the identity + leveled/
+     *  rolled axes that the whole-entry draw must preserve:
+     *   - weapons / rings : PersistentID (short), Tier, Quality, attached crystal (Type/Tier or none)
+     *   - spells / abilities : InstanceID (short), Tier, Quality, asset name
+     *   - evolutions : InstanceID (short), Tier, Quality, durability
+     *   - crystals : per-pool stacks (Type Tier xN) — same shape as PrintPoolState for direct diff
+     *  Read-only; resolves the sibling Crystal/Evolution components off the owner. After
+     *  wor.PopulatePool + wor.DrawFromPool, this should MATCH wor.PrintPool's tiers/crystals. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Debug")
+    FString GetInventoryInstanceString() const;
 
 private:
     /** Populates ownership lists + SavedLoadouts + ActiveLoadoutIndex from

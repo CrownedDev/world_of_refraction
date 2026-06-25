@@ -122,9 +122,10 @@ public:
      *  per-instance durability to 1 directly, then routes through the real
      *  ProcessPostCastWear pipeline (in a bounded retry loop, since Luck-skip
      *  is probabilistic) so OnCrystalBroken broadcasts via the production path.
-     *  Console: type "DebugBreakActiveCrystal" in PIE. No-op outside combat,
-     *  on already-broken crystals, or on unrefined / immune crystals. */
-    UFUNCTION(Exec)
+     *  Console: type "wor.BreakCrystal" in PIE. No-op outside combat,
+     *  on already-broken crystals, or on unrefined / immune crystals.
+     *  Trigger is a wor.* console command in the .cpp — a
+     *  UGameInstanceSubsystem is not on the engine's Exec dispatch chain. */
     void DebugBreakActiveCrystal();
 
     /** Apply raw wear to the active character's primary weapon crystal. Calls
@@ -134,9 +135,10 @@ public:
      *  are exercised deterministically. Handles both refined and evolution
      *  attachments and logs WHICH branch was hit, since the bCanBreak flip
      *  only affects evolution.
-     *  Console: type "DebugForceWearActiveCrystal 10" in PIE (default Amount=10).
-     *  No broadcasts — this is a raw test path, not a production wear event. */
-    UFUNCTION(Exec)
+     *  Console: type "wor.WearCrystal 10" in PIE (default Amount=10).
+     *  No broadcasts — this is a raw test path, not a production wear event.
+     *  Trigger is a wor.* console command in the .cpp — a
+     *  UGameInstanceSubsystem is not on the engine's Exec dispatch chain. */
     void DebugForceWearActiveCrystal(int32 Amount = 10);
 
     // ========================================

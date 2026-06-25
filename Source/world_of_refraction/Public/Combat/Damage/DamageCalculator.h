@@ -246,7 +246,11 @@ public:
 
 	// ==================== DEBUG ====================
 
-	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Debug", CallInEditor)
+	// No CallInEditor — a UGameInstanceSubsystem has no Details panel, AND this takes a Result
+	// argument (it formats a calculation the caller already holds; it is not a zero-arg snapshot),
+	// so there is no live state to expose as a wor.* console command. Kept BlueprintCallable for
+	// callers that already hold an FDamageCalculationResult.
+	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Debug")
 	void DebugPrintCalculation(const FDamageCalculationResult &Result) const;
 
 private:

@@ -13,6 +13,8 @@
 #include "Combat/TurnManager.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Engine/GameInstance.h"
+#include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
 
 void UCrystalManager::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -619,6 +621,54 @@ void UCrystalManager::DebugForceWearActiveCrystal(int32 Amount)
                TEXT("[Debug.ForceWearActiveCrystal] Evolution wear was a no-op — expected when Breakability blocks it (BDBreakable without force, or Unbreakable) on '%s'."),
                *CrystalName);
     }
+}
+
+// ========================================
+// DEBUG CONSOLE COMMANDS
+// ========================================
+// FAutoConsoleCommandWithWorld — NOT UFUNCTION(Exec). A UGameInstanceSubsystem is not on the
+// engine's FExec dispatch chain (PlayerController / Pawn / GameMode / GameInstance / CheatManager /
+// HUD), so an Exec here silently no-ops. Console commands resolve from any class. "wor." prefix
+// groups them and avoids engine-command clashes. State is PIE-only, so the chain is null-checked.
+namespace
+{
+    UCrystalManager *ResolveCrystalManagerFromWorld(UWorld *World)
+    {
+        UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+        return GI ? GI->GetSubsystem<UCrystalManager>() : nullptr;
+    }
+
+    static FAutoConsoleCommandWithWorld GBreakCrystalCmd(
+        TEXT("wor.BreakCrystal"),
+        TEXT("Force-break the active character's primary weapon crystal via the production wear pipeline (PIE debug)."),
+        FConsoleCommandWithWorldDelegate::CreateLambda(
+            [](UWorld *World)
+            {
+                if (UCrystalManager *Mgr = ResolveCrystalManagerFromWorld(World))
+                {
+                    Mgr->DebugBreakActiveCrystal();
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[CrystalManager] wor.BreakCrystal: no CrystalManager subsystem (no PIE world?)."));
+                }
+            }));
+
+    static FAutoConsoleCommandWithWorldAndArgs GWearCrystalCmd(
+        TEXT("wor.WearCrystal"),
+        TEXT("Apply raw wear to the active character's primary weapon crystal. Usage: wor.WearCrystal <amount> (default 10)."),
+        FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+            [](const TArray<FString> &Args, UWorld *World)
+            {
+                UCrystalManager *Mgr = ResolveCrystalManagerFromWorld(World);
+                if (!Mgr)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[CrystalManager] wor.WearCrystal: no CrystalManager subsystem (no PIE world?)."));
+                    return;
+                }
+                const int32 Amount = Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 10;
+                Mgr->DebugForceWearActiveCrystal(Amount);
+            }));
 }
 
 // ========================================
