@@ -594,10 +594,13 @@ void FCombatLoadout::ApplyAutoEquip(FCombatLoadout &Loadout, AActor *OwningActor
 
     UCrystalInventoryComponent *CrystalInv =
         OwningActor->FindComponentByClass<UCrystalInventoryComponent>();
-    if (!CrystalInv)
+    // Debit routes through the inventory facade so auto-equip emits OnInventoryChanged;
+    // CrystalInv is retained for the per-slot availability read below.
+    UInventoryComponent *Inv = OwningActor->FindComponentByClass<UInventoryComponent>();
+    if (!CrystalInv || !Inv)
     {
         UE_LOG(LogTemp, Warning,
-               TEXT("[FCombatLoadout::ApplyAutoEquip] No UCrystalInventoryComponent on %s; skipping auto-equip"),
+               TEXT("[FCombatLoadout::ApplyAutoEquip] No UCrystalInventoryComponent/UInventoryComponent on %s; skipping auto-equip"),
                *OwningActor->GetName());
         return;
     }
@@ -621,7 +624,7 @@ void FCombatLoadout::ApplyAutoEquip(FCombatLoadout &Loadout, AActor *OwningActor
         const int32 ToEquip = FMath::Min(Available, Capacity);
         if (ToEquip > 0)
         {
-            CrystalInv->RemoveItemCount(Slot.CrystalId, ToEquip);
+            Inv->RemoveCrystalItem(Slot.CrystalId, ToEquip);
             Slot.Quantity += ToEquip;
         }
     }

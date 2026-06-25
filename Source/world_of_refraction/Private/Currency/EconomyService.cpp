@@ -46,12 +46,17 @@ bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int3
     // each other.
     UCrystalInventoryComponent *CrystalInv = Owner->FindComponentByClass<UCrystalInventoryComponent>();
     UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!CrystalInv || !Currency)
+    // Route the count mutation through the UInventoryComponent facade so the dismantle
+    // emits OnInventoryChanged; CrystalInv is retained for the read-only availability query.
+    // (The facade owns the signal; in well-formed actors it coexists with the sibling pools.)
+    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
+    if (!CrystalInv || !Currency || !Inv)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleCrystal: %s missing %s%s"),
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleCrystal: %s missing %s%s%s"),
                *Owner->GetName(),
                CrystalInv ? TEXT("") : TEXT("CrystalInventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+               Currency ? TEXT("") : TEXT("CurrencyComponent "),
+               Inv ? TEXT("") : TEXT("InventoryComponent"));
         return false;
     }
 
@@ -68,8 +73,8 @@ bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int3
     const EEssenceType EssenceType = EconomyYield::ResolveEssenceType(Id);
 
     // REMOVE FIRST — a failed/partial removal must never grant phantom essence.
-    const int32 Removed = bRefined ? CrystalInv->RemoveRefinedCount(Id, Count)
-                                   : CrystalInv->RemoveItemCount(Id, Count);
+    const int32 Removed = bRefined ? Inv->RemoveCrystalRefined(Id, Count)
+                                   : Inv->RemoveCrystalItem(Id, Count);
     if (Removed <= 0)
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleCrystal: removal returned %d for %s — no grant"),
@@ -120,12 +125,15 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
 
     UCrystalInventoryComponent *CrystalInv = Owner->FindComponentByClass<UCrystalInventoryComponent>();
     UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!CrystalInv || !Currency)
+    // Mutations route through the facade (emit OnInventoryChanged); CrystalInv kept for reads/caps.
+    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
+    if (!CrystalInv || !Currency || !Inv)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: %s missing %s%s"),
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: %s missing %s%s%s"),
                *Owner->GetName(),
                CrystalInv ? TEXT("") : TEXT("CrystalInventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+               Currency ? TEXT("") : TEXT("CurrencyComponent "),
+               Inv ? TEXT("") : TEXT("InventoryComponent"));
         return false;
     }
 
@@ -197,14 +205,14 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
         if (ConsumeCounts[t] > 0)
         {
             const FCrystalId Key(Type, TierHelpers::GetTierFromValue(t));
-            bRefined ? CrystalInv->RemoveRefinedCount(Key, ConsumeCounts[t])
-                     : CrystalInv->RemoveItemCount(Key, ConsumeCounts[t]);
+            bRefined ? Inv->RemoveCrystalRefined(Key, ConsumeCounts[t])
+                     : Inv->RemoveCrystalItem(Key, ConsumeCounts[t]);
         }
     }
 
     // ---- Produce 1 of the target tier (same Type, same pool); refund EVERYTHING on add-failure ----
-    const bool bAdded = bRefined ? CrystalInv->AddRefinedCount(OutputId, 1)
-                                 : CrystalInv->AddItemCount(OutputId, 1);
+    const bool bAdded = bRefined ? Inv->AddCrystalRefined(OutputId, 1)
+                                 : Inv->AddCrystalItem(OutputId, 1);
     if (!bAdded)
     {
         for (int32 t = 0; t < TargetTierIndex; ++t)
@@ -212,8 +220,8 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
             if (ConsumeCounts[t] > 0)
             {
                 const FCrystalId Key(Type, TierHelpers::GetTierFromValue(t));
-                bRefined ? CrystalInv->AddRefinedCount(Key, ConsumeCounts[t])
-                         : CrystalInv->AddItemCount(Key, ConsumeCounts[t]);
+                bRefined ? Inv->AddCrystalRefined(Key, ConsumeCounts[t])
+                         : Inv->AddCrystalItem(Key, ConsumeCounts[t]);
             }
         }
         Currency->Add(ECurrencyType::Prisms, PrismsCost);
@@ -358,12 +366,15 @@ bool UEconomyService::DismantleEvolution(AActor *Owner, FGuid InstanceID)
 
     UEvolutionInventoryComponent *EvoInv = Owner->FindComponentByClass<UEvolutionInventoryComponent>();
     UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!EvoInv || !Currency)
+    // Removal routes through the facade (emit OnInventoryChanged); EvoInv kept for the read.
+    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
+    if (!EvoInv || !Currency || !Inv)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleEvolution: %s missing %s%s"),
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleEvolution: %s missing %s%s%s"),
                *Owner->GetName(),
                EvoInv ? TEXT("") : TEXT("EvolutionInventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+               Currency ? TEXT("") : TEXT("CurrencyComponent "),
+               Inv ? TEXT("") : TEXT("InventoryComponent"));
         return false;
     }
 
@@ -384,7 +395,7 @@ bool UEconomyService::DismantleEvolution(AActor *Owner, FGuid InstanceID)
     const int32 Yield = EconomyYield::GetLevelingEssenceYieldForTier(Tier);
 
     // REMOVE FIRST — a failed removal must never grant phantom essence.
-    if (!EvoInv->RemoveInstance(InstanceID))
+    if (!Inv->RemoveEvolutionInstance(InstanceID))
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleEvolution: removal failed for GUID %s — no grant"),
                *InstanceID.ToString());

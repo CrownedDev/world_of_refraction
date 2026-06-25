@@ -14,6 +14,9 @@
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Equipment/Crystals/FFusionId.h"            // fusion attach identity
+#include "Equipment/Crystals/CrystalTypeHelpers.h"   // IsGemType / IsValidFusionPair / IsElementalFusion
+#include "Equipment/Crystals/ItemIdentity.h"         // GetMaxDurability + GetDisplayName for attach
 #include "Pool/PoolSubsystem.h" // InitializeFromPool draw source (step 2)
 #include "Inventory/ItemTier.h" // TierHelpers::GetTierName for the instance dump
 #include "Equipment/FRuntimeAttachedItem.h" // attached-crystal description in the instance dump
@@ -103,6 +106,31 @@ namespace
         return Runtime;
     }
 
+    /** Build a runtime crystal / augment-stone attachment for a player socket op. DEBIT model —
+     *  the socketed crystal is fungible slot state (destroyed on detach, no owned-entry link,
+     *  unlike MakeEvolutionAttachment). A gem writes Kind=Crystal seeded to the tier max durability;
+     *  an augment stone writes Kind=AugmentStone with 0 durability (stones never wear). */
+    FRuntimeAttachedItem MakeCrystalAttachment(FCrystalId Id, bool bIsStone)
+    {
+        FRuntimeAttachedItem Runtime;
+        Runtime.Kind = bIsStone ? EAttachedItemKind::AugmentStone : EAttachedItemKind::Crystal;
+        Runtime.Crystal.Id = Id;
+        Runtime.Crystal.CurrentDurability = bIsStone ? 0 : ItemIdentity::GetMaxDurability(Id);
+        return Runtime;
+    }
+
+    /** Build a runtime fusion attachment from the two-half identity (fuse-and-socket — fusions have
+     *  no loose-inventory home; the caller consumes the two halves from the crystal stacks). Seeds
+     *  whole-fusion durability via GetMaxDurability (gem-seeded; 0 for an augmented fusion). */
+    FRuntimeAttachedItem MakeFusionAttachment(const FFusionId &FusionId)
+    {
+        FRuntimeAttachedItem Runtime;
+        Runtime.Kind = EAttachedItemKind::Fusion;
+        Runtime.Fusion.Id = FusionId;
+        Runtime.Fusion.CurrentDurability = Runtime.Fusion.GetMaxDurability();
+        return Runtime;
+    }
+
     /** One-evo-one-slot guard: true if EvoInstanceID is already referenced by any primary slot
      *  (across saved loadouts) or any gear attachment (owned weapons/rings). */
     bool IsEvolutionSlottedAnywhere(const UInventoryComponent &Inv, FGuid EvoInstanceID)
@@ -144,14 +172,29 @@ void UInventoryComponent::BeginPlay()
 
 // ==================== SPELL OPERATIONS ====================
 
+void UInventoryComponent::BroadcastInventoryChanged(EInventoryChangeType ChangeType) const
+{
+    OnInventoryChanged.Broadcast(ChangeType);
+}
+
 bool UInventoryComponent::LearnSpell(USpellData *Spell)
 {
-    return Spells.LearnSpell(Spell);
+    const bool bLearned = Spells.LearnSpell(Spell);
+    if (bLearned)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Added);
+    }
+    return bLearned;
 }
 
 bool UInventoryComponent::UnlearnSpell(USpellData *Spell)
 {
-    return Spells.UnlearnSpell(Spell);
+    const bool bUnlearned = Spells.UnlearnSpell(Spell);
+    if (bUnlearned)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Removed);
+    }
+    return bUnlearned;
 }
 
 bool UInventoryComponent::HasSpell(USpellData *Spell) const
@@ -168,12 +211,22 @@ TArray<USpellData *> UInventoryComponent::GetSpellsByElement(ESpellElement Eleme
 
 bool UInventoryComponent::LearnAbility(UAbilityData *Ability)
 {
-    return Abilities.LearnAbility(Ability);
+    const bool bLearned = Abilities.LearnAbility(Ability);
+    if (bLearned)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Added);
+    }
+    return bLearned;
 }
 
 bool UInventoryComponent::UnlearnAbility(UAbilityData *Ability)
 {
-    return Abilities.UnlearnAbility(Ability);
+    const bool bUnlearned = Abilities.UnlearnAbility(Ability);
+    if (bUnlearned)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Removed);
+    }
+    return bUnlearned;
 }
 
 bool UInventoryComponent::HasAbility(UAbilityData *Ability) const
@@ -260,6 +313,7 @@ bool UInventoryComponent::AddWeapon(UWeaponData *Weapon, bool bCopyDefaultCrysta
         Entry.Quality = EconomyYield::RollQuality(ResolveInventoryOwnerLuck(this));
     }
     Weapons.Add(Entry);
+    BroadcastInventoryChanged(EInventoryChangeType::Added);
     return true;
 }
 
@@ -271,6 +325,9 @@ bool UInventoryComponent::RemoveWeapon(int32 WeaponIndex)
     }
 
     Weapons.RemoveAt(WeaponIndex);
+    // RemoveWeaponByPersistentID delegates here, so this single broadcast covers
+    // both entry points (no double-fire).
+    BroadcastInventoryChanged(EInventoryChangeType::Removed);
     return true;
 }
 
@@ -357,6 +414,10 @@ bool UInventoryComponent::RemoveCrystalFromWeapon(int32 WeaponIndex)
         }
     }
 
+    if (bHadAttachment)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Removed);
+    }
     return bHadAttachment;
 }
 
@@ -387,6 +448,7 @@ bool UInventoryComponent::AddRing(URingData *Ring, bool bCopyDefaultCrystal)
         Entry.Quality = EconomyYield::RollQuality(ResolveInventoryOwnerLuck(this));
     }
     Rings.Add(Entry);
+    BroadcastInventoryChanged(EInventoryChangeType::Added);
     return true;
 }
 
@@ -398,6 +460,8 @@ bool UInventoryComponent::RemoveRing(int32 RingIndex)
     }
 
     Rings.RemoveAt(RingIndex);
+    // RemoveRingByPersistentID delegates here — single broadcast covers both.
+    BroadcastInventoryChanged(EInventoryChangeType::Removed);
     return true;
 }
 
@@ -489,6 +553,7 @@ bool UInventoryComponent::AttachEvolutionToWeapon(FGuid WeaponPersistentID, FGui
     Weapons[Index].AttachedItem = MakeEvolutionAttachment(*Entry, EvoInstanceID);
     UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached evolution %s (tier %d) to weapon %s"),
            *EvoInstanceID.ToString(), static_cast<int32>(Entry->Tier), *WeaponPersistentID.ToString());
+    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
     return true;
 }
 
@@ -541,6 +606,260 @@ bool UInventoryComponent::AttachEvolutionToRing(FGuid RingPersistentID, FGuid Ev
     Rings[Index].AttachedItem = MakeEvolutionAttachment(*Entry, EvoInstanceID);
     UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached evolution %s (tier %d) to ring %s"),
            *EvoInstanceID.ToString(), static_cast<int32>(Entry->Tier), *RingPersistentID.ToString());
+    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
+    return true;
+}
+
+// ==================== CRYSTAL / FUSION ATTACH (debit model) ====================
+
+bool UInventoryComponent::AttachCrystalToWeapon(FGuid WeaponPersistentID, FCrystalId Id)
+{
+    if (GetOwner() && !GetOwner()->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToWeapon: no authority — ignored"));
+        return false;
+    }
+
+    const int32 Index = Weapons.IndexOfByPredicate(
+        [&WeaponPersistentID](const FWeaponInventoryEntry &E) { return E.PersistentID == WeaponPersistentID; });
+    if (Index == INDEX_NONE)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToWeapon: no weapon for GUID %s"),
+               *WeaponPersistentID.ToString());
+        return false;
+    }
+    if (!Weapons[Index].AttachedItem.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToWeapon: weapon slot already occupied"));
+        return false;
+    }
+
+    // DEBIT BEFORE WRITE via the SILENT atomic core (routes gem→refined / stone→item internally).
+    // Silent so the socket fires exactly ONE signal — the Equipped below — not Removed + Equipped.
+    // false means the crystal isn't owned: reject with no phantom socket.
+    const bool bIsStone = !CrystalTypeHelpers::IsGemType(Id.Type);
+    if (!CommitRemoveCrystals({Id}))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToWeapon: %s not owned — nothing debited, socket rejected"),
+               *ItemIdentity::GetDisplayName(Id));
+        return false;
+    }
+
+    Weapons[Index].AttachedItem = MakeCrystalAttachment(Id, bIsStone);
+    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached %s %s to weapon %s"),
+           bIsStone ? TEXT("augment stone") : TEXT("refined crystal"),
+           *ItemIdentity::GetDisplayName(Id), *WeaponPersistentID.ToString());
+    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
+    return true;
+}
+
+bool UInventoryComponent::AttachCrystalToRing(FGuid RingPersistentID, FCrystalId Id)
+{
+    if (GetOwner() && !GetOwner()->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToRing: no authority — ignored"));
+        return false;
+    }
+
+    // Inline ring-guard (mirrors URingData::IsDataValid:29-33): augment stones are weapon-only.
+    // Rings carry only refined gems (their spell source).
+    if (!CrystalTypeHelpers::IsGemType(Id.Type))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToRing: augment stones are weapon-only — rejected on ring"));
+        return false;
+    }
+
+    const int32 Index = Rings.IndexOfByPredicate(
+        [&RingPersistentID](const FRingInventoryEntry &E) { return E.PersistentID == RingPersistentID; });
+    if (Index == INDEX_NONE)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToRing: no ring for GUID %s"),
+               *RingPersistentID.ToString());
+        return false;
+    }
+    if (!Rings[Index].AttachedItem.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToRing: ring slot already occupied"));
+        return false;
+    }
+
+    // Gem-only on rings → the silent core routes it to the refined pool. Debit before write; false =
+    // not owned → reject. Silent so the socket fires one signal (Equipped) below.
+    if (!CommitRemoveCrystals({Id}))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToRing: %s not owned — nothing debited, socket rejected"),
+               *ItemIdentity::GetDisplayName(Id));
+        return false;
+    }
+
+    Rings[Index].AttachedItem = MakeCrystalAttachment(Id, /*bIsStone=*/false);
+    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached refined crystal %s to ring %s"),
+           *ItemIdentity::GetDisplayName(Id), *RingPersistentID.ToString());
+    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
+    return true;
+}
+
+bool UInventoryComponent::CommitRemoveCrystals(const TArray<FCrystalId> &Ids)
+{
+    if (Ids.Num() == 0)
+    {
+        return true; // vacuous — nothing requested, nothing changed (no broadcast at the wrapper)
+    }
+
+    UCrystalInventoryComponent *CrystalInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+    if (!CrystalInv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] RemoveCrystals: no UCrystalInventoryComponent — nothing removed"));
+        return false;
+    }
+
+    // Tally required count per distinct Id — so duplicates in the set (incl. identical fusion halves,
+    // HalfA == HalfB) demand that many from the one pool, not one each.
+    TMap<FCrystalId, int32> Required;
+    for (const FCrystalId &Id : Ids)
+    {
+        Required.FindOrAdd(Id)++;
+    }
+
+    // VERIFY: every Id's routed pool (stone → item, gem → refined) must hold at least the required
+    // count. Any shortfall aborts BEFORE any removal — atomic, no partial consume.
+    for (const TPair<FCrystalId, int32> &Pair : Required)
+    {
+        const bool bStone = !CrystalTypeHelpers::IsGemType(Pair.Key.Type);
+        const int32 Have = bStone ? CrystalInv->GetItemCount(Pair.Key) : CrystalInv->GetRefinedCount(Pair.Key);
+        if (Have < Pair.Value)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] RemoveCrystals: %s needs %d, have %d — atomic remove rejected, nothing removed"),
+                   *ItemIdentity::GetDisplayName(Pair.Key), Pair.Value, Have);
+            return false;
+        }
+    }
+
+    // COMMIT: all verified — debit through the RAW SILENT sibling methods (no per-item broadcast).
+    // The single change signal is the caller's responsibility (RemoveCrystals fires one Removed;
+    // the attach-ops fire one Equipped instead).
+    for (const TPair<FCrystalId, int32> &Pair : Required)
+    {
+        const bool bStone = !CrystalTypeHelpers::IsGemType(Pair.Key.Type);
+        if (bStone)
+        {
+            CrystalInv->RemoveItemCount(Pair.Key, Pair.Value);
+        }
+        else
+        {
+            CrystalInv->RemoveRefinedCount(Pair.Key, Pair.Value);
+        }
+    }
+    return true;
+}
+
+bool UInventoryComponent::RemoveCrystals(const TArray<FCrystalId> &Ids)
+{
+    if (!CommitRemoveCrystals(Ids))
+    {
+        return false;
+    }
+    // ONE signal for the whole atomic remove (not per-item). Skip on an empty set (no mutation).
+    if (Ids.Num() > 0)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Removed);
+    }
+    return true;
+}
+
+bool UInventoryComponent::AttachFusionToWeapon(FGuid WeaponPersistentID, FFusionId FusionId)
+{
+    if (GetOwner() && !GetOwner()->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToWeapon: no authority — ignored"));
+        return false;
+    }
+
+    // Validate the pair before touching anything (stat-stone + one contributor; evolution can't be a half).
+    if (!CrystalTypeHelpers::IsValidFusionPair(FusionId.HalfA.Type, FusionId.HalfB.Type))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToWeapon: invalid fusion pair — rejected"));
+        return false;
+    }
+
+    const int32 Index = Weapons.IndexOfByPredicate(
+        [&WeaponPersistentID](const FWeaponInventoryEntry &E) { return E.PersistentID == WeaponPersistentID; });
+    if (Index == INDEX_NONE)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToWeapon: no weapon for GUID %s"),
+               *WeaponPersistentID.ToString());
+        return false;
+    }
+    if (!Weapons[Index].AttachedItem.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToWeapon: weapon slot already occupied"));
+        return false;
+    }
+
+    // Consume both halves atomically (the fuse) via the SILENT core — it does the verify-then-commit
+    // and the identical-halves count (HalfA == HalfB → needs 2 of the one Id) for free, and stays
+    // silent so the fuse fires one signal (Equipped) below. Reject without socketing if either is missing.
+    if (!CommitRemoveCrystals({FusionId.HalfA, FusionId.HalfB}))
+    {
+        return false;
+    }
+
+    Weapons[Index].AttachedItem = MakeFusionAttachment(FusionId);
+    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Fused %s + %s onto weapon %s"),
+           *ItemIdentity::GetDisplayName(FusionId.HalfA), *ItemIdentity::GetDisplayName(FusionId.HalfB),
+           *WeaponPersistentID.ToString());
+    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
+    return true;
+}
+
+bool UInventoryComponent::AttachFusionToRing(FGuid RingPersistentID, FFusionId FusionId)
+{
+    if (GetOwner() && !GetOwner()->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToRing: no authority — ignored"));
+        return false;
+    }
+
+    if (!CrystalTypeHelpers::IsValidFusionPair(FusionId.HalfA.Type, FusionId.HalfB.Type))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToRing: invalid fusion pair — rejected"));
+        return false;
+    }
+
+    // Inline ring-guard (mirrors URingData::IsDataValid:40-44): rings accept only ELEMENTAL fusions
+    // (one gem half); augmented fusions (two stones) are weapon-only.
+    if (!CrystalTypeHelpers::IsElementalFusion(FusionId.HalfA.Type, FusionId.HalfB.Type))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToRing: augmented fusions are weapon-only — rejected on ring"));
+        return false;
+    }
+
+    const int32 Index = Rings.IndexOfByPredicate(
+        [&RingPersistentID](const FRingInventoryEntry &E) { return E.PersistentID == RingPersistentID; });
+    if (Index == INDEX_NONE)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToRing: no ring for GUID %s"),
+               *RingPersistentID.ToString());
+        return false;
+    }
+    if (!Rings[Index].AttachedItem.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToRing: ring slot already occupied"));
+        return false;
+    }
+
+    // Atomic both-halves consume via the SILENT core (see AttachFusionToWeapon). One signal below.
+    if (!CommitRemoveCrystals({FusionId.HalfA, FusionId.HalfB}))
+    {
+        return false;
+    }
+
+    Rings[Index].AttachedItem = MakeFusionAttachment(FusionId);
+    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Fused %s + %s onto ring %s"),
+           *ItemIdentity::GetDisplayName(FusionId.HalfA), *ItemIdentity::GetDisplayName(FusionId.HalfB),
+           *RingPersistentID.ToString());
+    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
     return true;
 }
 
@@ -619,6 +938,7 @@ bool UInventoryComponent::RemoveEvolutionFromWeapon(FGuid WeaponPersistentID)
         UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from weapon %s -> inventory (durability %d, 10%% wear)"),
                *EvoInstanceID.ToString(), *WeaponPersistentID.ToString(), Entry->CurrentDurability);
     }
+    BroadcastInventoryChanged(EInventoryChangeType::Removed);
     return true;
 }
 
@@ -689,6 +1009,7 @@ bool UInventoryComponent::RemoveEvolutionFromRing(FGuid RingPersistentID)
         UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from ring %s -> inventory (durability %d, 10%% wear)"),
                *EvoInstanceID.ToString(), *RingPersistentID.ToString(), Entry->CurrentDurability);
     }
+    BroadcastInventoryChanged(EInventoryChangeType::Removed);
     return true;
 }
 
@@ -740,6 +1061,10 @@ bool UInventoryComponent::RemoveCrystalFromRing(int32 RingIndex)
         }
     }
 
+    if (bHadAttachment)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Removed);
+    }
     return bHadAttachment;
 }
 
@@ -762,6 +1087,104 @@ TArray<UEvolutionItemData *> UInventoryComponent::GetEvolutionCrystals() const
         }
     }
     return Result;
+}
+
+// ==================== CRYSTAL / EVOLUTION FACADE ====================
+
+bool UInventoryComponent::AddCrystalItem(FCrystalId Id, int32 Count)
+{
+    UCrystalInventoryComponent *CrystalInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+    if (!CrystalInv)
+    {
+        return false;
+    }
+    const bool bAdded = CrystalInv->AddItemCount(Id, Count);
+    if (bAdded)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Added);
+    }
+    return bAdded;
+}
+
+bool UInventoryComponent::AddCrystalRefined(FCrystalId Id, int32 Count)
+{
+    UCrystalInventoryComponent *CrystalInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+    if (!CrystalInv)
+    {
+        return false;
+    }
+    const bool bAdded = CrystalInv->AddRefinedCount(Id, Count);
+    if (bAdded)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Added);
+    }
+    return bAdded;
+}
+
+int32 UInventoryComponent::RemoveCrystalItem(FCrystalId Id, int32 Count)
+{
+    UCrystalInventoryComponent *CrystalInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+    if (!CrystalInv)
+    {
+        return 0;
+    }
+    const int32 Removed = CrystalInv->RemoveItemCount(Id, Count);
+    if (Removed > 0)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Removed);
+    }
+    return Removed;
+}
+
+int32 UInventoryComponent::RemoveCrystalRefined(FCrystalId Id, int32 Count)
+{
+    UCrystalInventoryComponent *CrystalInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+    if (!CrystalInv)
+    {
+        return 0;
+    }
+    const int32 Removed = CrystalInv->RemoveRefinedCount(Id, Count);
+    if (Removed > 0)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Removed);
+    }
+    return Removed;
+}
+
+bool UInventoryComponent::AddEvolutionInstance(UEvolutionItemData *Item)
+{
+    UEvolutionInventoryComponent *EvolutionInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+    if (!EvolutionInv)
+    {
+        return false;
+    }
+    const bool bAdded = EvolutionInv->AddInstance(Item);
+    if (bAdded)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Added);
+    }
+    return bAdded;
+}
+
+bool UInventoryComponent::RemoveEvolutionInstance(FGuid InstanceID)
+{
+    UEvolutionInventoryComponent *EvolutionInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+    if (!EvolutionInv)
+    {
+        return false;
+    }
+    const bool bRemoved = EvolutionInv->RemoveInstance(InstanceID);
+    if (bRemoved)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Removed);
+    }
+    return bRemoved;
 }
 
 // ==================== UTILITY ====================
@@ -1009,6 +1432,10 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
            Abilities.GetCount(),
            SavedLoadouts.Num(),
            ActiveLoadoutIndex);
+
+    // One signal for the whole bulk (re)load — NOT per entry. InitializeFromCharacterData
+    // delegates here, so this single broadcast covers the seed path too (no double-fire).
+    BroadcastInventoryChanged(EInventoryChangeType::Loaded);
 }
 
 void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)
@@ -1118,6 +1545,9 @@ void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)
            Abilities.GetCount(),
            SavedLoadouts.Num(),
            ActiveLoadoutIndex);
+
+    // One signal for the whole pool draw — NOT per entry.
+    BroadcastInventoryChanged(EInventoryChangeType::Loaded);
 }
 
 FString UInventoryComponent::GetInventoryInstanceString() const
