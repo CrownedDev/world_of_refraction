@@ -23,6 +23,7 @@ class WORLD_OF_REFRACTION_API ACombatPlayerController : public APlayerController
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// ========================================
 	// INPUT ASSETS (assign in Blueprint / editor)

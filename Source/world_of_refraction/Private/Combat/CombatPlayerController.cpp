@@ -31,6 +31,23 @@ void ACombatPlayerController::BeginPlay()
 	}
 }
 
+void ACombatPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// Hygiene: the combat mapping context is added in BeginPlay onto the persistent
+	// LocalPlayer subsystem; remove it here so it does not linger when leaving combat
+	// (e.g. switching to the hub controller). Removes only its own context — additive.
+	if (UEnhancedInputLocalPlayerSubsystem *Subsystem =
+			ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+	{
+		if (CombatMappingContext)
+		{
+			Subsystem->RemoveMappingContext(CombatMappingContext);
+		}
+	}
+
+	Super::EndPlay(EndPlayReason);
+}
+
 void ACombatPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
