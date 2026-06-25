@@ -13,6 +13,8 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Inventory/InventoryConstants.h"
+#include "Inventory/EInventoryChangeType.h"
+#include "Equipment/Crystals/FCrystalId.h"
 #include "Loadout/Entries/FSpellCollection.h"
 #include "Loadout/Entries/FAbilityCollection.h"
 #include "Loadout/Entries/FWeaponInventoryEntry.h"
@@ -31,6 +33,13 @@ class UCharacterData;
 class UCrystalInventoryComponent;
 class UEvolutionInventoryComponent;
 class UPoolSubsystem;
+
+/** Fired on EVERY inventory mutation (grant / removal / equip / bulk-load).
+ *  The foundation change signal (InstanceBasedRuntimeLayer_Design.md #10) —
+ *  loot / shop / UI react to it instead of polling. Mirrors ULoadoutComponent's
+ *  OnLoadoutChanged shape: a re-read trigger, not a data carrier. Consumers
+ *  query the inventory for the current state; ChangeType is an optimisation hint. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInventoryChanged, EInventoryChangeType, ChangeType);
 
 /**
  * UInventoryComponent
@@ -273,6 +282,41 @@ public:
     UFUNCTION(BlueprintPure, Category = "Inventory|Evolution")
     TArray<UEvolutionItemData *> GetEvolutionCrystals() const;
 
+    // ==================== CRYSTAL / EVOLUTION FACADE ====================
+    // The crystal/evolution stores live on SIBLING components
+    // (UCrystalInventoryComponent / UEvolutionInventoryComponent), reached
+    // per-call off the owner. These thin wrappers route every mutation through
+    // the facade that owns OnInventoryChanged, so crystal/evolution grants emit
+    // the change signal like the native weapon/ring/spell paths do. Each returns
+    // false / 0 (and broadcasts nothing) when the sibling is missing or the op
+    // didn't change anything.
+
+    /** Add Count item crystals at Id via the sibling pool. Broadcasts Added on success. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
+    bool AddCrystalItem(FCrystalId Id, int32 Count = 1);
+
+    /** Add Count refined crystals at Id via the sibling pool. Broadcasts Added on success. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
+    bool AddCrystalRefined(FCrystalId Id, int32 Count = 1);
+
+    /** Remove up to Count item crystals at Id. Returns the number actually removed;
+     *  broadcasts Removed when that is > 0. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
+    int32 RemoveCrystalItem(FCrystalId Id, int32 Count = 1);
+
+    /** Remove up to Count refined crystals at Id. Returns the number actually removed;
+     *  broadcasts Removed when that is > 0. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
+    int32 RemoveCrystalRefined(FCrystalId Id, int32 Count = 1);
+
+    /** Add an evolution instance via the sibling component. Broadcasts Added on success. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Evolution")
+    bool AddEvolutionInstance(UEvolutionItemData *Item);
+
+    /** Remove the owned evolution instance with this InstanceID. Broadcasts Removed on success. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Evolution")
+    bool RemoveEvolutionInstance(FGuid InstanceID);
+
     // ==================== UTILITY ====================
 
     /** Get inventory summary for debug */
@@ -291,7 +335,21 @@ public:
     UFUNCTION(BlueprintPure, Category = "Inventory|Debug")
     FString GetInventoryInstanceString() const;
 
+    // ==================== EVENTS ====================
+
+    /** Fired on every inventory mutation — grant, removal, equip, or bulk-load.
+     *  The foundation signal (gap #10): bind here to react to inventory changes
+     *  without polling. Query the inventory for current state; ChangeType hints
+     *  what kind of change fired. */
+    UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
+    FOnInventoryChanged OnInventoryChanged;
+
 private:
+    /** Single broadcast funnel for OnInventoryChanged — every mutation site
+     *  routes through here on its success path. const: the delegate broadcast
+     *  doesn't mutate logical inventory state. */
+    void BroadcastInventoryChanged(EInventoryChangeType ChangeType) const;
+
     /** Populates ownership lists + SavedLoadouts + ActiveLoadoutIndex from
      *  CharacterData->Inventory (a UInventoryData asset). Sole loadout-init
      *  path — InitializeFromCharacterData delegates here when Inventory is set. */

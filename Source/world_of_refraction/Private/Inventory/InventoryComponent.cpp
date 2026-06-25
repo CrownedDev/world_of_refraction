@@ -144,14 +144,29 @@ void UInventoryComponent::BeginPlay()
 
 // ==================== SPELL OPERATIONS ====================
 
+void UInventoryComponent::BroadcastInventoryChanged(EInventoryChangeType ChangeType) const
+{
+    OnInventoryChanged.Broadcast(ChangeType);
+}
+
 bool UInventoryComponent::LearnSpell(USpellData *Spell)
 {
-    return Spells.LearnSpell(Spell);
+    const bool bLearned = Spells.LearnSpell(Spell);
+    if (bLearned)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Added);
+    }
+    return bLearned;
 }
 
 bool UInventoryComponent::UnlearnSpell(USpellData *Spell)
 {
-    return Spells.UnlearnSpell(Spell);
+    const bool bUnlearned = Spells.UnlearnSpell(Spell);
+    if (bUnlearned)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Removed);
+    }
+    return bUnlearned;
 }
 
 bool UInventoryComponent::HasSpell(USpellData *Spell) const
@@ -168,12 +183,22 @@ TArray<USpellData *> UInventoryComponent::GetSpellsByElement(ESpellElement Eleme
 
 bool UInventoryComponent::LearnAbility(UAbilityData *Ability)
 {
-    return Abilities.LearnAbility(Ability);
+    const bool bLearned = Abilities.LearnAbility(Ability);
+    if (bLearned)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Added);
+    }
+    return bLearned;
 }
 
 bool UInventoryComponent::UnlearnAbility(UAbilityData *Ability)
 {
-    return Abilities.UnlearnAbility(Ability);
+    const bool bUnlearned = Abilities.UnlearnAbility(Ability);
+    if (bUnlearned)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Removed);
+    }
+    return bUnlearned;
 }
 
 bool UInventoryComponent::HasAbility(UAbilityData *Ability) const
@@ -260,6 +285,7 @@ bool UInventoryComponent::AddWeapon(UWeaponData *Weapon, bool bCopyDefaultCrysta
         Entry.Quality = EconomyYield::RollQuality(ResolveInventoryOwnerLuck(this));
     }
     Weapons.Add(Entry);
+    BroadcastInventoryChanged(EInventoryChangeType::Added);
     return true;
 }
 
@@ -271,6 +297,9 @@ bool UInventoryComponent::RemoveWeapon(int32 WeaponIndex)
     }
 
     Weapons.RemoveAt(WeaponIndex);
+    // RemoveWeaponByPersistentID delegates here, so this single broadcast covers
+    // both entry points (no double-fire).
+    BroadcastInventoryChanged(EInventoryChangeType::Removed);
     return true;
 }
 
@@ -357,6 +386,10 @@ bool UInventoryComponent::RemoveCrystalFromWeapon(int32 WeaponIndex)
         }
     }
 
+    if (bHadAttachment)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Removed);
+    }
     return bHadAttachment;
 }
 
@@ -387,6 +420,7 @@ bool UInventoryComponent::AddRing(URingData *Ring, bool bCopyDefaultCrystal)
         Entry.Quality = EconomyYield::RollQuality(ResolveInventoryOwnerLuck(this));
     }
     Rings.Add(Entry);
+    BroadcastInventoryChanged(EInventoryChangeType::Added);
     return true;
 }
 
@@ -398,6 +432,8 @@ bool UInventoryComponent::RemoveRing(int32 RingIndex)
     }
 
     Rings.RemoveAt(RingIndex);
+    // RemoveRingByPersistentID delegates here — single broadcast covers both.
+    BroadcastInventoryChanged(EInventoryChangeType::Removed);
     return true;
 }
 
@@ -489,6 +525,7 @@ bool UInventoryComponent::AttachEvolutionToWeapon(FGuid WeaponPersistentID, FGui
     Weapons[Index].AttachedItem = MakeEvolutionAttachment(*Entry, EvoInstanceID);
     UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached evolution %s (tier %d) to weapon %s"),
            *EvoInstanceID.ToString(), static_cast<int32>(Entry->Tier), *WeaponPersistentID.ToString());
+    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
     return true;
 }
 
@@ -541,6 +578,7 @@ bool UInventoryComponent::AttachEvolutionToRing(FGuid RingPersistentID, FGuid Ev
     Rings[Index].AttachedItem = MakeEvolutionAttachment(*Entry, EvoInstanceID);
     UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached evolution %s (tier %d) to ring %s"),
            *EvoInstanceID.ToString(), static_cast<int32>(Entry->Tier), *RingPersistentID.ToString());
+    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
     return true;
 }
 
@@ -619,6 +657,7 @@ bool UInventoryComponent::RemoveEvolutionFromWeapon(FGuid WeaponPersistentID)
         UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from weapon %s -> inventory (durability %d, 10%% wear)"),
                *EvoInstanceID.ToString(), *WeaponPersistentID.ToString(), Entry->CurrentDurability);
     }
+    BroadcastInventoryChanged(EInventoryChangeType::Removed);
     return true;
 }
 
@@ -689,6 +728,7 @@ bool UInventoryComponent::RemoveEvolutionFromRing(FGuid RingPersistentID)
         UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from ring %s -> inventory (durability %d, 10%% wear)"),
                *EvoInstanceID.ToString(), *RingPersistentID.ToString(), Entry->CurrentDurability);
     }
+    BroadcastInventoryChanged(EInventoryChangeType::Removed);
     return true;
 }
 
@@ -740,6 +780,10 @@ bool UInventoryComponent::RemoveCrystalFromRing(int32 RingIndex)
         }
     }
 
+    if (bHadAttachment)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Removed);
+    }
     return bHadAttachment;
 }
 
@@ -762,6 +806,104 @@ TArray<UEvolutionItemData *> UInventoryComponent::GetEvolutionCrystals() const
         }
     }
     return Result;
+}
+
+// ==================== CRYSTAL / EVOLUTION FACADE ====================
+
+bool UInventoryComponent::AddCrystalItem(FCrystalId Id, int32 Count)
+{
+    UCrystalInventoryComponent *CrystalInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+    if (!CrystalInv)
+    {
+        return false;
+    }
+    const bool bAdded = CrystalInv->AddItemCount(Id, Count);
+    if (bAdded)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Added);
+    }
+    return bAdded;
+}
+
+bool UInventoryComponent::AddCrystalRefined(FCrystalId Id, int32 Count)
+{
+    UCrystalInventoryComponent *CrystalInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+    if (!CrystalInv)
+    {
+        return false;
+    }
+    const bool bAdded = CrystalInv->AddRefinedCount(Id, Count);
+    if (bAdded)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Added);
+    }
+    return bAdded;
+}
+
+int32 UInventoryComponent::RemoveCrystalItem(FCrystalId Id, int32 Count)
+{
+    UCrystalInventoryComponent *CrystalInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+    if (!CrystalInv)
+    {
+        return 0;
+    }
+    const int32 Removed = CrystalInv->RemoveItemCount(Id, Count);
+    if (Removed > 0)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Removed);
+    }
+    return Removed;
+}
+
+int32 UInventoryComponent::RemoveCrystalRefined(FCrystalId Id, int32 Count)
+{
+    UCrystalInventoryComponent *CrystalInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+    if (!CrystalInv)
+    {
+        return 0;
+    }
+    const int32 Removed = CrystalInv->RemoveRefinedCount(Id, Count);
+    if (Removed > 0)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Removed);
+    }
+    return Removed;
+}
+
+bool UInventoryComponent::AddEvolutionInstance(UEvolutionItemData *Item)
+{
+    UEvolutionInventoryComponent *EvolutionInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+    if (!EvolutionInv)
+    {
+        return false;
+    }
+    const bool bAdded = EvolutionInv->AddInstance(Item);
+    if (bAdded)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Added);
+    }
+    return bAdded;
+}
+
+bool UInventoryComponent::RemoveEvolutionInstance(FGuid InstanceID)
+{
+    UEvolutionInventoryComponent *EvolutionInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+    if (!EvolutionInv)
+    {
+        return false;
+    }
+    const bool bRemoved = EvolutionInv->RemoveInstance(InstanceID);
+    if (bRemoved)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Removed);
+    }
+    return bRemoved;
 }
 
 // ==================== UTILITY ====================
@@ -1009,6 +1151,10 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
            Abilities.GetCount(),
            SavedLoadouts.Num(),
            ActiveLoadoutIndex);
+
+    // One signal for the whole bulk (re)load — NOT per entry. InitializeFromCharacterData
+    // delegates here, so this single broadcast covers the seed path too (no double-fire).
+    BroadcastInventoryChanged(EInventoryChangeType::Loaded);
 }
 
 void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)
@@ -1118,6 +1264,9 @@ void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)
            Abilities.GetCount(),
            SavedLoadouts.Num(),
            ActiveLoadoutIndex);
+
+    // One signal for the whole pool draw — NOT per entry.
+    BroadcastInventoryChanged(EInventoryChangeType::Loaded);
 }
 
 FString UInventoryComponent::GetInventoryInstanceString() const
