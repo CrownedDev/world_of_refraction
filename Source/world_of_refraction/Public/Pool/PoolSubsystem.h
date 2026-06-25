@@ -8,7 +8,7 @@
 // into the three browse categories the structured-pool design defines:
 //   - ARMOURY:   OwnedWeapons, OwnedRings, OwnedEvolutions
 //   - KNOWLEDGE: OwnedSpells, OwnedAbilities
-//   - ITEMS:     GemItem + GemRefined + StoneItem (counted stacks; mirrors the run 3-map split)
+//   - ITEMS:     Crystals + Stones (counted stacks; mirrors the run 2-pool split)
 //   - WALLET:    the currency value-block (separate from the 3 browse categories)
 // Each gear/skill store reuses the SAME struct the run components use, so pool <-> run
 // is a structural copy, not a translation. The Crystal/Augment 2-bucket BROWSE split is
@@ -97,22 +97,16 @@ public:
     const FAbilityInstance *FindAbilityInPool(const FGuid &InstanceID) const;
 
     // ==================== ITEMS — crystals (counted stacks) ====================
-    // 3-map gem/stone split mirroring the run component; the item/refined AXIS is the API,
-    // gem/stone is auto-dispatched by IsGemType (gems → GemItem/GemRefined, stones → StoneItem).
+    // Two pools mirroring the run component (gem-merge): Crystals (dual-purpose) + Stones (slot-only).
+    // gem/stone is auto-dispatched by IsGemType; there is no item/refined axis anymore.
 
-    /** Add Count item (consumable) crystals at Id — routes to GemItem or StoneItem by IsGemType.
-     *  INERT — no cap enforcement this phase (the run component owns caps; the pool is raw storage). */
+    /** Add Count crystals at Id — routes to Crystals or Stones by IsGemType. INERT — no cap enforcement
+     *  this phase (the run component owns caps; the pool is raw storage). */
     UFUNCTION(BlueprintCallable, Category = "Pool|Items")
-    void AddItemCrystalToPool(const FCrystalId &Id, int32 Count = 1);
+    void AddCrystalToPool(const FCrystalId &Id, int32 Count = 1);
 
-    /** Add Count refined (slottable) crystals at Id — GEM-ONLY (→ GemRefined). A stone is
-     *  REJECTED (no refined form), mirroring the run component's RefinedPoolFor==nullptr. */
-    UFUNCTION(BlueprintCallable, Category = "Pool|Items")
-    void AddRefinedCrystalToPool(const FCrystalId &Id, int32 Count = 1);
-
-    const TMap<FCrystalId, int32> &GetGemItem() const { return GemItem; }
-    const TMap<FCrystalId, int32> &GetGemRefined() const { return GemRefined; }
-    const TMap<FCrystalId, int32> &GetStoneItem() const { return StoneItem; }
+    const TMap<FCrystalId, int32> &GetCrystals() const { return Crystals; }
+    const TMap<FCrystalId, int32> &GetStones() const { return Stones; }
 
     // ==================== CATEGORY GETTERS (filtered browse views) ====================
     // Apply only the axes valid for each category's member types (the rest exclude — see
@@ -142,7 +136,7 @@ public:
      *  — no per-character keying). Weapons/Rings reuse the SAME factory primitive the run uses
      *  (FWeaponInventoryEntry::CreateFromWeapon + a freshly-minted PersistentID, default crystal
      *  copied in); Spells/Abilities mint FSpellInstance/FAbilityInstance at learn-time semantics;
-     *  Crystals route through AddItem/AddRefinedCrystalToPool (gem/stone dispatch); Evolutions mint
+     *  Crystals route through AddCrystalToPool (gem/stone dispatch); Evolutions mint
      *  an FEvolutionInventoryEntry per authored item.
      *
      *  ONE-TIME per session: the pool is a GI subsystem, so this guards on bPopulated and is a no-op
@@ -195,17 +189,14 @@ private:
     TArray<FAbilityInstance> OwnedAbilities;
 
     // ITEMS — counted stacks keyed by (Type, Tier); fungible, no per-instance identity.
-    // Mirrors the run UCrystalInventoryComponent's 3-map gem/stone split EXACTLY (so draw/
-    // return is a direct structural copy, not a translation). Gems have item + refined;
-    // stones have item only (attach directly — no refined form).
+    // Mirrors the run UCrystalInventoryComponent's 2-pool gem/stone split EXACTLY (so draw/
+    // return is a direct structural copy, not a translation). Crystals are dual-purpose (one bucket,
+    // no item/refined split); Stones are slot-only.
     UPROPERTY(SaveGame)
-    TMap<FCrystalId, int32> GemItem;
+    TMap<FCrystalId, int32> Crystals;
 
     UPROPERTY(SaveGame)
-    TMap<FCrystalId, int32> GemRefined;
-
-    UPROPERTY(SaveGame)
-    TMap<FCrystalId, int32> StoneItem;
+    TMap<FCrystalId, int32> Stones;
 
     // ==================== WALLET (currency value-block) ====================
     // Mirrors UCurrencyComponent's VALUES (not the component — can't hold a UActorComponent

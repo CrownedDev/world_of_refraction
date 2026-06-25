@@ -8,29 +8,17 @@ UCrystalInventoryComponent::UCrystalInventoryComponent()
 }
 
 // ==================== POOL DISPATCH ====================
-// IsGemType(Type) selects the gem vs stone container; the item/refined axis is
-// fixed by which overload the caller is in. Every Id-keyed method below routes
-// through these, so the gem/stone branch lives in exactly one place per axis.
+// IsGemType(Type) selects the gem vs stone pool (gem → Crystals, stone → Stones). One
+// dispatch, in one place — the former item/refined axis is gone (crystals are dual-purpose).
 
-TMap<FCrystalId, int32> &UCrystalInventoryComponent::ItemPoolFor(ECrystalType Type)
+TMap<FCrystalId, int32> &UCrystalInventoryComponent::PoolFor(ECrystalType Type)
 {
-    return CrystalTypeHelpers::IsGemType(Type) ? GemItem : StoneItem;
+    return CrystalTypeHelpers::IsGemType(Type) ? Crystals : Stones;
 }
 
-const TMap<FCrystalId, int32> &UCrystalInventoryComponent::ItemPoolFor(ECrystalType Type) const
+const TMap<FCrystalId, int32> &UCrystalInventoryComponent::PoolFor(ECrystalType Type) const
 {
-    return CrystalTypeHelpers::IsGemType(Type) ? GemItem : StoneItem;
-}
-
-TMap<FCrystalId, int32> *UCrystalInventoryComponent::RefinedPoolFor(ECrystalType Type)
-{
-    // Gem-only: stones have no refined form → nullptr (callers reject).
-    return CrystalTypeHelpers::IsGemType(Type) ? &GemRefined : nullptr;
-}
-
-const TMap<FCrystalId, int32> *UCrystalInventoryComponent::RefinedPoolFor(ECrystalType Type) const
-{
-    return CrystalTypeHelpers::IsGemType(Type) ? &GemRefined : nullptr;
+    return CrystalTypeHelpers::IsGemType(Type) ? Crystals : Stones;
 }
 
 int32 UCrystalInventoryComponent::SumAtTier(const TMap<FCrystalId, int32> &Pool, EItemTier Tier)
@@ -48,40 +36,21 @@ int32 UCrystalInventoryComponent::SumAtTier(const TMap<FCrystalId, int32> &Pool,
 
 // ==================== WRITE ====================
 
-bool UCrystalInventoryComponent::AddItemCount(FCrystalId Id, int32 Count)
+bool UCrystalInventoryComponent::AddCount(FCrystalId Id, int32 Count)
 {
     if (Id.Type == ECrystalType::None)
     {
         return false;
     }
-    if (!CanAddItemCount(Id, Count))
+    if (!CanAddCount(Id, Count))
     {
         return false;
     }
-    ItemPoolFor(Id.Type).FindOrAdd(Id) += Count;
+    PoolFor(Id.Type).FindOrAdd(Id) += Count;
     return true;
 }
 
-bool UCrystalInventoryComponent::AddRefinedCount(FCrystalId Id, int32 Count)
-{
-    if (Id.Type == ECrystalType::None)
-    {
-        return false;
-    }
-    if (!CanAddRefinedCount(Id, Count))
-    {
-        return false;
-    }
-    TMap<FCrystalId, int32> *Pool = RefinedPoolFor(Id.Type);
-    if (!Pool) // stones have no refined pool — reject
-    {
-        return false;
-    }
-    Pool->FindOrAdd(Id) += Count;
-    return true;
-}
-
-int32 UCrystalInventoryComponent::RemoveItemCount(FCrystalId Id, int32 Count)
+int32 UCrystalInventoryComponent::RemoveCount(FCrystalId Id, int32 Count)
 {
     if (Id.Type == ECrystalType::None)
     {
@@ -91,7 +60,7 @@ int32 UCrystalInventoryComponent::RemoveItemCount(FCrystalId Id, int32 Count)
     {
         return 0;
     }
-    TMap<FCrystalId, int32> &Pool = ItemPoolFor(Id.Type);
+    TMap<FCrystalId, int32> &Pool = PoolFor(Id.Type);
     int32 *Found = Pool.Find(Id);
     if (!Found)
     {
@@ -106,78 +75,29 @@ int32 UCrystalInventoryComponent::RemoveItemCount(FCrystalId Id, int32 Count)
     return Removed;
 }
 
-int32 UCrystalInventoryComponent::RemoveRefinedCount(FCrystalId Id, int32 Count)
-{
-    if (Id.Type == ECrystalType::None)
-    {
-        return 0;
-    }
-    if (Count <= 0)
-    {
-        return 0;
-    }
-    TMap<FCrystalId, int32> *Pool = RefinedPoolFor(Id.Type);
-    if (!Pool) // stones have no refined pool — nothing to remove
-    {
-        return 0;
-    }
-    int32 *Found = Pool->Find(Id);
-    if (!Found)
-    {
-        return 0;
-    }
-    const int32 Removed = FMath::Min(*Found, Count);
-    *Found -= Removed;
-    if (*Found <= 0)
-    {
-        Pool->Remove(Id);
-    }
-    return Removed;
-}
-
 // ==================== READ ====================
 
-int32 UCrystalInventoryComponent::GetItemCount(FCrystalId Id) const
+int32 UCrystalInventoryComponent::GetCount(FCrystalId Id) const
 {
     if (Id.Type == ECrystalType::None)
     {
         return 0;
     }
-    const int32 *Found = ItemPoolFor(Id.Type).Find(Id);
+    const int32 *Found = PoolFor(Id.Type).Find(Id);
     return Found ? *Found : 0;
 }
 
-int32 UCrystalInventoryComponent::GetRefinedCount(FCrystalId Id) const
+int32 UCrystalInventoryComponent::GetCountForTier(EItemTier Tier) const
 {
-    if (Id.Type == ECrystalType::None)
-    {
-        return 0;
-    }
-    const TMap<FCrystalId, int32> *Pool = RefinedPoolFor(Id.Type);
-    if (!Pool) // stones have no refined pool
-    {
-        return 0;
-    }
-    const int32 *Found = Pool->Find(Id);
-    return Found ? *Found : 0;
-}
-
-int32 UCrystalInventoryComponent::GetItemCountForTier(EItemTier Tier) const
-{
-    // Combined gem+stone item count at Tier — the aggregate display total. The
-    // per-container cap check uses SumAtTier on a single pool, not this sum.
-    return SumAtTier(GemItem, Tier) + SumAtTier(StoneItem, Tier);
-}
-
-int32 UCrystalInventoryComponent::GetRefinedCountForTier(EItemTier Tier) const
-{
-    return SumAtTier(GemRefined, Tier); // refined is gem-only (stones have no refined form)
+    // Combined gem + stone count at Tier — the aggregate display total. Per-pool cap
+    // checks use SumAtTier on a single pool, not this sum.
+    return SumAtTier(Crystals, Tier) + SumAtTier(Stones, Tier);
 }
 
 int32 UCrystalInventoryComponent::GetTotalCount() const
 {
     int32 Total = 0;
-    for (const TMap<FCrystalId, int32> *Pool : {&GemItem, &GemRefined, &StoneItem})
+    for (const TMap<FCrystalId, int32> *Pool : {&Crystals, &Stones})
     {
         for (const TPair<FCrystalId, int32> &Pair : *Pool)
         {
@@ -189,40 +109,24 @@ int32 UCrystalInventoryComponent::GetTotalCount() const
 
 int32 UCrystalInventoryComponent::GetStackCount() const
 {
-    return GemItem.Num() + GemRefined.Num() + StoneItem.Num();
+    return Crystals.Num() + Stones.Num();
 }
 
 void UCrystalInventoryComponent::ClearAll()
 {
-    GemItem.Empty();
-    GemRefined.Empty();
-    StoneItem.Empty();
+    Crystals.Empty();
+    Stones.Empty();
 }
 
 // ==================== CAPS ====================
-// Per-container: the cap check sums ONLY the pool the Id routes to (gem item, gem
-// refined, stone item, or stone refined), so gems and stones each get a full
-// CRYSTAL_PER_TIER_CAP per tier, independently.
+// Per-pool: the cap check sums ONLY the pool the Id routes to (Crystals or Stones), so
+// gems and stones each get a full CRYSTAL_PER_TIER_CAP per tier, independently.
 
-bool UCrystalInventoryComponent::CanAddItemCount(FCrystalId Id, int32 Count) const
+bool UCrystalInventoryComponent::CanAddCount(FCrystalId Id, int32 Count) const
 {
     if (Count <= 0)
     {
         return false;
     }
-    return SumAtTier(ItemPoolFor(Id.Type), Id.Tier) + Count <= InventoryConstants::CRYSTAL_PER_TIER_CAP;
-}
-
-bool UCrystalInventoryComponent::CanAddRefinedCount(FCrystalId Id, int32 Count) const
-{
-    if (Count <= 0)
-    {
-        return false;
-    }
-    const TMap<FCrystalId, int32> *Pool = RefinedPoolFor(Id.Type);
-    if (!Pool) // stones have no refined pool — cannot add a refined stone
-    {
-        return false;
-    }
-    return SumAtTier(*Pool, Id.Tier) + Count <= InventoryConstants::CRYSTAL_PER_TIER_CAP;
+    return SumAtTier(PoolFor(Id.Type), Id.Tier) + Count <= InventoryConstants::CRYSTAL_PER_TIER_CAP;
 }

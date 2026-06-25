@@ -292,7 +292,7 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
     /** When true, runtime auto-equips items from inventory at combat start
      *  (and refills empty/partial slots between combats), ignoring each
      *  slot's designer-authored Quantity. When false, the slot's authored
-     *  Quantity is taken as the starting amount and ItemCrystals is
+     *  Quantity is taken as the starting amount and the crystal inventory is
      *  debited at character init; no between-combat refill.
      *  Auto-equip runtime logic lands with the equip API in a later commit. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "5. Items",

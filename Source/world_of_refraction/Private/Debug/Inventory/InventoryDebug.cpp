@@ -172,9 +172,7 @@ void UInventoryDebug::LogItems(UInventoryComponent *Inventory)
 
     for (int32 i = 0; i < 7; ++i)
     {
-        const int32 Count = CrystalInv
-                                ? CrystalInv->GetItemCountForTier(Tiers[i]) + CrystalInv->GetRefinedCountForTier(Tiers[i])
-                                : 0;
+        const int32 Count = CrystalInv ? CrystalInv->GetCountForTier(Tiers[i]) : 0;
         const int32 Cap = InventoryConstants::GetItemCapacityForTier(static_cast<int32>(Tiers[i]));
         if (Count > 0)
         {

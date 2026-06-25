@@ -127,27 +127,14 @@ const FAbilityInstance *UPoolSubsystem::FindAbilityInPool(const FGuid &InstanceI
 
 // ==================== ITEMS ====================
 
-void UPoolSubsystem::AddItemCrystalToPool(const FCrystalId &Id, int32 Count)
+void UPoolSubsystem::AddCrystalToPool(const FCrystalId &Id, int32 Count)
 {
     if (Count <= 0)
     {
         return;
     }
-    // Item axis → gem/stone by IsGemType (mirrors the run component's ItemPoolFor).
-    (CrystalTypeHelpers::IsGemType(Id.Type) ? GemItem : StoneItem).FindOrAdd(Id) += Count;
-}
-
-void UPoolSubsystem::AddRefinedCrystalToPool(const FCrystalId &Id, int32 Count)
-{
-    if (Count <= 0)
-    {
-        return;
-    }
-    if (!CrystalTypeHelpers::IsGemType(Id.Type))
-    {
-        return; // stones have no refined form — reject (mirrors RefinedPoolFor == nullptr)
-    }
-    GemRefined.FindOrAdd(Id) += Count;
+    // gem/stone by IsGemType (mirrors the run component's PoolFor).
+    (CrystalTypeHelpers::IsGemType(Id.Type) ? Crystals : Stones).FindOrAdd(Id) += Count;
 }
 
 // ==================== CATEGORY GETTERS ====================
@@ -203,13 +190,11 @@ TArray<FPoolItemStack> UPoolSubsystem::GetItems(const FPoolFilter &Filter) const
 {
     TArray<FPoolItemStack> Out;
 
-    // bUseRefined narrows to one pool; otherwise both are returned, each tagged bRefined.
-    auto Gather = [&](const TMap<FCrystalId, int32> &Pool, bool bRefined)
+    // The item/refined axis is gone (gem-merge) — every stack tags bRefined=false. The dormant
+    // FPoolFilter.bUseRefined / .bRefined and FPoolItemStack.bRefined fields are left in
+    // PoolQueryTypes for a later cleanup; the browse path is still inert.
+    auto Gather = [&](const TMap<FCrystalId, int32> &Pool)
     {
-        if (Filter.bUseRefined && Filter.bRefined != bRefined)
-        {
-            return;
-        }
         for (const TPair<FCrystalId, int32> &Pair : Pool)
         {
             if (Filter.bUseBucket && PoolAccessors::GetBucket(Pair.Key) != Filter.Bucket)
@@ -221,15 +206,14 @@ TArray<FPoolItemStack> UPoolSubsystem::GetItems(const FPoolFilter &Filter) const
                 FPoolItemStack Stack;
                 Stack.Id = Pair.Key;
                 Stack.Count = Pair.Value;
-                Stack.bRefined = bRefined;
+                Stack.bRefined = false;
                 Out.Add(Stack);
             }
         }
     };
 
-    Gather(GemItem, false);
-    Gather(GemRefined, true);
-    Gather(StoneItem, false); // stones are item-only (no refined form)
+    Gather(Crystals);
+    Gather(Stones);
     return Out;
 }
 
@@ -316,15 +300,14 @@ void UPoolSubsystem::PopulateFromInventoryAsset(UInventoryData *Asset, AActor *O
         AddAbilityToPool(Instance);
     }
 
-    // ---------- Crystals (item / refined) ----------
-    // Pool Add* route gem/stone by IsGemType (the 3-map split); AddRefined rejects stones internally.
-    for (const TPair<FCrystalId, int32> &Pair : Asset->ItemCrystals)
+    // ---------- Crystals ----------
+    // Seed from the authored CrystalStock (mixed gem+stone); AddCrystalToPool routes gem→Crystals /
+    // stone→Stones by IsGemType. The asset's PostLoad already folded the deprecated ItemCrystals +
+    // RefinedCrystals into CrystalStock (and emptied them), so this reads the merged stock — the same
+    // source the run bulk-load reads, keeping pool-seed and run-seed consistent.
+    for (const TPair<FCrystalId, int32> &Pair : Asset->CrystalStock)
     {
-        AddItemCrystalToPool(Pair.Key, Pair.Value);
-    }
-    for (const TPair<FCrystalId, int32> &Pair : Asset->RefinedCrystals)
-    {
-        AddRefinedCrystalToPool(Pair.Key, Pair.Value);
+        AddCrystalToPool(Pair.Key, Pair.Value);
     }
 
     // ---------- Evolutions ----------
@@ -375,10 +358,9 @@ FString UPoolSubsystem::GetPoolString() const
                            OwnedWeapons.Num(), OwnedRings.Num(), OwnedEvolutions.Num());
     Out += FString::Printf(TEXT("\n  Knowledge: Spells=%d Abilities=%d"),
                            OwnedSpells.Num(), OwnedAbilities.Num());
-    Out += FString::Printf(TEXT("\n  Items    : GemItem=%d (%d), GemRefined=%d (%d), StoneItem=%d (%d)  [stacks (total)]"),
-                           GemItem.Num(), SumStacks(GemItem),
-                           GemRefined.Num(), SumStacks(GemRefined),
-                           StoneItem.Num(), SumStacks(StoneItem));
+    Out += FString::Printf(TEXT("\n  Items    : Crystals=%d (%d), Stones=%d (%d)  [stacks (total)]"),
+                           Crystals.Num(), SumStacks(Crystals),
+                           Stones.Num(), SumStacks(Stones));
 
     // Crystal stacks grouped by BROWSE bucket (Crystal vs Augment Stone), each listing both pools.
     auto DumpBucket = [&](EItemBucket Bucket, const TCHAR *Label)
@@ -397,9 +379,8 @@ FString UPoolSubsystem::GetPoolString() const
                                        *TierHelpers::GetTierName(Pair.Key.Tier), Pair.Value);
             }
         };
-        EmitPool(GemItem, TEXT("item"));
-        EmitPool(GemRefined, TEXT("refined"));
-        EmitPool(StoneItem, TEXT("item"));
+        EmitPool(Crystals, TEXT("crystal"));
+        EmitPool(Stones, TEXT("stone"));
     };
     DumpBucket(EItemBucket::Crystal, TEXT("Crystals"));
     DumpBucket(EItemBucket::AugmentStone, TEXT("Augment Stones"));

@@ -26,7 +26,7 @@
 #include "GameFramework/Pawn.h"
 #include "HAL/IConsoleManager.h"
 
-bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int32 Count, bool bRefined)
+bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int32 Count)
 {
     if (!Owner || Count <= 0)
     {
@@ -60,21 +60,19 @@ bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int3
         return false;
     }
 
-    // Availability in the chosen pool (Item vs Refined).
-    const int32 Available = bRefined ? CrystalInv->GetRefinedCount(Id) : CrystalInv->GetItemCount(Id);
+    // Availability in Id's pool (gem/stone dispatched inside the component).
+    const int32 Available = CrystalInv->GetCount(Id);
     if (Available < Count)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleCrystal: %s has %d/%d %s (%s pool) — insufficient"),
-               *Owner->GetName(), Available, Count, *ItemIdentity::GetDisplayName(Id),
-               bRefined ? TEXT("refined") : TEXT("item"));
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleCrystal: %s has %d/%d %s — insufficient"),
+               *Owner->GetName(), Available, Count, *ItemIdentity::GetDisplayName(Id));
         return false;
     }
 
     const EEssenceType EssenceType = EconomyYield::ResolveEssenceType(Id);
 
     // REMOVE FIRST — a failed/partial removal must never grant phantom essence.
-    const int32 Removed = bRefined ? Inv->RemoveCrystalRefined(Id, Count)
-                                   : Inv->RemoveCrystalItem(Id, Count);
+    const int32 Removed = Inv->RemoveCrystal(Id, Count);
     if (Removed <= 0)
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleCrystal: removal returned %d for %s — no grant"),
@@ -87,13 +85,13 @@ bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int3
     const int32 Yield = EconomyYield::GetTypedEssenceYieldForTier(Id.Tier) * Removed;
     Currency->AddEssenceType(EssenceType, Yield);
 
-    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Dismantled %dx %s (%s pool) -> %d essence (type %s)"),
-           Removed, *ItemIdentity::GetDisplayName(Id), bRefined ? TEXT("refined") : TEXT("item"),
-           Yield, *StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(EssenceType)));
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Dismantled %dx %s -> %d essence (type %s)"),
+           Removed, *ItemIdentity::GetDisplayName(Id), Yield,
+           *StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(EssenceType)));
     return true;
 }
 
-bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier TargetTier, bool bRefined)
+bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier TargetTier)
 {
     if (!Owner)
     {
@@ -147,7 +145,7 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     auto CountAt = [&](int32 TierIndex) -> int32
     {
         const FCrystalId Key(Type, TierHelpers::GetTierFromValue(TierIndex));
-        return bRefined ? CrystalInv->GetRefinedCount(Key) : CrystalInv->GetItemCount(Key);
+        return CrystalInv->GetCount(Key); // gem/stone dispatched inside the component
     };
 
     // GATHER: total available value across tiers strictly BELOW the target (this Type, this pool).
@@ -159,10 +157,10 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     if (AvailableValue < TargetValue)
     {
         UE_LOG(LogTemp, Warning,
-               TEXT("[EconomyService] MergeCrystals: %s has %d/%d %s value below %s (%s pool) — insufficient"),
+               TEXT("[EconomyService] MergeCrystals: %s has %d/%d %s value below %s — insufficient"),
                *Owner->GetName(), AvailableValue, TargetValue,
                *StaticEnum<ECrystalType>()->GetAuthoredNameStringByValue(static_cast<int64>(Type)),
-               *TierHelpers::GetTierName(TargetTier), bRefined ? TEXT("refined") : TEXT("item"));
+               *TierHelpers::GetTierName(TargetTier));
         return false;
     }
     if (!Currency->CanAfford(ECurrencyType::Prisms, PrismsCost))
@@ -172,9 +170,9 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
                *TierHelpers::GetTierName(TargetTier), *ItemIdentity::GetDisplayName(OutputId));
         return false;
     }
-    // Output goes to a DIFFERENT per-tier bucket, so removing inputs won't free its cap — pre-check.
-    const bool bCanAddOutput = bRefined ? CrystalInv->CanAddRefinedCount(OutputId, 1)
-                                        : CrystalInv->CanAddItemCount(OutputId, 1);
+    // Output is at a DIFFERENT tier than the inputs, so removing inputs won't free its per-tier cap
+    // — pre-check (the cap is per tier, so the lower-tier consumes don't open the target tier).
+    const bool bCanAddOutput = CrystalInv->CanAddCount(OutputId, 1);
     if (!bCanAddOutput)
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: %s target %s at cap — rejected"),
@@ -198,32 +196,28 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     }
     // AvailableValue >= TargetValue (checked) guarantees Accumulated reached the target here.
 
-    // ---- Spend + REMOVE FIRST (a failed produce refunds below; never leave a phantom output) ----
-    Currency->Spend(ECurrencyType::Prisms, PrismsCost);
+    // Flatten the consumed inputs into a flat FCrystalId set (one entry per consumed crystal; the
+    // primitive tallies duplicates). The component dispatches gem/stone per Id. Reused verbatim for
+    // the consume AND the refund.
+    TArray<FCrystalId> Inputs;
     for (int32 t = 0; t < TargetTierIndex; ++t)
     {
-        if (ConsumeCounts[t] > 0)
+        const FCrystalId Key(Type, TierHelpers::GetTierFromValue(t));
+        for (int32 i = 0; i < ConsumeCounts[t]; ++i)
         {
-            const FCrystalId Key(Type, TierHelpers::GetTierFromValue(t));
-            bRefined ? Inv->RemoveCrystalRefined(Key, ConsumeCounts[t])
-                     : Inv->RemoveCrystalItem(Key, ConsumeCounts[t]);
+            Inputs.Add(Key);
         }
     }
 
+    // ---- Spend + REMOVE FIRST (a failed produce refunds below; never leave a phantom output) ----
+    Currency->Spend(ECurrencyType::Prisms, PrismsCost);
+    Inv->RemoveCrystals(Inputs); // ONE Removed (inputs are guaranteed present — counted above)
+
     // ---- Produce 1 of the target tier (same Type, same pool); refund EVERYTHING on add-failure ----
-    const bool bAdded = bRefined ? Inv->AddCrystalRefined(OutputId, 1)
-                                 : Inv->AddCrystalItem(OutputId, 1);
+    const bool bAdded = Inv->AddCrystals({OutputId}); // ONE Added
     if (!bAdded)
     {
-        for (int32 t = 0; t < TargetTierIndex; ++t)
-        {
-            if (ConsumeCounts[t] > 0)
-            {
-                const FCrystalId Key(Type, TierHelpers::GetTierFromValue(t));
-                bRefined ? Inv->AddCrystalRefined(Key, ConsumeCounts[t])
-                         : Inv->AddCrystalItem(Key, ConsumeCounts[t]);
-            }
-        }
+        Inv->AddCrystals(Inputs); // ONE Added — re-add the exact consumed set (atomic; space just freed)
         Currency->Add(ECurrencyType::Prisms, PrismsCost);
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: add of %s failed — refunded inputs + %d Prisms"),
                *ItemIdentity::GetDisplayName(OutputId), PrismsCost);
@@ -245,9 +239,8 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
         }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Merged %s -> 1x %s (%s pool) for %d Prisms"),
-           *ConsumedStr, *ItemIdentity::GetDisplayName(OutputId),
-           bRefined ? TEXT("refined") : TEXT("item"), PrismsCost);
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Merged %s -> 1x %s for %d Prisms"),
+           *ConsumedStr, *ItemIdentity::GetDisplayName(OutputId), PrismsCost);
     return true;
 }
 

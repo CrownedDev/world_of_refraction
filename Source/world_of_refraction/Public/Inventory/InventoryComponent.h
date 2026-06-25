@@ -324,31 +324,31 @@ public:
     // false / 0 (and broadcasts nothing) when the sibling is missing or the op
     // didn't change anything.
 
-    /** Add Count item crystals at Id via the sibling pool. Broadcasts Added on success. */
+    /** Add Count crystals at Id via the sibling pool (gem/stone dispatched inside the component).
+     *  Broadcasts Added on success. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
-    bool AddCrystalItem(FCrystalId Id, int32 Count = 1);
+    bool AddCrystal(FCrystalId Id, int32 Count = 1);
 
-    /** Add Count refined crystals at Id via the sibling pool. Broadcasts Added on success. */
+    /** Remove up to Count crystals at Id (gem/stone dispatched inside the component). Returns the
+     *  number actually removed; broadcasts Removed when that is > 0. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
-    bool AddCrystalRefined(FCrystalId Id, int32 Count = 1);
-
-    /** Remove up to Count item crystals at Id. Returns the number actually removed;
-     *  broadcasts Removed when that is > 0. */
-    UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
-    int32 RemoveCrystalItem(FCrystalId Id, int32 Count = 1);
-
-    /** Remove up to Count refined crystals at Id. Returns the number actually removed;
-     *  broadcasts Removed when that is > 0. */
-    UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
-    int32 RemoveCrystalRefined(FCrystalId Id, int32 Count = 1);
+    int32 RemoveCrystal(FCrystalId Id, int32 Count = 1);
 
     /** Atomic multi-remove primitive: remove the WHOLE set of crystals in one verify-then-commit,
-     *  firing a SINGLE Removed (not one per item). VERIFY — every Id (routed gem→refined / stone→item,
-     *  with duplicates tallied) must have enough; any shortfall removes NOTHING and returns false.
-     *  COMMIT — debit each from its routed pool. The general primitive for any multi-crystal consume
-     *  (e.g. a future merge retrofit); the attach-ops share its silent core but fire Equipped instead. */
+     *  firing a SINGLE Removed (not one per item). Pool-AGNOSTIC — the component dispatches each Id to
+     *  Crystals or Stones internally; the primitive just calls the unified count methods. VERIFY — every
+     *  Id (duplicates summed) must have enough; any shortfall removes NOTHING and returns false.
+     *  COMMIT — debit each. The general consume primitive (merge inputs, etc.); the attach-ops share
+     *  its silent core but fire Equipped instead. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
     bool RemoveCrystals(const TArray<FCrystalId> &Ids);
+
+    /** Atomic multi-ADD primitive: add the WHOLE set in one verify-then-commit, firing a SINGLE
+     *  Added. Pool-AGNOSTIC, mirroring RemoveCrystals. ATOMIC-GUARDED because adds CAN fail on the
+     *  per-tier cap — VERIFY every Id (duplicates summed) fits via CanAddCount; any that wouldn't fit
+     *  adds NOTHING and returns false. COMMIT — add each. (Merge output / refund consume this.) */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
+    bool AddCrystals(const TArray<FCrystalId> &Ids);
 
     /** Add an evolution instance via the sibling component. Broadcasts Added on success. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Evolution")
@@ -392,11 +392,19 @@ private:
     void BroadcastInventoryChanged(EInventoryChangeType ChangeType) const;
 
     /** SILENT atomic verify-then-commit core behind RemoveCrystals and the crystal/fusion attach
-     *  debits. Verifies every Id (tallying duplicates — gem from refined, stone from item) has
-     *  enough in its routed pool, then removes via the RAW sibling methods. Does NOT broadcast —
-     *  the caller fires the single signal (RemoveCrystals → Removed; attach-ops → Equipped).
-     *  Returns false (removing nothing) on any shortfall or a missing crystal sibling. */
+     *  debits. Pool-AGNOSTIC: verifies every Id (duplicates summed) has enough via GetCount, then
+     *  debits via RemoveCount — the component dispatches gem/stone internally. Does NOT broadcast —
+     *  the caller fires the single signal (RemoveCrystals → Removed; attach-ops → Equipped). Returns
+     *  false (removing nothing) on any shortfall or a missing crystal sibling. */
     bool CommitRemoveCrystals(const TArray<FCrystalId> &Ids);
+
+    /** SILENT atomic add core behind AddCrystals. Pool-AGNOSTIC + ATOMIC-GUARDED: verifies every Id
+     *  (duplicates summed) fits its per-tier cap via CanAddCount BEFORE adding any; on any rejection
+     *  adds nothing and returns false. COMMIT adds via AddCount. Does NOT broadcast (caller fires one
+     *  Added). NOTE: the per-Id cap check is exact for distinct (pool, tier) Ids and same-Id duplicates;
+     *  a batch with DIFFERENT Ids sharing one (pool, tier) would need a grouped check — not reachable by
+     *  current callers (merge output is single; refund is one Id per distinct tier). */
+    bool CommitAddCrystals(const TArray<FCrystalId> &Ids);
 
     /** Populates ownership lists + SavedLoadouts + ActiveLoadoutIndex from
      *  CharacterData->Inventory (a UInventoryData asset). Sole loadout-init

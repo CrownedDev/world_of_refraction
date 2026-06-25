@@ -1,18 +1,19 @@
 // CrystalInventoryComponent.h
-// Count-based inventory for refined and item (consumable) crystals.
-//
-// Storage keyed on FCrystalId (Type+Tier). The gem/item/refined model:
-//  - gem vs augment-stone  (CrystalTypeHelpers::IsGemType(Type))
-//  - gems have BOTH forms: item (unrefined consumable) AND refined (slottable)
-//  - stones have ONLY an item form — they attach DIRECTLY (no refining), so there
-//    is NO StoneRefined pool. Refined-pool ops on a stone are rejected (false/0).
-// → three independent pools, each capped per tier:
-//  - GemItem  / GemRefined : gems   (consumable / slottable)
-//  - StoneItem             : stones (consumable; attach-only, no refined form)
-// The Id-keyed methods below DISPATCH to the right pool by IsGemType(Id.Type),
-// so external callers keep using one type-agnostic API — they never name a pool.
-// Caps are PER CONTAINER: gems and stones each enforce CRYSTAL_PER_TIER_CAP
-// independently per tier (a full gem shelf does not block stones, and vice-versa).
+// Count-based inventory for crystals. Two pools, keyed on FCrystalId (Type+Tier):
+//  - Crystals : DUAL-PURPOSE gem-family crystals — throwable AND slottable from ONE
+//             bucket. The gem-merge (§13.5) collapsed the former GemItem + GemRefined
+//             into this single pool: there is no item/refined split anymore. Both
+//             throwing (consume) and slotting (attach-debit) draw from Crystals.
+//  - Stones : augment stones — SLOT-ONLY (attach directly; no throw, no refined form).
+//             Behaviour unchanged by the merge; only the name changed (was StoneItem).
+// NOTE: augment stones ARE crystals too (FCrystalId covers both); the pool named
+// "Crystals" is the dual-purpose GEM-FAMILY bucket, "Stones" the augment-stone bucket.
+// GetCrystals()/GetStones() are per-pool; GetTotalCount()/GetCountForTier() aggregate both.
+// IsGemType(Id.Type) DISPATCHES an Id to its pool (gem → Crystals, stone → Stones) — that
+// axis STAYS; only the within-gem-family item/refined axis was removed. Callers use one
+// type-agnostic API (AddCount/RemoveCount/GetCount/CanAddCount) and never name a pool.
+// Caps are PER POOL: each enforces CRYSTAL_PER_TIER_CAP independently per tier (a full
+// crystal shelf does not block stones, and vice-versa).
 //
 // Evolution crystals live in UEvolutionInventoryComponent as instances with
 // FGuids — counts aren't enough because trade APIs need identity. This
@@ -39,106 +40,73 @@ public:
     UCrystalInventoryComponent();
 
     // ==================== STORAGE ====================
-    // Three pools: gems have item + refined; stones have item only (no refined form —
-    // they attach directly). The Id-keyed methods dispatch here by IsGemType(Id.Type);
-    // callers never touch these directly.
+    // Two pools: Crystals (dual-purpose — one bucket, no item/refined split) and Stones
+    // (slot-only). The Id-keyed methods dispatch here by IsGemType(Id.Type); callers
+    // never touch these directly.
 
-    /** Unrefined consumable GEMS, counted per (Type, Tier). */
+    /** DUAL-PURPOSE gem-family crystals (throwable AND slottable), counted per (Type, Tier).
+     *  The gem-merge (§13.5) collapsed the former GemItem + GemRefined into this one
+     *  bucket — slotting and throwing both debit it. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Inventory|Crystals")
-    TMap<FCrystalId, int32> GemItem;
+    TMap<FCrystalId, int32> Crystals;
 
-    /** Refined slottable GEMS, counted per (Type, Tier). */
+    /** AUGMENT STONES (slot-only; attach directly, no refined form), counted per
+     *  (Type, Tier). Renamed from StoneItem in the gem-merge; behaviour unchanged. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Inventory|Crystals")
-    TMap<FCrystalId, int32> GemRefined;
-
-    /** AUGMENT STONES, counted per (Type, Tier). Stones attach directly (no refining),
-     *  so this is their only pool — there is no StoneRefined. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Inventory|Crystals")
-    TMap<FCrystalId, int32> StoneItem;
+    TMap<FCrystalId, int32> Stones;
 
     // ==================== WRITE ====================
 
-    /** Add Count item crystals at Id. Returns false on cap exhaustion or
-     *  non-positive Count — no partial writes. */
+    /** Add Count crystals at Id — routed to Crystals or Stones by IsGemType(Id.Type).
+     *  Returns false on cap exhaustion or non-positive Count — no partial writes. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
-    bool AddItemCount(FCrystalId Id, int32 Count = 1);
+    bool AddCount(FCrystalId Id, int32 Count = 1);
 
-    /** Add Count refined crystals at Id. Same per-tier cap, independent pool. */
+    /** Remove up to Count crystals at Id (routed by IsGemType). Clamps to available;
+     *  returns the number actually removed (0 if Count <= 0 or Id absent). Removes the
+     *  TMap entry entirely when the count reaches 0. Used by slotting/throwing debits. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
-    bool AddRefinedCount(FCrystalId Id, int32 Count = 1);
-
-    /** Remove up to Count item crystals at Id. Clamps to available; returns
-     *  the number actually removed (0 if Count <= 0 or Id absent). Removes
-     *  the TMap entry entirely when the count reaches 0. Used by auto-equip
-     *  and runtime equip-transfer to debit inventory. */
-    UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
-    int32 RemoveItemCount(FCrystalId Id, int32 Count = 1);
-
-    /** Remove up to Count refined crystals at Id. Same semantics as
-     *  RemoveItemCount but for the refined pool. */
-    UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
-    int32 RemoveRefinedCount(FCrystalId Id, int32 Count = 1);
+    int32 RemoveCount(FCrystalId Id, int32 Count = 1);
 
     // ==================== READ ====================
 
-    /** Count at exact Id in the item-crystal pool. 0 when absent. */
+    /** Count at exact Id in its routed pool (Crystals or Stones). 0 when absent. */
     UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
-    int32 GetItemCount(FCrystalId Id) const;
+    int32 GetCount(FCrystalId Id) const;
 
-    /** Count at exact Id in the refined-crystal pool. 0 when absent. */
+    /** Combined Crystals + Stones count across all Types at the given Tier (display total).
+     *  Per-pool cap checks use SumAtTier on a single pool, not this sum. */
     UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
-    int32 GetRefinedCount(FCrystalId Id) const;
+    int32 GetCountForTier(EItemTier Tier) const;
 
-    /** Sum of item-crystal counts across all Types at the given Tier. */
-    UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
-    int32 GetItemCountForTier(EItemTier Tier) const;
-
-    /** Sum of refined-crystal counts across all Types at the given Tier. */
-    UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
-    int32 GetRefinedCountForTier(EItemTier Tier) const;
-
-    /** Sum of item + refined counts across all three pools (GemItem + GemRefined +
-     *  StoneItem). Convenience for inventory summary / debug display. */
+    /** Sum of counts across both pools (Crystals + Stones). Convenience for summary / debug. */
     UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
     int32 GetTotalCount() const;
 
-    /** Number of distinct (Type, Tier) STACKS across all three pools — i.e. the
-     *  combined TMap entry count, not the summed quantity. For diagnostics that
-     *  previously read the raw maps' Num(). */
+    /** Number of distinct (Type, Tier) STACKS across both pools — the combined TMap
+     *  entry count, not the summed quantity. */
     UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
     int32 GetStackCount() const;
 
-    /** Empty all three pools (GemItem / GemRefined / StoneItem). Used by re-init so a
-     *  reload doesn't accumulate; replaces direct raw-map .Empty() calls. */
+    /** Empty both pools (Crystals / Stones). Used by re-init so a reload doesn't accumulate. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
     void ClearAll();
 
     // ==================== CAPS ====================
 
-    /** True iff AddItemCount(Id, Count) would not exceed the per-tier cap. */
+    /** True iff AddCount(Id, Count) would not exceed Id's pool's per-tier cap. */
     UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
-    bool CanAddItemCount(FCrystalId Id, int32 Count = 1) const;
-
-    /** True iff AddRefinedCount(Id, Count) would not exceed the per-tier cap. */
-    UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
-    bool CanAddRefinedCount(FCrystalId Id, int32 Count = 1) const;
+    bool CanAddCount(FCrystalId Id, int32 Count = 1) const;
 
 private:
     // ==================== POOL DISPATCH ====================
-    // Select the container for a Type by the gem/stone axis (IsGemType). The
-    // item/refined axis is chosen by which overload the caller is in. These keep
-    // the gem/stone branch in one place so every Id-keyed method routes the same way.
+    // Select the pool for a Type by the gem/stone axis (IsGemType): gem → Crystals,
+    // stone → Stones. One dispatch, in one place — the item/refined axis is gone.
 
-    TMap<FCrystalId, int32> &ItemPoolFor(ECrystalType Type);
-    const TMap<FCrystalId, int32> &ItemPoolFor(ECrystalType Type) const;
+    TMap<FCrystalId, int32> &PoolFor(ECrystalType Type);
+    const TMap<FCrystalId, int32> &PoolFor(ECrystalType Type) const;
 
-    /** GEM-ONLY refined pool. Gems → &GemRefined; stones → nullptr (stones have no
-     *  refined form). Every refined method null-checks this and rejects (false/0),
-     *  which is how "stones don't refine" is enforced in one place. */
-    TMap<FCrystalId, int32> *RefinedPoolFor(ECrystalType Type);
-    const TMap<FCrystalId, int32> *RefinedPoolFor(ECrystalType Type) const;
-
-    /** Sum of counts at Tier within a single pool — the per-container tier sum
-     *  the cap check uses (so gem and stone caps stay independent). */
+    /** Sum of counts at Tier within a single pool — the per-pool tier sum the cap
+     *  check uses (so gem and stone caps stay independent). */
     static int32 SumAtTier(const TMap<FCrystalId, int32> &Pool, EItemTier Tier);
 };

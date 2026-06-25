@@ -97,7 +97,7 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
      *  bAutoEquipItemsOnCombatStart is true. No-op when the flag is false,
      *  the owner is null, or the owner has no UCrystalInventoryComponent.
      *  Fills each non-full slot up to MAX_QUANTITY_PER_ITEM_SLOT (3),
-     *  debiting the inventory via RemoveItemCount. Called from
+     *  debiting the inventory via RemoveCrystal. Called from
      *  ULoadoutComponent::PrepareForBattle. */
     static void ApplyAutoEquip(FCombatLoadout &Loadout, AActor *OwningActor);
 
