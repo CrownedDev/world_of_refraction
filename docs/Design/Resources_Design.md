@@ -8,6 +8,25 @@
 
 Any time a calculation produces a decimal (essence yields, prices, fractions, wear, fusion-break halves, etc.) → **round DOWN (floor)**. Never round up or to nearest. Rationale: flooring never over-rewards — it always favors the sink, never gives the player free value from rounding. Applies project-wide (`FMath::FloorToInt`). Examples already using it: fusion-break ½-yield, F-quality price half (13 = floor of 12.5).
 
+### ⚠️ SUPERSEDED — collapsed to ONE hub (Nightreign model, 2026-06-25)
+
+**Decision:** the two-hub split (local hub + trial/run hub) is **collapsed to a SINGLE hub.** Validated against Elden Ring Nightreign's Roundtable Hold — the proven model for a co-op roguelite.
+
+**The model:**
+- **ONE hub = the between-runs space** (all prep: shop, upgrade, repair, merge, roll, respec, head-start allocation, character select, draft). Everything "outside battle" happens here.
+- **Multiplayer matchmakes at TRIAL LAUNCH, not in the hub.** Per Nightreign: players are SOLO in the hub even when online; matchmaking happens when you commence the trial → drop into the shared run together. **The TRIAL is the shared multiplayer space, the hub is solo prep.** This dissolves the original "two hubs for multiplayer" reasoning — you don't need a shared hub; the run IS the shared space.
+- **Boundary:** **hub = outside battle** (prep/shop/respec) · **trial = the run** (5 battles + named boss; Gold economy, World-Stat earn, in-run power).
+
+**What this simplifies (overrides the two-hub text below):**
+- No local-vs-run hub distinction — ONE hub does all services.
+- **Currency:** persistent currencies (Prisms/essence/Reality) spend at the HUB; Gold is the in-TRIAL currency (earned + spent during the run). No "currency-follows-location" split (it collapses — location is just hub-vs-trial).
+- The "currency follows the action" principle stays (services carry their own cost), but the hub-vs-hub routing is gone.
+- Item shop-assignment flags (sold-in-main/sold-in-run) collapse to hub-stock vs trial-vendor-stock.
+
+**The two-hub text below is RETAINED for reference (the economy reasoning — Gold-vs-Prisms, the service costs, the draft/return valve — all still holds) but READ IT AS ONE HUB: wherever it says "local hub" or "run hub," that's now the single hub (prep) vs the trial (the run). The Gold=in-trial / Prisms=at-hub split is the surviving core.**
+
+---
+
 ### Two-hub economy — Main hub (Prisms) vs Run hub (Gold) [DEFERRED — shapes the Pool arc]
 
 Two distinct hubs with different roles, currencies, and what they operate on:
@@ -54,6 +73,41 @@ Two distinct hubs with different roles, currencies, and what they operate on:
 **Partial bank via a VENDOR (mid-trial risk management):** instead of blanket all-or-nothing, a **mid-trial vendor lets you RETURN a few items** — banked safely even if you later die. The number you can return per trial **starts at 1, max 5** (account-perk-scaled, like gear slots). So partial-banking is PLAYER-CONTROLLED: "push deeper, or stop and lock in these items?" (This is the return-to-pool flow, available mid-trial, capped per trial.)
 
 **World Stats — in-trial, run-scoped, passive-scaled start:** World Stat Points are **earned in-trial** (defeating enemies / completing the trial) and **spent to build THIS character's stats DURING the run** — run-scoped (reset each trial; consistent with the existing run-volatile WSP rule). **Passives raise the STARTING amount** (thinking ~4 max to start) — account progression lets you begin a trial with more WSP. So WSP is the in-trial character-building currency: earn fighting → spend to power up this trial → reset next trial; passives set the floor.
+
+### World Stats — LOCKED MODEL (2026-06-25)
+
+The full layered model (refines the paragraph above):
+
+**1. Base 0/0/0 every run.** Mind/Body/Spirit start at ZERO at run start — not the authored asset value. The authored CharacterData stats become the asset baseline only; the live run value starts at 0/0/0.
+
+**2. Persistent PER-CHARACTER head-start (≤4 points, allocatable).** A passive/unlock grants up to ~4 head-start points the player allocates across Mind/Body/Spirit. **PER-CHARACTER persistent (NOT account-wide)** — each character saves its OWN head-start allocation; it sticks across that character's runs.
+- **Allocate at your convenience:** set the points whenever (hub/menu) OR in-run.
+- **In-run allocation self-saves:** if you enter a run without pre-allocating, however you distribute the points DURING the run becomes your saved persistent allocation. No dead-end — the latest allocation (hub or in-run) persists per-character.
+- ⚠️ **This is the ONE World-Stat piece needing SAVE** (per-character persistence — gated on the save system, audit-flagged ❌). Build the field/allocation now (session-volatile until save lands), persist later.
+
+**3. In-run EARN (on top of head-start), run-scoped:**
+- **Earn from enemies — PER-KILL pool, spent via a 5-PICK-3 DRAFT at COMBAT END (locked):**
+  - **Per-kill: feed a pool (no interruption).** Each enemy death adds caliber-scaled WSP to a running "earned this encounter" pool. Caliber = the victim's `GetTotalPool()` (stat-total, ~30-93 range) / a divisor → ~1-3 WSP/kill (divisor = tuning). NO mid-fight screens — kills just grow the pool.
+  - **Team-wide grant** (no killer attribution exists — `OnDied` carries victim only, `ServerTakeDamage` has no instigator; threading one through ~18 sites is a deferred enhancement). The winning team's pool fills; killer-specific is a later upgrade.
+  - **At COMBAT END: a 5-options-pick-3 DRAFT.** The accumulated pool drives a draft — player is offered **5 stat options, picks 3** to apply (Hades/VS-style level-up pick). Bigger pool = better/more options (exact mapping = tuning). Fires once per encounter at combat end.
+  - ⚠️ **The DRAFT UI is DEFERRED** (UI layer). The BACKEND (pool accumulation per-kill + the combat-end "draft ready" event + the `AddEarnedWorldStat` grant op) is buildable now as SCAFFOLDING — the pick-screen binds the event later. No wave-counter needed (caliber self-balances); wave-scaling layers on with trial-structure.
+- **Buy from run vendors — ESCALATING COST (the proven Slay-the-Spire model, web-validated):** a World Stat point is ALWAYS buyable at ANY run vendor; **each purchase raises the price of the next** (`base + N×bought`). The rising cost IS the throttle — no roll-chance, no random appearance (research: random gating frustrates players for a CORE progression stat; deterministic escalation is plannable). Spends Gold (run currency). **The escalation RESETS each run** (fresh ramp every trial — fits run-scoped stats). Per-pillar or shared ramp = a tuning call.
+- Both stack onto the head-start; both RESET each run.
+
+**4. Run-scoped reset.** Earned + bought stats wipe each run; only the per-character head-start allocation persists. Live value = `0 + head-start(persistent) + earned/bought(run-scoped)`.
+
+**5. Resettable.** The head-start allocation can be respec'd (reset → re-allocate the ≤4).
+
+**Storage (build shape):** live World Stats on `UCharacterDataComponent` runtime (line ~911 — already the designated runtime home). The head-start allocation is a per-character persistent field (SaveGame-tagged, dormant until save). In-run earned is run-scoped (needs the run-state container OR a runtime component field until run-state lands). The enemy-drop earn hooks `OnCombatResultReady` (fires already, no consumer — audit 🟡); the vendor-buy is an economy op (run currency → stat increment).
+
+**Earn model — REFINED (2026-06-25):**
+- **Per-ENEMY** (each kill drops World Stat Points), NOT per-encounter. Hook the per-actor death signal (`OnDied`/per-actor), not `OnCombatResultReady` (which is per-win).
+- **Scaled by enemy CALIBER** — a defeated enemy's stat-total (the `AvgStatTotal` / total-stat-points expression, CharacterData.h:315) determines the drop: tougher foe = more points. This is the §7.4 "earn from the caliber of foe" model, and it works NOW (caliber is an enemy property — no wave-counter needed).
+- **Wave-scaling DEFERRED** — "harder each wave gives more" multiplies on top of caliber, but needs the trial/encounter-sequence (UNBUILT). Add the wave multiplier when trial-structure lands; caliber-scaling ships now and stands alone.
+
+**Skill gating — CLARIFIED:** world stats are **IDEAL requirements (advisory), they do NOT gate skills** (already implemented this way). So the skill-requirement reader does NOT need repointing to live — it's not gating anything. The reader-repoint (C2) is ONLY the combat-SCALING readers (damage/defense scaling, turn speed, spell-slot discount, weather) — the mechanical consumers, not the advisory requirement check.
+
+**Build-order note (per foundations audit):** the EARN/SPEND/reset (enemy drop + vendor buy + allocate + reset) is buildable NOW as runtime ops on a component — it does NOT need save (only the head-start PERSISTENCE does, which degrades gracefully to session-volatile until save lands). So this is buildable on existing foundations; the persistence half wires in with the save system later.
 
 **Class shapes what's USABLE from a draft — off-class gear RETURNS for Gold (kept, not scrapped):** Generic uses TWO weapons; other classes (Caster/Resonator) may use no/fewer weapons (Resonator is ring-based). So a class won't use everything it drafts. Off-class drafted gear (e.g. a Resonator's weapon) → **RETURN to the account-wide pool for Gold** — the item is KEPT (a Generic can use it later; the pool is shared), NOT destroyed. **No essence from return.** You only get essence by deliberately DISMANTLING (which destroys the item). So off-class gear is never waste — return it (Gold now, kept for another character), don't scrap it. Reinforces the faucet split: RETURN = pool + Gold (item kept) · DISMANTLE = essence (item destroyed) · BREAK = pool + essence (forced salvage).
 
@@ -709,6 +763,41 @@ Buy an item at the hub (Prisms) → **own it permanently** → if it drafts into
 Turn-based **roguelite** (meta-progression persists). Gear cushions low world stats — pre-leveled gear gives a floor so a fresh run isn't helpless; world stats are the per-run earn. (Gear-vs-world-stat scaling split is a tuning pass — lean ~60–70% self-tier / 30–40% world-stat.)
 
 ---
+
+## 7.9 Enemy inventories — LEVEL POOL + bespoke (DESIGN THREAD, 2026-06-25)
+
+**Concept:** enemies get loadouts the SAME way players do — drawn from a pool — but the pool is **per-level/area**, not per-character. Two tiers:
+
+**1. Level pool (generic enemies).** Each level/area defines a **pool of items that can appear there** (an authored per-level item table — "these weapons/spells/crystals belong to Level N"). **Generic enemies roll a loadout from their level's pool** — so the same enemy type plays differently each encounter (variety), and the LEVEL sets the power band + theme. Low-authoring, scalable, varied.
+
+**2. Bespoke (named/special enemies).** Bosses + special enemies get **authored or custom-randomized loadouts** — not bound to the generic level pool. Hand-crafted control where it matters (trash = table-driven, bosses = hand-built — the standard RPG split).
+
+**Why it fits cleanly:**
+- **Reuses the BUILT inventory/loadout machinery** (audit: inventory/loadout system is ✅ solid; pool-draw proven lossless this session). Enemies become "a character with an inventory drawn from a pool" — the same draw logic, pointed at a LEVEL pool instead of an account pool. Not a new system — a new pool SOURCE + an enemy-spawn draw hook.
+- **Self-balances with the caliber-earn (§7).** A higher-level enemy draws from a higher-tier level pool → richer kit → higher `GetTotalPool()` caliber → more WSP earned. The level pool sets enemy power, which sets the reward. Deeper level = tougher enemy = bigger drop. The earn system (C3) reads whatever caliber the enemy has — authored OR pool-drawn — so it works regardless; pool-draw just makes caliber VARY by level.
+
+**Independent of the World Stats build:** C3 (earn) reads enemy caliber from `GetTotalPool()` whether the kit is authored or pool-drawn. So enemy-inventories is its own arc — bank now, build after the World Stats faucets (C4 vendor + the draft UI).
+
+**Source-tag model — LOCKED (2026-06-25, web-validated):**
+
+- **Items carry `FGameplayTag` source tags** (UE-native hierarchical, engine-built for "where can this appear"): `Source.Floor.2`, `Source.Level.Volcano`, `Source.Vendor.Blacksmith`, etc. Multi-dimensional — one item can be tagged for many floors/levels/vendors at once. Designer-editable in the central tag registry, no code per new tag.
+- **A "pool" = a TAG QUERY, not an authored list.** Floor-2 enemies draw from `query(Source.Floor.2)`; Volcano drops = `query(Source.Level.Volcano)`; Blacksmith stock = `query(Source.Vendor.Blacksmith)`. Add an item with the right tags → it AUTOMATICALLY appears in every matching pool. No pool-list editing.
+- **Querying: OR to start** (item appears in ANY pool it's tagged for), `FGameplayTagQuery` AND/NOT available later for finer sub-pools — costs nothing now, upgrade path built-in.
+- **TAG = filter, ROLL = selector.** The tag query produces the ELIGIBLE candidate set; the actual pick is a **weighted ROLL** over that set (the existing drop-chance / Luck-weighted draw — REUSES built machinery). Tags answer "what's eligible here?", the roll answers "what actually drops/spawns?" — the production pattern (PoE/Diablo: level-range + tags → eligible set → weighted roll).
+- **Enemies, player-drops, and vendors all use the SAME mechanism** — same tag-query → weighted roll, different tag. Enemy kit, player loot, shop stock are one system viewed three ways.
+
+- **Enemy-kit ↔ player-loot relationship — LOCKED: same query, two rolls (option a).** When you defeat an enemy, your drop rolls from the SAME level tag-query the enemy's kit drew from — but as a SEPARATE weighted roll (the enemy's specific kit and your specific drop are independent picks over the same eligible set). "You fight what you can win." Sub-tags (`Source.Floor.2.Enemy` vs `.Drop`) can DECOUPLE specific items later without rebuilding — the hierarchy gives that escape hatch for free. (Note: the shared-world Lord/Contender vision — player characters as AI enemies — could later use option (b) "win the enemy's actual kit" for NAMED/character enemies, taking their build; banked as a future flavour, not the generic default.)
+
+**Crystal tagging — DECIDED: tag crystals too (location-gatable uniques).** Crystals are enum-keyed (`FCrystalId{Type,Tier}`), not assets — a UPROPERTY tag field has nowhere to live. So crystals get a SEPARATE tag mechanism: a tag table keyed by `ECrystalType` (crystal → its `FGameplayTagContainer` source tags). Most crystals = universal (tagged broadly / untagged = everywhere); rare/unique crystals = location-gated via their table entry. Built alongside the asset-tag layer (its own small piece).
+
+**Build shape (mostly reuses built systems):** the weighted draw EXISTS (drop-chance/Luck draw, survey-confirmed). NEW pieces: (1) an `FGameplayTag` source-tag field on the item definitions, (2) a tag-query→candidate-set helper, (3) the enemy-spawn draw hook (roll a kit from the floor/level query) + generic-vs-bespoke enemy flag. Independent of the World Stats build; gated on run-state/trial-structure for the SEQUENCING, but the tag+query+roll layer is buildable on existing foundations.
+
+**Open (design, when built):**
+- The level-pool DATA structure (a `ULevelItemPool` data asset per level? a table keyed by level?).
+- The enemy-spawn draw hook (where a generic enemy rolls its loadout from the level pool at spawn).
+- Generic-vs-bespoke flag on the enemy (which path an enemy takes).
+- ⚠️ Does the level pool ALSO feed player drops/rewards (one level table, two uses), or enemy-loadouts only? (Crown leaned enemy-loadouts; player-drop reuse is a possible extension — flag.)
+- Tier-scaling within a level pool (does a level pool span tiers, or is it tier-locked to the level's band?).
 
 ## 8. Persistent buffs — account perks (essence sink, permanent)
 
