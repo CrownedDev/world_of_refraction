@@ -959,12 +959,12 @@ private:
 
 	/** Combined immunity: true if the action itself is immune OR the wielder's
 	 *  active weapon / active ring is immune. Equipment immunity blocks infusion
-	 *  only — status buildup is unaffected (bIsRawMode is the only buildup gate). */
+	 *  only — status buildup is unaffected. */
 	bool IsInfusionImmune(AActor *User, bool bActionImmune) const;
 
-	/** Sync PartialResult.BaseDamageBeforeDefense and compute DamagePerHit after
-	 *  raw-mode redirect has folded any buildup into damage. Shared post-redirect
-	 *  cleanup across all three async paths. Also resolves the skill's DamageSplit
+	/** Sync PartialResult.BaseDamageBeforeDefense and compute DamagePerHit from the
+	 *  finalized damage. Shared cleanup across all three async paths. Also resolves
+	 *  the skill's DamageSplit
 	 *  into ResolvedDamageSplit on the context (D1) — stash only; OutDamagePerHit
 	 *  stays the legacy even split until the runner consumes the table (Stage 12).
 	 *  Assumes CurrentExecutionContext.IsSet(). */

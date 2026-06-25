@@ -172,13 +172,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
     FDefenseDifficultyTriple DefaultDifficulty;
 
-    /** Raw mode: folds StatusBuildup into damage at the orchestrator boundary; status bar doesn't move. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
-    bool bIsRawMode = false;
-
-    /** Per-hit status buildup amount. Disabled in raw mode. */
+    /** Per-hit status buildup amount. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat",
-              meta = (EditCondition = "!bIsRawMode", EditConditionHides, ClampMin = "0"))
+              meta = (ClampMin = "0"))
     int32 StatusBuildup = 0;
 
     /** If true, orchestrator rejects this skill when an infusion source is selected. */

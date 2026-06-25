@@ -16,7 +16,6 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/ESpellSource.h"
-#include "Combat/Actions/ActionUtils.h"
 #include "Combat/CombatConstants.h"
 #include "Infusion/InfusionConstants.h"
 #include "Inventory/ItemExecutor.h"
@@ -1359,7 +1358,7 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	// Merged attack+ability dispatch (Cluster 2). Reads the unified skill pointer (base type). An
 	// attack is just an ability with AbilityInfusionLevel=0 — every charge multiplier is L0-neutral
 	// (cost ×1.0, damage ×1.0, status 0), so this body produces the attack's prior numbers. The local
-	// stays named `Ability`: every field it touches (BaseDamage/HitCount/StatusBuildup/bIsRawMode/
+	// stays named `Ability`: every field it touches (BaseDamage/HitCount/StatusBuildup/
 	// DamageSplit/bImmuneToInfusion, CalculateDamage/CalculateEnergyCost) lives on USkillDataBase now.
 	USkillDataBase *Ability = ResolveActionSkill(Action);
 
