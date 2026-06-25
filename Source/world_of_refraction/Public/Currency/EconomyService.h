@@ -13,6 +13,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Currency/CurrencyTypes.h" // ECurrencyType for the leveling-essence param on TryLevelUpEntry
+#include "Character/CharacterDataComponent.h" // EWorldPillar for BuyWorldStat (§7 C4)
 #include "EconomyService.generated.h"
 
 class AActor;
@@ -135,6 +136,17 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Economy")
     bool PurchaseWeapon(AActor *Owner, UWeaponData *Weapon);
+
+    /**
+     * Buy +1 World Stat point in Pillar for Owner (§7 C4). Always buyable at any run vendor; cost is
+     * GOLD and ESCALATES per buy this run: WORLDSTAT_BUY_BASE_COST + (purchaseCount * STEP), where the
+     * count comes from the runtime component (reset per run by ResetRunWorldStats). Server-authoritative.
+     * Cap-safe: rejects (no charge) when the pillar is already at LIVE_MAX. On success: spend Gold,
+     * grant the point, bump the purchase count (escalates the next buy). False if: Owner null / no
+     * authority; CharacterDataComponent or CurrencyComponent missing; pillar at cap; or Gold unaffordable.
+     */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool BuyWorldStat(AActor *Owner, EWorldPillar Pillar);
 
     // ==================== LEVELING (instance tier-up, spend-side) ====================
 

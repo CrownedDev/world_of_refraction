@@ -3,6 +3,7 @@
 #include "Currency/EconomyService.h"
 #include "Currency/EconomyYield.h"
 #include "Currency/CurrencyComponent.h"
+#include "Character/CharacterDataComponent.h" // BuyWorldStat reach target (§7 C4)
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Inventory/InventoryComponent.h"
@@ -671,6 +672,65 @@ bool UEconomyService::PurchaseWeapon(AActor *Owner, UWeaponData *Weapon)
     return true;
 }
 
+bool UEconomyService::BuyWorldStat(AActor *Owner, EWorldPillar Pillar)
+{
+    if (!Owner)
+    {
+        return false;
+    }
+    if (!Owner->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] BuyWorldStat: no authority on %s — ignored"),
+               *Owner->GetName());
+        return false;
+    }
+
+    UCharacterDataComponent *CharComp = Owner->FindComponentByClass<UCharacterDataComponent>();
+    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    if (!CharComp || !Currency)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] BuyWorldStat: %s missing %s%s"),
+               *Owner->GetName(),
+               CharComp ? TEXT("") : TEXT("CharacterDataComponent "),
+               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+        return false;
+    }
+
+    // Cap PRE-CHECK — don't charge for a stat that can't rise (cleaner than spend-then-refund).
+    if (CharComp->GetWorldStat(Pillar) >= WorldStatConstants::LIVE_MAX)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] BuyWorldStat: %s pillar already at cap (%d) — rejected"),
+               *Owner->GetName(), WorldStatConstants::LIVE_MAX);
+        return false;
+    }
+
+    // Escalating Gold cost: base + (this-run purchase count * step). The count resets per run via
+    // UCharacterDataComponent::ResetRunWorldStats, so the ramp is automatically per-run.
+    const int32 Cost = EconomyYield::Constants::WORLDSTAT_BUY_BASE_COST +
+                       CharComp->GetWorldStatPurchaseCount() * EconomyYield::Constants::WORLDSTAT_BUY_COST_STEP;
+    if (!Currency->CanAfford(ECurrencyType::Gold, Cost))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] BuyWorldStat: %s cannot afford %d Gold"),
+               *Owner->GetName(), Cost);
+        return false;
+    }
+
+    // Spend → grant (cap pre-checked, so AddEarnedWorldStat won't fail on cap) → escalate the next buy.
+    Currency->Spend(ECurrencyType::Gold, Cost);
+    if (!CharComp->AddEarnedWorldStat(Pillar, 1))
+    {
+        // Defensive (shouldn't happen post pre-check): never take Gold for a failed grant.
+        Currency->Add(ECurrencyType::Gold, Cost);
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] BuyWorldStat: grant failed post-spend — refunded %d Gold"), Cost);
+        return false;
+    }
+    CharComp->IncrementPurchaseCount();
+
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] %s bought +1 world stat for %d Gold (buy #%d this run)"),
+           *Owner->GetName(), Cost, CharComp->GetWorldStatPurchaseCount());
+    return true;
+}
+
 // ==================== LEVELING (instance tier-up, spend-side) ====================
 
 bool UEconomyService::TryLevelUpEntry(UCurrencyComponent *Currency, EItemTier &InOutTier,
@@ -1194,5 +1254,38 @@ namespace
                     return;
                 }
                 Economy->PrintEconomy(Pawn);
+            }));
+
+    static FAutoConsoleCommandWithWorldAndArgs GBuyWorldStatCmd(
+        TEXT("wor.BuyWorldStat"),
+        TEXT("DEBUG: buy +1 world stat for the played pawn (arg: Mind|Body|Spirit, default Mind). Tests the escalating Gold cost — run it 3x and watch the cost rise + the stat + count climb."),
+        FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+            [](const TArray<FString> &Args, UWorld *World)
+            {
+                EWorldPillar Pillar = EWorldPillar::Mind;
+                if (Args.Num() > 0)
+                {
+                    if (Args[0].Equals(TEXT("Body"), ESearchCase::IgnoreCase))
+                    {
+                        Pillar = EWorldPillar::Body;
+                    }
+                    else if (Args[0].Equals(TEXT("Spirit"), ESearchCase::IgnoreCase))
+                    {
+                        Pillar = EWorldPillar::Spirit;
+                    }
+                }
+
+                UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+                UEconomyService *Economy = GI ? GI->GetSubsystem<UEconomyService>() : nullptr;
+                APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
+                APawn *Pawn = PC ? PC->GetPawn() : nullptr;
+                if (!Economy || !Pawn)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[EconomyService] wor.BuyWorldStat: no subsystem or played pawn."));
+                    return;
+                }
+                const bool bOK = Economy->BuyWorldStat(Pawn, Pillar);
+                UE_LOG(LogTemp, Display, TEXT("[EconomyService] wor.BuyWorldStat %s -> %s"),
+                       *UEnum::GetValueAsString(Pillar), bOK ? TEXT("OK") : TEXT("FAILED (cap / can't afford / missing component)"));
             }));
 }
