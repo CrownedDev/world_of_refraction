@@ -15,6 +15,8 @@
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Pool/PoolSubsystem.h" // InitializeFromPool draw source (step 2)
+#include "Inventory/ItemTier.h" // TierHelpers::GetTierName for the instance dump
+#include "Equipment/FRuntimeAttachedItem.h" // attached-crystal description in the instance dump
 #include "Combat/CombatConstants.h"
 #include "Combat/TurnManager.h" // speed-notify on speed-relevant crystal detach
 #include "Equipment/Crystals/CrystalEffectTable.h"
@@ -1116,6 +1118,158 @@ void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)
            Abilities.GetCount(),
            SavedLoadouts.Num(),
            ActiveLoadoutIndex);
+}
+
+FString UInventoryComponent::GetInventoryInstanceString() const
+{
+    const UEnum *CrystalEnum = StaticEnum<ECrystalType>();
+
+    auto QualityName = [](EItemQuality Q) -> const TCHAR *
+    {
+        switch (Q)
+        {
+        case EItemQuality::F_Quality: return TEXT("F");
+        case EItemQuality::E_Quality: return TEXT("E");
+        case EItemQuality::D_Quality: return TEXT("D");
+        case EItemQuality::C_Quality: return TEXT("C");
+        case EItemQuality::B_Quality: return TEXT("B");
+        case EItemQuality::A_Quality: return TEXT("A");
+        case EItemQuality::S_Quality: return TEXT("S");
+        default: return TEXT("?");
+        }
+    };
+
+    // Short, stable identity tag — first 8 hex of the GUID, or "invalid" for an
+    // unminted (ephemeral / loadout-inflated) entry. Enough to eyeball survival.
+    auto ShortGuid = [](const FGuid &Id) -> FString
+    {
+        return Id.IsValid() ? Id.ToString(EGuidFormats::Digits).Left(8) : FString(TEXT("invalid"));
+    };
+
+    auto DescribeAttachment = [&](const FRuntimeAttachedItem &A) -> FString
+    {
+        if (A.IsEmpty())
+        {
+            return TEXT("none");
+        }
+        if (A.IsCrystal() || A.IsAugmentStone())
+        {
+            return FString::Printf(TEXT("%s %s %s"),
+                                   A.IsAugmentStone() ? TEXT("stone") : TEXT("crystal"),
+                                   *CrystalEnum->GetAuthoredNameStringByValue(static_cast<int64>(A.Crystal.Id.Type)),
+                                   *TierHelpers::GetTierName(A.Crystal.Id.Tier));
+        }
+        if (A.IsEvolution())
+        {
+            return FString::Printf(TEXT("evolution %s"),
+                                   A.Evolution.Item ? *A.Evolution.Item->GetFullItemName() : TEXT("(null)"));
+        }
+        if (A.IsFusion())
+        {
+            return TEXT("fusion");
+        }
+        return TEXT("unknown");
+    };
+
+    FString Out = TEXT("[Inventory]");
+
+    // ---------- Weapons ----------
+    Out += FString::Printf(TEXT("\n  Weapons (%d):"), Weapons.Num());
+    for (const FWeaponInventoryEntry &W : Weapons)
+    {
+        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s"),
+                               W.Weapon ? *W.Weapon->Name : TEXT("(null)"),
+                               *ShortGuid(W.PersistentID),
+                               *TierHelpers::GetTierName(W.Tier),
+                               QualityName(W.Quality),
+                               *DescribeAttachment(W.AttachedItem));
+    }
+
+    // ---------- Rings ----------
+    Out += FString::Printf(TEXT("\n  Rings (%d):"), Rings.Num());
+    for (const FRingInventoryEntry &R : Rings)
+    {
+        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s"),
+                               R.Ring ? *R.Ring->Name : TEXT("(null)"),
+                               *ShortGuid(R.PersistentID),
+                               *TierHelpers::GetTierName(R.Tier),
+                               QualityName(R.Quality),
+                               *DescribeAttachment(R.AttachedItem));
+    }
+
+    // ---------- Spells ----------
+    Out += FString::Printf(TEXT("\n  Spells (%d):"), Spells.LearnedSpells.Num());
+    for (const FSpellInstance &S : Spells.LearnedSpells)
+    {
+        Out += FString::Printf(TEXT("\n    %s  IID=%s Tier=%s Q=%s"),
+                               S.Spell ? *S.Spell->Name : TEXT("(null)"),
+                               *ShortGuid(S.InstanceID),
+                               *TierHelpers::GetTierName(S.Tier),
+                               QualityName(S.Quality));
+    }
+
+    // ---------- Abilities ----------
+    Out += FString::Printf(TEXT("\n  Abilities (%d):"), Abilities.LearnedAbilities.Num());
+    for (const FAbilityInstance &A : Abilities.LearnedAbilities)
+    {
+        Out += FString::Printf(TEXT("\n    %s  IID=%s Tier=%s Q=%s"),
+                               A.Ability ? *A.Ability->Name : TEXT("(null)"),
+                               *ShortGuid(A.InstanceID),
+                               *TierHelpers::GetTierName(A.Tier),
+                               QualityName(A.Quality));
+    }
+
+    // Sibling components hold the evolution + crystal stores — resolve read-only.
+    AActor *Owner = GetOwner();
+    UEvolutionInventoryComponent *EvolutionInv = Owner
+        ? Owner->FindComponentByClass<UEvolutionInventoryComponent>()
+        : nullptr;
+    UCrystalInventoryComponent *CrystalInv = Owner
+        ? Owner->FindComponentByClass<UCrystalInventoryComponent>()
+        : nullptr;
+
+    // ---------- Evolutions ----------
+    if (EvolutionInv)
+    {
+        Out += FString::Printf(TEXT("\n  Evolutions (%d):"), EvolutionInv->Entries.Num());
+        for (const FEvolutionInventoryEntry &E : EvolutionInv->Entries)
+        {
+            Out += FString::Printf(TEXT("\n    %s  IID=%s Tier=%s Q=%s  dur=%d"),
+                                   E.Item ? *E.Item->GetFullItemName() : TEXT("(null)"),
+                                   *ShortGuid(E.InstanceID),
+                                   *TierHelpers::GetTierName(E.Tier),
+                                   QualityName(E.Quality),
+                                   E.CurrentDurability);
+        }
+    }
+    else
+    {
+        Out += TEXT("\n  Evolutions: (no UEvolutionInventoryComponent)");
+    }
+
+    // ---------- Crystals (stacks — same shape as PrintPoolState for direct diff) ----------
+    if (CrystalInv)
+    {
+        Out += TEXT("\n  Crystals:");
+        auto EmitPool = [&](const TMap<FCrystalId, int32> &Pool, const TCHAR *Tag)
+        {
+            for (const TPair<FCrystalId, int32> &Pair : Pool)
+            {
+                Out += FString::Printf(TEXT("\n      [%s] %s %s x%d"), Tag,
+                                       *CrystalEnum->GetAuthoredNameStringByValue(static_cast<int64>(Pair.Key.Type)),
+                                       *TierHelpers::GetTierName(Pair.Key.Tier), Pair.Value);
+            }
+        };
+        EmitPool(CrystalInv->GemItem, TEXT("item"));
+        EmitPool(CrystalInv->GemRefined, TEXT("refined"));
+        EmitPool(CrystalInv->StoneItem, TEXT("item"));
+    }
+    else
+    {
+        Out += TEXT("\n  Crystals: (no UCrystalInventoryComponent)");
+    }
+
+    return Out;
 }
 
 #if WITH_EDITOR

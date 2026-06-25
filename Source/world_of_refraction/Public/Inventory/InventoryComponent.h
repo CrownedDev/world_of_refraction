@@ -279,6 +279,18 @@ public:
     UFUNCTION(BlueprintPure, Category = "Inventory|Debug")
     FString GetInventorySummary() const;
 
+    /** Per-INSTANCE state dump (the diff tool for the pool draw — counts alone can't
+     *  prove instance state survived). Lists, per owned item, the identity + leveled/
+     *  rolled axes that the whole-entry draw must preserve:
+     *   - weapons / rings : PersistentID (short), Tier, Quality, attached crystal (Type/Tier or none)
+     *   - spells / abilities : InstanceID (short), Tier, Quality, asset name
+     *   - evolutions : InstanceID (short), Tier, Quality, durability
+     *   - crystals : per-pool stacks (Type Tier xN) — same shape as PrintPoolState for direct diff
+     *  Read-only; resolves the sibling Crystal/Evolution components off the owner. After
+     *  wor.PopulatePool + wor.DrawFromPool, this should MATCH wor.PrintPool's tiers/crystals. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Debug")
+    FString GetInventoryInstanceString() const;
+
 private:
     /** Populates ownership lists + SavedLoadouts + ActiveLoadoutIndex from
      *  CharacterData->Inventory (a UInventoryData asset). Sole loadout-init

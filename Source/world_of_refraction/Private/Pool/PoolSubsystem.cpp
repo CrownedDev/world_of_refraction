@@ -524,4 +524,31 @@ namespace
                 Inv->InitializeFromPool(Pool);
                 Pool->PrintPoolState();
             }));
+
+    // The DIFF tool: dump the played character's RUN inventory per-INSTANCE (tiers / quality /
+    // attached crystals). Run after wor.PopulatePool + wor.DrawFromPool and compare against
+    // wor.PrintPool — matching tiers/crystals prove the whole-entry draw was lossless.
+    static FAutoConsoleCommandWithWorld GPrintInventoryCmd(
+        TEXT("wor.PrintInventory"),
+        TEXT("Dump the played character's run inventory per-instance (PersistentID/InstanceID, tier, quality, attached crystal) to log + screen (PIE debug)."),
+        FConsoleCommandWithWorldDelegate::CreateLambda(
+            [](UWorld *World)
+            {
+                APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
+                APawn *Pawn = PC ? PC->GetPawn() : nullptr;
+                UInventoryComponent *Inv = Pawn ? Pawn->FindComponentByClass<UInventoryComponent>() : nullptr;
+                if (!Inv)
+                {
+                    UE_LOG(LogTemp, Warning,
+                           TEXT("[Pool] wor.PrintInventory: could not resolve a played character's InventoryComponent (pawn / component missing)."));
+                    return;
+                }
+
+                const FString Dump = Inv->GetInventoryInstanceString();
+                UE_LOG(LogTemp, Log, TEXT("%s"), *Dump);
+                if (GEngine)
+                {
+                    GEngine->AddOnScreenDebugMessage(-1, POOL_DEBUG_SCREEN_DURATION, FColor::Yellow, Dump);
+                }
+            }));
 }
