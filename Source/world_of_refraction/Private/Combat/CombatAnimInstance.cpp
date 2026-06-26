@@ -5,6 +5,7 @@
 #include "Character/CharacterData.h"
 #include "Character/StanceData.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Combat/TurnManager.h"
 #include "GameFramework/Character.h"
 
 UCombatAnimInstance::UCombatAnimInstance()
@@ -95,6 +96,19 @@ void UCombatAnimInstance::UpdateCombatState()
     {
         return;
     }
+
+    // Combat-vs-hub gate: stance montages are a combat-only behavior. Query the
+    // TurnManager fresh (never cache subsystems across PIE). In the hub there is no
+    // active combat, so stop any lingering stance and let the locomotion state
+    // machine drive the pose.
+    UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    UTurnManager *TurnMgr = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+    if (!TurnMgr || !TurnMgr->IsCombatActive())
+    {
+        StopStanceMontage();
+        return;
+    }
+
     if (!CharacterDataComponent || !CharacterDataComponent->CharacterData)
     {
         bIsArmed = false;
