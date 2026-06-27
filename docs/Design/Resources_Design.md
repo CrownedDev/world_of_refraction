@@ -1180,3 +1180,242 @@ The RPC transport layer, authority-gating the combat orchestrator/subsystems, an
 - **Combat orchestration is ungated** (CombatOrchestrator/TurnManager/ActionExecutor run wherever invoked). Two combat subsystems are `UGameInstanceSubsystem` (don't replicate) — server-authoritative combat will eventually need them server-owned or moved to a replicated actor/GameState.
 - **Combat delegates broadcast ungated** → under MP with client-side execution they fire per-client → earn-layer would double-grant. Every grant must sit behind server authority (16.2 rule 2). Defense events (parry/perfect-defend) are real-time *local* input → need server reconciliation, not just a gate.
 - **`CrystalInventoryComponent` + `UInventoryData`** key crystal counts as `TMap<FCrystalId,int32>` — same FastArray treatment needed (16.2 rule 1).
+
+## Hub+Combat Character — LOCKED DESIGN (2026-06-25, Direction A, web-validated)
+
+**Goal:** ONE character serves both the walkable HUB (third-person traversal) and fixed-position COMBAT, by swapping controllers + anim layers per mode. UPDATE THE EXISTING combat character (additive) — do NOT rebuild on a fresh UE base.
+
+**Direction A (update existing) — chosen after MCP surveys revealed B was redundant.** Crown initially leaned B (fresh UE base) for a "cleaner movement foundation," but the surveys showed the existing character IS ALREADY that foundation: parent `BP_CharacterBase` → `ACharacter` with CapsuleComponent + CharacterMovementComponent + SkeletalMesh, AND already on the **Manny skeleton** (same as UE's third-person base — so B's anims would've needed no retarget *because they're already the same skeleton*), AND no camera/input to conflict with. B's cost (re-home every component, re-satisfy every combat dependency, risk breaking working combat) bought nothing A doesn't already have. A is ADDITIVE: switch on movement the character already has + add the 2 missing cosmetic pieces (camera + locomotion anim) + the hub controller. Combat wiring stays 100% intact — the orchestrator still finds the same character, no component moves, no anim-instance re-cast.
+
+**Architecture (LOCKED):**
+- **Base:** the EXISTING `BP_CombatCharacter` / `BP_CharacterBase` — UPDATED, not replaced. It's already an `ACharacter` on Manny with full movement. No duplicate-and-rehome; work additively on the real character.
+- **Components:** UNCHANGED. All gameplay components (CharacterData, Inventory, Loadout, CrystalInventory, EvolutionInventory, Currency, BrokenDarknessManager, WeaponMesh, InfusionVFX, ElementColorDebug) stay exactly where they are. Nothing moves. Combat's FindComponentByClass lookups + orchestrator class-find all keep working unchanged.
+- **Anim — ADD a Locomotion LINKED LAYER alongside the existing Combat anim (UE5-native, Lyra-proven):** keep the existing combat AnimBP as the base; ADD a **Locomotion layer** (UE third-person locomotion) as a linked anim layer, active in hub mode. Combat anim logic stays the base/Combat layer, untouched. Swap the active layer by mode (`bIsCombat`). ⚠️ Whether the existing combat AnimBP cleanly accepts an added locomotion layer vs needs light restructuring is the survey's key anim finding — but even worst case, A keeps the combat CHARACTER wiring intact (the expensive part).
+- **Mode flag `bIsCombat`:** ⚠️ cached in the EventGraph (read from controller/character), READ in the AnimGraph — the thread-safe split (AnimGraph runs on the anim worker thread, must not call game-thread functions directly).
+- **Hub mode:** third-person `APlayerController` possesses it → walks (movement already there) → Locomotion layer active. Needs the follow-camera (spring-arm + camera) — character has NONE today.
+- **Combat mode:** `ACombatPlayerController` possesses it → no movement input, fixed-position → Combat layer active. Combat camera unaffected: `ACombatCameraManager` drives the view via PC `SetViewTargetWithBlend` pointed at its OWN camera actors — so a character-owned follow-camera is automatically DORMANT in combat (confirmed via MCP, zero conflict).
+- **Mode toggle = GameMode-per-level:** combat level uses `BP_Combat_GameMode` (PlayerController=`ACombatPlayerController`, DefaultPawn=`BP_CombatCharacter_Fire` ⚠️). Hub gets its OWN GameMode (third-person controller + the new char as default pawn). Switching modes = level/GameMode transition. Combat GameMode stays UNTOUCHED.
+
+**Build discipline (additive on the real character — combat-risk managed by branch + PIE gate):**
+- Work additively on the existing character — add camera + locomotion layer + hub input WITHOUT touching combat wiring. The risk is lower than B (nothing re-homed), but it's still the live combat character, so: do it on a BRANCH, tag before starting, PIE-verify combat STILL works after each additive change.
+- The combat path must remain unbroken at every step (combat anim still plays, orchestrator still finds the char, defense windows still fire). Test combat in PIE after adding the camera, and again after adding the locomotion layer.
+- ⚠️ Stray duplicate to clean later: `/Game/Core/GameModes/BP_CombatGameMode` (unused; `LevelMechanics` uses `/Game/Level/BP_Combat_GameMode`).
+
+**Build order (next session, after the survey):**
+1. Branch + tag. Add follow-camera (spring-arm + camera) to the existing character. ⚠️ PIE-verify combat STILL works (camera dormant in combat, view-target unaffected).
+2. Add the Locomotion linked anim layer alongside the existing combat anim; `bIsCombat` cached EventGraph→read AnimGraph. ⚠️ PIE-verify combat anim STILL plays.
+3. Hub GameMode + third-person controller (its own IMC: move/look/jump, added in BeginPlay — separate from the combat controller's IMC, no clash). Prove walking in `TestLevel_Nav`.
+4. The mode toggle (level/GameMode transition hub↔trial).
+NOTE: no component re-homing, no orchestrator re-find, no anim-instance re-cast — combat keeps using the SAME character it always did. A is fewer clusters than B.
+
+**Status:** DESIGN LOCKED + SURVEYED (2026-06-25). Build fresh next session.
+
+### Re-integration survey findings (2026-06-25) — refine the anim approach + flag the skeleton
+
+**KEY REFINEMENT — Path A (expand existing locomotion SM) beats Linked Layers here.** The survey found `ABP_CombatCharacter` is ALREADY `UCombatAnimInstance`-derived AND already contains a Locomotion state machine (just an Idle state today). Combat is 100% montage-slot-driven — combat montages overlay whatever the base graph does. So the simplest, lowest-risk path is to **expand the existing Locomotion SM to full walk/run/jump** — ONE AnimBP serves both modes, combat montages still overlay, zero combat code touched. Linked layers are NOT needed (and linked layers alone wouldn't satisfy combat anyway — see the cast requirement). Supersedes the earlier "Linked Anim Layers" plan: use Path A unless a reason to layer emerges.
+
+**⚠️ THE hard break-risk — the AnimInstance cast (mandatory):** combat hard-casts `GetMesh()->GetAnimInstance()` to `UCombatAnimInstance` (ActionExecutor.cpp:4995, DefenseSystem.cpp:571, CombatNotify.cpp:41). If the main AnimInstance is NOT `UCombatAnimInstance`-derived, the notify/ended delegates don't fire → action-finalize + VFX/damage timing break (there's a degraded `PlayAnimMontage` fallback, but it loses the delegates). So the main AnimBP MUST stay `UCombatAnimInstance`-derived. ⚠️ Do NOT use the stock third-person AnimBP (plain `UAnimInstance` — would break combat). Expand the EXISTING combat AnimBP (already the right class).
+
+**⚠️ SKELETON MISMATCH — the one real complication:** combat is on **UE5 `SK_Manny_HTS`**; the third-person template content in-project (`/Game/SoStylized/...`) is on **UE4 `UE4_Mannequin_Skeleton`** — DIFFERENT skeletons. Can't use the template's locomotion anims as-is. Recommendation: source UE5-Manny locomotion (the CombatMasterAnimBundle is Manny_UE5-based — CONFIRM it already carries locomotion on `SK_Manny_HTS` before authoring) OR do one UE4→UE5 IK-retarget pass. Confirm the exact USkeleton of any locomotion anims first.
+
+**LOW-RISK confirmations:** (1) combat does NOT filter by character class — `StartCombat` takes a `TArray<AActor*>` team array; combatant-test is `FindComponentByClass<UCharacterDataComponent>`, not a class cast. The char just needs the components + to be in the team array. (2) All 10 gameplay components stay on `BP_CharacterBase` — keeping the char descended from it satisfies the full component contract for free, nothing moves. (3) Per-character knob that matters: `CharacterData.CharacterData = DA_Character_*` (each elemental variant). (4) Third-person camera/input pattern already in-project to copy (not its UE4 skeleton/AnimBP).
+
+**SURVEYED CLUSTER PLAN (≤3 files each, additive, combat provable at each step):**
+- **Cluster 1 — Hub controller + GameMode** (zero combat impact): new `BP_HubPlayerController` (third-person input + possession + view target) + `BP_Hub_GameMode` (DefaultPawn = the character, PlayerController = hub). BONUS: add `RemoveMappingContext` to `ACombatPlayerController::EndPlay` (Enhanced-Input hygiene). Prove walking in a hub level.
+- **Cluster 2 — Camera rig** (additive): SpringArm + Camera on `BP_CharacterBase` (or hub-side subclass); dormant in combat (combat sets PC view target to its own camera actor — verified). PIE-verify combat still frames correctly.
+- **Cluster 3 — Locomotion in the AnimBP** (the risky one, ISOLATED): on a DUPLICATE of `ABP_CombatCharacter`, expand the Locomotion SM to walk/run/jump (retarget locomotion anims to `SK_Manny_HTS` first if needed). Swap the char's AnimClass to the duplicate ONLY after combat montages (stance/action/notify/ended) re-verify in PIE. Keep `ABP_CombatCharacter` as the proven fallback until then.
+
+
+### Hub camera — Expedition 33 feel (target for Cluster 2 tuning pass, web-researched 2026-06-25)
+
+Expedition 33's exploration camera is a STANDARD dynamic third-person follow-cam (not exotic) — the spring-arm + camera rig already planned IS the base. Tune toward their feel in the Cluster 2 camera-rig pass (tuning only makes sense once the char walks — Cluster 1 first):
+- **Longer arm** (~500–600 vs UE default 400) — pulled back for the wide, environment-showcasing frame (their environments are a showpiece; camera mods push it even higher/wider).
+- **Higher pitch + slight downward look + Z/socket offset up (~50–80)** — the elevated "survey the world" angle.
+- **Camera Lag enabled (low value)** on the spring arm — smooth, floaty cinematic follow vs rigid lock.
+- **Sprint** wired to the existing `IA_Sprint` (already in the input set) with a high sprint speed — E33's "inhumanly fast, streamlined" traversal.
+- **A few fixed-camera set-piece rooms** are a later tool (reuse placed-camera support from the combat camera system) — NOT the default.
+- ⚠️ **Beat their weakness:** E33 was criticized for NO minimap → occasional disorientation. A minimap/compass is the easy win they left on the table — bank for the hub UI.
+Sequencing: Cluster 1 = walking + basic follow-cam (don't tune feel against a non-moving char). Cluster 2 = finalize rig + this Expedition-33 tuning pass.
+
+### Cluster 3 locomotion source — LOCKED (2026-06-25): MM defaults, shared AnimBP
+
+**Decision (Crown):** use the STOCK UE5 Manny MM anims (the defaults), NOT Paragon. Rationale: taking *inspiration* from Expedition 33, not replicating it — the neutral stock anims are the baseline. MM keeps it un-locked-in (generic UE5 Manny; can branch/extend/swap later); Paragon would couple to that specific set. Keep it SIMPLE — walk/run/jump only, no 8-way (8-way × 14 characters = unmanageable; not needed).
+
+**Scope:** walk, run, jump. That's it. Forward-only.
+
+**Source assets (all on the Big_Pack SK_Mannequin the AnimBP already targets — ZERO retarget):**
+- MM_Idle, MM_Walk_Fwd, MM_Walk_InPlace, MM_Run_Fwd, MM_Jump (+ MM_Fall_Loop, MM_Land available)
+- BS_MM_WalkRun already built: BlendSpace1D, Speed 0–500 → MM_Walk_InPlace@0, MM_Walk_Fwd@230, MM_Run_Fwd@500 (idle is a SEPARATE state, not in the blendspace)
+
+**Sharing across 14 characters: ONE shared locomotion AnimBP.** All 14 characters use the same `ABP_TestCombatCharacter` (→ becomes the locomotion-capable AnimBP). They all walk/run/jump identically — correct for generic traversal, scales trivially (one AnimBP, all characters point at it via BP_CharacterBase). NO per-character locomotion.
+
+**⚠️ Avoid:** the stray `SKM_Skeleton_HTS.uasset` (a UE4-mannequin skeleton) — do NOT wire it into the locomotion path. Stick to the Big_Pack SK_Mannequin everything else uses.
+
+**Build (Cluster 3, in ABP_TestCombatCharacter — the duplicate, original kept as fallback):**
+1. Expand the Locomotion state machine: Idle state (MM_Idle) ↔ Move state (BS_MM_WalkRun, speed-driven) + a Jump state/path (MM_Jump). EventGraph caches Speed (from owner velocity) + bIsInAir thread-safely (cache in EventGraph, read in AnimGraph).
+2. Combat montages overlay regardless (montage-slot driven; main AnimBP stays UCombatAnimInstance — already is).
+3. Repoint BP_TestCharacterBase.AnimClass → ABP_TestCombatCharacter ONLY after combat montages (stance/action/notify/ended) re-verify in PIE. Keep ABP_CombatCharacter as fallback.
+4. PIE: walk/run/jump animates in hub; combat still works.
+
+### Hub movement speed driven by action-speed stat (LOCKED 2026-06-25) — Cluster 3 follow-up
+
+**Decision (Crown):** action-speed stat DOES drive hub traversal speed (not just combat). Rationale: in shared LOCAL-HUB MULTIPLAYER, seeing other players move at different speeds based on their build is a readable expression of character identity — a small detail that makes the hub feel alive and makes stat choices visible to others. (Note: the action-speed stat is also SET/live in the hub — head-start allocation, presetting ≤4 world stats, substats via persistent buffs are all hub/outside-battle prep.)
+
+**Stays simple — ONE shared locomotion AnimBP for all 14.** What varies is `MaxWalkSpeed` on the movement component (set from the action-speed stat), NOT the animation. The blend space (BS_MM_WalkRun) already matches anim to speed, so faster characters naturally show more run-blend — no per-character anim work.
+
+**Build order:** locomotion state machine FIRST at flat 500 (prove walk/run/jump animates), THEN add stat-driven speed as a follow-up (don't conflate anim bugs with stat-wiring bugs).
+
+**Follow-up step (after state machine works):** on hub spawn/possess, read action-speed stat (from CharacterData/stat component) → map to MaxWalkSpeed within a CLAMPED band → set CharMoveComp.MaxWalkSpeed. Sprint multiplier (875-style) applies on top. ⚠️ Foot-sliding: BS_MM_WalkRun tops out at 500 (Run_Fwd); if stat pushes speed well above 500 the run anim won't keep up. Fix: clamp hub speed to a sensible band (e.g. ~400–700) so it varies but stays in anim range. Play-rate-scale the blendspace at the top end only if needed later (this is the legit use of play-rate, which is otherwise unnecessary since walk+run are separate blend samples). Mapping (stat→speed curve, exact band) = TUNING, design when building the follow-up.
+
+**REFINED SPEC (2026-06-25):** Stat: **ActionSpeed** (Body sub-stat, anim/attack pacing — NOT TurnSpeed/Reflex; matches the doc's literal "action-speed"). Model: **base run = FLAT 500 for everyone; SPRINT scales with ActionSpeed** (the stat shows in the burst — two players sprint, the fast-build one visibly pulls ahead = the readable multiplayer moment). Read **GetEffectiveActionSpeed()** (CharacterDataComponent.cpp:1023) — the effective MULTIPLIER, bounded 1.0–2.0, which ALREADY folds in world presets (WorldBodyLevel) + equipment BonusActionSpeed + ActionSpeedStone + skill ActionSpeedBuff/Debuff. Do NOT use raw GetTotalActionSpeed() (ignores buffs/world). Map [1.0,2.0] → sprint band **[700, 1050]** (Crown chose wider/more dramatic over the safe 700–900). ⚠️ Sprint anim (TwinBlast Sprint_Fwd in the embedded blendspace) tops out ~875 → above that, extend the blendspace sprint sample higher and/or play-rate-scale at the top to avoid foot-slide (accepted cost for the wider band). 
+- **Wiring:** IA_Sprint Started = computed sprint speed (mapped from GetEffectiveActionSpeed, clamped to band); Completed = flat base 500. Replaces the current hardcoded 875/500.
+- **HUB STAT SOURCES (no combat buffs in hub):** in the hub, ActionSpeed comes ONLY from (1) the points the player allocated into ActionSpeed (base stat) + (2) the ≤4 world-stat presets they set in the hub (Body-pillar scaling) + equipment. NO transient combat buffs (those are trial-only). So it's pure build-choice expression.
+- **APPROACH = OPTION A (live read at sprint-press) — CHOSEN:** IA_Sprint Started reads GetEffectiveActionSpeed() LIVE via a BlueprintCallable helper, computes sprint speed fresh each press. This DISSOLVES the timing problem entirely (press always happens long after CharacterDataComponent::BeginPlay resolved base+world+equipment) AND auto-reflects any world-preset change made in the hub (re-allocate presets → sprint immediately faster — the build-choice feedback loop just works, no cache/re-read hook). Chosen over Option B (cache + deferred hook + re-read on change) which is more moving parts for no benefit since the value isn't needed elsewhere yet.
+- **Home:** BP_HubPlayerController (already owns the IA_Sprint speed writes). Combat does NOT leak (fixed-position, MOVEMENT_SPEED_BASE/PER_POINT retired, warp is montage-driven — hub MaxWalkSpeed ignored by combat).
+
+### Deferred: weapon-flag split (separate refactor, after hub-slide fix)
+Crown's idea — the current single "change/show weapon" flag does too much. Split into TWO flags:
+1. **Switch weapon** — swaps between weapons; only usable when a character has MULTIPLE weapons (mainly Generic, who carries dual/multiple).
+2. **Show/hide weapon** — independently shows or holsters the weapon mesh.
+Separate concerns (switching vs visibility). DEFERRED — do after the hub stance-montage slide fix. NOT a fix for the slide (the slide is the stance MONTAGE overriding locomotion, not weapon mesh visibility).
+
+### ⚠️ ACTIVE BUG: hub locomotion slide = combat stance montage override (2026-06-25)
+ROOT CAUSE FOUND: BP_TestCharacterBase with ABP_TestCombatCharacter slides in idle pose in the hub because the C++ parent UCombatAnimInstance::UpdateCombatState() calls PlayStanceMontage() every frame (the test char has CharacterData → logs "[CombatAnimInstance] Playing stance montage: Anim_Sword_1H_Attack_Idle"). The stance montage plays on a slot OVER the locomotion state machine → holds sword-idle pose while capsule slides. The locomotion state machine itself is built correctly — it's just being COVERED by the stance montage overlay that shouldn't run in hub mode.
+- ⚠️ The "TryGetPawnOwner not valid" warnings in the log are the AnimBP PREVIEW actor (AnimationEditorPreviewActor), NOT the live PIE character — red herring; the live char IS possessed and moving.
+- FIX (combat-vs-hub mode separation — the bIsCombat distinction finally surfacing): gate PlayStanceMontage/UpdateCombatState so the stance montage only plays IN COMBAT, not in the hub. Least-invasive: a bIsInCombat check in UpdateCombatState (don't touch combat behavior). Survey CombatAnimInstance.cpp for an existing combat-active signal (CombatOrchestrator running? a state bool?) to drive the gate.
+- Once gated, the locomotion underneath should show through immediately (state machine work not wasted, just hidden).
+
+### Deferred: sprint leg-cadence polish (play-rate scaling)
+Stat-driven sprint works (band 800–1800, ActionSpeed-driven). At high speeds the legs don't fully keep up (some foot-slide) — cosmetic, deferred. The fix options (researched 2026-06-25):
+- ⚠️ The Move state uses an EMBEDDED Blend Space GRAPH (plain "Blendspace" node), NOT a "Blendspace Player" — so there's NO Play Rate PIN to expose (only Blendspace Player nodes expose it).
+- ⚠️ "Axis to Scale Animation" (the intended UE feature) is NOT available on 1D blend spaces — and BS_MM_WalkRun is 1D. So that path is out.
+- **Option A (simplest, try first):** set a fixed Rate Scale on the Sprint_Fwd SAMPLE inside the embedded blend space (~1.5). One number, no node changes. Fixed (not speed-driven) but may be enough.
+- **Option B (dynamic):** convert the node to a Blendspace Player (gets the Play Rate pin) OR convert the 1D blend space to 2D — then drive Play Rate with `max(1.0, Speed/SprintRef)` (SprintRef ~800; the max() floor keeps walk/run at rate 1.0 so only the sprint zone scales). More work.
+- **Option C (AAA, if play-rate looks chipmunk at 1800):** Stride Warping (Animation Warping plugin) — lengthens stride instead of cranking cadence. Most setup.
+Build order if pursued: try A → if not enough, B (dynamic play-rate) → C only if cadence looks frantic at the top.
+
+### Hub→Trial door model + PvP options (CONCEPTUAL, banked 2026-06-25 — needs networked MP, far off)
+
+**The door model (locked direction):**
+- **Hub** = solo, walkable, prep/shop/menus ONLY — NO combat happens in the hub.
+- **Trial** = the run, where ALL combat happens. Entered via a **DOOR**.
+- **The door you pick determines the trial type:** PvE trials, or a **PvP trial door** (pick a level, with friends, randomized matchup).
+- Fits the existing "hub solo, matchmake at trial launch, trial = the shared multiplayer space" design (Nightreign model).
+
+**PvP architecture options (conceptual — pick when building):**
+1. **Lobby/party then launch (recommended fit):** form a party in the hub / at the PvP door → pick level (or random) → launch together into a shared trial instance. The Nightreign/Helldivers model; matches "matchmake at trial launch."
+2. **Door = matchmaking queue:** walk through PvP door → queue → matched → shared trial. More drop-in/quick-match.
+3. **Host/join via door:** one player opens a PvP level → friends join their instance. Friends-focused vs random.
+
+**What KIND of PvP (shapes everything) — the standout option:**
+- ⭐ **Asymmetric "Lord vs team" PvP** — directly matches the locked pitch tagline *"Become a Lord powerful enough to hold a throne against a full team."* ONE Lord defends, a TEAM of Contenders attacks, fought via the turn-based combat. This fits the Lord/Contender hierarchy and the shared-world vision better than symmetric PvP. Strong candidate for THE pvp identity.
+- (Alternatives: co-op-same-trial-with-competitive-scoring; or symmetric direct PvP.)
+
+**⚠️ HARD PREREQUISITE — networked multiplayer:** ALL PvP (and shared trials generally) needs networked MP — replication (sync game state across machines), a server/host model, matchmaking infra. Combat is currently single-player/local. This is likely the BIGGEST system in the project and sits far from current work (walkable hub character). Bank PvP; build networked MP as its own major arc first. Everything above is DESIGN ONLY until then.
+
+### ⭐ Combat camera / skill presentation — THE EXPEDITION 33 MODEL: Sequencer per-skill (researched 2026-06-25)
+
+**KEY FINDING (from Sandfall's own UE dev interviews + GDC 2026 talk):** Expedition 33 does NOT use a coded camera manager. **Every combat skill is a Level Sequence (Sequencer cinematic)** — "treating all skills as small cinematics, in which we dynamically bind battle actors at runtime." Camera moves, VFX, projectiles, and timing are ALL co-authored per-skill in Sequencer, with the real battle actors bound at runtime. Quote: "Every single move in the game, during battle in particular, is a level sequence." This gave art/design direct control over on-screen action per ability WITHOUT programmer time per skill.
+
+**This VALIDATES Crown's instinct exactly:** "make action cameras for the skills rather than have it coded." The mechanism is **Sequencer / Level Sequences**, not a bespoke camera-state manager.
+
+**Implications for WoR:**
+- The current `CombatCameraManager` (coded Home/Character/Action states via SetViewTargetWithBlend) is the OLD, over-engineered approach. Crown's "it's over-engineered" read is correct. NOTE: Crown says it's not currently in active use — LOW RISK to rework/replace.
+- ⭐ **Direction: per-skill Level Sequences.** Each skill asset references (or carries) a Level Sequence that authors its camera + VFX + timing; battle actors dynamically bound at runtime. Replaces coded camera states with authored-per-skill content. This is potentially how ALL skill PRESENTATION should work, not just camera.
+- E33 is **"vanilla-first," ~95% Blueprints, minimal bespoke code** (GDC 2026) — they push native UE tools (Sequencer, CommonUI, ALS, KawaiiPhysics) to their limits rather than building custom systems. The lesson for a solo dev: lean on Sequencer (native) over bespoke camera code.
+- Turn-based makes it tractable: controlled environments, predictable on-screen actor count, authored camera + scripted timing. WoR is turn-based → same approach viable.
+- E33 also ships a **"Camera Movement" OFF toggle** (static wide camera) for accessibility/motion-sickness — the dynamic camera is divisive (vocal "make it stop moving" contingent). Worth replicating: dynamic per-skill sequences + a static-camera accessibility toggle.
+
+**STATUS: design direction identified, NOT YET DESIGNED/BUILT.** This is a significant architectural shift (coded camera → Sequencer-per-skill) touching skill presentation broadly. Deserves its own design pass + survey of current CombatCameraManager + how skills currently trigger presentation, before building. The now-present character cameras (from the reparent) are great for the HUB; combat presentation should go the Sequencer route, not character-camera.
+
+### Per-skill camera — DIRECTION LOCKED (2026-06-25): Level Sequence per skill, layered (option b)
+
+**Decision (Crown): full Level Sequence per skill, NOT simple transform data.** Reason: the IMMERSIVE cinematic feel is the whole point (the "Expedition 33 meets Destiny" pitch) — a static framed angle doesn't deliver it; the moving authored shot does. Don't undercut the point by going simple.
+
+**Architecture (locked):**
+- **New `Camera` field on the skill data asset** = `TSoftObjectPtr<ULevelSequence>` — references an authored cinematic (camera moves + optional VFX flourish) authored per-skill in Sequencer. This is the E33 model ("every skill is a level sequence").
+- **Layering = option (b):** the sequence runs ALONGSIDE the existing casting. Crown's EXISTING combat timing stays UNTOUCHED — ActionExecutor → montage → notify → damage/defense windows all keep running as-is. The sequence is for CAMERA (+ presentation flourish), NOT gameplay timing/damage. Do NOT move damage/defense events into Sequencer event tracks (that's option a — a risky rewrite of working combat; rejected).
+- **On cast:** play the skill's Level Sequence, DYNAMICALLY BIND its caster/target placeholder tracks to the actual battle combatants (the genuinely tricky part — Sandfall's "dynamically bind battle actors at runtime"; UE Sequencer has a binding API for this), camera track drives the view; on sequence end, return to the combat camera.
+
+**The hard part = runtime actor binding.** The sequence is authored with placeholder caster/target; at runtime it must bind to THIS cast's actual actors. Doable (Sequencer binding API) but it's the real engineering of this system.
+
+**Scope/sequencing:** This is its OWN focused arc (survey + design + build), NOT a tail-on. Needs: (1) survey how casting currently triggers/times a skill (ActionExecutor → montage → notify chain) so the sequence syncs to action-start without fighting existing timing; (2) the `Camera` skill field; (3) the runtime bind + play/cleanup lifecycle; (4) confirm the sequence camera and the (to-be-reworked/removed) CombatCameraManager don't conflict — the sequence likely SUPERSEDES the coded camera states. Replaces the over-engineered CombatCameraManager's coded approach with authored-per-skill sequences (Crown: CombatCameraManager over-engineered + not currently in active use → low risk to supersede).
+
+**STATUS: direction locked, build is a fresh-session arc.**
+
+### Combat camera architecture — DISTRIBUTED model (locked direction 2026-06-25)
+
+**Crown's key insight:** since every character now OWNS a camera (from the Generic-as-base reparent), the camera system doesn't need a monolithic manager juggling shared cameras. **Each character's camera frames THAT character.** The system becomes a simple STATE-DRIVEN SELECTOR, not a coded position-computing manager — which dissolves the "CombatCameraManager is over-engineered" problem.
+
+**Plus:** caster + target are ALREADY known to combat (skills already aim at targets), so the per-skill Level Sequence (see "Per-skill camera" section) just borrows the caster/target combat already has — the "runtime binding" is a non-problem, not the hard part.
+
+**The model (state → camera selection):**
+| Combat state                              | Camera                                                                     |
+| ----------------------------------------- | -------------------------------------------------------------------------- |
+| Character's turn (idle / choosing action) | THEIR camera, framing them                                                 |
+| Character casts a skill                   | The skill's Level Sequence, anchored to them (their camera / their action) |
+| Not their turn                            | WIDE SHOT (establishing, see the field)                                    |
+| Defending (incoming attack)               | Reaction framing / wider (see the incoming threat)                         |
+
+**Camera ownership:**
+- **Character cameras** (one per character, already present via reparent) → that character's turn + their actions.
+- **Per-skill Level Sequences** → when they cast (anchored to the caster, see locked per-skill camera direction).
+- **A SMALL set of SHARED "establishing" cameras** (wide field shot + maybe a couple angles) → the not-their-turn + defense moments. These aren't character-owned (a wide field shot belongs to no single character). This is the ONLY shared-camera piece — everything else is distributed.
+
+**Why this is better:** distributed (character-owned + skill sequences) + a few shared wides, SELECTED by combat state — vs the old monolithic coded manager computing positions. Far less code, cameras as content (on characters / skills), the "manager" shrinks to a state→camera selector. Matches Crown's original instinct (less code, camera as data) AND the E33 Sequencer-per-skill model.
+
+**[SUPERSEDED by the COMPLETE ARCHITECTURE section below — the 'shared establishing cameras' idea was dropped in favour of one-camera-per-character following shared mode rules + agency-based viewer perspective.]**
+
+### Combat camera — COMPLETE ARCHITECTURE (locked 2026-06-25, E33-validated w/ screenshots + research)
+
+**Core principle: cameras are INDEPENDENT but follow the SAME RULES.** Each character owns ONE camera (from the Generic-as-base reparent). Every camera obeys the same mode ruleset; GAME STATE (whose turn, who's acting) determines which mode each camera is in. The correct framing EMERGES from each camera independently evaluating the shared rules against state — NO central position-computing manager. This supersedes the over-engineered CombatCameraManager.
+
+**The shared mode rules (every camera follows these):**
+| Mode                          | The camera does                                                                                                                                                                                                                                                                                            |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Turn**                      | Close over-the-shoulder on the acting character, character-LEFT, OPPONENT(S) VISIBLE across the field (option b — NOT pure character; the standoff/opponent read is the content, esp. in PvP). E33-confirmed via screenshots: combat reuses the close exploration-style framing, cinematic layered on top. |
+| **Action** (action confirmed) | The per-skill Level Sequence takes over (cinematic, anchored to the known caster — see per-skill camera section).                                                                                                                                                                                          |
+| **Defence**                   | Camera frames the INCOMING attack so the defender can time dodge/parry. KEEP this — it does real work (E33 screenshot confirms the defense QTE needs to see the threat).                                                                                                                                   |
+| **Not your turn**             | Pan out (establishing/wider).                                                                                                                                                                                                                                                                              |
+
+**Reuse insight (E33):** combat Turn-mode framing = the same close over-shoulder as EXPLORATION (E33 doesn't switch to a special rig for the basic turn view). WoR can reuse a similar close framing for Turn mode (the character's own camera in a close mode) — less to build.
+
+**⚠️ E33's ONE big camera complaint = the LOCKED over-shoulder angle (motion sickness; most-requested mod = a CENTERED preset + adjustable distance).** Since WoR's camera is mode-driven/per-character anyway, build it MODE-SWAPPABLE / adjustable from the start (close-over-shoulder AND a centered/wider option) to avoid E33's mistake.
+
+**VIEWER PERSPECTIVE = tied to AGENCY (the key multiplayer insight).** What camera YOU see depends on what YOU control:
+| Mode                                  | Whose camera you see                                                                                                                                                                                 |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Solo PvE** (control whole team)     | Zooms in on EACH of your members as their turn comes (you direct all of them → close on each in sequence).                                                                                           |
+| **Co-op PvE** (control one character) | Close-up ONLY on YOUR turns. When a TEAMMATE acts → you see the PAN-OUT / spectator view (clean "not my decision" signal; also keeps co-op pacing light — no sitting through teammates' cinematics). |
+| **PvP** (control your Lord/team)      | Same logic — your perspective centers on what you control; opponents' turns = pan-out/spectator.                                                                                                     |
+
+Same ruleset across all modes — only "who is MINE to control" differs. The close camera MEANS "this is yours to decide"; pan-out means you're watching. Scales solo/co-op/PvP from one system.
+
+**Full architecture summary:**
+1. Each character owns ONE camera (reparent).
+2. All cameras follow the same mode rules (Turn/Action/Defence/Not-your-turn).
+3. Game state drives each camera's mode.
+4. Viewer sees the camera tied to THEIR agency (close on what they control, pan-out on what they don't).
+5. Per-skill Level Sequences plug into Action mode.
+6. Build mode-swappable/adjustable (close vs centered) to dodge E33's locked-angle complaint.
+
+**STATUS: architecture fully designed. Build = fresh-session arc. Survey current casting (caster/target refs, skill-fire timing, how CombatCameraManager currently hooks in) first, then build the per-character camera + the shared mode-rule selector + per-skill sequence playback, superseding CombatCameraManager.**
+
+### Camera flow refinement — acting-player vs watching-players + Defence-maybe-redundant (2026-06-25)
+
+**Two viewpoints in PvP (the acting player sees differently from watchers):**
+
+**Acting player (the one taking the turn):**
+- Close-up of THEIR character while choosing/confirming the action.
+- On CONFIRM → the ACTION camera (per-skill Level Sequence) takes over → cinematic shot of their attack.
+
+**Watching players (everyone else, during the actor's turn) — 3 options, (b) is the likely default:**
+- (a) Show the whole team — best tactical readability, least cinematic.
+- (b) ⭐ Close on the actor but wide enough to SEE OTHER TEAM MEMBERS — readable + focused. Likely sweet spot for PvP team fights (pure close-up loses battlefield awareness; whole-team loses immersion).
+- (c) Just the acting character — most cinematic, but in PvP team fights risks feeling claustrophobic (lose awareness of teammates/threats).
+- PvP-specific: team fights need SOME battlefield awareness (whose turn next, threats) → (b) over (c) as default.
+
+**⭐ Crown's insight — the DEFENCE camera may be REDUNDANT:** if the camera is always on whoever's ACTING, then when you're attacked you see the incoming hit THROUGH THE ATTACKER'S ACTION CAMERA (you're the target, you're in that shot). The action camera doubles as the defense view → no separate Defence camera/mode needed.
+- ⚠️ PRESSURE-TEST before dropping Defence: the defense system has REAL-TIME parry/dodge timing windows — the defender must CLEARLY see the attack wind-up + strike moment to time it. VIABLE to drop Defence camera IF the action camera keeps the defender's timing readable (it's aimed at the attack landing on the defender, so it should). If the cinematic is too "attacker-glory-shot" and obscures defense timing, KEEP a defence beat. → This is a PLAYTEST question: author an action camera, check if you can still parry off it.
+
+**Refined mode set (pending the defence playtest):** Turn (close on actor) → Action (per-skill sequence, on confirm) → [Defence: possibly folded into Action]. Watching-players default = (b) actor + team context.
