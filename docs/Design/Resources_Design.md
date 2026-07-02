@@ -1419,3 +1419,29 @@ Same ruleset across all modes — only "who is MINE to control" differs. The clo
 - ⚠️ PRESSURE-TEST before dropping Defence: the defense system has REAL-TIME parry/dodge timing windows — the defender must CLEARLY see the attack wind-up + strike moment to time it. VIABLE to drop Defence camera IF the action camera keeps the defender's timing readable (it's aimed at the attack landing on the defender, so it should). If the cinematic is too "attacker-glory-shot" and obscures defense timing, KEEP a defence beat. → This is a PLAYTEST question: author an action camera, check if you can still parry off it.
 
 **Refined mode set (pending the defence playtest):** Turn (close on actor) → Action (per-skill sequence, on confirm) → [Defence: possibly folded into Action]. Watching-players default = (b) actor + team context.
+
+## Hub/Trial Merchants — LOCKED DESIGN (2026-06-26)
+
+**Merchant map (type→merchant is AUTOMATIC from item class; vendor tags only for overrides):**
+| Merchant                   | Sells                                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------------------------ |
+| Blacksmith                 | Weapons, augment stones                                                                          |
+| Jeweler                    | Rings                                                                                            |
+| Combat Master              | Abilities                                                                                        |
+| Spell Shop                 | Spells                                                                                           |
+| Spiritualist               | Evolutions, crystals, repairs (it's the CRYSTAL that wears, not the weapon — hence repairs here) |
+| ALL merchants — TRIAL ONLY | World stats (existing C4 EconomyService::BuyWorldStat, Gold, escalating, run-scoped)             |
+
+**Availability tags (option a — locked):**
+- No tags → HUB only, at its type's merchant (default)
+- `Trial.X` → trial only (e.g. `Trial.Garnet` = any Garnet-trial floor; `Trial.Garnet.Floor1` = that floor only — hierarchical, both levels kept)
+- `Hub` + `Trial.X` → BOTH
+- Trials are element/class-based (9 elements + Generic + Resonator) → trial tags map to the existing taxonomy; no item-registry blocker for trial matching
+
+**Currency:** hub merchants = persistent currency (Prisms); trial merchants = Gold (run-scoped). Same merchant type, different currency per context.
+
+**Presentation:**
+- HUB: placeholder CUBES + interact (walk up, press E) → shop UI. 3D models / shop-door interaction later.
+- TRIAL: NO NPCs — shop UI only (menu at floor stops listing accessible merchants).
+
+**v1 build:** UMerchantData (UPrimaryDataAsset): merchant type, explicit item list (TArray — registry/tag-QUERY is v2 when C0 item registry lands), currency, element/class tag field. Tags authored on items from day one so v2 migration = swap list for query.
