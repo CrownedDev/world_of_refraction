@@ -37,7 +37,8 @@
       "Bash(git *)",
       "Bash(Get-ChildItem -Recurse -Directory \"C:\\\\Users\\\\tafad\\\\Documents\\\\github\\\\world_of_refraction\\\\Source\\\\world_of_refraction\")",
       "Bash(Select-Object FullName)",
-      "PowerShell(git checkout *)"
+      "PowerShell(git checkout *)",
+      "mcp__unreal-mcp__call_tool"
     ]
   },
   "enabledMcpjsonServers": [
