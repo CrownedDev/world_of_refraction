@@ -608,14 +608,14 @@ public:
      *  break it.
      *
      *  bForceWear (default false): forwarded to FEvolutionAttachment::ApplyWear.
-     *  When false, per-item bCanBreak still gates the wear (no-op if false).
-     *  When true, the bCanBreak gate is bypassed — intended for intrinsic
+     *  When false, per-item Breakability still gates the wear (no-op if not breakable).
+     *  When true, the Breakability gate is bypassed — intended for intrinsic
      *  mechanics like Broken Darkness. Default preserves existing behavior. */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Crystal")
     bool ApplyWearToActivePrimaryEvolution(int32 Amount, bool bForceWear = false);
 
     /** Clears the active loadout's primary evolution slot if its attachment
-     *  is broken (durability <= 0 and bCanBreak). PrimarySlotType is left
+     *  is broken (durability <= 0 and breakable). PrimarySlotType is left
      *  unchanged (stays Evolution — the slot just empties). Returns true if
      *  a clear occurred. Intended for between-combat destruction sweeps. */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Crystal")

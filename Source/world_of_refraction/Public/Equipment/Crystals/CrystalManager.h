@@ -131,9 +131,9 @@ public:
     /** Apply raw wear to the active character's primary weapon crystal. Calls
      *  FRuntimeAttachedItem::ApplyWear directly on the live attachment —
      *  bypasses the BreakCalculator tier math AND the luck-skip roll — so the
-     *  underlying bCanBreak gate (evolution branch) and durability transition
+     *  underlying Breakability gate (evolution branch) and durability transition
      *  are exercised deterministically. Handles both refined and evolution
-     *  attachments and logs WHICH branch was hit, since the bCanBreak flip
+     *  attachments and logs WHICH branch was hit, since the Breakability gate
      *  only affects evolution.
      *  Console: type "wor.WearCrystal 10" in PIE (default Amount=10).
      *  No broadcasts — this is a raw test path, not a production wear event.
@@ -163,7 +163,7 @@ public:
     void WOR_SimCast(int32 ActionTier, int32 InfusionLevel);
 
     /** Print the active combatant's equipped primary weapon crystal: type
-     *  (Crystal / Evolution), tier, bCanBreak, and current/max durability. */
+     *  (Crystal / Evolution), tier, Breakability, and current/max durability. */
     void WOR_CrystalState();
 
 private:
