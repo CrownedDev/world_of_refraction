@@ -285,7 +285,7 @@ EItemTier UInventoryComponent::ResolveAbilityTier(const AActor *Caster, const US
 
 // ==================== WEAPON OPERATIONS ====================
 
-bool UInventoryComponent::AddWeapon(UWeaponData *Weapon, bool bCopyDefaultCrystal)
+bool UInventoryComponent::AddWeapon(UWeaponData *Weapon)
 {
     if (!Weapon)
     {
@@ -298,7 +298,7 @@ bool UInventoryComponent::AddWeapon(UWeaponData *Weapon, bool bCopyDefaultCrysta
         return false;
     }
 
-    FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon, bCopyDefaultCrystal);
+    FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon);
     // Acquisition is the ONE mint point for the persistent owned-instance guid —
     // CreateFromWeapon deliberately leaves it invalid (loadout inflation reuses
     // that factory and must not mint).
@@ -423,7 +423,7 @@ bool UInventoryComponent::RemoveCrystalFromWeapon(int32 WeaponIndex)
 
 // ==================== RING OPERATIONS ====================
 
-bool UInventoryComponent::AddRing(URingData *Ring, bool bCopyDefaultCrystal)
+bool UInventoryComponent::AddRing(URingData *Ring)
 {
     if (!Ring)
     {
@@ -436,7 +436,7 @@ bool UInventoryComponent::AddRing(URingData *Ring, bool bCopyDefaultCrystal)
         return false;
     }
 
-    FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring, bCopyDefaultCrystal);
+    FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring);
     // Acquisition mint — see AddWeapon; CreateFromRing leaves the guid invalid.
     Entry.PersistentID = FGuid::NewGuid();
     // Tier/Quality are seeded in CreateFromRing (the factory, called above); see cluster 2a.
@@ -1311,7 +1311,7 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     {
         if (Weapon)
         {
-            AddWeapon(Weapon, true);
+            AddWeapon(Weapon);
         }
     }
 
@@ -1320,7 +1320,7 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     {
         if (Ring)
         {
-            AddRing(Ring, true);
+            AddRing(Ring);
         }
     }
 
