@@ -114,8 +114,8 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
 
     // ==================== FACTORY ====================
 
-    /** Create entry from WeaponData, optionally copying default crystal */
-    static FWeaponInventoryEntry CreateFromWeapon(UWeaponData *InWeapon, bool bCopyDefaultCrystal = false);
+    /** Create entry from WeaponData — always copies the template's default crystal + DefaultSpells. */
+    static FWeaponInventoryEntry CreateFromWeapon(UWeaponData *InWeapon);
 
     // ==================== STATE QUERIES ====================
 

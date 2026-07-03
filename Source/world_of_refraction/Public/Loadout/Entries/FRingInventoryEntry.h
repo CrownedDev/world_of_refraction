@@ -117,8 +117,8 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
 
     // ==================== FACTORY ====================
 
-    /** Create entry from RingData, optionally copying default crystal */
-    static FRingInventoryEntry CreateFromRing(URingData *InRing, bool bCopyDefaultCrystal = false);
+    /** Create entry from RingData — always copies the template's default crystal + DefaultSpells. */
+    static FRingInventoryEntry CreateFromRing(URingData *InRing);
 
     // ==================== STATE QUERIES ====================
 

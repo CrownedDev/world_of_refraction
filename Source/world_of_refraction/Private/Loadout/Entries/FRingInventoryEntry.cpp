@@ -23,13 +23,13 @@ ESpellElement FRingInventoryEntry::GetElement() const
     return ESpellElement::None; // No (or broken) crystal — no element
 }
 
-FRingInventoryEntry FRingInventoryEntry::CreateFromRing(URingData *InRing, bool bCopyDefaultCrystal)
+FRingInventoryEntry FRingInventoryEntry::CreateFromRing(URingData *InRing)
 {
     FRingInventoryEntry Entry;
     Entry.Ring = InRing;
     Entry.InstanceID = GRingInstanceCounter.fetch_add(1);
 
-    if (bCopyDefaultCrystal && InRing && InRing->HasCrystal())
+    if (InRing && InRing->HasCrystal())
     {
         Entry.AttachedItem = FRuntimeAttachedItem::FromAttachedItem(InRing->AttachedItem);
 
