@@ -8,6 +8,7 @@
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Equipment/Weapons/EWeaponType.h"
 #include "Equipment/Weapons/EWeaponWieldMode.h"
+#include "Combat/Damage/EPhysicalDamageType.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
 
@@ -61,6 +62,15 @@ public:
      *  abilities; attacks reparented to UAbilityData (step 5) author true. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
     bool bIsAttack = false;
+
+    // ==================== COMBAT ====================
+
+    /** Physical damage type this ability delivers. None (default) = inherit the
+     *  active weapon's PhysicalDamageType at execution (current behaviour). A
+     *  non-None value overrides the weapon (ability-first). Every asset ships
+     *  None today, so this is behaviour-neutral until Cluster B populates it. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
+    EPhysicalDamageType PhysicalDamageType = EPhysicalDamageType::None;
 
     // ==================== EXECUTION ====================
     // ExecutionType + ExecutionRange both live on USkillDataBase (the single skill base).

@@ -1500,7 +1500,13 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	{
 		if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(User))
 		{
-			AbilityPhysicalType = Weapon->PhysicalDamageType;
+			// Ability-first: an authored ability PhysicalDamageType (non-None) wins;
+			// None — or a non-ability SkillData — inherits the active weapon's type
+			// (current behaviour: every asset ships None, so the weapon still wins).
+			const UAbilityData *AbilityData = Cast<UAbilityData>(Ability);
+			AbilityPhysicalType = (AbilityData && AbilityData->PhysicalDamageType != EPhysicalDamageType::None)
+				? AbilityData->PhysicalDamageType
+				: Weapon->PhysicalDamageType;
 		}
 	}
 
@@ -2238,7 +2244,13 @@ void UActionExecutor::FinalizeAsyncAction()
 				{
 					if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Executor))
 					{
-						ActionPhysicalType = Weapon->PhysicalDamageType;
+						// Ability-first: authored ability type wins; None (or a
+						// non-ability SkillData, e.g. a spell) falls back to the
+						// weapon's type — preserves existing behaviour.
+						const UAbilityData *AbilityData = Cast<UAbilityData>(Action.SkillData);
+						ActionPhysicalType = (AbilityData && AbilityData->PhysicalDamageType != EPhysicalDamageType::None)
+							? AbilityData->PhysicalDamageType
+							: Weapon->PhysicalDamageType;
 					}
 				}
 			}
