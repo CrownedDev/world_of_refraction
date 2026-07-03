@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Equipment/Weapons/EWeaponType.h"
+#include "Equipment/Weapons/EWeaponWieldMode.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
 
@@ -38,11 +39,22 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     EWeaponType RequiredWeaponType = EWeaponType::Sword;
 
-    /** When true, usable ONLY on weapons whose WieldMode is Dual or
-     *  OffHandShield. When false, usable on both single and dual weapons
-     *  of the matching RequiredWeaponType. */
+    /** Off-hand wield-mode requirement for slotting this ability.
+     *  Single (default) = no requirement — usable on any wield mode (a normal
+     *  one-handed move works with a shield or second weapon too). Dual = usable
+     *  only on a two-weapon loadout; OffHandShield = usable only on a
+     *  sword-and-shield loadout. Gated hard alongside RequiredWeaponType in the
+     *  loadout validators. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-    bool bRequiresDualWeapon = false;
+    EWeaponWieldMode RequiredWieldMode = EWeaponWieldMode::Single;
+
+    /** True if this ability may be slotted on a weapon with the given wield mode.
+     *  A Single requirement allows any mode; otherwise the modes must match. */
+    UFUNCTION(BlueprintPure, Category = "Identity")
+    bool AllowsWieldMode(EWeaponWieldMode WeaponWieldMode) const
+    {
+        return RequiredWieldMode == EWeaponWieldMode::Single || WeaponWieldMode == RequiredWieldMode;
+    }
 
     /** Marks a basic weapon attack (vs a slottable ability). A bIsAttack asset cannot be slotted as an
      *  ability. The only attack-vs-ability distinction post-merge. Default false → existing abilities stay

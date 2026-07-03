@@ -100,14 +100,15 @@ Notable behavior:
   **hard-fails** (`return false`, no soft-warning path) on any of:
   - the ability is not owned (`OwnedAbilities.HasAbility` is false);
   - `Ability->RequiredWeaponType` does not equal the weapon's `WeaponType`;
-  - `Ability->bRequiresDualWeapon` is true but the weapon's `IsDualWielded()`
-    is false — a dual-only ability assigned to a `Single` weapon. Dual-only
-    abilities are accepted on **both** `Dual` and `OffHandShield` weapons,
-    since `IsDualWielded()` is true for either.
+  - `Ability->AllowsWieldMode(weapon's WieldMode)` is false — the ability
+    declares a `RequiredWieldMode` (`EWeaponWieldMode`) the equipped weapon
+    doesn't satisfy. `Single` requires nothing (any wield mode passes); `Dual`
+    accepts only `Dual` weapons; `OffHandShield` accepts only sword-and-shield.
 
   It also fails if `AssignedAbilities.Num()` exceeds
-  `GetCustomizableAbilityCount()`. Set `bRequiresDualWeapon` on an ability
-  whose animation or mechanics only make sense with a weapon in each hand.
+  `GetCustomizableAbilityCount()`. Set `RequiredWieldMode` to `Dual` or
+  `OffHandShield` on an ability whose animation or mechanics only make sense
+  with that specific off-hand configuration.
 - `ValidateSpells()` — checks ownership and element match (skipped for
   "any-element" crystal sources via `ElementHelpers::IsAnySpellSource`). Note:
   this method validates `WeaponEntry.AssignedSpells`, not the entry's own
@@ -428,3 +429,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-06-20 | Equipment slot tier scaling — slot caps now key on each container's own tier via the shared curve `{1,2,3,4,5,6,6}` (`CrystalEffectTable::SlotsForContainerTier`): weapon abilities (`GetCustomizableAbilityCount`, moved to `.cpp`) on weapon tier; weapon native + ring spells pass `SlotsForContainerTier(tier)` as the `ResolveSpellSlotCap` fall-through `FlatCeiling` (gem-keying preserved); evolution spells keyed at the three `LoadoutComponent.cpp` cap sites. Flat `MAX_*` constants retained as absolute ceilings/fallbacks. New *Slot caps scale on container tier* section; cap-line corrections throughout; per-container slot readout added to `InventoryDebug`. | feature/equipment-slot-tier-scaling |
 | 2026-06-20 | Caster innate / BD spell budget — weighted-budget model in new `Loadout/SpellPoolConstants.h` (cost curve F1…S7, `INNATE_SPELL_BUDGET=24` / `BD_SPELL_BUDGET=48`, per-pillar discount Mind4/Body7/Spirit5, `MAX_EQUIPPED_SLOT_POOL=6`, helpers). Per-school count ≤6 enforced at both asset + runtime gates; weight budget runtime-only (needs the character's discount; null `CharData`→0, still enforced). `ValidateBDSpellLoadout` gained `(Discount, bCheckWeight)`. Retired `MAX_INNATE_SPELLS_PER_SCHOOL`/`_TOTAL` + `MAX_BD_POOL_SPELLS`. New *Caster innate spell budget* section. | feature/innate-bd-spell-budget |
 | 2026-06-21 | Tier-power gear — `GetActiveStatBonus` now applies a **per-item tier multiplier** to each contributing item's 12 substat fields at aggregation (both signs; float-accumulate, round once; pools + pillar-percents excluded) — the only place per-item tier survives before the tierless sum. Pairs with the **flat ~20** substat budget (`FIXED_SUBSTAT_BUDGET`) now rolled at every tier (was F6→S45). See `TierPowerScaling.md`. | feature/tier-power-scaling |
+| 2026-07-03 | Wield-mode gate — `ValidateAbilities` / `ValidateAugmentStoneAbilities` and the `LoadoutComponent` finding now call `Ability->AllowsWieldMode(weapon WieldMode)` (replaces the `bRequiresDualWeapon` bool). `RequiredWieldMode=Single` allows any wield mode; `Dual` / `OffHandShield` require an exact match. | feature/hub-merchants |

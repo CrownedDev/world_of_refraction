@@ -14,7 +14,7 @@
 
 ## What an ability is
 
-- **Weapon-bound** — `RequiredWeaponType` (`AbilityData.h:39`); some require dual-wield / off-hand (`bRequiresDualWeapon`, `:45`). You only have an ability if you wield a matching weapon.
+- **Weapon-bound** — `RequiredWeaponType` (`AbilityData.h:39`); some require a specific off-hand configuration (`RequiredWieldMode`, `EWeaponWieldMode` — `Dual` or `OffHandShield`). You only have an ability if you wield a matching weapon.
 - **Non-elemental by default** — `UAbilityData` has **no element field**; abilities are physical and scale RawDamage. They gain an element/status **only if you infuse** them (player choice) — see [`Infusion.md`](../Magic/Infusion.md).
 - **Cost** — can be **free** (a basic attack with `BaseEnergyCost = 0`) or cost EP. → [`ResourcePools.md`](./ResourcePools.md)
 - **Targeting** — same two-axis model (`TargetType` × `TargetCount`, `HitCount`) — see [`Targeting.md`](./Targeting.md).
@@ -30,7 +30,7 @@ An **ability** needs a **weapon** and is **physical/colourless** until you infus
 
 ## Entry points
 
-- `UAbilityData` — `bIsAttack`, `IsAttack()`, `RequiredWeaponType`, `bRequiresDualWeapon`.
+- `UAbilityData` — `bIsAttack`, `IsAttack()`, `RequiredWeaponType`, `RequiredWieldMode`, `AllowsWieldMode()`.
 - `USkillDataBase::IsAttack` — base returns `false`.
 - `LoadoutComponent` — ability-slotting gates.
 

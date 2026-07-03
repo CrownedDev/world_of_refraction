@@ -141,12 +141,13 @@ is a slight mismatch between the comment and the `EditCondition`.
 by all characters; can be infused with the character's innate element for status
 effects.
 
-- **Identity** — `RequiredWeaponType` (`EWeaponType`), `bRequiresDualWeapon`
-  (bool, default `false`). When `bRequiresDualWeapon` is true the ability is
-  valid only on weapons whose `IsDualWielded()` is true (`Dual` or
-  `OffHandShield`); when false it is valid on both single and dual weapons
-  matching `RequiredWeaponType`. Enforced by
-  `FWeaponLoadoutEntry::ValidateAbilities` — see the Loadout System doc.
+- **Identity** — `RequiredWeaponType` (`EWeaponType`), `RequiredWieldMode`
+  (`EWeaponWieldMode`, default `Single`). `Single` = no off-hand requirement,
+  usable on any wield mode; `Dual` = usable only on a two-weapon loadout;
+  `OffHandShield` = usable only on a sword-and-shield loadout. Resolved by
+  `UAbilityData::AllowsWieldMode(WeaponWieldMode)` (Single allows any, else
+  exact match) and enforced by `FWeaponLoadoutEntry::ValidateAbilities` — see
+  the Loadout System doc.
 - **Execution** — `ExecutionType` (`EAbilityExecutionType`, default `Melee`).
   Melee-only fields: `ApproachData` (`UMovementData*`), `ExecutionRange`
   (float, default 150.0). Both are gated by `EditCondition`/`EditConditionHides`
@@ -394,3 +395,4 @@ mesh spawns). They are hidden in the details panel while `WieldMode` is
 | 2026-06-17 | **Attack/ability merge COMPLETE.** `UWeaponAttackData` deleted — basic attacks are now `UAbilityData` with `bIsAttack=true`. `UWeaponData::WeaponAttack` (and `FWeaponLoadoutEntry::OverrideAttack`) are `USkillDataBase*` (hold the merged type). `EActionType::Attack` collapsed into `Ability` (`IsAttack()` is the runtime discriminator); one `FAction.SkillData` pointer, one dispatch (`ExecuteSkillAsync`), one animation (`PlaySkillAnimation`). The 6 attack data-assets were class-redirected to `UAbilityData` (resaved with `bIsAttack=true`). A `!IsAttack()` slotting gate keeps basic attacks out of the ability bar. ⚠️ The `WeaponAttackData→AbilityData` CoreRedirect (+ the field PropertyRedirects) in `DefaultEngine.ini` is **PERMANENT** — covers un-resaved weapon refs + old savegames; do not remove. | feature/realtime-defense |
 | 2026-06-16 | **Homing delivery type REMOVED.** `ESpellDeliveryType::Homing` (mid-enum value 1 — needs a CoreRedirect, unlike trailing Beam) and its footprint deleted: `ASkillProjectile::TickHoming` + the Tick `Homing` case + the `OnHitBoxOverlap` Homing branch (function/binding kept as a Projectile no-op), the `HomingStrength` field on `FSkillCastEntry`/`USpellData`/`ASkillProjectile` + migration, and every `\|\| Homing` clause across the defense helpers (`CanBeParried`/`CanBeDodgedByTiming`), the `EditCondition` metas, the cluster-4/6 conversion gate, the async-decision, and both dispatch switches. Tracking is meaningless without a spatial dodge (Crown-confirmed: a homing shot = a projectile with a curvy path — dead weight). `+EnumRedirects=(OldName="ESpellDeliveryType",ValueChanges=(("Homing","Projectile")))` maps any stray authored value; enum is now `Projectile=0 / AOE=1 / Instant=2` (name-based serialization keeps AOE/Instant safe). Shared projectile plumbing (`SpawnProjectileActor`/`TickProjectile`/`ResolveImpact`/`OnSkillImpact`/`OnSkillDodged`/the count-based per-impact defense path) untouched. Confirmed zero Homing-authored assets before removal. | feature/realtime-defense |
 | 2026-06-21 | Tier-power arc — `GetSubstatBudget` now returns a **flat** `FIXED_SUBSTAT_BUDGET` (~20) at every tier (was F6→S45); the editor roll-budget gate (§263–266) no longer scales with tier. Higher-tier strength comes from per-point VALUE scaling at `GetActiveStatBonus`. `GetPillarBudget` unchanged. See `TierPowerScaling.md`. | feature/tier-power-scaling |
+| 2026-07-03 | `UAbilityData::bRequiresDualWeapon` (bool) replaced by `RequiredWieldMode` (`EWeaponWieldMode`, default `Single` = no requirement / any mode) + inline `AllowsWieldMode(WeaponWieldMode)` helper. The off-hand gate now distinguishes `Dual` from `OffHandShield` (previously lumped together as `IsDualWielded`). Straight field swap — no existing asset had the old flag set, so no migration needed. | feature/hub-merchants |
