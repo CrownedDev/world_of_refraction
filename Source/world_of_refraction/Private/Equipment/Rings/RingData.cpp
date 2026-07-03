@@ -45,19 +45,6 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
             Result = EDataValidationResult::Invalid;
         }
 
-        // Refined-kind attachments are always refined by construction (a
-        // Type+Tier pair has no unrefined state, so the bad case is
-        // unrepresentable). For Evolution kind the asset pointer still carries
-        // bIsRefined, and the slot rule forbids a non-refined evolution item in
-        // a ring — it belongs in the PrimaryEvolution slot.
-        if (AttachedItem.Kind == EAttachedItemKind::Evolution
-            && AttachedItem.Evolution
-            && !AttachedItem.Evolution->bIsRefined)
-        {
-            Context.AddWarning(FText::FromString(TEXT(
-                "Slotted evolution crystal is not refined — non-refined evolution items belong in the PrimaryEvolution slot, not a ring")));
-        }
-
         // Evolved ring validation: an Evolution-kind slot must carry an assigned
         // evolution item that actually grants evolution.
         if (IsEvolved() && !AttachedItem.Evolution)

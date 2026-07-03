@@ -366,8 +366,8 @@ void UEvolutionItemData::PostInitProperties()
 {
     Super::PostInitProperties();
 
-    // Skip during CDO construction and on unrefined crystals (consumables don't track durability)
-    if (HasAnyFlags(RF_ClassDefaultObject) || !bIsRefined)
+    // Skip during CDO construction; every evolution asset tracks durability.
+    if (HasAnyFlags(RF_ClassDefaultObject))
     {
         return;
     }
@@ -389,7 +389,7 @@ void UEvolutionItemData::PostLoad()
     // initialise MaxDurability from tier if loaded with MaxDurability == 0.
     // Immune and evolution crystals also need a positive MaxDurability so
     // UI scaling does not divide by zero.
-    if (bIsRefined && MaxDurability == 0)
+    if (MaxDurability == 0)
     {
         const int32 TierMax = DurabilityConstants::GetMaxDurabilityForTier(Tier);
         if (TierMax > 0)
@@ -526,14 +526,8 @@ void UEvolutionItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyC
         }
     }
 
-    // Quartz is consumable-only — it cannot be refined. If the designer switches
-    // CrystalType to Quartz with bIsRefined set, force it off. (Quartz on a
-    // UEvolutionItemData asset itself is invalid; IsDataValid surfaces it.)
-    if (PropertyName == CrystalTypeProperty && CrystalType == ECrystalType::Quartz && bIsRefined)
-    {
-        bIsRefined = false;
-        UE_LOG(LogTemp, Warning, TEXT("[ItemData] Quartz is consumable-only — cleared bIsRefined on %s"), *GetName());
-    }
+    // Quartz is consumable-only and invalid as an evolution asset — IsDataValid
+    // surfaces it (no refinement flag to clear now that refinement is removed).
 }
 
 EDataValidationResult UEvolutionItemData::IsDataValid(FDataValidationContext &Context) const

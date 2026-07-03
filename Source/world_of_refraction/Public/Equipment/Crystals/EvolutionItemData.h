@@ -3,9 +3,8 @@
 // refined crystals live in the FCrystalId / CrystalEffectTable count-based
 // system (no asset); only evolution crystals are asset-backed.
 //
-// REFINEMENT STATE:
-// - !bIsRefined: Evolution crystal in inventory, awaiting refinement
-// -  bIsRefined: Slottable evolution crystal (slotted onto weapon/ring)
+// Evolution crystals are always slottable — they attach directly onto
+// weapons/rings (no refinement step).
 
 #pragma once
 
@@ -40,9 +39,9 @@ namespace CrystalSpellConstants
 }
 
 /**
- * Primary data asset for evolution crystals. Identity is (CrystalType, Tier);
- * bIsRefined distinguishes a slottable evolution crystal from an unrefined one
- * in inventory. See the file header for the refinement-state combinations.
+ * Primary data asset for evolution crystals. Identity is (CrystalType, Tier).
+ * Every evolution crystal is slottable — it attaches directly with no
+ * refinement step.
  */
 UCLASS(BlueprintType)
 class WORLD_OF_REFRACTION_API UEvolutionItemData : public UPrimaryDataAsset
@@ -81,11 +80,6 @@ public:
                   meta = (MultiLine = true))
         FString RevealedDescription;
 
-        /** Whether crystal has been refined (cut) for slotting onto equipment.
-         *  Unrefined crystals are consumable items; refined crystals slot into weapons/rings. */
-        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System")
-        bool bIsRefined = false;
-
         /** Evolution type */
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System")
         EEvolutionType EvolutionType = EEvolutionType::Balanced;
@@ -96,23 +90,22 @@ public:
         EInfusionMode InfusionMode = EInfusionMode::Balanced;
 
         // ==================== DURABILITY ====================
-        // Only meaningful for refined crystals. Unrefined crystals are consumables
-        // and don't track durability. Who can wear/break a crystal is a 3-state
-        // Breakability enum (below) — default BDBreakable means only Broken
-        // Darkness / Reality wielders wear it down (the prior bCanBreak=false
-        // behavior). See DurabilityConstants.h for tier defaults and wear values.
+        // Every evolution crystal is gear and tracks durability. Who can wear/break
+        // it is the 3-state Breakability enum (below) — default Breakable means any
+        // class wears it down; BDBreakable restricts wear to Broken Darkness / Reality
+        // wielders; Unbreakable blocks all wear. See DurabilityConstants.h for tier
+        // defaults and wear values.
 
         /** Maximum durability. If left at 0, auto-computed from Tier in PostInitProperties.
          *  Per-tier defaults: F=30 E=40 D=50 C=60 B=70 A=80 S=100 */
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Durability",
-                  meta = (EditCondition = "bIsRefined", EditConditionHides, ClampMin = "0"))
+                  meta = (ClampMin = "0"))
         int32 MaxDurability = 0;
 
         /** Who can break this evolution crystal. Breakable (default) = any class wears it down
          *  (evolutions are gear and wear in combat like crystals, §5.3b). BDBreakable = only Broken
          *  Darkness/Reality wielders. Unbreakable = no one, even BD. */
-        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Durability",
-                  meta = (EditCondition = "bIsRefined", EditConditionHides))
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Durability")
         EBreakability Breakability = EBreakability::Breakable;
 
         // ==================== STAT BONUS (Evolution only) ====================
@@ -224,17 +217,20 @@ public:
 
         // ==================== CATEGORY HELPER FUNCTIONS ====================
 
-        /** Check if crystal can be slotted on weapons/rings (must be refined) */
+        /** Evolution crystals are always slottable (refinement removed). Kept for
+         *  Blueprint compatibility — now unconditionally true. */
         UFUNCTION(BlueprintPure, Category = "Item|Category")
-        bool CanBeSlotted() const { return bIsRefined; }
+        bool CanBeSlotted() const { return true; }
 
-        /** Check if crystal can have spells (must be refined) */
+        /** Evolution crystals can always have spells. Kept for Blueprint
+         *  compatibility — now unconditionally true. */
         UFUNCTION(BlueprintPure, Category = "Item|Category")
-        bool CanHaveSpells() const { return bIsRefined; }
+        bool CanHaveSpells() const { return true; }
 
-        /** Check if crystal has been refined (cut for slotting) */
+        /** Retained for Blueprint compatibility — refinement was removed, so every
+         *  evolution crystal is effectively refined (always true). */
         UFUNCTION(BlueprintPure, Category = "Item|Category")
-        bool IsRefined() const { return bIsRefined; }
+        bool IsRefined() const { return true; }
 
         // ==================== STAT MODIFIER FUNCTIONS ====================
 

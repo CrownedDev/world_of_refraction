@@ -617,15 +617,6 @@ void UItemDataDebug::LogCrystalDurability(const UEvolutionItemData *Item)
 
     UE_LOG(LogTemp, Display, TEXT(""));
     UE_LOG(LogTemp, Display, TEXT("===== CRYSTAL DURABILITY: %s ====="), *Item->GetFullItemName());
-    UE_LOG(LogTemp, Display, TEXT("Refined: %s"), Item->bIsRefined ? TEXT("YES") : TEXT("NO"));
-
-    if (!Item->bIsRefined)
-    {
-        UE_LOG(LogTemp, Display, TEXT("(Unrefined consumable - no durability state)"));
-        UE_LOG(LogTemp, Display, TEXT(""));
-        return;
-    }
-
     // Design-time inspection only: this asset has no runtime durability state.
     // Live per-instance state lives on the runtime attachment
     // (FRuntimeAttachedItem) — query the actor's LoadoutComponent for that.
@@ -640,12 +631,6 @@ FString UItemDataDebug::GetDurabilityString(const UEvolutionItemData *Item)
     if (!Item)
     {
         return TEXT("[Null crystal]");
-    }
-
-    if (!Item->bIsRefined)
-    {
-        return FString::Printf(TEXT("[%s] Unrefined - no durability"),
-                               *Item->GetFullItemName());
     }
 
     // Design-time inspection only: this asset has no runtime durability state.
