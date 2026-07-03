@@ -108,6 +108,15 @@ EDataValidationResult UAbilityData::IsDataValid(FDataValidationContext &Context)
         Result = EDataValidationResult::Invalid;
     }
 
+    // Cluster C: the ability/attack is now the sole PhysicalDamageType source, so a
+    // basic attack or damage-dealing ability MUST declare one (None can't drive the
+    // physical bar-cap trigger). Support-only abilities (no damage) may stay None.
+    if ((bIsAttack || BaseDamage > 0) && PhysicalDamageType == EPhysicalDamageType::None)
+    {
+        Context.AddError(FText::FromString(TEXT("PhysicalDamageType must be set (not None) for a basic attack or damage-dealing ability.")));
+        Result = EDataValidationResult::Invalid;
+    }
+
     // Validate each effect's semantics (count cap handled by USkillDataBase). Reads the
     // flattened referenced-bundle set — UAbilityData carries no inline Effects after P2a.
     const TArray<FSkillEffect> All = GetAllEffects();
