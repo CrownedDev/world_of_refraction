@@ -12,6 +12,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Merchant/MerchantData.h" // FMerchantStockEntry — the Purchase cart element
 #include "Currency/CurrencyTypes.h" // ECurrencyType for the leveling-essence param on TryLevelUpEntry
 #include "Character/CharacterDataComponent.h" // EWorldPillar for BuyWorldStat (§7 C4)
 #include "EconomyService.generated.h"
@@ -121,21 +122,34 @@ public:
     // ==================== PURCHASE (spend-side) ====================
 
     /**
-     * Buy a SPELL into Owner's inventory. Cost (§4.4 + §5): Prisms base (spell tier) + Prisms
-     * scaling surcharge (50 × Σ grade-number) + typed essence (element @ spell tier + Σ pillar @
-     * each scaling grade). Canonical flow: CanAfford ALL → Spend ALL → LearnSpell → refund
-     * everything on grant-failure. Server-authoritative. False if Owner/Spell null; no authority;
-     * components missing; any component unaffordable (spends nothing); or the grant failed.
+     * Buy a CART of merchant stock into Owner's inventory in ONE atomic, all-or-nothing
+     * transaction — the single spend-side entry point for every sellable type (weapon, ring,
+     * spell, ability, evolution, crystal). Replaces the old per-type PurchaseWeapon/PurchaseSpell.
+     *
+     * Flow: resolve components (authority-gated) → VALIDATE up-front (per-entry cost +
+     * cumulative-per-type grant capacity) → CanAfford EVERY currency once → Spend once → grant
+     * loop. Capacity + affordability are fully pre-validated, so the grant loop cannot fail on
+     * valid stock; a defensive grant failure rolls back every grant and refunds every currency.
+     *
+     * Per-type cost (symmetric with the dismantle yield):
+     *   - Weapon / Ring : Prisms base by tier (× Count). [quality is the C placeholder until the
+     *                     shop-roll generator lands — tier-only for now]
+     *   - Spell         : Prisms base + 50×Σ scaling-grade + element essence @ tier + Σ pillar
+     *                     essence per scaling grade.
+     *   - Ability       : Prisms base + SkillEssence @ tier.
+     *   - Evolution     : Prisms base + element essence @ tier + ½ Reality essence.
+     *   - Crystal       : Prisms base + ResolveEssenceType essence @ tier (× Count).
+     *
+     * Count is honoured for weapons / rings / crystals; clamped to 1 for spells / abilities /
+     * evolutions (spells/abilities can't be owned twice; evolution is per-instance). Buying a
+     * spell/ability already owned — or duplicated within the cart — fails the whole purchase.
+     *
+     * Server-authoritative. Returns false (spending nothing) if: Owner null / no authority; Items
+     * empty; a required component is missing; an entry is empty / not a sellable type / already
+     * owned; cumulative capacity is exceeded for any type; or any currency is short.
      */
     UFUNCTION(BlueprintCallable, Category = "Economy")
-    bool PurchaseSpell(AActor *Owner, USpellData *Spell);
-
-    /**
-     * Buy a WEAPON into Owner's inventory. Cost: Prisms base (weapon tier) only — no essence, no
-     * surcharge (equipment pricing). Spend → AddWeapon → refund on grant-failure. See PurchaseSpell.
-     */
-    UFUNCTION(BlueprintCallable, Category = "Economy")
-    bool PurchaseWeapon(AActor *Owner, UWeaponData *Weapon);
+    bool Purchase(AActor *Owner, const TArray<FMerchantStockEntry> &Items);
 
     /**
      * Buy +1 World Stat point in Pillar for Owner (§7 C4). Always buyable at any run vendor; cost is
