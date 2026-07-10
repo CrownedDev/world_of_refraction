@@ -2,7 +2,6 @@
 
 #include "Merchant/MerchantData.h"
 
-#include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -48,18 +47,6 @@ namespace
         case EMerchantType::SpellShop:    return USpellData::StaticClass();
         case EMerchantType::Spiritualist: return UEvolutionItemData::StaticClass();
         default:                          return nullptr;
-        }
-    }
-
-    /** Crystal-entry side of the map: Blacksmith owns augment stones,
-     *  the Spiritualist owns gem crystals. No other merchant stocks FCrystalId goods. */
-    bool CrystalBelongsToMerchant(EMerchantType Type, ECrystalType CrystalType)
-    {
-        switch (Type)
-        {
-        case EMerchantType::Blacksmith:   return CrystalTypeHelpers::IsAugmentStoneType(CrystalType);
-        case EMerchantType::Spiritualist: return CrystalTypeHelpers::IsGemType(CrystalType);
-        default:                          return false;
         }
     }
 }
@@ -149,8 +136,10 @@ void UMerchantData::CollectStockIssues(TArray<FString> &OutErrors, TArray<FStrin
             OutErrors.Add(FString::Printf(TEXT("Stock[%d]: Count %d — must be >= 1."), Index, Entry.Count));
         }
 
-        // Merchant-map mismatches are warnings, not errors — vendor tags may
-        // deliberately override the automatic type->merchant mapping.
+        // Asset-class mismatch is a warning, not an error — vendor tags may
+        // deliberately override the automatic type->merchant mapping. Crystal
+        // stock is intentionally NOT type-checked: every merchant may stock any
+        // crystal (gems + augment stones + Quartz) per the locked hub design.
         if (Entry.IsAssetEntry())
         {
             const UClass *Expected = GetExpectedAssetClass(MerchantType);
@@ -161,12 +150,6 @@ void UMerchantData::CollectStockIssues(TArray<FString> &OutErrors, TArray<FStrin
                     Index, *Entry.Asset->GetName(), *Entry.Asset->GetClass()->GetName(),
                     *UEnum::GetDisplayValueAsText(MerchantType).ToString(), *Expected->GetName()));
             }
-        }
-        else if (!CrystalBelongsToMerchant(MerchantType, Entry.Crystal.Type))
-        {
-            OutWarnings.Add(FString::Printf(
-                TEXT("Stock[%d]: %s — crystal stock normally belongs to the Blacksmith (stones) or Spiritualist (gems)."),
-                Index, *DescribeStockEntry(Entry)));
         }
     }
 
