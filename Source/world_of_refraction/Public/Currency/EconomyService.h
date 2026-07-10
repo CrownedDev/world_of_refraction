@@ -27,6 +27,26 @@ class USpellData;
 class UAbilityData;
 class UWeaponData;
 
+/** Per-currency cost of a Purchase cart. Prisms + SkillEssence are scalar wallets; Typed is
+ *  EssenceTyped sub-keyed by EEssenceType (element / pillar / Reality / Ability). Returned by
+ *  PreviewCartCost so the shop UI displays exactly what Purchase will charge — one cost source. */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FPurchaseCost
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, Category = "Economy")
+    int32 Prisms = 0;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Economy")
+    int32 SkillEssence = 0;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Economy")
+    TMap<EEssenceType, int32> Typed;
+
+    void AddTyped(EEssenceType Type, int32 Amount) { Typed.FindOrAdd(Type) += Amount; }
+};
+
 UCLASS()
 class WORLD_OF_REFRACTION_API UEconomyService : public UGameInstanceSubsystem
 {
@@ -151,6 +171,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Economy")
     bool Purchase(AActor *Owner, const TArray<FMerchantStockEntry> &Items);
 
+    /** Price a cart WITHOUT purchasing — the exact per-currency totals Purchase would charge
+     *  (same shared builder, so shop-UI display and the charge can never drift). Empty/unknown
+     *  entries price at 0 (Purchase itself rejects them); spell/ability/evolution Count is
+     *  clamped to 1, mirroring Purchase. Pure — reads no owner state. */
+    UFUNCTION(BlueprintPure, Category = "Economy")
+    FPurchaseCost PreviewCartCost(const TArray<FMerchantStockEntry> &Items) const;
+
     /**
      * Buy +1 World Stat point in Pillar for Owner (§7 C4). Always buyable at any run vendor; cost is
      * GOLD and ESCALATES per buy this run: WORLDSTAT_BUY_BASE_COST + (purchaseCount * STEP), where the
@@ -258,6 +285,11 @@ public:
     void PrintEconomy(AActor *Owner) const;
 
 private:
+    /** Cost-only walk of a cart — the single pricing source behind PreviewCartCost AND
+     *  Purchase's validation pass. Prices skip empty/unknown entries (Purchase rejects those
+     *  separately); spell/ability/evolution Count clamps to 1. */
+    FPurchaseCost BuildCartCost(const TArray<FMerchantStockEntry> &Items) const;
+
     /**
      * Shared tier-up core — type-agnostic. Knows only the wallet + a reference to the instance's
      * tier field, so any per-instance struct that carries an EItemTier (weapon, ring, evolution,

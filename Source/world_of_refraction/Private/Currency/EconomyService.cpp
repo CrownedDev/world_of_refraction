@@ -530,19 +530,73 @@ bool UEconomyService::DismantleAbility(AActor *Owner, UAbilityData *Ability)
 
 // ==================== PURCHASE (spend-side) ====================
 
-namespace
+FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &Items) const
 {
-    /** Accumulated cost of a Purchase cart, split by wallet bucket. Prisms + SkillEssence are
-     *  scalar currencies; Typed is EssenceTyped sub-keyed by EEssenceType (element / pillar /
-     *  Reality / Ability). */
-    struct FCartCost
+    FPurchaseCost Cost;
+    for (const FMerchantStockEntry &E : Items)
     {
-        int32 Prisms = 0;
-        int32 SkillEssence = 0;
-        TMap<EEssenceType, int32> Typed;
+        if (E.IsCrystalEntry())
+        {
+            const int32 Count = FMath::Max(1, E.Count);
+            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(E.Crystal.Tier) * Count;
+            Cost.AddTyped(EconomyYield::ResolveEssenceType(E.Crystal),
+                          EconomyYield::GetTypedEssencePurchaseCostForTier(E.Crystal.Tier) * Count);
+            continue;
+        }
+        if (!E.IsAssetEntry())
+        {
+            continue; // empty entry prices at 0 — Purchase rejects it separately
+        }
 
-        void AddTyped(EEssenceType Type, int32 Amount) { Typed.FindOrAdd(Type) += Amount; }
-    };
+        UPrimaryDataAsset *Asset = E.Asset;
+        if (UWeaponData *W = Cast<UWeaponData>(Asset))
+        {
+            // Equipment pricing: Prisms base by tier (quality = C placeholder until shop-roll).
+            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(W->Tier) * FMath::Max(1, E.Count);
+        }
+        else if (URingData *R = Cast<URingData>(Asset))
+        {
+            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(R->Tier) * FMath::Max(1, E.Count);
+        }
+        else if (USpellData *S = Cast<USpellData>(Asset))
+        {
+            // Skill pricing (§4.4 + §5): base + surcharge + element essence + pillar essence
+            // per scaling grade. Count clamps to 1 (a spell can't be owned twice).
+            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(S->Tier);
+            Cost.AddTyped(EconomyYield::ElementToEssenceType(S->Element),
+                          EconomyYield::GetTypedEssencePurchaseCostForTier(S->Tier));
+            for (const FStatScaling &Sc : S->StatScaling)
+            {
+                if (Sc.Stat == ESubStat::None)
+                {
+                    continue;
+                }
+                Cost.AddTyped(EconomyYield::SubStatToPillarEssence(Sc.Stat),
+                              EconomyYield::GetTypedEssencePurchaseCostForTier(EconomyYield::ScalingGradeToItemTier(Sc.Tier)));
+                Cost.Prisms += EconomyYield::Constants::PRISMS_SCALING_SURCHARGE_PER_GRADE *
+                               EconomyYield::GetScalingGradeNumber(Sc.Tier);
+            }
+        }
+        else if (UAbilityData *A = Cast<UAbilityData>(Asset))
+        {
+            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(A->Tier);
+            Cost.SkillEssence += EconomyYield::GetTypedEssencePurchaseCostForTier(A->Tier);
+        }
+        else if (UEvolutionItemData *Ev = Cast<UEvolutionItemData>(Asset))
+        {
+            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(Ev->Tier);
+            const int32 ElementAmount = EconomyYield::GetTypedEssencePurchaseCostForTier(Ev->Tier);
+            Cost.AddTyped(EconomyYield::ElementToEssenceType(Ev->GetAssociatedElement()), ElementAmount);
+            Cost.AddTyped(EEssenceType::Reality, ElementAmount / 2); // ½ Reality co-cost (mirrors leveling)
+        }
+        // Unknown asset types price at 0 — Purchase rejects them separately.
+    }
+    return Cost;
+}
+
+FPurchaseCost UEconomyService::PreviewCartCost(const TArray<FMerchantStockEntry> &Items) const
+{
+    return BuildCartCost(Items);
 }
 
 bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> &Items)
@@ -572,7 +626,10 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
     UEvolutionInventoryComponent *EvolutionInv = Owner->FindComponentByClass<UEvolutionInventoryComponent>();
 
     // ============ VALIDATION PASS — cost + cumulative-per-type demand, spend nothing ============
-    FCartCost Cost;
+    // Cost comes from the shared builder (also behind PreviewCartCost), so the charged numbers
+    // can never drift from what the shop UI displayed.
+    const FPurchaseCost Cost = BuildCartCost(Items);
+
     int32 WeaponDemand = 0, RingDemand = 0, SpellDemand = 0, AbilityDemand = 0, EvolutionDemand = 0;
     TMap<FCrystalId, int32> CrystalDemand;
     // Spells/abilities can't be owned twice — reject already-owned or in-cart duplicates so the
@@ -586,11 +643,7 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
 
         if (E.IsCrystalEntry())
         {
-            const int32 Count = FMath::Max(1, E.Count);
-            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(E.Crystal.Tier) * Count;
-            Cost.AddTyped(EconomyYield::ResolveEssenceType(E.Crystal),
-                          EconomyYield::GetTypedEssencePurchaseCostForTier(E.Crystal.Tier) * Count);
-            CrystalDemand.FindOrAdd(E.Crystal) += Count;
+            CrystalDemand.FindOrAdd(E.Crystal) += FMath::Max(1, E.Count);
             continue;
         }
         if (!E.IsAssetEntry())
@@ -600,17 +653,13 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
         }
 
         UPrimaryDataAsset *Asset = E.Asset;
-        if (UWeaponData *W = Cast<UWeaponData>(Asset))
+        if (Cast<UWeaponData>(Asset))
         {
-            const int32 Count = FMath::Max(1, E.Count);
-            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(W->Tier) * Count;
-            WeaponDemand += Count;
+            WeaponDemand += FMath::Max(1, E.Count);
         }
-        else if (URingData *R = Cast<URingData>(Asset))
+        else if (Cast<URingData>(Asset))
         {
-            const int32 Count = FMath::Max(1, E.Count);
-            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(R->Tier) * Count;
-            RingDemand += Count;
+            RingDemand += FMath::Max(1, E.Count);
         }
         else if (USpellData *S = Cast<USpellData>(Asset))
         {
@@ -620,21 +669,6 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
                 return false;
             }
             CartSpells.Add(S);
-            // Skill pricing (§4.4 + §5): base + surcharge + element essence + pillar essence per grade.
-            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(S->Tier);
-            Cost.AddTyped(EconomyYield::ElementToEssenceType(S->Element),
-                          EconomyYield::GetTypedEssencePurchaseCostForTier(S->Tier));
-            for (const FStatScaling &Sc : S->StatScaling)
-            {
-                if (Sc.Stat == ESubStat::None)
-                {
-                    continue;
-                }
-                Cost.AddTyped(EconomyYield::SubStatToPillarEssence(Sc.Stat),
-                              EconomyYield::GetTypedEssencePurchaseCostForTier(EconomyYield::ScalingGradeToItemTier(Sc.Tier)));
-                Cost.Prisms += EconomyYield::Constants::PRISMS_SCALING_SURCHARGE_PER_GRADE *
-                               EconomyYield::GetScalingGradeNumber(Sc.Tier);
-            }
             SpellDemand += 1;
         }
         else if (UAbilityData *A = Cast<UAbilityData>(Asset))
@@ -645,16 +679,10 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
                 return false;
             }
             CartAbilities.Add(A);
-            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(A->Tier);
-            Cost.SkillEssence += EconomyYield::GetTypedEssencePurchaseCostForTier(A->Tier);
             AbilityDemand += 1;
         }
-        else if (UEvolutionItemData *Ev = Cast<UEvolutionItemData>(Asset))
+        else if (Cast<UEvolutionItemData>(Asset))
         {
-            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(Ev->Tier);
-            const int32 ElementAmount = EconomyYield::GetTypedEssencePurchaseCostForTier(Ev->Tier);
-            Cost.AddTyped(EconomyYield::ElementToEssenceType(Ev->GetAssociatedElement()), ElementAmount);
-            Cost.AddTyped(EEssenceType::Reality, ElementAmount / 2); // ½ Reality co-cost (mirrors leveling)
             EvolutionDemand += 1;
         }
         else
