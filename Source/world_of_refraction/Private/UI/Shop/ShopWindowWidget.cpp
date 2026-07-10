@@ -3,13 +3,17 @@
 #include "UI/Shop/ShopWindowWidget.h"
 
 #include "Components/Button.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
 #include "Components/ListView.h"
 #include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
 #include "Currency/CurrencyComponent.h"
 #include "Currency/EconomyService.h"
 #include "Currency/EconomyYield.h" // scaling-grade letters for the detail panel
 #include "Engine/GameInstance.h"
-#include "Equipment/Crystals/EvolutionItemData.h" // single-owned cart-cap casts
+#include "Equipment/Crystals/CrystalTypeHelpers.h" // GetElement for ring attached-crystal line
+#include "Equipment/Crystals/EvolutionItemData.h"  // single-owned cart-cap casts
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -24,6 +28,7 @@
 namespace ShopWindowConstants
 {
     constexpr float TOAST_DURATION_SECONDS = 1.5f;
+    const FLinearColor INSUFFICIENT_RED(1.0f, 0.25f, 0.25f);
 }
 
 namespace
@@ -31,23 +36,6 @@ namespace
     FString EssenceName(EEssenceType Type)
     {
         return StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(Type));
-    }
-
-    /** "Skill 30 | Fire 25 | Reality 12" over the currencies the cart needs — "—" if none. */
-    FString BuildEssenceLine(const FPurchaseCost &Cost,
-                             TFunctionRef<int32(ECurrencyType, uint8)> AmountOf)
-    {
-        TArray<FString> Parts;
-        if (Cost.SkillEssence > 0)
-        {
-            Parts.Add(FString::Printf(TEXT("Skill %d"), AmountOf(ECurrencyType::SkillEssence, 0)));
-        }
-        for (const TPair<EEssenceType, int32> &Pair : Cost.Typed)
-        {
-            Parts.Add(FString::Printf(TEXT("%s %d"), *EssenceName(Pair.Key),
-                                      AmountOf(ECurrencyType::EssenceTyped, static_cast<uint8>(Pair.Key))));
-        }
-        return Parts.Num() > 0 ? FString::Join(Parts, TEXT(" | ")) : TEXT("—");
     }
 
     bool CanAffordCost(const UCurrencyComponent &Currency, const FPurchaseCost &Cost)
@@ -89,16 +77,29 @@ namespace
 
         if (E.IsCrystalEntry())
         {
-            // Effect NAME from the enum display's parenthetical: "Garnet (Fire - Damage)"
-            // → "Fire - Damage". Stones without a parenthetical use the display name.
+            // "Garnet (Fire - Damage)" → Element: Fire / Effect: Damage as SEPARATE
+            // lines (3f #4). Stones have no parenthetical → no Element line, the
+            // display name itself is the effect ("Damage Stone").
             const FString Display = UEnum::GetDisplayValueAsText(E.Crystal.Type).ToString();
             int32 Open = INDEX_NONE, Close = INDEX_NONE;
-            FString EffectName = Display;
             if (Display.FindChar(TEXT('('), Open) && Display.FindLastChar(TEXT(')'), Close) && Close > Open)
             {
-                EffectName = Display.Mid(Open + 1, Close - Open - 1);
+                const FString Inner = Display.Mid(Open + 1, Close - Open - 1);
+                FString ElementPart, EffectPart;
+                if (Inner.Split(TEXT(" - "), &ElementPart, &EffectPart))
+                {
+                    Lines.Add(FString::Printf(TEXT("Element: %s"), *ElementPart));
+                    Lines.Add(FString::Printf(TEXT("Effect: %s"), *EffectPart));
+                }
+                else
+                {
+                    Lines.Add(FString::Printf(TEXT("Effect: %s"), *Inner));
+                }
             }
-            Lines.Add(FString::Printf(TEXT("Effect: %s"), *EffectName));
+            else
+            {
+                Lines.Add(FString::Printf(TEXT("Effect: %s"), *Display));
+            }
         }
         else if (const UWeaponData *W = Cast<UWeaponData>(E.Asset))
         {
@@ -135,21 +136,29 @@ namespace
             }
             if (R->HasCrystal())
             {
-                Lines.Add(FString::Printf(TEXT("Crystal: %s (%s)"),
+                Lines.Add(FString::Printf(TEXT("Attached Crystal: %s (%s)"),
                                           *ItemIdentity::GetTypeName(R->AttachedItem.CrystalType),
                                           *TierHelpers::GetTierName(R->AttachedItem.CrystalTier)));
+                Lines.Add(FString::Printf(TEXT("Attached Crystal Element: %s"),
+                                          *UEnum::GetDisplayValueAsText(CrystalTypeHelpers::GetElement(R->AttachedItem.CrystalType)).ToString()));
             }
+        }
+        else if (const UEvolutionItemData *Ev = Cast<UEvolutionItemData>(E.Asset))
+        {
+            // 3f #7: element IS shown for evolutions — Crown reversed the 3e
+            // deliberately-bare call. Still no effect reveal.
+            Lines.Add(FString::Printf(TEXT("Element: %s"),
+                                      *UEnum::GetDisplayValueAsText(Ev->GetAssociatedElement()).ToString()));
         }
         else if (const USkillDataBase *Skill = Cast<USkillDataBase>(E.Asset)) // spell + ability
         {
             if (const USpellData *S = Cast<USpellData>(Skill))
             {
-                Lines.Add(FString::Printf(TEXT("School: %s | Element: %s"),
-                                          *UEnum::GetDisplayValueAsText(S->School).ToString(),
-                                          *UEnum::GetDisplayValueAsText(S->Element).ToString()));
+                Lines.Add(FString::Printf(TEXT("School: %s"), *UEnum::GetDisplayValueAsText(S->School).ToString()));
+                Lines.Add(FString::Printf(TEXT("Element: %s"), *UEnum::GetDisplayValueAsText(S->Element).ToString()));
             }
-            Lines.Add(FString::Printf(TEXT("Damage: %d × %d %s"), Skill->BaseDamage, Skill->HitCount,
-                                      Skill->HitCount == 1 ? TEXT("hit") : TEXT("hits")));
+            Lines.Add(FString::Printf(TEXT("Damage: %d"), Skill->BaseDamage));
+            Lines.Add(FString::Printf(TEXT("Hits: %d"), Skill->HitCount));
             Lines.Add(FString::Printf(TEXT("Energy: %d"), Skill->BaseEnergyCost));
             if (Skill->StatusBuildup > 0)
             {
@@ -260,7 +269,7 @@ void UShopWindowWidget::SetMerchant(UMerchantData *Merchant, APawn *PurchaserPaw
     RefreshHeader();
     RefreshStockList();
     RefreshCartList();
-    RefreshCostAndWallet();
+    RefreshTotals();
 }
 
 void UShopWindowWidget::AddToCart(const FMerchantStockEntry &Entry)
@@ -292,7 +301,7 @@ void UShopWindowWidget::AddToCart(const FMerchantStockEntry &Entry)
         NewLine.Count = bSingleOwned ? 1 : FMath::Max(1, Entry.Count);
     }
     RefreshCartList();
-    RefreshCostAndWallet();
+    RefreshTotals();
 }
 
 void UShopWindowWidget::RemoveFromCart(const FMerchantStockEntry &Entry)
@@ -309,7 +318,7 @@ void UShopWindowWidget::RemoveFromCart(const FMerchantStockEntry &Entry)
         Cart.RemoveAt(Index);
     }
     RefreshCartList();
-    RefreshCostAndWallet();
+    RefreshTotals();
 }
 
 void UShopWindowWidget::HandleConfirmClicked()
@@ -331,7 +340,7 @@ void UShopWindowWidget::HandleConfirmClicked()
     {
         Cart.Reset();
         RefreshCartList();
-        RefreshCostAndWallet();
+        RefreshTotals();
         ShowToast(NSLOCTEXT("Shop", "Purchased", "Purchased!"));
     }
     else
@@ -339,7 +348,7 @@ void UShopWindowWidget::HandleConfirmClicked()
         // Shouldn't fire — Confirm disables while unaffordable; capacity/duplicate edge
         // cases (e.g. inventory filled since the last refresh) land here.
         ShowToast(NSLOCTEXT("Shop", "PurchaseFailed", "Purchase failed"));
-        RefreshCostAndWallet();
+        RefreshTotals();
     }
 }
 
@@ -379,7 +388,8 @@ void UShopWindowWidget::RefreshHeader()
     }
     if (MerchantType)
     {
-        MerchantType->SetText(FText::FromString(TypeFlavour));
+        // 3g: flavour line dropped — the header is just the merchant name.
+        MerchantType->SetText(FText::GetEmpty());
     }
 }
 
@@ -429,15 +439,41 @@ void UShopWindowWidget::RefreshDetail()
     }
     if (DetailTier)
     {
-        DetailTier->SetText(Obj ? UShopRowWidget::TierFor(Obj->Entry) : FText::GetEmpty());
+        DetailTier->SetText(Obj ? FText::FromString(FString::Printf(TEXT("Tier: %s"),
+                                                                    *UShopRowWidget::TierFor(Obj->Entry).ToString()))
+                                : FText::GetEmpty());
     }
     if (DetailDescription)
     {
-        DetailDescription->SetText(Obj ? UShopRowWidget::DescriptionFor(Obj->Entry) : FText::GetEmpty());
+        DetailDescription->SetText(Obj ? FText::FromString(FString::Printf(TEXT("Description: %s"),
+                                                                           *UShopRowWidget::DescriptionFor(Obj->Entry).ToString()))
+                                       : FText::GetEmpty());
     }
     if (DetailStats)
     {
         DetailStats->SetText(Obj ? FText::FromString(BuildDetailStats(Obj->Entry)) : FText::GetEmpty());
+    }
+    if (DetailCost)
+    {
+        FString CostLine;
+        UEconomyService *Economy = GetEconomyService();
+        if (Obj && Economy)
+        {
+            // Same builder Purchase charges with — one-entry cart, Count included.
+            const FPurchaseCost Cost = Economy->PreviewCartCost({Obj->Entry});
+            CostLine = FString::Printf(TEXT("Cost: %d P"), Cost.Prisms);
+            if (Cost.SkillEssence > 0)
+            {
+                CostLine += FString::Printf(TEXT(" | Skill %d"), Cost.SkillEssence);
+            }
+            for (const TPair<EEssenceType, int32> &Pair : Cost.Typed)
+            {
+                CostLine += FString::Printf(TEXT(" | %s %d"),
+                                            *StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(Pair.Key)),
+                                            Pair.Value);
+            }
+        }
+        DetailCost->SetText(FText::FromString(CostLine));
     }
 }
 
@@ -469,42 +505,111 @@ void UShopWindowWidget::RefreshCartList()
     CartList->SetListItems(Items);
 }
 
-void UShopWindowWidget::RefreshCostAndWallet()
+void UShopWindowWidget::EnsureTotalsPool()
+{
+    if (!CartTotalsPanel || TotalsRows.Num() > 0)
+    {
+        return;
+    }
+
+    const UEnum *EssenceEnum = StaticEnum<EEssenceType>();
+    const int32 EssenceCount = EssenceEnum->NumEnums() - 1; // trailing autogenerated _MAX
+    const int32 RowCount = 1 /*header*/ + 2 /*Prisms, Skill*/ + EssenceCount;
+
+    for (int32 i = 0; i < RowCount; ++i)
+    {
+        FTotalsRow Row;
+        Row.Box = NewObject<UHorizontalBox>(this);
+        Row.Label = MakeTotalsCell(Row.Box, 1.0f);
+        Row.CostCell = MakeTotalsCell(Row.Box, 0.35f);
+        Row.WalletCell = MakeTotalsCell(Row.Box, 0.35f);
+        Row.Box->SetVisibility(ESlateVisibility::Collapsed);
+        CartTotalsPanel->AddChildToVerticalBox(Row.Box);
+        TotalsRows.Add(Row);
+    }
+
+    // Static texts — header + currency labels never change after the build.
+    TotalsRows[0].Label->SetText(NSLOCTEXT("Shop", "TotalsCurrency", "Currency"));
+    TotalsRows[0].CostCell->SetText(NSLOCTEXT("Shop", "TotalsCost", "Cost"));
+    TotalsRows[0].WalletCell->SetText(NSLOCTEXT("Shop", "TotalsWallet", "Wallet"));
+    TotalsRows[1].Label->SetText(NSLOCTEXT("Shop", "TotalsPrisms", "Prisms"));
+    TotalsRows[2].Label->SetText(NSLOCTEXT("Shop", "TotalsSkill", "Skill Essence"));
+    for (int32 e = 0; e < EssenceCount; ++e)
+    {
+        TotalsRows[3 + e].Label->SetText(FText::FromString(
+            FString::Printf(TEXT("%s Essence"), *EssenceEnum->GetAuthoredNameStringByValue(e))));
+    }
+}
+
+UTextBlock *UShopWindowWidget::MakeTotalsCell(UHorizontalBox *Row, float FillFraction)
+{
+    UTextBlock *Cell = NewObject<UTextBlock>(this);
+    UHorizontalBoxSlot *CellSlot = Row->AddChildToHorizontalBox(Cell);
+    FSlateChildSize Size(ESlateSizeRule::Fill);
+    Size.Value = FillFraction;
+    CellSlot->SetSize(Size);
+    CellSlot->SetPadding(FMargin(4.0f, 2.0f));
+    return Cell;
+}
+
+void UShopWindowWidget::RefreshTotals()
 {
     UEconomyService *Economy = GetEconomyService();
     const FPurchaseCost Cost = Economy ? Economy->PreviewCartCost(Cart) : FPurchaseCost();
-
-    if (CartTotalPrisms)
-    {
-        CartTotalPrisms->SetText(FText::AsNumber(Cost.Prisms));
-    }
-    if (CartTotalEssence)
-    {
-        // Cost side: amounts are the cart's own totals.
-        CartTotalEssence->SetText(FText::FromString(BuildEssenceLine(
-            Cost, [&Cost](ECurrencyType Type, uint8 SubKey)
-            { return Type == ECurrencyType::SkillEssence ? Cost.SkillEssence
-                                                         : Cost.Typed[static_cast<EEssenceType>(SubKey)]; })));
-    }
-
     UCurrencyComponent *Currency = PurchaserCurrency.Get();
-    if (WalletPrisms)
+
+    if (CartTotalsPanel)
     {
-        WalletPrisms->SetText(Currency ? FText::AsNumber(Currency->GetBalance(ECurrencyType::Prisms))
-                                       : NSLOCTEXT("Shop", "NoWallet", "—"));
-    }
-    if (WalletEssence)
-    {
-        // Wallet side mirrors the SAME currencies (cart-relevant), showing balances.
-        WalletEssence->SetText(Currency
-                                   ? FText::FromString(BuildEssenceLine(
-                                         Cost, [Currency](ECurrencyType Type, uint8 SubKey)
-                                         { return Currency->GetBalance(Type, SubKey); }))
-                                   : NSLOCTEXT("Shop", "NoWallet", "—"));
+        EnsureTotalsPool();
+        const int32 EssenceCount = StaticEnum<EEssenceType>()->NumEnums() - 1;
+        bool bAnyVisible = false;
+
+        for (int32 i = 0; i < 2 + EssenceCount; ++i)
+        {
+            const FTotalsRow &Row = TotalsRows[1 + i];
+            int32 CostAmount = 0;
+            int32 WalletAmount = 0;
+            if (i == 0)
+            {
+                CostAmount = Cost.Prisms;
+                WalletAmount = Currency ? Currency->GetBalance(ECurrencyType::Prisms) : 0;
+            }
+            else if (i == 1)
+            {
+                CostAmount = Cost.SkillEssence;
+                WalletAmount = Currency ? Currency->GetBalance(ECurrencyType::SkillEssence) : 0;
+            }
+            else
+            {
+                const EEssenceType Essence = static_cast<EEssenceType>(i - 2);
+                CostAmount = Cost.Typed.FindRef(Essence);
+                WalletAmount = Currency ? Currency->GetBalance(ECurrencyType::EssenceTyped, static_cast<uint8>(Essence)) : 0;
+            }
+
+            // The Prisms row anchors the table whenever the cart has anything; other
+            // currencies appear only when the cart actually needs them.
+            const bool bVisible = Cart.Num() > 0 && (CostAmount > 0 || i == 0);
+            Row.Box->SetVisibility(bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+            if (!bVisible)
+            {
+                continue;
+            }
+
+            const bool bShort = WalletAmount < CostAmount;
+            const FSlateColor CellColor(bShort ? ShopWindowConstants::INSUFFICIENT_RED : FLinearColor::White);
+            Row.CostCell->SetText(FText::AsNumber(CostAmount));
+            Row.WalletCell->SetText(FText::AsNumber(WalletAmount));
+            Row.CostCell->SetColorAndOpacity(CellColor);
+            Row.WalletCell->SetColorAndOpacity(CellColor);
+            bAnyVisible = true;
+        }
+        TotalsRows[0].Box->SetVisibility(bAnyVisible ? ESlateVisibility::HitTestInvisible
+                                                     : ESlateVisibility::Collapsed);
     }
 
     if (ConfirmButton)
     {
+        // All-green requirement — identical math to the row coloring above.
         ConfirmButton->SetIsEnabled(Currency && Cart.Num() > 0 && CanAffordCost(*Currency, Cost));
     }
 }
@@ -550,7 +655,7 @@ UMerchantShopSubsystem *UShopWindowWidget::GetShopSubsystem() const
 
 void UShopWindowWidget::HandleCurrencyChanged(ECurrencyType /*Currency*/, uint8 /*SubKey*/, int32 /*NewBalance*/)
 {
-    RefreshCostAndWallet();
+    RefreshTotals();
 }
 
 FString UShopWindowWidget::GetShopString() const

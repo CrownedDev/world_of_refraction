@@ -25,9 +25,11 @@ class APawn;
 class UButton;
 class UCurrencyComponent;
 class UEconomyService;
+class UHorizontalBox;
 class UListView;
 class UMerchantShopSubsystem;
 class UTextBlock;
+class UVerticalBox;
 
 /** UObject carrier for one shop line — UListView items must be UObjects and
  *  FMerchantStockEntry is a struct. Stock and cart lists both hold these; the
@@ -120,19 +122,11 @@ protected:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
     TObjectPtr<UListView> CartList;
 
+    /** Per-currency totals table (3h): | Currency | Cost | Wallet | rows, one per
+     *  currency the cart needs. C++ builds the rows into this panel (pool-once);
+     *  the WBP only places the empty VerticalBox. */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
-    TObjectPtr<UTextBlock> CartTotalPrisms;
-
-    /** Compact multi-currency line, e.g. "Skill 30 | Fire 25 | Reality 12" — or "—". */
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
-    TObjectPtr<UTextBlock> CartTotalEssence;
-
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
-    TObjectPtr<UTextBlock> WalletPrisms;
-
-    /** Balances mirroring the currencies the CART needs (same order as CartTotalEssence). */
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
-    TObjectPtr<UTextBlock> WalletEssence;
+    TObjectPtr<UVerticalBox> CartTotalsPanel;
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
     TObjectPtr<UButton> ConfirmButton;
@@ -159,6 +153,10 @@ protected:
      *  effect NAMES — never effect numbers/durations). */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
     TObjectPtr<UTextBlock> DetailStats;
+
+    /** Line cost of the hovered entry ("Cost: 50 P | Skill 13") — pinned above Add. */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
+    TObjectPtr<UTextBlock> DetailCost;
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
     TObjectPtr<UButton> DetailAddButton;
@@ -196,10 +194,32 @@ private:
     void RefreshHeader();
     void RefreshStockList();
     void RefreshCartList();
-    /** Cart totals + wallet mirror + ConfirmButton enable, all from one PreviewCartCost. */
-    void RefreshCostAndWallet();
+    /** Totals table (per-currency Cost|Wallet rows, red on shortfall) + Confirm enable,
+     *  all from one PreviewCartCost. */
+    void RefreshTotals();
     /** Middle-column detail panel from HoveredEntry (clears when null). */
     void RefreshDetail();
+
+    // ==================== CART TOTALS TABLE (3h) ====================
+
+    /** One pooled table row: | Currency | Cost | Wallet |. The panel's child list owns
+     *  the widgets (GC-safe); this array is just the update-path lookup cache. */
+    struct FTotalsRow
+    {
+        UHorizontalBox *Box = nullptr;
+        UTextBlock *Label = nullptr;
+        UTextBlock *CostCell = nullptr;
+        UTextBlock *WalletCell = nullptr;
+    };
+
+    /** [0] header + one row per currency (Prisms, Skill, every EEssenceType). Built
+     *  ONCE (TransBuffer gotcha: never recreate widgets inside a designer-placed
+     *  widget); refresh only updates texts / colors / visibility. */
+    TArray<FTotalsRow> TotalsRows;
+
+    /** Lazily build the pooled rows into CartTotalsPanel (no-op once built). */
+    void EnsureTotalsPool();
+    UTextBlock *MakeTotalsCell(UHorizontalBox *Row, float FillFraction);
 
     void ShowToast(const FText &Message);
     void HideToast();

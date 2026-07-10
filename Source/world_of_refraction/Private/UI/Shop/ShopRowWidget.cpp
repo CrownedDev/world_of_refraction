@@ -60,7 +60,9 @@ FText UShopRowWidget::NameFor(const FMerchantStockEntry &E)
     }
     if (const UEvolutionItemData *Evolution = Cast<UEvolutionItemData>(E.Asset))
     {
-        return FText::FromString(Evolution->GetCrystalName()); // variant name, no "(F-Tier)"
+        // Authored VARIANT name ("Cloaked Fist") — GetCrystalName returns the crystal
+        // TYPE ("Onyx"), which is not what a shop shelf should read (3f #6).
+        return FText::FromString(Evolution->ItemName);
     }
     return E.Asset ? FText::FromString(E.Asset->GetName()) : FText::GetEmpty();
 }
