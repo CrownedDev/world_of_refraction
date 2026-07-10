@@ -159,7 +159,8 @@ public:
      *                     abilities: Prisms base + SkillEssence @ tier (no surcharge, no typed).
      *   - Ability       : Prisms base + SkillEssence @ tier.
      *   - Evolution     : Prisms base + element essence @ tier + ½ Reality essence.
-     *   - Crystal       : Prisms base + ResolveEssenceType essence @ tier (× Count).
+     *   - Crystal       : Prisms base only (× Count) — no typed essence; essence stays a
+     *                     dismantle-side currency for crystal stock.
      *
      * Count is honoured for weapons / rings / crystals; clamped to 1 for spells / abilities /
      * evolutions (spells/abilities can't be owned twice; evolution is per-instance). Buying a

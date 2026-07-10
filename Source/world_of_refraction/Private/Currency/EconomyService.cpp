@@ -537,10 +537,9 @@ FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &
     {
         if (E.IsCrystalEntry())
         {
-            const int32 Count = FMath::Max(1, E.Count);
-            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(E.Crystal.Tier) * Count;
-            Cost.AddTyped(EconomyYield::ResolveEssenceType(E.Crystal),
-                          EconomyYield::GetTypedEssencePurchaseCostForTier(E.Crystal.Tier) * Count);
+            // Crystals are Prisms-only (Crown): no typed-essence charge for gems,
+            // augment stones, or Quartz — essence stays a dismantle-side currency here.
+            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(E.Crystal.Tier) * FMath::Max(1, E.Count);
             continue;
         }
         if (!E.IsAssetEntry())
