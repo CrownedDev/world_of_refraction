@@ -40,6 +40,11 @@ class WORLD_OF_REFRACTION_API UShopEntryObject : public UObject
 public:
     UPROPERTY(BlueprintReadOnly, Category = "Shop")
     FMerchantStockEntry Entry;
+
+    /** The window whose list this item sits in — the row's route to AddToCart /
+     *  RemoveFromCart without coupling row → window structurally. Stamped by the
+     *  window before SetListItems. Weak: an item never keeps the window alive. */
+    TWeakObjectPtr<class UShopWindowWidget> ParentWindow;
 };
 
 UCLASS()

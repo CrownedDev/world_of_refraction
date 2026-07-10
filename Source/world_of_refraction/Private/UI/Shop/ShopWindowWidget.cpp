@@ -8,8 +8,11 @@
 #include "Currency/CurrencyComponent.h"
 #include "Currency/EconomyService.h"
 #include "Engine/GameInstance.h"
+#include "Equipment/Crystals/EvolutionItemData.h" // single-owned cart-cap casts
 #include "GameFramework/Pawn.h"
 #include "Shop/MerchantShopSubsystem.h"
+#include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SpellData.h"
 
 namespace ShopWindowConstants
 {
@@ -149,7 +152,27 @@ void UShopWindowWidget::AddToCart(const FMerchantStockEntry &Entry)
         UE_LOG(LogTemp, Warning, TEXT("[ShopWindow] AddToCart: empty entry ignored."));
         return;
     }
-    Cart.Add(Entry);
+
+    // Coalesce: ONE cart line per distinct item, Count accumulates per click.
+    // Spells/abilities/evolutions cap at 1 — Purchase clamps their grant to a single
+    // unit per line, so a higher displayed count would be a lie at the till.
+    const bool bSingleOwned = Cast<USpellData>(Entry.Asset) != nullptr ||
+                              Cast<UAbilityData>(Entry.Asset) != nullptr ||
+                              Cast<UEvolutionItemData>(Entry.Asset) != nullptr;
+    FMerchantStockEntry *Line = Cart.FindByPredicate([&Entry](const FMerchantStockEntry &L)
+                                                     { return SameShopLine(L, Entry); });
+    if (Line)
+    {
+        if (!bSingleOwned)
+        {
+            Line->Count += FMath::Max(1, Entry.Count);
+        }
+    }
+    else
+    {
+        FMerchantStockEntry &NewLine = Cart.Add_GetRef(Entry);
+        NewLine.Count = bSingleOwned ? 1 : FMath::Max(1, Entry.Count);
+    }
     RefreshCartList();
     RefreshCostAndWallet();
 }
@@ -162,7 +185,11 @@ void UShopWindowWidget::RemoveFromCart(const FMerchantStockEntry &Entry)
     {
         return;
     }
-    Cart.RemoveAt(Index);
+    // Decrement one unit per click; the line leaves the cart at zero.
+    if (--Cart[Index].Count <= 0)
+    {
+        Cart.RemoveAt(Index);
+    }
     RefreshCartList();
     RefreshCostAndWallet();
 }
@@ -235,6 +262,7 @@ void UShopWindowWidget::RefreshStockList()
         {
             UShopEntryObject *Obj = NewObject<UShopEntryObject>(this);
             Obj->Entry = E;
+            Obj->ParentWindow = this; // rows route AddToCart through this back-ref
             StockObjects.Add(Obj);
             Items.Add(Obj);
         }
@@ -255,6 +283,7 @@ void UShopWindowWidget::RefreshCartList()
     {
         UShopEntryObject *Obj = NewObject<UShopEntryObject>(this);
         Obj->Entry = E;
+        Obj->ParentWindow = this; // rows route RemoveFromCart through this back-ref
         CartObjects.Add(Obj);
         Items.Add(Obj);
     }
