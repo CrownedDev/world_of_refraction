@@ -5,8 +5,10 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/Pawn.h"
 #include "Merchant/MerchantData.h"
+#include "Shop/MerchantShopSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace MerchantInteractableConstants
@@ -64,13 +66,23 @@ void AMerchantInteractable::Interact()
         return;
     }
 
-    const FString Stock = Merchant->GetMerchantString();
-    UE_LOG(LogTemp, Log, TEXT("%s"), *Stock);
-    if (GEngine)
+    // Cluster 3a: the shop subsystem owns the window. PawnInRange IS the instigator —
+    // Interact() is only reachable while a player pawn stands in the trigger.
+    APawn *Pawn = PawnInRange.Get();
+    if (!Pawn)
     {
-        GEngine->AddOnScreenDebugMessage(-1, MerchantInteractableConstants::STOCK_PRINT_DURATION,
-                                         FColor::Cyan, Stock);
+        UE_LOG(LogTemp, Warning, TEXT("MerchantInteractable '%s': Interact with no pawn in range — ignored."), *GetName());
+        return;
     }
+
+    UGameInstance *GI = GetGameInstance();
+    UMerchantShopSubsystem *Shop = GI ? GI->GetSubsystem<UMerchantShopSubsystem>() : nullptr;
+    if (!Shop)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("MerchantInteractable '%s': MerchantShopSubsystem unavailable — ignored."), *GetName());
+        return;
+    }
+    Shop->OpenForMerchant(Merchant, Pawn);
 }
 
 AMerchantInteractable *AMerchantInteractable::FindNearestInRange(APawn *Pawn)
