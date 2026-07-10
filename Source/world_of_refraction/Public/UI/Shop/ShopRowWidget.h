@@ -53,6 +53,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Shop")
     FText GetEntryCost() const;
 
+    /** Hover tooltip: the item's long Description (crystals: flavor + effect text).
+     *  Set on the whole row in RefreshRowTexts via SetToolTipText. */
+    UFUNCTION(BlueprintPure, Category = "Shop")
+    FText GetEntryTooltip() const;
+
     // ==================== BUTTON HANDLERS (C++-bound; callable from BP too) ============
 
     /** Stock row [+ Add]: ParentWindow->AddToCart(Entry) — window coalesces lines. */

@@ -6,6 +6,7 @@
 #include "Components/TextBlock.h"
 #include "Currency/EconomyService.h"
 #include "Engine/GameInstance.h"
+#include "Equipment/Crystals/CrystalDescription.h" // crystal tooltip: flavor + effect text
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/EquipmentDataBase.h"
@@ -51,9 +52,10 @@ FText UShopRowWidget::GetEntryName() const
     }
     const FMerchantStockEntry &E = Obj->Entry;
 
+    // Names stay tier-free — tier has its own column (RowTier).
     if (E.IsCrystalEntry())
     {
-        return FText::FromString(ItemIdentity::GetDisplayName(E.Crystal));
+        return FText::FromString(ItemIdentity::GetTypeName(E.Crystal.Type));
     }
     if (const UEquipmentDataBase *Equipment = Cast<UEquipmentDataBase>(E.Asset)) // weapon + ring
     {
@@ -65,9 +67,40 @@ FText UShopRowWidget::GetEntryName() const
     }
     if (const UEvolutionItemData *Evolution = Cast<UEvolutionItemData>(E.Asset))
     {
-        return FText::FromString(Evolution->GetFullItemName());
+        return FText::FromString(Evolution->GetCrystalName()); // variant name, no "(F-Tier)"
     }
     return E.Asset ? FText::FromString(E.Asset->GetName()) : FText::GetEmpty();
+}
+
+FText UShopRowWidget::GetEntryTooltip() const
+{
+    const UShopEntryObject *Obj = EntryObject.Get();
+    if (!Obj)
+    {
+        return FText::GetEmpty();
+    }
+    const FMerchantStockEntry &E = Obj->Entry;
+
+    if (E.IsCrystalEntry())
+    {
+        // Flavor + mechanical effect — both self-contained "." sentences.
+        return FText::FromString(FString::Printf(TEXT("%s %s"),
+                                                 *CrystalDescription::GetCrystalText(E.Crystal),
+                                                 *CrystalDescription::GetItemEffectText(E.Crystal)));
+    }
+    if (const UEquipmentDataBase *Equipment = Cast<UEquipmentDataBase>(E.Asset)) // weapon + ring
+    {
+        return FText::FromString(Equipment->Description);
+    }
+    if (const USkillDataBase *Skill = Cast<USkillDataBase>(E.Asset)) // spell + ability
+    {
+        return FText::FromString(Skill->Description);
+    }
+    if (const UEvolutionItemData *Evolution = Cast<UEvolutionItemData>(E.Asset))
+    {
+        return FText::FromString(Evolution->Description); // variant-flavored, auto-generated
+    }
+    return FText::GetEmpty();
 }
 
 FText UShopRowWidget::GetEntryTier() const
@@ -188,6 +221,8 @@ void UShopRowWidget::RefreshRowTexts()
     {
         RowCost->SetText(GetEntryCost());
     }
+    // Whole-row hover tooltip — standard UMG idiom, no WBP wiring needed.
+    SetToolTipText(GetEntryTooltip());
 }
 
 UEconomyService *UShopRowWidget::GetEconomyService() const

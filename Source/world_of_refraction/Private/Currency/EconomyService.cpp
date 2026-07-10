@@ -560,21 +560,32 @@ FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &
         }
         else if (USpellData *S = Cast<USpellData>(Asset))
         {
-            // Skill pricing (§4.4 + §5): base + surcharge + element essence + pillar essence
-            // per scaling grade. Count clamps to 1 (a spell can't be owned twice).
+            // Count clamps to 1 for all spells (a spell can't be owned twice).
             Cost.Prisms += EconomyYield::GetPrismsBaseForTier(S->Tier);
-            Cost.AddTyped(EconomyYield::ElementToEssenceType(S->Element),
-                          EconomyYield::GetTypedEssencePurchaseCostForTier(S->Tier));
-            for (const FStatScaling &Sc : S->StatScaling)
+            if (S->Element == ESpellElement::Generic)
             {
-                if (Sc.Stat == ESubStat::None)
+                // GENERIC spells price like abilities: base + SkillEssence at tier.
+                // No scaling surcharge, no element essence, no pillar essence —
+                // Generic would otherwise charge "Quartz essence" (Crown, 3d).
+                Cost.SkillEssence += EconomyYield::GetTypedEssencePurchaseCostForTier(S->Tier);
+            }
+            else
+            {
+                // ELEMENT-typed skill pricing (§4.4 + §5): base + surcharge + element
+                // essence + pillar essence per scaling grade.
+                Cost.AddTyped(EconomyYield::ElementToEssenceType(S->Element),
+                              EconomyYield::GetTypedEssencePurchaseCostForTier(S->Tier));
+                for (const FStatScaling &Sc : S->StatScaling)
                 {
-                    continue;
+                    if (Sc.Stat == ESubStat::None)
+                    {
+                        continue;
+                    }
+                    Cost.AddTyped(EconomyYield::SubStatToPillarEssence(Sc.Stat),
+                                  EconomyYield::GetTypedEssencePurchaseCostForTier(EconomyYield::ScalingGradeToItemTier(Sc.Tier)));
+                    Cost.Prisms += EconomyYield::Constants::PRISMS_SCALING_SURCHARGE_PER_GRADE *
+                                   EconomyYield::GetScalingGradeNumber(Sc.Tier);
                 }
-                Cost.AddTyped(EconomyYield::SubStatToPillarEssence(Sc.Stat),
-                              EconomyYield::GetTypedEssencePurchaseCostForTier(EconomyYield::ScalingGradeToItemTier(Sc.Tier)));
-                Cost.Prisms += EconomyYield::Constants::PRISMS_SCALING_SURCHARGE_PER_GRADE *
-                               EconomyYield::GetScalingGradeNumber(Sc.Tier);
             }
         }
         else if (UAbilityData *A = Cast<UAbilityData>(Asset))

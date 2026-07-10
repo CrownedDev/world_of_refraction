@@ -155,7 +155,8 @@ public:
      *   - Weapon / Ring : Prisms base by tier (× Count). [quality is the C placeholder until the
      *                     shop-roll generator lands — tier-only for now]
      *   - Spell         : Prisms base + 50×Σ scaling-grade + element essence @ tier + Σ pillar
-     *                     essence per scaling grade.
+     *                     essence per scaling grade. GENERIC-element spells instead price like
+     *                     abilities: Prisms base + SkillEssence @ tier (no surcharge, no typed).
      *   - Ability       : Prisms base + SkillEssence @ tier.
      *   - Evolution     : Prisms base + element essence @ tier + ½ Reality essence.
      *   - Crystal       : Prisms base + ResolveEssenceType essence @ tier (× Count).
