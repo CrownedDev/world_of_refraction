@@ -39,7 +39,9 @@
       "Bash(Select-Object FullName)",
       "PowerShell(git checkout *)",
       "mcp__unreal-mcp__call_tool",
-      "WebSearch"
+      "WebSearch",
+      "mcp__unreal-mcp__describe_toolset",
+      "mcp__unreal-mcp__list_toolsets"
     ]
   },
   "enabledMcpjsonServers": [
