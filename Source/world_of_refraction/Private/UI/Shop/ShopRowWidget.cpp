@@ -43,16 +43,9 @@ void UShopRowWidget::NativeOnListItemObjectSet(UObject *ListItemObject)
     OnEntrySet(Entry);
 }
 
-FText UShopRowWidget::GetEntryName() const
+FText UShopRowWidget::NameFor(const FMerchantStockEntry &E)
 {
-    const UShopEntryObject *Obj = EntryObject.Get();
-    if (!Obj)
-    {
-        return FText::GetEmpty();
-    }
-    const FMerchantStockEntry &E = Obj->Entry;
-
-    // Names stay tier-free — tier has its own column (RowTier).
+    // Names stay tier-free — tier has its own column / detail line.
     if (E.IsCrystalEntry())
     {
         return FText::FromString(ItemIdentity::GetTypeName(E.Crystal.Type));
@@ -72,46 +65,8 @@ FText UShopRowWidget::GetEntryName() const
     return E.Asset ? FText::FromString(E.Asset->GetName()) : FText::GetEmpty();
 }
 
-FText UShopRowWidget::GetEntryTooltip() const
+FText UShopRowWidget::TierFor(const FMerchantStockEntry &E)
 {
-    const UShopEntryObject *Obj = EntryObject.Get();
-    if (!Obj)
-    {
-        return FText::GetEmpty();
-    }
-    const FMerchantStockEntry &E = Obj->Entry;
-
-    if (E.IsCrystalEntry())
-    {
-        // Flavor + mechanical effect — both self-contained "." sentences.
-        return FText::FromString(FString::Printf(TEXT("%s %s"),
-                                                 *CrystalDescription::GetCrystalText(E.Crystal),
-                                                 *CrystalDescription::GetItemEffectText(E.Crystal)));
-    }
-    if (const UEquipmentDataBase *Equipment = Cast<UEquipmentDataBase>(E.Asset)) // weapon + ring
-    {
-        return FText::FromString(Equipment->Description);
-    }
-    if (const USkillDataBase *Skill = Cast<USkillDataBase>(E.Asset)) // spell + ability
-    {
-        return FText::FromString(Skill->Description);
-    }
-    if (const UEvolutionItemData *Evolution = Cast<UEvolutionItemData>(E.Asset))
-    {
-        return FText::FromString(Evolution->Description); // variant-flavored, auto-generated
-    }
-    return FText::GetEmpty();
-}
-
-FText UShopRowWidget::GetEntryTier() const
-{
-    const UShopEntryObject *Obj = EntryObject.Get();
-    if (!Obj)
-    {
-        return FText::GetEmpty();
-    }
-    const FMerchantStockEntry &E = Obj->Entry;
-
     EItemTier Tier = EItemTier::F_Tier;
     if (E.IsCrystalEntry())
     {
@@ -134,6 +89,47 @@ FText UShopRowWidget::GetEntryTier() const
         return FText::GetEmpty();
     }
     return FText::FromString(TierHelpers::GetTierName(Tier));
+}
+
+FText UShopRowWidget::DescriptionFor(const FMerchantStockEntry &E)
+{
+    if (E.IsCrystalEntry())
+    {
+        // Tier-flavor sentence only — the mechanical effect surfaces as a NAME in the
+        // detail panel's stats block, never as numbers (3e rule).
+        return FText::FromString(CrystalDescription::GetCrystalText(E.Crystal));
+    }
+    if (const UEquipmentDataBase *Equipment = Cast<UEquipmentDataBase>(E.Asset)) // weapon + ring
+    {
+        return FText::FromString(Equipment->Description);
+    }
+    if (const USkillDataBase *Skill = Cast<USkillDataBase>(E.Asset)) // spell + ability
+    {
+        return FText::FromString(Skill->Description);
+    }
+    if (const UEvolutionItemData *Evolution = Cast<UEvolutionItemData>(E.Asset))
+    {
+        return FText::FromString(Evolution->Description); // variant-flavored, auto-generated
+    }
+    return FText::GetEmpty();
+}
+
+FText UShopRowWidget::GetEntryName() const
+{
+    const UShopEntryObject *Obj = EntryObject.Get();
+    return Obj ? NameFor(Obj->Entry) : FText::GetEmpty();
+}
+
+FText UShopRowWidget::GetEntryTooltip() const
+{
+    const UShopEntryObject *Obj = EntryObject.Get();
+    return Obj ? DescriptionFor(Obj->Entry) : FText::GetEmpty();
+}
+
+FText UShopRowWidget::GetEntryTier() const
+{
+    const UShopEntryObject *Obj = EntryObject.Get();
+    return Obj ? TierFor(Obj->Entry) : FText::GetEmpty();
 }
 
 FText UShopRowWidget::GetEntryCount() const
@@ -221,8 +217,18 @@ void UShopRowWidget::RefreshRowTexts()
     {
         RowCost->SetText(GetEntryCost());
     }
-    // Whole-row hover tooltip — standard UMG idiom, no WBP wiring needed.
-    SetToolTipText(GetEntryTooltip());
+    // 3e: no row tooltip — hover populates the window's detail panel instead.
+}
+
+void UShopRowWidget::NativeOnMouseEnter(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
+{
+    Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
+
+    UShopEntryObject *Obj = EntryObject.Get();
+    if (UShopWindowWidget *Window = Obj ? Obj->ParentWindow.Get() : nullptr)
+    {
+        Window->SetHoveredEntry(Obj);
+    }
 }
 
 UEconomyService *UShopRowWidget::GetEconomyService() const

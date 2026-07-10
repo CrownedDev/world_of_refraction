@@ -7,12 +7,19 @@
 #include "Components/TextBlock.h"
 #include "Currency/CurrencyComponent.h"
 #include "Currency/EconomyService.h"
+#include "Currency/EconomyYield.h" // scaling-grade letters for the detail panel
 #include "Engine/GameInstance.h"
 #include "Equipment/Crystals/EvolutionItemData.h" // single-owned cart-cap casts
+#include "Equipment/Crystals/ItemIdentity.h"
+#include "Equipment/Rings/RingData.h"
+#include "Equipment/Weapons/WeaponData.h"
 #include "GameFramework/Pawn.h"
+#include "Inventory/ItemTier.h" // TierHelpers
 #include "Shop/MerchantShopSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
+#include "Skills/Effects/EffectDefinition.h"
+#include "UI/Shop/ShopRowWidget.h" // shared per-entry display ladder (NameFor/TierFor/DescriptionFor)
 
 namespace ShopWindowConstants
 {
@@ -72,6 +79,113 @@ namespace
         }
         return A.IsAssetEntry() ? A.Asset == B.Asset : A.Crystal == B.Crystal;
     }
+
+    /** Per-type stat lines for the detail panel (3e). Effects show NAMES only —
+     *  never numbers or durations. Evolutions deliberately contribute nothing
+     *  (Name/Tier/Description only — no reveal). */
+    FString BuildDetailStats(const FMerchantStockEntry &E)
+    {
+        TArray<FString> Lines;
+
+        if (E.IsCrystalEntry())
+        {
+            // Effect NAME from the enum display's parenthetical: "Garnet (Fire - Damage)"
+            // → "Fire - Damage". Stones without a parenthetical use the display name.
+            const FString Display = UEnum::GetDisplayValueAsText(E.Crystal.Type).ToString();
+            int32 Open = INDEX_NONE, Close = INDEX_NONE;
+            FString EffectName = Display;
+            if (Display.FindChar(TEXT('('), Open) && Display.FindLastChar(TEXT(')'), Close) && Close > Open)
+            {
+                EffectName = Display.Mid(Open + 1, Close - Open - 1);
+            }
+            Lines.Add(FString::Printf(TEXT("Effect: %s"), *EffectName));
+        }
+        else if (const UWeaponData *W = Cast<UWeaponData>(E.Asset))
+        {
+            if (W->WeaponAttack)
+            {
+                Lines.Add(FString::Printf(TEXT("Attack: %s"), *W->WeaponAttack->Name));
+            }
+            TArray<FString> AbilityNames;
+            for (const UAbilityData *A : W->PresetAbilities)
+            {
+                if (A)
+                {
+                    AbilityNames.Add(A->Name);
+                }
+            }
+            if (AbilityNames.Num() > 0)
+            {
+                Lines.Add(FString::Printf(TEXT("Abilities: %s"), *FString::Join(AbilityNames, TEXT(", "))));
+            }
+        }
+        else if (const URingData *R = Cast<URingData>(E.Asset))
+        {
+            TArray<FString> SpellNames;
+            for (const USpellData *S : R->DefaultSpells)
+            {
+                if (S)
+                {
+                    SpellNames.Add(S->Name);
+                }
+            }
+            if (SpellNames.Num() > 0)
+            {
+                Lines.Add(FString::Printf(TEXT("Spells: %s"), *FString::Join(SpellNames, TEXT(", "))));
+            }
+            if (R->HasCrystal())
+            {
+                Lines.Add(FString::Printf(TEXT("Crystal: %s (%s)"),
+                                          *ItemIdentity::GetTypeName(R->AttachedItem.CrystalType),
+                                          *TierHelpers::GetTierName(R->AttachedItem.CrystalTier)));
+            }
+        }
+        else if (const USkillDataBase *Skill = Cast<USkillDataBase>(E.Asset)) // spell + ability
+        {
+            if (const USpellData *S = Cast<USpellData>(Skill))
+            {
+                Lines.Add(FString::Printf(TEXT("School: %s | Element: %s"),
+                                          *UEnum::GetDisplayValueAsText(S->School).ToString(),
+                                          *UEnum::GetDisplayValueAsText(S->Element).ToString()));
+            }
+            Lines.Add(FString::Printf(TEXT("Damage: %d × %d %s"), Skill->BaseDamage, Skill->HitCount,
+                                      Skill->HitCount == 1 ? TEXT("hit") : TEXT("hits")));
+            Lines.Add(FString::Printf(TEXT("Energy: %d"), Skill->BaseEnergyCost));
+            if (Skill->StatusBuildup > 0)
+            {
+                Lines.Add(FString::Printf(TEXT("Status buildup: %d"), Skill->StatusBuildup));
+            }
+            TArray<FString> Grades;
+            for (const FStatScaling &Sc : Skill->StatScaling)
+            {
+                if (Sc.Stat == ESubStat::None)
+                {
+                    continue;
+                }
+                Grades.Add(FString::Printf(TEXT("%s %s"),
+                                           *StaticEnum<ESubStat>()->GetAuthoredNameStringByValue(static_cast<int64>(Sc.Stat)),
+                                           *TierHelpers::GetTierName(EconomyYield::ScalingGradeToItemTier(Sc.Tier))));
+            }
+            if (Grades.Num() > 0)
+            {
+                Lines.Add(FString::Printf(TEXT("Scaling: %s"), *FString::Join(Grades, TEXT(", "))));
+            }
+            TArray<FString> EffectNames;
+            for (const UEffectDefinition *Def : Skill->ReferencedEffects)
+            {
+                if (Def)
+                {
+                    EffectNames.Add(Def->DisplayName.IsEmpty() ? Def->GetName() : Def->DisplayName.ToString());
+                }
+            }
+            if (EffectNames.Num() > 0)
+            {
+                Lines.Add(FString::Printf(TEXT("Effects: %s"), *FString::Join(EffectNames, TEXT(", "))));
+            }
+        }
+
+        return FString::Join(Lines, TEXT("\n"));
+    }
 }
 
 void UShopWindowWidget::NativeConstruct()
@@ -87,6 +201,10 @@ void UShopWindowWidget::NativeConstruct()
     if (CloseButton)
     {
         CloseButton->OnClicked.AddUniqueDynamic(this, &UShopWindowWidget::HandleCloseClicked);
+    }
+    if (DetailAddButton)
+    {
+        DetailAddButton->OnClicked.AddUniqueDynamic(this, &UShopWindowWidget::HandleDetailAddClicked);
     }
     if (ToastText)
     {
@@ -235,15 +353,33 @@ void UShopWindowWidget::HandleCloseClicked()
 
 void UShopWindowWidget::RefreshHeader()
 {
+    // 3e: no asset-name line. The header splits the merchant-type display name —
+    // "Spell Shop (spells)" → name "Spell Shop", flavour "(spells)".
+    FString HeaderName;
+    FString TypeFlavour;
+    if (ActiveMerchant)
+    {
+        const FString TypeDisplay = UEnum::GetDisplayValueAsText(ActiveMerchant->MerchantType).ToString();
+        int32 ParenIdx = INDEX_NONE;
+        if (TypeDisplay.FindChar(TEXT('('), ParenIdx))
+        {
+            HeaderName = TypeDisplay.Left(ParenIdx).TrimEnd();
+            TypeFlavour = TypeDisplay.Mid(ParenIdx);
+        }
+        else
+        {
+            HeaderName = TypeDisplay;
+        }
+    }
+
     if (MerchantName)
     {
-        MerchantName->SetText(ActiveMerchant ? FText::FromString(ActiveMerchant->GetName())
+        MerchantName->SetText(ActiveMerchant ? FText::FromString(HeaderName)
                                              : NSLOCTEXT("Shop", "NoMerchant", "<no merchant>"));
     }
     if (MerchantType)
     {
-        MerchantType->SetText(ActiveMerchant ? UEnum::GetDisplayValueAsText(ActiveMerchant->MerchantType)
-                                             : FText::GetEmpty());
+        MerchantType->SetText(FText::FromString(TypeFlavour));
     }
 }
 
@@ -268,6 +404,49 @@ void UShopWindowWidget::RefreshStockList()
         }
     }
     StockList->SetListItems(Items);
+
+    // Default detail target on (re)population: the first stock entry, or clear.
+    SetHoveredEntry(StockObjects.Num() > 0 ? StockObjects[0].Get() : nullptr);
+}
+
+void UShopWindowWidget::SetHoveredEntry(UShopEntryObject *Entry)
+{
+    HoveredEntry = Entry;
+    RefreshDetail();
+}
+
+void UShopWindowWidget::RefreshDetail()
+{
+    const UShopEntryObject *Obj = HoveredEntry.Get();
+
+    if (DetailAddButton)
+    {
+        DetailAddButton->SetIsEnabled(Obj != nullptr);
+    }
+    if (DetailName)
+    {
+        DetailName->SetText(Obj ? UShopRowWidget::NameFor(Obj->Entry) : FText::GetEmpty());
+    }
+    if (DetailTier)
+    {
+        DetailTier->SetText(Obj ? UShopRowWidget::TierFor(Obj->Entry) : FText::GetEmpty());
+    }
+    if (DetailDescription)
+    {
+        DetailDescription->SetText(Obj ? UShopRowWidget::DescriptionFor(Obj->Entry) : FText::GetEmpty());
+    }
+    if (DetailStats)
+    {
+        DetailStats->SetText(Obj ? FText::FromString(BuildDetailStats(Obj->Entry)) : FText::GetEmpty());
+    }
+}
+
+void UShopWindowWidget::HandleDetailAddClicked()
+{
+    if (const UShopEntryObject *Obj = HoveredEntry.Get())
+    {
+        AddToCart(Obj->Entry);
+    }
 }
 
 void UShopWindowWidget::RefreshCartList()

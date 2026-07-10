@@ -72,6 +72,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Shop")
     void RemoveFromCart(const FMerchantStockEntry &Entry);
 
+    // ==================== DETAIL PANEL (3e) ====================
+
+    /** Point the middle detail panel at Entry (rows call this on hover; null clears).
+     *  Stock population defaults it to the first stock entry. */
+    UFUNCTION(BlueprintCallable, Category = "Shop")
+    void SetHoveredEntry(UShopEntryObject *Entry);
+
     // ==================== BUTTON HANDLERS (C++-bound; callable from BP too) ============
 
     /** Confirm: UEconomyService::Purchase(Purchaser, Cart). Success → clear cart + toast;
@@ -82,6 +89,11 @@ public:
     /** Close: UMerchantShopSubsystem::Close() — restores input / cursor / unpause. */
     UFUNCTION(BlueprintCallable, Category = "Shop")
     void HandleCloseClicked();
+
+    /** Detail panel [+ Add to Cart]: AddToCart(hovered entry). Disabled while nothing
+     *  is hovered. Replaces the per-stock-row Add button (3e). */
+    UFUNCTION(BlueprintCallable, Category = "Shop")
+    void HandleDetailAddClicked();
 
     // ==================== DEBUG ====================
 
@@ -132,6 +144,25 @@ protected:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
     TObjectPtr<UTextBlock> ToastText;
 
+    // ---- Detail panel (middle column, 3e) ----
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
+    TObjectPtr<UTextBlock> DetailName;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
+    TObjectPtr<UTextBlock> DetailTier;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
+    TObjectPtr<UTextBlock> DetailDescription;
+
+    /** Per-type stat lines (attack/spell lists, damage numbers, scaling grades,
+     *  effect NAMES — never effect numbers/durations). */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
+    TObjectPtr<UTextBlock> DetailStats;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
+    TObjectPtr<UButton> DetailAddButton;
+
     /** Cart lines — the exact array handed to Purchase. */
     UPROPERTY(BlueprintReadOnly, Category = "Shop")
     TArray<FMerchantStockEntry> Cart;
@@ -156,6 +187,10 @@ private:
      *  while the shop is open, so FTimerManager never fires under it. */
     FTSTicker::FDelegateHandle ToastTickerHandle;
 
+    /** The entry the detail panel is showing (last hovered row; defaults to the
+     *  first stock entry on population). */
+    TWeakObjectPtr<UShopEntryObject> HoveredEntry;
+
     // ==================== REFRESH ====================
 
     void RefreshHeader();
@@ -163,6 +198,8 @@ private:
     void RefreshCartList();
     /** Cart totals + wallet mirror + ConfirmButton enable, all from one PreviewCartCost. */
     void RefreshCostAndWallet();
+    /** Middle-column detail panel from HoveredEntry (clears when null). */
+    void RefreshDetail();
 
     void ShowToast(const FText &Message);
     void HideToast();

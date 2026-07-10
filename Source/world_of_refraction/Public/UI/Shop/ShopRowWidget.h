@@ -7,9 +7,12 @@
 // Buttons bind in C++ (AddUniqueDynamic in NativeConstruct — fires once per pooled
 // row); texts refresh in NativeOnListItemObjectSet (fires per re-bind). The WBPs
 // supply layout only, wiring by BindWidgetOptional name: stock rows place
-// RowName / RowTier / RowCost / AddButton; cart rows RowName / RowCount / RowCost /
-// RemoveButton. Line cost comes from UEconomyService::PreviewCartCost on a one-entry
-// cart — the same builder Purchase charges with.
+// RowName / RowTier / RowCost (3e: Add moved to the window's detail panel; hovering a
+// row populates that panel via NativeOnMouseEnter → ParentWindow->SetHoveredEntry);
+// cart rows RowName / RowCount / RowCost / RemoveButton. Line cost comes from
+// UEconomyService::PreviewCartCost on a one-entry cart — the same builder Purchase
+// charges with. The static *For builders are the one display ladder shared with the
+// window's detail panel.
 
 #pragma once
 
@@ -22,6 +25,7 @@ class UButton;
 class UEconomyService;
 class UShopEntryObject;
 class UTextBlock;
+struct FMerchantStockEntry;
 
 UCLASS(Abstract)
 class WORLD_OF_REFRACTION_API UShopRowWidget : public UUserWidget, public IUserObjectListEntry
@@ -53,10 +57,16 @@ public:
     UFUNCTION(BlueprintPure, Category = "Shop")
     FText GetEntryCost() const;
 
-    /** Hover tooltip: the item's long Description (crystals: flavor + effect text).
-     *  Set on the whole row in RefreshRowTexts via SetToolTipText. */
+    /** The item's long Description (crystals: tier-flavor sentence, no numbers).
+     *  3e: consumed by the window's detail panel — rows no longer set tooltips. */
     UFUNCTION(BlueprintPure, Category = "Shop")
     FText GetEntryTooltip() const;
+
+    // Static per-entry display builders — ONE ladder shared by rows and the window's
+    // detail panel (the instance getters above delegate here).
+    static FText NameFor(const FMerchantStockEntry &Entry);
+    static FText TierFor(const FMerchantStockEntry &Entry);
+    static FText DescriptionFor(const FMerchantStockEntry &Entry);
 
     // ==================== BUTTON HANDLERS (C++-bound; callable from BP too) ============
 
@@ -73,6 +83,10 @@ protected:
 
     /** IUserObjectListEntry: the ListView hands us our item. Cache + refresh + notify BP. */
     virtual void NativeOnListItemObjectSet(UObject *ListItemObject) override;
+
+    /** 3e hover-drives-detail: notify the window (via ParentWindow) that this row's
+     *  entry should populate the middle detail panel. */
+    virtual void NativeOnMouseEnter(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 
     /** BP hook for extra row visuals — fires every time the (pooled) row is re-bound. */
     UFUNCTION(BlueprintImplementableEvent, Category = "Shop")
