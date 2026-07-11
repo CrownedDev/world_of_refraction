@@ -39,21 +39,38 @@ namespace CrystalDescription
     {
         switch (Tier)
         {
-        case EItemTier::F_Tier: return TEXT("crude");
-        case EItemTier::E_Tier: return TEXT("common");
-        case EItemTier::D_Tier: return TEXT("refined");
-        case EItemTier::C_Tier: return TEXT("quality");
-        case EItemTier::B_Tier: return TEXT("exceptional");
-        case EItemTier::A_Tier: return TEXT("masterwork");
-        case EItemTier::S_Tier: return TEXT("legendary");
-        default:                return TEXT("unknown");
+        case EItemTier::F_Tier:
+            return TEXT("crude");
+        case EItemTier::E_Tier:
+            return TEXT("common");
+        case EItemTier::D_Tier:
+            return TEXT("refined");
+        case EItemTier::C_Tier:
+            return TEXT("quality");
+        case EItemTier::B_Tier:
+            return TEXT("exceptional");
+        case EItemTier::A_Tier:
+            return TEXT("masterwork");
+        case EItemTier::S_Tier:
+            return TEXT("legendary");
+        default:
+            return TEXT("unknown");
         }
     }
 
-    /** Shared "what kind of crystal it is" flavor sentence — usable by any
-     *  crystal kind. Format: "A {tier-descriptor} {name-lowercase} crystal." */
+    /** Shared "what kind of item it is" flavor sentence — usable by any
+     *  crystal kind. Gems: "A {tier-descriptor} {name-lowercase} crystal."
+     *  Stones: "A {tier-descriptor} {Spaced Name}." — a stone is not a crystal,
+     *  and its spaced display name (via GetTypeName) keeps its capitalization. */
     inline FString GetCrystalText(const FCrystalId &Id)
     {
+        if (CrystalTypeHelpers::IsAugmentStoneType(Id.Type))
+        {
+            return FString::Printf(
+                TEXT("A %s %s."),
+                *GetTierDescriptor(Id.Tier),
+                *ItemIdentity::GetTypeName(Id.Type));
+        }
         return FString::Printf(
             TEXT("A %s %s crystal."),
             *GetTierDescriptor(Id.Tier),
@@ -84,10 +101,8 @@ namespace CrystalDescription
 
         case ECrystalType::Sapphire:
             return FString::Printf(
-                TEXT("Defy death. On a LIVING target: Last Stand — wards them for %d turns; if they "
-                     "would die within that window they instead survive at 50%% max HP (one death). "
-                     "On a DEAD target: revives them at 30%% max HP. (Plain healing moved to the "
-                     "Healing Stone.)"),
+                TEXT("Prevents death for %d turns within that window gaining 50%% max HP  "
+                     "On a DEAD target: revives them at 30%% max HP."),
                 CrystalEffectTable::GetLastStandWindow(Id));
 
         case ECrystalType::Citrine:
@@ -155,7 +170,7 @@ namespace CrystalDescription
 
         case ECrystalType::DamageStone:
             return FString::Printf(
-                TEXT("Sharpens the weapon to raise raw attack damage by %.0f%% for %s; when attached, also unlocks the weapon's abilities via Resonate."),
+                TEXT("Sharpens the weapon to raise raw attack damage by %.0f%% for %s; when attached"),
                 CrystalEffectTable::GetDamageStoneBasePercent(Id),
                 *FormatTurns(CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION));
 

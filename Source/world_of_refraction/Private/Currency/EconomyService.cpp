@@ -530,6 +530,36 @@ bool UEconomyService::DismantleAbility(AActor *Owner, UAbilityData *Ability)
 
 // ==================== PURCHASE (spend-side) ====================
 
+namespace
+{
+    /** Prisms surcharge for whatever is authored in the equipment's attachment slot
+     *  (3j): crystal / augment stone → its tier base; evolution → 2× the evolution's
+     *  tier base (premium attachment); fusion → 1.5× the summed half bases. */
+    int32 AttachmentPrisms(const UEquipmentDataBase *Eq)
+    {
+        if (!Eq->HasCrystal())
+        {
+            return 0;
+        }
+        const FAttachedItem &Attached = Eq->AttachedItem;
+        switch (Attached.Kind)
+        {
+        case EAttachedItemKind::Crystal:
+        case EAttachedItemKind::AugmentStone:
+            return EconomyYield::GetPrismsBaseForTier(Attached.CrystalTier);
+        case EAttachedItemKind::Evolution:
+            // Null-guarded: a mis-authored Evolution slot with no asset prices at 0
+            // (IsDataValid flags it upstream).
+            return Attached.Evolution ? 2 * EconomyYield::GetPrismsBaseForTier(Attached.Evolution->Tier) : 0;
+        case EAttachedItemKind::Fusion:
+            return FMath::RoundToInt(1.5f * (EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfATier) +
+                                             EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfBTier)));
+        default:
+            return 0;
+        }
+    }
+}
+
 FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &Items) const
 {
     FPurchaseCost Cost;
@@ -550,12 +580,13 @@ FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &
         UPrimaryDataAsset *Asset = E.Asset;
         if (UWeaponData *W = Cast<UWeaponData>(Asset))
         {
-            // Equipment pricing: Prisms base by tier (quality = C placeholder until shop-roll).
-            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(W->Tier) * FMath::Max(1, E.Count);
+            // Equipment pricing: Prisms base by tier + authored-attachment surcharge
+            // (quality = C placeholder until shop-roll).
+            Cost.Prisms += (EconomyYield::GetPrismsBaseForTier(W->Tier) + AttachmentPrisms(W)) * FMath::Max(1, E.Count);
         }
         else if (URingData *R = Cast<URingData>(Asset))
         {
-            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(R->Tier) * FMath::Max(1, E.Count);
+            Cost.Prisms += (EconomyYield::GetPrismsBaseForTier(R->Tier) + AttachmentPrisms(R)) * FMath::Max(1, E.Count);
         }
         else if (USpellData *S = Cast<USpellData>(Asset))
         {
@@ -594,7 +625,10 @@ FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &
         }
         else if (UEvolutionItemData *Ev = Cast<UEvolutionItemData>(Asset))
         {
-            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(Ev->Tier);
+            // 2× base — evolutions are the premium item class (3j). The multiplier sits
+            // HERE, not in a shared helper, so a future merge-cost reuse of the tier
+            // base can't accidentally double it.
+            Cost.Prisms += 2 * EconomyYield::GetPrismsBaseForTier(Ev->Tier);
             const int32 ElementAmount = EconomyYield::GetTypedEssencePurchaseCostForTier(Ev->Tier);
             Cost.AddTyped(EconomyYield::ElementToEssenceType(Ev->GetAssociatedElement()), ElementAmount);
             Cost.AddTyped(EEssenceType::Reality, ElementAmount / 2); // ½ Reality co-cost (mirrors leveling)

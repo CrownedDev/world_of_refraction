@@ -190,6 +190,13 @@ namespace ItemIdentity
      *  "Garnet (Fire - Damage)" forms intended for the editor dropdown). */
     inline FString GetTypeName(ECrystalType Type)
     {
+        // Stones: spaced display form ("DamageStone" -> "Damage Stone"). Gems are
+        // single words already and fall through to the literal switch.
+        if (CrystalTypeHelpers::IsAugmentStoneType(Type))
+        {
+            return FName::NameToDisplayString(
+                StaticEnum<ECrystalType>()->GetAuthoredNameStringByValue(static_cast<int64>(Type)), false);
+        }
         switch (Type)
         {
         case ECrystalType::Garnet:

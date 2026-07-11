@@ -12,6 +12,7 @@
 #include "Currency/EconomyService.h"
 #include "Currency/EconomyYield.h" // scaling-grade letters for the detail panel
 #include "Engine/GameInstance.h"
+#include "Equipment/Crystals/CrystalDescription.h" // GetItemEffectText for the crystal Effect line
 #include "Equipment/Crystals/CrystalTypeHelpers.h" // GetElement for ring attached-crystal line
 #include "Equipment/Crystals/EvolutionItemData.h"  // single-owned cart-cap casts
 #include "Equipment/Crystals/ItemIdentity.h"
@@ -77,9 +78,9 @@ namespace
 
         if (E.IsCrystalEntry())
         {
-            // "Garnet (Fire - Damage)" → Element: Fire / Effect: Damage as SEPARATE
-            // lines (3f #4). Stones have no parenthetical → no Element line, the
-            // display name itself is the effect ("Damage Stone").
+            // Element from the enum display's parenthetical ("Garnet (Fire - Damage)" →
+            // Fire); stones have no parenthetical → no Element line. Effect is the full
+            // mechanical sentence (3j — numbers on stone effect text accepted per Crown).
             const FString Display = UEnum::GetDisplayValueAsText(E.Crystal.Type).ToString();
             int32 Open = INDEX_NONE, Close = INDEX_NONE;
             if (Display.FindChar(TEXT('('), Open) && Display.FindLastChar(TEXT(')'), Close) && Close > Open)
@@ -89,17 +90,9 @@ namespace
                 if (Inner.Split(TEXT(" - "), &ElementPart, &EffectPart))
                 {
                     Lines.Add(FString::Printf(TEXT("Element: %s"), *ElementPart));
-                    Lines.Add(FString::Printf(TEXT("Effect: %s"), *EffectPart));
-                }
-                else
-                {
-                    Lines.Add(FString::Printf(TEXT("Effect: %s"), *Inner));
                 }
             }
-            else
-            {
-                Lines.Add(FString::Printf(TEXT("Effect: %s"), *Display));
-            }
+            Lines.Add(FString::Printf(TEXT("Effect: %s"), *CrystalDescription::GetItemEffectText(E.Crystal)));
         }
         else if (const UWeaponData *W = Cast<UWeaponData>(E.Asset))
         {
