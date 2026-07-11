@@ -254,7 +254,7 @@ void UPoolSubsystem::PopulateFromInventoryAsset(UInventoryData *Asset, AActor *O
         {
             continue;
         }
-        FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon, /*bCopyDefaultCrystal=*/true);
+        FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon);
         Entry.PersistentID = FGuid::NewGuid();
         AddWeaponToPool(Entry);
     }
@@ -266,7 +266,7 @@ void UPoolSubsystem::PopulateFromInventoryAsset(UInventoryData *Asset, AActor *O
         {
             continue;
         }
-        FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring, /*bCopyDefaultCrystal=*/true);
+        FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring);
         Entry.PersistentID = FGuid::NewGuid();
         AddRingToPool(Entry);
     }

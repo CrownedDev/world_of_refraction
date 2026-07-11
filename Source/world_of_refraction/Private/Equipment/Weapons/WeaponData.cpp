@@ -68,11 +68,6 @@ EDataValidationResult UWeaponData::IsDataValid(FDataValidationContext &Context) 
         Context.AddWarning(FText::FromString(TEXT("No weapon stance assigned")));
     }
 
-    if (PhysicalDamageType == EPhysicalDamageType::None)
-    {
-        Context.AddError(FText::FromString(TEXT("PhysicalDamageType must be set — None is not allowed.")));
-        Result = EDataValidationResult::Invalid;
-    }
     return Result;
 }
 #endif

@@ -591,6 +591,25 @@ Equipment price factors **both** Tier and Quality, split 50/50 — each axis con
 
 *F-half = 13 (½ of 25, rounded). *(Open: 50/50 weight confirmed — tier and quality equally valuable. Could shift to tier-weighted later if quality proves too dominant. PIE-tunable.)*
 
+### 5.1c Ring types — 4-type taxonomy (LOCKED 2026-07-11)
+
+Every shop ring is one of four **cost-composed** types. Cost stacks per the
+implemented rules (tier base §5.1; attachment + bundled-skill components per
+the §5.x AS-IMPLEMENTED block):
+
+| # | Type | Composition | Cost (Prisms) | Existing examples |
+|---|------|-------------|---------------|-------------------|
+| 1 | **Template Ring** | bare ring, no attachment — player buys + attaches a crystal after | tier base | `DA_Ring_Generic` |
+| 2 | **Crystal Ring** | tier-matched attached gem crystal, empty `DefaultSpells` (player fills) | tier base + crystal tier base | the 9 gem rings (`DA_Ring_Garnet` … `DA_Ring_Iolite`) |
+| 3 | **Themed Ring** | tier-matched attached gem + 1–2 bundled Generic-pool `DefaultSpells` themed by concept | tier base + crystal tier base + Σ per-spell (base/3 + 10) | the 27 themed rings (`DA_Ring_Emberflame` … `DA_Ring_Sundered`) |
+| 4 | **Evolution Ring** | tier-matched attached evolution crystal | tier base + 2× evolution tier base | none yet — **banked as an intended type** |
+
+Worked at E (base 50): Template **50** · Crystal **100** · Themed **126**
+(1 spell) / **152** (2 spells) · Evolution **150**.
+
+Player-facing summary: `Mechanics/Gear/Rings.md`. Shop stocking:
+`Architecture/MerchantShopSystem.md` (Jeweler).
+
 ### 5.2 Spell purchase = Essence + Prisms (three components)
 
 A spell's full price stacks:
@@ -608,7 +627,7 @@ A spell's full price stacks:
 > **Worked — `{SpellDmg@S, Luck@A, Crit@B}`, S-tier:**
 > - Prisms base (S): 1600 + surcharge 50×(7+6+5)=900 = **2500 Prisms** + the typed Essence (§4.3).
 
-Equipment (weapons/rings) = **Prisms base by tier** (no scaling surcharge — equipment scaling is authored differently; surcharge is a spell-pricing tool). Crystals/stones = Prisms base by tier + their typed-Essence purchase cost (§4.2).
+Equipment (weapons/rings) = **Prisms base by tier** (no scaling surcharge — equipment scaling is authored differently; surcharge is a spell-pricing tool). Crystals/stones = Prisms base by tier + their typed-Essence purchase cost (§4.2). *(⚠️ Superseded in implementation — crystals/stones are now **Prisms-only** and equipment adds an attached-item surcharge; see the AS-IMPLEMENTED block under §5.x.)*
 
 ### 5.3 Ranking up (tier-up) = Gear/Skill essence + ½ Reality essence
 
@@ -643,11 +662,40 @@ Pricing is **fully specified by formula** — every buyable item's price is deri
 
 **Status: DEFERRED.** Too many items to price inline; do it as a focused session AFTER the rings + spells migration work. Flagged here so it isn't lost.
 
+**⚠️ AS-IMPLEMENTED (2026-07-11, `feature/hub-merchants`)** — the shipped
+`UEconomyService::BuildCartCost` diverges from the table above; source of truth
+is now [`../Architecture/EconomySystem.md`](../Architecture/EconomySystem.md):
+
+- **Crystals/stones are Prisms-only** (Crown): NO typed-essence charge — essence
+  stays a dismantle-side currency for crystal stock. Supersedes the table's
+  "+ typed-Essence cost" row.
+- **Stones price the SAME as crystals** (tier base) — the ⅔-crystal rule is NOT
+  implemented.
+- **Evolution = 2× Prisms base** (F=50 … S=3200) + element essence @ tier +
+  ½ Reality (mirrors leveling). Resolves §5.3b's open curve question — the
+  premium is a multiplier on the shared tier-double, not a separate 500@F base.
+- **Generic-element spells price like abilities**: Prisms base + SkillEssence @
+  tier — no scaling surcharge, no typed essence (Generic would otherwise charge
+  "Quartz essence").
+- **Weapons/rings add an attached-item surcharge** on top of tier base:
+  authored crystal/stone → its tier base; evolution → 2× its tier base; fusion
+  → 1.5× the summed half bases.
+- **Quality-half (§5.1b) NOT implemented** — quality is a C placeholder until
+  the shop-roll generator lands; equipment prices tier-only today.
+- **Bundled-skill surcharge (3l, 2026-07-11):** each non-null skill bundled on
+  equipment prices at **its tier base / 3 + 10** (integer floor), Prisms-only —
+  no essence on bundled skills. Gates: weapon `PresetAbilities` always;
+  weapon/ring `DefaultSpells` only when a **gem crystal** is attached
+  (`Kind == Crystal`); weapon `DefaultAbilities` only when the attachment can
+  grant stone abilities (augment stone, or a fusion carrying an AbilityStone
+  half). `WeaponAttack` is never priced — weapon identity, part of the base
+  package. Enables the Themed-Ring cost row in §5.1c.
+
 ### 5.3b Evolution — third gear type (premium, persistent attach)
 
 Evolution is a **third gear type** alongside weapons and rings — an **evolution crystal** you attach (to the primary slot, or onto a weapon/ring). Attaching it gives the host the evolved state (spell-holding slots, higher loadout-slot cost). It is NOT a transform *action* with a cost — it's a **piece of gear you acquire and attach.**
 
-**Premium price.** Evolution costs far more than a normal item — **base 500 at F tier**, scaling up by tier. (Compare: a normal F item is 25 Prisms — evolution is ~20× pricier, fitting its power as the spell-unlocking gear.) *(Open: the per-tier curve from 500 — doubling [500/1k/2k/4k/8k/16k/32k] is steep; confirm the top, or use a gentler scale. Currency: Prisms-based like other gear, OR the Gear+Skill essence premium discussed — confirm.)*
+**Premium price.** Evolution costs far more than a normal item — **base 500 at F tier**, scaling up by tier. (Compare: a normal F item is 25 Prisms — evolution is ~20× pricier, fitting its power as the spell-unlocking gear.) *(Open: the per-tier curve from 500 — doubling [500/1k/2k/4k/8k/16k/32k] is steep; confirm the top, or use a gentler scale. Currency: Prisms-based like other gear, OR the Gear+Skill essence premium discussed — confirm.)* **→ Resolved in implementation (2026-07-11): 2× the §5.1 tier base in Prisms (F=50 … S=3200, a gentler premium than 500@F) + element essence @ tier + ½ Reality — see the §5.x AS-IMPLEMENTED block.**
 
 **Dismantle yield — hybrid (element TYPE, gear AMOUNT):** dismantling an evolution crystal yields **element essence** (the crystal path — it carries an element), but in the **gear/skill leveling AMOUNT** (the §3 curve F5/E15/D30/C50/B75/A110/S145), NOT the smaller crystal curve. Rationale: evolution is premium gear, so scrapping it returns gear-level value — just denominated in the element's typed essence rather than Gear essence. (A C-tier Fire evolution → 50 Fire essence, not 11.) *(Open: element-typed evolutions yield their element; if evolution crystals can be element-agnostic, confirm which essence — likely Reality/wildcard.)*
 

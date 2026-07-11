@@ -256,8 +256,8 @@ bool FWeaponLoadoutEntry::ValidateAbilities(const FAbilityCollection &OwnedAbili
             return false;
         }
 
-        // Dual-weapon gate: dual-only abilities reject single-wield weapons.
-        if (Ability->bRequiresDualWeapon && !WeaponEntry.Weapon->IsDualWielded())
+        // Wield-mode gate: abilities may require a specific off-hand configuration.
+        if (!Ability->AllowsWieldMode(WeaponEntry.Weapon->WieldMode))
         {
             return false;
         }
@@ -316,8 +316,8 @@ bool FWeaponLoadoutEntry::ValidateAugmentStoneAbilities(const FAbilityCollection
             return false;
         }
 
-        // Dual-weapon gate: dual-only abilities reject single-wield weapons.
-        if (Ability->bRequiresDualWeapon && !WeaponEntry.Weapon->IsDualWielded())
+        // Wield-mode gate: abilities may require a specific off-hand configuration.
+        if (!Ability->AllowsWieldMode(WeaponEntry.Weapon->WieldMode))
         {
             return false;
         }

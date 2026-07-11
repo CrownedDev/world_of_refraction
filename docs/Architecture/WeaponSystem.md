@@ -96,9 +96,7 @@ data:
 - **Weapon** — `WeaponType` (`EWeaponType`, default `Sword`),
   `WieldMode` (`EWeaponWieldMode`, default `Single`; drives both mesh-spawn
   behaviour and ability dual-gating — see *Wield modes and mesh attachment*
-  below), `PhysicalDamageType` (`EPhysicalDamageType`, default `Slash`; drives
-  the bar-cap trigger when no elemental infusion is active and must not be
-  `None`), `WeaponAttack` (`USkillDataBase*` — post the attack/ability merge it holds a
+  below), `WeaponAttack` (`USkillDataBase*` — post the attack/ability merge it holds a
   `UAbilityData` with `bIsAttack=true`; replaces base attack when equipped),
   `PresetAbilities` (`TArray<UAbilityData*>`), `bAbilitiesLocked`
   (bool — when true abilities cannot be customised; used for conjured weapons),
@@ -135,18 +133,33 @@ Note: the `PresetSpells` property has `meta = (EditCondition = "bSpellsLocked")`
 though the header comment describes a non-locked customisable-defaults use. This
 is a slight mismatch between the comment and the `EditCondition`.
 
+Shop-facing: ring assets ship in four cost-composed types — Template (bare) /
+Crystal (gem attached) / Themed (gem + bundled `DefaultSpells`) / Evolution
+(evolution attached) — see `Resources_Design.md` §5.1c for the taxonomy and
+`EconomySystem.md` for the attachment + bundled-skill pricing.
+
 ### `UAbilityData`
 
 `UCLASS(BlueprintType)`, derives from `USkillDataBase`. Universal skills usable
 by all characters; can be infused with the character's innate element for status
 effects.
 
-- **Identity** — `RequiredWeaponType` (`EWeaponType`), `bRequiresDualWeapon`
-  (bool, default `false`). When `bRequiresDualWeapon` is true the ability is
-  valid only on weapons whose `IsDualWielded()` is true (`Dual` or
-  `OffHandShield`); when false it is valid on both single and dual weapons
-  matching `RequiredWeaponType`. Enforced by
-  `FWeaponLoadoutEntry::ValidateAbilities` — see the Loadout System doc.
+- **Identity** — `RequiredWeaponType` (`EWeaponType`), `RequiredWieldMode`
+  (`EWeaponWieldMode`, default `Single`). `Single` = no off-hand requirement,
+  usable on any wield mode; `Dual` = usable only on a two-weapon loadout;
+  `OffHandShield` = usable only on a sword-and-shield loadout. Resolved by
+  `UAbilityData::AllowsWieldMode(WeaponWieldMode)` (Single allows any, else
+  exact match) and enforced by `FWeaponLoadoutEntry::ValidateAbilities` — see
+  the Loadout System doc.
+- **Combat** — `PhysicalDamageType` (`EPhysicalDamageType`, default `None`).
+  **The ability/attack is the SOLE physical-type source** — the field moved
+  here from `UWeaponData` (Clusters A–C): the same swing delivers the same
+  physical type regardless of which weapon performs it. Drives the physical
+  bar-cap trigger and the authored-DoT physical path when no elemental infusion
+  is active; `ActionExecutor` reads it off the executing `UAbilityData`
+  directly (no weapon fallback — a resolved `None` logs a warning and
+  suppresses the physical trigger). Populated on all ~204 pool attack/ability
+  assets + the legacy weapon skills (Cluster B).
 - **Execution** — `ExecutionType` (`EAbilityExecutionType`, default `Melee`).
   Melee-only fields: `ApproachData` (`UMovementData*`), `ExecutionRange`
   (float, default 150.0). Both are gated by `EditCondition`/`EditConditionHides`
@@ -287,10 +300,11 @@ mesh spawns). They are hidden in the details panel while `WieldMode` is
    `CrystalType` (Garnet..Quartz) and `Kind==AugmentStone` requires a stone
    `CrystalType` (DamageStone / AbilityStone) — either mismatch is a hard error
    (`CrystalTypeHelpers::IsGemType` / `IsAugmentStoneType`). Subclasses add their
-   own validation (e.g. `UWeaponData` rejects `PhysicalDamageType::None`;
-   `URingData` additionally **hard-rejects any `AugmentStone` on a ring** — weapon
-   stones are weapon-only; `UAbilityData`, `USpellData`, and `URingData` each
-   override `IsDataValid`).
+   own validation (e.g. `URingData` **hard-rejects any `AugmentStone` on a ring** —
+   weapon stones are weapon-only; `UAbilityData`, `USpellData`, and `URingData` each
+   override `IsDataValid`). The old `UWeaponData` `PhysicalDamageType::None`
+   rejection is gone with the field — the type now lives on the ability
+   (see `UAbilityData` above).
 
    **Attachment type filter (editor).** `AttachedItem.CrystalType` carries
    `meta=(GetRestrictedEnumValues="GetRestrictedCrystalTypes")`, which greys out
@@ -394,3 +408,5 @@ mesh spawns). They are hidden in the details panel while `WieldMode` is
 | 2026-06-17 | **Attack/ability merge COMPLETE.** `UWeaponAttackData` deleted — basic attacks are now `UAbilityData` with `bIsAttack=true`. `UWeaponData::WeaponAttack` (and `FWeaponLoadoutEntry::OverrideAttack`) are `USkillDataBase*` (hold the merged type). `EActionType::Attack` collapsed into `Ability` (`IsAttack()` is the runtime discriminator); one `FAction.SkillData` pointer, one dispatch (`ExecuteSkillAsync`), one animation (`PlaySkillAnimation`). The 6 attack data-assets were class-redirected to `UAbilityData` (resaved with `bIsAttack=true`). A `!IsAttack()` slotting gate keeps basic attacks out of the ability bar. ⚠️ The `WeaponAttackData→AbilityData` CoreRedirect (+ the field PropertyRedirects) in `DefaultEngine.ini` is **PERMANENT** — covers un-resaved weapon refs + old savegames; do not remove. | feature/realtime-defense |
 | 2026-06-16 | **Homing delivery type REMOVED.** `ESpellDeliveryType::Homing` (mid-enum value 1 — needs a CoreRedirect, unlike trailing Beam) and its footprint deleted: `ASkillProjectile::TickHoming` + the Tick `Homing` case + the `OnHitBoxOverlap` Homing branch (function/binding kept as a Projectile no-op), the `HomingStrength` field on `FSkillCastEntry`/`USpellData`/`ASkillProjectile` + migration, and every `\|\| Homing` clause across the defense helpers (`CanBeParried`/`CanBeDodgedByTiming`), the `EditCondition` metas, the cluster-4/6 conversion gate, the async-decision, and both dispatch switches. Tracking is meaningless without a spatial dodge (Crown-confirmed: a homing shot = a projectile with a curvy path — dead weight). `+EnumRedirects=(OldName="ESpellDeliveryType",ValueChanges=(("Homing","Projectile")))` maps any stray authored value; enum is now `Projectile=0 / AOE=1 / Instant=2` (name-based serialization keeps AOE/Instant safe). Shared projectile plumbing (`SpawnProjectileActor`/`TickProjectile`/`ResolveImpact`/`OnSkillImpact`/`OnSkillDodged`/the count-based per-impact defense path) untouched. Confirmed zero Homing-authored assets before removal. | feature/realtime-defense |
 | 2026-06-21 | Tier-power arc — `GetSubstatBudget` now returns a **flat** `FIXED_SUBSTAT_BUDGET` (~20) at every tier (was F6→S45); the editor roll-budget gate (§263–266) no longer scales with tier. Higher-tier strength comes from per-point VALUE scaling at `GetActiveStatBonus`. `GetPillarBudget` unchanged. See `TierPowerScaling.md`. | feature/tier-power-scaling |
+| 2026-07-03 | `UAbilityData::bRequiresDualWeapon` (bool) replaced by `RequiredWieldMode` (`EWeaponWieldMode`, default `Single` = no requirement / any mode) + inline `AllowsWieldMode(WeaponWieldMode)` helper. The off-hand gate now distinguishes `Dual` from `OffHandShield` (previously lumped together as `IsDualWielded`). Straight field swap — no existing asset had the old flag set, so no migration needed. | feature/hub-merchants |
+| 2026-07-11 | **PhysicalDamageType migrated weapon → ability (Clusters A–C).** A: `UAbilityData::PhysicalDamageType` added (default `None`) with weapon fallback. B: populated on ~204 pool attack/ability assets + legacy weapon skills. C: `UWeaponData::PhysicalDamageType` **removed** (with its `IsDataValid` None-rejection); `ActionExecutor` reads the executing ability directly — no weapon fallback, `None` logs a warning and suppresses the physical bar-cap / authored-DoT trigger. Rationale: the same swing delivers the same physical type on any weapon. | feature/hub-merchants |

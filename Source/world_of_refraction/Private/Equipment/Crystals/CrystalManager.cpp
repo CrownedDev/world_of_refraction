@@ -282,7 +282,7 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
 
     // Force wear only when intrinsic wear is the caster's mechanic — Broken
     // Darkness (canonical IsBrokenDarkness read) or Reality innate. Everyone
-    // else, including a null component, respects the asset's bCanBreak gate.
+    // else, including a null component, respects the asset's Breakability gate.
     const bool bForceWear =
         CasterCharComp && (CasterCharComp->IsBrokenDarkness() ||
                            (CasterCharComp->CharacterData &&
@@ -569,7 +569,7 @@ void UCrystalManager::DebugForceWearActiveCrystal(int32 Amount)
     }
 
     // Identify the branch + the crystal — used in every log line below so the
-    // bCanBreak flip is unambiguous in the Output Log.
+    // Breakability state is unambiguous in the Output Log.
     const bool bIsEvolutionBranch = Attachment->IsEvolution();
     const bool bIsFusionBranch = Attachment->IsFusion();
     const TCHAR *BranchLabel = bIsEvolutionBranch ? TEXT("EVOLUTION")
@@ -604,7 +604,7 @@ void UCrystalManager::DebugForceWearActiveCrystal(int32 Amount)
            BeforeDur, MaxDur, bBeforeBroken ? 1 : 0, Amount);
 
     // Direct ApplyWear — no BreakCalculator math, no Luck skip. The point of
-    // this hook is to exercise the bCanBreak gate and the durability
+    // this hook is to exercise the Breakability gate and the durability
     // transition only.
     const bool bBrokeThisWear = Attachment->ApplyWear(Amount);
     const int32 AfterDur = Attachment->GetCurrentDurability();

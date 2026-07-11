@@ -18,6 +18,14 @@ This doc covers three current widgets:
 - `UTurnOrderStripWidget` — current actor + upcoming turns strip.
 - `UDefensePromptWidget` — block/parry/dodge defense window UI.
 
+**Not covered here:** the hub shop UI (`UShopWindowWidget` /
+`UShopRowWidget` and their `WBP_ShopWindow` / `WBP_StockRow` / `WBP_CartRow`
+Blueprints, plus the `UMerchantShopSubsystem` window-lifecycle owner) lives in
+[`MerchantShopSystem.md`](./MerchantShopSystem.md) with the rest of the
+merchant pipeline. It follows the same authoring rule (all logic in the C++
+base, WBP layout-only via `BindWidgetOptional`) but is hub/modal UI, not
+combat HUD.
+
 ### Removed history: `CombatHUDRoot`
 
 `UCombatHUDRoot` was a former top-level HUD root / container widget that owned
@@ -302,3 +310,4 @@ controlled actor.
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
 | 2026-05-28 | Sweep-5 — `CharacterPanelWidget` now binds the three BD-state broadcasts (`OnStacksChanged`/`OnAlignmentChanged`/`OnTransformed`), surfaces absorption stacks via a synthetic `StatusMultiplierBuff` row injected into `RefreshEffectsList` (no separate widget), and colours `EPText` for BD overload (yellow/orange/red at 100/110/120% within the `[1.00, 1.30]` cap). Also documented `ApplyStatusBarTint` (previously flagged as pending) — status bar now tints per pending-cap element, with BD attackers darkened. | feature/integration-gaps-sweep-5 |
 | 2026-06-21 | EP/Absorb bar tints to the BD **active-pool** hybrid colour (`GetHybridSpellColors(GetActivePool()).BlendedColor`) — dropped the redundant Darkness special-case (it routes to the same near-black) so the EP bar matches `ApplyStatusBarTint`. `HandleBDAlignmentChanged` now calls `ApplyEnergyBarTint`, so the bar re-tints live on active-pool rotation (was only re-tinting incidentally via the co-firing `OnEnergyAbsorbed`). Updated §7. | feature/bd-value-deletion |
+| 2026-07-11 | Scope note added: the new hub shop UI (`UShopWindowWidget`/`UShopRowWidget` + WBPs, `UMerchantShopSubsystem`) is documented in `MerchantShopSystem.md`, not here — this doc stays combat-HUD-only. | feature/hub-merchants |

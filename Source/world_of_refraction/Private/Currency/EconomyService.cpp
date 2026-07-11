@@ -7,6 +7,8 @@
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Inventory/InventoryComponent.h"
+#include "Inventory/InventoryConstants.h" // slot/cap constants for the Purchase pre-validation
+#include "Templates/Function.h"           // TFunction undo-thunks for Purchase rollback
 #include "Loadout/Entries/FWeaponInventoryEntry.h"
 #include "Loadout/Entries/FRingInventoryEntry.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
@@ -528,108 +530,189 @@ bool UEconomyService::DismantleAbility(AActor *Owner, UAbilityData *Ability)
 
 // ==================== PURCHASE (spend-side) ====================
 
-bool UEconomyService::PurchaseSpell(AActor *Owner, USpellData *Spell)
+namespace
 {
-    if (!Owner || !Spell)
+    /** Prisms surcharge for whatever is authored in the equipment's attachment slot
+     *  (3j): crystal / augment stone → its tier base; evolution → 2× the evolution's
+     *  tier base (premium attachment); fusion → 1.5× the summed half bases. */
+    int32 AttachmentPrisms(const UEquipmentDataBase *Eq)
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseSpell: no authority on %s — ignored"),
-               *Owner->GetName());
-        return false;
-    }
-
-    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!Inv || !Currency)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseSpell: %s missing %s%s"),
-               *Owner->GetName(),
-               Inv ? TEXT("") : TEXT("InventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
-        return false;
-    }
-
-    // ---- Compute cost (typed essence accumulated per type; Prisms = base + scaling surcharge) ----
-    TMap<EEssenceType, int32> EssenceCost;
-    // (a1) element essence at the spell's own tier.
-    EssenceCost.FindOrAdd(EconomyYield::ElementToEssenceType(Spell->Element)) +=
-        EconomyYield::GetTypedEssencePurchaseCostForTier(Spell->Tier);
-
-    // (b) Prisms base by spell tier.
-    int32 PrismsCost = EconomyYield::GetPrismsBaseForTier(Spell->Tier);
-
-    for (const FStatScaling &Entry : Spell->StatScaling)
-    {
-        if (Entry.Stat == ESubStat::None)
+        if (!Eq->HasCrystal())
         {
-            continue;
+            return 0;
         }
-        // (a2) pillar essence at each scaling grade (same numbers as the tier buy row, §4.3) —
-        //      entries sharing a pillar accumulate.
-        EssenceCost.FindOrAdd(EconomyYield::SubStatToPillarEssence(Entry.Stat)) +=
-            EconomyYield::GetTypedEssencePurchaseCostForTier(EconomyYield::ScalingGradeToItemTier(Entry.Tier));
-        // (c) Prisms scaling surcharge: 50 × grade-number.
-        PrismsCost += EconomyYield::Constants::PRISMS_SCALING_SURCHARGE_PER_GRADE *
-                      EconomyYield::GetScalingGradeNumber(Entry.Tier);
+        const FAttachedItem &Attached = Eq->AttachedItem;
+        switch (Attached.Kind)
+        {
+        case EAttachedItemKind::Crystal:
+        case EAttachedItemKind::AugmentStone:
+            return EconomyYield::GetPrismsBaseForTier(Attached.CrystalTier);
+        case EAttachedItemKind::Evolution:
+            // Null-guarded: a mis-authored Evolution slot with no asset prices at 0
+            // (IsDataValid flags it upstream).
+            return Attached.Evolution ? 2 * EconomyYield::GetPrismsBaseForTier(Attached.Evolution->Tier) : 0;
+        case EAttachedItemKind::Fusion:
+            return FMath::RoundToInt(1.5f * (EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfATier) +
+                                             EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfBTier)));
+        default:
+            return 0;
+        }
     }
 
-    // ---- CanAfford ALL components — spend nothing if any is short ----
-    for (const TPair<EEssenceType, int32> &Pair : EssenceCost)
+    /** Prisms surcharge for skills bundled on equipment (3l): each non-null skill
+     *  prices at a third of its tier base + 10 flat (integer floor per the project
+     *  rounding rule). Prisms-only — bundled skills never charge essence. Template
+     *  because DefaultSpells / PresetAbilities are arrays of different derived
+     *  pointers; Tier reads through the shared USkillDataBase. */
+    template <typename TSkill>
+    int32 BundledSkillsPrisms(const TArray<TSkill *> &Skills)
     {
-        if (!Currency->CanAfford(ECurrencyType::EssenceTyped, Pair.Value, static_cast<uint8>(Pair.Key)))
+        int32 Prisms = 0;
+        for (const TSkill *Skill : Skills)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseSpell: %s cannot afford %d %s essence for %s"),
-                   *Owner->GetName(), Pair.Value,
-                   *StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(Pair.Key)),
-                   *Spell->GetName());
+            if (Skill)
+            {
+                Prisms += EconomyYield::GetPrismsBaseForTier(Skill->Tier) / 3 + 10;
+            }
+        }
+        return Prisms;
+    }
+
+    /** True when the attachment can grant augment-stone abilities: any augment
+     *  stone, or a fusion carrying an AbilityStone half (half A is stone-only by
+     *  authoring convention; half B only when authored as a stone). Pricing-side
+     *  mirror of FWeaponLoadoutEntry::GetAugmentStoneAbilities, but tighter — the
+     *  runtime gate passes any fusion and lets the slot cap resolve to 0, while
+     *  pricing must not charge for abilities the attachment cannot grant. */
+    bool HasAbilityStoneAttachment(const UEquipmentDataBase *Eq)
+    {
+        const FAttachedItem &Attached = Eq->AttachedItem;
+        switch (Attached.Kind)
+        {
+        case EAttachedItemKind::AugmentStone:
+            return true;
+        case EAttachedItemKind::Fusion:
+            return Attached.FusionHalfAType == ECrystalType::AbilityStone ||
+                   (!Attached.bFusionHalfBIsCrystal && Attached.FusionHalfBType == ECrystalType::AbilityStone);
+        default:
             return false;
         }
     }
-    if (!Currency->CanAfford(ECurrencyType::Prisms, PrismsCost))
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseSpell: %s cannot afford %d Prisms for %s"),
-               *Owner->GetName(), PrismsCost, *Spell->GetName());
-        return false;
-    }
-
-    // ---- Spend ALL (CanAfford already cleared every component) ----
-    for (const TPair<EEssenceType, int32> &Pair : EssenceCost)
-    {
-        Currency->SpendEssenceType(Pair.Key, Pair.Value);
-    }
-    Currency->Spend(ECurrencyType::Prisms, PrismsCost);
-
-    // ---- Grant; refund EVERYTHING on grant-failure (e.g. at spell capacity) ----
-    if (!Inv->LearnSpell(Spell))
-    {
-        for (const TPair<EEssenceType, int32> &Pair : EssenceCost)
-        {
-            Currency->AddEssenceType(Pair.Key, Pair.Value);
-        }
-        Currency->Add(ECurrencyType::Prisms, PrismsCost);
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseSpell: LearnSpell failed for %s — refunded %d Prisms + essence"),
-               *Spell->GetName(), PrismsCost);
-        return false;
-    }
-
-    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Purchased spell %s (tier %d) for %d Prisms + typed essence"),
-           *Spell->GetName(), static_cast<int32>(Spell->Tier), PrismsCost);
-    return true;
 }
 
-bool UEconomyService::PurchaseWeapon(AActor *Owner, UWeaponData *Weapon)
+FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &Items) const
 {
-    if (!Owner || !Weapon)
+    FPurchaseCost Cost;
+    for (const FMerchantStockEntry &E : Items)
+    {
+        if (E.IsCrystalEntry())
+        {
+            // Crystals are Prisms-only (Crown): no typed-essence charge for gems,
+            // augment stones, or Quartz — essence stays a dismantle-side currency here.
+            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(E.Crystal.Tier) * FMath::Max(1, E.Count);
+            continue;
+        }
+        if (!E.IsAssetEntry())
+        {
+            continue; // empty entry prices at 0 — Purchase rejects it separately
+        }
+
+        UPrimaryDataAsset *Asset = E.Asset;
+        if (UWeaponData *W = Cast<UWeaponData>(Asset))
+        {
+            // Equipment pricing: Prisms base by tier + attachment surcharge + bundled
+            // skills (3l), all per-unit (quality = C placeholder until shop-roll).
+            // PresetAbilities always price — they're baked into what you're buying.
+            // Gem-side DefaultSpells / stone-side DefaultAbilities price only when the
+            // attachment actually grants them. WeaponAttack is the weapon's identity,
+            // never priced.
+            int32 PerUnit = EconomyYield::GetPrismsBaseForTier(W->Tier) + AttachmentPrisms(W) +
+                            BundledSkillsPrisms(W->PresetAbilities);
+            if (W->AttachedItem.Kind == EAttachedItemKind::Crystal)
+            {
+                PerUnit += BundledSkillsPrisms(W->DefaultSpells);
+            }
+            if (HasAbilityStoneAttachment(W))
+            {
+                PerUnit += BundledSkillsPrisms(W->DefaultAbilities);
+            }
+            Cost.Prisms += PerUnit * FMath::Max(1, E.Count);
+        }
+        else if (URingData *R = Cast<URingData>(Asset))
+        {
+            // Gem-attached rings price their bundled DefaultSpells (3l — the themed
+            // rings); stone/evolution/fusion attachments don't gem-seed spells.
+            int32 PerUnit = EconomyYield::GetPrismsBaseForTier(R->Tier) + AttachmentPrisms(R);
+            if (R->AttachedItem.Kind == EAttachedItemKind::Crystal)
+            {
+                PerUnit += BundledSkillsPrisms(R->DefaultSpells);
+            }
+            Cost.Prisms += PerUnit * FMath::Max(1, E.Count);
+        }
+        else if (USpellData *S = Cast<USpellData>(Asset))
+        {
+            // Count clamps to 1 for all spells (a spell can't be owned twice).
+            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(S->Tier);
+            if (S->Element == ESpellElement::Generic)
+            {
+                // GENERIC spells price like abilities: base + SkillEssence at tier.
+                // No scaling surcharge, no element essence, no pillar essence —
+                // Generic would otherwise charge "Quartz essence" (Crown, 3d).
+                Cost.SkillEssence += EconomyYield::GetTypedEssencePurchaseCostForTier(S->Tier);
+            }
+            else
+            {
+                // ELEMENT-typed skill pricing (§4.4 + §5): base + surcharge + element
+                // essence + pillar essence per scaling grade.
+                Cost.AddTyped(EconomyYield::ElementToEssenceType(S->Element),
+                              EconomyYield::GetTypedEssencePurchaseCostForTier(S->Tier));
+                for (const FStatScaling &Sc : S->StatScaling)
+                {
+                    if (Sc.Stat == ESubStat::None)
+                    {
+                        continue;
+                    }
+                    Cost.AddTyped(EconomyYield::SubStatToPillarEssence(Sc.Stat),
+                                  EconomyYield::GetTypedEssencePurchaseCostForTier(EconomyYield::ScalingGradeToItemTier(Sc.Tier)));
+                    Cost.Prisms += EconomyYield::Constants::PRISMS_SCALING_SURCHARGE_PER_GRADE *
+                                   EconomyYield::GetScalingGradeNumber(Sc.Tier);
+                }
+            }
+        }
+        else if (UAbilityData *A = Cast<UAbilityData>(Asset))
+        {
+            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(A->Tier);
+            Cost.SkillEssence += EconomyYield::GetTypedEssencePurchaseCostForTier(A->Tier);
+        }
+        else if (UEvolutionItemData *Ev = Cast<UEvolutionItemData>(Asset))
+        {
+            // 2× base — evolutions are the premium item class (3j). The multiplier sits
+            // HERE, not in a shared helper, so a future merge-cost reuse of the tier
+            // base can't accidentally double it.
+            Cost.Prisms += 2 * EconomyYield::GetPrismsBaseForTier(Ev->Tier);
+            const int32 ElementAmount = EconomyYield::GetTypedEssencePurchaseCostForTier(Ev->Tier);
+            Cost.AddTyped(EconomyYield::ElementToEssenceType(Ev->GetAssociatedElement()), ElementAmount);
+            Cost.AddTyped(EEssenceType::Reality, ElementAmount / 2); // ½ Reality co-cost (mirrors leveling)
+        }
+        // Unknown asset types price at 0 — Purchase rejects them separately.
+    }
+    return Cost;
+}
+
+FPurchaseCost UEconomyService::PreviewCartCost(const TArray<FMerchantStockEntry> &Items) const
+{
+    return BuildCartCost(Items);
+}
+
+bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> &Items)
+{
+    if (!Owner || Items.Num() == 0)
     {
         return false;
     }
     if (!Owner->HasAuthority())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseWeapon: no authority on %s — ignored"),
-               *Owner->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: no authority on %s — ignored"), *Owner->GetName());
         return false;
     }
 
@@ -637,38 +720,308 @@ bool UEconomyService::PurchaseWeapon(AActor *Owner, UWeaponData *Weapon)
     UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
     if (!Inv || !Currency)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseWeapon: %s missing %s%s"),
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s missing %s%s"),
                *Owner->GetName(),
                Inv ? TEXT("") : TEXT("InventoryComponent "),
                Currency ? TEXT("") : TEXT("CurrencyComponent"));
         return false;
     }
+    // Sibling pools — only REQUIRED when the cart carries their goods (checked in validation).
+    UCrystalInventoryComponent *CrystalInv = Owner->FindComponentByClass<UCrystalInventoryComponent>();
+    UEvolutionInventoryComponent *EvolutionInv = Owner->FindComponentByClass<UEvolutionInventoryComponent>();
 
-    // Equipment pricing: Prisms base by tier only (no essence, no surcharge).
-    const int32 PrismsCost = EconomyYield::GetPrismsBaseForTier(Weapon->Tier);
-    if (!Currency->CanAfford(ECurrencyType::Prisms, PrismsCost))
+    // ============ VALIDATION PASS — cost + cumulative-per-type demand, spend nothing ============
+    // Cost comes from the shared builder (also behind PreviewCartCost), so the charged numbers
+    // can never drift from what the shop UI displayed.
+    const FPurchaseCost Cost = BuildCartCost(Items);
+
+    int32 WeaponDemand = 0, RingDemand = 0, SpellDemand = 0, AbilityDemand = 0, EvolutionDemand = 0;
+    TMap<FCrystalId, int32> CrystalDemand;
+    // Spells/abilities can't be owned twice — reject already-owned or in-cart duplicates so the
+    // grant loop can never no-op, keeping the charged cost matched to what is actually granted.
+    TSet<const USpellData *> CartSpells;
+    TSet<const UAbilityData *> CartAbilities;
+
+    for (int32 i = 0; i < Items.Num(); ++i)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseWeapon: %s cannot afford %d Prisms for %s"),
-               *Owner->GetName(), PrismsCost, *Weapon->GetName());
+        const FMerchantStockEntry &E = Items[i];
+
+        if (E.IsCrystalEntry())
+        {
+            CrystalDemand.FindOrAdd(E.Crystal) += FMath::Max(1, E.Count);
+            continue;
+        }
+        if (!E.IsAssetEntry())
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: Items[%d] is empty (no Asset or Crystal) — aborting."), i);
+            return false;
+        }
+
+        UPrimaryDataAsset *Asset = E.Asset;
+        if (Cast<UWeaponData>(Asset))
+        {
+            WeaponDemand += FMath::Max(1, E.Count);
+        }
+        else if (Cast<URingData>(Asset))
+        {
+            RingDemand += FMath::Max(1, E.Count);
+        }
+        else if (USpellData *S = Cast<USpellData>(Asset))
+        {
+            if (Inv->Spells.HasSpell(S) || CartSpells.Contains(S))
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: spell %s already owned or duplicated in cart — aborting."), *S->GetName());
+                return false;
+            }
+            CartSpells.Add(S);
+            SpellDemand += 1;
+        }
+        else if (UAbilityData *A = Cast<UAbilityData>(Asset))
+        {
+            if (Inv->Abilities.HasAbility(A) || CartAbilities.Contains(A))
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: ability %s already owned or duplicated in cart — aborting."), *A->GetName());
+                return false;
+            }
+            CartAbilities.Add(A);
+            AbilityDemand += 1;
+        }
+        else if (Cast<UEvolutionItemData>(Asset))
+        {
+            EvolutionDemand += 1;
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: Items[%d] asset %s is not a sellable type — aborting."), i, *Asset->GetName());
+            return false;
+        }
+    }
+
+    // ---- Cumulative capacity: fresh purchases are bare, so each costs its BASE slot ----
+    if (WeaponDemand > 0 && Inv->GetRemainingWeaponCapacity() < WeaponDemand * InventoryConstants::WEAPON_BASE_SLOT_COST)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s weapon capacity short (need %d slots) — aborting."), *Owner->GetName(), WeaponDemand);
+        return false;
+    }
+    if (RingDemand > 0 && Inv->GetRemainingRingCapacity() < RingDemand * InventoryConstants::RING_BASE_SLOT_COST)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s ring capacity short (need %d slots) — aborting."), *Owner->GetName(), RingDemand);
+        return false;
+    }
+    if (SpellDemand > 0 && Inv->Spells.GetRemainingCapacity() < SpellDemand)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s spell capacity short (need %d) — aborting."), *Owner->GetName(), SpellDemand);
+        return false;
+    }
+    if (AbilityDemand > 0 && Inv->Abilities.GetRemainingCapacity() < AbilityDemand)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s ability capacity short (need %d) — aborting."), *Owner->GetName(), AbilityDemand);
+        return false;
+    }
+    if (EvolutionDemand > 0)
+    {
+        if (!EvolutionInv)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s missing EvolutionInventoryComponent for evolution stock — aborting."), *Owner->GetName());
+            return false;
+        }
+        if (InventoryConstants::MAX_EVOLUTION_ITEMS - EvolutionInv->CountRunEvolutions() < EvolutionDemand)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s evolution cap short (need %d) — aborting."), *Owner->GetName(), EvolutionDemand);
+            return false;
+        }
+    }
+    if (CrystalDemand.Num() > 0)
+    {
+        if (!CrystalInv)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s missing CrystalInventoryComponent for crystal stock — aborting."), *Owner->GetName());
+            return false;
+        }
+        for (const TPair<FCrystalId, int32> &Pair : CrystalDemand)
+        {
+            if (!CrystalInv->CanAddCount(Pair.Key, Pair.Value))
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s crystal cap short for %s (need %d) — aborting."),
+                       *Owner->GetName(), *ItemIdentity::GetDisplayName(Pair.Key), Pair.Value);
+                return false;
+            }
+        }
+    }
+
+    // ============ AFFORDABILITY — every currency once, spend nothing if any is short ============
+    if (!Currency->CanAfford(ECurrencyType::Prisms, Cost.Prisms))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s cannot afford %d Prisms — aborting."), *Owner->GetName(), Cost.Prisms);
+        return false;
+    }
+    if (Cost.SkillEssence > 0 && !Currency->CanAfford(ECurrencyType::SkillEssence, Cost.SkillEssence))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s cannot afford %d SkillEssence — aborting."), *Owner->GetName(), Cost.SkillEssence);
+        return false;
+    }
+    for (const TPair<EEssenceType, int32> &Pair : Cost.Typed)
+    {
+        if (!Currency->CanAfford(ECurrencyType::EssenceTyped, Pair.Value, static_cast<uint8>(Pair.Key)))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s cannot afford %d %s essence — aborting."),
+                   *Owner->GetName(), Pair.Value,
+                   *StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(Pair.Key)));
+            return false;
+        }
+    }
+
+    // ============ SPEND — every currency once (all pre-cleared above) ============
+    Currency->Spend(ECurrencyType::Prisms, Cost.Prisms);
+    if (Cost.SkillEssence > 0)
+    {
+        Currency->Spend(ECurrencyType::SkillEssence, Cost.SkillEssence);
+    }
+    for (const TPair<EEssenceType, int32> &Pair : Cost.Typed)
+    {
+        Currency->SpendEssenceType(Pair.Key, Pair.Value);
+    }
+
+    auto RefundAll = [&]()
+    {
+        Currency->Add(ECurrencyType::Prisms, Cost.Prisms);
+        if (Cost.SkillEssence > 0)
+        {
+            Currency->Add(ECurrencyType::SkillEssence, Cost.SkillEssence);
+        }
+        for (const TPair<EEssenceType, int32> &Pair : Cost.Typed)
+        {
+            Currency->AddEssenceType(Pair.Key, Pair.Value);
+        }
+    };
+
+    // ============ GRANT — fully pre-validated, so this cannot fail on valid stock ============
+    // Undo thunks unwind LIFO on the (unreachable) defensive failure. Evolutions grant LAST:
+    // AddInstance mints an id we don't capture, so keeping them last means a rollback never has
+    // to remove one (pre-validation already guarantees every evolution in the cart fits).
+    TArray<TFunction<void()>> Undo;
+    bool bGrantOk = true;
+    FString FailName;
+
+    for (const FMerchantStockEntry &E : Items)
+    {
+        if (!bGrantOk)
+        {
+            break;
+        }
+        if (E.IsCrystalEntry())
+        {
+            const int32 Count = FMath::Max(1, E.Count);
+            const FCrystalId Id = E.Crystal;
+            if (Inv->AddCrystal(Id, Count))
+            {
+                Undo.Add([Inv, Id, Count]() { TArray<FCrystalId> R; R.Init(Id, Count); Inv->RemoveCrystals(R); });
+            }
+            else
+            {
+                bGrantOk = false;
+                FailName = ItemIdentity::GetDisplayName(Id);
+            }
+            continue;
+        }
+
+        UPrimaryDataAsset *Asset = E.Asset;
+        if (UWeaponData *W = Cast<UWeaponData>(Asset))
+        {
+            const int32 Count = FMath::Max(1, E.Count);
+            for (int32 c = 0; c < Count && bGrantOk; ++c)
+            {
+                if (Inv->AddWeapon(W))
+                {
+                    Undo.Add([Inv]() { Inv->RemoveWeapon(Inv->GetWeaponCount() - 1); });
+                }
+                else
+                {
+                    bGrantOk = false;
+                    FailName = W->GetName();
+                }
+            }
+        }
+        else if (URingData *R = Cast<URingData>(Asset))
+        {
+            const int32 Count = FMath::Max(1, E.Count);
+            for (int32 c = 0; c < Count && bGrantOk; ++c)
+            {
+                if (Inv->AddRing(R))
+                {
+                    Undo.Add([Inv]() { Inv->RemoveRing(Inv->GetRingCount() - 1); });
+                }
+                else
+                {
+                    bGrantOk = false;
+                    FailName = R->GetName();
+                }
+            }
+        }
+        else if (USpellData *S = Cast<USpellData>(Asset))
+        {
+            if (Inv->LearnSpell(S))
+            {
+                Undo.Add([Inv, S]() { Inv->UnlearnSpell(S); });
+            }
+            else
+            {
+                bGrantOk = false;
+                FailName = S->GetName();
+            }
+        }
+        else if (UAbilityData *A = Cast<UAbilityData>(Asset))
+        {
+            if (Inv->LearnAbility(A))
+            {
+                Undo.Add([Inv, A]() { Inv->UnlearnAbility(A); });
+            }
+            else
+            {
+                bGrantOk = false;
+                FailName = A->GetName();
+            }
+        }
+        // Evolutions handled in the trailing pass below (granted last).
+    }
+
+    if (bGrantOk)
+    {
+        for (const FMerchantStockEntry &E : Items)
+        {
+            if (!bGrantOk)
+            {
+                break;
+            }
+            if (E.IsAssetEntry())
+            {
+                if (UEvolutionItemData *Ev = Cast<UEvolutionItemData>(E.Asset))
+                {
+                    if (!EvolutionInv->AddInstance(Ev)) // EvolutionInv non-null: guaranteed by the demand check
+                    {
+                        bGrantOk = false;
+                        FailName = Ev->GetName();
+                    }
+                }
+            }
+        }
+    }
+
+    if (!bGrantOk)
+    {
+        for (int32 u = Undo.Num() - 1; u >= 0; --u)
+        {
+            Undo[u]();
+        }
+        RefundAll();
+        UE_LOG(LogTemp, Error,
+               TEXT("[EconomyService] Purchase: grant failed for %s AFTER full pre-validation — rolled back %d grants + refunded everything. Indicates a pre-check gap."),
+               *FailName, Undo.Num());
         return false;
     }
 
-    // TODO(shop-roll): purchased items currently get the C_Quality placeholder.
-    // The real design: the SHOP stocks pre-rolled items (tier+quality rolled at
-    // shelf-population), and purchase CARRIES that shelf-rolled quality through —
-    // no roll at point-of-sale, not a fixed C. Gated on the loot/shop generator
-    // (does not exist yet). Until then, purchase = C placeholder.
-    Currency->Spend(ECurrencyType::Prisms, PrismsCost);
-    if (!Inv->AddWeapon(Weapon))
-    {
-        Currency->Add(ECurrencyType::Prisms, PrismsCost); // refund on grant-failure (e.g. at capacity)
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseWeapon: AddWeapon failed for %s — refunded %d Prisms"),
-               *Weapon->GetName(), PrismsCost);
-        return false;
-    }
-
-    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Purchased weapon %s (tier %d) for %d Prisms"),
-           *Weapon->GetName(), static_cast<int32>(Weapon->Tier), PrismsCost);
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Purchase: granted %d cart entries to %s for %d Prisms (+ essence)."),
+           Items.Num(), *Owner->GetName(), Cost.Prisms);
     return true;
 }
 

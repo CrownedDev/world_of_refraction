@@ -109,9 +109,9 @@ public:
 
     /** Generic lock for the attachment's provided skills (spells for crystals,
      *  abilities for augment stones). When true, the player cannot unfuse the
-     *  attachment or reassign its skills at a vendor. Independent of bCanBreak
+     *  attachment or reassign its skills at a vendor. Independent of Breakability
      *  (which is on UEvolutionItemData and gates wear); a crystal can still break
-     *  via the standard wear path when its bCanBreak is true. No runtime code
+     *  via the standard wear path when its Breakability allows it. No runtime code
      *  consumes this flag yet — the vendor system will use it when built. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attached Item")
     bool bLockSkills = false;

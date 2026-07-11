@@ -4,11 +4,11 @@
 
 ## Weapon types (11)
 
-`EWeaponType` — Sword, Greatsword, Spear, Staff, Dagger, Axe, Hammer, Bow, Gauntlets, Scythe, Gun (exact set per the enum). Each type carries its own attack animations and a **physical damage type**.
+`EWeaponType` — Sword, Greatsword, Spear, Staff, Dagger, Axe, Hammer, Bow, Gauntlets, Scythe, Gun (exact set per the enum). Each type carries its own attack animations.
 
 ## Physical damage type → status (the live hook)
 
-`WeaponData::PhysicalDamageType` (`EPhysicalDamageType`) decides **which physical status your basic pressure builds** on the enemy's bar:
+`AbilityData::PhysicalDamageType` (`EPhysicalDamageType`) — **on the attack/ability, not the weapon** (migrated off `WeaponData`: the same swing delivers the same physical type on any weapon) — decides **which physical status your pressure builds** on the enemy's bar:
 
 | Physical type | Builds toward |
 |---|---|
@@ -16,7 +16,7 @@
 | **Pierce** | Armor-break |
 | **Impact** | Stun |
 
-So weapon choice is a **status decision**, not just a damage one — pick the pressure you want. The buildup→proc mechanic itself is in [`StatusEffects.md`](../Status/StatusEffects.md). [Live]
+So your **move choice** is a status decision, not just a damage one — a weapon's attack/ability kit spans Slash/Pierce/Impact variants (the pool authors 3 clusters per weapon family), so you pick the pressure per action. The buildup→proc mechanic itself is in [`StatusEffects.md`](../Status/StatusEffects.md). [Live]
 
 ## Wield modes
 
@@ -31,6 +31,8 @@ Mode drives mesh layout (`WeaponMeshComponent`); it is **not** a player-selectab
 
 `WeaponData::bAbilitiesLocked` + `PresetAbilities` — a conjured weapon ships with fixed abilities you **cannot** remove; they occupy its tier slots, so your customisable room is *tier slots − locked count* (slot counts in [`EquipmentSlots.md`](./EquipmentSlots.md)). [Live] (enforced)
 
+Preset abilities are also **priced into the weapon's shop cost** — each at ⅓ of its tier base + 10 Prisms (see [`EconomySystem.md`](../../Architecture/EconomySystem.md)).
+
 ## Switching weapons
 
 Swapping your active weapon mid-combat is a **free in-menu loadout toggle** (`ULoadoutComponent::ToggleEquipment`, via the command menu) — it rebuilds the action menu for the new weapon and **costs no turn and no EP**. It is *not* a costed action through the executor. [Live]
@@ -42,7 +44,8 @@ Choosing weapons, wield mode, and per-instance rolls is **[Built · No UI]** —
 ## Entry points
 
 - `EWeaponType`, `EWeaponWieldMode` — type + wield enums.
-- `WeaponData::PhysicalDamageType`, `bAbilitiesLocked`, `PresetAbilities` — the live fields.
+- `AbilityData::PhysicalDamageType` — the physical-type field (ability-side).
+- `WeaponData::bAbilitiesLocked`, `PresetAbilities` — the live weapon fields.
 - `WeaponMeshComponent` — per-mode mesh spawn.
 
 ## Related

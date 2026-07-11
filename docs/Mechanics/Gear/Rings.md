@@ -11,6 +11,18 @@ A ring is **element-bearing spell-carrier gear** for the [Resonator](../Archetyp
 - **Infusion mode** — `InfusionMode` (Balanced / Physical / Status) sets how an infused cast through this ring splits its charge bonus. See [Infusion](../Magic/Infusion.md).
 - **Engravings** — inherited `BaseStatBonus` / `GeneratedStatBonus` (per-instance roll). See [Per-instance rolls](./PerInstanceRolls.md).
 
+## Ring types (shop taxonomy)
+
+Four cost-composed types, locked 2026-07-11 (canonical table with cost
+formulas: [`Resources_Design.md` §5.1c](../../Design/Resources_Design.md)):
+
+- **Template** — a bare ring; you buy and attach your own crystal after (`DA_Ring_Generic`). Cheapest.
+- **Crystal** — ships with a tier-matched element gem attached, no spells; you fill the slots (the 9 gem rings, Garnet … Iolite).
+- **Themed** — gem plus 1–2 bundled Generic spells matching a concept (the 27 themed rings — Emberflame, Tidecaller, Zephyr, …). The bundled spells are **priced into the shop cost**.
+- **Evolution** — ships with an evolution crystal attached. None authored yet — banked as an intended type.
+
+All four sell at the hub **Jeweler** — see [`MerchantShopSystem`](../../Architecture/MerchantShopSystem.md).
+
 ## Equipping cost — a budget, not a slot count
 
 There is **no fixed ring-slot count and no per-element cap.** Equipped rings fit a **unified slot-cost budget**: a normal ring costs **1**, an evolved ring **2**, shared with the primary slot, and the total must fit `LoadoutConstants::LOADOUT_TOTAL_BUDGET` (`LoadoutComponent.cpp`). You can stack same-element rings freely — the only limit is the budget. See [Loadout](./Loadout.md).

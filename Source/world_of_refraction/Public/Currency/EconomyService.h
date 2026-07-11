@@ -12,6 +12,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Merchant/MerchantData.h" // FMerchantStockEntry — the Purchase cart element
 #include "Currency/CurrencyTypes.h" // ECurrencyType for the leveling-essence param on TryLevelUpEntry
 #include "Character/CharacterDataComponent.h" // EWorldPillar for BuyWorldStat (§7 C4)
 #include "EconomyService.generated.h"
@@ -25,6 +26,26 @@ class ULoadoutComponent;
 class USpellData;
 class UAbilityData;
 class UWeaponData;
+
+/** Per-currency cost of a Purchase cart. Prisms + SkillEssence are scalar wallets; Typed is
+ *  EssenceTyped sub-keyed by EEssenceType (element / pillar / Reality / Ability). Returned by
+ *  PreviewCartCost so the shop UI displays exactly what Purchase will charge — one cost source. */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FPurchaseCost
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, Category = "Economy")
+    int32 Prisms = 0;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Economy")
+    int32 SkillEssence = 0;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Economy")
+    TMap<EEssenceType, int32> Typed;
+
+    void AddTyped(EEssenceType Type, int32 Amount) { Typed.FindOrAdd(Type) += Amount; }
+};
 
 UCLASS()
 class WORLD_OF_REFRACTION_API UEconomyService : public UGameInstanceSubsystem
@@ -121,21 +142,52 @@ public:
     // ==================== PURCHASE (spend-side) ====================
 
     /**
-     * Buy a SPELL into Owner's inventory. Cost (§4.4 + §5): Prisms base (spell tier) + Prisms
-     * scaling surcharge (50 × Σ grade-number) + typed essence (element @ spell tier + Σ pillar @
-     * each scaling grade). Canonical flow: CanAfford ALL → Spend ALL → LearnSpell → refund
-     * everything on grant-failure. Server-authoritative. False if Owner/Spell null; no authority;
-     * components missing; any component unaffordable (spends nothing); or the grant failed.
+     * Buy a CART of merchant stock into Owner's inventory in ONE atomic, all-or-nothing
+     * transaction — the single spend-side entry point for every sellable type (weapon, ring,
+     * spell, ability, evolution, crystal). Replaces the old per-type PurchaseWeapon/PurchaseSpell.
+     *
+     * Flow: resolve components (authority-gated) → VALIDATE up-front (per-entry cost +
+     * cumulative-per-type grant capacity) → CanAfford EVERY currency once → Spend once → grant
+     * loop. Capacity + affordability are fully pre-validated, so the grant loop cannot fail on
+     * valid stock; a defensive grant failure rolls back every grant and refunds every currency.
+     *
+     * Per-type cost (symmetric with the dismantle yield):
+     *   - Weapon / Ring : (Prisms base by tier + attached-item surcharge + bundled-skill
+     *                     surcharge) × Count. Attachment: crystal/stone → its tier base;
+     *                     evolution → 2× its tier base; fusion → 1.5× summed half bases.
+     *                     Bundled skills (3l): each non-null skill prices at its tier base / 3
+     *                     + 10, Prisms-only (no essence) — weapon PresetAbilities always;
+     *                     weapon/ring DefaultSpells only when a gem crystal is attached
+     *                     (Kind == Crystal); weapon DefaultAbilities only when the attachment
+     *                     can grant stone abilities (augment stone, or fusion with an
+     *                     AbilityStone half). WeaponAttack is never priced (weapon identity).
+     *                     [quality is the C placeholder until shop-roll]
+     *   - Spell         : Prisms base + 50×Σ scaling-grade + element essence @ tier + Σ pillar
+     *                     essence per scaling grade. GENERIC-element spells instead price like
+     *                     abilities: Prisms base + SkillEssence @ tier (no surcharge, no typed).
+     *   - Ability       : Prisms base + SkillEssence @ tier.
+     *   - Evolution     : 2× Prisms base (premium item class) + element essence @ tier
+     *                     + ½ Reality essence.
+     *   - Crystal       : Prisms base only (× Count) — no typed essence; essence stays a
+     *                     dismantle-side currency for crystal stock.
+     *
+     * Count is honoured for weapons / rings / crystals; clamped to 1 for spells / abilities /
+     * evolutions (spells/abilities can't be owned twice; evolution is per-instance). Buying a
+     * spell/ability already owned — or duplicated within the cart — fails the whole purchase.
+     *
+     * Server-authoritative. Returns false (spending nothing) if: Owner null / no authority; Items
+     * empty; a required component is missing; an entry is empty / not a sellable type / already
+     * owned; cumulative capacity is exceeded for any type; or any currency is short.
      */
     UFUNCTION(BlueprintCallable, Category = "Economy")
-    bool PurchaseSpell(AActor *Owner, USpellData *Spell);
+    bool Purchase(AActor *Owner, const TArray<FMerchantStockEntry> &Items);
 
-    /**
-     * Buy a WEAPON into Owner's inventory. Cost: Prisms base (weapon tier) only — no essence, no
-     * surcharge (equipment pricing). Spend → AddWeapon → refund on grant-failure. See PurchaseSpell.
-     */
-    UFUNCTION(BlueprintCallable, Category = "Economy")
-    bool PurchaseWeapon(AActor *Owner, UWeaponData *Weapon);
+    /** Price a cart WITHOUT purchasing — the exact per-currency totals Purchase would charge
+     *  (same shared builder, so shop-UI display and the charge can never drift). Empty/unknown
+     *  entries price at 0 (Purchase itself rejects them); spell/ability/evolution Count is
+     *  clamped to 1, mirroring Purchase. Pure — reads no owner state. */
+    UFUNCTION(BlueprintPure, Category = "Economy")
+    FPurchaseCost PreviewCartCost(const TArray<FMerchantStockEntry> &Items) const;
 
     /**
      * Buy +1 World Stat point in Pillar for Owner (§7 C4). Always buyable at any run vendor; cost is
@@ -244,6 +296,11 @@ public:
     void PrintEconomy(AActor *Owner) const;
 
 private:
+    /** Cost-only walk of a cart — the single pricing source behind PreviewCartCost AND
+     *  Purchase's validation pass. Prices skip empty/unknown entries (Purchase rejects those
+     *  separately); spell/ability/evolution Count clamps to 1. */
+    FPurchaseCost BuildCartCost(const TArray<FMerchantStockEntry> &Items) const;
+
     /**
      * Shared tier-up core — type-agnostic. Knows only the wallet + a reference to the instance's
      * tier field, so any per-instance struct that carries an EItemTier (weapon, ring, evolution,

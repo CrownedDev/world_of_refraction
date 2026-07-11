@@ -45,13 +45,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
     EWeaponWieldMode WieldMode = EWeaponWieldMode::Single;
 
-    /** What physical damage this weapon delivers. Drives the bar-cap
-     *  trigger when no elemental infusion is active. Every weapon must
-     *  declare one — None is rejected by validation. A staff = Impact,
-     *  a dagger = Pierce, a sword = Slash. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-    EPhysicalDamageType PhysicalDamageType = EPhysicalDamageType::Slash;
-
     /** How an infused action delivered through this weapon (raw / weapon-crystal) splits its charge bonus.
      *  Balanced (default) = the middle to both damage and status; Physical leans damage; Status leans status. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")

@@ -323,6 +323,10 @@ nominal caps when a future stone/FusionStone targets them:
 - **`WeaponSystem`** — `UEquipmentDataBase` owns `AttachedItem`,
   `IsAugmentStoneAttached()`, `GetRestrictedCrystalTypes()`, the `IsDataValid`
   backstop, and the `DefaultAbilities` field seeded onto stone-granted slots.
+- **`EconomySystem`** — shop pricing charges for `DefaultAbilities` (each at
+  ⅓ tier base + 10 Prisms) only when the attachment can grant stone abilities
+  (`HasAbilityStoneAttachment`: augment stone, or a fusion with an AbilityStone
+  half) — see `EconomySystem.md` (3l).
 - **`CrystalEffectTable` / `CrystalTypeHelpers` / `ItemIdentity`** — the value
   tables and the gem/stone predicates.
 

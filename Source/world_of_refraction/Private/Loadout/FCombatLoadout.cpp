@@ -343,7 +343,7 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
                 UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] %s instance ref set but no inventory context — asset build"), SlotName);
             }
         }
-        return FWeaponInventoryEntry::CreateFromWeapon(Asset, true);
+        return FWeaponInventoryEntry::CreateFromWeapon(Asset);
     };
 
     const auto ResolveRingEntry = [OwnedInventory](URingData *Asset, const FGuid &Ref, const TCHAR *SlotName) -> FRingInventoryEntry
@@ -374,7 +374,7 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
                 UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] %s instance ref set but no inventory context — asset build"), SlotName);
             }
         }
-        return FRingInventoryEntry::CreateFromRing(Asset, true);
+        return FRingInventoryEntry::CreateFromRing(Asset);
     };
 
     FCombatLoadout Result;

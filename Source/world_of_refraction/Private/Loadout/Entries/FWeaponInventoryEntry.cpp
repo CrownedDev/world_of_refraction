@@ -14,13 +14,13 @@ namespace
     static std::atomic<int32> GWeaponInstanceCounter{1};
 }
 
-FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromWeapon(UWeaponData *InWeapon, bool bCopyDefaultCrystal)
+FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromWeapon(UWeaponData *InWeapon)
 {
     FWeaponInventoryEntry Entry;
     Entry.Weapon = InWeapon;
     Entry.InstanceID = GWeaponInstanceCounter.fetch_add(1);
 
-    if (bCopyDefaultCrystal && InWeapon && InWeapon->HasCrystal())
+    if (InWeapon && InWeapon->HasCrystal())
     {
         Entry.AttachedItem = FRuntimeAttachedItem::FromAttachedItem(InWeapon->AttachedItem);
 

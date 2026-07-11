@@ -1487,21 +1487,23 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	FinalizeDamageInputs(Ability, FinalDamage, Ability->HitCount, DamagePerHit);
 
 	// Ability buildup-bar source resolution (per locked design):
-	//   - PhysicalDamageType: from active weapon (matches the weapon being
-	//     wielded, not the per-attack data which no longer owns the field)
+	//   - PhysicalDamageType: from the executing ability/attack itself —
+	//     Cluster C moved the field off the weapon (same swing, same type,
+	//     any weapon)
 	//   - Element: from Action.SelectedSource — per-action infusion choice.
 	//     Only resolves to the user's InnateElement when an elemental source
 	//     is selected (Generic/Resonator default to None; Caster picks
 	//     elemental source to push their innate element)
 	ESpellElement AbilityElement = ESpellElement::None;
-	EPhysicalDamageType AbilityPhysicalType = EPhysicalDamageType::None;
 
-	if (UWeaponManager *WeaponMgr = GetWeaponManager())
+	// Cluster C: the ability/attack is the sole PhysicalDamageType source; the
+	// weapon no longer carries it.
+	const UAbilityData *AbilityData = Cast<UAbilityData>(Ability);
+	EPhysicalDamageType AbilityPhysicalType = AbilityData ? AbilityData->PhysicalDamageType : EPhysicalDamageType::None;
+	if (AbilityPhysicalType == EPhysicalDamageType::None)
 	{
-		if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(User))
-		{
-			AbilityPhysicalType = Weapon->PhysicalDamageType;
-		}
+		UE_LOG(LogTemp, Warning, TEXT("ActionExecutor: '%s' resolved PhysicalDamageType None — physical bar-cap trigger will not fire."),
+			Ability ? *Ability->Name : TEXT("<unknown>"));
 	}
 
 	// bIsInfused was already computed at the top of the function from
@@ -1524,7 +1526,7 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 		Action.AbilityInfusionLevel, // InfusionLevel
 		Action.SelectedSource,		 // SelectedSource
 		AbilityBaseBuildup,			 // BaseStatusBuildup
-		AbilityPhysicalType,		 // PhysicalDamageType - inherits active weapon
+		AbilityPhysicalType,		 // PhysicalDamageType - the ability's own authored type
 		0.3f);
 
 	LogActionDispatch(Action.ActionType, Action.AbilityInfusionLevel, FinalDamage, ValidTargets.Num());
@@ -2227,19 +2229,18 @@ void UActionExecutor::FinalizeAsyncAction()
 				ResolvedElement = GetElementForSourceOption(Executor, Action.SelectedSource);
 			}
 
-			// Physical type for the ability/attack authored-DoT branch — the wielded
-			// weapon's declared type (staff=Impact, dagger=Pierce, sword=Slash). None
-			// when no weapon resolves (e.g. ring-primary caster): the branch then
-			// falls back to the legacy Generic shape.
+			// Physical type for the ability/attack authored-DoT branch — the skill's
+			// own authored type (Cluster C; the weapon no longer carries one).
 			EPhysicalDamageType ActionPhysicalType = EPhysicalDamageType::None;
 			if (Action.ActionType != EActionType::Spell)
 			{
-				if (UWeaponManager *WeaponMgr = GetWeaponManager())
+				// Cluster C: read the ability/attack directly; the weapon no longer
+				// carries the type. Spells stay None (handled elsewhere).
+				const UAbilityData *AbilityData = Cast<UAbilityData>(Action.SkillData);
+				ActionPhysicalType = AbilityData ? AbilityData->PhysicalDamageType : EPhysicalDamageType::None;
+				if (ActionPhysicalType == EPhysicalDamageType::None)
 				{
-					if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Executor))
-					{
-						ActionPhysicalType = Weapon->PhysicalDamageType;
-					}
+					UE_LOG(LogTemp, Warning, TEXT("ActionExecutor: authored-DoT action resolved PhysicalDamageType None — physical DoT trigger suppressed."));
 				}
 			}
 

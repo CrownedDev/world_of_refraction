@@ -2,7 +2,7 @@
 
 ## Project
 
-- **Engine**: Unreal Engine 5.7
+- **Engine**: Unreal Engine 5.8
 - **Language**: C++ primary, Blueprints for UI wiring and designer-tunable values
 - **Module**: `world_of_refraction` (single module)
 - **Goal**: Production-grade turn-based combat RPG. 9-element magic system, three character classes (Generic / Caster / Resonator).

@@ -44,7 +44,7 @@ struct WORLD_OF_REFRACTION_API FEvolutionAttachment
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
     FGuid InstanceID;
 
-    /** Per-instance durability. Only meaningful when the item's bCanBreak is true. */
+    /** Per-instance durability. Only meaningful when the item's Breakability allows wear. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
     int32 CurrentDurability = 0;
 
@@ -79,9 +79,9 @@ struct WORLD_OF_REFRACTION_API FEvolutionAttachment
      *  transitioned from >0 to 0). Skips when Item is null, Amount <= 0, or
      *  durability is already at zero.
      *
-     *  bForceWear (default false): when false, also skips if bCanBreak is
-     *  false (per-asset opt-in). When true, bypasses ONLY the bCanBreak
-     *  gate — all other guards still apply. Intended for callers whose
+     *  bForceWear (default false): when false, also skips if Breakability blocks
+     *  wear (BDBreakable without force, or Unbreakable). When true, bypasses ONLY
+     *  the Breakability gate — all other guards still apply. Intended for callers whose
      *  mechanic is intrinsic (e.g. Broken Darkness) where per-asset opt-in
      *  is fragile; FEvolutionAttachment itself stays BD-agnostic. Default
      *  preserves existing behavior for every other caller. */

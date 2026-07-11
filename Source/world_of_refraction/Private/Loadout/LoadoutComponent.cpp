@@ -884,11 +884,13 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
                                            *UEnum::GetValueAsString(EquippedWeapon->WeaponType)));
                 continue;
             }
-            if (Ability->bRequiresDualWeapon && !EquippedWeapon->IsDualWielded())
+            if (!Ability->AllowsWieldMode(EquippedWeapon->WieldMode))
             {
                 AddFinding(ELoadoutSlotType::WeaponAbility, i, true,
-                           FString::Printf(TEXT("Ability '%s' requires dual-wield but equipped weapon is single"),
-                                           *Ability->Name));
+                           FString::Printf(TEXT("Ability '%s' requires wield mode %s, equipped weapon is %s"),
+                                           *Ability->Name,
+                                           *UEnum::GetValueAsString(Ability->RequiredWieldMode),
+                                           *UEnum::GetValueAsString(EquippedWeapon->WieldMode)));
             }
         }
 

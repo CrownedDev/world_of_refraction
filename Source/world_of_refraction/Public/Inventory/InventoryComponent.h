@@ -162,7 +162,7 @@ public:
 
     /** Add a weapon to inventory */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
-    bool AddWeapon(UWeaponData *Weapon, bool bCopyDefaultCrystal = false);
+    bool AddWeapon(UWeaponData *Weapon);
 
     /** Remove a weapon from inventory */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
@@ -244,7 +244,7 @@ public:
 
     /** Add a ring to inventory */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
-    bool AddRing(URingData *Ring, bool bCopyDefaultCrystal = false);
+    bool AddRing(URingData *Ring);
 
     /** Remove a ring from inventory */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
