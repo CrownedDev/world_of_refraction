@@ -65,10 +65,11 @@ public:
 
     // ==================== COMBAT ====================
 
-    /** Physical damage type this ability delivers. None (default) = inherit the
-     *  active weapon's PhysicalDamageType at execution (current behaviour). A
-     *  non-None value overrides the weapon (ability-first). Every asset ships
-     *  None today, so this is behaviour-neutral until Cluster B populates it. */
+    /** Physical damage type this ability delivers — the SOLE source since the
+     *  weapon-side field was removed (Cluster C): the same swing delivers the
+     *  same physical type on any weapon. Drives the physical bar-cap and
+     *  authored-DoT triggers; a None resolved at execution logs a warning and
+     *  suppresses them. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
     EPhysicalDamageType PhysicalDamageType = EPhysicalDamageType::None;
 

@@ -103,8 +103,6 @@ controller's `IA_Interact` event calls it and `Interact()`s the result
 
 `Interact()`: null-`Merchant` → on-screen warning; otherwise resolves
 `UMerchantShopSubsystem` and calls `OpenForMerchant(Merchant, PawnInRange)`.
-*(The `.h` comment on `Interact()` still describes the pre-3a stock print —
-stale, the print was replaced by the subsystem call.)*
 
 ### `UMerchantShopSubsystem` (`UGameInstanceSubsystem`, `Config=Game`)
 
@@ -202,8 +200,6 @@ with the window's detail panel. Line cost = one-entry `PreviewCartCost`.
 - **Asset-name mismatches** — `DA_Merchant_Jewler` (typo), and
   `Refractor`/`Evolutionist` asset names vs `SpellShop`/`Spiritualist` enum
   display names.
-- **Stale source comment** — `AMerchantInteractable::Interact()`'s header
-  comment still describes the pre-3a stock print.
 - Stock rows keep an unused `AddButton` bind (3e moved Add to the detail
   panel) — harmless if a WBP omits it (`BindWidgetOptional`).
 

@@ -154,9 +154,7 @@ effects.
   is active; `ActionExecutor` reads it off the executing `UAbilityData`
   directly (no weapon fallback — a resolved `None` logs a warning and
   suppresses the physical trigger). Populated on all ~204 pool attack/ability
-  assets + the legacy weapon skills (Cluster B). ⚠️ The field's header comment
-  in `AbilityData.h` still describes the Cluster-A interim ("None = inherit the
-  weapon's") — stale since Cluster C.
+  assets + the legacy weapon skills (Cluster B).
 - **Execution** — `ExecutionType` (`EAbilityExecutionType`, default `Melee`).
   Melee-only fields: `ApproachData` (`UMovementData*`), `ExecutionRange`
   (float, default 150.0). Both are gated by `EditCondition`/`EditConditionHides`

@@ -1,8 +1,9 @@
 // MerchantInteractable.h
 // Placeholder hub merchant: a cube with a pawn-overlap trigger. Walk up
-// (on-screen "Press E" hint) and Interact() — v1 prints the merchant's stock
-// via UMerchantData::GetMerchantString(); Cluster 3 swaps the print for the
-// shop UI. 3D models / shop-door interaction come later per the locked design.
+// (on-screen "Press E" hint) and Interact() — opens the shop window via
+// UMerchantShopSubsystem::OpenForMerchant (Cluster 3a; replaced the v1
+// stock print). 3D models / shop-door interaction come later per the
+// locked design.
 //
 // Range discovery is the trigger's overlap state — no registration, no traces:
 // the controller's E-event calls FindNearestInRange(ControlledPawn) and
@@ -30,9 +31,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Merchant")
     TObjectPtr<UMerchantData> Merchant;
 
-    /** v1: prints the merchant's stock to screen + Output Log. The hub
-     *  controller's IA_Interact event calls this on the FindNearestInRange
-     *  result. Cluster 3 replaces the print with opening the shop UI. */
+    /** Opens the merchant's shop window via UMerchantShopSubsystem::OpenForMerchant
+     *  (PawnInRange is the instigator; no-Merchant / no-pawn cases log and bail).
+     *  The hub controller's IA_Interact event calls this on the
+     *  FindNearestInRange result. */
     UFUNCTION(BlueprintCallable, Category = "Merchant")
     void Interact();
 
