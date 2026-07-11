@@ -133,6 +133,11 @@ Note: the `PresetSpells` property has `meta = (EditCondition = "bSpellsLocked")`
 though the header comment describes a non-locked customisable-defaults use. This
 is a slight mismatch between the comment and the `EditCondition`.
 
+Shop-facing: ring assets ship in four cost-composed types — Template (bare) /
+Crystal (gem attached) / Themed (gem + bundled `DefaultSpells`) / Evolution
+(evolution attached) — see `Resources_Design.md` §5.1c for the taxonomy and
+`EconomySystem.md` for the attachment + bundled-skill pricing.
+
 ### `UAbilityData`
 
 `UCLASS(BlueprintType)`, derives from `USkillDataBase`. Universal skills usable

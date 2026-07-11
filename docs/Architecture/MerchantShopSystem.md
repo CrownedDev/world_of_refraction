@@ -62,7 +62,7 @@ All stock is Count=1 per line; every merchant also stocks all 12 crystals
 | Asset | Enum type | Stock |
 |---|---|---|
 | `DA_Merchant_Blacksmith` | Blacksmith | 30 = 18 weapons + 12 crystals |
-| `DA_Merchant_Jewler` *(sic)* | Jeweler | 22 = 10 rings + 12 crystals |
+| `DA_Merchant_Jewler` *(sic)* | Jeweler | 49 = 37 rings (1 template + 9 crystal + 27 themed — `Resources_Design.md` §5.1c taxonomy) + 12 crystals |
 | `DA_Merchant_CombatMaster` | CombatMaster | 156 = 144 abilities + 12 crystals |
 | `DA_Merchant_Refractor` | SpellShop | 27 = 15 spells + 12 crystals |
 | `DA_Merchant_Evolutionist` | Spiritualist | 39 = 27 evolutions + 12 crystals |
@@ -208,3 +208,4 @@ with the window's detail panel. Line cost = one-entry `PreviewCartCost`.
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-07-11 | Initial system doc — covers the full arc: `UMerchantData` + tags (Cluster 1), `AMerchantInteractable` + `IA_Interact` loop (Cluster 2), `UMerchantShopSubsystem` (3a), `UShopWindowWidget` (3b), rows + coalescing cart (3c), row polish (3d), three-column + hover detail (3e), UI polish (3f–3i), stone effect text via `GetItemEffectText` (3j); 5 merchants stocked from the ~274-asset pool library. | feature/hub-merchants |
+| 2026-07-11 | Jeweler restocked with the 27 themed rings (Stock 22 → 49; 3 per element, gem + 1–2 bundled Generic `DefaultSpells` — `Resources_Design.md` §5.1c taxonomy). Their bundled spells price into the shop cost via the 3l rule (`EconomySystem.md`): 126 P (1 spell) / 152 P (2 spells) at E. | feature/hub-merchants |

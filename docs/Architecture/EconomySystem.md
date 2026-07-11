@@ -81,7 +81,7 @@ price at 0 (Purchase itself rejects them).
 
 | Type | Prisms | Essence | Count |
 |---|---|---|---|
-| Weapon / Ring | (base by tier **+ attached-item surcharge**) × Count | — | honoured |
+| Weapon / Ring | (base by tier + attached-item surcharge **+ bundled-skill surcharge**) × Count | — | honoured |
 | Spell (element-typed) | base + `50 × Σ scaling-grade` surcharge | element @ tier + Σ pillar @ each scaling grade | clamped 1 |
 | Spell (**Generic** element) | base | **SkillEssence** @ tier (prices like an ability — no surcharge, no typed; Generic would otherwise charge "Quartz essence") | clamped 1 |
 | Ability | base | SkillEssence @ tier | clamped 1 |
@@ -92,6 +92,18 @@ price at 0 (Purchase itself rejects them).
 `FAttachedItem::Kind`): crystal/stone → its tier base; evolution → **2×** the evolution's tier
 base (premium attachment; null-guarded — a mis-authored empty Evolution slot prices at 0);
 fusion → **1.5×** the summed half-tier bases (rounded).
+
+**Bundled-skill surcharge** (3l — anonymous-namespace template `BundledSkillsPrisms<TSkill>`,
+`Tier` read via the shared `USkillDataBase`): each non-null bundled skill prices at
+**`GetPrismsBaseForTier(Tier) / 3 + 10`** (integer floor; E skill = 26), Prisms-only — bundled
+skills never charge essence. Gates: weapon `PresetAbilities` **always** (baked into the weapon);
+weapon/ring `DefaultSpells` only when a gem crystal is attached (`Kind == Crystal` — not
+stone/evolution/fusion); weapon `DefaultAbilities` only when `HasAbilityStoneAttachment`
+(augment stone, or a fusion carrying an AbilityStone half — deliberately **tighter** than the
+runtime `GetAugmentStoneAbilities` gate, which passes any fusion and lets the slot cap resolve
+to 0; pricing must not charge for abilities the attachment can't grant). `WeaponAttack` is
+never priced — weapon identity, not added value. Drives the Themed-Ring price row
+(`Resources_Design.md` §5.1c): themed rings at E = 126 (1 spell) / 152 (2 spells).
 
 - **Purchase reads the ASSET tier** (you're buying, not owned yet — no instance exists). This
   is the deliberate asset/instance split vs dismantle (which reads the leveled instance tier).
@@ -191,3 +203,4 @@ and the 14-key **typed Essence** (`EssenceTyped`, FastArray). Server-gated, repl
 | 2026-06-24 | Initial system doc — `UEconomyService` (dismantle/merge/purchase/level/downgrade) + `EconomyYield` curves, post-completion of the currency→tier-instance→evolution→spell-instance→level/downgrade arc. | feature/currency-component |
 | 2026-07-11 | **Purchase unified into one atomic cart op.** `PurchaseWeapon`/`PurchaseSpell` deleted; `Purchase(Owner, TArray<FMerchantStockEntry>)` handles every sellable type with up-front capacity + affordability validation, rollback-thunk grant loop, and the shared `BuildCartCost` builder exposed as `PreviewCartCost → FPurchaseCost` (one cost source for UI display and charge). | feature/hub-merchants |
 | 2026-07-11 | **Cost-table reprices:** Generic-element spells price like abilities (Prisms base + SkillEssence @ tier — no scaling surcharge, no typed essence); crystals/stones are **Prisms-only** (no typed-essence charge — essence stays dismantle-side); evolutions cost **2× Prisms base** (premium item class); weapons/rings gain the **attached-item surcharge** (crystal/stone = tier base, evolution = 2× its tier base, fusion = 1.5× summed half bases). | feature/hub-merchants |
+| 2026-07-11 | **Bundled-skill pricing (3l):** equipment prices its bundled skills at `tier base / 3 + 10` each (floored, Prisms-only) via `BundledSkillsPrisms<TSkill>` — weapon `PresetAbilities` always; `DefaultSpells` gem-gated (`Kind == Crystal`); `DefaultAbilities` gated on `HasAbilityStoneAttachment` (stone, or fusion with an AbilityStone half); `WeaponAttack` excluded. PIE-verified: themed rings 126/152 P, 2-ability Blacksmith weapons 102 P, crystal/template rings unchanged. | feature/hub-merchants |
