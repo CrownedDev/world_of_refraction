@@ -35,7 +35,7 @@ only faucets wired today (see [`../../Architecture/CurrencySystem.md`](../../Arc
 
 ### Sinks (spend)
 - **Upgrade** (a.k.a. level up) — raise an owned item's tier one step; costs upgrade essence + ½ Reality. See [`Upgrading.md`](./Upgrading.md).
-- **Purchase** — buy a spell (Prisms + typed essence) or weapon (Prisms) at its **asset** tier. Backend: `PurchaseSpell`/`PurchaseWeapon`.
+- **Purchase** — buy a CART of merchant stock (weapons, rings, spells, abilities, evolutions, crystals) in one atomic transaction at **asset** tier, through the hub shop UI. Backend: `UEconomyService::Purchase(Owner, Items)` (+ `PreviewCartCost` for display); per-type prices in [`../../Architecture/EconomySystem.md`](../../Architecture/EconomySystem.md), shop flow in [`../../Architecture/MerchantShopSystem.md`](../../Architecture/MerchantShopSystem.md). [Live]
 - **Merge** — fuse same-type crystals up a tier (value-based, costs Prisms). See [`Merging.md`](./Merging.md).
 - **Reroll** — re-roll a drop's stats/tier ([Built · No UI], reward-fill not wired). See [`Gear/RerollEconomy.md`](../Gear/RerollEconomy.md).
 
