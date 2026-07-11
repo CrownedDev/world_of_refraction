@@ -1487,8 +1487,9 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	FinalizeDamageInputs(Ability, FinalDamage, Ability->HitCount, DamagePerHit);
 
 	// Ability buildup-bar source resolution (per locked design):
-	//   - PhysicalDamageType: from active weapon (matches the weapon being
-	//     wielded, not the per-attack data which no longer owns the field)
+	//   - PhysicalDamageType: from the executing ability/attack itself —
+	//     Cluster C moved the field off the weapon (same swing, same type,
+	//     any weapon)
 	//   - Element: from Action.SelectedSource — per-action infusion choice.
 	//     Only resolves to the user's InnateElement when an elemental source
 	//     is selected (Generic/Resonator default to None; Caster picks
@@ -1525,7 +1526,7 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 		Action.AbilityInfusionLevel, // InfusionLevel
 		Action.SelectedSource,		 // SelectedSource
 		AbilityBaseBuildup,			 // BaseStatusBuildup
-		AbilityPhysicalType,		 // PhysicalDamageType - inherits active weapon
+		AbilityPhysicalType,		 // PhysicalDamageType - the ability's own authored type
 		0.3f);
 
 	LogActionDispatch(Action.ActionType, Action.AbilityInfusionLevel, FinalDamage, ValidTargets.Num());
@@ -2228,10 +2229,8 @@ void UActionExecutor::FinalizeAsyncAction()
 				ResolvedElement = GetElementForSourceOption(Executor, Action.SelectedSource);
 			}
 
-			// Physical type for the ability/attack authored-DoT branch — the wielded
-			// weapon's declared type (staff=Impact, dagger=Pierce, sword=Slash). None
-			// when no weapon resolves (e.g. ring-primary caster): the branch then
-			// falls back to the legacy Generic shape.
+			// Physical type for the ability/attack authored-DoT branch — the skill's
+			// own authored type (Cluster C; the weapon no longer carries one).
 			EPhysicalDamageType ActionPhysicalType = EPhysicalDamageType::None;
 			if (Action.ActionType != EActionType::Spell)
 			{
