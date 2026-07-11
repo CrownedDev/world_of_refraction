@@ -69,8 +69,8 @@ referencing the asset (equipment/evolution). The asset stays shared; edits propa
 | ----- | ------ | ------ |
 | Spell | `LearnSpell(USpellData*)` | appends reference (cap 50) |
 | Ability | `LearnAbility(UAbilityData*)` | appends reference (cap 50) |
-| Weapon | `AddWeapon(UWeaponData*, bRoll)` | new instance, fresh `PersistentID`, optional pickup-roll |
-| Ring | `AddRing(URingData*, bRoll)` | new instance, fresh `PersistentID` |
+| Weapon | `AddWeapon(UWeaponData*)` | new instance, fresh `PersistentID` — the entry factory always copies the template's default crystal + `DefaultSpells` (the old `bCopyDefaultCrystal` opt-in was removed 2026-07, `feature/hub-merchants`) |
+| Ring | `AddRing(URingData*)` | new instance, fresh `PersistentID` — same always-copy factory |
 | Item/refined crystal | `AddItemCount` / `AddRefinedCount(FCrystalId, n)` | stacked count |
 | Evolution crystal | `AddInstance(UEvolutionItemData*)` | new instance, `FGuid` id |
 

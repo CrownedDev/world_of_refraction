@@ -80,17 +80,20 @@ Immutable design-time definition of an evolution crystal. Key fields:
 - `Tier` (`EItemTier`) — scales magnitudes; drives durability defaults.
 - `ItemName` (`FString`) — designer-authored evolution name.
 - `Description`, `RevealedDescription` (`FString`) — see Description Model.
-- `bIsRefined` — `false` = unrefined (in inventory); `true` = slotted on a
-  weapon/ring.
-- `bCanBreak` — opt-in durability wear. Default `false`: the crystal is
-  permanent and its displayed durability is cosmetic. Refined evolution
-  crystals only break when this is explicitly authored true. The intrinsic-
-  mechanic override `FEvolutionAttachment::ApplyWear(_, bForceWear=true)`
-  bypasses this gate — Broken Darkness uses it so per-asset opt-in can't
-  silently disable BD's wear (see `CrystalWear.md`). Default behavior for
-  every other caller is unchanged.
-- `MaxDurability`, `CurrentDurability` — durability tracking when `bCanBreak`.
-  Defaults from `Tier` if author leaves `MaxDurability == 0`.
+- **No refinement axis.** `bIsRefined` was removed — every evolution crystal
+  is slottable as-is (attaches directly onto weapons/rings; no cut/refine
+  step). The `CanBeSlotted()` / `CanHaveSpells()` / `IsRefined()` helpers
+  survive for Blueprint compatibility but now unconditionally return `true`.
+- `Breakability` (`EBreakability`) — who wears/breaks the crystal:
+  `Breakable` (default — any class wears it down; evolutions are gear and wear
+  in combat), `BDBreakable` (only Broken Darkness / Reality wielders),
+  `Unbreakable` (no one). The intrinsic-mechanic override
+  `FEvolutionAttachment::ApplyWear(_, bForceWear=true)` bypasses the gate —
+  Broken Darkness uses it so per-asset authoring can't silently disable BD's
+  wear (see `CrystalWear.md`).
+- `MaxDurability`, `CurrentDurability` — every evolution asset tracks
+  durability (no longer gated on a refinement flag). `MaxDurability` defaults
+  from `Tier` if authored 0 (`PostInitProperties` / `PostLoad`).
 - `EvolutionType` (`EEvolutionType`) — Balanced / Mind / Body / Spirit / etc.
 - `BaseStatBonus` (`FEquipmentStatBonus`) — evolution stat modifiers. The
   embedded struct's `ClampMin=0` UPROPERTY meta can't be overridden at the
@@ -108,9 +111,9 @@ Immutable design-time definition of an evolution crystal. Key fields:
 Quartz is consumable-only and **cannot exist as a `UEvolutionItemData`
 asset**. `IsDataValid` rejects any `UEvolutionItemData` with
 `CrystalType == Quartz` (error: `"Quartz crystals cannot be evolution crystals — they are consumable only"`).
-`PostEditChangeProperty` additionally force-clears `bIsRefined` if the
-designer switches `CrystalType` to Quartz on an existing asset. Quartz exists
-only as `FCrystalId{Quartz, Tier}` in the `ItemCrystals` pool.
+Quartz exists only as `FCrystalId{Quartz, Tier}` in the `ItemCrystals` pool.
+(The old `PostEditChangeProperty` force-clear of `bIsRefined` on a Quartz
+switch went away with the refinement flag.)
 
 ### UItemExecutor (`UGameInstanceSubsystem`)
 
@@ -218,17 +221,25 @@ independent getters and one authored field — never composed into a single
 formats text on top of the FCrystalId-keyed value tables.
 
 - **`CrystalDescription::GetCrystalText(const FCrystalId &Id)`** — shared
-  identity sentence usable by any crystal kind. Format:
+  identity sentence usable by any crystal kind. Gems:
   `"A {tier-descriptor} {name-lowercase} crystal."`, e.g. Garnet S returns
-  `"A legendary garnet crystal."`. Tier descriptors are F=crude, E=common,
-  D=refined, C=quality, B=exceptional, A=masterwork, S=legendary (supplied by
-  `GetTierDescriptor`).
+  `"A legendary garnet crystal."`. Stones take their own branch
+  (`IsAugmentStoneType`) — a stone is not a crystal:
+  `"A {tier-descriptor} {Spaced Name}."` using the spaced display form of
+  `ItemIdentity::GetTypeName` (which runs stone enum names through
+  `FName::NameToDisplayString`, so `DamageStone` renders `"Damage Stone"`;
+  gem names are single words and keep the literal switch). Tier descriptors
+  are F=crude, E=common, D=refined, C=quality, B=exceptional, A=masterwork,
+  S=legendary (supplied by `GetTierDescriptor`).
 - **`CrystalDescription::GetItemEffectText(const FCrystalId &Id)`** —
   mechanical-effect sentence for item / refined consumable crystals.
   Per-`CrystalType` switch with S-tier conditional alternates (Sapphire,
   Emerald, Onyx) and effect-count branches (Iolite); pluralises turn counts
   (`"1 turn"` vs `"N turns"`). Example (Garnet S):
   `"Applies a fire burn dealing 30% of target's max HP per turn for 1 turn."`
+  Also consumed by the shop detail panel's `Effect:` line (3j — the full
+  mechanical sentence, numbers included, replaces the enum-display
+  parenthetical; see [`MerchantShopSystem.md`](./MerchantShopSystem.md)).
 - **`UEvolutionItemData::GetEvolutionEffectText()`** — evolution-effect
   sentence composed from the asset's `BaseStatBonus` + `Effects`. Parallel to
   `GetItemEffectText`; also returns a self-contained sentence ending in `"."`.
@@ -366,3 +377,5 @@ removed with the transform system.
 | 2026-06-22 | **Sapphire → defy-death** (back-fill; no longer a heal): living target → grants a `LastStand` ward (the `CheckDeath` intercept), dead target → revives (`ServerResurrect`, any tier); routes via `EItemEffectType::DefyDeath`. The instant **heal relocated to the consume-only `HealingStone`** (`EItemEffectType::RestoreHealth` → `ExecuteHealingStoneEffect`; inert if attached — no `StoneTargetStat`). `EItemEffectType::Healing` is now **dead** (superseded by `DefyDeath` + `RestoreHealth`). | item/effect arcs |
 | 2026-06-22 | Cleanup: handler `ExecuteHealingEffect` (Sapphire defy-death, a misnomer since the reshape) renamed `ExecuteDefyDeathEffect`; pure rename, no behaviour change. Stale `ECrystalType` inline `=N` enum-position comments removed (they had drifted 1–3 from real values; append-only positions are what matter). | feature/effect-build-unification |
 | 2026-06-23 | **Crystal Behaviour table stale-row fixes** (doc-only; values reconciled to live `CrystalEffectTable`): Sapphire row was still the old heal curve — replaced with the Last Stand ward window (`GetLastStandWindow`, 2/2/3/3/4/4/5) and a new Healing Stone row for the relocated heal (`GetHealPercent`, 15–60). Amber (`GetBuffPercentage`) and Opal (`GetCritBuffPercent`) corrected to the shared `STAT_CRYSTAL_BUFF_PERCENT` curve (6/10/14/18/22/26/30) — both were pre-`STAT_CRYSTAL_BUFF_PERCENT` literals. Removed the phantom "Onyx energy-lock duration / `GetSilenceDurationNew`" row (no such getter; F–A is a one-shot drain, S-rank a binary 1-turn `Silenced`). Mechanics docs (`Crystals.md`, `AugmentStones.md`) gained player-facing per-tier value tables. | docs/item-tier-value-tables |
+| 2026-07-11 | **`UEvolutionItemData::bIsRefined` REMOVED** — evolution crystals are always slottable (no refinement step). Durability init (`PostInitProperties`/`PostLoad` tier-defaulting) and the `MaxDurability`/`Breakability` edit conditions no longer gate on it; `CanBeSlotted`/`CanHaveSpells`/`IsRefined` retained as always-true BP-compat helpers; the Quartz `PostEditChangeProperty` force-clear went with the flag. Doc also caught up on the pre-existing `bCanBreak` → 3-state `Breakability` swap (code comments swept on-branch). | feature/hub-merchants |
+| 2026-07-11 | **Stone display naming + shop effect text (3j).** `ItemIdentity::GetTypeName` renders stone enum names in spaced display form via `FName::NameToDisplayString` (`DamageStone` → `"Damage Stone"`); `CrystalDescription::GetCrystalText` gives stones their own identity sentence (`"A {tier} {Spaced Name}."` — a stone is not "a … crystal"). The shop detail panel's `Effect:` line now uses `GetItemEffectText`'s full mechanical sentence (Crown-accepted numbers on stone text); Sapphire and DamageStone effect texts reworded/trimmed. | feature/hub-merchants |
