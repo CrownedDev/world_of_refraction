@@ -31,6 +31,8 @@ Mode drives mesh layout (`WeaponMeshComponent`); it is **not** a player-selectab
 
 `WeaponData::bAbilitiesLocked` + `PresetAbilities` — a conjured weapon ships with fixed abilities you **cannot** remove; they occupy its tier slots, so your customisable room is *tier slots − locked count* (slot counts in [`EquipmentSlots.md`](./EquipmentSlots.md)). [Live] (enforced)
 
+Preset abilities are also **priced into the weapon's shop cost** — each at ⅓ of its tier base + 10 Prisms (see [`EconomySystem.md`](../../Architecture/EconomySystem.md)).
+
 ## Switching weapons
 
 Swapping your active weapon mid-combat is a **free in-menu loadout toggle** (`ULoadoutComponent::ToggleEquipment`, via the command menu) — it rebuilds the action menu for the new weapon and **costs no turn and no EP**. It is *not* a costed action through the executor. [Live]

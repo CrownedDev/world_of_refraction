@@ -591,6 +591,25 @@ Equipment price factors **both** Tier and Quality, split 50/50 — each axis con
 
 *F-half = 13 (½ of 25, rounded). *(Open: 50/50 weight confirmed — tier and quality equally valuable. Could shift to tier-weighted later if quality proves too dominant. PIE-tunable.)*
 
+### 5.1c Ring types — 4-type taxonomy (LOCKED 2026-07-11)
+
+Every shop ring is one of four **cost-composed** types. Cost stacks per the
+implemented rules (tier base §5.1; attachment + bundled-skill components per
+the §5.x AS-IMPLEMENTED block):
+
+| # | Type | Composition | Cost (Prisms) | Existing examples |
+|---|------|-------------|---------------|-------------------|
+| 1 | **Template Ring** | bare ring, no attachment — player buys + attaches a crystal after | tier base | `DA_Ring_Generic` |
+| 2 | **Crystal Ring** | tier-matched attached gem crystal, empty `DefaultSpells` (player fills) | tier base + crystal tier base | the 9 gem rings (`DA_Ring_Garnet` … `DA_Ring_Iolite`) |
+| 3 | **Themed Ring** | tier-matched attached gem + 1–2 bundled Generic-pool `DefaultSpells` themed by concept | tier base + crystal tier base + Σ per-spell (base/3 + 10) | the 27 themed rings (`DA_Ring_Emberflame` … `DA_Ring_Sundered`) |
+| 4 | **Evolution Ring** | tier-matched attached evolution crystal | tier base + 2× evolution tier base | none yet — **banked as an intended type** |
+
+Worked at E (base 50): Template **50** · Crystal **100** · Themed **126**
+(1 spell) / **152** (2 spells) · Evolution **150**.
+
+Player-facing summary: `Mechanics/Gear/Rings.md`. Shop stocking:
+`Architecture/MerchantShopSystem.md` (Jeweler).
+
 ### 5.2 Spell purchase = Essence + Prisms (three components)
 
 A spell's full price stacks:
@@ -663,6 +682,14 @@ is now [`../Architecture/EconomySystem.md`](../Architecture/EconomySystem.md):
   → 1.5× the summed half bases.
 - **Quality-half (§5.1b) NOT implemented** — quality is a C placeholder until
   the shop-roll generator lands; equipment prices tier-only today.
+- **Bundled-skill surcharge (3l, 2026-07-11):** each non-null skill bundled on
+  equipment prices at **its tier base / 3 + 10** (integer floor), Prisms-only —
+  no essence on bundled skills. Gates: weapon `PresetAbilities` always;
+  weapon/ring `DefaultSpells` only when a **gem crystal** is attached
+  (`Kind == Crystal`); weapon `DefaultAbilities` only when the attachment can
+  grant stone abilities (augment stone, or a fusion carrying an AbilityStone
+  half). `WeaponAttack` is never priced — weapon identity, part of the base
+  package. Enables the Themed-Ring cost row in §5.1c.
 
 ### 5.3b Evolution — third gear type (premium, persistent attach)
 
