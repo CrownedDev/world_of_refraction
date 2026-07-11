@@ -152,9 +152,16 @@ public:
      * valid stock; a defensive grant failure rolls back every grant and refunds every currency.
      *
      * Per-type cost (symmetric with the dismantle yield):
-     *   - Weapon / Ring : (Prisms base by tier + attached-item surcharge) × Count. Surcharge:
-     *                     crystal/stone → its tier base; evolution → 2× its tier base; fusion →
-     *                     1.5× summed half bases. [quality is the C placeholder until shop-roll]
+     *   - Weapon / Ring : (Prisms base by tier + attached-item surcharge + bundled-skill
+     *                     surcharge) × Count. Attachment: crystal/stone → its tier base;
+     *                     evolution → 2× its tier base; fusion → 1.5× summed half bases.
+     *                     Bundled skills (3l): each non-null skill prices at its tier base / 3
+     *                     + 10, Prisms-only (no essence) — weapon PresetAbilities always;
+     *                     weapon/ring DefaultSpells only when a gem crystal is attached
+     *                     (Kind == Crystal); weapon DefaultAbilities only when the attachment
+     *                     can grant stone abilities (augment stone, or fusion with an
+     *                     AbilityStone half). WeaponAttack is never priced (weapon identity).
+     *                     [quality is the C placeholder until shop-roll]
      *   - Spell         : Prisms base + 50×Σ scaling-grade + element essence @ tier + Σ pillar
      *                     essence per scaling grade. GENERIC-element spells instead price like
      *                     abilities: Prisms base + SkillEssence @ tier (no surcharge, no typed).

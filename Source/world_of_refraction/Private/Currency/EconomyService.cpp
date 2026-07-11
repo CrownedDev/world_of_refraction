@@ -558,6 +558,46 @@ namespace
             return 0;
         }
     }
+
+    /** Prisms surcharge for skills bundled on equipment (3l): each non-null skill
+     *  prices at a third of its tier base + 10 flat (integer floor per the project
+     *  rounding rule). Prisms-only — bundled skills never charge essence. Template
+     *  because DefaultSpells / PresetAbilities are arrays of different derived
+     *  pointers; Tier reads through the shared USkillDataBase. */
+    template <typename TSkill>
+    int32 BundledSkillsPrisms(const TArray<TSkill *> &Skills)
+    {
+        int32 Prisms = 0;
+        for (const TSkill *Skill : Skills)
+        {
+            if (Skill)
+            {
+                Prisms += EconomyYield::GetPrismsBaseForTier(Skill->Tier) / 3 + 10;
+            }
+        }
+        return Prisms;
+    }
+
+    /** True when the attachment can grant augment-stone abilities: any augment
+     *  stone, or a fusion carrying an AbilityStone half (half A is stone-only by
+     *  authoring convention; half B only when authored as a stone). Pricing-side
+     *  mirror of FWeaponLoadoutEntry::GetAugmentStoneAbilities, but tighter — the
+     *  runtime gate passes any fusion and lets the slot cap resolve to 0, while
+     *  pricing must not charge for abilities the attachment cannot grant. */
+    bool HasAbilityStoneAttachment(const UEquipmentDataBase *Eq)
+    {
+        const FAttachedItem &Attached = Eq->AttachedItem;
+        switch (Attached.Kind)
+        {
+        case EAttachedItemKind::AugmentStone:
+            return true;
+        case EAttachedItemKind::Fusion:
+            return Attached.FusionHalfAType == ECrystalType::AbilityStone ||
+                   (!Attached.bFusionHalfBIsCrystal && Attached.FusionHalfBType == ECrystalType::AbilityStone);
+        default:
+            return false;
+        }
+    }
 }
 
 FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &Items) const
@@ -580,13 +620,34 @@ FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &
         UPrimaryDataAsset *Asset = E.Asset;
         if (UWeaponData *W = Cast<UWeaponData>(Asset))
         {
-            // Equipment pricing: Prisms base by tier + authored-attachment surcharge
-            // (quality = C placeholder until shop-roll).
-            Cost.Prisms += (EconomyYield::GetPrismsBaseForTier(W->Tier) + AttachmentPrisms(W)) * FMath::Max(1, E.Count);
+            // Equipment pricing: Prisms base by tier + attachment surcharge + bundled
+            // skills (3l), all per-unit (quality = C placeholder until shop-roll).
+            // PresetAbilities always price — they're baked into what you're buying.
+            // Gem-side DefaultSpells / stone-side DefaultAbilities price only when the
+            // attachment actually grants them. WeaponAttack is the weapon's identity,
+            // never priced.
+            int32 PerUnit = EconomyYield::GetPrismsBaseForTier(W->Tier) + AttachmentPrisms(W) +
+                            BundledSkillsPrisms(W->PresetAbilities);
+            if (W->AttachedItem.Kind == EAttachedItemKind::Crystal)
+            {
+                PerUnit += BundledSkillsPrisms(W->DefaultSpells);
+            }
+            if (HasAbilityStoneAttachment(W))
+            {
+                PerUnit += BundledSkillsPrisms(W->DefaultAbilities);
+            }
+            Cost.Prisms += PerUnit * FMath::Max(1, E.Count);
         }
         else if (URingData *R = Cast<URingData>(Asset))
         {
-            Cost.Prisms += (EconomyYield::GetPrismsBaseForTier(R->Tier) + AttachmentPrisms(R)) * FMath::Max(1, E.Count);
+            // Gem-attached rings price their bundled DefaultSpells (3l — the themed
+            // rings); stone/evolution/fusion attachments don't gem-seed spells.
+            int32 PerUnit = EconomyYield::GetPrismsBaseForTier(R->Tier) + AttachmentPrisms(R);
+            if (R->AttachedItem.Kind == EAttachedItemKind::Crystal)
+            {
+                PerUnit += BundledSkillsPrisms(R->DefaultSpells);
+            }
+            Cost.Prisms += PerUnit * FMath::Max(1, E.Count);
         }
         else if (USpellData *S = Cast<USpellData>(Asset))
         {
