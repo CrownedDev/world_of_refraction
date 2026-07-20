@@ -369,7 +369,7 @@ void UCombatGridSubsystem::DebugLogAllPositions() const
     else
     {
         // Team 0
-        UE_LOG(LogTemp, Display, TEXT("Team 0 (Player):"));
+        UE_LOG(LogTemp, Display, TEXT("LocalParty:"));
         for (const auto &Pair : ActorPositions)
         {
             if (Pair.Value.TeamIndex == 0)
@@ -381,7 +381,7 @@ void UCombatGridSubsystem::DebugLogAllPositions() const
         }
 
         // Team 1
-        UE_LOG(LogTemp, Display, TEXT("Team 1 (Enemy):"));
+        UE_LOG(LogTemp, Display, TEXT("OpposingParty:"));
         for (const auto &Pair : ActorPositions)
         {
             if (Pair.Value.TeamIndex == 1)

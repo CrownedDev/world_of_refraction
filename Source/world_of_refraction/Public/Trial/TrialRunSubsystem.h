@@ -60,8 +60,8 @@ public:
      *  ABattleGameMode consumes the stash on the far side. Ignored (with a
      *  log) when Trial / EncounterLevel / either roster is null or empty. */
     UFUNCTION(BlueprintCallable, Category = "Trial|Encounter")
-    void EnterEncounter(UTrialData *Trial, const TArray<UCharacterData *> &Team0,
-                        const TArray<UCharacterData *> &Team1, EAIDifficulty Difficulty);
+    void EnterEncounter(UTrialData *Trial, const TArray<UCharacterData *> &LocalParty,
+                        const TArray<UCharacterData *> &OpposingParty, EAIDifficulty Difficulty);
 
     /** Return to the trial level the encounter came from (fallback: HubLevel).
      *  The OpenLevel is deferred one tick — this is called from
@@ -71,13 +71,13 @@ public:
 
     /** True while a stashed roster awaits an ABattleGameMode to consume it. */
     UFUNCTION(BlueprintPure, Category = "Trial|Encounter")
-    bool HasPendingEncounter() const { return PendingTeam0.Num() > 0 && PendingTeam1.Num() > 0; }
+    bool HasPendingEncounter() const { return PendingLocalParty.Num() > 0 && PendingOpposingParty.Num() > 0; }
 
     UFUNCTION(BlueprintPure, Category = "Trial|Encounter")
-    TArray<UCharacterData *> GetPendingTeam0() const { return TArray<UCharacterData *>(PendingTeam0); }
+    TArray<UCharacterData *> GetPendingLocalParty() const { return TArray<UCharacterData *>(PendingLocalParty); }
 
     UFUNCTION(BlueprintPure, Category = "Trial|Encounter")
-    TArray<UCharacterData *> GetPendingTeam1() const { return TArray<UCharacterData *>(PendingTeam1); }
+    TArray<UCharacterData *> GetPendingOpposingParty() const { return TArray<UCharacterData *>(PendingOpposingParty); }
 
     UFUNCTION(BlueprintPure, Category = "Trial|Encounter")
     EAIDifficulty GetPendingDifficulty() const { return PendingDifficulty; }
@@ -105,10 +105,10 @@ private:
     /** Encounter roster awaiting the battle level (T-C1). HARD refs — these
      *  pin the authored assets across the OpenLevel (see header ⚠️). */
     UPROPERTY()
-    TArray<TObjectPtr<UCharacterData>> PendingTeam0;
+    TArray<TObjectPtr<UCharacterData>> PendingLocalParty;
 
     UPROPERTY()
-    TArray<TObjectPtr<UCharacterData>> PendingTeam1;
+    TArray<TObjectPtr<UCharacterData>> PendingOpposingParty;
 
     EAIDifficulty PendingDifficulty = EAIDifficulty::Medium;
 

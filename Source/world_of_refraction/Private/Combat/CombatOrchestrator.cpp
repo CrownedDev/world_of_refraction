@@ -130,7 +130,7 @@ void ACombatOrchestrator::EndPlay(const EEndPlayReason::Type EndPlayReason)
 // COMBAT CONTROL
 // ========================================
 
-void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArray<AActor *> &Team1, EAIDifficulty Difficulty)
+void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty, EAIDifficulty Difficulty)
 {
 
 	// Store difficulty
@@ -163,21 +163,21 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 	}
 
 	// Validate teams
-	if (Team0.Num() == 0 || Team1.Num() == 0)
+	if (LocalParty.Num() == 0 || OpposingParty.Num() == 0)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Cannot start combat - empty team(s)!"));
 		return;
 	}
 
 	// Store team references
-	Team0Combatants = Team0;
-	Team1Combatants = Team1;
+	LocalPartyCombatants = LocalParty;
+	OpposingPartyCombatants = OpposingParty;
 
 	// §7 C3 — reset the world-stat earn pool and bind death listeners on BOTH teams (the handler
-	// filters to enemy/Team1 deaths). Mirrors TurnManager's OnDied bind/unbind lifecycle; AddUnique
+	// filters to enemy/OpposingParty deaths). Mirrors TurnManager's OnDied bind/unbind lifecycle; AddUnique
 	// so a re-init can't double-bind. Unbound in HandleCombatEnded before the team arrays empty.
 	PendingWorldStatPool = 0;
-	for (const TArray<AActor *> *Team : {&Team0Combatants, &Team1Combatants})
+	for (const TArray<AActor *> *Team : {&LocalPartyCombatants, &OpposingPartyCombatants})
 	{
 		for (AActor *Actor : *Team)
 		{
@@ -208,8 +208,8 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 	{
 		FVector ArenaCenter = GetActorLocation();
 
-		Grid->AutoAssignTeam(Team0Combatants, 0, ECombatRow::Middle);
-		Grid->AutoAssignTeam(Team1Combatants, 1, ECombatRow::Middle);
+		Grid->AutoAssignTeam(LocalPartyCombatants, 0, ECombatRow::Middle);
+		Grid->AutoAssignTeam(OpposingPartyCombatants, 1, ECombatRow::Middle);
 		Grid->PlaceAllActors(ArenaCenter);
 		Grid->UpdateAllActorFacing(ArenaCenter);
 
@@ -219,7 +219,7 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 	// Initialise weather leaders
 	if (UWeatherStateManager *WeatherManager = GetGameInstance()->GetSubsystem<UWeatherStateManager>())
 	{
-		WeatherManager->InitialiseLeaders(Team0Combatants, Team1Combatants);
+		WeatherManager->InitialiseLeaders(LocalPartyCombatants, OpposingPartyCombatants);
 	}
 
 	// Set arena center for ActionExecutor movement calculations
@@ -237,13 +237,13 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 
 	BindTurnManagerEvents();
 
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Starting combat: Team0 (%d) vs Team1 (%d)"),
-		   Team0.Num(), Team1.Num());
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Starting combat: LocalParty (%d) vs OpposingParty (%d)"),
+		   LocalParty.Num(), OpposingParty.Num());
 
 	// Initialize TurnManager (this will trigger first OnTurnStarted)
-	TurnManagerRef->InitializeCombat(Team0, Team1);
+	TurnManagerRef->InitializeCombat(LocalParty, OpposingParty);
 
-	OnCombatStartedUI(Team0Combatants, Team1Combatants);
+	OnCombatStartedUI(LocalPartyCombatants, OpposingPartyCombatants);
 
 	SetCombatState(ECombatState::InProgress);
 }
@@ -274,14 +274,14 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 	// Reset all status bars — split out of SkillEffectManager into a dedicated subsystem.
 	if (UStatusBuildupManager *BuildupManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr)
 	{
-		for (AActor *Actor : Team0Combatants)
+		for (AActor *Actor : LocalPartyCombatants)
 		{
 			if (Actor)
 			{
 				BuildupManager->ResetStatusBar(Actor);
 			}
 		}
-		for (AActor *Actor : Team1Combatants)
+		for (AActor *Actor : OpposingPartyCombatants)
 		{
 			if (Actor)
 			{
@@ -317,8 +317,8 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 	}
 
 	// Reset for next combat
-	Team0Combatants.Empty();
-	Team1Combatants.Empty();
+	LocalPartyCombatants.Empty();
+	OpposingPartyCombatants.Empty();
 	CurrentActor = nullptr;
 	CurrentTurnNumber = 0;
 	bWaitingForAsyncAction = false;
@@ -585,8 +585,8 @@ void ACombatOrchestrator::OnActionCompleted()
 		OnCombatResultReady.Broadcast(Result);
 
 		// Reset for next combat
-		Team0Combatants.Empty();
-		Team1Combatants.Empty();
+		LocalPartyCombatants.Empty();
+		OpposingPartyCombatants.Empty();
 		CurrentActor = nullptr;
 		DeferredPayloads.Empty(); // W-B: no armed ritual leaks across combats
 
@@ -767,7 +767,7 @@ void ACombatOrchestrator::HandleCombatEnded(int32 FinalTurnCount)
 
 		// Unbind the death listeners bound in StartCombat — BEFORE the team arrays empty (they hold
 		// the actor refs). Defensive IsValid: an actor may have been destroyed mid-combat.
-		for (const TArray<AActor *> *Team : {&Team0Combatants, &Team1Combatants})
+		for (const TArray<AActor *> *Team : {&LocalPartyCombatants, &OpposingPartyCombatants})
 		{
 			for (AActor *Actor : *Team)
 			{
@@ -782,8 +782,8 @@ void ACombatOrchestrator::HandleCombatEnded(int32 FinalTurnCount)
 			}
 		}
 
-		Team0Combatants.Empty();
-		Team1Combatants.Empty();
+		LocalPartyCombatants.Empty();
+		OpposingPartyCombatants.Empty();
 		CurrentActor = nullptr;
 		DeferredPayloads.Empty(); // W-B: no armed ritual leaks across combats
 
@@ -801,8 +801,8 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 	{
 		return;
 	}
-	// Only ENEMY (Team1) deaths feed the pool — a player-side (Team0) death grants nothing.
-	if (!Team1Combatants.Contains(Victim))
+	// Only ENEMY (OpposingParty) deaths feed the pool — a player-side (LocalParty) death grants nothing.
+	if (!OpposingPartyCombatants.Contains(Victim))
 	{
 		return;
 	}
@@ -823,9 +823,9 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 
 void ACombatOrchestrator::DebugApplyPendingWorldStats()
 {
-	// DEBUG-ONLY placeholder — dump the whole pending pool into Mind on the player team (Team0), to
+	// DEBUG-ONLY placeholder — dump the whole pending pool into Mind on the player team (LocalParty), to
 	// prove the pool->grant pipe in PIE. The REAL draft is the deferred 5-pick-3 UI on
-	// OnWorldStatDraftReady. Falls back to the first player pawn if Team0 has emptied (post-combat).
+	// OnWorldStatDraftReady. Falls back to the first player pawn if LocalParty has emptied (post-combat).
 	int32 Applied = 0;
 	auto ApplyTo = [this, &Applied](AActor *Actor)
 	{
@@ -835,9 +835,9 @@ void ACombatOrchestrator::DebugApplyPendingWorldStats()
 			++Applied;
 		}
 	};
-	if (Team0Combatants.Num() > 0)
+	if (LocalPartyCombatants.Num() > 0)
 	{
-		for (AActor *Actor : Team0Combatants)
+		for (AActor *Actor : LocalPartyCombatants)
 		{
 			ApplyTo(Actor);
 		}
@@ -858,7 +858,7 @@ void ACombatOrchestrator::DebugApplyPendingWorldStats()
 void ACombatOrchestrator::DebugPrintWorldStats() const
 {
 	UE_LOG(LogTemp, Display, TEXT("[CombatOrchestrator] Pending WSP pool: %d"), PendingWorldStatPool);
-	for (AActor *Actor : Team0Combatants)
+	for (AActor *Actor : LocalPartyCombatants)
 	{
 		if (const UCharacterDataComponent *Comp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
 		{
@@ -1036,20 +1036,20 @@ void ACombatOrchestrator::RequestActionFromActor(AActor *Actor)
 
 ECombatState ACombatOrchestrator::CheckWinCondition()
 {
-	int32 Team0Alive = CountLivingMembers(Team0Combatants);
-	int32 Team1Alive = CountLivingMembers(Team1Combatants);
+	int32 LocalPartyAlive = CountLivingMembers(LocalPartyCombatants);
+	int32 OpposingPartyAlive = CountLivingMembers(OpposingPartyCombatants);
 
-	if (Team0Alive == 0 && Team1Alive == 0)
+	if (LocalPartyAlive == 0 && OpposingPartyAlive == 0)
 	{
 		return ECombatState::Draw;
 	}
-	else if (Team1Alive == 0)
+	else if (OpposingPartyAlive == 0)
 	{
-		return ECombatState::Victory; // Team0 (players) win
+		return ECombatState::Victory; // LocalParty wins
 	}
-	else if (Team0Alive == 0)
+	else if (LocalPartyAlive == 0)
 	{
-		return ECombatState::Defeat; // Team1 (enemies) win
+		return ECombatState::Defeat; // OpposingParty wins
 	}
 
 	return ECombatState::InProgress;
@@ -1082,9 +1082,9 @@ bool ACombatOrchestrator::IsActorAlive(AActor *Actor) const
 
 int32 ACombatOrchestrator::GetActorTeamIndex(AActor *Actor) const
 {
-	if (Team0Combatants.Contains(Actor))
+	if (LocalPartyCombatants.Contains(Actor))
 		return 0;
-	if (Team1Combatants.Contains(Actor))
+	if (OpposingPartyCombatants.Contains(Actor))
 		return 1;
 	return -1;
 }
@@ -1093,9 +1093,9 @@ TArray<AActor *> ACombatOrchestrator::GetEnemyTeam(AActor *Actor) const
 {
 	int32 TeamIndex = GetActorTeamIndex(Actor);
 	if (TeamIndex == 0)
-		return Team1Combatants;
+		return OpposingPartyCombatants;
 	if (TeamIndex == 1)
-		return Team0Combatants;
+		return LocalPartyCombatants;
 	return TArray<AActor *>();
 }
 
@@ -1104,13 +1104,13 @@ FCombatResult ACombatOrchestrator::BuildCombatResult()
 	FCombatResult Result;
 	Result.FinalState = CombatState;
 	Result.TotalTurns = CurrentTurnNumber;
-	Result.Team0Survivors = CountLivingMembers(Team0Combatants);
-	Result.Team1Survivors = CountLivingMembers(Team1Combatants);
+	Result.LocalPartySurvivors = CountLivingMembers(LocalPartyCombatants);
+	Result.OpposingPartySurvivors = CountLivingMembers(OpposingPartyCombatants);
 
 	// Find last standing actor (for victory screen)
-	if (Result.Team0Survivors > 0)
+	if (Result.LocalPartySurvivors > 0)
 	{
-		for (AActor *Actor : Team0Combatants)
+		for (AActor *Actor : LocalPartyCombatants)
 		{
 			if (IsActorAlive(Actor))
 			{
@@ -1119,9 +1119,9 @@ FCombatResult ACombatOrchestrator::BuildCombatResult()
 			}
 		}
 	}
-	else if (Result.Team1Survivors > 0)
+	else if (Result.OpposingPartySurvivors > 0)
 	{
-		for (AActor *Actor : Team1Combatants)
+		for (AActor *Actor : OpposingPartyCombatants)
 		{
 			if (IsActorAlive(Actor))
 			{
@@ -1179,12 +1179,12 @@ void ACombatOrchestrator::PrepareAllLoadoutsForBattle()
 		}
 	};
 
-	for (AActor *Actor : Team0Combatants)
+	for (AActor *Actor : LocalPartyCombatants)
 	{
 		PrepareActor(Actor);
 	}
 
-	for (AActor *Actor : Team1Combatants)
+	for (AActor *Actor : OpposingPartyCombatants)
 	{
 		PrepareActor(Actor);
 	}
@@ -1227,11 +1227,11 @@ TArray<AActor *> ACombatOrchestrator::GetLivingAllies(AActor *ForActor) const
 
 	if (TeamIndex == 0)
 	{
-		Allies = Team0Combatants;
+		Allies = LocalPartyCombatants;
 	}
 	else if (TeamIndex == 1)
 	{
-		Allies = Team1Combatants;
+		Allies = OpposingPartyCombatants;
 	}
 
 	// Remove self and dead allies
@@ -1266,7 +1266,7 @@ TArray<AActor *> ACombatOrchestrator::GetCombatantsInRange(AActor *Origin, float
 	FVector OriginLocation = Origin->GetActorLocation();
 
 	// Check all combatants from both teams
-	for (AActor *Combatant : Team0Combatants)
+	for (AActor *Combatant : LocalPartyCombatants)
 	{
 		if (Combatant && Combatant != Origin && IsActorAlive(Combatant))
 		{
@@ -1278,7 +1278,7 @@ TArray<AActor *> ACombatOrchestrator::GetCombatantsInRange(AActor *Origin, float
 		}
 	}
 
-	for (AActor *Combatant : Team1Combatants)
+	for (AActor *Combatant : OpposingPartyCombatants)
 	{
 		if (Combatant && Combatant != Origin && IsActorAlive(Combatant))
 		{
@@ -1562,8 +1562,8 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 		}
 	};
 
-	DestroyTeam(Team0Combatants);
-	DestroyTeam(Team1Combatants);
+	DestroyTeam(LocalPartyCombatants);
+	DestroyTeam(OpposingPartyCombatants);
 
 	if (CrystalsDestroyed > 0)
 	{
@@ -1630,8 +1630,8 @@ void ACombatOrchestrator::ApplyBetweenCombatRepair()
 		}
 	};
 
-	RepairTeam(Team0Combatants);
-	RepairTeam(Team1Combatants);
+	RepairTeam(LocalPartyCombatants);
+	RepairTeam(OpposingPartyCombatants);
 
 	if (CrystalsRepaired > 0)
 	{
@@ -1655,8 +1655,8 @@ void ACombatOrchestrator::DebugPrintCombatState()
 		   bAutoAdvanceTurns ? TEXT("ON") : TEXT("OFF"), AutoAdvanceDelay);
 	UE_LOG(LogTemp, Display, TEXT("Waiting for Async: %s"), bWaitingForAsyncAction ? TEXT("Yes") : TEXT("No"));
 
-	UE_LOG(LogTemp, Display, TEXT("\nTeam 0 (%d members):"), Team0Combatants.Num());
-	for (AActor *Actor : Team0Combatants)
+	UE_LOG(LogTemp, Display, TEXT("\nTeam 0 (%d members):"), LocalPartyCombatants.Num());
+	for (AActor *Actor : LocalPartyCombatants)
 	{
 		UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
 		if (Comp)
@@ -1673,8 +1673,8 @@ void ACombatOrchestrator::DebugPrintCombatState()
 		}
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("\nTeam 1 (%d members):"), Team1Combatants.Num());
-	for (AActor *Actor : Team1Combatants)
+	UE_LOG(LogTemp, Display, TEXT("\nTeam 1 (%d members):"), OpposingPartyCombatants.Num());
+	for (AActor *Actor : OpposingPartyCombatants)
 	{
 		UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
 		if (Comp)
@@ -1693,36 +1693,36 @@ void ACombatOrchestrator::DebugPrintCombatState()
 
 	UE_LOG(LogTemp, Display, TEXT("================================="));
 }
-void ACombatOrchestrator::DebugDamageTeam0()
+void ACombatOrchestrator::DebugDamageLocalParty()
 {
-	for (AActor *Actor : Team0Combatants)
+	for (AActor *Actor : LocalPartyCombatants)
 	{
 		if (UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>())
 			Comp->ServerTakeDamage(DebugDamageAmount);
 	}
 }
 
-void ACombatOrchestrator::DebugDamageTeam1()
+void ACombatOrchestrator::DebugDamageOpposingParty()
 {
-	for (AActor *Actor : Team1Combatants)
+	for (AActor *Actor : OpposingPartyCombatants)
 	{
 		if (UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>())
 			Comp->ServerTakeDamage(DebugDamageAmount);
 	}
 }
 
-void ACombatOrchestrator::DebugSpendEPTeam0()
+void ACombatOrchestrator::DebugSpendEPLocalParty()
 {
-	for (AActor *Actor : Team0Combatants)
+	for (AActor *Actor : LocalPartyCombatants)
 	{
 		if (UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>())
 			Comp->ServerSpendEnergy(DebugDamageAmount);
 	}
 }
 
-void ACombatOrchestrator::DebugSpendEPTeam1()
+void ACombatOrchestrator::DebugSpendEPOpposingParty()
 {
-	for (AActor *Actor : Team1Combatants)
+	for (AActor *Actor : OpposingPartyCombatants)
 	{
 		if (UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>())
 			Comp->ServerSpendEnergy(DebugDamageAmount);
@@ -1737,10 +1737,10 @@ void ACombatOrchestrator::DebugApplyStatusBuildup()
 
 	// Session Y: manager resolves trigger from (Element, PhysicalType).
 	// Fire + None → DOT (same trigger this debug menu used pre-Y).
-	for (AActor *Actor : Team0Combatants)
+	for (AActor *Actor : LocalPartyCombatants)
 		BuildupManager->AddStatusBuildup(nullptr, Actor, DebugStatusBuildupAmount, ESpellElement::Fire, EPhysicalDamageType::None);
 
-	for (AActor *Actor : Team1Combatants)
+	for (AActor *Actor : OpposingPartyCombatants)
 		BuildupManager->AddStatusBuildup(nullptr, Actor, DebugStatusBuildupAmount, ESpellElement::Fire, EPhysicalDamageType::None);
 }
 
@@ -1771,7 +1771,7 @@ void ACombatOrchestrator::DebugKillActor(AActor *Actor)
 
 void ACombatOrchestrator::DebugHealAllTeam(int32 TeamIndex)
 {
-	TArray<AActor *> &Team = (TeamIndex == 0) ? Team0Combatants : Team1Combatants;
+	TArray<AActor *> &Team = (TeamIndex == 0) ? LocalPartyCombatants : OpposingPartyCombatants;
 
 	for (AActor *Actor : Team)
 	{
@@ -1842,15 +1842,15 @@ void ACombatOrchestrator::DebugTestAttackMovement()
 
 	// Find target from opposing team
 	AActor *Target = nullptr;
-	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
+	bool bActorInLocalParty = LocalPartyCombatants.Contains(Actor);
 
-	if (bActorInTeam0 && Team1Combatants.Num() > 0)
+	if (bActorInLocalParty && OpposingPartyCombatants.Num() > 0)
 	{
-		Target = Team1Combatants[0];
+		Target = OpposingPartyCombatants[0];
 	}
-	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
+	else if (!bActorInLocalParty && LocalPartyCombatants.Num() > 0)
 	{
-		Target = Team0Combatants[0];
+		Target = LocalPartyCombatants[0];
 	}
 
 	if (!Target)
@@ -1904,15 +1904,15 @@ void ACombatOrchestrator::DebugTestAbilityMovement()
 
 	// Find target from opposing team
 	AActor *Target = nullptr;
-	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
+	bool bActorInLocalParty = LocalPartyCombatants.Contains(Actor);
 
-	if (bActorInTeam0 && Team1Combatants.Num() > 0)
+	if (bActorInLocalParty && OpposingPartyCombatants.Num() > 0)
 	{
-		Target = Team1Combatants[0];
+		Target = OpposingPartyCombatants[0];
 	}
-	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
+	else if (!bActorInLocalParty && LocalPartyCombatants.Num() > 0)
 	{
-		Target = Team0Combatants[0];
+		Target = LocalPartyCombatants[0];
 	}
 
 	if (!Target)
@@ -1975,15 +1975,15 @@ void ACombatOrchestrator::DebugTestSpellMovement()
 
 	// Find target from opposing team
 	AActor *Target = nullptr;
-	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
+	bool bActorInLocalParty = LocalPartyCombatants.Contains(Actor);
 
-	if (bActorInTeam0 && Team1Combatants.Num() > 0)
+	if (bActorInLocalParty && OpposingPartyCombatants.Num() > 0)
 	{
-		Target = Team1Combatants[0];
+		Target = OpposingPartyCombatants[0];
 	}
-	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
+	else if (!bActorInLocalParty && LocalPartyCombatants.Num() > 0)
 	{
-		Target = Team0Combatants[0];
+		Target = LocalPartyCombatants[0];
 	}
 
 	if (!Target)
@@ -2058,15 +2058,15 @@ void ACombatOrchestrator::DebugTestItemOnEnemy()
 
 	// Find enemy target
 	AActor *Target = nullptr;
-	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
+	bool bActorInLocalParty = LocalPartyCombatants.Contains(Actor);
 
-	if (bActorInTeam0 && Team1Combatants.Num() > 0)
+	if (bActorInLocalParty && OpposingPartyCombatants.Num() > 0)
 	{
-		Target = Team1Combatants[0];
+		Target = OpposingPartyCombatants[0];
 	}
-	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
+	else if (!bActorInLocalParty && LocalPartyCombatants.Num() > 0)
 	{
-		Target = Team0Combatants[0];
+		Target = LocalPartyCombatants[0];
 	}
 
 	if (!Target)
@@ -2191,8 +2191,8 @@ void ACombatOrchestrator::DebugTestItemOnAlly()
 
 	// Find ally target (same team, different actor)
 	AActor *Ally = nullptr;
-	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
-	TArray<AActor *> &TeamArray = bActorInTeam0 ? Team0Combatants : Team1Combatants;
+	bool bActorInLocalParty = LocalPartyCombatants.Contains(Actor);
+	TArray<AActor *> &TeamArray = bActorInLocalParty ? LocalPartyCombatants : OpposingPartyCombatants;
 
 	for (AActor *Teammate : TeamArray)
 	{
@@ -2269,15 +2269,15 @@ void ACombatOrchestrator::DebugExecuteAsyncAttack()
 
 	// Find target from opposing team
 	AActor *Target = nullptr;
-	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
+	bool bActorInLocalParty = LocalPartyCombatants.Contains(Actor);
 
-	if (bActorInTeam0 && Team1Combatants.Num() > 0)
+	if (bActorInLocalParty && OpposingPartyCombatants.Num() > 0)
 	{
-		Target = Team1Combatants[0];
+		Target = OpposingPartyCombatants[0];
 	}
-	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
+	else if (!bActorInLocalParty && LocalPartyCombatants.Num() > 0)
 	{
-		Target = Team0Combatants[0];
+		Target = LocalPartyCombatants[0];
 	}
 
 	if (!Target)
@@ -2331,15 +2331,15 @@ void ACombatOrchestrator::DebugExecuteAsyncSpell()
 
 	// Find target from opposing team
 	AActor *Target = nullptr;
-	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
+	bool bActorInLocalParty = LocalPartyCombatants.Contains(Actor);
 
-	if (bActorInTeam0 && Team1Combatants.Num() > 0)
+	if (bActorInLocalParty && OpposingPartyCombatants.Num() > 0)
 	{
-		Target = Team1Combatants[0];
+		Target = OpposingPartyCombatants[0];
 	}
-	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
+	else if (!bActorInLocalParty && LocalPartyCombatants.Num() > 0)
 	{
-		Target = Team0Combatants[0];
+		Target = LocalPartyCombatants[0];
 	}
 
 	if (!Target)
@@ -2404,11 +2404,11 @@ void ACombatOrchestrator::DebugTestPrimarySpell()
 	}
 
 	AActor *Target = nullptr;
-	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
-	if (bActorInTeam0 && Team1Combatants.Num() > 0)
-		Target = Team1Combatants[0];
-	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
-		Target = Team0Combatants[0];
+	bool bActorInLocalParty = LocalPartyCombatants.Contains(Actor);
+	if (bActorInLocalParty && OpposingPartyCombatants.Num() > 0)
+		Target = OpposingPartyCombatants[0];
+	else if (!bActorInLocalParty && LocalPartyCombatants.Num() > 0)
+		Target = LocalPartyCombatants[0];
 
 	if (!Target)
 	{
@@ -2456,11 +2456,11 @@ void ACombatOrchestrator::DebugTestSecondarySpell()
 	}
 
 	AActor *Target = nullptr;
-	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
-	if (bActorInTeam0 && Team1Combatants.Num() > 0)
-		Target = Team1Combatants[0];
-	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
-		Target = Team0Combatants[0];
+	bool bActorInLocalParty = LocalPartyCombatants.Contains(Actor);
+	if (bActorInLocalParty && OpposingPartyCombatants.Num() > 0)
+		Target = OpposingPartyCombatants[0];
+	else if (!bActorInLocalParty && LocalPartyCombatants.Num() > 0)
+		Target = LocalPartyCombatants[0];
 
 	if (!Target)
 	{
@@ -2509,15 +2509,15 @@ void ACombatOrchestrator::DebugExecuteAsyncAbility()
 
 	// Find target from opposing team
 	AActor *Target = nullptr;
-	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
+	bool bActorInLocalParty = LocalPartyCombatants.Contains(Actor);
 
-	if (bActorInTeam0 && Team1Combatants.Num() > 0)
+	if (bActorInLocalParty && OpposingPartyCombatants.Num() > 0)
 	{
-		Target = Team1Combatants[0];
+		Target = OpposingPartyCombatants[0];
 	}
-	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
+	else if (!bActorInLocalParty && LocalPartyCombatants.Num() > 0)
 	{
-		Target = Team0Combatants[0];
+		Target = LocalPartyCombatants[0];
 	}
 
 	if (!Target)
@@ -2599,47 +2599,47 @@ void ACombatOrchestrator::DebugStartCombatWithLevelActors()
 	}
 
 	// Find actors by tag
-	TArray<AActor *> Team0;
-	TArray<AActor *> Team1;
+	TArray<AActor *> LocalParty;
+	TArray<AActor *> OpposingParty;
 
 	TArray<AActor *> AllActors;
-	UGameplayStatics::GetAllActorsWithTag(World, FName("Team0"), AllActors);
+	UGameplayStatics::GetAllActorsWithTag(World, FName("LocalParty"), AllActors);
 	for (AActor *Actor : AllActors)
 	{
 		if (Actor->FindComponentByClass<UCharacterDataComponent>())
 		{
-			Team0.Add(Actor);
-			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Found Team0: %s"), *Actor->GetName());
+			LocalParty.Add(Actor);
+			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Found LocalParty: %s"), *Actor->GetName());
 		}
 	}
 
 	AllActors.Empty();
-	UGameplayStatics::GetAllActorsWithTag(World, FName("Team1"), AllActors);
+	UGameplayStatics::GetAllActorsWithTag(World, FName("OpposingParty"), AllActors);
 	for (AActor *Actor : AllActors)
 	{
 		if (Actor->FindComponentByClass<UCharacterDataComponent>())
 		{
-			Team1.Add(Actor);
-			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Found Team1: %s"), *Actor->GetName());
+			OpposingParty.Add(Actor);
+			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Found OpposingParty: %s"), *Actor->GetName());
 		}
 	}
 
 	// Validate
-	if (Team0.Num() == 0)
+	if (LocalParty.Num() == 0)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] No actors with 'Team0' tag found. Add tag to player characters."));
+		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] No actors with 'LocalParty' tag found. Add tag to player characters."));
 		return;
 	}
-	if (Team1.Num() == 0)
+	if (OpposingParty.Num() == 0)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] No actors with 'Team1' tag found. Add tag to enemy characters."));
+		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] No actors with 'OpposingParty' tag found. Add tag to enemy characters."));
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Starting combat: %d vs %d"), Team0.Num(), Team1.Num());
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Starting combat: %d vs %d"), LocalParty.Num(), OpposingParty.Num());
 
 	// Start combat (handles grid assignment and actor placement)
-	StartCombat(Team0, Team1);
+	StartCombat(LocalParty, OpposingParty);
 
 	// Draw debug visualization
 	DebugDrawCombatGrid(10.0f);
@@ -2666,12 +2666,12 @@ void ACombatOrchestrator::ConsumeAllUsedItems()
 		}
 	};
 
-	for (AActor *Actor : Team0Combatants)
+	for (AActor *Actor : LocalPartyCombatants)
 	{
 		ConsumeForActor(Actor);
 	}
 
-	for (AActor *Actor : Team1Combatants)
+	for (AActor *Actor : OpposingPartyCombatants)
 	{
 		ConsumeForActor(Actor);
 	}
@@ -2728,8 +2728,8 @@ void ACombatOrchestrator::DebugSelectTarget(int32 EnemyIndex)
 		return;
 	}
 
-	int32 CurrentTeam = Team0Combatants.Contains(CurrentActor) ? 0 : 1;
-	TArray<AActor *> &EnemyTeam = (CurrentTeam == 0) ? Team1Combatants : Team0Combatants;
+	int32 CurrentTeam = LocalPartyCombatants.Contains(CurrentActor) ? 0 : 1;
+	TArray<AActor *> &EnemyTeam = (CurrentTeam == 0) ? OpposingPartyCombatants : LocalPartyCombatants;
 
 	if (EnemyIndex < 0 || EnemyIndex >= EnemyTeam.Num())
 	{
@@ -2753,8 +2753,8 @@ void ACombatOrchestrator::DebugAttackSelectedTarget()
 		return;
 	}
 
-	int32 CurrentTeam = Team0Combatants.Contains(CurrentActor) ? 0 : 1;
-	TArray<AActor *> &EnemyTeam = (CurrentTeam == 0) ? Team1Combatants : Team0Combatants;
+	int32 CurrentTeam = LocalPartyCombatants.Contains(CurrentActor) ? 0 : 1;
+	TArray<AActor *> &EnemyTeam = (CurrentTeam == 0) ? OpposingPartyCombatants : LocalPartyCombatants;
 
 	if (DebugSelectedTargetIndex >= EnemyTeam.Num())
 	{

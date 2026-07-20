@@ -47,10 +47,10 @@ struct FCombatResult
 	int32 TotalTurns = 0;
 
 	UPROPERTY(BlueprintReadOnly)
-	int32 Team0Survivors = 0;
+	int32 LocalPartySurvivors = 0;
 
 	UPROPERTY(BlueprintReadOnly)
-	int32 Team1Survivors = 0;
+	int32 OpposingPartySurvivors = 0;
 
 	UPROPERTY(BlueprintReadOnly)
 	AActor *LastActorStanding = nullptr;
@@ -129,13 +129,16 @@ public:
 	// COMBAT CONTROL
 	// ========================================
 
-	/** Start combat between two teams. Team 0 = players, Team 1 = enemies (by convention) */
+	/** Start combat between two parties. LocalParty is the local player's side
+	 *  (TeamIndex 0), OpposingParty is whatever opposes them (TeamIndex 1).
+	 *  Perspective-based: under PvP both sides are player parties, each client
+	 *  seeing itself as LocalParty. */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void StartCombat(const TArray<AActor *> &Team0, const TArray<AActor *> &Team1, EAIDifficulty Difficulty = EAIDifficulty::Medium);
+	void StartCombat(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty, EAIDifficulty Difficulty = EAIDifficulty::Medium);
 
 	// Blueprint event fired when combat starts - override in BP to create HUD
 	UFUNCTION(BlueprintImplementableEvent, Category = "Combat|UI")
-	void OnCombatStartedUI(const TArray<AActor *> &Team0, const TArray<AActor *> &Team1);
+	void OnCombatStartedUI(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty);
 
 	/** Force end combat (e.g., flee, cutscene interrupt) */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
@@ -187,10 +190,10 @@ public:
 	int32 GetCurrentTurnNumber() const { return CurrentTurnNumber; }
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
-	const TArray<AActor *> &GetTeam0() const { return Team0Combatants; }
+	const TArray<AActor *> &GetLocalParty() const { return LocalPartyCombatants; }
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
-	const TArray<AActor *> &GetTeam1() const { return Team1Combatants; }
+	const TArray<AActor *> &GetOpposingParty() const { return OpposingPartyCombatants; }
 
 	/** Check if it's currently this actor's turn */
 	UFUNCTION(BlueprintPure, Category = "Combat")
@@ -301,16 +304,16 @@ public:
 
 	// Change functions to no parameters
 	UFUNCTION(CallInEditor, Category = "Combat|Debug")
-	void DebugDamageTeam0();
+	void DebugDamageLocalParty();
 
 	UFUNCTION(CallInEditor, Category = "Combat|Debug")
-	void DebugDamageTeam1();
+	void DebugDamageOpposingParty();
 
 	UFUNCTION(CallInEditor, BlueprintCallable, Category = "Combat|Debug")
-	void DebugSpendEPTeam0();
+	void DebugSpendEPLocalParty();
 
 	UFUNCTION(CallInEditor, BlueprintCallable, Category = "Combat|Debug")
-	void DebugSpendEPTeam1();
+	void DebugSpendEPOpposingParty();
 
 	UFUNCTION(CallInEditor, Category = "Combat|Debug")
 	void DebugApplyStatusBuildup();
@@ -433,10 +436,10 @@ private:
 	ECombatState CombatState;
 
 	UPROPERTY()
-	TArray<AActor *> Team0Combatants;
+	TArray<AActor *> LocalPartyCombatants;
 
 	UPROPERTY()
-	TArray<AActor *> Team1Combatants;
+	TArray<AActor *> OpposingPartyCombatants;
 
 	/** §7 C3 — World Stat Points earned THIS encounter (enemy kills, caliber-scaled). Reset at
 	 *  combat start; fed by OnCombatantDied; surfaced via OnWorldStatDraftReady on a player win. */
@@ -444,8 +447,8 @@ private:
 	int32 PendingWorldStatPool = 0;
 
 	/** Death listener bound per-combatant in StartCombat (both teams), unbound at combat end —
-	 *  mirrors TurnManager's OnDied lifecycle. Enemy (Team1) deaths add caliber WSP to the pool;
-	 *  player (Team0) deaths are ignored. UFUNCTION so it can bind to the dynamic OnDied delegate. */
+	 *  mirrors TurnManager's OnDied lifecycle. Enemy (OpposingParty) deaths add caliber WSP to the pool;
+	 *  player (LocalParty) deaths are ignored. UFUNCTION so it can bind to the dynamic OnDied delegate. */
 	UFUNCTION()
 	void OnCombatantDied(AActor *Victim);
 

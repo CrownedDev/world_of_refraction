@@ -31,11 +31,11 @@ public:
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat Tests")
 	void Test_BasicCombatFlow();
 
-	/** Test win condition (Team0 wins) */
+	/** Test win condition (LocalParty wins) */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat Tests")
 	void Test_VictoryCondition();
 
-	/** Test defeat condition (Team1 wins) */
+	/** Test defeat condition (OpposingParty wins) */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat Tests")
 	void Test_DefeatCondition();
 

@@ -21,8 +21,8 @@ namespace
 void UWeatherStateManager::Initialize(FSubsystemCollectionBase &Collection)
 {
     Super::Initialize(Collection);
-    Team0Hierarchy.Empty();
-    Team1Hierarchy.Empty();
+    LocalPartyHierarchy.Empty();
+    OpposingPartyHierarchy.Empty();
     UE_LOG(LogTemp, Log, TEXT("[WeatherStateManager] Initialized"));
 }
 
@@ -36,21 +36,21 @@ void UWeatherStateManager::Deinitialize()
 // COMBAT SETUP
 // ========================================
 
-void UWeatherStateManager::InitialiseLeaders(const TArray<AActor *> &Team0, const TArray<AActor *> &Team1)
+void UWeatherStateManager::InitialiseLeaders(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty)
 {
     EndCombat();
 
-    Team0Hierarchy = BuildHierarchy(Team0);
-    Team1Hierarchy = BuildHierarchy(Team1);
+    LocalPartyHierarchy = BuildHierarchy(LocalParty);
+    OpposingPartyHierarchy = BuildHierarchy(OpposingParty);
 
-    BindToTeam(Team0Hierarchy, true);
-    BindToTeam(Team1Hierarchy, false);
+    BindToTeam(LocalPartyHierarchy, true);
+    BindToTeam(OpposingPartyHierarchy, false);
 
     RecalculateWeather();
 
-    UE_LOG(LogTemp, Log, TEXT("[WeatherStateManager] Leaders initialised - Team0: %s, Team1: %s"),
-           Team0Hierarchy.Num() > 0 ? *Team0Hierarchy[0].Actor->GetName() : TEXT("None"),
-           Team1Hierarchy.Num() > 0 ? *Team1Hierarchy[0].Actor->GetName() : TEXT("None"));
+    UE_LOG(LogTemp, Log, TEXT("[WeatherStateManager] Leaders initialised - LocalParty: %s, OpposingParty: %s"),
+           LocalPartyHierarchy.Num() > 0 ? *LocalPartyHierarchy[0].Actor->GetName() : TEXT("None"),
+           OpposingPartyHierarchy.Num() > 0 ? *OpposingPartyHierarchy[0].Actor->GetName() : TEXT("None"));
 }
 
 void UWeatherStateManager::EndCombat()
@@ -59,30 +59,30 @@ void UWeatherStateManager::EndCombat()
     // subscriptions added by BindToTeam. Defensive null-guards on actor and
     // component for the (rare) case an actor was destroyed mid-combat without
     // notifying us.
-    for (const FLeadershipEntry &Entry : Team0Hierarchy)
+    for (const FLeadershipEntry &Entry : LocalPartyHierarchy)
     {
         if (!Entry.Actor)
             continue;
         if (UCharacterDataComponent *Comp = Entry.Actor->FindComponentByClass<UCharacterDataComponent>())
         {
             Comp->OnHPChanged.RemoveDynamic(this, &UWeatherStateManager::OnTeamMemberHPChanged);
-            Comp->OnDied.RemoveDynamic(this, &UWeatherStateManager::OnTeam0MemberDied);
+            Comp->OnDied.RemoveDynamic(this, &UWeatherStateManager::OnLocalPartyMemberDied);
         }
     }
 
-    for (const FLeadershipEntry &Entry : Team1Hierarchy)
+    for (const FLeadershipEntry &Entry : OpposingPartyHierarchy)
     {
         if (!Entry.Actor)
             continue;
         if (UCharacterDataComponent *Comp = Entry.Actor->FindComponentByClass<UCharacterDataComponent>())
         {
             Comp->OnHPChanged.RemoveDynamic(this, &UWeatherStateManager::OnTeamMemberHPChanged);
-            Comp->OnDied.RemoveDynamic(this, &UWeatherStateManager::OnTeam1MemberDied);
+            Comp->OnDied.RemoveDynamic(this, &UWeatherStateManager::OnOpposingPartyMemberDied);
         }
     }
 
-    Team0Hierarchy.Empty();
-    Team1Hierarchy.Empty();
+    LocalPartyHierarchy.Empty();
+    OpposingPartyHierarchy.Empty();
 
     UE_LOG(LogTemp, Log, TEXT("[WeatherStateManager] Combat ended - hierarchies cleared"));
 }
@@ -123,7 +123,7 @@ TArray<FLeadershipEntry> UWeatherStateManager::BuildHierarchy(const TArray<AActo
     return Hierarchy;
 }
 
-void UWeatherStateManager::BindToTeam(const TArray<FLeadershipEntry> &Hierarchy, bool bIsTeam0)
+void UWeatherStateManager::BindToTeam(const TArray<FLeadershipEntry> &Hierarchy, bool bIsLocalParty)
 {
     int32 BoundCount = 0;
     for (const FLeadershipEntry &Entry : Hierarchy)
@@ -135,37 +135,37 @@ void UWeatherStateManager::BindToTeam(const TArray<FLeadershipEntry> &Hierarchy,
             continue;
 
         Comp->OnHPChanged.AddDynamic(this, &UWeatherStateManager::OnTeamMemberHPChanged);
-        if (bIsTeam0)
-            Comp->OnDied.AddDynamic(this, &UWeatherStateManager::OnTeam0MemberDied);
+        if (bIsLocalParty)
+            Comp->OnDied.AddDynamic(this, &UWeatherStateManager::OnLocalPartyMemberDied);
         else
-            Comp->OnDied.AddDynamic(this, &UWeatherStateManager::OnTeam1MemberDied);
+            Comp->OnDied.AddDynamic(this, &UWeatherStateManager::OnOpposingPartyMemberDied);
         ++BoundCount;
     }
 
     UE_LOG(LogTemp, Log, TEXT("[WeatherStateManager] Bound to %s (%d/%d members)"),
-           bIsTeam0 ? TEXT("Team0") : TEXT("Team1"),
+           bIsLocalParty ? TEXT("LocalParty") : TEXT("OpposingParty"),
            BoundCount,
            Hierarchy.Num());
 }
 
 void UWeatherStateManager::RecalculateWeather()
 {
-    const float Team0Percent = ComputeTeamHPPercent(Team0Hierarchy);
-    const float Team1Percent = ComputeTeamHPPercent(Team1Hierarchy);
-    const float BlendValue = ComputeBlendValue(Team0Percent, Team1Percent);
+    const float LocalPartyPercent = ComputeTeamHPPercent(LocalPartyHierarchy);
+    const float OpposingPartyPercent = ComputeTeamHPPercent(OpposingPartyHierarchy);
+    const float BlendValue = ComputeBlendValue(LocalPartyPercent, OpposingPartyPercent);
 
-    UPrimaryDataAsset *Team0DA = ResolveWeatherDA(Team0Hierarchy);
-    UPrimaryDataAsset *Team1DA = ResolveWeatherDA(Team1Hierarchy);
+    UPrimaryDataAsset *LocalPartyDA = ResolveWeatherDA(LocalPartyHierarchy);
+    UPrimaryDataAsset *OpposingPartyDA = ResolveWeatherDA(OpposingPartyHierarchy);
 
     LastBroadcastBlendValue = BlendValue;
-    OnWeatherChanged.Broadcast(Team0DA, Team1DA, BlendValue);
+    OnWeatherChanged.Broadcast(LocalPartyDA, OpposingPartyDA, BlendValue);
 
     UE_LOG(LogTemp, Log,
            TEXT("[WeatherStateManager] Weather updated - T0: %s (%.0f%%), T1: %s (%.0f%%), Blend: %.2f"),
-           Team0DA ? *Team0DA->GetName() : TEXT("None"),
-           Team0Percent * 100.0f,
-           Team1DA ? *Team1DA->GetName() : TEXT("None"),
-           Team1Percent * 100.0f,
+           LocalPartyDA ? *LocalPartyDA->GetName() : TEXT("None"),
+           LocalPartyPercent * 100.0f,
+           OpposingPartyDA ? *OpposingPartyDA->GetName() : TEXT("None"),
+           OpposingPartyPercent * 100.0f,
            BlendValue);
 }
 
@@ -174,20 +174,20 @@ void UWeatherStateManager::OnTeamMemberHPChanged(int32 NewHP, int32 MaxHP)
     RecalculateWeather();
 }
 
-void UWeatherStateManager::OnTeam0MemberDied(AActor *DeadActor)
+void UWeatherStateManager::OnLocalPartyMemberDied(AActor *DeadActor)
 {
     // Hierarchy is NOT pruned — skip-the-dead lets resurrection re-enter the
     // team-HP sum naturally (ComputeTeamHPPercent filters by bIsAlive). The
     // dead member's binding stays in place; their OnHPChanged simply won't
     // fire again until they're revived.
-    UE_LOG(LogTemp, Log, TEXT("[WeatherStateManager] Team0 member died: %s"),
+    UE_LOG(LogTemp, Log, TEXT("[WeatherStateManager] LocalParty member died: %s"),
            DeadActor ? *DeadActor->GetName() : TEXT("(null)"));
     RecalculateWeather();
 }
 
-void UWeatherStateManager::OnTeam1MemberDied(AActor *DeadActor)
+void UWeatherStateManager::OnOpposingPartyMemberDied(AActor *DeadActor)
 {
-    UE_LOG(LogTemp, Log, TEXT("[WeatherStateManager] Team1 member died: %s"),
+    UE_LOG(LogTemp, Log, TEXT("[WeatherStateManager] OpposingParty member died: %s"),
            DeadActor ? *DeadActor->GetName() : TEXT("(null)"));
     RecalculateWeather();
 }
@@ -249,9 +249,9 @@ float UWeatherStateManager::ComputeTeamHPPercent(const TArray<FLeadershipEntry> 
     return SumMaxHP > 0 ? static_cast<float>(SumCurrentHP) / static_cast<float>(SumMaxHP) : 0.0f;
 }
 
-float UWeatherStateManager::ComputeBlendValue(float Team0Percent, float Team1Percent) const
+float UWeatherStateManager::ComputeBlendValue(float LocalPartyPercent, float OpposingPartyPercent) const
 {
-    const float SignedGap = Team0Percent - Team1Percent;
+    const float SignedGap = LocalPartyPercent - OpposingPartyPercent;
     const float AbsGap = FMath::Abs(SignedGap);
 
     if (AbsGap < WEATHER_DEADZONE_GAP)
@@ -300,7 +300,7 @@ UPrimaryDataAsset *UWeatherStateManager::ResolveWeatherDA(const TArray<FLeadersh
 
 FString UWeatherStateManager::GetWeatherStateString() const
 {
-    const bool bCombatActive = (Team0Hierarchy.Num() > 0 || Team1Hierarchy.Num() > 0);
+    const bool bCombatActive = (LocalPartyHierarchy.Num() > 0 || OpposingPartyHierarchy.Num() > 0);
     const int32 ListenerCount = OnWeatherChanged.GetAllObjects().Num();
 
     FString Output;
@@ -381,15 +381,15 @@ FString UWeatherStateManager::GetWeatherStateString() const
                                   Label, AliveCount, Hierarchy.Num(), SumCur, SumMax, SumPercent);
     };
 
-    DescribeTeam(TEXT("Team 0"), Team0Hierarchy);
-    DescribeTeam(TEXT("Team 1"), Team1Hierarchy);
+    DescribeTeam(TEXT("LocalParty"), LocalPartyHierarchy);
+    DescribeTeam(TEXT("OpposingParty"), OpposingPartyHierarchy);
 
     // Recompute the broadcast inputs via the same helpers RecalculateWeather
     // uses, so the snapshot can never disagree with what listeners last saw.
-    const float Team0Percent = ComputeTeamHPPercent(Team0Hierarchy);
-    const float Team1Percent = ComputeTeamHPPercent(Team1Hierarchy);
-    const float CurrentBlend = ComputeBlendValue(Team0Percent, Team1Percent);
-    const float SignedGap = Team0Percent - Team1Percent;
+    const float LocalPartyPercent = ComputeTeamHPPercent(LocalPartyHierarchy);
+    const float OpposingPartyPercent = ComputeTeamHPPercent(OpposingPartyHierarchy);
+    const float CurrentBlend = ComputeBlendValue(LocalPartyPercent, OpposingPartyPercent);
+    const float SignedGap = LocalPartyPercent - OpposingPartyPercent;
 
     Output += FString::Printf(TEXT("Gap: %+.2f -> BlendValue (recomputed now): %+.2f\n"),
                               SignedGap, CurrentBlend);
@@ -431,7 +431,7 @@ void UWeatherStateManager::PrintWeatherState() const
     // Emphasise the zero-subscriber case at Warning level so it stands out in
     // the Output Log even if the snapshot scrolls past. Only escalates when
     // combat is genuinely active — out-of-combat zero is expected.
-    const bool bCombatActive = (Team0Hierarchy.Num() > 0 || Team1Hierarchy.Num() > 0);
+    const bool bCombatActive = (LocalPartyHierarchy.Num() > 0 || OpposingPartyHierarchy.Num() > 0);
     if (bCombatActive && OnWeatherChanged.GetAllObjects().Num() == 0)
     {
         UE_LOG(LogTemp, Warning,

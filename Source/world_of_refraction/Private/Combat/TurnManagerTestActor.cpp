@@ -100,17 +100,17 @@ void ATurnManagerTestActor::Test_Basic3v3()
 		return;
 	}
 
-	TArray<AActor *> Team1;
-	Team1.Add(CreateTestCharacter("Player1", 5, 5, 5, 0, 0));
-	Team1.Add(CreateTestCharacter("Player2", 5, 5, 5, 0, 0));
-	Team1.Add(CreateTestCharacter("Player3", 5, 5, 5, 0, 0));
+	TArray<AActor *> LocalParty;
+	LocalParty.Add(CreateTestCharacter("Player1", 5, 5, 5, 0, 0));
+	LocalParty.Add(CreateTestCharacter("Player2", 5, 5, 5, 0, 0));
+	LocalParty.Add(CreateTestCharacter("Player3", 5, 5, 5, 0, 0));
 
-	TArray<AActor *> Team2;
-	Team2.Add(CreateTestCharacter("Enemy1", 5, 5, 5, 0, 0));
-	Team2.Add(CreateTestCharacter("Enemy2", 5, 5, 5, 0, 0));
-	Team2.Add(CreateTestCharacter("Enemy3", 5, 5, 5, 0, 0));
+	TArray<AActor *> OpposingParty;
+	OpposingParty.Add(CreateTestCharacter("Enemy1", 5, 5, 5, 0, 0));
+	OpposingParty.Add(CreateTestCharacter("Enemy2", 5, 5, 5, 0, 0));
+	OpposingParty.Add(CreateTestCharacter("Enemy3", 5, 5, 5, 0, 0));
 
-	TurnManager->InitializeCombat(Team1, Team2);
+	TurnManager->InitializeCombat(LocalParty, OpposingParty);
 	AActor *FirstActor = TurnManager->GetCurrentActor();
 	bool bSuccess = (FirstActor != nullptr);
 
@@ -121,8 +121,8 @@ void ATurnManagerTestActor::Test_Basic3v3()
 	}
 
 	TurnManager->EndCombat();
-	CleanupTestActors(Team1);
-	CleanupTestActors(Team2);
+	CleanupTestActors(LocalParty);
+	CleanupTestActors(OpposingParty);
 }
 
 void ATurnManagerTestActor::Test_SpeedRatio()
@@ -139,15 +139,15 @@ void ATurnManagerTestActor::Test_SpeedRatio()
 	// Fast: Body(5) + TurnSpeed(6) = 11
 	// Slow: Body(5) + TurnSpeed(0) = 5
 	// Expected ratio: 11/5 = 2.2:1
-	TArray<AActor *> Team1;
-	Team1.Add(CreateTestCharacter("Fast", 5, 5, 5, 6, 0));
+	TArray<AActor *> LocalParty;
+	LocalParty.Add(CreateTestCharacter("Fast", 5, 5, 5, 6, 0));
 
-	TArray<AActor *> Team2;
-	Team2.Add(CreateTestCharacter("Slow", 5, 5, 5, 0, 0));
+	TArray<AActor *> OpposingParty;
+	OpposingParty.Add(CreateTestCharacter("Slow", 5, 5, 5, 0, 0));
 
 	// Debug: Verify speeds were set correctly
-	UCharacterDataComponent *FastComp = Team1[0]->FindComponentByClass<UCharacterDataComponent>();
-	UCharacterDataComponent *SlowComp = Team2[0]->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *FastComp = LocalParty[0]->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *SlowComp = OpposingParty[0]->FindComponentByClass<UCharacterDataComponent>();
 
 	if (FastComp && FastComp->CharacterData)
 	{
@@ -171,7 +171,7 @@ void ATurnManagerTestActor::Test_SpeedRatio()
 		UE_LOG(LogTemp, Error, TEXT("    Slow CharacterData is NULL - this will cause test failure!"));
 	}
 
-	TurnManager->InitializeCombat(Team1, Team2);
+	TurnManager->InitializeCombat(LocalParty, OpposingParty);
 
 	int32 FastTurns = 0;
 	int32 SlowTurns = 0;
@@ -203,8 +203,8 @@ void ATurnManagerTestActor::Test_SpeedRatio()
 		   FastTurns, SlowTurns, Ratio);
 
 	TurnManager->EndCombat();
-	CleanupTestActors(Team1);
-	CleanupTestActors(Team2);
+	CleanupTestActors(LocalParty);
+	CleanupTestActors(OpposingParty);
 }
 
 void ATurnManagerTestActor::Test_TieBreaking()
@@ -219,17 +219,17 @@ void ATurnManagerTestActor::Test_TieBreaking()
 	}
 
 	// All characters have identical stats - tie-breaker cascade must work
-	TArray<AActor *> Team1;
-	Team1.Add(CreateTestCharacter("P1", 5, 5, 5, 0, 0));
-	Team1.Add(CreateTestCharacter("P2", 5, 5, 5, 0, 0));
-	Team1.Add(CreateTestCharacter("P3", 5, 5, 5, 0, 0));
+	TArray<AActor *> LocalParty;
+	LocalParty.Add(CreateTestCharacter("P1", 5, 5, 5, 0, 0));
+	LocalParty.Add(CreateTestCharacter("P2", 5, 5, 5, 0, 0));
+	LocalParty.Add(CreateTestCharacter("P3", 5, 5, 5, 0, 0));
 
-	TArray<AActor *> Team2;
-	Team2.Add(CreateTestCharacter("E1", 5, 5, 5, 0, 0));
-	Team2.Add(CreateTestCharacter("E2", 5, 5, 5, 0, 0));
-	Team2.Add(CreateTestCharacter("E3", 5, 5, 5, 0, 0));
+	TArray<AActor *> OpposingParty;
+	OpposingParty.Add(CreateTestCharacter("E1", 5, 5, 5, 0, 0));
+	OpposingParty.Add(CreateTestCharacter("E2", 5, 5, 5, 0, 0));
+	OpposingParty.Add(CreateTestCharacter("E3", 5, 5, 5, 0, 0));
 
-	TurnManager->InitializeCombat(Team1, Team2);
+	TurnManager->InitializeCombat(LocalParty, OpposingParty);
 
 	bool bSuccess = true;
 	for (int32 i = 0; i < 6; i++)
@@ -247,8 +247,8 @@ void ATurnManagerTestActor::Test_TieBreaking()
 	PrintTestResult("Tie-Breaking", bSuccess);
 
 	TurnManager->EndCombat();
-	CleanupTestActors(Team1);
-	CleanupTestActors(Team2);
+	CleanupTestActors(LocalParty);
+	CleanupTestActors(OpposingParty);
 }
 
 void ATurnManagerTestActor::Test_SpeedChanges()
@@ -262,14 +262,14 @@ void ATurnManagerTestActor::Test_SpeedChanges()
 		return;
 	}
 
-	TArray<AActor *> Team1;
+	TArray<AActor *> LocalParty;
 	AActor *Char1 = CreateTestCharacter("Char1", 5, 5, 5, 0, 0);
-	Team1.Add(Char1);
+	LocalParty.Add(Char1);
 
-	TArray<AActor *> Team2;
-	Team2.Add(CreateTestCharacter("Char2", 5, 5, 5, 0, 0));
+	TArray<AActor *> OpposingParty;
+	OpposingParty.Add(CreateTestCharacter("Char2", 5, 5, 5, 0, 0));
 
-	TurnManager->InitializeCombat(Team1, Team2);
+	TurnManager->InitializeCombat(LocalParty, OpposingParty);
 
 	UCharacterDataComponent *CharComp = Char1->FindComponentByClass<UCharacterDataComponent>();
 	if (CharComp && CharComp->CharacterData)
@@ -291,8 +291,8 @@ void ATurnManagerTestActor::Test_SpeedChanges()
 	}
 
 	TurnManager->EndCombat();
-	CleanupTestActors(Team1);
-	CleanupTestActors(Team2);
+	CleanupTestActors(LocalParty);
+	CleanupTestActors(OpposingParty);
 }
 
 void ATurnManagerTestActor::Test_DeathResurrection()
@@ -306,14 +306,14 @@ void ATurnManagerTestActor::Test_DeathResurrection()
 		return;
 	}
 
-	TArray<AActor *> Team1;
+	TArray<AActor *> LocalParty;
 	AActor *TestChar = CreateTestCharacter("TestChar", 5, 5, 5, 0, 0);
-	Team1.Add(TestChar);
+	LocalParty.Add(TestChar);
 
-	TArray<AActor *> Team2;
-	Team2.Add(CreateTestCharacter("Enemy", 5, 5, 5, 0, 0));
+	TArray<AActor *> OpposingParty;
+	OpposingParty.Add(CreateTestCharacter("Enemy", 5, 5, 5, 0, 0));
 
-	TurnManager->InitializeCombat(Team1, Team2);
+	TurnManager->InitializeCombat(LocalParty, OpposingParty);
 
 	UCharacterDataComponent *CharComp = TestChar->FindComponentByClass<UCharacterDataComponent>();
 	if (CharComp)
@@ -340,8 +340,8 @@ void ATurnManagerTestActor::Test_DeathResurrection()
 	}
 
 	TurnManager->EndCombat();
-	CleanupTestActors(Team1);
-	CleanupTestActors(Team2);
+	CleanupTestActors(LocalParty);
+	CleanupTestActors(OpposingParty);
 }
 
 // ========================================

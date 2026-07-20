@@ -4,7 +4,7 @@
 // consumes the roster UTrialRunSubsystem stashed before the OpenLevel, spawns
 // a fresh pawn per UCharacterData (deferred-spawn so the component's BeginPlay
 // init cascade — inventory / loadout / world stats / HP-EP seed — reads the
-// RIGHT asset), possesses the first Team0 pawn with PC0, spawns the
+// RIGHT asset), possesses the first LocalParty pawn with PC0, spawns the
 // orchestrator, and starts combat. On OnCombatResultReady it routes back to
 // the trial via UTrialRunSubsystem::ExitEncounter.
 //
@@ -27,11 +27,11 @@ class WORLD_OF_REFRACTION_API ABattleGameMode : public AGameModeBase
     GENERATED_BODY()
 
 public:
-    /** Pawn class spawned per Team0 (player-side) CharacterData. */
+    /** Pawn class spawned per LocalParty (player-side) CharacterData. */
     UPROPERTY(EditDefaultsOnly, Category = "Battle")
     TSoftClassPtr<APawn> DefaultPlayerPawnClass;
 
-    /** Pawn class spawned per Team1 (enemy-side) CharacterData. */
+    /** Pawn class spawned per OpposingParty (enemy-side) CharacterData. */
     UPROPERTY(EditDefaultsOnly, Category = "Battle")
     TSoftClassPtr<APawn> DefaultEnemyPawnClass;
 

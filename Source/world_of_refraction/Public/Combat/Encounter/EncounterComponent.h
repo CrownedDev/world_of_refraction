@@ -2,7 +2,7 @@
 // World-space encounter trigger (Cluster T-C1, battle-stage shape): drop on an
 // enemy pawn in a trial level. A player pawn entering the trigger sphere opens
 // a join window — a Void-tinted ArenaSphere spawns at the encounter midpoint
-// and further player pawns entering it during JoinWindowSeconds join Team0
+// and further player pawns entering it during JoinWindowSeconds join LocalParty
 // (the arena shrinking per joiner). On expiry the component extracts every
 // combatant's authored UCharacterData and hands the roster to
 // UTrialRunSubsystem::EnterEncounter — which OpenLevels to the trial's battle
@@ -83,7 +83,7 @@ private:
 					   UPrimitiveComponent *OtherComp, int32 OtherBodyIndex,
 					   bool bFromSweep, const FHitResult &SweepResult);
 
-	/** ArenaSphere contact during the join window: extra player pawns join Team0. */
+	/** ArenaSphere contact during the join window: extra player pawns join LocalParty. */
 	UFUNCTION()
 	void HandleJoin(UPrimitiveComponent *OverlappedComponent, AActor *OtherActor,
 					UPrimitiveComponent *OtherComp, int32 OtherBodyIndex,
@@ -110,7 +110,7 @@ private:
 	TWeakObjectPtr<AStaticMeshActor> ArenaSphere;
 
 	/** Trial-side player pawns awaiting the swap (co-op joiners during the window). */
-	TArray<TWeakObjectPtr<AActor>> PendingTeam0;
+	TArray<TWeakObjectPtr<AActor>> PendingLocalParty;
 
 	FTimerHandle JoinWindowTimer;
 

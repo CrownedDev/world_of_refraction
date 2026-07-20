@@ -176,7 +176,7 @@ public:
 
 	/** Initialize combat with two teams */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
-	void InitializeCombat(const TArray<AActor *> &Team1, const TArray<AActor *> &Team2);
+	void InitializeCombat(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty);
 
 	/** End combat */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")

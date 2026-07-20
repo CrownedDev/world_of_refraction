@@ -83,8 +83,8 @@ void UEncounterComponent::HandleOverlap(UPrimitiveComponent *OverlappedComponent
 	}
 
 	bTriggered = true;
-	PendingTeam0.Reset();
-	PendingTeam0.Add(OtherActor);
+	PendingLocalParty.Reset();
+	PendingLocalParty.Add(OtherActor);
 
 	const FVector ArenaCenter = (OtherActor->GetActorLocation() + GetOwner()->GetActorLocation()) * 0.5f;
 	SpawnArenaSphere(ArenaCenter);
@@ -139,35 +139,35 @@ void UEncounterComponent::HandleJoin(UPrimitiveComponent *OverlappedComponent, A
 									 UPrimitiveComponent *OtherComp, int32 OtherBodyIndex,
 									 bool bFromSweep, const FHitResult &SweepResult)
 {
-	if (!OtherActor || OtherActor == GetOwner() || PendingTeam0.Contains(OtherActor) || !IsPlayerCombatant(OtherActor))
+	if (!OtherActor || OtherActor == GetOwner() || PendingLocalParty.Contains(OtherActor) || !IsPlayerCombatant(OtherActor))
 	{
 		return;
 	}
 
-	PendingTeam0.Add(OtherActor);
+	PendingLocalParty.Add(OtherActor);
 
 	if (ArenaSphere.IsValid())
 	{
 		const float ShrunkRadius = FMath::Max(ArenaSphereMinRadius,
-											  ArenaSphereMaxRadius - ArenaSphereShrinkPerCombatant * (PendingTeam0.Num() - 1));
+											  ArenaSphereMaxRadius - ArenaSphereShrinkPerCombatant * (PendingLocalParty.Num() - 1));
 		ArenaSphere->SetActorScale3D(FVector(ShrunkRadius / EncounterConstants::ENGINE_SPHERE_MESH_RADIUS));
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[EncounterComponent] %s joined the encounter (%d pending)"),
-		   *OtherActor->GetName(), PendingTeam0.Num());
+		   *OtherActor->GetName(), PendingLocalParty.Num());
 }
 
 void UEncounterComponent::OnJoinWindowExpired()
 {
 	// Roster extraction: authored CharacterData assets only (see header ⚠️).
-	TArray<UCharacterData *> Team0Data;
-	for (const TWeakObjectPtr<AActor> &Pending : PendingTeam0)
+	TArray<UCharacterData *> LocalPartyData;
+	for (const TWeakObjectPtr<AActor> &Pending : PendingLocalParty)
 	{
 		const UCharacterDataComponent *CharComp =
 			Pending.IsValid() ? Pending->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 		if (CharComp && CharComp->CharacterData)
 		{
-			Team0Data.Add(CharComp->CharacterData);
+			LocalPartyData.Add(CharComp->CharacterData);
 		}
 	}
 
@@ -177,7 +177,7 @@ void UEncounterComponent::OnJoinWindowExpired()
 	UTrialRunSubsystem *TrialRun = GetWorld()->GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
 	UTrialData *ActiveTrial = TrialRun ? TrialRun->GetActiveTrial() : nullptr;
 
-	if (Team0Data.Num() == 0 || !OwnerData || !ActiveTrial)
+	if (LocalPartyData.Num() == 0 || !OwnerData || !ActiveTrial)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[EncounterComponent] %s - encounter aborted (%s) - re-arming"),
 			   *GetOwner()->GetName(),
@@ -189,12 +189,12 @@ void UEncounterComponent::OnJoinWindowExpired()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[EncounterComponent] Join window closed - handing off %d v 1 to battle stage (difficulty %s)"),
-		   Team0Data.Num(), *UEnum::GetValueAsString(Difficulty));
+		   LocalPartyData.Num(), *UEnum::GetValueAsString(Difficulty));
 
 	// EnterEncounter OpenLevels to the trial's battle stage; this component,
 	// the arena, and every trial actor die with the swap. If it rejects
 	// (no EncounterLevel authored), re-arm so the trial stays playable.
-	TrialRun->EnterEncounter(ActiveTrial, Team0Data, {OwnerData}, Difficulty);
+	TrialRun->EnterEncounter(ActiveTrial, LocalPartyData, {OwnerData}, Difficulty);
 	if (!TrialRun->HasPendingEncounter())
 	{
 		RearmEncounter();
@@ -207,6 +207,6 @@ void UEncounterComponent::RearmEncounter()
 	{
 		ArenaSphere->Destroy();
 	}
-	PendingTeam0.Reset();
+	PendingLocalParty.Reset();
 	bTriggered = false;
 }
