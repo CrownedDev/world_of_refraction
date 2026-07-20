@@ -1,0 +1,82 @@
+# World of Refraction — Roadmap
+
+Backlog banked at the end of the merchant/shop arc (feature/hub-merchants → main, 2026-07-11). This is the working queue of everything not-yet-built, grouped by scope. Items move out of here when a sprint is opened against them.
+
+---
+
+## Design Gaps — small, own arc each
+
+Small greenfields with clear scope. Each unblocks something already authored or fixes a known issue.
+
+- **Aura source-element greenfield.** Two Enhancement spells (`DA_Spell_Aura`, `DA_Spell_EnhancementAura`) currently ship with empty `ReferencedEffects` — inert on cast. Needs runtime element-inheritance for buff types (`StatusMultiplierBuff` + `ResistanceBuff`): expand `ActionExecutor::ApplySkillEffects` element-stamp branch (~line 6206) to cover buff types, and upgrade the support-spell resolver (~line 2219) to call `ResolveSpellCastElement`. ~5–8 lines C++. Unlocks two already-authored spells.
+
+- **Cleanse payload wiring.** `DA_Spell_Cleanse` authored with empty `ReferencedEffects`. Cleanse effect type exists per `USkillEffectManager`; needs payload shape confirmed and wired into the spell asset.
+
+- **Placeholder stone text pass.** Ten of sixteen stones return vague placeholder text from `CrystalDescription::GetItemEffectText`: `DefenseStone`, `CritStone`, `TurnSpeedStone`, `StatusStone`, `EfficiencyStone`, `MaxHPStone`, `MaxEPStone`, `LuckStone`, `ReflexStone`, `AbilityStone`. Collapse into one generic branch — `"+X% {stat} when attached"` — driven by `CrystalEffectTable::StoneTargetStat` + `GetStoneBasePercent`, with pool stones (`MaxHP`, `MaxEP`) using name overrides. Bespoke text kept for `AbilityStone` (slot grant — depends on Cluster 4), `DurabilityStone` (flat fusion durability), `HealingStone` (consumable), and `DamageStone`'s Resonate rider sentence.
+
+- **Rings `DefaultSpells` — 9 crystal rings.** The nine element crystal rings (`DA_Ring_Garnet` … `DA_Ring_Iolite`) ship with empty `DefaultSpells`; the player fills them. Open design call: should they carry starter spells (e.g. 1 low-tier element spell each), or stay as blank template-with-gem?
+
+---
+
+## Polish — deferred
+
+Content-layer work that improves feel or completeness without unblocking new mechanics.
+
+- **Mannequin merchants.** Merchants currently render as placeholder cube actors (`AMerchantInteractable`). Attempted mid-session — swap to `SKM_Quinn` failed (root component type change broke overlap trigger). Deferred to a proper `AMerchantCharacter` actor class with correct character mesh + AnimBP + interaction trigger.
+
+- **Icons pass.** ~301 pool assets have no `Icon` field authored (weapons, rings, spells, abilities, evolutions, crystals). Icon pack available (Fab listing referenced in the merchant arc). Needs bulk-assign patterns — icon per asset class, or per element, or per school. Sequencing: probably after Cluster 4 (any UI reorganisation that references icons should land first).
+
+- **Weapon-flag split.** `bAbilitiesLocked` and `bSpellsLocked` currently share the "conjured weapon / conjured ring" meaning. Design banked to split into two flags: one for switch-behaviour (can equipment be switched), one for show/hide behaviour (are extra slots visible). No runtime consumer changes yet.
+
+---
+
+## Bigger arcs — banked, own sprints
+
+Multi-cluster arcs. Each needs its own survey + design pass before authoring.
+
+- ~~**Hub → Trial door transition.**~~ **SHIPPED** (`79314c2e`, feature/trial-transition). `ATrialDoor` with element-tinted mesh, `UTrialRunSubsystem`, `UTrialData`.
+
+- ~~**Encounter-based trial system.**~~ **SHIPPED** (T-C1, feature/trial-transition). `UEncounterComponent` trigger sphere + join window + Void arena bubble, `ABattleGameMode` battle stage, return-to-trial via `UTrialRunSubsystem::ExitEncounter`. Multi-enemy encounters and encounter composition banked below.
+
+- **Combat camera build.** Sequencer-per-skill + distributed camera state selector, replaces the older `CombatCameraManager`. Design banked in prior session's design bank (`docs/Design/Resources_Design.md` or equivalent).
+
+- **Save / Persistence keystone.** All persistent balances (`Prisms`, `Diamond`, `GearEssence`, `SkillEssence`, `EssenceTyped`) are `SaveGame`-tagged but no save system exists yet. Unblocks head-start persistence, account-scope routing (Prisms/Diamond → PlayerState), inventory persistence across runs. Keystone dependency for everything session-scoped today.
+
+- **Networked multiplayer + PvP.** All economy/inventory/combat systems are replication-aware from the ground up. Prereq for Lord-vs-team PvP (the Lord/Contender challenge hierarchy). Needs dedicated server or listen-server architecture decision, matchmaking, session flow.
+
+- **Cooperative AI.** Ally targeting, revive AI, self-ward. Currently AI is enemy-only. Adds ally enumeration, ally healing/ward decisions, revive-dead-ally logic (needs `GetDeadAllies` — flagged deferred in prior session).
+
+- **Weapon-flag split runtime.** Beyond the design-locked split above — actual runtime consumer changes for switch-vs-hide behaviour on conjured equipment.
+
+---
+
+## Session-added banked arcs (2026-07-20, T-C1 encounter loop)
+
+Banked during the T-C1 encounter-loop arc. Each needs its own survey before authoring.
+
+- **AI/Player identity refactor.** Move `bIsAIControlled` from a data-asset flag to a runtime source — the possessing controller becomes the source of truth. Data assets retain a DEFAULT flag; a runtime component overrides it. Required for PvP and party possession swap.
+
+- **Encounter Composition.** `UEncounterData` asset defining opposing-team roster + difficulty. Grid position moves onto `ULoadoutComponent` (per-run customisable). AI grid selection starts as a placeholder heuristic (tanks front / casters back), evolving to Utility AI. Team names deferred (PvP-driven). Multi-enemy encounters, boss fights, and encounter randomization are all downstream of this.
+
+- **Combat Component C++ promotion.** Promote the remaining SCS Blueprint-panel components to `CreateDefaultSubobject` on `ACombatCharacter`: Inventory, Loadout, WeaponMesh, CrystalInventory, Currency, InfusionVFX, CombatMovement, BrokenDarkness. **One component per commit**, tag `pre-<name>-promotion` each, restore SCS defaults per component. Gains lifecycle guarantees (see the T-C1a deferred-spawn bug), typed C++ access, and removes SCS panel clutter.
+
+- **SubmitAction hybrid router retirement.** The D8 deferred-ritual path (`CombatOrchestrator.cpp:741`) still routes through the sync/async hybrid `SubmitAction`. Convert it to `SubmitActionAsync`, then remove `SubmitAction` and its `bRequiresAsync` test entirely. Note: the conversion is not a one-liner — that callsite needs the `bool` return for its turn-stranding recovery.
+
+- **Multi-level-per-door.** Pinned. `UTrialData` grows named `EncounterLevel` entries (currently a single level ref). Player chooses at the door.
+
+- **Persistence keystone.** State must survive `OpenLevel` transitions. Encounter entry + exit currently wipes character HP/EP/inventory/currency, and the trial level reloads whole from the map asset (defeated enemies respawn). Prerequisite for real gameplay loops. Solve via `UGameInstance`-scoped persistent player state. Overlaps the Save/Persistence keystone above — treat as one arc.
+
+- **Multi-player BattleGameMode.** Bootstrap possesses each Team0 pawn with a matching PlayerController (PC0, PC1, PC2…). Requires networked play mode. T-C2+.
+
+- **Camera system full replacement.** Delete `ACombatCameraManager` + `BP_CombatCameraManager`. Full deletion, no rewrite — new system from scratch when it's time. Sequencer-per-skill + distributed state selector locked as the design bank.
+
+---
+
+## Immediate next
+
+1. **T-C1 arc merge** → main.
+2. **Encounter Composition** or **Combat Component C++ promotion** — both unblocked by T-C1.
+
+---
+
+*Last updated: 2026-07-20 (post-T-C1 encounter-loop arc).*
