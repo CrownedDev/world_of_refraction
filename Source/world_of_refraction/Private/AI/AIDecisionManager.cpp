@@ -140,8 +140,11 @@ void UAIDecisionManager::ExecuteDecision()
     UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s executing action type %d"),
            *Actor->GetName(), static_cast<int32>(Action.ActionType));
 
-    // Submit through orchestrator (may advance turn synchronously)
-    CurrentCombat->SubmitAction(Action);
+    // Submit through the orchestrator's async path — the same dispatch the player
+    // uses (CombatCommandMenuSubsystem). The turn ends via HandleAsyncActionCompleted,
+    // not on return. The old SubmitAction routed montage-less Spell/Ability actions
+    // down the sync path, which Phase D rejects outright.
+    CurrentCombat->SubmitActionAsync(Action);
 }
 
 // ==================== QUERY ====================

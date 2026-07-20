@@ -75,6 +75,27 @@ static USkillDataBase *ResolveActionSkill(const FAction &Action)
 	return Action.SkillData;
 }
 
+// Montage-carrying skill for EITHER async action type: Spell reads SpellData, Ability reads
+// SkillData (USpellData derives from USkillDataBase). ResolveActionSkill covers only the
+// Ability branch, so the montage-presence test needs its own resolver.
+static const USkillDataBase *ResolveActionMontageSource(const FAction &Action)
+{
+	if (Action.ActionType == EActionType::Spell)
+	{
+		return Action.SpellData;
+	}
+	return Action.SkillData;
+}
+
+// True when the action will actually play a montage. PlaySkillAnimation / PlaySpellAnimation
+// early-return on a null clip WITHOUT unbinding, so binding the montage-end delegate for a
+// clipless skill strands bWaitingForAnimationEnd true until the TimeoutDuration failsafe.
+static bool ActionPlaysMontage(const FAction &Action)
+{
+	const USkillDataBase *Skill = ResolveActionMontageSource(Action);
+	return Skill && (Skill->SkillMontage || Skill->RitualCastMontage || Skill->ReturnMontage);
+}
+
 void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
@@ -4940,8 +4961,15 @@ void UActionExecutor::BeginSkillExecution(AActor *Actor)
 		}
 	}
 
-	// Bind to action animation end BEFORE executing (so we catch the animation)
-	BindActionAnimationEnd(Actor);
+	// Bind to action animation end BEFORE executing (so we catch the animation).
+	// Guarded on montage presence: a clipless skill plays nothing, so
+	// OnActionMontageEnded would never fire and the action would hang on
+	// bWaitingForAnimationEnd until the TimeoutDuration failsafe. Skipping the
+	// bind lets the no-animation branch at the end of this function finalize now.
+	if (ActionPlaysMontage(Action))
+	{
+		BindActionAnimationEnd(Actor);
+	}
 
 	// Runner notify spine (Stage 12): UCombatNotify Family/Index for all three
 	// paths. Additive — montages without UCombatNotify instances fire nothing.
