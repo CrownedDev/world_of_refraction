@@ -162,20 +162,13 @@ void ABattleGameMode::BootstrapCombat()
     // "is this AI?" during a pawn's BeginPlay would get the wrong answer.
     if (PC)
     {
-        APawn *PlayerPawn = CastChecked<APawn>(LocalParty[0]);
         APawn *PreviousPawn = PC->GetPawn();
 
-        // Capture the auto-spawned AI controller before Possess detaches it —
-        // AController::OnPossess unpossesses the incumbent but does not destroy
-        // it, leaving a pawnless controller behind.
-        AController *DisplacedAI = PlayerPawn->GetController();
+        // The AI controller this displaces reaps itself — see
+        // ACombatAIController::OnUnPossess. Handling it here too would be a second
+        // mechanism for one job, and would still miss the login-time orphan.
+        PC->Possess(CastChecked<APawn>(LocalParty[0]));
 
-        PC->Possess(PlayerPawn);
-
-        if (DisplacedAI && DisplacedAI != PC)
-        {
-            DisplacedAI->Destroy();
-        }
         if (PreviousPawn && PreviousPawn != PC->GetPawn())
         {
             PreviousPawn->Destroy();

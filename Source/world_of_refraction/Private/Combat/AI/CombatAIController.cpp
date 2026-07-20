@@ -12,3 +12,13 @@ ACombatAIController::ACombatAIController()
 
 	PrimaryActorTick.bCanEverTick = false;
 }
+
+void ACombatAIController::OnUnPossess()
+{
+	Super::OnUnPossess();
+
+	// Fires at exactly the displacement moment: AController::OnPossess unpossesses
+	// the incumbent before taking the pawn. Also covers the pawn simply being
+	// destroyed — either way this controller is now purposeless.
+	Destroy();
+}
