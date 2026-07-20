@@ -27,6 +27,7 @@ class UEvolutionInventoryComponent;
 class UInfusionVFXComponent;
 class ULoadoutComponent;
 class UBrokenDarknessManager;
+class UBattleConfigComponent;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API ACombatCharacter : public ACharacter
@@ -75,4 +76,10 @@ public:
      *  a conditionally-present component. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character")
     TObjectPtr<UBrokenDarknessManager> BrokenDarknessComponent;
+
+    /** Per-encounter placement/ownership, set by ABattleGameMode at spawn. Reads
+     *  nothing from its siblings during init, so it is order-free and appends
+     *  last — unlike the components above, it has no cascade dependency. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character")
+    TObjectPtr<UBattleConfigComponent> BattleConfigComponent;
 };

@@ -2,6 +2,7 @@
 
 #include "Character/CombatCharacter.h"
 
+#include "Character/BattleConfigComponent.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Currency/CurrencyComponent.h"
@@ -25,4 +26,5 @@ ACombatCharacter::ACombatCharacter()
     InfusionVFXComponent = CreateDefaultSubobject<UInfusionVFXComponent>(TEXT("InfusionVFXComponent"));
     LoadoutComponent = CreateDefaultSubobject<ULoadoutComponent>(TEXT("LoadoutComponent"));
     BrokenDarknessComponent = CreateDefaultSubobject<UBrokenDarknessManager>(TEXT("BrokenDarknessComponent"));
+    BattleConfigComponent = CreateDefaultSubobject<UBattleConfigComponent>(TEXT("BattleConfigComponent"));
 }
