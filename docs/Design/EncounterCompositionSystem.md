@@ -118,7 +118,7 @@ UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 FGridPosition GridPosition;
 
 UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-TWeakObjectPtr<FParty> OwningParty;
+TWeakObjectPtr<UParty> OwningParty;
 
 UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 int32 TeamIndex = 0;  // 0 = local perspective ally, 1 = local perspective opposing
@@ -129,25 +129,45 @@ FText DisplayContext;  // e.g. "Crown's Party — Slot 2"
 
 **⚠️ Not on `CharacterData`:** these are per-run, per-encounter runtime values. CharacterData is asset-immutable.
 
-### `FParty` (new, USTRUCT)
+### `UParty` (new, UObject)
+
+A `UObject`, not a `USTRUCT`: `UBattleConfigComponent` holds a weak back-reference,
+and `TWeakObjectPtr` only accepts `UObject` subclasses. It also gives the type real
+identity and somewhere to grow replication.
 
 ```cpp
 USTRUCT(BlueprintType)
-struct FParty
+struct FPartyMember
+{
+    UPROPERTY(BlueprintReadOnly) TSoftClassPtr<ACombatCharacter> PawnClass;
+    UPROPERTY(BlueprintReadOnly) TObjectPtr<UCharacterData> CharacterData;  // resolved at invite
+};
+
+UCLASS(BlueprintType)
+class UParty : public UObject
 {
     UPROPERTY(BlueprintReadOnly)
-    FText DisplayName;  // Auto-derived from leader name + "'s Party"; override allowed
+    FText DisplayName;  // "<Leader>'s Party" by default; SetDisplayName overrides
 
     UPROPERTY(BlueprintReadOnly)
-    APlayerController* Leader;
+    TWeakObjectPtr<APlayerController> Leader;  // WEAK — OpenLevel recreates the PC
 
     UPROPERTY(BlueprintReadOnly)
-    TArray<TObjectPtr<UCharacterData>> Members;  // Max 3
-
-    UPROPERTY(BlueprintReadOnly)
-    TArray<TSoftClassPtr<ACombatCharacter>> MemberPawnClasses;  // Parallel array to Members
+    TArray<FPartyMember> Members;  // Max 3 (PartyConstants::MAX_PARTY_MEMBERS)
 };
 ```
+
+**One slot struct, not two parallel arrays.** Pawn class and CharacterData travel
+together so they cannot drift out of sync.
+
+**⚠️ `Leader` is weak and goes stale on every level transition** — a non-seamless
+`OpenLevel` destroys and recreates the `PlayerController`. Call
+`UPartySessionSubsystem::RebindLeader` after a transition; membership is unaffected.
+
+**⚠️ Parties must be outered to the GameInstance**, never the world. A
+world-outered `UObject` is destroyed by `OpenLevel` — the same trap
+`UTrialRunSubsystem` documents for runtime-created `CharacterData` — and the party
+would silently empty on the first hub→trial swap.
 
 ### `UPartySessionSubsystem` (new, GI-scoped)
 
