@@ -73,9 +73,23 @@ Banked during the T-C1 encounter-loop arc. Each needs its own survey before auth
 
 - **Persistence keystone.** State must survive `OpenLevel` transitions. Encounter entry + exit currently wipes character HP/EP/inventory/currency, and the trial level reloads whole from the map asset (defeated enemies respawn). Prerequisite for real gameplay loops. Solve via `UGameInstance`-scoped persistent player state. Overlaps the Save/Persistence keystone above — treat as one arc.
 
-- **Multi-player BattleGameMode.** Bootstrap possesses each Team0 pawn with a matching PlayerController (PC0, PC1, PC2…). Requires networked play mode. T-C2+.
+- **Multi-player BattleGameMode.** Bootstrap possesses each `LocalParty` pawn with a matching PlayerController (PC0, PC1, PC2…). Requires networked play mode. T-C2+.
 
 - ~~**Camera system full replacement.**~~ **DELETION SHIPPED** (`feature/camera-removal`, 2026-07-20). `ACombatCameraManager`, `ECombatCameraState`, `EActionCameraPhase`, `BP_CombatCameraManager`, and all placed instances + home-camera actors removed. The from-scratch build remains open — tracked as **Combat camera build** above; Sequencer-per-skill + distributed state selector retained as the design bank in `docs/Design/Resources_Design.md`.
+
+---
+
+## Session-added banked arcs (2026-07-20, party rename)
+
+- ~~**Team0/Team1 → LocalParty/OpposingParty rename.**~~ **COMPLETE** (`feature/party-system`, merged `ef0e71f7`, 2026-07-20). 660+ occurrences across 17 files, pure mechanical rename. Perspective-based naming: under PvP both sides are player parties, each client seeing itself as `LocalParty` — which 0/1 indexing could not express.
+
+  Two things worth carrying forward:
+  - **`UTurnManager::InitializeCombat` was 1-based** (`Team1`, `Team2`) while every other file was 0-based, so `Team1` meant the LOCAL party there and the OPPOSING party everywhere else. A blanket find/replace would have compiled, run correctly, and left a parameter named `OpposingParty` assigned `TeamIndex 0` — a lie that only bites when someone later trusts the name. **Check for mixed indexing conventions before any large rename.**
+  - **BP nodes orphan silently on C++ signature renames.** `OnCombatStartedUI` is a `BlueprintImplementableEvent` override; renaming its params detaches the override with no compile error and the combat HUD simply stops building. Always re-verify BP overrides after a rename.
+
+- **Team-index vocabulary migration.** Deferred. `TeamIndex`, `GetActorTeam`, `GetTeamMembers`, `EnemyTeam`, `SourceTeam`, `TargetTeam`, `SelfTeam`, `UserTeam`, `PositionInTeam`, `ComputeTeamHPPercent` (~200 sites) all still use `Team*`. This is deliberate — the `int32` index is the low-level mechanism, distinct from the party domain concept. Revisit if the mixed vocabulary becomes a readability cost.
+
+- **LevelMechanics legacy retirement.** Placed actors in `LevelMechanics` still carry the old `"Team0"` / `"Team1"` string tags, so `ACombatOrchestrator::DebugStartCombatWithLevelActors` finds nothing there (characters "disappear" from that debug flow). Debug-only — `bAutoStartCombat` defaults false and the T-C1 production path spawns from a stashed roster, never from tags. Either re-tag the actors to `LocalParty` / `OpposingParty`, or retire the whole `BP_Combat_GameMode` debug flow now that the encounter loop supersedes it. Leaning retirement.
 
 ---
 
@@ -86,4 +100,4 @@ Banked during the T-C1 encounter-loop arc. Each needs its own survey before auth
 
 ---
 
-*Last updated: 2026-07-20 (post-combat-component-promotion arc).*
+*Last updated: 2026-07-20 (post-party-rename arc).*

@@ -9,7 +9,9 @@ instead it wires together the dedicated combat subsystems and drives the encount
 through its lifecycle: setup, per-turn coordination, action submission, win-condition
 checks, and post-combat cleanup.
 
-Team convention: Team 0 = players, Team 1 = enemies.
+Party convention: `LocalParty` is the local player's side (`TeamIndex 0`),
+`OpposingParty` is whatever opposes them (`TeamIndex 1`). Perspective-based — under
+PvP both sides are player parties, each client seeing itself as `LocalParty`.
 
 ## Architecture
 
@@ -25,7 +27,9 @@ Responsibilities (per the header doc comment):
 Key internal state fields:
 - `ECombatState CombatState` — `Idle`, `Initializing`, `InProgress`, `Victory`,
   `Defeat`, `Draw`.
-- `TArray<AActor*> Team0Combatants`, `Team1Combatants` — stored team rosters.
+- `TArray<AActor*> LocalPartyCombatants`, `OpposingPartyCombatants` — stored party
+  rosters. Perspective-based: `LocalParty` is the local player's side (`TeamIndex 0`),
+  `OpposingParty` is whatever opposes them (`TeamIndex 1`).
 - `AActor* CurrentActor` — actor whose turn is active (mirrors `TurnManager`).
 - `int32 CurrentTurnNumber` — mirrors `TurnManager`'s `GlobalTurnCount`.
 - `bool bWaitingForAsyncAction` — guards against double-submission while an async
@@ -38,7 +42,7 @@ Key internal state fields:
 
 - `enum class ECombatState : uint8` — the combat lifecycle states.
 - `struct FCombatResult` — outcome payload: `FinalState`, `TotalTurns`,
-  `Team0Survivors`, `Team1Survivors`, `LastActorStanding`. Built by
+  `LocalPartySurvivors`, `OpposingPartySurvivors`, `LastActorStanding`. Built by
   `BuildCombatResult()`.
 
 ### Configuration fields (EditAnywhere)
@@ -57,7 +61,7 @@ Key internal state fields:
 1. Stores `CombatDifficulty`; registers `this` with `AIDecisionManager` and
    `UCombatCommandMenuSubsystem` so they can call back into the orchestrator.
 2. If combat is already active, calls `ForceEndCombat()` first.
-3. Validates teams are non-empty; stores `Team0Combatants` / `Team1Combatants`;
+3. Validates parties are non-empty; stores `LocalPartyCombatants` / `OpposingPartyCombatants`;
    resets `CurrentTurnNumber`, `CurrentActor`, `bWaitingForAsyncAction`.
 4. `SetCombatState(Initializing)`.
 5. `PrepareAllLoadoutsForBattle()` — for each combatant, calls
@@ -68,7 +72,7 @@ Key internal state fields:
    `UpdateAllActorFacing`, all relative to the arena center.
 7. `UWeatherStateManager::InitialiseLeaders()`.
 8. `UActionExecutor::SetArenaCenter()`.
-9. `BindTurnManagerEvents()` then `TurnManager->InitializeCombat(Team0, Team1)` —
+9. `BindTurnManagerEvents()` then `TurnManager->InitializeCombat(LocalParty, OpposingParty)` —
    which fires the first `OnTurnStarted`.
 10. Calls the BlueprintImplementableEvent `OnCombatStartedUI()` (HUD creation) and
     `SetCombatState(InProgress)`.
@@ -315,3 +319,4 @@ Observations from the code (not explicitly flagged as issues):
 | 2026-06-19 | Cast VFX generalization (Steps A+B+follow-up): the `UCombatNotify` Cast family now drives abilities/attacks via `CastArray` on `USkillDataBase`, not just spells. `SkillProjectile::InitializeProjectile` + the five `ActionExecutor` spawners (`DispatchSpellCast`/`SpawnProjectileActor`/`SpawnAOEEffect`/`ResolveInstantSpell`/`SpawnSupportSpellEffect`) retyped `USpellData*` → `USkillDataBase*` (+ `ESpellElement InElement`); the Cast handler drops the `PendingSpellData` guard and resolves from `GetCurrentSkillData()` + `PendingExecutionActor` + `PartialResult.AttackElement`. Empty-`CastArray` fallback stays spell-gated. Spell path byte-identical. New §Cast delivery note. Gaps: non-spell projectile tint (`Generic`), support-ability VFX off `VFXArray`. | feature/cast-vfx-generalization |
 | 2026-07-20 | Camera system fully deleted (no rewrite). Removed the `CameraManager` member, `FindCameraManager()`, the `Combat/Camera/CombatCameraManager.h` include (public header + two `.cpp` copies), and all five callsites: `StartCombat`'s `InitializeForCombat`, `ForceEndCombat`'s `EndCombat`, and the `TransitionToSelection`/`TransitionToAction` calls in `DebugSelectTarget`/`DebugAttackSelectedTarget`. All five were already null-guarded and inert (no manager placed since T-C1), so removal is behaviour-neutral. `ACombatCameraManager`, `ECombatCameraState`, `EActionCameraPhase`, and `BP_CombatCameraManager` deleted outright. Replacement design (Sequencer-per-skill + per-character camera state selector) banked in `docs/Design/Resources_Design.md`. | feature/camera-removal |
 | 2026-06-21 | New §EP cost — single source of truth + deferred lifecycle: the ability/attack EP spend (`ExecuteSkillAsync`) was a duplicated inline copy of `CalculateActionEnergyCost`'s formula; consolidated onto the single call (DRY). This **inherits the `bIsDeferredFire → 0` early-out**, closing a latent **double-charge on deferred abilities** (was charged full at arm AND again at the inline fire-time spend; now charged once at arm, free at fire — matching the spell path). Normal abilities unchanged. Flagged: deferred path implemented + cost-correct but un-exercised (no shipping asset sets `ActivationDelay > 0`). | fix/ability-cost-consolidation |
+| 2026-07-20 | Roster rename: `Team0Combatants` / `Team1Combatants` → `LocalPartyCombatants` / `OpposingPartyCombatants`, and the BP-facing surface with them (`StartCombat`, `OnCombatStartedUI`, `GetLocalParty` / `GetOpposingParty`, `FCombatResult::LocalPartySurvivors` / `OpposingPartySurvivors`). Perspective-based naming for PvP, where both sides are player parties. Level actor tags renamed to match (`FName("LocalParty")` / `FName("OpposingParty")`) — debug path only. The `int32` team-index vocabulary (`TeamIndex`, `GetActorTeam`, ...) is deliberately unchanged. | feature/party-system |

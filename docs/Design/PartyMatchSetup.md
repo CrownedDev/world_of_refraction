@@ -17,11 +17,13 @@ concerns; they're all "set up the match from party data."
    party asset until player party-building exists.)
 2. **Load** — read the party data at match start.
 3. **Spawn** — create character actors from the party data (replaces level-placing).
-4. **Assign teams** — Team0 (player) / Team1 (enemy); co-op = two players' parties on the same team
-   vs enemies.
+4. **Assign parties** — `LocalParty` (the local player's side) / `OpposingParty` (whatever opposes
+   them); co-op = two players' characters in the same `LocalParty` vs an enemy `OpposingParty`.
+   The naming is perspective-based, so under PvP each client sees itself as `LocalParty`.
 5. **Assign grid positions** — place each character on a grid cell (layer/row/column).
-6. **Hand to the orchestrator** — give ACombatOrchestrator the spawned/teamed/positioned characters —
-   the SAME list it currently collects from level tags (GetAllActorsWithTag Team0/Team1). The
+6. **Hand to the orchestrator** — give ACombatOrchestrator the spawned/assigned/positioned characters —
+   the SAME list its debug path collects from level tags (`GetAllActorsWithTag` `LocalParty` /
+   `OpposingParty`; note the T-C1 production path already spawns from a stashed roster instead). The
    orchestrator is spawn-agnostic (takes a list of actors), so this slots in WITHOUT a combat rewrite.
 
 ## Where it lives
@@ -32,7 +34,7 @@ Likely the combat GameMode coordinates: load party → spawn → assign teams/gr
 - **Party source (initial):** where does the party come from before player party-building exists? A
   default party asset? The current level-placed characters promoted to a "default party"? (Need
   something to spawn until party-building is built.)
-- **Co-op model:** two players on Team0 vs Team1 enemies? Other configurations?
+- **Co-op model:** two players sharing one `LocalParty` vs an enemy `OpposingParty`? Other configurations?
 - **Grid assignment:** fixed slots per party position? Player-chosen? Auto-assigned?
 - **Enemies:** enemy parties loaded/spawned from an encounter definition, or designer-placed for now?
 - **Player↔character link:** in co-op/PvP, how does each player's defense input map to THEIR party's
