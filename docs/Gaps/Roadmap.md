@@ -34,9 +34,9 @@ Content-layer work that improves feel or completeness without unblocking new mec
 
 Multi-cluster arcs. Each needs its own survey + design pass before authoring.
 
-- **Hub → Trial door transition.** Player walks through a door in the hub → level load into a trial level. Interactable door actor, level streaming or hard load, hub state preserved through the transition. **NEXT ARC after roadmap doc.**
+- ~~**Hub → Trial door transition.**~~ **SHIPPED** (`79314c2e`, feature/trial-transition). `ATrialDoor` with element-tinted mesh, `UTrialRunSubsystem`, `UTrialData`.
 
-- **Encounter-based trial system.** Walkable trial space, touch enemy → combat starts. Enemy actors with detection radius, radius-joining for multi-enemy encounters, combat orchestrator hook to start combat from world-space collision. **ARC AFTER TRIAL DOOR.**
+- ~~**Encounter-based trial system.**~~ **SHIPPED** (T-C1, feature/trial-transition). `UEncounterComponent` trigger sphere + join window + Void arena bubble, `ABattleGameMode` battle stage, return-to-trial via `UTrialRunSubsystem::ExitEncounter`. Multi-enemy encounters and encounter composition banked below.
 
 - **Combat camera build.** Sequencer-per-skill + distributed camera state selector, replaces the older `CombatCameraManager`. Design banked in prior session's design bank (`docs/Design/Resources_Design.md` or equivalent).
 
@@ -50,11 +50,33 @@ Multi-cluster arcs. Each needs its own survey + design pass before authoring.
 
 ---
 
-## Immediate next
+## Session-added banked arcs (2026-07-20, T-C1 encounter loop)
 
-1. This roadmap doc → PK
-2. **Hub → Trial door arc** — new branch, survey level architecture + door interaction pattern.
+Banked during the T-C1 encounter-loop arc. Each needs its own survey before authoring.
+
+- **AI/Player identity refactor.** Move `bIsAIControlled` from a data-asset flag to a runtime source — the possessing controller becomes the source of truth. Data assets retain a DEFAULT flag; a runtime component overrides it. Required for PvP and party possession swap.
+
+- **Encounter Composition.** `UEncounterData` asset defining opposing-team roster + difficulty. Grid position moves onto `ULoadoutComponent` (per-run customisable). AI grid selection starts as a placeholder heuristic (tanks front / casters back), evolving to Utility AI. Team names deferred (PvP-driven). Multi-enemy encounters, boss fights, and encounter randomization are all downstream of this.
+
+- **Combat Component C++ promotion.** Promote the remaining SCS Blueprint-panel components to `CreateDefaultSubobject` on `ACombatCharacter`: Inventory, Loadout, WeaponMesh, CrystalInventory, Currency, InfusionVFX, CombatMovement, BrokenDarkness. **One component per commit**, tag `pre-<name>-promotion` each, restore SCS defaults per component. Gains lifecycle guarantees (see the T-C1a deferred-spawn bug), typed C++ access, and removes SCS panel clutter.
+
+- **SubmitAction hybrid router retirement.** The D8 deferred-ritual path (`CombatOrchestrator.cpp:741`) still routes through the sync/async hybrid `SubmitAction`. Convert it to `SubmitActionAsync`, then remove `SubmitAction` and its `bRequiresAsync` test entirely. Note: the conversion is not a one-liner — that callsite needs the `bool` return for its turn-stranding recovery.
+
+- **Multi-level-per-door.** Pinned. `UTrialData` grows named `EncounterLevel` entries (currently a single level ref). Player chooses at the door.
+
+- **Persistence keystone.** State must survive `OpenLevel` transitions. Encounter entry + exit currently wipes character HP/EP/inventory/currency, and the trial level reloads whole from the map asset (defeated enemies respawn). Prerequisite for real gameplay loops. Solve via `UGameInstance`-scoped persistent player state. Overlaps the Save/Persistence keystone above — treat as one arc.
+
+- **Multi-player BattleGameMode.** Bootstrap possesses each Team0 pawn with a matching PlayerController (PC0, PC1, PC2…). Requires networked play mode. T-C2+.
+
+- **Camera system full replacement.** Delete `ACombatCameraManager` + `BP_CombatCameraManager`. Full deletion, no rewrite — new system from scratch when it's time. Sequencer-per-skill + distributed state selector locked as the design bank.
 
 ---
 
-*Last updated: 2026-07-11 (post-merchant/shop arc merge to main).*
+## Immediate next
+
+1. **T-C1 arc merge** → main.
+2. **Encounter Composition** or **Combat Component C++ promotion** — both unblocked by T-C1.
+
+---
+
+*Last updated: 2026-07-20 (post-T-C1 encounter-loop arc).*
