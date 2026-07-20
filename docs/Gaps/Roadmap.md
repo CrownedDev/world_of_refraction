@@ -54,7 +54,7 @@ Multi-cluster arcs. Each needs its own survey + design pass before authoring.
 
 Banked during the T-C1 encounter-loop arc. Each needs its own survey before authoring.
 
-- **AI/Player identity refactor.** Move `bIsAIControlled` from a data-asset flag to a runtime source — the possessing controller becomes the source of truth. Data assets retain a DEFAULT flag; a runtime component overrides it. Required for PvP and party possession swap.
+- ~~**AI/Player identity refactor.**~~ **DONE** — shipped via Encounter Composition Arc 1 (`e5908739`, 2026-07-20). `bIsAIControlled` removed; identity now lives on `UCharacterData::Origin` (`ECharacterOrigin`, Player/Enemy) and control on engine possession (`ACombatCharacter` sets `AutoPossessAI` + `AIControllerClass = ACombatAIController`). A ghost / AI companion is a `Player`-origin character under a bot controller. See `docs/Architecture/PartySystem.md` and `CombatCharacter.md`.
 
 - **Encounter Composition.** `UEncounterData` asset defining opposing-team roster + difficulty. Grid position moves onto `ULoadoutComponent` (per-run customisable). AI grid selection starts as a placeholder heuristic (tanks front / casters back), evolving to Utility AI. Team names deferred (PvP-driven). Multi-enemy encounters, boss fights, and encounter randomization are all downstream of this.
 
@@ -89,15 +89,27 @@ Banked during the T-C1 encounter-loop arc. Each needs its own survey before auth
 
 - **Team-index vocabulary migration.** Deferred. `TeamIndex`, `GetActorTeam`, `GetTeamMembers`, `EnemyTeam`, `SourceTeam`, `TargetTeam`, `SelfTeam`, `UserTeam`, `PositionInTeam`, `ComputeTeamHPPercent` (~200 sites) all still use `Team*`. This is deliberate — the `int32` index is the low-level mechanism, distinct from the party domain concept. Revisit if the mixed vocabulary becomes a readability cost.
 
-- **LevelMechanics legacy retirement.** Placed actors in `LevelMechanics` still carry the old `"Team0"` / `"Team1"` string tags, so `ACombatOrchestrator::DebugStartCombatWithLevelActors` finds nothing there (characters "disappear" from that debug flow). Debug-only — `bAutoStartCombat` defaults false and the T-C1 production path spawns from a stashed roster, never from tags. Either re-tag the actors to `LocalParty` / `OpposingParty`, or retire the whole `BP_Combat_GameMode` debug flow now that the encounter loop supersedes it. Leaning retirement.
+- **LevelMechanics legacy retirement.** Placed actors in `LevelMechanics` still carry the old `"Team0"` / `"Team1"` string tags, so `ACombatOrchestrator::DebugStartCombatWithLevelActors` finds nothing there (characters "disappear" from that debug flow). Debug-only — `bAutoStartCombat` defaults false and the T-C1 production path spawns from a stashed roster, never from tags. **Decision (2026-07-20): retire it** — delete the `LevelMechanics.umap` + the `BP_Combat_GameMode` debug flow, now that the encounter loop supersedes it.
+
+- **Redirector + straggler cleanup chore.** A batch of *Fix Up Redirectors* + old-tree deletions banked across the Arc 1 work, all low-risk housekeeping:
+  - 4 `CharacterData` redirector stubs (chained `DA_Character_DarknessLord` ×2, `DA_Character_BrokenDarknessLord` ×2 under `Content/Data/Characters/Data/`).
+  - `BP_CharacterBase` straggler still referenced from the old `Content/Data/Characters/Models/CharacterBase/` tree.
+  - `BP_CombatPlayerController` still under `Content/Data/Characters/Models/CharacterBase/` (referenced by `BP_BattleGameMode`) — move to `Content/Blueprints/` with the rest.
+  - Duplicate `BP_Hub_GameMode` at `/Game/Core/Hub/` alongside `/Game/Blueprints/GameModes/` — resolve which the hub actually uses, delete the other.
+  - Stray `/Game/Testing/BP_Test_CombatOrchestrator` — unused, confirm and delete.
+
+- **`BattleGameMode::DefaultPawnClass` → spectator or None.** The battle stage spawns and possesses its real combatant in `BootstrapCombat`, then destroys the engine-spawned default — so today a full 10-component `ACombatCharacter` is built (whole init cascade + auto-spawned AI controller) and discarded every battle load, pure waste. Set the battle GameMode's `DefaultPawnClass` to a spectator pawn or `None` to delete that startup cost.
+
+- **`DA_Test_Weapon_Sword.uasset` unloadable at boot.** Reported failing to load at editor startup — decide-and-execute: LFS-pull the object if it's a missing pointer, delete the asset if orphaned, or fix the references that point at it.
 
 ---
 
 ## Immediate next
 
 1. **Encounter Composition** — `UEncounterData` roster + difficulty, grid position onto `ULoadoutComponent`. The remaining unblocked T-C1 arc, and the gateway to multi-enemy encounters, boss fights, and encounter randomization.
-2. **AI/Player identity refactor** or **SubmitAction hybrid router retirement** — both small, both unblocked.
+2. **Encounter Composition Arc 2 (Composition)** — `UEncounterData`, multi-enemy `BattleGameMode`, AI grid formation. Unblocked by Arc 1.
+3. **SubmitAction hybrid router retirement** — small, unblocked.
 
 ---
 
-*Last updated: 2026-07-20 (post-party-rename arc).*
+*Last updated: 2026-07-20 (post-Encounter-Composition Arc 1).*

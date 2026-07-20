@@ -7,7 +7,7 @@ for one reason: to **natively create the combat component stack** so those
 components exist earlier in the spawn lifecycle than Blueprint-authored ones can.
 
 It holds no logic of its own — no `BeginPlay`, no tick, no state. It is a
-constructor and nine component pointers. Behaviour lives in the components.
+constructor and ten component pointers. Behaviour lives in the components.
 
 Chain: `ACharacter` → `ACombatCharacter` → `BP_TestCharacterBase` → the character
 and enemy Blueprints (`BP_CombatCharacter_*`, `BP_EnemyBase` →
@@ -47,6 +47,7 @@ lookup, and a Components panel that isn't cluttered with gameplay plumbing.
 | 7 | `InfusionVFXComponent` | `UInfusionVFXComponent` |
 | 8 | `LoadoutComponent` | `ULoadoutComponent` |
 | 9 | `BrokenDarknessComponent` | `UBrokenDarknessManager` |
+| 10 | `BattleConfigComponent` | `UBattleConfigComponent` |
 
 All are `UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character")`
 `TObjectPtr<>` members.
@@ -55,6 +56,12 @@ All are `UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character")`
 owner is BD — all its behaviour gates on `bIsFlipped`, seeded from
 `CharacterData->bBrokenDarknessInnate`. A uniform contract was chosen over a
 conditionally-present component.
+
+`UBattleConfigComponent` holds runtime battle context (grid position, owning party,
+team index, display context) — set by `ABattleGameMode` at spawn time. Unlike the
+rest of the stack it has **no cascade dependency**: it reads nothing from its
+siblings at init, so it appends last and its ordering is free (Arc 1 of the
+Encounter Composition System). See `docs/Architecture/PartySystem.md`.
 
 ### Still on the BP SCS (deliberately)
 
@@ -114,6 +121,51 @@ state: **an explicit call from the cascade, not an ordering assumption.** The
 failure mode it replaces was silent — no error, no log, and only on born-BD
 characters.
 
+## AI Possession
+
+`ACombatCharacter` sets, in its constructor:
+
+```cpp
+AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+AIControllerClass = ACombatAIController::StaticClass();
+```
+
+So **every** combat character auto-spawns an `ACombatAIController` when it finishes
+spawning — placed enemies and battle-stage spawns alike. This makes engine
+possession the authority on "who is driving this pawn": `IsPlayerControlled()` /
+`IsBotControlled()` now answer truthfully, replacing the old asset-level
+`bIsAIControlled` flag (see `ECharacterOrigin`, which now carries *identity* while
+possession carries *control*).
+
+`ACombatAIController` is a bare, behaviourless `AAIController` subclass — combat
+decisions still live in `UAIDecisionManager`, which drives pawns directly and never
+consults the controller. Its one job beyond hosting possession:
+
+```cpp
+void ACombatAIController::OnUnPossess()   // → Super, then Destroy()
+```
+
+**It self-destroys when displaced.** This is the single mechanism that reaps both
+orphan sources:
+
+- **Displacement** — `ABattleGameMode` has PC0 possess `LocalParty[0]`;
+  `AController::OnPossess` unpossesses the incumbent AI controller first, which then
+  reaps itself.
+- **Login-time orphan** — `AGameModeBase` spawns PC0 a default pawn from
+  `DefaultPawnClass` at login; that pawn auto-possesses an AI controller in
+  `PostInitializeComponents` (before PC0 has possessed anything), and PC0 then
+  displaces it. This orphan is unreachable from any GameMode hook, so a GameMode-side
+  fix could not catch it — the controller reaping itself does.
+
+All four project GameModes use an `ACombatCharacter` as `DefaultPawnClass`, so all
+four leaked one controller per level load before this. Handling it on the controller
+covers every GameMode, present and future, with no per-site work and no BP
+reparenting.
+
+⚠️ Forecloses one thing: an AI controller can no longer outlive its pawn to
+re-possess a respawn. Not a current use case (`UAIDecisionManager` never holds a
+controller), but a respawn feature would need to revisit it.
+
 ## Integration Points
 
 - `ABattleGameMode::SpawnCombatant` — the deferred-spawn path this class exists to
@@ -141,3 +193,4 @@ characters.
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-07-20 | Initial documentation. Records the Combat Component C++ Promotion arc: 8 components promoted off the BP SCS onto `ACombatCharacter` (WeaponMesh, Currency, Inventory, CrystalInventory, EvolutionInventory, InfusionVFX, Loadout, BrokenDarkness), joining `CharacterDataComponent` from T-C1a. Adds the `InitializeBornBrokenDarkness()` cascade hook replacing BeginPlay-order dependence. Every captured SCS default across all 9 BPs was already at its C++ default — no re-entry needed. `UCombatMovementComponent`, listed on the roadmap, did not exist (dissolved by the warp-positioning work, `9563ff2d` / `9d064648`); `EvolutionInventory` took its slot. | feature/combat-components-cpp |
+| 2026-07-20 | Encounter Composition Arc 1 (Party Foundation, merged `e5908739`): `UBattleConfigComponent` added as the 10th native (runtime battle context, no cascade dependency). New §AI Possession — `AutoPossessAI` + `AIControllerClass = ACombatAIController`, and the `OnUnPossess` self-reap that handles displacement and login-time orphan controllers in one mechanism. `ECharacterOrigin` now carries identity while engine possession carries control, replacing `bIsAIControlled`. | feature/encounter-composition-arc1 |

@@ -24,6 +24,7 @@ build.log
 
 # Claude Code
 .claude/scheduled_tasks.lock
+.claude/settings.local.json
 docs/PastDocumentation
 
 # UE editor-local state (per-developer, not tracked)

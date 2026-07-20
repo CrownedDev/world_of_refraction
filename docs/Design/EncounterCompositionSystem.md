@@ -1,6 +1,6 @@
 # Encounter Composition System
 
-**Status:** Design locked, not built. Ships across 3 build arcs.
+**Status:** Arc 1 (Foundation) **COMPLETE** — shipped, merged `e5908739`. Arcs 2 (Composition) and 3 (Trial Pool) design-locked, not built.
 **Author:** Crown + Claude session, 2026-07-20
 **Prerequisite reading:** `PartyMatchSetup.md`, `CombatCharacter.md`, `AIArchitecture.md`, `Roadmap.md`
 
@@ -339,9 +339,18 @@ The identity split (Origin vs Possession) means ghosts do not need special-case 
 
 **Local party positioning:**
 - From `BattleConfig->GridPosition` set at spawn
-- Value flows: `PartySession → FParty → member preference → BattleConfig at spawn`
+- Value flows: `PartySession → UParty → member preference → BattleConfig at spawn`
 - Party assembly UI (later) lets player customise
 - Default heuristic if unset: front row for tanks, back for casters
+
+**Grid rules (Arc 2 authoring — refined 2026-07-20):** each character picks **one
+exclusive row slot** (Front / Middle / Back) plus a **strategic column pick** within
+that row. Row exclusivity means **no two party members occupy the same row** — a
+3-member party spans all three rows, one member each. This makes row assignment a
+real party-composition decision (who tanks front, who casts from back) rather than a
+free-for-all, and needs **per-instance identity** on `UBattleConfigComponent` so two
+members of the same class can hold distinct rows (Arc 1's membership is class-based
+and cannot distinguish them — see PartySystem.md POC limits).
 
 **Opposing party positioning:**
 - Fixed encounters: `FEncounterEntry::PreferredGridPosition` (authored)
@@ -360,19 +369,22 @@ Every current `CharacterData->bIsAIControlled` callsite migrates to `!Pawn->IsPl
 
 ## Build Sequence
 
-### Arc 1: Foundation
+### Arc 1: Foundation — ✅ SHIPPED (merged `e5908739`, 2026-07-20)
 
-**Deliverables (~7 files):**
-- `Public/Party/PartySessionSubsystem.h` + `.cpp`
-- `Public/Party/Party.h` (FParty struct)
-- `Public/Character/BattleConfigComponent.h` + `.cpp`
-- `Public/Character/CombatCharacter.h` — add `BattleConfigComponent` as native
-- `Public/Character/CharacterData.h` — add `Origin` enum, remove `bIsAIControlled`
-- Callsite migration for `bIsAIControlled` (grep + refactor)
+**Delivered:**
+- `Public/Party/Party.h` + `.cpp` — **`UParty` (UObject)**, not the originally-planned `FParty` struct (`TWeakObjectPtr<UParty>` needs a UObject), with one `FPartyMember` slot struct instead of parallel arrays.
+- `Public/Party/PartySessionSubsystem.h` + `.cpp` — `UCLASS(Config = Game)`, `DefaultSoloPawnClass`, `EnsureLocalParty` lazy-create, `IsTrialPartyMember`.
+- `Public/Combat/AI/CombatAIController.h` + `.cpp` — bare self-reaping `AAIController`; `AIModule` added to `Build.cs`.
+- `Public/Character/BattleConfigComponent.h` + `.cpp` — 10th native on `ACombatCharacter`.
+- `Public/Character/ECharacterOrigin.h` — new enum; `bIsAIControlled` removed, 4 callsites migrated (origin vs control split).
+- `ACombatCharacter` — `AutoPossessAI` + `AIControllerClass` wiring, controller self-cleanup in `OnUnPossess`.
+- Two-layer Trial Party / Battle Party model in `BattleGameMode`.
 
-**Not shipped yet:** party UI, encounter data assets, spawner actors, pools.
+See `docs/Architecture/PartySystem.md` and `docs/Architecture/CombatCharacter.md`.
 
-**PIE verify:** existing T-C1 encounter loop still works. Solo player enters trial → BattleGameMode reads a party-of-1 from PartySession instead of hardcoded single-pawn logic. Combat identical to before.
+**PIE-verified end to end:** hub → trial door → engage enemy → level swap → HUD builds → AI possesses → combat + defense both directions → return to trial. `"Battle Party N of Trial Party N"` cross-check confirms both layers agree.
+
+**Not shipped (Arc 2/3):** party UI, encounter data assets, spawner actors, pools, AI companion fill.
 
 ### Arc 2: Composition
 
