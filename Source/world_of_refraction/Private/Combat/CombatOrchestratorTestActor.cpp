@@ -83,21 +83,21 @@ void ACombatOrchestratorTestActor::Test_BasicCombatFlow()
 	Orchestrator->AutoAdvanceDelay = 0.1f;
 
 	// Create teams
-	TArray<AActor *> Team0;
-	Team0.Add(CreateTestCharacter("Player1", 5, 5, 5, 0, 0));
-	Team0.Add(CreateTestCharacter("Player2", 5, 5, 5, 0, 0));
+	TArray<AActor *> LocalParty;
+	LocalParty.Add(CreateTestCharacter("Player1", 5, 5, 5, 0, 0));
+	LocalParty.Add(CreateTestCharacter("Player2", 5, 5, 5, 0, 0));
 
-	TArray<AActor *> Team1;
-	Team1.Add(CreateTestCharacter("Enemy1", 5, 5, 5, 0, 1));
-	Team1.Add(CreateTestCharacter("Enemy2", 5, 5, 5, 0, 1));
+	TArray<AActor *> OpposingParty;
+	OpposingParty.Add(CreateTestCharacter("Enemy1", 5, 5, 5, 0, 1));
+	OpposingParty.Add(CreateTestCharacter("Enemy2", 5, 5, 5, 0, 1));
 
 	// Start combat
-	Orchestrator->StartCombat(Team0, Team1);
+	Orchestrator->StartCombat(LocalParty, OpposingParty);
 
 	// Verify state
 	bool bStarted = (Orchestrator->GetCombatState() == ECombatState::InProgress);
 	bool bHasCurrentActor = (Orchestrator->GetCurrentActor() != nullptr);
-	bool bTeamsStored = (Orchestrator->GetTeam0().Num() == 2 && Orchestrator->GetTeam1().Num() == 2);
+	bool bTeamsStored = (Orchestrator->GetLocalParty().Num() == 2 && Orchestrator->GetOpposingParty().Num() == 2);
 
 	bool bPassed = bStarted && bHasCurrentActor && bTeamsStored;
 
@@ -106,7 +106,7 @@ void ACombatOrchestratorTestActor::Test_BasicCombatFlow()
 		UE_LOG(LogTemp, Display, TEXT("    Combat started successfully"));
 		UE_LOG(LogTemp, Display, TEXT("    Current actor: %s"), *Orchestrator->GetCurrentActor()->GetName());
 		UE_LOG(LogTemp, Display, TEXT("    Teams: %d vs %d"),
-			   Orchestrator->GetTeam0().Num(), Orchestrator->GetTeam1().Num());
+			   Orchestrator->GetLocalParty().Num(), Orchestrator->GetOpposingParty().Num());
 	}
 	else
 	{
@@ -118,8 +118,8 @@ void ACombatOrchestratorTestActor::Test_BasicCombatFlow()
 
 	// Force cleanup
 	Orchestrator->ForceEndCombat();
-	CleanupTestActors(Team0);
-	CleanupTestActors(Team1);
+	CleanupTestActors(LocalParty);
+	CleanupTestActors(OpposingParty);
 }
 
 void ACombatOrchestratorTestActor::Test_StateTransitions()
@@ -141,17 +141,17 @@ void ACombatOrchestratorTestActor::Test_StateTransitions()
 	Orchestrator->bAutoAdvanceTurns = false;
 
 	// Create teams
-	TArray<AActor *> Team0;
-	Team0.Add(CreateTestCharacter("P1", 5, 5, 5, 0, 0));
+	TArray<AActor *> LocalParty;
+	LocalParty.Add(CreateTestCharacter("P1", 5, 5, 5, 0, 0));
 
-	TArray<AActor *> Team1;
-	Team1.Add(CreateTestCharacter("E1", 5, 5, 5, 0, 1));
+	TArray<AActor *> OpposingParty;
+	OpposingParty.Add(CreateTestCharacter("E1", 5, 5, 5, 0, 1));
 
 	// Should be Idle initially
 	bool bIdleFirst = (Orchestrator->GetCombatState() == ECombatState::Idle);
 
 	// Start combat
-	Orchestrator->StartCombat(Team0, Team1);
+	Orchestrator->StartCombat(LocalParty, OpposingParty);
 
 	// Should transition through Initializing -> InProgress
 	bool bInProgress = (Orchestrator->GetCombatState() == ECombatState::InProgress);
@@ -177,8 +177,8 @@ void ACombatOrchestratorTestActor::Test_StateTransitions()
 
 	// Cleanup
 	Orchestrator->OnCombatStateChanged.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestCombatStateChanged);
-	CleanupTestActors(Team0);
-	CleanupTestActors(Team1);
+	CleanupTestActors(LocalParty);
+	CleanupTestActors(OpposingParty);
 }
 
 void ACombatOrchestratorTestActor::Test_VictoryCondition()
@@ -195,19 +195,19 @@ void ACombatOrchestratorTestActor::Test_VictoryCondition()
 	Orchestrator->bAutoAdvanceTurns = false;
 
 	// Create teams
-	TArray<AActor *> Team0;
-	Team0.Add(CreateTestCharacter("Player", 5, 5, 5, 0, 0));
+	TArray<AActor *> LocalParty;
+	LocalParty.Add(CreateTestCharacter("Player", 5, 5, 5, 0, 0));
 
-	TArray<AActor *> Team1;
+	TArray<AActor *> OpposingParty;
 	AActor *Enemy = CreateTestCharacter("Enemy", 5, 5, 5, 0, 1);
-	Team1.Add(Enemy);
+	OpposingParty.Add(Enemy);
 
 	// Track result
 	LastCombatResult = FCombatResult();
 	Orchestrator->OnCombatResultReady.AddDynamic(this, &ACombatOrchestratorTestActor::OnTestCombatResultReady);
 
 	// Start combat
-	Orchestrator->StartCombat(Team0, Team1);
+	Orchestrator->StartCombat(LocalParty, OpposingParty);
 
 	// Kill all enemies using debug tool
 	Orchestrator->DebugKillActor(Enemy);
@@ -217,20 +217,20 @@ void ACombatOrchestratorTestActor::Test_VictoryCondition()
 
 	// Check result
 	bool bVictory = (LastCombatResult.FinalState == ECombatState::Victory);
-	bool bCorrectSurvivors = (LastCombatResult.Team0Survivors == 1 && LastCombatResult.Team1Survivors == 0);
+	bool bCorrectSurvivors = (LastCombatResult.LocalPartySurvivors == 1 && LastCombatResult.OpposingPartySurvivors == 0);
 
-	UE_LOG(LogTemp, Display, TEXT("    Result: State=%d, Team0=%d alive, Team1=%d alive"),
+	UE_LOG(LogTemp, Display, TEXT("    Result: State=%d, LocalParty=%d alive, OpposingParty=%d alive"),
 		   (int32)LastCombatResult.FinalState,
-		   LastCombatResult.Team0Survivors,
-		   LastCombatResult.Team1Survivors);
+		   LastCombatResult.LocalPartySurvivors,
+		   LastCombatResult.OpposingPartySurvivors);
 
 	bool bPassed = bVictory && bCorrectSurvivors;
 	PrintTestResult("Victory Condition", bPassed);
 
 	// Cleanup
 	Orchestrator->OnCombatResultReady.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestCombatResultReady);
-	CleanupTestActors(Team0);
-	CleanupTestActors(Team1);
+	CleanupTestActors(LocalParty);
+	CleanupTestActors(OpposingParty);
 }
 
 void ACombatOrchestratorTestActor::Test_DefeatCondition()
@@ -247,19 +247,19 @@ void ACombatOrchestratorTestActor::Test_DefeatCondition()
 	Orchestrator->bAutoAdvanceTurns = false;
 
 	// Create teams
-	TArray<AActor *> Team0;
+	TArray<AActor *> LocalParty;
 	AActor *Player = CreateTestCharacter("Player", 5, 5, 5, 0, 0);
-	Team0.Add(Player);
+	LocalParty.Add(Player);
 
-	TArray<AActor *> Team1;
-	Team1.Add(CreateTestCharacter("Enemy", 5, 5, 5, 0, 1));
+	TArray<AActor *> OpposingParty;
+	OpposingParty.Add(CreateTestCharacter("Enemy", 5, 5, 5, 0, 1));
 
 	// Track result
 	LastCombatResult = FCombatResult();
 	Orchestrator->OnCombatResultReady.AddDynamic(this, &ACombatOrchestratorTestActor::OnTestCombatResultReady);
 
 	// Start combat
-	Orchestrator->StartCombat(Team0, Team1);
+	Orchestrator->StartCombat(LocalParty, OpposingParty);
 
 	// Kill all players
 	Orchestrator->DebugKillActor(Player);
@@ -269,20 +269,20 @@ void ACombatOrchestratorTestActor::Test_DefeatCondition()
 
 	// Check result
 	bool bDefeat = (LastCombatResult.FinalState == ECombatState::Defeat);
-	bool bCorrectSurvivors = (LastCombatResult.Team0Survivors == 0 && LastCombatResult.Team1Survivors == 1);
+	bool bCorrectSurvivors = (LastCombatResult.LocalPartySurvivors == 0 && LastCombatResult.OpposingPartySurvivors == 1);
 
-	UE_LOG(LogTemp, Display, TEXT("    Result: State=%d, Team0=%d alive, Team1=%d alive"),
+	UE_LOG(LogTemp, Display, TEXT("    Result: State=%d, LocalParty=%d alive, OpposingParty=%d alive"),
 		   (int32)LastCombatResult.FinalState,
-		   LastCombatResult.Team0Survivors,
-		   LastCombatResult.Team1Survivors);
+		   LastCombatResult.LocalPartySurvivors,
+		   LastCombatResult.OpposingPartySurvivors);
 
 	bool bPassed = bDefeat && bCorrectSurvivors;
 	PrintTestResult("Defeat Condition", bPassed);
 
 	// Cleanup
 	Orchestrator->OnCombatResultReady.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestCombatResultReady);
-	CleanupTestActors(Team0);
-	CleanupTestActors(Team1);
+	CleanupTestActors(LocalParty);
+	CleanupTestActors(OpposingParty);
 }
 
 void ACombatOrchestratorTestActor::Test_ForceEndCombat()
@@ -299,18 +299,18 @@ void ACombatOrchestratorTestActor::Test_ForceEndCombat()
 	Orchestrator->bAutoAdvanceTurns = false;
 
 	// Create teams
-	TArray<AActor *> Team0;
-	Team0.Add(CreateTestCharacter("P1", 5, 5, 5, 0, 0));
+	TArray<AActor *> LocalParty;
+	LocalParty.Add(CreateTestCharacter("P1", 5, 5, 5, 0, 0));
 
-	TArray<AActor *> Team1;
-	Team1.Add(CreateTestCharacter("E1", 5, 5, 5, 0, 1));
+	TArray<AActor *> OpposingParty;
+	OpposingParty.Add(CreateTestCharacter("E1", 5, 5, 5, 0, 1));
 
 	// Track result
 	LastCombatResult = FCombatResult();
 	Orchestrator->OnCombatResultReady.AddDynamic(this, &ACombatOrchestratorTestActor::OnTestCombatResultReady);
 
 	// Start combat
-	Orchestrator->StartCombat(Team0, Team1);
+	Orchestrator->StartCombat(LocalParty, OpposingParty);
 	bool bWasInProgress = (Orchestrator->GetCombatState() == ECombatState::InProgress);
 
 	// Force end (like fleeing or cutscene)
@@ -328,8 +328,8 @@ void ACombatOrchestratorTestActor::Test_ForceEndCombat()
 
 	// Cleanup
 	Orchestrator->OnCombatResultReady.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestCombatResultReady);
-	CleanupTestActors(Team0);
-	CleanupTestActors(Team1);
+	CleanupTestActors(LocalParty);
+	CleanupTestActors(OpposingParty);
 }
 
 void ACombatOrchestratorTestActor::Test_ActionExecutorIntegration()
@@ -352,16 +352,16 @@ void ACombatOrchestratorTestActor::Test_ActionExecutorIntegration()
 	Orchestrator->OnActionExecuted.AddDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
 
 	// Create teams
-	TArray<AActor *> Team0;
+	TArray<AActor *> LocalParty;
 	AActor *Player = CreateTestCharacter("ActionTestPlayer", 5, 5, 5, 0, 0);
-	Team0.Add(Player);
+	LocalParty.Add(Player);
 
-	TArray<AActor *> Team1;
+	TArray<AActor *> OpposingParty;
 	AActor *Enemy = CreateTestCharacter("ActionTestEnemy", 5, 5, 5, 0, 1);
-	Team1.Add(Enemy);
+	OpposingParty.Add(Enemy);
 
 	// Start combat
-	Orchestrator->StartCombat(Team0, Team1);
+	Orchestrator->StartCombat(LocalParty, OpposingParty);
 
 	// Verify we're in progress and have a current actor
 	bool bInProgress = (Orchestrator->GetCombatState() == ECombatState::InProgress);
@@ -373,8 +373,8 @@ void ACombatOrchestratorTestActor::Test_ActionExecutorIntegration()
 		PrintTestResult("ActionExecutor Integration", false);
 		Orchestrator->ForceEndCombat();
 		Orchestrator->OnActionExecuted.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
-		CleanupTestActors(Team0);
-		CleanupTestActors(Team1);
+		CleanupTestActors(LocalParty);
+		CleanupTestActors(OpposingParty);
 		return;
 	}
 
@@ -421,8 +421,8 @@ void ACombatOrchestratorTestActor::Test_ActionExecutorIntegration()
 	// Cleanup
 	Orchestrator->ForceEndCombat();
 	Orchestrator->OnActionExecuted.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
-	CleanupTestActors(Team0);
-	CleanupTestActors(Team1);
+	CleanupTestActors(LocalParty);
+	CleanupTestActors(OpposingParty);
 }
 
 void ACombatOrchestratorTestActor::Test_RealAttackExecution()
@@ -458,14 +458,14 @@ void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 	Orchestrator->OnActionExecuted.AddDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
 
 	// Create attacker with good Body stat for damage
-	TArray<AActor *> Team0;
+	TArray<AActor *> LocalParty;
 	AActor *Attacker = CreateTestCharacter("BoltAttacker", 3, 6, 3, 0, 0);
-	Team0.Add(Attacker);
+	LocalParty.Add(Attacker);
 
 	// Create target with moderate defense
-	TArray<AActor *> Team1;
+	TArray<AActor *> OpposingParty;
 	AActor *Target = CreateTestCharacter("BoltTarget", 3, 4, 3, 0, 1);
-	Team1.Add(Target);
+	OpposingParty.Add(Target);
 
 	// Get target's initial HP
 	UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
@@ -474,7 +474,7 @@ void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 	UE_LOG(LogTemp, Display, TEXT("    Target initial HP: %d"), InitialHP);
 
 	// Start combat
-	Orchestrator->StartCombat(Team0, Team1);
+	Orchestrator->StartCombat(LocalParty, OpposingParty);
 
 	// Verify combat started
 	if (Orchestrator->GetCombatState() != ECombatState::InProgress)
@@ -483,8 +483,8 @@ void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 		PrintTestResult("Real Attack Execution", false);
 		Orchestrator->ForceEndCombat();
 		Orchestrator->OnActionExecuted.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
-		CleanupTestActors(Team0);
-		CleanupTestActors(Team1);
+		CleanupTestActors(LocalParty);
+		CleanupTestActors(OpposingParty);
 		return;
 	}
 
@@ -527,8 +527,8 @@ void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 	// Cleanup
 	Orchestrator->ForceEndCombat();
 	Orchestrator->OnActionExecuted.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
-	CleanupTestActors(Team0);
-	CleanupTestActors(Team1);
+	CleanupTestActors(LocalParty);
+	CleanupTestActors(OpposingParty);
 }
 
 // ========================================
@@ -694,9 +694,9 @@ void ACombatOrchestratorTestActor::Test_SpellExecution()
 	Orchestrator->OnActionExecuted.AddDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
 
 	// Create Fire caster (must match spell element) with HIGH SPEED to go first
-	TArray<AActor *> Team0;
+	TArray<AActor *> LocalParty;
 	AActor *Caster = CreateTestCharacter("FireCaster", 5, 3, 5, 100, 0); // Speed=100 to go first
-	Team0.Add(Caster);
+	LocalParty.Add(Caster);
 
 	// Set caster's element to Fire
 	UCharacterDataComponent *CasterComp = Caster->FindComponentByClass<UCharacterDataComponent>();
@@ -706,9 +706,9 @@ void ACombatOrchestratorTestActor::Test_SpellExecution()
 	}
 
 	// Create target with low speed
-	TArray<AActor *> Team1;
+	TArray<AActor *> OpposingParty;
 	AActor *Target = CreateTestCharacter("SpellTarget", 3, 4, 3, 0, 1);
-	Team1.Add(Target);
+	OpposingParty.Add(Target);
 
 	// Get target's initial HP
 	UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
@@ -717,7 +717,7 @@ void ACombatOrchestratorTestActor::Test_SpellExecution()
 	UE_LOG(LogTemp, Display, TEXT("    Target initial HP: %d"), InitialHP);
 
 	// Start combat
-	Orchestrator->StartCombat(Team0, Team1);
+	Orchestrator->StartCombat(LocalParty, OpposingParty);
 
 	if (Orchestrator->GetCombatState() != ECombatState::InProgress)
 	{
@@ -725,8 +725,8 @@ void ACombatOrchestratorTestActor::Test_SpellExecution()
 		PrintTestResult("Spell Execution", false);
 		Orchestrator->ForceEndCombat();
 		Orchestrator->OnActionExecuted.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
-		CleanupTestActors(Team0);
-		CleanupTestActors(Team1);
+		CleanupTestActors(LocalParty);
+		CleanupTestActors(OpposingParty);
 		return;
 	}
 
@@ -769,8 +769,8 @@ void ACombatOrchestratorTestActor::Test_SpellExecution()
 	// Cleanup
 	Orchestrator->ForceEndCombat();
 	Orchestrator->OnActionExecuted.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
-	CleanupTestActors(Team0);
-	CleanupTestActors(Team1);
+	CleanupTestActors(LocalParty);
+	CleanupTestActors(OpposingParty);
 }
 
 // ========================================
@@ -817,14 +817,14 @@ void ACombatOrchestratorTestActor::Test_AbilityExecution()
 	Orchestrator->OnActionExecuted.AddDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
 
 	// Create attacker with good Body stat and HIGH SPEED to go first
-	TArray<AActor *> Team0;
+	TArray<AActor *> LocalParty;
 	AActor *Attacker = CreateTestCharacter("AbilityUser", 3, 6, 3, 100, 0); // Speed=100 to go first
-	Team0.Add(Attacker);
+	LocalParty.Add(Attacker);
 
 	// Create target with low speed
-	TArray<AActor *> Team1;
+	TArray<AActor *> OpposingParty;
 	AActor *Target = CreateTestCharacter("AbilityTarget", 3, 4, 3, 0, 1);
-	Team1.Add(Target);
+	OpposingParty.Add(Target);
 
 	// Get initial states
 	UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
@@ -836,7 +836,7 @@ void ACombatOrchestratorTestActor::Test_AbilityExecution()
 	UE_LOG(LogTemp, Display, TEXT("    Attacker initial EP: %d"), InitialEP);
 
 	// Start combat
-	Orchestrator->StartCombat(Team0, Team1);
+	Orchestrator->StartCombat(LocalParty, OpposingParty);
 
 	if (Orchestrator->GetCombatState() != ECombatState::InProgress)
 	{
@@ -844,8 +844,8 @@ void ACombatOrchestratorTestActor::Test_AbilityExecution()
 		PrintTestResult("Ability Execution", false);
 		Orchestrator->ForceEndCombat();
 		Orchestrator->OnActionExecuted.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
-		CleanupTestActors(Team0);
-		CleanupTestActors(Team1);
+		CleanupTestActors(LocalParty);
+		CleanupTestActors(OpposingParty);
 		return;
 	}
 
@@ -888,8 +888,8 @@ void ACombatOrchestratorTestActor::Test_AbilityExecution()
 	// Cleanup
 	Orchestrator->ForceEndCombat();
 	Orchestrator->OnActionExecuted.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
-	CleanupTestActors(Team0);
-	CleanupTestActors(Team1);
+	CleanupTestActors(LocalParty);
+	CleanupTestActors(OpposingParty);
 }
 
 // ========================================
@@ -910,24 +910,24 @@ void ACombatOrchestratorTestActor::Test_StatusEffectFromAction()
 	Orchestrator->bAutoAdvanceTurns = false;
 
 	// Create combatants - give defender high speed to go first
-	TArray<AActor *> Team0;
+	TArray<AActor *> LocalParty;
 	AActor *Defender = CreateTestCharacter("StatusDefender", 3, 4, 3, 100, 0); // Speed=100 to go first
-	Team0.Add(Defender);
+	LocalParty.Add(Defender);
 
-	TArray<AActor *> Team1;
+	TArray<AActor *> OpposingParty;
 	AActor *Enemy = CreateTestCharacter("StatusEnemy", 3, 4, 3, 0, 1);
-	Team1.Add(Enemy);
+	OpposingParty.Add(Enemy);
 
 	// Start combat
-	Orchestrator->StartCombat(Team0, Team1);
+	Orchestrator->StartCombat(LocalParty, OpposingParty);
 
 	if (Orchestrator->GetCombatState() != ECombatState::InProgress)
 	{
 		UE_LOG(LogTemp, Error, TEXT("    Combat failed to start"));
 		PrintTestResult("Status Effect From Action", false);
 		Orchestrator->ForceEndCombat();
-		CleanupTestActors(Team0);
-		CleanupTestActors(Team1);
+		CleanupTestActors(LocalParty);
+		CleanupTestActors(OpposingParty);
 		return;
 	}
 
@@ -940,8 +940,8 @@ void ACombatOrchestratorTestActor::Test_StatusEffectFromAction()
 		UE_LOG(LogTemp, Error, TEXT("    SkillEffectManager not found"));
 		PrintTestResult("Status Effect From Action", false);
 		Orchestrator->ForceEndCombat();
-		CleanupTestActors(Team0);
-		CleanupTestActors(Team1);
+		CleanupTestActors(LocalParty);
+		CleanupTestActors(OpposingParty);
 		return;
 	}
 
@@ -984,8 +984,8 @@ void ACombatOrchestratorTestActor::Test_StatusEffectFromAction()
 	// Cleanup
 	Orchestrator->ForceEndCombat();
 	Orchestrator->OnActionExecuted.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
-	CleanupTestActors(Team0);
-	CleanupTestActors(Team1);
+	CleanupTestActors(LocalParty);
+	CleanupTestActors(OpposingParty);
 }
 
 // ========================================
@@ -1022,18 +1022,18 @@ void ACombatOrchestratorTestActor::Test_MultiTargetAction()
 	Orchestrator->OnActionExecuted.AddDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
 
 	// Create attacker
-	TArray<AActor *> Team0;
+	TArray<AActor *> LocalParty;
 	AActor *Attacker = CreateTestCharacter("MultiAttacker", 3, 6, 3, 0, 0);
-	Team0.Add(Attacker);
+	LocalParty.Add(Attacker);
 
 	// Create 3 targets
-	TArray<AActor *> Team1;
+	TArray<AActor *> OpposingParty;
 	AActor *Target1 = CreateTestCharacter("Target1", 3, 4, 3, 0, 1);
 	AActor *Target2 = CreateTestCharacter("Target2", 3, 4, 3, 0, 1);
 	AActor *Target3 = CreateTestCharacter("Target3", 3, 4, 3, 0, 1);
-	Team1.Add(Target1);
-	Team1.Add(Target2);
-	Team1.Add(Target3);
+	OpposingParty.Add(Target1);
+	OpposingParty.Add(Target2);
+	OpposingParty.Add(Target3);
 
 	// Get initial HPs
 	UCharacterDataComponent *Comp1 = Target1->FindComponentByClass<UCharacterDataComponent>();
@@ -1046,7 +1046,7 @@ void ACombatOrchestratorTestActor::Test_MultiTargetAction()
 	UE_LOG(LogTemp, Display, TEXT("    Initial HPs: %d, %d, %d"), InitHP1, InitHP2, InitHP3);
 
 	// Start combat
-	Orchestrator->StartCombat(Team0, Team1);
+	Orchestrator->StartCombat(LocalParty, OpposingParty);
 
 	if (Orchestrator->GetCombatState() != ECombatState::InProgress)
 	{
@@ -1054,8 +1054,8 @@ void ACombatOrchestratorTestActor::Test_MultiTargetAction()
 		PrintTestResult("Multi-Target Action", false);
 		Orchestrator->ForceEndCombat();
 		Orchestrator->OnActionExecuted.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
-		CleanupTestActors(Team0);
-		CleanupTestActors(Team1);
+		CleanupTestActors(LocalParty);
+		CleanupTestActors(OpposingParty);
 		return;
 	}
 
@@ -1098,8 +1098,8 @@ void ACombatOrchestratorTestActor::Test_MultiTargetAction()
 	// Cleanup
 	Orchestrator->ForceEndCombat();
 	Orchestrator->OnActionExecuted.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
-	CleanupTestActors(Team0);
-	CleanupTestActors(Team1);
+	CleanupTestActors(LocalParty);
+	CleanupTestActors(OpposingParty);
 }
 
 // ========================================
@@ -1142,9 +1142,9 @@ void ACombatOrchestratorTestActor::Test_EnergyCost()
 	Orchestrator->OnActionExecuted.AddDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
 
 	// Create Fire caster with high energy AND HIGH SPEED to go first
-	TArray<AActor *> Team0;
+	TArray<AActor *> LocalParty;
 	AActor *Caster = CreateTestCharacter("EnergyCaster", 5, 3, 5, 100, 0); // Speed=100 to go first
-	Team0.Add(Caster);
+	LocalParty.Add(Caster);
 
 	UCharacterDataComponent *CasterComp = Caster->FindComponentByClass<UCharacterDataComponent>();
 	if (CasterComp)
@@ -1157,15 +1157,15 @@ void ACombatOrchestratorTestActor::Test_EnergyCost()
 	}
 
 	// Create target with low speed
-	TArray<AActor *> Team1;
+	TArray<AActor *> OpposingParty;
 	AActor *Target = CreateTestCharacter("EnergyTarget", 3, 4, 3, 0, 1);
-	Team1.Add(Target);
+	OpposingParty.Add(Target);
 
 	int32 InitialEP = CasterComp ? CasterComp->CurrentEP : 0;
 	UE_LOG(LogTemp, Display, TEXT("    Caster initial EP: %d"), InitialEP);
 
 	// Start combat
-	Orchestrator->StartCombat(Team0, Team1);
+	Orchestrator->StartCombat(LocalParty, OpposingParty);
 
 	if (Orchestrator->GetCombatState() != ECombatState::InProgress)
 	{
@@ -1173,8 +1173,8 @@ void ACombatOrchestratorTestActor::Test_EnergyCost()
 		PrintTestResult("Energy Cost Deduction", false);
 		Orchestrator->ForceEndCombat();
 		Orchestrator->OnActionExecuted.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
-		CleanupTestActors(Team0);
-		CleanupTestActors(Team1);
+		CleanupTestActors(LocalParty);
+		CleanupTestActors(OpposingParty);
 		return;
 	}
 
@@ -1216,7 +1216,7 @@ void ACombatOrchestratorTestActor::Test_EnergyCost()
 	// Cleanup
 	Orchestrator->ForceEndCombat();
 	Orchestrator->OnActionExecuted.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
-	CleanupTestActors(Team0);
-	CleanupTestActors(Team1);
+	CleanupTestActors(LocalParty);
+	CleanupTestActors(OpposingParty);
 }
 

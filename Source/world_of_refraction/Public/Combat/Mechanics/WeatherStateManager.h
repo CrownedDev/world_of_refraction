@@ -22,8 +22,8 @@ struct FLeadershipEntry
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnWeatherChanged,
-                                               UPrimaryDataAsset *, Team0WeatherDA,
-                                               UPrimaryDataAsset *, Team1WeatherDA,
+                                               UPrimaryDataAsset *, LocalPartyWeatherDA,
+                                               UPrimaryDataAsset *, OpposingPartyWeatherDA,
                                                float, BlendValue);
 
 UCLASS()
@@ -40,7 +40,7 @@ public:
     // ========================================
 
     UFUNCTION(BlueprintCallable, Category = "Weather")
-    void InitialiseLeaders(const TArray<AActor *> &Team0, const TArray<AActor *> &Team1);
+    void InitialiseLeaders(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty);
 
     UFUNCTION(BlueprintCallable, Category = "Weather")
     void EndCombat();
@@ -73,8 +73,8 @@ public:
 
 private:
     // Leadership hierarchies (sorted by world stats, highest first)
-    TArray<FLeadershipEntry> Team0Hierarchy;
-    TArray<FLeadershipEntry> Team1Hierarchy;
+    TArray<FLeadershipEntry> LocalPartyHierarchy;
+    TArray<FLeadershipEntry> OpposingPartyHierarchy;
 
     /** Last BlendValue passed to OnWeatherChanged.Broadcast. Diagnostic only —
      *  written by RecalculateWeather, read by PrintWeatherState. Defaults to
@@ -92,7 +92,7 @@ private:
      *  team-HP signal needs damage on any member to trigger a recompute, so
      *  the binding is whole-team rather than leader-only. EndCombat mirrors
      *  this with a matching iterate-and-unbind. */
-    void BindToTeam(const TArray<FLeadershipEntry> &Hierarchy, bool bIsTeam0);
+    void BindToTeam(const TArray<FLeadershipEntry> &Hierarchy, bool bIsLocalParty);
 
     void RecalculateWeather();
 
@@ -105,13 +105,13 @@ private:
     /** Map two team-HP percents to the broadcast BlendValue: signed gap →
      *  deadzone → linear ramp → ±1.0 clamp. See WEATHER_DEADZONE_GAP /
      *  WEATHER_RAMP_END_GAP in WeatherStateManager.cpp for the tuning. */
-    float ComputeBlendValue(float Team0Percent, float Team1Percent) const;
+    float ComputeBlendValue(float LocalPartyPercent, float OpposingPartyPercent) const;
 
     UFUNCTION()
-    void OnTeam0MemberDied(AActor *DeadActor);
+    void OnLocalPartyMemberDied(AActor *DeadActor);
 
     UFUNCTION()
-    void OnTeam1MemberDied(AActor *DeadActor);
+    void OnOpposingPartyMemberDied(AActor *DeadActor);
 
     UFUNCTION()
     void OnTeamMemberHPChanged(int32 NewHP, int32 MaxHP);

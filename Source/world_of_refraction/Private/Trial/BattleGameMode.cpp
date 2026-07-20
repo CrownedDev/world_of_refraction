@@ -55,32 +55,32 @@ void ABattleGameMode::BootstrapCombat()
     // Spawn fresh pawns per stashed CharacterData. Deferred-spawn is MANDATORY:
     // UCharacterDataComponent::BeginPlay runs the full init cascade off the
     // assigned asset (see SpawnCombatant).
-    TArray<AActor *> Team0;
-    TArray<AActor *> Team1;
-    const TArray<UCharacterData *> Team0Data = TrialRun->GetPendingTeam0();
-    const TArray<UCharacterData *> Team1Data = TrialRun->GetPendingTeam1();
-    for (int32 i = 0; i < Team0Data.Num(); ++i)
+    TArray<AActor *> LocalParty;
+    TArray<AActor *> OpposingParty;
+    const TArray<UCharacterData *> LocalPartyData = TrialRun->GetPendingLocalParty();
+    const TArray<UCharacterData *> OpposingPartyData = TrialRun->GetPendingOpposingParty();
+    for (int32 i = 0; i < LocalPartyData.Num(); ++i)
     {
         const FVector Location = Origin + FVector(-BattleGameModeConstants::TEAM_X_OFFSET,
                                                   i * BattleGameModeConstants::COMBATANT_Y_SPACING, 0.0f);
-        if (APawn *Spawned = SpawnCombatant(PlayerPawnClass, Team0Data[i], FTransform(Location)))
+        if (APawn *Spawned = SpawnCombatant(PlayerPawnClass, LocalPartyData[i], FTransform(Location)))
         {
-            Team0.Add(Spawned);
+            LocalParty.Add(Spawned);
         }
     }
-    for (int32 i = 0; i < Team1Data.Num(); ++i)
+    for (int32 i = 0; i < OpposingPartyData.Num(); ++i)
     {
         const FVector Location = Origin + FVector(BattleGameModeConstants::TEAM_X_OFFSET,
                                                   i * BattleGameModeConstants::COMBATANT_Y_SPACING, 0.0f);
-        if (APawn *Spawned = SpawnCombatant(EnemyPawnClass, Team1Data[i], FTransform(Location)))
+        if (APawn *Spawned = SpawnCombatant(EnemyPawnClass, OpposingPartyData[i], FTransform(Location)))
         {
-            Team1.Add(Spawned);
+            OpposingParty.Add(Spawned);
         }
     }
-    if (Team0.Num() == 0 || Team1.Num() == 0)
+    if (LocalParty.Num() == 0 || OpposingParty.Num() == 0)
     {
-        AbortToTrial(FString::Printf(TEXT("combatant spawn failed (Team0 %d/%d, Team1 %d/%d)"),
-                                     Team0.Num(), Team0Data.Num(), Team1.Num(), Team1Data.Num()));
+        AbortToTrial(FString::Printf(TEXT("combatant spawn failed (LocalParty %d/%d, OpposingParty %d/%d)"),
+                                     LocalParty.Num(), LocalPartyData.Num(), OpposingParty.Num(), OpposingPartyData.Num()));
         return;
     }
 
@@ -89,7 +89,7 @@ void ABattleGameMode::BootstrapCombat()
     if (PC)
     {
         APawn *PreviousPawn = PC->GetPawn();
-        PC->Possess(CastChecked<APawn>(Team0[0]));
+        PC->Possess(CastChecked<APawn>(LocalParty[0]));
         if (PreviousPawn && PreviousPawn != PC->GetPawn())
         {
             PreviousPawn->Destroy();
@@ -118,8 +118,8 @@ void ABattleGameMode::BootstrapCombat()
     SpawnedOrchestrator->OnCombatResultReady.AddDynamic(this, &ABattleGameMode::HandleCombatEnd);
 
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Starting combat %d v %d (difficulty %s)"),
-           Team0.Num(), Team1.Num(), *UEnum::GetValueAsString(TrialRun->GetPendingDifficulty()));
-    SpawnedOrchestrator->StartCombat(Team0, Team1, TrialRun->GetPendingDifficulty());
+           LocalParty.Num(), OpposingParty.Num(), *UEnum::GetValueAsString(TrialRun->GetPendingDifficulty()));
+    SpawnedOrchestrator->StartCombat(LocalParty, OpposingParty, TrialRun->GetPendingDifficulty());
 }
 
 APawn *ABattleGameMode::SpawnCombatant(UClass *PawnClass, UCharacterData *Data, const FTransform &SpawnTransform)

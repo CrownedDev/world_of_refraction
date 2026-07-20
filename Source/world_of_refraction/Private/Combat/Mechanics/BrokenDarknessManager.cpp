@@ -1191,8 +1191,8 @@ namespace
 		}
 
 		UBrokenDarknessManager *BDManager = nullptr;
-		TArray<AActor *> Combatants = Orchestrator->GetTeam0();
-		Combatants.Append(Orchestrator->GetTeam1());
+		TArray<AActor *> Combatants = Orchestrator->GetLocalParty();
+		Combatants.Append(Orchestrator->GetOpposingParty());
 		for (AActor *Actor : Combatants)
 		{
 			if (Actor)
@@ -1239,8 +1239,8 @@ namespace
 		}
 
 		UBrokenDarknessManager *BDManager = nullptr;
-		TArray<AActor *> Combatants = Orchestrator->GetTeam0();
-		Combatants.Append(Orchestrator->GetTeam1());
+		TArray<AActor *> Combatants = Orchestrator->GetLocalParty();
+		Combatants.Append(Orchestrator->GetOpposingParty());
 		for (AActor *Actor : Combatants)
 		{
 			if (Actor)
@@ -1287,8 +1287,8 @@ namespace
 		}
 
 		UBrokenDarknessManager *BDManager = nullptr;
-		TArray<AActor *> Combatants = Orchestrator->GetTeam0();
-		Combatants.Append(Orchestrator->GetTeam1());
+		TArray<AActor *> Combatants = Orchestrator->GetLocalParty();
+		Combatants.Append(Orchestrator->GetOpposingParty());
 		for (AActor *Actor : Combatants)
 		{
 			if (Actor)

@@ -38,7 +38,7 @@ UTurnManager::UTurnManager()
 	PreviousActor = nullptr;
 }
 
-void UTurnManager::InitializeCombat(const TArray<AActor *> &Team1, const TArray<AActor *> &Team2)
+void UTurnManager::InitializeCombat(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty)
 {
 	if (bCombatActive)
 	{
@@ -55,13 +55,13 @@ void UTurnManager::InitializeCombat(const TArray<AActor *> &Team1, const TArray<
 	CurrentTurnType = ETurnType::Normal;
 	CurrentTurnPayloadId = INDEX_NONE;
 
-	// Add Team 1
-	for (int32 i = 0; i < Team1.Num(); i++)
+	// Add the local party (TeamIndex 0)
+	for (int32 i = 0; i < LocalParty.Num(); i++)
 	{
-		if (Team1[i])
+		if (LocalParty[i])
 		{
 			FCombatantTurnDebt NewCombatant;
-			NewCombatant.Actor = Team1[i];
+			NewCombatant.Actor = LocalParty[i];
 			NewCombatant.TeamIndex = 0;
 			NewCombatant.PositionInTeam = i;
 			NewCombatant.TurnsOwed = 0.0f;
@@ -71,13 +71,13 @@ void UTurnManager::InitializeCombat(const TArray<AActor *> &Team1, const TArray<
 		}
 	}
 
-	// Add Team 2
-	for (int32 i = 0; i < Team2.Num(); i++)
+	// Add the opposing party (TeamIndex 1)
+	for (int32 i = 0; i < OpposingParty.Num(); i++)
 	{
-		if (Team2[i])
+		if (OpposingParty[i])
 		{
 			FCombatantTurnDebt NewCombatant;
-			NewCombatant.Actor = Team2[i];
+			NewCombatant.Actor = OpposingParty[i];
 			NewCombatant.TeamIndex = 1;
 			NewCombatant.PositionInTeam = i;
 			NewCombatant.TurnsOwed = 0.0f;
