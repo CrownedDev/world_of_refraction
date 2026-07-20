@@ -44,6 +44,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level")
     TSoftObjectPtr<UWorld> Level;
 
+    /** The battle stage encounters in this trial swap to (Cluster T-C1) —
+     *  resolved by UTrialRunSubsystem::EnterEncounter. Unset = encounters in
+     *  this trial log and no-op rather than stranding the run. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level")
+    TSoftObjectPtr<UWorld> EncounterLevel;
+
     // ==================== BANKED (future clusters) ====================
     // - LootPool     : what the trial's rewards draw from
     // - POIs         : points of interest / encounter placement
