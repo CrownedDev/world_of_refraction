@@ -32,7 +32,6 @@ Key internal state fields:
   action (projectile spell, attack-with-movement) is in flight.
 - Cached subsystem pointers: `TurnManagerRef`, `SkillEffectManagerRef`,
   `ActionExecutorRef`, `AIDecisionManagerRef`. Cached in `BeginPlay`.
-- `ACombatCameraManager* CameraManager` — found lazily via `FindCameraManager()`.
 - `FTimerHandle AutoAdvanceTimerHandle` — debug auto-advance timer.
 
 ### Supporting types (declared in `CombatOrchestrator.h`)
@@ -71,8 +70,8 @@ Key internal state fields:
 8. `UActionExecutor::SetArenaCenter()`.
 9. `BindTurnManagerEvents()` then `TurnManager->InitializeCombat(Team0, Team1)` —
    which fires the first `OnTurnStarted`.
-10. Calls the BlueprintImplementableEvent `OnCombatStartedUI()` (HUD creation),
-    `SetCombatState(InProgress)`, and `CombatCameraManager::InitializeForCombat()`.
+10. Calls the BlueprintImplementableEvent `OnCombatStartedUI()` (HUD creation) and
+    `SetCombatState(InProgress)`.
 
 ### Per-turn flow
 
@@ -278,7 +277,6 @@ Full formula, constants, and `WOR_*` semantics: `CrystalWear.md`.
 - `UCombatGridSubsystem` — grid position assignment and actor placement.
 - `UWeatherStateManager` — weather leader init / end.
 - `UCombatCommandMenuSubsystem` — player action menu (registered with `this`).
-- `ACombatCameraManager` — combat camera; found via `GetAllActorsOfClass`.
 - Per-actor components: `UCharacterDataComponent`, `ULoadoutComponent`,
   `UInventoryComponent`, `UBrokenDarknessManager`.
 
@@ -315,4 +313,5 @@ Observations from the code (not explicitly flagged as issues):
 | 2026-06-16 | Doc-sync §Action submission step 3 to the current `bRequiresAsync` logic (`CombatOrchestrator.cpp:373-412`): spell async is `Projectile`-only, evaluated per `CastArray` entry with the loose `DeliveryType` as fallback (`Homing`/`Beam` delivery types removed); attack/ability async is now montage-presence (`SkillMontage`/`RitualCastMontage`/`ReturnMontage`), replacing the deleted `ApproachData`/`RequiresApproach()` movement gate. | feature/realtime-defense |
 | 2026-06-16 | Spell `bRequiresAsync` now also true for `AOE` and `Instant` (both per-impact-defended at the Cast-notify resolve), not `Projectile`-only — added in both the `CastArray`-entry loop and the loose-`DeliveryType` fallback (`9eb65756`). A pure-Instant spell no longer falls to the rejected sync path. | feature/realtime-defense |
 | 2026-06-19 | Cast VFX generalization (Steps A+B+follow-up): the `UCombatNotify` Cast family now drives abilities/attacks via `CastArray` on `USkillDataBase`, not just spells. `SkillProjectile::InitializeProjectile` + the five `ActionExecutor` spawners (`DispatchSpellCast`/`SpawnProjectileActor`/`SpawnAOEEffect`/`ResolveInstantSpell`/`SpawnSupportSpellEffect`) retyped `USpellData*` → `USkillDataBase*` (+ `ESpellElement InElement`); the Cast handler drops the `PendingSpellData` guard and resolves from `GetCurrentSkillData()` + `PendingExecutionActor` + `PartialResult.AttackElement`. Empty-`CastArray` fallback stays spell-gated. Spell path byte-identical. New §Cast delivery note. Gaps: non-spell projectile tint (`Generic`), support-ability VFX off `VFXArray`. | feature/cast-vfx-generalization |
+| 2026-07-20 | Camera system fully deleted (no rewrite). Removed the `CameraManager` member, `FindCameraManager()`, the `Combat/Camera/CombatCameraManager.h` include (public header + two `.cpp` copies), and all five callsites: `StartCombat`'s `InitializeForCombat`, `ForceEndCombat`'s `EndCombat`, and the `TransitionToSelection`/`TransitionToAction` calls in `DebugSelectTarget`/`DebugAttackSelectedTarget`. All five were already null-guarded and inert (no manager placed since T-C1), so removal is behaviour-neutral. `ACombatCameraManager`, `ECombatCameraState`, `EActionCameraPhase`, and `BP_CombatCameraManager` deleted outright. Replacement design (Sequencer-per-skill + per-character camera state selector) banked in `docs/Design/Resources_Design.md`. | feature/camera-removal |
 | 2026-06-21 | New §EP cost — single source of truth + deferred lifecycle: the ability/attack EP spend (`ExecuteSkillAsync`) was a duplicated inline copy of `CalculateActionEnergyCost`'s formula; consolidated onto the single call (DRY). This **inherits the `bIsDeferredFire → 0` early-out**, closing a latent **double-charge on deferred abilities** (was charged full at arm AND again at the inline fire-time spend; now charged once at arm, free at fire — matching the spell path). Normal abilities unchanged. Flagged: deferred path implemented + cost-correct but un-exercised (no shipping asset sets `ActivationDelay > 0`). | fix/ability-cost-consolidation |

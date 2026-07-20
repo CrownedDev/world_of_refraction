@@ -8,7 +8,6 @@
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "AI/EAIDifficulty.h"
 #include "AI/AIDecisionManager.h"
-#include "Combat/Camera/CombatCameraManager.h"
 #include "Skills/Definitions/ESpellDeliveryType.h"
 #include "Skills/Definitions/SkillVFXEntry.h"
 #include "CombatOrchestrator.generated.h"
@@ -400,12 +399,6 @@ public:
 	/** Sim light case: matched-tier action (== crystal tier), L1 infused — isolates infusion-only wear. */
 	UFUNCTION(CallInEditor, Category = "Debug|CrystalWear")
 	void DebugSimCast_Matched_L1();
-
-	UPROPERTY()
-	ACombatCameraManager *CameraManager;
-
-	// Helper to find camera manager
-	ACombatCameraManager *FindCameraManager();
 
 	/** Manually advance to next turn (debug - use when bAutoAdvanceTurns is false) */
 	UFUNCTION(CallInEditor, Category = "Combat|Debug")

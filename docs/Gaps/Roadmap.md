@@ -38,7 +38,7 @@ Multi-cluster arcs. Each needs its own survey + design pass before authoring.
 
 - ~~**Encounter-based trial system.**~~ **SHIPPED** (T-C1, feature/trial-transition). `UEncounterComponent` trigger sphere + join window + Void arena bubble, `ABattleGameMode` battle stage, return-to-trial via `UTrialRunSubsystem::ExitEncounter`. Multi-enemy encounters and encounter composition banked below.
 
-- **Combat camera build.** Sequencer-per-skill + distributed camera state selector, replaces the older `CombatCameraManager`. Design banked in prior session's design bank (`docs/Design/Resources_Design.md` or equivalent).
+- **Combat camera build.** Sequencer-per-skill + distributed camera state selector. The old `CombatCameraManager` is **gone** — deleted outright on `feature/camera-removal` (2026-07-20), no rewrite, so this is a clean greenfield rather than a replacement. Design banked in `docs/Design/Resources_Design.md` §§1371-1450. Combat currently runs with no camera system at all: the view stays with the PC0-possessed pawn wherever the grid places it.
 
 - **Save / Persistence keystone.** All persistent balances (`Prisms`, `Diamond`, `GearEssence`, `SkillEssence`, `EssenceTyped`) are `SaveGame`-tagged but no save system exists yet. Unblocks head-start persistence, account-scope routing (Prisms/Diamond → PlayerState), inventory persistence across runs. Keystone dependency for everything session-scoped today.
 
@@ -68,7 +68,7 @@ Banked during the T-C1 encounter-loop arc. Each needs its own survey before auth
 
 - **Multi-player BattleGameMode.** Bootstrap possesses each Team0 pawn with a matching PlayerController (PC0, PC1, PC2…). Requires networked play mode. T-C2+.
 
-- **Camera system full replacement.** Delete `ACombatCameraManager` + `BP_CombatCameraManager`. Full deletion, no rewrite — new system from scratch when it's time. Sequencer-per-skill + distributed state selector locked as the design bank.
+- ~~**Camera system full replacement.**~~ **DELETION SHIPPED** (`feature/camera-removal`, 2026-07-20). `ACombatCameraManager`, `ECombatCameraState`, `EActionCameraPhase`, `BP_CombatCameraManager`, and all placed instances + home-camera actors removed. The from-scratch build remains open — tracked as **Combat camera build** above; Sequencer-per-skill + distributed state selector retained as the design bank in `docs/Design/Resources_Design.md`.
 
 ---
 
