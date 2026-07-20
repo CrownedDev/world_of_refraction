@@ -25,9 +25,13 @@ shape — `InnateElement == Darkness` — and differ only in whether the born-BD
   ESpellElement::Darkness` **and** the `bBrokenDarknessInnate` toggle set (`CharacterData.h:136`).
   The toggle is the born-BD *seed*: `UCharacterDataComponent` reads it on init and auto-flips
   `bIsBrokenDarkness` + zeroes `CurrentEP` to put the character in BD runtime state without a
-  transform event (`CharacterDataComponent.cpp:62-73`). `UBrokenDarknessManager::BeginPlay`
-  mirrors the runtime flag onto `bIsFlipped` so the manager's methods don't short-circuit
-  (`BrokenDarknessManager.cpp:118-123`).
+  transform event. `UBrokenDarknessManager::InitializeBornBrokenDarkness()` then mirrors the
+  runtime flag onto `bIsFlipped` so the manager's methods don't short-circuit. That mirror is
+  **called from the `CharacterDataComponent::BeginPlay` cascade**, immediately after the flag
+  is seeded — not from the manager's own `BeginPlay`, which would depend on component
+  `BeginPlay` order (natives run before SCS components; both are now native). It guards on
+  `!bIsFlipped`, so it is idempotent and mutually exclusive with `TriggerTransformation`.
+  See `docs/Architecture/CombatCharacter.md`.
 - **Runtime-transformed** — a non-BD Darkness caster accrues 100% strain mid-combat (the
   deterministic trigger that replaced the break roll — see *Strain System*); `AddStrain` →
   `TriggerTransformation` sets `bIsFlipped` and calls
@@ -78,7 +82,7 @@ and calls `UBrokenDarknessManager::AddStrain(int32 Deficit, const FString& Reaso
 of `RollForBreak`.
 
 **Eligibility gates** (unchanged): actor has a `UBrokenDarknessManager`; `!IsTransformed()`
-(already-BD never re-accrues — also what excludes a born-BD, whose `BeginPlay` auto-flip
+(already-BD never re-accrues — also what excludes a born-BD, whose cascade-time auto-flip
 leaves it flipped); `CharData` valid with `InnateElement == Darkness`.
 
 **Formula** — `AddStrain` → the shared `ComputeStrainForDeficit` (the single live/projection
@@ -131,8 +135,8 @@ AccruedStrain += StrainPerCast        // break when AccruedStrain ≥ BreakThres
 **Reset** — `AccruedStrain → 0` on **break** (`TriggerTransformation`, strain spent), on
 **revert** (`RevertTransformation`, clean slate — closes the instant-re-break risk), and on
 **combat start** (`BeginPlay`, the per-combat interim — see Known Gaps re persistence).
-**Born-BD never accrues** (the `bIsFlipped` guard in `AddStrain`; a born-BD is flipped at
-`BeginPlay`, so strain is the Darkness→BD path only).
+**Born-BD never accrues** (the `bIsFlipped` guard in `AddStrain`; a born-BD is flipped during
+the `CharacterDataComponent` cascade, so strain is the Darkness→BD path only).
 
 **Worked numbers** (PIE-verified). Floor build = MaxEP 50 (threshold 100), SpellDmg 1.0,
 Defence 0 (power/control = 1.0):
@@ -427,7 +431,7 @@ discount).
 **Single active pool (the rotation model)** — a BD casts from exactly **one** pool at a time:
 the *active pool*, `UBrokenDarknessManager::GetActivePool()` = `AbsorbedElements.Last()`, or
 `Darkness` when nothing is seeded. Darkness is **seeded** as the active pool on transform
-(`SeedBaseElement()`, called from `TriggerTransformation` and the born-BD `BeginPlay` branch)
+(`SeedBaseElement()`, called from `TriggerTransformation` and `InitializeBornBrokenDarkness()`)
 so a fresh BD starts able to cast its base pool without first parrying — element axis only,
 **no absorption energy granted**. Absorbing an element **rotates** the active pool to it; the
 prior pool goes dormant. Absorbing `Darkness` rotates back to the base (innate Darkness) pool.
@@ -618,3 +622,4 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | 2026-06-18 | **Forced BD→Darkness revert (arc 2)** — built the BD→Darkness direction of the runtime switch. New `UBrokenDarknessManager::RevertTransformation()` (`BlueprintCallable`): guard `!bIsFlipped` → no-op; else `bIsFlipped=false` → `ExitOverload()` + `ResetStacks()` + clear alignment / `AbsorbedElements` / `LastAbsorbedElement` → `ServerSetBrokenDarkness(false)` → `OnReverted.Broadcast()`. Mirrors `TriggerTransformation`'s structure. New `OnReverted` delegate (reuses `FOnBrokenDarknessTransformed`; separate edge so listeners bind specifically). `ServerSetBrokenDarkness(false)` gained a real body — `CurrentEP=MaxEP` + `OnEPChanged` broadcast (relabels bar Absorb→EP); asymmetric vs the activate branch (which carries EP over), direct field set bypasses the BD EP guard (flag already cleared). `WoR.TestBDRevert` console command added as permanent debug tooling (reverts the first transformed BD in combat, logs result). UI auto-corrects via existing `IsBrokenDarkness()` + `OnEPChanged` bindings. The Darkness→BD direction (break-roll) is unchanged. The **trigger** that calls `RevertTransformation` (healer / item / interaction) is **not** built — mechanism only; the BD↔Darkness switch is now mechanically complete pending a trigger. Updated the arc-2 Known-Limitations bullet → shipped. | feature/bd-switch |
 | 2026-06-21 | **Phase-2 `ESpellElement::BrokenDarkness` value DELETED** (`feature/bd-value-deletion`, PIE-verified). The enum value is gone; BD is represented **only** by `bBrokenDarknessInnate` + `InnateElement=Darkness`. `InitializeBDPools` loop bound moved to the `None` sentinel (`i < (uint8)None`, iterating real elements 0..9); dead PostLoad migration removed; single BD asset re-saved; `None` is now value 10. All dead BD-value branches stripped first (immunity maps, the `GetElementColumn` BD→Darkness alias, `IsAnySpellSource`, `CanAbsorbElement`'s self-reject) — behaviour preserved by live paths. **Reconciliation:** `LastAbsorbedElement` / `GetHybridElement()` **retired** — readers route through `GetActivePool()` (Model-B single source of truth; a fresh BD reports seeded `Darkness`). **Colour collapse:** one BD/Darkness near-black (`0.02`); purple `PURE_BD_PRIMARY`/`PURE_BD_SECONDARY` deleted; `ElementColors::BrokenDarkness` aliased to `Darkness` — *BD IS Darkness; absorb = black-over-element*. **EP/Absorb bar** now tints to the active-pool hybrid colour (`GetHybridSpellColors(GetActivePool()).BlendedColor`) and re-tints on rotation (`HandleBDAlignmentChanged` → `ApplyEnergyBarTint`). Updated *State Model*, *Element Access*, *BD Spell Pools*, *Visual Treatment*, Known Gaps. | feature/bd-value-deletion |
 | 2026-06-21 | **Crystal-on-BD rotation + the Reality cleanse** (`fix/bd-item-absorption-element`, PIE-verified). `GrantAbsorptionEnergy` is now element-aware — `(float Amount, ESpellElement Element)` — running `AddAbsorptionEnergy` + `RecordAbsorbedElement` (self-guards `CanAbsorbElement`), so an absorbable crystal **grants energy AND rotates** the active pool. New **`DrainAndRevertToBase(float Amount)`** — the Reality cleanse: `ServerSpendEnergy` (clamped 0) + `SeedBaseElement` (clear `AbsorbedElements`→`{Darkness}`, stays BD) + an **explicit `OnAlignmentChanged` broadcast** (⚠️ `SeedBaseElement` is silent — the manual broadcast is required for the bar to re-tint). Two call sites: `UItemExecutor::ApplyBrokenDarknessBonus` is now a **three-way** (Reality→`DrainAndRevertToBase` / `None`/Quartz→**no-op**, previously granted energy — removed / real→grant+rotate), and `OnDefenseResolved` gains a Reality branch **before** the generic `!CanAbsorbElement` return that drains the would-be-gain (`CalculateAbsorptionEnergy`, perfect-doubles). Generic-resolved-to-Reality arrives as `AttackElement == Reality` → covered. Updated *Absorption System*. Player-facing docs: `docs/Mechanics/Archetypes/{Reality,BrokenDarkness}.md`, `docs/Mechanics/Items.md`. | fix/bd-item-absorption-element |
+| 2026-07-20 | Born-BD auto-flip relocated: extracted from `UBrokenDarknessManager::BeginPlay` into a new public idempotent `InitializeBornBrokenDarkness()`, called from the `UCharacterDataComponent::BeginPlay` cascade right after the born-BD flag is seeded. Motivation: the Combat Component C++ Promotion arc made both components native, and the flip read a flag the cascade seeds — so any `BeginPlay` reorder broke it silently, with no error and only on born-BD characters. The `OnEPChanged` binding stays in `BeginPlay` (order-independent, and an owner with null `CharacterData` still gets overload wiring). `TriggerTransformation()` untouched; both guard `bIsFlipped` and stay mutually exclusive. Prose + `SeedBaseElement` call-site references updated throughout. | feature/combat-components-cpp |

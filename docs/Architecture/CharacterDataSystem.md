@@ -126,9 +126,21 @@ Private helpers: `CheckDeath`, `HasServerAuthority`, `CalculateMaxHealth`,
    available.
 2. `RecomputeMaxPools()` computes `MaxHP` / `MaxEP`, then `CurrentHP` / `CurrentEP`
    are set to full.
-3. If the server has authority and the asset's `InnateElement` is
-   `BrokenDarkness`, `bIsBrokenDarkness` is set true and `CurrentEP` zeroed — a
-   character-created BD starts in the correct state without a transform event.
+3. If the server has authority and the asset's `bBrokenDarknessInnate` is set,
+   `bIsBrokenDarkness` is set true and `CurrentEP` zeroed — a character-created BD
+   starts in the correct state without a transform event.
+4. The sibling `UBrokenDarknessManager` is located and
+   `InitializeBornBrokenDarkness()` called. This **must** follow step 3: that is the
+   first moment `IsBrokenDarkness()` is meaningful, and the manager's flip reads it.
+   The call lives here rather than in the manager's own `BeginPlay` because that
+   would depend on component `BeginPlay` order — natives run before SCS components,
+   so promoting either component silently reorders them, and the failure was
+   invisible (no error, born-BD characters only). See
+   `docs/Architecture/CombatCharacter.md`.
+
+Steps 1–4 all sit inside the `if (CharacterData)` guard. The `SkillEffectManager`
+binding that follows does not — an owner with no asset still gets its pool-effect
+wiring.
 
 `InitializeFromTemplate()` and `ResetToMax()` are alternative (re)initialization
 entry points; `InitializeFromTemplate()` uses the stub
@@ -343,3 +355,4 @@ bar repaints (no client-side state mutation — the server already cleared
 | 2026-05-28 | Sweep-5 — added `UCharacterDataComponent::GetDisplayElement()` (BlueprintPure) UI-facing element accessor; returns `BrokenDarkness` for any `IsBrokenDarkness()` character, else delegates to `CharacterData->GetElement()`. Panels/labels should prefer this over reading `InnateElement` directly. | feature/integration-gaps-sweep-5 |
 | 2026-06-09 | Documented the `[-100%, +100%]` stat-modifier normalization: composed multiplicative modifiers hard-capped to `[STAT_MODIFIER_MIN, STAT_MODIFIER_MAX] = [0,2]` for SpellDamage/RawDamage/StatusMultiplier/FlatDefense + Mind/Body/Spirit pillars (byte-identical below cap); CritChance/Resistance/Efficiency/Luck/pools special-cased or excluded; pillars + derived stats clamp independently and compound (Option C). | feature/weapon-stones |
 | 2026-06-16 | Doc-sync: §normalization clamp anchors re-pointed (`GetEffectiveSpellDamage` `:843`, `GetEffectiveRawDamage` `:909`, pillar `ApplyEvolutionPillarModifier` `:559`), and noted the StatusMultiplier `[0,2]` clamp **moved** to `GetEffectiveStatusMultiplier` (`:1240`) from `GetEvolutionModifiedStatusMultiplier` (`:1176`, now uncapped) in the T3 consolidation. §crystal-aware-stat-layer: dropped the **retired** `GetEvolutionModifiedResistance` (`8c557828`) and `GetEvolutionModifiedSpellDamageForHealing` (`89f9c045`) getters; resistance now composes in `GetTotalStatusResistance`. | feature/realtime-defense |
+| 2026-07-20 | Combat Component C++ Promotion arc: `UCharacterDataComponent` is now a native component on `ACombatCharacter` (as of T-C1a), and the init cascade gained a step 4 — it locates the sibling `UBrokenDarknessManager` and calls `InitializeBornBrokenDarkness()` immediately after seeding the born-BD flag. That call lives in the cascade rather than the manager `BeginPlay` because component `BeginPlay` order (natives before SCS, natives in declaration order) is not guaranteed by UE and shifts as components are promoted; the resulting failure was silent and born-BD-only. Steps 1–4 all sit inside the `if (CharacterData)` guard. See `docs/Architecture/CombatCharacter.md`. | feature/combat-components-cpp |

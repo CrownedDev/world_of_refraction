@@ -58,7 +58,14 @@ Banked during the T-C1 encounter-loop arc. Each needs its own survey before auth
 
 - **Encounter Composition.** `UEncounterData` asset defining opposing-team roster + difficulty. Grid position moves onto `ULoadoutComponent` (per-run customisable). AI grid selection starts as a placeholder heuristic (tanks front / casters back), evolving to Utility AI. Team names deferred (PvP-driven). Multi-enemy encounters, boss fights, and encounter randomization are all downstream of this.
 
-- **Combat Component C++ promotion.** Promote the remaining SCS Blueprint-panel components to `CreateDefaultSubobject` on `ACombatCharacter`: Inventory, Loadout, WeaponMesh, CrystalInventory, Currency, InfusionVFX, CombatMovement, BrokenDarkness. **One component per commit**, tag `pre-<name>-promotion` each, restore SCS defaults per component. Gains lifecycle guarantees (see the T-C1a deferred-spawn bug), typed C++ access, and removes SCS panel clutter.
+- ~~**Combat Component C++ promotion.**~~ **COMPLETE** (`feature/combat-components-cpp`, merged `75ed7c37`, 2026-07-20). Eight components promoted to `CreateDefaultSubobject` on `ACombatCharacter`: **WeaponMesh, Currency, Inventory, CrystalInventory, EvolutionInventory, InfusionVFX, Loadout, BrokenDarkness** — joining `CharacterDataComponent` from T-C1a. Gains the lifecycle guarantees the T-C1a deferred-spawn bug exposed, typed C++ access, and a clean Components panel. See `docs/Architecture/CombatCharacter.md`.
+
+  Three things worth carrying forward:
+  - **`UCombatMovementComponent` was a phantom** — this entry originally listed it, but it had already been dissolved when warp positioning replaced the movement system (`9563ff2d` / `9d064648`). `EvolutionInventory` took its slot. The entry was written from a stale doc snapshot; verify against source, not docs, when scoping.
+  - **`InitializeBornBrokenDarkness()` hook pattern.** Promotion changes component `BeginPlay` order (natives run before SCS, natives among themselves in constructor-declaration order), and UE gives no ordering guarantee. `UBrokenDarknessManager`'s born-BD flip read a flag the `CharacterDataComponent` cascade seeds, so any reorder broke it — silently, no error, born-BD characters only. Fixed by an explicit idempotent call from the cascade rather than an ordering assumption. **Copy this pattern for any future component whose init depends on cascade state.**
+  - **Every captured SCS default across all 9 BPs was already at its C++ default**, so no re-entry was needed anywhere. `ULoadoutComponent::CharacterClass` looked like the high-risk property and was not: the cascade overwrites it from `CharacterData->CharacterClass` before anything reads it.
+
+  Still on SCS by choice: `hubCamera` / `hubSpringArm` (engine, hub-navigation) and `elementColorDebug` (debug-only).
 
 - **SubmitAction hybrid router retirement.** The D8 deferred-ritual path (`CombatOrchestrator.cpp:741`) still routes through the sync/async hybrid `SubmitAction`. Convert it to `SubmitActionAsync`, then remove `SubmitAction` and its `bRequiresAsync` test entirely. Note: the conversion is not a one-liner — that callsite needs the `bool` return for its turn-stranding recovery.
 
@@ -74,9 +81,9 @@ Banked during the T-C1 encounter-loop arc. Each needs its own survey before auth
 
 ## Immediate next
 
-1. **T-C1 arc merge** → main.
-2. **Encounter Composition** or **Combat Component C++ promotion** — both unblocked by T-C1.
+1. **Encounter Composition** — `UEncounterData` roster + difficulty, grid position onto `ULoadoutComponent`. The remaining unblocked T-C1 arc, and the gateway to multi-enemy encounters, boss fights, and encounter randomization.
+2. **AI/Player identity refactor** or **SubmitAction hybrid router retirement** — both small, both unblocked.
 
 ---
 
-*Last updated: 2026-07-20 (post-T-C1 encounter-loop arc).*
+*Last updated: 2026-07-20 (post-combat-component-promotion arc).*
