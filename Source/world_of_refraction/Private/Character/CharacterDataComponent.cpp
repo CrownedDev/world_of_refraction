@@ -2,6 +2,7 @@
 
 #include "Character/CharacterDataComponent.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Equipment/Weapons/EWeaponSlotType.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Character/StanceData.h"
@@ -74,6 +75,21 @@ void UCharacterDataComponent::BeginPlay()
         {
             bIsBrokenDarkness = true;
             CurrentEP = 0;
+        }
+
+        // Born-BD hand-off. MUST come after the flag above — that is the first
+        // moment IsBrokenDarkness() is meaningful, and the manager's flip reads it.
+        // This lives here rather than in UBrokenDarknessManager::BeginPlay because
+        // that would depend on component BeginPlay order: native components run
+        // before SCS ones, so promoting either component silently reorders them.
+        // The failure was invisible (no error, born-BD characters only) — an
+        // explicit call at the known-good moment removes the ordering dependency.
+        if (Owner)
+        {
+            if (UBrokenDarknessManager *BDManager = Owner->FindComponentByClass<UBrokenDarknessManager>())
+            {
+                BDManager->InitializeBornBrokenDarkness();
+            }
         }
     }
 

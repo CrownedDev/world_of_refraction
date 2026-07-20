@@ -60,10 +60,22 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	/** Flip a character-created ("born") BD into BD runtime state: sets bIsFlipped
+	 *  and seeds the base Darkness pool. No-ops if already flipped, or if the owner
+	 *  is not a born BD.
+	 *
+	 *  Called by UCharacterDataComponent::BeginPlay's init cascade, immediately
+	 *  after the born-BD flag is seeded — NOT from this component's BeginPlay,
+	 *  which would make it depend on component BeginPlay ordering. Runtime breaks
+	 *  go through TriggerTransformation() instead; both guard on bIsFlipped, so
+	 *  the two paths stay mutually exclusive. */
+	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness")
+	void InitializeBornBrokenDarkness();
+
 	// ==================== TRANSFORMATION STATE ====================
 
 	/** Is this character currently Broken Darkness (the manager's mirror of
-	 *  current-BD state — set by the BeginPlay auto-flip + TriggerTransformation).
+	 *  current-BD state — set by InitializeBornBrokenDarkness + TriggerTransformation).
 	 *  Name kept for BP/API stability; backed by bIsFlipped. */
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness")
 	bool IsTransformed() const { return bIsFlipped; }
@@ -431,8 +443,8 @@ protected:
 	/** Currently Broken Darkness ("flipped" — from birth nature under the switch
 	 *  model; for a born-BD it's true at rest, for a transformed Darkness caster
 	 *  it's set on the break). The manager's mirror of current-BD; kept in sync
-	 *  with UCharacterDataComponent::IsBrokenDarkness() via the BeginPlay auto-flip
-	 *  and TriggerTransformation. Read via IsTransformed(). */
+	 *  with UCharacterDataComponent::IsBrokenDarkness() via InitializeBornBrokenDarkness
+	 *  (called from the CDC cascade) and TriggerTransformation. Read via IsTransformed(). */
 	UPROPERTY(BlueprintReadOnly, Category = "BrokenDarkness")
 	bool bIsFlipped = false;
 

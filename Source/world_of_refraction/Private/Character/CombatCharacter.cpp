@@ -3,6 +3,7 @@
 #include "Character/CombatCharacter.h"
 
 #include "Character/CharacterDataComponent.h"
+#include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Currency/CurrencyComponent.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
@@ -23,4 +24,5 @@ ACombatCharacter::ACombatCharacter()
     EvolutionInventoryComponent = CreateDefaultSubobject<UEvolutionInventoryComponent>(TEXT("EvolutionInventoryComponent"));
     InfusionVFXComponent = CreateDefaultSubobject<UInfusionVFXComponent>(TEXT("InfusionVFXComponent"));
     LoadoutComponent = CreateDefaultSubobject<ULoadoutComponent>(TEXT("LoadoutComponent"));
+    BrokenDarknessComponent = CreateDefaultSubobject<UBrokenDarknessManager>(TEXT("BrokenDarknessComponent"));
 }

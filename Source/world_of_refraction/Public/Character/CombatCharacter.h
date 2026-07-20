@@ -26,6 +26,7 @@ class UCrystalInventoryComponent;
 class UEvolutionInventoryComponent;
 class UInfusionVFXComponent;
 class ULoadoutComponent;
+class UBrokenDarknessManager;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API ACombatCharacter : public ACharacter
@@ -67,4 +68,11 @@ public:
      *  old SCS value was a fallback for a null-CharacterData character only. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character")
     TObjectPtr<ULoadoutComponent> LoadoutComponent;
+
+    /** Present on every combat character, inert unless the owner is BD: all
+     *  behaviour gates on bIsFlipped, seeded from CharacterData->bBrokenDarknessInnate
+     *  via the cascade's InitializeBornBrokenDarkness call. Uniform contract beats
+     *  a conditionally-present component. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character")
+    TObjectPtr<UBrokenDarknessManager> BrokenDarknessComponent;
 };
