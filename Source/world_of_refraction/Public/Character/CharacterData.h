@@ -7,6 +7,7 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "Infusion/EInfusionMode.h"
 #include "Character/ECharacterClass.h"
+#include "Character/ECharacterOrigin.h"
 #include "Character/StatConstants.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
 #include "Combat/Resistance/ClassInnateResistanceTable.h"
@@ -147,11 +148,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
 	UTexture2D *Portrait = nullptr;
 
-	// ==================== CONTROL ====================
+	// ==================== ORIGIN ====================
 
-	/** If true, this character is controlled by AI in combat */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Control")
-	bool bIsAIControlled = false;
+	/** What this character IS, not who is driving it. Control is a runtime
+	 *  question answered by engine possession (Pawn->IsPlayerControlled()), which
+	 *  replaced the old bIsAIControlled flag — that flag conflated the two and
+	 *  could not express a Player-origin character under AI control (a ghost, or
+	 *  an AI companion) or an Enemy-origin character under player control (PvP).
+	 *
+	 *  Defaults to Enemy: an unauthored character is opposition. Every shipped
+	 *  asset sets this explicitly. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Origin")
+	ECharacterOrigin Origin = ECharacterOrigin::Enemy;
 
 	// ==================== INVENTORY ====================
 
@@ -234,9 +242,11 @@ public:
 
 	// ==================== CLASS HELPERS ====================
 
-	/** Check if this character should use AI control */
-	UFUNCTION(BlueprintPure, Category = "Character|Control")
-	bool ShouldUseAI() const { return bIsAIControlled; }
+	/** Authored as a player-side character (party member, or a ghost built from a
+	 *  player run). Says nothing about who is driving it right now — for that, ask
+	 *  the pawn: Pawn->IsPlayerControlled(). */
+	UFUNCTION(BlueprintPure, Category = "Character|Origin")
+	bool IsPlayerOrigin() const { return Origin == ECharacterOrigin::Player; }
 
 	UFUNCTION(BlueprintPure, Category = "Character|Class")
 	bool IsGeneric() const { return CharacterClass == ECharacterClass::Generic; }

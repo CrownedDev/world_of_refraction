@@ -1890,16 +1890,17 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 	// impact independently re-rolls attempt/type/direction and submits an impact-anchored timestamped
 	// input (SubmitDefenseInput's InputTime), so MatchAndConsumeInput evaluates it for THIS impact
 	// against the SAME band. Supersedes the old single per-window timer (ScheduleDefenseDecision).
-	if (UCharacterDataComponent *CDC = Defender->FindComponentByClass<UCharacterDataComponent>())
+	// Who is DRIVING decides this, not what the character is: a human defender
+	// presses their own input, a bot-driven one needs a synthesized press. Read
+	// from engine possession.
+	const APawn *DefenderPawn = Cast<APawn>(Defender);
+	if (DefenderPawn && !DefenderPawn->IsPlayerControlled())
 	{
-		if (CDC->CharacterData && CDC->CharacterData->ShouldUseAI())
+		if (UAIDecisionManager *AIMgr = GetGameInstance()->GetSubsystem<UAIDecisionManager>())
 		{
-			if (UAIDecisionManager *AIMgr = GetGameInstance()->GetSubsystem<UAIDecisionManager>())
-			{
-				AIMgr->TrySynthesizeImpactDefense(
-					Defender, Ctx->Attacker.Get(), Ctx->ActionType,
-					BaseSlice, State.AttackSize, ImpactDifficulty, ImpactTime);
-			}
+			AIMgr->TrySynthesizeImpactDefense(
+				Defender, Ctx->Attacker.Get(), Ctx->ActionType,
+				BaseSlice, State.AttackSize, ImpactDifficulty, ImpactTime);
 		}
 	}
 

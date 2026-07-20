@@ -32,6 +32,7 @@
 
 class AStaticMeshActor;
 class UMaterialInterface;
+class UPartySessionSubsystem;
 class USphereComponent;
 
 UCLASS(ClassGroup = (Combat), meta = (BlueprintSpawnableComponent))
@@ -103,6 +104,10 @@ private:
 	 *  a successful handoff ends in OpenLevel, which destroys everything). */
 	void RearmEncounter();
 
+	/** GameInstance-scoped party authority. Null-safe: a missing subsystem degrades
+	 *  to the pre-party behaviour rather than blocking the encounter. */
+	UPartySessionSubsystem *GetPartySession() const;
+
 	/** Runtime-created trigger. Weak: owned by the actor's component tree, not us. */
 	TWeakObjectPtr<USphereComponent> Sphere;
 
@@ -110,7 +115,7 @@ private:
 	TWeakObjectPtr<AStaticMeshActor> ArenaSphere;
 
 	/** Trial-side player pawns awaiting the swap (co-op joiners during the window). */
-	TArray<TWeakObjectPtr<AActor>> PendingLocalParty;
+	TArray<TWeakObjectPtr<AActor>> PendingBattleParty;
 
 	FTimerHandle JoinWindowTimer;
 

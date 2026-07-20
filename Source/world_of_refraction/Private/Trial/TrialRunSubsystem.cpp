@@ -55,7 +55,7 @@ void UTrialRunSubsystem::ExitTrial()
 
 // ==================== ENCOUNTER (T-C1) ====================
 
-void UTrialRunSubsystem::EnterEncounter(UTrialData *Trial, const TArray<UCharacterData *> &LocalParty,
+void UTrialRunSubsystem::EnterEncounter(UTrialData *Trial, const TArray<UCharacterData *> &BattleParty,
                                         const TArray<UCharacterData *> &OpposingParty, EAIDifficulty Difficulty)
 {
     if (!Trial || Trial->EncounterLevel.IsNull())
@@ -64,10 +64,10 @@ void UTrialRunSubsystem::EnterEncounter(UTrialData *Trial, const TArray<UCharact
                Trial ? TEXT("trial has no EncounterLevel authored") : TEXT("null Trial"));
         return;
     }
-    if (LocalParty.Num() == 0 || OpposingParty.Num() == 0)
+    if (BattleParty.Num() == 0 || OpposingParty.Num() == 0)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[TrialRun] EnterEncounter: empty roster (LocalParty %d, OpposingParty %d) — ignored."),
-               LocalParty.Num(), OpposingParty.Num());
+        UE_LOG(LogTemp, Warning, TEXT("[TrialRun] EnterEncounter: empty roster (BattleParty %d, OpposingParty %d) — ignored."),
+               BattleParty.Num(), OpposingParty.Num());
         return;
     }
 
@@ -77,13 +77,13 @@ void UTrialRunSubsystem::EnterEncounter(UTrialData *Trial, const TArray<UCharact
         Shop->Close();
     }
 
-    PendingLocalParty = TArray<TObjectPtr<UCharacterData>>(LocalParty);
+    PendingBattleParty = TArray<TObjectPtr<UCharacterData>>(BattleParty);
     PendingOpposingParty = TArray<TObjectPtr<UCharacterData>>(OpposingParty);
     PendingDifficulty = Difficulty;
     EncounterReturnLevel = Trial->Level;
 
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Entering encounter %d v %d -> %s (return %s)"),
-           LocalParty.Num(), OpposingParty.Num(), *Trial->EncounterLevel.ToString(), *EncounterReturnLevel.ToString());
+           BattleParty.Num(), OpposingParty.Num(), *Trial->EncounterLevel.ToString(), *EncounterReturnLevel.ToString());
     UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), Trial->EncounterLevel);
 }
 
@@ -97,7 +97,7 @@ void UTrialRunSubsystem::ExitEncounter()
         return;
     }
 
-    PendingLocalParty.Reset();
+    PendingBattleParty.Reset();
     PendingOpposingParty.Reset();
     EncounterReturnLevel = nullptr;
 
@@ -121,6 +121,6 @@ FString UTrialRunSubsystem::GetTrialRunString() const
     return FString::Printf(TEXT("TrialRun: active=%s | hub=%s | pending %d v %d | return=%s"),
                            ActiveTrial.IsValid() ? *ActiveTrial->Name.ToString() : TEXT("<none>"),
                            HubLevel.IsNull() ? TEXT("<UNSET>") : *HubLevel.ToString(),
-                           PendingLocalParty.Num(), PendingOpposingParty.Num(),
+                           PendingBattleParty.Num(), PendingOpposingParty.Num(),
                            EncounterReturnLevel.IsNull() ? TEXT("<none>") : *EncounterReturnLevel.ToString());
 }

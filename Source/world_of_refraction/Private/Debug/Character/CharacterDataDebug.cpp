@@ -74,7 +74,9 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 	{
 		Output += FString::Printf(TEXT("  Innate Element: %s\n"), *ElementName);
 	}
-	Output += FString::Printf(TEXT("  AI Controlled: %s\n"), Character->bIsAIControlled ? TEXT("Yes") : TEXT("No"));
+	// Asset identity only. Who is DRIVING a spawned pawn is a runtime question
+	// (Pawn->IsPlayerControlled()) and is not knowable from the asset.
+	Output += FString::Printf(TEXT("  Origin: %s\n"), *UEnum::GetValueAsString(Character->Origin));
 	Output += FString::Printf(TEXT("  Inventory: %s\n"),
 							  Character->Inventory ? *Character->Inventory->GetName() : TEXT("None"));
 	Output += TEXT("\n");

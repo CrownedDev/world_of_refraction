@@ -8,7 +8,11 @@ public class world_of_refraction : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "Niagara", "UMG", "MotionWarping", "NetCore", "GameplayTags" });
+		// AIModule: ACombatAIController's base class (AAIController). Combat AI
+		// decisions still live in UAIDecisionManager — the controller is only a
+		// possession host so engine control queries (IsPlayerControlled /
+		// IsBotControlled) report the truth.
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "Niagara", "UMG", "MotionWarping", "NetCore", "GameplayTags", "AIModule" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 

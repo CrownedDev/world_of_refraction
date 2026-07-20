@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Combat/CombatOrchestrator.h"
+#include "GameFramework/Pawn.h"
 #include "Combat/TurnManager.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/ESkillEffectType.h"
@@ -1201,13 +1202,11 @@ bool ACombatOrchestrator::IsActorAIControlled(AActor *Actor) const
 		return false;
 	}
 
-	UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
-	if (!Comp || !Comp->CharacterData)
-	{
-		return false;
-	}
-
-	return Comp->CharacterData->ShouldUseAI();
+	// Runtime control, from engine possession — not asset identity. A Player-origin
+	// character can be bot-driven (ghost / AI companion) and an Enemy-origin one
+	// player-driven (PvP), so only the possessing controller can answer this.
+	const APawn *Pawn = Cast<APawn>(Actor);
+	return Pawn && !Pawn->IsPlayerControlled();
 }
 
 TArray<AActor *> ACombatOrchestrator::GetLivingEnemies(AActor *ForActor) const
