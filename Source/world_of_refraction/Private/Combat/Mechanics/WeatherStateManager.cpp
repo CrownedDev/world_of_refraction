@@ -48,36 +48,53 @@ void UWeatherStateManager::InitialiseLeaders(const TArray<AActor *> &LocalParty,
 
     RecalculateWeather();
 
-    UE_LOG(LogTemp, Log, TEXT("[WeatherStateManager] Leaders initialised - LocalParty: %s, OpposingParty: %s"),
-           LocalPartyHierarchy.Num() > 0 ? *LocalPartyHierarchy[0].Actor->GetName() : TEXT("None"),
-           OpposingPartyHierarchy.Num() > 0 ? *OpposingPartyHierarchy[0].Actor->GetName() : TEXT("None"));
+    // Set LAST so a mid-init failure leaves us safely in the not-active state.
+    bCombatActive = true;
+
+    AActor *Local = LocalPartyHierarchy.Num() > 0 ? LocalPartyHierarchy[0].Actor.Get() : nullptr;
+    AActor *Opposing = OpposingPartyHierarchy.Num() > 0 ? OpposingPartyHierarchy[0].Actor.Get() : nullptr;
+    if (Local && Opposing)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[WeatherStateManager] Leaders initialised - LocalParty: %s, OpposingParty: %s"),
+               *Local->GetName(), *Opposing->GetName());
+    }
 }
 
 void UWeatherStateManager::EndCombat()
 {
+    // Idempotency guard. Deinitialize + explicit ForceEndCombat + InitialiseLeaders
+    // defensive reset all call this; only the first call after a real
+    // InitialiseLeaders should do work.
+    if (!bCombatActive)
+    {
+        return;
+    }
+    bCombatActive = false;
+
     // Iterate every entry on both teams and remove the OnHPChanged + OnDied
-    // subscriptions added by BindToTeam. Defensive null-guards on actor and
-    // component for the (rare) case an actor was destroyed mid-combat without
-    // notifying us.
+    // subscriptions added by BindToTeam. Entry.Actor is weak: an actor destroyed
+    // by a level swap resolves to null here rather than dangling.
     for (const FLeadershipEntry &Entry : LocalPartyHierarchy)
     {
-        if (!Entry.Actor)
-            continue;
-        if (UCharacterDataComponent *Comp = Entry.Actor->FindComponentByClass<UCharacterDataComponent>())
+        if (AActor *Actor = Entry.Actor.Get())
         {
-            Comp->OnHPChanged.RemoveDynamic(this, &UWeatherStateManager::OnTeamMemberHPChanged);
-            Comp->OnDied.RemoveDynamic(this, &UWeatherStateManager::OnLocalPartyMemberDied);
+            if (UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>())
+            {
+                Comp->OnHPChanged.RemoveDynamic(this, &UWeatherStateManager::OnTeamMemberHPChanged);
+                Comp->OnDied.RemoveDynamic(this, &UWeatherStateManager::OnLocalPartyMemberDied);
+            }
         }
     }
 
     for (const FLeadershipEntry &Entry : OpposingPartyHierarchy)
     {
-        if (!Entry.Actor)
-            continue;
-        if (UCharacterDataComponent *Comp = Entry.Actor->FindComponentByClass<UCharacterDataComponent>())
+        if (AActor *Actor = Entry.Actor.Get())
         {
-            Comp->OnHPChanged.RemoveDynamic(this, &UWeatherStateManager::OnTeamMemberHPChanged);
-            Comp->OnDied.RemoveDynamic(this, &UWeatherStateManager::OnOpposingPartyMemberDied);
+            if (UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>())
+            {
+                Comp->OnHPChanged.RemoveDynamic(this, &UWeatherStateManager::OnTeamMemberHPChanged);
+                Comp->OnDied.RemoveDynamic(this, &UWeatherStateManager::OnOpposingPartyMemberDied);
+            }
         }
     }
 
@@ -128,9 +145,10 @@ void UWeatherStateManager::BindToTeam(const TArray<FLeadershipEntry> &Hierarchy,
     int32 BoundCount = 0;
     for (const FLeadershipEntry &Entry : Hierarchy)
     {
-        if (!Entry.Actor)
+        AActor *Actor = Entry.Actor.Get();
+        if (!Actor)
             continue;
-        UCharacterDataComponent *Comp = Entry.Actor->FindComponentByClass<UCharacterDataComponent>();
+        UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
         if (!Comp)
             continue;
 
@@ -214,12 +232,13 @@ AActor *UWeatherStateManager::GetCurrentLeader(const TArray<FLeadershipEntry> &H
     // bIsAlive. Returns nullptr when the whole team is dead.
     for (const FLeadershipEntry &Entry : Hierarchy)
     {
-        if (!Entry.Actor)
+        AActor *Actor = Entry.Actor.Get();
+        if (!Actor)
             continue;
-        UCharacterDataComponent *Comp = Entry.Actor->FindComponentByClass<UCharacterDataComponent>();
+        UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
         if (Comp && Comp->bIsAlive)
         {
-            return Entry.Actor;
+            return Actor;
         }
     }
     return nullptr;
@@ -237,9 +256,10 @@ float UWeatherStateManager::ComputeTeamHPPercent(const TArray<FLeadershipEntry> 
     int32 SumMaxHP = 0;
     for (const FLeadershipEntry &Entry : Hierarchy)
     {
-        if (!Entry.Actor)
+        AActor *Actor = Entry.Actor.Get();
+        if (!Actor)
             continue;
-        UCharacterDataComponent *Comp = Entry.Actor->FindComponentByClass<UCharacterDataComponent>();
+        UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
         if (!Comp)
             continue;
         if (Comp->bIsAlive)
@@ -300,7 +320,8 @@ UPrimaryDataAsset *UWeatherStateManager::ResolveWeatherDA(const TArray<FLeadersh
 
 FString UWeatherStateManager::GetWeatherStateString() const
 {
-    const bool bCombatActive = (LocalPartyHierarchy.Num() > 0 || OpposingPartyHierarchy.Num() > 0);
+    // bCombatActive (member) is the source of truth; deriving from Num() would lag
+    // behind EndCombat's array clear.
     const int32 ListenerCount = OnWeatherChanged.GetAllObjects().Num();
 
     FString Output;
@@ -365,9 +386,10 @@ FString UWeatherStateManager::GetWeatherStateString() const
         int32 SumMax = 0;
         for (const FLeadershipEntry &Entry : Hierarchy)
         {
-            if (!Entry.Actor)
+            AActor *Actor = Entry.Actor.Get();
+            if (!Actor)
                 continue;
-            UCharacterDataComponent *Comp = Entry.Actor->FindComponentByClass<UCharacterDataComponent>();
+            UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
             if (!Comp || !Comp->bIsAlive)
                 continue;
             ++AliveCount;
@@ -431,7 +453,6 @@ void UWeatherStateManager::PrintWeatherState() const
     // Emphasise the zero-subscriber case at Warning level so it stands out in
     // the Output Log even if the snapshot scrolls past. Only escalates when
     // combat is genuinely active — out-of-combat zero is expected.
-    const bool bCombatActive = (LocalPartyHierarchy.Num() > 0 || OpposingPartyHierarchy.Num() > 0);
     if (bCombatActive && OnWeatherChanged.GetAllObjects().Num() == 0)
     {
         UE_LOG(LogTemp, Warning,

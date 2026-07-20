@@ -10,11 +10,14 @@ struct FLeadershipEntry
 {
     GENERATED_BODY()
 
+    /** WEAK: a raw UPROPERTY pointer is GC-tracked but is NOT nulled when the
+     *  actor is destroyed, so a hierarchy outliving its combatants (level swap,
+     *  PIE teardown) left dangling pointers that passed a !Actor check and then
+     *  crashed on dereference. Always reach it via .Get(). */
     UPROPERTY()
-    AActor *Actor = nullptr;
+    TWeakObjectPtr<AActor> Actor;
 
     UPROPERTY()
-
     int32 TotalWorldStats = 0;
 
     UPROPERTY()
@@ -81,6 +84,11 @@ private:
      *  0.0f and is not reset across combats so a between-encounter snapshot
      *  still reflects the last value broadcast. */
     float LastBroadcastBlendValue = 0.0f;
+
+    /** True between InitialiseLeaders and EndCombat. Single source of truth for
+     *  combat-active state — do NOT re-derive from hierarchy array counts: those
+     *  are emptied inside EndCombat, so a count-derived answer lags the flag. */
+    bool bCombatActive = false;
 
     // ========================================
     // INTERNAL
