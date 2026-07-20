@@ -42,9 +42,33 @@ void ABattleGameMode::BootstrapCombat()
     UClass *PlayerPawnClass = DefaultPlayerPawnClass.LoadSynchronous();
     UClass *EnemyPawnClass = DefaultEnemyPawnClass.LoadSynchronous();
     UClass *LoadedOrchestratorClass = OrchestratorClass.LoadSynchronous();
+
+    // Named per field. The old message listed all three whichever one failed, and
+    // could not distinguish "never authored" from "authored but the path no longer
+    // resolves" — the second is what a moved asset with a stale soft path looks
+    // like, and it cost a full diagnosis pass to identify once already.
+    auto LogUnresolved = [](const TCHAR *FieldName, const FSoftObjectPath &Path)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[BattleGameMode] %s unset or failed to load: %s"),
+               FieldName, Path.IsNull() ? TEXT("<unset>") : *Path.ToString());
+    };
+
+    if (!PlayerPawnClass)
+    {
+        LogUnresolved(TEXT("DefaultPlayerPawnClass"), DefaultPlayerPawnClass.ToSoftObjectPath());
+    }
+    if (!EnemyPawnClass)
+    {
+        LogUnresolved(TEXT("DefaultEnemyPawnClass"), DefaultEnemyPawnClass.ToSoftObjectPath());
+    }
+    if (!LoadedOrchestratorClass)
+    {
+        LogUnresolved(TEXT("OrchestratorClass"), OrchestratorClass.ToSoftObjectPath());
+    }
+
     if (!PlayerPawnClass || !EnemyPawnClass || !LoadedOrchestratorClass)
     {
-        AbortToTrial(TEXT("DefaultPlayerPawnClass / DefaultEnemyPawnClass / OrchestratorClass not all set"));
+        AbortToTrial(TEXT("battle class refs unresolved - see the per-field errors above"));
         return;
     }
 
