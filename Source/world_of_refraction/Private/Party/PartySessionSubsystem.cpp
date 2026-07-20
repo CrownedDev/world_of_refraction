@@ -50,6 +50,62 @@ UParty *UPartySessionSubsystem::CreateSoloParty(APlayerController *Leader, TSoft
 	return NewParty;
 }
 
+UParty *UPartySessionSubsystem::EnsureLocalParty(APlayerController *PC, TSoftClassPtr<ACombatCharacter> PawnClass)
+{
+	if (UParty *Existing = GetLocalParty())
+	{
+		RebindLeader(PC);
+		return Existing;
+	}
+
+	// Resolution chain. PC's current pawn is the common case: the player is
+	// standing in the world as their character when this fires.
+	TSoftClassPtr<ACombatCharacter> Resolved = PawnClass;
+	if (Resolved.IsNull() && PC)
+	{
+		if (const APawn *CurrentPawn = PC->GetPawn())
+		{
+			Resolved = TSoftClassPtr<ACombatCharacter>(CurrentPawn->GetClass()->GetPathName());
+		}
+	}
+	if (Resolved.IsNull())
+	{
+		Resolved = DefaultSoloPawnClass;
+	}
+	if (Resolved.IsNull())
+	{
+		UE_LOG(LogTemp, Error,
+			   TEXT("[PartySession] Cannot create Trial Party - no pawn class from argument, PC0 pawn, or "
+					"DefaultSoloPawnClass (author it in DefaultGame.ini)"));
+		return nullptr;
+	}
+
+	UParty *Party = CreateSoloParty(PC, Resolved);
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] Trial Party lazily created with %d member(s) from %s"),
+		   Party ? Party->GetMemberCount() : 0, *Resolved.ToString());
+	return Party;
+}
+
+bool UPartySessionSubsystem::IsTrialPartyMember(const AActor *Actor) const
+{
+	const UParty *Party = GetLocalParty();
+	if (!Party || !Actor)
+	{
+		return false;
+	}
+
+	// CLASS comparison, not instance — see the header's POC-limit note.
+	const FSoftClassPath ActorClass(Actor->GetClass()->GetPathName());
+	for (const FPartyMember &Member : Party->Members)
+	{
+		if (Member.PawnClass.ToSoftObjectPath() == ActorClass)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 bool UPartySessionSubsystem::InviteMember(TSoftClassPtr<ACombatCharacter> PawnClass)
 {
 	UParty *Party = GetLocalParty();

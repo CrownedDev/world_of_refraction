@@ -8,6 +8,8 @@
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
 #include "TimerManager.h"
 #include "Trial/TrialRunSubsystem.h"
 
@@ -81,13 +83,54 @@ void ABattleGameMode::BootstrapCombat()
     // assigned asset (see SpawnCombatant).
     TArray<AActor *> LocalParty;
     TArray<AActor *> OpposingParty;
-    const TArray<UCharacterData *> LocalPartyData = TrialRun->GetPendingLocalParty();
+
+    // Battle Party — the Trial Party members who were present when the join window
+    // closed. Enemy roster still comes from the encounter, not the party.
+    const TArray<UCharacterData *> BattlePartyData = TrialRun->GetPendingBattleParty();
     const TArray<UCharacterData *> OpposingPartyData = TrialRun->GetPendingOpposingParty();
-    for (int32 i = 0; i < LocalPartyData.Num(); ++i)
+
+    // Fail loudly rather than falling back to some other roster source: the point
+    // of this arc is that the party layer is authoritative, and a silent fallback
+    // would hide a regression in exactly the path we are trying to prove.
+    if (BattlePartyData.Num() == 0)
+    {
+        AbortToTrial(TEXT("Battle Party empty at battle start - the encounter stashed no members. "
+                          "Check the encounter trigger path or PartySession lazy-create"));
+        return;
+    }
+
+    // Cross-check against the session party. Disagreement is not fatal — a Battle
+    // Party is legitimately a SUBSET of the Trial Party — but a Battle Party member
+    // absent from the Trial Party means the membership gate leaked, so say so.
+    if (const UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>())
+    {
+        const UParty *TrialParty = PartySession->GetLocalParty();
+        const int32 TrialCount = TrialParty ? TrialParty->GetMemberCount() : 0;
+        if (!TrialParty)
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("[BattleGameMode] No Trial Party exists - the encounter path did not create one. "
+                        "Battle proceeds on the stashed roster (%d)"),
+                   BattlePartyData.Num());
+        }
+        else if (BattlePartyData.Num() > TrialCount)
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("[BattleGameMode] Battle Party (%d) exceeds Trial Party (%d) - membership gate leaked"),
+                   BattlePartyData.Num(), TrialCount);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Battle Party %d of Trial Party %d"),
+                   BattlePartyData.Num(), TrialCount);
+        }
+    }
+
+    for (int32 i = 0; i < BattlePartyData.Num(); ++i)
     {
         const FVector Location = Origin + FVector(-BattleGameModeConstants::TEAM_X_OFFSET,
                                                   i * BattleGameModeConstants::COMBATANT_Y_SPACING, 0.0f);
-        if (APawn *Spawned = SpawnCombatant(PlayerPawnClass, LocalPartyData[i], FTransform(Location)))
+        if (APawn *Spawned = SpawnCombatant(PlayerPawnClass, BattlePartyData[i], FTransform(Location)))
         {
             LocalParty.Add(Spawned);
         }
@@ -104,7 +147,7 @@ void ABattleGameMode::BootstrapCombat()
     if (LocalParty.Num() == 0 || OpposingParty.Num() == 0)
     {
         AbortToTrial(FString::Printf(TEXT("combatant spawn failed (LocalParty %d/%d, OpposingParty %d/%d)"),
-                                     LocalParty.Num(), LocalPartyData.Num(), OpposingParty.Num(), OpposingPartyData.Num()));
+                                     LocalParty.Num(), BattlePartyData.Num(), OpposingParty.Num(), OpposingPartyData.Num()));
         return;
     }
 

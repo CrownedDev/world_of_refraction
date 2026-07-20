@@ -60,7 +60,7 @@ public:
      *  ABattleGameMode consumes the stash on the far side. Ignored (with a
      *  log) when Trial / EncounterLevel / either roster is null or empty. */
     UFUNCTION(BlueprintCallable, Category = "Trial|Encounter")
-    void EnterEncounter(UTrialData *Trial, const TArray<UCharacterData *> &LocalParty,
+    void EnterEncounter(UTrialData *Trial, const TArray<UCharacterData *> &BattleParty,
                         const TArray<UCharacterData *> &OpposingParty, EAIDifficulty Difficulty);
 
     /** Return to the trial level the encounter came from (fallback: HubLevel).
@@ -71,10 +71,10 @@ public:
 
     /** True while a stashed roster awaits an ABattleGameMode to consume it. */
     UFUNCTION(BlueprintPure, Category = "Trial|Encounter")
-    bool HasPendingEncounter() const { return PendingLocalParty.Num() > 0 && PendingOpposingParty.Num() > 0; }
+    bool HasPendingEncounter() const { return PendingBattleParty.Num() > 0 && PendingOpposingParty.Num() > 0; }
 
     UFUNCTION(BlueprintPure, Category = "Trial|Encounter")
-    TArray<UCharacterData *> GetPendingLocalParty() const { return TArray<UCharacterData *>(PendingLocalParty); }
+    TArray<UCharacterData *> GetPendingBattleParty() const { return TArray<UCharacterData *>(PendingBattleParty); }
 
     UFUNCTION(BlueprintPure, Category = "Trial|Encounter")
     TArray<UCharacterData *> GetPendingOpposingParty() const { return TArray<UCharacterData *>(PendingOpposingParty); }
@@ -105,7 +105,7 @@ private:
     /** Encounter roster awaiting the battle level (T-C1). HARD refs — these
      *  pin the authored assets across the OpenLevel (see header ⚠️). */
     UPROPERTY()
-    TArray<TObjectPtr<UCharacterData>> PendingLocalParty;
+    TArray<TObjectPtr<UCharacterData>> PendingBattleParty;
 
     UPROPERTY()
     TArray<TObjectPtr<UCharacterData>> PendingOpposingParty;

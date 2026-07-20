@@ -21,7 +21,7 @@ class APlayerController;
 class UCharacterData;
 class UParty;
 
-UCLASS()
+UCLASS(Config = Game)
 class WORLD_OF_REFRACTION_API UPartySessionSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
@@ -29,9 +29,36 @@ class WORLD_OF_REFRACTION_API UPartySessionSubsystem : public UGameInstanceSubsy
 public:
 	virtual void Deinitialize() override;
 
-	/** The local player's party. Null until CreateSoloParty runs. */
+	/** Last-resort pawn class for the solo Trial Party when neither an explicit
+	 *  class nor PC0's current pawn can supply one. Config-authored (DefaultGame.ini)
+	 *  because a subsystem has no asset for a designer to edit — same pattern as
+	 *  UTrialRunSubsystem::HubLevel. */
+	UPROPERTY(Config)
+	TSoftClassPtr<ACombatCharacter> DefaultSoloPawnClass;
+
+	/** The local player's Trial Party. Pure query — null when none exists yet.
+	 *  Use EnsureLocalParty when you need one to exist. */
 	UFUNCTION(BlueprintPure, Category = "Party")
 	UParty *GetLocalParty() const;
+
+	/** Get-or-create the Trial Party. Pawn class resolves in order: PawnClass →
+	 *  PC's current pawn class → DefaultSoloPawnClass. Returns null (with an error)
+	 *  if all three fail.
+	 *
+	 *  ⚠️ Call this where the player possesses their REAL character — the hub or
+	 *  trial — not at battle bootstrap. By then AGameModeBase has already spawned
+	 *  PC0 a pawn from the BATTLE level's DefaultPawnClass, so the resolution chain
+	 *  would capture the stage default instead of the player's character. That is
+	 *  invisible today only because every GameMode shares a DefaultPawnClass. */
+	UParty *EnsureLocalParty(APlayerController *PC, TSoftClassPtr<ACombatCharacter> PawnClass);
+
+	/** Is this actor's class one the Trial Party rosters?
+	 *
+	 *  ⚠️ POC limit: membership is CLASS-based, so two members of the same class
+	 *  are indistinguishable. Instance identity arrives with the Arc 2 grid work
+	 *  (unique row slot per member). */
+	UFUNCTION(BlueprintPure, Category = "Party")
+	bool IsTrialPartyMember(const AActor *Actor) const;
 
 	/** Create (or reset) the local party with Leader as its owner, seeded with
 	 *  LeaderPawnClass as member 0. Idempotent per level: calling it again on an
