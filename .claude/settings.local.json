@@ -41,7 +41,9 @@
       "mcp__unreal-mcp__call_tool",
       "WebSearch",
       "mcp__unreal-mcp__describe_toolset",
-      "mcp__unreal-mcp__list_toolsets"
+      "mcp__unreal-mcp__list_toolsets",
+      "Bash(sed 's|^\\\\./||')",
+      "Bash(awk '/void UTurnManager::InitializeCombat/,/^}/' Private/Combat/TurnManager.cpp)"
     ]
   },
   "enabledMcpjsonServers": [
