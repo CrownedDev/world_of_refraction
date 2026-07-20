@@ -29,7 +29,6 @@
 #include "Equipment/EAttachedItemKind.h"
 #include "Equipment/Durability/DurabilityConstants.h"
 #include "Inventory/ItemEffectType.h"
-#include "Combat/Camera/CombatCameraManager.h"
 #include "Combat/Mechanics/WeatherStateManager.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "Equipment/Crystals/CrystalManager.h"
@@ -247,24 +246,12 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 	OnCombatStartedUI(Team0Combatants, Team1Combatants);
 
 	SetCombatState(ECombatState::InProgress);
-
-	// Initialize camera system
-	ACombatCameraManager *CamMgr = FindCameraManager();
-	if (CamMgr)
-	{
-		CamMgr->InitializeForCombat(this);
-	}
 }
 
 void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 {
 	if (CombatState == ECombatState::Idle)
 		return;
-
-	if (CameraManager)
-	{
-		CameraManager->EndCombat();
-	}
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Force ending combat with state %d"), (int32)ForcedState);
 
@@ -2706,22 +2693,6 @@ AActor *ACombatOrchestrator::GetDebugActor() const
 // DispatchSpellCast) reproduces its validated behavior. Spike branch:
 // spike/fused-montage-warp.
 
-#include "Combat/Camera/CombatCameraManager.h"
-
-ACombatCameraManager *ACombatOrchestrator::FindCameraManager()
-{
-	if (!CameraManager)
-	{
-		TArray<AActor *> FoundActors;
-		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ACombatCameraManager::StaticClass(), FoundActors);
-		if (FoundActors.Num() > 0)
-		{
-			CameraManager = Cast<ACombatCameraManager>(FoundActors[0]);
-		}
-	}
-	return CameraManager;
-}
-
 void ACombatOrchestrator::DebugManualAdvanceTurn()
 {
 	if (!TurnManagerRef || CombatState != ECombatState::InProgress)
@@ -2772,11 +2743,6 @@ void ACombatOrchestrator::DebugSelectTarget(int32 EnemyIndex)
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Selected target: %s (index %d)"),
 		   *Target->GetName(), EnemyIndex);
-
-	if (CameraManager)
-	{
-		CameraManager->TransitionToSelection(Target);
-	}
 }
 
 void ACombatOrchestrator::DebugAttackSelectedTarget()
@@ -2797,11 +2763,6 @@ void ACombatOrchestrator::DebugAttackSelectedTarget()
 	}
 
 	AActor *Target = EnemyTeam[DebugSelectedTargetIndex];
-
-	if (CameraManager)
-	{
-		CameraManager->TransitionToAction(CurrentActor, Target);
-	}
 
 	FAction AttackAction;
 	AttackAction.ActionType = EActionType::Ability; // attack/ability merge: attacks dispatch as Ability (SkillData + IsAttack)
