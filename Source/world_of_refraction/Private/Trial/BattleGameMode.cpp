@@ -86,10 +86,29 @@ void ABattleGameMode::BootstrapCombat()
 
     // Possess the first player-side pawn: view target + (with a
     // CombatPlayerController-derived PC class) realtime defense input.
+    //
+    // ⚠️ CONTROL READS BEFORE THIS POINT ARE UNRELIABLE. ACombatCharacter sets
+    // AutoPossessAI, so every pawn — including this one — auto-spawned an AI
+    // controller back at FinishSpawningActor. LocalParty[0] therefore reports
+    // IsBotControlled() until the Possess below. Combat-time reads are safe (they
+    // all run after StartCombat, which is after this), but anything that asks
+    // "is this AI?" during a pawn's BeginPlay would get the wrong answer.
     if (PC)
     {
+        APawn *PlayerPawn = CastChecked<APawn>(LocalParty[0]);
         APawn *PreviousPawn = PC->GetPawn();
-        PC->Possess(CastChecked<APawn>(LocalParty[0]));
+
+        // Capture the auto-spawned AI controller before Possess detaches it —
+        // AController::OnPossess unpossesses the incumbent but does not destroy
+        // it, leaving a pawnless controller behind.
+        AController *DisplacedAI = PlayerPawn->GetController();
+
+        PC->Possess(PlayerPawn);
+
+        if (DisplacedAI && DisplacedAI != PC)
+        {
+            DisplacedAI->Destroy();
+        }
         if (PreviousPawn && PreviousPawn != PC->GetPawn())
         {
             PreviousPawn->Destroy();

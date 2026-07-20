@@ -2,6 +2,7 @@
 // Real-time defense system implementation
 
 #include "Combat/Defense/DefenseSystem.h"
+#include "GameFramework/Pawn.h"
 #include "Character/CharacterDataComponent.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
@@ -262,8 +263,11 @@ AActor *UDefenseSystem::GetActiveDefenderForLocalPlayer() const
 			continue;
 		}
 
-		UCharacterDataComponent *Comp = GetCharacterDataComponent(Defender);
-		if (Comp && Comp->CharacterData && !Comp->CharacterData->ShouldUseAI())
+		// The LOCAL PLAYER's defender — a control question, so read possession.
+		// A Player-origin pawn under a bot controller (AI companion) is correctly
+		// skipped here: the human is not the one defending with it.
+		const APawn *Pawn = Cast<APawn>(Defender);
+		if (Pawn && Pawn->IsPlayerControlled())
 		{
 			return Defender;
 		}

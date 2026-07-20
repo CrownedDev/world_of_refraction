@@ -66,11 +66,15 @@ void UEncounterComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 bool UEncounterComponent::IsPlayerCombatant(const AActor *Actor)
 {
-	// Combatant test is the component, never the pawn class. AI-controlled
-	// combatants are excluded — an AI pawn wandering in must not open (or join
-	// the player side of) combat.
+	// Combatant test is the component, never the pawn class. Enemy-origin
+	// combatants are excluded — an enemy wandering into the sphere must not open
+	// (or join the player side of) combat.
+	//
+	// This is an ORIGIN question, not a control one: an AI companion is a
+	// Player-origin character under a bot controller, and it must still be able to
+	// join its own party's encounter. A control check here would reject it.
 	const UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-	return CharComp && CharComp->CharacterData && !CharComp->CharacterData->ShouldUseAI();
+	return CharComp && CharComp->CharacterData && CharComp->CharacterData->IsPlayerOrigin();
 }
 
 void UEncounterComponent::HandleOverlap(UPrimitiveComponent *OverlappedComponent, AActor *OtherActor,
