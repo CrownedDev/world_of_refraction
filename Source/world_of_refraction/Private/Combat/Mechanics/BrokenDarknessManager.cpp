@@ -114,24 +114,48 @@ void UBrokenDarknessManager::BeginPlay()
 			// Overload is re-evaluated on every owner energy change. Absorption
 			// gain, cast spend, and overload drain all broadcast OnEPChanged,
 			// so this binding is the single overload trigger point.
+			//
+			// This binding STAYS here (unlike the born-BD flip below, which moved
+			// to InitializeBornBrokenDarkness): it only needs the component to
+			// exist, not any seeded state, so it is order-independent. Keeping it
+			// in BeginPlay also means an owner with null CharacterData — whose
+			// cascade never runs — still gets its overload wiring.
 			CharComp->OnEPChanged.AddDynamic(this, &UBrokenDarknessManager::HandleOwnerEnergyChanged);
-
-			// Character-created BD path: align the manager's internal flag with
-			// CharacterDataComponent::IsBrokenDarkness(). Without this,
-			// character-created BDs silently short-circuit absorption methods
-			// (OnDefenseResolved, ProcessForbiddenCast, etc.)
-			// because they all check bIsFlipped.
-			if (CharComp->IsBrokenDarkness())
-			{
-				bIsFlipped = true;
-				// Born-BD starts on the base Darkness pool (Model B), same as a runtime
-				// transform. Element axis only — energy is set separately by CDC init.
-				SeedBaseElement();
-				UE_LOG(LogTemp, Log, TEXT("[BrokenDarkness] %s: auto-flipped bIsFlipped for character-created BD"),
-					   *Owner->GetName());
-			}
 		}
 	}
+}
+
+void UBrokenDarknessManager::InitializeBornBrokenDarkness()
+{
+	// Character-created BD path: align the manager's internal flag with
+	// CharacterDataComponent::IsBrokenDarkness(). Without this, character-created
+	// BDs silently short-circuit absorption methods (OnDefenseResolved,
+	// ProcessForbiddenCast, etc.) because they all check bIsFlipped.
+	//
+	// Called from UCharacterDataComponent::BeginPlay's cascade rather than from
+	// this component's BeginPlay: the flag it reads is seeded BY that cascade, so
+	// running it here would depend on component BeginPlay order — which promotion
+	// to a native component silently changes, and which UE does not guarantee.
+	// Failure was silent and data-dependent (born-BD characters only), so it is
+	// pushed to an explicit call at the one moment the state is known good.
+	if (bIsFlipped)
+	{
+		return; // already BD (runtime transform, or this ran once already)
+	}
+
+	AActor *Owner = GetOwner();
+	UCharacterDataComponent *CharComp = Owner ? Owner->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (!CharComp || !CharComp->IsBrokenDarkness())
+	{
+		return;
+	}
+
+	bIsFlipped = true;
+	// Born-BD starts on the base Darkness pool (Model B), same as a runtime
+	// transform. Element axis only — energy is set separately by CDC init.
+	SeedBaseElement();
+	UE_LOG(LogTemp, Log, TEXT("[BrokenDarkness] %s: auto-flipped bIsFlipped for character-created BD"),
+		   *Owner->GetName());
 }
 
 void UBrokenDarknessManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
