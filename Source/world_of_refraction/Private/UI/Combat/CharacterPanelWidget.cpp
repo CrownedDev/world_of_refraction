@@ -10,6 +10,7 @@
 #include "Infusion/ElementColors.h"
 #include "Infusion/HybridSpellColors.h"
 #include "Combat/CombatConstants.h"
+#include "Components/Image.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -24,6 +25,19 @@ namespace PanelLabels
 	constexpr const TCHAR *WeaponDur = TEXT("WD"); // Weapon Durability
 	constexpr const TCHAR *Absorb = TEXT("Abs");   // BD Absorption
 	constexpr const TCHAR *Status = TEXT("SB");	   // Status Buildup
+}
+
+namespace PanelGhostConstants
+{
+	/** Vacant-state portrait opacity — ported from PartyCardConstants
+	 *  (PartyMemberCardWidget, deleted in the unification). */
+	constexpr float DEFAULT_GHOST_ALPHA = 0.25f;
+}
+
+UCharacterPanelWidget::UCharacterPanelWidget(const FObjectInitializer &ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	GhostAlpha = PanelGhostConstants::DEFAULT_GHOST_ALPHA;
 }
 
 void UCharacterPanelWidget::NativeConstruct()
@@ -97,6 +111,13 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 		BDManager->OnTransformed.AddDynamic(this, &UCharacterPanelWidget::HandleBDTransformed);
 	}
 
+	// Mode transition: a panel previously in Roster/Vacant (which collapse the
+	// runtime rows) is now live — restore before the resonator rule re-hides EP.
+	DisplayMode = EPanelDisplayMode::Live;
+	RosterData = nullptr;
+	bRosterLeader = false;
+	SetRuntimeRowsVisible(true);
+
 	// Resonator EP-bar visibility: hidden when unarmed (pool is dormant),
 	// visible when armed. Initial evaluation only — runtime weapon-swap
 	// refresh is not currently wired.
@@ -106,6 +127,11 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 
 	// Static text
 	ApplyStaticText();
+
+	// Portrait for the Live path too — GetDisplayData() resolves to the bound
+	// component's CharacterData here. Unset portraits (all enemy DAs) show the
+	// WBP placeholder, which is what an unset portrait looks like.
+	UpdatePortrait(GetDisplayData());
 
 	// Initial snapshot
 	HandleHPChanged(CharComp->CurrentHP, CharComp->MaxHP);
@@ -165,6 +191,116 @@ void UCharacterPanelWidget::TeardownPanel()
 	bBound = false;
 }
 
+// ========================================
+// Roster / Vacant modes (Arc 1.5b unification)
+// ========================================
+
+void UCharacterPanelWidget::InitialiseForData(UCharacterData *Data, bool bIsLeader)
+{
+	// TransBuffer — the InitialiseForActor precedent: keep the editor's undo
+	// buffer from holding this widget across OpenLevel.
+	ClearFlags(RF_Transactional);
+
+	if (!Data)
+	{
+		SetVacant();
+		return;
+	}
+
+	DisplayMode = EPanelDisplayMode::Roster;
+	RosterData = Data;
+	bRosterLeader = bIsLeader;
+
+	// Static template half only: no components, no subsystems, no delegate
+	// binds — bBound stays false. Deliberately NOT RefreshEPBarVisibility:
+	// it reads HasUsableEPTarget(), live loadout state with no asset answer.
+	ApplyStaticText();
+	UpdatePortrait(Data);
+
+	// HP/EP/Status have no current-value source until the trial HP/EP carry
+	// arc; the effects page is unreachable (mouse handlers gate on Live).
+	SetRuntimeRowsVisible(false);
+}
+
+void UCharacterPanelWidget::SetVacant()
+{
+	// TransBuffer — see InitialiseForData; either entry point may be hit first.
+	ClearFlags(RF_Transactional);
+
+	DisplayMode = EPanelDisplayMode::Vacant;
+	RosterData = nullptr;
+	bRosterLeader = false;
+
+	SetTextSafe(NameText, TEXT("Empty"));
+	SetTextSafe(ClassElementText, FString());
+	SetTextSafe(WorldStatsText, FString());
+	SetRuntimeRowsVisible(false);
+
+	if (PortraitImage)
+	{
+		CachePortraitBrushOnce();
+		// Placeholder brush back, dimmed — a vacant slot shows no character.
+		PortraitImage->SetBrush(DefaultPortraitBrush);
+		PortraitImage->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, GhostAlpha));
+	}
+}
+
+UCharacterData *UCharacterPanelWidget::GetDisplayData() const
+{
+	switch (DisplayMode)
+	{
+	case EPanelDisplayMode::Live:
+	{
+		const UCharacterDataComponent *CharComp = BoundCharData.Get();
+		return CharComp ? CharComp->CharacterData : nullptr;
+	}
+	case EPanelDisplayMode::Roster:
+		return RosterData;
+	default:
+		return nullptr;
+	}
+}
+
+void UCharacterPanelWidget::SetRuntimeRowsVisible(bool bVisible)
+{
+	const ESlateVisibility V = bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
+	if (HPBar)      { HPBar->SetVisibility(V); }
+	if (HPText)     { HPText->SetVisibility(V); }
+	if (EPBar)      { EPBar->SetVisibility(V); }
+	if (EPText)     { EPText->SetVisibility(V); }
+	if (StatusBar)  { StatusBar->SetVisibility(V); }
+	if (StatusText) { StatusText->SetVisibility(V); }
+}
+
+void UCharacterPanelWidget::CachePortraitBrushOnce()
+{
+	if (!bPortraitBrushCached && PortraitImage)
+	{
+		DefaultPortraitBrush = PortraitImage->GetBrush();
+		bPortraitBrushCached = true;
+	}
+}
+
+void UCharacterPanelWidget::UpdatePortrait(UCharacterData *Data)
+{
+	if (!PortraitImage)
+	{
+		return;
+	}
+	CachePortraitBrushOnce();
+	if (Data && Data->Portrait)
+	{
+		PortraitImage->SetBrushFromTexture(Data->Portrait);
+	}
+	else
+	{
+		// Null Portrait is the NORMAL case today (placeholder gems aside) — the
+		// WBP's own placeholder holds the layout space, no warning.
+		PortraitImage->SetBrush(DefaultPortraitBrush);
+	}
+	PortraitImage->SetColorAndOpacity(FLinearColor::White);
+}
+
 void UCharacterPanelWidget::NativeDestruct()
 {
 	if (bBound)
@@ -189,15 +325,28 @@ void UCharacterPanelWidget::BeginDestroy()
 
 void UCharacterPanelWidget::ApplyStaticText_Implementation()
 {
-	UCharacterDataComponent *CharComp = BoundCharData.Get();
-	if (!CharComp || !CharComp->CharacterData)
+	// Mode-agnostic data source: Live reads the bound component's asset, Roster
+	// reads RosterData. Formatting matches the (to-be-deleted) WBP override
+	// exactly — "Class | Element" and "M:x B:y S:z" via enum display names.
+	UCharacterData *Data = GetDisplayData();
+	if (!Data)
 	{
 		return;
 	}
 
-	UCharacterData *Data = CharComp->CharacterData;
-	SetTextSafe(NameText, Data->Name);
-	// ClassElementText, WorldStatsText left to BP override (enum formatting)
+	const FString DisplayName = bRosterLeader
+									? FString::Printf(TEXT("%s (You)"), *Data->Name)
+									: Data->Name;
+	SetTextSafe(NameText, DisplayName);
+
+	SetTextSafe(ClassElementText,
+				FString::Printf(TEXT("%s | %s"),
+								*UEnum::GetDisplayValueAsText(Data->CharacterClass).ToString(),
+								*UEnum::GetDisplayValueAsText(Data->InnateElement).ToString()));
+
+	SetTextSafe(WorldStatsText,
+				FString::Printf(TEXT("M:%d B:%d S:%d"),
+								Data->WorldMindLevel, Data->WorldBodyLevel, Data->WorldSpiritLevel));
 }
 
 // ========================================
@@ -567,17 +716,37 @@ void UCharacterPanelWidget::RefreshEPBarVisibility()
 void UCharacterPanelWidget::NativeOnMouseEnter(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
 {
 	Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
+	// Live-only: a Roster/Vacant panel would page the WBP switcher to an empty
+	// effects list on hover. Gating here keeps the BP graph untouched.
+	// Roster panels have no effects to page to, so hover/click is inert
+	// here. TODO: repurpose page 1 in Roster mode for a loadout + full-stat
+	// preview -- both are UCharacterData reads, no runtime state needed.
+	// Requires a third WidgetSwitcher page in WBP_CharacterPanel.
+	if (DisplayMode != EPanelDisplayMode::Live)
+	{
+		return;
+	}
 	OnPanelHovered.Broadcast(true);
 }
 
 void UCharacterPanelWidget::NativeOnMouseLeave(const FPointerEvent &InMouseEvent)
 {
 	Super::NativeOnMouseLeave(InMouseEvent);
+	if (DisplayMode != EPanelDisplayMode::Live)
+	{
+		return;
+	}
 	OnPanelHovered.Broadcast(false);
 }
 
 FReply UCharacterPanelWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
 {
+	// Live-only: a Roster/Vacant panel would pin the empty effects page.
+	// Unhandled lets a future roster-mode parent take the click instead.
+	if (DisplayMode != EPanelDisplayMode::Live)
+	{
+		return FReply::Unhandled();
+	}
 	OnPanelClicked.Broadcast();
 	return FReply::Handled();
 }
