@@ -40,13 +40,19 @@ UParty *UPartySessionSubsystem::CreateSoloParty(APlayerController *Leader, TSoft
 	NewParty->DisplayName = MakeDefaultDisplayName(Leader);
 	Parties.Add(NewParty);
 
+	// Internal add: the creation broadcast below covers the seeded member too, so
+	// one logical operation fires one delegate.
 	if (!LeaderPawnClass.IsNull())
 	{
-		InviteMember(LeaderPawnClass);
+		InviteMemberInternal(LeaderPawnClass);
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[PartySession] Created solo party '%s' (%d members)"),
 		   *NewParty->DisplayName.ToString(), NewParty->GetMemberCount());
+
+	// Broadcast after all initial state is set — subscribers see a valid party,
+	// not a half-built one.
+	OnPartyChanged.Broadcast(NewParty);
 	return NewParty;
 }
 
@@ -88,25 +94,53 @@ UParty *UPartySessionSubsystem::EnsureLocalParty(APlayerController *PC, TSoftCla
 
 bool UPartySessionSubsystem::IsTrialPartyMember(const AActor *Actor) const
 {
-	const UParty *Party = GetLocalParty();
-	if (!Party || !Actor)
+	if (!Actor)
 	{
 		return false;
 	}
 
-	// CLASS comparison, not instance — see the header's POC-limit note.
-	const FSoftClassPath ActorClass(Actor->GetClass()->GetPathName());
-	for (const FPartyMember &Member : Party->Members)
+	// CharacterData comparison, not pawn class: a level-placed instance may override
+	// its CharacterData away from the Blueprint CDO, and the overridden asset is the
+	// character it actually is.
+	const UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
+	if (!Comp || !Comp->CharacterData)
 	{
-		if (Member.PawnClass.ToSoftObjectPath() == ActorClass)
+		return false;
+	}
+	return GetMemberSlotByData(Comp->CharacterData) != INDEX_NONE;
+}
+
+int32 UPartySessionSubsystem::GetMemberSlotByData(UCharacterData *CharacterData) const
+{
+	const UParty *Party = GetLocalParty();
+	if (!CharacterData || !Party)
+	{
+		return INDEX_NONE;
+	}
+
+	// Pointer equality is correct: the same asset path resolves to one UObject
+	// in memory, and FPartyMember pins it with a hard ref.
+	for (int32 SlotIndex = 0; SlotIndex < Party->Members.Num(); ++SlotIndex)
+	{
+		if (Party->Members[SlotIndex].CharacterData == CharacterData)
 		{
-			return true;
+			return SlotIndex;
 		}
 	}
-	return false;
+	return INDEX_NONE;
 }
 
 bool UPartySessionSubsystem::InviteMember(TSoftClassPtr<ACombatCharacter> PawnClass)
+{
+	const bool bAdded = InviteMemberInternal(PawnClass);
+	if (bAdded)
+	{
+		OnPartyChanged.Broadcast(GetLocalParty());
+	}
+	return bAdded;
+}
+
+bool UPartySessionSubsystem::InviteMemberInternal(TSoftClassPtr<ACombatCharacter> PawnClass)
 {
 	UParty *Party = GetLocalParty();
 	if (!Party)
@@ -141,13 +175,21 @@ bool UPartySessionSubsystem::InviteMember(TSoftClassPtr<ACombatCharacter> PawnCl
 	Member.CharacterData = Data;
 	Party->Members.Add(Member);
 
-	UE_LOG(LogTemp, Log, TEXT("[PartySession] Invited %s (slot %d of %d)"),
-		   *Data->Name, Party->GetMemberCount() - 1, PartyConstants::MAX_PARTY_MEMBERS);
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] Invited %s (%d/%d)"),
+		   *Data->Name, Party->GetMemberCount(), PartyConstants::MAX_PARTY_MEMBERS);
 	return true;
 }
 
 bool UPartySessionSubsystem::DismissMember(int32 SlotIndex)
 {
+	if (SlotIndex == 0)
+	{
+		UE_LOG(LogTemp, Warning,
+			   TEXT("[PartySession] Refused to dismiss slot 0 (party leader) - leader is protected. "
+					"Use RebindLeader to change leadership."));
+		return false;
+	}
+
 	UParty *Party = GetLocalParty();
 	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
 	{
@@ -158,6 +200,8 @@ bool UPartySessionSubsystem::DismissMember(int32 SlotIndex)
 	Party->Members.RemoveAt(SlotIndex);
 	UE_LOG(LogTemp, Log, TEXT("[PartySession] Dismissed slot %d (%d remaining)"),
 		   SlotIndex, Party->GetMemberCount());
+
+	OnPartyChanged.Broadcast(Party);
 	return true;
 }
 

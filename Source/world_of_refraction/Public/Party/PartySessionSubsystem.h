@@ -21,6 +21,11 @@ class APlayerController;
 class UCharacterData;
 class UParty;
 
+/** Broadcasts on any composition change: initial creation, invite success,
+ *  dismiss success. Consumers should re-read UParty state on fire — the delegate
+ *  carries the party pointer for convenience. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPartyChanged, UParty *, Party);
+
 UCLASS(Config = Game)
 class WORLD_OF_REFRACTION_API UPartySessionSubsystem : public UGameInstanceSubsystem
 {
@@ -28,6 +33,9 @@ class WORLD_OF_REFRACTION_API UPartySessionSubsystem : public UGameInstanceSubsy
 
 public:
 	virtual void Deinitialize() override;
+
+	UPROPERTY(BlueprintAssignable, Category = "Party")
+	FOnPartyChanged OnPartyChanged;
 
 	/** Last-resort pawn class for the solo Trial Party when neither an explicit
 	 *  class nor PC0's current pawn can supply one. Config-authored (DefaultGame.ini)
@@ -43,22 +51,34 @@ public:
 
 	/** Get-or-create the Trial Party. Pawn class resolves in order: PawnClass →
 	 *  PC's current pawn class → DefaultSoloPawnClass. Returns null (with an error)
-	 *  if all three fail.
+	 *  if all three fail. BP callers may leave PawnClass unconnected — a null soft
+	 *  ref falls through to the same chain.
 	 *
 	 *  ⚠️ Call this where the player possesses their REAL character — the hub or
 	 *  trial — not at battle bootstrap. By then AGameModeBase has already spawned
 	 *  PC0 a pawn from the BATTLE level's DefaultPawnClass, so the resolution chain
 	 *  would capture the stage default instead of the player's character. That is
 	 *  invisible today only because every GameMode shares a DefaultPawnClass. */
+	UFUNCTION(BlueprintCallable, Category = "Party")
 	UParty *EnsureLocalParty(APlayerController *PC, TSoftClassPtr<ACombatCharacter> PawnClass);
 
-	/** Is this actor's class one the Trial Party rosters?
+	/** Is this actor one the Trial Party rosters? Compares the actor's
+	 *  UCharacterDataComponent->CharacterData against the roster — semantic
+	 *  character identity, not pawn class. An actor with no component, or none
+	 *  with CharacterData, is not a member.
 	 *
-	 *  ⚠️ POC limit: membership is CLASS-based, so two members of the same class
-	 *  are indistinguishable. Instance identity arrives with the Arc 2 grid work
-	 *  (unique row slot per member). */
+	 *  ⚠️ Identity limit: CharacterData is the identity, so two members sharing
+	 *  one CharacterData asset are indistinguishable. Per-instance / per-user
+	 *  identity (PvP, duplicate-character parties) is a separate arc. */
 	UFUNCTION(BlueprintPure, Category = "Party")
 	bool IsTrialPartyMember(const AActor *Actor) const;
+
+	/** Returns the slot index of the first member with the given CharacterData
+	 *  asset, or INDEX_NONE if not present. CharacterData is WoR's semantic
+	 *  character identity (name, stats, class, element). PvP will eventually need
+	 *  per-instance/per-user identity — that's a separate arc. */
+	UFUNCTION(BlueprintPure, Category = "Party")
+	int32 GetMemberSlotByData(UCharacterData *CharacterData) const;
 
 	/** Create (or reset) the local party with Leader as its owner, seeded with
 	 *  LeaderPawnClass as member 0. Idempotent per level: calling it again on an
@@ -84,6 +104,11 @@ public:
 	void RebindLeader(APlayerController *Leader);
 
 private:
+	/** Internal add path — does the work but does NOT broadcast. Callers that
+	 *  compose multiple adds into a single logical operation (e.g. CreateSoloParty)
+	 *  call this directly, then broadcast once. External callers use InviteMember. */
+	bool InviteMemberInternal(TSoftClassPtr<ACombatCharacter> PawnClass);
+
 	/** Resolve the CharacterData a pawn class ships with, by loading the class and
 	 *  reading its CDO's CharacterDataComponent. Synchronous — invites happen at
 	 *  hub interaction speed, not in a frame-critical path. */
