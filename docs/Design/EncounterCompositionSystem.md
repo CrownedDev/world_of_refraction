@@ -349,8 +349,9 @@ that row. Row exclusivity means **no two party members occupy the same row** —
 3-member party spans all three rows, one member each. This makes row assignment a
 real party-composition decision (who tanks front, who casts from back) rather than a
 free-for-all, and needs **per-instance identity** on `UBattleConfigComponent` so two
-members of the same class can hold distinct rows (Arc 1's membership is class-based
-and cannot distinguish them — see PartySystem.md POC limits).
+members backed by the same character can hold distinct rows (membership is keyed on
+the `CharacterData` asset and cannot distinguish them — see the PartySystem.md
+Identity Model).
 
 **Opposing party positioning:**
 - Fixed encounters: `FEncounterEntry::PreferredGridPosition` (authored)
@@ -373,7 +374,7 @@ Every current `CharacterData->bIsAIControlled` callsite migrates to `!Pawn->IsPl
 
 **Delivered:**
 - `Public/Party/Party.h` + `.cpp` — **`UParty` (UObject)**, not the originally-planned `FParty` struct (`TWeakObjectPtr<UParty>` needs a UObject), with one `FPartyMember` slot struct instead of parallel arrays.
-- `Public/Party/PartySessionSubsystem.h` + `.cpp` — `UCLASS(Config = Game)`, `DefaultSoloPawnClass`, `EnsureLocalParty` lazy-create, `IsTrialPartyMember`.
+- `Public/Party/PartySessionSubsystem.h` + `.cpp` — `UCLASS(Config = Game)`, `DefaultSoloPawnClass`, `EnsureLocalParty` lazy-create, and `CharacterData`-keyed membership lookup (`GetMemberSlotByData` / `IsTrialPartyMember`; migrated from pawn-class comparison in Arc 1.5a, alongside `OnPartyChanged` and the slot-0 leader guard).
 - `Public/Combat/AI/CombatAIController.h` + `.cpp` — bare self-reaping `AAIController`; `AIModule` added to `Build.cs`.
 - `Public/Character/BattleConfigComponent.h` + `.cpp` — 10th native on `ACombatCharacter`.
 - `Public/Character/ECharacterOrigin.h` — new enum; `bIsAIControlled` removed, 4 callsites migrated (origin vs control split).

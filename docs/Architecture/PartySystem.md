@@ -70,8 +70,19 @@ Key methods:
 
 - `GetLocalParty() const` — pure query, returns null when none exists yet.
 - `EnsureLocalParty(PC, PawnClass)` — get-or-create (non-const).
-- `IsTrialPartyMember(Actor)` — class-based membership test (see below).
+- `IsTrialPartyMember(Actor)` — data-based membership test (compares the actor's
+  `UCharacterDataComponent->CharacterData` against `Party->Members[].CharacterData`).
+  See the Identity Model note below.
+- `GetMemberSlotByData(CharacterData)` — slot index of the first member with that
+  asset, or `INDEX_NONE`. The lookup `IsTrialPartyMember` is built on.
 - `InviteMember` / `DismissMember` / `SetDisplayName` / `RebindLeader`.
+- `OnPartyChanged` (`FOnPartyChanged`, `BlueprintAssignable`) — multicast, fires on
+  every composition change: `CreateSoloParty`, `InviteMember` success,
+  `DismissMember` success. Carries the `UParty*`; consumers re-read state on fire
+  rather than trusting the payload to be a diff.
+
+⚠️ `DismissMember(0)` is **refused** — slot 0 is the party leader. Use
+`RebindLeader` to change leadership.
 
 ### Config-driven default pawn
 
@@ -120,25 +131,47 @@ The party splits into two layers:
   cross-checks Battle against Trial (`"Battle Party N of Trial Party N"`), warning if
   Battle exceeds Trial.
 
-Anyone else inside the arena sphere is a **spectator** — the existing "not a Trial
-Party member" filter (`IsTrialPartyMember`) rejects them from the Battle Party. The
-join window is therefore not dead code: it is the mechanism that derives Battle
-Party from Trial Party.
+Anyone else inside the arena sphere is a **spectator** — the "not a Trial Party
+member" filter (`IsTrialPartyMember`) rejects them from the Battle Party by
+comparing their `CharacterData` against the roster. The join window is therefore not
+dead code: it is the mechanism that derives Battle Party from Trial Party.
 
 ⚠️ **POC limits (Arc 1):**
 
-- The Trial Party is created *from* the triggering pawn's class, so the membership
-  gate cannot currently reject anything — it is real code exercising an
-  always-passing path until Arc 2 ships hub party assembly.
-- Membership is **class-based**, so two members of the same class are
-  indistinguishable. Instance identity arrives with the Arc 2 grid work (each member
-  picks an exclusive row slot, which needs per-instance identity on
+- The Trial Party is created *from* the triggering pawn's class, whose CDO supplies
+  the same `CharacterData` the pawn instance carries, so the membership gate cannot
+  reject the *triggering* pawn — it is real code exercising an always-passing path
+  for that one actor until Arc 2 ships hub party assembly. The join-window gate
+  (`HandleJoin`) can already reject, since a joiner need not be on the roster.
+- Identity is the **`CharacterData` asset**, so two members sharing one asset are
+  indistinguishable. Per-instance identity arrives with the Arc 2 grid work (each
+  member picks an exclusive row slot, which needs per-instance identity on
   `UBattleConfigComponent`).
+
+## Identity Model
+
+**A party member's identity is its `CharacterData` asset**, not its pawn class.
+
+- **Solo (today)** — `FPartyMember.CharacterData` *is* the identity. `PawnClass` is a
+  spawn detail: it says how to put a body in the world, not who that body is.
+  `GetMemberSlotByData` and `IsTrialPartyMember` both key off the asset.
+- **PvP / duplicates (future)** — two members backed by the same asset are
+  indistinguishable under this model, and a networked match needs per-instance and
+  per-user identity. That is a separate arc; do not retrofit it onto `CharacterData`
+  comparison.
+- **Level-designer override** — a placed instance can override its
+  `CharacterDataComponent->CharacterData` in the Details panel, diverging from its
+  Blueprint CDO. Data-based lookup treats that instance as the **overridden**
+  character, not the CDO character. **This is a feature, not a bug**: the designer
+  said who this actor is, and the roster comparison honours it. Class-based lookup
+  used to get this wrong in the permissive direction.
 
 ## Integration Points
 
 - `UEncounterComponent::HandleOverlap` — calls `EnsureLocalParty`, then gates Battle
-  Party membership on `IsTrialPartyMember`.
+  Party membership on `IsTrialPartyMember` (data-based; the actor's
+  `UCharacterDataComponent` is already guaranteed present by the `IsPlayerCombatant`
+  pre-guard). `HandleJoin` applies the same gate to arena joiners.
 - `ABattleGameMode` — reads `GetPendingBattleParty()` for the player side (enemy
   roster still comes from the encounter, not the party); empty-party abort +
   cross-check.
@@ -151,11 +184,13 @@ Party from Trial Party.
 
 - No party assembly UI — Arc 2. Solo-of-one is the only shape Arc 1 produces.
 - AI companion fill deferred to Arc 2.
-- Class-based membership (see POC limits) — instance identity with Arc 2 grid.
+- `CharacterData`-keyed membership (see Identity Model) — per-instance identity with
+  the Arc 2 grid; per-user identity with PvP.
 - Multiplayer invite (second `PlayerController` joins the local party) is a stub.
 
 ## Changelog
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-07-21 | Cluster 1 (Arc 1.5a plumbing): `FOnPartyChanged` multicast delegate broadcast from `CreateSoloParty` / `InviteMember` / `DismissMember`; new `GetMemberSlotByData`; `IsTrialPartyMember` migrated from pawn-class to `CharacterData` comparison; slot 0 protected from `DismissMember`. Added the Identity Model section. | feature/party-assembly-poc |
 | 2026-07-20 | Initial documentation. Encounter Composition Arc 1 (Party Foundation, merged `e5908739`): `UParty`, `UPartySessionSubsystem`, `FPartyMember`, the config-driven `DefaultSoloPawnClass`, the `EnsureLocalParty` lazy-create chain, and the two-layer Trial Party / Battle Party model. | feature/encounter-composition-arc1 |
