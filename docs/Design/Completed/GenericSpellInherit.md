@@ -25,12 +25,14 @@ A Generic spell resolves to the element of whatever source it is slotted into. D
 | Wind | Wind | Wind Ball |
 | Darkness | Darkness | Darkness Ball *(no "Dark" prefix doubling)* |
 | Broken Darkness (pool = Wind) | per BD rules | Dark Wind Ball |
-| **Reality** | — | **cannot cast** |
+| **Reality** | Reality | **Reality Ball** *(~~cannot cast~~ — superseded, see As-Built #1)* |
 
 Rules:
 - Sources that can host/resolve a Generic spell: **innate, evolution, crystal, ring.**
 - Naming prepends the source element name. **Darkness does not double** ("Darkness Ball", not "Dark Darkness Ball").
-- **Reality cannot use Generic spells** — rejected at resolve.
+- ~~**Reality cannot use Generic spells** — rejected at resolve.~~ **Superseded (As-Built
+  #1):** a Reality source resolves a Generic spell to Reality and casts it normally
+  ("Reality [Name]"). No reject exists in `ResolveSpellCastElement` or the slot gates.
 - Fixed-element spells (`Element != Generic`) are unaffected — they keep their authored element.
 
 ---
@@ -132,6 +134,7 @@ The build held to the locked plan except for these points, which evolved (this d
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-07-21 | Locked-design section corrected to match As-Built #1: the Reality "cannot cast" table row and rules line were still the original design, and the stale rule sent a code survey hunting a resolve-path guard that was never built. Original intent kept as strikethrough, pointing at As-Built #1. | feature/party-assembly-poc |
 | 2026-06-21 | Arc built + PIE-verified across clusters 1–3f-1 (above). Status → BUILT; moved to `Completed/`. Design evolutions captured: Reality uses Generic ("Reality Ball"), Generic/None brown everywhere, BD Model-B single-active-pool rotation, two-axis None/physical model. | feature/generic-spell-inherit |
 
 ## Deferred follow-ups (recorded, not built this arc)
