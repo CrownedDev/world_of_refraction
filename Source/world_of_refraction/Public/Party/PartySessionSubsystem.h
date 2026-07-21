@@ -51,13 +51,15 @@ public:
 
 	/** Get-or-create the Trial Party. Pawn class resolves in order: PawnClass →
 	 *  PC's current pawn class → DefaultSoloPawnClass. Returns null (with an error)
-	 *  if all three fail.
+	 *  if all three fail. BP callers may leave PawnClass unconnected — a null soft
+	 *  ref falls through to the same chain.
 	 *
 	 *  ⚠️ Call this where the player possesses their REAL character — the hub or
 	 *  trial — not at battle bootstrap. By then AGameModeBase has already spawned
 	 *  PC0 a pawn from the BATTLE level's DefaultPawnClass, so the resolution chain
 	 *  would capture the stage default instead of the player's character. That is
 	 *  invisible today only because every GameMode shares a DefaultPawnClass. */
+	UFUNCTION(BlueprintCallable, Category = "Party")
 	UParty *EnsureLocalParty(APlayerController *PC, TSoftClassPtr<ACombatCharacter> PawnClass);
 
 	/** Is this actor one the Trial Party rosters? Compares the actor's

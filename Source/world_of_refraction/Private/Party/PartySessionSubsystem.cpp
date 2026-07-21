@@ -175,8 +175,8 @@ bool UPartySessionSubsystem::InviteMemberInternal(TSoftClassPtr<ACombatCharacter
 	Member.CharacterData = Data;
 	Party->Members.Add(Member);
 
-	UE_LOG(LogTemp, Log, TEXT("[PartySession] Invited %s (slot %d of %d)"),
-		   *Data->Name, Party->GetMemberCount() - 1, PartyConstants::MAX_PARTY_MEMBERS);
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] Invited %s (%d/%d)"),
+		   *Data->Name, Party->GetMemberCount(), PartyConstants::MAX_PARTY_MEMBERS);
 	return true;
 }
 
