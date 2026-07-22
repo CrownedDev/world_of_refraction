@@ -177,6 +177,10 @@ void UWeaponMeshComponent::SpawnWeaponMesh(UWeaponData *Weapon)
     {
         PrimarySkeletalMeshComp = NewObject<USkeletalMeshComponent>(GetOwner());
         PrimarySkeletalMeshComp->SetSkeletalMesh(Weapon->WeaponSkeletalMesh);
+        if (Weapon->WeaponMaterialOverride)
+        {
+            PrimarySkeletalMeshComp->SetMaterial(0, Weapon->WeaponMaterialOverride);
+        }
         PrimarySkeletalMeshComp->RegisterComponent();
         PrimarySkeletalMeshComp->AttachToComponent(
             OwnerMesh,
@@ -192,6 +196,10 @@ void UWeaponMeshComponent::SpawnWeaponMesh(UWeaponData *Weapon)
     {
         PrimaryStaticMeshComp = NewObject<UStaticMeshComponent>(GetOwner());
         PrimaryStaticMeshComp->SetStaticMesh(Weapon->WeaponStaticMesh);
+        if (Weapon->WeaponMaterialOverride)
+        {
+            PrimaryStaticMeshComp->SetMaterial(0, Weapon->WeaponMaterialOverride);
+        }
         PrimaryStaticMeshComp->RegisterComponent();
         PrimaryStaticMeshComp->AttachToComponent(
             OwnerMesh,
@@ -230,6 +238,10 @@ void UWeaponMeshComponent::SpawnDualWeaponMesh(UWeaponData *Weapon)
     {
         PrimarySkeletalMeshComp = NewObject<USkeletalMeshComponent>(GetOwner());
         PrimarySkeletalMeshComp->SetSkeletalMesh(Weapon->WeaponSkeletalMesh);
+        if (Weapon->WeaponMaterialOverride)
+        {
+            PrimarySkeletalMeshComp->SetMaterial(0, Weapon->WeaponMaterialOverride);
+        }
         PrimarySkeletalMeshComp->RegisterComponent();
         PrimarySkeletalMeshComp->AttachToComponent(OwnerMesh, AttachRules, RightSocket);
         PrimarySkeletalMeshComp->SetRelativeRotation(Weapon->MeshRotation);
@@ -238,6 +250,10 @@ void UWeaponMeshComponent::SpawnDualWeaponMesh(UWeaponData *Weapon)
     {
         PrimaryStaticMeshComp = NewObject<UStaticMeshComponent>(GetOwner());
         PrimaryStaticMeshComp->SetStaticMesh(Weapon->WeaponStaticMesh);
+        if (Weapon->WeaponMaterialOverride)
+        {
+            PrimaryStaticMeshComp->SetMaterial(0, Weapon->WeaponMaterialOverride);
+        }
         PrimaryStaticMeshComp->RegisterComponent();
         PrimaryStaticMeshComp->AttachToComponent(OwnerMesh, AttachRules, RightSocket);
         PrimaryStaticMeshComp->SetRelativeRotation(Weapon->MeshRotation);
@@ -256,6 +272,10 @@ void UWeaponMeshComponent::SpawnDualWeaponMesh(UWeaponData *Weapon)
     {
         SecondarySkeletalMeshComp = NewObject<USkeletalMeshComponent>(GetOwner());
         SecondarySkeletalMeshComp->SetSkeletalMesh(Weapon->LeftHandSkeletalMesh);
+        if (Weapon->LeftHandMaterialOverride)
+        {
+            SecondarySkeletalMeshComp->SetMaterial(0, Weapon->LeftHandMaterialOverride);
+        }
         SecondarySkeletalMeshComp->RegisterComponent();
         SecondarySkeletalMeshComp->AttachToComponent(OwnerMesh, AttachRules, LeftSocket);
         SecondarySkeletalMeshComp->SetRelativeRotation(Weapon->LeftMeshRotation);
@@ -264,6 +284,10 @@ void UWeaponMeshComponent::SpawnDualWeaponMesh(UWeaponData *Weapon)
     {
         SecondaryStaticMeshComp = NewObject<UStaticMeshComponent>(GetOwner());
         SecondaryStaticMeshComp->SetStaticMesh(Weapon->LeftHandStaticMesh);
+        if (Weapon->LeftHandMaterialOverride)
+        {
+            SecondaryStaticMeshComp->SetMaterial(0, Weapon->LeftHandMaterialOverride);
+        }
         SecondaryStaticMeshComp->RegisterComponent();
         SecondaryStaticMeshComp->AttachToComponent(OwnerMesh, AttachRules, LeftSocket);
         SecondaryStaticMeshComp->SetRelativeRotation(Weapon->LeftMeshRotation);
