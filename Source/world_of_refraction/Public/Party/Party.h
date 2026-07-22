@@ -96,7 +96,19 @@ public:
 	bool IsEmpty() const { return Members.Num() == 0; }
 
 	/** Flattened roster in slot order, for the battle stash / orchestrator, which
-	 *  take TArray<UCharacterData*>. Skips slots whose asset failed to resolve. */
+	 *  take TArray<UCharacterData*>. Skips slots whose asset failed to resolve.
+	 *
+	 *  ⚠️ Includes the dead. The battle path wants GetLivingMemberCharacterData. */
 	UFUNCTION(BlueprintPure, Category = "Party")
 	TArray<UCharacterData *> GetMemberCharacterData() const;
+
+	/** As GetMemberCharacterData, minus members who died in an earlier battle of
+	 *  this trial. This is the roster the Battle Party is built from.
+	 *
+	 *  Dead is a CARRIED zero — HasCarriedVitals() first, so the NO_CARRIED_VITALS
+	 *  sentinel (-1, a fresh trial with nothing banked yet) is never mistaken for a
+	 *  corpse. Returns empty on a full party wipe; callers must handle that rather
+	 *  than passing it on as a battle roster. */
+	UFUNCTION(BlueprintPure, Category = "Party")
+	TArray<UCharacterData *> GetLivingMemberCharacterData() const;
 };
