@@ -6,6 +6,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
+#include "Party/PartySessionSubsystem.h"
 #include "Shop/MerchantShopSubsystem.h"
 #include "TimerManager.h"
 #include "Trial/TrialData.h"
@@ -31,6 +32,14 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
         Shop->Close();
     }
 
+    // Trial entry is where carry-over BEGINS: everyone starts at their computed
+    // maxima (BD members at 0 EP). Deliberately NOT done on EnterEncounter —
+    // battle-to-battle within a trial must preserve what the last fight left.
+    if (UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>())
+    {
+        PartySession->SetAllMembersFull();
+    }
+
     ActiveTrial = Trial;
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Entering trial '%s' -> %s"),
            *Trial->Name.ToString(), *Trial->Level.ToString());
@@ -44,6 +53,14 @@ void UTrialRunSubsystem::ExitTrial()
         UE_LOG(LogTemp, Warning,
                TEXT("[TrialRun] ExitTrial: HubLevel not configured (DefaultGame.ini) — ignored."));
         return;
+    }
+
+    // Hub return is the factory reset: drop every slot back to the sentinel so
+    // the next EnterTrial seeds fresh rather than inheriting the last run's
+    // damage. Pairs with SetAllMembersFull above.
+    if (UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>())
+    {
+        PartySession->ClearAllMemberVitals();
     }
 
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Exiting trial '%s' -> hub %s"),
