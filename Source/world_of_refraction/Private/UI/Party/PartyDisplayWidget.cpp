@@ -126,9 +126,12 @@ void UPartyDisplayWidget::RefreshFromParty()
 		// destroyed — build-once is the TransBuffer mitigation and must hold.
 		if (Party && i < Party->GetMemberCount())
 		{
-			UCharacterData *Data = Party->Members[i].CharacterData;
+			const FPartyMember &Member = Party->Members[i];
+			UCharacterData *Data = Member.CharacterData;
 			Panel->SetVisibility(ESlateVisibility::Visible);
-			Panel->InitialiseForData(Data, /*bIsLeader=*/i == 0);
+			// Carried trial vitals, or NO_CARRIED_VITALS — the panel falls back to
+			// the asset's computed maxima on the sentinel, so a hub member reads full.
+			Panel->InitialiseForData(Data, /*bIsLeader=*/i == 0, Member.CurrentHP, Member.CurrentEP);
 			LastPanelNames[i] = Data ? Data->Name : FString();
 		}
 		else

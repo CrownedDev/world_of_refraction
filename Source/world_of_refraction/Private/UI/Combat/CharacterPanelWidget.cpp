@@ -11,6 +11,7 @@
 #include "Infusion/ElementColors.h"
 #include "Infusion/HybridSpellColors.h"
 #include "Combat/CombatConstants.h"
+#include "Party/Party.h"
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
@@ -196,7 +197,7 @@ void UCharacterPanelWidget::TeardownPanel()
 // Roster / Vacant modes (Arc 1.5b unification)
 // ========================================
 
-void UCharacterPanelWidget::InitialiseForData(UCharacterData *Data, bool bIsLeader)
+void UCharacterPanelWidget::InitialiseForData(UCharacterData *Data, bool bIsLeader, int32 InCurrentHP, int32 InCurrentEP)
 {
 	// TransBuffer — the InitialiseForActor precedent: keep the editor's undo
 	// buffer from holding this widget across OpenLevel.
@@ -218,9 +219,62 @@ void UCharacterPanelWidget::InitialiseForData(UCharacterData *Data, bool bIsLead
 	ApplyStaticText();
 	UpdatePortrait(Data);
 
-	// HP/EP/Status have no current-value source until the trial HP/EP carry
-	// arc; the effects page is unreachable (mouse handlers gate on Live).
-	SetRuntimeRowsVisible(false);
+	// Hub vs trial, discriminated by the carry sentinel: an uncarried slot is a hub
+	// lobby entry and shows identity only (name + class + portrait); a carried slot
+	// is mid-trial and shows runtime state. Same test as ApplyRosterVitals' bHasCarry
+	// — HP is the carry signal for BOTH pools, so one test covers them.
+	const bool bHasCarry = (InCurrentHP != PartyConstants::NO_CARRIED_VITALS);
+
+	// Status stays collapsed in BOTH cases, unlike the vitals rows: buildup is
+	// battle-only and is cleared between battles, so a trial roster has nothing to
+	// show either. The effects page stays unreachable (mouse handlers gate on Live).
+	SetVitalsRowsVisible(bHasCarry);
+	SetStatusRowsVisible(false);
+
+	// World stats track the vitals, not status — its own setter now, so the two
+	// no longer have to share a visibility lifetime.
+	SetWorldStatsRowVisible(bHasCarry);
+
+	// Called unconditionally even when the rows are collapsed: it leaves the bars
+	// consistent with the slot, so a later carry→display flip has no stale frame.
+	ApplyRosterVitals(Data, InCurrentHP, InCurrentEP);
+}
+
+void UCharacterPanelWidget::ApplyRosterVitals(UCharacterData *Data, int32 InCurrentHP, int32 InCurrentEP)
+{
+	if (!Data)
+	{
+		return;
+	}
+
+	const int32 MaxHP = Data->CalculateMaxHealth();
+	const int32 MaxEP = Data->CalculateMaxEnergy();
+
+	// HP is the carry signal for BOTH pools — Cluster 1 writes them together, so
+	// a valid HP implies a valid EP and one test covers both.
+	const bool bHasCarry = (InCurrentHP != PartyConstants::NO_CARRIED_VITALS);
+
+	// Clamp: a carry banked before an equipment or level change can exceed a max
+	// that has since moved. Mirrors the same guard in UCharacterDataComponent.
+	const int32 ShowHP = bHasCarry ? FMath::Clamp(InCurrentHP, 0, MaxHP) : MaxHP;
+
+	// Uncarried BD reads 0, not MaxEP: a born-BD has no regular EP pool, and 0 is
+	// exactly what SetAllMembersFull will seed on trial entry. Showing MaxEP here
+	// would make the hub panel disagree with the first battle.
+	const int32 UncarriedEP = Data->bBrokenDarknessInnate ? 0 : MaxEP;
+	const int32 ShowEP = bHasCarry ? FMath::Clamp(InCurrentEP, 0, MaxEP) : UncarriedEP;
+
+	// Same formatter the Live path uses, so the two modes read identically.
+	HandleHPChanged(ShowHP, MaxHP);
+
+	// EP is written directly rather than via RefreshEnergyBar: that reads live
+	// loadout / BD-manager state off a bound component, which Roster has none of.
+	// The asset-side bBrokenDarknessInnate flag picks the label instead.
+	const float EPPercent = (MaxEP > 0) ? (static_cast<float>(ShowEP) / static_cast<float>(MaxEP)) : 0.0f;
+	SetBarSafe(EPBar, EPPercent);
+	SetTextSafe(EPText, FString::Printf(TEXT("%s:%d/%d"),
+										Data->bBrokenDarknessInnate ? PanelLabels::Absorb : PanelLabels::EP,
+										ShowEP, MaxEP));
 }
 
 void UCharacterPanelWidget::SetVacant()
@@ -264,14 +318,35 @@ UCharacterData *UCharacterPanelWidget::GetDisplayData() const
 
 void UCharacterPanelWidget::SetRuntimeRowsVisible(bool bVisible)
 {
+	// All three groups together — the Live and Vacant callers want all-or-nothing.
+	// Roster drives them separately.
+	SetVitalsRowsVisible(bVisible);
+	SetStatusRowsVisible(bVisible);
+	SetWorldStatsRowVisible(bVisible);
+}
+
+void UCharacterPanelWidget::SetVitalsRowsVisible(bool bVisible)
+{
 	const ESlateVisibility V = bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
 	if (HPBar)      { HPBar->SetVisibility(V); }
 	if (HPText)     { HPText->SetVisibility(V); }
 	if (EPBar)      { EPBar->SetVisibility(V); }
 	if (EPText)     { EPText->SetVisibility(V); }
+}
+
+void UCharacterPanelWidget::SetStatusRowsVisible(bool bVisible)
+{
+	const ESlateVisibility V = bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
 	if (StatusBar)  { StatusBar->SetVisibility(V); }
 	if (StatusText) { StatusText->SetVisibility(V); }
-	// World stats are runtime-flavoured display too: Roster is name + class only.
+}
+
+void UCharacterPanelWidget::SetWorldStatsRowVisible(bool bVisible)
+{
+	// Own setter, not bundled with status: world stats track the VITALS lifetime
+	// (shown in-trial and in Live, hidden in a hub lobby), whereas status buildup
+	// is battle-only and stays collapsed outside Live.
+	const ESlateVisibility V = bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
 	if (WorldStatsText) { WorldStatsText->SetVisibility(V); }
 }
 

@@ -65,12 +65,21 @@ public:
 	void InitialiseForActor(AActor *InActor);
 
 	/** Roster mode: static template text from the asset alone — no actor, no
-	 *  delegate binds, bBound stays false. HP/EP/Status collapse (current values
-	 *  have no source until the trial HP/EP carry arc). bIsLeader suffixes the
-	 *  name with " (You)" — slot 0 is the player per the design lock. Null Data
-	 *  routes to SetVacant rather than asserting. */
+	 *  delegate binds, bBound stays false. bIsLeader suffixes the name with
+	 *  " (You)" — slot 0 is the player per the design lock. Null Data routes to
+	 *  SetVacant rather than asserting.
+	 *
+	 *  HP/EP now RENDER in Roster: InCurrentHP/InCurrentEP carry the party slot's
+	 *  trial vitals. Pass PartyConstants::NO_CARRIED_VITALS (the -1 default) for
+	 *  no carry — the bars then fill from the asset's computed maxima, so a hub
+	 *  member reads full. Status stays collapsed either way: no buildup outside
+	 *  battle.
+	 *
+	 *  ⚠️ The defaults are literal -1, not PartyConstants::NO_CARRIED_VITALS —
+	 *  UHT cannot parse scope resolution in a UFUNCTION default argument. The
+	 *  two must stay in sync; the .cpp compares against the named constant. */
 	UFUNCTION(BlueprintCallable, Category = "Character Panel")
-	void InitialiseForData(UCharacterData *Data, bool bIsLeader);
+	void InitialiseForData(UCharacterData *Data, bool bIsLeader, int32 InCurrentHP = -1, int32 InCurrentEP = -1);
 
 	/** Ghost slot: "Empty" name, everything else blank/collapsed, portrait
 	 *  placeholder dimmed to GhostAlpha. */
@@ -244,9 +253,25 @@ private:
 	 *  component's asset, Roster = RosterData, Vacant = null. */
 	UCharacterData *GetDisplayData() const;
 
-	/** Collapse (Roster/Vacant) or restore (Live) the runtime rows —
-	 *  HP/EP/Status bars and texts. */
+	/** Collapse (Vacant) or restore (Live) ALL runtime rows. Roster drives the
+	 *  three groups separately — vitals and world stats on the carry sentinel,
+	 *  status always off — via the helpers below. */
 	void SetRuntimeRowsVisible(bool bVisible);
+
+	/** HP/EP bars + texts. Roster shows these only for a carried (in-trial) slot. */
+	void SetVitalsRowsVisible(bool bVisible);
+
+	/** Status bar/text ONLY. Roster keeps these collapsed in every case: buildup is
+	 *  battle-only and is cleared between battles. */
+	void SetStatusRowsVisible(bool bVisible);
+
+	/** World stats (MSB) row. Split out of SetStatusRowsVisible: it tracks the
+	 *  vitals, not status — a trial roster shows it, a hub roster does not. */
+	void SetWorldStatsRowVisible(bool bVisible);
+
+	/** Fill the HP/EP rows in Roster mode from the asset's computed maxima,
+	 *  overlaid with carried values when InCurrentHP is not NO_CARRIED_VITALS. */
+	void ApplyRosterVitals(UCharacterData *Data, int32 InCurrentHP, int32 InCurrentEP);
 
 	void RefreshEffectsList();
 	void SetBarSafe(UProgressBar *Bar, float Percent);
