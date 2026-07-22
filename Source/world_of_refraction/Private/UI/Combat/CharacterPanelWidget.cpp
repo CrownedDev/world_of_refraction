@@ -7,6 +7,7 @@
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
+#include "Infusion/ClassColors.h"
 #include "Infusion/ElementColors.h"
 #include "Infusion/HybridSpellColors.h"
 #include "Combat/CombatConstants.h"
@@ -270,6 +271,8 @@ void UCharacterPanelWidget::SetRuntimeRowsVisible(bool bVisible)
 	if (EPText)     { EPText->SetVisibility(V); }
 	if (StatusBar)  { StatusBar->SetVisibility(V); }
 	if (StatusText) { StatusText->SetVisibility(V); }
+	// World stats are runtime-flavoured display too: Roster is name + class only.
+	if (WorldStatsText) { WorldStatsText->SetVisibility(V); }
 }
 
 void UCharacterPanelWidget::CachePortraitBrushOnce()
@@ -339,10 +342,23 @@ void UCharacterPanelWidget::ApplyStaticText_Implementation()
 									: Data->Name;
 	SetTextSafe(NameText, DisplayName);
 
+	// Element token only for Casters — Generic/Resonator carry
+	// InnateElement=Generic, so "Generic | Generic" is noise. BD is a Caster
+	// (Darkness + bBrokenDarknessInnate) and keeps its element token; BD-specific
+	// display is banked with the wider BD arc.
+	const FString ClassLabel = UEnum::GetDisplayValueAsText(Data->CharacterClass).ToString();
 	SetTextSafe(ClassElementText,
-				FString::Printf(TEXT("%s | %s"),
-								*UEnum::GetDisplayValueAsText(Data->CharacterClass).ToString(),
-								*UEnum::GetDisplayValueAsText(Data->InnateElement).ToString()));
+				Data->CharacterClass == ECharacterClass::Caster
+					? FString::Printf(TEXT("%s | %s"), *ClassLabel,
+									  *UEnum::GetDisplayValueAsText(Data->InnateElement).ToString())
+					: ClassLabel);
+	if (ClassElementText)
+	{
+		// Class-identity tint: Casters via their innate element, Generic brown,
+		// Resonator silver. Runs for Roster and Live alike (both route here);
+		// Vacant leaves the text blank, no tint needed.
+		ClassElementText->SetColorAndOpacity(ClassColors::GetColorForCharacter(Data));
+	}
 
 	SetTextSafe(WorldStatsText,
 				FString::Printf(TEXT("M:%d B:%d S:%d"),
