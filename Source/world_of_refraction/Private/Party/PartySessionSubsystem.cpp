@@ -230,6 +230,124 @@ void UPartySessionSubsystem::RebindLeader(APlayerController *Leader)
 	}
 }
 
+void UPartySessionSubsystem::SetMemberVitals(int32 SlotIndex, int32 HP, int32 EP)
+{
+	UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PartySession] SetMemberVitals: invalid slot %d"), SlotIndex);
+		return;
+	}
+
+	FPartyMember &Member = Party->Members[SlotIndex];
+	Member.CurrentHP = HP;
+	Member.CurrentEP = EP;
+}
+
+bool UPartySessionSubsystem::GetMemberVitals(int32 SlotIndex, int32 &OutHP, int32 &OutEP) const
+{
+	const UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
+	{
+		return false;
+	}
+
+	const FPartyMember &Member = Party->Members[SlotIndex];
+	if (!Member.HasCarriedVitals())
+	{
+		return false;
+	}
+
+	OutHP = Member.CurrentHP;
+	OutEP = Member.CurrentEP;
+	return true;
+}
+
+void UPartySessionSubsystem::SetAllMembersFull()
+{
+	UParty *Party = GetLocalParty();
+	if (!Party)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PartySession] SetAllMembersFull with no local party"));
+		return;
+	}
+
+	for (FPartyMember &Member : Party->Members)
+	{
+		if (!Member.CharacterData)
+		{
+			continue;
+		}
+
+		// COMPUTED accessors, not the raw MaxHealth/MaxEnergy sub-stats — those are
+		// inputs to the calculation, not the resulting pool sizes.
+		Member.CurrentHP = Member.CharacterData->CalculateMaxHealth();
+		Member.CurrentEP = Member.CharacterData->bBrokenDarknessInnate
+							   ? 0
+							   : Member.CharacterData->CalculateMaxEnergy();
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] Vitals seeded to full for %d member(s)"), Party->GetMemberCount());
+}
+
+void UPartySessionSubsystem::ClearAllMemberVitals()
+{
+	UParty *Party = GetLocalParty();
+	if (!Party)
+	{
+		return;
+	}
+
+	for (FPartyMember &Member : Party->Members)
+	{
+		Member.CurrentHP = PartyConstants::NO_CARRIED_VITALS;
+		Member.CurrentEP = PartyConstants::NO_CARRIED_VITALS;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] Carried vitals cleared for %d member(s)"), Party->GetMemberCount());
+}
+
+FString UPartySessionSubsystem::GetPartyStateString() const
+{
+	const UParty *Party = GetLocalParty();
+	if (!Party)
+	{
+		return TEXT("[PartySession] No local party");
+	}
+
+	FString Out = FString::Printf(TEXT("[PartySession] '%s' - %d/%d member(s), leader %s\n"),
+								  *Party->DisplayName.ToString(), Party->GetMemberCount(),
+								  PartyConstants::MAX_PARTY_MEMBERS,
+								  Party->Leader.IsValid() ? *Party->Leader->GetName() : TEXT("<stale>"));
+
+	for (int32 SlotIndex = 0; SlotIndex < Party->Members.Num(); ++SlotIndex)
+	{
+		const FPartyMember &Member = Party->Members[SlotIndex];
+		const FString MemberName = Member.CharacterData ? Member.CharacterData->Name : TEXT("<no data>");
+
+		if (!Member.HasCarriedVitals())
+		{
+			// No carry: show what display would fall back to, so the two cases are
+			// comparable at a glance.
+			const int32 FallbackHP = Member.CharacterData ? Member.CharacterData->CalculateMaxHealth() : 0;
+			const int32 FallbackEP = Member.CharacterData ? Member.CharacterData->CalculateMaxEnergy() : 0;
+			Out += FString::Printf(TEXT("  [%d] %s - no carry (falls back to HP %d / EP %d)\n"),
+								   SlotIndex, *MemberName, FallbackHP, FallbackEP);
+		}
+		else
+		{
+			Out += FString::Printf(TEXT("  [%d] %s - carried HP %d / EP %d\n"),
+								   SlotIndex, *MemberName, Member.CurrentHP, Member.CurrentEP);
+		}
+	}
+	return Out;
+}
+
+void UPartySessionSubsystem::LogPartyState() const
+{
+	UE_LOG(LogTemp, Log, TEXT("%s"), *GetPartyStateString());
+}
+
 UCharacterData *UPartySessionSubsystem::ResolveCharacterData(const TSoftClassPtr<ACombatCharacter> &PawnClass)
 {
 	UClass *Loaded = PawnClass.LoadSynchronous();

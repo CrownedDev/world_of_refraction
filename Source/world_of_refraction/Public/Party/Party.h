@@ -25,6 +25,11 @@ namespace PartyConstants
 {
 	/** Active party size. No reserves — a dead member is out until revived. */
 	constexpr int32 MAX_PARTY_MEMBERS = 3;
+
+	/** Sentinel for FPartyMember::CurrentHP/CurrentEP: no carried trial state.
+	 *  Distinguishable from a legitimately carried 0 (a downed member, or a
+	 *  Broken Darkness member's empty EP pool). */
+	constexpr int32 NO_CARRIED_VITALS = -1;
 }
 
 /** One party slot. Pawn class is the authored identity; CharacterData is resolved
@@ -43,7 +48,23 @@ struct FPartyMember
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	TObjectPtr<UCharacterData> CharacterData = nullptr;
 
+	/** Carried vitals across the trial→battle→trial chain. NO_CARRIED_VITALS (-1)
+	 *  means no trial state has been carried yet — display falls back to the
+	 *  template's CalculateMaxHealth/CalculateMaxEnergy, so a hub member reads
+	 *  full. >= 0 is a real carried value from an in-trial battle.
+	 *
+	 *  The bar always renders for a real member; the sentinel only changes which
+	 *  number it shows. Slot vacancy is the display's separate concern, not a
+	 *  vitals state. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	int32 CurrentHP = PartyConstants::NO_CARRIED_VITALS;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	int32 CurrentEP = PartyConstants::NO_CARRIED_VITALS;
+
 	bool IsValidMember() const { return !PawnClass.IsNull() && CharacterData != nullptr; }
+
+	bool HasCarriedVitals() const { return CurrentHP != PartyConstants::NO_CARRIED_VITALS; }
 };
 
 UCLASS(BlueprintType)

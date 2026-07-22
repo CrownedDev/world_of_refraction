@@ -103,6 +103,41 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	void RebindLeader(APlayerController *Leader);
 
+	// ==================== CARRIED VITALS ====================
+	// Trial-scoped HP/EP that survives the trial→battle→trial OpenLevel chain.
+	// Deliberately NOT serialized: the state dies with the GameInstance, which is
+	// the correct lifetime for a trial run.
+
+	/** Write both carried vitals onto a slot. No-op (with a warning) on an invalid
+	 *  slot. Values are stored verbatim — clamping is the caller's business. */
+	UFUNCTION(BlueprintCallable, Category = "Party")
+	void SetMemberVitals(int32 SlotIndex, int32 HP, int32 EP);
+
+	/** Read a slot's carried vitals. Returns false when the slot is invalid or
+	 *  carries no trial state, in which case the caller falls back to the
+	 *  template's CalculateMaxHealth/CalculateMaxEnergy. Out params are untouched
+	 *  on failure. */
+	UFUNCTION(BlueprintCallable, Category = "Party")
+	bool GetMemberVitals(int32 SlotIndex, int32 &OutHP, int32 &OutEP) const;
+
+	/** Trial entry: seed every slot to its computed maxima. Broken-Darkness-innate
+	 *  members start with an empty EP pool. */
+	UFUNCTION(BlueprintCallable, Category = "Party")
+	void SetAllMembersFull();
+
+	/** Hub return: drop all carried state back to the sentinel, so display falls
+	 *  back to template maxima again. */
+	UFUNCTION(BlueprintCallable, Category = "Party")
+	void ClearAllMemberVitals();
+
+	/** Multi-line snapshot of the party and its per-slot carry state — inspectable
+	 *  without launching PIE. */
+	UFUNCTION(BlueprintPure, Category = "Debug")
+	FString GetPartyStateString() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Debug")
+	void LogPartyState() const;
+
 private:
 	/** Internal add path — does the work but does NOT broadcast. Callers that
 	 *  compose multiple adds into a single logical operation (e.g. CreateSoloParty)
