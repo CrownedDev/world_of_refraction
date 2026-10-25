@@ -21,7 +21,7 @@ namespace CombatResultsStyle
     constexpr const TCHAR *Prompt = TEXT("Press any key to continue");
 }
 
-namespace
+namespace CombatResultsBuild
 {
     UTextBlock *AddCentredText(UWidgetTree *Tree, UVerticalBox *Box, const FName Name, int32 FontSize)
     {
@@ -79,9 +79,9 @@ TSharedRef<SWidget> UCombatResultsWidget::RebuildWidget()
         UVerticalBox *Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Content"));
         Overlay->SetContent(Box);
 
-        TitleText = AddCentredText(WidgetTree, Box, TEXT("TitleText"), CombatResultsStyle::TitleFontSize);
-        DetailText = AddCentredText(WidgetTree, Box, TEXT("DetailText"), CombatResultsStyle::BodyFontSize);
-        PromptText = AddCentredText(WidgetTree, Box, TEXT("PromptText"), CombatResultsStyle::BodyFontSize);
+        TitleText = CombatResultsBuild::AddCentredText(WidgetTree, Box, TEXT("TitleText"), CombatResultsStyle::TitleFontSize);
+        DetailText = CombatResultsBuild::AddCentredText(WidgetTree, Box, TEXT("DetailText"), CombatResultsStyle::BodyFontSize);
+        PromptText = CombatResultsBuild::AddCentredText(WidgetTree, Box, TEXT("PromptText"), CombatResultsStyle::BodyFontSize);
     }
     return Super::RebuildWidget();
 }
@@ -94,8 +94,8 @@ void UCombatResultsWidget::ShowResult(const FCombatResult &Result)
 
     if (TitleText)
     {
-        TitleText->SetText(FText::FromString(TitleFor(Result.FinalState)));
-        TitleText->SetColorAndOpacity(FSlateColor(TitleColorFor(Result.FinalState)));
+        TitleText->SetText(FText::FromString(CombatResultsBuild::TitleFor(Result.FinalState)));
+        TitleText->SetColorAndOpacity(FSlateColor(CombatResultsBuild::TitleColorFor(Result.FinalState)));
     }
 
     LastResultLine = FString::Printf(TEXT("%d turns  |  survivors %d vs %d"),
@@ -119,7 +119,7 @@ void UCombatResultsWidget::ShowResult(const FCombatResult &Result)
                                           AutoContinueSeconds, /*bLoop=*/false);
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatResults] %s - %s"), *TitleFor(Result.FinalState), *LastResultLine);
+    UE_LOG(LogTemp, Log, TEXT("[CombatResults] %s - %s"), *CombatResultsBuild::TitleFor(Result.FinalState), *LastResultLine);
     OnResultShown(Result);
 }
 
