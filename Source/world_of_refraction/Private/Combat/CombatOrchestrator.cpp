@@ -241,12 +241,14 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Starting combat: LocalParty (%d) vs OpposingParty (%d)"),
 		   LocalParty.Num(), OpposingParty.Num());
 
+	// InProgress BEFORE InitializeCombat: the first turn is dispatched inside it, and
+	// OnActionCompleted bails unless InProgress — a turn-1 death or pass would hang.
+	SetCombatState(ECombatState::InProgress);
+
 	// Initialize TurnManager (this will trigger first OnTurnStarted)
 	TurnManagerRef->InitializeCombat(LocalParty, OpposingParty);
 
 	OnCombatStartedUI(LocalPartyCombatants, OpposingPartyCombatants);
-
-	SetCombatState(ECombatState::InProgress);
 }
 
 void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
@@ -488,7 +490,20 @@ void ACombatOrchestrator::SubmitActionAsync(const FAction &Action)
 	FActionValidationResult Validation = ActionExecutorRef->ValidateAction(CurrentActor, Action);
 	if (!Validation.bIsValid)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Async action validation failed: %s"), *Validation.ErrorMessage);
+		// Never strand the turn: the auto-advance timer is already cleared and the
+		// caller (AI timer / menu click) has no return value to recover with.
+		if (IsActorAIControlled(Actor))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] %s AI action invalid (%s) - passing turn"),
+				   *Actor->GetName(), *Validation.ErrorMessage);
+			OnActionCompleted();
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] %s action invalid (%s) - re-requesting"),
+				   *Actor->GetName(), *Validation.ErrorMessage);
+			RequestActionFromActor(Actor);
+		}
 		return;
 	}
 
@@ -643,6 +658,16 @@ void ACombatOrchestrator::ProceedWithTurnStart()
 
 	// Broadcast for UI/listeners
 	OnActorTurnStarted.Broadcast(CurrentActor, CurrentTurnNumber);
+
+	// Stunned: no action is valid (ValidateAction rejects all), so the turn passes
+	// here. End-of-turn processing still runs, which is what ticks the stun down.
+	// TODO: Crown Q1 — if stun should allow Attack/Defend, gate this on that instead.
+	if (ActionExecutorRef && !ActionExecutorRef->CanActorAct(CurrentActor))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s is stunned - turn passes"), *CurrentActor->GetName());
+		OnActionCompleted();
+		return;
+	}
 
 	RequestActionFromActor(CurrentActor);
 }
