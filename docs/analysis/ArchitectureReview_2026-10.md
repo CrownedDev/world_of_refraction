@@ -318,6 +318,14 @@ Ranked by payoff and risk. Line-level duplication is already in `CodebaseReview_
 7. `#if !UE_BUILD_SHIPPING` around console commands.
 8. **First Automation Spec tests:** DamageCalculator, TierGap/RequirementGap scaling, TurnManager ordering. Pure functions, so tests are cheap to write.
 
+### Decisions recorded (2026-10-25, Crown)
+
+- **CommonUI: YES.**
+  - The plugin is **not yet enabled in the committed `.uproject`**. Enable it in the editor (Plugins → Common UI) and commit the `.uproject` change.
+  - Then add `CommonUI` and `CommonInput` to `Build.cs` and set the viewport client to `CommonGameViewportClient`.
+  - Branch B's widget bases should be reparented to `UCommonActivatableWidget` / `UCommonButtonBase` before they settle.
+- **GAS:** see §4.
+
 ### Decide now (they shape later work)
 
 - **CommonUI: yes or no** — before branch B's widget bases settle. *Recommendation: yes*, since gamepad is required and the screen list is large.
@@ -346,3 +354,46 @@ Ranked by payoff and risk. Line-level duplication is already in `CodebaseReview_
 - Server-seeded RNG.
 - Arena as a streamed level instance.
 - `ServerTravel`.
+
+---
+
+## 4. Is it too late for the Gameplay Ability System?
+
+**Not too late, but it would be a rewrite of the combat core, not an add-on.**
+
+### What GAS would replace
+
+| Ours | GAS equivalent | Size today |
+|---|---|---|
+| `SkillEffectManager` + `FActiveSkillEffect` + 108 effect types | GameplayEffects + GameplayTags | ~4k lines + every effect asset |
+| HP/EP/stat getters on `CharacterDataComponent` (Pattern-P composition) | AttributeSets + modifiers | ~1.4k lines, ~20 readers |
+| `StatusBuildupManager` bar caps | Attributes + GameplayEffects | ~0.5k |
+| `ActionExecutor` skill execution (montage runner, costs, delivery) | GameplayAbilities + AbilityTasks | ~7k lines |
+| Item effects / stones (`ItemExecutor`) | GameplayEffects | ~1.2k |
+
+Roughly 15k lines touched, plus migrating every authored effect, spell and ability asset.
+
+### What GAS would give us
+
+- Built-in replication and prediction.
+- GameplayTags everywhere.
+- GameplayCues for VFX.
+- Lyra/community patterns.
+- A well-trodden path to co-op.
+
+### What it would cost or not fit
+
+- **Turn-based durations aren't native.** You end up with "infinite effect + turn counter" workarounds.
+- **Its biggest strength is real-time client prediction.** A turn-based game barely needs that: server-authoritative "intent → result" replication works without GAS (§1.6).
+- **It's a steep learning curve for a solo developer**, and it would stall feature work for weeks.
+
+### Recommendation
+
+**Stay custom, and take the parts of GAS's design that matter:**
+1. GameplayTags for elements, statuses and effect families. The GameplayTags module is already a dependency.
+2. Data-driven effects (§2.1 step 2) instead of a 108-case switch.
+3. Server-authoritative intent RPCs when co-op starts.
+
+That gets most of the benefit at a fraction of the cost.
+
+**Revisit GAS only if co-op ends up needing real-time elements**, e.g. live-action exploration combat in the shared world. That decision belongs before co-op work starts, and moving to tags and data-driven effects first makes a later switch cheaper either way.
