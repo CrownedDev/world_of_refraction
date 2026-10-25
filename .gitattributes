@@ -4,3 +4,18 @@
 *.h text diff=cpp
 *.uasset binary
 *.umap binary
+# Source art, fonts and audio: LFS (Crown, 2026-10-25: "save what we use").
+# Only originals of assets the game actually uses are committed, under SourceArt/;
+# full vendor packs stay out of git (backed up locally, listed in CREDITS.md).
+*.png filter=lfs diff=lfs merge=lfs -text
+*.jpg filter=lfs diff=lfs merge=lfs -text
+*.jpeg filter=lfs diff=lfs merge=lfs -text
+*.tga filter=lfs diff=lfs merge=lfs -text
+*.psd filter=lfs diff=lfs merge=lfs -text
+*.exr filter=lfs diff=lfs merge=lfs -text
+*.fbx filter=lfs diff=lfs merge=lfs -text
+*.ttf filter=lfs diff=lfs merge=lfs -text
+*.otf filter=lfs diff=lfs merge=lfs -text
+*.wav filter=lfs diff=lfs merge=lfs -text
+*.ogg filter=lfs diff=lfs merge=lfs -text
+*.mp3 filter=lfs diff=lfs merge=lfs -text

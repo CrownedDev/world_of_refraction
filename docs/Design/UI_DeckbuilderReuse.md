@@ -169,6 +169,12 @@ The deckbuilder's art is **raw image, font and sound files**, not Unreal assets,
 - Or keep source files out of git (as the deckbuilder does) and commit only the imported `.uasset`s.
 - Licensed packs must stay in a **private** repo either way.
 
+### 2a. Decision — "save what we use" (Crown, 2026-10-25)
+- **In git (LFS):** the original file of every asset the game **actually uses**, under `SourceArt/<Pack>/…`, mirroring `Content/UI/Vendor/<Pack>/`. That includes edited and recoloured pieces and our own art.
+- **Not in git:** the full downloaded vendor packs. Keep them in a local backup folder; each is listed in `CREDITS.md` so it can be re-downloaded.
+- **LFS rules added to `.gitattributes`:** `png jpg jpeg tga psd exr fbx ttf otf wav ogg mp3`. This also closes the CLAUDE.md "LFS coverage is incomplete" note.
+- The repo stays **private**, because the used files include licensed art.
+
 ### 3. Folder layout
 `Content/UI/Vendor/<Pack>/` for imported textures/fonts/sounds, `Content/UI/Library/` for our composed pieces (buttons, panels as Slate brushes / styles).
 
@@ -210,5 +216,5 @@ Same approval flow as the deckbuilder: plain + annotated draft → Crown approve
 ## Open items
 1. **Header bar:** pick one of the four candidates (it was still open in the deckbuilder).
 2. **Licences:** confirm each pack's terms for Unreal / commercial use.
-3. **Source art:** commit source art to LFS, or keep it out of git like the deckbuilder?
+3. ~~Source art~~ **Decided:** save what we use (§4, 2a).
 4. **Mockup pipeline:** copy `tools/ui_drafts/` into this repo, or keep it in the deckbuilder and output here?
