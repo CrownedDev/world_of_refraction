@@ -233,9 +233,11 @@ Counts are taken from the source enums, so they are the real scope.
 
 ---
 
-## Open questions (they change asset scope)
+## Decisions & open questions (they change asset scope)
 
-1. **Art direction?** Painterly, cel-shaded or clean sci-fi? Pick before buying anything; the kit and icons must match.
-2. **Gamepad support?** If yes, every screen needs a focus path, plus controller glyphs.
-3. **2D portraits or live 3D renders** (render-to-texture) for panels and turn order?
-4. **Diegetic or flat HUD?** World-space nameplates and bars over characters, or screen-space panels only, as today?
+| # | Question | Answer (2026-10-25) |
+|---|---|---|
+| 1 | **Art direction?** Painterly, cel-shaded or clean sci-fi? The kit and icons must match. | **Open.** Crown to decide before buying the kit. |
+| 2 | **Gamepad support?** | **Yes.** Every screen needs a controller focus path + focus highlight; buy controller glyphs (Xbox + PlayStation) alongside keyboard/mouse. |
+| 3 | **2D portraits or live 3D renders** for panels, turn order and party cards? | **Either.** Undecided; source assets that work with both (portrait frames that accept a texture or a render target). |
+| 4 | **Floating or flat HUD?** World-space nameplates and bars over characters, or screen-space panels? | **Flat panels for now** (current setup). Floating bars to be revisited. |
