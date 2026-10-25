@@ -682,7 +682,11 @@ void ACombatOrchestrator::ProceedWithTurnStart()
 	if (ActionExecutorRef && !ActionExecutorRef->CanActorAct(CurrentActor))
 	{
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s is stunned - turn passes"), *CurrentActor->GetName());
-		OnActionCompleted();
+		// Next tick, not inline: consecutive stunned actors would otherwise recurse
+		// turn-start -> pass -> turn-start on one stack. Reuses the auto-advance handle,
+		// so a real submit or combat end clears it like any auto-advance.
+		AutoAdvanceTimerHandle = GetWorld()->GetTimerManager().SetTimerForNextTick(
+			FTimerDelegate::CreateUObject(this, &ACombatOrchestrator::OnActionCompleted));
 		return;
 	}
 
