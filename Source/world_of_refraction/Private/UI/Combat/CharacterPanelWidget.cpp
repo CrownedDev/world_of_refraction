@@ -13,6 +13,7 @@
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
+#include "Blueprint/WidgetTree.h"
 #include "Engine/GameInstance.h"
 
 namespace PanelLabels
@@ -24,6 +25,15 @@ namespace PanelLabels
 	constexpr const TCHAR *WeaponDur = TEXT("WD"); // Weapon Durability
 	constexpr const TCHAR *Absorb = TEXT("Abs");   // BD Absorption
 	constexpr const TCHAR *Status = TEXT("SB");	   // Status Buildup
+}
+
+namespace PanelStyle
+{
+	// TODO: style pass — placeholder palette for the native effect rows.
+	const FLinearColor BuffColor(0.35f, 0.9f, 0.45f);
+	const FLinearColor DebuffColor(0.95f, 0.35f, 0.3f);
+	const FLinearColor NeutralColor(0.85f, 0.85f, 0.85f);
+	constexpr float DeadPanelOpacity = 0.4f;
 }
 
 void UCharacterPanelWidget::NativeConstruct()
@@ -116,6 +126,12 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 	SetBarSafe(StatusBar, 0.0f);
 	SetTextSafe(StatusText, FString::Printf(TEXT("%s:0/100"), PanelLabels::Status));
 
+	// Native rows exist only when no BP graph owns the list.
+	if (!GetClass()->IsFunctionImplementedInScript(GET_FUNCTION_NAME_CHECKED(UCharacterPanelWidget, RebuildEffectsList)))
+	{
+		SpawnEffectRowPool();
+	}
+
 	// Initial effects list (usually empty at combat start). Includes the
 	// synthetic BD-stacks row when applicable — no separate call needed.
 	RefreshEffectsList();
@@ -197,7 +213,79 @@ void UCharacterPanelWidget::ApplyStaticText_Implementation()
 
 	UCharacterData *Data = CharComp->CharacterData;
 	SetTextSafe(NameText, Data->Name);
-	// ClassElementText, WorldStatsText left to BP override (enum formatting)
+
+	const FString ClassName = UEnum::GetDisplayValueAsText(Data->CharacterClass).ToString();
+	const FString ElementName = CharComp->IsBrokenDarkness()
+									? FString(TEXT("Broken Darkness"))
+									: UEnum::GetDisplayValueAsText(CharComp->GetDisplayElement()).ToString();
+	SetTextSafe(ClassElementText, FString::Printf(TEXT("%s | %s"), *ClassName, *ElementName));
+
+	SetTextSafe(WorldStatsText, FString::Printf(TEXT("M %d  B %d  S %d"),
+												CharComp->GetWorldMind(), CharComp->GetWorldBody(), CharComp->GetWorldSpirit()));
+}
+
+void UCharacterPanelWidget::SpawnEffectRowPool()
+{
+	if (!EffectsList || !WidgetTree || EffectRowPool.Num() > 0)
+	{
+		return;
+	}
+
+	EffectRowPool.Reserve(MaxEffectRows);
+	for (int32 i = 0; i < MaxEffectRows; ++i)
+	{
+		UTextBlock *Row = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		if (!Row)
+		{
+			continue;
+		}
+		Row->ClearFlags(RF_Transactional);
+		Row->SetVisibility(ESlateVisibility::Collapsed);
+		EffectsList->AddChild(Row);
+		EffectRowPool.Add(Row);
+	}
+}
+
+void UCharacterPanelWidget::RebuildEffectsList_Implementation(const TArray<FActiveSkillEffect> &ActiveEffects)
+{
+	const int32 RowCount = EffectRowPool.Num();
+	const bool bOverflow = ActiveEffects.Num() > RowCount;
+	const int32 DetailedRows = bOverflow ? RowCount - 1 : ActiveEffects.Num();
+
+	for (int32 i = 0; i < RowCount; ++i)
+	{
+		UTextBlock *Row = EffectRowPool[i];
+		if (!Row)
+		{
+			continue;
+		}
+
+		if (i < DetailedRows)
+		{
+			const FActiveSkillEffect &Effect = ActiveEffects[i];
+			const FString Stacks = Effect.GetStackString();
+			Row->SetText(FText::FromString(FString::Printf(TEXT("%s%s%s (%s)"),
+														   *Effect.EffectName,
+														   Stacks.IsEmpty() ? TEXT("") : TEXT(" "),
+														   *Stacks,
+														   *Effect.GetDurationString())));
+			const FLinearColor Tint = Effect.IsBuff()	  ? PanelStyle::BuffColor
+									  : Effect.IsDebuff() ? PanelStyle::DebuffColor
+														  : PanelStyle::NeutralColor;
+			Row->SetColorAndOpacity(FSlateColor(Tint));
+			Row->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
+		else if (bOverflow && i == RowCount - 1)
+		{
+			Row->SetText(FText::FromString(FString::Printf(TEXT("+%d more"), ActiveEffects.Num() - DetailedRows)));
+			Row->SetColorAndOpacity(FSlateColor(PanelStyle::NeutralColor));
+			Row->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
+		else
+		{
+			Row->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
 }
 
 // ========================================
@@ -345,7 +433,7 @@ void UCharacterPanelWidget::HandleDied(AActor *DeadActor)
 	{
 		return;
 	}
-	// Visual response is BP's responsibility; we just teardown bindings.
+	SetRenderOpacity(PanelStyle::DeadPanelOpacity);
 	TeardownPanel();
 }
 
