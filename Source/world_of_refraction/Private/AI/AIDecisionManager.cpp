@@ -137,6 +137,16 @@ void UAIDecisionManager::ExecuteDecision()
 
     FAction Action = BuildAction(Actor);
 
+    // The builders pick by score, not by legality — check before submitting. An
+    // invalid submit would pass the whole turn (orchestrator safety net).
+    const FActionValidationResult Validation = CurrentCombat->ValidateAction(Action);
+    if (!Validation.bIsValid)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[AIDecisionManager] %s chose an invalid action (%s) - falling back"),
+               *Actor->GetName(), *Validation.ErrorMessage);
+        Action = BuildFallbackAction(Actor);
+    }
+
     UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s executing action type %d"),
            *Actor->GetName(), static_cast<int32>(Action.ActionType));
 
@@ -145,6 +155,34 @@ void UAIDecisionManager::ExecuteDecision()
     // not on return. The old SubmitAction routed montage-less Spell/Ability actions
     // down the sync path, which Phase D rejects outright.
     CurrentCombat->SubmitActionAsync(Action);
+}
+
+FAction UAIDecisionManager::BuildFallbackAction(AActor *AIActor) const
+{
+    FAction Defend;
+    Defend.ActionType = EActionType::Defend;
+
+    if (!AIActor || !CurrentCombat)
+    {
+        return Defend;
+    }
+
+    ULoadoutComponent *Loadout = AIActor->FindComponentByClass<ULoadoutComponent>();
+    const TArray<AActor *> Enemies = CurrentCombat->GetLivingEnemies(AIActor);
+    if (Loadout && Enemies.Num() > 0)
+    {
+        FAction Attack;
+        Attack.ActionType = EActionType::Ability; // attacks dispatch as Ability (SkillData + IsAttack)
+        Attack.SkillData = Loadout->GetCurrentAttack();
+        Attack.Targets.Add(Enemies[0]);
+        if (Attack.SkillData && CurrentCombat->ValidateAction(Attack).bIsValid)
+        {
+            return Attack;
+        }
+    }
+
+    // Defend, or — if even that is invalid (stunned) — the orchestrator passes the turn.
+    return Defend;
 }
 
 // ==================== QUERY ====================
