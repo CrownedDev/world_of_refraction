@@ -60,6 +60,7 @@ Superseded · Snapshot · Untracked. **Updated** = last-commit `MM-DD` (all 2026
 | Resources_Design.md | DEC | Active | 07-11 | Resource economy: currencies, essence, hub (locked) |
 | SkillGenerationPipeline.md | DEC | Active | 06-17 | Claude-designed skill seeds → assets (future) |
 | UI_ScreenInventory.md | PLN | Active | 10-25 | Every screen/UI title→end-game: list, status, asset needs |
+| GASMigration.md | DEC | Active | 10-25 | Staged move of stats/effects/skills onto GAS; turn tracker |
 
 ## Design/Completed/
 
