@@ -238,6 +238,12 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 		return;
 	}
 
+	// A combat left active on the GameInstance-scoped TurnManager (e.g. a previous
+	// orchestrator destroyed mid-fight) must end BEFORE we bind: InitializeCombat would
+	// otherwise EndCombat it with our handlers bound and InProgress set, tearing down
+	// this combat as a Draw. No-op when inactive.
+	TurnManagerRef->EndCombat();
+
 	BindTurnManagerEvents();
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Starting combat: LocalParty (%d) vs OpposingParty (%d)"),
@@ -250,7 +256,12 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	// Initialize TurnManager (this will trigger first OnTurnStarted)
 	TurnManagerRef->InitializeCombat(LocalParty, OpposingParty);
 
-	OnCombatStartedUI(LocalPartyCombatants, OpposingPartyCombatants);
+	// Turn 1 can resolve the whole combat inside InitializeCombat (state back to Idle,
+	// teams emptied) — don't build UI for a fight that's already over.
+	if (CombatState == ECombatState::InProgress)
+	{
+		OnCombatStartedUI(LocalPartyCombatants, OpposingPartyCombatants);
+	}
 }
 
 void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)

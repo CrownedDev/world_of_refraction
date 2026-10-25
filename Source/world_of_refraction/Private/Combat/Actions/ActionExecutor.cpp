@@ -5528,7 +5528,9 @@ void UActionExecutor::FinishArmTurn(AActor *Actor)
 	AsyncActionCallback.Unbind();
 	if (PendingCallback.IsBound())
 	{
-		PendingCallback.Execute(PendingFinalResult);
+		// Copy: a nested action launched from the callback may overwrite the member.
+		const FActionResult ArmResult = PendingFinalResult;
+		PendingCallback.Execute(ArmResult);
 	}
 }
 

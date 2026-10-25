@@ -1057,28 +1057,37 @@ void USkillEffectManager::ProcessEffectsWithTiming(AActor *Actor, ESkillEffectTi
 {
 	// ApplyEffectLogic can ADD effects to this same actor (DOT BuildupPerTick -> bar cap ->
 	// ApplyTriggeredSkillEffect -> ApplyEffect) or REMOVE them (Cleanse / Remove*Debuff), and
-	// adding another actor's entry can rehash ActiveEffects. A range-for or a held array
-	// reference would then dangle. So: re-fetch the array every step, mark the next
-	// unprocessed effect BEFORE applying, apply a copy, and rescan from the start —
-	// bProcessedThisTurn guarantees each effect runs once and the loop terminates.
-	// (Effect lists are short; the rescan is cheap.)
-	while (true)
+	// adding another actor's entry can rehash ActiveEffects — a range-for or held array
+	// reference would dangle. So: claim this window's effects up front (mark + copy), then
+	// apply the copies, skipping any an earlier apply in this pass removed. Effects appended
+	// mid-pass are NOT claimed, so they wait for their own window (bDelayFirstExecution kept).
+	TArray<FActiveSkillEffect> *Effects = ActiveEffects.Find(Actor);
+	if (!Effects)
 	{
-		TArray<FActiveSkillEffect> *Effects = ActiveEffects.Find(Actor);
-		if (!Effects)
-		{
-			return;
-		}
+		return;
+	}
 
-		const int32 Index = Effects->IndexOfByPredicate([Timing](const FActiveSkillEffect &Candidate)
-														{ return Candidate.ProcessTiming == Timing && !Candidate.bProcessedThisTurn; });
-		if (Index == INDEX_NONE)
+	TArray<FActiveSkillEffect> Claimed;
+	for (FActiveSkillEffect &Effect : *Effects)
+	{
+		if (Effect.ProcessTiming == Timing && !Effect.bProcessedThisTurn)
 		{
-			return;
+			Effect.bProcessedThisTurn = true;
+			Claimed.Add(Effect);
 		}
+	}
 
-		(*Effects)[Index].bProcessedThisTurn = true;
-		FActiveSkillEffect Pending = (*Effects)[Index];
+	for (FActiveSkillEffect &Pending : Claimed)
+	{
+		const TArray<FActiveSkillEffect> *Live = ActiveEffects.Find(Actor);
+		const bool bStillActive = Live && Live->ContainsByPredicate([&Pending](const FActiveSkillEffect &Candidate)
+																	 { return Candidate.EffectID == Pending.EffectID &&
+																			  Candidate.EffectType == Pending.EffectType &&
+																			  Candidate.EffectName == Pending.EffectName; });
+		if (!bStillActive)
+		{
+			continue; // removed earlier in this pass (e.g. cleansed)
+		}
 
 		ApplyEffectLogic(Actor, Pending);
 		OnEffectTriggered.Broadcast(Actor, Pending);
