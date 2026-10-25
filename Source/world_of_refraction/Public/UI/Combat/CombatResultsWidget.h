@@ -14,6 +14,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Engine/TimerHandle.h"
 #include "Combat/CombatOrchestrator.h"
 #include "CombatResultsWidget.generated.h"
 
@@ -36,7 +37,7 @@ public:
     FOnCombatResultsContinue OnContinue;
 
     /** Seconds before continuing without input. */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Results", meta = (ClampMin = 0))
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Results", meta = (ClampMin = 0.5))
     float AutoContinueSeconds = 6.0f;
 
     /** Seconds input is ignored after showing, so a held attack key doesn't skip it. */

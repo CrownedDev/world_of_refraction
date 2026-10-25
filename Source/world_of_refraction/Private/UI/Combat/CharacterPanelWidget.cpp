@@ -231,6 +231,9 @@ void UCharacterPanelWidget::SpawnEffectRowPool()
 		return;
 	}
 
+	// AddChild Modify()s the container — strip it too, not just the rows (TransBuffer crash, CLAUDE.md).
+	EffectsList->ClearFlags(RF_Transactional);
+
 	EffectRowPool.Reserve(MaxEffectRows);
 	for (int32 i = 0; i < MaxEffectRows; ++i)
 	{

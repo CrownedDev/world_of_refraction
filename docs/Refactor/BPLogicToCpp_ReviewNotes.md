@@ -112,3 +112,17 @@ Defaults in code:
 - **Defense prompt** text is generic ("DEFEND! Block / Parry / Dodge"). It doesn't name the key bindings.
 - **No Prisms/reward on win.** That's a design call (review Q6), not part of this BP pass.
 - **Not touched:** shop rows (already C++), command button/menu cosmetic hooks (`OnDataChanged`, `OnButtonsRefreshed`, kept as cosmetic), and Arc A bug fixes (separate branch).
+
+---
+
+## Compile-review fixes (independent read of the diff, folded in as `fix(ui)` commit)
+
+No definite compile, UHT or link failures were found. Fixed:
+- **TransBuffer:** `EffectsList` itself is now stripped of `RF_Transactional` before the native rows are added. `AddChild` `Modify()`s the container, which is the `PlayLevel.cpp:546` pattern. **Still do a PIE start/stop cycle with the native effects list to confirm.**
+- **Results input:** results now switch to `FInputModeUIOnly` focused on the widget, with the mouse cursor shown. Auto-continue is clamped to ≥0.5 s, so a 0 rate can't disarm the timer.
+- **Includes:** added explicit `Engine/LocalPlayer.h`, `InputActionValue.h` and `Engine/TimerHandle.h`. The build only worked through the shared PCH before.
+- **Defense prompt GC:** `BeginDestroy` no longer reaches for the world's timer manager.
+
+Open:
+- **"Get ready…" never shows.** `UDefenseSystem::OnDefenseCueTriggered` is declared but never broadcast. The cue prompt stays inert until DefenseSystem fires it (TODO in the header).
+- **Packaged builds.** The WBP soft paths live only in a native CDO, so the cooker won't discover them once the `BP_CombatOrchestrator` override is gone. Before a packaged demo build, either add `/Game/UI/Combat` to *Project Settings → Packaging → Additional Asset Directories to Cook*, or reference the classes from a cooked asset (e.g. set `CharacterPanelClass` etc. in `BP_CombatOrchestrator`'s defaults once `UCombatHUD` is exposed there).

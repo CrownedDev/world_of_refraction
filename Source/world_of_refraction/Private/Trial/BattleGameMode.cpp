@@ -292,6 +292,13 @@ bool ABattleGameMode::ShowResults(const FCombatResult &Result)
     ResultsWidget->AddToViewport(ResultsZOrder);
     ResultsWidget->OnContinue.AddDynamic(this, &ABattleGameMode::HandleResultsContinue);
     ResultsWidget->ShowResult(Result);
+
+    // GameOnly input keeps keys/clicks in the viewport; route them to the results widget.
+    // The next level's controller resets input mode on the swap.
+    FInputModeUIOnly InputMode;
+    InputMode.SetWidgetToFocus(ResultsWidget->TakeWidget());
+    PC->SetInputMode(InputMode);
+    PC->SetShowMouseCursor(true);
     return true;
 }
 

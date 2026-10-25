@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Engine/TimerHandle.h"
 #include "DefensePromptWidget.generated.h"
 
 class AActor;
@@ -56,7 +57,8 @@ protected:
 	UFUNCTION() void HandleDefenseWindowOpened(AActor* Defender, float AttackSize, float WindowDuration);
 	UFUNCTION() void HandleDefenseWindowClosed(AActor* Defender, const FDefenseResult& Result);
 
-	/** Cosmetic hook. Native default: show "Get ready" text. */
+	/** Cosmetic hook. Native default: show "Get ready" text.
+	 *  TODO: UDefenseSystem declares OnDefenseCueTriggered but never broadcasts it yet — inert until it does. */
 	UFUNCTION(BlueprintNativeEvent, Category = "Defense Prompt")
 	void ShowCue(AActor* Defender, float TimeUntilWindow);
 	virtual void ShowCue_Implementation(AActor* Defender, float TimeUntilWindow);

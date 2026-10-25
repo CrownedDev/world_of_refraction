@@ -103,6 +103,8 @@ void UDefensePromptWidget::NativeDestruct()
 
 void UDefensePromptWidget::BeginDestroy()
 {
+	// GC path: don't reach for the world's timer manager — the world may be going too.
+	HideTimerHandle.Invalidate();
 	if (bBound)
 	{
 		TeardownPrompt();

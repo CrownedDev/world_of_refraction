@@ -11,8 +11,10 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Trial/TrialDoor.h"
 #include "Engine/GameInstance.h"
+#include "Engine/LocalPlayer.h"
 #include "GameFramework/Pawn.h"
 #include "UObject/ConstructorHelpers.h"
+#include "InputActionValue.h"
 
 namespace ExplorationInput
 {

@@ -115,8 +115,10 @@ void UCombatResultsWidget::ShowResult(const FCombatResult &Result)
     if (UWorld *World = GetWorld())
     {
         ShownAtSeconds = World->GetRealTimeSeconds();
+        // A zero rate would clear the timer instead of arming it — never strand the player.
+        constexpr float MinAutoContinueSeconds = 0.5f;
         World->GetTimerManager().SetTimer(AutoContinueTimerHandle, this, &UCombatResultsWidget::Continue,
-                                          AutoContinueSeconds, /*bLoop=*/false);
+                                          FMath::Max(AutoContinueSeconds, MinAutoContinueSeconds), /*bLoop=*/false);
     }
 
     UE_LOG(LogTemp, Log, TEXT("[CombatResults] %s - %s"), *CombatResultsBuild::TitleFor(Result.FinalState), *LastResultLine);
