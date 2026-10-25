@@ -37,9 +37,10 @@ We move **stats, effects and skills** onto Epic's Gameplay Ability System (GAS) 
 
 - **Combatants:** an `UAbilitySystemComponent` (ASC) on `ACombatCharacter`.
   - Battle pawns are spawned per fight, so the pawn owns its own ASC.
-- **Player characters later (co-op / persistence):**
-  - Move the ASC to `APlayerState`, the Lyra pattern, so it survives respawn and travel.
-  - Not needed until co-op; the C++ only needs to find the ASC through `IAbilitySystemInterface`.
+- **Player characters, including co-op and persistence: also on the character** (decided; see Open decisions #3).
+  - Not on `APlayerState`: one player leads up to 3 characters, and AI companions have no PlayerState.
+  - Continuity across levels comes from the save/persistence layer.
+  - Look the ASC up through `IAbilitySystemInterface` anyway; it costs nothing.
 - **Replication mode:** `Mixed` for player-controlled characters, `Minimal` for AI.
 
 ### 2. Turn-based durations (the one custom piece)
@@ -180,7 +181,12 @@ These Architecture review items are absorbed by the migration and should **not**
    - **Movement types** (flight, speed bursts, blink/teleport) come from activated spells/abilities → GameplayAbilities with client prediction.
    - **Evolution crystals grant passives** → infinite GameplayEffects while equipped: stat changes (e.g. move speed), granting abilities (e.g. glide), modifying abilities.
    - This revives the evolution-feature system dropped in `docs/sessions/2026-06-20.md`.
-3. **Ability system on PlayerState:** now, or at co-op time? *Default: co-op time.*
+3. **Where the ability system lives — DECIDED (2026-10-25): on the character, permanently.**
+   - Every character (hero, recruits, AI companions, enemies) carries its own ASC.
+   - A player leads a **party of up to 3**, and AI companions have no PlayerState, so the Lyra-style "ASC on PlayerState" (one player = one hero) doesn't fit.
+   - Non-seamless travel recreates the PlayerState anyway.
+   - Persistence across hub → trial → battle comes from the save/persistence layer: snapshot attributes, equipped crystals and granted abilities on level exit, rebuild on spawn.
+   - PlayerState holds player-level data only (account, Prisms/Diamond, which party you lead).
 
 ---
 
@@ -189,3 +195,4 @@ These Architecture review items are absorbed by the migration and should **not**
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-25 | Initial design: 4-stage migration, turn tracker, family GE classes + spec builder, what stays custom | docs/gas-migration |
+| 2026-10-25 | Decisions: BD option C (custom, revisit after stage 3 with zero-diff bar); real-time field abilities yes (movement types + evolution passives); ASC on the character permanently | docs/gas-decisions, docs/gas-asc-placement |
