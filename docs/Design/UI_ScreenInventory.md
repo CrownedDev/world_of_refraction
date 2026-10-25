@@ -237,7 +237,41 @@ Counts are taken from the source enums, so they are the real scope.
 
 | # | Question | Answer (2026-10-25) |
 |---|---|---|
-| 1 | **Art direction?** Painterly, cel-shaded or clean sci-fi? The kit and icons must match. | **Open.** Crown to decide before buying the kit. |
+| 1 | **Art direction?** Painterly, cel-shaded or clean sci-fi? The kit and icons must match. | **Provisional: Clair Obscur: Expedition 33 layout and restraint, crystal-themed.** See *Art direction reference* below. Mockups to follow. |
 | 2 | **Gamepad support?** | **Yes.** Every screen needs a controller focus path + focus highlight; buy controller glyphs (Xbox + PlayStation) alongside keyboard/mouse. |
 | 3 | **2D portraits or live 3D renders** for panels, turn order and party cards? | **Either.** Undecided; source assets that work with both (portrait frames that accept a texture or a render target). |
-| 4 | **Floating or flat HUD?** World-space nameplates and bars over characters, or screen-space panels? | **Flat panels for now** (current setup). Floating bars to be revisited. |
+| 4 | **Floating or flat HUD?** World-space nameplates and bars over characters, or screen-space panels? | **Provisional: hybrid (Expedition 33 / Destiny).** Party and turn order flat at the screen edges; enemy name + bars near the enemy; bosses get a flat top banner; damage numbers and proc banners in-world. Flat panels remain the current build. |
+
+---
+
+## Art direction reference (provisional, 2026-10-25)
+
+Reference: **Clair Obscur: Expedition 33** combat HUD, re-themed around crystals and refraction. To be validated with mockups before buying the kit.
+
+### Layout (from the Expedition 33 reference)
+
+| Element | Placement | World of Refraction mapping |
+|---|---|---|
+| Turn order | Vertical portrait strip, **left edge** | `UTurnOrderStripWidget`, turned vertical. Bonus-turn (Emerald) and ritual (Execution-turn) badges on portraits. |
+| Enemy info | Name + HP **near the enemy** (top-centre / over target) | Floating enemy plate: name, HP, status-buildup bar tinted to the pending element, small status icons |
+| Party | Compact portrait cards, **bottom-right** | Slimmed `UCharacterPanelWidget`: portrait, HP, EP/durability, status bar, effect icons |
+| Commands | **Face-button diamond** (right side) + skill list panel | Command menu as a gamepad diamond (Attack / Skill / Item / Defend); skill list shows EP cost, element, infusion level |
+| Input glyphs | On every action | Required anyway (gamepad = yes) |
+| World | Kept clear; HUD only at edges + on the target | Same |
+
+### Crystal theme
+
+- **Frames:** thin metallic linework (silver / pale gold) around **faceted glass panels**. Subtle refraction or rainbow edge on highlights. Restrained, not neon.
+- **Portraits:** **gem-cut frames** (hexagon / elongated diamond) for turn order and party cards.
+- **Element colour:** each frame's inner glow takes the character's element colour (the code already tints bars per element: `Infusion/ElementColors.h`).
+- **Bars:** fills read as light inside a crystal tube; the damage ghost shows as cracks.
+- **Moments:** status cap ("BURN!"), defense success, crit → **shard burst / prism flash**. Turn change refracts across the strip.
+- **Fonts:** elegant serif or engraved display face for names and titles; clean sans for numbers.
+
+### Asset search terms
+
+"fantasy crystal UI kit", "glass / gem RPG HUD", "faceted UI frames", "hexagon portrait frame", "prismatic VFX pack", "shard burst Niagara", "ornate RPG UI (Expedition 33 style)".
+
+### Next step
+
+Mockups of the combat HUD (and title / main menu) in this direction before committing to a kit.
