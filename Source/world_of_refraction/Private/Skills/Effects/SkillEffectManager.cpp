@@ -1055,22 +1055,33 @@ void USkillEffectManager::ProcessTriggerEffects(AActor *Actor, ESkillTrigger Tri
 
 void USkillEffectManager::ProcessEffectsWithTiming(AActor *Actor, ESkillEffectTiming Timing)
 {
-	if (!ActiveEffects.Contains(Actor))
+	// ApplyEffectLogic can ADD effects to this same actor (DOT BuildupPerTick -> bar cap ->
+	// ApplyTriggeredSkillEffect -> ApplyEffect) or REMOVE them (Cleanse / Remove*Debuff), and
+	// adding another actor's entry can rehash ActiveEffects. A range-for or a held array
+	// reference would then dangle. So: re-fetch the array every step, mark the next
+	// unprocessed effect BEFORE applying, apply a copy, and rescan from the start —
+	// bProcessedThisTurn guarantees each effect runs once and the loop terminates.
+	// (Effect lists are short; the rescan is cheap.)
+	while (true)
 	{
-		return;
-	}
-
-	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Actor];
-
-	for (FActiveSkillEffect &Effect : Effects)
-	{
-		if (Effect.ProcessTiming == Timing && !Effect.bProcessedThisTurn)
+		TArray<FActiveSkillEffect> *Effects = ActiveEffects.Find(Actor);
+		if (!Effects)
 		{
-			ApplyEffectLogic(Actor, Effect);
-			Effect.bProcessedThisTurn = true;
-
-			OnEffectTriggered.Broadcast(Actor, Effect);
+			return;
 		}
+
+		const int32 Index = Effects->IndexOfByPredicate([Timing](const FActiveSkillEffect &Candidate)
+														{ return Candidate.ProcessTiming == Timing && !Candidate.bProcessedThisTurn; });
+		if (Index == INDEX_NONE)
+		{
+			return;
+		}
+
+		(*Effects)[Index].bProcessedThisTurn = true;
+		FActiveSkillEffect Pending = (*Effects)[Index];
+
+		ApplyEffectLogic(Actor, Pending);
+		OnEffectTriggered.Broadcast(Actor, Pending);
 	}
 }
 
