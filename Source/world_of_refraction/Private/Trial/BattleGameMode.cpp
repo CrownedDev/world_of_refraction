@@ -12,6 +12,8 @@
 #include "Party/PartySessionSubsystem.h"
 #include "TimerManager.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "UI/Combat/CombatResultsWidget.h"
+#include "GameFramework/PlayerController.h"
 
 namespace BattleGameModeConstants
 {
@@ -254,8 +256,59 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
         Orchestrator->OnCombatResultReady.RemoveDynamic(this, &ABattleGameMode::HandleCombatEnd);
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Combat ended (%s, %d turns) - returning to trial"),
+    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Combat ended (%s, %d turns)"),
            *UEnum::GetValueAsString(Result.FinalState), Result.TotalTurns);
+
+    if (!ShowResults(Result))
+    {
+        ReturnToTrial();
+    }
+}
+
+bool ABattleGameMode::ShowResults(const FCombatResult &Result)
+{
+    APlayerController *PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+    if (!PC)
+    {
+        return false;
+    }
+
+    UClass *WidgetClass = ResultsWidgetClass.IsNull() ? UCombatResultsWidget::StaticClass()
+                                                      : ResultsWidgetClass.LoadSynchronous();
+    if (!WidgetClass)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] ResultsWidgetClass unresolved (%s) - skipping results"),
+               *ResultsWidgetClass.ToString());
+        return false;
+    }
+
+    ResultsWidget = CreateWidget<UCombatResultsWidget>(PC, WidgetClass);
+    if (!ResultsWidget)
+    {
+        return false;
+    }
+
+    constexpr int32 ResultsZOrder = 100;
+    ResultsWidget->AddToViewport(ResultsZOrder);
+    ResultsWidget->OnContinue.AddDynamic(this, &ABattleGameMode::HandleResultsContinue);
+    ResultsWidget->ShowResult(Result);
+    return true;
+}
+
+void ABattleGameMode::HandleResultsContinue()
+{
+    if (ResultsWidget)
+    {
+        ResultsWidget->OnContinue.RemoveDynamic(this, &ABattleGameMode::HandleResultsContinue);
+        ResultsWidget->RemoveFromParent();
+        ResultsWidget = nullptr;
+    }
+    ReturnToTrial();
+}
+
+void ABattleGameMode::ReturnToTrial()
+{
+    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Returning to trial"));
 
     // ExitEncounter defers its OpenLevel one tick internally - safe to call
     // from inside the result broadcast.
