@@ -172,8 +172,14 @@ These Architecture review items are absorbed by the migration and should **not**
 
 ## Open decisions (Crown)
 
-1. **Broken Darkness:** keep it custom (as locked) and have it read/write GAS attributes and tags, or reopen "BD-states-as-effects" as part of stage 3? *Default: keep custom.*
-2. **Real-time field abilities:** confirm they're planned (first strikes, traversal, crystal powers in the shared world). That is the main reason for GAS. If confirmed, field abilities are designed as GameplayAbilities from day one.
+1. **Broken Darkness — DECIDED (2026-10-25): option C.**
+   - Keep it custom for now; it reads/writes GAS attributes and exposes `State.BrokenDarkness` / `State.Overloaded` tags.
+   - **Revisit after stage 3.** If it's ever moved, it is built beside the old code and only switched over when a `wor.CompareBD` side-by-side (energy, stacks, strain, damage, state over scripted sequences) and Automation tests show **zero differences**. Watch rounding (float attributes vs int HP/EP), event order, turn phase and RNG order.
+2. **Real-time field abilities — DECIDED (2026-10-25): YES, all of them.**
+   - First strikes in the field, traversal, crystal powers on the world, real-time effects on other players.
+   - **Movement types** (flight, speed bursts, blink/teleport) come from activated spells/abilities → GameplayAbilities with client prediction.
+   - **Evolution crystals grant passives** → infinite GameplayEffects while equipped: stat changes (e.g. move speed), granting abilities (e.g. glide), modifying abilities.
+   - This revives the evolution-feature system dropped in `docs/sessions/2026-06-20.md`.
 3. **Ability system on PlayerState:** now, or at co-op time? *Default: co-op time.*
 
 ---
