@@ -56,6 +56,17 @@ a `DamageStone (B)` is `FCrystalId{DamageStone, B_Tier}` — and every consumer
 (`ItemIdentity`, `CrystalEffectTable`, the runtime attachment) reads
 `Crystal.Id` without caring whether the identity is a gem or a stone.
 
+### The stone row table — `StoneRowTable.h` (B-021)
+
+Each stat stone is one row in `StoneRowTable::ROWS` (`Equipment/Crystals/StoneRowTable.h`): `{Type, Stat, ItemEffect, Buff, Debuff, Label, bStandardConsumable}`. Three functions that each had their own per-stone switch now read it:
+- `CrystalEffectTable::StoneTargetStat`: the attached sub-stat (`None` for Max HP / Max EP).
+- `GetStoneBasePercent`: a stone with a row gets the shared curve.
+- `ItemIdentity::GetItemEffectType`: the consumable's item effect.
+
+`UItemExecutor::UseItem` sends every standard row straight to `ApplyStoneBuffEffect`: the ally gets Buff, the enemy Debuff, at the stone curve for `AUGMENT_STONE_CONSUMABLE_DURATION`. ResistanceStone (signed `ModifyStatusResist`) and the gems keep their own handlers. The old per-stone `Execute*BuffEffect` wrappers are unreachable and flagged OBSOLETE, to be deleted after PIE (B-152). Adding a stat stone means a new `ECrystalType`, a new `EItemEffectType` and one row.
+
+Debug: `wor.PrintStoneRows` (`UStoneRowDebug`). Tests: `WoR.Items.Stones` (every stone × tier × ally/enemy).
+
 ### `EAttachedItemKind` — the slot discriminator
 
 `Equipment/EAttachedItemKind.h`:
@@ -828,3 +839,4 @@ hard guarantee survives; only the editor affordance degrades.
 | 2026-06-07 | **Implemented this cycle** — marked the now-shipped work and moved it above the design fence. **DefenseStone** dual-form built C1–C4 (`28fb8818` type+checklist; `715e54d8` generic getter `GetStoneBasePercent`/`StoneTargetStat`/`GetAttachedStonePercent` + `ESubStat::None`; `db4f4832` attached `GetDefenderFlatDefense` hook; `9ffc2681` directional consumable + DamageStone self→directional). **Crit additive→multiplicative** shipped (`7e27f0ea`) and **stat-crystal rebalance** shipped (Opal `680e9d5a`, Amber/Emerald `3e1c86d0`, both vestigial double-table arms removed). Flipped framework #2/#5/#7/#8 + the DamageStone-consumable subsection to ✅ DONE; updated parked cleanup (Opal double-table done; Emerald arm done; added `DAMAGESTONE_CONSUMABLE_DURATION` rename). All committed, **not yet PIE-verified**. | feature/weapon-stones |
 | 2026-06-08 | **WeaponStone → AugmentStone** full-concept rename ("Weapon" inaccurate now that rings can carry these). Four clusters: `e9d22103` serialized `EAttachedItemKind` enum value + EnumRedirect (chains Whetstone→WeaponStone→AugmentStone); `4e85fae0` 5 serialized ability-fields + PropertyRedirects; `ebdaef45` code symbols (`IsAugmentStone*`, `Get/ValidateAugmentStoneAbilities`, `MAX_AUGMENTSTONE_ABILITIES`) + EditCondition meta strings + comment sweep; this doc renamed (`WeaponStoneSystem.md` → `AugmentStoneSystem.md` + content sweep) and the planned-rename note marked DONE. `DAMAGESTONE_CONSUMABLE_DURATION` left as a separate cleanup. | feature/weapon-stones |
 | 2026-06-09 | Doc-sync edits: reconciled the crit-conversion language to **shipped** (removed the residual "today-additive → planned-multiplicative" framing in framework #2, the Opal table row, the wired-audit crit row, and the build-order cell — all now state multiplicative, shipped `7e27f0ea`). Removed **Emerald** from the stat-crystal framework (it is no longer a stat crystal — its consumable effect is a delayed bonus turn, `affdf379`): three stat crystals → **two** (Amber, Opal); speed-augmenting is the stone-only `TurnSpeedStone`. | feature/weapon-stones |
+| 2026-10-26 | Stone row table (B-021): `StoneTargetStat`, `GetStoneBasePercent`, `GetItemEffectType` and the consumable dispatch read one row per stat stone; stat-stone wrappers flagged OBSOLETE (B-152); `wor.PrintStoneRows`; `WoR.Items.Stones` spec | `refactor/B-021-stone-row-table` |
