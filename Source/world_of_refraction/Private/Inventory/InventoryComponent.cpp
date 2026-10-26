@@ -1103,7 +1103,8 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     // failures alongside the init log rather than as downstream symptoms.
     // B-028: BD rules follow the character.
     const TOptional<bool> bCharacterIsBD = CharacterData ? TOptional<bool>(CharacterData->bBrokenDarknessInnate) : TOptional<bool>();
-    for (const FString &Error : InventoryAsset->GetValidationErrors(bCharacterIsBD))
+    const int32 AuthoredDiscount = CharacterData ? CharacterData->GetAuthoredSpellDiscount() : 0;
+    for (const FString &Error : InventoryAsset->GetValidationErrors(bCharacterIsBD, AuthoredDiscount))
     {
         UE_LOG(LogTemp, Warning, TEXT("[InventoryData] '%s' validation: %s"),
                *InventoryAsset->GetName(), *Error);

@@ -13,9 +13,14 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/LoadoutConstants.h"
+#include "Loadout/SpellPoolConstants.h"
+#include "Character/CharacterData.h"
 
 namespace
 {
+	/** S-tier innate spells: over the innate budget at full cost, under it with the full discount. */
+	constexpr int32 LOADOUT_RULES_TEST_HEAVY_INNATE_SPELLS = 4;
+
 	/** An F-tier evolution holds 1 spell in the fight; the old editor check allowed 6. */
 	constexpr int32 LOADOUT_RULES_TEST_EVOLUTION_SPELLS = 3;
 
@@ -107,6 +112,25 @@ void FLoadoutRulesSpec::Define()
 
 			TestTrue(TEXT("BD character: a Fire spell in the Darkness pool is flagged"), Saved.GetValidationErrors(true).Num() > 0);
 			TestEqual(TEXT("ordinary character: fine"), Saved.GetValidationErrors(false).Num(), 0);
+		});
+
+		It("weighs spells with the owning character's authored discount (D-080 = D)", [this]()
+		{
+			FSavedLoadout Saved;
+			Saved.RequiredClass = ECharacterClass::Caster;
+			for (int32 i = 0; i < LOADOUT_RULES_TEST_HEAVY_INNATE_SPELLS; ++i)
+			{
+				USpellData *Spell = NewSpell(ESpellElement::Fire);
+				Spell->Tier = EItemTier::S_Tier;
+				Saved.InnateSpells.Add(FSpellRef(Spell));
+			}
+			UCharacterData *Master = NewObject<UCharacterData>(GetTransientPackage());
+			Master->WorldMindLevel = SpellPoolConstants::SPELL_DISCOUNT_MIND_THRESHOLD;
+			Master->WorldBodyLevel = SpellPoolConstants::SPELL_DISCOUNT_BODY_THRESHOLD;
+			Master->WorldSpiritLevel = SpellPoolConstants::SPELL_DISCOUNT_SPIRIT_THRESHOLD;
+
+			TestTrue(TEXT("no character: over the budget"), AnyReasonContains(Saved.GetValidationErrors(false), TEXT("Innate spell budget exceeded")));
+			TestFalse(TEXT("a high-stat owner: fits"), AnyReasonContains(Saved.GetValidationErrors(false, Master->GetAuthoredSpellDiscount()), TEXT("Innate spell budget exceeded")));
 		});
 
 		It("still reports what only an authored loadout can get wrong", [this]()
