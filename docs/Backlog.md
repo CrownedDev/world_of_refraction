@@ -72,8 +72,11 @@
 | B-161 | Editor loadout check uses the owning character's authored Mind/Body/Spirit for the spell discount (D-080 = D); 0 only when no character is attached | CC | S | B-028 | Spec: a high-stat character's loadout passes the weight budget that a no-character check flags | TODO |
 | B-029 | One AI damage estimator, resolving element like execution | CC | M | B-001 | AI estimate equals executor result in a test | REVIEW (in dev) |
 | B-030 | `ResetForCombat()` on every per-fight subsystem, called from `ReleaseCombatResources` | CC | M | B-001 | No state survives between two fights (test) | REVIEW (in dev) |
-| B-031 | Delete `SubmitAction` sync router + `ApplyDamage` fallback | CC | M | B-001 | Only the async path remains; rituals still fire | IN PROGRESS (refactor/B-031-async-only) |
-| B-032 | ActionExecutor DRY: one per-impact resolve, one reflect block, merge `ApplyHit`/`ApplyDamage` | CC | L | B-031 | Same damage in a test fight | BLOCKED (B-031) |
+| B-031 | Every live caller (ritual fire, debug action) on the async path; `SubmitAction` sync router marked OBSOLETE (deleted in B-162). The `ApplyDamage` fallback part is Q-031 | CC | M | B-001 | Only the async path is used; rituals still fire | REVIEW (in dev) |
+| B-162 | Delete `SubmitAction` and retire `CombatOrchestratorTestActor` (its last caller), after Crown's B-031 PIE pass and a spec covering what the actor tests (D-067) | CC | S | B-031 | `SubmitAction` gone; build + tests green | BLOCKED (Crown: PIE of B-031) |
+| B-163 | Async skill start crashes in the headless test world (`UActionExecutor::BeginSkillExecution`, `ActionExecutor.cpp` ~4959; likely `GetWorld()`); guard it so specs can drive a montage-less ability, then add the no-montage ritual case to `WoR.Combat.RitualFire` | CC | S | B-031 | The no-montage ritual case runs headless and passes | TODO |
+| B-164 | Remove the `ApplyDamage` fallback per Q-031 | CC | S | B-031 | Per Q-031's answer | BLOCKED (Q-031) |
+| B-032 | ActionExecutor DRY: one per-impact resolve, one reflect block, merge `ApplyHit`/`ApplyDamage` | CC | L | B-031 | Same damage in a test fight | TODO |
 | B-033 | God-file splits (move-only): Orchestrator debug → `Debug/Combat/`; ActionExecutor montage runner + cost resolution | CC | M | B-003 | Move-only diff; compiles | BLOCKED (B-003) |
 | B-034 | Delete the dead `InfusionChargeManager`; infusion level held on the pending action, not the VFX component | CC | M | B-003 | VFX still shows level; ChargeManager gone | BLOCKED (B-003) |
 | B-035 | Flatten `ApplyBetweenCombatCrystalDestruction` (nesting 8) | CC | S | B-001 | Same results; nesting ≤4 | TODO |
