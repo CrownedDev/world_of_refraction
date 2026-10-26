@@ -1123,6 +1123,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
+### D-091 — Fleeing a fight
+**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 04 gap) · **Blocks:** —
+**Answer (Crown):** **B** (2026-10-26): you **can flee normal fights**, **not mini-bosses or bosses**. Fleeing **costs something**.
+**Notes for Claude:**
+- The cost isn't set: propose **losing a share of the run's Gold** (named constant, e.g. 10%, `// TODO: tune`) and confirm with Crown when building.
+- After fleeing, the enemy team stays on the map (not beaten) and you're placed back in the trial; your party keeps its HP/EP.
+- Stunned characters can't flee (D-023). A fight ending by flee mid-action follows D-075 (no infusion HP cost).
+- Today `Flee` is an action type that isn't offered and does nothing (ET-21).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
