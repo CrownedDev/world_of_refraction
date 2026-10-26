@@ -8,6 +8,7 @@
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "AI/EAIDifficulty.h"
 #include "Combat/Encounter/EEncounterRank.h"
+#include "Combat/Encounter/EFirstStrike.h"
 #include "Combat/Grid/ECombatRow.h"
 #include "AI/AIDecisionManager.h"
 #include "Skills/Definitions/ESpellDeliveryType.h"
@@ -251,6 +252,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat|Flee")
 	EEncounterRank GetEncounterRank() const { return EncounterRank; }
 
+	/** B-185: who struck first on the map (set before StartCombat); that side takes the opening round. */
+	UFUNCTION(BlueprintCallable, Category = "Combat|FirstStrike")
+	void SetFirstStrike(EFirstStrike InFirstStrike) { FirstStrike = InFirstStrike; }
+
+	UFUNCTION(BlueprintPure, Category = "Combat|FirstStrike")
+	EFirstStrike GetFirstStrike() const { return FirstStrike; }
+
 	/** Why Actor can't flee right now (combat not running, not on the local party, a mini-boss or
 	 *  boss fight); empty when it can. A stunned actor is refused by ValidateAction (D-023). */
 	UFUNCTION(BlueprintPure, Category = "Combat|Flee")
@@ -314,6 +322,10 @@ public:
 	/** D-091: this fight's rank; per-fight state on the orchestrator (D-064). */
 	UPROPERTY(VisibleInstanceOnly, Category = "Combat|Flee")
 	EEncounterRank EncounterRank = EEncounterRank::Normal;
+
+	/** B-185: per-fight state on the orchestrator (D-064). */
+	UPROPERTY(VisibleInstanceOnly, Category = "Combat|FirstStrike")
+	EFirstStrike FirstStrike = EFirstStrike::None;
 
 	/** D-096: the current actor's free row move is spent; reset at each turn start. */
 	bool bRowMoveUsedThisTurn = false;

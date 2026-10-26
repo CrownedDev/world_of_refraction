@@ -46,6 +46,13 @@
 #include "Combat/CombatControl.h"
 #include "Party/PartySessionSubsystem.h"
 
+namespace CombatOrchestratorFirstStrike
+{
+	// UTurnManager's team numbering: the local party is team 0, the opposing side team 1.
+	constexpr int32 LOCAL_TEAM_INDEX = 0;
+	constexpr int32 OPPOSING_TEAM_INDEX = 1;
+}
+
 ACombatOrchestrator::ACombatOrchestrator()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -324,7 +331,10 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	}
 
 	// Initialize TurnManager (this will trigger first OnTurnStarted)
-	TurnManagerRef->InitializeCombat(LocalParty, OpposingParty);
+	const int32 OpeningTeam = FirstStrike == EFirstStrike::Party   ? CombatOrchestratorFirstStrike::LOCAL_TEAM_INDEX
+							: FirstStrike == EFirstStrike::Enemy ? CombatOrchestratorFirstStrike::OPPOSING_TEAM_INDEX
+																 : INDEX_NONE;
+	TurnManagerRef->InitializeCombat(LocalParty, OpposingParty, OpeningTeam);
 
 	// Turn 1 can resolve the whole combat inside InitializeCombat (state back to Idle,
 	// teams emptied) — don't build UI for a fight that's already over.
@@ -379,6 +389,9 @@ void ACombatOrchestrator::ReleaseCombatResources()
 	}
 
 	UnbindTurnManagerEvents();
+
+	// B-185: a first strike belongs to one fight.
+	FirstStrike = EFirstStrike::None;
 
 	// B-071: the per-fight Player flag (a take-over or a switch) ends with the fight; placed
 	// pawns are reused by the next fight, so it must not carry.
