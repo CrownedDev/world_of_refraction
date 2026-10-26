@@ -26,7 +26,7 @@ def _kit_root():
         sys.exit("WOR_UI_KIT is not set. Point it at the UI kit library, e.g.\n"
                  "  C:\\Users\\<you>\\Documents\\github\\wor-deckbuilder\\wor.game\\assets\\ui\\library\n"
                  "(PowerShell: [Environment]::SetEnvironmentVariable('WOR_UI_KIT', '<path>', 'User'), then reopen the shell).")
-    root = pathlib.Path(raw)
+    root = pathlib.Path(raw).resolve()
     if not (root / "frames").is_dir():
         sys.exit(f"WOR_UI_KIT='{raw}' doesn't look like the UI kit library (no frames/ folder in it).")
     return root
@@ -56,9 +56,17 @@ SYMBOLS = "✓⚠✎▾◆★"   # not in Lato / Segoe UI: drawn with Segoe UI S
 
 
 @functools.lru_cache(None)
-def font(role, size):
+def _font_path(role):
     game = GAME_FONT_DIR / _GAME_FONT[role]
-    return ImageFont.truetype(str(game if game.exists() else WINDOWS_FONTS / _WINDOWS_FONT[role]), size)
+    if game.exists():
+        return game
+    print(f"Note: game font {game} not found; drawing '{role}' text with Windows {_WINDOWS_FONT[role]} instead.")
+    return WINDOWS_FONTS / _WINDOWS_FONT[role]
+
+
+@functools.lru_cache(None)
+def font(role, size):
+    return ImageFont.truetype(str(_font_path(role)), size)
 
 
 def symbol_safe(f, s):
@@ -68,12 +76,17 @@ def symbol_safe(f, s):
 # --- kit access ----------------------------------------------------------------------------------------------
 
 @functools.lru_cache(None)
-def piece(kind, name):
-    """A kit library piece (kind = backgrounds, badges, buttons, frames, icons, misc, ...). Fails loudly if missing."""
+def _cached_piece(kind, name):
     path = KIT / kind / f"{name}.png"
     if not path.exists():
         sys.exit(f"Kit piece missing: {kind}/{name}.png (under WOR_UI_KIT={KIT})")
     return Image.open(path).convert("RGBA")
+
+
+def piece(kind, name):
+    """A kit library piece (kind = backgrounds, badges, buttons, frames, icons, misc, ...), as a fresh copy the caller
+    may draw on. Fails loudly if missing."""
+    return _cached_piece(kind, name).copy()
 
 
 def scaled(img, width=None, height=None):
@@ -125,8 +138,8 @@ def five_slice(img, width, end=0.2, centre=0.06):
 
 # --- canvas pieces -------------------------------------------------------------------------------------------
 
-def background(name="dfhb_battle", blur=0.0, dark=0.0):
-    """A full-screen kit background, optionally blurred and darkened toward stone blue-grey."""
+def background(name="dfhb_battle", blur=2.2, dark=0.5):
+    """A full-screen kit background, blurred and darkened toward stone blue-grey (deckbuilder defaults; 0 = off)."""
     img = piece("backgrounds", name)
     k = max(W / img.width, H / img.height)
     img = img.resize((round(img.width * k), round(img.height * k)), Image.LANCZOS)
@@ -237,8 +250,9 @@ def annotate(plain, notes):
 
 def save_draft(plain, notes, screen, version, name):
     """Write <name>_plain.png and <name>_annotated.png into the screen's version folder; returns that folder."""
+    plain_rgb, annotated_rgb = plain.convert("RGB"), annotate(plain, notes).convert("RGB")   # render both before writing
     folder = out_dir(screen, version)
-    plain.convert("RGB").save(folder / f"{name}_plain.png")
-    annotate(plain, notes).convert("RGB").save(folder / f"{name}_annotated.png")
+    plain_rgb.save(folder / f"{name}_plain.png")
+    annotated_rgb.save(folder / f"{name}_annotated.png")
     print(f"Wrote {folder.relative_to(REPO) if folder.is_relative_to(REPO) else folder}/{name}_plain.png + _annotated.png")
     return folder

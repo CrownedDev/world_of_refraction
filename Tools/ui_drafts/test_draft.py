@@ -10,7 +10,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent))
 import kit  # noqa: E402
 
 SCREEN, VERSION, NAME = "tool/test_draft", "v1", "test_draft"
-ELEMENTS = ("fire", "water", "earth", "wind", "lightning", "ice", "light", "darkness", "void")
+ELEMENTS = ("fire", "water", "earth", "wind", "light", "darkness", "lightning", "void", "reality")   # ESpellElement order
 
 
 def draw():
@@ -32,6 +32,7 @@ def draw():
     badge_y = panel_xy[1] + 110
     badge_h = 34
     shown = [e for e in ELEMENTS if (kit.KIT / "badges" / f"element_{e}.png").exists()]
+    missing = [e for e in ELEMENTS if e not in shown]
     step = 340 // max(1, len(shown))
     for i, element in enumerate(shown):
         badge = kit.scaled(kit.piece("badges", f"element_{element}"), height=badge_h)
@@ -48,10 +49,11 @@ def draw():
     notes = [
         (1, (60, 40), "Header bar", ["frames/header_bar, full width, title in Spectral SC"]),
         (2, (panel_xy[0] - 10, panel_xy[1] + 10), "Panel", ["frames/panel_plain at native size, title_rule divider"]),
-        (3, (panel_xy[0] + 10, badge_y + badge_h // 2), "Element badges", [f"badges/element_* ({len(shown)} found)"]),
+        (3, (panel_xy[0] + 10, badge_y + badge_h // 2), "Element badges",
+     [f"badges/element_* ({len(shown)} of {len(ELEMENTS)} found)"] + [f"missing: {', '.join(missing)}"] * bool(missing)),
         (4, (640 + 50, panel_xy[1] + 184), "Icon", ["icons/action_guard (Defend)"]),
         (5, (button_xy[0] - 16, button_xy[1] + 30), "Button", ["buttons/purple_long_normal, Lato Bold label"]),
-        (6, (80, 660), "Background", ["backgrounds/dfhb_battle, vignette + seeded motes"]),
+        (6, (80, 660), "Background", ["backgrounds/dfhb_battle (blur 2.2, darken 0.5), vignette + seeded motes"]),
     ]
     return canvas, notes
 
