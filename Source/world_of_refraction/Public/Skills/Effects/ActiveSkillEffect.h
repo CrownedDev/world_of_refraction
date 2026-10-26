@@ -182,11 +182,15 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stacking")
 	bool bRefreshDurationOnReapply = true;
 
-	/** Applies at most once per combat (keyed on EffectID). Carried from
+	/** Applies at most once per combat per holder and source (D-011). Carried from
 	 *  FSkillEffect::bFiresOncePerMatch; checked by ApplyEffect against the manager's
 	 *  per-match fired-set. Default false = unrestricted. */
 	UPROPERTY(BlueprintReadWrite, Category = "Stacking")
 	bool bFiresOncePerMatch = false;
+
+	/** Carried from FSkillEffect::bDoesNotStack (D-053): a copy from another source adds nothing. */
+	UPROPERTY(BlueprintReadWrite, Category = "Stacking")
+	bool bDoesNotStack = false;
 
 	// ========================================
 	// SOURCE TRACKING
@@ -203,6 +207,11 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	/** Team index of source (for friendly fire checks, cleanse logic) */
 	UPROPERTY(BlueprintReadOnly, Category = "Source")
 	int32 SourceTeamIndex = -1;
+
+	/** Who gave it, for identity (EffectIdentity::MakeSourceKey). 0 = not stamped yet:
+	 *  ApplyEffect keys it on the source actor + ability name. Gear stamps its item. */
+	UPROPERTY(BlueprintReadOnly, Category = "Source")
+	int32 SourceKey = 0;
 
 	// ========================================
 	// RUNTIME FLAGS
@@ -394,6 +403,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 					Source.MaxStacks,
 					Source.bFiresOncePerMatch,
 					P.Element));
+				Out.Last().bDoesNotStack = Source.bDoesNotStack;
 			}
 		}
 

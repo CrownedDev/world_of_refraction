@@ -64,6 +64,12 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stacking")
     bool bFiresOncePerMatch = false;
 
+    /** Only one source's copy may be held (D-053, e.g. "revive once per fight"). A second
+     *  item or skill with this effect adds nothing; the same source still refreshes.
+     *  Default false: each source adds its own copy. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stacking")
+    bool bDoesNotStack = false;
+
     // ==================== CONSTRUCTORS ====================
 
     FSkillEffect()
