@@ -79,7 +79,8 @@ GAS durations are in seconds. We need "lasts N turns".
 - Native tags declared in C++ (`UE_DEFINE_GAMEPLAY_TAG`). Proposed tree:
   - `Element.{Fire, Water, Earth, Wind, Light, Darkness, Lightning, Void, Reality, Generic, None}`
   - `Status.{Stun, Silence, HealBlock, Burn, Chill, …}`
-  - `Effect.Family.{StatModifier, DOT, HOT, Control, Immunity, Reflect, LastStand, …}`
+  - `Immunity.{All, Stun, Silence, DOT, Element.<element>}` (owned tags a ward grants; built in B-040, Q-040b)
+  - `Effect.Family.{StatModifier, DOT, HOT, Control, Immunity, Reflect, LastStand, …}` (asset tags saying what a GameplayEffect *is*; with the GameplayEffects, B-042)
   - `Data.{Duration.Turns, Charges, Magnitude, Element}` (SetByCaller keys)
   - `Event.Combat.{Impact, DefenseResolved, TurnStart, TurnEnd}` (GameplayEvents)
   - `Class.{Generic, Caster, Resonator}`
@@ -111,6 +112,7 @@ GAS durations are in seconds. We need "lasts N turns".
 2. Read sites switch to tags where they *query* (immunity checks, the AI's "is stunned/silenced" checks, UI icons). Writes stay on enums.
 
 - **Done when:** tag queries give the same answers as the enum queries. Verified by a `wor.CompareTags` debug command.
+- **Built (B-040, 2026-10-26):** step 1 in full (`Tags/WoRGameplayTags.h`: Element.*, Class.*, Status.*, Immunity.*; `USkillEffectManager::GetEffectTags`; `UWoRTagDebug`, `wor.DumpTags` / `wor.CompareTags`; spec `WoR.Tags`). Step 2 moves to stage 2 (Q-040): until an ASC holds the tags, a tag query is computed from the same enum effects, so switching read sites now adds work and a second code path for no gain.
 
 ### Stage 2 — Stats (medium)
 

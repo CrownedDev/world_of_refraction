@@ -1532,6 +1532,26 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (fix/B-182-perfect-guard-parry-anim): `GuardRules::ImpactAnimationOverride`, called in `UActionExecutor`'s per-impact defense resolve.
 
+### Q-040 — Switch the effect read sites to tags in stage 1?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-040) · **Blocks:** — (B-040 shipped with A)
+**Question:** GASMigration stage 1 step 2 says the read sites (immunity checks, the AI's stunned/silenced checks, UI icons) switch to tag queries. With no Ability System Component yet, the tags are built from the same enum effects. Switch now or with the ASC?
+**Options:**
+- **A** ship the tags, the maps and `wor.CompareTags` now; switch the read sites in stage 2, when the ASC owns the tags.
+- **B** switch the read sites now to a tag container rebuilt from the enum effects.
+**Recommendation:** A. In GAS projects such as Epic's Lyra the owned-tag container lives on the ASC and every query reads it there; a stand-in container now would be a second code path to remove later. `wor.CompareTags` and `WoR.Tags` already prove the two answer the same. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-040-gas-tags). Stage 2 (B-041) switches the read sites when the ASC lands.
+
+### Q-040b — Where do immunity and DOT tags sit in the tag tree?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-040) · **Blocks:** — (B-040 shipped with A)
+**Question:** GASMigration §4 proposes `Effect.Family.{DOT, Immunity, …}`. B-040 needs tags a character *carries* while warded or burning. Use the family branch, or separate owned-state branches?
+**Options:**
+- **A** owned-state tags: `Status.DOT`, `Status.HealBlock`, and a top-level `Immunity.{All, Stun, Silence, DOT, Element.<element>}`. `Effect.Family.*` stays for what a GameplayEffect *is* (its asset tags), added with the GameplayEffects in B-042.
+- **B** put everything under `Effect.Family.*` (one branch for both what an effect is and what a character has).
+**Recommendation:** A. GAS keeps the two apart: a GameplayEffect has asset tags (what it is) and granted tags (what its target then owns), and immunity is checked against owned tags (Application Immunity). Lyra and the community GASDocumentation both name owned state separately from effect families. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-040-gas-tags); GASMigration §4 tree updated.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

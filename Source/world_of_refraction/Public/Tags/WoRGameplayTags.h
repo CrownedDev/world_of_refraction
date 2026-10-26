@@ -1,0 +1,67 @@
+// WoRGameplayTags.h
+// GAS stage 1 (B-040, Design/GASMigration.md §4): the native tag tree and the enum <-> tag maps.
+// The enums stay the stored form (assets serialize them); tags are the query language from here on.
+// Debug: UWoRTagDebug (wor.DumpTags, wor.CompareTags).
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "NativeGameplayTags.h"
+#include "Character/ECharacterClass.h"
+#include "Skills/Definitions/ESpellElement.h"
+#include "Skills/Effects/ESkillEffectType.h"
+
+namespace WoRTags
+{
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Element_Generic);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Element_Fire);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Element_Water);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Element_Earth);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Element_Wind);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Element_Light);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Element_Darkness);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Element_Lightning);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Element_Void);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Element_Reality);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Element_None);
+
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Class_Generic);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Class_Caster);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Class_Resonator);
+
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Stun);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_Silence);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_HealBlock);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Status_DOT);
+
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Immunity_All);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Immunity_Stun);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Immunity_Silence);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Immunity_DOT);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Immunity_Element_Fire);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Immunity_Element_Water);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Immunity_Element_Earth);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Immunity_Element_Wind);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Immunity_Element_Light);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Immunity_Element_Darkness);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Immunity_Element_Lightning);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Immunity_Element_Void);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Immunity_Element_Reality);
+
+	/** Element.<name>; every ESpellElement has one. */
+	WORLD_OF_REFRACTION_API FGameplayTag ElementToTag(ESpellElement Element);
+	/** False for a tag outside Element.*. */
+	WORLD_OF_REFRACTION_API bool TagToElement(const FGameplayTag &Tag, ESpellElement &OutElement);
+
+	/** Class.<name>; every ECharacterClass has one. */
+	WORLD_OF_REFRACTION_API FGameplayTag ClassToTag(ECharacterClass CharacterClass);
+	/** False for a tag outside Class.*. */
+	WORLD_OF_REFRACTION_API bool TagToClass(const FGameplayTag &Tag, ECharacterClass &OutClass);
+
+	/** The tag an active effect of this type gives its bearer (Status.* or Immunity.*); an empty tag
+	 *  for every type with no tag yet (stat modifiers etc. get theirs in B-042). */
+	WORLD_OF_REFRACTION_API FGameplayTag EffectTypeToTag(ESkillEffectType EffectType);
+
+	/** Every effect type that has a tag, in a fixed order (for the debug dump and the spec). */
+	WORLD_OF_REFRACTION_API const TArray<ESkillEffectType> &TaggedEffectTypes();
+}
