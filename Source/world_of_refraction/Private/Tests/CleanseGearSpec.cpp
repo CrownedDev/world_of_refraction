@@ -34,7 +34,7 @@ BEGIN_DEFINE_SPEC(FCleanseGearSpec, "WoR.Effects.CleanseGear",
 		return TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
 	}
 
-	/** Puts a one-payload gear effect of Type on Wearer, the way equipping it does. */
+	/** Puts a one-payload gear effect of Type on Wearer, the way equipping it does (its own bundle slot per type, so two differ). */
 	void EquipEffect(AActor *Wearer, ESkillEffectType Type)
 	{
 		FSkillEffectPayload Payload;
@@ -44,7 +44,7 @@ BEGIN_DEFINE_SPEC(FCleanseGearSpec, "WoR.Effects.CleanseGear",
 		FSkillEffect Effect;
 		Effect.EffectName = TEXT("Cleanse test gear");
 		Effect.Payloads.Add(Payload);
-		EffectManager->ApplyEquipmentEffects(Wearer, {FGatheredEffect(CLEANSE_TEST_GEAR_DEF_ID, 0, Effect, CLEANSE_TEST_GEAR_SOURCE_KEY)});
+		EffectManager->ApplyEquipmentEffects(Wearer, {FGatheredEffect(CLEANSE_TEST_GEAR_DEF_ID, static_cast<int32>(Type), Effect, CLEANSE_TEST_GEAR_SOURCE_KEY)});
 	}
 
 	void CastBuff(AActor *Target, ESkillEffectType Type)
@@ -95,12 +95,26 @@ void FCleanseGearSpec::Define()
 	{
 		if (!EffectManager) return;
 		AActor *Holder = Spawn();
+		EquipEffect(Holder, ESkillEffectType::ApplyBurnToTarget); // the "attacks apply Burn" ring (D-015)
 		EquipEffect(Holder, ESkillEffectType::DefenseDebuff);
 		EffectManager->ApplyTriggeredSkillEffect(Spawn(), Holder, ESkillEffectType::DOT, ESpellElement::Fire);
 		if (!TestTrue(TEXT("Burned"), Has(Holder, ESkillEffectType::DOT))) return;
 
 		EffectManager->RemoveAllDebuffs(Holder);
 		TestFalse(TEXT("Burn cleansed"), Has(Holder, ESkillEffectType::DOT));
+		TestTrue(TEXT("Burn ring kept"), HasGearEffect(Holder, ESkillEffectType::ApplyBurnToTarget));
+		TestTrue(TEXT("Gear debuff kept"), HasGearEffect(Holder, ESkillEffectType::DefenseDebuff));
+	});
+
+	It("a targeted cleanse keeps a gear debuff of that type and removes a cast one", [this]()
+	{
+		if (!EffectManager) return;
+		AActor *Holder = Spawn();
+		EquipEffect(Holder, ESkillEffectType::DefenseDebuff);
+		EffectManager->ApplyEffect(Holder, FActiveSkillEffect::CreateBuff(TEXT("Cleanse test cast"), CLEANSE_TEST_CAST_EFFECT_ID,
+			ESkillEffectType::DefenseDebuff, CLEANSE_TEST_VALUE, CLEANSE_TEST_DURATION_TURNS), Spawn());
+
+		TestEqual(TEXT("Only the cast debuff cleansed"), EffectManager->CleanseEffectsByType(Holder, ESkillEffectType::DefenseDebuff), 1);
 		TestTrue(TEXT("Gear debuff kept"), HasGearEffect(Holder, ESkillEffectType::DefenseDebuff));
 	});
 
