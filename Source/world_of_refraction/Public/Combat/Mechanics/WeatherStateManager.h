@@ -48,6 +48,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Weather")
     void EndCombat();
 
+    /** Recompute and broadcast now, during combat only (a boss reached a phase, B-193). */
+    void RefreshWeather();
+
     // ========================================
     // EVENTS
     // ========================================
@@ -125,6 +128,10 @@ private:
     void OnTeamMemberHPChanged(int32 NewHP, int32 MaxHP);
 
     UPrimaryDataAsset *ResolveWeatherDA(const TArray<FLeadershipEntry> &Hierarchy) const;
+    UPrimaryDataAsset *ResolveWeatherDAFor(AActor *Actor) const;
+
+    /** The alive opposing boss whose reached phases pull the weather hardest (B-193), or null. */
+    AActor *FindPhasedBoss(float &OutIntensity) const;
 
     int32 GetTotalWorldStats(AActor *Actor) const;
 

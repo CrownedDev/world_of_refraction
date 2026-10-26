@@ -2,6 +2,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
 #include "Character/CosmeticsData.h"
+#include "Combat/Boss/BossPhaseComponent.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "HAL/IConsoleManager.h"
@@ -171,10 +172,22 @@ void UWeatherStateManager::RecalculateWeather()
 {
     const float LocalPartyPercent = ComputeTeamHPPercent(LocalPartyHierarchy);
     const float OpposingPartyPercent = ComputeTeamHPPercent(OpposingPartyHierarchy);
-    const float BlendValue = ComputeBlendValue(LocalPartyPercent, OpposingPartyPercent);
+    float BlendValue = ComputeBlendValue(LocalPartyPercent, OpposingPartyPercent);
 
     UPrimaryDataAsset *LocalPartyDA = ResolveWeatherDA(LocalPartyHierarchy);
     UPrimaryDataAsset *OpposingPartyDA = ResolveWeatherDA(OpposingPartyHierarchy);
+
+    // B-193: a boss's reached phases pull the weather its way (negative = opposing side) at least
+    // as far as its phase intensity, and its own weather wins over the opposing leader's.
+    float BossIntensity = 0.0f;
+    if (AActor *Boss = FindPhasedBoss(BossIntensity))
+    {
+        BlendValue = FMath::Min(BlendValue, -BossIntensity);
+        if (UPrimaryDataAsset *BossDA = ResolveWeatherDAFor(Boss))
+        {
+            OpposingPartyDA = BossDA;
+        }
+    }
 
     LastBroadcastBlendValue = BlendValue;
     OnWeatherChanged.Broadcast(LocalPartyDA, OpposingPartyDA, BlendValue);
@@ -290,9 +303,39 @@ float UWeatherStateManager::ComputeBlendValue(float LocalPartyPercent, float Opp
     return FMath::Sign(SignedGap) * Intensity;
 }
 
+void UWeatherStateManager::RefreshWeather()
+{
+    if (bCombatActive)
+    {
+        RecalculateWeather();
+    }
+}
+
+AActor *UWeatherStateManager::FindPhasedBoss(float &OutIntensity) const
+{
+    AActor *Strongest = nullptr;
+    OutIntensity = 0.0f;
+    for (const FLeadershipEntry &Entry : OpposingPartyHierarchy)
+    {
+        AActor *Actor = Entry.Actor.Get();
+        const UCharacterDataComponent *Comp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+        const UBossPhaseComponent *Boss = Actor ? Actor->FindComponentByClass<UBossPhaseComponent>() : nullptr;
+        if (Comp && Comp->bIsAlive && Boss && Boss->GetWeatherIntensity() > OutIntensity)
+        {
+            OutIntensity = Boss->GetWeatherIntensity();
+            Strongest = Actor;
+        }
+    }
+    return Strongest;
+}
+
 UPrimaryDataAsset *UWeatherStateManager::ResolveWeatherDA(const TArray<FLeadershipEntry> &Hierarchy) const
 {
-    AActor *Leader = GetCurrentLeader(Hierarchy);
+    return ResolveWeatherDAFor(GetCurrentLeader(Hierarchy));
+}
+
+UPrimaryDataAsset *UWeatherStateManager::ResolveWeatherDAFor(AActor *Leader) const
+{
     if (!Leader)
         return nullptr;
 
