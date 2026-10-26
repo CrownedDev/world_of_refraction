@@ -3416,13 +3416,13 @@ int32 ULoadoutComponent::RepairActivePrimaryEvolution(int32 Amount)
 namespace LoadoutCarryInternal
 {
     /** Every weapon and ring slot of Loadout that can hold an attachment, in a fixed order. */
-    template <typename FFunc>
-    void ForEachAttachmentSlot(FCombatLoadout &Loadout, FFunc &&Func)
+    template <typename TLoadout, typename FFunc>
+    void ForEachAttachmentSlot(TLoadout &Loadout, FFunc &&Func)
     {
         Func(static_cast<UObject *>(Loadout.PrimaryWeapon.WeaponEntry.Weapon), Loadout.PrimaryWeapon.WeaponEntry.AttachedItem);
         Func(static_cast<UObject *>(Loadout.SecondaryWeapon.WeaponEntry.Weapon), Loadout.SecondaryWeapon.WeaponEntry.AttachedItem);
         Func(static_cast<UObject *>(Loadout.PrimaryRing.RingEntry.Ring), Loadout.PrimaryRing.RingEntry.AttachedItem);
-        for (FRingLoadoutEntry &Entry : Loadout.RingLoadout)
+        for (auto &Entry : Loadout.RingLoadout)
         {
             Func(static_cast<UObject *>(Entry.RingEntry.Ring), Entry.RingEntry.AttachedItem);
         }
@@ -3438,7 +3438,7 @@ FCarriedGearState ULoadoutComponent::SnapshotCarriedGear() const
         return Carried;
     }
 
-    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
     LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried](UObject *Holder, const FRuntimeAttachedItem &Attached)
     {
         if (Holder)
@@ -3480,7 +3480,8 @@ int32 ULoadoutComponent::ApplyCarriedGear(const FCarriedGearState &Carried)
             }
         }
     });
-    if (Carried.bHasPrimaryEvolution && Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
+    if (Carried.bHasPrimaryEvolution && Loadout.PrimarySlotType == EPrimarySlotType::Evolution &&
+        Carried.PrimaryEvolution.Item == Loadout.PrimaryEvolution.Item)
     {
         Loadout.PrimaryEvolution = Carried.PrimaryEvolution;
     }

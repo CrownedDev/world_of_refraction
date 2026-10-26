@@ -45,8 +45,8 @@ struct WORLD_OF_REFRACTION_API FCarriedGearState
 	FEvolutionAttachment PrimaryEvolution;
 };
 
-/** Q-115: a born Broken Darkness member's absorption pool as the fight left it. Strain, the
- *  overload aura and a mid-fight transformation of a non-born caster start fresh each fight. */
+/** Q-115: a born Broken Darkness member's absorption pool as the fight left it. EP above max
+ *  re-enters overload at once; strain and a non-born caster's transformation start fresh. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FCarriedAbsorptionState
 {

@@ -153,6 +153,7 @@ void FCarriedStateSpec::Define()
 		TestTrue(TEXT("Alignment"), Resumed.AlignmentElement == ESpellElement::Fire);
 		TestEqual(TEXT("Absorbed elements"), Resumed.AbsorbedElements, Carried.AbsorbedElements);
 		TestEqual(TEXT("Overload EP above max"), CharComp->CurrentEP, CharComp->MaxEP + CARRY_TEST_OVERLOAD_EP);
+		TestEqual(TEXT("The snapshot reads the overload back"), Resumed.OverloadEP, CARRY_TEST_OVERLOAD_EP);
 	});
 }
 
