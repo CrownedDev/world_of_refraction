@@ -160,14 +160,18 @@ The queue of questions only Crown can answer.
 - Tests: Generic + fire crystal → infused ability deals Fire; uninfused → Physical; Generic with a ring can cast its spells.
 
 ### D-008 — Do gear effects update when swapping mid-combat?
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-081
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-081
 **Question:** When a weapon is toggled or a ring switched mid-fight, does the new gear's effect apply?
 **Context:** Effects are armed once at combat start (`CombatOrchestrator.cpp:1163-1170`). After a swap, the old effects stay and the new ones never apply.
 **Options:**
 - A: re-gather on swap (old effects off, new on).
 - B: locked at combat start.
 **Recommendation:** A. Otherwise the Resonator ring switch is cosmetic.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A** (2026-10-26): effects follow the swap. (Crown believed this was already built; re-checked the same day, it isn't, see notes.)
+**Notes for Claude:**
+- Checked 2026-10-26: gear **stat bonuses** already follow a swap (`ToggleEquipment()` / `SetActiveRingIndex()` refresh cached stats, `LoadoutSystem.md`), but gear **effects** don't. They are applied and armed once in `PrepareAllLoadoutsForBattle` (`CombatOrchestrator.cpp:1181-1197`), and `SkillEffectSystem.md` says "No mid-combat re-application". Nothing listens to a swap.
+- On a weapon toggle or ring switch: remove the old gear's starting effects and disarm its conditionals, then apply/arm the new gear's (same `GetActiveEffectsGathered` / `GetActiveConditionalEffectsGathered` calls). Don't touch effects from skills or enemies.
+- Tests: swap away removes the old ring's effect; swap back restores it once (no stacking).
 
 ### D-009 — Do stones and fusions on rings work?
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-082
