@@ -918,6 +918,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _pending (try it in PIE first: `docs/PIE/B-156.md`)_
 **Notes for Claude:** _optional_
 
+### D-079 — The hub and the story
+**Status:** ANSWERED (in progress: more parts as Crown answers) · **Raised:** 2026-10-26 · **Blocks:** — (hub content, story, NPCs)
+**Context:** the hub's function is designed (one hub, Nightreign Roundtable model; service NPCs Blacksmith, Jeweler, Stone Smith, Spiritualist, ability/spell shops: `Resources_Design.md` "SUPERSEDED — collapsed to ONE hub", "Hub NPCs", "Hub/Trial Merchants"). Not designed: the hub's place in the story and how the story unfolds.
+**Answer (Crown):**
+- **(1) The hub is fixed (A)** (2026-10-26). Progress-as-you-remember (B) shows up in other ways, not by rebuilding the hub.
+- **(2) The premise:** the hub is **the Void Realm**. The characters went to a **bar**, passed out after drinking **void-spiked drinks**, and woke up in the Void Realm **with no memories**. **V is their guide.**
+**Notes for Claude:** V is also every mob enemy (D-069); how the guide V and the enemy V relate is the next question. Record further answers here; write `docs/Design/HubAndStory.md` when complete.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
