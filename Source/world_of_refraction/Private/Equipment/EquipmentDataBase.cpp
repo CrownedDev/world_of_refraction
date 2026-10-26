@@ -8,6 +8,11 @@
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Skills/Effects/EffectIdentity.h"
+#include "Character/CharacterData.h"
+#include "Debug/Skills/SkillEffectDebug.h"
+#include "WoRLog.h"
+
+#define LOCTEXT_NAMESPACE "EquipmentDataBase"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEquipmentBonusEditor, Log, All);
 
@@ -271,12 +276,18 @@ TArray<FSkillEffect> UEquipmentDataBase::GetConditionalEffects() const
     return Result;
 }
 
-TArray<FGatheredEffect> UEquipmentDataBase::GetStartingEffectsGathered() const
+TArray<FGatheredEffect> UEquipmentDataBase::GetStartingEffectsGathered(const UCharacterData *Wearer) const
 {
     TArray<FGatheredEffect> Result;
     // The item is the source of its effects (D-053): another item with the same definition adds its own.
     const int32 ItemSourceKey = EffectIdentity::MakeSourceKey(GetUniqueID(), GetName());
-    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    // B-192: the bound bonus joins the item's own effects only on its owner (D-033).
+    TArray<TObjectPtr<UEffectDefinition>> Defs = ReferencedEffects;
+    if (IsBoundBonusActive(Wearer))
+    {
+        Defs.Append(BoundEffects);
+    }
+    for (const TObjectPtr<UEffectDefinition> &Def : Defs)
     {
         if (!Def)
         {
@@ -294,12 +305,18 @@ TArray<FGatheredEffect> UEquipmentDataBase::GetStartingEffectsGathered() const
     return Result;
 }
 
-TArray<FGatheredEffect> UEquipmentDataBase::GetConditionalEffectsGathered() const
+TArray<FGatheredEffect> UEquipmentDataBase::GetConditionalEffectsGathered(const UCharacterData *Wearer) const
 {
     TArray<FGatheredEffect> Result;
     // The item is the source of its effects (D-053): another item with the same definition adds its own.
     const int32 ItemSourceKey = EffectIdentity::MakeSourceKey(GetUniqueID(), GetName());
-    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    // B-192: the bound bonus joins the item's own effects only on its owner (D-033).
+    TArray<TObjectPtr<UEffectDefinition>> Defs = ReferencedEffects;
+    if (IsBoundBonusActive(Wearer))
+    {
+        Defs.Append(BoundEffects);
+    }
+    for (const TObjectPtr<UEffectDefinition> &Def : Defs)
     {
         if (!Def)
         {
@@ -315,6 +332,50 @@ TArray<FGatheredEffect> UEquipmentDataBase::GetConditionalEffectsGathered() cons
         }
     }
     return Result;
+}
+
+bool UEquipmentDataBase::IsBoundBonusActive(const UCharacterData *Wearer) const
+{
+    return BoundOwner && Wearer == BoundOwner;
+}
+
+FText UEquipmentDataBase::GetBoundBonusText(const UCharacterData *Wearer) const
+{
+    if (!IsBoundBonusActive(Wearer) || BoundEffects.IsEmpty())
+    {
+        return FText::GetEmpty();
+    }
+    TArray<FString> Lines;
+    for (const UEffectDefinition *Def : BoundEffects)
+    {
+        if (!Def)
+        {
+            continue;
+        }
+        for (const FSkillEffect &Effect : Def->Effects)
+        {
+            // TODO(D-031, D-061): the localised nested description once it exists; the debug line for now.
+            Lines.Add(SkillEffectDebug::DescribeEffect(Effect));
+        }
+    }
+    return FText::Format(LOCTEXT("BoundBonus", "Bound bonus ({0}): {1}"), FText::FromString(BoundOwner->Name),
+                         FText::FromString(FString::Join(Lines, TEXT("; "))));
+}
+
+FString UEquipmentDataBase::GetBoundGearString() const
+{
+    TArray<FString> Lines;
+    for (const UEffectDefinition *Def : BoundEffects)
+    {
+        Lines.Add(Def ? FString::Printf(TEXT("%s (%d effect(s))"), *Def->GetName(), Def->Effects.Num()) : TEXT("<null>"));
+    }
+    return FString::Printf(TEXT("%s: bound to %s | bound effects [%s]"), *Name,
+                           BoundOwner ? *BoundOwner->Name : TEXT("nobody"), *FString::Join(Lines, TEXT(", ")));
+}
+
+void UEquipmentDataBase::PrintBoundGear() const
+{
+    UE_LOG(LogWoR, Log, TEXT("%s"), *GetBoundGearString());
 }
 
 FEquipmentStatBonus UEquipmentDataBase::GetCombinedStatBonus() const
@@ -366,6 +427,20 @@ EDataValidationResult UEquipmentDataBase::IsDataValid(FDataValidationContext &Co
     if (Name.IsEmpty())
     {
         Context.AddWarning(FText::FromString(TEXT("Equipment must have a unique name")));
+    }
+
+    // B-192: a bound bonus needs an owner, and a definition in both lists would apply twice.
+    if (!BoundEffects.IsEmpty() && !BoundOwner)
+    {
+        Context.AddWarning(FText::FromString(TEXT("BoundEffects are set but BoundOwner is empty: nobody gets them")));
+    }
+    for (const TObjectPtr<UEffectDefinition> &Def : BoundEffects)
+    {
+        if (Def && ReferencedEffects.Contains(Def))
+        {
+            Context.AddWarning(FText::FromString(FString::Printf(
+                TEXT("%s is in both ReferencedEffects and BoundEffects"), *Def->GetName())));
+        }
     }
 
     const int32 MaxSpells = GetMaxSpells();
@@ -431,3 +506,5 @@ EDataValidationResult UEquipmentDataBase::IsDataValid(FDataValidationContext &Co
 }
 
 #endif
+
+#undef LOCTEXT_NAMESPACE

@@ -4221,6 +4221,8 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
     TArray<FGatheredEffect> Result;
 
     const FCombatLoadout Loadout = GetActiveLoadout();
+    // B-192: bound gear adds its bonus only on its owner.
+    const UCharacterData *Wearer = GetOwnerCharacterData();
 
     switch (GetCharacterClass())
     {
@@ -4230,18 +4232,18 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
         {
             if (UWeaponData *Weapon = GetActiveWeapon())
             {
-                Result.Append(Weapon->GetStartingEffectsGathered());
+                Result.Append(Weapon->GetStartingEffectsGathered(Wearer));
             }
         }
         else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
         {
             if (URingData *Ring = GetPrimaryRing())
             {
-                Result.Append(Ring->GetStartingEffectsGathered());
+                Result.Append(Ring->GetStartingEffectsGathered(Wearer));
             }
             if (UWeaponData *Weapon = GetActiveWeapon())
             {
-                Result.Append(Weapon->GetStartingEffectsGathered());
+                Result.Append(Weapon->GetStartingEffectsGathered(Wearer));
             }
         }
         break;
@@ -4251,13 +4253,13 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
     {
         if (URingData *Ring = GetActiveRing())
         {
-            Result.Append(Ring->GetStartingEffectsGathered());
+            Result.Append(Ring->GetStartingEffectsGathered(Wearer));
         }
         if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
         {
             if (UWeaponData *Weapon = GetPrimaryWeapon())
             {
-                Result.Append(Weapon->GetStartingEffectsGathered());
+                Result.Append(Weapon->GetStartingEffectsGathered(Wearer));
             }
         }
         break;
@@ -4270,14 +4272,14 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
         {
             if (UWeaponData *Weapon = GetPrimaryWeapon())
             {
-                Result.Append(Weapon->GetStartingEffectsGathered());
+                Result.Append(Weapon->GetStartingEffectsGathered(Wearer));
             }
         }
         else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
         {
             if (URingData *Ring = GetPrimaryRing())
             {
-                Result.Append(Ring->GetStartingEffectsGathered());
+                Result.Append(Ring->GetStartingEffectsGathered(Wearer));
             }
         }
         break;
@@ -4301,6 +4303,8 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
     TArray<FGatheredEffect> Result;
 
     const FCombatLoadout Loadout = GetActiveLoadout();
+    // B-192: bound gear adds its bonus only on its owner.
+    const UCharacterData *Wearer = GetOwnerCharacterData();
 
     switch (GetCharacterClass())
     {
@@ -4310,18 +4314,18 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
         {
             if (UWeaponData *Weapon = GetActiveWeapon())
             {
-                Result.Append(Weapon->GetConditionalEffectsGathered());
+                Result.Append(Weapon->GetConditionalEffectsGathered(Wearer));
             }
         }
         else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
         {
             if (URingData *Ring = GetPrimaryRing())
             {
-                Result.Append(Ring->GetConditionalEffectsGathered());
+                Result.Append(Ring->GetConditionalEffectsGathered(Wearer));
             }
             if (UWeaponData *Weapon = GetActiveWeapon())
             {
-                Result.Append(Weapon->GetConditionalEffectsGathered());
+                Result.Append(Weapon->GetConditionalEffectsGathered(Wearer));
             }
         }
         break;
@@ -4331,13 +4335,13 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
     {
         if (URingData *Ring = GetActiveRing())
         {
-            Result.Append(Ring->GetConditionalEffectsGathered());
+            Result.Append(Ring->GetConditionalEffectsGathered(Wearer));
         }
         if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
         {
             if (UWeaponData *Weapon = GetPrimaryWeapon())
             {
-                Result.Append(Weapon->GetConditionalEffectsGathered());
+                Result.Append(Weapon->GetConditionalEffectsGathered(Wearer));
             }
         }
         break;
@@ -4350,14 +4354,14 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
         {
             if (UWeaponData *Weapon = GetPrimaryWeapon())
             {
-                Result.Append(Weapon->GetConditionalEffectsGathered());
+                Result.Append(Weapon->GetConditionalEffectsGathered(Wearer));
             }
         }
         else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
         {
             if (URingData *Ring = GetPrimaryRing())
             {
-                Result.Append(Ring->GetConditionalEffectsGathered());
+                Result.Append(Ring->GetConditionalEffectsGathered(Wearer));
             }
         }
         break;
