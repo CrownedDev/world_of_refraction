@@ -157,19 +157,19 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 		return;
 	}
 	// An Execution turn (a ritual firing) has no turn-start broadcast: frame whoever acts.
-	if (Executor && Executor != ViewedActor.Get())
+	const bool bNewActor = Executor && Executor != ViewedActor.Get();
+	if (bNewActor)
 	{
 		ViewedActor = Executor;
-		ShowTurnView();
 	}
-	if (bCameraMovementOff)
-	{
-		return;
-	}
-	ULevelSequence *Sequence = ResolveSequence(Action);
+	ULevelSequence *Sequence = bCameraMovementOff ? nullptr : ResolveSequence(Action);
 	if (!Sequence)
 	{
 		// No sequence for this action: the turn view stays (B-157 adds the templates).
+		if (bNewActor)
+		{
+			ShowTurnView();
+		}
 		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] No sequence for %s's action; keeping the turn view"), *GetNameSafe(Executor));
 		return;
 	}
