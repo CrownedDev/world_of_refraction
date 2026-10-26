@@ -8,6 +8,7 @@
 #include "WoRTestWorld.h"
 #include "Currency/CurrencyComponent.h"
 #include "Currency/EconomyYield.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/FFusionAttachment.h"
 #include "Equipment/Durability/CrystalBreak.h"
 #include "Equipment/Rings/RingData.h"
@@ -153,6 +154,22 @@ void FCrystalBreakSpec::Define()
 		TestTrue(TEXT("the gem half is worth something"), HalfYield > 0);
 		TestEqual(TEXT("gem half pays half"), Currency->GetEssenceType(EconomyYield::ResolveEssenceType(CRYSTAL_BREAK_FUSION_GEM)), HalfYield);
 		TestEqual(TEXT("stone half pays nothing"), Currency->GetEssenceType(EconomyYield::ResolveEssenceType(CRYSTAL_BREAK_FUSION_STONE)), StoneEssenceBefore);
+	});
+
+	It("keeps a broken evolution: equipment is never lost to wear (Q-159)", [this]()
+	{
+		Spawn(CRYSTAL_BREAK_INTACT_DURABILITY, CRYSTAL_BREAK_INTACT_DURABILITY);
+		UEvolutionItemData *Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+		Evolution->Breakability = EBreakability::Breakable;
+		FRuntimeAttachedItem Broken;
+		Broken.Kind = EAttachedItemKind::Evolution;
+		Broken.Evolution.Item = Evolution;
+		Broken.Evolution.CurrentDurability = CRYSTAL_BREAK_BROKEN_DURABILITY;
+		Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryWeapon.WeaponEntry.AttachedItem = Broken;
+		TestTrue(TEXT("it is broken"), Loadout->GetCrystalEntryByHolder(Weapon).IsBroken());
+
+		TestEqual(TEXT("nothing destroyed"), CrystalBreak::DestroyBrokenOn(Actor), 0);
+		TestTrue(TEXT("still on the weapon"), Loadout->GetCrystalEntryByHolder(Weapon).Evolution.Item == Evolution);
 	});
 
 	It("leaves intact crystals alone", [this]()
