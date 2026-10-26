@@ -186,6 +186,8 @@ Later groups follow `UI_ScreenInventory.md` order; CC adds their rows when B-109
 | B-140 | Async preload of equipped skills' VFX at combat start, released at combat end; no `LoadSynchronous` at cast (`ActionExecutor.cpp:3452-3454, 3511, 3620, 5320, 5827`) | CC | M | B-030, B-142 | First cast has no load hitch (PIE / Insights); `LoadSynchronous` only as a logged fallback | BLOCKED (B-030, B-142) |
 | B-141 | Per-hit logs to `Verbose` on `LogWoRCombat` (`ActionExecutor.cpp:584-591, 1744, 2635-2644` and the like) | CC | S | B-006 | A normal fight logs no per-hit Warning/Display lines | TODO |
 | B-142 | Unreal Insights baseline of the demo fight (CPU frame, game thread, loads), saved under `docs/analysis/` | Crown | S | — | Trace summary committed | TODO |
+| B-143 | **V's void material** for Manny/Quinn (D-069, `Design/Enemies.md`): violet body base, **galaxy pattern** on head and hands (panning/parallax galaxy texture, fresnel rim highlight), gold star tie detail, dark smoke wisps (Niagara). One master material + instances per element tint. Show screenshots to Crown | CC+UE | M | B-004 | V mob visible in PIE on the Manny/Quinn skeleton; Crown approves the look | TODO |
+| B-144 | **Mob clothing research (no editor):** find suit / clothing assets compatible with the UE5 Manny/Quinn skeleton (Fab, free or paid, licence fit for a commercial game) for V's black suit, plus a few variations (elite V, element trims). Write `docs/analysis/MobClothing.md`: options, cost, licence, retarget effort; Crown picks | CC | S | — | Doc with 3-5 options and a recommendation | TODO |
 
 ## Later (not scheduled)
 - Co-op: replicated combat state, intent RPCs, `ServerTravel`, arena as streamed level instance (`ArchitectureReview_2026-10.md` §1.6, §1.9).
