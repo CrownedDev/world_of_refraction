@@ -952,7 +952,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### D-081 — Equipping: when is a pick refused, and when are other parts dropped?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-159) · **Blocks:** B-159
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-159) · **Blocks:** B-159
 **Question:** D-073 says a loadout change that would break a rule is "refused or dropped right there". Which one, when?
 **Context:**
 - Some changes only add one thing: assign an ability or a spell, equip a weapon or ring. Refusing it is clean.
@@ -964,7 +964,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** refuse anything that would leave the loadout invalid; the player removes the clashing parts first.
 - **C** never refuse; always drop what breaks, with a message.
 **Recommendation:** A, because swapping gear is the common case and B makes it a chore of manual removals, while C lets a single bad pick (a Spear ability on a Sword) look like it worked. The deckbuilder has no loadout to borrow from (its decks are card lists).
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A** (2026-10-26): a pick that is itself invalid is **refused** with a reason ("Spear skills need a Spear"); a change that breaks parts you already have **goes through and drops them**, with a message naming each ("Fire Bolt removed: needs a Fire crystal").
 **Notes for Claude:** _optional_
 
 ## Parked
