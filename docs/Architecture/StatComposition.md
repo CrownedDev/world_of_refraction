@@ -83,7 +83,7 @@ base value (no investment) → stat cap (maxed stat alone) → gear ceiling (gea
 | Raw Damage | ×1.0 | ×1.5 | ×2.0 | multiplier |
 | Spell Damage | ×1.0 | ×1.5 | ×2.0 | multiplier |
 | Status Multiplier | ×1.0 | ×1.5 | ×2.0 | multiplier |
-| Crit Damage | ×1.0 | ×1.5 | ×2.0 | multiplier |
+| Crit Damage | ×1.0 | ×1.5 | ×2.5 | multiplier |
 | Action Speed (anim play-rate) | ×1.0 | ×1.5 | ×2.0 | multiplier |
 | Spell Speed (cast play-rate) | ×1.0 | ×1.5 | ×2.0 | multiplier |
 | Turn Speed | 10 | 15 | 20 | scalar |
@@ -182,7 +182,7 @@ Two distinct stones — a **Crit Damage stone** (boosts the renamed CritDamage s
 
 - **5f-A — attached Crit Damage stone** (`8dfe29c1`, 1 file): `GetCritDamageMultiplier` now reads
   `GetAttachedStonePercent(.., CritDamage)` (mirrors `GetStoneRawDamageFactor`). The mapping existed but
-  was **inert** (no reader); now an attached CritStone multiplies the capped stat toward ×2.0. Inert when
+  was **inert** (no reader); now an attached CritStone multiplies the capped stat toward ×2.5 (D-034). Inert when
   no CritStone attached.
 - **5f-B — Luck stone** (`e85ef7d5`, 5 files): appended `ECrystalType::LuckStone (=26)` →
   `ESubStat::Luck`, plus `IsAugmentStoneType` + `StoneTargetStat` + `GetStoneBasePercent` (shared curve) +
