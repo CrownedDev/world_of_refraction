@@ -86,6 +86,10 @@ The deckbuilder (`CrownedDev/wor-deckbuilder`, a local clone on Crown's PC) is t
 - Never copy a rule in without Crown's answer. Where the two games already differ, flag it as a decision; don't "fix" either one.
 - The deckbuilder's names are C#/card names (`Affinity`, "Refraction", "Refractor"); translate them to this codebase's names when citing.
 
+## Recommendations — back them with what worked (Crown, 2026-10-26)
+
+When a `Q-<job>` or `D-xxx` entry recommends an answer, **base the recommendation on proven, well-received examples from other games** (what players liked and what worked), named in the entry with a source where one can be found (e.g. "Expedition 33's parry gives AP; widely praised"). Prefer this over reasoning from scratch. **Exception: questions about this game's lore and story** are Crown's alone; give options, no outside recommendation. The deckbuilder rule above still comes first where it has a rule.
+
 ## Repo-specific notes
 
 - **LFS coverage** (2026-10-25): `.gitattributes` LFS-tracks `*.uasset`, `*.umap` and source art/audio/fonts (`png jpg jpeg tga psd exr fbx ttf otf wav ogg mp3`). Only originals of assets the game actually uses are committed (under `SourceArt/`); full vendor packs stay out of git (`docs/Design/UI_DeckbuilderReuse.md` §4).

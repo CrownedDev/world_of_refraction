@@ -11,6 +11,7 @@ Goal: Crown answers questions quickly; the answers land in the doc so the local 
 2. List the `OPEN` items in one short line each, with what each blocks, and ask which to start with. Default: the ones that block the most jobs.
 3. **One decision at a time:**
    - Explain it in plain words: what happens today, the options, your recommendation and why.
+   - Back the recommendation with **proven, well-received examples from other games** (what worked), unless it's a lore question (then no recommendation).
    - No jargon. If a term is unavoidable, explain it in a few words.
    - If Crown wants to think, mark it skipped and move on.
 4. **Recording each answer:**
