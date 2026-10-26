@@ -3,6 +3,7 @@
 #include "Currency/EconomyService.h"
 #include "Currency/EconomyYield.h"
 #include "Currency/CurrencyComponent.h"
+#include "Currency/CurrencyWallet.h"
 #include "WoRAuthority.h"
 #include "Character/CharacterDataComponent.h" // BuyWorldStat reach target (§7 C4)
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
@@ -47,12 +48,25 @@ namespace
         return true;
     }
 
+    template <class TComponent>
+    TComponent *EconomyFindComponent(AActor *Owner)
+    {
+        return Owner->FindComponentByClass<TComponent>();
+    }
+
+    /** D-046 (B-151): currency comes from the player's one wallet, not the character. */
+    template <>
+    UCurrencyComponent *EconomyFindComponent<UCurrencyComponent>(AActor *Owner)
+    {
+        return CurrencyWallet::FindFor(Owner);
+    }
+
     /** Finds each required component on Owner (the service couples them; they don't couple
      *  to each other). False, logging the missing ones, when any is absent. */
     template <class... TComponents>
     bool EconomyFindComponents(AActor *Owner, const TCHAR *Op, TComponents *&...OutComponents)
     {
-        ((OutComponents = Owner->FindComponentByClass<TComponents>()), ...);
+        ((OutComponents = EconomyFindComponent<TComponents>(Owner)), ...);
         if ((OutComponents && ...))
         {
             return true;
@@ -1392,7 +1406,7 @@ FString UEconomyService::GetEconomyString(AActor *Owner) const
     // Read-only resolution of the same components the dismantle / level / downgrade paths require.
     // A missing component is the dominant cause of those calls returning false, so the checklist is
     // the economy-specific diagnostic the wallet line alone does not give.
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    UCurrencyComponent *Currency = CurrencyWallet::FindFor(Owner);
     UCrystalInventoryComponent *CrystalInv = Owner->FindComponentByClass<UCrystalInventoryComponent>();
     UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
     UEvolutionInventoryComponent *EvoInv = Owner->FindComponentByClass<UEvolutionInventoryComponent>();

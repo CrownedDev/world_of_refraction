@@ -12,6 +12,7 @@
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Currency/CurrencyComponent.h"
+#include "Currency/CurrencyWallet.h"
 #include "Currency/EconomyService.h"
 #include "Currency/EconomyYield.h"
 
@@ -71,7 +72,7 @@ namespace
 	 *  the socket (attach consumed it from the pool), so grant directly with no pool removal. */
 	void CrystalBreakYieldGem(AActor *Actor, const FCrystalId &CrystalId, const FString &CrystalName)
 	{
-		UCurrencyComponent *Currency = Actor->FindComponentByClass<UCurrencyComponent>();
+		UCurrencyComponent *Currency = CurrencyWallet::FindFor(Actor);
 		if (!Currency)
 		{
 			return;
@@ -88,7 +89,7 @@ namespace
 	 *  Half-per-gem discourages fuse-then-break for value. */
 	void CrystalBreakYieldFusion(AActor *Actor, const FRuntimeAttachedItem &Attachment)
 	{
-		UCurrencyComponent *Currency = Actor->FindComponentByClass<UCurrencyComponent>();
+		UCurrencyComponent *Currency = CurrencyWallet::FindFor(Actor);
 		if (!Currency)
 		{
 			return;

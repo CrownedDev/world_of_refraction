@@ -9,6 +9,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Currency/CurrencyComponent.h"
+#include "Currency/CurrencyWallet.h"
 #include "Currency/EconomyService.h"
 #include "Currency/EconomyYield.h" // scaling-grade letters for the detail panel
 #include "Engine/GameInstance.h"
@@ -247,7 +248,7 @@ void UShopWindowWidget::SetMerchant(UMerchantData *Merchant, APawn *PurchaserPaw
 
     ActiveMerchant = Merchant;
     Purchaser = PurchaserPawn;
-    PurchaserCurrency = PurchaserPawn ? PurchaserPawn->FindComponentByClass<UCurrencyComponent>() : nullptr;
+    PurchaserCurrency = CurrencyWallet::FindFor(PurchaserPawn); // D-046: the player's one wallet
 
     if (UCurrencyComponent *Currency = PurchaserCurrency.Get())
     {

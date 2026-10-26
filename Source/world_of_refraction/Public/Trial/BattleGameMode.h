@@ -29,6 +29,9 @@ class WORLD_OF_REFRACTION_API ABattleGameMode : public AGameModeBase
     GENERATED_BODY()
 
 public:
+    /** Picks AWoRPlayerState: the player's wallet (D-046, B-151). */
+    ABattleGameMode();
+
     /** Pawn class spawned per LocalParty (player-side) CharacterData. */
     UPROPERTY(EditDefaultsOnly, Category = "Battle")
     TSoftClassPtr<APawn> DefaultPlayerPawnClass;
