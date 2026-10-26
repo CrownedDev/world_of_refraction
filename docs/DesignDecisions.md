@@ -1074,6 +1074,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Higher tiers cost many more actions**, e.g. an **S-rank skill needs 7 actions**: you wait turns, use items and effects to build up to it. Replaces the 1/2/3 costs above. A one-per-tier ladder (F 1, E 2, D 3, C 4, B 5, A 6, S 7) is the natural reading of "S = 7"; confirm the exact ladder with Crown.
 - So Max Actions becomes the key build stat for big skills, and action-gain effects and items become valuable.
 
+**Simplified (Crown, 2026-10-26, latest; still discussion only), replacing the pool/pip ideas above:** the action-point pool was over-engineering.
+- **Each turn: one battle action + one utility action**, so a turn is more tactical than one move. Battle = attack, skill, spell, Defend; utility = smaller moves (e.g. item, switch weapon/ring, move row; exact list to settle).
+- **Energy stays, with low values** (deckbuilder-style small numbers) as the cost of skills.
+- No action-point costs by tier. Open: whether Turn Speed removal / Reflex pips (above) still stand under this simpler model.
+
 **Notes for Claude, open details to bring to Crown (as questions in the plan, B-170):**
 - Pip numbers: base pips, Reflex thresholds, the cap (suggested: 1 base, max 3).
 - What Emerald's bonus turn (D-052) becomes: +1 pip, or an extra turn in the belt.
