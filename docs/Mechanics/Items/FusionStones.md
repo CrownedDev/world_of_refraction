@@ -38,14 +38,11 @@ effects-only — the value is in keeping both halves' effects on one slot.)
 A fusion stone is **attach-only** — there's no consumable form. Identical fusions **stack** as the
 same item (the order you fused the two halves doesn't matter).
 
-## ⚠️ Planned: fusion stones on rings
+## Fusion stones on rings
 
-> **This is upcoming, not current.** **Today, rings reject all augment and fusion stones.**
->
-> **Planned:** a **fusion stone that contains an elemental crystal** will be allowed on a ring —
-> the crystal supplies the spells the ring uses. A **bare stat stone** or an **ability stone**
-> stays **weapon-only** even after this change (a ring has no weapon damage and no use for ability
-> slots). Treat ring-mounted fusion stones as a **future feature**, not something you can do now.
+A ring accepts an **elemental fusion** (a stat stone fused with a crystal): the crystal supplies the
+ring's element and spells (D-009, CL-28). A **bare stat stone**, an **ability stone** or a **two-stone
+fusion** stays **weapon-only** (a ring has no weapon damage and no use for ability slots).
 
 ## See also
 
