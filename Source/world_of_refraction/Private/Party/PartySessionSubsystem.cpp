@@ -44,6 +44,20 @@ namespace PartySessionDebug
 		PartySession->SetLetAIFinish(FCString::Atoi(*Args[0]) != 0);
 	}
 
+	void SetFormation(const TArray<FString> &Args, UWorld *World)
+	{
+		UPartySessionSubsystem *PartySession = FindPartySession(World);
+		const UEnum *RowEnum = StaticEnum<ECombatRow>();
+		const int64 RowValue = Args.Num() >= 3 && RowEnum ? RowEnum->GetValueByNameString(Args[1]) : INDEX_NONE;
+		if (!PartySession || RowValue == INDEX_NONE)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[PartySession] Usage: wor.Party.SetFormation <slot> <Back|Middle|Front> <column 0-2>"));
+			return;
+		}
+		PartySession->SetMemberFormation(FCString::Atoi(*Args[0]), static_cast<ECombatRow>(RowValue), FCString::Atoi(*Args[2]));
+		PartySession->LogPartyState();
+	}
+
 	void Print(UWorld *World)
 	{
 		if (const UPartySessionSubsystem *PartySession = FindPartySession(World))
@@ -62,6 +76,11 @@ static FAutoConsoleCommandWithWorldAndArgs GPartyLetAIFinishCommand(
 	TEXT("wor.Party.LetAIFinish"),
 	TEXT("wor.Party.LetAIFinish <0|1> - 1: the AI finishes a fight once your Player members are down; 0: you take over (D-045)."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&PartySessionDebug::SetLetAIFinish));
+
+static FAutoConsoleCommandWithWorldAndArgs GPartySetFormationCommand(
+	TEXT("wor.Party.SetFormation"),
+	TEXT("wor.Party.SetFormation <slot> <Back|Middle|Front> <column 0-2> - the member's start cell (D-042); a taken cell swaps the two."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&PartySessionDebug::SetFormation));
 
 static FAutoConsoleCommandWithWorld GPartyPrintCommand(
 	TEXT("wor.Party.Print"),

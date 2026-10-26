@@ -4,6 +4,7 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "Character/CharacterData.h"
+#include "Combat/Grid/CombatGridConstants.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
@@ -91,6 +92,16 @@ TSharedRef<SWidget> UPartyControlWidget::RebuildWidget()
 		SlotButtons[1]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot1Clicked);
 		SlotButtons[2]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot2Clicked);
 
+		for (int32 SlotIndex = 0; SlotIndex < PartyConstants::MAX_PARTY_MEMBERS; ++SlotIndex)
+		{
+			UButton *Button = nullptr;
+			FormationTexts.Add(PartyControlBuild::AddButton(WidgetTree, Box, Button));
+			FormationButtons.Add(Button);
+		}
+		FormationButtons[0]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot0FormationClicked);
+		FormationButtons[1]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot1FormationClicked);
+		FormationButtons[2]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot2FormationClicked);
+
 		UButton *FallButton = nullptr;
 		FallSettingText = PartyControlBuild::AddButton(WidgetTree, Box, FallButton);
 		FallButton->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleFallSettingClicked);
@@ -142,6 +153,23 @@ void UPartyControlWidget::Refresh()
 		SlotTexts[SlotIndex]->SetText(FText::Format(LOCTEXT("SlotRow", "{0}: played by {1}"), Name, Control));
 	}
 
+	for (int32 SlotIndex = 0; SlotIndex < FormationTexts.Num(); ++SlotIndex)
+	{
+		const FPartyMember *Member = Party && Party->Members.IsValidIndex(SlotIndex) ? &Party->Members[SlotIndex] : nullptr;
+		FormationButtons[SlotIndex]->SetVisibility(Member ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		if (!Member)
+		{
+			continue;
+		}
+		const FText Name = Member->CharacterData ? FText::FromString(Member->CharacterData->Name) : LOCTEXT("NoData", "<no data>");
+		const FText Cell = Member->HasFormation()
+							   ? FText::Format(LOCTEXT("Cell", "{0}, column {1}"),
+											   StaticEnum<ECombatRow>()->GetDisplayNameTextByValue(static_cast<int64>(Member->PreferredRow)),
+											   FText::AsNumber(Member->PreferredColumn))
+							   : LOCTEXT("NoCell", "auto");
+		FormationTexts[SlotIndex]->SetText(FText::Format(LOCTEXT("FormationRow", "{0} starts: {1}"), Name, Cell));
+	}
+
 	if (FallSettingText)
 	{
 		const bool bLetAIFinish = PartySession && PartySession->GetLetAIFinish();
@@ -160,6 +188,13 @@ FString UPartyControlWidget::GetPartyControlString() const
 			Out += FString::Printf(TEXT("\n  [%d] %s"), SlotIndex, *SlotTexts[SlotIndex]->GetText().ToString());
 		}
 	}
+	for (int32 SlotIndex = 0; SlotIndex < FormationTexts.Num(); ++SlotIndex)
+	{
+		if (FormationButtons[SlotIndex]->GetVisibility() != ESlateVisibility::Collapsed)
+		{
+			Out += FString::Printf(TEXT("\n  [%d] %s"), SlotIndex, *FormationTexts[SlotIndex]->GetText().ToString());
+		}
+	}
 	if (FallSettingText)
 	{
 		Out += TEXT("\n  ") + FallSettingText->GetText().ToString();
@@ -174,6 +209,32 @@ void UPartyControlWidget::ToggleSlot(int32 SlotIndex)
 		PartySession->SetMemberPlayerControlled(SlotIndex, !PartySession->IsMemberPlayerControlled(SlotIndex));
 	}
 }
+
+void UPartyControlWidget::CycleFormation(int32 SlotIndex)
+{
+	UPartySessionSubsystem *PartySession = PartyControlBuild::PartySessionOf(this);
+	if (!PartySession)
+	{
+		return;
+	}
+	// Unplaced starts the cycle at Back/0; a placed member steps to the next cell.
+	ECombatRow Row = ECombatRow::Back;
+	int32 Column = 0;
+	int32 CellIndex = 0;
+	if (PartySession->GetMemberFormation(SlotIndex, Row, Column))
+	{
+		const int32 Current = static_cast<int32>(Row) * CombatGridConstants::GRID_COLUMNS + Column;
+		CellIndex = (Current + 1) % CombatGridConstants::POSITIONS_PER_TEAM;
+	}
+	PartySession->SetMemberFormation(SlotIndex, static_cast<ECombatRow>(CellIndex / CombatGridConstants::GRID_COLUMNS),
+									 CellIndex % CombatGridConstants::GRID_COLUMNS);
+}
+
+void UPartyControlWidget::HandleSlot0FormationClicked() { CycleFormation(0); }
+
+void UPartyControlWidget::HandleSlot1FormationClicked() { CycleFormation(1); }
+
+void UPartyControlWidget::HandleSlot2FormationClicked() { CycleFormation(2); }
 
 void UPartyControlWidget::HandleSlot1Clicked() { ToggleSlot(1); }
 

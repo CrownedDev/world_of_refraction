@@ -1,6 +1,6 @@
 // PartyControlWidget.h
-// PLACEHOLDER UI (B-071): who plays each party member in battle (D-004) and what
-// happens when your fighters fall (D-045). Plain buttons built in C++, opened with
+// PLACEHOLDER UI (B-071): who plays each party member in battle (D-004), what
+// happens when your fighters fall (D-045) and each member's start cell (B-149, D-042). Plain buttons built in C++, opened with
 // the console command wor.UI.PartyControl. Replaced by the CommonUI party and
 // Settings screens (D-024).
 //
@@ -49,6 +49,15 @@ private:
 	void HandleSlot2Clicked();
 
 	UFUNCTION()
+	void HandleSlot0FormationClicked();
+
+	UFUNCTION()
+	void HandleSlot1FormationClicked();
+
+	UFUNCTION()
+	void HandleSlot2FormationClicked();
+
+	UFUNCTION()
 	void HandleFallSettingClicked();
 
 	UFUNCTION()
@@ -59,11 +68,20 @@ private:
 
 	void ToggleSlot(int32 SlotIndex);
 
+	/** Step the member to the next start cell (Back/Left .. Front/Right, wrapping). */
+	void CycleFormation(int32 SlotIndex);
+
 	UPROPERTY()
 	TArray<TObjectPtr<UTextBlock>> SlotTexts;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UButton>> SlotButtons;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UTextBlock>> FormationTexts;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UButton>> FormationButtons;
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> FallSettingText;
