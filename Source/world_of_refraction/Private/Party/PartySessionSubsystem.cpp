@@ -549,7 +549,7 @@ int32 UPartySessionSubsystem::ReviveFallenMembers()
 	int32 RevivedCount = 0;
 	for (FPartyMember &Member : Party->Members)
 	{
-		if (Member.IsFallen())
+		if (Member.IsFallen() && Member.CharacterData)
 		{
 			SetMemberVitalsFull(Member);
 			++RevivedCount;
@@ -557,6 +557,10 @@ int32 UPartySessionSubsystem::ReviveFallenMembers()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[PartySession] Revived %d fallen member(s)"), RevivedCount);
+	if (RevivedCount > 0)
+	{
+		OnPartyChanged.Broadcast(Party); // the party HUD re-reads vitals on it
+	}
 	return RevivedCount;
 }
 

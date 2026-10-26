@@ -257,10 +257,8 @@ void UPartyControlWidget::HandleReviveFallenClicked()
 {
 	if (UPartySessionSubsystem *PartySession = PartyControlBuild::PartySessionOf(this))
 	{
-		PartySession->ReviveFallenMembers();
+		PartySession->ReviveFallenMembers(); // OnPartyChanged refreshes this screen
 	}
-	Refresh();
-	UE_LOG(LogTemp, Log, TEXT("%s"), *GetPartyControlString());
 }
 
 void UPartyControlWidget::HandleCloseClicked()
