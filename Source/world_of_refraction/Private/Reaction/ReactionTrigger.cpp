@@ -27,6 +27,8 @@ namespace ReactionTriggerConstants
 	constexpr int32 MEMORY_BOSS_DAMAGE_EFFECT_ID = 191002;
 	/** One memory step on a boss's max HP and damage. TODO: tune. */
 	constexpr float MEMORY_BOSS_STEP_PERCENT = 15.0f;
+	/** Most steps memories can move one boss either way. TODO: tune. */
+	constexpr int32 MAX_MEMORY_BOSS_STEPS = 3;
 }
 
 namespace
@@ -162,6 +164,12 @@ int32 ReactionTriggers::ApplyFired(const TArray<FFiredReaction> &Fired)
 				{
 					continue;
 				}
+				if (EffectIndex > EffectIdentity::EFFECT_ID_SUBBAND_MAX || PayloadIndex > EffectIdentity::EFFECT_ID_SUBBAND_MAX)
+				{
+					UE_LOG(LogWoR, Warning, TEXT("[Reaction] %s: effect %d payload %d skipped (at most %d of each keep their ids apart)"),
+						   *Trigger.TriggerId.ToString(), EffectIndex, PayloadIndex, EffectIdentity::EFFECT_ID_SUBBAND_MAX + 1);
+					continue;
+				}
 				// TODO: TargetCount (an ally, all enemies) - for now the wearer or the faced character.
 				AActor *Target = Payload.Target == ETargetType::Enemy ? Reaction.Faced : Reaction.Wearer;
 				FActiveSkillEffect Runtime = FActiveSkillEffect::BuildRuntimeFromPayload(
@@ -183,55 +191,66 @@ int32 ReactionTriggers::ApplyFired(const TArray<FFiredReaction> &Fired)
 
 int32 ReactionTriggers::ApplyMemoryBossModifiers(const TArray<TObjectPtr<UMemoryData>> &RunMemories, const TArray<AActor *> &Opposing)
 {
-	int32 Applied = 0;
-	for (const UMemoryData *Memory : RunMemories)
+	int32 Changed = 0;
+	for (AActor *Boss : Opposing)
 	{
-		if (!Memory)
+		const UCharacterData *BossData = GetReactionCharacter(Boss);
+		USkillEffectManager *Effects = GetReactionEffectManager(Boss);
+		if (!BossData || !Effects)
 		{
 			continue;
 		}
-		for (const FMemoryBossModifier &Modifier : Memory->BossModifiers)
+		// Every memory naming this boss adds up to one net change: weaken -1, strengthen +1.
+		int32 NetSteps = 0;
+		for (const UMemoryData *Memory : RunMemories)
 		{
-			for (AActor *Boss : Opposing)
+			for (const FMemoryBossModifier &Modifier : Memory ? Memory->BossModifiers : TArray<FMemoryBossModifier>())
 			{
-				if (!Modifier.Boss || GetReactionCharacter(Boss) != Modifier.Boss)
+				if (Modifier.Boss != BossData)
 				{
 					continue;
 				}
-				USkillEffectManager *Effects = GetReactionEffectManager(Boss);
-				const bool bWeaken = Modifier.Kind == EMemoryBossModifierKind::Weaken;
-				if (!Effects || (!bWeaken && Modifier.Kind != EMemoryBossModifierKind::Strengthen))
+				if (Modifier.Kind == EMemoryBossModifierKind::Weaken || Modifier.Kind == EMemoryBossModifierKind::Strengthen)
+				{
+					NetSteps += Modifier.Kind == EMemoryBossModifierKind::Weaken ? -1 : 1;
+				}
+				else
 				{
 					// TODO(B-193): SkipPhase / AddPhase change the boss's phases.
 					UE_LOG(LogWoR, Log, TEXT("[Reaction] Memory %s: %s on %s waits for boss phases (B-193)"),
 						   *Memory->GetMemoryId().ToString(), *UEnum::GetValueAsString(Modifier.Kind), *GetNameSafe(Boss));
-					continue;
 				}
-				FActiveSkillEffect HP = FActiveSkillEffect::CreatePersistent(TEXT("Memory (boss HP)"),
-					ReactionTriggerConstants::MEMORY_BOSS_HP_EFFECT_ID,
-					bWeaken ? ESkillEffectType::MaxHPDebuff : ESkillEffectType::MaxHPBuff,
-					ReactionTriggerConstants::MEMORY_BOSS_STEP_PERCENT);
-				HP.bFromGear = true;
-				FActiveSkillEffect Damage = FActiveSkillEffect::CreatePersistent(TEXT("Memory (boss damage)"),
-					ReactionTriggerConstants::MEMORY_BOSS_DAMAGE_EFFECT_ID,
-					bWeaken ? ESkillEffectType::DamageDebuff : ESkillEffectType::DamageBuff,
-					ReactionTriggerConstants::MEMORY_BOSS_STEP_PERCENT);
-				Damage.bFromGear = true;
-				Effects->ApplyEffect(Boss, HP);
-				Effects->ApplyEffect(Boss, Damage);
-				if (UCharacterDataComponent *CharComp = Boss->FindComponentByClass<UCharacterDataComponent>())
-				{
-					// Before the fight: the boss starts at its new full HP, like the trial's enemy strength.
-					CharComp->RecomputeMaxPools();
-					CharComp->CurrentHP = CharComp->MaxHP;
-				}
-				UE_LOG(LogWoR, Log, TEXT("[Reaction] Memory %s %s %s"), *Memory->GetMemoryId().ToString(),
-					   bWeaken ? TEXT("weakens") : TEXT("strengthens"), *GetNameSafe(Boss));
-				++Applied;
 			}
 		}
+		NetSteps = FMath::Clamp(NetSteps, -ReactionTriggerConstants::MAX_MEMORY_BOSS_STEPS,
+								ReactionTriggerConstants::MAX_MEMORY_BOSS_STEPS);
+		if (NetSteps == 0)
+		{
+			continue;
+		}
+		const bool bWeaken = NetSteps < 0;
+		const float Percent = FMath::Abs(NetSteps) * ReactionTriggerConstants::MEMORY_BOSS_STEP_PERCENT;
+		FActiveSkillEffect HP = FActiveSkillEffect::CreatePersistent(TEXT("Memory (boss HP)"),
+			ReactionTriggerConstants::MEMORY_BOSS_HP_EFFECT_ID,
+			bWeaken ? ESkillEffectType::MaxHPDebuff : ESkillEffectType::MaxHPBuff, Percent);
+		HP.bFromGear = true;
+		FActiveSkillEffect Damage = FActiveSkillEffect::CreatePersistent(TEXT("Memory (boss damage)"),
+			ReactionTriggerConstants::MEMORY_BOSS_DAMAGE_EFFECT_ID,
+			bWeaken ? ESkillEffectType::DamageDebuff : ESkillEffectType::DamageBuff, Percent);
+		Damage.bFromGear = true;
+		Effects->ApplyEffect(Boss, HP);
+		Effects->ApplyEffect(Boss, Damage);
+		if (UCharacterDataComponent *CharComp = Boss->FindComponentByClass<UCharacterDataComponent>())
+		{
+			// Before the fight: the boss starts at its new full HP, like the trial's enemy strength.
+			CharComp->RecomputeMaxPools();
+			CharComp->CurrentHP = CharComp->MaxHP;
+		}
+		UE_LOG(LogWoR, Log, TEXT("[Reaction] Memories %s %s by %.0f%%"), bWeaken ? TEXT("weaken") : TEXT("strengthen"),
+			   *GetNameSafe(Boss), Percent);
+		++Changed;
 	}
-	return Applied;
+	return Changed;
 }
 
 FString ReactionTriggers::GetTriggerString(const FReactionTrigger &Trigger)

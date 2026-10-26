@@ -59,7 +59,8 @@ public:
 	void PrintTriggers() const;
 };
 
-/** One reaction that fired this fight. */
+/** One reaction that fired this fight. Points into the trigger list FindFired was given: use it
+ *  before that list changes or goes away. */
 struct FFiredReaction
 {
 	const FReactionTrigger *Trigger = nullptr;
@@ -89,9 +90,9 @@ namespace ReactionTriggers
 	 *  dialogue. Returns the number of effects applied. */
 	int32 ApplyFired(const TArray<FFiredReaction> &Fired);
 
-	/** Memory boss changes for this fight: each run memory naming one of the Opposing combatants'
-	 *  characters weakens or strengthens it (one step); phase changes wait for B-193. Returns the
-	 *  number of changes applied. */
+	/** Memory boss changes for this fight: the run memories naming one of the Opposing combatants'
+	 *  characters add up (weaken -1, strengthen +1 step, capped) to one net change on it; phase
+	 *  changes wait for B-193. Returns the number of combatants changed. */
 	int32 ApplyMemoryBossModifiers(const TArray<TObjectPtr<UMemoryData>> &RunMemories, const TArray<AActor *> &Opposing);
 
 	FString GetTriggerString(const FReactionTrigger &Trigger);

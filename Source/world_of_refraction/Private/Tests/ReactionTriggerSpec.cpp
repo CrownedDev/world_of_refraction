@@ -157,6 +157,30 @@ void FReactionTriggerSpec::Define()
 		TestEqual(TEXT("It starts at full HP"), BossStats->CurrentHP, BossStats->MaxHP);
 		TestEqual(TEXT("The other is untouched"), OtherStats->MaxHP, OtherMaxHP);
 	});
+
+	It("adds up memories on one boss: weaken and strengthen cancel, two weakens go further", [this]()
+	{
+		AActor *Boss = TestWorld->SpawnCombatant(Lord, true);
+		UCharacterDataComponent *BossStats = Boss->FindComponentByClass<UCharacterDataComponent>();
+		const int32 BossMaxHP = BossStats->MaxHP;
+
+		UMemoryData *Weaken = NewObject<UMemoryData>(GetTransientPackage());
+		Weaken->BossModifiers.Add({Lord, EMemoryBossModifierKind::Weaken});
+		UMemoryData *Strengthen = NewObject<UMemoryData>(GetTransientPackage());
+		Strengthen->BossModifiers.Add({Lord, EMemoryBossModifierKind::Strengthen});
+		const TArray<TObjectPtr<UMemoryData>> Cancelling = {Weaken, Strengthen};
+		TestEqual(TEXT("Weaken + strengthen: no change"), ReactionTriggers::ApplyMemoryBossModifiers(Cancelling, {Boss}), 0);
+		TestEqual(TEXT("Max HP as it was"), BossStats->MaxHP, BossMaxHP);
+
+		AActor *OneStepBoss = TestWorld->SpawnCombatant(Lord, true);
+		UCharacterDataComponent *OneStepStats = OneStepBoss->FindComponentByClass<UCharacterDataComponent>();
+		const TArray<TObjectPtr<UMemoryData>> OneWeaken = {Weaken};
+		const TArray<TObjectPtr<UMemoryData>> TwoWeakens = {Weaken, NewObject<UMemoryData>(GetTransientPackage())};
+		TwoWeakens[1]->BossModifiers.Add({Lord, EMemoryBossModifierKind::Weaken});
+		ReactionTriggers::ApplyMemoryBossModifiers(OneWeaken, {OneStepBoss});
+		ReactionTriggers::ApplyMemoryBossModifiers(TwoWeakens, {Boss});
+		TestTrue(TEXT("Two weakens go further than one"), BossStats->MaxHP < OneStepStats->MaxHP);
+	});
 }
 
 #endif
