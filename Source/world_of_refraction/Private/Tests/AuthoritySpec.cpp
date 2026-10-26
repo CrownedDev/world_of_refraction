@@ -56,6 +56,10 @@ void FAuthoritySpec::Define()
 	It("lets a standalone actor's components change state", [this]()
 	{
 		AActor *Actor = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestNotNull(TEXT("actor"), Actor))
+		{
+			return;
+		}
 		UCharacterDataComponent *Character = Actor->FindComponentByClass<UCharacterDataComponent>();
 		if (!TestNotNull(TEXT("character component"), Character))
 		{
@@ -69,6 +73,13 @@ void FAuthoritySpec::Define()
 		const int32 GoldBefore = Currency->GetBalance(ECurrencyType::Gold);
 		TestTrue(TEXT("gold add accepted"), Currency->Add(ECurrencyType::Gold, AUTHORITY_TEST_AMOUNT));
 		TestEqual(TEXT("gold added"), Currency->GetBalance(ECurrencyType::Gold), GoldBefore + AUTHORITY_TEST_AMOUNT);
+	});
+
+	It("refuses a component with no owning actor", [this]()
+	{
+		UCurrencyComponent *Ownerless = NewObject<UCurrencyComponent>(GetTransientPackage());
+		TestFalse(TEXT("ownerless add refused"), Ownerless->Add(ECurrencyType::Gold, AUTHORITY_TEST_AMOUNT));
+		TestEqual(TEXT("no gold"), Ownerless->GetBalance(ECurrencyType::Gold), 0);
 	});
 }
 
