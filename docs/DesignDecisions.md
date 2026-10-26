@@ -1073,6 +1073,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Reflex today also widens the defense timing window; keep both jobs or split them.
 - Effect durations already count the holder's own turns (D-051), unchanged.
 
+### D-089 — Should Energy refill each turn?
+**Status:** OPEN (Crown: logged, come back to it later) · **Raised:** 2026-10-26 (rules review) · **Blocks:** —
+**Question:** EP never refills on its own today (ET-29: only effects, items, drains and Broken Darkness absorption). Should it?
+**Context:** Max Energy (Spirit) is the pool size; Efficiency (Mind) lowers costs. Deckbuilder: +1 Energy per turn, banked, no cap. Expedition 33: AP +1 per turn plus more from basic attacks and parries. With action pips (D-088), a basic attack that returns Energy becomes a use for spare pips.
+**Options:** A no refill (current) / B a share of Max Energy each turn (e.g. 10%; Max Energy then also sets refill) / C Expedition 33 style: a small refill each turn **plus** Energy from basic attacks and Perfect Guards.
+**Recommendation:** C, because it rewards good play (timing gives Energy back), gives basic attacks a purpose, keeps casters from running dry, and needs no new stat. Broken Darkness keeps its own absorption system.
+**Answer (Crown):** _write here_
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
