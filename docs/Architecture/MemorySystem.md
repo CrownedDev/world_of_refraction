@@ -21,4 +21,5 @@ Memories are the story the player collects in trials (RunStructure §5). A memor
 ## Changelog
 | Date | Change | Branch |
 |---|---|---|
+| 2026-10-26 | B-191: `BossModifiers` read at fight start: weaken / strengthen one step (see `ReactionTriggers.md`). | feature/B-191-reaction-triggers |
 | 2026-10-26 | B-190 (Q-190): `UMemoryData`, `AMemoryFragment`, `UMemoryJournalSubsystem`, run memories; spec `WoR.Memory.Fragment`. | feature/B-190-memory-fragments |
