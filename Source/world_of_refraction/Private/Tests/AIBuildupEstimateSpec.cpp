@@ -3,6 +3,8 @@
 // A live hit spreads the authored buildup over its hits (shares sum to it) and AddStatusBuildup
 // scales it by the attacker's Status Multiplier, so before resistance an action builds
 // authored × Status Multiplier — not 5 per hit (abilities) or authored per hit (spells).
+// B-200: the multiplier is the live one (gear, StatusStone, buffs), read by
+// UAIDecisionManager::EstimateBaseStatusBuildup.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -87,7 +89,7 @@ void FAIBuildupEstimateSpec::Define()
 		UCharacterDataComponent *Comp = Source->FindComponentByClass<UCharacterDataComponent>();
 		if (!TestTrue(TEXT("Source has character data"), Comp && Comp->CharacterData)) return;
 		TestTrue(TEXT("Status Multiplier above 1"), Comp->CharacterData->CalculateStatusMultiplier() > 1.0f);
-		TestEqual(TEXT("Ability estimate"), static_cast<float>(NewSkill<UAbilityData>()->CalculateStatusBuildup(Comp->CharacterData)),
+		TestEqual(TEXT("Ability estimate"), UAIDecisionManager::EstimateBaseStatusBuildup(Comp, NewSkill<UAbilityData>()),
 				  LiveBuildupBeforeResistance(Source), AI_BUILDUP_TEST_TOLERANCE);
 	});
 
@@ -116,7 +118,7 @@ void FAIBuildupEstimateSpec::Define()
 		UCharacterDataComponent *Comp = Source->FindComponentByClass<UCharacterDataComponent>();
 		if (!TestTrue(TEXT("Source has character data"), Comp && Comp->CharacterData)) return;
 		TestTrue(TEXT("Status Multiplier above 1"), Comp->CharacterData->CalculateStatusMultiplier() > 1.0f);
-		TestEqual(TEXT("Spell estimate"), static_cast<float>(NewSkill<USpellData>()->CalculateStatusBuildup(Comp->CharacterData)),
+		TestEqual(TEXT("Spell estimate"), UAIDecisionManager::EstimateBaseStatusBuildup(Comp, NewSkill<USpellData>()),
 				  LiveBuildupBeforeResistance(Source), AI_BUILDUP_TEST_TOLERANCE);
 	});
 }

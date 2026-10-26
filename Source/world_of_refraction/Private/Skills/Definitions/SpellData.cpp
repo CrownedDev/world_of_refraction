@@ -111,7 +111,9 @@ int32 USpellData::CalculateStatusBuildup(UCharacterData *Character, const FActio
     // B-114: the live hit spreads it over its hits, so it isn't × HitCount.
     const float AuthoredBuildup = SupportSkillRules::GetAuthoredStatusBuildup(this);
 
-    // Scale with character's StatusMultiplier (Spirit-driven post pillar move).
+    // Scale with character's StatusMultiplier (Spirit-driven post pillar move). The asset's innate number
+    // only (no gear, stones or buffs): the debug readout. The AI reads the live number through
+    // UAIDecisionManager::EstimateBaseStatusBuildup (B-200).
     // ActionMods.StatusMultiplier stacks per-action stat buffs onto the multiplier.
     float Multiplier = Character->CalculateStatusMultiplier();
     Multiplier = ActionMods.ApplyTo(Multiplier, ESubStat::StatusMultiplier);
