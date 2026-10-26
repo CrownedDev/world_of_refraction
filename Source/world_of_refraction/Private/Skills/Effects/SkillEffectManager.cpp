@@ -333,6 +333,7 @@ void USkillEffectManager::ApplyEquipmentEffects(
 		for (FActiveSkillEffect &Runtime : Runtimes)
 		{
 			Runtime.SourceKey = G.SourceKey;
+			Runtime.bFromGear = true;
 			ApplyEffect(Target, Runtime, nullptr, Source.EffectName, -1);
 		}
 	}
@@ -677,6 +678,53 @@ int32 USkillEffectManager::RemoveEffectsByName(AActor *Target, const FString &Ef
 	return RemovedCount;
 }
 
+bool USkillEffectManager::RemoveEffectByIdentity(AActor *Target, int32 EffectID, int32 SourceKey)
+{
+	if (!Target || !ActiveEffects.Contains(Target))
+	{
+		return false;
+	}
+
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Target];
+	const int32 Index = Effects.IndexOfByPredicate([EffectID, SourceKey](const FActiveSkillEffect &Effect)
+	{
+		return Effect.EffectID == EffectID && Effect.SourceKey == SourceKey;
+	});
+	if (Index == INDEX_NONE)
+	{
+		return false;
+	}
+
+	const FActiveSkillEffect RemovedEffect = Effects[Index];
+	Effects.RemoveAt(Index);
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Removed %s from %s (by identity)"),
+		   *RemovedEffect.EffectName, *Target->GetName());
+	OnEffectRemoved.Broadcast(Target, RemovedEffect);
+	if (IsSpeedEffect(RemovedEffect.EffectType))
+	{
+		NotifySpeedChanged(Target);
+	}
+	return true;
+}
+
+int32 USkillEffectManager::CleanseEffectsByType(AActor *Target, ESkillEffectType EffectType)
+{
+	if (!Target || !ActiveEffects.Contains(Target))
+	{
+		return 0;
+	}
+
+	int32 RemovedCount = 0;
+	for (const FActiveSkillEffect &Effect : TArray<FActiveSkillEffect>(ActiveEffects[Target]))
+	{
+		if (Effect.EffectType == EffectType && Effect.IsCleansable())
+		{
+			RemovedCount += RemoveEffectByIdentity(Target, Effect.EffectID, Effect.SourceKey) ? 1 : 0;
+		}
+	}
+	return RemovedCount;
+}
+
 int32 USkillEffectManager::RemoveEffectsByType(AActor *Target, ESkillEffectType EffectType)
 {
 	if (!Target || !ActiveEffects.Contains(Target))
@@ -722,7 +770,7 @@ int32 USkillEffectManager::RemoveAllBuffs(AActor *Target)
 
 	for (int32 i = Effects.Num() - 1; i >= 0; --i)
 	{
-		if (Effects[i].IsBuff())
+		if (Effects[i].IsBuff() && Effects[i].IsCleansable())
 		{
 			FActiveSkillEffect RemovedEffect = Effects[i];
 
@@ -763,7 +811,7 @@ int32 USkillEffectManager::RemoveAllDebuffs(AActor *Target)
 
 	for (int32 i = Effects.Num() - 1; i >= 0; --i)
 	{
-		if (Effects[i].IsDebuff())
+		if (Effects[i].IsDebuff() && Effects[i].IsCleansable())
 		{
 			FActiveSkillEffect RemovedEffect = Effects[i];
 
@@ -1450,16 +1498,17 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 			   *Effect.EffectName, *Actor->GetName(), Value);
 		break;
 
+	// Targeted cleanses: gear debuffs stay (D-015).
 	case ESkillEffectType::RemoveSpeedDebuff:
-		RemoveEffectsByType(Actor, ESkillEffectType::SpeedDebuff);
+		CleanseEffectsByType(Actor, ESkillEffectType::SpeedDebuff);
 		break;
 
 	case ESkillEffectType::RemoveDamageDebuff:
-		RemoveEffectsByType(Actor, ESkillEffectType::DamageDebuff);
+		CleanseEffectsByType(Actor, ESkillEffectType::DamageDebuff);
 		break;
 
 	case ESkillEffectType::RemoveDefenseDebuff:
-		RemoveEffectsByType(Actor, ESkillEffectType::DefenseDebuff);
+		CleanseEffectsByType(Actor, ESkillEffectType::DefenseDebuff);
 		break;
 
 	// ==================== SELF DAMAGE ====================
@@ -1977,6 +2026,8 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 							Runtime.SourceKey = static_cast<int32>(HashCombine(static_cast<uint32>(G.SourceKey), GetTypeHash(Owner->GetUniqueID())));
 						}
 
+						// On the wearer it's a gear effect (cleanse leaves it, D-015); on someone else it isn't.
+						Runtime.bFromGear = (AppTarget == Owner);
 						ApplyEffect(AppTarget, Runtime, Owner, E.EffectName, OwnerTeam);
 
 						UE_LOG(LogWoREffects, Log, TEXT("[DefenseTrigger] FIRE: %s (ID=%d) %s -> %s outcome=%s perfect=%d"),
@@ -2297,10 +2348,10 @@ void USkillEffectManager::DebugPrintEffects(AActor *Actor) const
 	for (int32 i = 0; i < Effects.Num(); ++i)
 	{
 		const FActiveSkillEffect &Effect = Effects[i];
-		UE_LOG(LogWoREffects, Display, TEXT("  [%d] %s (ID:%d, Source:%s/%s key %d%s) - %s, Value:%.1f, Duration:%s, Stacks:%d"),
+		UE_LOG(LogWoREffects, Display, TEXT("  [%d] %s (ID:%d, Source:%s/%s key %d%s%s) - %s, Value:%.1f, Duration:%s, Stacks:%d"),
 			   i, *Effect.EffectName, Effect.EffectID,
 			   *GetNameSafe(Effect.SourceActor.Get()), *Effect.SourceAbilityName, Effect.SourceKey,
-			   Effect.bDoesNotStack ? TEXT(", doesn't stack") : TEXT(""),
+			   Effect.bDoesNotStack ? TEXT(", doesn't stack") : TEXT(""), Effect.bFromGear ? TEXT(", from gear") : TEXT(""),
 			   *UEnum::GetValueAsString(Effect.EffectType),
 			   Effect.EffectValue, *Effect.GetDurationString(), Effect.CurrentStacks);
 	}

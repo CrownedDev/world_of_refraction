@@ -1060,10 +1060,11 @@ void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, FCrystalI
 		{
 			break;
 		}
-		const bool bMatch = bRemoveDebuffs ? Effect.IsDebuff() : Effect.IsBuff();
+		// Gear effects stay, yours and the enemy's (D-015).
+		const bool bMatch = (bRemoveDebuffs ? Effect.IsDebuff() : Effect.IsBuff()) && Effect.IsCleansable();
 		if (bMatch)
 		{
-			SEM->RemoveEffectByID(Target, Effect.EffectID);
+			SEM->RemoveEffectByIdentity(Target, Effect.EffectID, Effect.SourceKey);
 			Removed++;
 		}
 	}
