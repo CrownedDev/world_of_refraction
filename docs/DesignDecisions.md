@@ -643,12 +643,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Applied:** `Hubs.md` updated (every service in both places); the services themselves are unbuilt (`chore/apply-D-042-047`).
 
 ### D-048 — What does Gold buy in a run?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-073
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-073
 **Question:** A code comment and `Currency.md` say consumables and temporary buffs. D-021 says the run-start loadout, in-run purchases and world stats. D-002 says upgrades never cost Gold, yet in-run shops charge Prisms today (`Purchase`).
 **Context:** Rules: 05 Cx-1, Cx-6.
 **Options:** A D-021's list only (run-start loadout, in-run purchases, world stats) / B also consumables and temporary buffs.
 **Recommendation:** A, as it matches D-002 and D-021; then update the comment (`CurrencyComponent.h:128`) and `Currency.md`. Price trial merchants in Gold when B-073 lands.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **B** (2026-10-26): Gold buys the **run loadout**, gear at **in-run vendors**, **world stats**, **consumables** (healing, revive items such as Sapphire) and **temporary buffs**. Never upgrades (D-002). In-run shops charge Gold, not Prisms.
+- **Naming (Crown):** the "starting loadout" becomes the **purchase loadout**, bought from a **loadout vendor** at the start of a run (D-021's purchase model, given an NPC).
+**Notes for Claude:** fix the comment at `CurrencyComponent.h:128` and `Currency.md`; trial merchants priced in Gold when B-073 lands. The loadout vendor is a placeholder UI (C++) until the CommonUI screen exists.
 
 ### D-049 — Cap turns at 2 per round of the slowest?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
