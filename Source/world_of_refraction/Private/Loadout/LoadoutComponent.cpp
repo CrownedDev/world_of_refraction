@@ -1322,6 +1322,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index)
             continue;
         }
 
+        FInvalidSlotFinding DroppedFinding = Finding;
         switch (Finding.SlotType)
         {
         case ELoadoutSlotType::PrimaryWeapon:
@@ -1456,19 +1457,22 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index)
         }
         case ELoadoutSlotType::AbilityOverflow:
         {
-            // Keep the first abilities up to the cap, drop the rest.
+            // Close the gaps earlier drops left, keep the first abilities up to the cap, drop the
+            // rest (which ones go: Q-159b).
             FWeaponLoadoutEntry &Weapon = Finding.SlotIndex == LoadoutAbilityOverflowIndex::SECONDARY_WEAPON
                 ? Loadout.SecondaryWeapon
                 : Loadout.PrimaryWeapon;
-            if (Finding.SubIndex == LoadoutAbilityOverflowIndex::AUGMENT_STONE_ABILITIES)
+            const bool bAugment = Finding.SubIndex == LoadoutAbilityOverflowIndex::AUGMENT_STONE_ABILITIES;
+            TArray<UAbilityData *> &Abilities = bAugment ? Weapon.AssignedAugmentStoneAbilities : Weapon.AssignedAbilities;
+            const int32 Cap = bAugment ? LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES : LoadoutConstants::MAX_WEAPON_ABILITIES;
+            Abilities.Remove(nullptr);
+            TArray<FString> Removed;
+            for (int32 i = Cap; i < Abilities.Num(); ++i)
             {
-                Weapon.AssignedAugmentStoneAbilities.SetNum(
-                    FMath::Min(Weapon.AssignedAugmentStoneAbilities.Num(), LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES));
+                Removed.Add(Abilities[i]->Name);
             }
-            else
-            {
-                Weapon.AssignedAbilities.SetNum(FMath::Min(Weapon.AssignedAbilities.Num(), LoadoutConstants::MAX_WEAPON_ABILITIES));
-            }
+            Abilities.SetNum(FMath::Min(Abilities.Num(), Cap));
+            DroppedFinding.Reason += FString::Printf(TEXT(": %s"), *FString::Join(Removed, TEXT(", ")));
             break;
         }
         case ELoadoutSlotType::ItemSlot:
@@ -1479,9 +1483,23 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index)
             }
             break;
         case ELoadoutSlotType::UtilityCrystalTierCap:
+        {
             // TODO: do the dropped crystals go back to the inventory? (Q-159)
+            const TArray<FItemLoadoutSlot> Untrimmed = Loadout.ItemSlots;
             FLoadoutRules::TrimUtilityCrystalsToTierCaps(Loadout);
+            TArray<FString> Removed;
+            for (int32 i = 0; i < Untrimmed.Num(); ++i)
+            {
+                const int32 Lost = Untrimmed[i].Quantity - Loadout.ItemSlots[i].Quantity;
+                if (Lost > 0)
+                {
+                    Removed.Add(FString::Printf(TEXT("%s %s x%d"), *UEnum::GetDisplayValueAsText(Untrimmed[i].CrystalId.Tier).ToString(),
+                                                *UEnum::GetDisplayValueAsText(Untrimmed[i].CrystalId.Type).ToString(), Lost));
+                }
+            }
+            DroppedFinding.Reason += FString::Printf(TEXT(": %s"), *FString::Join(Removed, TEXT(", ")));
             break;
+        }
         case ELoadoutSlotType::None:
         case ELoadoutSlotType::BDPoolSpell:
             // Non-clearable categories (guard failures / BD pool) — never
@@ -1492,15 +1510,17 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index)
         UE_LOG(LogWoRLoadout, Warning,
                TEXT("Cleared invalid loadout %d slot: %s[%d] — %s"), Index,
                *UEnum::GetValueAsString(Finding.SlotType),
-               Finding.SlotIndex, *Finding.Reason);
-        Dropped.Add(Finding);
+               Finding.SlotIndex, *DroppedFinding.Reason);
+        Dropped.Add(DroppedFinding);
     }
     return Dropped;
 }
 
 // ==================== PICKS (D-081) ====================
 
-bool ULoadoutComponent::TryChangeLoadout(int32 LoadoutIndex, bool bHasPick, TFunctionRef<void(FCombatLoadout &)> Change, FText &OutRefusal)
+bool ULoadoutComponent::TryChangeLoadout(int32 LoadoutIndex, bool bHasPick,
+                                         TFunctionRef<FText(const FCombatLoadout &, ECharacterClass)> CheckTarget,
+                                         TFunctionRef<void(FCombatLoadout &)> Change, FText &OutRefusal)
 {
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv || !Inv->SavedLoadouts.IsValidIndex(LoadoutIndex))
@@ -1515,12 +1535,28 @@ bool ULoadoutComponent::TryChangeLoadout(int32 LoadoutIndex, bool bHasPick, TFun
     }
 
     const FLoadoutRuleContext Context = BuildRuleContext(Inv);
-    const TArray<FString> Before = FLoadoutRules::ToReasons(FLoadoutRules::CollectFindings(Inv->SavedLoadouts[LoadoutIndex], Context));
+    OutRefusal = CheckTarget(Inv->SavedLoadouts[LoadoutIndex], Context.CharacterClass);
+    if (!OutRefusal.IsEmpty())
+    {
+        UE_LOG(LogWoRLoadout, Log, TEXT("Pick refused on loadout %d: %s"), LoadoutIndex, *OutRefusal.ToString());
+        return false;
+    }
+
+    TMap<FString, int32> ReasonsBefore;
+    for (const FString &Reason : FLoadoutRules::ToReasons(FLoadoutRules::CollectFindings(Inv->SavedLoadouts[LoadoutIndex], Context)))
+    {
+        ++ReasonsBefore.FindOrAdd(Reason);
+    }
     FCombatLoadout Changed = Inv->SavedLoadouts[LoadoutIndex];
     Change(Changed);
     for (const FString &Reason : FLoadoutRules::ToReasons(FLoadoutRules::CollectFindings(Changed, Context)))
     {
-        if (!Before.Contains(Reason))
+        int32 *Left = ReasonsBefore.Find(Reason);
+        if (Left && *Left > 0)
+        {
+            --*Left;
+        }
+        else
         {
             // TODO: rule reasons are built FStrings; move them to LOCTEXT tables (D-061).
             OutRefusal = FText::FromString(Reason);
@@ -1534,28 +1570,86 @@ bool ULoadoutComponent::TryChangeLoadout(int32 LoadoutIndex, bool bHasPick, TFun
     return true;
 }
 
+namespace
+{
+    // Mirrors which primary FLoadoutRules::CollectFindings checks: a pick into a part it skips
+    // would be accepted unchecked.
+    bool UsesPrimaryWeapon(const FCombatLoadout &Loadout)
+    {
+        return Loadout.PrimarySlotType != EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid();
+    }
+
+    bool UsesPrimaryRing(const FCombatLoadout &Loadout, ECharacterClass CharacterClass)
+    {
+        return CharacterClass != ECharacterClass::Resonator && Loadout.PrimarySlotType == EPrimarySlotType::Ring &&
+               Loadout.PrimaryRing.IsValid();
+    }
+
+    /** Fills the first empty (dropped) entry, else appends. */
+    template <class TPart>
+    void AddToFirstGap(TArray<TPart *> &Parts, TPart *Part)
+    {
+        const int32 Gap = Parts.Find(nullptr);
+        if (Gap != INDEX_NONE)
+        {
+            Parts[Gap] = Part;
+        }
+        else
+        {
+            Parts.Add(Part);
+        }
+    }
+
+    template <class TPart>
+    FText RefuseUnlessFree(bool bPartInUse, const FText &NotInUse, const TArray<TPart *> &Parts, TPart *Pick)
+    {
+        if (!bPartInUse)
+        {
+            return NotInUse;
+        }
+        return Parts.Contains(Pick) ? LOCTEXT("PickAlreadyAssigned", "Already assigned.") : FText::GetEmpty();
+    }
+}
+
 bool ULoadoutComponent::TryAssignWeaponAbility(int32 LoadoutIndex, UAbilityData *Ability, FText &OutRefusal)
 {
     return TryChangeLoadout(LoadoutIndex, Ability != nullptr,
-                            [Ability](FCombatLoadout &Loadout) { Loadout.PrimaryWeapon.AssignedAbilities.Add(Ability); }, OutRefusal);
+                            [Ability](const FCombatLoadout &Loadout, ECharacterClass)
+                            {
+                                return RefuseUnlessFree(UsesPrimaryWeapon(Loadout), LOCTEXT("PickNoWeapon", "No primary weapon is equipped."),
+                                                        Loadout.PrimaryWeapon.AssignedAbilities, Ability);
+                            },
+                            [Ability](FCombatLoadout &Loadout) { AddToFirstGap(Loadout.PrimaryWeapon.AssignedAbilities, Ability); }, OutRefusal);
 }
 
 bool ULoadoutComponent::TryAssignWeaponSpell(int32 LoadoutIndex, USpellData *Spell, FText &OutRefusal)
 {
     return TryChangeLoadout(LoadoutIndex, Spell != nullptr,
-                            [Spell](FCombatLoadout &Loadout) { Loadout.PrimaryWeapon.AssignedSpells.Add(Spell); }, OutRefusal);
+                            [Spell](const FCombatLoadout &Loadout, ECharacterClass)
+                            {
+                                return RefuseUnlessFree(UsesPrimaryWeapon(Loadout), LOCTEXT("PickNoWeapon", "No primary weapon is equipped."),
+                                                        Loadout.PrimaryWeapon.AssignedSpells, Spell);
+                            },
+                            [Spell](FCombatLoadout &Loadout) { AddToFirstGap(Loadout.PrimaryWeapon.AssignedSpells, Spell); }, OutRefusal);
 }
 
 bool ULoadoutComponent::TryAssignRingSpell(int32 LoadoutIndex, USpellData *Spell, FText &OutRefusal)
 {
     return TryChangeLoadout(LoadoutIndex, Spell != nullptr,
-                            [Spell](FCombatLoadout &Loadout) { Loadout.PrimaryRing.RingEntry.AssignedSpells.Add(Spell); }, OutRefusal);
+                            [Spell](const FCombatLoadout &Loadout, ECharacterClass CharacterClass)
+                            {
+                                return RefuseUnlessFree(UsesPrimaryRing(Loadout, CharacterClass), LOCTEXT("PickNoRing", "No primary ring is equipped."),
+                                                        Loadout.PrimaryRing.RingEntry.AssignedSpells, Spell);
+                            },
+                            [Spell](FCombatLoadout &Loadout) { AddToFirstGap(Loadout.PrimaryRing.RingEntry.AssignedSpells, Spell); }, OutRefusal);
 }
 
 bool ULoadoutComponent::TryAssignInnateSpell(int32 LoadoutIndex, USpellData *Spell, FText &OutRefusal)
 {
     return TryChangeLoadout(LoadoutIndex, Spell != nullptr,
-                            [Spell](FCombatLoadout &Loadout) { Loadout.InnateSpells.Add(Spell); }, OutRefusal);
+                            [Spell](const FCombatLoadout &Loadout, ECharacterClass)
+                            { return RefuseUnlessFree(true, FText::GetEmpty(), Loadout.InnateSpells, Spell); },
+                            [Spell](FCombatLoadout &Loadout) { AddToFirstGap(Loadout.InnateSpells, Spell); }, OutRefusal);
 }
 
 // ==================== BATTLE PREPARATION ====================

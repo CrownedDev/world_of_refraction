@@ -719,9 +719,12 @@ protected:
     /** Ensure at least one loadout exists */
     void EnsureDefaultLoadout();
 
-    /** Shared body of the TryAssign* picks: applies Change to a copy, keeps it only if no new
-     *  rule break appears. */
-    bool TryChangeLoadout(int32 LoadoutIndex, bool bHasPick, TFunctionRef<void(FCombatLoadout &)> Change, FText &OutRefusal);
+    /** Shared body of the TryAssign* picks. CheckTarget refuses up front (the part isn't in use,
+     *  the pick is already there; empty = fine); otherwise Change is applied to a copy, kept only
+     *  if no new rule break appears (each reason counted, so a repeat of one is new too). */
+    bool TryChangeLoadout(int32 LoadoutIndex, bool bHasPick,
+                          TFunctionRef<FText(const FCombatLoadout &, ECharacterClass)> CheckTarget,
+                          TFunctionRef<void(FCombatLoadout &)> Change, FText &OutRefusal);
 
     void AnnounceDroppedParts(int32 LoadoutIndex, const TArray<FInvalidSlotFinding> &Dropped);
 };

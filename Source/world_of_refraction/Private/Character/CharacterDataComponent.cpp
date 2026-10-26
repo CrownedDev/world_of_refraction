@@ -130,6 +130,13 @@ void UCharacterDataComponent::BeginPlay()
             {
                 BDManager->InitializeBornBrokenDarkness();
             }
+
+            // B-159 (D-081): loaded loadouts drop their invalid parts now, not at the next fight.
+            // Only here are the world stats (spell discount) and the BD flag the rules read seeded.
+            if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+            {
+                Loadout->DropInvalidPartsFromAllLoadouts();
+            }
         }
     }
 
