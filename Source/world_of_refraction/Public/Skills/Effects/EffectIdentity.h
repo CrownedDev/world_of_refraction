@@ -28,7 +28,8 @@ namespace EffectIdentity
 
     // Full-bar (status cap) effects live in their own negative band, one ID per
     // (resolved effect type, element), so the same cap from the same source finds its
-    // earlier copy (D-012). Packed IDs are never negative, so the bands can't meet.
+    // earlier copy (D-012). Packed IDs are positive; a few hash-based IDs (item DoTs,
+    // infusions) can be negative, so a meeting is possible but vanishingly rare.
     constexpr int32 STATUS_CAP_ID_BASE = -1000000;
     constexpr int32 STATUS_CAP_ELEMENT_SLOTS = 256;
 
@@ -43,7 +44,8 @@ namespace EffectIdentity
     // applying actor plus the skill or reason it applied with.
     inline int32 MakeSourceKey(uint32 SourceObjectID, const FString &SourceName)
     {
-        return static_cast<int32>(HashCombine(GetTypeHash(SourceObjectID), GetTypeHash(SourceName)));
+        const int32 Key = static_cast<int32>(HashCombine(GetTypeHash(SourceObjectID), GetTypeHash(SourceName)));
+        return Key != 0 ? Key : 1; // 0 means "unstamped"
     }
 }
 

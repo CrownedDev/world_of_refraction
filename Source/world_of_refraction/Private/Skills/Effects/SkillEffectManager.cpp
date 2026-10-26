@@ -109,8 +109,9 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 
 	// D2: fires-once gate — reject re-application this match BEFORE any stacking/refresh,
 	// so a fires-once effect can never stack or refresh either. One use per holder and
-	// source (D-011): two wearers of the same gear each get theirs.
-	const FWoRFiredOnceKey FiredOnceKey{Target, Effect.EffectID, Effect.SourceKey};
+	// source (D-011): two wearers of the same gear each get theirs. A doesn't-stack effect
+	// (D-053) has one use per holder whichever source brings it ("revive once per fight").
+	const FWoRFiredOnceKey FiredOnceKey{Target, Effect.EffectID, Effect.bDoesNotStack ? 0 : Effect.SourceKey};
 	if (Effect.bFiresOncePerMatch && FiredOnceThisMatch.Contains(FiredOnceKey))
 	{
 		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s rejected on %s — already fired once this match (ID=%d)"),
@@ -129,7 +130,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	// Run its Server* logic on this LOCAL effect via the type->primitive switch (ApplyEffectLogic
 	// only reads fields + calls Server*/subsystems — safe on a non-stored temp), broadcast, and
 	// RETURN WITHOUT storing. Placed BEFORE FindEffectByID + Effects.Add: an Instant never enters
-	// ActiveEffects, so it never matches the re-apply strength gate — policy-safe by construction.
+	// ActiveEffects, so it never matches the same-source re-apply — policy-safe by construction.
 	// (Contrast ESkillEffectTiming::Immediate, which stores-then-tears-down via bPendingRemoval.)
 	// IsInstant() is the single derive point: a zero-duration, non-permanent effect. Permanent
 	// gear/auras are excluded via their explicit bPermanent toggle (no longer derived from
@@ -227,8 +228,8 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 		   *Effect.EffectName, *Target->GetName(), Effect.EffectID, Effect.RemainingTurns, Effect.EffectValue);
 
 	// Fire-on-application (Option A: new effects only). Re-applications return before this point
-	// (stronger/equal/weaker/stack all exit in the ExistingEffect branch above), so a rejected
-	// weaker re-app can never reach here — Option A safety by construction. Runs ApplyEffectLogic
+	// (replace and stack both exit in the ExistingEffect branch above), so a re-apply can never
+	// reach here — Option A safety by construction. Runs ApplyEffectLogic
 	// once on the STORED copy (Effects.Last()) so bProcessedThisTurn persists, then leaves the
 	// effect stored to keep ticking on its windows. Excludes Immediate (fires + tears down just
 	// below) and bDelayFirstExecution opt-outs; Instant already returned at the IsInstant() lane.
@@ -1086,6 +1087,7 @@ void USkillEffectManager::ProcessEffectsWithTiming(AActor *Actor, ESkillEffectTi
 		const TArray<FActiveSkillEffect> *Live = ActiveEffects.Find(Actor);
 		const bool bStillActive = Live && Live->ContainsByPredicate([&Pending](const FActiveSkillEffect &Candidate)
 																	 { return Candidate.EffectID == Pending.EffectID &&
+																			  Candidate.SourceKey == Pending.SourceKey &&
 																			  Candidate.EffectType == Pending.EffectType &&
 																			  Candidate.EffectName == Pending.EffectName; });
 		if (!bStillActive)

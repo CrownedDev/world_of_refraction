@@ -686,10 +686,10 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		return FString::Printf(TEXT("x%d"), CurrentStacks);
 	}
 
-	/** Equality check by EffectID (for finding existing effects) */
+	/** Same identity: EffectID and source (B-062; the holder is the array it sits in) */
 	bool operator==(const FActiveSkillEffect &Other) const
 	{
-		return EffectID == Other.EffectID;
+		return EffectID == Other.EffectID && SourceKey == Other.SourceKey;
 	}
 
 	/** Reset turn-based processing flags */
