@@ -17,6 +17,7 @@
 
 8. **Combat depends on playstyle** (Crown, 2026-10-26, revised): **players can lean on tactics** (elements, resistances, rows, status breaks, builds, party roles) **or on timing** (Guard, Perfect Guard, Dodge), and both should be viable ways to win. **Bosses have their own styles**: some test planning, some test timing, some both.
 9. **PC and consoles** (Crown, 2026-10-26): planned from the start, so **full gamepad support** and console-friendly UI (CommonUI) throughout; keyboard and mouse on PC.
+10. **Hidden conditions** (Crown, 2026-10-26; Shangri-La Frontier's secret quests): some things in the game unlock or change through **secret conditions** the player isn't told about and finds by playing (e.g. a boss's hidden phase triggers, D-098). Rewards curiosity and experimenting.
 
 ## What this means for decisions
 
@@ -29,6 +30,7 @@
 - **Every system must work solo and co-op** (pillar 7): design both cases when building (who controls what, rewards, rest spots, revives), even though co-op is built later; keep to the co-op-ready rule (D-064).
 - **Two ways to win** (pillar 8): a tactics-leaning build and a timing-leaning player should both be able to clear normal content; vary bosses by style rather than making every fight demand the same skill. Hard timing windows belong to timing-focused bosses and higher difficulty settings.
 - **Gamepad first-class** (pillar 9): every screen and action works on a controller; respect console performance (D-068 frame budget).
+- **Leave room for secrets** (pillar 10): where a system checks conditions (reaction triggers, boss phases, memories), allow hidden ones, and don't surface every rule in the UI.
 - Lore and story are Crown's alone (`CLAUDE.md`).
 
 ## Changelog
@@ -36,3 +38,4 @@
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-26 | Created from Crown's answers | docs/design-pillars |
+| 2026-10-26 | Pillar 10: hidden conditions (D-098) | docs/d098-boss-phases |

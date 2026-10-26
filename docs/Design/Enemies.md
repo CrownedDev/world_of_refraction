@@ -38,10 +38,11 @@ Companion to `RunStructure.md`. Values marked *tune* are placeholders: named con
 
 ## 5. Bosses
 
-- **Phases:** at set HP points the boss changes (new skills, element or stance shift, a line of dialogue).
+- **Phases (D-098):** the boss changes (new skills, element or stance shift, a line of dialogue) when a **condition** is met: an HP point, or a hidden one (absorption maxed, a crystal breaking, infusion hits…). Damage carries past a phase point. A reached phase stays, even if the boss is healed.
+- **No cinematic at the change:** the **weather** shifts toward the boss's element and grows more intense with each phase, and the boss plays more aggressively and tactically.
 - **Memories** you collected can alter phases (skip one, add a harder one), authored per memory (`RunStructure.md` §5).
 - **Optional revival:** a beaten boss can be revived stronger for better gear (`RunStructure.md` §4).
-- **Open:** how phases work in detail, to discuss with Crown. Placeholder only until then.
+- **Open:** the rest of the phase details (what a phase can change, boss styles, statuses on bosses, long fights), being discussed (D-098).
 
 ## 6. Open questions
 
@@ -55,3 +56,4 @@ Companion to `RunStructure.md`. Values marked *tune* are placeholders: named con
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-26 | Created from D-069 | docs/enemies |
+| 2026-10-26 | Boss phases: conditions, weather, one-way (D-098) | docs/d098-boss-phases |
