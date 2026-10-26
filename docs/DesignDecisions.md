@@ -842,14 +842,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 
 
 ### D-071 — Revive spells: what do they do?
-**Status:** OPEN · **Raised:** 2026-10-26 (applying D-043) · **Blocks:** — (B-150 builds the rest-spot revive without it)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (applying D-043) · **Blocks:** — (B-150 builds the rest-spot revive without it)
 **Question:** D-043 says spells can revive a fallen ally mid-fight, but there is no revive spell effect. How should one work?
 **Context:** The old `Revive` skill effect was renamed `LastStand` (survive a killing blow, `ESkillEffectType.h:200-201`). Only Sapphire's `DefyDeath` item effect revives a dead ally (`ItemEffectType.h:86-90`).
 **Options:** A a new `Resurrect` skill effect: brings a dead ally back at the effect's value as % of max HP, reusing Sapphire's revive path / B revive stays item-only (Sapphire) / C revive spells only out of combat.
 **Recommendation:** A, because D-043 asks for revive spells and Sapphire's path already does the hard part (turn order, death state); the HP % is a per-spell value.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A** (2026-10-26): a new **Resurrect** skill effect brings a fallen ally back at the effect's value as a % of max HP, reusing Sapphire's revive path.
 ### D-072 — Crystal tier limits per character
-**Status:** ANSWERED (one detail to confirm) · **Raised:** 2026-10-26 (Crown) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (Crown) · **Blocks:** —
 **Answer (Crown):** (2026-10-26) **Per character**, a cap on how many crystals of each tier band can be equipped at once:
 | Tier band | Max equipped per character |
 |---|---|
@@ -859,7 +859,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 | E / F | 4 |
 **Notes for Claude:**
 - Counts every crystal the character has equipped (weapon, ring, evolution and other attachment slots). Enforced in loadout validation (`LoadoutComponent::GetValidationErrors` and the saved-loadout check), with a clear message.
-- **To confirm with Crown:** whether a band's number is for the band combined (e.g. 2 across A and B together) or for each tier (2 A *and* 2 B). Recorded as combined until answered.
+- **Bands are combined** (Crown, 2026-10-26: "A or B = 2"): at most 2 crystals of tier A or B together; likewise C or D = 3, E or F = 4.
 - The deckbuilder caps S-tier **equipment** at 3 per kind per deck and leaves crystals uncapped (`WoR_TCG_Pivot_Design.md` §8b rule 4); this is this game's own rule.
 - Caps as named constants.
 
