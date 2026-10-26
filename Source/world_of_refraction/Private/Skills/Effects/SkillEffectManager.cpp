@@ -2311,6 +2311,7 @@ void USkillEffectManager::DebugPrintEffects(AActor *Actor) const
 		FiredOnceUses += (Key.Holder == TObjectKey<AActor>(Actor)) ? 1 : 0;
 	}
 	UE_LOG(LogWoREffects, Display, TEXT("  Once-per-match uses spent on %s: %d"), *Actor->GetName(), FiredOnceUses);
+	UE_LOG(LogWoREffects, Display, TEXT("  EP sealed by Silenced: %d, spendable: %d"), GetSealedEP(Actor), GetSpendableEP(Actor));
 }
 
 void USkillEffectManager::DebugPrintAllEffects() const

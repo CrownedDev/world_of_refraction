@@ -340,15 +340,11 @@ int32 UActionExecutor::GetSpendableEP(AActor *Actor) const
 	return Comp ? Comp->CurrentEP : 0;
 }
 
-// OBSOLETE (B-148): Silenced seals EP instead of blocking spells (D-038); nothing in C++ calls this.
-// Kept until PIE confirms no Blueprint binds it.
+// OBSOLETE (B-148): Silenced seals EP instead of blocking spells (D-038), so nothing blocks a cast
+// here any more; true keeps any Blueprint still bound to it from greying spells out. Nothing in
+// C++ calls it; remove once PIE confirms no Blueprint binds it.
 bool UActionExecutor::CanActorCastSpells(AActor *Actor) const
 {
-	USkillEffectManager *StatusManager = GetSkillEffectManager();
-	if (StatusManager && StatusManager->IsSilenced(Actor))
-	{
-		return false;
-	}
 	return true;
 }
 

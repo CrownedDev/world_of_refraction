@@ -1,7 +1,7 @@
 // SilenceSealSpec.cpp
 // B-148 / D-038: Silenced no longer blocks spells; it seals SILENCE_SEALED_EP_FRACTION of max EP
 // while it lasts, and every EP spend validates and pays against the rest. 0-cost actions
-// (basic attack, Defend) still work; the seal lifts when Silenced ends.
+// (basic attack, which is a 0-cost Ability, and Defend) still work; the seal lifts when Silenced ends.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -17,6 +17,7 @@ namespace
 	constexpr int32 SILENCE_TEST_MAX_EP = 100;
 	constexpr int32 SILENCE_TEST_CURRENT_EP = 80;
 	constexpr int32 SILENCE_TEST_SPENDABLE_EP = 30; // 80 − 50% of 100
+	constexpr int32 SILENCE_TEST_ABILITY_BASE_COST = 10;
 }
 
 BEGIN_DEFINE_SPEC(FSilenceSealSpec, "WoR.Effects.SilenceSeal",
@@ -70,6 +71,28 @@ void FSilenceSealSpec::Define()
 		TestEqual(TEXT("The executor validates against the same number"), Executor->GetSpendableEP(Actor), SILENCE_TEST_SPENDABLE_EP);
 	});
 
+	It("validates an EP cost against the unsealed EP only", [this]()
+	{
+		if (!EffectManager || !Executor) return;
+		AActor *Actor = SpawnSilenced();
+		UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
+		FAction Paid;
+		Paid.ActionType = EActionType::Ability;
+		UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
+		Ability->BaseEnergyCost = SILENCE_TEST_ABILITY_BASE_COST;
+		Paid.SkillData = Ability;
+		Paid.Targets.Add(Actor);
+		const int32 Cost = Executor->CalculateActionEnergyCost(Actor, Paid);
+		if (!TestTrue(TEXT("The ability costs EP"), Cost > 0)) return;
+		const int32 Sealed = EffectManager->GetSealedEP(Actor);
+
+		Comp->CurrentEP = Sealed + Cost;
+		const FActionValidationResult Enough = Executor->ValidateAction(Actor, Paid);
+		TestTrue(FString::Printf(TEXT("Affordable from the unsealed EP (%s)"), *Enough.ErrorMessage), Enough.bIsValid);
+		Comp->CurrentEP = Sealed + Cost - 1;
+		TestFalse(TEXT("One short once the seal is taken off"), Executor->ValidateAction(Actor, Paid).bIsValid);
+	});
+
 	It("never goes below 0 spendable", [this]()
 	{
 		if (!EffectManager) return;
@@ -101,6 +124,8 @@ void FSilenceSealSpec::Define()
 		if (!EffectManager) return;
 		AActor *Actor = SpawnSilenced();
 		EffectManager->ProcessStartOfTurnEffects(Actor);
+		TestTrue(TEXT("Still silenced on the holder's turn"), EffectManager->IsSilenced(Actor));
+		TestEqual(TEXT("Still sealed on the holder's turn"), EffectManager->GetSpendableEP(Actor), SILENCE_TEST_SPENDABLE_EP);
 		EffectManager->ProcessEndOfTurnEffects(Actor);
 		EffectManager->ProcessStartOfTurnEffects(Actor);
 		TestFalse(TEXT("Silenced ended"), EffectManager->IsSilenced(Actor));
