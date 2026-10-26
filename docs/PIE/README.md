@@ -35,6 +35,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-025](B-025.md) | `refactor/B-025-economy-preamble` (in `dev`) | Economy actions share one owner/authority/component check; no gameplay change | Not tested |
 | [B-026](B-026.md) | `refactor/B-026-gear-attach-template` (in `dev`) | Weapon and ring attach/remove share one code path; no gameplay change | Not tested |
 | [B-027](B-027.md) | `refactor/B-027-one-authority-check` (in `dev`) | One shared authority check for character data, wallet, economy and gear sockets; no gameplay change | Not tested |
+| [B-029](B-029.md) | `fix/B-029-ai-damage-estimate` (in `dev`) | AI damage estimate uses the executor's own damage calculation; real hits unchanged | Not tested |
 
 Move rows to **Done** when every check passes.
 
