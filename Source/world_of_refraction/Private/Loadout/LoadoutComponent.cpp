@@ -3254,18 +3254,41 @@ FText ULoadoutComponent::GetBrokenSourceReason(const USpellData *Spell) const
             return SourceBreakRules::BrokenWeaponCrystalReason();
         }
     }
-    const FRingLoadoutEntry *Ring = GetActiveRingLoadout() ? GetActiveRingLoadout() : GetPrimaryRingLoadout();
-    if (Ring)
+    if (IsSpellFromBrokenRing(Spell) && !SourceBreakRules::IsRingSpellUsableWhenBroken(Spell->Tier))
     {
-        const FRuntimeAttachedItem &Attached = Ring->RingEntry.AttachedItem;
-        const bool bFromRing = Lists(Ring->RingEntry.AssignedSpells) || (Ring->RingEntry.Ring && Lists(Ring->RingEntry.Ring->PresetSpells));
-        if (Attached.IsSpellSource() && Attached.IsBroken() && bFromRing &&
-            !SourceBreakRules::IsRingSpellUsableWhenBroken(Spell->Tier))
-        {
-            return SourceBreakRules::BrokenRingCrystalReason();
-        }
+        return SourceBreakRules::BrokenRingCrystalReason();
     }
     return FText::GetEmpty();
+}
+
+bool ULoadoutComponent::IsSpellFromBrokenRing(const USpellData *Spell) const
+{
+    const FRingLoadoutEntry *Ring = GetActiveRingLoadout() ? GetActiveRingLoadout() : GetPrimaryRingLoadout();
+    if (!Spell || !Ring)
+    {
+        return false;
+    }
+    const FRuntimeAttachedItem &Attached = Ring->RingEntry.AttachedItem;
+    if (!Attached.IsSpellSource() || !Attached.IsBroken())
+    {
+        return false;
+    }
+    const auto Lists = [Spell](const TArray<USpellData *> &Spells)
+    {
+        return Spells.ContainsByPredicate([Spell](const USpellData *Assigned) { return Assigned == Spell; });
+    };
+    // An innate spell is cast as innate even when the ring also holds it (ResolveSpellSource's order).
+    const UInventoryComponent *Inv = GetInventoryComponent();
+    if (Inv && Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+        if (Lists(Loadout.InnateSpells) ||
+            Loadout.BDSpellPools.ContainsByPredicate([&Lists](const FBDElementSpellPool &Pool) { return Lists(Pool.Spells); }))
+        {
+            return false;
+        }
+    }
+    return Lists(Ring->RingEntry.AssignedSpells) || (Ring->RingEntry.Ring && Lists(Ring->RingEntry.Ring->PresetSpells));
 }
 
 FRuntimeAttachedItem *ULoadoutComponent::FindAttachedItemByHolder(UObject *Holder)

@@ -82,6 +82,9 @@ FString UGenericSpellResolveDebug::GetResolveString(AActor *Caster, USpellData *
     }
     Output += FString::Printf(TEXT("  Resolved Element: %s\n"), *ElementToStr(Resolved));
     Output += FString::Printf(TEXT("  Broken Darkness:  %s\n"), bIsBD ? TEXT("YES") : TEXT("no"));
+    const ULoadoutComponent *LC = Caster->FindComponentByClass<ULoadoutComponent>();
+    Output += FString::Printf(TEXT("  Broken ring:      %s\n"),
+                              LC && LC->IsSpellFromBrokenRing(Spell) ? TEXT("YES - casts plain (Q-163b)") : TEXT("no"));
     if (bIsBD && BDManager)
     {
         Output += FString::Printf(TEXT("  BD Active Pool:   %s\n"), *ElementToStr(BDManager->GetActivePool()));

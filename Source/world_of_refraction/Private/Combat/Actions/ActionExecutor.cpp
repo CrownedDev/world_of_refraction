@@ -4229,6 +4229,12 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAllowedInfusionSourcesForSpell
 		return Allowed;
 	}
 
+	// Q-163b = B: a broken ring's spells cast plain (no infusion through any source, no element).
+	if (LC->IsSpellFromBrokenRing(Spell))
+	{
+		return Allowed;
+	}
+
 	// Spells are 1:1 origin-bound — a spell's allowed infusion source IS its origin.
 	// ResolveSpellSource is a const, read-only resolver; the non-const param is legacy.
 	const ESpellSource Origin = LC->ResolveSpellSource(const_cast<USpellData *>(Spell));
@@ -4397,7 +4403,16 @@ ESpellElement UActionExecutor::ResolveSpellCastElement(AActor *Caster, const USp
 		}
 	}
 
-	// 3. Resolve via the spell's ORIGIN — where it is slotted (innate / ring / weapon /
+	// 3. A broken ring's Generic spell is non-elemental (Q-163b = B).
+	if (const ULoadoutComponent *SpellLoadout = GetLoadoutComponent(Caster))
+	{
+		if (SpellLoadout->IsSpellFromBrokenRing(Spell))
+		{
+			return ESpellElement::None;
+		}
+	}
+
+	// 4. Resolve via the spell's ORIGIN — where it is slotted (innate / ring / weapon /
 	//    evolution), derived from ResolveSpellSource, NOT a player infusion pick.
 	//    GetAllowedInfusionSourcesForSpell yields the origin source(s); the first maps
 	//    to its element via GetElementForSourceOption. A Reality origin yields Reality
@@ -4412,7 +4427,7 @@ ESpellElement UActionExecutor::ResolveSpellCastElement(AActor *Caster, const USp
 		}
 	}
 
-	// 4. Unresolvable — no slottable origin found, or the origin carries no element.
+	// 5. Unresolvable — no slottable origin found, or the origin carries no element.
 	UE_LOG(LogTemp, Warning,
 		   TEXT("[ActionExecutor] Generic spell %s could not resolve a source element — defaulting to None"),
 		   *Spell->Name);

@@ -1173,7 +1173,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** Applied: `GetAvailableInfusionSources` drops a broken ring; the AI and the menu follow it (the menu pins the spell's charge at 0). Two follow-ups raised as Q-163b.
 
 ### Q-163b — A broken ring's F-tier spells: infused through Innate, and their Generic element
-**Status:** ANSWERED · **Raised:** 2026-10-26 (Q-163 follow-up) · **Blocks:** — (Q-163 shipped with B)
+**Status:** DECIDED · **Raised:** 2026-10-26 (Q-163 follow-up) · **Blocks:** — (Q-163 shipped with B)
 **Question:** Once a ring's crystal breaks, may its F-tier spells still be infused another way, and what element does a Generic (inherit) spell from it take?
 **Context:** a broken ring offers no spells (`FRingInventoryEntry::GetSpells`), so `ResolveSpellSource` no longer finds its F-tier spells on the ring and treats them as **Innate**. For a Resonator or a Generic that means no infusion at all (they have no Innate source). For a **Caster** with a ring in the primary slot it means the spell can be infused through the Caster's **Innate** element. Separately, `GetElementForSourceOption` still returns the broken ring's element for a Generic spell that inherits its element.
 **Options:**
@@ -1181,7 +1181,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** a broken ring's spells can't be infused at all (any source), and a Generic spell from it is non-elemental (None).
 **Recommendation:** B. A broken crystal gives no element (Q-163), so its spells cast plain; it also keeps the spell's origin honest (it still comes from the ring).
 **Answer (Crown):** **B, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
-**Notes for Claude:** _optional_
+**Notes for Claude:** Applied in fix/Q-163b-broken-ring-spells-plain (`ULoadoutComponent::IsSpellFromBrokenRing`).
 
 ### D-092 — Shields, Wards and Barriers: the deckbuilder's absorb system
 **Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 04 gap) · **Blocks:** —
