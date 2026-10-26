@@ -95,11 +95,15 @@ public:
     UFUNCTION(BlueprintPure, Category = "Trial")
     UTrialData *GetActiveTrial() const { return ActiveTrial.Get(); }
 
-    /** This run's seed, rolled on EnterTrial (0 in the hub). Trial vendors roll their stock from it. */
+    /** This run's seed, rolled on EnterTrial (0 in the hub, so it also says whether a run is on).
+     *  Trial vendors roll their stock from it. */
     int32 GetRunSeed() const { return RunSeed; }
 
     /** The stock Merchant shows now: rolled for this run in a trial, the full list at home (B-179). */
     TArray<FMerchantStockEntry> GetMerchantStock(const UMerchantData *Merchant) const;
+
+    /** One line per stock line GetMerchantStock gives Merchant (what its shop shows now). */
+    FString GetMerchantStockString(const UMerchantData *Merchant) const;
 
     // ==================== DEBUG ====================
 

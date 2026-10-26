@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Math/RandomStream.h"
+#include "Misc/Crc.h"
 #include "Merchant/MerchantData.h"
 
 namespace MerchantStockRoll
@@ -14,10 +15,11 @@ namespace MerchantStockRoll
 	/** Lines a trial vendor shows per run. */
 	constexpr int32 TRIAL_VENDOR_STOCK_SIZE = 8; // TODO: tune (Q-179)
 
-	/** Each vendor rolls its own stock from the shared run seed. */
+	/** Each vendor rolls its own stock from the shared run seed. Hashes the path text (stable across
+	 *  launches, unlike an FName hash) so wor.Trial.Seed replays the same stock after a restart. */
 	inline int32 SeedFor(int32 RunSeed, const UMerchantData &Merchant)
 	{
-		return static_cast<int32>(HashCombine(static_cast<uint32>(RunSeed), GetTypeHash(Merchant.GetFName())));
+		return static_cast<int32>(HashCombine(static_cast<uint32>(RunSeed), FCrc::StrCrc32(*Merchant.GetPathName())));
 	}
 
 	/** Size lines of Pool picked at random by Seed (all of it when it is smaller), in authored order. */
