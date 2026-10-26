@@ -359,6 +359,13 @@ void ACombatOrchestrator::ReleaseCombatResources()
 
 	UnbindTurnManagerEvents();
 
+	// B-071: the per-fight Player flag (a take-over or a switch) ends with the fight; placed
+	// pawns are reused by the next fight, so it must not carry.
+	for (AActor *Member : LocalPartyCombatants)
+	{
+		CombatControl::SetPlayerDriven(Member, false);
+	}
+
 	if (CameraDirector)
 	{
 		CameraDirector->EndCombat();
@@ -1174,6 +1181,18 @@ bool ACombatOrchestrator::SwitchMemberControl(AActor *Actor)
 	{
 		AIDecisionManagerRef->CancelPendingDecision();
 	}
+	else if (!bToPlayer)
+	{
+		// The AI takes this turn: the player's open menu must not submit a second action.
+		const UGameInstance *GI = GetGameInstance();
+		if (UCombatCommandMenuSubsystem *Menu = GI ? GI->GetSubsystem<UCombatCommandMenuSubsystem>() : nullptr)
+		{
+			if (Menu->IsOpen())
+			{
+				Menu->Close();
+			}
+		}
+	}
 	CombatControl::SetPlayerDriven(Actor, bToPlayer);
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s is now played by %s (D-026)"), *Actor->GetName(),
 		   bToPlayer ? TEXT("you") : TEXT("the AI"));
@@ -1275,6 +1294,22 @@ namespace
 				else
 				{
 					UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] wor.Combat.SwitchControl: no orchestrator in world."));
+				}
+			}));
+
+	FAutoConsoleCommandWithWorld GPrintCombatStateCmd(
+		TEXT("wor.Combat.PrintState"),
+		TEXT("DEBUG: print the fight's state: turn, current actor, both teams' HP/EP and who plays each of your members."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				if (ACombatOrchestrator *Orch = FindCombatOrchestrator(World))
+				{
+					Orch->DebugPrintCombatState();
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] wor.Combat.PrintState: no orchestrator in world."));
 				}
 			}));
 
@@ -1822,11 +1857,12 @@ void ACombatOrchestrator::DebugPrintCombatState()
 		UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
 		if (Comp)
 		{
-			UE_LOG(LogTemp, Display, TEXT("  %s - HP: %d/%d, EP: %d/%d, Alive: %s"),
+			UE_LOG(LogTemp, Display, TEXT("  %s - HP: %d/%d, EP: %d/%d, Alive: %s, Played by: %s"),
 				   *Actor->GetName(),
 				   Comp->CurrentHP, Comp->MaxHP,
 				   Comp->CurrentEP, Comp->MaxEP,
-				   Comp->bIsAlive ? TEXT("Yes") : TEXT("No"));
+				   Comp->bIsAlive ? TEXT("Yes") : TEXT("No"),
+				   IsActorAIControlled(Actor) ? TEXT("AI") : TEXT("you"));
 		}
 		else
 		{

@@ -107,9 +107,10 @@ void ABattleGameMode::BootstrapCombat()
     // Cross-check against the session party. Disagreement is not fatal — a Battle
     // Party is legitimately a SUBSET of the Trial Party — but a Battle Party member
     // absent from the Trial Party means the membership gate leaked, so say so.
-    if (const UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>())
+    const UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
+    const UParty *TrialParty = PartySession ? PartySession->GetLocalParty() : nullptr;
+    if (PartySession)
     {
-        const UParty *TrialParty = PartySession->GetLocalParty();
         const int32 TrialCount = TrialParty ? TrialParty->GetMemberCount() : 0;
         if (!TrialParty)
         {
@@ -133,8 +134,8 @@ void ABattleGameMode::BootstrapCombat()
 
     // D-003: each member spawns as its own FPartyMember.PawnClass (DefaultPlayerPawnClass
     // when unset or unresolved) and plays as its D-004 control setting.
-    const UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
-    const UParty *TrialParty = PartySession ? PartySession->GetLocalParty() : nullptr;
+    APawn *LeaderPawn = nullptr;
+    APawn *FirstPlayerMemberPawn = nullptr;
     for (int32 i = 0; i < BattlePartyData.Num(); ++i)
     {
         const int32 Slot = PartySession ? PartySession->GetMemberSlotByData(BattlePartyData[i]) : INDEX_NONE;
@@ -155,7 +156,16 @@ void ABattleGameMode::BootstrapCombat()
             Spawned->Destroy();
             continue;
         }
-        CombatControl::SetPlayerDriven(Spawned, !Member || Member->bPlayerControlled);
+        const bool bPlayerControlled = !Member || Member->bPlayerControlled;
+        CombatControl::SetPlayerDriven(Spawned, bPlayerControlled);
+        if (Slot == PartyConstants::LEADER_SLOT)
+        {
+            LeaderPawn = Spawned;
+        }
+        if (bPlayerControlled && !FirstPlayerMemberPawn)
+        {
+            FirstPlayerMemberPawn = Spawned;
+        }
         LocalParty.Add(Spawned);
     }
     for (int32 i = 0; i < OpposingPartyData.Num(); ++i)
@@ -190,7 +200,9 @@ void ABattleGameMode::BootstrapCombat()
         // The AI controller this displaces reaps itself — see
         // ACombatAIController::OnUnPossess. Handling it here too would be a second
         // mechanism for one job, and would still miss the login-time orphan.
-        PC->Possess(CastChecked<APawn>(LocalParty[0]));
+        // The leader when it fights; if it sat out (no gear, Q-071b), the first member you play.
+        APawn *PossessTarget = LeaderPawn ? LeaderPawn : FirstPlayerMemberPawn ? FirstPlayerMemberPawn : CastChecked<APawn>(LocalParty[0]);
+        PC->Possess(PossessTarget);
 
         if (PreviousPawn && PreviousPawn != PC->GetPawn())
         {

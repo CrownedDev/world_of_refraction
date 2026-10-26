@@ -170,6 +170,7 @@ private:
     /** Get current difficulty from combat (the encounter's: it drives the enemies) */
     UFUNCTION(BlueprintPure, Category = "AI")
     EAIDifficulty GetCurrentDifficulty() const;
+
     // ==================== TARGET SCORING ====================
 
     /** Score a potential target */
