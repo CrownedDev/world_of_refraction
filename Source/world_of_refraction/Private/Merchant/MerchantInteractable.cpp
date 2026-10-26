@@ -63,9 +63,15 @@ void AMerchantInteractable::BeginPlay()
     {
         UE_LOG(LogTemp, Warning, TEXT("MerchantInteractable '%s' has no Merchant assigned."), *GetName());
     }
-    else if (UStaticMesh *Outfit = Merchant->VOutfitMesh.LoadSynchronous())
+}
+
+void AMerchantInteractable::OnConstruction(const FTransform &Transform)
+{
+    Super::OnConstruction(Transform);
+    // Before registration finishes the static root still takes a new mesh.
+    // TODO(B-143 / B-144): async load once V's real meshes land.
+    if (UStaticMesh *Outfit = Merchant ? Merchant->VOutfitMesh.LoadSynchronous() : nullptr)
     {
-        // B-195: this service's V in its outfit, in place of the placeholder cube.
         CubeMesh->SetStaticMesh(Outfit);
     }
 }
@@ -73,7 +79,11 @@ void AMerchantInteractable::BeginPlay()
 TArray<EMerchantType> AMerchantInteractable::GetMissingServices(const UWorld *World)
 {
     TSet<EMerchantType> Present;
-    for (TActorIterator<AMerchantInteractable> It(World); World && It; ++It)
+    if (!World)
+    {
+        return {};
+    }
+    for (TActorIterator<AMerchantInteractable> It(World); It; ++It)
     {
         if (It->Merchant)
         {
@@ -94,7 +104,11 @@ TArray<EMerchantType> AMerchantInteractable::GetMissingServices(const UWorld *Wo
 FString AMerchantInteractable::GetServicesString(const UWorld *World)
 {
     FString Out = TEXT("Hub services:");
-    for (TActorIterator<AMerchantInteractable> It(World); World && It; ++It)
+    if (!World)
+    {
+        return Out + TEXT(" (no world)");
+    }
+    for (TActorIterator<AMerchantInteractable> It(World); It; ++It)
     {
         Out += FString::Printf(TEXT("\n  %s: %s%s"), *It->GetName(),
                                It->Merchant ? *UEnum::GetDisplayValueAsText(It->Merchant->MerchantType).ToString() : TEXT("<no Merchant>"),

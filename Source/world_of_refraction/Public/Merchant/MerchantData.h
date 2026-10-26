@@ -18,8 +18,10 @@
 #include "GameplayTagContainer.h"
 #include "MerchantData.generated.h"
 
-/** The five merchant archetypes. Item-type -> merchant is AUTOMATIC from the
- *  item's class (merchant map, Resources_Design.md); vendor tags only override. */
+class UStaticMesh;
+
+/** The merchant archetypes, one hub service each (B-195). Item-type -> merchant is AUTOMATIC from
+ *  the item's class (merchant map, Resources_Design.md); vendor tags only override. */
 UENUM(BlueprintType)
 enum class EMerchantType : uint8
 {
@@ -70,8 +72,6 @@ struct WORLD_OF_REFRACTION_API FMerchantStockEntry
  * availability tags. Currency comes from the purchase CONTEXT (hub vs trial),
  * never from this asset.
  */
-class UStaticMesh;
-
 UCLASS(BlueprintType)
 class WORLD_OF_REFRACTION_API UMerchantData : public UPrimaryDataAsset
 {

@@ -56,6 +56,9 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+
+    /** B-195: shows the merchant's V outfit (in the editor too) in place of the cube. */
+    virtual void OnConstruction(const FTransform &Transform) override;
     /** B-075: clears the interact hint if the actor goes away (level travel) while a pawn is in range. */
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
