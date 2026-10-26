@@ -34,6 +34,15 @@
 #include "Combat/TurnManager.h"
 #include "Skills/Definitions/SupportSkillRules.h"
 
+TArray<USpellData *> UAIDecisionManager::GetUsableSpells(const ULoadoutComponent *Loadout)
+{
+    // Picking a greyed spell wasted the AI's turn: ValidateAction refused it and the AI fell back.
+    TArray<USpellData *> Spells = Loadout ? Loadout->GetAvailableSpells() : TArray<USpellData *>();
+    Spells.RemoveAll([Loadout](const USpellData *Spell)
+                     { return !Loadout->GetBrokenSourceReason(Spell).IsEmpty(); });
+    return Spells;
+}
+
 USkillEffectManager *
 UAIDecisionManager::GetSkillEffectManager() const
 {
@@ -251,7 +260,7 @@ FAction UAIDecisionManager::BuildAction(AActor *AIActor)
         case EAIActionChoice::Spell:
         {
             Action.ActionType = EActionType::Spell;
-            TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
+            TArray<USpellData *> Spells = GetUsableSpells(Loadout);
             if (Spells.Num() > 0)
             {
                 Action.SpellData = Spells[UBattleRandomSubsystem::RandRange(this, 0, Spells.Num() - 1)];
@@ -303,7 +312,7 @@ EAIActionChoice UAIDecisionManager::ChooseActionType(AActor *AIActor, ULoadoutCo
         Options.Add(EAIActionChoice::Attack);
     }
 
-    if (Loadout->GetAvailableSpells().Num() > 0)
+    if (GetUsableSpells(Loadout).Num() > 0)
     {
         Options.Add(EAIActionChoice::Spell);
     }
@@ -637,7 +646,7 @@ int32 UAIDecisionManager::EstimateBestDamage(AActor *Attacker, AActor *Target)
     int32 BestDamage = 0;
 
     // Check spells
-    TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
+    TArray<USpellData *> Spells = GetUsableSpells(Loadout);
     for (USpellData *Spell : Spells)
     {
         if (Spell)
@@ -1344,7 +1353,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         AvailableActions.Add(EAIActionChoice::Attack);
     }
 
-    if (Loadout->GetAvailableSpells().Num() > 0)
+    if (GetUsableSpells(Loadout).Num() > 0)
     {
         AvailableActions.Add(EAIActionChoice::Spell);
     }
@@ -1388,7 +1397,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         case EAIActionChoice::Spell:
         {
             // Best combined damage + status score among affordable spells.
-            TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
+            TArray<USpellData *> Spells = GetUsableSpells(Loadout);
             float BestSpellScore = 0.0f;
             for (USpellData *Spell : Spells)
             {
@@ -1571,7 +1580,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
     case EAIActionChoice::Spell:
     {
         // Pick the affordable spell with the best combined damage + status score.
-        TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
+        TArray<USpellData *> Spells = GetUsableSpells(Loadout);
         USpellData *BestSpell = nullptr;
         float BestSpellScore = -1.0f;
 
@@ -1844,7 +1853,7 @@ USpellData *UAIDecisionManager::FindHealingSpell(ULoadoutComponent *Loadout)
         return nullptr;
     }
 
-    TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
+    TArray<USpellData *> Spells = GetUsableSpells(Loadout);
     for (USpellData *Spell : Spells)
     {
         if (!Spell || Spell->School != ESpellSchool::Restoration)
@@ -1875,7 +1884,7 @@ USpellData *UAIDecisionManager::FindCleanseSpell(ULoadoutComponent *Loadout)
         return nullptr;
     }
 
-    TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
+    TArray<USpellData *> Spells = GetUsableSpells(Loadout);
     for (USpellData *Spell : Spells)
     {
         if (!Spell)

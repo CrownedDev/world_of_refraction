@@ -70,6 +70,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "AI")
     void RequestDecision(AActor *AIActor);
 
+    /** The spells the AI may pick from: the loadout's spells minus those greyed out because
+     *  their source broke (D-083, B-181), which ValidateAction would refuse. */
+    static TArray<USpellData *> GetUsableSpells(const ULoadoutComponent *Loadout);
+
     // ==================== DEFENSE DECISIONS ====================
 
     /**
