@@ -56,6 +56,15 @@ struct WORLD_OF_REFRACTION_API FRingLoadoutEntry
      *  identical to RingEntry.GetSpells() since LockedCount is 0. */
     TArray<USpellData *> GetAllSpells() const;
 
+    /** GetAllSpells before the slot cap (B-196). */
+    TArray<USpellData *> GetAllSpellsUncapped() const;
+
+    /** Spell slots the attached gem / evolution (Q-147) or the ring's tier allows. */
+    int32 GetSpellSlotCap() const;
+
+    /** Spells the cap drops (0 for a locked ring, whose presets are never capped). */
+    int32 GetSpellsOverCap() const;
+
     /** Get only the locked/preset spells (empty when bSpellsLocked is false). */
     TArray<USpellData *> GetLockedSpells() const;
 

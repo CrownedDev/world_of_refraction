@@ -87,6 +87,32 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetAllAbilities() const
 
 TArray<USpellData *> FWeaponLoadoutEntry::GetAllSpells() const
 {
+    TArray<USpellData *> Result = GetAllSpellsUncapped();
+    if (Result.Num() > GetSpellSlotCap())
+    {
+        Result.SetNum(GetSpellSlotCap());
+    }
+    return Result;
+}
+
+int32 FWeaponLoadoutEntry::GetSpellSlotCap() const
+{
+    // Gem crystals and evolutions (Q-147) gate spell slots by their own tier; otherwise
+    // the cap falls through to the weapon's own tier (SlotsForContainerTier), MAX_SPELL_SLOTS only
+    // as the no-weapon ceiling.
+    return CrystalEffectTable::ResolveSpellSlotCap(
+        WeaponEntry.GetAttachedItem(),
+        WeaponEntry.Weapon ? CrystalEffectTable::SlotsForContainerTier(WeaponEntry.Tier)
+                           : LoadoutConstants::MAX_SPELL_SLOTS);
+}
+
+int32 FWeaponLoadoutEntry::GetSpellsOverCap() const
+{
+    return FMath::Max(0, GetAllSpellsUncapped().Num() - GetSpellSlotCap());
+}
+
+TArray<USpellData *> FWeaponLoadoutEntry::GetAllSpellsUncapped() const
+{
     // Inventory-entry spells form the base list; AssignedSpells override them.
     const TArray<USpellData *> Presets = WeaponEntry.GetSpells();
 
@@ -115,18 +141,6 @@ TArray<USpellData *> FWeaponLoadoutEntry::GetAllSpells() const
             Result.Add(AssignedSpells[OverrideIndex]);
         }
         ++OverrideIndex;
-    }
-
-    // Gem crystals and evolutions (Q-147) gate spell slots by their own tier; otherwise
-    // the cap falls through to the weapon's own tier (SlotsForContainerTier), MAX_SPELL_SLOTS only
-    // as the no-weapon ceiling.
-    const int32 SlotCap = CrystalEffectTable::ResolveSpellSlotCap(
-        WeaponEntry.GetAttachedItem(),
-        WeaponEntry.Weapon ? CrystalEffectTable::SlotsForContainerTier(WeaponEntry.Tier)
-                           : LoadoutConstants::MAX_SPELL_SLOTS);
-    if (Result.Num() > SlotCap)
-    {
-        Result.SetNum(SlotCap);
     }
 
     return Result;
