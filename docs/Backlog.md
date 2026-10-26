@@ -152,7 +152,7 @@
 | B-096 | Passive effects that raise the run-end payout (gear / evolution passives feed B-073's multiplier) | CC | S | B-073 | A passive changes the payout in a test | BLOCKED (B-073) |
 | B-074 | Encounter Composition Arc 2: `UEncounterData`, multi-enemy battles, AI formation | CC | L | B-001 | 1v3 fight from data | REVIEW (in dev) |
 | B-075 | Recruit duplicate fix; currency clamp; shop soft-lock; hint cleanup on EndPlay | CC | S | — | Each verified | REVIEW (in dev) |
-| B-115 | D-013: **durability and absorption carry over** between fights in a run. Only HP/EP are saved today, so wear and the +10 repair never reach the next fight (`docs/Rules/05-economy-and-runs.md` Cx-3) | CC | M | B-001 | Test: crystal durability and BD absorption after fight 1 are what fight 2 starts with | IN PROGRESS (feature/B-115-carry-gear-state) |
+| B-115 | D-013: **durability and absorption carry over** between fights in a run. Only HP/EP are saved today, so wear and the +10 repair never reach the next fight (`docs/Rules/05-economy-and-runs.md` Cx-3) | CC | M | B-001 | Test: crystal durability and BD absorption after fight 1 are what fight 2 starts with | REVIEW (in dev) |
 | B-116 | D-021 run start: **buy your loadout from your pool** with a starting Gold budget; unspent Gold carries into the run; slot limits (1 weapon / 2 rings / 1 evolution early). Budget and price curve as named constants `// TODO: tune`. Update `Resources_Design.md` §draft | CC | L | B-073, B-091 | Test: a run starts with only the bought gear and the leftover Gold | BLOCKED (B-073) |
 
 ## Phase 4b — Run, map and hub plumbing (Crown, 2026-10-26: every decided mechanic built, placeholders where content or details are missing)

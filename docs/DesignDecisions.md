@@ -1660,6 +1660,27 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-071-party-into-battle): `ABattleGameMode::BootstrapCombat` possesses the leader's pawn when it fights, otherwise the first Player-set member, otherwise the first spawned.
 
+### Q-115 — Which Broken Darkness state is "absorption" that carries between fights?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-115) · **Blocks:** — (B-115 shipped with A)
+**Question:** D-013 says absorption carries over within a run. Broken Darkness keeps several kinds of state: the absorbed EP (above max = overload), the absorption stacks and absorbed elements, the strain toward a transformation, and the transformation itself for a Darkness caster who isn't born Broken Darkness. Which carry?
+**Options:**
+- **A** The absorption pool carries (absorbed elements, alignment, stacks and the consecutive-absorption streak, the EP above max, which re-enters overload at once); strain and a non-born caster's transformation start fresh each fight.
+- **B** Everything carries, the transformation included.
+- **C** Only the EP (already carried), nothing else.
+**Recommendation:** A. It keeps what the player built up by guarding (the attrition D-013 asks for), while fight-tempo states reset: Darkest Dungeon carries HP and stress between battles but each battle's buffs end with it, and Slay the Spire ends every in-fight form at the fight's end. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-115-carry-gear-state): `FCarriedAbsorptionState`, `UBrokenDarknessManager::SnapshotCarriedAbsorption` / `ApplyCarriedAbsorption` (born Broken Darkness only).
+
+### Q-115b — After a flee or a draw, does crystal wear carry?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-115) · **Blocks:** — (B-115 shipped with A)
+**Question:** a won or lost fight runs the between-fight destruction and the +10 repair before its state is banked. A fled or drawn fight runs neither. Should its wear still carry?
+**Options:**
+- **A** Yes, as the fight left it: no +10 repair, and a gem broken at 0 stays broken (it is destroyed at the end of the next fight it reaches).
+- **B** No: a flee or draw drops the fight's crystal state (the next fight starts from the last banked state).
+**Recommendation:** A. HP and EP already carry after a flee, so wear does too; in Dark Souls running from a fight never restores durability, and Darkest Dungeon's retreat keeps the damage taken. The repair is the reward for finishing a fight. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied: `ABattleGameMode::HandleCombatEnd` banks on every result.
+
 ### Q-074 — Does an encounter's enemy team replace its map pawn or join it?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-074) · **Blocks:** — (B-074 shipped with A)
 **Question:** an encounter on the map sits on one enemy pawn. When it names an enemy team (`UEncounterData`, up to three), does the team fight instead of that pawn, or alongside it?

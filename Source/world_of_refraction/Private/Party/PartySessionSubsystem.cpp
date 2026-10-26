@@ -667,6 +667,26 @@ FString UPartySessionSubsystem::GetPartyStateString() const
 								   Member.IsFallen() ? TEXT(" (FALLEN - sits out until revived)") : TEXT(""),
 								   *Formation, Control);
 		}
+		// B-115: the crystal and absorption state the next fight starts with.
+		if (Member.CarriedGear.bCarried)
+		{
+			FString Durabilities;
+			for (const FCarriedAttachment &Attachment : Member.CarriedGear.Attachments)
+			{
+				Durabilities += Attachment.Attached.IsEmpty()
+									? FString(TEXT(" empty"))
+									: FString::Printf(TEXT(" %d"), Attachment.Attached.GetCurrentDurability());
+			}
+			Out += FString::Printf(TEXT("      carried crystals:%s%s\n"), *Durabilities,
+								   Member.CarriedGear.bHasPrimaryEvolution
+									   ? *FString::Printf(TEXT(" - evolution %d"), Member.CarriedGear.PrimaryEvolution.CurrentDurability)
+									   : TEXT(""));
+		}
+		if (Member.CarriedAbsorption.bCarried)
+		{
+			Out += FString::Printf(TEXT("      carried absorption: %d stacks, overload %d EP\n"),
+								   Member.CarriedAbsorption.AbsorptionStacks, Member.CarriedAbsorption.OverloadEP);
+		}
 	}
 	Out += FString::Printf(TEXT("  When your fighters fall: %s\n"),
 						   Party->bLetAIFinish ? TEXT("let AI finish") : TEXT("take over"));
