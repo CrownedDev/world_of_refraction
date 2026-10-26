@@ -317,6 +317,71 @@ void UCombatGridSubsystem::AutoAssignTeam(const TArray<AActor *> &TeamActors, in
            *CombatRowHelpers::GetRowName(PreferredRow));
 }
 
+namespace CombatGridStart
+{
+    // Same centre-out order as AutoAssignTeam: centre, then left, then right.
+    constexpr int32 CENTRE_OUT_COLUMNS[CombatGridConstants::GRID_COLUMNS] = {1, 0, 2};
+    constexpr ECombatRow FALLBACK_ROWS[] = {ECombatRow::Middle, ECombatRow::Front, ECombatRow::Back};
+}
+
+void UCombatGridSubsystem::AssignTeamWithPreferences(const TArray<AActor *> &TeamActors, int32 TeamIndex,
+                                                    const TArray<FGridStartPreference> &Preferences)
+{
+    auto TryRow = [this, TeamIndex](AActor *Actor, ECombatRow Row)
+    {
+        for (const int32 Column : CombatGridStart::CENTRE_OUT_COLUMNS)
+        {
+            const FCombatGridPosition Position(TeamIndex, Row, Column);
+            if (!IsPositionOccupied(Position) && AssignPosition(Actor, Position))
+            {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // Pass 1: exact cells, first come first served.
+    TArray<AActor *> Unplaced;
+    for (int32 Index = 0; Index < TeamActors.Num(); ++Index)
+    {
+        AActor *Actor = TeamActors[Index];
+        if (!Actor)
+        {
+            continue;
+        }
+        const FGridStartPreference *Preference = Preferences.IsValidIndex(Index) ? &Preferences[Index] : nullptr;
+        if (Preference && Preference->bHasRow && Preference->Column != INDEX_NONE)
+        {
+            const FCombatGridPosition Cell(TeamIndex, Preference->Row, Preference->Column);
+            if (Cell.IsValid() && !IsPositionOccupied(Cell) && AssignPosition(Actor, Cell))
+            {
+                UE_LOG(LogTemp, Log, TEXT("[CombatGrid] %s starts in its chosen cell %s"), *Actor->GetName(), *Cell.ToString());
+                continue;
+            }
+            UE_LOG(LogTemp, Log, TEXT("[CombatGrid] %s: chosen cell %s is taken or invalid - auto-placing"),
+                   *Actor->GetName(), *Cell.ToString());
+        }
+        Unplaced.Add(Actor);
+    }
+
+    // Pass 2: the preferred row (or Middle), then any free cell.
+    for (AActor *Actor : Unplaced)
+    {
+        const int32 Index = TeamActors.IndexOfByKey(Actor);
+        const FGridStartPreference *Preference = Preferences.IsValidIndex(Index) ? &Preferences[Index] : nullptr;
+        const ECombatRow FirstRow = Preference && Preference->bHasRow ? Preference->Row : ECombatRow::Middle;
+        bool bPlaced = TryRow(Actor, FirstRow);
+        for (int32 RowIndex = 0; !bPlaced && RowIndex < UE_ARRAY_COUNT(CombatGridStart::FALLBACK_ROWS); ++RowIndex)
+        {
+            bPlaced = TryRow(Actor, CombatGridStart::FALLBACK_ROWS[RowIndex]);
+        }
+        if (!bPlaced)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] No free cell for %s on Team %d"), *Actor->GetName(), TeamIndex);
+        }
+    }
+}
+
 // ==================== DEBUG ====================
 
 // FAutoConsoleCommandWithWorld — NOT UFUNCTION(CallInEditor). A UGameInstanceSubsystem has no
