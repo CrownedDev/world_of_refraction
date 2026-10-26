@@ -22,7 +22,6 @@ namespace
 	constexpr int32 FORMATION_RIGHT_COLUMN = 2;
 	constexpr int32 FORMATION_MEMBER_SLOT = 1;
 	constexpr int32 LOCAL_TEAM = 0;
-	constexpr int32 OPPOSING_TEAM = 1;
 }
 
 BEGIN_DEFINE_SPEC(FFormationStartSpec, "WoR.Grid.FormationStart",
