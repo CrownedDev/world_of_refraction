@@ -5,6 +5,7 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CombatCharacter.h"
+#include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Combat/CombatControl.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "Engine/GameInstance.h"
@@ -351,6 +352,13 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
                 if (SlotIndex != INDEX_NONE)
                 {
                     PartySession->SetMemberVitals(SlotIndex, CharComp->CurrentHP, CharComp->CurrentEP);
+                    // B-115: the orchestrator ran the between-fight destruction and +10 repair
+                    // before this broadcast, so the snapshot is what the next fight starts with.
+                    const ULoadoutComponent *Loadout = Combatant->FindComponentByClass<ULoadoutComponent>();
+                    const UBrokenDarknessManager *BDManager = Combatant->FindComponentByClass<UBrokenDarknessManager>();
+                    PartySession->SetMemberCarriedState(SlotIndex,
+                                                        Loadout ? Loadout->SnapshotCarriedGear() : FCarriedGearState(),
+                                                        BDManager ? BDManager->SnapshotCarriedAbsorption() : FCarriedAbsorptionState());
                     ++BankedCount;
                 }
             }

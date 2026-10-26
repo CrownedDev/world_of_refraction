@@ -22,6 +22,8 @@ class APlayerController;
 class UCharacterData;
 class UParty;
 struct FPartyMember;
+struct FCarriedGearState;
+struct FCarriedAbsorptionState;
 
 /** Broadcasts on any composition change: initial creation, invite success,
  *  dismiss success. Consumers should re-read UParty state on fire — the delegate
@@ -171,13 +173,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	bool GetMemberVitals(int32 SlotIndex, int32 &OutHP, int32 &OutEP) const;
 
+	/** B-115: bank a slot's crystal and absorption state at a fight's end. No-op on an invalid slot. */
+	void SetMemberCarriedState(int32 SlotIndex, const FCarriedGearState &Gear, const FCarriedAbsorptionState &Absorption);
+
+	/** B-115: the slot's carried crystal and absorption state, or null on an invalid slot. Each
+	 *  part's bCarried says whether anything was banked. */
+	const FPartyMember *GetMemberCarriedState(int32 SlotIndex) const;
+
 	/** Trial entry: seed every slot to its computed maxima. Broken-Darkness-innate
 	 *  members start with an empty EP pool. */
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	void SetAllMembersFull();
 
-	/** Hub return: drop all carried state back to the sentinel, so display falls
-	 *  back to template maxima again. */
+	/** Hub return: drop all carried state (vitals, crystals, absorption) back to the sentinel, so
+	 *  display falls back to template maxima again. */
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	void ClearAllMemberVitals();
 

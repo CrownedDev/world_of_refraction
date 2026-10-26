@@ -160,6 +160,48 @@ void UBrokenDarknessManager::InitializeBornBrokenDarkness()
 		   *Owner->GetName());
 }
 
+FCarriedAbsorptionState UBrokenDarknessManager::SnapshotCarriedAbsorption() const
+{
+	FCarriedAbsorptionState Carried;
+	const UCharacterDataComponent *CharComp = GetCharComp();
+	if (!bIsFlipped || !CharComp || !CharComp->CharacterData || !CharComp->CharacterData->bBrokenDarknessInnate)
+	{
+		return Carried;
+	}
+	Carried.bCarried = true;
+	Carried.AbsorbedElements = AbsorbedElements;
+	Carried.AlignmentElement = CurrentAlignmentElement;
+	Carried.AbsorptionStacks = CurrentAbsorptionStacks;
+	Carried.ConsecutiveAbsorptions = ConsecutiveAbsorptions;
+	Carried.OverloadEP = FMath::RoundToInt(GetOverloadEnergy());
+	return Carried;
+}
+
+void UBrokenDarknessManager::ApplyCarriedAbsorption(const FCarriedAbsorptionState &Carried)
+{
+	UCharacterDataComponent *CharComp = GetCharComp();
+	if (!Carried.bCarried || !bIsFlipped || !CharComp)
+	{
+		return;
+	}
+	if (Carried.AbsorbedElements.Num() > 0)
+	{
+		AbsorbedElements = Carried.AbsorbedElements;
+	}
+	CurrentAlignmentElement = Carried.AlignmentElement;
+	CurrentAbsorptionStacks = FMath::Clamp(Carried.AbsorptionStacks, 0, MaxAbsorptionStacks);
+	ConsecutiveAbsorptions = FMath::Max(0, Carried.ConsecutiveAbsorptions);
+	if (Carried.OverloadEP > 0 && CharComp->CurrentEP >= CharComp->MaxEP)
+	{
+		// Broadcasts OnEPChanged, which re-evaluates overload (HandleOwnerEnergyChanged).
+		const int32 AbsoluteMax = CharComp->MaxEP + FMath::RoundToInt(GetOverloadCapacity());
+		CharComp->ServerGainBrokenDarknessEnergy(Carried.OverloadEP, AbsoluteMax);
+	}
+	UE_LOG(LogTemp, Log, TEXT("[BrokenDarkness] %s: carried absorption resumed (%d stacks, alignment %s, overload %d)"),
+		   GetOwner() ? *GetOwner()->GetName() : TEXT("<null>"), CurrentAbsorptionStacks,
+		   *UEnum::GetValueAsString(CurrentAlignmentElement), Carried.OverloadEP);
+}
+
 void UBrokenDarknessManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (UCharacterDataComponent *CharComp = GetCharComp())

@@ -501,6 +501,24 @@ void UPartySessionSubsystem::SetMemberVitals(int32 SlotIndex, int32 HP, int32 EP
 	Member.CurrentEP = EP;
 }
 
+void UPartySessionSubsystem::SetMemberCarriedState(int32 SlotIndex, const FCarriedGearState &Gear, const FCarriedAbsorptionState &Absorption)
+{
+	UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PartySession] SetMemberCarriedState: invalid slot %d"), SlotIndex);
+		return;
+	}
+	Party->Members[SlotIndex].CarriedGear = Gear;
+	Party->Members[SlotIndex].CarriedAbsorption = Absorption;
+}
+
+const FPartyMember *UPartySessionSubsystem::GetMemberCarriedState(int32 SlotIndex) const
+{
+	const UParty *Party = GetLocalParty();
+	return Party && Party->Members.IsValidIndex(SlotIndex) ? &Party->Members[SlotIndex] : nullptr;
+}
+
 bool UPartySessionSubsystem::GetMemberVitals(int32 SlotIndex, int32 &OutHP, int32 &OutEP) const
 {
 	const UParty *Party = GetLocalParty();
@@ -532,6 +550,8 @@ void UPartySessionSubsystem::SetAllMembersFull()
 	for (FPartyMember &Member : Party->Members)
 	{
 		SetMemberVitalsFull(Member);
+		Member.CarriedGear = FCarriedGearState();
+		Member.CarriedAbsorption = FCarriedAbsorptionState();
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[PartySession] Vitals seeded to full for %d member(s)"), Party->GetMemberCount());
@@ -597,6 +617,8 @@ void UPartySessionSubsystem::ClearAllMemberVitals()
 	{
 		Member.CurrentHP = PartyConstants::NO_CARRIED_VITALS;
 		Member.CurrentEP = PartyConstants::NO_CARRIED_VITALS;
+		Member.CarriedGear = FCarriedGearState();
+		Member.CarriedAbsorption = FCarriedAbsorptionState();
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[PartySession] Carried vitals cleared for %d member(s)"), Party->GetMemberCount());
@@ -644,6 +666,26 @@ FString UPartySessionSubsystem::GetPartyStateString() const
 								   SlotIndex, *MemberName, Member.CurrentHP, Member.CurrentEP,
 								   Member.IsFallen() ? TEXT(" (FALLEN - sits out until revived)") : TEXT(""),
 								   *Formation, Control);
+		}
+		// B-115: the crystal and absorption state the next fight starts with.
+		if (Member.CarriedGear.bCarried)
+		{
+			FString Durabilities;
+			for (const FCarriedAttachment &Attachment : Member.CarriedGear.Attachments)
+			{
+				Durabilities += Attachment.Attached.IsEmpty()
+									? FString(TEXT(" empty"))
+									: FString::Printf(TEXT(" %d"), Attachment.Attached.GetCurrentDurability());
+			}
+			Out += FString::Printf(TEXT("      carried crystals:%s%s\n"), *Durabilities,
+								   Member.CarriedGear.bHasPrimaryEvolution
+									   ? *FString::Printf(TEXT(" - evolution %d"), Member.CarriedGear.PrimaryEvolution.CurrentDurability)
+									   : TEXT(""));
+		}
+		if (Member.CarriedAbsorption.bCarried)
+		{
+			Out += FString::Printf(TEXT("      carried absorption: %d stacks, overload %d EP\n"),
+								   Member.CarriedAbsorption.AbsorptionStacks, Member.CarriedAbsorption.OverloadEP);
 		}
 	}
 	Out += FString::Printf(TEXT("  When your fighters fall: %s\n"),
