@@ -16,7 +16,8 @@
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
-#include "Loadout/LoadoutComponent.h"
+#include "UI/Combat/CombatHUD.h"
+#include "GameFramework/PlayerController.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
@@ -127,7 +128,34 @@ void ACombatOrchestrator::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
 
+	TeardownCombatHUD();
+
 	Super::EndPlay(EndPlayReason);
+}
+
+void ACombatOrchestrator::OnCombatStartedUI_Implementation(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty)
+{
+	UWorld *World = GetWorld();
+	APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] No local player controller - native combat HUD skipped"));
+		return;
+	}
+
+	if (!CombatHUD)
+	{
+		CombatHUD = NewObject<UCombatHUD>(this);
+	}
+	CombatHUD->Build(PC, LocalParty, OpposingParty);
+}
+
+void ACombatOrchestrator::TeardownCombatHUD()
+{
+	if (CombatHUD)
+	{
+		CombatHUD->Teardown();
+	}
 }
 
 // ========================================
@@ -283,6 +311,11 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 
 	// Unbind first so TurnManager::EndCombat below can't re-enter HandleCombatEnded.
 	UnbindTurnManagerEvents();
+
+	// Forced end: drop the combat HUD now. The results screen (BattleGameMode) is
+	// its own widget; win paths leave the HUD up and EndPlay removes it.
+	TeardownCombatHUD();
+
 	ReleaseCombatResources();
 
 	if (TurnManagerRef)

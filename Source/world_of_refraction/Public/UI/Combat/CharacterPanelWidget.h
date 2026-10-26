@@ -49,7 +49,7 @@ enum class EPanelDisplayMode : uint8
  *   - Buffs/debuffs    -> USkillEffectManager::OnEffectApplied / Removed / DurationChanged
  *   - Death            -> UCharacterDataComponent::OnDied
  *
- * Lifecycle: Spawned by BP_CombatOrchestrator as a standalone viewport widget
+ * Lifecycle: Spawned by UCombatHUD as a standalone viewport widget
  * (or by debug spawn), given an actor via InitialiseForActor.
  */
 UCLASS(Abstract)
@@ -202,13 +202,16 @@ protected:
 	UFUNCTION()
 	void HandleBDTransformed(AActor *Actor);
 
-	/** BP fills the EffectsList from this array each time it changes. */
-	UFUNCTION(BlueprintImplementableEvent, Category = "Character Panel")
+	/** Fills EffectsList each time the effect set changes. Native default writes a
+	 *  pre-spawned pool of text rows (never creates widgets per call — TransBuffer rule).
+	 *  A BP override replaces it; delete the WBP_CharacterPanel override to cut over. */
+	UFUNCTION(BlueprintNativeEvent, Category = "Character Panel")
 	void RebuildEffectsList(const TArray<FActiveSkillEffect> &ActiveEffects);
+	virtual void RebuildEffectsList_Implementation(const TArray<FActiveSkillEffect> &ActiveEffects);
 
 	/**
 	 * Called once during InitialiseForActor to populate name/class/element/world stats.
-	 * BP can override for custom formatting; native fallback fills NameText only.
+	 * Native default fills NameText, ClassElementText and WorldStatsText; BP may override.
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Character Panel")
 	void ApplyStaticText();
@@ -228,6 +231,15 @@ private:
 	TWeakObjectPtr<UBrokenDarknessManager> BoundBDManager;
 
 	bool bBound = false;
+
+	/** Upper bound on visible effect rows; overflow collapses into a "+N more" last row. */
+	static constexpr int32 MaxEffectRows = 8;
+
+	/** Native effect rows, spawned once into EffectsList (only when no BP override). */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> EffectRowPool;
+
+	void SpawnEffectRowPool();
 
 	EPanelDisplayMode DisplayMode = EPanelDisplayMode::Vacant;
 

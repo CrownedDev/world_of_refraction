@@ -18,7 +18,8 @@ class UTextBlock;
  * via InitialiseSlot — no widget creation/destruction during combat.
  *
  * Display: actor name, turn number, active/inactive state, bonus-turn state.
- * BP handles the active/inactive AND bonus visual difference (color tint, scale, badge).
+ * Native default fills NameText / TurnNumberText and marks active/bonus slots
+ * (scale + opacity + "+" badge on the number). A BP override replaces it.
  */
 UCLASS(Abstract)
 class WORLD_OF_REFRACTION_API UTurnOrderSlotWidget : public UUserWidget
@@ -36,8 +37,9 @@ public:
 	 *                      graph reads this to render a distinct badge/tint. Always false for
 	 *                      the active (current-actor) slot and for normal upcoming turns.
 	 */
-	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Turn Order Slot")
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Turn Order Slot")
 	void InitialiseSlot(AActor *InActor, int32 InTurnNumber, bool bIsActive, bool bIsBonus);
+	virtual void InitialiseSlot_Implementation(AActor *InActor, int32 InTurnNumber, bool bIsActive, bool bIsBonus);
 
 	// ========================================
 	// BindWidget — match names in WBP_TurnOrderSlot
