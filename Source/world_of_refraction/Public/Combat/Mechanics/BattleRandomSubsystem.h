@@ -2,7 +2,7 @@
 // One seeded random stream per battle (B-010). Combat rolls (crit, Broken Darkness, AI
 // choices, random targets and effects, in-fight items) draw from it, so a fight replays
 // exactly from the seed it logs at combat start. World-scoped: it lives and dies with the
-// battle map, so it holds no per-fight state on the GameInstance (see D-064).
+// battle map, so it holds no per-fight state on the GameInstance (D-064 pending).
 
 #pragma once
 
@@ -18,6 +18,9 @@ class WORLD_OF_REFRACTION_API UBattleRandomSubsystem : public UWorldSubsystem
 
 public:
 	virtual void Initialize(FSubsystemCollectionBase &Collection) override;
+
+	/** Game and PIE worlds only: editor, preview and inactive worlds hold no fight. */
+	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 
 	/** Seeds the stream for a new battle: `wor.Battle.Seed` when non-zero, else a fresh seed.
 	 *  Logs the seed (so the fight can be replayed) and returns it. */

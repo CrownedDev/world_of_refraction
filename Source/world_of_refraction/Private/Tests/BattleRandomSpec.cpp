@@ -48,7 +48,8 @@ BEGIN_DEFINE_SPEC(FBattleRandomSpec, "WoR.Combat.BattleRandom",
 		return Draws;
 	}
 
-	/** A run of coin-flip-crit hits between the same two fresh combatants: which ones crit, and the damage. */
+	/** A run of coin-flip-crit hits between two fresh combatants: which ones crit, and the damage.
+	 *  Reseeds with Seed first unless Seed is 0 (then the stream is used as it stands). */
 	TArray<int32> CritRun(int32 Seed)
 	{
 		TArray<int32> Damage;
@@ -65,7 +66,10 @@ BEGIN_DEFINE_SPEC(FBattleRandomSpec, "WoR.Combat.BattleRandom",
 		Input.ActionType = EActionType::Ability;
 		Input.OverrideCritChance = BATTLE_RANDOM_COIN_FLIP_CRIT;
 
-		BattleRandom->SeedStream(Seed);
+		if (Seed != 0)
+		{
+			BattleRandom->SeedStream(Seed);
+		}
 		for (int32 Hit = 0; Hit < BATTLE_RANDOM_HITS; ++Hit)
 		{
 			const FDamageCalculationResult Result = Calculator->CalculateDamage(Attacker, Defender, Input);
@@ -177,6 +181,37 @@ void FBattleRandomSpec::Define()
 		{
 			Orchestrator->ForceEndCombat();
 		}
+	});
+
+	It("gives two fights started on the same seed the same rolls", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		ACombatOrchestrator *Orchestrator = World ? World->SpawnActor<ACombatOrchestrator>() : nullptr;
+		if (!BattleRandom || !TestNotNull(TEXT("Orchestrator"), Orchestrator))
+		{
+			return;
+		}
+		SetSeedCVar(BATTLE_RANDOM_FORCED_SEED);
+
+		// Each fight: StartCombat seeds, then the fight's crit rolls run on that stream (no reseed).
+		TArray<int32> Fights[2];
+		for (TArray<int32> &FightRolls : Fights)
+		{
+			AActor *Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			AActor *Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			if (!TestTrue(TEXT("Combatants spawned"), Hero && Foe))
+			{
+				return;
+			}
+			Orchestrator->StartCombat({Hero}, {Foe});
+			FightRolls = CritRun(0);
+			if (Orchestrator->GetCombatState() != ECombatState::Idle)
+			{
+				Orchestrator->ForceEndCombat();
+			}
+		}
+		TestEqual(TEXT("Every hit resolved"), Fights[0].Num(), BATTLE_RANDOM_HITS);
+		TestTrue(TEXT("Same seed at combat start, same crits and damage"), Fights[0] == Fights[1]);
 	});
 
 	It("falls back to the global RNG with no world", [this]()

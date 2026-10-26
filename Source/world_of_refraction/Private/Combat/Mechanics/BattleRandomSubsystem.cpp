@@ -25,6 +25,11 @@ namespace
 	}
 }
 
+bool UBattleRandomSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
+{
+	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE;
+}
+
 void UBattleRandomSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
@@ -51,7 +56,20 @@ void UBattleRandomSubsystem::SeedStream(int32 NewSeed)
 UBattleRandomSubsystem *UBattleRandomSubsystem::Get(const UObject *WorldContext)
 {
 	UWorld *World = WorldContext ? WorldContext->GetWorld() : nullptr;
-	return World ? World->GetSubsystem<UBattleRandomSubsystem>() : nullptr;
+	UBattleRandomSubsystem *Battle = World ? World->GetSubsystem<UBattleRandomSubsystem>() : nullptr;
+	if (!Battle && WorldContext)
+	{
+		// A real caller with no battle stream (travel, teardown) rolls on the global RNG, so
+		// that roll won't replay. Said once, not per roll.
+		static bool bWarnedNoStream = false;
+		if (!bWarnedNoStream)
+		{
+			bWarnedNoStream = true;
+			UE_LOG(LogWoRCombat, Warning, TEXT("[BattleRandom] %s has no battle stream; rolling on the global RNG (not replayable)"),
+				   *WorldContext->GetName());
+		}
+	}
+	return Battle;
 }
 
 float UBattleRandomSubsystem::FRand(const UObject *WorldContext)
