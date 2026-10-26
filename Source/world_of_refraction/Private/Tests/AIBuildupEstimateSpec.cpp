@@ -18,6 +18,7 @@ namespace
 	constexpr int32 AI_BUILDUP_TEST_AUTHORED = 20;
 	constexpr int32 AI_BUILDUP_TEST_HITS = 3;
 	constexpr float AI_BUILDUP_TEST_TOLERANCE = 1.0f; // the estimate rounds to whole points
+	constexpr int32 AI_BUILDUP_TEST_STATUS_MULT_POINTS = 10; // a Status Multiplier above 1, so it is tested
 }
 
 BEGIN_DEFINE_SPEC(FAIBuildupEstimateSpec, "WoR.AI.BuildupEstimate",
@@ -28,6 +29,14 @@ BEGIN_DEFINE_SPEC(FAIBuildupEstimateSpec, "WoR.AI.BuildupEstimate",
 	AActor *Spawn()
 	{
 		return TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+	}
+
+	/** An attacker whose Status Multiplier is above 1. */
+	AActor *SpawnSource()
+	{
+		UCharacterData *Data = FWoRTestWorld::NewCharacterData();
+		Data->StatusMultiplier = AI_BUILDUP_TEST_STATUS_MULT_POINTS;
+		return TestWorld->SpawnCombatant(Data);
 	}
 
 	/** What the live path adds for an action authored at AI_BUILDUP_TEST_AUTHORED, before the target's resistance. */
@@ -68,9 +77,10 @@ void FAIBuildupEstimateSpec::Define()
 	It("for a multi-hit ability equals the buildup the live hit adds", [this]()
 	{
 		if (!Buildup) return;
-		AActor *Source = Spawn();
+		AActor *Source = SpawnSource();
 		UCharacterDataComponent *Comp = Source->FindComponentByClass<UCharacterDataComponent>();
 		if (!TestTrue(TEXT("Source has character data"), Comp && Comp->CharacterData)) return;
+		TestTrue(TEXT("Status Multiplier above 1"), Comp->CharacterData->CalculateStatusMultiplier() > 1.0f);
 		TestEqual(TEXT("Ability estimate"), static_cast<float>(NewSkill<UAbilityData>()->CalculateStatusBuildup(Comp->CharacterData)),
 				  LiveBuildupBeforeResistance(Source), AI_BUILDUP_TEST_TOLERANCE);
 	});
@@ -78,9 +88,10 @@ void FAIBuildupEstimateSpec::Define()
 	It("for a multi-hit spell equals the buildup the live hit adds", [this]()
 	{
 		if (!Buildup) return;
-		AActor *Source = Spawn();
+		AActor *Source = SpawnSource();
 		UCharacterDataComponent *Comp = Source->FindComponentByClass<UCharacterDataComponent>();
 		if (!TestTrue(TEXT("Source has character data"), Comp && Comp->CharacterData)) return;
+		TestTrue(TEXT("Status Multiplier above 1"), Comp->CharacterData->CalculateStatusMultiplier() > 1.0f);
 		TestEqual(TEXT("Spell estimate"), static_cast<float>(NewSkill<USpellData>()->CalculateStatusBuildup(Comp->CharacterData)),
 				  LiveBuildupBeforeResistance(Source), AI_BUILDUP_TEST_TOLERANCE);
 	});
