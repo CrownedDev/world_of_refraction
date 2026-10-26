@@ -94,6 +94,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	bool InviteMember(TSoftClassPtr<ACombatCharacter> PawnClass);
 
+	/** B-075: append a member as Data, the character a placed pawn actually carries (it may
+	 *  override its class default). Same checks as InviteMember. */
+	UFUNCTION(BlueprintCallable, Category = "Party")
+	bool InviteMemberWithData(TSoftClassPtr<ACombatCharacter> PawnClass, UCharacterData *Data);
+
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	bool DismissMember(int32 SlotIndex);
 
@@ -201,7 +206,7 @@ private:
 	/** Internal add path — does the work but does NOT broadcast. Callers that
 	 *  compose multiple adds into a single logical operation (e.g. CreateSoloParty)
 	 *  call this directly, then broadcast once. External callers use InviteMember. */
-	bool InviteMemberInternal(TSoftClassPtr<ACombatCharacter> PawnClass);
+	bool InviteMemberInternal(TSoftClassPtr<ACombatCharacter> PawnClass, UCharacterData *DataOverride = nullptr);
 
 	/** Resolve the CharacterData a pawn class ships with, by loading the class and
 	 *  reading its CDO's CharacterDataComponent. Synchronous — invites happen at

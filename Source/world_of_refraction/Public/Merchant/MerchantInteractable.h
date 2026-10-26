@@ -49,6 +49,8 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+    /** B-075: clears the interact hint if the actor goes away (level travel) while a pawn is in range. */
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
     /** Placeholder cube visual (engine basic shape) — also the root. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")

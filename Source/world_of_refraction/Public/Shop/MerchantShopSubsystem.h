@@ -19,6 +19,7 @@
 #include "MerchantShopSubsystem.generated.h"
 
 class APawn;
+class APlayerController;
 class UMerchantData;
 class UUserWidget;
 
@@ -39,8 +40,17 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Shop")
     void Close();
 
+    /** True while the shop holds the game paused under its window (B-075: tracked apart from the
+     *  widget, so a window removed some other way can still be closed and the game unpaused). */
     UFUNCTION(BlueprintPure, Category = "Shop")
-    bool IsOpen() const { return ActiveWidget.IsValid(); }
+    bool IsOpen() const { return bModalActive; }
+
+    /** True if Widget is the open shop's window. */
+    bool IsShowing(const UUserWidget *Widget) const { return bModalActive && Widget && ActiveWidget.Get() == Widget; }
+
+    /** The open window is being torn down some other way (B-075): undo the modal bracket
+     *  without touching the widget again. No-op when nothing is open. */
+    void HandleWindowDestroyed();
 
     /** The merchant whose shop is open, or null. The 3b widget reads its Stock from here. */
     UFUNCTION(BlueprintPure, Category = "Shop")
@@ -51,6 +61,9 @@ public:
     APawn *GetActivePawn() const { return ActivePawn.Get(); }
 
 private:
+    /** Unpause, restore game input and cursor, clear the open-shop state. */
+    void RestoreModal();
+
     /** Shop window widget class — authored in Cluster 3b, pointed at via DefaultGame.ini.
      *  Null → NO_UI_YET: OpenForMerchant logs and skips widget + modal bracket. */
     UPROPERTY(Config)
@@ -60,4 +73,8 @@ private:
     TWeakObjectPtr<UUserWidget> ActiveWidget;
     TWeakObjectPtr<UMerchantData> ActiveMerchant;
     TWeakObjectPtr<APawn> ActivePawn;
+
+    /** The controller whose input and cursor the modal bracket changed; restored on Close. */
+    TWeakObjectPtr<APlayerController> ModalController;
+    bool bModalActive = false;
 };

@@ -65,6 +65,8 @@ void UMerchantShopSubsystem::OpenForMerchant(UMerchantData *Merchant, APawn *Ins
     PC->SetInputMode(InputMode);
     PC->SetShowMouseCursor(true);
     UGameplayStatics::SetGamePaused(GetGameInstance(), true);
+    ModalController = PC;
+    bModalActive = true;
 }
 
 void UMerchantShopSubsystem::Close()
@@ -77,22 +79,37 @@ void UMerchantShopSubsystem::Close()
     UE_LOG(LogTemp, Log, TEXT("[MerchantShop] Close: %s"),
            ActiveMerchant.IsValid() ? *ActiveMerchant->GetName() : TEXT("<unknown merchant>"));
 
-    if (UUserWidget *Widget = ActiveWidget.Get())
+    UUserWidget *Widget = ActiveWidget.Get();
+    // Restored first: removing the widget runs its NativeDestruct, which then finds nothing open.
+    RestoreModal();
+    if (Widget)
     {
         Widget->RemoveFromParent();
     }
+}
 
-    UGameplayStatics::SetGamePaused(GetGameInstance(), false);
-    if (APawn *Pawn = ActivePawn.Get())
+void UMerchantShopSubsystem::HandleWindowDestroyed()
+{
+    if (!IsOpen())
     {
-        if (APlayerController *PC = Cast<APlayerController>(Pawn->GetController()))
-        {
-            PC->SetInputMode(FInputModeGameOnly());
-            PC->SetShowMouseCursor(false);
-        }
+        return;
+    }
+    UE_LOG(LogTemp, Log, TEXT("[MerchantShop] Window removed outside Close - restoring game input"));
+    RestoreModal();
+}
+
+void UMerchantShopSubsystem::RestoreModal()
+{
+    bModalActive = false;
+    UGameplayStatics::SetGamePaused(GetGameInstance(), false);
+    if (APlayerController *PC = ModalController.Get())
+    {
+        PC->SetInputMode(FInputModeGameOnly());
+        PC->SetShowMouseCursor(false);
     }
 
     ActiveWidget = nullptr;
     ActiveMerchant = nullptr;
     ActivePawn = nullptr;
+    ModalController = nullptr;
 }

@@ -61,6 +61,15 @@ void UCurrencyComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &O
 
 // ==================== UNIFIED API ====================
 
+namespace CurrencyComponentInternal
+{
+    /** B-075: a balance stops at the int32 limit instead of wrapping negative. Not a design cap. */
+    int32 SaturatingAdd(int32 Balance, int32 Amount)
+    {
+        return static_cast<int32>(FMath::Min<int64>(static_cast<int64>(Balance) + Amount, TNumericLimits<int32>::Max()));
+    }
+}
+
 bool UCurrencyComponent::Add(ECurrencyType Currency, int32 Amount, uint8 SubKey)
 {
     if (!HasServerAuthority() || Amount <= 0)
@@ -72,31 +81,31 @@ bool UCurrencyComponent::Add(ECurrencyType Currency, int32 Amount, uint8 SubKey)
     switch (Currency)
     {
     case ECurrencyType::Gold:
-        Gold += Amount;
+        Gold = CurrencyComponentInternal::SaturatingAdd(Gold, Amount);
         NewBalance = Gold;
         break;
     case ECurrencyType::Prisms:
-        Prisms += Amount;
+        Prisms = CurrencyComponentInternal::SaturatingAdd(Prisms, Amount);
         NewBalance = Prisms;
         break;
     case ECurrencyType::Diamond:
-        Diamond += Amount;
+        Diamond = CurrencyComponentInternal::SaturatingAdd(Diamond, Amount);
         NewBalance = Diamond;
         break;
     case ECurrencyType::EssenceTyped:
     {
         FCurrencyEntry &Entry = FindOrAddEntry(EssenceWallet, SubKey);
-        Entry.Amount += Amount;
+        Entry.Amount = CurrencyComponentInternal::SaturatingAdd(Entry.Amount, Amount);
         EssenceWallet.MarkItemDirty(Entry);
         NewBalance = Entry.Amount;
         break;
     }
     case ECurrencyType::GearEssence:
-        GearEssence += Amount;
+        GearEssence = CurrencyComponentInternal::SaturatingAdd(GearEssence, Amount);
         NewBalance = GearEssence;
         break;
     case ECurrencyType::SkillEssence:
-        SkillEssence += Amount;
+        SkillEssence = CurrencyComponentInternal::SaturatingAdd(SkillEssence, Amount);
         NewBalance = SkillEssence;
         break;
     }
