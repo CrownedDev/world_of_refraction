@@ -37,6 +37,8 @@ void UStoryLinesData::PrintStory() const
 
 TArray<UStoryLinesData *> StoryUnlocks::GatherStoryData()
 {
+	// TODO: packaged builds need StoryLinesData in the Asset Manager's scan rules (nothing references
+	// these assets), and a large story would want async loading instead of this sync load.
 	const IAssetRegistry &Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 	TArray<FAssetData> Assets;
 	Registry.GetAssetsByClass(UStoryLinesData::StaticClass()->GetClassPathName(), Assets, /*bSearchSubClasses=*/true);

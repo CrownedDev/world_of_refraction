@@ -16,6 +16,7 @@ class UButton;
 class UMemoryJournalSubsystem;
 class UStoryLinesData;
 class UTextBlock;
+struct FStoryConversation;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API UMemoryJournalWidget : public UUserWidget
@@ -23,7 +24,8 @@ class WORLD_OF_REFRACTION_API UMemoryJournalWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	/** Add a fresh one to PC's viewport on the journal page (UI-only input, cursor on). */
+	/** Add one to PC's viewport on the journal page (UI-only input, cursor on); the open one when
+	 *  PC already has it open. */
 	static UMemoryJournalWidget *Open(APlayerController *PC);
 
 	/** The V lines and conversations it reads (Open gathers every story asset). */
@@ -72,6 +74,9 @@ private:
 	void SetPage(const FText &NewTitle, const FText &NewBody);
 	void ShowConversationLine();
 
+	/** The selected conversation's place in Unlocked, or INDEX_NONE. */
+	int32 FindSelectedConversation(const TArray<const FStoryConversation *> &Unlocked) const;
+
 	UPROPERTY()
 	TArray<TObjectPtr<UStoryLinesData>> Story;
 
@@ -85,7 +90,8 @@ private:
 		Conversation
 	};
 	EPage Page = EPage::Journal;
-	int32 ConversationIndex = INDEX_NONE;
+	/** By id: the unlocked list can grow while the journal is open. */
+	FName SelectedConversation;
 	int32 LineIndex = 0;
 
 	UPROPERTY()

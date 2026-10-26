@@ -12,6 +12,7 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
+#include "UObject/UObjectIterator.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
 #include "Story/StoryLinesData.h"
@@ -64,6 +65,13 @@ UMemoryJournalWidget *UMemoryJournalWidget::Open(APlayerController *PC)
 	if (!PC)
 	{
 		return nullptr;
+	}
+	for (TObjectIterator<UMemoryJournalWidget> It; It; ++It)
+	{
+		if (It->IsInViewport() && It->GetOwningPlayer() == PC)
+		{
+			return *It;
+		}
 	}
 	UMemoryJournalWidget *Widget = CreateWidget<UMemoryJournalWidget>(PC, UMemoryJournalWidget::StaticClass());
 	if (!Widget)
@@ -120,7 +128,7 @@ void UMemoryJournalWidget::NativeConstruct()
 void UMemoryJournalWidget::SetStory(const TArray<UStoryLinesData *> &InStory)
 {
 	Story = InStory;
-	ConversationIndex = INDEX_NONE;
+	SelectedConversation = NAME_None;
 	LineIndex = 0;
 }
 
@@ -197,14 +205,15 @@ bool UMemoryJournalWidget::SelectNextConversation()
 {
 	Page = EPage::Conversation;
 	const UMemoryJournalSubsystem *Journal = GetJournal();
-	const int32 Unlocked = Journal ? StoryUnlocks::GetUnlockedConversations(ObjectPtrDecay(Story), *Journal).Num() : 0;
-	if (Unlocked == 0)
+	const TArray<const FStoryConversation *> Unlocked =
+		Journal ? StoryUnlocks::GetUnlockedConversations(ObjectPtrDecay(Story), *Journal) : TArray<const FStoryConversation *>();
+	if (Unlocked.IsEmpty())
 	{
-		ConversationIndex = INDEX_NONE;
+		SelectedConversation = NAME_None;
 		SetPage(LOCTEXT("TalkTitle", "Conversations"), LOCTEXT("NoTalks", "No conversation yet. Recover more memories."));
 		return false;
 	}
-	ConversationIndex = (ConversationIndex + 1) % Unlocked;
+	SelectedConversation = Unlocked[(FindSelectedConversation(Unlocked) + 1) % Unlocked.Num()]->ConversationId;
 	LineIndex = 0;
 	ShowConversationLine();
 	return true;
@@ -215,16 +224,16 @@ bool UMemoryJournalWidget::AdvanceConversation()
 	UMemoryJournalSubsystem *Journal = GetJournal();
 	const TArray<const FStoryConversation *> Unlocked =
 		Journal ? StoryUnlocks::GetUnlockedConversations(ObjectPtrDecay(Story), *Journal) : TArray<const FStoryConversation *>();
-	if (Page != EPage::Conversation || !Unlocked.IsValidIndex(ConversationIndex) ||
-		LineIndex >= Unlocked[ConversationIndex]->Lines.Num())
+	const int32 Index = FindSelectedConversation(Unlocked);
+	if (Page != EPage::Conversation || Index == INDEX_NONE || LineIndex >= Unlocked[Index]->Lines.Num())
 	{
 		return false;
 	}
 	++LineIndex;
-	if (LineIndex >= Unlocked[ConversationIndex]->Lines.Num())
+	if (LineIndex >= Unlocked[Index]->Lines.Num())
 	{
-		Journal->MarkConversationPlayed(Unlocked[ConversationIndex]->ConversationId);
-		UE_LOG(LogWoR, Log, TEXT("[MemoryJournal] Conversation %s played"), *Unlocked[ConversationIndex]->ConversationId.ToString());
+		Journal->MarkConversationPlayed(SelectedConversation);
+		UE_LOG(LogWoR, Log, TEXT("[MemoryJournal] Conversation %s played"), *SelectedConversation.ToString());
 	}
 	ShowConversationLine();
 	return true;
@@ -235,15 +244,21 @@ void UMemoryJournalWidget::ShowConversationLine()
 	const UMemoryJournalSubsystem *Journal = GetJournal();
 	const TArray<const FStoryConversation *> Unlocked =
 		Journal ? StoryUnlocks::GetUnlockedConversations(ObjectPtrDecay(Story), *Journal) : TArray<const FStoryConversation *>();
-	if (!Unlocked.IsValidIndex(ConversationIndex))
+	const int32 Index = FindSelectedConversation(Unlocked);
+	if (Index == INDEX_NONE)
 	{
 		return;
 	}
-	const FStoryConversation &Talk = *Unlocked[ConversationIndex];
+	const FStoryConversation &Talk = *Unlocked[Index];
 	const FText Heading = FText::Format(LOCTEXT("TalkHeading", "{0} ({1}/{2}){3}"), Talk.Title,
-										FText::AsNumber(ConversationIndex + 1), FText::AsNumber(Unlocked.Num()),
+										FText::AsNumber(Index + 1), FText::AsNumber(Unlocked.Num()),
 										Journal->HasPlayedConversation(Talk.ConversationId) ? FText::GetEmpty() : LOCTEXT("TalkNew", " - new"));
 	SetPage(Heading, Talk.Lines.IsValidIndex(LineIndex) ? Talk.Lines[LineIndex] : LOCTEXT("TalkEnd", "(end)"));
+}
+
+int32 UMemoryJournalWidget::FindSelectedConversation(const TArray<const FStoryConversation *> &Unlocked) const
+{
+	return Unlocked.IndexOfByPredicate([this](const FStoryConversation *Talk) { return Talk->ConversationId == SelectedConversation; });
 }
 
 FString UMemoryJournalWidget::GetJournalWidgetString() const
