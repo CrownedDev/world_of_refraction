@@ -3142,6 +3142,46 @@ const FRingLoadoutEntry *ULoadoutComponent::GetActiveRingLoadout() const
     return Entry.IsValid() ? &Entry : nullptr;
 }
 
+FText ULoadoutComponent::GetTurnSwitchRefusedReason() const
+{
+    return bUsedTurnSwitch ? LOCTEXT("TurnSwitchUsed", "Already switched this turn.") : FText::GetEmpty();
+}
+
+bool ULoadoutComponent::TrySwitchWeaponThisTurn(FText &OutReason)
+{
+    OutReason = GetTurnSwitchRefusedReason();
+    if (!OutReason.IsEmpty())
+    {
+        UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] %s: weapon switch refused - already switched this turn"), *GetNameSafe(GetOwner()));
+        return false;
+    }
+    // A toggle that changes nothing (no loadout) doesn't use up the turn's switch.
+    const bool bShowPrimaryBefore = GetActiveLoadout().bShowPrimary;
+    ToggleEquipment();
+    bUsedTurnSwitch = GetActiveLoadout().bShowPrimary != bShowPrimaryBefore;
+    return bUsedTurnSwitch;
+}
+
+bool ULoadoutComponent::TrySwitchRingThisTurn(int32 NewRingIndex, FText &OutReason)
+{
+    OutReason = GetTurnSwitchRefusedReason();
+    if (!OutReason.IsEmpty())
+    {
+        UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] %s: ring switch refused - already switched this turn"), *GetNameSafe(GetOwner()));
+        return false;
+    }
+    // A ring switch that changes nothing (bad or current index) doesn't use up the turn's switch.
+    const int32 RingIndexBefore = GetActiveLoadout().ActiveRingIndex;
+    SetActiveRingIndex(NewRingIndex);
+    bUsedTurnSwitch = GetActiveLoadout().ActiveRingIndex != RingIndexBefore;
+    return bUsedTurnSwitch;
+}
+
+void ULoadoutComponent::ResetTurnSwitch()
+{
+    bUsedTurnSwitch = false;
+}
+
 FText ULoadoutComponent::GetBrokenSourceReason(const USpellData *Spell) const
 {
     if (!Spell)

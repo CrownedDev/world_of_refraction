@@ -764,6 +764,12 @@ void ACombatOrchestrator::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 
 void ACombatOrchestrator::ProceedWithTurnStart()
 {
+	// ET-19: each turn brings back the one free weapon / ring switch.
+	if (ULoadoutComponent *Loadout = CurrentActor ? CurrentActor->FindComponentByClass<ULoadoutComponent>() : nullptr)
+	{
+		Loadout->ResetTurnSwitch();
+	}
+
 	// Process start-of-turn status effects
 	ProcessStartOfTurnEffects(CurrentActor);
 

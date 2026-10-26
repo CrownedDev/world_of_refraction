@@ -175,6 +175,8 @@ private:
     FPieMenuButtonData CreateResonateRingButton() const;
     FPieMenuButtonData CreateItemsButton() const;
     FPieMenuButtonData CreateSwitchWeaponButton() const;
+    /** ET-19: greys a switch button, with the reason, once the turn's free switch is used. */
+    void GreyIfTurnSwitchUsed(FPieMenuButtonData &Button) const;
     FPieMenuButtonData CreateSwitchRingButton() const;
     FPieMenuButtonData CreateDefendButton() const;
 

@@ -514,6 +514,22 @@ public:
      *  is broken (a broken ring still casts F-tier spells). Empty when it can. */
     FText GetBrokenSourceReason(const USpellData *Spell) const;
 
+    // ==================== TURN SWITCH (ET-19) ====================
+
+    /** ET-19 (Crown, 2026-10-26): one free weapon or ring switch per turn, so swapping can't
+     *  re-trigger "when equipped" effects over and over. Why a switch is refused now; empty
+     *  when one is allowed. */
+    FText GetTurnSwitchRefusedReason() const;
+
+    /** The turn's free weapon switch (ToggleEquipment). False, with the reason, once used. */
+    bool TrySwitchWeaponThisTurn(FText &OutReason);
+
+    /** The turn's free ring switch (SetActiveRingIndex). False, with the reason, once used. */
+    bool TrySwitchRingThisTurn(int32 NewRingIndex, FText &OutReason);
+
+    /** Gives back the free switch; the orchestrator calls it at the owner's turn start. */
+    void ResetTurnSwitch();
+
     // ==================== EQUIPMENT STAT QUERIES ====================
 
     /** Combined FEquipmentStatBonus for the actor's currently active equipment.
@@ -697,6 +713,9 @@ public:
     UCharacterData *GetOwnerCharacterData() const;
 
 private:
+    /** ET-19: the free weapon / ring switch was used this turn (per-fight, reset each turn). */
+    bool bUsedTurnSwitch = false;
+
     /** Helper to get the sibling UInventoryComponent. Re-fetched per call (no
      *  cache) — loading screens hide the FindComponentByClass cost. Returns
      *  nullptr if the owner has no inventory component; callers must guard. */
