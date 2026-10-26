@@ -11,6 +11,8 @@
 
 5. **Short runs, about 30–45 minutes** (Crown leaning, "maybe A"; Nightreign's ~40-minute expeditions). One run fits an evening; trial maps, fight counts and in-run progression are sized to it.
 
+6. **Moderate progression** (Hades-style): every run makes you noticeably stronger over time, but skill and smart builds still matter most. No grind as padding.
+
 ## What this means for decisions
 
 - Prefer options that **add build variety** (more ways to be different) over options that narrow it, as long as they stay fair (pillars 2, 3).
@@ -18,6 +20,7 @@
 - Prefer **second chances** (revives, rest spots, fleeing) over run-ending punishment, at the default difficulty (pillar 3).
 - Keep content **data-driven and extendable** (trials, characters, memories, reaction triggers) so later chapters plug in (pillar 4).
 - Size trials for a **30–45 minute run** (pillar 5): map size, number of fights, rest spots and in-run levelling all fit that.
+- Tune rewards and upgrade costs so **each run moves you forward** without a grind wall (pillar 6).
 - Lore and story are Crown's alone (`CLAUDE.md`).
 
 ## Changelog
