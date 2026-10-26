@@ -161,7 +161,7 @@ The queue of questions only Crown can answer.
 **Notes for Claude:**
 - Weapon-crystal spells go for every class (D-027, B-098); ring spells stay available to Generic. Don't apply the old "Generic sees no spells" gate.
 - **Fix found while checking:** an infused ability takes the user's **innate** element (`ActionExecutor.cpp:1450-1455`), but Generic, the only class with abilities, has no innate element (`ECharacterClass.h` `HasInnateElement`), so a Generic's infused ability deals **no element** today. The status path already uses the chosen source (`ActionExecutor.cpp:2253`). Damage must use the selected source's element too (crystal on the weapon), else Physical.
-- Deckbuilder reference (`wor-deckbuilder/docs/reference/01-card-model.md` "Cast through", Pivot "Generic element memory"): a Generic Ability starts Physical and takes its source's element; a Generic Refraction needs an elemental source. Its extra costs (1 Action to switch, +1 Energy when a physical ability deals an element) are **not** ruled here; ask before adding them.
+- Deckbuilder reference (`wor-deckbuilder/docs/reference/01-card-model.md` "Cast through", Pivot "Generic element memory"): a Generic Ability starts Physical and takes its source's element; a Generic Refraction needs an elemental source. Its extra costs: the switch cost is **not adopted** (Crown, 2026-10-26, rules review: no switching cost; pick the source fresh each use); the extra Energy for a physical ability dealing an element is D-035.
 - Tests: Generic + fire crystal → infused ability deals Fire; uninfused → Physical; Generic with a ring can cast its spells.
 
 ### D-008 — Do gear effects update when swapping mid-combat?
