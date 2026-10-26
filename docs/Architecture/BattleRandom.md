@@ -60,6 +60,7 @@ effect IDs (`SkillEffectManager.cpp`, an identity, not a game roll; B-062 replac
 - The stream is shared by every system, so a new roll added anywhere shifts every later
   roll for the same seed. That is fine for replaying a build, not across builds.
 - Not replicated. Co-op would seed on the server and send the seed (ArchitectureReview §1.6).
+- D-064 (answered after this was built) puts new per-fight state on the battle's actors, GameState or PlayerState. This stream is a world subsystem: off the GameInstance, but not on GameState. Moving it onto a battle GameState is a small change if Crown wants that; there is no battle GameState class yet.
 
 ## Changelog
 
