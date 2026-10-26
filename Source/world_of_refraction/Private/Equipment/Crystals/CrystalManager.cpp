@@ -1,5 +1,6 @@
 // Source/world_of_refraction/Private/CrystalManager.cpp
 #include "Equipment/Crystals/CrystalManager.h"
+#include "Combat/Mechanics/BattleRandomSubsystem.h"
 
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Loadout/LoadoutComponent.h"
@@ -130,7 +131,7 @@ void UCrystalManager::ProcessPostCastWear(
         // < negative, so a cursed wielder never lucky-skips. (Kept the explicit FRand here rather than
         // RollLuckChance so the rolled SkipChance can be logged below.)
         const float SkipChance = CharComp->GetLuckModifiedChance(0.0f, CombatConstants::LUCK_BREAK_SKIP_MAX);
-        if (FMath::FRand() < SkipChance)
+        if (UBattleRandomSubsystem::FRand(this) < SkipChance)
         {
             UE_LOG(LogTemp, Log,
                    TEXT("[CrystalManager] %s LUCKY break skip on crystal '%s' (would have applied %d wear, skip chance %.2f)"),
@@ -269,7 +270,7 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
     if (CasterCharComp)
     {
         const float SkipChance = CasterCharComp->GetLuckModifiedChance(0.0f, CombatConstants::LUCK_BREAK_SKIP_MAX);
-        if (FMath::FRand() < SkipChance)
+        if (UBattleRandomSubsystem::FRand(this) < SkipChance)
         {
             UE_LOG(LogTemp, Log,
                    TEXT("[CrystalManager] %s LUCKY break skip on evolution '%s' (would have applied %d wear, skip chance %.2f)"),
@@ -363,7 +364,7 @@ void UCrystalManager::ProcessPostCastGearEvolutionWear(
     if (CasterCharComp)
     {
         const float SkipChance = CasterCharComp->GetLuckModifiedChance(0.0f, CombatConstants::LUCK_BREAK_SKIP_MAX);
-        if (FMath::FRand() < SkipChance)
+        if (UBattleRandomSubsystem::FRand(this) < SkipChance)
         {
             UE_LOG(LogTemp, Log,
                    TEXT("[CrystalManager] %s LUCKY break skip on gear evolution '%s' (would have applied %d wear, skip chance %.2f)"),
