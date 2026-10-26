@@ -185,7 +185,7 @@ The project is worked from one queue, `docs/Backlog.md`, with open questions in 
 
 1. **One job at a time**, top-down: the first `TODO` whose dependencies are `DONE` or `REVIEW (in dev)` and whose decisions aren't `OPEN`.
 2. **Own branch per job** (`fix/`, `refactor/`, `feature/`, `chore/` + `B-xxx`), from up-to-date **`dev`**. Commit after each cluster (≤3 files). **Never touch `main`** (no commits, merges or pushes): Crown merges `dev → main` after play-testing.
-3. **Never decide a design question.** If a job needs one:
+3. **Design questions: reference-backed default, or block.** For a **non-lore** question that fits the design pillars, record a `Q-<job>` entry answered with the reference-backed default ("Recommendations" above), build with it, list it in the hand-off, and keep going. **Only for lore/story, or an answer that would break a ruling or a pillar,** block instead:
    - add or link a **`Q-<job>`** entry in `DesignDecisions.md` (the job's own number: a question from B-155 is Q-155, a second Q-155b; `D-xxx` is for Crown's chat decisions)
    - mark the job `BLOCKED (Q-<job>)`
    - commit that doc change

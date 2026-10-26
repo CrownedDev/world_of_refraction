@@ -27,7 +27,7 @@ Mark the job `IN PROGRESS (<branch>)` in `docs/Backlog.md` and commit that line 
 ## 3. Build it
 - Read the code before changing it; cite `file:line` in your reasoning.
 - Work in clusters of **≤3 files**, committing after each, with detailed messages.
-- **Hit a design question?**
+- **Hit a design question?** If it's **not lore** and the reference-backed answer fits `docs/Design/DesignPillars.md`: record a `Q-<job>` entry answered with that default (cite the games), build with it, note it in the hand-off, and carry on. Otherwise (lore/story, or it would break a ruling or pillar):
   1. Don't guess.
   2. Add a **`Q-<job>`** entry in `docs/DesignDecisions.md` named after **this job's number** (B-155 → Q-155; a second question Q-155b), format at the top of that file, with a recommendation. Never take a `D-` number: those are Crown's chat decisions.
   3. Mark the job `BLOCKED (Q-<job>)` and commit.
