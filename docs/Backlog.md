@@ -129,8 +129,8 @@ Runs alongside the phases above. **Per screen group:** mockup (CC, no editor nee
 
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
-| B-100 | Mockup tool per D-025: plain + annotated 1280×720 drafts drawn from the deckbuilder kit (`UI_DeckbuilderReuse.md` §5), versioned `vN/` | CC | S | D-025 | One test draft renders | TODO |
-| B-101 | Mockup the **combat HUD**: party cards, turn-order strip, command diamond (incl. Defend), target selection, enemy plate, status icons, damage numbers, BD gauges (screens 31–40, Expedition 33 layout, `UI_DeckbuilderReuse.md` §1–2). Note the open header-bar pick | CC | M | B-100 | Plain + annotated drafts committed; listed for Crown in `docs/sessions/<today>.md` | BLOCKED (B-100) |
+| B-100 | Mockup tool per D-025: plain + annotated 1280×720 drafts drawn from the deckbuilder kit (`UI_DeckbuilderReuse.md` §5), versioned `vN/` | CC | S | D-025 | One test draft renders | REVIEW (in dev) |
+| B-101 | Mockup the **combat HUD**: party cards, turn-order strip, command diamond (incl. Defend), target selection, enemy plate, status icons, damage numbers, BD gauges (screens 31–40, Expedition 33 layout, `UI_DeckbuilderReuse.md` §1–2). Note the open header-bar pick | CC | M | B-100 | Plain + annotated drafts committed; listed for Crown in `docs/sessions/<today>.md` | TODO |
 | B-102 | Approve the combat HUD mockup (or ask for a vN+1) | Crown | S | B-101 | Approved version noted here | BLOCKED (B-101) |
 | B-103 | CommonUI base layer in C++: root layout with layer stacks (game / menu / modal), activatable screen base, button base with the four jobs (play / confirm / danger / navigate), input routing for keyboard + gamepad | CC | M | B-004, B-003 | Builds; an empty test screen opens and closes with Back; tests for the stack | BLOCKED (B-004) |
 | B-104 | Import the kit pieces the approved mockup uses (`SourceArt/` + `Content/UI/Vendor/`, `UI_DeckbuilderReuse.md` §4), fonts, CommonUI styles; `CREDITS.md` entries | CC+UE | M | B-102 | Assets in the Content Browser with the §4 import settings | BLOCKED (B-102) |

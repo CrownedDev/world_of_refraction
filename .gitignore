@@ -38,3 +38,6 @@ Content/StylizedWeapons/
 docs/Design/Reference/
 Content/UI/deckbuilder/
 .claude/
+
+# Python (Tools/ui_drafts)
+__pycache__/
