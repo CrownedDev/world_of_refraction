@@ -93,7 +93,7 @@ public:
     /** The trial whose level we are in (or transitioning to), or null in the
      *  hub. Survives the level load — this subsystem is GameInstance-scoped. */
     UFUNCTION(BlueprintPure, Category = "Trial")
-    UTrialData *GetActiveTrial() const { return ActiveTrial.Get(); }
+    UTrialData *GetActiveTrial() const { return ActiveTrial; }
 
     /** This run's seed, rolled on EnterTrial (0 in the hub, so it also says whether a run is on).
      *  Trial vendors roll their stock from it. */
@@ -116,9 +116,10 @@ private:
     UPROPERTY(Config)
     TSoftObjectPtr<UWorld> HubLevel;
 
-    /** Weak: the data asset outlives the transition anyway (asset-registry
-     *  owned); weak keeps the subsystem from pinning it. */
-    TWeakObjectPtr<UTrialData> ActiveTrial;
+    /** Strong (B-070): in a packaged build nothing else may hold the trial asset,
+     *  so a weak pointer let GC drop it mid-run. Cleared on ExitTrial. */
+    UPROPERTY(Transient)
+    TObjectPtr<UTrialData> ActiveTrial;
 
     int32 RunSeed = 0;
 
