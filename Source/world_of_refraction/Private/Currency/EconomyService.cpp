@@ -238,8 +238,9 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     {
         Inv->AddCrystals(Inputs); // ONE Added — re-add the exact consumed set (atomic; space just freed)
         Currency->Add(ECurrencyType::Prisms, PrismsCost);
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: add of %s failed — refunded inputs + %d Prisms"),
-               *ItemIdentity::GetDisplayName(OutputId), PrismsCost);
+        UE_LOG(LogTemp, Warning,
+               TEXT("[EconomyService] MergeCrystals: add of %s + %d change crystal(s) failed (output or change tier at cap, Q-177) — refunded inputs + %d Prisms"),
+               *ItemIdentity::GetDisplayName(OutputId), Outputs.Num() - 1, PrismsCost);
         return false;
     }
 
@@ -1479,6 +1480,34 @@ namespace
                 const bool bOK = Economy->BuyWorldStat(Pawn, Pillar);
                 UE_LOG(LogTemp, Display, TEXT("[EconomyService] wor.BuyWorldStat %s -> %s"),
                        *UEnum::GetValueAsString(Pillar), bOK ? TEXT("OK") : TEXT("FAILED (cap / can't afford / missing component)"));
+            }));
+
+    static FAutoConsoleCommandWithWorldAndArgs GMergeCrystalsCmd(
+        TEXT("wor.Economy.Merge"),
+        TEXT("DEBUG: merge the played pawn's crystals up to one of <Type> <Tier> (e.g. Garnet C). Logs what was spent and the change given back (ER-28)."),
+        FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+            [](const TArray<FString> &Args, UWorld *World)
+            {
+                const int64 TypeValue = Args.Num() > 0 ? StaticEnum<ECrystalType>()->GetValueByNameString(Args[0]) : INDEX_NONE;
+                const int64 TierValue = Args.Num() > 1 ? StaticEnum<EItemTier>()->GetValueByNameString(Args[1] + TEXT("_Tier")) : INDEX_NONE;
+                if (TypeValue == INDEX_NONE || TierValue == INDEX_NONE)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[EconomyService] wor.Economy.Merge: usage <Type> <Tier>, e.g. wor.Economy.Merge Garnet C"));
+                    return;
+                }
+
+                UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+                UEconomyService *Economy = GI ? GI->GetSubsystem<UEconomyService>() : nullptr;
+                APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
+                APawn *Pawn = PC ? PC->GetPawn() : nullptr;
+                if (!Economy || !Pawn)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[EconomyService] wor.Economy.Merge: no subsystem or played pawn."));
+                    return;
+                }
+                const bool bOK = Economy->MergeCrystals(Pawn, static_cast<ECrystalType>(TypeValue), static_cast<EItemTier>(TierValue));
+                UE_LOG(LogTemp, Display, TEXT("[EconomyService] wor.Economy.Merge %s %s -> %s"), *Args[0], *Args[1],
+                       bOK ? TEXT("OK") : TEXT("FAILED (see the warning above)"));
             }));
 }
 #endif // !UE_BUILD_SHIPPING

@@ -76,12 +76,14 @@ public:
      * the §5 buy price), no essence/Gold. Crystals + stones only; the pool (Crystals vs Stones) is dispatched
      * by Type inside the component — no item/refined axis (the gem-merge collapsed it). Evolution
      * crystals are structurally unrepresentable as FCrystalId so they can never reach here (only
-     * invalid Type is None).
+     * invalid Type is None). Any overshoot comes back as change: the fewest same-Type crystals below
+     * the target (EconomyYield::GetMergeChange, ER-28).
      *
      * Server-authoritative; spend+remove-first then add, with full refund if the add fails. Returns
      * false if: Owner null / no authority; CrystalInventory or Currency missing; Type is None;
      * TargetTier is F (the floor — not a merge target); total available value below the target is
-     * insufficient; Prisms unaffordable; or the target tier is at cap.
+     * insufficient; Prisms unaffordable; the target tier is at cap; or the change doesn't fit (a
+     * change tier at cap — the whole merge is refunded, Q-177).
      */
     UFUNCTION(BlueprintCallable, Category = "Economy")
     bool MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier TargetTier);

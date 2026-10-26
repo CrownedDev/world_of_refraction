@@ -11,6 +11,7 @@
 #include "Currency/EconomyYield.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Inventory/InventoryComponent.h"
+#include "Inventory/InventoryConstants.h"
 
 namespace
 {
@@ -86,7 +87,7 @@ void FCrystalMergeSpec::Define()
 
 		It("uses the fewest crystals, highest tier first, below the target", [this]()
 		{
-			TestEqual(TEXT("2 -> one E"), EconomyYield::GetMergeChange(2, EItemTier::C_Tier), TArray<EItemTier>{EItemTier::E_Tier});
+			TestEqual(TEXT("2 -> one E"), EconomyYield::GetMergeChange(2, EItemTier::C_Tier), TArray<EItemTier>({EItemTier::E_Tier}));
 			TestEqual(TEXT("3 -> E + F"), EconomyYield::GetMergeChange(3, EItemTier::C_Tier), TArray<EItemTier>({EItemTier::E_Tier, EItemTier::F_Tier}));
 			TestEqual(TEXT("6 -> D + E"), EconomyYield::GetMergeChange(6, EItemTier::B_Tier), TArray<EItemTier>({EItemTier::D_Tier, EItemTier::E_Tier}));
 			TestEqual(TEXT("31 below S -> B C D E F"), EconomyYield::GetMergeChange(31, EItemTier::S_Tier),
@@ -117,6 +118,37 @@ void FCrystalMergeSpec::Define()
 			TestEqual(TEXT("both D spent"), Count(EItemTier::D_Tier), 0);
 			TestEqual(TEXT("one E back"), Count(EItemTier::E_Tier), 1);
 			TestEqual(TEXT("no F"), Count(EItemTier::F_Tier), 0);
+		});
+
+		It("can give change at a tier it didn't spend from", [this]()
+		{
+			// F (1) x3 + D (4) x2 = 11 for a C (8): 3 back as one E + one F.
+			SpawnOwner();
+			Give(EItemTier::F_Tier, 3);
+			Give(EItemTier::D_Tier, 2);
+			TestTrue(TEXT("merged"), Economy->MergeCrystals(Owner, MERGE_TEST_TYPE, EItemTier::C_Tier));
+			TestEqual(TEXT("one C"), Count(EItemTier::C_Tier), 1);
+			TestEqual(TEXT("both D spent"), Count(EItemTier::D_Tier), 0);
+			TestEqual(TEXT("one E back"), Count(EItemTier::E_Tier), 1);
+			TestEqual(TEXT("one F back"), Count(EItemTier::F_Tier), 1);
+		});
+
+		It("is refunded whole when the change doesn't fit (Q-177)", [this]()
+		{
+			// Same merge as above, but the shared E tier is already full of another gem type.
+			SpawnOwner();
+			TArray<FCrystalId> FullTier;
+			FullTier.Init(FCrystalId(ECrystalType::Sapphire, EItemTier::E_Tier), InventoryConstants::CRYSTAL_PER_TIER_CAP);
+			TestTrue(TEXT("E tier filled"), Inventory->AddCrystals(FullTier));
+			Give(EItemTier::F_Tier, 3);
+			Give(EItemTier::D_Tier, 2);
+			UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+
+			TestFalse(TEXT("refused"), Economy->MergeCrystals(Owner, MERGE_TEST_TYPE, EItemTier::C_Tier));
+			TestEqual(TEXT("no C"), Count(EItemTier::C_Tier), 0);
+			TestEqual(TEXT("D refunded"), Count(EItemTier::D_Tier), 2);
+			TestEqual(TEXT("F refunded"), Count(EItemTier::F_Tier), 3);
+			TestEqual(TEXT("Prisms refunded"), Currency->GetBalance(ECurrencyType::Prisms), MERGE_TEST_PRISMS);
 		});
 	});
 }
