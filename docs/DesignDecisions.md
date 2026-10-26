@@ -217,10 +217,11 @@ The queue of questions only Crown can answer.
 - Tests: same attacker Burns twice → one Burn, timer reset; two attackers → two Burns.
 
 ### D-013 — Do status bars carry over between fights?
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** —
 **Context:** Arc A resets them at every combat end.
 **Recommendation:** Reset (current after Arc A).
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A, reset every fight** (2026-10-26). Status bars start empty in each fight. HP, EP, absorption and durability carry over within a trial run (souls-like attrition); status bars don't.
+**Notes for Claude:** already the behaviour since Arc A (reset at combat end); nothing to build. Keep it when the effects overhaul / GAS stage 3 lands.
 
 ### D-014 — What does Wind's "skip turn" do?
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-063
