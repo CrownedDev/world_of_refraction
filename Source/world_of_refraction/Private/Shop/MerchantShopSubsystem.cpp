@@ -65,6 +65,8 @@ void UMerchantShopSubsystem::OpenForMerchant(UMerchantData *Merchant, APawn *Ins
     PC->SetInputMode(InputMode);
     PC->SetShowMouseCursor(true);
     UGameplayStatics::SetGamePaused(GetGameInstance(), true);
+    ModalController = PC;
+    bModalActive = true;
 }
 
 void UMerchantShopSubsystem::Close()
@@ -77,22 +79,22 @@ void UMerchantShopSubsystem::Close()
     UE_LOG(LogTemp, Log, TEXT("[MerchantShop] Close: %s"),
            ActiveMerchant.IsValid() ? *ActiveMerchant->GetName() : TEXT("<unknown merchant>"));
 
+    // Cleared first: removing the widget runs its NativeDestruct, which closes the shop too.
+    bModalActive = false;
     if (UUserWidget *Widget = ActiveWidget.Get())
     {
         Widget->RemoveFromParent();
     }
 
     UGameplayStatics::SetGamePaused(GetGameInstance(), false);
-    if (APawn *Pawn = ActivePawn.Get())
+    if (APlayerController *PC = ModalController.Get())
     {
-        if (APlayerController *PC = Cast<APlayerController>(Pawn->GetController()))
-        {
-            PC->SetInputMode(FInputModeGameOnly());
-            PC->SetShowMouseCursor(false);
-        }
+        PC->SetInputMode(FInputModeGameOnly());
+        PC->SetShowMouseCursor(false);
     }
 
     ActiveWidget = nullptr;
     ActiveMerchant = nullptr;
     ActivePawn = nullptr;
+    ModalController = nullptr;
 }
