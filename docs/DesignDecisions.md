@@ -1628,6 +1628,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (fix/B-113-status-mult-once): no game change. `WoR.Status.InfusedBuildup` pins each layer on its own (the charge band's surcharge; the Status Multiplier on landing), not the full hit path; the element-keyed Status Multiplier buff applies once, on landing only. And the `GetChargeStatusMultiplier` header says so. If Crown picks B or C, change `GetChargeStatusMultiplier` (and for C `GetChargeDamageMultiplier` and `ComputeInfusionCostMultiplier`) and flip the spec's expectations.
 
+### Q-148 — Silenced's seal: do EP drains take sealed EP, and how does the seal round?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-148) · **Blocks:** — (B-148 shipped with A)
+**Question:** D-038 seals half of max EP against *spending*. Two things it doesn't say: (1) EP *losses* (a Broken Darkness drain, an Onyx drain, an EP-drain effect) aren't spends; do they still take from the sealed half? (2) With an odd max EP (101), is the seal 50 or 51?
+**Options:**
+- **A** drains take from the whole pool, sealed part included (the seal only limits what you can spend); the seal rounds to the nearest point (101 seals 51).
+- **B** drains take only the unsealed part (the seal also protects EP); round as A.
+- **C** as A, but the seal rounds down (101 seals 50).
+**Recommendation:** A. A seal that also shields EP from drains would make Silenced partly a buff. MP drains in Final Fantasy (Osmose, Rasp) take from current MP whatever the target's status, and players read "can't use it" and "can lose it" as separate things. Rounding to the nearest point is how the game rounds its other shares (`FMath::RoundToInt` throughout). Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-148-silence-seal): drains still call `ServerSpendEnergy` on the whole pool (`SkillEffectManager.cpp` DrainEnergy/EnergyDrain, `BrokenDarknessManager.cpp:571`, `:777`); `GetSealedEP` uses `RoundToInt`. The command menu doesn't grey skills by EP yet, so "the menu reads spendable EP" (D-038) lands with the new HUD (B-111 / B-105).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
