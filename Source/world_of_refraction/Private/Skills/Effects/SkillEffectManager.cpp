@@ -1535,10 +1535,10 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 			   *Effect.EffectName, *Actor->GetName());
 		break;
 
-	// RandomSkill: full implementation pending Session Y/Z (LoadoutComponent
-	// random pick + ActionExecutor forced-action injection).
+	// RandomSkill (Void break, B-199): presence-read. ACombatOrchestrator::RequestActionFromActor
+	// hands the holder's turn to UAIDecisionManager::BuildRandomAction.
 	case ESkillEffectType::RandomSkill:
-		UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] %s has RandomSkill active - implementation pending"),
+		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s has RandomSkill active - its turn is played at random"),
 			   *Actor->GetName());
 		break;
 

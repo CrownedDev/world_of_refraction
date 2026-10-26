@@ -82,6 +82,12 @@ public:
      *  their source broke (D-083, B-181), which ValidateAction would refuse. */
     static TArray<USpellData *> GetUsableSpells(const ULoadoutComponent *Loadout);
 
+    /** B-199 (Q-063b, Q-199): a Void-broken combatant's turn, played for it, player or AI. One
+     *  of its usable actions at random (its basic attack, a spell, an ability, Defend; no items,
+     *  Flee or switch), each that ValidateAction accepts, aimed at a random living enemy.
+     *  Defend when nothing else validates. */
+    FAction BuildRandomAction(AActor *Actor) const;
+
     // ==================== DEFENSE DECISIONS ====================
 
     /**

@@ -1660,6 +1660,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-071-party-into-battle): `ABattleGameMode::BootstrapCombat` possesses the leader's pawn when it fights, otherwise the first Player-set member, otherwise the first spawned.
 
+### Q-199 — What can a Void-broken turn do?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-199) · **Blocks:** — (B-199 shipped with A)
+**Question:** Q-063b says the Void break picks the holder's action at random from its usable actions. Which actions are in the draw, and who can it hit?
+**Options:**
+- **A** Defend, the basic attack, any usable spell or ability (each one the rules accept), aimed at a random target on the side it is made for (an attack at an enemy, a heal or buff at the holder or an ally). No items (a random throw would waste charges), no Flee, no weapon switch.
+- **B** everything on the menu, items and Flee included, at any target, allies too.
+- **C** the basic attack only, at a random target (Final Fantasy's classic Confuse).
+**Recommendation:** A. Final Fantasy's Confuse and Persona's Confusion take the turn away but keep it a combat action, never Flee or an item spent on nothing, and players accept a lost turn but resent losing resources to it. A random pick over the holder's own kit makes the break about this character, as Q-063b asks. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-199-void-random-action): `UAIDecisionManager::BuildRandomAction`; aimed by the skill's `TargetType` (Self: the holder; Ally: the holder or a living ally, at random; Enemy and Anyone: a random living enemy). Switching who plays the member is refused while the break lasts. A break that lands during the holder's own turn is used up on that turn (the shared holder-turn rule, Q-063); one that lands off-turn takes the next one.
+
 ### Q-151 — Where does the player's one wallet live, and who spends from it?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-151) · **Blocks:** — (B-151 shipped with A)
 **Question:** D-046 moves the wallet to player scope. An AI-played ally has no PlayerState, and a level change destroys the PlayerState. Which wallet does each actor use, and is the save/load part of B-151's test buildable now?

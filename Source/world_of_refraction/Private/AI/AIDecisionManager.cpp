@@ -163,7 +163,11 @@ void UAIDecisionManager::ExecuteDecision()
     // D-001: stunned = basic attack or Defend only, which is exactly the fallback's choice.
     const USkillEffectManager *EffectManager = GetSkillEffectManager();
     const bool bStunned = EffectManager && EffectManager->IsStunned(Actor);
-    FAction Action = bStunned ? BuildFallbackAction(Actor) : BuildAction(Actor);
+    // B-199: a Void break takes the turn's choice away (Final Fantasy's Confuse); Stun still wins.
+    const bool bRandomAction = !bStunned && EffectManager && EffectManager->HasEffectOfType(Actor, ESkillEffectType::RandomSkill);
+    FAction Action = bStunned        ? BuildFallbackAction(Actor)
+                     : bRandomAction ? BuildRandomAction(Actor)
+                                     : BuildAction(Actor);
 
     // The builders pick by score, not by legality — check before submitting. An
     // invalid submit would pass the whole turn (orchestrator safety net).
@@ -211,6 +215,65 @@ FAction UAIDecisionManager::BuildFallbackAction(AActor *AIActor) const
 
     // Defend is valid even while stunned (D-001); if it is somehow refused, the orchestrator passes the turn.
     return Defend;
+}
+
+FAction UAIDecisionManager::BuildRandomAction(AActor *Actor) const
+{
+    FAction Defend;
+    Defend.ActionType = EActionType::Defend;
+
+    const ULoadoutComponent *Loadout = Actor ? Actor->FindComponentByClass<ULoadoutComponent>() : nullptr;
+    const TArray<AActor *> Enemies = CurrentCombat ? CurrentCombat->GetLivingEnemies(Actor) : TArray<AActor *>();
+    if (!Loadout || Enemies.Num() == 0)
+    {
+        return Defend;
+    }
+
+    // Aimed by the skill's own target side: a heal or buff still lands on the holder or an ally.
+    // Ally includes the holder, as the player menu does; Anyone counts as an attack (an enemy).
+    TArray<AActor *> Allies = CurrentCombat->GetLivingAllies(Actor);
+    Allies.AddUnique(Actor);
+    TArray<FAction> Candidates;
+    Candidates.Add(Defend);
+    auto AddIfValid = [this, Actor, &Candidates, &Enemies, &Allies](FAction Candidate, ETargetType TargetType)
+    {
+        const TArray<AActor *> &Side = TargetType == ETargetType::Ally ? Allies : Enemies;
+        Candidate.Targets.Add(TargetType == ETargetType::Self ? Actor : Side[UBattleRandomSubsystem::RandRange(this, 0, Side.Num() - 1)]);
+        if (CurrentCombat->ValidateAction(Candidate).bIsValid)
+        {
+            Candidates.Add(Candidate);
+        }
+    };
+
+    FAction Attack;
+    Attack.ActionType = EActionType::Ability; // attacks dispatch as Ability (SkillData + IsAttack)
+    Attack.SkillData = Loadout->GetCurrentAttack();
+    if (Attack.SkillData)
+    {
+        AddIfValid(Attack, ETargetType::Enemy);
+    }
+    for (USpellData *Spell : GetUsableSpells(Loadout))
+    {
+        FAction Cast;
+        Cast.ActionType = EActionType::Spell;
+        Cast.SpellData = Spell;
+        AddIfValid(Cast, Spell->TargetType);
+    }
+    for (UAbilityData *Ability : Loadout->GetAvailableAbilities())
+    {
+        FAction Use;
+        Use.ActionType = EActionType::Ability;
+        Use.SkillData = Ability;
+        AddIfValid(Use, Ability->TargetType);
+    }
+
+    const FAction &Picked = Candidates[UBattleRandomSubsystem::RandRange(this, 0, Candidates.Num() - 1)];
+    const FString PickedName = Picked.SpellData   ? Picked.SpellData->GetName()
+                               : Picked.SkillData ? Picked.SkillData->GetName()
+                                                  : FString(TEXT("Defend"));
+    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s is Void-broken - random action %s (%d choices)"),
+           *Actor->GetName(), *PickedName, Candidates.Num());
+    return Picked;
 }
 
 // ==================== QUERY ====================
