@@ -823,11 +823,13 @@ void USkillEffectManager::RemoveAllEffects(AActor *Target)
 		return;
 	}
 
-	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Target];
+	// Empty the store BEFORE broadcasting, as every single-effect removal does: listeners
+	// (MaxHP/EP pool recompute, the GAS attribute mirror) re-read the target's effects (B-041).
+	const TArray<FActiveSkillEffect> Removed = MoveTemp(ActiveEffects[Target]);
+	ActiveEffects.Remove(Target);
 	bool bSpeedChanged = false;
 
-	// Check for speed effects and broadcast removal for each effect
-	for (const FActiveSkillEffect &Effect : Effects)
+	for (const FActiveSkillEffect &Effect : Removed)
 	{
 		if (IsSpeedEffect(Effect.EffectType))
 		{
@@ -836,9 +838,7 @@ void USkillEffectManager::RemoveAllEffects(AActor *Target)
 		OnEffectRemoved.Broadcast(Target, Effect);
 	}
 
-	int32 Count = Effects.Num();
-	Effects.Empty();
-	ActiveEffects.Remove(Target);
+	const int32 Count = Removed.Num();
 
 	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed all %d effects from %s"),
 		   Count, *Target->GetName());
@@ -870,8 +870,14 @@ void USkillEffectManager::ArmConditionalEffects(AActor *Actor, const TArray<FGat
 
 void USkillEffectManager::ClearAllEffects()
 {
-	for (auto &Pair : ActiveEffects)
+	// Empty first, then broadcast (see RemoveAllEffects).
+	const auto Removed = MoveTemp(ActiveEffects);
+	ActiveEffects.Empty();
+
+	int32 TotalCount = 0;
+	for (const auto &Pair : Removed)
 	{
+		TotalCount += Pair.Value.Num();
 		if (Pair.Key.IsValid())
 		{
 			for (const FActiveSkillEffect &Effect : Pair.Value)
@@ -880,14 +886,6 @@ void USkillEffectManager::ClearAllEffects()
 			}
 		}
 	}
-
-	int32 TotalCount = 0;
-	for (const auto &Pair : ActiveEffects)
-	{
-		TotalCount += Pair.Value.Num();
-	}
-
-	ActiveEffects.Empty();
 
 	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Cleared all effects (%d total)"), TotalCount);
 }
