@@ -1290,7 +1290,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### Q-168 — Guard: the open details
-**Status:** OPEN · **Raised:** 2026-10-26 (B-168) · **Blocks:** — (B-168 shipped with A)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-168) · **Blocks:** — (B-168 shipped with A)
 **Question:** Guard is in (D-084 / D-087). These details had no ruling. Are they right?
 **Context:** As built (option A):
 - **Perfect Guard takes 25%** of the hit (`PerfectGuardReduction` 0.75, a placeholder to tune).
@@ -1306,7 +1306,8 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **A** keep all of the above (as built).
 - **B** change some (say which): e.g. a different Perfect Guard share; any Guard stops an interruptable hit; a Perfect Guard plays the parry animation; reflect is one hit only; Broken Darkness does not double twice.
 **Recommendation:** A, except the animation: a Perfect Guard should probably play the parry animation (needs the press to know it is perfect, a small follow-up).
-**Answer (Crown):** _pending_
+**Answer (Crown):** (2026-10-26, detail by detail)
+- **Perfect Guard takes 0%** (B, like Expedition 33's parry); normal Guard stays 50%. Change `PerfectGuardReduction` to 1.0.
 **Notes for Claude:** _optional_
 
 ### Q-169 — Luck dodge: the open details
