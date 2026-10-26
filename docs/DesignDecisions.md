@@ -1617,6 +1617,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Execution turns still skip the turn-start step (Q-044d A is built with B-042), so a break held across an Execution turn counts that turn but has no payout or expiry on it. So a Burn landed off-turn whose holder's next turn is an Execution turn pays 0 times (`CombatOrchestrator.cpp:899-903` skips the start step; `SkillEffectManager.cpp:999` still counts the turn); B-042 fixes it.
 - Wind's delay hands the turn to the next in line even when that one has used its turns this round (otherwise Wind does nothing in a 1v1); this can exceed a speed ratio, which matters only if D-049 caps turns.
 
+### Q-113 — Infused hits: is the Status Multiplier meant to count twice?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-113) · **Blocks:** — (B-113 shipped with A)
+**Question:** B-113 (from rules review C3-3) read the double use of the Status Multiplier on infused hits as a bug. An infused hit's charge band is `band × (1 + StatFraction(Status Multiplier))` (`Combat/Actions/ActionExecutor.cpp:4781-4805`), and `AddStatusBuildup` then multiplies by the Status Multiplier again (`Skills/Effects/StatusBuildupManager.cpp:393`). But `docs/Architecture/InfusionSystem.md` (§ effect model, 6-5) sets this up on purpose: every charge band is "stat-scaled" by the same surcharge. Damage does the same: its charge band is scaled by the damage stat, and the damage formula applies that stat again. The EP cost carries the same surcharge. Keep it, or apply the stat once?
+**Options:**
+- **A** keep it as designed: the charge band's stat surcharge is a separate bonus for a character who invests in the stat; pin it in a test.
+- **B** apply it once for status only: drop the surcharge from the status band (status then differs from damage and cost).
+- **C** apply it once everywhere: drop the surcharge from damage, status and cost (a rework of the infusion rules).
+**Recommendation:** A. It is what the infusion rework designed and documented, and it keeps status like damage (both apply their stat in the charge band and again in the base formula); the EP cost carries the surcharge once, so stacking the stat raises an infused hit's effect and its cost together. Stacked multiplicative bonuses that each multiply the whole are a well-understood build rule (Path of Exile's separate "more" multipliers). B would make status the one channel that behaves differently. C is a balance rework, not a bug fix. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (fix/B-113-status-mult-once): no game change. `WoR.Status.InfusedBuildup` pins each layer on its own (the charge band's surcharge; the Status Multiplier on landing), not the full hit path; the element-keyed Status Multiplier buff applies once, on landing only. And the `GetChargeStatusMultiplier` header says so. If Crown picks B or C, change `GetChargeStatusMultiplier` (and for C `GetChargeDamageMultiplier` and `ComputeInfusionCostMultiplier`) and flip the spec's expectations.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

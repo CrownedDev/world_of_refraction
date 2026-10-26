@@ -771,7 +771,9 @@ public:
 	float GetChargeDamageMultiplier(int32 Level, EInfusionMode Mode, bool bIsSpell, const UCharacterDataComponent *Comp) const;
 
 	/** Charge STATUS multiplier: per-mode base (status is the focus in Status mode) × the same
-	 *  upside-only surcharge over GetEffectiveStatusMultiplier. L0 (or null Comp) → 1.0. */
+	 *  upside-only surcharge over GetEffectiveStatusMultiplier. L0 (or null Comp) → 1.0.
+	 *  AddStatusBuildup applies the Status Multiplier again when the buildup lands; that is the
+	 *  stat-scaled band design, like damage (Q-113), so callers pass bSkipBaseStatAmp = false. */
 	float GetChargeStatusMultiplier(int32 Level, EInfusionMode Mode, const UCharacterDataComponent *Comp) const;
 
 	/** Resolve which equipment/character's InfusionMode applies for an action's infusion source:
