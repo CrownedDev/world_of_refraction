@@ -33,7 +33,7 @@ namespace
 {
     /** Null + server-authority gate every mutating entry point starts with. A standalone (PIE)
      *  actor already reports authority, so this mirrors HasServerAuthority (NM_Standalone ||
-     *  HasAuthority). */
+     *  HasAuthority). TODO: B-027 points this at the one shared authority check. */
     bool EconomyHasAuthority(AActor *Owner, const TCHAR *Op)
     {
         if (!Owner)

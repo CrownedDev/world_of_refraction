@@ -1,7 +1,8 @@
 // EconomyPreambleSpec.cpp
 // Every UEconomyService entry point refuses a null owner and an owner missing its components,
 // and a well-formed owner gets through to the action (B-025). Written against the hand-copied
-// preambles first, so the shared helper must give the same results.
+// preambles first, so the shared helper must give the same results. Not covered: the "no
+// authority" refusal (a standalone test world always has authority).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -14,6 +15,8 @@
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SpellData.h"
 
 namespace
 {
@@ -39,6 +42,11 @@ UEconomyService *Economy = nullptr;
 void ExpectAllRefuse(AActor *Owner, const FString &Context)
 {
 	const FGuid AnyId = FGuid::NewGuid();
+	// Real arguments, so the entry points with their own guards (null spell/ability, empty
+	// cart) reach the owner and component checks.
+	USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+	UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
+	const TArray<FMerchantStockEntry> Cart = {FMerchantStockEntry()};
 	const TPair<const TCHAR *, bool> Results[] = {
 		{TEXT("DismantleCrystal"), Economy->DismantleCrystal(Owner, ECONOMY_TEST_GEM, 1)},
 		{TEXT("MergeCrystals"), Economy->MergeCrystals(Owner, ECrystalType::Garnet, EItemTier::E_Tier)},
@@ -46,20 +54,20 @@ void ExpectAllRefuse(AActor *Owner, const FString &Context)
 		{TEXT("DismantleRing"), Economy->DismantleRing(Owner, AnyId)},
 		{TEXT("DismantleEvolution"), Economy->DismantleEvolution(Owner, AnyId)},
 		{TEXT("RemovePrimaryEvolution"), Economy->RemovePrimaryEvolution(Owner)},
-		{TEXT("DismantleSpell"), Economy->DismantleSpell(Owner, nullptr)},
-		{TEXT("DismantleAbility"), Economy->DismantleAbility(Owner, nullptr)},
-		{TEXT("Purchase"), Economy->Purchase(Owner, {})},
+		{TEXT("DismantleSpell"), Economy->DismantleSpell(Owner, Spell)},
+		{TEXT("DismantleAbility"), Economy->DismantleAbility(Owner, Ability)},
+		{TEXT("Purchase"), Economy->Purchase(Owner, Cart)},
 		{TEXT("BuyWorldStat"), Economy->BuyWorldStat(Owner, EWorldPillar(0))},
 		{TEXT("LevelUpWeapon"), Economy->LevelUpWeapon(Owner, AnyId)},
 		{TEXT("LevelUpRing"), Economy->LevelUpRing(Owner, AnyId)},
 		{TEXT("LevelUpEvolution"), Economy->LevelUpEvolution(Owner, AnyId)},
-		{TEXT("LevelUpSpell"), Economy->LevelUpSpell(Owner, nullptr)},
-		{TEXT("LevelUpAbility"), Economy->LevelUpAbility(Owner, nullptr)},
+		{TEXT("LevelUpSpell"), Economy->LevelUpSpell(Owner, Spell)},
+		{TEXT("LevelUpAbility"), Economy->LevelUpAbility(Owner, Ability)},
 		{TEXT("DowngradeWeapon"), Economy->DowngradeWeapon(Owner, AnyId)},
 		{TEXT("DowngradeRing"), Economy->DowngradeRing(Owner, AnyId)},
 		{TEXT("DowngradeEvolution"), Economy->DowngradeEvolution(Owner, AnyId)},
-		{TEXT("DowngradeSpell"), Economy->DowngradeSpell(Owner, nullptr)},
-		{TEXT("DowngradeAbility"), Economy->DowngradeAbility(Owner, nullptr)},
+		{TEXT("DowngradeSpell"), Economy->DowngradeSpell(Owner, Spell)},
+		{TEXT("DowngradeAbility"), Economy->DowngradeAbility(Owner, Ability)},
 	};
 	for (const TPair<const TCHAR *, bool> &Result : Results)
 	{
