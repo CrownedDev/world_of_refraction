@@ -42,6 +42,16 @@ ATrialDoor::ATrialDoor()
     InteractionTrigger->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 }
 
+void ATrialDoor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    if (GEngine)
+    {
+        GEngine->RemoveOnScreenDebugMessage(static_cast<int32>(GetUniqueID()));
+    }
+    PawnInRange.Reset();
+    Super::EndPlay(EndPlayReason);
+}
+
 void ATrialDoor::BeginPlay()
 {
     Super::BeginPlay();
