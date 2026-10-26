@@ -714,12 +714,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-26): every turn the holder takes counts toward durations, bonus and Execution turns included. Bonus turns are real turns (D-052).
 
 ### D-056 — Do the generic Speed Buff/Debuff move turn order?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** `docs/Mechanics/Combat/TurnOrder.md` says Slow (`SpeedDebuff`) pushes turns back, but the scheduler reads only Turn Speed Up/Buff/Debuff (`Combat/TurnManager.cpp:228-231`); `SpeedBuff`/`SpeedDebuff` trigger a recalculation that changes nothing (`Skills/Effects/SkillEffectManager.cpp:2374-2375`).
 **Context:** Rules: 04 C4-9.
 **Options:** A yes, like Turn Speed / B no, fix the doc.
 **Recommendation:** B, keeping one speed stat for turn order; D-029 already gives Ice its own turn-speed slow.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **C, retire them** (2026-10-26): the legacy generic `SpeedBuff`/`SpeedDebuff` (unused outside test actors, `ESkillEffectType.h` "Legacy Generic") are retired: kept in the enum (append-only), marked `[Obsolete]`-style with a comment, rejected by data validation so nothing new uses them. Turn order keeps one family (Turn Speed: `TurnSpeedBuff`/`TurnSpeedDebuff`/`ModifyTurnSpeed`); **Action Speed** (attack animation rate) and **Spell Speed** (spell animation rate) stay as they are. Fix `docs/Mechanics/Combat/TurnOrder.md` (Slow doesn't move turns).
 
 ### D-057 — Heavy visuals on data assets: hard or soft references?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-047) · **Blocks:** —
