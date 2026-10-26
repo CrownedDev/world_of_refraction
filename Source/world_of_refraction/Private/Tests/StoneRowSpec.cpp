@@ -9,6 +9,7 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Combat/CombatConstants.h"
+#include "Debug/Equipment/StoneRowDebug.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Inventory/ItemExecutor.h"
@@ -155,6 +156,14 @@ void FStoneRowSpec::Define()
 				ExpectUse(Row, Tier, false);
 			}
 		}
+	});
+
+	It("prints one wor.PrintStoneRows line per stat stone", [this]()
+	{
+		TArray<FString> Lines;
+		UStoneRowDebug::GetStoneRowsString().ParseIntoArrayLines(Lines);
+		TestEqual(TEXT("Lines"), Lines.Num(), static_cast<int32>(UE_ARRAY_COUNT(STONE_EXPECTATIONS)));
+		TestTrue(TEXT("ResistanceStone flagged"), UStoneRowDebug::GetStoneRowsString().Contains(TEXT("ResistanceStone: stat Resistance")));
 	});
 
 	It("still routes Amber through the defense buff with its own magnitude and duration", [this]()
