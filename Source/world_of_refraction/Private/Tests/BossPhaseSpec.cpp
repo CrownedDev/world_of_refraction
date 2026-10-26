@@ -24,6 +24,7 @@ namespace
 	constexpr float BOSS_TEST_RESIST_STEP = 0.1f;
 	constexpr int32 BOSS_TEST_HIDDEN_COUNT = 2;
 	constexpr float BOSS_TEST_TOLERANCE = 0.001f;
+	constexpr float BOSS_TEST_MARGIN = 10.0f;
 
 	FBossPhase BossTestPhase(FName Id, EBossPhaseConditionKind Kind, float Value, float Weather)
 	{
@@ -84,12 +85,20 @@ void FBossPhaseSpec::Define()
 		UBossPhaseComponent *Boss = SpawnBoss({BossTestPhase(TEXT("Two"), EBossPhaseConditionKind::HPBelowPercent,
 															  BOSS_TEST_FIRST_POINT, BOSS_TEST_FIRST_WEATHER)});
 		TestTrue(TEXT("The boss has HP"), BossHP->MaxHP > 0);
-		SetBossHPPercent(BOSS_TEST_FIRST_POINT + 10.0f);
+		SetBossHPPercent(BOSS_TEST_FIRST_POINT + BOSS_TEST_MARGIN);
 		TestEqual(TEXT("Above the line: no phase"), Boss->GetReachedPhaseCount(), 0);
-		SetBossHPPercent(BOSS_TEST_FIRST_POINT - 10.0f);
+		SetBossHPPercent(BOSS_TEST_FIRST_POINT - BOSS_TEST_MARGIN);
 		TestEqual(TEXT("Below the line: phase 2"), Boss->GetReachedPhaseCount(), 1);
 		BossHP->ServerHeal(BossHP->MaxHP);
 		TestEqual(TEXT("Healed to full: still phase 2"), Boss->GetReachedPhaseCount(), 1);
+	});
+
+	It("reaches no phase on the killing blow", [this]()
+	{
+		UBossPhaseComponent *Boss = SpawnBoss({BossTestPhase(TEXT("Two"), EBossPhaseConditionKind::HPBelowPercent,
+															  BOSS_TEST_FIRST_POINT, BOSS_TEST_FIRST_WEATHER)});
+		BossHP->ServerTakeDamage(BossHP->MaxHP);
+		TestEqual(TEXT("Dead at once: no phase"), Boss->GetReachedPhaseCount(), 0);
 	});
 
 	It("reaches a phase from hidden conditions (status breaks, own turns)", [this]()
@@ -121,13 +130,13 @@ void FBossPhaseSpec::Define()
 			{BossTestPhase(TEXT("Two"), EBossPhaseConditionKind::HPBelowPercent, BOSS_TEST_FIRST_POINT, BOSS_TEST_FIRST_WEATHER),
 			 BossTestPhase(TEXT("Three"), EBossPhaseConditionKind::HPBelowPercent, BOSS_TEST_LAST_POINT, BOSS_TEST_LAST_WEATHER)});
 		TestEqual(TEXT("No weather pull before a phase"), Boss->GetWeatherIntensity(), 0.0f, BOSS_TEST_TOLERANCE);
-		SetBossHPPercent(BOSS_TEST_FIRST_POINT - 10.0f);
+		SetBossHPPercent(BOSS_TEST_FIRST_POINT - BOSS_TEST_MARGIN);
 		TestEqual(TEXT("Phase 2: first pull"), Boss->GetWeatherIntensity(), BOSS_TEST_FIRST_WEATHER, BOSS_TEST_TOLERANCE);
 
 		UBossPhaseComponent *Fresh = SpawnBoss(
 			{BossTestPhase(TEXT("Two"), EBossPhaseConditionKind::HPBelowPercent, BOSS_TEST_FIRST_POINT, BOSS_TEST_FIRST_WEATHER),
 			 BossTestPhase(TEXT("Three"), EBossPhaseConditionKind::HPBelowPercent, BOSS_TEST_LAST_POINT, BOSS_TEST_LAST_WEATHER)});
-		SetBossHPPercent(BOSS_TEST_LAST_POINT - 10.0f);
+		SetBossHPPercent(BOSS_TEST_LAST_POINT - BOSS_TEST_MARGIN);
 		TestEqual(TEXT("One hit past both lines: both phases"), Fresh->GetReachedPhaseCount(), 2);
 		TestEqual(TEXT("Strongest pull"), Fresh->GetWeatherIntensity(), BOSS_TEST_LAST_WEATHER, BOSS_TEST_TOLERANCE);
 	});
@@ -150,7 +159,7 @@ void FBossPhaseSpec::Define()
 		TestEqual(TEXT("One break: one step more resistance"), After - Before, BOSS_TEST_RESIST_STEP, BOSS_TEST_TOLERANCE);
 
 		const EAIDifficulty Base = AI->GetDifficultyFor(BossActor);
-		SetBossHPPercent(BOSS_TEST_FIRST_POINT - 10.0f);
+		SetBossHPPercent(BOSS_TEST_FIRST_POINT - BOSS_TEST_MARGIN);
 		TestEqual(TEXT("Phase 2: one AI step harder"), static_cast<int32>(AI->GetDifficultyFor(BossActor)),
 				  FMath::Min(static_cast<int32>(Base) + 1, static_cast<int32>(EAIDifficulty::Expert)));
 	});

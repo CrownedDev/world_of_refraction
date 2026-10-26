@@ -159,7 +159,8 @@ void UBossPhaseComponent::EvaluatePhases()
 	}
 	TGuardValue<bool> Guard(bEvaluating, true);
 	const UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-	if (CharComp && !CharComp->bIsAlive)
+	// A killing blow broadcasts HP 0 before the death flag is set: a dying boss reaches no phase.
+	if (CharComp && (!CharComp->bIsAlive || CharComp->CurrentHP <= 0))
 	{
 		return;
 	}
@@ -184,7 +185,8 @@ void UBossPhaseComponent::EvaluatePhases()
 
 void UBossPhaseComponent::EnterPhase(int32 PhaseIndex)
 {
-	const FBossPhase &Phase = Phases[PhaseIndex];
+	// A copy: listeners may add or skip phases while this one is applied.
+	const FBossPhase Phase = Phases[PhaseIndex];
 	ReachedPhaseCount = PhaseIndex + 1;
 	AActor *Owner = GetOwner();
 
@@ -195,6 +197,10 @@ void UBossPhaseComponent::EnterPhase(int32 PhaseIndex)
 		int32 EffectIndex = 0;
 		for (const UEffectDefinition *Definition : Phase.PhaseEffects)
 		{
+			if (EffectIndex > EffectIdentity::EFFECT_ID_SUBBAND_MAX)
+			{
+				break;
+			}
 			for (const FSkillEffect &Effect : Definition ? Definition->Effects : TArray<FSkillEffect>())
 			{
 				if (EffectIndex > EffectIdentity::EFFECT_ID_SUBBAND_MAX)
@@ -216,8 +222,12 @@ void UBossPhaseComponent::EnterPhase(int32 PhaseIndex)
 	}
 	if (UCharacterDataComponent *CharComp = Owner ? Owner->FindComponentByClass<UCharacterDataComponent>() : nullptr)
 	{
-		// Max HP may change; current HP stays (damage already dealt carries).
+		// Max HP may change; current HP stays (damage already dealt carries), at most the new max.
 		CharComp->RecomputeMaxPools();
+		if (CharComp->CurrentHP > CharComp->MaxHP)
+		{
+			CharComp->ServerSetHP(CharComp->MaxHP);
+		}
 	}
 	if (Phase.bChangeElement || !Phase.AddedSkills.IsEmpty())
 	{

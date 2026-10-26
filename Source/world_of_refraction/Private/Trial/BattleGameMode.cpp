@@ -260,7 +260,13 @@ void ABattleGameMode::BootstrapCombat()
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Trial difficulty %s, zone tier %d: enemy strength x%.2f"),
            *TrialGate::GetDifficultyName(TrialRun->GetTrialDifficulty()).ToString(), Zone.Tier, EnemyStrength);
 
-    // B-193: any opposing combatant with boss data gets its phases (before memories change them).
+    // B-191: reactions (worn items facing a character) and this run's memories change the fight
+    // before it starts.
+    const TArray<FReactionTrigger> Reactions = ReactionTriggers::GatherTriggers();
+    const TArray<FFiredReaction> Fired = ReactionTriggers::FindFired(Reactions, LocalParty, OpposingParty);
+    const int32 ReactionEffects = ReactionTriggers::ApplyFired(Fired);
+    // B-193: any opposing combatant with boss data gets its phases: after reactions change its
+    // stats (so they can't reach a phase early), before memories skip or add phases.
     for (AActor *Enemy : OpposingParty)
     {
         const UCharacterDataComponent *EnemyData = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
@@ -273,11 +279,6 @@ void ABattleGameMode::BootstrapCombat()
         }
     }
 
-    // B-191: reactions (worn items facing a character) and this run's memories change the fight
-    // before it starts.
-    const TArray<FReactionTrigger> Reactions = ReactionTriggers::GatherTriggers();
-    const TArray<FFiredReaction> Fired = ReactionTriggers::FindFired(Reactions, LocalParty, OpposingParty);
-    const int32 ReactionEffects = ReactionTriggers::ApplyFired(Fired);
     const int32 MemoryChanges = ReactionTriggers::ApplyMemoryBossModifiers(TrialRun->GetRunMemories(), OpposingParty);
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Reactions: %d of %d fired (%d effects); memory boss changes: %d"),
            Fired.Num(), Reactions.Num(), ReactionEffects, MemoryChanges);
