@@ -146,10 +146,14 @@ private:
 
 	/** Shared body for the standard directional stone-consumable buff handlers: ally gets
 	 *  BuffType, enemy gets DebuffType, at the stone's GetStoneBasePercent magnitude for the
-	 *  flat AUGMENT_STONE_CONSUMABLE_DURATION. The 8 template-able Execute*Buff handlers
-	 *  delegate here passing their enum pair + display suffix. Outliers (RawDamage's
-	 *  DamageStone curve, Resistance's sign-encoded single type, Defense/Crit dual-source,
-	 *  Emerald's extra-turn branch) keep their own bodies. */
+	 *  flat AUGMENT_STONE_CONSUMABLE_DURATION. UseItem calls it straight from the stone's
+	 *  StoneRowTable row for every standard stat stone (B-021). ResistanceStone (sign-encoded)
+	 *  and the gems keep their own handlers.
+	 *
+	 *  OBSOLETE (B-021): UseItem no longer reaches the stat-stone wrappers below
+	 *  (ExecuteRawDamage/SpellDamage/SpellSpeed/ActionSpeed/CritDamage/Luck/Reflex/TurnSpeedStone/
+	 *  Status/Efficiency/MaxHP/MaxEP), nor ExecuteDefenseBuffEffect's DefenseStone branch (Amber
+	 *  still uses it). Delete them after Crown's PIE pass of B-021 (B-152). */
 	void ApplyStoneBuffEffect(AActor *User, AActor *Target, FCrystalId Id,
 							   ESkillEffectType BuffType, ESkillEffectType DebuffType,
 							   const FString &DisplaySuffix, FItemUseResult &OutResult);
