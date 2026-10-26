@@ -592,6 +592,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A start in the chosen cell / B everyone in the Middle row (current).
 **Recommendation:** A, because the row bonus and the stored formation exist for it.
 **Answer (Crown):** **A** (2026-10-26): members start in their **chosen formation cell**, so row bonuses apply. Replace the Middle-row auto-assign (`CombatOrchestrator.cpp:222-223`) with each member's `PreferredRow/PreferredColumn`, falling back to auto-assign when unset or clashing. Enemies use their own preferred cells (tanks front, casters back, per `AIArchitecture.md`'s placeholder heuristic) until authored. **Formation can be changed at rest spots** during a run (Crown, 2026-10-26), alongside inventory and loadout (D-032 part 7).
+**Queued:** B-149 (start in the chosen cell); formation at rest spots comes with the rest-spot work.
 
 ### D-043 — How does a fallen party member come back during a run?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
@@ -601,6 +602,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A for now (souls-like attrition, as in D-013), with B as a later vendor service.
 **Answer (Crown):** **B** (2026-10-26): a fallen member can be **revived during a fight by spells or items** (Sapphire today; revive spells too), and **revived at a rest spot** (full heal, as rest spots already give). Otherwise they sit out the fights in between.
 **Notes for Claude:** today members dead at a fight's end are left out for good (`EncounterComponent.cpp:210-260`); rest spots must bring them back. Check that a revive **spell** effect exists, not only the Sapphire item; if not, raise it. Rest spots themselves are part of the trial work (`RunStructure.md`).
+**Queued:** B-150 (fallen members stay in the party; revive at rest spots). No revive **spell** effect exists (`ESkillEffectType` `Revive` was renamed `LastStand`; only Sapphire's `DefyDeath` revives), so that part is D-071.
 
 ### D-044 — What difficulty do AI-controlled party members play at?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-071
@@ -609,6 +611,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A a fixed ally tier / B the encounter's difficulty (current) / C a player setting.
 **Recommendation:** A, because an easier fight shouldn't make your own team worse.
 **Answer (Crown):** **A now, C later** (2026-10-26): AI-controlled party members play at a **fixed, good level** whatever the encounter's difficulty (named constant, `// TODO: tune`; the encounter difficulty drives enemies only). Later: **tactics** the player sets per ally (Dragon Quest / Persona style), a new decision when it comes up.
+**Queued:** B-071 (now TODO).
 
 ### D-045 — Who do you control when the leader is down?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-071
@@ -618,6 +621,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A, because it keeps D-026's per-member choice meaningful.
 **Answer (Crown):** **B by default, as a setting** (2026-10-26): when every member set to Player has fallen, **you take over the remaining AI members** so you never just watch. A **setting** lets the player choose instead to let the AI finish the fight (A).
 **Notes for Claude:** setting on the Settings screen (Gameplay), default "Take over" (B), alternative "Let AI finish" (A). The leader stays Player while alive (D-004). Placeholder UI per the PIE rule until the CommonUI Settings screen exists.
+**Queued:** B-071 (now TODO), with the setting as placeholder UI.
 
 ### D-046 — One wallet per player, or per character?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-073
@@ -626,6 +630,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A one wallet per player, everything / B Prisms and Diamond per player, essence per character / C per character (current).
 **Recommendation:** A, because the pool and run inventory are already shared (D-020, D-026), and per-character essence would strand upgrades.
 **Answer (Crown):** **A** (2026-10-26): **one wallet per player** for everything (Gold, Prisms, Diamond, all essences), like the shared pool (D-020) and run inventory (D-026). Move the currency off each character (`CurrencyComponent.h:15-24`) to player scope (PlayerState / the save, per D-064's rule).
+**Queued:** B-151 (one wallet per player); B-073 still waits for D-048.
 
 ### D-047 — Where can you upgrade, repair, merge and downgrade?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
@@ -635,6 +640,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A, because it keeps the one written design and only overrides it where D-002 ruled.
 **Answer (Crown):** **B** (2026-10-26): **every service works in both places**: buy (Prisms at home, Gold in a run), upgrade, repair, merge, downgrade, reroll. In a run they sit at **rest spots** and **vendors**; at home, at the hub's service NPCs. Supersedes `Hubs.md`'s run-only split (written for the old two-hub model).
 **Notes for Claude:** compared (2026-10-26): Expedition 33 upgrades at camp/rest points; Dark Souls 3 and Elden Ring at a blacksmith in the hub; Nightreign levels at Sites of Grace. Costs stay as each service carries them (`Upgrading.md`, `Merging.md`). Update `Hubs.md` when applied.
+**Applied:** `Hubs.md` updated (every service in both places); the services themselves are unbuilt (`chore/apply-D-042-047`).
 
 ### D-048 — What does Gold buy in a run?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-073
@@ -827,6 +833,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A, because the Darkness cap and the docs already say Silenced; only the tooltip changes.
 **Answer (Crown):** _write here_
 
+
+### D-071 — Revive spells: what do they do?
+**Status:** OPEN · **Raised:** 2026-10-26 (applying D-043) · **Blocks:** — (B-150 builds the rest-spot revive without it)
+**Question:** D-043 says spells can revive a fallen ally mid-fight, but there is no revive spell effect. How should one work?
+**Context:** The old `Revive` skill effect was renamed `LastStand` (survive a killing blow, `ESkillEffectType.h:200-201`). Only Sapphire's `DefyDeath` item effect revives a dead ally (`ItemEffectType.h:86-90`).
+**Options:** A a new `Resurrect` skill effect: brings a dead ally back at the effect's value as % of max HP, reusing Sapphire's revive path / B revive stays item-only (Sapphire) / C revive spells only out of combat.
+**Recommendation:** A, because D-043 asks for revive spells and Sapphire's path already does the hard part (turn order, death state); the HP % is a per-spell value.
+**Answer (Crown):** _write here_
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

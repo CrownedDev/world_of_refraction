@@ -1,5 +1,7 @@
 # Hubs — shops & services (two-hub economy)
 
+> **D-047 (Crown, 2026-10-26) supersedes the split below:** every service works in **both** places: buy (Prisms at home, Gold in a run), upgrade, repair, merge, downgrade and reroll. In a run they sit at **rest spots** and **vendors**; at home, at the hub's service NPCs. Costs stay as each service carries them. The run-only marks in the tables are kept for history; draft/return stays a run thing.
+
 **Status:** ⚠️ **[DESIGN — not built; depends on the Pool arc].** This is the locked design for the
 two-hub shop/service layer. **None of it exists in code** — the hubs, shops, draft/return, and repair
 are part of the **next major foundational arc (the Pool/persistence layer)**. The backend *ops* the
@@ -26,10 +28,10 @@ committed challenge.
 | Service | Local hub | Run hub | Cost (carries its own, regardless of hub) |
 |---|---|---|---|
 | **Purchase** | ✅ local-flagged (Prisms) | ✅ run-flagged (Gold) | currency differs **by hub**; stock = per-item flag |
-| **Upgrade** (item tier-up) | — | ✅ **run only** | upgrade essence + ½ Reality (NOT Gold) — see [`Upgrading.md`](./Upgrading.md) |
-| **Repair** (fix broken gear) | — | ✅ **run only** | cost TBD |
-| **Merge** (crystals) | — | ✅ | Prisms — see [`Merging.md`](./Merging.md) |
-| **Roll / reroll** (stats) | — | ✅ | Reality + Prisms — see [`Gear/RerollEconomy.md`](../Gear/RerollEconomy.md) |
+| **Upgrade** (item tier-up) | ✅ (D-047) | ✅ | upgrade essence + ½ Reality (NOT Gold) — see [`Upgrading.md`](./Upgrading.md) |
+| **Repair** (fix broken gear) | ✅ (D-047) | ✅ | cost TBD |
+| **Merge** (crystals) | ✅ (D-047) | ✅ | Prisms — see [`Merging.md`](./Merging.md) |
+| **Roll / reroll** (stats) | ✅ (D-047) | ✅ | Reality + Prisms — see [`Gear/RerollEconomy.md`](../Gear/RerollEconomy.md) |
 | **Downgrade** (respec) | ✅ | ✅ **both** | partial essence refund (½ step, no Reality) — see [`Upgrading.md`](./Upgrading.md) |
 | **Draft / Return** | — | ✅ **run only** | Gold (return surplus → pool + Gold) |
 

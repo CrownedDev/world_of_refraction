@@ -92,8 +92,7 @@ This page covers the currencies, what a fight and a run pay out, what carries ov
 | ER-45 | Several enemies in one encounter, authored from data. | Code only (planned, B-074) | `docs/Backlog.md` B-074 |
 
 ## Open questions
-- D-046 (OPEN): one wallet per player, or per character (Cx-5); blocks B-073.
-- D-047 (OPEN): where you can upgrade, repair, merge and downgrade (Cx-4).
+- Answered 2026-10-26: D-046 (one wallet per player, B-151), D-047 (every service in both places; `Hubs.md` updated).
 - D-048 (OPEN): what Gold buys in a run (Cx-1, Cx-6); blocks B-073.
 - D-002 (ANSWERED, one point unconfirmed): an upgrade made during a run is written back to the pool. Crown's notes say "confirm when applying".
 - D-006 (ANSWERED, one point left open): a starting Prism grant for a new save.
@@ -104,8 +103,8 @@ This page covers the currencies, what a fight and a run pay out, what carries ov
 - **Cx-1 — In-run shops charge Prisms.** D-002 notes say buying uses Prisms in the hub and Gold in a run (`MerchantData.h:9-11` agrees). The code always charges Prisms (`EconomyService.cpp:853,875`) and never checks a merchant's hub/trial tags (`MerchantData.h:100-109`, no callers). Decided (D-002); pricing trial merchants in Gold comes with B-073. What Gold buys is **D-048**.
 - **Cx-2 — Win and loss both return to the trial.** D-002: win = continue with the enemy beaten, lose = back to the hub. Code: both reload the trial whole (`BattleGameMode.h:11-13`, `BattleGameMode.cpp:301-305`). Already queued as B-072 (routing) and B-090 (enemy stays beaten). Decided (D-002), not built: routing is **B-072**; "enemy stays beaten" needs B-090. D-002's notes already order them.
 - **Cx-3 — Durability doesn't carry over between fights.** D-013 says HP, EP, absorption and durability carry over within a run. Only HP and EP are banked (`BattleGameMode.cpp:260-298`); crystals are rebuilt from authored data on every level load (`TrialRunSubsystem.h:12-17`), so +10 repair (ER-36) and wear never reach the next fight. Absorption isn't banked either. Decided (D-013), not built: **B-115**.
-- **Cx-4 — Where you can upgrade.** D-002: upgrades in the hub and during a run. `docs/Mechanics/Economy/Hubs.md` (composition table) says upgrade, repair and merge are run-only and the hub only buys and downgrades; it also describes a "draft 3 inventories / return for Gold" run start that D-021 replaced. Question, options and recommendation: **D-047**. Hubs.md's draft section is rewritten to D-021 with B-116.
-- **Cx-5 — Prisms and essence: per character or per player?** D-002 keeps Prisms across runs and D-020 makes the gear pool one per player, but the wallet sits on each character, Prisms and Diamond included (`CurrencyComponent.h:15-24`), so a party of three has three wallets. Question, options and recommendation: **D-046**.
+- **Cx-4 — Where you can upgrade.** D-002: upgrades in the hub and during a run. `docs/Mechanics/Economy/Hubs.md` (composition table) says upgrade, repair and merge are run-only and the hub only buys and downgrades; it also describes a "draft 3 inventories / return for Gold" run start that D-021 replaced. Question, options and recommendation: **D-047**. Hubs.md's draft section is rewritten to D-021 with B-116. **Ruled (D-047): B**, every service works at home and in a run (rest spots, vendors); `Hubs.md` updated.
+- **Cx-5 — Prisms and essence: per character or per player?** D-002 keeps Prisms across runs and D-020 makes the gear pool one per player, but the wallet sits on each character, Prisms and Diamond included (`CurrencyComponent.h:15-24`), so a party of three has three wallets. Question, options and recommendation: **D-046**. **Ruled (D-046): A**, one wallet per player for all currencies (B-151).
 - **Cx-6 — What Gold is for.** `CurrencyComponent.h:128` and `docs/Mechanics/Economy/Currency.md` say Gold buys run consumables and temporary buffs. D-021 says Gold buys your run-start loadout and in-run upgrades and world stats, but D-002 notes say upgrades never cost Gold. Question, options and recommendation: **D-048**; the comment and doc follow the answer.
 
 ## Gaps
