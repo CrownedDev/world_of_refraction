@@ -65,7 +65,8 @@ enum class EPieMenuCategory : uint8
 
 	// Main menu action, appended last so existing values keep their numbers
 	Defend UMETA(DisplayName = "Defend"), // Brace this turn (all a stunned actor gets besides Attack, D-001)
-	Flee UMETA(DisplayName = "Flee")	  // Leave a normal fight (D-091)
+	Flee UMETA(DisplayName = "Flee"),	  // Leave a normal fight (D-091)
+	MoveRow UMETA(DisplayName = "Move Row") // Free one-row step, once per turn (D-096); DataIndex 1 = forward
 };
 
 /**

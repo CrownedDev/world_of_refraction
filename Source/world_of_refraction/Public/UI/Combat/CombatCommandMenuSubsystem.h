@@ -177,6 +177,8 @@ private:
     FPieMenuButtonData CreateSwitchWeaponButton() const;
     /** D-091: Flee, greyed with the reason when the fight can't be fled. */
     FPieMenuButtonData CreateFleeButton() const;
+    /** D-096 placeholder: "Step Forward" / "Step Back", greyed with the reason. */
+    FPieMenuButtonData CreateMoveRowButton(bool bForward) const;
     /** ET-19: greys a switch button, with the reason, once the turn's free switch is used. */
     void GreyIfTurnSwitchUsed(FPieMenuButtonData &Button) const;
     FPieMenuButtonData CreateSwitchRingButton() const;
@@ -197,6 +199,7 @@ private:
     void OpenAbilitySubmenu();
     void OpenSpellSubmenu(EPieMenuCategory Source);
     void ExecuteSwitchWeapon();
+    void ExecuteMoveRow(bool bForward);
     void ExecuteSwitchRing();
     void OpenItemsSubmenu();
 

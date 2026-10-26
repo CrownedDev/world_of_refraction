@@ -259,7 +259,14 @@ enum class ESkillEffectType : uint8
     // HealBlock gates (HealthRestore / RestoreHPPercent ticks, drain, lifesteal), in the else
     // branch after the gate (gate-then-amplify). DISTINCT from the healer-side ModifyHealing
     // ("Healing Up"). Magnitude is percent (25 = +25% healing received).
-    HealingReceivedBuff UMETA(DisplayName = "Healing Boost")
+    HealingReceivedBuff UMETA(DisplayName = "Healing Boost"),
+
+    // ==================== ROW MOVES (D-096, B-180) ====================
+    // Appended (not mid-inserted) to preserve enum-by-value stamping. Instant (author Duration 0):
+    // move the target one row in its column through UCombatGridSubsystem; refused, with a log,
+    // when that cell is taken or the target is already in the last row.
+    PushBack UMETA(DisplayName = "Push Back (one row)"),
+    PullForward UMETA(DisplayName = "Pull Forward (one row)")
 };
 
 /**

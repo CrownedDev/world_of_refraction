@@ -5,6 +5,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/TurnManager.h"
 #include "Combat/Actions/ActionExecutor.h"
+#include "Combat/Grid/CombatGridSubsystem.h"
 #include "Combat/Defense/DefenseSystem.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "Skills/Effects/EffectIdentity.h"
@@ -1611,6 +1612,34 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::LastStand:
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] LastStand armed on %s"), *Actor->GetName());
 		break;
+
+	// ==================== ROW MOVES (D-096, B-180) ====================
+	// Instant: one row in the target's column. The grid refuses (and logs) a taken cell or the
+	// last row; row bonuses read the grid per hit, so they change at once.
+	case ESkillEffectType::PushBack:
+	case ESkillEffectType::PullForward:
+	{
+		// A stored (Duration > 0) row move would shove the target again on every tick.
+		if (!Effect.IsInstant())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] %s on %s has a duration; row moves must be authored with Duration 0 - ignored"),
+				   *Effect.EffectName, *Actor->GetName());
+			break;
+		}
+		UGameInstance *GI = GetGameInstance();
+		UCombatGridSubsystem *Grid = GI ? GI->GetSubsystem<UCombatGridSubsystem>() : nullptr;
+		const UActionExecutor *AE = GI ? GI->GetSubsystem<UActionExecutor>() : nullptr;
+		if (Grid && AE)
+		{
+			const bool bPush = Effect.EffectType == ESkillEffectType::PushBack;
+			const bool bMoved = bPush ? Grid->PushActorBack(Actor, AE->GetArenaCenter())
+									  : Grid->PullActorForward(Actor, AE->GetArenaCenter());
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s %s %s via %s"), *Actor->GetName(),
+				   bMoved ? TEXT("was") : TEXT("could not be"), bPush ? TEXT("pushed back") : TEXT("pulled forward"),
+				   *Effect.EffectName);
+		}
+		break;
+	}
 
 	// ==================== STATUS BAR MANIPULATION (sweep-4) ====================
 	// Instant gauge manipulators. Both fire once on apply (Duration is an

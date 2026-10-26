@@ -668,6 +668,70 @@ FText ACombatOrchestrator::GetFleeRefusedReason(AActor *Actor) const
 	return FText::GetEmpty();
 }
 
+FText ACombatOrchestrator::GetRowMoveRefusedReason(AActor *Actor, bool bForward) const
+{
+	if (CombatState != ECombatState::InProgress)
+	{
+		return NSLOCTEXT("CombatOrchestrator", "RowNoFight", "There is no fight.");
+	}
+	if (!Actor || Actor != CurrentActor)
+	{
+		return NSLOCTEXT("CombatOrchestrator", "RowNotTurn", "Only on your turn.");
+	}
+	if (SkillEffectManagerRef && SkillEffectManagerRef->IsStunned(Actor))
+	{
+		return NSLOCTEXT("CombatOrchestrator", "RowStunned", "Can't move while stunned.");
+	}
+	if (bRowMoveUsedThisTurn)
+	{
+		return NSLOCTEXT("CombatOrchestrator", "RowUsed", "Already moved this turn.");
+	}
+	const UCombatGridSubsystem *Grid = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCombatGridSubsystem>() : nullptr;
+	FCombatGridPosition Position;
+	if (!Grid || !Grid->GetActorPosition(Actor, Position))
+	{
+		return NSLOCTEXT("CombatOrchestrator", "RowNoGrid", "Not on the battle grid.");
+	}
+	if (bForward && Position.Row == ECombatRow::Front)
+	{
+		return NSLOCTEXT("CombatOrchestrator", "RowAtFront", "Already in the front row.");
+	}
+	if (!bForward && Position.Row == ECombatRow::Back)
+	{
+		return NSLOCTEXT("CombatOrchestrator", "RowAtBack", "Already in the back row.");
+	}
+	return FText::GetEmpty();
+}
+
+bool ACombatOrchestrator::TryMoveRow(AActor *Actor, bool bForward, FText &OutRefusedReason)
+{
+	OutRefusedReason = GetRowMoveRefusedReason(Actor, bForward);
+	if (!OutRefusedReason.IsEmpty())
+	{
+		return false;
+	}
+
+	UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
+	FCombatGridPosition Target;
+	Grid->GetActorPosition(Actor, Target);
+	Target.Row = CombatRowHelpers::GetRowFromIndex(Target.GetRowIndex() + (bForward ? 1 : -1));
+
+	const FVector ArenaCenter = GetActorLocation();
+	AActor *Ally = Grid->GetActorAtPosition(Target);
+	// The fallen stay on the grid; their cell is blocked rather than swapped into (Q-180).
+	const bool bMoved = !Ally ? Grid->MoveActorToRow(Actor, Target.Row, ArenaCenter)
+							  : IsActorAlive(Ally) && Grid->SwapActorPositions(Actor, Ally, ArenaCenter);
+	if (!bMoved)
+	{
+		OutRefusedReason = NSLOCTEXT("CombatOrchestrator", "RowBlocked", "Can't move there.");
+		return false;
+	}
+	bRowMoveUsedThisTurn = true;
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s stepped to the %s row%s"), *Actor->GetName(),
+		   *CombatRowHelpers::GetRowName(Target.Row), Ally ? *FString::Printf(TEXT(" (swapped with %s)"), *Ally->GetName()) : TEXT(""));
+	return true;
+}
+
 void ACombatOrchestrator::BeginFlee()
 {
 	int32 TotalGoldLost = 0;
@@ -837,6 +901,7 @@ void ACombatOrchestrator::ProceedWithTurnStart()
 	{
 		Loadout->ResetTurnSwitch();
 	}
+	bRowMoveUsedThisTurn = false; // D-096: and the one free row move
 
 	// Process start-of-turn status effects
 	ProcessStartOfTurnEffects(CurrentActor);
@@ -1848,6 +1913,7 @@ void ACombatOrchestrator::DebugPrintCombatState()
 	UE_LOG(LogTemp, Display, TEXT("Combat State: %d"), (int32)CombatState);
 	UE_LOG(LogTemp, Display, TEXT("Current Turn: %d"), CurrentTurnNumber);
 	UE_LOG(LogTemp, Display, TEXT("Current Actor: %s"), CurrentActor ? *CurrentActor->GetName() : TEXT("None"));
+	UE_LOG(LogTemp, Display, TEXT("Row move used this turn: %s"), bRowMoveUsedThisTurn ? TEXT("yes") : TEXT("no"));
 	UE_LOG(LogTemp, Display, TEXT("Auto-Advance: %s (%.1fs delay)"),
 		   bAutoAdvanceTurns ? TEXT("ON") : TEXT("OFF"), AutoAdvanceDelay);
 	UE_LOG(LogTemp, Display, TEXT("Waiting for Async: %s"), bWaitingForAsyncAction ? TEXT("Yes") : TEXT("No"));
