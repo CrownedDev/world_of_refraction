@@ -889,21 +889,21 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** written up in `docs/Design/CombatCamera.md`.
 
 ### D-075 — A fight ends mid-action: does the action still cost its infusion HP?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-030) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-030) · **Blocks:** —
 **Question:** when a fight ends while a charged (infused) action is still playing (forced end, flee), should the caster still pay the infusion's HP cost?
 **Context:** an infused action pays its HP cost at the very end, on hit or miss (`ActionExecutor.cpp:2334`, `ApplyPendingInfusionHPCost`). The cost can kill the caster. Cancelling an action ran the same path, so a forced end could kill a character *after* the fight's result was announced (and an enemy dying then still added world-stat points). B-030 skips the cost when the fight ends mid-action, as a safe stop-gap (`UActionExecutor::ResetForCombat`, TODO D-075). Open defense windows are also dropped then, with no damage and no reflect.
 **Options:** A **no cost** when the fight ends mid-action (what B-030 does now) / B **pay the cost, but it can't kill** (HP floors at 1) / C **pay it in full** after the fight (needs a safe way to handle a post-fight death).
 **Recommendation:** A, because the action never finished, and nothing after the result screen should change a character. The deckbuilder has no mid-action fight end to borrow from.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A, no cost** (2026-10-26): if a fight ends mid-action (forced end, flee), the unfinished action's infusion HP cost is not paid. B-030's stop-gap becomes the rule; remove its TODO.
 **Notes for Claude:** _optional_
 
 ### D-076 — Hub controller: one class for interact and hub menus
-**Status:** OPEN · **Raised:** 2026-10-26 (B-003) · **Blocks:** B-003 hub part only (the combat HUD cut-over is done)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-003) · **Blocks:** B-003 hub part only (the combat HUD cut-over is done)
 **Question:** the refactor's `AExplorationPlayerController` (E interacts with the nearest door / merchant / recruit; `OnPossess` makes sure the party exists) was meant to become `BP_HubPlayerController`'s parent. Since then `dev` gave that Blueprint a different C++ parent, `AWoRHubController` (hub modes and the CommonUI menu stack: `SetHubMode`, `PushMenu`/`PopMenu`). Both derive from `APlayerController`. How should they join?
 **Context:** reparenting as the review notes say would drop `AWoRHubController`'s hub modes and menu stack. Today the Blueprint still does interact and `EnsureLocalParty` itself (its BeginPlay also adds the input mapping and the party display), so the hub works as before. The trial level's controller is not reparented either.
 **Options:** A **fold the interact + party code into `AWoRHubController`** and retire `AExplorationPlayerController` (one hub controller) / B **make `AExplorationPlayerController` derive from `AWoRHubController`** and reparent the Blueprint to it (two layers) / C leave the hub on Blueprint interact for now.
 **Recommendation:** A, because one controller owns the hub and nothing else uses `AExplorationPlayerController` yet; it's the simplest working shape. The deckbuilder has no hub controller to borrow from.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A, one hub controller** (2026-10-26): fold the interact (E: door / merchant / recruit) and `EnsureLocalParty` code into `AWoRHubController`, retire `AExplorationPlayerController`; nothing changes for the player.
 **Notes for Claude:** _optional_
 
 ## Parked
