@@ -10,6 +10,9 @@
 #include "Merchant/MerchantData.h"
 #include "Shop/MerchantShopSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Engine/StaticMesh.h"
+#include "EngineUtils.h"
+#include "HAL/IConsoleManager.h"
 
 namespace MerchantInteractableConstants
 {
@@ -60,7 +63,58 @@ void AMerchantInteractable::BeginPlay()
     {
         UE_LOG(LogTemp, Warning, TEXT("MerchantInteractable '%s' has no Merchant assigned."), *GetName());
     }
+    else if (UStaticMesh *Outfit = Merchant->VOutfitMesh.LoadSynchronous())
+    {
+        // B-195: this service's V in its outfit, in place of the placeholder cube.
+        CubeMesh->SetStaticMesh(Outfit);
+    }
 }
+
+TArray<EMerchantType> AMerchantInteractable::GetMissingServices(const UWorld *World)
+{
+    TSet<EMerchantType> Present;
+    for (TActorIterator<AMerchantInteractable> It(World); World && It; ++It)
+    {
+        if (It->Merchant)
+        {
+            Present.Add(It->Merchant->MerchantType);
+        }
+    }
+    TArray<EMerchantType> Missing;
+    for (EMerchantType Type : TEnumRange<EMerchantType>())
+    {
+        if (!Present.Contains(Type))
+        {
+            Missing.Add(Type);
+        }
+    }
+    return Missing;
+}
+
+FString AMerchantInteractable::GetServicesString(const UWorld *World)
+{
+    FString Out = TEXT("Hub services:");
+    for (TActorIterator<AMerchantInteractable> It(World); World && It; ++It)
+    {
+        Out += FString::Printf(TEXT("\n  %s: %s%s"), *It->GetName(),
+                               It->Merchant ? *UEnum::GetDisplayValueAsText(It->Merchant->MerchantType).ToString() : TEXT("<no Merchant>"),
+                               It->Merchant && !It->Merchant->VOutfitMesh.IsNull() ? TEXT(" (V outfit set)") : TEXT(""));
+    }
+    const TArray<EMerchantType> Missing = GetMissingServices(World);
+    Out += FString::Printf(TEXT("\n  Missing: %s"), Missing.IsEmpty() ? TEXT("none")
+        : *FString::JoinBy(Missing, TEXT(", "), [](EMerchantType Type) { return UEnum::GetDisplayValueAsText(Type).ToString(); }));
+    return Out;
+}
+
+#if !UE_BUILD_SHIPPING
+static FAutoConsoleCommandWithWorld GHubServicesCommand(
+    TEXT("wor.Hub.Services"),
+    TEXT("List every merchant NPC in the level with its service, and the hub services with no NPC (B-195)."),
+    FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+    {
+        UE_LOG(LogTemp, Display, TEXT("%s"), *AMerchantInteractable::GetServicesString(World));
+    }));
+#endif
 
 void AMerchantInteractable::Interact()
 {

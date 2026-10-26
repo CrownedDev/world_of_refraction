@@ -13,6 +13,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Merchant/MerchantData.h"
 #include "MerchantInteractable.generated.h"
 
 class UMerchantData;
@@ -46,6 +47,12 @@ public:
      *  One-node BP wiring for the controller's E-event. */
     UFUNCTION(BlueprintCallable, Category = "Merchant")
     static AMerchantInteractable *FindNearestInRange(APawn *Pawn);
+
+    /** B-195: the hub services (every merchant type) with no merchant NPC in World. */
+    static TArray<EMerchantType> GetMissingServices(const UWorld *World);
+
+    /** Debug: every merchant NPC in World with its service, and the services missing. */
+    static FString GetServicesString(const UWorld *World);
 
 protected:
     virtual void BeginPlay() override;
