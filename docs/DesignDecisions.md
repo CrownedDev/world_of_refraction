@@ -1172,6 +1172,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
+### D-094 — Upgrade materials in a run; "Reality essence" becomes "Unknown essence"
+**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 05 gap) · **Blocks:** — (B-073)
+**Answer (Crown):** (2026-10-26)
+- **B: all three upgrade materials drop in runs**: Gear Essence, Skill Essence and the upgrade co-cost essence, **small amounts from every fight**, **bigger amounts from mini-bosses, bosses and chests**. Tallied and **paid at run end** (D-006). Typed essences (element / pillar / ability) still come only from dismantling.
+- **Rename:** "Reality essence" (the half-cost on every upgrade, `Resources_Design.md` §5.3) is now **"Unknown essence"**.
+**Notes for Claude:**
+- Player-facing name now; code identifiers keep their names until a rename job (enums append-only: add, don't renumber).
+- To confirm with Crown when renaming: the Reality **element** essence (one of the 10 typed essences, used to buy Reality spells) is a different thing; keep it "Reality" unless Crown says otherwise.
+- Amounts by zone/difficulty: named constants, `// TODO: tune`. Fold into B-073 (rewards).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
