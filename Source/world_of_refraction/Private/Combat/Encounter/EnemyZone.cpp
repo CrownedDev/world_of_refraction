@@ -15,6 +15,9 @@ namespace EnemyZoneInternal
 	const FVector DEFAULT_ZONE_EXTENT(1000.0f, 1000.0f, 500.0f);
 }
 
+// FEncounterZoneInfo::Tier's ClampMax must be a literal for UHT; keep it equal to this.
+static_assert(EnemyZoneConstants::MAX_ZONE_TIER == 4, "Update FEncounterZoneInfo::Tier ClampMax and TIER_STRENGTH");
+
 AEnemyZone::AEnemyZone()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -40,8 +43,12 @@ bool AEnemyZone::Contains(const FVector &Location) const
 FEncounterZoneInfo AEnemyZone::FindZoneAt(const UWorld *World, const FVector &Location)
 {
 	FEncounterZoneInfo Best;
+	if (!World)
+	{
+		return Best;
+	}
 	bool bFound = false;
-	for (TActorIterator<AEnemyZone> It(World); World && It; ++It)
+	for (TActorIterator<AEnemyZone> It(World); It; ++It)
 	{
 		if (It->Contains(Location) && (!bFound || It->Zone.Tier > Best.Tier))
 		{
