@@ -1660,6 +1660,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-071-party-into-battle): `ABattleGameMode::BootstrapCombat` possesses the leader's pawn when it fights, otherwise the first Player-set member, otherwise the first spawned.
 
+### Q-188 — How do the trial map's chest, lore object and boss arena behave?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-188) · **Blocks:** — (B-188 shipped with A)
+**Question:** RunStructure §4 lists a chest (rolls the zone pool), a lore object (a journal entry) and a boss arena (the boss fight, when the player chooses). What does each do exactly, with no journal screen and no loot weights yet?
+**Options:**
+- **A** *Chest:* opens once per run and gives one item from its pool: its own pool when set, else its zone's (`Resources_Design.md` §7.9: the tag picks the candidates, a roll seeded by the run seed and the chest picks one; unweighted for now, `// TODO`). An empty pool opens empty; with no room the chest stays closed so you can come back. *Lore:* shows its text; the first read goes into the run's found list (the placeholder journal; `wor.Trial.Print`). *Boss arena:* pressing interact at it is the choice; it fights the chosen variation's boss (else an authored fallback) as a Boss-rank fight, AI Hard by default, the arena's zone setting the strength; beaten for the rest of the run once won.
+- **B** Chests come back after a rest, or show a confirm screen before the boss.
+- **C** Weighted rolls and a journal screen now.
+**Recommendation:** A. Hades and Dead Cells chests and rooms give their reward once per run and players like that a cleared room stays cleared; Elden Ring and Dark Souls put the boss behind a fog wall you choose to walk through, praised for making the fight the player's choice, and their item descriptions and notes are the lore you collect as you go. One press keeps the placeholder simple; the real screens come with D-024. Not lore (the lore text itself is placeholder; Crown writes it).
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-188-map-features): `ATrialMapFeature` with `ATrialChest`, `ATrialLoreObject`, `ABossArenaTrigger`; `TrialLoot` (pool gather, roll, grant; `wor.Trial.Pool`); `UTrialRunSubsystem::RecordFound` (run state like `BeatenEncounters`, moves for co-op with it, D-065). Vendor reuses `AMerchantInteractable` (B-179 trial stock); recruiting waits on B-076.
+
 ### Q-186 — How do zones set enemy strength?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-186) · **Blocks:** — (B-186 shipped with A)
 **Question:** Enemies §4 says the zone on the map sets enemy strength and the loot pool, nearer the boss is tougher, and nothing scales to the party. How is strength expressed, and how does it combine with the door's difficulty?
