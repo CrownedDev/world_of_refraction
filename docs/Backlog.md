@@ -66,7 +66,8 @@
 | B-025 | EconomyService: one shared preamble helper (null/authority/components) | CC | S | — | 18 copies gone (there were 20; all gone) | REVIEW (in dev) |
 | B-026 | InventoryComponent weapon/ring attach/remove → one template | CC | M | — | ~500 → ~250 lines; tests for attach/remove | REVIEW (in dev) |
 | B-027 | One authority check (`HasServerAuthority` ×2 + raw `HasAuthority`) **B-047 adds:** also `EconomyService`'s raw `HasAuthority`. | CC | S | — | Single helper used everywhere | REVIEW (in dev) |
-| B-028 | One loadout validator (three today) over a slot view + 2 adapters | CC | L | B-007 | Same findings on the test inventory | IN PROGRESS (refactor/B-028-one-loadout-validator) |
+| B-028 | One loadout validator (three today) over a slot view + 2 adapters | CC | L | B-007 | `wor.Loadout.CompareRules` shows only the D-073 changes on the test inventory | REVIEW (in dev) |
+| B-159 | **You can't make an invalid loadout** (D-073 second half): run `FLoadoutRules` when equipping, so a pick that breaks a rule is refused with a short reason; on load, drop a saved loadout's invalid parts with a message saying what was removed (including the report-only ability-count and item-quantity findings). Then retire the `*Legacy` validators after Crown's B-028 PIE pass | CC | M | B-028 | Equipping a wrong-type ability is refused; an over-cap saved loadout loads trimmed with a message; tests | TODO |
 | B-029 | One AI damage estimator, resolving element like execution | CC | M | B-001 | AI estimate equals executor result in a test | REVIEW (in dev) |
 | B-030 | `ResetForCombat()` on every per-fight subsystem, called from `ReleaseCombatResources` | CC | M | B-001 | No state survives between two fights (test) | REVIEW (in dev) |
 | B-031 | Delete `SubmitAction` sync router + `ApplyDamage` fallback | CC | M | B-001 | Only the async path remains; rituals still fire | TODO |
