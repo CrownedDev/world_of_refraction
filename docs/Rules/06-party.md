@@ -14,7 +14,7 @@ Code paths are relative to `Source/world_of_refraction/`. The deckbuilder is 1v1
 | PA-04 | The leader (slot 0) can't be dismissed. | In game | `Party/PartySessionSubsystem.cpp:205-213` |
 | PA-05 | The same character can't be in the party twice (identity is the character's data asset). | In game | `Party/PartySessionSubsystem.cpp:174-193` |
 | PA-06 | You build the team in the hub before a run, from the same character templates you can also find in trials. | Decided, partly built (hub recruiting works; trial finding is B-076) | `D-003`; `D-026` |
-| PA-07 | Each member can be given a preferred formation cell (row + column). Moving a member onto an occupied cell swaps the two. | Code only (no ruling); not used in battle, see Cp-2 | `Party/PartySessionSubsystem.cpp:241-299`; `Party/Party.h:75-82` |
+| PA-07 | Each member can be given a preferred formation cell (row + column). Moving a member onto an occupied cell swaps the two. | Kept; used at fight start (D-042) | `Party/PartySessionSubsystem.cpp:241-299`; `Party/Party.h:75-82` |
 
 ## Going into battle
 
@@ -64,7 +64,7 @@ Code paths are relative to `Source/world_of_refraction/`. The deckbuilder is 1v1
 | PA-29 | Each side stands on its own **3x3 grid**: rows Back / Middle / Front, 3 columns. At most 3 characters a side (`MAX_TEAM_SIZE = 3`). | In game | `Combat/Grid/CombatGridConstants.h` (`GRID_ROWS`, `GRID_COLUMNS`, `MAX_TEAM_SIZE`) |
 | PA-30 | Row gives a passive modifier. **Front:** damage dealt x1.05, defence x0.95. **Middle:** none. **Back:** damage dealt x0.95, defence x1.05. Damage taken is divided by the defence modifier (Back takes about 4.8% less, Front about 5.3% more). | In game (but see PA-31) | `Combat/Grid/CombatGridConstants.h` (`FRONT_ROW_*`, `BACK_ROW_*`); `Combat/Damage/DamageCalculator.cpp:134-140`, `:266-273` |
 | PA-31 | At fight start both sides are placed in the **Middle** row, centre column first (leader centre, then left, then right). So today nobody starts in Front or Back and row modifiers never apply. | In game | `Combat/CombatOrchestrator.cpp:214-215`; `Combat/Grid/CombatGridSubsystem.cpp:279-318` |
-| PA-32 | Moving between rows: the grid can move a character one row (push back / pull forward, same column) or swap two characters, refused if the cell is taken. No player action or skill uses it yet. | Code only (no ruling); no C++ caller (Blueprint use unverified) | `Combat/Grid/CombatGridSubsystem.cpp:636-797`; `Combat/Grid/CombatGridSubsystem.h:227-256` |
+| PA-32 | Moving between rows: the grid can move a character one row (push back / pull forward, same column) or swap two characters, refused if the cell is taken. No player action or skill uses it yet. | Now used: D-096 | `Combat/Grid/CombatGridSubsystem.cpp:636-797`; `Combat/Grid/CombatGridSubsystem.h:227-256` |
 
 ## AI-controlled characters
 
@@ -100,7 +100,7 @@ Code paths are relative to `Source/world_of_refraction/`. The deckbuilder is 1v1
 ## Gaps
 - No rule for how many characters you can find in one trial, or what happens when you find one with a full party (PA-01 refuses the invite today). **Ruled (Crown, 2026-10-26, rules review): B, swap.** With a full party you can send a member away **for the rest of the run** and the found character joins; a hub member sent away returns to the roster after the run. Offered when you find them and at rest spots. How many characters a trial holds: content, per trial.
 - No rule for leaving a found character behind mid-run (dismissing them) or swapping them for a hub member. **Ruled (Crown, 2026-10-26, rules review): A, dismiss at rest spots.** The character leaves for the rest of the run; their gear returns to the run inventory. **Co-op:** other players can be **invited from rest spots mid-run** (drop-in), built with co-op (scheduled after B-090/B-105, D-065).
-- No player action to change row in combat, and no skill that pushes or pulls (PA-32); row bonuses have no source today.
+- No player action to change row in combat, and no skill that pushes or pulls (PA-32); row bonuses have no source today. **Ruled: D-096** (free move one row per turn; push/pull skills).
 - Party size vs grid: the grid holds 9 cells, but sides are capped at 3; no rule says whether bigger enemy groups (more than 3) are ever allowed (`AutoAssignTeam` silently drops extras, `Combat/Grid/CombatGridSubsystem.cpp:286-306`).
 - No rule for a Draw (both sides wiped at once): today it routes like any other fight end.
 - Party HP is not saved to disk (B-090); quitting mid-trial loses the carried state.

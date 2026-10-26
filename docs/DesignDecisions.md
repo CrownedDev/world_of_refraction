@@ -1201,6 +1201,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Colour stays indigo (D-024 note). Docs and code comments may keep saying Reality.
 - Fits the story's "figure it out" theme (D-079); don't explain what Unknown is in player-facing text.
 
+### D-096 — Changing rows in combat
+**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 06 gap) · **Blocks:** —
+**Answer (Crown):** **A** (2026-10-26):
+- **Move row:** a character can step one row forward or back on their turn, **free, once per turn** (like weapon switching), into an empty cell or swapping with an ally there.
+- **Push / pull skills:** skills (and effects) can push or pull an enemy between rows (e.g. a shield bash knocks them back).
+**Notes for Claude:** the grid already supports one-row moves and swaps (PA-32, `CombatGridSubsystem`); add the menu option (placeholder UI) and a push/pull skill effect type (appended). Row bonuses (PA-30) apply from the new row immediately. Tests for move, swap, refused-when-blocked and push/pull.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
