@@ -53,18 +53,26 @@ BEGIN_DEFINE_SPEC(FCombatRitualFireSpec, "WoR.Combat.RitualFire",
 		return true;
 	}
 
-	/** Ends turns until Hero's ritual shows up in OnActionExecuted (any outcome) or the cap. */
-	void PlayTurns(EActionType RitualType)
+	/** Ends normal turns until the ritual's Execution turn has come and gone (the TurnManager has no
+	 *  Execution turn left to fire) or the cap. The Execution turn must resolve itself: ending it from
+	 *  here would hide a stranded fire, so finding one current is a failure. */
+	void PlayTurns()
 	{
 		for (int32 Turn = 0; Turn < RITUAL_MAX_TURNS_TO_PLAY && Orchestrator->GetCombatState() == ECombatState::InProgress; ++Turn)
 		{
-			if (Recorder->Saw(Hero, RitualType, true) || Recorder->Saw(Hero, RitualType, false))
+			if (!TestTrue(TEXT("Never left on an Execution turn"), TurnManager->GetCurrentTurnType() != ETurnType::Execution))
 			{
 				return;
 			}
+			const int32 TurnBefore = Orchestrator->GetCurrentTurnNumber();
 			Orchestrator->OnActionCompleted();
 			TestWorld->Tick(RITUAL_SETTLE_FRAMES);
+			if (Orchestrator->GetCurrentTurnNumber() > TurnBefore + 1)
+			{
+				return; // an Execution turn came up and resolved inside that advance
+			}
 		}
+		AddError(TEXT("The ritual's Execution turn never came up"));
 	}
 
 	FAction MakeAbilityOn(AActor *Target, UAbilityData *Ability) const
@@ -118,9 +126,10 @@ void FCombatRitualFireSpec::Define()
 			return;
 		}
 
-		PlayTurns(EActionType::Defend);
+		PlayTurns();
 
 		TestTrue(TEXT("The ritual fired and worked"), Recorder->Saw(Hero, EActionType::Defend, true));
+		TestEqual(TEXT("Fired once"), Recorder->Entries.Num(), 1);
 		TestTrue(TEXT("Combat still running"), Orchestrator->GetCombatState() == ECombatState::InProgress);
 		TestTrue(TEXT("Back on a normal turn"), TurnManager->GetCurrentTurnType() == ETurnType::Normal);
 	});
@@ -135,12 +144,9 @@ void FCombatRitualFireSpec::Define()
 		{
 			return;
 		}
-		const int32 TurnBefore = Orchestrator->GetCurrentTurnNumber();
+		PlayTurns();
 
-		PlayTurns(EActionType::Ability);
-
-		TestFalse(TEXT("Nothing fired"), Recorder->Saw(Hero, EActionType::Ability, true));
-		TestTrue(TEXT("Turns moved on"), Orchestrator->GetCurrentTurnNumber() > TurnBefore);
+		TestEqual(TEXT("Nothing fired"), Recorder->Entries.Num(), 0);
 		TestTrue(TEXT("Combat still running"), Orchestrator->GetCombatState() == ECombatState::InProgress);
 		TestTrue(TEXT("Back on a normal turn"), TurnManager->GetCurrentTurnType() == ETurnType::Normal);
 	});

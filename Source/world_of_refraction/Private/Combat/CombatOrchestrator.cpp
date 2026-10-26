@@ -586,6 +586,12 @@ bool ACombatOrchestrator::StartActionAsync(const FAction &Action, FString &OutIn
 {
 	OutInvalidReason.Reset();
 
+	if (CombatState != ECombatState::InProgress)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Action submitted but combat not in progress"));
+		return false;
+	}
+
 	if (!CurrentActor)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Action submitted with no current actor"));
