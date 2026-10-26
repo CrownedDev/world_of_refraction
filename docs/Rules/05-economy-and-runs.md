@@ -114,6 +114,6 @@ This page covers the currencies, what a fight and a run pay out, what carries ov
 - Payout on defeat: D-006 pays Prisms on a loss "scaled by progress" but sets no ratio. The deckbuilder pays a quarter of a win's reward on a defeat and nothing for conceding (`wor-deckbuilder/docs/design/WoR_TCG_Pivot_Design.md`, PvE section).
 - Fleeing a fight: no rule for whether it ends the run or what it pays.
 - Repair cost and where repair happens (Spiritualist) are undecided. **Ruled: D-093** (wear and repair are run-only; Gold by tier; wear resets when the run ends).
-- Diamond has no source, no use and no ruling.
+- Diamond has no source, no use and no ruling. **Ruled (Crown, 2026-10-26, rules review): B, a rare currency for cosmetics** (e.g. character outfits), earned from achievements or bosses. Not built until cosmetics exist; sources and prices then.
 - Shop stock never runs out and has no rolled or refreshing stock.
 - World stats: no screen sells them, and nothing calls `ResetRunWorldStats` at run end (D-002 says they're lost). Today they reset only because each level load rebuilds the character.
