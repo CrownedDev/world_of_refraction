@@ -9,6 +9,7 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Character/StatConstants.h"
 #include "Loadout/LoadoutConstants.h"
+#include "Loadout/SpellPoolConstants.h"
 #include "Inventory/InventoryData.h"
 #include "Combat/Resistance/ClassInnateResistanceTable.h"
 #include "UObject/UnrealType.h"
@@ -77,7 +78,7 @@ EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Contex
     else
     {
         // B-028: the inventory's loadouts checked with this character's BD state (the fight's rule).
-        for (const FString &Error : Inventory->GetValidationErrors(bBrokenDarknessInnate))
+        for (const FString &Error : Inventory->GetValidationErrors(bBrokenDarknessInnate, GetAuthoredSpellDiscount()))
         {
             Context.AddWarning(FText::FromString(FString::Printf(TEXT("Inventory %s: %s"), *Inventory->GetName(), *Error)));
         }
@@ -108,3 +109,8 @@ void UCharacterData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChang
     }
 }
 #endif
+
+int32 UCharacterData::GetAuthoredSpellDiscount() const
+{
+	return SpellPoolConstants::SpellSlotDiscount(WorldMindLevel, WorldBodyLevel, WorldSpiritLevel);
+}
