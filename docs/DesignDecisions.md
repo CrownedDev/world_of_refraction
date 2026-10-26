@@ -888,15 +888,6 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **(3) When: A, a basic version soon** (2026-10-26): Turn view, pan-out and 2–3 template sequences (melee, ranged, spell) right after the current jobs (B-156, B-157).
 **Notes for Claude:** written up in `docs/Design/CombatCamera.md`.
 
-### D-075 — A fight ends mid-action: does the action still cost its infusion HP?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-030) · **Blocks:** —
-**Question:** when a fight ends while a charged (infused) action is still playing (forced end, flee), should the caster still pay the infusion's HP cost?
-**Context:** an infused action pays its HP cost at the very end, on hit or miss (`ActionExecutor.cpp:2334`, `ApplyPendingInfusionHPCost`). The cost can kill the caster. Cancelling an action ran the same path, so a forced end could kill a character *after* the fight's result was announced (and an enemy dying then still added world-stat points). B-030 skips the cost when the fight ends mid-action, as a safe stop-gap (`UActionExecutor::ResetForCombat`, TODO D-075). Open defense windows are also dropped then, with no damage and no reflect.
-**Options:** A **no cost** when the fight ends mid-action (what B-030 does now) / B **pay the cost, but it can't kill** (HP floors at 1) / C **pay it in full** after the fight (needs a safe way to handle a post-fight death).
-**Recommendation:** A, because the action never finished, and nothing after the result screen should change a character. The deckbuilder has no mid-action fight end to borrow from.
-**Answer (Crown):** **A, no cost** (2026-10-26): if a fight ends mid-action (forced end, flee), the unfinished action's infusion HP cost is not paid. B-030's stop-gap becomes the rule; remove its TODO.
-**Notes for Claude:** _optional_
-
 ### D-076 — Hub controller: one class for interact and hub menus
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-003) · **Blocks:** B-003 hub part only (the combat HUD cut-over is done)
 **Question:** the refactor's `AExplorationPlayerController` (E interacts with the nearest door / merchant / recruit; `OnPossess` makes sure the party exists) was meant to become `BP_HubPlayerController`'s parent. Since then `dev` gave that Blueprint a different C++ parent, `AWoRHubController` (hub modes and the CommonUI menu stack: `SetHubMode`, `PushMenu`/`PopMenu`). Both derive from `APlayerController`. How should they join?
@@ -919,6 +910,7 @@ Moved here once applied. Newest first.
 
 | ID | Decision | Date | Applied in |
 |---|---|---|---|
+| D-075 | A fight that ends mid-action: the unfinished action pays no infusion HP cost; its defense windows are dropped | 2026-10-26 | B-030 (`UActionExecutor::ResetForCombat`; TODO removed in `chore/apply-D-073-D-075-D-076`) |
 | D-040 | A Refractor's innate spells always work, whatever it wears (already the code) | 2026-10-26 | `chore/apply-D-034-041` (Rules 01 CL-C2) |
 | D-034 | Crit damage ceiling with gear is x2.5 (the code); docs fixed | 2026-10-26 | `chore/apply-D-034-041` (docs; comment in B-147) |
 | D-064 | No new per-fight state on GameInstance subsystems: battle actors / GameState / PlayerState | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md standing rules) |
