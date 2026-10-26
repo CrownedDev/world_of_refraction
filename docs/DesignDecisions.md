@@ -1098,7 +1098,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **C** (2026-10-26): Energy **refills a little at the start of each of your turns**, plus extra from **basic attacks** and **Perfect Guards** (Expedition 33 style). Amounts are named constants (`// TODO: tune`); the per-turn share can scale with Max Energy. Broken Darkness keeps its own absorption system (no passive refill, ET-29 for BD).
 
 ### Q-159 — Do dropped utility crystals go back to the inventory?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-159) · **Blocks:** — (B-159 shipped without returning them)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-159) · **Blocks:** — (B-159 shipped without returning them)
 **Question:** when a loadout's item slots are trimmed (over a tier cap, a quantity above 3, a duplicate crystal type), do the removed crystals return to the character's crystal inventory?
 **Context:** today they just vanish from the slot (`ULoadoutComponent::DropInvalidParts`, the existing duplicate-type rule did the same). Crystals a fight's auto-equip put in a slot were taken out of the inventory (`FCombatLoadout::ApplyAutoEquip`), so dropping them loses them. Crystals in an authored loadout were never taken out of the inventory.
 **Options:**
@@ -1106,7 +1106,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** never (today's behaviour).
 - **C** return only crystals that came out of the inventory (needs the slot to remember where its crystals came from).
 **Recommendation:** A, because losing crystals to a rule the player didn't break on purpose feels like a bug, and authored loadouts are a dev-time case where an extra crystal in the inventory is harmless.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A** (2026-10-26): utility crystals **removed by a rule** (over a cap, invalid loadout, duplicate type) are not destroyed, so they **return to the inventory, or storage if it's full** (D-097). Separately: crystals **destroyed** through use or wear are **lost**, as today, **except evolutions**, which count as equipment and are never lost that way.
 **Notes for Claude:** _optional_
 
 ### Q-159b — Which parts go when a loadout is over a cap?
