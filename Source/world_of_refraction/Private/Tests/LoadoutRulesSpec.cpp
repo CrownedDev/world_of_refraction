@@ -12,6 +12,7 @@
 #include "Skills/Definitions/SpellData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Loadout/LoadoutConstants.h"
 
 namespace
 {
@@ -29,6 +30,31 @@ namespace
 		Spell->Element = Element;
 		Spell->Name = TEXT("Test Spell");
 		return Spell;
+	}
+
+	FCombatLoadout LoadoutWithItems(std::initializer_list<FItemLoadoutSlot> Slots)
+	{
+		FCombatLoadout Loadout;
+		Loadout.ItemSlots.Append(Slots.begin(), Slots.size());
+		return Loadout;
+	}
+
+	FItemLoadoutSlot ItemSlot(ECrystalType Type, EItemTier Tier, int32 Quantity)
+	{
+		FItemLoadoutSlot Slot;
+		Slot.CrystalId = FCrystalId(Type, Tier);
+		Slot.Quantity = Quantity;
+		return Slot;
+	}
+
+	int32 CountTierCapFindings(const FCombatLoadout &Loadout)
+	{
+		int32 Count = 0;
+		for (const FString &Reason : FLoadoutRules::ToReasons(FLoadoutRules::CollectFindings(Loadout, FLoadoutRuleContext())))
+		{
+			Count += Reason.Contains(TEXT("utility crystals")) ? 1 : 0;
+		}
+		return Count;
 	}
 
 	FCombatLoadout SwordLoadoutWithAbility(EWeaponType AbilityWeaponType)
@@ -116,6 +142,46 @@ void FLoadoutRulesSpec::Define()
 			const TArray<FString> Reasons = FLoadoutRules::ToReasons(FLoadoutRules::CollectFindings(Loadout, Owning));
 			TestTrue(TEXT("weapon not owned"), AnyReasonContains(Reasons, TEXT("Primary weapon not in inventory")));
 			TestTrue(TEXT("ability not learned"), AnyReasonContains(Reasons, TEXT("not learned")));
+		});
+	});
+
+	Describe("utility crystal tier caps (D-072, D-077)", [this]()
+	{
+		It("allow each band at its cap", [this]()
+		{
+			const FCombatLoadout AtCaps = LoadoutWithItems({
+				ItemSlot(ECrystalType::Garnet, EItemTier::S_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_S_TIER),
+				ItemSlot(ECrystalType::Sapphire, EItemTier::A_Tier, 1),
+				ItemSlot(ECrystalType::Citrine, EItemTier::B_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_A_B_TIER - 1),
+			});
+			TestEqual(TEXT("no cap findings"), CountTierCapFindings(AtCaps), 0);
+		});
+
+		It("report a band one over its cap, counting each crystal in a stack and combining the band", [this]()
+		{
+			TestEqual(TEXT("S stack of 2"), CountTierCapFindings(LoadoutWithItems({
+				ItemSlot(ECrystalType::Garnet, EItemTier::S_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_S_TIER + 1)})), 1);
+			TestEqual(TEXT("A + B over 2"), CountTierCapFindings(LoadoutWithItems({
+				ItemSlot(ECrystalType::Sapphire, EItemTier::A_Tier, 1),
+				ItemSlot(ECrystalType::Citrine, EItemTier::B_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_A_B_TIER)})), 1);
+			TestEqual(TEXT("C + D over 3"), CountTierCapFindings(LoadoutWithItems({
+				ItemSlot(ECrystalType::Emerald, EItemTier::C_Tier, 2),
+				ItemSlot(ECrystalType::Amber, EItemTier::D_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_C_D_TIER - 1)})), 1);
+			TestEqual(TEXT("E + F over 4"), CountTierCapFindings(LoadoutWithItems({
+				ItemSlot(ECrystalType::Opal, EItemTier::E_Tier, 2),
+				ItemSlot(ECrystalType::Onyx, EItemTier::F_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_E_F_TIER - 1)})), 1);
+		});
+
+		It("ignore utility stones and attached crystals", [this]()
+		{
+			TestEqual(TEXT("S-tier stones aren't capped"), CountTierCapFindings(LoadoutWithItems({
+				ItemSlot(ECrystalType::DamageStone, EItemTier::S_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_S_TIER + 1)})), 0);
+
+			FCombatLoadout Attached = SwordLoadoutWithAbility(EWeaponType::Sword);
+			Attached.PrimaryWeapon.WeaponEntry.AttachedItem.Kind = EAttachedItemKind::Crystal;
+			Attached.PrimaryWeapon.WeaponEntry.AttachedItem.Crystal.Id = FCrystalId(ECrystalType::Garnet, EItemTier::S_Tier);
+			Attached.ItemSlots.Add(ItemSlot(ECrystalType::Sapphire, EItemTier::S_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_S_TIER));
+			TestEqual(TEXT("an attached S crystal doesn't use the item cap"), CountTierCapFindings(Attached), 0);
 		});
 	});
 }
