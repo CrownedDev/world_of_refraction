@@ -3249,7 +3249,10 @@ FText ULoadoutComponent::GetBrokenSourceReason(const USpellData *Spell) const
     if (const FWeaponLoadoutEntry *Weapon = GetActiveWeaponLoadout())
     {
         const FRuntimeAttachedItem &Attached = Weapon->WeaponEntry.AttachedItem;
-        if (Attached.IsSpellSource() && Attached.IsBroken() && Lists(Weapon->WeaponEntry.AssignedSpells))
+        // B-197: the loadout's own overrides (FWeaponLoadoutEntry::AssignedSpells) come through the
+        // same crystal, so they grey out with it too.
+        if (Attached.IsSpellSource() && Attached.IsBroken() &&
+            (Lists(Weapon->WeaponEntry.AssignedSpells) || Lists(Weapon->AssignedSpells)))
         {
             return SourceBreakRules::BrokenWeaponCrystalReason();
         }

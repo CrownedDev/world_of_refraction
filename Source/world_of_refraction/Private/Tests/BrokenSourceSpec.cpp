@@ -126,6 +126,14 @@ void FBrokenSourceSpec::Define()
 
 	Describe("a broken ring crystal", [this]()
 	{
+		It("lets the AI pick its F-tier spell, never the greyed ones (B-197)", [this]()
+		{
+			SpawnResonatorWithRing(BROKEN_SOURCE_BROKEN_DURABILITY);
+			const TArray<USpellData *> Usable = UAIDecisionManager::GetUsableSpells(Loadout);
+			TestTrue(TEXT("F-tier offered to the AI"), Usable.Contains(FTierSpell));
+			TestFalse(TEXT("C-tier not offered"), Usable.Contains(CTierSpell));
+		});
+
 		It("keeps its F-tier spells and greys out the rest", [this]()
 		{
 			SpawnResonatorWithRing(BROKEN_SOURCE_BROKEN_DURABILITY);
@@ -273,6 +281,13 @@ void FBrokenSourceSpec::Define()
 
 	Describe("a broken weapon crystal", [this]()
 	{
+		It("greys out the loadout's own spell overrides on it too (B-197)", [this]()
+		{
+			SpawnGenericWithWeapon(BROKEN_SOURCE_BROKEN_DURABILITY);
+			Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryWeapon.AssignedSpells = {CTierSpell};
+			TestFalse(TEXT("the override is refused with a reason"), Loadout->GetBrokenSourceReason(CTierSpell).IsEmpty());
+		});
+
 		It("greys out every spell it gave, F-tier included", [this]()
 		{
 			SpawnGenericWithWeapon(BROKEN_SOURCE_BROKEN_DURABILITY);
