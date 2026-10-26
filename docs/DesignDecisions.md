@@ -792,7 +792,8 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
   - V: 7 ft, 160 kg; black suit; a faceless head and hands with a **galaxy pattern** on a violet body base; a gold tie with a star; dark smoke wisps rising off the body.
   - Built on **Manny and Quinn** (UE5's mannequins) as the main guide: their skeleton, rig and animations, with V's look on top.
   - Creatures add variety alongside the V mobs.
-**Notes for Claude:** mobs share one body (V on the Manny/Quinn skeleton), so variety comes from their **gear and class** (the same inventory/loadout system as players) and element tinting, not new models. Record further answers here; write `docs/Design/Enemies.md` when complete.
+- **(2) Visible enemies + first strike (C)** (2026-10-26): enemies are **visible on the map**, standing guard or patrolling; you can approach or avoid them, and **touching one starts the fight** (Expedition 33 / Persona). **First strike:** hit an enemy with a field ability before it notices you and you **start with an advantage** (e.g. act first, or it starts damaged); get caught from behind and **the enemy gets the advantage**. The advantage's exact form and size are tuning (*tune*).
+**Notes for Claude:** first strike is a real-time field ability (`GASMigration.md`, field abilities). Today fights start on contact via `EncounterComponent`'s sphere; the advantage needs a hook into battle start (turn order / opening damage). mobs share one body (V on the Manny/Quinn skeleton), so variety comes from their **gear and class** (the same inventory/loadout system as players) and element tinting, not new models. Record further answers here; write `docs/Design/Enemies.md` when complete.
 
 ## Parked
 
