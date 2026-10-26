@@ -3,6 +3,7 @@
 #include "Currency/EconomyService.h"
 #include "Currency/EconomyYield.h"
 #include "Currency/CurrencyComponent.h"
+#include "WoRAuthority.h"
 #include "Character/CharacterDataComponent.h" // BuyWorldStat reach target (§7 C4)
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/ItemIdentity.h"
@@ -31,18 +32,16 @@
 
 namespace
 {
-    /** Null + server-authority gate every mutating entry point starts with. A standalone (PIE)
-     *  actor already reports authority, so this mirrors HasServerAuthority (NM_Standalone ||
-     *  HasAuthority). TODO: B-027 points this at the one shared authority check. */
+    /** Null + server-authority gate every mutating entry point starts with (WoRAuthority);
+     *  logs only the authority refusal, a null owner is refused silently. */
     bool EconomyHasAuthority(AActor *Owner, const TCHAR *Op)
     {
-        if (!Owner)
+        if (!WoRAuthority::HasAuthority(Owner))
         {
-            return false;
-        }
-        if (!Owner->HasAuthority())
-        {
-            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s: no authority on %s — ignored"), Op, *Owner->GetName());
+            if (Owner)
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s: no authority on %s — ignored"), Op, *Owner->GetName());
+            }
             return false;
         }
         return true;
@@ -1397,7 +1396,7 @@ FString UEconomyService::GetEconomyString(AActor *Owner) const
         TEXT("[Economy] Owner=%s | Authority=%s\n")
         TEXT("  Components: Currency=%s CrystalInv=%s Inventory=%s EvolutionInv=%s Loadout=%s\n")
         TEXT("  Wallet: %s"),
-        *Owner->GetName(), Owner->HasAuthority() ? Y : N,
+        *Owner->GetName(), WoRAuthority::HasAuthority(Owner) ? Y : N,
         Currency ? Y : N, CrystalInv ? Y : N, Inv ? Y : N, EvoInv ? Y : N, Loadout ? Y : N,
         *UCurrencyComponentDebug::GetWalletString(Currency));
 }

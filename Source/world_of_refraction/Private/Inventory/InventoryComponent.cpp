@@ -29,6 +29,7 @@
 #include "Character/CharacterDataComponent.h" // owner Luck for the pickup quality roll
 #include "Currency/EconomyYield.h"            // RollQuality (§11 weighted drop curve)
 #include "Currency/EconomyService.h"          // DismantleEvolution on break-during-gear-removal
+#include "WoRAuthority.h"
 #include <type_traits>                        // std::is_same_v for the weapon/ring socket templates
 
 namespace
@@ -172,11 +173,16 @@ namespace
         return IsRingGear<TEntry> ? TEXT("ring") : TEXT("weapon");
     }
 
+    /** Authority gate for the socket ops (WoRAuthority). A null owner is refused silently; every
+     *  op failed further in without one anyway (no evolution or crystal inventory to read). */
     bool GearOpHasAuthority(const AActor *Owner, const TCHAR *Op)
     {
-        if (Owner && !Owner->HasAuthority())
+        if (!WoRAuthority::HasAuthority(Owner))
         {
-            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: no authority — ignored"), Op);
+            if (Owner)
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: no authority — ignored"), Op);
+            }
             return false;
         }
         return true;

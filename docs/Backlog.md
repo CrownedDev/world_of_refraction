@@ -61,7 +61,7 @@
 | B-154 | Delete `URingManager` and `UWeaponManager` (B-024 left them as OBSOLETE forwarders) and `UActionExecutor::GetRingManager` / `GetWeaponManager` + their cached refs. First check in the editor that no Blueprint calls them | CC+UE | S | B-024 (PIE) | Compiles; no Blueprint references; `WoR.Loadout.RingWeaponQueries` green with the manager checks removed | BLOCKED (Crown: PIE of B-024) |
 | B-025 | EconomyService: one shared preamble helper (null/authority/components) | CC | S | — | 18 copies gone (there were 20; all gone) | REVIEW (in dev) |
 | B-026 | InventoryComponent weapon/ring attach/remove → one template | CC | M | — | ~500 → ~250 lines; tests for attach/remove | REVIEW (in dev) |
-| B-027 | One authority check (`HasServerAuthority` ×2 + raw `HasAuthority`) **B-047 adds:** also `EconomyService`'s raw `HasAuthority`. | CC | S | — | Single helper used everywhere | TODO |
+| B-027 | One authority check (`HasServerAuthority` ×2 + raw `HasAuthority`) **B-047 adds:** also `EconomyService`'s raw `HasAuthority`. | CC | S | — | Single helper used everywhere | REVIEW (in dev) |
 | B-028 | One loadout validator (three today) over a slot view + 2 adapters | CC | L | B-007 | Same findings on the test inventory | TODO |
 | B-029 | One AI damage estimator, resolving element like execution | CC | M | B-001 | AI estimate equals executor result in a test | TODO |
 | B-030 | `ResetForCombat()` on every per-fight subsystem, called from `ReleaseCombatResources` | CC | M | B-001 | No state survives between two fights (test) | TODO |

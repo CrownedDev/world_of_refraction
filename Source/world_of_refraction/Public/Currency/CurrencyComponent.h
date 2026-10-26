@@ -168,8 +168,7 @@ protected:
     void OnRep_SkillEssence();
 
 private:
-    /** PIE-safe authority check: true in NM_Standalone, else owner authority.
-     *  Mirrors UCharacterDataComponent::HasServerAuthority. */
+    /** PIE-safe authority check: WoRAuthority::HasAuthority on the owner. */
     bool HasServerAuthority() const;
 
     /** Find (mutable) the wallet entry for Key, creating a zero entry if absent.
