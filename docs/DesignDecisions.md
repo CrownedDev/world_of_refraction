@@ -257,13 +257,27 @@ The queue of questions only Crown can answer.
 - Tests: dismantling an equipped weapon removes it from the loadout; a gearless Generic is refused at fight start.
 
 ### D-017 — Header bar style (UI)
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** UI work (later)
+**Status:** PARKED until the B-101 mockup · **Raised:** 2026-10-25 · **Blocks:** UI work (later)
 **Question:** Which of the four deckbuilder candidates (`UI_DeckbuilderReuse.md` §3)?
-**Answer (Crown):** _write here_
+**Answer (Crown):** (2026-10-26) Pick from pictures: B-101 draws all four candidates (plus a crystal-themed one, see D-024) in the combat HUD mockup, and Crown chooses there.
 
 ### D-018 — Art pack licences for Unreal
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** asset import (later)
 **Question:** Confirm each pack in the deckbuilder's `CREDITS.md` allows Unreal / commercial use.
+**Checked (2026-10-26, from the deckbuilder's `CREDITS.md`; the vendor licence files aren't in git):**
+| Pack | Unreal + commercial game? | Catch |
+|---|---|---|
+| Spectral SC, Lato (fonts) | Yes (SIL OFL) | Files may be committed and shipped |
+| PONETI Classic Fantasy UI Kit, Fantasy Icons Megapack | Yes: Unity says Asset Store assets may be used in other engines under the standard EULA ([Unity support](https://support.unity.com/hc/en-us/articles/34387186019988-Can-I-use-assets-from-the-Asset-Store-with-other-engines)) | No redistribution; players mustn't be able to extract raw files. **Check** each store page says "Standard Unity Asset Store EULA" (no extra publisher terms) |
+| nulllgames Gems & Wood kit | Yes (author's comment: any commercial use, any media) | Terms are only a comment; screenshot it |
+| godboyhappy HD Spell VFX (8 packs) | Yes (custom licence: commercial games, modify freely) | No resale/redistribution of the images. Store link missing in CREDITS |
+| Dumivid Mechanized Magic, dobo Casual UI, CafeDraw Fantasy Card Assets | Yes (CC0) | none |
+| Kitsinu Galaxy Backgrounds | Yes (royalty-free, commercial games) | No redistributing as a pack |
+| Squibbls Card Backs | Yes | No redistribution even modified |
+| AD Sounds Cards Vol. II | Yes (commercial games) | Don't remix or claim the files |
+| Stormwave Glass SFX Vol. I | Yes (royalty-free, bought) | The agreement PDF wasn't in the download: **get it** |
+All of them allow use inside the game; none allows sharing the raw files. "Save what we use" in this **private** repo is fine; never make it public.
+**Left for Crown:** (1) confirm the two PONETI store pages say standard EULA; (2) get Stormwave's agreement PDF; (3) add godboyhappy's store link.
 **Answer (Crown):** _write here_
 
 ### D-019 — Where does the mockup generator live?
@@ -330,6 +344,7 @@ The queue of questions only Crown can answer.
 ### D-024 — Keep the current UI or rebuild it on CommonUI?
 **Status:** DECIDED · **Raised:** 2026-10-26 · **Applied:** `docs/Backlog.md` → "UI rebuild"
 **Answer (Crown, 2026-10-26):** rebuild the UI on CommonUI rather than restyle the current widgets. Same as the deckbuilder: **mockups first, from the kit assets, and Crown reviews them before anything is built.**
+**Crystal theme (Crown, 2026-10-26):** the UI should **focus on crystal themes**: crystal light, faceted shapes, element gems (the art direction's "dark stone and steel, lit by crystal", leaning harder on the crystal). Mockups show at least one more-crystal option where a piece has candidates.
 **Notes for Claude:**
 - Replace one screen group at a time. The old widgets keep working until the new screen passes Crown's PIE check, then they're retired (B-106).
 - Logic stays in C++ (`refactor/bp-logic-to-cpp`, B-002/B-003); new widgets are layout only on those bases.
