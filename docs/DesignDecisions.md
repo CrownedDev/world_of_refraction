@@ -689,7 +689,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _write here_
 
 ### D-057 — Heavy visuals on data assets: hard or soft references?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-047) · **Blocks:** —
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-047) · **Blocks:** —
 **Question:** Heavy visuals on data assets: hard or soft references?
 **Context:** Montages, meshes and Niagara VFX on data assets are hard references (`WeaponData.h:57-124`, `SpellData.h:55-81`, `CosmeticsData.h:32-75`), so they load up front; Epic recommends soft references for heavy content. The newer VFX entries are already soft (`SkillCastEntry.h:59`). See `docs/analysis/BestPractice_2026-10.md`.
 **Options:** A keep hard; new visual/audio fields use soft refs / B migrate the existing fields now.
@@ -697,7 +697,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, the recommendation** (2026-10-26, accepted with the other technical decisions D-057–D-068).
 
 ### D-058 — Content naming: rename existing drift, or new assets only?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-047) · **Blocks:** B-123
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-047) · **Blocks:** B-123
 **Question:** Content naming: rename existing drift, or new assets only?
 **Context:** Prefixes are mostly Epic-style (456 `DA_`); drift is small (`Anim_` ×15, unprefixed maps, `DA_Spells_Fire_FireBall` vs `DA_Spell_*`). Renames create redirectors and touch LFS `.uasset`s. See `docs/analysis/BestPractice_2026-10.md`.
 **Options:** A new assets only, plus the junk/duplicate cleanup (B-122) / B also rename the existing drift.
@@ -705,7 +705,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, the recommendation** (2026-10-26, accepted with the other technical decisions D-057–D-068).
 
 ### D-059 — Save: SaveGame tags or explicit save structs?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-047) · **Blocks:** B-124
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-047) · **Blocks:** B-124
 **Question:** Save: SaveGame tags or explicit save structs?
 **Context:** The dormant `SaveGame` tags on owned items miss their identity (`FWeaponInventoryEntry.h:59-72`); `UPoolSubsystem` holds the data to save (`PoolSubsystem.h:170-229`). See `docs/analysis/BestPractice_2026-10.md`.
 **Options:** A `SaveGame` tags read through `ArIsSaveGame` / B an explicit save struct, the pool's data copied whole.
@@ -713,7 +713,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **B, the recommendation** (2026-10-26, accepted with the other technical decisions D-057–D-068).
 
 ### D-060 — Old dev saves: wipe or upgrade?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-047) · **Blocks:** B-090
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-047) · **Blocks:** B-090
 **Question:** Old dev saves: wipe or upgrade?
 **Context:** Rules still change often (enum and struct renames, D-027 removing weapon spells). B-090 adds a version stamp and an upgrade hook. See `docs/analysis/BestPractice_2026-10.md`.
 **Options:** A write an upgrade step for every change / B until the first public build, saves below a minimum version are wiped with a warning; upgrade steps after that.
@@ -721,7 +721,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **B, the recommendation** (2026-10-26, accepted with the other technical decisions D-057–D-068).
 
 ### D-061 — Localisation scope
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-047) · **Blocks:** B-127
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-047) · **Blocks:** B-127
 **Question:** Localisation scope?
 **Context:** Asset text is `FString` (`EquipmentDataBase.h:64,70`, `SkillDataBase.h:125,128`); about 70 player-facing `FText::FromString` calls; no localisation target. The CommonUI rebuild and B-045 are about to add much more text. See `docs/analysis/BestPractice_2026-10.md`.
 **Options:** A English only, ever / B localisation-ready now (all player text `FText`), translations and a localisation target at the first public build.
@@ -729,7 +729,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **B, the recommendation** (2026-10-26, accepted with the other technical decisions D-057–D-068). Steam's AI disclosure covers AI-made localisation that ships: use human translators when translating, or disclose.
 
 ### D-062 — Where shared game words live (element, status, trigger names, button verbs)
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-047) · **Blocks:** B-126
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-047) · **Blocks:** B-126
 **Question:** Where shared game words live (element, status, trigger names, button verbs)?
 **Context:** Today they are English `TEXT()` in `SkillEffectDisplayNames.h` and enum metadata (`UMETA(DisplayName)`), which is stripped in cooked builds. See `docs/analysis/BestPractice_2026-10.md`.
 **Options:** A one String Table asset designers can edit / B `LOCTEXT` name tables in C++.
@@ -737,7 +737,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **B, the recommendation** (2026-10-26, accepted with the other technical decisions D-057–D-068).
 
 ### D-063 — Key rebinding in the first playable build?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-047) · **Blocks:** —
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-047) · **Blocks:** —
 **Question:** Key rebinding in the first playable build?
 **Context:** Input is Enhanced Input only, about 4 combat keys (`CombatPlayerController.h:51-71`); B-093 adds Defend/Infusion keys. Epic still marks runtime remapping (`UEnhancedInputUserSettings`) as experimental. See `docs/analysis/BestPractice_2026-10.md`.
 **Options:** A build rebinding now, on the settings screen / B fixed keys for now, action names kept unique so rebinding can come later.
@@ -745,7 +745,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **B, the recommendation** (2026-10-26, accepted with the other technical decisions D-057–D-068).
 
 ### D-064 — Stop adding per-fight state to GameInstance subsystems?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-047) · **Blocks:** —
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-047) · **Blocks:** —
 **Question:** Stop adding per-fight state to GameInstance subsystems?
 **Context:** Turn, menu, defense and effect state live in GameInstance subsystems, which never replicate; this is the first thing co-op would have to undo (`docs/analysis/ArchitectureReview_2026-10.md` §1.6/§1.9). See `docs/analysis/BestPractice_2026-10.md`.
 **Options:** A add a CLAUDE.md rule now: new per-fight state goes on the battle's actors / GameState / PlayerState / B keep the pattern, migrate when co-op starts.
@@ -753,7 +753,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, the recommendation** (2026-10-26, accepted with the other technical decisions D-057–D-068).
 
 ### D-065 — When does co-op move from Later to scheduled?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-047) · **Blocks:** B-131
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-047) · **Blocks:** B-131
 **Question:** When does co-op move from Later to scheduled?
 **Context:** D-003 keeps the co-op sphere gather; the Backlog has co-op only under Later. B-090 (save) and PlayerState ownership are tied to it. See `docs/analysis/BestPractice_2026-10.md`.
 **Options:** A after the single-player loop (B-090, B-105) / B after GAS stage 3.
@@ -761,7 +761,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, the recommendation** (2026-10-26, accepted with the other technical decisions D-057–D-068).
 
 ### D-066 — When to add functional (level) tests?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-047) · **Blocks:** —
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-047) · **Blocks:** —
 **Question:** When to add functional (level) tests?
 **Context:** All 35 tests are headless specs; Epic also offers `AFunctionalTest` and Gauntlet. A fight map built now would be rebuilt with the new HUD (B-105). See `docs/analysis/BestPractice_2026-10.md`.
 **Options:** A now / B after B-105.
@@ -769,7 +769,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **B, the recommendation** (2026-10-26, accepted with the other technical decisions D-057–D-068).
 
 ### D-067 — Retire the legacy `*TestActor` classes?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-047) · **Blocks:** —
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-047) · **Blocks:** —
 **Question:** Retire the legacy `*TestActor` classes?
 **Context:** Five test actors (about 3.15k lines) duplicate logic the specs now cover; they were kept for manual PIE checks (B-008 stubbed them out of Shipping). See `docs/analysis/BestPractice_2026-10.md`.
 **Options:** A retire each one after a matching spec lands and Crown's PIE pass / B keep them as manual tools.
@@ -777,7 +777,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, the recommendation** (2026-10-26, accepted with the other technical decisions D-057–D-068).
 
 ### D-068 — A demo frame budget
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-047) · **Blocks:** —
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-047) · **Blocks:** —
 **Question:** A demo frame budget?
 **Context:** No budget exists and nothing has been profiled; the code is event-driven but has a few per-frame costs (B-138, B-139, B-140). See `docs/analysis/BestPractice_2026-10.md`.
 **Options:** A 60 fps at 1080p on Crown's PC, checked once per milestone / B no budget until content is heavier.
@@ -812,6 +812,18 @@ Moved here once applied. Newest first.
 
 | ID | Decision | Date | Applied in |
 |---|---|---|---|
+| D-064 | No new per-fight state on GameInstance subsystems: battle actors / GameState / PlayerState | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md standing rules) |
+| D-057 | Heavy visuals/audio: new data-asset fields use soft refs; existing hard refs stay | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md standing rules) |
+| D-058 | Content naming: new assets only, plus the junk/duplicate cleanup | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md; B-123, B-122 TODO) |
+| D-059 | Saves: explicit save structs, not SaveGame tags | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md; B-090 note; B-124 re-worded, after B-090) |
+| D-060 | Old dev saves wiped with a warning below the minimum version until the first public build | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md; B-090 note) |
+| D-061 | Localisation-ready now (all player text FText); translations at the first public build, human translators or disclose AI | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md; B-127 TODO; B-105/B-045 notes) |
+| D-062 | Shared game words in C++ LOCTEXT name tables | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md; B-126 TODO) |
+| D-063 | Fixed keys for now; unique input action names | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md standing rules) |
+| D-065 | Co-op scheduled after the single-player loop (B-090, B-105) | 2026-10-26 | `chore/apply-D-057-068` (B-131 blocked on it) |
+| D-066 | Functional level tests after B-105 | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md standing rules) |
+| D-067 | Retire each legacy *TestActor after a matching spec and Crown's PIE pass | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md standing rules) |
+| D-068 | Frame budget: 60 fps at 1080p on Crown's PC, checked once per milestone | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md standing rules) |
 | D-023 | Stunned = plain basic attack or Defend. No infused or charged attack, no Flee, no Switch Weapon | 2026-10-26 | `fix/B-092-stunned-menu-defend` (gate + menu) |
 | D-022 | Only `BP_CombatGameMode` was really deleted, so it was restored. The other 15 widgets were moved, not deleted, and stay where they are; they get replaced in the CommonUI rebuild (D-024). Crown confirmed | 2026-10-26 | `chore/D-022-restore-combat-gamemode` |
 | — | CommonUI: yes | 2026-10-25 | `ArchitectureReview_2026-10.md` §3 |
