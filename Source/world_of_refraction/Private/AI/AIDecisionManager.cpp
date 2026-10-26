@@ -230,12 +230,14 @@ FAction UAIDecisionManager::BuildRandomAction(AActor *Actor) const
     }
 
     // Aimed by the skill's own target side: a heal or buff still lands on the holder or an ally.
-    const TArray<AActor *> Allies = CurrentCombat->GetLivingAllies(Actor);
+    // Ally includes the holder, as the player menu does; Anyone counts as an attack (an enemy).
+    TArray<AActor *> Allies = CurrentCombat->GetLivingAllies(Actor);
+    Allies.AddUnique(Actor);
     TArray<FAction> Candidates;
     Candidates.Add(Defend);
     auto AddIfValid = [this, Actor, &Candidates, &Enemies, &Allies](FAction Candidate, ETargetType TargetType)
     {
-        const TArray<AActor *> &Side = TargetType == ETargetType::Ally && Allies.Num() > 0 ? Allies : Enemies;
+        const TArray<AActor *> &Side = TargetType == ETargetType::Ally ? Allies : Enemies;
         Candidate.Targets.Add(TargetType == ETargetType::Self ? Actor : Side[UBattleRandomSubsystem::RandRange(this, 0, Side.Num() - 1)]);
         if (CurrentCombat->ValidateAction(Candidate).bIsValid)
         {
