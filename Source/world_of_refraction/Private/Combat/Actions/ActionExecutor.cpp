@@ -1978,8 +1978,14 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 	if (!Result.bSuccess && TryLuckDodge(Defender))
 	{
 		Result = DefenseSys->CalculateDefenseResult(BaseSlice, EDefenseType::Dodge, true, false);
-		// B-198: no press played a dodge, so show one (over a missed Guard's block montage too).
-		DefenseSys->PlayDefenseAnimation(Defender, EDefenseType::Dodge, LuckDodge::Direction(ImpactIndex));
+		// B-198: show a dodge (over a missed Guard's block montage too), unless a mistimed Dodge
+		// press already played one toward the side the player chose.
+		const bool bDodgePressed = State.InputBuffer.ContainsByPredicate(
+			[](const FTimestampedDefenseInput &Press) { return Press.Type == EDefenseType::Dodge; });
+		if (!bDodgePressed)
+		{
+			DefenseSys->PlayDefenseAnimation(Defender, EDefenseType::Dodge, LuckDodge::Direction(ImpactIndex));
+		}
 	}
 
 	// B-202 (Q-182 changed by Crown): the Guard press already played the block montage, and every
