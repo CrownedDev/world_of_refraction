@@ -479,10 +479,10 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - B: only its own lord can equip it.
 - C: anyone can, but it's weaker in other hands.
 **Recommendation:** A, the deckbuilder's Bonded model: nothing is locked away, and the bound bonus makes the right pairing feel special. A lord's trial version uses its bound kit as its **signature** gear (what it always brings).
-**Answer (Crown):** **A** (2026-10-26): anyone can equip a bound item; only its own lord gets the **bound bonus**, the reactions and the quests. **The bound bonus is hidden**: the item's description doesn't show it.
+**Answer (Crown):** **A** (2026-10-26): anyone can equip a bound item; only its own lord gets the **bound bonus**, the reactions and the quests. **The bound bonus is hidden unless the item is equipped by its owner** (Crown, 2026-10-26): on anyone else it doesn't show; on its own lord the description shows it.
 **Notes for Claude:**
 - Data: a bound item names its lord (one field on the item asset) and carries a bound-bonus effect list, applied only when the wearer is that lord (same gear-effect path as D-008).
-- Hidden: the description generator (D-031/B-045) skips bound-bonus rows. Whether it's revealed once discovered (e.g. after the lord first wears it, or via a memory) is not ruled; ask when building.
+- Hidden: the description generator (D-031/B-045) shows bound-bonus rows only when the item is equipped by its own lord.
 - A lord's mirror version in its trial carries its bound kit as its signature gear (deckbuilder "Signature").
 
 ---
