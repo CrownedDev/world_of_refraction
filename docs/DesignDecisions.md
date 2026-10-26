@@ -1160,6 +1160,18 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Repair cost: A**, in a run it costs **Gold, scaled by the item's tier** (at rest spots and vendors, D-047).
 **Notes for Claude:** today wear lives on the item instances (`CrystalWear.md`); reset it at run end alongside the other run state (B-090). Hub repair (the Spiritualist) is then not needed; keep the Spiritualist's other services. Price curve named constants, `// TODO: tune`.
 
+### Q-174 — Which skills count as "support" for no status buildup?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-174) · **Blocks:** — (B-174 shipped with A)
+**Question:** the rules review ruled that heals, buffs and support skills never build status. Which skills does that cover, and does it also stop an effect that adds buildup on purpose?
+**Context:** B-174 counts a skill as support when it is a Restoration or Enhancement spell (even one that also deals damage), or any skill with no damage and at least one buff or heal effect (even if it also debuffs enemies). Only the skill's authored `StatusBuildup` is zeroed; an authored `StatusIncrease` effect on a support skill still adds buildup (`SkillEffectManager.cpp:1621-1631`).
+**Options:**
+- **A** as built: school (Restoration / Enhancement) or no damage + a buff/heal effect; `StatusIncrease` effects still work.
+- **B** like A, but a damaging Restoration / Enhancement spell keeps its buildup.
+- **C** like A, and `StatusIncrease` effects on a support skill are ignored too.
+**Recommendation:** A, because a `StatusIncrease` effect is a deliberate design choice, and a damage-dealing heal is rare enough to tune by moving it to another school.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
