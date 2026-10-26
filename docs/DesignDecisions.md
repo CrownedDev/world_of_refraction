@@ -1232,6 +1232,18 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
+### Q-179 — What a trial vendor rolls from
+**Status:** OPEN · **Raised:** 2026-10-26 (B-179) · **Blocks:** — (B-179 shipped with A)
+**Question:** Trial vendors now roll a random stock each run. What do they roll from, how much do they show, and does their stock run out?
+**Context:** The rule says the stock comes from the trial's or zone's item pool, but no trial or zone has an item pool yet. As built: a vendor in a trial shows 8 lines picked at random from its own authored list (the same list the home shop sells), rolled once per run and the same all run. Each vendor rolls its own (keyed by its asset path), shown in the order they are authored, the same on every visit during the run. Bought items still never run out (ER-20). In a trial the shop still charges Prisms, because Gold isn't wired to shops yet (B-073).
+**Options:**
+- **A** roll 8 lines from the merchant's own list; stock never runs out (as built).
+- **B** as A, but each line can be bought only once (or a set number of times) per run.
+- **C** give each trial (`UTrialData`) its own item pool to roll from, and say how many lines to show.
+**Recommendation:** A for now, because it needs no new content; C once trials have their own loot, which is when B is worth deciding.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
