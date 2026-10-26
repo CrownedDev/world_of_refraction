@@ -1308,6 +1308,8 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A, except the animation: a Perfect Guard should probably play the parry animation (needs the press to know it is perfect, a small follow-up).
 **Answer (Crown):** (2026-10-26, detail by detail)
 - **Perfect Guard takes 0%** (B, like Expedition 33's parry); normal Guard stays 50%. Change `PerfectGuardReduction` to 1.0.
+- **Interruptible (choke) hits:** stopped by a Perfect Guard or a Dodge, not a normal Guard (A, as built).
+
 **Notes for Claude:** _optional_
 
 ### Q-169 — Luck dodge: the open details
