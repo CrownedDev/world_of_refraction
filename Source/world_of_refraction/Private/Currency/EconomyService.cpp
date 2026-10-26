@@ -192,7 +192,7 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     }
 
     // SELECT lowest-first: take whole crystals from the bottom up until running value >= target
-    // (minimal-meets-or-exceeds; overshoot from the smallest crystals is accepted per §4.5).
+    // (minimal-meets-or-exceeds); the overshoot comes back as change below (ER-28).
     int32 ConsumeCounts[7] = {0, 0, 0, 0, 0, 0, 0}; // by tier value (F..S); only [0, TargetTierIndex) used
     int32 Accumulated = 0;
     for (int32 t = 0; t < TargetTierIndex && Accumulated < TargetValue; ++t)
@@ -224,8 +224,16 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     Currency->Spend(ECurrencyType::Prisms, PrismsCost);
     Inv->RemoveCrystals(Inputs); // ONE Removed (inputs are guaranteed present — counted above)
 
+    // ER-28: the overshoot comes back as the fewest same-Type crystals below the target. Added with
+    // the output in one call, so change that doesn't fit (a full tier) refunds the whole merge.
+    TArray<FCrystalId> Outputs = {OutputId};
+    for (const EItemTier ChangeTier : EconomyYield::GetMergeChange(Accumulated - TargetValue, TargetTier))
+    {
+        Outputs.Add(FCrystalId(Type, ChangeTier));
+    }
+
     // ---- Produce 1 of the target tier (same Type, same pool); refund EVERYTHING on add-failure ----
-    const bool bAdded = Inv->AddCrystals({OutputId}); // ONE Added
+    const bool bAdded = Inv->AddCrystals(Outputs); // ONE Added
     if (!bAdded)
     {
         Inv->AddCrystals(Inputs); // ONE Added — re-add the exact consumed set (atomic; space just freed)
@@ -250,8 +258,8 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
         }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Merged %s -> 1x %s for %d Prisms"),
-           *ConsumedStr, *ItemIdentity::GetDisplayName(OutputId), PrismsCost);
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Merged %s -> 1x %s (+%d change crystal(s), %d value back) for %d Prisms"),
+           *ConsumedStr, *ItemIdentity::GetDisplayName(OutputId), Outputs.Num() - 1, Accumulated - TargetValue, PrismsCost);
     return true;
 }
 
