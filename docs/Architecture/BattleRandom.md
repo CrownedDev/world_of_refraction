@@ -67,3 +67,4 @@ effect IDs (`SkillEffectManager.cpp`, an identity, not a game roll; B-062 replac
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-26 | Created: per-battle seeded stream, seeded at combat start, every in-fight roll moved to it, `wor.Battle.Seed` / `wor.Battle.PrintRandom`, 6 tests (B-010) | `feature/B-010-battle-random-stream` |
+| 2026-10-26 | **B-169:** the Luck dodge (D-085) takes one `FRand` per impact that would land on a defender with character data, so later draws shift: seeds recorded before B-169 do not replay the same fight. | feature/B-169-luck-dodge |

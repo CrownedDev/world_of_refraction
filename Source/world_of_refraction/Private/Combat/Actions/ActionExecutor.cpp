@@ -37,6 +37,7 @@
 #include "Combat/Defense/DefenseSystem.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Defense/GuardRules.h"
+#include "Combat/Defense/LuckDodge.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Infusion/HybridSpellColors.h"
@@ -1977,11 +1978,17 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 	// window is scaled per-press by ImpactDifficulty inside MatchAndConsumeInput.
 	const FDefenseInputMatch Match = DefenseSys->MatchAndConsumeInput(Defender, ImpactTime, Ctx->ActionType, ImpactDifficulty);
 
-	const FDefenseResult Result = DefenseSys->CalculateDefenseResult(
+	FDefenseResult Result = DefenseSys->CalculateDefenseResult(
 		BaseSlice,
 		Match.bMatched ? Match.Type : EDefenseType::None,
 		Match.bMatched,
 		Match.bPerfect); // D-084: a Perfect Guard takes less
+
+	// Luck dodge (D-085): only a hit that would land, so timing still matters most.
+	if (!Result.bSuccess && TryLuckDodge(Defender))
+	{
+		Result = DefenseSys->CalculateDefenseResult(BaseSlice, EDefenseType::Dodge, true, false);
+	}
 
 	// Stash the PER-IMPACT result — ResolvedFinalDamage now holds the reduced SLICE (not the
 	// full total). ApplyOneImpact reads it directly when bDamageIsPerImpact=true. bResultResolved
@@ -2030,6 +2037,32 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 	UE_LOG(LogTemp, Log, TEXT("[Stage3] impact %d defense for %s — Type: %d, Slice: %d → %d, %s"),
 		   ImpactIndex, *Defender->GetName(), static_cast<int32>(Result.DefenseType),
 		   BaseSlice, Result.FinalDamage, Match.bPerfect ? TEXT("PERFECT") : TEXT("normal"));
+}
+
+bool UActionExecutor::TryLuckDodge(AActor *Defender) const
+{
+	const UCharacterDataComponent *DefenderData = Defender ? Defender->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (!DefenderData)
+	{
+		return false;
+	}
+	const float LuckNorm = DefenderData->GetEquipmentModifiedLuck();
+	if (!LuckDodge::Rolls(LuckNorm, UBattleRandomSubsystem::FRand(this)))
+	{
+		return false;
+	}
+
+	// Placeholder pop-up until the combat HUD has floating text (Q-169).
+	constexpr int32 LUCK_DODGE_MESSAGE_KEY = -1;
+	constexpr float LUCK_DODGE_MESSAGE_SECONDS = 2.0f;
+	UE_LOG(LogTemp, Log, TEXT("[LuckDodge] Lucky dodge! %s (chance %.1f%%)"),
+		   *Defender->GetName(), LuckDodge::Chance(LuckNorm) * 100.0f);
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(LUCK_DODGE_MESSAGE_KEY, LUCK_DODGE_MESSAGE_SECONDS, FColor::Yellow,
+										 FString::Printf(TEXT("Lucky dodge! (%s)"), *Defender->GetName()));
+	}
+	return true;
 }
 
 void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex, bool bDamageIsPerImpact)
