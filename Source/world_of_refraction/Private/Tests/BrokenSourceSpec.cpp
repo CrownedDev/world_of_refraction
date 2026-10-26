@@ -132,6 +132,20 @@ void FBrokenSourceSpec::Define()
 			const TArray<USpellData *> Usable = UAIDecisionManager::GetUsableSpells(Loadout);
 			TestTrue(TEXT("F-tier offered to the AI"), Usable.Contains(FTierSpell));
 			TestFalse(TEXT("C-tier not offered"), Usable.Contains(CTierSpell));
+
+			// The AI casts it the way the player does: from the ring (free), not as a paid innate cast.
+			UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+			if (!TestNotNull(TEXT("executor"), Executor))
+			{
+				return;
+			}
+			FAction Cast;
+			Cast.ActionType = EActionType::Spell;
+			Cast.SpellData = FTierSpell;
+			Cast.SpellSource = Loadout->ResolveSpellSource(FTierSpell);
+			Cast.Targets.Add(Loadout->GetOwner());
+			TestEqual(TEXT("resolves to the ring"), Cast.SpellSource, ESpellSource::RingCrystal);
+			TestTrue(TEXT("the AI's cast is allowed"), Executor->ValidateAction(Loadout->GetOwner(), Cast).bIsValid);
 		});
 
 		It("keeps its F-tier spells and greys out the rest", [this]()
@@ -190,8 +204,7 @@ void FBrokenSourceSpec::Define()
 			Cast.SelectedSource = EInfusionSourceOption::ActiveRing;
 			Cast.SpellInfusionLevel = 1;
 			const FActionValidationResult Result = Executor->ValidateAction(Loadout->GetOwner(), Cast);
-			// A broken ring offers no spells, so the spell no longer resolves to the ring and the
-			// ring source is refused by the origin check.
+			// A broken ring is no infusion source (Q-163 = B).
 			TestFalse(TEXT("infused cast refused"), Result.bIsValid);
 		});
 

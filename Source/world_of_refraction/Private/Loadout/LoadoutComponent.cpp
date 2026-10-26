@@ -1974,6 +1974,12 @@ ESpellSource ULoadoutComponent::ResolveSpellSource(USpellData *Spell) const
         }
     }
 
+    // A broken ring's F-tier spells stay castable (D-083) but drop out of its lists above (B-197).
+    if (IsSpellFromBrokenRing(Spell))
+    {
+        return ESpellSource::RingCrystal;
+    }
+
     // 3. Weapon spells — primary weapon (when weapon-primary) + secondary
     //    weapon (Generic only). Walks the same composition GetAllSpells uses.
     if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
