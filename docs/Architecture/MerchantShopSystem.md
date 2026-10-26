@@ -194,7 +194,8 @@ with the window's detail panel. Line cost = one-entry `PreviewCartCost`.
   authored list (seeded per run); no trial/zone pool exists yet, so the pool is the merchant's own
   `Stock` (Q-179).
 - **Hub context only.** Prisms is the only wired currency; the trial context
-  (Gold) exists in design + availability tags but no trial flow consumes it.
+  (Gold) exists in design + availability tags but no trial flow consumes it. Trial vendors
+  roll their stock (B-179) but still charge Prisms (Gold shops: B-073).
 - **Quality is a C placeholder** in equipment pricing until the shop-roll
   generator lands (see EconomySystem cost table).
 - **Spiritualist "repairs"** are named in the archetype but unimplemented.
@@ -212,4 +213,4 @@ with the window's detail panel. Line cost = one-entry `PreviewCartCost`.
 |------|--------|--------|
 | 2026-07-11 | Initial system doc — covers the full arc: `UMerchantData` + tags (Cluster 1), `AMerchantInteractable` + `IA_Interact` loop (Cluster 2), `UMerchantShopSubsystem` (3a), `UShopWindowWidget` (3b), rows + coalescing cart (3c), row polish (3d), three-column + hover detail (3e), UI polish (3f–3i), stone effect text via `GetItemEffectText` (3j); 5 merchants stocked from the ~274-asset pool library. | feature/hub-merchants |
 | 2026-07-11 | Jeweler restocked with the 27 themed rings (Stock 22 → 49; 3 per element, gem + 1–2 bundled Generic `DefaultSpells` — `Resources_Design.md` §5.1c taxonomy). Their bundled spells price into the shop cost via the 3l rule (`EconomySystem.md`): 126 P (1 spell) / 152 P (2 spells) at E. | feature/hub-merchants |
-| 2026-10-26 | B-179 — trial vendors roll their stock per run. New `Merchant/MerchantStockRoll.h` (`Roll`: seeded partial shuffle, `TRIAL_VENDOR_STOCK_SIZE` lines in authored order; `SeedFor`: run seed mixed with the merchant name; `StockFor`: full list outside a trial). `UTrialRunSubsystem` rolls `RunSeed` in `EnterTrial` (`wor.Trial.Seed` forces it), clears it in `ExitTrial`, and serves `GetMerchantStock` (in a run when `RunSeed != 0`) plus debug `GetMerchantStockString` / `wor.Trial.PrintMerchantStock`; `UShopWindowWidget::RefreshStockList` reads it. Home shops unchanged. Spec `WoR.Merchant.StockRoll`. Q-179. | feature/B-179-trial-vendor-stock |
+| 2026-10-26 | B-179 — trial vendors roll their stock per run. New `Merchant/MerchantStockRoll.h` (`Roll`: seeded partial shuffle, `TRIAL_VENDOR_STOCK_SIZE` lines in authored order; `SeedFor`: run seed mixed with a CRC of the merchant's asset path, stable across launches; `StockFor`: full list outside a trial). `UTrialRunSubsystem` rolls `RunSeed` in `EnterTrial` (`wor.Trial.Seed` forces it), clears it in `ExitTrial`, and serves `GetMerchantStock` (in a run when `RunSeed != 0`) plus debug `GetMerchantStockString` / `wor.Trial.PrintMerchantStock`; `UShopWindowWidget::RefreshStockList` reads it. Home shops unchanged. Spec `WoR.Merchant.StockRoll`. Q-179. | feature/B-179-trial-vendor-stock |
