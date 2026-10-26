@@ -36,6 +36,7 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Combat/Defense/DefenseSystem.h"
 #include "Combat/Defense/EDefenseType.h"
+#include "Combat/Defense/GuardRules.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Infusion/HybridSpellColors.h"
@@ -1979,7 +1980,8 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 	const FDefenseResult Result = DefenseSys->CalculateDefenseResult(
 		BaseSlice,
 		Match.bMatched ? Match.Type : EDefenseType::None,
-		Match.bMatched);
+		Match.bMatched,
+		Match.bPerfect); // D-084: a Perfect Guard takes less
 
 	// Stash the PER-IMPACT result — ResolvedFinalDamage now holds the reduced SLICE (not the
 	// full total). ApplyOneImpact reads it directly when bDamageIsPerImpact=true. bResultResolved
@@ -1993,6 +1995,7 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 
 	AActor *Attacker = Ctx->Attacker.Get();
 
+	// Unreachable since B-168 (no defense reflects, D-087; ReflectedDamage stays 0). Remove after PIE.
 	// Piece 5: per-impact parry reflect. Each parried impact reflects ITS OWN slice — the
 	// close-time lumped reflect is gated OFF for count-based windows (bCountBasedClose) so this
 	// is the only reflect path for melee.
@@ -2083,13 +2086,10 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 	// per-hit status); dodge already returned above. Single hit (HitCount==1) → fraction 1.0 → unchanged.
 	const float BuildupFraction = bUseSplit ? (Split[ImpactIndex] / 100.0f) : (1.0f / FMath::Max(1, HitCount));
 	int32 EffectiveBuildup = FMath::RoundToInt(Context.BaseStatusBuildup * BuildupFraction);
-	if (Context.bResolvedSuccess && Context.ResolvedDefenseType == EDefenseType::Block)
+	// Guard (D-084): 50% through on normal timing, 30% on Perfect (the old block / parry shares).
+	if (Context.bResolvedSuccess && GuardRules::IsGuard(Context.ResolvedDefenseType))
 	{
-		EffectiveBuildup = FMath::RoundToInt(EffectiveBuildup * CombatConstants::BLOCK_BUILDUP_MULTIPLIER);
-	}
-	else if (Context.bResolvedSuccess && Context.ResolvedDefenseType == EDefenseType::Parry)
-	{
-		EffectiveBuildup = FMath::RoundToInt(EffectiveBuildup * CombatConstants::PARRY_BUILDUP_MULTIPLIER);
+		EffectiveBuildup = FMath::RoundToInt(EffectiveBuildup * GuardRules::GuardBuildupMultiplier(Context.bResolvedPerfect));
 	}
 
 	FActionHitInput Input;
@@ -2567,9 +2567,7 @@ bool UActionExecutor::AllInterruptSucceeded() const
 		{
 			return false; // not every defender has resolved this hit yet → don't abort
 		}
-		if (!(Ctx.bResolvedSuccess &&
-			  (Ctx.ResolvedDefenseType == EDefenseType::Parry ||
-			   Ctx.ResolvedDefenseType == EDefenseType::Dodge)))
+		if (!GuardRules::StopsInterruptableHit(Ctx.ResolvedDefenseType, Ctx.bResolvedSuccess, Ctx.bResolvedPerfect))
 		{
 			return false; // any defender failed to parry/dodge → no abort, the attack continues
 		}
@@ -3637,9 +3635,8 @@ void UActionExecutor::SpawnAOEEffect(
 				// Capture the choke outcome BEFORE ApplyOneImpact (which may remove the context on death).
 				const bool bChokeEntry = CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
 										 CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable;
-				const bool bDefended = Ctx->bResolvedSuccess &&
-									   (Ctx->ResolvedDefenseType == EDefenseType::Parry ||
-										Ctx->ResolvedDefenseType == EDefenseType::Dodge);
+				const bool bDefended = GuardRules::StopsInterruptableHit(Ctx->ResolvedDefenseType, Ctx->bResolvedSuccess,
+																		 Ctx->bResolvedPerfect);
 				ApplyOneImpact(Attacker, Target, *Ctx, 0, /*bDamageIsPerImpact=*/true);
 				// Cross-target interrupt tally: record this target's outcome; abort once ALL targets have
 				// resolved AND all parried/dodged this choke point (the surviving tally replaces the live-
@@ -3742,9 +3739,8 @@ void UActionExecutor::ResolveInstantSpell(
 				// Capture the choke outcome BEFORE ApplyOneImpact (which may remove the context on death).
 				const bool bChokeEntry = CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
 										 CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable;
-				const bool bDefended = Ctx->bResolvedSuccess &&
-									   (Ctx->ResolvedDefenseType == EDefenseType::Parry ||
-										Ctx->ResolvedDefenseType == EDefenseType::Dodge);
+				const bool bDefended = GuardRules::StopsInterruptableHit(Ctx->ResolvedDefenseType, Ctx->bResolvedSuccess,
+																		 Ctx->bResolvedPerfect);
 				ApplyOneImpact(Attacker, Target, *Ctx, 0, /*bDamageIsPerImpact=*/true);
 				// Cross-target interrupt tally: record this target's outcome; abort once ALL targets have
 				// resolved AND all parried/dodged this choke point (the surviving tally replaces the live-
@@ -4005,9 +4001,8 @@ void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation,
 				const bool bChokeEntry = Ctx->ExpectedImpacts == 1 &&
 										 CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
 										 CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable;
-				const bool bDefended = Ctx->bResolvedSuccess &&
-									   (Ctx->ResolvedDefenseType == EDefenseType::Parry ||
-										Ctx->ResolvedDefenseType == EDefenseType::Dodge);
+				const bool bDefended = GuardRules::StopsInterruptableHit(Ctx->ResolvedDefenseType, Ctx->bResolvedSuccess,
+																		 Ctx->bResolvedPerfect);
 				ApplyOneImpact(Attacker, Target, *Ctx, ImpactOrdinal, /*bDamageIsPerImpact=*/true);
 				// Cross-target interrupt tally (single-projectile multi-target): record + abort when ALL
 				// targets parried/dodged this choke point. Earlier targets already closed normally; the abort
