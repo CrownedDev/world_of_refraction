@@ -74,6 +74,14 @@ EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Contex
     {
         Context.AddWarning(FText::FromString(TEXT("No Inventory assigned - character will have no equipment")));
     }
+    else
+    {
+        // B-028: the inventory's loadouts checked with this character's BD state (the fight's rule).
+        for (const FString &Error : Inventory->GetValidationErrors(bBrokenDarknessInnate))
+        {
+            Context.AddWarning(FText::FromString(FString::Printf(TEXT("Inventory %s: %s"), *Inventory->GetName(), *Error)));
+        }
+    }
 
     // Validate Cosmetics asset assigned
     if (!Cosmetics)

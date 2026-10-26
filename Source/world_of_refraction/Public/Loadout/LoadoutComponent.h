@@ -15,6 +15,7 @@
 #include "Character/ECharacterClass.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Loadout/FCombatLoadout.h"
+#include "Loadout/LoadoutRules.h"
 #include "Loadout/Entries/FItemLoadoutSlot.h"
 #include "Equipment/FEquippedItemSlot.h"
 #include "Equipment/FEquipmentStatBonus.h"
@@ -76,65 +77,6 @@ struct WORLD_OF_REFRACTION_API FEquippedCrystalSlot
 
     UPROPERTY(BlueprintReadOnly, Category = "Crystal")
     UObject *Holder = nullptr;
-};
-
-/** Discriminates which loadout slot an FInvalidSlotFinding refers to.
- *  `None` marks a non-slot guard failure (no inventory, invalid index) —
- *  surfaced but not clearable. `BDPoolSpell` is a non-clearable BD-pool
- *  diagnostic. The three *Overflow / DuplicateItems values are "category"
- *  findings (no single slot) that ClearInvalidSlots re-derives the clearing
- *  action for. */
-UENUM()
-enum class ELoadoutSlotType : uint8
-{
-    None,
-    PrimaryWeapon,
-    PrimaryRing,
-    PrimaryEvolution,
-    SecondaryWeapon,
-    ResonatorRing,
-    InnateSpell,
-    WeaponAbility,
-    WeaponSpell,
-    RingSpell,
-    BDPoolSpell,
-    // Category findings — bClearable, but cleared by re-derived rules rather
-    // than nulling one addressable slot.
-    EvolutionOverflow,
-    RingOverflow,
-    DuplicateItems
-};
-
-/** One actionable validation finding, produced by
- *  ULoadoutComponent::CollectInvalidSlotFindings — the structured counterpart to
- *  the human-readable strings from GetValidationErrors. SlotType + SlotIndex make
- *  a finding addressable so ClearInvalidSlots can null the exact slot.
- *  bClearable == false marks diagnostics (guards, structural caps, BD pools) that
- *  are reported but never auto-cleared. */
-USTRUCT()
-struct WORLD_OF_REFRACTION_API FInvalidSlotFinding
-{
-    GENERATED_BODY()
-
-    UPROPERTY()
-    ELoadoutSlotType SlotType = ELoadoutSlotType::None;
-
-    /** Index within the slot category (ability index, spell index, ring index).
-     *  -1 for non-indexed / single slots (primary weapon, primary ring, etc.).
-     *  For RingSpell: the ring-loadout index (-1 = Generic/Caster primary ring). */
-    UPROPERTY()
-    int32 SlotIndex = 0;
-
-    /** Secondary index for nested slots. For RingSpell: the spell index within
-     *  the ring's AssignedSpells. -1 when unused. */
-    UPROPERTY()
-    int32 SubIndex = -1;
-
-    UPROPERTY()
-    FString Reason;
-
-    UPROPERTY()
-    bool bClearable = true;
 };
 
 /**
@@ -272,6 +214,19 @@ public:
      *  class-element-castability + BD pool), plus element-source and weapon-type
      *  coherence detection. */
     TArray<FInvalidSlotFinding> CollectInvalidSlotFindings() const;
+
+    /** Same, for any saved loadout index, checking ownership against OwnershipSource (null =
+     *  the owner's inventory). B-028: GetValidationErrors is its reasons. */
+    TArray<FInvalidSlotFinding> CollectInvalidSlotFindings(int32 Index, const UInventoryComponent *OwnershipSource = nullptr) const;
+
+    /** What the shared loadout rules can check for this character (class, BD, discount,
+     *  ownership, castability). Inventory = the ownership source. The checks capture raw
+     *  component pointers: use the context at once, don't store it. */
+    FLoadoutRuleContext BuildRuleContext(const UInventoryComponent *Inventory) const;
+
+    // OBSOLETE (B-028): the pre-merge checks, kept for wor.Loadout.CompareRules until Crown's PIE pass.
+    TArray<FString> GetValidationErrorsLegacy(int32 Index, UInventoryComponent *Inventory) const;
+    TArray<FInvalidSlotFinding> CollectInvalidSlotFindingsLegacy() const;
 
     /** Clears every clearable finding from CollectInvalidSlotFindings on the
      *  active loadout. Mutates Inv->SavedLoadouts[ActiveLoadoutIndex] in place

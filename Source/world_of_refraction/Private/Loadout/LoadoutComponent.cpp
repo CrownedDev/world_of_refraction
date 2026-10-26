@@ -2,6 +2,7 @@
 // Active combat loadout and runtime battle state implementation
 
 #include "Loadout/LoadoutComponent.h"
+#include "WoRLog.h"
 #include "Loadout/SpellPoolConstants.h"
 #include "Inventory/InventoryComponent.h"
 #include "Skills/Definitions/SpellData.h"
@@ -477,6 +478,17 @@ bool ULoadoutComponent::ValidateLoadout(int32 Index, UInventoryComponent *Invent
 
 TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryComponent *Inventory) const
 {
+    // B-028: one rule set (FLoadoutRules); the reasons are the slot cleaner's findings.
+    if (!Inventory)
+    {
+        return {TEXT("No inventory component")};
+    }
+    return FLoadoutRules::ToReasons(CollectInvalidSlotFindings(Index, Inventory));
+}
+
+// OBSOLETE (B-028): remove after Crown's PIE pass.
+TArray<FString> ULoadoutComponent::GetValidationErrorsLegacy(int32 Index, UInventoryComponent *Inventory) const
+{
     TArray<FString> Errors;
 
     UInventoryComponent *Inv = GetInventoryComponent();
@@ -771,6 +783,92 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
 }
 
 TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() const
+{
+    const UInventoryComponent *Inv = GetInventoryComponent();
+    return CollectInvalidSlotFindings(Inv ? Inv->ActiveLoadoutIndex : INDEX_NONE);
+}
+
+TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings(int32 Index, const UInventoryComponent *OwnershipSource) const
+{
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        FInvalidSlotFinding Guard;
+        Guard.SlotType = ELoadoutSlotType::None;
+        Guard.SlotIndex = -1;
+        Guard.bClearable = false;
+        Guard.Reason = TEXT("No inventory component on owner");
+        return {Guard};
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Index))
+    {
+        FInvalidSlotFinding Guard;
+        Guard.SlotType = ELoadoutSlotType::None;
+        Guard.SlotIndex = -1;
+        Guard.bClearable = false;
+        Guard.Reason = TEXT("Invalid loadout index");
+        return {Guard};
+    }
+    return FLoadoutRules::CollectFindings(Inv->SavedLoadouts[Index], BuildRuleContext(OwnershipSource ? OwnershipSource : Inv));
+}
+
+FLoadoutRuleContext ULoadoutComponent::BuildRuleContext(const UInventoryComponent *Inventory) const
+{
+    FLoadoutRuleContext Context;
+    Context.CharacterClass = GetCharacterClass();
+
+    AActor *OwnerActor = GetOwner();
+    UCharacterDataComponent *CharComp = OwnerActor ? OwnerActor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    UBrokenDarknessManager *BDManager = OwnerActor ? OwnerActor->FindComponentByClass<UBrokenDarknessManager>() : nullptr;
+    Context.bBrokenDarkness = CharComp && CharComp->IsBrokenDarkness();
+    // Discount from raw world-pillar levels; no CharacterData -> no discount (base costs).
+    Context.SpellDiscount = (CharComp && CharComp->CharacterData)
+        ? SpellPoolConstants::SpellSlotDiscount(CharComp->GetWorldMind(), CharComp->GetWorldBody(), CharComp->GetWorldSpirit())
+        : 0;
+
+    if (Inventory)
+    {
+        Context.OwnsWeapon = [Inventory](const UWeaponData *Weapon)
+        {
+            return Inventory->Weapons.ContainsByPredicate([Weapon](const FWeaponInventoryEntry &Entry) { return Entry.Weapon == Weapon; });
+        };
+        Context.OwnsRing = [Inventory](const URingData *Ring)
+        {
+            return Inventory->Rings.ContainsByPredicate([Ring](const FRingInventoryEntry &Entry) { return Entry.Ring == Ring; });
+        };
+        Context.KnowsAbility = [Inventory](const UAbilityData *Ability)
+        {
+            return Inventory->HasAbility(const_cast<UAbilityData *>(Ability));
+        };
+        Context.KnowsSpell = [Inventory](const USpellData *Spell)
+        {
+            return Inventory->HasSpell(const_cast<USpellData *>(Spell));
+        };
+        // Evolution ownership lives in UEvolutionInventoryComponent; a missing one is a
+        // misconfiguration, treated as not owned (fail-safe).
+        const UEvolutionInventoryComponent *EvolutionInv =
+            Inventory->GetOwner() ? Inventory->GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+        Context.OwnsEvolution = [EvolutionInv](const UEvolutionItemData *Item)
+        {
+            if (!EvolutionInv)
+            {
+                UE_LOG(LogWoRLoadout, Warning, TEXT("[ULoadoutComponent] No UEvolutionInventoryComponent on inventory owner; treating the evolution as not owned"));
+                return false;
+            }
+            return EvolutionInv->HasInstance(const_cast<UEvolutionItemData *>(Item));
+        };
+    }
+
+    // Element-capability check, shared with ActionExecutor::ValidateAction.
+    Context.CanCastElement = [OwnerActor, CharComp, BDManager](ESpellElement Element)
+    {
+        return UBrokenDarknessManager::IsElementCastable(OwnerActor, CharComp, BDManager, Element);
+    };
+    return Context;
+}
+
+// OBSOLETE (B-028): remove after Crown's PIE pass.
+TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindingsLegacy() const
 {
     TArray<FInvalidSlotFinding> Findings;
 
@@ -1326,6 +1424,8 @@ void ULoadoutComponent::ClearInvalidSlots()
         }
         case ELoadoutSlotType::None:
         case ELoadoutSlotType::BDPoolSpell:
+        case ELoadoutSlotType::AbilityOverflow:
+        case ELoadoutSlotType::ItemSlot:
             // Non-clearable categories (guard failures / BD pool) — never
             // reach here because their findings are bClearable == false.
             break;

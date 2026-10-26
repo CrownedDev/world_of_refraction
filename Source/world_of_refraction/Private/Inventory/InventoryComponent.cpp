@@ -1101,7 +1101,9 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
 
     // Validate before population — surfaces ownership/loadout cross-check
     // failures alongside the init log rather than as downstream symptoms.
-    for (const FString &Error : InventoryAsset->GetValidationErrors())
+    // B-028: BD rules follow the character.
+    const TOptional<bool> bCharacterIsBD = CharacterData ? TOptional<bool>(CharacterData->bBrokenDarknessInnate) : TOptional<bool>();
+    for (const FString &Error : InventoryAsset->GetValidationErrors(bCharacterIsBD))
     {
         UE_LOG(LogTemp, Warning, TEXT("[InventoryData] '%s' validation: %s"),
                *InventoryAsset->GetName(), *Error);

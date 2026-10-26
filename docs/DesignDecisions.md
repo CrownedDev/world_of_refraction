@@ -934,6 +934,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
   All three key off the same unlock data as memories and reaction triggers (D-032 parts 4, 9).
 **Notes for Claude:** the data assets keep their names for now (`DA_Character_FireLord` etc., D-058: existing names stay); rename when the real names exist. Player-facing text never says "Lord" for them. Record further answers here; write `docs/Design/HubAndStory.md` when complete.
 
+### D-080 — Loadout check in the editor: which spell discount?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-028) · **Blocks:** — (B-028 shipped with the recommendation)
+**Question:** the fight lowers each spell's weight by a mastery discount from the character's world stats (Mind/Body/Spirit). In the editor there is no character progress. Which discount should the editor check use?
+**Context:** `FSavedLoadout::GetValidationErrors` (`FSavedLoadout.cpp`) uses 0, the strictest budget. A Caster loadout that only fits with a high-mastery discount now shows an asset error, though in play the fight would accept it for a trained character (and cut it for a fresh one).
+**Options:** A discount 0 (warns about what a fresh character would have cut) / B the biggest discount possible (warns only about what no character could use) / C skip the weight budget in the editor.
+**Recommendation:** A, because authored loadouts are what new characters start with, so they should fit with no mastery.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

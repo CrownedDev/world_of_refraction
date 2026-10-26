@@ -15,7 +15,7 @@
 
 // ==================== VALIDATION ====================
 
-TArray<FString> UInventoryData::GetValidationErrors() const
+TArray<FString> UInventoryData::GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness) const
 {
     TArray<FString> Errors;
 
@@ -82,7 +82,7 @@ TArray<FString> UInventoryData::GetValidationErrors() const
             TEXT("Loadout[%d] '%s': "), LoadoutIdx, *Loadout.LoadoutName);
 
         // Struct-internal errors (slot consistency, count caps, BD rules)
-        for (const FString &Err : Loadout.GetValidationErrors())
+        for (const FString &Err : Loadout.GetValidationErrors(bCharacterIsBrokenDarkness))
         {
             Errors.Add(Prefix + Err);
         }
