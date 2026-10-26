@@ -226,6 +226,7 @@ bool USpellData::CanBeDodgedByTiming() const
            DeliveryType == ESpellDeliveryType::Instant;
 }
 
+// Legacy since B-168: a Parry here is a Guard (D-084, GuardRules::Normalize). No callers today.
 TArray<EDefenseType> USpellData::GetAvailableDefenses() const
 {
     TArray<EDefenseType> Options;

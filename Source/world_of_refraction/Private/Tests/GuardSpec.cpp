@@ -10,6 +10,12 @@
 #include "Combat/Defense/DefenseSystem.h"
 #include "Combat/Defense/GuardRules.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
+#include "Character/CharacterDataComponent.h"
+#include "Combat/CombatOrchestrator.h"
+#include "HAL/IConsoleManager.h"
+#include "Skills/Definitions/AbilityData.h"
+#include "Skills/Effects/ActiveSkillEffect.h"
+#include "Skills/Effects/SkillEffectManager.h"
 
 namespace
 {
@@ -18,6 +24,14 @@ namespace
 	constexpr float GUARD_TEST_ATTACK_SIZE = 1.0f;
 	constexpr bool GUARD_TEST_PERFECT = true;
 	constexpr bool GUARD_TEST_NORMAL = false;
+	constexpr int32 GUARD_TEST_ABILITY_DAMAGE = 20;
+	/** Percent of the damage taken that a reflect effect sends back. */
+	constexpr float GUARD_TEST_REFLECT_PERCENT = 50.0f;
+	constexpr int32 GUARD_TEST_REFLECT_TURNS = 3;
+	/** Fixed battle seed so the foe's defense roll replays. */
+	constexpr int32 GUARD_TEST_BATTLE_SEED = 4242;
+	/** Test-world ticks are 0.01s; covers a montage-less ability's 8s defense failsafe. */
+	constexpr int32 GUARD_TEST_SETTLE_FRAMES = 1100;
 
 	TArray<ESkillTrigger> GuardTestTriggers(EDefenseType Type, bool bPerfect)
 	{
@@ -116,6 +130,61 @@ void FGuardSpec::Define()
 		});
 	});
 
+	Describe("reflect effects", [this]()
+	{
+		It("send back exactly their share of the damage taken, as pure damage", [this]()
+		{
+			IConsoleVariable *SeedVar = IConsoleManager::Get().FindConsoleVariable(TEXT("wor.Battle.Seed"));
+			const int32 OldSeed = SeedVar ? SeedVar->GetInt() : 0;
+			if (SeedVar)
+			{
+				SeedVar->Set(GUARD_TEST_BATTLE_SEED, ECVF_SetByCode);
+			}
+
+			ACombatOrchestrator *Orchestrator = TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>();
+			AActor *Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			AActor *Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
+			Ability->Name = TEXT("Guard reflect test");
+			Ability->BaseDamage = GUARD_TEST_ABILITY_DAMAGE;
+			Ability->AddToRoot();
+			Orchestrator->StartCombat({Hero}, {Foe});
+
+			// What an "on Perfect Guard: reflect" effect grants once it fires.
+			FActiveSkillEffect Reflect;
+			Reflect.EffectName = TEXT("Guard reflect test");
+			Reflect.EffectType = ESkillEffectType::DamageReflect;
+			Reflect.EffectValue = GUARD_TEST_REFLECT_PERCENT;
+			Reflect.RemainingTurns = GUARD_TEST_REFLECT_TURNS;
+			TestWorld->GetSubsystem<USkillEffectManager>()->ApplyEffect(Foe, Reflect, Foe);
+
+			UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
+			UCharacterDataComponent *FoeData = Foe->FindComponentByClass<UCharacterDataComponent>();
+			const int32 HeroHP = HeroData->CurrentHP;
+			const int32 FoeHP = FoeData->CurrentHP;
+
+			FAction Action;
+			Action.ActionType = EActionType::Ability;
+			Action.SkillData = Ability;
+			Action.Targets.Add(Foe);
+			Orchestrator->SubmitActionAsync(Action);
+			TestWorld->Tick(GUARD_TEST_SETTLE_FRAMES);
+
+			const int32 FoeLost = FoeHP - FoeData->CurrentHP;
+			const int32 HeroLost = HeroHP - HeroData->CurrentHP;
+			TestTrue(TEXT("the foe took damage"), FoeLost > 0);
+			TestEqual(TEXT("the attacker lost exactly the reflected share"), HeroLost,
+					  FMath::RoundToInt(FoeLost * GUARD_TEST_REFLECT_PERCENT / 100.0f));
+
+			Orchestrator->ForceEndCombat();
+			Ability->RemoveFromRoot();
+			if (SeedVar)
+			{
+				SeedVar->Set(OldSeed, ECVF_SetByCode);
+			}
+		});
+	});
+
 	Describe("triggers", [this]()
 	{
 		It("a Guard fires On Guard and legacy On Block, not the perfect ones", [this]()
@@ -136,7 +205,7 @@ void FGuardSpec::Define()
 				TestTrue(*FString::Printf(TEXT("fires %s"), *UEnum::GetValueAsString(Trigger)), Triggers.Contains(Trigger));
 				TestTrue(TEXT("is a defense-outcome trigger"), SkillTriggerUtils::IsDefenseOutcomeTrigger(Trigger));
 			}
-			TestEqual(TEXT("a Perfect Parry press maps the same"), GuardTestTriggers(EDefenseType::Parry, GUARD_TEST_PERFECT), Triggers);
+			TestTrue(TEXT("a Perfect Parry press maps the same"), GuardTestTriggers(EDefenseType::Parry, GUARD_TEST_PERFECT) == Triggers);
 		});
 	});
 }

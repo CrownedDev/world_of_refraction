@@ -1042,9 +1042,8 @@ void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,
 	// Broadcast
 	OnEnergyAbsorbed.Broadcast(GetOwner(), EnergyGained, AttackElement);
 
-	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: %s%s absorbed %.1f energy from %s (Stacks: %d)"),
+	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: %s absorbed %.1f energy from %s (Stacks: %d)"),
 		   bPerfect ? TEXT("Perfect Guard") : TEXT("Guard"),
-		   TEXT(""),
 		   EnergyGained,
 		   *UEnum::GetValueAsString(AttackElement),
 		   CurrentAbsorptionStacks);
