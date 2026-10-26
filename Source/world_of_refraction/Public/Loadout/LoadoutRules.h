@@ -107,6 +107,9 @@ struct WORLD_OF_REFRACTION_API FLoadoutRuleContext
 	/** Mastery discount on spell weights (SpellPoolConstants::SpellSlotDiscount). */
 	int32 SpellDiscount = 0;
 
+	/** False skips the spell weight budgets (Q-161: an inventory asset on its own reports them as warnings). */
+	bool bCheckSpellBudget = true;
+
 	TFunction<bool(const UWeaponData *)> OwnsWeapon;
 	TFunction<bool(const URingData *)> OwnsRing;
 	TFunction<bool(const UEvolutionItemData *)> OwnsEvolution;
