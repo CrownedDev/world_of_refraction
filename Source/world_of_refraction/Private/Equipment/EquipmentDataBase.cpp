@@ -8,6 +8,10 @@
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Skills/Effects/EffectIdentity.h"
+#include "Character/CharacterData.h"
+#include "Debug/Skills/SkillEffectDebug.h"
+
+#define LOCTEXT_NAMESPACE "EquipmentDataBase"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEquipmentBonusEditor, Log, All);
 
@@ -271,12 +275,18 @@ TArray<FSkillEffect> UEquipmentDataBase::GetConditionalEffects() const
     return Result;
 }
 
-TArray<FGatheredEffect> UEquipmentDataBase::GetStartingEffectsGathered() const
+TArray<FGatheredEffect> UEquipmentDataBase::GetStartingEffectsGathered(const UCharacterData *Wearer) const
 {
     TArray<FGatheredEffect> Result;
     // The item is the source of its effects (D-053): another item with the same definition adds its own.
     const int32 ItemSourceKey = EffectIdentity::MakeSourceKey(GetUniqueID(), GetName());
-    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    // B-192: the bound bonus joins the item's own effects only on its owner (D-033).
+    TArray<TObjectPtr<UEffectDefinition>> Defs = ReferencedEffects;
+    if (IsBoundBonusActive(Wearer))
+    {
+        Defs.Append(BoundEffects);
+    }
+    for (const TObjectPtr<UEffectDefinition> &Def : Defs)
     {
         if (!Def)
         {
@@ -294,12 +304,18 @@ TArray<FGatheredEffect> UEquipmentDataBase::GetStartingEffectsGathered() const
     return Result;
 }
 
-TArray<FGatheredEffect> UEquipmentDataBase::GetConditionalEffectsGathered() const
+TArray<FGatheredEffect> UEquipmentDataBase::GetConditionalEffectsGathered(const UCharacterData *Wearer) const
 {
     TArray<FGatheredEffect> Result;
     // The item is the source of its effects (D-053): another item with the same definition adds its own.
     const int32 ItemSourceKey = EffectIdentity::MakeSourceKey(GetUniqueID(), GetName());
-    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    // B-192: the bound bonus joins the item's own effects only on its owner (D-033).
+    TArray<TObjectPtr<UEffectDefinition>> Defs = ReferencedEffects;
+    if (IsBoundBonusActive(Wearer))
+    {
+        Defs.Append(BoundEffects);
+    }
+    for (const TObjectPtr<UEffectDefinition> &Def : Defs)
     {
         if (!Def)
         {
@@ -315,6 +331,30 @@ TArray<FGatheredEffect> UEquipmentDataBase::GetConditionalEffectsGathered() cons
         }
     }
     return Result;
+}
+
+bool UEquipmentDataBase::IsBoundBonusActive(const UCharacterData *Wearer) const
+{
+    return BoundOwner && Wearer == BoundOwner;
+}
+
+FText UEquipmentDataBase::GetBoundBonusText(const UCharacterData *Wearer) const
+{
+    if (!IsBoundBonusActive(Wearer) || BoundEffects.IsEmpty())
+    {
+        return FText::GetEmpty();
+    }
+    TArray<FString> Lines;
+    for (const UEffectDefinition *Def : BoundEffects)
+    {
+        for (const FSkillEffect &Effect : Def ? Def->Effects : TArray<FSkillEffect>())
+        {
+            // TODO(D-031): the nested description text once it exists; the debug line for now.
+            Lines.Add(SkillEffectDebug::DescribeEffect(Effect));
+        }
+    }
+    return FText::Format(LOCTEXT("BoundBonus", "{0}'s bound bonus: {1}"), FText::FromString(BoundOwner->Name),
+                         FText::FromString(FString::Join(Lines, TEXT("; "))));
 }
 
 FEquipmentStatBonus UEquipmentDataBase::GetCombinedStatBonus() const
@@ -431,3 +471,5 @@ EDataValidationResult UEquipmentDataBase::IsDataValid(FDataValidationContext &Co
 }
 
 #endif
+
+#undef LOCTEXT_NAMESPACE
