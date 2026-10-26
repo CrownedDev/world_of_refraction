@@ -1188,7 +1188,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
                 }
                 else
                 {
-                    VFX->SetImmuneToInfusion(true); // the spell's source is not on offer (a broken ring, Q-163)
+                    VFX->SetImmuneToInfusion(true); // the spell's source is not on offer (e.g. a broken ring or weapon crystal, Q-163)
                 }
             }
 
