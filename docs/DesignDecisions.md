@@ -972,6 +972,39 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-26): a pick that is itself invalid is **refused** with a reason ("Spear skills need a Spear"); a change that breaks parts you already have **goes through and drops them**, with a message naming each ("Fire Bolt removed: needs a Fire crystal").
 **Notes for Claude:** _optional_
 
+### D-082 — Weapon requirements reduce the weapon's output
+**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, CL-40) · **Blocks:** — (B-162)
+**Answer (Crown):** (2026-10-26) A weapon's Mind/Body/Spirit requirement is an **efficiency** rule: if you don't meet it, you **don't get the weapon's full output** ("if I don't have the requirements to use Excalibur, I won't get the maximum output from it"). Changes CL-40, which today only uses it for Broken Darkness strain.
+**Notes for Claude:**
+- Reuse the shipped **requirement-gap curve** (CL-39, per pillar, ±5) on the weapon's **own contribution** (its base damage and stats feeding attacks and abilities used through it), the same way skills use it (D-041). The skill's own requirement still scales the skill; they're two separate parts, so not a double penalty on the same number.
+- **To confirm with Crown when building:** whether being *over* the weapon's requirement also gives the curve's bonus (skills do), or the weapon only caps at 100%.
+- Fold into the stat-maths plan (B-146). Broken Darkness strain keeps using the weapon requirement as today.
+
+### D-083 — A skill's source breaks mid-fight
+**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 01 gap) · **Blocks:** —
+**Answer (Crown):** (2026-10-26)
+- **A:** a skill whose source breaks **stays in the menu, greyed out**, with the reason ("Source broken"), as in the deckbuilder; it can't be used.
+- **Broken crystal on a ring:** the ring is limited to **F-tier spells**; its higher-tier spells grey out.
+- **Broken crystal on a weapon:** **no infusing** and **no elemental abilities** through that weapon; physical abilities and plain attacks still work.
+**Notes for Claude:** today a broken attachment stays slotted and gives no spells (`AttachedItem.CanProvideSpells()`, `FCombatCapabilities.cpp`; `CrystalWear.md`). Change the menu to grey rather than hide, apply the F-tier allowance for rings, and block infusion / elemental abilities on weapons. Tests for each.
+
+### Q-031 — What is "the ApplyDamage fallback" B-031 should delete?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-031) · **Blocks:** B-167
+**Question:** the architecture review says "delete the `SubmitAction` sync router and the `ApplyDamage` fallback" with no detail. Which code is meant?
+**Context:**
+- `ApplyDamage` (`ActionExecutor.cpp` ~3085) is still called from four places. The likely "fallbacks" are the direct-damage paths that skip the defence window:
+  - spells not yet converted to per-hit windows (AOE ~3635, Instant ~3740)
+  - the "no DefenseSystem" branches (~1701 melee, ~3640 AOE, ~4011 projectile), which can't happen in a real game (it is always there)
+- The "no DamageCalculator: deal at least 1" branches in `ApplyDamage`/`ApplyHit` are a third candidate.
+- B-032 later merges `ApplyHit` and `ApplyDamage` anyway.
+**Options:**
+- **A** delete only the "subsystem missing" branches (no DefenseSystem / no DamageCalculator): dead in a real game, no content check needed.
+- **B** also delete the unconverted-spell paths: needs an editor check that every spell asset is converted first (CC+UE).
+- **C** leave all of it to B-032's merge.
+**Recommendation:** A now, because it is dead code that hides setup errors (log an error instead), and leave the unconverted-spell paths to B-032, which has to touch them anyway.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

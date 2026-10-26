@@ -160,12 +160,11 @@ public:
 	// ========================================
 
 	/**
-	 * Submit an action for the current actor (synchronous)
-	 * Validates, executes via ActionExecutor, then ends turn
-	 * @param Action The action to execute
-	 * @return True if action was valid and executed
+	 * OBSOLETE (B-031): the old sync router. Nothing in the game calls it any more; only
+	 * CombatOrchestratorTestActor does. Delete it with that actor once Crown's PIE pass on
+	 * B-031 is in (D-067). Use SubmitActionAsync.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Combat|Action")
+	UFUNCTION(BlueprintCallable, Category = "Combat|Action", meta = (DeprecatedFunction, DeprecationMessage = "Use SubmitActionAsync (B-031)."))
 	bool SubmitAction(const FAction &Action);
 
 	/**
@@ -522,10 +521,16 @@ private:
 
 	/** Execution-turn fire (Option 2): looks up the frozen FDeferredActivation by
 	 *  the current turn's PayloadId, sets bIsDeferredFire, and runs the ritual
-	 *  through the NORMAL SubmitAction path — completion routes through
+	 *  through the same async start a normal action uses — completion routes through
 	 *  HandleAsyncActionCompleted (return → finalize → single AdvanceToNextTurn),
-	 *  same as any normal turn. There is no parallel fire/completion path. */
+	 *  same as any normal turn. A refused fire advances the turn. */
 	void FireScheduledExecution();
+
+	/** Guards, validates and starts Action for CurrentActor on the async path; the turn ends
+	 *  in HandleAsyncActionCompleted. False if it didn't start: OutInvalidReason is set when
+	 *  the action itself was invalid, empty when a guard refused it (no actor or executor, or
+	 *  an action already running). */
+	bool StartActionAsync(const FAction &Action, FString &OutInvalidReason);
 
 	/** Normal turn-start flow AFTER rituals fire: start-of-turn effects (DoT),
 	 *  BD overflow, death check, turn broadcast, then RequestActionFromActor.
