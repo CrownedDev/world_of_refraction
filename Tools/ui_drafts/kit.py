@@ -118,6 +118,21 @@ def steel(img):
     return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "RGBA")
 
 
+def nine_slice(img, width, height, border):
+    """Stretch a framed panel to any size: corners (border px) stay sharp, edges and centre stretch."""
+    w0, h0 = img.size
+    b = min(border, width // 2, height // 2, w0 // 2, h0 // 2)   # corners must not overlap, in the art or the target
+    out = Image.new("RGBA", (width, height))
+    xs, ys = (0, b, w0 - b, w0), (0, b, h0 - b, h0)
+    tx, ty = (0, b, width - b, width), (0, b, height - b, height)
+    for i in range(3):
+        for j in range(3):
+            part = img.crop((xs[i], ys[j], xs[i + 1], ys[j + 1]))
+            size = (max(1, tx[i + 1] - tx[i]), max(1, ty[j + 1] - ty[j]))
+            out.alpha_composite(part.resize(size, Image.LANCZOS), (tx[i], ty[j]))
+    return out
+
+
 def five_slice(img, width, end=0.2, centre=0.06):
     """Stretch a symmetric piece to a width without distorting its ends or its centre stud."""
     w0, h = img.size

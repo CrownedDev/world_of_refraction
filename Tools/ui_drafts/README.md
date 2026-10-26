@@ -37,7 +37,18 @@ python Tools/ui_drafts/test_draft.py
 |---|---|
 | `kit.py` | Shared pieces. It covers the kit loader (`piece(kind, name)`), fonts, tint/steel recolour, five-slice stretch, background, vignette, glow, motes, text with shadow, the annotation legend, frozen version folders and `save_draft` |
 | `test_draft.py` | The B-100 smoke test. It touches every kit kind the HUD drafts use. Output: `tool/test_draft/v1/` |
+| `combat_hud_v1.py` | The B-101 combat HUD in four states: `command`, `target`, `hit` and `stunned`. Output: `combat/hud/v1/` |
+
+## Current drafts
+
+| Screen | Current | Command |
+|---|---|---|
+| combat/hud | v1 | `python Tools/ui_drafts/combat_hud_v1.py` |
+| tool/test_draft | v1 | `python Tools/ui_drafts/test_draft.py` |
 
 ## Kit gaps found so far
 
 - There is no `badges/element_reality` in the library. It has badges for 8 of this game's 9 elements (`ESpellElement`: Fire … Void, plus Reality). B-101 needs a stand-in, or new art, for Reality.
+- **No enemy art.** The HUD drafts draw dark silhouettes as stand-ins. Party portraits are crops of the kit's character cards (`cards/garrick`, `common_void_refractor`, `common_resonator`).
+- **No gamepad glyphs.** The kit's `glyph_*` icons are UI glyphs, not face buttons, so the drafts draw Xbox-style A/B/X/Y circles in code until a glyph set is picked.
+- **Header bar:** the pick is still open (`UI_DeckbuilderReuse.md` open item 1). The turn banner uses `frames/nameplate` as a placeholder.
