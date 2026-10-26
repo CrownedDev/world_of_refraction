@@ -677,12 +677,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-26): **one counting rule for every timed effect**: the holder's own turns, the landing turn counts as turn 1, ends as the holder's next turn after those starts, **exactly N ticks** (D-030, D-050; deckbuilder `04-effects.md` "Lasts"). One shared helper.
 
 ### D-052 — Is Emerald's bonus turn extra, or the same turn moved earlier?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** Emerald's turn counts as a turn taken with no credit, so it costs a later normal turn. Extra Action adds a real turn.
 **Context:** `Combat/TurnManager.cpp:566-575` (pinned turn, no credit), `:305` (Extra Action). The deckbuilder's `AddTurn` adds a turn (`04-effects.md`, verb 7). Rules: 04 C4-5.
 **Options:** A a real extra turn / B a turn moved earlier (current), named to match.
 **Recommendation:** A, because players read "bonus turn" as an extra one, and it matches the deckbuilder.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A** (2026-10-26): Emerald's bonus turn is a **real extra turn** (no later normal turn lost), like Extra Action and the deckbuilder's Add Turn. It still respects the 2:1 cap (D-049). Change `TurnManager.cpp:563-571` (pinned turn currently costs a future slot).
 
 ### D-053 — Does the same effect from two gear pieces add up?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-062
