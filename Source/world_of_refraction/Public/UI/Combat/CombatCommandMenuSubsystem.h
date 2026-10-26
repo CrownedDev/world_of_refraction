@@ -176,6 +176,7 @@ private:
     FPieMenuButtonData CreateItemsButton() const;
     FPieMenuButtonData CreateSwitchWeaponButton() const;
     FPieMenuButtonData CreateSwitchRingButton() const;
+    FPieMenuButtonData CreateDefendButton() const;
 
     // ==================== SUBMENU BUILDERS ====================
 
@@ -229,6 +230,10 @@ private:
     ULoadoutComponent *GetLoadoutComponent() const;
     FLinearColor GetElementColor(int32 ElementIndex) const;
     class UInfusionVFXComponent *GetInfusionVFXComponent() const;
+    /** D-001: a stunned actor's menu offers only Attack + Defend, with no infusion (D-023 A). */
+    bool IsCurrentActorStunned() const;
+    /** Infusion controls are inert for this pick: immune action/equipment, or a stunned actor. */
+    bool IsInfusionLockedForPendingAction() const;
 
     // ==================== CAPABILITIES / BD LIVE REFRESH ====================
 

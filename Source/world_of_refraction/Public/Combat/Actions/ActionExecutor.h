@@ -142,8 +142,9 @@ public:
 	bool CanActorAct(AActor *Actor) const;
 
 	/** D-001: a stunned actor may only Defend or use its loadout's current basic attack
-	 *  (CurrentAttack = ULoadoutComponent::GetCurrentAttack). Spells, abilities, items,
-	 *  weapon switch and flee are blocked. Pure, so the rule is testable without a loadout. */
+	 *  (CurrentAttack = ULoadoutComponent::GetCurrentAttack), un-infused (D-023 A). Spells,
+	 *  abilities, items, infused attacks, weapon switch and flee are blocked. Pure, so the
+	 *  rule is testable without a loadout. */
 	static bool IsActionAllowedWhileStunned(const FAction &Action, const USkillDataBase *CurrentAttack);
 
 	/** Check if actor can cast spells (not silenced) */
