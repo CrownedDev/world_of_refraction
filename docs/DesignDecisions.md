@@ -1152,6 +1152,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Order with Guard/Dodge (D-084): proposed, the hit is reduced by Guard first, then absorbed; confirm in the job.
 - Build inside the GAS effects work (B-044 review → B-042), not on today's `SkillEffectManager`.
 
+### D-093 — Wear and repair are run-only
+**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 05) · **Blocks:** —
+**Answer (Crown):** (2026-10-26)
+- **Wear, breaking and repair happen within a run.** Durability carries between fights in a run (D-013 note).
+- **Outside a run it resets:** when a run ends, every item's wear is restored. No repair is needed in the hub.
+- **Repair cost: A**, in a run it costs **Gold, scaled by the item's tier** (at rest spots and vendors, D-047).
+**Notes for Claude:** today wear lives on the item instances (`CrystalWear.md`); reset it at run end alongside the other run state (B-090). Hub repair (the Spiritualist) is then not needed; keep the Spiritualist's other services. Price curve named constants, `// TODO: tune`.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
