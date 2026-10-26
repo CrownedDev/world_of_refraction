@@ -9,7 +9,9 @@ A field encounter starts a fight: a `UEncounterComponent` on an enemy pawn in a 
   - `GetEnemyRoster()`: the team that takes the field, empty entries skipped, at most `EncounterConstants::ENCOUNTER_MAX_ENEMIES` (3, `docs/Design/Enemies.md` §3).
   - `BuildOpposingRoster(Encounter, Fallback)`: the team, or the encounter's own pawn alone when there is no team (Q-074: the team replaces the pawn). The encounter aborts only when this is empty.
   - Debug: `GetEncounterString()`, `PrintEncounter` (CallInEditor).
-- **`UEncounterComponent`** (`Public/Combat/Encounter/EncounterComponent.h`): the trigger sphere, join window and arena shell. Per placement it holds `Difficulty`, `Rank` (D-091) and the optional `EncounterData`.
+- **`UEncounterComponent`** (`Public/Combat/Encounter/EncounterComponent.h`): the trigger sphere, join window and arena shell. Per placement it holds `Difficulty`, `Rank` (D-091) and the optional `EncounterData`. `GetEncounterId()` (the placed owner's name) is the key a win records. When the window closes, `GatherCaughtEncounters` takes every armed encounter within `ArenaSphereMaxRadius` of the arena centre; `BuildCaughtRoster` makes the fight (Q-184). In `BeginPlay`, an encounter beaten earlier this run destroys its owner.
+- **`AFieldEnemyTeam`** (`Public/Combat/Encounter/FieldEnemyTeam.h`, B-184): a placed team on the map: placeholder cylinder, a `UEncounterComponent` (team in its `EncounterData`), optional `PatrolPoints` walked in order and back at `PatrolSpeed` (engine `UInterpToMovementComponent`). Debug `wor.Trial.PrintTeams`.
+- **Beaten for the run:** `UTrialRunSubsystem::SetPendingEncounterSources` / `MarkPendingEncounterBeaten` (from `ABattleGameMode::HandleCombatEnd`, Victory only) / `IsEncounterBeaten`; cleared on trial entry and hub return.
 - **Trial gate** (`Public/Trial/TrialGate.h`, B-183): `ETrialDifficulty` (Easy / Medium / Hard) with one named enemy-strength and payout multiplier per level; `ApplyEnemyStrength` gives an enemy persistent max-HP and damage buffs (debuffs below 1) and refills its HP. `UTrialData::Variations` (`FTrialVariation`: name, description, boss). `UTrialRunSubsystem` holds the run's choice (`SetGateChoice`, `GetTrialDifficulty`, `GetChosenVariation`, `GetEnemyStrengthMultiplier`, `GetPayoutMultiplier`), reset in `ExitTrial`; `wor.Trial.Print`. The door opens the placeholder `UTrialGateWidget` (D-024).
 - **`ABattleGameMode`** (`Private/Trial/BattleGameMode.cpp`): spawns the party in a line on one side and every opposing entry in a line facing it (`TEAM_X_OFFSET`, `COMBATANT_Y_SPACING`).
 
@@ -21,10 +23,11 @@ A field encounter starts a fight: a `UEncounterComponent` on an enemy pawn in a 
 - Difficulty and rank are set per placement, not per team.
 - The battle lines are not centred; a formation per team is not authored.
 - The payout multiplier is not read yet (no run-end payout; B-073). The variation's boss is not read yet (B-188).
-- B-184 (`AFieldEnemyTeam`, patrols, beaten-stays-beaten) is the full map-side version; it can reuse `UEncounterData`.
+- Patrols are a fixed back-and-forth path; teams don't notice or chase the player yet (first strike: B-185).
 
 ## Changelog
 | Date | Change | Branch |
 |---|---|---|
+| 2026-10-26 | B-184 (Q-184): `AFieldEnemyTeam` (idle or waypoint patrol); teams caught together send their strongest each (max three); a win beats every caught encounter for the run, and a beaten one is gone when the trial level reloads. Spec `WoR.Trial.FieldEnemyTeam`. | feature/B-184-field-enemy-teams |
 | 2026-10-26 | B-183 (Q-183): the trial gate. The door asks for a variation and a difficulty (placeholder `UTrialGateWidget`); the run holds the choice; `ABattleGameMode` scales every enemy's max HP and damage by the level before `StartCombat`. `wor.Trial.Print`. Spec `WoR.Trial.Gate`. | feature/B-183-gate-choice |
 | 2026-10-26 | B-074: `UEncounterData` (a team of up to three); `UEncounterComponent::EncounterData` sends that team to the battle stage instead of the pawn alone. Spec `WoR.Combat.EncounterData`. | feature/B-074-encounter-data |

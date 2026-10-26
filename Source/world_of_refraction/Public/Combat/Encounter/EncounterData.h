@@ -35,6 +35,11 @@ public:
 	 *  encounter's own pawn (Fallback) alone. Empty only when both are missing. */
 	static TArray<UCharacterData *> BuildOpposingRoster(const UEncounterData *Encounter, UCharacterData *Fallback);
 
+	/** B-184 (Enemies §3): the fight when several map teams are caught at once. One team fights
+	 *  whole; several send their strongest member each (GetTotalPool, the first on a tie), in the
+	 *  order given, at most ENCOUNTER_MAX_ENEMIES. Empty teams are skipped. */
+	static TArray<UCharacterData *> BuildCaughtRoster(const TArray<TArray<UCharacterData *>> &CaughtTeams);
+
 	/** One line per enemy, for logs and the Details panel. */
 	FString GetEncounterString() const;
 

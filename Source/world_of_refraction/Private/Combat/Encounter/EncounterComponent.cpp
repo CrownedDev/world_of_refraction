@@ -14,6 +14,8 @@
 #include "Engine/GameInstance.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
+#include "EngineUtils.h"
+#include "UObject/UObjectIterator.h"
 #include "Infusion/ElementColors.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Skills/Definitions/ESpellElement.h"
@@ -36,6 +38,17 @@ void UEncounterComponent::BeginPlay()
 	Super::BeginPlay();
 
 	AActor *Owner = GetOwner();
+
+	// B-184: a team beaten earlier in this run stays beaten when the trial level reloads.
+	const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	const UTrialRunSubsystem *TrialRun = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	if (Owner && TrialRun && TrialRun->IsEncounterBeaten(GetEncounterId()))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[EncounterComponent] %s was beaten earlier this run - removed"), *Owner->GetName());
+		Owner->Destroy();
+		return;
+	}
+
 	if (!Owner || !Owner->GetRootComponent())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[EncounterComponent] Owner has no root component - no trigger created"));
@@ -69,6 +82,45 @@ void UEncounterComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
+FName UEncounterComponent::GetEncounterId() const
+{
+	return GetOwner() ? FName(*UWorld::RemovePIEPrefix(GetOwner()->GetPathName())) : NAME_None;
+}
+
+TArray<UCharacterData *> UEncounterComponent::GetOwnTeam() const
+{
+	const UCharacterDataComponent *OwnerCharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	return UEncounterData::BuildOpposingRoster(EncounterData, OwnerCharComp ? OwnerCharComp->CharacterData : nullptr);
+}
+
+TArray<UEncounterComponent *> UEncounterComponent::GatherCaughtEncounters() const
+{
+	TArray<UEncounterComponent *> Caught = {const_cast<UEncounterComponent *>(this)};
+	const float CaughtRadiusSquared = FMath::Square(ArenaSphereMaxRadius);
+	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+	{
+		UEncounterComponent *Other = It->FindComponentByClass<UEncounterComponent>();
+		if (Other && Other != this && !Other->bTriggered && IsValid(*It) &&
+			FVector::DistSquared(It->GetActorLocation(), ArenaCenter) <= CaughtRadiusSquared)
+		{
+			Caught.Add(Other);
+		}
+	}
+	return Caught;
+}
+
+bool UEncounterComponent::IsAnotherWindowOpen() const
+{
+	for (TObjectIterator<UEncounterComponent> It; It; ++It)
+	{
+		if (*It != this && It->bTriggered && It->GetWorld() == GetWorld())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 UPartySessionSubsystem *UEncounterComponent::GetPartySession() const
 {
 	const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
@@ -92,7 +144,7 @@ void UEncounterComponent::HandleOverlap(UPrimitiveComponent *OverlappedComponent
 										UPrimitiveComponent *OtherComp, int32 OtherBodyIndex,
 										bool bFromSweep, const FHitResult &SweepResult)
 {
-	if (bTriggered || !OtherActor || OtherActor == GetOwner() || !IsPlayerCombatant(OtherActor))
+	if (bTriggered || !OtherActor || OtherActor == GetOwner() || !IsPlayerCombatant(OtherActor) || IsAnotherWindowOpen())
 	{
 		return;
 	}
@@ -127,7 +179,7 @@ void UEncounterComponent::HandleOverlap(UPrimitiveComponent *OverlappedComponent
 	PendingBattleParty.Reset();
 	PendingBattleParty.Add(OtherActor);
 
-	const FVector ArenaCenter = (OtherActor->GetActorLocation() + GetOwner()->GetActorLocation()) * 0.5f;
+	ArenaCenter = (OtherActor->GetActorLocation() + GetOwner()->GetActorLocation()) * 0.5f;
 	SpawnArenaSphere(ArenaCenter);
 
 	GetWorld()->GetTimerManager().SetTimer(JoinWindowTimer, this, &UEncounterComponent::OnJoinWindowExpired,
@@ -228,11 +280,21 @@ void UEncounterComponent::OnJoinWindowExpired()
 	const TArray<UCharacterData *> BattlePartyData =
 		LocalParty ? LocalParty->GetLivingMemberCharacterData() : TArray<UCharacterData *>();
 
-	const UCharacterDataComponent *OwnerCharComp = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
-	UCharacterData *OwnerData = OwnerCharComp ? OwnerCharComp->CharacterData : nullptr;
-
-	const TArray<UCharacterData *> OpposingPartyData = UEncounterData::BuildOpposingRoster(EncounterData, OwnerData);
-	const bool bFieldsTeam = EncounterData && EncounterData->GetEnemyRoster().Num() > 0;
+	// B-184: every team inside the arena joins: one fights whole, several send their strongest
+	// each. The hardest rank and AI level among them rule the fight; a win beats them all.
+	const TArray<UEncounterComponent *> Caught = GatherCaughtEncounters();
+	TArray<TArray<UCharacterData *>> CaughtTeams;
+	TArray<FName> CaughtIds;
+	EAIDifficulty FightDifficulty = Difficulty;
+	EEncounterRank FightRank = Rank;
+	for (const UEncounterComponent *Encounter : Caught)
+	{
+		CaughtTeams.Add(Encounter->GetOwnTeam());
+		CaughtIds.Add(Encounter->GetEncounterId());
+		FightDifficulty = FMath::Max(FightDifficulty, Encounter->Difficulty);
+		FightRank = FMath::Max(FightRank, Encounter->Rank);
+	}
+	const TArray<UCharacterData *> OpposingPartyData = UEncounterData::BuildCaughtRoster(CaughtTeams);
 
 	UTrialRunSubsystem *TrialRun = GetWorld()->GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
 	UTrialData *ActiveTrial = TrialRun ? TrialRun->GetActiveTrial() : nullptr;
@@ -255,16 +317,17 @@ void UEncounterComponent::OnJoinWindowExpired()
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[EncounterComponent] Join window closed - handing off %d v %d to battle stage (difficulty %s, team %s)"),
-		   BattlePartyData.Num(), OpposingPartyData.Num(), *UEnum::GetValueAsString(Difficulty),
-		   bFieldsTeam ? *EncounterData->GetName() : TEXT("the pawn alone"));
+	UE_LOG(LogTemp, Log, TEXT("[EncounterComponent] Join window closed - handing off %d v %d to battle stage (difficulty %s, %d team(s) caught)"),
+		   BattlePartyData.Num(), OpposingPartyData.Num(), *UEnum::GetValueAsString(FightDifficulty), Caught.Num());
 
 	// EnterEncounter OpenLevels to the trial's battle stage; this component,
 	// the arena, and every trial actor die with the swap. If it rejects
 	// (no EncounterLevel authored), re-arm so the trial stays playable.
-	TrialRun->EnterEncounter(ActiveTrial, BattlePartyData, OpposingPartyData, Difficulty, Rank);
+	TrialRun->SetPendingEncounterSources(CaughtIds);
+	TrialRun->EnterEncounter(ActiveTrial, BattlePartyData, OpposingPartyData, FightDifficulty, FightRank);
 	if (!TrialRun->HasPendingEncounter())
 	{
+		TrialRun->SetPendingEncounterSources({});
 		RearmEncounter();
 	}
 }

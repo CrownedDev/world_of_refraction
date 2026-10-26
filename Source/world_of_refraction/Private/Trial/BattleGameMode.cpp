@@ -381,6 +381,15 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
         }
     }
 
+    // B-184: a win beats every map team the fight came from, for the rest of the run.
+    if (Result.FinalState == ECombatState::Victory)
+    {
+        if (UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>())
+        {
+            TrialRun->MarkPendingEncounterBeaten();
+        }
+    }
+
     if (!ShowResults(Result))
     {
         ReturnToTrial();

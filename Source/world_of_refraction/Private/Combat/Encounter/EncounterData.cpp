@@ -28,6 +28,46 @@ TArray<UCharacterData *> UEncounterData::BuildOpposingRoster(const UEncounterDat
 	return Roster;
 }
 
+TArray<UCharacterData *> UEncounterData::BuildCaughtRoster(const TArray<TArray<UCharacterData *>> &CaughtTeams)
+{
+	TArray<const TArray<UCharacterData *> *> Teams;
+	for (const TArray<UCharacterData *> &Team : CaughtTeams)
+	{
+		if (Team.Num() > 0)
+		{
+			Teams.Add(&Team);
+		}
+	}
+	if (Teams.Num() == 1)
+	{
+		TArray<UCharacterData *> Roster = *Teams[0];
+		Roster.SetNum(FMath::Min(Roster.Num(), EncounterConstants::ENCOUNTER_MAX_ENEMIES));
+		return Roster;
+	}
+
+	TArray<UCharacterData *> Roster;
+	for (const TArray<UCharacterData *> *Team : Teams)
+	{
+		if (Roster.Num() >= EncounterConstants::ENCOUNTER_MAX_ENEMIES)
+		{
+			break;
+		}
+		UCharacterData *Strongest = nullptr;
+		for (UCharacterData *Member : *Team)
+		{
+			if (Member && (!Strongest || Member->GetTotalPool() > Strongest->GetTotalPool()))
+			{
+				Strongest = Member;
+			}
+		}
+		if (Strongest)
+		{
+			Roster.Add(Strongest);
+		}
+	}
+	return Roster;
+}
+
 FString UEncounterData::GetEncounterString() const
 {
 	const TArray<UCharacterData *> Roster = GetEnemyRoster();
