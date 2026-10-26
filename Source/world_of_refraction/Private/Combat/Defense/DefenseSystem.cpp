@@ -10,6 +10,7 @@
 #include "Combat/CombatAnimInstance.h"
 #include "Character/CharacterData.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Combat/CombatControl.h"
 
 void UDefenseSystem::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -275,11 +276,11 @@ AActor *UDefenseSystem::GetActiveDefenderForLocalPlayer() const
 			continue;
 		}
 
-		// The LOCAL PLAYER's defender — a control question, so read possession.
-		// A Player-origin pawn under a bot controller (AI companion) is correctly
+		// The LOCAL PLAYER's defender — a control question: possession, or a
+		// Player-controlled party member (B-071). An AI companion is correctly
 		// skipped here: the human is not the one defending with it.
 		const APawn *Pawn = Cast<APawn>(Defender);
-		if (Pawn && Pawn->IsPlayerControlled())
+		if (Pawn && CombatControl::IsPlayerDriven(Pawn))
 		{
 			return Defender;
 		}

@@ -42,6 +42,7 @@
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "Equipment/Crystals/CrystalManager.h"
 #include "TimerManager.h"
+#include "Combat/CombatControl.h"
 
 ACombatOrchestrator::ACombatOrchestrator()
 {
@@ -1479,11 +1480,11 @@ bool ACombatOrchestrator::IsActorAIControlled(AActor *Actor) const
 		return false;
 	}
 
-	// Runtime control, from engine possession — not asset identity. A Player-origin
-	// character can be bot-driven (ghost / AI companion) and an Enemy-origin one
-	// player-driven (PvP), so only the possessing controller can answer this.
+	// Runtime control, not asset identity. A Player-origin character can be bot-driven
+	// (ghost / AI companion) and an Enemy-origin one player-driven (PvP). Possession or a
+	// Player-controlled party member's per-fight flag answers it (B-071, CombatControl.h).
 	const APawn *Pawn = Cast<APawn>(Actor);
-	return Pawn && !Pawn->IsPlayerControlled();
+	return Pawn && !CombatControl::IsPlayerDriven(Pawn);
 }
 
 TArray<AActor *> ACombatOrchestrator::GetLivingEnemies(AActor *ForActor) const
