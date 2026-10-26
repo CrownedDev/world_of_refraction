@@ -1324,6 +1324,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 
 **Notes for Claude:** Applied in fix/Q-168-perfect-guard-zero: `PerfectGuardReduction` 1.0. The parry animation on a Perfect Guard is B-182 (the animation plays at the press, before Perfect is known). The rest was as built. An "On Perfect Guard: reflect" is a timed buff, so it pays out on later hits that land.
 
+### Q-168b — Status buildup through a Perfect Guard
+**Status:** DECIDED (approved by the reference-backed default, 2026-10-26; Crown may change it) · **Raised:** 2026-10-26 (Q-168 review) · **Blocks:** —
+**Question:** a Perfect Guard now takes no damage (Q-168). Does 30% of the hit's status buildup still land, as before?
+**Options:**
+- **A** 0%: a Perfect Guard negates the hit outright.
+- **B** keep 30%.
+**Recommendation:** A. Expedition 33's perfect parry cancels the hit and its effects entirely, one of its most praised mechanics; a hit that does no damage but still poisons feels wrong.
+**Answer (Crown):** _A, approved by the reference-backed default; reply to change._
+**Notes for Claude:** Applied in fix/Q-168-perfect-guard-zero (`PARRY_BUILDUP_MULTIPLIER` 0).
+
 ### Q-169 — Luck dodge: the open details
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-169) · **Blocks:** — (B-169 shipped with A)
 **Question:** D-085's Luck dodge is in. A few details had no ruling. Are these right?
