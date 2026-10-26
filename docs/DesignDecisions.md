@@ -206,11 +206,15 @@ The queue of questions only Crown can answer.
 **Notes for Claude:** key `FiredOnceThisMatch` (`SkillEffectManager.h:423`, checked at `SkillEffectManager.cpp:100`, set at `:261`) on (actor, EffectID) instead of EffectID alone; still cleared by `ResetForNewCombat()`. Matches the deckbuilder (a card's fires-once belongs to that card). Test: two wearers of the same once-per-match gear each fire once.
 
 ### D-012 — Repeated status caps: refresh or stack?
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-062
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-062
 **Question:** When a bar caps again (Burn twice), refresh the existing effect or add a second?
 **Context:** Random IDs make it stack today (`SkillEffectManager.cpp:2405`).
 **Recommendation:** Refresh.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **C, the deckbuilder rule** (2026-10-26): the same source again **refreshes** the effect it already put on you; a different source **adds** its own.
+**Notes for Claude:**
+- Today every capped-bar effect gets `EffectID = FMath::Rand()` (`SkillEffectManager.cpp`, `ApplyTriggeredSkillEffect`), so they always stack.
+- Identity = (status type, element, source actor). Same identity → reset the duration (and re-snapshot the source's boost, as the deckbuilder's DoT rule does: `04-effects.md` DoT row); different source → a new effect.
+- Tests: same attacker Burns twice → one Burn, timer reset; two attackers → two Burns.
 
 ### D-013 — Do status bars carry over between fights?
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** —
