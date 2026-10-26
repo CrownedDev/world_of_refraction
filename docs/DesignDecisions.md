@@ -570,7 +570,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A by tier, 1–6 / B flat 6 / C flat 4.
 **Recommendation:** A, the live rule; then make the saved-loadout check match.
 **Answer (Crown):** **A, by tier, as already designed** (2026-10-26): crystals and evolutions hold spells by their tier (1–6, the shared `SlotsForContainerTier` curve). Not a new decision: fix the saved-loadout check's flat 6 (`FSavedLoadout.cpp:190-195`) and `EvolutionCrystals.md`'s "about 4" to match.
-**Applied (B-147):** the live check (`LoadoutRules.cpp`) already capped by tier; a test now pins it, and `EvolutionCrystals.md` is fixed. The flat 6 remains only in the legacy `FSavedLoadout::GetValidationErrorsLegacy`, which B-172 retires. An evolution *attached* to a weapon or ring still uses the flat ceiling: **Q-147**.
+**Applied (B-147):** the live check (`LoadoutRules.cpp`) already capped by tier; a test now pins it, and `EvolutionCrystals.md` is fixed. The flat 6 remains only in the legacy `FSavedLoadout::GetValidationErrorsLegacy`, which B-172 retires. An evolution *attached* to a weapon or ring now holds spells by its tier too (**Q-147 = B**, applied).
 
 ### D-040 — Does a Refractor's innate always work?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
@@ -1354,7 +1354,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** As built; nothing to change.
 
 ### Q-147 — Does an evolution attached to a weapon or ring hold spells by its tier too?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-147) · **Blocks:** — (B-147 shipped without it)
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-147) · **Blocks:** — (B-147 shipped without it)
 **Question:** D-039 says crystals and evolutions hold spells by their tier. An evolution in the **primary slot** does (F 1 … S 6). An evolution **attached to a weapon or ring** still gets the holder's flat ceiling (6 for a weapon, the ring's cap for a ring). Should the attached one use its tier too?
 **Context:** `CrystalEffectTable::ResolveSpellSlotCap` gives gem crystals their tier count and every other attachment (evolutions included) the caller's flat ceiling (`CrystalEffectTable.h`). D-039's answer did not separate attached from primary evolutions.
 **Options:**
@@ -1362,7 +1362,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** by tier: an attached evolution holds its tier's count, like a primary one and a gem.
 **Recommendation:** B, because it is the plain reading of D-039 and makes every container follow one curve. The deckbuilder has no separate rule.
 **Answer (Crown):** **B, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it. **Confirmed by Crown in chat (2026-10-26).**
-**Notes for Claude:** _optional_
+**Notes for Claude:** applied (fix/Q-147-attached-evolution-spells-by-tier): `CrystalEffectTable::ResolveSpellSlotCap` gives an attached evolution `SlotsForContainerTier(Evolution.Tier)`, the instance tier; every weapon and ring spell cap reads through it.
 
 ### D-097 — Storage (items), inventory (items you carry) and the pool (gear)
 **Status:** ANSWERED (corrected 2026-10-26; details open) · **Raised:** 2026-10-26 (from Q-177) · **Blocks:** —
