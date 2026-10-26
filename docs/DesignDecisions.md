@@ -1207,7 +1207,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Fits the story's "figure it out" theme (D-079); don't explain what Unknown is in player-facing text.
 
 ### D-096 — Changing rows in combat
-**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 06 gap) · **Blocks:** —
+**Status:** DECIDED (applied in B-180) · **Raised:** 2026-10-26 (rules review, page 06 gap) · **Blocks:** —
 **Answer (Crown):** **A** (2026-10-26):
 - **Move row:** a character can step one row forward or back on their turn, **free, once per turn** (like weapon switching), into an empty cell or swapping with an ally there.
 - **Push / pull skills:** skills (and effects) can push or pull an enemy between rows (e.g. a shield bash knocks them back).
@@ -1246,6 +1246,22 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** as A, but each line can be bought only once (or a set number of times) per run.
 - **C** give each trial (`UTrialData`) its own item pool to roll from, and say how many lines to show.
 **Recommendation:** A for now, because it needs no new content; C once trials have their own loot, which is when B is worth deciding.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
+### Q-180 — Row moves: the open details
+**Status:** OPEN · **Raised:** 2026-10-26 (B-180) · **Blocks:** — (B-180 shipped with A)
+**Question:** D-096's row moves are in. A few details had no ruling. Are these right?
+**Context:** As built (option A):
+- A **push or pull into a taken cell** does nothing (it doesn't swap the two).
+- Push and pull are **neither a buff nor a debuff**: status immunity, Cleanse and the AI's debuff scoring ignore them, and there is no resist roll or boss/size immunity.
+- A **fallen ally** stays on the grid and **blocks** their cell: you can't step into it or swap with them.
+- A **bonus turn** (Extra Action) also brings back the free step.
+- The step is instant: the character jumps to the new cell, with no animation or camera move.
+**Options:**
+- **A** keep all of the above (as built).
+- **B** change some (say which): e.g. a push into an ally swaps them, push is a debuff that Cleanse and immunity can stop, bosses resist it, a fallen ally's cell is free.
+**Recommendation:** A for now, because it is the simplest; bosses resisting a push is the likeliest change once bosses exist.
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
