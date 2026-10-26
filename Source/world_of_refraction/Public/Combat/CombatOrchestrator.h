@@ -211,6 +211,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	bool IsActorsTurn(AActor *Actor) const { return CurrentActor == Actor && CombatState == ECombatState::InProgress; }
 
+	/** True while a submitted action's montages / projectiles are still running (the turn ends when it completes). */
+	bool IsWaitingForAsyncAction() const { return bWaitingForAsyncAction; }
+
 	/** Check if actor is AI-controlled */
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	bool IsActorAIControlled(AActor *Actor) const;
