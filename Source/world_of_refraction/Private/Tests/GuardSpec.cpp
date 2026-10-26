@@ -126,7 +126,7 @@ void FGuardSpec::Define()
 		It("lets less status through a Perfect Guard", [this]()
 		{
 			TestEqual(TEXT("Guard"), GuardRules::GuardBuildupMultiplier(GUARD_TEST_NORMAL), CombatConstants::BLOCK_BUILDUP_MULTIPLIER);
-			TestEqual(TEXT("Perfect Guard"), GuardRules::GuardBuildupMultiplier(GUARD_TEST_PERFECT), CombatConstants::PARRY_BUILDUP_MULTIPLIER);
+			TestEqual(TEXT("Perfect Guard: none (Q-168b)"), GuardRules::GuardBuildupMultiplier(GUARD_TEST_PERFECT), 0.0f);
 		});
 	});
 

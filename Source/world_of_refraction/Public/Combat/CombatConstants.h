@@ -352,7 +352,7 @@ namespace CombatConstants
     // current hardcoded damage multipliers). Dodge cancels buildup entirely —
     // handled by the multi-hit loop being skipped, no constant needed.
     constexpr float BLOCK_BUILDUP_MULTIPLIER = 0.5f; // Block: 50% buildup through
-    constexpr float PARRY_BUILDUP_MULTIPLIER = 0.3f; // Parry: 30% buildup through
+    constexpr float PARRY_BUILDUP_MULTIPLIER = 0.0f; // Perfect Guard: no buildup through (Q-168b, like its 0 damage)
 
     // ==================== SPELL DATA ====================
     // Status bar system
