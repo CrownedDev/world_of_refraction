@@ -75,8 +75,8 @@ TArray<USpellData *> FRingLoadoutEntry::GetAllSpells() const
         ++OverrideIndex;
     }
 
-    // Gem crystals gate spell slots by their own tier; with no gem the cap falls
-    // through to the ring's own tier (SlotsForContainerTier), MAX_RING_SPELLS only
+    // Gem crystals and evolutions (Q-147) gate spell slots by their own tier; otherwise
+    // the cap falls through to the ring's own tier (SlotsForContainerTier), MAX_RING_SPELLS only
     // as the no-ring ceiling.
     const int32 SlotCap = CrystalEffectTable::ResolveSpellSlotCap(
         RingEntry.GetAttachedItem(),
