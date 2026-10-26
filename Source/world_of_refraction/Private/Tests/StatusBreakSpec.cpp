@@ -219,6 +219,7 @@ void FStatusBreakSpec::Define()
 			UDamageCalculator *DamageCalc = TestWorld->GetSubsystem<UDamageCalculator>();
 			if (!TestNotNull(TEXT("DamageCalculator"), DamageCalc)) return;
 			AActor *Holder = Spawn();
+			if (!TestTrue(TEXT("Can crit before the break"), DamageCalc->GetCriticalChance(Holder) > 0.0f)) return;
 
 			const ESkillEffectType LightBreak = BarCapTriggerResolver::ResolveTrigger(ESpellElement::Light, EPhysicalDamageType::None, false);
 			EffectManager->ApplyTriggeredSkillEffect(Spawn(), Holder, LightBreak, ESpellElement::Light);

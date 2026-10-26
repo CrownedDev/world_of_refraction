@@ -2634,7 +2634,7 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 
 	case ESkillEffectType::CritDebuff:
 		Effect.EffectType = ESkillEffectType::CritChanceDebuff;
-		Effect.EffectValue = 100.0f; // -100% crit chance
+		Effect.EffectValue = CombatConstants::LIGHT_BREAK_CRIT_CHANCE_DOWN_PERCENT;
 		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 

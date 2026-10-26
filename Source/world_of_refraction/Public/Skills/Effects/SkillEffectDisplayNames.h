@@ -116,6 +116,7 @@ namespace SkillEffectDisplayNames
             }
 
         case ESkillEffectType::CritDebuff:
+        case ESkillEffectType::CritChanceDebuff: // the Light break (B-112)
             switch (Element)
             {
             case ESpellElement::Light:
