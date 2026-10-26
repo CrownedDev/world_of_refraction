@@ -73,19 +73,21 @@ namespace
 	}
 
 	/** Ability-slot counts (previously checked in the editor only). */
-	void CheckAbilityCounts(FFindingSink &Sink, const FWeaponLoadoutEntry &Weapon, const TCHAR *Label)
+	void CheckAbilityCounts(FFindingSink &Sink, const FWeaponLoadoutEntry &Weapon, const TCHAR *Label, int32 WeaponIndex)
 	{
 		if (Weapon.AssignedAbilities.Num() > LoadoutConstants::MAX_WEAPON_ABILITIES)
 		{
-			Sink.Add(ELoadoutSlotType::AbilityOverflow, -1, false,
+			Sink.Add(ELoadoutSlotType::AbilityOverflow, WeaponIndex, true,
 					 FString::Printf(TEXT("%s weapon has too many abilities (%d/%d)"), Label,
-									 Weapon.AssignedAbilities.Num(), LoadoutConstants::MAX_WEAPON_ABILITIES));
+									 Weapon.AssignedAbilities.Num(), LoadoutConstants::MAX_WEAPON_ABILITIES),
+					 LoadoutAbilityOverflowIndex::ABILITIES);
 		}
 		if (Weapon.AssignedAugmentStoneAbilities.Num() > LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES)
 		{
-			Sink.Add(ELoadoutSlotType::AbilityOverflow, -1, false,
+			Sink.Add(ELoadoutSlotType::AbilityOverflow, WeaponIndex, true,
 					 FString::Printf(TEXT("%s weapon has too many augment stone abilities (%d/%d)"), Label,
-									 Weapon.AssignedAugmentStoneAbilities.Num(), LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES));
+									 Weapon.AssignedAugmentStoneAbilities.Num(), LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES),
+					 LoadoutAbilityOverflowIndex::AUGMENT_STONE_ABILITIES);
 		}
 	}
 
@@ -157,7 +159,7 @@ namespace
 			}
 		}
 
-		CheckAbilityCounts(Sink, Weapon, TEXT("Primary"));
+		CheckAbilityCounts(Sink, Weapon, TEXT("Primary"), LoadoutAbilityOverflowIndex::PRIMARY_WEAPON);
 	}
 
 	int32 PrimarySlotCost(const FCombatLoadout &Loadout)
@@ -260,8 +262,13 @@ namespace
 		{TEXT("E/F"), EItemTier::F_Tier, EItemTier::E_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_E_F_TIER},
 	};
 
-	/** D-072/D-077: utility crystals in item slots, per crystal, by combined tier band. Report-only
-	 *  for now (B-159 drops the excess on load). */
+	bool CountsTowardBand(const FItemLoadoutSlot &Slot, const FUtilityCrystalBand &Band)
+	{
+		return Slot.Quantity > 0 && CrystalTypeHelpers::IsGemType(Slot.CrystalId.Type) &&
+			   Slot.CrystalId.Tier >= Band.LowTier && Slot.CrystalId.Tier <= Band.HighTier;
+	}
+
+	/** D-072/D-077: utility crystals in item slots, per crystal, by combined tier band. */
 	void CheckUtilityCrystalTierCaps(FFindingSink &Sink, const FCombatLoadout &Loadout)
 	{
 		for (const FUtilityCrystalBand &Band : UtilityCrystalBands)
@@ -269,15 +276,11 @@ namespace
 			int32 Count = 0;
 			for (const FItemLoadoutSlot &Slot : Loadout.ItemSlots)
 			{
-				const bool bInBand = Slot.CrystalId.Tier >= Band.LowTier && Slot.CrystalId.Tier <= Band.HighTier;
-				if (bInBand && CrystalTypeHelpers::IsGemType(Slot.CrystalId.Type) && Slot.Quantity > 0)
-				{
-					Count += Slot.Quantity;
-				}
+				Count += CountsTowardBand(Slot, Band) ? Slot.Quantity : 0;
 			}
 			if (Count > Band.Cap)
 			{
-				Sink.Add(ELoadoutSlotType::ItemSlot, INDEX_NONE, false,
+				Sink.Add(ELoadoutSlotType::UtilityCrystalTierCap, INDEX_NONE, true,
 						 FString::Printf(TEXT("Too many %s-tier utility crystals: %d (max %d)"), Band.Name, Count, Band.Cap));
 			}
 		}
@@ -291,7 +294,7 @@ namespace
 			const int32 Quantity = Loadout.ItemSlots[i].Quantity;
 			if (Quantity < 0 || Quantity > InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT)
 			{
-				Sink.Add(ELoadoutSlotType::ItemSlot, i, false,
+				Sink.Add(ELoadoutSlotType::ItemSlot, i, true,
 						 FString::Printf(TEXT("Equipped item slot %d Quantity %d out of range [0, %d]"),
 										 i, Quantity, InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT));
 			}
@@ -345,7 +348,7 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 		{
 			Sink.Add(ELoadoutSlotType::SecondaryWeapon, -1, true, TEXT("Secondary weapon not in inventory"));
 		}
-		CheckAbilityCounts(Sink, Loadout.SecondaryWeapon, TEXT("Secondary"));
+		CheckAbilityCounts(Sink, Loadout.SecondaryWeapon, TEXT("Secondary"), LoadoutAbilityOverflowIndex::SECONDARY_WEAPON);
 	}
 
 	if (Context.CharacterClass == ECharacterClass::Resonator)
@@ -450,4 +453,26 @@ TArray<FString> FLoadoutRules::ToReasons(const TArray<FInvalidSlotFinding> &Find
 		Reasons.Add(Finding.Reason);
 	}
 	return Reasons;
+}
+
+void FLoadoutRules::TrimUtilityCrystalsToTierCaps(FCombatLoadout &Loadout)
+{
+	for (const FUtilityCrystalBand &Band : UtilityCrystalBands)
+	{
+		int32 Remaining = Band.Cap;
+		for (FItemLoadoutSlot &Slot : Loadout.ItemSlots)
+		{
+			if (!CountsTowardBand(Slot, Band))
+			{
+				continue;
+			}
+			const int32 Kept = FMath::Min(Slot.Quantity, Remaining);
+			Remaining -= Kept;
+			Slot.Quantity = Kept;
+			if (Kept == 0)
+			{
+				Slot = FItemLoadoutSlot();
+			}
+		}
+	}
 }

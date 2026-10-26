@@ -49,12 +49,10 @@ namespace
 
 	int32 CountTierCapFindings(const FCombatLoadout &Loadout)
 	{
-		// Tier-cap findings are the item-slot category findings (no single slot); quantity findings
-		// name their slot.
 		int32 Count = 0;
 		for (const FInvalidSlotFinding &Finding : FLoadoutRules::CollectFindings(Loadout, FLoadoutRuleContext()))
 		{
-			Count += (Finding.SlotType == ELoadoutSlotType::ItemSlot && Finding.SlotIndex == INDEX_NONE) ? 1 : 0;
+			Count += Finding.SlotType == ELoadoutSlotType::UtilityCrystalTierCap ? 1 : 0;
 		}
 		return Count;
 	}
@@ -176,6 +174,20 @@ void FLoadoutRulesSpec::Define()
 			TestEqual(TEXT("E + F over 4"), CountTierCapFindings(LoadoutWithItems({
 				ItemSlot(ECrystalType::Opal, EItemTier::E_Tier, 2),
 				ItemSlot(ECrystalType::Onyx, EItemTier::F_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_E_F_TIER - 1)})), 1);
+		});
+
+		It("trim the last slots in an over-cap band down to the cap", [this]()
+		{
+			FCombatLoadout Loadout = LoadoutWithItems({
+				ItemSlot(ECrystalType::Sapphire, EItemTier::A_Tier, 1),
+				ItemSlot(ECrystalType::Opal, EItemTier::S_Tier, 1),
+				ItemSlot(ECrystalType::Citrine, EItemTier::B_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_A_B_TIER),
+			});
+			FLoadoutRules::TrimUtilityCrystalsToTierCaps(Loadout);
+			TestEqual(TEXT("within the caps now"), CountTierCapFindings(Loadout), 0);
+			TestEqual(TEXT("first A/B slot kept"), Loadout.ItemSlots[0].Quantity, 1);
+			TestEqual(TEXT("S slot untouched"), Loadout.ItemSlots[1].Quantity, 1);
+			TestEqual(TEXT("last A/B slot trimmed"), Loadout.ItemSlots[2].Quantity, LoadoutConstants::MAX_UTILITY_CRYSTALS_A_B_TIER - 1);
 		});
 
 		It("ignore utility stones and attached crystals", [this]()
