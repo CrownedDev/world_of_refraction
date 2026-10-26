@@ -67,9 +67,14 @@ bool StoryUnlocks::AreUnlocked(const TArray<FName> &RequiredMemories, const UMem
 
 const FVLine *StoryUnlocks::FindNextVLine(const TArray<UStoryLinesData *> &Story, const UMemoryJournalSubsystem &Journal)
 {
+	// Pointers into the assets: iterate their arrays directly, never a copy.
 	for (const UStoryLinesData *Data : Story)
 	{
-		for (const FVLine &Line : Data ? Data->VLines : TArray<FVLine>())
+		if (!Data)
+		{
+			continue;
+		}
+		for (const FVLine &Line : Data->VLines)
 		{
 			if (!Journal.HasHeardVLine(Line.LineId) && AreUnlocked(Line.RequiredMemories, Journal))
 			{
@@ -86,7 +91,11 @@ TArray<const FStoryConversation *> StoryUnlocks::GetUnlockedConversations(const 
 	TArray<const FStoryConversation *> Unlocked;
 	for (const UStoryLinesData *Data : Story)
 	{
-		for (const FStoryConversation &Talk : Data ? Data->Conversations : TArray<FStoryConversation>())
+		if (!Data)
+		{
+			continue;
+		}
+		for (const FStoryConversation &Talk : Data->Conversations)
 		{
 			if (AreUnlocked(Talk.RequiredMemories, Journal))
 			{
