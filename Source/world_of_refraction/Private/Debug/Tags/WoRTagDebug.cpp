@@ -2,6 +2,7 @@
 
 #include "Debug/Tags/WoRTagDebug.h"
 #include "Tags/WoRGameplayTags.h"
+#include "WoRLog.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Skills/Effects/SkillEffectManager.h"
@@ -33,12 +34,13 @@ namespace
 		{ESkillEffectType::Stun, TEXT("immune to Stun")},
 		{ESkillEffectType::Silenced, TEXT("immune to Silence")},
 		{ESkillEffectType::DOT, TEXT("immune to DOT")},
-		{ESkillEffectType::HealthRestore, TEXT("can't be healed")}};
+		{ESkillEffectType::HealthRestore, TEXT("can't be healed")},
+		{ESkillEffectType::RestoreHPPercent, TEXT("can't be healed by percent")}};
 
 	FAutoConsoleCommand GDumpTagsCmd(
 		TEXT("wor.DumpTags"),
 		TEXT("DEBUG: print every enum value and its gameplay tag (B-040)."),
-		FConsoleCommandDelegate::CreateLambda([]() { UE_LOG(LogTemp, Display, TEXT("[TagDebug]\n%s"), *UWoRTagDebug::GetTagMapString()); }));
+		FConsoleCommandDelegate::CreateLambda([]() { UE_LOG(LogWoREffects, Display, TEXT("[TagDebug]\n%s"), *UWoRTagDebug::GetTagMapString()); }));
 
 	FAutoConsoleCommandWithWorld GCompareTagsCmd(
 		TEXT("wor.CompareTags"),
@@ -73,6 +75,7 @@ namespace
 		case ESkillEffectType::DOT:
 			return Tags.HasTagExact(WoRTags::Immunity_DOT);
 		case ESkillEffectType::HealthRestore:
+		case ESkillEffectType::RestoreHPPercent:
 			return Tags.HasTagExact(WoRTags::Status_HealBlock);
 		default:
 			return false;
@@ -181,14 +184,14 @@ int32 UWoRTagDebug::CompareTags(const UObject *WorldContextObject)
 		const FString Mismatches = GetTagMismatchString(*It);
 		if (Mismatches.IsEmpty())
 		{
-			UE_LOG(LogTemp, Display, TEXT("[TagDebug] %s: tags agree (%s)"), *It->GetName(), *GetActorTagsString(*It));
+			UE_LOG(LogWoREffects, Display, TEXT("[TagDebug] %s: tags agree (%s)"), *It->GetName(), *GetActorTagsString(*It));
 			continue;
 		}
 		++Disagreeing;
-		UE_LOG(LogTemp, Warning, TEXT("[TagDebug] %s: tags DISAGREE\n%s"), *It->GetName(), *Mismatches);
+		UE_LOG(LogWoREffects, Warning, TEXT("[TagDebug] %s: tags DISAGREE\n%s"), *It->GetName(), *Mismatches);
 	}
 	const FString Summary = FString::Printf(TEXT("wor.CompareTags: %d of %d combatant(s) disagree"), Disagreeing, Checked);
-	UE_LOG(LogTemp, Display, TEXT("[TagDebug] %s"), *Summary);
+	UE_LOG(LogWoREffects, Display, TEXT("[TagDebug] %s"), *Summary);
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, TAG_DEBUG_SCREEN_SECONDS, Disagreeing > 0 ? FColor::Red : FColor::Green, Summary);

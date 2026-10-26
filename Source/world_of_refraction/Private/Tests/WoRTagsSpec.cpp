@@ -10,13 +10,17 @@
 #include "Debug/Tags/WoRTagDebug.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
+#include "Skills/Effects/StatusBuildupManager.h"
 
 namespace
 {
 	constexpr int32 TAGS_TEST_STUN_ID = 9101;
 	constexpr int32 TAGS_TEST_IMMUNITY_ID = 9102;
 	constexpr int32 TAGS_TEST_HEAL_BLOCK_ID = 9103;
+	constexpr int32 TAGS_TEST_FIRE_IMMUNITY_ID = 9104;
 	constexpr int32 TAGS_TEST_TURNS = 2;
+	/** Well short of a cap, so the buildup triggers nothing. */
+	constexpr float TAGS_TEST_PARTIAL_BAR = 0.25f;
 
 	const ESpellElement TAGS_TEST_ELEMENTS[] = {
 		ESpellElement::Generic, ESpellElement::Fire, ESpellElement::Water, ESpellElement::Earth,
@@ -151,6 +155,24 @@ void FWoRTagsSpec::Define()
 			TestTrue(TEXT("Status.HealBlock"), Tags.HasTagExact(WoRTags::Status_HealBlock));
 			const FString Mismatches = UWoRTagDebug::GetTagMismatchString(Foe);
 			TestTrue(FString::Printf(TEXT("Tags agree: [%s]"), *Mismatches), Mismatches.IsEmpty());
+		});
+
+		// Element immunity has no enum query on the effect manager; its gate is the buildup refusal.
+		It("carries Immunity.Element.Fire exactly when Fire buildup is refused", [this]()
+		{
+			UStatusBuildupManager *Buildup = TestWorld->GetSubsystem<UStatusBuildupManager>();
+			if (!EffectManager || !Foe || !TestNotNull(TEXT("StatusBuildupManager"), Buildup))
+			{
+				return;
+			}
+			const float Amount = Buildup->GetBuildupToTrigger(Foe) * TAGS_TEST_PARTIAL_BAR;
+			Apply(Foe, TEXT("Fireproof"), TAGS_TEST_FIRE_IMMUNITY_ID, ESkillEffectType::GrantFireImmunity);
+			TestTrue(TEXT("Immunity.Element.Fire"), EffectManager->GetEffectTags(Foe).HasTagExact(WoRTags::Immunity_Element_Fire));
+			TestFalse(TEXT("No Immunity.Element.Water"), EffectManager->GetEffectTags(Foe).HasTagExact(WoRTags::Immunity_Element_Water));
+			Buildup->AddStatusBuildup(Hero, Foe, Amount, ESpellElement::Fire, EPhysicalDamageType::None);
+			TestEqual(TEXT("Fire buildup refused"), Buildup->GetStatusBarBuildup(Foe), 0.0f);
+			Buildup->AddStatusBuildup(Hero, Foe, Amount, ESpellElement::Water, EPhysicalDamageType::None);
+			TestTrue(TEXT("Water buildup lands"), Buildup->GetStatusBarBuildup(Foe) > 0.0f);
 		});
 
 		It("drops the tag when the effect is gone", [this]()
