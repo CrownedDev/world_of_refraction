@@ -582,6 +582,10 @@ public:
     void IncrementPurchaseCount();
 
 private:
+    /** B-115: this character's party record when it is a rostered member, for the carried
+     *  crystal and absorption state; null for an enemy or outside a party. */
+    const struct FPartyMember *FindCarriedPartyMember() const;
+
     /** Mutable pointer to a pillar's live field — the single dispatch for the pillar-keyed ops. */
     int32 *LiveFieldFor(EWorldPillar Pillar);
 

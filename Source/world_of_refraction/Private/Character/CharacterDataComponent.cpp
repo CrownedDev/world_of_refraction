@@ -17,6 +17,7 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Party/Party.h"
 #include "Engine/GameInstance.h"
 
 UCharacterDataComponent::UCharacterDataComponent()
@@ -28,6 +29,13 @@ UCharacterDataComponent::UCharacterDataComponent()
     MaxHP = 100;
     MaxEP = 100;
     bIsAlive = true;
+}
+
+const FPartyMember *UCharacterDataComponent::FindCarriedPartyMember() const
+{
+    const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+    return PartySession && CharacterData ? PartySession->GetMemberCarriedState(PartySession->GetMemberSlotByData(CharacterData)) : nullptr;
 }
 
 void UCharacterDataComponent::BeginPlay()
@@ -53,6 +61,11 @@ void UCharacterDataComponent::BeginPlay()
             if (Loadout && Inventory)
             {
                 Loadout->InitializeFromCharacterData(CharacterData, Inventory);
+                // B-115: the crystal state the last fight of the run left, before the pools read it.
+                if (const FPartyMember *Carried = FindCarriedPartyMember())
+                {
+                    Loadout->ApplyCarriedGear(Carried->CarriedGear);
+                }
             }
         }
 
@@ -129,6 +142,11 @@ void UCharacterDataComponent::BeginPlay()
             if (UBrokenDarknessManager *BDManager = Owner->FindComponentByClass<UBrokenDarknessManager>())
             {
                 BDManager->InitializeBornBrokenDarkness();
+                // B-115 (Q-115): after the base-Darkness seed and the EP carry above.
+                if (const FPartyMember *Carried = FindCarriedPartyMember())
+                {
+                    BDManager->ApplyCarriedAbsorption(Carried->CarriedAbsorption);
+                }
             }
 
             // B-159 (D-081): loaded loadouts drop their invalid parts now, not at the next fight.
