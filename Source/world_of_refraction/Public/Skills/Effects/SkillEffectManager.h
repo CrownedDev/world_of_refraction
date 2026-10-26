@@ -9,6 +9,7 @@
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Skills/Effects/FSkillEffect.h"
 #include "Skills/Effects/FGatheredEffect.h"
+#include "Combat/Actions/ActionStatModifiers.h"
 #include "SkillEffectManager.generated.h"
 
 class UCharacterDataComponent;
@@ -320,6 +321,11 @@ public:
 	 *  status-buildup site. */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	float GetTotalStatModifierForElement(AActor *Actor, ESkillEffectType ModifierType, ESpellElement BuildupElement) const;
+
+	/** A sub-stat's net transient modifier in percent: Modify + Buff - Debuff over the
+	 *  channels StatModifierTable lists for it (B-020). 0 when nothing is active. */
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
+	float GetNetStatModifier(AActor *Actor, ESubStat Stat) const;
 
 	/** Count active effects on actor */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")

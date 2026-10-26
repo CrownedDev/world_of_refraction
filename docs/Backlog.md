@@ -51,7 +51,7 @@
 
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
-| B-020 | Stat-modifier table: `ESubStat → {Buff, Debuff, Modify}` + `GetNetModifier(Actor, Stat)`; replace the ~20 hand-written Buff−Debuff pairs | CC | M | B-007 | `wor.CompareStats` identical before/after | TODO |
+| B-020 | Stat-modifier table: `ESubStat → {Buff, Debuff, Modify}` + `GetNetModifier(Actor, Stat)`; replace the ~20 hand-written Buff−Debuff pairs | CC | M | B-007 | `wor.CompareStats` identical before/after | REVIEW (in dev). 13 sub-stat reads use the table; pillar, pool, generic damage, spell cost and crit-chance reads aren't sub-stats and stay; the two buildup-site reads (`StatusBuildupManager.cpp:281, 408-409`) feed the buildup total or need an element, so they stay too |
 | B-021 | Stone row table (`{Type, Stat, Buff/Debuff, Label}`); fold the 14 `Execute*BuffEffect` wrappers and the parallel switches | CC | M | — | Every stone gives the same result (test) | TODO |
 | B-022 | `GetActiveLoadout()` returns const ref; `LoadoutComponent::CharacterClass` becomes a getter over CharacterData | CC | S | — | Compiles; 25 call sites unchanged in behaviour | TODO |
 | B-023 | AI uses the live enum values: `Stun` (not `SkipTurn`), `CleanseSelf`/`CleanseAllies` (not `Cleanse`) | CC | S | B-001 | AI detects stun; picks cleanse spells | TODO |

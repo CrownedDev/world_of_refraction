@@ -862,9 +862,7 @@ float UCharacterDataComponent::GetEquipmentModifiedLuck() const
         // shape. ×1 when none active. A net debuff can drive LuckNorm below 0; the clamp floors it.
         if (USkillEffectManager *SkillMgr = GetSkillEffectManager())
         {
-            const float LuckBuff = SkillMgr->GetTotalStatModifier(Owner, ESkillEffectType::LuckBuff);
-            const float LuckDebuff = SkillMgr->GetTotalStatModifier(Owner, ESkillEffectType::LuckDebuff);
-            LuckNorm *= (1.0f + (LuckBuff - LuckDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+            LuckNorm *= (1.0f + SkillMgr->GetNetStatModifier(Owner, ESubStat::Luck) / CombatConstants::STAT_PERCENT_DIVISOR);
         }
     }
 
@@ -984,9 +982,7 @@ float UCharacterDataComponent::GetTransientSpellDamageFactor() const
     {
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
-            const float SpellBuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::SpellDamageBuff);
-            const float SpellDebuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::SpellDamageDebuff);
-            return 1.0f + (SpellBuff - SpellDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
+            return 1.0f + SEM->GetNetStatModifier(Owner, ESubStat::SpellDamage) / CombatConstants::STAT_PERCENT_DIVISOR;
         }
     }
     return 1.0f;
@@ -1055,9 +1051,7 @@ float UCharacterDataComponent::GetTransientRawDamageFactor() const
     {
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
-            const float RawBuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::RawDamageBuff);
-            const float RawDebuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::RawDamageDebuff);
-            return 1.0f + (RawBuff - RawDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
+            return 1.0f + SEM->GetNetStatModifier(Owner, ESubStat::RawDamage) / CombatConstants::STAT_PERCENT_DIVISOR;
         }
     }
     return 1.0f;
@@ -1105,9 +1099,7 @@ float UCharacterDataComponent::GetEffectiveActionSpeed() const
         }
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
-            const float Buff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::ActionSpeedBuff);
-            const float Debuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::ActionSpeedDebuff);
-            TransientFactor = 1.0f + (Buff - Debuff) / CombatConstants::STAT_PERCENT_DIVISOR;
+            TransientFactor = 1.0f + SEM->GetNetStatModifier(Owner, ESubStat::ActionSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
         }
     }
 
@@ -1142,9 +1134,7 @@ float UCharacterDataComponent::GetEffectiveSpellSpeed() const
         }
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
-            const float Buff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::SpellSpeedBuff);
-            const float Debuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::SpellSpeedDebuff);
-            TransientFactor = 1.0f + (Buff - Debuff) / CombatConstants::STAT_PERCENT_DIVISOR;
+            TransientFactor = 1.0f + SEM->GetNetStatModifier(Owner, ESubStat::SpellSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
         }
     }
 
@@ -1198,11 +1188,8 @@ float UCharacterDataComponent::SpeedWindowGearFactor(EActionType AttackType) con
         // transients; see the transient-additive conversion.)
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
-            const ESkillEffectType BuffType = bSpell ? ESkillEffectType::SpellSpeedBuff : ESkillEffectType::ActionSpeedBuff;
-            const ESkillEffectType DebuffType = bSpell ? ESkillEffectType::SpellSpeedDebuff : ESkillEffectType::ActionSpeedDebuff;
-            const float Buff = SEM->GetTotalStatModifier(Owner, BuffType);
-            const float Debuff = SEM->GetTotalStatModifier(Owner, DebuffType);
-            Factor *= (1.0f + (Buff - Debuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+            const ESubStat SpeedStat = bSpell ? ESubStat::SpellSpeed : ESubStat::ActionSpeed;
+            Factor *= (1.0f + SEM->GetNetStatModifier(Owner, SpeedStat) / CombatConstants::STAT_PERCENT_DIVISOR);
         }
     }
 
@@ -1249,9 +1236,7 @@ float UCharacterDataComponent::ReflexWindowGearFactor() const
         // SpeedWindowGearFactor's transient; multiplier-space stats use additive transients — see that policy.)
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
-            const float Buff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::ReflexBuff);
-            const float Debuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::ReflexDebuff);
-            Factor *= (1.0f + (Buff - Debuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+            Factor *= (1.0f + SEM->GetNetStatModifier(Owner, ESubStat::Reflex) / CombatConstants::STAT_PERCENT_DIVISOR);
         }
     }
 
@@ -1331,9 +1316,7 @@ float UCharacterDataComponent::GetEffectiveEfficiencyMultiplier() const
         // SkillEffectMult layer.
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
-            const float EffBuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::EfficiencyBuff);
-            const float EffDebuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::EfficiencyDebuff);
-            Reduction *= (1.0f + (EffBuff - EffDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+            Reduction *= (1.0f + SEM->GetNetStatModifier(Owner, ESubStat::Efficiency) / CombatConstants::STAT_PERCENT_DIVISOR);
         }
     }
 
@@ -1403,9 +1386,8 @@ float UCharacterDataComponent::GetEffectiveStatusMultiplier() const
         // known). Byte-identical to the prior all-effects sum while every StatusMultiplierBuff is None.
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
-            const float SmBuff = SEM->GetTotalStatModifierForElement(Owner, ESkillEffectType::StatusMultiplierBuff, ESpellElement::None);
-            const float SmDebuff = SEM->GetTotalStatModifierForElement(Owner, ESkillEffectType::StatusMultiplierDebuff, ESpellElement::None);
-            Factor *= FMath::Max(0.0f, 1.0f + (SmBuff - SmDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+            // The table's StatusMultiplier row reads element-agnostic (None) effects only.
+            Factor *= FMath::Max(0.0f, 1.0f + SEM->GetNetStatModifier(Owner, ESubStat::StatusMultiplier) / CombatConstants::STAT_PERCENT_DIVISOR);
         }
     }
 
@@ -1450,7 +1432,7 @@ float UCharacterDataComponent::GetEffectiveResistance() const
         // are element-matched and belong only to the SBM defense aggregate.
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
-            Resistance += SEM->GetTotalStatModifier(Owner, ESkillEffectType::ModifyStatusResist) / CombatConstants::STAT_PERCENT_DIVISOR;
+            Resistance += SEM->GetNetStatModifier(Owner, ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR;
         }
     }
 

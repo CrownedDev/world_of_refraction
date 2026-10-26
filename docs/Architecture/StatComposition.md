@@ -206,6 +206,22 @@ are obtainable only because these were authored.) No code remained.
 
 ---
 
+## 9. The transient layer: the stat-modifier table (B-020)
+
+Each sub-stat's buff/debuff read comes from one table instead of a hand-written `Buff - Debuff` pair at each getter.
+
+- `StatModifierTable::Find(ESubStat)` (`Public/Skills/Effects/StatModifierTable.h`) gives the row `{Buff, Debuff, Modify}`; `ESkillEffectType::None` means no channel.
+- `USkillEffectManager::GetNetStatModifier(Actor, Stat)` returns `Modify + Buff - Debuff` in percent. Each getter still applies it its own way (multiply by `1 + net/100`, floor at 0, or add for Resistance), so the layer order above is unchanged.
+- Rows that aren't a plain pair:
+  - **Crit Damage:** the buff is Crit Damage Up (`ModifyCritDamage`), floored at 0; the debuff is `CritDamageDebuff`.
+  - **Status Multiplier:** element-agnostic effects only; element-keyed buffs are added at the buildup site.
+  - **Resistance:** Status Resist Up (`ModifyStatusResist`) only. `ResistanceBuff/Debuff` are element-matched and belong to the buildup aggregate.
+  - **Turn Speed:** Turn Speed Up + `TurnSpeedBuff` − `TurnSpeedDebuff`.
+- Not in the table (not sub-stats): the pillar buffs (Mind/Body/Spirit), Max HP/EP, generic `DamageBuff/Debuff`, spell cost, and crit chance (its buff/debuff compound multiplicatively).
+- Debug: `wor.CompareStats` snapshots every combatant's composed stats and lists what changed since the last call (saved under `Saved/StatSnapshots/`, so it works across a rebuild); `wor.PrintStatModifiers` lists each net modifier (`UStatModifierDebug`). Tests: `WoR.Stats.Modifiers`.
+
+---
+
 ### Changelog
 
 | Date | Change | Branch |
@@ -215,3 +231,4 @@ are obtainable only because these were authored.) No code remained.
 | 2026-06-16 | Cluster 5g (`5100c0ad`): ActionSpeed + SpellSpeed converted to Pattern P — extracted `GetEffectiveActionSpeed` / `GetEffectiveSpellSpeed` getters (×1.5 stat / ×2.0 gear ceiling), routed the 3 `ActionExecutor` play-rate sites through them, retired the triplicated gear-UNCAPPED inline compose. §4 table speed rows → ×2.0; §5 speed getter note + §3 inverted-twin nuance added. Status → 1–5g. | feature/realtime-defense |
 | 2026-06-16 | Doc-sync: §5 StatusMultiplier live getter corrected — `GetSourceStatusMultiplierFactor` was **retired** in the T3 consolidation; the live composer is `UCharacterDataComponent::GetEffectiveStatusMultiplier` (`CharacterDataComponent.cpp:1203`, clamp `:1240`), which `AddStatusBuildup` / BD overload bake / crystal-wear all read. | feature/realtime-defense |
 | 2026-06-16 | Status migration: **5f-D editor content marked DONE** (editor-side, confirmed complete) — LuckStone `.uasset` authoring shipped. Status line now reads the full arc complete (no "remains" qualifier). | feature/realtime-defense |
+| 2026-10-26 | §9 added: sub-stat buff/debuff reads go through the stat-modifier table and `GetNetStatModifier`; `wor.CompareStats` / `wor.PrintStatModifiers`; `WoR.Stats.Modifiers` spec (B-020) | `refactor/B-020-stat-modifier-table` |

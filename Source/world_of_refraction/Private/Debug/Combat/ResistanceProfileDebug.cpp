@@ -204,7 +204,7 @@ FString UResistanceProfileDebug::GetCombinedResistanceString(AActor *Actor, ESpe
 	float ModifyResist = 0.0f;
 	if (USkillEffectManager *SEM = GI->GetSubsystem<USkillEffectManager>())
 	{
-		ModifyResist = SEM->GetTotalStatModifier(Actor, ESkillEffectType::ModifyStatusResist) / CombatConstants::STAT_PERCENT_DIVISOR;
+		ModifyResist = SEM->GetNetStatModifier(Actor, ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR;
 	}
 
 	const float PreClampSum = BaseSpirit + EquipBonus + StonePct + EffectResist + ClassResist + GearResist + ModifyResist;
