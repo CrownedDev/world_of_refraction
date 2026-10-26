@@ -3,6 +3,7 @@
 
 #include "Combat/TurnManager.h"
 #include "Combat/CombatConstants.h"
+#include "WoRLog.h"
 #include "Engine/Engine.h" // GEngine for on-screen debug (DebugPrintPendingTurns)
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
@@ -42,7 +43,7 @@ void UTurnManager::InitializeCombat(const TArray<AActor *> &LocalParty, const TA
 {
 	if (bCombatActive)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[TurnManager] Combat already active, ending previous combat"));
+		UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] Combat already active, ending previous combat"));
 		EndCombat();
 	}
 
@@ -89,7 +90,7 @@ void UTurnManager::InitializeCombat(const TArray<AActor *> &LocalParty, const TA
 
 	if (Combatants.Num() == 0)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[TurnManager] No valid combatants provided"));
+		UE_LOG(LogWoRCombat, Error, TEXT("[TurnManager] No valid combatants provided"));
 		return;
 	}
 
@@ -112,7 +113,7 @@ void UTurnManager::InitializeCombat(const TArray<AActor *> &LocalParty, const TA
 	// Calculate speed ratios (but don't add to TurnsOwed yet - that happens in AdvanceSimState)
 	CalculateSpeedRatios();
 
-	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Combat initialized with %d combatants"), Combatants.Num());
+	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Combat initialized with %d combatants"), Combatants.Num());
 
 	// Start first turn
 	AdvanceToNextTurn();
@@ -123,7 +124,7 @@ void UTurnManager::EndCombat()
 	if (!bCombatActive)
 		return;
 
-	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Combat ended at turn %d"), GlobalTurnCount);
+	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Combat ended at turn %d"), GlobalTurnCount);
 
 	OnCombatEnded.Broadcast(GlobalTurnCount);
 
@@ -159,7 +160,7 @@ void UTurnManager::AdvanceToNextTurn()
 {
 	if (!bCombatActive)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[TurnManager] AdvanceToNextTurn called but combat not active"));
+		UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] AdvanceToNextTurn called but combat not active"));
 		return;
 	}
 
@@ -171,7 +172,7 @@ void UTurnManager::AdvanceToNextTurn()
 	FPreviewTurnEntry Picked;
 	if (!AdvanceSimState(Combatants, PendingTurns, Picked))
 	{
-		UE_LOG(LogTemp, Error, TEXT("[TurnManager] No valid combatant found for next turn"));
+		UE_LOG(LogWoRCombat, Error, TEXT("[TurnManager] No valid combatant found for next turn"));
 		EndCombat();
 		return;
 	}
@@ -189,7 +190,7 @@ void UTurnManager::AdvanceToNextTurn()
 	CurrentTurnPayloadId = Picked.PayloadId;
 	GlobalTurnCount++;
 
-	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Turn %d: %s (Team %d)"),
+	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Turn %d: %s (Team %d)"),
 		   GlobalTurnCount,
 		   *CurrentActor->GetName(),
 		   GetActorTeam(CurrentActor));
@@ -291,7 +292,7 @@ void UTurnManager::RequestExtraTurn(AActor *Actor, bool bIsBonusTurn)
 	// the old debt-soft bonus behaviour.
 	if (bIsBonusTurn)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[TurnManager] RequestExtraTurn(bIsBonusTurn=true) for %s ignored — use ScheduleBonusTurn for bonuses"),
+		UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] RequestExtraTurn(bIsBonusTurn=true) for %s ignored — use ScheduleBonusTurn for bonuses"),
 			   *Actor->GetName());
 		return;
 	}
@@ -301,13 +302,35 @@ void UTurnManager::RequestExtraTurn(AActor *Actor, bool bIsBonusTurn)
 		if (Combatant.Actor == Actor)
 		{
 			Combatant.TurnsOwed += 1.0f;
-			UE_LOG(LogTemp, Log, TEXT("[TurnManager] Extra turn granted to %s (TurnsOwed now %.2f)"),
+			UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Extra turn granted to %s (TurnsOwed now %.2f)"),
 				   *Actor->GetName(), Combatant.TurnsOwed);
 			return;
 		}
 	}
-	UE_LOG(LogTemp, Warning, TEXT("[TurnManager] RequestExtraTurn: %s not in current combat"),
+	UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] RequestExtraTurn: %s not in current combat"),
 		   *Actor->GetName());
+}
+
+void UTurnManager::DelayNextTurn(AActor *Actor, int32 Places)
+{
+	if (!Actor || Places <= 0)
+	{
+		return;
+	}
+
+	for (FCombatantTurnDebt &Combatant : Combatants)
+	{
+		if (Combatant.Actor == Actor)
+		{
+			Combatant.PlacesToYield += Places;
+			UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s's next turn moves back %d place(s)"), *Actor->GetName(), Places);
+			// The strip reads the belt; rebuild it so the delay shows now, not next turn.
+			RebuildBelt();
+			OnSpeedChanged.Broadcast(Actor);
+			return;
+		}
+	}
+	UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] DelayNextTurn: %s not in current combat"), *Actor->GetName());
 }
 
 void UTurnManager::ScheduleBonusTurn(AActor *Actor, int32 DelayTurns, int32 Count)
@@ -323,7 +346,7 @@ void UTurnManager::ScheduleBonusTurn(AActor *Actor, int32 DelayTurns, int32 Coun
 	Entry.Count = FMath::Max(1, Count);
 	PendingTurns.Add(Entry);
 
-	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Scheduled %d pinned bonus turn(s) for %s after %d normal turn(s)"),
+	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Scheduled %d pinned bonus turn(s) for %s after %d normal turn(s)"),
 		   Entry.Count, *Actor->GetName(), DelayTurns);
 }
 
@@ -343,7 +366,7 @@ void UTurnManager::ScheduleExecutionTurn(AActor *Caster, int32 DelayTurns, int32
 	Entry.SortKey = SpellSpeed;        // frozen spell speed -> fire-time adjacency selection
 	PendingTurns.Add(Entry);
 
-	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Scheduled Execution Turn for %s after %d normal turn(s) (payload %d, spellspeed %.2f)"),
+	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Scheduled Execution Turn for %s after %d normal turn(s) (payload %d, spellspeed %.2f)"),
 		   *Caster->GetName(), DelayTurns, PayloadId, SpellSpeed);
 }
 
@@ -447,14 +470,22 @@ void UTurnManager::OnActorSpeedChanged(AActor *Actor)
 
 void UTurnManager::OnActorDied(AActor *Actor)
 {
-	UE_LOG(LogTemp, Log, TEXT("[TurnManager] %s died"), *Actor->GetName());
+	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s died"), *Actor->GetName());
+	// A Wind delay dies with its holder; a revived holder starts undelayed.
+	for (FCombatantTurnDebt &Combatant : Combatants)
+	{
+		if (Combatant.Actor == Actor)
+		{
+			Combatant.PlacesToYield = 0;
+		}
+	}
 	// Recalculate ratios since the slowest combatant might have changed
 	CalculateSpeedRatios();
 }
 
 void UTurnManager::OnActorResurrected(AActor *Actor)
 {
-	UE_LOG(LogTemp, Log, TEXT("[TurnManager] %s resurrected"), *Actor->GetName());
+	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s resurrected"), *Actor->GetName());
 	// Recalculate ratios since the slowest combatant might have changed
 	CalculateSpeedRatios();
 }
@@ -615,35 +646,56 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 		}
 	}
 
-	// Find highest debt
-	FCombatantTurnDebt *NextCombatant = nullptr;
-	float HighestDebt = -FLT_MAX;
-
-	for (FCombatantTurnDebt &Combatant : State)
+	// Find highest debt (optionally skipping one combatant: the one yielding its place)
+	auto PickHighestDebt = [this, &State](const FCombatantTurnDebt *Skip) -> FCombatantTurnDebt *
 	{
-		UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
-		if (!CharComp || !CharComp->bIsAlive)
-			continue;
+		FCombatantTurnDebt *Best = nullptr;
+		float HighestDebt = -FLT_MAX;
 
-		float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
+		for (FCombatantTurnDebt &Combatant : State)
+		{
+			if (&Combatant == Skip)
+				continue;
 
-		if (NetDebt > HighestDebt + KINDA_SMALL_NUMBER)
-		{
-			HighestDebt = NetDebt;
-			NextCombatant = &Combatant;
-		}
-		else if (FMath::IsNearlyEqual(NetDebt, HighestDebt, KINDA_SMALL_NUMBER))
-		{
-			if (NextCombatant && ShouldBreakTieInFavor(Combatant, *NextCombatant))
+			UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
+			if (!CharComp || !CharComp->bIsAlive)
+				continue;
+
+			float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
+
+			if (NetDebt > HighestDebt + KINDA_SMALL_NUMBER)
 			{
-				NextCombatant = &Combatant;
+				HighestDebt = NetDebt;
+				Best = &Combatant;
+			}
+			else if (FMath::IsNearlyEqual(NetDebt, HighestDebt, KINDA_SMALL_NUMBER))
+			{
+				if (Best && ShouldBreakTieInFavor(Combatant, *Best))
+				{
+					Best = &Combatant;
+				}
 			}
 		}
-	}
+		return Best;
+	};
 
+	FCombatantTurnDebt *NextCombatant = PickHighestDebt(nullptr);
 	if (!NextCombatant)
 	{
 		return false;
+	}
+
+	// Wind break (D-014): a delayed combatant gives this pick to the next in line, once per
+	// place. Alone on the field, it keeps the turn (and the yield) — nobody to step behind.
+	if (NextCombatant->PlacesToYield > 0)
+	{
+		// The next in line goes even if it has used this round's turns: in a 1v1 that is the
+		// only way to move back a place. It can exceed a speed ratio (D-049 is still open).
+		if (FCombatantTurnDebt *NextInLine = PickHighestDebt(NextCombatant))
+		{
+			NextCombatant->PlacesToYield--;
+			NextCombatant = NextInLine;
+		}
 	}
 
 	// Record the slot — a NORMAL turn. Bonus identity now comes solely from the
@@ -685,19 +737,19 @@ void UTurnManager::RebuildBelt()
 
 void UTurnManager::DebugPrintTurnOrder()
 {
-	UE_LOG(LogTemp, Display, TEXT("=== TURN ORDER DEBUG ==="));
-	UE_LOG(LogTemp, Display, TEXT("Current Turn: %d"), GlobalTurnCount);
+	UE_LOG(LogWoRCombat, Display, TEXT("=== TURN ORDER DEBUG ==="));
+	UE_LOG(LogWoRCombat, Display, TEXT("Current Turn: %d"), GlobalTurnCount);
 
 	if (CurrentActor)
 	{
-		UE_LOG(LogTemp, Display, TEXT("Current Actor: %s"), *CurrentActor->GetName());
+		UE_LOG(LogWoRCombat, Display, TEXT("Current Actor: %s"), *CurrentActor->GetName());
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("\nCombatant Debt Status:"));
+	UE_LOG(LogWoRCombat, Display, TEXT("\nCombatant Debt Status:"));
 	for (const FCombatantTurnDebt &Combatant : Combatants)
 	{
 		float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
-		UE_LOG(LogTemp, Display, TEXT("  %s: Speed=%d, Ratio=%.2f, Owed=%.2f, Taken=%d, Net=%.2f"),
+		UE_LOG(LogWoRCombat, Display, TEXT("  %s: Speed=%d, Ratio=%.2f, Owed=%.2f, Taken=%d, Net=%.2f"),
 			   *Combatant.Actor->GetName(),
 			   Combatant.CachedSpeed,
 			   Combatant.SpeedRatio,
@@ -707,15 +759,15 @@ void UTurnManager::DebugPrintTurnOrder()
 	}
 
 	TArray<FPreviewTurnEntry> Preview = PreviewTurnOrder(10);
-	UE_LOG(LogTemp, Display, TEXT("\nNext 10 turns:"));
+	UE_LOG(LogWoRCombat, Display, TEXT("\nNext 10 turns:"));
 	for (int32 i = 0; i < Preview.Num(); i++)
 	{
-		UE_LOG(LogTemp, Display, TEXT("  %d. %s%s"), i + 1,
+		UE_LOG(LogWoRCombat, Display, TEXT("  %d. %s%s"), i + 1,
 			   Preview[i].Actor ? *Preview[i].Actor->GetName() : TEXT("<none>"),
 			   Preview[i].bIsBonusTurn ? TEXT(" [BONUS]") : TEXT(""));
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("======================"));
+	UE_LOG(LogWoRCombat, Display, TEXT("======================"));
 }
 
 FString UTurnManager::GetPendingTurnsString() const
@@ -738,7 +790,7 @@ FString UTurnManager::GetPendingTurnsString() const
 void UTurnManager::DebugPrintPendingTurns()
 {
 	const FString Str = GetPendingTurnsString();
-	UE_LOG(LogTemp, Display, TEXT("=== SCHEDULED BONUS TURNS ===\n%s\n============================="), *Str);
+	UE_LOG(LogWoRCombat, Display, TEXT("=== SCHEDULED BONUS TURNS ===\n%s\n============================="), *Str);
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Cyan, Str);
@@ -747,14 +799,14 @@ void UTurnManager::DebugPrintPendingTurns()
 
 void UTurnManager::DebugPrintBelt()
 {
-	UE_LOG(LogTemp, Display, TEXT("=== TURN BELT (%d entries) ==="), TurnBelt.Num());
+	UE_LOG(LogWoRCombat, Display, TEXT("=== TURN BELT (%d entries) ==="), TurnBelt.Num());
 	for (int32 i = 0; i < TurnBelt.Num(); i++)
 	{
-		UE_LOG(LogTemp, Display, TEXT("  %d. %s [%s]"), i + 1,
+		UE_LOG(LogWoRCombat, Display, TEXT("  %d. %s [%s]"), i + 1,
 			   TurnBelt[i].Actor ? *TurnBelt[i].Actor->GetName() : TEXT("<none>"),
 			   TurnTypeToString(TurnBelt[i].Type));
 	}
-	UE_LOG(LogTemp, Display, TEXT("======================"));
+	UE_LOG(LogWoRCombat, Display, TEXT("======================"));
 }
 
 // FAutoConsoleCommandWithWorld — NOT UFUNCTION(Exec). A UGameInstanceSubsystem is not on the
@@ -777,7 +829,7 @@ namespace
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[TurnManager] wor.PrintBelt: no subsystem (no PIE world?)."));
+					UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] wor.PrintBelt: no subsystem (no PIE world?)."));
 				}
 			}));
 }

@@ -10,6 +10,7 @@
 #include "Combat/Damage/EPhysicalDamageType.h"
 #include "Skills/Effects/FSkillEffect.h"
 #include "Skills/Effects/EffectIdentity.h"
+#include "Skills/Effects/TurnSpan.h"
 #include "ActiveSkillEffect.generated.h"
 
 /**
@@ -116,6 +117,23 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	/** Effect never expires (equipment bonuses, auras, etc.) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Duration")
 	bool bPermanent = false;
+
+	/** Counts the holder's turns by the one rule (FTurnSpan, D-051): ends as the holder's turn
+	 *  starts, not at turn end. Full bars use it (B-063); other effects move over with B-042.
+	 *  RemainingTurns mirrors HolderTurns.TurnsLeft for display. */
+	UPROPERTY(BlueprintReadOnly, Category = "Duration")
+	bool bCountsHolderTurns = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Duration")
+	FTurnSpan HolderTurns;
+
+	void StartHolderTurnSpan(int32 Turns)
+	{
+		bCountsHolderTurns = true;
+		HolderTurns = FTurnSpan::OfHolderTurns(Turns);
+		RemainingTurns = HolderTurns.TurnsLeft;
+		InitialDuration = HolderTurns.TurnsLeft;
+	}
 
 	// ========================================
 	// CHARGES

@@ -477,6 +477,12 @@ private:
 	/** Tick durations for actor's effects (called at end of turn) */
 	void TickDurations(AActor *Actor);
 
+	/** Holder-turn spans (FTurnSpan): count the turn that just ended. */
+	void CountHolderTurnSpans(AActor *Actor);
+
+	/** Holder-turn spans: remove the ones that are over, as the holder's turn starts. */
+	void ExpireFinishedHolderTurnSpans(AActor *Actor);
+
 	/** Consume one charge after a fire. The SINGLE charge-expiry path every fire site calls.
 	 *  Charges == 0 (no charge system) → no-op (existing effects untouched). Charges > 0 →
 	 *  decrement; at <= 0 remove the effect from the actor's list + broadcast OnEffectRemoved.

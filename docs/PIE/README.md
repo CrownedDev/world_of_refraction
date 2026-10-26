@@ -51,6 +51,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-110](B-110.md) | `fix/B-110-menu-close-after-refusal` (in `dev`) | A refused pick keeps the command menu open | Not tested |
 | [B-041](B-041.md) | `feature/B-041-gas-attributes` (in `dev`) | GAS attributes mirror the stats (`wor.CompareAttributes`) | Not tested |
 | [B-062](B-062.md) | `feature/B-062-effect-identity` (in `dev`) | An effect belongs to its source: same source refreshes, another adds | Not tested |
+| [B-063](B-063.md) | `feature/B-063-status-breaks` (in `dev`) | Every full bar lasts one holder turn; Water slows, Wind delays, BD drains | Not tested |
 | [B-166](B-166.md) | `fix/B-166-headless-skill-start` (in `dev`) | A montage-less skill no longer crashes the async start; ritual spec covers one | Not tested |
 | [B-174](B-174.md) | `fix/B-174-support-no-buildup` (in `dev`) | Heals, buffs and support skills build no status | Not tested |
 | [B-175](B-175.md) | `feature/B-175-one-switch-per-turn` (in `dev`) | One free weapon or ring switch per turn | Not tested |

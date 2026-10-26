@@ -1593,6 +1593,30 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-062-effect-identity): `ApplyEffect` keys an unstamped effect on the source actor + ability name. Gear is keyed on the item object (`GetUniqueID` + name); on-defense gear adds the wearer, so two wearers of copies of one item stay two sources. `PersistentID` is not needed while one character can't hold two copies of the same item at once. Stacks: a stackable re-apply now takes the new per-stack value and always refreshes (part of Q-044b); the default cap of 3 stays until B-042. No effect definition sets `bDoesNotStack` yet (Q-044g: defaults off; Crown ticks it per definition). Once per match (D-011) is spent per character **and source**: one character with the same once-per-match effect on two items gets one use from each (two sources add, D-053); a doesn't-stack effect gives one use per character whichever item brings it.
 
+### Q-063 — A Burn that lands on the holder's own turn: when does it pay?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-063) · **Blocks:** — (B-063 shipped with A)
+**Question:** D-051 says the landing turn counts as turn 1 when it is the holder's own, and payouts happen at turn starts. A 1-turn break landing on the holder's own turn (a counter-hit, a reflected hit) then has no turn start left to pay at, so it would pay 0 times, while D-051 says exactly N. Which gives way?
+**Options:**
+- **A** it pays once on landing; it still ends as the holder's next turn starts.
+- **B** it pays 0 times (the counting rule wins).
+- **C** the landing turn doesn't count for payout effects; it lasts and pays through the next turn.
+**Recommendation:** A. It keeps both halves of D-051: the landing turn counts and there are exactly N payouts. A damage-over-time that does nothing at all would read as a bug. Pokémon's poison and burn always deal their damage the turn they land, which players accept without thought. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-063-status-breaks): `ApplyTriggeredSkillEffect` clears `bDelayFirstExecution` when the target is the current turn's actor.
+
+### Q-063b — Void's break: what is the "minimal" version?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-063) · **Blocks:** — (B-063 shipped with A)
+**Question:** B-063 says Void's `RandomSkill` break is "minimal". A real loss of control (the holder's action picked at random for it) needs the command menu, the AI and the executor. Build that inside B-063, or keep the marker?
+**Options:**
+- **A** keep the 1-turn marker for now (counted by the shared rule, logged, no forced action); build the random action as its own job (B-199).
+- **B** build the forced random action in B-063.
+**Recommendation:** A. It is the incremental rule (CLAUDE.md: build alongside, prove, then extend); a forced action touches the player's menu, the AI and the executor, which is its own job with its own PIE check. When built, Final Fantasy's Confuse is the familiar model (the game picks for you for a turn). Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-063-status-breaks). Two more choices made in B-063:
+- Only full-bar effects use the shared counter (`FTurnSpan`) for now; every other timed effect keeps today's end-of-turn countdown until B-042 moves effects to the GAS tracker (D-051 "everywhere" lands there).
+- Execution turns still skip the turn-start step (Q-044d A is built with B-042), so a break held across an Execution turn counts that turn but has no payout or expiry on it. So a Burn landed off-turn whose holder's next turn is an Execution turn pays 0 times (`CombatOrchestrator.cpp:899-903` skips the start step; `SkillEffectManager.cpp:999` still counts the turn); B-042 fixes it.
+- Wind's delay hands the turn to the next in line even when that one has used its turns this round (otherwise Wind does nothing in a 1v1); this can exceed a speed ratio, which matters only if D-049 caps turns.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

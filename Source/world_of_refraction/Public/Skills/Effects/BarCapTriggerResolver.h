@@ -35,7 +35,9 @@ namespace BarCapTriggerResolver
         case ESpellElement::Fire:
             return ESkillEffectType::DOT;
         case ESpellElement::Water:
-            return ESkillEffectType::HealBlock;
+            // D-090: Water's break slows Action + Spell Speed (no longer a heal block).
+            // ApplyTriggeredSkillEffect adds the Spell Speed half.
+            return ESkillEffectType::ActionSpeedDebuff;
         case ESpellElement::Earth:
             return ESkillEffectType::DefenseDebuff;
         case ESpellElement::Wind:
