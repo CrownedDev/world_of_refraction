@@ -1660,6 +1660,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-071-party-into-battle): `ABattleGameMode::BootstrapCombat` possesses the leader's pawn when it fights, otherwise the first Player-set member, otherwise the first spawned.
 
+### Q-195 — What does each hub service NPC do before the service screens exist?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-195) · **Blocks:** — (B-195 shipped with A)
+**Question:** HubAndStory §3 / D-047 / D-048: one V-as-service NPC each for the Blacksmith, Jeweler, Stone Smith, Spiritualist, ability and spell shops and the loadout vendor, each opening the existing placeholder screen. Only the shop window exists (buying); upgrade, repair, merge and the purchase loadout aren't built. What does each NPC open, and how is V shown?
+**Options:**
+- **A** Every service is the existing hub merchant NPC with a merchant type (Stone Smith and Loadout Vendor added); pressing E opens the shop window with that merchant's stock, and each later service screen hooks into the same NPC when it's built. V's look per service is one mesh slot on the merchant data (empty: the placeholder cube). A coverage check lists any service with no NPC in the hub.
+- **B** A new NPC class per service.
+- **C** One V NPC with a menu of every service.
+**Recommendation:** A. Elden Ring's Roundtable Hold and Nightreign's hub put each service at its own fixed NPC (Hewg, the Twin Maiden Husks), and players find it easy to learn; Hades' House shows one familiar face per role. Reusing the merchant NPC keeps one interaction path, and one mesh slot is all V's outfits need until the meshes exist (B-143 / B-144). Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-195-hub-services): `EMerchantType::StoneSmith` / `LoadoutVendor`, `UMerchantData::VOutfitMesh`, `AMerchantInteractable::GetMissingServices`, `wor.Hub.Services`. Known gaps: the NPCs only sell for now (upgrade, repair, merge, reroll and the purchase loadout screens come with their jobs); the merchant data assets and hub placement are authored in the editor.
+
 ### Q-194 — How do the journal, V's lines and conversations unlock and play?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-194) · **Blocks:** — (B-194 shipped with A)
 **Question:** HubAndStory §4: recovered memories show up in a memory journal (memories, lore, logged dialogue), V's lines between runs and character conversations, all unlocked from the same memory data. How are they authored, when do they unlock, and how are they played?
