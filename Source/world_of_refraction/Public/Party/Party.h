@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "Combat/Grid/ECombatRow.h"
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "Party.generated.h"
@@ -25,6 +26,20 @@ namespace PartyConstants
 {
 	/** Active party size. No reserves — a dead member is out until revived. */
 	constexpr int32 MAX_PARTY_MEMBERS = 3;
+
+	/** Sentinel for FPartyMember::CurrentHP/CurrentEP: no carried trial state.
+	 *  Distinguishable from a legitimately carried 0 (a downed member, or a
+	 *  Broken Darkness member's empty EP pool). */
+	constexpr int32 NO_CARRIED_VITALS = -1;
+
+	/** Sentinel for FPartyMember::PreferredColumn: the member has not been placed
+	 *  on the formation grid. An unplaced member falls back to
+	 *  UCombatGridSubsystem::AutoAssignTeam's centre-out table at spawn.
+	 *
+	 *  Column alone carries the unplaced state — ECombatRow has no "unset" value,
+	 *  and adding one would ripple into the row modifier switches in
+	 *  FCombatGridPosition. PreferredRow is meaningless while this is set. */
+	constexpr int32 UNSET_FORMATION = -1;
 }
 
 /** One party slot. Pawn class is the authored identity; CharacterData is resolved
@@ -43,7 +58,34 @@ struct FPartyMember
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	TObjectPtr<UCharacterData> CharacterData = nullptr;
 
+	/** Carried vitals across the trial→battle→trial chain. NO_CARRIED_VITALS (-1)
+	 *  means no trial state has been carried yet — display falls back to the
+	 *  template's CalculateMaxHealth/CalculateMaxEnergy, so a hub member reads
+	 *  full. >= 0 is a real carried value from an in-trial battle.
+	 *
+	 *  The bar always renders for a real member; the sentinel only changes which
+	 *  number it shows. Slot vacancy is the display's separate concern, not a
+	 *  vitals state. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	int32 CurrentHP = PartyConstants::NO_CARRIED_VITALS;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	int32 CurrentEP = PartyConstants::NO_CARRIED_VITALS;
+
+	/** Authored formation cell. Only meaningful when HasFormation() — see
+	 *  UNSET_FORMATION. Written by UPartySessionSubsystem::SetMemberFormation,
+	 *  which owns the no-two-members-per-cell invariant; do not assign directly. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	ECombatRow PreferredRow = ECombatRow::Middle;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	int32 PreferredColumn = PartyConstants::UNSET_FORMATION;
+
 	bool IsValidMember() const { return !PawnClass.IsNull() && CharacterData != nullptr; }
+
+	bool HasCarriedVitals() const { return CurrentHP != PartyConstants::NO_CARRIED_VITALS; }
+
+	bool HasFormation() const { return PreferredColumn != PartyConstants::UNSET_FORMATION; }
 };
 
 UCLASS(BlueprintType)
@@ -75,7 +117,19 @@ public:
 	bool IsEmpty() const { return Members.Num() == 0; }
 
 	/** Flattened roster in slot order, for the battle stash / orchestrator, which
-	 *  take TArray<UCharacterData*>. Skips slots whose asset failed to resolve. */
+	 *  take TArray<UCharacterData*>. Skips slots whose asset failed to resolve.
+	 *
+	 *  ⚠️ Includes the dead. The battle path wants GetLivingMemberCharacterData. */
 	UFUNCTION(BlueprintPure, Category = "Party")
 	TArray<UCharacterData *> GetMemberCharacterData() const;
+
+	/** As GetMemberCharacterData, minus members who died in an earlier battle of
+	 *  this trial. This is the roster the Battle Party is built from.
+	 *
+	 *  Dead is a CARRIED zero — HasCarriedVitals() first, so the NO_CARRIED_VITALS
+	 *  sentinel (-1, a fresh trial with nothing banked yet) is never mistaken for a
+	 *  corpse. Returns empty on a full party wipe; callers must handle that rather
+	 *  than passing it on as a battle roster. */
+	UFUNCTION(BlueprintPure, Category = "Party")
+	TArray<UCharacterData *> GetLivingMemberCharacterData() const;
 };

@@ -289,18 +289,26 @@ void UCombatGridSubsystem::AutoAssignTeam(const TArray<AActor *> &TeamActors, in
                TeamActors.Num(), CombatGridConstants::MAX_TEAM_SIZE);
     }
 
-    // Assign actors to columns 0, 1, 2 in preferred row
-    int32 Column = 0;
+    // Centre-out: index 0 (leader, by roster convention) takes centre,
+    // later members flank. TODO(formation-arc): superseded by
+    // party-authored PreferredColumn once the hub formation UI exists;
+    // this table becomes the unstamped fallback.
+    constexpr int32 CENTRE_OUT_COLUMNS[CombatGridConstants::GRID_COLUMNS] = {1, 0, 2};
+
+    // Leadership is INFERRED from array index 0, not authored — the alive-filter can
+    // shift it in a wipe, in which case the survivor takes centre. Acceptable for a
+    // fallback; authored leadership is the formation arc's job.
+    int32 Index = 0;
     for (AActor *Actor : TeamActors)
     {
-        if (Column >= CombatGridConstants::GRID_COLUMNS)
+        if (Index >= CombatGridConstants::GRID_COLUMNS)
         {
-            break; // Max 3 per team
+            break; // Max 3 per team — the over-size case is warned above
         }
 
-        FCombatGridPosition Position(TeamIndex, PreferredRow, Column);
+        FCombatGridPosition Position(TeamIndex, PreferredRow, CENTRE_OUT_COLUMNS[Index]);
         AssignPosition(Actor, Position);
-        Column++;
+        Index++;
     }
 
     UE_LOG(LogTemp, Log, TEXT("[CombatGrid] Auto-assigned %d actors to Team %d (%s row)"),

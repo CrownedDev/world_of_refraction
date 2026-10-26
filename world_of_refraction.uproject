@@ -32,6 +32,10 @@
 		{
 			"Name": "AllToolsets",
 			"Enabled": true
+		},
+		{
+			"Name": "CommonUI",
+			"Enabled": true
 		}
 	]
 }

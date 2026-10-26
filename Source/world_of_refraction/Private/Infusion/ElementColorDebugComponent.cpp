@@ -4,6 +4,7 @@
 #include "Infusion/ElementColorDebugComponent.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
+#include "Infusion/ClassColors.h"
 #include "Infusion/ElementColors.h"
 #include "Infusion/HybridSpellColors.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
@@ -78,8 +79,10 @@ void UElementColorDebugComponent::ApplyElementColor()
     }
     else
     {
-        // Normal element
-        CharacterColor = ElementColors::GetColorForElement(Element);
+        // Class-identity tint, matching the character panel's class label:
+        // Casters resolve through their innate element, Generic brown,
+        // Resonator steel silver.
+        CharacterColor = ClassColors::GetColorForCharacter(CharDataComp->CharacterData);
         UE_LOG(LogTemp, Log, TEXT("[ElementColorDebug] %s: Element %d -> Color applied"), *Owner->GetName(), (int32)Element);
     }
 
