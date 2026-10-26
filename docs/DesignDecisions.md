@@ -385,7 +385,7 @@ The queue of questions only Crown can answer.
 - A: the deckbuilder model (Ice = a Water damage type for some skills).
 - B: a full tenth element with its own crystals, rings and Refractors.
 **Recommendation:** A, per the deckbuilder; much smaller, and it keeps nine elements. Follow-up if A: what a full Ice bar does (Water's is "no healing"), e.g. Freeze = slower turns.
-**Answer (Crown):** (2026-10-26) **A, the deckbuilder model** (taken from Crown answering the A follow-up; Crown, correct if not), and **a full Ice bar slows action speed** (Freeze).
+**Answer (Crown):** (2026-10-26) **A, the deckbuilder model**, and **a full Ice bar slows action speed** (Freeze).
 **Notes for Claude:**
 - Add `Ice` to the element/damage-type enum **at the end** (append-only, explicit value). Ice is a damage type only: no Ice crystal, ring or Refractor innate; Ice skills are Water-keyed and Water sources unlock them.
 - Resistance and triggers per the deckbuilder table (`02-enums.md` "Ice — a damage type, not an element"): Ice resistance covers Ice and Water; Water Amp doesn't boost Ice; "on Water hit" hears Ice. Resistance table (D-005) gets an Ice column; values `// TODO: tune`.
