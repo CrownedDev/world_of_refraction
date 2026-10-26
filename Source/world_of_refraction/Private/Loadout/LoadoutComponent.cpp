@@ -34,6 +34,22 @@
 
 #define LOCTEXT_NAMESPACE "LoadoutComponent"
 
+namespace
+{
+    /** Q-159 = A: utility crystals a loadout rule removes are not destroyed; they go back to the
+     *  inventory. */
+    void LoadoutReturnDroppedCrystals(UInventoryComponent *Inv, const FCrystalId &Id, int32 Count)
+    {
+        if (Count <= 0 || Inv->AddCrystal(Id, Count))
+        {
+            return;
+        }
+        // TODO: D-097 - send them to home storage when the inventory is full (storage not built yet).
+        UE_LOG(LogWoRLoadout, Warning, TEXT("Inventory full: %d dropped %s lost (no storage yet, D-097)"),
+               Count, *ItemIdentity::GetDisplayName(Id));
+    }
+}
+
 ULoadoutComponent::ULoadoutComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
@@ -1447,6 +1463,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index)
                 }
                 if (Seen.Contains(Slot.CrystalId.Type))
                 {
+                    LoadoutReturnDroppedCrystals(Inv, Slot.CrystalId, Slot.Quantity);
                     Slot = FItemLoadoutSlot();
                 }
                 else
@@ -1484,12 +1501,12 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index)
             if (Loadout.ItemSlots.IsValidIndex(Finding.SlotIndex))
             {
                 FItemLoadoutSlot &Slot = Loadout.ItemSlots[Finding.SlotIndex];
+                LoadoutReturnDroppedCrystals(Inv, Slot.CrystalId, Slot.Quantity - InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT);
                 Slot.Quantity = FMath::Clamp(Slot.Quantity, 0, InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT);
             }
             break;
         case ELoadoutSlotType::UtilityCrystalTierCap:
         {
-            // TODO: do the dropped crystals go back to the inventory? (Q-159)
             const TArray<FItemLoadoutSlot> Untrimmed = Loadout.ItemSlots;
             FLoadoutRules::TrimUtilityCrystalsToTierCaps(Loadout);
             TArray<FString> Removed;
@@ -1498,6 +1515,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index)
                 const int32 Lost = Untrimmed[i].Quantity - Loadout.ItemSlots[i].Quantity;
                 if (Lost > 0)
                 {
+                    LoadoutReturnDroppedCrystals(Inv, Untrimmed[i].CrystalId, Lost);
                     Removed.Add(FString::Printf(TEXT("%s %s x%d"), *UEnum::GetDisplayValueAsText(Untrimmed[i].CrystalId.Tier).ToString(),
                                                 *UEnum::GetDisplayValueAsText(Untrimmed[i].CrystalId.Type).ToString(), Lost));
                 }
