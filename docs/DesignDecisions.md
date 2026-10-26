@@ -224,10 +224,15 @@ The queue of questions only Crown can answer.
 **Notes for Claude:** already the behaviour since Arc A (reset at combat end); nothing to build. Keep it when the effects overhaul / GAS stage 3 lands.
 
 ### D-014 — What does Wind's "skip turn" do?
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-063
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-063
 **Question:** Wind's bar cap stores SkipTurn but nothing enforces it. Is it the same as stun?
 **Recommendation:** Pass the next turn (like stun), distinct name and icon.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **B, pushed back in the turn order** (2026-10-26). A full Wind bar knocks the target later in the queue; it isn't a stun (Lightning owns Stun).
+**Notes for Claude:**
+- Checked: the Wind cap resolves to `SkipTurn` (`BarCapTriggerResolver.h`), which nothing enforces; Lightning resolves to `Stun`.
+- Build it as a turn-order delay through `UTurnManager` (it already re-sorts on speed changes: `SkillEffectManager::NotifySpeedChanged` → `OnActorSpeedChanged`). How far back is a named constant, `// TODO: tune`. Visible on the turn strip.
+- Keep the `SkipTurn` enum member (append-only); give it this meaning, with its own name and icon (e.g. "Gusted"; naming is Crown's, ask if unsure).
+- Tests: a full Wind bar moves the target later in the next turn order; it still acts that round.
 
 ### D-015 — Should cleanse remove your own gear effects?
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-065
@@ -369,6 +374,18 @@ The queue of questions only Crown can answer.
 - Abilities are already slot-driven: the combat menu shows the active weapon's abilities for any class (`FCombatCapabilities.cpp:49-59`). `CharacterClassHelpers::CanUseAbilities/CanUseSpells` (`ECharacterClass.h:45-55`) and `UCharacterData::CanUseSpells/CanUseAbilities` (`CharacterData.h:261-264`) are not used by combat. B-097 checks for any other callers and removes them, or flags them; no behaviour change.
 - The real change is B-098: weapon-crystal spells (`AssignedSpells`, `FCombatCapabilities.cpp:61-67`) become infused abilities.
 - Class passives like the deckbuilder's are **not** ruled here; suggest them in a new decision if wanted.
+
+### D-029 — Ice as a sub-element of Water: how does it work?
+**Status:** OPEN · **Raised:** 2026-10-26 · **Blocks:** — (new job once answered)
+**Question:** Crown (2026-10-26): Water should have a sub-element, Ice. What can be Ice, and what does a full Ice bar do?
+**Context:**
+- This game has no Ice (`ESpellElement` has none).
+- Deckbuilder (`02-enums.md` "Ice — a damage type, not an element"): Ice is a **damage type**, not a full element. No Ice crystal, ring or Refractor; an Ice skill is keyed Water and Water sources unlock it. Ice resistance also resists Water; Water Amp doesn't boost Ice; "on Water hit" hears Ice too. Guideline: Ice is a heavier, slower Water (more Energy, more damage).
+**Options:**
+- A: the deckbuilder model (Ice = a Water damage type for some skills).
+- B: a full tenth element with its own crystals, rings and Refractors.
+**Recommendation:** A, per the deckbuilder; much smaller, and it keeps nine elements. Follow-up if A: what a full Ice bar does (Water's is "no healing"), e.g. Freeze = slower turns.
+**Answer (Crown):** _write here_
 
 ---
 
