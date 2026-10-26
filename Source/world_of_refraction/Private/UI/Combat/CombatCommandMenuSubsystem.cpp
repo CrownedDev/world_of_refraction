@@ -27,6 +27,10 @@
 
 namespace
 {
+    /** EPieMenuCategory::MoveRow's DataIndex: which way the step goes. */
+    constexpr int32 MOVE_ROW_BACK_INDEX = 0;
+    constexpr int32 MOVE_ROW_FORWARD_INDEX = 1;
+
     bool ResolveImmuneFlag(UObject *ActionData, AActor *Actor)
     {
         // Equipment-level immunity (active weapon / active ring on the wielder)
@@ -336,6 +340,11 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         SubmitConfirmedAction(ButtonData);
         break;
 
+    case EPieMenuCategory::MoveRow:
+        // Free, like a weapon switch: the turn goes on (D-096).
+        ExecuteMoveRow(ButtonData.DataIndex == MOVE_ROW_FORWARD_INDEX);
+        break;
+
     case EPieMenuCategory::Defend:
         // No target to pick: Defend applies to the actor itself. No Close() here: Defend
         // executes synchronously, so HandleActionExecuted has already closed this menu and
@@ -602,6 +611,8 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
         Buttons.Add(CreateSwitchWeaponButton());
     if (CurrentCapabilities.bCanSwitchRing)
         Buttons.Add(CreateSwitchRingButton());
+    Buttons.Add(CreateMoveRowButton(true));
+    Buttons.Add(CreateMoveRowButton(false));
     Buttons.Add(CreateDefendButton());
     Buttons.Add(CreateFleeButton());
 
@@ -758,6 +769,28 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateFleeButton() const
     // D-091: greyed with the reason in a mini-boss or boss fight.
     const ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get();
     const FText Reason = Orchestrator ? Orchestrator->GetFleeRefusedReason(CurrentActor.Get()) : FText::GetEmpty();
+    if (!Reason.IsEmpty())
+    {
+        const FPieMenuButtonData Greyed = FPieMenuButtonData::MakeDisabledButton(Button.ButtonID, Button.DisplayName, Reason);
+        Button.Description = Greyed.Description;
+        Button.ButtonTint = Greyed.ButtonTint;
+        Button.bEnabled = false;
+    }
+    return Button;
+}
+
+FPieMenuButtonData UCombatCommandMenuSubsystem::CreateMoveRowButton(bool bForward) const
+{
+    FPieMenuButtonData Button;
+    Button.ButtonID = bForward ? TEXT("StepForward") : TEXT("StepBack");
+    Button.DisplayName = bForward ? NSLOCTEXT("CombatCommandMenu", "StepForward", "Step Forward")
+                                  : NSLOCTEXT("CombatCommandMenu", "StepBack", "Step Back");
+    Button.Category = EPieMenuCategory::MoveRow;
+    Button.DataIndex = bForward ? MOVE_ROW_FORWARD_INDEX : MOVE_ROW_BACK_INDEX;
+    Button.bEnabled = true;
+
+    const ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get();
+    const FText Reason = Orchestrator ? Orchestrator->GetRowMoveRefusedReason(CurrentActor.Get(), bForward) : FText::GetEmpty();
     if (!Reason.IsEmpty())
     {
         const FPieMenuButtonData Greyed = FPieMenuButtonData::MakeDisabledButton(Button.ButtonID, Button.DisplayName, Reason);
@@ -988,6 +1021,18 @@ void UCombatCommandMenuSubsystem::ExecuteSwitchWeapon()
     // Rebuild capabilities with the new active weapon and refresh main menu
     RebuildCapabilities();
 
+    OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
+}
+
+void UCombatCommandMenuSubsystem::ExecuteMoveRow(bool bForward)
+{
+    ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get();
+    FText RefusedReason;
+    if (!Orchestrator || !Orchestrator->TryMoveRow(CurrentActor.Get(), bForward, RefusedReason))
+    {
+        return;
+    }
+    // The new row greys the step that is no longer possible.
     OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
 }
 

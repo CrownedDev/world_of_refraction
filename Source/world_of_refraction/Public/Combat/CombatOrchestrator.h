@@ -239,6 +239,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat|Flee")
 	FText GetFleeRefusedReason(AActor *Actor) const;
 
+	/** D-096: why Actor can't step one row toward the front (bForward) or the back now (no fight,
+	 *  not its turn, stunned, already moved this turn, already in the last row); empty when it can. */
+	UFUNCTION(BlueprintPure, Category = "Combat|Row")
+	FText GetRowMoveRefusedReason(AActor *Actor, bool bForward) const;
+
+	/** D-096: free, once per turn: step one row in the same column, swapping with an ally standing
+	 *  there. Row bonuses apply from the new row at once (the grid is read per hit). */
+	bool TryMoveRow(AActor *Actor, bool bForward, FText &OutRefusedReason);
+
 	// ========================================
 	// EVENTS
 	// ========================================
@@ -288,6 +297,9 @@ public:
 	/** D-091: this fight's rank; per-fight state on the orchestrator (D-064). */
 	UPROPERTY(VisibleInstanceOnly, Category = "Combat|Flee")
 	EEncounterRank EncounterRank = EEncounterRank::Normal;
+
+	/** D-096: the current actor's free row move is spent; reset at each turn start. */
+	bool bRowMoveUsedThisTurn = false;
 
 	// ========================================
 	// DEBUG TOOLS
