@@ -13,6 +13,8 @@
 
 6. **Progression that never locks you out** (a blend of light and moderate). Levelling Mind, Body and Spirit makes you stronger, but **a low-level character can still have a real chance against a max-level one** through gear and build: equipment that grants Mind/Body/Spirit points (which lift every stat under that pillar), stones, crystals, evolutions and the scaling rules. And the reverse: a high level with poor gear can be caught out. This is why the game has so many stat sources (`Resources_Design.md` §7.4: gear vs world-stat split; `Mechanics/Scaling/`).
 
+7. **Solo and co-op equally** (Crown, 2026-10-26): designed to work just as well alone (your party of three, ally AI) and together (players joining runs, invites at rest spots), not solo with co-op bolted on, and not co-op first like Nightreign (whose solo mode was criticised at launch).
+
 ## What this means for decisions
 
 - Prefer options that **add build variety** (more ways to be different) over options that narrow it, as long as they stay fair (pillars 2, 3).
@@ -21,6 +23,7 @@
 - Keep content **data-driven and extendable** (trials, characters, memories, reaction triggers) so later chapters plug in (pillar 4).
 - Size trials for a **30–45 minute run** (pillar 5): map size, number of fights, rest spots and in-run levelling all fit that.
 - **No level wall** (pillar 6): keep gear and builds able to close a level gap, so stat sources stay meaningful next to levels; each run still moves you forward.
+- **Every system must work solo and co-op** (pillar 7): design both cases when building (who controls what, rewards, rest spots, revives), even though co-op is built later; keep to the co-op-ready rule (D-064).
 - Lore and story are Crown's alone (`CLAUDE.md`).
 
 ## Changelog
