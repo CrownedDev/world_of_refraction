@@ -570,12 +570,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, always on** (2026-10-26): a Refractor's innate spells always work, whatever is in the primary slot. Already the code (`FCombatCapabilities.cpp:80-85` offers `InnateSpells` for every Caster, checked 2026-10-26); nothing to build. The deckbuilder's empty-slot rule doesn't apply here.
 
 ### D-041 — Are skill requirements a gate or only a scale?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** Can a character use a skill it is under-levelled for?
 **Context:** The code never blocks; the requirement gap only scales the skill down. A commented-out refusal sits at `ActionExecutor.cpp:233-236`, and `Stats.md` says pillar levels "gate skill tiers". Rules: 01 CL-C3.
 **Options:** A usable, just weaker (current) / B refused below the requirement.
 **Recommendation:** A, the current behaviour; then delete the commented-out gate and fix `Stats.md`.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A, usable but weaker** (2026-10-26): the shipped requirement-gap scaling stays (`Mechanics/Scaling/RequirementGap.md`); overreaching also feeds Broken Darkness strain. Delete the commented-out refusal (`ActionExecutor.cpp:233-236`) and fix `Stats.md`'s "gates skill tiers". Crown: like everything else, it could be **done better**, so it's in the standard-way redesign (B-146).
 
 ### D-042 — Does a member's chosen cell decide where they start a fight?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
