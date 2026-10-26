@@ -292,8 +292,8 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, FCrystalId
 	// end of the target's next turn. BuildupPerTick carries the per-event buildup
 	// so each tick contributes the same amount the immediate hit did.
 	//
-	// Element-keyed, tier-agnostic: one Burn per target; the strength policy
-	// (SkillEffectManager re-apply) decides which tier's values win. Mirrors the
+	// Element-keyed, tier-agnostic: one Burn per target per user (B-062: the same user
+	// re-applying replaces its Burn; another user adds its own). Mirrors the
 	// on-hit Burn/Chill element-token convention. DOTElement feeds BOTH the ID and
 	// CreateDOT from the crystal (Fire for Garnet) so they can never drift.
 	const ESpellElement DOTElement = ItemIdentity::GetElement(Id);

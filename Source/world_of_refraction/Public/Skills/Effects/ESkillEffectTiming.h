@@ -39,8 +39,8 @@ enum class ESkillEffectTiming : uint8
 
 	/** True one-shot: runs its Server* logic through ApplyEffect's gates, then returns
 	 *  WITHOUT being stored in ActiveEffects. Unlike Immediate (which stores-then-tears-down,
-	 *  briefly exposing it to the re-apply strength gate), an Instant never enters the array —
-	 *  so it never matches FindEffectByID and is policy-safe by construction.
+	 *  briefly exposing it to the same-source re-apply), an Instant never enters the array —
+	 *  so it never matches FindEffectByIdentity and is policy-safe by construction.
 	 *  Appended at the END: this enum is serialized — do NOT reorder/insert above. */
 	Instant UMETA(DisplayName = "Instant (Hook-Then-Apply, No Store)")
 };

@@ -7,6 +7,7 @@
 #include "Character/FPillarWeights.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
+#include "Skills/Effects/EffectIdentity.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEquipmentBonusEditor, Log, All);
 
@@ -273,6 +274,8 @@ TArray<FSkillEffect> UEquipmentDataBase::GetConditionalEffects() const
 TArray<FGatheredEffect> UEquipmentDataBase::GetStartingEffectsGathered() const
 {
     TArray<FGatheredEffect> Result;
+    // The item is the source of its effects (D-053): another item with the same definition adds its own.
+    const int32 ItemSourceKey = EffectIdentity::MakeSourceKey(GetUniqueID(), GetName());
     for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
     {
         if (!Def)
@@ -284,7 +287,7 @@ TArray<FGatheredEffect> UEquipmentDataBase::GetStartingEffectsGathered() const
         {
             if (!Def->Effects[b].IsConditionalEffect())
             {
-                Result.Emplace(DefID, b, Def->Effects[b]);
+                Result.Emplace(DefID, b, Def->Effects[b], ItemSourceKey);
             }
         }
     }
@@ -294,6 +297,8 @@ TArray<FGatheredEffect> UEquipmentDataBase::GetStartingEffectsGathered() const
 TArray<FGatheredEffect> UEquipmentDataBase::GetConditionalEffectsGathered() const
 {
     TArray<FGatheredEffect> Result;
+    // The item is the source of its effects (D-053): another item with the same definition adds its own.
+    const int32 ItemSourceKey = EffectIdentity::MakeSourceKey(GetUniqueID(), GetName());
     for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
     {
         if (!Def)
@@ -305,7 +310,7 @@ TArray<FGatheredEffect> UEquipmentDataBase::GetConditionalEffectsGathered() cons
         {
             if (Def->Effects[b].IsConditionalEffect())
             {
-                Result.Emplace(DefID, b, Def->Effects[b]);
+                Result.Emplace(DefID, b, Def->Effects[b], ItemSourceKey);
             }
         }
     }

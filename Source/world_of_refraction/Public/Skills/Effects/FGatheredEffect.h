@@ -33,9 +33,14 @@ struct FGatheredEffect
     UPROPERTY()
     FSkillEffect Effect;
 
+    /** The item it came from, as an effect source (EffectIdentity::MakeSourceKey, D-053):
+     *  the same item again refreshes, another item adds its own. 0 = unstamped. */
+    UPROPERTY()
+    int32 SourceKey = 0;
+
     FGatheredEffect() = default;
-    FGatheredEffect(int32 InDefID, int32 InBundleIndex, const FSkillEffect &InEffect)
-        : DefID(InDefID), BundleIndex(InBundleIndex), Effect(InEffect)
+    FGatheredEffect(int32 InDefID, int32 InBundleIndex, const FSkillEffect &InEffect, int32 InSourceKey = 0)
+        : DefID(InDefID), BundleIndex(InBundleIndex), Effect(InEffect), SourceKey(InSourceKey)
     {
     }
 };

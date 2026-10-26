@@ -6289,11 +6289,11 @@ void UActionExecutor::ApplySkillEffects(
 				continue;
 			}
 
-			// Def-identity cast EffectID: same DEFINITION + effect + payload -> same ID,
-			// regardless of which skill cast it, so a re-cast (or the same def cast from a
-			// different skill) on the same target MERGES via FindEffectByID instead of
-			// stacking a duplicate. Mirrors the equipment packing (id-overflow note lives
-			// on the shared EffectIdentity::PackEffectID helper).
+			// Def-identity cast EffectID: same DEFINITION + effect + payload -> same ID.
+			// ApplyEffect adds the source (caster + skill, D-053), so a re-cast by the same
+			// caster refreshes its copy, while another caster or skill adds its own.
+			// Mirrors the equipment packing (id-overflow note lives on the shared
+			// EffectIdentity::PackEffectID helper).
 			const int32 PayloadEffectID = EffectIdentity::PackEffectID(
 				Effects[EffectIndex].DefID, Effects[EffectIndex].BundleIndex, PayloadIndex);
 
@@ -6400,6 +6400,7 @@ void UActionExecutor::ApplySkillEffects(
 						// re-pack (which would put this cast DoT in a *1000 space and risk a
 						// Space-B collision). Same def's physical-DoT merges.
 						PhysEffect.EffectID = PayloadEffectID;
+						PhysEffect.bDoesNotStack = Effect.bDoesNotStack;
 
 						StatusMgr->ApplyEffect(EffectTarget, PhysEffect, User, SourceName, UserTeam);
 					Result.StatusEffectsApplied++;
@@ -6431,6 +6432,7 @@ void UActionExecutor::ApplySkillEffects(
 				// CreateFromSpellEffect's EXACT expression ((Value!=0)?Value:Magnitude*100, Value=RuntimeValue)
 				// so the zero-RuntimeValue fallback stays byte-identical, not just the common case.
 				StatusEffect.EffectValue = (RuntimeValue != 0) ? static_cast<float>(RuntimeValue) : (P.Magnitude * 100.0f);
+				StatusEffect.bDoesNotStack = Effect.bDoesNotStack; // D-053; source = caster + skill (ApplyEffect)
 
 				StatusMgr->ApplyEffect(EffectTarget, StatusEffect, User, SourceName, UserTeam);
 				Result.StatusEffectsApplied++;

@@ -24,6 +24,7 @@
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "Tags/WoRGameplayTags.h"
+#include "WoRLog.h"
 
 // ========================================
 // SUBSYSTEM LIFECYCLE
@@ -47,33 +48,33 @@ void USkillEffectManager::Initialize(FSubsystemCollectionBase &Collection)
 		if (UActionExecutor *AE = GI->GetSubsystem<UActionExecutor>())
 		{
 			AE->OnDamageDealt.AddDynamic(this, &USkillEffectManager::OnDamageDealtHandler);
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Bound to ActionExecutor::OnDamageDealt"));
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Bound to ActionExecutor::OnDamageDealt"));
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] ActionExecutor not available at Initialize — OnDamageDealt binding skipped"));
+			UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] ActionExecutor not available at Initialize — OnDamageDealt binding skipped"));
 		}
 
 		// Bind OnDefenseResolved listener — drives defense-outcome conditional effects (C3b).
 		if (UDefenseSystem *DS = GI->GetSubsystem<UDefenseSystem>())
 		{
 			DS->OnDefenseResolved.AddDynamic(this, &USkillEffectManager::OnDefenseResolvedHandler);
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Bound to DefenseSystem::OnDefenseResolved"));
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Bound to DefenseSystem::OnDefenseResolved"));
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] DefenseSystem not available at Initialize — OnDefenseResolved binding skipped"));
+			UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] DefenseSystem not available at Initialize — OnDefenseResolved binding skipped"));
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Initialized"));
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Initialized"));
 }
 
 void USkillEffectManager::Deinitialize()
 {
 	ClearAllEffects();
 
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Deinitialized"));
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Deinitialized"));
 
 	Super::Deinitialize();
 }
@@ -87,24 +88,34 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 {
 	if (!Target)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] ApplyEffect: Target is null"));
+		UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] ApplyEffect: Target is null"));
 		return EEffectApplicationResult::Rejected;
 	}
 
 	// Check immunity
 	if (IsImmuneToEffectType(Target, Effect.EffectType))
 	{
-		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s is immune to %s"),
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s is immune to %s"),
 			   *Target->GetName(), *Effect.EffectName);
 		return EEffectApplicationResult::Rejected;
 	}
 
-	// D2: fires-once gate — reject re-application this match BEFORE any stacking/refresh,
-	// so a fires-once effect can never stack or refresh either.
-	if (Effect.bFiresOncePerMatch && FiredOnceThisMatch.Contains(Effect.EffectID))
+	// Identity = (holder, EffectID, source) (D-012, D-053). Gear arrives stamped with its item;
+	// anything else is keyed on the applying actor + the skill or reason it applied with.
+	if (Effect.SourceKey == 0)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s rejected — already fired once this match (ID=%d)"),
-			   *Effect.EffectName, Effect.EffectID);
+		Effect.SourceKey = EffectIdentity::MakeSourceKey(Source ? Source->GetUniqueID() : 0, SourceAbility);
+	}
+
+	// D2: fires-once gate — reject re-application this match BEFORE any stacking/refresh,
+	// so a fires-once effect can never stack or refresh either. One use per holder and
+	// source (D-011): two wearers of the same gear each get theirs. A doesn't-stack effect
+	// (D-053) has one use per holder whichever source brings it ("revive once per fight").
+	const FWoRFiredOnceKey FiredOnceKey{Target, Effect.EffectID, Effect.bDoesNotStack ? 0 : Effect.SourceKey};
+	if (Effect.bFiresOncePerMatch && FiredOnceThisMatch.Contains(FiredOnceKey))
+	{
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s rejected on %s — already fired once this match (ID=%d)"),
+			   *Effect.EffectName, *Target->GetName(), Effect.EffectID);
 		return EEffectApplicationResult::Rejected;
 	}
 
@@ -119,7 +130,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	// Run its Server* logic on this LOCAL effect via the type->primitive switch (ApplyEffectLogic
 	// only reads fields + calls Server*/subsystems — safe on a non-stored temp), broadcast, and
 	// RETURN WITHOUT storing. Placed BEFORE FindEffectByID + Effects.Add: an Instant never enters
-	// ActiveEffects, so it never matches the re-apply strength gate — policy-safe by construction.
+	// ActiveEffects, so it never matches the same-source re-apply — policy-safe by construction.
 	// (Contrast ESkillEffectTiming::Immediate, which stores-then-tears-down via bPendingRemoval.)
 	// IsInstant() is the single derive point: a zero-duration, non-permanent effect. Permanent
 	// gear/auras are excluded via their explicit bPermanent toggle (no longer derived from
@@ -128,7 +139,12 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	{
 		ApplyEffectLogic(Target, Effect);
 		OnEffectApplied.Broadcast(Target, Effect);
-		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Instant %s applied to %s (Value: %.1f, not stored)"),
+		// A fires-once instant spends its use too, or it could fire every time (B-062).
+		if (Effect.bFiresOncePerMatch)
+		{
+			FiredOnceThisMatch.Add(FiredOnceKey);
+		}
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Instant %s applied to %s (Value: %.1f, not stored)"),
 			   *Effect.EffectName, *Target->GetName(), Effect.EffectValue);
 		return EEffectApplicationResult::Applied;
 	}
@@ -136,42 +152,40 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	// Get or create effect array for this actor
 	TArray<FActiveSkillEffect> &Effects = ActiveEffects.FindOrAdd(Target);
 
-	// Check for existing effect with same ID
-	FActiveSkillEffect *ExistingEffect = FindEffectByID(Target, Effect.EffectID);
+	// The copy this source already put on the holder, if any (D-012, D-053). Another
+	// source's copy is a separate effect, unless the definition says it doesn't stack.
+	FActiveSkillEffect *ExistingEffect = FindEffectByIdentity(Target, Effect.EffectID, Effect.SourceKey);
+
+	if (!ExistingEffect && Effect.bDoesNotStack && FindEffectByID(Target, Effect.EffectID))
+	{
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: %s rejected — doesn't stack, another source's copy is held"),
+			   *Target->GetName(), *Effect.EffectName);
+		return EEffectApplicationResult::Rejected;
+	}
 
 	if (ExistingEffect)
 	{
-		// Re-apply strength policy (matched per-Target by EffectID). Strength is the
-		// single-application magnitude (Abs, so the one signed type — ModifyStatusResist —
-		// compares by how-strong not which-way). STRONGER overwrites the value; duration
-		// refreshes on equal-or-stronger, gated by the per-effect bRefreshDurationOnReapply
-		// opt-out. WEAKER is ignored entirely. EQUAL refreshes duration only — this is what
-		// preserves the maintenance mechanics (Defend's constant 50%, on-hit Burn/Chill at a
-		// constant per-attacker magnitude, Stun's 0.0) that sustain via equal re-application.
-		const float IncomingStrength = Effect.Strength();
-		const float ActiveStrength = ExistingEffect->Strength();
-		const bool bStronger = IncomingStrength > ActiveStrength;
-		const bool bWeaker = IncomingStrength < ActiveStrength;
+		// Re-apply from the same source REPLACES (Q-044 A, the deckbuilder rule): the value is
+		// re-snapshotted from this application (D-012) and the duration refreshes, gated by
+		// the per-effect bRefreshDurationOnReapply opt-out. Maintenance mechanics (Defend's
+		// constant 50%, on-hit Burn at a constant magnitude) re-apply the same value, so they
+		// still just refresh.
+		const bool bValueChanged = !FMath::IsNearlyEqual(Effect.EffectValue, ExistingEffect->EffectValue);
 
-		// Stacking: a stackable re-apply still adds a stack (count climbs), and per-stack
-		// strength tracks the strongest seen (never falls). A weaker re-apply still stacks
-		// but neither lowers the value nor refreshes. At MAX stacks this branch is skipped
-		// and the strength gate below runs, so a stronger hit at cap still upgrades the value.
+		// Stacking: a stackable re-apply adds a stack (count climbs) and takes this
+		// application's per-stack value. At MAX stacks this branch is skipped and the plain
+		// replace below runs.
 		if (Effect.bCanStack && ExistingEffect->CanAddStack())
 		{
 			ExistingEffect->CurrentStacks++;
+			ExistingEffect->EffectValue = Effect.EffectValue;
 
-			if (bStronger)
-			{
-				ExistingEffect->EffectValue = Effect.EffectValue; // track strongest (by Abs)
-			}
-
-			if (!bWeaker && Effect.bRefreshDurationOnReapply)
+			if (Effect.bRefreshDurationOnReapply)
 			{
 				ExistingEffect->RemainingTurns = Effect.InitialDuration;
 			}
 
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s: %s stacked to %d on %s"),
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: %s stacked to %d on %s"),
 				   *Target->GetName(), *Effect.EffectName, ExistingEffect->CurrentStacks, *Target->GetName());
 
 			OnEffectStacksChanged.Broadcast(Target, *ExistingEffect, ExistingEffect->CurrentStacks);
@@ -185,37 +199,23 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 			return EEffectApplicationResult::StackAdded;
 		}
 
-		// Non-stacking (or at max stacks): the strength gate.
-		// WEAKER -> ignored entirely: no value change, no duration refresh.
-		if (bWeaker)
+		// Non-stacking (or at max stacks): replace the value, refresh the duration.
+		const float PreviousValue = ExistingEffect->EffectValue;
+		ExistingEffect->EffectValue = Effect.EffectValue;
+
+		// A changed magnitude on a speed effect must re-notify the turn order.
+		if (bValueChanged && IsSpeedEffect(Effect.EffectType))
 		{
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s: %s ignored — weaker than active (%.1f < %.1f)"),
-				   *Target->GetName(), *Effect.EffectName, IncomingStrength, ActiveStrength);
-			return EEffectApplicationResult::Rejected;
+			NotifySpeedChanged(Target);
 		}
 
-		// STRONGER -> overwrite the value (always). EQUAL -> keep the value.
-		if (bStronger)
-		{
-			ExistingEffect->EffectValue = Effect.EffectValue;
-
-			// A changed magnitude on a speed effect must re-notify the turn order.
-			if (IsSpeedEffect(Effect.EffectType))
-			{
-				NotifySpeedChanged(Target);
-			}
-		}
-
-		// Duration refreshes on equal-or-stronger, gated by the per-effect opt-out.
 		if (Effect.bRefreshDurationOnReapply)
 		{
 			ExistingEffect->RemainingTurns = Effect.InitialDuration;
 		}
 
-		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s: %s %s (strength %.1f vs %.1f)"),
-			   *Target->GetName(), *Effect.EffectName,
-			   bStronger ? TEXT("upgraded + duration refreshed") : TEXT("duration refreshed"),
-			   IncomingStrength, ActiveStrength);
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: %s re-applied by the same source — value %.1f -> %.1f, %d turns left"),
+			   *Target->GetName(), *Effect.EffectName, PreviousValue, Effect.EffectValue, ExistingEffect->RemainingTurns);
 
 		OnEffectDurationChanged.Broadcast(Target, *ExistingEffect, ExistingEffect->RemainingTurns);
 		return EEffectApplicationResult::DurationRefreshed;
@@ -224,12 +224,12 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	// New effect - apply it
 	Effects.Add(Effect);
 
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Applied %s to %s (ID: %d, Duration: %d, Value: %.1f)"),
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Applied %s to %s (ID: %d, Duration: %d, Value: %.1f)"),
 		   *Effect.EffectName, *Target->GetName(), Effect.EffectID, Effect.RemainingTurns, Effect.EffectValue);
 
 	// Fire-on-application (Option A: new effects only). Re-applications return before this point
-	// (stronger/equal/weaker/stack all exit in the ExistingEffect branch above), so a rejected
-	// weaker re-app can never reach here — Option A safety by construction. Runs ApplyEffectLogic
+	// (replace and stack both exit in the ExistingEffect branch above), so a re-apply can never
+	// reach here — Option A safety by construction. Runs ApplyEffectLogic
 	// once on the STORED copy (Effects.Last()) so bProcessedThisTurn persists, then leaves the
 	// effect stored to keep ticking on its windows. Excludes Immediate (fires + tears down just
 	// below) and bDelayFirstExecution opt-outs; Instant already returned at the IsInstant() lane.
@@ -264,7 +264,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	// the gate above before it can reach the stack/refresh branches, so this lands exactly once.
 	if (Effect.bFiresOncePerMatch)
 	{
-		FiredOnceThisMatch.Add(Effect.EffectID);
+		FiredOnceThisMatch.Add(FiredOnceKey);
 	}
 
 	return EEffectApplicationResult::Applied;
@@ -321,15 +321,16 @@ void USkillEffectManager::ApplyEquipmentEffects(
 		}
 
 		// Def-identity packing: feeding G.DefID as the window key and G.BundleIndex as the
-		// effect index yields PackEffectID(DefID, BundleIndex, payload) — so the SAME
-		// definition referenced by any source produces the SAME EffectID and MERGES via
-		// ApplyEffect's FindEffectByID path. One authored effect still yields N runtime
-		// effects (one per payload).
+		// effect index yields PackEffectID(DefID, BundleIndex, payload) — the same definition
+		// gives the same EffectID. The item it came from is the source (D-053), so two items
+		// with that definition each add their own copy. One authored effect still yields N
+		// runtime effects (one per payload).
 		TArray<FActiveSkillEffect> Runtimes = FActiveSkillEffect::CreateAllFromSkillEffect(
 			Source.EffectName, G.DefID, Source, G.BundleIndex);
 
 		for (FActiveSkillEffect &Runtime : Runtimes)
 		{
+			Runtime.SourceKey = G.SourceKey;
 			ApplyEffect(Target, Runtime, nullptr, Source.EffectName, -1);
 		}
 	}
@@ -355,7 +356,7 @@ namespace
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] wor.StartingEffects: no subsystem (no PIE world?)."));
+					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.StartingEffects: no subsystem (no PIE world?)."));
 				}
 			}));
 
@@ -373,7 +374,7 @@ namespace
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] wor.PrintAllEffects: no subsystem (no PIE world?)."));
+					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.PrintAllEffects: no subsystem (no PIE world?)."));
 				}
 			}));
 
@@ -387,14 +388,14 @@ namespace
 				USkillEffectManager *Mgr = GI ? GI->GetSubsystem<USkillEffectManager>() : nullptr;
 				if (!Mgr)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] wor.PrintEffects: no subsystem (no PIE world?)."));
+					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.PrintEffects: no subsystem (no PIE world?)."));
 					return;
 				}
 				UTurnManager *TurnMgr = GI->GetSubsystem<UTurnManager>();
 				AActor *Actor = TurnMgr ? TurnMgr->GetCurrentActor() : nullptr;
 				if (!Actor)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] wor.PrintEffects: no active combatant (combat not active?)."));
+					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.PrintEffects: no active combatant (combat not active?)."));
 					return;
 				}
 				Mgr->DebugPrintEffects(Actor);
@@ -407,31 +408,31 @@ void USkillEffectManager::WOR_StartingEffects()
 	UTurnManager *TurnMgr = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
 	if (!TurnMgr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[WOR_StartingEffects] No TurnManager subsystem."));
+		UE_LOG(LogWoREffects, Warning, TEXT("[WOR_StartingEffects] No TurnManager subsystem."));
 		return;
 	}
 
 	AActor *Actor = TurnMgr->GetCurrentActor();
 	if (!Actor)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[WOR_StartingEffects] No active character (combat not active?)."));
+		UE_LOG(LogWoREffects, Warning, TEXT("[WOR_StartingEffects] No active character (combat not active?)."));
 		return;
 	}
 
 	ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>();
 	if (!LC)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[WOR_StartingEffects] No LoadoutComponent on %s."), *Actor->GetName());
+		UE_LOG(LogWoREffects, Warning, TEXT("[WOR_StartingEffects] No LoadoutComponent on %s."), *Actor->GetName());
 		return;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("=== STARTING EFFECTS — %s ==="), *Actor->GetName());
+	UE_LOG(LogWoREffects, Display, TEXT("=== STARTING EFFECTS — %s ==="), *Actor->GetName());
 
 	auto PrintSpecs = [](const TCHAR *SourceLabel, const TArray<FSkillEffect> &Specs) -> int32
 	{
 		for (const FSkillEffect &E : Specs)
 		{
-			UE_LOG(LogTemp, Display, TEXT("  PRE [%s] %s — %d payload(s), %d condition(s)"),
+			UE_LOG(LogWoREffects, Display, TEXT("  PRE [%s] %s — %d payload(s), %d condition(s)"),
 				   SourceLabel,
 				   E.EffectName.IsEmpty() ? TEXT("(unnamed)") : *E.EffectName,
 				   E.Payloads.Num(), E.Conditions.Num());
@@ -504,7 +505,7 @@ void USkillEffectManager::WOR_StartingEffects()
 	}
 
 	const int32 Total = LC->GetActiveEffects(Actor).Num();
-	UE_LOG(LogTemp, Display, TEXT("  PRE total: %d labeled vs %d from GetActiveEffects%s"),
+	UE_LOG(LogWoREffects, Display, TEXT("  PRE total: %d labeled vs %d from GetActiveEffects%s"),
 		   Labeled, Total,
 		   Labeled == Total ? TEXT(" — MATCH") : TEXT(" — MISMATCH (coverage drift; fix this tool)"));
 
@@ -513,11 +514,11 @@ void USkillEffectManager::WOR_StartingEffects()
 	const TArray<FActiveSkillEffect> Active = GetActiveEffects(Actor);
 	for (const FActiveSkillEffect &E : Active)
 	{
-		UE_LOG(LogTemp, Display, TEXT("  POST %s — %s (ID=%d)"), *E.EffectName,
+		UE_LOG(LogWoREffects, Display, TEXT("  POST %s — %s (ID=%d)"), *E.EffectName,
 			   *UEnum::GetValueAsString(E.EffectType), E.EffectID);
 	}
-	UE_LOG(LogTemp, Display, TEXT("  POST applied: %d"), Active.Num());
-	UE_LOG(LogTemp, Display, TEXT("======================"));
+	UE_LOG(LogWoREffects, Display, TEXT("  POST applied: %d"), Active.Num());
+	UE_LOG(LogWoREffects, Display, TEXT("======================"));
 }
 
 void USkillEffectManager::ApplyPhysicalDamageEffect(
@@ -557,7 +558,7 @@ void USkillEffectManager::ApplyPhysicalDamageEffect(
 		break;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Applying %s from %s (Buildup: %d × %.1f × %d hits)"),
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Applying %s from %s (Buildup: %d × %.1f × %d hits)"),
 		   *TypeName, *WeaponName, StatusBuildup, InfusionMultiplier, HitCount);
 
 	ApplyEffect(Target, Effect, Source, WeaponName, SourceTeam);
@@ -584,7 +585,7 @@ void USkillEffectManager::ApplyWeaponInfusionDOT(
 		Duration,
 		WeaponInfusionMultiplier);
 
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Applying weapon-infused DOT: %s (%.1f damage × %.1f multiplier)"),
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Applying weapon-infused DOT: %s (%.1f damage × %.1f multiplier)"),
 		   *Effect.EffectName, BaseDOTDamage, WeaponInfusionMultiplier);
 
 	ApplyEffect(Target, Effect, Source, AbilityName + TEXT(" (Weapon Infused)"), SourceTeam);
@@ -612,7 +613,7 @@ bool USkillEffectManager::RemoveEffectByID(AActor *Target, int32 EffectID)
 
 			Effects.RemoveAt(i);
 
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed %s from %s (by ID)"),
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Removed %s from %s (by ID)"),
 				   *RemovedEffect.EffectName, *Target->GetName());
 
 			OnEffectRemoved.Broadcast(Target, RemovedEffect);
@@ -661,7 +662,7 @@ int32 USkillEffectManager::RemoveEffectsByName(AActor *Target, const FString &Ef
 
 	if (RemovedCount > 0)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed %d effects named '%s' from %s"),
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Removed %d effects named '%s' from %s"),
 			   RemovedCount, *EffectName, *Target->GetName());
 	}
 
@@ -735,7 +736,7 @@ int32 USkillEffectManager::RemoveAllBuffs(AActor *Target)
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed %d buffs from %s"),
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Removed %d buffs from %s"),
 		   RemovedCount, *Target->GetName());
 
 	// Notify TurnManager if any speed buffs were removed
@@ -776,7 +777,7 @@ int32 USkillEffectManager::RemoveAllDebuffs(AActor *Target)
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed %d debuffs from %s"),
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Removed %d debuffs from %s"),
 		   RemovedCount, *Target->GetName());
 
 	// Notify TurnManager if any speed debuffs were removed
@@ -810,7 +811,7 @@ int32 USkillEffectManager::RemoveAllDOTs(AActor *Target)
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed %d DOTs from %s"),
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Removed %d DOTs from %s"),
 		   RemovedCount, *Target->GetName());
 
 	return RemovedCount;
@@ -840,7 +841,7 @@ void USkillEffectManager::RemoveAllEffects(AActor *Target)
 
 	const int32 Count = Removed.Num();
 
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed all %d effects from %s"),
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Removed all %d effects from %s"),
 		   Count, *Target->GetName());
 
 	// Notify TurnManager if any speed effects were removed
@@ -854,7 +855,7 @@ void USkillEffectManager::ResetForNewCombat()
 {
 	FiredOnceThisMatch.Empty();
 	ArmedConditionals.Empty();
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] FiredOnceThisMatch + ArmedConditionals reset for new combat"));
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] FiredOnceThisMatch + ArmedConditionals reset for new combat"));
 }
 
 void USkillEffectManager::ArmConditionalEffects(AActor *Actor, const TArray<FGatheredEffect> &Conditionals)
@@ -864,7 +865,7 @@ void USkillEffectManager::ArmConditionalEffects(AActor *Actor, const TArray<FGat
 		return;
 	}
 	ArmedConditionals.Add(Actor, Conditionals);
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Armed %d conditional effect(s) on %s"),
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Armed %d conditional effect(s) on %s"),
 		   Conditionals.Num(), *Actor->GetName());
 }
 
@@ -887,7 +888,7 @@ void USkillEffectManager::ClearAllEffects()
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Cleared all effects (%d total)"), TotalCount);
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Cleared all effects (%d total)"), TotalCount);
 }
 
 int32 USkillEffectManager::RemoveEffectsBySource(AActor *Source)
@@ -932,7 +933,7 @@ int32 USkillEffectManager::RemoveEffectsBySource(AActor *Source)
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed %d effects from source %s"),
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Removed %d effects from source %s"),
 		   TotalRemoved, *Source->GetName());
 
 	// Notify TurnManager for all affected actors
@@ -960,7 +961,7 @@ void USkillEffectManager::ProcessStartOfTurnEffects(AActor *Actor)
 
 	ResetTurnFlags(Actor);
 
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Processing start-of-turn effects for %s"),
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Processing start-of-turn effects for %s"),
 		   *Actor->GetName());
 
 	// Process start-of-turn effects
@@ -980,7 +981,7 @@ void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Processing end-of-turn effects for %s"),
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Processing end-of-turn effects for %s"),
 		   *Actor->GetName());
 
 	// Process end-of-turn effects (DOTs, etc.)
@@ -1035,7 +1036,7 @@ void USkillEffectManager::ProcessTriggerEffects(AActor *Actor, ESkillTrigger Tri
 					Effect.bTriggerActive = true;
 					ApplyEffectLogic(Actor, Effect);
 
-					UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Trigger activated: %s on %s"),
+					UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Trigger activated: %s on %s"),
 						   *Effect.EffectName, *Actor->GetName());
 
 					// A trigger FIRE consumes a charge (the primary charge consumer). Charges == 0
@@ -1086,6 +1087,7 @@ void USkillEffectManager::ProcessEffectsWithTiming(AActor *Actor, ESkillEffectTi
 		const TArray<FActiveSkillEffect> *Live = ActiveEffects.Find(Actor);
 		const bool bStillActive = Live && Live->ContainsByPredicate([&Pending](const FActiveSkillEffect &Candidate)
 																	 { return Candidate.EffectID == Pending.EffectID &&
+																			  Candidate.SourceKey == Pending.SourceKey &&
 																			  Candidate.EffectType == Pending.EffectType &&
 																			  Candidate.EffectName == Pending.EffectName; });
 		if (!bStillActive)
@@ -1131,7 +1133,7 @@ void USkillEffectManager::TickDurations(AActor *Actor)
 
 		if (Effect.RemainingTurns <= 0)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s expired on %s"),
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s expired on %s"),
 				   *Effect.EffectName, *Actor->GetName());
 
 			// Track if speed effect expired
@@ -1186,7 +1188,7 @@ bool USkillEffectManager::ConsumeCharge(AActor *Actor, FActiveSkillEffect &Effec
 	const int32 Index = static_cast<int32>(&Effect - Effects.GetData());
 	if (!Effects.IsValidIndex(Index))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] ConsumeCharge: effect ref not in %s's list — skipping removal"),
+		UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] ConsumeCharge: effect ref not in %s's list — skipping removal"),
 			   *Actor->GetName());
 		return false;
 	}
@@ -1195,7 +1197,7 @@ bool USkillEffectManager::ConsumeCharge(AActor *Actor, FActiveSkillEffect &Effec
 	FActiveSkillEffect RemovedEffect = Effect;
 	Effects.RemoveAt(Index);
 
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s charges exhausted on %s — removed"),
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s charges exhausted on %s — removed"),
 		   *RemovedEffect.EffectName, *Actor->GetName());
 
 	OnEffectRemoved.Broadcast(Actor, RemovedEffect);
@@ -1256,7 +1258,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 
 	if (!CharComp)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] No CharacterDataComponent on %s"),
+		UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] No CharacterDataComponent on %s"),
 			   *Actor->GetName());
 		return;
 	}
@@ -1276,7 +1278,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		if (DamageToApply > 0)
 		{
 			CharComp->ServerTakeDamage(DamageToApply);
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s took %d DOT damage from %s (can be lethal)"),
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s took %d DOT damage from %s (can be lethal)"),
 				   *Actor->GetName(), DamageToApply, *Effect.EffectName);
 		}
 
@@ -1293,7 +1295,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 					const int32 BuildupAmount = FMath::RoundToInt(Effect.BuildupPerTick);
 					SBM->AddStatusBuildup(BuildupSource, Actor, BuildupAmount,
 										  Effect.Element, EPhysicalDamageType::None);
-					UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s gained %d %s buildup from %s tick"),
+					UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s gained %d %s buildup from %s tick"),
 						   *Actor->GetName(), BuildupAmount,
 						   *UEnum::GetValueAsString(Effect.Element), *Effect.EffectName);
 				}
@@ -1310,7 +1312,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		// this tick's heal is skipped, so it resumes once HealBlock expires (if duration remains).
 		if (IsImmuneToEffectType(Actor, ESkillEffectType::HealthRestore))
 		{
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s: HoT '%s' suppressed by HealBlock (no heal this tick)"),
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: HoT '%s' suppressed by HealBlock (no heal this tick)"),
 				   *Actor->GetName(), *Effect.EffectName);
 		}
 		else
@@ -1320,7 +1322,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 			const float HealRecvBonus = GetTotalStatModifier(Actor, ESkillEffectType::HealingReceivedBuff);
 			const int32 HealAmount = FMath::RoundToInt(Value * (1.0f + HealRecvBonus / CombatConstants::STAT_PERCENT_DIVISOR));
 			CharComp->ServerHeal(HealAmount);
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s healed %d from %s"),
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s healed %d from %s"),
 				   *Actor->GetName(), HealAmount, *Effect.EffectName);
 		}
 		break;
@@ -1328,13 +1330,13 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// ==================== ENERGY ====================
 	case ESkillEffectType::EnergyRestore:
 		CharComp->ServerGainEnergy(FMath::RoundToInt(Value));
-		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s gained %d energy from %s"),
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s gained %d energy from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
 		break;
 
 	case ESkillEffectType::EnergyDrain:
 		CharComp->ServerSpendEnergy(FMath::RoundToInt(Value));
-		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s lost %d energy from %s"),
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s lost %d energy from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
 		break;
 
@@ -1384,7 +1386,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::ReflexDebuff:
 	case ESkillEffectType::CritDamageDebuff:
 		// Stat modifiers are passive - other systems query GetTotalStatModifier
-		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Stat modifier %s active on %s (%.1f%%)"),
+		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] Stat modifier %s active on %s (%.1f%%)"),
 			   *Effect.EffectName, *Actor->GetName(), Value);
 		break;
 
@@ -1405,7 +1407,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// handler here, so it sat on the actor without ticking (May 2026 PIE).
 	case ESkillEffectType::SelfDamage:
 		CharComp->ServerTakeDamage(FMath::RoundToInt(Value));
-		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s took %d self-damage from %s"),
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s took %d self-damage from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
 		break;
 
@@ -1420,14 +1422,14 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::Stun:
 	case ESkillEffectType::HealBlock:
 	case ESkillEffectType::Silenced:
-		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] %s active on %s (gate effect)"),
+		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s active on %s (gate effect)"),
 			   *Effect.EffectName, *Actor->GetName());
 		break;
 
 	// RandomSkill: full implementation pending Session Y/Z (LoadoutComponent
 	// random pick + ActionExecutor forced-action injection).
 	case ESkillEffectType::RandomSkill:
-		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] %s has RandomSkill active - implementation pending"),
+		UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] %s has RandomSkill active - implementation pending"),
 			   *Actor->GetName());
 		break;
 
@@ -1449,7 +1451,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// recipient-side healing amplifier (HealBlock mirror) — presence-read only; its value is pulled
 	// at the heal sites via GetTotalStatModifier, so there is no per-tick logic here.
 	case ESkillEffectType::HealingReceivedBuff:
-		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Passive stat modifier %s active on %s (%.1f%%)"),
+		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] Passive stat modifier %s active on %s (%.1f%%)"),
 			   *Effect.EffectName, *Actor->GetName(), Value);
 		break;
 
@@ -1460,7 +1462,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		// bearer (Actor) is HealBlocked; the effect persists and its duration still decrements.
 		if (IsImmuneToEffectType(Actor, ESkillEffectType::RestoreHPPercent))
 		{
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s: HoT '%s' (%%-restore) suppressed by HealBlock (no heal this tick)"),
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: HoT '%s' (%%-restore) suppressed by HealBlock (no heal this tick)"),
 				   *Actor->GetName(), *Effect.EffectName);
 		}
 		else if (CharComp->MaxHP > 0)
@@ -1472,7 +1474,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 			if (Amount > 0)
 			{
 				CharComp->ServerHeal(Amount);
-				UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s restored %d HP (%.1f%% of MaxHP) from %s"),
+				UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s restored %d HP (%.1f%% of MaxHP) from %s"),
 					   *Actor->GetName(), Amount, Value, *Effect.EffectName);
 			}
 		}
@@ -1486,7 +1488,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 			if (Amount > 0)
 			{
 				CharComp->ServerGainEnergy(Amount);
-				UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s restored %d EP (%.1f%% of MaxEP) from %s"),
+				UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s restored %d EP (%.1f%% of MaxEP) from %s"),
 					   *Actor->GetName(), Amount, Value, *Effect.EffectName);
 			}
 		}
@@ -1499,7 +1501,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		if (Amount > 0)
 		{
 			CharComp->ServerTakeDamage(Amount);
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s drained %d HP from %s (lethal)"),
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s drained %d HP from %s (lethal)"),
 				   *Actor->GetName(), Amount, *Effect.EffectName);
 		}
 		break;
@@ -1511,7 +1513,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		if (Amount > 0)
 		{
 			CharComp->ServerSpendEnergy(Amount);
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s drained %d EP from %s"),
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s drained %d EP from %s"),
 				   *Actor->GetName(), Amount, *Effect.EffectName);
 		}
 		break;
@@ -1524,7 +1526,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::ReflectSpellDamage:
 	case ESkillEffectType::Lifesteal:
 	case ESkillEffectType::AbsorbDamage:
-		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Passive defensive %s active on %s"),
+		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] Passive defensive %s active on %s"),
 			   *Effect.EffectName, *Actor->GetName());
 		break;
 
@@ -1544,7 +1546,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::GrantLightningImmunity:
 	case ESkillEffectType::GrantVoidImmunity:
 	case ESkillEffectType::GrantRealityImmunity:
-		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Immunity %s active on %s"),
+		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] Immunity %s active on %s"),
 			   *Effect.EffectName, *Actor->GetName());
 		break;
 
@@ -1556,14 +1558,14 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::ApplyBurnToTarget:
 	case ESkillEffectType::ApplyChillToTarget:
 	case ESkillEffectType::ApplyStunToTarget:
-		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] %s armed on %s — fires on hit (Phase B hook pending)"),
+		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s armed on %s — fires on hit (Phase B hook pending)"),
 			   *Effect.EffectName, *Actor->GetName());
 		break;
 
 	case ESkillEffectType::CleanseSelf:
 	{
 		const int32 Removed = RemoveAllDebuffs(Actor);
-		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s cleansed %d debuff(s) via %s"),
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s cleansed %d debuff(s) via %s"),
 			   *Actor->GetName(), Removed, *Effect.EffectName);
 		break;
 	}
@@ -1583,7 +1585,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 					++CleansedCount;
 				}
 			}
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] CleanseAllies on %s cleansed %d ally(ies)"),
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] CleanseAllies on %s cleansed %d ally(ies)"),
 				   *Actor->GetName(), CleansedCount);
 		}
 		break;
@@ -1600,16 +1602,16 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		break;
 	}
 	case ESkillEffectType::GuaranteedCrit:
-		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] GuaranteedCrit active on %s"), *Actor->GetName());
+		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] GuaranteedCrit active on %s"), *Actor->GetName());
 		break;
 	case ESkillEffectType::IgnoreDefense:
-		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] IgnoreDefense active on %s"), *Actor->GetName());
+		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] IgnoreDefense active on %s"), *Actor->GetName());
 		break;
 	case ESkillEffectType::DoubleHit:
-		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] DoubleHit active on %s"), *Actor->GetName());
+		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] DoubleHit active on %s"), *Actor->GetName());
 		break;
 	case ESkillEffectType::LastStand:
-		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] LastStand armed on %s"), *Actor->GetName());
+		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] LastStand armed on %s"), *Actor->GetName());
 		break;
 
 	// ==================== ROW MOVES (D-096, B-180) ====================
@@ -1621,7 +1623,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		// A stored (Duration > 0) row move would shove the target again on every tick.
 		if (!Effect.IsInstant())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] %s on %s has a duration; row moves must be authored with Duration 0 - ignored"),
+			UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] %s on %s has a duration; row moves must be authored with Duration 0 - ignored"),
 				   *Effect.EffectName, *Actor->GetName());
 			break;
 		}
@@ -1633,7 +1635,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 			const bool bPush = Effect.EffectType == ESkillEffectType::PushBack;
 			const bool bMoved = bPush ? Grid->PushActorBack(Actor, AE->GetArenaCenter())
 									  : Grid->PullActorForward(Actor, AE->GetArenaCenter());
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s %s %s via %s"), *Actor->GetName(),
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s %s %s via %s"), *Actor->GetName(),
 				   bMoved ? TEXT("was") : TEXT("could not be"), bPush ? TEXT("pushed back") : TEXT("pulled forward"),
 				   *Effect.EffectName);
 		}
@@ -1657,7 +1659,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 					AActor *BuildupSource = Effect.SourceActor.IsValid() ? Effect.SourceActor.Get() : Actor;
 					SBM->AddStatusBuildup(BuildupSource, Actor, Value,
 										  Effect.Element, EPhysicalDamageType::None);
-					UE_LOG(LogTemp, Log,
+					UE_LOG(LogWoREffects, Log,
 						   TEXT("[SkillEffectManager] %s built %.1f %s status on %s via %s"),
 						   *(BuildupSource ? BuildupSource->GetName() : FString(TEXT("?"))),
 						   Value, *UEnum::GetValueAsString(Effect.Element),
@@ -1676,7 +1678,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 				if (UStatusBuildupManager *SBM = GI->GetSubsystem<UStatusBuildupManager>())
 				{
 					SBM->ReduceStatusBuildupByAmount(Actor, Value);
-					UE_LOG(LogTemp, Log,
+					UE_LOG(LogWoREffects, Log,
 						   TEXT("[SkillEffectManager] %s status buildup reduced by %.1f via %s"),
 						   *Actor->GetName(), Value, *Effect.EffectName);
 				}
@@ -1686,7 +1688,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	}
 
 	default:
-		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Unhandled effect type for %s"),
+		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] Unhandled effect type for %s"),
 			   *Effect.EffectName);
 		break;
 	}
@@ -1715,7 +1717,7 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 			// gate; a HealBlocked attacker gains no lifesteal HP.
 			if (IsImmuneToEffectType(Attacker, ESkillEffectType::HealthRestore))
 			{
-				UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Lifesteal on %s blocked by HealBlock"),
+				UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Lifesteal on %s blocked by HealBlock"),
 					   *Attacker->GetName());
 			}
 			else
@@ -1724,7 +1726,7 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 				const float HealRecvBonus = GetTotalStatModifier(Attacker, ESkillEffectType::HealingReceivedBuff);
 				const int32 AmplifiedHeal = FMath::RoundToInt(HealAmount * (1.0f + HealRecvBonus / CombatConstants::STAT_PERCENT_DIVISOR));
 				Comp->ServerHeal(AmplifiedHeal);
-				UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Lifesteal: %s healed %d from hit on %s"),
+				UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Lifesteal: %s healed %d from hit on %s"),
 					   *Attacker->GetName(), AmplifiedHeal, *Target->GetName());
 			}
 		}
@@ -1762,7 +1764,7 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 		FActiveSkillEffect Stun = FActiveSkillEffect::CreateBuff(
 			TEXT("Stun"), StunID, ESkillEffectType::Stun, 0.0f, 1);
 		ApplyEffect(Target, Stun, Attacker, TEXT("Stun"), -1);
-		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] ApplyStunToTarget fired on crit: %s stunned %s"),
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] ApplyStunToTarget fired on crit: %s stunned %s"),
 			   *Attacker->GetName(), *Target->GetName());
 	}
 }
@@ -1859,8 +1861,8 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 					}
 
 					// Def-identity: same packing as cast / equipment
-					// (PackEffectID(DefID, BundleIndex, PayloadIndex)) — a defender-fired effect
-					// MERGES with the same def applied elsewhere and shares the fires-once gate.
+					// (PackEffectID(DefID, BundleIndex, PayloadIndex)); the source key below keeps
+					// each wearer's item a separate copy with its own fires-once use.
 					const int32 PayloadEffectID =
 						EffectIdentity::PackEffectID(G.DefID, G.BundleIndex, PayloadIndex);
 
@@ -1907,9 +1909,17 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 							? static_cast<float>(FMath::RoundToInt(Payload.AttackCostScale * AttackEnergyCost))
 							: ((RuntimeValue != 0) ? static_cast<float>(RuntimeValue) : (Payload.Magnitude * 100.0f));
 
+						// Source = this wearer's item (D-053, D-011): it may land on someone else, so
+						// the wearer is part of it — two wearers of the same gear stay two sources.
+						Runtime.bDoesNotStack = E.bDoesNotStack;
+						if (G.SourceKey != 0)
+						{
+							Runtime.SourceKey = static_cast<int32>(HashCombine(static_cast<uint32>(G.SourceKey), GetTypeHash(Owner->GetUniqueID())));
+						}
+
 						ApplyEffect(AppTarget, Runtime, Owner, E.EffectName, OwnerTeam);
 
-						UE_LOG(LogTemp, Log, TEXT("[DefenseTrigger] FIRE: %s (ID=%d) %s -> %s outcome=%s perfect=%d"),
+						UE_LOG(LogWoREffects, Log, TEXT("[DefenseTrigger] FIRE: %s (ID=%d) %s -> %s outcome=%s perfect=%d"),
 							   *E.EffectName, PayloadEffectID, *GetNameSafe(Owner),
 							   *GetNameSafe(AppTarget), *UEnum::GetValueAsString(DefenseType), bPerfect);
 					}
@@ -2187,35 +2197,44 @@ void USkillEffectManager::DebugPrintEffects(AActor *Actor) const
 {
 	if (!Actor)
 	{
-		UE_LOG(LogTemp, Display, TEXT("[SkillEffectManager] DEBUG: Actor is null"));
+		UE_LOG(LogWoREffects, Display, TEXT("[SkillEffectManager] DEBUG: Actor is null"));
 		return;
 	}
 
 	if (!ActiveEffects.Contains(Actor))
 	{
-		UE_LOG(LogTemp, Display, TEXT("[SkillEffectManager] DEBUG: %s has no active effects"),
+		UE_LOG(LogWoREffects, Display, TEXT("[SkillEffectManager] DEBUG: %s has no active effects"),
 			   *Actor->GetName());
 		return;
 	}
 
 	const TArray<FActiveSkillEffect> &Effects = ActiveEffects[Actor];
 
-	UE_LOG(LogTemp, Display, TEXT("[SkillEffectManager] DEBUG: %s has %d effects:"),
+	UE_LOG(LogWoREffects, Display, TEXT("[SkillEffectManager] DEBUG: %s has %d effects:"),
 		   *Actor->GetName(), Effects.Num());
 
 	for (int32 i = 0; i < Effects.Num(); ++i)
 	{
 		const FActiveSkillEffect &Effect = Effects[i];
-		UE_LOG(LogTemp, Display, TEXT("  [%d] %s (ID:%d) - %s, Value:%.1f, Duration:%s, Stacks:%d"),
+		UE_LOG(LogWoREffects, Display, TEXT("  [%d] %s (ID:%d, Source:%s/%s key %d%s) - %s, Value:%.1f, Duration:%s, Stacks:%d"),
 			   i, *Effect.EffectName, Effect.EffectID,
+			   *GetNameSafe(Effect.SourceActor.Get()), *Effect.SourceAbilityName, Effect.SourceKey,
+			   Effect.bDoesNotStack ? TEXT(", doesn't stack") : TEXT(""),
 			   *UEnum::GetValueAsString(Effect.EffectType),
 			   Effect.EffectValue, *Effect.GetDurationString(), Effect.CurrentStacks);
 	}
+
+	int32 FiredOnceUses = 0;
+	for (const FWoRFiredOnceKey &Key : FiredOnceThisMatch)
+	{
+		FiredOnceUses += (Key.Holder == TObjectKey<AActor>(Actor)) ? 1 : 0;
+	}
+	UE_LOG(LogWoREffects, Display, TEXT("  Once-per-match uses spent on %s: %d"), *Actor->GetName(), FiredOnceUses);
 }
 
 void USkillEffectManager::DebugPrintAllEffects() const
 {
-	UE_LOG(LogTemp, Display, TEXT("[SkillEffectManager] DEBUG: === ALL ACTIVE EFFECTS ==="));
+	UE_LOG(LogWoREffects, Display, TEXT("[SkillEffectManager] DEBUG: === ALL ACTIVE EFFECTS ==="));
 
 	int32 TotalEffects = 0;
 
@@ -2228,7 +2247,7 @@ void USkillEffectManager::DebugPrintAllEffects() const
 		}
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("[SkillEffectManager] DEBUG: Total: %d effects on %d actors"),
+	UE_LOG(LogWoREffects, Display, TEXT("[SkillEffectManager] DEBUG: Total: %d effects on %d actors"),
 		   TotalEffects, ActiveEffects.Num());
 }
 
@@ -2410,6 +2429,20 @@ FActiveSkillEffect *USkillEffectManager::FindEffectByID(AActor *Actor, int32 Eff
 	return nullptr;
 }
 
+FActiveSkillEffect *USkillEffectManager::FindEffectByIdentity(AActor *Actor, int32 EffectID, int32 SourceKey)
+{
+	TArray<FActiveSkillEffect> *Effects = Actor ? ActiveEffects.Find(Actor) : nullptr;
+	if (!Effects)
+	{
+		return nullptr;
+	}
+
+	return Effects->FindByPredicate([EffectID, SourceKey](const FActiveSkillEffect &Effect)
+	{
+		return Effect.EffectID == EffectID && Effect.SourceKey == SourceKey;
+	});
+}
+
 UCharacterDataComponent *USkillEffectManager::GetCharacterDataComponent(AActor *Actor) const
 {
 	if (!Actor)
@@ -2472,7 +2505,7 @@ void USkillEffectManager::NotifySpeedChanged(AActor *Actor)
 	if (TurnManager)
 	{
 		TurnManager->OnActorSpeedChanged(Actor);
-		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Notified TurnManager of speed change for %s"),
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Notified TurnManager of speed change for %s"),
 			   *Actor->GetName());
 	}
 }
@@ -2488,9 +2521,10 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	// target (e.g. DOT and Burst use Target MaxHP). Source still passed to
 	// ApplyEffect below for attribution.
 
+	// EffectID is set after the switch from the RESOLVED type (RandomDebuff picks one), so the
+	// same cap from the same source refreshes and another source adds (D-012).
 	FActiveSkillEffect Effect;
 	Effect.Element = Element;
-	Effect.EffectID = FMath::Rand();
 
 	// Generate element-aware display name
 	Effect.EffectName = SkillEffectDisplayNames::GetDisplayName(StatusType, Element);
@@ -2611,7 +2645,7 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 			if (BurstDamage > 0)
 			{
 				TargetComp->ServerTakeDamage(BurstDamage);
-				UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Reality Burst dealt %d (25%% MaxHP, can be lethal) to %s"),
+				UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Reality Burst dealt %d (25%% MaxHP, can be lethal) to %s"),
 					   BurstDamage, *Target->GetName());
 			}
 		}
@@ -2622,9 +2656,10 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 		return;
 	}
 
+	Effect.EffectID = EffectIdentity::MakeStatusCapEffectID(static_cast<uint8>(Effect.EffectType), static_cast<uint8>(Element));
 	Effect.InitialDuration = Effect.RemainingTurns;
 	ApplyEffect(Target, Effect, Source, TEXT("Status Bar Trigger"), -1);
 
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Applied triggered %s to %s"),
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Applied triggered %s to %s"),
 		   *Effect.EffectName, *Target->GetName());
 }

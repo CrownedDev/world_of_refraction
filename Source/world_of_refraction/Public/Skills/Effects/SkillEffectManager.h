@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "UObject/ObjectKey.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Equipment/FEquipmentStatBonus.h"
@@ -15,6 +16,25 @@
 
 class UCharacterDataComponent;
 class URingData;
+
+/** One fires-once use (D-011): per holder and per source of the effect, so two wearers
+ *  of the same once-per-match gear each get theirs. */
+struct FWoRFiredOnceKey
+{
+	TObjectKey<AActor> Holder;
+	int32 EffectID = 0;
+	int32 SourceKey = 0;
+
+	bool operator==(const FWoRFiredOnceKey &Other) const
+	{
+		return Holder == Other.Holder && EffectID == Other.EffectID && SourceKey == Other.SourceKey;
+	}
+
+	friend uint32 GetTypeHash(const FWoRFiredOnceKey &Key)
+	{
+		return HashCombine(HashCombine(GetTypeHash(Key.Holder), GetTypeHash(Key.EffectID)), GetTypeHash(Key.SourceKey));
+	}
+};
 
 // ========================================
 // DELEGATE DECLARATIONS
@@ -145,8 +165,8 @@ public:
 	 * @param Target Actor to apply effects to
 	 * @param Effects Gathered starting effects (from ULoadoutComponent::GetActiveEffectsGathered).
 	 *        Each carries its source definition's id + bundle index, so the EffectID is
-	 *        packed per-DEFINITION (PackEffectID(DefID, BundleIndex, payload)) — the SAME
-	 *        def referenced by any gear/skill yields the SAME id and MERGES on apply.
+	 *        packed per-DEFINITION (PackEffectID(DefID, BundleIndex, payload)), and its item
+	 *        as the source (FGatheredEffect::SourceKey): two items with one def add up (D-053).
 	 */
 	void ApplyEquipmentEffects(AActor *Target, const TArray<FGatheredEffect> &Effects);
 
@@ -430,9 +450,10 @@ private:
 	/** Map of all active effects per actor (not exposed to reflection - TArray in TMap not supported) */
 	TMap<TWeakObjectPtr<AActor>, TArray<FActiveSkillEffect>> ActiveEffects;
 
-	/** EffectIDs that have fired this combat (for bFiresOncePerMatch). Keyed on the stable
-	 *  EffectID; cleared per combat by ResetForNewCombat(). */
-	TSet<int32> FiredOnceThisMatch;
+	/** Fires-once uses spent this combat (bFiresOncePerMatch), per holder + EffectID + source
+	 *  (D-011); cleared per combat by ResetForNewCombat(). Existing per-fight state on this
+	 *  subsystem; moves to the battle's actors with co-op (D-065). */
+	TSet<FWoRFiredOnceKey> FiredOnceThisMatch;
 
 	/** Gear conditional effects armed per actor at combat start (C3a). The
 	 *  OnDefenseResolved handler (C3b) reads these to fire on matching impact outcomes;
@@ -482,8 +503,11 @@ private:
 	 *  no TurnManager or the side's anchor actor is null). */
 	TArray<AActor *> ResolveSubjectActors(ECondSubject Subject, AActor *Owner, AActor *Target) const;
 
-	/** Find existing effect by ID on actor */
+	/** Find existing effect by ID on actor (the first, whichever source gave it) */
 	FActiveSkillEffect *FindEffectByID(AActor *Actor, int32 EffectID);
+
+	/** Find the effect with this ID from this source (D-012, D-053): the copy a re-apply refreshes. */
+	FActiveSkillEffect *FindEffectByIdentity(AActor *Actor, int32 EffectID, int32 SourceKey);
 
 	/** Get CharacterDataComponent from actor */
 	UCharacterDataComponent *GetCharacterDataComponent(AActor *Actor) const;
