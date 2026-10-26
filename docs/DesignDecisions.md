@@ -1518,6 +1518,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
 **Notes for Claude:** _optional_
 
+### Q-182 — When does a Perfect Guard show the parry animation?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-182) · **Blocks:** — (B-182 shipped with A)
+**Question:** one Guard button gives a block or, on Perfect timing, a Perfect Guard (Q-168). The press happens before the game knows the timing. When does the parry animation play, and what does B-182's "one animation per press" mean?
+**Context:** the press already plays the block montage (`UDefenseSystem::PlayDefenseAnimation`). Perfect is known only when the impact resolves (`MatchAndConsumeInput`).
+**Options:**
+- **A** block on the press; switch to the parry montage when the impact resolves Perfect (one montage visible at a time; never one added per impact).
+- **B** play nothing on the press; play block or parry at the impact (the press feels laggy).
+**Recommendation:** A. It is how Sekiro's single block/deflect button works: the guard pose on the press, the deflect animation and spark on a perfectly timed hit; it is widely praised for feeling responsive. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (fix/B-182-perfect-guard-parry-anim): `GuardRules::ImpactAnimationOverride`, called in `UActionExecutor`'s per-impact defense resolve.
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
