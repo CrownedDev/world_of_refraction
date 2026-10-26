@@ -366,8 +366,8 @@ public:
 
     /** Per-pillar requirement-gap percents for AddPillarPercent (whole-number percent:
      *  5.0 = +5%). Each pillar independently maps (RequiredWorld{Pillar} - World{Pillar}Level)
-     *  through the ±5 requirement ladder. Null Character → all 0. Not wired into action
-     *  assembly yet (RequirementGapScaling Cluster 1 — pure add). */
+     *  through the ±5 requirement ladder. Null Character → all 0. Read by
+     *  UActionExecutor's action stat assembly (RequirementGapScaling). */
     UFUNCTION(BlueprintPure, Category = "Skill|Requirements")
     void GetRequirementGapPillarPercents(const UCharacterData *Character,
         float &OutMindPct, float &OutBodyPct, float &OutSpiritPct) const;

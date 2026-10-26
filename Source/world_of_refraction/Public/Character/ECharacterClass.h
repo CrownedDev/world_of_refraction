@@ -9,7 +9,8 @@
 /**
  * Character classes. A class is made by its slots, not a skill gate (D-027): what a character can
  * use comes from what its slots hold. Weapons give abilities (an attached crystal makes them
- * elemental, never spells); spells come from rings, evolutions and a Refractor's innate pool.
+ * elemental, never spells; B-098 — today a weapon crystal still offers its spells); spells come
+ * from rings, evolutions and a Refractor's innate pool.
  *
  * Generic:
  * - Primary slot (weapon, ring or evolution) + a secondary weapon slot; no innate element
@@ -37,6 +38,7 @@ enum class ECharacterClass : uint8
  */
 namespace CharacterClassHelpers
 {
+	// TODO: B-097 — the class-gate helpers below contradict D-027 and combat doesn't use them.
 	/** Can this class use physical abilities from weapons? */
 	inline bool CanUseAbilities(ECharacterClass Class)
 	{

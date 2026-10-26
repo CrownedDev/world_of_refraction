@@ -39,7 +39,7 @@ namespace InfusionConstants
 	/** Time to hold for Level 1 charge (seconds). Read only by the dead InfusionChargeManager (B-034). */
 	constexpr float LEVEL_1_CHARGE_TIME = 0.5f;
 
-	/** Time to hold for Level 2 charge (seconds) */
+	/** Time to hold for Level 2 charge (seconds). Read only by the dead InfusionChargeManager (B-034). */
 	constexpr float LEVEL_2_CHARGE_TIME = 1.5f;
 
 	// ==================== L2 COSTS (SOURCE-BASED) ====================
