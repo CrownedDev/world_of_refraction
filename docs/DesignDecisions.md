@@ -980,6 +980,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **To confirm with Crown when building:** whether being *over* the weapon's requirement also gives the curve's bonus (skills do), or the weapon only caps at 100%.
 - Fold into the stat-maths plan (B-146). Broken Darkness strain keeps using the weapon requirement as today.
 
+### D-083 — A skill's source breaks mid-fight
+**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 01 gap) · **Blocks:** —
+**Answer (Crown):** (2026-10-26)
+- **A:** a skill whose source breaks **stays in the menu, greyed out**, with the reason ("Source broken"), as in the deckbuilder; it can't be used.
+- **Broken crystal on a ring:** the ring is limited to **F-tier spells**; its higher-tier spells grey out.
+- **Broken crystal on a weapon:** **no infusing** and **no elemental abilities** through that weapon; physical abilities and plain attacks still work.
+**Notes for Claude:** today a broken attachment stays slotted and gives no spells (`AttachedItem.CanProvideSpells()`, `FCombatCapabilities.cpp`; `CrystalWear.md`). Change the menu to grey rather than hide, apply the F-tier allowance for rings, and block infusion / elemental abilities on weapons. Tests for each.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
