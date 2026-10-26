@@ -897,6 +897,18 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, one hub controller** (2026-10-26): fold the interact (E: door / merchant / recruit) and `EnsureLocalParty` code into `AWoRHubController`, retire `AExplorationPlayerController`; nothing changes for the player.
 **Notes for Claude:** _optional_
 
+### D-077 — Crystal tier caps: what counts as "a crystal"?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-155) · **Blocks:** B-155
+**Question:** D-072 caps how many crystals of each tier band a character can have equipped (S 1, A+B 2, C+D 3, E+F 4). A weapon or ring slot can hold more than a plain crystal (CL-30), so which of these count toward the caps, and at what tier?
+**Context:** a slot holds one of: a **crystal**; an **augment stone** (stat stone or Ability Stone, weapons only, it has a tier); a **fusion** (two halves with at least one stat stone: stone + crystal, stone + stone, or stone + Ability Stone, CL-32); or an **evolution** (its own tier; the primary-slot evolution gives spells, CL-33). Plain crystals clearly count. The others aren't settled.
+**Options:**
+- **A** count **crystals and evolutions** (one each, at their tier); a **fusion counts once at its crystal half's tier** if it has one (stone-only fusions don't count); **augment stones don't count**.
+- **B** count **plain crystals only**.
+- **C** count **every attachment** (crystal, stone, fusion, evolution) at its own tier (a fusion at its higher half).
+**Recommendation:** A, because it caps what channels elements and spells (crystals, the crystal half of a fusion, evolutions) and leaves stat stones, which are a different kind of gear, alone. The deckbuilder leaves crystals uncapped, so there's nothing to borrow.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
