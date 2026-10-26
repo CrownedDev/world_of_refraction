@@ -123,6 +123,15 @@ void FGuardSpec::Define()
 			TestFalse(TEXT("a failed Perfect Guard"), GuardRules::StopsInterruptableHit(EDefenseType::Block, false, GUARD_TEST_PERFECT));
 		});
 
+		It("switches only a Perfect Guard to the parry animation (B-182)", [this]()
+		{
+			TestEqual(TEXT("Perfect Guard"), GuardRules::ImpactAnimationOverride(EDefenseType::Block, true, GUARD_TEST_PERFECT), EDefenseType::Parry);
+			TestEqual(TEXT("a Parry press, perfect"), GuardRules::ImpactAnimationOverride(EDefenseType::Parry, true, GUARD_TEST_PERFECT), EDefenseType::Parry);
+			TestEqual(TEXT("Guard: keeps the block"), GuardRules::ImpactAnimationOverride(EDefenseType::Block, true, GUARD_TEST_NORMAL), EDefenseType::None);
+			TestEqual(TEXT("Dodge: keeps its own"), GuardRules::ImpactAnimationOverride(EDefenseType::Dodge, true, GUARD_TEST_PERFECT), EDefenseType::None);
+			TestEqual(TEXT("a missed press"), GuardRules::ImpactAnimationOverride(EDefenseType::Block, false, GUARD_TEST_PERFECT), EDefenseType::None);
+		});
+
 		It("lets less status through a Perfect Guard", [this]()
 		{
 			TestEqual(TEXT("Guard"), GuardRules::GuardBuildupMultiplier(GUARD_TEST_NORMAL), CombatConstants::BLOCK_BUILDUP_MULTIPLIER);
