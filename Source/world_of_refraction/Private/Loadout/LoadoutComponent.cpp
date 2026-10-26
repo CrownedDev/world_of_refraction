@@ -22,6 +22,7 @@
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/FRuntimeAttachedItem.h"
+#include "Equipment/Crystals/CrystalManager.h"
 #include "Engine/GameInstance.h"
 #include "Engine/Engine.h"
 
@@ -36,6 +37,22 @@ void ULoadoutComponent::BeginPlay()
 {
     Super::BeginPlay();
     EnsureDefaultLoadout();
+
+    UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    if (UCrystalManager *CrystalMgr = GI ? GI->GetSubsystem<UCrystalManager>() : nullptr)
+    {
+        CrystalMgr->OnCrystalBroken.AddDynamic(this, &ULoadoutComponent::HandleCrystalBroken);
+    }
+}
+
+void ULoadoutComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    if (UCrystalManager *CrystalMgr = GI ? GI->GetSubsystem<UCrystalManager>() : nullptr)
+    {
+        CrystalMgr->OnCrystalBroken.RemoveDynamic(this, &ULoadoutComponent::HandleCrystalBroken);
+    }
+    Super::EndPlay(EndPlayReason);
 }
 
 void ULoadoutComponent::EnsureDefaultLoadout()
@@ -3001,6 +3018,67 @@ void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
     {
         CharComp->RecomputeMaxPools();
     }
+}
+
+ESpellElement ULoadoutComponent::GetActiveRingElement() const
+{
+    const FRingLoadoutEntry *Entry = GetActiveRingLoadout();
+    return Entry ? Entry->RingEntry.AttachedItem.GetElement() : ESpellElement::None;
+}
+
+bool ULoadoutComponent::SwitchToNextUsableRing()
+{
+    const FCombatLoadout &Loadout = GetActiveLoadout();
+    const int32 RingCount = Loadout.RingLoadout.Num();
+    if (RingCount == 0)
+    {
+        return false;
+    }
+
+    const int32 StartIndex = Loadout.ActiveRingIndex;
+    for (int32 Step = 1; Step <= RingCount; ++Step)
+    {
+        const int32 CheckIndex = (StartIndex + Step) % RingCount;
+        const FRuntimeAttachedItem &Attachment = Loadout.RingLoadout[CheckIndex].RingEntry.AttachedItem;
+        if (!Attachment.IsEmpty() && !Attachment.IsBroken())
+        {
+            SetActiveRingIndex(CheckIndex);
+            return true;
+        }
+    }
+    return false;
+}
+
+void ULoadoutComponent::HandleCrystalBroken(AActor *Actor, UObject *Holder, FBrokenCrystalPayload Payload)
+{
+    // Only a ring on this component's owner; weapon crystals don't switch rings.
+    if (Actor != GetOwner() || !Cast<URingData>(Holder))
+    {
+        return;
+    }
+
+    FString CrystalName;
+    switch (Payload.Kind)
+    {
+    case EAttachedItemKind::Crystal:
+        CrystalName = ItemIdentity::GetDisplayName(Payload.CrystalId);
+        break;
+    case EAttachedItemKind::Evolution:
+        CrystalName = Payload.Item ? Payload.Item->GetFullItemName() : TEXT("(null)");
+        break;
+    case EAttachedItemKind::Fusion:
+        CrystalName = FString::Printf(TEXT("FUSION %s+%s"),
+                                      *ItemIdentity::GetDisplayName(Payload.FusionId.HalfA),
+                                      *ItemIdentity::GetDisplayName(Payload.FusionId.HalfB));
+        break;
+    default:
+        CrystalName = TEXT("(none)");
+        break;
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Ring crystal '%s' broke on %s — auto-switching"),
+           *CrystalName, *Actor->GetName());
+    SwitchToNextUsableRing();
 }
 
 void ULoadoutComponent::DebugLogLoadout()

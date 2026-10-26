@@ -25,6 +25,7 @@
 #include "Equipment/EAttachedItemKind.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Skills/Definitions/ESpellSource.h"
+#include "Equipment/Crystals/FBrokenCrystalPayload.h"
 #include "LoadoutComponent.generated.h"
 
 class UInventoryComponent;
@@ -190,6 +191,15 @@ public:
 
     /** Set active ring index for Resonator */
     void SetActiveRingIndex(int32 NewIndex);
+
+    /** Element of the active ring's attached crystal (Resonator); None without one. */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    ESpellElement GetActiveRingElement() const;
+
+    /** Make the next ring (wrapping) whose attachment is present and unbroken the active
+     *  one. False when no other ring is usable. Also runs when a ring's crystal breaks. */
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Combat")
+    bool SwitchToNextUsableRing();
 
     // ==================== LOADOUT MANAGEMENT ====================
 
@@ -710,6 +720,12 @@ private:
 
 protected:
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+    /** UCrystalManager::OnCrystalBroken: a broken crystal on one of the owner's rings
+     *  switches to the next usable ring (moved from URingManager, B-024). */
+    UFUNCTION()
+    void HandleCrystalBroken(AActor *Actor, UObject *Holder, FBrokenCrystalPayload Payload);
 
     /** Is loadout ready for battle? */
     UPROPERTY(BlueprintReadOnly, Category = "Loadout|Runtime")
