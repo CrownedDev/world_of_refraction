@@ -473,7 +473,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
   - **Beating a mini-boss creates a new rest spot** there (Nightreign).
   - **Resting does not reset enemies.** Beaten enemies stay beaten (D-002).
   - **Optional boss revival:** a trigger can **revive a beaten boss, stronger**, for a **higher chance at better gear**. That's the opt-in way to farm. Where the trigger is, how much stronger, and whether it covers mini-bosses too isn't ruled; ask when building.
-**Notes for Claude:** the lords exist as data already (`DA_Character_FireLord` plus 6 more, commit `bdf2557`; Fire, Water, Darkness, Broken Darkness, Earth, Wind, Light, Lightning, Void, Reality). Data shape to propose when building (not ruled): a memory-fragment data asset with its trial, per-lord entries (which lord, optional item it reacts to, lore text/dialogue, depth), and an authored boss effect per entry (weaken / strengthen / none, size). Record further answers here; when complete, write `docs/Design/RunStructure.md` and point `Resources_Design.md` §7.1 at it.
+- **(8) Trials and lords: B** (Crown, 2026-10-26): **any lord can enter any trial**, and the trial reacts to who's there. **Everything is cross-linked:** all characters have interactions with each other in some way, so e.g. the Water Lord entering the Fire Lord's run gets lore about their reactions to each other.
+- **(9) Reaction triggers** (Crown, 2026-10-26): one data structure, **"if these are equipped while facing this character → trigger these"**:
+  - **Equipped is a list**: e.g. if these three items are equipped together.
+  - **Facing** a given character (a lord, its mirror, an NPC).
+  - **Triggers** any mix of: effects (e.g. the hidden bound bonus, a boss weaken/strengthen), a quest, dialogue.
+  - Bound gear (D-033), memory reactions (part 4) and lord-vs-lord lore all use this one structure.
+**Notes for Claude:** the lords exist as data already (`DA_Character_FireLord` plus 6 more, commit `bdf2557`; Fire, Water, Darkness, Broken Darkness, Earth, Wind, Light, Lightning, Void, Reality). Build reaction triggers as one data asset type (e.g. `UReactionTriggerData`: required equipped items (all of), who's wearing them (optional: a specific lord), facing character, then effects / quest / dialogue). Reuse the condition model from B-044/D-031 (trigger → nested conditions → effects) rather than a second system. Data shape to propose when building (not ruled): a memory-fragment data asset with its trial, per-lord entries (which lord, optional item it reacts to, lore text/dialogue, depth), and an authored boss effect per entry (weaken / strengthen / none, size). Record further answers here; when complete, write `docs/Design/RunStructure.md` and point `Resources_Design.md` §7.1 at it.
 
 ### D-033 — Bound gear and skills
 **Status:** ANSWERED · **Raised:** 2026-10-26 · **Blocks:** — (lord quests, trial loot, D-032)
