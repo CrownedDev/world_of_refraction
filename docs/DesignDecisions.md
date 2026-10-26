@@ -885,6 +885,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):**
 - **(1) Skill cinematics: C** (2026-10-26): **reusable template sequences by skill type** (melee swing, ranged shot, area spell, buff, …) for most skills, and **hand-made sequences for signature moves** (lord skills, bosses, big spells). A skill references a template or its own sequence.
 **Notes for Claude:** record further answers here; then write `docs/Design/CombatCamera.md` from this and the June design.
+### D-075 — A fight ends mid-action: does the action still cost its infusion HP?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-030) · **Blocks:** —
+**Question:** when a fight ends while a charged (infused) action is still playing (forced end, flee), should the caster still pay the infusion's HP cost?
+**Context:** an infused action pays its HP cost at the very end, on hit or miss (`ActionExecutor.cpp:2334`, `ApplyPendingInfusionHPCost`). The cost can kill the caster. Cancelling an action ran the same path, so a forced end could kill a character *after* the fight's result was announced (and an enemy dying then still added world-stat points). B-030 skips the cost when the fight ends mid-action, as a safe stop-gap (`UActionExecutor::ResetForCombat`, TODO D-075). Open defense windows are also dropped then, with no damage and no reflect.
+**Options:** A **no cost** when the fight ends mid-action (what B-030 does now) / B **pay the cost, but it can't kill** (HP floors at 1) / C **pay it in full** after the fight (needs a safe way to handle a post-fight death).
+**Recommendation:** A, because the action never finished, and nothing after the result screen should change a character. The deckbuilder has no mid-action fight end to borrow from.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
 
 ## Parked
 
