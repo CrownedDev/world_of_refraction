@@ -942,12 +942,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** the data assets keep their names for now (`DA_Character_FireLord` etc., D-058: existing names stay); rename when the real names exist. Player-facing text never says "Lord" for them. Written up in `docs/Design/HubAndStory.md`.
 
 ### D-080 — Loadout check in the editor: which spell discount?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-028) · **Blocks:** — (B-028 shipped with the recommendation)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-028) · **Blocks:** — (B-028 shipped with the recommendation)
 **Question:** the fight lowers each spell's weight by a mastery discount from the character's world stats (Mind/Body/Spirit). In the editor there is no character progress. Which discount should the editor check use?
 **Context:** `FSavedLoadout::GetValidationErrors` (`FSavedLoadout.cpp`) uses 0, the strictest budget. A Caster loadout that only fits with a high-mastery discount now shows an asset error, though in play the fight would accept it for a trained character (and cut it for a fresh one).
 **Options:** A discount 0 (warns about what a fresh character would have cut) / B the biggest discount possible (warns only about what no character could use) / C skip the weight budget in the editor.
 **Recommendation:** A, because authored loadouts are what new characters start with, so they should fit with no mastery.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **D** (2026-10-26, new option): the editor check uses **the authored stats of the character the loadout belongs to** (its authored world Mind/Body/Spirit) to compute the discount; **0 only when no character is attached**. So a high-stat boss can carry what its stats allow, and an under-stat starting character is warned. Players' in-game loadouts already use the live character.
+**Notes for Claude:** the editor-side check (`FSavedLoadout::GetValidationErrors`, now in the B-028 rule set) needs the owning `UCharacterData` passed in (or looked up from the `UInventoryData` it sits on); fall back to 0 when absent.
 **Notes for Claude:** _optional_
 
 ### D-081 — Equipping: when is a pick refused, and when are other parts dropped?
