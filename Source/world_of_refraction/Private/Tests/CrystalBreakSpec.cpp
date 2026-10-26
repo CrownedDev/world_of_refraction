@@ -246,6 +246,20 @@ void FCrystalBreakSpec::Define()
 				  CRYSTAL_BREAK_EVOLUTION_MAX_DURABILITY);
 	});
 
+	It("repair: an Unbreakable evolution is not repaired (it never wears)", [this]()
+	{
+		Spawn(CRYSTAL_BREAK_INTACT_DURABILITY, CRYSTAL_BREAK_INTACT_DURABILITY);
+		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+		Active.PrimarySlotType = EPrimarySlotType::Evolution;
+		Active.PrimaryEvolution.Item = NewEvolution();
+		Active.PrimaryEvolution.Item->Breakability = EBreakability::Unbreakable;
+		Active.PrimaryEvolution.CurrentDurability = CRYSTAL_BREAK_BROKEN_DURABILITY;
+
+		CrystalBreak::RepairOn(Actor, DurabilityConstants::REPAIR_PER_BATTLE);
+		TestEqual(TEXT("unchanged"), Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryEvolution.CurrentDurability,
+				  CRYSTAL_BREAK_BROKEN_DURABILITY);
+	});
+
 	It("leaves intact crystals alone", [this]()
 	{
 		Spawn(CRYSTAL_BREAK_INTACT_DURABILITY, CRYSTAL_BREAK_INTACT_DURABILITY);
