@@ -1022,7 +1022,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** (2026-10-26, revised the same day)
 - **Block and Parry merge into one button, Guard** (Expedition 33 style). **Two defense buttons: Guard and Dodge.**
   - **Guard, normal timing:** a block, taking 50% (`BlockReduction`).
-  - **Guard, Perfect timing** (ED-37 window): **a parry**: takes less and **reflects** damage back (placeholders: take 25%, reflect 60% of the impact's base; tune). Perfect Guard *is* the parry.
+  - **Guard, Perfect timing** (ED-37 window): **a parry**: **takes less** (placeholder 25%, tune). **No built-in reflect** (revised by D-087): reflecting, healing etc. come from **effects attached to "on Perfect Guard"**.
   - **Dodge:** unchanged: takes nothing, no status buildup.
 - "On perfect" triggers still fire, and Broken Darkness absorption still doubles on a Perfect (its block/parry absorption rates map to Guard / Perfect Guard).
 - Counter-attacks (Expedition 33) can come later through "on perfect" gear effects.
@@ -1041,6 +1041,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 02 gap) · **Blocks:** —
 **Answer (Crown):** **B** (2026-10-26): Ignore Defense becomes **an amount set per skill** (e.g. "ignores 30% of Defense"; 100% = today's full ignore), like the deckbuilder's Ignore Defense N.
 **Notes for Claude:** **no separate job:** build it inside the GAS damage calculation (stat maths plan B-146 → B-041/B-042), not in today's `DamageCalculator`. Existing all-or-nothing skills map to 100%.
+
+### D-087 — Reflection is an effect, not part of Guard
+**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 02 gap) · **Blocks:** —
+**Answer (Crown):** (2026-10-26)
+- **Guard and Perfect Guard only reduce damage.** Nothing is reflected by default.
+- **Reflection is an effect you attach** to things (gear, skills, buffs), triggered e.g. **"on Perfect Guard: reflect damage"**; other on-Guard effects work the same way ("on Perfect Guard: heal", …).
+- **Reflected damage is pure (B):** it hits for exactly the reflected amount, with no Defense, resistance or crit.
+**Notes for Claude:**
+- Already in code: `DamageReflect` / `ReflectPhysicalDamage` / `ReflectSpellDamage` effects (`ESkillEffectType.h:162-164`) and on-defense triggers `OnBlock`/`OnParry`/`OnPerfectBlock`/`OnPerfectParry`/`OnPerfectDodge` (`ESkillTrigger.h`). With Guard (D-084): add `OnGuard` / `OnPerfectGuard` **at the end** of the enum (append-only) and map the old Block/Parry triggers onto them (Block → Guard; Perfect Block, Parry, Perfect Parry → Perfect Guard); retire the old members with a comment.
+- Remove the built-in `ParryReflect` from the Guard path; reflected damage skips Defense, resistance and crit.
+- Fold into B-168 (Guard).
 
 ## Parked
 

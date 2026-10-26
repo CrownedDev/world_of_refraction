@@ -96,6 +96,6 @@ Steps run in this order. All are multipliers, so order only matters for rounding
 - A Perfect defense changes nothing about damage (ED-37). The deckbuilder has no real-time defense to borrow from. **Ruled: D-084** (Block and Parry merge into **Guard**: normal = block, Perfect = parry; Dodge unchanged).
 - Luck dodge: `LUCK_DODGE_MAX` (25%) exists with no reader (`CombatConstants.h:315,319-326`). **Ruled: D-085** (Luck auto-dodge, max 15%, only when no press succeeded).
 - Ignore Defense is all-or-nothing here; the deckbuilder's Ignore Defense N removes up to N, element Resistance first (`04-effects.md:351,362`). **Ruled: D-086** (an amount per skill; built in the GAS damage calculation, B-146).
-- No rule on whether parry-reflected damage goes through the attacker's Defense, crit or resistance. Not checked in the code.
+- No rule on whether parry-reflected damage goes through the attacker's Defense, crit or resistance. Not checked in the code. **Ruled: D-087** (reflection is an attachable effect, e.g. on Perfect Guard; reflected damage is pure).
 - The deckbuilder's extra costs for Generic infusion (1 Action to switch sources) are not ruled (`D-007` notes).
 - Nothing shows the player which elements a target is weak to; with B-064 this becomes a damage rule the player can't see.
