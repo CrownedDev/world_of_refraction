@@ -16,6 +16,8 @@ namespace
 {
 	constexpr bool ROW_MOVE_FORWARD = true;
 	constexpr bool ROW_MOVE_BACK = false;
+	/** Test-world ticks are 0.01s; plenty for the ally's and foe's turns to pass. */
+	constexpr int32 ROW_MOVE_NEXT_TURN_MAX_FRAMES = 2400;
 }
 
 BEGIN_DEFINE_SPEC(FRowMoveSpec, "WoR.Combat.RowMove",
@@ -141,6 +143,43 @@ void FRowMoveSpec::Define()
 			TestTrue(TEXT("hero in front"), RowOf(Hero) == ECombatRow::Front);
 			TestTrue(TEXT("ally moved to the middle"), RowOf(Ally) == ECombatRow::Middle);
 			TestEqual(TEXT("same column"), PositionOf(Ally).Column, PositionOf(Hero).Column);
+		});
+
+		It("comes back on your next turn", [this]()
+		{
+			if (!StartFight())
+			{
+				return;
+			}
+			FText Reason;
+			TestTrue(TEXT("stepped forward"), Orchestrator->TryMoveRow(Hero, ROW_MOVE_FORWARD, Reason));
+			FAction Defend;
+			Defend.ActionType = EActionType::Defend;
+			Orchestrator->SubmitActionAsync(Defend);
+			for (int32 Frame = 0; Frame < ROW_MOVE_NEXT_TURN_MAX_FRAMES && Orchestrator->GetCurrentActor() != Hero; ++Frame)
+			{
+				Orchestrator->SubmitActionAsync(Defend); // the ally and the foe just defend (refused while one runs)
+				TestWorld->Tick(1);
+			}
+			if (!TestTrue(TEXT("hero's turn again"), Orchestrator->GetCurrentActor() == Hero))
+			{
+				return;
+			}
+			TestTrue(TEXT("the free move is back"), Orchestrator->GetRowMoveRefusedReason(Hero, ROW_MOVE_BACK).IsEmpty());
+		});
+
+		It("is refused while stunned", [this]()
+		{
+			if (!StartFight())
+			{
+				return;
+			}
+			FActiveSkillEffect Stun;
+			Stun.EffectName = TEXT("Row move test stun");
+			Stun.EffectType = ESkillEffectType::Stun;
+			Stun.RemainingTurns = 1;
+			TestWorld->GetSubsystem<USkillEffectManager>()->ApplyEffect(Hero, Stun, Foe);
+			TestFalse(TEXT("refused"), Orchestrator->GetRowMoveRefusedReason(Hero, ROW_MOVE_FORWARD).IsEmpty());
 		});
 
 		It("is refused in the last row and off your turn", [this]()
