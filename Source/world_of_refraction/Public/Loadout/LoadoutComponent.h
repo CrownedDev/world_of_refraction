@@ -510,6 +510,10 @@ public:
     /** Get active ring loadout entry (Resonator) */
     const FRingLoadoutEntry *GetActiveRingLoadout() const;
 
+    /** D-083: why Spell can't be cast right now because the active weapon's or ring's crystal
+     *  is broken (a broken ring still casts F-tier spells). Empty when it can. */
+    FText GetBrokenSourceReason(const USpellData *Spell) const;
+
     // ==================== EQUIPMENT STAT QUERIES ====================
 
     /** Combined FEquipmentStatBonus for the actor's currently active equipment.

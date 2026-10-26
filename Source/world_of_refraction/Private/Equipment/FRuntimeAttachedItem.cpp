@@ -37,7 +37,7 @@ bool FRuntimeAttachedItem::IsBroken() const
     return false;
 }
 
-bool FRuntimeAttachedItem::CanProvideSpells() const
+bool FRuntimeAttachedItem::IsSpellSource() const
 {
     // A augment stone is intact but grants abilities, not spells — never a spell source.
     if (IsAugmentStone())
@@ -45,13 +45,17 @@ bool FRuntimeAttachedItem::CanProvideSpells() const
         return false;
     }
     // An augmented fusion (two stones, no gem half) carries no element and grants no
-    // spells — only an elemental fusion's gem half is a spell source. An elemental
-    // fusion (HasGemHalf) passes through to the empty/broken check below.
+    // spells — only an elemental fusion's gem half is a spell source.
     if (IsFusion() && !Fusion.HasGemHalf())
     {
         return false;
     }
-    return !IsEmpty() && !IsBroken();
+    return !IsEmpty();
+}
+
+bool FRuntimeAttachedItem::CanProvideSpells() const
+{
+    return IsSpellSource() && !IsBroken();
 }
 
 ESpellElement FRuntimeAttachedItem::GetElement() const

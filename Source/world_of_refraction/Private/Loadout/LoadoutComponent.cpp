@@ -2,6 +2,7 @@
 // Active combat loadout and runtime battle state implementation
 
 #include "Loadout/LoadoutComponent.h"
+#include "Loadout/SourceBreakRules.h"
 #include "Loadout/LoadoutConstants.h"
 #include "Inventory/InventoryConstants.h"
 #include "WoRLog.h"
@@ -3139,6 +3140,39 @@ const FRingLoadoutEntry *ULoadoutComponent::GetActiveRingLoadout() const
 
     const FRingLoadoutEntry &Entry = Loadout.RingLoadout[Loadout.ActiveRingIndex];
     return Entry.IsValid() ? &Entry : nullptr;
+}
+
+FText ULoadoutComponent::GetBrokenSourceReason(const USpellData *Spell) const
+{
+    if (!Spell)
+    {
+        return FText::GetEmpty();
+    }
+    const auto Lists = [Spell](const TArray<USpellData *> &Spells)
+    {
+        return Spells.ContainsByPredicate([Spell](const USpellData *Assigned) { return Assigned == Spell; });
+    };
+
+    // The same entries FCombatCapabilities::BuildFrom lists spells from.
+    if (const FWeaponLoadoutEntry *Weapon = GetActiveWeaponLoadout())
+    {
+        const FRuntimeAttachedItem &Attached = Weapon->WeaponEntry.AttachedItem;
+        if (Attached.IsSpellSource() && Attached.IsBroken() && Lists(Weapon->WeaponEntry.AssignedSpells))
+        {
+            return SourceBreakRules::BrokenWeaponCrystalReason();
+        }
+    }
+    const FRingLoadoutEntry *Ring = GetActiveRingLoadout() ? GetActiveRingLoadout() : GetPrimaryRingLoadout();
+    if (Ring)
+    {
+        const FRuntimeAttachedItem &Attached = Ring->RingEntry.AttachedItem;
+        if (Attached.IsSpellSource() && Attached.IsBroken() && Lists(Ring->RingEntry.AssignedSpells) &&
+            !SourceBreakRules::IsRingSpellUsableWhenBroken(Spell->Tier))
+        {
+            return SourceBreakRules::BrokenRingCrystalReason();
+        }
+    }
+    return FText::GetEmpty();
 }
 
 FRuntimeAttachedItem *ULoadoutComponent::FindAttachedItemByHolder(UObject *Holder)
