@@ -77,6 +77,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-192](B-192.md) | `feature/B-192-bound-gear` (in `dev`) | Bound gear: only its owner gets the bound bonus | Not tested |
 | [B-193](B-193.md) | `feature/B-193-boss-phases` (in `dev`) | Boss phases: HP and hidden conditions, phase kept after a heal, weather and AI rise | Not tested |
 | [B-196 (spell cap)](B-196-spell-cap.md) | `fix/B-196-loadout-spell-cap` (in `dev`) | The loadout check flags spells over the holder's spell cap | Not tested |
+| [B-197 (AI broken ring)](B-197-ai-broken-ring.md) | `fix/B-197-ai-broken-ring` (in `dev`) | The AI casts a broken ring's F-tier spells; loadout weapon spells greyed on a broken crystal | Not tested |
 | [B-195](B-195.md) | `feature/B-195-hub-services` (in `dev`) | Hub services: one V NPC per service (Stone Smith, loadout vendor added), each opens its shop | Not tested |
 | [B-194](B-194.md) | `feature/B-194-memory-journal` (in `dev`) | Hub journal: reread memories and lore, V's next line, play a conversation (placeholder screen) | Not tested |
 | [B-070](B-070.md) | `fix/B-070-trial-strong-ref` (in `dev`) | The trial run keeps hold of its trial (packaged builds) | Not tested |

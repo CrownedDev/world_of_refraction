@@ -3297,6 +3297,7 @@ bool ULoadoutComponent::IsSpellFromBrokenRing(const USpellData *Spell) const
             return false;
         }
     }
+    // Raw lists, not the capped GetAllSpells(true): the player's capabilities list them all, and each must be greyed.
     return Lists(Ring->RingEntry.AssignedSpells) || (Ring->RingEntry.Ring && Lists(Ring->RingEntry.Ring->PresetSpells));
 }
 
