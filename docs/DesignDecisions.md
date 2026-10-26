@@ -1017,6 +1017,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
+### D-084 — What a Perfect defense does
+**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 02 gap) · **Blocks:** —
+**Answer (Crown):** **B** (2026-10-26): a Perfect press (ED-37) **improves its own defense**: Perfect **Block** takes less (placeholder 25% instead of 50%), Perfect **Parry** reflects more (placeholder 60% instead of 30%); Dodge already takes nothing. It still fires "on perfect" triggers and doubles Broken Darkness absorption. Counter-attacks (Expedition 33) can come later through "on perfect" gear effects.
+**Notes for Claude:** new named constants beside `BlockReduction` / `ParryReflect` (`// TODO: tune`); tests for each.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
