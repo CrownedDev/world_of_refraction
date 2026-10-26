@@ -33,9 +33,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputMappingContext> CombatMappingContext;
 
+	/** The Guard input (D-084: Block and Parry are one defense). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Defense")
 	TObjectPtr<UInputAction> BlockAction;
 
+	/** Legacy: also a Guard press until its key is unbound in the mapping context (Q-168). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Defense")
 	TObjectPtr<UInputAction> ParryAction;
 

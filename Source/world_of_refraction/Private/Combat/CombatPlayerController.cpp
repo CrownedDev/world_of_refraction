@@ -97,7 +97,7 @@ void ACombatPlayerController::OnBlock(const FInputActionValue &Value)
 	if (UDefenseSystem *DefenseSys = GetDefenseSystem())
 	{
 		AActor *Defender = DefenseSys->GetActiveDefenderForLocalPlayer();
-		UE_LOG(LogTemp, Log, TEXT("[CombatPC] Block pressed — defender: %s"), *GetNameSafe(Defender));
+		UE_LOG(LogTemp, Log, TEXT("[CombatPC] Guard pressed — defender: %s"), *GetNameSafe(Defender));
 		if (Defender)
 		{
 			DefenseSys->SubmitDefenseInput(Defender, EDefenseType::Block, EDefenseDirection::None);
@@ -110,7 +110,7 @@ void ACombatPlayerController::OnParry(const FInputActionValue &Value)
 	if (UDefenseSystem *DefenseSys = GetDefenseSystem())
 	{
 		AActor *Defender = DefenseSys->GetActiveDefenderForLocalPlayer();
-		UE_LOG(LogTemp, Log, TEXT("[CombatPC] Parry pressed — defender: %s"), *GetNameSafe(Defender));
+		UE_LOG(LogTemp, Log, TEXT("[CombatPC] Parry key pressed (a Guard, D-084) — defender: %s"), *GetNameSafe(Defender));
 		if (Defender)
 		{
 			DefenseSys->SubmitDefenseInput(Defender, EDefenseType::Parry, EDefenseDirection::None);
