@@ -945,6 +945,22 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
+### D-081 — Equipping: when is a pick refused, and when are other parts dropped?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-159) · **Blocks:** B-159
+**Question:** D-073 says a loadout change that would break a rule is "refused or dropped right there". Which one, when?
+**Context:**
+- Some changes only add one thing: assign an ability or a spell, equip a weapon or ring. Refusing it is clean.
+- Others make parts you already have invalid. Examples: swapping a weapon's crystal leaves its spells the wrong element; a weapon of another type leaves its abilities mismatched; a lower-tier evolution leaves too many spells.
+- Today nothing is refused or dropped at equip time. The pre-fight cleaner (`ClearInvalidSlots`) empties bad slots when the fight starts.
+- Where the cleaner runs in the code: `LoadoutComponent.cpp` `PrepareForBattle`; the equip paths are in `UInventoryComponent` (`AttachCrystalTo*` / `AttachEvolutionTo*`) and `ULoadoutComponent`.
+**Options:**
+- **A** refuse a pick that is itself invalid; let a change that breaks other parts go through and drop those parts, with a message naming them ("Fire Bolt removed: needs a Fire crystal").
+- **B** refuse anything that would leave the loadout invalid; the player removes the clashing parts first.
+- **C** never refuse; always drop what breaks, with a message.
+**Recommendation:** A, because swapping gear is the common case and B makes it a chore of manual removals, while C lets a single bad pick (a Spear ability on a Sword) look like it worked. The deckbuilder has no loadout to borrow from (its decks are card lists).
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
