@@ -58,6 +58,15 @@ namespace PartySessionDebug
 		PartySession->LogPartyState();
 	}
 
+	void ReviveFallen(UWorld *World)
+	{
+		if (UPartySessionSubsystem *PartySession = FindPartySession(World))
+		{
+			PartySession->ReviveFallenMembers();
+			PartySession->LogPartyState();
+		}
+	}
+
 	void Print(UWorld *World)
 	{
 		if (const UPartySessionSubsystem *PartySession = FindPartySession(World))
@@ -81,6 +90,11 @@ static FAutoConsoleCommandWithWorldAndArgs GPartySetFormationCommand(
 	TEXT("wor.Party.SetFormation"),
 	TEXT("wor.Party.SetFormation <slot> <Back|Middle|Front> <column 0-2> - the member's start cell (D-042); a taken cell swaps the two."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&PartySessionDebug::SetFormation));
+
+static FAutoConsoleCommandWithWorld GPartyReviveFallenCommand(
+	TEXT("wor.Party.ReviveFallen"),
+	TEXT("wor.Party.ReviveFallen - a rest spot's revive (D-043): fallen members come back at full HP/EP."),
+	FConsoleCommandWithWorldDelegate::CreateStatic(&PartySessionDebug::ReviveFallen));
 
 static FAutoConsoleCommandWithWorld GPartyPrintCommand(
 	TEXT("wor.Party.Print"),
@@ -502,20 +516,54 @@ void UPartySessionSubsystem::SetAllMembersFull()
 
 	for (FPartyMember &Member : Party->Members)
 	{
-		if (!Member.CharacterData)
-		{
-			continue;
-		}
-
-		// COMPUTED accessors, not the raw MaxHealth/MaxEnergy sub-stats — those are
-		// inputs to the calculation, not the resulting pool sizes.
-		Member.CurrentHP = Member.CharacterData->CalculateMaxHealth();
-		Member.CurrentEP = Member.CharacterData->bBrokenDarknessInnate
-							   ? 0
-							   : Member.CharacterData->CalculateMaxEnergy();
+		SetMemberVitalsFull(Member);
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[PartySession] Vitals seeded to full for %d member(s)"), Party->GetMemberCount());
+}
+
+void UPartySessionSubsystem::SetMemberVitalsFull(FPartyMember &Member)
+{
+	if (!Member.CharacterData)
+	{
+		return;
+	}
+
+	// COMPUTED accessors, not the raw MaxHealth/MaxEnergy sub-stats — those are
+	// inputs to the calculation, not the resulting pool sizes.
+	Member.CurrentHP = Member.CharacterData->CalculateMaxHealth();
+	Member.CurrentEP = Member.CharacterData->bBrokenDarknessInnate
+						   ? 0
+						   : Member.CharacterData->CalculateMaxEnergy();
+}
+
+int32 UPartySessionSubsystem::ReviveFallenMembers()
+{
+	UParty *Party = GetLocalParty();
+	if (!Party)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PartySession] ReviveFallenMembers with no local party"));
+		return 0;
+	}
+
+	int32 RevivedCount = 0;
+	for (FPartyMember &Member : Party->Members)
+	{
+		if (Member.IsFallen())
+		{
+			SetMemberVitalsFull(Member);
+			++RevivedCount;
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] Revived %d fallen member(s)"), RevivedCount);
+	return RevivedCount;
+}
+
+bool UPartySessionSubsystem::IsMemberFallen(int32 SlotIndex) const
+{
+	const UParty *Party = GetLocalParty();
+	return Party && Party->Members.IsValidIndex(SlotIndex) && Party->Members[SlotIndex].IsFallen();
 }
 
 void UPartySessionSubsystem::ClearAllMemberVitals()
@@ -573,8 +621,10 @@ FString UPartySessionSubsystem::GetPartyStateString() const
 		}
 		else
 		{
-			Out += FString::Printf(TEXT("  [%d] %s - carried HP %d / EP %d - formation %s - %s\n"),
-								   SlotIndex, *MemberName, Member.CurrentHP, Member.CurrentEP, *Formation, Control);
+			Out += FString::Printf(TEXT("  [%d] %s - carried HP %d / EP %d%s - formation %s - %s\n"),
+								   SlotIndex, *MemberName, Member.CurrentHP, Member.CurrentEP,
+								   Member.IsFallen() ? TEXT(" (FALLEN - sits out until revived)") : TEXT(""),
+								   *Formation, Control);
 		}
 	}
 	Out += FString::Printf(TEXT("  When your fighters fall: %s\n"),
