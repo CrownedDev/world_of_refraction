@@ -1098,7 +1098,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **C** (2026-10-26): Energy **refills a little at the start of each of your turns**, plus extra from **basic attacks** and **Perfect Guards** (Expedition 33 style). Amounts are named constants (`// TODO: tune`); the per-turn share can scale with Max Energy. Broken Darkness keeps its own absorption system (no passive refill, ET-29 for BD).
 
 ### Q-159 — Do dropped utility crystals go back to the inventory?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-159) · **Blocks:** — (B-159 shipped without returning them)
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-159) · **Blocks:** — (B-159 shipped without returning them)
 **Question:** when a loadout's item slots are trimmed (over a tier cap, a quantity above 3, a duplicate crystal type), do the removed crystals return to the character's crystal inventory?
 **Context:** today they just vanish from the slot (`ULoadoutComponent::DropInvalidParts`, the existing duplicate-type rule did the same). Crystals a fight's auto-equip put in a slot were taken out of the inventory (`FCombatLoadout::ApplyAutoEquip`), so dropping them loses them. Crystals in an authored loadout were never taken out of the inventory.
 **Options:**
@@ -1107,8 +1107,19 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **C** return only crystals that came out of the inventory (needs the slot to remember where its crystals came from).
 **Recommendation:** A, because losing crystals to a rule the player didn't break on purpose feels like a bug, and authored loadouts are a dev-time case where an extra crystal in the inventory is harmless.
 **Answer (Crown):** **A** (2026-10-26): utility crystals **removed by a rule** (over a cap, invalid loadout, duplicate type) are not destroyed, so they **return to the inventory, or storage if it's full** (D-097). Separately: crystals **destroyed** through use or wear are **lost**, as today, **except evolutions**, which count as equipment and are never lost that way.
-**Notes for Claude:** _optional_
+**Notes for Claude:** Applied in fix/Q-159-return-dropped-crystals: `DropInvalidParts` returns dropped utility crystals to the inventory (storage when full waits for D-097: logged as lost for now). Evolutions: a broken one is no longer dismantled at the end of a fight (`CrystalBreak`) or when removal wear breaks it (`InventoryComponent`); it stays, broken, until repaired. Follow-up: Q-159c.
 
+### Q-159c — Where a broken evolution goes
+**Status:** OPEN · **Raised:** 2026-10-26 (Q-159 follow-up) · **Blocks:** — (shipped with A)
+**Question:** Q-159 says evolutions are never lost to wear. Before, a broken evolution was dismantled for essence at the end of a fight (including a primary-slot one such as Broken Darkness's) and when removal wear broke it. What happens to it now?
+**Context:** shipped: it stays where it is (on the weapon, ring or primary slot), broken; its spells are greyed out (D-083) and it is repaired like other gear (+10 between fights, B-115; D-093 repair). One removed by wear goes to the inventory at 0 durability.
+**Options:**
+- **A** stays where it is, broken, until repaired (shipped).
+- **B** goes back to the inventory, broken, freeing the slot.
+- **C** as A, but a `BDBreakable` evolution worn out by Broken Darkness is still destroyed (a BD mechanic).
+**Recommendation:** A. Gear doesn't vanish, a weapon stays in hand, and the player repairs it at the next rest spot.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
 ### Q-159b — Which parts go when a loadout is over a cap?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-159) · **Blocks:** — (B-159 shipped with A)
 **Question:** when a loadout has too many abilities, or too many utility crystals of a tier band, which ones are dropped?
