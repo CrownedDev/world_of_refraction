@@ -23,7 +23,7 @@ Companion to `RunStructure.md`. Values marked *tune* are placeholders: named con
 
 - Enemies are **visible**, standing guard or patrolling. You can approach or avoid them.
 - **Touching one starts the fight.**
-- **First strike, both ways:** hit an enemy with a field ability before it notices you and you start with an advantage (e.g. act first, or it starts damaged, *tune*); get caught from behind and the enemy gets it. This is a real-time field ability (`GASMigration.md`).
+- **First strike, both ways:** hit an enemy with a field ability before it notices you and you start with an advantage (Crown, 2026-10-26: **the side with first strike acts first**); get caught from behind and the enemy gets it. This is a real-time field ability (`GASMigration.md`).
 
 ## 3. Fight size
 
@@ -50,7 +50,6 @@ Companion to `RunStructure.md`. Values marked *tune* are placeholders: named con
 ## 6. Open questions
 
 - What the creatures are (types, looks).
-- The first-strike advantage's exact form.
 - More than three enemy teams in one fight.
 
 ## Changelog
@@ -58,4 +57,5 @@ Companion to `RunStructure.md`. Values marked *tune* are placeholders: named con
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-26 | Created from D-069 | docs/enemies |
+| 2026-10-26 | First strike = act first (D-069 detail) | docs/first-strike |
 | 2026-10-26 | Boss phases: conditions, weather, one-way (D-098) | docs/d098-boss-phases |
