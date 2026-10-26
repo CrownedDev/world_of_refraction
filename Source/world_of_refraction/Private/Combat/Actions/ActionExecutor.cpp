@@ -259,6 +259,20 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 				}
 			}
 
+			// D-083: a spell whose source's crystal broke can't be cast (a broken ring keeps its
+			// F-tier spells). The menu shows the same reason; this catches the AI and other paths.
+			if (Action.SpellData)
+			{
+				if (const ULoadoutComponent *SpellLoadout = GetLoadoutComponent(Actor))
+				{
+					const FText BrokenReason = SpellLoadout->GetBrokenSourceReason(Action.SpellData);
+					if (!BrokenReason.IsEmpty())
+					{
+						return FActionValidationResult(false, BrokenReason.ToString());
+					}
+				}
+			}
+
 			// 6-5-f: enforce the spell-source binding. An infused spell's SelectedSource must be one
 			// its origin allows (GetAllowedInfusionSourcesForSpell — the single source of truth shared
 			// with the AI and the UI source cache). Spells are origin-bound; abilities are NOT, so this

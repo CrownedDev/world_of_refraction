@@ -906,6 +906,16 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSpellButtons(
         Button.Description = FText::FromString(Spell->Description);
         Button.ButtonTint = GetElementColor(static_cast<int32>(ResolvedElement));
         Button.bEnabled = true;
+
+        // D-083: a spell whose source broke stays in the menu, greyed out with the reason.
+        const FText BlockedReason = CurrentCapabilities.GetBlockedReason(Spell);
+        if (!BlockedReason.IsEmpty())
+        {
+            const FPieMenuButtonData Greyed = FPieMenuButtonData::MakeDisabledButton(Button.ButtonID, Button.DisplayName, BlockedReason);
+            Button.Description = Greyed.Description;
+            Button.ButtonTint = Greyed.ButtonTint;
+            Button.bEnabled = false;
+        }
         Buttons.Add(Button);
         Index++;
     }
