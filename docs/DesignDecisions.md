@@ -376,7 +376,7 @@ The queue of questions only Crown can answer.
 - Class passives like the deckbuilder's are **not** ruled here; suggest them in a new decision if wanted.
 
 ### D-029 — Ice as a sub-element of Water: how does it work?
-**Status:** OPEN · **Raised:** 2026-10-26 · **Blocks:** — (new job once answered)
+**Status:** ANSWERED · **Raised:** 2026-10-26 · **Blocks:** — (new job once answered)
 **Question:** Crown (2026-10-26): Water should have a sub-element, Ice. What can be Ice, and what does a full Ice bar do?
 **Context:**
 - This game has no Ice (`ESpellElement` has none).
@@ -385,7 +385,12 @@ The queue of questions only Crown can answer.
 - A: the deckbuilder model (Ice = a Water damage type for some skills).
 - B: a full tenth element with its own crystals, rings and Refractors.
 **Recommendation:** A, per the deckbuilder; much smaller, and it keeps nine elements. Follow-up if A: what a full Ice bar does (Water's is "no healing"), e.g. Freeze = slower turns.
-**Answer (Crown):** _write here_
+**Answer (Crown):** (2026-10-26) **A, the deckbuilder model** (taken from Crown answering the A follow-up; Crown, correct if not), and **a full Ice bar slows action speed** (Freeze).
+**Notes for Claude:**
+- Add `Ice` to the element/damage-type enum **at the end** (append-only, explicit value). Ice is a damage type only: no Ice crystal, ring or Refractor innate; Ice skills are Water-keyed and Water sources unlock them.
+- Resistance and triggers per the deckbuilder table (`02-enums.md` "Ice — a damage type, not an element"): Ice resistance covers Ice and Water; Water Amp doesn't boost Ice; "on Water hit" hears Ice. Resistance table (D-005) gets an Ice column; values `// TODO: tune`.
+- Ice bar cap → a timed **turn-speed debuff** (the existing `TurnSpeedDebuff` effect), not Wind's one-off push-back (D-014). Duration and size named constants, `// TODO: tune`.
+- Needs a survey first: every `switch` on the element enum, element colours/icons, the buildup bars and the UI list of elements.
 
 ---
 
