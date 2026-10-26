@@ -685,12 +685,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-26): Emerald's bonus turn is a **real extra turn** (no later normal turn lost), like Extra Action and the deckbuilder's Add Turn. It still respects the 2:1 cap (D-049). Change `TurnManager.cpp:563-571` (pinned turn currently costs a future slot).
 
 ### D-053 — Does the same effect from two gear pieces add up?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-062
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-062
 **Question:** Here two gear pieces giving the same effect merge into one (deliberate, per `SkillEffects.md`). The deckbuilder adds one per source, which is also D-012's idea (a different source adds).
 **Context:** `Skills/Effects/SkillEffectManager.cpp:319-330`; the deckbuilder's `Stat` duration row (`04-effects.md`). Rules: 04 C4-7.
 **Options:** A add up, one per source item / B merge (current).
 **Recommendation:** A, so D-012's rule covers gear too.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A, the item is the source** (2026-10-26, the deckbuilder's model): an effect's identity is **the item (or skill) it comes from**, not the shared effect definition.
+- The **same item** applying its effect again **refreshes** it (D-012).
+- A **different item** with the same effect **adds** its own (Sword A + Ring B, each +10% Fire = +20%). Two copies of one ring are two sources.
+- An effect can be ticked **"doesn't stack"** on its definition for things that would break if doubled (e.g. "revive once per fight"); a second source then adds nothing (Elden Ring's same-talisman rule).
+**Notes for Claude:** effect definitions stay as **templates** only. Change the identity used for merging (`SkillEffectManager.cpp:320-331`, `PackEffectID(DefID, BundleIndex, payload)`) to include the source item's `PersistentID` (or the skill / actor for non-gear sources), consistent with D-011 (per character) and D-012 (per source). Add a `bDoesNotStack` flag to the definition. Fold into B-062 and the effects review (B-044).
 
 ### D-054 — Is "Turn Speed Up" a buff?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
