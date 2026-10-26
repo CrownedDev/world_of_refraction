@@ -1193,6 +1193,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
+### D-095 — The Reality element is "Unknown" to players
+**Status:** ANSWERED · **Raised:** 2026-10-26 (Crown, rules review) · **Blocks:** —
+**Answer (Crown):** (2026-10-26) **Anything named Reality is shown to the player as "Unknown"**: the element is the **Unknown element**, its essence is **Unknown (element) essence** (one wallet: upgrades, spell purchases, Reality items; D-094 A), and a character or enemy of that element shows its element as **"Unknown"**.
+**Notes for Claude:**
+- Player-facing text only: code keeps `Reality` (`ESpellElement::Reality`, `EEssenceType::Reality`; enums append-only, D-058). Put the word in the shared game-words `LOCTEXT` table (D-062) so every screen says "Unknown".
+- Colour stays indigo (D-024 note). Docs and code comments may keep saying Reality.
+- Fits the story's "figure it out" theme (D-079); don't explain what Unknown is in player-facing text.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
