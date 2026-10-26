@@ -3249,19 +3249,35 @@ FText ULoadoutComponent::GetBrokenSourceReason(const USpellData *Spell) const
         {
             return SourceBreakRules::BrokenEvolutionReason();
         }
+        // An intact ring is cast from before any weapon (ResolveSpellSource's order).
+        const auto IntactRingLists = [&Lists](const FRingLoadoutEntry &Ring)
+        {
+            const FRuntimeAttachedItem &Attached = Ring.RingEntry.AttachedItem;
+            return Ring.IsValid() && !(Attached.IsSpellSource() && Attached.IsBroken()) && Lists(Ring.GetAllSpells());
+        };
+        if ((Loadout.PrimarySlotType == EPrimarySlotType::Ring && IntactRingLists(Loadout.PrimaryRing)) ||
+            Loadout.RingLoadout.ContainsByPredicate(IntactRingLists))
+        {
+            return FText::GetEmpty();
+        }
     }
 
-    // The same entries FCombatCapabilities::BuildFrom lists spells from.
-    if (const FWeaponLoadoutEntry *Weapon = GetActiveWeaponLoadout())
+    // B-204 (Q-204): the primary, then the secondary weapon (FCombatLoadout::GetAllSpells lists both);
+    // the first that holds the spell is the one the cast channels (FindSpellCatalystHolder's order).
+    for (const FWeaponLoadoutEntry *Weapon : {GetPrimaryWeaponLoadout(), GetSecondaryWeaponLoadout()})
     {
-        const FRuntimeAttachedItem &Attached = Weapon->WeaponEntry.AttachedItem;
         // B-197: the loadout's own overrides (FWeaponLoadoutEntry::AssignedSpells) come through the
         // same crystal, so they grey out with it too.
-        if (Attached.IsSpellSource() && Attached.IsBroken() &&
-            (Lists(Weapon->WeaponEntry.AssignedSpells) || Lists(Weapon->AssignedSpells)))
+        if (!Weapon || !(Lists(Weapon->WeaponEntry.AssignedSpells) || Lists(Weapon->AssignedSpells)))
+        {
+            continue;
+        }
+        const FRuntimeAttachedItem &Attached = Weapon->WeaponEntry.AttachedItem;
+        if (Attached.IsSpellSource() && Attached.IsBroken())
         {
             return SourceBreakRules::BrokenWeaponCrystalReason();
         }
+        break;
     }
     if (IsSpellFromBrokenRing(Spell) && !SourceBreakRules::IsRingSpellUsableWhenBroken(Spell->Tier))
     {
