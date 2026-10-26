@@ -1069,6 +1069,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Skills cost actions by tier** (by default): **F, E, D = 1 action**; **C, B, A = 2**; **S = 3**; plus their Energy cost. So big skills mean saving up (skip spending this turn, cast it next).
 - **Energy:** start 3, gains per turn up to Max Energy (ties to D-089 C).
 - **Stats and effects control both:** Max Actions, Max Energy and per-turn gains can be raised or lowered (Reflex, gear, buffs, Wind's pip loss).
+**Refined (Crown, 2026-10-26, still discussion only):**
+- **Base Max Actions is 2.** You **raise your Max Actions** (stats, gear, effects) to unlock **better skills**.
+- **Higher tiers cost many more actions**, e.g. an **S-rank skill needs 7 actions**: you wait turns, use items and effects to build up to it. Replaces the 1/2/3 costs above. A one-per-tier ladder (F 1, E 2, D 3, C 4, B 5, A 6, S 7) is the natural reading of "S = 7"; confirm the exact ladder with Crown.
+- So Max Actions becomes the key build stat for big skills, and action-gain effects and items become valuable.
+
 **Notes for Claude, open details to bring to Crown (as questions in the plan, B-170):**
 - Pip numbers: base pips, Reflex thresholds, the cap (suggested: 1 base, max 3).
 - What Emerald's bonus turn (D-052) becomes: +1 pip, or an extra turn in the belt.
