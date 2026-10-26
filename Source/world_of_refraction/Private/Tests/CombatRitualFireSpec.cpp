@@ -12,6 +12,7 @@
 #include "Combat/TurnManager.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "Character/CharacterDataComponent.h"
 
 namespace
 {
@@ -144,13 +145,43 @@ void FCombatRitualFireSpec::Define()
 	{
 		UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
 		Ability->Name = TEXT("Montage-less Ritual");
+		Ability->AddToRoot();
 		if (!StartDuelWithRitual([this, Ability]() { return MakeAbilityOn(Foe, Ability); }))
 		{
+			Ability->RemoveFromRoot();
 			return;
 		}
 		PlayTurns();
+		Ability->RemoveFromRoot();
 
 		TestTrue(TEXT("The ritual ability fired"), Recorder->Saw(Hero, EActionType::Ability, true));
+		TestTrue(TEXT("Combat still running"), Orchestrator->GetCombatState() == ECombatState::InProgress);
+		TestTrue(TEXT("Back on a normal turn"), TurnManager->GetCurrentTurnType() == ETurnType::Normal);
+	});
+
+	It("advances past a ritual ability whose target is gone when it fires", [this]()
+	{
+		// A deferred fire skips the dead-target gate, so the skill finalizes inside its own start
+		// (no valid targets) - the B-166 crash path. The dead bystander isn't in the fight.
+		AActor *DeadTarget = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		UCharacterDataComponent *DeadData = DeadTarget ? DeadTarget->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		if (!TestNotNull(TEXT("Dead target data"), DeadData))
+		{
+			return;
+		}
+		DeadData->bIsAlive = false;
+		UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
+		Ability->Name = TEXT("Targetless Ritual");
+		Ability->AddToRoot();
+		if (!StartDuelWithRitual([this, DeadTarget, Ability]() { return MakeAbilityOn(DeadTarget, Ability); }))
+		{
+			Ability->RemoveFromRoot();
+			return;
+		}
+		PlayTurns();
+		Ability->RemoveFromRoot();
+
+		TestTrue(TEXT("The ritual fired and fizzled"), Recorder->Saw(Hero, EActionType::Ability, false));
 		TestTrue(TEXT("Combat still running"), Orchestrator->GetCombatState() == ECombatState::InProgress);
 		TestTrue(TEXT("Back on a normal turn"), TurnManager->GetCurrentTurnType() == ETurnType::Normal);
 	});

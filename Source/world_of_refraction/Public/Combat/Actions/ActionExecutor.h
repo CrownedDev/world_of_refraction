@@ -928,6 +928,10 @@ private:
 	 *  failsafe + legitimate finalize) cannot double-fire or no-op the advance. */
 	bool bAsyncCompletionFired = false;
 
+	/** B-166: bumped each time an async action starts, so a call that finalized its action can
+	 *  tell whether the completion already started the next one (a ritual fire on the next turn). */
+	int32 AsyncActionSerial = 0;
+
 	/** Finalize iff both defenses resolved AND animation finished (or no animation). */
 	void TryFinalizeAsyncAction();
 

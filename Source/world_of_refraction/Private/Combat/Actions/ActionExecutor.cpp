@@ -937,6 +937,7 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	// Store context and callback
 	CurrentExecutionContext = Context;
 	AsyncActionCallback = OnComplete;
+	++AsyncActionSerial;
 
 	// Reset coordination flags. FinalizeAsyncAction fires only when both flip true:
 	// bAllDefensesResolved (set by CheckAndFinalizeAsyncAction) and !bWaitingForAnimationEnd
@@ -4986,6 +4987,7 @@ void UActionExecutor::BeginSkillExecution(AActor *Actor)
 
 	UCharacterData *CharData = PendingExecutionCharData;
 	const FAction &Action = CurrentExecutionContext->Action;
+	const int32 ActionSerial = AsyncActionSerial;
 
 	if (!Actor || !CharData)
 	{
@@ -5075,11 +5077,18 @@ void UActionExecutor::BeginSkillExecution(AActor *Actor)
 		return;
 	}
 
-	// B-166: a montage-less skill can resolve and finalize inside the execute call above, which
-	// clears the context; there is then nothing left to time out or wait for.
-	if (!CurrentExecutionContext.IsSet())
+	// B-166: a skill can fail and finalize inside the execute call above (no valid targets, no
+	// energy, infusion refused), which clears the context; its completion may even have started
+	// the next action. Either way there is nothing of this action left to time out or wait for.
+	if (!CurrentExecutionContext.IsSet() || AsyncActionSerial != ActionSerial)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Action finished during execution - no timeout needed"));
+		if (!CurrentExecutionContext.IsSet())
+		{
+			// FinalizeAsyncAction doesn't unbind; a newer action would own these bindings.
+			UnbindActionAnimationEnd(Actor);
+			UnbindCombatNotify(Actor);
+		}
 		return;
 	}
 
