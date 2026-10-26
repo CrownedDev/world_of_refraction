@@ -1159,6 +1159,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **C** offered only for the F-tier spells the broken ring still casts.
 **Recommendation:** B, because it matches the weapon rule (a broken crystal gives no element to push), and the F-tier allowance is about casting the ring's own spells.
 **Answer (Crown):** **B** (2026-10-26): a ring whose crystal broke is **not** an infusion source (no element to push), matching the weapon rule; its own F-tier spells still cast.
+**Notes for Claude:** Applied: `GetAvailableInfusionSources` drops a broken ring; the AI and the menu follow it (the menu pins the spell's charge at 0). Two follow-ups raised as Q-163b.
+
+### Q-163b — A broken ring's F-tier spells: infused through Innate, and their Generic element
+**Status:** OPEN · **Raised:** 2026-10-26 (Q-163 follow-up) · **Blocks:** — (Q-163 shipped with B)
+**Question:** Once a ring's crystal breaks, may its F-tier spells still be infused another way, and what element does a Generic (inherit) spell from it take?
+**Context:** a broken ring offers no spells (`FRingInventoryEntry::GetSpells`), so `ResolveSpellSource` no longer finds its F-tier spells on the ring and treats them as **Innate**. For a Resonator or a Generic that means no infusion at all (they have no Innate source). For a **Caster** with a ring in the primary slot it means the spell can be infused through the Caster's **Innate** element. Separately, `GetElementForSourceOption` still returns the broken ring's element for a Generic spell that inherits its element.
+**Options:**
+- **A** keep it: a Caster may infuse a broken ring's F-tier spell with their own element; a Generic spell keeps the ring's element.
+- **B** a broken ring's spells can't be infused at all (any source), and a Generic spell from it is non-elemental (None).
+**Recommendation:** B. A broken crystal gives no element (Q-163), so its spells cast plain; it also keeps the spell's origin honest (it still comes from the ring).
+**Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
 ### D-092 — Shields, Wards and Barriers: the deckbuilder's absorb system
