@@ -611,12 +611,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A now, C later** (2026-10-26): AI-controlled party members play at a **fixed, good level** whatever the encounter's difficulty (named constant, `// TODO: tune`; the encounter difficulty drives enemies only). Later: **tactics** the player sets per ally (Dragon Quest / Persona style), a new decision when it comes up.
 
 ### D-045 — Who do you control when the leader is down?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-071
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-071
 **Question:** D-004 says the leader is always player-controlled. Today the player takes the first living member spawned, and if the leader dies the rest play on AI. What should happen?
 **Context:** `Trial/BattleGameMode.cpp:129-170` possesses the first living member. Rules: 06 Cp-6.
 **Options:** A only members set to Player (B-071); if none are left, the AI finishes the fight / B you take over the next living member.
 **Recommendation:** A, because it keeps D-026's per-member choice meaningful.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **B by default, as a setting** (2026-10-26): when every member set to Player has fallen, **you take over the remaining AI members** so you never just watch. A **setting** lets the player choose instead to let the AI finish the fight (A).
+**Notes for Claude:** setting on the Settings screen (Gameplay), default "Take over" (B), alternative "Let AI finish" (A). The leader stays Player while alive (D-004). Placeholder UI per the PIE rule until the CommonUI Settings screen exists.
 
 ### D-046 — One wallet per player, or per character?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-073
