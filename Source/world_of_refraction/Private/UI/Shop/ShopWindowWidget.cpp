@@ -26,6 +26,7 @@
 #include "Skills/Effects/EffectDefinition.h"
 #include "UI/Shop/ShopRowWidget.h" // shared per-entry display ladder (NameFor/TierFor/DescriptionFor)
 #include "Skills/Definitions/SupportSkillRules.h"
+#include "Trial/TrialRunSubsystem.h"
 
 namespace ShopWindowConstants
 {
@@ -398,7 +399,10 @@ void UShopWindowWidget::RefreshStockList()
     TArray<UObject *> Items;
     if (ActiveMerchant)
     {
-        for (const FMerchantStockEntry &E : ActiveMerchant->Stock)
+        // B-179: a trial vendor shows this run's rolled stock; at home the full list.
+        const UTrialRunSubsystem *TrialRun = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+        const TArray<FMerchantStockEntry> Stock = TrialRun ? TrialRun->GetMerchantStock(ActiveMerchant) : ActiveMerchant->Stock;
+        for (const FMerchantStockEntry &E : Stock)
         {
             UShopEntryObject *Obj = NewObject<UShopEntryObject>(this);
             Obj->Entry = E;

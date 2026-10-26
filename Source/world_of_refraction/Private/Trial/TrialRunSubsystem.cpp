@@ -5,11 +5,34 @@
 #include "Character/CharacterData.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
+#include "Equipment/Crystals/ItemIdentity.h"
+#include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "Merchant/MerchantInteractable.h"
+#include "Merchant/MerchantStockRoll.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Shop/MerchantShopSubsystem.h"
 #include "TimerManager.h"
 #include "Trial/TrialData.h"
+
+namespace
+{
+    TAutoConsoleVariable<int32> CVarTrialSeed(
+        TEXT("wor.Trial.Seed"),
+        0,
+        TEXT("Seed for every following trial run (0 = a fresh seed each run). Trial vendors roll their stock from it. ")
+        TEXT("Copy the seed from the [TrialRun] log line to see the same stock again."));
+
+    /** 0 means "no run", so a generated seed of 0 is bumped to this. */
+    constexpr int32 TRIAL_NONZERO_SEED_FALLBACK = 1;
+
+    int32 MakeFreshRunSeed()
+    {
+        const int32 NewSeed = static_cast<int32>(FGuid::NewGuid().A & static_cast<uint32>(MAX_int32));
+        return NewSeed != 0 ? NewSeed : TRIAL_NONZERO_SEED_FALLBACK;
+    }
+}
 
 void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
 {
@@ -41,8 +64,10 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     }
 
     ActiveTrial = Trial;
-    UE_LOG(LogTemp, Log, TEXT("[TrialRun] Entering trial '%s' -> %s"),
-           *Trial->Name.ToString(), *Trial->Level.ToString());
+    const int32 ForcedSeed = CVarTrialSeed.GetValueOnGameThread();
+    RunSeed = ForcedSeed != 0 ? ForcedSeed : MakeFreshRunSeed();
+    UE_LOG(LogTemp, Log, TEXT("[TrialRun] Entering trial '%s' -> %s (run seed %d; replay with: wor.Trial.Seed %d)"),
+           *Trial->Name.ToString(), *Trial->Level.ToString(), RunSeed, RunSeed);
     UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), Trial->Level);
 }
 
@@ -67,6 +92,7 @@ void UTrialRunSubsystem::ExitTrial()
            ActiveTrial.IsValid() ? *ActiveTrial->Name.ToString() : TEXT("<none>"),
            *HubLevel.ToString());
     ActiveTrial = nullptr;
+    RunSeed = 0;
     UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), HubLevel);
 }
 
@@ -135,10 +161,64 @@ void UTrialRunSubsystem::ExitEncounter()
                                          { UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), ReturnLevel); }));
 }
 
+TArray<FMerchantStockEntry> UTrialRunSubsystem::GetMerchantStock(const UMerchantData *Merchant) const
+{
+    // RunSeed, not the weak ActiveTrial, says a run is on: a collected trial asset must not quietly
+    // turn a trial vendor back into a home shop.
+    return Merchant ? MerchantStockRoll::StockFor(*Merchant, RunSeed != 0, RunSeed) : TArray<FMerchantStockEntry>();
+}
+
+FString UTrialRunSubsystem::GetMerchantStockString(const UMerchantData *Merchant) const
+{
+    if (!Merchant)
+    {
+        return TEXT("[TrialRun] Merchant=<null>");
+    }
+    const TArray<FMerchantStockEntry> Stock = GetMerchantStock(Merchant);
+    FString Out = FString::Printf(TEXT("[TrialRun] %s: %d of %d line(s) (%s, run seed %d)"), *Merchant->GetName(),
+                                  Stock.Num(), Merchant->Stock.Num(), RunSeed != 0 ? TEXT("rolled") : TEXT("home"), RunSeed);
+    for (const FMerchantStockEntry &Entry : Stock)
+    {
+        Out += FString::Printf(TEXT("\n  %s x%d"),
+                               Entry.Asset ? *Entry.Asset->GetName() : *ItemIdentity::GetDisplayName(Entry.Crystal), Entry.Count);
+    }
+    return Out;
+}
+
+#if !UE_BUILD_SHIPPING
+namespace
+{
+    FAutoConsoleCommandWithWorld GPrintMerchantStockCmd(
+        TEXT("wor.Trial.PrintMerchantStock"),
+        TEXT("Print what every merchant in this level shows now: its rolled stock in a trial, its full list at home (B-179)."),
+        FConsoleCommandWithWorldDelegate::CreateLambda(
+            [](UWorld *World)
+            {
+                UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+                const UTrialRunSubsystem *TrialRun = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+                if (!TrialRun)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[TrialRun] wor.Trial.PrintMerchantStock: no subsystem (no PIE world?)."));
+                    return;
+                }
+                int32 Merchants = 0;
+                for (TActorIterator<AMerchantInteractable> It(World); It; ++It)
+                {
+                    UE_LOG(LogTemp, Display, TEXT("%s"), *TrialRun->GetMerchantStockString(It->Merchant));
+                    ++Merchants;
+                }
+                if (Merchants == 0)
+                {
+                    UE_LOG(LogTemp, Display, TEXT("[TrialRun] wor.Trial.PrintMerchantStock: no merchants in this level."));
+                }
+            }));
+}
+#endif // !UE_BUILD_SHIPPING
+
 FString UTrialRunSubsystem::GetTrialRunString() const
 {
-    return FString::Printf(TEXT("TrialRun: active=%s | hub=%s | pending %d v %d (%s) | return=%s"),
-                           ActiveTrial.IsValid() ? *ActiveTrial->Name.ToString() : TEXT("<none>"),
+    return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | hub=%s | pending %d v %d (%s) | return=%s"),
+                           ActiveTrial.IsValid() ? *ActiveTrial->Name.ToString() : TEXT("<none>"), RunSeed,
                            HubLevel.IsNull() ? TEXT("<UNSET>") : *HubLevel.ToString(),
                            PendingBattleParty.Num(), PendingOpposingParty.Num(),
                            *UEnum::GetValueAsString(PendingRank),
