@@ -5,6 +5,7 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CombatCharacter.h"
+#include "Combat/Boss/BossPhaseComponent.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Combat/CombatControl.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
@@ -258,6 +259,19 @@ void ABattleGameMode::BootstrapCombat()
     }
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Trial difficulty %s, zone tier %d: enemy strength x%.2f"),
            *TrialGate::GetDifficultyName(TrialRun->GetTrialDifficulty()).ToString(), Zone.Tier, EnemyStrength);
+
+    // B-193: any opposing combatant with boss data gets its phases (before memories change them).
+    for (AActor *Enemy : OpposingParty)
+    {
+        const UCharacterDataComponent *EnemyData = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+        if (UBossData *BossData = EnemyData ? UBossData::FindFor(EnemyData->CharacterData) : nullptr)
+        {
+            UBossPhaseComponent *Phases = NewObject<UBossPhaseComponent>(Enemy);
+            Enemy->AddInstanceComponent(Phases);
+            Phases->RegisterComponent();
+            Phases->Setup(BossData);
+        }
+    }
 
     // B-191: reactions (worn items facing a character) and this run's memories change the fight
     // before it starts.
