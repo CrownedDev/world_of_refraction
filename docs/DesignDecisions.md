@@ -392,6 +392,19 @@ The queue of questions only Crown can answer.
 - Ice bar cap → a timed **turn-speed debuff** (the existing `TurnSpeedDebuff` effect), not Wind's one-off push-back (D-014). Duration and size named constants, `// TODO: tune`.
 - Needs a survey first: every `switch` on the element enum, element colours/icons, the buildup bars and the UI list of elements.
 
+### D-030 — What a full status bar does, and how long
+**Status:** ANSWERED · **Raised:** 2026-10-26 · **Blocks:** — (shapes B-062, B-063, B-064a)
+**Question:** Crown (2026-10-26) wants the status-bar caps changed: what does each one do, and for how long?
+**Answer (Crown):** (2026-10-26) **A full bar does something big for 2 turns**, counted the deckbuilder way: **2 of the affected character's own turns**, not every turn that passes. Examples:
+- **Wind:** pushes your next two turns down the turn order (refines D-014).
+- **Water:** lowers healing for two turns (lowers, not blocks).
+- **Ice:** slows action speed for two turns (D-029).
+**Notes for Claude:**
+- Turn counting per the deckbuilder (`04-effects.md` "For N turns counts the holder's turns"): it counts the holder's turns; applied during the holder's own turn, that turn counts as turn 1; it ends when the holder's turn after those starts. Put this in one shared helper (it's also what GAS stage 3's turn tracker needs, B-042/B-044).
+- Duration 2 is a named constant (`STATUS_CAP_TURNS = 2`); sizes ("how big") are named constants, `// TODO: tune`.
+- The other caps (Fire burn, Earth defence down, Lightning stun, Light crit down, Darkness silence) follow the same 2-holder-turns rule unless Crown says otherwise; flag any that already have a different authored duration rather than overwrite it.
+- Water today is `HealBlock` (blocks all healing); change it to a healing reduction (named constant).
+
 ---
 
 ## Parked
