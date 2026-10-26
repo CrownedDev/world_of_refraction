@@ -18,6 +18,7 @@ class USkillEffectManager;
 class UActionExecutor;
 class UAnimMontage;
 class UCombatHUD;
+class UCombatCameraDirector;
 
 /**
  * Combat state enum
@@ -147,6 +148,8 @@ public:
 	/** Native combat HUD (null until the native OnCombatStartedUI runs). */
 	UFUNCTION(BlueprintPure, Category = "Combat|UI")
 	UCombatHUD *GetCombatHUD() const { return CombatHUD; }
+
+	UCombatCameraDirector *GetCameraDirector() const { return CameraDirector; }
 
 	/** Force end combat (e.g., flee, cutscene interrupt) */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
@@ -483,6 +486,10 @@ private:
 	/** Owns the native combat HUD widgets. Created lazily on first combat start. */
 	UPROPERTY(Transient)
 	TObjectPtr<UCombatHUD> CombatHUD;
+
+	/** Combat camera (B-157 sets its template sequences on BP_CombatOrchestrator). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Camera", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UCombatCameraDirector> CameraDirector;
 
 	void TeardownCombatHUD();
 
