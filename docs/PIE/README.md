@@ -19,6 +19,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-061](B-061.md) | `fix/B-061-stun-attack-defend` (in `dev`) | Stunned = Attack or Defend only; no more skipped turn | Not tested |
 | [B-002](B-002.md) | `refactor/B-002-merge-dev` (**not** in `dev`; B-003) | `dev` merged into the native-UI refactor; HUD + results + vitals banking | Not tested |
 | [B-008](B-008.md) | `chore/B-008-shipping-guards` (in `dev`) | Debug console commands + test actors compiled out of Shipping; no editor change | Not tested |
+| [B-092](B-092.md) | `fix/B-092-stunned-menu-defend` (in `dev`) | Defend button; stunned menu = Attack + Defend, plain attack only (D-023 A) | Not tested |
 
 Move rows to **Done** when every check passes.
 
