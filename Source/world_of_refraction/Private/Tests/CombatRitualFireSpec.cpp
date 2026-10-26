@@ -17,9 +17,9 @@ namespace
 {
 	constexpr int32 RITUAL_DELAY_TURNS = 1;
 	/** Turns to play through: enough for the delay to burn and the Execution turn to come up. */
-	constexpr int32 MAX_TURNS_TO_PLAY = 6;
+	constexpr int32 RITUAL_MAX_TURNS_TO_PLAY = 6;
 	/** Test-world ticks are 0.01s; spans any timer an async action waits on, with margin. */
-	constexpr int32 SETTLE_FRAMES = 200;
+	constexpr int32 RITUAL_SETTLE_FRAMES = 200;
 }
 
 BEGIN_DEFINE_SPEC(FCombatRitualFireSpec, "WoR.Combat.RitualFire",
@@ -56,14 +56,14 @@ BEGIN_DEFINE_SPEC(FCombatRitualFireSpec, "WoR.Combat.RitualFire",
 	/** Ends turns until Hero's ritual shows up in OnActionExecuted (any outcome) or the cap. */
 	void PlayTurns(EActionType RitualType)
 	{
-		for (int32 Turn = 0; Turn < MAX_TURNS_TO_PLAY && Orchestrator->GetCombatState() == ECombatState::InProgress; ++Turn)
+		for (int32 Turn = 0; Turn < RITUAL_MAX_TURNS_TO_PLAY && Orchestrator->GetCombatState() == ECombatState::InProgress; ++Turn)
 		{
 			if (Recorder->Saw(Hero, RitualType, true) || Recorder->Saw(Hero, RitualType, false))
 			{
 				return;
 			}
 			Orchestrator->OnActionCompleted();
-			TestWorld->Tick(SETTLE_FRAMES);
+			TestWorld->Tick(RITUAL_SETTLE_FRAMES);
 		}
 	}
 
