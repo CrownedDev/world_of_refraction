@@ -257,7 +257,7 @@ void UEncounterComponent::OnJoinWindowExpired()
 	// EnterEncounter OpenLevels to the trial's battle stage; this component,
 	// the arena, and every trial actor die with the swap. If it rejects
 	// (no EncounterLevel authored), re-arm so the trial stays playable.
-	TrialRun->EnterEncounter(ActiveTrial, BattlePartyData, {OwnerData}, Difficulty);
+	TrialRun->EnterEncounter(ActiveTrial, BattlePartyData, {OwnerData}, Difficulty, Rank);
 	if (!TrialRun->HasPendingEncounter())
 	{
 		RearmEncounter();
