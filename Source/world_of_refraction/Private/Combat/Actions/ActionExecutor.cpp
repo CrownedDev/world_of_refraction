@@ -96,8 +96,10 @@ static const USkillDataBase *ResolveActionMontageSource(const FAction &Action)
 // clipless skill strands bWaitingForAnimationEnd true until the TimeoutDuration failsafe.
 static bool ActionPlaysMontage(const FAction &Action)
 {
+	// B-067: only SkillMontage starts the chain (both play paths early-return without it), so a
+	// skill with just a Ritual or Return montage plays nothing here and must not bind the wait.
 	const USkillDataBase *Skill = ResolveActionMontageSource(Action);
-	return Skill && (Skill->SkillMontage || Skill->RitualCastMontage || Skill->ReturnMontage);
+	return Skill && Skill->SkillMontage;
 }
 
 void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
@@ -3099,11 +3101,14 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 				if (SEM->HasEffectOfType(Input.Attacker, ESkillEffectType::DoubleHit))
 				{
 					FActionHitInput SecondHit = Input;
-					SecondHit.BaseDamage = FMath::Max(1, FMath::RoundToInt(Input.BaseDamage * 0.5f));
+					SecondHit.BaseDamage = FMath::Max(1, FMath::RoundToInt(Input.BaseDamage * CombatConstants::DOUBLE_HIT_DAMAGE_FRACTION));
 					SecondHit.bIsDoubleHit = true;
 					UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] DoubleHit on %s — second hit %d dmg"),
 						   *Input.Attacker->GetName(), SecondHit.BaseDamage);
-					ApplyHit(SecondHit);
+					// B-067: the second hit counts toward this hit's total and its kill (were dropped).
+					const FCombatHitResult SecondResult = ApplyHit(SecondHit);
+					Result.DamageDealt += SecondResult.DamageDealt;
+					Result.bTargetDied |= SecondResult.bTargetDied;
 				}
 			}
 		}
@@ -5342,6 +5347,10 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 				if (bWaitingForAnimationEnd && WeakActor.IsValid())
 				{
 					PlaySkillStep(WeakActor.Get(), ChainSkill);
+				}
+				else if (bWaitingForAnimationEnd)
+				{
+					FinishMontageChain(nullptr); // B-067: actor destroyed between legs
 				} }));
 		return;
 	}
@@ -5366,6 +5375,10 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 				if (bWaitingForAnimationEnd && WeakActor.IsValid())
 				{
 					PlayReturnStep(WeakActor.Get(), ChainSkill);
+				}
+				else if (bWaitingForAnimationEnd)
+				{
+					FinishMontageChain(nullptr); // B-067: actor destroyed between legs
 				} }));
 		return;
 	}
@@ -5593,8 +5606,10 @@ void UActionExecutor::PlayReturnStep(AActor *Actor, USkillDataBase *Skill)
 		return;
 	}
 
-	// Presence-driven: no ReturnMontage → finalize now (finalize-after-skill).
-	if (!Skill->ReturnMontage)
+	// Presence-driven: no ReturnMontage → finalize now (finalize-after-skill). A caster that died
+	// mid-skill (reflect, a counter) doesn't walk its corpse back either (B-067).
+	const UCharacterDataComponent *ActorComp = GetCharacterDataComponent(Actor);
+	if (!Skill->ReturnMontage || (ActorComp && !ActorComp->bIsAlive))
 	{
 		FinishMontageChain(Actor);
 		return;
@@ -5676,10 +5691,12 @@ void UActionExecutor::FinishMontageChain(AActor *Actor)
 		ReconcileCountBasedDefenseWindows(*CurrentExecutionContext, GetDefenseSystem());
 	}
 
-	// Montage-end facing reassert — nearest living enemy (arena center when none).
-	if (Actor)
+	// Montage-end facing reassert — nearest living enemy (arena center when none). Not for a corpse (B-067).
+	const UCharacterDataComponent *FacingComp = Actor ? GetCharacterDataComponent(Actor) : nullptr;
+	if (Actor && (!FacingComp || FacingComp->bIsAlive))
 	{
-		UCombatGridSubsystem *Grid = GetWorld()->GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
+		const UGameInstance *GI = GetWorld()->GetGameInstance();
+		UCombatGridSubsystem *Grid = GI ? GI->GetSubsystem<UCombatGridSubsystem>() : nullptr;
 		if (Grid)
 		{
 			Grid->UpdateActorFacing(Actor, CachedArenaCenter);
@@ -5693,6 +5710,11 @@ void UActionExecutor::FinishMontageChain(AActor *Actor)
 	{
 		UnbindActionAnimationEnd(Actor);
 		UnbindCombatNotify(Actor);
+	}
+	else
+	{
+		// B-067: the actor is gone, but the wait must still end or the action hangs to the failsafe.
+		bWaitingForAnimationEnd = false;
 	}
 
 	// Cleanup spell notify binding

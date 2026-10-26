@@ -17,6 +17,14 @@
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 
+// File-local: a combatant's component, or null when its actor is gone (B-067: a destroyed
+// combatant must not crash the scheduler).
+template <class TComponent>
+static TComponent *TurnManagerComponentOf(const AActor *Actor)
+{
+	return IsValid(Actor) ? Actor->FindComponentByClass<TComponent>() : nullptr;
+}
+
 // File-local: ETurnType -> label for debug prints.
 static const TCHAR *TurnTypeToString(ETurnType Type)
 {
@@ -103,7 +111,7 @@ void UTurnManager::InitializeCombat(const TArray<AActor *> &LocalParty, const TA
 	// pattern; unbound in EndCombat.
 	for (const FCombatantTurnDebt &Combatant : Combatants)
 	{
-		if (UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>())
+		if (UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Combatant.Actor))
 		{
 			CharComp->OnDied.AddUniqueDynamic(this, &UTurnManager::OnActorDied);
 			CharComp->OnResurrected.AddUniqueDynamic(this, &UTurnManager::OnActorResurrected);
@@ -137,7 +145,7 @@ void UTurnManager::EndCombat()
 		{
 			continue;
 		}
-		if (UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>())
+		if (UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Combatant.Actor))
 		{
 			CharComp->OnDied.RemoveDynamic(this, &UTurnManager::OnActorDied);
 			CharComp->OnResurrected.RemoveDynamic(this, &UTurnManager::OnActorResurrected);
@@ -235,7 +243,7 @@ void UTurnManager::CalculateSpeedRatios()
 		// into CachedSpeed, which stays the pristine tie-break base. Inert (×1) unless a
 		// TurnSpeedStone is attached (GetAttachedStonePercent stat-match guard).
 		float StoneFactor = 1.0f;
-		if (ULoadoutComponent *Loadout = Combatant.Actor->FindComponentByClass<ULoadoutComponent>())
+		if (ULoadoutComponent *Loadout = TurnManagerComponentOf<ULoadoutComponent>(Combatant.Actor))
 		{
 			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
 			{
@@ -251,7 +259,7 @@ void UTurnManager::CalculateSpeedRatios()
 	int32 SlowestSpeed = INT_MAX;
 	for (const FCombatantTurnDebt &Combatant : Combatants)
 	{
-		UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
+		UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Combatant.Actor);
 		if (CharComp && CharComp->bIsAlive)
 		{
 			SlowestSpeed = FMath::Min(SlowestSpeed, GetEffectiveSpeed(Combatant));
@@ -407,7 +415,7 @@ bool UTurnManager::ShouldBreakTieInFavor(const FCombatantTurnDebt &A, const FCom
 
 void UTurnManager::CacheActorStats(FCombatantTurnDebt &Combatant)
 {
-	UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Combatant.Actor);
 
 	if (CharComp && CharComp->CharacterData)
 	{
@@ -426,7 +434,7 @@ void UTurnManager::CacheActorStats(FCombatantTurnDebt &Combatant)
 		// gear points × the stat's per-point rate, read as a fraction), bounded below by the final
 		// Min to TURN_SPEED_GEAR_CEILING. ×1 (inert) with no gear, so byte-identical then. Hot-swap
 		// re-cache is driven by LoadoutComponent calling OnActorSpeedChanged on weapon/ring switch.
-		if (ULoadoutComponent *LoadoutComp = Combatant.Actor->FindComponentByClass<ULoadoutComponent>())
+		if (ULoadoutComponent *LoadoutComp = TurnManagerComponentOf<ULoadoutComponent>(Combatant.Actor))
 		{
 			const FEquipmentStatBonus Bonus = LoadoutComp->GetActiveStatBonus(Combatant.Actor);
 			StatTurn *= (1.0f + Bonus.BonusTurnSpeed * CombatConstants::TURN_SPEED_PER_POINT);
@@ -470,7 +478,7 @@ void UTurnManager::OnActorSpeedChanged(AActor *Actor)
 
 void UTurnManager::OnActorDied(AActor *Actor)
 {
-	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s died"), *Actor->GetName());
+	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s died"), *GetNameSafe(Actor));
 	// A Wind delay dies with its holder; a revived holder starts undelayed.
 	for (FCombatantTurnDebt &Combatant : Combatants)
 	{
@@ -485,7 +493,7 @@ void UTurnManager::OnActorDied(AActor *Actor)
 
 void UTurnManager::OnActorResurrected(AActor *Actor)
 {
-	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s resurrected"), *Actor->GetName());
+	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s resurrected"), *GetNameSafe(Actor));
 	// Recalculate ratios since the slowest combatant might have changed
 	CalculateSpeedRatios();
 }
@@ -535,7 +543,7 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 			bool bGranteeAlive = false;
 			if (IsValid(Pending[p].Actor))
 			{
-				UCharacterDataComponent *GranteeComp = Pending[p].Actor->FindComponentByClass<UCharacterDataComponent>();
+				UCharacterDataComponent *GranteeComp = TurnManagerComponentOf<UCharacterDataComponent>(Pending[p].Actor);
 				bGranteeAlive = GranteeComp && GranteeComp->bIsAlive;
 			}
 			if (!bGranteeAlive)
@@ -623,7 +631,7 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 	float MaxNetDebt = -FLT_MAX;
 	for (const FCombatantTurnDebt &Combatant : State)
 	{
-		UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
+		UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Combatant.Actor);
 		if (CharComp && CharComp->bIsAlive)
 		{
 			float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
@@ -638,7 +646,7 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 	{
 		for (FCombatantTurnDebt &Combatant : State)
 		{
-			UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
+			UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Combatant.Actor);
 			if (CharComp && CharComp->bIsAlive)
 			{
 				Combatant.TurnsOwed += Combatant.SpeedRatio;
@@ -657,7 +665,7 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 			if (&Combatant == Skip)
 				continue;
 
-			UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
+			UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Combatant.Actor);
 			if (!CharComp || !CharComp->bIsAlive)
 				continue;
 
@@ -750,7 +758,7 @@ void UTurnManager::DebugPrintTurnOrder()
 	{
 		float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
 		UE_LOG(LogWoRCombat, Display, TEXT("  %s: Speed=%d, Ratio=%.2f, Owed=%.2f, Taken=%d, Net=%.2f"),
-			   *Combatant.Actor->GetName(),
+			   *GetNameSafe(Combatant.Actor),
 			   Combatant.CachedSpeed,
 			   Combatant.SpeedRatio,
 			   Combatant.TurnsOwed,

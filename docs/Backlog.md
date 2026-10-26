@@ -132,8 +132,8 @@
 | B-064 | Element damage per D-005 (C): the resistance table also scales damage via `ElementMultiplier`; `OnDamageDealt` carries element | CC | M | D-005, D-036, B-145 | Tests: weak/resistant/neutral; damage numbers can tint by element | BLOCKED (B-145). D-036 answered: per-element resistance only (class table + gear + element effects), 1:1, capped at ±50%. Built inside the B-145 resistance plan, same files |
 | B-095 | Resistance table structure: move `ClassInnateResistanceTable` (hard-coded C++) into a designer-editable data asset, same values; debug print button | CC | M | B-064 | Same numbers in tests before/after; editable in the Details panel | BLOCKED (B-064) |
 | B-065 | Cleanse per D-015: cleanse and Iolite skip effects that came from gear (origin mark), yours or the enemy's | CC | S | D-015 | Tests: cleanse keeps own gear effects; Iolite keeps enemy gear buffs | REVIEW (in dev) |
-| B-066 | Aura element inheritance for buff types; Cleanse payload wired (Roadmap Design Gaps) | CC | M | — | `DA_Spell_Aura` and `DA_Spell_Cleanse` do something | TODO |
-| B-067 | Small fixes: TurnManager null checks, DoubleHit totals, corpse return-anim, anim-wait hang, GI deref | CC | M | B-001 | Each with a regression test or PIE note | TODO |
+| B-066 | Aura element inheritance for buff types; Cleanse payload wired (Roadmap Design Gaps) | CC | M | — | `DA_Spell_Aura` and `DA_Spell_Cleanse` do something | TODO (needs the editor: the two spell assets) |
+| B-067 | Small fixes: TurnManager null checks, DoubleHit totals, corpse return-anim, anim-wait hang, GI deref | CC | M | B-001 | Each with a regression test or PIE note | REVIEW (in dev) |
 
 ## Phase 4 — Gameplay loop
 

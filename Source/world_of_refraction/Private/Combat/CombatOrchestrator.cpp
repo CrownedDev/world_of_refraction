@@ -93,7 +93,7 @@ void ACombatOrchestrator::BeginPlay()
 		ActionExecutorRef->OnActionDeferredArmed.AddDynamic(this, &ACombatOrchestrator::HandleActionDeferredArmed);
 	}
 
-	AIDecisionManagerRef = GI->GetSubsystem<UAIDecisionManager>();
+	AIDecisionManagerRef = GI ? GI->GetSubsystem<UAIDecisionManager>() : nullptr; // B-067: GI may be null
 
 	if (!AIDecisionManagerRef)
 	{
