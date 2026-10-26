@@ -1660,6 +1660,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-071-party-into-battle): `ABattleGameMode::BootstrapCombat` possesses the leader's pawn when it fights, otherwise the first Player-set member, otherwise the first spawned.
 
+### Q-149 — Which enemies start in the front row and which in the back, until enemies have authored cells?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-149) · **Blocks:** — (B-149 shipped with A)
+**Question:** D-042 says enemies use "tanks front, casters back" until their cells are authored. The game has no tank tag, only the three classes (Generic, Refractor, Resonator).
+**Options:**
+- **A** by class: a Refractor (Caster) starts in the Back row; a Generic or Resonator (weapon users) in the Front row. An enemy with no character data starts Front.
+- **B** every enemy in the Middle row until authored (no row bonus).
+- **C** by stats: the highest-HP enemy Front, the rest Back.
+**Recommendation:** A. The classic row games put spellcasters in the back row and weapon fighters in the front (Final Fantasy IV to VI; Octopath Traveler's tank/mage roles), and players read it at a glance. A Resonator fights with a weapon, so it stands with the fighters. Not lore. Note: `UCharacterData` defaults to Caster, so an enemy asset whose class was never set starts in the Back row.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-149-formation-cells): `ACombatOrchestrator::GetPlaceholderEnemyStartRow`. Authored enemy cells replace it later.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

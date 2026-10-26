@@ -276,6 +276,13 @@ void UCombatGridSubsystem::PlaceAllActors(const FVector &ArenaCenter)
 
 // ==================== AUTO-ASSIGNMENT ====================
 
+namespace CombatGridStart
+{
+    // Centre-out: centre, then left, then right. Shared by both team assigns.
+    constexpr int32 CENTRE_OUT_COLUMNS[CombatGridConstants::GRID_COLUMNS] = {1, 0, 2};
+    constexpr ECombatRow FALLBACK_ROWS[] = {ECombatRow::Middle, ECombatRow::Front, ECombatRow::Back};
+}
+
 void UCombatGridSubsystem::AutoAssignTeam(const TArray<AActor *> &TeamActors, int32 TeamIndex, ECombatRow PreferredRow)
 {
     if (TeamActors.Num() == 0)
@@ -289,15 +296,12 @@ void UCombatGridSubsystem::AutoAssignTeam(const TArray<AActor *> &TeamActors, in
                TeamActors.Num(), CombatGridConstants::MAX_TEAM_SIZE);
     }
 
-    // Centre-out: index 0 (leader, by roster convention) takes centre,
-    // later members flank. TODO(formation-arc): superseded by
-    // party-authored PreferredColumn once the hub formation UI exists;
-    // this table becomes the unstamped fallback.
-    constexpr int32 CENTRE_OUT_COLUMNS[CombatGridConstants::GRID_COLUMNS] = {1, 0, 2};
-
+    // Centre-out: index 0 (leader, by roster convention) takes centre, later members
+    // flank. Fights start through AssignTeamWithPreferences (B-149, D-042); this is
+    // the one-row placement for callers with no preferences.
+    //
     // Leadership is INFERRED from array index 0, not authored — the alive-filter can
-    // shift it in a wipe, in which case the survivor takes centre. Acceptable for a
-    // fallback; authored leadership is the formation arc's job.
+    // shift it in a wipe, in which case the survivor takes centre.
     int32 Index = 0;
     for (AActor *Actor : TeamActors)
     {
@@ -306,7 +310,7 @@ void UCombatGridSubsystem::AutoAssignTeam(const TArray<AActor *> &TeamActors, in
             break; // Max 3 per team — the over-size case is warned above
         }
 
-        FCombatGridPosition Position(TeamIndex, PreferredRow, CENTRE_OUT_COLUMNS[Index]);
+        FCombatGridPosition Position(TeamIndex, PreferredRow, CombatGridStart::CENTRE_OUT_COLUMNS[Index]);
         AssignPosition(Actor, Position);
         Index++;
     }
@@ -315,6 +319,79 @@ void UCombatGridSubsystem::AutoAssignTeam(const TArray<AActor *> &TeamActors, in
            FMath::Min(TeamActors.Num(), CombatGridConstants::MAX_TEAM_SIZE),
            TeamIndex,
            *CombatRowHelpers::GetRowName(PreferredRow));
+}
+
+void UCombatGridSubsystem::AssignTeamWithPreferences(const TArray<AActor *> &TeamActors, int32 TeamIndex,
+                                                    const TArray<FGridStartPreference> &Preferences)
+{
+    if (TeamActors.Num() > CombatGridConstants::MAX_TEAM_SIZE)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] Team has %d actors, max is %d - the rest are not placed"),
+               TeamActors.Num(), CombatGridConstants::MAX_TEAM_SIZE);
+    }
+    const int32 TeamSize = FMath::Min(TeamActors.Num(), CombatGridConstants::MAX_TEAM_SIZE);
+
+    auto TryRow = [this, TeamIndex](AActor *Actor, ECombatRow Row)
+    {
+        for (const int32 Column : CombatGridStart::CENTRE_OUT_COLUMNS)
+        {
+            const FCombatGridPosition Position(TeamIndex, Row, Column);
+            if (!IsPositionOccupied(Position) && AssignPosition(Actor, Position))
+            {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // Pass 1: exact cells, first come first served. A repeated actor is placed once.
+    TArray<int32> UnplacedIndices;
+    TSet<AActor *> Seen;
+    for (int32 Index = 0; Index < TeamSize; ++Index)
+    {
+        AActor *Actor = TeamActors[Index];
+        bool bAlreadySeen = false;
+        Seen.Add(Actor, &bAlreadySeen);
+        if (!Actor || bAlreadySeen)
+        {
+            continue;
+        }
+        const FGridStartPreference *Preference = Preferences.IsValidIndex(Index) ? &Preferences[Index] : nullptr;
+        if (Preference && Preference->bHasRow && Preference->Column != INDEX_NONE)
+        {
+            const FCombatGridPosition Cell(TeamIndex, Preference->Row, Preference->Column);
+            if (Cell.IsValid() && !IsPositionOccupied(Cell) && AssignPosition(Actor, Cell))
+            {
+                UE_LOG(LogTemp, Log, TEXT("[CombatGrid] %s starts in its chosen cell %s"), *Actor->GetName(), *Cell.ToString());
+                continue;
+            }
+            UE_LOG(LogTemp, Log, TEXT("[CombatGrid] %s: chosen cell %s is taken or invalid - auto-placing"),
+                   *Actor->GetName(), *Cell.ToString());
+        }
+        UnplacedIndices.Add(Index);
+    }
+
+    // Pass 2: the preferred row (or Middle), then any free cell.
+    for (const int32 Index : UnplacedIndices)
+    {
+        AActor *Actor = TeamActors[Index];
+        const FGridStartPreference *Preference = Preferences.IsValidIndex(Index) ? &Preferences[Index] : nullptr;
+        const ECombatRow FirstRow = Preference && Preference->bHasRow ? Preference->Row : ECombatRow::Middle;
+        bool bPlaced = TryRow(Actor, FirstRow);
+        if (!bPlaced)
+        {
+            UE_LOG(LogTemp, Log, TEXT("[CombatGrid] %s: %s row is full - trying the others"), *Actor->GetName(),
+                   *CombatRowHelpers::GetRowName(FirstRow));
+        }
+        for (int32 RowIndex = 0; !bPlaced && RowIndex < UE_ARRAY_COUNT(CombatGridStart::FALLBACK_ROWS); ++RowIndex)
+        {
+            bPlaced = TryRow(Actor, CombatGridStart::FALLBACK_ROWS[RowIndex]);
+        }
+        if (!bPlaced)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] No free cell for %s on Team %d"), *Actor->GetName(), TeamIndex);
+        }
+    }
 }
 
 // ==================== DEBUG ====================

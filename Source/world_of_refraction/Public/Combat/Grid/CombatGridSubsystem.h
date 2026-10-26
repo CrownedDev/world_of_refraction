@@ -8,6 +8,18 @@
 #include "Combat/Grid/FCombatGridPosition.h"
 #include "CombatGridSubsystem.generated.h"
 
+/** Where a combatant would like to start a fight (D-042). No row = no preference (the Middle
+ *  row); a row with no column = that row, centre-out; row + column = that exact cell. */
+struct FGridStartPreference
+{
+    bool bHasRow = false;
+    ECombatRow Row = ECombatRow::Middle;
+    int32 Column = INDEX_NONE;
+
+    static FGridStartPreference Cell(ECombatRow InRow, int32 InColumn) { return {true, InRow, InColumn}; }
+    static FGridStartPreference RowOnly(ECombatRow InRow) { return {true, InRow, INDEX_NONE}; }
+};
+
 /**
  * Manages combat grid positions for all combatants
  * Provides damage/defense modifiers based on row positioning
@@ -168,6 +180,15 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid|Auto")
     void AutoAssignTeam(const TArray<AActor *> &TeamActors, int32 TeamIndex, ECombatRow PreferredRow = ECombatRow::Middle);
+
+    /**
+     * D-042 (B-149): start a team in its chosen cells. Preferences[i] belongs to TeamActors[i]
+     * (missing entries = no preference). Pass 1 gives every exact cell that is free (first
+     * come, in roster order); pass 2 places the rest centre-out in their preferred row (the
+     * Middle row without one), then any free cell, Middle, Front, Back.
+     */
+    void AssignTeamWithPreferences(const TArray<AActor *> &TeamActors, int32 TeamIndex,
+                                   const TArray<FGridStartPreference> &Preferences);
 
     // ==================== DEBUG ====================
 

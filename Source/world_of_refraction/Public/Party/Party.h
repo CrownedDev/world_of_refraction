@@ -37,7 +37,8 @@ namespace PartyConstants
 
 	/** Sentinel for FPartyMember::PreferredColumn: the member has not been placed
 	 *  on the formation grid. An unplaced member falls back to
-	 *  UCombatGridSubsystem::AutoAssignTeam's centre-out table at spawn.
+	 *  UCombatGridSubsystem::AssignTeamWithPreferences' centre-out placement at fight
+	 *  start; a placed member starts in its cell (D-042, B-149).
 	 *
 	 *  Column alone carries the unplaced state — ECombatRow has no "unset" value,
 	 *  and adding one would ripple into the row modifier switches in
