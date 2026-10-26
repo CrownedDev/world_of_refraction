@@ -661,12 +661,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-26): cap turns at **2 per turn of the slowest** (`MAX_TURN_RATIO = 2`, which the scheduler must now read: `TurnManager.cpp` speed ratio). Wind push-back (D-014/D-030), Ice slow (D-029) and bonus turns all act within the cap. Compared: FFX (uncapped), Expedition 33, Octopath (one per round).
 
 ### D-050 — How long does Defend last?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** Defend's +50% Defense for 1 turn ticks away at the end of the defender's own turn, before anyone attacks, so it does nothing.
 **Context:** `Combat/Actions/ActionExecutor.cpp:2787-2792` gives it; the end-of-turn tick (`Combat/CombatOrchestrator.cpp:589`, `Skills/Effects/SkillEffectManager.cpp:1125-1145`) removes it. Rules: 04 C4-2. In the deckbuilder, Defend lasts until your next turn starts (`04-effects.md`, "Lasts").
 **Options:** A until your next turn starts / B as now.
 **Recommendation:** A (the deckbuilder's rule), with the 50% and the duration as named constants.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A** (2026-10-26): Defend lasts **until the defender's next turn starts**, covering every enemy turn in between (deckbuilder rule; the shared holder-turn counting of D-030). Today it ticks off at the end of the defender's own turn and does nothing. The +50% and the duration become named constants (`// TODO: tune`).
 
 ### D-051 — How are effect durations counted?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-062, B-063
