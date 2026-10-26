@@ -247,6 +247,23 @@ namespace EconomyYield
         }
     }
 
+    /** ER-28 (Crown, 2026-10-26): a merge's overshoot comes back as the fewest crystals of the same
+     *  type below TargetTier (highest tier first). One entry per crystal; empty for no overshoot. */
+    inline TArray<EItemTier> GetMergeChange(int32 Overshoot, EItemTier TargetTier)
+    {
+        TArray<EItemTier> Change;
+        for (int32 TierIndex = TierHelpers::GetTierValue(TargetTier) - 1; TierIndex >= 0 && Overshoot > 0; --TierIndex)
+        {
+            const EItemTier Tier = TierHelpers::GetTierFromValue(TierIndex);
+            const int32 Value = GetCrystalValue(Tier);
+            for (; Value > 0 && Overshoot >= Value; Overshoot -= Value)
+            {
+                Change.Add(Tier);
+            }
+        }
+        return Change;
+    }
+
     /** Typed-essence PURCHASE cost for a tier — §4.2 buy row. Used for a spell's element essence
      *  (at spell tier) and, via ScalingGradeToItemTier, each scaling grade's pillar essence. */
     inline int32 GetTypedEssencePurchaseCostForTier(EItemTier Tier)

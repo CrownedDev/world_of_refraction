@@ -192,7 +192,7 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     }
 
     // SELECT lowest-first: take whole crystals from the bottom up until running value >= target
-    // (minimal-meets-or-exceeds; overshoot from the smallest crystals is accepted per §4.5).
+    // (minimal-meets-or-exceeds); the overshoot comes back as change below (ER-28).
     int32 ConsumeCounts[7] = {0, 0, 0, 0, 0, 0, 0}; // by tier value (F..S); only [0, TargetTierIndex) used
     int32 Accumulated = 0;
     for (int32 t = 0; t < TargetTierIndex && Accumulated < TargetValue; ++t)
@@ -224,14 +224,23 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     Currency->Spend(ECurrencyType::Prisms, PrismsCost);
     Inv->RemoveCrystals(Inputs); // ONE Removed (inputs are guaranteed present — counted above)
 
+    // ER-28: the overshoot comes back as the fewest same-Type crystals below the target. Added with
+    // the output in one call, so change that doesn't fit (a full tier) refunds the whole merge.
+    TArray<FCrystalId> Outputs = {OutputId};
+    for (const EItemTier ChangeTier : EconomyYield::GetMergeChange(Accumulated - TargetValue, TargetTier))
+    {
+        Outputs.Add(FCrystalId(Type, ChangeTier));
+    }
+
     // ---- Produce 1 of the target tier (same Type, same pool); refund EVERYTHING on add-failure ----
-    const bool bAdded = Inv->AddCrystals({OutputId}); // ONE Added
+    const bool bAdded = Inv->AddCrystals(Outputs); // ONE Added
     if (!bAdded)
     {
         Inv->AddCrystals(Inputs); // ONE Added — re-add the exact consumed set (atomic; space just freed)
         Currency->Add(ECurrencyType::Prisms, PrismsCost);
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: add of %s failed — refunded inputs + %d Prisms"),
-               *ItemIdentity::GetDisplayName(OutputId), PrismsCost);
+        UE_LOG(LogTemp, Warning,
+               TEXT("[EconomyService] MergeCrystals: add of %s + %d change crystal(s) failed (output or change tier at cap, Q-177) — refunded inputs + %d Prisms"),
+               *ItemIdentity::GetDisplayName(OutputId), Outputs.Num() - 1, PrismsCost);
         return false;
     }
 
@@ -250,8 +259,8 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
         }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Merged %s -> 1x %s for %d Prisms"),
-           *ConsumedStr, *ItemIdentity::GetDisplayName(OutputId), PrismsCost);
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Merged %s -> 1x %s (+%d change crystal(s), %d value back) for %d Prisms"),
+           *ConsumedStr, *ItemIdentity::GetDisplayName(OutputId), Outputs.Num() - 1, Accumulated - TargetValue, PrismsCost);
     return true;
 }
 
@@ -1471,6 +1480,72 @@ namespace
                 const bool bOK = Economy->BuyWorldStat(Pawn, Pillar);
                 UE_LOG(LogTemp, Display, TEXT("[EconomyService] wor.BuyWorldStat %s -> %s"),
                        *UEnum::GetValueAsString(Pillar), bOK ? TEXT("OK") : TEXT("FAILED (cap / can't afford / missing component)"));
+            }));
+
+    /** A crystal type named by Args[Index] ("Garnet"), or INDEX_NONE (also for the hidden _MAX entry). */
+    int64 EconomyDebugParseCrystalType(const TArray<FString> &Args, int32 Index)
+    {
+        const UEnum *Enum = StaticEnum<ECrystalType>();
+        const int64 Value = Args.IsValidIndex(Index) ? Enum->GetValueByNameString(Args[Index]) : INDEX_NONE;
+        return Value < Enum->GetMaxEnumValue() ? Value : INDEX_NONE;
+    }
+
+    static FAutoConsoleCommandWithWorldAndArgs GGiveCrystalCmd(
+        TEXT("wor.Economy.GiveCrystal"),
+        TEXT("DEBUG: give the played pawn <Count> crystals of <Type> <Tier> (e.g. Garnet D 2) to set up a merge check."),
+        FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+            [](const TArray<FString> &Args, UWorld *World)
+            {
+                const int64 TypeValue = EconomyDebugParseCrystalType(Args, 0);
+                const int64 TierValue = Args.Num() > 1 ? StaticEnum<EItemTier>()->GetValueByNameString(Args[1] + TEXT("_Tier")) : INDEX_NONE;
+                const int32 Count = Args.Num() > 2 ? FCString::Atoi(*Args[2]) : 1;
+                if (TypeValue == INDEX_NONE || TypeValue == static_cast<int64>(ECrystalType::None) || TierValue == INDEX_NONE || Count <= 0)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[EconomyService] wor.Economy.GiveCrystal: usage <Type> <Tier> [Count], e.g. wor.Economy.GiveCrystal Garnet D 2"));
+                    return;
+                }
+
+                APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
+                APawn *Pawn = PC ? PC->GetPawn() : nullptr;
+                UInventoryComponent *Inv = Pawn ? Pawn->FindComponentByClass<UInventoryComponent>() : nullptr;
+                if (!Inv)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[EconomyService] wor.Economy.GiveCrystal: no played pawn with an Inventory component."));
+                    return;
+                }
+                TArray<FCrystalId> Ids;
+                Ids.Init(FCrystalId(static_cast<ECrystalType>(TypeValue), static_cast<EItemTier>(TierValue)), Count);
+                const bool bOK = Inv->AddCrystals(Ids);
+                UE_LOG(LogTemp, Display, TEXT("[EconomyService] wor.Economy.GiveCrystal %d x %s -> %s"), Count,
+                       *ItemIdentity::GetDisplayName(Ids[0]), bOK ? TEXT("OK") : TEXT("FAILED (tier at cap)"));
+            }));
+
+    static FAutoConsoleCommandWithWorldAndArgs GMergeCrystalsCmd(
+        TEXT("wor.Economy.Merge"),
+        TEXT("DEBUG: merge the played pawn's crystals up to one of <Type> <Tier> (e.g. Garnet C). Logs what was spent and the change given back (ER-28)."),
+        FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+            [](const TArray<FString> &Args, UWorld *World)
+            {
+                const int64 TypeValue = EconomyDebugParseCrystalType(Args, 0);
+                const int64 TierValue = Args.Num() > 1 ? StaticEnum<EItemTier>()->GetValueByNameString(Args[1] + TEXT("_Tier")) : INDEX_NONE;
+                if (TypeValue == INDEX_NONE || TierValue == INDEX_NONE)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[EconomyService] wor.Economy.Merge: usage <Type> <Tier>, e.g. wor.Economy.Merge Garnet C"));
+                    return;
+                }
+
+                UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+                UEconomyService *Economy = GI ? GI->GetSubsystem<UEconomyService>() : nullptr;
+                APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
+                APawn *Pawn = PC ? PC->GetPawn() : nullptr;
+                if (!Economy || !Pawn)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[EconomyService] wor.Economy.Merge: no subsystem or played pawn."));
+                    return;
+                }
+                const bool bOK = Economy->MergeCrystals(Pawn, static_cast<ECrystalType>(TypeValue), static_cast<EItemTier>(TierValue));
+                UE_LOG(LogTemp, Display, TEXT("[EconomyService] wor.Economy.Merge %s %s -> %s"), *Args[0], *Args[1],
+                       bOK ? TEXT("OK") : TEXT("FAILED (see the warning above)"));
             }));
 }
 #endif // !UE_BUILD_SHIPPING
