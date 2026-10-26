@@ -26,6 +26,7 @@
 #include "Equipment/EAttachedItemKind.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Skills/Definitions/ESpellSource.h"
+#include "Loadout/CarriedGearState.h"
 #include "LoadoutComponent.generated.h"
 
 struct FBrokenCrystalPayload;
@@ -657,6 +658,14 @@ public:
      *  a clear occurred. Intended for between-combat destruction sweeps. */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Crystal")
     bool ClearBrokenPrimaryEvolution();
+
+    /** B-115: the active loadout's crystals as this fight leaves them: every weapon and ring
+     *  attachment (empty ones too, so a destroyed gem stays gone) and the primary evolution. */
+    FCarriedGearState SnapshotCarriedGear() const;
+
+    /** B-115: puts carried crystal state back on the freshly built loadout. A holder the loadout
+     *  no longer has is skipped. Returns how many attachments were restored. */
+    int32 ApplyCarriedGear(const FCarriedGearState &Carried);
 
     /** Unconditionally empties the active loadout's primary evolution slot (player-initiated
      *  removal, not a break sweep). PrimarySlotType is left unchanged (stays Evolution — the slot

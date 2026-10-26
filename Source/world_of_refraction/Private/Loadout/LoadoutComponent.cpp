@@ -3413,6 +3413,84 @@ int32 ULoadoutComponent::RepairActivePrimaryEvolution(int32 Amount)
     return Loadout.PrimaryEvolution.RepairBetweenCombats(Amount);
 }
 
+namespace LoadoutCarryInternal
+{
+    /** Every weapon and ring slot of Loadout that can hold an attachment, in a fixed order. */
+    template <typename FFunc>
+    void ForEachAttachmentSlot(FCombatLoadout &Loadout, FFunc &&Func)
+    {
+        Func(static_cast<UObject *>(Loadout.PrimaryWeapon.WeaponEntry.Weapon), Loadout.PrimaryWeapon.WeaponEntry.AttachedItem);
+        Func(static_cast<UObject *>(Loadout.SecondaryWeapon.WeaponEntry.Weapon), Loadout.SecondaryWeapon.WeaponEntry.AttachedItem);
+        Func(static_cast<UObject *>(Loadout.PrimaryRing.RingEntry.Ring), Loadout.PrimaryRing.RingEntry.AttachedItem);
+        for (FRingLoadoutEntry &Entry : Loadout.RingLoadout)
+        {
+            Func(static_cast<UObject *>(Entry.RingEntry.Ring), Entry.RingEntry.AttachedItem);
+        }
+    }
+}
+
+FCarriedGearState ULoadoutComponent::SnapshotCarriedGear() const
+{
+    FCarriedGearState Carried;
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        return Carried;
+    }
+
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried](UObject *Holder, const FRuntimeAttachedItem &Attached)
+    {
+        if (Holder)
+        {
+            Carried.Attachments.Add({Holder, Attached});
+        }
+    });
+    Carried.bHasPrimaryEvolution = Loadout.PrimarySlotType == EPrimarySlotType::Evolution;
+    if (Carried.bHasPrimaryEvolution)
+    {
+        Carried.PrimaryEvolution = Loadout.PrimaryEvolution;
+    }
+    Carried.bCarried = true;
+    return Carried;
+}
+
+int32 ULoadoutComponent::ApplyCarriedGear(const FCarriedGearState &Carried)
+{
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Carried.bCarried || !Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        return 0;
+    }
+
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    // Matched in slot order, each carried entry used once, so two copies of one ring keep their own state.
+    TBitArray<> Used(false, Carried.Attachments.Num());
+    int32 Restored = 0;
+    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried, &Used, &Restored](UObject *Holder, FRuntimeAttachedItem &Attached)
+    {
+        for (int32 i = 0; Holder && i < Carried.Attachments.Num(); ++i)
+        {
+            if (!Used[i] && Carried.Attachments[i].Holder == Holder)
+            {
+                Attached = Carried.Attachments[i].Attached;
+                Used[i] = true;
+                ++Restored;
+                return;
+            }
+        }
+    });
+    if (Carried.bHasPrimaryEvolution && Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
+    {
+        Loadout.PrimaryEvolution = Carried.PrimaryEvolution;
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[ULoadoutComponent] %s: carried crystal state restored (%d of %d attachments%s)"),
+           GetOwner() ? *GetOwner()->GetName() : TEXT("<null>"), Restored, Carried.Attachments.Num(),
+           Carried.bHasPrimaryEvolution ? TEXT(", primary evolution") : TEXT(""));
+    return Restored;
+}
+
 bool ULoadoutComponent::ClearBrokenPrimaryEvolution()
 {
     UInventoryComponent *Inv = GetInventoryComponent();
