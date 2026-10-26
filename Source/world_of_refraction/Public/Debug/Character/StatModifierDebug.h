@@ -3,7 +3,8 @@
 // - GetStatModifierString: each sub-stat's net transient modifier on an actor.
 // - GetStatsSnapshotString: one line per composed stat getter (the values a refactor must keep).
 // - CompareStats: snapshots every combatant in the world and lists what changed since the last
-//   call. Console: wor.CompareStats (run once, change something, run again), wor.PrintStatModifiers.
+//   call, even across a rebuild (snapshots are saved under Saved/StatSnapshots/).
+//   Console: wor.CompareStats (run once, change something, run again), wor.PrintStatModifiers.
 
 #pragma once
 
@@ -26,7 +27,8 @@ public:
 	static FString GetStatsSnapshotString(AActor *Actor);
 
 	/** Snapshots every actor with a CharacterDataComponent; logs the lines that changed since the
-	 *  previous call (or "first snapshot"). Snapshots are kept per actor name for the editor session. */
+	 *  previous call (or "first snapshot"). Snapshots are saved per actor name under Saved/StatSnapshots/,
+	 *  so the comparison survives a rebuild. Delete that folder to start fresh. */
 	UFUNCTION(BlueprintCallable, Category = "Debug|Stats", meta = (WorldContext = "WorldContextObject"))
 	static void CompareStats(const UObject *WorldContextObject);
 

@@ -10,6 +10,10 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Combat/CombatConstants.h"
+#include "Character/CharacterData.h"
 #include "WoRLog.h"
 
 namespace
@@ -22,8 +26,12 @@ namespace
 		ESubStat::SpellSpeed, ESubStat::Defense, ESubStat::ActionSpeed, ESubStat::RawDamage,
 		ESubStat::Resistance, ESubStat::TurnSpeed, ESubStat::Luck, ESubStat::Reflex};
 
-	/** Last snapshot per actor name, for CompareStats. Debug-only; lives for the editor session. */
-	TMap<FString, FString> GStatDebugLastSnapshots;
+	/** Last snapshot per actor name, saved under Saved/StatSnapshots/ so a before/after survives a
+	 *  rebuild and editor restart (snapshot, rebuild, snapshot again). */
+	FString StatDebugSnapshotPath(const FString &ActorName)
+	{
+		return FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("StatSnapshots"), ActorName + TEXT(".txt"));
+	}
 
 	FAutoConsoleCommandWithWorld GCompareStatsCmd(
 		TEXT("wor.CompareStats"),
@@ -114,9 +122,16 @@ FString UStatModifierDebug::GetStatsSnapshotString(AActor *Actor)
 	}
 	if (const USkillEffectManager *SEM = StatDebugSubsystem<USkillEffectManager>(Actor))
 	{
+		// Turn order's stat x buff layer, as TurnManager::CalculateSpeedRatios composes it
+		// (the attached TurnSpeedStone is left out).
+		if (const UCharacterData *CharData = Char->CharacterData)
+		{
+			Add(TEXT("TurnSpeedBuffed"), CharData->CalculateTurnSpeedWithSpirit(Char->GetEvolutionModifiedSpirit()) *
+											 (1.0f + SEM->GetNetStatModifier(Actor, ESubStat::TurnSpeed) / CombatConstants::STAT_PERCENT_DIVISOR));
+		}
 		for (const ESubStat Stat : STAT_DEBUG_SUB_STATS)
 		{
-			Add(*FString::Printf(TEXT("Net%s"), *UEnum::GetValueAsString(Stat).RightChop(FCString::Strlen(TEXT("ESubStat::")))),
+			Add(*FString::Printf(TEXT("Net%s"), *StaticEnum<ESubStat>()->GetNameStringByValue(static_cast<int64>(Stat))),
 				SEM->GetNetStatModifier(Actor, Stat));
 		}
 	}
@@ -135,24 +150,26 @@ void UStatModifierDebug::CompareStats(const UObject *WorldContextObject)
 	{
 		const FString Name = Actor->GetName();
 		const FString Snapshot = GetStatsSnapshotString(Actor);
-		const FString *Previous = GStatDebugLastSnapshots.Find(Name);
-		if (!Previous)
+		const FString Path = StatDebugSnapshotPath(Name);
+		FString Previous;
+		if (!FFileHelper::LoadFileToString(Previous, *Path))
 		{
 			UE_LOG(LogWoRCombat, Display, TEXT("[CompareStats] %s: first snapshot\n%s"), *Name, *Snapshot);
 		}
 		else
 		{
 			TArray<FString> Before, After;
-			Previous->ParseIntoArrayLines(Before);
+			Previous.ParseIntoArrayLines(Before);
 			Snapshot.ParseIntoArrayLines(After);
 			int32 Changed = 0;
-			for (int32 Index = 0; Index < After.Num(); ++Index)
+			for (int32 Index = 0; Index < FMath::Max(Before.Num(), After.Num()); ++Index)
 			{
 				const FString Old = Before.IsValidIndex(Index) ? Before[Index] : TEXT("(none)");
-				if (Old != After[Index])
+				const FString New = After.IsValidIndex(Index) ? After[Index] : TEXT("(none)");
+				if (Old != New)
 				{
 					++Changed;
-					UE_LOG(LogWoRCombat, Display, TEXT("[CompareStats] %s: %s -> %s"), *Name, *Old, *After[Index]);
+					UE_LOG(LogWoRCombat, Display, TEXT("[CompareStats] %s: %s -> %s"), *Name, *Old, *New);
 				}
 			}
 			UE_LOG(LogWoRCombat, Display, TEXT("[CompareStats] %s: %s"), *Name,
@@ -163,7 +180,7 @@ void UStatModifierDebug::CompareStats(const UObject *WorldContextObject)
 												 FString::Printf(TEXT("CompareStats %s: %d changed"), *Name, Changed));
 			}
 		}
-		GStatDebugLastSnapshots.Add(Name, Snapshot);
+		FFileHelper::SaveStringToFile(Snapshot, *Path);
 	}
 }
 
