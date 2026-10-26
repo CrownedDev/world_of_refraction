@@ -198,11 +198,12 @@ The queue of questions only Crown can answer.
 - Fix the stale class comment (`ECharacterClass.h:24-29`: "6 slots, up to 3 same element") to describe the budget of 5. Also check the rest of that comment block against D-027 (e.g. "2 physical weapons", "1 weapon") and correct it.
 
 ### D-011 — Once-per-match effects: per character or per match?
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-062
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-062
 **Question:** If two enemies wear the same "once per match" gear, does each get its own use?
 **Context:** It's tracked per effect ID (`SkillEffectManager.h:423`), so the second wearer is blocked.
 **Recommendation:** Per character.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A, once per character** (2026-10-26). Each wearer gets their own use.
+**Notes for Claude:** key `FiredOnceThisMatch` (`SkillEffectManager.h:423`, checked at `SkillEffectManager.cpp:100`, set at `:261`) on (actor, EffectID) instead of EffectID alone; still cleared by `ResetForNewCombat()`. Matches the deckbuilder (a card's fires-once belongs to that card). Test: two wearers of the same once-per-match gear each fire once.
 
 ### D-012 — Repeated status caps: refresh or stack?
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-062
