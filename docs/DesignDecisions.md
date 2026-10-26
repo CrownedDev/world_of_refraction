@@ -541,12 +541,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Resistance per damage type (one attribute each), so Physical resistance sits beside the elements.
 
 ### D-038 — What does Silenced block?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** Spells only, or every EP spend (abilities, infusion)?
 **Context:** The code blocks spells only (`ActionExecutor.cpp:176-180`). The display name ("No EP Spend"), `docs/Mechanics/Status/StatusEffects.md` and D-023's reasoning say every EP spend. Rules: 03 C3-2, 04 C4-6.
 **Options:** A spells only (code) / B every EP spend.
 **Recommendation:** B, because that's what the name and the docs promise; under A a silenced Generic is barely affected.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **B, reshaped** (2026-10-26): Silenced affects **every Energy spend** (spells, abilities, infusion), but instead of a full block it **seals part of your Energy**: **50% of max EP is locked for 2 of the holder's turns** (D-030); you can only spend the rest. Basic attack, Defend and items still work.
+**Notes for Claude:**
+- Sealed share is a named constant (`SILENCE_SEALED_EP_FRACTION = 0.5f`, `// TODO: tune`). Spendable EP = CurrentEP − sealed amount (floored at 0); validation and the menu read spendable EP.
+- UI: the sealed part of the EP bar is drawn dark (fits the B-111 bar work).
+- Replaces the spells-only block at `ActionExecutor.cpp:176-180`; the display name "No EP Spend" changes to match (naming: ask Crown).
+- Broken Darkness: its EP is the same field, so the seal applies to it too unless Crown says otherwise.
 
 ### D-039 — How many spells does an evolution hold?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
