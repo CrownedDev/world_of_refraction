@@ -2,7 +2,9 @@
 // The AI's damage estimate equals what the executor's hit takes off the target (B-029): the hit is
 // built from UActionExecutor::PreviewActionDamage (what execution sends into the defense window) and
 // applied through ApplyHit with no defense roll and no crit; the estimate's expected-crit factor is
-// folded onto that HP loss. Single-hit skills only (a multi-hit skill splits and rounds per hit).
+// folded onto that HP loss. Limits: single-hit skills only (a multi-hit skill splits and rounds per
+// hit); skills without StatScaling (ApplyHit reads it from the execution context, which a bare
+// ApplyHit call doesn't have); no weapon channel, so tier-gap is x1.0.
 
 #if WITH_DEV_AUTOMATION_TESTS
 

@@ -685,7 +685,8 @@ int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, 
     Action.SpellData = Spell;
     Action.SpellSource = AttackerLoadout ? AttackerLoadout->ResolveSpellSource(Spell) : ESpellSource::Innate;
     Action.SpellInfusionLevel = InfusionLevel;
-    Action.SelectedSource = InfusionSource;
+    // Like the action the AI submits: a source only rides an infused (L1+) action.
+    Action.SelectedSource = InfusionLevel > 0 ? InfusionSource : EInfusionSourceOption::None;
     Action.Targets.Add(Target);
     return EstimateActionDamage(Attacker, Target, Action);
 }
@@ -696,7 +697,8 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
     Action.ActionType = EActionType::Ability;
     Action.SkillData = Ability;
     Action.AbilityInfusionLevel = InfusionLevel;
-    Action.SelectedSource = InfusionSource;
+    // Like the action the AI submits: a source only rides an infused (L1+) action.
+    Action.SelectedSource = InfusionLevel > 0 ? InfusionSource : EInfusionSourceOption::None;
     Action.Targets.Add(Target);
     return EstimateActionDamage(Attacker, Target, Action);
 }
@@ -730,6 +732,8 @@ int32 UAIDecisionManager::EstimateActionDamage(AActor *Attacker, AActor *Target,
     // from the real hit.
     const FActionStatModifiers ActionMods = ActionExec->ComputeActionStatModifiers(Action, Attacker);
     const FActionDamagePreview Preview = ActionExec->PreviewActionDamage(Attacker, Action, ActionMods);
+    // TODO: multi-hit skills — execution splits FinalDamage per hit (DamageSplit) and rounds and
+    // floors each hit at MIN_DAMAGE separately; this estimates the whole as one hit.
     const int32 InfusionLevel = bIsSpell ? Action.SpellInfusionLevel : Action.AbilityInfusionLevel;
 
     // Mirrors ApplyHit's calculator input: the attacker stat, ActionMods and defender defense apply
