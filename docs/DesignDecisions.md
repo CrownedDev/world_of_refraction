@@ -669,12 +669,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-26): Defend lasts **until the defender's next turn starts**, covering every enemy turn in between (deckbuilder rule; the shared holder-turn counting of D-030). Today it ticks off at the end of the defender's own turn and does nothing. The +50% and the duration become named constants (`// TODO: tune`).
 
 ### D-051 — How are effect durations counted?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-062, B-063
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-062, B-063
 **Question:** The code ends an effect at the end of the holder's Nth turn, and a new effect acts the moment it lands, so a 2-turn DoT ticks 3 times. D-030 counts the landing turn as turn 1 and ends the effect as the next turn starts. Should D-030's counting apply to every timed effect, with exactly N ticks?
 **Context:** `Skills/Effects/SkillEffectManager.cpp:1099-1153` (expiry), `:232-237, 974-991` (DoT ticks). Rules: 04 C4-3, C4-4. The deckbuilder gives exactly N ticks (`04-effects.md`, "Lasts").
 **Options:** A D-030 counting everywhere, exactly N ticks / B D-030 for bar caps only.
 **Recommendation:** A, one counting rule for everything, matching the deckbuilder.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A** (2026-10-26): **one counting rule for every timed effect**: the holder's own turns, the landing turn counts as turn 1, ends as the holder's next turn after those starts, **exactly N ticks** (D-030, D-050; deckbuilder `04-effects.md` "Lasts"). One shared helper.
 
 ### D-052 — Is Emerald's bonus turn extra, or the same turn moved earlier?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
