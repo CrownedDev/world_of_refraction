@@ -15,4 +15,8 @@ UCLASS()
 class WORLD_OF_REFRACTION_API ATrialGameMode : public AGameModeBase
 {
     GENERATED_BODY()
+
+public:
+    /** Picks AWoRPlayerState: the player's wallet (D-046, B-151). */
+    ATrialGameMode();
 };

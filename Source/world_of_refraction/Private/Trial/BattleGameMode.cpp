@@ -17,6 +17,7 @@
 #include "Trial/TrialRunSubsystem.h"
 #include "UI/Combat/CombatResultsWidget.h"
 #include "GameFramework/PlayerController.h"
+#include "Player/WoRPlayerState.h"
 
 namespace BattleGameModeConstants
 {
@@ -24,6 +25,11 @@ namespace BattleGameModeConstants
     // everyone; these only keep deferred spawns from stacking at one point.
     constexpr float TEAM_X_OFFSET = 300.0f;
     constexpr float COMBATANT_Y_SPACING = 150.0f;
+}
+
+ABattleGameMode::ABattleGameMode()
+{
+    PlayerStateClass = AWoRPlayerState::StaticClass();
 }
 
 void ABattleGameMode::BeginPlay()

@@ -52,6 +52,9 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character")
     TObjectPtr<UWeaponMeshComponent> WeaponMeshComponent;
 
+    /** OBSOLETE for the player's party (D-046, B-151): they spend from the player's wallet on
+     *  AWoRPlayerState (CurrencyWallet::FindFor). Still the wallet of a character with no player
+     *  wallet behind it (an enemy, a Blueprint game mode without AWoRPlayerState). */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character")
     TObjectPtr<UCurrencyComponent> CurrencyComponent;
 
