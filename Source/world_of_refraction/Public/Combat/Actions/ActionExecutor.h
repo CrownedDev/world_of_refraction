@@ -99,6 +99,22 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnImpactFrame, AActor *, Executor,
 /** Callback for async action completion */
 DECLARE_DELEGATE_OneParam(FOnActionComplete, const FActionResult &);
 
+/** A spell's or ability's damage before the target's defense (UActionExecutor::PreviewActionDamage):
+ *  what execution sends into the defense window and the AI estimate feeds the damage calculator. */
+struct FActionDamagePreview
+{
+	/** Attacker-side base from the skill asset. */
+	int32 BaseDamage = 0;
+	/** Charge (infusion level) damage multiplier applied to BaseDamage. */
+	float ChargeMultiplier = 1.0f;
+	/** BaseDamage x charge x tier-gap x tier-power, each step rounded as execution does. */
+	int32 FinalDamage = 0;
+	/** The element the hit carries (a Generic spell resolved to its source; infused abilities carry
+	 *  the user's innate element; never Generic). */
+	ESpellElement Element = ESpellElement::None;
+	int32 HitCount = 1;
+};
+
 /**
  * UActionExecutor
  *
@@ -342,6 +358,12 @@ public:
 	 *  execution path logs via its private wrapper. Single source of truth for
 	 *  both real damage (B2 assembly points) and AI damage previews. */
 	float GetTierGapDamageMultiplier(AActor *Actor, const FAction &Action) const;
+
+	/** Pre-defense damage and element of a spell or ability action (B-029): the one calculation both
+	 *  execution (ExecuteSpellAsync / ExecuteSkillAsync) and the AI damage estimate use. bLog adds the
+	 *  execution-path log lines (tier gap, unresolved Generic spell); AI scoring leaves it off. */
+	FActionDamagePreview PreviewActionDamage(AActor *User, const FAction &Action, const FActionStatModifiers &ActionMods,
+											 bool bLog = false) const;
 
 	/** Tier-gap COST multiplier for an action (Cluster 3a): reciprocal of the
 	 *  damage gap — its own ladder (TierGapConstants COST_*). 1.0 when no channel

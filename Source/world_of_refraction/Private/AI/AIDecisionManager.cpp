@@ -671,93 +671,43 @@ int32 UAIDecisionManager::EstimateBestDamage(AActor *Attacker, AActor *Target)
 
 int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, USpellData *Spell, int32 InfusionLevel, EInfusionSourceOption InfusionSource) const
 {
-    if (!Attacker || !Target || !Spell)
+    if (!Attacker || !Spell)
     {
         return 0;
     }
 
-    UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
-    if (!AttackerComp || !AttackerComp->CharacterData)
-    {
-        return 0;
-    }
-
-    UDamageCalculator *DamageCalc = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDamageCalculator>() : nullptr;
-    UActionExecutor *ActionExec = GetActionExecutor();
-
-    // Fall back to the raw asset value if the subsystems are unavailable.
-    if (!DamageCalc || !ActionExec)
-    {
-        return Spell->CalculateDamage(AttackerComp->CharacterData);
-    }
-
-    // Build a complete action so ComputeActionStatModifiers can walk the
-    // Reality/Evolution sources for this specific spell + infusion level.
-    // Source is resolved off the attacker's active loadout so the modifier walk
-    // sees the real provenance (ring/weapon/evolution casts compute differently
-    // from innate). Falls back to Innate if no loadout is reachable.
+    // Source is resolved off the attacker's active loadout so the modifier walk sees the real
+    // provenance (ring/weapon/evolution casts compute differently from innate). Falls back to Innate
+    // if no loadout is reachable.
     ULoadoutComponent *AttackerLoadout = Attacker->FindComponentByClass<ULoadoutComponent>();
     FAction Action;
     Action.ActionType = EActionType::Spell;
     Action.SpellData = Spell;
     Action.SpellSource = AttackerLoadout ? AttackerLoadout->ResolveSpellSource(Spell) : ESpellSource::Innate;
     Action.SpellInfusionLevel = InfusionLevel;
+    // Like the action the AI submits: a source only rides an infused (L1+) action.
+    Action.SelectedSource = InfusionLevel > 0 ? InfusionSource : EInfusionSourceOption::None;
     Action.Targets.Add(Target);
-
-    const FActionStatModifiers ActionMods = ActionExec->ComputeActionStatModifiers(Action, Attacker);
-
-    // BaseDamage is the attacker-side base only; DamageCalculator applies the
-    // SpellDamage stat, ActionMods and defender defense once, downstream.
-    FDamageCalculationInput Input;
-    Input.BaseDamage = Spell->CalculateDamage(AttackerComp->CharacterData);
-    Input.ActionType = EActionType::Spell;
-    Input.Element = Spell->Element;
-    Input.ActionMods = ActionMods;
-    Input.bCanCrit = false;
-    // Parity with the live path (ApplyHit): feed the skill's authored scaling tiers so the AI's predicted
-    // damage includes the StatScaling bonus the live damage applies. Empty array → +0 (byte-identical score).
-    Input.StatScaling = Spell->StatScaling;
-
-    const FDamageCalculationResult Result = DamageCalc->CalculateDamage(Attacker, Target, Input);
-
-    // CalculateDamage ran with bCanCrit=false — fold expected crit value back in
-    // so the estimate matches average execution damage. AI parity (5e-D): value a crit by the
-    // attacker's ACTUAL crit-damage multiplier (x1.0-x2.0 via GetCritDamageMultiplier), not a fixed
-    // x1.5 — a low-CritDamage attacker weights crits near x1.0 (no uplift), a maxed one toward x2.0.
-    // An active GuaranteedCrit window forces a crit at execution (DamageCalculator.cpp:228,
-    // HasEffectOfType), so the EV must treat crit chance as 1.0 — otherwise the AI under-values
-    // attacking inside its own Opal-granted window.
-    USkillEffectManager *CritMgr = GetSkillEffectManager();
-    const bool bGuaranteedCrit = CritMgr && CritMgr->HasEffectOfType(Attacker, ESkillEffectType::GuaranteedCrit);
-    const float CritChance = bGuaranteedCrit ? 1.0f : DamageCalc->GetCriticalChance(Attacker);
-    const float CritMult = DamageCalc->GetCritDamageMultiplier(Attacker);
-    float Estimate = Result.FinalDamage * (1.0f + CritChance * (CritMult - 1.0f));
-
-    // 6-5-d: per-mode, stat-scaled charge damage — matches execution (GetChargeDamageMultiplier).
-    // L0 returns x1.0; L1/L2 apply the resolved mode's value (L1 now carries a damage bonus too).
-    // Mode from the (level-independent) infusion source the AI will use; None -> Balanced fallback.
-    if (InfusionLevel > 0)
-    {
-        const EInfusionMode Mode = ActionExec->ResolveInfusionMode(InfusionSource, Attacker);
-        Estimate *= ActionExec->GetChargeDamageMultiplier(InfusionLevel, Mode, /*bIsSpell*/ true, AttackerComp);
-    }
-
-    // Tier-gap parity (Cluster D): the estimate sees the same multiplier
-    // execution applies at assembly (B2), resolved per-candidate from this
-    // spell's own SpellSource/catalyst. Non-logging accessor — no per-candidate
-    // Output Log spam.
-    Estimate *= ActionExec->GetTierGapDamageMultiplier(Attacker, Action);
-
-    // Tier-power parity: mirror execution's own-tier damage multiplier (Spell->Tier, own —
-    // not channel) so the AI doesn't under-rate high-tier spells.
-    Estimate *= TierPowerScaling::GetTierPowerMultiplier(Spell->Tier);
-
-    return FMath::RoundToInt(Estimate);
+    return EstimateActionDamage(Attacker, Target, Action);
 }
 
 int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target, UAbilityData *Ability, int32 InfusionLevel, EInfusionSourceOption InfusionSource) const
 {
-    if (!Attacker || !Target || !Ability)
+    FAction Action;
+    Action.ActionType = EActionType::Ability;
+    Action.SkillData = Ability;
+    Action.AbilityInfusionLevel = InfusionLevel;
+    // Like the action the AI submits: a source only rides an infused (L1+) action.
+    Action.SelectedSource = InfusionLevel > 0 ? InfusionSource : EInfusionSourceOption::None;
+    Action.Targets.Add(Target);
+    return EstimateActionDamage(Attacker, Target, Action);
+}
+
+int32 UAIDecisionManager::EstimateActionDamage(AActor *Attacker, AActor *Target, const FAction &Action) const
+{
+    const bool bIsSpell = Action.ActionType == EActionType::Spell;
+    const USkillDataBase *Skill = bIsSpell ? Action.SpellData : Action.SkillData;
+    if (!Attacker || !Target || !Skill)
     {
         return 0;
     }
@@ -774,62 +724,42 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
     // Fall back to the raw asset value if the subsystems are unavailable.
     if (!DamageCalc || !ActionExec)
     {
-        return Ability->CalculateDamage(AttackerComp->CharacterData, false);
+        return Skill->CalculateDamage(AttackerComp->CharacterData, /*bIsInfused*/ false);
     }
 
-    FAction Action;
-    Action.ActionType = EActionType::Ability;
-    Action.SkillData = Ability;
-    Action.AbilityInfusionLevel = InfusionLevel;
-    Action.Targets.Add(Target);
-
+    // The same pre-defense damage and element execution sends into the defense window (charge,
+    // tier-gap and tier-power applied BEFORE defense, rounded per step), so the estimate can't drift
+    // from the real hit.
     const FActionStatModifiers ActionMods = ActionExec->ComputeActionStatModifiers(Action, Attacker);
+    const FActionDamagePreview Preview = ActionExec->PreviewActionDamage(Attacker, Action, ActionMods);
+    // TODO: multi-hit skills — execution splits FinalDamage per hit (DamageSplit) and rounds and
+    // floors each hit at MIN_DAMAGE separately; this estimates the whole as one hit.
+    const int32 InfusionLevel = bIsSpell ? Action.SpellInfusionLevel : Action.AbilityInfusionLevel;
 
-    // BaseDamage is the attacker-side base only; DamageCalculator applies the
-    // RawDamage stat, ActionMods and defender defense once, downstream.
+    // Mirrors ApplyHit's calculator input: the attacker stat, ActionMods and defender defense apply
+    // once, here.
     FDamageCalculationInput Input;
-    Input.BaseDamage = Ability->CalculateDamage(AttackerComp->CharacterData, false);
-    Input.ActionType = EActionType::Ability;
-    Input.Element = ESpellElement::None;
+    Input.BaseDamage = Preview.FinalDamage;
+    Input.ActionType = Action.ActionType;
+    Input.Element = Preview.Element;
     Input.ActionMods = ActionMods;
     Input.bCanCrit = false;
-    // Parity with the live path (ApplyHit): feed the skill's authored scaling tiers so the AI's predicted
-    // damage includes the StatScaling bonus the live damage applies. Empty array → +0 (byte-identical score).
-    Input.StatScaling = Ability->StatScaling;
-
+    Input.bWasInfused = InfusionLevel > 0;
+    Input.InfusionLevel = InfusionLevel;
+    Input.StatScaling = Skill->StatScaling;
     const FDamageCalculationResult Result = DamageCalc->CalculateDamage(Attacker, Target, Input);
 
-    // CalculateDamage ran with bCanCrit=false — fold expected crit value back in
-    // so the estimate matches average execution damage. AI parity (5e-D): value a crit by the
-    // attacker's ACTUAL crit-damage multiplier (x1.0-x2.0 via GetCritDamageMultiplier), not a fixed
-    // x1.5 — a low-CritDamage attacker weights crits near x1.0 (no uplift), a maxed one toward x2.0.
-    // An active GuaranteedCrit window forces a crit at execution (DamageCalculator.cpp:228,
-    // HasEffectOfType), so the EV must treat crit chance as 1.0 — otherwise the AI under-values
-    // attacking inside its own Opal-granted window.
+    // CalculateDamage ran with bCanCrit=false — fold expected crit value back in so the estimate
+    // matches average execution damage. AI parity (5e-D): value a crit by the attacker's ACTUAL
+    // crit-damage multiplier (x1.0-x2.0 via GetCritDamageMultiplier), not a fixed x1.5. An active
+    // GuaranteedCrit window forces a crit at execution (DamageCalculator.cpp:228, HasEffectOfType),
+    // so the EV must treat crit chance as 1.0 — otherwise the AI under-values attacking inside its
+    // own Opal-granted window.
     USkillEffectManager *CritMgr = GetSkillEffectManager();
     const bool bGuaranteedCrit = CritMgr && CritMgr->HasEffectOfType(Attacker, ESkillEffectType::GuaranteedCrit);
     const float CritChance = bGuaranteedCrit ? 1.0f : DamageCalc->GetCriticalChance(Attacker);
     const float CritMult = DamageCalc->GetCritDamageMultiplier(Attacker);
-    float Estimate = Result.FinalDamage * (1.0f + CritChance * (CritMult - 1.0f));
-
-    // 6-5-d: per-mode, stat-scaled charge damage — matches execution (GetChargeDamageMultiplier).
-    // L0 returns x1.0; L1/L2 apply the resolved mode's value (L1 now carries a damage bonus too).
-    if (InfusionLevel > 0)
-    {
-        const EInfusionMode Mode = ActionExec->ResolveInfusionMode(InfusionSource, Attacker);
-        Estimate *= ActionExec->GetChargeDamageMultiplier(InfusionLevel, Mode, /*bIsSpell*/ false, AttackerComp);
-    }
-
-    // Tier-gap parity: abilities/attacks read their OWN authored tier (SkillData->Tier)
-    // gapped against the weapon channel (post-TierGap consolidation), so this is a real
-    // multiplier, not a no-op. Shared accessor — matches execution exactly.
-    Estimate *= ActionExec->GetTierGapDamageMultiplier(Attacker, Action);
-
-    // Tier-power parity: mirror execution's own-tier damage multiplier (Ability->Tier, the
-    // ability's OWN authored tier — unlike tier-gap above, this is NOT the weapon channel).
-    Estimate *= TierPowerScaling::GetTierPowerMultiplier(Ability->Tier);
-
-    return FMath::RoundToInt(Estimate);
+    return FMath::RoundToInt(Result.FinalDamage * (1.0f + CritChance * (CritMult - 1.0f)));
 }
 
 float UAIDecisionManager::EstimateStatusScore(AActor *Attacker, AActor *Target, USpellData *Spell)

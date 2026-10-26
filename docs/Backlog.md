@@ -64,7 +64,7 @@
 | B-026 | InventoryComponent weapon/ring attach/remove → one template | CC | M | — | ~500 → ~250 lines; tests for attach/remove | REVIEW (in dev) |
 | B-027 | One authority check (`HasServerAuthority` ×2 + raw `HasAuthority`) **B-047 adds:** also `EconomyService`'s raw `HasAuthority`. | CC | S | — | Single helper used everywhere | REVIEW (in dev) |
 | B-028 | One loadout validator (three today) over a slot view + 2 adapters | CC | L | B-007 | Same findings on the test inventory | BLOCKED (D-073) |
-| B-029 | One AI damage estimator, resolving element like execution | CC | M | B-001 | AI estimate equals executor result in a test | TODO |
+| B-029 | One AI damage estimator, resolving element like execution | CC | M | B-001 | AI estimate equals executor result in a test | REVIEW (in dev) |
 | B-030 | `ResetForCombat()` on every per-fight subsystem, called from `ReleaseCombatResources` | CC | M | B-001 | No state survives between two fights (test) | TODO |
 | B-031 | Delete `SubmitAction` sync router + `ApplyDamage` fallback | CC | M | B-001 | Only the async path remains; rituals still fire | TODO |
 | B-032 | ActionExecutor DRY: one per-impact resolve, one reflect block, merge `ApplyHit`/`ApplyDamage` | CC | L | B-031 | Same damage in a test fight | BLOCKED (B-031) |
