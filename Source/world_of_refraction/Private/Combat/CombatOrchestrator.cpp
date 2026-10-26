@@ -20,6 +20,7 @@
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
+#include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Character/CharacterData.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -170,6 +171,13 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	{
 		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Cannot start combat - empty team(s)!"));
 		return;
+	}
+
+	// B-010: seed this battle's random stream before anything rolls (turn 1 can act inside
+	// InitializeCombat). The seed is logged so the fight can be replayed.
+	if (UBattleRandomSubsystem *BattleRandom = UBattleRandomSubsystem::Get(this))
+	{
+		BattleRandom->BeginBattle();
 	}
 
 	// Store team references
