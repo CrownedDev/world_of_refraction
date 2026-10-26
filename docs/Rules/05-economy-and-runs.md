@@ -92,6 +92,9 @@ This page covers the currencies, what a fight and a run pay out, what carries ov
 | ER-45 | Several enemies in one encounter, authored from data. | Code only (planned, B-074) | `docs/Backlog.md` B-074 |
 
 ## Open questions
+- D-044 (OPEN): one wallet per player, or per character (Cx-5); blocks B-073.
+- D-045 (OPEN): where you can upgrade, repair, merge and downgrade (Cx-4).
+- D-046 (OPEN): what Gold buys in a run (Cx-1, Cx-6); blocks B-073.
 - D-002 (ANSWERED, one point unconfirmed): an upgrade made during a run is written back to the pool. Crown's notes say "confirm when applying".
 - D-006 (ANSWERED, one point left open): a starting Prism grant for a new save.
 - D-020 (ANSWERED, one point not ruled): who wears an item that sits in two presets. Suggested: the party screen flags it and you pick before the run.

@@ -92,7 +92,15 @@ This page covers how a fight starts, who acts when (the speed schedule, ties, bo
 | ET-53 | Every fight that ends clears all effects and status bars. A fight won, lost or drawn also destroys crystals that broke in it, then repairs the rest. A forced end doesn't repair. | In game | `Private/Combat/CombatOrchestrator.cpp:299-333, 601-613` |
 
 ## Open questions
-- No OPEN or PARKED entry in `DesignDecisions.md` covers this page.
+- D-036 (OPEN): what Silenced blocks (C4-6).
+- D-047 (OPEN): cap turns at 2 per round of the slowest (C4-1).
+- D-048 (OPEN): how long Defend lasts (C4-2).
+- D-049 (OPEN): how effect durations are counted (C4-3, C4-4).
+- D-050 (OPEN): Emerald's bonus turn, extra or moved earlier (C4-5).
+- D-051 (OPEN): the same effect from two gear pieces (C4-7).
+- D-052 (OPEN): whether Turn Speed Up is a buff (C4-8).
+- D-053 (OPEN): bonus and Execution turns and durations (Gaps).
+- D-054 (OPEN): whether the generic Speed Buff/Debuff move turn order (C4-9).
 - D-028 (not raised yet): B-044's effects-overhaul review will raise it, covering the effect model (durations, stacking by source, refresh policy) against GAS and the deckbuilder. It will touch ET-31…ET-44.
 
 ## Conflicts

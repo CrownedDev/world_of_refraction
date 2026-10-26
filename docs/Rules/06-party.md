@@ -84,6 +84,10 @@ Code paths are relative to `Source/world_of_refraction/`. The deckbuilder is 1v1
 | PA-39 | Co-op revive on defeat is not decided. | Open (later, with co-op) | `D-002` notes |
 
 ## Open questions
+- D-040 (OPEN): whether a member's chosen cell decides where they start (Cp-2).
+- D-041 (OPEN): how a fallen member comes back during a run (Cp-3).
+- D-042 (OPEN): the difficulty AI-controlled party members play at (Cp-4); blocks B-071.
+- D-043 (OPEN): who you control when the leader is down (Cp-6); blocks B-071.
 - D-002 notes: co-op revive on defeat is not decided yet ("later, with co-op").
 - D-026 notes: how a hub-built team's own gear works at run start isn't covered (D-021 covers only the leader). Raise a new D-entry if B-076 needs it.
 - D-020 notes: when two members' presets share one item, the suggested clash rule (flag it on the party screen, you pick) is not ruled.
