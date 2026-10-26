@@ -903,7 +903,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### D-077 — Crystal tier caps: what counts as "a crystal"?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-155) · **Blocks:** B-155
+**Status:** DECIDED (applied in B-155) · **Raised:** 2026-10-26 (B-155) · **Blocks:** —
 **Question:** D-072 caps how many crystals of each tier band a character can have equipped (S 1, A+B 2, C+D 3, E+F 4). A weapon or ring slot can hold more than a plain crystal (CL-30), so which of these count toward the caps, and at what tier?
 **Context:** a slot holds one of: a **crystal**; an **augment stone** (stat stone or Ability Stone, weapons only, it has a tier); a **fusion** (two halves with at least one stat stone: stone + crystal, stone + stone, or stone + Ability Stone, CL-32); or an **evolution** (its own tier; the primary-slot evolution gives spells, CL-33). Plain crystals clearly count. The others aren't settled.
 **Options:**
@@ -957,7 +957,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### D-081 — Equipping: when is a pick refused, and when are other parts dropped?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-159) · **Blocks:** B-159
+**Status:** DECIDED (applied in B-159; gear-change drops are B-171) · **Raised:** 2026-10-26 (B-159) · **Blocks:** B-168
 **Question:** D-073 says a loadout change that would break a rule is "refused or dropped right there". Which one, when?
 **Context:**
 - Some changes only add one thing: assign an ability or a spell, equip a weapon or ring. Refusing it is clean.
@@ -1080,6 +1080,30 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A no refill (current) / B a share of Max Energy each turn (e.g. 10%; Max Energy then also sets refill) / C Expedition 33 style: a small refill each turn **plus** Energy from basic attacks and Perfect Guards.
 **Recommendation:** C, because it rewards good play (timing gives Energy back), gives basic attacks a purpose, keeps casters from running dry, and needs no new stat. Broken Darkness keeps its own absorption system.
 **Answer (Crown):** _write here_
+
+### Q-159 — Do dropped utility crystals go back to the inventory?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-159) · **Blocks:** — (B-159 shipped without returning them)
+**Question:** when a loadout's item slots are trimmed (over a tier cap, a quantity above 3, a duplicate crystal type), do the removed crystals return to the character's crystal inventory?
+**Context:** today they just vanish from the slot (`ULoadoutComponent::DropInvalidParts`, the existing duplicate-type rule did the same). Crystals a fight's auto-equip put in a slot were taken out of the inventory (`FCombatLoadout::ApplyAutoEquip`), so dropping them loses them. Crystals in an authored loadout were never taken out of the inventory.
+**Options:**
+- **A** always return them to the inventory.
+- **B** never (today's behaviour).
+- **C** return only crystals that came out of the inventory (needs the slot to remember where its crystals came from).
+**Recommendation:** A, because losing crystals to a rule the player didn't break on purpose feels like a bug, and authored loadouts are a dev-time case where an extra crystal in the inventory is harmless.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
+### Q-159b — Which parts go when a loadout is over a cap?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-159) · **Blocks:** — (B-159 shipped with A)
+**Question:** when a loadout has too many abilities, or too many utility crystals of a tier band, which ones are dropped?
+**Context:** today the last ones go: abilities after the cap (`ULoadoutComponent::DropInvalidParts`), and the later item slots in the band lose crystals first (`FLoadoutRules::TrimUtilityCrystalsToTierCaps`). The message names what went. Related, also shipped without a ruling: a pick that repeats a part already assigned (the same ability, weapon spell, ring spell or innate spell twice) is refused.
+**Options:**
+- **A** drop the last ones (today).
+- **B** drop the lowest-tier / cheapest first.
+- **C** don't drop: refuse the load and ask the player to pick (needs the loadout screen).
+**Recommendation:** A, because it is predictable and the player only meets it with an old save or a changed cap; the message tells them what went.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
 
 ## Parked
 

@@ -48,9 +48,12 @@ enum class ELoadoutSlotType : uint8
 	EvolutionOverflow,
 	RingOverflow,
 	DuplicateItems,
-	// Reported, not cleared yet (B-159 drops them on equip / load).
+	// B-159: dropped like the category findings above. AbilityOverflow: SlotIndex 0 primary /
+	// 1 secondary weapon, SubIndex 0 abilities / 1 augment stone abilities. ItemSlot: a quantity
+	// out of range (clamped). UtilityCrystalTierCap: too many utility crystals in a tier band.
 	AbilityOverflow,
-	ItemSlot
+	ItemSlot,
+	UtilityCrystalTierCap
 };
 
 /** One actionable validation finding, produced by FLoadoutRules — the structured
@@ -84,6 +87,15 @@ struct WORLD_OF_REFRACTION_API FInvalidSlotFinding
 	bool bClearable = true;
 };
 
+/** SlotIndex / SubIndex meanings of an AbilityOverflow finding. */
+namespace LoadoutAbilityOverflowIndex
+{
+	constexpr int32 PRIMARY_WEAPON = 0;
+	constexpr int32 SECONDARY_WEAPON = 1;
+	constexpr int32 ABILITIES = 0;
+	constexpr int32 AUGMENT_STONE_ABILITIES = 1;
+}
+
 /** What the rules can check for this loadout. An unset function means "not checked". */
 struct WORLD_OF_REFRACTION_API FLoadoutRuleContext
 {
@@ -113,4 +125,8 @@ struct WORLD_OF_REFRACTION_API FLoadoutRules
 	static TArray<FString> CollectAuthoredShapeErrors(const FSavedLoadout &Saved);
 
 	static TArray<FString> ToReasons(const TArray<FInvalidSlotFinding> &Findings);
+
+	/** Drops utility crystals from the item slots until every tier band is within its cap
+	 *  (D-072, D-077): the last slots in the band lose crystals first. */
+	static void TrimUtilityCrystalsToTierCaps(FCombatLoadout &Loadout);
 };

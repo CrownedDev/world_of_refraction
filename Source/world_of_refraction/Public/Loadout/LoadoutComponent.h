@@ -49,6 +49,7 @@ class UInfusionDisplayData;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutChanged, int32, NewLoadoutIndex);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnLoadoutItemUsed, int32, SlotIndex, FCrystalId, ItemId, int32, NewQuantity);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutValidationFailed, const FString &, Reason);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLoadoutPartsDropped, int32, LoadoutIndex, const TArray<FText> &, Messages);
 
 /** A single crystal-bearing slot — discriminated by Kind. Refined slots
  *  identify by FCrystalId (refined crystals have no asset pointer in the
@@ -229,12 +230,37 @@ public:
     TArray<FInvalidSlotFinding> CollectInvalidSlotFindingsLegacy() const;
 
     /** Clears every clearable finding from CollectInvalidSlotFindings on the
-     *  active loadout. Mutates Inv->SavedLoadouts[ActiveLoadoutIndex] in place
-     *  (the live runtime FCombatLoadout — see :536 note). Single-pass: validate
-     *  once, clear once; a clear that exposes a new invalidity persists until
-     *  the next validation. Logs one LogTemp Warning per cleared slot. */
+     *  active loadout (DropInvalidParts on the active index), announcing each
+     *  drop through OnPartsDropped. */
     UFUNCTION(BlueprintCallable, Category = "Loadout")
     void ClearInvalidSlots();
+
+    /** Drops every clearable finding from the saved loadout at Index (D-081: parts a change
+     *  broke are dropped). Mutates Inv->SavedLoadouts[Index] in place (the live runtime
+     *  FCombatLoadout). Single-pass: validate once, clear once; a clear that exposes a new
+     *  invalidity persists until the next validation. Returns what was dropped. */
+    TArray<FInvalidSlotFinding> DropInvalidParts(int32 Index);
+
+    /** DropInvalidParts on every saved loadout, announcing each drop (B-159: run after a load). */
+    UFUNCTION(BlueprintCallable, Category = "Loadout")
+    void DropInvalidPartsFromAllLoadouts();
+
+    // ==================== PICKS (D-081: an invalid pick is refused) ====================
+
+    /** Each adds one part to the saved loadout at LoadoutIndex. Refused, with the reason in
+     *  OutRefusal, if the loadout would break a rule it didn't break before. */
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Picks")
+    bool TryAssignWeaponAbility(int32 LoadoutIndex, UAbilityData *Ability, FText &OutRefusal);
+
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Picks")
+    bool TryAssignWeaponSpell(int32 LoadoutIndex, USpellData *Spell, FText &OutRefusal);
+
+    /** The Generic/Caster primary ring. */
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Picks")
+    bool TryAssignRingSpell(int32 LoadoutIndex, USpellData *Spell, FText &OutRefusal);
+
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Picks")
+    bool TryAssignInnateSpell(int32 LoadoutIndex, USpellData *Spell, FText &OutRefusal);
 
     // ==================== BATTLE PREPARATION ====================
 
@@ -645,6 +671,10 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Loadout|Events")
     FOnLoadoutValidationFailed OnValidationFailed;
 
+    /** Fired when parts of a loadout are dropped, one message per part ("Removed: ..."). */
+    UPROPERTY(BlueprintAssignable, Category = "Loadout|Events")
+    FOnLoadoutPartsDropped OnPartsDropped;
+
     /** Debug: Log current loadout state */
     UFUNCTION(BlueprintCallable, Category = "Debug")
     void DebugLogLoadout();
@@ -688,4 +718,13 @@ protected:
 
     /** Ensure at least one loadout exists */
     void EnsureDefaultLoadout();
+
+    /** Shared body of the TryAssign* picks. CheckTarget refuses up front (the part isn't in use,
+     *  the pick is already there; empty = fine); otherwise Change is applied to a copy, kept only
+     *  if no new rule break appears (each reason counted, so a repeat of one is new too). */
+    bool TryChangeLoadout(int32 LoadoutIndex, bool bHasPick,
+                          TFunctionRef<FText(const FCombatLoadout &, ECharacterClass)> CheckTarget,
+                          TFunctionRef<void(FCombatLoadout &)> Change, FText &OutRefusal);
+
+    void AnnounceDroppedParts(int32 LoadoutIndex, const TArray<FInvalidSlotFinding> &Dropped);
 };
