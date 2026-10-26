@@ -109,7 +109,9 @@
 
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
-| B-080 | Generic per D-007: no spells (menu agrees with `CanUseSpells`); skills get a damage type, Physical by default, the infusion source's element when infused; fix infused abilities using innate instead of the source (`ActionExecutor.cpp:1450`) | CC | M | D-007 | Tests: Generic + fire crystal deals Fire; uninfused deals Physical; no spells shown | TODO |
+| B-080 | Skill damage type per D-007: Physical by default, the infusion source's element when infused; fix infused abilities using innate instead of the source (`ActionExecutor.cpp:1450`) | CC | M | D-007 | Tests: Generic + fire crystal deals Fire; uninfused deals Physical | TODO |
+| B-097 | Class gates → loadout per D-027: any class uses weapon abilities and ring/innate spells its loadout holds; drop `CanUseAbilities`/`CanUseSpells` class checks | CC | M | B-080 | Tests: Refractor with a sword uses its abilities; Generic with a ring casts its spells | BLOCKED (B-080) |
+| B-098 | Weapons stop giving spells (D-027): survey weapon spell slots + weapon-crystal spells in data/saves, then the crystal keys the weapon's abilities instead | CC | L | B-097 | Survey in the hand-off first; no weapon offers a spell; saved loadouts still load | BLOCKED (B-097) |
 | B-081 | Gear effects re-gathered on swap per D-008 | CC | M | D-008 | Ring switch changes effects | BLOCKED (D-008) |
 | B-082 | Ring stones per D-009 | CC | S | D-009 | Matches answer | BLOCKED (D-009) |
 | B-083 | Resonator ring rules per D-010 | CC | S | D-010 | Validator enforces | BLOCKED (D-010) |
