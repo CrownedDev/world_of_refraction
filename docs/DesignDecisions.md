@@ -980,7 +980,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Fold into the stat-maths plan (B-146). Broken Darkness strain keeps using the weapon requirement as today.
 
 ### D-083 — A skill's source breaks mid-fight
-**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 01 gap) · **Blocks:** —
+**Status:** DECIDED (applied in B-163) · **Raised:** 2026-10-26 (rules review, page 01 gap) · **Blocks:** —
 **Answer (Crown):** (2026-10-26)
 - **A:** a skill whose source breaks **stays in the menu, greyed out**, with the reason ("Source broken"), as in the deckbuilder; it can't be used.
 - **Broken crystal on a ring:** the ring is limited to **F-tier spells**; its higher-tier spells grey out.
@@ -1120,6 +1120,18 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **C** the same lookup, but the strictest of them (fail if any can't).
 - **D** on its own, report the budget as a warning instead of an error.
 **Recommendation:** D, because it keeps the strict number visible without marking a valid boss inventory as broken, and needs no asset-registry lookup.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
+### Q-163 — Can you infuse through a ring whose crystal broke?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-163) · **Blocks:** — (B-163 shipped with A)
+**Question:** D-083 keeps a broken ring's F-tier spells usable and says nothing about infusing. Is the ring still offered as an infusion source (for attacks, abilities and spells) once its crystal is broken?
+**Context:** today it is (`UActionExecutor::GetAvailableInfusionSources` offers the active / primary ring whenever one is equipped). A broken **weapon** crystal is not offered (D-083: no infusing). B-163 also read D-083's "no elemental abilities" as "no ability infused through that weapon's crystal", since abilities have no element of their own.
+**Options:**
+- **A** still offered (today).
+- **B** not offered, like a broken weapon crystal.
+- **C** offered only for the F-tier spells the broken ring still casts.
+**Recommendation:** B, because it matches the weapon rule (a broken crystal gives no element to push), and the F-tier allowance is about casting the ring's own spells.
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
