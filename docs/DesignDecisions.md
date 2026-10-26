@@ -1112,12 +1112,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 ### Q-159c — Where a broken evolution goes
 **Status:** OPEN · **Raised:** 2026-10-26 (Q-159 follow-up) · **Blocks:** — (shipped with A)
 **Question:** Q-159 says evolutions are never lost to wear. Before, a broken evolution was dismantled for essence at the end of a fight (including a primary-slot one such as Broken Darkness's) and when removal wear broke it. What happens to it now?
-**Context:** shipped: it stays where it is (on the weapon, ring or primary slot), broken; its spells are greyed out (D-083) and it is repaired like other gear (+10 between fights, B-115; D-093 repair). One removed by wear goes to the inventory at 0 durability.
+**Context:** shipped: it stays where it is (on the weapon, ring or primary slot), broken, with its spells greyed out (D-083; a broken primary evolution greys its Breakthrough spells). One removed by wear goes to the inventory at 0 durability. **Nothing repairs an evolution today**: the between-fight +10 repair covers gems only (`ApplyBetweenCombatRepair`), and paid repair is B-178 (blocked on B-090). So until then a broken evolution stays broken for good; for Broken Darkness that means no Breakthrough spells. Before Q-159 it was dismantled for essence instead.
 **Options:**
 - **A** stays where it is, broken, until repaired (shipped).
 - **B** goes back to the inventory, broken, freeing the slot.
 - **C** as A, but a `BDBreakable` evolution worn out by Broken Darkness is still destroyed (a BD mechanic).
-**Recommendation:** A. Gear doesn't vanish, a weapon stays in hand, and the player repairs it at the next rest spot.
+**Recommendation:** A, and let the between-fight repair (+10) cover evolutions too, so a broken one comes back (otherwise it waits for B-178). Gear doesn't vanish and the player gets it working again.
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 ### Q-159b — Which parts go when a loadout is over a cap?
