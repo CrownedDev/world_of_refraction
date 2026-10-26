@@ -74,6 +74,7 @@ void FLoadoutGetterSpec::Define()
 				}
 				const FString ClassName = UEnum::GetValueAsString(CharClass);
 				TestEqual(*FString::Printf(TEXT("%s: class"), *ClassName), Loadout->GetCharacterClass(), CharClass);
+				// TODO: drop with the OBSOLETE CharacterClass field (B-153).
 				TestEqual(*FString::Printf(TEXT("%s: synced field"), *ClassName), Loadout->CharacterClass, CharClass);
 			}
 		});

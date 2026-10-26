@@ -590,7 +590,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
     }
 
     // Validate secondary (Generic)
-    if (GetCharacterClass() ==ECharacterClass::Generic)
+    if (GetCharacterClass() == ECharacterClass::Generic)
     {
         if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid())
         {
@@ -611,7 +611,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
     }
 
     // Validate ring loadout (Resonator)
-    if (GetCharacterClass() ==ECharacterClass::Resonator)
+    if (GetCharacterClass() == ECharacterClass::Resonator)
     {
         int32 TotalSlotCost = 0;
         for (const FRingLoadoutEntry &RingEntry : Loadout.RingLoadout)
@@ -663,7 +663,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
     }
 
     // Validate innate spells (Caster)
-    if (GetCharacterClass() ==ECharacterClass::Caster)
+    if (GetCharacterClass() == ECharacterClass::Caster)
     {
         // Resolve the owning actor's CharacterDataComponent + BrokenDarknessManager.
         AActor *OwnerActor = GetOwner();
@@ -980,7 +980,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
     }
 
     // Secondary weapon (Generic)
-    if (GetCharacterClass() ==ECharacterClass::Generic)
+    if (GetCharacterClass() == ECharacterClass::Generic)
     {
         if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid())
         {
@@ -1001,7 +1001,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
     }
 
     // Resonator ring loadout
-    if (GetCharacterClass() ==ECharacterClass::Resonator)
+    if (GetCharacterClass() == ECharacterClass::Resonator)
     {
         int32 TotalSlotCost = 0;
         for (int32 i = 0; i < Loadout.RingLoadout.Num(); ++i)
@@ -1057,7 +1057,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
     }
 
     // Innate spells (Caster)
-    if (GetCharacterClass() ==ECharacterClass::Caster)
+    if (GetCharacterClass() == ECharacterClass::Caster)
     {
         AActor *OwnerActor = GetOwner();
         UCharacterDataComponent *CharComp = nullptr;
@@ -1474,7 +1474,7 @@ TArray<USkillDataBase *> ULoadoutComponent::GetAllWeaponAttacks() const
     }
 
     // Secondary weapon attack (Generic only) — OverrideAttack takes precedence.
-    if (GetCharacterClass() ==ECharacterClass::Generic &&
+    if (GetCharacterClass() == ECharacterClass::Generic &&
         Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
         Loadout.SecondaryWeapon.IsValid())
     {
@@ -1744,7 +1744,7 @@ TArray<USpellData *> ULoadoutComponent::GetPrimarySlotSpells() const
     }
 
     // Caster also has innate spells
-    if (GetCharacterClass() ==ECharacterClass::Caster)
+    if (GetCharacterClass() == ECharacterClass::Caster)
     {
         Result.Append(Loadout.InnateSpells);
     }
@@ -1770,7 +1770,7 @@ TArray<USpellData *> ULoadoutComponent::GetSecondarySlotSpells() const
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Only Generic has secondary
-    if (GetCharacterClass() !=ECharacterClass::Generic)
+    if (GetCharacterClass() != ECharacterClass::Generic)
     {
         return Result;
     }
@@ -1800,14 +1800,14 @@ TArray<USpellData *> ULoadoutComponent::GetActiveSlotSpells() const
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Resonator uses active ring
-    if (GetCharacterClass() ==ECharacterClass::Resonator)
+    if (GetCharacterClass() == ECharacterClass::Resonator)
     {
         return GetRingResonateSpells();
     }
 
     // Generic dual-weapon: bShowPrimary IS a real gameplay toggle —
     // only the shown weapon's spells are available.
-    if (GetCharacterClass() ==ECharacterClass::Generic &&
+    if (GetCharacterClass() == ECharacterClass::Generic &&
         Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
         Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
     {
@@ -1928,7 +1928,7 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
     Inv->SavedLoadouts.Empty();
     FCombatLoadout EmptyLoadout;
     EmptyLoadout.LoadoutName = TEXT("Default");
-    EmptyLoadout.InitializeForClass(GetCharacterClass());
+    EmptyLoadout.InitializeForClass(CharacterData->CharacterClass);
     Inv->SavedLoadouts.Add(EmptyLoadout);
     Inv->ActiveLoadoutIndex = 0;
     bIsReadyForBattle = false;
@@ -2012,12 +2012,13 @@ UWeaponData *ULoadoutComponent::GetActiveWeapon() const
     }
 
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const bool bIsGeneric = GetCharacterClass() == ECharacterClass::Generic;
 
     // Evolution primary = no weapon access
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
     {
         // Evolved Generic uses secondary weapon
-        if (GetCharacterClass() ==ECharacterClass::Generic &&
+        if (bIsGeneric &&
             Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
         {
             return Loadout.SecondaryWeapon.IsValid() ? Loadout.SecondaryWeapon.WeaponEntry.Weapon : nullptr;
@@ -2030,7 +2031,7 @@ UWeaponData *ULoadoutComponent::GetActiveWeapon() const
     // Generic with weapon-secondary always has weapon access; Caster/Resonator have none.
     if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
     {
-        if (GetCharacterClass() ==ECharacterClass::Generic &&
+        if (bIsGeneric &&
             Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
         {
             return Loadout.SecondaryWeapon.IsValid() ? Loadout.SecondaryWeapon.WeaponEntry.Weapon : nullptr;
@@ -2040,7 +2041,7 @@ UWeaponData *ULoadoutComponent::GetActiveWeapon() const
     }
 
     // Weapon primary - class-specific behavior
-    if (GetCharacterClass() ==ECharacterClass::Generic)
+    if (bIsGeneric)
     {
         // Generic dual-weapon: bShowPrimary IS a real gameplay toggle.
         if (Loadout.bShowPrimary)
@@ -2097,7 +2098,7 @@ UWeaponData *ULoadoutComponent::GetSecondaryWeapon() const
 
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
-    if (GetCharacterClass() !=ECharacterClass::Generic)
+    if (GetCharacterClass() != ECharacterClass::Generic)
     {
         return nullptr;
     }
@@ -2149,7 +2150,7 @@ URingData *ULoadoutComponent::GetActiveRing() const
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Only Resonators have ring loadout
-    if (GetCharacterClass() !=ECharacterClass::Resonator)
+    if (GetCharacterClass() != ECharacterClass::Resonator)
     {
         return nullptr;
     }
@@ -2401,12 +2402,13 @@ bool ULoadoutComponent::HasWeaponAccess() const
     }
 
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const bool bIsGeneric = GetCharacterClass() == ECharacterClass::Generic;
 
     // Evolution primary = no weapon access
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
     {
         // Evolved Generic can still use secondary weapon
-        if (GetCharacterClass() ==ECharacterClass::Generic &&
+        if (bIsGeneric &&
             Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
             Loadout.SecondaryWeapon.IsValid())
         {
@@ -2419,14 +2421,14 @@ bool ULoadoutComponent::HasWeaponAccess() const
     // Ring primary - only Generic with secondary weapon has access
     if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
     {
-        return GetCharacterClass() ==ECharacterClass::Generic &&
+        return bIsGeneric &&
                Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
                Loadout.SecondaryWeapon.IsValid();
     }
 
     // Weapon primary - check if any weapon exists
     return Loadout.PrimaryWeapon.IsValid() ||
-           (GetCharacterClass() ==ECharacterClass::Generic &&
+           (bIsGeneric &&
             Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
             Loadout.SecondaryWeapon.IsValid());
 }
@@ -2455,7 +2457,7 @@ bool ULoadoutComponent::IsEvolved() const
 
 bool ULoadoutComponent::HasSecondaryEquipment() const
 {
-    if (GetCharacterClass() !=ECharacterClass::Generic)
+    if (GetCharacterClass() != ECharacterClass::Generic)
     {
         return false;
     }
@@ -2489,7 +2491,7 @@ bool ULoadoutComponent::HasSecondaryEquipment() const
 
 bool ULoadoutComponent::HasRingInSecondary() const
 {
-    if (GetCharacterClass() !=ECharacterClass::Generic)
+    if (GetCharacterClass() != ECharacterClass::Generic)
     {
         return false;
     }
@@ -2548,7 +2550,7 @@ UStanceData *ULoadoutComponent::GetCurrentStance() const
     else
     {
         // Showing secondary. Only Generic has secondary slots that can hold a weapon.
-        if (GetCharacterClass() ==ECharacterClass::Generic &&
+        if (GetCharacterClass() == ECharacterClass::Generic &&
             Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
         {
             ShownWeapon = Loadout.SecondaryWeapon.IsValid() ? &Loadout.SecondaryWeapon : nullptr;
@@ -2638,7 +2640,7 @@ TArray<USpellData *> ULoadoutComponent::GetRingResonateSpells() const
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Caster with ring primary
-    if (GetCharacterClass() ==ECharacterClass::Caster && Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+    if (GetCharacterClass() == ECharacterClass::Caster && Loadout.PrimarySlotType == EPrimarySlotType::Ring)
     {
         const FRingLoadoutEntry *RingEntry = GetPrimaryRingLoadout();
         if (RingEntry)
@@ -2648,7 +2650,7 @@ TArray<USpellData *> ULoadoutComponent::GetRingResonateSpells() const
     }
 
     // Resonator uses active ring
-    if (GetCharacterClass() ==ECharacterClass::Resonator)
+    if (GetCharacterClass() == ECharacterClass::Resonator)
     {
         const FRingLoadoutEntry *RingEntry = GetActiveRingLoadout();
         if (RingEntry)
@@ -2674,12 +2676,13 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
         return nullptr;
 
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const bool bIsGeneric = GetCharacterClass() == ECharacterClass::Generic;
 
     // Evolution primary = no weapon
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
     {
         // Evolved Generic uses secondary weapon
-        if (GetCharacterClass() ==ECharacterClass::Generic &&
+        if (bIsGeneric &&
             Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
             Loadout.SecondaryWeapon.IsValid())
         {
@@ -2692,7 +2695,7 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
     // Generic with weapon-secondary always has weapon access; Caster/Resonator have none.
     if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
     {
-        if (GetCharacterClass() ==ECharacterClass::Generic &&
+        if (bIsGeneric &&
             Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
             return Loadout.SecondaryWeapon.IsValid() ? &Loadout.SecondaryWeapon : nullptr;
 
@@ -2700,7 +2703,7 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
     }
 
     // Weapon primary - class-specific behavior
-    if (GetCharacterClass() ==ECharacterClass::Generic)
+    if (bIsGeneric)
     {
         // Generic dual-weapon: bShowPrimary IS a real gameplay toggle.
         if (Loadout.bShowPrimary)
@@ -2759,7 +2762,7 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetSecondaryWeaponLoadout() const
 
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
-    if (GetCharacterClass() !=ECharacterClass::Generic)
+    if (GetCharacterClass() != ECharacterClass::Generic)
         return nullptr;
 
     if (Loadout.SecondarySlotType != ESecondarySlotType::Weapon)
@@ -2800,7 +2803,7 @@ const FRingLoadoutEntry *ULoadoutComponent::GetActiveRingLoadout() const
 
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
-    if (GetCharacterClass() !=ECharacterClass::Resonator)
+    if (GetCharacterClass() != ECharacterClass::Resonator)
         return nullptr;
 
     if (!Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex))
