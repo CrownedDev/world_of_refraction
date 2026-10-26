@@ -16,6 +16,7 @@
 #include "Loadout/SpellPoolConstants.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Character/CharacterData.h"
+#include "Inventory/InventoryData.h"
 
 namespace
 {
@@ -150,6 +151,32 @@ void FLoadoutRulesSpec::Define()
 
 			TestTrue(TEXT("no character: over the budget"), AnyReasonContains(Saved.GetValidationErrors(false), TEXT("Innate spell budget exceeded")));
 			TestFalse(TEXT("a high-stat owner: fits"), AnyReasonContains(Saved.GetValidationErrors(false, Master->GetAuthoredSpellDiscount()), TEXT("Innate spell budget exceeded")));
+		});
+
+		It("warns, not errors, about the spell budget for an inventory on its own (Q-161 = D)", [this]()
+		{
+			UInventoryData *Inventory = NewObject<UInventoryData>(GetTransientPackage());
+			FSavedLoadout Heavy;
+			Heavy.RequiredClass = ECharacterClass::Caster;
+			for (int32 i = 0; i < LOADOUT_RULES_TEST_HEAVY_INNATE_SPELLS; ++i)
+			{
+				USpellData *Spell = NewSpell(ESpellElement::Fire);
+				Spell->Tier = EItemTier::S_Tier;
+				Heavy.InnateSpells.Add(FSpellRef(Spell));
+				Inventory->Spells.Add(Spell);
+			}
+			FSavedLoadout Broken;
+			Broken.RequiredClass = ECharacterClass::Generic;
+			Broken.PrimarySlotType = EPrimarySlotType::Weapon;
+			Inventory->SavedLoadouts = {Heavy, Broken};
+
+			TArray<FString> Errors;
+			TArray<FString> Warnings;
+			Inventory->GetStandaloneValidation(Errors, Warnings);
+			TestTrue(TEXT("budget is a warning"), AnyReasonContains(Warnings, TEXT("Innate spell budget exceeded")));
+			TestFalse(TEXT("budget is no error"), AnyReasonContains(Errors, TEXT("Innate spell budget exceeded")));
+			TestTrue(TEXT("other problems stay errors"), AnyReasonContains(Errors, TEXT("no weapon assigned")));
+			TestFalse(TEXT("and are not repeated as warnings"), AnyReasonContains(Warnings, TEXT("no weapon assigned")));
 		});
 
 		It("still reports what only an authored loadout can get wrong", [this]()
