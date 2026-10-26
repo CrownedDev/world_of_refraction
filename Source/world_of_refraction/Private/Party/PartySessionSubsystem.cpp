@@ -5,6 +5,7 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CombatCharacter.h"
+#include "Combat/Grid/CombatGridConstants.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
@@ -170,6 +171,27 @@ bool UPartySessionSubsystem::InviteMemberInternal(TSoftClassPtr<ACombatCharacter
 		return false;
 	}
 
+	// UNIQUENESS: CharacterData IS the identity, so two members sharing one asset
+	// collapse to a single slot in GetMemberSlotByData — which returns the FIRST
+	// match. Downstream that breaks two things at once: the vitals carry (both
+	// pawns read slot N's HP/EP in UCharacterDataComponent::BeginPlay) and the
+	// formation stamp (both pawns resolve to one PreferredRow/Column and spawn in
+	// the same cell). Rejecting the duplicate here makes the "first match"
+	// contract sound for every downstream consumer, rather than each one needing
+	// its own guard.
+	//
+	// This deliberately forecloses a duplicate-lord party. Per-instance identity
+	// — the banked PvP arc — is where this guard gets lifted; until then, slot
+	// identity and asset identity are the same thing by construction.
+	const int32 ExistingSlot = GetMemberSlotByData(Data);
+	if (ExistingSlot != INDEX_NONE)
+	{
+		UE_LOG(LogTemp, Warning,
+			   TEXT("[PartySession] %s is already in the party at slot %d - duplicate invite rejected"),
+			   *Data->Name, ExistingSlot);
+		return false;
+	}
+
 	FPartyMember Member;
 	Member.PawnClass = PawnClass;
 	Member.CharacterData = Data;
@@ -210,7 +232,89 @@ void UPartySessionSubsystem::SetDisplayName(const FText &NewName)
 	if (UParty *Party = GetLocalParty())
 	{
 		Party->DisplayName = NewName;
+		// Broadcast so a bound title refreshes. Composition is unchanged, but
+		// OnPartyChanged is the one "re-read the party" signal consumers have.
+		OnPartyChanged.Broadcast(Party);
 	}
+}
+
+void UPartySessionSubsystem::SetMemberFormation(int32 SlotIndex, ECombatRow Row, int32 Column)
+{
+	UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PartySession] SetMemberFormation: invalid slot %d"), SlotIndex);
+		return;
+	}
+
+	if (Column < 0 || Column >= CombatGridConstants::GRID_COLUMNS)
+	{
+		UE_LOG(LogTemp, Warning,
+			   TEXT("[PartySession] SetMemberFormation: column %d out of range [0, %d) - slot %d unchanged"),
+			   Column, CombatGridConstants::GRID_COLUMNS, SlotIndex);
+		return;
+	}
+
+	FPartyMember &Member = Party->Members[SlotIndex];
+
+	// Already there: nothing moved, so nothing to broadcast.
+	if (Member.HasFormation() && Member.PreferredRow == Row && Member.PreferredColumn == Column)
+	{
+		return;
+	}
+
+	// Captured BEFORE the write — this is what any displaced member inherits.
+	const ECombatRow PreviousRow = Member.PreferredRow;
+	const int32 PreviousColumn = Member.PreferredColumn;
+
+	// At most one member can hold the target cell: this loop is the only writer of
+	// a placed cell, and it maintains that invariant on every pass. Unplaced
+	// members are skipped via HasFormation() — UNSET_FORMATION is not a cell, so
+	// any number of members may share it.
+	for (int32 OtherIndex = 0; OtherIndex < Party->Members.Num(); ++OtherIndex)
+	{
+		if (OtherIndex == SlotIndex)
+		{
+			continue;
+		}
+
+		FPartyMember &Other = Party->Members[OtherIndex];
+		if (Other.HasFormation() && Other.PreferredRow == Row && Other.PreferredColumn == Column)
+		{
+			Other.PreferredRow = PreviousRow;
+			Other.PreferredColumn = PreviousColumn;
+			UE_LOG(LogTemp, Log, TEXT("[PartySession] Formation swap: slot %d <-> slot %d"),
+				   SlotIndex, OtherIndex);
+			break;
+		}
+	}
+
+	Member.PreferredRow = Row;
+	Member.PreferredColumn = Column;
+
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] Slot %d placed at %s row, column %d"),
+		   SlotIndex, *CombatRowHelpers::GetRowName(Row), Column);
+
+	OnPartyChanged.Broadcast(Party);
+}
+
+bool UPartySessionSubsystem::GetMemberFormation(int32 SlotIndex, ECombatRow &OutRow, int32 &OutColumn) const
+{
+	const UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
+	{
+		return false;
+	}
+
+	const FPartyMember &Member = Party->Members[SlotIndex];
+	if (!Member.HasFormation())
+	{
+		return false;
+	}
+
+	OutRow = Member.PreferredRow;
+	OutColumn = Member.PreferredColumn;
+	return true;
 }
 
 void UPartySessionSubsystem::RebindLeader(APlayerController *Leader)
@@ -325,19 +429,27 @@ FString UPartySessionSubsystem::GetPartyStateString() const
 		const FPartyMember &Member = Party->Members[SlotIndex];
 		const FString MemberName = Member.CharacterData ? Member.CharacterData->Name : TEXT("<no data>");
 
+		// Formation reads "unplaced" rather than a cell when the member falls
+		// through to the centre-out auto-assignment at spawn.
+		const FString Formation =
+			Member.HasFormation()
+				? FString::Printf(TEXT("%s/%d"), *CombatRowHelpers::GetRowName(Member.PreferredRow),
+								  Member.PreferredColumn)
+				: FString(TEXT("unplaced"));
+
 		if (!Member.HasCarriedVitals())
 		{
 			// No carry: show what display would fall back to, so the two cases are
 			// comparable at a glance.
 			const int32 FallbackHP = Member.CharacterData ? Member.CharacterData->CalculateMaxHealth() : 0;
 			const int32 FallbackEP = Member.CharacterData ? Member.CharacterData->CalculateMaxEnergy() : 0;
-			Out += FString::Printf(TEXT("  [%d] %s - no carry (falls back to HP %d / EP %d)\n"),
-								   SlotIndex, *MemberName, FallbackHP, FallbackEP);
+			Out += FString::Printf(TEXT("  [%d] %s - no carry (falls back to HP %d / EP %d) - formation %s\n"),
+								   SlotIndex, *MemberName, FallbackHP, FallbackEP, *Formation);
 		}
 		else
 		{
-			Out += FString::Printf(TEXT("  [%d] %s - carried HP %d / EP %d\n"),
-								   SlotIndex, *MemberName, Member.CurrentHP, Member.CurrentEP);
+			Out += FString::Printf(TEXT("  [%d] %s - carried HP %d / EP %d - formation %s\n"),
+								   SlotIndex, *MemberName, Member.CurrentHP, Member.CurrentEP, *Formation);
 		}
 	}
 	return Out;

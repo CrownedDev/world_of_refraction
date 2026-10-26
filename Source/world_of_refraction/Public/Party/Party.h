@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "Combat/Grid/ECombatRow.h"
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "Party.generated.h"
@@ -30,6 +31,15 @@ namespace PartyConstants
 	 *  Distinguishable from a legitimately carried 0 (a downed member, or a
 	 *  Broken Darkness member's empty EP pool). */
 	constexpr int32 NO_CARRIED_VITALS = -1;
+
+	/** Sentinel for FPartyMember::PreferredColumn: the member has not been placed
+	 *  on the formation grid. An unplaced member falls back to
+	 *  UCombatGridSubsystem::AutoAssignTeam's centre-out table at spawn.
+	 *
+	 *  Column alone carries the unplaced state — ECombatRow has no "unset" value,
+	 *  and adding one would ripple into the row modifier switches in
+	 *  FCombatGridPosition. PreferredRow is meaningless while this is set. */
+	constexpr int32 UNSET_FORMATION = -1;
 }
 
 /** One party slot. Pawn class is the authored identity; CharacterData is resolved
@@ -62,9 +72,20 @@ struct FPartyMember
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	int32 CurrentEP = PartyConstants::NO_CARRIED_VITALS;
 
+	/** Authored formation cell. Only meaningful when HasFormation() — see
+	 *  UNSET_FORMATION. Written by UPartySessionSubsystem::SetMemberFormation,
+	 *  which owns the no-two-members-per-cell invariant; do not assign directly. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	ECombatRow PreferredRow = ECombatRow::Middle;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	int32 PreferredColumn = PartyConstants::UNSET_FORMATION;
+
 	bool IsValidMember() const { return !PawnClass.IsNull() && CharacterData != nullptr; }
 
 	bool HasCarriedVitals() const { return CurrentHP != PartyConstants::NO_CARRIED_VITALS; }
+
+	bool HasFormation() const { return PreferredColumn != PartyConstants::UNSET_FORMATION; }
 };
 
 UCLASS(BlueprintType)

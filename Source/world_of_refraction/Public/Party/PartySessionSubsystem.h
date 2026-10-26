@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "Combat/Grid/ECombatRow.h"
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "PartySessionSubsystem.generated.h"
@@ -97,6 +98,31 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	void SetDisplayName(const FText &NewName);
+
+	// ==================== FORMATION ====================
+	// Authored grid placement, written in the hub and read at battle spawn. This
+	// subsystem — not the menu — owns the invariant that no two PLACED members
+	// share a cell, so any UI driving it gets the guarantee for free.
+
+	/** Place a member on the formation grid. Column must be in
+	 *  [0, GRID_COLUMNS); this is a placement API, not an unplace one — the only
+	 *  route back to unplaced is being swapped with an unplaced member.
+	 *
+	 *  SWAP: when another member already holds (Row, Column), that member takes
+	 *  this one's PREVIOUS cell — including UNSET_FORMATION when this member was
+	 *  unplaced. A swap is a transposition of two cells, so it can neither
+	 *  duplicate a cell nor orphan one.
+	 *
+	 *  Broadcasts OnPartyChanged on a real change. A no-op (member already in the
+	 *  target cell) does not broadcast. */
+	UFUNCTION(BlueprintCallable, Category = "Party")
+	void SetMemberFormation(int32 SlotIndex, ECombatRow Row, int32 Column);
+
+	/** Read a member's authored cell. False when the slot is invalid or the member
+	 *  is unplaced, in which case the out params are untouched and the caller
+	 *  should fall back to the centre-out auto-assignment. */
+	UFUNCTION(BlueprintCallable, Category = "Party")
+	bool GetMemberFormation(int32 SlotIndex, ECombatRow &OutRow, int32 &OutColumn) const;
 
 	/** Re-point Leader after a level transition — the old PlayerController was
 	 *  destroyed by OpenLevel, so the weak ref is stale by design. */
