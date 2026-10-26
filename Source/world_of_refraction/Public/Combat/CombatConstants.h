@@ -373,6 +373,9 @@ namespace CombatConstants
     // TODO: tune — Silenced (Darkness break): share of max EP sealed while it lasts (D-038).
     constexpr float SILENCE_SEALED_EP_FRACTION = 0.5f;
 
+    // DoubleHit effect: the extra hit's share of the first hit's base damage.
+    constexpr float DOUBLE_HIT_DAMAGE_FRACTION = 0.5f;
+
     constexpr float STATUS_DECAY_RATE = 0.25f; // 25% per turn
     constexpr int32 STATUS_DECAY_FULL_RESET_TURNS = 3;
 
