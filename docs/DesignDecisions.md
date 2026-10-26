@@ -296,14 +296,21 @@ The queue of questions only Crown can answer.
 **Notes for Claude:** tool under `Tools/ui_drafts/`, kit path from env var `WOR_UI_KIT` (fail with a clear message if unset); drafts under `docs/Design/screen_mockups/<area>/<screen>/vN/` (`_plain.png` + `_annotated.png`, LFS). Copy only the tool code, never the kit itself.
 
 ### D-026 — Party follow-ups: do found characters stay, and can you switch control mid-fight?
-**Status:** OPEN · **Raised:** 2026-10-26 · **Blocks:** B-076 (part), B-071 (control switch only)
+**Status:** ANSWERED · **Raised:** 2026-10-26 · **Blocks:** B-076 (part), B-071 (control switch only)
 **Question:** (1) Does a character you find during a trial stay in your roster after the run? (2) Can you switch a member between you and the AI during a fight?
 **Context:** D-003/D-004 answers (2026-10-26). Runs reset found gear to a pool (trials are runs); characters aren't covered yet.
 **Options:**
 - (1) A: they stay (recruited for good) · B: run-only, gone after the run · C: run-only, but you unlock them to recruit in the hub.
 - (2) A: hub only · B: also mid-fight, on that member's turn.
 **Recommendation:** (1) C: finding them in a run is the reward, and the hub keeps the team-building · (2) B: cheap to add and handy when a fight turns.
-**Answer (Crown):** _write here_
+**Answer (Crown):** (2026-10-26)
+- **(1) B, run-only.** The characters you find in a trial are the same characters you'd find in the hub. Finding one in a run is temporary: they leave when the run ends. They come **ungeared**; you gear them yourself, and the gear in your run inventory is the gear they use as well (one shared run inventory for the party).
+- **(2) B.** You can switch a member between you and the AI mid-fight, on that member's turn.
+**Notes for Claude:**
+- B-076: a character found in a trial is added to the party for that run only and removed at run end (no roster or save change). Draw them from the same character templates as the hub recruits.
+- Found characters start with empty slots; equipping draws from the run inventory, the same one the leader uses. Gear stays in the run inventory when it's unequipped or the character leaves.
+- How a hub-built team's own gear works at run start isn't covered by this answer (D-021 covers the leader's run-start loadout). If B-076 needs it, raise a new decision rather than assume.
+- B-071: the Player/AI switch is also offered on the member's turn in combat (a command-menu entry).
 
 ---
 
