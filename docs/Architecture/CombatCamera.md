@@ -56,3 +56,4 @@ Built in B-156 (code only). The template sequences and the rig tuning are B-157.
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-26 | Created. B-156: rules, per-character component, director, skill sequence field, `wor.Camera` debug, orchestrator wiring, specs `WoR.Combat.Camera` and `WoR.Combat.Camera.Director` | feature/B-156-combat-camera |
+| 2026-10-26 | B-160 — D-078 settings: `ESkillCinematics` (FollowCameraMovement / On / Off) and `FCombatCameraRules::ShouldPlayCinematic`; director fields `SkillCinematics`, `bEnemySkillCinematics` (enemy = opposing combatant; revisit for co-op, D-065), `bSkipCinematicAfterHit` (the caster's first `OnDamageDealt` after the start frame cuts the sequence; multi-hit skills are cut after the first hit). A settings change mid-sequence cuts a cinematic it now skips (`StopCinematicIfNowSkipped`). Debug: `wor.Camera.Cinematics`, `wor.Camera.EnemyCinematics`, `wor.Camera.SkipAfterHit` | feature/B-160-camera-cinematic-settings |
