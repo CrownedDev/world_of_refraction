@@ -86,6 +86,9 @@ private:
 	UFUNCTION()
 	void HandleDamageDealt(AActor *Attacker, AActor *Target, int32 Damage, bool bCritical);
 
+	/** After a settings change: cuts a playing cinematic the settings now skip. */
+	void StopCinematicIfNowSkipped();
+
 	/** Shows the turn / not-your-turn / static view for the actor whose turn it is. */
 	void ShowTurnView();
 	ULevelSequence *ResolveSequence(const FAction &Action) const;
@@ -117,6 +120,7 @@ private:
 	TWeakObjectPtr<UActionExecutor> BoundExecutor;
 	TWeakObjectPtr<AActor> ViewedActor;
 	TWeakObjectPtr<AActor> SequenceCaster;
+	uint64 SequenceStartFrame = 0;
 	TWeakObjectPtr<AActor> ViewTargetBeforeCombat;
 	ECombatCameraMode CurrentMode = ECombatCameraMode::None;
 	bool bInCombat = false;

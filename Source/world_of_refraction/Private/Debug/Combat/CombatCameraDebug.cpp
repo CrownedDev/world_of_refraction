@@ -59,7 +59,9 @@ namespace
 
 namespace
 {
-	/** wor.Camera.<Name> <int>: parses the value, applies it to the director, then prints the state. */
+	/** wor.Camera.<Name> <int>: parses the value, applies it to the director, then prints the state.
+	 *  Name must be a literal. Only ever initialise a global with the result: it relies on C++17
+	 *  guaranteed elision, and a copied temporary would unregister the command when destroyed. */
 	FAutoConsoleCommandWithWorldAndArgs MakeCameraSettingCmd(const TCHAR *Name, const TCHAR *Help, TFunction<void(UCombatCameraDirector &, int32)> Apply)
 	{
 		return FAutoConsoleCommandWithWorldAndArgs(Name, Help, FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(

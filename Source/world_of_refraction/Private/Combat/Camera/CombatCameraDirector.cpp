@@ -128,15 +128,9 @@ void UCombatCameraDirector::SetTurnViewStyle(ETurnViewStyle NewStyle)
 void UCombatCameraDirector::SetCameraMovementOff(bool bOff)
 {
 	bCameraMovementOff = bOff;
-	if (!bInCombat)
-	{
-		return;
-	}
-	if (bOff && SkillCinematics != ESkillCinematics::On)
-	{
-		StopSequence();
-	}
-	if (!PlayingSequence)
+	StopCinematicIfNowSkipped();
+	// A cinematic still allowed keeps playing; the turn view picks up the new style after it.
+	if (bInCombat && !PlayingSequence)
 	{
 		ShowTurnView();
 	}
@@ -145,11 +139,28 @@ void UCombatCameraDirector::SetCameraMovementOff(bool bOff)
 void UCombatCameraDirector::SetSkillCinematics(ESkillCinematics NewSetting)
 {
 	SkillCinematics = NewSetting;
+	StopCinematicIfNowSkipped();
 }
 
 void UCombatCameraDirector::SetEnemySkillCinematics(bool bOn)
 {
 	bEnemySkillCinematics = bOn;
+	StopCinematicIfNowSkipped();
+}
+
+void UCombatCameraDirector::StopCinematicIfNowSkipped()
+{
+	if (!bInCombat || !PlayingSequence)
+	{
+		return;
+	}
+	const bool bStillPlays = FCombatCameraRules::ShouldPlayCinematic(
+		SkillCinematics, bCameraMovementOff, OpposingCombatants.Contains(SequenceCaster.Get()), bEnemySkillCinematics);
+	if (!bStillPlays)
+	{
+		StopSequence();
+		ShowTurnView();
+	}
 }
 
 void UCombatCameraDirector::SetSkipCinematicAfterHit(bool bSkip)
@@ -211,7 +222,9 @@ void UCombatCameraDirector::HandleSequenceFinished()
 
 void UCombatCameraDirector::HandleDamageDealt(AActor *Attacker, AActor *Target, int32 Damage, bool bCritical)
 {
-	if (!bSkipCinematicAfterHit || !PlayingSequence || Attacker != SequenceCaster.Get())
+	// A hit resolved on the frame the cinematic started (no montage to wait on) would cut it
+	// before it is ever seen; let that one run.
+	if (!bSkipCinematicAfterHit || !PlayingSequence || Attacker != SequenceCaster.Get() || GFrameCounter == SequenceStartFrame)
 	{
 		return;
 	}
@@ -290,6 +303,7 @@ void UCombatCameraDirector::PlaySequence(ULevelSequence *Sequence, AActor *Caste
 	SequenceActor = NewActor;
 	PlayingSequence = Sequence;
 	SequenceCaster = Caster;
+	SequenceStartFrame = GFrameCounter;
 	CurrentMode = ECombatCameraMode::Action;
 	Player->OnFinished.AddDynamic(this, &UCombatCameraDirector::HandleSequenceFinished);
 	Player->Play();

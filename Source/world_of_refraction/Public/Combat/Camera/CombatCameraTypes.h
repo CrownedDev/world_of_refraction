@@ -43,7 +43,6 @@ enum class ECameraTemplateKind : uint8
 	Spell UMETA(DisplayName = "Spell")
 };
 
-/** Where the fight is, from the camera's point of view. */
 /** Whether skill cinematics play (D-078 setting 1). */
 UENUM(BlueprintType)
 enum class ESkillCinematics : uint8
@@ -54,6 +53,7 @@ enum class ESkillCinematics : uint8
 	Off
 };
 
+/** Where the fight is, from the camera's point of view. */
 struct WORLD_OF_REFRACTION_API FCombatCameraFrame
 {
 	/** The character the camera belongs to. */
