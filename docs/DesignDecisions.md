@@ -653,12 +653,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** fix the comment at `CurrencyComponent.h:128` and `Currency.md`; trial merchants priced in Gold when B-073 lands. The loadout vendor is a placeholder UI (C++) until the CommonUI screen exists.
 
 ### D-049 — Cap turns at 2 per round of the slowest?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** `MAX_TURN_RATIO = 2` and `TURN_SPEED_THRESHOLD_DOUBLE` exist (`CombatConstants.h:331`), but the scheduler never reads them, so a fast character can get any number of turns per round.
 **Context:** `Combat/CombatConstants.h:330-331` (unread constants); `Combat/TurnManager.cpp:265-270` (uncapped ratio). Rules: 04 C4-1.
 **Options:** A cap at 2:1 / B no cap (current).
 **Recommendation:** A, because the constants show that was the design, and an uncapped ratio lets stacked speed lock enemies out.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A** (2026-10-26): cap turns at **2 per turn of the slowest** (`MAX_TURN_RATIO = 2`, which the scheduler must now read: `TurnManager.cpp` speed ratio). Wind push-back (D-014/D-030), Ice slow (D-029) and bonus turns all act within the cap. Compared: FFX (uncapped), Expedition 33, Octopath (one per round).
 
 ### D-050 — How long does Defend last?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
