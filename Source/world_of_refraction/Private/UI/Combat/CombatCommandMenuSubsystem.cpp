@@ -1186,6 +1186,10 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
                 {
                     VFX->SetSourceIndex(Idx);
                 }
+                else
+                {
+                    VFX->SetImmuneToInfusion(true); // the spell's source is not on offer (e.g. a broken ring or weapon crystal, Q-163)
+                }
             }
 
             UE_LOG(LogTemp, Verbose,

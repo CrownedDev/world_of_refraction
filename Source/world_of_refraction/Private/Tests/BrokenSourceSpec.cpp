@@ -77,6 +77,16 @@ BEGIN_DEFINE_SPEC(FBrokenSourceSpec, "WoR.Combat.BrokenSources",
 		Active.ActiveRingIndex = 0;
 	}
 
+	/** A Generic whose primary slot is a ring holding an F-tier spell. */
+	void SpawnGenericWithPrimaryRing(int32 Durability)
+	{
+		FCombatLoadout &Active = Spawn(ECharacterClass::Generic);
+		Active.PrimarySlotType = EPrimarySlotType::Ring;
+		Active.PrimaryRing.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
+		Active.PrimaryRing.RingEntry.AttachedItem = GarnetCrystal(Durability);
+		Active.PrimaryRing.RingEntry.AssignedSpells = {FTierSpell};
+	}
+
 	/** A Generic whose primary weapon's crystal holds an F-tier spell. */
 	void SpawnGenericWithWeapon(int32 Durability)
 	{
@@ -139,6 +149,64 @@ void FBrokenSourceSpec::Define()
 			SpawnResonatorWithRing(BROKEN_SOURCE_BROKEN_DURABILITY);
 			Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].InnateSpells.Add(CTierSpell);
 			TestTrue(TEXT("cast as innate"), Loadout->GetBrokenSourceReason(CTierSpell).IsEmpty());
+		});
+
+		It("is no infusion source (Q-163 = B)", [this]()
+		{
+			SpawnResonatorWithRing(BROKEN_SOURCE_BROKEN_DURABILITY);
+			UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+			if (!TestNotNull(TEXT("executor"), Executor))
+			{
+				return;
+			}
+			TestFalse(TEXT("no active ring infusion"),
+					  Executor->GetAvailableInfusionSources(Loadout->GetOwner()).Contains(EInfusionSourceOption::ActiveRing));
+		});
+
+		It("refuses its F-tier spell infused through it, but casts it plain", [this]()
+		{
+			SpawnResonatorWithRing(BROKEN_SOURCE_BROKEN_DURABILITY);
+			UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+			if (!TestNotNull(TEXT("executor"), Executor))
+			{
+				return;
+			}
+			FAction Cast;
+			Cast.ActionType = EActionType::Spell;
+			Cast.SpellData = FTierSpell;
+			Cast.SpellSource = ESpellSource::RingCrystal;
+			Cast.Targets.Add(Loadout->GetOwner());
+			TestTrue(TEXT("plain cast allowed"), Executor->ValidateAction(Loadout->GetOwner(), Cast).bIsValid);
+			Cast.SelectedSource = EInfusionSourceOption::ActiveRing;
+			Cast.SpellInfusionLevel = 1;
+			const FActionValidationResult Result = Executor->ValidateAction(Loadout->GetOwner(), Cast);
+			// A broken ring offers no spells, so the spell no longer resolves to the ring and the
+			// ring source is refused by the origin check.
+			TestFalse(TEXT("infused cast refused"), Result.bIsValid);
+		});
+
+		It("is no infusion source as a broken primary ring either", [this]()
+		{
+			SpawnGenericWithPrimaryRing(BROKEN_SOURCE_BROKEN_DURABILITY);
+			UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+			if (!TestNotNull(TEXT("executor"), Executor))
+			{
+				return;
+			}
+			TestFalse(TEXT("no primary ring infusion"),
+					  Executor->GetAvailableInfusionSources(Loadout->GetOwner()).Contains(EInfusionSourceOption::PrimaryRing));
+		});
+
+		It("is an infusion source while intact", [this]()
+		{
+			SpawnResonatorWithRing(BROKEN_SOURCE_INTACT_DURABILITY);
+			UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+			if (!TestNotNull(TEXT("executor"), Executor))
+			{
+				return;
+			}
+			TestTrue(TEXT("active ring infusion"),
+					 Executor->GetAvailableInfusionSources(Loadout->GetOwner()).Contains(EInfusionSourceOption::ActiveRing));
 		});
 
 		It("blocks nothing while the crystal is intact", [this]()

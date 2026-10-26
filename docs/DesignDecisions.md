@@ -1150,7 +1150,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Today `Flee` is an action type that isn't offered and does nothing (ET-21).
 
 ### Q-163 — Can you infuse through a ring whose crystal broke?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-163) · **Blocks:** — (B-163 shipped with A)
+**Status:** DECIDED (applied in fix/Q-163-broken-ring-infusion) · **Raised:** 2026-10-26 (B-163) · **Blocks:** — (B-163 shipped with A)
 **Question:** D-083 keeps a broken ring's F-tier spells usable and says nothing about infusing. Is the ring still offered as an infusion source (for attacks, abilities and spells) once its crystal is broken?
 **Context:** today it is (`UActionExecutor::GetAvailableInfusionSources` offers the active / primary ring whenever one is equipped). A broken **weapon** crystal is not offered (D-083: no infusing). B-163 also read D-083's "no elemental abilities" as "no ability infused through that weapon's crystal", since abilities have no element of their own.
 **Options:**
@@ -1159,6 +1159,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **C** offered only for the F-tier spells the broken ring still casts.
 **Recommendation:** B, because it matches the weapon rule (a broken crystal gives no element to push), and the F-tier allowance is about casting the ring's own spells.
 **Answer (Crown):** **B** (2026-10-26): a ring whose crystal broke is **not** an infusion source (no element to push), matching the weapon rule; its own F-tier spells still cast.
+**Notes for Claude:** Applied: `GetAvailableInfusionSources` drops a broken ring; the AI and the menu follow it (the menu pins the spell's charge at 0). Two follow-ups raised as Q-163b.
+
+### Q-163b — A broken ring's F-tier spells: infused through Innate, and their Generic element
+**Status:** OPEN · **Raised:** 2026-10-26 (Q-163 follow-up) · **Blocks:** — (Q-163 shipped with B)
+**Question:** Once a ring's crystal breaks, may its F-tier spells still be infused another way, and what element does a Generic (inherit) spell from it take?
+**Context:** a broken ring offers no spells (`FRingInventoryEntry::GetSpells`), so `ResolveSpellSource` no longer finds its F-tier spells on the ring and treats them as **Innate**. For a Resonator or a Generic that means no infusion at all (they have no Innate source). For a **Caster** with a ring in the primary slot it means the spell can be infused through the Caster's **Innate** element. Separately, `GetElementForSourceOption` still returns the broken ring's element for a Generic spell that inherits its element.
+**Options:**
+- **A** keep it: a Caster may infuse a broken ring's F-tier spell with their own element; a Generic spell keeps the ring's element.
+- **B** a broken ring's spells can't be infused at all (any source), and a Generic spell from it is non-elemental (None).
+**Recommendation:** B. A broken crystal gives no element (Q-163), so its spells cast plain; it also keeps the spell's origin honest (it still comes from the ring).
+**Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
 ### D-092 — Shields, Wards and Barriers: the deckbuilder's absorb system
@@ -1250,7 +1261,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### Q-179 — What a trial vendor rolls from
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-179) · **Blocks:** — (B-179 shipped with A)
+**Status:** DECIDED (A as built in B-179; C later) · **Raised:** 2026-10-26 (B-179) · **Blocks:** — (B-179 shipped with A)
 **Question:** Trial vendors now roll a random stock each run. What do they roll from, how much do they show, and does their stock run out?
 **Context:** The rule says the stock comes from the trial's or zone's item pool, but no trial or zone has an item pool yet. As built: a vendor in a trial shows 8 lines picked at random from its own authored list (the same list the home shop sells), rolled once per run and the same all run. Each vendor rolls its own (keyed by its asset path), shown in the order they are authored, the same on every visit during the run. Bought items still never run out (ER-20). In a trial the shop still charges Prisms, because Gold isn't wired to shops yet (B-073).
 **Options:**

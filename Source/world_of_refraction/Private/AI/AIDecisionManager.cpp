@@ -2178,7 +2178,10 @@ EInfusionSourceOption UAIDecisionManager::DecideSpellInfusionSource(AActor *Atta
         return EInfusionSourceOption::None;
     }
 
-    const TArray<EInfusionSourceOption> Allowed = ActionExec->GetAllowedInfusionSourcesForSpell(Attacker, Spell);
+    // Allowed by the spell's origin AND on offer now (a broken ring is no source, Q-163).
+    const TArray<EInfusionSourceOption> Available = ActionExec->GetAvailableInfusionSources(Attacker);
+    TArray<EInfusionSourceOption> Allowed = ActionExec->GetAllowedInfusionSourcesForSpell(Attacker, Spell);
+    Allowed.RemoveAll([&Available](EInfusionSourceOption Source) { return !Available.Contains(Source); });
     if (Allowed.Num() == 0)
     {
         return EInfusionSourceOption::None; // Item / non-infusable -> no source
