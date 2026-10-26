@@ -439,7 +439,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Ice:** slows action speed for two turns (D-029).
 **Notes for Claude:**
 - Turn counting per the deckbuilder (`04-effects.md` "For N turns counts the holder's turns"): it counts the holder's turns; applied during the holder's own turn, that turn counts as turn 1; it ends when the holder's turn after those starts. Put this in one shared helper (it's also what GAS stage 3's turn tracker needs, B-042/B-044).
-- Duration 2 is a named constant (`STATUS_CAP_TURNS = 2`); sizes ("how big") are named constants, `// TODO: tune`.
+- Duration: **1 turn since D-090** (was 2), a named constant (`STATUS_CAP_TURNS`); sizes ("how big") are named constants, `// TODO: tune`.
 - The other caps (Fire burn, Earth defence down, Lightning stun, Light crit down, Darkness silence) follow the same 2-holder-turns rule unless Crown says otherwise; flag any that already have a different authored duration rather than overwrite it.
 - Water today is `HealBlock` (blocks all healing); change it to a healing reduction (named constant).
 
@@ -555,7 +555,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Context:** The code blocks spells only (`ActionExecutor.cpp:176-180`). The display name ("No EP Spend"), `docs/Mechanics/Status/StatusEffects.md` and D-023's reasoning say every EP spend. Rules: 03 C3-2, 04 C4-6.
 **Options:** A spells only (code) / B every EP spend.
 **Recommendation:** B, because that's what the name and the docs promise; under A a silenced Generic is barely affected.
-**Answer (Crown):** **B, reshaped** (2026-10-26): Silenced affects **every Energy spend** (spells, abilities, infusion), but instead of a full block it **seals part of your Energy**: **50% of max EP is locked for 2 of the holder's turns** (D-030); you can only spend the rest. Basic attack, Defend and items still work.
+**Answer (Crown):** **B, reshaped** (2026-10-26): Silenced affects **every Energy spend** (spells, abilities, infusion), but instead of a full block it **seals part of your Energy**: **50% of max EP is locked for 1 of the holder's turns** (D-030 as changed by D-090); you can only spend the rest. Basic attack, Defend and items still work.
 **Notes for Claude:**
 - Sealed share is a named constant (`SILENCE_SEALED_EP_FRACTION = 0.5f`, `// TODO: tune`). Spendable EP = CurrentEP − sealed amount (floored at 0); validation and the menu read spendable EP.
 - UI: the sealed part of the EP bar is drawn dark (fits the B-111 bar work).
@@ -1059,7 +1059,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Action pips:** each turn you get **action pips** set by your **Reflex** stat; each action (attack, skill, item, …) costs a pip, so a high-Reflex character can act **more than once per turn**.
 - **No Turn Speed:** turn order becomes **fixed (round-robin)**, as the deckbuilder's turn belt. A faster-paced game; Reflex is what makes a character "fast".
 - **Ice slows Action Speed** (the attack/spell animation speed stat): a full Ice bar is an Action Speed debuff for 2 holder turns.
-- **Wind affects action pips:** a full Wind bar costs the target action pips (placeholder: −1 pip on each of their next 2 turns).
+- **Wind affects action pips:** a full Wind bar costs the target action pips (placeholder: −1 pip on their next turn, D-090).
 **Supersedes / changes:**
 - D-014/D-030 Wind push-back → pip loss. D-029 Ice → Action Speed slow (Crown's original wording, "slows action speed"; it had been mapped to turn speed).
 - D-049 (2:1 turn cap) no longer applies: a **pip cap** replaces it.
@@ -1104,6 +1104,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A, because it is predictable and the player only meets it with an old save or a changed cap; the message tells them what went.
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
+
+### D-090 — A full status bar is a one-turn "status break"
+**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 03) · **Blocks:** —
+**Answer (Crown):** (2026-10-26) A full status bar's effect lasts **one** of the holder's turns, not two: a short, sharp **status break**. Applies to **every** cap (all elements, Ice, physical Slash/Pierce/Impact, Void, Broken Darkness's EP drain).
+**Changes:** D-030's "2 turns" → **1** (`STATUS_CAP_TURNS = 1`); D-038 Silenced seals EP for 1 turn; D-088 Wind costs pips on the target's **next** turn; Ice's Action Speed slow lasts 1 turn. The holder-turn counting (D-030, D-051) is unchanged. How *big* each break is stays a tuning question (rules page 03 gaps).
+**Notes for Claude:** player-facing word for a full bar's effect: "break" (e.g. "Burn break") is Crown's direction; confirm exact wording when the UI text is written.
 
 ## Parked
 
