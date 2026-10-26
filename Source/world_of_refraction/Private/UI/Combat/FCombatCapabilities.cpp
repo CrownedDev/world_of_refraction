@@ -58,9 +58,9 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         Out.WeaponAbilities = ActiveWeapon->GetAllAbilities();
         Out.bCanUseAbilities = Out.WeaponAbilities.Num() > 0;
 
-        // Crystal spells on active weapon (gated on CanProvideSpells —
-        // broken attachments stay slotted for visual feedback but provide no spells)
-        if (ActiveWeapon->WeaponEntry.AttachedItem.CanProvideSpells())
+        // Crystal spells on active weapon. D-083: a broken crystal's spells stay listed,
+        // greyed out (BlockedSpellReasons below).
+        if (ActiveWeapon->WeaponEntry.AttachedItem.IsSpellSource())
         {
             Out.WeaponCrystalSpells = ActiveWeapon->WeaponEntry.AssignedSpells;
             Out.bHasWeaponCrystal = true;
@@ -141,8 +141,8 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
                    LC->GetPrimaryRingLoadout() ? TEXT("exists") : TEXT("null"),
                    LC->GetPrimaryRingLoadout() && LC->GetPrimaryRingLoadout()->RingEntry.Ring != nullptr ? TEXT("true") : TEXT("false"),
                    Out.RingSpells.Num());
-            // Spells gated on CanProvideSpells — broken attachments don't provide spells
-            if (PrimaryRing->RingEntry.AttachedItem.CanProvideSpells())
+            // D-083: a broken crystal's spells stay listed; only F-tier ones stay usable.
+            if (PrimaryRing->RingEntry.AttachedItem.IsSpellSource())
             {
                 Out.RingSpells = PrimaryRing->RingEntry.AssignedSpells;
             }
@@ -174,8 +174,8 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         const FRingLoadoutEntry *ActiveRing = LC->GetActiveRingLoadout();
         if (ActiveRing && ActiveRing->IsValid())
         {
-            // Spells gated on CanProvideSpells — broken attachments don't provide spells
-            if (ActiveRing->RingEntry.AttachedItem.CanProvideSpells())
+            // D-083: a broken crystal's spells stay listed; only F-tier ones stay usable.
+            if (ActiveRing->RingEntry.AttachedItem.IsSpellSource())
             {
                 Out.RingSpells = ActiveRing->RingEntry.AssignedSpells;
             }
@@ -201,6 +201,20 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
     }
     Out.bHasItems = Out.AvailableItems.Num() > 0;
 
+    // ==================== BROKEN SOURCES (D-083) ====================
+
+    for (const TArray<USpellData *> *Pool : {&Out.WeaponCrystalSpells, &Out.RingSpells})
+    {
+        for (USpellData *Spell : *Pool)
+        {
+            const FText Reason = LC->GetBrokenSourceReason(Spell);
+            if (!Reason.IsEmpty())
+            {
+                Out.BlockedSpellReasons.Add(Spell, Reason);
+            }
+        }
+    }
+
     // ==================== SWITCH WEAPON ====================
     // Switch Weapon requires TWO weapons in the loadout (Generic dual-wield).
     // Evolution + Secondary Weapon has only one weapon, so no switch.
@@ -213,13 +227,13 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         Loadout.PrimaryWeapon.IsValid() &&
         Loadout.SecondaryWeapon.IsValid();
 
-    UE_LOG(LogTemp, Log, TEXT("[FCombatCapabilities] Built for %s: Attack=%d Abilities=%d WeaponCrystal=%d Refractions=%d Breakthrough=%d PrimaryRing=%d RingLoadout=%d SwitchWeapon=%d SwitchRing=%d AugmentStoneAbilities=%d"),
+    UE_LOG(LogTemp, Log, TEXT("[FCombatCapabilities] Built for %s: Attack=%d Abilities=%d WeaponCrystal=%d Refractions=%d Breakthrough=%d PrimaryRing=%d RingLoadout=%d SwitchWeapon=%d SwitchRing=%d AugmentStoneAbilities=%d BrokenSourceSpells=%d"),
            *UEnum::GetValueAsString(CharClass),
            Out.bCanAttack, Out.bCanUseAbilities, Out.bHasWeaponCrystal,
            Out.bHasRefractions, Out.bHasBreakthrough,
            Out.bHasPrimaryRing, Out.bHasRingLoadout,
            Out.bCanSwitchWeapon, Out.bCanSwitchRing,
-           Out.bHasAugmentStoneAbilities);
+           Out.bHasAugmentStoneAbilities, Out.BlockedSpellReasons.Num());
 
     return Out;
 }

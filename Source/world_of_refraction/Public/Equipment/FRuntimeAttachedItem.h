@@ -58,6 +58,10 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
      *  makes sense when something exists. */
     bool IsBroken() const;
 
+    /** The kind of attachment that grants spells (a crystal, an evolution, an elemental
+     *  fusion), broken or not. D-083: a broken one's spells stay listed, greyed out. */
+    bool IsSpellSource() const;
+
     /** Active branch exists and is not broken — i.e. spells routed through
      *  this attachment can fire. */
     bool CanProvideSpells() const;

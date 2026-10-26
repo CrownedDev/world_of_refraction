@@ -87,6 +87,10 @@ struct WORLD_OF_REFRACTION_API FCombatCapabilities
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Spells")
     TArray<USpellData *> BreakthroughSpells;
 
+    /** D-083: listed spells whose source is broken, with the reason. Shown greyed out. */
+    UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Spells")
+    TMap<TObjectPtr<USpellData>, FText> BlockedSpellReasons;
+
     // ==================== ABILITY POOL ====================
 
     /** Abilities for Abilities submenu (from active weapon) */
@@ -164,6 +168,13 @@ struct WORLD_OF_REFRACTION_API FCombatCapabilities
     bool ShouldShowResonateRing() const
     {
         return bHasPrimaryRing || bHasRingLoadout;
+    }
+
+    /** Why Spell is listed but can't be cast (D-083); empty when it can. */
+    FText GetBlockedReason(const USpellData *Spell) const
+    {
+        const FText *Reason = BlockedSpellReasons.Find(const_cast<USpellData *>(Spell));
+        return Reason ? *Reason : FText::GetEmpty();
     }
 
     /** Get the correct spell pool for a given menu category */
