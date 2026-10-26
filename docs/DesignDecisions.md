@@ -149,15 +149,15 @@ The queue of questions only Crown can answer.
 - A: no, block it.
 - B: yes, it's Generic's only spell access.
 **Recommendation:** Crown's call; it defines Generic's identity.
-**Answer (Crown):** (2026-10-26) **A for spells, plus a damage type on skills.** Generic can't cast spells, not even from a weapon crystal. Generic gets elements **only through a crystal, on its abilities**:
+**Answer (Crown):** (2026-10-26) **A for spells, plus a damage type on skills.** Generic can't cast spells from a weapon crystal. Generic gets elements on its abilities **only through a crystal**. _(Clarified by D-027, same day: weapons never give spells to any class; Generic **can** cast spells through rings.)_
 - Every skill has a **damage type**. A physical skill starts as **Physical**; an infusion (a crystal / chosen source) changes its damage type to that **element**.
 - The same applies to **Generic spells** (non-Generic classes): they take the element of their source.
 - Crown: the deckbuilder explains this well. It is the simplest level of this same game, so its rules are a good reference.
 **Notes for Claude:**
-- Remove weapon-crystal spells from Generic's menu (`FCombatCapabilities.cpp:62-68`) so it agrees with `UCharacterData::CanUseSpells()`.
+- Weapon-crystal spells go for every class (D-027, B-098); ring spells stay available to Generic. Don't apply the old "Generic sees no spells" gate.
 - **Fix found while checking:** an infused ability takes the user's **innate** element (`ActionExecutor.cpp:1450-1455`), but Generic, the only class with abilities, has no innate element (`ECharacterClass.h` `HasInnateElement`), so a Generic's infused ability deals **no element** today. The status path already uses the chosen source (`ActionExecutor.cpp:2253`). Damage must use the selected source's element too (crystal on the weapon), else Physical.
 - Deckbuilder reference (`wor-deckbuilder/docs/reference/01-card-model.md` "Cast through", Pivot "Generic element memory"): a Generic Ability starts Physical and takes its source's element; a Generic Refraction needs an elemental source. Its extra costs (1 Action to switch, +1 Energy when a physical ability deals an element) are **not** ruled here; ask before adding them.
-- Tests: Generic + fire crystal → infused ability deals Fire; uninfused → Physical; Generic sees no spells.
+- Tests: Generic + fire crystal → infused ability deals Fire; uninfused → Physical; Generic with a ring can cast its spells.
 
 ### D-008 — Do gear effects update when swapping mid-combat?
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-081
@@ -332,7 +332,7 @@ The queue of questions only Crown can answer.
 - B-071: the Player/AI switch is also offered on the member's turn in combat (a command-menu entry).
 
 ### D-027 — Should classes gate skills, or only change passives (the deckbuilder way)?
-**Status:** OPEN · **Raised:** 2026-10-26 · **Blocks:** — (shapes B-080 and later class work)
+**Status:** ANSWERED · **Raised:** 2026-10-26 · **Blocks:** — (shapes B-080 and later class work)
 **Question:** Keep the hard class gate (Generic = abilities only, Refractor/Resonator = spells only), or let any class use any skill it has a source for, with classes differing by passives?
 **Context:**
 - This game: `CharacterClassHelpers::CanUseAbilities` is Generic-only and `CanUseSpells` is everyone but Generic (`ECharacterClass.h:45-55`).
@@ -342,7 +342,15 @@ The queue of questions only Crown can answer.
 - B: the deckbuilder model: gear and sources decide, classes give passives.
 - C: half-way: Generic is still spell-less (D-007), but Refractors and Resonators can also use weapon abilities.
 **Recommendation:** none yet: it defines the classes. B makes builds freer and matches the deckbuilder; A keeps classes very distinct.
-**Answer (Crown):** _write here_
+**Answer (Crown):** (2026-10-26) **Follow the deckbuilder way (B), keeping each class's loadout shape.** Refractors and Resonators can use weapon abilities too. Classes differ by their loadout, which the code already has:
+- **Refractor:** innate element + a primary (weapon) slot.
+- **Resonator:** a ring loadout + a primary slot; a system decides how many weapons, rings, evolutions etc. it can hold.
+- **Generic:** a primary and a secondary weapon slot. _(Crown's sentence was cut off here; ask what follows.)_
+**Weapons never give spells.** A weapon with a crystal gives **elemental (infused) abilities**; spells come from rings (and a Refractor's innate), for any class, Generic included.
+**Notes for Claude:**
+- Replace the class gates `CharacterClassHelpers::CanUseAbilities` / `CanUseSpells` (`ECharacterClass.h:45-55`) and `UCharacterData::CanUseSpells/CanUseAbilities` (`CharacterData.h:261-264`) with "what the loadout holds": weapon → abilities, ring / innate → spells (B-097).
+- Weapon spell slots ("weapon native spells", `docs/Architecture/LoadoutSystem.md` *Slot caps*) and weapon-crystal spells go away; the crystal keys the weapon's abilities instead (B-098). Survey first: data assets author weapon spells, and loadouts save them.
+- Class passives like the deckbuilder's (`01-card-model.md` "Class passives") are **not** ruled here; suggest them in a new decision if wanted.
 
 ---
 
