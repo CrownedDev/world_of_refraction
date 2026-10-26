@@ -514,6 +514,10 @@ public:
      *  is broken (a broken ring still casts F-tier spells). Empty when it can. */
     FText GetBrokenSourceReason(const USpellData *Spell) const;
 
+    /** Spell comes from the active (or primary) ring and that ring's crystal is broken, and it is
+     *  not also an innate spell. Such a spell casts plain: no infusion, no element (Q-163b = B). */
+    bool IsSpellFromBrokenRing(const USpellData *Spell) const;
+
     // ==================== TURN SWITCH (ET-19) ====================
 
     /** ET-19 (Crown, 2026-10-26): one free weapon or ring switch per turn, so swapping can't

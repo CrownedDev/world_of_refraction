@@ -79,9 +79,9 @@ BEGIN_DEFINE_SPEC(FBrokenSourceSpec, "WoR.Combat.BrokenSources",
 	}
 
 	/** A Generic whose primary slot is a ring holding an F-tier spell. */
-	void SpawnGenericWithPrimaryRing(int32 Durability)
+	void SpawnGenericWithPrimaryRing(int32 Durability, ECharacterClass CharacterClass = ECharacterClass::Generic)
 	{
-		FCombatLoadout &Active = Spawn(ECharacterClass::Generic);
+		FCombatLoadout &Active = Spawn(CharacterClass);
 		Active.PrimarySlotType = EPrimarySlotType::Ring;
 		Active.PrimaryRing.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
 		Active.PrimaryRing.RingEntry.AttachedItem = GarnetCrystal(Durability);
@@ -196,6 +196,20 @@ void FBrokenSourceSpec::Define()
 			}
 			TestFalse(TEXT("no primary ring infusion"),
 					  Executor->GetAvailableInfusionSources(Loadout->GetOwner()).Contains(EInfusionSourceOption::PrimaryRing));
+		});
+
+		It("leaves a Caster's F-tier ring spell plain: no Innate infusion, a Generic spell non-elemental (Q-163b = B)", [this]()
+		{
+			SpawnGenericWithPrimaryRing(BROKEN_SOURCE_BROKEN_DURABILITY, ECharacterClass::Caster);
+			UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+			if (!TestNotNull(TEXT("executor"), Executor))
+			{
+				return;
+			}
+			FTierSpell->Element = ESpellElement::Generic;
+			TestEqual(TEXT("no infusion source at all"), Executor->GetAllowedInfusionSourcesForSpell(Loadout->GetOwner(), FTierSpell).Num(), 0);
+			TestEqual(TEXT("non-elemental"), Executor->ResolveSpellCastElement(Loadout->GetOwner(), FTierSpell), ESpellElement::None);
+			TestTrue(TEXT("still castable"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
 		});
 
 		It("is an infusion source while intact", [this]()

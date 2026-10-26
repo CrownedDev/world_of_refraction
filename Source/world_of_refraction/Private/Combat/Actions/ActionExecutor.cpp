@@ -4229,6 +4229,12 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAllowedInfusionSourcesForSpell
 		return Allowed;
 	}
 
+	// Q-163b = B: a broken ring's spells cast plain (no infusion through any source, no element).
+	if (LC->IsSpellFromBrokenRing(Spell))
+	{
+		return Allowed;
+	}
+
 	// Spells are 1:1 origin-bound — a spell's allowed infusion source IS its origin.
 	// ResolveSpellSource is a const, read-only resolver; the non-const param is legacy.
 	const ESpellSource Origin = LC->ResolveSpellSource(const_cast<USpellData *>(Spell));
@@ -4402,6 +4408,14 @@ ESpellElement UActionExecutor::ResolveSpellCastElement(AActor *Caster, const USp
 	//    GetAllowedInfusionSourcesForSpell yields the origin source(s); the first maps
 	//    to its element via GetElementForSourceOption. A Reality origin yields Reality
 	//    (valid). A None result means the origin carries no element -> unresolvable below.
+	// A broken ring's Generic spell is non-elemental (Q-163b = B).
+	if (const ULoadoutComponent *SpellLoadout = GetLoadoutComponent(Caster))
+	{
+		if (SpellLoadout->IsSpellFromBrokenRing(Spell))
+		{
+			return ESpellElement::None;
+		}
+	}
 	const TArray<EInfusionSourceOption> Sources = GetAllowedInfusionSourcesForSpell(Caster, Spell);
 	if (Sources.Num() > 0)
 	{
