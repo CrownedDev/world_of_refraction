@@ -67,7 +67,7 @@ Any lord can enter any trial (D-032 part 8). The trial reacts to who's in the pa
 
 - **Gold:** earned per fight won, spent at vendors, lost at run end.
 - **Prisms and in-run upgrade materials:** tallied during the run, **paid at run end** (D-006). A payout multiplier exists for future passives (B-096).
-- **Kept after a run:** the pool with its upgrade levels, Prisms, head-start allocation. **Lost:** run world-stat levels, Gold, gear found in the run, run-only recruits, slotted crystals (D-002, D-026).
+- **Kept after a run:** items found in the run (to home storage, D-097), the pool with its upgrade levels, Prisms, head-start allocation. **Lost:** run world-stat levels, Gold, gear found in the run (but its upgrade progress is remembered: find it again in a later run and it returns at that level, D-097), run-only recruits, slotted crystals (D-002, D-026).
 
 ## 7. Open questions
 
