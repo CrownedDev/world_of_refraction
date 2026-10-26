@@ -2788,11 +2788,12 @@ FActionResult UActionExecutor::ExecuteItem(
 
 	if (Loadout && Loadout->IsReadyForBattle())
 	{
-		// Find which slot contains this item
-		TArray<FItemLoadoutSlot> UsableItems = Loadout->GetUsableItems();
-		for (int32 i = 0; i < UsableItems.Num(); ++i)
+		// The raw slot index (ULoadoutComponent::UseItem takes it), not an index into the
+		// usable-items list, which skips empty slots.
+		const TArray<FItemLoadoutSlot> &ItemSlots = Loadout->GetActiveLoadout().ItemSlots;
+		for (int32 i = 0; i < ItemSlots.Num(); ++i)
 		{
-			if (UsableItems[i].CrystalId == Id)
+			if (!ItemSlots[i].IsEmpty() && ItemSlots[i].CrystalId == Id)
 			{
 				ItemSlotIndex = i;
 				break;
@@ -2851,7 +2852,9 @@ FActionResult UActionExecutor::ExecuteItem(
 	}
 
 	// === Consume item use from loadout ===
-	if (Result.bSuccess && Loadout && ItemSlotIndex >= 0)
+	// Q-060 (B-201): a use that failed to land still spends its charge, like a missed
+	// throw; the result keeps reporting the failure (B-060).
+	if (Loadout && ItemSlotIndex >= 0)
 	{
 		Loadout->UseItem(ItemSlotIndex);
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Consumed 1 use from item slot %d"), ItemSlotIndex);
