@@ -744,7 +744,8 @@ private:
 	 *         total — slice it by ResolvedDamageSplit[ImpactIndex] here (legacy lumped path). */
 	void ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex, bool bDamageIsPerImpact = false);
 
-	/** Handle multi-hit abilities */
+	/** Handle multi-hit abilities. OBSOLETE (B-167): its only caller was the no-DefenseSystem
+	 *  fallback; remove after Crown's PIE pass (or with B-032). */
 	int32 ProcessMultiHit(
 		AActor *Attacker,
 		AActor *Target,

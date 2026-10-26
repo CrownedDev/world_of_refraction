@@ -50,6 +50,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-177](B-177.md) | `feature/B-177-merge-overshoot` (in `dev`) | Crystal merge gives back its overshoot (ER-28) | Not tested |
 | [B-179](B-179.md) | `feature/B-179-trial-vendor-stock` (in `dev`) | Trial vendors roll their stock per run; home shops unchanged | Not tested |
 | [B-180](B-180.md) | `feature/B-180-row-changes` (in `dev`) | Free one-row step per turn; push / pull effects | Not tested |
+| [B-167](B-167.md) | `refactor/B-167-remove-subsystem-fallbacks` (in `dev`) | "Subsystem missing" damage fallbacks removed (no behaviour change in a normal game) | Not tested |
 | [B-168](B-168.md) | `feature/B-168-guard` (in `dev`) | Guard (Block + Parry merged), Perfect Guard, no built-in reflect | Not tested |
 | [B-169](B-169.md) | `feature/B-169-luck-dodge` (in `dev`) | Luck dodge: a hit that would land can be dodged by luck, max 15% | Not tested |
 | [B-035](B-035.md) | `refactor/B-035-flatten-crystal-destruction` (in `dev`) | Combat-end crystal destruction split out (no behaviour change) | Not tested |
