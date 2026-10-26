@@ -11,6 +11,7 @@
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Equipment/Crystals/CrystalDescription.h"
+#include "Skills/Effects/EffectIdentity.h"
 
 FString UEvolutionItemData::GetFullItemName() const
 {
@@ -318,6 +319,8 @@ TArray<FSkillEffect> UEvolutionItemData::GetConditionalEffects() const
 TArray<FGatheredEffect> UEvolutionItemData::GetStartingEffectsGathered() const
 {
     TArray<FGatheredEffect> Result;
+    // The item is the source of its effects (D-053): another item with the same definition adds its own.
+    const int32 ItemSourceKey = EffectIdentity::MakeSourceKey(GetUniqueID(), GetName());
 
     for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
     {
@@ -330,7 +333,7 @@ TArray<FGatheredEffect> UEvolutionItemData::GetStartingEffectsGathered() const
         {
             if (!Def->Effects[b].IsConditionalEffect())
             {
-                Result.Emplace(DefID, b, Def->Effects[b]);
+                Result.Emplace(DefID, b, Def->Effects[b], ItemSourceKey);
             }
         }
     }
@@ -341,6 +344,8 @@ TArray<FGatheredEffect> UEvolutionItemData::GetStartingEffectsGathered() const
 TArray<FGatheredEffect> UEvolutionItemData::GetConditionalEffectsGathered() const
 {
     TArray<FGatheredEffect> Result;
+    // The item is the source of its effects (D-053): another item with the same definition adds its own.
+    const int32 ItemSourceKey = EffectIdentity::MakeSourceKey(GetUniqueID(), GetName());
 
     for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
     {
@@ -353,7 +358,7 @@ TArray<FGatheredEffect> UEvolutionItemData::GetConditionalEffectsGathered() cons
         {
             if (Def->Effects[b].IsConditionalEffect())
             {
-                Result.Emplace(DefID, b, Def->Effects[b]);
+                Result.Emplace(DefID, b, Def->Effects[b], ItemSourceKey);
             }
         }
     }
