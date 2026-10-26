@@ -32,7 +32,7 @@
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-001 | Build + PIE `fix/combat-hang-arc-a`; merge to main | Crown | S | — | Merged; a win resets status bars; a stunned actor's turn passes | REVIEW (in dev) |
-| B-002 | Merge main into `refactor/bp-logic-to-cpp`, resolve the orchestrator conflict | CC | S | B-001 | Branch builds clean (Crown confirms) | BLOCKED (B-001) |
+| B-002 | Merge main into `refactor/bp-logic-to-cpp`, resolve the orchestrator conflict | CC | S | B-001 | Branch builds clean (Crown confirms) | BLOCKED (D-022) |
 | B-003 | Build + cut over `refactor/bp-logic-to-cpp` (follow `Refactor/BPLogicToCpp_ReviewNotes.md`); merge | Crown | M | B-002 | Native HUD, results, hub PC working in PIE | BLOCKED (B-002) |
 | B-004 | Enable **CommonUI** + **GameplayAbilities** plugins; commit `.uproject` | Crown | S | — | Plugins on; project opens | TODO |
 | B-005 | Fill `UE_ROOT` (local env var) and run `Scripts/ue/build.sh` + `test.sh` once | Crown | S | — | Both scripts work locally; hooks active | DONE (local env, 2026-10-26) |
@@ -78,7 +78,7 @@
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-060 | Item use reports real success (`ItemExecutor.cpp:169`) | CC | S | — | Failed use doesn't consume a charge | TODO |
-| B-061 | Stun rule per D-001 | CC | S | D-001 | Matches the answer | BLOCKED (D-001) |
+| B-061 | Stun rule per D-001 | CC | S | D-001 | Matches the answer | TODO |
 | B-062 | Effect identity: per-actor fires-once, instants recorded, refresh vs stack per D-012 (or via GAS stage 3) | CC | M | D-011, D-012 | Tests for each rule | BLOCKED (D-011) |
 | B-063 | Wind SkipTurn enforced per D-014; BD-Darkness `DrainEnergy` case; Void `RandomSkill` minimal | CC | M | D-014 | Each element cap does something | BLOCKED (D-014) |
 | B-064 | Element damage per D-005; `OnDamageDealt` carries element | CC | M | D-005 | Damage numbers can tint by element | BLOCKED (D-005) |
@@ -92,7 +92,7 @@
 |---|---|---|---|---|---|---|
 | B-070 | `TrialRunSubsystem::ActiveTrial` → strong ref | CC | S | — | Works in a packaged build | TODO |
 | B-071 | Party into battle per D-003/D-004; spawn `FPartyMember.PawnClass` | CC | M | D-003, D-004 | 3v1 fight from a recruited party | BLOCKED (D-003) |
-| B-072 | Win/lose routing per D-002 | CC | S | D-002, B-003 | Matches answer | BLOCKED (D-002) |
+| B-072 | Win/lose routing per D-002 | CC | S | D-002, B-003 | Matches answer | BLOCKED (B-003) |
 | B-073 | Prisms/currency rewards per D-006 | CC | S | D-006 | Shop purchasable after a win | BLOCKED (D-006) |
 | B-074 | Encounter Composition Arc 2: `UEncounterData`, multi-enemy battles, AI formation | CC | L | B-001 | 1v3 fight from data | BLOCKED (B-001) |
 | B-075 | Recruit duplicate fix; currency clamp; shop soft-lock; hint cleanup on EndPlay | CC | S | — | Each verified | TODO |
