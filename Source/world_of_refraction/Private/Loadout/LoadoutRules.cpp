@@ -11,6 +11,7 @@
 #include "Skills/Definitions/ElementHelpers.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
+#include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Rings/RingData.h"
 
@@ -244,6 +245,44 @@ namespace
 		}
 	}
 
+	struct FUtilityCrystalBand
+	{
+		const TCHAR *Name;
+		EItemTier LowTier;
+		EItemTier HighTier;
+		int32 Cap;
+	};
+
+	const FUtilityCrystalBand UtilityCrystalBands[] = {
+		{TEXT("S"), EItemTier::S_Tier, EItemTier::S_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_S_TIER},
+		{TEXT("A/B"), EItemTier::B_Tier, EItemTier::A_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_A_B_TIER},
+		{TEXT("C/D"), EItemTier::D_Tier, EItemTier::C_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_C_D_TIER},
+		{TEXT("E/F"), EItemTier::F_Tier, EItemTier::E_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_E_F_TIER},
+	};
+
+	/** D-072/D-077: utility crystals in item slots, per crystal, by combined tier band. Report-only
+	 *  for now (B-159 drops the excess on load). */
+	void CheckUtilityCrystalTierCaps(FFindingSink &Sink, const FCombatLoadout &Loadout)
+	{
+		for (const FUtilityCrystalBand &Band : UtilityCrystalBands)
+		{
+			int32 Count = 0;
+			for (const FItemLoadoutSlot &Slot : Loadout.ItemSlots)
+			{
+				const bool bInBand = Slot.CrystalId.Tier >= Band.LowTier && Slot.CrystalId.Tier <= Band.HighTier;
+				if (bInBand && CrystalTypeHelpers::IsGemType(Slot.CrystalId.Type) && Slot.Quantity > 0)
+				{
+					Count += Slot.Quantity;
+				}
+			}
+			if (Count > Band.Cap)
+			{
+				Sink.Add(ELoadoutSlotType::ItemSlot, INDEX_NONE, false,
+						 FString::Printf(TEXT("Too many %s-tier utility crystals: %d (max %d)"), Band.Name, Count, Band.Cap));
+			}
+		}
+	}
+
 	void CheckItems(FFindingSink &Sink, const FCombatLoadout &Loadout)
 	{
 		// Quantity range (previously checked in the editor only).
@@ -262,6 +301,7 @@ namespace
 		{
 			Sink.Add(ELoadoutSlotType::DuplicateItems, -1, true, TEXT("Duplicate item types in loadout"));
 		}
+		CheckUtilityCrystalTierCaps(Sink, Loadout);
 	}
 }
 

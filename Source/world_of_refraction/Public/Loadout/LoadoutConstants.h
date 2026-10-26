@@ -35,4 +35,12 @@ namespace LoadoutConstants
 
     // Evolution
     constexpr int32 MAX_EVOLUTION_SPELLS = 6;
+
+    // Utility crystal tier caps per character (D-072, D-077): crystals carried in item slots,
+    // counted per crystal (a stack counts each one). Bands combine (A or B together, etc.).
+    // Attached crystals don't count; utility stones aren't capped.
+    constexpr int32 MAX_UTILITY_CRYSTALS_S_TIER = 1;
+    constexpr int32 MAX_UTILITY_CRYSTALS_A_B_TIER = 2;
+    constexpr int32 MAX_UTILITY_CRYSTALS_C_D_TIER = 3;
+    constexpr int32 MAX_UTILITY_CRYSTALS_E_F_TIER = 4;
 }
