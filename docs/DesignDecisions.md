@@ -1660,6 +1660,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-071-party-into-battle): `ABattleGameMode::BootstrapCombat` possesses the leader's pawn when it fights, otherwise the first Player-set member, otherwise the first spawned.
 
+### Q-074 — Does an encounter's enemy team replace its map pawn or join it?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-074) · **Blocks:** — (B-074 shipped with A)
+**Question:** an encounter on the map sits on one enemy pawn. When it names an enemy team (`UEncounterData`, up to three), does the team fight instead of that pawn, or alongside it?
+**Options:**
+- **A** The team replaces the pawn: the pawn is the team's marker on the map. No team (or an empty one) = the pawn fights alone.
+- **B** The pawn always fights, and the team adds up to two more.
+**Recommendation:** A. Symbol encounters work this way in Dragon Quest XI and Persona 5 (one shadow on the map opens a fight with a whole group), and players read the map symbol as "a fight", not as one of the enemies. It keeps the team's full make-up in one asset. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-074-encounter-data): `UEncounterData::BuildOpposingRoster`. B-184's `AFieldEnemyTeam` should hold a `UEncounterData` and call `BuildOpposingRoster` rather than carry a second list of enemies.
+
 ### Q-199 — What can a Void-broken turn do?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-199) · **Blocks:** — (B-199 shipped with A)
 **Question:** Q-063b says the Void break picks the holder's action at random from its usable actions. Which actions are in the draw, and who can it hit?

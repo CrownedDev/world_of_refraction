@@ -4,6 +4,7 @@
 
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/Encounter/EncounterData.h"
 #include "Character/CombatCharacter.h"
 #include "Kismet/GameplayStatics.h"
 #include "Party/Party.h"
@@ -230,6 +231,9 @@ void UEncounterComponent::OnJoinWindowExpired()
 	const UCharacterDataComponent *OwnerCharComp = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
 	UCharacterData *OwnerData = OwnerCharComp ? OwnerCharComp->CharacterData : nullptr;
 
+	const TArray<UCharacterData *> OpposingPartyData = UEncounterData::BuildOpposingRoster(EncounterData, OwnerData);
+	const bool bFieldsTeam = EncounterData && EncounterData->GetEnemyRoster().Num() > 0;
+
 	UTrialRunSubsystem *TrialRun = GetWorld()->GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
 	UTrialData *ActiveTrial = TrialRun ? TrialRun->GetActiveTrial() : nullptr;
 
@@ -239,25 +243,26 @@ void UEncounterComponent::OnJoinWindowExpired()
 	// here. Re-arming leaves the trial playable.
 	//
 	// TODO: stopgap. Real defeat handling (run ends, return to hub) is banked.
-	if (!ActiveTrial || !OwnerData || !LocalParty || BattlePartyData.Num() == 0)
+	if (!ActiveTrial || OpposingPartyData.Num() == 0 || !LocalParty || BattlePartyData.Num() == 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[EncounterComponent] %s - encounter aborted (%s) - re-arming"),
 			   *GetOwner()->GetName(),
 			   !ActiveTrial	   ? TEXT("no active trial on TrialRunSubsystem")
-			   : !OwnerData	   ? TEXT("owner has no CharacterData")
+			   : OpposingPartyData.Num() == 0 ? TEXT("no enemy team and the owner has no CharacterData")
 			   : !LocalParty   ? TEXT("no local party - the encounter path did not create one")
 							   : TEXT("party wiped - no living members"));
 		RearmEncounter();
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[EncounterComponent] Join window closed - handing off %d v 1 to battle stage (difficulty %s)"),
-		   BattlePartyData.Num(), *UEnum::GetValueAsString(Difficulty));
+	UE_LOG(LogTemp, Log, TEXT("[EncounterComponent] Join window closed - handing off %d v %d to battle stage (difficulty %s, team %s)"),
+		   BattlePartyData.Num(), OpposingPartyData.Num(), *UEnum::GetValueAsString(Difficulty),
+		   bFieldsTeam ? *EncounterData->GetName() : TEXT("the pawn alone"));
 
 	// EnterEncounter OpenLevels to the trial's battle stage; this component,
 	// the arena, and every trial actor die with the swap. If it rejects
 	// (no EncounterLevel authored), re-arm so the trial stays playable.
-	TrialRun->EnterEncounter(ActiveTrial, BattlePartyData, {OwnerData}, Difficulty, Rank);
+	TrialRun->EnterEncounter(ActiveTrial, BattlePartyData, OpposingPartyData, Difficulty, Rank);
 	if (!TrialRun->HasPendingEncounter())
 	{
 		RearmEncounter();
