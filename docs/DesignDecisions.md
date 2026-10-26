@@ -1258,6 +1258,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - A **fallen ally** stays on the grid and **blocks** their cell: you can't step into it or swap with them.
 - A **bonus turn** (Extra Action) also brings back the free step.
 - The step is instant: the character jumps to the new cell, with no animation or camera move.
+- The deckbuilder has no rule to borrow here (it is one-on-one, with no rows).
 **Options:**
 - **A** keep all of the above (as built).
 - **B** change some (say which): e.g. a push into an ally swaps them, push is a debuff that Cleanse and immunity can stop, bosses resist it, a fallen ally's cell is free.

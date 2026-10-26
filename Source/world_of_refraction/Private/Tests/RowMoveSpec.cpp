@@ -174,6 +174,7 @@ void FRowMoveSpec::Define()
 			{
 				return;
 			}
+			TestTrue(TEXT("allowed before the stun"), Orchestrator->GetRowMoveRefusedReason(Hero, ROW_MOVE_FORWARD).IsEmpty());
 			FActiveSkillEffect Stun;
 			Stun.EffectName = TEXT("Row move test stun");
 			Stun.EffectType = ESkillEffectType::Stun;
