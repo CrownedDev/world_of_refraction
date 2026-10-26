@@ -505,12 +505,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 ---
 
 ### D-034 — Crit damage ceiling: x2.5 or x2.0?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** What is the biggest multiplier a crit can reach with gear?
 **Context:** The stat caps crit damage at x1.5; gear multiplies it toward `CRIT_DAMAGE_GEAR_CEILING = 2.5` (`CombatConstants.h:192`). `DamageCalculator.md` and `Luck.md` say x2.0. Rules: `docs/Rules/02-elements-and-damage.md` CED-2.
 **Options:** A x2.5 (code) / B x2.0 (docs).
 **Recommendation:** B, because the docs were written to that design and the other gear ceilings are x2.0; the 2.5 looks like drift.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A, x2.5** (2026-10-26, after comparing PoE2, Diablo 4 and Expedition 33: freedom games don't hard-cap crit damage; crit chance being multiplicative already limits it). Fix the docs (`DamageCalculator.md`, `Luck.md`) to x2.5; the code stays. Uncapped with diminishing returns is a possible later step.
 
 ### D-035 — Should infusing an ability cost extra on top of the charge level?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
