@@ -755,7 +755,7 @@ int32 UAIDecisionManager::EstimateActionDamage(AActor *Attacker, AActor *Target,
 
     // CalculateDamage ran with bCanCrit=false — fold expected crit value back in so the estimate
     // matches average execution damage. AI parity (5e-D): value a crit by the attacker's ACTUAL
-    // crit-damage multiplier (x1.0-x2.0 via GetCritDamageMultiplier), not a fixed x1.5. An active
+    // crit-damage multiplier (x1.0-x2.5 via GetCritDamageMultiplier), not a fixed x1.5. An active
     // GuaranteedCrit window forces a crit at execution (DamageCalculator.cpp:228, HasEffectOfType),
     // so the EV must treat crit chance as 1.0 — otherwise the AI under-values attacking inside its
     // own Opal-granted window.

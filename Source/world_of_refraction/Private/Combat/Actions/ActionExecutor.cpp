@@ -227,7 +227,7 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 		return FActionValidationResult(false, TEXT("Not enough energy"), EnergyCost);
 	}
 
-	// Check requirements (world stat requirements)
+	// Class / source gates (requirements never refuse, D-041)
 	UCharacterData *CharData = GetCharacterData(Actor);
 	if (CharData)
 	{

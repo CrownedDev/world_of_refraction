@@ -214,7 +214,7 @@ public:
 
 	/**
 	 * Get the attacker's full crit-DAMAGE multiplier (CRIT_DMG_BASE x1.0 + CritDamage stat ramp to
-	 * x1.5, then BonusCritDamage gear + ModifyCritDamage transient toward x2.0). The same value the
+	 * x1.5, then BonusCritDamage gear + ModifyCritDamage transient toward x2.5, D-034). The same value the
 	 * live crit path applies; public so the AI scorer can value crits at the attacker's real crit damage.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
