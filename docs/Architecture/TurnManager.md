@@ -59,8 +59,8 @@ Per-combatant scheduling record:
 
 A pinned bonus turn (Emerald) — fires at its slot regardless of debt:
 - `AActor* Actor` — who receives the bonus turn(s).
-- `int32 TurnsRemaining` — delay in NORMAL turns until fire; decremented only when a
-  normal (debt-picked) turn is taken, never by bonus turns. Ready at `<= 0`.
+- `int32 TurnsRemaining` — delay in turns until fire; every turn taken (normal or a fired
+  pinned turn) decrements every OTHER pending entry. Ready at `<= 0`.
 - `int32 Count` — bonus turns granted when it fires (S-rank = 2, back-to-back).
 
 ## How It Works
@@ -142,11 +142,12 @@ Advances ONE turn on the passed state (live arrays or belt scratch copies):
 
 1. **Pinned-fire** — scans `Pending` (FIFO) for a ready entry (`TurnsRemaining <= 0`).
    If the grantee is alive: emit it as a bonus turn (`bIsBonusTurn=true`), decrement
-   `Count` (entry removed at 0), `TurnsTaken++` on the grantee, return — no debt
-   machinery runs and no delay countdown happens (bonus turns don't burn other
-   bonuses' delay). A dead/invalid grantee's entry is dropped without emitting a turn.
+   `Count` (entry removed at 0), `TurnsTaken++` on the grantee, then decrement every OTHER
+   pending entry's delay (all turns count), return — no debt machinery runs. A
+   dead/invalid grantee's entry is dropped without emitting a turn.
 2. **Round-check** — if no living combatant has net debt above `KINDA_SMALL_NUMBER`,
-   adds each combatant's `SpeedRatio` to its `TurnsOwed` (all entries, dead included).
+   adds each LIVING combatant's `SpeedRatio` to its `TurnsOwed` (the dead accrue nothing,
+   so a revived combatant gets no catch-up burst).
 3. **Select** — living combatant with highest net debt; ties via
    `ShouldBreakTieInFavor()`. `TurnsTaken++` on the pick (a normal, unflagged turn).
 4. **Delay countdown** — every `Pending` entry's `TurnsRemaining` drops by 1 (normal
