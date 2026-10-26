@@ -231,7 +231,22 @@ bool UPartySessionSubsystem::InviteMember(TSoftClassPtr<ACombatCharacter> PawnCl
 	return bAdded;
 }
 
-bool UPartySessionSubsystem::InviteMemberInternal(TSoftClassPtr<ACombatCharacter> PawnClass)
+bool UPartySessionSubsystem::InviteMemberWithData(TSoftClassPtr<ACombatCharacter> PawnClass, UCharacterData *Data)
+{
+	if (!Data)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PartySession] InviteMemberWithData with no CharacterData - invite rejected"));
+		return false;
+	}
+	const bool bAdded = InviteMemberInternal(PawnClass, Data);
+	if (bAdded)
+	{
+		OnPartyChanged.Broadcast(GetLocalParty());
+	}
+	return bAdded;
+}
+
+bool UPartySessionSubsystem::InviteMemberInternal(TSoftClassPtr<ACombatCharacter> PawnClass, UCharacterData *DataOverride)
 {
 	UParty *Party = GetLocalParty();
 	if (!Party)
@@ -253,7 +268,7 @@ bool UPartySessionSubsystem::InviteMemberInternal(TSoftClassPtr<ACombatCharacter
 		return false;
 	}
 
-	UCharacterData *Data = ResolveCharacterData(PawnClass);
+	UCharacterData *Data = DataOverride ? DataOverride : ResolveCharacterData(PawnClass);
 	if (!Data)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[PartySession] %s carries no CharacterData - invite rejected"),

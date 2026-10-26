@@ -91,9 +91,10 @@ void UPartyInteractionComponent::Interact()
 	const int32 SlotIndex = PartySession->GetMemberSlotByData(OwnerData);
 	if (SlotIndex == INDEX_NONE)
 	{
-		// Same TSoftClassPtr-from-path construction the encounter trigger uses.
-		const bool bInvited = PartySession->InviteMember(
-			TSoftClassPtr<ACombatCharacter>(GetOwner()->GetClass()->GetPathName()));
+		// Same TSoftClassPtr-from-path construction the encounter trigger uses. B-075: the member is
+		// this pawn's own CharacterData, not its class default, so the dismiss lookup above finds it.
+		const bool bInvited = PartySession->InviteMemberWithData(
+			TSoftClassPtr<ACombatCharacter>(GetOwner()->GetClass()->GetPathName()), OwnerData);
 		UE_LOG(LogTemp, Log, TEXT("[PartyInteraction] %s: invite %s"),
 			   *OwnerData->Name, bInvited ? TEXT("accepted") : TEXT("rejected"));
 	}
