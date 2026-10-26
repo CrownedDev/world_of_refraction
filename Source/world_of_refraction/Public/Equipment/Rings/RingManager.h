@@ -17,10 +17,10 @@ class UEvolutionItemData;
 class UCrystalManager;
 
 /**
- * Simplified Ring Manager
- * - Provides active-ring queries sourced from LoadoutComponent
- * - Consumes UCrystalManager::OnCrystalBroken, performs auto-switch
- *   when the broken crystal is on a ring this manager tracks
+ * OBSOLETE (B-024): forwards to the actor's ULoadoutComponent (GetActiveRing,
+ * GetActiveRingElement, GetPrimaryRing, SwitchToNextUsableRing), which also owns the
+ * crystal-break auto-switch now. No C++ caller left; kept for Blueprints until Crown's
+ * PIE pass, then removed (B-154).
  */
 UCLASS()
 class WORLD_OF_REFRACTION_API URingManager : public UGameInstanceSubsystem

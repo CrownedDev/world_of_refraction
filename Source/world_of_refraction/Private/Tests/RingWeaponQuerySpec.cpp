@@ -1,7 +1,8 @@
 // RingWeaponQuerySpec.cpp
 // The ring and weapon queries URingManager / UWeaponManager answer, and the ring auto-switch
 // when a ring's crystal breaks (B-024). Written against the two subsystems first, so the
-// loadout component must give the same results once it owns them.
+// loadout component must give the same results once it owns them; the component's own
+// GetActiveRingElement / SwitchToNextUsableRing are checked alongside.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -110,6 +111,8 @@ void FRingWeaponQuerySpec::Define()
 			TestEqual(TEXT("primary ring matches the loadout"), RingManager->GetPrimaryRing(Actor), Loadout->GetPrimaryRing());
 			TestEqual(TEXT("active element"), RingManager->GetActiveElement(Actor),
 					  CrystalTypeHelpers::GetElement(ECrystalType::Garnet));
+			TestEqual(TEXT("loadout's active element"), Loadout->GetActiveRingElement(),
+					  CrystalTypeHelpers::GetElement(ECrystalType::Garnet));
 		});
 
 		It("give nothing for an actor without a loadout", [this]()
@@ -135,6 +138,8 @@ void FRingWeaponQuerySpec::Define()
 			}
 			TestTrue(TEXT("switched"), RingManager->SwitchToNextRing(Loadout->GetOwner()));
 			TestEqual(TEXT("landed past the broken ring"), ActiveRingIndex(), 2);
+			TestTrue(TEXT("loadout switch wraps"), Loadout->SwitchToNextUsableRing());
+			TestEqual(TEXT("wrapped past the broken ring to the first"), ActiveRingIndex(), 0);
 		});
 
 		It("fails when no other ring is usable", [this]()
@@ -146,6 +151,7 @@ void FRingWeaponQuerySpec::Define()
 				return;
 			}
 			TestFalse(TEXT("no switch"), RingManager->SwitchToNextRing(Loadout->GetOwner()));
+			TestFalse(TEXT("no loadout switch"), Loadout->SwitchToNextUsableRing());
 			TestEqual(TEXT("stayed"), ActiveRingIndex(), 0);
 		});
 
