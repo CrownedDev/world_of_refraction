@@ -666,6 +666,20 @@ FText ACombatOrchestrator::GetFleeRefusedReason(AActor *Actor) const
 	return FText::GetEmpty();
 }
 
+namespace
+{
+	/** A free row step moves exactly one row (D-096). */
+	constexpr int32 ORCHESTRATOR_ROW_STEP = 1;
+
+	/** The cell one row forward or back, same column (Q-180: never sideways). */
+	FCombatGridPosition OrchestratorStepTarget(const FCombatGridPosition &From, bool bForward)
+	{
+		FCombatGridPosition Target = From;
+		Target.Row = CombatRowHelpers::GetRowFromIndex(From.GetRowIndex() + (bForward ? ORCHESTRATOR_ROW_STEP : -ORCHESTRATOR_ROW_STEP));
+		return Target;
+	}
+}
+
 FText ACombatOrchestrator::GetRowMoveRefusedReason(AActor *Actor, bool bForward) const
 {
 	if (CombatState != ECombatState::InProgress)
@@ -698,6 +712,12 @@ FText ACombatOrchestrator::GetRowMoveRefusedReason(AActor *Actor, bool bForward)
 	{
 		return NSLOCTEXT("CombatOrchestrator", "RowAtBack", "Already in the back row.");
 	}
+	// Q-180: in battle you step only into an empty cell, same column; swapping places with an
+	// ally is for formation outside battle (D-042). A fallen ally's cell is taken too.
+	if (Grid->GetActorAtPosition(OrchestratorStepTarget(Position, bForward)))
+	{
+		return NSLOCTEXT("CombatOrchestrator", "RowTaken", "That cell is taken.");
+	}
 	return FText::GetEmpty();
 }
 
@@ -710,23 +730,19 @@ bool ACombatOrchestrator::TryMoveRow(AActor *Actor, bool bForward, FText &OutRef
 	}
 
 	UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
-	FCombatGridPosition Target;
-	Grid->GetActorPosition(Actor, Target);
-	Target.Row = CombatRowHelpers::GetRowFromIndex(Target.GetRowIndex() + (bForward ? 1 : -1));
+	FCombatGridPosition Position;
+	Grid->GetActorPosition(Actor, Position);
+	const FCombatGridPosition Target = OrchestratorStepTarget(Position, bForward);
 
-	const FVector ArenaCenter = GetActorLocation();
-	AActor *Ally = Grid->GetActorAtPosition(Target);
-	// The fallen stay on the grid; their cell is blocked rather than swapped into (Q-180).
-	const bool bMoved = !Ally ? Grid->MoveActorToRow(Actor, Target.Row, ArenaCenter)
-							  : IsActorAlive(Ally) && Grid->SwapActorPositions(Actor, Ally, ArenaCenter);
-	if (!bMoved)
+	// The target cell is empty (GetRowMoveRefusedReason), so this is a plain step (Q-180).
+	if (!Grid->MoveActorToRow(Actor, Target.Row, GetActorLocation()))
 	{
 		OutRefusedReason = NSLOCTEXT("CombatOrchestrator", "RowBlocked", "Can't move there.");
 		return false;
 	}
 	bRowMoveUsedThisTurn = true;
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s stepped to the %s row%s"), *Actor->GetName(),
-		   *CombatRowHelpers::GetRowName(Target.Row), Ally ? *FString::Printf(TEXT(" (swapped with %s)"), *Ally->GetName()) : TEXT(""));
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s stepped to the %s row"), *Actor->GetName(),
+		   *CombatRowHelpers::GetRowName(Target.Row));
 	return true;
 }
 
