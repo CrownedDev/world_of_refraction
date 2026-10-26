@@ -63,6 +63,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-150](B-150.md) | `feature/B-150-fallen-members` (in `dev`) | Fallen members stay in the party; a rest revives them | Not tested |
 | [B-151](B-151.md) | `feature/B-151-player-wallet` (in `dev`) | One wallet per player, shared by the party (`wor.Wallet.Print`) | Not tested |
 | [B-199](B-199.md) | `feature/B-199-void-random-action` (in `dev`) | A Void break plays the holder's next turn at random | Not tested |
+| [B-200](B-200.md) | `fix/B-200-ai-live-status-multiplier` (in `dev`) | The AI's buildup estimate counts gear and buffs | Not tested |
 | [B-070](B-070.md) | `fix/B-070-trial-strong-ref` (in `dev`) | The trial run keeps hold of its trial (packaged builds) | Not tested |
 | [B-071](B-071.md) | `feature/B-071-party-into-battle` (in `dev`) | Recruited party in battle: own pawns, Player/AI per member, switch on its turn, take over when you fall, gearless sit out | Not tested |
 | [B-149](B-149.md) | `feature/B-149-formation-cells` (in `dev`) | Members start a fight in their chosen cell; enemies Front/Back by class | Not tested |
