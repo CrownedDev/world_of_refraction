@@ -1660,6 +1660,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-071-party-into-battle): `ABattleGameMode::BootstrapCombat` possesses the leader's pawn when it fights, otherwise the first Player-set member, otherwise the first spawned.
 
+### Q-192 — What form does a bound bonus take?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-192) · **Blocks:** — (B-192 shipped with A)
+**Question:** D-033 (A): anyone can equip a bound item; only its lord gets the bound bonus, hidden unless the lord wears it. What is the bonus, and what does another wearer see?
+**Options:**
+- **A** The item names its owner (a character) and a list of effect bundles, authored like the item's own effects; they join the item's effects only when the owner wears it, so they work exactly like gear effects (start of combat, or armed with their trigger). Anyone else sees no line at all for it, not even that it is bound. Gear only for now (bound skills later).
+- **B** A stat bonus (numbers) instead of effects.
+- **C** Show "Bound to <lord>" to everyone, with the bonus hidden.
+**Recommendation:** A. The deckbuilder's Bonded effects (`WoR_TCG_Pivot_Design.md`) are effects that only their Character gets; Fire Emblem's personal weapons and Xenoblade's character-specific gear give their owner an extra effect, and players like discovering them. Reusing effect bundles keeps one system. Hiding the whole line follows RunStructure §5's hidden rule. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-192-bound-gear): `UEquipmentDataBase::BoundOwner` / `BoundEffects` / `IsBoundBonusActive` / `GetBoundBonusText`; the loadout's gathered combat effects pass the wearer. Known gaps: no screen shows the bonus line yet (no description generator, D-031 / B-045; the text is the debug line, a D-061 gap until then); the flat `GetActiveEffects` used by the gear-effect debug dump's PRE list still leaves bound effects out (they appear in POST); evolutions can't be bound; ownership is the character asset, so a trial mirror enemy with its own asset won't match (decide with trial loot). B-081 must pass the wearer when a swap re-gathers effects.
+
 ### Q-191 — How do reaction triggers fire, and what do memories do to a boss now?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-191) · **Blocks:** — (B-191 shipped with A)
 **Question:** D-032 / RunStructure §5: if these items (all equipped) are worn while facing this character, trigger effects, a quest or dialogue. Worn by whom, when is it checked, where do the effects go, and how do memory boss changes apply before boss phases exist (B-193)?
