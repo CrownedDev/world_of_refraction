@@ -75,11 +75,11 @@ void FGuardSpec::Define()
 
 	Describe("damage", [this]()
 	{
-		It("a Guard takes half, a Perfect Guard less, a Dodge nothing, a miss everything", [this]()
+		It("a Guard takes half, a Perfect Guard and a Dodge nothing, a miss everything", [this]()
 		{
 			TestEqual(TEXT("Guard"), Taken(EDefenseType::Block, GUARD_TEST_NORMAL), ExpectedTaken(DefenseSystem->BlockReduction));
 			TestEqual(TEXT("Perfect Guard"), Taken(EDefenseType::Block, GUARD_TEST_PERFECT), ExpectedTaken(DefenseSystem->PerfectGuardReduction));
-			TestTrue(TEXT("Perfect Guard takes less"), Taken(EDefenseType::Block, GUARD_TEST_PERFECT) < Taken(EDefenseType::Block, GUARD_TEST_NORMAL));
+			TestEqual(TEXT("Perfect Guard takes nothing (Q-168)"), Taken(EDefenseType::Block, GUARD_TEST_PERFECT), 0);
 			TestEqual(TEXT("Dodge"), Taken(EDefenseType::Dodge, GUARD_TEST_PERFECT), 0);
 			TestEqual(TEXT("missed timing"),
 					  DefenseSystem->CalculateDefenseResult(GUARD_TEST_DAMAGE, EDefenseType::Block, false, false).FinalDamage, GUARD_TEST_DAMAGE);
