@@ -80,6 +80,7 @@
 | B-060 | Item use reports real success (`ItemExecutor.cpp:169`) | CC | S | — | Failed use doesn't consume a charge | TODO |
 | B-061 | Stun rule per D-001 | CC | S | D-001 | Matches the answer | REVIEW (in dev) |
 | B-092 | Command menu while stunned (D-001): offer only Attack + Defend. The pie menu has no Defend option today, so add one (`EPieMenuCategory`, `CombatCommandMenuSubsystem::BuildMainMenuButtons`) | CC | S | B-061 | A stunned player sees only Attack and Defend; Defend works from the menu | TODO |
+| B-093 | Defend on a key binding (Enhanced Input action, keyboard + gamepad) in addition to the menu button (Crown, 2026-10-26); fits CommonUI input routing | CC | S | B-092 | Pressing the Defend key on your turn defends; works on gamepad | TODO |
 | B-062 | Effect identity: per-actor fires-once, instants recorded, refresh vs stack per D-012 (or via GAS stage 3) | CC | M | D-011, D-012 | Tests for each rule | BLOCKED (D-011) |
 | B-063 | Wind SkipTurn enforced per D-014; BD-Darkness `DrainEnergy` case; Void `RandomSkill` minimal | CC | M | D-014 | Each element cap does something | BLOCKED (D-014) |
 | B-064 | Element damage per D-005; `OnDamageDealt` carries element | CC | M | D-005 | Damage numbers can tint by element | BLOCKED (D-005) |
