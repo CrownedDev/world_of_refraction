@@ -37,6 +37,7 @@
 #include "TrialRunSubsystem.generated.h"
 
 class UCharacterData;
+class UMemoryData;
 class UMerchantData;
 struct FMerchantStockEntry;
 class UTrialData;
@@ -135,6 +136,12 @@ public:
 
     int32 GetFoundCount() const { return FoundFeatures.Num(); }
 
+    /** B-190: a memory fragment was picked up this run (boss modifiers apply to this run, B-191).
+     *  False when null or already collected this run. */
+    bool CollectMemory(UMemoryData *Memory);
+
+    const TArray<TObjectPtr<UMemoryData>> &GetRunMemories() const { return RunMemories; }
+
     /** B-185: who struck first on the map, for the pending fight. Call before EnterEncounter. */
     void SetPendingFirstStrike(EFirstStrike FirstStrike) { PendingFirstStrike = FirstStrike; }
 
@@ -209,6 +216,10 @@ private:
     /** B-188: map features used this run (never removed from, so it keeps the order found). Run state
      *  like BeatenEncounters; cleared on trial entry and exit; moves with it for co-op (D-065). */
     TMap<FName, FText> FoundFeatures;
+
+    /** B-190: memories collected this run. Run state like FoundFeatures (D-065). */
+    UPROPERTY(Transient)
+    TArray<TObjectPtr<UMemoryData>> RunMemories;
 
     /** Carried across the OpenLevel like PendingDifficulty; moves with it for co-op (D-065). */
     EEncounterRank PendingRank = EEncounterRank::Normal;

@@ -1,6 +1,7 @@
 // TrialRunSubsystem.cpp
 
 #include "Trial/TrialRunSubsystem.h"
+#include "Memory/MemoryData.h"
 #include "WoRLog.h"
 
 #include "Character/CharacterData.h"
@@ -67,6 +68,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     ActiveTrial = Trial;
     BeatenEncounters.Reset();
     FoundFeatures.Reset();
+    RunMemories.Reset();
     PendingEncounterSources.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
@@ -117,6 +119,7 @@ void UTrialRunSubsystem::ExitTrial()
     TrialDifficulty = TrialGate::DEFAULT_DIFFICULTY;
     BeatenEncounters.Reset();
     FoundFeatures.Reset();
+    RunMemories.Reset();
     PendingEncounterSources.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
@@ -201,6 +204,18 @@ void UTrialRunSubsystem::MarkPendingEncounterBeaten()
            PendingEncounterSources.Num(), BeatenEncounters.Num());
 }
 
+bool UTrialRunSubsystem::CollectMemory(UMemoryData *Memory)
+{
+    if (!Memory || RunMemories.Contains(Memory))
+    {
+        return false;
+    }
+    RunMemories.Add(Memory);
+    UE_LOG(LogWoR, Log, TEXT("[TrialRun] Memory %s collected (%d this run)"), *Memory->GetMemoryId().ToString(),
+           RunMemories.Num());
+    return true;
+}
+
 void UTrialRunSubsystem::RecordFound(FName FeatureId, const FText &What)
 {
     FoundFeatures.Add(FeatureId, What);
@@ -282,12 +297,12 @@ FString UTrialRunSubsystem::GetTrialRunString() const
     {
         Found.Add(Entry.Value.ToString());
     }
-    return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | variation=%s | difficulty=%s (enemy x%.2f, payout x%.2f) | beaten=%d | found %d [%s] | first strike=%s | zone tier %d (%s) | hub=%s | pending %d v %d (%s) | return=%s"),
+    return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | variation=%s | difficulty=%s (enemy x%.2f, payout x%.2f) | beaten=%d | found %d [%s] | memories %d | first strike=%s | zone tier %d (%s) | hub=%s | pending %d v %d (%s) | return=%s"),
                            ActiveTrial ? *ActiveTrial->Name.ToString() : TEXT("<none>"), RunSeed,
                            Variation ? *Variation->Name.ToString() : TEXT("<none>"),
                            *TrialGate::GetDifficultyName(TrialDifficulty).ToString(), GetEnemyStrengthMultiplier(),
                            GetPayoutMultiplier(), BeatenEncounters.Num(), Found.Num(),
-                           *FString::Join(Found, TEXT("; ")), *UEnum::GetValueAsString(PendingFirstStrike), PendingZone.Tier,
+                           *FString::Join(Found, TEXT("; ")), RunMemories.Num(), *UEnum::GetValueAsString(PendingFirstStrike), PendingZone.Tier,
                            PendingZone.LootPool.IsValid() ? *PendingZone.LootPool.ToString() : TEXT("no loot pool"),
                            HubLevel.IsNull() ? TEXT("<UNSET>") : *HubLevel.ToString(),
                            PendingBattleParty.Num(), PendingOpposingParty.Num(),
