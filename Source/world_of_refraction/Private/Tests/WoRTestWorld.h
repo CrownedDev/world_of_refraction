@@ -13,6 +13,7 @@
 #include "GameFramework/Pawn.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "WoRLog.h"
 
 class FWoRTestWorld
 {
@@ -28,7 +29,7 @@ public:
 		Wrapper.AppendErrorMessages(Errors);
 		for (const FString &Error : Errors)
 		{
-			UE_LOG(LogTemp, Error, TEXT("[WoRTestWorld] %s"), *Error);
+			UE_LOG(LogWoR, Error, TEXT("[WoRTestWorld] %s"), *Error);
 		}
 		return false;
 	}
