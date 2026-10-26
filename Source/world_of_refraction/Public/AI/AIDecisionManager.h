@@ -22,6 +22,7 @@ class UDamageCalculator;
 class UActionExecutor;
 class UDefenseSystem;
 class UCharacterData;
+class USkillDataBase;
 
 /**
  * AI-internal action category. Distinct from EActionType: the attack/ability merge folded
@@ -84,9 +85,13 @@ public:
 
     /** B-199 (Q-063b, Q-199): a Void-broken combatant's turn, played for it, player or AI. One
      *  of its usable actions at random (its basic attack, a spell, an ability, Defend; no items,
-     *  Flee or switch), each that ValidateAction accepts, aimed at a random living enemy.
-     *  Defend when nothing else validates. */
+     *  Flee or switch), each that ValidateAction accepts, aimed by its TargetType (Self: the
+     *  holder; Ally: the holder or a living ally; else a living enemy). Defend when nothing else validates. */
     FAction BuildRandomAction(AActor *Actor) const;
+
+    /** B-200: what the attacker's Skill builds before the charge, tier and the target's resistance:
+     *  authored buildup × the live Status Multiplier (gear, StatusStone, buffs), as AddStatusBuildup does. */
+    static float EstimateBaseStatusBuildup(const UCharacterDataComponent *AttackerComp, const USkillDataBase *Skill);
 
     // ==================== DEFENSE DECISIONS ====================
 

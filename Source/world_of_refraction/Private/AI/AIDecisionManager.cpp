@@ -276,6 +276,17 @@ FAction UAIDecisionManager::BuildRandomAction(AActor *Actor) const
     return Picked;
 }
 
+float UAIDecisionManager::EstimateBaseStatusBuildup(const UCharacterDataComponent *AttackerComp, const USkillDataBase *Skill)
+{
+    if (!AttackerComp || !Skill)
+    {
+        return 0.0f;
+    }
+    // TODO(B-200): element-keyed StatusMultiplierBuff/Debuff (AddStatusBuildup step 5b) is not read;
+    //   the cast element is resolved only at execution.
+    return SupportSkillRules::GetAuthoredStatusBuildup(Skill) * AttackerComp->GetEffectiveStatusMultiplier();
+}
+
 // ==================== QUERY ====================
 
 EAIDifficulty UAIDecisionManager::GetCurrentDifficulty() const
@@ -876,7 +887,7 @@ float UAIDecisionManager::EstimateStatusScore(AActor *Attacker, AActor *Target, 
 
     // TODO(ai-parity): charge StatusMultiplier omitted — infusion level undecided at
     //   score time; estimate uses un-infused (L0) baseline. tier-power + tier-gap applied.
-    int32 Buildup = Spell->CalculateStatusBuildup(AttackerComp->CharacterData);
+    int32 Buildup = FMath::RoundToInt(EstimateBaseStatusBuildup(AttackerComp, Spell));
     if (Buildup <= 0)
     {
         return 0.0f;
@@ -930,7 +941,7 @@ float UAIDecisionManager::EstimateStatusScore(AActor *Attacker, AActor *Target, 
 
     // TODO(ai-parity): charge StatusMultiplier omitted — infusion level undecided at
     //   score time; estimate uses un-infused (L0) baseline. tier-power + tier-gap applied.
-    int32 Buildup = Ability->CalculateStatusBuildup(AttackerComp->CharacterData);
+    int32 Buildup = FMath::RoundToInt(EstimateBaseStatusBuildup(AttackerComp, Ability));
     if (Buildup <= 0)
     {
         return 0.0f;
@@ -2130,7 +2141,7 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
     if (BuildupManager)
     {
         // Calculate L1 buildup — per-mode, stat-scaled status (matches execution's GetChargeStatusMultiplier).
-        float BaseBuildup = SupportSkillRules::GetAuthoredStatusBuildup(Spell);
+        float BaseBuildup = EstimateBaseStatusBuildup(AttackerComp, Spell);
         UActionExecutor *StatusExec = GetActionExecutor();
         const float L1StatusMult = StatusExec
                                        ? StatusExec->GetChargeStatusMultiplier(1, StatusExec->ResolveInfusionMode(Source, Attacker), AttackerComp)
@@ -2225,7 +2236,7 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
     if (BuildupManager && Difficulty >= EAIDifficulty::Medium)
     {
         // Calculate L1 status buildup
-        int32 BaseBuildup = Ability->CalculateStatusBuildup(AttackerComp->CharacterData);
+        float BaseBuildup = EstimateBaseStatusBuildup(AttackerComp, Ability);
         // 6-5-d: per-mode, stat-scaled status (matches execution's GetChargeStatusMultiplier).
         UActionExecutor *StatusExec = GetActionExecutor();
         const float L1StatusMult = StatusExec
