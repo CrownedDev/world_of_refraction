@@ -97,5 +97,5 @@ Steps run in this order. All are multipliers, so order only matters for rounding
 - Luck dodge: `LUCK_DODGE_MAX` (25%) exists with no reader (`CombatConstants.h:315,319-326`). **Ruled: D-085** (Luck auto-dodge, max 15%, only when no press succeeded).
 - Ignore Defense is all-or-nothing here; the deckbuilder's Ignore Defense N removes up to N, element Resistance first (`04-effects.md:351,362`). **Ruled: D-086** (an amount per skill; built in the GAS damage calculation, B-146).
 - No rule on whether parry-reflected damage goes through the attacker's Defense, crit or resistance. Not checked in the code. **Ruled: D-087** (reflection is an attachable effect, e.g. on Perfect Guard; reflected damage is pure).
-- The deckbuilder's extra costs for Generic infusion (1 Action to switch sources) are not ruled (`D-007` notes).
+- The deckbuilder's extra costs for Generic infusion (1 Action to switch sources) are not ruled (`D-007` notes). **Ruled (Crown, 2026-10-26, rules review): no extra switching cost.** The infusion source is picked fresh each use; the infusion Energy cost (D-035) is the price.
 - Nothing shows the player which elements a target is weak to; with B-064 this becomes a damage rule the player can't see.
