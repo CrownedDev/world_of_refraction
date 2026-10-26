@@ -1005,7 +1005,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### Q-155 — Auto-equip and the utility crystal caps
-**Status:** OPEN · **Raised:** 2026-10-26 (B-155) · **Blocks:** — (B-155 shipped the check; this is the gap)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-155) · **Blocks:** — (B-155 shipped the check; this is the gap)
 **Question:** auto-equip tops each item slot up to 3 crystals at the start of a fight, after the loadout check. Should it stop at the tier cap?
 **Context:** `PrepareForBattle` (`LoadoutComponent.cpp` ~1460) checks and cleans the loadout, then `FCombatLoadout::ApplyAutoEquip` (`FCombatLoadout.cpp` ~609) refills every slot to `MAX_QUANTITY_PER_ITEM_SLOT` (3) from the inventory. So a loadout with 1 S-tier crystal passes the check and enters the fight with 3, unreported.
 **Options:**
@@ -1013,7 +1013,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** auto-equip refills as today, then the excess is dropped back to the inventory with a message.
 - **C** auto-equip is exempt (it is a convenience; the cap is only for what you pick).
 **Recommendation:** A, because the cap is a per-character rule (D-072) and refilling past it would undo it every fight; A never takes crystals out of the inventory that would then be handed straight back.
-**Answer (Crown):** _pending_
+**Answer (Crown):** (2026-10-26) **Auto-refill happens only at rest spots**, not at the start of every fight; and it stops at the tier caps (A). Move `ApplyAutoEquip` out of `PrepareForBattle` to the rest-spot service; in fights you use what you carry.
 **Notes for Claude:** _optional_
 
 ### D-084 — What a Perfect defense does (Block and Parry merged into Guard)
