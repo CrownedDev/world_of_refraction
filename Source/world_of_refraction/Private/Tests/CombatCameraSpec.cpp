@@ -8,6 +8,10 @@
 #include "Combat/Camera/CombatCameraTypes.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
+#include "WoRTestWorld.h"
+#include "Combat/CombatOrchestrator.h"
+#include "Combat/Camera/CombatCameraDirector.h"
+#include "Combat/Camera/CombatCameraComponent.h"
 
 namespace
 {
@@ -109,6 +113,51 @@ void FCombatCameraSpec::Define()
 			const FVector Second = FCombatCameraRules::ComputeView(ECombatCameraMode::Static, ETurnViewStyle::Tactical, Frame).GetLocation();
 			TestTrue(TEXT("same place"), First.Equals(Second));
 		});
+	});
+}
+
+BEGIN_DEFINE_SPEC(FCombatCameraDirectorSpec, "WoR.Combat.Camera.Director",
+				  EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+TUniquePtr<FWoRTestWorld> TestWorld;
+ACombatOrchestrator *Orchestrator = nullptr;
+AActor *Hero = nullptr;
+AActor *Foe = nullptr;
+END_DEFINE_SPEC(FCombatCameraDirectorSpec)
+
+void FCombatCameraDirectorSpec::Define()
+{
+	BeforeEach([this]()
+	{
+		TestWorld = MakeUnique<FWoRTestWorld>();
+		TestTrue(TEXT("test world created"), TestWorld->Create());
+		Orchestrator = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>() : nullptr;
+		Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+	});
+
+	AfterEach([this]()
+	{
+		TestWorld.Reset();
+	});
+
+	It("gives every combatant a camera for the fight and removes them after", [this]()
+	{
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		if (!TestTrue(TEXT("setup"), Director && Hero && Foe))
+		{
+			return;
+		}
+
+		Orchestrator->StartCombat({Hero}, {Foe});
+		TestTrue(TEXT("in combat"), Director->IsInCombat());
+		TestEqual(TEXT("one camera per combatant"), Director->GetCameraCount(), 2);
+		TestNotNull(TEXT("hero has a camera"), Hero->FindComponentByClass<UCombatCameraComponent>());
+		TestNotNull(TEXT("follows the first turn"), Director->GetViewedActor());
+
+		Orchestrator->ForceEndCombat(ECombatState::Victory);
+		TestFalse(TEXT("out of combat"), Director->IsInCombat());
+		TestEqual(TEXT("no cameras left"), Director->GetCameraCount(), 0);
+		TestNull(TEXT("hero's camera removed"), Hero->FindComponentByClass<UCombatCameraComponent>());
 	});
 }
 
