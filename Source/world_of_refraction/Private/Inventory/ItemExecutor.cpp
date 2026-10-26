@@ -170,7 +170,7 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 	}
 
 	// B-060: each handler sets bSuccess only when its effect landed. A failed use reports it
-	// (the caller then keeps the charge) and gives no Broken Darkness absorption either.
+	// (the caller still spends the charge, Q-060 / B-201) and gives no Broken Darkness absorption.
 	if (!Result.bSuccess)
 	{
 		UE_LOG(LogWoRLoadout, Warning, TEXT("[ItemExecutor] %s on %s failed: %s"),

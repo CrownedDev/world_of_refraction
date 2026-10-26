@@ -1561,7 +1561,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** a failed use is refused before it happens and the turn is not spent.
 **Recommendation:** A. In turn-based RPGs a committed action that whiffs still spends the turn (a missed attack in Pokémon or Final Fantasy costs the turn), while the item itself is only spent when it is actually applied; an all-target item (Final Fantasy's Megalixir) is spent once for the whole group. B needs a pre-check in the menu, which is the UI's job (the command menu already filters invalid targets). Not lore.
 **Answer (Crown):** **Changed by Crown** (2026-10-26): a failed use **loses the charge**, like a thrown item that misses; the turn ends. (An area item that lands on no one is a miss: charge lost.) The use still reports failure. Replaces the default A.
-**Notes for Claude:** applied (fix/B-060-item-use-success). `OnItemUsed` no longer fires for a failed use (no C++ binds it; a Blueprint binding cannot be checked from code).
+**Notes for Claude:** applied (fix/B-060-item-use-success). `OnItemUsed` no longer fires for a failed use (no C++ binds it; a Blueprint binding cannot be checked from code). Crown's change applied in B-201 (fix/B-201-failed-use-spends-charge): `UActionExecutor::ExecuteItem` spends the charge whenever the item is used from the battle loadout, landed or not.
 
 ### Q-041 — Should the stat getters read GAS attributes in stage 2?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-041) · **Blocks:** — (B-041 shipped with A)
