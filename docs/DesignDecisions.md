@@ -40,7 +40,7 @@ The queue of questions only Crown can answer.
 ## Open
 
 ### D-001 — What does stun do?
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-061
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-061
 **Question:** Does a stunned character skip the turn, or can it still Attack / Defend?
 **Context:**
 - `ActionExecutor::ValidateAction` blocks every action while stunned (`ActionExecutor.cpp:167`). The enum comment says only "Attack/Defend" are allowed (`ESkillEffectType.h:122`).
@@ -50,7 +50,12 @@ The queue of questions only Crown can answer.
 - B: Attack and Defend allowed.
 - C: Defend only.
 **Recommendation:** A. Simplest, and readable for the player.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **B** (2026-10-26). A stunned character can still **Attack or Defend**; spells, abilities and items are blocked.
+**Notes for Claude:**
+- `ActionExecutor::ValidateAction`: stun blocks Spell/Ability/Item but allows the basic attack and Defend. "Basic attack" = the loadout's current attack (`GetCurrentAttack`), not any ability.
+- Remove the turn-start auto-pass for stunned actors (Arc A, `ProceedWithTurnStart`); keep the invalid-action fallback as the safety net.
+- Command menu shows only Attack + Defend while stunned; AI `BuildAction` picks attack or defend while stunned (fallback already does).
+- Update `WoR.Combat.HangFixes` stun test (it asserts the old skip rule) and the `ESkillEffectType.h:122` comment stays true.
 
 ### D-002 — What happens after winning vs losing a battle?
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-072
