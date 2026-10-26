@@ -13,6 +13,8 @@
 #include "Infusion/InfusionVFXComponent.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
+#include "AbilitySystemComponent.h"
+#include "GAS/WoRAttributeSyncComponent.h"
 
 ACombatCharacter::ACombatCharacter()
 {
@@ -28,6 +30,13 @@ ACombatCharacter::ACombatCharacter()
     LoadoutComponent = CreateDefaultSubobject<ULoadoutComponent>(TEXT("LoadoutComponent"));
     BrokenDarknessComponent = CreateDefaultSubobject<UBrokenDarknessManager>(TEXT("BrokenDarknessComponent"));
     BattleConfigComponent = CreateDefaultSubobject<UBattleConfigComponent>(TEXT("BattleConfigComponent"));
+
+    // GAS stage 2 (B-041). Mixed replication suits player characters (GASMigration.md §1); the
+    // per-AI Minimal mode waits until co-op, when replication is actually exercised.
+    AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+    AbilitySystemComponent->SetIsReplicated(true);
+    AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+    AttributeSyncComponent = CreateDefaultSubobject<UWoRAttributeSyncComponent>(TEXT("AttributeSyncComponent"));
 
     // Every combat character gets an AI controller by default, so engine
     // possession can answer "who is driving this?" truthfully. PC0 takes over the
