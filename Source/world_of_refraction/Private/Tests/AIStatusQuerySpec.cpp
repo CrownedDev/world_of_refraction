@@ -1,7 +1,7 @@
 // AIStatusQuerySpec.cpp
 // The AI's status queries read the effect types the game actually applies (B-023): a
-// Lightning bar-cap Stun counts as a dangerous debuff and a valuable status, like the Wind
-// SkipTurn, and the self-cleanse branch finds a spell carrying the live CleanseSelf payload.
+// Lightning bar-cap Stun counts as a dangerous debuff and a valuable status (Wind's SkipTurn
+// is a turn-order delay, not a stun: D-014), and the self-cleanse branch finds a spell carrying the live CleanseSelf payload.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -66,6 +66,10 @@ ULoadoutComponent *SpawnCasterWithSpell(USpellData *Spell)
 	UInventoryComponent *Inventory = AIStatusTestAddComponent<UInventoryComponent>(Actor);
 	ULoadoutComponent *Loadout = AIStatusTestAddComponent<ULoadoutComponent>(Actor);
 	Loadout->InitializeFromCharacterData(Data, Inventory);
+	if (!TestTrue(TEXT("active loadout exists"), Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex)))
+	{
+		return nullptr;
+	}
 	Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].InnateSpells.Add(Spell);
 	return Loadout;
 }
@@ -90,21 +94,20 @@ void FAIStatusQuerySpec::Define()
 
 	Describe("HasDangerousDebuff", [this]()
 	{
-		It("counts Stun and SkipTurn, not a plain debuff", [this]()
+		It("counts Stun, not SkipTurn or a plain debuff", [this]()
 		{
 			TestTrue(TEXT("Stun"), HasDangerousDebuffWith(ESkillEffectType::Stun));
-			TestTrue(TEXT("SkipTurn"), HasDangerousDebuffWith(ESkillEffectType::SkipTurn));
+			TestFalse(TEXT("SkipTurn"), HasDangerousDebuffWith(ESkillEffectType::SkipTurn));
 			TestFalse(TEXT("DefenseDebuff"), HasDangerousDebuffWith(ESkillEffectType::DefenseDebuff));
 		});
 	});
 
 	Describe("IsValuableStatus", [this]()
 	{
-		It("always values Stun and SkipTurn", [this]()
+		It("always values Stun", [this]()
 		{
 			AActor *Target = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
 			TestTrue(TEXT("Stun"), AI->IsValuableStatus(ESkillEffectType::Stun, Target));
-			TestTrue(TEXT("SkipTurn"), AI->IsValuableStatus(ESkillEffectType::SkipTurn, Target));
 		});
 	});
 

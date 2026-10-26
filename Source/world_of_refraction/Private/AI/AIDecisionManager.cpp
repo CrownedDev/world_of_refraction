@@ -1785,8 +1785,9 @@ bool UAIDecisionManager::HasDangerousDebuff(AActor *Actor)
     {
         switch (Effect.EffectType)
         {
-        case ESkillEffectType::SkipTurn: // Wind bar cap
-        case ESkillEffectType::Stun:     // Lightning bar cap (Attack/Defend only)
+        // Lightning bar cap (Attack/Defend only). Wind's SkipTurn is a turn-order
+        // delay, not a stun (D-014), so it isn't dangerous.
+        case ESkillEffectType::Stun:
             return true;
         case ESkillEffectType::DOT:
             // Check if DOT will kill us
@@ -2015,8 +2016,8 @@ bool UAIDecisionManager::WouldTriggerStatusBar(AActor *Attacker, AActor *Target,
 
 bool UAIDecisionManager::IsValuableStatus(ESkillEffectType StatusType, AActor *Target) const
 {
-    // Turn-denying statuses are always valuable
-    if (StatusType == ESkillEffectType::SkipTurn || StatusType == ESkillEffectType::Stun)
+    // Stun is always valuable (Wind's SkipTurn is only a turn-order delay, D-014)
+    if (StatusType == ESkillEffectType::Stun)
     {
         return true;
     }
