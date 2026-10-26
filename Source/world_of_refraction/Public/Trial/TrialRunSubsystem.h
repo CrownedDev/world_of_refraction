@@ -29,6 +29,7 @@
 
 #include "AI/EAIDifficulty.h"
 #include "Combat/Encounter/EEncounterRank.h"
+#include "Combat/Encounter/EFirstStrike.h"
 #include "Trial/TrialGate.h"
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
@@ -126,6 +127,12 @@ public:
 
     int32 GetBeatenEncounterCount() const { return BeatenEncounters.Num(); }
 
+    /** B-185: who struck first on the map, for the pending fight. Call before EnterEncounter. */
+    void SetPendingFirstStrike(EFirstStrike FirstStrike) { PendingFirstStrike = FirstStrike; }
+
+    UFUNCTION(BlueprintPure, Category = "Trial|Encounter")
+    EFirstStrike GetPendingFirstStrike() const { return PendingFirstStrike; }
+
     /** The trial whose level we are in (or transitioning to), or null in the
      *  hub. Survives the level load — this subsystem is GameInstance-scoped. */
     UFUNCTION(BlueprintPure, Category = "Trial")
@@ -172,6 +179,9 @@ private:
     TArray<TObjectPtr<UCharacterData>> PendingOpposingParty;
 
     EAIDifficulty PendingDifficulty = EAIDifficulty::Medium;
+
+    /** B-185: carried across the OpenLevel like PendingRank; moves with it for co-op (D-065). */
+    EFirstStrike PendingFirstStrike = EFirstStrike::None;
 
     /** B-184: map encounters of the pending fight. */
     TArray<FName> PendingEncounterSources;

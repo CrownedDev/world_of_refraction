@@ -66,6 +66,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     ActiveTrial = Trial;
     BeatenEncounters.Reset();
     PendingEncounterSources.Reset();
+    PendingFirstStrike = EFirstStrike::None;
     const int32 ForcedSeed = CVarTrialSeed.GetValueOnGameThread();
     RunSeed = ForcedSeed != 0 ? ForcedSeed : MakeFreshRunSeed();
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Entering trial '%s' -> %s (run seed %d; replay with: wor.Trial.Seed %d)"),
@@ -113,6 +114,7 @@ void UTrialRunSubsystem::ExitTrial()
     TrialDifficulty = TrialGate::DEFAULT_DIFFICULTY;
     BeatenEncounters.Reset();
     PendingEncounterSources.Reset();
+    PendingFirstStrike = EFirstStrike::None;
     UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), HubLevel);
 }
 
@@ -165,6 +167,7 @@ void UTrialRunSubsystem::ExitEncounter()
     PendingBattleParty.Reset();
     PendingOpposingParty.Reset();
     PendingEncounterSources.Reset();
+    PendingFirstStrike = EFirstStrike::None;
     EncounterReturnLevel = nullptr;
 
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Exiting encounter -> %s (deferred one tick)"), *ReturnLevel.ToString());
@@ -261,11 +264,12 @@ namespace
 FString UTrialRunSubsystem::GetTrialRunString() const
 {
     const FTrialVariation *Variation = GetChosenVariation();
-    return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | variation=%s | difficulty=%s (enemy x%.2f, payout x%.2f) | beaten=%d | hub=%s | pending %d v %d (%s) | return=%s"),
+    return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | variation=%s | difficulty=%s (enemy x%.2f, payout x%.2f) | beaten=%d | first strike=%s | hub=%s | pending %d v %d (%s) | return=%s"),
                            ActiveTrial ? *ActiveTrial->Name.ToString() : TEXT("<none>"), RunSeed,
                            Variation ? *Variation->Name.ToString() : TEXT("<none>"),
                            *TrialGate::GetDifficultyName(TrialDifficulty).ToString(), GetEnemyStrengthMultiplier(),
                            GetPayoutMultiplier(), BeatenEncounters.Num(),
+                           *UEnum::GetValueAsString(PendingFirstStrike),
                            HubLevel.IsNull() ? TEXT("<UNSET>") : *HubLevel.ToString(),
                            PendingBattleParty.Num(), PendingOpposingParty.Num(),
                            *UEnum::GetValueAsString(PendingRank),
