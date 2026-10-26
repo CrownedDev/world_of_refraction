@@ -1144,6 +1144,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
+### D-092 — Shields, Wards and Barriers: the deckbuilder's absorb system
+**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 04 gap) · **Blocks:** —
+**Answer (Crown):** (2026-10-26) Use **the deckbuilder's Shield, Ward and Barrier**, **including its pooling system**.
+**Notes for Claude:**
+- Source: `wor-deckbuilder/docs/reference/04-effects.md` ("the absorbing family", the Shield / Ward / Barrier verbs and their fields) and its charge **Pool** mode (`ChargeMode.Pool`, Pivot §8 item 184). Port the rules as written there, translating names to this codebase; where the 3D game needs something the card game doesn't have (real-time defense order, element damage types D-037), raise a `Q-<job>`.
+- Order with Guard/Dodge (D-084): proposed, the hit is reduced by Guard first, then absorbed; confirm in the job.
+- Build inside the GAS effects work (B-044 review → B-042), not on today's `SkillEffectManager`.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

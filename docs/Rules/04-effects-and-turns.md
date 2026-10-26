@@ -120,7 +120,7 @@ This page covers how a fight starts, who acts when (the speed schedule, ties, bo
 - Draw: D-002 covers win and lose but not a draw (both sides down at once, e.g. by Reflect or a DoT). **Ruled (Crown, 2026-10-26, rules review): A, a draw counts as a win.** Open: if the **whole** party is down after such a win, proposed that the leader gets back up at 1 HP so the run can continue to a rest spot (confirm with Crown when building).
 - Do bonus and Execution turns count as the holder's own turns for durations? Today both run the end-of-turn tick, but Execution turns skip turn-start effects (`Private/Combat/CombatOrchestrator.cpp:589, 661-665`). D-030 doesn't say. Raised as **D-055**.
 - The turn-order strip isn't rebuilt when speed changes mid-turn (`Private/Combat/TurnManager.cpp:435-448`), only at the next turn start.
-- No HP shields or element wards. The deckbuilder has Barrier, Shield and Ward as one absorb mechanism (`wor-deckbuilder/docs/reference/04-effects.md` "the absorbing family").
+- No HP shields or element wards. The deckbuilder has Barrier, Shield and Ward as one absorb mechanism (`wor-deckbuilder/docs/reference/04-effects.md` "the absorbing family"). **Ruled: D-092** (the deckbuilder's Shield, Ward and Barrier, with its pooling).
 - A failed item use still uses up the item (B-060). A refused player action can close the re-opened menu (B-110).
 - Defend's 50% and 1 turn are inline numbers, with no named constant to tune them by.
 - No turn or round limit on a fight.
