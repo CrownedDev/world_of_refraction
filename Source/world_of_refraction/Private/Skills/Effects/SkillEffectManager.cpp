@@ -183,6 +183,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 			if (Effect.bRefreshDurationOnReapply)
 			{
 				ExistingEffect->RemainingTurns = Effect.InitialDuration;
+				ExistingEffect->HolderTurns = Effect.HolderTurns;
 			}
 
 			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: %s stacked to %d on %s"),
@@ -212,6 +213,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 		if (Effect.bRefreshDurationOnReapply)
 		{
 			ExistingEffect->RemainingTurns = Effect.InitialDuration;
+			ExistingEffect->HolderTurns = Effect.HolderTurns;
 		}
 
 		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: %s re-applied by the same source — value %.1f -> %.1f, %d turns left"),
@@ -961,6 +963,9 @@ void USkillEffectManager::ProcessStartOfTurnEffects(AActor *Actor)
 
 	ResetTurnFlags(Actor);
 
+	// D-051: a finished holder-turn span ends as the turn starts, before this turn's payouts.
+	ExpireFinishedHolderTurnSpans(Actor);
+
 	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Processing start-of-turn effects for %s"),
 		   *Actor->GetName());
 
@@ -991,6 +996,7 @@ void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 	ProcessTriggerEffects(Actor, ESkillTrigger::OnTurnEnd);
 
 	// Tick durations and remove expired effects
+	CountHolderTurnSpans(Actor);
 	TickDurations(Actor);
 
 	// Clean up effects marked for removal
@@ -1120,8 +1126,8 @@ void USkillEffectManager::TickDurations(AActor *Actor)
 			continue;
 		}
 
-		// Skip immediate effects (already handled)
-		if (Effect.ProcessTiming == ESkillEffectTiming::Immediate)
+		// Skip immediate effects (already handled), and holder-turn spans (CountHolderTurnSpans)
+		if (Effect.ProcessTiming == ESkillEffectTiming::Immediate || Effect.bCountsHolderTurns)
 		{
 			continue;
 		}
@@ -1150,6 +1156,60 @@ void USkillEffectManager::TickDurations(AActor *Actor)
 	}
 
 	// Notify TurnManager once if any speed effects expired
+	if (bSpeedChanged)
+	{
+		NotifySpeedChanged(Actor);
+	}
+}
+
+void USkillEffectManager::CountHolderTurnSpans(AActor *Actor)
+{
+	TArray<FActiveSkillEffect> *Effects = Actor ? ActiveEffects.Find(Actor) : nullptr;
+	if (!Effects)
+	{
+		return;
+	}
+
+	for (FActiveSkillEffect &Effect : *Effects)
+	{
+		if (Effect.bCountsHolderTurns && !Effect.bPermanent)
+		{
+			Effect.HolderTurns.CountHolderTurn();
+			Effect.RemainingTurns = Effect.HolderTurns.TurnsLeft;
+			OnEffectDurationChanged.Broadcast(Actor, Effect, Effect.RemainingTurns);
+		}
+	}
+}
+
+void USkillEffectManager::ExpireFinishedHolderTurnSpans(AActor *Actor)
+{
+	TArray<FActiveSkillEffect> *Effects = Actor ? ActiveEffects.Find(Actor) : nullptr;
+	if (!Effects)
+	{
+		return;
+	}
+
+	TArray<FActiveSkillEffect> Expired;
+	for (int32 i = Effects->Num() - 1; i >= 0; --i)
+	{
+		const FActiveSkillEffect &Effect = (*Effects)[i];
+		if (Effect.bCountsHolderTurns && !Effect.bPermanent && Effect.HolderTurns.EndsAtHolderTurnStart())
+		{
+			Expired.Add(Effect);
+			Effects->RemoveAt(i);
+		}
+	}
+
+	// Store already updated, so listeners re-reading the holder see the effects gone.
+	bool bSpeedChanged = false;
+	for (const FActiveSkillEffect &Effect : Expired)
+	{
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s ended on %s as its turn started (holder-turn span)"),
+			   *Effect.EffectName, *Actor->GetName());
+		bSpeedChanged |= IsSpeedEffect(Effect.EffectType);
+		OnEffectRemoved.Broadcast(Actor, Effect);
+	}
+
 	if (bSpeedChanged)
 	{
 		NotifySpeedChanged(Actor);
@@ -2547,43 +2607,40 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 		{
 			Effect.EffectValue = 30.0f; // fallback
 		}
-		Effect.RemainingTurns = 2;
-		Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
+		// Pays out at the holder's turn start, exactly once per counted turn (D-051, Q-044c):
+		// not on landing, and not at turn end.
+		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
+		Effect.bDelayFirstExecution = true;
 		break;
 	}
 
 	case ESkillEffectType::DefenseDebuff:
 		Effect.EffectType = ESkillEffectType::DefenseDebuff;
 		Effect.EffectValue = 30.0f; // 30% defence reduction
-		Effect.RemainingTurns = 2;
 		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
 	case ESkillEffectType::SkipTurn:
 		Effect.EffectType = ESkillEffectType::SkipTurn;
 		Effect.EffectValue = 1.0f; // gate
-		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 		break;
 
 	case ESkillEffectType::SpeedDebuff:
 		Effect.EffectType = ESkillEffectType::SpeedDebuff;
 		Effect.EffectValue = 50.0f; // 50%
-		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
 	case ESkillEffectType::CritDebuff:
 		Effect.EffectType = ESkillEffectType::CritChanceDebuff;
 		Effect.EffectValue = 100.0f; // -100% crit chance
-		Effect.RemainingTurns = 2;
 		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
 	case ESkillEffectType::EnergyDebuff:
 		Effect.EffectType = ESkillEffectType::EnergyDrain;
 		Effect.EffectValue = 100.0f; // 100% locked
-		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
@@ -2598,7 +2655,6 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 			ESkillEffectType::CritChanceDebuff};
 		Effect.EffectType = Debuffs[UBattleRandomSubsystem::RandRange(this, 0, Debuffs.Num() - 1)];
 		Effect.EffectValue = 30.0f; // 30%
-		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 	}
 	break;
@@ -2607,29 +2663,44 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	case ESkillEffectType::Stun:
 		Effect.EffectType = ESkillEffectType::Stun;
 		Effect.EffectValue = 1.0f; // gate
-		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 		break;
 
 	case ESkillEffectType::HealBlock:
 		Effect.EffectType = ESkillEffectType::HealBlock;
 		Effect.EffectValue = 1.0f; // gate
-		Effect.RemainingTurns = 2;
 		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
 	case ESkillEffectType::Silenced:
 		Effect.EffectType = ESkillEffectType::Silenced;
 		Effect.EffectValue = 1.0f; // gate
-		Effect.RemainingTurns = 2;
 		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
 	case ESkillEffectType::RandomSkill:
 		Effect.EffectType = ESkillEffectType::RandomSkill;
 		Effect.EffectValue = 1.0f; // gate
-		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
+		break;
+
+	// Water break (D-090): Action Speed and Spell Speed both slowed. Applied as two effects;
+	// this one is Action Speed, Spell Speed is added after the switch.
+	case ESkillEffectType::ActionSpeedDebuff:
+		Effect.EffectType = ESkillEffectType::ActionSpeedDebuff;
+		Effect.EffectValue = CombatConstants::WATER_BREAK_SPEED_SLOW_PERCENT;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
+		break;
+
+	// Broken Darkness break: drains a share of max EP at the holder's turn start.
+	case ESkillEffectType::DrainEnergy:
+		Effect.EffectType = ESkillEffectType::DrainEnergy;
+		if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
+		{
+			Effect.EffectValue = FMath::RoundToFloat(TargetComp->MaxEP * CombatConstants::BD_BREAK_EP_DRAIN_FRACTION);
+		}
+		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
+		Effect.bDelayFirstExecution = true;
 		break;
 
 	case ESkillEffectType::BurstDamage:
@@ -2656,10 +2727,31 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 		return;
 	}
 
+	// Every break lasts STATUS_CAP_TURNS of the holder's own turns (D-030, D-090), counted
+	// by the one rule (FTurnSpan, D-051): it ends as the holder's turn after those starts.
+	Effect.StartHolderTurnSpan(CombatConstants::STATUS_CAP_TURNS);
 	Effect.EffectID = EffectIdentity::MakeStatusCapEffectID(static_cast<uint8>(Effect.EffectType), static_cast<uint8>(Element));
-	Effect.InitialDuration = Effect.RemainingTurns;
-	ApplyEffect(Target, Effect, Source, TEXT("Status Bar Trigger"), -1);
+	const EEffectApplicationResult Result = ApplyEffect(Target, Effect, Source, TEXT("Status Bar Trigger"), -1);
 
-	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Applied triggered %s to %s"),
-		   *Effect.EffectName, *Target->GetName());
+	if (Effect.EffectType == ESkillEffectType::ActionSpeedDebuff)
+	{
+		FActiveSkillEffect SpellSlow = Effect;
+		SpellSlow.EffectType = ESkillEffectType::SpellSpeedDebuff;
+		SpellSlow.EffectName = SkillEffectDisplayNames::GetDisplayName(ESkillEffectType::SpellSpeedDebuff, Element);
+		SpellSlow.EffectID = EffectIdentity::MakeStatusCapEffectID(static_cast<uint8>(SpellSlow.EffectType), static_cast<uint8>(Element));
+		ApplyEffect(Target, SpellSlow, Source, TEXT("Status Bar Trigger"), -1);
+	}
+
+	// Wind break (D-014, D-090): a NEW gust pushes the holder's next turn back. The same
+	// attacker's refresh doesn't push again (D-012: same source refreshes, it doesn't add).
+	if (Effect.EffectType == ESkillEffectType::SkipTurn && Result == EEffectApplicationResult::Applied)
+	{
+		if (UTurnManager *TurnManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr)
+		{
+			TurnManager->DelayNextTurn(Target, CombatConstants::WIND_BREAK_DELAY_PLACES);
+		}
+	}
+
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Applied triggered %s to %s for %d holder turn(s)"),
+		   *Effect.EffectName, *Target->GetName(), CombatConstants::STATUS_CAP_TURNS);
 }
