@@ -19,7 +19,9 @@ if echo "$INPUT" | grep -q '"command"'; then
     fi
     echo "$CMD" | grep -Eq 'git[^"]*reset[^"]*--hard' \
         && block "git reset --hard can destroy work. Use a new commit or ask Crown."
-    echo "$CMD" | grep -Eq 'rm[^"]*-[a-zA-Z]*r[a-zA-Z]*[^"]*(Content|Source|Config)(/|[[:space:]]|")' \
+    # `rm` only as a command word (start, whitespace, ; & | ( ` " or a JSON-escaped \n/\t before it),
+    # so words like "ls-tree -r ... Content" aren't read as a delete.
+    echo "$CMD" | grep -Eq '(^|[;&|(`"[:space:]]|\\[nt])rm[[:space:]][^"]*-[a-zA-Z]*[rR][a-zA-Z]*[^"]*(Content|Source|Config)(/|[[:space:]]|")' \
         && block "recursive delete under Content/Source/Config is not allowed."
 fi
 
