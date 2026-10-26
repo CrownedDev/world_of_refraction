@@ -3,6 +3,7 @@
 
 #include "Combat/TurnManager.h"
 #include "Combat/CombatConstants.h"
+#include "WoRLog.h"
 #include "Engine/Engine.h" // GEngine for on-screen debug (DebugPrintPendingTurns)
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
@@ -310,6 +311,28 @@ void UTurnManager::RequestExtraTurn(AActor *Actor, bool bIsBonusTurn)
 		   *Actor->GetName());
 }
 
+void UTurnManager::DelayNextTurn(AActor *Actor, int32 Places)
+{
+	if (!Actor || Places <= 0)
+	{
+		return;
+	}
+
+	for (FCombatantTurnDebt &Combatant : Combatants)
+	{
+		if (Combatant.Actor == Actor)
+		{
+			Combatant.PlacesToYield += Places;
+			UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s's next turn moves back %d place(s)"), *Actor->GetName(), Places);
+			// The strip reads the belt; rebuild it so the delay shows now, not next turn.
+			RebuildBelt();
+			OnSpeedChanged.Broadcast(Actor);
+			return;
+		}
+	}
+	UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] DelayNextTurn: %s not in current combat"), *Actor->GetName());
+}
+
 void UTurnManager::ScheduleBonusTurn(AActor *Actor, int32 DelayTurns, int32 Count)
 {
 	if (!Actor)
@@ -615,35 +638,54 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 		}
 	}
 
-	// Find highest debt
-	FCombatantTurnDebt *NextCombatant = nullptr;
-	float HighestDebt = -FLT_MAX;
-
-	for (FCombatantTurnDebt &Combatant : State)
+	// Find highest debt (optionally skipping one combatant: the one yielding its place)
+	auto PickHighestDebt = [this, &State](const FCombatantTurnDebt *Skip) -> FCombatantTurnDebt *
 	{
-		UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
-		if (!CharComp || !CharComp->bIsAlive)
-			continue;
+		FCombatantTurnDebt *Best = nullptr;
+		float HighestDebt = -FLT_MAX;
 
-		float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
+		for (FCombatantTurnDebt &Combatant : State)
+		{
+			if (&Combatant == Skip)
+				continue;
 
-		if (NetDebt > HighestDebt + KINDA_SMALL_NUMBER)
-		{
-			HighestDebt = NetDebt;
-			NextCombatant = &Combatant;
-		}
-		else if (FMath::IsNearlyEqual(NetDebt, HighestDebt, KINDA_SMALL_NUMBER))
-		{
-			if (NextCombatant && ShouldBreakTieInFavor(Combatant, *NextCombatant))
+			UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
+			if (!CharComp || !CharComp->bIsAlive)
+				continue;
+
+			float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
+
+			if (NetDebt > HighestDebt + KINDA_SMALL_NUMBER)
 			{
-				NextCombatant = &Combatant;
+				HighestDebt = NetDebt;
+				Best = &Combatant;
+			}
+			else if (FMath::IsNearlyEqual(NetDebt, HighestDebt, KINDA_SMALL_NUMBER))
+			{
+				if (Best && ShouldBreakTieInFavor(Combatant, *Best))
+				{
+					Best = &Combatant;
+				}
 			}
 		}
-	}
+		return Best;
+	};
 
+	FCombatantTurnDebt *NextCombatant = PickHighestDebt(nullptr);
 	if (!NextCombatant)
 	{
 		return false;
+	}
+
+	// Wind break (D-014): a delayed combatant gives this pick to the next in line, once per
+	// place. Alone on the field, it keeps the turn (and the yield) — nobody to step behind.
+	if (NextCombatant->PlacesToYield > 0)
+	{
+		if (FCombatantTurnDebt *NextInLine = PickHighestDebt(NextCombatant))
+		{
+			NextCombatant->PlacesToYield--;
+			NextCombatant = NextInLine;
+		}
 	}
 
 	// Record the slot — a NORMAL turn. Bonus identity now comes solely from the

@@ -63,6 +63,11 @@ struct FCombatantTurnDebt
 
 	UPROPERTY()
 	int32 CachedSpirit = 0;
+
+	/** Picks this combatant gives up to the next in line when it would be chosen (Wind
+	 *  break, D-014 / D-090). Each yield moves its turn back one place. */
+	UPROPERTY()
+	int32 PlacesToYield = 0;
 };
 
 /**
@@ -248,6 +253,12 @@ public:
 	 *  existing call sites compile; passing true is a warn-and-ignore no-op. */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void RequestExtraTurn(AActor *Actor, bool bIsBonusTurn = false);
+
+	/** Push Actor's next normal turn back by Places places in the turn order (Wind break,
+	 *  D-014 / D-090): when it would be picked, the next in line goes first. It still acts
+	 *  that round. Pinned bonus / Execution turns are not moved. */
+	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
+	void DelayNextTurn(AActor *Actor, int32 Places);
 
 	/** Schedule Count pinned bonus turn(s) for Actor, firing after DelayTurns turns
 	 *  (Emerald). DelayTurns >= 0 is valid: 0 fires on the very next scheduler step (the
