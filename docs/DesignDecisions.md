@@ -628,12 +628,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-26): **one wallet per player** for everything (Gold, Prisms, Diamond, all essences), like the shared pool (D-020) and run inventory (D-026). Move the currency off each character (`CurrencyComponent.h:15-24`) to player scope (PlayerState / the save, per D-064's rule).
 
 ### D-047 — Where can you upgrade, repair, merge and downgrade?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** D-002 says upgrades work in the hub and in a run. `docs/Mechanics/Economy/Hubs.md` says upgrade, repair and merge are run-only, and still describes the draft run start that D-021 replaced. Which split holds for repair, merge and downgrade?
 **Context:** `docs/Mechanics/Economy/Hubs.md` (composition table); `D-002`. Rules: 05 Cx-4.
 **Options:** A upgrade in both (D-002); repair, merge, downgrade as Hubs.md says / B every service in both places.
 **Recommendation:** A, because it keeps the one written design and only overrides it where D-002 ruled.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **B** (2026-10-26): **every service works in both places**: buy (Prisms at home, Gold in a run), upgrade, repair, merge, downgrade, reroll. In a run they sit at **rest spots** and **vendors**; at home, at the hub's service NPCs. Supersedes `Hubs.md`'s run-only split (written for the old two-hub model).
+**Notes for Claude:** compared (2026-10-26): Expedition 33 upgrades at camp/rest points; Dark Souls 3 and Elden Ring at a blacksmith in the hub; Nightreign levels at Sites of Grace. Costs stay as each service carries them (`Upgrading.md`, `Merging.md`). Update `Hubs.md` when applied.
 
 ### D-048 — What does Gold buy in a run?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-073
