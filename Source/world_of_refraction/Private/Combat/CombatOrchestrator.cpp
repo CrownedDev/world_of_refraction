@@ -43,6 +43,7 @@
 #include "Equipment/Crystals/CrystalManager.h"
 #include "TimerManager.h"
 #include "Combat/CombatControl.h"
+#include "Party/PartySessionSubsystem.h"
 
 ACombatOrchestrator::ACombatOrchestrator()
 {
@@ -1078,6 +1079,10 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 	{
 		return;
 	}
+	if (LocalPartyCombatants.Contains(Victim))
+	{
+		TakeOverIfNoPlayerMemberLeft();
+	}
 	// Only ENEMY (OpposingParty) deaths feed the pool — a player-side (LocalParty) death grants nothing.
 	if (!OpposingPartyCombatants.Contains(Victim))
 	{
@@ -1096,6 +1101,85 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Enemy %s down (caliber %d) -> +%d WSP (pool now %d)"),
 		   *Victim->GetName(), Caliber, WSP, PendingWorldStatPool);
+}
+
+void ACombatOrchestrator::TakeOverIfNoPlayerMemberLeft()
+{
+	TArray<AActor *> LivingAIMembers;
+	for (AActor *Member : LocalPartyCombatants)
+	{
+		const UCharacterDataComponent *Comp = IsValid(Member) ? Member->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		if (!Comp || !Comp->bIsAlive)
+		{
+			continue;
+		}
+		if (!IsActorAIControlled(Member))
+		{
+			return; // a member you play is still standing
+		}
+		LivingAIMembers.Add(Member);
+	}
+	if (LivingAIMembers.Num() == 0)
+	{
+		return;
+	}
+
+	const UGameInstance *GI = GetGameInstance();
+	const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	if (PartySession && PartySession->GetLetAIFinish())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Your fighters are down - the AI finishes the fight (Let AI finish)"));
+		return;
+	}
+	for (AActor *Member : LivingAIMembers)
+	{
+		CombatControl::SetPlayerDriven(Member, true);
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Your fighters are down - you take over %s (D-045)"), *Member->GetName());
+	}
+}
+
+FText ACombatOrchestrator::GetControlSwitchRefusedReason(AActor *Actor) const
+{
+	if (CombatState != ECombatState::InProgress)
+	{
+		return NSLOCTEXT("CombatOrchestrator", "SwitchNoFight", "There is no fight.");
+	}
+	if (!Actor || !LocalPartyCombatants.Contains(Actor))
+	{
+		return NSLOCTEXT("CombatOrchestrator", "SwitchNotParty", "Only your party members can be switched.");
+	}
+	if (Actor != CurrentActor || bWaitingForAsyncAction)
+	{
+		return NSLOCTEXT("CombatOrchestrator", "SwitchNotTurn", "Switch a member on its own turn.");
+	}
+	const APawn *Pawn = Cast<APawn>(Actor);
+	if (Pawn && Pawn->IsPlayerControlled())
+	{
+		return NSLOCTEXT("CombatOrchestrator", "SwitchLeader", "The leader is always yours.");
+	}
+	return FText::GetEmpty();
+}
+
+bool ACombatOrchestrator::SwitchMemberControl(AActor *Actor)
+{
+	const FText Refused = GetControlSwitchRefusedReason(Actor);
+	if (!Refused.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Control switch refused for %s: %s"), *GetNameSafe(Actor), *Refused.ToString());
+		return false;
+	}
+
+	const bool bToPlayer = IsActorAIControlled(Actor);
+	if (bToPlayer && AIDecisionManagerRef)
+	{
+		AIDecisionManagerRef->CancelPendingDecision();
+	}
+	CombatControl::SetPlayerDriven(Actor, bToPlayer);
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s is now played by %s (D-026)"), *Actor->GetName(),
+		   bToPlayer ? TEXT("you") : TEXT("the AI"));
+	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
+	RequestActionFromActor(Actor);
+	return true;
 }
 
 void ACombatOrchestrator::DebugApplyPendingWorldStats()
@@ -1175,6 +1259,22 @@ namespace
 				else
 				{
 					UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] wor.GrantPendingWorldStats: no orchestrator in world."));
+				}
+			}));
+
+	FAutoConsoleCommandWithWorld GSwitchControlCmd(
+		TEXT("wor.Combat.SwitchControl"),
+		TEXT("Switch the party member whose turn it is between you and the AI (D-026). Placeholder for taking over an AI member until the new HUD."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				if (ACombatOrchestrator *Orch = FindCombatOrchestrator(World))
+				{
+					Orch->SwitchMemberControl(Orch->GetCurrentActor());
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] wor.Combat.SwitchControl: no orchestrator in world."));
 				}
 			}));
 
