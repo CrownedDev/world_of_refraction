@@ -9,6 +9,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "TimerManager.h"
+#include "Combat/CombatControl.h"
 
 namespace DefensePromptText
 {
@@ -164,7 +165,8 @@ void UDefensePromptWidget::HidePrompt_Implementation(const FDefenseResult &Resul
 bool UDefensePromptWidget::IsLocallyControlledDefender(const AActor *Defender) const
 {
 	const APawn *Pawn = Cast<APawn>(Defender);
-	return Pawn && Pawn->IsLocallyControlled() && Pawn->IsPlayerControlled();
+	// Possessed and local, or a Player-controlled party member (local by B-071's TODO(co-op)).
+	return Pawn && ((Pawn->IsLocallyControlled() && Pawn->IsPlayerControlled()) || CombatControl::IsPlayerDriven(Pawn));
 }
 
 void UDefensePromptWidget::SetPromptText(const FString &Text)
