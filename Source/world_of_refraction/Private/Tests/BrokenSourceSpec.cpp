@@ -9,6 +9,7 @@
 #include "Combat/Actions/ActionExecutor.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Skills/Definitions/AbilityData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Definitions/SpellData.h"
@@ -125,6 +126,21 @@ void FBrokenSourceSpec::Define()
 			TestFalse(TEXT("C-tier greyed with the reason"), Caps.GetBlockedReason(CTierSpell).IsEmpty());
 		});
 
+		It("greys out its higher-tier preset spells too", [this]()
+		{
+			SpawnResonatorWithRing(BROKEN_SOURCE_BROKEN_DURABILITY);
+			USpellData *Preset = BrokenSourceSpell(EItemTier::B_Tier);
+			Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].RingLoadout[0].RingEntry.Ring->PresetSpells.Add(Preset);
+			TestFalse(TEXT("preset refused"), Loadout->GetBrokenSourceReason(Preset).IsEmpty());
+		});
+
+		It("leaves a spell that is also innate alone", [this]()
+		{
+			SpawnResonatorWithRing(BROKEN_SOURCE_BROKEN_DURABILITY);
+			Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].InnateSpells.Add(CTierSpell);
+			TestTrue(TEXT("cast as innate"), Loadout->GetBrokenSourceReason(CTierSpell).IsEmpty());
+		});
+
 		It("blocks nothing while the crystal is intact", [this]()
 		{
 			SpawnResonatorWithRing(BROKEN_SOURCE_INTACT_DURABILITY);
@@ -157,6 +173,25 @@ void FBrokenSourceSpec::Define()
 			}
 			TestFalse(TEXT("no weapon crystal infusion source"),
 					  Executor->GetAvailableInfusionSources(Loadout->GetOwner()).Contains(EInfusionSourceOption::WeaponCrystal));
+		});
+
+		It("refuses an ability infused through it", [this]()
+		{
+			SpawnGenericWithWeapon(BROKEN_SOURCE_BROKEN_DURABILITY);
+			UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+			if (!TestNotNull(TEXT("executor"), Executor))
+			{
+				return;
+			}
+			FAction Swing;
+			Swing.ActionType = EActionType::Ability;
+			Swing.SkillData = NewObject<UAbilityData>(GetTransientPackage());
+			Swing.SelectedSource = EInfusionSourceOption::WeaponCrystal;
+			Swing.AbilityInfusionLevel = 1;
+			Swing.Targets.Add(Loadout->GetOwner());
+			const FActionValidationResult Result = Executor->ValidateAction(Loadout->GetOwner(), Swing);
+			TestFalse(TEXT("refused"), Result.bIsValid);
+			TestEqual(TEXT("for the source"), Result.ErrorMessage, FString(TEXT("Infusion source not available")));
 		});
 
 		It("is refused by the executor", [this]()
