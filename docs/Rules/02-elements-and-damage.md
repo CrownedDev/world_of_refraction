@@ -82,7 +82,10 @@ Steps run in this order. All are multipliers, so order only matters for rounding
 
 ## Open questions
 - D-P01 (PARKED): move Broken Darkness onto GAS, only after GAS stage 3 and with a zero-difference compare. No rule change expected.
-- No OPEN decision covers this page; the Conflicts below need new D-entries.
+- D-032 (OPEN): crit damage ceiling, x2.5 or x2.0 (CED-2).
+- D-033 (OPEN): the infused-ability cost surcharge (CED-1).
+- D-034 (OPEN): which resistance scales damage under D-005 (CED-3); blocks B-064.
+- D-035 (OPEN): what "Physical" is in code (CED-4); blocks B-080.
 
 ## Conflicts
 - **CED-1 — Infused abilities pay two cost surcharges.** `InfusionConstants.h:75-78` says "ability and spell now share the same charge tax" (L1 x1.5, L2 x2.0), and `docs/Mechanics/Magic/Infusion.md` says the same. But an infused ability that pays EP also pays the flat x1.5 `INFUSION_ENERGY_MULTIPLIER` (`SkillDataBase.cpp:301-314`, `AbilityData.cpp:75`), so it costs about x2.25 at L1 and x3.0 at L2; a spell pays only x1.5 / x2.0 (`SpellData.cpp:130-137`). Comments also give wrong numbers (`ActionExecutor.cpp:138-140` "30%/60%", `:4781-4783` "1.15x/1.30x"). Question, options and recommendation: **D-033**. The stale comments are fixed either way (B-117).

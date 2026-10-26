@@ -63,7 +63,11 @@ This page covers the status buildup bar: what fills it, how much, what slows the
 | SB-36 | A ritual (deferred spell) that was set up before the stun still goes off. | In game | `Combat/Actions/ActionExecutor.cpp:163-166` |
 
 ## Open questions
-- None open. Every decision for this topic (D-001, D-012, D-013, D-014, D-023, D-029, D-030) is answered; the open work is building it (B-062, B-063, B-064a).
+- D-036 (OPEN): what Silenced blocks, spells only or every EP spend (C3-2).
+- D-049 (OPEN): how effect durations are counted; blocks B-062 and B-063.
+- D-051 (OPEN): whether the same effect from two gear pieces adds up; blocks B-062.
+- D-053 (OPEN): whether bonus and Execution turns count toward durations; blocks B-062 and B-063.
+- Answered for this topic: D-001, D-012, D-013, D-014, D-023, D-029, D-030. Building them is B-062, B-063 and B-064a.
 
 ## Conflicts
 - **C3-1: A full Light bar does nothing.** D-030 lists "Light crit down" as a 2-turn cap. The resolver maps Light to `CritChanceDebuff` (`Skills/Effects/BarCapTriggerResolver.h:45-46`), but `ApplyTriggeredSkillEffect` only has a case for the older `CritDebuff` (`Skills/Effects/SkillEffectManager.cpp:2476`), so `CritChanceDebuff` falls to `default: return` (`:2555-2556`). The bar still empties (`StatusBuildupManager.cpp:467-474`). B-063 doesn't list Light. No question: D-030 already rules Light = crit down. The fix is **B-112**.

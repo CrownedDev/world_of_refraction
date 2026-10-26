@@ -79,7 +79,11 @@ This page states what each class is, what a character can equip, and what that g
 
 ## Open questions
 
-No `OPEN` or `PARKED` decision covers this page. These points sit inside answered entries but were left unruled:
+- D-037 (OPEN): how many spells an evolution holds (CL-C1).
+- D-038 (OPEN): whether a Refractor's innate always works (CL-C2).
+- D-039 (OPEN): skill requirements, a gate or only a scale (CL-C3).
+
+These points sit inside answered entries but were left unruled:
 - D-020 (ANSWERED, part unruled): the clash rule when two presets want the same item (suggested: the party screen flags it and you pick the wearer).
 - D-026 (ANSWERED, part unruled): how a hub-built team's own gear works at run start (D-021 covers only the leader's loadout).
 - D-027 (ANSWERED, part unruled): class passives like the deckbuilder's (see Gaps).
