@@ -25,8 +25,9 @@
 #include "Equipment/EAttachedItemKind.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Skills/Definitions/ESpellSource.h"
-#include "Equipment/Crystals/FBrokenCrystalPayload.h"
 #include "LoadoutComponent.generated.h"
+
+struct FBrokenCrystalPayload;
 
 class UInventoryComponent;
 class USpellData;
@@ -200,6 +201,11 @@ public:
      *  one. False when no other ring is usable. Also runs when a ring's crystal breaks. */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Combat")
     bool SwitchToNextUsableRing();
+
+    /** A crystal on the owner broke. On a ring, switches to the next usable ring (moved from
+     *  URingManager, B-024). Called by UCrystalManager just before it broadcasts
+     *  OnCrystalBroken, so listeners (the durability header) already see the new ring. */
+    void HandleCrystalBroken(UObject *Holder, const FBrokenCrystalPayload &Payload);
 
     // ==================== LOADOUT MANAGEMENT ====================
 
@@ -720,12 +726,6 @@ private:
 
 protected:
     virtual void BeginPlay() override;
-    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-
-    /** UCrystalManager::OnCrystalBroken: a broken crystal on one of the owner's rings
-     *  switches to the next usable ring (moved from URingManager, B-024). */
-    UFUNCTION()
-    void HandleCrystalBroken(AActor *Actor, UObject *Holder, FBrokenCrystalPayload Payload);
 
     /** Is loadout ready for battle? */
     UPROPERTY(BlueprintReadOnly, Category = "Loadout|Runtime")

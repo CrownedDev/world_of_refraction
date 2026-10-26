@@ -22,7 +22,7 @@
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/FRuntimeAttachedItem.h"
-#include "Equipment/Crystals/CrystalManager.h"
+#include "Equipment/Crystals/FBrokenCrystalPayload.h"
 #include "Engine/GameInstance.h"
 #include "Engine/Engine.h"
 
@@ -37,22 +37,6 @@ void ULoadoutComponent::BeginPlay()
 {
     Super::BeginPlay();
     EnsureDefaultLoadout();
-
-    UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-    if (UCrystalManager *CrystalMgr = GI ? GI->GetSubsystem<UCrystalManager>() : nullptr)
-    {
-        CrystalMgr->OnCrystalBroken.AddDynamic(this, &ULoadoutComponent::HandleCrystalBroken);
-    }
-}
-
-void ULoadoutComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-    UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-    if (UCrystalManager *CrystalMgr = GI ? GI->GetSubsystem<UCrystalManager>() : nullptr)
-    {
-        CrystalMgr->OnCrystalBroken.RemoveDynamic(this, &ULoadoutComponent::HandleCrystalBroken);
-    }
-    Super::EndPlay(EndPlayReason);
 }
 
 void ULoadoutComponent::EnsureDefaultLoadout()
@@ -3049,10 +3033,10 @@ bool ULoadoutComponent::SwitchToNextUsableRing()
     return false;
 }
 
-void ULoadoutComponent::HandleCrystalBroken(AActor *Actor, UObject *Holder, FBrokenCrystalPayload Payload)
+void ULoadoutComponent::HandleCrystalBroken(UObject *Holder, const FBrokenCrystalPayload &Payload)
 {
-    // Only a ring on this component's owner; weapon crystals don't switch rings.
-    if (Actor != GetOwner() || !Cast<URingData>(Holder))
+    // Weapon crystals don't switch rings.
+    if (!Cast<URingData>(Holder))
     {
         return;
     }
@@ -3077,7 +3061,7 @@ void ULoadoutComponent::HandleCrystalBroken(AActor *Actor, UObject *Holder, FBro
     }
 
     UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Ring crystal '%s' broke on %s — auto-switching"),
-           *CrystalName, *Actor->GetName());
+           *CrystalName, *GetNameSafe(GetOwner()));
     SwitchToNextUsableRing();
 }
 
@@ -3085,6 +3069,7 @@ void ULoadoutComponent::DebugLogLoadout()
 {
     UE_LOG(LogTemp, Log, TEXT("=== LoadoutComponent Debug ==="));
     UE_LOG(LogTemp, Log, TEXT("CharacterClass: %s"), *UEnum::GetValueAsString(GetCharacterClass()));
+    UE_LOG(LogTemp, Log, TEXT("ActiveRingElement: %s"), *UEnum::GetValueAsString(GetActiveRingElement()));
     UE_LOG(LogTemp, Log, TEXT("bIsReadyForBattle: %s"), bIsReadyForBattle ? TEXT("true") : TEXT("false"));
 
     UInventoryComponent *Inv = GetInventoryComponent();
