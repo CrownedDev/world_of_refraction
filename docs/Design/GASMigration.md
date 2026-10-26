@@ -79,7 +79,8 @@ GAS durations are in seconds. We need "lasts N turns".
 - Native tags declared in C++ (`UE_DEFINE_GAMEPLAY_TAG`). Proposed tree:
   - `Element.{Fire, Water, Earth, Wind, Light, Darkness, Lightning, Void, Reality, Generic, None}`
   - `Status.{Stun, Silence, HealBlock, Burn, Chill, …}`
-  - `Effect.Family.{StatModifier, DOT, HOT, Control, Immunity, Reflect, LastStand, …}`
+  - `Immunity.{All, Stun, Silence, DOT, Element.<element>}` (owned tags a ward grants; built in B-040, Q-040b)
+  - `Effect.Family.{StatModifier, DOT, HOT, Control, Immunity, Reflect, LastStand, …}` (asset tags saying what a GameplayEffect *is*; with the GameplayEffects, B-042)
   - `Data.{Duration.Turns, Charges, Magnitude, Element}` (SetByCaller keys)
   - `Event.Combat.{Impact, DefenseResolved, TurnStart, TurnEnd}` (GameplayEvents)
   - `Class.{Generic, Caster, Resonator}`
