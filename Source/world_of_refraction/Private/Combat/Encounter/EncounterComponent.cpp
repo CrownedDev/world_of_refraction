@@ -82,6 +82,21 @@ void UEncounterComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
+EFirstStrike UEncounterComponent::JudgeFirstStrike(const FVector &TeamLocation, const FVector &TeamFacing,
+												 const FVector &PlayerLocation, const FVector &PlayerFacing,
+												 float NoticeHalfAngle)
+{
+	const FVector ToPlayer = (PlayerLocation - TeamLocation).GetSafeNormal2D();
+	const bool bNoticed = FVector::DotProduct(TeamFacing.GetSafeNormal2D(), ToPlayer) >=
+						  FMath::Cos(FMath::DegreesToRadians(NoticeHalfAngle));
+	if (!bNoticed)
+	{
+		return EFirstStrike::Party;
+	}
+	const bool bTeamBehindPlayer = FVector::DotProduct(PlayerFacing.GetSafeNormal2D(), -ToPlayer) < 0.0f;
+	return bTeamBehindPlayer ? EFirstStrike::Enemy : EFirstStrike::None;
+}
+
 FName UEncounterComponent::GetEncounterId() const
 {
 	return GetOwner() ? FName(*UWorld::RemovePIEPrefix(GetOwner()->GetPathName())) : NAME_None;
@@ -180,6 +195,14 @@ void UEncounterComponent::HandleOverlap(UPrimitiveComponent *OverlappedComponent
 	PendingBattleParty.Add(OtherActor);
 
 	ArenaCenter = (OtherActor->GetActorLocation() + GetOwner()->GetActorLocation()) * 0.5f;
+
+	// B-185: a walking team faces the way it walks.
+	const FVector TeamVelocity = GetOwner()->GetVelocity();
+	const FVector TeamFacing = TeamVelocity.IsNearlyZero() ? GetOwner()->GetActorForwardVector() : TeamVelocity;
+	PendingFirstStrike = JudgeFirstStrike(GetOwner()->GetActorLocation(), TeamFacing, OtherActor->GetActorLocation(),
+										  OtherActor->GetActorForwardVector(), NoticeHalfAngleDegrees);
+	UE_LOG(LogTemp, Log, TEXT("[EncounterComponent] %s: first strike %s"), *GetOwner()->GetName(),
+		   *UEnum::GetValueAsString(PendingFirstStrike));
 	SpawnArenaSphere(ArenaCenter);
 
 	GetWorld()->GetTimerManager().SetTimer(JoinWindowTimer, this, &UEncounterComponent::OnJoinWindowExpired,
@@ -324,10 +347,12 @@ void UEncounterComponent::OnJoinWindowExpired()
 	// the arena, and every trial actor die with the swap. If it rejects
 	// (no EncounterLevel authored), re-arm so the trial stays playable.
 	TrialRun->SetPendingEncounterSources(CaughtIds);
+	TrialRun->SetPendingFirstStrike(PendingFirstStrike);
 	TrialRun->EnterEncounter(ActiveTrial, BattlePartyData, OpposingPartyData, FightDifficulty, FightRank);
 	if (!TrialRun->HasPendingEncounter())
 	{
 		TrialRun->SetPendingEncounterSources({});
+		TrialRun->SetPendingFirstStrike(EFirstStrike::None);
 		RearmEncounter();
 	}
 }
@@ -339,5 +364,6 @@ void UEncounterComponent::RearmEncounter()
 		ArenaSphere->Destroy();
 	}
 	PendingBattleParty.Reset();
+	PendingFirstStrike = EFirstStrike::None;
 	bTriggered = false;
 }

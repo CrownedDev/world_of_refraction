@@ -7,7 +7,7 @@ This page covers how a fight starts, who acts when (the speed schedule, ties, bo
 |---|---|---|---|
 | ET-01 | A fight needs at least one combatant per side. Your party is team 0, the enemies team 1. | In game | `Private/Combat/CombatOrchestrator.cpp:168-177`; `Private/Combat/TurnManager.cpp:58-88` |
 | ET-02 | At the start, the once-per-fight record is wiped. Then each combatant's always-on gear effects (weapon, ring, primary-slot evolution) are applied once and its conditional gear effects are armed. Evolutions attached to gear add no effects. | In game | `Private/Combat/CombatOrchestrator.cpp:200-207, 1181-1200` |
-| ET-03 | The first turn goes to whoever the speed schedule picks (ET-06). Nobody gets a set first-turn advantage. | In game | `Private/Combat/TurnManager.cpp:112-118, 593-658` |
+| ET-03 | The first turn goes to whoever the speed schedule picks (ET-06), unless one side struck first on the map: that side takes its whole first round (each member's normal turns) before the other side moves, with no extra turns. Placeholder strike: touching a team from outside its notice cone (60° each side) gives it to the party; a team that reaches you from behind gives it to the enemy (Q-185). | In game | `B-185`, `Q-185`; `Private/Combat/TurnManager.cpp` (`InitializeCombat`, `AdvanceSimState`: `bWaitsForOpening`); `Private/Combat/Encounter/EncounterComponent.cpp` (`JudgeFirstStrike`) |
 
 ## Turn order
 | # | Rule | Status | Source |

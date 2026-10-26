@@ -6,6 +6,13 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "TurnManager.generated.h"
 
+namespace TurnManagerTeams
+{
+	/** InitializeCombat's team numbering. */
+	constexpr int32 LOCAL_TEAM_INDEX = 0;
+	constexpr int32 OPPOSING_TEAM_INDEX = 1;
+}
+
 class USkillEffectManager;
 
 /**
@@ -68,6 +75,11 @@ struct FCombatantTurnDebt
 	 *  break, D-014 / D-090). Each yield moves its turn back one place. */
 	UPROPERTY()
 	int32 PlacesToYield = 0;
+
+	/** First strike (B-185): this combatant's side was struck first, so it waits until the
+	 *  other side has taken its opening round. Cleared for everyone when that round is done. */
+	UPROPERTY()
+	bool bWaitsForOpening = false;
 };
 
 /**
@@ -179,9 +191,11 @@ public:
 	// COMBAT CONTROL
 	// ========================================
 
-	/** Initialize combat with two teams */
+	/** Initialize combat with two teams. OpeningTeam (B-185 first strike): that team (0 = local
+	 *  party, 1 = opposing) takes its whole opening round before the other side moves;
+	 *  -1 (INDEX_NONE) = no advantage. */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
-	void InitializeCombat(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty);
+	void InitializeCombat(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty, int32 OpeningTeam = -1);
 
 	/** End combat */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")

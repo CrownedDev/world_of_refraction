@@ -1660,6 +1660,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-071-party-into-battle): `ABattleGameMode::BootstrapCombat` possesses the leader's pawn when it fights, otherwise the first Player-set member, otherwise the first spawned.
 
+### Q-185 — Placeholder first strike: what counts as a hit, and how long is the head start?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-185) · **Blocks:** — (B-185 shipped with A)
+**Question:** First strike needs a field ability (GAS, not built). Until then, what decides it, and does "that side acts first" mean a free extra round or only going first?
+**Options:**
+- **A** Contact decides it. Touch a team from outside its notice cone (60° each side of where it faces or walks) and the party strikes first. A team that has seen you and reaches you while your back is turned (it is in your rear half) strikes first. Otherwise nobody does. Contact stands in for the field hit, so any touch from outside the cone counts. The side with first strike takes its whole first round (each member's normal turns; a fast member may take two or three) before the other side moves. Nobody gets extra turns. During that opening the waiting side's pinned turns wait too, and a Wind delay doesn't hand turns between openers. A walking team faces the way it walks; standing still (or at a patrol turnaround) it faces its placed direction.
+- **B** A free extra turn for every member of that side, on top of the normal order.
+- **C** Wait for the field ability.
+**Recommendation:** A. Persona 5 and Dragon Quest XI judge the ambush by approaching an enemy from behind and being caught from behind, and players like it because it rewards sneaking up. Going first without extra turns keeps the speed schedule fair; Octopath Traveler's preemptive strike also only reorders the first round. It is a placeholder until the field ability (`GASMigration.md`). Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-185-first-strike): `UEncounterComponent::JudgeFirstStrike` (`NoticeHalfAngleDegrees`), `UTurnManager::InitializeCombat(..., OpeningTeam)` with `bWaitsForOpening` (shown in `DebugPrintTurnOrder` as `[WAITS: first strike]`), `ACombatOrchestrator::SetFirstStrike`. `UTrialRunSubsystem::PendingFirstStrike` is the same transport exception to D-064 as `PendingRank`.
+
 ### Q-184 — Which teams count as "caught at once", and what happens to a team you don't beat?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-184) · **Blocks:** — (B-184 shipped with A)
 **Question:** Enemies §3 says several teams caught at once send their strongest member each, max 3. Which teams are caught, what rank and AI level does the mixed fight have, and does a team you lost to or fled from stay on the map?

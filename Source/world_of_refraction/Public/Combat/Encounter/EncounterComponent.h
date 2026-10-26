@@ -29,6 +29,7 @@
 
 #include "AI/EAIDifficulty.h"
 #include "Combat/Encounter/EEncounterRank.h"
+#include "Combat/Encounter/EFirstStrike.h"
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
 #include "EncounterComponent.generated.h"
@@ -86,6 +87,18 @@ public:
 	 *  component sits on, which stands for the team on the map. Unset or empty = the pawn fights alone. */
 	UPROPERTY(EditAnywhere, Category = "Encounter")
 	TObjectPtr<UEncounterData> EncounterData;
+
+	/** B-185 first strike: half the width of the team's notice cone, in degrees, around the way it
+	 *  faces (or walks). Touch it from outside the cone and the party strikes first. */
+	UPROPERTY(EditAnywhere, Category = "Encounter|FirstStrike", meta = (ClampMin = 0.0, ClampMax = 180.0))
+	float NoticeHalfAngleDegrees = 60.0f;
+
+	/** B-185 placeholder first strike (Q-185), judged at contact on the ground plane: the player
+	 *  outside the team's notice cone -> Party; else the team in the player's rear half -> Enemy;
+	 *  else None. Facings need not be normalized. */
+	static EFirstStrike JudgeFirstStrike(const FVector &TeamLocation, const FVector &TeamFacing,
+										 const FVector &PlayerLocation, const FVector &PlayerFacing,
+										 float NoticeHalfAngle);
 
 	/** B-184: the key a win records for the run: the placed owner's path (level and name, PIE
 	 *  prefix removed), stable across the trial level's reloads and unique across maps.
@@ -150,6 +163,9 @@ private:
 	FTimerHandle JoinWindowTimer;
 
 	FVector ArenaCenter = FVector::ZeroVector;
+
+	/** B-185: judged at first contact, sent with the fight. */
+	EFirstStrike PendingFirstStrike = EFirstStrike::None;
 
 	/** Latch while the join window runs; cleared only on abort. */
 	bool bTriggered = false;

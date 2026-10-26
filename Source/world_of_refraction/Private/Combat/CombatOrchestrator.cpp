@@ -170,6 +170,9 @@ void ACombatOrchestrator::TeardownCombatHUD()
 
 void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty, EAIDifficulty Difficulty)
 {
+	// B-185: the first strike belongs to this start only, even one that returns early.
+	const EFirstStrike FightFirstStrike = FirstStrike;
+	FirstStrike = EFirstStrike::None;
 
 	// End any previous combat FIRST — ForceEndCombat clears the AI/menu
 	// registrations, so doing it after them (as before) left the AI unregistered.
@@ -324,7 +327,10 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	}
 
 	// Initialize TurnManager (this will trigger first OnTurnStarted)
-	TurnManagerRef->InitializeCombat(LocalParty, OpposingParty);
+	const int32 OpeningTeam = FightFirstStrike == EFirstStrike::Party   ? TurnManagerTeams::LOCAL_TEAM_INDEX
+							: FightFirstStrike == EFirstStrike::Enemy ? TurnManagerTeams::OPPOSING_TEAM_INDEX
+																 : INDEX_NONE;
+	TurnManagerRef->InitializeCombat(LocalParty, OpposingParty, OpeningTeam);
 
 	// Turn 1 can resolve the whole combat inside InitializeCombat (state back to Idle,
 	// teams emptied) — don't build UI for a fight that's already over.

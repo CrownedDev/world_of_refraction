@@ -256,6 +256,9 @@ void ABattleGameMode::BootstrapCombat()
            *TrialGate::GetDifficultyName(TrialRun->GetTrialDifficulty()).ToString(), EnemyStrength);
 
     SpawnedOrchestrator->SetEncounterRank(TrialRun->GetPendingRank());
+    // B-185: the side that struck first on the map takes the opening round.
+    SpawnedOrchestrator->SetFirstStrike(TrialRun->GetPendingFirstStrike());
+    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] First strike: %s"), *UEnum::GetValueAsString(TrialRun->GetPendingFirstStrike()));
     SpawnedOrchestrator->StartCombat(LocalParty, OpposingParty, TrialRun->GetPendingDifficulty());
 }
 
