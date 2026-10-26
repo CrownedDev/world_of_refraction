@@ -239,7 +239,7 @@ void UShopWindowWidget::NativeDestruct()
     // B-075: the window removed some other way (not the Close button) still unpauses the game.
     if (UMerchantShopSubsystem *Shop = GetShopSubsystem(); Shop && Shop->IsShowing(this))
     {
-        Shop->Close();
+        Shop->HandleWindowDestroyed();
     }
 
     Super::NativeDestruct();

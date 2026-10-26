@@ -79,13 +79,28 @@ void UMerchantShopSubsystem::Close()
     UE_LOG(LogTemp, Log, TEXT("[MerchantShop] Close: %s"),
            ActiveMerchant.IsValid() ? *ActiveMerchant->GetName() : TEXT("<unknown merchant>"));
 
-    // Cleared first: removing the widget runs its NativeDestruct, which closes the shop too.
-    bModalActive = false;
-    if (UUserWidget *Widget = ActiveWidget.Get())
+    UUserWidget *Widget = ActiveWidget.Get();
+    // Restored first: removing the widget runs its NativeDestruct, which then finds nothing open.
+    RestoreModal();
+    if (Widget)
     {
         Widget->RemoveFromParent();
     }
+}
 
+void UMerchantShopSubsystem::HandleWindowDestroyed()
+{
+    if (!IsOpen())
+    {
+        return;
+    }
+    UE_LOG(LogTemp, Log, TEXT("[MerchantShop] Window removed outside Close - restoring game input"));
+    RestoreModal();
+}
+
+void UMerchantShopSubsystem::RestoreModal()
+{
+    bModalActive = false;
     UGameplayStatics::SetGamePaused(GetGameInstance(), false);
     if (APlayerController *PC = ModalController.Get())
     {
