@@ -1974,6 +1974,12 @@ ESpellSource ULoadoutComponent::ResolveSpellSource(USpellData *Spell) const
         }
     }
 
+    // A broken ring's F-tier spells stay castable (D-083) but drop out of its lists above (B-197).
+    if (IsSpellFromBrokenRing(Spell))
+    {
+        return ESpellSource::RingCrystal;
+    }
+
     // 3. Weapon spells — primary weapon (when weapon-primary) + secondary
     //    weapon (Generic only). Walks the same composition GetAllSpells uses.
     if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
@@ -3249,7 +3255,10 @@ FText ULoadoutComponent::GetBrokenSourceReason(const USpellData *Spell) const
     if (const FWeaponLoadoutEntry *Weapon = GetActiveWeaponLoadout())
     {
         const FRuntimeAttachedItem &Attached = Weapon->WeaponEntry.AttachedItem;
-        if (Attached.IsSpellSource() && Attached.IsBroken() && Lists(Weapon->WeaponEntry.AssignedSpells))
+        // B-197: the loadout's own overrides (FWeaponLoadoutEntry::AssignedSpells) come through the
+        // same crystal, so they grey out with it too.
+        if (Attached.IsSpellSource() && Attached.IsBroken() &&
+            (Lists(Weapon->WeaponEntry.AssignedSpells) || Lists(Weapon->AssignedSpells)))
         {
             return SourceBreakRules::BrokenWeaponCrystalReason();
         }
@@ -3288,6 +3297,7 @@ bool ULoadoutComponent::IsSpellFromBrokenRing(const USpellData *Spell) const
             return false;
         }
     }
+    // Raw lists, not the capped GetAllSpells(true): the player's capabilities list them all, and each must be greyed.
     return Lists(Ring->RingEntry.AssignedSpells) || (Ring->RingEntry.Ring && Lists(Ring->RingEntry.Ring->PresetSpells));
 }
 

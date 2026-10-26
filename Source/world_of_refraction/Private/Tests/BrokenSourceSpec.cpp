@@ -126,6 +126,28 @@ void FBrokenSourceSpec::Define()
 
 	Describe("a broken ring crystal", [this]()
 	{
+		It("lets the AI pick its F-tier spell, never the greyed ones (B-197)", [this]()
+		{
+			SpawnResonatorWithRing(BROKEN_SOURCE_BROKEN_DURABILITY);
+			const TArray<USpellData *> Usable = UAIDecisionManager::GetUsableSpells(Loadout);
+			TestTrue(TEXT("F-tier offered to the AI"), Usable.Contains(FTierSpell));
+			TestFalse(TEXT("C-tier not offered"), Usable.Contains(CTierSpell));
+
+			// The AI casts it the way the player does: from the ring (free), not as a paid innate cast.
+			UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+			if (!TestNotNull(TEXT("executor"), Executor))
+			{
+				return;
+			}
+			FAction Cast;
+			Cast.ActionType = EActionType::Spell;
+			Cast.SpellData = FTierSpell;
+			Cast.SpellSource = Loadout->ResolveSpellSource(FTierSpell);
+			Cast.Targets.Add(Loadout->GetOwner());
+			TestEqual(TEXT("resolves to the ring"), Cast.SpellSource, ESpellSource::RingCrystal);
+			TestTrue(TEXT("the AI's cast is allowed"), Executor->ValidateAction(Loadout->GetOwner(), Cast).bIsValid);
+		});
+
 		It("keeps its F-tier spells and greys out the rest", [this]()
 		{
 			SpawnResonatorWithRing(BROKEN_SOURCE_BROKEN_DURABILITY);
@@ -182,8 +204,7 @@ void FBrokenSourceSpec::Define()
 			Cast.SelectedSource = EInfusionSourceOption::ActiveRing;
 			Cast.SpellInfusionLevel = 1;
 			const FActionValidationResult Result = Executor->ValidateAction(Loadout->GetOwner(), Cast);
-			// A broken ring offers no spells, so the spell no longer resolves to the ring and the
-			// ring source is refused by the origin check.
+			// A broken ring is no infusion source (Q-163 = B).
 			TestFalse(TEXT("infused cast refused"), Result.bIsValid);
 		});
 
@@ -273,6 +294,13 @@ void FBrokenSourceSpec::Define()
 
 	Describe("a broken weapon crystal", [this]()
 	{
+		It("greys out the loadout's own spell overrides on it too (B-197)", [this]()
+		{
+			SpawnGenericWithWeapon(BROKEN_SOURCE_BROKEN_DURABILITY);
+			Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryWeapon.AssignedSpells = {CTierSpell};
+			TestFalse(TEXT("the override is refused with a reason"), Loadout->GetBrokenSourceReason(CTierSpell).IsEmpty());
+		});
+
 		It("greys out every spell it gave, F-tier included", [this]()
 		{
 			SpawnGenericWithWeapon(BROKEN_SOURCE_BROKEN_DURABILITY);

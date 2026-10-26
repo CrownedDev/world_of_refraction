@@ -11,6 +11,7 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Inventory/InventoryComponent.h" // ResolveSpellTier/ResolveAbilityTier (spell-instance ii-c)
 #include "Equipment/Weapons/WeaponData.h"
+#include "Equipment/Rings/RingData.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
@@ -39,6 +40,21 @@ TArray<USpellData *> UAIDecisionManager::GetUsableSpells(const ULoadoutComponent
 {
     // Picking a greyed spell wasted the AI's turn: ValidateAction refused it and the AI fell back.
     TArray<USpellData *> Spells = Loadout ? Loadout->GetAvailableSpells() : TArray<USpellData *>();
+    // B-197: a broken ring keeps its F-tier spells castable (D-083), but GetAvailableSpells drops its
+    // assigned spells (presets only); add back what it holds intact, the reason check keeps F-tier.
+    const FRingLoadoutEntry *Ring = Loadout ? (Loadout->GetActiveRingLoadout() ? Loadout->GetActiveRingLoadout()
+                                                                              : Loadout->GetPrimaryRingLoadout())
+                                            : nullptr;
+    if (Ring && Ring->RingEntry.AttachedItem.IsSpellSource() && Ring->RingEntry.AttachedItem.IsBroken())
+    {
+        for (USpellData *Spell : Ring->GetAllSpells(/*bAsIfIntact=*/true))
+        {
+            if (Spell)
+            {
+                Spells.AddUnique(Spell);
+            }
+        }
+    }
     Spells.RemoveAll([Loadout](const USpellData *Spell)
                      { return !Loadout->GetBrokenSourceReason(Spell).IsEmpty(); });
     return Spells;

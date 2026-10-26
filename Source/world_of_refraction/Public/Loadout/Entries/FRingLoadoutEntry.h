@@ -54,10 +54,12 @@ struct WORLD_OF_REFRACTION_API FRingLoadoutEntry
     /** Get all spells (locked + customisable, in that order). Replaces the
      *  earlier delegate-only behaviour; for non-conjured rings this is
      *  identical to RingEntry.GetSpells() since LockedCount is 0. */
-    TArray<USpellData *> GetAllSpells() const;
+    /** bAsIfIntact (B-197): the spells a broken crystal would offer intact, of which it keeps
+     *  the F-tier ones castable (D-083); otherwise a broken crystal offers only the presets. */
+    TArray<USpellData *> GetAllSpells(bool bAsIfIntact = false) const;
 
     /** GetAllSpells before the slot cap (B-196). */
-    TArray<USpellData *> GetAllSpellsUncapped() const;
+    TArray<USpellData *> GetAllSpellsUncapped(bool bAsIfIntact = false) const;
 
     /** Spell slots the attached gem / evolution (Q-147) or the ring's tier allows. */
     int32 GetSpellSlotCap() const;
