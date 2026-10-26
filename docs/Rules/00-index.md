@@ -34,7 +34,7 @@ Each page ends with **Open questions** (unanswered `D-xxx`; the D-entry holds th
 
 254 rules across the six pages. The written-but-not-built rulings are mostly in economy (B-073, B-072, B-090, B-091) and status-bar caps (B-062, B-063, B-064a).
 
-Writing the pages turned up 23 new questions for Crown, **D-032 to D-054**, and six fix jobs, **B-112 to B-117**:
+Writing the pages turned up 23 new questions for Crown, **D-034 to D-056**, and six fix jobs, **B-112 to B-117**:
 - B-112: a full Light bar does nothing.
 - B-113: Status Multiplier may count twice.
 - B-114: the AI's buildup estimate.
