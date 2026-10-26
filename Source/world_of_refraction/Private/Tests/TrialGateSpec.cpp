@@ -9,6 +9,7 @@
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Skills/Effects/SkillEffectManager.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
 
@@ -89,6 +90,19 @@ void FTrialGateSpec::Define()
 		TestTrue(TEXT("Easy lowers max HP"), Easy->MaxHP < BaseMaxHP);
 		TestEqual(TEXT("Easy starts full"), Easy->CurrentHP, Easy->MaxHP);
 		TestFalse(TEXT("No enemy, nothing applied"), TrialGate::ApplyEnemyStrength(nullptr, 2.0f));
+	});
+
+	It("can't be cleansed away", [this]()
+	{
+		UCharacterDataComponent *Hard = SpawnEnemy();
+		USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
+		if (!TestTrue(TEXT("Enemy and effect manager"), Hard && Effects)) return;
+		TrialGate::ApplyEnemyStrength(Hard->GetOwner(), TrialGate::GetEnemyStrengthMultiplier(ETrialDifficulty::Hard));
+		const int32 ScaledMaxHP = Hard->MaxHP;
+		TestEqual(TEXT("Max HP buff stays"), Effects->CleanseEffectsByType(Hard->GetOwner(), ESkillEffectType::MaxHPBuff), 0);
+		TestEqual(TEXT("Damage buff stays"), Effects->CleanseEffectsByType(Hard->GetOwner(), ESkillEffectType::DamageBuff), 0);
+		Hard->RecomputeMaxPools();
+		TestEqual(TEXT("Scaled max HP kept"), Hard->MaxHP, ScaledMaxHP);
 	});
 }
 

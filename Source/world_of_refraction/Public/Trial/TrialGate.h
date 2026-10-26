@@ -53,8 +53,8 @@ namespace TrialGate
 	/** The level after Difficulty, wrapping (the placeholder door cycles through them). */
 	ETrialDifficulty NextDifficulty(ETrialDifficulty Difficulty);
 
-	/** Gives Enemy the level's strength for this fight: permanent max-HP and damage buffs (or
-	 *  debuffs below 1), then a full refill to the new max. No-op at 1. Returns false when Enemy
+	/** Gives Enemy the level's strength for this fight: permanent, uncleansable max-HP and damage
+	 *  buffs (or debuffs below 1), then a full refill to the new max. No-op at 1. Returns false when Enemy
 	 *  has no character data or the effect manager is missing. */
 	bool ApplyEnemyStrength(AActor *Enemy, float StrengthMultiplier);
 }

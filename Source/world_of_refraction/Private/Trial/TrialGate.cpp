@@ -88,12 +88,17 @@ bool TrialGate::ApplyEnemyStrength(AActor *Enemy, float StrengthMultiplier)
 
 	const bool bStronger = StrengthMultiplier > 1.0f;
 	const float Percent = FMath::Abs(StrengthMultiplier - 1.0f) * CombatConstants::STAT_PERCENT_DIVISOR;
-	Effects->ApplyEffect(Enemy, FActiveSkillEffect::CreatePersistent(TEXT("Trial difficulty (HP)"),
+	// The level is part of the enemy, not a buff: no cleanse strips it (same rule as gear, D-015).
+	FActiveSkillEffect HPEffect = FActiveSkillEffect::CreatePersistent(TEXT("Trial difficulty (HP)"),
 		TrialGateInternal::ENEMY_STRENGTH_HP_EFFECT_ID,
-		bStronger ? ESkillEffectType::MaxHPBuff : ESkillEffectType::MaxHPDebuff, Percent));
-	Effects->ApplyEffect(Enemy, FActiveSkillEffect::CreatePersistent(TEXT("Trial difficulty (damage)"),
+		bStronger ? ESkillEffectType::MaxHPBuff : ESkillEffectType::MaxHPDebuff, Percent);
+	HPEffect.bFromGear = true;
+	FActiveSkillEffect DamageEffect = FActiveSkillEffect::CreatePersistent(TEXT("Trial difficulty (damage)"),
 		TrialGateInternal::ENEMY_STRENGTH_DAMAGE_EFFECT_ID,
-		bStronger ? ESkillEffectType::DamageBuff : ESkillEffectType::DamageDebuff, Percent));
+		bStronger ? ESkillEffectType::DamageBuff : ESkillEffectType::DamageDebuff, Percent);
+	DamageEffect.bFromGear = true;
+	Effects->ApplyEffect(Enemy, HPEffect);
+	Effects->ApplyEffect(Enemy, DamageEffect);
 	CharComp->RecomputeMaxPools();
 	CharComp->CurrentHP = CharComp->MaxHP;
 	return true;
