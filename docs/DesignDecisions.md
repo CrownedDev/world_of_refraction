@@ -265,7 +265,7 @@ The queue of questions only Crown can answer.
 **Notes for Claude:** whichever answer, resolve the 4 C++ conflicts by keeping Arc A's cleanup (`ReleaseCombatResources`, InProgress-before-InitializeCombat) together with the refactor's native HUD calls, then rebuild + test.
 
 ### D-023 — Can a stunned character infuse its basic attack, and can it flee or switch weapon?
-**Status:** ANSWERED · **Raised:** 2026-10-26 · **Blocks:** nothing (B-061 shipped with the current reading below)
+**Status:** DECIDED: applied in B-092, 2026-10-26 (row in Decided) · **Raised:** 2026-10-26 · **Blocks:** nothing
 **Question:** Under D-001 (stunned = Attack or Defend), does "Attack" include an infused or crystal-charged attack, and are Flee and Switch Weapon blocked?
 **Context:**
 - B-061 lets a stunned actor use the loadout's current basic attack. The gate checks only the action type and the skill, so an attack with an infusion charge level still passes and spends EP/charge (`ActionExecutor.cpp` cost path).
@@ -332,6 +332,7 @@ Moved here once applied. Newest first.
 
 | ID | Decision | Date | Applied in |
 |---|---|---|---|
+| D-023 | Stunned = plain basic attack or Defend. No infused or charged attack, no Flee, no Switch Weapon | 2026-10-26 | `fix/B-092-stunned-menu-defend` (gate + menu) |
 | D-022 | Only `BP_CombatGameMode` was really deleted, so it was restored. The other 15 widgets were moved, not deleted, and stay where they are; they get replaced in the CommonUI rebuild (D-024). Crown confirmed | 2026-10-26 | `chore/D-022-restore-combat-gamemode` |
 | — | CommonUI: yes | 2026-10-25 | `ArchitectureReview_2026-10.md` §3 |
 | — | GAS: adopt, 4 stages; BD option C; real-time field abilities yes; ASC on the character | 2026-10-25 | `Design/GASMigration.md` |
