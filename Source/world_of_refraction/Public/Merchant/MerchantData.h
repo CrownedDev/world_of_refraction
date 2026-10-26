@@ -18,8 +18,10 @@
 #include "GameplayTagContainer.h"
 #include "MerchantData.generated.h"
 
-/** The five merchant archetypes. Item-type -> merchant is AUTOMATIC from the
- *  item's class (merchant map, Resources_Design.md); vendor tags only override. */
+class UStaticMesh;
+
+/** The merchant archetypes, one hub service each (B-195). Item-type -> merchant is AUTOMATIC from
+ *  the item's class (merchant map, Resources_Design.md); vendor tags only override. */
 UENUM(BlueprintType)
 enum class EMerchantType : uint8
 {
@@ -27,8 +29,13 @@ enum class EMerchantType : uint8
     Jeweler UMETA(DisplayName = "Jeweler (rings)"),
     CombatMaster UMETA(DisplayName = "Combat Master (abilities)"),
     SpellShop UMETA(DisplayName = "Spell Shop (spells)"),
-    Spiritualist UMETA(DisplayName = "Spiritualist (evolutions, crystals, repairs)")
+    Spiritualist UMETA(DisplayName = "Spiritualist (evolutions, crystals, repairs)"),
+    // B-195 (HubAndStory §3, D-048): appended, keep the order.
+    StoneSmith UMETA(DisplayName = "Stone Smith (augment stones)"),
+    LoadoutVendor UMETA(DisplayName = "Loadout Vendor (purchase loadout)")
 };
+/** Every service, for the hub coverage check; keep Last the final value. */
+ENUM_RANGE_BY_FIRST_AND_LAST(EMerchantType, EMerchantType::Blacksmith, EMerchantType::LoadoutVendor);
 
 /**
  * One shop-shelf line. EXACTLY ONE of Asset / Crystal identifies the goods:
@@ -75,6 +82,11 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     EMerchantType MerchantType = EMerchantType::Blacksmith;
+
+    /** B-195: every service NPC is V in a different outfit or prop (HubAndStory §3). The mesh this
+     *  service's V shows; empty: the placeholder cube. TODO(B-143 / B-144): V's real meshes. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+    TSoftObjectPtr<UStaticMesh> VOutfitMesh;
 
     // ==================== AVAILABILITY ====================
 

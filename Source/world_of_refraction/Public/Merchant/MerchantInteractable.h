@@ -13,6 +13,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Merchant/MerchantData.h"
 #include "MerchantInteractable.generated.h"
 
 class UMerchantData;
@@ -47,8 +48,17 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Merchant")
     static AMerchantInteractable *FindNearestInRange(APawn *Pawn);
 
+    /** B-195: the hub services (every merchant type) with no merchant NPC in World. */
+    static TArray<EMerchantType> GetMissingServices(const UWorld *World);
+
+    /** Debug: every merchant NPC in World with its service, and the services missing. */
+    static FString GetServicesString(const UWorld *World);
+
 protected:
     virtual void BeginPlay() override;
+
+    /** B-195: shows the merchant's V outfit (in the editor too) in place of the cube. */
+    virtual void OnConstruction(const FTransform &Transform) override;
     /** B-075: clears the interact hint if the actor goes away (level travel) while a pawn is in range. */
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
