@@ -17,6 +17,7 @@ namespace
 {
 	const FName FIELD_TEAM_TEST_BEATEN(TEXT("FieldTeamTest_Beaten"));
 	const FName FIELD_TEAM_TEST_STANDING(TEXT("FieldTeamTest_Standing"));
+	constexpr int32 FIELD_TEAM_TEST_PATROL_FRAMES = 5;
 }
 
 BEGIN_DEFINE_SPEC(FFieldEnemyTeamSpec, "WoR.Trial.FieldEnemyTeam",
@@ -29,6 +30,12 @@ BEGIN_DEFINE_SPEC(FFieldEnemyTeamSpec, "WoR.Trial.FieldEnemyTeam",
 		UCharacterData *Enemy = FWoRTestWorld::NewCharacterData();
 		Enemy->WorldMindLevel = WorldLevel;
 		return Enemy;
+	}
+
+	/** The id a team placed under Name gets (UEncounterComponent::GetEncounterId). */
+	FName IdFor(FName Name) const
+	{
+		return FName(*UWorld::RemovePIEPrefix(TestWorld->GetWorld()->PersistentLevel->GetPathName() + TEXT(".") + Name.ToString()));
 	}
 
 	AFieldEnemyTeam *SpawnTeam(FName Name)
@@ -82,19 +89,32 @@ void FFieldEnemyTeamSpec::Define()
 		TestFalse(TEXT("Others untouched"), TrialRun->IsEncounterBeaten(TEXT("FieldTeamTest_Other")));
 	});
 
+	It("walks its patrol", [this]()
+	{
+		FActorSpawnParameters Params;
+		Params.bDeferConstruction = true;
+		AFieldEnemyTeam *Team = TestWorld->GetWorld()->SpawnActor<AFieldEnemyTeam>(FVector::ZeroVector, FRotator::ZeroRotator, Params);
+		if (!TestNotNull(TEXT("Team"), Team)) return;
+		Team->PatrolPoints = {FVector(Team->PatrolSpeed, 0.0f, 0.0f)};
+		Team->FinishSpawning(FTransform::Identity);
+		const FVector Start = Team->GetActorLocation();
+		TestWorld->Tick(FIELD_TEAM_TEST_PATROL_FRAMES);
+		TestTrue(TEXT("It has moved along its path"), Team->GetActorLocation().X > Start.X);
+	});
+
 	It("is gone when the level loads again after it was beaten", [this]()
 	{
 		UTrialRunSubsystem *TrialRun = TestWorld->GetSubsystem<UTrialRunSubsystem>();
 		if (!TestNotNull(TEXT("TrialRun"), TrialRun)) return;
-		TrialRun->SetPendingEncounterSources({FIELD_TEAM_TEST_BEATEN});
+		TrialRun->SetPendingEncounterSources({IdFor(FIELD_TEAM_TEST_BEATEN)});
 		TrialRun->MarkPendingEncounterBeaten();
 
 		AFieldEnemyTeam *Beaten = SpawnTeam(FIELD_TEAM_TEST_BEATEN);
 		AFieldEnemyTeam *Standing = SpawnTeam(FIELD_TEAM_TEST_STANDING);
 		TestTrue(TEXT("The beaten team is removed"), !IsValid(Beaten) || Beaten->IsActorBeingDestroyed());
 		TestTrue(TEXT("Another team stays"), IsValid(Standing) && !Standing->IsActorBeingDestroyed());
-		TestEqual(TEXT("Its id is its placed name"), Standing ? Standing->Encounter->GetEncounterId() : NAME_None,
-				  FIELD_TEAM_TEST_STANDING);
+		TestEqual(TEXT("Its id is its placed path"), Standing ? Standing->Encounter->GetEncounterId() : NAME_None,
+				  IdFor(FIELD_TEAM_TEST_STANDING));
 	});
 }
 

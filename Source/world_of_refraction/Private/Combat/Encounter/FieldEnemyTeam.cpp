@@ -14,6 +14,12 @@
 #include "Trial/TrialRunSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
 
+namespace FieldEnemyTeamConstants
+{
+	/** A patrol shorter than this stands still (ping-ponging a zero path would flip every tick). */
+	constexpr float MIN_PATROL_LENGTH = 1.0f;
+}
+
 AFieldEnemyTeam::AFieldEnemyTeam()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -62,9 +68,16 @@ void AFieldEnemyTeam::StartPatrol()
 		PathLength += FVector::Dist(Previous, Point);
 		Previous = Point;
 	}
-	Patrol->Duration = FMath::Max(PathLength / PatrolSpeed, KINDA_SMALL_NUMBER);
+	if (PathLength < FieldEnemyTeamConstants::MIN_PATROL_LENGTH)
+	{
+		Patrol->ResetControlPoints();
+		return;
+	}
+	Patrol->Duration = PathLength / PatrolSpeed;
 	Patrol->FinaliseControlPoints();
 	Patrol->Activate(true);
+	// ResetControlPoints leaves the component stopped; Activate alone doesn't restart it.
+	Patrol->RestartMovement();
 }
 
 FString AFieldEnemyTeam::GetFieldEnemyTeamString() const
