@@ -1773,7 +1773,6 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTarget(AActor *SelectedTarget
     ResolvedTargetType = PendingTargetType;
 
     SubmitConfirmedAction(ActionButton);
-    Close();
 }
 
 void UCombatCommandMenuSubsystem::ConfirmActionWithTargets(const TArray<AActor *> &SelectedTargets)
@@ -1796,7 +1795,6 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTargets(const TArray<AActor *
     ResolvedTargetType = PendingTargetType;
 
     SubmitConfirmedAction(ActionButton);
-    Close();
 }
 
 // ==================== ACTION SUBMISSION ====================
@@ -1966,6 +1964,15 @@ void UCombatCommandMenuSubsystem::SubmitConfirmedAction(
     }
 
     Orchestrator->SubmitActionAsync(Action);
+
+    // B-110: a finished (sync) action was closed by HandleActionExecuted, and a refused one
+    // re-requested this actor's turn, which reopened the menu; closing after either would shut a
+    // menu the player needs. Close only while the action is still running, or when the menu's
+    // actor no longer has the turn (combat not in progress, submission dropped).
+    if (bIsOpen && (Orchestrator->IsWaitingForAsyncAction() || !Orchestrator->IsActorsTurn(CurrentActor.Get())))
+    {
+        Close();
+    }
 }
 
 // ==================== HELPERS ====================
