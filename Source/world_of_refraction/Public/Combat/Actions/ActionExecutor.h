@@ -231,6 +231,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Movement")
 	void SetArenaCenter(const FVector &ArenaCenter) { CachedArenaCenter = ArenaCenter; }
 
+	/** The battle's arena center (grid world positions are laid out around it). */
+	const FVector &GetArenaCenter() const { return CachedArenaCenter; }
+
 	// ========================================
 	// EXECUTION - SPECIFIC ACTIONS
 	// ========================================
