@@ -95,8 +95,8 @@
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-070 | `TrialRunSubsystem::ActiveTrial` → strong ref | CC | S | — | Works in a packaged build | TODO |
-| B-071 | Party into battle per D-003/D-004: spawn party-list members at encounter start with their own `FPartyMember.PawnClass`; per-member Player/AI control (leader always Player); keep the sphere gather for co-op players | CC | M | D-003, D-004 | 3v1 fight from a recruited party, one member on AI | TODO |
-| B-076 | Find characters during a trial: reuse the hub recruit flow in a trial; what happens to them after the run per D-026 | CC | M | B-071, D-026 | Recruit in a trial, they fight in the next encounter | BLOCKED (D-026) |
+| B-071 | Party into battle per D-003/D-004: spawn party-list members at encounter start with their own `FPartyMember.PawnClass`; per-member Player/AI control (leader always Player), switchable on the member's turn (D-026); keep the sphere gather for co-op players | CC | M | D-003, D-004 | 3v1 fight from a recruited party, one member on AI | TODO |
+| B-076 | Find characters during a trial (D-026): reuse the hub recruit flow; they join for that run only and arrive ungeared; gear them from the shared run inventory | CC | M | B-071 | Recruit in a trial, gear them from the run inventory, they fight in the next encounter and are gone after the run | BLOCKED (B-071) |
 | B-072 | Win/lose routing per D-002 | CC | S | D-002, B-003 | Matches answer | BLOCKED (B-003) |
 | B-073 | Prisms/currency rewards per D-006 | CC | S | D-006 | Shop purchasable after a win | BLOCKED (D-006) |
 | B-074 | Encounter Composition Arc 2: `UEncounterData`, multi-enemy battles, AI formation | CC | L | B-001 | 1v3 fight from data | TODO |
