@@ -8,9 +8,12 @@
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
+#include "AI/AIDecisionManager.h"
 #include "Character/CharacterDataComponent.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
+#include "Skills/Effects/ActiveSkillEffect.h"
+#include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 
 namespace
@@ -19,6 +22,9 @@ namespace
 	constexpr int32 AI_BUILDUP_TEST_HITS = 3;
 	constexpr float AI_BUILDUP_TEST_TOLERANCE = 1.0f; // the estimate rounds to whole points
 	constexpr int32 AI_BUILDUP_TEST_STATUS_MULT_POINTS = 10; // a Status Multiplier above 1, so it is tested
+	constexpr int32 AI_BUILDUP_TEST_BUFF_ID = 200000;
+	constexpr int32 AI_BUILDUP_TEST_BUFF_TURNS = 3;
+	constexpr float AI_BUILDUP_TEST_BUFF_PERCENT = 50.0f;
 }
 
 BEGIN_DEFINE_SPEC(FAIBuildupEstimateSpec, "WoR.AI.BuildupEstimate",
@@ -82,6 +88,24 @@ void FAIBuildupEstimateSpec::Define()
 		if (!TestTrue(TEXT("Source has character data"), Comp && Comp->CharacterData)) return;
 		TestTrue(TEXT("Status Multiplier above 1"), Comp->CharacterData->CalculateStatusMultiplier() > 1.0f);
 		TestEqual(TEXT("Ability estimate"), static_cast<float>(NewSkill<UAbilityData>()->CalculateStatusBuildup(Comp->CharacterData)),
+				  LiveBuildupBeforeResistance(Source), AI_BUILDUP_TEST_TOLERANCE);
+	});
+
+	It("for a buffed attacker reads the live Status Multiplier (B-200)", [this]()
+	{
+		if (!Buildup) return;
+		USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
+		if (!TestNotNull(TEXT("SkillEffectManager"), Effects)) return;
+		AActor *Source = SpawnSource();
+		UCharacterDataComponent *Comp = Source->FindComponentByClass<UCharacterDataComponent>();
+		if (!TestTrue(TEXT("Source has character data"), Comp && Comp->CharacterData)) return;
+		Effects->ApplyEffect(Source, FActiveSkillEffect::CreateBuff(TEXT("AI buildup estimate test"), AI_BUILDUP_TEST_BUFF_ID,
+			ESkillEffectType::StatusMultiplierBuff, AI_BUILDUP_TEST_BUFF_PERCENT, AI_BUILDUP_TEST_BUFF_TURNS));
+		TestTrue(TEXT("The buff raises the live multiplier"),
+				 Comp->GetEffectiveStatusMultiplier() > Comp->CharacterData->CalculateStatusMultiplier());
+		TestEqual(TEXT("Spell estimate"), UAIDecisionManager::EstimateBaseStatusBuildup(Comp, NewSkill<USpellData>()),
+				  LiveBuildupBeforeResistance(Source), AI_BUILDUP_TEST_TOLERANCE);
+		TestEqual(TEXT("Ability estimate"), UAIDecisionManager::EstimateBaseStatusBuildup(Comp, NewSkill<UAbilityData>()),
 				  LiveBuildupBeforeResistance(Source), AI_BUILDUP_TEST_TOLERANCE);
 	});
 

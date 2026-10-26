@@ -87,7 +87,8 @@ int32 UAbilityData::CalculateStatusBuildup(UCharacterData *Character) const
 
     // B-114: the same authored number the live hit uses (none for a heal / buff / support
     // ability, rules page 03). The live hit spreads it over its hits, so it isn't × HitCount.
-    // TODO(B-200): the live hit reads the component's GetEffectiveStatusMultiplier (gear, stones, buffs).
+    // The asset's innate number only (no gear, stones or buffs): the debug readout. The AI reads the live
+    // number through UAIDecisionManager::EstimateBaseStatusBuildup (B-200).
     return FMath::RoundToInt(SupportSkillRules::GetAuthoredStatusBuildup(this) * Character->CalculateStatusMultiplier());
 }
 
