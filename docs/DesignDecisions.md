@@ -1812,6 +1812,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-074-encounter-data): `UEncounterData::BuildOpposingRoster`. B-184's `AFieldEnemyTeam` should hold a `UEncounterData` and call `BuildOpposingRoster` rather than carry a second list of enemies.
 
+### Q-204 — A spell held by both a broken and an intact source: greyed or not?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-204) · **Blocks:** — (B-204 shipped with A)
+**Question:** D-083 greys out a broken crystal's spells. When the same spell is also on another source (the other weapon, or a ring), is it still castable?
+**Options:**
+- **A** the source the cast would use decides, in the cast's own order (innate, then an intact ring, then the primary weapon, then the secondary): castable when that source is intact, greyed when it is broken.
+- **B** castable whenever any intact source holds it.
+- **C** greyed whenever any broken source holds it.
+**Recommendation:** A. It keeps the menu, the AI and the cast agreeing on one source, so a spell is never shown castable and then channelled through a broken crystal. Elden Ring does the same with two weapons: the skill always comes from one fixed hand (the right), not whichever is fit; players read that rule easily. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (fix/B-204-broken-secondary-weapon): `ULoadoutComponent::GetBrokenSourceReason`, the order of `ResolveSpellSource` / `FindSpellCatalystHolder`.
+
 ### Q-199 — What can a Void-broken turn do?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-199) · **Blocks:** — (B-199 shipped with A)
 **Question:** Q-063b says the Void break picks the holder's action at random from its usable actions. Which actions are in the draw, and who can it hit?
