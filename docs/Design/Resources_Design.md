@@ -783,6 +783,8 @@ Earned per encounter, spent in-run on **temporary buffs / consumables** only. Al
 
 ### 7.1 Structure
 
+> **⚠️ SUPERSEDED (2026-10-26):** the run's shape, exits and payout are now in [`RunStructure.md`](RunStructure.md) (D-032). §7.1–7.2 below are history.
+
 **Continuous escalating climb.** No fixed round count.
 
 > **Round table (hub):** spend Prisms + Essence on equipment + spells (you **own** them permanently); dismantle crystals → Essence; **pick your target boss → commit** (changing target loses run progress). →
