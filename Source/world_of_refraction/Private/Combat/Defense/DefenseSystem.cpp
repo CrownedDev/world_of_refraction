@@ -65,7 +65,7 @@ void UDefenseSystem::OpenDefenseWindow(
 	State.BaseDamage = BaseDamage;
 	State.DefenseChosen = EDefenseType::None;
 	State.DodgeDirection = EDefenseDirection::None;
-	State.WindowOpenTime = FPlatformTime::Seconds();
+	State.WindowOpenTime = GetDefenseClockSeconds(this);
 	State.WindowDuration = WindowDuration > 0.0f ? WindowDuration : DefaultWindowDuration;
 	State.bInputReceived = false;
 	State.bCountBasedClose = bManualClose;
@@ -206,10 +206,11 @@ void UDefenseSystem::SubmitDefenseInput(AActor *Defender, EDefenseType DefenseTy
 	}
 
 	// Stage 3: append a timestamped entry — the per-impact match-and-consume reads this.
+	// != 0.0, not > 0.0: an AI press anchored before an early impact can be negative.
 	FTimestampedDefenseInput Entry;
 	Entry.Type = DefenseType;
 	Entry.Direction = Direction;
-	Entry.InputTime = (InputTime > 0.0) ? InputTime : FPlatformTime::Seconds();
+	Entry.InputTime = (InputTime != 0.0) ? InputTime : GetDefenseClockSeconds(this);
 	Entry.bConsumed = false;
 	StatePtr->InputBuffer.Add(Entry);
 
@@ -419,9 +420,15 @@ float UDefenseSystem::GetRemainingWindowTime(AActor *Defender) const
 		return 0.0f;
 	}
 
-	double Elapsed = FPlatformTime::Seconds() - StatePtr->WindowOpenTime;
+	double Elapsed = GetDefenseClockSeconds(this) - StatePtr->WindowOpenTime;
 	float Remaining = StatePtr->WindowDuration - static_cast<float>(Elapsed);
 	return FMath::Max(0.0f, Remaining);
+}
+
+double UDefenseSystem::GetDefenseClockSeconds(const UObject *WorldContext)
+{
+	const UWorld *World = WorldContext ? WorldContext->GetWorld() : nullptr;
+	return World ? World->GetTimeSeconds() : 0.0;
 }
 
 float UDefenseSystem::GetEffectiveDefenseInputWindow(AActor *Defender, AActor *Attacker, EActionType AttackType) const

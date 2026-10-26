@@ -3543,7 +3543,7 @@ void UActionExecutor::SpawnAOEEffect(
 	{
 		if (FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); Ctx && Ctx->ExpectedImpacts > 0)
 		{
-			const double ImpactTime = FPlatformTime::Seconds(); // same clock as the projectile arrival / Hit notify
+			const double ImpactTime = UDefenseSystem::GetDefenseClockSeconds(this);
 
 			// Difficulty from the spell cast-entry table (guarded): INDEX_NONE / out-of-range → Easy ×1.0.
 			const FDefenseDifficultyTriple Diff =
@@ -3648,7 +3648,7 @@ void UActionExecutor::ResolveInstantSpell(
 	{
 		if (FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); Ctx && Ctx->ExpectedImpacts > 0)
 		{
-			const double ImpactTime = FPlatformTime::Seconds(); // same clock as the AOE / projectile resolve
+			const double ImpactTime = UDefenseSystem::GetDefenseClockSeconds(this);
 
 			// Difficulty from the spell cast-entry table (guarded): INDEX_NONE / out-of-range → Easy ×1.0.
 			const FDefenseDifficultyTriple Diff =
@@ -3895,7 +3895,7 @@ void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation,
 	{
 		if (FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); Ctx && Ctx->ExpectedImpacts > 0)
 		{
-			const double ImpactTime = FPlatformTime::Seconds(); // same clock as the melee Hit notify
+			const double ImpactTime = UDefenseSystem::GetDefenseClockSeconds(this);
 
 			// Difficulty from the spell cast-entry table (guarded): -1 / out-of-range → Easy ×1.0.
 			const FDefenseDifficultyTriple Diff =
@@ -5723,7 +5723,7 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 			// Resolve THIS impact's defense (split-then-reduce + match-and-consume) and apply
 			// its reduced slice. One impact frame = one moment, so all defenders share a single
 			// ImpactTime. Done after iteration — see above.
-			const double ImpactTime = FPlatformTime::Seconds();
+			const double ImpactTime = UDefenseSystem::GetDefenseClockSeconds(this);
 			for (AActor *Defender : DefendersToApply)
 			{
 				FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Defender);

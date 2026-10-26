@@ -69,7 +69,7 @@ struct WORLD_OF_REFRACTION_API FTimestampedDefenseInput
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	EDefenseDirection Direction = EDefenseDirection::None;
 
-	/** FPlatformTime::Seconds() at the moment of the press. */
+	/** GetDefenseClockSeconds() at the moment of the press. */
 	double InputTime = 0.0;
 
 	/** Set once an impact frame has matched-and-consumed this entry. */
@@ -135,7 +135,7 @@ struct WORLD_OF_REFRACTION_API FDefenseState
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	EDefenseDirection DodgeDirection = EDefenseDirection::None;
 
-	/** Time window opened */
+	/** GetDefenseClockSeconds() when the window opened */
 	double WindowOpenTime = 0.0;
 
 	/** Duration of window */
@@ -277,7 +277,7 @@ public:
 	 * @param Defender The defending actor
 	 * @param DefenseType Block/Parry/Dodge
 	 * @param Direction Dodge direction (only for Dodge, left/right only)
-	 * @param InputTime Optional explicit press timestamp (FPlatformTime::Seconds clock) for the
+	 * @param InputTime Optional explicit press timestamp (GetDefenseClockSeconds clock) for the
 	 *        buffered entry. Default 0.0 → stamp now() (player path). A synthesized AI press passes
 	 *        an impact-anchored time so MatchAndConsumeInput judges it for that impact.
 	 */
@@ -350,6 +350,13 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Defense System")
 	float GetRemainingWindowTime(AActor *Defender) const;
+
+	/**
+	 * The one clock every defense timestamp uses (window open, press, impact): world time,
+	 * so it stops while the game is paused and follows time dilation like the window timers.
+	 * Returns 0.0 with no world.
+	 */
+	static double GetDefenseClockSeconds(const UObject *WorldContext);
 
 	// ========================================
 	// DEFENSE WINDOW DUEL
