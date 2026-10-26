@@ -57,6 +57,17 @@ void FStunRuleSpec::Define()
 		TestFalse(TEXT("Attack while unarmed"), UActionExecutor::IsActionAllowedWhileStunned(MakeAction(EActionType::Ability, CurrentAttack), nullptr));
 	});
 
+	It("refuses an infused basic attack (D-023 A)", [this]()
+	{
+		for (int32 Level : {1, 2})
+		{
+			FAction Infused = MakeAction(EActionType::Ability, CurrentAttack);
+			Infused.AbilityInfusionLevel = Level;
+			TestFalse(FString::Printf(TEXT("Current attack at infusion level %d"), Level),
+					  UActionExecutor::IsActionAllowedWhileStunned(Infused, CurrentAttack));
+		}
+	});
+
 	It("refuses abilities, spells, items, weapon switch and flee", [this]()
 	{
 		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());

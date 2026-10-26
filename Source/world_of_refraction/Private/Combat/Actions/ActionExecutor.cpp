@@ -310,9 +310,10 @@ bool UActionExecutor::IsActionAllowedWhileStunned(const FAction &Action, const U
 		return true;
 	}
 	// Basic attacks dispatch as Ability (attack/ability merge); only the active weapon's own
-	// attack counts, not any attack-flagged skill.
+	// attack counts, not any attack-flagged skill. D-023 A: a plain swing only, no infusion charge.
 	return Action.ActionType == EActionType::Ability && Action.SkillData &&
-		   Action.SkillData->IsAttack() && Action.SkillData == CurrentAttack;
+		   Action.SkillData->IsAttack() && Action.SkillData == CurrentAttack &&
+		   !Action.IsAbilityInfused();
 }
 
 bool UActionExecutor::CanActorCastSpells(AActor *Actor) const
