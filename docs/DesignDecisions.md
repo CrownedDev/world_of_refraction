@@ -513,12 +513,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, x2.5** (2026-10-26, after comparing PoE2, Diablo 4 and Expedition 33: freedom games don't hard-cap crit damage; crit chance being multiplicative already limits it). Fix the docs (`DamageCalculator.md`, `Luck.md`) to x2.5; the code stays. Uncapped with diminishing returns is a possible later step.
 
 ### D-035 — Should infusing an ability cost extra on top of the charge level?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** An infused ability pays the flat x1.5 `INFUSION_ENERGY_MULTIPLIER` and then the charge multiplier (L1 x1.5, L2 x2.0): about x2.25 / x3.0 EP. A spell pays only x1.5 / x2.0. Keep the double surcharge?
 **Context:** `InfusionConstants` comments and `Infusion.md` say abilities and spells share the charge; two comments give wrong numbers ("30%/60%", "1.15x/1.30x"). Rules: 02 CED-1.
 **Options:** A keep both (abilities cost more) / B charge multiplier only (same as spells).
 **Recommendation:** A, because the deckbuilder also makes a physical ability pay +1 Energy to deal an element (`wor-deckbuilder/docs/reference/01-card-model.md:93`, "Cast through"). Fix the comments either way.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A** (2026-10-26): keep the extra x1.5 for infusing an ability on top of the charge level (deckbuilder: a physical ability pays more to deal an element). Fix the two wrong comments.
 
 ### D-036 — Under D-005, which resistance scales damage?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-064
