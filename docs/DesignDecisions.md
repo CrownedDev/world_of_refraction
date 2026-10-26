@@ -1660,6 +1660,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-071-party-into-battle): `ABattleGameMode::BootstrapCombat` possesses the leader's pawn when it fights, otherwise the first Player-set member, otherwise the first spawned.
 
+### Q-194 — How do the journal, V's lines and conversations unlock and play?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-194) · **Blocks:** — (B-194 shipped with A)
+**Question:** HubAndStory §4: recovered memories show up in a memory journal (memories, lore, logged dialogue), V's lines between runs and character conversations, all unlocked from the same memory data. How are they authored, when do they unlock, and how are they played?
+**Options:**
+- **A** Story assets (any number, gathered by the asset registry) list V's lines (in order) and conversations, each naming the memory ids it needs (none: from the start). A line or conversation unlocks once all its memories are in the journal. Talking to V plays the next unlocked line not heard yet, one at a time; a conversation plays line by line and is logged in the journal once played to its end, and can be replayed. Lore objects read on a trial map are kept in the journal at once (whatever happens to the run). The journal lists every memory, lore entry and played conversation to reread. One placeholder hub station opens all three pages. Speakers are written into the line text for now and not checked against the party.
+- **B** Data tables (one row struct per kind) instead of data assets.
+- **C** V says every unlocked line at once (a list) rather than one at a time.
+**Recommendation:** A. Expedition 33's camp conversations and Hades' between-run lines unlock from story progress and play one at a time (players praise how each return home has something new); Hades' Codex and Hollow Knight's Hunter's Journal keep everything to reread. One asset type gathered like reaction triggers (Q-191) keeps one authoring path (data tables need a row struct and an asset per table, for no gain yet). Not lore (the lines themselves are Crown's to write).
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-194-memory-journal): `UStoryLinesData`, `StoryUnlocks`, `UMemoryJournalSubsystem` (lore, heard lines, played conversations; saved with B-090), `UMemoryJournalWidget` (placeholder, D-024), `AHubJournalStation`. Known gaps: not saved (B-090); a story phase unlocking the next (HubAndStory §6) is not modelled; speakers aren't checked against the party; no "new" marker on the station.
+
 ### Q-193 — How are boss phases reached, and what do they change?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-193) · **Blocks:** — (B-193 shipped with A)
 **Question:** D-098: a boss has phases, each a condition list (an HP point, or hidden ones) and optional changes; a reached phase stays; the weather shifts toward the boss with intensity rising per phase; mini-bosses use a style preset; each status break raises resistance. Exactly which conditions, how the changes apply, how much resistance per break, and what the presets are?
