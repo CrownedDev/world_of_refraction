@@ -586,12 +586,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-26): members start in their **chosen formation cell**, so row bonuses apply. Replace the Middle-row auto-assign (`CombatOrchestrator.cpp:222-223`) with each member's `PreferredRow/PreferredColumn`, falling back to auto-assign when unset or clashing. Enemies use their own preferred cells (tanks front, casters back, per `AIArchitecture.md`'s placeholder heuristic) until authored. **Formation can be changed at rest spots** during a run (Crown, 2026-10-26), alongside inventory and loadout (D-032 part 7).
 
 ### D-043 — How does a fallen party member come back during a run?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** Sapphire only revives inside a fight, and members dead at a fight's end are never spawned again, so a death lasts the rest of the run. Is that the rule?
 **Context:** `EncounterComponent.cpp:210-260` leaves dead members out. Rules: 06 Cp-3.
 **Options:** A no return this run (current) / B a trial vendor or rest-point service / C revive with low HP after the fight.
 **Recommendation:** A for now (souls-like attrition, as in D-013), with B as a later vendor service.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **B** (2026-10-26): a fallen member can be **revived during a fight by spells or items** (Sapphire today; revive spells too), and **revived at a rest spot** (full heal, as rest spots already give). Otherwise they sit out the fights in between.
+**Notes for Claude:** today members dead at a fight's end are left out for good (`EncounterComponent.cpp:210-260`); rest spots must bring them back. Check that a revive **spell** effect exists, not only the Sapphire item; if not, raise it. Rest spots themselves are part of the trial work (`RunStructure.md`).
 
 ### D-044 — What difficulty do AI-controlled party members play at?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-071
