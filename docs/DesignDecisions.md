@@ -1382,6 +1382,19 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - How the inventory limit grows (account perks, like D-021's slot growth?).
 - Today: 20 crystals per tier shared by gem types, 20 for stones (Q-177 context); these caps go away for storage.
 
+### D-098 — Boss phases (in progress, one question at a time)
+**Status:** ANSWERED in part (2026-10-26; more parts to come) · **Raised:** 2026-10-26 (Enemies §5 open) · **Blocks:** — (B-193 builds the shell)
+**Answer (Crown):** (2026-10-26)
+- **Overflow: B.** Damage carries past a phase point; a strong enough hit can push a boss through a phase. No damage cap at the line.
+- **The changeover is smooth, not a cinematic.** The fight keeps going; the **weather** shows it:
+  - In a normal fight the weather leans to whoever is winning (today's `UWeatherStateManager` HP blend), and a win turns it to your element.
+  - **For a boss, each phase reached pushes the weather toward the boss's element and raises its intensity**: stronger weather = a more dangerous boss.
+  - **The boss plays harder** from that phase on: more aggressive and more tactical (its AI steps up).
+- **A phase, once reached, stays.** Healing the boss back above the line doesn't undo it (a one-way step).
+- **Phase triggers aren't only HP.** Any condition can push a boss into its next phase, for example its absorption reaching max, one of its crystals breaking, being hit by infusions, and so on. These work as **hidden conditions**: the player isn't told and discovers them by playing.
+- **Hidden conditions as a wider principle (Shangri-La Frontier's secret quests and conditions):** Crown wants secret conditions for certain things across the game, not just bosses (see `Design/DesignPillars.md` pillar 10).
+**Notes for Claude:** build on the reaction-trigger condition model (B-191, B-044, D-031): a phase is a condition list plus what changes (skills, element, AI aggression, weather intensity). HP threshold is one condition among many. Weather: add a boss override to `UWeatherStateManager` (boss element + intensity per phase) instead of the HP blend. Remaining parts to ask: what a phase can change, boss styles (planning / timing), statuses on bosses, long fights.
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
