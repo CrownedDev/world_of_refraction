@@ -17,6 +17,7 @@ class UCharacterDataComponent;
 class USkillEffectManager;
 class UActionExecutor;
 class UAnimMontage;
+class UCombatHUD;
 
 /**
  * Combat state enum
@@ -136,9 +137,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void StartCombat(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty, EAIDifficulty Difficulty = EAIDifficulty::Medium);
 
-	// Blueprint event fired when combat starts - override in BP to create HUD
-	UFUNCTION(BlueprintImplementableEvent, Category = "Combat|UI")
+	/** Fired once combat has started (after TurnManager::InitializeCombat).
+	 *  Native default builds the combat HUD via UCombatHUD. A BP override REPLACES
+	 *  the native build — delete the BP_CombatOrchestrator override to cut over. */
+	UFUNCTION(BlueprintNativeEvent, Category = "Combat|UI")
 	void OnCombatStartedUI(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty);
+	virtual void OnCombatStartedUI_Implementation(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty);
+
+	/** Native combat HUD (null until the native OnCombatStartedUI runs). */
+	UFUNCTION(BlueprintPure, Category = "Combat|UI")
+	UCombatHUD *GetCombatHUD() const { return CombatHUD; }
 
 	/** Force end combat (e.g., flee, cutscene interrupt) */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
@@ -471,6 +479,12 @@ private:
 
 	UPROPERTY()
 	UAIDecisionManager *AIDecisionManagerRef = nullptr;
+
+	/** Owns the native combat HUD widgets. Created lazily on first combat start. */
+	UPROPERTY(Transient)
+	TObjectPtr<UCombatHUD> CombatHUD;
+
+	void TeardownCombatHUD();
 
 	/** Shared end-of-combat cleanup for ALL three end paths (win in OnActionCompleted,
 	 *  TurnManager-driven HandleCombatEnded, ForceEndCombat): timers, TurnManager +

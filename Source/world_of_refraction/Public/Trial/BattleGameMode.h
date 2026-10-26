@@ -6,7 +6,8 @@
 // init cascade — inventory / loadout / world stats / HP-EP seed — reads the
 // RIGHT asset), possesses the first LocalParty pawn with PC0, spawns the
 // orchestrator, and starts combat. On OnCombatResultReady it routes back to
-// the trial via UTrialRunSubsystem::ExitEncounter.
+// the trial via UTrialRunSubsystem::ExitEncounter — after a results screen
+// (UCombatResultsWidget) is acknowledged or times out.
 //
 // Victory and Defeat currently produce the SAME trial-side outcome (the trial
 // level reloads whole from the map asset — defeated enemies included). Banked
@@ -20,6 +21,7 @@
 #include "BattleGameMode.generated.h"
 
 class UCharacterData;
+class UCombatResultsWidget;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API ABattleGameMode : public AGameModeBase
@@ -40,6 +42,10 @@ public:
     UPROPERTY(EditDefaultsOnly, Category = "Battle")
     TSoftClassPtr<ACombatOrchestrator> OrchestratorClass;
 
+    /** Results screen shown before returning to the trial. Null = native UCombatResultsWidget. */
+    UPROPERTY(EditDefaultsOnly, Category = "Battle")
+    TSoftClassPtr<UCombatResultsWidget> ResultsWidgetClass;
+
 protected:
     virtual void BeginPlay() override;
 
@@ -56,6 +62,18 @@ private:
 
     UFUNCTION()
     void HandleCombatEnd(const FCombatResult &Result);
+
+    /** Results screen acknowledged (or timed out) -> ReturnToTrial. */
+    UFUNCTION()
+    void HandleResultsContinue();
+
+    /** Show the results screen; false if it couldn't be created (caller returns immediately). */
+    bool ShowResults(const FCombatResult &Result);
+
+    void ReturnToTrial();
+
+    UPROPERTY(Transient)
+    TObjectPtr<UCombatResultsWidget> ResultsWidget;
 
     /** Orchestrator spawned by BootstrapCombat; source of OnCombatResultReady. */
     TWeakObjectPtr<ACombatOrchestrator> Orchestrator;
