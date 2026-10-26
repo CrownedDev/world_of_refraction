@@ -135,7 +135,10 @@ void UAIDecisionManager::ExecuteDecision()
         return;
     }
 
-    FAction Action = BuildAction(Actor);
+    // D-001: stunned = basic attack or Defend only, which is exactly the fallback's choice.
+    const USkillEffectManager *EffectManager = GetSkillEffectManager();
+    const bool bStunned = EffectManager && EffectManager->IsStunned(Actor);
+    FAction Action = bStunned ? BuildFallbackAction(Actor) : BuildAction(Actor);
 
     // The builders pick by score, not by legality — check before submitting. An
     // invalid submit would pass the whole turn (orchestrator safety net).
@@ -181,7 +184,7 @@ FAction UAIDecisionManager::BuildFallbackAction(AActor *AIActor) const
         }
     }
 
-    // Defend, or — if even that is invalid (stunned) — the orchestrator passes the turn.
+    // Defend is valid even while stunned (D-001); if it is somehow refused, the orchestrator passes the turn.
     return Defend;
 }
 

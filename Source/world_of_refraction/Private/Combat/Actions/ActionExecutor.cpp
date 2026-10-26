@@ -166,7 +166,7 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 	{
 		if (!CanActorAct(Actor))
 		{
-			const ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>();
+			const ULoadoutComponent *Loadout = GetLoadoutComponent(Actor);
 			if (!IsActionAllowedWhileStunned(Action, Loadout ? Loadout->GetCurrentAttack() : nullptr))
 			{
 				return FActionValidationResult(false, TEXT("Stunned: only Attack or Defend"));
