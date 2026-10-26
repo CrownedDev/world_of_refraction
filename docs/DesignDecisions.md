@@ -785,7 +785,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _write here_
 
 ### D-069 — Enemies and bosses
-**Status:** ANSWERED (in progress: more parts as Crown answers) · **Raised:** 2026-10-26 · **Blocks:** — (enemy content, encounter composition Arc 2)
+**Status:** ANSWERED · **Raised:** 2026-10-26 · **Written up:** `docs/Design/Enemies.md` · **Blocks:** — (enemy content, encounter composition Arc 2)
 **Context:** already designed: enemies are characters with inventories/loadouts like players (`Resources_Design.md` §7.9: generic enemies roll from a source-tag item pool, bosses bespoke); AI (`AIArchitecture.md`); multi-enemy encounters (`EncounterCompositionSystem.md` Arc 2). Not designed: what you fight, and how they appear on the open maps (`RunStructure.md`).
 **Answer (Crown):**
 - **(1) Both echoes and creatures (C)** (2026-10-26). **Every mob enemy is "V", as an enemy.** Concept sheet: `docs/Design/Characters/V_turnaround.png` (shared by Crown 2026-10-26; to be added from the PC, as the cloud session cannot upload LFS files):
