@@ -848,7 +848,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A a new `Resurrect` skill effect: brings a dead ally back at the effect's value as % of max HP, reusing Sapphire's revive path / B revive stays item-only (Sapphire) / C revive spells only out of combat.
 **Recommendation:** A, because D-043 asks for revive spells and Sapphire's path already does the hard part (turn order, death state); the HP % is a per-spell value.
 **Answer (Crown):** _write here_
-### D-070 — Crystal tier limits per character
+### D-072 — Crystal tier limits per character
 **Status:** ANSWERED (one detail to confirm) · **Raised:** 2026-10-26 (Crown) · **Blocks:** —
 **Answer (Crown):** (2026-10-26) **Per character**, a cap on how many crystals of each tier band can be equipped at once:
 | Tier band | Max equipped per character |
