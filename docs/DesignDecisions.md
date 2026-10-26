@@ -1552,6 +1552,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-040-gas-tags); GASMigration §4 tree updated.
 
+### Q-060 — What does a failed item use cost?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-060) · **Blocks:** — (B-060 shipped with A)
+**Question:** an item use whose effect cannot land (no valid target) used to lose a charge. B-060 keeps the charge. Does the turn still end, and when does an area item count as used?
+**Options:**
+- **A** the turn ends (like a missed attack) and the charge is kept; an area item is used when it lands on at least one target. A use that reaches its target but is blocked there (heal-blocked, resisted) still counts as used.
+- **B** a failed use is refused before it happens and the turn is not spent.
+**Recommendation:** A. In turn-based RPGs a committed action that whiffs still spends the turn (a missed attack in Pokémon or Final Fantasy costs the turn), while the item itself is only spent when it is actually applied; an all-target item (Final Fantasy's Megalixir) is spent once for the whole group. B needs a pre-check in the menu, which is the UI's job (the command menu already filters invalid targets). Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (fix/B-060-item-use-success). `OnItemUsed` no longer fires for a failed use (no C++ binds it; a Blueprint binding cannot be checked from code).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

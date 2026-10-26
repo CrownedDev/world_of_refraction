@@ -115,7 +115,7 @@
 
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
-| B-060 | Item use reports real success (`ItemExecutor.cpp:169`) | CC | S | — | Failed use doesn't consume a charge | TODO |
+| B-060 | Item use reports real success (`ItemExecutor.cpp:169`) | CC | S | — | Failed use doesn't consume a charge | REVIEW (in dev) |
 | B-061 | Stun rule per D-001 | CC | S | D-001 | Matches the answer | REVIEW (in dev) |
 | B-092 | Command menu while stunned (D-001): offer only Attack + Defend. The pie menu has no Defend option today, so add one (`EPieMenuCategory`, `CombatCommandMenuSubsystem::BuildMainMenuButtons`) | CC | S | B-061 | A stunned player sees only Attack and Defend; Defend works from the menu | REVIEW (in dev) |
 | B-110 | Menu closed after a refused player action: `ConfirmActionWithTargets` calls `Close()` after `SubmitConfirmedAction`. An invalid player action makes `SubmitActionAsync` re-request synchronously (`CombatOrchestrator.cpp:518-522`), so that `Close()` shuts the menu that was just reopened. Drop the trailing `Close()` (`HandleActionExecuted` already closes) or close before submitting. Found in the B-092 review | CC | S | — | A refused pick (e.g. a stunned actor's spell via a stale menu) leaves the re-opened menu usable | TODO |
