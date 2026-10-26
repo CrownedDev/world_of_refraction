@@ -1,7 +1,8 @@
 // StatModifierSpec.cpp
 // Transient buff/debuff reads of every sub-stat (B-020): a buff and its debuff move each
 // stat getter by exactly (buff - debuff) percent, so the stat-modifier table can replace the
-// hand-written pairs with the same numbers. Written against the hand-written pairs first.
+// hand-written pairs with the same numbers. Written against the hand-written pairs first;
+// the table rows and the wor.CompareStats snapshot are checked at the end.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -11,6 +12,7 @@
 #include "Combat/Damage/DamageCalculator.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
+#include "Debug/Character/StatModifierDebug.h"
 
 namespace
 {
@@ -208,6 +210,26 @@ void FStatModifierSpec::Define()
 			TestEqual(TEXT("Fire-keyed buff ignored"), CharOf(Actor)->GetEffectiveStatusMultiplier(), Bare, STAT_TEST_TOLERANCE);
 		});
 
+		It("Turn Speed nets Turn Speed Up + buff - debuff", [this]()
+		{
+			if (!EffectManager) return;
+			AActor *Actor = Spawn();
+			if (!TestNotNull(TEXT("Combatant"), Actor)) return;
+			Apply(Actor, ESkillEffectType::ModifyTurnSpeed, STAT_TEST_RESIST_MODIFY);
+			ApplyPair(Actor, ESkillEffectType::TurnSpeedBuff, ESkillEffectType::TurnSpeedDebuff);
+			TestEqual(TEXT("GetNetStatModifier(TurnSpeed)"), EffectManager->GetNetStatModifier(Actor, ESubStat::TurnSpeed),
+					  STAT_TEST_RESIST_MODIFY + STAT_TEST_BUFF_PERCENT - STAT_TEST_DEBUFF_PERCENT, STAT_TEST_TOLERANCE);
+		});
+
+		It("the None sub-stat has no channels", [this]()
+		{
+			if (!EffectManager) return;
+			AActor *Actor = Spawn();
+			if (!TestNotNull(TEXT("Combatant"), Actor)) return;
+			ApplyPair(Actor, ESkillEffectType::LuckBuff, ESkillEffectType::LuckDebuff);
+			TestEqual(TEXT("GetNetStatModifier(None)"), EffectManager->GetNetStatModifier(Actor, ESubStat::None), 0.0f);
+		});
+
 		It("a negative Crit Damage Up counts as zero", [this]()
 		{
 			if (!EffectManager || !Calculator) return;
@@ -216,6 +238,22 @@ void FStatModifierSpec::Define()
 			const float Bare = Calculator->GetCritDamageMultiplier(Actor);
 			Apply(Actor, ESkillEffectType::ModifyCritDamage, -STAT_TEST_BUFF_PERCENT);
 			TestEqual(TEXT("GetCritDamageMultiplier"), Calculator->GetCritDamageMultiplier(Actor), Bare, STAT_TEST_TOLERANCE);
+		});
+	});
+
+	Describe("wor.CompareStats snapshot", [this]()
+	{
+		It("is identical when nothing changed and differs once a buff lands", [this]()
+		{
+			if (!EffectManager) return;
+			AActor *Actor = Spawn();
+			if (!TestNotNull(TEXT("Combatant"), Actor)) return;
+			const FString First = UStatModifierDebug::GetStatsSnapshotString(Actor);
+			TestTrue(TEXT("Snapshot lists Luck"), First.Contains(TEXT("Luck=")));
+			TestEqual(TEXT("Same snapshot twice"), UStatModifierDebug::GetStatsSnapshotString(Actor), First);
+			ApplyPair(Actor, ESkillEffectType::LuckBuff, ESkillEffectType::LuckDebuff);
+			TestNotEqual(TEXT("Snapshot after a Luck buff"), UStatModifierDebug::GetStatsSnapshotString(Actor), First);
+			TestTrue(TEXT("Modifier string names Luck"), UStatModifierDebug::GetStatModifierString(Actor).Contains(TEXT("Luck +15.0%")));
 		});
 	});
 }
