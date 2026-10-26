@@ -406,6 +406,20 @@ private:
      *  current callers (merge output is single; refund is one Id per distinct tier). */
     bool CommitAddCrystals(const TArray<FCrystalId> &Ids);
 
+    // Shared bodies behind the weapon/ring socket pairs (B-026). TEntry is FWeaponInventoryEntry or
+    // FRingInventoryEntry; the ring-only rules (gems only, elemental fusions only) switch on it. Op
+    // is the public entry point's name, for the log lines.
+    template <class TEntry>
+    bool AttachEvolutionToGear(TArray<TEntry> &Gear, FGuid GearID, FGuid EvoInstanceID, const TCHAR *Op);
+    template <class TEntry>
+    bool AttachCrystalToGear(TArray<TEntry> &Gear, FGuid GearID, FCrystalId Id, const TCHAR *Op);
+    template <class TEntry>
+    bool AttachFusionToGear(TArray<TEntry> &Gear, FGuid GearID, FFusionId FusionId, const TCHAR *Op);
+    template <class TEntry>
+    bool RemoveEvolutionFromGear(TArray<TEntry> &Gear, FGuid GearID, const TCHAR *Op);
+    template <class TEntry>
+    bool RemoveCrystalFromGear(TArray<TEntry> &Gear, int32 Index);
+
     /** Populates ownership lists + SavedLoadouts + ActiveLoadoutIndex from
      *  CharacterData->Inventory (a UInventoryData asset). Sole loadout-init
      *  path — InitializeFromCharacterData delegates here when Inventory is set. */
