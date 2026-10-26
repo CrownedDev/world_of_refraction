@@ -5,7 +5,7 @@ The queue of questions only Crown can answer.
 **How it's used**
 - **Claude Code (local, working the backlog):**
   - Never decides an `OPEN` item.
-  - When a backlog job needs a decision, it adds or links an entry here, marks the job `BLOCKED (D-xxx)` in `docs/Backlog.md`, and **moves on to the next unblocked job**. No waiting.
+  - When a backlog job needs a decision, it adds or links an entry here, marks the job `BLOCKED (Q-xxx)` in `docs/Backlog.md`, and **moves on to the next unblocked job**. No waiting.
 - **Crown:** answers whenever convenient. Ways to do it:
   - from a Claude cloud session (phone or web), talking it through and having it write the answer here and push;
   - by editing this file on GitHub;
@@ -23,9 +23,14 @@ The queue of questions only Crown can answer.
 - `DECIDED`: applied; recorded in the relevant design doc.
 - `PARKED`: deliberately later.
 
+**Numbering (Crown, 2026-10-26), from D-081 on:**
+- **`Q-<job>`**: a question Claude Code raises while doing a backlog job takes **that job's number**: a question from B-155 is **Q-155**; a second one is Q-155b (the first stays Q-155). The number says which job it belongs to, and Claude Code never needs to pick a free number.
+- **`D-xxx`**: design decisions from Crown's chat sessions (cloud), next free D number.
+- Existing D-001…D-081 keep their numbers. Both kinds live in this file and use the same entry format and statuses.
+
 **Entry format** (keep each short; one decision per entry):
 ```
-### D-NNN — Title
+### D-NNN — Title   (or Q-<job> — Title)
 **Status:** OPEN · **Raised:** YYYY-MM-DD · **Blocks:** B-xxx, B-yyy
 **Question:** one line.
 **Context:** 2–4 lines, with file:line.
