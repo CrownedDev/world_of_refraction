@@ -1327,6 +1327,19 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
+### D-097 — Storage (unlimited) vs inventory (what you carry on a run)
+**Status:** ANSWERED (details open) · **Raised:** 2026-10-26 (from Q-177) · **Blocks:** — (Q-177)
+**Answer (Crown):** (2026-10-26)
+- **Storage:** an **unlimited** store for everything you own, outside runs.
+- **Inventory:** what you can **carry on a run**, with a limit; the starting limit is **10**, raisable (perks, upgrades, etc.).
+- So a merge done outside a run never loses its change: it goes to storage.
+**Notes for Claude, open details to confirm with Crown:**
+- "10" of what: crystals per tier, crystals in total, or all carried items (gear, crystals, stones, consumables)?
+- In a run with a full inventory: what happens to a find, a merge's change, a vendor purchase (refuse, leave it behind, or send it to storage)?
+- How the limit grows (account perks like D-021's slot growth?).
+- Relation to the shared pool (D-020): storage is the account-wide pool; the run inventory is what's taken into the run (purchase loadout, D-021/D-048).
+- Today: 20 crystals per tier shared by gem types, 20 for stones (Q-177 context).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
