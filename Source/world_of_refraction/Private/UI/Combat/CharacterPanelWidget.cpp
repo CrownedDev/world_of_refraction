@@ -37,6 +37,7 @@ namespace PanelStyle
 	const FLinearColor DebuffColor(0.95f, 0.35f, 0.3f);
 	const FLinearColor NeutralColor(0.85f, 0.85f, 0.85f);
 	constexpr float DeadPanelOpacity = 0.4f;
+	constexpr float FullPanelOpacity = 1.0f;
 }
 
 namespace PanelGhostConstants
@@ -127,6 +128,7 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 	// runtime rows) is now live — restore before the resonator rule re-hides EP.
 	DisplayMode = EPanelDisplayMode::Live;
 	RosterData = nullptr;
+	SetRenderOpacity(PanelStyle::FullPanelOpacity); // undo a previous occupant's death dim
 	bRosterLeader = false;
 	SetRuntimeRowsVisible(true);
 
@@ -227,6 +229,7 @@ void UCharacterPanelWidget::InitialiseForData(UCharacterData *Data, bool bIsLead
 
 	DisplayMode = EPanelDisplayMode::Roster;
 	RosterData = Data;
+	SetRenderOpacity(PanelStyle::FullPanelOpacity);
 	bRosterLeader = bIsLeader;
 
 	// Static template half only: no components, no subsystems, no delegate
@@ -300,6 +303,7 @@ void UCharacterPanelWidget::SetVacant()
 
 	DisplayMode = EPanelDisplayMode::Vacant;
 	RosterData = nullptr;
+	SetRenderOpacity(PanelStyle::FullPanelOpacity);
 	bRosterLeader = false;
 
 	SetTextSafe(NameText, TEXT("Empty"));
@@ -451,9 +455,14 @@ void UCharacterPanelWidget::ApplyStaticText_Implementation()
 		ClassElementText->SetColorAndOpacity(ClassColors::GetColorForCharacter(Data));
 	}
 
+	// Live reads the component's run values (base + head start); Roster has only the asset.
+	const UCharacterDataComponent *LiveComp = DisplayMode == EPanelDisplayMode::Live ? BoundCharData.Get() : nullptr;
 	SetTextSafe(WorldStatsText,
-				FString::Printf(TEXT("M:%d B:%d S:%d"),
-								Data->WorldMindLevel, Data->WorldBodyLevel, Data->WorldSpiritLevel));
+				LiveComp
+					? FString::Printf(TEXT("M:%d B:%d S:%d"),
+									  LiveComp->GetWorldMind(), LiveComp->GetWorldBody(), LiveComp->GetWorldSpirit())
+					: FString::Printf(TEXT("M:%d B:%d S:%d"),
+									  Data->WorldMindLevel, Data->WorldBodyLevel, Data->WorldSpiritLevel));
 }
 
 void UCharacterPanelWidget::SpawnEffectRowPool()

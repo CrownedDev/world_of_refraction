@@ -302,7 +302,8 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 	// Unbind first so TurnManager::EndCombat below can't re-enter HandleCombatEnded.
 	UnbindTurnManagerEvents();
 
-	// Aborted combat has no results beat — drop the HUD now.
+	// Forced end: drop the combat HUD now. The results screen (BattleGameMode) is
+	// its own widget; win paths leave the HUD up and EndPlay removes it.
 	TeardownCombatHUD();
 
 	ReleaseCombatResources();
