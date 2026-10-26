@@ -4209,14 +4209,21 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActo
 
 	ULoadoutComponent *LC = GetLoadoutComponent(Actor);
 
+	// A ring whose crystal broke has no element to push, so it is no infusion source (Q-163 = B,
+	// like a broken weapon crystal); its own F-tier spells still cast (D-083).
+	auto IsUsableRing = [](const FRingLoadoutEntry *Entry)
+	{
+		return Entry && !Entry->RingEntry.AttachedItem.IsBroken();
+	};
+
 	// Active Ring (Resonator only)
-	if (Data->IsResonator() && LC && LC->GetActiveRing() != nullptr)
+	if (Data->IsResonator() && LC && LC->GetActiveRing() != nullptr && IsUsableRing(LC->GetActiveRingLoadout()))
 	{
 		Sources.Add(EInfusionSourceOption::ActiveRing);
 	}
 
 	// Primary Ring (Generic/Caster with ring in primary slot)
-	if (LC && LC->GetPrimaryRing())
+	if (LC && LC->GetPrimaryRing() && IsUsableRing(LC->GetPrimaryRingLoadout()))
 	{
 		Sources.Add(EInfusionSourceOption::PrimaryRing);
 	}

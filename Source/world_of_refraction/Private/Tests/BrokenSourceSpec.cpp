@@ -141,6 +141,30 @@ void FBrokenSourceSpec::Define()
 			TestTrue(TEXT("cast as innate"), Loadout->GetBrokenSourceReason(CTierSpell).IsEmpty());
 		});
 
+		It("is no infusion source (Q-163 = B)", [this]()
+		{
+			SpawnResonatorWithRing(BROKEN_SOURCE_BROKEN_DURABILITY);
+			UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+			if (!TestNotNull(TEXT("executor"), Executor))
+			{
+				return;
+			}
+			TestFalse(TEXT("no active ring infusion"),
+					  Executor->GetAvailableInfusionSources(Loadout->GetOwner()).Contains(EInfusionSourceOption::ActiveRing));
+		});
+
+		It("is an infusion source while intact", [this]()
+		{
+			SpawnResonatorWithRing(BROKEN_SOURCE_INTACT_DURABILITY);
+			UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+			if (!TestNotNull(TEXT("executor"), Executor))
+			{
+				return;
+			}
+			TestTrue(TEXT("active ring infusion"),
+					 Executor->GetAvailableInfusionSources(Loadout->GetOwner()).Contains(EInfusionSourceOption::ActiveRing));
+		});
+
 		It("blocks nothing while the crystal is intact", [this]()
 		{
 			SpawnResonatorWithRing(BROKEN_SOURCE_INTACT_DURABILITY);
