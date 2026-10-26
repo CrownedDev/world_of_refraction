@@ -876,6 +876,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A **one rule set, pre-fight answer wins** where they conflict (tier spell cap, BD-by-character, budgets on, instance costs), plus every check that only one of them has today, so the editor warns about what the fight would cut / B **merge only the two pre-fight checks** (error list + slot cleaner; adds the cleaner's coherence checks to the error list) and leave the editor check as it is / C go through the list one by one.
 **Recommendation:** A, because the fight is what the player sees: an editor check that passes a loadout the fight then cuts is the bug the review found. It makes some existing authored loadouts show new editor warnings (e.g. an over-cap evolution); nothing changes in play. The deckbuilder has no loadout validator to borrow from (its decks are card lists).
 **Answer (Crown):** **A** (2026-10-26): **one rule set; the fight's answer wins** where the checks disagree, plus every check only one of them has today, so saving a loadout warns about anything the fight would cut. Include the crystal tier limits (D-072).
+- **You can't make an invalid loadout** (Crown, 2026-10-26): the same rule set runs **when you equip**, so anything that would break a rule is **refused or dropped** right there (with a short reason), rather than saved and warned about. A loadout that's already invalid (old save, changed rules) has its invalid parts dropped when loaded, with a message saying what was removed.
 **Notes for Claude:** _optional_
 
 ## Parked
