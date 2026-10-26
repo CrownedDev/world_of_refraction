@@ -9,14 +9,19 @@
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/LoadoutConstants.h"
+#include "Inventory/InventoryConstants.h"
 #include "Loadout/LoadoutRules.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "PartsDroppedRecorder.h"
 
 namespace
 {
+	/** Crystals above the per-slot quantity cap in the Q-159 refund case. */
+	constexpr int32 PICKS_TEST_EXTRA_CRYSTALS = 2;
+
 	template <class TComponent>
 	TComponent *PicksTestAddComponent(AActor *Actor)
 	{
@@ -181,6 +186,7 @@ void FLoadoutPicksSpec::Define()
 			Stack.CrystalId = FCrystalId(ECrystalType::Garnet, EItemTier::S_Tier);
 			Stack.Quantity = LoadoutConstants::MAX_UTILITY_CRYSTALS_S_TIER + 1;
 			Inventory->SavedLoadouts[1].ItemSlots.Add(Stack);
+			UCrystalInventoryComponent *Crystals = PicksTestAddComponent<UCrystalInventoryComponent>(Inventory->GetOwner());
 
 			UPartsDroppedRecorder *Recorder = NewObject<UPartsDroppedRecorder>();
 			Loadouts->OnPartsDropped.AddDynamic(Recorder, &UPartsDroppedRecorder::Record);
@@ -192,6 +198,39 @@ void FLoadoutPicksSpec::Define()
 			TestTrue(TEXT("naming the crystal"), Recorder->Messages.Num() == 1 && Recorder->Messages[0].ToString().Contains(TEXT("x1")));
 			TestEqual(TEXT("second loadout trimmed to the S cap"), Inventory->SavedLoadouts[1].ItemSlots[0].Quantity, LoadoutConstants::MAX_UTILITY_CRYSTALS_S_TIER);
 			TestEqual(TEXT("nothing left to drop"), Loadouts->DropInvalidParts(1).Num(), 0);
+			TestEqual(TEXT("the dropped crystal is back in the inventory (Q-159)"), Crystals->GetCount(Stack.CrystalId), 1);
+		});
+
+		It("returns a slot's crystals above 3 to the inventory (Q-159)", [this]()
+		{
+			FItemLoadoutSlot Stack;
+			Stack.CrystalId = FCrystalId(ECrystalType::Garnet, EItemTier::F_Tier);
+			Stack.Quantity = InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT + PICKS_TEST_EXTRA_CRYSTALS;
+			Inventory->SavedLoadouts[0].ItemSlots = {Stack};
+			UCrystalInventoryComponent *Crystals = PicksTestAddComponent<UCrystalInventoryComponent>(Inventory->GetOwner());
+
+			Loadouts->DropInvalidParts(0);
+
+			TestEqual(TEXT("slot clamped"), Inventory->SavedLoadouts[0].ItemSlots[0].Quantity, InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT);
+			TestEqual(TEXT("the extra are back"), Crystals->GetCount(Stack.CrystalId), PICKS_TEST_EXTRA_CRYSTALS);
+		});
+
+		It("returns a duplicate crystal type's whole stack to the inventory (Q-159)", [this]()
+		{
+			FItemLoadoutSlot First;
+			First.CrystalId = FCrystalId(ECrystalType::Garnet, EItemTier::F_Tier);
+			First.Quantity = 1;
+			FItemLoadoutSlot Repeat = First;
+			Repeat.CrystalId.Tier = EItemTier::E_Tier;
+			Repeat.Quantity = 2;
+			Inventory->SavedLoadouts[0].ItemSlots = {First, Repeat};
+			UCrystalInventoryComponent *Crystals = PicksTestAddComponent<UCrystalInventoryComponent>(Inventory->GetOwner());
+
+			Loadouts->DropInvalidParts(0);
+
+			TestTrue(TEXT("repeat slot emptied"), Inventory->SavedLoadouts[0].ItemSlots[1].IsEmpty());
+			TestEqual(TEXT("its stack is back"), Crystals->GetCount(Repeat.CrystalId), Repeat.Quantity);
+			TestEqual(TEXT("the kept slot is not refunded"), Crystals->GetCount(First.CrystalId), 0);
 		});
 	});
 }

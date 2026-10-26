@@ -313,7 +313,7 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
     if (bBroke)
     {
         UE_LOG(LogTemp, Log,
-               TEXT("[CrystalManager] Evolution '%s' broke on %s (between-combat sweep will clear slot)"),
+               TEXT("[CrystalManager] Evolution '%s' broke on %s (kept broken, Q-159)"),
                *EvoName, *Actor->GetName());
     }
 }
@@ -401,7 +401,7 @@ void UCrystalManager::ProcessPostCastGearEvolutionWear(
     if (bBroke)
     {
         UE_LOG(LogTemp, Log,
-               TEXT("[CrystalManager] Gear evolution '%s' broke on %s (between-combat sweep will clear slot)"),
+               TEXT("[CrystalManager] Gear evolution '%s' broke on %s (kept broken, Q-159)"),
                *EvoName, *Actor->GetName());
     }
 }

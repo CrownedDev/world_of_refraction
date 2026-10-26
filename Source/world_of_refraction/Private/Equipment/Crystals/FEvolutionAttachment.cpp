@@ -10,8 +10,8 @@
 bool FEvolutionAttachment::IsBroken() const
 {
     // Option Y: any non-Unbreakable crystal worn to 0 is broken — including a
-    // BDBreakable crystal worn down by Broken Darkness/Reality, so the
-    // between-combat sweep clears the slot. Unbreakable never reaches 0 (the
+    // BDBreakable crystal worn down by Broken Darkness/Reality. It is kept, broken,
+    // with its spells greyed out (Q-159, D-083). Unbreakable never reaches 0 (the
     // ApplyWear gate blocks all wear), so it is never broken.
     return Item && Item->Breakability != EBreakability::Unbreakable && CurrentDurability <= 0;
 }

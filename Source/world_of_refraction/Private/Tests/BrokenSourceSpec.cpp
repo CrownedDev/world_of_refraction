@@ -7,6 +7,7 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Combat/Actions/ActionExecutor.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Skills/Definitions/AbilityData.h"
@@ -278,6 +279,24 @@ void FBrokenSourceSpec::Define()
 			const FActionValidationResult Result = Executor->ValidateAction(Loadout->GetOwner(), Cast);
 			TestFalse(TEXT("refused"), Result.bIsValid);
 			TestEqual(TEXT("with the broken-source reason"), Result.ErrorMessage, Loadout->GetBrokenSourceReason(FTierSpell).ToString());
+		});
+	});
+
+	Describe("a broken primary evolution (kept since Q-159)", [this]()
+	{
+		It("greys out its Breakthrough spells", [this]()
+		{
+			FCombatLoadout &Active = Spawn(ECharacterClass::Generic);
+			Active.PrimarySlotType = EPrimarySlotType::Evolution;
+			Active.PrimaryEvolution.Item = NewObject<UEvolutionItemData>(GetTransientPackage());
+			Active.PrimaryEvolution.CurrentDurability = BROKEN_SOURCE_BROKEN_DURABILITY;
+			Active.EvolutionSpells = {FTierSpell};
+			TestFalse(TEXT("greyed while broken"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
+			const FCombatCapabilities Caps = Capabilities(ECharacterClass::Generic);
+			TestTrue(TEXT("listed in the menu"), Caps.BreakthroughSpells.Contains(FTierSpell));
+			TestFalse(TEXT("greyed in the menu"), Caps.GetBlockedReason(FTierSpell).IsEmpty());
+			Active.PrimaryEvolution.CurrentDurability = BROKEN_SOURCE_INTACT_DURABILITY;
+			TestTrue(TEXT("usable while intact"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
 		});
 	});
 }

@@ -237,7 +237,7 @@ void FGearAttachSpec::Define()
 			TestFalse(TEXT("ring has nothing left to remove"), Inventory->RemoveEvolutionFromRing(RingId));
 		});
 
-		It("dismantles an evolution the removal wear breaks", [this]()
+		It("returns an evolution the removal wear breaks to the inventory, broken (Q-159)", [this]()
 		{
 			const FGuid WeaponEvo = AddEvolution();
 			const FGuid RingEvo = AddEvolution();
@@ -247,8 +247,13 @@ void FGearAttachSpec::Define()
 			Inventory->Rings[0].AttachedItem.Evolution.CurrentDurability = GEAR_TEST_EVO_LOW_DURABILITY;
 			TestTrue(TEXT("weapon remove"), Inventory->RemoveEvolutionFromWeapon(WeaponId));
 			TestTrue(TEXT("ring remove"), Inventory->RemoveEvolutionFromRing(RingId));
-			TestNull(TEXT("weapon evo dismantled"), FindEvolution(WeaponEvo));
-			TestNull(TEXT("ring evo dismantled"), FindEvolution(RingEvo));
+			const FEvolutionInventoryEntry *WeaponEntry = FindEvolution(WeaponEvo);
+			const FEvolutionInventoryEntry *RingEntry = FindEvolution(RingEvo);
+			if (TestNotNull(TEXT("weapon evo kept"), WeaponEntry) && TestNotNull(TEXT("ring evo kept"), RingEntry))
+			{
+				TestEqual(TEXT("weapon evo at 0"), WeaponEntry->CurrentDurability, 0);
+				TestEqual(TEXT("ring evo at 0"), RingEntry->CurrentDurability, 0);
+			}
 		});
 
 		It("refuses to remove an authored-locked evolution and keeps it", [this]()

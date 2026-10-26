@@ -67,7 +67,7 @@ This page covers the currencies, what a fight and a run pay out, what carries ov
 | # | Rule | Status | Source |
 |---|---|---|---|
 | ER-34 | Crystal max durability by tier: F 30, E 40, D 50, C 60, B 70, A 80, S 100 (`MAX_DURABILITY_*`). The HUD warns below 25% (`LOW_DURABILITY_WARNING_THRESHOLD`). How much a cast wears is on 04-effects-and-turns.md. | In game | `Equipment/Durability/DurabilityConstants.h:20-26,98` |
-| ER-35 | At the end of a finished fight (win or loss, not an aborted one), any crystal that broke is destroyed: it leaves its weapon or ring and pays out like a dismantle (gem: typed essence; player-attached evolution: element essence). This runs before repair. | In game | `Combat/CombatOrchestrator.cpp:607-609,1411-1520` |
+| ER-35 | At the end of a finished fight (win or loss, not an aborted one), any crystal that broke is destroyed: it leaves its weapon or ring and pays out like a dismantle (gem: typed essence; fusion: half per gem half). An **evolution** is never lost to wear (Q-159): it stays, broken, spells greyed out; nothing repairs evolutions yet (B-178; Q-159c). This runs before repair. | In game | `Private/Equipment/Durability/CrystalBreak.cpp` (B-035, Q-159) |
 | ER-36 | Then every unbroken socketed crystal on both sides gets **+10 durability** (`REPAIR_PER_BATTLE`), up to its max. | In game | `Combat/CombatOrchestrator.cpp:611-613,1602-1650`; `Equipment/Durability/DurabilityConstants.h:93` |
 | ER-37 | Paid repair of broken gear at the Spiritualist. | Changed: D-093 (repair in runs for Gold; wear resets at run end) | `Merchant/MerchantData.h:30`; `docs/Mechanics/Economy/Hubs.md` (design) |
 

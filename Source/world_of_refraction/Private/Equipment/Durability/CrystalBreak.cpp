@@ -50,7 +50,8 @@ namespace
 		return StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(Type));
 	}
 
-	/** Dismantles an owned evolution entry (hybrid essence + remove entry + free cap slot). An
+	/** OBSOLETE (Q-159: evolutions are never lost to wear; unreachable): remove after Crown's PIE pass.
+	 *  Dismantles an owned evolution entry (hybrid essence + remove entry + free cap slot). An
 	 *  invalid InstanceID is an authored / asset-only evolution with no owned record: the slot
 	 *  clear is the whole action, no essence. */
 	void CrystalBreakDismantleEvolution(AActor *Actor, const FGuid &InstanceID)
@@ -121,7 +122,7 @@ namespace
 		case EAttachedItemKind::Crystal:
 			CrystalBreakYieldGem(Actor, Slot.CrystalId, CrystalName);
 			break;
-		case EAttachedItemKind::Evolution:
+		case EAttachedItemKind::Evolution: // OBSOLETE: unreachable since Q-159 (CrystalBreakDestroySlot keeps evolutions)
 			CrystalBreakDismantleEvolution(Actor, Attachment.Evolution.InstanceID);
 			break;
 		case EAttachedItemKind::Fusion:
@@ -146,6 +147,13 @@ namespace
 		{
 			return false;
 		}
+		// Q-159: an evolution is equipment, never lost to wear; it stays, broken, until repaired.
+		if (Slot.Kind == EAttachedItemKind::Evolution)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broken evolution '%s' on %s kept (Q-159)"),
+				   *CrystalBreakDisplayName(Slot), *Actor->GetName());
+			return false;
+		}
 		// Only weapon and ring holders are cleared; an evolution self-holder never matches above.
 		const FString HolderDesc = CrystalBreakHolderDesc(Slot.Holder);
 		if (HolderDesc.IsEmpty())
@@ -161,9 +169,10 @@ namespace
 		return true;
 	}
 
-	/** Case B: a standalone primary-slot evolution (e.g. Broken Darkness), which GetEquippedCrystals
+	/** OBSOLETE (Q-159: evolutions are never lost to wear): remove after Crown's PIE pass.
+	 *  Case B: a standalone primary-slot evolution (e.g. Broken Darkness), which GetEquippedCrystals
 	 *  doesn't surface. The owned-entry GUID is read BEFORE the clear wipes it. */
-	bool CrystalBreakDestroyPrimaryEvolution(AActor *Actor, ULoadoutComponent *Loadout)
+	[[maybe_unused]] bool CrystalBreakDestroyPrimaryEvolution(AActor *Actor, ULoadoutComponent *Loadout)
 	{
 		const FGuid BrokenEvoInstance = Loadout->GetActivePrimaryEvolutionInstance();
 		if (!Loadout->ClearBrokenPrimaryEvolution())
@@ -188,6 +197,6 @@ int32 CrystalBreak::DestroyBrokenOn(AActor *Actor)
 	{
 		Destroyed += CrystalBreakDestroySlot(Actor, Loadout, Slot) ? 1 : 0;
 	}
-	Destroyed += CrystalBreakDestroyPrimaryEvolution(Actor, Loadout) ? 1 : 0;
+	// A broken primary evolution (e.g. Broken Darkness) is kept too (Q-159).
 	return Destroyed;
 }

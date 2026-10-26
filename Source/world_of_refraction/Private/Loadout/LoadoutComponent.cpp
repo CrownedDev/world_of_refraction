@@ -34,6 +34,37 @@
 
 #define LOCTEXT_NAMESPACE "LoadoutComponent"
 
+namespace
+{
+    /** Q-159 = A: utility crystals a loadout rule removes are not destroyed; they go back to the
+     *  inventory, as many as fit. An authored loadout's crystals were never taken from the
+     *  inventory, so this can add extra ones: a dev-time case Q-159 accepts. */
+    void LoadoutReturnDroppedCrystals(UInventoryComponent *Inv, const FCrystalId &Id, int32 Count)
+    {
+        if (Count <= 0)
+        {
+            return;
+        }
+        if (!Inv->GetOwner()->FindComponentByClass<UCrystalInventoryComponent>())
+        {
+            // An enemy's authored loadout: no crystal inventory to return to.
+            UE_LOG(LogWoRLoadout, Verbose, TEXT("No crystal inventory: %d dropped %s not returned"), Count, *ItemIdentity::GetDisplayName(Id));
+            return;
+        }
+        int32 Returned = 0;
+        while (Returned < Count && Inv->AddCrystal(Id))
+        {
+            ++Returned;
+        }
+        if (Returned < Count)
+        {
+            // TODO: D-097 - send the rest to home storage when the inventory is full (storage not built yet).
+            UE_LOG(LogWoRLoadout, Warning, TEXT("Inventory full: %d dropped %s lost (no storage yet, D-097)"),
+                   Count - Returned, *ItemIdentity::GetDisplayName(Id));
+        }
+    }
+}
+
 ULoadoutComponent::ULoadoutComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
@@ -1447,6 +1478,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index)
                 }
                 if (Seen.Contains(Slot.CrystalId.Type))
                 {
+                    LoadoutReturnDroppedCrystals(Inv, Slot.CrystalId, Slot.Quantity);
                     Slot = FItemLoadoutSlot();
                 }
                 else
@@ -1484,12 +1516,12 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index)
             if (Loadout.ItemSlots.IsValidIndex(Finding.SlotIndex))
             {
                 FItemLoadoutSlot &Slot = Loadout.ItemSlots[Finding.SlotIndex];
+                LoadoutReturnDroppedCrystals(Inv, Slot.CrystalId, Slot.Quantity - InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT);
                 Slot.Quantity = FMath::Clamp(Slot.Quantity, 0, InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT);
             }
             break;
         case ELoadoutSlotType::UtilityCrystalTierCap:
         {
-            // TODO: do the dropped crystals go back to the inventory? (Q-159)
             const TArray<FItemLoadoutSlot> Untrimmed = Loadout.ItemSlots;
             FLoadoutRules::TrimUtilityCrystalsToTierCaps(Loadout);
             TArray<FString> Removed;
@@ -1498,6 +1530,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index)
                 const int32 Lost = Untrimmed[i].Quantity - Loadout.ItemSlots[i].Quantity;
                 if (Lost > 0)
                 {
+                    LoadoutReturnDroppedCrystals(Inv, Untrimmed[i].CrystalId, Lost);
                     Removed.Add(FString::Printf(TEXT("%s %s x%d"), *UEnum::GetDisplayValueAsText(Untrimmed[i].CrystalId.Tier).ToString(),
                                                 *UEnum::GetDisplayValueAsText(Untrimmed[i].CrystalId.Type).ToString(), Lost));
                 }
@@ -3203,6 +3236,12 @@ FText ULoadoutComponent::GetBrokenSourceReason(const USpellData *Spell) const
         if (bInnate)
         {
             return FText::GetEmpty();
+        }
+        // A broken primary evolution is kept (Q-159), so its Breakthrough spells grey out (D-083).
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.IsBroken() &&
+            Lists(Loadout.EvolutionSpells))
+        {
+            return SourceBreakRules::BrokenEvolutionReason();
         }
     }
 
