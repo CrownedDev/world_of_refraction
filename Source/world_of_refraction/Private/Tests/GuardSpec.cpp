@@ -134,12 +134,15 @@ void FGuardSpec::Define()
 	{
 		It("send back exactly their share of the damage taken, as pure damage", [this]()
 		{
+			// A fixed seed keeps the foe from dodging; the result depends on the draw order of the
+			// battle stream, so re-pin the seed if that order changes.
 			IConsoleVariable *SeedVar = IConsoleManager::Get().FindConsoleVariable(TEXT("wor.Battle.Seed"));
-			const int32 OldSeed = SeedVar ? SeedVar->GetInt() : 0;
-			if (SeedVar)
+			if (!TestNotNull(TEXT("seed cvar"), SeedVar))
 			{
-				SeedVar->Set(GUARD_TEST_BATTLE_SEED, ECVF_SetByCode);
+				return;
 			}
+			const int32 OldSeed = SeedVar->GetInt();
+			SeedVar->Set(GUARD_TEST_BATTLE_SEED, ECVF_SetByCode);
 
 			ACombatOrchestrator *Orchestrator = TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>();
 			AActor *Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
@@ -160,6 +163,13 @@ void FGuardSpec::Define()
 
 			UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
 			UCharacterDataComponent *FoeData = Foe->FindComponentByClass<UCharacterDataComponent>();
+			if (!TestTrue(TEXT("combatants have data"), HeroData && FoeData))
+			{
+				Orchestrator->ForceEndCombat();
+				Ability->RemoveFromRoot();
+				SeedVar->Set(OldSeed, ECVF_SetByCode);
+				return;
+			}
 			const int32 HeroHP = HeroData->CurrentHP;
 			const int32 FoeHP = FoeData->CurrentHP;
 
@@ -178,10 +188,7 @@ void FGuardSpec::Define()
 
 			Orchestrator->ForceEndCombat();
 			Ability->RemoveFromRoot();
-			if (SeedVar)
-			{
-				SeedVar->Set(OldSeed, ECVF_SetByCode);
-			}
+			SeedVar->Set(OldSeed, ECVF_SetByCode);
 		});
 	});
 
