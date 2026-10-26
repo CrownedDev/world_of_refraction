@@ -1017,7 +1017,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### D-084 — What a Perfect defense does (Block and Parry merged into Guard)
-**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 02 gap) · **Blocks:** —
+**Status:** DECIDED (applied in B-168) · **Raised:** 2026-10-26 (rules review, page 02 gap) · **Blocks:** —
 **Answer (Crown):** (2026-10-26, revised the same day)
 - **Block and Parry merge into one button, Guard** (Expedition 33 style). **Two defense buttons: Guard and Dodge.**
   - **Guard, normal timing:** a block, taking 50% (`BlockReduction`).
@@ -1042,7 +1042,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** **no separate job:** build it inside the GAS damage calculation (stat maths plan B-146 → B-041/B-042), not in today's `DamageCalculator`. Existing all-or-nothing skills map to 100%.
 
 ### D-087 — Reflection is an effect, not part of Guard
-**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 02 gap) · **Blocks:** —
+**Status:** DECIDED (applied in B-168) · **Raised:** 2026-10-26 (rules review, page 02 gap) · **Blocks:** —
 **Answer (Crown):** (2026-10-26)
 - **Guard and Perfect Guard only reduce damage.** Nothing is reflected by default.
 - **Reflection is an effect you attach** to things (gear, skills, buffs), triggered e.g. **"on Perfect Guard: reflect damage"**; other on-Guard effects work the same way ("on Perfect Guard: heal", …).
@@ -1263,6 +1263,26 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **A** keep all of the above (as built).
 - **B** change some (say which): e.g. a push into an ally swaps them, push is a debuff that Cleanse and immunity can stop, bosses resist it, a fallen ally's cell is free.
 **Recommendation:** A for now, because it is the simplest; bosses resisting a push is the likeliest change once bosses exist.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
+### Q-168 — Guard: the open details
+**Status:** OPEN · **Raised:** 2026-10-26 (B-168) · **Blocks:** — (B-168 shipped with A)
+**Question:** Guard is in (D-084 / D-087). These details had no ruling. Are they right?
+**Context:** As built (option A):
+- **Perfect Guard takes 25%** of the hit (`PerfectGuardReduction` 0.75, a placeholder to tune).
+- **Interruptable hits** (a spell's choke point) are stopped by a **Perfect Guard or a Dodge**. Before, a parry of any timing or a dodge stopped them; now a normal-timing Guard doesn't, and a perfect block does.
+- **Timing difficulty:** a Guard is judged on the skill's **Block** difficulty; a Parry difficulty already set on a skill is ignored.
+- **Broken Darkness:** a Guard absorbs at the block rate (5%), a Perfect Guard at the parry rate (10%) and that still doubles on Perfect, so 20%.
+- **Reflect amount:** a reflect effect sends back its % of the damage the target actually took (after the Guard and the target's Defense), landing as pure damage.
+- **Reflect lifetime:** an "on Perfect Guard: reflect" effect grants a timed Reflect buff, so it also reflects later hits until it runs out, not just that one hit.
+- **Animation:** every Guard plays the block animation; the parry animation is no longer used.
+- **Input:** the Parry key still works and is also a Guard press, until its key is removed from the combat input mapping in the editor (that asset needs the editor).
+- The deckbuilder has no real-time defense, so there is no rule to borrow.
+**Options:**
+- **A** keep all of the above (as built).
+- **B** change some (say which): e.g. a different Perfect Guard share; any Guard stops an interruptable hit; a Perfect Guard plays the parry animation; reflect is one hit only; Broken Darkness does not double twice.
+**Recommendation:** A, except the animation: a Perfect Guard should probably play the parry animation (needs the press to know it is perfect, a small follow-up).
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
