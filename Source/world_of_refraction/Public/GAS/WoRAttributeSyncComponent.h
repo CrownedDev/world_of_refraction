@@ -3,7 +3,8 @@
 // values the existing getters return. Q-041: the getters stay the source of truth until stage 3
 // moves effects onto GameplayEffects; this component is the bridge until then.
 // Syncs on: BeginPlay, HP/EP change, effect applied/removed/restacked on the owner, status buildup
-// change, loadout change, and every turn start (a safety net for changes with no event of their own).
+// change, loadout change, and the owner's own turn start (a safety net for changes with no event).
+// Only the authority writes; clients get the values by replication.
 // Debug: UWoRAttributeDebug (wor.CompareAttributes).
 
 #pragma once

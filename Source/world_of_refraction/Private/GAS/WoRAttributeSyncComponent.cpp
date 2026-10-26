@@ -39,6 +39,13 @@ UAbilitySystemComponent *UWoRAttributeSyncComponent::PrepareAbilitySystem(AActor
 	{
 		return nullptr;
 	}
+	// ACombatCharacter creates both sets as default subobjects (the ASC finds them itself). This
+	// fallback is for actors that add an ASC at runtime (tests), and only on the authority, so a
+	// client never makes its own copies beside the replicated ones.
+	if (!Owner->HasAuthority())
+	{
+		return ASC;
+	}
 	if (!ASC->GetSet<UWoRAttributeSet_Vitals>())
 	{
 		ASC->AddAttributeSetSubobject(NewObject<UWoRAttributeSet_Vitals>(Owner));
@@ -47,6 +54,7 @@ UAbilitySystemComponent *UWoRAttributeSyncComponent::PrepareAbilitySystem(AActor
 	{
 		ASC->AddAttributeSetSubobject(NewObject<UWoRAttributeSet_Stats>(Owner));
 	}
+	// The ASC sets this in its own InitializeComponent; repeated for an ASC added after that ran.
 	ASC->InitAbilityActorInfo(Owner, Owner);
 	return ASC;
 }
@@ -69,8 +77,9 @@ TArray<FWoRAttributeSourceValue> UWoRAttributeSyncComponent::ReadSourceValues(co
 	{
 		AActor *MutableActor = const_cast<AActor *>(Actor);
 		Add(UWoRAttributeSet_Vitals::GetBuildupAttribute(), Buildup->GetStatusBarBuildup(MutableActor));
-		Add(UWoRAttributeSet_Vitals::GetMaxBuildupAttribute(), Buildup->GetBuildupToTrigger(MutableActor));
 	}
+	// The bar's cap, as OnStatusBuildupChanged reports it (GetBuildupToTrigger is the amount still needed).
+	Add(UWoRAttributeSet_Vitals::GetMaxBuildupAttribute(), CombatConstants::STATUS_EFFECT_THRESHOLD);
 
 	Add(UWoRAttributeSet_Stats::GetMindAttribute(), Char->GetEvolutionModifiedMind());
 	Add(UWoRAttributeSet_Stats::GetBodyAttribute(), Char->GetEvolutionModifiedBody());
@@ -104,8 +113,9 @@ TArray<FWoRAttributeSourceValue> UWoRAttributeSyncComponent::ReadSourceValues(co
 
 void UWoRAttributeSyncComponent::SyncAttributes()
 {
+	// The authority owns the values; clients receive them by replication.
 	UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
-	if (!ASC)
+	if (!ASC || !GetOwner()->HasAuthority())
 	{
 		return;
 	}
@@ -215,5 +225,8 @@ void UWoRAttributeSyncComponent::HandleLoadoutChanged(int32 NewLoadoutIndex)
 
 void UWoRAttributeSyncComponent::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 {
-	SyncAttributes();
+	if (Actor == GetOwner())
+	{
+		SyncAttributes();
+	}
 }
