@@ -16,6 +16,7 @@
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
+#include "InventoryChangeRecorder.h"
 #include "Loadout/LoadoutComponent.h"
 
 namespace
@@ -250,10 +251,48 @@ void FGearAttachSpec::Define()
 			TestNull(TEXT("ring evo dismantled"), FindEvolution(RingEvo));
 		});
 
+		It("refuses to remove an authored-locked evolution and keeps it", [this]()
+		{
+			FRuntimeAttachedItem Locked;
+			Locked.Kind = EAttachedItemKind::Evolution;
+			Locked.Evolution.Item = NewObject<UEvolutionItemData>(GetTransientPackage());
+			Inventory->Weapons[0].AttachedItem = Locked; // invalid InstanceID = built into the weapon
+			TestFalse(TEXT("remove refused"), Inventory->RemoveEvolutionFromWeapon(WeaponId));
+			TestTrue(TEXT("evolution kept"), Inventory->Weapons[0].AttachedItem.IsEvolution());
+		});
+
 		It("refuses removal from an unknown gear id", [this]()
 		{
 			TestFalse(TEXT("unknown weapon"), Inventory->RemoveEvolutionFromWeapon(FGuid::NewGuid()));
 			TestFalse(TEXT("unknown ring"), Inventory->RemoveEvolutionFromRing(FGuid::NewGuid()));
+		});
+	});
+
+	Describe("change signal", [this]()
+	{
+		It("fires one Equipped per attach, one Removed per removal and nothing on a refusal", [this]()
+		{
+			UInventoryChangeRecorder *Recorder = NewObject<UInventoryChangeRecorder>();
+			Recorder->Listen(Inventory);
+			const FGuid Evo = AddEvolution();
+			Recorder->Changes.Reset();
+
+			Inventory->AttachCrystalToRing(RingId, GEAR_TEST_STAT_STONE); // refused
+			Inventory->AttachCrystalToWeapon(WeaponId, GEAR_TEST_GEM);
+			Inventory->AttachCrystalToWeapon(WeaponId, GEAR_TEST_GEM); // refused: occupied
+			Inventory->RemoveCrystalFromWeapon(0);
+			Inventory->RemoveCrystalFromWeapon(0); // nothing to remove
+			Inventory->AttachFusionToRing(RingId, GearTestFusion(GEAR_TEST_STAT_STONE, GEAR_TEST_GEM));
+			Inventory->RemoveCrystalFromRing(0);
+			Inventory->AttachEvolutionToWeapon(WeaponId, Evo);
+			Inventory->RemoveEvolutionFromWeapon(WeaponId);
+
+			const TArray<EInventoryChangeType> Expected = {
+				EInventoryChangeType::Equipped, EInventoryChangeType::Removed,
+				EInventoryChangeType::Equipped, EInventoryChangeType::Removed,
+				EInventoryChangeType::Equipped, EInventoryChangeType::Removed};
+			TestTrue(TEXT("change sequence"), Recorder->Changes == Expected);
+			TestEqual(TEXT("change count"), Recorder->Changes.Num(), Expected.Num());
 		});
 	});
 

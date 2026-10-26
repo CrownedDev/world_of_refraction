@@ -29,6 +29,7 @@
 #include "Character/CharacterDataComponent.h" // owner Luck for the pickup quality roll
 #include "Currency/EconomyYield.h"            // RollQuality (§11 weighted drop curve)
 #include "Currency/EconomyService.h"          // DismantleEvolution on break-during-gear-removal
+#include <type_traits>                        // std::is_same_v for the weapon/ring socket templates
 
 namespace
 {
@@ -414,8 +415,9 @@ bool UInventoryComponent::RemoveEvolutionFromGear(TArray<TEntry> &Gear, FGuid Ge
     }
     else
     {
-        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from %s %s -> inventory (durability %d, 10%% wear)"),
-               *EvoInstanceID.ToString(), GearLabel<TEntry>(), *GearID.ToString(), Entry->CurrentDurability);
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from %s %s -> inventory (durability %d, %.0f%% wear)"),
+               *EvoInstanceID.ToString(), GearLabel<TEntry>(), *GearID.ToString(), Entry->CurrentDurability,
+               EVOLUTION_REMOVAL_WEAR_FRACTION * 100.0f);
     }
     BroadcastInventoryChanged(EInventoryChangeType::Removed);
     return true;
