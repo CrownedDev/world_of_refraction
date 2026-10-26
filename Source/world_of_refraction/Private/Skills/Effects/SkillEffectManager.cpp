@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Skills/Effects/SkillEffectManager.h"
+#include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/TurnManager.h"
 #include "Combat/Actions/ActionExecutor.h"
@@ -2496,7 +2497,7 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 			ESkillEffectType::DefenseDebuff,
 			ESkillEffectType::SpeedDebuff,
 			ESkillEffectType::CritChanceDebuff};
-		Effect.EffectType = Debuffs[FMath::RandRange(0, Debuffs.Num() - 1)];
+		Effect.EffectType = Debuffs[UBattleRandomSubsystem::RandRange(this, 0, Debuffs.Num() - 1)];
 		Effect.EffectValue = 30.0f; // 30%
 		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
