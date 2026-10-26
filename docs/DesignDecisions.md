@@ -620,12 +620,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** setting on the Settings screen (Gameplay), default "Take over" (B), alternative "Let AI finish" (A). The leader stays Player while alive (D-004). Placeholder UI per the PIE rule until the CommonUI Settings screen exists.
 
 ### D-046 — One wallet per player, or per character?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-073
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-073
 **Question:** The wallet (Gold, Prisms, Diamond) sits on each character, while the gear pool and run inventory are shared (D-020, D-026).
 **Context:** `Currency/CurrencyComponent.h:15-24`. Rules: 05 Cx-5. The deckbuilder has one account-wide currency and shared Essences (`wor-deckbuilder/docs/design/WoR_TCG_Pivot_Design.md` §5).
 **Options:** A one wallet per player, everything / B Prisms and Diamond per player, essence per character / C per character (current).
 **Recommendation:** A, because the pool and run inventory are already shared (D-020, D-026), and per-character essence would strand upgrades.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A** (2026-10-26): **one wallet per player** for everything (Gold, Prisms, Diamond, all essences), like the shared pool (D-020) and run inventory (D-026). Move the currency off each character (`CurrencyComponent.h:15-24`) to player scope (PlayerState / the save, per D-064's rule).
 
 ### D-047 — Where can you upgrade, repair, merge and downgrade?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
