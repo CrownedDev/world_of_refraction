@@ -11,14 +11,14 @@
 
 namespace
 {
-	constexpr float TEST_WINDOW_SECONDS = 0.5f;
-	constexpr int32 TEST_BASE_DAMAGE = 10;
-	constexpr float TEST_ATTACK_SIZE = 1.0f;
+	constexpr float CLOCK_TEST_WINDOW_SECONDS = 0.5f;
+	constexpr int32 CLOCK_TEST_BASE_DAMAGE = 10;
+	constexpr float CLOCK_TEST_ATTACK_SIZE = 1.0f;
 	/** Real time slept with no world tick — stands in for a pause. */
-	constexpr float WALL_CLOCK_GAP_SECONDS = 0.05f;
-	constexpr int32 WARMUP_FRAMES = 3;
+	constexpr float CLOCK_WALL_CLOCK_GAP_SECONDS = 0.05f;
+	constexpr int32 CLOCK_WARMUP_FRAMES = 3;
 	/** An AI press anchored before an impact that lands early in the world's life. */
-	constexpr double NEGATIVE_PRESS_TIME = -0.2;
+	constexpr double CLOCK_NEGATIVE_PRESS_TIME = -0.2;
 }
 
 BEGIN_DEFINE_SPEC(FDefenseClockSpec, "WoR.Defense.Clock",
@@ -30,7 +30,7 @@ BEGIN_DEFINE_SPEC(FDefenseClockSpec, "WoR.Defense.Clock",
 
 	void OpenTestWindow()
 	{
-		DefenseSystem->OpenDefenseWindow(Attacker, Defender, TEST_ATTACK_SIZE, TEST_BASE_DAMAGE, TEST_WINDOW_SECONDS, false);
+		DefenseSystem->OpenDefenseWindow(Attacker, Defender, CLOCK_TEST_ATTACK_SIZE, CLOCK_TEST_BASE_DAMAGE, CLOCK_TEST_WINDOW_SECONDS, false);
 	}
 END_DEFINE_SPEC(FDefenseClockSpec)
 
@@ -44,7 +44,7 @@ void FDefenseClockSpec::Define()
 		TestNotNull(TEXT("DefenseSystem subsystem"), DefenseSystem);
 		Attacker = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
 		Defender = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
-		TestWorld->Tick(WARMUP_FRAMES);
+		TestWorld->Tick(CLOCK_WARMUP_FRAMES);
 	});
 
 	AfterEach([this]()
@@ -74,9 +74,9 @@ void FDefenseClockSpec::Define()
 		}
 		OpenTestWindow();
 		const float RemainingAtOpen = DefenseSystem->GetRemainingWindowTime(Defender);
-		TestEqual(TEXT("Full window at open"), RemainingAtOpen, TEST_WINDOW_SECONDS);
+		TestEqual(TEXT("Full window at open"), RemainingAtOpen, CLOCK_TEST_WINDOW_SECONDS);
 
-		FPlatformProcess::Sleep(WALL_CLOCK_GAP_SECONDS);
+		FPlatformProcess::Sleep(CLOCK_WALL_CLOCK_GAP_SECONDS);
 		TestEqual(TEXT("No world tick → window unchanged"), DefenseSystem->GetRemainingWindowTime(Defender), RemainingAtOpen);
 
 		TestWorld->Tick();
@@ -106,12 +106,12 @@ void FDefenseClockSpec::Define()
 			return;
 		}
 		OpenTestWindow();
-		DefenseSystem->SubmitDefenseInput(Defender, EDefenseType::Parry, EDefenseDirection::None, NEGATIVE_PRESS_TIME);
+		DefenseSystem->SubmitDefenseInput(Defender, EDefenseType::Parry, EDefenseDirection::None, CLOCK_NEGATIVE_PRESS_TIME);
 
 		const FDefenseState State = DefenseSystem->GetDefenseState(Defender);
 		if (TestEqual(TEXT("One buffered press"), State.InputBuffer.Num(), 1))
 		{
-			TestEqual(TEXT("Negative time kept, not replaced by now"), State.InputBuffer[0].InputTime, NEGATIVE_PRESS_TIME);
+			TestEqual(TEXT("Negative time kept, not replaced by now"), State.InputBuffer[0].InputTime, CLOCK_NEGATIVE_PRESS_TIME);
 		}
 	});
 }
