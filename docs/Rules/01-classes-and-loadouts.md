@@ -79,9 +79,9 @@ This page states what each class is, what a character can equip, and what that g
 
 ## Open questions
 
-- D-037 (OPEN): how many spells an evolution holds (CL-C1).
-- D-038 (OPEN): whether a Refractor's innate always works (CL-C2).
-- D-039 (OPEN): skill requirements, a gate or only a scale (CL-C3).
+- D-039 (OPEN): how many spells an evolution holds (CL-C1).
+- D-040 (OPEN): whether a Refractor's innate always works (CL-C2).
+- D-041 (OPEN): skill requirements, a gate or only a scale (CL-C3).
 
 These points sit inside answered entries but were left unruled:
 - D-020 (ANSWERED, part unruled): the clash rule when two presets want the same item (suggested: the party screen flags it and you pick the wearer).
@@ -91,9 +91,9 @@ These points sit inside answered entries but were left unruled:
 
 ## Conflicts
 
-- **CL-C1: How many spells an evolution holds.** The runtime check caps evolution spells by the evolution's tier, F 1…S 6 (`Private/Loadout/LoadoutComponent.cpp:575-581`), as `docs/Mechanics/Gear/EquipmentSlots.md` says. The saved-loadout check uses a flat 6 (`MAX_SPELL_SLOTS`, `Private/Loadout/FSavedLoadout.cpp:190-195`), and `docs/Mechanics/Items/EvolutionCrystals.md` says "up to ~4". Question, options and recommendation: **D-037**.
-- **CL-C2: Does a Refractor's innate always work?** Here the innate pool works whatever the Refractor wears (`Private/UI/Combat/FCombatCapabilities.cpp:80-112`). In the deckbuilder a Refractor's innate element works only while it has at least one empty gear slot (`wor-deckbuilder/docs/reference/01-card-model.md`, "A Caster's innate element"). Question, options and recommendation: **D-038**. Flagged only because the games differ.
-- **CL-C3: Are skill requirements a gate or only a scale?** `docs/Mechanics/Character/Stats.md` says pillar levels "gate skill tiers", and `ValidateAction` keeps a commented-out "Requirements not met" refusal (`Private/Combat/Actions/ActionExecutor.cpp:233-236`). The shipped rule (`docs/Mechanics/Scaling/RequirementGap.md`, PIE-verified) and the code never block: they scale (CL-38, CL-39). Question, options and recommendation: **D-039**.
+- **CL-C1: How many spells an evolution holds.** The runtime check caps evolution spells by the evolution's tier, F 1…S 6 (`Private/Loadout/LoadoutComponent.cpp:575-581`), as `docs/Mechanics/Gear/EquipmentSlots.md` says. The saved-loadout check uses a flat 6 (`MAX_SPELL_SLOTS`, `Private/Loadout/FSavedLoadout.cpp:190-195`), and `docs/Mechanics/Items/EvolutionCrystals.md` says "up to ~4". Question, options and recommendation: **D-039**.
+- **CL-C2: Does a Refractor's innate always work?** Here the innate pool works whatever the Refractor wears (`Private/UI/Combat/FCombatCapabilities.cpp:80-112`). In the deckbuilder a Refractor's innate element works only while it has at least one empty gear slot (`wor-deckbuilder/docs/reference/01-card-model.md`, "A Caster's innate element"). Question, options and recommendation: **D-040**. Flagged only because the games differ.
+- **CL-C3: Are skill requirements a gate or only a scale?** `docs/Mechanics/Character/Stats.md` says pillar levels "gate skill tiers", and `ValidateAction` keeps a commented-out "Requirements not met" refusal (`Private/Combat/Actions/ActionExecutor.cpp:233-236`). The shipped rule (`docs/Mechanics/Scaling/RequirementGap.md`, PIE-verified) and the code never block: they scale (CL-38, CL-39). Question, options and recommendation: **D-041**.
 - **CL-C4: Stale text the rulings already settle (no question, needs a doc/comment sweep).** → **B-117**
   - `Public/Character/ECharacterClass.h:9-29` says "2 physical weapons", "1 weapon" and "6 slots, up to 3 same element". `GetClassDescription` (`:91-104`, unused) says Generic has "No spells". Both disagree with D-010 and D-027 (B-083).
   - `docs/Mechanics/Character/Classes.md` and `Archetypes/Generic.md` say Generic is the only class with weapon abilities and that a weapon crystal lends it spells. This disagrees with D-027 and D-007.
