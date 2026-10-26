@@ -17,7 +17,7 @@ Every rule is one row: an ID, the rule in plain words with its real numbers, a s
 
 **Sources, in order of authority:** Crown's rulings in `docs/DesignDecisions.md` (cited `D-0xx`); then the code (cited `path:line`, relative to `Source/world_of_refraction/`); then the design and mechanics docs, cited only when a rule exists nowhere else. When a ruling and the code disagree, the ruling is the rule and the code is the conflict.
 
-Each page ends with **Open questions** (unanswered `D-xxx`), **Conflicts** (each linked to a D or B number) and **Gaps** (things the player needs a rule for that nobody has written).
+Each page ends with **Open questions** (unanswered `D-xxx`; the D-entry holds the options and recommendation, the page only the facts), **Conflicts** (each linked to a D or B number) and **Gaps** (things the player needs a rule for that nobody has written).
 
 ## Pages
 
@@ -34,13 +34,15 @@ Each page ends with **Open questions** (unanswered `D-xxx`), **Conflicts** (each
 
 254 rules across the six pages. The written-but-not-built rulings are mostly in economy (B-073, B-072, B-090, B-091) and status-bar caps (B-062, B-063, B-064a).
 
-Writing the pages turned up 21 new questions for Crown, **D-032 to D-052**, and six fix jobs, **B-112 to B-117**:
+Writing the pages turned up 23 new questions for Crown, **D-032 to D-054**, and six fix jobs, **B-112 to B-117**:
 - B-112: a full Light bar does nothing.
 - B-113: Status Multiplier may count twice.
 - B-114: the AI's buildup estimate.
 - B-115: durability and absorption carry-over.
 - B-116: the run-start loadout purchase.
 - B-117: a stale-text sweep.
+
+Six jobs now wait on these questions: B-062, B-063, B-064, B-071, B-073 and B-080.
 
 ## Keeping it current
 

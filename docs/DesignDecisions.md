@@ -466,7 +466,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Question:** An infused ability pays the flat x1.5 `INFUSION_ENERGY_MULTIPLIER` and then the charge multiplier (L1 x1.5, L2 x2.0): about x2.25 / x3.0 EP. A spell pays only x1.5 / x2.0. Keep the double surcharge?
 **Context:** `InfusionConstants` comments and `Infusion.md` say abilities and spells share the charge; two comments give wrong numbers ("30%/60%", "1.15x/1.30x"). Rules: 02 CED-1.
 **Options:** A keep both (abilities cost more) / B charge multiplier only (same as spells).
-**Recommendation:** A, because the deckbuilder also makes a physical ability pay +1 Energy to deal an element (`wor-deckbuilder/docs/reference/04-effects.md`). Fix the comments either way.
+**Recommendation:** A, because the deckbuilder also makes a physical ability pay +1 Energy to deal an element (`wor-deckbuilder/docs/reference/01-card-model.md:93`, "Cast through"). Fix the comments either way.
 **Answer (Crown):** _write here_
 
 ### D-034 — Under D-005, which resistance scales damage?
@@ -544,7 +544,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 ### D-043 — Who do you control when the leader is down?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-071
 **Question:** D-004 says the leader is always player-controlled. Today the player takes the first living member spawned, and if the leader dies the rest play on AI. What should happen?
-**Context:** Rules: 06 Cp-6.
+**Context:** `Trial/BattleGameMode.cpp:129-170` possesses the first living member. Rules: 06 Cp-6.
 **Options:** A only members set to Player (B-071); if none are left, the AI finishes the fight / B you take over the next living member.
 **Recommendation:** A, because it keeps D-026's per-member choice meaningful.
 **Answer (Crown):** _write here_
@@ -552,25 +552,25 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 ### D-044 — One wallet per player, or per character?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-073
 **Question:** The wallet (Gold, Prisms, Diamond) sits on each character, while the gear pool and run inventory are shared (D-020, D-026).
-**Context:** Rules: 05 Cx-5. The deckbuilder has one account-wide currency.
-**Options:** A one wallet per player / B per character (current).
-**Recommendation:** A, matching the shared pool and the deckbuilder.
+**Context:** `Currency/CurrencyComponent.h:15-24`. Rules: 05 Cx-5. The deckbuilder has one account-wide currency and shared Essences (`wor-deckbuilder/docs/design/WoR_TCG_Pivot_Design.md` §5).
+**Options:** A one wallet per player, everything / B Prisms and Diamond per player, essence per character / C per character (current).
+**Recommendation:** A, because the pool and run inventory are already shared (D-020, D-026), and per-character essence would strand upgrades.
 **Answer (Crown):** _write here_
 
 ### D-045 — Where can you upgrade, repair, merge and downgrade?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** D-002 says upgrades work in the hub and in a run. `docs/Mechanics/Economy/Hubs.md` says upgrade, repair and merge are run-only, and still describes the draft run start that D-021 replaced. Which split holds for repair, merge and downgrade?
-**Context:** Rules: 05 Cx-4.
-**Options:** A all four in the hub and in a run / B upgrade in both, the rest run-only / C as Hubs.md says.
-**Recommendation:** A, the simplest, unless Crown wants the hub kept a pure loadout space.
+**Context:** `docs/Mechanics/Economy/Hubs.md` (composition table); `D-002`. Rules: 05 Cx-4.
+**Options:** A upgrade in both (D-002); repair, merge, downgrade as Hubs.md says / B every service in both places.
+**Recommendation:** A, because it keeps the one written design and only overrides it where D-002 ruled.
 **Answer (Crown):** _write here_
 
 ### D-046 — What does Gold buy in a run?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-073
 **Question:** A code comment and `Currency.md` say consumables and temporary buffs. D-021 says the run-start loadout, in-run purchases and world stats. D-002 says upgrades never cost Gold, yet in-run shops charge Prisms today (`Purchase`).
 **Context:** Rules: 05 Cx-1, Cx-6.
-**Options:** A D-021's list plus consumables / B D-021's list only.
-**Recommendation:** A, and price trial merchants in Gold when B-073 lands.
+**Options:** A D-021's list only (run-start loadout, in-run purchases, world stats) / B also consumables and temporary buffs.
+**Recommendation:** A, as it matches D-002 and D-021; then update the comment (`CurrencyComponent.h:128`) and `Currency.md`. Price trial merchants in Gold when B-073 lands.
 **Answer (Crown):** _write here_
 
 ### D-047 — Cap turns at 2 per round of the slowest?
@@ -584,7 +584,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 ### D-048 — How long does Defend last?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** Defend's +50% Defense for 1 turn ticks away at the end of the defender's own turn, before anyone attacks, so it does nothing.
-**Context:** Rules: 04 C4-2. In the deckbuilder, Defend lasts until your next turn starts.
+**Context:** `Combat/Actions/ActionExecutor.cpp:2787-2792` gives it; the end-of-turn tick (`Combat/CombatOrchestrator.cpp:589`, `Skills/Effects/SkillEffectManager.cpp:1125-1145`) removes it. Rules: 04 C4-2. In the deckbuilder, Defend lasts until your next turn starts (`04-effects.md`, "Lasts").
 **Options:** A until your next turn starts / B as now.
 **Recommendation:** A (the deckbuilder's rule), with the 50% and the duration as named constants.
 **Answer (Crown):** _write here_
@@ -592,33 +592,49 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 ### D-049 — How are effect durations counted?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-062, B-063
 **Question:** The code ends an effect at the end of the holder's Nth turn, and a new effect acts the moment it lands, so a 2-turn DoT ticks 3 times. D-030 counts the landing turn as turn 1 and ends the effect as the next turn starts. Should D-030's counting apply to every timed effect, with exactly N ticks?
-**Context:** Rules: 04 C4-3, C4-4. The deckbuilder gives exactly N ticks. Also open: do bonus and Execution turns count as the holder's turns?
-**Options:** A D-030 counting everywhere, N ticks, bonus turns count / B D-030 for bar caps only.
+**Context:** `Skills/Effects/SkillEffectManager.cpp:1099-1153` (expiry), `:232-237, 974-991` (DoT ticks). Rules: 04 C4-3, C4-4. The deckbuilder gives exactly N ticks (`04-effects.md`, "Lasts").
+**Options:** A D-030 counting everywhere, exactly N ticks / B D-030 for bar caps only.
 **Recommendation:** A, one counting rule for everything, matching the deckbuilder.
 **Answer (Crown):** _write here_
 
 ### D-050 — Is Emerald's bonus turn extra, or the same turn moved earlier?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** Emerald's turn counts as a turn taken with no credit, so it costs a later normal turn. Extra Action adds a real turn.
-**Context:** Rules: 04 C4-5.
-**Options:** A a real extra turn / B a turn moved earlier (current).
-**Recommendation:** B if the item reads "act sooner", A if it reads "extra turn"; it's Crown's wording call.
+**Context:** `Combat/TurnManager.cpp:566-575` (pinned turn, no credit), `:305` (Extra Action). The deckbuilder's `AddTurn` adds a turn (`04-effects.md`, verb 7). Rules: 04 C4-5.
+**Options:** A a real extra turn / B a turn moved earlier (current), named to match.
+**Recommendation:** A, because players read "bonus turn" as an extra one, and it matches the deckbuilder.
 **Answer (Crown):** _write here_
 
 ### D-051 — Does the same effect from two gear pieces add up?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-062
 **Question:** Here two gear pieces giving the same effect merge into one (deliberate, per `SkillEffects.md`). The deckbuilder adds one per source, which is also D-012's idea (a different source adds).
-**Context:** Rules: 04 C4-7.
-**Options:** A add up, one per source / B merge (current).
+**Context:** `Skills/Effects/SkillEffectManager.cpp:319-330`; the deckbuilder's `Stat` duration row (`04-effects.md`). Rules: 04 C4-7.
+**Options:** A add up, one per source item / B merge (current).
 **Recommendation:** A, so D-012's rule covers gear too.
 **Answer (Crown):** _write here_
 
-### D-052 — Speed effects and turn order
+### D-052 — Is "Turn Speed Up" a buff?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
-**Question:** (1) "Turn Speed Up" (`ModifyTurnSpeed`) adds speed but `IsDebuff` lists it (`ESkillEffectType.h:390`), so cleansing an ally strips it. Is it a buff? (2) The generic Speed Buff/Debuff do nothing to turn order, though `TurnOrder.md` says Slow pushes turns back. Should they act like Turn Speed?
-**Context:** Rules: 04 C4-8, C4-9.
-**Options:** (1) A buff / B debuff (current). (2) A they move turn order / B they don't; fix the doc.
-**Recommendation:** (1) A. (2) B, keeping one speed stat for turn order.
+**Question:** `ModifyTurnSpeed` is displayed "Turn Speed Up" and adds speed (`Combat/TurnManager.cpp:228-231`), but `IsDebuff` lists it (`Skills/Effects/ESkillEffectType.h:390`), so cleansing an ally strips it and Iolite can't strip it from an enemy. Is it a buff?
+**Context:** Rules: 04 C4-8.
+**Options:** A a buff / B sign-aware, like Status Resist Up / C a debuff (current).
+**Recommendation:** A, matching its name and what it does.
+**Answer (Crown):** _write here_
+
+### D-053 — Do bonus and Execution turns count toward effect durations?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-062, B-063
+**Question:** D-030 counts "the holder's own turns". Does an Emerald bonus turn or an Execution turn count as one of them?
+**Context:** Pinned turns are taken from `Combat/TurnManager.cpp:566-575`; the effect tick runs on every turn end (`Skills/Effects/SkillEffectManager.cpp:1099-1153`). Rules: 04 Gaps.
+**Options:** A every turn the holder takes counts / B only normal turns count.
+**Recommendation:** A, the simplest to read ("2 of your turns" means any 2 turns you take), and it needs no special case.
+**Answer (Crown):** _write here_
+
+### D-054 — Do the generic Speed Buff/Debuff move turn order?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Question:** `docs/Mechanics/Combat/TurnOrder.md` says Slow (`SpeedDebuff`) pushes turns back, but the scheduler reads only Turn Speed Up/Buff/Debuff (`Combat/TurnManager.cpp:228-231`); `SpeedBuff`/`SpeedDebuff` trigger a recalculation that changes nothing (`Skills/Effects/SkillEffectManager.cpp:2374-2375`).
+**Context:** Rules: 04 C4-9.
+**Options:** A yes, like Turn Speed / B no, fix the doc.
+**Recommendation:** B, keeping one speed stat for turn order; D-029 already gives Ice its own turn-speed slow.
 **Answer (Crown):** _write here_
 
 ## Parked
