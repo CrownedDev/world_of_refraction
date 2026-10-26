@@ -11,7 +11,7 @@
 
 5. **Short runs, about 30–45 minutes** (Crown leaning, "maybe A"; Nightreign's ~40-minute expeditions). One run fits an evening; trial maps, fight counts and in-run progression are sized to it.
 
-6. **Moderate progression** (Hades-style): every run makes you noticeably stronger over time, but skill and smart builds still matter most. No grind as padding.
+6. **Progression that never locks you out** (a blend of light and moderate). Levelling Mind, Body and Spirit makes you stronger, but **a low-level character can still have a real chance against a max-level one** through gear and build: equipment that grants Mind/Body/Spirit points (which lift every stat under that pillar), stones, crystals, evolutions and the scaling rules. And the reverse: a high level with poor gear can be caught out. This is why the game has so many stat sources (`Resources_Design.md` §7.4: gear vs world-stat split; `Mechanics/Scaling/`).
 
 ## What this means for decisions
 
@@ -20,7 +20,7 @@
 - Prefer **second chances** (revives, rest spots, fleeing) over run-ending punishment, at the default difficulty (pillar 3).
 - Keep content **data-driven and extendable** (trials, characters, memories, reaction triggers) so later chapters plug in (pillar 4).
 - Size trials for a **30–45 minute run** (pillar 5): map size, number of fights, rest spots and in-run levelling all fit that.
-- Tune rewards and upgrade costs so **each run moves you forward** without a grind wall (pillar 6).
+- **No level wall** (pillar 6): keep gear and builds able to close a level gap, so stat sources stay meaningful next to levels; each run still moves you forward.
 - Lore and story are Crown's alone (`CLAUDE.md`).
 
 ## Changelog
