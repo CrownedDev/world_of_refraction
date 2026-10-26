@@ -152,7 +152,7 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
         return InventoryConstants::GetRingSlotCost(IsEvolved());
     }
 
-    /** Get ring's element from attached crystal. Returns Generic for missing
+    /** Get ring's element from attached crystal. Returns None for missing
      *  OR broken crystals — a broken crystal cannot channel its element.
      *  Body in FRingInventoryEntry.cpp. */
     ESpellElement GetElement() const;

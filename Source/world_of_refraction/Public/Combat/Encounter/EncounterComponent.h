@@ -2,9 +2,10 @@
 // World-space encounter trigger (Cluster T-C1, battle-stage shape): drop on an
 // enemy pawn in a trial level. A player pawn entering the trigger sphere opens
 // a join window — a Void-tinted ArenaSphere spawns at the encounter midpoint
-// and further player pawns entering it during JoinWindowSeconds join LocalParty
-// (the arena shrinking per joiner). On expiry the component extracts every
-// combatant's authored UCharacterData and hands the roster to
+// (the arena shrinking per joiner). Joiners don't reach the fight yet: the gate
+// only admits your own party's pawns and the roster is built from the party
+// list (docs/Rules/06-party.md Cp-5; co-op settles how other players join). On
+// expiry the component extracts every combatant's authored UCharacterData and hands the roster to
 // UTrialRunSubsystem::EnterEncounter — which OpenLevels to the trial's battle
 // stage. ABattleGameMode spawns fresh pawns and starts combat over there.
 //
