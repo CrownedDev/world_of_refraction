@@ -436,6 +436,20 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - The other caps (Fire burn, Earth defence down, Lightning stun, Light crit down, Darkness silence) follow the same 2-holder-turns rule unless Crown says otherwise; flag any that already have a different authored duration rather than overwrite it.
 - Water today is `HealBlock` (blocks all healing); change it to a healing reduction (named constant).
 
+### D-031 — Item and skill descriptions: the deckbuilder's nested text
+**Status:** ANSWERED · **Raised:** 2026-10-26 · **Blocks:** — (shapes B-044, B-045, the tooltip screens)
+**Answer (Crown):** (2026-10-26) Use **the same nested descriptions as the deckbuilder**.
+**What that is** (`wor-deckbuilder/docs/design/WoR_TCG_Pivot_Design.md` "Card text as a tree"; generated text per `docs/reference/07-text-grammar.md`):
+- The text is a **tree**: level 1 is the trigger (On Hit, On Damage, Activate, Passive…); each indented level adds a condition ("While below 30 HP"), all of which must hold; the leaves are the effects with their numbers, duration and charges. One item can have several triggers.
+- **Passive** holds only always-on effects and bonus stats; conditional ones nest under their condition.
+- **Short form** for small spaces: one line per trigger, "Trigger: effect", with "*" when it has conditions ("On Hit*: Gain 2 Energy").
+- **Live lighting** in fights: conditional lines are greyed; when the condition holds now, the branch lights **green (buff) or red (debuff)**. The pop-up of the base item shows no lighting.
+- Text is **generated from the data**, never hand-written, so it can't drift from what the item does.
+**Notes for Claude:**
+- Needs the effect data to carry trigger → nested conditions → effects; B-044 covers that in its comparison.
+- A text generator (B-045) with tests per the deckbuilder's fixtures (`09-fixtures.md`, text-grammar rows), then the skill tooltip / item detail screens use it (UI rebuild).
+- Words follow this game's names (Refractor, Refraction where player-facing per the deckbuilder's naming doc); ask Crown on any new player-facing term.
+
 ---
 
 ## Parked
