@@ -25,6 +25,7 @@
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Effects/EffectDefinition.h"
 #include "UI/Shop/ShopRowWidget.h" // shared per-entry display ladder (NameFor/TierFor/DescriptionFor)
+#include "Skills/Definitions/SupportSkillRules.h"
 
 namespace ShopWindowConstants
 {
@@ -153,9 +154,9 @@ namespace
             Lines.Add(FString::Printf(TEXT("Damage: %d"), Skill->BaseDamage));
             Lines.Add(FString::Printf(TEXT("Hits: %d"), Skill->HitCount));
             Lines.Add(FString::Printf(TEXT("Energy: %d"), Skill->BaseEnergyCost));
-            if (Skill->StatusBuildup > 0)
+            if (const int32 Buildup = SupportSkillRules::GetAuthoredStatusBuildup(Skill); Buildup > 0)
             {
-                Lines.Add(FString::Printf(TEXT("Status buildup: %d"), Skill->StatusBuildup));
+                Lines.Add(FString::Printf(TEXT("Status buildup: %d"), Buildup));
             }
             TArray<FString> Grades;
             for (const FStatScaling &Sc : Skill->StatScaling)

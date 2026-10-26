@@ -3,6 +3,7 @@
 
 #include "Skills/Definitions/AbilityData.h"
 #include "Character/CharacterData.h"
+#include "Skills/Definitions/SupportSkillRules.h"
 
 // ==================== MIGRATION ====================
 
@@ -81,7 +82,8 @@ int32 UAbilityData::CalculateInfusedEnergyCost(UCharacterData *Character) const
 
 int32 UAbilityData::CalculateStatusBuildup(UCharacterData *Character) const
 {
-    if (!Character || bImmuneToInfusion)
+    // A heal / buff / support ability builds none (rules page 03)
+    if (!Character || bImmuneToInfusion || SupportSkillRules::IsSupportSkill(this))
         return 0;
 
     float BuildupPerHit = CombatConstants::BASE_STATUS_BUILDUP_PER_HIT;

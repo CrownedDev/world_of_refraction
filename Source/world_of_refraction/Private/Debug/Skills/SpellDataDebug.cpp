@@ -2,6 +2,7 @@
 
 #include "Debug/Skills/SpellDataDebug.h"
 #include "Engine/Engine.h"
+#include "Skills/Definitions/SupportSkillRules.h"
 
 void USpellDataDebug::PrintSpellStats(USpellData *Spell, UCharacterData *Character, float Duration)
 {
@@ -97,6 +98,10 @@ FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *
         Output += FString::Printf(TEXT("  Activation Delay: %d turn(s)\n"), Spell->ActivationDelay);
     }
 
+    if (SupportSkillRules::IsSupportSkill(Spell))
+    {
+        Output += TEXT("  Support skill: builds no status\n");
+    }
     int32 Buildup = Spell->CalculateStatusBuildup(Character);
     if (Buildup > 0)
     {

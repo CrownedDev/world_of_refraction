@@ -31,6 +31,7 @@
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Inventory/ItemEffectType.h"
 #include "Combat/TurnManager.h"
+#include "Skills/Definitions/SupportSkillRules.h"
 
 USkillEffectManager *
 UAIDecisionManager::GetSkillEffectManager() const
@@ -2026,7 +2027,7 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
     if (BuildupManager)
     {
         // Calculate L1 buildup — per-mode, stat-scaled status (matches execution's GetChargeStatusMultiplier).
-        float BaseBuildup = Spell->StatusBuildup;
+        float BaseBuildup = SupportSkillRules::GetAuthoredStatusBuildup(Spell);
         UActionExecutor *StatusExec = GetActionExecutor();
         const float L1StatusMult = StatusExec
                                        ? StatusExec->GetChargeStatusMultiplier(1, StatusExec->ResolveInfusionMode(Source, Attacker), AttackerComp)
