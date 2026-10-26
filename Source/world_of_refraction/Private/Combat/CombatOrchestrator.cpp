@@ -17,6 +17,7 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Combat/FleeRules.h"
 #include "Currency/CurrencyComponent.h"
+#include "Currency/CurrencyWallet.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "UI/Combat/CombatHUD.h"
 #include "Combat/Camera/CombatCameraDirector.h"
@@ -777,11 +778,19 @@ bool ACombatOrchestrator::TryMoveRow(AActor *Actor, bool bForward, FText &OutRef
 
 void ACombatOrchestrator::BeginFlee()
 {
+	// D-046 (B-151): the party shares one wallet, so the flee loss is taken once per wallet,
+	// not once per member.
 	int32 TotalGoldLost = 0;
+	TSet<UCurrencyComponent *> ChargedWallets;
 	for (AActor *Member : LocalPartyCombatants)
 	{
-		UCurrencyComponent *Currency = Member ? Member->FindComponentByClass<UCurrencyComponent>() : nullptr;
-		const int32 Lost = Currency ? FleeRules::GoldLost(Currency->GetBalance(ECurrencyType::Gold)) : 0;
+		UCurrencyComponent *Currency = CurrencyWallet::FindFor(Member);
+		if (!Currency || ChargedWallets.Contains(Currency))
+		{
+			continue;
+		}
+		ChargedWallets.Add(Currency);
+		const int32 Lost = FleeRules::GoldLost(Currency->GetBalance(ECurrencyType::Gold));
 		if (Lost > 0 && Currency->Spend(ECurrencyType::Gold, Lost))
 		{
 			TotalGoldLost += Lost;
