@@ -666,6 +666,20 @@ FText ACombatOrchestrator::GetFleeRefusedReason(AActor *Actor) const
 	return FText::GetEmpty();
 }
 
+namespace
+{
+	/** A free row step moves exactly one row (D-096). */
+	constexpr int32 ORCHESTRATOR_ROW_STEP = 1;
+
+	/** The cell one row forward or back, same column (Q-180: never sideways). */
+	FCombatGridPosition OrchestratorStepTarget(const FCombatGridPosition &From, bool bForward)
+	{
+		FCombatGridPosition Target = From;
+		Target.Row = CombatRowHelpers::GetRowFromIndex(From.GetRowIndex() + (bForward ? ORCHESTRATOR_ROW_STEP : -ORCHESTRATOR_ROW_STEP));
+		return Target;
+	}
+}
+
 FText ACombatOrchestrator::GetRowMoveRefusedReason(AActor *Actor, bool bForward) const
 {
 	if (CombatState != ECombatState::InProgress)
@@ -700,9 +714,7 @@ FText ACombatOrchestrator::GetRowMoveRefusedReason(AActor *Actor, bool bForward)
 	}
 	// Q-180: in battle you step only into an empty cell, same column; swapping places with an
 	// ally is for formation outside battle (D-042). A fallen ally's cell is taken too.
-	FCombatGridPosition Target = Position;
-	Target.Row = CombatRowHelpers::GetRowFromIndex(Position.GetRowIndex() + (bForward ? 1 : -1));
-	if (Grid->GetActorAtPosition(Target))
+	if (Grid->GetActorAtPosition(OrchestratorStepTarget(Position, bForward)))
 	{
 		return NSLOCTEXT("CombatOrchestrator", "RowTaken", "That cell is taken.");
 	}
@@ -718,9 +730,9 @@ bool ACombatOrchestrator::TryMoveRow(AActor *Actor, bool bForward, FText &OutRef
 	}
 
 	UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
-	FCombatGridPosition Target;
-	Grid->GetActorPosition(Actor, Target);
-	Target.Row = CombatRowHelpers::GetRowFromIndex(Target.GetRowIndex() + (bForward ? 1 : -1));
+	FCombatGridPosition Position;
+	Grid->GetActorPosition(Actor, Position);
+	const FCombatGridPosition Target = OrchestratorStepTarget(Position, bForward);
 
 	// The target cell is empty (GetRowMoveRefusedReason), so this is a plain step (Q-180).
 	if (!Grid->MoveActorToRow(Actor, Target.Row, GetActorLocation()))
