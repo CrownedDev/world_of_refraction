@@ -7,6 +7,7 @@
 #include "Combat/Actions/ActionStructs.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "AI/EAIDifficulty.h"
+#include "Combat/Encounter/EEncounterRank.h"
 #include "AI/AIDecisionManager.h"
 #include "Skills/Definitions/ESpellDeliveryType.h"
 #include "Skills/Definitions/SkillVFXEntry.h"
@@ -31,7 +32,8 @@ enum class ECombatState : uint8
 	InProgress,	  // Combat active, processing turns
 	Victory,	  // Player team won
 	Defeat,		  // Enemy team won
-	Draw		  // Both teams eliminated (edge case)
+	Draw,		  // Both teams eliminated (edge case)
+	Fled		  // Player team fled a normal fight (D-091)
 };
 
 /**
@@ -225,6 +227,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat|AI")
 	EAIDifficulty GetCombatDifficulty() const { return CombatDifficulty; }
 
+	/** D-091: the fight's rank (set before StartCombat); only a Normal fight can be fled. */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Flee")
+	void SetEncounterRank(EEncounterRank Rank) { EncounterRank = Rank; }
+
+	UFUNCTION(BlueprintPure, Category = "Combat|Flee")
+	EEncounterRank GetEncounterRank() const { return EncounterRank; }
+
+	/** Why Actor can't flee right now (combat not running, not on the local party, a mini-boss or
+	 *  boss fight); empty when it can. A stunned actor is refused by ValidateAction (D-023). */
+	UFUNCTION(BlueprintPure, Category = "Combat|Flee")
+	FText GetFleeRefusedReason(AActor *Actor) const;
+
 	// ========================================
 	// EVENTS
 	// ========================================
@@ -270,6 +284,10 @@ public:
 	/** AI difficulty level for this combat */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|AI")
 	EAIDifficulty CombatDifficulty = EAIDifficulty::Medium;
+
+	/** D-091: this fight's rank; per-fight state on the orchestrator (D-064). */
+	UPROPERTY(VisibleInstanceOnly, Category = "Combat|Flee")
+	EEncounterRank EncounterRank = EEncounterRank::Normal;
 
 	// ========================================
 	// DEBUG TOOLS
@@ -531,6 +549,10 @@ private:
 	 *  the action itself was invalid, empty when a guard refused it (no actor or executor, or
 	 *  an action already running). */
 	bool StartActionAsync(const FAction &Action, FString &OutInvalidReason);
+
+	/** D-091: the party flees. Takes the Gold cost from every local-party wallet, reports the
+	 *  action, and ends the fight as Fled on the next tick (out of the action call stack). */
+	void BeginFlee();
 
 	/** Normal turn-start flow AFTER rituals fire: start-of-turn effects (DoT),
 	 *  BD overflow, death check, turn broadcast, then RequestActionFromActor.
