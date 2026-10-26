@@ -109,7 +109,7 @@ This page covers the currencies, what a fight and a run pay out, what carries ov
 
 ## Gaps
 - No Gold, Prism or material amounts per fight or per run exist, not even placeholders (B-073 will add them as named constants).
-- "Upgrade materials earned in a run" (D-006): today nothing earns materials in a run except dismantling, which pays at once. Which drops count is undefined.
+- "Upgrade materials earned in a run" (D-006): today nothing earns materials in a run except dismantling, which pays at once. Which drops count is undefined. **Ruled: D-094** (all three upgrade materials from every fight, more from mini-bosses, bosses and chests; "Reality essence" renamed "Unknown essence").
 - D-021's starting budget, price curve and Gold price list have no numbers yet (B-116 adds them as tuning constants).
 - Payout on defeat: D-006 pays Prisms on a loss "scaled by progress" but sets no ratio. The deckbuilder pays a quarter of a win's reward on a defeat and nothing for conceding (`wor-deckbuilder/docs/design/WoR_TCG_Pivot_Design.md`, PvE section).
 - Fleeing a fight: no rule for whether it ends the run or what it pays.
