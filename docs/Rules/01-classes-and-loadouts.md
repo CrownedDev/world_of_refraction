@@ -38,7 +38,7 @@ This page states what each class is, what a character can equip, and what that g
 | CL-20 | Abilities come from the active weapon, for every class: its preset abilities plus the ones you assign. A weapon holds abilities by **its tier**: F 1, E 2, D 3, C 4, B 5, A 6, S 6 (`ATTACHMENT_SLOTS`). Locked presets (conjured weapons) fill slots and can't be removed. | In game | `Private/UI/Combat/FCombatCapabilities.cpp:58-59`; `Private/Loadout/Entries/FWeaponLoadoutEntry.cpp:31-51`; `Public/Equipment/Crystals/AugmentStoneConstants.h:35` |
 | CL-21 | **Weapons never give spells.** A crystal on a weapon gives elemental (infused) abilities instead. Today a weapon crystal still offers its spells (Resonate Weapon), and they cost no EP. | Decided, not built (B-098) | `D-027`; `D-007`; `Private/UI/Combat/FCombatCapabilities.cpp:61-69`; `Private/Combat/Actions/ActionExecutor.cpp:345-352` |
 | CL-22 | A Generic with an evolution primary **keeps its secondary weapon** and that weapon's attack and abilities. The active-weapon path does this; `HasSecondaryEquipment` still says it has no secondary. | Decided, partly built (B-099) | `D-027`; `Private/Loadout/LoadoutComponent.cpp:2671-2683` vs `:2469-2473` |
-| CL-23 | Wield mode (Single / Dual / Off-Hand Shield) only sets how the weapon is shown. The player doesn't choose it, and it changes no rule. | Code only (no ruling) | `Public/Equipment/Weapons/EWeaponWieldMode.h:28-33` |
+| CL-23 | Wield mode (Single / Dual / Off-Hand Shield) only sets how the weapon is shown. The player doesn't choose it, and it changes no rule. | Kept by Crown (2026-10-26, rules review): damage is set per skill, so wield mode stays visual | `Public/Equipment/Weapons/EWeaponWieldMode.h:28-33` |
 
 ## Rings
 
