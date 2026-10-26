@@ -24,6 +24,7 @@
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "Tags/WoRGameplayTags.h"
+#include "WoRLog.h"
 
 // ========================================
 // SUBSYSTEM LIFECYCLE
@@ -99,12 +100,21 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 		return EEffectApplicationResult::Rejected;
 	}
 
-	// D2: fires-once gate — reject re-application this match BEFORE any stacking/refresh,
-	// so a fires-once effect can never stack or refresh either.
-	if (Effect.bFiresOncePerMatch && FiredOnceThisMatch.Contains(Effect.EffectID))
+	// Identity = (holder, EffectID, source) (D-012, D-053). Gear arrives stamped with its item;
+	// anything else is keyed on the applying actor + the skill or reason it applied with.
+	if (Effect.SourceKey == 0)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s rejected — already fired once this match (ID=%d)"),
-			   *Effect.EffectName, Effect.EffectID);
+		Effect.SourceKey = EffectIdentity::MakeSourceKey(Source ? Source->GetUniqueID() : 0, SourceAbility);
+	}
+
+	// D2: fires-once gate — reject re-application this match BEFORE any stacking/refresh,
+	// so a fires-once effect can never stack or refresh either. One use per holder and
+	// source (D-011): two wearers of the same gear each get theirs.
+	const FWoRFiredOnceKey FiredOnceKey{Target, Effect.EffectID, Effect.SourceKey};
+	if (Effect.bFiresOncePerMatch && FiredOnceThisMatch.Contains(FiredOnceKey))
+	{
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s rejected on %s — already fired once this match (ID=%d)"),
+			   *Effect.EffectName, *Target->GetName(), Effect.EffectID);
 		return EEffectApplicationResult::Rejected;
 	}
 
@@ -128,6 +138,11 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	{
 		ApplyEffectLogic(Target, Effect);
 		OnEffectApplied.Broadcast(Target, Effect);
+		// A fires-once instant spends its use too, or it could fire every time (B-062).
+		if (Effect.bFiresOncePerMatch)
+		{
+			FiredOnceThisMatch.Add(FiredOnceKey);
+		}
 		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Instant %s applied to %s (Value: %.1f, not stored)"),
 			   *Effect.EffectName, *Target->GetName(), Effect.EffectValue);
 		return EEffectApplicationResult::Applied;
@@ -136,37 +151,35 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	// Get or create effect array for this actor
 	TArray<FActiveSkillEffect> &Effects = ActiveEffects.FindOrAdd(Target);
 
-	// Check for existing effect with same ID
-	FActiveSkillEffect *ExistingEffect = FindEffectByID(Target, Effect.EffectID);
+	// The copy this source already put on the holder, if any (D-012, D-053). Another
+	// source's copy is a separate effect, unless the definition says it doesn't stack.
+	FActiveSkillEffect *ExistingEffect = FindEffectByIdentity(Target, Effect.EffectID, Effect.SourceKey);
+
+	if (!ExistingEffect && Effect.bDoesNotStack && FindEffectByID(Target, Effect.EffectID))
+	{
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: %s rejected — doesn't stack, another source's copy is held"),
+			   *Target->GetName(), *Effect.EffectName);
+		return EEffectApplicationResult::Rejected;
+	}
 
 	if (ExistingEffect)
 	{
-		// Re-apply strength policy (matched per-Target by EffectID). Strength is the
-		// single-application magnitude (Abs, so the one signed type — ModifyStatusResist —
-		// compares by how-strong not which-way). STRONGER overwrites the value; duration
-		// refreshes on equal-or-stronger, gated by the per-effect bRefreshDurationOnReapply
-		// opt-out. WEAKER is ignored entirely. EQUAL refreshes duration only — this is what
-		// preserves the maintenance mechanics (Defend's constant 50%, on-hit Burn/Chill at a
-		// constant per-attacker magnitude, Stun's 0.0) that sustain via equal re-application.
-		const float IncomingStrength = Effect.Strength();
-		const float ActiveStrength = ExistingEffect->Strength();
-		const bool bStronger = IncomingStrength > ActiveStrength;
-		const bool bWeaker = IncomingStrength < ActiveStrength;
+		// Re-apply from the same source REPLACES (Q-044 A, the deckbuilder rule): the value is
+		// re-snapshotted from this application (D-012) and the duration refreshes, gated by
+		// the per-effect bRefreshDurationOnReapply opt-out. Maintenance mechanics (Defend's
+		// constant 50%, on-hit Burn at a constant magnitude) re-apply the same value, so they
+		// still just refresh.
+		const bool bValueChanged = !FMath::IsNearlyEqual(Effect.EffectValue, ExistingEffect->EffectValue);
 
-		// Stacking: a stackable re-apply still adds a stack (count climbs), and per-stack
-		// strength tracks the strongest seen (never falls). A weaker re-apply still stacks
-		// but neither lowers the value nor refreshes. At MAX stacks this branch is skipped
-		// and the strength gate below runs, so a stronger hit at cap still upgrades the value.
+		// Stacking: a stackable re-apply adds a stack (count climbs) and takes this
+		// application's per-stack value. At MAX stacks this branch is skipped and the plain
+		// replace below runs.
 		if (Effect.bCanStack && ExistingEffect->CanAddStack())
 		{
 			ExistingEffect->CurrentStacks++;
+			ExistingEffect->EffectValue = Effect.EffectValue;
 
-			if (bStronger)
-			{
-				ExistingEffect->EffectValue = Effect.EffectValue; // track strongest (by Abs)
-			}
-
-			if (!bWeaker && Effect.bRefreshDurationOnReapply)
+			if (Effect.bRefreshDurationOnReapply)
 			{
 				ExistingEffect->RemainingTurns = Effect.InitialDuration;
 			}
@@ -185,37 +198,23 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 			return EEffectApplicationResult::StackAdded;
 		}
 
-		// Non-stacking (or at max stacks): the strength gate.
-		// WEAKER -> ignored entirely: no value change, no duration refresh.
-		if (bWeaker)
+		// Non-stacking (or at max stacks): replace the value, refresh the duration.
+		const float PreviousValue = ExistingEffect->EffectValue;
+		ExistingEffect->EffectValue = Effect.EffectValue;
+
+		// A changed magnitude on a speed effect must re-notify the turn order.
+		if (bValueChanged && IsSpeedEffect(Effect.EffectType))
 		{
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s: %s ignored — weaker than active (%.1f < %.1f)"),
-				   *Target->GetName(), *Effect.EffectName, IncomingStrength, ActiveStrength);
-			return EEffectApplicationResult::Rejected;
+			NotifySpeedChanged(Target);
 		}
 
-		// STRONGER -> overwrite the value (always). EQUAL -> keep the value.
-		if (bStronger)
-		{
-			ExistingEffect->EffectValue = Effect.EffectValue;
-
-			// A changed magnitude on a speed effect must re-notify the turn order.
-			if (IsSpeedEffect(Effect.EffectType))
-			{
-				NotifySpeedChanged(Target);
-			}
-		}
-
-		// Duration refreshes on equal-or-stronger, gated by the per-effect opt-out.
 		if (Effect.bRefreshDurationOnReapply)
 		{
 			ExistingEffect->RemainingTurns = Effect.InitialDuration;
 		}
 
-		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s: %s %s (strength %.1f vs %.1f)"),
-			   *Target->GetName(), *Effect.EffectName,
-			   bStronger ? TEXT("upgraded + duration refreshed") : TEXT("duration refreshed"),
-			   IncomingStrength, ActiveStrength);
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: %s re-applied by the same source — value %.1f -> %.1f, %d turns left"),
+			   *Target->GetName(), *Effect.EffectName, PreviousValue, Effect.EffectValue, ExistingEffect->RemainingTurns);
 
 		OnEffectDurationChanged.Broadcast(Target, *ExistingEffect, ExistingEffect->RemainingTurns);
 		return EEffectApplicationResult::DurationRefreshed;
@@ -264,7 +263,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	// the gate above before it can reach the stack/refresh branches, so this lands exactly once.
 	if (Effect.bFiresOncePerMatch)
 	{
-		FiredOnceThisMatch.Add(Effect.EffectID);
+		FiredOnceThisMatch.Add(FiredOnceKey);
 	}
 
 	return EEffectApplicationResult::Applied;
@@ -321,15 +320,16 @@ void USkillEffectManager::ApplyEquipmentEffects(
 		}
 
 		// Def-identity packing: feeding G.DefID as the window key and G.BundleIndex as the
-		// effect index yields PackEffectID(DefID, BundleIndex, payload) — so the SAME
-		// definition referenced by any source produces the SAME EffectID and MERGES via
-		// ApplyEffect's FindEffectByID path. One authored effect still yields N runtime
-		// effects (one per payload).
+		// effect index yields PackEffectID(DefID, BundleIndex, payload) — the same definition
+		// gives the same EffectID. The item it came from is the source (D-053), so two items
+		// with that definition each add their own copy. One authored effect still yields N
+		// runtime effects (one per payload).
 		TArray<FActiveSkillEffect> Runtimes = FActiveSkillEffect::CreateAllFromSkillEffect(
 			Source.EffectName, G.DefID, Source, G.BundleIndex);
 
 		for (FActiveSkillEffect &Runtime : Runtimes)
 		{
+			Runtime.SourceKey = G.SourceKey;
 			ApplyEffect(Target, Runtime, nullptr, Source.EffectName, -1);
 		}
 	}
@@ -1859,8 +1859,8 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 					}
 
 					// Def-identity: same packing as cast / equipment
-					// (PackEffectID(DefID, BundleIndex, PayloadIndex)) — a defender-fired effect
-					// MERGES with the same def applied elsewhere and shares the fires-once gate.
+					// (PackEffectID(DefID, BundleIndex, PayloadIndex)); the source key below keeps
+					// each wearer's item a separate copy with its own fires-once use.
 					const int32 PayloadEffectID =
 						EffectIdentity::PackEffectID(G.DefID, G.BundleIndex, PayloadIndex);
 
@@ -1906,6 +1906,14 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 						Runtime.EffectValue = (Payload.AttackCostScale > 0.0f)
 							? static_cast<float>(FMath::RoundToInt(Payload.AttackCostScale * AttackEnergyCost))
 							: ((RuntimeValue != 0) ? static_cast<float>(RuntimeValue) : (Payload.Magnitude * 100.0f));
+
+						// Source = this wearer's item (D-053, D-011): it may land on someone else, so
+						// the wearer is part of it — two wearers of the same gear stay two sources.
+						Runtime.bDoesNotStack = E.bDoesNotStack;
+						if (G.SourceKey != 0)
+						{
+							Runtime.SourceKey = static_cast<int32>(HashCombine(static_cast<uint32>(G.SourceKey), GetTypeHash(Owner->GetUniqueID())));
+						}
 
 						ApplyEffect(AppTarget, Runtime, Owner, E.EffectName, OwnerTeam);
 
@@ -2410,6 +2418,20 @@ FActiveSkillEffect *USkillEffectManager::FindEffectByID(AActor *Actor, int32 Eff
 	return nullptr;
 }
 
+FActiveSkillEffect *USkillEffectManager::FindEffectByIdentity(AActor *Actor, int32 EffectID, int32 SourceKey)
+{
+	TArray<FActiveSkillEffect> *Effects = Actor ? ActiveEffects.Find(Actor) : nullptr;
+	if (!Effects)
+	{
+		return nullptr;
+	}
+
+	return Effects->FindByPredicate([EffectID, SourceKey](const FActiveSkillEffect &Effect)
+	{
+		return Effect.EffectID == EffectID && Effect.SourceKey == SourceKey;
+	});
+}
+
 UCharacterDataComponent *USkillEffectManager::GetCharacterDataComponent(AActor *Actor) const
 {
 	if (!Actor)
@@ -2488,9 +2510,10 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	// target (e.g. DOT and Burst use Target MaxHP). Source still passed to
 	// ApplyEffect below for attribution.
 
+	// EffectID is set after the switch from the RESOLVED type (RandomDebuff picks one), so the
+	// same cap from the same source refreshes and another source adds (D-012).
 	FActiveSkillEffect Effect;
 	Effect.Element = Element;
-	Effect.EffectID = FMath::Rand();
 
 	// Generate element-aware display name
 	Effect.EffectName = SkillEffectDisplayNames::GetDisplayName(StatusType, Element);
@@ -2622,6 +2645,7 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 		return;
 	}
 
+	Effect.EffectID = EffectIdentity::MakeStatusCapEffectID(static_cast<uint8>(Effect.EffectType), static_cast<uint8>(Element));
 	Effect.InitialDuration = Effect.RemainingTurns;
 	ApplyEffect(Target, Effect, Source, TEXT("Status Bar Trigger"), -1);
 
