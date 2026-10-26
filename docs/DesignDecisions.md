@@ -262,7 +262,7 @@ The queue of questions only Crown can answer.
 **Answer (Crown):** (2026-10-26) Pick from pictures: B-101 draws all four candidates (plus a crystal-themed one, see D-024) in the combat HUD mockup, and Crown chooses there.
 
 ### D-018 — Art pack licences for Unreal
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** asset import (later)
+**Status:** DECIDED · **Raised:** 2026-10-25 · **Blocks:** asset import (later)
 **Question:** Confirm each pack in the deckbuilder's `CREDITS.md` allows Unreal / commercial use.
 **Checked (2026-10-26, from the deckbuilder's `CREDITS.md`; the vendor licence files aren't in git):**
 | Pack | Unreal + commercial game? | Catch |
@@ -277,8 +277,7 @@ The queue of questions only Crown can answer.
 | AD Sounds Cards Vol. II | Yes (commercial games) | Don't remix or claim the files |
 | Stormwave Glass SFX Vol. I | Yes (royalty-free, bought) | The agreement PDF wasn't in the download: **get it** |
 All of them allow use inside the game; none allows sharing the raw files. "Save what we use" in this **private** repo is fine; never make it public.
-**Left for Crown:** (1) confirm the two PONETI store pages say standard EULA; (2) get Stormwave's agreement PDF; (3) add godboyhappy's store link.
-**Answer (Crown):** _write here_
+**Answer (Crown):** (2026-10-26) No further checks: Crown is confident the packs are fine. Keep the repo private (no raw files shared).
 
 ### D-019 — Where does the mockup generator live?
 **Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** —
@@ -294,7 +293,8 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:**
 - Fits D-026 (one shared run inventory for the party). The pool is account scope (`APlayerState` or the save, `CurrencySystem.md` routing note); characters equip *from* it, they don't each copy it.
 - Fix `InitializeFromPool` copying the whole pool into each pawn (`InventoryComponent.cpp:1446-1503`).
-- Equipping an item already worn by another party member: refuse it, or move it over with a prompt. Not ruled; ask when building.
+- **Gear presets (Crown, 2026-10-26):** you can preset each character's gear (their saved loadouts, `UInventoryComponent::SavedLoadouts`), drawn from the shared pool. Presets reference pool items (B-085), never copies.
+- An item can sit in several characters' presets; only one can wear it at a time. Suggested clash rule (not ruled; confirm when building): the party screen flags the clash and you pick who wears it, before the run or fight starts.
 - Tests: a party of 3 with one Fire Sword has exactly one; equipping it on a second member doesn't duplicate it.
 
 ### D-021 — How do you get your loadout at the start of a run?
