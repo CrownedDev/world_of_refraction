@@ -559,47 +559,64 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 
 void ACombatOrchestrator::SubmitActionAsync(const FAction &Action)
 {
-	AActor *Actor = CurrentActor;
-	if (!Actor)
+	FString InvalidReason;
+	if (StartActionAsync(Action, InvalidReason) || InvalidReason.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] SubmitActionAsync called with no current actor"));
 		return;
+	}
+
+	// Never strand the turn: the auto-advance timer is already cleared and the
+	// caller (AI timer / menu click) has no return value to recover with.
+	AActor *Actor = CurrentActor;
+	if (IsActorAIControlled(Actor))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] %s AI action invalid (%s) - passing turn"),
+			   *Actor->GetName(), *InvalidReason);
+		OnActionCompleted();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] %s action invalid (%s) - re-requesting"),
+			   *Actor->GetName(), *InvalidReason);
+		RequestActionFromActor(Actor);
+	}
+}
+
+bool ACombatOrchestrator::StartActionAsync(const FAction &Action, FString &OutInvalidReason)
+{
+	OutInvalidReason.Reset();
+
+	if (CombatState != ECombatState::InProgress)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Action submitted but combat not in progress"));
+		return false;
+	}
+
+	if (!CurrentActor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Action submitted with no current actor"));
+		return false;
 	}
 
 	if (!ActionExecutorRef)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] ActionExecutor not available!"));
-		return;
+		return false;
 	}
 
 	if (bWaitingForAsyncAction)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Already waiting for async action to complete"));
-		return;
+		return false;
 	}
 
-	// Clear auto-advance timer
 	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
 
-	// Validate action
-	FActionValidationResult Validation = ActionExecutorRef->ValidateAction(CurrentActor, Action);
+	const FActionValidationResult Validation = ActionExecutorRef->ValidateAction(CurrentActor, Action);
 	if (!Validation.bIsValid)
 	{
-		// Never strand the turn: the auto-advance timer is already cleared and the
-		// caller (AI timer / menu click) has no return value to recover with.
-		if (IsActorAIControlled(Actor))
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] %s AI action invalid (%s) - passing turn"),
-				   *Actor->GetName(), *Validation.ErrorMessage);
-			OnActionCompleted();
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] %s action invalid (%s) - re-requesting"),
-				   *Actor->GetName(), *Validation.ErrorMessage);
-			RequestActionFromActor(Actor);
-		}
-		return;
+		OutInvalidReason = Validation.ErrorMessage.IsEmpty() ? FString(TEXT("invalid action")) : Validation.ErrorMessage;
+		return false;
 	}
 
 	bWaitingForAsyncAction = true;
@@ -607,9 +624,9 @@ void ACombatOrchestrator::SubmitActionAsync(const FAction &Action)
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s executing %s asynchronously..."),
 		   *CurrentActor->GetName(), *Action.GetActionName());
 
-	// Execute action asynchronously with callback
 	ActionExecutorRef->ExecuteActionAsync(CurrentActor, Action,
 										  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
+	return true;
 }
 
 FActionValidationResult ACombatOrchestrator::ValidateAction(const FAction &Action) const
@@ -839,20 +856,22 @@ void ACombatOrchestrator::FireScheduledExecution()
 	}
 
 	// Option 2: the Execution turn is a normal turn that skips "ask the character what to
-	// do" and runs the pre-decided ritual through the SAME path a normal action uses.
-	// CurrentActor is already the caster (HandleTurnStarted set it before this branch).
-	// SubmitAction validates (bIsDeferredFire bypasses the stun/silence/dead-target gates
-	// and zeroes cost — paid at arm), routes async (the ritual carries montages), and binds
-	// HandleAsyncActionCompleted → return → finalize → single AdvanceToNextTurn. No parallel
-	// fire path, no parallel completion callback. bWaitingForAsyncAction is owned by
-	// SubmitAction — do NOT pre-set it here.
+	// do" and runs the pre-decided ritual through the SAME async start a normal action uses
+	// (B-031: the old sync router dropped a montage-less ritual ability or spell, because sync
+	// ExecuteAction refuses those types). CurrentActor is already the caster (HandleTurnStarted
+	// set it before this branch). Validation lets bIsDeferredFire past the stun/silence/
+	// dead-target gates and zeroes cost (paid at arm); completion binds
+	// HandleAsyncActionCompleted → return → finalize → single AdvanceToNextTurn.
+	// bWaitingForAsyncAction is owned by StartActionAsync — do NOT pre-set it here.
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Execution turn: firing %s (caster %s, payload %d)"),
 		   *FireAction.GetActionName(), *Caster->GetName(), PayloadId);
 
-	if (!SubmitAction(FireAction))
+	FString InvalidReason;
+	if (!StartActionAsync(FireAction, InvalidReason))
 	{
-		// SubmitAction refused (validation / re-entrancy guard) — don't strand the turn.
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Execution submit refused — advancing"));
+		// No one to re-ask on an Execution turn — don't strand it.
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Execution fire refused (%s) — advancing"),
+			   InvalidReason.IsEmpty() ? TEXT("guard") : *InvalidReason);
 		TurnManagerRef->AdvanceToNextTurn();
 	}
 }
@@ -1931,7 +1950,7 @@ void ACombatOrchestrator::DebugExecuteTestAction()
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] DEBUG: %s executing Defend action"),
 		   *CurrentActor->GetName());
 
-	SubmitAction(TestAction);
+	SubmitActionAsync(TestAction);
 }
 
 void ACombatOrchestrator::DebugTestAttackMovement()
