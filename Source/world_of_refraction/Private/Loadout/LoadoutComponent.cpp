@@ -50,7 +50,7 @@ void ULoadoutComponent::EnsureDefaultLoadout()
     {
         FCombatLoadout DefaultLoadout;
         DefaultLoadout.LoadoutName = TEXT("Default");
-        DefaultLoadout.InitializeForClass(CharacterClass);
+        DefaultLoadout.InitializeForClass(GetCharacterClass());
         Inv->SavedLoadouts.Add(DefaultLoadout);
         Inv->ActiveLoadoutIndex = 0;
     }
@@ -58,19 +58,26 @@ void ULoadoutComponent::EnsureDefaultLoadout()
 
 // ==================== ACTIVE LOADOUT ====================
 
-FCombatLoadout ULoadoutComponent::GetActiveLoadout() const
+const FCombatLoadout &ULoadoutComponent::GetActiveLoadout() const
 {
+    static const FCombatLoadout EmptyLoadout;
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
     {
         UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveLoadout] No InventoryComponent found on owner"));
-        return FCombatLoadout();
+        return EmptyLoadout;
     }
     if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
     }
-    return FCombatLoadout();
+    return EmptyLoadout;
+}
+
+ECharacterClass ULoadoutComponent::GetCharacterClass() const
+{
+    const UCharacterData *CharData = GetOwnerCharacterData();
+    return CharData ? CharData->CharacterClass : CharacterClass;
 }
 
 bool ULoadoutComponent::GetActiveLoadoutRef(FCombatLoadout &OutLoadout) const
@@ -169,7 +176,7 @@ int32 ULoadoutComponent::CreateNewLoadout(const FString &LoadoutName)
 
     FCombatLoadout NewLoadout;
     NewLoadout.LoadoutName = LoadoutName;
-    NewLoadout.InitializeForClass(CharacterClass);
+    NewLoadout.InitializeForClass(GetCharacterClass());
 
     int32 NewIndex = Inv->SavedLoadouts.Add(NewLoadout);
     return NewIndex;
@@ -583,7 +590,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
     }
 
     // Validate secondary (Generic)
-    if (CharacterClass == ECharacterClass::Generic)
+    if (GetCharacterClass() ==ECharacterClass::Generic)
     {
         if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid())
         {
@@ -604,7 +611,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
     }
 
     // Validate ring loadout (Resonator)
-    if (CharacterClass == ECharacterClass::Resonator)
+    if (GetCharacterClass() ==ECharacterClass::Resonator)
     {
         int32 TotalSlotCost = 0;
         for (const FRingLoadoutEntry &RingEntry : Loadout.RingLoadout)
@@ -656,7 +663,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
     }
 
     // Validate innate spells (Caster)
-    if (CharacterClass == ECharacterClass::Caster)
+    if (GetCharacterClass() ==ECharacterClass::Caster)
     {
         // Resolve the owning actor's CharacterDataComponent + BrokenDarknessManager.
         AActor *OwnerActor = GetOwner();
@@ -973,7 +980,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
     }
 
     // Secondary weapon (Generic)
-    if (CharacterClass == ECharacterClass::Generic)
+    if (GetCharacterClass() ==ECharacterClass::Generic)
     {
         if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid())
         {
@@ -994,7 +1001,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
     }
 
     // Resonator ring loadout
-    if (CharacterClass == ECharacterClass::Resonator)
+    if (GetCharacterClass() ==ECharacterClass::Resonator)
     {
         int32 TotalSlotCost = 0;
         for (int32 i = 0; i < Loadout.RingLoadout.Num(); ++i)
@@ -1050,7 +1057,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
     }
 
     // Innate spells (Caster)
-    if (CharacterClass == ECharacterClass::Caster)
+    if (GetCharacterClass() ==ECharacterClass::Caster)
     {
         AActor *OwnerActor = GetOwner();
         UCharacterDataComponent *CharComp = nullptr;
@@ -1467,7 +1474,7 @@ TArray<USkillDataBase *> ULoadoutComponent::GetAllWeaponAttacks() const
     }
 
     // Secondary weapon attack (Generic only) — OverrideAttack takes precedence.
-    if (CharacterClass == ECharacterClass::Generic &&
+    if (GetCharacterClass() ==ECharacterClass::Generic &&
         Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
         Loadout.SecondaryWeapon.IsValid())
     {
@@ -1737,7 +1744,7 @@ TArray<USpellData *> ULoadoutComponent::GetPrimarySlotSpells() const
     }
 
     // Caster also has innate spells
-    if (CharacterClass == ECharacterClass::Caster)
+    if (GetCharacterClass() ==ECharacterClass::Caster)
     {
         Result.Append(Loadout.InnateSpells);
     }
@@ -1763,7 +1770,7 @@ TArray<USpellData *> ULoadoutComponent::GetSecondarySlotSpells() const
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Only Generic has secondary
-    if (CharacterClass != ECharacterClass::Generic)
+    if (GetCharacterClass() !=ECharacterClass::Generic)
     {
         return Result;
     }
@@ -1793,14 +1800,14 @@ TArray<USpellData *> ULoadoutComponent::GetActiveSlotSpells() const
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Resonator uses active ring
-    if (CharacterClass == ECharacterClass::Resonator)
+    if (GetCharacterClass() ==ECharacterClass::Resonator)
     {
         return GetRingResonateSpells();
     }
 
     // Generic dual-weapon: bShowPrimary IS a real gameplay toggle —
     // only the shown weapon's spells are available.
-    if (CharacterClass == ECharacterClass::Generic &&
+    if (GetCharacterClass() ==ECharacterClass::Generic &&
         Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
         Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
     {
@@ -1856,7 +1863,7 @@ bool ULoadoutComponent::AutoPopulateLoadout(int32 LoadoutIndex, UInventoryCompon
 
     FCombatLoadout &Loadout = Inv->SavedLoadouts[LoadoutIndex];
     Loadout.Clear();
-    Loadout.InitializeForClass(CharacterClass);
+    Loadout.InitializeForClass(GetCharacterClass());
 
     // Auto-assign first available weapon
     if (Inventory->Weapons.Num() > 0)
@@ -1885,7 +1892,7 @@ void ULoadoutComponent::ClearLoadout(int32 LoadoutIndex)
     }
 
     Inv->SavedLoadouts[LoadoutIndex].Clear();
-    Inv->SavedLoadouts[LoadoutIndex].InitializeForClass(CharacterClass);
+    Inv->SavedLoadouts[LoadoutIndex].InitializeForClass(GetCharacterClass());
 }
 
 void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterData, UInventoryComponent *Inventory)
@@ -1921,7 +1928,7 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
     Inv->SavedLoadouts.Empty();
     FCombatLoadout EmptyLoadout;
     EmptyLoadout.LoadoutName = TEXT("Default");
-    EmptyLoadout.InitializeForClass(CharacterClass);
+    EmptyLoadout.InitializeForClass(GetCharacterClass());
     Inv->SavedLoadouts.Add(EmptyLoadout);
     Inv->ActiveLoadoutIndex = 0;
     bIsReadyForBattle = false;
@@ -2010,7 +2017,7 @@ UWeaponData *ULoadoutComponent::GetActiveWeapon() const
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
     {
         // Evolved Generic uses secondary weapon
-        if (CharacterClass == ECharacterClass::Generic &&
+        if (GetCharacterClass() ==ECharacterClass::Generic &&
             Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
         {
             return Loadout.SecondaryWeapon.IsValid() ? Loadout.SecondaryWeapon.WeaponEntry.Weapon : nullptr;
@@ -2023,7 +2030,7 @@ UWeaponData *ULoadoutComponent::GetActiveWeapon() const
     // Generic with weapon-secondary always has weapon access; Caster/Resonator have none.
     if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
     {
-        if (CharacterClass == ECharacterClass::Generic &&
+        if (GetCharacterClass() ==ECharacterClass::Generic &&
             Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
         {
             return Loadout.SecondaryWeapon.IsValid() ? Loadout.SecondaryWeapon.WeaponEntry.Weapon : nullptr;
@@ -2033,7 +2040,7 @@ UWeaponData *ULoadoutComponent::GetActiveWeapon() const
     }
 
     // Weapon primary - class-specific behavior
-    if (CharacterClass == ECharacterClass::Generic)
+    if (GetCharacterClass() ==ECharacterClass::Generic)
     {
         // Generic dual-weapon: bShowPrimary IS a real gameplay toggle.
         if (Loadout.bShowPrimary)
@@ -2090,7 +2097,7 @@ UWeaponData *ULoadoutComponent::GetSecondaryWeapon() const
 
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
-    if (CharacterClass != ECharacterClass::Generic)
+    if (GetCharacterClass() !=ECharacterClass::Generic)
     {
         return nullptr;
     }
@@ -2142,7 +2149,7 @@ URingData *ULoadoutComponent::GetActiveRing() const
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Only Resonators have ring loadout
-    if (CharacterClass != ECharacterClass::Resonator)
+    if (GetCharacterClass() !=ECharacterClass::Resonator)
     {
         return nullptr;
     }
@@ -2399,7 +2406,7 @@ bool ULoadoutComponent::HasWeaponAccess() const
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
     {
         // Evolved Generic can still use secondary weapon
-        if (CharacterClass == ECharacterClass::Generic &&
+        if (GetCharacterClass() ==ECharacterClass::Generic &&
             Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
             Loadout.SecondaryWeapon.IsValid())
         {
@@ -2412,14 +2419,14 @@ bool ULoadoutComponent::HasWeaponAccess() const
     // Ring primary - only Generic with secondary weapon has access
     if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
     {
-        return CharacterClass == ECharacterClass::Generic &&
+        return GetCharacterClass() ==ECharacterClass::Generic &&
                Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
                Loadout.SecondaryWeapon.IsValid();
     }
 
     // Weapon primary - check if any weapon exists
     return Loadout.PrimaryWeapon.IsValid() ||
-           (CharacterClass == ECharacterClass::Generic &&
+           (GetCharacterClass() ==ECharacterClass::Generic &&
             Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
             Loadout.SecondaryWeapon.IsValid());
 }
@@ -2448,7 +2455,7 @@ bool ULoadoutComponent::IsEvolved() const
 
 bool ULoadoutComponent::HasSecondaryEquipment() const
 {
-    if (CharacterClass != ECharacterClass::Generic)
+    if (GetCharacterClass() !=ECharacterClass::Generic)
     {
         return false;
     }
@@ -2482,7 +2489,7 @@ bool ULoadoutComponent::HasSecondaryEquipment() const
 
 bool ULoadoutComponent::HasRingInSecondary() const
 {
-    if (CharacterClass != ECharacterClass::Generic)
+    if (GetCharacterClass() !=ECharacterClass::Generic)
     {
         return false;
     }
@@ -2541,7 +2548,7 @@ UStanceData *ULoadoutComponent::GetCurrentStance() const
     else
     {
         // Showing secondary. Only Generic has secondary slots that can hold a weapon.
-        if (CharacterClass == ECharacterClass::Generic &&
+        if (GetCharacterClass() ==ECharacterClass::Generic &&
             Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
         {
             ShownWeapon = Loadout.SecondaryWeapon.IsValid() ? &Loadout.SecondaryWeapon : nullptr;
@@ -2631,7 +2638,7 @@ TArray<USpellData *> ULoadoutComponent::GetRingResonateSpells() const
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Caster with ring primary
-    if (CharacterClass == ECharacterClass::Caster && Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+    if (GetCharacterClass() ==ECharacterClass::Caster && Loadout.PrimarySlotType == EPrimarySlotType::Ring)
     {
         const FRingLoadoutEntry *RingEntry = GetPrimaryRingLoadout();
         if (RingEntry)
@@ -2641,7 +2648,7 @@ TArray<USpellData *> ULoadoutComponent::GetRingResonateSpells() const
     }
 
     // Resonator uses active ring
-    if (CharacterClass == ECharacterClass::Resonator)
+    if (GetCharacterClass() ==ECharacterClass::Resonator)
     {
         const FRingLoadoutEntry *RingEntry = GetActiveRingLoadout();
         if (RingEntry)
@@ -2672,7 +2679,7 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
     {
         // Evolved Generic uses secondary weapon
-        if (CharacterClass == ECharacterClass::Generic &&
+        if (GetCharacterClass() ==ECharacterClass::Generic &&
             Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
             Loadout.SecondaryWeapon.IsValid())
         {
@@ -2685,7 +2692,7 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
     // Generic with weapon-secondary always has weapon access; Caster/Resonator have none.
     if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
     {
-        if (CharacterClass == ECharacterClass::Generic &&
+        if (GetCharacterClass() ==ECharacterClass::Generic &&
             Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
             return Loadout.SecondaryWeapon.IsValid() ? &Loadout.SecondaryWeapon : nullptr;
 
@@ -2693,7 +2700,7 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
     }
 
     // Weapon primary - class-specific behavior
-    if (CharacterClass == ECharacterClass::Generic)
+    if (GetCharacterClass() ==ECharacterClass::Generic)
     {
         // Generic dual-weapon: bShowPrimary IS a real gameplay toggle.
         if (Loadout.bShowPrimary)
@@ -2752,7 +2759,7 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetSecondaryWeaponLoadout() const
 
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
-    if (CharacterClass != ECharacterClass::Generic)
+    if (GetCharacterClass() !=ECharacterClass::Generic)
         return nullptr;
 
     if (Loadout.SecondarySlotType != ESecondarySlotType::Weapon)
@@ -2793,7 +2800,7 @@ const FRingLoadoutEntry *ULoadoutComponent::GetActiveRingLoadout() const
 
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
-    if (CharacterClass != ECharacterClass::Resonator)
+    if (GetCharacterClass() !=ECharacterClass::Resonator)
         return nullptr;
 
     if (!Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex))
@@ -2996,7 +3003,7 @@ void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
 void ULoadoutComponent::DebugLogLoadout()
 {
     UE_LOG(LogTemp, Log, TEXT("=== LoadoutComponent Debug ==="));
-    UE_LOG(LogTemp, Log, TEXT("CharacterClass: %s"), *UEnum::GetValueAsString(CharacterClass));
+    UE_LOG(LogTemp, Log, TEXT("CharacterClass: %s"), *UEnum::GetValueAsString(GetCharacterClass()));
     UE_LOG(LogTemp, Log, TEXT("bIsReadyForBattle: %s"), bIsReadyForBattle ? TEXT("true") : TEXT("false"));
 
     UInventoryComponent *Inv = GetInventoryComponent();
@@ -3263,7 +3270,7 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
 
     const FCombatLoadout Loadout = GetActiveLoadout();
 
-    switch (CharacterClass)
+    switch (GetCharacterClass())
     {
     case ECharacterClass::Generic:
     {
@@ -3383,7 +3390,7 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
 
     // Mirrors GetActiveStatBonus's per-class slot resolution exactly, summing
     // each contributing entry's ResistanceBonus instead of StatBonus.
-    switch (CharacterClass)
+    switch (GetCharacterClass())
     {
     case ECharacterClass::Generic:
     {
@@ -3489,7 +3496,7 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
 
     const FCombatLoadout Loadout = GetActiveLoadout();
 
-    switch (CharacterClass)
+    switch (GetCharacterClass())
     {
     case ECharacterClass::Generic:
     {
@@ -3576,7 +3583,7 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
 
     const FCombatLoadout Loadout = GetActiveLoadout();
 
-    switch (CharacterClass)
+    switch (GetCharacterClass())
     {
     case ECharacterClass::Generic:
     {
@@ -3656,7 +3663,7 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
 
     const FCombatLoadout Loadout = GetActiveLoadout();
 
-    switch (CharacterClass)
+    switch (GetCharacterClass())
     {
     case ECharacterClass::Generic:
     {
