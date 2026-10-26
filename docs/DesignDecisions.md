@@ -350,6 +350,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Status:** DECIDED · **Raised:** 2026-10-26 · **Applied:** `docs/Backlog.md` → "UI rebuild"
 **Answer (Crown, 2026-10-26):** rebuild the UI on CommonUI rather than restyle the current widgets. Same as the deckbuilder: **mockups first, from the kit assets, and Crown reviews them before anything is built.**
 **Crystal theme (Crown, 2026-10-26):** the UI should **focus on crystal themes**: crystal light, faceted shapes, element gems (the art direction's "dark stone and steel, lit by crystal", leaning harder on the crystal). Mockups show at least one more-crystal option where a piece has candidates.
+**Element colours (Crown, 2026-10-26):** Reality is **indigo**, Void is **violet** (keeps the two apart; the kit has no Reality badge, so draw one in indigo).
 **Notes for Claude:**
 - Replace one screen group at a time. The old widgets keep working until the new screen passes Crown's PIE check, then they're retired (B-106).
 - Logic stays in C++ (`refactor/bp-logic-to-cpp`, B-002/B-003); new widgets are layout only on those bases.
