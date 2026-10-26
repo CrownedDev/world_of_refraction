@@ -578,12 +578,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, usable but weaker** (2026-10-26): the shipped requirement-gap scaling stays (`Mechanics/Scaling/RequirementGap.md`); overreaching also feeds Broken Darkness strain. Delete the commented-out refusal (`ActionExecutor.cpp:233-236`) and fix `Stats.md`'s "gates skill tiers". Crown: like everything else, it could be **done better**, so it's in the standard-way redesign (B-146).
 
 ### D-042 — Does a member's chosen cell decide where they start a fight?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** `FPartyMember.PreferredRow/PreferredColumn` are saved, but `StartCombat` puts both sides in the Middle row (`CombatOrchestrator.cpp:214-215`), so the ±5% row bonus never applies in play. Use the chosen cell?
 **Context:** Rules: 06 Cp-2. The deckbuilder has no grid.
 **Options:** A start in the chosen cell / B everyone in the Middle row (current).
 **Recommendation:** A, because the row bonus and the stored formation exist for it.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A** (2026-10-26): members start in their **chosen formation cell**, so row bonuses apply. Replace the Middle-row auto-assign (`CombatOrchestrator.cpp:222-223`) with each member's `PreferredRow/PreferredColumn`, falling back to auto-assign when unset or clashing. Enemies use their own preferred cells (tanks front, casters back, per `AIArchitecture.md`'s placeholder heuristic) until authored.
 
 ### D-043 — How does a fallen party member come back during a run?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
