@@ -21,15 +21,40 @@ bool UMemoryJournalSubsystem::RecordMemory(UMemoryData *Memory)
 	return true;
 }
 
+bool UMemoryJournalSubsystem::HasMemoryId(FName MemoryId) const
+{
+	return Memories.ContainsByPredicate([MemoryId](const UMemoryData *Memory) { return Memory && Memory->GetMemoryId() == MemoryId; });
+}
+
+bool UMemoryJournalSubsystem::RecordLore(FName LoreId, const FText &Title, const FText &Body)
+{
+	if (Lore.ContainsByPredicate([LoreId](const FJournalLoreEntry &Entry) { return Entry.LoreId == LoreId; }))
+	{
+		return false;
+	}
+	Lore.Add({LoreId, Title, Body});
+	UE_LOG(LogWoR, Log, TEXT("[MemoryJournal] Lore %s kept (%d in the journal)"), *LoreId.ToString(), Lore.Num());
+	return true;
+}
+
 FString UMemoryJournalSubsystem::GetJournalString() const
 {
-	FString Out = FString::Printf(TEXT("Memory journal: %d memories"), Memories.Num());
+	FString Out = FString::Printf(TEXT("Memory journal: %d memories, %d lore, %d V line(s) heard, %d conversation(s) played"),
+								  Memories.Num(), Lore.Num(), HeardVLines.Num(), PlayedConversations.Num());
 	for (const UMemoryData *Memory : Memories)
 	{
 		if (Memory)
 		{
 			Out += TEXT("\n  ") + Memory->GetMemoryString();
 		}
+	}
+	for (const FJournalLoreEntry &Entry : Lore)
+	{
+		Out += FString::Printf(TEXT("\n  Lore %s: %s"), *Entry.LoreId.ToString(), *Entry.Title.ToString());
+	}
+	if (!PlayedConversations.IsEmpty())
+	{
+		Out += TEXT("\n  Played: ") + FString::JoinBy(PlayedConversations, TEXT(", "), [](FName Id) { return Id.ToString(); });
 	}
 	return Out;
 }

@@ -13,6 +13,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "Memory/MemoryJournalSubsystem.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Trial/TrialGate.h"
@@ -215,6 +216,12 @@ ATrialLoreObject::ATrialLoreObject()
 void ATrialLoreObject::Interact(APawn * /*Pawn*/)
 {
 	ShowMessage(FText::Format(LOCTEXT("LoreMessage", "{0}: {1}"), Title, Body));
+	// B-194: kept in the journal for rereading in the hub, whatever happens to the run.
+	const UGameInstance *GameInstance = GetGameInstance();
+	if (UMemoryJournalSubsystem *Journal = GameInstance ? GameInstance->GetSubsystem<UMemoryJournalSubsystem>() : nullptr)
+	{
+		Journal->RecordLore(GetFeatureId(), Title, Body);
+	}
 	UTrialRunSubsystem *TrialRun = GetTrialRun();
 	if (TrialRun && !TrialRun->HasFound(GetFeatureId()))
 	{

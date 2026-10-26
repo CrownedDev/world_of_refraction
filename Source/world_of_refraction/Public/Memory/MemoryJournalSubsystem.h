@@ -1,6 +1,7 @@
 // MemoryJournalSubsystem.h
-// B-190 (RunStructure §5, Q-190): the memories collected across runs, the record the journal,
-// V's lines and conversations unlock from (B-194). A memory stays once collected, even when the
+// B-190 (RunStructure §5, Q-190), B-194 (Q-194): the memories collected across runs, the lore read,
+// the V lines heard and the conversations played: what the hub journal shows and V's lines and
+// conversations unlock from (StoryLinesData). A memory stays once collected, even when the
 // run that found it fails. Debug: wor.Memory.Print.
 //
 // TODO(B-090): saved with the profile; for now it lasts while the game runs.
@@ -12,6 +13,22 @@
 #include "MemoryJournalSubsystem.generated.h"
 
 class UMemoryData;
+
+/** A lore object read on a trial map (B-194). */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FJournalLoreEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Journal")
+	FName LoreId;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Journal")
+	FText Title;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Journal")
+	FText Body;
+};
 
 UCLASS()
 class WORLD_OF_REFRACTION_API UMemoryJournalSubsystem : public UGameInstanceSubsystem
@@ -27,10 +44,32 @@ public:
 	/** In the order collected. */
 	const TArray<TObjectPtr<UMemoryData>> &GetMemories() const { return Memories; }
 
-	/** Debug: one line per memory with its character depths. */
+	/** By UMemoryData::GetMemoryId (what V's lines and conversations name). */
+	bool HasMemoryId(FName MemoryId) const;
+
+	/** Keep a lore object's text for rereading in the hub. False when LoreId is already kept. */
+	bool RecordLore(FName LoreId, const FText &Title, const FText &Body);
+
+	const TArray<FJournalLoreEntry> &GetLore() const { return Lore; }
+
+	void MarkVLineHeard(FName LineId) { HeardVLines.Add(LineId); }
+	bool HasHeardVLine(FName LineId) const { return HeardVLines.Contains(LineId); }
+
+	/** A conversation played to its end: listed in the journal as logged dialogue. */
+	void MarkConversationPlayed(FName ConversationId) { PlayedConversations.AddUnique(ConversationId); }
+	bool HasPlayedConversation(FName ConversationId) const { return PlayedConversations.Contains(ConversationId); }
+	const TArray<FName> &GetPlayedConversations() const { return PlayedConversations; }
+
+	/** Debug: one line per memory (with its character depths) and per lore entry. */
 	FString GetJournalString() const;
 
 private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMemoryData>> Memories;
+
+	UPROPERTY(Transient)
+	TArray<FJournalLoreEntry> Lore;
+
+	TSet<FName> HeardVLines;
+	TArray<FName> PlayedConversations;
 };
