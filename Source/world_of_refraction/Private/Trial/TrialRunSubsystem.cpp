@@ -64,6 +64,8 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     }
 
     ActiveTrial = Trial;
+    BeatenEncounters.Reset();
+    PendingEncounterSources.Reset();
     const int32 ForcedSeed = CVarTrialSeed.GetValueOnGameThread();
     RunSeed = ForcedSeed != 0 ? ForcedSeed : MakeFreshRunSeed();
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Entering trial '%s' -> %s (run seed %d; replay with: wor.Trial.Seed %d)"),
@@ -109,6 +111,8 @@ void UTrialRunSubsystem::ExitTrial()
     RunSeed = 0;
     VariationIndex = INDEX_NONE;
     TrialDifficulty = TrialGate::DEFAULT_DIFFICULTY;
+    BeatenEncounters.Reset();
+    PendingEncounterSources.Reset();
     UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), HubLevel);
 }
 
@@ -160,6 +164,7 @@ void UTrialRunSubsystem::ExitEncounter()
 
     PendingBattleParty.Reset();
     PendingOpposingParty.Reset();
+    PendingEncounterSources.Reset();
     EncounterReturnLevel = nullptr;
 
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Exiting encounter -> %s (deferred one tick)"), *ReturnLevel.ToString());
@@ -175,6 +180,16 @@ void UTrialRunSubsystem::ExitEncounter()
     World->GetTimerManager().SetTimerForNextTick(
         FTimerDelegate::CreateWeakLambda(this, [this, ReturnLevel]()
                                          { UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), ReturnLevel); }));
+}
+
+void UTrialRunSubsystem::MarkPendingEncounterBeaten()
+{
+    for (const FName EncounterId : PendingEncounterSources)
+    {
+        BeatenEncounters.Add(EncounterId);
+    }
+    UE_LOG(LogTemp, Log, TEXT("[TrialRun] %d map encounter(s) beaten; %d beaten this run"),
+           PendingEncounterSources.Num(), BeatenEncounters.Num());
 }
 
 TArray<FMerchantStockEntry> UTrialRunSubsystem::GetMerchantStock(const UMerchantData *Merchant) const
@@ -246,11 +261,11 @@ namespace
 FString UTrialRunSubsystem::GetTrialRunString() const
 {
     const FTrialVariation *Variation = GetChosenVariation();
-    return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | variation=%s | difficulty=%s (enemy x%.2f, payout x%.2f) | hub=%s | pending %d v %d (%s) | return=%s"),
+    return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | variation=%s | difficulty=%s (enemy x%.2f, payout x%.2f) | beaten=%d | hub=%s | pending %d v %d (%s) | return=%s"),
                            ActiveTrial ? *ActiveTrial->Name.ToString() : TEXT("<none>"), RunSeed,
                            Variation ? *Variation->Name.ToString() : TEXT("<none>"),
                            *TrialGate::GetDifficultyName(TrialDifficulty).ToString(), GetEnemyStrengthMultiplier(),
-                           GetPayoutMultiplier(),
+                           GetPayoutMultiplier(), BeatenEncounters.Num(),
                            HubLevel.IsNull() ? TEXT("<UNSET>") : *HubLevel.ToString(),
                            PendingBattleParty.Num(), PendingOpposingParty.Num(),
                            *UEnum::GetValueAsString(PendingRank),

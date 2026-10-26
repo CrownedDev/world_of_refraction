@@ -113,6 +113,19 @@ public:
     UFUNCTION(BlueprintPure, Category = "Trial|Encounter")
     EEncounterRank GetPendingRank() const { return PendingRank; }
 
+    /** B-184: the map encounters the pending fight came from (every team caught). Call before
+     *  EnterEncounter; a win marks them all beaten. */
+    void SetPendingEncounterSources(const TArray<FName> &EncounterIds) { PendingEncounterSources = EncounterIds; }
+
+    /** B-184: the pending fight was won; its map encounters stay beaten for the rest of the run
+     *  (a rest spot doesn't bring them back). */
+    void MarkPendingEncounterBeaten();
+
+    /** True when the map encounter EncounterId was beaten earlier in this run. */
+    bool IsEncounterBeaten(FName EncounterId) const { return BeatenEncounters.Contains(EncounterId); }
+
+    int32 GetBeatenEncounterCount() const { return BeatenEncounters.Num(); }
+
     /** The trial whose level we are in (or transitioning to), or null in the
      *  hub. Survives the level load — this subsystem is GameInstance-scoped. */
     UFUNCTION(BlueprintPure, Category = "Trial")
@@ -159,6 +172,12 @@ private:
     TArray<TObjectPtr<UCharacterData>> PendingOpposingParty;
 
     EAIDifficulty PendingDifficulty = EAIDifficulty::Medium;
+
+    /** B-184: map encounters of the pending fight. */
+    TArray<FName> PendingEncounterSources;
+
+    /** B-184: map encounters beaten this run. Run state like RunSeed; cleared on trial entry and exit. */
+    TSet<FName> BeatenEncounters;
 
     /** Carried across the OpenLevel like PendingDifficulty; moves with it for co-op (D-065). */
     EEncounterRank PendingRank = EEncounterRank::Normal;
