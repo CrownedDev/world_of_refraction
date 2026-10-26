@@ -864,7 +864,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Caps as named constants.
 
 ### D-073 — One loadout validator: which rule wins where the three disagree?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-028) · **Blocks:** B-028
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-028) · **Blocks:** B-028
 **Question:** B-028 merges the three loadout validators into one rule set. Where they give different answers today, which answer should the one rule set give?
 **Context:** the three are the saved-loadout (editor) check `FSavedLoadout::GetValidationErrors` (`FSavedLoadout.cpp:25`), the pre-fight check `ULoadoutComponent::GetValidationErrors` (`LoadoutComponent.cpp:478`, reports errors), and the pre-fight slot cleaner `CollectInvalidSlotFindings` (`:773`, empties bad slots). None has a test. The main disagreements:
 - **Evolution spell cap:** the editor check allows 6 spells on any evolution; the pre-fight checks allow 1–6 by the evolution's tier (F 1 … A/S 6). An F-tier evolution with 3 spells passes in the editor and gets cut in the fight.
@@ -875,7 +875,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Slot-cleaner-only checks:** ability matches weapon type and wield mode; weapon/ring spells need a crystal of a matching element. The pre-fight error check doesn't report these, so slots get cleared with no "validation failed" message.
 **Options:** A **one rule set, pre-fight answer wins** where they conflict (tier spell cap, BD-by-character, budgets on, instance costs), plus every check that only one of them has today, so the editor warns about what the fight would cut / B **merge only the two pre-fight checks** (error list + slot cleaner; adds the cleaner's coherence checks to the error list) and leave the editor check as it is / C go through the list one by one.
 **Recommendation:** A, because the fight is what the player sees: an editor check that passes a loadout the fight then cuts is the bug the review found. It makes some existing authored loadouts show new editor warnings (e.g. an over-cap evolution); nothing changes in play. The deckbuilder has no loadout validator to borrow from (its decks are card lists).
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A** (2026-10-26): **one rule set; the fight's answer wins** where the checks disagree, plus every check only one of them has today, so saving a loadout warns about anything the fight would cut. Include the crystal tier limits (D-072).
 **Notes for Claude:** _optional_
 
 ## Parked
