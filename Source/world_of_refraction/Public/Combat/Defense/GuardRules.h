@@ -27,12 +27,20 @@ namespace GuardRules
 		return IsGuard(Type) && bPerfect;
 	}
 
-	/** The animation an impact switches the defender to once it resolves: a Perfect Guard plays the
-	 *  parry montage (B-182, Q-168; Sekiro's deflect). None keeps the press's own animation (the
-	 *  Guard press always plays the block montage, before the timing is known). */
+	/** OBSOLETE (B-202, Q-182 changed by Crown): no caller; every Guard keeps the block montage and
+	 *  a Perfect Guard is shown by PlaysPerfectGuardFeedback. Remove after PIE.
+	 *  Was: the animation an impact switches the defender to (a Perfect Guard played the parry
+	 *  montage, B-182). */
 	inline EDefenseType ImpactAnimationOverride(EDefenseType Type, bool bSuccess, bool bPerfect)
 	{
 		return (bSuccess && IsPerfectGuard(Type, bPerfect)) ? EDefenseType::Parry : EDefenseType::None;
+	}
+
+	/** Whether an impact shows the Perfect Guard flash and sound (B-202, Q-182). The animation is
+	 *  the same block montage for every Guard. */
+	inline bool PlaysPerfectGuardFeedback(EDefenseType Type, bool bSuccess, bool bPerfect)
+	{
+		return bSuccess && IsPerfectGuard(Type, bPerfect);
 	}
 
 	/** What stops an interruptable hit (a choke point): a Perfect Guard or a Dodge, as a parry

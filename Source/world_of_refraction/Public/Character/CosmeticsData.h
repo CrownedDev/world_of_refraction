@@ -14,6 +14,15 @@
 class UAnimMontage;
 class UStanceData;
 class UInfusionDisplayData;
+class UNiagaraSystem;
+class USoundBase;
+
+namespace CosmeticsPlaceholders
+{
+	// TODO: art. Engine content stand-ins (editor builds only) until the Perfect Guard art exists.
+	inline const TCHAR *PERFECT_GUARD_FLASH_VFX = TEXT("/Niagara/DefaultAssets/Templates/Systems/RadialBurst.RadialBurst");
+	inline const TCHAR *PERFECT_GUARD_SOUND = TEXT("/Engine/EditorSounds/Notifications/CompileSuccess_Cue.CompileSuccess_Cue");
+}
 
 /**
  * UCosmeticsData
@@ -39,9 +48,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense")
 	UAnimMontage *BlockMontage = nullptr;
 
-	/** Parry animation (used when the weapon loadout entry does not override it) */
+	/** OBSOLETE (B-202, Q-182 changed by Crown): every Guard plays BlockMontage; nothing plays
+	 *  this any more. Kept until PIE confirms the single Guard animation. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense")
 	UAnimMontage *ParryMontage = nullptr;
+
+	/** Flash at the impact of a Perfect Guard (B-202; a normal Guard has none). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense")
+	TSoftObjectPtr<UNiagaraSystem> PerfectGuardFlashVFX{FSoftObjectPath(CosmeticsPlaceholders::PERFECT_GUARD_FLASH_VFX)};
+
+	/** Sound at the impact of a Perfect Guard (B-202). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense")
+	TSoftObjectPtr<USoundBase> PerfectGuardSound{FSoftObjectPath(CosmeticsPlaceholders::PERFECT_GUARD_SOUND)};
 
 	// ==================== COSMETICS ====================
 

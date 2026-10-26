@@ -470,7 +470,8 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
     UAnimMontage *GetBlockMontage() const;
 
-    /** Get parry animation (checks weapon override if loadout prefers it) */
+    /** OBSOLETE (B-202, Q-182 changed by Crown): every Guard plays GetBlockMontage; no caller.
+     *  Remove after PIE. Get parry animation (checks weapon override if loadout prefers it) */
     UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
     UAnimMontage *GetParryMontage() const;
 
