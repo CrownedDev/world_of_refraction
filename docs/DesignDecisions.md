@@ -986,7 +986,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Broken crystal on a ring:** the ring is limited to **F-tier spells**; its higher-tier spells grey out.
 - **Broken crystal on a weapon:** **no infusing** and **no elemental abilities** through that weapon; physical abilities and plain attacks still work.
 **Notes for Claude:** today a broken attachment stays slotted and gives no spells (`AttachedItem.CanProvideSpells()`, `FCombatCapabilities.cpp`; `CrystalWear.md`). Change the menu to grey rather than hide, apply the F-tier allowance for rings, and block infusion / elemental abilities on weapons. Tests for each.
-- **Crown, 2026-10-26 (clarified):** the F-tier allowance is only so the player can keep fighting. Once the fight ends, the broken crystal is **lost** (it leaves the ring), as built in `CrystalBreak` (`docs/Rules/05-economy-and-runs.md` ER-35).
+- **Crown, 2026-10-26 (clarified):** the F-tier allowance is only so the player can keep fighting. Once the fight ends, the broken crystal is **lost** (it leaves the ring), as built in `CrystalBreak` (`docs/Rules/05-economy-and-runs.md` ER-35). It still **pays out essence** like a dismantle (Crown, 2026-10-26: keep).
 
 ### Q-031 — What is "the ApplyDamage fallback" B-031 should delete?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-031) · **Blocks:** B-167
