@@ -1064,7 +1064,7 @@ void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, FCrystalI
 		const bool bMatch = (bRemoveDebuffs ? Effect.IsDebuff() : Effect.IsBuff()) && Effect.IsCleansable();
 		if (bMatch)
 		{
-			SEM->RemoveEffectByID(Target, Effect.EffectID);
+			SEM->RemoveEffectByIdentity(Target, Effect.EffectID, Effect.SourceKey);
 			Removed++;
 		}
 	}

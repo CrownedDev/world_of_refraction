@@ -210,6 +210,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	bool RemoveEffectByID(AActor *Target, int32 EffectID);
 
+	/** Remove the one effect with this identity (EffectID + SourceKey, D-012): a gear copy and a
+	 *  cast copy of the same definition share an ID, so a cleanse names which one. */
+	bool RemoveEffectByIdentity(AActor *Target, int32 EffectID, int32 SourceKey);
+
 	/** Remove all effects with a specific name */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	int32 RemoveEffectsByName(AActor *Target, const FString &EffectName);
@@ -217,6 +221,9 @@ public:
 	/** Remove all effects of a specific type */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	int32 RemoveEffectsByType(AActor *Target, ESkillEffectType EffectType);
+
+	/** Cleanse effects of a type: like RemoveEffectsByType, but gear effects stay (D-015) */
+	int32 CleanseEffectsByType(AActor *Target, ESkillEffectType EffectType);
 
 	/** Remove all buffs from target, except gear effects (cleanse rule, D-015) */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")

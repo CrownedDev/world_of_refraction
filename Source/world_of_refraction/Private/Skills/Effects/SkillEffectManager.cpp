@@ -678,6 +678,53 @@ int32 USkillEffectManager::RemoveEffectsByName(AActor *Target, const FString &Ef
 	return RemovedCount;
 }
 
+bool USkillEffectManager::RemoveEffectByIdentity(AActor *Target, int32 EffectID, int32 SourceKey)
+{
+	if (!Target || !ActiveEffects.Contains(Target))
+	{
+		return false;
+	}
+
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Target];
+	const int32 Index = Effects.IndexOfByPredicate([EffectID, SourceKey](const FActiveSkillEffect &Effect)
+	{
+		return Effect.EffectID == EffectID && Effect.SourceKey == SourceKey;
+	});
+	if (Index == INDEX_NONE)
+	{
+		return false;
+	}
+
+	const FActiveSkillEffect RemovedEffect = Effects[Index];
+	Effects.RemoveAt(Index);
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Removed %s from %s (by identity)"),
+		   *RemovedEffect.EffectName, *Target->GetName());
+	OnEffectRemoved.Broadcast(Target, RemovedEffect);
+	if (IsSpeedEffect(RemovedEffect.EffectType))
+	{
+		NotifySpeedChanged(Target);
+	}
+	return true;
+}
+
+int32 USkillEffectManager::CleanseEffectsByType(AActor *Target, ESkillEffectType EffectType)
+{
+	if (!Target || !ActiveEffects.Contains(Target))
+	{
+		return 0;
+	}
+
+	int32 RemovedCount = 0;
+	for (const FActiveSkillEffect &Effect : TArray<FActiveSkillEffect>(ActiveEffects[Target]))
+	{
+		if (Effect.EffectType == EffectType && Effect.IsCleansable())
+		{
+			RemovedCount += RemoveEffectByIdentity(Target, Effect.EffectID, Effect.SourceKey) ? 1 : 0;
+		}
+	}
+	return RemovedCount;
+}
+
 int32 USkillEffectManager::RemoveEffectsByType(AActor *Target, ESkillEffectType EffectType)
 {
 	if (!Target || !ActiveEffects.Contains(Target))
@@ -1451,16 +1498,17 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 			   *Effect.EffectName, *Actor->GetName(), Value);
 		break;
 
+	// Targeted cleanses: gear debuffs stay (D-015).
 	case ESkillEffectType::RemoveSpeedDebuff:
-		RemoveEffectsByType(Actor, ESkillEffectType::SpeedDebuff);
+		CleanseEffectsByType(Actor, ESkillEffectType::SpeedDebuff);
 		break;
 
 	case ESkillEffectType::RemoveDamageDebuff:
-		RemoveEffectsByType(Actor, ESkillEffectType::DamageDebuff);
+		CleanseEffectsByType(Actor, ESkillEffectType::DamageDebuff);
 		break;
 
 	case ESkillEffectType::RemoveDefenseDebuff:
-		RemoveEffectsByType(Actor, ESkillEffectType::DefenseDebuff);
+		CleanseEffectsByType(Actor, ESkillEffectType::DefenseDebuff);
 		break;
 
 	// ==================== SELF DAMAGE ====================

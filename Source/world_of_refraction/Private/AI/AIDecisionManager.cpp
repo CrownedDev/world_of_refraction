@@ -1726,6 +1726,11 @@ bool UAIDecisionManager::HasDangerousDebuff(AActor *Actor)
     TArray<FActiveSkillEffect> Effects = StatusManager->GetActiveEffects(Actor);
     for (const FActiveSkillEffect &Effect : Effects)
     {
+        // A cleanse leaves gear effects (D-015), so they're no reason to cast one.
+        if (!Effect.IsCleansable())
+        {
+            continue;
+        }
         switch (Effect.EffectType)
         {
         // Lightning bar cap (Attack/Defend only). Wind's SkipTurn is a turn-order
