@@ -1528,6 +1528,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. It is how Sekiro's single block/deflect button works: the guard pose on the press, the deflect animation and spark on a perfectly timed hit; it is widely praised for feeling responsive. Not lore.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (fix/B-182-perfect-guard-parry-anim): `GuardRules::ImpactAnimationOverride`, called in `UActionExecutor`'s per-impact defense resolve.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
