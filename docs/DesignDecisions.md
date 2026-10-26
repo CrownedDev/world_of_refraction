@@ -73,7 +73,8 @@ The queue of questions only Crown can answer.
 - **Kept:** the pool (everything unlocked) **with its upgrade levels**, Prisms/Diamond, head-start allocation.
 - **Upgrades happen both in the hub and during a run**, and an item's level is what you get the next time you bring or find it ("you find it again at the same level you had it last time").
 **Notes for Claude:**
-- Interpretation to confirm with Crown when applying: an upgrade bought *during* a run is written back to the pool (kept). If unsure, ask before building it.
+- **Costs stay as the code has them** (Crown, 2026-10-26): upgrading (tier-up) costs leveling essence + ½ Reality **anywhere** (hub or run, `EconomyService::TryLevelUpEntry`), never Gold. Only *buying* differs by place: Prisms in the hub, Gold in a run.
+- Interpretation to confirm with Crown when applying: an upgrade made *during* a run is written back to the pool (kept). If unsure, ask before building it.
 - "Enemy stays beaten" and run state across level loads need the persistence work (B-090); routing (lose → hub) can land first.
 - Co-op revive on defeat: not decided yet (later, with co-op).
 
