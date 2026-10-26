@@ -1660,6 +1660,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-071-party-into-battle): `ABattleGameMode::BootstrapCombat` possesses the leader's pawn when it fights, otherwise the first Player-set member, otherwise the first spawned.
 
+### Q-190 — What does a memory fragment hold, and when is it kept?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-190) · **Blocks:** — (B-190 shipped with A)
+**Question:** RunStructure §5: a fragment unlocks a memory, can weaken or strengthen a boss, means more to one lord than another, and gives no hint. What does the data hold, and is a memory kept when the run fails?
+**Options:**
+- **A** A memory has an id, a placeholder title and text, a depth per character (none, minor, deep) and a list of boss changes (weaken, strengthen, skip a phase, add a phase; used by B-191 / B-193). Picking up a fragment adds the memory to the run and, at once, to the journal, which keeps it whatever happens to the run. The pickup only says a fragment was found; the fragment is gone for the rest of the run, and is back in the next run (picking it up again adds it to that run; the journal already has it).
+- **B** The journal only gets the memories of a run that is won.
+- **C** Numeric depth (0-10) instead of three levels.
+**Recommendation:** A. Hades keeps every story unlock when a run fails, and players praise that a failed run still moves the story on; Hollow Knight's and Elden Ring's lore items are kept the moment you pick them up and explain themselves only when read, matching the no-hint rule. Three depth levels are easy to author and read. Not lore (the memories themselves are Crown's to write).
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-190-memory-fragments): `UMemoryData`, `AMemoryFragment` (a trial map feature, B-188), `UTrialRunSubsystem::CollectMemory` (run state, D-065), `UMemoryJournalSubsystem` (lasts while the game runs; saved with B-090). `FMemoryBossModifier::Boss` is a `UCharacterData` for now; B-193 may switch it to `UBossData`.
+
 ### Q-188 — How do the trial map's chest, lore object and boss arena behave?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-188) · **Blocks:** — (B-188 shipped with A)
 **Question:** RunStructure §4 lists a chest (rolls the zone pool), a lore object (a journal entry) and a boss arena (the boss fight, when the player chooses). What does each do exactly, with no journal screen and no loot weights yet?
