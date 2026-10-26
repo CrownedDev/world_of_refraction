@@ -919,7 +919,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### D-079 — The hub and the story
-**Status:** ANSWERED (in progress: more parts as Crown answers) · **Raised:** 2026-10-26 · **Blocks:** — (hub content, story, NPCs)
+**Status:** ANSWERED · **Raised:** 2026-10-26 · **Blocks:** — (hub content, story, NPCs)
 **Context:** the hub's function is designed (one hub, Nightreign Roundtable model; service NPCs Blacksmith, Jeweler, Stone Smith, Spiritualist, ability/spell shops: `Resources_Design.md` "SUPERSEDED — collapsed to ONE hub", "Hub NPCs", "Hub/Trial Merchants"). Not designed: the hub's place in the story and how the story unfolds.
 **Answer (Crown):**
 - **(1) The hub is fixed (A)** (2026-10-26). Progress-as-you-remember (B) shows up in other ways, not by rebuilding the hub.
@@ -935,7 +935,8 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **(6) Hub NPCs: A, V in different forms** (Crown, 2026-10-26): every service NPC (Blacksmith, Jeweler, Stone Smith, Spiritualist, shops) is **V**, with a different outfit or prop per role. A quiet clue to V's nature (part 3). Lost-soul NPCs may come later.
   - So **V's look** (void material + clothing on Manny/Quinn, B-143/B-144) carries the guide, every mob and every hub NPC: Crown calls it **imperative** when the time comes.
 - **(7) The opening: B** (Crown, 2026-10-26): the game **opens with waking up in the Void Realm**, no memories, V there. The bar night isn't shown; it's **recovered later as one of the first memories**.
-**Notes for Claude:** the data assets keep their names for now (`DA_Character_FireLord` etc., D-058: existing names stay); rename when the real names exist. Player-facing text never says "Lord" for them. Record further answers here; write `docs/Design/HubAndStory.md` when complete.
+- **(8) The goal is phased by the gate's theme** (Crown, 2026-10-26): the story advances **theme by theme**, following the trial variations (D-032 part 10). First you recover **lost Present memories**, next **memories of the Past**, and so on; what each phase is about depends on the trial theme. How a phase unlocks the next (e.g. enough memories recovered) isn't ruled.
+**Notes for Claude:** the data assets keep their names for now (`DA_Character_FireLord` etc., D-058: existing names stay); rename when the real names exist. Player-facing text never says "Lord" for them. Written up in `docs/Design/HubAndStory.md`.
 
 ### D-080 — Loadout check in the editor: which spell discount?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-028) · **Blocks:** — (B-028 shipped with the recommendation)
