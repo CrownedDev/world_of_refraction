@@ -165,7 +165,7 @@ void FRingWeaponQuerySpec::Define()
 			{
 				return;
 			}
-			CrystalManager->OnCrystalBroken.Broadcast(Loadout->GetOwner(), Rings[0].RingEntry.Ring, FBrokenCrystalPayload());
+			CrystalManager->NotifyCrystalBroken(Loadout->GetOwner(), Rings[0].RingEntry.Ring, FBrokenCrystalPayload());
 			TestEqual(TEXT("one step forward"), ActiveRingIndex(), 1);
 		});
 
@@ -178,7 +178,7 @@ void FRingWeaponQuerySpec::Define()
 				return;
 			}
 			UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
-			CrystalManager->OnCrystalBroken.Broadcast(Loadout->GetOwner(), Weapon, FBrokenCrystalPayload());
+			CrystalManager->NotifyCrystalBroken(Loadout->GetOwner(), Weapon, FBrokenCrystalPayload());
 			TestEqual(TEXT("stayed"), ActiveRingIndex(), 0);
 		});
 	});

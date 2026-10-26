@@ -4110,19 +4110,16 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActo
 		Sources.Add(EInfusionSourceOption::Innate);
 	}
 
+	ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+
 	// Active Ring (Resonator only)
-	if (Data->IsResonator())
+	if (Data->IsResonator() && LC && LC->GetActiveRing() != nullptr)
 	{
-		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		if (LC && LC->GetActiveRing() != nullptr)
-		{
-			Sources.Add(EInfusionSourceOption::ActiveRing);
-		}
+		Sources.Add(EInfusionSourceOption::ActiveRing);
 	}
 
 	// Primary Ring (Generic/Caster with ring in primary slot)
-	ULoadoutComponent *SourceLoadout = GetLoadoutComponent(Actor);
-	if (SourceLoadout && SourceLoadout->GetPrimaryRing())
+	if (LC && LC->GetPrimaryRing())
 	{
 		Sources.Add(EInfusionSourceOption::PrimaryRing);
 	}
@@ -4131,7 +4128,6 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActo
 	// Aligns with FCombatCapabilities::BuildFrom path; the data-asset
 	// AttachedItem field is the design-time default that diverges from runtime
 	// when crystals are slotted/changed at runtime.
-	ULoadoutComponent *LC = GetLoadoutComponent(Actor);
 	if (LC)
 	{
 		const FWeaponLoadoutEntry *ActiveWeapon = LC->GetActiveWeaponLoadout();
@@ -6474,12 +6470,9 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 			{
 				ActionTier = WeaponEntry->Tier;
 			}
-			else if (ULoadoutComponent *TierLoadout = GetLoadoutComponent(Actor))
+			else if (UWeaponData *Weapon = RingLoadout->GetActiveWeapon())
 			{
-				if (UWeaponData *Weapon = TierLoadout->GetActiveWeapon())
-				{
-					ActionTier = Weapon->Tier;
-				}
+				ActionTier = Weapon->Tier;
 			}
 		}
 
@@ -6536,12 +6529,9 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 			{
 				ActionTier = WeaponEntry->Tier;
 			}
-			else if (ULoadoutComponent *TierLoadout = GetLoadoutComponent(Actor))
+			else if (UWeaponData *Weapon = RingLoadout->GetActiveWeapon())
 			{
-				if (UWeaponData *Weapon = TierLoadout->GetActiveWeapon())
-				{
-					ActionTier = Weapon->Tier;
-				}
+				ActionTier = Weapon->Tier;
 			}
 		}
 
