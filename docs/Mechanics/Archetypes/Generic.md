@@ -20,7 +20,8 @@ exchange for being the **least flexible**.
 A Generic has **no innate magic of their own** — they're not born with an element or a spell
 school. **But they can still cast** — by borrowing magic from a **ring** or an **evolution** they
 wear, which lends its element and its spells. A **weapon crystal never gives spells**: it makes the
-weapon's abilities elemental (D-027, D-007).
+weapon's abilities elemental (D-027, D-007; not built yet, B-098 — today a weapon crystal still offers
+its spells).
 
 - A Generic with a **Fire ring** casts **Fire** spells.
 - A [Generic spell](../Magic/GenericSpells.md) (a basic "Ball"/"Bolt" template) slotted into that ring

@@ -13,7 +13,8 @@
 ## What class gates
 
 A class is made by its slots, not a skill gate (D-027): any class with a weapon gets that weapon's
-abilities (a weapon crystal makes them elemental; **weapons never give spells**), and spells come from
+abilities (a weapon crystal makes them elemental; **weapons never give spells** — not built yet, B-098: today
+a weapon crystal still offers its spells), and spells come from
 rings, evolutions and a Refractor's innate pool.
 
 - **Dual-wield** — Generic only (its secondary weapon slot).
