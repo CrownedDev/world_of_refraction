@@ -1973,6 +1973,13 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 		Result = DefenseSys->CalculateDefenseResult(BaseSlice, EDefenseType::Dodge, true, false);
 	}
 
+	// B-182: the Guard press already played the block montage; a Perfect Guard switches to the parry one.
+	const EDefenseType ImpactAnimation = GuardRules::ImpactAnimationOverride(Result.DefenseType, Result.bSuccess, Match.bPerfect);
+	if (ImpactAnimation != EDefenseType::None)
+	{
+		DefenseSys->PlayDefenseAnimation(Defender, ImpactAnimation);
+	}
+
 	// Stash the PER-IMPACT result — ResolvedFinalDamage now holds the reduced SLICE (not the
 	// full total). ApplyOneImpact reads it directly when bDamageIsPerImpact=true. bResultResolved
 	// stays true so the non-melee tail in ApplyDamageAfterDefense knows melee already resolved;
