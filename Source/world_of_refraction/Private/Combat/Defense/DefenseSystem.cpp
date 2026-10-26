@@ -508,7 +508,7 @@ FDefenseResult UDefenseSystem::CalculateDefenseResult(
 	switch (DefenseType)
 	{
 	case EDefenseType::Block:
-		// Guard (D-084): a block on normal timing, a parry that takes less on Perfect timing.
+		// Guard (D-084): a block on normal timing, a Perfect Guard that takes nothing (Q-168).
 		// No reflect (D-087): that comes from "on Perfect Guard" effects.
 		Result.bSuccess = true;
 		Result.FinalDamage = FMath::RoundToInt(BaseDamage * (1.0f - (bPerfect ? PerfectGuardReduction : BlockReduction)));

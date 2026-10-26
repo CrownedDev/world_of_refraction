@@ -221,7 +221,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnDefensePerfect, AActor *, Defen
  *
  * Defense Types:
  * - Guard (EDefenseType::Block; a Parry press is a Guard press): BlockReduction (50%) on normal
- *   timing, PerfectGuardReduction (takes 25%) on Perfect timing. Nothing reflects (D-087).
+ *   timing, PerfectGuardReduction (takes nothing, Q-168) on Perfect timing. Nothing reflects (D-087).
  * - Dodge: 100% avoidance on timing alone (left/right only)
  *
  * Usage:
@@ -430,9 +430,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
 	float BlockReduction = 0.5f;
 
-	/** Perfect Guard damage reduction (0.75 = takes 25%; D-084 placeholder). */
+	/** Perfect Guard damage reduction (1.0 = takes nothing, like Expedition 33's parry; Q-168). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
-	float PerfectGuardReduction = 0.75f; // TODO: tune (Q-168)
+	float PerfectGuardReduction = 1.0f;
 
 	/** Legacy (unused since B-168: a Parry is a Perfect Guard, PerfectGuardReduction). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")

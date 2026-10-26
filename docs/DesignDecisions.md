@@ -1301,7 +1301,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### Q-168 — Guard: the open details
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-168) · **Blocks:** — (B-168 shipped with A)
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-168) · **Blocks:** — (B-168 shipped with A)
 **Question:** Guard is in (D-084 / D-087). These details had no ruling. Are they right?
 **Context:** As built (option A):
 - **Perfect Guard takes 25%** of the hit (`PerfectGuardReduction` 0.75, a placeholder to tune).
@@ -1322,10 +1322,20 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Interruptible (choke) hits:** stopped by a Perfect Guard or a Dodge, not a normal Guard (A, as built).
 - **Approved by the reference-backed default (Crown, 2026-10-26: 'just go with them'):** Broken Darkness absorbs 5% on Guard / 20% on Perfect Guard (Expedition 33: +1 AP per parry); reflect effects send back their % of damage actually taken, as pure damage, as a timed buff (FF/Persona style); **Perfect Guard plays the parry animation**, normal Guard the block animation (Expedition 33 / Sekiro; small follow-up); the old Parry key works as Guard until removed in the editor.
 
-**Notes for Claude:** _optional_
+**Notes for Claude:** Applied in fix/Q-168-perfect-guard-zero: `PerfectGuardReduction` 1.0. The parry animation on a Perfect Guard is B-182 (the animation plays at the press, before Perfect is known). The rest was as built. An "On Perfect Guard: reflect" is a timed buff, so it pays out on later hits that land.
+
+### Q-168b — Status buildup through a Perfect Guard
+**Status:** DECIDED (approved by the reference-backed default, 2026-10-26; Crown may change it) · **Raised:** 2026-10-26 (Q-168 review) · **Blocks:** —
+**Question:** a Perfect Guard now takes no damage (Q-168). Does 30% of the hit's status buildup still land, as before?
+**Options:**
+- **A** 0%: a Perfect Guard negates the hit outright.
+- **B** keep 30%.
+**Recommendation:** A. Expedition 33's perfect parry cancels the hit and its effects entirely, one of its most praised mechanics; a hit that does no damage but still poisons feels wrong.
+**Answer (Crown):** _A, approved by the reference-backed default; reply to change._
+**Notes for Claude:** Applied in fix/Q-168-perfect-guard-zero (`PARRY_BUILDUP_MULTIPLIER` 0).
 
 ### Q-169 — Luck dodge: the open details
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-169) · **Blocks:** — (B-169 shipped with A)
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-169) · **Blocks:** — (B-169 shipped with A)
 **Question:** D-085's Luck dodge is in. A few details had no ruling. Are these right?
 **Context:** As built (option A):
 - **Curve:** the chance is Luck x 15%, reaching 15% at full Luck investment. Gear Luck past that adds nothing to dodging (it still lifts crits and crystal-wear skips).
@@ -1340,7 +1350,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** change some (say which): e.g. gear can push the chance up to the 15% cap (the cap reached at the gear ceiling instead of full stat), a lucky dodge does not fire On Dodge or stop a choke hit, roll it for the lumped hits too, no lucky dodge against AoE, one roll per attack instead of per impact, enemies do not luck-dodge.
 **Recommendation:** A. It is the simplest reading of D-085. The deckbuilder has no Luck dodge to borrow from.
 **Answer (Crown):** **A, approved by the reference-backed default** (Crown, 2026-10-26: 'just go with them'): as built: counts as a full Dodge, rolled per hit, for everyone (enemies too), Luck x 15% capped at 15% (Fire Emblem / Darkest Dungeon style per-attack dodge chances, shown on screen).
-**Notes for Claude:** _optional_
+**Notes for Claude:** As built; nothing to change.
 
 ### Q-147 — Does an evolution attached to a weapon or ring hold spells by its tier too?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-147) · **Blocks:** — (B-147 shipped without it)

@@ -75,11 +75,11 @@ void FGuardSpec::Define()
 
 	Describe("damage", [this]()
 	{
-		It("a Guard takes half, a Perfect Guard less, a Dodge nothing, a miss everything", [this]()
+		It("a Guard takes half, a Perfect Guard and a Dodge nothing, a miss everything", [this]()
 		{
 			TestEqual(TEXT("Guard"), Taken(EDefenseType::Block, GUARD_TEST_NORMAL), ExpectedTaken(DefenseSystem->BlockReduction));
 			TestEqual(TEXT("Perfect Guard"), Taken(EDefenseType::Block, GUARD_TEST_PERFECT), ExpectedTaken(DefenseSystem->PerfectGuardReduction));
-			TestTrue(TEXT("Perfect Guard takes less"), Taken(EDefenseType::Block, GUARD_TEST_PERFECT) < Taken(EDefenseType::Block, GUARD_TEST_NORMAL));
+			TestEqual(TEXT("Perfect Guard takes nothing (Q-168)"), Taken(EDefenseType::Block, GUARD_TEST_PERFECT), 0);
 			TestEqual(TEXT("Dodge"), Taken(EDefenseType::Dodge, GUARD_TEST_PERFECT), 0);
 			TestEqual(TEXT("missed timing"),
 					  DefenseSystem->CalculateDefenseResult(GUARD_TEST_DAMAGE, EDefenseType::Block, false, false).FinalDamage, GUARD_TEST_DAMAGE);
@@ -126,7 +126,7 @@ void FGuardSpec::Define()
 		It("lets less status through a Perfect Guard", [this]()
 		{
 			TestEqual(TEXT("Guard"), GuardRules::GuardBuildupMultiplier(GUARD_TEST_NORMAL), CombatConstants::BLOCK_BUILDUP_MULTIPLIER);
-			TestEqual(TEXT("Perfect Guard"), GuardRules::GuardBuildupMultiplier(GUARD_TEST_PERFECT), CombatConstants::PARRY_BUILDUP_MULTIPLIER);
+			TestEqual(TEXT("Perfect Guard: none (Q-168b)"), GuardRules::GuardBuildupMultiplier(GUARD_TEST_PERFECT), 0.0f);
 		});
 	});
 
