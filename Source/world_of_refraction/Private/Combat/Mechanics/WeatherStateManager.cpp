@@ -425,6 +425,7 @@ FString UWeatherStateManager::GetWeatherStateString() const
 // FAutoConsoleCommandWithWorld — NOT UFUNCTION(CallInEditor). A UGameInstanceSubsystem has no
 // Details panel, so a CallInEditor button never renders. Console commands resolve from any class.
 // "wor." prefix groups them. State is PIE-only, so the chain is null-checked.
+#if !UE_BUILD_SHIPPING
 namespace
 {
     static FAutoConsoleCommandWithWorld GPrintWeatherCmd(
@@ -445,6 +446,7 @@ namespace
                 }
             }));
 }
+#endif // !UE_BUILD_SHIPPING
 
 void UWeatherStateManager::PrintWeatherState() const
 {

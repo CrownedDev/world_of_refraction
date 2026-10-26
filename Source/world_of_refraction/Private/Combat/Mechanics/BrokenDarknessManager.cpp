@@ -1169,6 +1169,7 @@ void UBrokenDarknessManager::DebugLogStrain() const
 // CONSOLE COMMAND — absorption-curve inspection
 // ========================================
 
+#if !UE_BUILD_SHIPPING
 namespace
 {
 	// Resolve the active combat's first Broken Darkness actor (transformed or not — the curve is
@@ -1328,6 +1329,7 @@ static FAutoConsoleCommandWithWorld GStrainSnapshotCommand(
 	TEXT("WoR.StrainSnapshot"),
 	TEXT("Print current BD strain % + projected casts-to-break"),
 	FConsoleCommandWithWorldDelegate::CreateStatic(&RunStrainSnapshotCommand));
+#endif // !UE_BUILD_SHIPPING
 
 float UBrokenDarknessManager::CalculateAuraRange() const
 {
