@@ -1334,7 +1334,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Inventory:** what you can **carry on a run**, with a limit; the starting limit is **10**, raisable (perks, upgrades, etc.).
 - So a merge done outside a run never loses its change: it goes to storage.
 **Notes for Claude, open details to confirm with Crown:**
-- "10" of what: crystals per tier, crystals in total, or all carried items (gear, crystals, stones, consumables)?
+- **Unified (Crown, 2026-10-26):** **one inventory for all items** (gear, crystals, stones, consumables), with **one limit** (starting 10), not separate limits per kind or tier. Storage is unified too. Open: whether a stack of the same crystal/stone (up to 3, today's rule) takes one slot (proposed).
 - In a run with a full inventory: what happens to a find, a merge's change, a vendor purchase (refuse, leave it behind, or send it to storage)?
 - How the limit grows (account perks like D-021's slot growth?).
 - Relation to the shared pool (D-020): storage is the account-wide pool; the run inventory is what's taken into the run (purchase loadout, D-021/D-048).
