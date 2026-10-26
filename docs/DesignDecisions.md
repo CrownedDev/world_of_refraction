@@ -554,12 +554,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Broken Darkness: its EP is the same field, so the seal applies to it too unless Crown says otherwise.
 
 ### D-039 — How many spells does an evolution hold?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** Set by the evolution's tier (1–6), or a flat number?
 **Context:** Combat caps it by tier (`LoadoutComponent.cpp:575-581`); the saved-loadout check uses a flat 6 (`FSavedLoadout.cpp:190-195`); `EvolutionCrystals.md` says about 4. Rules: 01 CL-C1.
 **Options:** A by tier, 1–6 / B flat 6 / C flat 4.
 **Recommendation:** A, the live rule; then make the saved-loadout check match.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A, by tier, as already designed** (2026-10-26): crystals and evolutions hold spells by their tier (1–6, the shared `SlotsForContainerTier` curve). Not a new decision: fix the saved-loadout check's flat 6 (`FSavedLoadout.cpp:190-195`) and `EvolutionCrystals.md`'s "about 4" to match.
 
 ### D-040 — Does a Refractor's innate always work?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
