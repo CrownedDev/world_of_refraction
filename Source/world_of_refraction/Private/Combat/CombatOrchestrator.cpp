@@ -718,8 +718,9 @@ bool ACombatOrchestrator::TryMoveRow(AActor *Actor, bool bForward, FText &OutRef
 
 	const FVector ArenaCenter = GetActorLocation();
 	AActor *Ally = Grid->GetActorAtPosition(Target);
-	const bool bMoved = Ally ? Grid->SwapActorPositions(Actor, Ally, ArenaCenter)
-							 : Grid->MoveActorToRow(Actor, Target.Row, ArenaCenter);
+	// The fallen stay on the grid; their cell is blocked rather than swapped into (Q-180).
+	const bool bMoved = !Ally ? Grid->MoveActorToRow(Actor, Target.Row, ArenaCenter)
+							  : IsActorAlive(Ally) && Grid->SwapActorPositions(Actor, Ally, ArenaCenter);
 	if (!bMoved)
 	{
 		OutRefusedReason = NSLOCTEXT("CombatOrchestrator", "RowBlocked", "Can't move there.");
@@ -1912,6 +1913,7 @@ void ACombatOrchestrator::DebugPrintCombatState()
 	UE_LOG(LogTemp, Display, TEXT("Combat State: %d"), (int32)CombatState);
 	UE_LOG(LogTemp, Display, TEXT("Current Turn: %d"), CurrentTurnNumber);
 	UE_LOG(LogTemp, Display, TEXT("Current Actor: %s"), CurrentActor ? *CurrentActor->GetName() : TEXT("None"));
+	UE_LOG(LogTemp, Display, TEXT("Row move used this turn: %s"), bRowMoveUsedThisTurn ? TEXT("yes") : TEXT("no"));
 	UE_LOG(LogTemp, Display, TEXT("Auto-Advance: %s (%.1fs delay)"),
 		   bAutoAdvanceTurns ? TEXT("ON") : TEXT("OFF"), AutoAdvanceDelay);
 	UE_LOG(LogTemp, Display, TEXT("Waiting for Async: %s"), bWaitingForAsyncAction ? TEXT("Yes") : TEXT("No"));

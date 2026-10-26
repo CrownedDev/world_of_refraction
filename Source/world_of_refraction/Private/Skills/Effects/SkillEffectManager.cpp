@@ -1619,6 +1619,13 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::PushBack:
 	case ESkillEffectType::PullForward:
 	{
+		// A stored (Duration > 0) row move would shove the target again on every tick.
+		if (!Effect.IsInstant())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] %s on %s has a duration; row moves must be authored with Duration 0 - ignored"),
+				   *Effect.EffectName, *Actor->GetName());
+			break;
+		}
 		UGameInstance *GI = GetGameInstance();
 		UCombatGridSubsystem *Grid = GI ? GI->GetSubsystem<UCombatGridSubsystem>() : nullptr;
 		const UActionExecutor *AE = GI ? GI->GetSubsystem<UActionExecutor>() : nullptr;

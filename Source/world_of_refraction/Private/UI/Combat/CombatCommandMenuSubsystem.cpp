@@ -611,8 +611,8 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
         Buttons.Add(CreateSwitchWeaponButton());
     if (CurrentCapabilities.bCanSwitchRing)
         Buttons.Add(CreateSwitchRingButton());
-    Buttons.Add(CreateMoveRowButton(true));
-    Buttons.Add(CreateMoveRowButton(false));
+    Buttons.Add(CreateMoveRowButton(/*bForward*/ true));
+    Buttons.Add(CreateMoveRowButton(/*bForward*/ false));
     Buttons.Add(CreateDefendButton());
     Buttons.Add(CreateFleeButton());
 
@@ -1030,6 +1030,8 @@ void UCombatCommandMenuSubsystem::ExecuteMoveRow(bool bForward)
     FText RefusedReason;
     if (!Orchestrator || !Orchestrator->TryMoveRow(CurrentActor.Get(), bForward, RefusedReason))
     {
+        UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Row step refused: %s"),
+               Orchestrator ? *RefusedReason.ToString() : TEXT("no orchestrator"));
         return;
     }
     // The new row greys the step that is no longer possible.
