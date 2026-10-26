@@ -13,6 +13,8 @@
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/EffectIdentity.h"
 #include "Skills/Effects/FGatheredEffect.h"
+#include "Skills/Effects/EffectDefinition.h"
+#include "Equipment/Rings/RingData.h"
 
 namespace
 {
@@ -68,6 +70,14 @@ BEGIN_DEFINE_SPEC(FEffectIdentitySpec, "WoR.Effects.Identity",
 		return FActiveSkillEffect::CreateBuff(TEXT("Identity test debuff"), IDENTITY_TEST_EFFECT_ID,
 											  ESkillEffectType::DefenseDebuff, Value, IDENTITY_TEST_DURATION_TURNS);
 	}
+
+	static FActiveSkillEffect InstantHeal()
+	{
+		FActiveSkillEffect Heal = FActiveSkillEffect::CreateBuff(TEXT("Identity test heal"), IDENTITY_TEST_EFFECT_ID,
+																 ESkillEffectType::HealthRestore, IDENTITY_TEST_HEAL_VALUE, 0);
+		Heal.bFiresOncePerMatch = true;
+		return Heal;
+	}
 END_DEFINE_SPEC(FEffectIdentitySpec)
 
 void FEffectIdentitySpec::Define()
@@ -112,15 +122,25 @@ void FEffectIdentitySpec::Define()
 			if (!EffectManager) return;
 			AActor *Holder = Spawn();
 			AActor *Source = Spawn();
-			FActiveSkillEffect Heal = FActiveSkillEffect::CreateBuff(TEXT("Identity test heal"), IDENTITY_TEST_EFFECT_ID,
-																	 ESkillEffectType::HealthRestore, IDENTITY_TEST_HEAL_VALUE, 0);
-			Heal.bFiresOncePerMatch = true;
+			const FActiveSkillEffect Heal = InstantHeal();
 			TestTrue(TEXT("The heal is an instant"), Heal.IsInstant());
 
 			TestTrue(TEXT("First use lands"),
 					 EffectManager->ApplyEffect(Holder, Heal, Source, TEXT("Test")) == EEffectApplicationResult::Applied);
 			TestTrue(TEXT("Second use is refused"),
 					 EffectManager->ApplyEffect(Holder, Heal, Source, TEXT("Test")) == EEffectApplicationResult::Rejected);
+			TestTrue(TEXT("Another holder still gets its use"),
+					 EffectManager->ApplyEffect(Spawn(), Heal, Source, TEXT("Test")) == EEffectApplicationResult::Applied);
+		});
+
+		It("gives a doesn't-stack effect one use per holder, whichever item brings it", [this]()
+		{
+			if (!EffectManager) return;
+			AActor *Wearer = Spawn();
+			EffectManager->ApplyEquipmentEffects(Wearer, {GearEffect(IDENTITY_TEST_ITEM_A, true, /*bDoesNotStack*/ true)});
+			EffectManager->RemoveAllEffects(Wearer);
+			EffectManager->ApplyEquipmentEffects(Wearer, {GearEffect(IDENTITY_TEST_ITEM_B, true, /*bDoesNotStack*/ true)});
+			TestEqual(TEXT("The second item's use is refused"), EffectsOfType(Wearer, ESkillEffectType::SpellDamageBuff).Num(), 0);
 		});
 	});
 
@@ -184,6 +204,50 @@ void FEffectIdentitySpec::Define()
 			AActor *Wearer = Spawn();
 			EffectManager->ApplyEquipmentEffects(Wearer, {GearEffect(IDENTITY_TEST_ITEM_A), GearEffect(IDENTITY_TEST_ITEM_A)});
 			TestEqual(TEXT("One item, one copy"), EffectsOfType(Wearer, ESkillEffectType::SpellDamageBuff).Num(), 1);
+		});
+
+		It("gives each item its own source key when gathered", [this]()
+		{
+			if (!EffectManager) return;
+			UEffectDefinition *Def = NewObject<UEffectDefinition>();
+			Def->Effects.Add(GearEffect(0).Effect);
+			URingData *RingA = NewObject<URingData>();
+			URingData *RingB = NewObject<URingData>();
+			RingA->ReferencedEffects.Add(Def);
+			RingB->ReferencedEffects.Add(Def);
+			const TArray<FGatheredEffect> FromA = RingA->GetStartingEffectsGathered();
+			const TArray<FGatheredEffect> FromB = RingB->GetStartingEffectsGathered();
+			if (!TestEqual(TEXT("Ring A gives one effect"), FromA.Num(), 1) || !TestEqual(TEXT("Ring B gives one effect"), FromB.Num(), 1)) return;
+			TestNotEqual(TEXT("Ring A's key is stamped"), FromA[0].SourceKey, 0);
+			TestNotEqual(TEXT("The two rings are different sources"), FromA[0].SourceKey, FromB[0].SourceKey);
+			TestEqual(TEXT("Same definition, same slot"), FromA[0].DefID, FromB[0].DefID);
+		});
+
+		It("refreshes a doesn't-stack effect when the same item applies again", [this]()
+		{
+			if (!EffectManager) return;
+			AActor *Wearer = Spawn();
+			EffectManager->ApplyEquipmentEffects(Wearer, {GearEffect(IDENTITY_TEST_ITEM_A, false, /*bDoesNotStack*/ true),
+														  GearEffect(IDENTITY_TEST_ITEM_A, false, /*bDoesNotStack*/ true)});
+			TestEqual(TEXT("One copy held"), EffectsOfType(Wearer, ESkillEffectType::SpellDamageBuff).Num(), 1);
+		});
+
+		It("adds a stack with the new, lower value from the same caster", [this]()
+		{
+			if (!EffectManager) return;
+			AActor *Holder = Spawn();
+			AActor *Caster = Spawn();
+			FActiveSkillEffect Strong = Debuff(IDENTITY_TEST_STRONG_VALUE);
+			Strong.bCanStack = true;
+			FActiveSkillEffect Weak = Debuff(IDENTITY_TEST_WEAK_VALUE);
+			Weak.bCanStack = true;
+			EffectManager->ApplyEffect(Holder, Strong, Caster, TEXT("Test skill"));
+			TestTrue(TEXT("A stack is added"),
+					 EffectManager->ApplyEffect(Holder, Weak, Caster, TEXT("Test skill")) == EEffectApplicationResult::StackAdded);
+			const TArray<FActiveSkillEffect> Held = EffectsOfType(Holder, ESkillEffectType::DefenseDebuff);
+			if (!TestEqual(TEXT("One copy"), Held.Num(), 1)) return;
+			TestEqual(TEXT("Two stacks"), Held[0].CurrentStacks, 2);
+			TestEqual(TEXT("Per-stack value is the new one"), Held[0].EffectValue, IDENTITY_TEST_WEAK_VALUE);
 		});
 
 		It("adds nothing from a second item when the effect doesn't stack", [this]()
