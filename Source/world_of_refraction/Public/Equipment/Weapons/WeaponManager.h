@@ -18,11 +18,6 @@ class ULoadoutComponent;
  *
  * OBSOLETE (B-024): forwards to ULoadoutComponent::GetActiveWeapon / GetCurrentAttack.
  * No C++ caller left; kept for Blueprints until Crown's PIE pass, then removed (B-154).
- *
- * Usage:
- *   UWeaponManager* WeaponMgr = GetGameInstance()->GetSubsystem<UWeaponManager>();
- *   UWeaponData* Weapon = WeaponMgr->GetActiveWeapon(Actor);
- *   // Attack execution flows through UActionExecutor / ApplyHit, not this subsystem.
  */
 UCLASS()
 class WORLD_OF_REFRACTION_API UWeaponManager : public UGameInstanceSubsystem

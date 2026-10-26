@@ -5,6 +5,7 @@
 
 #include "Equipment/Rings/RingManager.h"
 #include "Loadout/LoadoutComponent.h"
+#include "GameFramework/Actor.h"
 
 namespace
 {

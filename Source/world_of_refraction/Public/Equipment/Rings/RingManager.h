@@ -2,7 +2,7 @@
 // Simplified ring management for Resonators.
 // Stateless query/switching surface backed by ULoadoutComponent
 // (single source of truth for ring loadout + active index).
-// Consumes UCrystalManager::OnCrystalBroken, performs auto-switch.
+// The crystal-break auto-switch moved to ULoadoutComponent (B-024).
 
 #pragma once
 
@@ -54,8 +54,8 @@ public:
 	bool SwitchToNextRing(AActor *Actor);
 
 private:
-	/** Consumer of UCrystalManager::OnCrystalBroken. Filters by
-	 *  Cast<URingData>(Holder); performs SwitchToNextRing on match. */
+	/** Unbound since B-024: UCrystalManager::NotifyCrystalBroken calls
+	 *  ULoadoutComponent::HandleCrystalBroken instead. Removed with this class (B-154). */
 	UFUNCTION()
 	void HandleCrystalBroken(AActor *Actor, UObject *Holder, FBrokenCrystalPayload Payload);
 };
