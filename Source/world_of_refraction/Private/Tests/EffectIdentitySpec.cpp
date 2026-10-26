@@ -13,6 +13,7 @@
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/EffectIdentity.h"
 #include "Skills/Effects/FGatheredEffect.h"
+#include "Combat/CombatConstants.h"
 #include "Skills/Effects/EffectDefinition.h"
 #include "Equipment/Rings/RingData.h"
 
@@ -27,8 +28,6 @@ namespace
 	constexpr float IDENTITY_TEST_WEAK_VALUE = 10.0f;
 	constexpr float IDENTITY_TEST_HEAL_VALUE = 10.0f;
 	constexpr int32 IDENTITY_TEST_DURATION_TURNS = 2;
-	/** A full Burn lasts this many of the holder's turns today (ApplyTriggeredSkillEffect). */
-	constexpr int32 IDENTITY_TEST_BURN_TURNS = 2;
 }
 
 BEGIN_DEFINE_SPEC(FEffectIdentitySpec, "WoR.Effects.Identity",
@@ -157,12 +156,12 @@ void FEffectIdentitySpec::Define()
 			EffectManager->ProcessEndOfTurnEffects(Holder);
 			const TArray<FActiveSkillEffect> Ticked = EffectsOfType(Holder, ESkillEffectType::DOT);
 			if (!TestEqual(TEXT("One Burn after the first fill"), Ticked.Num(), 1)) return;
-			TestEqual(TEXT("A turn has ticked off"), Ticked[0].RemainingTurns, IDENTITY_TEST_BURN_TURNS - 1);
+			TestEqual(TEXT("A turn has ticked off"), Ticked[0].RemainingTurns, CombatConstants::STATUS_CAP_TURNS - 1);
 
 			EffectManager->ApplyTriggeredSkillEffect(Attacker, Holder, ESkillEffectType::DOT, ESpellElement::Fire);
 			const TArray<FActiveSkillEffect> Refreshed = EffectsOfType(Holder, ESkillEffectType::DOT);
 			if (!TestEqual(TEXT("Still one Burn"), Refreshed.Num(), 1)) return;
-			TestEqual(TEXT("Its timer is reset"), Refreshed[0].RemainingTurns, IDENTITY_TEST_BURN_TURNS);
+			TestEqual(TEXT("Its timer is reset"), Refreshed[0].RemainingTurns, CombatConstants::STATUS_CAP_TURNS);
 		});
 
 		It("add a copy for each attacker", [this]()
