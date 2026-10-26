@@ -1150,7 +1150,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Today `Flee` is an action type that isn't offered and does nothing (ET-21).
 
 ### Q-163 — Can you infuse through a ring whose crystal broke?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-163) · **Blocks:** — (B-163 shipped with A)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-163) · **Blocks:** — (B-163 shipped with A)
 **Question:** D-083 keeps a broken ring's F-tier spells usable and says nothing about infusing. Is the ring still offered as an infusion source (for attacks, abilities and spells) once its crystal is broken?
 **Context:** today it is (`UActionExecutor::GetAvailableInfusionSources` offers the active / primary ring whenever one is equipped). A broken **weapon** crystal is not offered (D-083: no infusing). B-163 also read D-083's "no elemental abilities" as "no ability infused through that weapon's crystal", since abilities have no element of their own.
 **Options:**
@@ -1158,7 +1158,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** not offered, like a broken weapon crystal.
 - **C** offered only for the F-tier spells the broken ring still casts.
 **Recommendation:** B, because it matches the weapon rule (a broken crystal gives no element to push), and the F-tier allowance is about casting the ring's own spells.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **B** (2026-10-26): a ring whose crystal broke is **not** an infusion source (no element to push), matching the weapon rule; its own F-tier spells still cast.
 **Notes for Claude:** _optional_
 
 ### D-092 — Shields, Wards and Barriers: the deckbuilder's absorb system
