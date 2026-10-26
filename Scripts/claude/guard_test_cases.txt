@@ -1,0 +1,32 @@
+0	git ls-tree -r HEAD Content
+0	git ls-tree -r HEAD -- Content/Core
+0	git log --format=%h -r Source/x.cpp
+0	grep -rn perform -r Source
+0	git ls-files -r Content
+0	docs/arm -r Content/
+0	rm -f Saved/log.txt
+0	rm -rf Saved/Intermediate
+0	echo rm && ls -R Content
+2	rm -rf Content/x
+2	rm -r Source
+2	cd x && rm -rf Config/
+2	echo a; rm -fr Content/UI
+2	git rm -r Content/Old
+2	echo a\nrm -rf Source/x
+2	ls\trm -rf Content/x
+2	rm --recursive Content/x
+2	x=$(rm -rf Content/y)
+2	sudo rm -Rf Source/z
+2	/usr/bin/rm -rf Content/x
+2	/bin/rm -rf Content
+2	C:/msys64/usr/bin/rm.exe -rf Content
+2	rm.exe -rf Content/x
+2	\\rm -rf Content/x
+2	'rm' -rf Content/x
+2	rm\t-rf Content/x
+2	\"rm\" -rf Content/x
+2	x=$(rm -rf Content)
+2	{ rm -rf Content; }
+2	`rm -rf Content`
+2	command rm -rf Content/x
+2	xargs rm -r Content

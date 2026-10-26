@@ -19,9 +19,11 @@ if echo "$INPUT" | grep -q '"command"'; then
     fi
     echo "$CMD" | grep -Eq 'git[^"]*reset[^"]*--hard' \
         && block "git reset --hard can destroy work. Use a new commit or ask Crown."
-    # `rm` only as a command word (start, whitespace, ; & | ( ` " or a JSON-escaped \n/\t before it),
-    # so words like "ls-tree -r ... Content" aren't read as a delete.
-    echo "$CMD" | grep -Eq '(^|[;&|(`"[:space:]]|\\[nt])rm[[:space:]][^"]*-[a-zA-Z]*[rR][a-zA-Z]*[^"]*(Content|Source|Config)(/|[[:space:]]|")' \
+    # `rm` only as a command word, so words like "ls-tree -r ... Content" aren't read as a delete.
+    # Before it: start, whitespace, ; & | ( ` " ' / (a path like /usr/bin/rm), or a JSON escape
+    # (\n, \t, or \rm). Then optional .exe, then whitespace/\t/a quote. The flags and path must sit in
+    # the same command (no ; & | in between), and the path may end the command or a $( ) / { } block.
+    echo "$CMD" | grep -Eq '(^|[;&|(`"'\''/[:space:]]|\\[nt]?)rm(\.exe)?([[:space:]]|\\t|'\''|\\")[^";&|]*-[a-zA-Z]*[rR][a-zA-Z]*[^";&|]*(Content|Source|Config)(/|[[:space:]]|"|[;)}&|`])' \
         && block "recursive delete under Content/Source/Config is not allowed."
 fi
 
