@@ -89,6 +89,17 @@ void FTurnSwitchSpec::Define()
 		TestEqual(TEXT("switched once"), Loadout->GetActiveLoadout().bShowPrimary, !bPrimaryBefore);
 	});
 
+	It("keeps the switch when a ring switch changes nothing", [this]()
+	{
+		if (!TestNotNull(TEXT("Switcher"), SpawnWithLoadout()))
+		{
+			return;
+		}
+		FText Reason;
+		TestFalse(TEXT("no ring at that index"), Loadout->TrySwitchRingThisTurn(INDEX_NONE, Reason));
+		TestTrue(TEXT("switch still free"), Loadout->GetTurnSwitchRefusedReason().IsEmpty());
+	});
+
 	It("allows a switch again on the next turn", [this]()
 	{
 		ACombatOrchestrator *Orchestrator = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>() : nullptr;
@@ -98,6 +109,7 @@ void FTurnSwitchSpec::Define()
 		{
 			return;
 		}
+		// Equal stats: the tie-break gives the local party (Hero) turn 1.
 		Orchestrator->StartCombat({Hero}, {Foe});
 		if (!TestTrue(TEXT("Hero acts first"), Orchestrator->GetCurrentActor() == Hero))
 		{
