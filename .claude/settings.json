@@ -23,7 +23,15 @@
       "Bash(git push origin main:*)",
       "Bash(git reset --hard:*)",
       "Edit(Content/**)",
-      "Write(Content/**)"
+      "Write(Content/**)",
+      "Read(Intermediate/**)",
+      "Read(Binaries/**)",
+      "Read(Saved/**)",
+      "Read(DerivedDataCache/**)",
+      "Read(Content/**)",
+      "Read(.vs/**)",
+      "Read(Plugins/**/Intermediate/**)",
+      "Read(Plugins/**/Binaries/**)"
     ]
   },
   "hooks": {
@@ -31,14 +39,21 @@
       {
         "matcher": "Bash|Edit|Write|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "G=\"$CLAUDE_PROJECT_DIR/Scripts/claude/guard.sh\"; bash -n \"$G\" 2>/dev/null || { echo \"guard.sh does not parse - guard SKIPPED, fix it\" >&2; exit 1; }; bash \"$G\"" }
+          {
+            "type": "command",
+            "command": "G=\"$CLAUDE_PROJECT_DIR/Scripts/claude/guard.sh\"; bash -n \"$G\" 2>/dev/null || { echo \"guard.sh does not parse - guard SKIPPED, fix it\" >&2; exit 1; }; bash \"$G\""
+          }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "S=\"$CLAUDE_PROJECT_DIR/Scripts/claude/stop-check.sh\"; bash -n \"$S\" 2>/dev/null || { echo \"stop-check.sh does not parse - check SKIPPED, fix it\" >&2; exit 1; }; bash \"$S\"", "timeout": 1800 }
+          {
+            "type": "command",
+            "command": "S=\"$CLAUDE_PROJECT_DIR/Scripts/claude/stop-check.sh\"; bash -n \"$S\" 2>/dev/null || { echo \"stop-check.sh does not parse - check SKIPPED, fix it\" >&2; exit 1; }; bash \"$S\"",
+            "timeout": 1800
+          }
         ]
       }
     ]

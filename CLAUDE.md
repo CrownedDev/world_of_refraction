@@ -153,18 +153,20 @@ Create or update these documents as part of completing tasks, not as a separate 
 
 The project is worked from one queue, `docs/Backlog.md`, with open questions in `docs/DesignDecisions.md`. Start it with the `work-backlog` skill. In Backlog mode the "Ask before" rules above are replaced by these:
 
-1. **One job at a time**, top-down: the first `TODO` whose dependencies are `DONE` and whose decisions aren't `OPEN`.
-2. **Own branch per job** (`fix/`, `refactor/`, `feature/`, `chore/` + `B-xxx`), from up-to-date `main`. Commit after each cluster (≤3 files). **Never push to or merge into `main`** — Crown merges.
+1. **One job at a time**, top-down: the first `TODO` whose dependencies are `DONE` or `REVIEW (in dev)` and whose decisions aren't `OPEN`.
+2. **Own branch per job** (`fix/`, `refactor/`, `feature/`, `chore/` + `B-xxx`), from up-to-date **`dev`**. Commit after each cluster (≤3 files). **Never touch `main`** (no commits, merges or pushes): Crown merges `dev → main` after play-testing.
 3. **Never decide a design question.** If a job needs one:
    - add or link a `D-xxx` entry in `DesignDecisions.md`
    - mark the job `BLOCKED (D-xxx)`
    - commit that doc change
    - **move on to the next job**
 4. **Prove it before handing it over.** The build must pass and the tests must pass (`Scripts/ue/build.sh`, `Scripts/ue/test.sh`; the Stop hook enforces this when `UE_ROOT` is set). Then run the `wor-reviewer` agent on the diff and fix what it finds.
-5. **Hand-off:**
-   - set the job to `REVIEW (branch)` in `Backlog.md`
-   - list what Crown must check in PIE in the commit message
+5. **Hand-off** (only after build + tests + `wor-reviewer` pass):
+   - set the job to `REVIEW (in dev)` in `Backlog.md`
    - add a changelog line to the relevant `docs/Architecture/` doc
+   - write `docs/PIE/B-xxx.md` in the format of `docs/PIE/B-001.md` (numbered checks: do this / you should see / result box) and add its row to **Pending** in `docs/PIE/README.md`
+   - append a plain-words entry to `docs/sessions/<today>.md`: what changed, why, how it was verified, what Crown should check
+   - push the job branch, merge it into `dev` with `git merge --no-ff -m "<real message>"` (never `--no-edit`), push `dev`
 6. **Stop** after Crown's requested number of jobs, or when only blocked jobs remain. Summarise: done, blocked (with D-xxx), next.
 
 Still always: no Blueprint/`.uasset` edits outside the editor connection, no deleting code before it's verified in PIE, no history rewriting, and the Architecture rules above.

@@ -12,7 +12,7 @@
 **Status values:**
 - `TODO`
 - `IN PROGRESS (branch)`
-- `REVIEW (branch)`: done by Claude, waiting for Crown to build/PIE/merge
+- `REVIEW (in dev)`: done by Claude, built + tested + reviewed, merged into `dev`; waiting for Crown's PIE pass (`docs/PIE/B-xxx.md`) and the `dev → main` merge. Counts as met for jobs that depend on it.
 - `BLOCKED (D-xxx | B-xxx | Crown)`
 - `DONE (commit)`
 
@@ -31,13 +31,13 @@
 
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
-| B-001 | Build + PIE `fix/combat-hang-arc-a`; merge to main | Crown | S | — | Merged; a win resets status bars; a stunned actor's turn passes | REVIEW (fix/combat-hang-arc-a) |
+| B-001 | Build + PIE `fix/combat-hang-arc-a`; merge to main | Crown | S | — | Merged; a win resets status bars; a stunned actor's turn passes | REVIEW (in dev) |
 | B-002 | Merge main into `refactor/bp-logic-to-cpp`, resolve the orchestrator conflict | CC | S | B-001 | Branch builds clean (Crown confirms) | BLOCKED (B-001) |
 | B-003 | Build + cut over `refactor/bp-logic-to-cpp` (follow `Refactor/BPLogicToCpp_ReviewNotes.md`); merge | Crown | M | B-002 | Native HUD, results, hub PC working in PIE | BLOCKED (B-002) |
 | B-004 | Enable **CommonUI** + **GameplayAbilities** plugins; commit `.uproject` | Crown | S | — | Plugins on; project opens | TODO |
 | B-005 | Fill `UE_ROOT` (local env var) and run `Scripts/ue/build.sh` + `test.sh` once | Crown | S | — | Both scripts work locally; hooks active | DONE (local env, 2026-10-26) |
 | B-006 | Log categories: `LogWoR`, `LogWoRCombat`, `LogWoREffects`, `LogWoRAI`, `LogWoRLoadout`, `LogWoRUI`, `LogWoREconomy`; new header + cpp | CC | S | — | Declared and defined; used by new code; `LogTemp` migrated file-by-file when touched | TODO |
-| B-007 | First Automation Spec tests: DamageCalculator (Pattern-P, defense clamp, crit), TierGap/RequirementGap scaling, TurnManager ordering | CC | M | B-005 | `test.sh` runs them headless and they pass | REVIEW (feature/B-007-automation-tests) |
+| B-007 | First Automation Spec tests: DamageCalculator (Pattern-P, defense clamp, crit), TierGap/RequirementGap scaling, TurnManager ordering | CC | M | B-005 | `test.sh` runs them headless and they pass | REVIEW (in dev) |
 | B-008 | `#if !UE_BUILD_SHIPPING` around all `FAutoConsoleCommand`s and test actors' bodies | CC | S | — | Shipping config compiles without them | TODO |
 | B-009 | Defense timing → world time (`DefenseSystem.cpp:68,212,422`) | CC | S | — | Window survives pause; matches the old timing in PIE | TODO |
 | B-010 | Per-battle `FRandomStream` (crit, BD, AI, random targets), seeded at combat start, seed logged | CC | M | B-001 | Same seed gives the same fight in a test | BLOCKED (B-001) |

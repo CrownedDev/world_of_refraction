@@ -13,7 +13,8 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 ## Pending
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
-| [B-001](B-001.md) | `fix/combat-hang-arc-a` (→ `dev`) | Combat can no longer freeze; clean end of combat | Not tested |
+| [B-001](B-001.md) | `fix/combat-hang-arc-a` (in `dev`) | Combat can no longer freeze; clean end of combat | Not tested |
+| [B-007](B-007.md) | `feature/B-007-automation-tests` (in `dev`) | 26 headless tests + test.sh output; no gameplay change | Not tested |
 
 Move rows to **Done** when every check passes.
 
