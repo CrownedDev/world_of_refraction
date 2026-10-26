@@ -275,7 +275,7 @@ The queue of questions only Crown can answer.
 - The moved widgets in `Content/UI/UMG/` (D-022) aren't worth more investigation: they are replaced anyway.
 
 ### D-025 — Where does the mockup tool live, and where do the mockups go?
-**Status:** OPEN · **Raised:** 2026-10-26 · **Blocks:** B-100 (then the whole UI rebuild)
+**Status:** ANSWERED · **Raised:** 2026-10-26 · **Blocks:** B-100 (then the whole UI rebuild)
 **Question:** Copy the deckbuilder's mockup tool into this repo, and are the drafts committed so Crown can review them from the phone?
 **Context:** `tools/ui_drafts/` in `wor-deckbuilder` (Python + Pillow) draws plain + annotated 1280×720 drafts from the licensed kit in `wor.game/assets/ui/library/` (git-ignored there). Its drafts are git-ignored too, so they can only be seen on the PC (`UI_DeckbuilderReuse.md` §5, open item 4).
 **Options:**
@@ -283,7 +283,8 @@ The queue of questions only Crown can answer.
 - B: as A, but drafts stay git-ignored (PC only, like the deckbuilder).
 - C: keep the tool in the deckbuilder and point its output at this repo.
 **Recommendation:** A. One repo to work in, and you can review drafts from your phone. The repo is private and LFS-tracks `png`; drafts are small (1280×720).
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A** (2026-10-26). Copy the tool into this repo; commit the drafts so they can be reviewed from the phone.
+**Notes for Claude:** tool under `Tools/ui_drafts/`, kit path from env var `WOR_UI_KIT` (fail with a clear message if unset); drafts under `docs/Design/screen_mockups/<area>/<screen>/vN/` (`_plain.png` + `_annotated.png`, LFS). Copy only the tool code, never the kit itself.
 
 ---
 
