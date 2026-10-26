@@ -90,7 +90,7 @@
 | B-064a | Ice per D-029: append `Ice` damage type (Water-keyed, no crystals/rings/innate); resistance + trigger reach per the deckbuilder; Ice bar cap → timed turn-speed debuff (Freeze). Survey every element switch first | CC | M | B-064 | Tests: Ice skill needs a Water source; Ice Res resists Water; full Ice bar slows turns | BLOCKED (B-064) |
 | B-064 | Element damage per D-005 (C): the resistance table also scales damage via `ElementMultiplier`; `OnDamageDealt` carries element | CC | M | D-005 | Tests: weak/resistant/neutral; damage numbers can tint by element | TODO |
 | B-095 | Resistance table structure: move `ClassInnateResistanceTable` (hard-coded C++) into a designer-editable data asset, same values; debug print button | CC | M | B-064 | Same numbers in tests before/after; editable in the Details panel | BLOCKED (B-064) |
-| B-065 | Cleanse vs gear effects per D-015 | CC | S | D-015 | Test | BLOCKED (D-015) |
+| B-065 | Cleanse per D-015: cleanse and Iolite skip effects that came from gear (origin mark), yours or the enemy's | CC | S | D-015 | Tests: cleanse keeps own gear effects; Iolite keeps enemy gear buffs | TODO |
 | B-066 | Aura element inheritance for buff types; Cleanse payload wired (Roadmap Design Gaps) | CC | M | — | `DA_Spell_Aura` and `DA_Spell_Cleanse` do something | TODO |
 | B-067 | Small fixes: TurnManager null checks, DoubleHit totals, corpse return-anim, anim-wait hang, GI deref | CC | M | B-001 | Each with a regression test or PIE note | TODO |
 
