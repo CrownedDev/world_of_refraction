@@ -687,20 +687,8 @@ void ACombatOrchestrator::ProceedWithTurnStart()
 	// Broadcast for UI/listeners
 	OnActorTurnStarted.Broadcast(CurrentActor, CurrentTurnNumber);
 
-	// Stunned: no action is valid (ValidateAction rejects all), so the turn passes
-	// here. End-of-turn processing still runs, which is what ticks the stun down.
-	// TODO: Crown Q1 — if stun should allow Attack/Defend, gate this on that instead.
-	if (ActionExecutorRef && !ActionExecutorRef->CanActorAct(CurrentActor))
-	{
-		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s is stunned - turn passes"), *CurrentActor->GetName());
-		// Next tick, not inline: consecutive stunned actors would otherwise recurse
-		// turn-start -> pass -> turn-start on one stack. Reuses the auto-advance handle,
-		// so a real submit or combat end clears it like any auto-advance.
-		AutoAdvanceTimerHandle = GetWorld()->GetTimerManager().SetTimerForNextTick(
-			FTimerDelegate::CreateUObject(this, &ACombatOrchestrator::OnActionCompleted));
-		return;
-	}
-
+	// Stunned actors are asked too (D-001: Attack/Defend still allowed). ValidateAction
+	// enforces the rule; an invalid pick re-asks a player and passes an AI's turn.
 	RequestActionFromActor(CurrentActor);
 }
 
