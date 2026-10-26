@@ -453,9 +453,7 @@ float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager)
 	{
-		float DefenseBuff = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::DefenseBuff);
-		float DefenseDebuff = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::DefenseDebuff);
-		Reduction *= FMath::Max(0.0f, 1.0f + (DefenseBuff - DefenseDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+		Reduction *= FMath::Max(0.0f, 1.0f + StatusManager->GetNetStatModifier(Defender, ESubStat::Defense) / CombatConstants::STAT_PERCENT_DIVISOR);
 	}
 
 	return FMath::Clamp(Reduction, 0.0f, CombatConstants::DEFENSE_REDUCTION_CEILING);
@@ -635,9 +633,8 @@ float UDamageCalculator::GetCritDamageMultiplier(AActor *Attacker) const
 	// debuff can cancel the crit BONUS toward a normal hit but never make a crit weaker than one.
 	if (USkillEffectManager *StatusManager = GetSkillEffectManager())
 	{
-		const float Modify = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyCritDamage);
-		const float Debuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::CritDamageDebuff);
-		Result *= (1.0f + (FMath::Max(0.0f, Modify) - Debuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+		// The table's CritDamage row floors ModifyCritDamage at 0 before subtracting the debuff.
+		Result *= (1.0f + StatusManager->GetNetStatModifier(Attacker, ESubStat::CritDamage) / CombatConstants::STAT_PERCENT_DIVISOR);
 	}
 	return FMath::Clamp(Result, CombatConstants::CRIT_DMG_BASE, CombatConstants::CRIT_DAMAGE_GEAR_CEILING);
 }

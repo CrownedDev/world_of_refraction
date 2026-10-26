@@ -225,10 +225,7 @@ void UTurnManager::CalculateSpeedRatios()
 		{
 			return Combatant.CachedSpeed;
 		}
-		const float TurnMod = SEM->GetTotalStatModifier(Combatant.Actor, ESkillEffectType::ModifyTurnSpeed);
-		const float TurnBuff = SEM->GetTotalStatModifier(Combatant.Actor, ESkillEffectType::TurnSpeedBuff);
-		const float TurnDebuff = SEM->GetTotalStatModifier(Combatant.Actor, ESkillEffectType::TurnSpeedDebuff);
-		const float Multiplier = 1.0f + (TurnMod + TurnBuff - TurnDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
+		const float Multiplier = 1.0f + SEM->GetNetStatModifier(Combatant.Actor, ESubStat::TurnSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
 
 		// Attached TurnSpeedStone — a PERMANENT, equipment-derived turn-speed multiplier
 		// from the combatant's OWN active weapon attachment (live-resolved). Multiplies
