@@ -238,6 +238,12 @@ public:
      *  owner (D-033). For the item description. */
     FText GetBoundBonusText(const UCharacterData *Wearer) const;
 
+    /** Debug: the owner and every bound effect, shown or not. */
+    FString GetBoundGearString() const;
+
+    UFUNCTION(CallInEditor, Category = "Debug")
+    void PrintBoundGear() const;
+
     // ==================== REQUIREMENTS ====================
 
     // ShowOnlyInnerProperties: inline the struct's fields under the category

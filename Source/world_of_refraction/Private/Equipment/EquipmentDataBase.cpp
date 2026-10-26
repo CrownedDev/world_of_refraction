@@ -10,6 +10,7 @@
 #include "Skills/Effects/EffectIdentity.h"
 #include "Character/CharacterData.h"
 #include "Debug/Skills/SkillEffectDebug.h"
+#include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "EquipmentDataBase"
 
@@ -347,14 +348,34 @@ FText UEquipmentDataBase::GetBoundBonusText(const UCharacterData *Wearer) const
     TArray<FString> Lines;
     for (const UEffectDefinition *Def : BoundEffects)
     {
-        for (const FSkillEffect &Effect : Def ? Def->Effects : TArray<FSkillEffect>())
+        if (!Def)
         {
-            // TODO(D-031): the nested description text once it exists; the debug line for now.
+            continue;
+        }
+        for (const FSkillEffect &Effect : Def->Effects)
+        {
+            // TODO(D-031, D-061): the localised nested description once it exists; the debug line for now.
             Lines.Add(SkillEffectDebug::DescribeEffect(Effect));
         }
     }
-    return FText::Format(LOCTEXT("BoundBonus", "{0}'s bound bonus: {1}"), FText::FromString(BoundOwner->Name),
+    return FText::Format(LOCTEXT("BoundBonus", "Bound bonus ({0}): {1}"), FText::FromString(BoundOwner->Name),
                          FText::FromString(FString::Join(Lines, TEXT("; "))));
+}
+
+FString UEquipmentDataBase::GetBoundGearString() const
+{
+    TArray<FString> Lines;
+    for (const UEffectDefinition *Def : BoundEffects)
+    {
+        Lines.Add(Def ? FString::Printf(TEXT("%s (%d effect(s))"), *Def->GetName(), Def->Effects.Num()) : TEXT("<null>"));
+    }
+    return FString::Printf(TEXT("%s: bound to %s | bound effects [%s]"), *Name,
+                           BoundOwner ? *BoundOwner->Name : TEXT("nobody"), *FString::Join(Lines, TEXT(", ")));
+}
+
+void UEquipmentDataBase::PrintBoundGear() const
+{
+    UE_LOG(LogWoR, Log, TEXT("%s"), *GetBoundGearString());
 }
 
 FEquipmentStatBonus UEquipmentDataBase::GetCombinedStatBonus() const
@@ -406,6 +427,20 @@ EDataValidationResult UEquipmentDataBase::IsDataValid(FDataValidationContext &Co
     if (Name.IsEmpty())
     {
         Context.AddWarning(FText::FromString(TEXT("Equipment must have a unique name")));
+    }
+
+    // B-192: a bound bonus needs an owner, and a definition in both lists would apply twice.
+    if (!BoundEffects.IsEmpty() && !BoundOwner)
+    {
+        Context.AddWarning(FText::FromString(TEXT("BoundEffects are set but BoundOwner is empty: nobody gets them")));
+    }
+    for (const TObjectPtr<UEffectDefinition> &Def : BoundEffects)
+    {
+        if (Def && ReferencedEffects.Contains(Def))
+        {
+            Context.AddWarning(FText::FromString(FString::Printf(
+                TEXT("%s is in both ReferencedEffects and BoundEffects"), *Def->GetName())));
+        }
     }
 
     const int32 MaxSpells = GetMaxSpells();
