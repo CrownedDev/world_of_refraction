@@ -111,6 +111,15 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
      *  in order, then append any remainder). Capped at MAX_SPELL_SLOTS. */
     TArray<USpellData *> GetAllSpells() const;
 
+    /** GetAllSpells before the slot cap: the spells over the cap are what a fight drops (B-196). */
+    TArray<USpellData *> GetAllSpellsUncapped() const;
+
+    /** Spell slots the attached gem / evolution (Q-147) or the weapon's tier allows. */
+    int32 GetSpellSlotCap() const;
+
+    /** Spells the cap drops. */
+    int32 GetSpellsOverCap() const;
+
     /** Get spell count (delegates to inventory entry) */
     int32 GetSpellCount() const
     {

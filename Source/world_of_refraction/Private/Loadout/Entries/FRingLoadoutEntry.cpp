@@ -35,6 +35,38 @@ int32 FRingLoadoutEntry::GetCustomizableSpellCount() const
 
 TArray<USpellData *> FRingLoadoutEntry::GetAllSpells() const
 {
+    TArray<USpellData *> Result = GetAllSpellsUncapped();
+    // Locked rings (conjured) keep their presets whole.
+    const bool bLocked = RingEntry.Ring && RingEntry.Ring->bSpellsLocked;
+    if (!bLocked && Result.Num() > GetSpellSlotCap())
+    {
+        Result.SetNum(GetSpellSlotCap());
+    }
+    return Result;
+}
+
+int32 FRingLoadoutEntry::GetSpellSlotCap() const
+{
+    // Gem crystals and evolutions (Q-147) gate spell slots by their own tier; otherwise
+    // the cap falls through to the ring's own tier (SlotsForContainerTier), MAX_RING_SPELLS only
+    // as the no-ring ceiling.
+    return CrystalEffectTable::ResolveSpellSlotCap(
+        RingEntry.GetAttachedItem(),
+        RingEntry.Ring ? CrystalEffectTable::SlotsForContainerTier(RingEntry.Tier)
+                       : LoadoutConstants::MAX_RING_SPELLS);
+}
+
+int32 FRingLoadoutEntry::GetSpellsOverCap() const
+{
+    if (RingEntry.Ring && RingEntry.Ring->bSpellsLocked)
+    {
+        return 0;
+    }
+    return FMath::Max(0, GetAllSpellsUncapped().Num() - GetSpellSlotCap());
+}
+
+TArray<USpellData *> FRingLoadoutEntry::GetAllSpellsUncapped() const
+{
     // Preset spells from the ring asset.
     const TArray<USpellData *> Presets = RingEntry.Ring
                                             ? RingEntry.Ring->PresetSpells
@@ -73,18 +105,6 @@ TArray<USpellData *> FRingLoadoutEntry::GetAllSpells() const
             Result.Add(Overrides[OverrideIndex]);
         }
         ++OverrideIndex;
-    }
-
-    // Gem crystals and evolutions (Q-147) gate spell slots by their own tier; otherwise
-    // the cap falls through to the ring's own tier (SlotsForContainerTier), MAX_RING_SPELLS only
-    // as the no-ring ceiling.
-    const int32 SlotCap = CrystalEffectTable::ResolveSpellSlotCap(
-        RingEntry.GetAttachedItem(),
-        RingEntry.Ring ? CrystalEffectTable::SlotsForContainerTier(RingEntry.Tier)
-                       : LoadoutConstants::MAX_RING_SPELLS);
-    if (Result.Num() > SlotCap)
-    {
-        Result.SetNum(SlotCap);
     }
 
     return Result;
