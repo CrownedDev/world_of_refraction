@@ -38,3 +38,4 @@ Combatants are bare on purpose: no loadout, no grid slot, no effects. Expected v
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-26 | Created: test world helper + Damage, Scaling, TurnManager, Combat.HangFixes specs (26 tests). test.sh: per-test output, warnings count as passes, `-abslog`, default filter `WoR.` | `feature/B-007-automation-tests` |
+| 2026-10-26 | Dev-only tooling compiled out of Shipping. All `wor.*`/`WoR.*` console commands sit in `#if !UE_BUILD_SHIPPING`. The 5 legacy `*TestActor` classes keep their constructor + BeginPlay, but their logic is guarded, with empty UFUNCTION stubs in Shipping (UHT thunks need them). New console commands and test actors follow the same pattern | `chore/B-008-shipping-guards` |

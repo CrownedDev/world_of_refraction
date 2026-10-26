@@ -227,7 +227,7 @@ The queue of questions only Crown can answer.
 **Notes for Claude:** supersedes the "3 loadouts spawn (the draft)" mechanic in `Resources_Design.md` (update that section when applied); the Luck-weighted drop curve stays for **in-run finds**, not the loadout. Budget size and price curve are tuning values → named constants with `// TODO: tune`.
 
 ### D-022 — Were the 16 asset deletions in commit 41c3e86d intended?
-**Status:** ANSWERED · **Raised:** 2026-10-26 · **Blocks:** B-002 (then B-003)
+**Status:** DECIDED: applied and confirmed by Crown, 2026-10-26 (row in Decided) · **Raised:** 2026-10-26 · **Blocks:** nothing
 **Question:** Keep or delete the old combat/shop widgets and `BP_CombatGameMode` that commit `41c3e86d` removed?
 **Context:**
 - `41c3e86d` is titled "docs: deckbuilder UI reference (reference only)". It also deleted 16 `.uasset`s: `WBP_CharacterPanel` (×2), `WBP_EffectRow`, `WBP_Enemy/PlayerPanelContainer`, `WBP_CombatMenu`, `WBP_CombatMenuButton`, `WBP_DurabilityHeader`, `WBP_TurnOrderSlot/Strip/StripContainer`, `WBP_ShopWindow`, `WBP_CartRow`, `WBP_StockRow`, `WBP_HUDTestActor` and `BP_CombatGameMode`. It also modified ~15 character/weapon data assets, `TestLevel_Nav`, `BP_CombatOrchestrator` and `BP_HubPlayerController`.
@@ -301,6 +301,7 @@ Moved here once applied. Newest first.
 
 | ID | Decision | Date | Applied in |
 |---|---|---|---|
+| D-022 | Only `BP_CombatGameMode` was really deleted, so it was restored. The other 15 widgets were moved, not deleted, and stay where they are; they get replaced in the CommonUI rebuild (D-024). Crown confirmed | 2026-10-26 | `chore/D-022-restore-combat-gamemode` |
 | — | CommonUI: yes | 2026-10-25 | `ArchitectureReview_2026-10.md` §3 |
 | — | GAS: adopt, 4 stages; BD option C; real-time field abilities yes; ASC on the character | 2026-10-25 | `Design/GASMigration.md` |
 | — | All gameplay logic in C++; BP for layout/visuals only | 2026-10-25 | `analysis/CodebaseReview_2026-10.md` §8 |
