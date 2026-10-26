@@ -89,6 +89,7 @@ This page covers the currencies, what a fight and a run pay out, what carries ov
 |---|---|---|---|
 | ER-43 | An encounter is an enemy in the trial. Touching it opens a 2-second join window (`JoinWindowSeconds`); then the fight starts with the party's **living** members against that one enemy. If the whole party is dead, the encounter doesn't start. | In game | `Combat/Encounter/EncounterComponent.h:50-52`; `Combat/Encounter/EncounterComponent.cpp:212-260` |
 | ER-44 | Each encounter sets its own AI difficulty: Easy, Medium (default), Hard or Expert. | In game | `Combat/Encounter/EncounterComponent.h:72-74`; `AI/EAIDifficulty.h` |
+| ER-46 | The trial door asks for a variation (the boss and its story) and a difficulty: Easy, Medium (default) or Hard. The difficulty scales every enemy's max HP and damage for the run (0.8 / 1 / 1.25) and the payout (0.75 / 1 / 1.5, not paid yet: B-073). It is separate from each encounter's AI difficulty (ER-44). | In game (payout: not built) | `B-183`, `Q-183`; `Trial/TrialGate.cpp`; `Trial/BattleGameMode.cpp` (before `StartCombat`); `UI/Trial/TrialGateWidget.cpp` |
 | ER-45 | Several enemies in one encounter, authored from data: a team of up to three (`UEncounterData`); an encounter with no team fights its own pawn alone. | In game | `B-074`, `Q-074`; `Combat/Encounter/EncounterData.h`; `Combat/Encounter/EncounterComponent.cpp` (`OnJoinWindowExpired`) |
 
 ## Open questions

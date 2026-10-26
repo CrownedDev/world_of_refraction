@@ -1660,6 +1660,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-071-party-into-battle): `ABattleGameMode::BootstrapCombat` possesses the leader's pawn when it fights, otherwise the first Player-set member, otherwise the first spawned.
 
+### Q-183 — How many trial difficulty levels, and what does each change?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-183) · **Blocks:** — (B-183 shipped with A)
+**Question:** RunStructure §3 says the door asks for a difficulty that scales enemy strength and the payout. How many levels, and what does "enemy strength" scale?
+**Options:**
+- **A** Three levels, Easy / Medium (default) / Hard, as in the deckbuilder. Strength scales each enemy's max HP and damage (Easy 0.8, Medium 1, Hard 1.25); payout scales by 0.75 / 1 / 1.5. Defense, speed and status are not scaled; each enemy starts the fight full at its scaled max, and the scaling can't be cleansed (it is part of the enemy, like gear, D-015). All values `// TODO: tune`. This run difficulty is separate from each encounter's AI difficulty (ER-44), which still sets how well the enemy plays.
+- **B** Four levels, matching the AI's Easy / Medium / Hard / Expert, and the run difficulty also raises the AI level.
+- **C** Strength scales HP only.
+**Recommendation:** A. The deckbuilder has the same three levels (`Difficulty`: Easy = 0, Medium = 1, Hard = 2, `docs/deferrals.md`; its effect is deferred there, so the numbers are ours). Diablo III and IV scale monster HP and damage per difficulty tier and pay more for the harder tiers, and that is widely liked because the player chooses risk against reward. Keeping the AI level separate keeps each encounter's authored behaviour. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-183-gate-choice): `Trial/TrialGate.h` (`ETrialDifficulty`, the multipliers, `ApplyEnemyStrength`), `ABattleGameMode` scales each enemy before `StartCombat`. The payout multiplier is not read yet: no run-end payout exists (B-073 / B-096 read `UTrialRunSubsystem::GetPayoutMultiplier`).
+
 ### Q-115 — Which Broken Darkness state is "absorption" that carries between fights?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-115) · **Blocks:** — (B-115 shipped with A)
 **Question:** D-013 says absorption carries over within a run. Broken Darkness keeps several kinds of state: the absorbed EP (above max = overload), the absorption stacks and absorbed elements, the strain toward a transformation, and the transformation itself for a Darkness caster who isn't born Broken Darkness. Which carry?

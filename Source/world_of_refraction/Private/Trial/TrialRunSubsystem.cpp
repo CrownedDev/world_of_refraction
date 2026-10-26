@@ -71,6 +71,20 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), Trial->Level);
 }
 
+void UTrialRunSubsystem::SetGateChoice(int32 InVariationIndex, ETrialDifficulty InDifficulty)
+{
+    VariationIndex = InVariationIndex;
+    TrialDifficulty = InDifficulty;
+    UE_LOG(LogTemp, Log, TEXT("[TrialRun] Gate choice: variation %d, difficulty %s (enemy strength x%.2f, payout x%.2f)"),
+           VariationIndex, *TrialGate::GetDifficultyName(TrialDifficulty).ToString(), GetEnemyStrengthMultiplier(),
+           GetPayoutMultiplier());
+}
+
+const FTrialVariation *UTrialRunSubsystem::GetChosenVariation() const
+{
+    return ActiveTrial && ActiveTrial->Variations.IsValidIndex(VariationIndex) ? &ActiveTrial->Variations[VariationIndex] : nullptr;
+}
+
 void UTrialRunSubsystem::ExitTrial()
 {
     if (HubLevel.IsNull())
@@ -93,6 +107,8 @@ void UTrialRunSubsystem::ExitTrial()
            *HubLevel.ToString());
     ActiveTrial = nullptr;
     RunSeed = 0;
+    VariationIndex = INDEX_NONE;
+    TrialDifficulty = TrialGate::DEFAULT_DIFFICULTY;
     UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), HubLevel);
 }
 
@@ -187,6 +203,19 @@ FString UTrialRunSubsystem::GetMerchantStockString(const UMerchantData *Merchant
 #if !UE_BUILD_SHIPPING
 namespace
 {
+    FAutoConsoleCommandWithWorld GPrintTrialRunCmd(
+        TEXT("wor.Trial.Print"),
+        TEXT("Print the trial run: active trial, the gate's variation and difficulty with its multipliers, pending encounter (B-183)."),
+        FConsoleCommandWithWorldDelegate::CreateLambda(
+            [](UWorld *World)
+            {
+                UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+                if (const UTrialRunSubsystem *TrialRun = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr)
+                {
+                    UE_LOG(LogTemp, Display, TEXT("%s"), *TrialRun->GetTrialRunString());
+                }
+            }));
+
     FAutoConsoleCommandWithWorld GPrintMerchantStockCmd(
         TEXT("wor.Trial.PrintMerchantStock"),
         TEXT("Print what every merchant in this level shows now: its rolled stock in a trial, its full list at home (B-179)."),
@@ -216,8 +245,12 @@ namespace
 
 FString UTrialRunSubsystem::GetTrialRunString() const
 {
-    return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | hub=%s | pending %d v %d (%s) | return=%s"),
+    const FTrialVariation *Variation = GetChosenVariation();
+    return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | variation=%s | difficulty=%s (enemy x%.2f, payout x%.2f) | hub=%s | pending %d v %d (%s) | return=%s"),
                            ActiveTrial ? *ActiveTrial->Name.ToString() : TEXT("<none>"), RunSeed,
+                           Variation ? *Variation->Name.ToString() : TEXT("<none>"),
+                           *TrialGate::GetDifficultyName(TrialDifficulty).ToString(), GetEnemyStrengthMultiplier(),
+                           GetPayoutMultiplier(),
                            HubLevel.IsNull() ? TEXT("<UNSET>") : *HubLevel.ToString(),
                            PendingBattleParty.Num(), PendingOpposingParty.Num(),
                            *UEnum::GetValueAsString(PendingRank),

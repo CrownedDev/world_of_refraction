@@ -10,6 +10,7 @@ A field encounter starts a fight: a `UEncounterComponent` on an enemy pawn in a 
   - `BuildOpposingRoster(Encounter, Fallback)`: the team, or the encounter's own pawn alone when there is no team (Q-074: the team replaces the pawn). The encounter aborts only when this is empty.
   - Debug: `GetEncounterString()`, `PrintEncounter` (CallInEditor).
 - **`UEncounterComponent`** (`Public/Combat/Encounter/EncounterComponent.h`): the trigger sphere, join window and arena shell. Per placement it holds `Difficulty`, `Rank` (D-091) and the optional `EncounterData`.
+- **Trial gate** (`Public/Trial/TrialGate.h`, B-183): `ETrialDifficulty` (Easy / Medium / Hard) with one named enemy-strength and payout multiplier per level; `ApplyEnemyStrength` gives an enemy persistent max-HP and damage buffs (debuffs below 1) and refills its HP. `UTrialData::Variations` (`FTrialVariation`: name, description, boss). `UTrialRunSubsystem` holds the run's choice (`SetGateChoice`, `GetTrialDifficulty`, `GetChosenVariation`, `GetEnemyStrengthMultiplier`, `GetPayoutMultiplier`), reset in `ExitTrial`; `wor.Trial.Print`. The door opens the placeholder `UTrialGateWidget` (D-024).
 - **`ABattleGameMode`** (`Private/Trial/BattleGameMode.cpp`): spawns the party in a line on one side and every opposing entry in a line facing it (`TEAM_X_OFFSET`, `COMBATANT_Y_SPACING`).
 
 ## Integration Points
@@ -19,9 +20,11 @@ A field encounter starts a fight: a `UEncounterComponent` on an enemy pawn in a 
 ## Known Limitations / TODOs
 - Difficulty and rank are set per placement, not per team.
 - The battle lines are not centred; a formation per team is not authored.
+- The payout multiplier is not read yet (no run-end payout; B-073). The variation's boss is not read yet (B-188).
 - B-184 (`AFieldEnemyTeam`, patrols, beaten-stays-beaten) is the full map-side version; it can reuse `UEncounterData`.
 
 ## Changelog
 | Date | Change | Branch |
 |---|---|---|
+| 2026-10-26 | B-183 (Q-183): the trial gate. The door asks for a variation and a difficulty (placeholder `UTrialGateWidget`); the run holds the choice; `ABattleGameMode` scales every enemy's max HP and damage by the level before `StartCombat`. `wor.Trial.Print`. Spec `WoR.Trial.Gate`. | feature/B-183-gate-choice |
 | 2026-10-26 | B-074: `UEncounterData` (a team of up to three); `UEncounterComponent::EncounterData` sends that team to the battle stage instead of the pawn alone. Spec `WoR.Combat.EncounterData`. | feature/B-074-encounter-data |
