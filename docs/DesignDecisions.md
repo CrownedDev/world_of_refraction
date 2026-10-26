@@ -863,6 +863,21 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - The deckbuilder caps S-tier **equipment** at 3 per kind per deck and leaves crystals uncapped (`WoR_TCG_Pivot_Design.md` §8b rule 4); this is this game's own rule.
 - Caps as named constants.
 
+### D-073 — One loadout validator: which rule wins where the three disagree?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-028) · **Blocks:** B-028
+**Question:** B-028 merges the three loadout validators into one rule set. Where they give different answers today, which answer should the one rule set give?
+**Context:** the three are the saved-loadout (editor) check `FSavedLoadout::GetValidationErrors` (`FSavedLoadout.cpp:25`), the pre-fight check `ULoadoutComponent::GetValidationErrors` (`LoadoutComponent.cpp:478`, reports errors), and the pre-fight slot cleaner `CollectInvalidSlotFindings` (`:773`, empties bad slots). None has a test. The main disagreements:
+- **Evolution spell cap:** the editor check allows 6 spells on any evolution; the pre-fight checks allow 1–6 by the evolution's tier (F 1 … A/S 6). An F-tier evolution with 3 spells passes in the editor and gets cut in the fight.
+- **Broken Darkness:** the editor check uses BD rules when BD spell pools are authored; the pre-fight checks use them when the character *is* BD. A BD character with ordinary spells (or a non-BD character with BD pools) gets opposite verdicts.
+- **Spell weight budgets** (24 normal, 48 BD) are checked before a fight only.
+- **Resonator budget:** the editor check costs gear from the asset; the pre-fight checks cost the owned instance (its real crystal), and charge 1 for an empty weapon slot where the editor charges 0.
+- **Editor-only checks:** a slot typed Weapon/Ring/Evolution with nothing in it; more than 6 abilities on a weapon or stone; item quantity 0–3 and more than 6 items; an empty ring slot. Before a fight these pass silently.
+- **Slot-cleaner-only checks:** ability matches weapon type and wield mode; weapon/ring spells need a crystal of a matching element. The pre-fight error check doesn't report these, so slots get cleared with no "validation failed" message.
+**Options:** A **one rule set, pre-fight answer wins** where they conflict (tier spell cap, BD-by-character, budgets on, instance costs), plus every check that only one of them has today, so the editor warns about what the fight would cut / B **merge only the two pre-fight checks** (error list + slot cleaner; adds the cleaner's coherence checks to the error list) and leave the editor check as it is / C go through the list one by one.
+**Recommendation:** A, because the fight is what the player sees: an editor check that passes a loadout the fight then cuts is the bug the review found. It makes some existing authored loadouts show new editor warnings (e.g. an over-cap evolution); nothing changes in play. The deckbuilder has no loadout validator to borrow from (its decks are card lists).
+**Answer (Crown):** _write here_
+**Notes for Claude:** _optional_
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
