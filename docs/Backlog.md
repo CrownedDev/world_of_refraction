@@ -139,7 +139,7 @@
 
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
-| B-070 | `TrialRunSubsystem::ActiveTrial` → strong ref | CC | S | — | Works in a packaged build | TODO |
+| B-070 | `TrialRunSubsystem::ActiveTrial` → strong ref | CC | S | — | Works in a packaged build | REVIEW (in dev) |
 | B-071 | Party into battle per D-003/D-004: spawn party-list members at encounter start with their own `FPartyMember.PawnClass`; per-member Player/AI control (leader always Player), switchable on the member's turn (D-026); a Generic/Resonator with no gear is left out (D-016); keep the sphere gather for co-op players | CC | M | D-003, D-004, D-044, D-045 | 3v1 fight from a recruited party, one member on AI | TODO. D-044: AI-controlled members play at a fixed good level (named constant, `// TODO: tune`), not the encounter difficulty. D-045: when every Player member is down you take over the remaining AI members by default; a Gameplay setting "Let AI finish" switches that off (placeholder UI until the CommonUI Settings screen) |
 | B-076 | Find characters during a trial (D-026): reuse the hub recruit flow; they join for that run only and arrive ungeared; gear them from the shared run inventory | CC | M | B-071 | Recruit in a trial, gear them from the run inventory, they fight in the next encounter and are gone after the run | BLOCKED (B-071) |
 | B-072 | Win/lose routing per D-002 | CC | S | D-002, B-003 | Matches answer | BLOCKED (B-003) |

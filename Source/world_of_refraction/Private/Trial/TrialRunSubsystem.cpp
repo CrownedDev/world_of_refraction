@@ -89,7 +89,7 @@ void UTrialRunSubsystem::ExitTrial()
     }
 
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Exiting trial '%s' -> hub %s"),
-           ActiveTrial.IsValid() ? *ActiveTrial->Name.ToString() : TEXT("<none>"),
+           ActiveTrial ? *ActiveTrial->Name.ToString() : TEXT("<none>"),
            *HubLevel.ToString());
     ActiveTrial = nullptr;
     RunSeed = 0;
@@ -163,8 +163,7 @@ void UTrialRunSubsystem::ExitEncounter()
 
 TArray<FMerchantStockEntry> UTrialRunSubsystem::GetMerchantStock(const UMerchantData *Merchant) const
 {
-    // RunSeed, not the weak ActiveTrial, says a run is on: a collected trial asset must not quietly
-    // turn a trial vendor back into a home shop.
+    // RunSeed says a run is on: a trial vendor stocks for the run, a home vendor as a home shop.
     return Merchant ? MerchantStockRoll::StockFor(*Merchant, RunSeed != 0, RunSeed) : TArray<FMerchantStockEntry>();
 }
 
@@ -218,7 +217,7 @@ namespace
 FString UTrialRunSubsystem::GetTrialRunString() const
 {
     return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | hub=%s | pending %d v %d (%s) | return=%s"),
-                           ActiveTrial.IsValid() ? *ActiveTrial->Name.ToString() : TEXT("<none>"), RunSeed,
+                           ActiveTrial ? *ActiveTrial->Name.ToString() : TEXT("<none>"), RunSeed,
                            HubLevel.IsNull() ? TEXT("<UNSET>") : *HubLevel.ToString(),
                            PendingBattleParty.Num(), PendingOpposingParty.Num(),
                            *UEnum::GetValueAsString(PendingRank),
