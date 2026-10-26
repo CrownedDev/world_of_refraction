@@ -101,7 +101,7 @@ This page covers how a fight starts, who acts when (the speed schedule, ties, bo
 - D-054 (OPEN): whether Turn Speed Up is a buff (C4-8).
 - D-055 (OPEN): bonus and Execution turns and durations (Gaps).
 - D-056 (OPEN): whether the generic Speed Buff/Debuff move turn order (C4-9).
-- D-028 (not raised yet): B-044's effects-overhaul review will raise it, covering the effect model (durations, stacking by source, refresh policy) against GAS and the deckbuilder. It will touch ET-31…ET-44.
+- **Q-044 … Q-044k** (raised by B-044, `docs/analysis/EffectsOverhaul.md`): re-apply rule, stacks, tick timing, Execution turns, absorb order and charges, "doesn't stack" defaults, conditions, cleanse order, triggers vs GAS abilities, B-062 before GAS. They touch ET-31…ET-44.
 
 ## Conflicts
 - **C4-1 — Turn ratio cap.** `MAX_TURN_RATIO` 2 and `TURN_SPEED_THRESHOLD_DOUBLE` 15 say speed is "capped at 2:1" (`Public/Combat/CombatConstants.h:330-331`), and the gear-ceiling comment relies on it (`:297-302`). The scheduler never reads either constant, and the ratio is uncapped (`Private/Combat/TurnManager.cpp:265-270`); a strong Turn Speed Debuff can push a rival toward speed 1. Question, options and recommendation: **D-049**. The deckbuilder has no speed scheduler.

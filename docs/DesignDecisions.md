@@ -1327,6 +1327,127 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
+### Q-044 — Re-applying the same effect: strength rule or replace?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
+**Context:** Today a stronger re-apply replaces the value and refreshes, an equal one refreshes, a weaker one is ignored (`SkillEffectManager.cpp:146-218`, ET-39).
+**Options:**
+- **A** replace, as the deckbuilder (`04-effects.md`, `Stat` duration row).
+- **B** keep the strength rule.
+**Recommendation:** A. It matches D-012 / D-053 and needs no strength comparison (GAS has none). Defend and on-hit Burn still refresh, because they re-apply the same value.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
+### Q-044b — What a stack is
+**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Question:** What a stack is? See `docs/analysis/EffectsOverhaul.md`.
+**Context:** Today a stack is value x stacks, keeping the strongest per-stack value, and a weaker stack does not refresh. In the deckbuilder a stack is the held magnitude once more, every arrival refreshes, and the default cap is 1.
+**Options:**
+- **A** deckbuilder stacks.
+- **B** keep ours.
+**Recommendation:** A. One simple rule: what a stack adds is exactly what its expiry takes off (`04-effects.md` `MaxStacks`).
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
+### Q-044c — When damage and heals over time tick
+**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Question:** When damage and heals over time tick? See `docs/analysis/EffectsOverhaul.md`.
+**Context:** Today damage over time ticks at turn end and heals at turn start.
+**Options:**
+- **A** all payouts at turn start.
+- **B** keep today's split.
+**Recommendation:** A. One moment fits D-051's single counting rule and gives exactly N ticks (`04-effects.md` "Lasts"). A DoT that kills at turn start ends that turn (ET-17 already handles it).
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
+### Q-044d — Execution turns and turn-start effects
+**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Question:** Execution turns and turn-start effects? See `docs/analysis/EffectsOverhaul.md`.
+**Context:** Today Execution turns skip turn-start effects (`CombatOrchestrator.cpp:882`, ET-16); D-055 says they count. The deckbuilder has no Execution turns.
+**Options:**
+- **A** an Execution turn runs the turn-start step (expiry and ticks) but still gives no choice.
+- **B** it counts down durations but skips ticks.
+**Recommendation:** A. B would give fewer than N ticks and break D-051.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
+### Q-044e — Where Barrier, Shield and Ward sit in a hit (D-092)
+**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Question:** Where Barrier, Shield and Ward sit in a hit (D-092)? See `docs/analysis/EffectsOverhaul.md`.
+**Context:** The deckbuilder applies absorbers before Defense and Guard. Our Defense and Guard are percentages, so the order changes the numbers. D-092's note proposed Guard first.
+**Options:**
+- **A** deckbuilder order (absorbers first).
+- **B** absorbers last, on the damage left after Guard and Defense (where Absorb and Reflect sit today).
+**Recommendation:** B, a deliberate difference from the deckbuilder: "negate the next 5 damage" means exactly 5 HP you would have lost, a Perfect Guard keeps a shield longer, and it is the smallest change. Inside the absorbers keep the deckbuilder order (Ward, Shield, Barrier; oldest first).
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
+### Q-044f — Multi-hit skills and absorb charges
+**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Question:** Multi-hit skills and absorb charges? See `docs/analysis/EffectsOverhaul.md`.
+**Context:** A skill can land several impacts.
+**Options:**
+- **A** each impact is one damage instance and spends one charge.
+- **B** one charge per skill.
+**Recommendation:** A, the deckbuilder's rule (charges spend on every damage instance). Multi-hit skills become good shield breakers.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
+### Q-044g — "Doesn't stack" (D-053) on existing gear
+**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Question:** "Doesn't stack" (D-053) on existing gear? See `docs/analysis/EffectsOverhaul.md`.
+**Context:** D-053 adds a "doesn't stack" flag to effect definitions.
+**Options:**
+- **A** default off; Claude lists every Last Stand / Extra Action / fires-once definition for Crown to tick.
+- **B** default on for those types in code.
+**Recommendation:** A. Data decides (the deckbuilder's "authoritative data" rule) and Crown sees the list once.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
+### Q-044h — Conditions: "or", and % versus absolute HP
+**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Question:** Conditions: "or", and % versus absolute HP? See `docs/analysis/EffectsOverhaul.md`.
+**Context:** Our conditions allow Or and use % HP; the deckbuilder's nested conditions must all hold and use absolute numbers.
+**Options:**
+- Or: **A** retire Or for new data (a validator reports it; author two effects) / **B** keep Or and print "or".
+- Numbers: **C** keep % / **D** absolute, as the deckbuilder.
+**Recommendation:** A and C. A keeps D-031's tree honest; C differs on purpose because our HP grows with level and gear.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
+### Q-044i — Which effects a limited cleanse takes
+**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Question:** Which effects a limited cleanse takes? See `docs/analysis/EffectsOverhaul.md`.
+**Context:** Today Iolite's "up to N" has no stated order (`ItemExecutor.cpp:1014-1045`).
+**Options:**
+- **A** newest first, a stack whole, gear exempt (D-015).
+- **B** oldest first.
+**Recommendation:** A, the deckbuilder's rule (`04-effects.md` "The uses verbs and Remove effect"), with no picking UI for now.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
+### Q-044j — Triggers: our dispatcher or GAS abilities?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Question:** Triggers: our dispatcher or GAS abilities? See `docs/analysis/EffectsOverhaul.md`.
+**Context:** GAS abilities are stage 4 (B-043).
+**Options:**
+- **A** keep our dispatcher in B-042 and send GameplayEvents so B-043 can move triggers later.
+- **B** move triggers to passive abilities in B-042.
+**Recommendation:** A. Doing it in stage 3 doubles its size and risk.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
+### Q-044k — Land B-062 (identity rules) before GAS, or inside it?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Question:** Land B-062 (identity rules) before GAS, or inside it? See `docs/analysis/EffectsOverhaul.md`.
+**Context:** B-062 builds D-011 / D-012 / D-051 / D-053 / D-055 on today's code.
+**Options:**
+- **A** build B-062 now, with the shared turn-count helper; B-042 then ports the same tests.
+- **B** fold B-062 into B-042.
+**Recommendation:** A. Players get the rules sooner and B-042 becomes a pure port. Absorb stays in B-042, as D-092 says.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
