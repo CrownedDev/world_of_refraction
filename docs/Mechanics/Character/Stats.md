@@ -4,7 +4,7 @@
 
 ## Pillars (Mind / Body / Spirit, 0–7)
 
-Three world pillars, each leveled **0–7** (3 points per level, max 93 across all three). Pillar level applies a world multiplier (`1.0 + level × 0.07`, range 1.0–1.49) and **gates skill tiers** (you need the pillar level a skill requires — see [Requirement gap](../Scaling/RequirementGap.md)).
+Three world pillars, each leveled **0–7** (3 points per level, max 93 across all three). Pillar level applies a world multiplier (`1.0 + level × 0.07`, range 1.0–1.49) and **scales skills by their requirements**: a skill above your pillar level is still usable but weaker (and feeds Broken Darkness strain), one below it is stronger (D-041; see [Requirement gap](../Scaling/RequirementGap.md)).
 
 - **Mind** — magical power & finesse.
 - **Body** — physical power & durability.

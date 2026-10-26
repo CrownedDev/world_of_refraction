@@ -7,7 +7,7 @@
 An evolution item goes in the **primary slot** (on a weapon/ring, or standalone) and brings:
 
 - **Pillar % modifiers** — adjusts Mind / Body / Spirit, which cascades to that pillar's substats. Applied live by `UCharacterDataComponent::ApplyEvolutionPillarModifier` (clamped). [Live]
-- **Spells** — up to ~4 carried spells with fixed slots (per the asset). [Live] (cast path)
+- **Spells** — carried spells, up to the evolution's tier count (F 1, E 2 … A and S 6; the shared `SlotsForContainerTier` curve, D-039). [Live] (cast path)
 - **Forms** — special evolutions back the class identities (e.g. Broken Darkness, Reality). See [`../Archetypes/BrokenDarkness.md`](../Archetypes/BrokenDarkness.md), [`../Archetypes/Reality.md`](../Archetypes/Reality.md).
 
 > No irreversibility: there is **no** consume/lock gate on evolving — nothing in code makes slotting an evolution permanent or one-way.
