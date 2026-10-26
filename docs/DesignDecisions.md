@@ -858,7 +858,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 | C / D | 3 |
 | E / F | 4 |
 **Notes for Claude:**
-- Counts every crystal the character has equipped (weapon, ring, evolution and other attachment slots). Enforced in loadout validation (`LoadoutComponent::GetValidationErrors` and the saved-loadout check), with a clear message.
+- Counts **utility crystals** in the character's **item slots**, per crystal (stacks count each one); attachments don't count (D-077). Enforced in loadout validation (`LoadoutComponent::GetValidationErrors` and the saved-loadout check), with a clear message.
 - **Bands are combined** (Crown, 2026-10-26: "A or B = 2"): at most 2 crystals of tier A or B together; likewise C or D = 3, E or F = 4.
 - The deckbuilder caps S-tier **equipment** at 3 per kind per deck and leaves crystals uncapped (`WoR_TCG_Pivot_Design.md` §8b rule 4); this is this game's own rule.
 - Caps as named constants.
@@ -898,7 +898,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### D-077 — Crystal tier caps: what counts as "a crystal"?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-155) · **Blocks:** B-155
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-155) · **Blocks:** B-155
 **Question:** D-072 caps how many crystals of each tier band a character can have equipped (S 1, A+B 2, C+D 3, E+F 4). A weapon or ring slot can hold more than a plain crystal (CL-30), so which of these count toward the caps, and at what tier?
 **Context:** a slot holds one of: a **crystal**; an **augment stone** (stat stone or Ability Stone, weapons only, it has a tier); a **fusion** (two halves with at least one stat stone: stone + crystal, stone + stone, or stone + Ability Stone, CL-32); or an **evolution** (its own tier; the primary-slot evolution gives spells, CL-33). Plain crystals clearly count. The others aren't settled.
 **Options:**
@@ -906,7 +906,10 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** count **plain crystals only**.
 - **C** count **every attachment** (crystal, stone, fusion, evolution) at its own tier (a fusion at its higher half).
 **Recommendation:** A, because it caps what channels elements and spells (crystals, the crystal half of a fusion, evolutions) and leaves stat stones, which are a different kind of gear, alone. The deckbuilder leaves crystals uncapped, so there's nothing to borrow.
-**Answer (Crown):** _pending_
+**Answer (Crown):** (2026-10-26) **None of A–C: the caps are for crystals carried as items**, i.e. crystals in the character's **item slots** (thrown/used in a fight, `FCombatLoadout::ItemSlots`), not attachments. Crystals, stones, fusions and evolutions **attached to gear don't count**.
+- **Counted per crystal (A):** a stack counts each crystal, so S = 1 means one S-tier utility crystal in total (a slot of 2 S-tier breaks it).
+- **Naming:** crystals and stones used as items are called **utility crystals** / **utility stones** (player-facing; code names unchanged).
+**Notes for Claude:** update D-072's note (it said "every crystal the character has equipped"); enforce in the one loadout rule set (B-028) on item slots, summing quantities per tier band. Utility stones: they're item-slot entries too, but D-072 named crystals; ask Crown before capping stones.
 **Notes for Claude:** _optional_
 
 ### D-078 — Combat camera: three choices the basic version made
