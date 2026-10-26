@@ -32,7 +32,7 @@
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-001 | Build + PIE `fix/combat-hang-arc-a`; merge to main | Crown | S | — | Merged; a win resets status bars; a stunned actor's turn passes (superseded by B-061: a stunned actor now acts, Attack/Defend only) | REVIEW (in dev) |
-| B-002 | Merge main into `refactor/bp-logic-to-cpp`, resolve the orchestrator conflict | CC | S | B-001 | Branch builds clean (Crown confirms) | BLOCKED (D-022) |
+| B-002 | Merge main into `refactor/bp-logic-to-cpp`, resolve the orchestrator conflict | CC | S | B-001 | Branch builds clean (Crown confirms) | TODO |
 | B-003 | Build + cut over `refactor/bp-logic-to-cpp` (follow `Refactor/BPLogicToCpp_ReviewNotes.md`); merge | Crown | M | B-002 | Native HUD, results, hub PC working in PIE | BLOCKED (B-002) |
 | B-004 | Enable **CommonUI** + **GameplayAbilities** plugins; commit `.uproject` | Crown | S | — | Plugins on; project opens | TODO |
 | B-005 | Fill `UE_ROOT` (local env var) and run `Scripts/ue/build.sh` + `test.sh` once | Crown | S | — | Both scripts work locally; hooks active | DONE (local env, 2026-10-26) |
@@ -40,7 +40,7 @@
 | B-007 | First Automation Spec tests: DamageCalculator (Pattern-P, defense clamp, crit), TierGap/RequirementGap scaling, TurnManager ordering | CC | M | B-005 | `test.sh` runs them headless and they pass | REVIEW (in dev) |
 | B-008 | `#if !UE_BUILD_SHIPPING` around all `FAutoConsoleCommand`s and test actors' bodies | CC | S | — | Shipping config compiles without them | TODO |
 | B-009 | Defense timing → world time (`DefenseSystem.cpp:68,212,422`) | CC | S | — | Window survives pause; matches the old timing in PIE | TODO |
-| B-010 | Per-battle `FRandomStream` (crit, BD, AI, random targets), seeded at combat start, seed logged | CC | M | B-001 | Same seed gives the same fight in a test | BLOCKED (B-001) |
+| B-010 | Per-battle `FRandomStream` (crit, BD, AI, random targets), seeded at combat start, seed logged | CC | M | B-001 | Same seed gives the same fight in a test | TODO |
 | B-011 | Add the 11 missing Architecture docs to CLAUDE.md's list; fix the stale `InnateElement` gotcha | CC | S | — | CLAUDE.md matches `docs/Architecture/` | DONE (this branch) |
 
 ## Phase 1 — Simplify & DRY (low-risk, mostly not blocked)
@@ -50,19 +50,19 @@
 | B-020 | Stat-modifier table: `ESubStat → {Buff, Debuff, Modify}` + `GetNetModifier(Actor, Stat)`; replace the ~20 hand-written Buff−Debuff pairs | CC | M | B-007 | `wor.CompareStats` identical before/after | TODO |
 | B-021 | Stone row table (`{Type, Stat, Buff/Debuff, Label}`); fold the 14 `Execute*BuffEffect` wrappers and the parallel switches | CC | M | — | Every stone gives the same result (test) | TODO |
 | B-022 | `GetActiveLoadout()` returns const ref; `LoadoutComponent::CharacterClass` becomes a getter over CharacterData | CC | S | — | Compiles; 25 call sites unchanged in behaviour | TODO |
-| B-023 | AI uses the live enum values: `Stun` (not `SkipTurn`), `CleanseSelf`/`CleanseAllies` (not `Cleanse`) | CC | S | B-001 | AI detects stun; picks cleanse spells | BLOCKED (B-001) |
+| B-023 | AI uses the live enum values: `Stun` (not `SkipTurn`), `CleanseSelf`/`CleanseAllies` (not `Cleanse`) | CC | S | B-001 | AI detects stun; picks cleanse spells | TODO |
 | B-024 | Fold WeaponManager + RingManager into LoadoutComponent | CC | S | — | Two subsystems gone; same behaviour | TODO |
 | B-025 | EconomyService: one shared preamble helper (null/authority/components) | CC | S | — | 18 copies gone | TODO |
 | B-026 | InventoryComponent weapon/ring attach/remove → one template | CC | M | — | ~500 → ~250 lines; tests for attach/remove | TODO |
 | B-027 | One authority check (`HasServerAuthority` ×2 + raw `HasAuthority`) | CC | S | — | Single helper used everywhere | TODO |
 | B-028 | One loadout validator (three today) over a slot view + 2 adapters | CC | L | B-007 | Same findings on the test inventory | TODO |
-| B-029 | One AI damage estimator, resolving element like execution | CC | M | B-001 | AI estimate equals executor result in a test | BLOCKED (B-001) |
-| B-030 | `ResetForCombat()` on every per-fight subsystem, called from `ReleaseCombatResources` | CC | M | B-001 | No state survives between two fights (test) | BLOCKED (B-001) |
-| B-031 | Delete `SubmitAction` sync router + `ApplyDamage` fallback | CC | M | B-001 | Only the async path remains; rituals still fire | BLOCKED (B-001) |
+| B-029 | One AI damage estimator, resolving element like execution | CC | M | B-001 | AI estimate equals executor result in a test | TODO |
+| B-030 | `ResetForCombat()` on every per-fight subsystem, called from `ReleaseCombatResources` | CC | M | B-001 | No state survives between two fights (test) | TODO |
+| B-031 | Delete `SubmitAction` sync router + `ApplyDamage` fallback | CC | M | B-001 | Only the async path remains; rituals still fire | TODO |
 | B-032 | ActionExecutor DRY: one per-impact resolve, one reflect block, merge `ApplyHit`/`ApplyDamage` | CC | L | B-031 | Same damage in a test fight | BLOCKED (B-031) |
 | B-033 | God-file splits (move-only): Orchestrator debug → `Debug/Combat/`; ActionExecutor montage runner + cost resolution | CC | M | B-003 | Move-only diff; compiles | BLOCKED (B-003) |
 | B-034 | Delete the dead `InfusionChargeManager`; infusion level held on the pending action, not the VFX component | CC | M | B-003 | VFX still shows level; ChargeManager gone | BLOCKED (B-003) |
-| B-035 | Flatten `ApplyBetweenCombatCrystalDestruction` (nesting 8) | CC | S | B-001 | Same results; nesting ≤4 | BLOCKED (B-001) |
+| B-035 | Flatten `ApplyBetweenCombatCrystalDestruction` (nesting 8) | CC | S | B-001 | Same results; nesting ≤4 | TODO |
 
 ## Phase 2 — GAS migration (see `Design/GASMigration.md`)
 
@@ -86,7 +86,7 @@
 | B-064 | Element damage per D-005; `OnDamageDealt` carries element | CC | M | D-005 | Damage numbers can tint by element | BLOCKED (D-005) |
 | B-065 | Cleanse vs gear effects per D-015 | CC | S | D-015 | Test | BLOCKED (D-015) |
 | B-066 | Aura element inheritance for buff types; Cleanse payload wired (Roadmap Design Gaps) | CC | M | — | `DA_Spell_Aura` and `DA_Spell_Cleanse` do something | TODO |
-| B-067 | Small fixes: TurnManager null checks, DoubleHit totals, corpse return-anim, anim-wait hang, GI deref | CC | M | B-001 | Each with a regression test or PIE note | BLOCKED (B-001) |
+| B-067 | Small fixes: TurnManager null checks, DoubleHit totals, corpse return-anim, anim-wait hang, GI deref | CC | M | B-001 | Each with a regression test or PIE note | TODO |
 
 ## Phase 4 — Gameplay loop
 
@@ -96,7 +96,7 @@
 | B-071 | Party into battle per D-003/D-004; spawn `FPartyMember.PawnClass` | CC | M | D-003, D-004 | 3v1 fight from a recruited party | BLOCKED (D-003) |
 | B-072 | Win/lose routing per D-002 | CC | S | D-002, B-003 | Matches answer | BLOCKED (B-003) |
 | B-073 | Prisms/currency rewards per D-006 | CC | S | D-006 | Shop purchasable after a win | BLOCKED (D-006) |
-| B-074 | Encounter Composition Arc 2: `UEncounterData`, multi-enemy battles, AI formation | CC | L | B-001 | 1v3 fight from data | BLOCKED (B-001) |
+| B-074 | Encounter Composition Arc 2: `UEncounterData`, multi-enemy battles, AI formation | CC | L | B-001 | 1v3 fight from data | TODO |
 | B-075 | Recruit duplicate fix; currency clamp; shop soft-lock; hint cleanup on EndPlay | CC | S | — | Each verified | TODO |
 
 ## Phase 5 — Gear

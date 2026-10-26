@@ -243,6 +243,11 @@ The queue of questions only Crown can answer.
 - Restore exactly the 16 deleted `.uasset`s on `dev` from `41c3e86d^` (`git checkout 41c3e86d^ -- <paths>`), one commit, LFS; then B-002 can proceed.
 - Only the **deletions** were ruled accidental. The other changes in that commit (data assets, `TestLevel_Nav`, `BP_CombatOrchestrator`, `BP_HubPlayerController`, CommonUI/party C++) came from Crown's CommonUI WIP — **leave them**; flag anything that conflicts.
 - After restoring, confirm `dev` builds + tests, and that `BP_CombatGameMode` is referenced again where the battle map expects it.
+**Applied (2026-10-26, `chore/D-022-restore-combat-gamemode`), please confirm:** a closer look showed only **1 of the 16 was really deleted**.
+- **Restored:** `Content/Core/GameModes/BP_CombatGameMode.uasset` (from `41c3e86d^`).
+- **Not restored, because they were *moved*, not deleted:** the other 15 widgets were re-added in the same commit under `Content/UI/UMG/...` (an editor move: same names, `WBP_CharacterPanel` ×2 merged into one, package paths updated). Restoring them would duplicate every widget at the old paths. No C++/config hard-codes either path.
+- `refactor/bp-logic-to-cpp` changed **no** `Content/` files since its merge base, so B-002's merge takes the moves with no asset conflicts.
+- If you *did* want the old-path copies back too, say so: it's one more `git checkout 41c3e86d^ -- <paths>` commit.
 **Notes for Claude:** whichever answer, resolve the 4 C++ conflicts by keeping Arc A's cleanup (`ReleaseCombatResources`, InProgress-before-InitializeCombat) together with the refactor's native HUD calls, then rebuild + test.
 
 ### D-023 — Can a stunned character infuse its basic attack, and can it flee or switch weapon?
