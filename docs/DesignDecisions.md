@@ -462,7 +462,10 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
   - Lore dialogue is **logged** (e.g. the Garnet Lord and the Void Lord share history, so they have lines about each other).
   - Lords **react to what you bring**: face one carrying a specific weapon and they may notice it and give you a **quest** (e.g. a weapon tied to the Fire Lord).
   - This needs **bound gear and skills** (D-033).
-**Notes for Claude:** the lords exist as data already (`DA_Character_FireLord` plus 6 more, commit `bdf2557`; Fire, Water, Darkness, Broken Darkness, Earth, Wind, Light, Lightning, Void, Reality). Record further answers here; when complete, write `docs/Design/RunStructure.md` and point `Resources_Design.md` §7.1 at it.
+- **(4) Memory fragments** (Crown, 2026-10-26): A, **a fragment unlocks a memory** (scene, lore, dialogue, maybe a quest). A memory **can also weaken or strengthen the boss**, and that's **authored per memory from the lore** (a designer picks the effect), not a fixed happy/sad rule.
+  - **Character-specific:** the same fragment or item means different things to different lords. The Garnet Lord carrying a weapon may get a deep memory where the Amethyst Lord gets little. Who you are and what you carry both decide what plays.
+  - **No hint (A):** the player doesn't know what a fragment does until it plays. Exploring is a gamble.
+**Notes for Claude:** the lords exist as data already (`DA_Character_FireLord` plus 6 more, commit `bdf2557`; Fire, Water, Darkness, Broken Darkness, Earth, Wind, Light, Lightning, Void, Reality). Data shape to propose when building (not ruled): a memory-fragment data asset with its trial, per-lord entries (which lord, optional item it reacts to, lore text/dialogue, depth), and an authored boss effect per entry (weaken / strengthen / none, size). Record further answers here; when complete, write `docs/Design/RunStructure.md` and point `Resources_Design.md` §7.1 at it.
 
 ### D-033 — Bound gear and skills
 **Status:** OPEN · **Raised:** 2026-10-26 · **Blocks:** — (lord quests, trial loot, D-032)
