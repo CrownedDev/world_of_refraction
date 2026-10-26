@@ -41,7 +41,7 @@ Companion to `RunStructure.md`. Values marked *tune* are placeholders: named con
 - **Phases (D-098):** the boss changes (new skills, element or stance shift, a line of dialogue) when a **condition** is met: an HP point, or a hidden one (absorption maxed, a crystal breaking, infusion hits…). Damage carries past a phase point. A reached phase stays, even if the boss is healed.
 - **No cinematic at the change:** the **weather** shifts toward the boss's element and grows more intense with each phase, and the boss plays more aggressively and tactically.
 - **Memories** you collected can alter phases (skip one, add a harder one), authored per memory (`RunStructure.md` §5).
-- **Optional revival:** a beaten boss can be revived stronger for better gear (`RunStructure.md` §4).
+- **Optional revival (mini-bosses only):** a beaten mini-boss can be revived stronger for better gear, from the rest spot it creates (`RunStructure.md` §4). Beating the main boss ends the run.
 - **Phase entries:** each boss authors its own phases: conditions plus what changes (skills, element, resistances/weaknesses, aggression, weather intensity, dialogue). Anything an entry doesn't set stays as it was.
 - **Boss styles:** mini-bosses take a style tag (Planning / Timing / Both) that picks a preset set of phases; main bosses are hand-authored, the tag only a guide.
 - **Statuses:** a boss can be status-broken, but each break makes that bar harder to fill for the rest of the fight.
