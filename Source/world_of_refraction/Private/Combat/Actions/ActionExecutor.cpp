@@ -5075,6 +5075,14 @@ void UActionExecutor::BeginSkillExecution(AActor *Actor)
 		return;
 	}
 
+	// B-166: a montage-less skill can resolve and finalize inside the execute call above, which
+	// clears the context; there is then nothing left to time out or wait for.
+	if (!CurrentExecutionContext.IsSet())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Action finished during execution - no timeout needed"));
+		return;
+	}
+
 	// Set timeout timer as failsafe
 	if (UWorld *World = GetWorld())
 	{
