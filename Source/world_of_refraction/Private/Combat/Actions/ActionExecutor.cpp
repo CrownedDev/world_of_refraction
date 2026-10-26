@@ -1980,11 +1980,11 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 		Result = DefenseSys->CalculateDefenseResult(BaseSlice, EDefenseType::Dodge, true, false);
 	}
 
-	// B-182: the Guard press already played the block montage; a Perfect Guard switches to the parry one.
-	const EDefenseType ImpactAnimation = GuardRules::ImpactAnimationOverride(Result.DefenseType, Result.bSuccess, Match.bPerfect);
-	if (ImpactAnimation != EDefenseType::None)
+	// B-202 (Q-182 changed by Crown): the Guard press already played the block montage, and every
+	// Guard keeps it; a Perfect Guard adds a flash and a sound at the impact.
+	if (GuardRules::PlaysPerfectGuardFeedback(Result.DefenseType, Result.bSuccess, Match.bPerfect))
 	{
-		DefenseSys->PlayDefenseAnimation(Defender, ImpactAnimation);
+		DefenseSys->PlayPerfectGuardFeedback(Defender);
 	}
 
 	// Stash the PER-IMPACT result — ResolvedFinalDamage now holds the reduced SLICE (not the

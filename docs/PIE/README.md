@@ -59,6 +59,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-065](B-065.md) | `feature/B-065-cleanse-skips-gear` (in `dev`) | Cleanse and Iolite leave gear effects alone | Not tested |
 | [B-067](B-067.md) | `fix/B-067-small-fixes` (in `dev`) | Small fixes: no corpse walk-back, no animation hang, DoubleHit totals | Not tested |
 | [B-201](B-201.md) | `fix/B-201-failed-use-spends-charge` (in `dev`) | A failed item use spends its charge (Q-060 changed) | Not tested |
+| [B-202](B-202.md) | `fix/B-202-one-guard-anim-perfect-flash` (in `dev`) | One Guard animation; a Perfect Guard flashes and sounds (Q-182 changed) | Not tested |
 | [B-070](B-070.md) | `fix/B-070-trial-strong-ref` (in `dev`) | The trial run keeps hold of its trial (packaged builds) | Not tested |
 | [B-071](B-071.md) | `feature/B-071-party-into-battle` (in `dev`) | Recruited party in battle: own pawns, Player/AI per member, switch on its turn, take over when you fall, gearless sit out | Not tested |
 | [B-149](B-149.md) | `feature/B-149-formation-cells` (in `dev`) | Members start a fight in their chosen cell; enemies Front/Back by class | Not tested |
