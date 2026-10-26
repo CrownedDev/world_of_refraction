@@ -155,14 +155,23 @@ public:
 
     // ==================== CONFIGURATION ====================
 
-    /** Character class (determines loadout rules) */
+    /** Character class (determines loadout rules). Synced from CharacterData in
+     *  InitializeFromCharacterData; only the fallback when the owner has no CharacterData.
+     *  C++ reads GetCharacterClass(). OBSOLETE (B-022): kept for Blueprint readers until
+     *  Crown's PIE pass. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout|Config")
     ECharacterClass CharacterClass = ECharacterClass::Generic;
 
+    /** The owner's CharacterData class; the CharacterClass field when there is no CharacterData. */
+    UFUNCTION(BlueprintPure, Category = "Loadout")
+    ECharacterClass GetCharacterClass() const;
+
     // ==================== ACTIVE LOADOUT ====================
 
-    /** Get the currently active loadout (C++ only - use specific getters for Blueprint) */
-    FCombatLoadout GetActiveLoadout() const;
+    /** The currently active saved loadout, or an empty one when there is none (C++ only -
+     *  use specific getters for Blueprint). The reference is into the inventory's
+     *  SavedLoadouts: don't hold it across anything that adds or removes saved loadouts. */
+    const FCombatLoadout &GetActiveLoadout() const;
 
     /** Get active loadout by reference (C++ only) */
     bool GetActiveLoadoutRef(FCombatLoadout &OutLoadout) const;
