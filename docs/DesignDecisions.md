@@ -738,7 +738,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _write here_
 
 ### D-065 — When does co-op move from Later to scheduled?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-047) · **Blocks:** —
+**Status:** OPEN · **Raised:** 2026-10-26 (B-047) · **Blocks:** B-131
 **Question:** When does co-op move from Later to scheduled?
 **Context:** D-003 keeps the co-op sphere gather; the Backlog has co-op only under Later. B-090 (save) and PlayerState ownership are tied to it. See `docs/analysis/BestPractice_2026-10.md`.
 **Options:** A after the single-player loop (B-090, B-105) / B after GAS stage 3.
@@ -756,13 +756,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 ### D-067 — Retire the legacy `*TestActor` classes?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-047) · **Blocks:** —
 **Question:** Retire the legacy `*TestActor` classes?
-**Context:** Five test actors (about 2.7k lines) duplicate logic the specs now cover; they were kept for manual PIE checks (B-008 stubbed them out of Shipping). See `docs/analysis/BestPractice_2026-10.md`.
+**Context:** Five test actors (about 3.15k lines) duplicate logic the specs now cover; they were kept for manual PIE checks (B-008 stubbed them out of Shipping). See `docs/analysis/BestPractice_2026-10.md`.
 **Options:** A retire each one after a matching spec lands and Crown's PIE pass / B keep them as manual tools.
 **Recommendation:** A, one at a time, because duplicate logic drifts from the real code.
 **Answer (Crown):** _write here_
 
 ### D-068 — A demo frame budget
-**Status:** OPEN · **Raised:** 2026-10-26 (B-047) · **Blocks:** B-142
+**Status:** OPEN · **Raised:** 2026-10-26 (B-047) · **Blocks:** —
 **Question:** A demo frame budget?
 **Context:** No budget exists and nothing has been profiled; the code is event-driven but has a few per-frame costs (B-138, B-139, B-140). See `docs/analysis/BestPractice_2026-10.md`.
 **Options:** A 60 fps at 1080p on Crown's PC, checked once per milestone / B no budget until content is heavier.

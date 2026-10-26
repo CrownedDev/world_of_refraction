@@ -62,14 +62,14 @@
 
 **Recommendation:**
 - Do the Asset Manager setup as part of B-090, not separately.
-  - Register about 6 types: `Character`, `Skill`, `Equipment`, `Evolution`, `Effect`, `Merchant`, `Trial`, with `Directories=/Game/Data` and `CookRule=AlwaysCook`.
+  - Register 7 types: `Character`, `Skill`, `Equipment`, `Evolution`, `Effect`, `Merchant`, `Trial`, with `Directories=/Game/Data` and `CookRule=AlwaysCook`.
   - Pin each type with a `GetPrimaryAssetId` override on the base classes, so a Spell and an Ability share one `Skill` type and a save holds `Skill:DA_Spell_Bolt`.
   - Fix the `Map` scan directory to `/Game/Level`, and drop the unused `GameFeatureData` line.
   - Don't add a custom `UAssetManager` subclass or bundles until there's a loading-time problem.
-- Replace the four orchestrator `LoadObject` fallbacks with a logged failure. A missing skill should be loud, not silently swapped for a test asset. Flag the code first and remove it only after PIE.
+- Replace the four `LoadObject` fallbacks in the orchestrator's debug commands with a logged failure. A debug command with nothing set should be loud, not silently load a test asset. Flag the code first and remove it only after PIE.
 - Add `-run=DataValidation` to the test script, so bad data fails the same gate as tests. Add `IsDataValid` to `UTrialData` (Level set), `UCosmeticsData` and `UStanceData`. Defer writing a project-wide `UEditorValidatorBase`; see the naming area.
 - Add `CallInEditor` Print buttons that call the existing `*Debug` libraries. That's about one line each.
-- Soft refs: no migration now. The rule from here on is that new visual or audio fields on data assets use `TSoftObjectPtr`, and the SpellData legacy hard VFX fields retire when the SkillCastEntry path is proven. Change `TObjectPtr` only when a file is already being edited.
+- Soft refs (pending **D-057**): recommended, no migration now; new visual or audio fields on data assets use `TSoftObjectPtr`, and the SpellData legacy hard VFX fields retire when the SkillCastEntry path is proven. Change `TObjectPtr` only when a file is already being edited.
 
 **Raised:**
 - Jobs: **B-118** (drop the hard-coded test-asset fallbacks), **B-119** (run DataValidation in `test.sh`), **B-120** (validation and Print buttons on the six assets without them). The Asset Manager setup is added to **B-090**'s scope, as its first step.
@@ -93,7 +93,7 @@
   - Game mode Blueprints: `BP_Hub_GameMode` in both `Core/Hub/` and `Blueprints/GameModes/`. `BP_CombatGameMode` (`Core/GameModes/`) vs `BP_Combat_GameMode` (`Level/`), with a third combat mode in `Blueprints/GameModes/`.
   - `BP_CommonInputData` in both `UI/` and `UI/Core/`; config uses `UI/Core` (`DefaultGame.ini:26`).
   - Two of these are already noted: `docs/Gaps/Roadmap.md:98` and `docs/Design/Resources_Design.md:1250`. Neither has a backlog job.
-- **Orphaned One File Per Actor (OFPA) files:** 549 tracked files under `Content/__ExternalActors__/` and `__ExternalObjects__/`. They belong to maps that aren't in git: `ThirdPerson/Maps/ThirdPersonMap`, `VehicleTemplate/Maps/Vehicle*ExampleMap`, and the vendor `Imports/` packs, which are ignored per `.gitignore:15`. `.gitignore:16-17` now ignores both folders wholesale, so these files are leftovers committed before the ignore. The blanket ignore is also a trap: if a tracked level ever uses OFPA (World Partition), its actors would silently stay out of git.
+- **Orphaned One File Per Actor (OFPA) files:** 566 tracked files under `Content/__ExternalActors__/` and `__ExternalObjects__/`. They belong to maps that aren't in git: `ThirdPerson/Maps/ThirdPersonMap`, `VehicleTemplate/Maps/Vehicle*ExampleMap`, and the vendor `Imports/` packs, which are ignored per `.gitignore:15`. `.gitignore:16-17` now ignores both folders wholesale, so these files are leftovers committed before the ignore. The blanket ignore is also a trap: if a tracked level ever uses OFPA (World Partition), its actors would silently stay out of git.
 - **Redirects:** 134 `CoreRedirects` lines (`Config/DefaultEngine.ini:26-233`), including chains (`WeaponData.Name` → `EquipmentDataBase.Name`, `:50,70`). Already noted in `CodebaseReview_2026-10.md:201`.
 
 **What the standard does:**
@@ -221,8 +221,8 @@ The folder layout is by asset type rather than by feature. That's workable at th
 The cost of fixing this rises with every screen built on `FString`, and the CommonUI rebuild (B-103 onwards) and B-045 are about to add many.
 
 **Recommendation:**
-- Don't localise now: no translations and no culture switcher. Just be **localisation-ready**: all new player text is `FText`, and nothing new adds to the old `FString` habits.
-- Concretely:
+- Don't localise now: no translations and no culture switcher. Recommended (pending **D-061**): be **localisation-ready**: all new player text is `FText`, and nothing new adds to the old `FString` habits.
+- If D-061 is answered that way, concretely:
   - **(a)** B-045 produces `FText` from day one. Its tree generator should assemble each line with `FText::Format` patterns held in one String Table or one `LOCTEXT_NAMESPACE("Descriptions")` file, so the deckbuilder's text grammar becomes a set of format patterns, not `Printf`.
   - **(b)** The CommonUI screens take `FText` only.
   - **(c)** Change the asset `Name`/`Description` fields from `FString` to `FText` in one pass. The data should carry over: I believe `FTextProperty` loads an old `FString` value under the same property name (`ConvertFromType`, from memory), but verify on one asset in the editor before doing the rest.
@@ -230,7 +230,7 @@ The cost of fixing this rises with every screen built on `FString`, and the Comm
 - Skip String Tables for asset text: an `FText` property on the asset is already gathered. Use one String Table only for shared words: element names, status names, trigger names, and the button verbs Attack, Abilities, Resonate.
 
 **Raised:**
-- Jobs: **B-126** (enum names that work in cooked builds, plus status and type names on the same table), **B-127** (asset `Name`/`Description` to `FText`). The menu and HUD text rule is added to **B-105**, and the `FText` output rule to **B-045**.
+- Jobs: **B-126** (enum names that work in cooked builds, plus status and type names on the same table; waits on D-062), **B-127** (asset `Name`/`Description` to `FText`). The menu and HUD text rule is added to **B-105**, and the `FText` output rule to **B-045**.
 - Decisions: **D-061** (localisation scope), **D-062** (where shared game words live).
 
 ### Input (Enhanced Input + CommonUI)
@@ -262,7 +262,7 @@ The cost of fixing this rises with every screen built on `FString`, and the Comm
 - Keep the current shape: one PC per mode, each owning its IMC. Name the priorities (`constexpr int32 COMBAT_IMC_PRIORITY = 0;`). Don't adopt `ULyraInputConfig` until field abilities exist.
 - Let B-103 / B-105 / B-109 carry the menu and shop onto CommonUI. Make sure B-103's "input routing for keyboard + gamepad" includes glyph controller-data assets and the `DefaultGamepadName` match, and that the shop's `SetInputMode` path is retired by B-109 → B-106 rather than left as a second model.
 - B-093 should bind Defend / Infusion through Enhanced Input on the combat PC (as written), not through `DT_CommonInputActions`. Data-table actions are the pre-Enhanced CommonUI path, and with `bEnableEnhancedInputSupport` the `UInputAction` is the single source of truth.
-- When B-108 (settings screen) lands: enable Enhanced Input user settings, register both IMCs, and flag their mappings player-mappable with stable names.
+- Only if **D-063** is answered A (rebinding now): when B-108 (settings screen) lands, enable Enhanced Input user settings, register both IMCs, and flag their mappings player-mappable with stable names.
 
 **Raised:**
 - Jobs: **B-128** (CommonUI glyph assets and platform settings), **B-129** (input tidy-up: priority constants, no hard-coded asset path). The duplicate `BP_CommonInputData` is in **B-122**. The command menu going keyboard and gamepad is already **B-103/B-105**, and the Defend/Infusion keys are **B-093**.
@@ -294,7 +294,7 @@ The cost of fixing this rises with every screen built on `FString`, and the Comm
 Items 1–3 are already the "Before co-op" list (ArchitectureReview §1.6 / §1.9, Backlog "Later"). The new findings are items 4–5, plus the fact that nothing currently stops more per-fight state from landing in GI subsystems. CodebaseReview §5 (line 235) asked for a state-ownership note, and no backlog row tracks it.
 
 **Recommendation:**
-- Don't build replication now (co-op is "Later"). Do stop the debt growing, and keep the cheap truths honest.
+- Don't build replication now (co-op is "Later"). Do stop the debt growing, and keep the cheap truths honest. B-131 (the one replication fix) waits on **D-065**.
 - Write a one-page state-ownership map. For each per-fight subsystem, give its future home (GameState component / replicated combat actor / PlayerState / stays GI service) and the intent RPC that will feed it. Use the map when B-030 and B-071 touch those systems.
 - Make `UCharacterDataComponent` actually replicate (constructor flag; decide whether MaxHP / MaxEP replicate or derive), alongside B-027.
 - Route reward and grant code to the instigating controller or leader instead of `GetFirstPlayerController`. That is cheap now and painful later.
@@ -373,9 +373,9 @@ Existing jobs that already add tests (don't duplicate): B-010 (seeded RNG, which
 2. Anim instance: delete the dead counter/Printf block; cache `ULoadoutComponent` with `CharacterDataComponent`. A thread-safe update can wait; it isn't worth it until profiling says so.
 3. Preload the soft VFX of every combatant's equipped skills at `InitializeCombat` with one `FStreamableManager::RequestAsyncLoad`. Hold the handle until `ReleaseCombatResources` (pairs with B-030).
 4. Logging: B-006 already migrates `LogTemp` file by file. Add one rule to `docs/Architecture/Logging.md`: per-hit/per-action lines go to `Verbose`. Downgrade the three named offenders when ActionExecutor is next touched.
-5. Capture one Insights trace of a full fight to `docs/` as a baseline (Crown, editor). Only optimise further from evidence.
+5. Capture one Insights trace of a full fight to `docs/` as a baseline (Crown, editor). Only optimise further from evidence, so the async preload (B-140) waits on it.
 
 **Raised:**
-- Jobs: **B-138** (weapon mesh driven by a delegate, no tick), **B-139** (anim-instance cleanup), **B-140** (async VFX preload at combat start), **B-141** (per-hit logs to Verbose), **B-142** (an Unreal Insights baseline, Crown).
+- Jobs: **B-138** (weapon mesh driven by a delegate, no tick), **B-139** (anim-instance cleanup), **B-140** (async VFX preload at combat start, after the B-142 trace), **B-141** (per-hit logs to Verbose), **B-142** (an Unreal Insights baseline, Crown).
 - Decision: **D-068** (a demo frame budget).
 
