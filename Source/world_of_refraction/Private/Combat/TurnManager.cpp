@@ -570,10 +570,17 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 	// place — speed races ONLY among Execution entries; Bonus/other types keep FIFO and get no
 	// special precedence vs Execution (a Bonus that is FIFO-first simply fires, acting as a
 	// belt spacer). All remaining ready entries here have a live grantee (pruned above).
+	// B-185: a side waiting out the other's opening round doesn't act at all, pinned turns included.
+	auto WaitsForOpening = [&State](const AActor *Actor)
+	{
+		const FCombatantTurnDebt *Debt = State.FindByPredicate([Actor](const FCombatantTurnDebt &C) { return C.Actor == Actor; });
+		return Debt && Debt->bWaitsForOpening;
+	};
+
 	int32 WinnerIdx = INDEX_NONE;
 	for (int32 p = 0; p < Pending.Num(); ++p)
 	{
-		if (Pending[p].TurnsRemaining <= 0)
+		if (Pending[p].TurnsRemaining <= 0 && !WaitsForOpening(Pending[p].Actor))
 		{
 			WinnerIdx = p;
 			break;
@@ -584,7 +591,7 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 	{
 		for (int32 p = WinnerIdx + 1; p < Pending.Num(); ++p)
 		{
-			if (Pending[p].TurnsRemaining <= 0 &&
+			if (Pending[p].TurnsRemaining <= 0 && !WaitsForOpening(Pending[p].Actor) &&
 				Pending[p].Type == ETurnType::Execution &&
 				Pending[p].SortKey > Pending[WinnerIdx].SortKey) // strict > -> ties keep FIFO
 			{
@@ -688,6 +695,7 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 		{
 			Combatant.bWaitsForOpening = false;
 		}
+		bAnyWaiting = false;
 	}
 
 	// Find highest debt (optionally skipping one combatant: the one yielding its place)
@@ -731,7 +739,9 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 
 	// Wind break (D-014): a delayed combatant gives this pick to the next in line, once per
 	// place. Alone on the field, it keeps the turn (and the yield) — nobody to step behind.
-	if (NextCombatant->PlacesToYield > 0)
+	// During a first-strike opening the delay waits: yielding would hand a teammate who already
+	// acted an extra opening turn, never move the delayed one behind the waiting side.
+	if (NextCombatant->PlacesToYield > 0 && !bAnyWaiting)
 	{
 		// The next in line goes even if it has used this round's turns: in a 1v1 that is the
 		// only way to move back a place. It can exceed a speed ratio (D-049 is still open).
@@ -793,13 +803,14 @@ void UTurnManager::DebugPrintTurnOrder()
 	for (const FCombatantTurnDebt &Combatant : Combatants)
 	{
 		float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
-		UE_LOG(LogWoRCombat, Display, TEXT("  %s: Speed=%d, Ratio=%.2f, Owed=%.2f, Taken=%d, Net=%.2f"),
+		UE_LOG(LogWoRCombat, Display, TEXT("  %s: Speed=%d, Ratio=%.2f, Owed=%.2f, Taken=%d, Net=%.2f%s"),
 			   *GetNameSafe(Combatant.Actor),
 			   Combatant.CachedSpeed,
 			   Combatant.SpeedRatio,
 			   Combatant.TurnsOwed,
 			   Combatant.TurnsTaken,
-			   NetDebt);
+			   NetDebt,
+			   Combatant.bWaitsForOpening ? TEXT(" [WAITS: first strike]") : TEXT(""));
 	}
 
 	TArray<FPreviewTurnEntry> Preview = PreviewTurnOrder(10);
