@@ -9,6 +9,7 @@
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Defense/DefenseSystem.h"
 #include "Inventory/ItemTier.h"
+#include "Loadout/CarriedGearState.h"
 #include "BrokenDarknessManager.generated.h"
 
 /** Broken Darkness strain tuning (deficit model). Header-homed because BOTH the manager
@@ -71,6 +72,14 @@ public:
 	 *  the two paths stay mutually exclusive. */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness")
 	void InitializeBornBrokenDarkness();
+
+	/** B-115 (Q-115): the absorption pool as this fight leaves it; not carried unless the owner is
+	 *  Broken Darkness by birth. */
+	FCarriedAbsorptionState SnapshotCarriedAbsorption() const;
+
+	/** B-115 (Q-115): resumes a carried pool. Call after InitializeBornBrokenDarkness (which seeds
+	 *  base Darkness) and after the EP carry; overload EP is added back above MaxEP. */
+	void ApplyCarriedAbsorption(const FCarriedAbsorptionState &Carried);
 
 	// ==================== TRANSFORMATION STATE ====================
 
