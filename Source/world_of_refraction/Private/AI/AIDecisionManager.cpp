@@ -106,7 +106,7 @@ void UAIDecisionManager::RequestDecision(AActor *AIActor)
     PendingActor = AIActor;
 
     // Calculate thinking delay
-    EAIDifficulty Difficulty = GetCurrentDifficulty();
+    EAIDifficulty Difficulty = GetDifficultyFor(AIActor);
     float Delay = CalculateThinkingDelay(Difficulty);
 
     UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s thinking for %.2fs (Difficulty: %d)"),
@@ -122,6 +122,19 @@ void UAIDecisionManager::RequestDecision(AActor *AIActor)
             Delay,
             false);
     }
+}
+
+void UAIDecisionManager::CancelPendingDecision()
+{
+    if (UWorld *World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(ThinkingTimerHandle);
+    }
+    if (PendingActor)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s decision cancelled"), *PendingActor->GetName());
+    }
+    PendingActor = nullptr;
 }
 
 void UAIDecisionManager::ExecuteDecision()
@@ -211,6 +224,16 @@ EAIDifficulty UAIDecisionManager::GetCurrentDifficulty() const
     return EAIDifficulty::Medium;
 }
 
+EAIDifficulty UAIDecisionManager::GetDifficultyFor(const AActor *ForActor) const
+{
+    if (CurrentCombat && ForActor &&
+        CurrentCombat->GetLocalParty().ContainsByPredicate([ForActor](const AActor *Member) { return Member == ForActor; }))
+    {
+        return AIConstants::ALLY_AI_DIFFICULTY;
+    }
+    return GetCurrentDifficulty();
+}
+
 // ==================== DECISION LOGIC ====================
 
 FAction UAIDecisionManager::BuildAction(AActor *AIActor)
@@ -243,7 +266,7 @@ FAction UAIDecisionManager::BuildAction(AActor *AIActor)
     }
 
     // Difficulty determines decision quality
-    EAIDifficulty Difficulty = GetCurrentDifficulty();
+    EAIDifficulty Difficulty = GetDifficultyFor(AIActor);
 
     if (Difficulty == EAIDifficulty::Easy)
     {
@@ -517,7 +540,7 @@ void UAIDecisionManager::TrySynthesizeImpactDefense(AActor *Defender, AActor *At
         return;
     }
 
-    const EAIDifficulty Diff = GetCurrentDifficulty();
+    const EAIDifficulty Diff = GetDifficultyFor(Defender);
 
     // Per-impact attempt roll — each impact is independently defended or eaten.
     if (UBattleRandomSubsystem::FRand(this) > GetDefenseAttemptChance(Diff))
@@ -598,7 +621,7 @@ AActor *UAIDecisionManager::SelectBestTarget(AActor *Attacker, const TArray<AAct
     }
 
     // Easy difficulty: random target
-    EAIDifficulty Difficulty = GetCurrentDifficulty();
+    EAIDifficulty Difficulty = GetDifficultyFor(Attacker);
     if (Difficulty == EAIDifficulty::Easy)
     {
         int32 RandomIndex = UBattleRandomSubsystem::RandRange(this, 0, Enemies.Num() - 1);
@@ -1035,7 +1058,7 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
     float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
 
     // HP threshold based on difficulty
-    EAIDifficulty Difficulty = GetCurrentDifficulty();
+    EAIDifficulty Difficulty = GetDifficultyFor(AIActor);
     float HealThreshold = (Difficulty == EAIDifficulty::Hard || Difficulty == EAIDifficulty::Expert) ? AIConstants::HARDEXPERT_HEAL_HP_THRESHOLD : AIConstants::EASYMED_HEAL_HP_THRESHOLD;
 
     // Priority 1: Low HP. Prefer a real heal; fall back to a self Last Stand ward; else defend.
@@ -1485,7 +1508,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
     // Slots in HERE because this is the only point where BestScore (best AFFORDABLE
     // action this turn, in HP-damage units) and the chosen BestTarget both exist.
     // Every Emerald score below is in the SAME HP-damage units as BestScore.
-    if (GetCurrentDifficulty() != EAIDifficulty::Easy)
+    if (GetDifficultyFor(AIActor) != EAIDifficulty::Easy)
     {
         bool bFoundEmerald = false;
         const FCrystalId EmeraldId = FindBonusTurnItem(Loadout, bFoundEmerald);
@@ -2004,7 +2027,7 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
     }
 
     // Get difficulty
-    EAIDifficulty Difficulty = GetCurrentDifficulty();
+    EAIDifficulty Difficulty = GetDifficultyFor(Attacker);
 
     // Easy: Never infuse
     if (Difficulty == EAIDifficulty::Easy)
@@ -2103,7 +2126,7 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
         return 0;
     }
 
-    EAIDifficulty Difficulty = GetCurrentDifficulty();
+    EAIDifficulty Difficulty = GetDifficultyFor(Attacker);
     if (Difficulty == EAIDifficulty::Easy)
     {
         return 0;

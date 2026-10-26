@@ -4,9 +4,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AI/EAIDifficulty.h"
 
 namespace AIConstants
 {
+    // ==================== ALLIES ====================
+
+    // D-044: AI-controlled party members play at this fixed level whatever the
+    // encounter's difficulty (that drives the enemies only). Q-071. TODO: tune.
+    constexpr EAIDifficulty ALLY_AI_DIFFICULTY = EAIDifficulty::Hard;
+
     // ==================== TARGET SCORING ====================
 
     constexpr int32 KILL_POTENTIAL_SCORE = 2000;

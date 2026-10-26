@@ -70,6 +70,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "AI")
     void RequestDecision(AActor *AIActor);
 
+    /** Drop a decision still thinking (B-071: the player took that member over on its turn). */
+    void CancelPendingDecision();
+
     /** The spells the AI may pick from: the loadout's spells minus those greyed out because
      *  their source broke (D-083, B-181), which ValidateAction would refuse. */
     static TArray<USpellData *> GetUsableSpells(const ULoadoutComponent *Loadout);
@@ -159,9 +162,14 @@ private:
 
     // ==================== QUERY ====================
 
-    /** Get current difficulty from combat */
+    /** Get current difficulty from combat (the encounter's: it drives the enemies) */
     UFUNCTION(BlueprintPure, Category = "AI")
     EAIDifficulty GetCurrentDifficulty() const;
+
+    /** The level ForActor plays at: AIConstants::ALLY_AI_DIFFICULTY for a local-party
+     *  member (D-044), else the encounter's difficulty. */
+    UFUNCTION(BlueprintPure, Category = "AI")
+    EAIDifficulty GetDifficultyFor(const AActor *ForActor) const;
 
     // ==================== TARGET SCORING ====================
 
