@@ -31,6 +31,8 @@ class UBrokenDarknessManager;
 class UBattleConfigComponent;
 class UAbilitySystemComponent;
 class UWoRAttributeSyncComponent;
+class UWoRAttributeSet_Vitals;
+class UWoRAttributeSet_Stats;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API ACombatCharacter : public ACharacter, public IAbilitySystemInterface
@@ -97,4 +99,13 @@ public:
      *  so its BeginPlay runs once their cascade has seeded them. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
     TObjectPtr<UWoRAttributeSyncComponent> AttributeSyncComponent;
+
+private:
+    /** Default subobjects, so the ASC finds them at InitializeComponent on every machine (the
+     *  replicated sets, never a client-made copy). Read through the ASC, not these pointers. */
+    UPROPERTY()
+    TObjectPtr<UWoRAttributeSet_Vitals> VitalsAttributes;
+
+    UPROPERTY()
+    TObjectPtr<UWoRAttributeSet_Stats> StatsAttributes;
 };

@@ -15,6 +15,7 @@
 #include "Loadout/LoadoutComponent.h"
 #include "AbilitySystemComponent.h"
 #include "GAS/WoRAttributeSyncComponent.h"
+#include "GAS/WoRAttributeSets.h"
 
 ACombatCharacter::ACombatCharacter()
 {
@@ -36,6 +37,8 @@ ACombatCharacter::ACombatCharacter()
     AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
     AbilitySystemComponent->SetIsReplicated(true);
     AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+    VitalsAttributes = CreateDefaultSubobject<UWoRAttributeSet_Vitals>(TEXT("VitalsAttributes"));
+    StatsAttributes = CreateDefaultSubobject<UWoRAttributeSet_Stats>(TEXT("StatsAttributes"));
     AttributeSyncComponent = CreateDefaultSubobject<UWoRAttributeSyncComponent>(TEXT("AttributeSyncComponent"));
 
     // Every combat character gets an AI controller by default, so engine

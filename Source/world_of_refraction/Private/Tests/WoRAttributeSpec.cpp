@@ -8,6 +8,8 @@
 #include "WoRTestWorld.h"
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterDataComponent.h"
+#include "Character/CombatCharacter.h"
+#include "Kismet/GameplayStatics.h"
 #include "Debug/GAS/WoRAttributeDebug.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
@@ -115,6 +117,33 @@ void FWoRAttributeSpec::Define()
 		EffectManager->RemoveAllEffects(Hero);
 		TestEqual(TEXT("Spell Damage back"), ASC->GetNumericAttribute(UWoRAttributeSet_Stats::GetSpellDamageAttribute()), Before);
 		TestAttributesMatch(TEXT("after the buff"));
+	});
+
+	// The real path: ACombatCharacter's own ASC and default-subobject sets, deferred spawn as ABattleGameMode does.
+	It("fills a combat character's own ability system at spawn", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		if (!World)
+		{
+			return;
+		}
+		ACombatCharacter *Fighter = World->SpawnActorDeferred<ACombatCharacter>(ACombatCharacter::StaticClass(), FTransform::Identity, nullptr, nullptr,
+																				 ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		if (!TestNotNull(TEXT("Combat character spawned"), Fighter))
+		{
+			return;
+		}
+		Fighter->CharacterDataComponent->CharacterData = FWoRTestWorld::NewCharacterData();
+		UGameplayStatics::FinishSpawningActor(Fighter, FTransform::Identity);
+
+		const UAbilitySystemComponent *FighterASC = Fighter->GetAbilitySystemComponent();
+		TestNotNull(TEXT("Own ASC"), FighterASC);
+		TestTrue(TEXT("Vitals set"), FighterASC && FighterASC->GetSet<UWoRAttributeSet_Vitals>() != nullptr);
+		TestTrue(TEXT("Stats set"), FighterASC && FighterASC->GetSet<UWoRAttributeSet_Stats>() != nullptr);
+		TestTrue(TEXT("Health filled"), FighterASC && FighterASC->GetNumericAttribute(UWoRAttributeSet_Vitals::GetHealthAttribute()) > 0.0f);
+		const FString Mismatches = UWoRAttributeDebug::GetAttributeMismatchString(Fighter);
+		TestTrue(FString::Printf(TEXT("Attributes match [%s]"), *Mismatches), Mismatches.IsEmpty());
+		Fighter->Destroy();
 	});
 
 	It("reports an attribute that drifted from its getter", [this]()
