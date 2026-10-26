@@ -1530,6 +1530,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (fix/B-182-perfect-guard-parry-anim): `GuardRules::ImpactAnimationOverride`, called in `UActionExecutor`'s per-impact defense resolve.
 
+### Q-040 — Switch the effect read sites to tags in stage 1?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-040) · **Blocks:** — (B-040 shipped with A)
+**Question:** GASMigration stage 1 step 2 says the read sites (immunity checks, the AI's stunned/silenced checks, UI icons) switch to tag queries. With no Ability System Component yet, the tags are built from the same enum effects. Switch now or with the ASC?
+**Options:**
+- **A** ship the tags, the maps and `wor.CompareTags` now; switch the read sites in stage 2, when the ASC owns the tags.
+- **B** switch the read sites now to a tag container rebuilt from the enum effects.
+**Recommendation:** A. In GAS projects such as Epic's Lyra the owned-tag container lives on the ASC and every query reads it there; a stand-in container now would be a second code path to remove later. `wor.CompareTags` and `WoR.Tags` already prove the two answer the same. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-040-gas-tags). Stage 2 (B-041) switches the read sites when the ASC lands.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
