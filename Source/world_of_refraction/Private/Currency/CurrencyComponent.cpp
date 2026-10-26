@@ -2,6 +2,7 @@
 
 #include "Currency/CurrencyComponent.h"
 #include "Currency/CurrencyComponentDebug.h"
+#include "WoRAuthority.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
@@ -230,12 +231,7 @@ void UCurrencyComponent::OnRep_SkillEssence()
 
 bool UCurrencyComponent::HasServerAuthority() const
 {
-    // Standalone (PIE, no networking) always has authority.
-    if (GetWorld() && GetWorld()->GetNetMode() == NM_Standalone)
-    {
-        return true;
-    }
-    return GetOwner() && GetOwner()->HasAuthority();
+    return WoRAuthority::HasAuthority(GetOwner());
 }
 
 FCurrencyEntry &UCurrencyComponent::FindOrAddEntry(FCurrencyArray &Wallet, uint8 Key)
