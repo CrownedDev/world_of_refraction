@@ -4213,17 +4213,17 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActo
 	// like a broken weapon crystal); its own F-tier spells still cast (D-083).
 	auto IsUsableRing = [](const FRingLoadoutEntry *Entry)
 	{
-		return Entry && !Entry->RingEntry.AttachedItem.IsBroken();
+		return Entry && Entry->IsValid() && !Entry->RingEntry.AttachedItem.IsBroken();
 	};
 
 	// Active Ring (Resonator only)
-	if (Data->IsResonator() && LC && LC->GetActiveRing() != nullptr && IsUsableRing(LC->GetActiveRingLoadout()))
+	if (Data->IsResonator() && LC && IsUsableRing(LC->GetActiveRingLoadout()))
 	{
 		Sources.Add(EInfusionSourceOption::ActiveRing);
 	}
 
 	// Primary Ring (Generic/Caster with ring in primary slot)
-	if (LC && LC->GetPrimaryRing() && IsUsableRing(LC->GetPrimaryRingLoadout()))
+	if (LC && IsUsableRing(LC->GetPrimaryRingLoadout()))
 	{
 		Sources.Add(EInfusionSourceOption::PrimaryRing);
 	}
