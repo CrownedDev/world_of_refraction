@@ -27,7 +27,7 @@ protected:
 	virtual void BeginPlay() override;
 	virtual FString GetHintText() const override;
 
-	UPROPERTY(EditAnywhere, Category = "Memory")
+	UPROPERTY(EditInstanceOnly, Category = "Memory")
 	TObjectPtr<UMemoryData> Memory;
 
 private:

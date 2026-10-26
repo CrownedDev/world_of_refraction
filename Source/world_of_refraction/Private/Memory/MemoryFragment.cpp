@@ -3,7 +3,6 @@
 #include "Memory/MemoryFragment.h"
 
 #include "Components/StaticMeshComponent.h"
-#include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Memory/MemoryData.h"
@@ -16,8 +15,6 @@
 namespace MemoryFragmentConstants
 {
 	const FVector FRAGMENT_SCALE(0.3f);
-	constexpr float PICKUP_MESSAGE_SECONDS = 4.0f;
-	constexpr int32 PICKUP_MESSAGE_KEY = -1; // a new line each time
 }
 
 AMemoryFragment::AMemoryFragment()
@@ -53,25 +50,23 @@ void AMemoryFragment::Interact(APawn * /*Pawn*/)
 	TrialRun->CollectMemory(Memory);
 	Journal->RecordMemory(Memory);
 	TrialRun->RecordFound(GetFeatureId(), LOCTEXT("FragmentFound", "A memory fragment"));
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(MemoryFragmentConstants::PICKUP_MESSAGE_KEY,
-										 MemoryFragmentConstants::PICKUP_MESSAGE_SECONDS, FColor::Yellow,
-										 LOCTEXT("FragmentMessage", "You found a memory fragment.").ToString());
-	}
+	ShowMessage(LOCTEXT("FragmentMessage", "You found a memory fragment."));
 	RemoveFromMap();
 }
 
 FString AMemoryFragment::GetHintText() const
 {
-	return LOCTEXT("FragmentHint", "Press E to pick up the memory fragment").ToString();
+	const UTrialRunSubsystem *TrialRun = GetTrialRun();
+	return TrialRun && TrialRun->HasFound(GetFeatureId())
+			   ? FString()
+			   : LOCTEXT("FragmentHint", "Press E to pick up the memory fragment").ToString();
 }
 
 void AMemoryFragment::RemoveFromMap()
 {
 	SetActorHiddenInGame(true);
-	// Ends the overlap, which clears the hint.
 	SetActorEnableCollision(false);
+	RefreshHint();
 }
 
 #undef LOCTEXT_NAMESPACE

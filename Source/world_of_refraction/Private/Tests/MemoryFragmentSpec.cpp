@@ -90,6 +90,18 @@ void FMemoryFragmentSpec::Define()
 		TestFalse(TEXT("The journal refuses a repeat"), Journal->RecordMemory(Memory));
 	});
 
+	It("stays gone when the level reloads after it was taken this run", [this]()
+	{
+		UTrialRunSubsystem *TrialRun = TestWorld->GetSubsystem<UTrialRunSubsystem>();
+		AMemoryFragment *Fragment = TestWorld->GetWorld()->SpawnActorDeferred<AMemoryFragment>(
+			AMemoryFragment::StaticClass(), FTransform::Identity);
+		if (!TestTrue(TEXT("Spawned"), TrialRun && Fragment)) return;
+		TrialRun->RecordFound(Fragment->GetFeatureId(), FText::GetEmpty());
+		Fragment->FinishSpawning(FTransform::Identity);
+		TestTrue(TEXT("Hidden"), Fragment->IsHidden());
+		TestFalse(TEXT("Out of reach"), Fragment->GetActorEnableCollision());
+	});
+
 	It("picks up nothing when no memory is set", [this]()
 	{
 		UTrialRunSubsystem *TrialRun = TestWorld->GetSubsystem<UTrialRunSubsystem>();
