@@ -15,6 +15,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "EngineUtils.h"
+#include "UObject/UObjectIterator.h"
 #include "Infusion/ElementColors.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Skills/Definitions/ESpellElement.h"
@@ -83,7 +84,7 @@ void UEncounterComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 FName UEncounterComponent::GetEncounterId() const
 {
-	return GetOwner() ? GetOwner()->GetFName() : NAME_None;
+	return GetOwner() ? FName(*UWorld::RemovePIEPrefix(GetOwner()->GetPathName())) : NAME_None;
 }
 
 TArray<UCharacterData *> UEncounterComponent::GetOwnTeam() const
@@ -106,6 +107,18 @@ TArray<UEncounterComponent *> UEncounterComponent::GatherCaughtEncounters() cons
 		}
 	}
 	return Caught;
+}
+
+bool UEncounterComponent::IsAnotherWindowOpen() const
+{
+	for (TObjectIterator<UEncounterComponent> It; It; ++It)
+	{
+		if (*It != this && It->bTriggered && It->GetWorld() == GetWorld())
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 UPartySessionSubsystem *UEncounterComponent::GetPartySession() const
@@ -131,7 +144,7 @@ void UEncounterComponent::HandleOverlap(UPrimitiveComponent *OverlappedComponent
 										UPrimitiveComponent *OtherComp, int32 OtherBodyIndex,
 										bool bFromSweep, const FHitResult &SweepResult)
 {
-	if (bTriggered || !OtherActor || OtherActor == GetOwner() || !IsPlayerCombatant(OtherActor))
+	if (bTriggered || !OtherActor || OtherActor == GetOwner() || !IsPlayerCombatant(OtherActor) || IsAnotherWindowOpen())
 	{
 		return;
 	}
@@ -314,6 +327,7 @@ void UEncounterComponent::OnJoinWindowExpired()
 	TrialRun->EnterEncounter(ActiveTrial, BattlePartyData, OpposingPartyData, FightDifficulty, FightRank);
 	if (!TrialRun->HasPendingEncounter())
 	{
+		TrialRun->SetPendingEncounterSources({});
 		RearmEncounter();
 	}
 }
