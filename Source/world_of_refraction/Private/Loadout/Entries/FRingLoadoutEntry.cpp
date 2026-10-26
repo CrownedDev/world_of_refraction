@@ -33,9 +33,9 @@ int32 FRingLoadoutEntry::GetCustomizableSpellCount() const
                           - GetLockedSpellCount());
 }
 
-TArray<USpellData *> FRingLoadoutEntry::GetAllSpells() const
+TArray<USpellData *> FRingLoadoutEntry::GetAllSpells(bool bAsIfIntact) const
 {
-    TArray<USpellData *> Result = GetAllSpellsUncapped();
+    TArray<USpellData *> Result = GetAllSpellsUncapped(bAsIfIntact);
     // Locked rings (conjured) keep their presets whole.
     const bool bLocked = RingEntry.Ring && RingEntry.Ring->bSpellsLocked;
     if (!bLocked && Result.Num() > GetSpellSlotCap())
@@ -65,7 +65,7 @@ int32 FRingLoadoutEntry::GetSpellsOverCap() const
     return FMath::Max(0, GetAllSpellsUncapped().Num() - GetSpellSlotCap());
 }
 
-TArray<USpellData *> FRingLoadoutEntry::GetAllSpellsUncapped() const
+TArray<USpellData *> FRingLoadoutEntry::GetAllSpellsUncapped(bool bAsIfIntact) const
 {
     // Preset spells from the ring asset.
     const TArray<USpellData *> Presets = RingEntry.Ring
@@ -80,7 +80,7 @@ TArray<USpellData *> FRingLoadoutEntry::GetAllSpellsUncapped() const
 
     // Sequential override merge: customisable spells replace preset slots in
     // order; non-null entries beyond the preset count are appended.
-    const TArray<USpellData *> Overrides = RingEntry.GetSpells();
+    const TArray<USpellData *> Overrides = bAsIfIntact ? RingEntry.AssignedSpells : RingEntry.GetSpells();
 
     TArray<USpellData *> Result;
     int32 OverrideIndex = 0;

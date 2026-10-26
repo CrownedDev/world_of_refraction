@@ -40,21 +40,14 @@ TArray<USpellData *> UAIDecisionManager::GetUsableSpells(const ULoadoutComponent
 {
     // Picking a greyed spell wasted the AI's turn: ValidateAction refused it and the AI fell back.
     TArray<USpellData *> Spells = Loadout ? Loadout->GetAvailableSpells() : TArray<USpellData *>();
-    // B-197: a broken ring keeps its F-tier spells castable (D-083), but a broken entry offers no
-    // spells to GetAvailableSpells; add the ring's spells back, the reason check below keeps F-tier.
+    // B-197: a broken ring keeps its F-tier spells castable (D-083), but GetAvailableSpells drops its
+    // assigned spells (presets only); add back what it holds intact, the reason check keeps F-tier.
     const FRingLoadoutEntry *Ring = Loadout ? (Loadout->GetActiveRingLoadout() ? Loadout->GetActiveRingLoadout()
                                                                               : Loadout->GetPrimaryRingLoadout())
                                             : nullptr;
     if (Ring && Ring->RingEntry.AttachedItem.IsSpellSource() && Ring->RingEntry.AttachedItem.IsBroken())
     {
-        for (USpellData *Spell : Ring->RingEntry.AssignedSpells)
-        {
-            if (Spell)
-            {
-                Spells.AddUnique(Spell);
-            }
-        }
-        for (USpellData *Spell : Ring->RingEntry.Ring ? Ring->RingEntry.Ring->PresetSpells : TArray<USpellData *>())
+        for (USpellData *Spell : Ring->GetAllSpells(/*bAsIfIntact=*/true))
         {
             if (Spell)
             {
