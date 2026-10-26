@@ -1128,7 +1128,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** player-facing word for a full bar's effect: "break" (e.g. "Burn break") is Crown's direction; confirm exact wording when the UI text is written.
 
 ### Q-161 — An inventory asset validated on its own: which character's discount?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-161) · **Blocks:** — (B-161 shipped with A)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-161) · **Blocks:** — (B-161 shipped with A)
 **Question:** validating a `UInventoryData` asset by itself (not through its character) still weighs spells with no discount, so a high-stat boss's inventory shows as **Invalid** while the boss itself validates clean. What should the inventory on its own use?
 **Context:** one inventory asset can be used by several characters. D-080's notes suggested looking the owner up from the inventory; with several owners there is no single answer.
 **Options:**
@@ -1137,7 +1137,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **C** the same lookup, but the strictest of them (fail if any can't).
 - **D** on its own, report the budget as a warning instead of an error.
 **Recommendation:** D, because it keeps the strict number visible without marking a valid boss inventory as broken, and needs no asset-registry lookup.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **D** (2026-10-26): an inventory asset validated on its own reports the spell budget as a **warning**, not an error; the character's own validation (with its authored stats, D-080) stays the real check.
 **Notes for Claude:** _optional_
 
 ### D-091 — Fleeing a fight
