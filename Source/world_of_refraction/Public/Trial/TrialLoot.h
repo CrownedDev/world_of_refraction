@@ -19,10 +19,15 @@ namespace TrialLoot
 	FText GetItemName(const UObject *Item);
 
 	/** Every authored weapon, ring, spell and ability whose SourceTags match Pool (the asset
-	 *  registry, loaded on demand). Empty for an invalid Pool.
+	 *  registry, loaded on demand), sorted by path so a seeded roll repeats. Empty for an invalid Pool.
+	 *  TODO: this loads every equipment and skill asset to read its tags; filter on searchable
+	 *  asset-registry tags (or cache per pool) once the item count grows.
 	 *  TODO: a packaged build cooks only referenced assets; add them to the Asset Manager's
 	 *  primary asset rules before the first public build. */
 	TArray<UObject *> GatherPool(const FGameplayTag &Pool);
+
+	/** Debug: the pool's item count and names (console: wor.Trial.Pool <tag>). */
+	FString GetPoolString(const FGameplayTag &Pool);
 
 	/** One of the Candidates whose tags match Pool, picked by a roll seeded with Seed; null when
 	 *  none match. TODO: weight the roll (drop chance, Luck) like the enemy-kit draw (§7.9). */

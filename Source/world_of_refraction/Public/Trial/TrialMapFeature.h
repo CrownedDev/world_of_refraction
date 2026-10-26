@@ -124,8 +124,8 @@ public:
 protected:
 	virtual FString GetHintText() const override;
 
-	/** Fought when the run has no variation boss (a trial without variations, or PIE straight
-	 *  into the level). */
+	/** Fought when the run has no variation boss (a trial without variations). The fight needs an
+	 *  active trial, so enter through the trial door. */
 	UPROPERTY(EditInstanceOnly, Category = "Boss")
 	TObjectPtr<UCharacterData> FallbackBoss;
 

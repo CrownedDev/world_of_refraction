@@ -19,6 +19,7 @@
 #include "Trial/TrialLoot.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
+#include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "TrialMapFeature"
 
@@ -172,11 +173,13 @@ void ATrialChest::Interact(APawn *Pawn)
 	}
 	const FGameplayTag Pool = GetLootPool();
 	// The run seed and the chest's own id: the same chest gives the same item on a replayed seed.
-	const int32 Seed = static_cast<int32>(HashCombine(GetTypeHash(TrialRun->GetRunSeed()), GetTypeHash(GetFeatureId())));
+	// The id is hashed as text (an FName's hash changes between launches).
+	const int32 Seed = static_cast<int32>(
+		HashCombine(GetTypeHash(TrialRun->GetRunSeed()), FCrc::StrCrc32(*GetFeatureId().ToString())));
 	UObject *Item = TrialLoot::PickFromPool(TrialLoot::GatherPool(Pool), Pool, Seed);
 	if (!Item)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[TrialChest] %s - loot pool '%s' has no items; opened empty"), *GetName(),
+		UE_LOG(LogWoR, Warning, TEXT("[TrialChest] %s - loot pool '%s' has no items; opened empty"), *GetName(),
 			   *Pool.ToString());
 		TrialRun->RecordFound(GetFeatureId(), LOCTEXT("ChestEmpty", "An empty chest"));
 		ShowTrialMapMessage(LOCTEXT("ChestEmptyMessage", "The chest is empty."));
@@ -186,7 +189,7 @@ void ATrialChest::Interact(APawn *Pawn)
 	if (!TrialLoot::GrantTo(Pawn, Item))
 	{
 		// Left closed so the player can come back with room.
-		UE_LOG(LogTemp, Warning, TEXT("[TrialChest] %s - could not give %s to %s"), *GetName(), *Item->GetName(),
+		UE_LOG(LogWoR, Warning, TEXT("[TrialChest] %s - could not give %s to %s"), *GetName(), *Item->GetName(),
 			   Pawn ? *Pawn->GetName() : TEXT("<none>"));
 		ShowTrialMapMessage(LOCTEXT("ChestNoRoom", "No room for what is in the chest."));
 		return;
@@ -251,14 +254,17 @@ void ABossArenaTrigger::Interact(APawn * /*Pawn*/)
 	{
 		return;
 	}
-	if (!Boss || BattleParty.Num() == 0)
+	if (!Boss || BattleParty.Num() == 0 || !TrialRun->GetActiveTrial())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[BossArena] %s - not starting: %s"), *GetName(),
-			   !Boss ? TEXT("no boss (no variation boss and no FallbackBoss)") : TEXT("no living party"));
+		UE_LOG(LogWoR, Warning, TEXT("[BossArena] %s - not starting: %s"), *GetName(),
+			   !Boss				 ? TEXT("no boss (no variation boss and no FallbackBoss)")
+			   : BattleParty.Num() == 0 ? TEXT("no living party")
+										: TEXT("no active trial (enter through the trial door)"));
+		ShowTrialMapMessage(LOCTEXT("BossNotStarted", "The boss fight can't start (see the Output Log)."));
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[BossArena] %s - challenging %s (%d in the party)"), *GetName(), *Boss->Name,
+	UE_LOG(LogWoR, Log, TEXT("[BossArena] %s - challenging %s (%d in the party)"), *GetName(), *Boss->Name,
 		   BattleParty.Num());
 	// Same hand-off as a map encounter (UEncounterComponent): a win marks the arena beaten.
 	TrialRun->SetPendingEncounterSources({GetFeatureId()});
@@ -269,6 +275,7 @@ void ABossArenaTrigger::Interact(APawn * /*Pawn*/)
 	{
 		TrialRun->SetPendingEncounterSources({});
 		TrialRun->SetPendingZone(FEncounterZoneInfo());
+		ShowTrialMapMessage(LOCTEXT("BossNotStarted", "The boss fight can't start (see the Output Log)."));
 	}
 }
 

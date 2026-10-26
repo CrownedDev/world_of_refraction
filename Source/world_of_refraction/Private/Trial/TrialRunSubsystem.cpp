@@ -1,6 +1,7 @@
 // TrialRunSubsystem.cpp
 
 #include "Trial/TrialRunSubsystem.h"
+#include "WoRLog.h"
 
 #include "Character/CharacterData.h"
 #include "Engine/GameInstance.h"
@@ -203,7 +204,7 @@ void UTrialRunSubsystem::MarkPendingEncounterBeaten()
 void UTrialRunSubsystem::RecordFound(FName FeatureId, const FText &What)
 {
     FoundFeatures.Add(FeatureId, What);
-    UE_LOG(LogTemp, Log, TEXT("[TrialRun] Found %s: %s (%d found this run)"), *FeatureId.ToString(),
+    UE_LOG(LogWoR, Log, TEXT("[TrialRun] Found %s: %s (%d found this run)"), *FeatureId.ToString(),
            *What.ToString(), FoundFeatures.Num());
 }
 

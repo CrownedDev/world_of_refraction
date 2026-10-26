@@ -206,7 +206,8 @@ private:
     /** B-184: map encounters beaten this run. Run state like RunSeed; cleared on trial entry and exit. */
     TSet<FName> BeatenEncounters;
 
-    /** B-188: map features used this run, in the order found. Run state; cleared on trial entry and exit. */
+    /** B-188: map features used this run (never removed from, so it keeps the order found). Run state
+     *  like BeatenEncounters; cleared on trial entry and exit; moves with it for co-op (D-065). */
     TMap<FName, FText> FoundFeatures;
 
     /** Carried across the OpenLevel like PendingDifficulty; moves with it for co-op (D-065). */

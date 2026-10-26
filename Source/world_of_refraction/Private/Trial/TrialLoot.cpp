@@ -11,6 +11,8 @@
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
+#include "HAL/IConsoleManager.h"
+#include "WoRLog.h"
 
 const FGameplayTagContainer *TrialLoot::GetSourceTags(const UObject *Item)
 {
@@ -60,8 +62,35 @@ TArray<UObject *> TrialLoot::GatherPool(const FGameplayTag &Pool)
 			}
 		}
 	}
+	// The registry's order isn't fixed; a seeded index needs one.
+	Matches.Sort([](const UObject &A, const UObject &B) { return A.GetPathName() < B.GetPathName(); });
 	return Matches;
 }
+
+FString TrialLoot::GetPoolString(const FGameplayTag &Pool)
+{
+	const TArray<UObject *> Items = GatherPool(Pool);
+	TArray<FString> Names;
+	for (const UObject *Item : Items)
+	{
+		Names.Add(GetItemName(Item).ToString());
+	}
+	return FString::Printf(TEXT("Loot pool %s: %d item(s) [%s]"), Pool.IsValid() ? *Pool.ToString() : TEXT("<none>"),
+						   Items.Num(), *FString::Join(Names, TEXT(", ")));
+}
+
+#if !UE_BUILD_SHIPPING
+static FAutoConsoleCommand GTrialLootPoolCommand(
+	TEXT("wor.Trial.Pool"),
+	TEXT("wor.Trial.Pool <tag> - list the items a loot pool (source tag) can roll, e.g. wor.Trial.Pool Source.Zone.Tier1"),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString> &Args)
+	{
+		const FGameplayTag Pool = Args.Num() > 0
+									  ? FGameplayTag::RequestGameplayTag(FName(*Args[0]), /*ErrorIfNotFound=*/false)
+									  : FGameplayTag();
+		UE_LOG(LogWoREconomy, Log, TEXT("%s"), *TrialLoot::GetPoolString(Pool));
+	}));
+#endif
 
 UObject *TrialLoot::PickFromPool(const TArray<UObject *> &Candidates, const FGameplayTag &Pool, int32 Seed)
 {
