@@ -1175,11 +1175,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 ### D-094 — Upgrade materials in a run; "Reality essence" becomes "Unknown essence"
 **Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 05 gap) · **Blocks:** — (B-073)
 **Answer (Crown):** (2026-10-26)
-- **B: all three upgrade materials drop in runs**: Gear Essence, Skill Essence and the upgrade co-cost essence, **small amounts from every fight**, **bigger amounts from mini-bosses, bosses and chests**. Tallied and **paid at run end** (D-006). Typed essences (element / pillar / ability) still come only from dismantling.
+- **B: all three upgrade materials drop in runs**: Gear Essence, Skill Essence and the upgrade co-cost essence, **small amounts from every fight**, **bigger amounts from mini-bosses, bosses and chests**. Tallied and **paid at run end** (D-006). Typed essences (element / pillar / ability) still come only from dismantling. **Dismantling in a run stays instant** (Crown, 2026-10-26), so a drop can be dismantled to fund an upgrade on the spot; it isn't tallied.
 - **Rename:** "Reality essence" (the half-cost on every upgrade, `Resources_Design.md` §5.3) is now **"Unknown essence"**.
 **Notes for Claude:**
 - Player-facing name now; code identifiers keep their names until a rename job (enums append-only: add, don't renumber).
-- To confirm with Crown when renaming: the Reality **element** essence (one of the 10 typed essences, used to buy Reality spells) is a different thing; keep it "Reality" unless Crown says otherwise.
+- **Correction (checked 2026-10-26):** it's **one wallet**, `EEssenceType::Reality`: the upgrade half-cost (`EconomyService.cpp:1040-1058`), the spell-purchase half-cost (`:644`), and the Reality element's essence / wildcard. The rename applies to that wallet (player-facing).
 - Amounts by zone/difficulty: named constants, `// TODO: tune`. Fold into B-073 (rewards).
 
 ## Parked
