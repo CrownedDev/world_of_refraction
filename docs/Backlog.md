@@ -70,7 +70,7 @@
 | B-159 | **You can't make an invalid loadout** (D-073 second half): run `FLoadoutRules` when equipping, so a pick that breaks a rule is refused with a short reason; on load, drop a saved loadout's invalid parts with a message saying what was removed (including the report-only ability-count and item-quantity findings). Then retire the `*Legacy` validators after Crown's B-028 PIE pass | CC | M | B-028 | Equipping a wrong-type ability is refused; an over-cap saved loadout loads trimmed with a message; tests | BLOCKED (D-081) |
 | B-029 | One AI damage estimator, resolving element like execution | CC | M | B-001 | AI estimate equals executor result in a test | REVIEW (in dev) |
 | B-030 | `ResetForCombat()` on every per-fight subsystem, called from `ReleaseCombatResources` | CC | M | B-001 | No state survives between two fights (test) | REVIEW (in dev) |
-| B-031 | Delete `SubmitAction` sync router + `ApplyDamage` fallback | CC | M | B-001 | Only the async path remains; rituals still fire | TODO |
+| B-031 | Delete `SubmitAction` sync router + `ApplyDamage` fallback | CC | M | B-001 | Only the async path remains; rituals still fire | IN PROGRESS (refactor/B-031-async-only) |
 | B-032 | ActionExecutor DRY: one per-impact resolve, one reflect block, merge `ApplyHit`/`ApplyDamage` | CC | L | B-031 | Same damage in a test fight | BLOCKED (B-031) |
 | B-033 | God-file splits (move-only): Orchestrator debug → `Debug/Combat/`; ActionExecutor montage runner + cost resolution | CC | M | B-003 | Move-only diff; compiles | BLOCKED (B-003) |
 | B-034 | Delete the dead `InfusionChargeManager`; infusion level held on the pending action, not the VFX component | CC | M | B-003 | VFX still shows level; ChargeManager gone | BLOCKED (B-003) |
