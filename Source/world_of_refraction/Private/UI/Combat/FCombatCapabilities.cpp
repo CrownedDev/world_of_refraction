@@ -203,7 +203,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
 
     // ==================== BROKEN SOURCES (D-083) ====================
 
-    for (const TArray<USpellData *> *Pool : {&Out.WeaponCrystalSpells, &Out.RingSpells})
+    for (const TArray<USpellData *> *Pool : {&Out.WeaponCrystalSpells, &Out.RingSpells, &Out.BreakthroughSpells})
     {
         for (USpellData *Spell : *Pool)
         {

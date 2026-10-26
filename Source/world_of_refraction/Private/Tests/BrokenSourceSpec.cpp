@@ -292,6 +292,9 @@ void FBrokenSourceSpec::Define()
 			Active.PrimaryEvolution.CurrentDurability = BROKEN_SOURCE_BROKEN_DURABILITY;
 			Active.EvolutionSpells = {FTierSpell};
 			TestFalse(TEXT("greyed while broken"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
+			const FCombatCapabilities Caps = Capabilities(ECharacterClass::Generic);
+			TestTrue(TEXT("listed in the menu"), Caps.BreakthroughSpells.Contains(FTierSpell));
+			TestFalse(TEXT("greyed in the menu"), Caps.GetBlockedReason(FTierSpell).IsEmpty());
 			Active.PrimaryEvolution.CurrentDurability = BROKEN_SOURCE_INTACT_DURABILITY;
 			TestTrue(TEXT("usable while intact"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
 		});
