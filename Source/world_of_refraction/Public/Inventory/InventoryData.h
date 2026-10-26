@@ -139,7 +139,8 @@ public:
      *  The owning character's Validate stays the real budget check (D-080). */
     void GetStandaloneValidation(TArray<FString> &OutErrors, TArray<FString> &OutWarnings) const;
 
-    /** Quick check for any validation errors */
+    /** Quick strict check: any GetValidationErrors() at discount 0, spell budgets counted as errors
+     *  (unlike IsDataValid, which warns about them, Q-161). */
     bool HasValidationErrors() const;
 
     // ==================== EDITOR ====================

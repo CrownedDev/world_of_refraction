@@ -23,6 +23,9 @@ namespace
 	/** S-tier innate spells: over the innate budget at full cost, under it with the full discount. */
 	constexpr int32 LOADOUT_RULES_TEST_HEAVY_INNATE_SPELLS = 4;
 
+	/** S-tier spells in each of a BD character's two pools: together over the BD budget. */
+	constexpr int32 LOADOUT_RULES_TEST_HEAVY_BD_POOL_SPELLS = 6;
+
 	/** An F-tier evolution holds 1 spell in the fight; the old editor check allowed 6. */
 	constexpr int32 LOADOUT_RULES_TEST_EVOLUTION_SPELLS = 3;
 
@@ -177,6 +180,33 @@ void FLoadoutRulesSpec::Define()
 			TestFalse(TEXT("budget is no error"), AnyReasonContains(Errors, TEXT("Innate spell budget exceeded")));
 			TestTrue(TEXT("other problems stay errors"), AnyReasonContains(Errors, TEXT("no weapon assigned")));
 			TestFalse(TEXT("and are not repeated as warnings"), AnyReasonContains(Warnings, TEXT("no weapon assigned")));
+		});
+
+		It("warns, not errors, about the Broken Darkness spell budget on its own too", [this]()
+		{
+			UInventoryData *Inventory = NewObject<UInventoryData>(GetTransientPackage());
+			FSavedLoadout Heavy;
+			Heavy.RequiredClass = ECharacterClass::Caster;
+			FSavedBDElementSpellPool FirePool;
+			FirePool.Element = ESpellElement::Fire;
+			for (int32 i = 0; i < LOADOUT_RULES_TEST_HEAVY_BD_POOL_SPELLS; ++i)
+			{
+				USpellData *Dark = NewSpell(ESpellElement::Darkness);
+				USpellData *Fire = NewSpell(ESpellElement::Fire);
+				Dark->Tier = EItemTier::S_Tier;
+				Fire->Tier = EItemTier::S_Tier;
+				Heavy.InnateSpells.Add(FSpellRef(Dark));
+				FirePool.Spells.Add(FSpellRef(Fire));
+				Inventory->Spells.Append({Dark, Fire});
+			}
+			Heavy.BDSpellPools = {FirePool};
+			Inventory->SavedLoadouts = {Heavy};
+
+			TArray<FString> Errors;
+			TArray<FString> Warnings;
+			Inventory->GetStandaloneValidation(Errors, Warnings);
+			TestTrue(TEXT("BD budget is a warning"), AnyReasonContains(Warnings, TEXT("Broken Darkness spell budget exceeded")));
+			TestFalse(TEXT("BD budget is no error"), AnyReasonContains(Errors, TEXT("Broken Darkness spell budget exceeded")));
 		});
 
 		It("still reports what only an authored loadout can get wrong", [this]()
