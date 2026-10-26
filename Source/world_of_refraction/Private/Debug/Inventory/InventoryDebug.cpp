@@ -266,7 +266,7 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
             UE_LOG(LogTemp, Display, TEXT("  Spells: %d"),
                    Active.PrimaryRing.GetAllSpells().Num());
             // Spell slot capacity by ring tier (effective cap = customisable + locked;
-            // gem tier overrides as the no-gem fall-through inside GetCustomizableSpellCount).
+            // a gem or evolution tier overrides the ring tier inside GetCustomizableSpellCount).
             if (const URingData *Rg = Active.PrimaryRing.RingEntry.Ring)
             {
                 const int32 SpellCap = Active.PrimaryRing.GetCustomizableSpellCount()

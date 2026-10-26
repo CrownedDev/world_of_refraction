@@ -730,7 +730,7 @@ namespace CrystalEffectTable
 
     /** Skill-slots an attachment grants at its tier — one shared per-tier curve:
      *    AbilityStone -> ability slots,  gem crystal (IsGemType) -> spell slots.
-     *    F=2, E=3, D=3, C=4, B=4, A=5, S=6  (non-sequential)
+     *    F=1, E=2, D=3, C=4, B=5, A=6, S=6  (ATTACHMENT_SLOTS)
      *  DamageStone -> 0 (grants no slots). Evolution / none -> 0 here; an
      *  evolution attachment holds spells by its instance tier (SlotsForContainerTier,
      *  resolved in ResolveSpellSlotCap, Q-147), not this type-keyed table. */
