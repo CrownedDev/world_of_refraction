@@ -331,6 +331,11 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         break;
     }
 
+    case EPieMenuCategory::Flee:
+        // No target; the fight ends on the next tick (D-091).
+        SubmitConfirmedAction(ButtonData);
+        break;
+
     case EPieMenuCategory::Defend:
         // No target to pick: Defend applies to the actor itself. No Close() here: Defend
         // executes synchronously, so HandleActionExecuted has already closed this menu and
@@ -598,6 +603,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
     if (CurrentCapabilities.bCanSwitchRing)
         Buttons.Add(CreateSwitchRingButton());
     Buttons.Add(CreateDefendButton());
+    Buttons.Add(CreateFleeButton());
 
     return Buttons;
 }
@@ -738,6 +744,27 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateDefendButton() const
     Button.DisplayName = FText::FromString(TEXT("Defend"));
     Button.Category = EPieMenuCategory::Defend;
     Button.bEnabled = true;
+    return Button;
+}
+
+FPieMenuButtonData UCombatCommandMenuSubsystem::CreateFleeButton() const
+{
+    FPieMenuButtonData Button;
+    Button.ButtonID = TEXT("Flee");
+    Button.DisplayName = NSLOCTEXT("CombatCommandMenu", "Flee", "Flee");
+    Button.Category = EPieMenuCategory::Flee;
+    Button.bEnabled = true;
+
+    // D-091: greyed with the reason in a mini-boss or boss fight.
+    const ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get();
+    const FText Reason = Orchestrator ? Orchestrator->GetFleeRefusedReason(CurrentActor.Get()) : FText::GetEmpty();
+    if (!Reason.IsEmpty())
+    {
+        const FPieMenuButtonData Greyed = FPieMenuButtonData::MakeDisabledButton(Button.ButtonID, Button.DisplayName, Reason);
+        Button.Description = Greyed.Description;
+        Button.ButtonTint = Greyed.ButtonTint;
+        Button.bEnabled = false;
+    }
     return Button;
 }
 
@@ -1805,6 +1832,9 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
     }
     case EPieMenuCategory::Defend:
         Action.ActionType = EActionType::Defend;
+        break;
+    case EPieMenuCategory::Flee:
+        Action.ActionType = EActionType::Flee;
         break;
     default:
         UE_LOG(LogTemp, Warning, TEXT("[CombatCommandMenu] BuildActionFromButton: unhandled category %d"),

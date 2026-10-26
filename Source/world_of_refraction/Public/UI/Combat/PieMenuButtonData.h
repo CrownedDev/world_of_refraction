@@ -64,7 +64,8 @@ enum class EPieMenuCategory : uint8
 	SectionHeader UMETA(DisplayName = "Section Header"), // Label-only divider in a button list
 
 	// Main menu action, appended last so existing values keep their numbers
-	Defend UMETA(DisplayName = "Defend") // Brace this turn (all a stunned actor gets besides Attack, D-001)
+	Defend UMETA(DisplayName = "Defend"), // Brace this turn (all a stunned actor gets besides Attack, D-001)
+	Flee UMETA(DisplayName = "Flee")	  // Leave a normal fight (D-091)
 };
 
 /**
