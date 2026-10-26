@@ -12,6 +12,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/TurnManager.h"
+#include "Combat/Damage/DamageCalculator.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/TurnSpan.h"
 #include "Skills/Effects/BarCapTriggerResolver.h"
@@ -210,6 +211,28 @@ void FStatusBreakSpec::Define()
 			EffectManager->ProcessStartOfTurnEffects(Holder);
 			TestFalse(TEXT("Action Speed slow gone after one holder turn"), Has(Holder, ESkillEffectType::ActionSpeedDebuff));
 			TestFalse(TEXT("Spell Speed slow gone after one holder turn"), Has(Holder, ESkillEffectType::SpellSpeedDebuff));
+		});
+
+		It("of Light lowers crit chance for one holder turn (B-112)", [this]()
+		{
+			if (!EffectManager) return;
+			UDamageCalculator *DamageCalc = TestWorld->GetSubsystem<UDamageCalculator>();
+			if (!TestNotNull(TEXT("DamageCalculator"), DamageCalc)) return;
+			AActor *Holder = Spawn();
+
+			const ESkillEffectType LightBreak = BarCapTriggerResolver::ResolveTrigger(ESpellElement::Light, EPhysicalDamageType::None, false);
+			EffectManager->ApplyTriggeredSkillEffect(Spawn(), Holder, LightBreak, ESpellElement::Light);
+			TestEqual(TEXT("Crit chance down by the Light break value"),
+					  EffectManager->GetTotalStatModifier(Holder, ESkillEffectType::CritChanceDebuff),
+					  CombatConstants::LIGHT_BREAK_CRIT_CHANCE_DOWN_PERCENT);
+			TestTrue(FString::Printf(TEXT("No crits while it lasts (%f)"), DamageCalc->GetCriticalChance(Holder)),
+					 DamageCalc->GetCriticalChance(Holder) <= KINDA_SMALL_NUMBER);
+
+			EffectManager->ProcessStartOfTurnEffects(Holder);
+			TestTrue(TEXT("Held through the holder's next turn"), Has(Holder, ESkillEffectType::CritChanceDebuff));
+			EffectManager->ProcessEndOfTurnEffects(Holder);
+			EffectManager->ProcessStartOfTurnEffects(Holder);
+			TestFalse(TEXT("Gone as the turn after starts"), Has(Holder, ESkillEffectType::CritChanceDebuff));
 		});
 
 		It("of Broken Darkness drains EP at the holder's turn start", [this]()

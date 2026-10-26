@@ -2684,6 +2684,13 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 		break;
 
+	// Light break (D-030): crit chance down. Before B-112 this type fell to default and did nothing.
+	case ESkillEffectType::CritChanceDebuff:
+		Effect.EffectType = ESkillEffectType::CritChanceDebuff;
+		Effect.EffectValue = CombatConstants::LIGHT_BREAK_CRIT_CHANCE_DOWN_PERCENT;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
+		break;
+
 	// Water break (D-090): Action Speed and Spell Speed both slowed. Applied as two effects;
 	// this one is Action Speed, Spell Speed is added after the switch.
 	case ESkillEffectType::ActionSpeedDebuff:
