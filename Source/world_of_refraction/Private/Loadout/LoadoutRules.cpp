@@ -277,7 +277,7 @@ namespace
 			}
 			if (Count > Band.Cap)
 			{
-				Sink.Add(ELoadoutSlotType::ItemSlot, -1, false,
+				Sink.Add(ELoadoutSlotType::ItemSlot, INDEX_NONE, false,
 						 FString::Printf(TEXT("Too many %s-tier utility crystals: %d (max %d)"), Band.Name, Count, Band.Cap));
 			}
 		}

@@ -49,10 +49,12 @@ namespace
 
 	int32 CountTierCapFindings(const FCombatLoadout &Loadout)
 	{
+		// Tier-cap findings are the item-slot category findings (no single slot); quantity findings
+		// name their slot.
 		int32 Count = 0;
-		for (const FString &Reason : FLoadoutRules::ToReasons(FLoadoutRules::CollectFindings(Loadout, FLoadoutRuleContext())))
+		for (const FInvalidSlotFinding &Finding : FLoadoutRules::CollectFindings(Loadout, FLoadoutRuleContext()))
 		{
-			Count += Reason.Contains(TEXT("utility crystals")) ? 1 : 0;
+			Count += (Finding.SlotType == ELoadoutSlotType::ItemSlot && Finding.SlotIndex == INDEX_NONE) ? 1 : 0;
 		}
 		return Count;
 	}
@@ -153,6 +155,10 @@ void FLoadoutRulesSpec::Define()
 				ItemSlot(ECrystalType::Garnet, EItemTier::S_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_S_TIER),
 				ItemSlot(ECrystalType::Sapphire, EItemTier::A_Tier, 1),
 				ItemSlot(ECrystalType::Citrine, EItemTier::B_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_A_B_TIER - 1),
+				ItemSlot(ECrystalType::Emerald, EItemTier::C_Tier, 1),
+				ItemSlot(ECrystalType::Amber, EItemTier::D_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_C_D_TIER - 1),
+				ItemSlot(ECrystalType::Opal, EItemTier::E_Tier, 1),
+				ItemSlot(ECrystalType::Onyx, EItemTier::F_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_E_F_TIER - 1),
 			});
 			TestEqual(TEXT("no cap findings"), CountTierCapFindings(AtCaps), 0);
 		});
