@@ -3396,6 +3396,23 @@ bool ULoadoutComponent::ApplyWearToActivePrimaryEvolution(int32 Amount, bool bFo
     return Loadout.PrimaryEvolution.ApplyWear(Amount, bForceWear);
 }
 
+int32 ULoadoutComponent::RepairActivePrimaryEvolution(int32 Amount)
+{
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        return 0;
+    }
+
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    if (Loadout.PrimarySlotType != EPrimarySlotType::Evolution)
+    {
+        return 0;
+    }
+
+    return Loadout.PrimaryEvolution.RepairBetweenCombats(Amount);
+}
+
 bool ULoadoutComponent::ClearBrokenPrimaryEvolution()
 {
     UInventoryComponent *Inv = GetInventoryComponent();
