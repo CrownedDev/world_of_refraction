@@ -1965,10 +1965,11 @@ void UCombatCommandMenuSubsystem::SubmitConfirmedAction(
 
     Orchestrator->SubmitActionAsync(Action);
 
-    // B-110: only an action still running needs the menu closed here. A finished (sync) action
-    // was closed by HandleActionExecuted, and a refused one re-requested this actor's turn, which
-    // reopened the menu. Closing after either would shut a menu the player needs.
-    if (bIsOpen && Orchestrator->IsWaitingForAsyncAction())
+    // B-110: a finished (sync) action was closed by HandleActionExecuted, and a refused one
+    // re-requested this actor's turn, which reopened the menu; closing after either would shut a
+    // menu the player needs. Close only while the action is still running, or when the menu's
+    // actor no longer has the turn (combat not in progress, submission dropped).
+    if (bIsOpen && (Orchestrator->IsWaitingForAsyncAction() || !Orchestrator->IsActorsTurn(CurrentActor.Get())))
     {
         Close();
     }
