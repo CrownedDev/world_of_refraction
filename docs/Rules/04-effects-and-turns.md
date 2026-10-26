@@ -90,6 +90,7 @@ This page covers how a fight starts, who acts when (the speed schedule, ties, bo
 | ET-51 | After each turn's action (and after a death at turn start), the game checks: all enemies down = Victory; all of your side down = Defeat; both = Draw. It checks only at the end of a turn. | In game | `Private/Combat/CombatOrchestrator.cpp:588-643, 679-685, 1065-1084` |
 | ET-52 | Win: the trial continues and that enemy stays beaten. Lose: the run ends and you go back to the hub. | Decided, not built (B-072, blocked by B-003; "stays beaten" needs B-090) | `D-002` |
 | ET-53 | Every fight that ends clears all effects and status bars. A fight won, lost or drawn also destroys crystals that broke in it, then repairs the rest. A forced end doesn't repair. | In game | `Private/Combat/CombatOrchestrator.cpp:299-333, 601-613` |
+| ET-54 | An item use that fails (its effect could not land, e.g. no valid target) keeps its charge; the action still ends the turn. An area item counts as used when it lands on at least one target. | In game | `B-060`; `Private/Inventory/ItemExecutor.cpp` (`UseItem`, `UseItemMultiTarget`); `Private/Combat/Actions/ActionExecutor.cpp` (consume only on success) |
 
 ## Open questions
 - D-038 (ANSWERED): Silenced seals half your EP for 2 holder turns (C4-6); built in B-148.
@@ -121,6 +122,6 @@ This page covers how a fight starts, who acts when (the speed schedule, ties, bo
 - Do bonus and Execution turns count as the holder's own turns for durations? Today both run the end-of-turn tick, but Execution turns skip turn-start effects (`Private/Combat/CombatOrchestrator.cpp:589, 661-665`). D-030 doesn't say. Raised as **D-055**.
 - The turn-order strip isn't rebuilt when speed changes mid-turn (`Private/Combat/TurnManager.cpp:435-448`), only at the next turn start.
 - No HP shields or element wards. The deckbuilder has Barrier, Shield and Ward as one absorb mechanism (`wor-deckbuilder/docs/reference/04-effects.md` "the absorbing family"). **Ruled: D-092** (the deckbuilder's Shield, Ward and Barrier, with its pooling).
-- A failed item use still uses up the item (B-060). A refused player action can close the re-opened menu (B-110).
+- A refused player action can close the re-opened menu (B-110).
 - Defend's 50% and 1 turn are inline numbers, with no named constant to tune them by.
 - No turn or round limit on a fight. **Ruled (Crown, 2026-10-26, rules review): later, as a setting.** A soft limit (after N rounds both sides take growing damage, "sudden death") as an option where **players set the max rounds** (or off); **not built for now**.
