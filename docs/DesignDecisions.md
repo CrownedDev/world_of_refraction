@@ -1064,6 +1064,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - D-049 (2:1 turn cap) no longer applies: a **pip cap** replaces it.
 - D-054/D-056: the Turn Speed family (`TurnSpeedBuff/Debuff`, `ModifyTurnSpeed`, TurnSpeedStone, the Turn Speed substat) is retired (enums append-only: kept, marked retired).
 - ET-18 / one action per turn (kept earlier today) becomes "one action per **pip**".
+**Model agreed in discussion (Crown, 2026-10-26, later the same day):**
+- **Actions work like Energy:** you **gain 1 action per turn**, banked **up to your Max Actions** (set by Reflex); unused actions carry over. Start each fight with **1 action** and **3 Energy**.
+- **Skills cost actions by tier** (by default): **F, E, D = 1 action**; **C, B, A = 2**; **S = 3**; plus their Energy cost. So big skills mean saving up (skip spending this turn, cast it next).
+- **Energy:** start 3, gains per turn up to Max Energy (ties to D-089 C).
+- **Stats and effects control both:** Max Actions, Max Energy and per-turn gains can be raised or lowered (Reflex, gear, buffs, Wind's pip loss).
 **Notes for Claude, open details to bring to Crown (as questions in the plan, B-170):**
 - Pip numbers: base pips, Reflex thresholds, the cap (suggested: 1 base, max 3).
 - What Emerald's bonus turn (D-052) becomes: +1 pip, or an extra turn in the belt.
