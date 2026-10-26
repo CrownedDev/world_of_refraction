@@ -34,6 +34,7 @@
 #include "EncounterComponent.generated.h"
 
 class AStaticMeshActor;
+class UCharacterData;
 class UEncounterData;
 class UMaterialInterface;
 class UPartySessionSubsystem;
@@ -86,6 +87,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Encounter")
 	TObjectPtr<UEncounterData> EncounterData;
 
+	/** B-184: the key a win records for the run: the placed owner's name, stable across the
+	 *  trial level's reloads. */
+	FName GetEncounterId() const;
+
+	/** This encounter's own enemies (its team, else the owner pawn alone). */
+	TArray<UCharacterData *> GetOwnTeam() const;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -106,6 +114,10 @@ private:
 	/** Extract CharacterData from the pending roster + owner and hand off to
 	 *  UTrialRunSubsystem::EnterEncounter (the level swap). */
 	void OnJoinWindowExpired();
+
+	/** B-184: this encounter plus every other armed one whose owner stands within the arena's
+	 *  radius of its centre when the join window closes. This one comes first. */
+	TArray<UEncounterComponent *> GatherCaughtEncounters() const;
 
 	/** True if Actor carries a non-AI UCharacterDataComponent (player combatant). */
 	static bool IsPlayerCombatant(const AActor *Actor);
@@ -131,6 +143,8 @@ private:
 	TArray<TWeakObjectPtr<AActor>> PendingBattleParty;
 
 	FTimerHandle JoinWindowTimer;
+
+	FVector ArenaCenter = FVector::ZeroVector;
 
 	/** Latch while the join window runs; cleared only on abort. */
 	bool bTriggered = false;
