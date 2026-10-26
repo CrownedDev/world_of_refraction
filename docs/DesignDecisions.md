@@ -1366,7 +1366,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** applied (fix/Q-147-attached-evolution-spells-by-tier): `CrystalEffectTable::ResolveSpellSlotCap` gives an attached evolution `SlotsForContainerTier(Evolution.Tier)`, the instance tier; every weapon and ring spell cap reads through it.
 
 ### D-097 — Storage (items), inventory (items you carry) and the pool (gear)
-**Status:** ANSWERED (corrected 2026-10-26; details open) · **Raised:** 2026-10-26 (from Q-177) · **Blocks:** —
+**Status:** ANSWERED (corrected 2026-10-26; details answered 2026-10-26) · **Raised:** 2026-10-26 (from Q-177) · **Blocks:** —
 **Answer (Crown), Monster Hunter model (2026-10-26):**
 | | Holds | Limit |
 |---|---|---|
@@ -1378,10 +1378,10 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Found gear** goes to the **run's gear list** (equip at rest spots), never to inventory slots.
 - A merge's change goes to the inventory or, if full, to storage, so a merge is never refused for space (Q-177).
 - **Restocking (Crown, 2026-10-26):** at rest spots, **auto-refill tops up the inventory from storage** (MH camp style), up to each item's stack and the crystal tier caps (Q-155). Rest spots in a run reach **home storage** (everything you own) (A). In a fight you use only what's in the inventory.
-**Notes for Claude, open details to confirm with Crown:**
+**Details (answered 2026-10-26):**
 - **Found items are kept: B** (Crown, 2026-10-26): crystals, stones and consumables found in a run **stay after the run**; what doesn't fit the inventory goes to **home storage** for good.
 - **Found gear is lost at run end, but its upgrades are remembered** (Crown, 2026-10-26): the upgrade progress a found weapon, ring or evolution reached is saved against that piece of gear, so when the player **finds it again in a later run, it comes back at the level they left it**. (Saved per gear definition, the item asset; part of the save keystone, B-090.)
-- How the inventory limit grows (account perks, like D-021's slot growth?).
+- **Inventory growth: A** (Crown, 2026-10-26; Resident Evil 4's attaché case upgrades): extra inventory slots are **bought from a hub vendor with Prisms**, one upgrade at a time, rising price, up to a cap (`// TODO: tune`).
 - Today: 20 crystals per tier shared by gem types, 20 for stones (Q-177 context); these caps go away for storage.
 
 ### D-098 — Boss phases
