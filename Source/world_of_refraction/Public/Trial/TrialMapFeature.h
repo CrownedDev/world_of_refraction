@@ -47,6 +47,9 @@ protected:
 
 	UTrialRunSubsystem *GetTrialRun() const;
 
+	/** A line on screen for a few seconds (what a feature gave or why it refused). */
+	static void ShowMessage(const FText &Message);
+
 	UPROPERTY(VisibleAnywhere, Category = "Feature")
 	TObjectPtr<UStaticMeshComponent> FeatureMesh;
 

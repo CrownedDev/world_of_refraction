@@ -31,16 +31,12 @@ namespace TrialMapFeatureConstants
 	constexpr int32 MESSAGE_KEY = -1; // a new line each time, not keyed
 }
 
-namespace
+void ATrialMapFeature::ShowMessage(const FText &Message)
 {
-	void ShowTrialMapMessage(const FText &Message)
+	if (GEngine)
 	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(TrialMapFeatureConstants::MESSAGE_KEY,
-											 TrialMapFeatureConstants::MESSAGE_SECONDS, FColor::Yellow,
-											 Message.ToString());
-		}
+		GEngine->AddOnScreenDebugMessage(TrialMapFeatureConstants::MESSAGE_KEY, TrialMapFeatureConstants::MESSAGE_SECONDS,
+										 FColor::Yellow, Message.ToString());
 	}
 }
 
@@ -182,7 +178,7 @@ void ATrialChest::Interact(APawn *Pawn)
 		UE_LOG(LogWoR, Warning, TEXT("[TrialChest] %s - loot pool '%s' has no items; opened empty"), *GetName(),
 			   *Pool.ToString());
 		TrialRun->RecordFound(GetFeatureId(), LOCTEXT("ChestEmpty", "An empty chest"));
-		ShowTrialMapMessage(LOCTEXT("ChestEmptyMessage", "The chest is empty."));
+		ShowMessage(LOCTEXT("ChestEmptyMessage", "The chest is empty."));
 		RefreshHint();
 		return;
 	}
@@ -191,12 +187,12 @@ void ATrialChest::Interact(APawn *Pawn)
 		// Left closed so the player can come back with room.
 		UE_LOG(LogWoR, Warning, TEXT("[TrialChest] %s - could not give %s to %s"), *GetName(), *Item->GetName(),
 			   Pawn ? *Pawn->GetName() : TEXT("<none>"));
-		ShowTrialMapMessage(LOCTEXT("ChestNoRoom", "No room for what is in the chest."));
+		ShowMessage(LOCTEXT("ChestNoRoom", "No room for what is in the chest."));
 		return;
 	}
 	const FText ItemName = TrialLoot::GetItemName(Item);
 	TrialRun->RecordFound(GetFeatureId(), FText::Format(LOCTEXT("ChestFound", "Chest: {0}"), ItemName));
-	ShowTrialMapMessage(FText::Format(LOCTEXT("ChestFoundMessage", "Found {0}."), ItemName));
+	ShowMessage(FText::Format(LOCTEXT("ChestFoundMessage", "Found {0}."), ItemName));
 	RefreshHint();
 }
 
@@ -218,7 +214,7 @@ ATrialLoreObject::ATrialLoreObject()
 
 void ATrialLoreObject::Interact(APawn * /*Pawn*/)
 {
-	ShowTrialMapMessage(FText::Format(LOCTEXT("LoreMessage", "{0}: {1}"), Title, Body));
+	ShowMessage(FText::Format(LOCTEXT("LoreMessage", "{0}: {1}"), Title, Body));
 	UTrialRunSubsystem *TrialRun = GetTrialRun();
 	if (TrialRun && !TrialRun->HasFound(GetFeatureId()))
 	{
@@ -260,7 +256,7 @@ void ABossArenaTrigger::Interact(APawn * /*Pawn*/)
 			   !Boss				 ? TEXT("no boss (no variation boss and no FallbackBoss)")
 			   : BattleParty.Num() == 0 ? TEXT("no living party")
 										: TEXT("no active trial (enter through the trial door)"));
-		ShowTrialMapMessage(LOCTEXT("BossNotStarted", "The boss fight can't start (see the Output Log)."));
+		ShowMessage(LOCTEXT("BossNotStarted", "The boss fight can't start (see the Output Log)."));
 		return;
 	}
 
@@ -275,7 +271,7 @@ void ABossArenaTrigger::Interact(APawn * /*Pawn*/)
 	{
 		TrialRun->SetPendingEncounterSources({});
 		TrialRun->SetPendingZone(FEncounterZoneInfo());
-		ShowTrialMapMessage(LOCTEXT("BossNotStarted", "The boss fight can't start (see the Output Log)."));
+		ShowMessage(LOCTEXT("BossNotStarted", "The boss fight can't start (see the Output Log)."));
 	}
 }
 

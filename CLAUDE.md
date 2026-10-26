@@ -161,6 +161,7 @@ Maintain living system documents in `docs/Architecture/`. Each document covers o
 - `docs/Architecture/ItemSystem.md`
 - `docs/Architecture/LoadoutSystem.md`
 - `docs/Architecture/Logging.md`
+- `docs/Architecture/MemorySystem.md`
 - `docs/Architecture/MerchantShopSystem.md`
 - `docs/Architecture/PartySystem.md`
 - `docs/Architecture/PerInstanceRollSystem.md`

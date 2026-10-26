@@ -72,6 +72,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-185](B-185.md) | `feature/B-185-first-strike` (in `dev`) | First strike: sneak up and act first; caught from behind and the enemy does | Not tested |
 | [B-186](B-186.md) | `feature/B-186-enemy-zones` (in `dev`) | Zones: a fight inside a higher-tier zone has stronger enemies | Not tested |
 | [B-188](B-188.md) | `feature/B-188-map-features` (in `dev`) | Map features: a chest from the zone's loot pool, a lore object, the boss arena | Not tested |
+| [B-190](B-190.md) | `feature/B-190-memory-fragments` (in `dev`) | Memory fragments: pick one up, it goes into the run and the journal | Not tested |
 | [B-070](B-070.md) | `fix/B-070-trial-strong-ref` (in `dev`) | The trial run keeps hold of its trial (packaged builds) | Not tested |
 | [B-071](B-071.md) | `feature/B-071-party-into-battle` (in `dev`) | Recruited party in battle: own pawns, Player/AI per member, switch on its turn, take over when you fall, gearless sit out | Not tested |
 | [B-149](B-149.md) | `feature/B-149-formation-cells` (in `dev`) | Members start a fight in their chosen cell; enemies Front/Back by class | Not tested |
