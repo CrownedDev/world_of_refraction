@@ -37,16 +37,31 @@
 namespace
 {
     /** Q-159 = A: utility crystals a loadout rule removes are not destroyed; they go back to the
-     *  inventory. */
+     *  inventory, as many as fit. An authored loadout's crystals were never taken from the
+     *  inventory, so this can add extra ones: a dev-time case Q-159 accepts. */
     void LoadoutReturnDroppedCrystals(UInventoryComponent *Inv, const FCrystalId &Id, int32 Count)
     {
-        if (Count <= 0 || Inv->AddCrystal(Id, Count))
+        if (Count <= 0)
         {
             return;
         }
-        // TODO: D-097 - send them to home storage when the inventory is full (storage not built yet).
-        UE_LOG(LogWoRLoadout, Warning, TEXT("Inventory full: %d dropped %s lost (no storage yet, D-097)"),
-               Count, *ItemIdentity::GetDisplayName(Id));
+        if (!Inv->GetOwner()->FindComponentByClass<UCrystalInventoryComponent>())
+        {
+            // An enemy's authored loadout: no crystal inventory to return to.
+            UE_LOG(LogWoRLoadout, Verbose, TEXT("No crystal inventory: %d dropped %s not returned"), Count, *ItemIdentity::GetDisplayName(Id));
+            return;
+        }
+        int32 Returned = 0;
+        while (Returned < Count && Inv->AddCrystal(Id))
+        {
+            ++Returned;
+        }
+        if (Returned < Count)
+        {
+            // TODO: D-097 - send the rest to home storage when the inventory is full (storage not built yet).
+            UE_LOG(LogWoRLoadout, Warning, TEXT("Inventory full: %d dropped %s lost (no storage yet, D-097)"),
+                   Count - Returned, *ItemIdentity::GetDisplayName(Id));
+        }
     }
 }
 
@@ -3221,6 +3236,12 @@ FText ULoadoutComponent::GetBrokenSourceReason(const USpellData *Spell) const
         if (bInnate)
         {
             return FText::GetEmpty();
+        }
+        // A broken primary evolution is kept (Q-159), so its Breakthrough spells grey out (D-083).
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.IsBroken() &&
+            Lists(Loadout.EvolutionSpells))
+        {
+            return SourceBreakRules::BrokenEvolutionReason();
         }
     }
 
