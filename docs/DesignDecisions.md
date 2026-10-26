@@ -521,12 +521,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-26): keep the extra x1.5 for infusing an ability on top of the charge level (deckbuilder: a physical ability pays more to deal an element). Fix the two wrong comments.
 
 ### D-036 — Under D-005, which resistance scales damage?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-064
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-064
 **Question:** When resistance starts scaling elemental damage (D-005), do the general Resistance stat (up to 100% with gear) and resistance buffs count, or only the per-element columns?
 **Context:** D-005's notes say "class table + gear"; the buildup path's value also includes the general stat and buffs. Stacked with Defense's 85% cap it could approach immunity. Rules: 02 CED-3.
 **Options:** A per-element columns only / B everything the buildup path uses.
 **Recommendation:** A, because it can't stack toward immunity and it matches the deckbuilder, where resistance is per element.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A** (2026-10-26): only **per-element resistance** (class table + gear + element-specific effects) scales elemental damage, **1:1** (+20% Fire = 20% less Fire damage; −15% = 15% more), **capped at ±50%** (compared with PoE 75%, Diablo 4 70%, Elden Ring diminishing returns; lower because turn-based fights are a few hits). General Resistance and blanket buffs don't count. Crown also wants the resistance system **implemented better** (B-145).
 
 ### D-037 — What is "Physical" in code?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-080
