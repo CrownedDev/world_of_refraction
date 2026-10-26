@@ -116,7 +116,7 @@ This page covers how a fight starts, who acts when (the speed schedule, ties, bo
 - **C4-10 — TurnManager.md is out of date.** It says pinned turns don't count down other delays and that dead combatants are owed turns (`docs/Architecture/TurnManager.md:62-63, 144-147`). The code says every turn counts down every delay, and the dead are owed nothing (`Private/Combat/TurnManager.cpp:577-589, 605-618`). Doc fix, no ruling: **B-117**.
 
 ## Gaps
-- Flee: no rule for whether you can flee, from which fights, or what it costs (ET-21).
+- Flee: no rule for whether you can flee, from which fights, or what it costs (ET-21). **Ruled: D-091** (flee normal fights, not mini-bosses or bosses; at a cost).
 - Draw: D-002 covers win and lose but not a draw (both sides down at once, e.g. by Reflect or a DoT).
 - Do bonus and Execution turns count as the holder's own turns for durations? Today both run the end-of-turn tick, but Execution turns skip turn-start effects (`Private/Combat/CombatOrchestrator.cpp:589, 661-665`). D-030 doesn't say. Raised as **D-055**.
 - The turn-order strip isn't rebuilt when speed changes mid-turn (`Private/Combat/TurnManager.cpp:435-448`), only at the next turn start.
