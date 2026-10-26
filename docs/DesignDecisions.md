@@ -1573,6 +1573,26 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-041-gas-attributes). B-042 (stage 3) switches the getters, the HP/EP writes and Q-040's read sites. Two smaller choices in the same build: the Vitals set does not clamp (EP overloads above max for Broken Darkness; clamping comes with the GEs that write it), and every combat pawn uses Mixed replication for now; GASMigration §1's Minimal mode for AI pawns is set when co-op is built (replication is not exercised before then).
 
+### Q-062 — Build the shared turn counter (D-051, D-055) in B-062 or B-063?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-062) · **Blocks:** — (B-062 shipped with A)
+**Question:** Q-044k said B-062 could ship the shared turn counter (`FTurnSpan`, `docs/analysis/EffectsOverhaul.md` §4). B-062 is about who an effect belongs to; B-063 is the first job that needs the counter (every full bar lasts 2 of the holder's turns). Which job builds it?
+**Options:**
+- **A** B-063, with its first user; B-062 keeps today's counting.
+- **B** B-062, before anything uses it.
+**Recommendation:** A. Building a shared helper together with its first real user is the usual way to keep it honest (the "rule of three" / YAGNI practice); D-030 asks for one helper, and B-063's 2-turn tests are the fixtures that prove it. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-062-effect-identity). B-063 builds `FTurnSpan` with D-051 / D-055 and Q-044c / Q-044d.
+
+### Q-062b — Who is the source of a skill's effect?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-062) · **Blocks:** — (B-062 shipped with A)
+**Question:** D-053 makes the item or skill an effect's source. For a skill, is the source the skill alone, or the caster plus the skill? (Before B-062, the same effect from any caster or skill merged into one.)
+**Options:**
+- **A** caster + skill: two enemies casting the same Slow on you give two Slows; one enemy re-casting refreshes its own.
+- **B** the skill alone: anyone's cast of that skill refreshes the one copy.
+**Recommendation:** A. It is the deckbuilder's model (each card played is its own source, `04-effects.md` `Stat` duration row) and the familiar MMO one: in World of Warcraft each player's damage over time on a target is its own debuff, and per-caster debuffs are widely understood. It also matches D-012 (each attacker's full bar adds its own). Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-062-effect-identity): `ApplyEffect` keys an unstamped effect on the source actor + ability name. Gear is keyed on the item object (`GetUniqueID` + name); on-defense gear adds the wearer, so two wearers of copies of one item stay two sources. `PersistentID` is not needed while one character can't hold two copies of the same item at once. Stacks: a stackable re-apply now takes the new per-stack value and always refreshes (part of Q-044b); the default cap of 3 stays until B-042. No effect definition sets `bDoesNotStack` yet (Q-044g: defaults off; Crown ticks it per definition). Once per match (D-011) is spent per character **and source**: one character with the same once-per-match effect on two items gets one use from each (two sources add, D-053); a doesn't-stack effect gives one use per character whichever item brings it.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

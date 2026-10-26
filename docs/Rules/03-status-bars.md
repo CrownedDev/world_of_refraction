@@ -46,7 +46,7 @@ This page covers the status buildup bar: what fills it, how much, what slows the
 | SB-27 | **Void**: a random skill (loss of control) for 1 turn. Applied, but there's no forced-action behaviour yet (the log says "implementation pending"). | Decided, not built (B-063: "minimal") | `BarCapTriggerResolver.h:52-53`; `SkillEffectManager.cpp:2528-2533`, `:1425-1430` |
 | SB-28 | **Reality**: instant damage of 25% of the target's max HP. It can kill. No lasting effect. | In game | `BarCapTriggerResolver.h:54-55`; `SkillEffectManager.cpp:2535-2552` |
 | SB-29 | **Ice** (a Water damage type, not a tenth element): a full Ice bar slows action speed (Freeze, a timed turn-speed debuff) for 2 turns. Ice doesn't exist in code yet. | Decided, not built (B-064a, blocked by B-064) | `D-029`; `D-030` |
-| SB-30 | The same attacker filling your bar again **refreshes** the effect it already put on you; a different attacker **adds** its own. Today every cap adds a new effect (random effect ID), so repeats stack. | Decided, not built (B-062) | `D-012`; `SkillEffectManager.cpp:2427` |
+| SB-30 | The same attacker filling your bar again **refreshes** the effect it already put on you; a different attacker **adds** its own. | In game | `D-012`; `Private/Skills/Effects/SkillEffectManager.cpp:2659`; `Tests/EffectIdentitySpec.cpp` |
 
 ## How long
 | # | Rule | Status | Source |
@@ -64,9 +64,8 @@ This page covers the status buildup bar: what fills it, how much, what slows the
 
 ## Open questions
 - D-038 (ANSWERED): Silenced seals half your EP for 2 holder turns (C3-2); built in B-148. Its name is D-070 (OPEN).
-- D-051 (OPEN): how effect durations are counted; blocks B-062 and B-063.
-- D-053 (OPEN): whether the same effect from two gear pieces adds up; blocks B-062.
-- D-055 (OPEN): whether bonus and Execution turns count toward durations; blocks B-062 and B-063.
+- D-051, D-055 (ANSWERED): one counting rule; every turn the holder takes counts. Built with the shared counter in B-063 (Q-062).
+- D-053 (ANSWERED): the item is the source; built in B-062.
 - Answered for this topic: D-001, D-012, D-013, D-014, D-023, D-029, D-030. Building them is B-062, B-063 and B-064a.
 
 ## Conflicts
