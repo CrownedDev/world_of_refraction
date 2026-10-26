@@ -1032,7 +1032,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - The menu's Defend action (D-050) is a separate turn action, unchanged.
 
 ### D-085 — Luck dodge
-**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 02 gap) · **Blocks:** —
+**Status:** DECIDED (applied in B-169) · **Raised:** 2026-10-26 (rules review, page 02 gap) · **Blocks:** —
 **Answer (Crown):** **A, capped at 15%** (2026-10-26): Luck gives a chance to **automatically dodge** a hit, up to **15%** (lowered from the unused `LUCK_DODGE_MAX` 25%).
 **Notes for Claude:** roll only when the hit would otherwise land (no successful Guard or Dodge press), so timing still matters most; use the per-battle random stream (B-010) so fights replay. Scale with Luck up to the 15% cap (curve `// TODO: tune`). Show it as a "Lucky dodge!" pop-up. Test with a fixed seed.
 
@@ -1293,6 +1293,24 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **A** keep all of the above (as built).
 - **B** change some (say which): e.g. a different Perfect Guard share; any Guard stops an interruptable hit; a Perfect Guard plays the parry animation; reflect is one hit only; Broken Darkness does not double twice.
 **Recommendation:** A, except the animation: a Perfect Guard should probably play the parry animation (needs the press to know it is perfect, a small follow-up).
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
+### Q-169 — Luck dodge: the open details
+**Status:** OPEN · **Raised:** 2026-10-26 (B-169) · **Blocks:** — (B-169 shipped with A)
+**Question:** D-085's Luck dodge is in. A few details had no ruling. Are these right?
+**Context:** As built (option A):
+- **Curve:** the chance is Luck x 15%, reaching 15% at full Luck investment. Gear Luck past that adds nothing to dodging (it still lifts crits and crystal-wear skips).
+- A lucky dodge **counts as a Dodge** for everything: no damage, no status, and it fires On Dodge triggers (and Broken Darkness treats it as a dodge, so absorbs nothing).
+- It is rolled **per impact**, so a multi-hit attack can be partly lucky-dodged.
+- It rolls for **everyone with Luck**, enemies included.
+- As a Dodge it also **stops an interruptable (choke) hit**, and it applies to **AoE hits** too (AoE has no timed dodge).
+- **Not rolled** for hits that skip the per-impact defense step: multi-entry spells, asset multi-hit spells, and abilities with no Impact notifies (their lumped hit). Adding it there is a small follow-up if wanted.
+- The "Lucky dodge!" pop-up is a **placeholder** on-screen message (plus an Output Log line) until the combat HUD has floating text.
+**Options:**
+- **A** keep all of the above (as built).
+- **B** change some (say which): e.g. gear can push the chance up to the 15% cap (the cap reached at the gear ceiling instead of full stat), a lucky dodge does not fire On Dodge or stop a choke hit, roll it for the lumped hits too, no lucky dodge against AoE, one roll per attack instead of per impact, enemies do not luck-dodge.
+**Recommendation:** A. It is the simplest reading of D-085. The deckbuilder has no Luck dodge to borrow from.
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
