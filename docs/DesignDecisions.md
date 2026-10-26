@@ -562,12 +562,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, by tier, as already designed** (2026-10-26): crystals and evolutions hold spells by their tier (1–6, the shared `SlotsForContainerTier` curve). Not a new decision: fix the saved-loadout check's flat 6 (`FSavedLoadout.cpp:190-195`) and `EvolutionCrystals.md`'s "about 4" to match.
 
 ### D-040 — Does a Refractor's innate always work?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** Here a Refractor's innate spells always work. In the deckbuilder they work only while a gear slot is empty. Should wearing gear switch them off?
 **Context:** Rules: 01 CL-C2; `wor-deckbuilder/docs/reference/01-card-model.md` (Refractor passive). Raised only because the two games differ.
 **Options:** A always on (current) / B only while the gear slot is empty (deckbuilder).
 **Recommendation:** A, because a Refractor here has only one gear slot, so B would make gear and innate an either-or.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A, always on** (2026-10-26): a Refractor's innate spells always work, whatever is in the primary slot. Already the code (`FCombatCapabilities.cpp:80-85` offers `InnateSpells` for every Caster, checked 2026-10-26); nothing to build. The deckbuilder's empty-slot rule doesn't apply here.
 
 ### D-041 — Are skill requirements a gate or only a scale?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
