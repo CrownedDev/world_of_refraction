@@ -895,6 +895,7 @@ void ACombatOrchestrator::DebugPrintWorldStats() const
 }
 
 // ---- DEBUG console commands (PIE) — resolve the first ACombatOrchestrator in the world ----
+#if !UE_BUILD_SHIPPING
 namespace
 {
 	ACombatOrchestrator *FindCombatOrchestrator(UWorld *World)
@@ -942,6 +943,7 @@ namespace
 				}
 			}));
 }
+#endif // !UE_BUILD_SHIPPING
 
 // ========================================
 // INTERNAL METHODS

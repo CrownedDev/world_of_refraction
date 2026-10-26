@@ -39,7 +39,7 @@
 | B-005 | Fill `UE_ROOT` (local env var) and run `Scripts/ue/build.sh` + `test.sh` once | Crown | S | — | Both scripts work locally; hooks active | DONE (local env, 2026-10-26) |
 | B-006 | Log categories: `LogWoR`, `LogWoRCombat`, `LogWoREffects`, `LogWoRAI`, `LogWoRLoadout`, `LogWoRUI`, `LogWoREconomy`; new header + cpp | CC | S | — | Declared and defined; used by new code; `LogTemp` migrated file-by-file when touched | REVIEW (in dev) |
 | B-007 | First Automation Spec tests: DamageCalculator (Pattern-P, defense clamp, crit), TierGap/RequirementGap scaling, TurnManager ordering | CC | M | B-005 | `test.sh` runs them headless and they pass | REVIEW (in dev) |
-| B-008 | `#if !UE_BUILD_SHIPPING` around all `FAutoConsoleCommand`s and test actors' bodies | CC | S | — | Shipping config compiles without them | TODO |
+| B-008 | `#if !UE_BUILD_SHIPPING` around all `FAutoConsoleCommand`s and test actors' bodies | CC | S | — | Shipping config compiles without them | REVIEW (in dev) |
 | B-094 | Guard false positive: `Scripts/claude/guard.sh:22` matches `rm` inside any word (so a read-only `git ls-tree -r … Content/…` was blocked). Match `rm` only as a command word, e.g. `(^|[;&|[:space:]])rm[[:space:]]` | CC | S | — | `git ls-tree -r HEAD Content` passes; `rm -rf Content/x` is still blocked | TODO |
 | B-009 | Defense timing → world time (`DefenseSystem.cpp:68,212,422`) | CC | S | — | Window survives pause; matches the old timing in PIE | TODO |
 | B-010 | Per-battle `FRandomStream` (crit, BD, AI, random targets), seeded at combat start, seed logged | CC | M | B-001 | Same seed gives the same fight in a test | TODO |

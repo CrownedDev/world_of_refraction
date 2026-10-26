@@ -28,6 +28,7 @@ void ASkillProjectileTestActor::BeginPlay()
 	UE_LOG(LogTemp, Log, TEXT("[SkillProjectileTest] Test actor ready. Assign Target and ProjectileClass, then use context menu."));
 }
 
+#if !UE_BUILD_SHIPPING
 // ==================== TEST FUNCTIONS ====================
 
 void ASkillProjectileTestActor::SpawnTestProjectile()
@@ -218,3 +219,11 @@ void ASkillProjectileTestActor::OnProjectileDodged(AActor* Target, FVector Impac
 	// Visual feedback - draw debug sphere at original location (green = missed)
 	DrawDebugSphere(GetWorld(), ImpactLocation, 50.f, 16, FColor::Green, false, 3.0f);
 }
+#else
+// Shipping: UHT-generated exec thunks still reference every UFUNCTION, so keep empty definitions.
+void ASkillProjectileTestActor::SpawnTestProjectile() {}
+void ASkillProjectileTestActor::SpawnWithSpellData() {}
+void ASkillProjectileTestActor::SpawnBurst() {}
+void ASkillProjectileTestActor::OnProjectileImpact(AActor* Target, FVector ImpactLocation, float ImpactRadius, int32 Damage, int32 CastEntryIndex) {}
+void ASkillProjectileTestActor::OnProjectileDodged(AActor* Target, FVector ImpactLocation) {}
+#endif // !UE_BUILD_SHIPPING

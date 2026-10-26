@@ -630,6 +630,7 @@ void UCrystalManager::DebugForceWearActiveCrystal(int32 Amount)
 // engine's FExec dispatch chain (PlayerController / Pawn / GameMode / GameInstance / CheatManager /
 // HUD), so an Exec here silently no-ops. Console commands resolve from any class. "wor." prefix
 // groups them and avoids engine-command clashes. State is PIE-only, so the chain is null-checked.
+#if !UE_BUILD_SHIPPING
 namespace
 {
     UCrystalManager *ResolveCrystalManagerFromWorld(UWorld *World)
@@ -670,6 +671,7 @@ namespace
                 Mgr->DebugForceWearActiveCrystal(Amount);
             }));
 }
+#endif // !UE_BUILD_SHIPPING
 
 // ========================================
 // WOR_ CONSOLE EXEC SUITE

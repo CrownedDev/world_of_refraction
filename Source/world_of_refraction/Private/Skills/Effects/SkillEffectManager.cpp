@@ -334,6 +334,7 @@ void USkillEffectManager::ApplyEquipmentEffects(
 // FAutoConsoleCommandWithWorld — NOT UFUNCTION(Exec). A UGameInstanceSubsystem is not on the
 // engine's FExec dispatch chain, so an Exec here silently no-ops. Console commands resolve from
 // any class. "wor." prefix groups them. State is PIE-only, so the chain is null-checked.
+#if !UE_BUILD_SHIPPING
 namespace
 {
 	static FAutoConsoleCommandWithWorld GStartingEffectsCmd(
@@ -395,6 +396,7 @@ namespace
 				Mgr->DebugPrintEffects(Actor);
 			}));
 }
+#endif // !UE_BUILD_SHIPPING
 
 void USkillEffectManager::WOR_StartingEffects()
 {

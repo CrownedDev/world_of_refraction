@@ -417,6 +417,7 @@ void UPoolSubsystem::PrintPoolState() const
 // Console commands work from any class. The "wor." prefix groups them and avoids engine-command clashes.
 // Both resolve PIE-only state, so the whole world → game-instance → subsystem chain is null-checked.
 
+#if !UE_BUILD_SHIPPING
 namespace
 {
     UPoolSubsystem *ResolvePoolFromWorld(UWorld *World)
@@ -533,3 +534,4 @@ namespace
                 }
             }));
 }
+#endif // !UE_BUILD_SHIPPING
