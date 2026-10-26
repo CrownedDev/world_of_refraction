@@ -134,6 +134,14 @@ void ACombatOrchestrator::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty, EAIDifficulty Difficulty)
 {
 
+	// End any previous combat FIRST — ForceEndCombat clears the AI/menu
+	// registrations, so doing it after them (as before) left the AI unregistered.
+	if (CombatState != ECombatState::Idle)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] StartCombat called while combat already active. Forcing end."));
+		ForceEndCombat();
+	}
+
 	// Store difficulty
 	CombatDifficulty = Difficulty;
 
@@ -150,12 +158,6 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 		{
 			Menu->SetCombatOrchestrator(this);
 		}
-	}
-
-	if (CombatState != ECombatState::Idle)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] StartCombat called while combat already active. Forcing end."));
-		ForceEndCombat();
 	}
 
 	if (!TurnManagerRef)
@@ -236,17 +238,30 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 		return;
 	}
 
+	// A combat left active on the GameInstance-scoped TurnManager (e.g. a previous
+	// orchestrator destroyed mid-fight) must end BEFORE we bind: InitializeCombat would
+	// otherwise EndCombat it with our handlers bound and InProgress set, tearing down
+	// this combat as a Draw. No-op when inactive.
+	TurnManagerRef->EndCombat();
+
 	BindTurnManagerEvents();
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Starting combat: LocalParty (%d) vs OpposingParty (%d)"),
 		   LocalParty.Num(), OpposingParty.Num());
 
+	// InProgress BEFORE InitializeCombat: the first turn is dispatched inside it, and
+	// OnActionCompleted bails unless InProgress — a turn-1 death or pass would hang.
+	SetCombatState(ECombatState::InProgress);
+
 	// Initialize TurnManager (this will trigger first OnTurnStarted)
 	TurnManagerRef->InitializeCombat(LocalParty, OpposingParty);
 
-	OnCombatStartedUI(LocalPartyCombatants, OpposingPartyCombatants);
-
-	SetCombatState(ECombatState::InProgress);
+	// Turn 1 can resolve the whole combat inside InitializeCombat (state back to Idle,
+	// teams emptied) — don't build UI for a fight that's already over.
+	if (CombatState == ECombatState::InProgress)
+	{
+		OnCombatStartedUI(LocalPartyCombatants, OpposingPartyCombatants);
+	}
 }
 
 void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
@@ -256,50 +271,9 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Force ending combat with state %d"), (int32)ForcedState);
 
-	if (UWeatherStateManager *WeatherManager = GetGameInstance()->GetSubsystem<UWeatherStateManager>())
-	{
-		WeatherManager->EndCombat();
-	}
-
-	// Clear auto-advance timer
-	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
-
+	// Unbind first so TurnManager::EndCombat below can't re-enter HandleCombatEnded.
 	UnbindTurnManagerEvents();
-
-	// Clear all status effects from combat
-	if (SkillEffectManagerRef)
-	{
-		SkillEffectManagerRef->ClearAllEffects();
-	}
-
-	// Reset all status bars — split out of SkillEffectManager into a dedicated subsystem.
-	if (UStatusBuildupManager *BuildupManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr)
-	{
-		for (AActor *Actor : LocalPartyCombatants)
-		{
-			if (Actor)
-			{
-				BuildupManager->ResetStatusBar(Actor);
-			}
-		}
-		for (AActor *Actor : OpposingPartyCombatants)
-		{
-			if (Actor)
-			{
-				BuildupManager->ResetStatusBar(Actor);
-			}
-		}
-	}
-
-	// === Consume used items and reset loadouts ===
-	ConsumeAllUsedItems();
-
-	// Clear grid positions
-	if (UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>())
-	{
-		Grid->ClearAllPositions();
-		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Grid positions cleared"));
-	}
+	ReleaseCombatResources();
 
 	if (TurnManagerRef)
 	{
@@ -311,33 +285,78 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 	FCombatResult Result = BuildCombatResult();
 	OnCombatResultReady.Broadcast(Result);
 
-	// Unregister from AI manager
-	if (AIDecisionManagerRef)
-	{
-		AIDecisionManagerRef->ClearCombatOrchestrator();
-	}
-
 	// Reset for next combat
 	LocalPartyCombatants.Empty();
 	OpposingPartyCombatants.Empty();
 	CurrentActor = nullptr;
 	CurrentTurnNumber = 0;
 	bWaitingForAsyncAction = false;
+	DeferredPayloads.Empty(); // W-B: no armed ritual leaks across combats
 
 	SetCombatState(ECombatState::Idle);
+}
 
-	// Unregister listeners that hold back-references
+void ACombatOrchestrator::ReleaseCombatResources()
+{
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
+	}
+
+	UnbindTurnManagerEvents();
+
+	UGameInstance *GI = GetGameInstance();
+
+	if (UWeatherStateManager *WeatherManager = GI ? GI->GetSubsystem<UWeatherStateManager>() : nullptr)
+	{
+		WeatherManager->EndCombat();
+	}
+
+	if (SkillEffectManagerRef)
+	{
+		SkillEffectManagerRef->ClearAllEffects();
+	}
+
+	UStatusBuildupManager *BuildupManager = GI ? GI->GetSubsystem<UStatusBuildupManager>() : nullptr;
+	for (const TArray<AActor *> *Team : {&LocalPartyCombatants, &OpposingPartyCombatants})
+	{
+		for (AActor *Actor : *Team)
+		{
+			// Defensive IsValid: an actor may have been destroyed mid-combat.
+			if (!IsValid(Actor))
+			{
+				continue;
+			}
+			if (BuildupManager)
+			{
+				BuildupManager->ResetStatusBar(Actor);
+			}
+			// Death listeners bound in StartCombat.
+			if (UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>())
+			{
+				CharComp->OnDied.RemoveDynamic(this, &ACombatOrchestrator::OnCombatantDied);
+			}
+		}
+	}
+
+	// Loadout battle-ready flags (transfer model: no item debit here).
+	ConsumeAllUsedItems();
+
+	if (UCombatGridSubsystem *Grid = GI ? GI->GetSubsystem<UCombatGridSubsystem>() : nullptr)
+	{
+		Grid->ClearAllPositions();
+	}
+
 	if (AIDecisionManagerRef)
 	{
 		AIDecisionManagerRef->ClearCombatOrchestrator();
 	}
-	if (UGameInstance *GI = GetGameInstance())
+	if (UCombatCommandMenuSubsystem *Menu = GI ? GI->GetSubsystem<UCombatCommandMenuSubsystem>() : nullptr)
 	{
-		if (UCombatCommandMenuSubsystem *Menu = GI->GetSubsystem<UCombatCommandMenuSubsystem>())
-		{
-			Menu->ClearCombatOrchestrator();
-		}
+		Menu->ClearCombatOrchestrator();
 	}
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Combat resources released"));
 }
 
 // ========================================
@@ -488,7 +507,20 @@ void ACombatOrchestrator::SubmitActionAsync(const FAction &Action)
 	FActionValidationResult Validation = ActionExecutorRef->ValidateAction(CurrentActor, Action);
 	if (!Validation.bIsValid)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Async action validation failed: %s"), *Validation.ErrorMessage);
+		// Never strand the turn: the auto-advance timer is already cleared and the
+		// caller (AI timer / menu click) has no return value to recover with.
+		if (IsActorAIControlled(Actor))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] %s AI action invalid (%s) - passing turn"),
+				   *Actor->GetName(), *Validation.ErrorMessage);
+			OnActionCompleted();
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] %s action invalid (%s) - re-requesting"),
+				   *Actor->GetName(), *Validation.ErrorMessage);
+			RequestActionFromActor(Actor);
+		}
 		return;
 	}
 
@@ -562,6 +594,8 @@ void ACombatOrchestrator::OnActionCompleted()
 	{
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Win condition met: %d"), (int32)WinState);
 
+		// Unbind first: TurnManager::EndCombat below would otherwise re-enter
+		// HandleCombatEnded. Everything that handler did now happens here.
 		UnbindTurnManagerEvents();
 
 		// Clear all status effects from combat
@@ -584,6 +618,15 @@ void ACombatOrchestrator::OnActionCompleted()
 
 		FCombatResult Result = BuildCombatResult();
 		OnCombatResultReady.Broadcast(Result);
+
+		// §7 C3 — win-only world-stat draft. Was in HandleCombatEnded, which never ran
+		// on this path (events were unbound above), so it never fired on a real win.
+		if (WinState == ECombatState::Victory && PendingWorldStatPool > 0)
+		{
+			OnWorldStatDraftReady.Broadcast(PendingWorldStatPool);
+		}
+
+		ReleaseCombatResources();
 
 		// Reset for next combat
 		LocalPartyCombatants.Empty();
@@ -643,6 +686,20 @@ void ACombatOrchestrator::ProceedWithTurnStart()
 
 	// Broadcast for UI/listeners
 	OnActorTurnStarted.Broadcast(CurrentActor, CurrentTurnNumber);
+
+	// Stunned: no action is valid (ValidateAction rejects all), so the turn passes
+	// here. End-of-turn processing still runs, which is what ticks the stun down.
+	// TODO: Crown Q1 — if stun should allow Attack/Defend, gate this on that instead.
+	if (ActionExecutorRef && !ActionExecutorRef->CanActorAct(CurrentActor))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s is stunned - turn passes"), *CurrentActor->GetName());
+		// Next tick, not inline: consecutive stunned actors would otherwise recurse
+		// turn-start -> pass -> turn-start on one stack. Reuses the auto-advance handle,
+		// so a real submit or combat end clears it like any auto-advance.
+		AutoAdvanceTimerHandle = GetWorld()->GetTimerManager().SetTimerForNextTick(
+			FTimerDelegate::CreateUObject(this, &ACombatOrchestrator::OnActionCompleted));
+		return;
+	}
 
 	RequestActionFromActor(CurrentActor);
 }
@@ -741,12 +798,6 @@ void ACombatOrchestrator::HandleCombatEnded(int32 FinalTurnCount)
 
 	if (CombatState == ECombatState::InProgress)
 	{
-		// Clear all status effects from combat
-		if (SkillEffectManagerRef)
-		{
-			SkillEffectManagerRef->ClearAllEffects();
-		}
-
 		// Determine winner if we haven't already
 		ECombatState WinState = CheckWinCondition();
 		if (WinState == ECombatState::InProgress)
@@ -766,22 +817,8 @@ void ACombatOrchestrator::HandleCombatEnded(int32 FinalTurnCount)
 			OnWorldStatDraftReady.Broadcast(PendingWorldStatPool);
 		}
 
-		// Unbind the death listeners bound in StartCombat — BEFORE the team arrays empty (they hold
-		// the actor refs). Defensive IsValid: an actor may have been destroyed mid-combat.
-		for (const TArray<AActor *> *Team : {&LocalPartyCombatants, &OpposingPartyCombatants})
-		{
-			for (AActor *Actor : *Team)
-			{
-				if (!IsValid(Actor))
-				{
-					continue;
-				}
-				if (UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>())
-				{
-					CharComp->OnDied.RemoveDynamic(this, &ACombatOrchestrator::OnCombatantDied);
-				}
-			}
-		}
+		// BEFORE the team arrays empty — it walks them for per-actor unbinds.
+		ReleaseCombatResources();
 
 		LocalPartyCombatants.Empty();
 		OpposingPartyCombatants.Empty();

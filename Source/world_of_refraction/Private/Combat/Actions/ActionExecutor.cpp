@@ -5520,10 +5520,17 @@ void UActionExecutor::FinishArmTurn(AActor *Actor)
 
 	CurrentExecutionContext.Reset();
 
-	if (AsyncActionCallback.IsBound())
+	// Execute ends the turn, and the advance can fire a ready Execution turn that
+	// RE-BINDS AsyncActionCallback inside this call. Unbinding after Execute wiped
+	// that fresh binding (orchestrator stuck in bWaitingForAsyncAction). Same
+	// capture-clear-run guard as CompleteAsyncActionFinal.
+	FOnActionComplete PendingCallback = AsyncActionCallback;
+	AsyncActionCallback.Unbind();
+	if (PendingCallback.IsBound())
 	{
-		AsyncActionCallback.Execute(PendingFinalResult);
-		AsyncActionCallback.Unbind();
+		// Copy: a nested action launched from the callback may overwrite the member.
+		const FActionResult ArmResult = PendingFinalResult;
+		PendingCallback.Execute(ArmResult);
 	}
 }
 

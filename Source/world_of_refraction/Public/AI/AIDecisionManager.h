@@ -111,6 +111,10 @@ private:
     /** Build action for AI actor */
     FAction BuildAction(AActor *AIActor);
 
+    /** Used when the built action fails ValidateAction (stun / silence / EP / targets):
+     *  basic attack on a living enemy if that validates, else Defend. */
+    FAction BuildFallbackAction(AActor *AIActor) const;
+
     /** Pick a random action category based on available options (AI-internal; see EAIActionChoice). */
     EAIActionChoice ChooseActionType(AActor *AIActor, ULoadoutComponent *Loadout);
 
