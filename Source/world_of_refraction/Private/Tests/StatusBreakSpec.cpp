@@ -99,6 +99,10 @@ void FStatusBreakSpec::Define()
 
 		AfterEach([this]()
 		{
+			if (TurnManager && TurnManager->IsCombatActive())
+			{
+				TurnManager->EndCombat();
+			}
 			TestWorld.Reset();
 			EffectManager = nullptr;
 			TurnManager = nullptr;
@@ -154,10 +158,9 @@ void FStatusBreakSpec::Define()
 			EffectManager->ProcessStartOfTurnEffects(Holder);
 			TestFalse(TEXT("Ends as the holder's next turn starts"), Has(Holder, ESkillEffectType::DOT));
 			TestEqual(TEXT("No second Burn"), Char->CurrentHP, HPAfterLanding);
-			TurnManager->EndCombat();
 		});
 
-		It("of Lightning stuns for exactly one holder turn", [this]()
+		It("of Lightning holds its Stun for exactly one holder turn", [this]()
 		{
 			if (!EffectManager) return;
 			AActor *Holder = Spawn();
@@ -240,7 +243,6 @@ void FStatusBreakSpec::Define()
 			TestTrue(TEXT("Local goes again before the gusted Opposing"), Order[0] == Local);
 			// A second push from the same attacker would hand this turn to Local too.
 			TestTrue(TEXT("Opposing acts one place later, pushed only once"), Order[1] == Opposing);
-			TurnManager->EndCombat();
 		});
 	});
 }
