@@ -86,6 +86,7 @@ public:
 
 private:
     friend class FAIStatusQuerySpec;
+    friend class FAIDamageEstimateSpec;
 
     // ==================== INTERNAL ====================
 
@@ -176,6 +177,11 @@ private:
 
     /** Execution-accurate ability damage estimate — see EstimateSpellDamage. */
     int32 EstimateAbilityDamage(AActor *Attacker, AActor *Target, UAbilityData *Ability, int32 InfusionLevel = 0, EInfusionSourceOption InfusionSource = EInfusionSourceOption::None) const;
+
+    /** One estimator behind EstimateSpellDamage / EstimateAbilityDamage (B-029): the executor's own
+     *  pre-defense damage and element (UActionExecutor::PreviewActionDamage), through the damage
+     *  calculator once, crit off, then the expected crit folded in. */
+    int32 EstimateActionDamage(AActor *Attacker, AActor *Target, const FAction &Action) const;
 
     /** Score the value of a spell's status-buildup payload against a target
      *  (pre-weight, ~0..50). Non-const — reads HasDangerousDebuff. */
