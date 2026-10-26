@@ -29,37 +29,57 @@
 #include "GameFramework/Pawn.h"
 #include "HAL/IConsoleManager.h"
 
+namespace
+{
+    /** Null + server-authority gate every mutating entry point starts with. A standalone (PIE)
+     *  actor already reports authority, so this mirrors HasServerAuthority (NM_Standalone ||
+     *  HasAuthority). */
+    bool EconomyHasAuthority(AActor *Owner, const TCHAR *Op)
+    {
+        if (!Owner)
+        {
+            return false;
+        }
+        if (!Owner->HasAuthority())
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s: no authority on %s — ignored"), Op, *Owner->GetName());
+            return false;
+        }
+        return true;
+    }
+
+    /** Finds each required component on Owner (the service couples them; they don't couple
+     *  to each other). False, logging the missing ones, when any is absent. */
+    template <class... TComponents>
+    bool EconomyFindComponents(AActor *Owner, const TCHAR *Op, TComponents *&...OutComponents)
+    {
+        ((OutComponents = Owner->FindComponentByClass<TComponents>()), ...);
+        if ((OutComponents && ...))
+        {
+            return true;
+        }
+        FString Missing;
+        ((Missing += OutComponents ? FString() : TComponents::StaticClass()->GetName() + TEXT(" ")), ...);
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s: %s missing %s"), Op, *Owner->GetName(), *Missing.TrimEnd());
+        return false;
+    }
+}
+
 bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int32 Count)
 {
-    if (!Owner || Count <= 0)
+    if (Count <= 0 || !EconomyHasAuthority(Owner, TEXT("DismantleCrystal")))
     {
         return false;
     }
 
-    // Server-authoritative action. A standalone (PIE) actor already reports authority, so this
-    // single check mirrors the HasServerAuthority pattern (NM_Standalone || HasAuthority).
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleCrystal: no authority on %s — ignored"),
-               *Owner->GetName());
-        return false;
-    }
-
-    // Resolve the two components off the owner — the service couples them, they don't couple to
-    // each other.
-    UCrystalInventoryComponent *CrystalInv = Owner->FindComponentByClass<UCrystalInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    UCrystalInventoryComponent *CrystalInv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
     // Route the count mutation through the UInventoryComponent facade so the dismantle
     // emits OnInventoryChanged; CrystalInv is retained for the read-only availability query.
     // (The facade owns the signal; in well-formed actors it coexists with the sibling pools.)
-    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    if (!CrystalInv || !Currency || !Inv)
+    UInventoryComponent *Inv = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("DismantleCrystal"), CrystalInv, Currency, Inv))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleCrystal: %s missing %s%s%s"),
-               *Owner->GetName(),
-               CrystalInv ? TEXT("") : TEXT("CrystalInventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent "),
-               Inv ? TEXT("") : TEXT("InventoryComponent"));
         return false;
     }
 
@@ -96,14 +116,8 @@ bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int3
 
 bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier TargetTier)
 {
-    if (!Owner)
+    if (!EconomyHasAuthority(Owner, TEXT("MergeCrystals")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
@@ -124,17 +138,12 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
         return false;
     }
 
-    UCrystalInventoryComponent *CrystalInv = Owner->FindComponentByClass<UCrystalInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    UCrystalInventoryComponent *CrystalInv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
     // Mutations route through the facade (emit OnInventoryChanged); CrystalInv kept for reads/caps.
-    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    if (!CrystalInv || !Currency || !Inv)
+    UInventoryComponent *Inv = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("MergeCrystals"), CrystalInv, Currency, Inv))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: %s missing %s%s%s"),
-               *Owner->GetName(),
-               CrystalInv ? TEXT("") : TEXT("CrystalInventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent "),
-               Inv ? TEXT("") : TEXT("InventoryComponent"));
         return false;
     }
 
@@ -249,25 +258,15 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
 
 bool UEconomyService::DismantleWeapon(AActor *Owner, FGuid PersistentID)
 {
-    if (!Owner)
+    if (!EconomyHasAuthority(Owner, TEXT("DismantleWeapon")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleWeapon: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
-    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!Inv || !Currency)
+    UInventoryComponent *Inv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("DismantleWeapon"), Inv, Currency))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleWeapon: %s missing %s%s"),
-               *Owner->GetName(),
-               Inv ? TEXT("") : TEXT("InventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
         return false;
     }
 
@@ -301,25 +300,15 @@ bool UEconomyService::DismantleWeapon(AActor *Owner, FGuid PersistentID)
 
 bool UEconomyService::DismantleRing(AActor *Owner, FGuid PersistentID)
 {
-    if (!Owner)
+    if (!EconomyHasAuthority(Owner, TEXT("DismantleRing")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleRing: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
-    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!Inv || !Currency)
+    UInventoryComponent *Inv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("DismantleRing"), Inv, Currency))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleRing: %s missing %s%s"),
-               *Owner->GetName(),
-               Inv ? TEXT("") : TEXT("InventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
         return false;
     }
 
@@ -349,28 +338,17 @@ bool UEconomyService::DismantleRing(AActor *Owner, FGuid PersistentID)
 
 bool UEconomyService::DismantleEvolution(AActor *Owner, FGuid InstanceID)
 {
-    if (!Owner)
+    if (!EconomyHasAuthority(Owner, TEXT("DismantleEvolution")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleEvolution: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
-    UEvolutionInventoryComponent *EvoInv = Owner->FindComponentByClass<UEvolutionInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    UEvolutionInventoryComponent *EvoInv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
     // Removal routes through the facade (emit OnInventoryChanged); EvoInv kept for the read.
-    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    if (!EvoInv || !Currency || !Inv)
+    UInventoryComponent *Inv = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("DismantleEvolution"), EvoInv, Currency, Inv))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleEvolution: %s missing %s%s%s"),
-               *Owner->GetName(),
-               EvoInv ? TEXT("") : TEXT("EvolutionInventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent "),
-               Inv ? TEXT("") : TEXT("InventoryComponent"));
         return false;
     }
 
@@ -407,22 +385,14 @@ bool UEconomyService::DismantleEvolution(AActor *Owner, FGuid InstanceID)
 
 bool UEconomyService::RemovePrimaryEvolution(AActor *Owner)
 {
-    if (!Owner)
+    if (!EconomyHasAuthority(Owner, TEXT("RemovePrimaryEvolution")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] RemovePrimaryEvolution: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
-    ULoadoutComponent *LC = Owner->FindComponentByClass<ULoadoutComponent>();
-    if (!LC)
+    ULoadoutComponent *LC = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("RemovePrimaryEvolution"), LC))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] RemovePrimaryEvolution: %s missing LoadoutComponent"),
-               *Owner->GetName());
         return false;
     }
 
@@ -447,25 +417,15 @@ bool UEconomyService::RemovePrimaryEvolution(AActor *Owner)
 
 bool UEconomyService::DismantleSpell(AActor *Owner, USpellData *Spell)
 {
-    if (!Owner || !Spell)
+    if (!Spell || !EconomyHasAuthority(Owner, TEXT("DismantleSpell")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleSpell: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
-    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!Inv || !Currency)
+    UInventoryComponent *Inv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("DismantleSpell"), Inv, Currency))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleSpell: %s missing %s%s"),
-               *Owner->GetName(),
-               Inv ? TEXT("") : TEXT("InventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
         return false;
     }
 
@@ -489,25 +449,15 @@ bool UEconomyService::DismantleSpell(AActor *Owner, USpellData *Spell)
 
 bool UEconomyService::DismantleAbility(AActor *Owner, UAbilityData *Ability)
 {
-    if (!Owner || !Ability)
+    if (!Ability || !EconomyHasAuthority(Owner, TEXT("DismantleAbility")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleAbility: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
-    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!Inv || !Currency)
+    UInventoryComponent *Inv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("DismantleAbility"), Inv, Currency))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleAbility: %s missing %s%s"),
-               *Owner->GetName(),
-               Inv ? TEXT("") : TEXT("InventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
         return false;
     }
 
@@ -706,24 +656,15 @@ FPurchaseCost UEconomyService::PreviewCartCost(const TArray<FMerchantStockEntry>
 
 bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> &Items)
 {
-    if (!Owner || Items.Num() == 0)
+    if (Items.Num() == 0 || !EconomyHasAuthority(Owner, TEXT("Purchase")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: no authority on %s — ignored"), *Owner->GetName());
         return false;
     }
 
-    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!Inv || !Currency)
+    UInventoryComponent *Inv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("Purchase"), Inv, Currency))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s missing %s%s"),
-               *Owner->GetName(),
-               Inv ? TEXT("") : TEXT("InventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
         return false;
     }
     // Sibling pools — only REQUIRED when the cart carries their goods (checked in validation).
@@ -1027,25 +968,15 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
 
 bool UEconomyService::BuyWorldStat(AActor *Owner, EWorldPillar Pillar)
 {
-    if (!Owner)
+    if (!EconomyHasAuthority(Owner, TEXT("BuyWorldStat")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] BuyWorldStat: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
-    UCharacterDataComponent *CharComp = Owner->FindComponentByClass<UCharacterDataComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!CharComp || !Currency)
+    UCharacterDataComponent *CharComp = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("BuyWorldStat"), CharComp, Currency))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] BuyWorldStat: %s missing %s%s"),
-               *Owner->GetName(),
-               CharComp ? TEXT("") : TEXT("CharacterDataComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
         return false;
     }
 
@@ -1176,25 +1107,15 @@ bool UEconomyService::TryDowngradeEntry(UCurrencyComponent *Currency, EItemTier 
 
 bool UEconomyService::LevelUpWeapon(AActor *Owner, FGuid PersistentID)
 {
-    if (!Owner)
+    if (!EconomyHasAuthority(Owner, TEXT("LevelUpWeapon")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpWeapon: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
-    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!Inv || !Currency)
+    UInventoryComponent *Inv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("LevelUpWeapon"), Inv, Currency))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpWeapon: %s missing %s%s"),
-               *Owner->GetName(),
-               Inv ? TEXT("") : TEXT("InventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
         return false;
     }
 
@@ -1214,25 +1135,15 @@ bool UEconomyService::LevelUpWeapon(AActor *Owner, FGuid PersistentID)
 
 bool UEconomyService::LevelUpRing(AActor *Owner, FGuid PersistentID)
 {
-    if (!Owner)
+    if (!EconomyHasAuthority(Owner, TEXT("LevelUpRing")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpRing: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
-    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!Inv || !Currency)
+    UInventoryComponent *Inv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("LevelUpRing"), Inv, Currency))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpRing: %s missing %s%s"),
-               *Owner->GetName(),
-               Inv ? TEXT("") : TEXT("InventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
         return false;
     }
 
@@ -1250,26 +1161,16 @@ bool UEconomyService::LevelUpRing(AActor *Owner, FGuid PersistentID)
 
 bool UEconomyService::LevelUpEvolution(AActor *Owner, FGuid InstanceID)
 {
-    if (!Owner)
+    if (!EconomyHasAuthority(Owner, TEXT("LevelUpEvolution")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpEvolution: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
     // Evolution instances live on the dedicated UEvolutionInventoryComponent, NOT UInventoryComponent.
-    UEvolutionInventoryComponent *EvoInv = Owner->FindComponentByClass<UEvolutionInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!EvoInv || !Currency)
+    UEvolutionInventoryComponent *EvoInv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("LevelUpEvolution"), EvoInv, Currency))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpEvolution: %s missing %s%s"),
-               *Owner->GetName(),
-               EvoInv ? TEXT("") : TEXT("EvolutionInventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
         return false;
     }
 
@@ -1290,25 +1191,15 @@ bool UEconomyService::LevelUpEvolution(AActor *Owner, FGuid InstanceID)
 
 bool UEconomyService::LevelUpSpell(AActor *Owner, const USpellData *Spell)
 {
-    if (!Owner)
+    if (!EconomyHasAuthority(Owner, TEXT("LevelUpSpell")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpSpell: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
-    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!Inv || !Currency)
+    UInventoryComponent *Inv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("LevelUpSpell"), Inv, Currency))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpSpell: %s missing %s%s"),
-               *Owner->GetName(),
-               Inv ? TEXT("") : TEXT("InventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
         return false;
     }
 
@@ -1328,25 +1219,15 @@ bool UEconomyService::LevelUpSpell(AActor *Owner, const USpellData *Spell)
 
 bool UEconomyService::LevelUpAbility(AActor *Owner, const UAbilityData *Ability)
 {
-    if (!Owner)
+    if (!EconomyHasAuthority(Owner, TEXT("LevelUpAbility")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpAbility: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
-    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!Inv || !Currency)
+    UInventoryComponent *Inv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("LevelUpAbility"), Inv, Currency))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpAbility: %s missing %s%s"),
-               *Owner->GetName(),
-               Inv ? TEXT("") : TEXT("InventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
         return false;
     }
 
@@ -1363,25 +1244,15 @@ bool UEconomyService::LevelUpAbility(AActor *Owner, const UAbilityData *Ability)
 
 bool UEconomyService::DowngradeWeapon(AActor *Owner, FGuid PersistentID)
 {
-    if (!Owner)
+    if (!EconomyHasAuthority(Owner, TEXT("DowngradeWeapon")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeWeapon: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
-    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!Inv || !Currency)
+    UInventoryComponent *Inv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("DowngradeWeapon"), Inv, Currency))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeWeapon: %s missing %s%s"),
-               *Owner->GetName(),
-               Inv ? TEXT("") : TEXT("InventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
         return false;
     }
 
@@ -1400,25 +1271,15 @@ bool UEconomyService::DowngradeWeapon(AActor *Owner, FGuid PersistentID)
 
 bool UEconomyService::DowngradeRing(AActor *Owner, FGuid PersistentID)
 {
-    if (!Owner)
+    if (!EconomyHasAuthority(Owner, TEXT("DowngradeRing")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeRing: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
-    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!Inv || !Currency)
+    UInventoryComponent *Inv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("DowngradeRing"), Inv, Currency))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeRing: %s missing %s%s"),
-               *Owner->GetName(),
-               Inv ? TEXT("") : TEXT("InventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
         return false;
     }
 
@@ -1436,25 +1297,15 @@ bool UEconomyService::DowngradeRing(AActor *Owner, FGuid PersistentID)
 
 bool UEconomyService::DowngradeEvolution(AActor *Owner, FGuid InstanceID)
 {
-    if (!Owner)
+    if (!EconomyHasAuthority(Owner, TEXT("DowngradeEvolution")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeEvolution: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
-    UEvolutionInventoryComponent *EvoInv = Owner->FindComponentByClass<UEvolutionInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!EvoInv || !Currency)
+    UEvolutionInventoryComponent *EvoInv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("DowngradeEvolution"), EvoInv, Currency))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeEvolution: %s missing %s%s"),
-               *Owner->GetName(),
-               EvoInv ? TEXT("") : TEXT("EvolutionInventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
         return false;
     }
 
@@ -1472,25 +1323,15 @@ bool UEconomyService::DowngradeEvolution(AActor *Owner, FGuid InstanceID)
 
 bool UEconomyService::DowngradeSpell(AActor *Owner, const USpellData *Spell)
 {
-    if (!Owner)
+    if (!EconomyHasAuthority(Owner, TEXT("DowngradeSpell")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeSpell: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
-    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!Inv || !Currency)
+    UInventoryComponent *Inv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("DowngradeSpell"), Inv, Currency))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeSpell: %s missing %s%s"),
-               *Owner->GetName(),
-               Inv ? TEXT("") : TEXT("InventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
         return false;
     }
 
@@ -1508,25 +1349,15 @@ bool UEconomyService::DowngradeSpell(AActor *Owner, const USpellData *Spell)
 
 bool UEconomyService::DowngradeAbility(AActor *Owner, const UAbilityData *Ability)
 {
-    if (!Owner)
+    if (!EconomyHasAuthority(Owner, TEXT("DowngradeAbility")))
     {
-        return false;
-    }
-    if (!Owner->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeAbility: no authority on %s — ignored"),
-               *Owner->GetName());
         return false;
     }
 
-    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
-    if (!Inv || !Currency)
+    UInventoryComponent *Inv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, TEXT("DowngradeAbility"), Inv, Currency))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeAbility: %s missing %s%s"),
-               *Owner->GetName(),
-               Inv ? TEXT("") : TEXT("InventoryComponent "),
-               Currency ? TEXT("") : TEXT("CurrencyComponent"));
         return false;
     }
 
