@@ -453,6 +453,174 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 
 ---
 
+### D-032 — Crit damage ceiling: x2.5 or x2.0?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Question:** What is the biggest multiplier a crit can reach with gear?
+**Context:** The stat caps crit damage at x1.5; gear multiplies it toward `CRIT_DAMAGE_GEAR_CEILING = 2.5` (`CombatConstants.h:192`). `DamageCalculator.md` and `Luck.md` say x2.0. Rules: `docs/Rules/02-elements-and-damage.md` CED-2.
+**Options:** A x2.5 (code) / B x2.0 (docs).
+**Recommendation:** B, because the docs were written to that design and the other gear ceilings are x2.0; the 2.5 looks like drift.
+**Answer (Crown):** _write here_
+
+### D-033 — Should infusing an ability cost extra on top of the charge level?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Question:** An infused ability pays the flat x1.5 `INFUSION_ENERGY_MULTIPLIER` and then the charge multiplier (L1 x1.5, L2 x2.0): about x2.25 / x3.0 EP. A spell pays only x1.5 / x2.0. Keep the double surcharge?
+**Context:** `InfusionConstants` comments and `Infusion.md` say abilities and spells share the charge; two comments give wrong numbers ("30%/60%", "1.15x/1.30x"). Rules: 02 CED-1.
+**Options:** A keep both (abilities cost more) / B charge multiplier only (same as spells).
+**Recommendation:** A, because the deckbuilder also makes a physical ability pay +1 Energy to deal an element (`wor-deckbuilder/docs/reference/04-effects.md`). Fix the comments either way.
+**Answer (Crown):** _write here_
+
+### D-034 — Under D-005, which resistance scales damage?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-064
+**Question:** When resistance starts scaling elemental damage (D-005), do the general Resistance stat (up to 100% with gear) and resistance buffs count, or only the per-element columns?
+**Context:** D-005's notes say "class table + gear"; the buildup path's value also includes the general stat and buffs. Stacked with Defense's 85% cap it could approach immunity. Rules: 02 CED-3.
+**Options:** A per-element columns only / B everything the buildup path uses.
+**Recommendation:** A, because it can't stack toward immunity and it matches the deckbuilder, where resistance is per element.
+**Answer (Crown):** _write here_
+
+### D-035 — What is "Physical" in code?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-080
+**Question:** D-007 says uninfused skills deal Physical, but there is no Physical element: they deal `None` plus Slash/Pierce/Impact. Is Physical "None + its physical type", or a new `ESpellElement` member?
+**Context:** `ESpellElement.h:28-34`; `EPhysicalDamageType.h:12-15`. Rules: 02 CED-4.
+**Options:** A None + physical type, shown as "Physical" / B a new enum member (appended).
+**Recommendation:** A, because it needs no enum change and resistance and buildup already read the physical type.
+**Answer (Crown):** _write here_
+
+### D-036 — What does Silenced block?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Question:** Spells only, or every EP spend (abilities, infusion)?
+**Context:** The code blocks spells only (`ActionExecutor.cpp:176-180`). The display name ("No EP Spend"), `docs/Mechanics/Status/StatusEffects.md` and D-023's reasoning say every EP spend. Rules: 03 C3-2, 04 C4-6.
+**Options:** A spells only (code) / B every EP spend.
+**Recommendation:** B, because that's what the name and the docs promise; under A a silenced Generic is barely affected.
+**Answer (Crown):** _write here_
+
+### D-037 — How many spells does an evolution hold?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Question:** Set by the evolution's tier (1–6), or a flat number?
+**Context:** Combat caps it by tier (`LoadoutComponent.cpp:575-581`); the saved-loadout check uses a flat 6 (`FSavedLoadout.cpp:190-195`); `EvolutionCrystals.md` says about 4. Rules: 01 CL-C1.
+**Options:** A by tier, 1–6 / B flat 6 / C flat 4.
+**Recommendation:** A, the live rule; then make the saved-loadout check match.
+**Answer (Crown):** _write here_
+
+### D-038 — Does a Refractor's innate always work?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Question:** Here a Refractor's innate spells always work. In the deckbuilder they work only while a gear slot is empty. Should wearing gear switch them off?
+**Context:** Rules: 01 CL-C2; `wor-deckbuilder/docs/reference/01-card-model.md` (Refractor passive). Raised only because the two games differ.
+**Options:** A always on (current) / B only while the gear slot is empty (deckbuilder).
+**Recommendation:** A, because a Refractor here has only one gear slot, so B would make gear and innate an either-or.
+**Answer (Crown):** _write here_
+
+### D-039 — Are skill requirements a gate or only a scale?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Question:** Can a character use a skill it is under-levelled for?
+**Context:** The code never blocks; the requirement gap only scales the skill down. A commented-out refusal sits at `ActionExecutor.cpp:233-236`, and `Stats.md` says pillar levels "gate skill tiers". Rules: 01 CL-C3.
+**Options:** A usable, just weaker (current) / B refused below the requirement.
+**Recommendation:** A, the current behaviour; then delete the commented-out gate and fix `Stats.md`.
+**Answer (Crown):** _write here_
+
+### D-040 — Does a member's chosen cell decide where they start a fight?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Question:** `FPartyMember.PreferredRow/PreferredColumn` are saved, but `StartCombat` puts both sides in the Middle row (`CombatOrchestrator.cpp:214-215`), so the ±5% row bonus never applies in play. Use the chosen cell?
+**Context:** Rules: 06 Cp-2. The deckbuilder has no grid.
+**Options:** A start in the chosen cell / B everyone in the Middle row (current).
+**Recommendation:** A, because the row bonus and the stored formation exist for it.
+**Answer (Crown):** _write here_
+
+### D-041 — How does a fallen party member come back during a run?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Question:** Sapphire only revives inside a fight, and members dead at a fight's end are never spawned again, so a death lasts the rest of the run. Is that the rule?
+**Context:** `EncounterComponent.cpp:210-260` leaves dead members out. Rules: 06 Cp-3.
+**Options:** A no return this run (current) / B a trial vendor or rest-point service / C revive with low HP after the fight.
+**Recommendation:** A for now (souls-like attrition, as in D-013), with B as a later vendor service.
+**Answer (Crown):** _write here_
+
+### D-042 — What difficulty do AI-controlled party members play at?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-071
+**Question:** One difficulty per encounter drives every AI character, so on an Easy encounter your own AI allies act near-randomly and try to defend only 40% of hits.
+**Context:** `AIDecisionManager::GetCurrentDifficulty`. Rules: 06 Cp-4.
+**Options:** A a fixed ally tier / B the encounter's difficulty (current) / C a player setting.
+**Recommendation:** A, because an easier fight shouldn't make your own team worse.
+**Answer (Crown):** _write here_
+
+### D-043 — Who do you control when the leader is down?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-071
+**Question:** D-004 says the leader is always player-controlled. Today the player takes the first living member spawned, and if the leader dies the rest play on AI. What should happen?
+**Context:** Rules: 06 Cp-6.
+**Options:** A only members set to Player (B-071); if none are left, the AI finishes the fight / B you take over the next living member.
+**Recommendation:** A, because it keeps D-026's per-member choice meaningful.
+**Answer (Crown):** _write here_
+
+### D-044 — One wallet per player, or per character?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-073
+**Question:** The wallet (Gold, Prisms, Diamond) sits on each character, while the gear pool and run inventory are shared (D-020, D-026).
+**Context:** Rules: 05 Cx-5. The deckbuilder has one account-wide currency.
+**Options:** A one wallet per player / B per character (current).
+**Recommendation:** A, matching the shared pool and the deckbuilder.
+**Answer (Crown):** _write here_
+
+### D-045 — Where can you upgrade, repair, merge and downgrade?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Question:** D-002 says upgrades work in the hub and in a run. `docs/Mechanics/Economy/Hubs.md` says upgrade, repair and merge are run-only, and still describes the draft run start that D-021 replaced. Which split holds for repair, merge and downgrade?
+**Context:** Rules: 05 Cx-4.
+**Options:** A all four in the hub and in a run / B upgrade in both, the rest run-only / C as Hubs.md says.
+**Recommendation:** A, the simplest, unless Crown wants the hub kept a pure loadout space.
+**Answer (Crown):** _write here_
+
+### D-046 — What does Gold buy in a run?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-073
+**Question:** A code comment and `Currency.md` say consumables and temporary buffs. D-021 says the run-start loadout, in-run purchases and world stats. D-002 says upgrades never cost Gold, yet in-run shops charge Prisms today (`Purchase`).
+**Context:** Rules: 05 Cx-1, Cx-6.
+**Options:** A D-021's list plus consumables / B D-021's list only.
+**Recommendation:** A, and price trial merchants in Gold when B-073 lands.
+**Answer (Crown):** _write here_
+
+### D-047 — Cap turns at 2 per round of the slowest?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Question:** `MAX_TURN_RATIO = 2` and `TURN_SPEED_THRESHOLD_DOUBLE` exist (`CombatConstants.h:331`), but the scheduler never reads them, so a fast character can get any number of turns per round.
+**Context:** Rules: 04 C4-1.
+**Options:** A cap at 2:1 / B no cap (current).
+**Recommendation:** A, because the constants show that was the design, and an uncapped ratio lets stacked speed lock enemies out.
+**Answer (Crown):** _write here_
+
+### D-048 — How long does Defend last?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Question:** Defend's +50% Defense for 1 turn ticks away at the end of the defender's own turn, before anyone attacks, so it does nothing.
+**Context:** Rules: 04 C4-2. In the deckbuilder, Defend lasts until your next turn starts.
+**Options:** A until your next turn starts / B as now.
+**Recommendation:** A (the deckbuilder's rule), with the 50% and the duration as named constants.
+**Answer (Crown):** _write here_
+
+### D-049 — How are effect durations counted?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-062, B-063
+**Question:** The code ends an effect at the end of the holder's Nth turn, and a new effect acts the moment it lands, so a 2-turn DoT ticks 3 times. D-030 counts the landing turn as turn 1 and ends the effect as the next turn starts. Should D-030's counting apply to every timed effect, with exactly N ticks?
+**Context:** Rules: 04 C4-3, C4-4. The deckbuilder gives exactly N ticks. Also open: do bonus and Execution turns count as the holder's turns?
+**Options:** A D-030 counting everywhere, N ticks, bonus turns count / B D-030 for bar caps only.
+**Recommendation:** A, one counting rule for everything, matching the deckbuilder.
+**Answer (Crown):** _write here_
+
+### D-050 — Is Emerald's bonus turn extra, or the same turn moved earlier?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Question:** Emerald's turn counts as a turn taken with no credit, so it costs a later normal turn. Extra Action adds a real turn.
+**Context:** Rules: 04 C4-5.
+**Options:** A a real extra turn / B a turn moved earlier (current).
+**Recommendation:** B if the item reads "act sooner", A if it reads "extra turn"; it's Crown's wording call.
+**Answer (Crown):** _write here_
+
+### D-051 — Does the same effect from two gear pieces add up?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-062
+**Question:** Here two gear pieces giving the same effect merge into one (deliberate, per `SkillEffects.md`). The deckbuilder adds one per source, which is also D-012's idea (a different source adds).
+**Context:** Rules: 04 C4-7.
+**Options:** A add up, one per source / B merge (current).
+**Recommendation:** A, so D-012's rule covers gear too.
+**Answer (Crown):** _write here_
+
+### D-052 — Speed effects and turn order
+**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Question:** (1) "Turn Speed Up" (`ModifyTurnSpeed`) adds speed but `IsDebuff` lists it (`ESkillEffectType.h:390`), so cleansing an ally strips it. Is it a buff? (2) The generic Speed Buff/Debuff do nothing to turn order, though `TurnOrder.md` says Slow pushes turns back. Should they act like Turn Speed?
+**Context:** Rules: 04 C4-8, C4-9.
+**Options:** (1) A buff / B debuff (current). (2) A they move turn order / B they don't; fix the doc.
+**Recommendation:** (1) A. (2) B, keeping one speed stat for turn order.
+**Answer (Crown):** _write here_
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
