@@ -516,16 +516,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A x2.5 (code) / B x2.0 (docs).
 **Recommendation:** B, because the docs were written to that design and the other gear ceilings are x2.0; the 2.5 looks like drift.
 **Answer (Crown):** **A, x2.5** (2026-10-26, after comparing PoE2, Diablo 4 and Expedition 33: freedom games don't hard-cap crit damage; crit chance being multiplicative already limits it). Fix the docs (`DamageCalculator.md`, `Luck.md`) to x2.5; the code stays. Uncapped with diminishing returns is a possible later step.
-**Applied:** docs fixed to x2.5 (`DamageCalculator.md`, `Luck.md`, Rules 02 ED-19/CED-2, `chore/apply-D-034-041`); the `CombatConstants.h:184` comment is B-147.
+**Applied:** docs fixed to x2.5 (`DamageCalculator.md`, `Luck.md`, Rules 02 ED-19/CED-2, `chore/apply-D-034-041`); the `CombatConstants.h:184`, `DamageCalculator.h` and `AIDecisionManager.cpp` comments and `StatComposition.md` fixed in B-147.
 
 ### D-035 — Should infusing an ability cost extra on top of the charge level?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** DECIDED (applied in B-147) · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** An infused ability pays the flat x1.5 `INFUSION_ENERGY_MULTIPLIER` and then the charge multiplier (L1 x1.5, L2 x2.0): about x2.25 / x3.0 EP. A spell pays only x1.5 / x2.0. Keep the double surcharge?
 **Context:** `InfusionConstants` comments and `Infusion.md` say abilities and spells share the charge; two comments give wrong numbers ("30%/60%", "1.15x/1.30x"). Rules: 02 CED-1.
 **Options:** A keep both (abilities cost more) / B charge multiplier only (same as spells).
 **Recommendation:** A, because the deckbuilder also makes a physical ability pay +1 Energy to deal an element (`wor-deckbuilder/docs/reference/01-card-model.md:93`, "Cast through"). Fix the comments either way.
 **Answer (Crown):** **A** (2026-10-26): keep the extra x1.5 for infusing an ability on top of the charge level (deckbuilder: a physical ability pays more to deal an element). Fix the two wrong comments.
-**Queued:** the two wrong comments are B-147; Rules 02 ED-30/CED-1 updated.
+**Applied:** the two wrong comments fixed in B-147; Rules 02 ED-30/CED-1 updated.
 
 ### D-036 — Under D-005, which resistance scales damage?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-064 (now after B-145)
@@ -564,13 +564,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Queued:** B-148 (the seal). Its display name is D-070.
 
 ### D-039 — How many spells does an evolution hold?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** DECIDED (applied in B-147) · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** Set by the evolution's tier (1–6), or a flat number?
 **Context:** Combat caps it by tier (`LoadoutComponent.cpp:575-581`); the saved-loadout check uses a flat 6 (`FSavedLoadout.cpp:190-195`); `EvolutionCrystals.md` says about 4. Rules: 01 CL-C1.
 **Options:** A by tier, 1–6 / B flat 6 / C flat 4.
 **Recommendation:** A, the live rule; then make the saved-loadout check match.
 **Answer (Crown):** **A, by tier, as already designed** (2026-10-26): crystals and evolutions hold spells by their tier (1–6, the shared `SlotsForContainerTier` curve). Not a new decision: fix the saved-loadout check's flat 6 (`FSavedLoadout.cpp:190-195`) and `EvolutionCrystals.md`'s "about 4" to match.
-**Queued:** B-147 (saved-loadout check and `EvolutionCrystals.md`).
+**Applied (B-147):** the live check (`LoadoutRules.cpp`) already capped by tier; a test now pins it, and `EvolutionCrystals.md` is fixed. The flat 6 remains only in the legacy `FSavedLoadout::GetValidationErrorsLegacy`, which B-172 retires. An evolution *attached* to a weapon or ring still uses the flat ceiling: **Q-147**.
 
 ### D-040 — Does a Refractor's innate always work?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
@@ -582,13 +582,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Applied:** nothing to build; Rules 01 CL-C2 updated (`chore/apply-D-034-041`).
 
 ### D-041 — Are skill requirements a gate or only a scale?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** DECIDED (applied in B-147) · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** Can a character use a skill it is under-levelled for?
 **Context:** The code never blocks; the requirement gap only scales the skill down. A commented-out refusal sits at `ActionExecutor.cpp:233-236`, and `Stats.md` says pillar levels "gate skill tiers". Rules: 01 CL-C3.
 **Options:** A usable, just weaker (current) / B refused below the requirement.
 **Recommendation:** A, the current behaviour; then delete the commented-out gate and fix `Stats.md`.
 **Answer (Crown):** **A, usable but weaker** (2026-10-26): the shipped requirement-gap scaling stays (`Mechanics/Scaling/RequirementGap.md`); overreaching also feeds Broken Darkness strain. Delete the commented-out refusal (`ActionExecutor.cpp:233-236`) and fix `Stats.md`'s "gates skill tiers". Crown: like everything else, it could be **done better**, so it's in the standard-way redesign (B-146).
-**Queued:** B-147 (delete the commented-out refusal, fix `Stats.md`); the redesign is B-146.
+**Applied (B-147):** the commented-out refusal deleted, `Stats.md` fixed; the redesign is B-146.
 
 ### D-042 — Does a member's chosen cell decide where they start a fight?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
@@ -1316,6 +1316,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
+### Q-147 — Does an evolution attached to a weapon or ring hold spells by its tier too?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-147) · **Blocks:** — (B-147 shipped without it)
+**Question:** D-039 says crystals and evolutions hold spells by their tier. An evolution in the **primary slot** does (F 1 … S 6). An evolution **attached to a weapon or ring** still gets the holder's flat ceiling (6 for a weapon, the ring's cap for a ring). Should the attached one use its tier too?
+**Context:** `CrystalEffectTable::ResolveSpellSlotCap` gives gem crystals their tier count and every other attachment (evolutions included) the caller's flat ceiling (`CrystalEffectTable.h`). D-039's answer did not separate attached from primary evolutions.
+**Options:**
+- **A** keep it: an attached evolution uses the holder's flat ceiling (as now).
+- **B** by tier: an attached evolution holds its tier's count, like a primary one and a gem.
+**Recommendation:** B, because it is the plain reading of D-039 and makes every container follow one curve. The deckbuilder has no separate rule.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
@@ -1331,7 +1342,7 @@ Moved here once applied. Newest first.
 |---|---|---|---|
 | D-075 | A fight that ends mid-action: the unfinished action pays no infusion HP cost; its defense windows are dropped | 2026-10-26 | B-030 (`UActionExecutor::ResetForCombat`; TODO removed in `chore/apply-D-073-D-075-D-076`) |
 | D-040 | A Refractor's innate spells always work, whatever it wears (already the code) | 2026-10-26 | `chore/apply-D-034-041` (Rules 01 CL-C2) |
-| D-034 | Crit damage ceiling with gear is x2.5 (the code); docs fixed | 2026-10-26 | `chore/apply-D-034-041` (docs; comment in B-147) |
+| D-034 | Crit damage ceiling with gear is x2.5 (the code); docs fixed | 2026-10-26 | `chore/apply-D-034-041` (docs); comments in B-147 |
 | D-064 | No new per-fight state on GameInstance subsystems: battle actors / GameState / PlayerState | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md standing rules) |
 | D-057 | Heavy visuals/audio: new data-asset fields use soft refs; existing hard refs stay | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md standing rules) |
 | D-058 | Content naming: new assets only, plus the junk/duplicate cleanup | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md; B-123, B-122 TODO) |

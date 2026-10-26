@@ -33,7 +33,7 @@ Skim-sheet of everything a player **does, sees, or decides**, grouped by experie
 
 ## 4. Building my character
 - **Classes & innate element** — [Live] — Generic / Refractor / Resonator + a fixed innate element; gates spells / abilities / dual-wield / rings. → [`Classes.md`](./Character/Classes.md)
-- **Stats (pillars & substats)** — [Built · No UI] — Mind/Body/Spirit (0–7) drive the 14 substats and gate skill tiers; no in-game allocation screen. → [`Stats.md`](./Character/Stats.md)
+- **Stats (pillars & substats)** — [Built · No UI] — Mind/Body/Spirit (0–7) drive the 14 substats and scale skills by their requirements; no in-game allocation screen. → [`Stats.md`](./Character/Stats.md)
 - **Stat caps / gear ceilings (+50% solo → +100% gear)** — [Live] — always-on balance shape (invisible by design). → [`Stats.md`](./Character/Stats.md)
 
 ## 5. Gearing up
