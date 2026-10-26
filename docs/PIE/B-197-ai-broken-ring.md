@@ -9,7 +9,6 @@
 **What changed:**
 - D-083 keeps a broken ring's F-tier spells castable. The player could cast them, but the AI never did: it now can.
 - With a broken weapon crystal, spells a saved loadout put on that weapon are now greyed too (before, only the weapon's own spells were).
-
 - The AI casts that F-tier spell from the ring (free, like the player), not as a paid innate cast.
 
 **Not changed (still open):** a broken *secondary* weapon is not checked yet; only the active weapon is (new job B-204).
