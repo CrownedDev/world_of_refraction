@@ -76,7 +76,7 @@
 | B-162 | Delete `SubmitAction` and retire `CombatOrchestratorTestActor` (its last caller), after Crown's B-031 PIE pass and a spec covering what the actor tests (D-067) | CC | S | B-031 | `SubmitAction` gone; build + tests green | BLOCKED (Crown: PIE of B-031) |
 | B-163 | Async skill start crashes in the headless test world (`UActionExecutor::BeginSkillExecution`, `ActionExecutor.cpp` ~4959; likely `GetWorld()`); guard it so specs can drive a montage-less ability, then add the no-montage ritual case to `WoR.Combat.RitualFire` | CC | S | B-031 | The no-montage ritual case runs headless and passes | TODO |
 | B-164 | Remove the `ApplyDamage` fallback per Q-031 | CC | S | B-031 | Per Q-031's answer | BLOCKED (Q-031) |
-| B-032 | ActionExecutor DRY: one per-impact resolve, one reflect block, merge `ApplyHit`/`ApplyDamage` | CC | L | B-031 | Same damage in a test fight | TODO |
+| B-032 | ActionExecutor DRY: one per-impact resolve, one reflect block, merge `ApplyHit`/`ApplyDamage` | CC | L | B-031, Q-031 | Same damage in a test fight | BLOCKED (Q-031) |
 | B-033 | God-file splits (move-only): Orchestrator debug → `Debug/Combat/`; ActionExecutor montage runner + cost resolution | CC | M | B-003 | Move-only diff; compiles | BLOCKED (B-003) |
 | B-034 | Delete the dead `InfusionChargeManager`; infusion level held on the pending action, not the VFX component | CC | M | B-003 | VFX still shows level; ChargeManager gone | BLOCKED (B-003) |
 | B-035 | Flatten `ApplyBetweenCombatCrystalDestruction` (nesting 8) | CC | S | B-001 | Same results; nesting ≤4 | TODO |

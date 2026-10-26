@@ -135,7 +135,7 @@ void FCombatRitualFireSpec::Define()
 	});
 
 	// TODO: a montage-less ritual ability (the case the old sync router dropped) needs PIE for now:
-	// the async skill start crashes in the headless test world (BeginSkillExecution), see B-031.
+	// the async skill start crashes in the headless test world (BeginSkillExecution), see B-163.
 
 	It("advances past a ritual that can't fire", [this]()
 	{

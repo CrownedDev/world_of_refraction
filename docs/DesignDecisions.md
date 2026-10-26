@@ -977,8 +977,8 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Question:** the architecture review says "delete the `SubmitAction` sync router and the `ApplyDamage` fallback" with no detail. Which code is meant?
 **Context:**
 - `ApplyDamage` (`ActionExecutor.cpp` ~3085) is still called from four places. The likely "fallbacks" are the direct-damage paths that skip the defence window:
-  - spells not yet converted to per-hit windows (AOE ~3635, Instant ~3740, projectile ~4011)
-  - the "no DefenseSystem" branches (~1701, ~4011), which can't happen in a real game (it is always there)
+  - spells not yet converted to per-hit windows (AOE ~3635, Instant ~3740)
+  - the "no DefenseSystem" branches (~1701 melee, ~3640 AOE, ~4011 projectile), which can't happen in a real game (it is always there)
 - The "no DamageCalculator: deal at least 1" branches in `ApplyDamage`/`ApplyHit` are a third candidate.
 - B-032 later merges `ApplyHit` and `ApplyDamage` anyway.
 **Options:**
