@@ -90,6 +90,8 @@ The deckbuilder (`CrownedDev/wor-deckbuilder`, a local clone on Crown's PC) is t
 
 When a `Q-<job>` or `D-xxx` entry recommends an answer, **base the recommendation on proven, well-received examples from other games** (what players liked and what worked), named in the entry with a source where one can be found (e.g. "Expedition 33's parry gives AP; widely praised"). Prefer this over reasoning from scratch. **Exception: questions about this game's lore and story** are Crown's alone; give options, no outside recommendation. The deckbuilder rule above still comes first where it has a rule.
 
+**Agree-or-change, not ask (Crown, 2026-10-26):** the game's foundation is decided; what's left is building it out. So for **non-lore** questions, present **the question plus what the references suggest as the answer**; Crown replies "agree" or says what to change. In Backlog mode, build with that reference-backed answer (as `Q-<job>` entries already "ship with A") and list it in the hand-off for Crown to agree or change. **Stop and ask instead** when the answer would be an extreme deviation from a ruling, or it's lore/story.
+
 ## Repo-specific notes
 
 - **LFS coverage** (2026-10-25): `.gitattributes` LFS-tracks `*.uasset`, `*.umap` and source art/audio/fonts (`png jpg jpeg tga psd exr fbx ttf otf wav ogg mp3`). Only originals of assets the game actually uses are committed (under `SourceArt/`); full vendor packs stay out of git (`docs/Design/UI_DeckbuilderReuse.md` §4).
