@@ -7,10 +7,12 @@
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "Infusion/ElementColors.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Trial/TrialData.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "UI/Trial/TrialGateWidget.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace TrialDoorConstants
@@ -102,7 +104,12 @@ void ATrialDoor::Interact()
 
     if (Trial)
     {
-        TrialRun->EnterTrial(Trial);
+        // B-183: the door asks for the variation and difficulty first; the panel enters the trial.
+        // No local player (a bot at the door) enters with the defaults.
+        if (!UTrialGateWidget::Open(Cast<APlayerController>(Pawn->GetController()), Trial))
+        {
+            TrialRun->EnterTrial(Trial);
+        }
     }
     else
     {
