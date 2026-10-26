@@ -2,6 +2,7 @@
 // Active combat loadout and runtime battle state implementation
 
 #include "Loadout/LoadoutComponent.h"
+#include "WoRLog.h"
 #include "Loadout/SpellPoolConstants.h"
 #include "Inventory/InventoryComponent.h"
 #include "Skills/Definitions/SpellData.h"
@@ -478,13 +479,11 @@ bool ULoadoutComponent::ValidateLoadout(int32 Index, UInventoryComponent *Invent
 TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryComponent *Inventory) const
 {
     // B-028: one rule set (FLoadoutRules); the reasons are the slot cleaner's findings.
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv || !Inventory || Inventory != Inv)
+    if (!Inventory)
     {
-        // Ownership is checked against the owner's inventory; a different one keeps the old path.
-        return GetValidationErrorsLegacy(Index, Inventory);
+        return {TEXT("No inventory component")};
     }
-    return FLoadoutRules::ToReasons(CollectInvalidSlotFindings(Index));
+    return FLoadoutRules::ToReasons(CollectInvalidSlotFindings(Index, Inventory));
 }
 
 // OBSOLETE (B-028): remove after Crown's PIE pass.
@@ -789,7 +788,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
     return CollectInvalidSlotFindings(Inv ? Inv->ActiveLoadoutIndex : INDEX_NONE);
 }
 
-TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings(int32 Index) const
+TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings(int32 Index, const UInventoryComponent *OwnershipSource) const
 {
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
@@ -810,7 +809,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings(int32 
         Guard.Reason = TEXT("Invalid loadout index");
         return {Guard};
     }
-    return FLoadoutRules::CollectFindings(Inv->SavedLoadouts[Index], BuildRuleContext(Inv));
+    return FLoadoutRules::CollectFindings(Inv->SavedLoadouts[Index], BuildRuleContext(OwnershipSource ? OwnershipSource : Inv));
 }
 
 FLoadoutRuleContext ULoadoutComponent::BuildRuleContext(const UInventoryComponent *Inventory) const
@@ -853,7 +852,7 @@ FLoadoutRuleContext ULoadoutComponent::BuildRuleContext(const UInventoryComponen
         {
             if (!EvolutionInv)
             {
-                UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent] No UEvolutionInventoryComponent on inventory owner; treating the evolution as not owned"));
+                UE_LOG(LogWoRLoadout, Warning, TEXT("[ULoadoutComponent] No UEvolutionInventoryComponent on inventory owner; treating the evolution as not owned"));
                 return false;
             }
             return EvolutionInv->HasInstance(const_cast<UEvolutionItemData *>(Item));

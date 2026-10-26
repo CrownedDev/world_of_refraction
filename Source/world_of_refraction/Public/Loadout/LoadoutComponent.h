@@ -215,11 +215,13 @@ public:
      *  coherence detection. */
     TArray<FInvalidSlotFinding> CollectInvalidSlotFindings() const;
 
-    /** Same, for any saved loadout index (B-028: GetValidationErrors is its reasons). */
-    TArray<FInvalidSlotFinding> CollectInvalidSlotFindings(int32 Index) const;
+    /** Same, for any saved loadout index, checking ownership against OwnershipSource (null =
+     *  the owner's inventory). B-028: GetValidationErrors is its reasons. */
+    TArray<FInvalidSlotFinding> CollectInvalidSlotFindings(int32 Index, const UInventoryComponent *OwnershipSource = nullptr) const;
 
     /** What the shared loadout rules can check for this character (class, BD, discount,
-     *  ownership, castability). Inventory = the ownership source. */
+     *  ownership, castability). Inventory = the ownership source. The checks capture raw
+     *  component pointers: use the context at once, don't store it. */
     FLoadoutRuleContext BuildRuleContext(const UInventoryComponent *Inventory) const;
 
     // OBSOLETE (B-028): the pre-merge checks, kept for wor.Loadout.CompareRules until Crown's PIE pass.
