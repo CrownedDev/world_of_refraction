@@ -235,10 +235,14 @@ The queue of questions only Crown can answer.
 - Tests: a full Wind bar moves the target later in the next turn order; it still acts that round.
 
 ### D-015 — Should cleanse remove your own gear effects?
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-065
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-065
 **Context:** On-hit gear effects count as debuffs, so `CleanseSelf` strips them. Iolite also strips an enemy's permanent gear buffs, and nothing re-applies them (`ESkillEffectType.h:391-393`, `ItemExecutor.cpp:1029-1041`).
 **Recommendation:** Cleanse removes only effects applied by others; gear effects are immune.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A** (2026-10-26). Cleanse (and Iolite) only removes effects **someone else applied**; gear effects are immune, yours and the enemy's.
+**Notes for Claude:**
+- Gear effects (applied via `ApplyEquipmentEffects` / armed conditionals) need a "from gear" mark on the active effect; `CleanseSelf`/`CleanseAllies` and Iolite (`ItemExecutor.cpp:1025-1045`) skip marked effects.
+- Leave `IsDebuff()`'s classification (`ESkillEffectType.h:386-396`) alone; the exemption is by origin, not type.
+- Tests: cleanse removes an enemy's Burn but keeps your "attacks apply Burn" ring; Iolite on an enemy keeps their gear buffs.
 
 ### D-016 — Can equipped items be dismantled?
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-084
