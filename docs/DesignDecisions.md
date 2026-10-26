@@ -79,7 +79,7 @@ The queue of questions only Crown can answer.
 - Co-op revive on defeat: not decided yet (later, with co-op).
 
 ### D-003 — How do recruited party members get into battle?
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-071
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-071
 **Question:** How do they get from the party list into a fight?
 **Context:**
 - The battle roster is built only from actors standing in the arena sphere (`EncounterComponent.cpp:182-197`). Recruits are never spawned into the trial.
@@ -88,17 +88,25 @@ The queue of questions only Crown can answer.
 - A: taken from the party list when the encounter starts, each spawned with its own `FPartyMember.PawnClass`.
 - B: recruits follow the player around the trial and join via the sphere.
 **Recommendation:** A. No follower AI is needed, and it works for co-op later.
-**Answer (Crown):** _write here_
+**Answer (Crown):** (2026-10-26) **Both, by who the member is:**
+- **Party members (characters):** you build your team in the hub before a run, and you can also **find characters during a trial** and add them. They join a fight from the party list when it starts (option A): spawned next to the leader, each with its own `FPartyMember.PawnClass`.
+- **Human players (co-op):** the radius system (option B). Only players whose radius overlaps the encounter are pulled into the fight.
+**Notes for Claude:** - Single-player now: build A (spawn from the party list at encounter start, `EncounterComponent.cpp:182-197`, `BattleGameMode.cpp:133`). Keep the sphere-overlap gather for player pawns so co-op can use it later; don't delete it.
+- Finding characters in a trial: the recruit flow already exists in the hub; reusing it inside a trial is a separate job (B-076). Whether a character found in a run stays after the run is open (D-026).
+- Party size, slots and leader rules: as in the party system today (`docs/Architecture/PartySystem.md`).
 
 ### D-004 — Are non-leader party members AI-controlled in battle?
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-071
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-071
 **Question:** Who acts for party members other than the leader?
 **Context:** Only PC0's pawn is player-controlled; the others run on AI (`CombatOrchestrator.cpp:1198-1209`).
 **Options:**
 - A: the player controls every party member on their turn (Expedition 33 style).
 - B: AI companions.
 **Recommendation:** A, because it's the genre standard. AI control stays for co-op ghosts.
-**Answer (Crown):** _write here_
+**Answer (Crown):** (2026-10-26) **Your choice, per party member:** you can control a member yourself on their turn, or let the AI play them.
+**Notes for Claude:** - Add a per-member control setting (Player / AI) on `FPartyMember`, set on the hub party screen; default Player. The leader is always Player.
+- Player-controlled members use the normal command menu on their turn; AI members use the existing AI path (`CombatOrchestrator.cpp:1198-1209`, which today keys on PC0's pawn only).
+- Whether the setting can be changed mid-fight is open (D-026).
 
 ### D-005 — Should elements change damage?
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-064
@@ -206,9 +214,10 @@ The queue of questions only Crown can answer.
 **Answer (Crown):** _write here_
 
 ### D-019 — Where does the mockup generator live?
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** —
 **Question:** Copy `tools/ui_drafts/` into this repo, or keep it in wor-deckbuilder?
-**Answer (Crown):** _write here_
+**Answer (Crown):** **Answered by D-025 = A** (2026-10-26): the tool is copied into this repo (`Tools/ui_drafts/`).
+**Notes for Claude:** Nothing to apply beyond B-100.
 
 ### D-020 — Is the account pool shared across characters?
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-091
@@ -285,6 +294,16 @@ The queue of questions only Crown can answer.
 **Recommendation:** A. One repo to work in, and you can review drafts from your phone. The repo is private and LFS-tracks `png`; drafts are small (1280×720).
 **Answer (Crown):** **A** (2026-10-26). Copy the tool into this repo; commit the drafts so they can be reviewed from the phone.
 **Notes for Claude:** tool under `Tools/ui_drafts/`, kit path from env var `WOR_UI_KIT` (fail with a clear message if unset); drafts under `docs/Design/screen_mockups/<area>/<screen>/vN/` (`_plain.png` + `_annotated.png`, LFS). Copy only the tool code, never the kit itself.
+
+### D-026 — Party follow-ups: do found characters stay, and can you switch control mid-fight?
+**Status:** OPEN · **Raised:** 2026-10-26 · **Blocks:** B-076 (part), B-071 (control switch only)
+**Question:** (1) Does a character you find during a trial stay in your roster after the run? (2) Can you switch a member between you and the AI during a fight?
+**Context:** D-003/D-004 answers (2026-10-26). Runs reset found gear to a pool (trials are runs); characters aren't covered yet.
+**Options:**
+- (1) A: they stay (recruited for good) · B: run-only, gone after the run · C: run-only, but you unlock them to recruit in the hub.
+- (2) A: hub only · B: also mid-fight, on that member's turn.
+**Recommendation:** (1) C: finding them in a run is the reward, and the hub keeps the team-building · (2) B: cheap to add and handy when a fight turns.
+**Answer (Crown):** _write here_
 
 ---
 
