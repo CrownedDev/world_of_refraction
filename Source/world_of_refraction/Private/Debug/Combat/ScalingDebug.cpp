@@ -105,6 +105,7 @@ FString UScalingDebug::GetScalingSnapshotString(AActor *Attacker, AActor *Defend
 // CONSOLE COMMAND — frictionless baseline capture
 // ========================================
 
+#if !UE_BUILD_SHIPPING
 namespace
 {
     // Auto-resolve the active combat's attacker (current-turn actor) + defender (first living enemy)
@@ -170,3 +171,4 @@ static FAutoConsoleCommandWithWorld GScalingSnapshotCommand(
     TEXT("available abilities vs the first living enemy. Baseline-capture for the unified-scaling-tiers arc — ")
     TEXT("run before stage b2, re-run after with empty StatScaling to verify byte-identical."),
     FConsoleCommandWithWorldDelegate::CreateStatic(&RunScalingSnapshotCommand));
+#endif // !UE_BUILD_SHIPPING

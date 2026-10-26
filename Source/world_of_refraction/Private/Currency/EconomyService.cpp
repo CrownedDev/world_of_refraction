@@ -1584,6 +1584,7 @@ void UEconomyService::PrintEconomy(AActor *Owner) const
 // FAutoConsoleCommandWithWorld — NOT UFUNCTION(Exec / CallInEditor). A UGameInstanceSubsystem is not
 // on the engine's FExec chain and has no Details panel, so neither trigger fires. Console commands
 // resolve from any class. "wor." prefix groups them. State is PIE-only, so the chain is null-checked.
+#if !UE_BUILD_SHIPPING
 namespace
 {
     static FAutoConsoleCommandWithWorld GPrintEconomyCmd(
@@ -1642,3 +1643,4 @@ namespace
                        *UEnum::GetValueAsString(Pillar), bOK ? TEXT("OK") : TEXT("FAILED (cap / can't afford / missing component)"));
             }));
 }
+#endif // !UE_BUILD_SHIPPING
