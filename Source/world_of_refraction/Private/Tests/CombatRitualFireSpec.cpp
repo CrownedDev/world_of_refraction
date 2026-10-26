@@ -12,14 +12,16 @@
 #include "Combat/TurnManager.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "Character/CharacterDataComponent.h"
 
 namespace
 {
 	constexpr int32 RITUAL_DELAY_TURNS = 1;
 	/** Turns to play through: enough for the delay to burn and the Execution turn to come up. */
 	constexpr int32 RITUAL_MAX_TURNS_TO_PLAY = 6;
-	/** Test-world ticks are 0.01s; spans any timer an async action waits on, with margin. */
-	constexpr int32 RITUAL_SETTLE_FRAMES = 200;
+	/** Test-world ticks are 0.01s; spans the executor's 10s timeout, which covers the defense
+	 *  window's 8s failsafe a montage-less ability waits on (no impacts land to close it). */
+	constexpr int32 RITUAL_SETTLE_FRAMES = 1100;
 }
 
 BEGIN_DEFINE_SPEC(FCombatRitualFireSpec, "WoR.Combat.RitualFire",
@@ -32,8 +34,9 @@ BEGIN_DEFINE_SPEC(FCombatRitualFireSpec, "WoR.Combat.RitualFire",
 	AActor *Hero = nullptr;
 	AActor *Foe = nullptr;
 
-	/** Starts a duel (Hero has turn 1) and arms Ritual for Hero, as the executor does at arm time. */
-	bool StartDuelWithRitual(const FAction &Ritual)
+	/** Starts a duel (Hero has turn 1) and arms the ritual MakeRitual builds for Hero, as the executor
+	 *  does at arm time. The ritual is built after the spawn so it can target Foe. */
+	bool StartDuelWithRitual(TFunctionRef<FAction()> MakeRitual)
 	{
 		if (!Orchestrator || !Executor || !TurnManager)
 		{
@@ -49,7 +52,7 @@ BEGIN_DEFINE_SPEC(FCombatRitualFireSpec, "WoR.Combat.RitualFire",
 		Recorder = NewObject<UActionExecutedRecorder>();
 		Recorder->AddToRoot();
 		Recorder->Listen(Orchestrator);
-		Executor->OnActionDeferredArmed.Broadcast(Hero, Ritual, RITUAL_DELAY_TURNS);
+		Executor->OnActionDeferredArmed.Broadcast(Hero, MakeRitual(), RITUAL_DELAY_TURNS);
 		return true;
 	}
 
@@ -119,9 +122,13 @@ void FCombatRitualFireSpec::Define()
 
 	It("fires an armed ritual on its Execution turn and moves on", [this]()
 	{
-		FAction Defend;
-		Defend.ActionType = EActionType::Defend;
-		if (!StartDuelWithRitual(Defend))
+		const auto MakeDefend = []()
+		{
+			FAction Defend;
+			Defend.ActionType = EActionType::Defend;
+			return Defend;
+		};
+		if (!StartDuelWithRitual(MakeDefend))
 		{
 			return;
 		}
@@ -134,13 +141,55 @@ void FCombatRitualFireSpec::Define()
 		TestTrue(TEXT("Back on a normal turn"), TurnManager->GetCurrentTurnType() == ETurnType::Normal);
 	});
 
-	// TODO: a montage-less ritual ability (the case the old sync router dropped) needs PIE for now:
-	// the async skill start crashes in the headless test world (BeginSkillExecution), see B-166.
+	It("fires a montage-less ritual ability (the case the old sync router dropped)", [this]()
+	{
+		UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
+		Ability->Name = TEXT("Montage-less Ritual");
+		Ability->AddToRoot();
+		if (!StartDuelWithRitual([this, Ability]() { return MakeAbilityOn(Foe, Ability); }))
+		{
+			Ability->RemoveFromRoot();
+			return;
+		}
+		PlayTurns();
+		Ability->RemoveFromRoot();
+
+		TestTrue(TEXT("The ritual ability fired"), Recorder->Saw(Hero, EActionType::Ability, true));
+		TestTrue(TEXT("Combat still running"), Orchestrator->GetCombatState() == ECombatState::InProgress);
+		TestTrue(TEXT("Back on a normal turn"), TurnManager->GetCurrentTurnType() == ETurnType::Normal);
+	});
+
+	It("advances past a ritual ability whose target is gone when it fires", [this]()
+	{
+		// A deferred fire skips the dead-target gate, so the skill finalizes inside its own start
+		// (no valid targets) - the B-166 crash path. The dead bystander isn't in the fight.
+		AActor *DeadTarget = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		UCharacterDataComponent *DeadData = DeadTarget ? DeadTarget->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		if (!TestNotNull(TEXT("Dead target data"), DeadData))
+		{
+			return;
+		}
+		DeadData->bIsAlive = false;
+		UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
+		Ability->Name = TEXT("Targetless Ritual");
+		Ability->AddToRoot();
+		if (!StartDuelWithRitual([this, DeadTarget, Ability]() { return MakeAbilityOn(DeadTarget, Ability); }))
+		{
+			Ability->RemoveFromRoot();
+			return;
+		}
+		PlayTurns();
+		Ability->RemoveFromRoot();
+
+		TestTrue(TEXT("The ritual fired and fizzled"), Recorder->Saw(Hero, EActionType::Ability, false));
+		TestTrue(TEXT("Combat still running"), Orchestrator->GetCombatState() == ECombatState::InProgress);
+		TestTrue(TEXT("Back on a normal turn"), TurnManager->GetCurrentTurnType() == ETurnType::Normal);
+	});
 
 	It("advances past a ritual that can't fire", [this]()
 	{
 		// An ability with no skill asset is refused at fire time.
-		if (!StartDuelWithRitual(MakeAbilityOn(Foe, nullptr)))
+		if (!StartDuelWithRitual([this]() { return MakeAbilityOn(Foe, nullptr); }))
 		{
 			return;
 		}
