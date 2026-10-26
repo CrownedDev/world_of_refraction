@@ -457,7 +457,25 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Context:** `Resources_Design.md` "Trial = the run" leaves the shape deferred; §7.1 describes an older "continuous escalating climb". Code: each trial is a walkable map behind a hub door (`TrialData.h`: Name, Element, Level, EncounterLevel; LootPool, POIs, Boss, Modifiers banked), fights start on contact (`EncounterComponent`).
 **Answer (Crown):**
 - **(1) Open maps, Nightreign style** (2026-10-26): you roam the trial's map and choose your fights; abilities and movement out in the world (field abilities, `GASMigration.md`); vendors, chests and characters to find along the way; the boss at the end. "Just enjoy yourself." Supersedes §7.1's escalating climb.
-**Notes for Claude:** record further answers here; when complete, write `docs/Design/RunStructure.md` and point `Resources_Design.md` §7.1 at it.
+- **(2) Goal: A and C** (2026-10-26): **no timer**; the boss can be faced whenever you're ready, **and** you collect **memory fragments** while exploring. How the two combine is the next question (D-032 part 3).
+- **(3) The story behind trials** (Crown, 2026-10-26): the **Elemental Lords** are characters from Crown's story who have **lost their memories**. In the trials they **face versions of themselves**, and find **items, gear and dialogue relating to themselves**:
+  - Lore dialogue is **logged** (e.g. the Garnet Lord and the Void Lord share history, so they have lines about each other).
+  - Lords **react to what you bring**: face one carrying a specific weapon and they may notice it and give you a **quest** (e.g. a weapon tied to the Fire Lord).
+  - This needs **bound gear and skills** (D-033).
+**Notes for Claude:** the lords exist as data already (`DA_Character_FireLord` plus 6 more, commit `bdf2557`; Fire, Water, Darkness, Broken Darkness, Earth, Wind, Light, Lightning, Void, Reality). Record further answers here; when complete, write `docs/Design/RunStructure.md` and point `Resources_Design.md` §7.1 at it.
+
+### D-033 — Bound gear and skills
+**Status:** OPEN · **Raised:** 2026-10-26 · **Blocks:** — (lord quests, trial loot, D-032)
+**Question:** Crown wants bound gear/skills so items can belong to a lord (e.g. the Fire Lord's weapon). How do they work?
+**Context:**
+- This game has nothing like it yet.
+- Deckbuilder (`WoR_TCG_Pivot_Design.md`, 2026-10-14): **Bonded** cards are a Character's own cards; **Bonded effects** give that Character a bonus when using them (e.g. Garrick with Dual Blades). **Signature** cards are what a Character's encounter always brings.
+**Options (who can use a bound item):**
+- A: anyone can equip it; only its own lord gets the **bound bonus** (and the reactions and quests).
+- B: only its own lord can equip it.
+- C: anyone can, but it's weaker in other hands.
+**Recommendation:** A, the deckbuilder's Bonded model: nothing is locked away, and the bound bonus makes the right pairing feel special. A lord's trial version uses its bound kit as its **signature** gear (what it always brings).
+**Answer (Crown):** _write here_
 
 ---
 
