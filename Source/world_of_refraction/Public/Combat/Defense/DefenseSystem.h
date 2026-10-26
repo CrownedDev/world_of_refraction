@@ -272,6 +272,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Defense System")
 	FDefenseResult CloseDefenseWindow(AActor *Defender);
 
+	/** Drop every open window and its close timer without resolving it (B-030): called when a fight ends. */
+	void ResetForCombat();
+
 	/**
 	 * Submit player's defense input
 	 * @param Defender The defending actor

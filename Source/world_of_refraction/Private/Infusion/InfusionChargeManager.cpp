@@ -124,6 +124,15 @@ int32 UInfusionChargeManager::CompleteCharge()
 	return FinalLevel;
 }
 
+void UInfusionChargeManager::ResetForCombat()
+{
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(UpdateTimerHandle);
+	}
+	ResetState();
+}
+
 void UInfusionChargeManager::CancelCharge()
 {
 	if (CurrentState != EChargeState::Charging)

@@ -18,7 +18,12 @@ void UDefenseSystem::Initialize(FSubsystemCollectionBase &Collection)
 
 void UDefenseSystem::Deinitialize()
 {
-	// Clear all timers
+	ResetForCombat();
+	Super::Deinitialize();
+}
+
+void UDefenseSystem::ResetForCombat()
+{
 	if (UWorld *World = GetWorld())
 	{
 		for (auto &Pair : WindowTimerHandles)
@@ -27,9 +32,12 @@ void UDefenseSystem::Deinitialize()
 		}
 	}
 
+	if (ActiveDefenseStates.Num() > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Reset: dropped %d open defense window(s)"), ActiveDefenseStates.Num());
+	}
 	ActiveDefenseStates.Empty();
 	WindowTimerHandles.Empty();
-	Super::Deinitialize();
 }
 
 // ========================================

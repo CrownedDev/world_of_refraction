@@ -148,6 +148,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Infusion Charge")
 	void CancelCharge();
 
+	/** Stop the charge timer and return to idle without broadcasting (B-030): called when a fight ends. */
+	void ResetForCombat();
+
 	/**
 	 * Update charge state (call from Tick if using time-based charging)
 	 * Automatically called if bAutoUpdate is true
