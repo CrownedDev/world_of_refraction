@@ -237,7 +237,7 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
             UE_LOG(LogTemp, Display, TEXT("  Spells: %d"),
                    Active.PrimaryWeapon.GetAllSpells().Num());
             // Slot capacity by container tier (ability cap = weapon tier; spell cap =
-            // effective ResolveSpellSlotCap, i.e. gem tier when a gem is attached, else weapon tier).
+            // effective ResolveSpellSlotCap, i.e. gem or evolution tier when one is attached, else weapon tier).
             if (const UWeaponData *W = Active.PrimaryWeapon.WeaponEntry.Weapon)
             {
                 // Display the INSTANCE (leveled) tier from the entry, not the base asset (W->Tier).

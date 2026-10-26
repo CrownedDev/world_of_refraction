@@ -127,6 +127,25 @@ void FLoadoutRulesSpec::Define()
 			TestTrue(TEXT("one over: refused"), AnyReasonContains(Saved.GetValidationErrors(), TEXT("Too many evolution spells")));
 		});
 
+		It("caps an evolution attached to a weapon or ring by its own tier, not the holder's (Q-147 = B)", [this]()
+		{
+			FRuntimeAttachedItem Attached;
+			Attached.Kind = EAttachedItemKind::Evolution;
+			Attached.Evolution.Item = NewObject<UEvolutionItemData>(GetTransientPackage());
+			for (const EItemTier Tier : {EItemTier::F_Tier, EItemTier::S_Tier})
+			{
+				Attached.Evolution.Tier = Tier;
+				TestEqual(TEXT("weapon: the evolution's tier count"),
+						  CrystalEffectTable::ResolveSpellSlotCap(Attached, LoadoutConstants::MAX_SPELL_SLOTS),
+						  CrystalEffectTable::SlotsForContainerTier(Tier));
+				TestEqual(TEXT("ring: the evolution's tier count"),
+						  CrystalEffectTable::ResolveSpellSlotCap(Attached, LoadoutConstants::MAX_RING_SPELLS),
+						  CrystalEffectTable::SlotsForContainerTier(Tier));
+			}
+			TestTrue(TEXT("an F evolution holds fewer than the weapon ceiling"),
+					 CrystalEffectTable::SlotsForContainerTier(EItemTier::F_Tier) < LoadoutConstants::MAX_SPELL_SLOTS);
+		});
+
 		It("uses BD rules when the character is BD, whatever pools are authored", [this]()
 		{
 			FSavedLoadout Saved;
