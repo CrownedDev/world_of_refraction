@@ -48,7 +48,7 @@ enum class ELoadoutSlotType : uint8
 	EvolutionOverflow,
 	RingOverflow,
 	DuplicateItems,
-	// Reported, not cleared yet (B-159 drops them).
+	// Reported, not cleared yet (B-159 drops them on equip / load).
 	AbilityOverflow,
 	ItemSlot
 };

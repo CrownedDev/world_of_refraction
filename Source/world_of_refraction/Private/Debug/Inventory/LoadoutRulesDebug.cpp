@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
+#include "WoRLog.h"
 
 namespace
 {
@@ -72,7 +73,7 @@ void ULoadoutRulesDebug::CompareLoadoutRules(const UObject *WorldContextObject)
 		if (const ULoadoutComponent *Loadout = It->FindComponentByClass<ULoadoutComponent>())
 		{
 			const FString Line = GetCompareRulesString(Loadout);
-			UE_LOG(LogTemp, Display, TEXT("[LoadoutRules] %s"), *Line);
+			UE_LOG(LogWoRLoadout, Display, TEXT("[LoadoutRules] %s"), *Line);
 			if (GEngine)
 			{
 				GEngine->AddOnScreenDebugMessage(INDEX_NONE, LOADOUT_RULES_SCREEN_SECONDS, FColor::Cyan, Line);
@@ -80,5 +81,5 @@ void ULoadoutRulesDebug::CompareLoadoutRules(const UObject *WorldContextObject)
 			++Count;
 		}
 	}
-	UE_LOG(LogTemp, Display, TEXT("[LoadoutRules] Compared %d characters"), Count);
+	UE_LOG(LogWoRLoadout, Display, TEXT("[LoadoutRules] Compared %d characters"), Count);
 }
