@@ -925,6 +925,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **(1) The hub is fixed (A)** (2026-10-26). Progress-as-you-remember (B) shows up in other ways, not by rebuilding the hub.
 - **(2) The premise:** the hub is **the Void Realm**. The characters went to a **bar**, passed out after drinking **void-spiked drinks**, and woke up in the Void Realm **with no memories**. **V is their guide.**
 - **(3) Who V is** (Crown, 2026-10-26): **V is the Void**: the Void Realm itself, or the **Elemental Lord of Void**. **Void represents any and all concepts**, which is why V can appear as every mob enemy (D-069): the enemies are V taking on concepts.
+  - **Hidden from players** (Crown, 2026-10-26): players are **not told** any of this. They have to **figure it out** from lore, dialogue and clues. Treat V's nature as a spoiler: nothing player-facing states it outright.
 **Notes for Claude:** open: whether the Void Lord who travels with the party (one of the amnesiac lords; `DA_Character` Void lord, D-032 lore) is V or a separate character. Record further answers here; write `docs/Design/HubAndStory.md` when complete.
 
 ## Parked
