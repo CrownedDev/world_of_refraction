@@ -174,14 +174,19 @@ The queue of questions only Crown can answer.
 - Tests: swap away removes the old ring's effect; swap back restores it once (no stacking).
 
 ### D-009 — Do stones and fusions on rings work?
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-082
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-082
 **Question:** Should stones on rings have any effect?
 **Context:** Fusions are allowed on rings (`RingData.cpp:40-44`), but every stone read goes through the active weapon only. Ring stones are inert.
 **Options:**
 - A: rings' stones count.
 - B: disallow stones on rings.
 **Recommendation:** A, for Resonators.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A** (2026-10-26): on a ring, the stat-stone half of an elemental fusion counts.
+**Notes for Claude:**
+- Already settled, checked 2026-10-26: rings reject bare augment stones and augmented (two-stone) fusions, and accept only elemental fusions (`RingData.cpp:30-44`); the crystal half gives the ring its spells (`AugmentStoneSystem.md` "Rings + AugmentStones").
+- To build: the stone half's **attached form** (the permanent `+X%` self-passive to the holder) applies from a ring too. Today stone reads go through the active weapon only.
+- Which rings count: the same rule gear effects use (the Resonator's active ring, a primary ring), unless D-008's swap rule says otherwise; stays consistent with B-081.
+- Tests: ring with a DefenseStone + Fire crystal fusion raises Defense and still offers the Fire spells.
 
 ### D-010 — Resonator ring rules
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-083

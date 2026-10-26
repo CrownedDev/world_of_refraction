@@ -114,7 +114,7 @@
 | B-098 | Weapons stop giving spells (D-027): survey weapon spell slots + weapon-crystal spells in data/saves, then the crystal keys the weapon's abilities instead | CC | L | B-097 | Survey in the hand-off first; no weapon offers a spell; saved loadouts still load | BLOCKED (B-097) |
 | B-099 | Generic + evolution keeps its secondary weapon (D-027): `HasSecondaryEquipment` / `HasRingInSecondary` return false when the primary is an evolution (`LoadoutComponent.cpp:2469`, `:2503`), against `FCombatCapabilities.cpp:206`, which already expects "Evolution + Secondary Weapon". Make every path agree | CC | S | — | Test: Generic with an evolution primary and a secondary sword attacks and uses the sword's abilities | TODO |
 | B-081 | Gear effects follow a mid-fight swap per D-008: on weapon toggle / ring switch, remove + disarm the old gear's effects, apply + arm the new | CC | M | D-008 | Tests: ring switch changes effects; swapping back doesn't stack | TODO |
-| B-082 | Ring stones per D-009 | CC | S | D-009 | Matches answer | BLOCKED (D-009) |
+| B-082 | Ring fusions per D-009: the stat-stone half of an elemental fusion on a ring applies its attached self-passive (today stone reads go through the weapon only) | CC | S | D-009 | Test: DefenseStone + Fire crystal ring raises Defense and keeps its Fire spells | TODO |
 | B-083 | Resonator ring rules per D-010 | CC | S | D-010 | Validator enforces | BLOCKED (D-010) |
 | B-084 | Dismantle equipped per D-016 | CC | S | D-016 | Matches answer | BLOCKED (D-016) |
 | B-085 | Loadouts reference owned gear by `PersistentID` (no copies) | CC | L | B-090 | Wear/dismantle stay in sync | BLOCKED (B-090) |
