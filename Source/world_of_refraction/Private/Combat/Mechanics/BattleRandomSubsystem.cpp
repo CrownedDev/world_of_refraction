@@ -60,7 +60,7 @@ UBattleRandomSubsystem *UBattleRandomSubsystem::Get(const UObject *WorldContext)
 	if (!Battle && WorldContext)
 	{
 		// A real caller with no battle stream (travel, teardown) rolls on the global RNG, so
-		// that roll won't replay. Said once, not per roll.
+		// that roll won't replay. Said once per editor session, not per roll.
 		static bool bWarnedNoStream = false;
 		if (!bWarnedNoStream)
 		{

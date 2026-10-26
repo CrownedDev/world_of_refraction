@@ -204,6 +204,7 @@ void FBattleRandomSpec::Define()
 				return;
 			}
 			Orchestrator->StartCombat({Hero}, {Foe});
+			TestEqual(TEXT("Forced seed applied"), BattleRandom->GetSeed(), BATTLE_RANDOM_FORCED_SEED);
 			FightRolls = CritRun(0);
 			if (Orchestrator->GetCombatState() != ECombatState::Idle)
 			{
