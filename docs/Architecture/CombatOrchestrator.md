@@ -225,11 +225,9 @@ aborted combats do not count as completed battles.
 - `ApplyBetweenCombatCrystalDestruction()` (Phase B; since B-035 it sums `CrystalBreak::DestroyBrokenOn` from `Equipment/Durability/CrystalBreak.h` over both parties) — iterates each combatant's
   equipped crystal slots; for any broken crystal (`FRuntimeAttachedItem::IsBroken()`,
   queried via `LoadoutComp->GetCrystalEntryByHolder(Slot.Holder)`) it calls
-  `LoadoutComp->ResetCrystalEntryByHolder(Slot.Holder)` to clear the runtime entry.
-  Also calls `LoadoutComp->ClearBrokenPrimaryEvolution()` for the case-B standalone
-  primary-slot evolution (e.g. Broken Darkness) — `GetEquippedCrystals` doesn't
-  surface evolution self-holders, so the loop would miss broken primary evolutions.
-  Counted in `CrystalsDestroyed`. The asset is never mutated at runtime. Silent
+  `LoadoutComp->ResetCrystalEntryByHolder(Slot.Holder)` to clear the runtime entry and
+  dismantles it (gems and fusions). Since Q-159 a broken evolution, attached or in the
+  primary slot, is kept, broken, not cleared. Counted in `CrystalsDestroyed`. The asset is never mutated at runtime. Silent
   (no UI delegate). Runs BEFORE repair so destroyed crystals are not repair candidates.
 - `ApplyBetweenCombatRepair()` — sums `CrystalBreak::RepairOn` (since Q-159c) over both
   parties: adds `DurabilityConstants::REPAIR_PER_BATTLE` to every non-broken equipped gem and

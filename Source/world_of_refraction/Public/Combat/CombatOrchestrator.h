@@ -619,9 +619,8 @@ private:
 
 	/** Apply +REPAIR_PER_BATTLE via CrystalBreak::RepairOn to every combatant's attached gems
 	 *  (not broken ones) and evolutions (broken included, Q-159c), plus a primary-slot
-	 *  evolution. Fired in the win-condition cleanup
-	 *  inside OnActionCompleted. NOT called from ForceEndCombat (aborts don't count
-	 *  as completed battles). */
+	 *  evolution. Fired when a fight finishes (win or loss) inside OnActionCompleted.
+	 *  NOT called from ForceEndCombat (aborts don't count as completed battles). */
 	void ApplyBetweenCombatRepair();
 
 	/** Phase B — Crystal destruction at combat end.
