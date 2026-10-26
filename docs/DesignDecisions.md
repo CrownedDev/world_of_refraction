@@ -5,7 +5,7 @@ The queue of questions only Crown can answer.
 **How it's used**
 - **Claude Code (local, working the backlog):**
   - Never decides an `OPEN` item.
-  - When a backlog job needs a decision, it adds or links an entry here, marks the job `BLOCKED (D-xxx)` in `docs/Backlog.md`, and **moves on to the next unblocked job**. No waiting.
+  - When a backlog job needs a decision, it adds or links an entry here, marks the job `BLOCKED (Q-xxx)` in `docs/Backlog.md`, and **moves on to the next unblocked job**. No waiting.
 - **Crown:** answers whenever convenient. Ways to do it:
   - from a Claude cloud session (phone or web), talking it through and having it write the answer here and push;
   - by editing this file on GitHub;
@@ -23,9 +23,14 @@ The queue of questions only Crown can answer.
 - `DECIDED`: applied; recorded in the relevant design doc.
 - `PARKED`: deliberately later.
 
+**Numbering (Crown, 2026-10-26), from D-081 on:**
+- **`Q-<job>`**: a question Claude Code raises while doing a backlog job takes **that job's number**: a question from B-155 is **Q-155**; a second one is Q-155b (the first stays Q-155). The number says which job it belongs to, and Claude Code never needs to pick a free number.
+- **`D-xxx`**: design decisions from Crown's chat sessions (cloud), next free D number.
+- Existing D-001…D-081 keep their numbers. Both kinds live in this file and use the same entry format and statuses.
+
 **Entry format** (keep each short; one decision per entry):
 ```
-### D-NNN — Title
+### D-NNN — Title   (or Q-<job> — Title)
 **Status:** OPEN · **Raised:** YYYY-MM-DD · **Blocks:** B-xxx, B-yyy
 **Question:** one line.
 **Context:** 2–4 lines, with file:line.
@@ -858,7 +863,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 | C / D | 3 |
 | E / F | 4 |
 **Notes for Claude:**
-- Counts every crystal the character has equipped (weapon, ring, evolution and other attachment slots). Enforced in loadout validation (`LoadoutComponent::GetValidationErrors` and the saved-loadout check), with a clear message.
+- Counts **utility crystals** in the character's **item slots**, per crystal (stacks count each one); attachments don't count (D-077). Enforced in loadout validation (`LoadoutComponent::GetValidationErrors` and the saved-loadout check), with a clear message.
 - **Bands are combined** (Crown, 2026-10-26: "A or B = 2"): at most 2 crystals of tier A or B together; likewise C or D = 3, E or F = 4.
 - The deckbuilder caps S-tier **equipment** at 3 per kind per deck and leaves crystals uncapped (`WoR_TCG_Pivot_Design.md` §8b rule 4); this is this game's own rule.
 - Caps as named constants.
@@ -898,7 +903,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### D-077 — Crystal tier caps: what counts as "a crystal"?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-155) · **Blocks:** B-155
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-155) · **Blocks:** B-155
 **Question:** D-072 caps how many crystals of each tier band a character can have equipped (S 1, A+B 2, C+D 3, E+F 4). A weapon or ring slot can hold more than a plain crystal (CL-30), so which of these count toward the caps, and at what tier?
 **Context:** a slot holds one of: a **crystal**; an **augment stone** (stat stone or Ability Stone, weapons only, it has a tier); a **fusion** (two halves with at least one stat stone: stone + crystal, stone + stone, or stone + Ability Stone, CL-32); or an **evolution** (its own tier; the primary-slot evolution gives spells, CL-33). Plain crystals clearly count. The others aren't settled.
 **Options:**
@@ -906,20 +911,23 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** count **plain crystals only**.
 - **C** count **every attachment** (crystal, stone, fusion, evolution) at its own tier (a fusion at its higher half).
 **Recommendation:** A, because it caps what channels elements and spells (crystals, the crystal half of a fusion, evolutions) and leaves stat stones, which are a different kind of gear, alone. The deckbuilder leaves crystals uncapped, so there's nothing to borrow.
-**Answer (Crown):** _pending_
+**Answer (Crown):** (2026-10-26) **None of A–C: the caps are for crystals carried as items**, i.e. crystals in the character's **item slots** (thrown/used in a fight, `FCombatLoadout::ItemSlots`), not attachments. Crystals, stones, fusions and evolutions **attached to gear don't count**.
+- **Counted per crystal (A):** a stack counts each crystal, so S = 1 means one S-tier utility crystal in total (a slot of 2 S-tier breaks it).
+- **Naming:** crystals and stones used as items are called **utility crystals** / **utility stones** (player-facing; code names unchanged).
+**Notes for Claude:** update D-072's note (it said "every crystal the character has equipped"); enforce in the one loadout rule set (B-028) on item slots, summing quantities per tier band. Utility stones: they're item-slot entries too, but D-072 named crystals; ask Crown before capping stones.
 **Notes for Claude:** _optional_
 
 ### D-078 — Combat camera: three choices the basic version made
-**Status:** OPEN · **Raised:** 2026-10-26 (B-156) · **Blocks:** — (B-156 shipped with the recommendation; B-157 tunes it)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-156) · **Blocks:** — (B-156 shipped with the recommendation; B-157 tunes it)
 **Question:** B-156 had to pick three behaviours D-074 doesn't cover. Keep them?
 **Context:** `CombatCameraDirector.cpp` HandleActionStarted / HandleActorTurnStarted. (1) With **camera movement off**, skill cinematics are skipped too (one static view). (2) **Enemy skills** play their cinematics like yours. (3) A cinematic runs **until it ends or the next turn starts** (not cut when the action's damage resolves).
 **Options:** A keep all three / B movement-off still plays cinematics (only turn moves stop) / C enemy skills keep the pan-out view (no cinematics) / any mix.
 **Recommendation:** A, because movement off is a motion-sickness setting (cinematics move the camera most), enemy cinematics are how you read an incoming hit (design §2, Defence mode), and cutting at damage would chop the end of most shots.
-**Answer (Crown):** _pending (try it in PIE first: `docs/PIE/B-156.md`)_
+**Answer (Crown):** **A, keep all three** (2026-10-26): movement-off also skips cinematics; enemy skills play their cinematics; a cinematic runs until it ends or the next turn starts. **Keep for now, needs testing** (Crown): mark all three as untested defaults to check in PIE (`docs/PIE/B-156.md`). **Each also becomes a setting** (Crown, 2026-10-26): (1) cinematics on/off separate from camera movement, (2) enemy skill cinematics on/off, (3) skip a cinematic once its hit has landed. Defaults as above.
 **Notes for Claude:** _optional_
 
 ### D-079 — The hub and the story
-**Status:** ANSWERED (in progress: more parts as Crown answers) · **Raised:** 2026-10-26 · **Blocks:** — (hub content, story, NPCs)
+**Status:** ANSWERED · **Raised:** 2026-10-26 · **Blocks:** — (hub content, story, NPCs)
 **Context:** the hub's function is designed (one hub, Nightreign Roundtable model; service NPCs Blacksmith, Jeweler, Stone Smith, Spiritualist, ability/spell shops: `Resources_Design.md` "SUPERSEDED — collapsed to ONE hub", "Hub NPCs", "Hub/Trial Merchants"). Not designed: the hub's place in the story and how the story unfolds.
 **Answer (Crown):**
 - **(1) The hub is fixed (A)** (2026-10-26). Progress-as-you-remember (B) shows up in other ways, not by rebuilding the hub.
@@ -935,19 +943,21 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **(6) Hub NPCs: A, V in different forms** (Crown, 2026-10-26): every service NPC (Blacksmith, Jeweler, Stone Smith, Spiritualist, shops) is **V**, with a different outfit or prop per role. A quiet clue to V's nature (part 3). Lost-soul NPCs may come later.
   - So **V's look** (void material + clothing on Manny/Quinn, B-143/B-144) carries the guide, every mob and every hub NPC: Crown calls it **imperative** when the time comes.
 - **(7) The opening: B** (Crown, 2026-10-26): the game **opens with waking up in the Void Realm**, no memories, V there. The bar night isn't shown; it's **recovered later as one of the first memories**.
-**Notes for Claude:** the data assets keep their names for now (`DA_Character_FireLord` etc., D-058: existing names stay); rename when the real names exist. Player-facing text never says "Lord" for them. Record further answers here; write `docs/Design/HubAndStory.md` when complete.
+- **(8) The goal is phased by the gate's theme** (Crown, 2026-10-26): the story advances **theme by theme**, following the trial variations (D-032 part 10). First you recover **lost Present memories**, next **memories of the Past**, and so on; what each phase is about depends on the trial theme. How a phase unlocks the next (e.g. enough memories recovered) isn't ruled.
+**Notes for Claude:** the data assets keep their names for now (`DA_Character_FireLord` etc., D-058: existing names stay); rename when the real names exist. Player-facing text never says "Lord" for them. Written up in `docs/Design/HubAndStory.md`.
 
 ### D-080 — Loadout check in the editor: which spell discount?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-028) · **Blocks:** — (B-028 shipped with the recommendation)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-028) · **Blocks:** — (B-028 shipped with the recommendation)
 **Question:** the fight lowers each spell's weight by a mastery discount from the character's world stats (Mind/Body/Spirit). In the editor there is no character progress. Which discount should the editor check use?
 **Context:** `FSavedLoadout::GetValidationErrors` (`FSavedLoadout.cpp`) uses 0, the strictest budget. A Caster loadout that only fits with a high-mastery discount now shows an asset error, though in play the fight would accept it for a trained character (and cut it for a fresh one).
 **Options:** A discount 0 (warns about what a fresh character would have cut) / B the biggest discount possible (warns only about what no character could use) / C skip the weight budget in the editor.
 **Recommendation:** A, because authored loadouts are what new characters start with, so they should fit with no mastery.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **D** (2026-10-26, new option): the editor check uses **the authored stats of the character the loadout belongs to** (its authored world Mind/Body/Spirit) to compute the discount; **0 only when no character is attached**. So a high-stat boss can carry what its stats allow, and an under-stat starting character is warned. Players' in-game loadouts already use the live character.
+**Notes for Claude:** the editor-side check (`FSavedLoadout::GetValidationErrors`, now in the B-028 rule set) needs the owning `UCharacterData` passed in (or looked up from the `UInventoryData` it sits on); fall back to 0 when absent.
 **Notes for Claude:** _optional_
 
 ### D-081 — Equipping: when is a pick refused, and when are other parts dropped?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-159) · **Blocks:** B-159
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-159) · **Blocks:** B-159
 **Question:** D-073 says a loadout change that would break a rule is "refused or dropped right there". Which one, when?
 **Context:**
 - Some changes only add one thing: assign an ability or a spell, equip a weapon or ring. Refusing it is clean.
@@ -959,7 +969,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** refuse anything that would leave the loadout invalid; the player removes the clashing parts first.
 - **C** never refuse; always drop what breaks, with a message.
 **Recommendation:** A, because swapping gear is the common case and B makes it a chore of manual removals, while C lets a single bad pick (a Spear ability on a Sword) look like it worked. The deckbuilder has no loadout to borrow from (its decks are card lists).
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A** (2026-10-26): a pick that is itself invalid is **refused** with a reason ("Spear skills need a Spear"); a change that breaks parts you already have **goes through and drops them**, with a message naming each ("Fire Bolt removed: needs a Fire crystal").
 **Notes for Claude:** _optional_
 
 ## Parked

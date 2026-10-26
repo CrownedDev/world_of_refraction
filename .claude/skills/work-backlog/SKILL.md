@@ -29,8 +29,8 @@ Mark the job `IN PROGRESS (<branch>)` in `docs/Backlog.md` and commit that line 
 - Work in clusters of **≤3 files**, committing after each, with detailed messages.
 - **Hit a design question?**
   1. Don't guess.
-  2. Add a `D-xxx` entry in `docs/DesignDecisions.md` (format at the top of that file), with a recommendation.
-  3. Mark the job `BLOCKED (D-xxx)` and commit.
+  2. Add a **`Q-<job>`** entry in `docs/DesignDecisions.md` named after **this job's number** (B-155 → Q-155; a second question Q-155b), format at the top of that file, with a recommendation. Never take a `D-` number: those are Crown's chat decisions.
+  3. Mark the job `BLOCKED (Q-<job>)` and commit.
   4. Push the branch (work so far is kept).
   5. Go back to step 1 and pick another job.
 - Add or extend tests (Automation Spec under `Source/world_of_refraction/Private/Tests/`) for any logic you touch. Add debug utilities per CLAUDE.md for any new system.
@@ -59,6 +59,6 @@ Only once step 4 is fully green (build, tests, reviewer).
 ## 6. Stop and report
 Stop when the requested number of jobs is done, or only blocked/Crown jobs remain. Report in plain words:
 - **Done (in dev, for review):** ID, branch, its `docs/PIE/B-xxx.md`.
-- **Blocked:** ID, the D-xxx question in one line.
-- **New decisions raised:** D-xxx, one line each.
+- **Blocked:** ID, the Q-xxx question in one line.
+- **New questions raised:** Q-xxx, one line each.
 - **Next pickable job.**

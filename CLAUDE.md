@@ -77,12 +77,12 @@ Every new C++ system ships with debug utilities. Pattern:
 
 ## Rules reference — this game
 
-This game's rules live in `docs/Rules/` (start at `docs/Rules/00-index.md`): one page per topic, each rule cited to its ruling (`D-xxx`) or code (`file:line`). Read the relevant page before a rules question; when you apply a decision or build a rule, update its row there.
+This game's rules live in `docs/Rules/` (start at `docs/Rules/00-index.md`): one page per topic, each rule cited to its ruling (`D-xxx` / `Q-xxx`) or code (`file:line`). Read the relevant page before a rules question; when you apply a decision or build a rule, update its row there.
 
 ## Rules reference — the deckbuilder (Crown, 2026-10-26)
 
 The deckbuilder (`CrownedDev/wor-deckbuilder`, a local clone on Crown's PC) is the **simplest level of this same game**. Its rules are the first reference for game rules.
-- When this game has no rule for something and the deckbuilder does, **suggest the deckbuilder's rule** as the recommendation in a `D-xxx` entry, citing the page. Start at its `docs/reference/00-index.md`; read only the page the index points to.
+- When this game has no rule for something and the deckbuilder does, **suggest the deckbuilder's rule** as the recommendation in a `Q-<job>` / `D-xxx` entry, citing the page. Start at its `docs/reference/00-index.md`; read only the page the index points to.
 - Never copy a rule in without Crown's answer. Where the two games already differ, flag it as a decision; don't "fix" either one.
 - The deckbuilder's names are C#/card names (`Affinity`, "Refraction", "Refractor"); translate them to this codebase's names when citing.
 
@@ -180,8 +180,8 @@ The project is worked from one queue, `docs/Backlog.md`, with open questions in 
 1. **One job at a time**, top-down: the first `TODO` whose dependencies are `DONE` or `REVIEW (in dev)` and whose decisions aren't `OPEN`.
 2. **Own branch per job** (`fix/`, `refactor/`, `feature/`, `chore/` + `B-xxx`), from up-to-date **`dev`**. Commit after each cluster (≤3 files). **Never touch `main`** (no commits, merges or pushes): Crown merges `dev → main` after play-testing.
 3. **Never decide a design question.** If a job needs one:
-   - add or link a `D-xxx` entry in `DesignDecisions.md`
-   - mark the job `BLOCKED (D-xxx)`
+   - add or link a **`Q-<job>`** entry in `DesignDecisions.md` (the job's own number: a question from B-155 is Q-155, a second Q-155b; `D-xxx` is for Crown's chat decisions)
+   - mark the job `BLOCKED (Q-<job>)`
    - commit that doc change
    - **move on to the next job**
 4. **Playable in PIE when it needs UI (Crown, 2026-10-26).** If a job adds something the player does through UI (adding a character to the party, interacting, choosing, buying…) and the real screen doesn't exist yet, ship a **plain placeholder UI** with it: simple buttons and text, built in C++ (no `.uasset` needed), so Crown can do it in PIE. The PIE checklist says how to open it. It's replaced by the real CommonUI screen later (D-024); log it in the job's hand-off.
@@ -192,7 +192,7 @@ The project is worked from one queue, `docs/Backlog.md`, with open questions in 
    - write `docs/PIE/B-xxx.md` in the format of `docs/PIE/B-001.md` (numbered checks: do this / you should see / result box) and add its row to **Pending** in `docs/PIE/README.md`
    - append a plain-words entry to `docs/sessions/<today>.md`: what changed, why, how it was verified, what Crown should check
    - push the job branch, merge it into `dev` with `git merge --no-ff -m "<real message>"` (never `--no-edit`), push `dev`
-7. **Stop** after Crown's requested number of jobs, or when only blocked jobs remain. Summarise: done, blocked (with D-xxx), next.
+7. **Stop** after Crown's requested number of jobs, or when only blocked jobs remain. Summarise: done, blocked (with Q-/D- ids), next.
 
 Still always: no Blueprint/`.uasset` edits outside the editor connection, no deleting code before it's verified in PIE, no history rewriting, and the Architecture rules above.
 
