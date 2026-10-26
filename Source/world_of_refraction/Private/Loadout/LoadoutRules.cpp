@@ -72,21 +72,34 @@ namespace
 		}
 	}
 
+	/** Assigned abilities, not the empty entries a drop leaves behind. */
+	int32 CountAssigned(const TArray<UAbilityData *> &Abilities)
+	{
+		int32 Count = 0;
+		for (const UAbilityData *Ability : Abilities)
+		{
+			Count += Ability ? 1 : 0;
+		}
+		return Count;
+	}
+
 	/** Ability-slot counts (previously checked in the editor only). */
 	void CheckAbilityCounts(FFindingSink &Sink, const FWeaponLoadoutEntry &Weapon, const TCHAR *Label, int32 WeaponIndex)
 	{
-		if (Weapon.AssignedAbilities.Num() > LoadoutConstants::MAX_WEAPON_ABILITIES)
+		const int32 Abilities = CountAssigned(Weapon.AssignedAbilities);
+		if (Abilities > LoadoutConstants::MAX_WEAPON_ABILITIES)
 		{
 			Sink.Add(ELoadoutSlotType::AbilityOverflow, WeaponIndex, true,
 					 FString::Printf(TEXT("%s weapon has too many abilities (%d/%d)"), Label,
-									 Weapon.AssignedAbilities.Num(), LoadoutConstants::MAX_WEAPON_ABILITIES),
+									 Abilities, LoadoutConstants::MAX_WEAPON_ABILITIES),
 					 LoadoutAbilityOverflowIndex::ABILITIES);
 		}
-		if (Weapon.AssignedAugmentStoneAbilities.Num() > LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES)
+		const int32 AugmentAbilities = CountAssigned(Weapon.AssignedAugmentStoneAbilities);
+		if (AugmentAbilities > LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES)
 		{
 			Sink.Add(ELoadoutSlotType::AbilityOverflow, WeaponIndex, true,
 					 FString::Printf(TEXT("%s weapon has too many augment stone abilities (%d/%d)"), Label,
-									 Weapon.AssignedAugmentStoneAbilities.Num(), LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES),
+									 AugmentAbilities, LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES),
 					 LoadoutAbilityOverflowIndex::AUGMENT_STONE_ABILITIES);
 		}
 	}
