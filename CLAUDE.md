@@ -143,6 +143,7 @@ Maintain living system documents in `docs/Architecture/`. Each document covers o
 - `docs/Architecture/BattleRandom.md`
 - `docs/Architecture/BrokenDarkness.md`
 - `docs/Architecture/CharacterDataSystem.md`
+- `docs/Architecture/CombatCamera.md`
 - `docs/Architecture/CombatCharacter.md`
 - `docs/Architecture/CombatOrchestrator.md`
 - `docs/Architecture/CrystalWear.md`
