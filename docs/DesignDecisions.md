@@ -1074,12 +1074,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Effect durations already count the holder's own turns (D-051), unchanged.
 
 ### D-089 — Should Energy refill each turn?
-**Status:** OPEN (Crown: logged, come back to it later) · **Raised:** 2026-10-26 (rules review) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review) · **Blocks:** —
 **Question:** EP never refills on its own today (ET-29: only effects, items, drains and Broken Darkness absorption). Should it?
 **Context:** Max Energy (Spirit) is the pool size; Efficiency (Mind) lowers costs. Deckbuilder: +1 Energy per turn, banked, no cap. Expedition 33: AP +1 per turn plus more from basic attacks and parries. With action pips (D-088), a basic attack that returns Energy becomes a use for spare pips.
 **Options:** A no refill (current) / B a share of Max Energy each turn (e.g. 10%; Max Energy then also sets refill) / C Expedition 33 style: a small refill each turn **plus** Energy from basic attacks and Perfect Guards.
 **Recommendation:** C, because it rewards good play (timing gives Energy back), gives basic attacks a purpose, keeps casters from running dry, and needs no new stat. Broken Darkness keeps its own absorption system.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **C** (2026-10-26): Energy **refills a little at the start of each of your turns**, plus extra from **basic attacks** and **Perfect Guards** (Expedition 33 style). Amounts are named constants (`// TODO: tune`); the per-turn share can scale with Max Energy. Broken Darkness keeps its own absorption system (no passive refill, ET-29 for BD).
 
 ### Q-159 — Do dropped utility crystals go back to the inventory?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-159) · **Blocks:** — (B-159 shipped without returning them)
