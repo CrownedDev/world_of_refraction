@@ -833,12 +833,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** the item-pool tags in `Resources_Design.md` §7.9 were written for floors (`Source.Floor.N`); on open maps they become zones (e.g. `Source.Zone.<n>`) crossed with difficulty. Propose the tag names when building. "strongest" needs one measure; propose the existing caliber (`GetTotalPool()`, `Resources_Design.md` §7.9) rather than a new score, and confirm with Crown when building. How the fight resolves more than three teams isn't ruled. first strike is a real-time field ability (`GASMigration.md`, field abilities). Today fights start on contact via `EncounterComponent`'s sphere; the advantage needs a hook into battle start (turn order / opening damage). mobs share one body (V on the Manny/Quinn skeleton), so variety comes from their **gear and class** (the same inventory/loadout system as players) and element tinting, not new models. Record further answers here; write `docs/Design/Enemies.md` when complete.
 
 ### D-070 — Display name for the reshaped Silenced
-**Status:** OPEN · **Raised:** 2026-10-26 (applying D-038) · **Blocks:** — (B-148 keeps the old name until answered)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (applying D-038) · **Blocks:** — (B-148 keeps the old name until answered)
 **Question:** Silenced now seals half your Energy instead of blocking spells. What should the player see it called?
 **Context:** The enum's display name is "Silenced (No EP Spend)" (`ESkillEffectType.h:129`), which no longer fits. D-038's notes say to ask Crown.
 **Options:** A "Silenced" (keep the word, new tooltip: half your Energy is sealed) / B "Sealed" / C another name.
 **Recommendation:** A, because the Darkness cap and the docs already say Silenced; only the tooltip changes.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A** (2026-10-26): keep **"Silenced"**; the tooltip says half your Energy is sealed.
 
 
 ### D-071 — Revive spells: what do they do?
