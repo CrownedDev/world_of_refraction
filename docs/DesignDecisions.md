@@ -529,12 +529,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-26): only **per-element resistance** (class table + gear + element-specific effects) scales elemental damage, **1:1** (+20% Fire = 20% less Fire damage; −15% = 15% more), **capped at ±50%** (compared with PoE 75%, Diablo 4 70%, Elden Ring diminishing returns; lower because turn-based fights are a few hits). General Resistance and blanket buffs don't count. Crown also wants the resistance system **implemented better** (B-145).
 
 ### D-037 — What is "Physical" in code?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-080
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-080
 **Question:** D-007 says uninfused skills deal Physical, but there is no Physical element: they deal `None` plus Slash/Pierce/Impact. Is Physical "None + its physical type", or a new `ESpellElement` member?
 **Context:** `ESpellElement.h:28-34`; `EPhysicalDamageType.h:12-15`. Rules: 02 CED-4.
 **Options:** A None + physical type, shown as "Physical" / B a new enum member (appended).
 **Recommendation:** A, because it needs no enum change and resistance and buildup already read the physical type.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **C** (2026-10-26, after comparing Expedition 33, Elden Ring, PoE/Diablo 4, BG3: Physical is a damage type, a peer of the elements): add a proper **damage type**: Physical (with its subtypes Slash / Pierce / Impact), the nine elements, and Ice (D-029). It's separate from the **element** a character, crystal or ring *is* (`ESpellElement`), as the deckbuilder does (`DamageType` vs `Affinity`/`Element`).
+**Notes for Claude:**
+- Do it inside the GAS / resistance redesign (B-145, B-041/B-042), not as a separate pass: same files. Until then the game **shows** "Physical" for None + physical type (A as a stopgap).
+- New enum appended-only with explicit values; `ESpellElement` stays for identity. Ice (B-064a) goes on the damage type, not on `ESpellElement`.
+- Resistance per damage type (one attribute each), so Physical resistance sits beside the elements.
 
 ### D-038 — What does Silenced block?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
