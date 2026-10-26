@@ -972,6 +972,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-26): a pick that is itself invalid is **refused** with a reason ("Spear skills need a Spear"); a change that breaks parts you already have **goes through and drops them**, with a message naming each ("Fire Bolt removed: needs a Fire crystal").
 **Notes for Claude:** _optional_
 
+### D-082 — Weapon requirements reduce the weapon's output
+**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, CL-40) · **Blocks:** — (B-162)
+**Answer (Crown):** (2026-10-26) A weapon's Mind/Body/Spirit requirement is an **efficiency** rule: if you don't meet it, you **don't get the weapon's full output** ("if I don't have the requirements to use Excalibur, I won't get the maximum output from it"). Changes CL-40, which today only uses it for Broken Darkness strain.
+**Notes for Claude:**
+- Reuse the shipped **requirement-gap curve** (CL-39, per pillar, ±5) on the weapon's **own contribution** (its base damage and stats feeding attacks and abilities used through it), the same way skills use it (D-041). The skill's own requirement still scales the skill; they're two separate parts, so not a double penalty on the same number.
+- **To confirm with Crown when building:** whether being *over* the weapon's requirement also gives the curve's bonus (skills do), or the weapon only caps at 100%.
+- Fold into the stat-maths plan (B-146). Broken Darkness strain keeps using the weapon requirement as today.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
