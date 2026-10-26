@@ -312,11 +312,11 @@ namespace CombatConstants
     // Consumer-specific caps - applied at the consumer site
     // (5e-C3 retired LUCK_CRIT_BONUS_MAX — crit chance is now Luck itself via CRIT_CHANCE_LUCK_BONUS,
     //  not a +20% bonus layered on a Mind-stat crit chance.)
-    constexpr float LUCK_DODGE_MAX = 0.25f;        // 25% per-hit dodge chance
+    constexpr float LUCK_DODGE_MAX = 0.15f;        // 15% per-hit luck dodge chance (D-085; LuckDodge.h)
     constexpr float LUCK_BREAK_SKIP_MAX = 0.50f;   // 50% chance to skip crystal wear
     constexpr float LUCK_DROP_CHANCE_MAX = 1.00f;  // 100% extra drop chance (out-of-combat)
     constexpr float LUCK_DROP_QUALITY_MAX = 1.00f; // 100% tier upgrade chance (out-of-combat)
-    // TODO: LUCK_DODGE_MAX / LUCK_DROP_CHANCE_MAX / LUCK_DROP_QUALITY_MAX have no
+    // TODO: LUCK_DROP_CHANCE_MAX / LUCK_DROP_QUALITY_MAX have no
     // consumer code yet. When built, each MUST upper-clamp the normalized fraction
     // FMath::Min(RawLuck / LUCK_RAW_MAX, 1.f) before scaling — clamp only the TOP,
     // letting negatives pass (curse-below-baseline model). RawLuck is unbounded

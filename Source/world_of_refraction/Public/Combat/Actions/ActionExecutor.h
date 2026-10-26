@@ -732,6 +732,10 @@ private:
 	 *  slice (ApplyParryReflect), and broadcasts OnDefenseResolved / OnDefensePerfect. */
 	void ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, double ImpactTime, const FDefenseDifficultyTriple &ImpactDifficulty);
 
+	/** D-085 (B-169): rolls the defender's luck dodge on the battle random stream; logs and shows
+	 *  "Lucky dodge!" when it fires. Call only for a hit that would land. */
+	bool TryLuckDodge(AActor *Defender) const;
+
 	/** Stage 2/3: apply ONE impact's damage and accumulate into PartialResult. Shared by the
 	 *  per-impact-frame path and the close-time undrained tail.
 	 *  @param bDamageIsPerImpact true (melee per-impact frame): ResolvedFinalDamage is already
