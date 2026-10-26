@@ -3,6 +3,7 @@
 #include "Debug/Inventory/LoadoutRulesDebug.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Inventory/InventoryComponent.h"
+#include "Skills/Definitions/AbilityData.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -20,6 +21,32 @@ namespace
 			[](UWorld *World)
 			{
 				ULoadoutRulesDebug::CompareLoadoutRules(World);
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GTryAbilityPickCmd(
+		TEXT("wor.Loadout.TryAbility"),
+		TEXT("DEBUG: wor.Loadout.TryAbility <ability name> - try a learned ability as a pick on each character's active loadout (B-159)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				if (!World || Args.Num() == 0)
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[LoadoutRules] usage: wor.Loadout.TryAbility <ability name>"));
+					return;
+				}
+				const FString AbilityName = FString::Join(Args, TEXT(" "));
+				for (TActorIterator<AActor> It(World); It; ++It)
+				{
+					if (ULoadoutComponent *Loadout = It->FindComponentByClass<ULoadoutComponent>())
+					{
+						const FString Line = ULoadoutRulesDebug::TryAbilityPick(Loadout, AbilityName);
+						UE_LOG(LogWoRLoadout, Display, TEXT("[LoadoutRules] %s"), *Line);
+						if (GEngine)
+						{
+							GEngine->AddOnScreenDebugMessage(INDEX_NONE, LOADOUT_RULES_SCREEN_SECONDS, FColor::Cyan, Line);
+						}
+					}
+				}
 			}));
 
 	FString JoinOrNone(const TArray<FString> &Lines)
@@ -82,4 +109,25 @@ void ULoadoutRulesDebug::CompareLoadoutRules(const UObject *WorldContextObject)
 		}
 	}
 	UE_LOG(LogWoRLoadout, Display, TEXT("[LoadoutRules] Compared %d characters"), Count);
+}
+
+FString ULoadoutRulesDebug::TryAbilityPick(ULoadoutComponent *Loadout, const FString &AbilityName)
+{
+	AActor *Owner = Loadout ? Loadout->GetOwner() : nullptr;
+	UInventoryComponent *Inventory = Owner ? Owner->FindComponentByClass<UInventoryComponent>() : nullptr;
+	if (!Inventory)
+	{
+		return FString::Printf(TEXT("%s: no inventory"), *GetNameSafe(Owner));
+	}
+	const FAbilityInstance *Learned = Inventory->Abilities.LearnedAbilities.FindByPredicate(
+		[&AbilityName](const FAbilityInstance &Instance) { return Instance.Ability && Instance.Ability->Name == AbilityName; });
+	if (!Learned)
+	{
+		return FString::Printf(TEXT("%s: hasn't learned '%s'"), *GetNameSafe(Owner), *AbilityName);
+	}
+	FText Refusal;
+	const bool bAssigned = Loadout->TryAssignWeaponAbility(Inventory->ActiveLoadoutIndex, Learned->Ability, Refusal);
+	return bAssigned
+		? FString::Printf(TEXT("%s: '%s' assigned"), *GetNameSafe(Owner), *AbilityName)
+		: FString::Printf(TEXT("%s: '%s' refused - %s"), *GetNameSafe(Owner), *AbilityName, *Refusal.ToString());
 }

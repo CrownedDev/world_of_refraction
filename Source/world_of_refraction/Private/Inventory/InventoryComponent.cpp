@@ -2,6 +2,7 @@
 // Character inventory storage and management implementation
 
 #include "Inventory/InventoryComponent.h"
+#include "Loadout/LoadoutComponent.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -1260,6 +1261,13 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     else
     {
         ActiveLoadoutIndex = 0;
+    }
+
+    // B-159 (D-081): a loaded loadout's invalid parts are dropped now, with a message, not at
+    // the next fight. Ownership is checked against what was just loaded above.
+    if (ULoadoutComponent *Loadout = Owner ? Owner->FindComponentByClass<ULoadoutComponent>() : nullptr)
+    {
+        Loadout->DropInvalidPartsFromAllLoadouts();
     }
 
     const int32 CrystalStacks = CrystalInv ? CrystalInv->GetStackCount() : 0;
