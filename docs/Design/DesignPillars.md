@@ -15,6 +15,8 @@
 
 7. **Solo and co-op equally** (Crown, 2026-10-26): designed to work just as well alone (your party of three, ally AI) and together (players joining runs, invites at rest spots), not solo with co-op bolted on, and not co-op first like Nightreign (whose solo mode was criticised at launch).
 
+8. **Combat is mainly tactics** (Crown, 2026-10-26): planning wins fights (elements, resistances, rows, status breaks, builds, party roles). Timing (Guard, Perfect Guard, Dodge) **helps but isn't required**: a player with average reflexes can still clear the game.
+
 ## What this means for decisions
 
 - Prefer options that **add build variety** (more ways to be different) over options that narrow it, as long as they stay fair (pillars 2, 3).
@@ -24,6 +26,7 @@
 - Size trials for a **30–45 minute run** (pillar 5): map size, number of fights, rest spots and in-run levelling all fit that.
 - **No level wall** (pillar 6): keep gear and builds able to close a level gap, so stat sources stay meaningful next to levels; each run still moves you forward.
 - **Every system must work solo and co-op** (pillar 7): design both cases when building (who controls what, rewards, rest spots, revives), even though co-op is built later; keep to the co-op-ready rule (D-064).
+- **Timing is a bonus, not a gate** (pillar 8): no fight should need perfect timing to win; Perfect Guard / Dodge rewards should be good but not mandatory, and hard timing windows belong to higher difficulty settings.
 - Lore and story are Crown's alone (`CLAUDE.md`).
 
 ## Changelog
