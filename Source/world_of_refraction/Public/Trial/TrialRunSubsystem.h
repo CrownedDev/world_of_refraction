@@ -30,6 +30,7 @@
 #include "AI/EAIDifficulty.h"
 #include "Combat/Encounter/EEncounterRank.h"
 #include "Combat/Encounter/EFirstStrike.h"
+#include "Combat/Encounter/EnemyZone.h"
 #include "Trial/TrialGate.h"
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
@@ -133,6 +134,12 @@ public:
     UFUNCTION(BlueprintPure, Category = "Trial|Encounter")
     EFirstStrike GetPendingFirstStrike() const { return PendingFirstStrike; }
 
+    /** B-186: the map zone the pending fight started in. Call before EnterEncounter. */
+    void SetPendingZone(const FEncounterZoneInfo &Zone) { PendingZone = Zone; }
+
+    UFUNCTION(BlueprintPure, Category = "Trial|Encounter")
+    FEncounterZoneInfo GetPendingZone() const { return PendingZone; }
+
     /** The trial whose level we are in (or transitioning to), or null in the
      *  hub. Survives the level load — this subsystem is GameInstance-scoped. */
     UFUNCTION(BlueprintPure, Category = "Trial")
@@ -182,6 +189,9 @@ private:
 
     /** B-185: carried across the OpenLevel like PendingRank; moves with it for co-op (D-065). */
     EFirstStrike PendingFirstStrike = EFirstStrike::None;
+
+    /** B-186: carried across the OpenLevel like PendingRank (D-065). */
+    FEncounterZoneInfo PendingZone;
 
     /** B-184: map encounters of the pending fight. */
     TArray<FName> PendingEncounterSources;

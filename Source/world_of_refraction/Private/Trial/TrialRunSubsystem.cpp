@@ -67,6 +67,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     BeatenEncounters.Reset();
     PendingEncounterSources.Reset();
     PendingFirstStrike = EFirstStrike::None;
+    PendingZone = FEncounterZoneInfo();
     const int32 ForcedSeed = CVarTrialSeed.GetValueOnGameThread();
     RunSeed = ForcedSeed != 0 ? ForcedSeed : MakeFreshRunSeed();
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Entering trial '%s' -> %s (run seed %d; replay with: wor.Trial.Seed %d)"),
@@ -115,6 +116,7 @@ void UTrialRunSubsystem::ExitTrial()
     BeatenEncounters.Reset();
     PendingEncounterSources.Reset();
     PendingFirstStrike = EFirstStrike::None;
+    PendingZone = FEncounterZoneInfo();
     UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), HubLevel);
 }
 
@@ -168,6 +170,7 @@ void UTrialRunSubsystem::ExitEncounter()
     PendingOpposingParty.Reset();
     PendingEncounterSources.Reset();
     PendingFirstStrike = EFirstStrike::None;
+    PendingZone = FEncounterZoneInfo();
     EncounterReturnLevel = nullptr;
 
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Exiting encounter -> %s (deferred one tick)"), *ReturnLevel.ToString());
@@ -264,12 +267,13 @@ namespace
 FString UTrialRunSubsystem::GetTrialRunString() const
 {
     const FTrialVariation *Variation = GetChosenVariation();
-    return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | variation=%s | difficulty=%s (enemy x%.2f, payout x%.2f) | beaten=%d | first strike=%s | hub=%s | pending %d v %d (%s) | return=%s"),
+    return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | variation=%s | difficulty=%s (enemy x%.2f, payout x%.2f) | beaten=%d | first strike=%s | zone tier %d (%s) | hub=%s | pending %d v %d (%s) | return=%s"),
                            ActiveTrial ? *ActiveTrial->Name.ToString() : TEXT("<none>"), RunSeed,
                            Variation ? *Variation->Name.ToString() : TEXT("<none>"),
                            *TrialGate::GetDifficultyName(TrialDifficulty).ToString(), GetEnemyStrengthMultiplier(),
                            GetPayoutMultiplier(), BeatenEncounters.Num(),
-                           *UEnum::GetValueAsString(PendingFirstStrike),
+                           *UEnum::GetValueAsString(PendingFirstStrike), PendingZone.Tier,
+                           PendingZone.LootPool.IsValid() ? *PendingZone.LootPool.ToString() : TEXT("no loot pool"),
                            HubLevel.IsNull() ? TEXT("<UNSET>") : *HubLevel.ToString(),
                            PendingBattleParty.Num(), PendingOpposingParty.Num(),
                            *UEnum::GetValueAsString(PendingRank),

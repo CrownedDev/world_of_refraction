@@ -1660,6 +1660,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-071-party-into-battle): `ABattleGameMode::BootstrapCombat` possesses the leader's pawn when it fights, otherwise the first Player-set member, otherwise the first spawned.
 
+### Q-186 — How do zones set enemy strength?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-186) · **Blocks:** — (B-186 shipped with A)
+**Question:** Enemies §4 says the zone on the map sets enemy strength and the loot pool, nearer the boss is tougher, and nothing scales to the party. How is strength expressed, and how does it combine with the door's difficulty?
+**Options:**
+- **A** A zone has a tier, 0 to 4. Each tier has one named multiplier on enemy max HP and damage (1.0, 1.15, 1.3, 1.5, 1.75; `// TODO: tune`), multiplied with the door's difficulty. The fight takes the zone where it starts (the arena centre); where zones overlap, the highest tier. Outside every zone is tier 0. The loot pool is one source tag (`Resources_Design.md` §7.9; a pool is a tag query, so one tag per zone is enough to start) carried with the fight for chests and drops.
+- **B** Each zone authors its own multiplier.
+- **C** A zone swaps in a stronger version of each enemy.
+**Recommendation:** A. Dark Souls and Elden Ring set enemy strength by area and never scale to the player, and players praise how getting stronger shows and how you can wander into a hard area early (Enemies §4 asks for exactly that). Diablo II's fixed area levels work the same way. A few named tiers keep zones comparable and easy to tune. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-186-enemy-zones): `AEnemyZone` (`FEncounterZoneInfo`), `AEnemyZone::FindZoneAt` from `UEncounterComponent`, `UTrialRunSubsystem::PendingZone` (the same transport exception to D-064 as `PendingRank` and `PendingFirstStrike`, moves with them for co-op, D-065), `ABattleGameMode` multiplies it in. The loot pool is not read yet (B-188 chests, B-073 drops).
+
 ### Q-185 — Placeholder first strike: what counts as a hit, and how long is the head start?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-185) · **Blocks:** — (B-185 shipped with A)
 **Question:** First strike needs a field ability (GAS, not built). Until then, what decides it, and does "that side acts first" mean a free extra round or only going first?

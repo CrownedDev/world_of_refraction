@@ -15,6 +15,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "TimerManager.h"
+#include "Combat/Encounter/EnemyZone.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "UI/Combat/CombatResultsWidget.h"
@@ -242,8 +243,10 @@ void ABattleGameMode::BootstrapCombat()
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Starting combat %d v %d (difficulty %s, rank %s)"),
            LocalParty.Num(), OpposingParty.Num(), *UEnum::GetValueAsString(TrialRun->GetPendingDifficulty()),
            *UEnum::GetValueAsString(TrialRun->GetPendingRank()));
-    // B-183: the gate's difficulty scales every enemy before the fight (and its HUD) starts.
-    const float EnemyStrength = TrialRun->GetEnemyStrengthMultiplier();
+    // B-183 / B-186: the gate's difficulty and the zone the fight started in scale every enemy
+    // before the fight (and its HUD) starts.
+    const FEncounterZoneInfo Zone = TrialRun->GetPendingZone();
+    const float EnemyStrength = TrialRun->GetEnemyStrengthMultiplier() * AEnemyZone::GetTierStrengthMultiplier(Zone.Tier);
     for (AActor *Enemy : OpposingParty)
     {
         if (!TrialGate::ApplyEnemyStrength(Enemy, EnemyStrength))
@@ -252,8 +255,8 @@ void ABattleGameMode::BootstrapCombat()
                    *GetNameSafe(Enemy));
         }
     }
-    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Trial difficulty %s: enemy strength x%.2f"),
-           *TrialGate::GetDifficultyName(TrialRun->GetTrialDifficulty()).ToString(), EnemyStrength);
+    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Trial difficulty %s, zone tier %d: enemy strength x%.2f"),
+           *TrialGate::GetDifficultyName(TrialRun->GetTrialDifficulty()).ToString(), Zone.Tier, EnemyStrength);
 
     SpawnedOrchestrator->SetEncounterRank(TrialRun->GetPendingRank());
     // B-185: the side that struck first on the map takes the opening round.
