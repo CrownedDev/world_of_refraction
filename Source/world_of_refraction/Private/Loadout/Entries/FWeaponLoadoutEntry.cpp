@@ -117,8 +117,8 @@ TArray<USpellData *> FWeaponLoadoutEntry::GetAllSpells() const
         ++OverrideIndex;
     }
 
-    // Gem crystals gate spell slots by their own tier; with no gem the cap falls
-    // through to the weapon's own tier (SlotsForContainerTier), MAX_SPELL_SLOTS only
+    // Gem crystals and evolutions (Q-147) gate spell slots by their own tier; otherwise
+    // the cap falls through to the weapon's own tier (SlotsForContainerTier), MAX_SPELL_SLOTS only
     // as the no-weapon ceiling.
     const int32 SlotCap = CrystalEffectTable::ResolveSpellSlotCap(
         WeaponEntry.GetAttachedItem(),

@@ -15,6 +15,9 @@
 #include "Loadout/LoadoutConstants.h"
 #include "Loadout/SpellPoolConstants.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
+#include "Equipment/Rings/RingData.h"
+#include "Loadout/Entries/FRingLoadoutEntry.h"
+#include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Character/CharacterData.h"
 #include "Inventory/InventoryData.h"
 
@@ -125,6 +128,54 @@ void FLoadoutRulesSpec::Define()
 			TestFalse(TEXT("at the count: passes"), AnyReasonContains(Saved.GetValidationErrors(), TEXT("Too many evolution spells")));
 			Saved.EvolutionSpells.Add(FSpellRef(NewSpell(ESpellElement::Fire)));
 			TestTrue(TEXT("one over: refused"), AnyReasonContains(Saved.GetValidationErrors(), TEXT("Too many evolution spells")));
+		});
+
+		It("caps an evolution attached to a weapon or ring by its own tier, not the holder's (Q-147 = B)", [this]()
+		{
+			FRuntimeAttachedItem Attached;
+			Attached.Kind = EAttachedItemKind::Evolution;
+			Attached.Evolution.Item = NewObject<UEvolutionItemData>(GetTransientPackage());
+			for (const EItemTier Tier : {EItemTier::F_Tier, EItemTier::S_Tier})
+			{
+				Attached.Evolution.Tier = Tier;
+				TestEqual(TEXT("weapon: the evolution's tier count"),
+						  CrystalEffectTable::ResolveSpellSlotCap(Attached, LoadoutConstants::MAX_SPELL_SLOTS),
+						  CrystalEffectTable::SlotsForContainerTier(Tier));
+				TestEqual(TEXT("ring: the evolution's tier count"),
+						  CrystalEffectTable::ResolveSpellSlotCap(Attached, LoadoutConstants::MAX_RING_SPELLS),
+						  CrystalEffectTable::SlotsForContainerTier(Tier));
+			}
+			TestTrue(TEXT("an F evolution holds fewer than the weapon ceiling"),
+					 CrystalEffectTable::SlotsForContainerTier(EItemTier::F_Tier) < LoadoutConstants::MAX_SPELL_SLOTS);
+		});
+
+		It("lists only an F evolution's spell count on an S weapon and an S ring (Q-147 = B)", [this]()
+		{
+			FRuntimeAttachedItem Attached;
+			Attached.Kind = EAttachedItemKind::Evolution;
+			Attached.Evolution.Item = NewObject<UEvolutionItemData>(GetTransientPackage());
+			Attached.Evolution.Tier = EItemTier::F_Tier;
+			Attached.Evolution.CurrentDurability = 1; // intact: a broken one offers no spells (D-083)
+			const int32 FCount = CrystalEffectTable::SlotsForContainerTier(EItemTier::F_Tier);
+			TestTrue(TEXT("the S holder alone would hold more"), CrystalEffectTable::SlotsForContainerTier(EItemTier::S_Tier) > FCount);
+
+			FWeaponLoadoutEntry Weapon;
+			Weapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
+			Weapon.WeaponEntry.Tier = EItemTier::S_Tier;
+			Weapon.WeaponEntry.AttachedItem = Attached;
+			FRingLoadoutEntry Ring;
+			Ring.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
+			Ring.RingEntry.Tier = EItemTier::S_Tier;
+			Ring.RingEntry.AttachedItem = Attached;
+			for (int32 i = 0; i < LoadoutConstants::MAX_SPELL_SLOTS; ++i)
+			{
+				Weapon.AssignedSpells.Add(NewSpell(ESpellElement::Fire));
+				Ring.RingEntry.AssignedSpells.Add(NewSpell(ESpellElement::Fire));
+			}
+
+			TestEqual(FString::Printf(TEXT("weapon lists the evolution's count: got %d"), Weapon.GetAllSpells().Num()), Weapon.GetAllSpells().Num(), FCount);
+			TestEqual(FString::Printf(TEXT("ring lists the evolution's count: got %d"), Ring.GetAllSpells().Num()), Ring.GetAllSpells().Num(), FCount);
+			TestEqual(FString::Printf(TEXT("ring offers the evolution's count to fill: got %d"), Ring.GetCustomizableSpellCount()), Ring.GetCustomizableSpellCount(), FCount);
 		});
 
 		It("uses BD rules when the character is BD, whatever pools are authored", [this]()

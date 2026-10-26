@@ -730,10 +730,10 @@ namespace CrystalEffectTable
 
     /** Skill-slots an attachment grants at its tier — one shared per-tier curve:
      *    AbilityStone -> ability slots,  gem crystal (IsGemType) -> spell slots.
-     *    F=2, E=3, D=3, C=4, B=4, A=5, S=6  (non-sequential)
+     *    F=1, E=2, D=3, C=4, B=5, A=6, S=6  (ATTACHMENT_SLOTS)
      *  DamageStone -> 0 (grants no slots). Evolution / none -> 0 here; an
-     *  evolution attachment keeps the flat spell ceiling, resolved by the caller
-     *  (ResolveSpellSlotCap), not this type-keyed table. */
+     *  evolution attachment holds spells by its instance tier (SlotsForContainerTier,
+     *  resolved in ResolveSpellSlotCap, Q-147), not this type-keyed table. */
     inline int32 GetAttachmentSlotsForTier(const FCrystalId &Id)
     {
         if (Id.Type == ECrystalType::AbilityStone || CrystalTypeHelpers::IsGemType(Id.Type))
@@ -763,11 +763,11 @@ namespace CrystalEffectTable
         return AugmentStoneConstants::ATTACHMENT_SLOTS[i];
     }
 
-    /** Spell-slot cap for a spell-capable attachment. Gem crystals gate by tier
-     *  (the shared GetAttachmentSlotsForTier curve); evolution — and any other
-     *  spell-capable attachment — keep the caller's flat ceiling. The caller
-     *  supplies its own flat constant (MAX_SPELL_SLOTS for weapons,
-     *  MAX_RING_SPELLS for rings). */
+    /** Spell-slot cap for a spell-capable attachment, all on the one shared tier curve
+     *  (D-039): a gem crystal or a fusion's gem half by that gem's tier; an evolution by
+     *  its own instance tier (Q-147, as in the primary slot). Anything else keeps the
+     *  caller's ceiling: the holder's own tier count, or the flat constant with no holder
+     *  (MAX_SPELL_SLOTS for weapons, MAX_RING_SPELLS for rings). */
     inline int32 ResolveSpellSlotCap(const FRuntimeAttachedItem &Attachment, int32 FlatCeiling)
     {
         if (Attachment.IsCrystal() && CrystalTypeHelpers::IsGemType(Attachment.Crystal.Id.Type))
@@ -781,6 +781,10 @@ namespace CrystalEffectTable
         if (Attachment.IsFusion() && Attachment.Fusion.HasGemHalf())
         {
             return GetAttachmentSlotsForTier(Attachment.Fusion.GemHalf());
+        }
+        if (Attachment.IsEvolution() && Attachment.Evolution.Item)
+        {
+            return SlotsForContainerTier(Attachment.Evolution.Tier);
         }
         return FlatCeiling;
     }
