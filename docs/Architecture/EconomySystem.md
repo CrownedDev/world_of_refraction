@@ -53,7 +53,9 @@ Value-based (§4.5): sum same-`Type` crystals **lowest-first** until their F-uni
 (`GetCrystalValue`) meets-or-exceeds the target's value, consume that set, produce 1 of
 `{Type, TargetTier}` in the same pool. Costs **Prisms** = `GetMergeCostForTier(TargetTier)`
 (half the §5 buy price). Item-crystals + stones only (evolution is unrepresentable as
-`FCrystalId`). Spend Prisms + remove-first, full refund if the produce fails.
+`FCrystalId`). Any overshoot comes back as change (`EconomyYield::GetMergeChange`: the fewest
+same-`Type` crystals below the target, ER-28), added with the output in one call. Spend Prisms +
+remove-first, full refund if the produce (or the change) fails. Debug: `wor.Economy.Merge <Type> <Tier>`.
 
 #### Purchase (spend-side) — `Purchase(Owner, TArray<FMerchantStockEntry>)`
 
@@ -205,3 +207,4 @@ and the 14-key **typed Essence** (`EssenceTyped`, FastArray). Server-gated, repl
 | 2026-07-11 | **Cost-table reprices:** Generic-element spells price like abilities (Prisms base + SkillEssence @ tier — no scaling surcharge, no typed essence); crystals/stones are **Prisms-only** (no typed-essence charge — essence stays dismantle-side); evolutions cost **2× Prisms base** (premium item class); weapons/rings gain the **attached-item surcharge** (crystal/stone = tier base, evolution = 2× its tier base, fusion = 1.5× summed half bases). | feature/hub-merchants |
 | 2026-07-11 | **Bundled-skill pricing (3l):** equipment prices its bundled skills at `tier base / 3 + 10` each (floored, Prisms-only) via `BundledSkillsPrisms<TSkill>` — weapon `PresetAbilities` always; `DefaultSpells` gem-gated (`Kind == Crystal`); `DefaultAbilities` gated on `HasAbilityStoneAttachment` (stone, or fusion with an AbilityStone half); `WeaponAttack` excluded. PIE-verified: themed rings 126/152 P, 2-ability Blacksmith weapons 102 P, crystal/template rings unchanged. | feature/hub-merchants |
 | 2026-10-26 | B-025 — every mutating `UEconomyService` entry point starts with two shared helpers in `EconomyService.cpp`: `EconomyHasAuthority(Owner, Op)` (null + authority gate, logs 'no authority') and the variadic `EconomyFindComponents(Owner, Op, Out...)` (finds the required components, logs the missing ones by class name). Entry-point guards (count, null skill, empty cart) stay in front. 20 hand-copied preambles removed; no behaviour change. Spec `WoR.Economy.Preamble`. | refactor/B-025-economy-preamble |
+| 2026-10-26 | B-177 (ER-28) — `MergeCrystals` gives back its overshoot as the fewest same-Type crystals below the target (`EconomyYield::GetMergeChange`, greedy highest-first), added atomically with the output; change that does not fit refunds the whole merge (Q-177). New debug command `wor.Economy.Merge <Type> <Tier>`. Spec `WoR.Economy.CrystalMerge`. | feature/B-177-merge-overshoot |

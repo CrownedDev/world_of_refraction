@@ -47,6 +47,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-174](B-174.md) | `fix/B-174-support-no-buildup` (in `dev`) | Heals, buffs and support skills build no status | Not tested |
 | [B-175](B-175.md) | `feature/B-175-one-switch-per-turn` (in `dev`) | One free weapon or ring switch per turn | Not tested |
 | [B-176](B-176.md) | `feature/B-176-flee` (in `dev`) | Flee a normal fight (not mini-boss/boss), at a Gold cost | Not tested |
+| [B-177](B-177.md) | `feature/B-177-merge-overshoot` (in `dev`) | Crystal merge gives back its overshoot (ER-28) | Not tested |
 
 Move rows to **Done** when every check passes.
 
