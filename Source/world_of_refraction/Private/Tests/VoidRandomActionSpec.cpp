@@ -85,6 +85,22 @@ void FVoidRandomActionSpec::Define()
 		TestTrue(TEXT("The turn was played without you"), TurnMovesOn());
 	});
 
+	It("gives the member's turn back the turn after the break", [this]()
+	{
+		if (!TestTrue(TEXT("Your member's turn"), StartOnYourTurn())) return;
+		Effects->ApplyTriggeredSkillEffect(Foe, Yours, ESkillEffectType::RandomSkill, ESpellElement::Void);
+		Orchestrator->RequestActionFromActor(Yours);
+		if (!TestTrue(TEXT("The broken turn was played"), TurnMovesOn())) return;
+
+		for (int32 Frame = 0; Frame < VOID_TEST_MAX_FRAMES && Orchestrator->GetCurrentActor() != Yours; ++Frame)
+		{
+			TestWorld->Tick();
+		}
+		if (!TestTrue(TEXT("Back to your member"), Orchestrator->GetCurrentActor() == Yours)) return;
+		TestFalse(TEXT("No longer Void-broken"), Effects->HasEffectOfType(Yours, ESkillEffectType::RandomSkill));
+		TestFalse(TEXT("The turn waits for your command"), TurnMovesOn());
+	});
+
 	It("leaves an unbroken member's turn to you", [this]()
 	{
 		if (!TestTrue(TEXT("Your member's turn"), StartOnYourTurn())) return;

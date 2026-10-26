@@ -229,11 +229,14 @@ FAction UAIDecisionManager::BuildRandomAction(AActor *Actor) const
         return Defend;
     }
 
+    // Aimed by the skill's own target side: a heal or buff still lands on the holder or an ally.
+    const TArray<AActor *> Allies = CurrentCombat->GetLivingAllies(Actor);
     TArray<FAction> Candidates;
     Candidates.Add(Defend);
-    auto AddIfValid = [this, &Candidates, &Enemies](FAction Candidate)
+    auto AddIfValid = [this, Actor, &Candidates, &Enemies, &Allies](FAction Candidate, ETargetType TargetType)
     {
-        Candidate.Targets.Add(Enemies[UBattleRandomSubsystem::RandRange(this, 0, Enemies.Num() - 1)]);
+        const TArray<AActor *> &Side = TargetType == ETargetType::Ally && Allies.Num() > 0 ? Allies : Enemies;
+        Candidate.Targets.Add(TargetType == ETargetType::Self ? Actor : Side[UBattleRandomSubsystem::RandRange(this, 0, Side.Num() - 1)]);
         if (CurrentCombat->ValidateAction(Candidate).bIsValid)
         {
             Candidates.Add(Candidate);
@@ -245,26 +248,29 @@ FAction UAIDecisionManager::BuildRandomAction(AActor *Actor) const
     Attack.SkillData = Loadout->GetCurrentAttack();
     if (Attack.SkillData)
     {
-        AddIfValid(Attack);
+        AddIfValid(Attack, ETargetType::Enemy);
     }
     for (USpellData *Spell : GetUsableSpells(Loadout))
     {
         FAction Cast;
         Cast.ActionType = EActionType::Spell;
         Cast.SpellData = Spell;
-        AddIfValid(Cast);
+        AddIfValid(Cast, Spell->TargetType);
     }
     for (UAbilityData *Ability : Loadout->GetAvailableAbilities())
     {
         FAction Use;
         Use.ActionType = EActionType::Ability;
         Use.SkillData = Ability;
-        AddIfValid(Use);
+        AddIfValid(Use, Ability->TargetType);
     }
 
     const FAction &Picked = Candidates[UBattleRandomSubsystem::RandRange(this, 0, Candidates.Num() - 1)];
-    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s is Void-broken - random action type %d of %d choices"),
-           *Actor->GetName(), static_cast<int32>(Picked.ActionType), Candidates.Num());
+    const FString PickedName = Picked.SpellData   ? Picked.SpellData->GetName()
+                               : Picked.SkillData ? Picked.SkillData->GetName()
+                                                  : FString(TEXT("Defend"));
+    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s is Void-broken - random action %s (%d choices)"),
+           *Actor->GetName(), *PickedName, Candidates.Num());
     return Picked;
 }
 

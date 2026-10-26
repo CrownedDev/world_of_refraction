@@ -1200,6 +1200,10 @@ FText ACombatOrchestrator::GetControlSwitchRefusedReason(AActor *Actor) const
 	{
 		return NSLOCTEXT("CombatOrchestrator", "SwitchLeader", "The leader is always yours.");
 	}
+	if (SkillEffectManagerRef && SkillEffectManagerRef->HasEffectOfType(Actor, ESkillEffectType::RandomSkill))
+	{
+		return NSLOCTEXT("CombatOrchestrator", "SwitchVoidBroken", "A Void break is playing this turn.");
+	}
 	return FText::GetEmpty();
 }
 
@@ -1899,7 +1903,10 @@ void ACombatOrchestrator::DebugPrintCombatState()
 				   Comp->CurrentHP, Comp->MaxHP,
 				   Comp->CurrentEP, Comp->MaxEP,
 				   Comp->bIsAlive ? TEXT("Yes") : TEXT("No"),
-				   IsActorAIControlled(Actor) ? TEXT("AI") : TEXT("you"));
+				   SkillEffectManagerRef && SkillEffectManagerRef->HasEffectOfType(Actor, ESkillEffectType::RandomSkill)
+					   ? TEXT("Void break (random)")
+				   : IsActorAIControlled(Actor) ? TEXT("AI")
+												: TEXT("you"));
 		}
 		else
 		{
