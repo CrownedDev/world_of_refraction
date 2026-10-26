@@ -37,7 +37,8 @@ bool FEvolutionAttachment::ApplyWear(int32 Amount, bool bForceWear)
 
 int32 FEvolutionAttachment::RepairBetweenCombats(int32 Amount)
 {
-    if (!Item || Amount <= 0)
+    // Unbreakable never wears, so there is nothing to repair (an old save's 0 stays as it is).
+    if (!Item || Amount <= 0 || Item->Breakability == EBreakability::Unbreakable)
     {
         return 0;
     }

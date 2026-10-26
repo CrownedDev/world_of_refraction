@@ -1693,7 +1693,7 @@ void ACombatOrchestrator::ApplyBetweenCombatRepair()
 	if (CrystalsRepaired > 0)
 	{
 		UE_LOG(LogTemp, Log,
-			   TEXT("[CombatOrchestrator] Between-combat repair: +%d to %d crystal(s)"),
+			   TEXT("[CombatOrchestrator] Between-combat repair: +%d to %d item(s) (gems and evolutions)"),
 			   RepairAmount, CrystalsRepaired);
 	}
 }

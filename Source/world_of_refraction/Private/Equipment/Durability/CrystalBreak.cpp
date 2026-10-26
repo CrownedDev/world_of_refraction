@@ -238,9 +238,13 @@ int32 CrystalBreak::RepairOn(AActor *Actor, int32 Amount)
 	{
 		Repaired += CrystalBreakRepairSlot(Actor, Loadout, Slot, Amount) ? 1 : 0;
 	}
-	if (Loadout->RepairActivePrimaryEvolution(Amount) > 0)
+	const FEvolutionAttachment PrimaryBefore = Loadout->GetActiveLoadout().PrimaryEvolution;
+	const int32 PrimaryRestored = Loadout->RepairActivePrimaryEvolution(Amount);
+	if (PrimaryRestored > 0)
 	{
-		UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Repaired primary evolution on %s"), *Actor->GetName());
+		UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Repaired primary evolution '%s' on %s: %d -> %d"),
+			   PrimaryBefore.Item ? *PrimaryBefore.Item->GetFullItemName() : TEXT("(null)"), *Actor->GetName(),
+			   PrimaryBefore.CurrentDurability, PrimaryBefore.CurrentDurability + PrimaryRestored);
 		++Repaired;
 	}
 	return Repaired;
