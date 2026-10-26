@@ -2,6 +2,7 @@
 
 #include "Character/CharacterDataComponent.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Equipment/Weapons/EWeaponSlotType.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -884,7 +885,7 @@ float UCharacterDataComponent::GetLuckModifiedChance(float BaseChance, float Luc
 bool UCharacterDataComponent::RollLuckChance(float BaseChance, float LuckMaxBonus) const
 {
     // A negative chance (cursed wielder, BaseChance 0) is never < FRand()'s [0,1) — never fires.
-    return FMath::FRand() < GetLuckModifiedChance(BaseChance, LuckMaxBonus);
+    return UBattleRandomSubsystem::FRand(this) < GetLuckModifiedChance(BaseChance, LuckMaxBonus);
 }
 
 float UCharacterDataComponent::GetEvolutionModifiedSpellDamage() const

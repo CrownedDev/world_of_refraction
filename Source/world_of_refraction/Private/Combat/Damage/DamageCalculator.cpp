@@ -8,6 +8,7 @@
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
+#include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Weapons/WeaponManager.h"
@@ -227,7 +228,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 		{
 			bForceCrit = CritMgr->HasEffectOfType(Attacker, ESkillEffectType::GuaranteedCrit);
 		}
-		Result.bWasCritical = bForceCrit || (FMath::FRand() < CritChance);
+		Result.bWasCritical = bForceCrit || (UBattleRandomSubsystem::FRand(this) < CritChance);
 
 		if (Result.bWasCritical)
 		{
@@ -509,7 +510,7 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 bool UDamageCalculator::RollCriticalHit(AActor *Attacker, float OverrideChance) const
 {
 	float Chance = OverrideChance >= 0.0f ? OverrideChance : GetCriticalChance(Attacker);
-	return FMath::FRand() < Chance;
+	return UBattleRandomSubsystem::FRand(this) < Chance;
 }
 
 // ==================== STATUS EFFECT CALCULATIONS ====================

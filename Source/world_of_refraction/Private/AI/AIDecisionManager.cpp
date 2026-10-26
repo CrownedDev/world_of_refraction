@@ -2,6 +2,7 @@
 
 #include "AI/AIDecisionManager.h"
 #include "AI/AIDecisionConstants.h"
+#include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
@@ -236,7 +237,7 @@ FAction UAIDecisionManager::BuildAction(AActor *AIActor)
     if (Difficulty == EAIDifficulty::Easy)
     {
         // Easy: Random action, random target (old behavior)
-        AActor *Target = Enemies[FMath::RandRange(0, Enemies.Num() - 1)];
+        AActor *Target = Enemies[UBattleRandomSubsystem::RandRange(this, 0, Enemies.Num() - 1)];
         EAIActionChoice ChosenType = ChooseActionType(AIActor, Loadout);
 
         Action.Targets.Add(Target);
@@ -251,7 +252,7 @@ FAction UAIDecisionManager::BuildAction(AActor *AIActor)
             TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
             if (Spells.Num() > 0)
             {
-                Action.SpellData = Spells[FMath::RandRange(0, Spells.Num() - 1)];
+                Action.SpellData = Spells[UBattleRandomSubsystem::RandRange(this, 0, Spells.Num() - 1)];
             }
             break;
         }
@@ -261,7 +262,7 @@ FAction UAIDecisionManager::BuildAction(AActor *AIActor)
             TArray<UAbilityData *> Abilities = Loadout->GetAvailableAbilities();
             if (Abilities.Num() > 0)
             {
-                Action.SkillData = Abilities[FMath::RandRange(0, Abilities.Num() - 1)];
+                Action.SkillData = Abilities[UBattleRandomSubsystem::RandRange(this, 0, Abilities.Num() - 1)];
             }
             break;
         }
@@ -313,7 +314,7 @@ EAIActionChoice UAIDecisionManager::ChooseActionType(AActor *AIActor, ULoadoutCo
     // Random selection
     if (Options.Num() > 0)
     {
-        int32 Index = FMath::RandRange(0, Options.Num() - 1);
+        int32 Index = UBattleRandomSubsystem::RandRange(this, 0, Options.Num() - 1);
         return Options[Index];
     }
 
@@ -351,7 +352,7 @@ float UAIDecisionManager::CalculateThinkingDelay(EAIDifficulty Difficulty) const
 {
     float Min, Max;
     GetThinkingDelayRange(Difficulty, Min, Max);
-    return FMath::FRandRange(Min, Max);
+    return UBattleRandomSubsystem::FRandRange(this, Min, Max);
 }
 
 // ==================== DEFENSE DECISIONS ====================
@@ -386,7 +387,7 @@ EDefenseType UAIDecisionManager::ChooseDefenseType(AActor *Defender, float Attac
     // Medium: Block or Dodge (no parry - too risky)
     if (Difficulty == EAIDifficulty::Medium)
     {
-        if (bCanDodge && FMath::RandBool())
+        if (bCanDodge && UBattleRandomSubsystem::RandBool(this))
         {
             return EDefenseType::Dodge;
         }
@@ -402,7 +403,7 @@ EDefenseType UAIDecisionManager::ChooseDefenseType(AActor *Defender, float Attac
 
     // Parry vs Block: Higher difficulty = more parry attempts
     float ParryChance = (Difficulty == EAIDifficulty::Expert) ? AIConstants::EXPERT_PARRY_CHANCE : AIConstants::HARD_PARRY_CHANCE;
-    if (FMath::FRand() < ParryChance)
+    if (UBattleRandomSubsystem::FRand(this) < ParryChance)
     {
         return EDefenseType::Parry;
     }
@@ -476,7 +477,7 @@ double UAIDecisionManager::CalculateDefenseDelta(EAIDifficulty AIDiff, EDefenseT
     }
 
     double Delta = static_cast<double>(Band) * BandMult; // base aim offset from impact
-    Delta += Delta * FMath::FRandRange(-AIConstants::DEFENSE_DELTA_JITTER_FRAC, AIConstants::DEFENSE_DELTA_JITTER_FRAC);
+    Delta += Delta * UBattleRandomSubsystem::FRandRange(this, -AIConstants::DEFENSE_DELTA_JITTER_FRAC, AIConstants::DEFENSE_DELTA_JITTER_FRAC);
 
     // Clamp: never negative (no overshoot past impact -> no "too late" entry that could bleed into
     // the next impact), never beyond the valid lead-in (Window x Mult, the matcher's BeforeWindow)
@@ -508,7 +509,7 @@ void UAIDecisionManager::TrySynthesizeImpactDefense(AActor *Defender, AActor *At
     const EAIDifficulty Diff = GetCurrentDifficulty();
 
     // Per-impact attempt roll — each impact is independently defended or eaten.
-    if (FMath::FRand() > GetDefenseAttemptChance(Diff))
+    if (UBattleRandomSubsystem::FRand(this) > GetDefenseAttemptChance(Diff))
     {
         UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] %s eats impact (attempt roll failed)"),
                *Defender->GetName());
@@ -524,7 +525,7 @@ void UAIDecisionManager::TrySynthesizeImpactDefense(AActor *Defender, AActor *At
     EDefenseDirection Dir = EDefenseDirection::None;
     if (Choice == EDefenseType::Dodge)
     {
-        Dir = FMath::RandBool() ? EDefenseDirection::Left : EDefenseDirection::Right;
+        Dir = UBattleRandomSubsystem::RandBool(this) ? EDefenseDirection::Left : EDefenseDirection::Right;
     }
 
     const double Delta = CalculateDefenseDelta(Diff, Choice, ImpactDifficulty, Defender, Attacker, AttackType);
@@ -587,7 +588,7 @@ AActor *UAIDecisionManager::SelectBestTarget(AActor *Attacker, const TArray<AAct
     EAIDifficulty Difficulty = GetCurrentDifficulty();
     if (Difficulty == EAIDifficulty::Easy)
     {
-        int32 RandomIndex = FMath::RandRange(0, Enemies.Num() - 1);
+        int32 RandomIndex = UBattleRandomSubsystem::RandRange(this, 0, Enemies.Num() - 1);
         UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] Easy difficulty - random target: %s"),
                *Enemies[RandomIndex]->GetName());
         return Enemies[RandomIndex];

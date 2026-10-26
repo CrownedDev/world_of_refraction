@@ -2,6 +2,7 @@
 
 #include "Inventory/ItemExecutor.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Character/CharacterData.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Skills/Effects/SkillEffectManager.h"
@@ -943,7 +944,7 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, FCrystalId
 	UCharacterDataComponent *UserComp = GetCharacterDataComponent(User);
 	const bool bIsBuff = UserComp
 		? UserComp->RollLuckChance(TierBuffChance, CombatConstants::GAMBLE_BUFF_LUCK_BONUS)
-		: (FMath::FRand() < TierBuffChance);
+		: (UBattleRandomSubsystem::FRand(this) < TierBuffChance);
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Amethyst gamble: tier base %.0f%%, luck-modified roll -> %s"),
 		   TierBuffChance * 100.f, bIsBuff ? TEXT("BUFF") : TEXT("DEBUFF"));
@@ -951,7 +952,7 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, FCrystalId
 	OutResult.bGambleWon = bIsBuff;
 
 	const TArray<ESkillEffectType> &Pool = bIsBuff ? BuffPool : DebuffPool;
-	const ESkillEffectType ChosenType = Pool[FMath::RandRange(0, Pool.Num() - 1)];
+	const ESkillEffectType ChosenType = Pool[UBattleRandomSubsystem::RandRange(this, 0, Pool.Num() - 1)];
 
 	const float Magnitude = CrystalEffectTable::GetGambleMagnitudePercent(Id);
 	const int32 Duration = CrystalEffectTable::GetGambleDuration(Id);
@@ -974,7 +975,7 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, FCrystalId
 		static const EPhysicalDamageType kGamblePhysicals[3] = {
 			EPhysicalDamageType::Slash, EPhysicalDamageType::Pierce, EPhysicalDamageType::Impact};
 
-		const int32 cat = FMath::RandRange(0, 11);
+		const int32 cat = UBattleRandomSubsystem::RandRange(this, 0, 11);
 		if (cat < 9)
 		{
 			GambleEffect.Element = kGambleElements[cat]; // element-keyed; PhysicalType stays None

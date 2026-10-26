@@ -298,7 +298,7 @@ public:
     float GetLuckModifiedChance(float BaseChance, float LuckMaxBonus) const;
 
     /** Thin roller over GetLuckModifiedChance for FRand sites (break skip, future dodge/drops).
-     *  Not BlueprintPure — it draws FMath::FRand(), so it is non-deterministic. */
+     *  Not BlueprintPure — it draws from the battle stream (UBattleRandomSubsystem), so each call advances it. */
     bool RollLuckChance(float BaseChance, float LuckMaxBonus) const;
 
     /** Crystal-aware derived-stat helpers. Each mirrors the asset's matching

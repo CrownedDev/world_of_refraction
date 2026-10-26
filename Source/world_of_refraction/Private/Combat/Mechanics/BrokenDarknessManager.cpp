@@ -2,6 +2,7 @@
 // Implementation for BrokenDarkness transformation and absorption system
 
 #include "Combat/Mechanics/BrokenDarknessManager.h"
+#include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Character/CharacterData.h"
@@ -193,7 +194,7 @@ bool UBrokenDarknessManager::RollForBreak(EItemTier Tier, int32 InfusionLevel, c
 		return false;
 	}
 
-	const float Roll = FMath::FRand();
+	const float Roll = UBattleRandomSubsystem::FRand(this);
 	const bool bBreaks = Roll < Chance;
 
 	if (bBreaks)
@@ -305,7 +306,7 @@ void UBrokenDarknessManager::AddStrain(int32 Deficit, const FString &TriggerReas
 	// Luck wear-skip parity: the wielder can skip the whole strain event (no accrual), exactly
 	// as ProcessPostCastWear skips a durability event. Negative ("cursed") luck never skips.
 	const float SkipChance = CharComp->GetLuckModifiedChance(0.0f, CombatConstants::LUCK_BREAK_SKIP_MAX);
-	if (FMath::FRand() < SkipChance)
+	if (UBattleRandomSubsystem::FRand(this) < SkipChance)
 	{
 		UE_LOG(LogTemp, Log,
 			   TEXT("BrokenDarkness: %s LUCKY strain skip (would have added %.2f, skip chance %.2f, Reason: %s)"),

@@ -37,6 +37,7 @@
 #include "Combat/Defense/DefenseSystem.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
+#include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Infusion/HybridSpellColors.h"
 #include "Combat/Projectile/SkillProjectile.h"
 #include "NiagaraFunctionLibrary.h"
@@ -6008,11 +6009,11 @@ void UActionExecutor::GetEffectTargets(
 	OutTargets.Empty();
 
 	// Passive/triggered Double auto-resolve: pull N random distinct actors from a pool.
-	auto AddRandomDistinct = [](TArray<AActor *> Pool, int32 N, TArray<AActor *> &Out)
+	auto AddRandomDistinct = [this](TArray<AActor *> Pool, int32 N, TArray<AActor *> &Out)
 	{
 		for (int32 i = 0; i < N && Pool.Num() > 0; ++i)
 		{
-			const int32 Idx = FMath::RandRange(0, Pool.Num() - 1);
+			const int32 Idx = UBattleRandomSubsystem::RandRange(this, 0, Pool.Num() - 1);
 			Out.Add(Pool[Idx]);
 			Pool.RemoveAt(Idx);
 		}
