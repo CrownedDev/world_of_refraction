@@ -37,20 +37,20 @@ namespace CombatResultsBuild
         return Text;
     }
 
-    FString TitleFor(ECombatState State)
+    FText TitleFor(ECombatState State)
     {
         switch (State)
         {
         case ECombatState::Victory:
-            return TEXT("VICTORY");
+            return NSLOCTEXT("CombatResults", "Victory", "VICTORY");
         case ECombatState::Defeat:
-            return TEXT("DEFEAT");
+            return NSLOCTEXT("CombatResults", "Defeat", "DEFEAT");
         case ECombatState::Draw:
-            return TEXT("DRAW");
+            return NSLOCTEXT("CombatResults", "Draw", "DRAW");
         case ECombatState::Fled:
-            return TEXT("FLED");
+            return NSLOCTEXT("CombatResults", "Fled", "FLED");
         default:
-            return TEXT("COMBAT OVER");
+            return NSLOCTEXT("CombatResults", "CombatOver", "COMBAT OVER");
         }
     }
 
@@ -96,7 +96,7 @@ void UCombatResultsWidget::ShowResult(const FCombatResult &Result)
 
     if (TitleText)
     {
-        TitleText->SetText(FText::FromString(CombatResultsBuild::TitleFor(Result.FinalState)));
+        TitleText->SetText(CombatResultsBuild::TitleFor(Result.FinalState));
         TitleText->SetColorAndOpacity(FSlateColor(CombatResultsBuild::TitleColorFor(Result.FinalState)));
     }
 
@@ -123,7 +123,7 @@ void UCombatResultsWidget::ShowResult(const FCombatResult &Result)
                                           FMath::Max(AutoContinueSeconds, MinAutoContinueSeconds), /*bLoop=*/false);
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatResults] %s - %s"), *CombatResultsBuild::TitleFor(Result.FinalState), *LastResultLine);
+    UE_LOG(LogTemp, Log, TEXT("[CombatResults] %s - %s"), *CombatResultsBuild::TitleFor(Result.FinalState).ToString(), *LastResultLine);
     OnResultShown(Result);
 }
 

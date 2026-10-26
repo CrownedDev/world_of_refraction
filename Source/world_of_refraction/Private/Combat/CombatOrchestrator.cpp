@@ -451,6 +451,13 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 		return false;
 	}
 
+	// D-091: fleeing has its own rules (rank, Gold, ending the fight); only the async path has them.
+	if (Action.ActionType == EActionType::Flee)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] SubmitAction: Flee goes through SubmitActionAsync - refused"));
+		return false;
+	}
+
 	AActor *Actor = CurrentActor;
 	if (!Actor)
 	{
@@ -1844,6 +1851,8 @@ void ACombatOrchestrator::DebugPrintCombatState()
 	UE_LOG(LogTemp, Display, TEXT("Auto-Advance: %s (%.1fs delay)"),
 		   bAutoAdvanceTurns ? TEXT("ON") : TEXT("OFF"), AutoAdvanceDelay);
 	UE_LOG(LogTemp, Display, TEXT("Waiting for Async: %s"), bWaitingForAsyncAction ? TEXT("Yes") : TEXT("No"));
+	UE_LOG(LogTemp, Display, TEXT("Encounter Rank: %s (flee %s)"), *UEnum::GetValueAsString(EncounterRank),
+		   FleeRules::CanFleeRank(EncounterRank) ? TEXT("allowed") : TEXT("refused"));
 
 	UE_LOG(LogTemp, Display, TEXT("\nTeam 0 (%d members):"), LocalPartyCombatants.Num());
 	for (AActor *Actor : LocalPartyCombatants)
