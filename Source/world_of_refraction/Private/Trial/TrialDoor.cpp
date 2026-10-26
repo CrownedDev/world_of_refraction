@@ -108,6 +108,7 @@ void ATrialDoor::Interact()
         // No local player (a bot at the door) enters with the defaults.
         if (!UTrialGateWidget::Open(Cast<APlayerController>(Pawn->GetController()), Trial))
         {
+            TrialRun->SetGateChoice(Trial->Variations.IsEmpty() ? INDEX_NONE : 0, TrialGate::DEFAULT_DIFFICULTY);
             TrialRun->EnterTrial(Trial);
         }
     }

@@ -173,7 +173,8 @@ void UTrialGateWidget::HandleEnterClicked()
 	UTrialData *ChosenTrial = Trial;
 	UE_LOG(LogTemp, Log, TEXT("%s"), *GetTrialGateString());
 	Close();
-	if (TrialRun && ChosenTrial)
+	// A trial with no level can't be entered (EnterTrial refuses it), so it keeps no choice either.
+	if (TrialRun && ChosenTrial && !ChosenTrial->Level.IsNull())
 	{
 		TrialRun->SetGateChoice(VariationIndex, Difficulty);
 		TrialRun->EnterTrial(ChosenTrial);

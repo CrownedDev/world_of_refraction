@@ -246,7 +246,11 @@ void ABattleGameMode::BootstrapCombat()
     const float EnemyStrength = TrialRun->GetEnemyStrengthMultiplier();
     for (AActor *Enemy : OpposingParty)
     {
-        TrialGate::ApplyEnemyStrength(Enemy, EnemyStrength);
+        if (!TrialGate::ApplyEnemyStrength(Enemy, EnemyStrength))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s: trial difficulty not applied (no character data or effect manager)"),
+                   *GetNameSafe(Enemy));
+        }
     }
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Trial difficulty %s: enemy strength x%.2f"),
            *TrialGate::GetDifficultyName(TrialRun->GetTrialDifficulty()).ToString(), EnemyStrength);
