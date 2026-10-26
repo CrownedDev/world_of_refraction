@@ -217,4 +217,4 @@ Same approval flow as the deckbuilder: plain + annotated draft → Crown approve
 1. **Header bar:** pick one of the four candidates (it was still open in the deckbuilder).
 2. **Licences:** confirm each pack's terms for Unreal / commercial use.
 3. ~~Source art~~ **Decided:** save what we use (§4, 2a).
-4. **Mockup pipeline:** copy `tools/ui_drafts/` into this repo, or keep it in the deckbuilder and output here?
+4. ~~Mockup pipeline~~ **Decided (D-025 A):** the tool is copied to `Tools/ui_drafts/` here (B-100). It reads the kit from `WOR_UI_KIT`, and drafts are committed under `docs/Design/screen_mockups/` (LFS).
