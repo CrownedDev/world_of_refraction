@@ -934,6 +934,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
   All three key off the same unlock data as memories and reaction triggers (D-032 parts 4, 9).
 - **(6) Hub NPCs: A, V in different forms** (Crown, 2026-10-26): every service NPC (Blacksmith, Jeweler, Stone Smith, Spiritualist, shops) is **V**, with a different outfit or prop per role. A quiet clue to V's nature (part 3). Lost-soul NPCs may come later.
   - So **V's look** (void material + clothing on Manny/Quinn, B-143/B-144) carries the guide, every mob and every hub NPC: Crown calls it **imperative** when the time comes.
+- **(7) The opening: B** (Crown, 2026-10-26): the game **opens with waking up in the Void Realm**, no memories, V there. The bar night isn't shown; it's **recovered later as one of the first memories**.
 **Notes for Claude:** the data assets keep their names for now (`DA_Character_FireLord` etc., D-058: existing names stay); rename when the real names exist. Player-facing text never says "Lord" for them. Record further answers here; write `docs/Design/HubAndStory.md` when complete.
 
 ### D-080 — Loadout check in the editor: which spell discount?
