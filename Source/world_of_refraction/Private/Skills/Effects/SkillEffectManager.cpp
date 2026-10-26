@@ -2730,6 +2730,15 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	// Every break lasts STATUS_CAP_TURNS of the holder's own turns (D-030, D-090), counted
 	// by the one rule (FTurnSpan, D-051): it ends as the holder's turn after those starts.
 	Effect.StartHolderTurnSpan(CombatConstants::STATUS_CAP_TURNS);
+
+	// Q-063: a break landing on the holder's OWN turn counts that turn (D-051), whose start has
+	// already passed, so a payout break (Burn, EP drain) pays once on landing instead: exactly
+	// N payouts either way.
+	UTurnManager *TurnManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+	if (Effect.bDelayFirstExecution && TurnManager && TurnManager->IsCombatActive() && TurnManager->GetCurrentActor() == Target)
+	{
+		Effect.bDelayFirstExecution = false;
+	}
 	Effect.EffectID = EffectIdentity::MakeStatusCapEffectID(static_cast<uint8>(Effect.EffectType), static_cast<uint8>(Element));
 	const EEffectApplicationResult Result = ApplyEffect(Target, Effect, Source, TEXT("Status Bar Trigger"), -1);
 
@@ -2739,17 +2748,17 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 		SpellSlow.EffectType = ESkillEffectType::SpellSpeedDebuff;
 		SpellSlow.EffectName = SkillEffectDisplayNames::GetDisplayName(ESkillEffectType::SpellSpeedDebuff, Element);
 		SpellSlow.EffectID = EffectIdentity::MakeStatusCapEffectID(static_cast<uint8>(SpellSlow.EffectType), static_cast<uint8>(Element));
-		ApplyEffect(Target, SpellSlow, Source, TEXT("Status Bar Trigger"), -1);
+		if (ApplyEffect(Target, SpellSlow, Source, TEXT("Status Bar Trigger"), -1) == EEffectApplicationResult::Rejected)
+		{
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Water break's Spell Speed slow refused on %s"), *Target->GetName());
+		}
 	}
 
 	// Wind break (D-014, D-090): a NEW gust pushes the holder's next turn back. The same
 	// attacker's refresh doesn't push again (D-012: same source refreshes, it doesn't add).
-	if (Effect.EffectType == ESkillEffectType::SkipTurn && Result == EEffectApplicationResult::Applied)
+	if (Effect.EffectType == ESkillEffectType::SkipTurn && Result == EEffectApplicationResult::Applied && TurnManager)
 	{
-		if (UTurnManager *TurnManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr)
-		{
-			TurnManager->DelayNextTurn(Target, CombatConstants::WIND_BREAK_DELAY_PLACES);
-		}
+		TurnManager->DelayNextTurn(Target, CombatConstants::WIND_BREAK_DELAY_PLACES);
 	}
 
 	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Applied triggered %s to %s for %d holder turn(s)"),

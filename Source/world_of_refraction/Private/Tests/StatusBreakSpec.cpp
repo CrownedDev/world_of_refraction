@@ -126,7 +126,7 @@ void FStatusBreakSpec::Define()
 			TestEqual(TEXT("No second Burn"), Char->CurrentHP, HPAfterTick);
 		});
 
-		It("landing on the holder's own turn counts that turn", [this]()
+		It("landing on the holder's own turn counts that turn (span only)", [this]()
 		{
 			if (!EffectManager) return;
 			AActor *Holder = Spawn();
@@ -135,6 +135,54 @@ void FStatusBreakSpec::Define()
 			TestTrue(TEXT("Held until the next turn starts"), Has(Holder, ESkillEffectType::DefenseDebuff));
 			EffectManager->ProcessStartOfTurnEffects(Holder);
 			TestFalse(TEXT("Gone as the next turn starts"), Has(Holder, ESkillEffectType::DefenseDebuff));
+		});
+
+		It("landing as a Burn on the holder's own turn pays once on landing (Q-063)", [this]()
+		{
+			if (!EffectManager || !TurnManager) return;
+			AActor *Holder = Spawn();
+			AActor *Attacker = Spawn();
+			UCharacterDataComponent *Char = CharOf(Holder);
+			if (!TestNotNull(TEXT("Holder"), Char)) return;
+			TurnManager->InitializeCombat({Holder}, {Attacker});
+			if (!TestTrue(TEXT("It is the holder's turn"), TurnManager->GetCurrentActor() == Holder)) return;
+
+			EffectManager->ApplyTriggeredSkillEffect(Attacker, Holder, ESkillEffectType::DOT, ESpellElement::Fire);
+			const int32 HPAfterLanding = Char->CurrentHP;
+			TestTrue(FString::Printf(TEXT("Burned on landing (%d -> %d)"), Char->MaxHP, HPAfterLanding), HPAfterLanding < Char->MaxHP);
+			EffectManager->ProcessEndOfTurnEffects(Holder);
+			EffectManager->ProcessStartOfTurnEffects(Holder);
+			TestFalse(TEXT("Ends as the holder's next turn starts"), Has(Holder, ESkillEffectType::DOT));
+			TestEqual(TEXT("No second Burn"), Char->CurrentHP, HPAfterLanding);
+			TurnManager->EndCombat();
+		});
+
+		It("of Lightning stuns for exactly one holder turn", [this]()
+		{
+			if (!EffectManager) return;
+			AActor *Holder = Spawn();
+			EffectManager->ApplyTriggeredSkillEffect(Spawn(), Holder, ESkillEffectType::Stun, ESpellElement::Lightning);
+			EffectManager->ProcessStartOfTurnEffects(Holder);
+			TestTrue(TEXT("Stunned on the holder's next turn"), Has(Holder, ESkillEffectType::Stun));
+			EffectManager->ProcessEndOfTurnEffects(Holder);
+			EffectManager->ProcessStartOfTurnEffects(Holder);
+			TestFalse(TEXT("Not stunned on the turn after"), Has(Holder, ESkillEffectType::Stun));
+		});
+
+		It("refreshed by the same attacker after its turn counted, holds one more turn", [this]()
+		{
+			if (!EffectManager) return;
+			AActor *Holder = Spawn();
+			AActor *Attacker = Spawn();
+			EffectManager->ApplyTriggeredSkillEffect(Attacker, Holder, ESkillEffectType::DefenseDebuff, ESpellElement::Earth);
+			EffectManager->ProcessStartOfTurnEffects(Holder);
+			EffectManager->ProcessEndOfTurnEffects(Holder);
+			EffectManager->ApplyTriggeredSkillEffect(Attacker, Holder, ESkillEffectType::DefenseDebuff, ESpellElement::Earth);
+			EffectManager->ProcessStartOfTurnEffects(Holder);
+			TestTrue(TEXT("Still held through the next turn"), Has(Holder, ESkillEffectType::DefenseDebuff));
+			EffectManager->ProcessEndOfTurnEffects(Holder);
+			EffectManager->ProcessStartOfTurnEffects(Holder);
+			TestFalse(TEXT("Gone the turn after"), Has(Holder, ESkillEffectType::DefenseDebuff));
 		});
 
 		It("of Water slows Action Speed and Spell Speed instead of blocking heals", [this]()
@@ -153,6 +201,12 @@ void FStatusBreakSpec::Define()
 					 Char->GetEffectiveActionSpeed() < ActionSpeedBefore);
 			TestTrue(FString::Printf(TEXT("Spell Speed slowed (%f -> %f)"), SpellSpeedBefore, Char->GetEffectiveSpellSpeed()),
 					 Char->GetEffectiveSpellSpeed() < SpellSpeedBefore);
+
+			EffectManager->ProcessStartOfTurnEffects(Holder);
+			EffectManager->ProcessEndOfTurnEffects(Holder);
+			EffectManager->ProcessStartOfTurnEffects(Holder);
+			TestFalse(TEXT("Action Speed slow gone after one holder turn"), Has(Holder, ESkillEffectType::ActionSpeedDebuff));
+			TestFalse(TEXT("Spell Speed slow gone after one holder turn"), Has(Holder, ESkillEffectType::SpellSpeedDebuff));
 		});
 
 		It("of Broken Darkness drains EP at the holder's turn start", [this]()

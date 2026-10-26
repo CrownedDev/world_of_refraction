@@ -471,6 +471,14 @@ void UTurnManager::OnActorSpeedChanged(AActor *Actor)
 void UTurnManager::OnActorDied(AActor *Actor)
 {
 	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s died"), *Actor->GetName());
+	// A Wind delay dies with its holder; a revived holder starts undelayed.
+	for (FCombatantTurnDebt &Combatant : Combatants)
+	{
+		if (Combatant.Actor == Actor)
+		{
+			Combatant.PlacesToYield = 0;
+		}
+	}
 	// Recalculate ratios since the slowest combatant might have changed
 	CalculateSpeedRatios();
 }
@@ -681,6 +689,8 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 	// place. Alone on the field, it keeps the turn (and the yield) — nobody to step behind.
 	if (NextCombatant->PlacesToYield > 0)
 	{
+		// The next in line goes even if it has used this round's turns: in a 1v1 that is the
+		// only way to move back a place. It can exceed a speed ratio (D-049 is still open).
 		if (FCombatantTurnDebt *NextInLine = PickHighestDebt(NextCombatant))
 		{
 			NextCombatant->PlacesToYield--;
