@@ -183,6 +183,31 @@ namespace
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broke + dismantled primary evolution on %s"), *Actor->GetName());
 		return true;
 	}
+
+	/** Repairs one equipped gem or evolution; true when it gained durability. Fusions are left out,
+	 *  as before. A broken gem is skipped (DestroyBrokenOn already cleared it); a broken evolution
+	 *  is repaired so it comes back (Q-159c). */
+	bool CrystalBreakRepairSlot(AActor *Actor, ULoadoutComponent *Loadout, const FEquippedCrystalSlot &Slot, int32 Amount)
+	{
+		if (Slot.Kind != EAttachedItemKind::Crystal && Slot.Kind != EAttachedItemKind::Evolution)
+		{
+			return false;
+		}
+		const FRuntimeAttachedItem Before = Loadout->GetCrystalEntryByHolder(Slot.Holder);
+		if (Before.IsEmpty() || (Slot.Kind == EAttachedItemKind::Crystal && Before.IsBroken()))
+		{
+			return false;
+		}
+		const int32 BeforeDur = Before.GetCurrentDurability();
+		const int32 NewDur = Loadout->RepairCrystalEntryByHolder(Slot.Holder, Amount);
+		if (NewDur <= BeforeDur)
+		{
+			return false;
+		}
+		UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Repaired '%s' on %s: %d -> %d / %d"),
+			   *CrystalBreakDisplayName(Slot), *Actor->GetName(), BeforeDur, NewDur, Before.GetMaxDurability());
+		return true;
+	}
 }
 
 int32 CrystalBreak::DestroyBrokenOn(AActor *Actor)
@@ -199,4 +224,28 @@ int32 CrystalBreak::DestroyBrokenOn(AActor *Actor)
 	}
 	// A broken primary evolution (e.g. Broken Darkness) is kept too (Q-159).
 	return Destroyed;
+}
+
+int32 CrystalBreak::RepairOn(AActor *Actor, int32 Amount)
+{
+	ULoadoutComponent *Loadout = Actor ? Actor->FindComponentByClass<ULoadoutComponent>() : nullptr;
+	if (!Loadout)
+	{
+		return 0;
+	}
+	int32 Repaired = 0;
+	for (const FEquippedCrystalSlot &Slot : Loadout->GetEquippedCrystals())
+	{
+		Repaired += CrystalBreakRepairSlot(Actor, Loadout, Slot, Amount) ? 1 : 0;
+	}
+	const FEvolutionAttachment PrimaryBefore = Loadout->GetActiveLoadout().PrimaryEvolution;
+	const int32 PrimaryRestored = Loadout->RepairActivePrimaryEvolution(Amount);
+	if (PrimaryRestored > 0)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Repaired primary evolution '%s' on %s: %d -> %d"),
+			   PrimaryBefore.Item ? *PrimaryBefore.Item->GetFullItemName() : TEXT("(null)"), *Actor->GetName(),
+			   PrimaryBefore.CurrentDurability, PrimaryBefore.CurrentDurability + PrimaryRestored);
+		++Repaired;
+	}
+	return Repaired;
 }

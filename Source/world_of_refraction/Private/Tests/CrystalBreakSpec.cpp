@@ -1,6 +1,7 @@
 // CrystalBreakSpec.cpp
 // B-035: between-combat crystal destruction, split out of ACombatOrchestrator. A broken weapon or
 // ring crystal is cleared and dismantled into its typed essence; an intact one stays.
+// Q-159c: RepairOn, the between-combat repair, also brings a broken evolution back.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -9,6 +10,8 @@
 #include "Currency/CurrencyComponent.h"
 #include "Currency/EconomyYield.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Crystals/ItemIdentity.h"
+#include "Equipment/Durability/DurabilityConstants.h"
 #include "Equipment/FFusionAttachment.h"
 #include "Equipment/Durability/CrystalBreak.h"
 #include "Equipment/Rings/RingData.h"
@@ -20,6 +23,8 @@ namespace
 {
 	constexpr int32 CRYSTAL_BREAK_INTACT_DURABILITY = 10;
 	constexpr int32 CRYSTAL_BREAK_BROKEN_DURABILITY = 0;
+	constexpr int32 CRYSTAL_BREAK_WORN_DURABILITY = 1;
+	constexpr int32 CRYSTAL_BREAK_EVOLUTION_MAX_DURABILITY = 50;
 	const FCrystalId CRYSTAL_BREAK_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
 	/** An elemental fusion: a stone half (never pays) and a gem half (pays half its essence). */
 	const FCrystalId CRYSTAL_BREAK_FUSION_STONE(ECrystalType::DamageStone, EItemTier::C_Tier);
@@ -87,6 +92,15 @@ BEGIN_DEFINE_SPEC(FCrystalBreakSpec, "WoR.Durability.CrystalBreak",
 		RingEntry.RingEntry.AttachedItem = CrystalBreakGem(RingDurability);
 		Active.RingLoadout = {RingEntry};
 		Active.ActiveRingIndex = 0;
+	}
+
+	/** A breakable evolution asset whose max durability is above one repair. */
+	UEvolutionItemData *NewEvolution() const
+	{
+		UEvolutionItemData *Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+		Evolution->Breakability = EBreakability::Breakable;
+		Evolution->MaxDurability = CRYSTAL_BREAK_EVOLUTION_MAX_DURABILITY;
+		return Evolution;
 	}
 
 	int32 GemEssence() const
@@ -172,6 +186,80 @@ void FCrystalBreakSpec::Define()
 		TestTrue(TEXT("still on the weapon"), Loadout->GetCrystalEntryByHolder(Weapon).Evolution.Item == Evolution);
 	});
 
+	It("repair: a worn gem gains the repair amount, clamped to its max", [this]()
+	{
+		Spawn(CRYSTAL_BREAK_WORN_DURABILITY, CRYSTAL_BREAK_WORN_DURABILITY);
+		const int32 Expected = FMath::Min(ItemIdentity::GetMaxDurability(CRYSTAL_BREAK_GEM),
+										  CRYSTAL_BREAK_WORN_DURABILITY + DurabilityConstants::REPAIR_PER_BATTLE);
+		TestTrue(TEXT("the gem can gain durability"), Expected > CRYSTAL_BREAK_WORN_DURABILITY);
+		TestEqual(TEXT("two repaired"), CrystalBreak::RepairOn(Actor, DurabilityConstants::REPAIR_PER_BATTLE), 2);
+		TestEqual(TEXT("weapon gem repaired"), Loadout->GetCrystalEntryByHolder(Weapon).GetCurrentDurability(), Expected);
+	});
+
+	It("repair: a broken gem is not repaired", [this]()
+	{
+		Spawn(CRYSTAL_BREAK_BROKEN_DURABILITY, CRYSTAL_BREAK_WORN_DURABILITY);
+		CrystalBreak::RepairOn(Actor, DurabilityConstants::REPAIR_PER_BATTLE);
+		TestEqual(TEXT("broken gem stays at 0"), Loadout->GetCrystalEntryByHolder(Weapon).GetCurrentDurability(),
+				  CRYSTAL_BREAK_BROKEN_DURABILITY);
+	});
+
+	It("repair: a broken evolution on a weapon comes back (Q-159c)", [this]()
+	{
+		Spawn(CRYSTAL_BREAK_INTACT_DURABILITY, CRYSTAL_BREAK_INTACT_DURABILITY);
+		FRuntimeAttachedItem Broken;
+		Broken.Kind = EAttachedItemKind::Evolution;
+		Broken.Evolution.Item = NewEvolution();
+		Broken.Evolution.CurrentDurability = CRYSTAL_BREAK_BROKEN_DURABILITY;
+		Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryWeapon.WeaponEntry.AttachedItem = Broken;
+
+		CrystalBreak::RepairOn(Actor, DurabilityConstants::REPAIR_PER_BATTLE);
+		const FRuntimeAttachedItem After = Loadout->GetCrystalEntryByHolder(Weapon);
+		TestEqual(TEXT("repaired by one repair"), After.GetCurrentDurability(), DurabilityConstants::REPAIR_PER_BATTLE);
+		TestFalse(TEXT("no longer broken"), After.IsBroken());
+	});
+
+	It("repair: a broken primary-slot evolution comes back (Q-159c)", [this]()
+	{
+		Spawn(CRYSTAL_BREAK_INTACT_DURABILITY, CRYSTAL_BREAK_INTACT_DURABILITY);
+		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+		Active.PrimarySlotType = EPrimarySlotType::Evolution;
+		Active.PrimaryEvolution.Item = NewEvolution();
+		Active.PrimaryEvolution.CurrentDurability = CRYSTAL_BREAK_BROKEN_DURABILITY;
+
+		CrystalBreak::RepairOn(Actor, DurabilityConstants::REPAIR_PER_BATTLE);
+		const FCombatLoadout &After = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+		TestEqual(TEXT("repaired by one repair"), After.PrimaryEvolution.CurrentDurability, DurabilityConstants::REPAIR_PER_BATTLE);
+		TestFalse(TEXT("no longer broken"), After.PrimaryEvolution.IsBroken());
+	});
+
+	It("repair: an evolution is clamped to its max durability", [this]()
+	{
+		Spawn(CRYSTAL_BREAK_INTACT_DURABILITY, CRYSTAL_BREAK_INTACT_DURABILITY);
+		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+		Active.PrimarySlotType = EPrimarySlotType::Evolution;
+		Active.PrimaryEvolution.Item = NewEvolution();
+		Active.PrimaryEvolution.CurrentDurability = CRYSTAL_BREAK_EVOLUTION_MAX_DURABILITY - CRYSTAL_BREAK_WORN_DURABILITY;
+
+		CrystalBreak::RepairOn(Actor, DurabilityConstants::REPAIR_PER_BATTLE);
+		TestEqual(TEXT("at max"), Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryEvolution.CurrentDurability,
+				  CRYSTAL_BREAK_EVOLUTION_MAX_DURABILITY);
+	});
+
+	It("repair: an Unbreakable evolution is not repaired (it never wears)", [this]()
+	{
+		Spawn(CRYSTAL_BREAK_INTACT_DURABILITY, CRYSTAL_BREAK_INTACT_DURABILITY);
+		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+		Active.PrimarySlotType = EPrimarySlotType::Evolution;
+		Active.PrimaryEvolution.Item = NewEvolution();
+		Active.PrimaryEvolution.Item->Breakability = EBreakability::Unbreakable;
+		Active.PrimaryEvolution.CurrentDurability = CRYSTAL_BREAK_BROKEN_DURABILITY;
+
+		CrystalBreak::RepairOn(Actor, DurabilityConstants::REPAIR_PER_BATTLE);
+		TestEqual(TEXT("unchanged"), Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryEvolution.CurrentDurability,
+				  CRYSTAL_BREAK_BROKEN_DURABILITY);
+	});
+
 	It("leaves intact crystals alone", [this]()
 	{
 		Spawn(CRYSTAL_BREAK_INTACT_DURABILITY, CRYSTAL_BREAK_INTACT_DURABILITY);
@@ -184,6 +272,7 @@ void FCrystalBreakSpec::Define()
 	{
 		TestEqual(TEXT("no actor"), CrystalBreak::DestroyBrokenOn(nullptr), 0);
 		TestEqual(TEXT("no loadout"), CrystalBreak::DestroyBrokenOn(TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData())), 0);
+		TestEqual(TEXT("repair: no actor"), CrystalBreak::RepairOn(nullptr, DurabilityConstants::REPAIR_PER_BATTLE), 0);
 	});
 }
 

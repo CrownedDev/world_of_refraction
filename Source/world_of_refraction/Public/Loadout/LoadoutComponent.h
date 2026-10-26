@@ -644,6 +644,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Loadout|Crystal")
     bool ApplyWearToActivePrimaryEvolution(int32 Amount, bool bForceWear = false);
 
+    /** Between-combat repair of the active loadout's standalone primary-slot evolution, broken
+     *  included (Q-159c), clamped to its MaxDurability. Returns the durability restored; 0 when
+     *  there is no evolution primary slot or it is already full. */
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Crystal")
+    int32 RepairActivePrimaryEvolution(int32 Amount);
+
     /** Clears the active loadout's primary evolution slot if its attachment
      *  is broken (durability <= 0 and breakable). PrimarySlotType is left
      *  unchanged (stays Evolution — the slot just empties). Returns true if

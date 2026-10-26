@@ -617,10 +617,10 @@ private:
 	// Result building
 	FCombatResult BuildCombatResult();
 
-	/** Apply +REPAIR_PER_BATTLE to every refined, non-immune, non-broken crystal
-	 *  on every active combatant's equipped rings. Fired in the win-condition cleanup
-	 *  inside OnActionCompleted. NOT called from ForceEndCombat (aborts don't count
-	 *  as completed battles). */
+	/** Apply +REPAIR_PER_BATTLE via CrystalBreak::RepairOn to every combatant's attached gems
+	 *  (not broken ones) and evolutions (broken included, Q-159c), plus a primary-slot
+	 *  evolution. Fired when a fight finishes (win or loss) inside OnActionCompleted.
+	 *  NOT called from ForceEndCombat (aborts don't count as completed battles). */
 	void ApplyBetweenCombatRepair();
 
 	/** Phase B — Crystal destruction at combat end.

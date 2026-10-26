@@ -1682,66 +1682,18 @@ void ACombatOrchestrator::ApplyBetweenCombatRepair()
 {
 	const int32 RepairAmount = DurabilityConstants::REPAIR_PER_BATTLE;
 	int32 CrystalsRepaired = 0;
-
-	auto RepairTeam = [&](const TArray<AActor *> &Team)
+	for (const TArray<AActor *> *Team : {&LocalPartyCombatants, &OpposingPartyCombatants})
 	{
-		for (AActor *Actor : Team)
+		for (AActor *Actor : *Team)
 		{
-			if (!Actor)
-			{
-				continue;
-			}
-
-			ULoadoutComponent *LoadoutComp = Actor->FindComponentByClass<ULoadoutComponent>();
-			if (!LoadoutComp)
-			{
-				continue;
-			}
-
-			for (const FEquippedCrystalSlot &Slot : LoadoutComp->GetEquippedCrystals())
-			{
-				// Only refined attachments are eligible for between-combat repair.
-				// Kind == Refined captures the eligibility gate. Under the
-				// Breakability model, a refined crystal may or may not be
-				// breakable; repair still routes through the refined branch.
-				if (Slot.Kind != EAttachedItemKind::Crystal)
-				{
-					continue;
-				}
-
-				// Read first to gate on IsBroken and capture the pre-repair value.
-				// On no match GetCrystalEntryByHolder returns an empty attachment;
-				// IsBroken is false for that case, but the Kind == Refined gate
-				// above already filtered out the unmatched-holder rows.
-				const FRuntimeAttachedItem Before = LoadoutComp->GetCrystalEntryByHolder(Slot.Holder);
-				if (Before.IsEmpty() || Before.IsBroken())
-				{
-					continue;
-				}
-
-				const int32 BeforeDur = Before.GetCurrentDurability();
-				const int32 NewDur = LoadoutComp->RepairCrystalEntryByHolder(Slot.Holder, RepairAmount);
-
-				if (NewDur > BeforeDur)
-				{
-					const int32 MaxDur = Before.GetMaxDurability();
-					UE_LOG(LogTemp, Verbose,
-						   TEXT("[CombatOrchestrator] Repaired '%s' on %s: %d -> %d / %d"),
-						   *ItemIdentity::GetDisplayName(Slot.CrystalId), *Actor->GetName(),
-						   BeforeDur, NewDur, MaxDur);
-					CrystalsRepaired++;
-				}
-			}
+			CrystalsRepaired += CrystalBreak::RepairOn(Actor, RepairAmount);
 		}
-	};
-
-	RepairTeam(LocalPartyCombatants);
-	RepairTeam(OpposingPartyCombatants);
+	}
 
 	if (CrystalsRepaired > 0)
 	{
 		UE_LOG(LogTemp, Log,
-			   TEXT("[CombatOrchestrator] Between-combat repair: +%d to %d crystal(s)"),
+			   TEXT("[CombatOrchestrator] Between-combat repair: +%d to %d item(s) (gems and evolutions)"),
 			   RepairAmount, CrystalsRepaired);
 	}
 }
