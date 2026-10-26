@@ -84,21 +84,21 @@ Code paths are relative to `Source/world_of_refraction/`. The deckbuilder is 1v1
 | PA-39 | Co-op revive on defeat is not decided. | Open (later, with co-op) | `D-002` notes |
 
 ## Open questions
-- D-040 (OPEN): whether a member's chosen cell decides where they start (Cp-2).
-- D-041 (OPEN): how a fallen member comes back during a run (Cp-3).
-- D-042 (OPEN): the difficulty AI-controlled party members play at (Cp-4); blocks B-071.
-- D-043 (OPEN): who you control when the leader is down (Cp-6); blocks B-071.
+- D-042 (OPEN): whether a member's chosen cell decides where they start (Cp-2).
+- D-043 (OPEN): how a fallen member comes back during a run (Cp-3).
+- D-044 (OPEN): the difficulty AI-controlled party members play at (Cp-4); blocks B-071.
+- D-045 (OPEN): who you control when the leader is down (Cp-6); blocks B-071.
 - D-002 notes: co-op revive on defeat is not decided yet ("later, with co-op").
 - D-026 notes: how a hub-built team's own gear works at run start isn't covered (D-021 covers only the leader). Raise a new D-entry if B-076 needs it.
 - D-020 notes: when two members' presets share one item, the suggested clash rule (flag it on the party screen, you pick) is not ruled.
 
 ## Conflicts
 - **Cp-1: PartySystem.md says "no mid-run recruitment".** `docs/Architecture/PartySystem.md:14-15` says the party is "locked at trial entry... No mid-run recruitment" and that the non-leader slots are "AI companions" (`:16-17`). D-003/D-026 say you can find characters during a trial (run-only) and D-004 says members are Player-controlled by default. Doc fix, no ruling: the rulings are newer and explicit (**B-117**). The code doesn't stop recruiting in a trial; recruitables are only placed in the hub.
-- **Cp-2: Formation is stored but never used.** `Party/Party.h:35-42` says an unplaced member "falls back to AutoAssignTeam's centre-out table at spawn", implying a placed member keeps its cell. But `Combat/CombatOrchestrator.cpp:214-215` always auto-assigns both sides to the Middle row, and nothing reads `PreferredRow/PreferredColumn` (`Combat/Grid/CombatGridSubsystem.cpp:292-295` TODO). Question, options and recommendation: **D-040**.
-- **Cp-3: "Out until revived", but no way to revive after a fight.** `docs/Architecture/PartySystem.md:18-19` and `Party/Party.h:27` say a dead member is "out until revived". Sapphire only revives inside a fight, and dead members aren't spawned into later fights (PA-27), so in practice a death lasts the whole run. Question, options and recommendation: **D-041**.
-- **Cp-4: AI allies play at the enemy's difficulty.** One per-encounter difficulty drives every AI character (`AI/AIDecisionManager.cpp:193-199`), so on an Easy encounter your AI allies also act at random and block only 40% of hits. Question, options and recommendation: **D-042**.
+- **Cp-2: Formation is stored but never used.** `Party/Party.h:35-42` says an unplaced member "falls back to AutoAssignTeam's centre-out table at spawn", implying a placed member keeps its cell. But `Combat/CombatOrchestrator.cpp:214-215` always auto-assigns both sides to the Middle row, and nothing reads `PreferredRow/PreferredColumn` (`Combat/Grid/CombatGridSubsystem.cpp:292-295` TODO). Question, options and recommendation: **D-042**.
+- **Cp-3: "Out until revived", but no way to revive after a fight.** `docs/Architecture/PartySystem.md:18-19` and `Party/Party.h:27` say a dead member is "out until revived". Sapphire only revives inside a fight, and dead members aren't spawned into later fights (PA-27), so in practice a death lasts the whole run. Question, options and recommendation: **D-043**.
+- **Cp-4: AI allies play at the enemy's difficulty.** One per-encounter difficulty drives every AI character (`AI/AIDecisionManager.cpp:193-199`), so on an Easy encounter your AI allies also act at random and block only 40% of hits. Question, options and recommendation: **D-044**.
 - **Cp-5: Sphere joiners don't reach the fight.** The `EncounterComponent.h:3-8` header says players entering the sphere "join LocalParty", and D-003 says co-op players join via the sphere. But `OnJoinWindowExpired` builds the roster from the party list only (`Combat/Encounter/EncounterComponent.cpp:212-228`) and ignores joiners, and the join gate rejects anyone not in your own party (`:187-195`), which would also reject another human player's characters. Not a ruling conflict (co-op isn't built and D-003 says keep the sphere), but the header comment is wrong today. No question for Crown yet: fix the comment with B-071 (**B-117**), and settle how co-op players' parties pass the gate when co-op is built.
-- **Cp-6: A dead leader.** D-004 says the leader is always Player-controlled. Today the player possesses whichever living member spawns first (`Trial/BattleGameMode.cpp:129-170`, after `GetLivingMemberCharacterData` drops the dead), so if the leader died in an earlier fight, the next member becomes the player's character. If the leader dies mid-fight, the rest keep playing on AI. Question, options and recommendation: **D-043**.
+- **Cp-6: A dead leader.** D-004 says the leader is always Player-controlled. Today the player possesses whichever living member spawns first (`Trial/BattleGameMode.cpp:129-170`, after `GetLivingMemberCharacterData` drops the dead), so if the leader died in an earlier fight, the next member becomes the player's character. If the leader dies mid-fight, the rest keep playing on AI. Question, options and recommendation: **D-045**.
 
 ## Gaps
 - No rule for how many characters you can find in one trial, or what happens when you find one with a full party (PA-01 refuses the invite today).
