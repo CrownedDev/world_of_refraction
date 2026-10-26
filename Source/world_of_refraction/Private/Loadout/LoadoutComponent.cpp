@@ -3142,6 +3142,42 @@ const FRingLoadoutEntry *ULoadoutComponent::GetActiveRingLoadout() const
     return Entry.IsValid() ? &Entry : nullptr;
 }
 
+FText ULoadoutComponent::GetTurnSwitchRefusedReason() const
+{
+    return bUsedTurnSwitch ? LOCTEXT("TurnSwitchUsed", "Already switched this turn.") : FText::GetEmpty();
+}
+
+bool ULoadoutComponent::TrySwitchWeaponThisTurn(FText &OutReason)
+{
+    OutReason = GetTurnSwitchRefusedReason();
+    if (!OutReason.IsEmpty())
+    {
+        UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] %s: weapon switch refused - already switched this turn"), *GetNameSafe(GetOwner()));
+        return false;
+    }
+    ToggleEquipment();
+    bUsedTurnSwitch = true;
+    return true;
+}
+
+bool ULoadoutComponent::TrySwitchRingThisTurn(int32 NewRingIndex, FText &OutReason)
+{
+    OutReason = GetTurnSwitchRefusedReason();
+    if (!OutReason.IsEmpty())
+    {
+        UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] %s: ring switch refused - already switched this turn"), *GetNameSafe(GetOwner()));
+        return false;
+    }
+    SetActiveRingIndex(NewRingIndex);
+    bUsedTurnSwitch = true;
+    return true;
+}
+
+void ULoadoutComponent::ResetTurnSwitch()
+{
+    bUsedTurnSwitch = false;
+}
+
 FText ULoadoutComponent::GetBrokenSourceReason(const USpellData *Spell) const
 {
     if (!Spell)

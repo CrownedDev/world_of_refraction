@@ -706,6 +706,20 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateItemsButton() const
     return Button;
 }
 
+void UCombatCommandMenuSubsystem::GreyIfTurnSwitchUsed(FPieMenuButtonData &Button) const
+{
+    const ULoadoutComponent *LC = GetLoadoutComponent();
+    const FText Reason = LC ? LC->GetTurnSwitchRefusedReason() : FText::GetEmpty();
+    if (Reason.IsEmpty())
+    {
+        return;
+    }
+    const FPieMenuButtonData Greyed = FPieMenuButtonData::MakeDisabledButton(Button.ButtonID, Button.DisplayName, Reason);
+    Button.Description = Greyed.Description;
+    Button.ButtonTint = Greyed.ButtonTint;
+    Button.bEnabled = false;
+}
+
 FPieMenuButtonData UCombatCommandMenuSubsystem::CreateSwitchWeaponButton() const
 {
     FPieMenuButtonData Button;
@@ -713,6 +727,7 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateSwitchWeaponButton() const
     Button.DisplayName = FText::FromString(TEXT("Switch Weapon"));
     Button.Category = EPieMenuCategory::SwitchWeapon;
     Button.bEnabled = true;
+    GreyIfTurnSwitchUsed(Button);
     return Button;
 }
 
@@ -733,6 +748,7 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateSwitchRingButton() const
     Button.DisplayName = FText::FromString(TEXT("Switch Ring"));
     Button.Category = EPieMenuCategory::ChangeRing;
     Button.bEnabled = true;
+    GreyIfTurnSwitchUsed(Button);
     return Button;
 }
 
@@ -936,7 +952,11 @@ void UCombatCommandMenuSubsystem::ExecuteSwitchWeapon()
     if (!LC)
         return;
 
-    LC->ToggleEquipment();
+    FText RefusedReason;
+    if (!LC->TrySwitchWeaponThisTurn(RefusedReason))
+    {
+        return;
+    }
 
     // Rebuild capabilities with the new active weapon and refresh main menu
     RebuildCapabilities();
@@ -964,7 +984,11 @@ void UCombatCommandMenuSubsystem::ExecuteSwitchRing()
         return;
 
     int32 NextIndex = (Loadout.ActiveRingIndex + 1) % RingCount;
-    LC->SetActiveRingIndex(NextIndex);
+    FText RefusedReason;
+    if (!LC->TrySwitchRingThisTurn(NextIndex, RefusedReason))
+    {
+        return;
+    }
 
     // Rebuild capabilities with new active ring
     RebuildCapabilities();
@@ -1911,6 +1935,10 @@ void UCombatCommandMenuSubsystem::DebugLogCapabilities() const
     UE_LOG(LogTemp, Log, TEXT("RingLoadout:    %s (%d spells)"), CurrentCapabilities.bHasRingLoadout ? TEXT("YES") : TEXT("NO"), CurrentCapabilities.RingSpells.Num());
     UE_LOG(LogTemp, Log, TEXT("SwitchWeapon:   %s"), CurrentCapabilities.bCanSwitchWeapon ? TEXT("YES") : TEXT("NO"));
     UE_LOG(LogTemp, Log, TEXT("SwitchRing:     %s"), CurrentCapabilities.bCanSwitchRing ? TEXT("YES") : TEXT("NO"));
+    if (const ULoadoutComponent *SwitchLC = GetLoadoutComponent())
+    {
+        UE_LOG(LogTemp, Log, TEXT("Turn switch:    %s"), SwitchLC->GetTurnSwitchRefusedReason().IsEmpty() ? TEXT("free") : TEXT("used"));
+    }
     for (const TPair<TObjectPtr<USpellData>, FText> &Blocked : CurrentCapabilities.BlockedSpellReasons)
     {
         UE_LOG(LogTemp, Log, TEXT("Greyed spell:   %s - %s"), *GetNameSafe(Blocked.Key), *Blocked.Value.ToString());
