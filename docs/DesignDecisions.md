@@ -1639,6 +1639,27 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-148-silence-seal): drains still call `ServerSpendEnergy` on the whole pool (`SkillEffectManager.cpp` DrainEnergy/EnergyDrain, `BrokenDarknessManager.cpp:571`, `:777`); `GetSealedEP` uses `RoundToInt`. The command menu doesn't grey skills by EP yet, so "the menu reads spendable EP" (D-038) lands with the new HUD (B-111 / B-105).
 
+### Q-071 — What level do AI-controlled party members play at, and how do you take over an AI member?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-071) · **Blocks:** — (B-071 shipped with A)
+**Question:** D-044 says AI allies play at "a fixed, good level". Which of the four AI levels (Easy / Medium / Hard / Expert, `AI/EAIDifficulty.h`)? And D-026 lets you switch a member on its turn: an AI member's turn has no menu, so how do you take it over?
+**Options:**
+- **A** Hard (scores every choice, heals below 40% HP, tries to defend 85% of hits with good timing). Take-over of an AI member: a placeholder console command until the new HUD gives it a button.
+- **B** Expert (95% defence, near-perfect timing): allies outplay the player.
+- **C** Medium: allies make visible mistakes.
+**Recommendation:** A. Ally AI in party RPGs is tuned to be competent but not better than the player: Persona 5's and Dragon Quest XI's AI tactics are praised for allies who heal and exploit weaknesses sensibly, while allies who play perfectly make the player's own turns feel optional. Hard is "optimal play" without Expert's perfect defence. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-071-party-into-battle): `AIConstants::ALLY_AI_DIFFICULTY = Hard` (TODO: tune), read through `UAIDecisionManager::GetDifficultyFor`. Handing a member to the AI is a command-menu button (Let AI Play); taking an AI member over on its turn is `wor.Combat.SwitchControl` until the new HUD (B-105) adds a button. The D-045 setting lives on the party and isn't saved yet (Settings screen, D-024).
+
+### Q-071b — Does a gearless leader sit a fight out too?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-071 review) · **Blocks:** — (B-071 shipped with A)
+**Question:** D-016 says a Generic or Resonator with no gear is left out of a fight and the fight starts with the others. The leader is always player-controlled (D-004). If the leader has no gear, do they sit out, and who do you play?
+**Options:**
+- **A** the leader sits out like any gearless member; you play the first member set to You (or the first who fights).
+- **B** the fight can't start until the leader has gear.
+**Recommendation:** A. It is D-016 read as written, and it never blocks a run. Dragon Quest XI dropped the old rule that a fallen hero ends the battle: the fight goes on while anyone stands, and players welcomed it. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-071-party-into-battle): `ABattleGameMode::BootstrapCombat` possesses the leader's pawn when it fights, otherwise the first Player-set member, otherwise the first spawned.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
