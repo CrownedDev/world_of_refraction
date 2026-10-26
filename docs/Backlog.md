@@ -18,7 +18,8 @@
 
 **Who:**
 - **CC:** Claude Code.
-- **Crown:** needs the editor or a judgement call.
+- **Crown:** needs a judgement call or a play-test.
+- **CC+UE:** Claude Code with the Unreal editor open and unreal-mcp connected (asset work). Skipped while the editor is closed.
 
 **Rules:**
 - Pick the **first `TODO` whose dependencies are `DONE`** and whose decisions aren't `OPEN`.
@@ -39,6 +40,7 @@
 | B-006 | Log categories: `LogWoR`, `LogWoRCombat`, `LogWoREffects`, `LogWoRAI`, `LogWoRLoadout`, `LogWoRUI`, `LogWoREconomy`; new header + cpp | CC | S | — | Declared and defined; used by new code; `LogTemp` migrated file-by-file when touched | REVIEW (in dev) |
 | B-007 | First Automation Spec tests: DamageCalculator (Pattern-P, defense clamp, crit), TierGap/RequirementGap scaling, TurnManager ordering | CC | M | B-005 | `test.sh` runs them headless and they pass | REVIEW (in dev) |
 | B-008 | `#if !UE_BUILD_SHIPPING` around all `FAutoConsoleCommand`s and test actors' bodies | CC | S | — | Shipping config compiles without them | TODO |
+| B-094 | Guard false positive: `Scripts/claude/guard.sh:22` matches `rm` inside any word (so a read-only `git ls-tree -r … Content/…` was blocked). Match `rm` only as a command word, e.g. `(^|[;&|[:space:]])rm[[:space:]]` | CC | S | — | `git ls-tree -r HEAD Content` passes; `rm -rf Content/x` is still blocked | TODO |
 | B-009 | Defense timing → world time (`DefenseSystem.cpp:68,212,422`) | CC | S | — | Window survives pause; matches the old timing in PIE | TODO |
 | B-010 | Per-battle `FRandomStream` (crit, BD, AI, random targets), seeded at combat start, seed logged | CC | M | B-001 | Same seed gives the same fight in a test | TODO |
 | B-011 | Add the 11 missing Architecture docs to CLAUDE.md's list; fix the stale `InnateElement` gotcha | CC | S | — | CLAUDE.md matches `docs/Architecture/` | DONE (this branch) |
@@ -117,7 +119,25 @@
 | B-090 | Save/persistence keystone: `USaveGame`, stable IDs, two-phase load; character state survives hub ↔ trial ↔ battle | CC | L | B-041 | Quit and reload keeps inventory, currency, party, HP | BLOCKED (B-041) |
 | B-091 | Pool: account vs character per D-020; wire or drop `UPoolSubsystem` | CC | M | D-020 | One inventory model | BLOCKED (D-020) |
 
+## UI rebuild — CommonUI, mockups first (D-024)
+
+Runs alongside the phases above. **Per screen group:** mockup (CC, no editor needed) → Crown approves → build on CommonUI (CC+UE) → Crown PIE → retire the old widgets. The old UI keeps working until its replacement passes PIE. Gameplay logic stays in C++ (`refactor/bp-logic-to-cpp`, B-002/B-003); the new widgets sit on those C++ bases.
+
+| ID | Job | Who | Size | Needs | Done when | Status |
+|---|---|---|---|---|---|---|
+| B-100 | Mockup tool per D-025: plain + annotated 1280×720 drafts drawn from the deckbuilder kit (`UI_DeckbuilderReuse.md` §5), versioned `vN/` | CC | S | D-025 | One test draft renders | BLOCKED (D-025) |
+| B-101 | Mockup the **combat HUD**: party cards, turn-order strip, command diamond (incl. Defend), target selection, enemy plate, status icons, damage numbers, BD gauges (screens 31–40, Expedition 33 layout, `UI_DeckbuilderReuse.md` §1–2). Note the open header-bar pick | CC | M | B-100 | Plain + annotated drafts committed; listed for Crown in `docs/sessions/<today>.md` | BLOCKED (B-100) |
+| B-102 | Approve the combat HUD mockup (or ask for a vN+1) | Crown | S | B-101 | Approved version noted here | BLOCKED (B-101) |
+| B-103 | CommonUI base layer in C++: root layout with layer stacks (game / menu / modal), activatable screen base, button base with the four jobs (play / confirm / danger / navigate), input routing for keyboard + gamepad | CC | M | B-004, B-003 | Builds; an empty test screen opens and closes with Back; tests for the stack | BLOCKED (B-004) |
+| B-104 | Import the kit pieces the approved mockup uses (`SourceArt/` + `Content/UI/Vendor/`, `UI_DeckbuilderReuse.md` §4), fonts, CommonUI styles; `CREDITS.md` entries | CC+UE | M | B-102 | Assets in the Content Browser with the §4 import settings | BLOCKED (B-102) |
+| B-105 | Build the combat HUD on CommonUI from the approved mockup, alongside the old one (switchable) | CC+UE | L | B-103, B-104 | Fight playable on the new HUD; PIE file written | BLOCKED (B-103) |
+| B-106 | Retire the old combat widgets (after Crown's PIE pass of B-105) | CC+UE | S | B-105 DONE | Old widgets gone; fight still works | BLOCKED (B-105) |
+| B-107 | Mockup **results + loot + retry** (44–46), then repeat B-102→B-106 for them | CC | M | B-102 | As B-101 | BLOCKED (B-102) |
+| B-108 | Mockup **pause + settings + confirm dialog** (17, 43, 6, 8), then repeat B-102→B-106 | CC | M | B-102 | As B-101 | BLOCKED (B-102) |
+| B-109 | Mockup **hub HUD + shop + party** (10–13), then repeat B-102→B-106 | CC | M | B-102 | As B-101 | BLOCKED (B-102) |
+
+Later groups follow `UI_ScreenInventory.md` order; CC adds their rows when B-109 is approved.
+
 ## Later (not scheduled)
 - Co-op: replicated combat state, intent RPCs, `ServerTravel`, arena as streamed level instance (`ArchitectureReview_2026-10.md` §1.6, §1.9).
 - Real-time field abilities (movement, first strike) on GAS (`GASMigration.md`).
-- UI build-out on CommonUI with deckbuilder layouts (`UI_DeckbuilderReuse.md`).

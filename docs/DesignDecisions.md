@@ -265,6 +265,26 @@ The queue of questions only Crown can answer.
 **Notes for Claude:** A → in `IsActionAllowedWhileStunned`, also require no infusion charge; add a StunRule test. C → add the allowed types to the same function.
 - Defend (Crown, 2026-10-26): **add a Defend button to the combat menu now (B-092)**; later Defend also gets its own **key binding** (keyboard + gamepad), see B-093.
 
+### D-024 — Keep the current UI or rebuild it on CommonUI?
+**Status:** DECIDED · **Raised:** 2026-10-26 · **Applied:** `docs/Backlog.md` → "UI rebuild"
+**Answer (Crown, 2026-10-26):** rebuild the UI on CommonUI rather than restyle the current widgets. Same as the deckbuilder: **mockups first, from the kit assets, and Crown reviews them before anything is built.**
+**Notes for Claude:**
+- Replace one screen group at a time. The old widgets keep working until the new screen passes Crown's PIE check, then they're retired (B-106).
+- Logic stays in C++ (`refactor/bp-logic-to-cpp`, B-002/B-003); new widgets are layout only on those bases.
+- Mockups need no editor. Building and importing do (CC+UE jobs).
+- The moved widgets in `Content/UI/UMG/` (D-022) aren't worth more investigation: they are replaced anyway.
+
+### D-025 — Where does the mockup tool live, and where do the mockups go?
+**Status:** OPEN · **Raised:** 2026-10-26 · **Blocks:** B-100 (then the whole UI rebuild)
+**Question:** Copy the deckbuilder's mockup tool into this repo, and are the drafts committed so Crown can review them from the phone?
+**Context:** `tools/ui_drafts/` in `wor-deckbuilder` (Python + Pillow) draws plain + annotated 1280×720 drafts from the licensed kit in `wor.game/assets/ui/library/` (git-ignored there). Its drafts are git-ignored too, so they can only be seen on the PC (`UI_DeckbuilderReuse.md` §5, open item 4).
+**Options:**
+- A: copy the tool into `Tools/ui_drafts/` here; it reads the kit from a local path (env var `WOR_UI_KIT`); drafts committed under `docs/Design/screen_mockups/<area>/<screen>/vN/` (LFS, private repo) so they open on the phone.
+- B: as A, but drafts stay git-ignored (PC only, like the deckbuilder).
+- C: keep the tool in the deckbuilder and point its output at this repo.
+**Recommendation:** A. One repo to work in, and you can review drafts from your phone. The repo is private and LFS-tracks `png`; drafts are small (1280×720).
+**Answer (Crown):** _write here_
+
 ---
 
 ## Parked
