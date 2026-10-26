@@ -11,7 +11,7 @@ Your **critical-hit chance** ramps with Luck:
 
 ## Crit damage — variable multiplier
 
-A crit multiplies damage by your **crit-damage multiplier** (`UDamageCalculator::GetCritDamageMultiplier`) — *not* a fixed ×1.5: a low-CritDamage attacker crits near ×1.0 (little uplift), a maxed one toward ×2.0. CritDamage is a **Mind** substat; Luck decides *whether* you crit, CritDamage decides *how hard*.
+A crit multiplies damage by your **crit-damage multiplier** (`UDamageCalculator::GetCritDamageMultiplier`) — *not* a fixed ×1.5: a low-CritDamage attacker crits near ×1.0 (little uplift), a maxed one toward ×2.5 (with gear; D-034). CritDamage is a **Mind** substat; Luck decides *whether* you crit, CritDamage decides *how hard*.
 
 > AI note: estimates fold in **expected** crit (chance × multiplier), so AI predictions match average crit output.
 

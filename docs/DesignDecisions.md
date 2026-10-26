@@ -505,12 +505,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 ---
 
 ### D-034 — Crit damage ceiling: x2.5 or x2.0?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** What is the biggest multiplier a crit can reach with gear?
 **Context:** The stat caps crit damage at x1.5; gear multiplies it toward `CRIT_DAMAGE_GEAR_CEILING = 2.5` (`CombatConstants.h:192`). `DamageCalculator.md` and `Luck.md` say x2.0. Rules: `docs/Rules/02-elements-and-damage.md` CED-2.
 **Options:** A x2.5 (code) / B x2.0 (docs).
 **Recommendation:** B, because the docs were written to that design and the other gear ceilings are x2.0; the 2.5 looks like drift.
 **Answer (Crown):** **A, x2.5** (2026-10-26, after comparing PoE2, Diablo 4 and Expedition 33: freedom games don't hard-cap crit damage; crit chance being multiplicative already limits it). Fix the docs (`DamageCalculator.md`, `Luck.md`) to x2.5; the code stays. Uncapped with diminishing returns is a possible later step.
+**Applied:** docs fixed to x2.5 (`DamageCalculator.md`, `Luck.md`, Rules 02 ED-19/CED-2, `chore/apply-D-034-041`); the `CombatConstants.h:184` comment is B-147.
 
 ### D-035 — Should infusing an ability cost extra on top of the charge level?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
@@ -519,17 +520,19 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A keep both (abilities cost more) / B charge multiplier only (same as spells).
 **Recommendation:** A, because the deckbuilder also makes a physical ability pay +1 Energy to deal an element (`wor-deckbuilder/docs/reference/01-card-model.md:93`, "Cast through"). Fix the comments either way.
 **Answer (Crown):** **A** (2026-10-26): keep the extra x1.5 for infusing an ability on top of the charge level (deckbuilder: a physical ability pays more to deal an element). Fix the two wrong comments.
+**Queued:** the two wrong comments are B-147; Rules 02 ED-30/CED-1 updated.
 
 ### D-036 — Under D-005, which resistance scales damage?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-064
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-064 (now after B-145)
 **Question:** When resistance starts scaling elemental damage (D-005), do the general Resistance stat (up to 100% with gear) and resistance buffs count, or only the per-element columns?
 **Context:** D-005's notes say "class table + gear"; the buildup path's value also includes the general stat and buffs. Stacked with Defense's 85% cap it could approach immunity. Rules: 02 CED-3.
 **Options:** A per-element columns only / B everything the buildup path uses.
 **Recommendation:** A, because it can't stack toward immunity and it matches the deckbuilder, where resistance is per element.
 **Answer (Crown):** **A** (2026-10-26): only **per-element resistance** (class table + gear + element-specific effects) scales elemental damage, **1:1** (+20% Fire = 20% less Fire damage; −15% = 15% more), **capped at ±50%** (compared with PoE 75%, Diablo 4 70%, Elden Ring diminishing returns; lower because turn-based fights are a few hits). General Resistance and blanket buffs don't count. Crown also wants the resistance system **implemented better** (B-145).
+**Queued:** B-064 waits for the B-145 resistance plan (same files); Rules 02 ED-27/CED-3 updated.
 
 ### D-037 — What is "Physical" in code?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-080
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-080 (now after B-145)
 **Question:** D-007 says uninfused skills deal Physical, but there is no Physical element: they deal `None` plus Slash/Pierce/Impact. Is Physical "None + its physical type", or a new `ESpellElement` member?
 **Context:** `ESpellElement.h:28-34`; `EPhysicalDamageType.h:12-15`. Rules: 02 CED-4.
 **Options:** A None + physical type, shown as "Physical" / B a new enum member (appended).
@@ -539,6 +542,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Do it inside the GAS / resistance redesign (B-145, B-041/B-042), not as a separate pass: same files. Until then the game **shows** "Physical" for None + physical type (A as a stopgap).
 - New enum appended-only with explicit values; `ESpellElement` stays for identity. Ice (B-064a) goes on the damage type, not on `ESpellElement`.
 - Resistance per damage type (one attribute each), so Physical resistance sits beside the elements.
+**Queued:** B-080 and B-064a wait for B-145; Rules 02 CED-4 updated.
 
 ### D-038 — What does Silenced block?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
@@ -552,6 +556,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - UI: the sealed part of the EP bar is drawn dark (fits the B-111 bar work).
 - Replaces the spells-only block at `ActionExecutor.cpp:176-180`; the display name "No EP Spend" changes to match (naming: ask Crown).
 - Broken Darkness: its EP is the same field, so the seal applies to it too unless Crown says otherwise.
+**Queued:** B-148 (the seal). Its display name is D-070.
 
 ### D-039 — How many spells does an evolution hold?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
@@ -560,14 +565,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A by tier, 1–6 / B flat 6 / C flat 4.
 **Recommendation:** A, the live rule; then make the saved-loadout check match.
 **Answer (Crown):** **A, by tier, as already designed** (2026-10-26): crystals and evolutions hold spells by their tier (1–6, the shared `SlotsForContainerTier` curve). Not a new decision: fix the saved-loadout check's flat 6 (`FSavedLoadout.cpp:190-195`) and `EvolutionCrystals.md`'s "about 4" to match.
+**Queued:** B-147 (saved-loadout check and `EvolutionCrystals.md`).
 
 ### D-040 — Does a Refractor's innate always work?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** Here a Refractor's innate spells always work. In the deckbuilder they work only while a gear slot is empty. Should wearing gear switch them off?
 **Context:** Rules: 01 CL-C2; `wor-deckbuilder/docs/reference/01-card-model.md` (Refractor passive). Raised only because the two games differ.
 **Options:** A always on (current) / B only while the gear slot is empty (deckbuilder).
 **Recommendation:** A, because a Refractor here has only one gear slot, so B would make gear and innate an either-or.
 **Answer (Crown):** **A, always on** (2026-10-26): a Refractor's innate spells always work, whatever is in the primary slot. Already the code (`FCombatCapabilities.cpp:80-85` offers `InnateSpells` for every Caster, checked 2026-10-26); nothing to build. The deckbuilder's empty-slot rule doesn't apply here.
+**Applied:** nothing to build; Rules 01 CL-C2 updated (`chore/apply-D-034-041`).
 
 ### D-041 — Are skill requirements a gate or only a scale?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
@@ -576,6 +583,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A usable, just weaker (current) / B refused below the requirement.
 **Recommendation:** A, the current behaviour; then delete the commented-out gate and fix `Stats.md`.
 **Answer (Crown):** **A, usable but weaker** (2026-10-26): the shipped requirement-gap scaling stays (`Mechanics/Scaling/RequirementGap.md`); overreaching also feeds Broken Darkness strain. Delete the commented-out refusal (`ActionExecutor.cpp:233-236`) and fix `Stats.md`'s "gates skill tiers". Crown: like everything else, it could be **done better**, so it's in the standard-way redesign (B-146).
+**Queued:** B-147 (delete the commented-out refusal, fix `Stats.md`); the redesign is B-146.
 
 ### D-042 — Does a member's chosen cell decide where they start a fight?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
@@ -809,6 +817,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **(6) Enemy strength: A** (2026-10-26): set by the **difficulty picked at the door** and **where on the map** they are (zones nearer the boss are tougher; you can wander into a hard zone early). **No scaling to the party.** Harder zones roll gear from richer item pools, so they drop better loot.
 **Notes for Claude:** the item-pool tags in `Resources_Design.md` §7.9 were written for floors (`Source.Floor.N`); on open maps they become zones (e.g. `Source.Zone.<n>`) crossed with difficulty. Propose the tag names when building. "strongest" needs one measure; propose the existing caliber (`GetTotalPool()`, `Resources_Design.md` §7.9) rather than a new score, and confirm with Crown when building. How the fight resolves more than three teams isn't ruled. first strike is a real-time field ability (`GASMigration.md`, field abilities). Today fights start on contact via `EncounterComponent`'s sphere; the advantage needs a hook into battle start (turn order / opening damage). mobs share one body (V on the Manny/Quinn skeleton), so variety comes from their **gear and class** (the same inventory/loadout system as players) and element tinting, not new models. Record further answers here; write `docs/Design/Enemies.md` when complete.
 
+### D-070 — Display name for the reshaped Silenced
+**Status:** OPEN · **Raised:** 2026-10-26 (applying D-038) · **Blocks:** — (B-148 keeps the old name until answered)
+**Question:** Silenced now seals half your Energy instead of blocking spells. What should the player see it called?
+**Context:** The enum's display name is "Silenced (No EP Spend)" (`ESkillEffectType.h:129`), which no longer fits. D-038's notes say to ask Crown.
+**Options:** A "Silenced" (keep the word, new tooltip: half your Energy is sealed) / B "Sealed" / C another name.
+**Recommendation:** A, because the Darkness cap and the docs already say Silenced; only the tooltip changes.
+**Answer (Crown):** _write here_
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
@@ -822,6 +838,8 @@ Moved here once applied. Newest first.
 
 | ID | Decision | Date | Applied in |
 |---|---|---|---|
+| D-040 | A Refractor's innate spells always work, whatever it wears (already the code) | 2026-10-26 | `chore/apply-D-034-041` (Rules 01 CL-C2) |
+| D-034 | Crit damage ceiling with gear is x2.5 (the code); docs fixed | 2026-10-26 | `chore/apply-D-034-041` (docs; comment in B-147) |
 | D-064 | No new per-fight state on GameInstance subsystems: battle actors / GameState / PlayerState | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md standing rules) |
 | D-057 | Heavy visuals/audio: new data-asset fields use soft refs; existing hard refs stay | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md standing rules) |
 | D-058 | Content naming: new assets only, plus the junk/duplicate cleanup | 2026-10-26 | `chore/apply-D-057-068` (CLAUDE.md; B-123, B-122 TODO) |
