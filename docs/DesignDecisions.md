@@ -1660,6 +1660,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-071-party-into-battle): `ABattleGameMode::BootstrapCombat` possesses the leader's pawn when it fights, otherwise the first Player-set member, otherwise the first spawned.
 
+### Q-184 — Which teams count as "caught at once", and what happens to a team you don't beat?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-184) · **Blocks:** — (B-184 shipped with A)
+**Question:** Enemies §3 says several teams caught at once send their strongest member each, max 3. Which teams are caught, what rank and AI level does the mixed fight have, and does a team you lost to or fled from stay on the map?
+**Options:**
+- **A** Caught = every armed team within the arena's full radius (`ArenaSphereMaxRadius`) of its centre when the join window closes; the touched team comes first and past three the rest wait. While one window is open no other team opens its own. Nearby single enemy pawns are caught the same way. The mixed fight takes the hardest rank (a boss among them can't be fled) and the hardest AI level. Only a win removes them, all of them; after a loss or a flee they are still there.
+- **B** Only teams touching the player when the window closes.
+- **C** A flee also removes the team.
+**Recommendation:** A. Persona 5 and Dragon Quest XI show enemies on the map; escaping or losing leaves the enemy in the level, and only a win clears it. That is widely liked because the map shows your progress. Pulling in the teams near the fight matches Chained Echoes and Octopath, where nearby enemies join the battle. The arena radius is the area already shown to the player. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-184-field-enemy-teams): `UEncounterComponent::GatherCaughtEncounters`, `UEncounterData::BuildCaughtRoster`, `UTrialRunSubsystem::MarkPendingEncounterBeaten` (Victory only). Every placed encounter stays beaten, not only `AFieldEnemyTeam`; the key is the owner's level path without the PIE prefix. `PendingEncounterSources` carries the fight's sources across the OpenLevel like `PendingRank` (the same transport exception to D-064, moves with it for co-op, D-065).
+
 ### Q-183 — How many trial difficulty levels, and what does each change?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-183) · **Blocks:** — (B-183 shipped with A)
 **Question:** RunStructure §3 says the door asks for a difficulty that scales enemy strength and the payout. How many levels, and what does "enemy strength" scale?
