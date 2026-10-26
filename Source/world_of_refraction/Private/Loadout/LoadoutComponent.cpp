@@ -2,6 +2,8 @@
 // Active combat loadout and runtime battle state implementation
 
 #include "Loadout/LoadoutComponent.h"
+#include "Loadout/LoadoutConstants.h"
+#include "Inventory/InventoryConstants.h"
 #include "WoRLog.h"
 #include "Loadout/SpellPoolConstants.h"
 #include "Inventory/InventoryComponent.h"
@@ -28,6 +30,8 @@
 #include "Engine/Engine.h"
 
 #include "Skills/Definitions/SkillDataBase.h"
+
+#define LOCTEXT_NAMESPACE "LoadoutComponent"
 
 ULoadoutComponent::ULoadoutComponent()
 {
@@ -1266,21 +1270,49 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindingsLegacy(
 
 void ULoadoutComponent::ClearInvalidSlots()
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
+    if (const UInventoryComponent *Inv = GetInventoryComponent())
+    {
+        AnnounceDroppedParts(Inv->ActiveLoadoutIndex, DropInvalidParts(Inv->ActiveLoadoutIndex));
+    }
+}
+
+void ULoadoutComponent::DropInvalidPartsFromAllLoadouts()
+{
+    const UInventoryComponent *Inv = GetInventoryComponent();
+    const int32 LoadoutCount = Inv ? Inv->SavedLoadouts.Num() : 0;
+    for (int32 Index = 0; Index < LoadoutCount; ++Index)
+    {
+        AnnounceDroppedParts(Index, DropInvalidParts(Index));
+    }
+}
+
+void ULoadoutComponent::AnnounceDroppedParts(int32 LoadoutIndex, const TArray<FInvalidSlotFinding> &Dropped)
+{
+    if (Dropped.Num() == 0)
     {
         return;
     }
-
-    const int32 Index = Inv->ActiveLoadoutIndex;
-    if (!Inv->SavedLoadouts.IsValidIndex(Index))
+    TArray<FText> Messages;
+    for (const FInvalidSlotFinding &Finding : Dropped)
     {
-        return;
+        // TODO: rule reasons are built FStrings; move them to LOCTEXT tables (D-061).
+        Messages.Add(FText::Format(LOCTEXT("LoadoutPartDropped", "Removed: {0}"), FText::FromString(Finding.Reason)));
+    }
+    OnPartsDropped.Broadcast(LoadoutIndex, Messages);
+}
+
+TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index)
+{
+    TArray<FInvalidSlotFinding> Dropped;
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv || !Inv->SavedLoadouts.IsValidIndex(Index))
+    {
+        return Dropped;
     }
 
     // Single-pass: validate once, then mutate the live persistent storage in
     // place (not a by-value accessor copy — see LoadoutComponent.h:536).
-    const TArray<FInvalidSlotFinding> Findings = CollectInvalidSlotFindings();
+    const TArray<FInvalidSlotFinding> Findings = CollectInvalidSlotFindings(Index);
     FCombatLoadout &Loadout = Inv->SavedLoadouts[Index];
 
     for (const FInvalidSlotFinding &Finding : Findings)
@@ -1422,20 +1454,108 @@ void ULoadoutComponent::ClearInvalidSlots()
             }
             break;
         }
+        case ELoadoutSlotType::AbilityOverflow:
+        {
+            // Keep the first abilities up to the cap, drop the rest.
+            FWeaponLoadoutEntry &Weapon = Finding.SlotIndex == LoadoutAbilityOverflowIndex::SECONDARY_WEAPON
+                ? Loadout.SecondaryWeapon
+                : Loadout.PrimaryWeapon;
+            if (Finding.SubIndex == LoadoutAbilityOverflowIndex::AUGMENT_STONE_ABILITIES)
+            {
+                Weapon.AssignedAugmentStoneAbilities.SetNum(
+                    FMath::Min(Weapon.AssignedAugmentStoneAbilities.Num(), LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES));
+            }
+            else
+            {
+                Weapon.AssignedAbilities.SetNum(FMath::Min(Weapon.AssignedAbilities.Num(), LoadoutConstants::MAX_WEAPON_ABILITIES));
+            }
+            break;
+        }
+        case ELoadoutSlotType::ItemSlot:
+            if (Loadout.ItemSlots.IsValidIndex(Finding.SlotIndex))
+            {
+                FItemLoadoutSlot &Slot = Loadout.ItemSlots[Finding.SlotIndex];
+                Slot.Quantity = FMath::Clamp(Slot.Quantity, 0, InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT);
+            }
+            break;
+        case ELoadoutSlotType::UtilityCrystalTierCap:
+            // TODO: do the dropped crystals go back to the inventory? (Q-159)
+            FLoadoutRules::TrimUtilityCrystalsToTierCaps(Loadout);
+            break;
         case ELoadoutSlotType::None:
         case ELoadoutSlotType::BDPoolSpell:
-        case ELoadoutSlotType::AbilityOverflow:
-        case ELoadoutSlotType::ItemSlot:
             // Non-clearable categories (guard failures / BD pool) — never
             // reach here because their findings are bClearable == false.
             break;
         }
 
-        UE_LOG(LogTemp, Warning,
-               TEXT("Cleared invalid loadout slot: %s[%d] — %s"),
+        UE_LOG(LogWoRLoadout, Warning,
+               TEXT("Cleared invalid loadout %d slot: %s[%d] — %s"), Index,
                *UEnum::GetValueAsString(Finding.SlotType),
                Finding.SlotIndex, *Finding.Reason);
+        Dropped.Add(Finding);
     }
+    return Dropped;
+}
+
+// ==================== PICKS (D-081) ====================
+
+bool ULoadoutComponent::TryChangeLoadout(int32 LoadoutIndex, bool bHasPick, TFunctionRef<void(FCombatLoadout &)> Change, FText &OutRefusal)
+{
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv || !Inv->SavedLoadouts.IsValidIndex(LoadoutIndex))
+    {
+        OutRefusal = LOCTEXT("PickNoLoadout", "There is no such loadout.");
+        return false;
+    }
+    if (!bHasPick)
+    {
+        OutRefusal = LOCTEXT("PickNothing", "Nothing to assign.");
+        return false;
+    }
+
+    const FLoadoutRuleContext Context = BuildRuleContext(Inv);
+    const TArray<FString> Before = FLoadoutRules::ToReasons(FLoadoutRules::CollectFindings(Inv->SavedLoadouts[LoadoutIndex], Context));
+    FCombatLoadout Changed = Inv->SavedLoadouts[LoadoutIndex];
+    Change(Changed);
+    for (const FString &Reason : FLoadoutRules::ToReasons(FLoadoutRules::CollectFindings(Changed, Context)))
+    {
+        if (!Before.Contains(Reason))
+        {
+            // TODO: rule reasons are built FStrings; move them to LOCTEXT tables (D-061).
+            OutRefusal = FText::FromString(Reason);
+            UE_LOG(LogWoRLoadout, Log, TEXT("Pick refused on loadout %d: %s"), LoadoutIndex, *Reason);
+            return false;
+        }
+    }
+
+    Inv->SavedLoadouts[LoadoutIndex] = MoveTemp(Changed);
+    OutRefusal = FText::GetEmpty();
+    return true;
+}
+
+bool ULoadoutComponent::TryAssignWeaponAbility(int32 LoadoutIndex, UAbilityData *Ability, FText &OutRefusal)
+{
+    return TryChangeLoadout(LoadoutIndex, Ability != nullptr,
+                            [Ability](FCombatLoadout &Loadout) { Loadout.PrimaryWeapon.AssignedAbilities.Add(Ability); }, OutRefusal);
+}
+
+bool ULoadoutComponent::TryAssignWeaponSpell(int32 LoadoutIndex, USpellData *Spell, FText &OutRefusal)
+{
+    return TryChangeLoadout(LoadoutIndex, Spell != nullptr,
+                            [Spell](FCombatLoadout &Loadout) { Loadout.PrimaryWeapon.AssignedSpells.Add(Spell); }, OutRefusal);
+}
+
+bool ULoadoutComponent::TryAssignRingSpell(int32 LoadoutIndex, USpellData *Spell, FText &OutRefusal)
+{
+    return TryChangeLoadout(LoadoutIndex, Spell != nullptr,
+                            [Spell](FCombatLoadout &Loadout) { Loadout.PrimaryRing.RingEntry.AssignedSpells.Add(Spell); }, OutRefusal);
+}
+
+bool ULoadoutComponent::TryAssignInnateSpell(int32 LoadoutIndex, USpellData *Spell, FText &OutRefusal)
+{
+    return TryChangeLoadout(LoadoutIndex, Spell != nullptr,
+                            [Spell](FCombatLoadout &Loadout) { Loadout.InnateSpells.Add(Spell); }, OutRefusal);
 }
 
 // ==================== BATTLE PREPARATION ====================
@@ -3938,3 +4058,5 @@ FGuid ULoadoutComponent::GetActivePrimaryEvolutionInstance() const
     // slot is not an instance-resolved evolution (inflation only sets it in the Evolution case).
     return GetActiveLoadout().PrimaryEvolutionInstance;
 }
+
+#undef LOCTEXT_NAMESPACE
