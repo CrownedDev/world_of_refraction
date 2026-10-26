@@ -1382,8 +1382,8 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - How the inventory limit grows (account perks, like D-021's slot growth?).
 - Today: 20 crystals per tier shared by gem types, 20 for stones (Q-177 context); these caps go away for storage.
 
-### D-098 — Boss phases (in progress, one question at a time)
-**Status:** ANSWERED in part (2026-10-26; more parts to come) · **Raised:** 2026-10-26 (Enemies §5 open) · **Blocks:** — (B-193 builds the shell)
+### D-098 — Boss phases
+**Status:** ANSWERED (2026-10-26) · **Raised:** 2026-10-26 (Enemies §5 open) · **Blocks:** — (B-193 builds the shell)
 **Answer (Crown):** (2026-10-26)
 - **Overflow: B.** Damage carries past a phase point; a strong enough hit can push a boss through a phase. No damage cap at the line.
 - **The changeover is smooth, not a cinematic.** The fight keeps going; the **weather** shows it:
@@ -1395,8 +1395,9 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **What a phase changes is authored per boss** (2026-10-26): each boss has **phase entries**; each entry says its conditions and what changes when they're met: skills, element, AI aggression, weather intensity, and **optionally resistances / weaknesses**. Nothing changes unless the entry sets it, so one boss can shift its weaknesses and another keep them.
 - **Boss styles (pillar 8), both ways** (2026-10-26): **mini-bosses** carry a **style tag** (*Planning*, *Timing* or *Both*) that picks a preset of phase entries (planning: statuses, element shifts, row pressure, easier-to-guard hits; timing: fast readable chains, tight Perfect Guard / Dodge windows). **Main bosses** are **hand-authored** phase by phase; the tag is only a guide for them. Hard timing windows stay on timing-styled content and higher difficulties.
 - **Statuses on bosses: A** (2026-10-26; Elden Ring's rising status resistance): a boss's status bar can break it like any enemy, but **each break raises that bar's resistance for the rest of the fight**, so status builds stay useful without locking a boss down. The step per break is a named constant (`// TODO: tune`).
+- **Long fights: A** (2026-10-26): no built-in enrage timer (hard timers punish careful play, pillar 8). **Turn count** is one of the conditions a phase entry may use, per boss, and can be hidden (pillar 10).
 - **Hidden conditions as a wider principle (Shangri-La Frontier's secret quests and conditions):** Crown wants secret conditions for certain things across the game, not just bosses (see `Design/DesignPillars.md` pillar 10).
-**Notes for Claude:** build on the reaction-trigger condition model (B-191, B-044, D-031): a phase is a condition list plus what changes (skills, element, AI aggression, weather intensity). HP threshold is one condition among many. Weather: add a boss override to `UWeatherStateManager` (boss element + intensity per phase) instead of the HP blend. Remaining parts to ask: (planning / timing), statuses on bosses, long fights.
+**Notes for Claude:** build on the reaction-trigger condition model (B-191, B-044, D-031): a phase is a condition list plus what changes (skills, element, AI aggression, weather intensity). HP threshold is one condition among many. Weather: add a boss override to `UWeatherStateManager` (boss element + intensity per phase) instead of the HP blend. (planning / timing), statuses on bosses, long fights.
 
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)

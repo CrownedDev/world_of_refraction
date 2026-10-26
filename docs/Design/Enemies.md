@@ -45,11 +45,10 @@ Companion to `RunStructure.md`. Values marked *tune* are placeholders: named con
 - **Phase entries:** each boss authors its own phases: conditions plus what changes (skills, element, resistances/weaknesses, aggression, weather intensity, dialogue). Anything an entry doesn't set stays as it was.
 - **Boss styles:** mini-bosses take a style tag (Planning / Timing / Both) that picks a preset set of phases; main bosses are hand-authored, the tag only a guide.
 - **Statuses:** a boss can be status-broken, but each break makes that bar harder to fill for the rest of the fight.
-- **Open:** the rest of the phase details (long fights), being discussed (D-098).
+- **Long fights:** no built-in enrage timer; a boss may use turn count as a (possibly hidden) phase condition.
 
 ## 6. Open questions
 
-- Boss phases in detail (§5).
 - What the creatures are (types, looks).
 - The first-strike advantage's exact form.
 - More than three enemy teams in one fight.
