@@ -23,11 +23,12 @@ A field encounter starts a fight: a `UEncounterComponent` on an enemy pawn in a 
 - Difficulty and rank are set per placement, not per team.
 - The battle lines are not centred; a formation per team is not authored.
 - The payout multiplier is not read yet (no run-end payout; B-073). The variation's boss is not read yet (B-188).
-- Patrols are a fixed back-and-forth path; teams don't notice or chase the player yet (first strike: B-185).
+- Patrols are a fixed back-and-forth path; teams don't chase the player. First strike is judged from contact geometry until the field ability exists (GAS).
 
 ## Changelog
 | Date | Change | Branch |
 |---|---|---|
+| 2026-10-26 | B-185 (Q-185): first strike judged at first contact (`JudgeFirstStrike`, `NoticeHalfAngleDegrees`; a walking team faces the way it walks), carried by `UTrialRunSubsystem::PendingFirstStrike` and set on the orchestrator by `ABattleGameMode`. | feature/B-185-first-strike |
 | 2026-10-26 | B-184 (Q-184): `AFieldEnemyTeam` (idle or waypoint patrol); teams caught together send their strongest each (max three); a win beats every caught encounter for the run, and a beaten one is gone when the trial level reloads. Spec `WoR.Trial.FieldEnemyTeam`. | feature/B-184-field-enemy-teams |
 | 2026-10-26 | B-183 (Q-183): the trial gate. The door asks for a variation and a difficulty (placeholder `UTrialGateWidget`); the run holds the choice; `ABattleGameMode` scales every enemy's max HP and damage by the level before `StartCombat`. `wor.Trial.Print`. Spec `WoR.Trial.Gate`. | feature/B-183-gate-choice |
 | 2026-10-26 | B-074: `UEncounterData` (a team of up to three); `UEncounterComponent::EncounterData` sends that team to the battle stage instead of the pawn alone. Spec `WoR.Combat.EncounterData`. | feature/B-074-encounter-data |
