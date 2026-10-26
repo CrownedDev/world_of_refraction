@@ -82,18 +82,12 @@ int32 UAbilityData::CalculateInfusedEnergyCost(UCharacterData *Character) const
 
 int32 UAbilityData::CalculateStatusBuildup(UCharacterData *Character) const
 {
-    // A heal / buff / support ability builds none (rules page 03)
-    if (!Character || bImmuneToInfusion || SupportSkillRules::IsSupportSkill(this))
+    if (!Character)
         return 0;
 
-    float BuildupPerHit = CombatConstants::BASE_STATUS_BUILDUP_PER_HIT;
-
-    float Multiplier = Character->CalculateStatusMultiplier();
-    BuildupPerHit *= Multiplier;
-
-    float TotalBuildup = BuildupPerHit * HitCount;
-
-    return FMath::RoundToInt(TotalBuildup);
+    // B-114: the same authored number the live hit uses (none for a heal / buff / support
+    // ability, rules page 03). The live hit spreads it over its hits, so it isn't × HitCount.
+    return FMath::RoundToInt(SupportSkillRules::GetAuthoredStatusBuildup(this) * Character->CalculateStatusMultiplier());
 }
 
 // ==================== EDITOR ====================

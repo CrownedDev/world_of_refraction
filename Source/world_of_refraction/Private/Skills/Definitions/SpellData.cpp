@@ -107,19 +107,16 @@ int32 USpellData::CalculateStatusBuildup(UCharacterData *Character, const FActio
     if (!Character)
         return 0;
 
-    // Base buildup per hit; none for a heal / buff / support spell (rules page 03)
-    float BuildupPerHit = SupportSkillRules::GetAuthoredStatusBuildup(this);
+    // The authored buildup for the whole spell; none for a heal / buff / support spell (rules page 03).
+    // B-114: the live hit spreads it over its hits, so it isn't × HitCount.
+    const float AuthoredBuildup = SupportSkillRules::GetAuthoredStatusBuildup(this);
 
     // Scale with character's StatusMultiplier (Spirit-driven post pillar move).
     // ActionMods.StatusMultiplier stacks per-action stat buffs onto the multiplier.
     float Multiplier = Character->CalculateStatusMultiplier();
     Multiplier = ActionMods.ApplyTo(Multiplier, ESubStat::StatusMultiplier);
-    BuildupPerHit *= Multiplier;
 
-    // Multiply by hit count
-    float TotalBuildup = BuildupPerHit * HitCount;
-
-    return FMath::RoundToInt(TotalBuildup);
+    return FMath::RoundToInt(AuthoredBuildup * Multiplier);
 }
 
 // ==================== ENERGY CALCULATIONS ====================

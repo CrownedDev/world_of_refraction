@@ -130,8 +130,8 @@ public:
 
     // ==================== STATUS BUILDUP ====================
 
-    /** Calculate spell status buildup per-hit. Per-action stat modifiers come
-     *  in via ActionMods. */
+    /** The whole spell's status buildup (the live hit spreads it over its hits) × the caster's
+     *  Status Multiplier; the AI's estimate. Per-action stat modifiers come in via ActionMods. */
     int32 CalculateStatusBuildup(UCharacterData *Character, const FActionStatModifiers &ActionMods = FActionStatModifiers()) const;
 
     // ==================== HELPER FUNCTIONS ====================
