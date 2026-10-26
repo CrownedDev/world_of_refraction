@@ -30,6 +30,7 @@ namespace EffectIdentity
     // (resolved effect type, element), so the same cap from the same source finds its
     // earlier copy (D-012). Packed IDs are positive; a few hash-based IDs (item DoTs,
     // infusions) can be negative, so a meeting is possible but vanishingly rare.
+    // TODO: clear the sign bit on hash-based IDs (or retire them with B-042's identity struct).
     constexpr int32 STATUS_CAP_ID_BASE = -1000000;
     constexpr int32 STATUS_CAP_ELEMENT_SLOTS = 256;
 

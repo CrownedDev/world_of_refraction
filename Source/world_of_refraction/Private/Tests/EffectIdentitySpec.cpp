@@ -138,6 +138,7 @@ void FEffectIdentitySpec::Define()
 			if (!EffectManager) return;
 			AActor *Wearer = Spawn();
 			EffectManager->ApplyEquipmentEffects(Wearer, {GearEffect(IDENTITY_TEST_ITEM_A, true, /*bDoesNotStack*/ true)});
+			TestEqual(TEXT("The first item's use lands"), EffectsOfType(Wearer, ESkillEffectType::SpellDamageBuff).Num(), 1);
 			EffectManager->RemoveAllEffects(Wearer);
 			EffectManager->ApplyEquipmentEffects(Wearer, {GearEffect(IDENTITY_TEST_ITEM_B, true, /*bDoesNotStack*/ true)});
 			TestEqual(TEXT("The second item's use is refused"), EffectsOfType(Wearer, ESkillEffectType::SpellDamageBuff).Num(), 0);
@@ -227,8 +228,12 @@ void FEffectIdentitySpec::Define()
 		{
 			if (!EffectManager) return;
 			AActor *Wearer = Spawn();
-			EffectManager->ApplyEquipmentEffects(Wearer, {GearEffect(IDENTITY_TEST_ITEM_A, false, /*bDoesNotStack*/ true),
-														  GearEffect(IDENTITY_TEST_ITEM_A, false, /*bDoesNotStack*/ true)});
+			const FGatheredEffect Gear = GearEffect(IDENTITY_TEST_ITEM_A, false, /*bDoesNotStack*/ true);
+			EffectManager->ApplyEquipmentEffects(Wearer, {Gear});
+			FActiveSkillEffect Again = FActiveSkillEffect::CreateAllFromSkillEffect(TEXT("Gear"), IDENTITY_TEST_DEF_ID, Gear.Effect, 0)[0];
+			Again.SourceKey = IDENTITY_TEST_ITEM_A;
+			TestTrue(TEXT("The same item refreshes"),
+					 EffectManager->ApplyEffect(Wearer, Again) == EEffectApplicationResult::DurationRefreshed);
 			TestEqual(TEXT("One copy held"), EffectsOfType(Wearer, ESkillEffectType::SpellDamageBuff).Num(), 1);
 		});
 
