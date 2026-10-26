@@ -120,7 +120,8 @@ def steel(img):
 
 def nine_slice(img, width, height, border):
     """Stretch a framed panel to any size: corners (border px) stay sharp, edges and centre stretch."""
-    b, (w0, h0) = border, img.size
+    w0, h0 = img.size
+    b = min(border, width // 2, height // 2, w0 // 2, h0 // 2)   # corners must not overlap, in the art or the target
     out = Image.new("RGBA", (width, height))
     xs, ys = (0, b, w0 - b, w0), (0, b, h0 - b, h0)
     tx, ty = (0, b, width - b, width), (0, b, height - b, height)

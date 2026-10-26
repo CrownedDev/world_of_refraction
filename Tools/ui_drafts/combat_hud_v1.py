@@ -27,6 +27,11 @@ HP_FILL, HP_GHOST, EP_FILL = (205, 60, 70), (250, 220, 200), (90, 170, 255)
 TROUGH, RIM = (16, 18, 26), (120, 124, 134)
 PANEL_BORDER = 28            # panel_raised corner size for nine-slice
 WHITE_ART_TINT_MID = 250     # kit.tint midpoint for white/pale art, so the tint colour survives instead of washing out
+BUFF_GREEN, DEBUFF_RED = (110, 210, 120), (235, 90, 80)
+BD_MAX_STACKS = 3            # BrokenDarknessManager::MaxAbsorptionStacks
+BD_PIP = (120, 110, 150)     # Darkness, lifted so a filled pip reads on the dark trough
+HIT_CRIT, HIT_FIRE = 72, 18
+TARGET_HP_BEFORE = 412
 
 # One fight: three party members, three enemies (Garrick is acting).
 PARTY = [
@@ -38,14 +43,14 @@ PARTY = [
      "ep": (25, 50), "buildup": None, "effects": []},
 ]
 ENEMIES = [
-    {"name": "Ashen Hound", "centre": (500, 360), "scale": 0.8, "hp": (40, 60)},
-    {"name": "Cinder Warden", "centre": (705, 320), "scale": 1.25, "hp": (412, 600)},
-    {"name": "Ashen Hound", "centre": (895, 372), "scale": 0.8, "hp": (60, 60)},
+    {"name": "Ashen Hound A", "centre": (500, 360), "scale": 0.8, "hp": (40, 60)},
+    {"name": "Cinder Warden", "centre": (705, 320), "scale": 1.25, "hp": (TARGET_HP_BEFORE, 600)},
+    {"name": "Ashen Hound B", "centre": (895, 372), "scale": 0.8, "hp": (60, 60)},
 ]
 TARGET = 1   # the Warden
 # Turn order (top = acting now): (who, kind, badge) - kind party/enemy, badge None/bonus/ritual.
 TURN_ORDER = [("Garrick", "party", None), ("Cinder Warden", "enemy", None), ("Sera", "party", "bonus"),
-              ("Ashen Hound", "enemy", None), ("Bram", "party", None), ("Cinder Warden", "enemy", "ritual"),
+              ("Ashen Hound A", "enemy", None), ("Bram", "party", None), ("Cinder Warden", "enemy", "ritual"),
               ("Garrick", "party", None)]
 
 
@@ -120,7 +125,7 @@ GLYPH_COLOUR = {"A": (110, 200, 90), "B": (230, 80, 70), "X": (80, 150, 240), "Y
 
 
 def effect_icon(name, kind, size=22):
-    colour = (110, 210, 120) if kind == "buff" else (235, 90, 80)
+    colour = BUFF_GREEN if kind == "buff" else DEBUFF_RED
     return kit.tint(kit.scaled(kit.piece("icons", name), height=size), colour, mid=WHITE_ART_TINT_MID)
 
 
@@ -236,12 +241,12 @@ def party_card(canvas, x, y, member, acting=False, stunned=False):
         canvas.alpha_composite(effect_icon(icon, kind, 20), (x + 14 + i * 24, y + 121))
     if stunned:
         kit.text(canvas, (x + 14 + len(icons) * 24 + 4, y + 131), "Stunned · 1 turn", kit.font(kit.UI_BOLD, 11),
-                 fill=(235, 90, 80), anchor="lm", shadow=False)
+                 fill=DEBUFF_RED, anchor="lm", shadow=False)
     if "bd" in member:
         stacks, overload = member["bd"]
         bx, by = x + w - 70, y + 121
-        for i in range(5):                       # absorption stacks as pips
-            fill = ELEMENT["void"] + (255,) if i < stacks else TROUGH + (255,)
+        for i in range(BD_MAX_STACKS):           # absorption stacks as pips
+            fill = BD_PIP + (255,) if i < stacks else TROUGH + (255,)
             ImageDraw.Draw(canvas).polygon([(bx + i * 12 + 5, by), (bx + i * 12 + 10, by + 6), (bx + i * 12 + 5, by + 12),
                                             (bx + i * 12, by + 6)], fill=fill, outline=RIM + (255,))
         bar(canvas, bx, by + 16, 58, 4, overload, (255, 196, 0))
@@ -383,13 +388,13 @@ def draw_hit():
     canvas = board(active=0, highlight=None)
     turn_banner(canvas, "TURN 3 · GARRICK")
     e = ENEMIES[TARGET]
-    x, y, w = enemy_plate(canvas, e, ghost=0.12, hp=(340, 600), buildup=("fire", 1.0),
+    x, y, w = enemy_plate(canvas, e, ghost=0.12, hp=(TARGET_HP_BEFORE - HIT_CRIT - HIT_FIRE, 600), buildup=("fire", 1.0),
                           statuses=(("effect_damage_up_down", "debuff"), ("effect_energy_gain_drain", "debuff")))
     cx, cy = e["centre"]
     kit.glow(canvas, (cx, cy - 20), 120, (255, 140, 60), strength=0.35)
-    outlined(canvas, (cx + 100, cy - 40), "72", kit.font(kit.UI_BOLD, 54), (255, 236, 210))
+    outlined(canvas, (cx + 100, cy - 40), str(HIT_CRIT), kit.font(kit.UI_BOLD, 54), (255, 236, 210))
     outlined(canvas, (cx + 100, cy), "CRITICAL", kit.font(kit.UI_BOLD, 15), (255, 196, 0), stroke=2)
-    outlined(canvas, (cx - 100, cy - 10), "18", kit.font(kit.UI_BOLD, 32), ELEMENT["fire"])
+    outlined(canvas, (cx - 100, cy - 10), str(HIT_FIRE), kit.font(kit.UI_BOLD, 32), ELEMENT["fire"])
     # Element proc banner (39), below the enemies so it never covers the numbers
     band = kit.scaled(kit.piece("misc", "banner_event"), width=520)
     by = 452
@@ -400,7 +405,8 @@ def draw_hit():
     notes = [
         (1, (cx + 150, cy - 70), "Damage number (37)", ["Lato Bold, dark outline; floats up and fades",
                                                          "Crit: bigger + gold 'CRITICAL' tag under it"]),
-        (2, (cx - 140, cy - 30), "Element damage", ["Elemental part in the element colour (fire)", "One number per hit / element"]),
+        (2, (cx - 140, cy - 30), "Element damage", ["Elemental part in the element colour (fire)", "One number per hit / element",
+                                                                      "Layout example: assumes a Fire source on this hit"]),
         (3, (kit.W // 2 - 230, by + 20), "Proc banner (39)", ["'BURN!' when the buildup bar caps", "Element-coloured text, short band, then gone",
                                                                "One loud effect at a time (art direction)"]),
         (4, (x - 6, y + 30), "HP ghost (31)", ["Pale ghost shows the HP just lost, then drains", "Buildup bar full -> resets after the proc"]),
@@ -419,7 +425,9 @@ def draw_stunned():
     notes = [
         (1, (1056, 296), "Stunned diamond", ["Only Attack (Y) and Defend (A) (D-001)", "Skills / Items slots shown as empty sockets",
                                               "Attack is a plain swing: no infusion controls (D-023 A)"]),
-        (2, (650, 536), "Stun on the card", ["Skip-turn icon + 'Stunned · 1 turn' in red on the acting card"]),
+        (2, (650, 536), "Stun on the card", ["Icon + 'Stunned · 1 turn' in red on the acting card",
+                                               "Stand-ins: the kit has no stun icon (skip-turn used);",
+                                               "showing a duration is undecided"]),
         (3, (140, 666), "Input hints", ["Only the two live verbs"]),
     ]
     return canvas, notes
