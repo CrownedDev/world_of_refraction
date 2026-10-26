@@ -903,7 +903,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### D-077 — Crystal tier caps: what counts as "a crystal"?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-155) · **Blocks:** B-155
+**Status:** DECIDED (applied in B-155) · **Raised:** 2026-10-26 (B-155) · **Blocks:** —
 **Question:** D-072 caps how many crystals of each tier band a character can have equipped (S 1, A+B 2, C+D 3, E+F 4). A weapon or ring slot can hold more than a plain crystal (CL-30), so which of these count toward the caps, and at what tier?
 **Context:** a slot holds one of: a **crystal**; an **augment stone** (stat stone or Ability Stone, weapons only, it has a tier); a **fusion** (two halves with at least one stat stone: stone + crystal, stone + stone, or stone + Ability Stone, CL-32); or an **evolution** (its own tier; the primary-slot evolution gives spells, CL-33). Plain crystals clearly count. The others aren't settled.
 **Options:**
@@ -957,7 +957,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### D-081 — Equipping: when is a pick refused, and when are other parts dropped?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-159) · **Blocks:** B-159
+**Status:** DECIDED (applied in B-159; gear-change drops are B-168) · **Raised:** 2026-10-26 (B-159) · **Blocks:** B-168
 **Question:** D-073 says a loadout change that would break a rule is "refused or dropped right there". Which one, when?
 **Context:**
 - Some changes only add one thing: assign an ability or a spell, equip a weapon or ring. Refusing it is clean.
@@ -1014,6 +1014,18 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** auto-equip refills as today, then the excess is dropped back to the inventory with a message.
 - **C** auto-equip is exempt (it is a convenience; the cap is only for what you pick).
 **Recommendation:** A, because the cap is a per-character rule (D-072) and refilling past it would undo it every fight; A never takes crystals out of the inventory that would then be handed straight back.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
+### Q-159 — Do dropped utility crystals go back to the inventory?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-159) · **Blocks:** — (B-159 shipped without returning them)
+**Question:** when a loadout's item slots are trimmed (over a tier cap, a quantity above 3, a duplicate crystal type), do the removed crystals return to the character's crystal inventory?
+**Context:** today they just vanish from the slot (`ULoadoutComponent::DropInvalidParts`, the existing duplicate-type rule did the same). Crystals a fight's auto-equip put in a slot were taken out of the inventory (`FCombatLoadout::ApplyAutoEquip`), so dropping them loses them. Crystals in an authored loadout were never taken out of the inventory.
+**Options:**
+- **A** always return them to the inventory.
+- **B** never (today's behaviour).
+- **C** return only crystals that came out of the inventory (needs the slot to remember where its crystals came from).
+**Recommendation:** A, because losing crystals to a rule the player didn't break on purpose feels like a bug, and authored loadouts are a dev-time case where an extra crystal in the inventory is harmless.
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
