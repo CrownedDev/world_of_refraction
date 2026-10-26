@@ -465,6 +465,9 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **(4) Memory fragments** (Crown, 2026-10-26): A, **a fragment unlocks a memory** (scene, lore, dialogue, maybe a quest). A memory **can also weaken or strengthen the boss**, and that's **authored per memory from the lore** (a designer picks the effect), not a fixed happy/sad rule.
   - **Character-specific:** the same fragment or item means different things to different lords. The Garnet Lord carrying a weapon may get a deep memory where the Amethyst Lord gets little. Who you are and what you carry both decide what plays.
   - **No hint (A):** the player doesn't know what a fragment does until it plays. Exploring is a gamble.
+- **(5) Leaving early: C + B** (Crown, 2026-10-26): you can only leave at **exit points** on the map (C), and leaving **pays less** (B). **The full payout only comes from death or victory.** The leave-confirm screen says so plainly (e.g. "Leaving now pays N of M Prisms. Full rewards only for beating the boss or falling in battle."). The reduced share is a named constant, `// TODO: tune`. Replaces `Resources_Design.md` §7.2's "leave early = forfeit everything".
+- **(6) What's on a trial map** (Crown, 2026-10-26), all ten: **enemies** (optional fights), **mini-bosses** (tougher, better rewards, may guard fragments), **memory fragments**, **characters to recruit** (run-only, D-026), **vendors** (Gold), **chests**, **exit points**, **rest spots** (heal HP/EP), **lore objects** (logged dialogue and notes), **the boss arena**. **Rest spots double as exit points.**
+  - These are `TrialData.h`'s banked POIs / LootPool / Boss fields. How often you can rest, and what resting costs, isn't ruled.
 **Notes for Claude:** the lords exist as data already (`DA_Character_FireLord` plus 6 more, commit `bdf2557`; Fire, Water, Darkness, Broken Darkness, Earth, Wind, Light, Lightning, Void, Reality). Data shape to propose when building (not ruled): a memory-fragment data asset with its trial, per-lord entries (which lord, optional item it reacts to, lore text/dialogue, depth), and an authored boss effect per entry (weaken / strengthen / none, size). Record further answers here; when complete, write `docs/Design/RunStructure.md` and point `Resources_Design.md` §7.1 at it.
 
 ### D-033 — Bound gear and skills
@@ -478,10 +481,10 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - B: only its own lord can equip it.
 - C: anyone can, but it's weaker in other hands.
 **Recommendation:** A, the deckbuilder's Bonded model: nothing is locked away, and the bound bonus makes the right pairing feel special. A lord's trial version uses its bound kit as its **signature** gear (what it always brings).
-**Answer (Crown):** **A** (2026-10-26): anyone can equip a bound item; only its own lord gets the **bound bonus**, the reactions and the quests. **The bound bonus is hidden**: the item's description doesn't show it.
+**Answer (Crown):** **A** (2026-10-26): anyone can equip a bound item; only its own lord gets the **bound bonus**, the reactions and the quests. **The bound bonus is hidden unless the item is equipped by its owner** (Crown, 2026-10-26): on anyone else it doesn't show; on its own lord the description shows it.
 **Notes for Claude:**
 - Data: a bound item names its lord (one field on the item asset) and carries a bound-bonus effect list, applied only when the wearer is that lord (same gear-effect path as D-008).
-- Hidden: the description generator (D-031/B-045) skips bound-bonus rows. Whether it's revealed once discovered (e.g. after the lord first wears it, or via a memory) is not ruled; ask when building.
+- Hidden: the description generator (D-031/B-045) shows bound-bonus rows only when the item is equipped by its own lord.
 - A lord's mirror version in its trial carries its bound kit as its signature gear (deckbuilder "Signature").
 
 ---
