@@ -4403,12 +4403,7 @@ ESpellElement UActionExecutor::ResolveSpellCastElement(AActor *Caster, const USp
 		}
 	}
 
-	// 3. Resolve via the spell's ORIGIN — where it is slotted (innate / ring / weapon /
-	//    evolution), derived from ResolveSpellSource, NOT a player infusion pick.
-	//    GetAllowedInfusionSourcesForSpell yields the origin source(s); the first maps
-	//    to its element via GetElementForSourceOption. A Reality origin yields Reality
-	//    (valid). A None result means the origin carries no element -> unresolvable below.
-	// A broken ring's Generic spell is non-elemental (Q-163b = B).
+	// 3. A broken ring's Generic spell is non-elemental (Q-163b = B).
 	if (const ULoadoutComponent *SpellLoadout = GetLoadoutComponent(Caster))
 	{
 		if (SpellLoadout->IsSpellFromBrokenRing(Spell))
@@ -4416,6 +4411,12 @@ ESpellElement UActionExecutor::ResolveSpellCastElement(AActor *Caster, const USp
 			return ESpellElement::None;
 		}
 	}
+
+	// 4. Resolve via the spell's ORIGIN — where it is slotted (innate / ring / weapon /
+	//    evolution), derived from ResolveSpellSource, NOT a player infusion pick.
+	//    GetAllowedInfusionSourcesForSpell yields the origin source(s); the first maps
+	//    to its element via GetElementForSourceOption. A Reality origin yields Reality
+	//    (valid). A None result means the origin carries no element -> unresolvable below.
 	const TArray<EInfusionSourceOption> Sources = GetAllowedInfusionSourcesForSpell(Caster, Spell);
 	if (Sources.Num() > 0)
 	{
@@ -4426,7 +4427,7 @@ ESpellElement UActionExecutor::ResolveSpellCastElement(AActor *Caster, const USp
 		}
 	}
 
-	// 4. Unresolvable — no slottable origin found, or the origin carries no element.
+	// 5. Unresolvable — no slottable origin found, or the origin carries no element.
 	UE_LOG(LogTemp, Warning,
 		   TEXT("[ActionExecutor] Generic spell %s could not resolve a source element — defaulting to None"),
 		   *Spell->Name);
