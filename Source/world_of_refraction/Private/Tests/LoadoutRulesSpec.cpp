@@ -14,6 +14,7 @@
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/LoadoutConstants.h"
 #include "Loadout/SpellPoolConstants.h"
+#include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Character/CharacterData.h"
 
 namespace
@@ -102,6 +103,24 @@ void FLoadoutRulesSpec::Define()
 
 			TestTrue(TEXT("now flagged"), AnyReasonContains(Saved.GetValidationErrors(), TEXT("Too many evolution spells")));
 			TestFalse(TEXT("the old check passed it"), AnyReasonContains(Saved.GetValidationErrorsLegacy(), TEXT("Too many evolution spells")));
+		});
+
+		It("lets an evolution carry exactly its tier's spell count (D-039)", [this]()
+		{
+			UEvolutionItemData *Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+			Evolution->Tier = EItemTier::C_Tier;
+			FSavedLoadout Saved;
+			Saved.RequiredClass = ECharacterClass::Generic;
+			Saved.PrimarySlotType = EPrimarySlotType::Evolution;
+			Saved.PrimaryEvolution = Evolution;
+			const int32 TierCount = CrystalEffectTable::SlotsForContainerTier(Evolution->Tier);
+			for (int32 i = 0; i < TierCount; ++i)
+			{
+				Saved.EvolutionSpells.Add(FSpellRef(NewSpell(ESpellElement::Fire)));
+			}
+			TestFalse(TEXT("at the count: passes"), AnyReasonContains(Saved.GetValidationErrors(), TEXT("Too many evolution spells")));
+			Saved.EvolutionSpells.Add(FSpellRef(NewSpell(ESpellElement::Fire)));
+			TestTrue(TEXT("one over: refused"), AnyReasonContains(Saved.GetValidationErrors(), TEXT("Too many evolution spells")));
 		});
 
 		It("uses BD rules when the character is BD, whatever pools are authored", [this]()
