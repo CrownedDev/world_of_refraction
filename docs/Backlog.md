@@ -99,7 +99,8 @@
 | B-071 | Party into battle per D-003/D-004: spawn party-list members at encounter start with their own `FPartyMember.PawnClass`; per-member Player/AI control (leader always Player), switchable on the member's turn (D-026); keep the sphere gather for co-op players | CC | M | D-003, D-004 | 3v1 fight from a recruited party, one member on AI | TODO |
 | B-076 | Find characters during a trial (D-026): reuse the hub recruit flow; they join for that run only and arrive ungeared; gear them from the shared run inventory | CC | M | B-071 | Recruit in a trial, gear them from the run inventory, they fight in the next encounter and are gone after the run | BLOCKED (B-071) |
 | B-072 | Win/lose routing per D-002 | CC | S | D-002, B-003 | Matches answer | BLOCKED (B-003) |
-| B-073 | Battle rewards per D-006: each win grants Gold (run-only) and Prisms (kept, even on a failed run), scaled by difficulty; shown on results | CC | S | D-006 | Tests for the amounts; shop purchasable after a win; Prisms survive a failed run | TODO |
+| B-073 | Rewards per D-006 (A): each win grants Gold (run-only); Prisms + in-run upgrade materials tallied and paid at run end, win or lose, scaled by progress and difficulty; one payout multiplier (default 1.0) for later passives | CC | M | D-006 | Tests: payout on win and on failure, nothing banked mid-run; shop purchasable after a run | TODO |
+| B-096 | Passive effects that raise the run-end payout (gear / evolution passives feed B-073's multiplier) | CC | S | B-073 | A passive changes the payout in a test | BLOCKED (B-073) |
 | B-074 | Encounter Composition Arc 2: `UEncounterData`, multi-enemy battles, AI formation | CC | L | B-001 | 1v3 fight from data | TODO |
 | B-075 | Recruit duplicate fix; currency clamp; shop soft-lock; hint cleanup on EndPlay | CC | S | — | Each verified | TODO |
 
