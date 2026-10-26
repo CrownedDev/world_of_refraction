@@ -880,12 +880,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### D-074 — Combat camera: the open parts
-**Status:** ANSWERED (in progress: more parts as Crown answers) · **Raised:** 2026-10-26 · **Blocks:** — (camera arc)
+**Status:** ANSWERED · **Raised:** 2026-10-26 · **Blocks:** — (camera arc)
 **Context:** the camera is already designed (`Resources_Design.md` "Combat camera — COMPLETE ARCHITECTURE", 2026-06-25, Expedition 33 model): one camera per character following shared mode rules (Turn: close over-the-shoulder; Action: the skill's Level Sequence; Not your turn: pan out; Defence possibly folded into Action, pending a play-test); viewer perspective follows what you control; centred/wider option and a camera-movement-off toggle. Nothing is built: the old `CombatCameraManager` was deleted (`Gaps/Roadmap.md`).
 **Answer (Crown):**
 - **(1) Skill cinematics: C** (2026-10-26): **reusable template sequences by skill type** (melee swing, ranged shot, area spell, buff, …) for most skills, and **hand-made sequences for signature moves** (lord skills, bosses, big spells). A skill references a template or its own sequence.
 - **(2) Default turn view: B** (2026-10-26): **centred behind the acting character, a bit wider**, so the whole enemy team is visible. Settings offer **A** (close over-the-shoulder, Expedition 33) and **C** (wide tactical side-on). Skill cinematics still give the dramatic shots.
-**Notes for Claude:** record further answers here; then write `docs/Design/CombatCamera.md` from this and the June design.
+- **(3) When: A, a basic version soon** (2026-10-26): Turn view, pan-out and 2–3 template sequences (melee, ranged, spell) right after the current jobs (B-156, B-157).
+**Notes for Claude:** written up in `docs/Design/CombatCamera.md`.
 
 ## Parked
 
