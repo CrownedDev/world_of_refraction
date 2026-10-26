@@ -142,9 +142,10 @@ void FSupportNoBuildupSpec::Define()
 			TestFalse(TEXT("damaging ability"), SupportSkillRules::IsSupportSkill(SupportTestAbility(SUPPORT_TEST_DAMAGE, false)));
 		});
 
-		It("gives a support spell no buildup in its own calculation", [this]()
+		It("gives a support skill no buildup in its own calculation", [this]()
 		{
 			TestEqual(TEXT("CalculateStatusBuildup"), SupportTestSpell(ESpellSchool::Restoration)->CalculateStatusBuildup(FWoRTestWorld::NewCharacterData()), 0);
+			TestEqual(TEXT("ability CalculateStatusBuildup"), SupportTestAbility(0, true)->CalculateStatusBuildup(FWoRTestWorld::NewCharacterData()), 0);
 		});
 	});
 
