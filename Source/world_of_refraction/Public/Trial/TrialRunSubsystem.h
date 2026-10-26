@@ -128,6 +128,13 @@ public:
 
     int32 GetBeatenEncounterCount() const { return BeatenEncounters.Num(); }
 
+    /** B-188: a map feature was used this run (a chest opened, lore read); What says what it gave. */
+    void RecordFound(FName FeatureId, const FText &What);
+
+    bool HasFound(FName FeatureId) const { return FoundFeatures.Contains(FeatureId); }
+
+    int32 GetFoundCount() const { return FoundFeatures.Num(); }
+
     /** B-185: who struck first on the map, for the pending fight. Call before EnterEncounter. */
     void SetPendingFirstStrike(EFirstStrike FirstStrike) { PendingFirstStrike = FirstStrike; }
 
@@ -198,6 +205,9 @@ private:
 
     /** B-184: map encounters beaten this run. Run state like RunSeed; cleared on trial entry and exit. */
     TSet<FName> BeatenEncounters;
+
+    /** B-188: map features used this run, in the order found. Run state; cleared on trial entry and exit. */
+    TMap<FName, FText> FoundFeatures;
 
     /** Carried across the OpenLevel like PendingDifficulty; moves with it for co-op (D-065). */
     EEncounterRank PendingRank = EEncounterRank::Normal;

@@ -10,6 +10,7 @@
 #include "Party/PartyInteractionComponent.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Trial/TrialDoor.h"
+#include "Trial/TrialMapFeature.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Pawn.h"
@@ -67,6 +68,11 @@ namespace ExplorationInteract
             const AActor *Owner = Recruit->GetOwner();
             AddCandidate(Candidates, FString::Printf(TEXT("Recruit %s"), Owner ? *Owner->GetName() : TEXT("?")),
                          PawnLocation, Owner, [Recruit]() { Recruit->Interact(); });
+        }
+        if (ATrialMapFeature *Feature = ATrialMapFeature::FindNearestInRange(Pawn))
+        {
+            AddCandidate(Candidates, FString::Printf(TEXT("Map feature %s"), *Feature->GetName()), PawnLocation, Feature,
+                         [Feature, Pawn]() { Feature->Interact(Pawn); });
         }
 
         Candidates.Sort([](const FInteractCandidate &A, const FInteractCandidate &B)

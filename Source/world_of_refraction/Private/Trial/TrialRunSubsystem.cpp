@@ -65,6 +65,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
 
     ActiveTrial = Trial;
     BeatenEncounters.Reset();
+    FoundFeatures.Reset();
     PendingEncounterSources.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
@@ -114,6 +115,7 @@ void UTrialRunSubsystem::ExitTrial()
     VariationIndex = INDEX_NONE;
     TrialDifficulty = TrialGate::DEFAULT_DIFFICULTY;
     BeatenEncounters.Reset();
+    FoundFeatures.Reset();
     PendingEncounterSources.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
@@ -198,6 +200,13 @@ void UTrialRunSubsystem::MarkPendingEncounterBeaten()
            PendingEncounterSources.Num(), BeatenEncounters.Num());
 }
 
+void UTrialRunSubsystem::RecordFound(FName FeatureId, const FText &What)
+{
+    FoundFeatures.Add(FeatureId, What);
+    UE_LOG(LogTemp, Log, TEXT("[TrialRun] Found %s: %s (%d found this run)"), *FeatureId.ToString(),
+           *What.ToString(), FoundFeatures.Num());
+}
+
 TArray<FMerchantStockEntry> UTrialRunSubsystem::GetMerchantStock(const UMerchantData *Merchant) const
 {
     // RunSeed says a run is on: a trial vendor stocks for the run, a home vendor as a home shop.
@@ -267,12 +276,17 @@ namespace
 FString UTrialRunSubsystem::GetTrialRunString() const
 {
     const FTrialVariation *Variation = GetChosenVariation();
-    return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | variation=%s | difficulty=%s (enemy x%.2f, payout x%.2f) | beaten=%d | first strike=%s | zone tier %d (%s) | hub=%s | pending %d v %d (%s) | return=%s"),
+    TArray<FString> Found;
+    for (const TPair<FName, FText> &Entry : FoundFeatures)
+    {
+        Found.Add(Entry.Value.ToString());
+    }
+    return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | variation=%s | difficulty=%s (enemy x%.2f, payout x%.2f) | beaten=%d | found %d [%s] | first strike=%s | zone tier %d (%s) | hub=%s | pending %d v %d (%s) | return=%s"),
                            ActiveTrial ? *ActiveTrial->Name.ToString() : TEXT("<none>"), RunSeed,
                            Variation ? *Variation->Name.ToString() : TEXT("<none>"),
                            *TrialGate::GetDifficultyName(TrialDifficulty).ToString(), GetEnemyStrengthMultiplier(),
-                           GetPayoutMultiplier(), BeatenEncounters.Num(),
-                           *UEnum::GetValueAsString(PendingFirstStrike), PendingZone.Tier,
+                           GetPayoutMultiplier(), BeatenEncounters.Num(), Found.Num(),
+                           *FString::Join(Found, TEXT("; ")), *UEnum::GetValueAsString(PendingFirstStrike), PendingZone.Tier,
                            PendingZone.LootPool.IsValid() ? *PendingZone.LootPool.ToString() : TEXT("no loot pool"),
                            HubLevel.IsNull() ? TEXT("<UNSET>") : *HubLevel.ToString(),
                            PendingBattleParty.Num(), PendingOpposingParty.Num(),
