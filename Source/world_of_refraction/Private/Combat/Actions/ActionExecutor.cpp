@@ -59,6 +59,7 @@
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "Combat/TurnManager.h"
 #include "Combat/Mechanics/RealityBoost.h"
+#include "Skills/Definitions/SupportSkillRules.h"
 #include "GameFramework/Character.h"
 
 class UCharacterDataComponent;
@@ -1333,15 +1334,17 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// moved trigger resolution into UStatusBuildupManager (resolves from Element
 	// + PhysicalType), so no StatusType is plumbed through the pipeline anymore.
 	// Spells have no physical type - PhysicalDamageType::None.
+	// Rules page 03: a heal / buff / support spell builds no status, on anyone.
+	const int32 SpellAuthoredBuildup = SupportSkillRules::GetAuthoredStatusBuildup(Spell);
 	int32 SpellBaseBuildup = 0;
-	if (Spell->StatusBuildup > 0)
+	if (SpellAuthoredBuildup > 0)
 	{
 		// 6-4: apply the unified per-mode stat-scaled status multiplier (computed above for the
 		// log) — replaces the retired inline L1 +50%. L0 → ×1.0; L1/L2 → progressive per-mode bonus.
 		// Own-tier power scales status buildup too (everything but effects).
 		// Tier-gap (Cluster 2): status buildup now gaps against the channel on the
 		// same ladder/direction as damage — reuse the shared damage accessor.
-		SpellBaseBuildup = FMath::RoundToInt(Spell->StatusBuildup * StatusMultiplier * TierPowerScaling::GetTierPowerMultiplier(Spell->Tier) * GetTierGapDamageMultiplier(Caster, Action));
+		SpellBaseBuildup = FMath::RoundToInt(SpellAuthoredBuildup * StatusMultiplier * TierPowerScaling::GetTierPowerMultiplier(Spell->Tier) * GetTierGapDamageMultiplier(Caster, Action));
 	}
 
 	FinalizeDamageInputs(Spell, FinalDamage, Spell->HitCount, DamagePerHit);
@@ -1552,8 +1555,10 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	// and nothing fires on cap; if infused, Element drives the trigger.
 	// TODO: a future ability-specific override (via Effects[]) could route a
 	// different trigger when uninfused — wire when the design lands.
+	// Rules page 03: a heal / buff / support ability builds no status, on anyone.
+	const int32 AbilityAuthoredBuildup = SupportSkillRules::GetAuthoredStatusBuildup(Ability);
 	int32 AbilityBaseBuildup = 0;
-	if (Ability->StatusBuildup > 0)
+	if (AbilityAuthoredBuildup > 0)
 	{
 		// 6-4: scale ability status by the per-mode stat-scaled charge multiplier (L0 → ×1.0,
 		// uninfused unchanged; L>0 → the mode's status bonus). Same getter as the damage path.
@@ -1561,7 +1566,7 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 		// Own-tier power scales status buildup too (everything but effects).
 		// Tier-gap (Cluster 2): status buildup now gaps against the channel on the
 		// same ladder/direction as damage — reuse the shared damage accessor.
-		AbilityBaseBuildup = FMath::RoundToInt(Ability->StatusBuildup * StatusMult * TierPowerScaling::GetTierPowerMultiplier(Ability->Tier) * GetTierGapDamageMultiplier(User, Action));
+		AbilityBaseBuildup = FMath::RoundToInt(AbilityAuthoredBuildup * StatusMult * TierPowerScaling::GetTierPowerMultiplier(Ability->Tier) * GetTierGapDamageMultiplier(User, Action));
 	}
 
 	int32 DamagePerHit = 0;

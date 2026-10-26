@@ -3,6 +3,7 @@
 
 #include "Skills/Definitions/SpellData.h"
 #include "Character/CharacterData.h"
+#include "Skills/Definitions/SupportSkillRules.h"
 
 // ==================== MIGRATION ====================
 
@@ -106,12 +107,8 @@ int32 USpellData::CalculateStatusBuildup(UCharacterData *Character, const FActio
     if (!Character)
         return 0;
 
-    // Buffs/heals don't build status
-    if (School == ESpellSchool::Enhancement || School == ESpellSchool::Restoration)
-        return 0;
-
-    // Base buildup per hit
-    float BuildupPerHit = StatusBuildup;
+    // Base buildup per hit; none for a heal / buff / support spell (rules page 03)
+    float BuildupPerHit = SupportSkillRules::GetAuthoredStatusBuildup(this);
 
     // Scale with character's StatusMultiplier (Spirit-driven post pillar move).
     // ActionMods.StatusMultiplier stacks per-action stat buffs onto the multiplier.
