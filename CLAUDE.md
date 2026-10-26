@@ -65,6 +65,13 @@ Every new C++ system ships with debug utilities. Pattern:
 - **Animations**: Standard attacks in fixed-position turn-based combat use In-Place anims by default. Root motion is opt-in per montage.
 - **Git LFS .uasset files**: Stored as LFS pointers. Cannot be read as text. When Blueprint logic is referenced, ask for a screenshot or text export — don't try to read the .uasset.
 
+## Rules reference — the deckbuilder (Crown, 2026-10-26)
+
+The deckbuilder (`CrownedDev/wor-deckbuilder`, a local clone on Crown's PC) is the **simplest level of this same game**. Its rules are the first reference for game rules.
+- When this game has no rule for something and the deckbuilder does, **suggest the deckbuilder's rule** as the recommendation in a `D-xxx` entry, citing the page. Start at its `docs/reference/00-index.md`; read only the page the index points to.
+- Never copy a rule in without Crown's answer. Where the two games already differ, flag it as a decision; don't "fix" either one.
+- The deckbuilder's names are C#/card names (`Affinity`, "Refraction", "Refractor"); translate them to this codebase's names when citing.
+
 ## Repo-specific notes
 
 - **LFS coverage** (2026-10-25): `.gitattributes` LFS-tracks `*.uasset`, `*.umap` and source art/audio/fonts (`png jpg jpeg tga psd exr fbx ttf otf wav ogg mp3`). Only originals of assets the game actually uses are committed (under `SourceArt/`); full vendor packs stay out of git (`docs/Design/UI_DeckbuilderReuse.md` §4).
