@@ -61,13 +61,13 @@ Every new C++ system ships with debug utilities. Pattern:
 - **Blueprint custom events vs functions**: Turn event bindings need red custom event nodes, not purple function nodes. Function nodes can't bind dynamic delegates.
 - **UHT enum defaults**: Don't use scope resolution (`ESpellElement::None`) as default in `UFUNCTION` declarations — UHT parsing fails. Use constructor cast: `ESpellElement(0)`.
 - **UHT meta tags**: Must use literals, not constants. `meta=(ClampMin=0)` works; `meta=(ClampMin=MIN_VALUE)` does not.
-- **`InnateElement` default**: Defaults to `Generic` (not `Fire`) — represents "no innate magical ability". Character class — not `InnateElement` — gates magical capabilities.
+- **`InnateElement` default**: Defaults to `Generic` (not `Fire`). Since GenericSpellInherit, `Generic` means **"inherit"** (a Generic spell takes the caster's element) and `None` means non-elemental (`ESpellElement.h:28-31`). Character class — not `InnateElement` — gates magical capabilities.
 - **Animations**: Standard attacks in fixed-position turn-based combat use In-Place anims by default. Root motion is opt-in per montage.
 - **Git LFS .uasset files**: Stored as LFS pointers. Cannot be read as text. When Blueprint logic is referenced, ask for a screenshot or text export — don't try to read the .uasset.
 
 ## Repo-specific notes
 
-- **LFS coverage is incomplete.** `.gitattributes` only LFS-tracks `*.uasset` and `*.umap`. Other binary types (`.fbx`, `.png`, `.wav`, `.tga`, `.exr`) are not LFS-tracked. Flag this if a change adds binaries of those types.
+- **LFS coverage** (2026-10-25): `.gitattributes` LFS-tracks `*.uasset`, `*.umap` and source art/audio/fonts (`png jpg jpeg tga psd exr fbx ttf otf wav ogg mp3`). Only originals of assets the game actually uses are committed (under `SourceArt/`); full vendor packs stay out of git (`docs/Design/UI_DeckbuilderReuse.md` §4).
 - **`*.cpp` and `*.h` use the `cpp` diff driver** (not LFS).
 
 ## Git discipline
@@ -86,7 +86,7 @@ When making a change:
 5. Specify exact file path and line placement.
 6. Flag obsolete code explicitly — but do not remove until the new path is verified in PIE.
 7. After the change: confirm it compiles, list TODOs introduced, suggest the next logical step.
-8. Don't execute the next step without confirmation.
+8. Don't execute the next step without confirmation — **except in Backlog mode** (below).
 
 **Ask before:**
 - Editing more than one file
@@ -120,14 +120,25 @@ Maintain living system documents in `docs/Architecture/`. Each document covers o
 - `docs/Architecture/AugmentStoneSystem.md`
 - `docs/Architecture/BrokenDarkness.md`
 - `docs/Architecture/CharacterDataSystem.md`
+- `docs/Architecture/CombatCharacter.md`
 - `docs/Architecture/CombatOrchestrator.md`
+- `docs/Architecture/CrystalWear.md`
+- `docs/Architecture/CurrencySystem.md`
 - `docs/Architecture/DamageCalculator.md`
+- `docs/Architecture/DuplicationAudit.md`
+- `docs/Architecture/EconomySystem.md`
 - `docs/Architecture/InfusionSystem.md`
 - `docs/Architecture/ItemSystem.md`
 - `docs/Architecture/LoadoutSystem.md`
+- `docs/Architecture/MerchantShopSystem.md`
+- `docs/Architecture/PartySystem.md`
+- `docs/Architecture/PerInstanceRollSystem.md`
+- `docs/Architecture/ResistanceSystem.md`
 - `docs/Architecture/ScalingSystem.md`
 - `docs/Architecture/SkillEffectSystem.md`
+- `docs/Architecture/StatComposition.md`
 - `docs/Architecture/StatusBuildupSystem.md`
+- `docs/Architecture/TierOnInstance.md`
 - `docs/Architecture/TurnManager.md`
 - `docs/Architecture/UISystem.md`
 - `docs/Architecture/WeaponSystem.md`
@@ -136,6 +147,26 @@ Maintain living system documents in `docs/Architecture/`. Each document covers o
 Add more as systems are documented.
 
 Create or update these documents as part of completing tasks, not as a separate afterthought.
+
+## Backlog mode (autonomous work)
+
+The project is worked from one queue, `docs/Backlog.md`, with open questions in `docs/DesignDecisions.md`. Start it with the `work-backlog` skill. In Backlog mode the "Ask before" rules above are replaced by these:
+
+1. **One job at a time**, top-down: the first `TODO` whose dependencies are `DONE` and whose decisions aren't `OPEN`.
+2. **Own branch per job** (`fix/`, `refactor/`, `feature/`, `chore/` + `B-xxx`), from up-to-date `main`. Commit after each cluster (≤3 files). **Never push to or merge into `main`** — Crown merges.
+3. **Never decide a design question.** If a job needs one:
+   - add or link a `D-xxx` entry in `DesignDecisions.md`
+   - mark the job `BLOCKED (D-xxx)`
+   - commit that doc change
+   - **move on to the next job**
+4. **Prove it before handing it over.** The build must pass and the tests must pass (`Scripts/ue/build.sh`, `Scripts/ue/test.sh`; the Stop hook enforces this when `UE_ROOT` is set). Then run the `wor-reviewer` agent on the diff and fix what it finds.
+5. **Hand-off:**
+   - set the job to `REVIEW (branch)` in `Backlog.md`
+   - list what Crown must check in PIE in the commit message
+   - add a changelog line to the relevant `docs/Architecture/` doc
+6. **Stop** after Crown's requested number of jobs, or when only blocked jobs remain. Summarise: done, blocked (with D-xxx), next.
+
+Still always: no Blueprint/`.uasset` edits outside the editor connection, no deleting code before it's verified in PIE, no history rewriting, and the Architecture rules above.
 
 ## Session orientation
 
