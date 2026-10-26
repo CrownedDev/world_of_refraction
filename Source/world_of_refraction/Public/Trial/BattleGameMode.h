@@ -46,6 +46,11 @@ public:
     UPROPERTY(EditDefaultsOnly, Category = "Battle")
     TSoftClassPtr<UCombatResultsWidget> ResultsWidgetClass;
 
+    /** D-016: a Generic or Resonator needs gear (a primary or secondary item) to
+     *  fight; a Refractor fights on its innate element. A gearless party member is
+     *  left out of the fight (B-071). */
+    static bool CanEnterCombat(const AActor *Combatant);
+
 protected:
     virtual void BeginPlay() override;
 

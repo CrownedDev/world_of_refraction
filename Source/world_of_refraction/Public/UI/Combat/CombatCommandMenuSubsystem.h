@@ -177,6 +177,9 @@ private:
     FPieMenuButtonData CreateSwitchWeaponButton() const;
     /** D-091: Flee, greyed with the reason when the fight can't be fled. */
     FPieMenuButtonData CreateFleeButton() const;
+    /** D-026: "Let AI Play" for a non-leader party member on its turn. */
+    FPieMenuButtonData CreateHandToAIButton() const;
+    bool CanHandToAI() const;
     /** D-096 placeholder: "Step Forward" / "Step Back", greyed with the reason. */
     FPieMenuButtonData CreateMoveRowButton(bool bForward) const;
     /** ET-19: greys a switch button, with the reason, once the turn's free switch is used. */

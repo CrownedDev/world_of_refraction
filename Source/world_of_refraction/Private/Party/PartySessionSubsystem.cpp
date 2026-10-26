@@ -10,6 +10,63 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Party/Party.h"
+#include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
+
+namespace PartySessionDebug
+{
+	UPartySessionSubsystem *FindPartySession(const UWorld *World)
+	{
+		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		return GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	}
+
+	void SetControl(const TArray<FString> &Args, UWorld *World)
+	{
+		UPartySessionSubsystem *PartySession = FindPartySession(World);
+		if (!PartySession || Args.Num() < 2)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[PartySession] Usage: wor.Party.SetControl <slot> <Player|AI>"));
+			return;
+		}
+		PartySession->SetMemberPlayerControlled(FCString::Atoi(*Args[0]), !Args[1].Equals(TEXT("AI"), ESearchCase::IgnoreCase));
+		PartySession->LogPartyState();
+	}
+
+	void SetLetAIFinish(const TArray<FString> &Args, UWorld *World)
+	{
+		UPartySessionSubsystem *PartySession = FindPartySession(World);
+		if (!PartySession || Args.Num() < 1)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[PartySession] Usage: wor.Party.LetAIFinish <0|1>"));
+			return;
+		}
+		PartySession->SetLetAIFinish(FCString::Atoi(*Args[0]) != 0);
+	}
+
+	void Print(UWorld *World)
+	{
+		if (const UPartySessionSubsystem *PartySession = FindPartySession(World))
+		{
+			PartySession->LogPartyState();
+		}
+	}
+}
+
+static FAutoConsoleCommandWithWorldAndArgs GPartySetControlCommand(
+	TEXT("wor.Party.SetControl"),
+	TEXT("wor.Party.SetControl <slot> <Player|AI> - who plays a party member in battle (D-004; the leader is always Player)."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&PartySessionDebug::SetControl));
+
+static FAutoConsoleCommandWithWorldAndArgs GPartyLetAIFinishCommand(
+	TEXT("wor.Party.LetAIFinish"),
+	TEXT("wor.Party.LetAIFinish <0|1> - 1: the AI finishes a fight once your Player members are down; 0: you take over (D-045)."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&PartySessionDebug::SetLetAIFinish));
+
+static FAutoConsoleCommandWithWorld GPartyPrintCommand(
+	TEXT("wor.Party.Print"),
+	TEXT("Print the local party: members, formation, carried vitals, control."),
+	FConsoleCommandWithWorldDelegate::CreateStatic(&PartySessionDebug::Print));
 
 void UPartySessionSubsystem::Deinitialize()
 {
@@ -317,6 +374,54 @@ bool UPartySessionSubsystem::GetMemberFormation(int32 SlotIndex, ECombatRow &Out
 	return true;
 }
 
+bool UPartySessionSubsystem::SetMemberPlayerControlled(int32 SlotIndex, bool bPlayerControlled)
+{
+	UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PartySession] SetMemberPlayerControlled: invalid slot %d"), SlotIndex);
+		return false;
+	}
+	if (SlotIndex == PartyConstants::LEADER_SLOT && !bPlayerControlled)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PartySession] Refused to hand the leader to the AI - the leader is always Player (D-004)"));
+		return false;
+	}
+
+	FPartyMember &Member = Party->Members[SlotIndex];
+	if (Member.bPlayerControlled != bPlayerControlled)
+	{
+		Member.bPlayerControlled = bPlayerControlled;
+		UE_LOG(LogTemp, Log, TEXT("[PartySession] Slot %d now %s-controlled"), SlotIndex,
+			   bPlayerControlled ? TEXT("Player") : TEXT("AI"));
+		OnPartyChanged.Broadcast(Party);
+	}
+	return true;
+}
+
+bool UPartySessionSubsystem::IsMemberPlayerControlled(int32 SlotIndex) const
+{
+	const UParty *Party = GetLocalParty();
+	return !Party || !Party->Members.IsValidIndex(SlotIndex) || Party->Members[SlotIndex].bPlayerControlled;
+}
+
+void UPartySessionSubsystem::SetLetAIFinish(bool bLetAIFinish)
+{
+	if (UParty *Party = GetLocalParty(); Party && Party->bLetAIFinish != bLetAIFinish)
+	{
+		Party->bLetAIFinish = bLetAIFinish;
+		UE_LOG(LogTemp, Log, TEXT("[PartySession] When your fighters fall: %s"),
+			   bLetAIFinish ? TEXT("let AI finish") : TEXT("take over"));
+		OnPartyChanged.Broadcast(Party);
+	}
+}
+
+bool UPartySessionSubsystem::GetLetAIFinish() const
+{
+	const UParty *Party = GetLocalParty();
+	return Party && Party->bLetAIFinish;
+}
+
 void UPartySessionSubsystem::RebindLeader(APlayerController *Leader)
 {
 	UParty *Party = GetLocalParty();
@@ -436,6 +541,7 @@ FString UPartySessionSubsystem::GetPartyStateString() const
 				? FString::Printf(TEXT("%s/%d"), *CombatRowHelpers::GetRowName(Member.PreferredRow),
 								  Member.PreferredColumn)
 				: FString(TEXT("unplaced"));
+		const TCHAR *Control = Member.bPlayerControlled ? TEXT("Player") : TEXT("AI");
 
 		if (!Member.HasCarriedVitals())
 		{
@@ -443,15 +549,17 @@ FString UPartySessionSubsystem::GetPartyStateString() const
 			// comparable at a glance.
 			const int32 FallbackHP = Member.CharacterData ? Member.CharacterData->CalculateMaxHealth() : 0;
 			const int32 FallbackEP = Member.CharacterData ? Member.CharacterData->CalculateMaxEnergy() : 0;
-			Out += FString::Printf(TEXT("  [%d] %s - no carry (falls back to HP %d / EP %d) - formation %s\n"),
-								   SlotIndex, *MemberName, FallbackHP, FallbackEP, *Formation);
+			Out += FString::Printf(TEXT("  [%d] %s - no carry (falls back to HP %d / EP %d) - formation %s - %s\n"),
+								   SlotIndex, *MemberName, FallbackHP, FallbackEP, *Formation, Control);
 		}
 		else
 		{
-			Out += FString::Printf(TEXT("  [%d] %s - carried HP %d / EP %d - formation %s\n"),
-								   SlotIndex, *MemberName, Member.CurrentHP, Member.CurrentEP, *Formation);
+			Out += FString::Printf(TEXT("  [%d] %s - carried HP %d / EP %d - formation %s - %s\n"),
+								   SlotIndex, *MemberName, Member.CurrentHP, Member.CurrentEP, *Formation, Control);
 		}
 	}
+	Out += FString::Printf(TEXT("  When your fighters fall: %s\n"),
+						   Party->bLetAIFinish ? TEXT("let AI finish") : TEXT("take over"));
 	return Out;
 }
 

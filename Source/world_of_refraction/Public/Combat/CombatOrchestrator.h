@@ -218,6 +218,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	bool IsActorAIControlled(AActor *Actor) const;
 
+	/** D-026: why Actor can't be switched between you and the AI now (no fight, not your
+	 *  party, not its turn, an action running, the leader); empty when it can. */
+	FText GetControlSwitchRefusedReason(AActor *Actor) const;
+
+	/** D-026 (B-071): switch a party member between you and the AI on its turn, and hand the
+	 *  turn to the new driver (the AI decides, or the command menu opens). False when refused. */
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	bool SwitchMemberControl(AActor *Actor);
+
 	/** Get living enemies for an actor */
 	UFUNCTION(BlueprintPure, Category = "Combat|Targeting")
 	TArray<AActor *> GetLivingEnemies(AActor *ForActor) const;
@@ -494,6 +503,10 @@ private:
 	 *  player (LocalParty) deaths are ignored. UFUNCTION so it can bind to the dynamic OnDied delegate. */
 	UFUNCTION()
 	void OnCombatantDied(AActor *Victim);
+
+	/** D-045: once no living local member is player-driven, you take over the AI members
+	 *  still standing (from their next turn), unless the party's "Let AI finish" is set. */
+	void TakeOverIfNoPlayerMemberLeft();
 
 	UPROPERTY()
 	AActor *CurrentActor;

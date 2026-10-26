@@ -63,6 +63,7 @@
 #include "Combat/Mechanics/RealityBoost.h"
 #include "Skills/Definitions/SupportSkillRules.h"
 #include "GameFramework/Character.h"
+#include "Combat/CombatControl.h"
 
 class UCharacterDataComponent;
 class UCharacterData;
@@ -1948,9 +1949,9 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 	// against the SAME band. Supersedes the old single per-window timer (ScheduleDefenseDecision).
 	// Who is DRIVING decides this, not what the character is: a human defender
 	// presses their own input, a bot-driven one needs a synthesized press. Read
-	// from engine possession.
+	// from possession or the party member's Player flag (B-071).
 	const APawn *DefenderPawn = Cast<APawn>(Defender);
-	if (DefenderPawn && !DefenderPawn->IsPlayerControlled())
+	if (DefenderPawn && !CombatControl::IsPlayerDriven(DefenderPawn))
 	{
 		if (UAIDecisionManager *AIMgr = GetGameInstance()->GetSubsystem<UAIDecisionManager>())
 		{

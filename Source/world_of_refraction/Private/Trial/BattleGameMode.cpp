@@ -4,10 +4,13 @@
 
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Character/CombatCharacter.h"
+#include "Combat/CombatControl.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
+#include "Loadout/LoadoutComponent.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "TimerManager.h"
@@ -104,9 +107,10 @@ void ABattleGameMode::BootstrapCombat()
     // Cross-check against the session party. Disagreement is not fatal — a Battle
     // Party is legitimately a SUBSET of the Trial Party — but a Battle Party member
     // absent from the Trial Party means the membership gate leaked, so say so.
-    if (const UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>())
+    const UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
+    const UParty *TrialParty = PartySession ? PartySession->GetLocalParty() : nullptr;
+    if (PartySession)
     {
-        const UParty *TrialParty = PartySession->GetLocalParty();
         const int32 TrialCount = TrialParty ? TrialParty->GetMemberCount() : 0;
         if (!TrialParty)
         {
@@ -128,14 +132,41 @@ void ABattleGameMode::BootstrapCombat()
         }
     }
 
+    // D-003: each member spawns as its own FPartyMember.PawnClass (DefaultPlayerPawnClass
+    // when unset or unresolved) and plays as its D-004 control setting.
+    APawn *LeaderPawn = nullptr;
+    APawn *FirstPlayerMemberPawn = nullptr;
     for (int32 i = 0; i < BattlePartyData.Num(); ++i)
     {
+        const int32 Slot = PartySession ? PartySession->GetMemberSlotByData(BattlePartyData[i]) : INDEX_NONE;
+        const FPartyMember *Member = TrialParty && TrialParty->Members.IsValidIndex(Slot) ? &TrialParty->Members[Slot] : nullptr;
+        UClass *MemberPawnClass = Member ? Member->PawnClass.LoadSynchronous() : nullptr;
+
         const FVector Location = Origin + FVector(-BattleGameModeConstants::TEAM_X_OFFSET,
                                                   i * BattleGameModeConstants::COMBATANT_Y_SPACING, 0.0f);
-        if (APawn *Spawned = SpawnCombatant(PlayerPawnClass, BattlePartyData[i], FTransform(Location)))
+        APawn *Spawned = SpawnCombatant(MemberPawnClass ? MemberPawnClass : PlayerPawnClass, BattlePartyData[i], FTransform(Location));
+        if (!Spawned)
         {
-            LocalParty.Add(Spawned);
+            continue;
         }
+        if (!CanEnterCombat(Spawned))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s has no gear - left out of the fight (D-016)"),
+                   *BattlePartyData[i]->GetName());
+            Spawned->Destroy();
+            continue;
+        }
+        const bool bPlayerControlled = !Member || Member->bPlayerControlled;
+        CombatControl::SetPlayerDriven(Spawned, bPlayerControlled);
+        if (Slot == PartyConstants::LEADER_SLOT)
+        {
+            LeaderPawn = Spawned;
+        }
+        if (bPlayerControlled && !FirstPlayerMemberPawn)
+        {
+            FirstPlayerMemberPawn = Spawned;
+        }
+        LocalParty.Add(Spawned);
     }
     for (int32 i = 0; i < OpposingPartyData.Num(); ++i)
     {
@@ -169,7 +200,9 @@ void ABattleGameMode::BootstrapCombat()
         // The AI controller this displaces reaps itself — see
         // ACombatAIController::OnUnPossess. Handling it here too would be a second
         // mechanism for one job, and would still miss the login-time orphan.
-        PC->Possess(CastChecked<APawn>(LocalParty[0]));
+        // The leader when it fights; if it sat out (no gear, Q-071b), the first member you play.
+        APawn *PossessTarget = LeaderPawn ? LeaderPawn : FirstPlayerMemberPawn ? FirstPlayerMemberPawn : CastChecked<APawn>(LocalParty[0]);
+        PC->Possess(PossessTarget);
 
         if (PreviousPawn && PreviousPawn != PC->GetPawn())
         {
@@ -240,6 +273,22 @@ APawn *ABattleGameMode::SpawnCombatant(UClass *PawnClass, UCharacterData *Data, 
     UGameplayStatics::FinishSpawningActor(Pawn, SpawnTransform);
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Spawned %s as %s"), *Data->GetName(), *Pawn->GetName());
     return Pawn;
+}
+
+bool ABattleGameMode::CanEnterCombat(const AActor *Combatant)
+{
+    const UCharacterDataComponent *CharComp = Combatant ? Combatant->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    if (!CharComp || !CharComp->CharacterData)
+    {
+        return false;
+    }
+    if (CharComp->CharacterData->CharacterClass == ECharacterClass::Caster)
+    {
+        return true;
+    }
+    const ULoadoutComponent *Loadout = Combatant->FindComponentByClass<ULoadoutComponent>();
+    return Loadout && (Loadout->GetPrimaryWeapon() || Loadout->GetPrimaryRing() || Loadout->GetPrimaryEvolution() ||
+                       Loadout->HasSecondaryEquipment());
 }
 
 void ABattleGameMode::AbortToTrial(const FString &Reason)

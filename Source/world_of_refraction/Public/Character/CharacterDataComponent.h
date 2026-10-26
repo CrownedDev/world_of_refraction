@@ -137,6 +137,12 @@ public:
     UPROPERTY(ReplicatedUsing = OnRep_bIsAlive, BlueprintReadOnly, Category = "Combat")
     bool bIsAlive;
 
+    /** Per-fight (B-071): the local player drives this character through the command
+     *  menu although the PlayerController doesn't possess it (a Player-controlled
+     *  party member, D-004). Read through CombatControl::IsPlayerDriven, never directly. */
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "Combat")
+    bool bPlayerDriven = false;
+
     /**
      * Runtime "is currently BD" state — the SOLE authority for BD-ness (direct
      * model). True if the character is behaviourally Broken Darkness right now:

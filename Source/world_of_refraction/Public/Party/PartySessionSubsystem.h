@@ -124,6 +124,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	bool GetMemberFormation(int32 SlotIndex, ECombatRow &OutRow, int32 &OutColumn) const;
 
+	// ==================== CONTROL (D-004 / D-045) ====================
+
+	/** Player or AI for one member in battle. The leader (slot 0) is always Player,
+	 *  so a request to hand it to the AI is refused (false). Broadcasts OnPartyChanged
+	 *  on a real change. */
+	UFUNCTION(BlueprintCallable, Category = "Party")
+	bool SetMemberPlayerControlled(int32 SlotIndex, bool bPlayerControlled);
+
+	/** The member's battle control setting; Player for an invalid slot. */
+	UFUNCTION(BlueprintPure, Category = "Party")
+	bool IsMemberPlayerControlled(int32 SlotIndex) const;
+
+	/** D-045 setting: true lets the AI finish a fight once every Player member is down. */
+	UFUNCTION(BlueprintCallable, Category = "Party")
+	void SetLetAIFinish(bool bLetAIFinish);
+
+	UFUNCTION(BlueprintPure, Category = "Party")
+	bool GetLetAIFinish() const;
+
 	/** Re-point Leader after a level transition — the old PlayerController was
 	 *  destroyed by OpenLevel, so the weak ref is stale by design. */
 	UFUNCTION(BlueprintCallable, Category = "Party")

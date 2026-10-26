@@ -27,6 +27,9 @@ namespace PartyConstants
 	/** Active party size. No reserves — a dead member is out until revived. */
 	constexpr int32 MAX_PARTY_MEMBERS = 3;
 
+	/** The leader's slot — always Player-controlled (D-004), never dismissed. */
+	constexpr int32 LEADER_SLOT = 0;
+
 	/** Sentinel for FPartyMember::CurrentHP/CurrentEP: no carried trial state.
 	 *  Distinguishable from a legitimately carried 0 (a downed member, or a
 	 *  Broken Darkness member's empty EP pool). */
@@ -81,6 +84,12 @@ struct FPartyMember
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	int32 PreferredColumn = PartyConstants::UNSET_FORMATION;
 
+	/** D-004: who plays this member in battle — you (the command menu) or the AI.
+	 *  The leader (slot 0) is always Player; written by
+	 *  UPartySessionSubsystem::SetMemberPlayerControlled, which enforces that. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	bool bPlayerControlled = true;
+
 	bool IsValidMember() const { return !PawnClass.IsNull() && CharacterData != nullptr; }
 
 	bool HasCarriedVitals() const { return CurrentHP != PartyConstants::NO_CARRIED_VITALS; }
@@ -106,6 +115,13 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	TArray<FPartyMember> Members;
+
+	/** D-045 Gameplay setting. False (default, "Take over"): when every Player
+	 *  member has fallen you take over the AI members still standing. True ("Let AI
+	 *  finish"): the AI plays the fight out. Not saved yet.
+	 *  TODO(D-024): moves to the CommonUI Settings screen and the settings save. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	bool bLetAIFinish = false;
 
 	UFUNCTION(BlueprintPure, Category = "Party")
 	int32 GetMemberCount() const { return Members.Num(); }

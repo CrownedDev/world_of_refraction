@@ -42,6 +42,8 @@
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "Equipment/Crystals/CrystalManager.h"
 #include "TimerManager.h"
+#include "Combat/CombatControl.h"
+#include "Party/PartySessionSubsystem.h"
 
 ACombatOrchestrator::ACombatOrchestrator()
 {
@@ -356,6 +358,13 @@ void ACombatOrchestrator::ReleaseCombatResources()
 	}
 
 	UnbindTurnManagerEvents();
+
+	// B-071: the per-fight Player flag (a take-over or a switch) ends with the fight; placed
+	// pawns are reused by the next fight, so it must not carry.
+	for (AActor *Member : LocalPartyCombatants)
+	{
+		CombatControl::SetPlayerDriven(Member, false);
+	}
 
 	if (CameraDirector)
 	{
@@ -1077,6 +1086,10 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 	{
 		return;
 	}
+	if (LocalPartyCombatants.Contains(Victim))
+	{
+		TakeOverIfNoPlayerMemberLeft();
+	}
 	// Only ENEMY (OpposingParty) deaths feed the pool — a player-side (LocalParty) death grants nothing.
 	if (!OpposingPartyCombatants.Contains(Victim))
 	{
@@ -1095,6 +1108,97 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Enemy %s down (caliber %d) -> +%d WSP (pool now %d)"),
 		   *Victim->GetName(), Caliber, WSP, PendingWorldStatPool);
+}
+
+void ACombatOrchestrator::TakeOverIfNoPlayerMemberLeft()
+{
+	TArray<AActor *> LivingAIMembers;
+	for (AActor *Member : LocalPartyCombatants)
+	{
+		const UCharacterDataComponent *Comp = IsValid(Member) ? Member->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		if (!Comp || !Comp->bIsAlive)
+		{
+			continue;
+		}
+		if (!IsActorAIControlled(Member))
+		{
+			return; // a member you play is still standing
+		}
+		LivingAIMembers.Add(Member);
+	}
+	if (LivingAIMembers.Num() == 0)
+	{
+		return;
+	}
+
+	const UGameInstance *GI = GetGameInstance();
+	const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	if (PartySession && PartySession->GetLetAIFinish())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Your fighters are down - the AI finishes the fight (Let AI finish)"));
+		return;
+	}
+	for (AActor *Member : LivingAIMembers)
+	{
+		CombatControl::SetPlayerDriven(Member, true);
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Your fighters are down - you take over %s (D-045)"), *Member->GetName());
+	}
+}
+
+FText ACombatOrchestrator::GetControlSwitchRefusedReason(AActor *Actor) const
+{
+	if (CombatState != ECombatState::InProgress)
+	{
+		return NSLOCTEXT("CombatOrchestrator", "SwitchNoFight", "There is no fight.");
+	}
+	if (!Actor || !LocalPartyCombatants.Contains(Actor))
+	{
+		return NSLOCTEXT("CombatOrchestrator", "SwitchNotParty", "Only your party members can be switched.");
+	}
+	if (Actor != CurrentActor || bWaitingForAsyncAction)
+	{
+		return NSLOCTEXT("CombatOrchestrator", "SwitchNotTurn", "Switch a member on its own turn.");
+	}
+	const APawn *Pawn = Cast<APawn>(Actor);
+	if (Pawn && Pawn->IsPlayerControlled())
+	{
+		return NSLOCTEXT("CombatOrchestrator", "SwitchLeader", "The leader is always yours.");
+	}
+	return FText::GetEmpty();
+}
+
+bool ACombatOrchestrator::SwitchMemberControl(AActor *Actor)
+{
+	const FText Refused = GetControlSwitchRefusedReason(Actor);
+	if (!Refused.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Control switch refused for %s: %s"), *GetNameSafe(Actor), *Refused.ToString());
+		return false;
+	}
+
+	const bool bToPlayer = IsActorAIControlled(Actor);
+	if (bToPlayer && AIDecisionManagerRef)
+	{
+		AIDecisionManagerRef->CancelPendingDecision();
+	}
+	else if (!bToPlayer)
+	{
+		// The AI takes this turn: the player's open menu must not submit a second action.
+		const UGameInstance *GI = GetGameInstance();
+		if (UCombatCommandMenuSubsystem *Menu = GI ? GI->GetSubsystem<UCombatCommandMenuSubsystem>() : nullptr)
+		{
+			if (Menu->IsOpen())
+			{
+				Menu->Close();
+			}
+		}
+	}
+	CombatControl::SetPlayerDriven(Actor, bToPlayer);
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s is now played by %s (D-026)"), *Actor->GetName(),
+		   bToPlayer ? TEXT("you") : TEXT("the AI"));
+	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
+	RequestActionFromActor(Actor);
+	return true;
 }
 
 void ACombatOrchestrator::DebugApplyPendingWorldStats()
@@ -1174,6 +1278,38 @@ namespace
 				else
 				{
 					UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] wor.GrantPendingWorldStats: no orchestrator in world."));
+				}
+			}));
+
+	FAutoConsoleCommandWithWorld GSwitchControlCmd(
+		TEXT("wor.Combat.SwitchControl"),
+		TEXT("Switch the party member whose turn it is between you and the AI (D-026). Placeholder for taking over an AI member until the new HUD."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				if (ACombatOrchestrator *Orch = FindCombatOrchestrator(World))
+				{
+					Orch->SwitchMemberControl(Orch->GetCurrentActor());
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] wor.Combat.SwitchControl: no orchestrator in world."));
+				}
+			}));
+
+	FAutoConsoleCommandWithWorld GPrintCombatStateCmd(
+		TEXT("wor.Combat.PrintState"),
+		TEXT("DEBUG: print the fight's state: turn, current actor, both teams' HP/EP and who plays each of your members."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				if (ACombatOrchestrator *Orch = FindCombatOrchestrator(World))
+				{
+					Orch->DebugPrintCombatState();
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] wor.Combat.PrintState: no orchestrator in world."));
 				}
 			}));
 
@@ -1479,11 +1615,11 @@ bool ACombatOrchestrator::IsActorAIControlled(AActor *Actor) const
 		return false;
 	}
 
-	// Runtime control, from engine possession — not asset identity. A Player-origin
-	// character can be bot-driven (ghost / AI companion) and an Enemy-origin one
-	// player-driven (PvP), so only the possessing controller can answer this.
+	// Runtime control, not asset identity. A Player-origin character can be bot-driven
+	// (ghost / AI companion) and an Enemy-origin one player-driven (PvP). Possession or a
+	// Player-controlled party member's per-fight flag answers it (B-071, CombatControl.h).
 	const APawn *Pawn = Cast<APawn>(Actor);
-	return Pawn && !Pawn->IsPlayerControlled();
+	return Pawn && !CombatControl::IsPlayerDriven(Pawn);
 }
 
 TArray<AActor *> ACombatOrchestrator::GetLivingEnemies(AActor *ForActor) const
@@ -1721,11 +1857,12 @@ void ACombatOrchestrator::DebugPrintCombatState()
 		UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
 		if (Comp)
 		{
-			UE_LOG(LogTemp, Display, TEXT("  %s - HP: %d/%d, EP: %d/%d, Alive: %s"),
+			UE_LOG(LogTemp, Display, TEXT("  %s - HP: %d/%d, EP: %d/%d, Alive: %s, Played by: %s"),
 				   *Actor->GetName(),
 				   Comp->CurrentHP, Comp->MaxHP,
 				   Comp->CurrentEP, Comp->MaxEP,
-				   Comp->bIsAlive ? TEXT("Yes") : TEXT("No"));
+				   Comp->bIsAlive ? TEXT("Yes") : TEXT("No"),
+				   IsActorAIControlled(Actor) ? TEXT("AI") : TEXT("you"));
 		}
 		else
 		{
