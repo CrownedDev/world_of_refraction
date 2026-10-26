@@ -58,7 +58,7 @@ The queue of questions only Crown can answer.
 - Update `WoR.Combat.HangFixes` stun test (it asserts the old skip rule) and the `ESkillEffectType.h:122` comment stays true.
 
 ### D-002 — What happens after winning vs losing a battle?
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-072
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-072
 **Question:** Where does each outcome send the player?
 **Context:** Today both return to the trial, which reloads with the enemy respawned (`BattleGameMode.h:11-13`). The results screen now exists (branch B).
 **Options:**
@@ -66,7 +66,16 @@ The queue of questions only Crown can answer.
 - B: Lose → retry the fight.
 - C: Lose → back to the trial at the last checkpoint.
 **Recommendation:** A for now. Needs the persistence work (B-090) for "enemy gone".
-**Answer (Crown):** _write here_
+**Answer (Crown):** **Trials are runs, Elden Ring Nightreign style** (2026-10-26), as already set out in `Design/Resources_Design.md` (one hub, trial = run).
+- **Win a fight** → continue the trial; that enemy stays beaten.
+- **Lose a fight** → the run ends; back to the hub.
+- **Lost at run end:** run world-stat levels, Gold, gear found in the run, slotted crystals (consumed).
+- **Kept:** the pool (everything unlocked) **with its upgrade levels**, Prisms/Diamond, head-start allocation.
+- **Upgrades happen both in the hub and during a run**, and an item's level is what you get the next time you bring or find it ("you find it again at the same level you had it last time").
+**Notes for Claude:**
+- Interpretation to confirm with Crown when applying: an upgrade bought *during* a run is written back to the pool (kept). If unsure, ask before building it.
+- "Enemy stays beaten" and run state across level loads need the persistence work (B-090); routing (lose → hub) can land first.
+- Co-op revive on defeat: not decided yet (later, with co-op).
 
 ### D-003 — How do recruited party members get into battle?
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-071
@@ -205,6 +214,16 @@ The queue of questions only Crown can answer.
 **Question:** Is the owned pool shared by all characters, or per character?
 **Context:** `InitializeFromPool` copies the whole pool into one pawn (`InventoryComponent.cpp:1446-1503`). With 3 party members, each would get duplicates.
 **Answer (Crown):** _write here_
+
+### D-021 — How do you get your loadout at the start of a run?
+**Status:** ANSWERED · **Raised:** 2026-10-26 · **Blocks:** B-091
+**Question:** Random draft of 3 loadouts (as `Resources_Design.md` §draft says) or something else?
+**Answer (Crown):** **Purchase model, option A** (2026-10-26). No RNG draft: at run start you **buy** your loadout from **your pool** with a **starting Gold budget**.
+- Prices scale with tier and level, so the budget forces choices (one great weapon vs a balanced kit).
+- **Unspent Gold carries into the run** (trial vendors: upgrades, world stats).
+- Account perks can raise the starting budget; slot limits still apply (1 weapon / 2 rings / 1 evolution early, growing with perks).
+- Crystals are still consumed per run.
+**Notes for Claude:** supersedes the "3 loadouts spawn (the draft)" mechanic in `Resources_Design.md` (update that section when applied); the Luck-weighted drop curve stays for **in-run finds**, not the loadout. Budget size and price curve are tuning values → named constants with `// TODO: tune`.
 
 ---
 
