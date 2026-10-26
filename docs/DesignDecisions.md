@@ -1172,6 +1172,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
+### Q-175 — Does a bonus turn get its own free switch?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-175) · **Blocks:** — (B-175 shipped with A)
+**Question:** ET-19 allows one free weapon or ring switch per turn. Does a bonus turn (ET-15, a real extra turn) give a fresh switch, or does it share the switch of the turn it came from?
+**Context:** B-175 resets the switch in `ACombatOrchestrator::ProceedWithTurnStart`, which runs for normal and bonus turns (not Execution turns).
+**Options:**
+- **A** a bonus turn gets its own switch (as built).
+- **B** a bonus turn shares the switch of the turn that earned it.
+**Recommendation:** A, because ET-15 makes a bonus turn a real extra turn, and the rule exists to stop endless re-equipping inside one turn, which A still prevents.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
