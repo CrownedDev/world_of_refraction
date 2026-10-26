@@ -43,7 +43,8 @@ Companion to `RunStructure.md`. Values marked *tune* are placeholders: named con
 - **Memories** you collected can alter phases (skip one, add a harder one), authored per memory (`RunStructure.md` §5).
 - **Optional revival:** a beaten boss can be revived stronger for better gear (`RunStructure.md` §4).
 - **Phase entries:** each boss authors its own phases: conditions plus what changes (skills, element, resistances/weaknesses, aggression, weather intensity, dialogue). Anything an entry doesn't set stays as it was.
-- **Open:** the rest of the phase details (boss styles, statuses on bosses, long fights), being discussed (D-098).
+- **Boss styles:** mini-bosses take a style tag (Planning / Timing / Both) that picks a preset set of phases; main bosses are hand-authored, the tag only a guide.
+- **Open:** the rest of the phase details (statuses on bosses, long fights), being discussed (D-098).
 
 ## 6. Open questions
 
