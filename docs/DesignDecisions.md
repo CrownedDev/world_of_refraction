@@ -1110,7 +1110,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### Q-159b — Which parts go when a loadout is over a cap?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-159) · **Blocks:** — (B-159 shipped with A)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-159) · **Blocks:** — (B-159 shipped with A)
 **Question:** when a loadout has too many abilities, or too many utility crystals of a tier band, which ones are dropped?
 **Context:** today the last ones go: abilities after the cap (`ULoadoutComponent::DropInvalidParts`), and the later item slots in the band lose crystals first (`FLoadoutRules::TrimUtilityCrystalsToTierCaps`). The message names what went. Related, also shipped without a ruling: a pick that repeats a part already assigned (the same ability, weapon spell, ring spell or innate spell twice) is refused.
 **Options:**
@@ -1118,7 +1118,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** drop the lowest-tier / cheapest first.
 - **C** don't drop: refuse the load and ask the player to pick (needs the loadout screen).
 **Recommendation:** A, because it is predictable and the player only meets it with an old save or a changed cap; the message tells them what went.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A** (2026-10-26): drop the last ones in the list, as built, with the message naming what went.
 **Notes for Claude:** _optional_
 
 ### D-090 — A full status bar is a one-turn "status break"
