@@ -36,7 +36,7 @@ Internal state:
 - `mutable USkillEffectManager* SkillEffectManagerRef` — lazily acquired via
   `GetSkillEffectManager()`; used to fold turn-speed modifiers into effective speed.
 - `TArray<FScheduledTurn> PendingTurns` — pinned bonus turns (Emerald); delay burns
-  down on normal turns only, ready entries fire from `AdvanceSimState`'s pinned-fire
+  down on every turn taken, ready entries fire from `AdvanceSimState`'s pinned-fire
   step; see *Pinned bonus turns*.
 - `TArray<FPreviewTurnEntry> TurnBelt` — materialized upcoming turns (excludes the
   current turn), up to `TURN_BELT_HORIZON` (16). Rebuilt by `RebuildBelt` every
@@ -150,8 +150,8 @@ Advances ONE turn on the passed state (live arrays or belt scratch copies):
    so a revived combatant gets no catch-up burst).
 3. **Select** — living combatant with highest net debt; ties via
    `ShouldBreakTieInFavor()`. `TurnsTaken++` on the pick (a normal, unflagged turn).
-4. **Delay countdown** — every `Pending` entry's `TurnsRemaining` drops by 1 (normal
-   turns only — this never runs on the pinned-fire path).
+4. **Delay countdown** — every `Pending` entry's `TurnsRemaining` drops by 1 (the
+   pinned-fire path does the same for every other entry: all turns count).
 
 Deliberately log-free: `RebuildBelt` replays it 16× per rebuild.
 
@@ -194,8 +194,8 @@ don't appear until the next turn (no runtime caller queries in that window).
 
 Bonus turns are **positional**, not debt credits: they land at guaranteed slots.
 `ScheduleBonusTurn(Actor, DelayTurns, Count=1)` (DelayTurns ≥ 0) appends an
-`FScheduledTurn`. Delay N means "N normal turns pass, then fire" — only normal turns
-burn delay. All Emerald tiers route through it (F=6 … A=1, count 1); S-rank is
+`FScheduledTurn`. Delay N means "N turns pass, then fire" — every turn (normal or
+another fired bonus) burns delay. All Emerald tiers route through it (F=6 … A=1, count 1); S-rank is
 delay 0 count 2 — two back-to-back bonus turns starting on the very next scheduler
 step. Bonus = **borrow-from-future**: the fire does `TurnsTaken++` with no `TurnsOwed`
 credit, so the grantee's next *normal* turn slips one slot per bonus taken. A dead
@@ -254,9 +254,6 @@ Observations from the code:
   turn logic is handled in the orchestrator's `OnActionCompleted` instead.
 - The `// CORRECTED VERSION` file header and the `// CORRECTED` / `// NEW` section
   banners are historical refactor markers, not active issues.
-- `AccumulateDebtRound` is dead since the 2c cleanup deleted `GetNextCombatant` (its
-  only caller) — `AdvanceSimState` inlines the same loop because it operates on passed
-  state, not members. Candidate for a follow-up deletion.
 - `OnActorDied` / `OnActorResurrected` do not re-cache stats; this is intentional
   (commented in `CalculateSpeedRatios`) but means a resurrected actor keeps its
   pre-death cached stats until an explicit `OnActorSpeedChanged`.

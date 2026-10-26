@@ -83,8 +83,8 @@ self-limits the absolute payoff. No low-requirement carve-out.
 
 - **Removed:** the `(1 − penalty)` damage / `(1 + penalty)` cost **application** at all 8 sites (SpellData,
   SkillDataBase, AbilityData ×3 shadow copies, and the AI's `DamageCalculator::CalculateAttackDamage`).
-- **Retained:** `CalculatePenalty` / `GetTotalDeficit` / `DoesSpellExceedRequirements` — the **Broken
-  Darkness strain gate** still reads "any deficit > 0" as its binary over-requirement trigger. Only the
+- **Retained:** `CalculatePenalty` (no C++ reader; Blueprint-exposed through `CalculateRequirementPenalty`) and `GetTotalDeficit` / `DoesSpellExceedRequirements` — the **Broken
+  Darkness strain gate** still reads "any deficit > 0" (through `GetTotalDeficit`) as its binary over-requirement trigger. Only the
   damage/cost *application* was removed; the deficit calculation itself stays.
 
 ## AI parity
