@@ -1718,19 +1718,8 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
 	if (!DefenseSys)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] DefenseSystem not available - applying damage directly"));
-
-		// Fallback: apply damage without defense
-		for (AActor *Target : Targets)
-		{
-			int32 TotalDamage = ProcessMultiHit(
-				Attacker, Target, DamagePerHit, HitCount, Element, bCanCrit,
-				CurrentExecutionContext->PartialResult);
-
-			CurrentExecutionContext->PartialResult.TotalDamageDealt += TotalDamage;
-			CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, TotalDamage);
-			CurrentExecutionContext->PartialResult.AffectedTargets.Add(Target);
-		}
+		// Q-031 = A: a setup error, not a game state; no undefended damage fallback.
+		UE_LOG(LogTemp, Error, TEXT("[ActionExecutor] DefenseSystem missing - melee damage not applied"));
 		return;
 	}
 
@@ -3075,11 +3064,8 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 		}
 		else
 		{
-			// Fallback if DamageCalculator subsystem is unavailable — preserves
-			// the existing ApplyDamage degradation path (deal min 1, no math).
-			const int32 HPBefore = TargetComp->CurrentHP;
-			TargetComp->ServerTakeDamage(FMath::Max(1, Input.BaseDamage));
-			Result.DamageDealt = HPBefore - TargetComp->CurrentHP;
+			// Q-031 = A: a missing DamageCalculator is a setup error; no "deal at least 1" fallback.
+			UE_LOG(LogTemp, Error, TEXT("[ActionExecutor] DamageCalculator missing - hit damage not applied"));
 		}
 
 		if (!TargetComp->bIsAlive)
@@ -3183,10 +3169,8 @@ FCombatHitResult UActionExecutor::ApplyDamage(
 	}
 	else
 	{
-		// Fallback if DamageCalculator unavailable
-		int32 HPBefore = TargetComp->CurrentHP;
-		TargetComp->ServerTakeDamage(FMath::Max(1, BaseDamage));
-		Result.DamageDealt = HPBefore - TargetComp->CurrentHP;
+		// Q-031 = A: a missing DamageCalculator is a setup error; no "deal at least 1" fallback.
+		UE_LOG(LogTemp, Error, TEXT("[ActionExecutor] DamageCalculator missing - damage not applied"));
 	}
 
 	// Check for death
@@ -3682,13 +3666,12 @@ void UActionExecutor::SpawnAOEEffect(
 		}
 	}
 
-	// Fallback — no converted count-based window (unconverted multi-entry AOE keeps the action-start
-	// lumped window, which resolves it via OnDefenseWindowClosed; lumped-retire is the next step), or no
-	// DefenseSystem at all → apply directly.
+	// No converted count-based window: unconverted multi-entry AOE keeps the action-start lumped
+	// window, which resolves it via OnDefenseWindowClosed (lumped-retire is B-032). A missing
+	// DefenseSystem is a setup error (Q-031 = A): no undefended damage.
 	if (!DefenseSys)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No DefenseSystem - applying AOE damage directly"));
-		ApplyDamage(Caster, Target, FinalDamage, InElement, false);
+		UE_LOG(LogTemp, Error, TEXT("[ActionExecutor] DefenseSystem missing - AOE damage not applied"));
 	}
 }
 
@@ -3786,30 +3769,12 @@ void UActionExecutor::ResolveInstantSpell(
 		}
 	}
 
-	// Fallback — no converted count-based window (unconverted multi-entry Instant keeps the action-start
-	// lumped window, which resolves it via OnDefenseWindowClosed), or no DefenseSystem at all → apply
-	// directly (the legacy unavoidable behavior).
+	// No converted count-based window: unconverted multi-entry Instant keeps the action-start lumped
+	// window, which resolves it via OnDefenseWindowClosed. A missing DefenseSystem is a setup error
+	// (Q-031 = A): no undefended damage.
 	if (!DefenseSys)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No DefenseSystem - applying Instant damage directly"));
-		FCombatHitResult Result = ApplyDamage(Caster, Target, FinalDamage, InElement, true);
-
-		if (CurrentExecutionContext.IsSet())
-		{
-			CurrentExecutionContext->PartialResult.TotalDamageDealt += Result.DamageDealt;
-			CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, Result.DamageDealt);
-			CurrentExecutionContext->PartialResult.AffectedTargets.Add(Target);
-
-			if (Result.bWasCritical)
-			{
-				CurrentExecutionContext->PartialResult.bWasCritical = true;
-			}
-
-			if (Result.bTargetDied)
-			{
-				CurrentExecutionContext->PartialResult.bCausedDeath = true;
-			}
-		}
+		UE_LOG(LogTemp, Error, TEXT("[ActionExecutor] DefenseSystem missing - Instant damage not applied"));
 	}
 }
 
@@ -4056,9 +4021,8 @@ void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation,
 	}
 	else
 	{
-		// Fallback: Apply damage directly
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No DefenseSystem - applying projectile damage directly"));
-		ApplyDamage(nullptr, Target, Damage, ESpellElement::None, true);
+		// Q-031 = A: a setup error, not a game state; no undefended damage fallback.
+		UE_LOG(LogTemp, Error, TEXT("[ActionExecutor] DefenseSystem missing - projectile damage not applied"));
 	}
 }
 
