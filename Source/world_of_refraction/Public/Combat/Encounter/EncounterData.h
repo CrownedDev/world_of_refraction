@@ -13,7 +13,7 @@ class UCharacterData;
 
 namespace EncounterConstants
 {
-	/** Enemies §2: a team is at most three. */
+	/** docs/Design/Enemies.md §3 (fight size): a team is at most three. */
 	constexpr int32 ENCOUNTER_MAX_ENEMIES = 3;
 }
 

@@ -81,8 +81,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Encounter")
 	EEncounterRank Rank = EEncounterRank::Normal;
 
-	/** B-074: the enemy team this encounter fights (up to three). Unset or empty = the pawn
-	 *  this component sits on fights alone. */
+	/** B-074 (Q-074): the enemy team this encounter fights (up to three); it replaces the pawn this
+	 *  component sits on, which stands for the team on the map. Unset or empty = the pawn fights alone. */
 	UPROPERTY(EditAnywhere, Category = "Encounter")
 	TObjectPtr<UEncounterData> EncounterData;
 
