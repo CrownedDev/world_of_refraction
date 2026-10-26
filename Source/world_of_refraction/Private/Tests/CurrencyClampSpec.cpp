@@ -38,7 +38,7 @@ void FCurrencyClampSpec::Define()
 		Holder->AddInstanceComponent(Wallet);
 		Wallet->RegisterComponent();
 
-		for (ECurrencyType Currency : {ECurrencyType::Gold, ECurrencyType::Prisms, ECurrencyType::GearEssence})
+		for (ECurrencyType Currency : {ECurrencyType::Gold, ECurrencyType::Prisms, ECurrencyType::GearEssence, ECurrencyType::EssenceTyped})
 		{
 			TestTrue(TEXT("Add to near the limit"), Wallet->Add(Currency, TNumericLimits<int32>::Max() - CURRENCY_CLAMP_TEST_AMOUNT));
 			Wallet->Add(Currency, CURRENCY_CLAMP_TEST_AMOUNT * 2);
