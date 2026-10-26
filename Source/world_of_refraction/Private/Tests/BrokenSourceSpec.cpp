@@ -292,6 +292,26 @@ void FBrokenSourceSpec::Define()
 		});
 	});
 
+	Describe("a broken secondary weapon crystal (B-204)", [this]()
+	{
+		It("greys out its spells while the primary weapon is intact, and the AI skips them", [this]()
+		{
+			SpawnGenericWithWeapon(BROKEN_SOURCE_INTACT_DURABILITY);
+			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+			Active.SecondarySlotType = ESecondarySlotType::Weapon;
+			Active.SecondaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
+			Active.SecondaryWeapon.WeaponEntry.AttachedItem = GarnetCrystal(BROKEN_SOURCE_BROKEN_DURABILITY);
+			Active.SecondaryWeapon.AssignedSpells = {CTierSpell};
+
+			TestFalse(TEXT("the secondary's spell is refused with a reason"), Loadout->GetBrokenSourceReason(CTierSpell).IsEmpty());
+			TestTrue(TEXT("the intact primary's spell is not"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
+			TestFalse(TEXT("the AI skips it"), UAIDecisionManager::GetUsableSpells(Loadout).Contains(CTierSpell));
+
+			Active.SecondaryWeapon.AssignedSpells = {FTierSpell};
+			TestTrue(TEXT("a spell the intact primary also holds stays castable"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
+		});
+	});
+
 	Describe("a broken weapon crystal", [this]()
 	{
 		It("greys out the loadout's own spell overrides on it too (B-197)", [this]()

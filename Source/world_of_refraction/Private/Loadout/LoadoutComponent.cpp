@@ -3251,17 +3251,31 @@ FText ULoadoutComponent::GetBrokenSourceReason(const USpellData *Spell) const
         }
     }
 
-    // The same entries FCombatCapabilities::BuildFrom lists spells from.
-    if (const FWeaponLoadoutEntry *Weapon = GetActiveWeaponLoadout())
+    // B-204: every weapon that can list spells (FCombatLoadout::GetAllSpells lists the secondary's
+    // too); a spell an intact weapon also holds is cast from that one.
+    bool bOnBrokenWeapon = false;
+    bool bOnIntactWeapon = false;
+    for (const FWeaponLoadoutEntry *Weapon : {GetActiveWeaponLoadout(), GetPrimaryWeaponLoadout(), GetSecondaryWeaponLoadout()})
     {
-        const FRuntimeAttachedItem &Attached = Weapon->WeaponEntry.AttachedItem;
         // B-197: the loadout's own overrides (FWeaponLoadoutEntry::AssignedSpells) come through the
         // same crystal, so they grey out with it too.
-        if (Attached.IsSpellSource() && Attached.IsBroken() &&
-            (Lists(Weapon->WeaponEntry.AssignedSpells) || Lists(Weapon->AssignedSpells)))
+        if (!Weapon || !(Lists(Weapon->WeaponEntry.AssignedSpells) || Lists(Weapon->AssignedSpells)))
         {
-            return SourceBreakRules::BrokenWeaponCrystalReason();
+            continue;
         }
+        const FRuntimeAttachedItem &Attached = Weapon->WeaponEntry.AttachedItem;
+        if (Attached.IsSpellSource() && Attached.IsBroken())
+        {
+            bOnBrokenWeapon = true;
+        }
+        else
+        {
+            bOnIntactWeapon = true;
+        }
+    }
+    if (bOnBrokenWeapon && !bOnIntactWeapon)
+    {
+        return SourceBreakRules::BrokenWeaponCrystalReason();
     }
     if (IsSpellFromBrokenRing(Spell) && !SourceBreakRules::IsRingSpellUsableWhenBroken(Spell->Tier))
     {
