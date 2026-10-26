@@ -34,6 +34,8 @@
 #include "TrialRunSubsystem.generated.h"
 
 class UCharacterData;
+class UMerchantData;
+struct FMerchantStockEntry;
 class UTrialData;
 class UWorld;
 
@@ -93,6 +95,12 @@ public:
     UFUNCTION(BlueprintPure, Category = "Trial")
     UTrialData *GetActiveTrial() const { return ActiveTrial.Get(); }
 
+    /** This run's seed, rolled on EnterTrial (0 in the hub). Trial vendors roll their stock from it. */
+    int32 GetRunSeed() const { return RunSeed; }
+
+    /** The stock Merchant shows now: rolled for this run in a trial, the full list at home (B-179). */
+    TArray<FMerchantStockEntry> GetMerchantStock(const UMerchantData *Merchant) const;
+
     // ==================== DEBUG ====================
 
     /** Formatted snapshot: active trial (or none) + configured hub level. */
@@ -107,6 +115,8 @@ private:
     /** Weak: the data asset outlives the transition anyway (asset-registry
      *  owned); weak keeps the subsystem from pinning it. */
     TWeakObjectPtr<UTrialData> ActiveTrial;
+
+    int32 RunSeed = 0;
 
     /** Encounter roster awaiting the battle level (T-C1). HARD refs — these
      *  pin the authored assets across the OpenLevel (see header ⚠️). */
