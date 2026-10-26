@@ -28,7 +28,6 @@
 #include "Character/FPillarWeights.h"
 #include "Character/CharacterDataComponent.h" // owner Luck for the pickup quality roll
 #include "Currency/EconomyYield.h"            // RollQuality (§11 weighted drop curve)
-#include "Currency/EconomyService.h"          // DismantleEvolution on break-during-gear-removal
 #include "WoRAuthority.h"
 #include <type_traits>                        // std::is_same_v for the weapon/ring socket templates
 
@@ -401,30 +400,11 @@ bool UInventoryComponent::RemoveEvolutionFromGear(TArray<TEntry> &Gear, FGuid Ge
     // Un-reference: clear the gear slot regardless (the evo leaves the weapon/ring).
     Gear[Index].RemoveCrystal();
 
-    // Break-on-removal: if the wear pushed it to 0, it breaks → forced dismantle (§5.3b):
-    // essence + remove the owned entry + free a cap slot. Otherwise it returns to inventory intact
-    // (the entry persists at its worn durability).
-    if (Entry->CurrentDurability <= 0)
-    {
-        if (UWorld *World = GetWorld())
-        {
-            if (UGameInstance *GI = World->GetGameInstance())
-            {
-                if (UEconomyService *Economy = GI->GetSubsystem<UEconomyService>())
-                {
-                    Economy->DismantleEvolution(GetOwner(), EvoInstanceID);
-                }
-            }
-        }
-        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from %s %s — wear broke it, dismantled"),
-               *EvoInstanceID.ToString(), GearLabel<TEntry>(), *GearID.ToString());
-    }
-    else
-    {
-        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from %s %s -> inventory (durability %d, %.0f%% wear)"),
-               *EvoInstanceID.ToString(), GearLabel<TEntry>(), *GearID.ToString(), Entry->CurrentDurability,
-               EVOLUTION_REMOVAL_WEAR_FRACTION * 100.0f);
-    }
+    // Q-159: an evolution is equipment, never lost to wear. If the removal wear took it to 0 it
+    // returns to the inventory broken (repairable), no longer dismantled (§5.3b, superseded).
+    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from %s %s -> inventory (durability %d%s, %.0f%% wear)"),
+           *EvoInstanceID.ToString(), GearLabel<TEntry>(), *GearID.ToString(), Entry->CurrentDurability,
+           Entry->CurrentDurability <= 0 ? TEXT(", broken") : TEXT(""), EVOLUTION_REMOVAL_WEAR_FRACTION * 100.0f);
     BroadcastInventoryChanged(EInventoryChangeType::Removed);
     return true;
 }
