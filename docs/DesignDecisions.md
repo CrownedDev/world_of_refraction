@@ -1333,7 +1333,10 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Storage:** an **unlimited** store for everything you own, outside runs.
 - **Inventory:** what you can **carry on a run**, with a limit; the starting limit is **10**, raisable (perks, upgrades, etc.).
 - So a merge done outside a run never loses its change: it goes to storage.
+- **Monster Hunter model (Crown, 2026-10-26):** storage = the Item Box (unlimited); inventory = the Item Pouch: **10 slots to start, one item type per slot, stacked** to that item's max; **equipped gear doesn't use slots**; essences/materials found in a run go to the run tally (D-006/D-094), not slots.
+- **Found items (B, with a default):** a found item **goes into the inventory if there's room; if it's full, it goes to storage** instead. The player can move items between inventory and storage (at rest spots during a run, D-032 part 7). Nothing is thrown away.
 **Notes for Claude, open details to confirm with Crown:**
+- During a run, gear and crystals found in the run are still **run-only** (D-002, lost at run end). So "storage" during a run means a **run stash** that empties at run end, unless Crown says found items should be kept. Confirm when building.
 - **Unified (Crown, 2026-10-26):** **one inventory for all items** (gear, crystals, stones, consumables), with **one limit** (starting 10), not separate limits per kind or tier. Storage is unified too. Open: whether a stack of the same crystal/stone (up to 3, today's rule) takes one slot (proposed).
 - In a run with a full inventory: what happens to a find, a merge's change, a vendor purchase (refuse, leave it behind, or send it to storage)?
 - How the limit grows (account perks like D-021's slot growth?).
