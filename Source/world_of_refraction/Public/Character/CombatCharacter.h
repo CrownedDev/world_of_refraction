@@ -16,6 +16,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "AbilitySystemInterface.h"
 #include "CombatCharacter.generated.h"
 
 class UCharacterDataComponent;
@@ -28,14 +29,20 @@ class UInfusionVFXComponent;
 class ULoadoutComponent;
 class UBrokenDarknessManager;
 class UBattleConfigComponent;
+class UAbilitySystemComponent;
+class UWoRAttributeSyncComponent;
+class UWoRAttributeSet_Vitals;
+class UWoRAttributeSet_Stats;
 
 UCLASS()
-class WORLD_OF_REFRACTION_API ACombatCharacter : public ACharacter
+class WORLD_OF_REFRACTION_API ACombatCharacter : public ACharacter, public IAbilitySystemInterface
 {
     GENERATED_BODY()
 
 public:
     ACombatCharacter();
+
+    virtual UAbilitySystemComponent *GetAbilitySystemComponent() const override { return AbilitySystemComponent; }
 
     /** Native so it exists between SpawnActorDeferred and FinishSpawning.
      *  Declared FIRST — its BeginPlay cascade seeds state the others read. */
@@ -82,4 +89,23 @@ public:
      *  last — unlike the components above, it has no cascade dependency. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character")
     TObjectPtr<UBattleConfigComponent> BattleConfigComponent;
+
+    /** GAS (B-041, Design/GASMigration.md §1): the pawn owns its ASC, as battle pawns are spawned per fight.
+     *  Holds the attribute sets; nothing gameplay-facing reads it yet (Q-041). */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
+    TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
+
+    /** Mirrors the composed stats into the ASC's attributes. Declared after every component it reads,
+     *  so its BeginPlay runs once their cascade has seeded them. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
+    TObjectPtr<UWoRAttributeSyncComponent> AttributeSyncComponent;
+
+private:
+    /** Default subobjects, so the ASC finds them at InitializeComponent on every machine (the
+     *  replicated sets, never a client-made copy). Read through the ASC, not these pointers. */
+    UPROPERTY()
+    TObjectPtr<UWoRAttributeSet_Vitals> VitalsAttributes;
+
+    UPROPERTY()
+    TObjectPtr<UWoRAttributeSet_Stats> StatsAttributes;
 };

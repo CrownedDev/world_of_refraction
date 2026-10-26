@@ -1563,6 +1563,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (fix/B-060-item-use-success). `OnItemUsed` no longer fires for a failed use (no C++ binds it; a Blueprint binding cannot be checked from code).
 
+### Q-041 — Should the stat getters read GAS attributes in stage 2?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-041) · **Blocks:** — (B-041 shipped with A)
+**Question:** GASMigration stage 2 step 2 says the `UCharacterDataComponent` getters read from attributes and HP/EP writes go through the ability system. Until stage 3, nothing but the getters' own sources (gear, `SkillEffectManager` effects) can set those attributes. Switch now or with the GameplayEffects?
+**Options:**
+- **A** stage 2 mirrors: attributes are filled from the getters (`UWoRAttributeSyncComponent`) and proven equal (`wor.CompareAttributes`); the getters and HP/EP writes switch in stage 3, when GameplayEffects write the attributes.
+- **B** switch the getters now to read the mirrored attributes.
+**Recommendation:** A. In GAS the value an attribute holds comes from GameplayEffects (Epic's Lyra drives health and damage only through GEs and attribute sets); a getter reading a copy of itself adds a second path that can only go stale, with no gain until GEs exist. This keeps the project's incremental rule: build alongside, prove, then switch. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-041-gas-attributes). B-042 (stage 3) switches the getters, the HP/EP writes and Q-040's read sites. Two smaller choices in the same build: the Vitals set does not clamp (EP overloads above max for Broken Darkness; clamping comes with the GEs that write it), and every combat pawn uses Mixed replication for now; GASMigration §1's Minimal mode for AI pawns is set when co-op is built (replication is not exercised before then).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

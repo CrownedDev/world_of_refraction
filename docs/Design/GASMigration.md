@@ -121,6 +121,7 @@ GAS durations are in seconds. We need "lasts N turns".
 3. UI and AI read paths: no change needed, because they still call the same getters.
 
 - **Done when:** a `wor.CompareStats` snapshot is identical before and after on the same loadout.
+- **Built (B-041, 2026-10-26):** step 1 in full (`GAS/WoRAttributeSets.h`, ASC on `ACombatCharacter`). The attributes **mirror** the getters through `UWoRAttributeSyncComponent`; `wor.CompareAttributes` proves them equal and `wor.CompareStats` is unchanged. Steps 2 and the stage 1 read-site switch move to stage 3 (Q-041, Q-040): until GameplayEffects write the attributes, reading them only reads a copy. See `docs/Architecture/GASSystem.md`.
 
 ### Stage 3 — Effects (large)
 
