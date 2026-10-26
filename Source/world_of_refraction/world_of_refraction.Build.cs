@@ -16,7 +16,7 @@ public class world_of_refraction : ModuleRules
 		// needed here — CommonUI for UCommonActivatableWidget and the widget
 		// stacks, CommonInput for FUIInputConfig / ECommonInputMode, which
 		// GetDesiredInputConfig overrides return by value.
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "Niagara", "UMG", "MotionWarping", "NetCore", "GameplayTags", "AIModule", "CommonUI", "CommonInput" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "Niagara", "UMG", "MotionWarping", "NetCore", "GameplayTags", "AIModule", "CommonUI", "CommonInput", "LevelSequence", "MovieScene" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 

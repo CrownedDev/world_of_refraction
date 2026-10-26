@@ -17,6 +17,7 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "UI/Combat/CombatHUD.h"
+#include "Combat/Camera/CombatCameraDirector.h"
 #include "GameFramework/PlayerController.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Skills/Definitions/SkillDataBase.h"
@@ -54,6 +55,8 @@ ACombatOrchestrator::ACombatOrchestrator()
 	SkillEffectManagerRef = nullptr;
 	ActionExecutorRef = nullptr;
 	bWaitingForAsyncAction = false;
+
+	CameraDirector = CreateDefaultSubobject<UCombatCameraDirector>(TEXT("CameraDirector"));
 }
 
 void ACombatOrchestrator::BeginPlay()
@@ -291,6 +294,12 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	// OnActionCompleted bails unless InProgress — a turn-1 death or pass would hang.
 	SetCombatState(ECombatState::InProgress);
 
+	// Cameras before InitializeCombat: the first turn is dispatched inside it.
+	if (CameraDirector)
+	{
+		CameraDirector->BeginCombat(LocalParty, OpposingParty, ActionExecutorRef);
+	}
+
 	// Initialize TurnManager (this will trigger first OnTurnStarted)
 	TurnManagerRef->InitializeCombat(LocalParty, OpposingParty);
 
@@ -347,6 +356,11 @@ void ACombatOrchestrator::ReleaseCombatResources()
 	}
 
 	UnbindTurnManagerEvents();
+
+	if (CameraDirector)
+	{
+		CameraDirector->EndCombat();
+	}
 
 	UGameInstance *GI = GetGameInstance();
 

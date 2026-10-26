@@ -29,6 +29,7 @@
 class UTexture2D;
 class UCharacterData;
 class UAnimMontage;
+class ULevelSequence;
 class UEffectDefinition;
 
 /**
@@ -132,6 +133,11 @@ public:
     /** Display icon for UI (slot bars, menus). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
     TObjectPtr<UTexture2D> Icon = nullptr;
+
+    /** Camera cinematic while this skill runs (Design/CombatCamera.md §3). Bound at runtime: tag the
+     *  caster track "Caster" and the target track "Targets". Empty = the skill type's template. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
+    TSoftObjectPtr<ULevelSequence> CameraSequence;
 
     // ==================== EXECUTION ====================
 
