@@ -133,13 +133,14 @@ The queue of questions only Crown can answer.
 - B: plus trial completion bonuses.
 - C: plus a starting grant.
 **Recommendation:** A + C.
-**Answer (Crown):** **Hades / Returnal style** (2026-10-26, after comparing Nightreign, Hades, Returnal, Rogue Legacy 2). **Prisms drop during a run and are kept even if you fail**, so you can farm them.
+**Answer (Crown):** **A, Nightreign style** (2026-10-26; changed from Hades style the same day, to slow down upgrading). **Prisms are paid when a run ends, win or lose**, more the further you got and the harder the difficulty. The same goes for upgrade materials earned in a run. Later, **passive effects can raise the payout** (e.g. "+10% Prisms at run end").
 **Notes for Claude:**
-- **Prisms:** granted by battle wins (and later chests) during a trial, banked straight into the kept wallet, so a failed run keeps them. Amount scales with difficulty. Named constants, `// TODO: tune`.
-- **Gold:** every battle won in a run grants Gold, scaled by difficulty; lost at run end (D-001 answer). Named constants, `// TODO: tune`.
-- Show both on the results screen ("+N Prisms", "+N Gold").
-- Not decided here: a starting Prism grant for a new save, and whether encounters respawn so you can farm in one run. Raise a decision if a job needs either.
-
+- **Prisms:** tally per run (fights won, how far you got, difficulty) and bank it once at run end, on a win or a failure. Not banked during the run. Named constants, `// TODO: tune`.
+- **Upgrade materials** (leveling essence etc.) earned *in a run* follow the same rule: paid at run end. Essence from dismantling stays as it is. If the code makes this split unclear, raise a decision rather than guess.
+- **Gold:** unchanged. Every battle won in a run grants Gold, scaled by difficulty; spent at trial vendors; lost at run end.
+- Results screen shows "+N Gold" per fight; the run-end screen shows the Prism/material payout.
+- Passive payout boosts are a later job (B-096): a hook where the payout total is computed (one multiplier, default 1.0) so passives can add to it.
+- Not decided here: a starting Prism grant for a new save.
 ### D-007 — Can Generic cast weapon-crystal spells?
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-080
 **Question:** Is it intended that Generic can cast spells from a crystal on its weapon?
