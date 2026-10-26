@@ -248,6 +248,15 @@ void FBrokenSourceSpec::Define()
 			TestTrue(TEXT("the AI picks it while intact"), UAIDecisionManager::GetUsableSpells(Loadout).Contains(FTierSpell));
 		});
 
+		It("never picks a broken ring's higher-tier preset, which the loadout still lists", [this]()
+		{
+			SpawnResonatorWithRing(BROKEN_SOURCE_BROKEN_DURABILITY);
+			USpellData *HighPreset = BrokenSourceSpell(EItemTier::B_Tier);
+			Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].RingLoadout[0].RingEntry.Ring->PresetSpells = {HighPreset};
+			TestTrue(TEXT("the loadout still lists the B-tier preset"), Loadout->GetAvailableSpells().Contains(HighPreset));
+			TestFalse(TEXT("the AI does not pick it"), UAIDecisionManager::GetUsableSpells(Loadout).Contains(HighPreset));
+		});
+
 		It("never picks a spell from a broken weapon crystal", [this]()
 		{
 			SpawnGenericWithWeapon(BROKEN_SOURCE_BROKEN_DURABILITY);
