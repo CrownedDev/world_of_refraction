@@ -15,7 +15,8 @@
 
 7. **Solo and co-op equally** (Crown, 2026-10-26): designed to work just as well alone (your party of three, ally AI) and together (players joining runs, invites at rest spots), not solo with co-op bolted on, and not co-op first like Nightreign (whose solo mode was criticised at launch).
 
-8. **Combat is mainly tactics** (Crown, 2026-10-26): planning wins fights (elements, resistances, rows, status breaks, builds, party roles). Timing (Guard, Perfect Guard, Dodge) **helps but isn't required**: a player with average reflexes can still clear the game.
+8. **Combat depends on playstyle** (Crown, 2026-10-26, revised): **players can lean on tactics** (elements, resistances, rows, status breaks, builds, party roles) **or on timing** (Guard, Perfect Guard, Dodge), and both should be viable ways to win. **Bosses have their own styles**: some test planning, some test timing, some both.
+9. **PC and consoles** (Crown, 2026-10-26): planned from the start, so **full gamepad support** and console-friendly UI (CommonUI) throughout; keyboard and mouse on PC.
 
 ## What this means for decisions
 
@@ -26,7 +27,8 @@
 - Size trials for a **30–45 minute run** (pillar 5): map size, number of fights, rest spots and in-run levelling all fit that.
 - **No level wall** (pillar 6): keep gear and builds able to close a level gap, so stat sources stay meaningful next to levels; each run still moves you forward.
 - **Every system must work solo and co-op** (pillar 7): design both cases when building (who controls what, rewards, rest spots, revives), even though co-op is built later; keep to the co-op-ready rule (D-064).
-- **Timing is a bonus, not a gate** (pillar 8): no fight should need perfect timing to win; Perfect Guard / Dodge rewards should be good but not mandatory, and hard timing windows belong to higher difficulty settings.
+- **Two ways to win** (pillar 8): a tactics-leaning build and a timing-leaning player should both be able to clear normal content; vary bosses by style rather than making every fight demand the same skill. Hard timing windows belong to timing-focused bosses and higher difficulty settings.
+- **Gamepad first-class** (pillar 9): every screen and action works on a controller; respect console performance (D-068 frame budget).
 - Lore and story are Crown's alone (`CLAUDE.md`).
 
 ## Changelog
