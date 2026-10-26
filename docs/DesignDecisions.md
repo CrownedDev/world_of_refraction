@@ -335,22 +335,22 @@ The queue of questions only Crown can answer.
 **Status:** ANSWERED · **Raised:** 2026-10-26 · **Blocks:** — (shapes B-080 and later class work)
 **Question:** Keep the hard class gate (Generic = abilities only, Refractor/Resonator = spells only), or let any class use any skill it has a source for, with classes differing by passives?
 **Context:**
-- This game: `CharacterClassHelpers::CanUseAbilities` is Generic-only and `CanUseSpells` is everyone but Generic (`ECharacterClass.h:45-55`).
+- This game: helpers `CharacterClassHelpers::CanUseAbilities` (Generic-only) and `CanUseSpells` (not Generic) exist (`ECharacterClass.h:45-55`), but combat doesn't use them (corrected 2026-10-26, see Answer).
 - Deckbuilder: no class gate. Abilities need their weapons; spells need an elemental source (Ring, Evolution, a Refractor's innate), never a weapon. Classes differ by passives: Generic +1 Physical Resistance, Resonator +1 Resistance per keyed Ring's element, Refractor +3 Amp and +1 Resistance to its innate (`01-card-model.md` "Class passives").
 **Options:**
 - A: keep the hard gate (current).
 - B: the deckbuilder model: gear and sources decide, classes give passives.
 - C: half-way: Generic is still spell-less (D-007), but Refractors and Resonators can also use weapon abilities.
 **Recommendation:** none yet: it defines the classes. B makes builds freer and matches the deckbuilder; A keeps classes very distinct.
-**Answer (Crown):** (2026-10-26) **Follow the deckbuilder way (B), keeping each class's loadout shape.** Refractors and Resonators can use weapon abilities too. Classes differ by their loadout, which the code already has:
-- **Refractor:** innate element + a primary (weapon) slot.
-- **Resonator:** a ring loadout + a primary slot; a system decides how many weapons, rings, evolutions etc. it can hold.
-- **Generic:** a primary and a secondary weapon slot. _(Crown's sentence was cut off here; ask what follows.)_
-**Weapons never give spells.** A weapon with a crystal gives **elemental (infused) abilities**; spells come from rings (and a Refractor's innate), for any class, Generic included.
+**Answer (Crown):** (2026-10-26) **The deckbuilder way, with classes unique by design.** Each class's slots and rules make it what it is; what a character can use comes from what its class slots hold. **Weapons never give spells:** a weapon with a crystal gives **elemental (infused) abilities**. Spells come from rings, evolutions and a Refractor's innate.
+**The classes as the code has them (checked in code 2026-10-26; Crown to confirm):**
+- **Generic:** primary slot (weapon, ring or evolution) + a secondary weapon slot (lost when the primary is an evolution). With two weapons, the shown weapon decides which abilities are available (`LoadoutComponent.cpp:1803`). _(Crown's sentence about the secondary slot was cut off; ask what follows.)_
+- **Refractor (Caster):** primary slot (weapon, ring or evolution) + **innate spells with a cost system**: each spell costs its tier (F 1 … S 7), budget 24, at most 6 per school; each world pillar (Mind/Body/Spirit) at 4/7/5+ cuts costs by 1, minimum 1; Broken Darkness doubles the budget to 48 (`SpellPoolConstants.h`, `LoadoutSystem.md` "Caster innate spell budget").
+- **Resonator:** primary slot (weapon or evolution, not a ring) + a **ring loadout**, all sharing one **budget of 5**: weapon 1 (2 with a crystal, 3 with an evolution on it), evolution primary 2, ring 1 (evolved ring 2) (`LoadoutConstants.h:31-34`, `LoadoutComponent.cpp:607-655`). It casts the active ring's spells.
 **Notes for Claude:**
-- Replace the class gates `CharacterClassHelpers::CanUseAbilities` / `CanUseSpells` (`ECharacterClass.h:45-55`) and `UCharacterData::CanUseSpells/CanUseAbilities` (`CharacterData.h:261-264`) with "what the loadout holds": weapon → abilities, ring / innate → spells (B-097).
-- Weapon spell slots ("weapon native spells", `docs/Architecture/LoadoutSystem.md` *Slot caps*) and weapon-crystal spells go away; the crystal keys the weapon's abilities instead (B-098). Survey first: data assets author weapon spells, and loadouts save them.
-- Class passives like the deckbuilder's (`01-card-model.md` "Class passives") are **not** ruled here; suggest them in a new decision if wanted.
+- Abilities are already slot-driven: the combat menu shows the active weapon's abilities for any class (`FCombatCapabilities.cpp:49-59`). `CharacterClassHelpers::CanUseAbilities/CanUseSpells` (`ECharacterClass.h:45-55`) and `UCharacterData::CanUseSpells/CanUseAbilities` (`CharacterData.h:261-264`) are not used by combat. B-097 checks for any other callers and removes them, or flags them; no behaviour change.
+- The real change is B-098: weapon-crystal spells (`AssignedSpells`, `FCombatCapabilities.cpp:61-67`) become infused abilities.
+- Class passives like the deckbuilder's are **not** ruled here; suggest them in a new decision if wanted.
 
 ---
 
