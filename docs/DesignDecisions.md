@@ -603,12 +603,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** today members dead at a fight's end are left out for good (`EncounterComponent.cpp:210-260`); rest spots must bring them back. Check that a revive **spell** effect exists, not only the Sapphire item; if not, raise it. Rest spots themselves are part of the trial work (`RunStructure.md`).
 
 ### D-044 — What difficulty do AI-controlled party members play at?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-071
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-071
 **Question:** One difficulty per encounter drives every AI character, so on an Easy encounter your own AI allies act near-randomly and try to defend only 40% of hits.
 **Context:** `AI/AIDecisionManager.cpp:193-199` (one difficulty per encounter). Rules: 06 Cp-4.
 **Options:** A a fixed ally tier / B the encounter's difficulty (current) / C a player setting.
 **Recommendation:** A, because an easier fight shouldn't make your own team worse.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A now, C later** (2026-10-26): AI-controlled party members play at a **fixed, good level** whatever the encounter's difficulty (named constant, `// TODO: tune`; the encounter difficulty drives enemies only). Later: **tactics** the player sets per ally (Dragon Quest / Persona style), a new decision when it comes up.
 
 ### D-045 — Who do you control when the leader is down?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-071
