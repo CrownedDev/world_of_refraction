@@ -142,12 +142,12 @@ Runs alongside the phases above. **Per screen group:** mockup (CC, no editor nee
 | B-102 | Approve the combat HUD mockup. **v1 approved as the layout for now (Crown, 2026-10-26): "could be more crystal-themed, but fine for the time being".** The crystal pass and header-bar pick come later in v2 (B-111). Reality badge: **indigo**; Void stays **violet** | Crown | S | B-101 | v1 noted here | DONE (v1, 2026-10-26) |
 | B-111 | Combat HUD mockup **v2** (Crown's v1 review, 2026-10-26): draw the **four header-bar candidates plus a crystal-themed one** (D-017, `UI_DeckbuilderReuse.md` §3); **lean harder into the crystal look** (crystal light, faceted shapes, element gems, D-024); the stunned chip reads **"Stunned · 2 turns"** (D-030: 2 of the holder's own turns). Reality badge **indigo** crystal, Void **violet** (Crown, 2026-10-26). **Not urgent** (Crown: v1 is fine for now): do it after the code jobs ahead of it, before B-104's asset import | CC | M | B-101 | `combat/hud/v2/` plain + annotated drafts committed; B-102 back to Crown | TODO |
 | B-103 | CommonUI base layer in C++: root layout with layer stacks (game / menu / modal), activatable screen base, button base with the four jobs (play / confirm / danger / navigate), input routing for keyboard + gamepad | CC | M | B-004, B-003 | Builds; an empty test screen opens and closes with Back; tests for the stack | BLOCKED (B-004) |
-| B-104 | Import the kit pieces the approved mockup uses (`SourceArt/` + `Content/UI/Vendor/`, `UI_DeckbuilderReuse.md` §4), fonts, CommonUI styles; `CREDITS.md` entries | CC+UE | M | B-102 | Assets in the Content Browser with the §4 import settings | BLOCKED (B-102) |
+| B-104 | Import the kit pieces the approved mockup uses (`SourceArt/` + `Content/UI/Vendor/`, `UI_DeckbuilderReuse.md` §4), fonts, CommonUI styles; `CREDITS.md` entries | CC+UE | M | B-102 | Assets in the Content Browser with the §4 import settings | TODO |
 | B-105 | Build the combat HUD on CommonUI from the approved mockup, alongside the old one (switchable) | CC+UE | L | B-103, B-104 | Fight playable on the new HUD; PIE file written | BLOCKED (B-103) |
 | B-106 | Retire the old combat widgets (after Crown's PIE pass of B-105) | CC+UE | S | B-105 DONE | Old widgets gone; fight still works | BLOCKED (B-105) |
-| B-107 | Mockup **results + loot + retry** (44–46), then repeat B-102→B-106 for them | CC | M | B-102 | As B-101 | BLOCKED (B-102) |
-| B-108 | Mockup **pause + settings + confirm dialog** (17, 43, 6, 8), then repeat B-102→B-106 | CC | M | B-102 | As B-101 | BLOCKED (B-102) |
-| B-109 | Mockup **hub HUD + shop + party** (10–13), then repeat B-102→B-106 | CC | M | B-102 | As B-101 | BLOCKED (B-102) |
+| B-107 | Mockup **results + loot + retry** (44–46), then repeat B-102→B-106 for them | CC | M | B-102 | As B-101 | TODO |
+| B-108 | Mockup **pause + settings + confirm dialog** (17, 43, 6, 8), then repeat B-102→B-106 | CC | M | B-102 | As B-101 | TODO |
+| B-109 | Mockup **hub HUD + shop + party** (10–13), then repeat B-102→B-106 | CC | M | B-102 | As B-101 | TODO |
 
 Later groups follow `UI_ScreenInventory.md` order; CC adds their rows when B-109 is approved.
 
