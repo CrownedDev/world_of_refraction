@@ -25,6 +25,7 @@ void ASkillEffectManagerTestActor::BeginPlay()
 	}
 }
 
+#if !UE_BUILD_SHIPPING
 // ========================================
 // TEST EXECUTION
 // ========================================
@@ -977,3 +978,24 @@ bool ASkillEffectManagerTestActor::AssertEqualFloat(float Expected, float Actual
 	}
 	return true;
 }
+#else
+// Shipping: UHT-generated exec thunks still reference every UFUNCTION, so keep empty definitions.
+void ASkillEffectManagerTestActor::RunAllTests() {}
+void ASkillEffectManagerTestActor::Test_ApplyEffect() {}
+void ASkillEffectManagerTestActor::Test_StackingBehavior() {}
+void ASkillEffectManagerTestActor::Test_DurationRefresh() {}
+void ASkillEffectManagerTestActor::Test_RemoveByID() {}
+void ASkillEffectManagerTestActor::Test_RemoveByType() {}
+void ASkillEffectManagerTestActor::Test_RemoveAllBuffs() {}
+void ASkillEffectManagerTestActor::Test_RemoveAllDebuffs() {}
+void ASkillEffectManagerTestActor::Test_StartOfTurnProcessing() {}
+void ASkillEffectManagerTestActor::Test_EndOfTurnProcessing() {}
+void ASkillEffectManagerTestActor::Test_DOTDamage() {}
+void ASkillEffectManagerTestActor::Test_DurationExpiration() {}
+void ASkillEffectManagerTestActor::Test_ConditionalTrigger() {}
+void ASkillEffectManagerTestActor::Test_PermanentEffects() {}
+void ASkillEffectManagerTestActor::Test_StatModifierQuery() {}
+void ASkillEffectManagerTestActor::Test_SourceTracking() {}
+void ASkillEffectManagerTestActor::Test_PhysicalDamageEffects() {}
+void ASkillEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification() {}
+#endif // !UE_BUILD_SHIPPING

@@ -36,6 +36,7 @@ void ACombatOrchestratorTestActor::BeginPlay()
 	}
 }
 
+#if !UE_BUILD_SHIPPING
 // ========================================
 // TEST EXECUTION
 // ========================================
@@ -1219,4 +1220,23 @@ void ACombatOrchestratorTestActor::Test_EnergyCost()
 	CleanupTestActors(LocalParty);
 	CleanupTestActors(OpposingParty);
 }
+#else
+// Shipping: UHT-generated exec thunks still reference every UFUNCTION, so keep empty definitions.
+void ACombatOrchestratorTestActor::RunAllTests() {}
+void ACombatOrchestratorTestActor::Test_BasicCombatFlow() {}
+void ACombatOrchestratorTestActor::Test_VictoryCondition() {}
+void ACombatOrchestratorTestActor::Test_DefeatCondition() {}
+void ACombatOrchestratorTestActor::Test_StateTransitions() {}
+void ACombatOrchestratorTestActor::Test_ForceEndCombat() {}
+void ACombatOrchestratorTestActor::Test_ActionExecutorIntegration() {}
+void ACombatOrchestratorTestActor::Test_RealAttackExecution() {}
+void ACombatOrchestratorTestActor::Test_SpellExecution() {}
+void ACombatOrchestratorTestActor::Test_AbilityExecution() {}
+void ACombatOrchestratorTestActor::Test_StatusEffectFromAction() {}
+void ACombatOrchestratorTestActor::Test_MultiTargetAction() {}
+void ACombatOrchestratorTestActor::Test_EnergyCost() {}
+void ACombatOrchestratorTestActor::OnTestCombatStateChanged(ECombatState NewState) {}
+void ACombatOrchestratorTestActor::OnTestCombatResultReady(const FCombatResult &Result) {}
+void ACombatOrchestratorTestActor::OnTestActionExecuted(AActor *Actor, const FActionResult &Result) {}
+#endif // !UE_BUILD_SHIPPING
 
