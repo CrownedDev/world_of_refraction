@@ -1075,7 +1075,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - So Max Actions becomes the key build stat for big skills, and action-gain effects and items become valuable.
 
 **Simplified (Crown, 2026-10-26, latest; still discussion only), replacing the pool/pip ideas above:** the action-point pool was over-engineering.
-- **Each turn: one battle action + one utility action**, so a turn is more tactical than one move. Battle = attack, skill, spell, Defend; utility = smaller moves (e.g. item, switch weapon/ring, move row; exact list to settle).
+- **Each turn: one battle action + one utility action**, so a turn is more tactical than one move. **The split (Crown, 2026-10-26):** **battle action** = basic attack, skill / spell, **move row**; **utility action** = **Defend**, use an item (incl. utility crystals), switch weapon or ring. So you can e.g. attack and Defend in the same turn, or move row and drink a potion. If built, this replaces the separate "one free switch per turn" (ET-19) and "free row move once per turn" (D-096) rules.
 - **Energy stays, with low values** (deckbuilder-style small numbers) as the cost of skills.
 - No action-point costs by tier. Open: whether Turn Speed removal / Reflex pips (above) still stand under this simpler model.
 
