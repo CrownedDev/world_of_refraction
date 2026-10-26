@@ -95,6 +95,11 @@ struct FPartyMember
 
 	bool HasCarriedVitals() const { return CurrentHP != PartyConstants::NO_CARRIED_VITALS; }
 
+	/** D-043 (B-150): dead at a fight's end. A fallen member stays in the party but sits out
+	 *  later fights until revived (a rest spot: UPartySessionSubsystem::ReviveFallenMembers).
+	 *  Death is a CARRIED zero (ABattleGameMode::HandleCombatEnd banks it); the sentinel is not. */
+	bool IsFallen() const { return HasCarriedVitals() && CurrentHP == 0; }
+
 	bool HasFormation() const { return PreferredColumn != PartyConstants::UNSET_FORMATION; }
 };
 

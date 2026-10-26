@@ -21,6 +21,7 @@ class ACombatCharacter;
 class APlayerController;
 class UCharacterData;
 class UParty;
+struct FPartyMember;
 
 /** Broadcasts on any composition change: initial creation, invite success,
  *  dismiss success. Consumers should re-read UParty state on fire — the delegate
@@ -175,6 +176,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	void ClearAllMemberVitals();
 
+	/** D-043 (B-150): a rest spot brings every fallen member back at full HP/EP (Broken Darkness
+	 *  members at empty EP, as at trial entry). Standing members are untouched. Returns how many
+	 *  came back. Console: wor.Party.ReviveFallen. */
+	UFUNCTION(BlueprintCallable, Category = "Party")
+	int32 ReviveFallenMembers();
+
+	/** D-043: the slot's member fell in an earlier fight and sits out the next ones. */
+	UFUNCTION(BlueprintPure, Category = "Party")
+	bool IsMemberFallen(int32 SlotIndex) const;
+
 	/** Multi-line snapshot of the party and its per-slot carry state — inspectable
 	 *  without launching PIE. */
 	UFUNCTION(BlueprintPure, Category = "Debug")
@@ -184,6 +195,9 @@ public:
 	void LogPartyState() const;
 
 private:
+	/** A member's carried vitals at its computed maxima (Broken Darkness innate: empty EP). */
+	static void SetMemberVitalsFull(FPartyMember &Member);
+
 	/** Internal add path — does the work but does NOT broadcast. Callers that
 	 *  compose multiple adds into a single logical operation (e.g. CreateSoloParty)
 	 *  call this directly, then broadcast once. External callers use InviteMember. */
