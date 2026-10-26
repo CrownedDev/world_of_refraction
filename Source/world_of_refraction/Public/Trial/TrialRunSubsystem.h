@@ -29,6 +29,7 @@
 
 #include "AI/EAIDifficulty.h"
 #include "Combat/Encounter/EEncounterRank.h"
+#include "Trial/TrialGate.h"
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "TrialRunSubsystem.generated.h"
@@ -50,6 +51,28 @@ public:
      *  Ignored (with a log) when Trial or Trial->Level is null/unset. */
     UFUNCTION(BlueprintCallable, Category = "Trial")
     void EnterTrial(UTrialData *Trial);
+
+    /** B-183: what the door asked, for the run EnterTrial starts next. VariationIndex is into the
+     *  trial's Variations (INDEX_NONE when it has none). Kept until the run ends. */
+    UFUNCTION(BlueprintCallable, Category = "Trial|Gate")
+    void SetGateChoice(int32 InVariationIndex, ETrialDifficulty InDifficulty);
+
+    UFUNCTION(BlueprintPure, Category = "Trial|Gate")
+    ETrialDifficulty GetTrialDifficulty() const { return TrialDifficulty; }
+
+    UFUNCTION(BlueprintPure, Category = "Trial|Gate")
+    int32 GetVariationIndex() const { return VariationIndex; }
+
+    /** The chosen variation of the active trial, or null. */
+    const FTrialVariation *GetChosenVariation() const;
+
+    /** Enemies' max HP and damage for this run, × this (Q-183). */
+    UFUNCTION(BlueprintPure, Category = "Trial|Gate")
+    float GetEnemyStrengthMultiplier() const { return TrialGate::GetEnemyStrengthMultiplier(TrialDifficulty); }
+
+    /** The run's payout, × this (D-006, Q-183). TODO: read by the run-end payout (B-096). */
+    UFUNCTION(BlueprintPure, Category = "Trial|Gate")
+    float GetPayoutMultiplier() const { return TrialGate::GetPayoutMultiplier(TrialDifficulty); }
 
     /** Return to the config-authored HubLevel and clear the active trial. Safe
      *  to call when no trial is active (it is just "go to the hub"). Ignored
@@ -122,6 +145,10 @@ private:
     TObjectPtr<UTrialData> ActiveTrial;
 
     int32 RunSeed = 0;
+
+    int32 VariationIndex = INDEX_NONE;
+    /** The gate's run difficulty (B-183); separate from the per-encounter AI difficulty. */
+    ETrialDifficulty TrialDifficulty = TrialGate::DEFAULT_DIFFICULTY;
 
     /** Encounter roster awaiting the battle level (T-C1). HARD refs — these
      *  pin the authored assets across the OpenLevel (see header ⚠️). */
