@@ -5,6 +5,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/Boss/BossPhaseComponent.h"
 #include "Combat/CombatConstants.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -214,10 +215,21 @@ int32 ReactionTriggers::ApplyMemoryBossModifiers(const TArray<TObjectPtr<UMemory
 				{
 					NetSteps += Modifier.Kind == EMemoryBossModifierKind::Weaken ? -1 : 1;
 				}
+				else if (UBossPhaseComponent *Phases = Boss->FindComponentByClass<UBossPhaseComponent>())
+				{
+					if (Modifier.Kind == EMemoryBossModifierKind::SkipPhase)
+					{
+						Phases->SkipNextPhase();
+					}
+					else
+					{
+						Phases->AddPhase(UBossData::GetMemoryAddedPhase());
+					}
+					++Changed;
+				}
 				else
 				{
-					// TODO(B-193): SkipPhase / AddPhase change the boss's phases.
-					UE_LOG(LogWoR, Log, TEXT("[Reaction] Memory %s: %s on %s waits for boss phases (B-193)"),
+					UE_LOG(LogWoR, Warning, TEXT("[Reaction] Memory %s: %s on %s, which has no boss phases"),
 						   *Memory->GetMemoryId().ToString(), *UEnum::GetValueAsString(Modifier.Kind), *GetNameSafe(Boss));
 				}
 			}

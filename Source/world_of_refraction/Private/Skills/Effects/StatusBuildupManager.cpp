@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Skills/Effects/StatusBuildupManager.h"
+#include "Combat/Boss/BossPhaseComponent.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Character/CharacterDataComponent.h"
@@ -282,6 +283,12 @@ float UStatusBuildupManager::GetTotalStatusResistance(AActor *Target, ESpellElem
 		Matched += ResistModify / CombatConstants::STAT_PERCENT_DIVISOR;
 	}
 
+	// #8 Boss rising resistance (B-193): each status break this fight adds a step.
+	if (const UBossPhaseComponent *Boss = Target->FindComponentByClass<UBossPhaseComponent>())
+	{
+		Matched += Boss->GetStatusResistanceBonus();
+	}
+
 	// Final: General (≥0 tankiness) + Matched (±). Floor RESISTANCE_MIN (-1.0): a net weakness strips
 	// through 0 into negative, where (1 - Resistance) > 1 AMPLIFIES buildup (capped 2x at -1). Upper
 	// RESISTANCE_MAX (1.0): resistance > 1 would heal the gauge.
@@ -471,6 +478,10 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 
 			TriggerSkillEffectFromBuildup(Source, Target, ResolvedTrigger, Element);
 			ResetStatusBar(Target);
+			if (UBossPhaseComponent *Boss = Target->FindComponentByClass<UBossPhaseComponent>())
+			{
+				Boss->RecordStatusBreak();
+			}
 			return true;
 		}
 

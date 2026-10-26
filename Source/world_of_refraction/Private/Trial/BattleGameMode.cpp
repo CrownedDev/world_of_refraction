@@ -5,6 +5,7 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CombatCharacter.h"
+#include "Combat/Boss/BossPhaseComponent.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Combat/CombatControl.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
@@ -264,6 +265,20 @@ void ABattleGameMode::BootstrapCombat()
     const TArray<FReactionTrigger> Reactions = ReactionTriggers::GatherTriggers();
     const TArray<FFiredReaction> Fired = ReactionTriggers::FindFired(Reactions, LocalParty, OpposingParty);
     const int32 ReactionEffects = ReactionTriggers::ApplyFired(Fired);
+    // B-193: any opposing combatant with boss data gets its phases: after reactions change its
+    // stats (so they can't reach a phase early), before memories skip or add phases.
+    for (AActor *Enemy : OpposingParty)
+    {
+        const UCharacterDataComponent *EnemyData = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+        if (UBossData *BossData = EnemyData ? UBossData::FindFor(EnemyData->CharacterData) : nullptr)
+        {
+            UBossPhaseComponent *Phases = NewObject<UBossPhaseComponent>(Enemy);
+            Enemy->AddInstanceComponent(Phases);
+            Phases->RegisterComponent();
+            Phases->Setup(BossData);
+        }
+    }
+
     const int32 MemoryChanges = ReactionTriggers::ApplyMemoryBossModifiers(TrialRun->GetRunMemories(), OpposingParty);
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Reactions: %d of %d fired (%d effects); memory boss changes: %d"),
            Fired.Num(), Reactions.Num(), ReactionEffects, MemoryChanges);

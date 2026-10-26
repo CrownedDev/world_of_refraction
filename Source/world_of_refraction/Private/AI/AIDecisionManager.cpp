@@ -5,6 +5,7 @@
 #include "AI/AIDecisionConstants.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Combat/CombatOrchestrator.h"
+#include "Combat/Boss/BossPhaseComponent.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
 #include "Loadout/LoadoutComponent.h"
@@ -304,6 +305,14 @@ EAIDifficulty UAIDecisionManager::GetDifficultyFor(const AActor *ForActor) const
         CurrentCombat->GetLocalParty().ContainsByPredicate([ForActor](const AActor *Member) { return Member == ForActor; }))
     {
         return AIConstants::ALLY_AI_DIFFICULTY;
+    }
+    // B-193: a boss plays harder with each phase it has reached (Expert at most).
+    const UBossPhaseComponent *Boss = ForActor ? ForActor->FindComponentByClass<UBossPhaseComponent>() : nullptr;
+    if (Boss && Boss->GetAggressionSteps() > 0)
+    {
+        const int32 Stepped = FMath::Min(static_cast<int32>(GetCurrentDifficulty()) + Boss->GetAggressionSteps(),
+                                         static_cast<int32>(EAIDifficulty::Expert));
+        return static_cast<EAIDifficulty>(Stepped);
     }
     return GetCurrentDifficulty();
 }
