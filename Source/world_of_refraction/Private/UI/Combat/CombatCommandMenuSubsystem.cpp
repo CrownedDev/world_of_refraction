@@ -22,6 +22,7 @@
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Actions/ActionStructs.h"
 #include "Infusion/InfusionVFXComponent.h"
+#include "Skills/Effects/SkillEffectManager.h"
 #include "Engine/GameInstance.h"
 
 namespace
@@ -316,6 +317,12 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         break;
     }
 
+    case EPieMenuCategory::Defend:
+        // No target to pick: Defend applies to the actor itself.
+        SubmitConfirmedAction(ButtonData);
+        Close();
+        break;
+
     // === SWITCH ACTIONS ===
     case EPieMenuCategory::SwitchWeapon:
         ExecuteSwitchWeapon();
@@ -548,6 +555,15 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
 {
     TArray<FPieMenuButtonData> Buttons;
 
+    if (IsCurrentActorStunned())
+    {
+        // D-001: stunned = basic attack or Defend only (ActionExecutor enforces the same rule).
+        if (CurrentCapabilities.bCanAttack)
+            Buttons.Add(CreateAttackButton());
+        Buttons.Add(CreateDefendButton());
+        return Buttons;
+    }
+
     if (CurrentCapabilities.bCanAttack)
         Buttons.Add(CreateAttackButton());
     if (CurrentCapabilities.bCanUseAbilities)
@@ -566,6 +582,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
         Buttons.Add(CreateSwitchWeaponButton());
     if (CurrentCapabilities.bCanSwitchRing)
         Buttons.Add(CreateSwitchRingButton());
+    Buttons.Add(CreateDefendButton());
 
     return Buttons;
 }
@@ -680,6 +697,16 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateSwitchWeaponButton() const
     Button.ButtonID = TEXT("SwitchWeapon");
     Button.DisplayName = FText::FromString(TEXT("Switch Weapon"));
     Button.Category = EPieMenuCategory::SwitchWeapon;
+    Button.bEnabled = true;
+    return Button;
+}
+
+FPieMenuButtonData UCombatCommandMenuSubsystem::CreateDefendButton() const
+{
+    FPieMenuButtonData Button;
+    Button.ButtonID = TEXT("Defend");
+    Button.DisplayName = FText::FromString(TEXT("Defend"));
+    Button.Category = EPieMenuCategory::Defend;
     Button.bEnabled = true;
     return Button;
 }
@@ -964,8 +991,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     {
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
-            const bool bImmune = ResolveImmuneFlag(PendingActionData.Get(), CurrentActor.Get());
-            VFX->SetImmuneToInfusion(bImmune);
+            VFX->SetImmuneToInfusion(IsInfusionLockedForPendingAction());
 
             VFX->CacheAvailableSources(); // refresh available sources
             VFX->SetInfusionLevel(0);     // reset to L0 (no VFX)
@@ -1273,7 +1299,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
     //   - Cycle Source is a separate button, only for Attack / Ability.
     //   - Spells show their intrinsic source in the label (not cyclable).
     if (PendingActionCategory != EPieMenuCategory::Item &&
-        !ResolveImmuneFlag(PendingActionData.Get(), CurrentActor.Get()))
+        !IsInfusionLockedForPendingAction())
     {
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
@@ -1412,7 +1438,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
     //   - Cycle Source is a separate button, only for Attack / Ability.
     //   - Spells show their intrinsic source in the label (not cyclable).
     if (PendingActionCategory != EPieMenuCategory::Item &&
-        !ResolveImmuneFlag(PendingActionData.Get(), CurrentActor.Get()))
+        !IsInfusionLockedForPendingAction())
     {
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
@@ -1728,6 +1754,9 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
         }
         break;
     }
+    case EPieMenuCategory::Defend:
+        Action.ActionType = EActionType::Defend;
+        break;
     default:
         UE_LOG(LogTemp, Warning, TEXT("[CombatCommandMenu] BuildActionFromButton: unhandled category %d"),
                static_cast<int32>(ResolvedCategory));
@@ -1749,8 +1778,9 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
         Action.Targets.Add(Single);
     }
 
-    // Infusion stamp — items skip entirely
-    if (Action.ActionType != EActionType::Item)
+    // Infusion stamp: spells and abilities/attacks only, and never while stunned (D-023 A)
+    if ((Action.ActionType == EActionType::Spell || Action.ActionType == EActionType::Ability) &&
+        !IsCurrentActorStunned())
     {
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
@@ -1822,6 +1852,18 @@ UInfusionVFXComponent *UCombatCommandMenuSubsystem::GetInfusionVFXComponent() co
     if (!CurrentActor.IsValid())
         return nullptr;
     return CurrentActor->FindComponentByClass<UInfusionVFXComponent>();
+}
+
+bool UCombatCommandMenuSubsystem::IsCurrentActorStunned() const
+{
+    const USkillEffectManager *EffectManager =
+        GetGameInstance() ? GetGameInstance()->GetSubsystem<USkillEffectManager>() : nullptr;
+    return EffectManager && CurrentActor.IsValid() && EffectManager->IsStunned(CurrentActor.Get());
+}
+
+bool UCombatCommandMenuSubsystem::IsInfusionLockedForPendingAction() const
+{
+    return IsCurrentActorStunned() || ResolveImmuneFlag(PendingActionData.Get(), CurrentActor.Get());
 }
 
 FLinearColor UCombatCommandMenuSubsystem::GetElementColor(int32 ElementIndex) const

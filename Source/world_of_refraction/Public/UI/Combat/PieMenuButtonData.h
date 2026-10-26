@@ -61,7 +61,10 @@ enum class EPieMenuCategory : uint8
 	Back UMETA(DisplayName = "Back"), // Navigate back
 
 	// Non-interactive
-	SectionHeader UMETA(DisplayName = "Section Header") // Label-only divider in a button list
+	SectionHeader UMETA(DisplayName = "Section Header"), // Label-only divider in a button list
+
+	// Main menu action, appended last so existing values keep their numbers
+	Defend UMETA(DisplayName = "Defend") // Brace this turn (all a stunned actor gets besides Attack, D-001)
 };
 
 /**
