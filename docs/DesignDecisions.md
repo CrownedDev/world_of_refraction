@@ -1273,7 +1273,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### Q-180 — Row moves: the open details
-**Status:** OPEN · **Raised:** 2026-10-26 (B-180) · **Blocks:** — (B-180 shipped with A)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-180) · **Blocks:** — (B-180 shipped with A)
 **Question:** D-096's row moves are in. A few details had no ruling. Are these right?
 **Context:** As built (option A):
 - A **push or pull into a taken cell** does nothing (it doesn't swap the two).
@@ -1286,7 +1286,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **A** keep all of the above (as built).
 - **B** change some (say which): e.g. a push into an ally swaps them, push is a debuff that Cleanse and immunity can stop, bosses resist it, a fallen ally's cell is free.
 **Recommendation:** A for now, because it is the simplest; bosses resisting a push is the likeliest change once bosses exist.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A** (2026-10-26), with one rule made explicit: **movement is only forwards and backwards (between rows), never sideways** (no column change), for stepping, swapping with an ally (same column only), and push/pull. Everything else as built: a push into a taken cell does nothing; push/pull aren't buffs/debuffs (bosses resisting can come later); a fallen ally blocks their cell; a bonus turn gives another free step; the step is instant for now.
 **Notes for Claude:** _optional_
 
 ### Q-168 — Guard: the open details
