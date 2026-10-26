@@ -359,6 +359,16 @@ namespace CombatConstants
     // Status Effect Thresholds
     constexpr float STATUS_EFFECT_THRESHOLD = 100.0f; // Buildup needed to trigger status
 
+    // Status breaks (a full bar's effect, D-030 / D-090): every break lasts this many of the
+    // holder's own turns, counted by FTurnSpan (D-051).
+    constexpr int32 STATUS_CAP_TURNS = 1;
+    // TODO: tune — Wind break: how many places the holder's next turn moves back (D-014, D-090).
+    constexpr int32 WIND_BREAK_DELAY_PLACES = 1;
+    // TODO: tune — Water break: Action Speed and Spell Speed slow, percent (D-090).
+    constexpr float WATER_BREAK_SPEED_SLOW_PERCENT = 30.0f;
+    // TODO: tune — Broken Darkness break: EP drained at the holder's turn start, fraction of max EP.
+    constexpr float BD_BREAK_EP_DRAIN_FRACTION = 0.25f;
+
     constexpr float STATUS_DECAY_RATE = 0.25f; // 25% per turn
     constexpr int32 STATUS_DECAY_FULL_RESET_TURNS = 3;
 
