@@ -1110,7 +1110,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### Q-159b — Which parts go when a loadout is over a cap?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-159) · **Blocks:** — (B-159 shipped with A)
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-159) · **Blocks:** — (B-159 shipped with A)
 **Question:** when a loadout has too many abilities, or too many utility crystals of a tier band, which ones are dropped?
 **Context:** today the last ones go: abilities after the cap (`ULoadoutComponent::DropInvalidParts`), and the later item slots in the band lose crystals first (`FLoadoutRules::TrimUtilityCrystalsToTierCaps`). The message names what went. Related, also shipped without a ruling: a pick that repeats a part already assigned (the same ability, weapon spell, ring spell or innate spell twice) is refused.
 **Options:**
@@ -1119,7 +1119,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **C** don't drop: refuse the load and ask the player to pick (needs the loadout screen).
 **Recommendation:** A, because it is predictable and the player only meets it with an old save or a changed cap; the message tells them what went.
 **Answer (Crown):** **A** (2026-10-26): drop the last ones in the list, as built, with the message naming what went.
-**Notes for Claude:** _optional_
+**Notes for Claude:** A as built (B-159); nothing to change.
 
 ### D-090 — A full status bar is a one-turn "status break"
 **Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 03) · **Blocks:** —
@@ -1128,7 +1128,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** player-facing word for a full bar's effect: "break" (e.g. "Burn break") is Crown's direction; confirm exact wording when the UI text is written.
 
 ### Q-161 — An inventory asset validated on its own: which character's discount?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (B-161) · **Blocks:** — (B-161 shipped with A)
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-161) · **Blocks:** — (B-161 shipped with A)
 **Question:** validating a `UInventoryData` asset by itself (not through its character) still weighs spells with no discount, so a high-stat boss's inventory shows as **Invalid** while the boss itself validates clean. What should the inventory on its own use?
 **Context:** one inventory asset can be used by several characters. D-080's notes suggested looking the owner up from the inventory; with several owners there is no single answer.
 **Options:**
@@ -1138,7 +1138,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **D** on its own, report the budget as a warning instead of an error.
 **Recommendation:** D, because it keeps the strict number visible without marking a valid boss inventory as broken, and needs no asset-registry lookup.
 **Answer (Crown):** **D** (2026-10-26): an inventory asset validated on its own reports the spell budget as a **warning**, not an error; the character's own validation (with its authored stats, D-080) stays the real check.
-**Notes for Claude:** _optional_
+**Notes for Claude:** Applied in fix/Q-161-inventory-budget-warning: `UInventoryData::GetStandaloneValidation` / `IsDataValid`.
 
 ### D-091 — Fleeing a fight
 **Status:** DECIDED (applied in B-176) · **Raised:** 2026-10-26 (rules review, page 04 gap) · **Blocks:** —
