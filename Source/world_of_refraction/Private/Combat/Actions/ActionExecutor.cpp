@@ -2505,8 +2505,11 @@ void UActionExecutor::ResetForCombat()
 	if (CurrentExecutionContext.IsSet())
 	{
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Reset: cancelling the action in flight"));
-		// Resolving the windows now could reflect parry damage after the fight ended.
+		// Resolving the windows now could reflect parry damage after the fight ended, and the deferred
+		// infusion HP cost could kill the caster after the result was broadcast.
+		// TODO: D-075 — should an action cut off by the fight ending still cost its infusion HP?
 		CurrentExecutionContext->PendingDefenses.Empty();
+		CurrentExecutionContext->PendingInfusionHPCost = 0;
 		CancelAsyncAction();
 	}
 

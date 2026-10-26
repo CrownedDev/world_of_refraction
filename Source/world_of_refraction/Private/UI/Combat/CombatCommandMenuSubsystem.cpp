@@ -114,6 +114,8 @@ void UCombatCommandMenuSubsystem::ClearCombatOrchestrator()
     PendingActionID.Empty();
     PendingActionData.Reset();
     PendingActionDataIndex = -1;
+    PendingTargetType = ETargetType::Enemy;
+    PendingTargetCount = ETargetCount::Single;
     ResolvedTargetType = PendingTargetType;
     ResolvedTargetCount = PendingTargetCount;
     DepthBeforeTargetSelection = ECombatMenuDepth::Main;
