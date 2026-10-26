@@ -1032,6 +1032,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Status through a defended hit (ED-34): Guard 50%, Perfect Guard 30%, Dodge 0% (today's Block / Parry / Dodge values).
 - The menu's Defend action (D-050) is a separate turn action, unchanged.
 
+### D-085 — Luck dodge
+**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 02 gap) · **Blocks:** —
+**Answer (Crown):** **A, capped at 15%** (2026-10-26): Luck gives a chance to **automatically dodge** a hit, up to **15%** (lowered from the unused `LUCK_DODGE_MAX` 25%).
+**Notes for Claude:** roll only when the hit would otherwise land (no successful Guard or Dodge press), so timing still matters most; use the per-battle random stream (B-010) so fights replay. Scale with Luck up to the 15% cap (curve `// TODO: tune`). Show it as a "Lucky dodge!" pop-up. Test with a fixed seed.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
