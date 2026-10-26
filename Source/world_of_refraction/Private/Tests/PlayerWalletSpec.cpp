@@ -11,6 +11,7 @@
 #include "Character/CombatCharacter.h"
 #include "Currency/CurrencyComponent.h"
 #include "Currency/CurrencyWallet.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
@@ -30,6 +31,7 @@ BEGIN_DEFINE_SPEC(FPlayerWalletSpec, "WoR.Economy.PlayerWallet",
 	AActor *Hero = nullptr;
 	AActor *Ally = nullptr;
 	AActor *Stranger = nullptr;
+	UParty *Party = nullptr;
 END_DEFINE_SPEC(FPlayerWalletSpec)
 
 void FPlayerWalletSpec::Define()
@@ -42,7 +44,7 @@ void FPlayerWalletSpec::Define()
 		UPartySessionSubsystem *PartySession = TestWorld->GetSubsystem<UPartySessionSubsystem>();
 		APlayerController *PC = World ? World->SpawnActor<APlayerController>() : nullptr;
 		AWoRPlayerState *PlayerState = World ? World->SpawnActor<AWoRPlayerState>() : nullptr;
-		UParty *Party = PartySession ? PartySession->CreateSoloParty(nullptr, TSoftClassPtr<ACombatCharacter>()) : nullptr;
+		Party = PartySession ? PartySession->CreateSoloParty(nullptr, TSoftClassPtr<ACombatCharacter>()) : nullptr;
 		TestTrue(TEXT("controller, player state and party"), PC && PlayerState && Party);
 		if (!PC || !PlayerState || !Party)
 		{
@@ -61,7 +63,13 @@ void FPlayerWalletSpec::Define()
 			Member.CharacterData = Data;
 			Party->Members.Add(Member);
 		}
-		Hero = TestWorld->SpawnCombatant(HeroData);
+		// The hero is the player's pawn (its PlayerState path); the ally is AI-played (no PlayerState).
+		APawn *HeroPawn = Cast<APawn>(TestWorld->SpawnCombatant(HeroData, true));
+		if (HeroPawn)
+		{
+			HeroPawn->SetPlayerState(PlayerState);
+		}
+		Hero = HeroPawn;
 		Ally = TestWorld->SpawnCombatant(AllyData, true);
 
 		Stranger = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), true);
@@ -76,6 +84,7 @@ void FPlayerWalletSpec::Define()
 		Hero = nullptr;
 		Ally = nullptr;
 		Stranger = nullptr;
+		Party = nullptr;
 		TestWorld.Reset();
 	});
 
@@ -84,6 +93,13 @@ void FPlayerWalletSpec::Define()
 		if (!PlayerWallet) return;
 		TestTrue(TEXT("the hero"), CurrencyWallet::FindFor(Hero) == PlayerWallet);
 		TestTrue(TEXT("an AI-played ally"), CurrencyWallet::FindFor(Ally) == PlayerWallet);
+	});
+
+	It("finds the player's wallet for an ally when the party's leader pointer is stale (after OpenLevel)", [this]()
+	{
+		if (!PlayerWallet) return;
+		Party->Leader = nullptr;
+		TestTrue(TEXT("this world's local player"), CurrencyWallet::FindFor(Ally) == PlayerWallet);
 	});
 
 	It("lets two characters spend from one balance", [this]()

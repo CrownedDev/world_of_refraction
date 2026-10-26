@@ -48,8 +48,6 @@ namespace
         return true;
     }
 
-    /** Finds each required component on Owner (the service couples them; they don't couple
-     *  to each other). False, logging the missing ones, when any is absent. */
     template <class TComponent>
     TComponent *EconomyFindComponent(AActor *Owner)
     {
@@ -63,6 +61,8 @@ namespace
         return CurrencyWallet::FindFor(Owner);
     }
 
+    /** Finds each required component on Owner (the service couples them; they don't couple
+     *  to each other). False, logging the missing ones, when any is absent. */
     template <class... TComponents>
     bool EconomyFindComponents(AActor *Owner, const TCHAR *Op, TComponents *&...OutComponents)
     {

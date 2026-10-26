@@ -30,8 +30,16 @@ namespace CurrencyWalletInternal
 		{
 			return nullptr;
 		}
+		// TODO(co-op): an enemy built from a party member's CharacterData (a mirror fight) also
+		// matches here; exclude the opposing team when such fights exist.
+		// The leader pointer is only rebound in exploration levels (EnsureLocalParty), so after
+		// OpenLevel into battle it can be stale: fall back to this world's local player.
 		const UParty *Party = PartySession->GetLocalParty();
 		const APlayerController *Leader = Party ? Party->Leader.Get() : nullptr;
+		if (!Leader || Leader->GetWorld() != World)
+		{
+			Leader = World->GetFirstPlayerController();
+		}
 		return Leader ? PlayerWalletOf(Leader->PlayerState) : nullptr;
 	}
 
