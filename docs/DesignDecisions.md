@@ -897,6 +897,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
+### D-076 — Hub controller: one class for interact and hub menus
+**Status:** OPEN · **Raised:** 2026-10-26 (B-003) · **Blocks:** B-003 hub part only (the combat HUD cut-over is done)
+**Question:** the refactor's `AExplorationPlayerController` (E interacts with the nearest door / merchant / recruit; `OnPossess` makes sure the party exists) was meant to become `BP_HubPlayerController`'s parent. Since then `dev` gave that Blueprint a different C++ parent, `AWoRHubController` (hub modes and the CommonUI menu stack: `SetHubMode`, `PushMenu`/`PopMenu`). Both derive from `APlayerController`. How should they join?
+**Context:** reparenting as the review notes say would drop `AWoRHubController`'s hub modes and menu stack. Today the Blueprint still does interact and `EnsureLocalParty` itself (its BeginPlay also adds the input mapping and the party display), so the hub works as before. The trial level's controller is not reparented either.
+**Options:** A **fold the interact + party code into `AWoRHubController`** and retire `AExplorationPlayerController` (one hub controller) / B **make `AExplorationPlayerController` derive from `AWoRHubController`** and reparent the Blueprint to it (two layers) / C leave the hub on Blueprint interact for now.
+**Recommendation:** A, because one controller owns the hub and nothing else uses `AExplorationPlayerController` yet; it's the simplest working shape. The deckbuilder has no hub controller to borrow from.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

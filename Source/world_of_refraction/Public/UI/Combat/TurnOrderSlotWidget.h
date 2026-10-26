@@ -7,6 +7,7 @@
 #include "TurnOrderSlotWidget.generated.h"
 
 class AActor;
+class UBorder;
 class UTextBlock;
 
 /**
@@ -50,4 +51,8 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	UTextBlock *TurnNumberText;
+
+	/** Tinted per slot state: bonus turn, active, waiting (B-003: ported from the WBP override). */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UBorder *BackgroundBorder;
 };

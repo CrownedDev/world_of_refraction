@@ -30,13 +30,13 @@ namespace CombatHUDLayout
 UCombatHUD::UCombatHUD()
 {
     CharacterPanelClass = TSoftClassPtr<UCharacterPanelWidget>(
-        FSoftObjectPath(TEXT("/Game/UI/Combat/Character/WBP_CharacterPanel.WBP_CharacterPanel_C")));
+        FSoftObjectPath(TEXT("/Game/UI/UMG/Combat/Character/WBP_CharacterPanel.WBP_CharacterPanel_C")));
     FallbackCharacterPanelClass = TSoftClassPtr<UCharacterPanelWidget>(
-        FSoftObjectPath(TEXT("/Game/UI/Combat/WBP_CharacterPanel.WBP_CharacterPanel_C")));
+        FSoftObjectPath(TEXT("/Game/UI/UMG/Combat/WBP_CharacterPanel.WBP_CharacterPanel_C")));
     TurnOrderStripClass = TSoftClassPtr<UTurnOrderStripWidget>(
-        FSoftObjectPath(TEXT("/Game/UI/Combat/Turn/WBP_TurnOrderStrip.WBP_TurnOrderStrip_C")));
+        FSoftObjectPath(TEXT("/Game/UI/UMG/Combat/Turn/WBP_TurnOrderStrip.WBP_TurnOrderStrip_C")));
     CommandMenuClass = TSoftClassPtr<UCombatCommandMenuWidget>(
-        FSoftObjectPath(TEXT("/Game/UI/Combat/CommandMenu/WBP_CombatMenu.WBP_CombatMenu_C")));
+        FSoftObjectPath(TEXT("/Game/UI/UMG/Combat/CommandMenu/WBP_CombatMenu.WBP_CombatMenu_C")));
 }
 
 void UCombatHUD::Build(APlayerController *PC, const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty)
