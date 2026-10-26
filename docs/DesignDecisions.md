@@ -435,7 +435,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Question:** Crown (2026-10-26) wants the status-bar caps changed: what does each one do, and for how long?
 **Answer (Crown):** (2026-10-26) **A full bar does something big for 2 turns**, counted the deckbuilder way: **2 of the affected character's own turns**, not every turn that passes. Examples:
 - **Wind:** pushes your next two turns down the turn order (refines D-014).
-- **Water:** lowers healing for two turns (lowers, not blocks).
+- **Water:** ~~lowers healing for two turns~~ → slows Action and Spell Speed, 1 turn (D-090, Crown 2026-10-26).
 - **Ice:** slows action speed for two turns (D-029).
 **Notes for Claude:**
 - Turn counting per the deckbuilder (`04-effects.md` "For N turns counts the holder's turns"): it counts the holder's turns; applied during the holder's own turn, that turn counts as turn 1; it ends when the holder's turn after those starts. Put this in one shared helper (it's also what GAS stage 3's turn tracker needs, B-042/B-044).
@@ -1124,7 +1124,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 ### D-090 — A full status bar is a one-turn "status break"
 **Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 03) · **Blocks:** —
 **Answer (Crown):** (2026-10-26) A full status bar's effect lasts **one** of the holder's turns, not two: a short, sharp **status break**. Applies to **every** cap (all elements, Ice, physical Slash/Pierce/Impact, Void, Broken Darkness's EP drain).
-**Changes:** D-030's "2 turns" → **1** (`STATUS_CAP_TURNS = 1`); D-038 Silenced seals EP for 1 turn; **Wind delays the target's turn by one** (pushed one place back in the turn order; D-014, the D-088 pip idea dropped). **Ice slows both Action Speed (abilities/attacks) and Spell Speed (spells)** for 1 turn, i.e. how fast the target's abilities and spells play out, which also widens the defender's timing window against them (ED-35) (Crown, 2026-10-26). The holder-turn counting (D-030, D-051) is unchanged. How *big* each break is stays a tuning question (rules page 03 gaps).
+**Changes:** D-030's "2 turns" → **1** (`STATUS_CAP_TURNS = 1`); D-038 Silenced seals EP for 1 turn; **Wind delays the target's turn by one** (pushed one place back in the turn order; D-014, the D-088 pip idea dropped). **Water's break slows Action Speed and Spell Speed** for 1 turn (replacing "lowers healing", D-030); **Ice's break does the same and also deals damage** ("a heavier Water"; damage size a named %, tune). Slower abilities and spells also widen the defender's timing window against them (ED-35) (Crown, 2026-10-26). The holder-turn counting (D-030, D-051) is unchanged. How *big* each break is stays a tuning question (rules page 03 gaps).
 **Notes for Claude:** player-facing word for a full bar's effect: "break" (e.g. "Burn break") is Crown's direction; confirm exact wording when the UI text is written.
 
 ### Q-161 — An inventory asset validated on its own: which character's discount?
