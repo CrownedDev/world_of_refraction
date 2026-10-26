@@ -1124,7 +1124,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### D-091 — Fleeing a fight
-**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 04 gap) · **Blocks:** —
+**Status:** DECIDED (applied in B-176) · **Raised:** 2026-10-26 (rules review, page 04 gap) · **Blocks:** —
 **Answer (Crown):** **B** (2026-10-26): you **can flee normal fights**, **not mini-bosses or bosses**. Fleeing **costs something**.
 **Notes for Claude:**
 - The cost isn't set: propose **losing a share of the run's Gold** (named constant, e.g. 10%, `// TODO: tune`) and confirm with Crown when building.
@@ -1207,6 +1207,18 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Move row:** a character can step one row forward or back on their turn, **free, once per turn** (like weapon switching), into an empty cell or swapping with an ally there.
 - **Push / pull skills:** skills (and effects) can push or pull an enemy between rows (e.g. a shield bash knocks them back).
 **Notes for Claude:** the grid already supports one-row moves and swaps (PA-32, `CombatGridSubsystem`); add the menu option (placeholder UI) and a push/pull skill effect type (appended). Row bonuses (PA-30) apply from the new row immediately. Tests for move, swap, refused-when-blocked and push/pull.
+
+### Q-176 — What does fleeing cost?
+**Status:** OPEN · **Raised:** 2026-10-26 (B-176) · **Blocks:** — (B-176 shipped with A)
+**Question:** D-091 says fleeing costs something and asked to confirm the cost when building. What should it be?
+**Context:** B-176 takes a share of each fleeing party member's Gold (`FleeRules::GOLD_LOSS_SHARE`, rounded down, so a small purse can lose nothing). Gold sits on each battle pawn's wallet today and doesn't yet carry across the battle swap (B-090), so in play the cost only shows once run Gold persists. Also as built: the cost comes from each member's own wallet (there is no shared party purse yet); a purse under 10 Gold loses nothing; any party member who isn't stunned can flee for the whole party. Technical note: the encounter's rank reaches the battle stage through a new `PendingRank` on `UTrialRunSubsystem`, next to `PendingDifficulty` (transport across the level swap, an accepted exception to D-064; it moves with `PendingDifficulty` for co-op, D-065).
+**Options:**
+- **A** 10% of each member's Gold (as built).
+- **B** a different share (say which).
+- **C** a flat amount, or something other than Gold (e.g. HP, or taking a hit while escaping).
+**Recommendation:** A, because it is simple, scales with the run, and can be tuned later through the one constant.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
 
 ## Parked
 

@@ -73,7 +73,8 @@ void UTrialRunSubsystem::ExitTrial()
 // ==================== ENCOUNTER (T-C1) ====================
 
 void UTrialRunSubsystem::EnterEncounter(UTrialData *Trial, const TArray<UCharacterData *> &BattleParty,
-                                        const TArray<UCharacterData *> &OpposingParty, EAIDifficulty Difficulty)
+                                        const TArray<UCharacterData *> &OpposingParty, EAIDifficulty Difficulty,
+                                        EEncounterRank Rank)
 {
     if (!Trial || Trial->EncounterLevel.IsNull())
     {
@@ -97,6 +98,7 @@ void UTrialRunSubsystem::EnterEncounter(UTrialData *Trial, const TArray<UCharact
     PendingBattleParty = TArray<TObjectPtr<UCharacterData>>(BattleParty);
     PendingOpposingParty = TArray<TObjectPtr<UCharacterData>>(OpposingParty);
     PendingDifficulty = Difficulty;
+    PendingRank = Rank;
     EncounterReturnLevel = Trial->Level;
 
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Entering encounter %d v %d -> %s (return %s)"),
@@ -135,9 +137,10 @@ void UTrialRunSubsystem::ExitEncounter()
 
 FString UTrialRunSubsystem::GetTrialRunString() const
 {
-    return FString::Printf(TEXT("TrialRun: active=%s | hub=%s | pending %d v %d | return=%s"),
+    return FString::Printf(TEXT("TrialRun: active=%s | hub=%s | pending %d v %d (%s) | return=%s"),
                            ActiveTrial.IsValid() ? *ActiveTrial->Name.ToString() : TEXT("<none>"),
                            HubLevel.IsNull() ? TEXT("<UNSET>") : *HubLevel.ToString(),
                            PendingBattleParty.Num(), PendingOpposingParty.Num(),
+                           *UEnum::GetValueAsString(PendingRank),
                            EncounterReturnLevel.IsNull() ? TEXT("<none>") : *EncounterReturnLevel.ToString());
 }

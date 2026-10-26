@@ -15,6 +15,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Combat/FleeRules.h"
+#include "Currency/CurrencyComponent.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "UI/Combat/CombatHUD.h"
 #include "Combat/Camera/CombatCameraDirector.h"
@@ -449,6 +451,13 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 		return false;
 	}
 
+	// D-091: fleeing has its own rules (rank, Gold, ending the fight); only the async path has them.
+	if (Action.ActionType == EActionType::Flee)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] SubmitAction: Flee goes through SubmitActionAsync - refused"));
+		return false;
+	}
+
 	AActor *Actor = CurrentActor;
 	if (!Actor)
 	{
@@ -619,6 +628,19 @@ bool ACombatOrchestrator::StartActionAsync(const FAction &Action, FString &OutIn
 		return false;
 	}
 
+	if (Action.ActionType == EActionType::Flee)
+	{
+		const FText FleeRefused = GetFleeRefusedReason(CurrentActor);
+		if (!FleeRefused.IsEmpty())
+		{
+			OutInvalidReason = FleeRefused.ToString();
+			return false;
+		}
+		bWaitingForAsyncAction = true; // nothing else may start while the fight ends
+		BeginFlee();
+		return true;
+	}
+
 	bWaitingForAsyncAction = true;
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s executing %s asynchronously..."),
@@ -627,6 +649,52 @@ bool ACombatOrchestrator::StartActionAsync(const FAction &Action, FString &OutIn
 	ActionExecutorRef->ExecuteActionAsync(CurrentActor, Action,
 										  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
 	return true;
+}
+
+FText ACombatOrchestrator::GetFleeRefusedReason(AActor *Actor) const
+{
+	if (CombatState != ECombatState::InProgress)
+	{
+		return NSLOCTEXT("CombatOrchestrator", "FleeNoFight", "There is no fight to flee.");
+	}
+	if (!Actor || !LocalPartyCombatants.Contains(Actor))
+	{
+		return NSLOCTEXT("CombatOrchestrator", "FleeNotParty", "Only your party can flee.");
+	}
+	if (!FleeRules::CanFleeRank(EncounterRank))
+	{
+		return NSLOCTEXT("CombatOrchestrator", "FleeBoss", "You can't flee this fight.");
+	}
+	return FText::GetEmpty();
+}
+
+void ACombatOrchestrator::BeginFlee()
+{
+	int32 TotalGoldLost = 0;
+	for (AActor *Member : LocalPartyCombatants)
+	{
+		UCurrencyComponent *Currency = Member ? Member->FindComponentByClass<UCurrencyComponent>() : nullptr;
+		const int32 Lost = Currency ? FleeRules::GoldLost(Currency->GetBalance(ECurrencyType::Gold)) : 0;
+		if (Lost > 0 && Currency->Spend(ECurrencyType::Gold, Lost))
+		{
+			TotalGoldLost += Lost;
+		}
+	}
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s fled the fight - party lost %d Gold"),
+		   *GetNameSafe(CurrentActor), TotalGoldLost);
+
+	FActionResult Result;
+	Result.Executor = CurrentActor;
+	Result.ActionType = EActionType::Flee;
+	Result.bSuccess = true;
+	OnActionExecuted.Broadcast(CurrentActor, Result);
+
+	// Party vitals are kept: ForceEndCombat broadcasts the result while the teams are still listed,
+	// so ABattleGameMode banks HP/EP before the return to the trial.
+	GetWorld()->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+	{
+		ForceEndCombat(ECombatState::Fled);
+	}));
 }
 
 FActionValidationResult ACombatOrchestrator::ValidateAction(const FAction &Action) const
@@ -1783,6 +1851,8 @@ void ACombatOrchestrator::DebugPrintCombatState()
 	UE_LOG(LogTemp, Display, TEXT("Auto-Advance: %s (%.1fs delay)"),
 		   bAutoAdvanceTurns ? TEXT("ON") : TEXT("OFF"), AutoAdvanceDelay);
 	UE_LOG(LogTemp, Display, TEXT("Waiting for Async: %s"), bWaitingForAsyncAction ? TEXT("Yes") : TEXT("No"));
+	UE_LOG(LogTemp, Display, TEXT("Encounter Rank: %s (flee %s)"), *UEnum::GetValueAsString(EncounterRank),
+		   FleeRules::CanFleeRank(EncounterRank) ? TEXT("allowed") : TEXT("refused"));
 
 	UE_LOG(LogTemp, Display, TEXT("\nTeam 0 (%d members):"), LocalPartyCombatants.Num());
 	for (AActor *Actor : LocalPartyCombatants)

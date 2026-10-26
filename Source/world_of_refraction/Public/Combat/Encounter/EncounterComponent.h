@@ -26,6 +26,7 @@
 #pragma once
 
 #include "AI/EAIDifficulty.h"
+#include "Combat/Encounter/EEncounterRank.h"
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
 #include "EncounterComponent.generated.h"
@@ -72,6 +73,10 @@ public:
 	/** AI difficulty carried to the battle stage — per-encounter, not per-CharacterData. */
 	UPROPERTY(EditAnywhere, Category = "Encounter")
 	EAIDifficulty Difficulty = EAIDifficulty::Medium;
+
+	/** D-091: a normal fight can be fled; a mini-boss or boss can't. */
+	UPROPERTY(EditAnywhere, Category = "Encounter")
+	EEncounterRank Rank = EEncounterRank::Normal;
 
 protected:
 	virtual void BeginPlay() override;

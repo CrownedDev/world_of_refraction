@@ -28,6 +28,7 @@
 #pragma once
 
 #include "AI/EAIDifficulty.h"
+#include "Combat/Encounter/EEncounterRank.h"
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "TrialRunSubsystem.generated.h"
@@ -58,10 +59,12 @@ public:
 
     /** Stash the encounter roster and swap to Trial's EncounterLevel.
      *  ABattleGameMode consumes the stash on the far side. Ignored (with a
-     *  log) when Trial / EncounterLevel / either roster is null or empty. */
+     *  log) when Trial / EncounterLevel / either roster is null or empty. Rank (D-091) decides
+     *  whether the fight can be fled. */
     UFUNCTION(BlueprintCallable, Category = "Trial|Encounter")
     void EnterEncounter(UTrialData *Trial, const TArray<UCharacterData *> &BattleParty,
-                        const TArray<UCharacterData *> &OpposingParty, EAIDifficulty Difficulty);
+                        const TArray<UCharacterData *> &OpposingParty, EAIDifficulty Difficulty,
+                        EEncounterRank Rank);
 
     /** Return to the trial level the encounter came from (fallback: HubLevel).
      *  The OpenLevel is deferred one tick — this is called from
@@ -81,6 +84,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Trial|Encounter")
     EAIDifficulty GetPendingDifficulty() const { return PendingDifficulty; }
+
+    UFUNCTION(BlueprintPure, Category = "Trial|Encounter")
+    EEncounterRank GetPendingRank() const { return PendingRank; }
 
     /** The trial whose level we are in (or transitioning to), or null in the
      *  hub. Survives the level load — this subsystem is GameInstance-scoped. */
@@ -111,6 +117,9 @@ private:
     TArray<TObjectPtr<UCharacterData>> PendingOpposingParty;
 
     EAIDifficulty PendingDifficulty = EAIDifficulty::Medium;
+
+    /** Carried across the OpenLevel like PendingDifficulty; moves with it for co-op (D-065). */
+    EEncounterRank PendingRank = EEncounterRank::Normal;
 
     /** Where ExitEncounter returns to — VALUE-typed soft path, immune to the
      *  GC exposure a weak UTrialData ref would have mid-battle. */
