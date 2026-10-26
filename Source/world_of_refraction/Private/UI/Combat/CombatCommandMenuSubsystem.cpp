@@ -318,9 +318,10 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
     }
 
     case EPieMenuCategory::Defend:
-        // No target to pick: Defend applies to the actor itself.
+        // No target to pick: Defend applies to the actor itself. No Close() here: Defend
+        // executes synchronously, so HandleActionExecuted has already closed this menu and
+        // the next player's turn may have reopened it by the time Submit returns.
         SubmitConfirmedAction(ButtonData);
-        Close();
         break;
 
     // === SWITCH ACTIONS ===
