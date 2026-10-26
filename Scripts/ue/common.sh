@@ -8,7 +8,7 @@ WOR_PROJECT="$WOR_ROOT/world_of_refraction.uproject"
 WOR_EDITOR_TARGET="world_of_refractionEditor"
 WOR_PLATFORM="Win64"
 WOR_CONFIG="Development"
-WOR_TEST_FILTER="${WOR_TEST_FILTER:-WoR}"   # Automation test prefix: every WoR test is named "WoR.<System>.<Case>"
+WOR_TEST_FILTER="${WOR_TEST_FILTER:-WoR.}"  # Automation test prefix: every WoR test is named "WoR.<System>.<Case>" (the dot keeps engine tests like "Framework" out of a substring match)
 WOR_LOG_DIR="$WOR_ROOT/Saved/ClaudeLogs"
 
 wor_require_ue() {

@@ -118,6 +118,7 @@ Maintain living system documents in `docs/Architecture/`. Each document covers o
 ### Existing documents:
 - `docs/Architecture/AISystem.md`
 - `docs/Architecture/AugmentStoneSystem.md`
+- `docs/Architecture/AutomationTests.md`
 - `docs/Architecture/BrokenDarkness.md`
 - `docs/Architecture/CharacterDataSystem.md`
 - `docs/Architecture/CombatCharacter.md`
