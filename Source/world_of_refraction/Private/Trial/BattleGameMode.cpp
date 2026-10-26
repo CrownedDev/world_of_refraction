@@ -16,6 +16,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "TimerManager.h"
 #include "Combat/Encounter/EnemyZone.h"
+#include "Reaction/ReactionTrigger.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "UI/Combat/CombatResultsWidget.h"
@@ -257,6 +258,15 @@ void ABattleGameMode::BootstrapCombat()
     }
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Trial difficulty %s, zone tier %d: enemy strength x%.2f"),
            *TrialGate::GetDifficultyName(TrialRun->GetTrialDifficulty()).ToString(), Zone.Tier, EnemyStrength);
+
+    // B-191: reactions (worn items facing a character) and this run's memories change the fight
+    // before it starts.
+    const TArray<FReactionTrigger> Reactions = ReactionTriggers::GatherTriggers();
+    const TArray<FFiredReaction> Fired = ReactionTriggers::FindFired(Reactions, LocalParty, OpposingParty);
+    const int32 ReactionEffects = ReactionTriggers::ApplyFired(Fired);
+    const int32 MemoryChanges = ReactionTriggers::ApplyMemoryBossModifiers(TrialRun->GetRunMemories(), OpposingParty);
+    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Reactions: %d of %d fired (%d effects); memory boss changes: %d"),
+           Fired.Num(), Reactions.Num(), ReactionEffects, MemoryChanges);
 
     SpawnedOrchestrator->SetEncounterRank(TrialRun->GetPendingRank());
     // B-185: the side that struck first on the map takes the opening round.
