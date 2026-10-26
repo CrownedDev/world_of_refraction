@@ -858,7 +858,7 @@ void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, FCrystalI
 {
 	// Onyx - F-A is a one-shot energy drain (a percent of the target's MaxEP,
 	// spent immediately on use, no tick); S-rank applies a binary Silenced gate
-	// for 1 turn (blocks spellcasting via USkillEffectManager::IsSilenced).
+	// for 1 turn (seals part of the EP, USkillEffectManager::GetSpendableEP, D-038).
 	// All tiers additionally build the Darkness status bar on the target.
 	const bool bSRank = (Id.Tier == EItemTier::S_Tier);
 
