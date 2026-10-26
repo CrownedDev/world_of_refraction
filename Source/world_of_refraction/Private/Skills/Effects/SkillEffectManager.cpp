@@ -2336,6 +2336,7 @@ bool USkillEffectManager::IsSingleTriggerMet(AActor *Actor, ESkillTrigger Trigge
 	case ESkillTrigger::OnKill:
 	case ESkillTrigger::OnDodge:
 	case ESkillTrigger::OnBlock:
+	case ESkillTrigger::OnGuard:
 	case ESkillTrigger::OnTurnStart:
 	case ESkillTrigger::OnTurnEnd:
 	case ESkillTrigger::OnSpellCast:

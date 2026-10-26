@@ -1,6 +1,7 @@
 // AIDecisionManager.cpp
 
 #include "AI/AIDecisionManager.h"
+#include "Combat/Defense/GuardRules.h"
 #include "AI/AIDecisionConstants.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Combat/CombatOrchestrator.h"
@@ -517,7 +518,9 @@ void UAIDecisionManager::TrySynthesizeImpactDefense(AActor *Defender, AActor *At
         return;
     }
 
-    const EDefenseType Choice = ChooseDefenseType(Defender, AttackSize, BaseDamage, Diff);
+    // D-084: a Parry choice is a Guard press; normalized here too so the aimed band matches the
+    // tier MatchAndConsumeInput judges the (normalized) press against.
+    const EDefenseType Choice = GuardRules::Normalize(ChooseDefenseType(Defender, AttackSize, BaseDamage, Diff));
     if (Choice == EDefenseType::None)
     {
         return;

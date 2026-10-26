@@ -217,12 +217,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnDefensePerfect, AActor *, Defen
  * UDefenseSystem
  *
  * GameInstanceSubsystem that handles real-time defense mechanics.
- * Players can Block, Parry, or Dodge incoming attacks during defense windows.
+ * Players can Guard or Dodge incoming attacks during defense windows (D-084, B-168).
  *
  * Defense Types:
- * - Block: 50% damage reduction (always works)
- * - Parry: 70% reduction + 30% reflect (tight timing required)
- * - Dodge: 100% avoidance IF attack size < threshold (left/right only)
+ * - Guard (EDefenseType::Block; a Parry press is a Guard press): BlockReduction (50%) on normal
+ *   timing, PerfectGuardReduction (takes 25%) on Perfect timing. Nothing reflects (D-087).
+ * - Dodge: 100% avoidance on timing alone (left/right only)
  *
  * Usage:
  *   UDefenseSystem* Defense = GetGameInstance()->GetSubsystem<UDefenseSystem>();
@@ -388,12 +388,14 @@ public:
 	 * @param BaseDamage Original damage
 	 * @param DefenseType Defense used
 	 * @param bDefenseSuccessful Was timing correct?
+	 * @param bPerfect Perfect timing: a Guard becomes a Perfect Guard (D-084). No defense reflects.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Defense System|Damage")
 	FDefenseResult CalculateDefenseResult(
 		int32 BaseDamage,
 		EDefenseType DefenseType,
-		bool bDefenseSuccessful);
+		bool bDefenseSuccessful,
+		bool bPerfect = false);
 
 	// ========================================
 	// EVENTS
@@ -424,15 +426,19 @@ public:
 	// CONFIGURATION
 	// ========================================
 
-	/** Block damage reduction (0.5 = 50% reduction) */
+	/** Guard damage reduction on normal timing (0.5 = 50% reduction) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
 	float BlockReduction = 0.5f;
 
-	/** Parry damage reduction (0.7 = 70% reduction) */
+	/** Perfect Guard damage reduction (0.75 = takes 25%; D-084 placeholder). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
+	float PerfectGuardReduction = 0.75f; // TODO: tune (Q-168)
+
+	/** Legacy (unused since B-168: a Parry is a Perfect Guard, PerfectGuardReduction). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
 	float ParryReduction = 0.7f;
 
-	/** Parry reflect percentage (0.3 = 30% reflected) */
+	/** Legacy (unused since B-168: no built-in reflect, D-087). Parry reflect percentage. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
 	float ParryReflect = 0.3f;
 

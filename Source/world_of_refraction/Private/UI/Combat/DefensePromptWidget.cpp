@@ -13,7 +13,7 @@
 namespace DefensePromptText
 {
 	constexpr const TCHAR *Cue = TEXT("Get ready...");
-	constexpr const TCHAR *Window = TEXT("DEFEND! Block / Parry / Dodge");
+	constexpr const TCHAR *Window = TEXT("DEFEND! Guard / Dodge");
 	constexpr const TCHAR *Missed = TEXT("Missed");
 	constexpr int32 NativeFontSize = 32; // TODO: style pass
 }

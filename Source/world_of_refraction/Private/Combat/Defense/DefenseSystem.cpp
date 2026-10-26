@@ -2,6 +2,7 @@
 // Real-time defense system implementation
 
 #include "Combat/Defense/DefenseSystem.h"
+#include "Combat/Defense/GuardRules.h"
 #include "GameFramework/Pawn.h"
 #include "Character/CharacterDataComponent.h"
 #include "Engine/World.h"
@@ -152,6 +153,7 @@ FDefenseResult UDefenseSystem::CloseDefenseWindow(AActor *Defender)
 
 	Result.bWasInWindow = State.bInputReceived;
 
+	// Unreachable since B-168 (no defense reflects, D-087; ReflectedDamage stays 0). Remove after PIE.
 	// Handle parry reflect — single-decision (non-melee) windows ONLY. Count-based (melee)
 	// windows resolve reflect PER IMPACT in ActionExecutor::ResolveImpactDefense (Stage 3);
 	// reflecting here too would double-reflect on the legacy lumped first-input decision.
@@ -183,6 +185,7 @@ void UDefenseSystem::SubmitDefenseInput(AActor *Defender, EDefenseType DefenseTy
 	{
 		return;
 	}
+	DefenseType = GuardRules::Normalize(DefenseType); // D-084: a Parry press is a Guard press
 
 	FDefenseState *StatePtr = ActiveDefenseStates.Find(Defender);
 	if (!StatePtr)
@@ -485,8 +488,10 @@ float UDefenseSystem::GetEffectiveDefenseInputWindow(AActor *Defender, AActor *A
 FDefenseResult UDefenseSystem::CalculateDefenseResult(
 	int32 BaseDamage,
 	EDefenseType DefenseType,
-	bool bDefenseSuccessful)
+	bool bDefenseSuccessful,
+	bool bPerfect)
 {
+	DefenseType = GuardRules::Normalize(DefenseType);
 	FDefenseResult Result;
 	Result.DefenseType = DefenseType;
 	Result.FinalDamage = BaseDamage;
@@ -503,16 +508,10 @@ FDefenseResult UDefenseSystem::CalculateDefenseResult(
 	switch (DefenseType)
 	{
 	case EDefenseType::Block:
-		// Block: partial damage reduction (BlockReduction)
+		// Guard (D-084): a block on normal timing, a parry that takes less on Perfect timing.
+		// No reflect (D-087): that comes from "on Perfect Guard" effects.
 		Result.bSuccess = true;
-		Result.FinalDamage = FMath::RoundToInt(BaseDamage * (1.0f - BlockReduction));
-		break;
-
-	case EDefenseType::Parry:
-		// Parry: damage reduction (ParryReduction) + reflect (ParryReflect)
-		Result.bSuccess = true;
-		Result.FinalDamage = FMath::RoundToInt(BaseDamage * (1.0f - ParryReduction));
-		Result.ReflectedDamage = FMath::RoundToInt(BaseDamage * ParryReflect);
+		Result.FinalDamage = FMath::RoundToInt(BaseDamage * (1.0f - (bPerfect ? PerfectGuardReduction : BlockReduction)));
 		break;
 
 	case EDefenseType::Dodge:

@@ -2,6 +2,7 @@
 // Implementation for BrokenDarkness transformation and absorption system
 
 #include "Combat/Mechanics/BrokenDarknessManager.h"
+#include "Combat/Defense/GuardRules.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
@@ -981,6 +982,10 @@ void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,
 		return;
 	}
 
+	// D-084: a Guard absorbs at the block rate, a Perfect Guard at the parry rate (both doubled on
+	// Perfect, as before).
+	DefenseType = GuardRules::IsPerfectGuard(DefenseType, bPerfect) ? EDefenseType::Parry : GuardRules::Normalize(DefenseType);
+
 	// Dodge doesn't absorb - you avoided it entirely
 	if (DefenseType == EDefenseType::Dodge)
 	{
@@ -1037,9 +1042,8 @@ void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,
 	// Broadcast
 	OnEnergyAbsorbed.Broadcast(GetOwner(), EnergyGained, AttackElement);
 
-	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: %s%s absorbed %.1f energy from %s (Stacks: %d)"),
-		   DefenseType == EDefenseType::Parry ? TEXT("Parry") : TEXT("Block"),
-		   bPerfect ? TEXT(" (Perfect)") : TEXT(""),
+	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: %s absorbed %.1f energy from %s (Stacks: %d)"),
+		   bPerfect ? TEXT("Perfect Guard") : TEXT("Guard"),
 		   EnergyGained,
 		   *UEnum::GetValueAsString(AttackElement),
 		   CurrentAbsorptionStacks);
@@ -1047,6 +1051,8 @@ void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,
 
 float UBrokenDarknessManager::CalculateAbsorptionEnergy(EDefenseType DefenseType, float AttackEnergyCost, bool bPerfect) const
 {
+	// Parry here means the Perfect Guard rate (see OnDefenseResolved); a Guard press is Block.
+	DefenseType = GuardRules::IsPerfectGuard(DefenseType, bPerfect) ? EDefenseType::Parry : DefenseType;
 	float BaseRate = 0.0f;
 	switch (DefenseType)
 	{
@@ -1107,7 +1113,7 @@ void UBrokenDarknessManager::DebugLogAbsorption(float AttackEnergyCost) const
 		const float NormalEnergy = CalculateAbsorptionEnergy(Type, AttackEnergyCost, /*bPerfect=*/false);
 		const float PerfectEnergy = CalculateAbsorptionEnergy(Type, AttackEnergyCost, /*bPerfect=*/true);
 		UE_LOG(LogTemp, Display, TEXT("  %s: base %.3f → rate %.3f → energy %.1f (normal) / %.1f (perfect ×%.1f)"),
-			   Type == EDefenseType::Parry ? TEXT("Parry") : TEXT("Block"),
+			   Type == EDefenseType::Parry ? TEXT("Perfect Guard rate") : TEXT("Guard rate"),
 			   BaseRate, Rate, NormalEnergy, PerfectEnergy, BrokenDarknessConstants::PERFECT_ABSORPTION_MULT);
 	}
 }
