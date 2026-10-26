@@ -1,7 +1,7 @@
 // CombatHangFixesSpec.cpp
 // Regression tests for the Arc A combat-hang fixes (B-001), driven through a real
-// ACombatOrchestrator on bare 1v1 combatants: stunned turn-pass, full release on a
-// normal win, and no stranded turn after a failed validation.
+// ACombatOrchestrator on bare 1v1 combatants: a stunned actor's turn (D-001 rule), full
+// release on a normal win, and no stranded turn after a failed validation.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -13,6 +13,7 @@
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
+#include "Skills/Definitions/AbilityData.h"
 
 namespace
 {
@@ -95,8 +96,8 @@ void FCombatHangFixesSpec::Define()
 		TestWorld.Reset();
 	});
 
-	// Stun = skip the whole turn is the current rule; D-001 (OPEN) may allow Attack/Defend instead.
-	It("passes a stunned actor's turn without asking it to act", [this]()
+	// D-001 (B): stunned = may still Attack or Defend, so the turn is NOT auto-passed (B-061).
+	It("asks a stunned actor to act and only lets it Attack or Defend", [this]()
 	{
 		if (!StartDuel())
 		{
@@ -109,13 +110,25 @@ void FCombatHangFixesSpec::Define()
 		TestTrue(TEXT("Foe stunned"), EffectManager->IsStunned(Foe));
 
 		Orchestrator->OnActionCompleted();
-		TestTrue(TEXT("Turn 2 is Foe's"), Orchestrator->GetCurrentActor() == Foe);
-
-		// The pass is deferred to the next tick (no turn-start recursion).
 		TestWorld->Tick(SETTLE_FRAMES);
+		TestTrue(TEXT("Turn 2 is Foe's and stays Foe's (no auto-pass)"), Orchestrator->GetCurrentActor() == Foe);
+		TestEqual(TEXT("Turn number"), Orchestrator->GetCurrentTurnNumber(), 2);
+
+		FAction Defend;
+		Defend.ActionType = EActionType::Defend;
+		FAction Ability;
+		Ability.ActionType = EActionType::Ability;
+		Ability.SkillData = NewObject<UAbilityData>(GetTransientPackage());
+		Ability.Targets.Add(Hero);
+		TestTrue(TEXT("Defend allowed while stunned"), Orchestrator->ValidateAction(Defend).bIsValid);
+		TestFalse(TEXT("Ability refused while stunned"), Orchestrator->ValidateAction(Ability).bIsValid);
+
+		Orchestrator->SubmitActionAsync(Ability);
+		TestTrue(TEXT("Refused pick re-asks Foe"), Orchestrator->GetCurrentActor() == Foe);
+
+		Orchestrator->OnActionCompleted();
 		TestTrue(TEXT("Turn 3 is back to Hero"), Orchestrator->GetCurrentActor() == Hero);
-		TestEqual(TEXT("Turn number"), Orchestrator->GetCurrentTurnNumber(), 3);
-		TestFalse(TEXT("Stun ticked off at the end of Foe's passed turn"), EffectManager->IsStunned(Foe));
+		TestFalse(TEXT("Stun ticked off at the end of Foe's turn"), EffectManager->IsStunned(Foe));
 		TestTrue(TEXT("Combat still running"), Orchestrator->GetCombatState() == ECombatState::InProgress);
 	});
 
