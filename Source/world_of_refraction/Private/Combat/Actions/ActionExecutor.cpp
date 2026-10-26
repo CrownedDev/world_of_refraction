@@ -139,9 +139,9 @@ float UActionExecutor::GetSpellInfusionCostMultiplier(int32 InfusionLevel)
 	switch (InfusionLevel)
 	{
 	case 1:
-		return InfusionConstants::SPELL_L1_ENERGY_MULT; // Level 1: 30% cost increase
+		return InfusionConstants::SPELL_L1_ENERGY_MULT; // Level 1: x1.5 (+50%)
 	case 2:
-		return InfusionConstants::SPELL_L2_ENERGY_MULT; // Level 2: 60% cost increase
+		return InfusionConstants::SPELL_L2_ENERGY_MULT; // Level 2: x2.0 (+100%)
 	default:
 		return 1.0f; // No infusion
 	}
@@ -234,11 +234,8 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 		switch (Action.ActionType)
 		{
 		case EActionType::Spell:
-			if (Action.SpellData && !Action.SpellData->MeetsRequirements(CharData))
-			{
-				// Allow with penalty, but could warn
-				// return FActionValidationResult(false, TEXT("Requirements not met"));
-			}
+			// Requirements never refuse a skill: an overreach is usable but weaker (requirement-gap
+			// scaling) and feeds Broken Darkness strain (D-041).
 			// Element gate (Caster-only): Reality and BrokenDarkness sources unlock
 			// any-spell access per locked design. Generic and Resonator have no
 			// element gate.
@@ -297,10 +294,7 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 			break;
 
 		case EActionType::Ability:
-			if (Action.SkillData && !Action.SkillData->MeetsRequirements(CharData))
-			{
-				// Allow with penalty
-			}
+			// Requirements never refuse (D-041; see the Spell case).
 			// D-083: no elemental ability through a source that isn't on offer (a broken weapon
 			// crystal). The UI and AI already filter these; this covers every other path.
 			if (Action.IsAbilityInfused() && !GetAvailableInfusionSources(Actor).Contains(Action.SelectedSource))
@@ -4876,9 +4870,9 @@ float UActionExecutor::GetAbilityChargeCostMultiplier(int32 Level) const
 	switch (Level)
 	{
 	case 1:
-		return InfusionConstants::L1_ENERGY_MULT; // 1.15x
+		return InfusionConstants::L1_ENERGY_MULT; // x1.5 (an infused ability also pays INFUSION_ENERGY_MULTIPLIER, D-035)
 	case 2:
-		return InfusionConstants::L2_ENERGY_MULT; // 1.30x
+		return InfusionConstants::L2_ENERGY_MULT; // x2.0
 	default:
 		return 1.0f;
 	}

@@ -181,7 +181,8 @@ namespace CombatConstants
     //  CRIT_DAMAGE_MULTIPLIER duplicate. Crit damage uses CRIT_DMG_BASE / CRIT_DAMAGE_PER_POINT below.)
     // Crit DAMAGE stat scaling (cluster 5e-B-fix, Crown-locked). Un-invested crit = CRIT_DMG_BASE
     // (x1.0 = NORMAL damage — a crit does nothing extra without crit-damage investment). The
-    // crit-damage stat ramps it to x1.5 at max (base 1.0 + 0.5), gear pushes past toward x2.0.
+    // crit-damage stat ramps it to x1.5 at max (base 1.0 + 0.5), gear pushes past toward x2.5
+    // (CRIT_DAMAGE_GEAR_CEILING, D-034).
     constexpr float CRIT_DMG_BASE = 1.0f;            // un-invested crit = normal damage
     constexpr float CRIT_DAMAGE_STAT_CAP = 1.5f;     // crit-damage stat-ALONE ceiling (1.0 base + 0.5 stat)
     // Same per-point rate as RawDamage's 1.0->1.5 ramp = (CRIT_DAMAGE_STAT_CAP - CRIT_DMG_BASE)/DENOM,
