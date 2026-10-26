@@ -467,7 +467,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
   - **No hint (A):** the player doesn't know what a fragment does until it plays. Exploring is a gamble.
 - **(5) Leaving early: C + B** (Crown, 2026-10-26): you can only leave at **exit points** on the map (C), and leaving **pays less** (B). **The full payout only comes from death or victory.** The leave-confirm screen says so plainly (e.g. "Leaving now pays N of M Prisms. Full rewards only for beating the boss or falling in battle."). The reduced share is a named constant, `// TODO: tune`. Replaces `Resources_Design.md` §7.2's "leave early = forfeit everything".
 - **(6) What's on a trial map** (Crown, 2026-10-26), all ten: **enemies** (optional fights), **mini-bosses** (tougher, better rewards, may guard fragments), **memory fragments**, **characters to recruit** (run-only, D-026), **vendors** (Gold), **chests**, **exit points**, **rest spots** (heal HP/EP), **lore objects** (logged dialogue and notes), **the boss arena**. **Rest spots double as exit points.**
-  - These are `TrialData.h`'s banked POIs / LootPool / Boss fields. How often you can rest, and what resting costs, isn't ruled.
+  - These are `TrialData.h`'s banked POIs / LootPool / Boss fields.
+- **(7) Resting** (Crown, 2026-10-26, after comparing Nightreign and Elden Ring):
+  - Rest spots **fully heal** (HP, EP) and are **where you sort your inventory and loadout** during a run. They're also exit points.
+  - **Beating a mini-boss creates a new rest spot** there (Nightreign).
+  - **Resting does not reset enemies.** Beaten enemies stay beaten (D-002).
+  - **Optional boss revival:** a trigger can **revive a beaten boss, stronger**, for a **higher chance at better gear**. That's the opt-in way to farm. Where the trigger is, how much stronger, and whether it covers mini-bosses too isn't ruled; ask when building.
 **Notes for Claude:** the lords exist as data already (`DA_Character_FireLord` plus 6 more, commit `bdf2557`; Fire, Water, Darkness, Broken Darkness, Earth, Wind, Light, Lightning, Void, Reality). Data shape to propose when building (not ruled): a memory-fragment data asset with its trial, per-lord entries (which lord, optional item it reacts to, lore text/dialogue, depth), and an authored boss effect per entry (weaken / strengthen / none, size). Record further answers here; when complete, write `docs/Design/RunStructure.md` and point `Resources_Design.md` §7.1 at it.
 
 ### D-033 — Bound gear and skills
