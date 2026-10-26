@@ -17,6 +17,7 @@ AHUDTestActor::AHUDTestActor()
 	PrimaryActorTick.bCanEverTick = false;
 }
 
+#if !UE_BUILD_SHIPPING
 void AHUDTestActor::SpawnCharacterPanel()
 {
 	UWorld *World = GetWorld();
@@ -210,3 +211,12 @@ void AHUDTestActor::AddTestStatusBuildup()
 	BuildupMgr->AddStatusBuildup(ResolvedTarget, ResolvedTarget, TestStatusBuildup, ESpellElement::Fire, EPhysicalDamageType::None);
 	UE_LOG(LogTemp, Log, TEXT("[HUDTest] Added %.1f status buildup to %s"), TestStatusBuildup, *ResolvedTarget->GetName());
 }
+#else
+// Shipping: UHT-generated exec thunks still reference every UFUNCTION, so keep empty definitions.
+void AHUDTestActor::SpawnCharacterPanel() {}
+void AHUDTestActor::ClearAllPanels() {}
+void AHUDTestActor::SpawnTurnOrderStrip() {}
+void AHUDTestActor::ApplyTestDamage() {}
+void AHUDTestActor::SpendTestEnergy() {}
+void AHUDTestActor::AddTestStatusBuildup() {}
+#endif // !UE_BUILD_SHIPPING

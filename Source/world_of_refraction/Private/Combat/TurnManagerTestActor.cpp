@@ -17,6 +17,7 @@ void ATurnManagerTestActor::BeginPlay()
 	Super::BeginPlay();
 }
 
+#if !UE_BUILD_SHIPPING
 // ========================================
 // HELPER: Get TurnManager with null safety
 // ========================================
@@ -447,3 +448,12 @@ void ATurnManagerTestActor::PrintTestResult(FString TestName, bool bPassed)
 		UE_LOG(LogTemp, Error, TEXT("  [FAIL] %s"), *TestName);
 	}
 }
+#else
+// Shipping: UHT-generated exec thunks still reference every UFUNCTION, so keep empty definitions.
+void ATurnManagerTestActor::RunTest() {}
+void ATurnManagerTestActor::Test_Basic3v3() {}
+void ATurnManagerTestActor::Test_SpeedRatio() {}
+void ATurnManagerTestActor::Test_TieBreaking() {}
+void ATurnManagerTestActor::Test_SpeedChanges() {}
+void ATurnManagerTestActor::Test_DeathResurrection() {}
+#endif // !UE_BUILD_SHIPPING
