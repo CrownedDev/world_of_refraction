@@ -1053,6 +1053,26 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Remove the built-in `ParryReflect` from the Guard path; reflected damage skips Defense, resistance and crit.
 - Fold into B-168 (Guard).
 
+### D-088 — Action pips from Reflex; no Turn Speed (fixed turn order)
+**Status:** ANSWERED (details open, see notes) · **Raised:** 2026-10-26 (rules review, actions per turn) · **Blocks:** — (turn-system plan, B-170)
+**Answer (Crown):** (2026-10-26)
+- **Action pips:** each turn you get **action pips** set by your **Reflex** stat; each action (attack, skill, item, …) costs a pip, so a high-Reflex character can act **more than once per turn**.
+- **No Turn Speed:** turn order becomes **fixed (round-robin)**, as the deckbuilder's turn belt. A faster-paced game; Reflex is what makes a character "fast".
+- **Ice slows Action Speed** (the attack/spell animation speed stat): a full Ice bar is an Action Speed debuff for 2 holder turns.
+- **Wind affects action pips:** a full Wind bar costs the target action pips (placeholder: −1 pip on each of their next 2 turns).
+**Supersedes / changes:**
+- D-014/D-030 Wind push-back → pip loss. D-029 Ice → Action Speed slow (Crown's original wording, "slows action speed"; it had been mapped to turn speed).
+- D-049 (2:1 turn cap) no longer applies: a **pip cap** replaces it.
+- D-054/D-056: the Turn Speed family (`TurnSpeedBuff/Debuff`, `ModifyTurnSpeed`, TurnSpeedStone, the Turn Speed substat) is retired (enums append-only: kept, marked retired).
+- ET-18 / one action per turn (kept earlier today) becomes "one action per **pip**".
+**Notes for Claude, open details to bring to Crown (as questions in the plan, B-170):**
+- Pip numbers: base pips, Reflex thresholds, the cap (suggested: 1 base, max 3).
+- What Emerald's bonus turn (D-052) becomes: +1 pip, or an extra turn in the belt.
+- First strike (D-069): +1 pip, or act first in the order.
+- Turn order within a round (party order, alternating sides, …).
+- Reflex today also widens the defense timing window; keep both jobs or split them.
+- Effect durations already count the holder's own turns (D-051), unchanged.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
