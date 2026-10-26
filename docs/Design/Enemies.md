@@ -49,7 +49,7 @@ Companion to `RunStructure.md`. Values marked *tune* are placeholders: named con
 
 ## 6. Open questions
 
-- What the creatures are (types, looks). **Known so far (Crown, 2026-10-26): there will be humanoids**; the rest is open.
+- What the creatures are (types, looks). **Known so far (Crown, 2026-10-26): humanoids and elemental constructs**; the rest is open.
 - More than three enemy teams in one fight.
 
 ## Changelog
