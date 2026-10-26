@@ -10,7 +10,8 @@ Your **combat-ready set**: the primary slot (weapon / ring / evolution), plus th
 
 What you can equip is gated by a **unified slot-cost budget**, not fixed counts:
 
-- **Primary slot** costs by what's in it — bare weapon 1 / crystal 2 / evolution 3 (`EVOLUTION_PRIMARY_SLOT_COST`).
+- **Primary slot** costs by what's in it — bare weapon 1 / weapon with a crystal 2 / weapon with an evolution 3 / an evolution as the primary 2 (`EVOLUTION_PRIMARY_SLOT_COST`).
+- The budget is a **Resonator** rule only; a Generic's and a Refractor's slots are fixed (CL-12).
 - **Rings** (Resonator) cost 1 (normal) / 2 (evolved) each.
 - Total (primary + rings) must fit `LoadoutConstants::LOADOUT_TOTAL_BUDGET` (`LoadoutComponent.cpp`).
 

@@ -46,9 +46,9 @@ The per-pillar multiplier converts to an additive percent (`pct = (mult − 1) �
 
 | Pillar | Substats scaled | Count |
 |---|---|---|
-| **Mind** | Efficiency, SpellDamage, StatusMultiplier, CritDamage, SpellSpeed | 5 |
+| **Mind** | Efficiency, SpellDamage, CritDamage, SpellSpeed | 4 |
 | **Body** | Defense, ActionSpeed, RawDamage, Reflex | 4 |
-| **Spirit** | Resistance, Luck | 2 |
+| **Spirit** | Resistance, StatusMultiplier, Luck | 3 |
 
 Excluded: `TurnSpeed` (must not alter turn order) and pools (MaxHealth / MaxEnergy) — exactly as they're
 already excluded from action-time modifiers.

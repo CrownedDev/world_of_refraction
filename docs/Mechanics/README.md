@@ -57,7 +57,7 @@ A blank link means no dedicated doc exists yet (small mechanic, folded into a ne
 - **Fusions** — two-crystal pairs (gem+stone wears; stone+stone doesn't) — `FFusionAttachment` / `FFusionId` — → [`Items/FusionStones.md`](./Items/FusionStones.md)
 - **Weapons** — wield modes Single/Dual/OffHandShield, merged attack/ability, preset abilities — `UWeaponData` — → [`../Architecture/WeaponSystem.md`](../Architecture/WeaponSystem.md), [`EquipmentSlots.md`](./Gear/EquipmentSlots.md)
 - **Rings** — Resonator-primary spell-slot equipment, element via attachment — `URingData` — → [`../Architecture/WeaponSystem.md`](../Architecture/WeaponSystem.md)
-- **Loadout** — per-character active gear (cap 5), validated vs inventory at battle start — `ULoadoutComponent` — → [`../Architecture/LoadoutSystem.md`](../Architecture/LoadoutSystem.md)
+- **Loadout** — per-character active gear (Resonator budget of 5; Generic and Refractor have fixed slots), validated vs inventory at battle start — `ULoadoutComponent` — → [`../Architecture/LoadoutSystem.md`](../Architecture/LoadoutSystem.md)
 - **Inventory** — ownership warehouse, distinct from loadout — `UInventoryComponent` — → [`../Architecture/ItemSystem.md`](../Architecture/ItemSystem.md)
 - **Equipment generation / rolls** — fixed substat budget + tier-scaled pillar budget, zero-sum broken-stick — `UEquipmentBonusGenerator` / `ZeroSumBrokenStick` — → [`../Architecture/PerInstanceRollSystem.md`](../Architecture/PerInstanceRollSystem.md), [`../Architecture/StatComposition.md`](../Architecture/StatComposition.md)
 - **Economy loop** — faucet→sink map: dismantle/break earn essence, upgrade/purchase/merge/reroll spend it — `UEconomyService` (`Currency/EconomyService.cpp`) — → [`Economy.md`](./Economy/Economy.md)
