@@ -1472,6 +1472,10 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index)
                 Removed.Add(Abilities[i]->Name);
             }
             Abilities.SetNum(FMath::Min(Abilities.Num(), Cap));
+            if (Removed.IsEmpty())
+            {
+                continue; // an earlier drop this pass already brought it under the cap
+            }
             DroppedFinding.Reason += FString::Printf(TEXT(": %s"), *FString::Join(Removed, TEXT(", ")));
             break;
         }
@@ -1496,6 +1500,10 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index)
                     Removed.Add(FString::Printf(TEXT("%s %s x%d"), *UEnum::GetDisplayValueAsText(Untrimmed[i].CrystalId.Tier).ToString(),
                                                 *UEnum::GetDisplayValueAsText(Untrimmed[i].CrystalId.Type).ToString(), Lost));
                 }
+            }
+            if (Removed.IsEmpty())
+            {
+                continue; // the trim for an earlier band's finding covered every band
             }
             DroppedFinding.Reason += FString::Printf(TEXT(": %s"), *FString::Join(Removed, TEXT(", ")));
             break;
@@ -1600,6 +1608,11 @@ namespace
         }
     }
 
+    FText NoPrimaryWeaponText()
+    {
+        return LOCTEXT("PickNoWeapon", "No primary weapon is equipped.");
+    }
+
     template <class TPart>
     FText RefuseUnlessFree(bool bPartInUse, const FText &NotInUse, const TArray<TPart *> &Parts, TPart *Pick)
     {
@@ -1616,7 +1629,7 @@ bool ULoadoutComponent::TryAssignWeaponAbility(int32 LoadoutIndex, UAbilityData 
     return TryChangeLoadout(LoadoutIndex, Ability != nullptr,
                             [Ability](const FCombatLoadout &Loadout, ECharacterClass)
                             {
-                                return RefuseUnlessFree(UsesPrimaryWeapon(Loadout), LOCTEXT("PickNoWeapon", "No primary weapon is equipped."),
+                                return RefuseUnlessFree(UsesPrimaryWeapon(Loadout), NoPrimaryWeaponText(),
                                                         Loadout.PrimaryWeapon.AssignedAbilities, Ability);
                             },
                             [Ability](FCombatLoadout &Loadout) { AddToFirstGap(Loadout.PrimaryWeapon.AssignedAbilities, Ability); }, OutRefusal);
@@ -1627,7 +1640,7 @@ bool ULoadoutComponent::TryAssignWeaponSpell(int32 LoadoutIndex, USpellData *Spe
     return TryChangeLoadout(LoadoutIndex, Spell != nullptr,
                             [Spell](const FCombatLoadout &Loadout, ECharacterClass)
                             {
-                                return RefuseUnlessFree(UsesPrimaryWeapon(Loadout), LOCTEXT("PickNoWeapon", "No primary weapon is equipped."),
+                                return RefuseUnlessFree(UsesPrimaryWeapon(Loadout), NoPrimaryWeaponText(),
                                                         Loadout.PrimaryWeapon.AssignedSpells, Spell);
                             },
                             [Spell](FCombatLoadout &Loadout) { AddToFirstGap(Loadout.PrimaryWeapon.AssignedSpells, Spell); }, OutRefusal);

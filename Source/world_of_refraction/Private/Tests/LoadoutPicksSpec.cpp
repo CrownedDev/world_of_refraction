@@ -156,6 +156,24 @@ void FLoadoutPicksSpec::Define()
 			TestFalse(TEXT("the empty entry went, not a real ability"), Inventory->SavedLoadouts[0].PrimaryWeapon.AssignedAbilities.Contains(nullptr));
 		});
 
+		It("reports one drop when clearing the weapon already removed its extra abilities", [this]()
+		{
+			UAbilityData *Ability = LearnedAbility(EWeaponType::Sword);
+			FWeaponLoadoutEntry &Primary = Inventory->SavedLoadouts[0].PrimaryWeapon;
+			for (int32 i = 0; i <= LoadoutConstants::MAX_WEAPON_ABILITIES; ++i)
+			{
+				Primary.AssignedAbilities.Add(Ability);
+			}
+			UWeaponData *Unowned = NewObject<UWeaponData>(GetTransientPackage());
+			Unowned->WeaponType = EWeaponType::Sword;
+			Primary.WeaponEntry.Weapon = Unowned;
+
+			const TArray<FInvalidSlotFinding> Dropped = Loadouts->DropInvalidParts(0);
+
+			TestEqual(TEXT("only the weapon"), Dropped.Num(), 1);
+			TestTrue(TEXT("is the primary weapon"), Dropped.Num() == 1 && Dropped[0].SlotType == ELoadoutSlotType::PrimaryWeapon);
+		});
+
 		It("trims utility crystals over a tier band's cap, in every loadout", [this]()
 		{
 			AddSwordLoadout();
