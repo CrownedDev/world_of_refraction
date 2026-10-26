@@ -784,6 +784,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A, because a number to check against makes regressions visible early.
 **Answer (Crown):** _write here_
 
+### D-069 — Enemies and bosses
+**Status:** ANSWERED (in progress: more parts as Crown answers) · **Raised:** 2026-10-26 · **Blocks:** — (enemy content, encounter composition Arc 2)
+**Context:** already designed: enemies are characters with inventories/loadouts like players (`Resources_Design.md` §7.9: generic enemies roll from a source-tag item pool, bosses bespoke); AI (`AIArchitecture.md`); multi-enemy encounters (`EncounterCompositionSystem.md` Arc 2). Not designed: what you fight, and how they appear on the open maps (`RunStructure.md`).
+**Answer (Crown):**
+- **(1) Both echoes and creatures (C)** (2026-10-26). **Every mob enemy is "V", as an enemy.** Concept sheet: `docs/Design/Characters/V_turnaround.png` (shared by Crown 2026-10-26; to be added from the PC, as the cloud session cannot upload LFS files):
+  - V: 7 ft, 160 kg; black suit; a faceless head and hands with a **galaxy pattern** on a violet body base; a gold tie with a star; dark smoke wisps rising off the body.
+  - Built on **Manny and Quinn** (UE5's mannequins) as the main guide: their skeleton, rig and animations, with V's look on top.
+  - Creatures add variety alongside the V mobs.
+**Notes for Claude:** mobs share one body (V on the Manny/Quinn skeleton), so variety comes from their **gear and class** (the same inventory/loadout system as players) and element tinting, not new models. Record further answers here; write `docs/Design/Enemies.md` when complete.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
