@@ -1314,7 +1314,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### Q-169 — Luck dodge: the open details
-**Status:** OPEN · **Raised:** 2026-10-26 (B-169) · **Blocks:** — (B-169 shipped with A)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-169) · **Blocks:** — (B-169 shipped with A)
 **Question:** D-085's Luck dodge is in. A few details had no ruling. Are these right?
 **Context:** As built (option A):
 - **Curve:** the chance is Luck x 15%, reaching 15% at full Luck investment. Gear Luck past that adds nothing to dodging (it still lifts crits and crystal-wear skips).
@@ -1328,7 +1328,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **A** keep all of the above (as built).
 - **B** change some (say which): e.g. gear can push the chance up to the 15% cap (the cap reached at the gear ceiling instead of full stat), a lucky dodge does not fire On Dodge or stop a choke hit, roll it for the lumped hits too, no lucky dodge against AoE, one roll per attack instead of per impact, enemies do not luck-dodge.
 **Recommendation:** A. It is the simplest reading of D-085. The deckbuilder has no Luck dodge to borrow from.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A, approved by the reference-backed default** (Crown, 2026-10-26: 'just go with them'): as built: counts as a full Dodge, rolled per hit, for everyone (enemies too), Luck x 15% capped at 15% (Fire Emblem / Darkest Dungeon style per-attack dodge chances, shown on screen).
 **Notes for Claude:** _optional_
 
 ### Q-147 — Does an evolution attached to a weapon or ring hold spells by its tier too?
