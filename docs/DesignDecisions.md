@@ -109,7 +109,7 @@ The queue of questions only Crown can answer.
 - Whether the setting can be changed mid-fight is open (D-026).
 
 ### D-005 — Should elements change damage?
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-064
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-064
 **Question:** Weakness/resistance multipliers, or are elements status-buildup only?
 **Context:** `ElementMultiplier = 1.0f` always (`DamageCalculator.cpp:207-208`).
 **Options:**
@@ -117,7 +117,12 @@ The queue of questions only Crown can answer.
 - B: a weakness wheel.
 - C: per-character resistances only.
 **Recommendation:** C. A light touch that keeps the buildup system as the star.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **C** (2026-10-26). The resistance table, which already sets each character's starting weaknesses, changes **damage as well as status buildup**. Crown notes the table's structure could be improved, as with other systems.
+**Notes for Claude:**
+- Use the same composed resistance the buildup path reads (class table `ClassInnateResistanceTable.h` + gear sources, `docs/Architecture/ResistanceSystem.md`) to set `ElementMultiplier` (`DamageCalculator.cpp:207-208`): `1 - resistance × ElementDamageResistanceScale`, clamped. The scale is a named constant, `// TODO: tune` (a lighter touch than buildup).
+- Element column only for now. If the physical columns (Slash/Pierce/Impact) would double-count with Defense, leave them out and say so in the hand-off.
+- Tests: weak takes more, resistant takes less, neutral unchanged, `None` element unchanged.
+- The table restructure is its own job (B-095), not part of B-064.
 
 ### D-006 — Where do Prisms come from?
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-073

@@ -85,7 +85,8 @@
 | B-093 | Key bindings for **Defend, Infusion and Infusion level** (Enhanced Input actions, keyboard + gamepad) alongside the menu (Crown, 2026-10-26: menu for now, keys later). Fills the commented-out `InfusionAction`/`InfusionLevelAction` placeholders in `CombatPlayerController.h:51-71`; fits CommonUI input routing | CC | M | B-092 | Each key works on your turn (and on gamepad); menu still works | TODO |
 | B-062 | Effect identity: per-actor fires-once, instants recorded, refresh vs stack per D-012 (or via GAS stage 3) | CC | M | D-011, D-012 | Tests for each rule | BLOCKED (D-011) |
 | B-063 | Wind SkipTurn enforced per D-014; BD-Darkness `DrainEnergy` case; Void `RandomSkill` minimal | CC | M | D-014 | Each element cap does something | BLOCKED (D-014) |
-| B-064 | Element damage per D-005; `OnDamageDealt` carries element | CC | M | D-005 | Damage numbers can tint by element | BLOCKED (D-005) |
+| B-064 | Element damage per D-005 (C): the resistance table also scales damage via `ElementMultiplier`; `OnDamageDealt` carries element | CC | M | D-005 | Tests: weak/resistant/neutral; damage numbers can tint by element | TODO |
+| B-095 | Resistance table structure: move `ClassInnateResistanceTable` (hard-coded C++) into a designer-editable data asset, same values; debug print button | CC | M | B-064 | Same numbers in tests before/after; editable in the Details panel | BLOCKED (B-064) |
 | B-065 | Cleanse vs gear effects per D-015 | CC | S | D-015 | Test | BLOCKED (D-015) |
 | B-066 | Aura element inheritance for buff types; Cleanse payload wired (Roadmap Design Gaps) | CC | M | — | `DA_Spell_Aura` and `DA_Spell_Cleanse` do something | TODO |
 | B-067 | Small fixes: TurnManager null checks, DoubleHit totals, corpse return-anim, anim-wait hang, GI deref | CC | M | B-001 | Each with a regression test or PIE note | TODO |
