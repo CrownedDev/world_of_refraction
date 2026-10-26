@@ -1530,7 +1530,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **A** block on the press; switch to the parry montage when the impact resolves Perfect (one montage visible at a time; never one added per impact).
 - **B** play nothing on the press; play block or parry at the impact (the press feels laggy).
 **Recommendation:** A. It is how Sekiro's single block/deflect button works: the guard pose on the press, the deflect animation and spark on a perfectly timed hit; it is widely praised for feeling responsive. Not lore.
-**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Answer (Crown):** **Changed by Crown** (2026-10-26): **one Guard animation**, the **block**, for every Guard, normal or Perfect; no parry montage, no switch mid-animation. A **Perfect Guard shows with a VFX flash and its own sound at the timing moment** (Expedition 33's parry flash; Sekiro's deflect sparks). Replaces the default A.
 **Notes for Claude:** applied (fix/B-182-perfect-guard-parry-anim): `GuardRules::ImpactAnimationOverride`, called in `UActionExecutor`'s per-impact defense resolve.
 
 ### Q-040 — Switch the effect read sites to tags in stage 1?
