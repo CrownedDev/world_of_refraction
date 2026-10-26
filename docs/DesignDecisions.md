@@ -918,7 +918,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Context:** `CombatCameraDirector.cpp` HandleActionStarted / HandleActorTurnStarted. (1) With **camera movement off**, skill cinematics are skipped too (one static view). (2) **Enemy skills** play their cinematics like yours. (3) A cinematic runs **until it ends or the next turn starts** (not cut when the action's damage resolves).
 **Options:** A keep all three / B movement-off still plays cinematics (only turn moves stop) / C enemy skills keep the pan-out view (no cinematics) / any mix.
 **Recommendation:** A, because movement off is a motion-sickness setting (cinematics move the camera most), enemy cinematics are how you read an incoming hit (design §2, Defence mode), and cutting at damage would chop the end of most shots.
-**Answer (Crown):** **A, keep all three** (2026-10-26): movement-off also skips cinematics; enemy skills play their cinematics; a cinematic runs until it ends or the next turn starts. Revisit after Crown's PIE pass of B-156 if anything feels wrong.
+**Answer (Crown):** **A, keep all three** (2026-10-26): movement-off also skips cinematics; enemy skills play their cinematics; a cinematic runs until it ends or the next turn starts. **Keep for now, needs testing** (Crown): mark all three as untested defaults to check in PIE (`docs/PIE/B-156.md`). **Each also becomes a setting** (Crown, 2026-10-26): (1) cinematics on/off separate from camera movement, (2) enemy skill cinematics on/off, (3) skip a cinematic once its hit has landed. Defaults as above.
 **Notes for Claude:** _optional_
 
 ### D-079 — The hub and the story
