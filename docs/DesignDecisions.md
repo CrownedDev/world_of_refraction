@@ -1339,6 +1339,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Found items** go **into the inventory if there's room, otherwise to storage**; the player can move items between them (at rest spots during a run). Nothing is thrown away.
 - **Found gear** goes to the **run's gear list** (equip at rest spots), never to inventory slots.
 - A merge's change goes to the inventory or, if full, to storage, so a merge is never refused for space (Q-177).
+- **Restocking (Crown, 2026-10-26):** at rest spots, **auto-refill tops up the inventory from storage** (MH camp style), up to each item's stack and the crystal tier caps (Q-155). Rest spots in a run reach **home storage** (everything you own) (A). In a fight you use only what's in the inventory.
 **Notes for Claude, open details to confirm with Crown:**
 - Found gear and items are **run-only** (D-002, lost at run end) unless Crown says otherwise; during a run, "storage" for found items is then a run stash that empties at run end. Confirm when building.
 - How the inventory limit grows (account perks, like D-021's slot growth?).
