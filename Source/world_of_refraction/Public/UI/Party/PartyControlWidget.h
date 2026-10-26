@@ -1,6 +1,7 @@
 // PartyControlWidget.h
 // PLACEHOLDER UI (B-071): who plays each party member in battle (D-004), what
-// happens when your fighters fall (D-045) and each member's start cell (B-149, D-042). Plain buttons built in C++, opened with
+// happens when your fighters fall (D-045), each member's start cell (B-149, D-042) and a
+// stand-in rest spot that revives fallen members (B-150, D-043). Plain buttons built in C++, opened with
 // the console command wor.UI.PartyControl. Replaced by the CommonUI party and
 // Settings screens (D-024).
 //
@@ -59,6 +60,9 @@ private:
 
 	UFUNCTION()
 	void HandleFallSettingClicked();
+
+	UFUNCTION()
+	void HandleReviveFallenClicked();
 
 	UFUNCTION()
 	void HandleCloseClicked();

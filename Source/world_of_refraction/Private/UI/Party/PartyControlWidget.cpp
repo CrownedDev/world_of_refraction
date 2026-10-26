@@ -106,6 +106,10 @@ TSharedRef<SWidget> UPartyControlWidget::RebuildWidget()
 		FallSettingText = PartyControlBuild::AddButton(WidgetTree, Box, FallButton);
 		FallButton->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleFallSettingClicked);
 
+		UButton *ReviveButton = nullptr;
+		PartyControlBuild::AddButton(WidgetTree, Box, ReviveButton)->SetText(LOCTEXT("ReviveFallen", "Rest: revive the fallen"));
+		ReviveButton->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleReviveFallenClicked);
+
 		UButton *CloseButton = nullptr;
 		PartyControlBuild::AddButton(WidgetTree, Box, CloseButton)->SetText(LOCTEXT("Close", "Close"));
 		CloseButton->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleCloseClicked);
@@ -150,7 +154,8 @@ void UPartyControlWidget::Refresh()
 		const FText Control = SlotIndex == PartyConstants::LEADER_SLOT ? LOCTEXT("Leader", "You (leader)")
 							  : Member->bPlayerControlled       ? LOCTEXT("Player", "You")
 																: LOCTEXT("AI", "AI");
-		SlotTexts[SlotIndex]->SetText(FText::Format(LOCTEXT("SlotRow", "{0}: played by {1}"), Name, Control));
+		const FText Fallen = Member->IsFallen() ? LOCTEXT("FallenTag", " (fallen)") : FText::GetEmpty();
+		SlotTexts[SlotIndex]->SetText(FText::Format(LOCTEXT("SlotRow", "{0}{2}: played by {1}"), Name, Control, Fallen));
 	}
 
 	for (int32 SlotIndex = 0; SlotIndex < FormationTexts.Num(); ++SlotIndex)
@@ -246,6 +251,16 @@ void UPartyControlWidget::HandleFallSettingClicked()
 	{
 		PartySession->SetLetAIFinish(!PartySession->GetLetAIFinish());
 	}
+}
+
+void UPartyControlWidget::HandleReviveFallenClicked()
+{
+	if (UPartySessionSubsystem *PartySession = PartyControlBuild::PartySessionOf(this))
+	{
+		PartySession->ReviveFallenMembers();
+	}
+	Refresh();
+	UE_LOG(LogTemp, Log, TEXT("%s"), *GetPartyControlString());
 }
 
 void UPartyControlWidget::HandleCloseClicked()
