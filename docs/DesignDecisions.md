@@ -913,12 +913,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### D-078 — Combat camera: three choices the basic version made
-**Status:** OPEN · **Raised:** 2026-10-26 (B-156) · **Blocks:** — (B-156 shipped with the recommendation; B-157 tunes it)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-156) · **Blocks:** — (B-156 shipped with the recommendation; B-157 tunes it)
 **Question:** B-156 had to pick three behaviours D-074 doesn't cover. Keep them?
 **Context:** `CombatCameraDirector.cpp` HandleActionStarted / HandleActorTurnStarted. (1) With **camera movement off**, skill cinematics are skipped too (one static view). (2) **Enemy skills** play their cinematics like yours. (3) A cinematic runs **until it ends or the next turn starts** (not cut when the action's damage resolves).
 **Options:** A keep all three / B movement-off still plays cinematics (only turn moves stop) / C enemy skills keep the pan-out view (no cinematics) / any mix.
 **Recommendation:** A, because movement off is a motion-sickness setting (cinematics move the camera most), enemy cinematics are how you read an incoming hit (design §2, Defence mode), and cutting at damage would chop the end of most shots.
-**Answer (Crown):** _pending (try it in PIE first: `docs/PIE/B-156.md`)_
+**Answer (Crown):** **A, keep all three** (2026-10-26): movement-off also skips cinematics; enemy skills play their cinematics; a cinematic runs until it ends or the next turn starts. Revisit after Crown's PIE pass of B-156 if anything feels wrong.
 **Notes for Claude:** _optional_
 
 ### D-079 — The hub and the story
