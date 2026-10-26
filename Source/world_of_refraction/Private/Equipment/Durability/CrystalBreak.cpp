@@ -50,7 +50,8 @@ namespace
 		return StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(Type));
 	}
 
-	/** Dismantles an owned evolution entry (hybrid essence + remove entry + free cap slot). An
+	/** OBSOLETE (Q-159: evolutions are never lost to wear; unreachable): remove after Crown's PIE pass.
+	 *  Dismantles an owned evolution entry (hybrid essence + remove entry + free cap slot). An
 	 *  invalid InstanceID is an authored / asset-only evolution with no owned record: the slot
 	 *  clear is the whole action, no essence. */
 	void CrystalBreakDismantleEvolution(AActor *Actor, const FGuid &InstanceID)
@@ -121,7 +122,7 @@ namespace
 		case EAttachedItemKind::Crystal:
 			CrystalBreakYieldGem(Actor, Slot.CrystalId, CrystalName);
 			break;
-		case EAttachedItemKind::Evolution:
+		case EAttachedItemKind::Evolution: // OBSOLETE: unreachable since Q-159 (CrystalBreakDestroySlot keeps evolutions)
 			CrystalBreakDismantleEvolution(Actor, Attachment.Evolution.InstanceID);
 			break;
 		case EAttachedItemKind::Fusion:
