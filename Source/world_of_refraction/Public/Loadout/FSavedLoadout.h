@@ -294,8 +294,10 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
      *  happens at UInventoryData level. BD rules follow the character: pass its
      *  bBrokenDarknessInnate when known; unset = guessed from whether BD pools are authored.
      *  SpellDiscount: the owning character's authored mastery discount (D-080 = D,
-     *  UCharacterData::GetAuthoredSpellDiscount); 0 when no character is attached. */
-    TArray<FString> GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness = TOptional<bool>(), int32 SpellDiscount = 0) const;
+     *  UCharacterData::GetAuthoredSpellDiscount); 0 when no character is attached.
+     *  bCheckSpellBudget: false skips the spell weight budgets (Q-161). */
+    TArray<FString> GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness = TOptional<bool>(), int32 SpellDiscount = 0,
+                                       bool bCheckSpellBudget = true) const;
 
     // OBSOLETE (B-028): the pre-merge editor check, kept for comparison until Crown's PIE pass.
     TArray<FString> GetValidationErrorsLegacy() const;

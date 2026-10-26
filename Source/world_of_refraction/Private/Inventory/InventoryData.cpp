@@ -15,7 +15,8 @@
 
 // ==================== VALIDATION ====================
 
-TArray<FString> UInventoryData::GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness, int32 SpellDiscount) const
+TArray<FString> UInventoryData::GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness, int32 SpellDiscount,
+                                                   bool bCheckSpellBudget) const
 {
     TArray<FString> Errors;
 
@@ -82,7 +83,7 @@ TArray<FString> UInventoryData::GetValidationErrors(TOptional<bool> bCharacterIs
             TEXT("Loadout[%d] '%s': "), LoadoutIdx, *Loadout.LoadoutName);
 
         // Struct-internal errors (slot consistency, count caps, BD rules)
-        for (const FString &Err : Loadout.GetValidationErrors(bCharacterIsBrokenDarkness, SpellDiscount))
+        for (const FString &Err : Loadout.GetValidationErrors(bCharacterIsBrokenDarkness, SpellDiscount, bCheckSpellBudget))
         {
             Errors.Add(Prefix + Err);
         }
@@ -173,6 +174,19 @@ bool UInventoryData::HasValidationErrors() const
     return GetValidationErrors().Num() > 0;
 }
 
+void UInventoryData::GetStandaloneValidation(TArray<FString> &OutErrors, TArray<FString> &OutWarnings) const
+{
+    OutErrors = GetValidationErrors(TOptional<bool>(), /*SpellDiscount*/ 0, /*bCheckSpellBudget*/ false);
+    OutWarnings.Reset();
+    for (const FString &Message : GetValidationErrors())
+    {
+        if (!OutErrors.Contains(Message))
+        {
+            OutWarnings.Add(Message);
+        }
+    }
+}
+
 // ==================== EDITOR ====================
 
 #if WITH_EDITOR
@@ -180,10 +194,17 @@ EDataValidationResult UInventoryData::IsDataValid(FDataValidationContext &Contex
 {
     EDataValidationResult Result = Super::IsDataValid(Context);
 
-    for (const FString &Error : GetValidationErrors())
+    TArray<FString> Errors;
+    TArray<FString> Warnings;
+    GetStandaloneValidation(Errors, Warnings);
+    for (const FString &Error : Errors)
     {
         Context.AddError(FText::FromString(Error));
         Result = EDataValidationResult::Invalid;
+    }
+    for (const FString &Warning : Warnings)
+    {
+        Context.AddWarning(FText::FromString(Warning + TEXT(" (no character; its owner's Validate is the real check)")));
     }
 
     return Result;

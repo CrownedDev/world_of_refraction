@@ -198,7 +198,7 @@ namespace
 			// BD pool count + element-match + shared weight budget are owned by
 			// ValidateBDSpellLoadout. Reported, not cleared (BD pool entries are never auto-cleared).
 			for (const FString &Err : FCombatLoadout::ValidateBDSpellLoadout(
-					 Loadout.InnateSpells, Loadout.BDSpellPools, Context.SpellDiscount, /*bCheckWeight=*/true))
+					 Loadout.InnateSpells, Loadout.BDSpellPools, Context.SpellDiscount, /*bCheckWeight=*/Context.bCheckSpellBudget))
 			{
 				Sink.Add(ELoadoutSlotType::BDPoolSpell, -1, false, Err);
 			}
@@ -252,7 +252,7 @@ namespace
 				Used += SpellPoolConstants::SpellSlotEffectiveCost(Spell->Tier, Context.SpellDiscount);
 			}
 		}
-		if (Used > SpellPoolConstants::INNATE_SPELL_BUDGET)
+		if (Context.bCheckSpellBudget && Used > SpellPoolConstants::INNATE_SPELL_BUDGET)
 		{
 			Sink.Add(ELoadoutSlotType::InnateSpell, -1, false,
 					 FString::Printf(TEXT("Innate spell budget exceeded: %d/%d points used (discount -%d)"),

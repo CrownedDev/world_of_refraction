@@ -129,10 +129,18 @@ public:
     /** Per-loadout struct validation plus cross-checks against the
      *  ownership lists above. Returns one error string per violation.
      *  bCharacterIsBrokenDarkness: the owning character's BD flag when known (UCharacterData).
-     *  SpellDiscount: that character's authored spell discount (D-080 = D); 0 with no character. */
-    TArray<FString> GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness = TOptional<bool>(), int32 SpellDiscount = 0) const;
+     *  SpellDiscount: that character's authored spell discount (D-080 = D); 0 with no character.
+     *  bCheckSpellBudget: false skips the spell weight budgets (Q-161). */
+    TArray<FString> GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness = TOptional<bool>(), int32 SpellDiscount = 0,
+                                        bool bCheckSpellBudget = true) const;
 
-    /** Quick check for any validation errors */
+    /** This asset validated on its own (no character, Q-161 = D): the spell weight budgets are
+     *  OutWarnings, since a strong owner's discount may fit them; everything else is OutErrors.
+     *  The owning character's Validate stays the real budget check (D-080). */
+    void GetStandaloneValidation(TArray<FString> &OutErrors, TArray<FString> &OutWarnings) const;
+
+    /** Quick strict check: any GetValidationErrors() at discount 0, spell budgets counted as errors
+     *  (unlike IsDataValid, which warns about them, Q-161). */
     bool HasValidationErrors() const;
 
     // ==================== EDITOR ====================

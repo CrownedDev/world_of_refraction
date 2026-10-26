@@ -23,7 +23,8 @@ bool FSavedLoadout::IsValidForClass(ECharacterClass CharacterClass) const
     return RequiredClass == CharacterClass;
 }
 
-TArray<FString> FSavedLoadout::GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness, int32 SpellDiscount) const
+TArray<FString> FSavedLoadout::GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness, int32 SpellDiscount,
+                                                  bool bCheckSpellBudget) const
 {
     TArray<FString> Errors = FLoadoutRules::CollectAuthoredShapeErrors(*this);
 
@@ -33,6 +34,7 @@ TArray<FString> FSavedLoadout::GetValidationErrors(TOptional<bool> bCharacterIsB
     // D-080 = D: the owning character's authored discount (0 with no character). Element
     // castability is left to the fight. Ownership is UInventoryData's cross-check.
     Context.SpellDiscount = SpellDiscount;
+    Context.bCheckSpellBudget = bCheckSpellBudget;
     Errors.Append(FLoadoutRules::ToReasons(
         FLoadoutRules::CollectFindings(FCombatLoadout::CreateFromSavedLoadout(*this), Context)));
     return Errors;
