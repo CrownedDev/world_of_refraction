@@ -697,12 +697,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** effect definitions stay as **templates** only. Change the identity used for merging (`SkillEffectManager.cpp:320-331`, `PackEffectID(DefID, BundleIndex, payload)`) to include the source item's `PersistentID` (or the skill / actor for non-gear sources), consistent with D-011 (per character) and D-012 (per source). Add a `bDoesNotStack` flag to the definition. Fold into B-062 and the effects review (B-044).
 
 ### D-054 — Is "Turn Speed Up" a buff?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** `ModifyTurnSpeed` is displayed "Turn Speed Up" and adds speed (`Combat/TurnManager.cpp:228-231`), but `IsDebuff` lists it (`Skills/Effects/ESkillEffectType.h:390`), so cleansing an ally strips it and Iolite can't strip it from an enemy. Is it a buff?
 **Context:** Rules: 04 C4-8.
 **Options:** A a buff / B sign-aware, like Status Resist Up / C a debuff (current).
 **Recommendation:** A, matching its name and what it does.
-**Answer (Crown):** _write here_
+**Answer (Crown):** (2026-10-26) **On an ally it's a buff; on an enemy it's a debuff.** Used on an ally it speeds them up (a buff, cleanse leaves it, Iolite can strip it); used on an enemy it slows them (a debuff, cleanse removes it).
+**Notes for Claude:** this is the stat-stone consumable rule (`AugmentStoneSystem.md` "dual-form": ally → +X%, enemy → −X%, the sign flips on target allegiance). Implement as sign-aware (option B, like `ModifyStatusResist`): the sign is set when applied, from the target's side relative to the applier; `IsBuff`/`IsDebuff` read the sign. Remove `ModifyTurnSpeed` from the unconditional debuff list (`ESkillEffectType.h:390`).
 
 ### D-055 — Do bonus and Execution turns count toward effect durations?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-062, B-063
