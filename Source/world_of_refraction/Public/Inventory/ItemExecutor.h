@@ -153,7 +153,9 @@ private:
 	 *  OBSOLETE (B-021): UseItem no longer reaches the stat-stone wrappers below
 	 *  (ExecuteRawDamage/SpellDamage/SpellSpeed/ActionSpeed/CritDamage/Luck/Reflex/TurnSpeedStone/
 	 *  Status/Efficiency/MaxHP/MaxEP), nor ExecuteDefenseBuffEffect's DefenseStone branch (Amber
-	 *  still uses it). Delete them after Crown's PIE pass of B-021 (B-152). */
+	 *  still uses it), nor ExecuteCritBuffEffect's CritStone crit-chance branch (unreachable since
+	 *  CritStone moved to BuffCritDamage; Opal still uses the function). Delete them after Crown's
+	 *  PIE pass of B-021 (B-152). */
 	void ApplyStoneBuffEffect(AActor *User, AActor *Target, FCrystalId Id,
 							   ESkillEffectType BuffType, ESkillEffectType DebuffType,
 							   const FString &DisplaySuffix, FItemUseResult &OutResult);

@@ -36,8 +36,8 @@ namespace ItemIdentity
 
     /** Returns the primary effect category for this crystal type
      *  (Damage / Healing / EnergyRestore / GrantBonusTurn / BuffDefense /
-     *  BuffCrit / Silence / Gamble / Cleanse / StatusClear). Type-only —
-     *  Id.Tier is ignored. */
+     *  BuffCrit / Silence / Gamble / Cleanse / StatusClear); a stat stone's comes from
+     *  its StoneRowTable row (BuffLuck, BuffReflex, ...). Type-only — Id.Tier is ignored. */
     inline EItemEffectType GetItemEffectType(const FCrystalId &Id)
     {
         if (Id.Type == ECrystalType::None)

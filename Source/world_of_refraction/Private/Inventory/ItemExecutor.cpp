@@ -11,6 +11,7 @@
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
+#include "Equipment/Crystals/StoneRowTable.h"
 #include "Combat/CombatConstants.h"
 #include "Inventory/ItemConstants.h"
 
