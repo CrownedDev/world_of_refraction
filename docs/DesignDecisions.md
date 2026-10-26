@@ -706,12 +706,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** this is the stat-stone consumable rule (`AugmentStoneSystem.md` "dual-form": ally → +X%, enemy → −X%, the sign flips on target allegiance). Implement as sign-aware (option B, like `ModifyStatusResist`): the sign is set when applied, from the target's side relative to the applier; `IsBuff`/`IsDebuff` read the sign. Remove `ModifyTurnSpeed` from the unconditional debuff list (`ESkillEffectType.h:390`).
 
 ### D-055 — Do bonus and Execution turns count toward effect durations?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-062, B-063
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-062, B-063
 **Question:** D-030 counts "the holder's own turns". Does an Emerald bonus turn or an Execution turn count as one of them?
 **Context:** Pinned turns are taken from `Combat/TurnManager.cpp:566-575`; the effect tick runs on every turn end (`Skills/Effects/SkillEffectManager.cpp:1099-1153`). Rules: 04 Gaps.
 **Options:** A every turn the holder takes counts / B only normal turns count.
 **Recommendation:** A, the simplest to read ("2 of your turns" means any 2 turns you take), and it needs no special case.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A** (2026-10-26): every turn the holder takes counts toward durations, bonus and Execution turns included. Bonus turns are real turns (D-052).
 
 ### D-056 — Do the generic Speed Buff/Debuff move turn order?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
@@ -848,6 +848,21 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A a new `Resurrect` skill effect: brings a dead ally back at the effect's value as % of max HP, reusing Sapphire's revive path / B revive stays item-only (Sapphire) / C revive spells only out of combat.
 **Recommendation:** A, because D-043 asks for revive spells and Sapphire's path already does the hard part (turn order, death state); the HP % is a per-spell value.
 **Answer (Crown):** _write here_
+### D-070 — Crystal tier limits per character
+**Status:** ANSWERED (one detail to confirm) · **Raised:** 2026-10-26 (Crown) · **Blocks:** —
+**Answer (Crown):** (2026-10-26) **Per character**, a cap on how many crystals of each tier band can be equipped at once:
+| Tier band | Max equipped per character |
+|---|---|
+| S | 1 |
+| A / B | 2 |
+| C / D | 3 |
+| E / F | 4 |
+**Notes for Claude:**
+- Counts every crystal the character has equipped (weapon, ring, evolution and other attachment slots). Enforced in loadout validation (`LoadoutComponent::GetValidationErrors` and the saved-loadout check), with a clear message.
+- **To confirm with Crown:** whether a band's number is for the band combined (e.g. 2 across A and B together) or for each tier (2 A *and* 2 B). Recorded as combined until answered.
+- The deckbuilder caps S-tier **equipment** at 3 per kind per deck and leaves crystals uncapped (`WoR_TCG_Pivot_Design.md` §8b rule 4); this is this game's own rule.
+- Caps as named constants.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
