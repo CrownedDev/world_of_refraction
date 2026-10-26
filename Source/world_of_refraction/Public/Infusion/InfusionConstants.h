@@ -36,7 +36,7 @@ namespace InfusionConstants
 
 	// ==================== TIMING ====================
 
-	/** Time to hold for Level 1 charge (seconds) */
+	/** Time to hold for Level 1 charge (seconds). Read only by the dead InfusionChargeManager (B-034). */
 	constexpr float LEVEL_1_CHARGE_TIME = 0.5f;
 
 	/** Time to hold for Level 2 charge (seconds) */
@@ -44,11 +44,7 @@ namespace InfusionConstants
 
 	// ==================== L2 COSTS (SOURCE-BASED) ====================
 
-	/** Evolution L1 backlash: HP cost as percent of max (5%) */
-	constexpr float EVOLUTION_L1_HP_COST_PERCENT = 0.05f;
-
-	/** Evolution L2 backlash: HP cost as percent of max (10%) */
-	constexpr float EVOLUTION_L2_HP_COST_PERCENT = 0.10f;
+	// Evolution backlash HP cost is EP-based (UInfusionCostHelper::CalculateHPCost, ED-32).
 
 	/** Evolution L1 backlash: Self-status build (flat amount) — pending status mapping */
 	constexpr float EVOLUTION_L1_SELF_STATUS_BUILD = 15.0f;
@@ -67,9 +63,6 @@ namespace InfusionConstants
 
 	/** L2 Spell Size: Size multiplier (2.0x) */
 	constexpr float SPELL_L2_SIZE_MULT = 2.00f;
-
-	/** L2 Spell Size: Damage multiplier (+30%) */
-	constexpr float SPELL_L2_DAMAGE_MULT = 1.30f;
 
 	// ==================== ENERGY COST MULTIPLIERS ====================
 	// Ability and spell now share the same charge tax: L1 = half-again (x1.5,

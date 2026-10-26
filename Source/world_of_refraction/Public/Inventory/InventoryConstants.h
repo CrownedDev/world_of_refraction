@@ -111,12 +111,6 @@ namespace InventoryConstants
     /** Maximum total item uses per battle */
     constexpr int32 MAX_ITEM_USES_PER_BATTLE = MAX_ITEM_LOADOUT_SLOTS * ITEM_USES_PER_SLOT; // 18
 
-    /** Maximum rings for Resonator class */
-    constexpr int32 MAX_RESONATOR_RINGS = 5;
-
-    /** Maximum evolved rings for Resonator class */
-    constexpr int32 MAX_EVOLVED_RESONATOR_RINGS = 2;
-
     // ==================== HELPER FUNCTIONS ====================
 
     /** Get item capacity for a specific tier */
