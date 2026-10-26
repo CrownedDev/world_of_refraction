@@ -1037,6 +1037,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, capped at 15%** (2026-10-26): Luck gives a chance to **automatically dodge** a hit, up to **15%** (lowered from the unused `LUCK_DODGE_MAX` 25%).
 **Notes for Claude:** roll only when the hit would otherwise land (no successful Guard or Dodge press), so timing still matters most; use the per-battle random stream (B-010) so fights replay. Scale with Luck up to the 15% cap (curve `// TODO: tune`). Show it as a "Lucky dodge!" pop-up. Test with a fixed seed.
 
+### D-086 — Ignore Defense: an amount, not all-or-nothing
+**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 02 gap) · **Blocks:** —
+**Answer (Crown):** **B** (2026-10-26): Ignore Defense becomes **an amount set per skill** (e.g. "ignores 30% of Defense"; 100% = today's full ignore), like the deckbuilder's Ignore Defense N.
+**Notes for Claude:** **no separate job:** build it inside the GAS damage calculation (stat maths plan B-146 → B-041/B-042), not in today's `DamageCalculator`. Existing all-or-nothing skills map to 100%.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
