@@ -35,17 +35,17 @@ void UStoryLinesData::PrintStory() const
 	UE_LOG(LogWoR, Log, TEXT("%s"), *GetStoryString());
 }
 
-TArray<const UStoryLinesData *> StoryUnlocks::GatherStoryData()
+TArray<UStoryLinesData *> StoryUnlocks::GatherStoryData()
 {
 	const IAssetRegistry &Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 	TArray<FAssetData> Assets;
 	Registry.GetAssetsByClass(UStoryLinesData::StaticClass()->GetClassPathName(), Assets, /*bSearchSubClasses=*/true);
 	Assets.Sort([](const FAssetData &A, const FAssetData &B) { return A.GetSoftObjectPath().ToString() < B.GetSoftObjectPath().ToString(); });
 
-	TArray<const UStoryLinesData *> Story;
+	TArray<UStoryLinesData *> Story;
 	for (const FAssetData &Asset : Assets)
 	{
-		if (const UStoryLinesData *Data = Cast<UStoryLinesData>(Asset.GetAsset()))
+		if (UStoryLinesData *Data = Cast<UStoryLinesData>(Asset.GetAsset()))
 		{
 			Story.Add(Data);
 		}
@@ -65,7 +65,7 @@ bool StoryUnlocks::AreUnlocked(const TArray<FName> &RequiredMemories, const UMem
 	return true;
 }
 
-const FVLine *StoryUnlocks::FindNextVLine(const TArray<const UStoryLinesData *> &Story, const UMemoryJournalSubsystem &Journal)
+const FVLine *StoryUnlocks::FindNextVLine(const TArray<UStoryLinesData *> &Story, const UMemoryJournalSubsystem &Journal)
 {
 	for (const UStoryLinesData *Data : Story)
 	{
@@ -80,7 +80,7 @@ const FVLine *StoryUnlocks::FindNextVLine(const TArray<const UStoryLinesData *> 
 	return nullptr;
 }
 
-TArray<const FStoryConversation *> StoryUnlocks::GetUnlockedConversations(const TArray<const UStoryLinesData *> &Story,
+TArray<const FStoryConversation *> StoryUnlocks::GetUnlockedConversations(const TArray<UStoryLinesData *> &Story,
 																		 const UMemoryJournalSubsystem &Journal)
 {
 	TArray<const FStoryConversation *> Unlocked;
@@ -103,7 +103,7 @@ static FAutoConsoleCommandWithWorld GStoryPrintCommand(
 	TEXT("Print every V line and conversation, and which are unlocked by the memory journal now (B-194)."),
 	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 	{
-		const TArray<const UStoryLinesData *> Story = StoryUnlocks::GatherStoryData();
+		const TArray<UStoryLinesData *> Story = StoryUnlocks::GatherStoryData();
 		for (const UStoryLinesData *Data : Story)
 		{
 			UE_LOG(LogWoR, Display, TEXT("%s"), *Data->GetStoryString());

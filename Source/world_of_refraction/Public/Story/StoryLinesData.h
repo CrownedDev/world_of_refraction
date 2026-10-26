@@ -76,16 +76,16 @@ public:
 namespace StoryUnlocks
 {
 	/** Every story asset, sorted by path so the order is fixed. */
-	WORLD_OF_REFRACTION_API TArray<const UStoryLinesData *> GatherStoryData();
+	WORLD_OF_REFRACTION_API TArray<UStoryLinesData *> GatherStoryData();
 
 	/** True when every id is a memory in the journal. */
 	WORLD_OF_REFRACTION_API bool AreUnlocked(const TArray<FName> &RequiredMemories, const UMemoryJournalSubsystem &Journal);
 
 	/** V's next line: the first unlocked one not heard yet, or null. */
-	WORLD_OF_REFRACTION_API const FVLine *FindNextVLine(const TArray<const UStoryLinesData *> &Story,
+	WORLD_OF_REFRACTION_API const FVLine *FindNextVLine(const TArray<UStoryLinesData *> &Story,
 														const UMemoryJournalSubsystem &Journal);
 
 	/** Every unlocked conversation, played or not, in order. */
 	WORLD_OF_REFRACTION_API TArray<const FStoryConversation *> GetUnlockedConversations(
-		const TArray<const UStoryLinesData *> &Story, const UMemoryJournalSubsystem &Journal);
+		const TArray<UStoryLinesData *> &Story, const UMemoryJournalSubsystem &Journal);
 }
