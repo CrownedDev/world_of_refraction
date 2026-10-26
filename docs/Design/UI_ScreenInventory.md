@@ -246,6 +246,8 @@ Counts are taken from the source enums, so they are the real scope.
 
 ## Art direction reference (provisional, 2026-10-25)
 
+> **Updated 2026-10-25:** colours, fonts, chrome and kit now follow the deckbuilder's art direction ("dark stone and steel, lit by crystal"); see `UI_DeckbuilderReuse.md` §1. The **Expedition 33 combat layout** below still stands; the "faceted glass + element glow on all frames" styling is replaced by that doc's element-colour rule.
+
 Reference: **Clair Obscur: Expedition 33** combat HUD, re-themed around crystals and refraction. To be validated with mockups before buying the kit.
 
 ### Layout (from the Expedition 33 reference)
