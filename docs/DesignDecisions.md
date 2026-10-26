@@ -1660,6 +1660,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-071-party-into-battle): `ABattleGameMode::BootstrapCombat` possesses the leader's pawn when it fights, otherwise the first Player-set member, otherwise the first spawned.
 
+### Q-151 — Where does the player's one wallet live, and who spends from it?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-151) · **Blocks:** — (B-151 shipped with A)
+**Question:** D-046 moves the wallet to player scope. An AI-played ally has no PlayerState, and a level change destroys the PlayerState. Which wallet does each actor use, and is the save/load part of B-151's test buildable now?
+**Options:**
+- **A** the wallet is a component on the player's PlayerState (`AWoRPlayerState`). The player's pawn uses it; any member of the player's party uses the party leader's; an actor with no player behind it (an enemy) keeps its own. Carrying it across level changes and to disk waits for the Pool persistence arc and the save structs (D-059), as the per-character wallet already wiped on every level change.
+- **B** the wallet lives on a GameInstance subsystem now (survives level changes, but D-064 keeps new state off subsystems and co-op needs it per player).
+**Recommendation:** A. Epic's own samples keep a player's persistent, replicated data on the PlayerState (Lyra's player-scoped state; ShooterGame's score), and an RPG party spending from one purse is the norm (Final Fantasy's and Dragon Quest's shared Gil and Gold). Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-151-player-wallet): `CurrencyWallet::FindFor`, in this order: the pawn's PlayerState wallet; for a local party member, the party leader's (falling back to the world's local player when the leader pointer is stale after OpenLevel); else the actor's own component. An AI ally's spend and earnings are the player's. Flee now takes its Gold share once, from the one wallet (a party of three used to lose three shares of three purses; the total share is unchanged, 10% of what the player holds). The save/load check of B-151 is left for the save job (D-059); spec covers one shared balance. A Blueprint game mode that does not derive from `ATrialGameMode`/`ABattleGameMode` must set Player State Class to `WoRPlayerState`, or its party falls back to each character's own wallet.
+
 ### Q-149 — Which enemies start in the front row and which in the back, until enemies have authored cells?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-149) · **Blocks:** — (B-149 shipped with A)
 **Question:** D-042 says enemies use "tanks front, casters back" until their cells are authored. The game has no tank tag, only the three classes (Generic, Refractor, Resonator).
