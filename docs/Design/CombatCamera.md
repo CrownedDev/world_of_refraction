@@ -23,6 +23,7 @@
 **Settings:**
 - Turn-view style (centred-wide / over-the-shoulder / tactical).
 - **Camera movement off:** a static wide camera, for motion sickness (Expedition 33 ships one).
+- **Cinematic settings (D-078, defaults untested, check in PIE):** skill cinematics on/off (default: off when camera movement is off), enemy skill cinematics on/off (default on), skip a cinematic after its hit lands (default off: plays to the end or the next turn).
 
 ## 3. Skill cinematics (Level Sequences)
 
