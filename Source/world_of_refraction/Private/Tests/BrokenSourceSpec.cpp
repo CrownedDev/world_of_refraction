@@ -6,6 +6,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
+#include "AI/AIDecisionManager.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Rings/RingData.h"
@@ -229,6 +230,44 @@ void FBrokenSourceSpec::Define()
 			SpawnResonatorWithRing(BROKEN_SOURCE_INTACT_DURABILITY);
 			TestTrue(TEXT("C-tier castable"), Loadout->GetBrokenSourceReason(CTierSpell).IsEmpty());
 			TestEqual(TEXT("nothing greyed"), Capabilities(ECharacterClass::Resonator).BlockedSpellReasons.Num(), 0);
+		});
+	});
+
+	Describe("the AI (B-181)", [this]()
+	{
+		It("never picks a broken primary evolution's Breakthrough spells, which the loadout still lists", [this]()
+		{
+			FCombatLoadout &Active = Spawn(ECharacterClass::Generic);
+			Active.PrimarySlotType = EPrimarySlotType::Evolution;
+			Active.PrimaryEvolution.Item = NewObject<UEvolutionItemData>(GetTransientPackage());
+			Active.PrimaryEvolution.CurrentDurability = BROKEN_SOURCE_BROKEN_DURABILITY;
+			Active.EvolutionSpells = {FTierSpell};
+			TestTrue(TEXT("the loadout still lists it"), Loadout->GetAvailableSpells().Contains(FTierSpell));
+			TestFalse(TEXT("the AI does not pick it"), UAIDecisionManager::GetUsableSpells(Loadout).Contains(FTierSpell));
+			Active.PrimaryEvolution.CurrentDurability = BROKEN_SOURCE_INTACT_DURABILITY;
+			TestTrue(TEXT("the AI picks it while intact"), UAIDecisionManager::GetUsableSpells(Loadout).Contains(FTierSpell));
+		});
+
+		It("never picks a broken ring's higher-tier preset, which the loadout still lists", [this]()
+		{
+			SpawnResonatorWithRing(BROKEN_SOURCE_BROKEN_DURABILITY);
+			USpellData *HighPreset = BrokenSourceSpell(EItemTier::B_Tier);
+			Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].RingLoadout[0].RingEntry.Ring->PresetSpells = {HighPreset};
+			TestTrue(TEXT("the loadout still lists the B-tier preset"), Loadout->GetAvailableSpells().Contains(HighPreset));
+			TestFalse(TEXT("the AI does not pick it"), UAIDecisionManager::GetUsableSpells(Loadout).Contains(HighPreset));
+		});
+
+		It("never picks a spell from a broken weapon crystal", [this]()
+		{
+			SpawnGenericWithWeapon(BROKEN_SOURCE_BROKEN_DURABILITY);
+			TestFalse(TEXT("not offered"), UAIDecisionManager::GetUsableSpells(Loadout).Contains(FTierSpell));
+		});
+
+		It("picks from every spell while the source is intact", [this]()
+		{
+			SpawnResonatorWithRing(BROKEN_SOURCE_INTACT_DURABILITY);
+			TestEqual(TEXT("same as the loadout"), UAIDecisionManager::GetUsableSpells(Loadout).Num(), Loadout->GetAvailableSpells().Num());
+			TestEqual(TEXT("no loadout: none"), UAIDecisionManager::GetUsableSpells(nullptr).Num(), 0);
 		});
 	});
 
