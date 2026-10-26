@@ -17,6 +17,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-007](B-007.md) | `feature/B-007-automation-tests` (in `dev`) | 26 headless tests + test.sh output; no gameplay change | Not tested |
 | [B-006](B-006.md) | `chore/B-006-log-categories` (in `dev`) | Seven `LogWoR*` log categories; no gameplay change | Not tested |
 | [B-061](B-061.md) | `fix/B-061-stun-attack-defend` (in `dev`) | Stunned = Attack or Defend only; no more skipped turn | Not tested |
+| [B-002](B-002.md) | `refactor/B-002-merge-dev` (**not** in `dev`; B-003) | `dev` merged into the native-UI refactor; HUD + results + vitals banking | Not tested |
 
 Move rows to **Done** when every check passes.
 
