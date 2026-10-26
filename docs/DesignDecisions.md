@@ -1052,7 +1052,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Remove the built-in `ParryReflect` from the Guard path; reflected damage skips Defense, resistance and crit.
 - Fold into B-168 (Guard).
 
-### D-088 — Action pips from Reflex; no Turn Speed (fixed turn order)
+### D-088 — Actions per turn (discussion: one utility then one battle action; Turn Speed stays)
 **Status:** DISCUSSED, NOT TO BUILD YET (Crown, 2026-10-26: a discussion for now; don't implement until Crown says) · **Raised:** 2026-10-26 (rules review, actions per turn) · **Blocks:** — (turn-system plan, B-170)
 **Answer (Crown):** (2026-10-26)
 - **Action pips:** each turn you get **action pips** set by your **Reflex** stat; each action (attack, skill, item, …) costs a pip, so a high-Reflex character can act **more than once per turn**.
@@ -1077,7 +1077,9 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Simplified (Crown, 2026-10-26, latest; still discussion only), replacing the pool/pip ideas above:** the action-point pool was over-engineering.
 - **Each turn: one battle action + one utility action**, so a turn is more tactical than one move. **The split (Crown, 2026-10-26):** **battle action** = basic attack, skill / spell, **move row**; **utility action** = **Defend**, use an item (incl. utility crystals), switch weapon or ring. So you can e.g. attack and Defend in the same turn, or move row and drink a potion. If built, this replaces the separate "one free switch per turn" (ET-19) and "free row move once per turn" (D-096) rules.
 - **Energy stays, with low values** (deckbuilder-style small numbers) as the cost of skills.
-- No action-point costs by tier. Open: whether Turn Speed removal / Reflex pips (above) still stand under this simpler model.
+- No action-point costs by tier.
+- **Order (Crown, 2026-10-26):** **utility first, then battle.** Using your battle action **ends your turn**, so any utility action (Defend, item, switch) has to come before it.
+- **Turn Speed stays (Crown, 2026-10-26, A):** the Reflex-pip and fixed-turn-order ideas above are dropped. Speed-based turn order, the 2:1 cap (D-049), bonus turns (D-052) and Wind's push-back (D-014) stand; Ice slows Action Speed (as Crown first said, D-029). The Turn Speed family is **not** retired (D-054/D-056 as decided).
 
 **Notes for Claude, open details to bring to Crown (as questions in the plan, B-170):**
 - Pip numbers: base pips, Reflex thresholds, the cap (suggested: 1 base, max 3).
