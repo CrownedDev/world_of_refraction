@@ -99,7 +99,7 @@ Code paths are relative to `Source/world_of_refraction/`. The deckbuilder is 1v1
 
 ## Gaps
 - No rule for how many characters you can find in one trial, or what happens when you find one with a full party (PA-01 refuses the invite today). **Ruled (Crown, 2026-10-26, rules review): B, swap.** With a full party you can send a member away **for the rest of the run** and the found character joins; a hub member sent away returns to the roster after the run. Offered when you find them and at rest spots. How many characters a trial holds: content, per trial.
-- No rule for leaving a found character behind mid-run (dismissing them) or swapping them for a hub member.
+- No rule for leaving a found character behind mid-run (dismissing them) or swapping them for a hub member. **Ruled (Crown, 2026-10-26, rules review): A, dismiss at rest spots.** The character leaves for the rest of the run; their gear returns to the run inventory. **Co-op:** other players can be **invited from rest spots mid-run** (drop-in), built with co-op (scheduled after B-090/B-105, D-065).
 - No player action to change row in combat, and no skill that pushes or pulls (PA-32); row bonuses have no source today.
 - Party size vs grid: the grid holds 9 cells, but sides are capped at 3; no rule says whether bigger enemy groups (more than 3) are ever allowed (`AutoAssignTeam` silently drops extras, `Combat/Grid/CombatGridSubsystem.cpp:286-306`).
 - No rule for a Draw (both sides wiped at once): today it routes like any other fight end.
