@@ -15,6 +15,7 @@ You are in **Backlog mode** (CLAUDE.md, "Backlog mode"). Follow these steps exac
 ## 1. Pick
 - Pick the **first `TODO`** whose `Needs` are all `DONE` or `REVIEW (in dev)` and whose decisions aren't `OPEN`.
 - **Skip** jobs marked `Who = Crown`.
+- **Skip** jobs marked `Who = CC+UE` unless the Unreal editor is open and unreal-mcp answers (try one read-only call). Never edit `.uasset`/`.umap` any other way.
 - If the argument names IDs or a count, honour it.
 - If nothing is pickable, go to step 6.
 
