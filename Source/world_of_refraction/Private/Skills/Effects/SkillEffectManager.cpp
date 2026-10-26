@@ -333,6 +333,7 @@ void USkillEffectManager::ApplyEquipmentEffects(
 		for (FActiveSkillEffect &Runtime : Runtimes)
 		{
 			Runtime.SourceKey = G.SourceKey;
+			Runtime.bFromGear = true;
 			ApplyEffect(Target, Runtime, nullptr, Source.EffectName, -1);
 		}
 	}
@@ -722,7 +723,7 @@ int32 USkillEffectManager::RemoveAllBuffs(AActor *Target)
 
 	for (int32 i = Effects.Num() - 1; i >= 0; --i)
 	{
-		if (Effects[i].IsBuff())
+		if (Effects[i].IsBuff() && Effects[i].IsCleansable())
 		{
 			FActiveSkillEffect RemovedEffect = Effects[i];
 
@@ -763,7 +764,7 @@ int32 USkillEffectManager::RemoveAllDebuffs(AActor *Target)
 
 	for (int32 i = Effects.Num() - 1; i >= 0; --i)
 	{
-		if (Effects[i].IsDebuff())
+		if (Effects[i].IsDebuff() && Effects[i].IsCleansable())
 		{
 			FActiveSkillEffect RemovedEffect = Effects[i];
 
@@ -1977,6 +1978,8 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 							Runtime.SourceKey = static_cast<int32>(HashCombine(static_cast<uint32>(G.SourceKey), GetTypeHash(Owner->GetUniqueID())));
 						}
 
+						// On the wearer it's a gear effect (cleanse leaves it, D-015); on someone else it isn't.
+						Runtime.bFromGear = (AppTarget == Owner);
 						ApplyEffect(AppTarget, Runtime, Owner, E.EffectName, OwnerTeam);
 
 						UE_LOG(LogWoREffects, Log, TEXT("[DefenseTrigger] FIRE: %s (ID=%d) %s -> %s outcome=%s perfect=%d"),
@@ -2297,10 +2300,10 @@ void USkillEffectManager::DebugPrintEffects(AActor *Actor) const
 	for (int32 i = 0; i < Effects.Num(); ++i)
 	{
 		const FActiveSkillEffect &Effect = Effects[i];
-		UE_LOG(LogWoREffects, Display, TEXT("  [%d] %s (ID:%d, Source:%s/%s key %d%s) - %s, Value:%.1f, Duration:%s, Stacks:%d"),
+		UE_LOG(LogWoREffects, Display, TEXT("  [%d] %s (ID:%d, Source:%s/%s key %d%s%s) - %s, Value:%.1f, Duration:%s, Stacks:%d"),
 			   i, *Effect.EffectName, Effect.EffectID,
 			   *GetNameSafe(Effect.SourceActor.Get()), *Effect.SourceAbilityName, Effect.SourceKey,
-			   Effect.bDoesNotStack ? TEXT(", doesn't stack") : TEXT(""),
+			   Effect.bDoesNotStack ? TEXT(", doesn't stack") : TEXT(""), Effect.bFromGear ? TEXT(", from gear") : TEXT(""),
 			   *UEnum::GetValueAsString(Effect.EffectType),
 			   Effect.EffectValue, *Effect.GetDurationString(), Effect.CurrentStacks);
 	}

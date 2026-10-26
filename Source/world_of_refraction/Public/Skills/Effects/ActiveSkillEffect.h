@@ -231,6 +231,11 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	UPROPERTY(BlueprintReadOnly, Category = "Source")
 	int32 SourceKey = 0;
 
+	/** Put on its holder by the holder's own gear (ApplyEquipmentEffects, or a gear trigger that
+	 *  targets the wearer). Cleanse and Iolite leave these alone, yours and the enemy's (D-015). */
+	UPROPERTY(BlueprintReadOnly, Category = "Source")
+	bool bFromGear = false;
+
 	// ========================================
 	// RUNTIME FLAGS
 	// ========================================
@@ -635,6 +640,12 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	bool IsDebuff() const
 	{
 		return SkillEffectClassification::IsDebuff(EffectType, EffectValue);
+	}
+
+	/** Can cleanse / Iolite remove it? Only effects someone else applied; gear effects stay (D-015). */
+	bool IsCleansable() const
+	{
+		return !bFromGear;
 	}
 
 	/** Check if this is DOT damage */

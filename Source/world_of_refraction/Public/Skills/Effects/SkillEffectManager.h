@@ -218,11 +218,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	int32 RemoveEffectsByType(AActor *Target, ESkillEffectType EffectType);
 
-	/** Remove all buffs from target */
+	/** Remove all buffs from target, except gear effects (cleanse rule, D-015) */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	int32 RemoveAllBuffs(AActor *Target);
 
-	/** Remove all debuffs from target */
+	/** Remove all debuffs from target, except gear effects (cleanse rule, D-015) */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	int32 RemoveAllDebuffs(AActor *Target);
 
