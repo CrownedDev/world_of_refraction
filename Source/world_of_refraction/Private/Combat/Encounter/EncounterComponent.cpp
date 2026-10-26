@@ -4,6 +4,7 @@
 
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/Encounter/EncounterData.h"
 #include "Character/CombatCharacter.h"
 #include "Kismet/GameplayStatics.h"
 #include "Party/Party.h"
@@ -251,13 +252,15 @@ void UEncounterComponent::OnJoinWindowExpired()
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[EncounterComponent] Join window closed - handing off %d v 1 to battle stage (difficulty %s)"),
-		   BattlePartyData.Num(), *UEnum::GetValueAsString(Difficulty));
+	const TArray<UCharacterData *> OpposingPartyData = UEncounterData::BuildOpposingRoster(EncounterData, OwnerData);
+	UE_LOG(LogTemp, Log, TEXT("[EncounterComponent] Join window closed - handing off %d v %d to battle stage (difficulty %s, team %s)"),
+		   BattlePartyData.Num(), OpposingPartyData.Num(), *UEnum::GetValueAsString(Difficulty),
+		   EncounterData ? *EncounterData->GetName() : TEXT("the pawn alone"));
 
 	// EnterEncounter OpenLevels to the trial's battle stage; this component,
 	// the arena, and every trial actor die with the swap. If it rejects
 	// (no EncounterLevel authored), re-arm so the trial stays playable.
-	TrialRun->EnterEncounter(ActiveTrial, BattlePartyData, {OwnerData}, Difficulty, Rank);
+	TrialRun->EnterEncounter(ActiveTrial, BattlePartyData, OpposingPartyData, Difficulty, Rank);
 	if (!TrialRun->HasPendingEncounter())
 	{
 		RearmEncounter();

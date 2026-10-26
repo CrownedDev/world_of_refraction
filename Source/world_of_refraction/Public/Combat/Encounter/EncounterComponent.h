@@ -34,6 +34,7 @@
 #include "EncounterComponent.generated.h"
 
 class AStaticMeshActor;
+class UEncounterData;
 class UMaterialInterface;
 class UPartySessionSubsystem;
 class USphereComponent;
@@ -79,6 +80,11 @@ public:
 	/** D-091: a normal fight can be fled; a mini-boss or boss can't. */
 	UPROPERTY(EditAnywhere, Category = "Encounter")
 	EEncounterRank Rank = EEncounterRank::Normal;
+
+	/** B-074: the enemy team this encounter fights (up to three). Unset or empty = the pawn
+	 *  this component sits on fights alone. */
+	UPROPERTY(EditAnywhere, Category = "Encounter")
+	TObjectPtr<UEncounterData> EncounterData;
 
 protected:
 	virtual void BeginPlay() override;
