@@ -536,7 +536,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 ### D-042 — What difficulty do AI-controlled party members play at?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-071
 **Question:** One difficulty per encounter drives every AI character, so on an Easy encounter your own AI allies act near-randomly and try to defend only 40% of hits.
-**Context:** `AIDecisionManager::GetCurrentDifficulty`. Rules: 06 Cp-4.
+**Context:** `AI/AIDecisionManager.cpp:193-199` (one difficulty per encounter). Rules: 06 Cp-4.
 **Options:** A a fixed ally tier / B the encounter's difficulty (current) / C a player setting.
 **Recommendation:** A, because an easier fight shouldn't make your own team worse.
 **Answer (Crown):** _write here_
@@ -576,7 +576,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 ### D-047 — Cap turns at 2 per round of the slowest?
 **Status:** OPEN · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
 **Question:** `MAX_TURN_RATIO = 2` and `TURN_SPEED_THRESHOLD_DOUBLE` exist (`CombatConstants.h:331`), but the scheduler never reads them, so a fast character can get any number of turns per round.
-**Context:** Rules: 04 C4-1.
+**Context:** `Combat/CombatConstants.h:330-331` (unread constants); `Combat/TurnManager.cpp:265-270` (uncapped ratio). Rules: 04 C4-1.
 **Options:** A cap at 2:1 / B no cap (current).
 **Recommendation:** A, because the constants show that was the design, and an uncapped ratio lets stacked speed lock enemies out.
 **Answer (Crown):** _write here_
