@@ -72,6 +72,29 @@ namespace
 		}
 	}
 
+	/** B-196: the spells over the holder's cap (Q-147) are the last assigned ones; GetAllSpells
+	 *  silently drops them in a fight, so each is reported (clearable). */
+	void CheckSpellCap(FFindingSink &Sink, ELoadoutSlotType Type, int32 SlotIndex, bool bSpellIsSubIndex,
+					   const TArray<USpellData *> &Assigned, int32 OverCap, int32 Cap)
+	{
+		for (int32 i = Assigned.Num() - 1; i >= 0 && OverCap > 0; --i)
+		{
+			if (!Assigned[i])
+			{
+				continue;
+			}
+			const FString Reason = FString::Printf(TEXT("Spell '%s' is over the holder's spell cap (%d)"), *Assigned[i]->Name, Cap);
+			Sink.Add(Type, bSpellIsSubIndex ? SlotIndex : i, true, Reason, bSpellIsSubIndex ? i : -1);
+			--OverCap;
+		}
+		if (OverCap > 0)
+		{
+			// The rest are the item's own spells (the inventory entry), not this loadout's.
+			Sink.Add(Type, SlotIndex, false,
+					 FString::Printf(TEXT("%d of the item's own spells are over the holder's spell cap (%d)"), OverCap, Cap));
+		}
+	}
+
 	/** Assigned abilities, not the empty entries a drop leaves behind. */
 	int32 CountAssigned(const TArray<UAbilityData *> &Abilities)
 	{
@@ -172,6 +195,8 @@ namespace
 			}
 		}
 
+		CheckSpellCap(Sink, ELoadoutSlotType::WeaponSpell, -1, /*bSpellIsSubIndex=*/false, Weapon.AssignedSpells,
+					  Weapon.GetSpellsOverCap(), Weapon.GetSpellSlotCap());
 		CheckAbilityCounts(Sink, Weapon, TEXT("Primary"), LoadoutAbilityOverflowIndex::PRIMARY_WEAPON);
 	}
 
@@ -337,6 +362,8 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 			Sink.Add(ELoadoutSlotType::PrimaryRing, -1, true, TEXT("Primary ring not in inventory"));
 		}
 		CheckRingSpellCoherence(Sink, Loadout.PrimaryRing.RingEntry, -1);
+		CheckSpellCap(Sink, ELoadoutSlotType::RingSpell, -1, /*bSpellIsSubIndex=*/true, Loadout.PrimaryRing.RingEntry.AssignedSpells,
+					  Loadout.PrimaryRing.GetSpellsOverCap(), Loadout.PrimaryRing.GetSpellSlotCap());
 	}
 
 	if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
@@ -379,6 +406,8 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 				Sink.Add(ELoadoutSlotType::ResonatorRing, i, true, TEXT("Ring in loadout not in inventory"));
 			}
 			CheckRingSpellCoherence(Sink, RingEntry.RingEntry, i);
+			CheckSpellCap(Sink, ELoadoutSlotType::RingSpell, i, /*bSpellIsSubIndex=*/true, RingEntry.RingEntry.AssignedSpells,
+						  RingEntry.GetSpellsOverCap(), RingEntry.GetSpellSlotCap());
 			RingCost += InventoryConstants::GetRingSlotCost(RingEntry.IsEvolved());
 		}
 

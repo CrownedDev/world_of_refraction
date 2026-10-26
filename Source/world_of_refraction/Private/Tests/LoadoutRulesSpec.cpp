@@ -296,6 +296,65 @@ void FLoadoutRulesSpec::Define()
 		});
 	});
 
+	Describe("the spell cap (B-196)", [this]()
+	{
+		// An S holder with an intact F evolution: the fight keeps the F count and drops the rest.
+		auto FEvolution = []()
+		{
+			FRuntimeAttachedItem Attached;
+			Attached.Kind = EAttachedItemKind::Evolution;
+			Attached.Evolution.Item = NewObject<UEvolutionItemData>(GetTransientPackage());
+			Attached.Evolution.Tier = EItemTier::F_Tier;
+			Attached.Evolution.CurrentDurability = 1;
+			return Attached;
+		};
+		auto CountOverCap = [](const FCombatLoadout &Loadout, ELoadoutSlotType Type)
+		{
+			int32 Count = 0;
+			for (const FInvalidSlotFinding &Finding : FLoadoutRules::CollectFindings(Loadout, FLoadoutRuleContext()))
+			{
+				Count += Finding.SlotType == Type && Finding.bClearable && Finding.Reason.Contains(TEXT("over the holder's spell cap")) ? 1 : 0;
+			}
+			return Count;
+		};
+		const int32 FCount = CrystalEffectTable::SlotsForContainerTier(EItemTier::F_Tier);
+
+		It("reports each weapon spell over the cap, none at the cap", [this, FEvolution, CountOverCap, FCount]()
+		{
+			FCombatLoadout Loadout;
+			Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
+			Loadout.PrimaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
+			Loadout.PrimaryWeapon.WeaponEntry.Tier = EItemTier::S_Tier;
+			Loadout.PrimaryWeapon.WeaponEntry.AttachedItem = FEvolution();
+			for (int32 i = 0; i < FCount; ++i)
+			{
+				Loadout.PrimaryWeapon.AssignedSpells.Add(NewSpell(ESpellElement::Fire));
+			}
+			TestEqual(TEXT("at the cap: no finding"), CountOverCap(Loadout, ELoadoutSlotType::WeaponSpell), 0);
+			for (int32 i = FCount; i < LoadoutConstants::MAX_SPELL_SLOTS; ++i)
+			{
+				Loadout.PrimaryWeapon.AssignedSpells.Add(NewSpell(ESpellElement::Fire));
+			}
+			TestEqual(TEXT("one finding per spell the fight drops"), CountOverCap(Loadout, ELoadoutSlotType::WeaponSpell),
+					  LoadoutConstants::MAX_SPELL_SLOTS - FCount);
+		});
+
+		It("reports each primary ring spell over the cap", [this, FEvolution, CountOverCap, FCount]()
+		{
+			FCombatLoadout Loadout;
+			Loadout.PrimarySlotType = EPrimarySlotType::Ring;
+			Loadout.PrimaryRing.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
+			Loadout.PrimaryRing.RingEntry.Tier = EItemTier::S_Tier;
+			Loadout.PrimaryRing.RingEntry.AttachedItem = FEvolution();
+			for (int32 i = 0; i < LoadoutConstants::MAX_RING_SPELLS; ++i)
+			{
+				Loadout.PrimaryRing.RingEntry.AssignedSpells.Add(NewSpell(ESpellElement::Fire));
+			}
+			TestEqual(TEXT("one finding per spell the fight drops"), CountOverCap(Loadout, ELoadoutSlotType::RingSpell),
+					  LoadoutConstants::MAX_RING_SPELLS - FCount);
+		});
+	});
+
 	Describe("utility crystal tier caps (D-072, D-077)", [this]()
 	{
 		It("allow each band at its cap", [this]()
