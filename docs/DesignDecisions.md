@@ -241,6 +241,20 @@ The queue of questions only Crown can answer.
 **Answer (Crown):** _write here_
 **Notes for Claude:** whichever answer, resolve the 4 C++ conflicts by keeping Arc A's cleanup (`ReleaseCombatResources`, InProgress-before-InitializeCombat) together with the refactor's native HUD calls, then rebuild + test.
 
+### D-023 — Can a stunned character infuse its basic attack, and can it flee or switch weapon?
+**Status:** OPEN · **Raised:** 2026-10-26 · **Blocks:** nothing (B-061 shipped with the current reading below)
+**Question:** Under D-001 (stunned = Attack or Defend), does "Attack" include an infused or crystal-charged attack, and are Flee and Switch Weapon blocked?
+**Context:**
+- B-061 lets a stunned actor use the loadout's current basic attack. The gate checks only the action type and the skill, so an attack with an infusion charge level still passes and spends EP/charge (`ActionExecutor.cpp` cost path).
+- B-061 blocks Flee and Switch Weapon, reading D-001's "can still Attack or Defend" and the Stun enum's "can only Attack or Defend" literally.
+**Options:**
+- A: plain attack only. Infusion is refused while stunned (charge forced to 0), and Flee/Switch stay blocked.
+- B: infused attack allowed (it's still "the attack"), and Flee/Switch stay blocked. This is the current behaviour.
+- C: B, plus Flee and/or Switch Weapon allowed.
+**Recommendation:** A. Stun should mean "your basic swing or brace", and infusion is the EP-spend layer that Silenced already gates.
+**Answer (Crown):** _write here_
+**Notes for Claude:** A → in `IsActionAllowedWhileStunned`, also require no infusion charge; add a StunRule test. C → add the allowed types to the same function.
+
 ---
 
 ## Parked
