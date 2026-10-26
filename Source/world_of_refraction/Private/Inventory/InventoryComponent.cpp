@@ -29,6 +29,7 @@
 #include "Character/CharacterDataComponent.h" // owner Luck for the pickup quality roll
 #include "Currency/EconomyYield.h"            // RollQuality (§11 weighted drop curve)
 #include "Currency/EconomyService.h"          // DismantleEvolution on break-during-gear-removal
+#include <type_traits>                        // std::is_same_v for the weapon/ring socket templates
 
 namespace
 {
@@ -158,6 +159,310 @@ namespace
         }
         return false;
     }
+
+    /** Share of an evolution's max durability lost when the player removes it from gear (§5.3b). */
+    constexpr float EVOLUTION_REMOVAL_WEAR_FRACTION = 0.10f;
+
+    template <class TEntry>
+    constexpr bool IsRingGear = std::is_same_v<TEntry, FRingInventoryEntry>;
+
+    template <class TEntry>
+    const TCHAR *GearLabel()
+    {
+        return IsRingGear<TEntry> ? TEXT("ring") : TEXT("weapon");
+    }
+
+    bool GearOpHasAuthority(const AActor *Owner, const TCHAR *Op)
+    {
+        if (Owner && !Owner->HasAuthority())
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: no authority — ignored"), Op);
+            return false;
+        }
+        return true;
+    }
+
+    /** Index of the weapon/ring with GearID, or INDEX_NONE (logged). */
+    template <class TEntry>
+    int32 FindGearIndex(const TArray<TEntry> &Gear, FGuid GearID, const TCHAR *Op)
+    {
+        const int32 Index = Gear.IndexOfByPredicate([&GearID](const TEntry &E) { return E.PersistentID == GearID; });
+        if (Index == INDEX_NONE)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: no %s for GUID %s"), Op, GearLabel<TEntry>(),
+                   *GearID.ToString());
+        }
+        return Index;
+    }
+
+    /** Index of the weapon/ring with GearID whose socket is empty (an attach never overwrites), or
+     *  INDEX_NONE (logged). */
+    template <class TEntry>
+    int32 FindEmptyGearSlot(const TArray<TEntry> &Gear, FGuid GearID, const TCHAR *Op)
+    {
+        const int32 Index = FindGearIndex(Gear, GearID, Op);
+        if (Index != INDEX_NONE && !Gear[Index].AttachedItem.IsEmpty())
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: %s slot already occupied"), Op, GearLabel<TEntry>());
+            return INDEX_NONE;
+        }
+        return Index;
+    }
+
+    FEvolutionInventoryEntry *FindOwnedEvolution(AActor *Owner, FGuid EvoInstanceID)
+    {
+        UEvolutionInventoryComponent *EvoInv = Owner ? Owner->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+        return EvoInv ? EvoInv->Entries.FindByPredicate(
+                            [&EvoInstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == EvoInstanceID; })
+                      : nullptr;
+    }
+}
+
+// ==================== SHARED WEAPON/RING SOCKET BODIES (B-026) ====================
+
+template <class TEntry>
+bool UInventoryComponent::AttachEvolutionToGear(TArray<TEntry> &Gear, FGuid GearID, FGuid EvoInstanceID, const TCHAR *Op)
+{
+    if (!GearOpHasAuthority(GetOwner(), Op) || !EvoInstanceID.IsValid())
+    {
+        return false;
+    }
+
+    // Resolve the owned evolution entry being attached (the reference target — it PERSISTS in EvoInv).
+    const FEvolutionInventoryEntry *Entry = FindOwnedEvolution(GetOwner(), EvoInstanceID);
+    if (!Entry || !Entry->Item)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: no owned evolution for GUID %s"), Op,
+               *EvoInstanceID.ToString());
+        return false;
+    }
+
+    // One evo, one slot: reject if it is already referenced by any primary or gear slot.
+    if (IsEvolutionSlottedAnywhere(*this, EvoInstanceID))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: evolution %s already slotted elsewhere"), Op,
+               *EvoInstanceID.ToString());
+        return false;
+    }
+
+    const int32 Index = FindEmptyGearSlot(Gear, GearID, Op);
+    if (Index == INDEX_NONE)
+    {
+        return false;
+    }
+
+    // Reference the owned entry (entry stays in EvoInv->Entries — reference model, not move).
+    Gear[Index].AttachedItem = MakeEvolutionAttachment(*Entry, EvoInstanceID);
+    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached evolution %s (tier %d) to %s %s"),
+           *EvoInstanceID.ToString(), static_cast<int32>(Entry->Tier), GearLabel<TEntry>(), *GearID.ToString());
+    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
+    return true;
+}
+
+template <class TEntry>
+bool UInventoryComponent::AttachCrystalToGear(TArray<TEntry> &Gear, FGuid GearID, FCrystalId Id, const TCHAR *Op)
+{
+    if (!GearOpHasAuthority(GetOwner(), Op))
+    {
+        return false;
+    }
+
+    const bool bIsStone = !CrystalTypeHelpers::IsGemType(Id.Type);
+    if constexpr (IsRingGear<TEntry>)
+    {
+        // Inline ring-guard (mirrors URingData::IsDataValid:29-33): augment stones are weapon-only.
+        // Rings carry only refined gems (their spell source).
+        if (bIsStone)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: augment stones are weapon-only — rejected on ring"), Op);
+            return false;
+        }
+    }
+
+    const int32 Index = FindEmptyGearSlot(Gear, GearID, Op);
+    if (Index == INDEX_NONE)
+    {
+        return false;
+    }
+
+    // DEBIT BEFORE WRITE via the SILENT atomic core (the component dispatches gem/stone internally).
+    // Silent so the socket fires exactly ONE signal — the Equipped below — not Removed + Equipped.
+    // false means the crystal isn't owned: reject with no phantom socket.
+    if (!CommitRemoveCrystals({Id}))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: %s not owned — nothing debited, socket rejected"), Op,
+               *ItemIdentity::GetDisplayName(Id));
+        return false;
+    }
+
+    Gear[Index].AttachedItem = MakeCrystalAttachment(Id, bIsStone);
+    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached %s %s to %s %s"),
+           bIsStone ? TEXT("augment stone") : TEXT("refined crystal"),
+           *ItemIdentity::GetDisplayName(Id), GearLabel<TEntry>(), *GearID.ToString());
+    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
+    return true;
+}
+
+template <class TEntry>
+bool UInventoryComponent::AttachFusionToGear(TArray<TEntry> &Gear, FGuid GearID, FFusionId FusionId, const TCHAR *Op)
+{
+    if (!GearOpHasAuthority(GetOwner(), Op))
+    {
+        return false;
+    }
+
+    // Validate the pair before touching anything (stat-stone + one contributor; evolution can't be a half).
+    if (!CrystalTypeHelpers::IsValidFusionPair(FusionId.HalfA.Type, FusionId.HalfB.Type))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: invalid fusion pair — rejected"), Op);
+        return false;
+    }
+
+    if constexpr (IsRingGear<TEntry>)
+    {
+        // Inline ring-guard (mirrors URingData::IsDataValid:40-44): rings accept only ELEMENTAL fusions
+        // (one gem half); augmented fusions (two stones) are weapon-only.
+        if (!CrystalTypeHelpers::IsElementalFusion(FusionId.HalfA.Type, FusionId.HalfB.Type))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: augmented fusions are weapon-only — rejected on ring"), Op);
+            return false;
+        }
+    }
+
+    const int32 Index = FindEmptyGearSlot(Gear, GearID, Op);
+    if (Index == INDEX_NONE)
+    {
+        return false;
+    }
+
+    // Consume both halves atomically (the fuse) via the SILENT core — the component dispatches each
+    // half to Crystals or Stones internally. The core does the verify-then-commit and the identical-halves
+    // count (HalfA == HalfB → needs 2) for free, and stays silent so the fuse fires one signal
+    // (Equipped) below.
+    if (!CommitRemoveCrystals({FusionId.HalfA, FusionId.HalfB}))
+    {
+        return false;
+    }
+
+    Gear[Index].AttachedItem = MakeFusionAttachment(FusionId);
+    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Fused %s + %s onto %s %s"),
+           *ItemIdentity::GetDisplayName(FusionId.HalfA), *ItemIdentity::GetDisplayName(FusionId.HalfB),
+           GearLabel<TEntry>(), *GearID.ToString());
+    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
+    return true;
+}
+
+template <class TEntry>
+bool UInventoryComponent::RemoveEvolutionFromGear(TArray<TEntry> &Gear, FGuid GearID, const TCHAR *Op)
+{
+    if (!GearOpHasAuthority(GetOwner(), Op))
+    {
+        return false;
+    }
+
+    const int32 Index = FindGearIndex(Gear, GearID, Op);
+    if (Index == INDEX_NONE)
+    {
+        return false;
+    }
+
+    FRuntimeAttachedItem &Attached = Gear[Index].AttachedItem;
+    // Must be a PLAYER-ATTACHED evolution: valid InstanceID. Authored-locked (invalid InstanceID) is
+    // a built-in evolution and cannot be removed.
+    if (!Attached.IsEvolution() || !Attached.Evolution.InstanceID.IsValid())
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[InventoryComponent] %s: %s %s has no player-attached evolution (authored-locked or none)"),
+               Op, GearLabel<TEntry>(), *GearID.ToString());
+        return false;
+    }
+    const FGuid EvoInstanceID = Attached.Evolution.InstanceID;
+
+    // Resolve the owned entry (persisted all along — reference model).
+    FEvolutionInventoryEntry *Entry = FindOwnedEvolution(GetOwner(), EvoInstanceID);
+    if (!Entry)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: attachment InstanceID %s resolves to no owned entry"), Op,
+               *EvoInstanceID.ToString());
+        return false; // data inconsistency — do not clear the slot
+    }
+
+    // Copy the worn runtime durability back onto the persisted entry, less the removal wear.
+    const int32 MaxDur = Entry->Item ? Entry->Item->MaxDurability : 0;
+    Entry->CurrentDurability =
+        FMath::Max(0, Attached.Evolution.CurrentDurability - FMath::CeilToInt(MaxDur * EVOLUTION_REMOVAL_WEAR_FRACTION));
+
+    // Un-reference: clear the gear slot regardless (the evo leaves the weapon/ring).
+    Gear[Index].RemoveCrystal();
+
+    // Break-on-removal: if the wear pushed it to 0, it breaks → forced dismantle (§5.3b):
+    // essence + remove the owned entry + free a cap slot. Otherwise it returns to inventory intact
+    // (the entry persists at its worn durability).
+    if (Entry->CurrentDurability <= 0)
+    {
+        if (UWorld *World = GetWorld())
+        {
+            if (UGameInstance *GI = World->GetGameInstance())
+            {
+                if (UEconomyService *Economy = GI->GetSubsystem<UEconomyService>())
+                {
+                    Economy->DismantleEvolution(GetOwner(), EvoInstanceID);
+                }
+            }
+        }
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from %s %s — wear broke it, dismantled"),
+               *EvoInstanceID.ToString(), GearLabel<TEntry>(), *GearID.ToString());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from %s %s -> inventory (durability %d, %.0f%% wear)"),
+               *EvoInstanceID.ToString(), GearLabel<TEntry>(), *GearID.ToString(), Entry->CurrentDurability,
+               EVOLUTION_REMOVAL_WEAR_FRACTION * 100.0f);
+    }
+    BroadcastInventoryChanged(EInventoryChangeType::Removed);
+    return true;
+}
+
+template <class TEntry>
+bool UInventoryComponent::RemoveCrystalFromGear(TArray<TEntry> &Gear, int32 Index)
+{
+    if (!Gear.IsValidIndex(Index))
+    {
+        return false;
+    }
+
+    const bool bHadAttachment = !Gear[Index].AttachedItem.IsEmpty();
+    // Speed-relevance gate, read BEFORE the detach: a TurnSpeed-contributing stone
+    // (plain TurnSpeedStone or a fusion with a TurnSpeed half/bonus — same
+    // GetAttachedStonePercent read CalculateSpeedRatios uses) feeds the stone factor,
+    // so its removal must recalc turn order. Non-speed stones skip the notify.
+    const bool bWasSpeedStone =
+        CrystalEffectTable::GetAttachedStonePercent(Gear[Index].AttachedItem, ESubStat::TurnSpeed) > 0.0f;
+
+    Gear[Index].RemoveCrystal();
+
+    // Notify TurnManager so the stone factor re-reads for this actor.
+    // Out-of-combat / pre-combat case: actor isn't in Combatants, the loop in
+    // OnActorSpeedChanged simply finds no match and returns — safe no-op.
+    if (bWasSpeedStone)
+    {
+        if (UWorld *World = GetWorld())
+        {
+            if (UGameInstance *GI = World->GetGameInstance())
+            {
+                if (UTurnManager *TurnManager = GI->GetSubsystem<UTurnManager>())
+                {
+                    TurnManager->OnActorSpeedChanged(GetOwner());
+                }
+            }
+        }
+    }
+
+    if (bHadAttachment)
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Removed);
+    }
+    return bHadAttachment;
 }
 
 UInventoryComponent::UInventoryComponent()
@@ -382,43 +687,7 @@ bool UInventoryComponent::CanAddWeapon(UWeaponData *Weapon) const
 
 bool UInventoryComponent::RemoveCrystalFromWeapon(int32 WeaponIndex)
 {
-    if (!Weapons.IsValidIndex(WeaponIndex))
-    {
-        return false;
-    }
-
-    const bool bHadAttachment = !Weapons[WeaponIndex].AttachedItem.IsEmpty();
-    // Speed-relevance gate, read BEFORE the detach: a TurnSpeed-contributing stone
-    // (plain TurnSpeedStone or a fusion with a TurnSpeed half/bonus — same
-    // GetAttachedStonePercent read CalculateSpeedRatios uses) feeds the stone factor,
-    // so its removal must recalc turn order. Non-speed stones skip the notify.
-    const bool bWasSpeedStone =
-        CrystalEffectTable::GetAttachedStonePercent(Weapons[WeaponIndex].AttachedItem, ESubStat::TurnSpeed) > 0.0f;
-
-    Weapons[WeaponIndex].RemoveCrystal();
-
-    // Notify TurnManager so the stone factor re-reads for this actor.
-    // Out-of-combat / pre-combat case: actor isn't in Combatants, the loop in
-    // OnActorSpeedChanged simply finds no match and returns — safe no-op.
-    if (bWasSpeedStone)
-    {
-        if (UWorld *World = GetWorld())
-        {
-            if (UGameInstance *GI = World->GetGameInstance())
-            {
-                if (UTurnManager *TurnManager = GI->GetSubsystem<UTurnManager>())
-                {
-                    TurnManager->OnActorSpeedChanged(GetOwner());
-                }
-            }
-        }
-    }
-
-    if (bHadAttachment)
-    {
-        BroadcastInventoryChanged(EInventoryChangeType::Removed);
-    }
-    return bHadAttachment;
+    return RemoveCrystalFromGear(Weapons, WeaponIndex);
 }
 
 // ==================== RING OPERATIONS ====================
@@ -502,201 +771,24 @@ int32 UInventoryComponent::GetRemainingRingCapacity() const
 
 bool UInventoryComponent::AttachEvolutionToWeapon(FGuid WeaponPersistentID, FGuid EvoInstanceID)
 {
-    if (GetOwner() && !GetOwner()->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToWeapon: no authority — ignored"));
-        return false;
-    }
-    if (!EvoInstanceID.IsValid())
-    {
-        return false;
-    }
-
-    // Resolve the owned evolution entry being attached (the reference target — it PERSISTS in EvoInv).
-    UEvolutionInventoryComponent *EvoInv =
-        GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
-    const FEvolutionInventoryEntry *Entry = EvoInv
-        ? EvoInv->Entries.FindByPredicate(
-              [&EvoInstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == EvoInstanceID; })
-        : nullptr;
-    if (!Entry || !Entry->Item)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToWeapon: no owned evolution for GUID %s"),
-               *EvoInstanceID.ToString());
-        return false;
-    }
-
-    // One evo, one slot: reject if it is already referenced by any primary or gear slot.
-    if (IsEvolutionSlottedAnywhere(*this, EvoInstanceID))
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToWeapon: evolution %s already slotted elsewhere"),
-               *EvoInstanceID.ToString());
-        return false;
-    }
-
-    // Resolve the target weapon; its crystal slot must be empty (don't overwrite an existing attachment).
-    const int32 Index = Weapons.IndexOfByPredicate(
-        [&WeaponPersistentID](const FWeaponInventoryEntry &E) { return E.PersistentID == WeaponPersistentID; });
-    if (Index == INDEX_NONE)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToWeapon: no weapon for GUID %s"),
-               *WeaponPersistentID.ToString());
-        return false;
-    }
-    if (!Weapons[Index].AttachedItem.IsEmpty())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToWeapon: weapon slot already occupied"));
-        return false;
-    }
-
-    // Reference the owned entry (entry stays in EvoInv->Entries — reference model, not move).
-    Weapons[Index].AttachedItem = MakeEvolutionAttachment(*Entry, EvoInstanceID);
-    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached evolution %s (tier %d) to weapon %s"),
-           *EvoInstanceID.ToString(), static_cast<int32>(Entry->Tier), *WeaponPersistentID.ToString());
-    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
-    return true;
+    return AttachEvolutionToGear(Weapons, WeaponPersistentID, EvoInstanceID, TEXT("AttachEvolutionToWeapon"));
 }
 
 bool UInventoryComponent::AttachEvolutionToRing(FGuid RingPersistentID, FGuid EvoInstanceID)
 {
-    if (GetOwner() && !GetOwner()->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToRing: no authority — ignored"));
-        return false;
-    }
-    if (!EvoInstanceID.IsValid())
-    {
-        return false;
-    }
-
-    UEvolutionInventoryComponent *EvoInv =
-        GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
-    const FEvolutionInventoryEntry *Entry = EvoInv
-        ? EvoInv->Entries.FindByPredicate(
-              [&EvoInstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == EvoInstanceID; })
-        : nullptr;
-    if (!Entry || !Entry->Item)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToRing: no owned evolution for GUID %s"),
-               *EvoInstanceID.ToString());
-        return false;
-    }
-
-    if (IsEvolutionSlottedAnywhere(*this, EvoInstanceID))
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToRing: evolution %s already slotted elsewhere"),
-               *EvoInstanceID.ToString());
-        return false;
-    }
-
-    const int32 Index = Rings.IndexOfByPredicate(
-        [&RingPersistentID](const FRingInventoryEntry &E) { return E.PersistentID == RingPersistentID; });
-    if (Index == INDEX_NONE)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToRing: no ring for GUID %s"),
-               *RingPersistentID.ToString());
-        return false;
-    }
-    if (!Rings[Index].AttachedItem.IsEmpty())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToRing: ring slot already occupied"));
-        return false;
-    }
-
-    Rings[Index].AttachedItem = MakeEvolutionAttachment(*Entry, EvoInstanceID);
-    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached evolution %s (tier %d) to ring %s"),
-           *EvoInstanceID.ToString(), static_cast<int32>(Entry->Tier), *RingPersistentID.ToString());
-    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
-    return true;
+    return AttachEvolutionToGear(Rings, RingPersistentID, EvoInstanceID, TEXT("AttachEvolutionToRing"));
 }
 
 // ==================== CRYSTAL / FUSION ATTACH (debit model) ====================
 
 bool UInventoryComponent::AttachCrystalToWeapon(FGuid WeaponPersistentID, FCrystalId Id)
 {
-    if (GetOwner() && !GetOwner()->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToWeapon: no authority — ignored"));
-        return false;
-    }
-
-    const int32 Index = Weapons.IndexOfByPredicate(
-        [&WeaponPersistentID](const FWeaponInventoryEntry &E) { return E.PersistentID == WeaponPersistentID; });
-    if (Index == INDEX_NONE)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToWeapon: no weapon for GUID %s"),
-               *WeaponPersistentID.ToString());
-        return false;
-    }
-    if (!Weapons[Index].AttachedItem.IsEmpty())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToWeapon: weapon slot already occupied"));
-        return false;
-    }
-
-    // DEBIT BEFORE WRITE via the SILENT atomic core (the component dispatches gem/stone internally).
-    // Silent so the socket fires exactly ONE signal — the Equipped below — not Removed + Equipped.
-    // false means the crystal isn't owned: reject with no phantom socket.
-    const bool bIsStone = !CrystalTypeHelpers::IsGemType(Id.Type);
-    if (!CommitRemoveCrystals({Id}))
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToWeapon: %s not owned — nothing debited, socket rejected"),
-               *ItemIdentity::GetDisplayName(Id));
-        return false;
-    }
-
-    Weapons[Index].AttachedItem = MakeCrystalAttachment(Id, bIsStone);
-    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached %s %s to weapon %s"),
-           bIsStone ? TEXT("augment stone") : TEXT("refined crystal"),
-           *ItemIdentity::GetDisplayName(Id), *WeaponPersistentID.ToString());
-    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
-    return true;
+    return AttachCrystalToGear(Weapons, WeaponPersistentID, Id, TEXT("AttachCrystalToWeapon"));
 }
 
 bool UInventoryComponent::AttachCrystalToRing(FGuid RingPersistentID, FCrystalId Id)
 {
-    if (GetOwner() && !GetOwner()->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToRing: no authority — ignored"));
-        return false;
-    }
-
-    // Inline ring-guard (mirrors URingData::IsDataValid:29-33): augment stones are weapon-only.
-    // Rings carry only refined gems (their spell source).
-    if (!CrystalTypeHelpers::IsGemType(Id.Type))
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToRing: augment stones are weapon-only — rejected on ring"));
-        return false;
-    }
-
-    const int32 Index = Rings.IndexOfByPredicate(
-        [&RingPersistentID](const FRingInventoryEntry &E) { return E.PersistentID == RingPersistentID; });
-    if (Index == INDEX_NONE)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToRing: no ring for GUID %s"),
-               *RingPersistentID.ToString());
-        return false;
-    }
-    if (!Rings[Index].AttachedItem.IsEmpty())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToRing: ring slot already occupied"));
-        return false;
-    }
-
-    // Gem-only on rings (stones rejected by the guard above). Debit before write; false = not owned
-    // → reject. Silent so the socket fires one signal (Equipped) below.
-    if (!CommitRemoveCrystals({Id}))
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToRing: %s not owned — nothing debited, socket rejected"),
-               *ItemIdentity::GetDisplayName(Id));
-        return false;
-    }
-
-    Rings[Index].AttachedItem = MakeCrystalAttachment(Id, /*bIsStone=*/false);
-    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached refined crystal %s to ring %s"),
-           *ItemIdentity::GetDisplayName(Id), *RingPersistentID.ToString());
-    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
-    return true;
+    return AttachCrystalToGear(Rings, RingPersistentID, Id, TEXT("AttachCrystalToRing"));
 }
 
 bool UInventoryComponent::CommitRemoveCrystals(const TArray<FCrystalId> &Ids)
@@ -817,249 +909,22 @@ bool UInventoryComponent::AddCrystals(const TArray<FCrystalId> &Ids)
 
 bool UInventoryComponent::AttachFusionToWeapon(FGuid WeaponPersistentID, FFusionId FusionId)
 {
-    if (GetOwner() && !GetOwner()->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToWeapon: no authority — ignored"));
-        return false;
-    }
-
-    // Validate the pair before touching anything (stat-stone + one contributor; evolution can't be a half).
-    if (!CrystalTypeHelpers::IsValidFusionPair(FusionId.HalfA.Type, FusionId.HalfB.Type))
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToWeapon: invalid fusion pair — rejected"));
-        return false;
-    }
-
-    const int32 Index = Weapons.IndexOfByPredicate(
-        [&WeaponPersistentID](const FWeaponInventoryEntry &E) { return E.PersistentID == WeaponPersistentID; });
-    if (Index == INDEX_NONE)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToWeapon: no weapon for GUID %s"),
-               *WeaponPersistentID.ToString());
-        return false;
-    }
-    if (!Weapons[Index].AttachedItem.IsEmpty())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToWeapon: weapon slot already occupied"));
-        return false;
-    }
-
-    // Consume both halves atomically (the fuse) via the SILENT core — the component dispatches each
-    // half to Crystals or Stones internally. The core does the verify-then-commit and the identical-halves
-    // count (HalfA == HalfB → needs 2) for free, and stays silent so the fuse fires one signal
-    // (Equipped) below.
-    if (!CommitRemoveCrystals({FusionId.HalfA, FusionId.HalfB}))
-    {
-        return false;
-    }
-
-    Weapons[Index].AttachedItem = MakeFusionAttachment(FusionId);
-    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Fused %s + %s onto weapon %s"),
-           *ItemIdentity::GetDisplayName(FusionId.HalfA), *ItemIdentity::GetDisplayName(FusionId.HalfB),
-           *WeaponPersistentID.ToString());
-    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
-    return true;
+    return AttachFusionToGear(Weapons, WeaponPersistentID, FusionId, TEXT("AttachFusionToWeapon"));
 }
 
 bool UInventoryComponent::AttachFusionToRing(FGuid RingPersistentID, FFusionId FusionId)
 {
-    if (GetOwner() && !GetOwner()->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToRing: no authority — ignored"));
-        return false;
-    }
-
-    if (!CrystalTypeHelpers::IsValidFusionPair(FusionId.HalfA.Type, FusionId.HalfB.Type))
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToRing: invalid fusion pair — rejected"));
-        return false;
-    }
-
-    // Inline ring-guard (mirrors URingData::IsDataValid:40-44): rings accept only ELEMENTAL fusions
-    // (one gem half); augmented fusions (two stones) are weapon-only.
-    if (!CrystalTypeHelpers::IsElementalFusion(FusionId.HalfA.Type, FusionId.HalfB.Type))
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToRing: augmented fusions are weapon-only — rejected on ring"));
-        return false;
-    }
-
-    const int32 Index = Rings.IndexOfByPredicate(
-        [&RingPersistentID](const FRingInventoryEntry &E) { return E.PersistentID == RingPersistentID; });
-    if (Index == INDEX_NONE)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToRing: no ring for GUID %s"),
-               *RingPersistentID.ToString());
-        return false;
-    }
-    if (!Rings[Index].AttachedItem.IsEmpty())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachFusionToRing: ring slot already occupied"));
-        return false;
-    }
-
-    // Atomic both-halves consume via the SILENT core (component dispatches each half internally;
-    // see AttachFusionToWeapon). One signal below.
-    if (!CommitRemoveCrystals({FusionId.HalfA, FusionId.HalfB}))
-    {
-        return false;
-    }
-
-    Rings[Index].AttachedItem = MakeFusionAttachment(FusionId);
-    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Fused %s + %s onto ring %s"),
-           *ItemIdentity::GetDisplayName(FusionId.HalfA), *ItemIdentity::GetDisplayName(FusionId.HalfB),
-           *RingPersistentID.ToString());
-    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
-    return true;
+    return AttachFusionToGear(Rings, RingPersistentID, FusionId, TEXT("AttachFusionToRing"));
 }
 
 bool UInventoryComponent::RemoveEvolutionFromWeapon(FGuid WeaponPersistentID)
 {
-    if (GetOwner() && !GetOwner()->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] RemoveEvolutionFromWeapon: no authority — ignored"));
-        return false;
-    }
-
-    const int32 Index = Weapons.IndexOfByPredicate(
-        [&WeaponPersistentID](const FWeaponInventoryEntry &E) { return E.PersistentID == WeaponPersistentID; });
-    if (Index == INDEX_NONE)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] RemoveEvolutionFromWeapon: no weapon for GUID %s"),
-               *WeaponPersistentID.ToString());
-        return false;
-    }
-
-    FRuntimeAttachedItem &Attached = Weapons[Index].AttachedItem;
-    // Must be a PLAYER-ATTACHED evolution: valid InstanceID. Authored-locked (invalid InstanceID) is
-    // a built-in evolution and cannot be removed.
-    if (!Attached.IsEvolution() || !Attached.Evolution.InstanceID.IsValid())
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[InventoryComponent] RemoveEvolutionFromWeapon: weapon %s has no player-attached evolution (authored-locked or none)"),
-               *WeaponPersistentID.ToString());
-        return false;
-    }
-    const FGuid EvoInstanceID = Attached.Evolution.InstanceID;
-    const int32 AttachmentDurability = Attached.Evolution.CurrentDurability;
-
-    // Resolve the owned entry (persisted all along — reference model).
-    UEvolutionInventoryComponent *EvoInv =
-        GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
-    FEvolutionInventoryEntry *Entry = EvoInv
-        ? EvoInv->Entries.FindByPredicate(
-              [&EvoInstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == EvoInstanceID; })
-        : nullptr;
-    if (!Entry)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] RemoveEvolutionFromWeapon: attachment InstanceID %s resolves to no owned entry"),
-               *EvoInstanceID.ToString());
-        return false; // data inconsistency — do not clear the slot
-    }
-
-    // Copy the worn runtime durability back onto the persisted entry, then apply the 10% removal wear.
-    Entry->CurrentDurability = AttachmentDurability;
-    const int32 MaxDur = Entry->Item ? Entry->Item->MaxDurability : 0;
-    Entry->CurrentDurability = FMath::Max(0, Entry->CurrentDurability - FMath::CeilToInt(MaxDur * 0.10f));
-
-    // Un-reference: clear the gear slot regardless (the evo leaves the weapon).
-    Weapons[Index].RemoveCrystal();
-
-    // Break-on-removal: if the 10% wear pushed it to 0, it breaks → forced dismantle (§5.3b):
-    // essence + remove the owned entry + free a cap slot. Otherwise it returns to inventory intact
-    // (the entry persists at its worn durability).
-    if (Entry->CurrentDurability <= 0)
-    {
-        if (UWorld *World = GetWorld())
-        {
-            if (UGameInstance *GI = World->GetGameInstance())
-            {
-                if (UEconomyService *Economy = GI->GetSubsystem<UEconomyService>())
-                {
-                    Economy->DismantleEvolution(GetOwner(), EvoInstanceID);
-                }
-            }
-        }
-        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from weapon %s — wear broke it, dismantled"),
-               *EvoInstanceID.ToString(), *WeaponPersistentID.ToString());
-    }
-    else
-    {
-        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from weapon %s -> inventory (durability %d, 10%% wear)"),
-               *EvoInstanceID.ToString(), *WeaponPersistentID.ToString(), Entry->CurrentDurability);
-    }
-    BroadcastInventoryChanged(EInventoryChangeType::Removed);
-    return true;
+    return RemoveEvolutionFromGear(Weapons, WeaponPersistentID, TEXT("RemoveEvolutionFromWeapon"));
 }
 
 bool UInventoryComponent::RemoveEvolutionFromRing(FGuid RingPersistentID)
 {
-    if (GetOwner() && !GetOwner()->HasAuthority())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] RemoveEvolutionFromRing: no authority — ignored"));
-        return false;
-    }
-
-    const int32 Index = Rings.IndexOfByPredicate(
-        [&RingPersistentID](const FRingInventoryEntry &E) { return E.PersistentID == RingPersistentID; });
-    if (Index == INDEX_NONE)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] RemoveEvolutionFromRing: no ring for GUID %s"),
-               *RingPersistentID.ToString());
-        return false;
-    }
-
-    FRuntimeAttachedItem &Attached = Rings[Index].AttachedItem;
-    if (!Attached.IsEvolution() || !Attached.Evolution.InstanceID.IsValid())
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[InventoryComponent] RemoveEvolutionFromRing: ring %s has no player-attached evolution (authored-locked or none)"),
-               *RingPersistentID.ToString());
-        return false;
-    }
-    const FGuid EvoInstanceID = Attached.Evolution.InstanceID;
-    const int32 AttachmentDurability = Attached.Evolution.CurrentDurability;
-
-    UEvolutionInventoryComponent *EvoInv =
-        GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
-    FEvolutionInventoryEntry *Entry = EvoInv
-        ? EvoInv->Entries.FindByPredicate(
-              [&EvoInstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == EvoInstanceID; })
-        : nullptr;
-    if (!Entry)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] RemoveEvolutionFromRing: attachment InstanceID %s resolves to no owned entry"),
-               *EvoInstanceID.ToString());
-        return false;
-    }
-
-    Entry->CurrentDurability = AttachmentDurability;
-    const int32 MaxDur = Entry->Item ? Entry->Item->MaxDurability : 0;
-    Entry->CurrentDurability = FMath::Max(0, Entry->CurrentDurability - FMath::CeilToInt(MaxDur * 0.10f));
-
-    Rings[Index].RemoveCrystal();
-
-    if (Entry->CurrentDurability <= 0)
-    {
-        if (UWorld *World = GetWorld())
-        {
-            if (UGameInstance *GI = World->GetGameInstance())
-            {
-                if (UEconomyService *Economy = GI->GetSubsystem<UEconomyService>())
-                {
-                    Economy->DismantleEvolution(GetOwner(), EvoInstanceID);
-                }
-            }
-        }
-        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from ring %s — wear broke it, dismantled"),
-               *EvoInstanceID.ToString(), *RingPersistentID.ToString());
-    }
-    else
-    {
-        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from ring %s -> inventory (durability %d, 10%% wear)"),
-               *EvoInstanceID.ToString(), *RingPersistentID.ToString(), Entry->CurrentDurability);
-    }
-    BroadcastInventoryChanged(EInventoryChangeType::Removed);
-    return true;
+    return RemoveEvolutionFromGear(Rings, RingPersistentID, TEXT("RemoveEvolutionFromRing"));
 }
 
 bool UInventoryComponent::CanAddRing(URingData *Ring) const
@@ -1078,43 +943,9 @@ bool UInventoryComponent::CanAddRing(URingData *Ring) const
 
 bool UInventoryComponent::RemoveCrystalFromRing(int32 RingIndex)
 {
-    if (!Rings.IsValidIndex(RingIndex))
-    {
-        return false;
-    }
-
-    const bool bHadAttachment = !Rings[RingIndex].AttachedItem.IsEmpty();
-    // Same speed-relevance gate as RemoveCrystalFromWeapon. NOTE: ring attachments do
-    // not feed the turn-speed read path today (CalculateSpeedRatios reads the active
-    // WEAPON attachment only) — this notify is defensive symmetry; the gated recalc is
-    // a no-op until rings join that read path.
-    const bool bWasSpeedStone =
-        CrystalEffectTable::GetAttachedStonePercent(Rings[RingIndex].AttachedItem, ESubStat::TurnSpeed) > 0.0f;
-
-    Rings[RingIndex].RemoveCrystal();
-
-    // Notify TurnManager so the stone factor re-reads for this actor.
-    // Out-of-combat / pre-combat case: actor isn't in Combatants, the loop in
-    // OnActorSpeedChanged simply finds no match and returns — safe no-op.
-    if (bWasSpeedStone)
-    {
-        if (UWorld *World = GetWorld())
-        {
-            if (UGameInstance *GI = World->GetGameInstance())
-            {
-                if (UTurnManager *TurnManager = GI->GetSubsystem<UTurnManager>())
-                {
-                    TurnManager->OnActorSpeedChanged(GetOwner());
-                }
-            }
-        }
-    }
-
-    if (bHadAttachment)
-    {
-        BroadcastInventoryChanged(EInventoryChangeType::Removed);
-    }
-    return bHadAttachment;
+    // Ring attachments do not feed the turn-speed read path today (CalculateSpeedRatios reads the
+    // active WEAPON attachment only), so the speed notify inside is defensive symmetry.
+    return RemoveCrystalFromGear(Rings, RingIndex);
 }
 
 // ==================== EVOLUTION HELPERS ====================
