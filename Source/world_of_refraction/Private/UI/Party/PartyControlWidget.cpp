@@ -1,0 +1,218 @@
+// PartyControlWidget.cpp
+
+#include "UI/Party/PartyControlWidget.h"
+
+#include "Blueprint/WidgetTree.h"
+#include "Character/CharacterData.h"
+#include "Components/Border.h"
+#include "Components/Button.h"
+#include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
+#include "HAL/IConsoleManager.h"
+#include "Party/PartySessionSubsystem.h"
+
+#define LOCTEXT_NAMESPACE "PartyControl"
+
+namespace PartyControlStyle
+{
+	// TODO: style pass (placeholder until the CommonUI screens).
+	const FLinearColor OverlayColor(0.0f, 0.0f, 0.0f, 0.7f);
+	constexpr int32 FontSize = 22;
+	constexpr float RowPadding = 6.0f;
+	constexpr int32 ZOrder = 50;
+}
+
+namespace PartyControlBuild
+{
+	UTextBlock *AddButton(UWidgetTree *Tree, UVerticalBox *Box, UButton *&OutButton)
+	{
+		OutButton = Tree->ConstructWidget<UButton>(UButton::StaticClass());
+		UTextBlock *Label = Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		FSlateFontInfo Font = Label->GetFont();
+		Font.Size = PartyControlStyle::FontSize;
+		Label->SetFont(Font);
+		OutButton->AddChild(Label);
+		if (UVerticalBoxSlot *BoxSlot = Box->AddChildToVerticalBox(OutButton))
+		{
+			BoxSlot->SetPadding(FMargin(PartyControlStyle::RowPadding));
+		}
+		return Label;
+	}
+
+	UPartySessionSubsystem *PartySessionOf(const UUserWidget *Widget)
+	{
+		const UGameInstance *GI = Widget ? Widget->GetGameInstance() : nullptr;
+		return GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	}
+}
+
+UPartyControlWidget *UPartyControlWidget::Open(APlayerController *PC)
+{
+	if (!PC)
+	{
+		return nullptr;
+	}
+	UPartyControlWidget *Widget = CreateWidget<UPartyControlWidget>(PC, UPartyControlWidget::StaticClass());
+	if (!Widget)
+	{
+		return nullptr;
+	}
+	Widget->AddToViewport(PartyControlStyle::ZOrder);
+	FInputModeUIOnly InputMode;
+	InputMode.SetWidgetToFocus(Widget->TakeWidget());
+	PC->SetInputMode(InputMode);
+	PC->SetShowMouseCursor(true);
+	return Widget;
+}
+
+TSharedRef<SWidget> UPartyControlWidget::RebuildWidget()
+{
+	if (WidgetTree && !WidgetTree->RootWidget)
+	{
+		UBorder *Overlay = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Overlay"));
+		Overlay->SetBrushColor(PartyControlStyle::OverlayColor);
+		Overlay->SetHorizontalAlignment(HAlign_Center);
+		Overlay->SetVerticalAlignment(VAlign_Center);
+		WidgetTree->RootWidget = Overlay;
+
+		UVerticalBox *Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Rows"));
+		Overlay->SetContent(Box);
+
+		for (int32 SlotIndex = 0; SlotIndex < PartyConstants::MAX_PARTY_MEMBERS; ++SlotIndex)
+		{
+			UButton *Button = nullptr;
+			SlotTexts.Add(PartyControlBuild::AddButton(WidgetTree, Box, Button));
+			SlotButtons.Add(Button);
+		}
+		SlotButtons[1]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot1Clicked);
+		SlotButtons[2]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot2Clicked);
+
+		UButton *FallButton = nullptr;
+		FallSettingText = PartyControlBuild::AddButton(WidgetTree, Box, FallButton);
+		FallButton->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleFallSettingClicked);
+
+		UButton *CloseButton = nullptr;
+		PartyControlBuild::AddButton(WidgetTree, Box, CloseButton)->SetText(LOCTEXT("Close", "Close"));
+		CloseButton->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleCloseClicked);
+	}
+	return Super::RebuildWidget();
+}
+
+void UPartyControlWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	if (UPartySessionSubsystem *PartySession = PartyControlBuild::PartySessionOf(this))
+	{
+		PartySession->OnPartyChanged.AddUniqueDynamic(this, &UPartyControlWidget::HandlePartyChanged);
+	}
+	Refresh();
+}
+
+void UPartyControlWidget::NativeDestruct()
+{
+	if (UPartySessionSubsystem *PartySession = PartyControlBuild::PartySessionOf(this))
+	{
+		PartySession->OnPartyChanged.RemoveDynamic(this, &UPartyControlWidget::HandlePartyChanged);
+	}
+	Super::NativeDestruct();
+}
+
+void UPartyControlWidget::Refresh()
+{
+	const UPartySessionSubsystem *PartySession = PartyControlBuild::PartySessionOf(this);
+	const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+
+	for (int32 SlotIndex = 0; SlotIndex < SlotTexts.Num(); ++SlotIndex)
+	{
+		const FPartyMember *Member = Party && Party->Members.IsValidIndex(SlotIndex) ? &Party->Members[SlotIndex] : nullptr;
+		SlotButtons[SlotIndex]->SetVisibility(Member ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		SlotButtons[SlotIndex]->SetIsEnabled(SlotIndex != PartyConstants::LEADER_SLOT);
+		if (!Member)
+		{
+			continue;
+		}
+		const FText Name = Member->CharacterData ? FText::FromString(Member->CharacterData->Name) : LOCTEXT("NoData", "<no data>");
+		const FText Control = SlotIndex == PartyConstants::LEADER_SLOT ? LOCTEXT("Leader", "You (leader)")
+							  : Member->bPlayerControlled       ? LOCTEXT("Player", "You")
+																: LOCTEXT("AI", "AI");
+		SlotTexts[SlotIndex]->SetText(FText::Format(LOCTEXT("SlotRow", "{0}: played by {1}"), Name, Control));
+	}
+
+	if (FallSettingText)
+	{
+		const bool bLetAIFinish = PartySession && PartySession->GetLetAIFinish();
+		FallSettingText->SetText(FText::Format(LOCTEXT("FallRow", "When your fighters fall: {0}"),
+											   bLetAIFinish ? LOCTEXT("LetAIFinish", "Let AI finish") : LOCTEXT("TakeOver", "Take over")));
+	}
+}
+
+FString UPartyControlWidget::GetPartyControlString() const
+{
+	FString Out = TEXT("[PartyControl]");
+	for (int32 SlotIndex = 0; SlotIndex < SlotTexts.Num(); ++SlotIndex)
+	{
+		if (SlotButtons[SlotIndex]->GetVisibility() != ESlateVisibility::Collapsed)
+		{
+			Out += FString::Printf(TEXT("\n  [%d] %s"), SlotIndex, *SlotTexts[SlotIndex]->GetText().ToString());
+		}
+	}
+	if (FallSettingText)
+	{
+		Out += TEXT("\n  ") + FallSettingText->GetText().ToString();
+	}
+	return Out;
+}
+
+void UPartyControlWidget::ToggleSlot(int32 SlotIndex)
+{
+	if (UPartySessionSubsystem *PartySession = PartyControlBuild::PartySessionOf(this))
+	{
+		PartySession->SetMemberPlayerControlled(SlotIndex, !PartySession->IsMemberPlayerControlled(SlotIndex));
+	}
+}
+
+void UPartyControlWidget::HandleSlot1Clicked() { ToggleSlot(1); }
+
+void UPartyControlWidget::HandleSlot2Clicked() { ToggleSlot(2); }
+
+void UPartyControlWidget::HandleFallSettingClicked()
+{
+	if (UPartySessionSubsystem *PartySession = PartyControlBuild::PartySessionOf(this))
+	{
+		PartySession->SetLetAIFinish(!PartySession->GetLetAIFinish());
+	}
+}
+
+void UPartyControlWidget::HandleCloseClicked()
+{
+	if (APlayerController *PC = GetOwningPlayer())
+	{
+		PC->SetInputMode(FInputModeGameOnly());
+		PC->SetShowMouseCursor(false);
+	}
+	RemoveFromParent();
+}
+
+void UPartyControlWidget::HandlePartyChanged(UParty *Party)
+{
+	Refresh();
+	UE_LOG(LogTemp, Log, TEXT("%s"), *GetPartyControlString());
+}
+
+static FAutoConsoleCommandWithWorld GPartyControlUICommand(
+	TEXT("wor.UI.PartyControl"),
+	TEXT("PLACEHOLDER UI: open the party control screen (who plays each member, and what happens when your fighters fall)."),
+	FConsoleCommandWithWorldDelegate::CreateLambda(
+		[](UWorld *World)
+		{
+			if (!UPartyControlWidget::Open(World ? World->GetFirstPlayerController() : nullptr))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[PartyControl] wor.UI.PartyControl: no player controller"));
+			}
+		}));
+
+#undef LOCTEXT_NAMESPACE
