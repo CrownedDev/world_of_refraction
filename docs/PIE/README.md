@@ -39,6 +39,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-028](B-028.md) | `refactor/B-028-one-loadout-validator` (in `dev`) | One loadout rule set for the editor and the fight (D-073); `wor.Loadout.CompareRules` shows the difference | Not tested |
 | [B-031](B-031.md) | `refactor/B-031-async-only` (in `dev`) | Rituals fire through the async path; old sync router obsolete | Not tested |
 | [B-155](B-155.md) | `feature/B-155-utility-crystal-caps` (in `dev`) | Utility crystal tier caps reported in loadout checks | Not tested |
+| [B-160](B-160.md) | `feature/B-160-camera-cinematic-settings` (in `dev`) | Camera cinematic settings: cinematics on/off, enemy cinematics, skip after hit | Not tested |
 
 Move rows to **Done** when every check passes.
 

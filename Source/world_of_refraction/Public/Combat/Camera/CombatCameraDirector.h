@@ -33,6 +33,9 @@ public:
 	// TODO: settings menu (D-024 CommonUI). For now: Details panel or wor.Camera.Style / wor.Camera.MovementOff.
 	void SetTurnViewStyle(ETurnViewStyle NewStyle);
 	void SetCameraMovementOff(bool bOff);
+	void SetSkillCinematics(ESkillCinematics NewSetting);
+	void SetEnemySkillCinematics(bool bOn);
+	void SetSkipCinematicAfterHit(bool bSkip);
 
 	bool IsInCombat() const { return bInCombat; }
 	ETurnViewStyle GetTurnViewStyle() const { return TurnViewStyle; }
@@ -46,9 +49,22 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Settings")
 	ETurnViewStyle TurnViewStyle = ETurnViewStyle::CentredWide;
 
-	/** Motion-sickness setting: one static wide view, no sequences. */
+	/** Motion-sickness setting: one static wide view. Also skips cinematics unless SkillCinematics is On. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Settings")
 	bool bCameraMovementOff = false;
+
+	/** D-078 (1): skill cinematics, separate from camera movement. Untested default (docs/PIE/B-156.md). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Settings")
+	ESkillCinematics SkillCinematics = ESkillCinematics::FollowCameraMovement;
+
+	/** D-078 (2): enemy skills play their cinematics too. Untested default. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Settings")
+	bool bEnemySkillCinematics = true;
+
+	/** D-078 (3): cut a cinematic once its caster's first hit lands, instead of running to its end
+	 *  or the next turn. Untested default (off). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Settings")
+	bool bSkipCinematicAfterHit = false;
 
 	/** Sequence a skill without its own CameraSequence plays, by skill type (B-157 authors them). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Templates")
@@ -66,6 +82,12 @@ private:
 
 	UFUNCTION()
 	void HandleSequenceFinished();
+
+	UFUNCTION()
+	void HandleDamageDealt(AActor *Attacker, AActor *Target, int32 Damage, bool bCritical);
+
+	/** After a settings change: cuts a playing cinematic the settings now skip. */
+	void StopCinematicIfNowSkipped();
 
 	/** Shows the turn / not-your-turn / static view for the actor whose turn it is. */
 	void ShowTurnView();
@@ -97,6 +119,8 @@ private:
 
 	TWeakObjectPtr<UActionExecutor> BoundExecutor;
 	TWeakObjectPtr<AActor> ViewedActor;
+	TWeakObjectPtr<AActor> SequenceCaster;
+	uint64 SequenceStartFrame = 0;
 	TWeakObjectPtr<AActor> ViewTargetBeforeCombat;
 	ECombatCameraMode CurrentMode = ECombatCameraMode::None;
 	bool bInCombat = false;

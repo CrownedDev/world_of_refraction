@@ -54,6 +54,28 @@ void FCombatCameraSpec::Define()
 		});
 	});
 
+	Describe("ShouldPlayCinematic (D-078)", [this]()
+	{
+		It("by default follows camera movement", [this]()
+		{
+			TestTrue(TEXT("movement on: plays"), FCombatCameraRules::ShouldPlayCinematic(ESkillCinematics::FollowCameraMovement, false, false, true));
+			TestFalse(TEXT("movement off: skipped"), FCombatCameraRules::ShouldPlayCinematic(ESkillCinematics::FollowCameraMovement, true, false, true));
+		});
+
+		It("can be forced on or off whatever the camera movement", [this]()
+		{
+			TestTrue(TEXT("on, movement off"), FCombatCameraRules::ShouldPlayCinematic(ESkillCinematics::On, true, false, true));
+			TestFalse(TEXT("off, movement on"), FCombatCameraRules::ShouldPlayCinematic(ESkillCinematics::Off, false, false, true));
+		});
+
+		It("plays enemy cinematics unless that setting is off", [this]()
+		{
+			TestTrue(TEXT("enemy, setting on"), FCombatCameraRules::ShouldPlayCinematic(ESkillCinematics::FollowCameraMovement, false, true, true));
+			TestFalse(TEXT("enemy, setting off"), FCombatCameraRules::ShouldPlayCinematic(ESkillCinematics::FollowCameraMovement, false, true, false));
+			TestTrue(TEXT("own side, enemy setting off"), FCombatCameraRules::ShouldPlayCinematic(ESkillCinematics::FollowCameraMovement, false, false, false));
+		});
+	});
+
 	Describe("TemplateKindFor", [this]()
 	{
 		It("picks Spell for spells and the execution type for other skills", [this]()

@@ -40,6 +40,12 @@ ECombatCameraMode FCombatCameraRules::SelectMode(bool bActorIsViewers, bool bSeq
 	return bActorIsViewers ? ECombatCameraMode::Turn : ECombatCameraMode::NotYourTurn;
 }
 
+bool FCombatCameraRules::ShouldPlayCinematic(ESkillCinematics Setting, bool bMovementOff, bool bCasterIsEnemy, bool bEnemyCinematicsOn)
+{
+	const bool bCinematicsOn = Setting == ESkillCinematics::On || (Setting == ESkillCinematics::FollowCameraMovement && !bMovementOff);
+	return bCinematicsOn && (!bCasterIsEnemy || bEnemyCinematicsOn);
+}
+
 ECameraTemplateKind FCombatCameraRules::TemplateKindFor(const USkillDataBase *Skill, EActionType ActionType)
 {
 	if (ActionType == EActionType::Spell)

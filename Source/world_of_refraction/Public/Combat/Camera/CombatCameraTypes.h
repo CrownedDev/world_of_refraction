@@ -43,6 +43,16 @@ enum class ECameraTemplateKind : uint8
 	Spell UMETA(DisplayName = "Spell")
 };
 
+/** Whether skill cinematics play (D-078 setting 1). */
+UENUM(BlueprintType)
+enum class ESkillCinematics : uint8
+{
+	/** Off when camera movement is off, on otherwise (the default). */
+	FollowCameraMovement,
+	On,
+	Off
+};
+
 /** Where the fight is, from the camera's point of view. */
 struct WORLD_OF_REFRACTION_API FCombatCameraFrame
 {
@@ -60,6 +70,9 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 {
 	/** Mode the viewer sees while ActingActor's turn runs. */
 	static ECombatCameraMode SelectMode(bool bActorIsViewers, bool bSequencePlaying, bool bMovementOff);
+
+	/** Whether a skill's cinematic plays (D-078): the cinematics setting, then enemy cinematics. */
+	static bool ShouldPlayCinematic(ESkillCinematics Setting, bool bMovementOff, bool bCasterIsEnemy, bool bEnemyCinematicsOn);
 
 	/** Template a skill falls back to: spells use Spell, other skills their melee/ranged execution. */
 	static ECameraTemplateKind TemplateKindFor(const USkillDataBase *Skill, EActionType ActionType);

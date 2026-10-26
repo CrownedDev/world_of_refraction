@@ -59,6 +59,7 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 	if (Executor)
 	{
 		Executor->OnActionStarted.AddUniqueDynamic(this, &UCombatCameraDirector::HandleActionStarted);
+		Executor->OnDamageDealt.AddUniqueDynamic(this, &UCombatCameraDirector::HandleDamageDealt);
 		BoundExecutor = Executor;
 	}
 
@@ -85,6 +86,7 @@ void UCombatCameraDirector::EndCombat()
 	if (UActionExecutor *Executor = BoundExecutor.Get())
 	{
 		Executor->OnActionStarted.RemoveDynamic(this, &UCombatCameraDirector::HandleActionStarted);
+		Executor->OnDamageDealt.RemoveDynamic(this, &UCombatCameraDirector::HandleDamageDealt);
 	}
 	BoundExecutor.Reset();
 
@@ -126,15 +128,44 @@ void UCombatCameraDirector::SetTurnViewStyle(ETurnViewStyle NewStyle)
 void UCombatCameraDirector::SetCameraMovementOff(bool bOff)
 {
 	bCameraMovementOff = bOff;
-	if (!bInCombat)
+	StopCinematicIfNowSkipped();
+	// A cinematic still allowed keeps playing; the turn view picks up the new style after it.
+	if (bInCombat && !PlayingSequence)
+	{
+		ShowTurnView();
+	}
+}
+
+void UCombatCameraDirector::SetSkillCinematics(ESkillCinematics NewSetting)
+{
+	SkillCinematics = NewSetting;
+	StopCinematicIfNowSkipped();
+}
+
+void UCombatCameraDirector::SetEnemySkillCinematics(bool bOn)
+{
+	bEnemySkillCinematics = bOn;
+	StopCinematicIfNowSkipped();
+}
+
+void UCombatCameraDirector::StopCinematicIfNowSkipped()
+{
+	if (!bInCombat || !PlayingSequence)
 	{
 		return;
 	}
-	if (bOff)
+	const bool bStillPlays = FCombatCameraRules::ShouldPlayCinematic(
+		SkillCinematics, bCameraMovementOff, OpposingCombatants.Contains(SequenceCaster.Get()), bEnemySkillCinematics);
+	if (!bStillPlays)
 	{
 		StopSequence();
+		ShowTurnView();
 	}
-	ShowTurnView();
+}
+
+void UCombatCameraDirector::SetSkipCinematicAfterHit(bool bSkip)
+{
+	bSkipCinematicAfterHit = bSkip;
 }
 
 void UCombatCameraDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -162,7 +193,9 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 	{
 		ViewedActor = Executor;
 	}
-	ULevelSequence *Sequence = bCameraMovementOff ? nullptr : ResolveSequence(Action);
+	const bool bPlayCinematic = FCombatCameraRules::ShouldPlayCinematic(
+		SkillCinematics, bCameraMovementOff, OpposingCombatants.Contains(Executor), bEnemySkillCinematics);
+	ULevelSequence *Sequence = bPlayCinematic ? ResolveSequence(Action) : nullptr;
 	if (!Sequence)
 	{
 		// No sequence for this action: the turn view stays (B-157 adds the templates).
@@ -185,6 +218,20 @@ void UCombatCameraDirector::HandleSequenceFinished()
 	{
 		ShowTurnView();
 	}
+}
+
+void UCombatCameraDirector::HandleDamageDealt(AActor *Attacker, AActor *Target, int32 Damage, bool bCritical)
+{
+	// A hit resolved on the frame the cinematic started (no montage to wait on) would cut it
+	// before it is ever seen; let that one run.
+	if (!bSkipCinematicAfterHit || !PlayingSequence || Attacker != SequenceCaster.Get() || GFrameCounter == SequenceStartFrame)
+	{
+		return;
+	}
+	// Called from inside the hit, not from the player's OnFinished, so the actor can go now.
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s's hit landed: cutting %s"), *GetNameSafe(Attacker), *PlayingSequence->GetName());
+	StopSequence();
+	ShowTurnView();
 }
 
 void UCombatCameraDirector::ShowTurnView()
@@ -255,6 +302,8 @@ void UCombatCameraDirector::PlaySequence(ULevelSequence *Sequence, AActor *Caste
 	SequencePlayer = Player;
 	SequenceActor = NewActor;
 	PlayingSequence = Sequence;
+	SequenceCaster = Caster;
+	SequenceStartFrame = GFrameCounter;
 	CurrentMode = ECombatCameraMode::Action;
 	Player->OnFinished.AddDynamic(this, &UCombatCameraDirector::HandleSequenceFinished);
 	Player->Play();
@@ -290,6 +339,7 @@ void UCombatCameraDirector::StopSequence(bool bDeferDestroy)
 	SequencePlayer = nullptr;
 	SequenceActor = nullptr;
 	PlayingSequence = nullptr;
+	SequenceCaster.Reset();
 }
 
 FCombatCameraFrame UCombatCameraDirector::BuildFrame(AActor *Focus) const
