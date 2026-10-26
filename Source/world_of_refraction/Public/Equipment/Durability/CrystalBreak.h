@@ -7,6 +7,8 @@
 
 #include "CoreMinimal.h"
 
+class AActor;
+
 namespace CrystalBreak
 {
 	/** Destroys Actor's broken attachments and broken primary evolution; returns how many broke.

@@ -8,6 +8,7 @@
 #include "WoRTestWorld.h"
 #include "Currency/CurrencyComponent.h"
 #include "Currency/EconomyYield.h"
+#include "Equipment/FFusionAttachment.h"
 #include "Equipment/Durability/CrystalBreak.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -19,6 +20,9 @@ namespace
 	constexpr int32 CRYSTAL_BREAK_INTACT_DURABILITY = 10;
 	constexpr int32 CRYSTAL_BREAK_BROKEN_DURABILITY = 0;
 	const FCrystalId CRYSTAL_BREAK_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
+	/** An elemental fusion: a stone half (never pays) and a gem half (pays half its essence). */
+	const FCrystalId CRYSTAL_BREAK_FUSION_STONE(ECrystalType::DamageStone, EItemTier::C_Tier);
+	const FCrystalId CRYSTAL_BREAK_FUSION_GEM(ECrystalType::Garnet, EItemTier::C_Tier);
 
 	template <class TComponent>
 	TComponent *CrystalBreakAddComponent(AActor *Actor)
@@ -36,6 +40,17 @@ namespace
 		Attached.Crystal = FCrystalAttachment(CRYSTAL_BREAK_GEM, Durability);
 		return Attached;
 	}
+
+	FRuntimeAttachedItem CrystalBreakBrokenFusion()
+	{
+		FFusionId Id;
+		Id.HalfA = CRYSTAL_BREAK_FUSION_STONE;
+		Id.HalfB = CRYSTAL_BREAK_FUSION_GEM;
+		FRuntimeAttachedItem Attached;
+		Attached.Kind = EAttachedItemKind::Fusion;
+		Attached.Fusion = FFusionAttachment(Id, CRYSTAL_BREAK_BROKEN_DURABILITY);
+		return Attached;
+	}
 }
 
 BEGIN_DEFINE_SPEC(FCrystalBreakSpec, "WoR.Durability.CrystalBreak",
@@ -46,6 +61,7 @@ BEGIN_DEFINE_SPEC(FCrystalBreakSpec, "WoR.Durability.CrystalBreak",
 	UCurrencyComponent *Currency = nullptr;
 	UWeaponData *Weapon = nullptr;
 	URingData *Ring = nullptr;
+	UInventoryComponent *Inventory = nullptr;
 
 	/** A Resonator with a gem on its primary weapon and on its active ring. */
 	void Spawn(int32 WeaponDurability, int32 RingDurability)
@@ -53,7 +69,7 @@ BEGIN_DEFINE_SPEC(FCrystalBreakSpec, "WoR.Durability.CrystalBreak",
 		UCharacterData *Data = FWoRTestWorld::NewCharacterData();
 		Data->CharacterClass = ECharacterClass::Resonator;
 		Actor = TestWorld->SpawnCombatant(Data);
-		UInventoryComponent *Inventory = CrystalBreakAddComponent<UInventoryComponent>(Actor);
+		Inventory = CrystalBreakAddComponent<UInventoryComponent>(Actor);
 		Loadout = CrystalBreakAddComponent<ULoadoutComponent>(Actor);
 		Currency = CrystalBreakAddComponent<UCurrencyComponent>(Actor);
 		Loadout->InitializeFromCharacterData(Data, Inventory);
@@ -93,6 +109,7 @@ void FCrystalBreakSpec::Define()
 		Currency = nullptr;
 		Weapon = nullptr;
 		Ring = nullptr;
+		Inventory = nullptr;
 		TestWorld.Reset();
 	});
 
@@ -111,6 +128,8 @@ void FCrystalBreakSpec::Define()
 		Spawn(CRYSTAL_BREAK_INTACT_DURABILITY, CRYSTAL_BREAK_BROKEN_DURABILITY);
 		TestEqual(TEXT("one broke"), CrystalBreak::DestroyBrokenOn(Actor), 1);
 		TestTrue(TEXT("ring socket empty"), Loadout->GetCrystalEntryByHolder(Ring).IsEmpty());
+		TestEqual(TEXT("typed essence at the crystal curve"), GemEssence(),
+				  EconomyYield::GetTypedEssenceYieldForTier(CRYSTAL_BREAK_GEM.Tier));
 		TestFalse(TEXT("weapon crystal kept"), Loadout->GetCrystalEntryByHolder(Weapon).IsEmpty());
 	});
 
@@ -120,6 +139,20 @@ void FCrystalBreakSpec::Define()
 		TestEqual(TEXT("two broke"), CrystalBreak::DestroyBrokenOn(Actor), 2);
 		TestEqual(TEXT("essence for both"), GemEssence(),
 				  2 * EconomyYield::GetTypedEssenceYieldForTier(CRYSTAL_BREAK_GEM.Tier));
+	});
+
+	It("dismantles a broken fusion: half essence for the gem half, nothing for the stone", [this]()
+	{
+		Spawn(CRYSTAL_BREAK_INTACT_DURABILITY, CRYSTAL_BREAK_INTACT_DURABILITY);
+		Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryWeapon.WeaponEntry.AttachedItem = CrystalBreakBrokenFusion();
+		const int32 StoneEssenceBefore = Currency->GetEssenceType(EconomyYield::ResolveEssenceType(CRYSTAL_BREAK_FUSION_STONE));
+		TestEqual(TEXT("one broke"), CrystalBreak::DestroyBrokenOn(Actor), 1);
+		TestTrue(TEXT("weapon socket empty"), Loadout->GetCrystalEntryByHolder(Weapon).IsEmpty());
+		const int32 HalfYield = FMath::FloorToInt(EconomyYield::GetTypedEssenceYieldForTier(CRYSTAL_BREAK_FUSION_GEM.Tier)
+												 * EconomyYield::Constants::FUSION_BREAK_ESSENCE_FRACTION);
+		TestTrue(TEXT("the gem half is worth something"), HalfYield > 0);
+		TestEqual(TEXT("gem half pays half"), Currency->GetEssenceType(EconomyYield::ResolveEssenceType(CRYSTAL_BREAK_FUSION_GEM)), HalfYield);
+		TestEqual(TEXT("stone half pays nothing"), Currency->GetEssenceType(EconomyYield::ResolveEssenceType(CRYSTAL_BREAK_FUSION_STONE)), StoneEssenceBefore);
 	});
 
 	It("leaves intact crystals alone", [this]()

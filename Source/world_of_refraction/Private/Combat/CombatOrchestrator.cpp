@@ -41,9 +41,6 @@
 #include "Combat/Mechanics/WeatherStateManager.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "Equipment/Crystals/CrystalManager.h"
-#include "Currency/EconomyService.h" // DismantleEvolution on primary-evo break (§5.3b forced dismantle)
-#include "Currency/EconomyYield.h"   // ResolveEssenceType + crystal yield for gem break
-#include "Currency/CurrencyComponent.h" // AddEssenceType for gem break
 #include "TimerManager.h"
 
 ACombatOrchestrator::ACombatOrchestrator()
