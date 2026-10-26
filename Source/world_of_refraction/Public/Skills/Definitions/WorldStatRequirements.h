@@ -66,6 +66,7 @@ struct WORLD_OF_REFRACTION_API FWorldStatRequirements
     // Get total world stat deficit
     int32 GetTotalDeficit(const UCharacterData *Character) const;
 
-    // Calculate requirement penalty (0.0 to 0.60, capped at 60%)
+    // Old √-deficit requirement penalty (0.0 to 0.60). Not applied to damage or cost any more
+    // (requirement-gap scaling replaced it); read only for the Broken Darkness strain.
     float CalculatePenalty(const UCharacterData *Character) const;
 };

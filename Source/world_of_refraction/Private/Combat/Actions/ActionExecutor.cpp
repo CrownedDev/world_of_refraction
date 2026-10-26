@@ -6747,9 +6747,9 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 	case EInfusionSourceOption::Evolution:
 	{
 		// Phase 6 — Evolution backlash:
-		//   L1: 5% HP + 15 self-status build (using evolution element)
-		//   L2: 10% HP + 25 self-status build
-		// HP percentages match Innate/Raw; the cost is deferred to finalize too.
+		//   HP cost: the infused EP's share of Max EP, as a share of Max HP, less Resistance
+		//   (UInfusionCostHelper::CalculateHPCost, ED-32), deferred to finalize like Innate/Raw.
+		//   Self-status build: 15 at L1, 25 at L2 (using evolution element).
 		// Self-status build is logged as intent — actual application pending the
 		// element-to-status mapping system (separate workstream).
 
@@ -6772,7 +6772,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 
 		const ESpellElement EvolutionElement = WeaponCrystal->GetAssociatedElement();
 
-		// 2. HP cost — same percentages as Innate/Raw (5% L1, 10% L2). Computed now
+		// 2. HP cost — same EP-based formula as Innate/Raw. Computed now
 		//    (commit-time HP) but DEFERRED to FinalizeAsyncAction via
 		//    PendingInfusionHPCost so a lethal backlash lands after the action.
 		if (CurrentExecutionContext.IsSet())
@@ -6954,9 +6954,8 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 	// 4. Requirement-gap pillar proficiency (RequirementGapScaling Cluster 2): a skill cast
 	// above your world-pillar level lands weaker (under-statted → penalty); below it lands
 	// stronger (over-statted → boost). Per-pillar percents stack additively alongside the
-	// Reality/evolution adds above. NOTE: the old √deficit penalty (SpellData/SkillDataBase/
-	// AbilityData) is still LIVE this cluster, so off-matched levels DOUBLE-count until it is
-	// retired in Cluster 3 — gap-0 is a no-op (all percents 0), the only PIE case this cluster.
+	// Reality/evolution adds above. This is the only requirement scaling: the old √deficit
+	// penalty is no longer applied to damage or cost (B-117).
 	const USkillDataBase *ReqSkill = (Action.ActionType == EActionType::Spell)
 										 ? Action.SpellData
 										 : ResolveActionSkill(Action);
