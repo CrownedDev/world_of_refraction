@@ -34,6 +34,7 @@ Mark the job `IN PROGRESS (<branch>)` in `docs/Backlog.md` and commit that line 
   4. Push the branch (work so far is kept).
   5. Go back to step 1 and pick another job.
 - Add or extend tests (Automation Spec under `Source/world_of_refraction/Private/Tests/`) for any logic you touch. Add debug utilities per CLAUDE.md for any new system.
+- **Needs UI to try it?** If the player does it through a screen that doesn't exist yet (party, interact, choose, buy…), add a plain placeholder UI in C++ (buttons + text, no `.uasset`) so Crown can do it in PIE; say in the PIE file how to open it. The real CommonUI screen replaces it later (D-024).
 
 ## 4. Prove it
 1. `Scripts/ue/build.sh`. Must pass; fix and repeat.

@@ -168,14 +168,15 @@ The project is worked from one queue, `docs/Backlog.md`, with open questions in 
    - mark the job `BLOCKED (D-xxx)`
    - commit that doc change
    - **move on to the next job**
-4. **Prove it before handing it over.** The build must pass and the tests must pass (`Scripts/ue/build.sh`, `Scripts/ue/test.sh`; the Stop hook enforces this when `UE_ROOT` is set). Then run the `wor-reviewer` agent on the diff and fix what it finds.
-5. **Hand-off** (only after build + tests + `wor-reviewer` pass):
+4. **Playable in PIE when it needs UI (Crown, 2026-10-26).** If a job adds something the player does through UI (adding a character to the party, interacting, choosing, buying…) and the real screen doesn't exist yet, ship a **plain placeholder UI** with it: simple buttons and text, built in C++ (no `.uasset` needed), so Crown can do it in PIE. The PIE checklist says how to open it. It's replaced by the real CommonUI screen later (D-024); log it in the job's hand-off.
+5. **Prove it before handing it over.** The build must pass and the tests must pass (`Scripts/ue/build.sh`, `Scripts/ue/test.sh`; the Stop hook enforces this when `UE_ROOT` is set). Then run the `wor-reviewer` agent on the diff and fix what it finds.
+6. **Hand-off** (only after build + tests + `wor-reviewer` pass):
    - set the job to `REVIEW (in dev)` in `Backlog.md`
    - add a changelog line to the relevant `docs/Architecture/` doc
    - write `docs/PIE/B-xxx.md` in the format of `docs/PIE/B-001.md` (numbered checks: do this / you should see / result box) and add its row to **Pending** in `docs/PIE/README.md`
    - append a plain-words entry to `docs/sessions/<today>.md`: what changed, why, how it was verified, what Crown should check
    - push the job branch, merge it into `dev` with `git merge --no-ff -m "<real message>"` (never `--no-edit`), push `dev`
-6. **Stop** after Crown's requested number of jobs, or when only blocked jobs remain. Summarise: done, blocked (with D-xxx), next.
+7. **Stop** after Crown's requested number of jobs, or when only blocked jobs remain. Summarise: done, blocked (with D-xxx), next.
 
 Still always: no Blueprint/`.uasset` edits outside the editor connection, no deleting code before it's verified in PIE, no history rewriting, and the Architecture rules above.
 
