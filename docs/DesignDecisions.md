@@ -1180,7 +1180,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **A** keep it: a Caster may infuse a broken ring's F-tier spell with their own element; a Generic spell keeps the ring's element.
 - **B** a broken ring's spells can't be infused at all (any source), and a Generic spell from it is non-elemental (None).
 **Recommendation:** B. A broken crystal gives no element (Q-163), so its spells cast plain; it also keeps the spell's origin honest (it still comes from the ring).
-**Answer (Crown):** **B, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
+**Answer (Crown):** **B, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it. **Confirmed by Crown in chat (2026-10-26).**
 **Notes for Claude:** Applied in fix/Q-163b-broken-ring-spells-plain (`ULoadoutComponent::IsSpellFromBrokenRing`).
 
 ### D-092 — Shields, Wards and Barriers: the deckbuilder's absorb system
@@ -1360,7 +1360,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **A** keep it: an attached evolution uses the holder's flat ceiling (as now).
 - **B** by tier: an attached evolution holds its tier's count, like a primary one and a gem.
 **Recommendation:** B, because it is the plain reading of D-039 and makes every container follow one curve. The deckbuilder has no separate rule.
-**Answer (Crown):** **B, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
+**Answer (Crown):** **B, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it. **Confirmed by Crown in chat (2026-10-26).**
 **Notes for Claude:** _optional_
 
 ### D-097 — Storage (items), inventory (items you carry) and the pool (gear)
