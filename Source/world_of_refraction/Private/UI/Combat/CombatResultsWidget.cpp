@@ -47,6 +47,8 @@ namespace CombatResultsBuild
             return TEXT("DEFEAT");
         case ECombatState::Draw:
             return TEXT("DRAW");
+        case ECombatState::Fled:
+            return TEXT("FLED");
         default:
             return TEXT("COMBAT OVER");
         }

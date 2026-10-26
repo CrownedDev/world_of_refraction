@@ -198,8 +198,10 @@ void ABattleGameMode::BootstrapCombat()
     Orchestrator = SpawnedOrchestrator;
     SpawnedOrchestrator->OnCombatResultReady.AddDynamic(this, &ABattleGameMode::HandleCombatEnd);
 
-    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Starting combat %d v %d (difficulty %s)"),
-           LocalParty.Num(), OpposingParty.Num(), *UEnum::GetValueAsString(TrialRun->GetPendingDifficulty()));
+    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Starting combat %d v %d (difficulty %s, rank %s)"),
+           LocalParty.Num(), OpposingParty.Num(), *UEnum::GetValueAsString(TrialRun->GetPendingDifficulty()),
+           *UEnum::GetValueAsString(TrialRun->GetPendingRank()));
+    SpawnedOrchestrator->SetEncounterRank(TrialRun->GetPendingRank());
     SpawnedOrchestrator->StartCombat(LocalParty, OpposingParty, TrialRun->GetPendingDifficulty());
 }
 
