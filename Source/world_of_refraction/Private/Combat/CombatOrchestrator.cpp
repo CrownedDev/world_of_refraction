@@ -335,6 +335,7 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 							: FirstStrike == EFirstStrike::Enemy ? CombatOrchestratorFirstStrike::OPPOSING_TEAM_INDEX
 																 : INDEX_NONE;
 	TurnManagerRef->InitializeCombat(LocalParty, OpposingParty, OpeningTeam);
+	FirstStrike = EFirstStrike::None; // B-185: belongs to this fight only
 
 	// Turn 1 can resolve the whole combat inside InitializeCombat (state back to Idle,
 	// teams emptied) — don't build UI for a fight that's already over.
@@ -389,9 +390,6 @@ void ACombatOrchestrator::ReleaseCombatResources()
 	}
 
 	UnbindTurnManagerEvents();
-
-	// B-185: a first strike belongs to one fight.
-	FirstStrike = EFirstStrike::None;
 
 	// B-071: the per-fight Player flag (a take-over or a switch) ends with the fight; placed
 	// pawns are reused by the next fight, so it must not carry.
