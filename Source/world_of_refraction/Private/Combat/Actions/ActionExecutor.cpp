@@ -2499,6 +2499,28 @@ void UActionExecutor::CancelAsyncAction()
 	FinalizeAsyncAction();
 }
 
+void UActionExecutor::ResetForCombat()
+{
+	AsyncActionCallback.Unbind();
+	if (CurrentExecutionContext.IsSet())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Reset: cancelling the action in flight"));
+		// Resolving the windows now could reflect parry damage after the fight ended.
+		CurrentExecutionContext->PendingDefenses.Empty();
+		CancelAsyncAction();
+	}
+
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(BurstTimerHandle);
+	}
+	BurstSpawnQueue.Empty();
+	ActiveBurstSpell = nullptr;
+	ActiveBurstCaster.Reset();
+	ClearPendingSpellData();
+	bHasGridPosition = false;
+}
+
 bool UActionExecutor::AllInterruptSucceeded() const
 {
 	if (!CurrentExecutionContext.IsSet())

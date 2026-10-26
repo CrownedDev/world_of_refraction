@@ -842,6 +842,11 @@ private:
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Async")
 	void CancelAsyncAction();
 
+	/** The fight is over (B-030): drop the completion callback so nothing advances a turn, cancel any
+	 *  action in flight without resolving its defense windows (UDefenseSystem::ResetForCombat drops
+	 *  them), and clear the burst, pending-spell and grid-position state. */
+	void ResetForCombat();
+
 	/** B2 interrupt — true iff EVERY currently-pending defender has resolved the current interruptable hit
 	 *  AND parried/dodged it (the all-targets abort gate). Empty set → false. Single-target (N=1) degenerates
 	 *  to the one defender's outcome. Read between the melee resolve and close loops (contexts still present). */
