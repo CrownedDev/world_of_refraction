@@ -245,9 +245,15 @@ The queue of questions only Crown can answer.
 - Tests: cleanse removes an enemy's Burn but keeps your "attacks apply Burn" ring; Iolite on an enemy keeps their gear buffs.
 
 ### D-016 — Can equipped items be dismantled?
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-084
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-084
 **Recommendation:** No. Block it with a message.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **C, with a warning** (2026-10-26): "This is equipped in loadout N. Dismantle anyway?", then it's unequipped and dismantled. Crown: **a Generic or Resonator can't enter combat with no gear.**
+**Notes for Claude:**
+- Checked: dismantling destroys the item for Gear essence by tier (`EconomyService::DismantleWeapon/DismantleRing`), with no equipped check, and loadouts hold copies (B-085), so a dismantled item stays usable in its loadout.
+- Dismantle: if the item is in any saved loadout, require a confirm (placeholder UI per the PIE rule), then remove it from those loadouts, then dismantle.
+- If that leaves a Generic or Resonator with no gear, say so in the warning ("X will have no gear and can't fight until you equip something").
+- Combat entry: a Generic or Resonator with no gear can't enter a fight. A Refractor can (innate). Today an empty primary is valid (`FSavedLoadout.cpp` `EPrimarySlotType::None`). How a gearless party member is handled at fight start (left out vs fight blocked) isn't ruled: raise it if B-071 needs it.
+- Tests: dismantling an equipped weapon removes it from the loadout; a gearless Generic is refused at fight start.
 
 ### D-017 — Header bar style (UI)
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** UI work (later)

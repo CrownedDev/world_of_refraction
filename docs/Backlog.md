@@ -118,7 +118,7 @@
 | B-081 | Gear effects follow a mid-fight swap per D-008: on weapon toggle / ring switch, remove + disarm the old gear's effects, apply + arm the new | CC | M | D-008 | Tests: ring switch changes effects; swapping back doesn't stack | TODO |
 | B-082 | Ring fusions per D-009: the stat-stone half of an elemental fusion on a ring applies its attached self-passive (today stone reads go through the weapon only) | CC | S | D-009 | Test: DefenseStone + Fire crystal ring raises Defense and keeps its Fire spells | TODO |
 | B-083 | D-010/D-027: correct the stale class comment in `ECharacterClass.h` (Resonator budget of 5, no same-element cap; Generic/Refractor slots as in D-027). Comment-only | CC | S | — | Comment matches D-027 and the code | TODO |
-| B-084 | Dismantle equipped per D-016 | CC | S | D-016 | Matches answer | BLOCKED (D-016) |
+| B-084 | Dismantle equipped per D-016: confirm warning, then remove from every loadout and dismantle; Generic/Resonator with no gear can't enter combat | CC | S | D-016 | Tests: no ghost copy after dismantle; gearless Generic refused at fight start | TODO |
 | B-085 | Loadouts reference owned gear by `PersistentID` (no copies) | CC | L | B-090 | Wear/dismantle stay in sync | BLOCKED (B-090) |
 
 ## Phase 6 — Persistence
