@@ -14,6 +14,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "Trial/TrialGate.h"
 #include "TrialData.generated.h"
 
 class UWorld;
@@ -49,6 +50,13 @@ public:
      *  this trial log and no-op rather than stranding the run. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level")
     TSoftObjectPtr<UWorld> EncounterLevel;
+
+    // ==================== GATE (B-183) ====================
+
+    /** What the door offers: each variation changes the boss and its story (RunStructure §3).
+     *  Empty = the door asks for the difficulty only. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gate")
+    TArray<FTrialVariation> Variations;
 
     // ==================== BANKED (future clusters) ====================
     // - LootPool     : what the trial's rewards draw from
