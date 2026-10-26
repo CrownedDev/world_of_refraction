@@ -1017,10 +1017,20 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
-### D-084 — What a Perfect defense does
+### D-084 — What a Perfect defense does (Block and Parry merged into Guard)
 **Status:** ANSWERED · **Raised:** 2026-10-26 (rules review, page 02 gap) · **Blocks:** —
-**Answer (Crown):** **B** (2026-10-26): a Perfect press (ED-37) **improves its own defense**: Perfect **Block** takes less (placeholder 25% instead of 50%), Perfect **Parry** reflects more (placeholder 60% instead of 30%); Dodge already takes nothing. It still fires "on perfect" triggers and doubles Broken Darkness absorption. Counter-attacks (Expedition 33) can come later through "on perfect" gear effects.
-**Notes for Claude:** new named constants beside `BlockReduction` / `ParryReflect` (`// TODO: tune`); tests for each.
+**Answer (Crown):** (2026-10-26, revised the same day)
+- **Block and Parry merge into one button, Guard** (Expedition 33 style). **Two defense buttons: Guard and Dodge.**
+  - **Guard, normal timing:** a block, taking 50% (`BlockReduction`).
+  - **Guard, Perfect timing** (ED-37 window): **a parry**: takes less and **reflects** damage back (placeholders: take 25%, reflect 60% of the impact's base; tune). Perfect Guard *is* the parry.
+  - **Dodge:** unchanged: takes nothing, no status buildup.
+- "On perfect" triggers still fire, and Broken Darkness absorption still doubles on a Perfect (its block/parry absorption rates map to Guard / Perfect Guard).
+- Counter-attacks (Expedition 33) can come later through "on perfect" gear effects.
+**Notes for Claude:**
+- The deckbuilder already calls its block "Guard" (`WoR_TCG_Pivot_Design.md`, "Block renamed Guard, 2026-10-09"). Player-facing "Guard"; code names can stay until touched.
+- Input: one Guard action replaces the separate Block and Parry inputs (unique action names, D-063). Per-skill defense difficulty (ED-36) and allowed defenses (ED-38) collapse Block/Parry into Guard.
+- Status through a defended hit (ED-34): Guard 50%, Perfect Guard 30%, Dodge 0% (today's Block / Parry / Dodge values).
+- The menu's Defend action (D-050) is a separate turn action, unchanged.
 
 ## Parked
 

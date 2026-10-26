@@ -93,7 +93,7 @@ Steps run in this order. All are multipliers, so order only matters for rounding
 - **CED-6 — Stale comments.** → **B-117** `ActionExecutor.cpp:6846-6851` says the old √deficit requirement penalty is still live and double-counts; `SkillDataBase.h:377-383` says damage = BaseDamage × (1 − penalty). The code no longer applies it (`SkillDataBase.cpp:288-298`, `SpellData.cpp:84-101`). `ActionExecutor.cpp:6667` says Evolution HP backlash is 5% / 10% of max HP, but the code uses the EP-based formula (ED-32); `EVOLUTION_L1/L2_HP_COST_PERCENT`, `SPELL_L2_DAMAGE_MULT` and `LEVEL_1/2_CHARGE_TIME` (`InfusionConstants.h:40-57,72`) have no readers. No design question: code is right; fix or remove the comments and dead constants.
 
 ## Gaps
-- A Perfect defense changes nothing about damage (ED-37). The deckbuilder has no real-time defense to borrow from. **Ruled: D-084** (Perfect Block takes less, Perfect Parry reflects more).
+- A Perfect defense changes nothing about damage (ED-37). The deckbuilder has no real-time defense to borrow from. **Ruled: D-084** (Block and Parry merge into **Guard**: normal = block, Perfect = parry; Dodge unchanged).
 - Luck dodge: `LUCK_DODGE_MAX` (25%) exists with no reader (`CombatConstants.h:315,319-326`).
 - Ignore Defense is all-or-nothing here; the deckbuilder's Ignore Defense N removes up to N, element Resistance first (`04-effects.md:351,362`).
 - No rule on whether parry-reflected damage goes through the attacker's Defense, crit or resistance. Not checked in the code.
