@@ -209,17 +209,23 @@ void UEncounterComponent::HandleJoin(UPrimitiveComponent *OverlappedComponent, A
 
 void UEncounterComponent::OnJoinWindowExpired()
 {
-	// Roster extraction: authored CharacterData assets only (see header ⚠️).
-	TArray<UCharacterData *> BattlePartyData;
-	for (const TWeakObjectPtr<AActor> &Pending : PendingBattleParty)
-	{
-		const UCharacterDataComponent *CharComp =
-			Pending.IsValid() ? Pending->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-		if (CharComp && CharComp->CharacterData)
-		{
-			BattlePartyData.Add(CharComp->CharacterData);
-		}
-	}
+	// Roster extraction: the LOCAL side comes from the party, not from who was
+	// standing in the arena. Presence was only ever the player themselves — the
+	// party is the authored roster and is what the battle must spawn.
+	//
+	// TODO(multiplayer): remote players still join via the arena
+	// overlap window. The LOCAL party is roster-sourced and spawns
+	// with the player. Presence-authoritative solo (companion
+	// follow-AI) is the deferred alternative -- see banked note.
+	//
+	// Nothing above this line changed: the trigger, the join window, the arena
+	// sphere and PendingBattleParty all still run. They are the remote-join path
+	// and must stay warm; this function simply no longer reads them for the local
+	// roster. Dead members are filtered — a corpse does not re-enter combat.
+	UPartySessionSubsystem *PartySession = GetPartySession();
+	const UParty *LocalParty = PartySession ? PartySession->GetLocalParty() : nullptr;
+	const TArray<UCharacterData *> BattlePartyData =
+		LocalParty ? LocalParty->GetLivingMemberCharacterData() : TArray<UCharacterData *>();
 
 	const UCharacterDataComponent *OwnerCharComp = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
 	UCharacterData *OwnerData = OwnerCharComp ? OwnerCharComp->CharacterData : nullptr;
@@ -227,13 +233,20 @@ void UEncounterComponent::OnJoinWindowExpired()
 	UTrialRunSubsystem *TrialRun = GetWorld()->GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
 	UTrialData *ActiveTrial = TrialRun ? TrialRun->GetActiveTrial() : nullptr;
 
-	if (BattlePartyData.Num() == 0 || !OwnerData || !ActiveTrial)
+	// Party wipe is called out as its own cause: it is a legitimate run state, not a
+	// wiring fault, and it must NOT reach EnterEncounter — ABattleGameMode hard-aborts
+	// on an empty Battle Party, which would bounce through a level load to get back
+	// here. Re-arming leaves the trial playable.
+	//
+	// TODO: stopgap. Real defeat handling (run ends, return to hub) is banked.
+	if (!ActiveTrial || !OwnerData || !LocalParty || BattlePartyData.Num() == 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[EncounterComponent] %s - encounter aborted (%s) - re-arming"),
 			   *GetOwner()->GetName(),
 			   !ActiveTrial	   ? TEXT("no active trial on TrialRunSubsystem")
 			   : !OwnerData	   ? TEXT("owner has no CharacterData")
-							   : TEXT("no pending pawns survived the join window"));
+			   : !LocalParty   ? TEXT("no local party - the encounter path did not create one")
+							   : TEXT("party wiped - no living members"));
 		RearmEncounter();
 		return;
 	}

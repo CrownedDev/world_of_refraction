@@ -12,7 +12,11 @@ public class world_of_refraction : ModuleRules
 		// decisions still live in UAIDecisionManager — the controller is only a
 		// possession host so engine control queries (IsPlayerControlled /
 		// IsBotControlled) report the truth.
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "Niagara", "UMG", "MotionWarping", "NetCore", "GameplayTags", "AIModule" });
+		// CommonUI + CommonInput: both ship in the CommonUI plugin, and both are
+		// needed here — CommonUI for UCommonActivatableWidget and the widget
+		// stacks, CommonInput for FUIInputConfig / ECommonInputMode, which
+		// GetDesiredInputConfig overrides return by value.
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "Niagara", "UMG", "MotionWarping", "NetCore", "GameplayTags", "AIModule", "CommonUI", "CommonInput" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 

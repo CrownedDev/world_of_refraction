@@ -486,6 +486,12 @@ private:
 
 	void TeardownCombatHUD();
 
+	/** Shared end-of-combat cleanup for ALL three end paths (win in OnActionCompleted,
+	 *  TurnManager-driven HandleCombatEnded, ForceEndCombat): timers, TurnManager +
+	 *  per-actor OnDied unbinds, weather, effects, status bars, loadout battle state,
+	 *  grid, AI/menu back-refs. Call BEFORE the team arrays are emptied. Idempotent. */
+	void ReleaseCombatResources();
+
 	/** Track if we're waiting for async action to complete */
 	bool bWaitingForAsyncAction = false;
 

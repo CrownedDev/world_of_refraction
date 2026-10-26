@@ -59,6 +59,9 @@ Superseded · Snapshot · Untracked. **Updated** = last-commit `MM-DD` (all 2026
 | RawModeExtension.md | DEC | Superseded | 06-25 | **Dead:** base bIsRawMode removed |
 | Resources_Design.md | DEC | Active | 07-11 | Resource economy: currencies, essence, hub (locked) |
 | SkillGenerationPipeline.md | DEC | Active | 06-17 | Claude-designed skill seeds → assets (future) |
+| UI_ScreenInventory.md | PLN | Active | 10-25 | Every screen/UI title→end-game: list, status, asset needs |
+| UI_DeckbuilderReuse.md | PLN | Active | 10-25 | Map all 52 screens to wor-deckbuilder layouts + kit; import steps |
+| GASMigration.md | DEC | Active | 10-25 | Staged move of stats/effects/skills onto GAS; turn tracker |
 
 ## Design/Completed/
 

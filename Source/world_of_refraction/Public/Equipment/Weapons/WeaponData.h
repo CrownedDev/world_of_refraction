@@ -21,6 +21,7 @@
 class UAbilityData;
 class UStanceData;
 class USkillDataBase;
+class UMaterialInterface;
 
 /**
  * Weapon Data Asset
@@ -112,6 +113,15 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh",
               meta = (EditCondition = "WieldMode != EWeaponWieldMode::Single", EditConditionHides))
     FRotator LeftMeshRotation = FRotator::ZeroRotator;
+
+    /** Optional material override applied to slot 0 of the spawned right-hand weapon mesh.
+     *  Null = use the mesh asset's default materials. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
+    TObjectPtr<UMaterialInterface> WeaponMaterialOverride;
+
+    /** Left-hand counterpart, same semantics. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
+    TObjectPtr<UMaterialInterface> LeftHandMaterialOverride;
 
     // ==================== UTILITY ====================
 

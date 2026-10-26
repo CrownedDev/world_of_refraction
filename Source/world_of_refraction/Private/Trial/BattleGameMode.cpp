@@ -259,6 +259,49 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Combat ended (%s, %d turns)"),
            *UEnum::GetValueAsString(Result.FinalState), Result.TotalTurns);
 
+    // Bank player-side vitals into the party slots BEFORE the level swap - the
+    // pawns are still alive here, and ExitEncounter's OpenLevel destroys them.
+    // Must stay here, not in ReturnToTrial: the orchestrator empties its team
+    // arrays right after this broadcast, before the results screen is dismissed.
+    // Player side only: GetLocalParty() is TeamIndex 0. Enemies are unrostered
+    // and must not be written back.
+    //
+    // A dead combatant banks CurrentHP == 0 (ServerTakeDamage floors at 0 and
+    // CheckDeath leaves HP untouched) - that zero IS the dead marker the trial
+    // side filters on, so deaths must NOT be skipped here.
+    if (Orchestrator.IsValid())
+    {
+        if (UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>())
+        {
+            int32 BankedCount = 0;
+            for (AActor *Combatant : Orchestrator->GetLocalParty())
+            {
+                if (!Combatant)
+                {
+                    continue;
+                }
+
+                const UCharacterDataComponent *CharComp = Combatant->FindComponentByClass<UCharacterDataComponent>();
+                if (!CharComp || !CharComp->CharacterData)
+                {
+                    continue;
+                }
+
+                // Pointer-identity match, same limit as elsewhere: two pawns
+                // sharing one CharacterData asset resolve to the same slot and
+                // the later walked one wins. Not reachable with distinct lords.
+                const int32 SlotIndex = PartySession->GetMemberSlotByData(CharComp->CharacterData);
+                if (SlotIndex != INDEX_NONE)
+                {
+                    PartySession->SetMemberVitals(SlotIndex, CharComp->CurrentHP, CharComp->CurrentEP);
+                    ++BankedCount;
+                }
+            }
+            UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Banked vitals for %d/%d player-side combatant(s)"),
+                   BankedCount, Orchestrator->GetLocalParty().Num());
+        }
+    }
+
     if (!ShowResults(Result))
     {
         ReturnToTrial();

@@ -164,10 +164,13 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 	// ritual with no valid targets fizzles.
 	if (!Action.bIsDeferredFire)
 	{
-		// Check if actor can act (not stunned)
 		if (!CanActorAct(Actor))
 		{
-			return FActionValidationResult(false, TEXT("Cannot act (Stunned)"));
+			const ULoadoutComponent *Loadout = GetLoadoutComponent(Actor);
+			if (!IsActionAllowedWhileStunned(Action, Loadout ? Loadout->GetCurrentAttack() : nullptr))
+			{
+				return FActionValidationResult(false, TEXT("Stunned: only Attack or Defend"));
+			}
 		}
 
 		// Check if actor can cast spells (not silenced)
@@ -298,6 +301,18 @@ bool UActionExecutor::CanActorAct(AActor *Actor) const
 		return false;
 	}
 	return true;
+}
+
+bool UActionExecutor::IsActionAllowedWhileStunned(const FAction &Action, const USkillDataBase *CurrentAttack)
+{
+	if (Action.ActionType == EActionType::Defend)
+	{
+		return true;
+	}
+	// Basic attacks dispatch as Ability (attack/ability merge); only the active weapon's own
+	// attack counts, not any attack-flagged skill.
+	return Action.ActionType == EActionType::Ability && Action.SkillData &&
+		   Action.SkillData->IsAttack() && Action.SkillData == CurrentAttack;
 }
 
 bool UActionExecutor::CanActorCastSpells(AActor *Actor) const
@@ -5520,10 +5535,17 @@ void UActionExecutor::FinishArmTurn(AActor *Actor)
 
 	CurrentExecutionContext.Reset();
 
-	if (AsyncActionCallback.IsBound())
+	// Execute ends the turn, and the advance can fire a ready Execution turn that
+	// RE-BINDS AsyncActionCallback inside this call. Unbinding after Execute wiped
+	// that fresh binding (orchestrator stuck in bWaitingForAsyncAction). Same
+	// capture-clear-run guard as CompleteAsyncActionFinal.
+	FOnActionComplete PendingCallback = AsyncActionCallback;
+	AsyncActionCallback.Unbind();
+	if (PendingCallback.IsBound())
 	{
-		AsyncActionCallback.Execute(PendingFinalResult);
-		AsyncActionCallback.Unbind();
+		// Copy: a nested action launched from the callback may overwrite the member.
+		const FActionResult ArmResult = PendingFinalResult;
+		PendingCallback.Execute(ArmResult);
 	}
 }
 

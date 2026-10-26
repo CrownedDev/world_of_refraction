@@ -5,10 +5,13 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "Styling/SlateBrush.h" // FSlateBrush value member (portrait placeholder cache)
 #include "CharacterPanelWidget.generated.h"
 
 class AActor;
+class UCharacterData;
 class UCharacterDataComponent;
+class UImage;
 class USkillEffectManager;
 class UStatusBuildupManager;
 class UProgressBar;
@@ -19,6 +22,18 @@ struct FActiveSkillEffect;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPanelHovered, bool, bIsHovered);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPanelClicked);
+
+/** What a panel instance is currently showing (Arc 1.5b unification). */
+UENUM(BlueprintType)
+enum class EPanelDisplayMode : uint8
+{
+	/** Ghost slot — no character. */
+	Vacant,
+	/** Static template data from a UCharacterData asset — no actor, no delegates. */
+	Roster,
+	/** Full live combat panel bound to a spawned actor (InitialiseForActor). */
+	Live
+};
 
 /**
  * UCharacterPanelWidget
@@ -43,9 +58,37 @@ class WORLD_OF_REFRACTION_API UCharacterPanelWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	UCharacterPanelWidget(const FObjectInitializer &ObjectInitializer);
+
 	/** Bind to actor's CharacterDataComponent and SkillEffectManager. */
 	UFUNCTION(BlueprintCallable, Category = "Character Panel")
 	void InitialiseForActor(AActor *InActor);
+
+	/** Roster mode: static template text from the asset alone — no actor, no
+	 *  delegate binds, bBound stays false. bIsLeader suffixes the name with
+	 *  " (You)" — slot 0 is the player per the design lock. Null Data routes to
+	 *  SetVacant rather than asserting.
+	 *
+	 *  HP/EP now RENDER in Roster: InCurrentHP/InCurrentEP carry the party slot's
+	 *  trial vitals. Pass PartyConstants::NO_CARRIED_VITALS (the -1 default) for
+	 *  no carry — the bars then fill from the asset's computed maxima, so a hub
+	 *  member reads full. Status stays collapsed either way: no buildup outside
+	 *  battle.
+	 *
+	 *  ⚠️ The defaults are literal -1, not PartyConstants::NO_CARRIED_VITALS —
+	 *  UHT cannot parse scope resolution in a UFUNCTION default argument. The
+	 *  two must stay in sync; the .cpp compares against the named constant. */
+	UFUNCTION(BlueprintCallable, Category = "Character Panel")
+	void InitialiseForData(UCharacterData *Data, bool bIsLeader, int32 InCurrentHP = -1, int32 InCurrentEP = -1);
+
+	/** Ghost slot: "Empty" name, everything else blank/collapsed, portrait
+	 *  placeholder dimmed to GhostAlpha. */
+	UFUNCTION(BlueprintCallable, Category = "Character Panel")
+	void SetVacant();
+
+	/** What this panel is currently showing. */
+	UFUNCTION(BlueprintPure, Category = "Character Panel")
+	EPanelDisplayMode GetDisplayMode() const { return DisplayMode; }
 
 	/** Unbind delegates. Called by HUD root or on destruct. */
 	UFUNCTION(BlueprintCallable, Category = "Character Panel")
@@ -94,6 +137,15 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	UTextBlock *NameText;
+
+	/** Roster/hub portrait. Combat WBPs may omit it — the ref no-ops null. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UImage> PortraitImage;
+
+	/** PortraitImage opacity in the Vacant ghost state. WBP-tunable; default
+	 *  from PanelGhostConstants (ported from the deleted PartyMemberCardWidget). */
+	UPROPERTY(EditDefaultsOnly, Category = "Character Panel", meta = (ClampMin = 0.0, ClampMax = 1.0))
+	float GhostAlpha;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	UTextBlock *ClassElementText;
@@ -188,6 +240,51 @@ private:
 	TArray<TObjectPtr<UTextBlock>> EffectRowPool;
 
 	void SpawnEffectRowPool();
+
+	EPanelDisplayMode DisplayMode = EPanelDisplayMode::Vacant;
+
+	/** Roster-mode data source — HARD ref, pins the asset like FPartyMember does. */
+	UPROPERTY()
+	TObjectPtr<UCharacterData> RosterData;
+
+	/** Roster-mode leader flag — drives the " (You)" name suffix. */
+	bool bRosterLeader = false;
+
+	/** The WBP-authored portrait placeholder brush, captured before the first C++
+	 *  write so a null Portrait and the Vacant state restore the designer's
+	 *  placeholder instead of a stale portrait (ported from PartyMemberCardWidget). */
+	FSlateBrush DefaultPortraitBrush;
+	bool bPortraitBrushCached = false;
+
+	void CachePortraitBrushOnce();
+
+	/** Portrait for Data (null = placeholder brush), full opacity. */
+	void UpdatePortrait(UCharacterData *Data);
+
+	/** The static-text data source for the current mode: Live = the bound
+	 *  component's asset, Roster = RosterData, Vacant = null. */
+	UCharacterData *GetDisplayData() const;
+
+	/** Collapse (Vacant) or restore (Live) ALL runtime rows. Roster drives the
+	 *  three groups separately — vitals and world stats on the carry sentinel,
+	 *  status always off — via the helpers below. */
+	void SetRuntimeRowsVisible(bool bVisible);
+
+	/** HP/EP bars + texts. Roster shows these only for a carried (in-trial) slot. */
+	void SetVitalsRowsVisible(bool bVisible);
+
+	/** Status bar/text ONLY. Roster keeps these collapsed in every case: buildup is
+	 *  battle-only and is cleared between battles. */
+	void SetStatusRowsVisible(bool bVisible);
+
+	/** World stats (MSB) row. Split out of SetStatusRowsVisible: it tracks the
+	 *  vitals, not status — a trial roster shows it, a hub roster does not. */
+	void SetWorldStatsRowVisible(bool bVisible);
+
+	/** Fill the HP/EP rows in Roster mode from the asset's computed maxima,
+	 *  overlaid with carried values when InCurrentHP is not NO_CARRIED_VITALS. */
+	void ApplyRosterVitals(UCharacterData *Data, int32 InCurrentHP, int32 InCurrentEP);
+
 	void RefreshEffectsList();
 	void SetBarSafe(UProgressBar *Bar, float Percent);
 	void SetTextSafe(UTextBlock *Text, const FString &Value);
