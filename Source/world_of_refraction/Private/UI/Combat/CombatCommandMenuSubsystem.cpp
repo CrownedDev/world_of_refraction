@@ -340,6 +340,19 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         SubmitConfirmedAction(ButtonData);
         break;
 
+    case EPieMenuCategory::HandToAI:
+    {
+        // Close first: the AI takes this same turn as soon as the switch lands (D-026).
+        AActor *Member = CurrentActor.Get();
+        ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get();
+        Close();
+        if (Orchestrator)
+        {
+            Orchestrator->SwitchMemberControl(Member);
+        }
+        break;
+    }
+
     case EPieMenuCategory::MoveRow:
         // Free, like a weapon switch: the turn goes on (D-096).
         ExecuteMoveRow(ButtonData.DataIndex == MOVE_ROW_FORWARD_INDEX);
@@ -615,6 +628,8 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
     Buttons.Add(CreateMoveRowButton(/*bForward*/ false));
     Buttons.Add(CreateDefendButton());
     Buttons.Add(CreateFleeButton());
+    if (CanHandToAI())
+        Buttons.Add(CreateHandToAIButton());
 
     return Buttons;
 }
@@ -776,6 +791,22 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateFleeButton() const
         Button.ButtonTint = Greyed.ButtonTint;
         Button.bEnabled = false;
     }
+    return Button;
+}
+
+bool UCombatCommandMenuSubsystem::CanHandToAI() const
+{
+    const ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get();
+    return Orchestrator && Orchestrator->GetControlSwitchRefusedReason(CurrentActor.Get()).IsEmpty();
+}
+
+FPieMenuButtonData UCombatCommandMenuSubsystem::CreateHandToAIButton() const
+{
+    FPieMenuButtonData Button;
+    Button.ButtonID = TEXT("HandToAI");
+    Button.DisplayName = NSLOCTEXT("CombatCommandMenu", "HandToAI", "Let AI Play");
+    Button.Category = EPieMenuCategory::HandToAI;
+    Button.bEnabled = true;
     return Button;
 }
 
