@@ -73,7 +73,8 @@ void FLoadoutGetterSpec::Define()
 					return;
 				}
 				const FString ClassName = UEnum::GetValueAsString(CharClass);
-				TestEqual(*FString::Printf(TEXT("%s: class"), *ClassName), Loadout->CharacterClass, CharClass);
+				TestEqual(*FString::Printf(TEXT("%s: class"), *ClassName), Loadout->GetCharacterClass(), CharClass);
+				TestEqual(*FString::Printf(TEXT("%s: synced field"), *ClassName), Loadout->CharacterClass, CharClass);
 			}
 		});
 	});

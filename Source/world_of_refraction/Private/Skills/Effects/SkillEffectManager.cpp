@@ -441,7 +441,7 @@ void USkillEffectManager::WOR_StartingEffects()
 	// Debug-only re-enumeration; the TOTAL cross-check below self-reports drift.
 	int32 Labeled = 0;
 	const FCombatLoadout Loadout = LC->GetActiveLoadout();
-	switch (LC->CharacterClass)
+	switch (LC->GetCharacterClass())
 	{
 	case ECharacterClass::Generic:
 		if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
