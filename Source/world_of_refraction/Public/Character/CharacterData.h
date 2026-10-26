@@ -183,6 +183,10 @@ public:
 			  meta = (ClampMin = "0", ClampMax = "7"))
 	int32 WorldSpiritLevel = 0;
 
+	/** Spell-weight discount from the authored world levels above (D-080 = D: the editor
+	 *  loadout check uses it; the fight uses the live world stats). */
+	int32 GetAuthoredSpellDiscount() const;
+
 	// ==================== INITIAL SUB-STATS (CHARACTER DNA) ====================
 	// ==================== MIND SUB-STATS (4) ====================
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))

@@ -292,8 +292,10 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
     /** The fight's loadout rules (B-028, D-073) on this authored loadout, plus the problems
      *  only an authored loadout can have. Does not cross-check inventory ownership — that
      *  happens at UInventoryData level. BD rules follow the character: pass its
-     *  bBrokenDarknessInnate when known; unset = guessed from whether BD pools are authored. */
-    TArray<FString> GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness = TOptional<bool>()) const;
+     *  bBrokenDarknessInnate when known; unset = guessed from whether BD pools are authored.
+     *  SpellDiscount: the owning character's authored mastery discount (D-080 = D,
+     *  UCharacterData::GetAuthoredSpellDiscount); 0 when no character is attached. */
+    TArray<FString> GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness = TOptional<bool>(), int32 SpellDiscount = 0) const;
 
     // OBSOLETE (B-028): the pre-merge editor check, kept for comparison until Crown's PIE pass.
     TArray<FString> GetValidationErrorsLegacy() const;

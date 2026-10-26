@@ -128,8 +128,9 @@ public:
 
     /** Per-loadout struct validation plus cross-checks against the
      *  ownership lists above. Returns one error string per violation.
-     *  bCharacterIsBrokenDarkness: the owning character's BD flag when known (UCharacterData). */
-    TArray<FString> GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness = TOptional<bool>()) const;
+     *  bCharacterIsBrokenDarkness: the owning character's BD flag when known (UCharacterData).
+     *  SpellDiscount: that character's authored spell discount (D-080 = D); 0 with no character. */
+    TArray<FString> GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness = TOptional<bool>(), int32 SpellDiscount = 0) const;
 
     /** Quick check for any validation errors */
     bool HasValidationErrors() const;

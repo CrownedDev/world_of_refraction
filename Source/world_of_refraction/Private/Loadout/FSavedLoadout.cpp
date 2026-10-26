@@ -23,16 +23,16 @@ bool FSavedLoadout::IsValidForClass(ECharacterClass CharacterClass) const
     return RequiredClass == CharacterClass;
 }
 
-TArray<FString> FSavedLoadout::GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness) const
+TArray<FString> FSavedLoadout::GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness, int32 SpellDiscount) const
 {
     TArray<FString> Errors = FLoadoutRules::CollectAuthoredShapeErrors(*this);
 
     FLoadoutRuleContext Context;
     Context.CharacterClass = RequiredClass;
     Context.bBrokenDarkness = bCharacterIsBrokenDarkness.Get(BDSpellPools.Num() > 0);
-    // No character at authoring time: discount 0 is the strictest spell budget, and
-    // element castability is left to the fight. Ownership is UInventoryData's cross-check.
-    Context.SpellDiscount = 0;
+    // D-080 = D: the owning character's authored discount (0 with no character). Element
+    // castability is left to the fight. Ownership is UInventoryData's cross-check.
+    Context.SpellDiscount = SpellDiscount;
     Errors.Append(FLoadoutRules::ToReasons(
         FLoadoutRules::CollectFindings(FCombatLoadout::CreateFromSavedLoadout(*this), Context)));
     return Errors;
