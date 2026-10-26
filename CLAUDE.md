@@ -65,6 +65,10 @@ Every new C++ system ships with debug utilities. Pattern:
 - **Animations**: Standard attacks in fixed-position turn-based combat use In-Place anims by default. Root motion is opt-in per montage.
 - **Git LFS .uasset files**: Stored as LFS pointers. Cannot be read as text. When Blueprint logic is referenced, ask for a screenshot or text export — don't try to read the .uasset.
 
+## Rules reference — this game
+
+This game's rules live in `docs/Rules/` (start at `docs/Rules/00-index.md`): one page per topic, each rule cited to its ruling (`D-xxx`) or code (`file:line`). Read the relevant page before a rules question; when you apply a decision or build a rule, update its row there.
+
 ## Rules reference — the deckbuilder (Crown, 2026-10-26)
 
 The deckbuilder (`CrownedDev/wor-deckbuilder`, a local clone on Crown's PC) is the **simplest level of this same game**. Its rules are the first reference for game rules.
