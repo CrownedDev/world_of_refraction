@@ -165,6 +165,7 @@ Maintain living system documents in `docs/Architecture/`. Each document covers o
 - `docs/Architecture/MerchantShopSystem.md`
 - `docs/Architecture/PartySystem.md`
 - `docs/Architecture/PerInstanceRollSystem.md`
+- `docs/Architecture/ReactionTriggers.md`
 - `docs/Architecture/ResistanceSystem.md`
 - `docs/Architecture/ScalingSystem.md`
 - `docs/Architecture/SkillEffectSystem.md`

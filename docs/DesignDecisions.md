@@ -1660,6 +1660,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-071-party-into-battle): `ABattleGameMode::BootstrapCombat` possesses the leader's pawn when it fights, otherwise the first Player-set member, otherwise the first spawned.
 
+### Q-191 — How do reaction triggers fire, and what do memories do to a boss now?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-191) · **Blocks:** — (B-191 shipped with A)
+**Question:** D-032 / RunStructure §5: if these items (all equipped) are worn while facing this character, trigger effects, a quest or dialogue. Worn by whom, when is it checked, where do the effects go, and how do memory boss changes apply before boss phases exist (B-193)?
+**Options:**
+- **A** All the items worn by **one** party member (weapons and rings in use: primary and secondary weapon, primary and active ring); the character is anyone in the opposing team. Checked once, at encounter start; each reaction fires at most once per fight. Effects are ordinary skill effects: a payload aimed at Enemy lands on the faced character, any other on the wearer; they count as gear (no cleanse strips them, D-015). Quest and dialogue ids are logged until those systems exist. Effects with a target count (an ally, all enemies) still go to the wearer or the one faced character for now. A party member's max HP changes but current HP doesn't (the existing over-cap rule). Run memories naming a boss add up, weaken -1 and strengthen +1 step (15% max HP and damage per step, at most 3 steps, `// TODO: tune`), into one net change, and the boss starts at its new full HP; skip / add a phase waits for B-193. Gear the battle's loadout check later removes as invalid can still have fired a reaction (rare; checked before `StartCombat`).
+- **B** The items may be spread across the party.
+- **C** Checked every turn, so a mid-fight swap can start or stop a reaction.
+**Recommendation:** A. Elden Ring and Dark Souls tie special boss dialogue and outcomes to what one character carries or wears (e.g. Ranni's ring, the Covenant items), and players like finding those hidden links; Persona and Fire Emblem's special battle conversations fire once at the start of a fight. One wearer keeps bound-gear stories (D-033) about one lord; a start-of-fight check keeps it predictable and cheap. Not lore (which items and characters to link is Crown's).
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-191-reaction-triggers): `FReactionTrigger`, `UReactionTriggerData`, `ReactionTriggers::FindFired` / `ApplyFired` / `ApplyMemoryBossModifiers`, called by `ABattleGameMode` before `StartCombat`. B-193 hooks phase changes into the same place.
+
 ### Q-190 — What does a memory fragment hold, and when is it kept?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-190) · **Blocks:** — (B-190 shipped with A)
 **Question:** RunStructure §5: a fragment unlocks a memory, can weaken or strengthen a boss, means more to one lord than another, and gives no hint. What does the data hold, and is a memory kept when the run fails?
