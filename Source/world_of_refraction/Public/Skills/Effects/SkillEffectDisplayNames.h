@@ -187,6 +187,10 @@ namespace SkillEffectDisplayNames
             return TEXT("Healing Up");
         case ESkillEffectType::HealingReceivedBuff:
             return TEXT("Healing Boost");
+        case ESkillEffectType::PushBack:
+            return TEXT("Push Back");
+        case ESkillEffectType::PullForward:
+            return TEXT("Pull Forward");
         case ESkillEffectType::ModifyCritChance:
             return TEXT("Crit Chance Up");
         case ESkillEffectType::ModifyCritDamage:
