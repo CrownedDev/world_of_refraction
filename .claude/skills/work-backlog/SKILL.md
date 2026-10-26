@@ -8,18 +8,18 @@ description: Work through docs/Backlog.md autonomously, job by job, without stop
 You are in **Backlog mode** (CLAUDE.md, "Backlog mode"). Follow these steps exactly.
 
 ## 0. Sync
-- `git fetch origin main` and start from an up-to-date `main`.
+- `git fetch origin` and `git checkout dev && git pull --ff-only origin dev`. Jobs start from an up-to-date **`dev`**, never `main`.
 - Read `docs/Backlog.md` and `docs/DesignDecisions.md`.
 - **Apply answers first:** for every decision marked `ANSWERED`, set the jobs it blocks back to `TODO`. Note in its "Notes for Claude" anything you'll do differently.
 
 ## 1. Pick
-- Pick the **first `TODO`** whose `Needs` are all `DONE` (or `REVIEW` when the job only builds on that branch) and whose decisions aren't `OPEN`.
+- Pick the **first `TODO`** whose `Needs` are all `DONE` or `REVIEW (in dev)` and whose decisions aren't `OPEN`.
 - **Skip** jobs marked `Who = Crown`.
 - If the argument names IDs or a count, honour it.
 - If nothing is pickable, go to step 6.
 
 ## 2. Branch
-`git checkout -b <prefix>/B-xxx-short-name main`, using `fix/`, `refactor/`, `feature/` or `chore/`.
+`git checkout -b <prefix>/B-xxx-short-name dev`, using `fix/`, `refactor/`, `feature/` or `chore/`.
 
 Mark the job `IN PROGRESS (<branch>)` in `docs/Backlog.md` and commit that line on the branch.
 
@@ -41,16 +41,22 @@ Mark the job `IN PROGRESS (<branch>)` in `docs/Backlog.md` and commit that line 
 4. Run the **`wor-reviewer`** agent on the branch. Fix every **[must fix]**, then re-run the reviewer once.
 
 ## 5. Hand off
-- Set the job to `REVIEW (<branch>)` in `docs/Backlog.md`.
-- Add a changelog line to the relevant `docs/Architecture/*.md`.
-- Final commit message ends with a **"Crown: check in PIE"** list: what to look at, in plain words.
-- `git push -u origin <branch>`.
-- **Never push to `main` and never merge.**
-- Next job: back to step 1.
+Only once step 4 is fully green (build, tests, reviewer).
+1. Set the job to `REVIEW (in dev)` in `docs/Backlog.md`.
+2. Add a changelog line to the relevant `docs/Architecture/*.md`.
+3. Write `docs/PIE/B-xxx.md` in the format of `docs/PIE/B-001.md`: branch, what tests already prove, setup, then a table of numbered checks (**Do this** / **You should see** / **Result** `[ ]`). Add a row for it under **Pending** in `docs/PIE/README.md`.
+4. Append a plain-words entry to `docs/sessions/<today>.md` (create it from `_TEMPLATE.md` if missing): what changed, why, how it was verified, what Crown should check.
+5. Final commit message ends with a **"Crown: check in PIE"** list, pointing at the PIE file.
+6. `git push -u origin <branch>`.
+7. Merge into dev with a real message, never `--no-edit`:
+   `git checkout dev && git pull --ff-only origin dev && git merge --no-ff -m "Merge B-xxx: <what it does> — tests green, PIE pending" <branch> && git push origin dev`.
+   If the merge conflicts, resolve it, rebuild and retest before pushing.
+- **Never commit to, merge into, or push `main`.** Crown merges `dev → main` after play-testing.
+- Next job: back to step 1 (branch from the updated `dev`).
 
 ## 6. Stop and report
 Stop when the requested number of jobs is done, or only blocked/Crown jobs remain. Report in plain words:
-- **Done (for review):** ID, branch, what to check in PIE.
+- **Done (in dev, for review):** ID, branch, its `docs/PIE/B-xxx.md`.
 - **Blocked:** ID, the D-xxx question in one line.
 - **New decisions raised:** D-xxx, one line each.
 - **Next pickable job.**
