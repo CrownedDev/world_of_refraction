@@ -1110,7 +1110,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** Applied in fix/Q-159-return-dropped-crystals: `DropInvalidParts` returns dropped utility crystals to the inventory (storage when full waits for D-097: logged as lost for now). Evolutions: a broken one is no longer dismantled at the end of a fight (`CrystalBreak`) or when removal wear breaks it (`InventoryComponent`); it stays, broken, until repaired. Follow-up: Q-159c.
 
 ### Q-159c — Where a broken evolution goes
-**Status:** OPEN · **Raised:** 2026-10-26 (Q-159 follow-up) · **Blocks:** — (shipped with A)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (Q-159 follow-up) · **Blocks:** — (shipped with A)
 **Question:** Q-159 says evolutions are never lost to wear. Before, a broken evolution was dismantled for essence at the end of a fight (including a primary-slot one such as Broken Darkness's) and when removal wear broke it. What happens to it now?
 **Context:** shipped: it stays where it is (on the weapon, ring or primary slot), broken, with its spells greyed out (D-083; a broken primary evolution greys its Breakthrough spells). One removed by wear goes to the inventory at 0 durability. **Nothing repairs an evolution today**: the between-fight +10 repair covers gems only (`ApplyBetweenCombatRepair`), and paid repair is B-178 (blocked on B-090). So until then a broken evolution stays broken for good; for Broken Darkness that means no Breakthrough spells. Before Q-159 it was dismantled for essence instead.
 **Options:**
@@ -1118,7 +1118,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** goes back to the inventory, broken, freeing the slot.
 - **C** as A, but a `BDBreakable` evolution worn out by Broken Darkness is still destroyed (a BD mechanic).
 **Recommendation:** A, and let the between-fight repair (+10) cover evolutions too, so a broken one comes back (otherwise it waits for B-178). Gear doesn't vanish and the player gets it working again.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
 **Notes for Claude:** _optional_
 ### Q-159b — Which parts go when a loadout is over a cap?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-159) · **Blocks:** — (B-159 shipped with A)
@@ -1173,14 +1173,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** Applied: `GetAvailableInfusionSources` drops a broken ring; the AI and the menu follow it (the menu pins the spell's charge at 0). Two follow-ups raised as Q-163b.
 
 ### Q-163b — A broken ring's F-tier spells: infused through Innate, and their Generic element
-**Status:** OPEN · **Raised:** 2026-10-26 (Q-163 follow-up) · **Blocks:** — (Q-163 shipped with B)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (Q-163 follow-up) · **Blocks:** — (Q-163 shipped with B)
 **Question:** Once a ring's crystal breaks, may its F-tier spells still be infused another way, and what element does a Generic (inherit) spell from it take?
 **Context:** a broken ring offers no spells (`FRingInventoryEntry::GetSpells`), so `ResolveSpellSource` no longer finds its F-tier spells on the ring and treats them as **Innate**. For a Resonator or a Generic that means no infusion at all (they have no Innate source). For a **Caster** with a ring in the primary slot it means the spell can be infused through the Caster's **Innate** element. Separately, `GetElementForSourceOption` still returns the broken ring's element for a Generic spell that inherits its element.
 **Options:**
 - **A** keep it: a Caster may infuse a broken ring's F-tier spell with their own element; a Generic spell keeps the ring's element.
 - **B** a broken ring's spells can't be infused at all (any source), and a Generic spell from it is non-elemental (None).
 **Recommendation:** B. A broken crystal gives no element (Q-163), so its spells cast plain; it also keeps the spell's origin honest (it still comes from the ring).
-**Answer (Crown):** _pending_
+**Answer (Crown):** **B, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
 **Notes for Claude:** _optional_
 
 ### D-092 — Shields, Wards and Barriers: the deckbuilder's absorb system
@@ -1353,14 +1353,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** As built; nothing to change.
 
 ### Q-147 — Does an evolution attached to a weapon or ring hold spells by its tier too?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-147) · **Blocks:** — (B-147 shipped without it)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-147) · **Blocks:** — (B-147 shipped without it)
 **Question:** D-039 says crystals and evolutions hold spells by their tier. An evolution in the **primary slot** does (F 1 … S 6). An evolution **attached to a weapon or ring** still gets the holder's flat ceiling (6 for a weapon, the ring's cap for a ring). Should the attached one use its tier too?
 **Context:** `CrystalEffectTable::ResolveSpellSlotCap` gives gem crystals their tier count and every other attachment (evolutions included) the caller's flat ceiling (`CrystalEffectTable.h`). D-039's answer did not separate attached from primary evolutions.
 **Options:**
 - **A** keep it: an attached evolution uses the holder's flat ceiling (as now).
 - **B** by tier: an attached evolution holds its tier's count, like a primary one and a gem.
 **Recommendation:** B, because it is the plain reading of D-039 and makes every container follow one curve. The deckbuilder has no separate rule.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **B, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
 **Notes for Claude:** _optional_
 
 ### D-097 — Storage (items), inventory (items you carry) and the pool (gear)
@@ -1382,124 +1382,124 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Today: 20 crystals per tier shared by gem types, 20 for stones (Q-177 context); these caps go away for storage.
 
 ### Q-044 — Re-applying the same effect: strength rule or replace?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
 **Context:** Today a stronger re-apply replaces the value and refreshes, an equal one refreshes, a weaker one is ignored (`SkillEffectManager.cpp:146-218`, ET-39).
 **Options:**
 - **A** replace, as the deckbuilder (`04-effects.md`, `Stat` duration row).
 - **B** keep the strength rule.
 **Recommendation:** A. It matches D-012 / D-053 and needs no strength comparison (GAS has none). Defend and on-hit Burn still refresh, because they re-apply the same value.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
 **Notes for Claude:** _optional_
 
 ### Q-044b — What a stack is
-**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** What a stack is? See `docs/analysis/EffectsOverhaul.md`.
 **Context:** Today a stack is value x stacks, keeping the strongest per-stack value, and a weaker stack does not refresh. In the deckbuilder a stack is the held magnitude once more, every arrival refreshes, and the default cap is 1.
 **Options:**
 - **A** deckbuilder stacks.
 - **B** keep ours.
 **Recommendation:** A. One simple rule: what a stack adds is exactly what its expiry takes off (`04-effects.md` `MaxStacks`).
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
 **Notes for Claude:** _optional_
 
 ### Q-044c — When damage and heals over time tick
-**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** When damage and heals over time tick? See `docs/analysis/EffectsOverhaul.md`.
 **Context:** Today damage over time ticks at turn end and heals at turn start.
 **Options:**
 - **A** all payouts at turn start.
 - **B** keep today's split.
 **Recommendation:** A. One moment fits D-051's single counting rule and gives exactly N ticks (`04-effects.md` "Lasts"). A DoT that kills at turn start ends that turn (ET-17 already handles it).
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
 **Notes for Claude:** _optional_
 
 ### Q-044d — Execution turns and turn-start effects
-**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Execution turns and turn-start effects? See `docs/analysis/EffectsOverhaul.md`.
 **Context:** Today Execution turns skip turn-start effects (`CombatOrchestrator.cpp:882`, ET-16); D-055 says they count. The deckbuilder has no Execution turns.
 **Options:**
 - **A** an Execution turn runs the turn-start step (expiry and ticks) but still gives no choice.
 - **B** it counts down durations but skips ticks.
 **Recommendation:** A. B would give fewer than N ticks and break D-051.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
 **Notes for Claude:** _optional_
 
 ### Q-044e — Where Barrier, Shield and Ward sit in a hit (D-092)
-**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Where Barrier, Shield and Ward sit in a hit (D-092)? See `docs/analysis/EffectsOverhaul.md`.
 **Context:** The deckbuilder applies absorbers before Defense and Guard. Our Defense and Guard are percentages, so the order changes the numbers. D-092's note proposed Guard first.
 **Options:**
 - **A** deckbuilder order (absorbers first).
 - **B** absorbers last, on the damage left after Guard and Defense (where Absorb and Reflect sit today).
 **Recommendation:** B, a deliberate difference from the deckbuilder: "negate the next 5 damage" means exactly 5 HP you would have lost, a Perfect Guard keeps a shield longer, and it is the smallest change. Inside the absorbers keep the deckbuilder order (Ward, Shield, Barrier; oldest first).
-**Answer (Crown):** _pending_
+**Answer (Crown):** **B, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
 **Notes for Claude:** _optional_
 
 ### Q-044f — Multi-hit skills and absorb charges
-**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Multi-hit skills and absorb charges? See `docs/analysis/EffectsOverhaul.md`.
 **Context:** A skill can land several impacts.
 **Options:**
 - **A** each impact is one damage instance and spends one charge.
 - **B** one charge per skill.
 **Recommendation:** A, the deckbuilder's rule (charges spend on every damage instance). Multi-hit skills become good shield breakers.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
 **Notes for Claude:** _optional_
 
 ### Q-044g — "Doesn't stack" (D-053) on existing gear
-**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** "Doesn't stack" (D-053) on existing gear? See `docs/analysis/EffectsOverhaul.md`.
 **Context:** D-053 adds a "doesn't stack" flag to effect definitions.
 **Options:**
 - **A** default off; Claude lists every Last Stand / Extra Action / fires-once definition for Crown to tick.
 - **B** default on for those types in code.
 **Recommendation:** A. Data decides (the deckbuilder's "authoritative data" rule) and Crown sees the list once.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
 **Notes for Claude:** _optional_
 
 ### Q-044h — Conditions: "or", and % versus absolute HP
-**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Conditions: "or", and % versus absolute HP? See `docs/analysis/EffectsOverhaul.md`.
 **Context:** Our conditions allow Or and use % HP; the deckbuilder's nested conditions must all hold and use absolute numbers.
 **Options:**
 - Or: **A** retire Or for new data (a validator reports it; author two effects) / **B** keep Or and print "or".
 - Numbers: **C** keep % / **D** absolute, as the deckbuilder.
 **Recommendation:** A and C. A keeps D-031's tree honest; C differs on purpose because our HP grows with level and gear.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A and C, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
 **Notes for Claude:** _optional_
 
 ### Q-044i — Which effects a limited cleanse takes
-**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Which effects a limited cleanse takes? See `docs/analysis/EffectsOverhaul.md`.
 **Context:** Today Iolite's "up to N" has no stated order (`ItemExecutor.cpp:1014-1045`).
 **Options:**
 - **A** newest first, a stack whole, gear exempt (D-015).
 - **B** oldest first.
 **Recommendation:** A, the deckbuilder's rule (`04-effects.md` "The uses verbs and Remove effect"), with no picking UI for now.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
 **Notes for Claude:** _optional_
 
 ### Q-044j — Triggers: our dispatcher or GAS abilities?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Triggers: our dispatcher or GAS abilities? See `docs/analysis/EffectsOverhaul.md`.
 **Context:** GAS abilities are stage 4 (B-043).
 **Options:**
 - **A** keep our dispatcher in B-042 and send GameplayEvents so B-043 can move triggers later.
 - **B** move triggers to passive abilities in B-042.
 **Recommendation:** A. Doing it in stage 3 doubles its size and risk.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
 **Notes for Claude:** _optional_
 
 ### Q-044k — Land B-062 (identity rules) before GAS, or inside it?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Land B-062 (identity rules) before GAS, or inside it? See `docs/analysis/EffectsOverhaul.md`.
 **Context:** B-062 builds D-011 / D-012 / D-051 / D-053 / D-055 on today's code.
 **Options:**
 - **A** build B-062 now, with the shared turn-count helper; B-042 then ports the same tests.
 - **B** fold B-062 into B-042.
 **Recommendation:** A. Players get the rules sooner and B-042 becomes a pure port. Absorb stays in B-042, as D-092 says.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
 **Notes for Claude:** _optional_
 
 ## Parked
