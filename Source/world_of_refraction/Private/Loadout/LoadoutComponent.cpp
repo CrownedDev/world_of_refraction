@@ -3153,6 +3153,19 @@ FText ULoadoutComponent::GetBrokenSourceReason(const USpellData *Spell) const
         return Spells.ContainsByPredicate([Spell](const USpellData *Assigned) { return Assigned == Spell; });
     };
 
+    // An innate spell is cast as innate even when a crystal also holds it (ResolveSpellSource's order).
+    const UInventoryComponent *Inv = GetInventoryComponent();
+    if (Inv && Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+        const bool bInnate = Lists(Loadout.InnateSpells) ||
+                             Loadout.BDSpellPools.ContainsByPredicate([&Lists](const FBDElementSpellPool &Pool) { return Lists(Pool.Spells); });
+        if (bInnate)
+        {
+            return FText::GetEmpty();
+        }
+    }
+
     // The same entries FCombatCapabilities::BuildFrom lists spells from.
     if (const FWeaponLoadoutEntry *Weapon = GetActiveWeaponLoadout())
     {
@@ -3166,7 +3179,8 @@ FText ULoadoutComponent::GetBrokenSourceReason(const USpellData *Spell) const
     if (Ring)
     {
         const FRuntimeAttachedItem &Attached = Ring->RingEntry.AttachedItem;
-        if (Attached.IsSpellSource() && Attached.IsBroken() && Lists(Ring->RingEntry.AssignedSpells) &&
+        const bool bFromRing = Lists(Ring->RingEntry.AssignedSpells) || (Ring->RingEntry.Ring && Lists(Ring->RingEntry.Ring->PresetSpells));
+        if (Attached.IsSpellSource() && Attached.IsBroken() && bFromRing &&
             !SourceBreakRules::IsRingSpellUsableWhenBroken(Spell->Tier))
         {
             return SourceBreakRules::BrokenRingCrystalReason();

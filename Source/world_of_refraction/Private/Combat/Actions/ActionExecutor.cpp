@@ -298,6 +298,12 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 			{
 				// Allow with penalty
 			}
+			// D-083: no elemental ability through a source that isn't on offer (a broken weapon
+			// crystal). The UI and AI already filter these; this covers every other path.
+			if (Action.IsAbilityInfused() && !GetAvailableInfusionSources(Actor).Contains(Action.SelectedSource))
+			{
+				return FActionValidationResult(false, TEXT("Infusion source not available"));
+			}
 			break;
 
 		default:

@@ -203,7 +203,8 @@ void UCombatCommandMenuSubsystem::OpenForActor(AActor *Actor)
 
 void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &ButtonData)
 {
-    if (!bIsOpen)
+    // A greyed button (D-083 broken source, empty pool) does nothing, whichever widget sent it.
+    if (!bIsOpen || !ButtonData.bEnabled)
     {
         return;
     }
@@ -1910,6 +1911,10 @@ void UCombatCommandMenuSubsystem::DebugLogCapabilities() const
     UE_LOG(LogTemp, Log, TEXT("RingLoadout:    %s (%d spells)"), CurrentCapabilities.bHasRingLoadout ? TEXT("YES") : TEXT("NO"), CurrentCapabilities.RingSpells.Num());
     UE_LOG(LogTemp, Log, TEXT("SwitchWeapon:   %s"), CurrentCapabilities.bCanSwitchWeapon ? TEXT("YES") : TEXT("NO"));
     UE_LOG(LogTemp, Log, TEXT("SwitchRing:     %s"), CurrentCapabilities.bCanSwitchRing ? TEXT("YES") : TEXT("NO"));
+    for (const TPair<TObjectPtr<USpellData>, FText> &Blocked : CurrentCapabilities.BlockedSpellReasons)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Greyed spell:   %s - %s"), *GetNameSafe(Blocked.Key), *Blocked.Value.ToString());
+    }
     UE_LOG(LogTemp, Log, TEXT("ActiveWeapon:   %s"), *CurrentCapabilities.ActiveWeaponName);
     UE_LOG(LogTemp, Log, TEXT("ActiveRing:     %s"), *CurrentCapabilities.ActiveRingName);
     UE_LOG(LogTemp, Log, TEXT("BreakChance:    %s"), CurrentCapabilities.bRingHasBreakChance ? TEXT("YES") : TEXT("NO"));
