@@ -109,7 +109,7 @@
 
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
-| B-080 | Generic weapon-crystal spells per D-007 | CC | S | D-007 | Matches answer | BLOCKED (D-007) |
+| B-080 | Generic per D-007: no spells (menu agrees with `CanUseSpells`); skills get a damage type, Physical by default, the infusion source's element when infused; fix infused abilities using innate instead of the source (`ActionExecutor.cpp:1450`) | CC | M | D-007 | Tests: Generic + fire crystal deals Fire; uninfused deals Physical; no spells shown | TODO |
 | B-081 | Gear effects re-gathered on swap per D-008 | CC | M | D-008 | Ring switch changes effects | BLOCKED (D-008) |
 | B-082 | Ring stones per D-009 | CC | S | D-009 | Matches answer | BLOCKED (D-009) |
 | B-083 | Resonator ring rules per D-010 | CC | S | D-010 | Validator enforces | BLOCKED (D-010) |

@@ -142,14 +142,22 @@ The queue of questions only Crown can answer.
 - Passive payout boosts are a later job (B-096): a hook where the payout total is computed (one multiplier, default 1.0) so passives can add to it.
 - Not decided here: a starting Prism grant for a new save.
 ### D-007 — Can Generic cast weapon-crystal spells?
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-080
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-080
 **Question:** Is it intended that Generic can cast spells from a crystal on its weapon?
 **Context:** The menu shows them to any class (`FCombatCapabilities.cpp:62-68`), but `UCharacterData::CanUseSpells()` is false for Generic.
 **Options:**
 - A: no, block it.
 - B: yes, it's Generic's only spell access.
 **Recommendation:** Crown's call; it defines Generic's identity.
-**Answer (Crown):** _write here_
+**Answer (Crown):** (2026-10-26) **A for spells, plus a damage type on skills.** Generic can't cast spells, not even from a weapon crystal. Generic gets elements **only through a crystal, on its abilities**:
+- Every skill has a **damage type**. A physical skill starts as **Physical**; an infusion (a crystal / chosen source) changes its damage type to that **element**.
+- The same applies to **Generic spells** (non-Generic classes): they take the element of their source.
+- Crown: the deckbuilder explains this well. It is the simplest level of this same game, so its rules are a good reference.
+**Notes for Claude:**
+- Remove weapon-crystal spells from Generic's menu (`FCombatCapabilities.cpp:62-68`) so it agrees with `UCharacterData::CanUseSpells()`.
+- **Fix found while checking:** an infused ability takes the user's **innate** element (`ActionExecutor.cpp:1450-1455`), but Generic, the only class with abilities, has no innate element (`ECharacterClass.h` `HasInnateElement`), so a Generic's infused ability deals **no element** today. The status path already uses the chosen source (`ActionExecutor.cpp:2253`). Damage must use the selected source's element too (crystal on the weapon), else Physical.
+- Deckbuilder reference (`wor-deckbuilder/docs/reference/01-card-model.md` "Cast through", Pivot "Generic element memory"): a Generic Ability starts Physical and takes its source's element; a Generic Refraction needs an elemental source. Its extra costs (1 Action to switch, +1 Energy when a physical ability deals an element) are **not** ruled here; ask before adding them.
+- Tests: Generic + fire crystal → infused ability deals Fire; uninfused → Physical; Generic sees no spells.
 
 ### D-008 — Do gear effects update when swapping mid-combat?
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-081
@@ -322,6 +330,19 @@ The queue of questions only Crown can answer.
 - Found characters start with empty slots; equipping draws from the run inventory, the same one the leader uses. Gear stays in the run inventory when it's unequipped or the character leaves.
 - How a hub-built team's own gear works at run start isn't covered by this answer (D-021 covers the leader's run-start loadout). If B-076 needs it, raise a new decision rather than assume.
 - B-071: the Player/AI switch is also offered on the member's turn in combat (a command-menu entry).
+
+### D-027 — Should classes gate skills, or only change passives (the deckbuilder way)?
+**Status:** OPEN · **Raised:** 2026-10-26 · **Blocks:** — (shapes B-080 and later class work)
+**Question:** Keep the hard class gate (Generic = abilities only, Refractor/Resonator = spells only), or let any class use any skill it has a source for, with classes differing by passives?
+**Context:**
+- This game: `CharacterClassHelpers::CanUseAbilities` is Generic-only and `CanUseSpells` is everyone but Generic (`ECharacterClass.h:45-55`).
+- Deckbuilder: no class gate. Abilities need their weapons; spells need an elemental source (Ring, Evolution, a Refractor's innate), never a weapon. Classes differ by passives: Generic +1 Physical Resistance, Resonator +1 Resistance per keyed Ring's element, Refractor +3 Amp and +1 Resistance to its innate (`01-card-model.md` "Class passives").
+**Options:**
+- A: keep the hard gate (current).
+- B: the deckbuilder model: gear and sources decide, classes give passives.
+- C: half-way: Generic is still spell-less (D-007), but Refractors and Resonators can also use weapon abilities.
+**Recommendation:** none yet: it defines the classes. B makes builds freer and matches the deckbuilder; A keeps classes very distinct.
+**Answer (Crown):** _write here_
 
 ---
 
