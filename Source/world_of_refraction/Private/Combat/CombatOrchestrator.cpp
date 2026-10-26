@@ -46,13 +46,6 @@
 #include "Combat/CombatControl.h"
 #include "Party/PartySessionSubsystem.h"
 
-namespace CombatOrchestratorFirstStrike
-{
-	// UTurnManager's team numbering: the local party is team 0, the opposing side team 1.
-	constexpr int32 LOCAL_TEAM_INDEX = 0;
-	constexpr int32 OPPOSING_TEAM_INDEX = 1;
-}
-
 ACombatOrchestrator::ACombatOrchestrator()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -177,6 +170,9 @@ void ACombatOrchestrator::TeardownCombatHUD()
 
 void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty, EAIDifficulty Difficulty)
 {
+	// B-185: the first strike belongs to this start only, even one that returns early.
+	const EFirstStrike FightFirstStrike = FirstStrike;
+	FirstStrike = EFirstStrike::None;
 
 	// End any previous combat FIRST — ForceEndCombat clears the AI/menu
 	// registrations, so doing it after them (as before) left the AI unregistered.
@@ -331,11 +327,10 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	}
 
 	// Initialize TurnManager (this will trigger first OnTurnStarted)
-	const int32 OpeningTeam = FirstStrike == EFirstStrike::Party   ? CombatOrchestratorFirstStrike::LOCAL_TEAM_INDEX
-							: FirstStrike == EFirstStrike::Enemy ? CombatOrchestratorFirstStrike::OPPOSING_TEAM_INDEX
+	const int32 OpeningTeam = FightFirstStrike == EFirstStrike::Party   ? TurnManagerTeams::LOCAL_TEAM_INDEX
+							: FightFirstStrike == EFirstStrike::Enemy ? TurnManagerTeams::OPPOSING_TEAM_INDEX
 																 : INDEX_NONE;
 	TurnManagerRef->InitializeCombat(LocalParty, OpposingParty, OpeningTeam);
-	FirstStrike = EFirstStrike::None; // B-185: belongs to this fight only
 
 	// Turn 1 can resolve the whole combat inside InitializeCombat (state back to Idle,
 	// teams emptied) — don't build UI for a fight that's already over.

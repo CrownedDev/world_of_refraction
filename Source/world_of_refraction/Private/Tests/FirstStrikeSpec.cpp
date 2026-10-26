@@ -9,6 +9,7 @@
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
 #include "Combat/Encounter/EncounterComponent.h"
+#include "Character/CharacterDataComponent.h"
 #include "Combat/TurnManager.h"
 
 namespace
@@ -17,8 +18,6 @@ namespace
 	constexpr float FIRST_STRIKE_TEST_DISTANCE = 100.0f;
 	/** Far past max investment — turn speed lands on its stat cap. */
 	constexpr int32 FIRST_STRIKE_TEST_FAST_SPEED = 500;
-	constexpr int32 FIRST_STRIKE_TEST_LOCAL_TEAM = 0;
-	constexpr int32 FIRST_STRIKE_TEST_OPPOSING_TEAM = 1;
 }
 
 BEGIN_DEFINE_SPEC(FFirstStrikeSpec, "WoR.Combat.FirstStrike",
@@ -88,8 +87,24 @@ void FFirstStrikeSpec::Define()
 		const TArray<AActor *> Plain = RecordTurns({Local}, {EnemyA, EnemyB}, INDEX_NONE, 1);
 		TestTrue(TEXT("Without it the party wins the tie"), Plain.Num() == 1 && Plain[0] == Local);
 
-		const TArray<AActor *> Order = RecordTurns({Local}, {EnemyA, EnemyB}, FIRST_STRIKE_TEST_OPPOSING_TEAM, 3);
+		const TArray<AActor *> Order = RecordTurns({Local}, {EnemyA, EnemyB}, TurnManagerTeams::OPPOSING_TEAM_INDEX, 3);
 		TestTrue(TEXT("Both enemies first, then the party"), Order.Num() == 3 && Order[0] != Local && Order[1] != Local && Order[2] == Local);
+	});
+
+	It("ends the opening when the rest of the opening side has fallen", [this]()
+	{
+		if (!TurnManager) return;
+		AActor *Local = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		AActor *EnemyA = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), true);
+		AActor *EnemyB = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), true);
+		TurnManager->InitializeCombat({Local}, {EnemyA, EnemyB}, TurnManagerTeams::OPPOSING_TEAM_INDEX);
+		AActor *Opener = TurnManager->GetCurrentActor();
+		AActor *Other = Opener == EnemyA ? EnemyB : EnemyA;
+		TestTrue(TEXT("An enemy opens"), Opener != Local);
+		Other->FindComponentByClass<UCharacterDataComponent>()->bIsAlive = false;
+		TurnManager->AdvanceToNextTurn();
+		TestEqual(TEXT("The party acts next"), TurnManager->GetCurrentActor(), Local);
+		TurnManager->EndCombat();
 	});
 
 	It("lets the party go first even against a faster enemy, and the preview shows it", [this]()
@@ -104,7 +119,7 @@ void FFirstStrikeSpec::Define()
 		const TArray<AActor *> Plain = RecordTurns({LocalA, LocalB}, {Fast}, INDEX_NONE, 1);
 		TestTrue(TEXT("Without it the fast enemy goes first"), Plain.Num() == 1 && Plain[0] == Fast);
 
-		TurnManager->InitializeCombat({LocalA, LocalB}, {Fast}, FIRST_STRIKE_TEST_LOCAL_TEAM);
+		TurnManager->InitializeCombat({LocalA, LocalB}, {Fast}, TurnManagerTeams::LOCAL_TEAM_INDEX);
 		const TArray<FPreviewTurnEntry> Preview = TurnManager->PreviewTurnOrder(1);
 		TestTrue(TEXT("A party member opens"), TurnManager->GetCurrentActor() != Fast);
 		TestTrue(TEXT("The preview shows the other member next"), Preview.Num() == 1 && Preview[0].Actor != Fast);
