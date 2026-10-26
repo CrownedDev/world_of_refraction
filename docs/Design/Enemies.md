@@ -42,7 +42,8 @@ Companion to `RunStructure.md`. Values marked *tune* are placeholders: named con
 - **No cinematic at the change:** the **weather** shifts toward the boss's element and grows more intense with each phase, and the boss plays more aggressively and tactically.
 - **Memories** you collected can alter phases (skip one, add a harder one), authored per memory (`RunStructure.md` §5).
 - **Optional revival:** a beaten boss can be revived stronger for better gear (`RunStructure.md` §4).
-- **Open:** the rest of the phase details (what a phase can change, boss styles, statuses on bosses, long fights), being discussed (D-098).
+- **Phase entries:** each boss authors its own phases: conditions plus what changes (skills, element, resistances/weaknesses, aggression, weather intensity, dialogue). Anything an entry doesn't set stays as it was.
+- **Open:** the rest of the phase details (boss styles, statuses on bosses, long fights), being discussed (D-098).
 
 ## 6. Open questions
 
