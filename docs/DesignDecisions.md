@@ -1220,6 +1220,18 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
+### Q-177 — A merge whose change does not fit
+**Status:** OPEN · **Raised:** 2026-10-26 (B-177) · **Blocks:** — (B-177 shipped with A)
+**Question:** A merge now gives back its overshoot (ER-28). What happens when the change can't fit in your crystals?
+**Context:** Each tier holds at most 20 crystals, shared by every gem type (stones have their own 20). The change can land on a tier the merge did not spend from: 3 F + 2 D for a C gives back one E and one F. If your E tier is already full (say, of Sapphires), the E has nowhere to go. As built, the whole merge is refused and everything is refunded, with a warning in the Output Log.
+**Options:**
+- **A** refuse the whole merge and refund it (as built).
+- **B** do the merge and drop the change that doesn't fit.
+- **C** do the merge and give the change in smaller crystals that do fit, dropping only what still cannot.
+**Recommendation:** A, because nothing is ever lost silently and the player can make room and try again.
+**Answer (Crown):** _pending_
+**Notes for Claude:** _optional_
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
