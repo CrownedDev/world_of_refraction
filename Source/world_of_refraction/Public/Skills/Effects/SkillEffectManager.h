@@ -10,6 +10,7 @@
 #include "Skills/Effects/FSkillEffect.h"
 #include "Skills/Effects/FGatheredEffect.h"
 #include "Combat/Actions/ActionStatModifiers.h"
+#include "GameplayTagContainer.h"
 #include "SkillEffectManager.generated.h"
 
 class UCharacterDataComponent;
@@ -296,6 +297,11 @@ public:
 	/** Check if actor has any effect of a specific type */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	bool HasEffectOfType(AActor *Actor, ESkillEffectType EffectType) const;
+
+	/** GAS stage 1 (B-040): the Status.* / Immunity.* tags the actor's active effects give it
+	 *  (WoRTags::EffectTypeToTag). Read-only view of the same effects HasEffectOfType reads. */
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
+	FGameplayTagContainer GetEffectTags(AActor *Actor) const;
 
 	/** Last Stand support (death-DENIAL, not resurrection). Finds the bearer's LastStand effect
 	 *  (the HIGHEST-EffectValue one if several exist), consumes ONE of its charges via the C1

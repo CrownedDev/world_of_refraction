@@ -23,6 +23,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "Tags/WoRGameplayTags.h"
 
 // ========================================
 // SUBSYSTEM LIFECYCLE
@@ -1988,6 +1989,24 @@ bool USkillEffectManager::HasEffectOfType(AActor *Actor, ESkillEffectType Effect
 	}
 
 	return false;
+}
+
+FGameplayTagContainer USkillEffectManager::GetEffectTags(AActor *Actor) const
+{
+	FGameplayTagContainer Tags;
+	if (!Actor || !ActiveEffects.Contains(Actor))
+	{
+		return Tags;
+	}
+	for (const FActiveSkillEffect &Effect : ActiveEffects[Actor])
+	{
+		const FGameplayTag Tag = WoRTags::EffectTypeToTag(Effect.EffectType);
+		if (Tag.IsValid())
+		{
+			Tags.AddTag(Tag);
+		}
+	}
+	return Tags;
 }
 
 float USkillEffectManager::GetTotalStatModifier(AActor *Actor, ESkillEffectType ModifierType) const
