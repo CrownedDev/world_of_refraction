@@ -125,7 +125,7 @@ The queue of questions only Crown can answer.
 - The table restructure is its own job (B-095), not part of B-064.
 
 ### D-006 — Where do Prisms come from?
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-073
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-073
 **Question:** What grants Prisms in C++?
 **Context:** Nothing in C++ grants Prisms or Gold; the wallet starts at 0 (`CurrencyComponent.h:129-145`). The deckbuilder shows "+120 Prisms" on victory.
 **Options:**
@@ -133,7 +133,12 @@ The queue of questions only Crown can answer.
 - B: plus trial completion bonuses.
 - C: plus a starting grant.
 **Recommendation:** A + C.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **Hades / Returnal style** (2026-10-26, after comparing Nightreign, Hades, Returnal, Rogue Legacy 2). **Prisms drop during a run and are kept even if you fail**, so you can farm them.
+**Notes for Claude:**
+- **Prisms:** granted by battle wins (and later chests) during a trial, banked straight into the kept wallet, so a failed run keeps them. Amount scales with difficulty. Named constants, `// TODO: tune`.
+- **Gold:** every battle won in a run grants Gold, scaled by difficulty; lost at run end (D-001 answer). Named constants, `// TODO: tune`.
+- Show both on the results screen ("+N Prisms", "+N Gold").
+- Not decided here: a starting Prism grant for a new save, and whether encounters respawn so you can farm in one run. Raise a decision if a job needs either.
 
 ### D-007 — Can Generic cast weapon-crystal spells?
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-080
