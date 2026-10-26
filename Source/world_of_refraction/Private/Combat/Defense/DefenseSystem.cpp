@@ -11,6 +11,11 @@
 #include "Character/CharacterData.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Combat/CombatControl.h"
+#include "Character/CosmeticsData.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
 
 void UDefenseSystem::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -529,6 +534,31 @@ FDefenseResult UDefenseSystem::CalculateDefenseResult(
 	return Result;
 }
 
+void UDefenseSystem::PlayPerfectGuardFeedback(AActor *Defender)
+{
+	const ULoadoutComponent *LoadoutComp = Defender ? Defender->FindComponentByClass<ULoadoutComponent>() : nullptr;
+	const UCharacterData *CharData = LoadoutComp ? LoadoutComp->GetOwnerCharacterData() : nullptr;
+	const UCosmeticsData *Cosmetics = CharData ? CharData->Cosmetics : nullptr;
+	if (!Cosmetics)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DefenseSystem] No Cosmetics for %s - no Perfect Guard flash"),
+			   Defender ? *Defender->GetName() : TEXT("null"));
+		return;
+	}
+
+	// Small assets, loaded on first use. TODO: preload with the fight's cosmetics if it hitches.
+	const FVector ImpactLocation = Defender->GetActorLocation();
+	if (UNiagaraSystem *Flash = Cosmetics->PerfectGuardFlashVFX.LoadSynchronous())
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(Defender, Flash, ImpactLocation);
+	}
+	if (USoundBase *Sound = Cosmetics->PerfectGuardSound.LoadSynchronous())
+	{
+		UGameplayStatics::PlaySoundAtLocation(Defender, Sound, ImpactLocation);
+	}
+	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Perfect Guard feedback for %s"), *Defender->GetName());
+}
+
 void UDefenseSystem::PlayDefenseAnimation(AActor *Defender, EDefenseType DefenseType, EDefenseDirection Direction)
 {
 	if (!Defender)
@@ -550,12 +580,10 @@ void UDefenseSystem::PlayDefenseAnimation(AActor *Defender, EDefenseType Defense
 
 	switch (DefenseType)
 	{
+	// B-202 (Q-182 changed by Crown): every Guard plays the block montage, a legacy Parry press too.
 	case EDefenseType::Block:
-		MontageToPlay = LoadoutComp->GetBlockMontage();
-		break;
-
 	case EDefenseType::Parry:
-		MontageToPlay = LoadoutComp->GetParryMontage();
+		MontageToPlay = LoadoutComp->GetBlockMontage();
 		break;
 
 	case EDefenseType::Dodge:

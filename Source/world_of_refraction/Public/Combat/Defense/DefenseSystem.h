@@ -295,6 +295,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Defense System")
 	void PlayDefenseAnimation(AActor *Defender, EDefenseType DefenseType, EDefenseDirection Direction = EDefenseDirection::None);
 
+	/** B-202 (Q-182): the Perfect Guard flash and sound at the defender, from its Cosmetics
+	 *  asset. The animation stays the Guard's block montage. */
+	UFUNCTION(BlueprintCallable, Category = "Defense System")
+	void PlayPerfectGuardFeedback(AActor *Defender);
+
 	/**
 	 * Check if defense window is currently open for actor
 	 */
