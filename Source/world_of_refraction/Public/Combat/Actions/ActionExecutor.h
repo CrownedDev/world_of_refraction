@@ -325,11 +325,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
 	USkillEffectManager *GetSkillEffectManager() const;
 
-	/** Get the RingManager */
+	/** Get the RingManager. OBSOLETE (B-024): no C++ caller left (ring queries go to the
+	 *  actor's ULoadoutComponent); kept for Blueprints until URingManager is removed (B-154). */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
 	URingManager *GetRingManager() const;
 
-	/** Get the WeaponManager */
+	/** Get the WeaponManager. OBSOLETE (B-024): no caller left; removed with it (B-154). */
 	UWeaponManager *GetWeaponManager() const;
 
 	/** Get the DamageCalculator subsystem */

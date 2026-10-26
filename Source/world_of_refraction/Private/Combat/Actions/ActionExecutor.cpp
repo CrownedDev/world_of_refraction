@@ -460,9 +460,9 @@ EItemTier UActionExecutor::ResolveActionTier(AActor *Actor, const FAction &Actio
 		return WeaponEntry->Tier;
 	}
 	// No entry resolved → keep the base asset-tier fallback so nothing regresses.
-	if (UWeaponManager *WeaponMgr = GetWeaponManager())
+	if (ULoadoutComponent *LC = GetLoadoutComponent(Actor))
 	{
-		if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor))
+		if (UWeaponData *Weapon = LC->GetActiveWeapon())
 		{
 			return Weapon->Tier;
 		}
@@ -481,9 +481,9 @@ TOptional<EItemTier> UActionExecutor::ResolveChannelTier(AActor *Actor, const FA
 			return WeaponEntry->Tier;
 		}
 		// No entry resolved → keep the base asset-tier fallback so nothing regresses.
-		if (UWeaponManager *WeaponMgr = GetWeaponManager())
+		if (ULoadoutComponent *LC = GetLoadoutComponent(Actor))
 		{
-			if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor))
+			if (UWeaponData *Weapon = LC->GetActiveWeapon())
 			{
 				return Weapon->Tier;
 			}
@@ -977,19 +977,16 @@ bool UActionExecutor::IsInfusionImmune(AActor *User, bool bActionImmune) const
 	{
 		return false;
 	}
-	if (UWeaponManager *WM = GetWeaponManager())
+	if (ULoadoutComponent *UserLoadout = GetLoadoutComponent(User))
 	{
-		if (UWeaponData *Weapon = WM->GetActiveWeapon(User))
+		if (UWeaponData *Weapon = UserLoadout->GetActiveWeapon())
 		{
 			if (Weapon->bImmuneToInfusion)
 			{
 				return true;
 			}
 		}
-	}
-	if (URingManager *RM = GetRingManager())
-	{
-		if (URingData *Ring = RM->GetActiveRing(User))
+		if (URingData *Ring = UserLoadout->GetActiveRing())
 		{
 			if (Ring->bImmuneToInfusion)
 			{
@@ -4113,19 +4110,16 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActo
 		Sources.Add(EInfusionSourceOption::Innate);
 	}
 
+	ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+
 	// Active Ring (Resonator only)
-	if (Data->IsResonator())
+	if (Data->IsResonator() && LC && LC->GetActiveRing() != nullptr)
 	{
-		URingManager *RM = GetRingManager();
-		if (RM && RM->GetActiveRing(Actor) != nullptr)
-		{
-			Sources.Add(EInfusionSourceOption::ActiveRing);
-		}
+		Sources.Add(EInfusionSourceOption::ActiveRing);
 	}
 
 	// Primary Ring (Generic/Caster with ring in primary slot)
-	URingManager *RM = GetRingManager();
-	if (RM && RM->GetPrimaryRing(Actor))
+	if (LC && LC->GetPrimaryRing())
 	{
 		Sources.Add(EInfusionSourceOption::PrimaryRing);
 	}
@@ -4134,7 +4128,6 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActo
 	// Aligns with FCombatCapabilities::BuildFrom path; the data-asset
 	// AttachedItem field is the design-time default that diverges from runtime
 	// when crystals are slotted/changed at runtime.
-	ULoadoutComponent *LC = GetLoadoutComponent(Actor);
 	if (LC)
 	{
 		const FWeaponLoadoutEntry *ActiveWeapon = LC->GetActiveWeaponLoadout();
@@ -4241,8 +4234,8 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 
 	case EInfusionSourceOption::ActiveRing:
 	{
-		URingManager *RM = GetRingManager();
-		return RM ? RM->GetActiveElement(Actor) : ESpellElement::None;
+		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+		return LC ? LC->GetActiveRingElement() : ESpellElement::None;
 	}
 
 	case EInfusionSourceOption::PrimaryRing:
@@ -4585,7 +4578,8 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 
 		// Abilities strain off the ACTIVE WEAPON's requirement deficit (design). Unarmed ->
 		// no weapon requirements -> clean no-op. No infusion deficit bonus for abilities.
-		UWeaponData *Weapon = GetWeaponManager() ? GetWeaponManager()->GetActiveWeapon(Actor) : nullptr;
+		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+		UWeaponData *Weapon = LC ? LC->GetActiveWeapon() : nullptr;
 		if (!Weapon)
 		{
 			return;
@@ -4725,18 +4719,18 @@ EInfusionMode UActionExecutor::ResolveInfusionMode(EInfusionSourceOption Source,
 	switch (Source)
 	{
 	case EInfusionSourceOption::ActiveRing:
-		if (URingManager *RM = GetRingManager())
+		if (ULoadoutComponent *LC = GetLoadoutComponent(Actor))
 		{
-			if (URingData *Ring = RM->GetActiveRing(Actor))
+			if (URingData *Ring = LC->GetActiveRing())
 			{
 				return Ring->InfusionMode;
 			}
 		}
 		break;
 	case EInfusionSourceOption::PrimaryRing:
-		if (URingManager *RM = GetRingManager())
+		if (ULoadoutComponent *LC = GetLoadoutComponent(Actor))
 		{
-			if (URingData *Ring = RM->GetPrimaryRing(Actor))
+			if (URingData *Ring = LC->GetPrimaryRing())
 			{
 				return Ring->InfusionMode;
 			}
@@ -4760,9 +4754,9 @@ EInfusionMode UActionExecutor::ResolveInfusionMode(EInfusionSourceOption Source,
 	case EInfusionSourceOption::Raw:
 	case EInfusionSourceOption::WeaponCrystal:
 	default:
-		if (UWeaponManager *WM = GetWeaponManager())
+		if (ULoadoutComponent *LC = GetLoadoutComponent(Actor))
 		{
-			if (UWeaponData *Weapon = WM->GetActiveWeapon(Actor))
+			if (UWeaponData *Weapon = LC->GetActiveWeapon())
 			{
 				return Weapon->InfusionMode;
 			}
@@ -6446,13 +6440,13 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		// Action tier resolution per Phase 4d Path A:
 		//   - Spell: SpellData->Tier (the spell's own tier)
 		//   - Ability/Attack: Weapon->Tier (action tier inherits from weapon)
-		URingManager *RingMgr = GetRingManager();
-		if (!RingMgr)
+		ULoadoutComponent *RingLoadout = GetLoadoutComponent(Actor);
+		if (!RingLoadout)
 		{
 			break;
 		}
 
-		URingData *Ring = RingMgr->GetActiveRing(Actor);
+		URingData *Ring = RingLoadout->GetActiveRing();
 		if (!Ring)
 		{
 			UE_LOG(LogTemp, Warning,
@@ -6476,12 +6470,9 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 			{
 				ActionTier = WeaponEntry->Tier;
 			}
-			else if (UWeaponManager *WeaponMgr = GetWeaponManager())
+			else if (UWeaponData *Weapon = RingLoadout->GetActiveWeapon())
 			{
-				if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor))
-				{
-					ActionTier = Weapon->Tier;
-				}
+				ActionTier = Weapon->Tier;
 			}
 		}
 
@@ -6508,13 +6499,13 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		// Primary Ring source: Generic/Caster with a ring in their primary slot.
 		// Mirrors ActiveRing structure — same wear path, same Iolite check,
 		// just resolves the primary ring instead of active.
-		URingManager *RingMgr = GetRingManager();
-		if (!RingMgr)
+		ULoadoutComponent *RingLoadout = GetLoadoutComponent(Actor);
+		if (!RingLoadout)
 		{
 			break;
 		}
 
-		URingData *Ring = RingMgr->GetPrimaryRing(Actor);
+		URingData *Ring = RingLoadout->GetPrimaryRing();
 		if (!Ring)
 		{
 			UE_LOG(LogTemp, Warning,
@@ -6538,12 +6529,9 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 			{
 				ActionTier = WeaponEntry->Tier;
 			}
-			else if (UWeaponManager *WeaponMgr = GetWeaponManager())
+			else if (UWeaponData *Weapon = RingLoadout->GetActiveWeapon())
 			{
-				if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor))
-				{
-					ActionTier = Weapon->Tier;
-				}
+				ActionTier = Weapon->Tier;
 			}
 		}
 
@@ -6572,16 +6560,16 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		//   Ability/Attack: Weapon->Tier (action tier inherits from weapon)
 		// Spells wear based on their own tier regardless of catalyst (weapon vs
 		// ring), so an S-Tier spell stresses any catalyst's crystal equally.
-		UWeaponManager *WeaponMgr = GetWeaponManager();
-		if (!WeaponMgr)
+		ULoadoutComponent *WeaponLoadout = GetLoadoutComponent(Actor);
+		if (!WeaponLoadout)
 		{
 			UE_LOG(LogTemp, Warning,
-				   TEXT("[ActionExecutor] %s: WeaponCrystal infusion but WeaponManager unavailable"),
+				   TEXT("[ActionExecutor] %s: WeaponCrystal infusion but no LoadoutComponent"),
 				   *Actor->GetName());
 			break;
 		}
 
-		UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor);
+		UWeaponData *Weapon = WeaponLoadout->GetActiveWeapon();
 		if (!Weapon)
 		{
 			UE_LOG(LogTemp, Warning,
@@ -6697,9 +6685,9 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 			{
 				ActionTier = WeaponEntry->Tier;
 			}
-			else if (UWeaponManager *WeaponMgr = GetWeaponManager())
+			else if (ULoadoutComponent *TierLoadout = GetLoadoutComponent(Actor))
 			{
-				if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor))
+				if (UWeaponData *Weapon = TierLoadout->GetActiveWeapon())
 				{
 					ActionTier = Weapon->Tier;
 				}

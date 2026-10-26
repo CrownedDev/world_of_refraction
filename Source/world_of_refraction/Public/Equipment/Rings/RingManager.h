@@ -2,7 +2,7 @@
 // Simplified ring management for Resonators.
 // Stateless query/switching surface backed by ULoadoutComponent
 // (single source of truth for ring loadout + active index).
-// Consumes UCrystalManager::OnCrystalBroken, performs auto-switch.
+// The crystal-break auto-switch moved to ULoadoutComponent (B-024).
 
 #pragma once
 
@@ -17,10 +17,10 @@ class UEvolutionItemData;
 class UCrystalManager;
 
 /**
- * Simplified Ring Manager
- * - Provides active-ring queries sourced from LoadoutComponent
- * - Consumes UCrystalManager::OnCrystalBroken, performs auto-switch
- *   when the broken crystal is on a ring this manager tracks
+ * OBSOLETE (B-024): forwards to the actor's ULoadoutComponent (GetActiveRing,
+ * GetActiveRingElement, GetPrimaryRing, SwitchToNextUsableRing), which also owns the
+ * crystal-break auto-switch now. No C++ caller left; kept for Blueprints until Crown's
+ * PIE pass, then removed (B-154).
  */
 UCLASS()
 class WORLD_OF_REFRACTION_API URingManager : public UGameInstanceSubsystem
@@ -54,8 +54,8 @@ public:
 	bool SwitchToNextRing(AActor *Actor);
 
 private:
-	/** Consumer of UCrystalManager::OnCrystalBroken. Filters by
-	 *  Cast<URingData>(Holder); performs SwitchToNextRing on match. */
+	/** Unbound since B-024: UCrystalManager::NotifyCrystalBroken calls
+	 *  ULoadoutComponent::HandleCrystalBroken instead. Removed with this class (B-154). */
 	UFUNCTION()
 	void HandleCrystalBroken(AActor *Actor, UObject *Holder, FBrokenCrystalPayload Payload);
 };

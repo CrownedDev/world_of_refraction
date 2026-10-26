@@ -1,7 +1,6 @@
 // DurabilityHeaderWidget.cpp
 
 #include "UI/Combat/CommandMenu/DurabilityHeaderWidget.h"
-#include "Equipment/Rings/RingManager.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Character/CharacterDataComponent.h"
@@ -9,7 +8,6 @@
 #include "Components/TextBlock.h"
 #include "Engine/GameInstance.h"
 #include "Equipment/Crystals/CrystalManager.h"
-#include "Equipment/Weapons/WeaponManager.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/FCombatLoadout.h"
@@ -108,18 +106,12 @@ void UDurabilityHeaderWidget::RefreshForActor(AActor *InActor)
 		// Resolve per-instance attachment via LoadoutComponent — the asset-side
 		// AttachedItem carries no runtime durability, so broken-state must be
 		// read from the runtime attachment (writes go to runtime post-Phase-B).
-		if (UGameInstance *GI = GetGameInstance())
+		if (UWeaponData *ActiveWeapon = LC->GetActiveWeapon())
 		{
-			if (UWeaponManager *WM = GI->GetSubsystem<UWeaponManager>())
+			const FRuntimeAttachedItem WeaponAttachment = LC->GetCrystalEntryByHolder(ActiveWeapon);
+			if (!WeaponAttachment.IsEmpty() && !WeaponAttachment.IsBroken())
 			{
-				if (UWeaponData *ActiveWeapon = WM->GetActiveWeapon(InActor))
-				{
-					const FRuntimeAttachedItem WeaponAttachment = LC->GetCrystalEntryByHolder(ActiveWeapon);
-					if (!WeaponAttachment.IsEmpty() && !WeaponAttachment.IsBroken())
-					{
-						bHasWeaponResource = true;
-					}
-				}
+				bHasWeaponResource = true;
 			}
 		}
 	}
@@ -180,15 +172,14 @@ void UDurabilityHeaderWidget::UpdateSlot1FromRing()
 		return;
 
 	AActor *Actor = BoundActor.Get();
-	URingManager *RingMgr = GetGameInstance() ? GetGameInstance()->GetSubsystem<URingManager>() : nullptr;
-	if (!Actor || !RingMgr)
+	if (!Actor)
 	{
 		Slot1DurText->SetVisibility(ESlateVisibility::Collapsed);
 		return;
 	}
 
-	URingData *ActiveRing = RingMgr->GetActiveRing(Actor);
 	ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>();
+	URingData *ActiveRing = LC ? LC->GetActiveRing() : nullptr;
 	const FRuntimeAttachedItem Attachment = (ActiveRing && LC) ? LC->GetCrystalEntryByHolder(ActiveRing) : FRuntimeAttachedItem();
 
 	if (Attachment.IsEmpty())
@@ -211,15 +202,14 @@ void UDurabilityHeaderWidget::UpdateSlot1FromWeapon()
 		return;
 
 	AActor *Actor = BoundActor.Get();
-	UWeaponManager *WM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UWeaponManager>() : nullptr;
-	if (!Actor || !WM)
+	if (!Actor)
 	{
 		Slot1DurText->SetVisibility(ESlateVisibility::Collapsed);
 		return;
 	}
 
-	UWeaponData *ActiveWeapon = WM->GetActiveWeapon(Actor);
 	ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>();
+	UWeaponData *ActiveWeapon = LC ? LC->GetActiveWeapon() : nullptr;
 	const FRuntimeAttachedItem Attachment = (ActiveWeapon && LC) ? LC->GetCrystalEntryByHolder(ActiveWeapon) : FRuntimeAttachedItem();
 
 	if (Attachment.IsEmpty())
@@ -242,15 +232,14 @@ void UDurabilityHeaderWidget::UpdateSlot2FromWeapon()
 		return;
 
 	AActor *Actor = BoundActor.Get();
-	UWeaponManager *WM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UWeaponManager>() : nullptr;
-	if (!Actor || !WM)
+	if (!Actor)
 	{
 		Slot2DurText->SetVisibility(ESlateVisibility::Collapsed);
 		return;
 	}
 
-	UWeaponData *ActiveWeapon = WM->GetActiveWeapon(Actor);
 	ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>();
+	UWeaponData *ActiveWeapon = LC ? LC->GetActiveWeapon() : nullptr;
 	const FRuntimeAttachedItem Attachment = (ActiveWeapon && LC) ? LC->GetCrystalEntryByHolder(ActiveWeapon) : FRuntimeAttachedItem();
 
 	if (Attachment.IsEmpty())

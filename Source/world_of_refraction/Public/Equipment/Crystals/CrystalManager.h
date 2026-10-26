@@ -102,6 +102,10 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Crystal Manager|Events")
     FOnCrystalBroken OnCrystalBroken;
 
+    /** A crystal on Actor's Holder broke: lets the actor's loadout switch off a broken ring
+     *  first, then broadcasts OnCrystalBroken, so listeners see the post-switch state. */
+    void NotifyCrystalBroken(AActor *Actor, UObject *Holder, const FBrokenCrystalPayload &Payload);
+
     DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
         FOnCrystalDurabilityChanged,
         AActor *, Actor,

@@ -22,6 +22,7 @@
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/FRuntimeAttachedItem.h"
+#include "Equipment/Crystals/FBrokenCrystalPayload.h"
 #include "Engine/GameInstance.h"
 #include "Engine/Engine.h"
 
@@ -3003,10 +3004,72 @@ void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
     }
 }
 
+ESpellElement ULoadoutComponent::GetActiveRingElement() const
+{
+    const FRingLoadoutEntry *Entry = GetActiveRingLoadout();
+    return Entry ? Entry->RingEntry.AttachedItem.GetElement() : ESpellElement::None;
+}
+
+bool ULoadoutComponent::SwitchToNextUsableRing()
+{
+    const FCombatLoadout &Loadout = GetActiveLoadout();
+    const int32 RingCount = Loadout.RingLoadout.Num();
+    if (RingCount == 0)
+    {
+        return false;
+    }
+
+    const int32 StartIndex = Loadout.ActiveRingIndex;
+    for (int32 Step = 1; Step <= RingCount; ++Step)
+    {
+        const int32 CheckIndex = (StartIndex + Step) % RingCount;
+        const FRuntimeAttachedItem &Attachment = Loadout.RingLoadout[CheckIndex].RingEntry.AttachedItem;
+        if (!Attachment.IsEmpty() && !Attachment.IsBroken())
+        {
+            SetActiveRingIndex(CheckIndex);
+            return true;
+        }
+    }
+    return false;
+}
+
+void ULoadoutComponent::HandleCrystalBroken(UObject *Holder, const FBrokenCrystalPayload &Payload)
+{
+    // Weapon crystals don't switch rings.
+    if (!Cast<URingData>(Holder))
+    {
+        return;
+    }
+
+    FString CrystalName;
+    switch (Payload.Kind)
+    {
+    case EAttachedItemKind::Crystal:
+        CrystalName = ItemIdentity::GetDisplayName(Payload.CrystalId);
+        break;
+    case EAttachedItemKind::Evolution:
+        CrystalName = Payload.Item ? Payload.Item->GetFullItemName() : TEXT("(null)");
+        break;
+    case EAttachedItemKind::Fusion:
+        CrystalName = FString::Printf(TEXT("FUSION %s+%s"),
+                                      *ItemIdentity::GetDisplayName(Payload.FusionId.HalfA),
+                                      *ItemIdentity::GetDisplayName(Payload.FusionId.HalfB));
+        break;
+    default:
+        CrystalName = TEXT("(none)");
+        break;
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Ring crystal '%s' broke on %s — auto-switching"),
+           *CrystalName, *GetNameSafe(GetOwner()));
+    SwitchToNextUsableRing();
+}
+
 void ULoadoutComponent::DebugLogLoadout()
 {
     UE_LOG(LogTemp, Log, TEXT("=== LoadoutComponent Debug ==="));
     UE_LOG(LogTemp, Log, TEXT("CharacterClass: %s"), *UEnum::GetValueAsString(GetCharacterClass()));
+    UE_LOG(LogTemp, Log, TEXT("ActiveRingElement: %s"), *UEnum::GetValueAsString(GetActiveRingElement()));
     UE_LOG(LogTemp, Log, TEXT("bIsReadyForBattle: %s"), bIsReadyForBattle ? TEXT("true") : TEXT("false"));
 
     UInventoryComponent *Inv = GetInventoryComponent();

@@ -109,12 +109,12 @@ fusions only, `UTurnManager::OnActorSpeedChanged` + `RecomputeMaxPools`
 unconditionally — the attachment is already broken there, so the stat-read
 guards (`GetAttachedStonePercent` / `...ForType` IsBroken early-returns) read 0
 and the recompute lands the loss immediately. Weapon breaks need this hook;
-ring breaks also recompute via RingManager's auto-switch (idempotent double).
+ring breaks also recompute via the loadout component's auto-switch (idempotent double).
 Plain crystals carry no stat percents, so their breaks need no hook.
 
 `FBrokenCrystalPayload` carries an appended `FFusionId` (Kind == Fusion; the
-gem half doubles as `CrystalId` for Kind-unaware listeners). RingManager's
-break consumer resolves the `FUSION gem+stone` name, and both debug commands
+gem half doubles as `CrystalId` for Kind-unaware listeners). The ring break
+consumer (`ULoadoutComponent::HandleCrystalBroken` since B-024; was RingManager's) resolves the `FUSION gem+stone` name, and both debug commands
 handle fusions: `DebugBreakActiveCrystal` accepts elemental fusions (same gate
 as production), `DebugForceWearActiveCrystal` labels the FUSION branch with a
 truthful wears/never-wears string.
@@ -194,3 +194,4 @@ bypasses tier math and Luck-skip).
 | 2026-06-11 | Fusion wear pipeline: elemental fusions wear + break in production (gate widened, gem-half tier keys wear, augmented fusions stay never-wear). Break fires speed-notify + `RecomputeMaxPools` at the break instant — the production trigger for the broken-fusion stat guards. `FBrokenCrystalPayload.FusionId` appended; RingManager + both debug commands fusion-aware. | feature/fusion-wear-pipeline |
 | 2026-06-18 | Infusion rework: documented the `EBreakability` enum (6-1, Unbreakable/Breakable/BDBreakable default) and its `bForceWear` gate. Confirmed the EP-vs-wear split still reflects crystal-zero-EP (6-2-2 — crystal sources pay durability, not EP). Cross-links `InfusionSystem.md`. | feature/realtime-defense |
 | 2026-06-22 | **DurabilityWearPercentRework** (4 commits). Wear is now **percent-of-max** (spell 7%/gap, ability 3%/gap, spell infusion +5/+10, abilities none) via the shared `CalculateWearPercentOfMax` helper, so casts-to-break is tier-consistent. `PowerFactor` capped at `SUBSTAT_POWER_FACTOR_MAX (3.0)`. The 45%-of-max **ceiling removed** (branches collapsed; shatter is intrinsic to the percent math); `SUBSTAT_CEIL_FRAC` + `SUBSTAT_ONE_SHOT_GAP` now unreferenced. Added a **min-1 mismatch floor** (`tier_gap>0 → ≥1 wear`, robust even on the `base==0` early return). Luck wear-skip **extended to the evolution path**. Surfaced `WearPercentOfMax` + `bMinFloored` on `FDurabilityWearWithSubstatsResult` for UI/preview; debug suite + `WOR_SimCast` regenerated to the percent model. | feature/durability-percent-wear |
+| 2026-10-26 | B-024: the ring auto-switch on a crystal break moved from `URingManager` to `ULoadoutComponent::HandleCrystalBroken`, which `UCrystalManager::NotifyCrystalBroken` calls on the actor just before broadcasting `OnCrystalBroken` (so listeners such as the durability header see the post-switch ring). `URingManager` no longer binds `OnCrystalBroken`. | refactor/B-024-fold-weapon-ring-managers |

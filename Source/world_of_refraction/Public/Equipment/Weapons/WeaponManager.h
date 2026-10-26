@@ -16,13 +16,8 @@ class ULoadoutComponent;
 /**
  * UWeaponManager
  *
- * Thin façade over LoadoutComponent for weapon-side queries, plus the
- * weapon-crystal durability wear path.
- *
- * Usage:
- *   UWeaponManager* WeaponMgr = GetGameInstance()->GetSubsystem<UWeaponManager>();
- *   UWeaponData* Weapon = WeaponMgr->GetActiveWeapon(Actor);
- *   // Attack execution flows through UActionExecutor / ApplyHit, not this subsystem.
+ * OBSOLETE (B-024): forwards to ULoadoutComponent::GetActiveWeapon / GetCurrentAttack.
+ * No C++ caller left; kept for Blueprints until Crown's PIE pass, then removed (B-154).
  */
 UCLASS()
 class WORLD_OF_REFRACTION_API UWeaponManager : public UGameInstanceSubsystem

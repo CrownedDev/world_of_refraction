@@ -27,6 +27,8 @@
 #include "Skills/Definitions/ESpellSource.h"
 #include "LoadoutComponent.generated.h"
 
+struct FBrokenCrystalPayload;
+
 class UInventoryComponent;
 class USpellData;
 class UAbilityData;
@@ -190,6 +192,20 @@ public:
 
     /** Set active ring index for Resonator */
     void SetActiveRingIndex(int32 NewIndex);
+
+    /** Element of the active ring's attached crystal (Resonator); None without one. */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    ESpellElement GetActiveRingElement() const;
+
+    /** Make the next ring (wrapping) whose attachment is present and unbroken the active
+     *  one. False when no other ring is usable. Also runs when a ring's crystal breaks. */
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Combat")
+    bool SwitchToNextUsableRing();
+
+    /** A crystal on the owner broke. On a ring, switches to the next usable ring (moved from
+     *  URingManager, B-024). Called by UCrystalManager just before it broadcasts
+     *  OnCrystalBroken, so listeners (the durability header) already see the new ring. */
+    void HandleCrystalBroken(UObject *Holder, const FBrokenCrystalPayload &Payload);
 
     // ==================== LOADOUT MANAGEMENT ====================
 
