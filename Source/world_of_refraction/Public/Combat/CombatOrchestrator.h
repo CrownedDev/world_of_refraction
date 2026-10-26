@@ -485,6 +485,8 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
+	friend class FVoidRandomActionSpec; // B-199: drives RequestActionFromActor on a Void break
+
 	// ========================================
 	// INTERNAL STATE
 	// ========================================

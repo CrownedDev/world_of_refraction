@@ -1446,8 +1446,9 @@ void ACombatOrchestrator::RequestActionFromActor(AActor *Actor)
 		return;
 	}
 
-	// === AI-CONTROLLED ACTOR ===
-	if (IsActorAIControlled(Actor))
+	// === AI-CONTROLLED ACTOR, or a Void break playing the turn for you (B-199) ===
+	const bool bVoidBroken = SkillEffectManagerRef && SkillEffectManagerRef->HasEffectOfType(Actor, ESkillEffectType::RandomSkill);
+	if (IsActorAIControlled(Actor) || bVoidBroken)
 	{
 		if (!AIDecisionManagerRef)
 		{
