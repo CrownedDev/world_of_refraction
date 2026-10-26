@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Character/CharacterDataComponent.h"
+#include "WoRAuthority.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
@@ -450,13 +451,7 @@ void UCharacterDataComponent::CheckDeath()
 
 bool UCharacterDataComponent::HasServerAuthority() const
 {
-    // In standalone mode (PIE, no networking), always have authority
-    if (GetWorld() && GetWorld()->GetNetMode() == NM_Standalone)
-    {
-        return true;
-    }
-
-    return GetOwner() && GetOwner()->HasAuthority();
+    return WoRAuthority::HasAuthority(GetOwner());
 }
 
 void UCharacterDataComponent::ServerResurrect(int32 HPToRestore)
