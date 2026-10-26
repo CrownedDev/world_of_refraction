@@ -15,6 +15,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "TimerManager.h"
+#include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "UI/Combat/CombatResultsWidget.h"
 #include "GameFramework/PlayerController.h"
@@ -241,6 +242,15 @@ void ABattleGameMode::BootstrapCombat()
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Starting combat %d v %d (difficulty %s, rank %s)"),
            LocalParty.Num(), OpposingParty.Num(), *UEnum::GetValueAsString(TrialRun->GetPendingDifficulty()),
            *UEnum::GetValueAsString(TrialRun->GetPendingRank()));
+    // B-183: the gate's difficulty scales every enemy before the fight (and its HUD) starts.
+    const float EnemyStrength = TrialRun->GetEnemyStrengthMultiplier();
+    for (AActor *Enemy : OpposingParty)
+    {
+        TrialGate::ApplyEnemyStrength(Enemy, EnemyStrength);
+    }
+    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Trial difficulty %s: enemy strength x%.2f"),
+           *TrialGate::GetDifficultyName(TrialRun->GetTrialDifficulty()).ToString(), EnemyStrength);
+
     SpawnedOrchestrator->SetEncounterRank(TrialRun->GetPendingRank());
     SpawnedOrchestrator->StartCombat(LocalParty, OpposingParty, TrialRun->GetPendingDifficulty());
 }
