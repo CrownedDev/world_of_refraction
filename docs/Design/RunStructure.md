@@ -45,7 +45,7 @@ Any lord can enter any trial (D-032 part 8). The trial reacts to who's in the pa
 | Boss arena | Face the boss whenever you're ready |
 
 - **Resting does not reset enemies.** Beaten enemies stay beaten.
-- **Boss revival (opt-in farming):** a trigger revives a beaten boss **stronger**, for a **better chance at good gear**. **The trigger is at the rest spot that appears once the boss is beaten** (Crown, 2026-10-26; Dark Souls II's Bonfire Ascetic): from there you can leave with the full payout, or revive the boss. **Repeatable, one step at a time:** each revival raises the boss's strength and loot by one tier, up to a cap (`// TODO: tune`), (Crown, 2026-10-26). **No cost:** the risk is the price (losing the fight ends the run). *Open:* mini-bosses too?
+- **Boss revival (opt-in farming):** a trigger revives a beaten boss **stronger**, for a **better chance at good gear**. **The trigger is at the rest spot that appears once the boss is beaten** (Crown, 2026-10-26; Dark Souls II's Bonfire Ascetic): from there you can leave with the full payout, or revive the boss. **Repeatable, one step at a time:** each revival raises the boss's strength and loot by one tier, up to a cap (`// TODO: tune`), (Crown, 2026-10-26). **No cost:** the risk is the price (losing the fight ends the run). **Mini-bosses too** (Crown, 2026-10-26): a run has several mini-bosses and one main boss, so each mini-boss can be revived the same way from the rest spot it creates.
 - **Carry-over inside a run:** HP, EP, absorption and durability carry between fights; **status bars reset every fight** (D-013).
 
 ## 5. Memories, bound gear and reactions
@@ -71,7 +71,6 @@ Any lord can enter any trial (D-032 part 8). The trial reacts to who's in the pa
 
 ## 7. Open questions
 
-- Boss revival: mini-bosses too (§4).
 - How a hub-built party's own gear enters a run beyond the leader's loadout (D-026 note).
 - Data shapes for memory fragments and reaction triggers: proposed when built (D-032 notes).
 
