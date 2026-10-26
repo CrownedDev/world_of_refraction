@@ -14,6 +14,7 @@
 #include "Equipment/Rings/RingData.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Loadout/LoadoutRules.h"
 
 // ==================== VALIDATION ====================
 
@@ -22,7 +23,23 @@ bool FSavedLoadout::IsValidForClass(ECharacterClass CharacterClass) const
     return RequiredClass == CharacterClass;
 }
 
-TArray<FString> FSavedLoadout::GetValidationErrors() const
+TArray<FString> FSavedLoadout::GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness) const
+{
+    TArray<FString> Errors = FLoadoutRules::CollectAuthoredShapeErrors(*this);
+
+    FLoadoutRuleContext Context;
+    Context.CharacterClass = RequiredClass;
+    Context.bBrokenDarkness = bCharacterIsBrokenDarkness.Get(BDSpellPools.Num() > 0);
+    // No character at authoring time: discount 0 is the strictest spell budget, and
+    // element castability is left to the fight. Ownership is UInventoryData's cross-check.
+    Context.SpellDiscount = 0;
+    Errors.Append(FLoadoutRules::ToReasons(
+        FLoadoutRules::CollectFindings(FCombatLoadout::CreateFromSavedLoadout(*this), Context)));
+    return Errors;
+}
+
+// OBSOLETE (B-028): remove after Crown's PIE pass.
+TArray<FString> FSavedLoadout::GetValidationErrorsLegacy() const
 {
     TArray<FString> Errors;
 

@@ -127,8 +127,9 @@ public:
     // ==================== VALIDATION ====================
 
     /** Per-loadout struct validation plus cross-checks against the
-     *  ownership lists above. Returns one error string per violation. */
-    TArray<FString> GetValidationErrors() const;
+     *  ownership lists above. Returns one error string per violation.
+     *  bCharacterIsBrokenDarkness: the owning character's BD flag when known (UCharacterData). */
+    TArray<FString> GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness = TOptional<bool>()) const;
 
     /** Quick check for any validation errors */
     bool HasValidationErrors() const;
