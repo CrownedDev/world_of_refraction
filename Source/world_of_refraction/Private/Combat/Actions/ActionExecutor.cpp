@@ -596,6 +596,64 @@ float UActionExecutor::ResolveTierGapMultiplier(AActor *Actor, const FAction &Ac
 	return Multiplier;
 }
 
+FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FAction &Action,
+														   const FActionStatModifiers &ActionMods, bool bLog) const
+{
+	FActionDamagePreview Preview;
+	const bool bIsSpell = Action.ActionType == EActionType::Spell;
+	const USkillDataBase *Skill = bIsSpell ? Action.SpellData : ResolveActionSkill(Action);
+	UCharacterData *UserData = GetCharacterData(User);
+	if (!Skill || !UserData)
+	{
+		return Preview;
+	}
+
+	const bool bIsInfused = Action.SelectedSource != EInfusionSourceOption::None;
+	if (bIsSpell)
+	{
+		// Stage c: spells scale the skill BaseDamage (SpellDamage/Mind/element scaling still runs at
+		// ApplyHit, ActionType=Spell).
+		Preview.BaseDamage = Action.SpellData->CalculateDamage(UserData, ActionMods);
+		// Cluster 3c: a Generic spell resolves to its source/pool element; fixed elements pass through.
+		Preview.Element = ResolveSpellCastElement(User, Action.SpellData);
+		// 3a safety net: a still-Generic result means the resolver could not bind a source (e.g. a
+		// Generic-innate Caster routing through Innate — a data misconfiguration). Never let Generic
+		// ("inherit") reach the damage/colour/resistance pipeline.
+		if (Preview.Element == ESpellElement::Generic)
+		{
+			if (bLog)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Spell %s resolved to Generic (unbound source) — using None"),
+					   *Skill->Name);
+			}
+			Preview.Element = ESpellElement::None;
+		}
+	}
+	else
+	{
+		// Element-infusion damage penalty was removed per the locked cost matrix, so bIsInfused no
+		// longer changes the base. Infusion routes the user's innate element through; non-infused
+		// abilities stay non-elemental.
+		Preview.BaseDamage = Skill->CalculateDamage(UserData, bIsInfused);
+		Preview.Element = (bIsInfused && UserData->HasInnateElement()) ? UserData->InnateElement : ESpellElement::None;
+	}
+
+	// 6-3-3: per-mode, stat-scaled charge damage (L0 x1.0), resolved from the action's infusion source.
+	const int32 InfusionLevel = bIsSpell ? Action.SpellInfusionLevel : Action.AbilityInfusionLevel;
+	const EInfusionMode Mode = ResolveInfusionMode(Action.SelectedSource, User);
+	Preview.ChargeMultiplier = GetChargeDamageMultiplier(InfusionLevel, Mode, bIsSpell, GetCharacterDataComponent(User));
+	int32 Damage = FMath::RoundToInt(Preview.BaseDamage * Preview.ChargeMultiplier);
+
+	// Tier-gap (B2) then tier-power (the skill's OWN tier, F=x1.0 floor); all commutative.
+	const float TierGap = bLog ? ResolveTierGapMultiplier(User, Action, Skill->Name) : GetTierGapDamageMultiplier(User, Action);
+	Damage = FMath::RoundToInt(Damage * TierGap);
+	Damage = FMath::RoundToInt(Damage * TierPowerScaling::GetTierPowerMultiplier(Skill->Tier));
+
+	Preview.FinalDamage = Damage;
+	Preview.HitCount = Skill->HitCount;
+	return Preview;
+}
+
 // ========================================
 // DEFERRED ACTIVATION (D8)
 // ========================================
@@ -1165,21 +1223,15 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// base override was RETIRED here (its value migrates to BaseDamage in USpellData::PostLoad); the
 	// field itself is removed in stage d. No override → use Spell->BaseDamage. SpellDamage/Mind/element
 	// scaling still runs at ApplyHit (ActionType=Spell).
-	int32 BaseDamage = Spell->CalculateDamage(CasterData, ActionMods);
-	// 6-3-3: per-mode, stat-scaled charge damage. Mode resolved once from the action's
-	// infusion source (ring/weapon/innate/evolution), reused for the status log below.
+	// Base x charge x tier-gap x tier-power and the resolved element, from the one calculation the AI
+	// estimate shares (B-029).
+	const FActionDamagePreview DamagePreview = PreviewActionDamage(Caster, Action, ActionMods, /*bLog*/ true);
+	const int32 BaseDamage = DamagePreview.BaseDamage;
+	const float DamageMultiplier = DamagePreview.ChargeMultiplier;
+	int32 FinalDamage = DamagePreview.FinalDamage;
+	// Mode resolved once from the action's infusion source (ring/weapon/innate/evolution), for the
+	// status multiplier below.
 	const EInfusionMode SpellMode = ResolveInfusionMode(Action.SelectedSource, Caster);
-	float DamageMultiplier = GetChargeDamageMultiplier(Action.SpellInfusionLevel, SpellMode, /*bIsSpell*/ true, CasterComp);
-	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
-
-	// Tier-gap (B2): final multiplicative factor, stacking with the charge
-	// multiplier above. 1.0 (no channel / matched tier) leaves damage unchanged.
-	const float TierGapMult = ResolveTierGapMultiplier(Caster, Action, Spell->Name);
-	FinalDamage = FMath::RoundToInt(FinalDamage * TierGapMult);
-
-	// Tier-power (own-tier): the spell's OWN authored tier scales damage up from the
-	// F=×1.0 floor (TierPowerConstants). Stacks with charge × tier-gap; all commutative.
-	FinalDamage = FMath::RoundToInt(FinalDamage * TierPowerScaling::GetTierPowerMultiplier(Spell->Tier));
 
 	// 6-4: the live spell status multiplier — per-mode, stat-scaled (L0 → ×1.0). Logged here and
 	// applied to SpellBaseBuildup below (replaces the retired inline L1 +50%).
@@ -1196,17 +1248,8 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// any consumer reads it. Non-Generic spells pass through unchanged. This single
 	// resolved value feeds AttackElement, the forbidden-cast self-damage, the defense
 	// window, and (via PendingResolvedElement below) the deferred VFX readers.
-	ESpellElement ResolvedElement = ResolveSpellCastElement(Caster, Spell);
-	// 3a safety net: a still-Generic result means the resolver could not bind a source
-	// (e.g. a Generic-innate Caster routing through Innate — a data misconfiguration).
-	// Never let Generic ("inherit") reach the damage/colour/resistance pipeline.
-	if (ResolvedElement == ESpellElement::Generic)
-	{
-		UE_LOG(LogTemp, Warning,
-			   TEXT("[ActionExecutor] Spell %s resolved to Generic (unbound source) — using None"),
-			   *Spell->Name);
-		ResolvedElement = ESpellElement::None;
-	}
+	// (PreviewActionDamage resolved it and already replaced an unbound Generic with None.)
+	ESpellElement ResolvedElement = DamagePreview.Element;
 
 	// Store in result for reference. BaseDamageBeforeDefense receives the
 	// infused damage because that is what defense will reduce — "before defense"
@@ -1444,32 +1487,14 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	// Calculate base damage. Element-infusion damage penalty was removed per
 	// the locked cost matrix — infusion now pays its tax via durability wear /
 	// HP backlash / status build / energy multipliers, not flat damage tax.
-	int32 BaseDamage = Ability->CalculateDamage(UserData, bIsInfused);
-
-	// Element handling. Infusion routes the user's innate element through;
-	// non-infused abilities stay non-elemental (None).
-	ESpellElement Element = ESpellElement::None;
-	if (bIsInfused && UserData->HasInnateElement())
-	{
-		Element = UserData->InnateElement;
-	}
-
-	// 6-3-3: per-mode, stat-scaled charge damage (L1 now also bonused, was ×1.0 before).
-	// Mode resolved once from the action's infusion source, reused for the status site below.
+	// Base x charge x tier-gap x tier-power and the element (infused: the user's innate; otherwise
+	// None), from the one calculation the AI estimate shares (B-029). Abilities don't read ActionMods
+	// for their base.
+	const FActionDamagePreview DamagePreview = PreviewActionDamage(User, Action, FActionStatModifiers(), /*bLog*/ true);
+	const ESpellElement Element = DamagePreview.Element;
+	int32 FinalDamage = DamagePreview.FinalDamage;
+	// Mode resolved once from the action's infusion source, for the status site below.
 	const EInfusionMode AbilityMode = ResolveInfusionMode(Action.SelectedSource, User);
-	float DamageMultiplier = GetChargeDamageMultiplier(Action.AbilityInfusionLevel, AbilityMode, /*bIsSpell*/ false, UserComp);
-	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
-
-	// Tier-gap (B2): final multiplicative factor, stacking with the charge multiplier
-	// above. (Requirement scaling now rides ActionMods per-pillar via
-	// ComputeActionStatModifiers, not a penalty inside CalculateDamage.)
-	const float TierGapMult = ResolveTierGapMultiplier(User, Action, Ability->Name);
-	FinalDamage = FMath::RoundToInt(FinalDamage * TierGapMult);
-
-	// Tier-power (own-tier): the ability's OWN authored tier scales damage up from the
-	// F=×1.0 floor. NOTE Ability->Tier (own), NOT the weapon channel tier-gap reads.
-	// Stacks with charge × tier-gap; all commutative.
-	FinalDamage = FMath::RoundToInt(FinalDamage * TierPowerScaling::GetTierPowerMultiplier(Ability->Tier));
 
 	// Spell Size (fixed, no character scaling)
 	float AttackSize = 1.0f;
