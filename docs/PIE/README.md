@@ -53,6 +53,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-168](B-168.md) | `feature/B-168-guard` (in `dev`) | Guard (Block + Parry merged), Perfect Guard, no built-in reflect | Not tested |
 | [B-169](B-169.md) | `feature/B-169-luck-dodge` (in `dev`) | Luck dodge: a hit that would land can be dodged by luck, max 15% | Not tested |
 | [B-035](B-035.md) | `refactor/B-035-flatten-crystal-destruction` (in `dev`) | Combat-end crystal destruction split out (no behaviour change) | Not tested |
+| [B-117](B-117.md) | `chore/B-117-stale-text-sweep` (in `dev`) | Stale comments and docs fixed; unread constants removed (no behaviour change) | Not tested |
 
 Move rows to **Done** when every check passes.
 
