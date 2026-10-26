@@ -1103,6 +1103,8 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     // failures alongside the init log rather than as downstream symptoms.
     // B-028: BD rules follow the character.
     const TOptional<bool> bCharacterIsBD = CharacterData ? TOptional<bool>(CharacterData->bBrokenDarknessInnate) : TOptional<bool>();
+    // Authored levels only (live stats aren't seeded yet): a head-start can make the fight
+    // accept what this log flags.
     const int32 AuthoredDiscount = CharacterData ? CharacterData->GetAuthoredSpellDiscount() : 0;
     for (const FString &Error : InventoryAsset->GetValidationErrors(bCharacterIsBD, AuthoredDiscount))
     {

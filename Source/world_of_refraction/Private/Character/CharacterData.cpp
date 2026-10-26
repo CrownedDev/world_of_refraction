@@ -112,5 +112,5 @@ void UCharacterData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChang
 
 int32 UCharacterData::GetAuthoredSpellDiscount() const
 {
-	return SpellPoolConstants::SpellSlotDiscount(WorldMindLevel, WorldBodyLevel, WorldSpiritLevel);
+    return SpellPoolConstants::SpellSlotDiscount(WorldMindLevel, WorldBodyLevel, WorldSpiritLevel);
 }
