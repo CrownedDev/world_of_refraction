@@ -189,10 +189,13 @@ The queue of questions only Crown can answer.
 - Tests: ring with a DefenseStone + Fire crystal fusion raises Defense and still offers the Fire spells.
 
 ### D-010 — Resonator ring rules
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-083
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-083
 **Question:** "Up to 3 of the same element": enforce it? And is the ring cap 5 or 6?
 **Context:** Only a budget of 5 is enforced (`LoadoutConstants.h:31`). The comment says 6 (`ECharacterClass.h:24`).
-**Answer (Crown):** _write here_
+**Answer (Crown):** (2026-10-26) **Keep the budget of 5; drop "up to 3 of the same element" (B).** Any mix of ring elements; the budget is the only limit.
+**Notes for Claude:**
+- No rule change in code: the budget of 5 (`LoadoutConstants.h:31`, primary + rings) already stands, and no same-element cap exists.
+- Fix the stale class comment (`ECharacterClass.h:24-29`: "6 slots, up to 3 same element") to describe the budget of 5. Also check the rest of that comment block against D-027 (e.g. "2 physical weapons", "1 weapon") and correct it.
 
 ### D-011 — Once-per-match effects: per character or per match?
 **Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-062
