@@ -1,8 +1,8 @@
 // InfusedBuildupSpec.cpp
 // B-113 / Q-113: an infused hit's status buildup is authored × charge band × (1 + StatFraction(M))
 // in the executor, then × M again in AddStatusBuildup. That second use is the documented infusion
-// design (InfusionSystem.md "stat-scaled" bands, like damage and cost), kept by Q-113 — these
-// cases pin both layers so a change to either is a deliberate one.
+// design (InfusionSystem.md "stat-scaled" bands, like damage), kept by Q-113 — these cases pin
+// each layer on its own so a change to either is a deliberate one.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
