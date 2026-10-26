@@ -99,7 +99,7 @@
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-070 | `TrialRunSubsystem::ActiveTrial` → strong ref | CC | S | — | Works in a packaged build | TODO |
-| B-071 | Party into battle per D-003/D-004: spawn party-list members at encounter start with their own `FPartyMember.PawnClass`; per-member Player/AI control (leader always Player), switchable on the member's turn (D-026); keep the sphere gather for co-op players | CC | M | D-003, D-004 | 3v1 fight from a recruited party, one member on AI | TODO |
+| B-071 | Party into battle per D-003/D-004: spawn party-list members at encounter start with their own `FPartyMember.PawnClass`; per-member Player/AI control (leader always Player), switchable on the member's turn (D-026); a Generic/Resonator with no gear is left out (D-016); keep the sphere gather for co-op players | CC | M | D-003, D-004 | 3v1 fight from a recruited party, one member on AI | TODO |
 | B-076 | Find characters during a trial (D-026): reuse the hub recruit flow; they join for that run only and arrive ungeared; gear them from the shared run inventory | CC | M | B-071 | Recruit in a trial, gear them from the run inventory, they fight in the next encounter and are gone after the run | BLOCKED (B-071) |
 | B-072 | Win/lose routing per D-002 | CC | S | D-002, B-003 | Matches answer | BLOCKED (B-003) |
 | B-073 | Rewards per D-006 (A): each win grants Gold (run-only); Prisms + in-run upgrade materials tallied and paid at run end, win or lose, scaled by progress and difficulty; one payout multiplier (default 1.0) for later passives | CC | M | D-006 | Tests: payout on win and on failure, nothing banked mid-run; shop purchasable after a run | TODO |
@@ -118,7 +118,7 @@
 | B-081 | Gear effects follow a mid-fight swap per D-008: on weapon toggle / ring switch, remove + disarm the old gear's effects, apply + arm the new | CC | M | D-008 | Tests: ring switch changes effects; swapping back doesn't stack | TODO |
 | B-082 | Ring fusions per D-009: the stat-stone half of an elemental fusion on a ring applies its attached self-passive (today stone reads go through the weapon only) | CC | S | D-009 | Test: DefenseStone + Fire crystal ring raises Defense and keeps its Fire spells | TODO |
 | B-083 | D-010/D-027: correct the stale class comment in `ECharacterClass.h` (Resonator budget of 5, no same-element cap; Generic/Refractor slots as in D-027). Comment-only | CC | S | — | Comment matches D-027 and the code | TODO |
-| B-084 | Dismantle equipped per D-016: confirm warning, then remove from every loadout and dismantle; Generic/Resonator with no gear can't enter combat | CC | S | D-016 | Tests: no ghost copy after dismantle; gearless Generic refused at fight start | TODO |
+| B-084 | Dismantle equipped per D-016: confirm warning, then remove from every loadout and dismantle; Generic/Resonator with no gear is left out of the fight; the warning says upgrades are lost | CC | S | D-016 | Tests: no ghost copy after dismantle; gearless Generic refused at fight start | TODO |
 | B-085 | Loadouts reference owned gear by `PersistentID` (no copies) | CC | L | B-090 | Wear/dismantle stay in sync | BLOCKED (B-090) |
 
 ## Phase 6 — Persistence

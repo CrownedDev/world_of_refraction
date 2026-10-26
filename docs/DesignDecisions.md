@@ -251,8 +251,9 @@ The queue of questions only Crown can answer.
 **Notes for Claude:**
 - Checked: dismantling destroys the item for Gear essence by tier (`EconomyService::DismantleWeapon/DismantleRing`), with no equipped check, and loadouts hold copies (B-085), so a dismantled item stays usable in its loadout.
 - Dismantle: if the item is in any saved loadout, require a confirm (placeholder UI per the PIE rule), then remove it from those loadouts, then dismantle.
+- **Dismantling loses the item's upgrades for good** (Crown, 2026-10-26): it leaves the pool with its upgrade levels; getting the item again starts it from scratch. The warning says so ("You'll lose its upgrades").
 - If that leaves a Generic or Resonator with no gear, say so in the warning ("X will have no gear and can't fight until you equip something").
-- Combat entry: a Generic or Resonator with no gear can't enter a fight. A Refractor can (innate). Today an empty primary is valid (`FSavedLoadout.cpp` `EPrimarySlotType::None`). How a gearless party member is handled at fight start (left out vs fight blocked) isn't ruled: raise it if B-071 needs it.
+- Combat entry: a Generic or Resonator with no gear can't enter a fight. A Refractor can (innate). Today an empty primary is valid (`FSavedLoadout.cpp` `EPrimarySlotType::None`). A gearless party member is **left out** of the fight (Crown, 2026-10-26); the fight still starts with the others (B-071).
 - Tests: dismantling an equipped weapon removes it from the loadout; a gearless Generic is refused at fight start.
 
 ### D-017 — Header bar style (UI)
