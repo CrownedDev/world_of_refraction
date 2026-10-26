@@ -146,6 +146,7 @@ void UTurnManager::EndCombat()
 	bCombatActive = false;
 	Combatants.Empty();
 	PendingTurns.Empty();
+	TurnBelt.Empty(); // B-030: no stale turn-order preview between fights
 	CurrentActor = nullptr;
 	PreviousActor = nullptr;
 	GlobalTurnCount = 0;

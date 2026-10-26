@@ -7,6 +7,8 @@
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Combat/Actions/ActionExecutor.h"
+#include "Combat/Defense/DefenseSystem.h"
+#include "Infusion/InfusionChargeManager.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/CombatConstants.h"   // WORLDSTAT_KILL_DIVISOR (§7 C3 earn faucet)
 #include "EngineUtils.h"              // TActorIterator for the wor.* world-stat debug commands
@@ -315,6 +317,21 @@ void ACombatOrchestrator::ReleaseCombatResources()
 
 	UGameInstance *GI = GetGameInstance();
 
+	// B-030: nothing from this fight survives into the next. The executor goes first: it drops the
+	// in-flight action's defense windows unresolved, then the defense system forgets them.
+	if (ActionExecutorRef)
+	{
+		ActionExecutorRef->ResetForCombat();
+	}
+	if (UDefenseSystem *Defense = GI ? GI->GetSubsystem<UDefenseSystem>() : nullptr)
+	{
+		Defense->ResetForCombat();
+	}
+	if (UInfusionChargeManager *Infusion = GI ? GI->GetSubsystem<UInfusionChargeManager>() : nullptr)
+	{
+		Infusion->ResetForCombat();
+	}
+
 	if (UWeatherStateManager *WeatherManager = GI ? GI->GetSubsystem<UWeatherStateManager>() : nullptr)
 	{
 		WeatherManager->EndCombat();
@@ -323,6 +340,7 @@ void ACombatOrchestrator::ReleaseCombatResources()
 	if (SkillEffectManagerRef)
 	{
 		SkillEffectManagerRef->ClearAllEffects();
+		SkillEffectManagerRef->ResetForNewCombat();
 	}
 
 	UStatusBuildupManager *BuildupManager = GI ? GI->GetSubsystem<UStatusBuildupManager>() : nullptr;
@@ -345,6 +363,11 @@ void ACombatOrchestrator::ReleaseCombatResources()
 				CharComp->OnDied.RemoveDynamic(this, &ACombatOrchestrator::OnCombatantDied);
 			}
 		}
+	}
+
+	if (BuildupManager)
+	{
+		BuildupManager->ResetForCombat();
 	}
 
 	// Loadout battle-ready flags (transfer model: no item debit here).

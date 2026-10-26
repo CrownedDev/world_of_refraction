@@ -70,6 +70,7 @@ void UWeatherStateManager::EndCombat()
         return;
     }
     bCombatActive = false;
+    LastBroadcastBlendValue = 0.0f; // B-030: back to the header default for the next fight
 
     // Iterate every entry on both teams and remove the OnHPChanged + OnDied
     // subscriptions added by BindToTeam. Entry.Actor is weak: an actor destroyed

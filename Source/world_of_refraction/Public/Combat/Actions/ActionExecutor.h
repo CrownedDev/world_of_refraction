@@ -779,6 +779,11 @@ public:
 	 *  cost, ability spend, and ability preview so all three agree. */
 	float ComputeInfusionCostMultiplier(int32 Level, bool bIsSpell, const UCharacterDataComponent *Comp) const;
 
+	/** The fight is over (B-030): drop the completion callback so nothing advances a turn, cancel any
+	 *  action in flight without resolving its defense windows (UDefenseSystem::ResetForCombat drops
+	 *  them), and clear the burst, pending-spell and grid-position state. */
+	void ResetForCombat();
+
 
 private:
 	// ========================================

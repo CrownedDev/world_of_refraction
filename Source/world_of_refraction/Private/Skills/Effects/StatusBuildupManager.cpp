@@ -481,6 +481,11 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	return false;
 }
 
+void UStatusBuildupManager::ResetForCombat()
+{
+	StatusBarStates.Empty();
+}
+
 void UStatusBuildupManager::ResetStatusBar(AActor *Target)
 {
 	if (!Target)

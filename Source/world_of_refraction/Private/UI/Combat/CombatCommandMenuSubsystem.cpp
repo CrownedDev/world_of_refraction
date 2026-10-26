@@ -108,6 +108,19 @@ void UCombatCommandMenuSubsystem::ClearCombatOrchestrator()
         Close();
     }
 
+    // Nothing half-picked in this fight carries into the next one (B-030).
+    ActiveSubmenuType = EPieMenuCategory::None;
+    PendingActionCategory = EPieMenuCategory::None;
+    PendingActionID.Empty();
+    PendingActionData.Reset();
+    PendingActionDataIndex = -1;
+    PendingTargetType = ETargetType::Enemy;
+    PendingTargetCount = ETargetCount::Single;
+    ResolvedTargetType = PendingTargetType;
+    ResolvedTargetCount = PendingTargetCount;
+    DepthBeforeTargetSelection = ECombatMenuDepth::Main;
+    CurrentCapabilities = FCombatCapabilities();
+
     UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Combat orchestrator cleared"));
 }
 
