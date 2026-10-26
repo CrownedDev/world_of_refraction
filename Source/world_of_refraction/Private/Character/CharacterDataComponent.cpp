@@ -14,6 +14,7 @@
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Skills/Effects/SkillEffectManager.h"
+#include "Party/PartySessionSubsystem.h"
 #include "Engine/GameInstance.h"
 
 UCharacterDataComponent::UCharacterDataComponent()
@@ -61,8 +62,37 @@ void UCharacterDataComponent::BeginPlay()
         // Formula lives in RecomputeMaxPools so equipment-swap code can re-run
         // it without duplicating the math.
         RecomputeMaxPools();
-        CurrentHP = MaxHP;
-        CurrentEP = MaxEP;
+
+        // Trial carry-over: a rostered party member re-spawning into a battle
+        // resumes the HP/EP it left the last one with, rather than arriving
+        // topped up. Enemies are never rostered, so GetMemberSlotByData returns
+        // INDEX_NONE and they fall through to the max path — no origin check.
+        constexpr int32 MIN_POOL_VALUE = 0;
+        bool bAppliedCarriedVitals = false;
+
+        if (const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr)
+        {
+            if (const UPartySessionSubsystem *PartySession = GI->GetSubsystem<UPartySessionSubsystem>())
+            {
+                const int32 SlotIndex = PartySession->GetMemberSlotByData(CharacterData);
+                int32 CarriedHP = 0;
+                int32 CarriedEP = 0;
+                if (SlotIndex != INDEX_NONE && PartySession->GetMemberVitals(SlotIndex, CarriedHP, CarriedEP))
+                {
+                    // Clamp on read: a carry banked before an equipment or level
+                    // change can exceed a max that has since moved.
+                    CurrentHP = FMath::Clamp(CarriedHP, MIN_POOL_VALUE, MaxHP);
+                    CurrentEP = FMath::Clamp(CarriedEP, MIN_POOL_VALUE, MaxEP);
+                    bAppliedCarriedVitals = true;
+                }
+            }
+        }
+
+        if (!bAppliedCarriedVitals)
+        {
+            CurrentHP = MaxHP;
+            CurrentEP = MaxEP;
+        }
 
         // Character-created ("born") BD: seed the runtime flag and zero EP so
         // they start in BD runtime state without needing a transform event.
@@ -74,7 +104,15 @@ void UCharacterDataComponent::BeginPlay()
             CharacterData->bBrokenDarknessInnate)
         {
             bIsBrokenDarkness = true;
-            CurrentEP = 0;
+
+            // The flag seed is identity and always runs. The EP zeroing is a
+            // SEED, so it must not overwrite a real carry — a born-BD that
+            // banked EP mid-trial would otherwise be silently reset to 0 on
+            // every battle entry. A carried 0 still reads 0 via the carry path.
+            if (!bAppliedCarriedVitals)
+            {
+                CurrentEP = 0;
+            }
         }
 
         // Born-BD hand-off. MUST come after the flag above — that is the first

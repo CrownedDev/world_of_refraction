@@ -110,6 +110,14 @@ data:
   `Dual` / `OffHandShield` weapons. There are **no socket-name fields on the
   weapon DA** — attachment sockets are derived from `WeaponType` in
   `UWeaponMeshComponent` (see *Wield modes and mesh attachment*).
+  Optional material overrides: `WeaponMaterialOverride` (right hand) and
+  `LeftHandMaterialOverride` (left hand, same `EditConditionHides` gating as
+  the left-hand mesh fields) — `UMaterialInterface*` applied to **slot 0** of
+  the spawned mesh component; null = the mesh asset's default materials. This
+  suits the N-Hance StylizedWeapons pack, whose skeletal meshes have exactly
+  one material slot and whose colour variants are separate `MI_*_<Color>`
+  instances (texture-swap based — the master `M_Armor_Master` has no tint
+  parameter).
 - **Utility** — `GetWeaponTypeName()`, `GetAbilityCount()`,
   `IsConjuredWeapon()` (returns `bAbilitiesLocked`), `IsDualWielded()` (true
   when `WieldMode` is `Dual` or `OffHandShield`), `HasAttack()`,
@@ -258,6 +266,11 @@ Spawn behaviour:
 - `MeshRotation` applies to the right-hand mesh, `LeftMeshRotation` to the
   left. No mirror scale is applied — the left socket itself carries the
   handedness.
+- Immediately after `SetSkeletalMesh`/`SetStaticMesh` (before registration),
+  each spawn path applies the weapon's material override to slot 0 when set:
+  `WeaponMaterialOverride` on the right-hand component,
+  `LeftHandMaterialOverride` on the left. Null overrides leave the mesh
+  asset's default materials untouched.
 
 **Authoring rule for the left-hand mesh.** `LeftHandStaticMesh` /
 `LeftHandSkeletalMesh` are the explicit off-hand mesh. For `OffHandShield` they
@@ -409,4 +422,5 @@ mesh spawns). They are hidden in the details panel while `WieldMode` is
 | 2026-06-16 | **Homing delivery type REMOVED.** `ESpellDeliveryType::Homing` (mid-enum value 1 — needs a CoreRedirect, unlike trailing Beam) and its footprint deleted: `ASkillProjectile::TickHoming` + the Tick `Homing` case + the `OnHitBoxOverlap` Homing branch (function/binding kept as a Projectile no-op), the `HomingStrength` field on `FSkillCastEntry`/`USpellData`/`ASkillProjectile` + migration, and every `\|\| Homing` clause across the defense helpers (`CanBeParried`/`CanBeDodgedByTiming`), the `EditCondition` metas, the cluster-4/6 conversion gate, the async-decision, and both dispatch switches. Tracking is meaningless without a spatial dodge (Crown-confirmed: a homing shot = a projectile with a curvy path — dead weight). `+EnumRedirects=(OldName="ESpellDeliveryType",ValueChanges=(("Homing","Projectile")))` maps any stray authored value; enum is now `Projectile=0 / AOE=1 / Instant=2` (name-based serialization keeps AOE/Instant safe). Shared projectile plumbing (`SpawnProjectileActor`/`TickProjectile`/`ResolveImpact`/`OnSkillImpact`/`OnSkillDodged`/the count-based per-impact defense path) untouched. Confirmed zero Homing-authored assets before removal. | feature/realtime-defense |
 | 2026-06-21 | Tier-power arc — `GetSubstatBudget` now returns a **flat** `FIXED_SUBSTAT_BUDGET` (~20) at every tier (was F6→S45); the editor roll-budget gate (§263–266) no longer scales with tier. Higher-tier strength comes from per-point VALUE scaling at `GetActiveStatBonus`. `GetPillarBudget` unchanged. See `TierPowerScaling.md`. | feature/tier-power-scaling |
 | 2026-07-03 | `UAbilityData::bRequiresDualWeapon` (bool) replaced by `RequiredWieldMode` (`EWeaponWieldMode`, default `Single` = no requirement / any mode) + inline `AllowsWieldMode(WeaponWieldMode)` helper. The off-hand gate now distinguishes `Dual` from `OffHandShield` (previously lumped together as `IsDualWielded`). Straight field swap — no existing asset had the old flag set, so no migration needed. | feature/hub-merchants |
+| 2026-07-22 | Weapon material overrides — `UWeaponData::WeaponMaterialOverride` + `LeftHandMaterialOverride` (`TObjectPtr<UMaterialInterface>`, "Mesh" category; left-hand field gated like the left-hand mesh fields). `UWeaponMeshComponent::SpawnWeaponMesh`/`SpawnDualWeaponMesh` apply the matching override to slot 0 right after `SetSkeletalMesh`/`SetStaticMesh` in all six spawn sites (static + skeletal, both hands). Null = mesh default (backward compatible; no asset authors the fields yet). Motivated by the N-Hance pack's per-colour `MI_` variants (single slot, no tint param on `M_Armor_Master`). | feature/weapon-material-override |
 | 2026-07-11 | **PhysicalDamageType migrated weapon → ability (Clusters A–C).** A: `UAbilityData::PhysicalDamageType` added (default `None`) with weapon fallback. B: populated on ~204 pool attack/ability assets + legacy weapon skills. C: `UWeaponData::PhysicalDamageType` **removed** (with its `IsDataValid` None-rejection); `ActionExecutor` reads the executing ability directly — no weapon fallback, `None` logs a warning and suppresses the physical bar-cap / authored-DoT trigger. Rationale: the same swing delivers the same physical type on any weapon. | feature/hub-merchants |
