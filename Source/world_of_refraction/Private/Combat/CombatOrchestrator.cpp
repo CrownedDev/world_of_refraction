@@ -254,8 +254,28 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	{
 		FVector ArenaCenter = GetActorLocation();
 
-		Grid->AutoAssignTeam(LocalPartyCombatants, 0, ECombatRow::Middle);
-		Grid->AutoAssignTeam(OpposingPartyCombatants, 1, ECombatRow::Middle);
+		// D-042: members start in their chosen formation cell, enemies in their placeholder row.
+		const UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
+		TArray<FGridStartPreference> LocalPreferences;
+		for (AActor *Member : LocalPartyCombatants)
+		{
+			FGridStartPreference &Preference = LocalPreferences.AddDefaulted_GetRef();
+			const UCharacterDataComponent *Comp = Member ? Member->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+			const int32 Slot = PartySession && Comp ? PartySession->GetMemberSlotByData(Comp->CharacterData) : INDEX_NONE;
+			ECombatRow Row;
+			int32 Column;
+			if (Slot != INDEX_NONE && PartySession->GetMemberFormation(Slot, Row, Column))
+			{
+				Preference = FGridStartPreference::Cell(Row, Column);
+			}
+		}
+		TArray<FGridStartPreference> OpposingPreferences;
+		for (AActor *Enemy : OpposingPartyCombatants)
+		{
+			OpposingPreferences.Add(FGridStartPreference::RowOnly(GetPlaceholderEnemyStartRow(Enemy)));
+		}
+		Grid->AssignTeamWithPreferences(LocalPartyCombatants, 0, LocalPreferences);
+		Grid->AssignTeamWithPreferences(OpposingPartyCombatants, 1, OpposingPreferences);
 		Grid->PlaceAllActors(ArenaCenter);
 		Grid->UpdateAllActorFacing(ArenaCenter);
 
@@ -1108,6 +1128,13 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Enemy %s down (caliber %d) -> +%d WSP (pool now %d)"),
 		   *Victim->GetName(), Caliber, WSP, PendingWorldStatPool);
+}
+
+ECombatRow ACombatOrchestrator::GetPlaceholderEnemyStartRow(const AActor *Enemy)
+{
+	const UCharacterDataComponent *Comp = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	const bool bCaster = Comp && Comp->CharacterData && Comp->CharacterData->CharacterClass == ECharacterClass::Caster;
+	return bCaster ? ECombatRow::Back : ECombatRow::Front;
 }
 
 void ACombatOrchestrator::TakeOverIfNoPlayerMemberLeft()

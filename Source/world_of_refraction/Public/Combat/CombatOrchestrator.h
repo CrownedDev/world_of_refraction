@@ -8,6 +8,7 @@
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "AI/EAIDifficulty.h"
 #include "Combat/Encounter/EEncounterRank.h"
+#include "Combat/Grid/ECombatRow.h"
 #include "AI/AIDecisionManager.h"
 #include "Skills/Definitions/ESpellDeliveryType.h"
 #include "Skills/Definitions/SkillVFXEntry.h"
@@ -217,6 +218,10 @@ public:
 	/** Check if actor is AI-controlled */
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	bool IsActorAIControlled(AActor *Actor) const;
+
+	/** D-042 placeholder until enemies have authored cells (Q-149): a Refractor (Caster) starts in the
+	 *  Back row, anyone else in the Front row. */
+	static ECombatRow GetPlaceholderEnemyStartRow(const AActor *Enemy);
 
 	/** D-026: why Actor can't be switched between you and the AI now (no fight, not your
 	 *  party, not its turn, an action running, the leader); empty when it can. */
