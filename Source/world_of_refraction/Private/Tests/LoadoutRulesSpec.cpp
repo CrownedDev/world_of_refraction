@@ -339,6 +339,24 @@ void FLoadoutRulesSpec::Define()
 					  LoadoutConstants::MAX_SPELL_SLOTS - FCount);
 		});
 
+		It("doesn't flag a loadout spell that only replaces one of the item's own (the fight keeps it)", [this, FEvolution, CountOverCap, FCount]()
+		{
+			FCombatLoadout Loadout;
+			Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
+			FWeaponInventoryEntry &Entry = Loadout.PrimaryWeapon.WeaponEntry;
+			Entry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
+			Entry.Tier = EItemTier::S_Tier;
+			Entry.AttachedItem = FEvolution();
+			for (int32 i = 0; i <= FCount; ++i)
+			{
+				Entry.AssignedSpells.Add(NewSpell(ESpellElement::Fire)); // the item's own: one over the cap
+			}
+			Loadout.PrimaryWeapon.AssignedSpells.Add(NewSpell(ESpellElement::Fire)); // replaces the first
+			TestEqual(TEXT("no clearable finding"), CountOverCap(Loadout, ELoadoutSlotType::WeaponSpell), 0);
+			const TArray<FString> Reasons = FLoadoutRules::ToReasons(FLoadoutRules::CollectFindings(Loadout, FLoadoutRuleContext()));
+			TestTrue(TEXT("the item's own spells are reported"), AnyReasonContains(Reasons, TEXT("of the item's own spells")));
+		});
+
 		It("reports each primary ring spell over the cap", [this, FEvolution, CountOverCap, FCount]()
 		{
 			FCombatLoadout Loadout;
