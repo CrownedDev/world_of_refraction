@@ -452,6 +452,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - A text generator (B-045) with tests per the deckbuilder's fixtures (`09-fixtures.md`, text-grammar rows), then the skill tooltip / item detail screens use it (UI rebuild).
 - Words follow this game's names (Refractor, Refraction where player-facing per the deckbuilder's naming doc); ask Crown on any new player-facing term.
 
+### D-032 — Shape of a run (trial)
+**Status:** ANSWERED (in progress: more parts below as Crown answers) · **Raised:** 2026-10-26 · **Blocks:** — (shapes trial content, enemies, rewards, UI)
+**Context:** `Resources_Design.md` "Trial = the run" leaves the shape deferred; §7.1 describes an older "continuous escalating climb". Code: each trial is a walkable map behind a hub door (`TrialData.h`: Name, Element, Level, EncounterLevel; LootPool, POIs, Boss, Modifiers banked), fights start on contact (`EncounterComponent`).
+**Answer (Crown):**
+- **(1) Open maps, Nightreign style** (2026-10-26): you roam the trial's map and choose your fights; abilities and movement out in the world (field abilities, `GASMigration.md`); vendors, chests and characters to find along the way; the boss at the end. "Just enjoy yourself." Supersedes §7.1's escalating climb.
+**Notes for Claude:** record further answers here; when complete, write `docs/Design/RunStructure.md` and point `Resources_Design.md` §7.1 at it.
+
 ---
 
 ## Parked
