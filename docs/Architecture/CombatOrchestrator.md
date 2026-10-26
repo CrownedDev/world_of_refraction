@@ -231,8 +231,9 @@ aborted combats do not count as completed battles.
   surface evolution self-holders, so the loop would miss broken primary evolutions.
   Counted in `CrystalsDestroyed`. The asset is never mutated at runtime. Silent
   (no UI delegate). Runs BEFORE repair so destroyed crystals are not repair candidates.
-- `ApplyBetweenCombatRepair()` — adds `DurabilityConstants::REPAIR_PER_BATTLE` to
-  every refined, non-immune, non-broken equipped crystal.
+- `ApplyBetweenCombatRepair()` — sums `CrystalBreak::RepairOn` (since Q-159c) over both
+  parties: adds `DurabilityConstants::REPAIR_PER_BATTLE` to every non-broken equipped gem and
+  every evolution (attached or primary slot, broken included). Fusions are not repaired.
 
 ### Crystal-wear debug (`CallInEditor`)
 
@@ -333,3 +334,4 @@ Observations from the code (not explicitly flagged as issues):
 | 2026-10-26 | **B-035 (move-only refactor).** `ApplyBetweenCombatCrystalDestruction` (one lambda nested 8 deep) now calls the new free function `CrystalBreak::DestroyBrokenOn(Actor)` (`Equipment/Durability/CrystalBreak.h/.cpp`), split into small helpers (slot, per-kind dismantle, primary evolution), nesting at most 3. Behaviour and log text unchanged. Spec `WoR.Durability.CrystalBreak`. | refactor/B-035-flatten-crystal-destruction |
 | 2026-10-26 | Q-168: a Perfect Guard takes no damage (`UDefenseSystem::PerfectGuardReduction` 1.0); normal Guard 50%. Parry animation on Perfect: B-182. | fix/Q-168-perfect-guard-zero |
 | 2026-10-26 | Q-180: `GetRowMoveRefusedReason` refuses a step into a taken cell ("That cell is taken."); `TryMoveRow` no longer swaps with an ally (in-battle swapping is out; formation swaps stay outside battle, D-042). | fix/Q-180-no-swap-in-battle |
+| 2026-10-26 | Q-159c: `ApplyBetweenCombatRepair` now calls `CrystalBreak::RepairOn(Actor, REPAIR_PER_BATTLE)`; evolutions (attached and primary slot, broken included) are repaired too. Gems unchanged, fusions still not repaired. | fix/Q-159c-repair-evolutions |
