@@ -18,6 +18,7 @@
 #include "Equipment/Crystals/AugmentStoneConstants.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Combat/Actions/ActionStatModifiers.h"
+#include "Equipment/Crystals/StoneRowTable.h"
 
 namespace CrystalEffectTable
 {
@@ -605,27 +606,11 @@ namespace CrystalEffectTable
      *  stat-stone family shares ONE curve (Balance framework — uniform numbers):
      *    DamageStone  -> 3/5/7/9/11/13/15 (F..S)
      *    DefenseStone -> 3/5/7/9/11/13/15 (F..S)  (same shared curve)
-     *  0 for any non-stat-stone type. */
+     *  0 for any non-stat-stone type (no StoneRowTable row). */
     inline float GetStoneBasePercent(ECrystalType Type, EItemTier Tier)
     {
-        switch (Type)
+        if (!StoneRowTable::Find(Type))
         {
-        case ECrystalType::DamageStone:
-        case ECrystalType::DefenseStone:
-        case ECrystalType::CritStone:
-        case ECrystalType::TurnSpeedStone:
-        case ECrystalType::StatusStone:
-        case ECrystalType::EfficiencyStone:
-        case ECrystalType::MaxHPStone:
-        case ECrystalType::MaxEPStone:
-        case ECrystalType::SpellDamageStone:
-        case ECrystalType::ResistanceStone:
-        case ECrystalType::SpellSpeedStone:
-        case ECrystalType::ActionSpeedStone:
-        case ECrystalType::LuckStone:
-        case ECrystalType::ReflexStone:
-            break;
-        default:
             return 0.0f;
         }
         const int32 i = TierHelpers::GetTierValue(Tier);
@@ -641,35 +626,8 @@ namespace CrystalEffectTable
      *  the per-read-site stat-stone hooks. */
     inline ESubStat StoneTargetStat(ECrystalType Type)
     {
-        switch (Type)
-        {
-        case ECrystalType::DamageStone:
-            return ESubStat::RawDamage;
-        case ECrystalType::DefenseStone:
-            return ESubStat::Defense;
-        case ECrystalType::CritStone:
-            return ESubStat::CritDamage;
-        case ECrystalType::TurnSpeedStone:
-            return ESubStat::TurnSpeed;
-        case ECrystalType::StatusStone:
-            return ESubStat::StatusMultiplier;
-        case ECrystalType::EfficiencyStone:
-            return ESubStat::Efficiency;
-        case ECrystalType::SpellDamageStone:
-            return ESubStat::SpellDamage;
-        case ECrystalType::ResistanceStone:
-            return ESubStat::Resistance;
-        case ECrystalType::SpellSpeedStone:
-            return ESubStat::SpellSpeed;
-        case ECrystalType::ActionSpeedStone:
-            return ESubStat::ActionSpeed;
-        case ECrystalType::LuckStone:
-            return ESubStat::Luck;
-        case ECrystalType::ReflexStone:
-            return ESubStat::Reflex;
-        default:
-            return ESubStat::None;
-        }
+        const FStoneRow *Row = StoneRowTable::Find(Type);
+        return Row ? Row->Stat : ESubStat::None;
     }
 
     /** Percent a stone ATTACHMENT grants for a specific sub-stat — the hook each

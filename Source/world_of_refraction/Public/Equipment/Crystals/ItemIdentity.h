@@ -17,6 +17,7 @@
 #include "Inventory/ItemEffectType.h"
 #include "Equipment/Durability/DurabilityConstants.h"
 #include "Equipment/Crystals/AugmentStoneConstants.h"
+#include "Equipment/Crystals/StoneRowTable.h"
 
 namespace ItemIdentity
 {
@@ -43,6 +44,11 @@ namespace ItemIdentity
         {
             return EItemEffectType::Damage;
         }
+        // Stat stones: their consumable's effect is in the stone row table (B-021).
+        if (const FStoneRow *StoneRow = StoneRowTable::Find(Id.Type))
+        {
+            return StoneRow->ItemEffect;
+        }
         switch (Id.Type)
         {
         case ECrystalType::Garnet:
@@ -68,80 +74,16 @@ namespace ItemIdentity
             return EItemEffectType::Cleanse;
         case ECrystalType::Quartz:
             return EItemEffectType::StatusClear;
-        case ECrystalType::DamageStone:
-            return EItemEffectType::BuffRawDamage;
         case ECrystalType::AbilityStone:
             // Attach-only — no consumable effect, so UseItem dispatch finds no
             // case and falls to its "not a usable consumable" default arm.
             return EItemEffectType::None;
-        case ECrystalType::DefenseStone:
-            // Directional defense consumable — routes to ExecuteDefenseBuffEffect
-            // (the same handler Amber uses). Magnitude/hook land in later clusters.
-            return EItemEffectType::BuffDefense;
-        case ECrystalType::CritStone:
-            // Crit-DAMAGE consumable (5f-C) — routes to ExecuteCritDamageBuffEffect (DIRECTIONAL:
-            // ally ModifyCritDamage buff / enemy CritDamageDebuff), matching the attached CritStone's
-            // crit-DAMAGE form. Opal stays on BuffCrit (crit CHANCE) below.
-            return EItemEffectType::BuffCritDamage;
-        case ECrystalType::TurnSpeedStone:
-            // Directional turn-speed consumable — routes to ExecuteTurnSpeedStoneEffect
-            // (pure-stat buff/debuff, stone magnitude, NO turn mechanic; separate from
-            // Emerald's GrantBonusTurn handler). Buff an ally's turn speed / debuff an enemy's.
-            return EItemEffectType::BuffTurnSpeed;
-        case ECrystalType::StatusStone:
-            // Directional status consumable — routes to ExecuteStatusBuffEffect (transient
-            // StatusMultiplierBuff/Debuff, stone magnitude; the Step-5b layer, separate
-            // from the attached form's base-stat getter). Buff an ally / debuff an enemy.
-            return EItemEffectType::BuffStatusMultiplier;
-        case ECrystalType::EfficiencyStone:
-            // Directional efficiency consumable — routes to ExecuteEfficiencyBuffEffect
-            // (transient EfficiencyBuff/Debuff, stone magnitude; folded into the unified
-            // getter so it reaches BD/EP/durability). Buff an ally / debuff an enemy.
-            return EItemEffectType::BuffEfficiency;
-        case ECrystalType::MaxHPStone:
-            // Directional MaxHP consumable — routes to ExecuteMaxHPBuffEffect (transient
-            // MaxHPBuff/Debuff, stone magnitude; folded into RecomputeMaxPools via the P2b
-            // trigger). Raise an ally's MaxHP / lower an enemy's.
-            return EItemEffectType::BuffMaxHP;
-        case ECrystalType::MaxEPStone:
-            // Directional MaxEP consumable — routes to ExecuteMaxEPBuffEffect (transient
-            // MaxEnergyBuff/Debuff). Raise an ally's MaxEP / lower an enemy's.
-            return EItemEffectType::BuffMaxEP;
-        case ECrystalType::SpellDamageStone:
-            // Directional spell-damage consumable — routes to ExecuteSpellDamageBuffEffect
-            // (transient SpellDamageBuff/Debuff, stone magnitude; read SPELL-only in
-            // GetStatusEffectDamageModifier). The magical mirror of DamageStone's BuffRawDamage.
-            return EItemEffectType::BuffSpellDamage;
-        case ECrystalType::ResistanceStone:
-            // Directional status-resistance consumable — routes to ExecuteResistanceBuffEffect
-            // (blanket ModifyStatusResist; ally +mag raises resist, enemy -mag goes negative ->
-            // amplified status buildup). Read element-agnostic in StatusBuildupManager's aggregate.
-            return EItemEffectType::BuffResistance;
-        case ECrystalType::SpellSpeedStone:
-            // Directional spell-speed consumable — routes to ExecuteSpellSpeedBuffEffect
-            // (SpellSpeedBuff/Debuff; read on the cast-montage PlayRate path). Visual now;
-            // combat teeth via the Real-Time Defense Rework.
-            return EItemEffectType::BuffSpellSpeed;
-        case ECrystalType::ActionSpeedStone:
-            // Directional action-speed consumable — routes to ExecuteActionSpeedBuffEffect
-            // (ActionSpeedBuff/Debuff; read on the ability/attack montage PlayRate path).
-            return EItemEffectType::BuffActionSpeed;
         case ECrystalType::DurabilityStone:
             // Attach-only — durability is a fusion-attachment property, not a transient
             // combat buff, so there is no meaningful consumable form. Like AbilityStone,
             // returns None: UseItem dispatch finds no case and falls to its "not a usable
             // consumable" default arm. No Execute…Effect handler, no new EItemEffectType.
             return EItemEffectType::None;
-        case ECrystalType::LuckStone:
-            // Directional luck consumable (5f-C) — routes to ExecuteLuckBuffEffect (transient
-            // LuckBuff/LuckDebuff, stone magnitude). Buff an ally's luck / debuff an enemy's; lifts
-            // all luck consumers (crit chance, break-skip) via GetEquipmentModifiedLuck.
-            return EItemEffectType::BuffLuck;
-        case ECrystalType::ReflexStone:
-            // Directional reflex consumable (Cluster B-6) — routes to ExecuteReflexBuffEffect (transient
-            // ReflexBuff/ReflexDebuff, stone magnitude). Buff an ally / debuff an enemy; the defense-window
-            // read (B-5) consumes (ReflexBuff - ReflexDebuff), so an ally's window widens, an enemy's narrows.
-            return EItemEffectType::BuffReflex;
         case ECrystalType::HealingStone:
             // Consume-only instant heal (any target) — routes to ExecuteHealingStoneEffect.
             // Distinct from Sapphire (EItemEffectType::DefyDeath → defy-death handler).
