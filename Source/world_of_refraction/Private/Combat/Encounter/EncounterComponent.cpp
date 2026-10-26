@@ -5,6 +5,7 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Encounter/EncounterData.h"
+#include "Combat/Encounter/EnemyZone.h"
 #include "Character/CombatCharacter.h"
 #include "Kismet/GameplayStatics.h"
 #include "Party/Party.h"
@@ -348,11 +349,14 @@ void UEncounterComponent::OnJoinWindowExpired()
 	// (no EncounterLevel authored), re-arm so the trial stays playable.
 	TrialRun->SetPendingEncounterSources(CaughtIds);
 	TrialRun->SetPendingFirstStrike(PendingFirstStrike);
+	// B-186: the zone where the fight starts sets the enemies' strength and loot pool.
+	TrialRun->SetPendingZone(AEnemyZone::FindZoneAt(GetWorld(), ArenaCenter));
 	TrialRun->EnterEncounter(ActiveTrial, BattlePartyData, OpposingPartyData, FightDifficulty, FightRank);
 	if (!TrialRun->HasPendingEncounter())
 	{
 		TrialRun->SetPendingEncounterSources({});
 		TrialRun->SetPendingFirstStrike(EFirstStrike::None);
+		TrialRun->SetPendingZone(FEncounterZoneInfo());
 		RearmEncounter();
 	}
 }
