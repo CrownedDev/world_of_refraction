@@ -366,8 +366,8 @@ public:
 
     /** Per-pillar requirement-gap percents for AddPillarPercent (whole-number percent:
      *  5.0 = +5%). Each pillar independently maps (RequiredWorld{Pillar} - World{Pillar}Level)
-     *  through the ±5 requirement ladder. Null Character → all 0. Not wired into action
-     *  assembly yet (RequirementGapScaling Cluster 1 — pure add). */
+     *  through the ±5 requirement ladder. Null Character → all 0. Read by
+     *  UActionExecutor's action stat assembly (RequirementGapScaling). */
     UFUNCTION(BlueprintPure, Category = "Skill|Requirements")
     void GetRequirementGapPillarPercents(const UCharacterData *Character,
         float &OutMindPct, float &OutBodyPct, float &OutSpiritPct) const;
@@ -380,12 +380,12 @@ public:
     // these virtual/UFUNCTION would trip name-hiding / Blueprint-overload errors). UAbilityData
     // keeps its own UFUNCTION versions for Blueprint exposure; their bodies are identical.
 
-    /** Attacker-side base damage: BaseDamage * (1 - requirement penalty). The RawDamage multiplier
+    /** Attacker-side base damage: BaseDamage (no requirement penalty any more). The RawDamage multiplier
      *  is applied once downstream by DamageCalculator. bIsInfused is accepted for call-site symmetry
      *  but no longer affects the value (the element-infusion damage penalty was removed). */
     int32 CalculateDamage(const UCharacterData *Character, bool bIsInfused) const;
 
-    /** Energy cost: BaseEnergyCost * (1 + requirement penalty), * INFUSION_ENERGY_MULTIPLIER when
+    /** Energy cost: BaseEnergyCost, * INFUSION_ENERGY_MULTIPLIER when
      *  infused. Matches the UAbilityData normal/infused split. */
     int32 CalculateEnergyCost(const UCharacterData *Character, bool bIsInfused) const;
 

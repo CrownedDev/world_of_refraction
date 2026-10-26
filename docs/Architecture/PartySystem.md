@@ -11,10 +11,11 @@ Shape as of Arc 1 (Foundation):
 
 - **Session-scoped** — the party lives on the `GameInstance`, so it survives the
   hub → trial → battle → trial `OpenLevel` chain that destroys every actor.
-- **Hub-only assembly** — the party is assembled at the hub (Arc 2), locked at
-  trial entry, and persists through combat. No mid-run recruitment.
-- **Solo player + AI companions** — a solo player enters as a party of one; up to
-  two AI companions fill the remaining slots (companion fill lands in Arc 2).
+- **Assembled at the hub** — the party is assembled at the hub and persists through
+  combat. Characters found during a trial can join for that run only (D-003 / D-026);
+  today recruitables are only placed in the hub, and nothing stops a mid-run recruit.
+- **Player-controlled by default** — a solo player enters as a party of one; members
+  are Player-controlled unless set to AI (D-004).
 - **Max 3 active, no reserves** — `PartyConstants::MAX_PARTY_MEMBERS`. A dead
   member is out until revived.
 

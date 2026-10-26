@@ -67,8 +67,8 @@ struct FCombatantTurnDebt
 
 /**
  * A pinned bonus turn (Emerald). Pinned bonus: fires at its slot regardless of debt;
- * decremented ONLY by normal turns, not by other bonus turns. TurnsRemaining is the delay
- * in NORMAL turns until fire; at <= 0 the entry preempts the debt pick in AdvanceSimState
+ * every turn taken (normal or another fired entry) decrements it. TurnsRemaining is the delay
+ * in turns until fire; at <= 0 the entry preempts the debt pick in AdvanceSimState
  * and emits Count back-to-back bonus turns. Actor is a raw UPROPERTY ref (matching
  * FCombatantTurnDebt) — GC-tracked; a liveness check guards the fire, so a dead/invalid
  * actor's entry is dropped without emitting a turn.
@@ -249,16 +249,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void RequestExtraTurn(AActor *Actor, bool bIsBonusTurn = false);
 
-	/** Schedule Count pinned bonus turn(s) for Actor, firing after DelayTurns NORMAL turns
+	/** Schedule Count pinned bonus turn(s) for Actor, firing after DelayTurns turns
 	 *  (Emerald). DelayTurns >= 0 is valid: 0 fires on the very next scheduler step (the
 	 *  S-rank immediate case, Count=2 → two back-to-back). Pinned: the fire preempts the
-	 *  debt pick at its slot; only normal turns burn the delay. A dead/invalid grantee's
+	 *  debt pick at its slot; every turn taken burns the delay. A dead/invalid grantee's
 	 *  entry is dropped at fire time without emitting a turn. */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void ScheduleBonusTurn(AActor *Actor, int32 DelayTurns, int32 Count = 1);
 
 	/** Schedule an Execution Turn (W-A) — an inserted special turn that fires a deferred
-	 *  ritual. Mirrors ScheduleBonusTurn: a pinned entry firing after DelayTurns NORMAL turns,
+	 *  ritual. Mirrors ScheduleBonusTurn: a pinned entry firing after DelayTurns turns,
 	 *  preempting the debt pick at its slot. Type=Execution, Count=1. PayloadId is the
 	 *  orchestrator's handle to the frozen FDeferredActivation (looked up at fire in W-B).
 	 *  SpellSpeed is the caster's frozen CalculateSpellSpeed — drives the fire-time selection
@@ -323,7 +323,7 @@ private:
 	UPROPERTY()
 	TArray<FCombatantTurnDebt> Combatants;
 
-	/** Pinned pending bonus turns (Emerald). Delay burns down on NORMAL turns only;
+	/** Pinned pending bonus turns (Emerald). Delay burns down on every turn taken;
 	 *  ready entries (TurnsRemaining <= 0) fire from AdvanceSimState's pinned-fire step,
 	 *  preempting the debt pick. Cleared on InitializeCombat / EndCombat. */
 	UPROPERTY()

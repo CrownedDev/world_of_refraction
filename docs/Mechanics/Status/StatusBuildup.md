@@ -6,7 +6,7 @@
 
 1. **Fill** — each hit adds buildup to the target's bar, keyed to the attack's **element** (Fire/Lightning/…) or **physical type** (Slash/Pierce/Impact). `AddStatusBuildup`.
 2. **Cap → proc** — when the bar caps, the matching effect fires (resolved from element/physical type by `BarCapTriggerResolver`) and the bar resets. See [Status effects](./StatusEffects.md).
-3. **Decay / clear** — buildup can be reduced by gauge-manipulation effects (`StatusDecrease` → `ReduceStatusBuildupByAmount`).
+3. **Decay / clear** — the bar drains on its own: it loses 25% at the start of each of the holder's turns (`STATUS_DECAY_RATE`), and empties at the start of its 3rd turn with no new buildup (`STATUS_DECAY_FULL_RESET_TURNS`); a new hit resets the count (SB-14, SB-15). Gauge-manipulation effects also reduce it (`StatusDecrease` → `ReduceStatusBuildupByAmount`).
 
 ## What changes the fill rate
 

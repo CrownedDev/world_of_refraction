@@ -36,7 +36,7 @@ Internal state:
 - `mutable USkillEffectManager* SkillEffectManagerRef` — lazily acquired via
   `GetSkillEffectManager()`; used to fold turn-speed modifiers into effective speed.
 - `TArray<FScheduledTurn> PendingTurns` — pinned bonus turns (Emerald); delay burns
-  down on normal turns only, ready entries fire from `AdvanceSimState`'s pinned-fire
+  down on every turn taken, ready entries fire from `AdvanceSimState`'s pinned-fire
   step; see *Pinned bonus turns*.
 - `TArray<FPreviewTurnEntry> TurnBelt` — materialized upcoming turns (excludes the
   current turn), up to `TURN_BELT_HORIZON` (16). Rebuilt by `RebuildBelt` every
@@ -59,8 +59,8 @@ Per-combatant scheduling record:
 
 A pinned bonus turn (Emerald) — fires at its slot regardless of debt:
 - `AActor* Actor` — who receives the bonus turn(s).
-- `int32 TurnsRemaining` — delay in NORMAL turns until fire; decremented only when a
-  normal (debt-picked) turn is taken, never by bonus turns. Ready at `<= 0`.
+- `int32 TurnsRemaining` — delay in turns until fire; every turn taken (normal or a fired
+  pinned turn) decrements every OTHER pending entry. Ready at `<= 0`.
 - `int32 Count` — bonus turns granted when it fires (S-rank = 2, back-to-back).
 
 ## How It Works
@@ -142,15 +142,16 @@ Advances ONE turn on the passed state (live arrays or belt scratch copies):
 
 1. **Pinned-fire** — scans `Pending` (FIFO) for a ready entry (`TurnsRemaining <= 0`).
    If the grantee is alive: emit it as a bonus turn (`bIsBonusTurn=true`), decrement
-   `Count` (entry removed at 0), `TurnsTaken++` on the grantee, return — no debt
-   machinery runs and no delay countdown happens (bonus turns don't burn other
-   bonuses' delay). A dead/invalid grantee's entry is dropped without emitting a turn.
+   `Count` (entry removed at 0), `TurnsTaken++` on the grantee, then decrement every OTHER
+   pending entry's delay (all turns count), return — no debt machinery runs. A
+   dead/invalid grantee's entry is dropped without emitting a turn.
 2. **Round-check** — if no living combatant has net debt above `KINDA_SMALL_NUMBER`,
-   adds each combatant's `SpeedRatio` to its `TurnsOwed` (all entries, dead included).
+   adds each LIVING combatant's `SpeedRatio` to its `TurnsOwed` (the dead accrue nothing,
+   so a revived combatant gets no catch-up burst).
 3. **Select** — living combatant with highest net debt; ties via
    `ShouldBreakTieInFavor()`. `TurnsTaken++` on the pick (a normal, unflagged turn).
-4. **Delay countdown** — every `Pending` entry's `TurnsRemaining` drops by 1 (normal
-   turns only — this never runs on the pinned-fire path).
+4. **Delay countdown** — every `Pending` entry's `TurnsRemaining` drops by 1 (the
+   pinned-fire path does the same for every other entry: all turns count).
 
 Deliberately log-free: `RebuildBelt` replays it 16× per rebuild.
 
@@ -193,8 +194,8 @@ don't appear until the next turn (no runtime caller queries in that window).
 
 Bonus turns are **positional**, not debt credits: they land at guaranteed slots.
 `ScheduleBonusTurn(Actor, DelayTurns, Count=1)` (DelayTurns ≥ 0) appends an
-`FScheduledTurn`. Delay N means "N normal turns pass, then fire" — only normal turns
-burn delay. All Emerald tiers route through it (F=6 … A=1, count 1); S-rank is
+`FScheduledTurn`. Delay N means "N turns pass, then fire" — every turn (normal or
+another fired bonus) burns delay. All Emerald tiers route through it (F=6 … A=1, count 1); S-rank is
 delay 0 count 2 — two back-to-back bonus turns starting on the very next scheduler
 step. Bonus = **borrow-from-future**: the fire does `TurnsTaken++` with no `TurnsOwed`
 credit, so the grantee's next *normal* turn slips one slot per bonus taken. A dead
@@ -253,9 +254,6 @@ Observations from the code:
   turn logic is handled in the orchestrator's `OnActionCompleted` instead.
 - The `// CORRECTED VERSION` file header and the `// CORRECTED` / `// NEW` section
   banners are historical refactor markers, not active issues.
-- `AccumulateDebtRound` is dead since the 2c cleanup deleted `GetNextCombatant` (its
-  only caller) — `AdvanceSimState` inlines the same loop because it operates on passed
-  state, not members. Candidate for a follow-up deletion.
 - `OnActorDied` / `OnActorResurrected` do not re-cache stats; this is intentional
   (commented in `CalculateSpeedRatios`) but means a resurrected actor keeps its
   pre-death cached stats until an explicit `OnActorSpeedChanged`.
@@ -269,3 +267,4 @@ Observations from the code:
 | 2026-06-11 | Turn-order migrated to materialized belt. `AdvanceSimState` is the single scheduler step driving both live turns and the belt; `PreviewTurnOrder` now slices `TurnBelt`. Bonus turns are positional (pinned `PendingTurns` entries with `Count`), not debt credits: delay N = N normal turns then fire, S-rank = delay0 count2 (two back-to-back). Bonus = borrow-from-future (`TurnsTaken++` no `TurnsOwed` credit, so grantee's next normal turn slips one slot per bonus). Dead grantee's pinned turn is skipped. Retired: `GetNextCombatant`, `UntakenBonusTurns`, debt-soft `RequestExtraTurn` bonus path (now warn-no-op). | feature/weapon-stones |
 | 2026-06-11 | Turn-invalidation signals: `ModifyTurnSpeed` + `RemoveEffectsByName` notify (SkillEffectManager); `SetActiveLoadoutIndex` notify + `RecomputeMaxPools`; gated speed notify on crystal detach (InventoryComponent); TurnManager binds `OnDied`/`OnResurrected` per combatant in `InitializeCombat` (unbound in `EndCombat`) so REAL death/revive recalcs ratios; accumulate is alive-filtered — dead actors stop banking debt (no revive turn-burst); `AccumulateDebtRound` deleted; broken elemental fusion contributes no stats (`GetAttachedStonePercent` IsBroken guard). | fix/turn-invalidation-signals |
 | 2026-06-11 | Evolution + pillar turn speed: turn speed reads pillar-MODIFIED Spirit via `CalculateTurnSpeedWithSpirit(Spirit)` on the asset, `CacheActorStats` supplying `GetEvolutionModifiedSpirit()` — gear Spirit% (weapon/ring/evolution) now paces (balance change). Innate (primary-slot) evolution flat stats feed `GetActiveStatBonus` (pillar % zeroed there; attached evolutions stay infusion-only). `SpiritBuff`/`SpiritDebuff` added to `IsSpeedEffect`. Infusion never alters turn speed: TurnSpeed dropped from all three `FActionStatModifiers` writers; field kept as never-applied marker. | feature/evolution-pillar-turnspeed |
+| 2026-10-26 | B-117 doc sweep: every turn (normal or a fired bonus) counts down every other pending delay; the dead accrue no debt; removed the stale `AccumulateDebtRound` note (C4-10). No code change. | chore/B-117-stale-text-sweep |

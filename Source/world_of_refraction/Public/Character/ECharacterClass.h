@@ -7,26 +7,23 @@
 #include "ECharacterClass.generated.h"
 
 /**
- * Character classes determining combat style and equipment options
+ * Character classes. A class is made by its slots, not a skill gate (D-027): what a character can
+ * use comes from what its slots hold. Weapons give abilities (an attached crystal makes them
+ * elemental, never spells; B-098 — today a weapon crystal still offers its spells); spells come
+ * from rings, evolutions and a Refractor's innate pool.
  *
  * Generic:
- * - 2 physical weapons, no innate spells
- * - Abilities come from weapons
- * - Physical Infusion or Evolution Infusion (if evolved)
- * - Most durable, least flexible
+ * - Primary slot (weapon, ring or evolution) + a secondary weapon slot; no innate element
+ * - Casts only through a ring or evolution it wears
  *
- * Caster:
- * - 1 weapon, innate element (locked at creation)
- * - innate spells tied to element (per-school count + a shared point budget; see SpellPoolBudget)
- * - Element Infusion or Evolution Infusion (if evolved)
- * - Energy-based, balanced flexibility
+ * Caster (shown as "Refractor"):
+ * - Primary slot (weapon, ring or evolution) + innate spells (cost budget; see SpellPoolBudget)
+ * - The only class with an innate element (chosen on its character data)
  *
  * Resonator:
- * - Uses rings (6 slots, up to 3 same element)
- * - No innate element - element comes from equipped ring
- * - 6 spells per ring (variable per ring)
- * - Ring Element Infusion or Evolution Infusion (if evolved)
- * - Most flexible but most fragile (rings can break)
+ * - Primary slot (weapon or evolution, never a ring) + a ring loadout, sharing a budget of 5
+ *   (LoadoutConstants); any mix of ring elements (D-010)
+ * - Casts the active ring's spells; rings can break
  */
 UENUM(BlueprintType)
 enum class ECharacterClass : uint8
@@ -41,6 +38,7 @@ enum class ECharacterClass : uint8
  */
 namespace CharacterClassHelpers
 {
+	// TODO: B-097 — the class-gate helpers below contradict D-027 and combat doesn't use them.
 	/** Can this class use physical abilities from weapons? */
 	inline bool CanUseAbilities(ECharacterClass Class)
 	{
@@ -93,11 +91,11 @@ namespace CharacterClassHelpers
 		switch (Class)
 		{
 		case ECharacterClass::Generic:
-			return TEXT("Physical fighter with dual weapons and abilities. No spells, but most durable.");
+			return TEXT("Weapon fighter with two weapon slots. Casts only through a ring or evolution it wears.");
 		case ECharacterClass::Caster:
-			return TEXT("Elemental mage with innate spells. Locked to one element, balanced power.");
+			return TEXT("Elemental caster with innate spells of its own element, plus any slotted gear.");
 		case ECharacterClass::Resonator:
-			return TEXT("Ring-based caster. Switch elements freely, but rings can break.");
+			return TEXT("Ring caster. Switches elements by switching rings, but rings can break.");
 		default:
 			return TEXT("");
 		}

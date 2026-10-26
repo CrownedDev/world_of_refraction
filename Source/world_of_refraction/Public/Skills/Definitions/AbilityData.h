@@ -90,7 +90,7 @@ public:
 
     // ==================== DAMAGE CALCULATIONS ====================
 
-    /** Attacker-side ability damage: BaseDamage * (1 - requirement penalty).
+    /** Attacker-side ability damage: BaseDamage (no requirement penalty any more).
      *  RawDamage multiplier is applied once downstream by DamageCalculator;
      *  bIsInfused no longer affects the damage value (the element-infusion
      *  damage penalty was removed per the locked cost matrix). */

@@ -319,8 +319,8 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 
 	// Requirement scaling now flows per-pillar through ComputeActionStatModifiers, NOT a flat
 	// penalty here — the old (1 - sqrt-deficit) requirement-penalty multiply was removed
-	// (RequirementGapScaling). CalculateRequirementPenalty is retained only for the BD strain
-	// deficit gate; it is no longer applied to damage.
+	// (RequirementGapScaling). CalculateRequirementPenalty has no C++ reader (Blueprint only);
+	// the BD strain gate reads GetTotalDeficit. It is no longer applied to damage.
 
 	// Attacks are physical unless infused. Per locked design, infused attacks
 	// still scale by RawDamage — the element only affects status routing.

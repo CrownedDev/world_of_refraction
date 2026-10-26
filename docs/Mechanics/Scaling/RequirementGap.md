@@ -46,9 +46,9 @@ The per-pillar multiplier converts to an additive percent (`pct = (mult − 1) �
 
 | Pillar | Substats scaled | Count |
 |---|---|---|
-| **Mind** | Efficiency, SpellDamage, StatusMultiplier, CritDamage, SpellSpeed | 5 |
+| **Mind** | Efficiency, SpellDamage, CritDamage, SpellSpeed | 4 |
 | **Body** | Defense, ActionSpeed, RawDamage, Reflex | 4 |
-| **Spirit** | Resistance, Luck | 2 |
+| **Spirit** | Resistance, StatusMultiplier, Luck | 3 |
 
 Excluded: `TurnSpeed` (must not alter turn order) and pools (MaxHealth / MaxEnergy) — exactly as they're
 already excluded from action-time modifiers.
@@ -83,8 +83,8 @@ self-limits the absolute payoff. No low-requirement carve-out.
 
 - **Removed:** the `(1 − penalty)` damage / `(1 + penalty)` cost **application** at all 8 sites (SpellData,
   SkillDataBase, AbilityData ×3 shadow copies, and the AI's `DamageCalculator::CalculateAttackDamage`).
-- **Retained:** `CalculatePenalty` / `GetTotalDeficit` / `DoesSpellExceedRequirements` — the **Broken
-  Darkness strain gate** still reads "any deficit > 0" as its binary over-requirement trigger. Only the
+- **Retained:** `CalculatePenalty` (no C++ reader; Blueprint-exposed through `CalculateRequirementPenalty`) and `GetTotalDeficit` / `DoesSpellExceedRequirements` — the **Broken
+  Darkness strain gate** still reads "any deficit > 0" (through `GetTotalDeficit`) as its binary over-requirement trigger. Only the
   damage/cost *application* was removed; the deficit calculation itself stays.
 
 ## AI parity
