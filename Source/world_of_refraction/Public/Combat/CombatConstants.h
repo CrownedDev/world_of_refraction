@@ -370,6 +370,8 @@ namespace CombatConstants
     constexpr float BD_BREAK_EP_DRAIN_FRACTION = 0.25f;
     // TODO: tune — Light break: crit chance down, percent; 100 = no crits while it lasts (D-030).
     constexpr float LIGHT_BREAK_CRIT_CHANCE_DOWN_PERCENT = 100.0f;
+    // TODO: tune — Silenced (Darkness break): share of max EP sealed while it lasts (D-038).
+    constexpr float SILENCE_SEALED_EP_FRACTION = 0.5f;
 
     constexpr float STATUS_DECAY_RATE = 0.25f; // 25% per turn
     constexpr int32 STATUS_DECAY_FULL_RESET_TURNS = 3;

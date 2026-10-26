@@ -373,9 +373,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Status Checks")
 	bool IsStunned(AActor *Actor) const;
 
-	/** Check if actor is silenced (cannot cast spells) */
+	/** Check if actor is silenced (part of its EP is sealed, D-038) */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Status Checks")
 	bool IsSilenced(AActor *Actor) const;
+
+	/** EP that Silenced seals: SILENCE_SEALED_EP_FRACTION of max EP while silenced, else 0 (D-038). */
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Status Checks")
+	int32 GetSealedEP(AActor *Actor) const;
+
+	/** EP the actor can spend now: current EP minus the sealed part, floored at 0 (D-038).
+	 *  Every EP spend (spells, abilities, infusion) validates and pays against this. */
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Status Checks")
+	int32 GetSpendableEP(AActor *Actor) const;
 
 	/** Check if actor has any DOT effects */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Status Checks")

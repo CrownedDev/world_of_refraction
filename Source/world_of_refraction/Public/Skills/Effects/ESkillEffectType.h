@@ -125,8 +125,8 @@ enum class ESkillEffectType : uint8
     /** Block all healing - any heal source returns 0 */
     HealBlock UMETA(DisplayName = "Heal Block"),
 
-    /** Cannot pay EP costs - blocks Spells, Abilities, infusion charge */
-    Silenced UMETA(DisplayName = "Silenced (No EP Spend)"),
+    /** Seals SILENCE_SEALED_EP_FRACTION of max EP: every EP spend pays from the rest (D-038, D-070) */
+    Silenced UMETA(DisplayName = "Silenced"),
 
     /** Forces target to use a random skill from their loadout on a random enemy */
     RandomSkill UMETA(DisplayName = "Random Skill (Loss of Control)"),
