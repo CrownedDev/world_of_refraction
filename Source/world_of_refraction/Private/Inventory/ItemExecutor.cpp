@@ -11,6 +11,7 @@
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
+#include "Equipment/Crystals/StoneRowTable.h"
 #include "Combat/CombatConstants.h"
 #include "Inventory/ItemConstants.h"
 
@@ -54,7 +55,14 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 	// (attach-only) — no case matches, so it falls to the default failure arm.
 	EItemEffectType EffectType = ItemIdentity::GetItemEffectType(Id);
 
-	switch (EffectType)
+	// Standard stat-stone consumables (B-021): ally gets the row's Buff, enemy its Debuff.
+	// ResistanceStone (signed) and the gems (Amber, Opal...) still go through the switch.
+	const FStoneRow *StoneRow = StoneRowTable::Find(Id.Type);
+	if (StoneRow && StoneRow->bStandardConsumable)
+	{
+		ApplyStoneBuffEffect(User, Target, Id, StoneRow->Buff, StoneRow->Debuff, StoneRow->Label, Result);
+	}
+	else switch (EffectType)
 	{
 	case EItemEffectType::Damage:
 		ExecuteDamageEffect(User, Target, Id, Result);
