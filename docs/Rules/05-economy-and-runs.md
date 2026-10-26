@@ -47,7 +47,7 @@ This page covers the currencies, what a fight and a run pay out, what carries ov
 |---|---|---|---|
 | ER-25 | Upgrading raises one owned item (weapon, ring, evolution, spell, ability) by one tier. It costs Gear essence (gear) or Skill essence (skills) by the current tier: F→E 10, E→D 20, D→C 30, C→B 40, B→A 50, A→S 70 (`TIER_UP_COST_*`), plus half that in Reality essence. Never Gold. S is the cap. | In game (no screen yet) | `D-002` notes; `Currency/EconomyYield.h:79-84`; `Currency/EconomyService.cpp:1089-1138` |
 | ER-26 | You can upgrade in the hub and during a run; the item keeps its level the next time you bring or find it. | Conflict (see Cx-4) | `D-002` |
-| ER-27 | Downgrading drops an item one tier, never below the tier it shipped at, and refunds half that step's essence. The Reality co-cost is not refunded. | Code only (no ruling, no screen) | `Currency/EconomyService.h:255-262`; `Currency/EconomyService.cpp:1142-1172` |
+| ER-27 | Downgrading drops an item one tier, never below the tier it shipped at, and refunds half that step's essence. The Reality co-cost is not refunded. | Kept by Crown (2026-10-26, rules review) | `Currency/EconomyService.h:255-262`; `Currency/EconomyService.cpp:1142-1172` |
 
 ## Merging crystals
 | # | Rule | Status | Source |
