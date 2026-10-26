@@ -927,6 +927,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **(3) Who V is** (Crown, 2026-10-26): **V is the Void**: the Void Realm itself, or the **Elemental Lord of Void**. **Void represents any and all concepts**, which is why V can appear as every mob enemy (D-069): the enemies are V taking on concepts.
   - **Hidden from players** (Crown, 2026-10-26): players are **not told** any of this. They have to **figure it out** from lore, dialogue and clues. Treat V's nature as a spoiler: nothing player-facing states it outright.
 - **(4) Names** (Crown, 2026-10-26): the playable characters are **not actually lords**: "Elemental Lord" was a working label. Each will have a **real character name and lore** (to come). So there's no second "Void Lord" in the party; V is the Void. Read "lord" in D-032, D-033, D-069, `RunStructure.md` and `Enemies.md` as "the character tied to that element".
+- **(5) How recovered memories show (D, all three)** (Crown, 2026-10-26):
+  - **Memory journal**: every recovered memory, lore object and logged dialogue, rereadable in the hub.
+  - **V reacts**: between runs V has new lines based on what's been remembered; the natural place for clues about who V is.
+  - **Character conversations** (the heart of it): talks between characters unlock in the hub as memories return (Expedition 33 camp style); home of the cross-linked lore.
+  All three key off the same unlock data as memories and reaction triggers (D-032 parts 4, 9).
 **Notes for Claude:** the data assets keep their names for now (`DA_Character_FireLord` etc., D-058: existing names stay); rename when the real names exist. Player-facing text never says "Lord" for them. Record further answers here; write `docs/Design/HubAndStory.md` when complete.
 
 ## Parked
