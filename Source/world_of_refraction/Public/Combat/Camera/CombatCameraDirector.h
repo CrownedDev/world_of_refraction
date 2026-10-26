@@ -1,6 +1,6 @@
 // CombatCameraDirector.h
 // Picks which combat camera the viewer sees and in which mode (Design/CombatCamera.md §1-3).
-// Lives on the combat orchestrator; driven by turn start, action start and action end. Plays the
+// Lives on the combat orchestrator; driven by turn start and action start. Plays the
 // skill's Level Sequence (or its type's template) bound to the caster and targets.
 
 #pragma once
@@ -17,7 +17,6 @@ class ULevelSequencePlayer;
 class ALevelSequenceActor;
 class APlayerController;
 struct FAction;
-struct FActionResult;
 
 UCLASS(ClassGroup = (Combat))
 class WORLD_OF_REFRACTION_API UCombatCameraDirector : public UActorComponent
@@ -66,16 +65,14 @@ private:
 	void HandleActionStarted(AActor *Executor, const FAction &Action, int32 EnergyCost);
 
 	UFUNCTION()
-	void HandleActionCompleted(AActor *Executor, const FActionResult &Result);
-
-	UFUNCTION()
 	void HandleSequenceFinished();
 
 	/** Shows the turn / not-your-turn / static view for the actor whose turn it is. */
 	void ShowTurnView();
 	ULevelSequence *ResolveSequence(const FAction &Action) const;
 	void PlaySequence(ULevelSequence *Sequence, AActor *Caster, const TArray<AActor *> &Targets);
-	void StopSequence();
+	/** bDeferDestroy: called from the player's own OnFinished, so the actor goes next tick. */
+	void StopSequence(bool bDeferDestroy = false);
 	FCombatCameraFrame BuildFrame(AActor *Focus) const;
 	bool IsViewersCharacter(const AActor *Actor) const;
 	APlayerController *GetViewer() const;

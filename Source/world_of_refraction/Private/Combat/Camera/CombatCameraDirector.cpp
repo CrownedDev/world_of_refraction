@@ -44,7 +44,8 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 			UCombatCameraComponent *Camera = Actor->FindComponentByClass<UCombatCameraComponent>();
 			if (!Camera)
 			{
-				Camera = NewObject<UCombatCameraComponent>(Actor, TEXT("CombatCamera"));
+				// Unique name: a fight can end and restart in one frame, before GC removes the old component.
+				Camera = NewObject<UCombatCameraComponent>(Actor, MakeUniqueObjectName(Actor, UCombatCameraComponent::StaticClass(), TEXT("CombatCamera")));
 				Camera->RegisterComponent();
 			}
 			Cameras.Add(Camera);
@@ -58,7 +59,6 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 	if (Executor)
 	{
 		Executor->OnActionStarted.AddUniqueDynamic(this, &UCombatCameraDirector::HandleActionStarted);
-		Executor->OnActionCompleted.AddUniqueDynamic(this, &UCombatCameraDirector::HandleActionCompleted);
 		BoundExecutor = Executor;
 	}
 
@@ -85,7 +85,6 @@ void UCombatCameraDirector::EndCombat()
 	if (UActionExecutor *Executor = BoundExecutor.Get())
 	{
 		Executor->OnActionStarted.RemoveDynamic(this, &UCombatCameraDirector::HandleActionStarted);
-		Executor->OnActionCompleted.RemoveDynamic(this, &UCombatCameraDirector::HandleActionCompleted);
 	}
 	BoundExecutor.Reset();
 
@@ -153,7 +152,17 @@ void UCombatCameraDirector::HandleActorTurnStarted(AActor *Actor, int32 TurnNumb
 
 void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction &Action, int32 EnergyCost)
 {
-	if (!bInCombat || bCameraMovementOff)
+	if (!bInCombat)
+	{
+		return;
+	}
+	// An Execution turn (a ritual firing) has no turn-start broadcast: frame whoever acts.
+	if (Executor && Executor != ViewedActor.Get())
+	{
+		ViewedActor = Executor;
+		ShowTurnView();
+	}
+	if (bCameraMovementOff)
 	{
 		return;
 	}
@@ -167,18 +176,11 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 	PlaySequence(Sequence, Executor, Action.Targets);
 }
 
-void UCombatCameraDirector::HandleActionCompleted(AActor *Executor, const FActionResult &Result)
-{
-	if (bInCombat && PlayingSequence)
-	{
-		StopSequence();
-		ShowTurnView();
-	}
-}
-
 void UCombatCameraDirector::HandleSequenceFinished()
 {
-	StopSequence();
+	// Ends when its own sequence does, or when the next turn starts (which stops it). Not on action
+	// completion: that broadcast comes after the next turn may already have started a new sequence.
+	StopSequence(true);
 	if (bInCombat)
 	{
 		ShowTurnView();
@@ -260,16 +262,30 @@ void UCombatCameraDirector::PlaySequence(ULevelSequence *Sequence, AActor *Caste
 		   *Sequence->GetName(), *GetNameSafe(Caster), ValidTargets.Num());
 }
 
-void UCombatCameraDirector::StopSequence()
+void UCombatCameraDirector::StopSequence(bool bDeferDestroy)
 {
 	if (SequencePlayer)
 	{
 		SequencePlayer->OnFinished.RemoveAll(this);
-		SequencePlayer->Stop();
+		if (!bDeferDestroy)
+		{
+			SequencePlayer->Stop();
+		}
 	}
 	if (IsValid(SequenceActor))
 	{
-		SequenceActor->Destroy();
+		UWorld *World = GetWorld();
+		if (bDeferDestroy && World)
+		{
+			World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(SequenceActor.Get(), [Actor = SequenceActor.Get()]()
+			{
+				Actor->Destroy();
+			}));
+		}
+		else
+		{
+			SequenceActor->Destroy();
+		}
 	}
 	SequencePlayer = nullptr;
 	SequenceActor = nullptr;

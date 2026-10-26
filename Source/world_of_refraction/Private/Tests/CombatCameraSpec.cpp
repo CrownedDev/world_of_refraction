@@ -93,8 +93,9 @@ void FCombatCameraSpec::Define()
 
 		It("views the tactical turn from the side of the fight", [this]()
 		{
-			const FTransform View = FCombatCameraRules::ComputeView(ECombatCameraMode::Turn, ETurnViewStyle::Tactical, CombatCameraTestFrame());
-			TestTrue(TEXT("side-on"), FMath::Abs(View.GetLocation().Y) > FMath::Abs(View.GetLocation().X - 500.0f));
+			const FCombatCameraFrame Frame = CombatCameraTestFrame();
+			const FTransform View = FCombatCameraRules::ComputeView(ECombatCameraMode::Turn, ETurnViewStyle::Tactical, Frame);
+			TestTrue(TEXT("side-on"), FMath::Abs(View.GetLocation().Y) > FMath::Abs(View.GetLocation().X - Frame.ArenaCentre.X));
 		});
 
 		It("pans further out on someone else's turn than on your own", [this]()
