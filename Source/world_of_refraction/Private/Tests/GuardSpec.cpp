@@ -132,6 +132,15 @@ void FGuardSpec::Define()
 			TestEqual(TEXT("a missed press"), GuardRules::ImpactAnimationOverride(EDefenseType::Block, false, GUARD_TEST_PERFECT), EDefenseType::None);
 		});
 
+		It("gives only a Perfect Guard the flash and sound (B-202)", [this]()
+		{
+			TestTrue(TEXT("Perfect Guard"), GuardRules::PlaysPerfectGuardFeedback(EDefenseType::Block, true, GUARD_TEST_PERFECT));
+			TestTrue(TEXT("a Parry press, perfect"), GuardRules::PlaysPerfectGuardFeedback(EDefenseType::Parry, true, GUARD_TEST_PERFECT));
+			TestFalse(TEXT("Guard"), GuardRules::PlaysPerfectGuardFeedback(EDefenseType::Block, true, GUARD_TEST_NORMAL));
+			TestFalse(TEXT("Dodge"), GuardRules::PlaysPerfectGuardFeedback(EDefenseType::Dodge, true, GUARD_TEST_PERFECT));
+			TestFalse(TEXT("a missed press"), GuardRules::PlaysPerfectGuardFeedback(EDefenseType::Block, false, GUARD_TEST_PERFECT));
+		});
+
 		It("lets less status through a Perfect Guard", [this]()
 		{
 			TestEqual(TEXT("Guard"), GuardRules::GuardBuildupMultiplier(GUARD_TEST_NORMAL), CombatConstants::BLOCK_BUILDUP_MULTIPLIER);
