@@ -988,7 +988,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** today a broken attachment stays slotted and gives no spells (`AttachedItem.CanProvideSpells()`, `FCombatCapabilities.cpp`; `CrystalWear.md`). Change the menu to grey rather than hide, apply the F-tier allowance for rings, and block infusion / elemental abilities on weapons. Tests for each.
 
 ### Q-031 — What is "the ApplyDamage fallback" B-031 should delete?
-**Status:** OPEN · **Raised:** 2026-10-26 (B-031) · **Blocks:** B-167
+**Status:** ANSWERED · **Raised:** 2026-10-26 (B-031) · **Blocks:** B-167
 **Question:** the architecture review says "delete the `SubmitAction` sync router and the `ApplyDamage` fallback" with no detail. Which code is meant?
 **Context:**
 - `ApplyDamage` (`ActionExecutor.cpp` ~3085) is still called from four places. The likely "fallbacks" are the direct-damage paths that skip the defence window:
@@ -1001,7 +1001,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** also delete the unconverted-spell paths: needs an editor check that every spell asset is converted first (CC+UE).
 - **C** leave all of it to B-032's merge.
 **Recommendation:** A now, because it is dead code that hides setup errors (log an error instead), and leave the unconverted-spell paths to B-032, which has to touch them anyway.
-**Answer (Crown):** _pending_
+**Answer (Crown):** **A** (2026-10-26): delete only the 'subsystem missing' fallbacks now (log an error instead); the unconverted-spell paths wait for B-032.
 **Notes for Claude:** _optional_
 
 ### Q-155 — Auto-equip and the utility crystal caps
