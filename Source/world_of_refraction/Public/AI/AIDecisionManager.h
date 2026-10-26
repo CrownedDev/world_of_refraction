@@ -85,6 +85,8 @@ public:
                                     const FDefenseDifficultyTriple &ImpactDifficulty, double ImpactTime);
 
 private:
+    friend class FAIStatusQuerySpec;
+
     // ==================== INTERNAL ====================
 
     USkillEffectManager *GetSkillEffectManager() const;
