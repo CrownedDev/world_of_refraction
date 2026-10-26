@@ -879,6 +879,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **You can't make an invalid loadout** (Crown, 2026-10-26): the same rule set runs **when you equip**, so anything that would break a rule is **refused or dropped** right there (with a short reason), rather than saved and warned about. A loadout that's already invalid (old save, changed rules) has its invalid parts dropped when loaded, with a message saying what was removed.
 **Notes for Claude:** _optional_
 
+### D-074 — Combat camera: the open parts
+**Status:** ANSWERED (in progress: more parts as Crown answers) · **Raised:** 2026-10-26 · **Blocks:** — (camera arc)
+**Context:** the camera is already designed (`Resources_Design.md` "Combat camera — COMPLETE ARCHITECTURE", 2026-06-25, Expedition 33 model): one camera per character following shared mode rules (Turn: close over-the-shoulder; Action: the skill's Level Sequence; Not your turn: pan out; Defence possibly folded into Action, pending a play-test); viewer perspective follows what you control; centred/wider option and a camera-movement-off toggle. Nothing is built: the old `CombatCameraManager` was deleted (`Gaps/Roadmap.md`).
+**Answer (Crown):**
+- **(1) Skill cinematics: C** (2026-10-26): **reusable template sequences by skill type** (melee swing, ranged shot, area spell, buff, …) for most skills, and **hand-made sequences for signature moves** (lord skills, bosses, big spells). A skill references a template or its own sequence.
+**Notes for Claude:** record further answers here; then write `docs/Design/CombatCamera.md` from this and the June design.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
