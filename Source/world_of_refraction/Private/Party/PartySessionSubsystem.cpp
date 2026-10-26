@@ -501,6 +501,24 @@ void UPartySessionSubsystem::SetMemberVitals(int32 SlotIndex, int32 HP, int32 EP
 	Member.CurrentEP = EP;
 }
 
+void UPartySessionSubsystem::SetMemberCarriedState(int32 SlotIndex, const FCarriedGearState &Gear, const FCarriedAbsorptionState &Absorption)
+{
+	UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PartySession] SetMemberCarriedState: invalid slot %d"), SlotIndex);
+		return;
+	}
+	Party->Members[SlotIndex].CarriedGear = Gear;
+	Party->Members[SlotIndex].CarriedAbsorption = Absorption;
+}
+
+const FPartyMember *UPartySessionSubsystem::GetMemberCarriedState(int32 SlotIndex) const
+{
+	const UParty *Party = GetLocalParty();
+	return Party && Party->Members.IsValidIndex(SlotIndex) ? &Party->Members[SlotIndex] : nullptr;
+}
+
 bool UPartySessionSubsystem::GetMemberVitals(int32 SlotIndex, int32 &OutHP, int32 &OutEP) const
 {
 	const UParty *Party = GetLocalParty();
@@ -532,6 +550,8 @@ void UPartySessionSubsystem::SetAllMembersFull()
 	for (FPartyMember &Member : Party->Members)
 	{
 		SetMemberVitalsFull(Member);
+		Member.CarriedGear = FCarriedGearState();
+		Member.CarriedAbsorption = FCarriedAbsorptionState();
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[PartySession] Vitals seeded to full for %d member(s)"), Party->GetMemberCount());
@@ -597,6 +617,8 @@ void UPartySessionSubsystem::ClearAllMemberVitals()
 	{
 		Member.CurrentHP = PartyConstants::NO_CARRIED_VITALS;
 		Member.CurrentEP = PartyConstants::NO_CARRIED_VITALS;
+		Member.CarriedGear = FCarriedGearState();
+		Member.CarriedAbsorption = FCarriedAbsorptionState();
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[PartySession] Carried vitals cleared for %d member(s)"), Party->GetMemberCount());

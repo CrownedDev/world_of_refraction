@@ -14,6 +14,7 @@
 #pragma once
 
 #include "Combat/Grid/ECombatRow.h"
+#include "Loadout/CarriedGearState.h"
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "Party.generated.h"
@@ -75,6 +76,15 @@ struct FPartyMember
 
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	int32 CurrentEP = PartyConstants::NO_CARRIED_VITALS;
+
+	/** B-115 (D-013, D-093): crystal wear, the between-fight repair and destroyed gems, carried to
+	 *  the next fight of the run like the vitals. Cleared at trial entry and hub return. */
+	UPROPERTY()
+	FCarriedGearState CarriedGear;
+
+	/** B-115 (Q-115): a born Broken Darkness member's absorption pool, carried the same way. */
+	UPROPERTY()
+	FCarriedAbsorptionState CarriedAbsorption;
 
 	/** Authored formation cell. Only meaningful when HasFormation() — see
 	 *  UNSET_FORMATION. Written by UPartySessionSubsystem::SetMemberFormation,
