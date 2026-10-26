@@ -310,6 +310,28 @@ void FBrokenSourceSpec::Define()
 			Active.SecondaryWeapon.AssignedSpells = {FTierSpell};
 			TestTrue(TEXT("a spell the intact primary also holds stays castable"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
 		});
+
+		It("greys out a spell a broken primary holds, though the secondary holds it too: the primary channels it", [this]()
+		{
+			SpawnGenericWithWeapon(BROKEN_SOURCE_BROKEN_DURABILITY);
+			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+			Active.SecondarySlotType = ESecondarySlotType::Weapon;
+			Active.SecondaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
+			Active.SecondaryWeapon.WeaponEntry.AttachedItem = GarnetCrystal(BROKEN_SOURCE_INTACT_DURABILITY);
+			Active.SecondaryWeapon.WeaponEntry.AssignedSpells = {FTierSpell};
+			TestFalse(TEXT("refused with a reason"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
+		});
+
+		It("leaves a spell an intact ring also holds alone: the ring is cast from first", [this]()
+		{
+			SpawnGenericWithPrimaryRing(BROKEN_SOURCE_INTACT_DURABILITY);
+			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+			Active.SecondarySlotType = ESecondarySlotType::Weapon;
+			Active.SecondaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
+			Active.SecondaryWeapon.WeaponEntry.AttachedItem = GarnetCrystal(BROKEN_SOURCE_BROKEN_DURABILITY);
+			Active.SecondaryWeapon.WeaponEntry.AssignedSpells = {FTierSpell};
+			TestTrue(TEXT("castable from the ring"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
+		});
 	});
 
 	Describe("a broken weapon crystal", [this]()
