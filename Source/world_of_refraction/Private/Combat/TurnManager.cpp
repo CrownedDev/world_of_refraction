@@ -47,7 +47,7 @@ UTurnManager::UTurnManager()
 	PreviousActor = nullptr;
 }
 
-void UTurnManager::InitializeCombat(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty)
+void UTurnManager::InitializeCombat(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty, int32 OpeningTeam)
 {
 	if (bCombatActive)
 	{
@@ -120,6 +120,16 @@ void UTurnManager::InitializeCombat(const TArray<AActor *> &LocalParty, const TA
 
 	// Calculate speed ratios (but don't add to TurnsOwed yet - that happens in AdvanceSimState)
 	CalculateSpeedRatios();
+
+	// B-185 first strike: the other side waits out the advantaged side's opening round.
+	if (OpeningTeam != INDEX_NONE)
+	{
+		for (FCombatantTurnDebt &Combatant : Combatants)
+		{
+			Combatant.bWaitsForOpening = Combatant.TeamIndex != OpeningTeam;
+		}
+		UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] First strike: team %d takes the opening round"), OpeningTeam);
+	}
 
 	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Combat initialized with %d combatants"), Combatants.Num());
 
@@ -654,6 +664,32 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 		}
 	}
 
+	// B-185 first strike: the opening round is over once no living combatant of the advantaged
+	// side still owes a turn (all of them acted, or fell); then everyone is picked as usual.
+	bool bAnyWaiting = false;
+	bool bOpeningSideOwes = false;
+	for (const FCombatantTurnDebt &Combatant : State)
+	{
+		UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Combatant.Actor);
+		if (!CharComp || !CharComp->bIsAlive)
+			continue;
+		if (Combatant.bWaitsForOpening)
+		{
+			bAnyWaiting = true;
+		}
+		else if (Combatant.TurnsOwed - Combatant.TurnsTaken > KINDA_SMALL_NUMBER)
+		{
+			bOpeningSideOwes = true;
+		}
+	}
+	if (bAnyWaiting && !bOpeningSideOwes)
+	{
+		for (FCombatantTurnDebt &Combatant : State)
+		{
+			Combatant.bWaitsForOpening = false;
+		}
+	}
+
 	// Find highest debt (optionally skipping one combatant: the one yielding its place)
 	auto PickHighestDebt = [this, &State](const FCombatantTurnDebt *Skip) -> FCombatantTurnDebt *
 	{
@@ -662,7 +698,7 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 
 		for (FCombatantTurnDebt &Combatant : State)
 		{
-			if (&Combatant == Skip)
+			if (&Combatant == Skip || Combatant.bWaitsForOpening)
 				continue;
 
 			UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Combatant.Actor);

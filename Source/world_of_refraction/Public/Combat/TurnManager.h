@@ -68,6 +68,11 @@ struct FCombatantTurnDebt
 	 *  break, D-014 / D-090). Each yield moves its turn back one place. */
 	UPROPERTY()
 	int32 PlacesToYield = 0;
+
+	/** First strike (B-185): this combatant's side was struck first, so it waits until the
+	 *  other side has taken its opening round. Cleared for everyone when that round is done. */
+	UPROPERTY()
+	bool bWaitsForOpening = false;
 };
 
 /**
@@ -181,7 +186,9 @@ public:
 
 	/** Initialize combat with two teams */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
-	void InitializeCombat(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty);
+	/** OpeningTeam (B-185 first strike): 0 = local party, 1 = opposing side takes its whole opening
+	 *  round before the other side moves; -1 (INDEX_NONE) = no advantage. */
+	void InitializeCombat(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty, int32 OpeningTeam = -1);
 
 	/** End combat */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
