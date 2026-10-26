@@ -126,7 +126,7 @@
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-090 | Save/persistence keystone: `USaveGame`, stable IDs, two-phase load; character state survives hub ↔ trial ↔ battle | CC | L | B-041 | Quit and reload keeps inventory, currency, party, HP | BLOCKED (B-041) |
-| B-091 | Pool: account vs character per D-020; wire or drop `UPoolSubsystem` | CC | M | D-020 | One inventory model | BLOCKED (D-020) |
+| B-091 | One shared pool per player (D-020): characters equip from it, no per-pawn copy (`InitializeFromPool`); one item, one wearer | CC | M | D-020 | Tests: party of 3 with one sword has one sword | TODO |
 
 ## UI rebuild — CommonUI, mockups first (D-024)
 

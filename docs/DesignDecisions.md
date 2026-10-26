@@ -287,10 +287,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** Nothing to apply beyond B-100.
 
 ### D-020 — Is the account pool shared across characters?
-**Status:** OPEN · **Raised:** 2026-10-25 · **Blocks:** B-091
+**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-091
 **Question:** Is the owned pool shared by all characters, or per character?
 **Context:** `InitializeFromPool` copies the whole pool into one pawn (`InventoryComponent.cpp:1446-1503`). With 3 party members, each would get duplicates.
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A, one shared pool per player** (2026-10-26). All your characters draw from the same collection; an item you own once can be equipped by one character at a time.
+**Notes for Claude:**
+- Fits D-026 (one shared run inventory for the party). The pool is account scope (`APlayerState` or the save, `CurrencySystem.md` routing note); characters equip *from* it, they don't each copy it.
+- Fix `InitializeFromPool` copying the whole pool into each pawn (`InventoryComponent.cpp:1446-1503`).
+- Equipping an item already worn by another party member: refuse it, or move it over with a prompt. Not ruled; ask when building.
+- Tests: a party of 3 with one Fire Sword has exactly one; equipping it on a second member doesn't duplicate it.
 
 ### D-021 — How do you get your loadout at the start of a run?
 **Status:** ANSWERED · **Raised:** 2026-10-26 · **Blocks:** B-091
