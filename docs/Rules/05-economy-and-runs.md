@@ -1,0 +1,117 @@
+# Economy and runs
+
+This page covers the currencies, what a fight and a run pay out, what carries over between the hub, a trial and a battle, shops, upgrading, merging, dismantling, crystal wear repair between fights, drop quality, the shared gear pool, and how an encounter is put together. It leaves classes, slots and loadout budgets to 01-classes-and-loadouts.md, damage to 02-elements-and-damage.md, status bars to 03-status-bars.md, how wear is worked out during a cast to 04-effects-and-turns.md, and who is in your party to 06-party.md. Paths are relative to `Source/world_of_refraction/`.
+
+## Currencies
+| # | Rule | Status | Source |
+|---|---|---|---|
+| ER-01 | There are six wallets: **Gold**, **Prisms**, **Diamond**, **Gear essence**, **Skill essence**, and **typed essence** (14 kinds: 10 elements incl. Reality and Generic, the 3 pillars Mind/Body/Spirit, and Ability). Every wallet starts at 0. | In game | `Currency/CurrencyTypes.h:23-43`; `Currency/CurrencyComponent.h:129-151` |
+| ER-02 | A spend is all or nothing: you can't spend more than you have, and a refused spend takes nothing. | In game | `Currency/CurrencyComponent.h:57-60` |
+| ER-03 | **Gold is run money.** You get it during a run, spend it at trial vendors, and lose what's left when the run ends. It is never saved. | Decided, not built (B-073) | `D-002`; `D-006`; `Currency/CurrencyComponent.h:128-130` (not saved) |
+| ER-04 | **Prisms** are kept between runs and buy things in the hub. **Diamond** is kept too. Today both are stored on the character, not the account. | Code only (no ruling on Diamond) / see Cx-5 | `D-002` (kept); `Currency/CurrencyComponent.h:15-24,132-138` |
+| ER-05 | **Gear essence** upgrades weapons, rings and evolutions; **Skill essence** upgrades spells and abilities. The two never mix. **Reality essence** is the half-price co-cost on every upgrade. | In game | `Currency/EconomyService.cpp:1106-1110`; `Currency/CurrencyComponent.h:140-146` |
+
+## Rewards
+| # | Rule | Status | Source |
+|---|---|---|---|
+| ER-06 | Each fight you win in a run pays Gold, more on a harder difficulty. The results screen shows "+N Gold". | Decided, not built (B-073) | `D-006` notes; nothing grants Gold today (`D-006` context) |
+| ER-07 | Prisms are **not** paid during a run. They are tallied (fights won, how far you got, difficulty) and paid **once at run end, win or lose**. | Decided, not built (B-073) | `D-006` |
+| ER-08 | Upgrade materials earned in a run follow the same rule: paid at run end, win or lose. Essence from dismantling is paid straight away, as today. | Decided, not built (B-073) | `D-006` notes; see Gaps |
+| ER-09 | The run-end payout goes through one multiplier (default 1.0) so passives can raise it later (e.g. "+10% Prisms at run end"). | Decided, not built (B-073, B-096) | `D-006` |
+
+## Runs: hub, trial and battle
+| # | Rule | Status | Source |
+|---|---|---|---|
+| ER-10 | A trial is a run. You go from the hub through a trial door into the trial; touching an enemy starts a battle on the trial's battle stage. | In game | `D-002`; `Trial/TrialRunSubsystem.cpp:14-47,75-105` |
+| ER-11 | **Win a fight:** you go back into the trial and that enemy stays beaten. Today the trial reloads whole, so the enemy is back. | Conflict (see Cx-2) | `D-002`; `Trial/BattleGameMode.h:11-13` |
+| ER-12 | **Lose a fight:** the run ends and you go back to the hub. Today a loss returns you to the trial like a win. | Conflict (see Cx-2) | `D-002`; `Trial/BattleGameMode.cpp:301-305` |
+| ER-13 | Entering a trial puts every party member at full HP and EP (Broken Darkness members at 0 EP). Between fights in the same trial, HP and EP carry over. Going back to the hub clears them. | In game | `Trial/TrialRunSubsystem.cpp:35-41,58-64`; `Trial/BattleGameMode.cpp:260-298` |
+| ER-14 | Status bars reset every fight. HP, EP, absorption and durability carry over within a run. | Conflict (see Cx-3) | `D-013` |
+| ER-15 | **Lost at run end:** world-stat levels bought in the run, Gold, gear found in the run, slotted crystals. **Kept:** the pool with its upgrade levels, Prisms, Diamond, head-start allocation. | Decided, not built (B-090) | `D-002` |
+| ER-16 | You start a run by **buying** your loadout from your own pool with a starting Gold budget. Prices rise with tier and level; unspent Gold carries into the run. Account perks can raise the budget; slot limits still apply. | Decided, not built (no job; see Gaps) | `D-021` |
+| ER-17 | Today every level change (hub to trial, trial to battle and back) rebuilds the player's wallet, inventory and loadout from authored data, so nothing you buy or earn survives it. | Code only (known gap, B-090) | `Trial/TrialRunSubsystem.h:12-17`; `Trial/TrialData.h:6-10` |
+
+## Shops and merchants
+| # | Rule | Status | Source |
+|---|---|---|---|
+| ER-18 | Five merchant types: Blacksmith (weapons, augment stones), Jeweler (rings), Combat Master (abilities), Spell Shop (spells), Spiritualist (evolutions, crystals, repairs). Stock is a fixed authored list; prices come from the item's tier, never from the merchant. | In game | `Merchant/MerchantData.h:23-31,39,93-96` |
+| ER-19 | A merchant with no tags appears in the hub; a `Trial.X` tag puts it in that trial (a `Trial.Garnet` tag matches every Garnet floor); `Hub` + `Trial.X` puts it in both. | Code only (tags not checked anywhere at runtime) | `Merchant/MerchantData.h:81-89,100-109` |
+| ER-20 | Buying is a cart: the whole cart goes through or none of it. It is refused if you can't afford every currency, your inventory has no room, or a spell or ability in it is already known (or in the cart twice). Stock never runs out. | In game | `Currency/EconomyService.h:144-183`; `Currency/EconomyService.cpp:773-816`; `UI/Shop/ShopWindowWidget.cpp:332-345` |
+| ER-21 | **Hub buys use Prisms; in-run buys use Gold.** Today every purchase charges Prisms, wherever the merchant stands. | Conflict (see Cx-1) | `D-002` notes; `Merchant/MerchantData.h:9-11`; `Currency/EconomyService.cpp:853,875` |
+| ER-22 | Prism prices by tier: F 25, E 50, D 100, C 200, B 400, A 800, S 1600 (`PRISMS_BASE_*`). Weapons and rings add their attachment (crystal: its tier price; evolution: 2x; fusion: 1.5x the two halves) and each bundled skill (its tier price / 3 + 10). Evolutions cost 2x plus element essence and half that in Reality. | In game | `Currency/EconomyYield.h:54-60`; `Currency/EconomyService.cpp:537-575,603-700` |
+| ER-23 | Spells also cost element essence at their tier (F 10 ... S 48, `TYPED_ESSENCE_BUY_*`), pillar essence per scaling grade, and +50 Prisms per scaling grade (F=1 ... S=7). Generic spells and abilities cost Prisms + Skill essence instead. | In game | `Currency/EconomyYield.h:65-74`; `Currency/EconomyService.h:165-168` |
+| ER-24 | A run vendor sells +1 world-stat point for Gold: 50 for the first this run, +25 for each one after (`WORLDSTAT_BUY_BASE_COST`, `WORLDSTAT_BUY_COST_STEP`). Refused at the pillar cap of 20 (`LIVE_MAX`). The price ramp is meant to reset each run (`ResetRunWorldStats`, which nothing calls yet). | Code only (no Gold source, no screen) | `Currency/EconomyYield.h:50-51`; `Currency/EconomyService.cpp:1028-1076`; `Character/CharacterDataComponent.cpp:248-251` |
+
+## Upgrading
+| # | Rule | Status | Source |
+|---|---|---|---|
+| ER-25 | Upgrading raises one owned item (weapon, ring, evolution, spell, ability) by one tier. It costs Gear essence (gear) or Skill essence (skills) by the current tier: F→E 10, E→D 20, D→C 30, C→B 40, B→A 50, A→S 70 (`TIER_UP_COST_*`), plus half that in Reality essence. Never Gold. S is the cap. | In game (no screen yet) | `D-002` notes; `Currency/EconomyYield.h:79-84`; `Currency/EconomyService.cpp:1089-1138` |
+| ER-26 | You can upgrade in the hub and during a run; the item keeps its level the next time you bring or find it. | Conflict (see Cx-4) | `D-002` |
+| ER-27 | Downgrading drops an item one tier, never below the tier it shipped at, and refunds half that step's essence. The Reality co-cost is not refunded. | Code only (no ruling, no screen) | `Currency/EconomyService.h:255-262`; `Currency/EconomyService.cpp:1142-1172` |
+
+## Merging crystals
+| # | Rule | Status | Source |
+|---|---|---|---|
+| ER-28 | Crystals and stones don't upgrade; they **merge**. Ask for one crystal of a type at a higher tier: same-type crystals below it are spent cheapest first until their value reaches the target's. Values: F 1, E 2, D 4, C 8, B 16, A 32, S 96 (`CRYSTAL_VALUE_*`). Any overshoot is lost. F can't be a target. | Code only (no ruling, no screen) | `Currency/EconomyYield.h:107-113`; `Currency/EconomyService.cpp:140-200` |
+| ER-29 | A merge also costs Prisms: half the produced tier's buy price (E 25 ... S 800). It is refused if you hold the max of the target crystal. | Code only (no ruling, no screen) | `Currency/EconomyYield.h:228-231`; `Currency/EconomyService.cpp:169-185` |
+
+## Dismantling
+| # | Rule | Status | Source |
+|---|---|---|---|
+| ER-30 | Dismantling destroys an item for essence by its current (upgraded) tier: weapons and rings give Gear essence, spells and abilities Skill essence, evolutions their element's essence, all at F 5, E 15, D 30, C 50, B 75, A 110, S 145 (`LEVELING_ESSENCE_YIELD_*`). | In game (no screen yet) | `Currency/EconomyYield.h:38-44`; `Currency/EconomyService.cpp:250-527` |
+| ER-31 | A crystal or stone gives typed essence (gem: its element; stat stone: its pillar; ability stone: Ability) at F 5, E 7, D 9, C 11, B 15, A 19, S 24 each (`TYPED_ESSENCE_YIELD_*`). | In game (no screen yet) | `Currency/EconomyYield.h:28-34,358-379`; `Currency/EconomyService.cpp:75-89` |
+| ER-32 | Dismantling an equipped item asks first ("This is equipped in loadout N. Dismantle anyway? You'll lose its upgrades"), then removes it from every loadout. Its upgrades are lost for good. Today there is no check, and the loadout keeps a usable copy. | Decided, not built (B-084) | `D-016`; `Currency/EconomyService.cpp:276-296` |
+| ER-33 | A Generic or Resonator with no gear can't enter a fight (a gearless party member is left out); a Refractor can. The dismantle warning says so. | Decided, not built (B-084) | `D-016` |
+
+## Crystal wear and repair between fights
+| # | Rule | Status | Source |
+|---|---|---|---|
+| ER-34 | Crystal max durability by tier: F 30, E 40, D 50, C 60, B 70, A 80, S 100 (`MAX_DURABILITY_*`). The HUD warns below 25% (`LOW_DURABILITY_WARNING_THRESHOLD`). How much a cast wears is on 04-effects-and-turns.md. | In game | `Equipment/Durability/DurabilityConstants.h:20-26,98` |
+| ER-35 | At the end of a finished fight (win or loss, not an aborted one), any crystal that broke is destroyed: it leaves its weapon or ring and pays out like a dismantle (gem: typed essence; player-attached evolution: element essence). This runs before repair. | In game | `Combat/CombatOrchestrator.cpp:607-609,1411-1520` |
+| ER-36 | Then every unbroken socketed crystal on both sides gets **+10 durability** (`REPAIR_PER_BATTLE`), up to its max. | In game | `Combat/CombatOrchestrator.cpp:611-613,1602-1650`; `Equipment/Durability/DurabilityConstants.h:93` |
+| ER-37 | Paid repair of broken gear at the Spiritualist. | Code only (design only; no code, no cost) | `Merchant/MerchantData.h:30`; `docs/Mechanics/Economy/Hubs.md` (design) |
+
+## Drop quality
+| # | Rule | Status | Source |
+|---|---|---|---|
+| ER-38 | A fresh pickup of a weapon, ring or evolution flagged to roll gets a random quality: F 26%, E 22%, D 18%, C 14%, B 10%, A 6%, S 4% (`QUALITY_WEIGHT_*`). Luck tilts the odds toward high grades; at maxed Luck S goes from 4% to about 7% (`QUALITY_LUCK_MAX_TILT` 0.5). Unflagged items are C quality. | In game | `Currency/EconomyYield.h:87-97,173-205`; `Inventory/InventoryComponent.cpp:308-313,443-448` |
+| ER-39 | Trials will have their own loot pools. | Code only (planned field, not built) | `Trial/TrialData.h:53-58` |
+
+## The shared pool and presets
+| # | Rule | Status | Source |
+|---|---|---|---|
+| ER-40 | Everything you own sits in **one pool per player**, shared by all your characters. An item you own once can be worn by one character at a time. | Decided, not built (B-091) | `D-020`; pool today: `Pool/PoolSubsystem.h:7-21` (only the debug command `wor.DrawFromPool` draws from it, `Pool/PoolSubsystem.cpp:480-507`) |
+| ER-41 | Each character has gear presets (saved loadouts) that point at pool items, never copies. An item may sit in several presets; only one character can wear it. | Decided, not built (B-091, B-085) | `D-020` |
+| ER-42 | A character found in a trial is in the party for that run only, arrives ungeared, and is geared from the one shared run inventory. | Decided, not built (B-076) | `D-026` |
+
+## Encounters
+| # | Rule | Status | Source |
+|---|---|---|---|
+| ER-43 | An encounter is an enemy in the trial. Touching it opens a 2-second join window (`JoinWindowSeconds`); then the fight starts with the party's **living** members against that one enemy. If the whole party is dead, the encounter doesn't start. | In game | `Combat/Encounter/EncounterComponent.h:50-52`; `Combat/Encounter/EncounterComponent.cpp:212-260` |
+| ER-44 | Each encounter sets its own AI difficulty: Easy, Medium (default), Hard or Expert. | In game | `Combat/Encounter/EncounterComponent.h:72-74`; `AI/EAIDifficulty.h` |
+| ER-45 | Several enemies in one encounter, authored from data. | Code only (planned, B-074) | `docs/Backlog.md` B-074 |
+
+## Open questions
+- D-002 (ANSWERED, one point unconfirmed): an upgrade made during a run is written back to the pool. Crown's notes say "confirm when applying".
+- D-006 (ANSWERED, one point left open): a starting Prism grant for a new save.
+- D-020 (ANSWERED, one point not ruled): who wears an item that sits in two presets. Suggested: the party screen flags it and you pick before the run.
+- D-002 (not decided): co-op revive on defeat.
+
+## Conflicts
+- **Cx-1 — In-run shops charge Prisms.** → **D-046** D-002 notes say buying uses Prisms in the hub and Gold in a run (`MerchantData.h:9-11` agrees). The code always charges Prisms (`EconomyService.cpp:853,875`) and never checks a merchant's hub/trial tags (`MerchantData.h:100-109`, no callers). Question for Crown: should Gold pricing be built with B-073, or wait for the D-021 run-start purchase? Options: A: build Gold pricing for trial merchants now / B: wait until runs persist (B-090). Recommendation: B, because Gold has no source yet and the wallet resets on every level load (ER-17), so a Gold price can't be tested in play.
+- **Cx-2 — Win and loss both return to the trial.** → **B-072** D-002: win = continue with the enemy beaten, lose = back to the hub. Code: both reload the trial whole (`BattleGameMode.h:11-13`, `BattleGameMode.cpp:301-305`). Already queued as B-072 (routing) and B-090 (enemy stays beaten). Question for Crown: OK to ship lose → hub before "enemy stays beaten" lands? Options: A: yes, routing first / B: both together. Recommendation: A, as D-002's own notes say.
+- **Cx-3 — Durability doesn't carry over between fights.** → **B-115** D-013 says HP, EP, absorption and durability carry over within a run. Only HP and EP are banked (`BattleGameMode.cpp:260-298`); crystals are rebuilt from authored data on every level load (`TrialRunSubsystem.h:12-17`), so +10 repair (ER-36) and wear never reach the next fight. Absorption isn't banked either. Question for Crown: track this under B-090, or bank durability and absorption now like HP/EP? Options: A: under B-090 / B: a small job now. Recommendation: A, because loadouts are copies until B-085, so banking durability now would be redone.
+- **Cx-4 — Where you can upgrade.** → **D-045** D-002: upgrades in the hub and during a run. `docs/Mechanics/Economy/Hubs.md` (composition table) says upgrade, repair and merge are run-only and the hub only buys and downgrades; it also describes a "draft 3 inventories / return for Gold" run start that D-021 replaced. Question for Crown: is Hubs.md's hub/run service split still wanted for repair, merge and downgrade? Options: A: D-002 for upgrades, Hubs.md for the rest / B: every service in both places. Recommendation: A, and rewrite Hubs.md's draft section to D-021, because D-021 says to.
+- **Cx-5 — Prisms and essence: per character or per player?** → **D-044** D-002 keeps Prisms across runs and D-020 makes the gear pool one per player, but the wallet sits on each character, Prisms and Diamond included (`CurrencyComponent.h:15-24`), so a party of three has three wallets. Question for Crown: is there one wallet per player? Options: A: one wallet per player, everything / B: Prisms and Diamond per player, essence per character. Recommendation: A, because the pool and run inventory are already shared (D-020, D-026) and per-character essence would strand upgrades. The deckbuilder has one account-wide currency (Prisms) and shared Essences (`wor-deckbuilder/docs/design/WoR_TCG_Pivot_Design.md` §5, the 2026-10-07 ruling).
+- **Cx-6 — What Gold is for.** → **D-046** `CurrencyComponent.h:128` and `docs/Mechanics/Economy/Currency.md` say Gold buys run consumables and temporary buffs. D-021 says Gold buys your run-start loadout and in-run upgrades and world stats, but D-002 notes say upgrades never cost Gold. Question for Crown: what does Gold buy in a run? Options: A: loadout at run start, in-run purchases and world stats only / B: also consumables. Recommendation: A, as it matches D-002 and D-021; the comment and doc then need updating.
+
+## Gaps
+- No Gold, Prism or material amounts per fight or per run exist, not even placeholders (B-073 will add them as named constants).
+- "Upgrade materials earned in a run" (D-006): today nothing earns materials in a run except dismantling, which pays at once. Which drops count is undefined.
+- D-021's run-start purchase has no Backlog job: no starting budget, price curve or Gold price list.
+- Payout on defeat: D-006 pays Prisms on a loss "scaled by progress" but sets no ratio. The deckbuilder pays a quarter of a win's reward on a defeat and nothing for conceding (`wor-deckbuilder/docs/design/WoR_TCG_Pivot_Design.md`, PvE section).
+- Fleeing a fight: no rule for whether it ends the run or what it pays.
+- Repair cost and where repair happens (Spiritualist) are undecided.
+- Diamond has no source, no use and no ruling.
+- Shop stock never runs out and has no rolled or refreshing stock.
+- World stats: no screen sells them, and nothing calls `ResetRunWorldStats` at run end (D-002 says they're lost). Today they reset only because each level load rebuilds the character.
