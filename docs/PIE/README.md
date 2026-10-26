@@ -55,6 +55,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-112](B-112.md) | `fix/B-112-light-break` (in `dev`) | A full Light bar stops crits for one turn | Not tested |
 | [B-113](B-113.md) | `fix/B-113-status-mult-once` (in `dev`) | No game change: infused status buildup confirmed as designed (Q-113) | Not tested |
 | [B-114](B-114.md) | `fix/B-114-ai-buildup-estimate` (in `dev`) | The AI judges status buildup by the real number | Not tested |
+| [B-148](B-148.md) | `feature/B-148-silence-seal` (in `dev`) | Silenced seals half your EP instead of blocking spells | Not tested |
 | [B-166](B-166.md) | `fix/B-166-headless-skill-start` (in `dev`) | A montage-less skill no longer crashes the async start; ritual spec covers one | Not tested |
 | [B-174](B-174.md) | `fix/B-174-support-no-buildup` (in `dev`) | Heals, buffs and support skills build no status | Not tested |
 | [B-175](B-175.md) | `feature/B-175-one-switch-per-turn` (in `dev`) | One free weapon or ring switch per turn | Not tested |

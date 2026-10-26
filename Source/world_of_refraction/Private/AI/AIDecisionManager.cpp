@@ -2313,8 +2313,12 @@ int32 UAIDecisionManager::GetCurrentEP(AActor *Actor) const
         return 0;
     }
 
-    // CurrentEP is the unified spend pool — Broken Darkness (absorption) and
-    // non-BD (regenerating EP) characters alike.
+    // Spendable EP: CurrentEP (Broken Darkness and regenerating EP alike) minus what Silenced
+    // seals (D-038), the same number the executor validates against.
+    if (USkillEffectManager *StatusManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<USkillEffectManager>() : nullptr)
+    {
+        return StatusManager->GetSpendableEP(Actor);
+    }
     return CharComp->CurrentEP;
 }
 

@@ -177,11 +177,7 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 			}
 		}
 
-		// Check if actor can cast spells (not silenced)
-		if (Action.ActionType == EActionType::Spell && !CanActorCastSpells(Actor))
-		{
-			return FActionValidationResult(false, TEXT("Cannot cast spells (Silenced)"));
-		}
+		// Silenced no longer blocks spells: it seals part of the EP, checked with the energy cost below (D-038).
 	}
 
 	// Check targets
@@ -219,10 +215,10 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 	// Calculate energy cost
 	int32 EnergyCost = CalculateActionEnergyCost(Actor, Action);
 
-	// Energy check — CurrentEP is the unified spend pool for Broken Darkness
-	// (event-driven absorption) and non-BD (regenerating EP) characters alike.
+	// Energy check against spendable EP: CurrentEP (the unified spend pool for Broken Darkness and
+	// regenerating EP alike) minus what Silenced seals (D-038).
 	UCharacterDataComponent *CharComp = GetCharacterDataComponent(Actor);
-	if (CharComp && CharComp->CurrentEP < EnergyCost)
+	if (CharComp && GetSpendableEP(Actor) < EnergyCost)
 	{
 		return FActionValidationResult(false, TEXT("Not enough energy"), EnergyCost);
 	}
@@ -334,13 +330,21 @@ bool UActionExecutor::IsActionAllowedWhileStunned(const FAction &Action, const U
 		   !Action.IsAbilityInfused();
 }
 
+int32 UActionExecutor::GetSpendableEP(AActor *Actor) const
+{
+	if (USkillEffectManager *StatusManager = GetSkillEffectManager())
+	{
+		return StatusManager->GetSpendableEP(Actor);
+	}
+	const UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
+	return Comp ? Comp->CurrentEP : 0;
+}
+
+// OBSOLETE (B-148): Silenced seals EP instead of blocking spells (D-038), so nothing blocks a cast
+// here any more; true keeps any Blueprint still bound to it from greying spells out. Nothing in
+// C++ calls it; remove once PIE confirms no Blueprint binds it.
 bool UActionExecutor::CanActorCastSpells(AActor *Actor) const
 {
-	USkillEffectManager *StatusManager = GetSkillEffectManager();
-	if (StatusManager && StatusManager->IsSilenced(Actor))
-	{
-		return false;
-	}
 	return true;
 }
 
@@ -3306,9 +3310,9 @@ bool UActionExecutor::SpendEnergy(AActor *Actor, int32 Amount)
 	if (!Comp)
 		return false;
 
-	// CurrentEP is the unified spend pool — Broken Darkness (absorption) and
-	// non-BD (regenerating EP) characters alike.
-	if (Comp->CurrentEP < Amount)
+	// Pays from spendable EP: CurrentEP (Broken Darkness and regenerating EP alike) minus what
+	// Silenced seals (D-038).
+	if (GetSpendableEP(Actor) < Amount)
 		return false;
 
 	Comp->ServerSpendEnergy(Amount);

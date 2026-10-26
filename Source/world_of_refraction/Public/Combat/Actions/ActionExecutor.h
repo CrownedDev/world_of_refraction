@@ -163,9 +163,13 @@ public:
 	 *  rule is testable without a loadout. */
 	static bool IsActionAllowedWhileStunned(const FAction &Action, const USkillDataBase *CurrentAttack);
 
-	/** Check if actor can cast spells (not silenced) */
+	/** OBSOLETE (B-148): Silenced no longer blocks spells; it seals EP (D-038). Use GetSpendableEP. */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Validation")
 	bool CanActorCastSpells(AActor *Actor) const;
+
+	/** EP the actor can spend now (current EP minus what Silenced seals, D-038). */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Validation")
+	int32 GetSpendableEP(AActor *Actor) const;
 
 	// ========================================
 	// EXECUTION - MAIN ENTRY POINTS

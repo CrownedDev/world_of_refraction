@@ -2198,6 +2198,27 @@ bool USkillEffectManager::IsSilenced(AActor *Actor) const
 	return HasEffectOfType(Actor, ESkillEffectType::Silenced);
 }
 
+int32 USkillEffectManager::GetSealedEP(AActor *Actor) const
+{
+	const UCharacterDataComponent *Comp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (!Comp || !IsSilenced(Actor))
+	{
+		return 0;
+	}
+	return FMath::RoundToInt(Comp->MaxEP * CombatConstants::SILENCE_SEALED_EP_FRACTION);
+}
+
+int32 USkillEffectManager::GetSpendableEP(AActor *Actor) const
+{
+	const UCharacterDataComponent *Comp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (!Comp)
+	{
+		return 0;
+	}
+	// CurrentEP is the unified spend pool, Broken Darkness included, so the seal applies to it too.
+	return FMath::Max(0, Comp->CurrentEP - GetSealedEP(Actor));
+}
+
 bool USkillEffectManager::HasActiveDOT(AActor *Actor) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
@@ -2290,6 +2311,7 @@ void USkillEffectManager::DebugPrintEffects(AActor *Actor) const
 		FiredOnceUses += (Key.Holder == TObjectKey<AActor>(Actor)) ? 1 : 0;
 	}
 	UE_LOG(LogWoREffects, Display, TEXT("  Once-per-match uses spent on %s: %d"), *Actor->GetName(), FiredOnceUses);
+	UE_LOG(LogWoREffects, Display, TEXT("  EP sealed by Silenced: %d, spendable: %d"), GetSealedEP(Actor), GetSpendableEP(Actor));
 }
 
 void USkillEffectManager::DebugPrintAllEffects() const
