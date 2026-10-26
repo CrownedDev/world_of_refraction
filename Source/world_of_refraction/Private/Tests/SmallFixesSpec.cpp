@@ -56,22 +56,33 @@ void FSmallFixesSpec::Define()
 		USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
 		if (!TestNotNull(TEXT("ActionExecutor"), Executor) || !TestNotNull(TEXT("SkillEffectManager"), Effects)) return;
 		AActor *Attacker = Spawn();
+		AActor *SingleTarget = Spawn();
 		AActor *Target = Spawn();
-		Effects->ApplyEffect(Attacker, FActiveSkillEffect::CreateBuff(TEXT("Double hit test"), SMALL_FIXES_DOUBLE_HIT_ID,
-			ESkillEffectType::DoubleHit, 0.0f, SMALL_FIXES_DURATION_TURNS));
 
 		FActionHitInput Hit;
 		Hit.Attacker = Attacker;
-		Hit.Target = Target;
 		Hit.ActionType = EActionType::Ability;
 		Hit.BaseDamage = SMALL_FIXES_BASE_DAMAGE;
 		Hit.bCanCrit = false;
 
+		// One plain hit first, as the yardstick.
+		Hit.Target = SingleTarget;
+		UCharacterDataComponent *SingleComp = SingleTarget->FindComponentByClass<UCharacterDataComponent>();
+		const int32 SingleHPBefore = SingleComp->CurrentHP;
+		Executor->ApplyHit(Hit);
+		const int32 SingleHitHPLost = SingleHPBefore - SingleComp->CurrentHP;
+
+		Effects->ApplyEffect(Attacker, FActiveSkillEffect::CreateBuff(TEXT("Double hit test"), SMALL_FIXES_DOUBLE_HIT_ID,
+			ESkillEffectType::DoubleHit, 0.0f, SMALL_FIXES_DURATION_TURNS));
+		TestTrue(TEXT("Attacker has DoubleHit"), Effects->HasEffectOfType(Attacker, ESkillEffectType::DoubleHit));
+
+		Hit.Target = Target;
 		UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
 		const int32 HPBefore = TargetComp->CurrentHP;
 		const FCombatHitResult Result = Executor->ApplyHit(Hit);
 		const int32 HPLost = HPBefore - TargetComp->CurrentHP;
 		TestTrue(TEXT("Target survived both hits"), TargetComp->CurrentHP > 0);
+		TestTrue(TEXT("The second hit landed (more HP lost than one hit)"), HPLost > SingleHitHPLost);
 		TestEqual(TEXT("Damage dealt is all the HP lost (both hits)"), Result.DamageDealt, HPLost);
 	});
 
@@ -84,6 +95,8 @@ void FSmallFixesSpec::Define()
 		AActor *Doomed = Spawn();
 		TurnManager->InitializeCombat({Local}, {Survivor, Doomed});
 		Doomed->Destroy();
+		// Collect it so the TurnManager's reflected references to it are nulled (the crash path).
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 		TestWorld->Tick(1);
 
 		for (int32 Turn = 0; Turn < SMALL_FIXES_TURNS_TO_ADVANCE; ++Turn)

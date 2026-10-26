@@ -3105,8 +3105,10 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 					SecondHit.bIsDoubleHit = true;
 					UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] DoubleHit on %s — second hit %d dmg"),
 						   *Input.Attacker->GetName(), SecondHit.BaseDamage);
-					// B-067: the second hit counts toward this hit's total (was dropped from DamageDealt).
-					Result.DamageDealt += ApplyHit(SecondHit).DamageDealt;
+					// B-067: the second hit counts toward this hit's total and its kill (were dropped).
+					const FCombatHitResult SecondResult = ApplyHit(SecondHit);
+					Result.DamageDealt += SecondResult.DamageDealt;
+					Result.bTargetDied |= SecondResult.bTargetDied;
 				}
 			}
 		}
@@ -5345,6 +5347,10 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 				if (bWaitingForAnimationEnd && WeakActor.IsValid())
 				{
 					PlaySkillStep(WeakActor.Get(), ChainSkill);
+				}
+				else if (bWaitingForAnimationEnd)
+				{
+					FinishMontageChain(nullptr); // B-067: actor destroyed between legs
 				} }));
 		return;
 	}
@@ -5369,6 +5375,10 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 				if (bWaitingForAnimationEnd && WeakActor.IsValid())
 				{
 					PlayReturnStep(WeakActor.Get(), ChainSkill);
+				}
+				else if (bWaitingForAnimationEnd)
+				{
+					FinishMontageChain(nullptr); // B-067: actor destroyed between legs
 				} }));
 		return;
 	}
@@ -5685,7 +5695,8 @@ void UActionExecutor::FinishMontageChain(AActor *Actor)
 	const UCharacterDataComponent *FacingComp = Actor ? GetCharacterDataComponent(Actor) : nullptr;
 	if (Actor && (!FacingComp || FacingComp->bIsAlive))
 	{
-		UCombatGridSubsystem *Grid = GetWorld()->GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
+		const UGameInstance *GI = GetWorld()->GetGameInstance();
+		UCombatGridSubsystem *Grid = GI ? GI->GetSubsystem<UCombatGridSubsystem>() : nullptr;
 		if (Grid)
 		{
 			Grid->UpdateActorFacing(Actor, CachedArenaCenter);
