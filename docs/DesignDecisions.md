@@ -1327,21 +1327,22 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** _pending_
 **Notes for Claude:** _optional_
 
-### D-097 — Storage (unlimited) vs inventory (what you carry on a run)
-**Status:** ANSWERED (details open) · **Raised:** 2026-10-26 (from Q-177) · **Blocks:** — (Q-177)
-**Answer (Crown):** (2026-10-26)
-- **Storage:** an **unlimited** store for everything you own, outside runs.
-- **Inventory:** what you can **carry on a run**, with a limit; the starting limit is **10**, raisable (perks, upgrades, etc.).
-- So a merge done outside a run never loses its change: it goes to storage.
-- **Monster Hunter model (Crown, 2026-10-26):** storage = the Item Box (unlimited); inventory = the Item Pouch: **10 slots to start, one item type per slot, stacked** to that item's max; **equipped gear doesn't use slots**; essences/materials found in a run go to the run tally (D-006/D-094), not slots.
-- **Found items (B, with a default):** a found item **goes into the inventory if there's room; if it's full, it goes to storage** instead. The player can move items between inventory and storage (at rest spots during a run, D-032 part 7). Nothing is thrown away.
+### D-097 — Storage (items), inventory (items you carry) and the pool (gear)
+**Status:** ANSWERED (corrected 2026-10-26; details open) · **Raised:** 2026-10-26 (from Q-177) · **Blocks:** —
+**Answer (Crown), Monster Hunter model (2026-10-26):**
+| | Holds | Limit |
+|---|---|---|
+| **Storage** (MH Item Box) | **items**: crystals, stones, consumables | unlimited |
+| **Inventory** (MH Item Pouch, carried on a run) | the items you take along | **10 slots** to start, raisable; one item type per slot, stacked to the item's max |
+| **Pool** (MH Equipment Box, D-020) | **gear**: weapons, rings, evolutions, with upgrade levels | unlimited |
+- **Equipped gear never takes inventory slots.** Essences/materials found in a run go to the run tally (D-006/D-094), not slots.
+- **Found items** go **into the inventory if there's room, otherwise to storage**; the player can move items between them (at rest spots during a run). Nothing is thrown away.
+- **Found gear** goes to the **run's gear list** (equip at rest spots), never to inventory slots.
+- A merge's change goes to the inventory or, if full, to storage, so a merge is never refused for space (Q-177).
 **Notes for Claude, open details to confirm with Crown:**
-- During a run, gear and crystals found in the run are still **run-only** (D-002, lost at run end). So "storage" during a run means a **run stash** that empties at run end, unless Crown says found items should be kept. Confirm when building.
-- **Unified (Crown, 2026-10-26):** **one inventory for all items** (gear, crystals, stones, consumables), with **one limit** (starting 10), not separate limits per kind or tier. Storage is unified too. Open: whether a stack of the same crystal/stone (up to 3, today's rule) takes one slot (proposed).
-- In a run with a full inventory: what happens to a find, a merge's change, a vendor purchase (refuse, leave it behind, or send it to storage)?
-- How the limit grows (account perks like D-021's slot growth?).
-- Relation to the shared pool (D-020): storage is the account-wide pool; the run inventory is what's taken into the run (purchase loadout, D-021/D-048).
-- Today: 20 crystals per tier shared by gem types, 20 for stones (Q-177 context).
+- Found gear and items are **run-only** (D-002, lost at run end) unless Crown says otherwise; during a run, "storage" for found items is then a run stash that empties at run end. Confirm when building.
+- How the inventory limit grows (account perks, like D-021's slot growth?).
+- Today: 20 crystals per tier shared by gem types, 20 for stones (Q-177 context); these caps go away for storage.
 
 ## Parked
 
