@@ -131,18 +131,19 @@ void FRowMoveSpec::Define()
 			TestTrue(TEXT("now at the back"), RowOf(Hero) == ECombatRow::Back);
 		});
 
-		It("swaps with an ally standing in that cell", [this]()
+		It("is refused into an ally's cell: no swapping in battle (Q-180)", [this]()
 		{
 			if (!StartFight())
 			{
 				return;
 			}
 			Place(Ally, ECombatRow::Front, PositionOf(Hero).Column);
+			const ECombatRow HeroRow = RowOf(Hero);
+			TestFalse(TEXT("refused before trying"), Orchestrator->GetRowMoveRefusedReason(Hero, ROW_MOVE_FORWARD).IsEmpty());
 			FText Reason;
-			TestTrue(TEXT("stepped forward"), Orchestrator->TryMoveRow(Hero, ROW_MOVE_FORWARD, Reason));
-			TestTrue(TEXT("hero in front"), RowOf(Hero) == ECombatRow::Front);
-			TestTrue(TEXT("ally moved to the middle"), RowOf(Ally) == ECombatRow::Middle);
-			TestEqual(TEXT("same column"), PositionOf(Ally).Column, PositionOf(Hero).Column);
+			TestFalse(TEXT("not moved"), Orchestrator->TryMoveRow(Hero, ROW_MOVE_FORWARD, Reason));
+			TestTrue(TEXT("hero stays"), RowOf(Hero) == HeroRow);
+			TestTrue(TEXT("ally stays in front"), RowOf(Ally) == ECombatRow::Front);
 		});
 
 		It("comes back on your next turn", [this]()
