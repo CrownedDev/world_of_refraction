@@ -3,6 +3,8 @@
 **Status:** decided by Crown, 2026-10-26 (`DesignDecisions.md` D-069), on top of the existing enemy design in `Resources_Design.md` §7.9, `AIArchitecture.md` and `EncounterCompositionSystem.md`.
 Companion to `RunStructure.md`. Values marked *tune* are placeholders: named constants with `// TODO: tune` in code.
 
+> **Naming (Crown, 2026-10-26):** "lord" / "Elemental Lord" in this doc is a **placeholder**. The playable characters are **not lords**; each will have a **real character name and lore**. Read "lord" as "the character tied to that element". (V is the one true Void Lord: `DesignDecisions.md` D-079.)
+
 ## 1. What you fight
 
 | Kind | Who | Role |

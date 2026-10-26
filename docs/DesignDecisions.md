@@ -926,7 +926,8 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **(2) The premise:** the hub is **the Void Realm**. The characters went to a **bar**, passed out after drinking **void-spiked drinks**, and woke up in the Void Realm **with no memories**. **V is their guide.**
 - **(3) Who V is** (Crown, 2026-10-26): **V is the Void**: the Void Realm itself, or the **Elemental Lord of Void**. **Void represents any and all concepts**, which is why V can appear as every mob enemy (D-069): the enemies are V taking on concepts.
   - **Hidden from players** (Crown, 2026-10-26): players are **not told** any of this. They have to **figure it out** from lore, dialogue and clues. Treat V's nature as a spoiler: nothing player-facing states it outright.
-**Notes for Claude:** open: whether the Void Lord who travels with the party (one of the amnesiac lords; `DA_Character` Void lord, D-032 lore) is V or a separate character. Record further answers here; write `docs/Design/HubAndStory.md` when complete.
+- **(4) Names** (Crown, 2026-10-26): the playable characters are **not actually lords**: "Elemental Lord" was a working label. Each will have a **real character name and lore** (to come). So there's no second "Void Lord" in the party; V is the Void. Read "lord" in D-032, D-033, D-069, `RunStructure.md` and `Enemies.md` as "the character tied to that element".
+**Notes for Claude:** the data assets keep their names for now (`DA_Character_FireLord` etc., D-058: existing names stay); rename when the real names exist. Player-facing text never says "Lord" for them. Record further answers here; write `docs/Design/HubAndStory.md` when complete.
 
 ## Parked
 
