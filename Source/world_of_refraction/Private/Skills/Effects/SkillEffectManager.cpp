@@ -13,6 +13,7 @@
 #include "Infusion/InfusionConstants.h"
 #include "Character/CharacterDataComponent.h"
 #include "Skills/Effects/SkillEffectDisplayNames.h"
+#include "Skills/Effects/StatModifierTable.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -2000,6 +2001,23 @@ float USkillEffectManager::GetTotalStatModifierForElement(AActor *Actor, ESkillE
 	}
 
 	return Total;
+}
+
+float USkillEffectManager::GetNetStatModifier(AActor *Actor, ESubStat Stat) const
+{
+	const FStatModifierRow Row = StatModifierTable::Find(Stat);
+	auto Sum = [this, Actor, &Row](ESkillEffectType Type) -> float
+	{
+		if (Type == ESkillEffectType::None)
+		{
+			return 0.0f;
+		}
+		return Row.bGenericElementOnly ? GetTotalStatModifierForElement(Actor, Type, ESpellElement::None)
+									   : GetTotalStatModifier(Actor, Type);
+	};
+	const float Buff = Row.bBuffNeverNegative ? FMath::Max(0.0f, Sum(Row.Buff)) : Sum(Row.Buff);
+	// Modify first, then buff, then debuff: the same order the hand-written reads summed in.
+	return Sum(Row.Modify) + Buff - Sum(Row.Debuff);
 }
 
 int32 USkillEffectManager::GetEffectCount(AActor *Actor) const
