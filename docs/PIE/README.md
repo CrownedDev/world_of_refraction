@@ -44,6 +44,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-161](B-161.md) | `feature/B-161-editor-discount-authored-stats` (in `dev`) | Editor loadout check uses the character's authored spell discount | Not tested |
 | [B-163](B-163.md) | `feature/B-163-broken-sources` (in `dev`) | Broken-source spells greyed with the reason; broken ring keeps F-tier | Not tested |
 | [B-166](B-166.md) | `fix/B-166-headless-skill-start` (in `dev`) | A montage-less skill no longer crashes the async start; ritual spec covers one | Not tested |
+| [B-174](B-174.md) | `fix/B-174-support-no-buildup` (in `dev`) | Heals, buffs and support skills build no status | Not tested |
 
 Move rows to **Done** when every check passes.
 
