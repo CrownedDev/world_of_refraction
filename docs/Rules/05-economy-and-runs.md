@@ -89,7 +89,7 @@ This page covers the currencies, what a fight and a run pay out, what carries ov
 |---|---|---|---|
 | ER-43 | An encounter is an enemy in the trial. Touching it opens a 2-second join window (`JoinWindowSeconds`); then the fight starts with the party's **living** members against that one enemy. If the whole party is dead, the encounter doesn't start. | In game | `Combat/Encounter/EncounterComponent.h:50-52`; `Combat/Encounter/EncounterComponent.cpp:212-260` |
 | ER-44 | Each encounter sets its own AI difficulty: Easy, Medium (default), Hard or Expert. | In game | `Combat/Encounter/EncounterComponent.h:72-74`; `AI/EAIDifficulty.h` |
-| ER-45 | Several enemies in one encounter, authored from data. | Code only (planned, B-074) | `docs/Backlog.md` B-074 |
+| ER-45 | Several enemies in one encounter, authored from data: a team of up to three (`UEncounterData`); an encounter with no team fights its own pawn alone. | In game | `B-074`, `Q-074`; `Combat/Encounter/EncounterData.h`; `Combat/Encounter/EncounterComponent.cpp` (`OnJoinWindowExpired`) |
 
 ## Open questions
 - Answered 2026-10-26: D-046 (one wallet per player, B-151), D-047 (every service in both places; `Hubs.md` updated).
