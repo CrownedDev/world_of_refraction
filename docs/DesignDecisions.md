@@ -468,7 +468,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** the lords exist as data already (`DA_Character_FireLord` plus 6 more, commit `bdf2557`; Fire, Water, Darkness, Broken Darkness, Earth, Wind, Light, Lightning, Void, Reality). Data shape to propose when building (not ruled): a memory-fragment data asset with its trial, per-lord entries (which lord, optional item it reacts to, lore text/dialogue, depth), and an authored boss effect per entry (weaken / strengthen / none, size). Record further answers here; when complete, write `docs/Design/RunStructure.md` and point `Resources_Design.md` §7.1 at it.
 
 ### D-033 — Bound gear and skills
-**Status:** OPEN · **Raised:** 2026-10-26 · **Blocks:** — (lord quests, trial loot, D-032)
+**Status:** ANSWERED · **Raised:** 2026-10-26 · **Blocks:** — (lord quests, trial loot, D-032)
 **Question:** Crown wants bound gear/skills so items can belong to a lord (e.g. the Fire Lord's weapon). How do they work?
 **Context:**
 - This game has nothing like it yet.
@@ -478,7 +478,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - B: only its own lord can equip it.
 - C: anyone can, but it's weaker in other hands.
 **Recommendation:** A, the deckbuilder's Bonded model: nothing is locked away, and the bound bonus makes the right pairing feel special. A lord's trial version uses its bound kit as its **signature** gear (what it always brings).
-**Answer (Crown):** _write here_
+**Answer (Crown):** **A** (2026-10-26): anyone can equip a bound item; only its own lord gets the **bound bonus**, the reactions and the quests. **The bound bonus is hidden**: the item's description doesn't show it.
+**Notes for Claude:**
+- Data: a bound item names its lord (one field on the item asset) and carries a bound-bonus effect list, applied only when the wearer is that lord (same gear-effect path as D-008).
+- Hidden: the description generator (D-031/B-045) skips bound-bonus rows. Whether it's revealed once discovered (e.g. after the lord first wears it, or via a memory) is not ruled; ask when building.
+- A lord's mirror version in its trial carries its bound kit as its signature gear (deckbuilder "Signature").
 
 ---
 
