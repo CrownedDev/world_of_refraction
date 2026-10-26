@@ -1053,7 +1053,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Fold into B-168 (Guard).
 
 ### D-088 — Action pips from Reflex; no Turn Speed (fixed turn order)
-**Status:** ANSWERED (details open, see notes) · **Raised:** 2026-10-26 (rules review, actions per turn) · **Blocks:** — (turn-system plan, B-170)
+**Status:** DISCUSSED, NOT TO BUILD YET (Crown, 2026-10-26: a discussion for now; don't implement until Crown says) · **Raised:** 2026-10-26 (rules review, actions per turn) · **Blocks:** — (turn-system plan, B-170)
 **Answer (Crown):** (2026-10-26)
 - **Action pips:** each turn you get **action pips** set by your **Reflex** stat; each action (attack, skill, item, …) costs a pip, so a high-Reflex character can act **more than once per turn**.
 - **No Turn Speed:** turn order becomes **fixed (round-robin)**, as the deckbuilder's turn belt. A faster-paced game; Reflex is what makes a character "fast".
@@ -1073,7 +1073,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Effect durations already count the holder's own turns (D-051), unchanged.
 
 ### D-089 — Should Energy refill each turn?
-**Status:** ANSWERED · **Raised:** 2026-10-26 (rules review) · **Blocks:** —
+**Status:** DISCUSSED, NOT TO BUILD YET (Crown, 2026-10-26: a discussion for now; don't implement until Crown says) · **Raised:** 2026-10-26 (rules review) · **Blocks:** —
 **Question:** EP never refills on its own today (ET-29: only effects, items, drains and Broken Darkness absorption). Should it?
 **Context:** Max Energy (Spirit) is the pool size; Efficiency (Mind) lowers costs. Deckbuilder: +1 Energy per turn, banked, no cap. Expedition 33: AP +1 per turn plus more from basic attacks and parries. With action pips (D-088), a basic attack that returns Energy becomes a use for spare pips.
 **Options:** A no refill (current) / B a share of Max Energy each turn (e.g. 10%; Max Energy then also sets refill) / C Expedition 33 style: a small refill each turn **plus** Energy from basic attacks and Perfect Guards.
