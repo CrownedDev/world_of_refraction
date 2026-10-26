@@ -1785,7 +1785,8 @@ bool UAIDecisionManager::HasDangerousDebuff(AActor *Actor)
     {
         switch (Effect.EffectType)
         {
-        case ESkillEffectType::SkipTurn: // Stun
+        case ESkillEffectType::SkipTurn: // Wind bar cap
+        case ESkillEffectType::Stun:     // Lightning bar cap (Attack/Defend only)
             return true;
         case ESkillEffectType::DOT:
             // Check if DOT will kill us
@@ -1951,7 +1952,9 @@ USpellData *UAIDecisionManager::FindCleanseSpell(ULoadoutComponent *Loadout)
         {
             for (const FSkillEffectPayload &P : Effect.Payloads)
             {
-                if (P.EffectType == ESkillEffectType::Cleanse)
+                // Only CleanseSelf clears the caster: CleanseAllies skips it, and the
+                // legacy Cleanse type has no handler.
+                if (P.EffectType == ESkillEffectType::CleanseSelf)
                 {
                     return Spell;
                 }
@@ -2012,8 +2015,8 @@ bool UAIDecisionManager::WouldTriggerStatusBar(AActor *Attacker, AActor *Target,
 
 bool UAIDecisionManager::IsValuableStatus(ESkillEffectType StatusType, AActor *Target) const
 {
-    // Skip turn statuses are always valuable
-    if (StatusType == ESkillEffectType::SkipTurn)
+    // Turn-denying statuses are always valuable
+    if (StatusType == ESkillEffectType::SkipTurn || StatusType == ESkillEffectType::Stun)
     {
         return true;
     }
