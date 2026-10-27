@@ -226,9 +226,9 @@ void UWoRAttributeSyncComponent::SyncAttributes()
 	}
 }
 
-void UWoRAttributeSyncComponent::SyncResistanceSources(UAbilitySystemComponent &ASC)
+TArray<TPair<TSubclassOf<UGameplayEffect>, TMap<FGameplayTag, float>>> UWoRAttributeSyncComponent::GetResistanceSourceMagnitudes(
+	AActor *Owner)
 {
-	AActor *Owner = GetOwner();
 	TMap<FGameplayTag, float> Effect;
 	TMap<FGameplayTag, float> Class;
 	TMap<FGameplayTag, float> Gear;
@@ -245,10 +245,20 @@ void UWoRAttributeSyncComponent::SyncResistanceSources(UAbilitySystemComponent &
 	Effect.Add(WoRTags::SetByCaller_Magnitude, Bonus.Effect);
 	Boss.Add(WoRTags::SetByCaller_Magnitude, Bonus.Boss);
 
-	SyncResistanceSource(ASC, UWoRGE_ResistanceSources_Effect::StaticClass(), Effect);
-	SyncResistanceSource(ASC, UWoRGE_ResistanceSources_Class::StaticClass(), Class);
-	SyncResistanceSource(ASC, UWoRGE_ResistanceSources_Gear::StaticClass(), Gear);
-	SyncResistanceSource(ASC, UWoRGE_ResistanceSources_Boss::StaticClass(), Boss);
+	return {
+		MakeTuple(TSubclassOf<UGameplayEffect>(UWoRGE_ResistanceSources_Effect::StaticClass()), MoveTemp(Effect)),
+		MakeTuple(TSubclassOf<UGameplayEffect>(UWoRGE_ResistanceSources_Class::StaticClass()), MoveTemp(Class)),
+		MakeTuple(TSubclassOf<UGameplayEffect>(UWoRGE_ResistanceSources_Gear::StaticClass()), MoveTemp(Gear)),
+		MakeTuple(TSubclassOf<UGameplayEffect>(UWoRGE_ResistanceSources_Boss::StaticClass()), MoveTemp(Boss)),
+	};
+}
+
+void UWoRAttributeSyncComponent::SyncResistanceSources(UAbilitySystemComponent &ASC)
+{
+	for (const TPair<TSubclassOf<UGameplayEffect>, TMap<FGameplayTag, float>> &Source : GetResistanceSourceMagnitudes(GetOwner()))
+	{
+		SyncResistanceSource(ASC, Source.Key, Source.Value);
+	}
 }
 
 void UWoRAttributeSyncComponent::SyncResistanceSource(UAbilitySystemComponent &ASC, TSubclassOf<UGameplayEffect> SourceClass,

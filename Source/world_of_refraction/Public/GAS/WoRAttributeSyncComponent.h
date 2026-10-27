@@ -72,6 +72,9 @@ class WORLD_OF_REFRACTION_API UWoRAttributeSyncComponent : public UActorComponen
 	GENERATED_BODY()
 
 public:
+	/** Each resistance source effect with the magnitudes it should carry for Owner, by SetByCaller tag (B-042w). */
+	static TArray<TPair<TSubclassOf<UGameplayEffect>, TMap<FGameplayTag, float>>> GetResistanceSourceMagnitudes(AActor *Owner);
+
 	UWoRAttributeSyncComponent();
 
 	/** Push every source value into the owner's ability system component. */

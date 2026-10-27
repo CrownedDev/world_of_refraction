@@ -101,11 +101,58 @@ FString UWoRAttributeDebug::GetAttributeMismatchString(AActor *Actor)
 	return FString::Join(Mismatches, TEXT("\n"));
 }
 
+void UWoRAttributeDebug::AddResistanceSourceMismatches(const AActor *Actor, const UAbilitySystemComponent &ASC,
+														const FGameplayAttribute &Attribute, TArray<FString> &Mismatches)
+{
+	const float Base = ASC.GetNumericAttributeBase(Attribute);
+	if (!FMath::IsNearlyZero(Base, ATTRIBUTE_DEBUG_TOLERANCE))
+	{
+		Mismatches.Add(FString::Printf(TEXT("%s: base %.5f, expected 0 (the resistance sources add it all)"), *Attribute.GetName(), Base));
+	}
+	// Once per combatant: each source effect applied once, carrying its own bucket per tag.
+	if (Attribute != UWoRAttributeSet_Resistance::GetStatusResistBonusAttribute())
+	{
+		return;
+	}
+	for (const TPair<TSubclassOf<UGameplayEffect>, TMap<FGameplayTag, float>> &Source :
+		 UWoRAttributeSyncComponent::GetResistanceSourceMagnitudes(const_cast<AActor *>(Actor)))
+	{
+		FGameplayEffectQuery Query;
+		Query.EffectDefinition = Source.Key;
+		const TArray<FActiveGameplayEffectHandle> Handles = ASC.GetActiveEffects(Query);
+		if (Handles.Num() != 1)
+		{
+			Mismatches.Add(FString::Printf(TEXT("%s: %d effects, expected 1"), *Source.Key->GetName(), Handles.Num()));
+			continue;
+		}
+		const FActiveGameplayEffect *Active = ASC.GetActiveGameplayEffect(Handles[0]);
+		for (const TPair<FGameplayTag, float> &Expected : Source.Value)
+		{
+			const float Carried = Active ? Active->Spec.GetSetByCallerMagnitude(Expected.Key, false) : 0.0f;
+			if (!FMath::IsNearlyEqual(Carried, Expected.Value, ATTRIBUTE_DEBUG_TOLERANCE))
+			{
+				Mismatches.Add(FString::Printf(TEXT("%s %s: carries %.5f, source %.5f"), *Source.Key->GetName(),
+											   *Expected.Key.ToString(), Carried, Expected.Value));
+			}
+		}
+	}
+}
+
 void UWoRAttributeDebug::AddComposedMismatches(const AActor *Actor, const UAbilitySystemComponent &ASC,
 											   const FGameplayAttribute &Attribute, TArray<FString> &Mismatches)
 {
+	if (!Actor->FindComponentByClass<UWoRAttributeSyncComponent>())
+	{
+		return;
+	}
+	// The resistance sources are synced with or without CharacterData.
+	if (UWoRGE_ResistanceSources::CoversAttribute(Attribute))
+	{
+		AddResistanceSourceMismatches(Actor, ASC, Attribute, Mismatches);
+		return;
+	}
 	const UCharacterDataComponent *Char = Actor->FindComponentByClass<UCharacterDataComponent>();
-	if (!Char || !Actor->FindComponentByClass<UWoRAttributeSyncComponent>())
+	if (!Char)
 	{
 		return;
 	}
@@ -117,29 +164,6 @@ void UWoRAttributeDebug::AddComposedMismatches(const AActor *Actor, const UAbili
 		if (Derived != 1)
 		{
 			Mismatches.Add(FString::Printf(TEXT("%s: %d derived-stat effects, expected 1"), *Attribute.GetName(), Derived));
-		}
-		return;
-	}
-	if (UWoRGE_ResistanceSources::CoversAttribute(Attribute))
-	{
-		const float Base = ASC.GetNumericAttributeBase(Attribute);
-		if (!FMath::IsNearlyZero(Base, ATTRIBUTE_DEBUG_TOLERANCE))
-		{
-			Mismatches.Add(FString::Printf(TEXT("%s: base %.5f, expected 0 (the resistance sources add it all)"), *Attribute.GetName(), Base));
-		}
-		// Once per combatant: the four source effects, one each.
-		if (Attribute == UWoRAttributeSet_Resistance::GetStatusResistBonusAttribute())
-		{
-			for (const TSubclassOf<UGameplayEffect> &SourceClass : UWoRGE_ResistanceSources::GetSourceClasses())
-			{
-				FGameplayEffectQuery Query;
-				Query.EffectDefinition = SourceClass;
-				const int32 Sources = ASC.GetActiveEffects(Query).Num();
-				if (Sources != 1)
-				{
-					Mismatches.Add(FString::Printf(TEXT("%s: %d effects, expected 1"), *SourceClass->GetName(), Sources));
-				}
-			}
 		}
 		return;
 	}

@@ -5,6 +5,7 @@
 #include "Combat/Boss/BossPhaseComponent.h"
 #include "Combat/CombatConstants.h"
 #include "Character/CharacterDataComponent.h"
+#include "Character/StatLayers.h"
 #include "Character/CharacterData.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Equipment/FEquipmentStatBonus.h"
