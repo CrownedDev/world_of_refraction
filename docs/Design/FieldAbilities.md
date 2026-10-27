@@ -17,6 +17,7 @@
 - **Dropped:** field uses on battle skills, field-only slots. Choices 3 (movement types) and 7 (slots) below shrink to "which field skills exist".
 - **Enhanced Sprint:** faster than the normal sprint (Nightreign's surge sprint) and wall-runs.
 - **The source decides which field skill and whether it's available; its level decides how strong** (a Generic can't fly without an elemental source that gives flight).
+- **Range of movement:** dash, Enhanced Sprint, glide, flight, teleport…; **all locked except the normal dash** (everyone has it). **Double-click L3** activates (keyboard: double-tap sprint, to confirm).
 - **Locked field skills:** some need a specific skill equipped or learned first; once unlocked, anyone with the matching source can use it (lightning speed → any Lightning source).
 - **Open:** the source → field skill table, which are locked, dash-into-sprint meaning.
 
