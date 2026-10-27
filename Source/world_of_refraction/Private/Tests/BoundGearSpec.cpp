@@ -16,15 +16,6 @@ namespace
 {
 	constexpr int32 BOUND_TEST_BONUS_PERCENT = 10;
 
-	template <class TComponent>
-	TComponent *BoundGearAddComponent(AActor *Actor)
-	{
-		TComponent *Component = NewObject<TComponent>(Actor);
-		Actor->AddInstanceComponent(Component);
-		Component->RegisterComponent();
-		return Component;
-	}
-
 	UEffectDefinition *BoundGearBonus()
 	{
 		FSkillEffectPayload Payload;
@@ -49,14 +40,7 @@ BEGIN_DEFINE_SPEC(FBoundGearSpec, "WoR.Equipment.BoundGear",
 	ULoadoutComponent *SpawnWearing(UCharacterData *Data, UWeaponData *Weapon)
 	{
 		Data->CharacterClass = ECharacterClass::Generic;
-		AActor *Actor = TestWorld->SpawnCombatant(Data);
-		UInventoryComponent *Inventory = BoundGearAddComponent<UInventoryComponent>(Actor);
-		ULoadoutComponent *Loadout = BoundGearAddComponent<ULoadoutComponent>(Actor);
-		Loadout->InitializeFromCharacterData(Data, Inventory);
-		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
-		Active.PrimarySlotType = EPrimarySlotType::Weapon;
-		Active.PrimaryWeapon.WeaponEntry.Weapon = Weapon;
-		return Loadout;
+		return TestWorld->SpawnCombatantWithLoadout(Data, Weapon);
 	}
 END_DEFINE_SPEC(FBoundGearSpec)
 
