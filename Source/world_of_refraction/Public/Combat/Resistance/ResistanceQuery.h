@@ -10,9 +10,38 @@
 #include "Combat/Resistance/EWoRDamageType.h"
 
 class AActor;
+struct FWoRStatLayers;
 
 namespace WoRResistance
 {
+	/** One damage type's resistance by source (B-042w), so the getter and the GAS resistance sources add the
+	 *  same buckets: typed buffs minus debuffs (#4), the class table (#5), gear rolls (#6). */
+	struct FTypeResistanceSources
+	{
+		float Effect = 0.0f;
+		float Class = 0.0f;
+		float Gear = 0.0f;
+
+		float Sum() const { return Effect + Class + Gear; }
+	};
+
+	/** The blanket buildup resistance by source (B-042w): ModifyStatusResist (#7), boss rising resistance (#8). */
+	struct FStatusResistBonusSources
+	{
+		float Effect = 0.0f;
+		float Boss = 0.0f;
+
+		float Sum() const { return Effect + Boss; }
+	};
+
+	WORLD_OF_REFRACTION_API FTypeResistanceSources GetTypeResistanceSources(AActor *Target, EWoRDamageType DamageType);
+	WORLD_OF_REFRACTION_API FStatusResistBonusSources GetStatusResistBonusSources(AActor *Target);
+
+	/** GetGeneralStatusResistance's Pattern P layers (B-042w): base = the capped Spirit stat (#1), gear = the
+	 *  gear points (#2), stone = the attached stones (#3), clamped to [0, RESISTANCE_MAX]; Compose() is the
+	 *  getter. False without CharacterData (its 0). */
+	WORLD_OF_REFRACTION_API bool GetGeneralStatusResistanceLayers(AActor *Target, FWoRStatLayers &OutLayers);
+
 	/** Target's resistance to one damage type: typed resistance buffs minus debuffs (#4), the class
 	 *  table (#5) and gear rolls (#6). None is the non-elemental bucket: buffs and debuffs keyed to
 	 *  no element and no physical type (the class table and gear have no None column). Ice has no
