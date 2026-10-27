@@ -209,7 +209,8 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 	FWoRSaveData &Data = SaveGame->Data;
 	// A level that never builds a party keeps the saved one.
 	const UTrialRunSubsystem *TrialRun = GI->GetSubsystem<UTrialRunSubsystem>();
-	const bool bInRun = TrialRun && TrialRun->IsRunActive();
+	// A loaded run not yet resumed is still a run: its vitals and recruits stay with it.
+	const bool bInRun = (TrialRun && TrialRun->IsRunActive()) || PendingRun.bHasRun;
 	if (const UParty *Party = GI->GetSubsystem<UPartySessionSubsystem>()->GetLocalParty())
 	{
 		Data.Party = CaptureParty(Party, bInRun);

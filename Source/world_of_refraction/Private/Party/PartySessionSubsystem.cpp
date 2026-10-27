@@ -10,6 +10,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Party/Party.h"
+#include "Pool/PoolSubsystem.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 
@@ -78,7 +79,7 @@ namespace PartySessionDebug
 			return;
 		}
 		// The leader's pawn class carries the found character until trial maps place their own.
-		PartySession->InviteRunMember(Party->Members[0].PawnClass, Data);
+		PartySession->InviteRunMember(Party->Members[PartyConstants::LEADER_SLOT].PawnClass, Data);
 		PartySession->LogPartyState();
 	}
 
@@ -383,7 +384,9 @@ bool UPartySessionSubsystem::DismissMember(int32 SlotIndex)
 
 bool UPartySessionSubsystem::InviteRunMember(TSoftClassPtr<ACombatCharacter> PawnClass, UCharacterData *Data)
 {
-	if (!Data || !InviteMemberInternal(PawnClass, Data))
+	// A run-only member never leads: DismissRunMembers would take the leader with it.
+	const UParty *Party = GetLocalParty();
+	if (!Data || !Party || Party->Members.Num() == 0 || !InviteMemberInternal(PawnClass, Data))
 	{
 		return false;
 	}
@@ -399,6 +402,31 @@ bool UPartySessionSubsystem::InviteRunMember(TSoftClassPtr<ACombatCharacter> Paw
 int32 UPartySessionSubsystem::DismissRunMembers()
 {
 	UParty *Party = GetLocalParty();
+	if (UPoolSubsystem *Pool = Party ? GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr)
+	{
+		// What a leaver wore is free again, and its clash lines go with it.
+		for (const FPartyMember &Member : Party->Members)
+		{
+			if (!Member.bRunOnly)
+			{
+				continue;
+			}
+			const FName Key = UPoolSubsystem::GetCharacterKey(Member.CharacterData);
+			TArray<FGuid> Worn;
+			for (const TPair<FGuid, FName> &Pair : Pool->GetWearers())
+			{
+				if (Pair.Value == Key)
+				{
+					Worn.Add(Pair.Key);
+				}
+			}
+			for (const FGuid &GearID : Worn)
+			{
+				Pool->ReleaseWearer(GearID);
+			}
+			Pool->NoteClashes(Key, {});
+		}
+	}
 	const int32 Left = Party ? Party->Members.RemoveAll([](const FPartyMember &Member) { return Member.bRunOnly; }) : 0;
 	if (Left > 0)
 	{
@@ -738,8 +766,12 @@ FString UPartySessionSubsystem::GetPartyStateString() const
 				? FString::Printf(TEXT("%s/%d"), *CombatRowHelpers::GetRowName(Member.PreferredRow),
 								  Member.PreferredColumn)
 				: FString(TEXT("unplaced"));
-		const TCHAR *Control = Member.bRunOnly ? (Member.bPlayerControlled ? TEXT("Player, run only") : TEXT("AI, run only"))
-							   : Member.bPlayerControlled ? TEXT("Player") : TEXT("AI");
+		FString ControlLabel = Member.bPlayerControlled ? TEXT("Player") : TEXT("AI");
+		if (Member.bRunOnly)
+		{
+			ControlLabel += TEXT(", run only");
+		}
+		const TCHAR *Control = *ControlLabel;
 
 		if (!Member.HasCarriedVitals())
 		{

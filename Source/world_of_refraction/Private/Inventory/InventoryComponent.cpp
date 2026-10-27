@@ -1208,31 +1208,55 @@ namespace InventoryGearSync
 
 namespace InventoryGearSync
 {
-    /** B-076 (Q-076): a run-only member's one loadout, from the armoury pieces it was given. */
-    FCombatLoadout MakeRunPreset(const FPartyMember &Member, const TArray<FWeaponInventoryEntry> &Weapons,
-                                 const TArray<FRingInventoryEntry> &Rings)
+    const TCHAR *const RUN_PRESET_NAME = TEXT("Run gear");
+
+    /** B-076 (Q-076): a run-only member's one loadout. Its authored preset keeps its spells and items;
+     *  the gear slots hold only the armoury pieces it was given. A Resonator wears the ring in its ring
+     *  loadout; a Generic or Caster wears it as the primary only when given no weapon. */
+    FCombatLoadout MakeRunPreset(const FPartyMember &Member, ECharacterClass Class, const FCombatLoadout *Authored,
+                                 const TArray<FWeaponInventoryEntry> &Weapons, const TArray<FRingInventoryEntry> &Rings)
     {
         FCombatLoadout Preset;
-        Preset.LoadoutName = TEXT("Run gear");
-        if (const FWeaponInventoryEntry *Weapon = FindOwned(Weapons, Member.RunWeapon))
+        Preset.InitializeForClass(Class);
+        if (Authored)
+        {
+            Preset.InnateSpells = Authored->InnateSpells;
+            if (Authored->ItemSlots.Num() > 0)
+            {
+                Preset.ItemSlots = Authored->ItemSlots;
+            }
+            Preset.bAutoEquipItemsOnCombatStart = Authored->bAutoEquipItemsOnCombatStart;
+            Preset.bShowPrimary = Authored->bShowPrimary;
+        }
+        Preset.LoadoutName = RUN_PRESET_NAME;
+        const FWeaponInventoryEntry *Weapon = FindOwned(Weapons, Member.RunWeapon);
+        if (Weapon)
         {
             Preset.PrimarySlotType = EPrimarySlotType::Weapon;
             Preset.PrimaryWeapon.WeaponEntry = *Weapon;
         }
         if (const FRingInventoryEntry *Ring = FindOwned(Rings, Member.RunRing))
         {
-            Preset.RingLoadout.AddDefaulted_GetRef().RingEntry = *Ring;
-            Preset.ActiveRingIndex = 0;
+            if (Class == ECharacterClass::Resonator)
+            {
+                Preset.RingLoadout.AddDefaulted_GetRef().RingEntry = *Ring;
+                Preset.ActiveRingIndex = 0;
+            }
+            else if (!Weapon)
+            {
+                Preset.PrimarySlotType = EPrimarySlotType::Ring;
+                Preset.PrimaryRing.RingEntry = *Ring;
+            }
         }
         return Preset;
     }
 
-    const FPartyMember *FindLocalPartyMember(const UGameInstance *GI, const UCharacterData *Data)
+    const FPartyMember *FindLocalPartyMember(const UGameInstance *GI, UCharacterData *Data)
     {
         const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
         const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
-        return Party && Data ? Party->Members.FindByPredicate([Data](const FPartyMember &Member) { return Member.CharacterData == Data; })
-                             : nullptr;
+        const int32 Slot = Party && Data ? PartySession->GetMemberSlotByData(Data) : INDEX_NONE;
+        return Party && Party->Members.IsValidIndex(Slot) ? &Party->Members[Slot] : nullptr;
     }
 }
 
@@ -1296,7 +1320,8 @@ bool UInventoryComponent::DrawSharedGear()
     }
     if (bRunOnly)
     {
-        SavedLoadouts = {InventoryGearSync::MakeRunPreset(*RunMember, Weapons, Rings)};
+        const FCombatLoadout *Authored = SavedLoadouts.IsValidIndex(ActiveLoadoutIndex) ? &SavedLoadouts[ActiveLoadoutIndex] : nullptr;
+        SavedLoadouts = {InventoryGearSync::MakeRunPreset(*RunMember, CharComp->CharacterData->CharacterClass, Authored, Weapons, Rings)};
         ActiveLoadoutIndex = 0;
     }
 
