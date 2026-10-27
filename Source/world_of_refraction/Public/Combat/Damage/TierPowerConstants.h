@@ -22,9 +22,13 @@ namespace TierPowerScaling
 
     /** Power multiplier for a thing of its own Tier. F = x1.0; unknown/out-of-range
      *  tier returns 1.0 (no scaling) rather than inventing a factor. */
+    inline float CodeTierPower(int32 TierIndex)
+    {
+        return (TierIndex >= 0 && TierIndex < 7) ? TIER_POWER[TierIndex] : 1.0f;
+    }
+
     inline float GetTierPowerMultiplier(EItemTier Tier)
     {
-        const int32 i = TierHelpers::GetTierValue(Tier);
-        return (i >= 0 && i < 7) ? TIER_POWER[i] : 1.0f;
+        return CodeTierPower(TierHelpers::GetTierValue(Tier));
     }
 }

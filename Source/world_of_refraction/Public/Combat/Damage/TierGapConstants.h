@@ -31,10 +31,9 @@ namespace TierGapDamage
     /** Damage multiplier for an action of ActionTier used through a channel of
      *  ChannelTier. 1.0 at matched tier; callers with no resolvable channel
      *  should skip the call (no scaling) rather than invent a channel tier. */
-    inline float GetTierGapDamageMultiplier(EItemTier ActionTier, EItemTier ChannelTier)
+    inline float CodeTierGapDamage(int32 Gap)
     {
-        const int32 Gap = FMath::Clamp(
-            TierHelpers::GetTierGap(ChannelTier, ActionTier), -GAP_CLAMP, GAP_CLAMP);
+        Gap = FMath::Clamp(Gap, -GAP_CLAMP, GAP_CLAMP);
 
         if (Gap <= -4)
         {
@@ -66,6 +65,12 @@ namespace TierGapDamage
         }
     }
 
+    /** CodeTierGapDamage at the gap between the two tiers (B-218 routes it through tuning data). */
+    inline float GetTierGapDamageMultiplier(EItemTier ActionTier, EItemTier ChannelTier)
+    {
+        return CodeTierGapDamage(TierHelpers::GetTierGap(ChannelTier, ActionTier));
+    }
+
     // ===================== COST (reciprocal) =====================
     // Cost-side tier gap. RECIPROCAL of the damage ladder above: a channel that
     // out-tiers the action (negative gap) makes the action CHEAPER (< 1.0); an
@@ -85,10 +90,9 @@ namespace TierGapDamage
     /** Cost multiplier for an action of ActionTier used through a channel of
      *  ChannelTier. 1.0 at matched tier; callers with no resolvable channel
      *  should skip the call (no scaling) rather than invent a channel tier. */
-    inline float GetTierGapCostMultiplier(EItemTier ActionTier, EItemTier ChannelTier)
+    inline float CodeTierGapCost(int32 Gap)
     {
-        const int32 Gap = FMath::Clamp(
-            TierHelpers::GetTierGap(ChannelTier, ActionTier), -GAP_CLAMP, GAP_CLAMP);
+        Gap = FMath::Clamp(Gap, -GAP_CLAMP, GAP_CLAMP);
 
         if (Gap <= -4)
         {
@@ -120,6 +124,12 @@ namespace TierGapDamage
         }
     }
 
+    /** CodeTierGapCost at the gap between the two tiers. */
+    inline float GetTierGapCostMultiplier(EItemTier ActionTier, EItemTier ChannelTier)
+    {
+        return CodeTierGapCost(TierHelpers::GetTierGap(ChannelTier, ActionTier));
+    }
+
     // ===================== REQUIREMENT GAP (±5, raw int gap) =====================
     // Per-pillar requirement scaling: how far a character's world-pillar level sits
     // above/below a skill's required level for that pillar. Over-stat (negative gap)
@@ -133,7 +143,7 @@ namespace TierGapDamage
     /** Requirement-gap multiplier for a SINGLE pillar. Gap = RequiredLevel - CharLevel
      *  (positive = under-statted). Clamped to -5..+5; negative boosts, positive penalizes.
      *  Raw int gap, NOT tiers — distinct from the tier-gap helpers above. */
-    inline float GetRequirementGapMultiplier(int32 Gap)
+    inline float CodeRequirementGap(int32 Gap)
     {
         Gap = FMath::Clamp(Gap, -5, 5);
 
@@ -169,5 +179,10 @@ namespace TierGapDamage
         default:
             return MATCHED_TIER; // unreachable — gap fully covered above
         }
+    }
+
+    inline float GetRequirementGapMultiplier(int32 Gap)
+    {
+        return CodeRequirementGap(Gap);
     }
 }

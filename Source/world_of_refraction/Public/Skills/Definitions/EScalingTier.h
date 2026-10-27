@@ -28,7 +28,7 @@ enum class EScalingTier : uint8
 
 /** Linear scaling coefficient for a grade. PLACEHOLDER ladder (Crown tunes later): S 1.0 -> F 0.05.
  *  Used as: perPairBonus = base * GetScalingTierCoefficient(grade) * StatFraction(stat). */
-inline float GetScalingTierCoefficient(EScalingTier Tier)
+inline float CodeScalingTierCoefficient(EScalingTier Tier)
 {
     switch (Tier)
     {
@@ -41,6 +41,11 @@ inline float GetScalingTierCoefficient(EScalingTier Tier)
         case EScalingTier::F: return 0.05f;
         default:              return 0.0f;
     }
+}
+
+inline float GetScalingTierCoefficient(EScalingTier Tier)
+{
+    return CodeScalingTierCoefficient(Tier);
 }
 
 /** Debug/inspection string for a scaling grade. */
