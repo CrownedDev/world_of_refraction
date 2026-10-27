@@ -45,9 +45,13 @@ protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-    /** Defaults to IA_Interact. */
+    /** Leave empty to use DefaultInteractAction. */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> InteractAction;
+
+    /** IA_Interact, set in Config/DefaultGame.ini; loaded when InteractAction is empty. */
+    UPROPERTY(Config, EditDefaultsOnly, Category = "Input")
+    TSoftObjectPtr<UInputAction> DefaultInteractAction;
 
     /** Optional: added at ExplorationMappingPriority in BeginPlay. Leave null if the
      *  pawn/BP already adds the context that maps IA_Interact. */

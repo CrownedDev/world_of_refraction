@@ -14,14 +14,8 @@
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Pawn.h"
-#include "UObject/ConstructorHelpers.h"
 #include "InputActionValue.h"
-
-namespace ExplorationInput
-{
-    constexpr const TCHAR *InteractActionPath =
-        TEXT("/Game/Data/Characters/Models/CharacterBase/Input/OpenWorld/IA_Interact.IA_Interact");
-}
+#include "WoRLog.h"
 
 namespace ExplorationInteract
 {
@@ -83,11 +77,6 @@ namespace ExplorationInteract
 
 AExplorationPlayerController::AExplorationPlayerController()
 {
-    static ConstructorHelpers::FObjectFinder<UInputAction> InteractFinder(ExplorationInput::InteractActionPath);
-    if (InteractFinder.Succeeded())
-    {
-        InteractAction = InteractFinder.Object;
-    }
 }
 
 void AExplorationPlayerController::BeginPlay()
@@ -130,8 +119,14 @@ void AExplorationPlayerController::SetupInputComponent()
     }
     if (!InteractAction)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ExplorationPC] InteractAction not set (default %s missing?)"),
-               ExplorationInput::InteractActionPath);
+        InteractAction = DefaultInteractAction.LoadSynchronous();
+    }
+    if (!InteractAction)
+    {
+        UE_LOG(LogWoR, Error,
+               TEXT("[ExplorationPC] No interact action: set DefaultInteractAction in Config/DefaultGame.ini "
+                    "(now '%s') or InteractAction on the controller BP (B-205)"),
+               *DefaultInteractAction.ToString());
         return;
     }
     EnhancedInput->BindAction(InteractAction, ETriggerEvent::Started, this,
