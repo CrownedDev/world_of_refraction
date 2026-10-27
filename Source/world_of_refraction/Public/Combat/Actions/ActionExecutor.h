@@ -188,7 +188,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Infusion")
 	static float GetSpellInfusionSizeMultiplier(int32 InfusionLevel);
 
-	/** Spell infusion energy-cost multiplier — 1.0 / 1.3 / 1.6 for infusion L0 / L1 / L2. */
+	/** Spell infusion energy-cost multiplier — 1.0 / 1.5 / 2.0 for infusion L0 / L1 / L2 (WoR.Infusion.Cost). */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Infusion")
 	static float GetSpellInfusionCostMultiplier(int32 InfusionLevel);
 
@@ -784,7 +784,8 @@ public:
 	 *  Raw/WeaponCrystal → weapon, Innate → character data, ActiveRing/PrimaryRing → ring,
 	 *  Evolution → primary-slot evolution. Null-safe → Balanced. */
 	EInfusionMode ResolveInfusionMode(EInfusionSourceOption Source, AActor *Actor) const;
-	/** Get ability charge energy cost multiplier (L1 = 1.0, L2 = 1.5) */
+	/** Ability charge energy-cost multiplier (L1 = 1.5, L2 = 2.0); the infused ability's base cost
+	 *  already carries INFUSION_ENERGY_MULTIPLIER, so the total is x2.25 / x3.0 (D-035). */
 	float GetAbilityChargeCostMultiplier(int32 Level) const;
 
 	/** Infused energy-cost multiplier package: the charge multiplier (x1.5/x2.0 at
