@@ -23,7 +23,15 @@
 - **Movement types (Crown, 2026-10-27):** Dash (everyone), Enhanced Sprint (faster sprint + wall-run + **run on water**), Glide, Flight (hovers in place when stationary), Teleport, High / double jump, **Air dash** (hover in place, aim, then dash that way: air dash and hover merged), Super launch (blast up, then glide), Phase / shadow step (through thin walls or bars), Mark and recall (drop a marker, snap back), **Regroup** (teleport to a party member; co-op catch-up). **Removed:** grapple, wall climb, ride / mount, surface surf (Enhanced Sprint covers water); hover merged into air dash and flight. 11 types with Regroup. Each element does each type its own way.
 - **Element styles: A** (Crown, 2026-10-27): one shared mechanic per type; each element changes the look and sound, with a few **signature** differences where it matters (Lightning teleport = chain of short blinks, Void teleport = one long vanish, Earth flight = magnetic).
 - **Element styles also set strengths** (Crown, 2026-10-27): each element is better at some movement than others, e.g. **Lightning has the fastest sprint, Wind the second fastest**.
-- **Unlocks: pinned** (Crown, 2026-10-27): leaning toward unlocking movement types by **tiers of certain skills / elemental skills**; up for discussion.
+- **Unlocks (Crown, 2026-10-27): themed skills unlock movement types.**
+  - **Generic spells** (take the caster's element) stay **standardized**: the element only adds its flavour.
+  - **Elemental spells** sit beside them and lean on **each element's own traits** where possible.
+  - Where it fits the theme, a **skill (and its tier) is the requirement** for a movement type. The lore has three elemental enhancements:
+    - **Manipulation Aura** → e.g. **Wind Manipulation Aura grants Flight**.
+    - **Enhancement Aura** → **Enhanced Sprint**.
+    - **Elemental Aura** → maybe the **Dash** (it uses elemental bursts).
+  - **Generic's version** of these is something else (open).
+  - Open: what each other element's auras grant; which tiers unlock what.
 - **Element styles (Crown's ideas, filled in as they come):**
 
   | Element | Movement | Style |
