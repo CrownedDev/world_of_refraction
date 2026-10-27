@@ -1720,7 +1720,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** Data tables (one row struct per kind) instead of data assets.
 - **C** V says every unlocked line at once (a list) rather than one at a time.
 **Recommendation:** A. Expedition 33's camp conversations and Hades' between-run lines unlock from story progress and play one at a time (players praise how each return home has something new); Hades' Codex and Hollow Knight's Hunter's Journal keep everything to reread. One asset type gathered like reaction triggers (Q-191) keeps one authoring path (data tables need a row struct and an asset per table, for no gain yet). Not lore (the lines themselves are Crown's to write).
-**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it. **Pinned by Crown (2026-10-27): how often V says something new** (one per hub return, Hades, vs one per talk, as built) to revisit; as built until then.
 **Notes for Claude:** applied (feature/B-194-memory-journal): `UStoryLinesData`, `StoryUnlocks`, `UMemoryJournalSubsystem` (lore, heard lines, played conversations; saved with B-090), `UMemoryJournalWidget` (placeholder, D-024), `AHubJournalStation`. Known gaps: not saved (B-090); a story phase unlocking the next (HubAndStory §6) is not modelled; speakers aren't checked against the party; no "new" marker on the station.
 
 ### Q-193 — How are boss phases reached, and what do they change?
