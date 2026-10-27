@@ -167,12 +167,32 @@ void USaveSubsystem::BankWallet(const UCurrencyComponent *Wallet)
 	if (Wallet)
 	{
 		SaveGame->Data.Wallet = CaptureWallet(Wallet);
+		CarriedGold = Wallet->GetBalance(ECurrencyType::Gold);
 	}
 }
 
 void USaveSubsystem::ApplyWalletTo(UCurrencyComponent *Wallet) const
 {
 	ApplyWallet(SaveGame->Data.Wallet, Wallet);
+	const int32 MissingGold = Wallet ? CarriedGold - Wallet->GetBalance(ECurrencyType::Gold) : 0;
+	if (MissingGold > 0)
+	{
+		Wallet->Add(ECurrencyType::Gold, MissingGold);
+	}
+}
+
+void USaveSubsystem::ClearRunGold(UWorld *World)
+{
+	CarriedGold = 0;
+	// The live wallet too: its PlayerState banks it again at EndPlay, during the level change.
+	if (UCurrencyComponent *Wallet = FindLocalWallet(World))
+	{
+		const int32 Gold = Wallet->GetBalance(ECurrencyType::Gold);
+		if (Gold > 0)
+		{
+			Wallet->Spend(ECurrencyType::Gold, Gold);
+		}
+	}
 }
 
 const FWoRSaveData &USaveSubsystem::GetData() const

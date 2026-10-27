@@ -39,7 +39,7 @@ One save slot per local player (`WoR_Main`) keeps what lives between play sessio
 
 - **Inventory isn't kept yet.** Pawns still rebuild their gear from their authored `CharacterData->Inventory`, and nothing in play adds to the pool. The pool round-trips, but it is filled only by `wor.PopulatePool`. Gear that persists is B-085 (loadouts point at owned gear), B-091 (equip from the pool) and B-124 (save each entry whole: crystal, spells, rolls).
 - **No run save:** quitting mid-trial abandons the run, so carried HP/EP, crystal wear and absorption are not written (Q-090). Resuming a run is B-208.
-- Gold is never banked, so it still resets on a level change.
+- Gold is never banked. Since B-178 it rides `USaveSubsystem::CarriedGold` in memory across level changes, and `ClearRunGold` zeroes it when a run starts and ends.
 - One slot, shared by every PIE instance and the standalone game. No split screen.
 - The backlog row named the print command `wor.PrintSave`; it is `wor.Save.Print`, next to `wor.Save.Now` / `Delete`.
 
@@ -48,3 +48,4 @@ One save slot per local player (`WoR_Main`) keeps what lives between play sessio
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-27 | Created (B-090): `UWoRSaveGame`, `USaveSubsystem`, save points, wallet carry, Asset Manager types, `WoR.Save`. | feature/B-090-save-keystone |
+| 2026-10-27 | B-178: the run's Gold carries across OpenLevel (`CarriedGold`, not written to the slot); `ClearRunGold` at trial entry and hub return. Case added to `WoR.Save`. | feature/B-178-run-repair |

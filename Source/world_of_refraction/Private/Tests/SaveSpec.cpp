@@ -142,6 +142,34 @@ void FSaveSpec::Define()
 		TestEqual(TEXT("Gold"), Fresh->GetBalance(ECurrencyType::Gold), 0);
 	});
 
+	It("carries the run's Gold across a level change but clears it when a run starts or ends", [this]()
+	{
+		FWoRTestWorld World;
+		if (!TestTrue(TEXT("World"), World.Create()))
+		{
+			return;
+		}
+		USaveSubsystem *Save = World.GetSubsystem<USaveSubsystem>();
+		UCurrencyComponent *Wallet = FWoRTestWorld::AddComponent<UCurrencyComponent>(World.GetWorld()->SpawnActor<AActor>());
+		if (!TestNotNull(TEXT("Save subsystem"), Save))
+		{
+			return;
+		}
+		Wallet->Add(ECurrencyType::Gold, GOLD);
+		Save->BankWallet(Wallet);
+		UCurrencyComponent *NextLevel = FWoRTestWorld::AddComponent<UCurrencyComponent>(World.GetWorld()->SpawnActor<AActor>());
+		Save->ApplyWalletTo(NextLevel);
+		TestEqual(TEXT("Gold in the next level"), NextLevel->GetBalance(ECurrencyType::Gold), GOLD);
+		TestFalse(TEXT("Gold is not written to the slot"),
+				  Save->GetData().Wallet.Balances.ContainsByPredicate([](const FSavedBalance &B)
+				  { return B.Currency == static_cast<uint8>(ECurrencyType::Gold); }));
+
+		Save->ClearRunGold(World.GetWorld());
+		UCurrencyComponent *AfterRun = FWoRTestWorld::AddComponent<UCurrencyComponent>(World.GetWorld()->SpawnActor<AActor>());
+		Save->ApplyWalletTo(AfterRun);
+		TestEqual(TEXT("No Gold after the run"), AfterRun->GetBalance(ECurrencyType::Gold), 0);
+	});
+
 	It("brings the pool's items back with the same ids and tiers", [this]()
 	{
 		FWoRTestWorld Before;

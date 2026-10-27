@@ -15,7 +15,11 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Currency/CurrencyComponent.h"
+#include "Equipment/Durability/GearRepair.h"
+#include "Player/WoRPlayerState.h"
 #include "WoRGameNames.h"
+#include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "PartyControl"
 
@@ -111,6 +115,10 @@ TSharedRef<SWidget> UPartyControlWidget::RebuildWidget()
 		PartyControlBuild::AddButton(WidgetTree, Box, ReviveButton)->SetText(LOCTEXT("ReviveFallen", "Rest: revive the fallen"));
 		ReviveButton->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleReviveFallenClicked);
 
+		UButton *RepairButton = nullptr;
+		RepairGearText = PartyControlBuild::AddButton(WidgetTree, Box, RepairButton);
+		RepairButton->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleRepairGearClicked);
+
 		UButton *CloseButton = nullptr;
 		PartyControlBuild::AddButton(WidgetTree, Box, CloseButton)->SetText(LOCTEXT("Close", "Close"));
 		CloseButton->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleCloseClicked);
@@ -182,6 +190,14 @@ void UPartyControlWidget::Refresh()
 		FallSettingText->SetText(FText::Format(LOCTEXT("FallRow", "When your fighters fall: {0}"),
 											   bLetAIFinish ? LOCTEXT("LetAIFinish", "Let AI finish") : LOCTEXT("TakeOver", "Take over")));
 	}
+
+	if (RepairGearText)
+	{
+		const int32 RepairGold = Party ? GearRepair::GetPartyRepairCost(*Party) : 0;
+		RepairGearText->SetText(RepairGold > 0
+									? FText::Format(LOCTEXT("RepairGear", "Rest: repair gear ({0} Gold)"), RepairGold)
+									: LOCTEXT("NothingToRepair", "Rest: no gear to repair"));
+	}
 }
 
 FString UPartyControlWidget::GetPartyControlString() const
@@ -204,6 +220,10 @@ FString UPartyControlWidget::GetPartyControlString() const
 	if (FallSettingText)
 	{
 		Out += TEXT("\n  ") + FallSettingText->GetText().ToString();
+	}
+	if (RepairGearText)
+	{
+		Out += TEXT("\n  ") + RepairGearText->GetText().ToString();
 	}
 	return Out;
 }
@@ -260,6 +280,20 @@ void UPartyControlWidget::HandleReviveFallenClicked()
 	{
 		PartySession->ReviveFallenMembers(); // OnPartyChanged refreshes this screen
 	}
+}
+
+void UPartyControlWidget::HandleRepairGearClicked()
+{
+	UPartySessionSubsystem *PartySession = PartyControlBuild::PartySessionOf(this);
+	UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+	const AWoRPlayerState *PlayerState = GetOwningPlayerState<AWoRPlayerState>();
+	UCurrencyComponent *Wallet = PlayerState ? PlayerState->GetWallet() : nullptr;
+	int32 Spent = 0;
+	if (!Party || !Wallet || !GearRepair::RepairParty(*Party, *Wallet, Spent))
+	{
+		UE_LOG(LogWoR, Display, TEXT("[PartyControl] Repair: nothing repaired (nothing worn, or not enough Gold)"));
+	}
+	Refresh(); // a repair changes no party membership, so OnPartyChanged doesn't fire
 }
 
 void UPartyControlWidget::HandleCloseClicked()

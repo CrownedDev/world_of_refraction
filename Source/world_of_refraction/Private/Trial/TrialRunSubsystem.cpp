@@ -65,6 +65,11 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     {
         PartySession->SetAllMembersFull();
     }
+    // B-178: Gold is the run's currency; a run starts with none.
+    if (USaveSubsystem *Save = GetGameInstance()->GetSubsystem<USaveSubsystem>())
+    {
+        Save->ClearRunGold(GetGameInstance()->GetWorld());
+    }
 
     ActiveTrial = Trial;
     BeatenEncounters.Reset();
@@ -109,6 +114,11 @@ void UTrialRunSubsystem::ExitTrial()
     if (UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>())
     {
         PartySession->ClearAllMemberVitals();
+    }
+    // B-178: the run's Gold is lost when it ends (never banked).
+    if (USaveSubsystem *Save = GetGameInstance()->GetSubsystem<USaveSubsystem>())
+    {
+        Save->ClearRunGold(GetGameInstance()->GetWorld());
     }
 
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Exiting trial '%s' -> hub %s"),
