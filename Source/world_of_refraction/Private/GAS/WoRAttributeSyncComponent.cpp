@@ -14,6 +14,7 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/StatusBuildupManager.h"
+#include "GAS/WoREffectMirrorComponent.h"
 #include "GAS/WoRGameplayEffects.h"
 #include "Tags/WoRGameplayTags.h"
 #include "Engine/GameInstance.h"
@@ -31,6 +32,10 @@ namespace
 	}
 
 	constexpr float STAT_SOURCES_EFFECT_LEVEL = 1.0f;
+
+	/** Set while ReadSourceValues runs: the getters compose on the game's side, so the sync and the debug
+	 *  compare read the composition, not the attribute it fills (B-042yb). */
+	bool GReadingSourceValues = false;
 	/** Efficiency's derived base: the full cost multiplier before its reduction. */
 	constexpr float EFFICIENCY_FULL_COST = 1.0f;
 
@@ -95,8 +100,50 @@ bool UWoRAttributeSyncComponent::ReadSyncedAttribute(const UAbilitySystemCompone
 	return true;
 }
 
+bool UWoRAttributeSyncComponent::ReadComposedOnGAS(const AActor *Owner, const FGameplayAttribute &Attribute, float &Out)
+{
+	if (GReadingSourceValues || !UWoREffectMirrorComponent::ReadsFromGAS() || !Owner)
+	{
+		return false;
+	}
+	UWoRAttributeSyncComponent *Sync = Owner->FindComponentByClass<UWoRAttributeSyncComponent>();
+	UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner);
+	const UCharacterDataComponent *Char = Owner->FindComponentByClass<UCharacterDataComponent>();
+	if (!Sync || !ASC || !Char || !Char->CharacterData || !ASC->HasAttributeSetForAttribute(Attribute))
+	{
+		return false;
+	}
+	// A layer change with no event yet (weather, a crystal breaking) reaches GAS before the read.
+	if (Owner->HasAuthority() && !Sync->RefreshComposed(*ASC, Attribute))
+	{
+		return false;
+	}
+	Out = ASC->GetNumericAttribute(Attribute);
+	return true;
+}
+
+bool UWoRAttributeSyncComponent::RefreshComposed(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute)
+{
+	const UCharacterDataComponent *Char = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+	ESubStat Stat;
+	EWorldPillar Pillar;
+	FWoRStatLayers Layers;
+	if (UWoRAttributeSet_Stats::GetComposedStat(Attribute, Stat) && Char->GetStatLayers(Stat, Layers))
+	{
+		SyncComposedStat(ASC, Attribute, Layers, UWoRGE_StatSources::GetClassFor(Stat));
+		return true;
+	}
+	if (UWoRAttributeSet_Stats::GetComposedPillar(Attribute, Pillar) && Char->GetPillarLayers(Pillar, Layers))
+	{
+		SyncComposedStat(ASC, Attribute, Layers, UWoRGE_StatSources::GetClassFor(Pillar));
+		return true;
+	}
+	return false;
+}
+
 TArray<FWoRAttributeSourceValue> UWoRAttributeSyncComponent::ReadSourceValues(const AActor *Actor)
 {
+	TGuardValue<bool> ComposeOnGameSide(GReadingSourceValues, true);
 	TArray<FWoRAttributeSourceValue> Values;
 	const UCharacterDataComponent *Char = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	if (!Char)
