@@ -1417,16 +1417,25 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **What a field hit does: pinned** (Crown, 2026-10-27, to flesh out later). Leaning: **first strike for everyone**, plus, **for elemental classes, an elemental field strike like Expedition 33's**; details to come. Options considered: beat weak enemies outright on the map (Metaphor), first strike only, carry damage/statuses into the fight.
 **Notes for Claude:** built on GAS (stage 4 abilities, B-043): one ability per skill with a battle and a field mode. Open details, asked one at a time: (pinned) what a field hit does to an enemy beyond first strike, which skills get field effects.
 
-### D-100 — What counts as a memory fragment
-**Status:** ANSWERED (2026-10-27) · **Raised:** 2026-10-27 (Q-190 review) · **Blocks:** —
-**Answer (Crown):** (2026-10-27) a memory can come from:
-- **Map pickups** (as built, B-190).
-- **B: bosses and mini-bosses**, **depending on the boss**: each boss / mini-boss authors whether it drops a memory and which one.
-- **C: moments**: a reaction trigger (certain gear worn while facing a certain character) or reaching a special spot on the map.
-- **Bound gear carries memories** (D-032 part 3, D-033: "items, gear and dialogue relating to themselves"; "the Garnet Lord carrying a weapon may get a deep memory"): a bound item names one or more memories it unlocks. **When (Crown, 2026-10-27): A + trigger conditions.** Its memories unlock **bit by bit as the item is upgraded** (NieR: Automata's weapon stories), and each memory can also have **trigger conditions** (e.g. its owner wearing it, facing a certain character, a hidden condition, pillar 10). A memory set on both needs both.
-- **Memories are per character** (Crown, 2026-10-27): the **same source gives different characters different memories** (or none): equipping the same item, picking up the same fragment or beating the same boss can unlock one memory for the Garnet Lord and another for the Amethyst Lord. Each source lists **character → memory**.
-- **Each memory authors its own boss change and how long it lasts** (Crown, 2026-10-27: "it depends what the memory is for"): *this run only* or *permanent*, applying when its character is in the party.
-**Notes for Claude:** all sources feed the same `UTrialRunSubsystem::CollectMemory` / journal path (B-190). Boss drops: a memory field on the boss / mini-boss data. Moments: a reaction trigger's result can be "unlock memory X", and a map trigger volume can too. Bound gear: a memory list on the bound item. Every source maps character → memory (replacing the single memory + per-character depth of B-190 where they differ).
+### D-100 — Memories and boss triggers: two separate systems
+**Status:** ANSWERED (2026-10-27, restructured the same day) · **Raised:** 2026-10-27 (Q-190 review) · **Blocks:** —
+**Answer (Crown):** (2026-10-27; Shangri-La Frontier's hidden Unique Scenarios as the model, pillar 10) two systems that don't depend on each other:
+
+**1. Boss triggers (the boss side): what changes a boss.**
+- Each boss / mini-boss holds its own list of **"if these conditions, then this"** rules, e.g. *if the Garnet Lord fights this boss wearing their old sword → the boss is weaker*.
+- Results: weaken, strengthen, skip a phase, add a phase, a dialogue line.
+- **Not memory-based**: only what's true in the fight (who is there, what they wear and its level, hidden conditions). Same condition model as reaction triggers (B-191) and boss phases (D-098).
+- Replaces "a memory changes the boss" (D-032 part 4, D-069 / Enemies §5).
+
+**2. Memories (the story side): what you unlock.**
+- Each memory has **unlock conditions; all must be met**. Any mix of: which character, gear equipped (and its upgrade level), where you are, what you beat, how you played (Shangri-La style, e.g. *beat a stronger enemy without being hit*), hidden conditions.
+- **Not limited to bosses**: a memory can be earned anywhere (a map pickup, beating a boss, a moment, upgrading bound gear, NieR-style).
+- **Per character**: the same situation can give each character a different memory, or none.
+- **Memories can chain**: earning one can be a condition of the next (also a way for one story phase to unlock the next, HubAndStory §6).
+- **One time only**: once in the journal, a memory isn't granted again (Q-190 changed).
+- **Never told**: the game doesn't show the conditions; players discover them (pillar 10).
+
+**Notes for Claude:** a memory = `UMemoryData` + a condition list (character, items + levels, location, beaten enemy, behaviour, prior memories, hidden). Sources (fragment pickups, boss defeat, trigger volumes, gear upgrades) are just *events that check* memory conditions; all grant through `CollectMemory` / the journal (B-190). B-191's `BossModifiers` on memories move to the boss's own trigger list (B-211). Crown wants this hidden quest / lore system explored further (research: `Design/HiddenQuests.md`).
 
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)

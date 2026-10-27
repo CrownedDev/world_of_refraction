@@ -51,7 +51,7 @@ Any lord can enter any trial (D-032 part 8). The trial reacts to who's in the pa
 ## 5. Memories, bound gear and reactions
 
 - **Memory fragments** unlock a memory: scene, lore, dialogue, maybe a quest.
-  - A memory can **weaken or strengthen the boss**, **authored per memory to fit the lore**.
+  - **Memories unlock by conditions** (D-100): all of a memory's conditions must be met (character, gear and level, place, what you beat, how you played, hidden); never told to the player; can chain. Boss changes are the **boss's own triggers**, not memories.
   - **Character-specific:** the same fragment or item can be deep for one lord and minor for another.
   - **No hint:** you learn what a fragment does when it plays.
 - **Bound gear** (D-033): an item can belong to a lord. Anyone can equip it; only its lord gets the **bound bonus**, which is **hidden unless equipped by its owner**.
