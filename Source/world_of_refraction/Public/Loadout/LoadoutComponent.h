@@ -243,8 +243,9 @@ public:
     /** Drops every clearable finding from the saved loadout at Index (D-081: parts a change
      *  broke are dropped). Mutates Inv->SavedLoadouts[Index] in place (the live runtime
      *  FCombatLoadout). Single-pass: validate once, clear once; a clear that exposes a new
-     *  invalidity persists until the next validation. Returns what was dropped. */
-    TArray<FInvalidSlotFinding> DropInvalidParts(int32 Index);
+     *  invalidity persists until the next validation. Returns what was dropped. With
+     *  OnlySlotTypes, only findings of those types are dropped (B-171: what a gear change breaks). */
+    TArray<FInvalidSlotFinding> DropInvalidParts(int32 Index, const TArray<ELoadoutSlotType> &OnlySlotTypes = TArray<ELoadoutSlotType>());
 
     /** DropInvalidParts on every saved loadout, announcing each drop (B-159: run after a load). */
     UFUNCTION(BlueprintCallable, Category = "Loadout")
@@ -771,6 +772,11 @@ private:
     /** Inventory edits (loads, gear removed) write SavedLoadouts directly; re-check the weapon. */
     UFUNCTION()
     void HandleInventoryChanged(EInventoryChangeType ChangeType);
+
+    /** B-171 (D-081): an owned weapon's or ring's socket changed; the loadouts holding it drop
+     *  the parts the change broke (wrong-element spells, an over-cap list), with a message. */
+    UFUNCTION()
+    void HandleGearSocketChanged(FGuid GearID);
 
     /** Helper to get the sibling UInventoryComponent. Re-fetched per call (no
      *  cache) — loading screens hide the FindComponentByClass cost. Returns

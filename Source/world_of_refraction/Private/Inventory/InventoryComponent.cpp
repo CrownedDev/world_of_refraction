@@ -258,7 +258,7 @@ bool UInventoryComponent::AttachEvolutionToGear(TArray<TEntry> &Gear, FGuid Gear
 
     // Reference the owned entry (entry stays in EvoInv->Entries — reference model, not move).
     Gear[Index].AttachedItem = MakeEvolutionAttachment(*Entry, EvoInstanceID);
-    RefreshLoadoutsFromOwned(GearID);
+    HandleGearSocketChanged(GearID);
     UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached evolution %s (tier %d) to %s %s"),
            *EvoInstanceID.ToString(), static_cast<int32>(Entry->Tier), GearLabel<TEntry>(), *GearID.ToString());
     BroadcastInventoryChanged(EInventoryChangeType::Equipped);
@@ -302,7 +302,7 @@ bool UInventoryComponent::AttachCrystalToGear(TArray<TEntry> &Gear, FGuid GearID
     }
 
     Gear[Index].AttachedItem = MakeCrystalAttachment(Id, bIsStone);
-    RefreshLoadoutsFromOwned(GearID);
+    HandleGearSocketChanged(GearID);
     UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached %s %s to %s %s"),
            bIsStone ? TEXT("augment stone") : TEXT("refined crystal"),
            *ItemIdentity::GetDisplayName(Id), GearLabel<TEntry>(), *GearID.ToString());
@@ -352,7 +352,7 @@ bool UInventoryComponent::AttachFusionToGear(TArray<TEntry> &Gear, FGuid GearID,
     }
 
     Gear[Index].AttachedItem = MakeFusionAttachment(FusionId);
-    RefreshLoadoutsFromOwned(GearID);
+    HandleGearSocketChanged(GearID);
     UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Fused %s + %s onto %s %s"),
            *ItemIdentity::GetDisplayName(FusionId.HalfA), *ItemIdentity::GetDisplayName(FusionId.HalfB),
            GearLabel<TEntry>(), *GearID.ToString());
@@ -402,7 +402,7 @@ bool UInventoryComponent::RemoveEvolutionFromGear(TArray<TEntry> &Gear, FGuid Ge
 
     // Un-reference: clear the gear slot regardless (the evo leaves the weapon/ring).
     Gear[Index].RemoveCrystal();
-    RefreshLoadoutsFromOwned(GearID);
+    HandleGearSocketChanged(GearID);
 
     // Q-159: an evolution is equipment, never lost to wear. If the removal wear took it to 0 it
     // returns to the inventory broken (repairable), no longer dismantled (§5.3b, superseded).
@@ -430,7 +430,10 @@ bool UInventoryComponent::RemoveCrystalFromGear(TArray<TEntry> &Gear, int32 Inde
         CrystalEffectTable::GetAttachedStonePercent(Gear[Index].AttachedItem, ESubStat::TurnSpeed) > 0.0f;
 
     Gear[Index].RemoveCrystal();
-    RefreshLoadoutsFromOwned(Gear[Index].PersistentID);
+    if (bHadAttachment)
+    {
+        HandleGearSocketChanged(Gear[Index].PersistentID);
+    }
 
     // Notify TurnManager so the stone factor re-reads for this actor.
     // Out-of-combat / pre-combat case: actor isn't in Combatants, the loop in
@@ -999,6 +1002,12 @@ int32 UInventoryComponent::RefreshLoadoutsFromOwned(const FGuid &GearID)
     return Changed;
 }
 
+void UInventoryComponent::HandleGearSocketChanged(const FGuid &GearID)
+{
+    RefreshLoadoutsFromOwned(GearID);
+    OnGearSocketChanged.Broadcast(GearID);
+}
+
 int32 UInventoryComponent::RefreshEvolutionInLoadouts(const FGuid &EvoInstanceID)
 {
     if (!EvoInstanceID.IsValid())
@@ -1054,7 +1063,7 @@ int32 UInventoryComponent::DetachEvolutionFromOwnedGear(const FGuid &EvoInstance
     DetachFrom(Rings);
     for (const FGuid &GearID : Detached)
     {
-        RefreshLoadoutsFromOwned(GearID);
+        HandleGearSocketChanged(GearID);
     }
     if (Detached.Num() > 0)
     {

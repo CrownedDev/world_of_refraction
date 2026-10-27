@@ -1980,6 +1980,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-149-formation-cells): `ACombatOrchestrator::GetPlaceholderEnemyStartRow`. Authored enemy cells replace it later.
 
+### Q-171 — A gear change's drops: how much is dropped, and during a fight?
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-171, D-081 = A) · **Blocks:** — (ships with A)
+**Question:** D-081 drops the parts a gear change breaks. A loadout can also hold problems the change didn't cause (an unlearned innate spell, a duplicate item slot), and a socket can in principle change mid-fight. Does the change drop those too, and does it drop during a fight?
+**Options:**
+- **A** Drop only what a socket can break: the weapon's or ring's spells, the weapon's abilities, and the evolution / ring / ability overflows, in every loadout holding that gear, at once, with a message. Other problems wait for the pre-fight clean (`ClearInvalidSlots`), as today. During a fight nothing is dropped; the pre-fight clean handles it before the next one.
+- **B** Clean the whole loadout on any gear change (drops things the player didn't touch, with no obvious cause).
+- **C** Refuse socket changes during a fight (no path makes one today; a later choice if one appears).
+**Recommendation:** A. Path of Exile and Diablo II drop a gem's skill the moment it leaves the socket, and only that skill, which players read as cause and effect; Final Fantasy VII's materia does the same. Leaving the fight's loadout alone mid-battle follows Persona and Fire Emblem, where equipment is settled outside the fight. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-171-gear-change-drops): `UInventoryComponent::OnGearSocketChanged`, `ULoadoutComponent::HandleGearSocketChanged`, `DropInvalidParts(Index, OnlySlotTypes)`. The message is today's `Removed: <rule reason>` (reason text still a built string, D-061 TODO).
+
 ### Q-085 — Owned gear and loadouts: which copy is the truth, and when they sync
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-085) · **Blocks:** — (ships with A)
 **Question:** A loadout holds its own copy of each weapon, ring and primary evolution. Combat wear lands on the active loadout's copy; a level-up, an attached crystal or a dismantle lands on the owned gear. Neither reaches the other, so the same sword can be worn in one place and fresh in another. Which is the truth, and when do they meet?

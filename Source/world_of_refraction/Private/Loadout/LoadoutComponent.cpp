@@ -86,6 +86,7 @@ void ULoadoutComponent::BeginPlay()
     if (UInventoryComponent *Inv = GetInventoryComponent())
     {
         Inv->OnInventoryChanged.AddUniqueDynamic(this, &ULoadoutComponent::HandleInventoryChanged);
+        Inv->OnGearSocketChanged.AddUniqueDynamic(this, &ULoadoutComponent::HandleGearSocketChanged);
     }
     EnsureDefaultLoadout();
 }
@@ -95,6 +96,7 @@ void ULoadoutComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
     if (UInventoryComponent *Inv = GetInventoryComponent())
     {
         Inv->OnInventoryChanged.RemoveDynamic(this, &ULoadoutComponent::HandleInventoryChanged);
+        Inv->OnGearSocketChanged.RemoveDynamic(this, &ULoadoutComponent::HandleGearSocketChanged);
     }
     Super::EndPlay(EndPlayReason);
 }
@@ -102,6 +104,31 @@ void ULoadoutComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void ULoadoutComponent::HandleInventoryChanged(EInventoryChangeType ChangeType)
 {
     NotifyActiveWeaponChanged();
+}
+
+void ULoadoutComponent::HandleGearSocketChanged(FGuid GearID)
+{
+    // What a socket change can break; other problems a loadout has wait for the pre-fight clean.
+    static const TArray<ELoadoutSlotType> SocketBreakableSlots = {
+        ELoadoutSlotType::WeaponSpell, ELoadoutSlotType::WeaponAbility, ELoadoutSlotType::RingSpell,
+        ELoadoutSlotType::EvolutionOverflow, ELoadoutSlotType::RingOverflow, ELoadoutSlotType::AbilityOverflow};
+
+    const UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        return;
+    }
+    // Mid-fight the loadout is in use; PrepareForBattle's ClearInvalidSlots cleans it before the next fight.
+    const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    const UTurnManager *TurnManager = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+    if (TurnManager && TurnManager->IsCombatActive())
+    {
+        return;
+    }
+    for (const int32 Index : Inv->GetLoadoutsUsing(GearID))
+    {
+        AnnounceDroppedParts(Index, DropInvalidParts(Index, SocketBreakableSlots));
+    }
 }
 
 void ULoadoutComponent::EnsureDefaultLoadout()
@@ -1369,7 +1396,7 @@ void ULoadoutComponent::AnnounceDroppedParts(int32 LoadoutIndex, const TArray<FI
     OnPartsDropped.Broadcast(LoadoutIndex, Messages);
 }
 
-TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index)
+TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, const TArray<ELoadoutSlotType> &OnlySlotTypes)
 {
     const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     TArray<FInvalidSlotFinding> Dropped;
@@ -1386,7 +1413,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index)
 
     for (const FInvalidSlotFinding &Finding : Findings)
     {
-        if (!Finding.bClearable)
+        if (!Finding.bClearable || (OnlySlotTypes.Num() > 0 && !OnlySlotTypes.Contains(Finding.SlotType)))
         {
             continue;
         }

@@ -41,6 +41,8 @@ class UPoolSubsystem;
  *  OnLoadoutChanged shape: a re-read trigger, not a data carrier. Consumers
  *  query the inventory for the current state; ChangeType is an optimisation hint. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInventoryChanged, EInventoryChangeType, ChangeType);
+/** B-171: an owned weapon's or ring's socket changed (attach, removal, a dismantled evolution). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGearSocketChanged, FGuid, GearID);
 
 /**
  * UInventoryComponent
@@ -427,7 +429,15 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
     FOnInventoryChanged OnInventoryChanged;
 
+    /** B-171 (D-081): fired after an owned weapon's or ring's socket changed and the loadouts
+     *  holding it were refreshed; the loadout component drops the parts the change broke. */
+    UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
+    FOnGearSocketChanged OnGearSocketChanged;
+
 private:
+    /** RefreshLoadoutsFromOwned, then OnGearSocketChanged. */
+    void HandleGearSocketChanged(const FGuid &GearID);
+
     /** Single broadcast funnel for OnInventoryChanged — every mutation site
      *  routes through here on its success path. const: the delegate broadcast
      *  doesn't mutate logical inventory state. */
