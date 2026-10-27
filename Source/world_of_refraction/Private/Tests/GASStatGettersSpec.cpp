@@ -2,6 +2,8 @@
 // GAS stage 3 (B-042yb): with `wor.Effects.UseGAS 1` the composed sub-stat getters (spell / raw damage, action /
 // spell speed) and the pillar getters return their GAS attribute; with 0 they compose on the game's side. Both
 // give the same value, and the debug compare still checks the attribute against the game's composition.
+// B-042yc adds luck, reflex, efficiency, status multiplier, Defense, crit chance / damage, turn speed and the
+// resistances (per type, general status, blanket bonus).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -10,6 +12,9 @@
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/Damage/DamageCalculator.h"
+#include "Combat/Resistance/ResistanceQuery.h"
+#include "Combat/TurnManager.h"
 #include "Debug/GAS/WoRAttributeDebug.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
@@ -46,6 +51,10 @@ namespace
 			{TEXT("Mind"), [](const UCharacterDataComponent &C) { return C.GetEvolutionModifiedMind(); }},
 			{TEXT("Body"), [](const UCharacterDataComponent &C) { return C.GetEvolutionModifiedBody(); }},
 			{TEXT("Spirit"), [](const UCharacterDataComponent &C) { return C.GetEvolutionModifiedSpirit(); }},
+			{TEXT("Luck"), [](const UCharacterDataComponent &C) { return C.GetEquipmentModifiedLuck(); }},
+			{TEXT("Reflex"), [](const UCharacterDataComponent &C) { return C.ReflexWindowGearFactor(); }},
+			{TEXT("Efficiency"), [](const UCharacterDataComponent &C) { return C.GetEffectiveEfficiencyMultiplier(); }},
+			{TEXT("StatusMultiplier"), [](const UCharacterDataComponent &C) { return C.GetEffectiveStatusMultiplier(); }},
 		};
 	}
 }
@@ -68,6 +77,30 @@ BEGIN_DEFINE_SPEC(FGASStatGettersSpec, "WoR.GAS.StatGetters",
 		Modifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(Amount));
 		Bonus->Modifiers.Add(Modifier);
 		ASC->ApplyGameplayEffectToSelf(Bonus, 1.0f, ASC->MakeEffectContext());
+	}
+
+	/** B-042yc: the getters that live on the subsystems and the resistance query, read for Hero. */
+	TArray<FGetterCase> SubsystemGetterCases()
+	{
+		TArray<FGetterCase> Cases;
+		const UDamageCalculator *Calc = TestWorld->GetSubsystem<UDamageCalculator>();
+		const UTurnManager *Turns = TestWorld->GetSubsystem<UTurnManager>();
+		AActor *Target = Hero;
+		if (Calc)
+		{
+			Cases.Add({TEXT("Defense"), [Calc, Target](const UCharacterDataComponent &) { return Calc->GetDefenderFlatDefense(Target); }});
+			Cases.Add({TEXT("CritChance"), [Calc, Target](const UCharacterDataComponent &) { return Calc->GetCriticalChance(Target); }});
+			Cases.Add({TEXT("CritDamage"), [Calc, Target](const UCharacterDataComponent &) { return Calc->GetCritDamageMultiplier(Target); }});
+		}
+		if (Turns)
+		{
+			Cases.Add({TEXT("TurnSpeed"), [Turns, Target](const UCharacterDataComponent &) { return float(Turns->GetEffectiveTurnSpeed(Target)); }});
+		}
+		Cases.Add({TEXT("StatusResistance"), [Target](const UCharacterDataComponent &) { return WoRResistance::GetGeneralStatusResistance(Target); }});
+		Cases.Add({TEXT("StatusResistBonus"), [Target](const UCharacterDataComponent &) { return WoRResistance::GetStatusResistBonus(Target); }});
+		Cases.Add({TEXT("Resist_Fire"), [Target](const UCharacterDataComponent &) { return WoRResistance::GetTypeResistance(Target, EWoRDamageType::Fire); }});
+		Cases.Add({TEXT("Resist_Slash"), [Target](const UCharacterDataComponent &) { return WoRResistance::GetTypeResistance(Target, EWoRDamageType::Slash); }});
+		return Cases;
 	}
 END_DEFINE_SPEC(FGASStatGettersSpec)
 
@@ -103,7 +136,9 @@ void FGASStatGettersSpec::Define()
 	It("returns the same value from each getter with UseGAS 0 and 1", [this]()
 	{
 		if (!ASC) return;
-		for (const FGetterCase &Case : GetterCases())
+		TArray<FGetterCase> Cases = GetterCases();
+		Cases.Append(SubsystemGetterCases());
+		for (const FGetterCase &Case : Cases)
 		{
 			UWoREffectMirrorComponent::SetReadsFromGAS(false);
 			const float OnGameSide = Case.Read(*Char);
@@ -143,6 +178,29 @@ void FGASStatGettersSpec::Define()
 		TestTrue(TEXT("UseGAS 1: Mind from GAS"), Char->GetEvolutionModifiedMind() > Mind + GETTER_TOLERANCE);
 		TestFalse(TEXT("UseGAS 1: the compare still reads the composition, so it sees the extra"),
 				  UWoRAttributeDebug::GetAttributeMismatchString(Hero).IsEmpty());
+	});
+
+	It("returns GAS's Defense, crit damage and a resistance with UseGAS 1 (B-042yc)", [this]()
+	{
+		if (!ASC) return;
+		const UDamageCalculator *Calc = TestWorld->GetSubsystem<UDamageCalculator>();
+		if (!TestNotNull(TEXT("DamageCalculator"), Calc)) return;
+		AActor *Target = Hero;
+		const float Defense = Calc->GetDefenderFlatDefense(Target);
+		const float CritDamage = Calc->GetCritDamageMultiplier(Target);
+		const float FireResist = WoRResistance::GetTypeResistance(Target, EWoRDamageType::Fire);
+		AddGASOnlyBonus(UWoRAttributeSet_Stats::GetDefenseAttribute(), GETTER_EXTRA_SPELL_DAMAGE);
+		AddGASOnlyBonus(UWoRAttributeSet_Stats::GetCritDamageAttribute(), GETTER_EXTRA_SPELL_DAMAGE);
+		AddGASOnlyBonus(UWoRAttributeSet_Resistance::GetResist_FireAttribute(), GETTER_EXTRA_SPELL_DAMAGE);
+
+		TestEqual(TEXT("UseGAS 0: Defense composed"), Calc->GetDefenderFlatDefense(Target), Defense, GETTER_TOLERANCE);
+		TestEqual(TEXT("UseGAS 0: Fire resistance composed"), WoRResistance::GetTypeResistance(Target, EWoRDamageType::Fire), FireResist,
+				  GETTER_TOLERANCE);
+		UWoREffectMirrorComponent::SetReadsFromGAS(true);
+		TestTrue(TEXT("UseGAS 1: Defense from GAS"), Calc->GetDefenderFlatDefense(Target) > Defense + GETTER_TOLERANCE);
+		TestTrue(TEXT("UseGAS 1: crit damage from GAS"), Calc->GetCritDamageMultiplier(Target) > CritDamage + GETTER_TOLERANCE);
+		TestTrue(TEXT("UseGAS 1: Fire resistance from GAS"),
+				 WoRResistance::GetTypeResistance(Target, EWoRDamageType::Fire) > FireResist + GETTER_TOLERANCE);
 	});
 }
 
