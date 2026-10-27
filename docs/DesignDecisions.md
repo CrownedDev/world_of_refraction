@@ -1462,6 +1462,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 
 **Notes for Claude:** a memory = `UMemoryData` + a condition list (character, items + levels, location, beaten enemy, behaviour, prior memories, hidden). Sources (fragment pickups, boss defeat, trigger volumes, gear upgrades) are just *events that check* memory conditions; all grant through `CollectMemory` / the journal (B-190). B-191's `BossModifiers` on memories move to the boss's own trigger list (B-211). Design and research: `Design/HiddenQuests.md`.
 
+### D-101 — Weapons have Power and scaling (Expedition 33 / Elden Ring)
+**Status:** ANSWERED (2026-10-27) · **Raised:** 2026-10-27 (Crown, reviewing Q-162) · **Blocks:** —
+**Answer (Crown):** (2026-10-27)
+- **Each weapon has a Power value**, its base damage, growing with the weapon's upgrades.
+- **Each weapon has scaling grades** on Mind, Body and Spirit (S..F, the existing `EScalingTier` ladder); your stats add damage on top of Power by those grades.
+- **Attacks and abilities used through a weapon start from its Power** (today a weapon has no damage term of its own; the skill's base and stats make the hit). Spells keep their own skill scaling.
+- **Requirements stay: A** (Elden Ring): being under a weapon's requirement still cuts its output (D-082; worst pillar decides, Q-162; no bonus over, Q-146c).
+**Notes for Claude:** weapon data gets `Power` (per upgrade level) and a `StatScaling` list like skills (`ScalingSystem.md`); the damage maths core (`WoRDamageMath`, B-219) takes the weapon's Power + its scaling for weapon-delivered attacks and abilities, then the requirement factor. Placeholder numbers chosen so today's test fights stay close (`// TODO: tune`); fold into the stat-maths plan (`docs/analysis/StatMathsRedesign.md`).
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
