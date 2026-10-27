@@ -29,8 +29,8 @@ void UWoRGameplayEffect::AddGrantedTag(const FGameplayTag &Tag)
 }
 
 // TODO: B-042c - no stacking policy on the lasting GEs: the facade mirrors the enum path's
-// identity / refresh / stack decision (D-012, D-053, Q-044) by replacing the GE with the same
-// identity (UWoRTurnEffectTracker::ApplyReplacingIdentity), so GAS stacking stays off.
+// identity / refresh / stack decision (D-012, D-053, Q-044) through FWoREffectSpecBuilder::Apply,
+// which replaces the GE with the same identity, so GAS stacking stays off.
 
 UWoRGE_Stun::UWoRGE_Stun()
 {
