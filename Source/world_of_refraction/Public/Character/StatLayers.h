@@ -78,10 +78,11 @@ struct FWoRStatLayers
 		return Layers;
 	}
 
-	/** StatBase x gear x stone x transient, clamped to [Min, Max]. */
+	/** StatBase x gear x stone x transient, clamped to [Min, Max]. The factors multiply first, as GAS's
+	 *  aggregator folds MultiplyCompound mods, so the stat-sources attribute matches it exactly (B-042yb). */
 	float Compose() const
 	{
-		return Clamp(StatBase * GearFactor * StoneFactor * TransientFactor);
+		return Clamp(StatBase * (GearFactor * StoneFactor * TransientFactor));
 	}
 
 	/** The compose clamp, shared with the attribute set's clamp on these stats. */

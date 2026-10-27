@@ -27,6 +27,7 @@
 #include "WoRAttributeSyncComponent.generated.h"
 
 class UAbilitySystemComponent;
+class UCharacterDataComponent;
 class UGameplayEffect;
 struct FActiveSkillEffect;
 enum class ESubStat : uint8;
@@ -126,7 +127,7 @@ private:
 	void SyncComposedStat(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute, const FWoRStatLayers &Layers,
 						  TSubclassOf<UGameplayEffect> SourcesClass);
 	/** Re-syncs one composed sub-stat or pillar from its layers (B-042yb). False when Attribute isn't one. */
-	bool RefreshComposed(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute);
+	bool RefreshComposed(UAbilitySystemComponent &ASC, const UCharacterDataComponent &Char, const FGameplayAttribute &Attribute);
 
 	/** Removes Attribute's stat or pool sources effect, if any. */
 	void RemoveStatSources(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute);

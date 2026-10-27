@@ -114,7 +114,7 @@ bool UWoRAttributeSyncComponent::ReadComposedOnGAS(const AActor *Owner, const FG
 		return false;
 	}
 	// A layer change with no event yet (weather, a crystal breaking) reaches GAS before the read.
-	if (Owner->HasAuthority() && !Sync->RefreshComposed(*ASC, Attribute))
+	if (Owner->HasAuthority() && !Sync->RefreshComposed(*ASC, *Char, Attribute))
 	{
 		return false;
 	}
@@ -122,18 +122,18 @@ bool UWoRAttributeSyncComponent::ReadComposedOnGAS(const AActor *Owner, const FG
 	return true;
 }
 
-bool UWoRAttributeSyncComponent::RefreshComposed(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute)
+bool UWoRAttributeSyncComponent::RefreshComposed(UAbilitySystemComponent &ASC, const UCharacterDataComponent &Char,
+												 const FGameplayAttribute &Attribute)
 {
-	const UCharacterDataComponent *Char = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
 	ESubStat Stat;
 	EWorldPillar Pillar;
 	FWoRStatLayers Layers;
-	if (UWoRAttributeSet_Stats::GetComposedStat(Attribute, Stat) && Char->GetStatLayers(Stat, Layers))
+	if (UWoRAttributeSet_Stats::GetComposedStat(Attribute, Stat) && Char.GetStatLayers(Stat, Layers))
 	{
 		SyncComposedStat(ASC, Attribute, Layers, UWoRGE_StatSources::GetClassFor(Stat));
 		return true;
 	}
-	if (UWoRAttributeSet_Stats::GetComposedPillar(Attribute, Pillar) && Char->GetPillarLayers(Pillar, Layers))
+	if (UWoRAttributeSet_Stats::GetComposedPillar(Attribute, Pillar) && Char.GetPillarLayers(Pillar, Layers))
 	{
 		SyncComposedStat(ASC, Attribute, Layers, UWoRGE_StatSources::GetClassFor(Pillar));
 		return true;
@@ -437,7 +437,11 @@ void UWoRAttributeSyncComponent::SyncPoolStat(UAbilitySystemComponent &ASC, cons
 void UWoRAttributeSyncComponent::SyncComposedStat(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute,
 												  const FWoRStatLayers &Layers, TSubclassOf<UGameplayEffect> SourcesClass)
 {
-	ASC.SetNumericAttributeBase(Attribute, Layers.StatBase);
+	// Unchanged most reads (B-042yb reads refresh first): skip the aggregator re-evaluation.
+	if (ASC.GetNumericAttributeBase(Attribute) != Layers.StatBase)
+	{
+		ASC.SetNumericAttributeBase(Attribute, Layers.StatBase);
+	}
 
 	FWoRAppliedStatSources &Applied = AppliedStatSources.FindOrAdd(Attribute);
 	const bool bLive = ASC.GetActiveGameplayEffect(Applied.Handle) != nullptr;
@@ -466,8 +470,9 @@ void UWoRAttributeSyncComponent::SyncComposedStat(UAbilitySystemComponent &ASC, 
 	Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Gear, Layers.GearFactor);
 	Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Stone, Layers.StoneFactor);
 	Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Transient, Layers.TransientFactor);
-	Applied.Handle = ASC.ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
-	Applied.Layers = Layers;
+	// Found again after the apply: a getter read during it may refresh another stat and grow the map.
+	const FActiveGameplayEffectHandle Handle = ASC.ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+	AppliedStatSources.FindOrAdd(Attribute) = {Handle, Layers};
 	UE_LOG(LogWoR, Verbose, TEXT("[AttributeSync] %s %s sources: %s"), *GetOwner()->GetName(), *Attribute.GetName(),
 		   *Layers.ToString());
 }
