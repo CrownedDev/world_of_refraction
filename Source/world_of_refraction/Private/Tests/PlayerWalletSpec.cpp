@@ -1,7 +1,8 @@
 // PlayerWalletSpec.cpp
 // B-151 (D-046): one wallet per player. Every member of the player's party spends from and
 // earns into the wallet on the leader's AWoRPlayerState; an actor with no player behind it
-// keeps its own component.
+// keeps its own component. B-132: the leader is found again after OpenLevel through its local
+// player, and a leader who isn't player 0 still gets the party's money.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -12,6 +13,8 @@
 #include "Currency/CurrencyComponent.h"
 #include "Currency/CurrencyWallet.h"
 #include "GameFramework/Pawn.h"
+#include "Engine/Engine.h"
+#include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
@@ -28,6 +31,7 @@ BEGIN_DEFINE_SPEC(FPlayerWalletSpec, "WoR.Economy.PlayerWallet",
 				  EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 	TUniquePtr<FWoRTestWorld> TestWorld;
 	UCurrencyComponent *PlayerWallet = nullptr;
+	UCurrencyComponent *PlayerZeroWallet = nullptr;
 	AActor *Hero = nullptr;
 	AActor *Ally = nullptr;
 	AActor *Stranger = nullptr;
@@ -42,6 +46,14 @@ void FPlayerWalletSpec::Define()
 		TestTrue(TEXT("Test world created"), TestWorld->Create());
 		UWorld *World = TestWorld->GetWorld();
 		UPartySessionSubsystem *PartySession = TestWorld->GetSubsystem<UPartySessionSubsystem>();
+		// Player 0 is someone else (another local player), so a player-0 lookup would pay them.
+		APlayerController *PlayerZero = World ? World->SpawnActor<APlayerController>() : nullptr;
+		AWoRPlayerState *PlayerZeroState = World ? World->SpawnActor<AWoRPlayerState>() : nullptr;
+		if (PlayerZero && PlayerZeroState)
+		{
+			PlayerZero->PlayerState = PlayerZeroState;
+			PlayerZeroWallet = PlayerZeroState->GetWallet();
+		}
 		APlayerController *PC = World ? World->SpawnActor<APlayerController>() : nullptr;
 		AWoRPlayerState *PlayerState = World ? World->SpawnActor<AWoRPlayerState>() : nullptr;
 		Party = PartySession ? PartySession->CreateSoloParty(nullptr, TSoftClassPtr<ACombatCharacter>()) : nullptr;
@@ -51,7 +63,8 @@ void FPlayerWalletSpec::Define()
 			return;
 		}
 		PC->PlayerState = PlayerState;
-		Party->Leader = PC;
+		PC->Player = NewObject<ULocalPlayer>(GEngine); // ULocalPlayer is ClassWithin UEngine
+		Party->SetLeader(PC);
 		PlayerWallet = PlayerState->GetWallet();
 
 		UCharacterData *HeroData = FWoRTestWorld::NewCharacterData();
@@ -81,6 +94,7 @@ void FPlayerWalletSpec::Define()
 	AfterEach([this]()
 	{
 		PlayerWallet = nullptr;
+		PlayerZeroWallet = nullptr;
 		Hero = nullptr;
 		Ally = nullptr;
 		Stranger = nullptr;
@@ -95,11 +109,19 @@ void FPlayerWalletSpec::Define()
 		TestTrue(TEXT("an AI-played ally"), CurrencyWallet::FindFor(Ally) == PlayerWallet);
 	});
 
-	It("finds the player's wallet for an ally when the party's leader pointer is stale (after OpenLevel)", [this]()
+	It("finds the leader's wallet again when the leader pointer is stale (after OpenLevel), not player 0's", [this]()
 	{
-		if (!PlayerWallet) return;
+		if (!PlayerWallet || !TestNotNull(TEXT("player 0's wallet"), PlayerZeroWallet)) return;
 		Party->Leader = nullptr;
-		TestTrue(TEXT("this world's local player"), CurrencyWallet::FindFor(Ally) == PlayerWallet);
+		TestTrue(TEXT("the leader's local player's controller"), CurrencyWallet::FindFor(Ally) == PlayerWallet);
+	});
+
+	It("pays a party whose leader is not player 0 into that leader's wallet (B-132)", [this]()
+	{
+		if (!PlayerWallet || !TestNotNull(TEXT("player 0's wallet"), PlayerZeroWallet)) return;
+		TestTrue(TEXT("earned through the ally"), CurrencyWallet::FindFor(Ally)->Add(ECurrencyType::Prisms, WALLET_TEST_PRISMS));
+		TestEqual(TEXT("the leader's balance"), PlayerWallet->GetBalance(ECurrencyType::Prisms), WALLET_TEST_PRISMS);
+		TestEqual(TEXT("player 0 got nothing"), PlayerZeroWallet->GetBalance(ECurrencyType::Prisms), 0);
 	});
 
 	It("lets two characters spend from one balance", [this]()
