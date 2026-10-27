@@ -40,7 +40,7 @@ struct WORLD_OF_REFRACTION_API FWoREffectIdentity
 	UPROPERTY(BlueprintReadOnly, Category = "Effect")
 	bool bFromGear = false;
 
-	/** Same identity as the enum path's FActiveSkillEffect::IsSameIdentity: EffectID and source. */
+	/** Same identity as the enum path's (USkillEffectManager::FindEffectByIdentity): EffectID and source. */
 	bool IsSameIdentity(const FWoREffectIdentity &Other) const
 	{
 		return EffectID == Other.EffectID && SourceKey == Other.SourceKey;

@@ -37,6 +37,11 @@ namespace
 		ESkillEffectType::ModifyStatusResist,
 		ESkillEffectType::DamageBuff, ESkillEffectType::DamageDebuff,
 		ESkillEffectType::ModifyDamageDealt, ESkillEffectType::ModifyCritChance, ESkillEffectType::ModifyEnergyCost,
+		ESkillEffectType::SpeedBuff, ESkillEffectType::SpeedDebuff,
+		ESkillEffectType::ResistanceBuff, ESkillEffectType::ResistanceDebuff,
+		ESkillEffectType::SpellSizeBuff, ESkillEffectType::SpellSizeDebuff,
+		ESkillEffectType::HealingReceivedBuff,
+		ESkillEffectType::ReduceDamageTaken, ESkillEffectType::IncreaseDamageTaken,
 	};
 
 	/** The Grant*Immunity types: tagged (WoRTags::EffectTypeToTag) and not one of the statuses. */
@@ -57,6 +62,26 @@ namespace
 	const FWoREffectContext *ContextOf(const FActiveGameplayEffect &Active)
 	{
 		return FWoREffectContext::Get(Active.Spec.GetContext());
+	}
+
+	/** Sum of SetByCaller.Magnitude over the active GEs whose identity matches. */
+	float SumWhere(const UAbilitySystemComponent &ASC, TFunction<bool(const FWoREffectIdentity &)> Matches)
+	{
+		const FGameplayEffectQuery Query(FActiveGameplayEffectQueryCustomMatch::CreateLambda(
+			[&Matches](const FActiveGameplayEffect &Active)
+			{
+				const FWoREffectContext *Context = ContextOf(Active);
+				return Context && Matches(Context->Identity);
+			}));
+		float Total = 0.0f;
+		for (const FActiveGameplayEffectHandle &Handle : ASC.GetActiveEffects(Query))
+		{
+			if (const FActiveGameplayEffect *Active = ASC.GetActiveGameplayEffect(Handle))
+			{
+				Total += Active->Spec.GetSetByCallerMagnitude(WoRTags::SetByCaller_Magnitude, false);
+			}
+		}
+		return Total;
 	}
 
 	FGameplayEffectSpecHandle MakeSpec(UAbilitySystemComponent &TargetASC, TSubclassOf<UGameplayEffect> Class,
@@ -154,7 +179,7 @@ FWoRBuiltEffect FWoREffectSpecBuilder::Build(UAbilitySystemComponent &TargetASC,
 	}
 	else if (Effect.EffectType == ESkillEffectType::HealthRestore)
 	{
-		Built.TickSpec = MakeSpec(TargetASC, UWoRGE_HealthTick::StaticClass(), Identity, Source, Magnitude);
+		Built.TickSpec = MakeSpec(TargetASC, UWoRGE_HealTick::StaticClass(), Identity, Source, Magnitude);
 	}
 
 	Built.bPermanent = Effect.bPermanent;
@@ -176,6 +201,12 @@ FActiveGameplayEffectHandle FWoREffectSpecBuilder::Apply(AActor *Target, const F
 	}
 
 	UWoRTurnEffectTracker *Tracker = Target->FindComponentByClass<UWoRTurnEffectTracker>();
+	if (!Built.bPermanent && !Tracker)
+	{
+		UE_LOG(LogWoREffects, Warning, TEXT("[EffectSpecBuilder] %s has no turn tracker; %s not applied"),
+			   *GetNameSafe(Target), *Effect.EffectName);
+		return FActiveGameplayEffectHandle();
+	}
 	const FActiveGameplayEffectHandle Existing = FindByIdentity(*ASC, MakeIdentity(Effect));
 	if (Existing.IsValid())
 	{
@@ -189,12 +220,6 @@ FActiveGameplayEffectHandle FWoREffectSpecBuilder::Apply(AActor *Target, const F
 	if (Built.bPermanent)
 	{
 		return ASC->ApplyGameplayEffectSpecToSelf(*Built.Spec.Data.Get());
-	}
-	if (!Tracker)
-	{
-		UE_LOG(LogWoREffects, Warning, TEXT("[EffectSpecBuilder] %s has no turn tracker; %s not applied"),
-			   *GetNameSafe(Target), *Effect.EffectName);
-		return FActiveGameplayEffectHandle();
 	}
 	return Tracker->ApplySpecForHolderTurns(Built.Spec, Built.Turns, Built.TickSpec);
 }
@@ -213,21 +238,15 @@ FActiveGameplayEffectHandle FWoREffectSpecBuilder::FindByIdentity(const UAbility
 
 float FWoREffectSpecBuilder::SumMagnitude(const UAbilitySystemComponent &ASC, ESkillEffectType Type)
 {
-	const FGameplayEffectQuery Query(FActiveGameplayEffectQueryCustomMatch::CreateLambda(
-		[Type](const FActiveGameplayEffect &Active)
-		{
-			const FWoREffectContext *Context = ContextOf(Active);
-			return Context && Context->Identity.EffectType == Type;
-		}));
-	float Total = 0.0f;
-	for (const FActiveGameplayEffectHandle &Handle : ASC.GetActiveEffects(Query))
+	return SumWhere(ASC, [Type](const FWoREffectIdentity &Identity) { return Identity.EffectType == Type; });
+}
+
+float FWoREffectSpecBuilder::SumMagnitudeForElement(const UAbilitySystemComponent &ASC, ESkillEffectType Type, ESpellElement Element)
+{
+	return SumWhere(ASC, [Type, Element](const FWoREffectIdentity &Identity)
 	{
-		if (const FActiveGameplayEffect *Active = ASC.GetActiveGameplayEffect(Handle))
-		{
-			Total += Active->Spec.GetSetByCallerMagnitude(WoRTags::SetByCaller_Magnitude, false);
-		}
-	}
-	return Total;
+		return Identity.EffectType == Type && Identity.Element == Element;
+	});
 }
 
 FString FWoREffectSpecBuilder::GetDebugString(const UAbilitySystemComponent &ASC)

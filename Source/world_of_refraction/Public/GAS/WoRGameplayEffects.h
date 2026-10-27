@@ -21,10 +21,10 @@ class WORLD_OF_REFRACTION_API UWoRGameplayEffect : public UGameplayEffect
 	GENERATED_BODY()
 
 protected:
-	/** What this GE is (asset tags). Constructor only. */
+	/** What this GE is (asset tags). Constructor only, once per class (fixed subobject name). */
 	void AddAssetTag(const FGameplayTag &Tag);
 
-	/** What the target owns while this GE is on it (granted tags). Constructor only. */
+	/** What the target owns while this GE is on it (granted tags). Constructor only, once per class. */
 	void AddGrantedTag(const FGameplayTag &Tag);
 };
 
@@ -70,7 +70,7 @@ public:
 };
 
 /** A stat buff or debuff. It modifies no attribute yet: the effect type travels in the context
- *  and the value in SetByCaller.Magnitude, and WoREffectQueries::SumMagnitude adds them up the way
+ *  and the value in SetByCaller.Magnitude, and FWoREffectSpecBuilder::SumMagnitude adds them up the way
  *  USkillEffectManager::GetTotalStatModifier does. B-042e feeds the sum into the stat MMCs. */
 UCLASS()
 class WORLD_OF_REFRACTION_API UWoRGE_StatModifier : public UWoRGameplayEffect
@@ -102,8 +102,9 @@ public:
 	UWoRGE_HealOverTime();
 };
 
-/** One DOT or HOT payout: Instant, adds SetByCaller.Magnitude to Health (negative for damage).
- *  Built once when the effect lands, so the source's boost is snapshotted then (§4.3). */
+/** One DOT payout: Instant, adds SetByCaller.Magnitude to Health (negative for damage). Built once
+ *  when the effect lands, with its magnitude fixed then (§4.3). TODO: B-042e - the source's boost,
+ *  resistance and BuildupPerTick come with the damage execution. */
 UCLASS()
 class WORLD_OF_REFRACTION_API UWoRGE_HealthTick : public UWoRGameplayEffect
 {
@@ -111,4 +112,16 @@ class WORLD_OF_REFRACTION_API UWoRGE_HealthTick : public UWoRGameplayEffect
 
 public:
 	UWoRGE_HealthTick();
+};
+
+/** One HOT payout: a HealthTick that doesn't land while the holder has Status.HealBlock, so the
+ *  HOT goes dormant and resumes, as the enum path's per-tick HealBlock check does.
+ *  TODO: B-042e - HealingReceivedBuff and the int rounding of the enum path's heal. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_HealTick : public UWoRGE_HealthTick
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_HealTick();
 };

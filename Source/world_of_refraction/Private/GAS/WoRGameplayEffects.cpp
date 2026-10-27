@@ -2,6 +2,7 @@
 
 #include "GAS/WoRGameplayEffects.h"
 #include "GameplayEffectComponents/AssetTagsGameplayEffectComponent.h"
+#include "GameplayEffectComponents/TargetTagRequirementsGameplayEffectComponent.h"
 #include "GameplayEffectComponents/TargetTagsGameplayEffectComponent.h"
 #include "GAS/WoRAttributeSets.h"
 #include "Tags/WoRGameplayTags.h"
@@ -90,4 +91,12 @@ UWoRGE_HealthTick::UWoRGE_HealthTick()
 	HealthChange.ModifierOp = EGameplayModOp::Additive;
 	HealthChange.ModifierMagnitude = FGameplayEffectModifierMagnitude(Magnitude);
 	Modifiers.Add(HealthChange);
+}
+
+UWoRGE_HealTick::UWoRGE_HealTick()
+{
+	UTargetTagRequirementsGameplayEffectComponent *Requirements =
+		CreateDefaultSubobject<UTargetTagRequirementsGameplayEffectComponent>(TEXT("TargetTagRequirements"));
+	GEComponents.Add(Requirements);
+	Requirements->ApplicationTagRequirements.IgnoreTags.AddTag(WoRTags::Status_HealBlock);
 }

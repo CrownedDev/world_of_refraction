@@ -54,6 +54,9 @@ struct WORLD_OF_REFRACTION_API FWoREffectSpecBuilder
 	 *  USkillEffectManager::GetTotalStatModifier. */
 	static float SumMagnitude(const UAbilitySystemComponent &ASC, ESkillEffectType Type);
 
+	/** The same, over the GEs of exactly this element: the twin of GetTotalStatModifierForElement. */
+	static float SumMagnitudeForElement(const UAbilitySystemComponent &ASC, ESkillEffectType Type, ESpellElement Element);
+
 	/** One line per active GE: class, identity, magnitude. */
 	static FString GetDebugString(const UAbilitySystemComponent &ASC);
 };
