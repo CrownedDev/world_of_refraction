@@ -853,37 +853,11 @@ float UCharacterDataComponent::GetEquipmentModifiedLuck() const
     // max investment lands on exactly 1.0), THEN gear (BonusLuck) and transient (LuckBuff/Debuff)
     // MULTIPLY it past 1.0 toward LUCK_GEAR_CEILING. Consumers (GetLuckModifiedChance) scale by their
     // own max bonus and clamp at their own 100% — they no longer re-normalize.
-    const float ModifiedSpirit = GetEvolutionModifiedSpirit();
-    const int32 LuckPoints = CharacterData->GetTotalLuck();
-    const float StatRaw = ModifiedSpirit * LuckPoints * CombatConstants::LUCK_PER_POINT;
-    const float StatNorm = FMath::Min(StatRaw / CombatConstants::LUCK_RAW_MAX, 1.0f); // stat caps ALONE at 1.0
-
-    float LuckNorm = StatNorm;
-    if (AActor *Owner = GetOwner())
-    {
-        // Equipment BonusLuck — MULTIPLIES the capped stat past 1.0 (option-(ii): the per-point
-        // magnitude is read as a fraction). ×1 (inert) when absent.
-        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
-        {
-            const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Owner);
-            LuckNorm *= (1.0f + Bonus.BonusLuck * CombatConstants::LUCK_PER_POINT);
-
-            // Attached LuckStone (5f-B) — MULTIPLIES the normalized luck (gear-beyond the stat cap), so it
-            // lifts EVERY luck consumer uniformly (crit chance, break-skip, future dodge/drops). ×1 (inert)
-            // unless a LuckStone is attached — StoneTargetStat(LuckStone) == ESubStat::Luck, 0 otherwise.
-            LuckNorm *= (1.0f + Loadout->GetAttachedStonePercent(ESubStat::Luck) / CombatConstants::STAT_PERCENT_DIVISOR);
-        }
-
-        // Skill-effect LuckBuff / LuckDebuff — MULTIPLIES (percent-space), matching the cluster-5
-        // shape. ×1 when none active. A net debuff can drive LuckNorm below 0; the clamp floors it.
-        if (USkillEffectManager *SkillMgr = GetSkillEffectManager())
-        {
-            LuckNorm *= (1.0f + SkillMgr->GetNetStatModifier(Owner, ESubStat::Luck) / CombatConstants::STAT_PERCENT_DIVISOR);
-        }
-    }
-
-    // Stat caps at normalized 1.0; gear/transient push past toward the normalized gear ceiling.
-    return FMath::Clamp(LuckNorm, 0.0f, CombatConstants::LUCK_GEAR_CEILING);
+    // Pattern P (GetStatLayers): normalized stat luck capped ALONE at 1.0, then BonusLuck, the Luck stone
+    // and the net LuckBuff / LuckDebuff multiply it, clamped [0, LUCK_GEAR_CEILING].
+    FWoRStatLayers Layers;
+    GetStatLayers(ESubStat::Luck, Layers);
+    return Layers.Compose();
 }
 
 float UCharacterDataComponent::GetLuckModifiedChance(float BaseChance, float LuckMaxBonus) const
@@ -1207,6 +1181,38 @@ bool UCharacterDataComponent::GetStatLayers(ESubStat Stat, FWoRStatLayers &OutLa
         }
         ReadStoneAndTransient();
         return true;
+    case ESubStat::Luck:
+        // Normalized: the Spirit-scaled raw luck over LUCK_RAW_MAX, capped ALONE at 1.0.
+        if (!CharacterData)
+        {
+            return false;
+        }
+        OutLayers.StatBase = FMath::Min(GetEvolutionModifiedSpirit() * CharacterData->GetTotalLuck() * CombatConstants::LUCK_PER_POINT /
+                                            CombatConstants::LUCK_RAW_MAX,
+                                        1.0f);
+        if (Loadout)
+        {
+            OutLayers.GearFactor = 1.0f + Loadout->GetActiveStatBonus(Owner).BonusLuck * CombatConstants::LUCK_PER_POINT;
+        }
+        ReadStoneAndTransient();
+        return true;
+    case ESubStat::Reflex:
+        // The crystal's Body pillar as a ratio over raw Body (1 without a crystal), then gear.
+        if (!CharacterData)
+        {
+            return false;
+        }
+        {
+            const float RawPillar = CharacterData->GetEffectiveBodyForLevel(GetWorldBody());
+            OutLayers.StatBase = RawPillar > KINDA_SMALL_NUMBER ? GetEvolutionModifiedBody() / RawPillar : 1.0f;
+        }
+        if (Loadout)
+        {
+            OutLayers.GearFactor =
+                1.0f + static_cast<float>(Loadout->GetActiveStatBonus(Owner).BonusReflex) * CombatConstants::STAT_MULT_PER_POINT;
+        }
+        ReadStoneAndTransient();
+        return true;
     default:
         return false;
     }
@@ -1274,37 +1280,10 @@ float UCharacterDataComponent::ReflexWindowGearFactor() const
     // RAW GetEffectiveBody, so this ratio is the crystal/equipment-pillar/pillar-buff lift). 1.0 when no
     // pillar gear. ApplyEvolutionPillarModifier already clamps the pillar modifier to [0,2].
     // RawPillar uses the LIVE world base too (matching ModPillar, §7 C2) so the ratio is pure gear lift.
-    const float RawPillar = CharacterData->GetEffectiveBodyForLevel(GetWorldBody());
-    const float ModPillar = GetEvolutionModifiedBody();
-    float Factor = (RawPillar > KINDA_SMALL_NUMBER) ? (ModPillar / RawPillar) : 1.0f;
-
-    if (AActor *Owner = GetOwner())
-    {
-        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
-        {
-            const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Owner);
-            // Equipment BonusReflex — per-point read as a fraction (option-ii), the GENERIC gear per-point
-            // (STAT_MULT_PER_POINT, same fraction A1's speed gear uses via ANIMATION_SPEED_PER_POINT) — NOT
-            // REFLEX_WINDOW_PER_POINT, which is the SECONDS-domain stat term in CalculateReflexWindowBonus.
-            // ×1 (inert) when absent.
-            Factor *= (1.0f + static_cast<float>(Bonus.BonusReflex) * CombatConstants::STAT_MULT_PER_POINT);
-
-            // Attached ReflexStone — % multiplier. 0 (×1) unless that stone is attached.
-            Factor *= (1.0f + Loadout->GetAttachedStonePercent(ESubStat::Reflex) / CombatConstants::STAT_PERCENT_DIVISOR);
-        }
-
-        // Transient ReflexBuff/Debuff — stays MULTIPLICATIVE here (unlike the additive transient policy on
-        // multiplier stats): the window is measured in SECONDS, where "+20% reflex" must scale the bonus
-        // PROPORTIONALLY. An additive +0.20 would mean +0.20 SECONDS — enormous vs a ~0.5s window. Proportional
-        // is the correct math for a time value, so temporary reflex buffs widen the window in scale. (Mirrors
-        // SpeedWindowGearFactor's transient; multiplier-space stats use additive transients — see that policy.)
-        if (USkillEffectManager *SEM = GetSkillEffectManager())
-        {
-            Factor *= (1.0f + SEM->GetNetStatModifier(Owner, ESubStat::Reflex) / CombatConstants::STAT_PERCENT_DIVISOR);
-        }
-    }
-
-    return Factor;
+    // GetStatLayers: the Body pillar ratio x BonusReflex x ReflexStone x net Reflex buff, unclamped.
+    FWoRStatLayers Layers;
+    GetStatLayers(ESubStat::Reflex, Layers);
+    return Layers.Compose();
 }
 
 FEffectiveStats UCharacterDataComponent::GetEffectiveStats() const

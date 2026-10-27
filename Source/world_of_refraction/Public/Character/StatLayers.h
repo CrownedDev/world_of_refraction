@@ -24,8 +24,9 @@ struct FWoRStatLayers
 	float Min = CombatConstants::STAT_MODIFIER_MIN;
 	float Max = CombatConstants::STAT_MODIFIER_MAX;
 
-	/** Default layers with the stat's compose clamp: Defense is a reduction up to its ceiling, and
-	 *  crit damage never drops below a normal hit. */
+	/** Default layers with the stat's compose clamp: Defense is a reduction up to its ceiling, crit
+	 *  damage never drops below a normal hit, Luck is normalized up to its gear ceiling, and the Reflex
+	 *  window factor is unbounded (its consumer bounds it). */
 	static FWoRStatLayers ForStat(ESubStat Stat)
 	{
 		FWoRStatLayers Layers;
@@ -37,6 +38,13 @@ struct FWoRStatLayers
 		case ESubStat::CritDamage:
 			Layers.Min = CombatConstants::CRIT_DMG_BASE;
 			Layers.Max = CombatConstants::CRIT_DAMAGE_GEAR_CEILING;
+			break;
+		case ESubStat::Luck:
+			Layers.Max = CombatConstants::LUCK_GEAR_CEILING;
+			break;
+		case ESubStat::Reflex:
+			Layers.Min = TNumericLimits<float>::Lowest();
+			Layers.Max = TNumericLimits<float>::Max();
 			break;
 		default:
 			break;
