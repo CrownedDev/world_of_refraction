@@ -147,3 +147,4 @@ Combatants are bare unless a spec needs more: `SpawnCombatant` gives no loadout,
 | 2026-10-27 | B-225: `WoR.Effects.Baseline`, `WoR.Combat.HangFixes`, `WoR.GAS.EffectMirror` moved to the ruled timings (D-051, Q-044c); new Persistent-DOT case; `WoR.Combat.RitualFire` Execution-turn turn-start case. | feature/B-225-effect-timing |
 | 2026-10-27 | B-042h: `WoR.GAS.EffectLifetime` (10 cases); `FWoRTestWorld::AddEffectMirror` adds a turn tracker, so `WoR.Effects.Baseline` at UseGAS 1 runs with GAS owning the lifetime. | feature/B-042h-gas-effect-lifetime |
 | 2026-10-27 | B-042o: `WoR.Status.Buildup` runs on both paths (UseGAS 0 / 1), plus the GAS-bar, stun-immunity, fire-immunity and DOT-tick cases. | feature/B-042o-gas-status-bar |
+| 2026-10-27 | B-042x: `WoR.GAS.TagReads` (status / immunity checks read tags at UseGAS 1, the store at 0). | feature/B-042x-gas-tag-reads |
