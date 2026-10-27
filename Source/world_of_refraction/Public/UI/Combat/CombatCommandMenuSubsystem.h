@@ -79,6 +79,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat Command Menu")
     void HandleBack();
 
+    /** B-093: a key press for a menu button (Defend, CycleSource, CycleLevel). Presses the
+     *  button the menu would show for it now, through HandleSelection, so the key obeys every
+     *  rule the button does: Defend from the main menu or a submenu, the infusion keys in the
+     *  target picker when it offers them. False (nothing done) when there's no such button. */
+    bool PressMenuKey(EPieMenuCategory Category);
+
     /** Call when the turn ends or combat closes the menu. */
     UFUNCTION(BlueprintCallable, Category = "Combat Command Menu")
     void Close();
