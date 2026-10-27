@@ -2610,6 +2610,24 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. The game's effect reads already resync before reading (B-042c), and the step must keep the two paths identical to be checked (Martin Fowler, ParallelChange). B could show a different number for a turn after a weather change. A costs one layer check per read (no GE work when nothing changed). It goes away once the gear and stones are GameplayEffects themselves (B-042f), as in Lyra, where the attribute is the truth.
 **Notes for Claude:** applied: `UWoRAttributeSyncComponent::ReadComposedOnGAS`; `ReadSourceValues` composes on the game side (a guard), so `wor.CompareAttributes` still checks GAS against the game's maths. A client returns the replicated attribute (no refresh). With the switch on, a getter returns whatever GAS holds, including a GE only GAS knows about. `FWoRStatLayers::Compose` now multiplies the factors first, in GAS's MultiplyCompound order, so both paths match exactly (at most an ulp from before). Split: the other getters, the other payouts and the per-effect reads are B-042yc.
 
+### Q-042yc — The other stats read from GAS: which ones, and how exact?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042yc) · **Blocks:** —
+**Question:** With `wor.Effects.UseGAS 1`, luck, reflex, efficiency, status multiplier, Defense, crit chance and damage, turn speed and the resistances now come from GAS (each refreshed before the read, as Q-042yb). Three getters were left out: (1) max HP / EP, (2) the wear "control" resistance (`GetEffectiveResistance`), (3) and the per-type resistances are a sum of three sources that GAS may add in a different order after a source changes. Keep it that way?
+**Options:**
+- **A** (as built) (1) max HP / EP stay the game's fields: they cap the HP / EP the game still owns (Q-042y), and move with them when the stored copies retire (B-042g); (2) the control resistance stays on the game side: no GameplayEffect composes it, so GAS would only hold a copy of the getter; (3) accept that a resistance can differ in the last bit after a source update.
+- **B** read all three from GAS now.
+**Recommendation:** A. In Lyra the health set holds both health and max health and they move together; moving the cap alone would split one pair across two owners. (2) A getter reading a copy of itself adds a path that can only go stale (the Q-041 reasoning). (3) A resistance never feeds a rounding directly; the damage it scales is rounded once, so a last-bit difference changes a number only on an exact half, and the debug compare uses a tolerance. One read family per step, comparable on both paths (Martin Fowler, ParallelChange).
+**Notes for Claude:** applied (feature/B-042yc-gas-getters, UNBUILT). The other payouts are B-042yd, the per-effect value reads B-042ye.
+
+### Q-042i — Triggered effects onto GAS only: now, or after the payouts move?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042i) · **Blocks:** B-042i (now after B-042yd, B-042ye)
+**Question:** B-042i makes a trigger's effect (a defender trigger, a starting effect) go straight onto GAS instead of the game's stored effect list. With `wor.Effects.UseGAS 1` the game's turn pass still pays from the stored list: the landing payout (Q-063), the heal-block check, a burn's buildup per tick, energy restore / drain and the "effect triggered" event (Q-042y, B-042yd). The AI and the character panel still read the stored list too (B-042ye). A triggered effect kept only on GAS would lose all of that with the switch on. Do it now or later?
+**Options:**
+- **A** later: B-042i waits for B-042yd (the other payouts on GAS) and B-042ye (the per-effect reads on GAS), so nothing reads the stored list for a triggered effect any more when it moves. The "if the target is Burning" conditions already read GAS tags at UseGAS 1 (`HasEffectOfType`, B-042x), so that half needs no work.
+- **B** now, with the turn pass also walking GAS-only effects.
+**Recommendation:** A. Move the readers before the writer, so each step keeps both paths comparable (Martin Fowler, ParallelChange: expand, migrate the readers, then contract). B would build a second turn-pass path only to remove it at B-042g. Not lore.
+**Notes for Claude:** applied: B-042i Needs + B-042yd, B-042ye. Watch the TODO at `FWoREffectSpecBuilder::Apply` (a tick spec there pays on top of the turn pass) when it is picked.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
