@@ -2015,13 +2015,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 
 ### Q-146b — Ignore Defense as an amount (D-086): what does it ignore?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-146, D-086) · **Blocks:** — (B-042 ships with A)
-**Question:** D-086 makes Ignore Defense an amount per skill ("ignores 30% of Defense"), like the deckbuilder's Ignore Defense N, which removes up to N, **the hit's element Resistance first**, then plain Defense (`wor-deckbuilder/docs/reference/04-effects.md`, `IgnoreDefense`). Here Defense and elemental resistance are both percentage reductions. Which does the amount reduce?
+**Question:** D-086 makes Ignore Defense an amount per skill ("ignores 30% of Defense"), like the deckbuilder's Ignore Defense N. There, N is **one budget**: it removes the hit's element Resistance first, then plain Defense with what's left; a hit with no element only reaches Defense (`wor-deckbuilder/docs/reference/04-effects.md`, `IgnoreDefense`). Here Defense and elemental resistance are both percentage reductions, so a shared budget doesn't translate directly. Which does the amount reduce?
 **Options:**
-- **A** Both, like the deckbuilder: the amount scales down the target's **positive** elemental resistance for that hit and its Defense (a 30% ignore keeps 70% of each); weaknesses (negative resistance) are untouched.
+- **A** Both (an adaptation of the deckbuilder's budget to percentages): the amount scales down the target's **positive** elemental resistance for that hit and its Defense (a 30% ignore keeps 70% of each); weaknesses (negative resistance) are untouched; a hit with no element only reaches Defense.
 - **B** Defense only (D-086's example wording).
-**Recommendation:** A, the deckbuilder's rule (it comes first where it has one): there, an ignore reaches the element's resistance first. Path of Exile's penetration works the same way on resistances. Weaknesses stay, so ignoring never makes a hit weaker. Not lore.
+**Recommendation:** A, the closest percentage form of the deckbuilder's rule (it comes first where it has one): there, an ignore reaches the element's resistance as well as Defense. Path of Exile's penetration works the same way on resistances. Weaknesses stay, so ignoring never makes a hit weaker. Not lore.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B.
-**Notes for Claude:** today's all-or-nothing skills map to 100% (Defense only, as now; resistance didn't touch damage before B-064). Built in the damage execution (B-042).
+**Notes for Claude:** today's all-or-nothing skills map to 100% (Defense only, as now; resistance didn't touch damage before B-064). The Defense half is built in the damage execution (B-042); the resistance half with B-064 (its row says so).
 
 ### Q-146c — Being over a weapon's requirement (D-082): a bonus, or capped at 100%?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-146, D-082 "to confirm") · **Blocks:** — (B-162 ships with A)
@@ -2031,7 +2031,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** The full ladder both ways, as skills do (up to ×1.40 at +5).
 **Recommendation:** A. In Dark Souls and Elden Ring a weapon's requirement only removes a penalty; extra stats help through the weapon's scaling, not the requirement. Here the skill's own requirement and its per-skill stat scaling already reward being over (D-041), so B would pay the same stats twice. Not lore.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B.
-**Notes for Claude:** B-162 builds it as one more ActionMods source per pillar, clamped at 0% from above. Broken Darkness strain keeps reading the weapon requirement as today.
+**Notes for Claude:** B-162 builds it as a separate damage factor on attacks and abilities through the weapon (not ActionMods, which spreads a pillar percent to every sub-stat and has no floor), `min(1, ladder)` with a floor. Broken Darkness strain keeps reading the weapon requirement as today.
 
 ### Q-145 — The resistance plan: approve it, and does physical resistance cut physical damage?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-145) · **Blocks:** — (B-216 ships with B)

@@ -26,10 +26,10 @@ The only intended changes are the two Crown already ruled: Ignore Defense become
 
 ### 2.1 Stat composition (Pattern P)
 
-- **Today:** `UCharacterDataComponent` getters compose each stat: the stat-derived part capped **alone** (×1.5 or 0.5), then gear, stone and buffs multiply past it toward the gear ceiling (`StatComposition.md` §2–3). Live getters: `GetEvolutionModifiedMind/Body/Spirit` (`Private/Character/CharacterDataComponent.cpp:748-767`), `GetEffectiveSpellDamage` (`:1003`), `GetEffectiveActionSpeed` (`:1080`), `GetEffectiveEfficiencyMultiplier` (`:1273`), `GetEffectiveStatusMultiplier` (`:1348`), `RecomputeMaxPools` (`:776`). Raw and Spell Damage are capped a second way inside the damage step (`DamageCalculator.cpp:156-206`, a correction factor that divides out the uncapped product). Per-point values derive from `STAT_DERIVE_DENOM` (`Public/Combat/CombatConstants.h:135-146`).
-- **Standard:** pillars are attributes (they are, B-041). Each sub-stat's **base** is an MMC: `min(pillar × points × per-point, stat cap)`, the "capped alone" part. Gear points are **MultiplyAdditive** modifiers (summed, as today), the summed stone % one **MultiplyCompound** modifier, buffs a duration GE. The gear ceiling is a clamp in the attribute set's `PreAttributeChange`, as Lyra clamps Health. Pools (HP/EP) keep their exception: gear is **AddFinal** outside the 1000 clamp.
-- **What changes:** the `Calculate*` display twins and the damage step's correction factor go away: one value, read everywhere (the "twin trap" in `StatComposition.md` §3 can't happen any more).
-- **Risk:** GAS's modifier order must give "cap, then multiply". Same grouping rule as the resistance plan (B-145 §3.2); proven by `wor.CompareStats` before any getter switches.
+- **Today:** `UCharacterDataComponent` getters compose each stat: the stat-derived part capped **alone** (×1.5 or 0.5), then gear, stone and buffs multiply past it toward the gear ceiling (`StatComposition.md` §2–3). Live getters: `GetEvolutionModifiedMind/Body/Spirit` (`Private/Character/CharacterDataComponent.cpp:748-767`), `GetEffectiveSpellDamage` (`:1003`), `GetEffectiveActionSpeed` (`:1080`), `GetEffectiveEfficiencyMultiplier` (`:1273`), `GetEffectiveStatusMultiplier` (`:1348`), `RecomputeMaxPools` (`:776`). Raw and Spell Damage are capped a second way inside the damage step (`DamageCalculator.cpp:156-206`, a correction factor that divides out the uncapped product). Per-point values derive from `STAT_DERIVE_DENOM` (`Public/Combat/CombatConstants.h:137`).
+- **Standard:** pillars are attributes (they are, B-041). Each sub-stat's **base** is an MMC: `min(pillar × points × per-point, stat cap)`, the "capped alone" part. Today each stat multiplies **three summed groups** on top: gear points `(1 + Σ)`, stones `(1 + Σ%)`, buffs `max(0, 1 + net%)` (e.g. Defense, `DamageCalculator.cpp:408-448`; crit sums each category first, `:485-493`). GAS can't express "sum within a group, multiply between groups, floor one group at 0" with plain modifiers: MultiplyAdditive sums *all* multiply modifiers into one group, and one MultiplyCompound per effect multiplies effects together. So each group is **one aggregated modifier**: the loadout applies one GE with the summed gear factor and one with the summed stone factor, and buffs feed one MMC-backed modifier that sums the active buffs and floors at 0 (or the whole stat is one MMC). The gear ceiling is a clamp in the attribute set's `PreAttributeChange`, as Lyra clamps Health. Pools (HP/EP) keep their exception, `(min(stat, 1000) + gear) × (1 + (stone% + buff%)/100)` (`CharacterDataComponent.cpp:830-831`): gear is **AddBase** (before the multiply), stone and buff one summed multiply.
+- **What changes:** the `Calculate*` display twins go away: one value, read everywhere (the "twin trap" in `StatComposition.md` §3 can't happen any more). The damage step's **correction factor stays** inside the damage core (B-219): it multiplies `target / raw` onto the whole running damage (`DamageCalculator.cpp:156-206`), which also carries ActionMods (`:53`) and the per-skill scaling bonus (`:91-100`), so swapping it for one capped attribute would change numbers once a cap binds.
+- **Risk:** the group order above (cap, then gear, stone, buffs). Proven by `wor.CompareStats` before any getter switches; same grouping rule as the resistance plan (B-145 §3.2).
 
 ### 2.2 Scaling: requirement gap, tier gap, tier power, per-skill scaling
 
@@ -53,14 +53,14 @@ The only intended changes are the two Crown already ruled: Ignore Defense become
 
 - **Today:** chance = Luck-driven 5% → 50% (stat) → 100% (gear), then ×(1 + buff) ×(1 − debuff) ×(1 + modify), clamped [0, 1] (`DamageCalculator.cpp:456`; `CharacterDataComponent.cpp:844, 889, 927`). Damage = ×1.0 base, stat to ×1.5, gear to ×2.5 (D-034), clamped [1.0, 2.5] (`DamageCalculator.cpp:573`; `CombatConstants.h:186-193`). `GuaranteedCrit` forces it (`:229`).
 - **Standard:** `CritChance` and `CritDamage` attributes (both exist, B-041) composed by 2.1's rule; the roll happens in the execution on the battle random stream (B-010). `GuaranteedCrit` becomes a tag the execution checks.
-- **What changes:** crit chance's three-way buff product becomes three MultiplyCompound modifiers (it is a product today, so compound is the match).
-- **Risk:** RNG order: the execution must draw at the same point as today (after the status step), or seeded fights replay differently. `WoR.Combat.BattleRandom` pins it.
+- **What changes:** crit chance's buff, debuff and modify factors are each a summed category, multiplied together (`DamageCalculator.cpp:485-493`): one aggregated modifier per category (2.1's rule).
+- **Risk:** RNG order: the execution must draw at the same point as today, and draw **nothing** when `bCanCrit` is false or `GuaranteedCrit` is held (today's short-circuit, `DamageCalculator.cpp:212-231`), or seeded fights replay differently. `WoR.Combat.BattleRandom` pins it.
 
 ### 2.5 Defense and Ignore Defense (D-086)
 
 - **Today:** reduction = min(stat, 0.5) × gear × stone × buffs, clamped [0, 0.85] (`DamageCalculator.cpp:408`; `CombatConstants.h:209`), applied as damage × (1 − reduction) (`:256-264`). Ignore Defense is all-or-nothing: `bIgnoreDefense` or an `IgnoreDefense` effect skips the step (`:246-255`).
 - **Standard:** `Defense` attribute (exists) composed by 2.1; the execution applies it. Ignore Defense is an amount: **`IgnoreDefense` 0–100%** on the skill (and as a SetByCaller from an `IgnoreDefense` effect), reduction × (1 − ignore). Old all-or-nothing skills map to 100% (D-086).
-- **What changes:** the rule (D-086). Which protection it ignores: Q-146b.
+- **What changes:** the rule (D-086). Which protection it ignores: Q-146b (the resistance half applies once B-064 makes resistance cut damage).
 - **Risk:** low; 100% reproduces today.
 
 ### 2.6 Infusion cost and charge damage
@@ -75,19 +75,18 @@ The only intended changes are the two Crown already ruled: Ignore Defense become
 - **Today:** authored buildup × charge status × tier power × tier gap (`ActionExecutor.cpp:1342-1351, 1573`), then in `AddStatusBuildup` × StatusMultiplier (`StatusBuildupManager.cpp:396`), × element-keyed buffs (`:407-414`), × Broken Darkness stacks (`:430`), × (1 − resistance, B-145) (`:440`).
 - **Standard:** the buildup execution (B-145 §3.4) with these source steps before the resistance step.
 - **What changes:** nothing in the numbers.
-- **Found:** when infused, the StatusMultiplier stat counts twice: once inside the charge status multiplier's stat fraction, once at `:396`. Kept as is for the port (same numbers); B-217 checks whether it's intended.
+- **Note:** when infused, the StatusMultiplier stat counts twice (inside the charge status multiplier's stat fraction, and at `:396`). This is intended (Q-113, `docs/Rules/03-status-bars.md`).
 
 ### 2.8 Broken Darkness strain and overload
 
 - **Today:** strain = deficit × 3.2 × min(Spell Damage, 3.0) × max(1 − Defense, 0.333) (`Combat/Mechanics/BrokenDarknessManager.cpp:271`), threshold max EP × 2.0 (`:306`), Luck can skip accrual (`:317`); overload tick 15 × Spell Damage (`:760`); absorption (`:1095`). Constants in `BrokenDarknessManager.h:21-26` and the `.cpp` namespace (`:31-63`).
 - **Standard:** **stays custom** (D-P01, parked: only after stage 3 with a zero-difference `wor.CompareBD`). It reads attributes instead of getters once they are the truth; its constants move to the tuning data (§3) like the rest.
-- **What changes:** where it reads Spell Damage and Defense from. Nothing else.
-- **Found:** `RollForBreak` (`:219`) has no C++ callers (B-217).
+- **What changes:** where it reads Spell Damage from. Strain reads the **stat-only** Defense (`BrokenDarknessManager.cpp:292`), not the composed one, so it keeps reading the stat-only value (an MMC output or the getter), not the `Defense` attribute. `RollForBreak` (`:219`) is kept on purpose as the rollback path (`BrokenDarkness.md`).
 
 ### 2.9 Weapon requirements scale the weapon (D-082, B-162)
 
 - **Today:** the weapon's requirement only feeds Broken Darkness strain (`GetTotalDeficit`, `WorldStatRequirements.cpp:92`). The skill's requirement uses the ±5 gap ladder (2.2).
-- **Standard:** the same ladder on the weapon's own contribution, as one more ActionMods source (per pillar, from the weapon's requirement), built where the skill's is (`ActionExecutor.cpp:6987`). Being over the requirement: Q-146c.
+- **Standard:** the same ladder on the weapon's own contribution, built beside the skill's (`ActionExecutor.cpp:6987`) but **not** through ActionMods: `AddPillarPercent` (`Public/Combat/Actions/ActionStatModifiers.h:131`) spreads a percent to every sub-stat of the pillar (Efficiency, Defense, …) and adds percents with no floor (`ApplyTo`, `:188`), so a skill's and a weapon's −68% would sum below −100%. The weapon's gap is a **separate damage factor** on attacks and abilities through that weapon, `max(floor, ladder)`, multiplied in. Being over the requirement: Q-146c.
 - **What changes:** the rule (D-082). B-162 builds it.
 
 ## 3. Tuning numbers in data (Q-146)
@@ -102,20 +101,24 @@ Every ladder, cap and per-point value is a C++ `constexpr` today (`CombatConstan
 | Step | Job | What | Proof |
 |---|---|---|---|
 | 1 | **B-218** (new, now) | Tuning data: curve tables + `UCombatTuningData` with today's values; every reader goes through one accessor (fallback = the C++ constant); a debug print | every spec above unchanged; a spec checks each curve key = the old constant |
-| 2 | **B-219** (new, now) | One damage maths core: `CalculateDamage`'s steps (§2.1–2.5) as one pure function over an inputs struct, used by `UDamageCalculator` **and** the AI estimate (`AIDecisionManager.cpp:860-990`, a twin today) | `WoR.Damage`, `WoR.AI.DamageEstimate` unchanged |
-| 3 | **B-162** (now on step 1) | Weapon requirement as an ActionMods source (2.9, Q-146c) | its tests |
+| 2 | **B-219** (new, now) | One damage maths core: `CalculateDamage`'s steps (§2.1–2.5, with the correction factor) as one pure function over an inputs struct; `UDamageCalculator` gathers the inputs from the actors today, and stage 3's execution supplies them from attributes. (The AI already calls `CalculateDamage`, `AIDecisionManager.cpp:841-898`, B-029, so it follows for free.) | `WoR.Damage`, `WoR.AI.DamageEstimate` unchanged |
+| 3 | **B-162** (now on step 1) | Weapon requirement as a separate damage factor with a floor (2.9, Q-146c) | its tests |
 | 4 | **B-216** (B-145) | the resistance seam | B-145 |
 | 5 | **B-042** (GAS stage 3) | sources as GEs, MMCs for the sub-stat bases, the getters read attributes; the damage and buildup **executions wrap step 2's core**; Ignore Defense as an amount (D-086, Q-146b) | `wor.CompareStats`, `wor.CompareAttributes`, the B-134 snapshot identical (except D-086) |
 | 6 | **B-043** (GAS stage 4) | costs as cost GEs (2.6); abilities apply the damage execution | every skill plays the same in PIE |
 
 Steps 1–2 make stage 3 smaller: the maths is already in one place and already reads data, so B-042 only changes *where the inputs come from*.
 
-## 5. Found while surveying (B-217)
+## 5. Risks across the port
+
+- **Rounding:** the damage preview rounds to whole numbers after each step (`ActionExecutor.cpp:670-675`); the execution must round at the same points.
+- **Modifier grouping** (2.1) and **RNG order** (2.4), above.
+
+## 6. Found while surveying (B-217)
 
 Kept as they are in the port (same numbers); checked separately:
-- Infused buildup counts the StatusMultiplier stat twice (2.7).
-- The requirement gap reads the character asset's world levels (`SkillDataBase.cpp:276-278`), while the stat getters read the live world levels (`CharacterDataComponent.h:543`): a levelled-up character may get the old gap.
-- `UBrokenDarknessManager::RollForBreak` has no callers; `FWorldStatRequirements::CalculatePenalty` is Blueprint-only and unused by damage.
+- The requirement gap reads the character asset's world levels (`SkillDataBase.cpp:276-278`), while the stat getters read the live world levels (`CharacterDataComponent.cpp:755`, `CharacterDataComponent.h:543`): a levelled-up character may get the old gap. The same asset read is in the requirement checks and the Broken Darkness strain deficit (`WorldStatRequirements.cpp:13, 40, 97`).
+- `FWorldStatRequirements::CalculatePenalty` is Blueprint-only and unused by damage.
 
 ## Changelog
 
