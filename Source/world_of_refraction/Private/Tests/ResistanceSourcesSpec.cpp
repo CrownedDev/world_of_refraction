@@ -23,6 +23,7 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
+#include "Tags/WoRGameplayTags.h"
 
 namespace
 {
@@ -182,6 +183,17 @@ void FResistanceSourcesSpec::Define()
 		TestTrue(TEXT("Missing source reported"), UWoRAttributeDebug::GetAttributeMismatchString(Hero).Contains(TEXT("expected 1")));
 		Sync->SyncAttributes();
 		TestMatchesGetters(TEXT("re-applied"));
+	});
+
+	It("is seen by the attribute compare when a source carries the wrong bucket", [this]()
+	{
+		if (!ASC) return;
+		const TArray<FActiveGameplayEffectHandle> Gear = SourceEffects(UWoRGE_ResistanceSources_Gear::StaticClass());
+		if (!TestEqual(TEXT("One gear source"), Gear.Num(), 1)) return;
+		// The class bucket on the gear effect: the sum moves, and the compare names the source.
+		const float ClassFire = WoRResistance::GetTypeResistanceSources(Hero, EWoRDamageType::Fire).Class;
+		ASC->UpdateActiveGameplayEffectSetByCallerMagnitude(Gear[0], WoRTags::DamageTypeToTag(EWoRDamageType::Fire), ClassFire);
+		TestTrue(TEXT("Wrong bucket reported"), UWoRAttributeDebug::GetAttributeMismatchString(Hero).Contains(TEXT("carries")));
 	});
 
 	It("clamps general status resistance at the ceiling", [this]()
