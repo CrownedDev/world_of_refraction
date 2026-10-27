@@ -92,9 +92,9 @@ void FCombatTuningSpec::Define()
 		Tuning->TierGapDamage.Curve.CurveTable = Table;
 		Tuning->TierGapDamage.Curve.RowName = FName(TEXT("NoSuchRow"));
 		TestEqual(TEXT("ladder scale starts at 1"), Tuning->TierGapDamage.Value, 1.0f);
-		AddExpectedError(TEXT("NoSuchRow"), EAutomationExpectedErrorFlags::Contains, 0);
 		TestEqual(TEXT("missing row: the value passed in"), Tuning->GetLadder(ECombatLadder::TierGapDamage, 1, TierGapDamage::PENALTY_GAP_1),
 				  TierGapDamage::PENALTY_GAP_1);
+		TestTrue(TEXT("the missing row is reported"), Tuning->GetDifferencesFromCode().Contains(TEXT("NoSuchRow")));
 	});
 
 	It("keeps the C++ value for a ladder with no curve", [this]()

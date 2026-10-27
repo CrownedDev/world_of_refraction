@@ -180,7 +180,7 @@ float UCombatTuningData::GetLadder(ECombatLadder Ladder, int32 Key, float CodeVa
 	// A row that isn't in the table keeps the C++ value (FScalableFloat alone would return Value).
 	float Out = CodeValue;
 	const FRealCurve *Found = nullptr;
-	if (!Field.EvaluateCurveAtLevel(Out, Found, static_cast<float>(FMath::Clamp(Key, First, Last)), GetName(), true) || !Found)
+	if (!Field.EvaluateCurveAtLevel(Out, Found, static_cast<float>(FMath::Clamp(Key, First, Last)), GetName(), false) || !Found)
 	{
 		return CodeValue;
 	}
@@ -244,6 +244,13 @@ FString UCombatTuningData::GetDifferencesFromCode() const
 	FString Out;
 	for (const ECombatLadder Ladder : TUNING_LADDERS)
 	{
+		// A table without the ladder's row is silent at lookup (it keeps the C++ value); report it here.
+		const FScalableFloat &Field = LadderField(Ladder);
+		if (Field.Curve.CurveTable && !Field.Curve.CurveTable->FindCurve(Field.Curve.RowName, GetName(), false))
+		{
+			Out += FString::Printf(TEXT("%s: row '%s' is not in %s (C++ values used)\n"), TuningLadderName(Ladder),
+								   *Field.Curve.RowName.ToString(), *Field.Curve.CurveTable->GetName());
+		}
 		int32 First, Last;
 		GetLadderKeyRange(Ladder, First, Last);
 		for (int32 Key = First; Key <= Last; ++Key)
