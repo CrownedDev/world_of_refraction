@@ -1416,7 +1416,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **First strike (Q-185):** landing a field attack or spell on an enemy that hasn't noticed you gives your side first strike (it acts first). Until field commands exist, a touch from outside its notice cone stands in (as built).
 - **What a field hit does** (Crown, 2026-10-27): a field hit **starts the encounter with turn advantage** (your side acts first, as first strike). No outright kills on the map and no damage carried in. (The earlier idea of an elemental field strike for elemental classes stays a note for later.)
 - **Field skills as a whole: pinned for research** (Crown, 2026-10-27). Crown's ideas to explore: **movement through field skills** (flight, speed, etc.), and **evolutions changing how you move** (e.g. a character whose evolution lets them run at lightning speed). Research: `Design/FieldAbilities.md`. **Base movement: everyone gets a fast, free sprint** (Crown, 2026-10-27). **Evolutions give both** a small always-on movement bonus and one active EP-cost movement skill (Crown, 2026-10-27). **Movement order: speed and dash, then glide, flight last; dash evolves into sprint; enough speed lets you wall-run** (Crown, 2026-10-27). Where field-only skills are slotted waits on it.
-**Notes for Claude:** built on GAS (stage 4 abilities, B-043): one ability per skill with a battle and a field mode. Open details: where field-only skills are slotted. Which skills get field effects is authored per skill.
+- **Simplified (Crown, 2026-10-27), replacing the field-use / field-only-slot parts above:**
+  - **Everyone:** a fast, free sprint.
+  - **One active field skill per character**, set by **level / source** (where it comes from: innate, weapon, ring or crystal, evolution, and its level). It costs EP.
+  - **Enhanced Sprint** is a field skill: it lets you **wall-run**.
+  - **Evolutions** add a small always-on movement bonus and **augment the field skill to a degree** (e.g. the lightning character's skill becomes a lightning dash).
+  - **Sources:** a field skill can draw on a source like battle skills do; **a crystal source still loses durability** when used (`CrystalWear.md`).
+  - **Dropped:** separate field uses on battle skills, and field-only skill slots.
+**Notes for Claude:** built on GAS (stage 4 abilities, B-043): one ability per skill with a battle and a field mode. Open details: how level / source picks the field skill; dash-into-sprint meaning (`Design/FieldAbilities.md`).
 
 ### D-100 — Memories and boss triggers: two separate systems
 **Status:** ANSWERED (2026-10-27, restructured the same day) · **Raised:** 2026-10-27 (Q-190 review) · **Blocks:** —
