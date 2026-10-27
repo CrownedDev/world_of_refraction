@@ -1812,6 +1812,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-074-encounter-data): `UEncounterData::BuildOpposingRoster`. B-184's `AFieldEnemyTeam` should hold a `UEncounterData` and call `BuildOpposingRoster` rather than carry a second list of enemies.
 
+### Q-198 — Which way does a Luck dodge step?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-198) · **Blocks:** — (B-198 shipped with A)
+**Question:** a Luck dodge (D-085) now plays the dodge montage, but no press chose a side. Left or right?
+**Options:**
+- **A** alternate by impact (right, then left), no random draw, so seeded fights replay the same; a mistimed Dodge press keeps its own side (no replay).
+- **B** a random side from the battle random stream.
+- **C** always the same side.
+**Recommendation:** A. Expedition 33 and Sekiro play fixed, readable evade animations rather than random ones, and alternating sides makes a multi-hit flurry look like weaving. A cosmetic choice should not take a draw from the battle stream, which would change every later roll of a seeded fight (B-010). Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (fix/B-198-luck-dodge-animation): `LuckDodge::Direction`, `UActionExecutor::ResolveImpactDefense`.
+
 ### Q-204 — A spell held by both a broken and an intact source: greyed or not?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-204) · **Blocks:** — (B-204 shipped with A)
 **Question:** D-083 greys out a broken crystal's spells. When the same spell is also on another source (the other weapon, or a ring), is it still castable?
