@@ -1029,6 +1029,8 @@ void USkillEffectManager::RecordFiredOnce(AActor *Holder, const FWoRFiredOnceKey
 	}
 }
 
+// The tracker reads assume the tracker was there before the fight's records were written: ACombatCharacter creates it
+// in its constructor. One added later (a test actor) starts empty at UseGAS 1.
 const TArray<FGatheredEffect> *USkillEffectManager::FindArmedConditionals(const AActor *Actor) const
 {
 	const UWoRTurnEffectTracker *Tracker = Actor ? Actor->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr;
@@ -2178,13 +2180,15 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 		AActor *Owner = P.Owner;
 		AActor *Target = P.Target;
 
-		const TArray<FGatheredEffect> *Armed = FindArmedConditionals(Owner);
-		if (!Armed)
+		const TArray<FGatheredEffect> *FoundArmed = FindArmedConditionals(Owner);
+		if (!FoundArmed)
 		{
 			continue;
 		}
+		// A copy: a payload that swaps gear re-arms this holder and would free the array mid-loop.
+		const TArray<FGatheredEffect> Armed = *FoundArmed;
 
-		for (const FGatheredEffect &G : *Armed)
+		for (const FGatheredEffect &G : Armed)
 		{
 			const FSkillEffect &E = G.Effect;
 

@@ -91,6 +91,23 @@ void FFightRecordsSpec::Define()
 		}
 	});
 
+	It("gives a doesn't-stack effect one use per holder, whichever source brings it, on both paths", [this]()
+	{
+		if (!EffectManager) return;
+		for (const bool bUseGAS : {false, true})
+		{
+			EffectManager->ResetForNewCombat();
+			UWoREffectMirrorComponent::SetReadsFromGAS(bUseGAS);
+			const TCHAR *Path = bUseGAS ? TEXT("UseGAS 1") : TEXT("UseGAS 0");
+			FActiveSkillEffect Heal = OnceHeal();
+			Heal.bDoesNotStack = true;
+			TestTrue(FString::Printf(TEXT("%s: the first source's use lands"), Path),
+					 EffectManager->ApplyEffect(Holder, Heal, Source, TEXT("Test")) == EEffectApplicationResult::Applied);
+			TestTrue(FString::Printf(TEXT("%s: another source's use is refused"), Path),
+					 EffectManager->ApplyEffect(Holder, Heal, Holder, TEXT("Other")) == EEffectApplicationResult::Rejected);
+		}
+	});
+
 	It("keeps a use spent before the switch is turned on", [this]()
 	{
 		if (!EffectManager) return;
