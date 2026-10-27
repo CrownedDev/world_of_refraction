@@ -8,6 +8,7 @@
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "Widgets/Layout/Anchors.h"
+#include "WoRLog.h"
 
 namespace CombatHUDLayout
 {
@@ -25,18 +26,6 @@ namespace CombatHUDLayout
     constexpr int32 StripZOrder = 10;
     constexpr int32 MenuZOrder = 20;
     constexpr int32 PromptZOrder = 30;
-}
-
-UCombatHUD::UCombatHUD()
-{
-    CharacterPanelClass = TSoftClassPtr<UCharacterPanelWidget>(
-        FSoftObjectPath(TEXT("/Game/UI/UMG/Combat/Character/WBP_CharacterPanel.WBP_CharacterPanel_C")));
-    FallbackCharacterPanelClass = TSoftClassPtr<UCharacterPanelWidget>(
-        FSoftObjectPath(TEXT("/Game/UI/UMG/Combat/WBP_CharacterPanel.WBP_CharacterPanel_C")));
-    TurnOrderStripClass = TSoftClassPtr<UTurnOrderStripWidget>(
-        FSoftObjectPath(TEXT("/Game/UI/UMG/Combat/Turn/WBP_TurnOrderStrip.WBP_TurnOrderStrip_C")));
-    CommandMenuClass = TSoftClassPtr<UCombatCommandMenuWidget>(
-        FSoftObjectPath(TEXT("/Game/UI/UMG/Combat/CommandMenu/WBP_CombatMenu.WBP_CombatMenu_C")));
 }
 
 void UCombatHUD::Build(APlayerController *PC, const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty)
@@ -71,7 +60,8 @@ void UCombatHUD::Build(APlayerController *PC, const TArray<AActor *> &LocalParty
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("[CombatHUD] TurnOrderStripClass unresolved: %s"), *TurnOrderStripClass.ToString());
+        UE_LOG(LogWoRUI, Error, TEXT("[CombatHUD] TurnOrderStripClass unresolved ('%s'): set it in Config/DefaultGame.ini"),
+               *TurnOrderStripClass.ToString());
     }
 
     if (UClass *MenuClass = CommandMenuClass.LoadSynchronous())
@@ -88,7 +78,8 @@ void UCombatHUD::Build(APlayerController *PC, const TArray<AActor *> &LocalParty
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("[CombatHUD] CommandMenuClass unresolved: %s"), *CommandMenuClass.ToString());
+        UE_LOG(LogWoRUI, Error, TEXT("[CombatHUD] CommandMenuClass unresolved ('%s'): set it in Config/DefaultGame.ini"),
+               *CommandMenuClass.ToString());
     }
 
     UClass *PromptClass = DefensePromptClass.IsNull() ? UDefensePromptWidget::StaticClass()
@@ -177,11 +168,12 @@ UClass *UCombatHUD::ResolvePanelClass() const
     }
     if (UClass *Fallback = FallbackCharacterPanelClass.LoadSynchronous())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[CombatHUD] CharacterPanelClass unresolved (%s) - using fallback %s"),
+        UE_LOG(LogWoRUI, Warning, TEXT("[CombatHUD] CharacterPanelClass unresolved (%s) - using fallback %s"),
                *CharacterPanelClass.ToString(), *FallbackCharacterPanelClass.ToString());
         return Fallback;
     }
-    UE_LOG(LogTemp, Error, TEXT("[CombatHUD] No character panel class resolved - panels skipped"));
+    UE_LOG(LogWoRUI, Error, TEXT("[CombatHUD] No character panel class resolved - panels skipped (set CharacterPanelClass "
+                                 "in Config/DefaultGame.ini)"));
     return nullptr;
 }
 
