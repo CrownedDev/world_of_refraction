@@ -12,7 +12,7 @@
 - **Never missed for good** (Crown, 2026-10-27): conditions are checked again every run; failing one only means "not this run".
 - **Co-op** (Crown, 2026-10-27): every player who meets the conditions gets the memory on their own save. Character and gear conditions are checked per player's own character; shared ones (what was beaten, where) count for everyone present. No first-come lock.
 - **Rewards beyond story** (Crown, 2026-10-27, SLF / Elden Ring): a hidden unlock can also give rewards, set per unlock: a unique item, a skill, a title, or a curse (a penalty that is also a key to other secrets). Rewards are **different, not stronger** (pillars 2, 3).
-- **Evolutions, weapons and skills trigger them too** (Crown, 2026-10-27): equipped / slotted, upgrade level, and used (cast this skill, this evolution's Breakthrough, a finishing blow with this weapon).
+- **Equip conditions** (Crown, 2026-10-27): a certain character equipping a certain skill / spell / ring / weapon / evolution, optionally relative to its requirements (meeting them, above, or **under** them), and its upgrade level.
 - **More than one way in** (Crown, 2026-10-27, SLF's Akane / Rabituza): an unlock can list **alternative condition sets**; meeting any one set opens it.
 
 ## 2. What the research suggests (to decide)
