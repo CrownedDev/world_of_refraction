@@ -5,38 +5,39 @@
 #include "Character/CharacterData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Weapons/EWeaponType.h"
+#include "Loadout/LoadoutComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/Character.h"
 
 UWeaponMeshComponent::UWeaponMeshComponent()
 {
-    PrimaryComponentTick.bCanEverTick = true;
-    PrimaryComponentTick.TickInterval = 0.1f;
+    PrimaryComponentTick.bCanEverTick = false;
 }
 
 void UWeaponMeshComponent::BeginPlay()
 {
     Super::BeginPlay();
     CacheReferences();
+    if (LoadoutComponent)
+    {
+        LoadoutComponent->OnActiveWeaponChanged.AddUniqueDynamic(this, &UWeaponMeshComponent::HandleActiveWeaponChanged);
+    }
     UpdateWeaponMesh();
 }
 
-void UWeaponMeshComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
+void UWeaponMeshComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-    if (!CharacterDataComponent)
+    if (LoadoutComponent)
     {
-        return;
+        LoadoutComponent->OnActiveWeaponChanged.RemoveDynamic(this, &UWeaponMeshComponent::HandleActiveWeaponChanged);
     }
+    Super::EndPlay(EndPlayReason);
+}
 
-    UWeaponData *CurrentWeapon = CharacterDataComponent->GetActiveWeapon();
-
-    if (CurrentWeapon != CachedWeapon)
-    {
-        UpdateWeaponMesh();
-    }
+void UWeaponMeshComponent::HandleActiveWeaponChanged(UWeaponData *NewWeapon)
+{
+    UpdateWeaponMesh();
 }
 
 void UWeaponMeshComponent::CacheReferences()
@@ -45,6 +46,7 @@ void UWeaponMeshComponent::CacheReferences()
     if (Owner)
     {
         CharacterDataComponent = Owner->FindComponentByClass<UCharacterDataComponent>();
+        LoadoutComponent = Owner->FindComponentByClass<ULoadoutComponent>();
     }
 }
 

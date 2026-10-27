@@ -8,6 +8,7 @@
 #include "WeaponMeshComponent.generated.h"
 
 class UCharacterDataComponent;
+class ULoadoutComponent;
 class UWeaponData;
 class USkeletalMeshComponent;
 
@@ -46,10 +47,14 @@ public:
 
 protected:
     virtual void BeginPlay() override;
-    virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
     // ==================== INTERNAL ====================
+
+    /** B-138: the mesh follows ULoadoutComponent::OnActiveWeaponChanged, no polling. */
+    UFUNCTION()
+    void HandleActiveWeaponChanged(UWeaponData *NewWeapon);
 
     void CacheReferences();
     void SpawnWeaponMesh(UWeaponData *Weapon);
@@ -69,6 +74,9 @@ private:
 
     UPROPERTY()
     UCharacterDataComponent *CharacterDataComponent;
+
+    UPROPERTY(Transient)
+    TObjectPtr<ULoadoutComponent> LoadoutComponent;
 
     UPROPERTY()
     UWeaponData *CachedWeapon;
