@@ -2003,7 +2003,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** applied (feature/B-076-trial-recruits). Trial maps have no recruit spots yet (placing a recruitable pawn in a trial level is editor work): B-215. Until then, `wor.Party.RecruitForRun <CharacterData path>` recruits in a trial. Evolutions for a recruit wait for B with the real screen.
 
 ### Q-145 — The resistance plan: approve it, and does physical resistance cut physical damage?
-**Status:** ANSWERED · **Raised:** 2026-10-27 (B-145) · **Blocks:** B-216 (ships with A)
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-145) · **Blocks:** — (B-216 ships with B)
 **Question:** `docs/analysis/ResistanceRedesign.md` puts resistance in the standard GAS shape: a damage type beside the element (D-037), one resistance attribute per damage type fed by modifiers (class table, gear, buffs), and the damage and buildup calculations reading them, with every buildup number unchanged. One rule isn't settled: D-036 says per-element resistance scales elemental damage, but the class table and gear also carry Slash / Pierce / Impact. Does a physical subtype's resistance scale physical damage?
 **Options:**
 - **A** Approve the plan; physical subtype resistance scales physical damage the same way (1:1, capped ±50%), with Defense still applied after it. A Generic takes 15% less physical damage, a Resonator 15% more.

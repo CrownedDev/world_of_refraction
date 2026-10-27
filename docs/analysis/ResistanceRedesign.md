@@ -93,6 +93,7 @@ Per source:
 | Water | `Resist_Water` + `Resist_Ice` (D-029, Q-145b) | `Resist_Water` + `Resist_Ice` + physical + `StatusResistBonus` (no number changes today: nothing grants Ice resistance yet) |
 | Ice | `Resist_Ice` | `Resist_Ice` + physical + `StatusResistBonus` |
 | Slash / Pierce / Impact (element `None`) | none: Defense only (Q-145) | `Resist_NonElemental` + `Resist_<subtype>` + `StatusResistBonus` (exactly today's element-`None` read) |
+| `None` (element `None`, no physical type: e.g. an item's pure buildup) | none | `Resist_NonElemental` + `StatusResistBonus` |
 
 Buildup total stays `clamp(clamp(StatusResistance, 0, 1) + Matched, −1, +1)`, so **every buildup number is unchanged**. Immunities stay tag checks (`Immunity.*`, B-040) before the maths.
 
