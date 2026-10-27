@@ -219,7 +219,7 @@ public:
 	float GetDefenderFlatDefense(AActor *Defender) const;
 
 	/** Ignore Defense for one hit as a fraction, 0-1 (D-086): Input's amount (bIgnoreDefense = 100%)
-	 *  plus each of the attacker's IgnoreDefense effects (one without an amount = 100%), capped at 1. */
+	 *  plus each of the attacker's IgnoreDefense effects (one without an amount, or valued 1, = 100%), capped at 1. */
 	float GetIgnoreDefenseFraction(AActor *Attacker, const FDamageCalculationInput &Input) const;
 
 	/**

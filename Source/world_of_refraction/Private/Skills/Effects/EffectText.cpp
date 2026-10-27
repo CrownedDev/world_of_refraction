@@ -82,6 +82,21 @@ namespace
         return P.Value != 0 ? FText::AsNumber(FMath::Abs(P.Value)) : Percent(P.Magnitude);
     }
 
+    /** Ignore Defense's amount: a Value is percent points (D-086); none (or a 1 = on flag) is all of it. */
+    FText IgnoreDefenseAmount(const FSkillEffectPayload &P)
+    {
+        constexpr float IGNORE_DEFENSE_FLAG_VALUE = 1.0f;
+        if (FMath::Abs(P.Value) > IGNORE_DEFENSE_FLAG_VALUE)
+        {
+            return Percent(P.Value / PERCENT_SCALE);
+        }
+        if (P.Value == 0 && P.Magnitude > 0.0f)
+        {
+            return Percent(P.Magnitude);
+        }
+        return LOCTEXT("IgnoreDefense_All", "all");
+    }
+
     /** "Fire " before a noun, "Elemental " for Generic (it takes the caster's element), nothing for None. */
     FText ElementPrefix(ESpellElement Element)
     {
@@ -752,7 +767,7 @@ namespace EffectText
                                  Side.bSelf ? LOCTEXT("Whose_Self", "your") : Side.Possessive);
         case ESkillEffectType::IgnoreDefense:
             return FText::Format(LOCTEXT("IgnoreDefense", "{0} attacks ignore {1} Defense{2}"),
-                                 Side.bSelf ? LOCTEXT("Whose_Self", "your") : Side.Possessive, Amount(P), Span(P));
+                                 Side.bSelf ? LOCTEXT("Whose_Self", "your") : Side.Possessive, IgnoreDefenseAmount(P), Span(P));
         case ESkillEffectType::SpellCostBuff:
         case ESkillEffectType::SpellCostDebuff:
         case ESkillEffectType::ModifyEnergyCost:

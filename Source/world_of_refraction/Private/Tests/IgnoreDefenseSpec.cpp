@@ -25,6 +25,8 @@ namespace
 	constexpr int32 IGNORE_EFFECT_ID = 4701;
 	constexpr int32 IGNORE_SECOND_EFFECT_ID = 4702;
 	constexpr int32 IGNORE_EFFECT_TURNS = 2;
+	/** The "1 = on" gate value some effects are authored with. */
+	constexpr float IGNORE_FLAG_VALUE = 1.0f;
 	constexpr float IGNORE_HALF = 0.5f;
 	constexpr float IGNORE_RESIST = 0.4f;
 	constexpr float IGNORE_WEAKNESS = -0.3f;
@@ -125,12 +127,15 @@ void FIgnoreDefenseSpec::Define()
 		TestEqual(TEXT("Capped at 100%"), Calculator->GetIgnoreDefenseFraction(Attacker, Hit(IGNORE_HALF_PERCENT)), 1.0f);
 	});
 
-	It("treats an IgnoreDefense effect with no value as a full ignore", [this]()
+	It("treats an IgnoreDefense effect with no value, or a flag value of 1, as a full ignore", [this]()
 	{
 		if (!Calculator) return;
 		GiveIgnoreEffect(IGNORE_EFFECT_ID, 0.0f);
 		TestEqual(TEXT("No value = 100%"), Calculator->GetIgnoreDefenseFraction(Attacker, Hit(0.0f)), 1.0f);
 		TestEqual(TEXT("No Defense"), Calculator->CalculateDamage(Attacker, Defender, Hit(0.0f)).FinalDamage, IGNORE_BASE_DAMAGE);
+		Effects->RemoveAllEffects(Attacker);
+		GiveIgnoreEffect(IGNORE_SECOND_EFFECT_ID, IGNORE_FLAG_VALUE);
+		TestEqual(TEXT("Flag 1 = 100%"), Calculator->GetIgnoreDefenseFraction(Attacker, Hit(0.0f)), 1.0f);
 	});
 }
 
