@@ -962,13 +962,15 @@ void ACombatOrchestrator::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 
 	// W-B: an Execution turn carries a scheduled ritual fire instead of an action request.
 	// Q-044d (B-225): it is still one of the caster's turns, so the turn-start step runs first
-	// (spans end, payouts land). A caster that step killed ends the turn as a dead actor's turn
-	// does (the fight-over check runs) and its ritual is dropped with its payload. Every other
-	// turn kind (Normal / Bonus) runs the ordinary flow. The countdown that decides WHEN this
-	// fires lives in TurnManager (delay burns on Normal turns).
+	// (spans end, payouts and the Broken Darkness overflow land). A caster that step killed ends
+	// the turn as a dead actor's turn does (the fight-over check runs) and its ritual is dropped
+	// with its payload. Every way out of the turn goes through OnActionCompleted, so the turn-end
+	// step counts it too. Every other turn kind (Normal / Bonus) runs the ordinary flow. The
+	// countdown that decides WHEN this fires lives in TurnManager (delay burns on Normal turns).
 	if (TurnManagerRef && TurnManagerRef->GetCurrentTurnType() == ETurnType::Execution)
 	{
 		ProcessStartOfTurnEffects(CurrentActor);
+		ProcessBrokenDarknessOverflow(CurrentActor);
 		if (!IsActorAlive(CurrentActor))
 		{
 			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s died at its Execution turn start, ritual dropped"),
@@ -1055,7 +1057,7 @@ void ACombatOrchestrator::FireScheduledExecution()
 	if (!ActionExecutorRef)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Execution turn but no ActionExecutor — skipping"));
-		TurnManagerRef->AdvanceToNextTurn();
+		OnActionCompleted();
 		return;
 	}
 
@@ -1065,7 +1067,7 @@ void ACombatOrchestrator::FireScheduledExecution()
 	{
 		// Malformed slot (payload missing) — skip without requesting an action.
 		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Execution turn payload %d not found — skipping"), PayloadId);
-		TurnManagerRef->AdvanceToNextTurn();
+		OnActionCompleted();
 		return;
 	}
 
@@ -1080,7 +1082,7 @@ void ACombatOrchestrator::FireScheduledExecution()
 	{
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Execution turn caster %s dead/invalid — skipping fire"),
 			   IsValid(Caster) ? *Caster->GetName() : TEXT("<invalid>"));
-		TurnManagerRef->AdvanceToNextTurn();
+		OnActionCompleted();
 		return;
 	}
 
@@ -1101,7 +1103,7 @@ void ACombatOrchestrator::FireScheduledExecution()
 		// No one to re-ask on an Execution turn — don't strand it.
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Execution fire refused (%s) — advancing"),
 			   InvalidReason.IsEmpty() ? TEXT("guard") : *InvalidReason);
-		TurnManagerRef->AdvanceToNextTurn();
+		OnActionCompleted();
 	}
 }
 

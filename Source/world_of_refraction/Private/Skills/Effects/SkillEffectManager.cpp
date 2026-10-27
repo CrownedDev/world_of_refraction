@@ -1233,6 +1233,8 @@ void USkillEffectManager::ProcessEffectsWithTiming(AActor *Actor, ESkillEffectTi
 	}
 }
 
+// TODO: obsolete since B-225: every timed effect ApplyEffect stores counts holder turns
+// (FTurnSpan), so none reaches this plain tick-down. Remove after Crown's PIE pass on B-225.
 void USkillEffectManager::TickDurations(AActor *Actor)
 {
 	if (!ActiveEffects.Contains(Actor))
@@ -1478,9 +1480,11 @@ void USkillEffectManager::ApplyTimingRule(const AActor *Target, FActiveSkillEffe
 	}
 	// Q-044c: every payout lands at the holder's turn start, exactly N of them. Q-063: one landing
 	// on the holder's own turn counts that turn, whose start has passed, so it pays on landing.
-	const bool bWindowed = Effect.ProcessTiming == ESkillEffectTiming::StartOfOwnTurn ||
-						   Effect.ProcessTiming == ESkillEffectTiming::EndOfOwnTurn;
-	if (bWindowed && IsPayoutType(Effect.EffectType))
+	// Persistent (the payload default) runs at every turn start too, so it is timed the same way.
+	const bool bPaysPerTurn = Effect.ProcessTiming == ESkillEffectTiming::StartOfOwnTurn ||
+							  Effect.ProcessTiming == ESkillEffectTiming::EndOfOwnTurn ||
+							  Effect.ProcessTiming == ESkillEffectTiming::Persistent;
+	if (bPaysPerTurn && IsPayoutType(Effect.EffectType))
 	{
 		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 		Effect.bDelayFirstExecution = !IsHoldersOwnTurn(Target);
