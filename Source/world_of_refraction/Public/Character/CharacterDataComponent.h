@@ -347,6 +347,11 @@ public:
      *  (their getters' early returns). */
     bool GetStatLayers(ESubStat Stat, FWoRStatLayers &OutLayers) const;
 
+    /** A pillar's layers over its world base (B-042t): GetEvolutionModified* caps their modifier alone, which
+     *  equals Compose() for a non-negative base, and the GAS pillar sources apply them. False without
+     *  CharacterData (the getters' early return). */
+    bool GetPillarLayers(EWorldPillar Pillar, FWoRStatLayers &OutLayers) const;
+
     /** L2 — additive equipment SpellDamage term (BonusSpellDamage × per-point), the
      *  value Step 1 of CalculateDamage adds into AttackerMult AFTER ActionMods. Single
      *  source for the equipment layer. 0 when no loadout / no BonusSpellDamage. */
