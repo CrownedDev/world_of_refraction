@@ -86,9 +86,14 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationInput
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	float OverrideCritChance = -1.0f;
 
-	/** Skip defense calculation? */
+	/** Skip defense calculation? The same as IgnoreDefensePercent 100 (D-086). */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	bool bIgnoreDefense = false;
+
+	/** The skill's Ignore Defense amount, 0-100 (D-086): Defense and positive element resistance are
+	 *  cut by this share (Q-146b A). Adds to the attacker's IgnoreDefense effects, capped at 100. */
+	UPROPERTY(BlueprintReadWrite, Category = "Damage")
+	float IgnoreDefensePercent = 0.0f;
 
 	/** Skip resistance calculation? */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
@@ -212,6 +217,10 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
 	float GetDefenderFlatDefense(AActor *Defender) const;
+
+	/** Ignore Defense for one hit as a fraction, 0-1 (D-086): Input's amount (bIgnoreDefense = 100%)
+	 *  plus each of the attacker's IgnoreDefense effects (one without an amount = 100%), capped at 1. */
+	float GetIgnoreDefenseFraction(AActor *Attacker, const FDamageCalculationInput &Input) const;
 
 	/**
 	 * Get critical hit chance for attacker
