@@ -2507,6 +2507,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. A parallel run is only useful if it checks the number the game really uses (Martin Fowler, ParallelChange: compare the old and new paths on the same output before switching readers). With B, the GAS turn speed would match a number nothing plays with, and the switch-over (B-042h) would change turn order. The resistance sources are a different shape (additive buckets), so they go to their own job, B-042w.
 **Notes for Claude:** B-042v built A. The cached base still refreshes only when turn order recaches (fight start, weapon / ring switch), as today; the sync also runs on `UTurnManager::OnSpeedChanged`. GAS multiplies the stone and buff together before the base (MultiplyCompound) while turn order multiplies base x buff x stone: the last float bit can differ, which only matters on an exact .5 before the round (rare; the compare would show it).
 
+### Q-042w — The resistances on GAS: one effect per source, or one for all?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042w) · **Blocks:** —
+**Question:** Each damage type's resistance is a sum of buckets (typed buffs and debuffs, the class table, gear rolls), and the status bonus a sum of the curse / ModifyStatusResist and boss rising resistance. How should GAS hold them? And general status resistance (the capped Spirit stat x gear points x stones)?
+**Options:**
+- **A** (as built) one Infinite effect per source (effect, class, gear, boss), each adding (AddBase) its bucket to every damage type's resistance by a SetByCaller keyed by the type's `DamageType.*` tag; the attributes' base is 0, so GAS's sum is the getter's sum. General status resistance on the stat-sources shape the other stats use (capped stat as the base, gear and stone multiplied in), clamped to [0, RESISTANCE_MAX] by the attribute set.
+- **B** one effect carrying the summed resistance per type (a mirror, not a composition).
+**Recommendation:** A. In GAS, additive modifiers from separate effects sum in the attribute's aggregator, and each source as its own effect can later be removed or inspected on its own (tranek's GASDocumentation, the community GAS reference, Gameplay Effect Modifiers). B would hide which source moved a number, and the switch-over (B-042h) wants the sources apart. General status resistance is the same shape as the other capped stats, so it reuses that path.
+**Notes for Claude:** B-042w built A. Each source effect's magnitudes are updated in place (by tag) and skipped when unchanged. The getters stay the game's source of truth until B-042h; their numbers are unchanged (they now sum `GetTypeResistanceSources` / `GetStatusResistBonusSources`).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
