@@ -88,6 +88,7 @@ The only intended changes are the two Crown already ruled: Ignore Defense become
 - **Today:** the weapon's requirement only feeds Broken Darkness strain (`GetTotalDeficit`, `WorldStatRequirements.cpp:92`). The skill's requirement uses the ±5 gap ladder (2.2).
 - **Standard:** the same ladder on the weapon's own contribution, built beside the skill's (`ActionExecutor.cpp:6987`) but **not** through ActionMods: `AddPillarPercent` (`Public/Combat/Actions/ActionStatModifiers.h:131`) spreads a percent to every sub-stat of the pillar (Efficiency, Defense, …) and adds percents with no floor (`ApplyTo`, `:188`), so a skill's and a weapon's −68% would sum below −100%. The weapon's gap is a **separate damage factor** on attacks and abilities through that weapon, `clamp(ladder, WEAPON_REQ_FACTOR_MIN, 1)`, multiplied in (the 1 is Q-146c; the floor a named constant, `// TODO: tune`: the ladder's lowest rung is 0.32, so it matters only if set above that). Being over the requirement: Q-146c.
 - **What changes:** the rule (D-082). B-162 builds it.
+- **Then (D-101, B-220):** weapons have their own part, `Power x (1 + grade x pillar curve) x requirement factor`, added to the skill part (`WoRWeaponPower`, BaselineNumbers.md Decided); the requirement factor moved onto that part only.
 
 ## 3. Tuning numbers in data (Q-146)
 
@@ -125,6 +126,7 @@ Kept as they are in the port (same numbers); checked separately. **B-217 (Q-217)
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-27 | Plan written | chore/B-146-stat-maths-plan |
+| 2026-10-27 | §2.9: weapon Power and pillar scaling (B-220); the requirement factor on the weapon part only | feature/B-220-weapon-power |
 
 ## Sources
 
