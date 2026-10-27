@@ -26,9 +26,11 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "HAL/IConsoleManager.h"
+#include "EngineUtils.h"
 #include "TimerManager.h"
 #include "Equipment/Rings/RingManager.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Equipment/Weapons/WeaponPower.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/CrystalType.h"
 #include "Equipment/Crystals/ItemIdentity.h"
@@ -521,6 +523,29 @@ namespace
 	}
 }
 
+namespace
+{
+	FAutoConsoleCommandWithWorld GPrintWeaponPowerCmd(
+		TEXT("wor.Weapon.Print"),
+		TEXT("DEBUG (B-220): every combatant's active weapon: Power, grades, requirement factor and weapon part."),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+		{
+			const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+			const UActionExecutor *Executor = GI ? GI->GetSubsystem<UActionExecutor>() : nullptr;
+			if (!Executor)
+			{
+				return;
+			}
+			for (TActorIterator<AActor> It(World); It; ++It)
+			{
+				if (It->FindComponentByClass<ULoadoutComponent>())
+				{
+					UE_LOG(LogWoRCombat, Log, TEXT("[WeaponPower] %s"), *Executor->GetWeaponPartString(*It));
+				}
+			}
+		}));
+}
+
 float UActionExecutor::GetWeaponRequirementFactor(AActor *Actor, const FAction &Action) const
 {
 	if (Action.ActionType == EActionType::Spell)
@@ -535,6 +560,41 @@ float UActionExecutor::GetWeaponRequirementFactor(AActor *Actor, const FAction &
 		return WeaponRequirement::WEAPON_REQ_FACTOR_MAX;
 	}
 	return Weapon->Requirements.GetWeaponRequirementFactor(GetLiveWorldLevels(Actor, *UserData));
+}
+
+float UActionExecutor::GetWeaponPart(AActor *Actor, const FAction &Action) const
+{
+	if (Action.ActionType == EActionType::Spell)
+	{
+		return 0.0f;
+	}
+	const ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+	const UWeaponData *Weapon = LC ? LC->GetActiveWeapon() : nullptr;
+	const UCharacterData *UserData = GetCharacterData(Actor);
+	const TOptional<EItemTier> InstanceTier = ResolveChannelTier(Actor, Action);
+	if (!Weapon || !UserData || !InstanceTier.IsSet())
+	{
+		return 0.0f;
+	}
+	return WoRWeaponPower::GetWeaponPart(*Weapon, InstanceTier.GetValue(), GetLiveWorldLevels(Actor, *UserData),
+										 GetWeaponRequirementFactor(Actor, Action));
+}
+
+FString UActionExecutor::GetWeaponPartString(AActor *Actor) const
+{
+	const ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+	const UWeaponData *Weapon = LC ? LC->GetActiveWeapon() : nullptr;
+	const UCharacterData *UserData = GetCharacterData(Actor);
+	if (!Weapon || !UserData)
+	{
+		return FString::Printf(TEXT("%s: no active weapon"), *GetNameSafe(Actor));
+	}
+	FAction Attack;
+	Attack.ActionType = EActionType::Ability;
+	const TOptional<EItemTier> InstanceTier = ResolveChannelTier(Actor, Attack);
+	return FString::Printf(TEXT("%s: %s\n%s"), *GetNameSafe(Actor), *Weapon->GetName(),
+						   *WoRWeaponPower::GetWeaponPartString(*Weapon, InstanceTier.Get(Weapon->Tier), GetLiveWorldLevels(Actor, *UserData),
+																GetWeaponRequirementFactor(Actor, Attack)));
 }
 
 FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FAction &Action,
@@ -599,13 +659,15 @@ FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FA
 	Damage = FMath::RoundToInt(Damage * TierGap);
 	Damage = FMath::RoundToInt(Damage * TierPowerScaling::GetTierPowerMultiplier(Skill->Tier));
 
-	// Weapon requirement (D-082): under it the weapon gives less than its full output.
+	// B-220 (D-101, BaselineNumbers.md "Decided"): the weapon part adds to the skill part; the requirement factor
+	// (D-082) cuts the weapon part only. A weapon with Power 0 adds nothing and its requirement cuts nothing.
 	Preview.WeaponRequirementFactor = GetWeaponRequirementFactor(User, Action);
-	Damage = FMath::RoundToInt(Damage * Preview.WeaponRequirementFactor);
-	if (bLog && Preview.WeaponRequirementFactor < WeaponRequirement::WEAPON_REQ_FACTOR_MAX)
+	const float WeaponPart = GetWeaponPart(User, Action);
+	Damage += FMath::RoundToInt(WeaponPart);
+	if (bLog && WeaponPart > 0.0f)
 	{
-		UE_LOG(LogWoRCombat, Log, TEXT("[WeaponReq] %s under the weapon's requirement -> x%.2f"),
-			   *Skill->Name, Preview.WeaponRequirementFactor);
+		UE_LOG(LogWoRCombat, Log, TEXT("[WeaponPower] %s: weapon part %.1f (requirement x%.2f)"), *Skill->Name, WeaponPart,
+			   Preview.WeaponRequirementFactor);
 	}
 
 	Preview.FinalDamage = Damage;
