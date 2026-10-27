@@ -40,7 +40,7 @@
    - **Dash evolves into sprint**: a dash carries on into a faster sprint (in motion or through upgrades: to look into, Crown).
    - **Wall-running at speed**: moving fast enough lets you run along walls (Prototype, Warframe-style parkour).
 4. **Decided (Crown, 2026-10-27): flight drains EP while flying, with a height ceiling and no-fly zones** (boss arenas, some secrets). **But effects can raise these limits**: e.g. an evolution might give **unlimited flight**; one of Crown's characters uses unlimited energy (for another day). **Hidden areas in the sky** (Shangri-La Frontier style secrets) are welcome.
-5. Element rules on the world (burn, freeze, wind lift, conduct, douse) defined once for the whole game.
+5. **Decided (Crown, 2026-10-27): elements change the world through a few general rules defined once** (Breath of the Wild): elements change materials (Fire burns wood and grass, Water / Ice douses or freezes, Wind lifts, Lightning conducts…), elements change each other (Water puts out Fire), materials don't change each other. Each map region gets 1-2 element shortcuts or secrets. The rule table is Crown's to fill (`// TODO: Crown`).
 6. Co-op: regroup / teleport to leader, party-wide movement buffs, whether a fight one player starts pulls in nearby teammates.
 7. Where field-only skills are slotted.
 
