@@ -7,6 +7,7 @@
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Combat/CombatConstants.h"
 #include "GAS/WoRAttributeSets.h"
+#include "GAS/WoRDerivedStatMagnitudes.h"
 #include "Tags/WoRGameplayTags.h"
 
 void UWoRGameplayEffect::AddAssetTag(const FGameplayTag &Tag)
@@ -250,22 +251,21 @@ UWoRGE_DerivedStat::UWoRGE_DerivedStat()
 	AddAssetTag(WoRTags::Effect_Family_DerivedStat);
 }
 
-void UWoRGE_DerivedStat::AddAttributeTerm(const FGameplayAttribute &Target, const FGameplayAttribute &From, float Coefficient)
+void UWoRGE_DerivedStat::AddClampedTerm(const FGameplayAttribute &Target, TSubclassOf<UWoRMMC_ClampedStatTerm> Term)
 {
-	FAttributeBasedFloat Term;
-	Term.Coefficient = FScalableFloat(Coefficient);
-	Term.BackingAttribute = FGameplayEffectAttributeCaptureDefinition(From, EGameplayEffectAttributeCaptureSource::Target, false);
+	FCustomCalculationBasedFloat Calculation;
+	Calculation.CalculationClassMagnitude = Term;
 	FGameplayModifierInfo Modifier;
 	Modifier.Attribute = Target;
 	Modifier.ModifierOp = EGameplayModOp::AddBase;
-	Modifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(Term);
+	Modifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(Calculation);
 	Modifiers.Add(Modifier);
 }
 
 UWoRGE_DerivedCritChance::UWoRGE_DerivedCritChance()
 {
 	const FGameplayAttribute CritChance = UWoRAttributeSet_Stats::GetCritChanceAttribute();
-	AddAttributeTerm(CritChance, UWoRAttributeSet_Stats::GetLuckAttribute(), CombatConstants::CRIT_CHANCE_LUCK_BONUS);
+	AddClampedTerm(CritChance, UWoRMMC_CritChanceLuckTerm::StaticClass());
 	FSetByCallerFloat Transient;
 	Transient.DataTag = WoRTags::SetByCaller_Stat_Transient;
 	FGameplayModifierInfo Modifier;
@@ -277,7 +277,5 @@ UWoRGE_DerivedCritChance::UWoRGE_DerivedCritChance()
 
 UWoRGE_DerivedEfficiency::UWoRGE_DerivedEfficiency()
 {
-	constexpr float REDUCTION_SUBTRACTS = -1.0f;
-	AddAttributeTerm(UWoRAttributeSet_Stats::GetEfficiencyAttribute(), UWoRAttributeSet_Stats::GetEfficiencyReductionAttribute(),
-					 REDUCTION_SUBTRACTS);
+	AddClampedTerm(UWoRAttributeSet_Stats::GetEfficiencyAttribute(), UWoRMMC_EfficiencyReductionTerm::StaticClass());
 }

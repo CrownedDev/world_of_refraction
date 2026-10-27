@@ -14,6 +14,8 @@
 #include "GameplayEffect.h"
 #include "WoRGameplayEffects.generated.h"
 
+class UWoRMMC_ClampedStatTerm;
+
 enum class ESubStat : uint8;
 
 /** Base for the native family GEs: the constructor helpers that add tag components. */
@@ -312,8 +314,8 @@ public:
 };
 
 /** B-042s (Q-042s): a stat derived from other attributes, as one Infinite effect the attribute sync
- *  applies once. Attribute-based magnitudes (not snapshot) track the source attribute live, so the
- *  derived value follows it with no re-sync. */
+ *  applies once. Each term is a magnitude calculation that captures its source live (not snapshot) and
+ *  clamps it as the getter does (UWoRMMC_ClampedStatTerm), so the derived value follows it with no re-sync. */
 UCLASS(Abstract)
 class WORLD_OF_REFRACTION_API UWoRGE_DerivedStat : public UWoRGameplayEffect
 {
@@ -326,8 +328,8 @@ public:
 protected:
 	UWoRGE_DerivedStat();
 
-	/** Target += From x Coefficient, before the multipliers (AddBase). */
-	void AddAttributeTerm(const FGameplayAttribute &Target, const FGameplayAttribute &From, float Coefficient);
+	/** Target += the term's clamped source x coefficient, before the multipliers (AddBase). */
+	void AddClampedTerm(const FGameplayAttribute &Target, TSubclassOf<UWoRMMC_ClampedStatTerm> Term);
 };
 
 /** Crit chance = (CRIT_CHANCE_BASE + Luck x CRIT_CHANCE_LUCK_BONUS) x the buff layer

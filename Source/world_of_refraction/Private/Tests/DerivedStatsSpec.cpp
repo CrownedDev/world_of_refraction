@@ -32,6 +32,9 @@ namespace
 	constexpr int32 DERIVED_STAT_POINTS = 10;
 	/** A Luck value written straight onto the attribute, past what the getter gives. */
 	constexpr float DERIVED_DIRECT_LUCK = 0.8f;
+	/** Past Luck's gear ceiling (2.0) and the reduction's (0.9), so only the clamp decides. */
+	constexpr float DERIVED_PAST_CEILING_LUCK = 2.5f;
+	constexpr float DERIVED_PAST_CEILING_REDUCTION = 1.5f;
 	constexpr float DERIVED_TOLERANCE = 1.0e-4f;
 }
 
@@ -124,6 +127,23 @@ void FDerivedStatsSpec::Define()
 		TestTrue(TEXT("Luck went up"), Current(Luck) > 0.0f);
 		TestTrue(TEXT("Crit chance followed"), Current(CritChance) > Before);
 		TestEqual(TEXT("Crit chance = base + Luck x bonus"), Current(CritChance), Expected, DERIVED_TOLERANCE);
+	});
+
+	It("clamps the captured Luck and reduction as the getters do", [this]()
+	{
+		if (!ASC) return;
+		const FGameplayAttribute Luck = UWoRAttributeSet_Stats::GetLuckAttribute();
+		ASC->SetNumericAttributeBase(Luck, DERIVED_PAST_CEILING_LUCK);
+		TestEqual(TEXT("Luck at its ceiling"), Current(Luck), CombatConstants::LUCK_GEAR_CEILING);
+		TestEqual(TEXT("Crit chance from the clamped Luck"), Current(UWoRAttributeSet_Stats::GetCritChanceAttribute()),
+				  CombatConstants::CRIT_CHANCE_BASE + CombatConstants::LUCK_GEAR_CEILING * CombatConstants::CRIT_CHANCE_LUCK_BONUS,
+				  DERIVED_TOLERANCE);
+
+		const FGameplayAttribute Reduction = UWoRAttributeSet_Stats::GetEfficiencyReductionAttribute();
+		ASC->SetNumericAttributeBase(Reduction, DERIVED_PAST_CEILING_REDUCTION);
+		TestEqual(TEXT("Reduction at its ceiling"), Current(Reduction), CombatConstants::EFFICIENCY_GEAR_CEILING);
+		TestEqual(TEXT("Efficiency from the clamped reduction"), Current(UWoRAttributeSet_Stats::GetEfficiencyAttribute()),
+				  1.0f - CombatConstants::EFFICIENCY_GEAR_CEILING, DERIVED_TOLERANCE);
 	});
 
 	It("takes a Luck buff through the derived effect without re-applying it", [this]()
