@@ -3001,7 +3001,7 @@ namespace
 		{
 			return;
 		}
-		const float ReflectPct = SEM->GetTotalStatModifier(Target, ReflectType) / 100.0f;
+		const float ReflectPct = SEM->GetTotalStatModifier(Target, ReflectType) / CombatConstants::STAT_PERCENT_DIVISOR;
 		const int32 Reflected = FMath::RoundToInt(Damage * ReflectPct);
 		UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
 		if (Reflected > 0 && AttackerComp)
@@ -3116,8 +3116,7 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			Result.bTargetDied = true;
 		}
 
-		// OnDamageDealt fires per-hit. ProcessMultiHit→ApplyDamage did this today;
-		// ApplyHit preserves the per-hit broadcast so floating-number widgets,
+		// OnDamageDealt fires per-hit, so floating-number widgets,
 		// hit-flash VFX, and any other listener see one event per hit landed.
 		OnDamageDealt.Broadcast(Input.Attacker, Input.Target, Result.DamageDealt, Result.bWasCritical);
 		OnElementDamageDealt.Broadcast(Input.Attacker, Input.Target, Result.DamageDealt, Result.bWasCritical, Input.Element);
@@ -3620,49 +3619,9 @@ void UActionExecutor::SpawnAOEEffect(
 	// (ExpectedImpacts=1): read the cast-entry defense difficulty, apply the single full-damage impact,
 	// and close. Mirrors OnProjectileImpact's converted branch — the AOE "arrival" is here, now.
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
-	if (DefenseSys && CurrentExecutionContext.IsSet())
+	if (ResolveSpellArrival(Target, CastEntryIndex, Caster, Skill, TEXT("AOE")))
 	{
-		if (FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); Ctx && Ctx->ExpectedImpacts > 0)
-		{
-			const double ImpactTime = UDefenseSystem::GetDefenseClockSeconds(this);
-
-			// Difficulty from the spell cast-entry table (guarded): INDEX_NONE / out-of-range → Easy ×1.0.
-			const FDefenseDifficultyTriple Diff =
-				CurrentExecutionContext->ResolvedCastDifficulty.IsValidIndex(CastEntryIndex)
-					? CurrentExecutionContext->ResolvedCastDifficulty[CastEntryIndex]
-					: FDefenseDifficultyTriple();
-
-			AActor *Attacker = Ctx->Attacker.Get();
-
-			// One AOE impact per defender → ordinal 0. Drain BEFORE apply so the close-time tail
-			// [ImpactsLanded, HitCount) in ApplyDamageAfterDefense is empty — no double-apply on close.
-			++Ctx->ImpactsLanded;
-			ResolveImpactDefense(Target, 0, ImpactTime, Diff);
-			Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); // re-find: ResolveImpactDefense mutated the entry
-			if (Ctx)
-			{
-				StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedCastFlags, CastEntryIndex);
-				// Capture the choke outcome BEFORE ApplyOneImpact (which may remove the context on death).
-				const bool bChokeEntry = CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
-										 CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable;
-				const bool bDefended = GuardRules::StopsInterruptableHit(Ctx->ResolvedDefenseType, Ctx->bResolvedSuccess,
-																		 Ctx->bResolvedPerfect);
-				ApplyOneImpact(Attacker, Target, *Ctx, 0, /*bDamageIsPerImpact=*/true);
-				// Cross-target interrupt tally: record this target's outcome; abort once ALL targets have
-				// resolved AND all parried/dodged this choke point (the surviving tally replaces the live-
-				// context check the per-defender close below defeats).
-				if (bChokeEntry && RecordChokeAndShouldAbort(Target, bDefended))
-				{
-					InterruptAsyncAction(Caster, Skill);
-					return; // abort handles teardown — skip the normal close
-				}
-			}
-			DefenseSys->CloseDefenseWindow(Target); // single-and-only arrival → close (empty tail, removes the entry)
-
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] AOE resolved per-impact for %s (CastEntryIndex=%d)"),
-				   *Target->GetName(), CastEntryIndex);
-			return;
-		}
+		return;
 	}
 
 	// No converted count-based window: unconverted multi-entry AOE keeps the action-start lumped
@@ -3723,49 +3682,9 @@ void UActionExecutor::ResolveInstantSpell(
 	// cast-entry defense difficulty, apply the single full-damage impact through the defense, and close.
 	// Byte-identical to SpawnAOEEffect's converted branch — the Instant "arrival" is here, now.
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
-	if (DefenseSys && CurrentExecutionContext.IsSet())
+	if (ResolveSpellArrival(Target, CastEntryIndex, Caster, Skill, TEXT("Instant")))
 	{
-		if (FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); Ctx && Ctx->ExpectedImpacts > 0)
-		{
-			const double ImpactTime = UDefenseSystem::GetDefenseClockSeconds(this);
-
-			// Difficulty from the spell cast-entry table (guarded): INDEX_NONE / out-of-range → Easy ×1.0.
-			const FDefenseDifficultyTriple Diff =
-				CurrentExecutionContext->ResolvedCastDifficulty.IsValidIndex(CastEntryIndex)
-					? CurrentExecutionContext->ResolvedCastDifficulty[CastEntryIndex]
-					: FDefenseDifficultyTriple();
-
-			AActor *Attacker = Ctx->Attacker.Get();
-
-			// One Instant impact per defender → ordinal 0. Drain BEFORE apply so the close-time tail
-			// [ImpactsLanded, HitCount) in ApplyDamageAfterDefense is empty — no double-apply on close.
-			++Ctx->ImpactsLanded;
-			ResolveImpactDefense(Target, 0, ImpactTime, Diff);
-			Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); // re-find: ResolveImpactDefense mutated the entry
-			if (Ctx)
-			{
-				StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedCastFlags, CastEntryIndex);
-				// Capture the choke outcome BEFORE ApplyOneImpact (which may remove the context on death).
-				const bool bChokeEntry = CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
-										 CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable;
-				const bool bDefended = GuardRules::StopsInterruptableHit(Ctx->ResolvedDefenseType, Ctx->bResolvedSuccess,
-																		 Ctx->bResolvedPerfect);
-				ApplyOneImpact(Attacker, Target, *Ctx, 0, /*bDamageIsPerImpact=*/true);
-				// Cross-target interrupt tally: record this target's outcome; abort once ALL targets have
-				// resolved AND all parried/dodged this choke point (the surviving tally replaces the live-
-				// context check the per-defender close below defeats).
-				if (bChokeEntry && RecordChokeAndShouldAbort(Target, bDefended))
-				{
-					InterruptAsyncAction(Caster, Skill);
-					return; // abort handles teardown — skip the normal close
-				}
-			}
-			DefenseSys->CloseDefenseWindow(Target); // single-and-only arrival → close (empty tail, removes the entry)
-
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Instant resolved per-impact for %s (CastEntryIndex=%d)"),
-				   *Target->GetName(), CastEntryIndex);
-			return;
-		}
+		return;
 	}
 
 	// No converted count-based window: unconverted multi-entry Instant keeps the action-start lumped
@@ -3935,6 +3854,78 @@ void UActionExecutor::SpawnNextBurstProjectile()
 // PROJECTILE EVENT HANDLERS
 // ========================================
 
+bool UActionExecutor::ResolveSpellArrival(AActor *Target, int32 CastEntryIndex, AActor *InterruptCaster,
+										  USkillDataBase *InterruptSkill, const TCHAR *ArrivalLabel)
+{
+	UDefenseSystem *DefenseSys = GetDefenseSystem();
+	if (!DefenseSys || !CurrentExecutionContext.IsSet())
+	{
+		return false;
+	}
+	FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target);
+	if (!Ctx || Ctx->ExpectedImpacts <= 0)
+	{
+		return false;
+	}
+
+	const double ImpactTime = UDefenseSystem::GetDefenseClockSeconds(this);
+
+	// Difficulty from the spell cast-entry table (guarded): INDEX_NONE / out-of-range -> Easy x1.0.
+	const FDefenseDifficultyTriple Diff =
+		CurrentExecutionContext->ResolvedCastDifficulty.IsValidIndex(CastEntryIndex)
+			? CurrentExecutionContext->ResolvedCastDifficulty[CastEntryIndex]
+			: FDefenseDifficultyTriple();
+
+	AActor *Attacker = Ctx->Attacker.Get();
+
+	// This arrival's ordinal = the running ImpactsLanded (read BEFORE the increment): 0,1,...,Count-1
+	// in arrival order. Distinct ordinals are required: ApplyOneImpact uses ImpactIndex for the bounds
+	// guard (< HitCount=Count), buildup-rides-ordinal-0 (status applies ONCE, on the first arrival),
+	// and the even-split remainder. A single arrival (AOE, Instant, one projectile) is ordinal 0.
+	const int32 ImpactOrdinal = Ctx->ImpactsLanded;
+
+	// Drain BEFORE apply (melee order): when ImpactsLanded reaches HitCount the close-time tail
+	// [ImpactsLanded, HitCount) in ApplyDamageAfterDefense is EMPTY, so no double-apply on close.
+	++Ctx->ImpactsLanded;
+	// Capture the close decision NOW, while Ctx is valid (ApplyOneImpact can broadcast OnTargetKilled
+	// and remove the entry). Close ONLY after the LAST of N staggered arrivals; intermediate burst
+	// arrivals leave the count-based window open for the next projectile.
+	const bool bLastArrival = (Ctx->ImpactsLanded >= Ctx->ExpectedImpacts);
+
+	// Even-split: ResolveImpactDefense slices State.BaseDamage/HitCount for this ordinal (+remainder
+	// for the first R). Each arrival reduces by its own matched defense.
+	ResolveImpactDefense(Target, ImpactOrdinal, ImpactTime, Diff);
+	Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); // re-find: ResolveImpactDefense mutated the entry
+	if (Ctx)
+	{
+		StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedCastFlags, CastEntryIndex);
+		// Capture the choke outcome BEFORE ApplyOneImpact (may remove the context on death). Only
+		// single-impact arrivals (ExpectedImpacts==1) are choke points; burst (Count>1) deferred.
+		const bool bChokeEntry = Ctx->ExpectedImpacts == 1 &&
+								 CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
+								 CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable;
+		const bool bDefended = GuardRules::StopsInterruptableHit(Ctx->ResolvedDefenseType, Ctx->bResolvedSuccess,
+																 Ctx->bResolvedPerfect);
+		ApplyOneImpact(Attacker, Target, *Ctx, ImpactOrdinal, /*bDamageIsPerImpact=*/true);
+		// Cross-target interrupt tally: record this target's outcome; abort once ALL targets have
+		// resolved AND all parried/dodged this choke point.
+		if (bChokeEntry && RecordChokeAndShouldAbort(Target, bDefended))
+		{
+			InterruptAsyncAction(InterruptCaster ? InterruptCaster : Attacker,
+								 InterruptSkill ? InterruptSkill : GetCurrentSkillData());
+			return true; // abort handles teardown; skip the close
+		}
+	}
+	if (bLastArrival)
+	{
+		DefenseSys->CloseDefenseWindow(Target); // -> OnDefenseWindowClosed: empty tail, removes the entry
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s resolved per-impact for %s (CastEntryIndex=%d, ordinal %d)"),
+		   ArrivalLabel, *Target->GetName(), CastEntryIndex, ImpactOrdinal);
+	return true;
+}
+
 void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation, float ImpactRadius, int32 Damage, int32 CastEntryIndex)
 {
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Projectile impact on %s - Damage=%d, Radius=%.2f, CastEntryIndex=%d"),
@@ -3951,65 +3942,9 @@ void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation,
 	// window count-based with ExpectedImpacts=1, so the projectile's LANDING is the impact moment.
 	// Resolve THIS arrival per-impact (reading the spell cast-entry difficulty) and apply exactly
 	// once — mirroring the melee Impact-notify loop (drain counter, resolve, apply slice, close).
-	if (DefenseSys && CurrentExecutionContext.IsSet())
+	if (ResolveSpellArrival(Target, CastEntryIndex, nullptr, nullptr, TEXT("Projectile")))
 	{
-		if (FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); Ctx && Ctx->ExpectedImpacts > 0)
-		{
-			const double ImpactTime = UDefenseSystem::GetDefenseClockSeconds(this);
-
-			// Difficulty from the spell cast-entry table (guarded): -1 / out-of-range → Easy ×1.0.
-			const FDefenseDifficultyTriple Diff =
-				CurrentExecutionContext->ResolvedCastDifficulty.IsValidIndex(CastEntryIndex)
-					? CurrentExecutionContext->ResolvedCastDifficulty[CastEntryIndex]
-					: FDefenseDifficultyTriple();
-
-			AActor *Attacker = Ctx->Attacker.Get();
-
-			// This arrival's ordinal = the running ImpactsLanded (read BEFORE the increment): 0,1,…,Count-1
-			// in arrival order. Distinct ordinals are required — ApplyOneImpact uses ImpactIndex for the
-			// bounds guard (< HitCount=Count), buildup-rides-ordinal-0 (status applies ONCE, on the first
-			// arrival), and the even-split remainder. Single (Count==1) = ordinal 0, the cluster-4 case.
-			const int32 ImpactOrdinal = Ctx->ImpactsLanded;
-
-			// Drain BEFORE apply (melee order, ~line 5081): when ImpactsLanded reaches HitCount the
-			// close-time tail [ImpactsLanded, HitCount) in ApplyDamageAfterDefense is EMPTY — no double-
-			// apply when CloseDefenseWindow fires OnDefenseWindowClosed below.
-			++Ctx->ImpactsLanded;
-			// Capture the close decision NOW, while Ctx is valid — ApplyOneImpact can broadcast
-			// OnTargetKilled and remove the entry. Close ONLY after the LAST of N staggered arrivals;
-			// intermediate burst arrivals leave the count-based window open for the next projectile.
-			const bool bLastArrival = (Ctx->ImpactsLanded >= Ctx->ExpectedImpacts);
-
-			// Even-split: ResolveImpactDefense slices State.BaseDamage/HitCount = FinalDamage/Count for
-			// this ordinal (+remainder for the first R). Per arrival reduces by its own matched defense.
-			ResolveImpactDefense(Target, ImpactOrdinal, ImpactTime, Diff);
-			Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); // re-find: ResolveImpactDefense mutated the entry
-			if (Ctx)
-			{
-				StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedCastFlags, CastEntryIndex);
-				// Capture the choke outcome BEFORE ApplyOneImpact (may remove the context on death). Only
-				// single-impact projectiles (ExpectedImpacts==1) are choke points; burst (Count>1) deferred.
-				const bool bChokeEntry = Ctx->ExpectedImpacts == 1 &&
-										 CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
-										 CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable;
-				const bool bDefended = GuardRules::StopsInterruptableHit(Ctx->ResolvedDefenseType, Ctx->bResolvedSuccess,
-																		 Ctx->bResolvedPerfect);
-				ApplyOneImpact(Attacker, Target, *Ctx, ImpactOrdinal, /*bDamageIsPerImpact=*/true);
-				// Cross-target interrupt tally (single-projectile multi-target): record + abort when ALL
-				// targets parried/dodged this choke point. Earlier targets already closed normally; the abort
-				// on the last prevents the remainder.
-				if (bChokeEntry && RecordChokeAndShouldAbort(Target, bDefended))
-				{
-					InterruptAsyncAction(Attacker, GetCurrentSkillData());
-					return; // abort handles teardown — skip the close below
-				}
-			}
-			if (bLastArrival)
-			{
-				DefenseSys->CloseDefenseWindow(Target); // → OnDefenseWindowClosed: empty tail, removes the entry
-			}
-			return;
-		}
+		return;
 	}
 
 	// Unconverted (lumped) path — barrage/beam, or no pending context. Preserve the legacy orphan

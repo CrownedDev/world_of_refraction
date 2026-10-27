@@ -762,6 +762,14 @@ private:
 	 *         total — slice it by ResolvedDamageSplit[ImpactIndex] here (legacy lumped path). */
 	void ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex, bool bDamageIsPerImpact = false);
 
+	/** One spell arrival (an AOE or Instant cast moment, or a projectile landing) on Target's count-based
+	 *  window: resolve its defense per-impact, apply it, run the choke tally, and close after the last
+	 *  arrival. False when Target has no converted window (the caller keeps its lumped / setup-error
+	 *  path). Interrupts use InterruptCaster / InterruptSkill, or the window's attacker and the running
+	 *  skill when null (B-032). */
+	bool ResolveSpellArrival(AActor *Target, int32 CastEntryIndex, AActor *InterruptCaster,
+							 USkillDataBase *InterruptSkill, const TCHAR *ArrivalLabel);
+
 	/** Handle multi-hit abilities. OBSOLETE (B-167): its only caller was the no-DefenseSystem
 	 *  fallback; remove after Crown's PIE pass of B-167 / B-032. */
 	int32 ProcessMultiHit(
