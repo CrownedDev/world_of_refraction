@@ -40,7 +40,7 @@
     | Enhanced Sprint | Enhancement Aura |
     | Glide | Manipulation Aura, at **D tier** (a lower rank than Flight) |
     | Flight | Manipulation Aura |
-    | Teleport | **Void** Manipulation (**Void only**: no other element teleports; Crown, 2026-10-27) |
+    | Teleport | **Void** Elemental **and** Manipulation Aura (**Void only**: no other element teleports; Crown, 2026-10-27) |
     | High / double jump | Enhancement Aura |
     | Air dash | Elemental Aura |
     | Super launch | Enhancement **and** Elemental |
@@ -62,14 +62,14 @@
 
 - **Locked field skills:** some need a specific skill equipped or learned first; once unlocked, anyone with the matching source can use it (lightning speed → any Lightning source).
 - **Picking it** (Crown): choose a source you have, then a movement type you've unlocked; the source styles it.
-- **Open:** each element's style per type (Crown's, close to lore); dash-into-sprint meaning.
+- **Open:** each element's style per type (Crown's, close to lore).
 
 ## Choices to make (one at a time)
 
 1. **Decided (Crown, 2026-10-27): a fast, free sprint for everyone** (Nightreign); field skills and evolutions build on top.
 2. **Decided (Crown, 2026-10-27): evolutions give both**: a small always-on movement bonus (e.g. +10-20% sprint, `// TODO: tune`) **and** one active movement skill that costs EP (e.g. a lightning dash burst). Kingdom Hearts 2's forms.
 3. **Decided (Crown, 2026-10-27): speed and dash first, glide next, flight last.** Plus:
-   - **Dash evolves into sprint**: a dash carries on into a faster sprint (in motion or through upgrades: to look into, Crown).
+   - **Sprint into Enhanced Sprint** (Crown, 2026-10-27, clarified; was "dash evolves into sprint"): the sprint is your default run; **double-clicking sprint activates Enhanced Sprint, or whichever field movement you have equipped**.
    - **Wall-running at speed**: moving fast enough lets you run along walls (Prototype, Warframe-style parkour).
 4. **Decided (Crown, 2026-10-27): flight drains EP while flying, with a height ceiling and no-fly zones** (boss arenas, some secrets). **But effects can raise these limits**: e.g. an evolution might give **unlimited flight**; one of Crown's characters uses unlimited energy (for another day). **Hidden areas in the sky** (Shangri-La Frontier style secrets) are welcome.
 5. **Decided (Crown, 2026-10-27): elements change the world through a few general rules defined once** (Breath of the Wild): elements change materials (Fire burns wood and grass, Water / Ice douses or freezes, Wind lifts, Lightning conducts…), elements change each other (Water puts out Fire), materials don't change each other. Each map region gets 1-2 element shortcuts or secrets. The rule table is Crown's to confirm: `Design/ElementsOnTheWorld.md`.
