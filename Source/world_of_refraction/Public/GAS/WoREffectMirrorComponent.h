@@ -40,6 +40,8 @@ struct FWoRMirroredEffect
 	FActiveGameplayEffectHandle Handle;
 	/** Its GE is turn-counted by the owner's tracker (GAS owns its lifetime, B-042h). */
 	bool bTracked = false;
+	/** A DOT's or HOT's payout (UWoRTickExecution), paid by PayTick (B-042y). */
+	FGameplayEffectSpecHandle TickSpec;
 
 	bool Matches(const FWoRMirroredEffect &Other) const;
 };
@@ -70,6 +72,11 @@ public:
 
 	/** A re-apply of an identity GAS ended (refresh or stack) starts it again: its GE comes back. */
 	void ForgetEnded(const FActiveSkillEffect &Effect);
+
+	/** B-042y: pay one tick of Effect now through its GE's tick spec (the number from UWoRTickExecution; the
+	 *  Vitals set hands the Health change to the HP path). False when no live mirrored GE of it carries one,
+	 *  so the caller pays on the enum path. */
+	bool PayTick(const FActiveSkillEffect &Effect);
 
 	/** What the owner's stored effects should look like on GAS: one entry per ported, stored effect. */
 	static TArray<FWoRMirroredEffect> ReadEnumEffects(const AActor *Actor);
