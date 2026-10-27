@@ -33,7 +33,7 @@ void UCombatAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
     Super::NativeUpdateAnimation(DeltaSeconds);
 
-    if (!CharacterDataComponent || !LoadoutComponent)
+    if (!bReferencesCached)
     {
         CacheReferences();
     }
@@ -51,6 +51,7 @@ void UCombatAnimInstance::CacheReferences()
 
     CharacterDataComponent = Owner->FindComponentByClass<UCharacterDataComponent>();
     LoadoutComponent = Owner->FindComponentByClass<ULoadoutComponent>();
+    bReferencesCached = true;
 }
 
 UStanceData *UCombatAnimInstance::GetDesiredStance() const

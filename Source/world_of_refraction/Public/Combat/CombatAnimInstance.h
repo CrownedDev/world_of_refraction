@@ -104,6 +104,9 @@ private:
     UPROPERTY(Transient)
     TObjectPtr<ULoadoutComponent> LoadoutComponent;
 
+    /** Set once the owner pawn existed for a lookup; a pawn without a loadout is not re-searched. */
+    bool bReferencesCached = false;
+
     void CacheReferences();
     void UpdateCombatState();
     UStanceData *GetDesiredStance() const;
