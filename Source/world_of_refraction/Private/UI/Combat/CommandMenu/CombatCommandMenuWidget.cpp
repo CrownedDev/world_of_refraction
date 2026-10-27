@@ -3,6 +3,7 @@
 
 #include "UI/Combat/CommandMenu/CombatCommandMenuWidget.h"
 #include "UI/Combat/CommandMenu/CombatCommandButtonWidget.h"
+#include "WoRLog.h"
 #include "UI/Combat/CommandMenu/DurabilityHeaderWidget.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "UI/Combat/PieMenuButtonData.h"
@@ -100,8 +101,7 @@ void UCombatCommandMenuWidget::HandleCommandMenuReady(const TArray<FPieMenuButto
     UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] HandleCommandMenuReady — received %d buttons"), Buttons.Num());
     SetVisibility(ESlateVisibility::Visible);
 
-    // ADD THESE TWO LINES:
-    UE_LOG(LogTemp, Warning, TEXT("[CombatCommandMenu] DurabilityHeader pointer: %s"),
+    UE_LOG(LogWoRUI, Verbose, TEXT("[CombatCommandMenu] DurabilityHeader pointer: %s"),
            DurabilityHeader ? TEXT("VALID") : TEXT("NULL"));
 
     // Refresh durability header for the current actor (header decides which lines to show)

@@ -136,7 +136,7 @@ void UInfusionVFXComponent::SetImmuneToInfusion(bool bImmune)
         DeactivateInfusion();
     }
 
-    UE_LOG(LogTemp, Verbose, TEXT("[InfusionVFX] Immunity flag set: %s"),
+    UE_LOG(LogWoRCombat, Verbose, TEXT("[InfusionVFX] Immunity flag set: %s"),
            bImmune ? TEXT("true") : TEXT("false"));
 }
 
@@ -492,7 +492,7 @@ void UInfusionVFXComponent::CacheAvailableSources()
 
     CachedSources = Executor->GetAvailableInfusionSources(Owner);
 
-    UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Cached %d sources"), CachedSources.Num());
+    UE_LOG(LogWoRCombat, Verbose, TEXT("[InfusionVFX] Cached %d sources"), CachedSources.Num());
 }
 
 void UInfusionVFXComponent::RestrictCachedSources(const TArray<EInfusionSourceOption> &Allowed)
