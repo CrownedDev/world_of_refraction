@@ -1968,6 +1968,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-149-formation-cells): `ACombatOrchestrator::GetPlaceholderEnemyStartRow`. Authored enemy cells replace it later.
 
+### Q-209c — Memory alternative routes and rewards: data and placeholder grants
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-209, D-100 rewards and alternative routes) · **Blocks:** — (ships with A)
+**Question:** Crown added two things to memories: several condition sets (any one opens it) and rewards (a unique item, a skill, a title or a curse). How are they authored, and what does a reward do before titles, curses and the item grant path exist?
+**Options:**
+- **A** `UMemoryData::UnlockConditions` stays the first set; `AlternativeConditionSets` adds more (each a list, all within it needed). A memory opens when any non-empty set fully holds; with no non-empty set, only a source naming it opens it (as before). `Rewards` is a list of `FMemoryReward` (kind Item / Skill / Title / Curse, with the item, skill or id). For now every reward is **logged** when its memory unlocks (`[MemoryUnlock] reward: ...`), with a `// TODO` per kind: the item goes to the party's inventory once out-of-fight gear is reachable (B-085), skills once learning from rewards exists, titles and curses once they are systems. `wor.Memory.Print` lists both.
+- **B** Replace `UnlockConditions` with a list of sets (breaks memories already authored with conditions).
+- **C** Grant the item now into the leader's inventory.
+**Recommendation:** A. Shangri-La Frontier's Unique Scenarios and Destiny 2's exotic quests open by more than one route and hand out unique, sidegrade rewards, which players praise for rewarding curiosity without power creep. Keeping the first set where it is leaves anything already authored working. Logging until the grant systems exist follows the dialogue / quest placeholders already in the game. Not lore (which rewards is Crown's).
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** grants go in `MemoryUnlock::Unlock`, the single unlock path, so every source gives the rewards once.
+
 ### Q-211 — Boss triggers: conditions, results and how they add up
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-211, D-100 part 1) · **Blocks:** — (B-211 ships with A)
 **Question:** D-100 part 1 gives each boss / mini-boss its own "if these conditions, then this" rules, using only what's true in the fight. Which conditions and results exist now, when are they checked, and how do several add up?
