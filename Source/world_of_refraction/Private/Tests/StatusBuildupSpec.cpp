@@ -13,6 +13,7 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
 #include "Combat/CombatConstants.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
@@ -29,6 +30,10 @@ namespace
 	constexpr float BUILDUP_TEST_TOLERANCE = 0.01f;
 	constexpr int32 BUILDUP_TEST_RESIST_ID = 9501;
 	constexpr int32 BUILDUP_TEST_IMMUNITY_ID = 9502;
+	constexpr int32 BUILDUP_TEST_STUN_IMMUNITY_ID = 9503;
+	constexpr int32 BUILDUP_TEST_DOT_ID = 9504;
+	constexpr float BUILDUP_TEST_DOT_DAMAGE = 1.0f;
+	constexpr float BUILDUP_TEST_PER_TICK = 10.0f;
 	constexpr int32 BUILDUP_TEST_DURATION_TURNS = 3;
 	/** Far past the threshold, whatever the target's resistance (below RESISTANCE_MAX). */
 	constexpr float BUILDUP_TEST_OVERWHELMING_FACTOR = 100.0f;
@@ -196,6 +201,33 @@ void FStatusBuildupSpec::DefineCases()
 		TestFalse(TEXT("Not stunned"), Effects->IsStunned(Target));
 	});
 
+	It("blocks a hit whose break the target is immune to, and only that one", [this]()
+	{
+		if (!Buildup) return;
+		GiveEffect(BUILDUP_TEST_STUN_IMMUNITY_ID, ESkillEffectType::GrantStunImmunity, 0.0f, ESpellElement::None);
+		TestFalse(TEXT("A Lightning hit (Stun) is absorbed"), Hit(BUILDUP_TEST_HIT, ESpellElement::Lightning));
+		TestNearlyEqual(TEXT("Bar untouched"), Buildup->GetStatusBarBuildup(Target), 0.0f, BUILDUP_TEST_TOLERANCE);
+		Hit(BUILDUP_TEST_HIT, ESpellElement::Fire);
+		TestNearlyEqual(TEXT("A Fire hit still lands"), Buildup->GetStatusBarBuildup(Target), Landed(BUILDUP_TEST_HIT, ESpellElement::Fire),
+						BUILDUP_TEST_TOLERANCE);
+	});
+
+	It("fills the bar at each tick of a DOT that builds status", [this]()
+	{
+		if (!Buildup) return;
+		FActiveSkillEffect Burn = FActiveSkillEffect::CreateDOT(TEXT("Buildup test burn"), BUILDUP_TEST_DOT_ID, BUILDUP_TEST_DOT_DAMAGE,
+																BUILDUP_TEST_DURATION_TURNS, ESpellElement::Fire);
+		Burn.BuildupPerTick = BUILDUP_TEST_PER_TICK;
+		Effects->ApplyEffect(Target, Burn, Target);
+		TestNearlyEqual(TEXT("Nothing on landing"), Buildup->GetStatusBarBuildup(Target), 0.0f, BUILDUP_TEST_TOLERANCE);
+		// The tick's source is the DOT's source (here the target itself), as the enum formula reads it.
+		const float PerTick = WoRBuildupMath::Compute(Buildup->GatherBuildupMathInputs(
+			Target, Target, FMath::RoundToInt(BUILDUP_TEST_PER_TICK), ESpellElement::Fire, EPhysicalDamageType::None, false));
+		Effects->ProcessStartOfTurnEffects(Target);
+		TestNearlyEqual(TEXT("One tick's buildup"), Buildup->GetStatusBarBuildup(Target), PerTick, BUILDUP_TEST_TOLERANCE);
+		TestEqual(TEXT("Tinted by the DOT's element"), Buildup->GetPendingElement(Target), ESpellElement::Fire);
+	});
+
 	It("forgets every bar between fights", [this]()
 	{
 		if (!Buildup) return;
@@ -224,12 +256,13 @@ void FStatusBuildupSpec::DefineCases()
 		}
 		if (!TestNotNull(TEXT("ASC"), ASC)) return;
 		const FGameplayAttribute Attribute = UWoRAttributeSet_Vitals::GetBuildupAttribute();
-		TestNearlyEqual(TEXT("The attribute is the bar"), ASC->GetNumericAttribute(Attribute), Buildup->GetStatusBarBuildup(Target),
-						BUILDUP_TEST_TOLERANCE);
+		const float Expected = Landed(BUILDUP_TEST_HIT, ESpellElement::Fire);
+		TestNearlyEqual(TEXT("The attribute holds the hit"), ASC->GetNumericAttribute(Attribute), Expected, BUILDUP_TEST_TOLERANCE);
 		TestTrue(TEXT("On GAS"), Buildup->GetBarDebugString(Target).Contains(TEXT("on GAS")));
+		TestTrue(TEXT("The state keeps a copy"), Buildup->GetBarDebugString(Target).Contains(FString::Printf(TEXT("state copy %.1f"), Expected)));
 		Buildup->ProcessStatusBarDecay(Target);
-		TestNearlyEqual(TEXT("Decay writes the attribute"), ASC->GetNumericAttribute(Attribute), Buildup->GetStatusBarBuildup(Target),
-						BUILDUP_TEST_TOLERANCE);
+		TestNearlyEqual(TEXT("Decay writes the attribute"), ASC->GetNumericAttribute(Attribute),
+						Expected * (1.0f - CombatConstants::STATUS_DECAY_RATE), BUILDUP_TEST_TOLERANCE);
 		Buildup->ResetStatusBar(Target);
 		TestNearlyEqual(TEXT("Reset empties the attribute"), ASC->GetNumericAttribute(Attribute), 0.0f, BUILDUP_TEST_TOLERANCE);
 	});

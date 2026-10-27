@@ -335,23 +335,23 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		}
 	}
 
-	// Get or create state
-	FStatusBarState &State = StatusBarStates.FindOrAdd(Target);
-
 	// Steps 5-6 (source amplification, then the target's resistance): WoRBuildupMath over the
 	// gathered inputs (B-042l). On GAS the buildup execution runs the same core onto the attribute.
-	float OldBuildup = State.CurrentBuildup;
+	// The state is looked up after the execution: applying its GE runs ASC listeners.
+	float OldBuildup = 0.0f;
 	if (UAbilitySystemComponent *BarASC = GetBarASC(Target))
 	{
 		OldBuildup = BarASC->GetNumericAttribute(UWoRAttributeSet_Vitals::GetBuildupAttribute());
 		Amount = AddThroughExecution(*BarASC, Source, Target, Amount, Element, PhysicalType, bSkipBaseStatAmp);
-		State.CurrentBuildup = OldBuildup + Amount;
 	}
 	else
 	{
+		const FStatusBarState *Existing = StatusBarStates.Find(Target);
+		OldBuildup = Existing ? Existing->CurrentBuildup : 0.0f;
 		Amount = WoRBuildupMath::Compute(GatherBuildupMathInputs(Source, Target, Amount, Element, PhysicalType, bSkipBaseStatAmp));
-		State.CurrentBuildup += Amount;
 	}
+	FStatusBarState &State = StatusBarStates.FindOrAdd(Target);
+	State.CurrentBuildup = OldBuildup + Amount;
 
 	// Update bar state - most recent hit wins on element + physical type
 	State.PendingElement = Element;
@@ -513,10 +513,12 @@ float UStatusBuildupManager::AddThroughExecution(UAbilitySystemComponent &Target
 	const FGameplayEffectSpecHandle Spec = UWoRBuildupExecution::MakeBuildupSpec(SpecSource, Request);
 	const FGameplayAttribute BuildupAttribute = UWoRAttributeSet_Vitals::GetBuildupAttribute();
 	const float Before = TargetASC.GetNumericAttribute(BuildupAttribute);
-	if (Spec.IsValid())
+	if (!Spec.IsValid())
 	{
-		SpecSource.ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), &TargetASC);
+		UE_LOG(LogTemp, Warning, TEXT("[StatusBuildupManager] %s: no buildup spec; the hit adds nothing"), *GetNameSafe(Target));
+		return 0.0f;
 	}
+	SpecSource.ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), &TargetASC);
 	return TargetASC.GetNumericAttribute(BuildupAttribute) - Before;
 }
 
