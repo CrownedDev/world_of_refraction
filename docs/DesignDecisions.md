@@ -2628,6 +2628,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. Move the readers before the writer, so each step keeps both paths comparable (Martin Fowler, ParallelChange: expand, migrate the readers, then contract). B would build a second turn-pass path only to remove it at B-042g. Not lore.
 **Notes for Claude:** applied: B-042i Needs + B-042yd, B-042ye. Watch the TODO at `FWoREffectSpecBuilder::Apply` (a tick spec there pays on top of the turn pass) when it is picked.
 
+### Q-042j — Barrier / Shield / Ward and Reflect: which comes first?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042j) · **Blocks:** —
+**Question:** Q-044e put the absorbers last in a hit, after Guard and Defense. Our Reflect (Q-032) sends back a share of the HP the hit took, and comes after that. The deckbuilder runs Reflect *before* its absorbers. With an absorber up, does Reflect see the hit before the absorber or only what got through?
+**Options:**
+- **A** (as built) only what got through: absorbers, then the HP drop, then Reflect on the HP the hit took.
+- **B** the deckbuilder's order: Reflect works out its share from the hit before the absorbers.
+**Recommendation:** A. Q-032 defines our Reflect as a share of the HP the hit took (an overkill reflects only the HP the target had), and Q-044e B already made the absorbers a deliberate difference from the deckbuilder ("negate 5" is exactly 5 HP you would have lost). Under A a fully stopped hit reflects nothing, and it keeps one reading of "what the hit did" for every after-hit effect. Not lore.
+**Notes for Claude:** applied (feature/B-042j-absorb-family, UNBUILT). "Reflect on the same shape" (one GE by tag and element, like the absorbers) moves to B-042j2 with the rest of D-092.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
