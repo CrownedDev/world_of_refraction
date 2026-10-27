@@ -213,7 +213,7 @@ class WORLD_OF_REFRACTION_API UWoRGE_StatSources : public UWoRGameplayEffect
 	GENERATED_BODY()
 
 public:
-	/** The sources effect for Stat; null when Stat isn't one of the four Pattern P stats. */
+	/** The sources effect for Stat; null when Stat isn't composed (UWoRAttributeSet_Stats::GetComposedStats). */
 	static TSubclassOf<UGameplayEffect> GetClassFor(ESubStat Stat);
 
 protected:
@@ -254,4 +254,31 @@ class WORLD_OF_REFRACTION_API UWoRGE_StatSources_SpellSpeed : public UWoRGE_Stat
 
 public:
 	UWoRGE_StatSources_SpellSpeed();
+};
+
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_StatSources_StatusMultiplier : public UWoRGE_StatSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_StatSources_StatusMultiplier();
+};
+
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_StatSources_Defense : public UWoRGE_StatSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_StatSources_Defense();
+};
+
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_StatSources_CritDamage : public UWoRGE_StatSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_StatSources_CritDamage();
 };

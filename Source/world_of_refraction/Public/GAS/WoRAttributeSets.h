@@ -12,6 +12,8 @@
 #include "Combat/Resistance/EWoRDamageType.h"
 #include "WoRAttributeSets.generated.h"
 
+enum class ESubStat : uint8;
+
 #define WOR_ATTRIBUTE_ACCESSORS(ClassName, PropertyName)           \
 	GAMEPLAYATTRIBUTE_PROPERTY_GETTER(ClassName, PropertyName) \
 	GAMEPLAYATTRIBUTE_VALUE_GETTER(PropertyName)               \
@@ -76,8 +78,12 @@ class WORLD_OF_REFRACTION_API UWoRAttributeSet_Stats : public UAttributeSet
 public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 
-	/** SpellDamage, RawDamage, ActionSpeed, SpellSpeed: the compose clamp over their source layers (B-042p). */
+	/** The composed stats (GetComposedStat): each one's compose clamp over its source layers (B-042p, B-042q). */
 	virtual void PreAttributeChange(const FGameplayAttribute &Attribute, float &NewValue) override;
+
+	/** The attributes composed on GAS from a stat-sources effect, with their sub-stat; false for the rest. */
+	static bool GetComposedStat(const FGameplayAttribute &Attribute, ESubStat &OutStat);
+	static TConstArrayView<TPair<ESubStat, FGameplayAttribute>> GetComposedStats();
 
 	UPROPERTY(BlueprintReadOnly, Category = "Pillars", ReplicatedUsing = OnRep_Mind)
 	FGameplayAttributeData Mind;

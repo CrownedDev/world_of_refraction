@@ -32,19 +32,6 @@ namespace
 
 	constexpr float STAT_SOURCES_EFFECT_LEVEL = 1.0f;
 
-	/** The Pattern P stats composed on GAS (B-042p), and their attributes. */
-	const TPair<ESubStat, FGameplayAttribute> *GetComposedStats(int32 &OutCount)
-	{
-		static const TPair<ESubStat, FGameplayAttribute> ComposedStats[] = {
-			{ESubStat::SpellDamage, UWoRAttributeSet_Stats::GetSpellDamageAttribute()},
-			{ESubStat::RawDamage, UWoRAttributeSet_Stats::GetRawDamageAttribute()},
-			{ESubStat::ActionSpeed, UWoRAttributeSet_Stats::GetActionSpeedAttribute()},
-			{ESubStat::SpellSpeed, UWoRAttributeSet_Stats::GetSpellSpeedAttribute()},
-		};
-		OutCount = UE_ARRAY_COUNT(ComposedStats);
-		return ComposedStats;
-	}
-
 	bool SameLayers(const FWoRStatLayers &A, const FWoRStatLayers &B)
 	{
 		return A.StatBase == B.StatBase && A.GearFactor == B.GearFactor && A.StoneFactor == B.StoneFactor &&
@@ -170,27 +157,32 @@ void UWoRAttributeSyncComponent::SyncAttributes()
 	{
 		return;
 	}
-	int32 ComposedCount = 0;
-	const TPair<ESubStat, FGameplayAttribute> *ComposedStats = GetComposedStats(ComposedCount);
 	const UCharacterDataComponent *Char = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
 	for (const FWoRAttributeSourceValue &Source : ReadSourceValues(GetOwner()))
 	{
-		bool bComposed = false;
-		for (int32 Index = 0; Index < ComposedCount && Char; ++Index)
+		ESubStat Stat;
+		FWoRStatLayers Layers;
+		const bool bComposed = Char && UWoRAttributeSet_Stats::GetComposedStat(Source.Attribute, Stat);
+		if (bComposed && Char->GetStatLayers(Stat, Layers))
 		{
-			if (ComposedStats[Index].Value == Source.Attribute)
-			{
-				FWoRStatLayers Layers;
-				Char->GetStatLayers(ComposedStats[Index].Key, Layers);
-				SyncComposedStat(*ASC, ComposedStats[Index].Key, Source.Attribute, Layers);
-				bComposed = true;
-				break;
-			}
+			SyncComposedStat(*ASC, Stat, Source.Attribute, Layers);
+			continue;
 		}
-		if (!bComposed)
+		// Not composed (or no layers, e.g. Defense without CharacterData): the getter's value, no sources.
+		if (bComposed)
 		{
-			ASC->SetNumericAttributeBase(Source.Attribute, Source.Value);
+			RemoveStatSources(*ASC, Stat);
 		}
+		ASC->SetNumericAttributeBase(Source.Attribute, Source.Value);
+	}
+}
+
+void UWoRAttributeSyncComponent::RemoveStatSources(UAbilitySystemComponent &ASC, ESubStat Stat)
+{
+	FWoRAppliedStatSources Applied;
+	if (AppliedStatSources.RemoveAndCopyValue(Stat, Applied))
+	{
+		ASC.RemoveActiveGameplayEffect(Applied.Handle);
 	}
 }
 

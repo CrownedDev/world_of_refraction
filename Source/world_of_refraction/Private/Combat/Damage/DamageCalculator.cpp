@@ -283,39 +283,13 @@ float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 		return 0.0f;
 	}
 
-	// Pattern P (cluster 5a, revised) — stat-capped, gear-beyond. The crystal-aware STAT reduction
-	// is capped ALONE at UNIVERSAL_STAT_CAP (0.5 = the stat ceiling); THEN stone/buff MULTIPLY it
-	// OUTSIDE that clamp, scaling the capped stat upward toward the DEFENSE_REDUCTION_CEILING (0.85) hard ceiling.
-	// Multiplicative by design intent (Crown): a +X% stone/buff rewards a high-defense build more
-	// than a low one (0.5 × 1.3 = 0.65 vs 0.2 × 1.3 = 0.26). GetEvolutionModifiedBody feeds the
-	// slotted crystal's Body pillar into the curve.
-	float Reduction = FMath::Min(DefenderComp->GetEvolutionModifiedFlatDefense(), CombatConstants::UNIVERSAL_STAT_CAP);
-
-	if (ULoadoutComponent *Loadout = Defender->FindComponentByClass<ULoadoutComponent>())
-	{
-		// Equipment BonusDefense gear (A3) — reinterpreted as a % MULTIPLIER on the capped stat
-		// reduction (option-ii: the per-point magnitude read as a FRACTION, same shape as every other
-		// 5e gear field). Composes multiplicatively with the stone + buff below, OUTSIDE the 0.5 stat
-		// cap, toward the DEFENSE_REDUCTION_CEILING (0.85) ceiling (final clamp). ×1 (inert) when BonusDefense is 0.
-		Reduction *= (1.0f + Loadout->GetActiveStatBonus(Defender).BonusDefense * CombatConstants::DEFENSE_PER_POINT);
-
-		// Attached DefenseStone — a % MULTIPLIER (×(1 + StonePct/100)) on the capped stat reduction,
-		// OUTSIDE the 0.5 cap, from the defender's OWN active weapon and ring (B-082) attachments
-		// (live-resolved, not cached). Inert (×1) unless a DefenseStone is attached.
-		Reduction *= (1.0f + Loadout->GetAttachedStonePercent(ESubStat::Defense) / CombatConstants::STAT_PERCENT_DIVISOR);
-	}
-
-	// Combat-buff/debuff modifiers (from skill casts, e.g. Stoneskin) — MULTIPLICATIVE transient: the
-	// DefenseBuff/Debuff net scales the (permanent-gear) reduction proportionally, ×(1 + net/100), past
-	// the 0.5 stat cap toward the DEFENSE_REDUCTION_CEILING (0.85) ceiling. Max(0,…) floors a ≥100% debuff
-	// at ×0 (never inverts); buff/debuff in lockstep. The final clamp bounds the result to [0, 0.85].
-	USkillEffectManager *StatusManager = GetSkillEffectManager();
-	if (StatusManager)
-	{
-		Reduction *= FMath::Max(0.0f, 1.0f + StatusManager->GetNetStatModifier(Defender, ESubStat::Defense) / CombatConstants::STAT_PERCENT_DIVISOR);
-	}
-
-	return FMath::Clamp(Reduction, 0.0f, CombatConstants::DEFENSE_REDUCTION_CEILING);
+	// Pattern P (cluster 5a, revised; UCharacterDataComponent::GetStatLayers): the crystal-aware STAT
+	// reduction capped ALONE at UNIVERSAL_STAT_CAP (0.5), then BonusDefense, the DefenseStone and the
+	// DefenseBuff/Debuff net (floored at x0) MULTIPLY it toward DEFENSE_REDUCTION_CEILING (0.85).
+	// Multiplicative by design intent (Crown): a +X% stone/buff rewards a high-defense build more.
+	FWoRStatLayers Layers;
+	DefenderComp->GetStatLayers(ESubStat::Defense, Layers);
+	return Layers.Compose();
 }
 
 float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
@@ -446,53 +420,18 @@ float UDamageCalculator::GetCritDamageMultiplier(AActor *Attacker) const
 		return CombatConstants::CRIT_DMG_BASE; // x1.0 (normal damage) when no attacker
 	}
 
-	// Stat-derived crit damage: CRIT_DMG_BASE (x1.0) + the crit-damage stat ramp (Mind x CritDamage
-	// points x CRIT_DAMAGE_PER_POINT, up to +0.5), capped ALONE at CRIT_DAMAGE_STAT_CAP (x1.5). The Mind
-	// CritDamage substat drives crit DAMAGE; crit CHANCE is Luck-driven (5e-C2). Gear/transient multiply
-	// the capped stat past x1.5 below.
-	float StatCritDmg = CombatConstants::CRIT_DMG_BASE;
-	if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
+	// Pattern P (UCharacterDataComponent::GetStatLayers): CRIT_DMG_BASE (x1.0) + the Mind crit-damage ramp,
+	// capped ALONE at CRIT_DAMAGE_STAT_CAP (x1.5), then BonusCritDamage, the CritStone and the net
+	// ModifyCritDamage / CritDamageDebuff multiply it, clamped [CRIT_DMG_BASE, CRIT_DAMAGE_GEAR_CEILING]:
+	// a debuff can cancel the crit bonus but never make a crit weaker than a normal hit.
+	const UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
+	if (!AttackerComp)
 	{
-		if (AttackerComp->CharacterData)
-		{
-			const float ModifiedMind = AttackerComp->GetEvolutionModifiedMind();
-			const int32 CritDmgPoints = AttackerComp->CharacterData->GetTotalCritDamage();
-			StatCritDmg = FMath::Min(
-				CombatConstants::CRIT_DMG_BASE + (ModifiedMind * CritDmgPoints * CombatConstants::CRIT_DAMAGE_PER_POINT),
-				CombatConstants::CRIT_DAMAGE_STAT_CAP);
-		}
+		return CombatConstants::CRIT_DMG_BASE;
 	}
-
-	// Gear + transient MULTIPLY the capped stat past x1.5 toward CRIT_DAMAGE_GEAR_CEILING (cluster-5
-	// shape). x1 (inert) when none, so a zero-crit-stat character with no gear/transient is exactly
-	// CRIT_DMG_BASE (x1.0 = normal).
-	float Result = StatCritDmg;
-
-	// Equipment BonusCritDamage gear — MULTIPLIES (option-ii: the per-point magnitude is read as a
-	// fraction, same shape as RawDamage/SpellDamage gear in 5a). 5e-C3 wired this now that the field
-	// was renamed BonusCritChance->BonusCritDamage and freed from the crit-CHANCE path (5e-C2).
-	if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
-	{
-		const float BonusCritDamage = Loadout->GetActiveStatBonus(Attacker).BonusCritDamage;
-		Result *= (1.0f + BonusCritDamage * CombatConstants::CRIT_DAMAGE_PER_POINT);
-
-		// Attached CritStone (5f-A) — a % MULTIPLIER on the capped stat, from the attacker's OWN weapon
-		// and ring attachments (B-082). StoneTargetStat(CritStone) == ESubStat::CritDamage, so GetAttachedStonePercent
-		// returns 0 (factor x1, inert) unless a CritStone is attached. Mirrors GetStoneRawDamageFactor.
-		Result *= (1.0f + Loadout->GetAttachedStonePercent(ESubStat::CritDamage) / CombatConstants::STAT_PERCENT_DIVISOR);
-	}
-
-	// Transient crit-damage modifiers — MULTIPLY too. Directional (5f-C): ModifyCritDamage is the BUFF
-	// ("Crit Damage Up", up-only — Max(0,..) guards malformed negative assets); CritDamageDebuff is its
-	// paired debuff (positive magnitude, SUBTRACTED). Net (buff − debuff) can go negative, dragging crit
-	// damage down — the final clamp floors the whole multiplier at CRIT_DMG_BASE (x1.0), so a crit-damage
-	// debuff can cancel the crit BONUS toward a normal hit but never make a crit weaker than one.
-	if (USkillEffectManager *StatusManager = GetSkillEffectManager())
-	{
-		// The table's CritDamage row floors ModifyCritDamage at 0 before subtracting the debuff.
-		Result *= (1.0f + StatusManager->GetNetStatModifier(Attacker, ESubStat::CritDamage) / CombatConstants::STAT_PERCENT_DIVISOR);
-	}
-	return FMath::Clamp(Result, CombatConstants::CRIT_DMG_BASE, CombatConstants::CRIT_DAMAGE_GEAR_CEILING);
+	FWoRStatLayers Layers;
+	AttackerComp->GetStatLayers(ESubStat::CritDamage, Layers);
+	return Layers.Compose();
 }
 
 float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType) const
