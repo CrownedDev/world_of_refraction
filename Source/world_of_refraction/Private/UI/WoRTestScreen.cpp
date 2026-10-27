@@ -9,6 +9,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Player/WoRHubController.h"
 #include "UI/WoRRootLayout.h"
+#include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "WoRTestScreen"
 
@@ -47,13 +48,13 @@ TSharedRef<SWidget> UWoRTestScreen::RebuildWidget()
 void UWoRTestScreen::NativeOnActivated()
 {
 	Super::NativeOnActivated();
-	UE_LOG(LogTemp, Log, TEXT("[WoRTestScreen] %s activated"), *GetName());
+	UE_LOG(LogWoRUI, Log, TEXT("[WoRTestScreen] %s activated"), *GetName());
 }
 
 void UWoRTestScreen::NativeOnDeactivated()
 {
 	Super::NativeOnDeactivated();
-	UE_LOG(LogTemp, Log, TEXT("[WoRTestScreen] %s deactivated"), *GetName());
+	UE_LOG(LogWoRUI, Log, TEXT("[WoRTestScreen] %s deactivated"), *GetName());
 }
 
 static FAutoConsoleCommandWithWorldAndArgs GWoRTestScreenCommand(
@@ -66,7 +67,7 @@ static FAutoConsoleCommandWithWorldAndArgs GWoRTestScreenCommand(
 			UWoRRootLayout *Root = Hub ? Hub->GetRootLayout() : nullptr;
 			if (!Root)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[WoRTestScreen] wor.UI.TestScreen: no AWoRHubController with a root layout"));
+				UE_LOG(LogWoRUI, Warning, TEXT("[WoRTestScreen] wor.UI.TestScreen: no AWoRHubController with a root layout"));
 				return;
 			}
 			EWoRUILayer Layer = EWoRUILayer::Menu;
@@ -75,13 +76,13 @@ static FAutoConsoleCommandWithWorldAndArgs GWoRTestScreenCommand(
 				const int64 Value = StaticEnum<EWoRUILayer>()->GetValueByNameString(Args[0]);
 				if (Value == INDEX_NONE)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[WoRTestScreen] Unknown layer '%s' - use Game, Menu or Modal"), *Args[0]);
+					UE_LOG(LogWoRUI, Warning, TEXT("[WoRTestScreen] Unknown layer '%s' - use Game, Menu or Modal"), *Args[0]);
 					return;
 				}
 				Layer = static_cast<EWoRUILayer>(Value);
 			}
 			Root->PushToLayer(Layer, UWoRTestScreen::StaticClass());
-			UE_LOG(LogTemp, Log, TEXT("%s"), *Root->GetRootLayoutString());
+			UE_LOG(LogWoRUI, Log, TEXT("%s"), *Root->GetRootLayoutString());
 		}));
 
 #undef LOCTEXT_NAMESPACE

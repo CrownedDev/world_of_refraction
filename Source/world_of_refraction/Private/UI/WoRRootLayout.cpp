@@ -3,6 +3,7 @@
 #include "UI/WoRRootLayout.h"
 
 #include "CommonActivatableWidget.h"
+#include "WoRLog.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
 
 UCommonActivatableWidget *UWoRRootLayout::PushToMenu(TSubclassOf<UCommonActivatableWidget> WidgetClass)
@@ -34,18 +35,18 @@ UCommonActivatableWidget *UWoRRootLayout::PushToLayer(EWoRUILayer Layer, TSubcla
 	UCommonActivatableWidgetStack *Stack = GetLayerStack(Layer);
 	if (!Stack)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[WoRRootLayout] Push to %s with no stack - check the WBP's BindWidget names"),
+		UE_LOG(LogWoRUI, Warning, TEXT("[WoRRootLayout] Push to %s with no stack - check the WBP's BindWidget names"),
 			   *UEnum::GetValueAsString(Layer));
 		return nullptr;
 	}
 	if (Layer == EWoRUILayer::Modal && !ModalLayer)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[WoRRootLayout] No ModalLayer in the WBP - modal push goes to MenuLayer"));
+		UE_LOG(LogWoRUI, Warning, TEXT("[WoRRootLayout] No ModalLayer in the WBP - modal push goes to MenuLayer"));
 	}
 
 	if (!WidgetClass)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[WoRRootLayout] PushToMenu with a null widget class"));
+		UE_LOG(LogWoRUI, Warning, TEXT("[WoRRootLayout] Push to %s with a null widget class"), *UEnum::GetValueAsString(Layer));
 		return nullptr;
 	}
 

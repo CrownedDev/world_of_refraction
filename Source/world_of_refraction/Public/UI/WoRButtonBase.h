@@ -5,7 +5,7 @@
 // (destructive: dismantle, quit, discard) and Navigate (move between screens, Back).
 //
 // Styles are UCommonButtonStyle classes set on the WBP (or a shared parent WBP);
-// a job with no style keeps whatever Style the button already has.
+// a job with no style uses the Style the button was authored with.
 
 #pragma once
 
@@ -52,4 +52,10 @@ protected:
 
 private:
 	void ApplyJobStyle();
+
+	/** The Style the button was authored with, used by jobs with no JobStyles entry. */
+	UPROPERTY(Transient)
+	TSubclassOf<UCommonButtonStyle> AuthoredStyle;
+
+	bool bAuthoredStyleCaptured = false;
 };

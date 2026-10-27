@@ -23,10 +23,14 @@ TSubclassOf<UCommonButtonStyle> UWoRButtonBase::GetStyleForJob(EWoRButtonJob For
 
 void UWoRButtonBase::ApplyJobStyle()
 {
-	if (const TSubclassOf<UCommonButtonStyle> JobStyle = GetStyleForJob(Job))
+	// SetStyle overwrites Style, so the authored one is kept for jobs without their own.
+	if (!bAuthoredStyleCaptured)
 	{
-		SetStyle(JobStyle);
+		AuthoredStyle = Style;
+		bAuthoredStyleCaptured = true;
 	}
+	const TSubclassOf<UCommonButtonStyle> JobStyle = GetStyleForJob(Job);
+	SetStyle(JobStyle ? JobStyle : AuthoredStyle);
 }
 
 FString UWoRButtonBase::GetButtonString() const
