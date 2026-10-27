@@ -35,11 +35,38 @@ void UWoRAttributeSet_Stats::PreAttributeChange(const FGameplayAttribute &Attrib
 {
 	Super::PreAttributeChange(Attribute, NewValue);
 	// As Lyra clamps Health here: the stat-sources effect multiplies these past the base (Q-042p).
-	if (Attribute == GetSpellDamageAttribute() || Attribute == GetRawDamageAttribute() ||
-		Attribute == GetActionSpeedAttribute() || Attribute == GetSpellSpeedAttribute())
+	ESubStat Stat;
+	if (GetComposedStat(Attribute, Stat))
 	{
-		NewValue = FWoRStatLayers::Clamp(NewValue);
+		NewValue = FWoRStatLayers::ForStat(Stat).Clamp(NewValue);
 	}
+}
+
+TConstArrayView<TPair<ESubStat, FGameplayAttribute>> UWoRAttributeSet_Stats::GetComposedStats()
+{
+	static const TPair<ESubStat, FGameplayAttribute> ComposedStats[] = {
+		{ESubStat::SpellDamage, GetSpellDamageAttribute()},
+		{ESubStat::RawDamage, GetRawDamageAttribute()},
+		{ESubStat::ActionSpeed, GetActionSpeedAttribute()},
+		{ESubStat::SpellSpeed, GetSpellSpeedAttribute()},
+		{ESubStat::StatusMultiplier, GetStatusMultiplierAttribute()},
+		{ESubStat::Defense, GetDefenseAttribute()},
+		{ESubStat::CritDamage, GetCritDamageAttribute()},
+	};
+	return ComposedStats;
+}
+
+bool UWoRAttributeSet_Stats::GetComposedStat(const FGameplayAttribute &Attribute, ESubStat &OutStat)
+{
+	for (const TPair<ESubStat, FGameplayAttribute> &Composed : GetComposedStats())
+	{
+		if (Composed.Value == Attribute)
+		{
+			OutStat = Composed.Key;
+			return true;
+		}
+	}
+	return false;
 }
 
 void UWoRAttributeSet_Stats::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const

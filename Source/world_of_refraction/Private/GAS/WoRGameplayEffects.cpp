@@ -152,6 +152,9 @@ TSubclassOf<UGameplayEffect> UWoRGE_StatSources::GetClassFor(ESubStat Stat)
 	case ESubStat::RawDamage: return UWoRGE_StatSources_RawDamage::StaticClass();
 	case ESubStat::ActionSpeed: return UWoRGE_StatSources_ActionSpeed::StaticClass();
 	case ESubStat::SpellSpeed: return UWoRGE_StatSources_SpellSpeed::StaticClass();
+	case ESubStat::StatusMultiplier: return UWoRGE_StatSources_StatusMultiplier::StaticClass();
+	case ESubStat::Defense: return UWoRGE_StatSources_Defense::StaticClass();
+	case ESubStat::CritDamage: return UWoRGE_StatSources_CritDamage::StaticClass();
 	default: return nullptr;
 	}
 }
@@ -192,4 +195,19 @@ UWoRGE_StatSources_ActionSpeed::UWoRGE_StatSources_ActionSpeed()
 UWoRGE_StatSources_SpellSpeed::UWoRGE_StatSources_SpellSpeed()
 {
 	AddSourceModifiers(UWoRAttributeSet_Stats::GetSpellSpeedAttribute());
+}
+
+UWoRGE_StatSources_StatusMultiplier::UWoRGE_StatSources_StatusMultiplier()
+{
+	AddSourceModifiers(UWoRAttributeSet_Stats::GetStatusMultiplierAttribute());
+}
+
+UWoRGE_StatSources_Defense::UWoRGE_StatSources_Defense()
+{
+	AddSourceModifiers(UWoRAttributeSet_Stats::GetDefenseAttribute());
+}
+
+UWoRGE_StatSources_CritDamage::UWoRGE_StatSources_CritDamage()
+{
+	AddSourceModifiers(UWoRAttributeSet_Stats::GetCritDamageAttribute());
 }

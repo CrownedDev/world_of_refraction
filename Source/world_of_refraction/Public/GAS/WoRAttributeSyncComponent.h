@@ -86,6 +86,7 @@ private:
 	/** Base = the capped stat; re-applies Stat's sources effect when its layers changed (B-042p). */
 	void SyncComposedStat(UAbilitySystemComponent &ASC, ESubStat Stat, const FGameplayAttribute &Attribute,
 						  const FWoRStatLayers &Layers);
+	void RemoveStatSources(UAbilitySystemComponent &ASC, ESubStat Stat);
 
 	TMap<ESubStat, FWoRAppliedStatSources> AppliedStatSources;
 };
