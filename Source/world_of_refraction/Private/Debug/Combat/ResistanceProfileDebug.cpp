@@ -183,10 +183,7 @@ FString UResistanceProfileDebug::GetCombinedResistanceString(AActor *Actor, ESpe
 	{
 		const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Actor);
 		EquipBonus = Bonus.BonusResistance * CombatConstants::RESISTANCE_PER_POINT;
-		if (const FRuntimeAttachedItem *Att = Loadout->GetActiveWeaponAttachment())
-		{
-			StonePct = CrystalEffectTable::GetAttachedStonePercent(*Att, ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR;
-		}
+		StonePct = Loadout->GetAttachedStonePercent(ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR;
 
 		const FResistanceBonus GearBonus = Loadout->GetActiveResistanceBonus(Actor);
 		const ClassInnateResistanceTable::FResistanceRow GearRow{

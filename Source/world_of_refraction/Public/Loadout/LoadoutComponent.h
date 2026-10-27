@@ -504,6 +504,17 @@ public:
      *  it the same way they guarded the active-weapon lookup. */
     const FRuntimeAttachedItem *GetActiveWeaponAttachment() const;
 
+    /** B-082 (D-009): the ring whose fusion's stone half counts: the Resonator's active ring,
+     *  else a primary ring (the rings gear effects read). Null when there is none. */
+    const FRuntimeAttachedItem *GetStoneRingAttachment() const;
+
+    /** Every stat-stone read: the active weapon's attachment plus the counting ring's
+     *  (CrystalEffectTable::GetAttachedStonePercent on each, added). 0 when neither has one. */
+    float GetAttachedStonePercent(ESubStat Stat) const;
+
+    /** The pool-stone mirror (MaxHPStone / MaxEPStone), same sources. */
+    float GetAttachedStonePercentForType(ECrystalType StoneType) const;
+
     /** Get primary weapon loadout entry */
     const FWeaponLoadoutEntry *GetPrimaryWeaponLoadout() const;
 

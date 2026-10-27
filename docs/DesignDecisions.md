@@ -1812,6 +1812,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-074-encounter-data): `UEncounterData::BuildOpposingRoster`. B-184's `AFieldEnemyTeam` should hold a `UEncounterData` and call `BuildOpposingRoster` rather than carry a second list of enemies.
 
+### Q-082 — Does a ring fusion's bonus stat count too?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-082) · **Blocks:** — (B-082 shipped with A)
+**Question:** D-009 says the stat-stone half of an elemental fusion counts on a ring. A fusion also has a bonus stat of its own (the average of its halves' tiers). Does that count on a ring, and which rings count?
+**Options:**
+- **A** the fusion counts on a ring exactly as on a weapon (stone half plus bonus stat); the counting ring is the Resonator's active ring, else a primary ring (the rings gear effects read); it adds to the weapon's stone.
+- **B** only the stone half's percent; the bonus stat is weapon-only.
+**Recommendation:** A. One item behaving the same wherever it is slotted is what players expect: Final Fantasy IX's and Diablo's socketed gems give the same bonus in any socketed item. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-082-ring-fusion-stone): `ULoadoutComponent::GetAttachedStonePercent`.
+
 ### Q-081 — On a mid-fight swap, which of the new gear's effects come on?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-081) · **Blocks:** — (B-081 shipped with A)
 **Question:** D-008 says gear effects follow a swap (old off, new on). A starting effect can be a lasting passive, or a one-shot, timed or charged effect given at the start of the fight. With a free switch every turn, re-giving those on each swap back would farm them. Which come on?

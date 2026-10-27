@@ -794,12 +794,8 @@ void UCharacterDataComponent::RecomputeMaxPools()
 
             // Attached pool stones — a % of the computed max, read from the active weapon
             // attachment (0 unless the matching stone is attached).
-            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-            {
-                const FRuntimeAttachedItem &Att = *AttPtr;
-                HPPct = CrystalEffectTable::GetAttachedStonePercentForType(Att, ECrystalType::MaxHPStone);
-                EPPct = CrystalEffectTable::GetAttachedStonePercentForType(Att, ECrystalType::MaxEPStone);
-            }
+            HPPct = Loadout->GetAttachedStonePercentForType(ECrystalType::MaxHPStone);
+            EPPct = Loadout->GetAttachedStonePercentForType(ECrystalType::MaxEPStone);
         }
 
         // Transient pool buff/debuff (P2b) — skill-effect layer, summed via
@@ -873,10 +869,7 @@ float UCharacterDataComponent::GetEquipmentModifiedLuck() const
             // Attached LuckStone (5f-B) — MULTIPLIES the normalized luck (gear-beyond the stat cap), so it
             // lifts EVERY luck consumer uniformly (crit chance, break-skip, future dodge/drops). ×1 (inert)
             // unless a LuckStone is attached — StoneTargetStat(LuckStone) == ESubStat::Luck, 0 otherwise.
-            if (const FRuntimeAttachedItem *Att = Loadout->GetActiveWeaponAttachment())
-            {
-                LuckNorm *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(*Att, ESubStat::Luck) / CombatConstants::STAT_PERCENT_DIVISOR);
-            }
+            LuckNorm *= (1.0f + Loadout->GetAttachedStonePercent(ESubStat::Luck) / CombatConstants::STAT_PERCENT_DIVISOR);
         }
 
         // Skill-effect LuckBuff / LuckDebuff — MULTIPLIES (percent-space), matching the cluster-5
@@ -983,11 +976,7 @@ float UCharacterDataComponent::GetStoneSpellDamageFactor() const
     {
         if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
         {
-            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-            {
-                const FRuntimeAttachedItem &Att = *AttPtr;
-                return 1.0f + CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::SpellDamage) / CombatConstants::STAT_PERCENT_DIVISOR;
-            }
+            return 1.0f + Loadout->GetAttachedStonePercent(ESubStat::SpellDamage) / CombatConstants::STAT_PERCENT_DIVISOR;
         }
     }
     return 1.0f;
@@ -1052,11 +1041,7 @@ float UCharacterDataComponent::GetStoneRawDamageFactor() const
     {
         if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
         {
-            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-            {
-                const FRuntimeAttachedItem &Att = *AttPtr;
-                return 1.0f + CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::RawDamage) / CombatConstants::STAT_PERCENT_DIVISOR;
-            }
+            return 1.0f + Loadout->GetAttachedStonePercent(ESubStat::RawDamage) / CombatConstants::STAT_PERCENT_DIVISOR;
         }
     }
     return 1.0f;
@@ -1113,10 +1098,7 @@ float UCharacterDataComponent::GetEffectiveActionSpeed() const
         if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
         {
             GearFrac = Loadout->GetActiveStatBonus(Owner).BonusActionSpeed * CombatConstants::ANIMATION_SPEED_PER_POINT;
-            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-            {
-                StoneFactor = 1.0f + CrystalEffectTable::GetAttachedStonePercent(*AttPtr, ESubStat::ActionSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
-            }
+            StoneFactor = 1.0f + Loadout->GetAttachedStonePercent(ESubStat::ActionSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
         }
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
@@ -1148,10 +1130,7 @@ float UCharacterDataComponent::GetEffectiveSpellSpeed() const
         if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
         {
             GearFrac = Loadout->GetActiveStatBonus(Owner).BonusSpellSpeed * CombatConstants::SPELL_SPEED_PER_POINT;
-            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-            {
-                StoneFactor = 1.0f + CrystalEffectTable::GetAttachedStonePercent(*AttPtr, ESubStat::SpellSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
-            }
+            StoneFactor = 1.0f + Loadout->GetAttachedStonePercent(ESubStat::SpellSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
         }
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
@@ -1193,11 +1172,8 @@ float UCharacterDataComponent::SpeedWindowGearFactor(EActionType AttackType) con
             Factor *= (1.0f + BonusPts * PerPoint);
 
             // Attached {Action,Spell}SpeedStone — % multiplier. 0 (×1) unless that stone is attached.
-            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-            {
-                const ESubStat StoneStat = bSpell ? ESubStat::SpellSpeed : ESubStat::ActionSpeed;
-                Factor *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(*AttPtr, StoneStat) / CombatConstants::STAT_PERCENT_DIVISOR);
-            }
+            const ESubStat StoneStat = bSpell ? ESubStat::SpellSpeed : ESubStat::ActionSpeed;
+            Factor *= (1.0f + Loadout->GetAttachedStonePercent(StoneStat) / CombatConstants::STAT_PERCENT_DIVISOR);
         }
 
         // Transient {Action,Spell}SpeedBuff/Debuff — mirrors GetEffectiveActionSpeed's transient layer.
@@ -1244,10 +1220,7 @@ float UCharacterDataComponent::ReflexWindowGearFactor() const
             Factor *= (1.0f + static_cast<float>(Bonus.BonusReflex) * CombatConstants::STAT_MULT_PER_POINT);
 
             // Attached ReflexStone — % multiplier. 0 (×1) unless that stone is attached.
-            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-            {
-                Factor *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(*AttPtr, ESubStat::Reflex) / CombatConstants::STAT_PERCENT_DIVISOR);
-            }
+            Factor *= (1.0f + Loadout->GetAttachedStonePercent(ESubStat::Reflex) / CombatConstants::STAT_PERCENT_DIVISOR);
         }
 
         // Transient ReflexBuff/Debuff — stays MULTIPLICATIVE here (unlike the additive transient policy on
@@ -1323,12 +1296,8 @@ float UCharacterDataComponent::GetEffectiveEfficiencyMultiplier() const
         {
             Reduction *= (1.0f + Loadout->GetActiveStatBonus(Owner).BonusEfficiency * CombatConstants::EFFICIENCY_PER_POINT);
 
-            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-            {
-                const FRuntimeAttachedItem &Att = *AttPtr;
-                Reduction *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::Efficiency)
-                              / CombatConstants::STAT_PERCENT_DIVISOR);
-            }
+            Reduction *= (1.0f + Loadout->GetAttachedStonePercent(ESubStat::Efficiency)
+                          / CombatConstants::STAT_PERCENT_DIVISOR);
         }
 
         // Transient Efficiency buff/debuff — skill-effect layer. MULTIPLIES the reduction (a buff
@@ -1391,11 +1360,7 @@ float UCharacterDataComponent::GetEffectiveStatusMultiplier() const
         {
             Factor *= (1.0f + Loadout->GetActiveStatBonus(Owner).BonusStatusMultiplier * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
 
-            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-            {
-                const FRuntimeAttachedItem &Att = *AttPtr;
-                Factor *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::StatusMultiplier) / CombatConstants::STAT_PERCENT_DIVISOR);
-            }
+            Factor *= (1.0f + Loadout->GetAttachedStonePercent(ESubStat::StatusMultiplier) / CombatConstants::STAT_PERCENT_DIVISOR);
         }
 
         // Transient StatusMultiplierBuff/Debuff — MULTIPLICATIVE: the temporary net scales the
@@ -1441,11 +1406,7 @@ float UCharacterDataComponent::GetEffectiveResistance() const
         {
             Resistance += Loadout->GetActiveStatBonus(Owner).BonusResistance * CombatConstants::RESISTANCE_PER_POINT;
 
-            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-            {
-                const FRuntimeAttachedItem &Att = *AttPtr;
-                Resistance += CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR;
-            }
+            Resistance += Loadout->GetAttachedStonePercent(ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR;
         }
 
         // Transient — ModifyStatusResist ONLY (the element-agnostic blanket channel the
