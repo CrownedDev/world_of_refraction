@@ -1989,7 +1989,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **C** Save the player's position too (needs a position snapshot every save point; fights already return to the start point).
 **Recommendation:** A. Slay the Spire's save-and-quit keeps the floor, the deck and the gold, and Hades resumes the chamber with its obols; losing the run's money on a quit would feel like a penalty for closing the game. Landing at the start point matches how the game already returns from every fight. Not lore.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it.
-**Notes for Claude:** applied (feature/B-208-save-trial-run): `FSavedRun`, `FSavedCarriedGear`, `FSavedPartyMember::CarriedGear` / `CarriedAbsorption`, save version 2 (version-1 saves load with no run). `UTrialRunSubsystem::RestoreRun` / `ResumeRun`; `USaveSubsystem::CaptureRun` / `RestoreRun`.
+**Notes for Claude:** the shutdown save also captures the run, so a quit keeps chests opened after the last fight, and a quit mid-fight keeps the vitals from before that fight. Applied (feature/B-208-save-trial-run): `FSavedRun`, `FSavedCarriedGear`, `FSavedPartyMember::CarriedGear` / `CarriedAbsorption`, save version 2 (version-1 saves load with no run). `UTrialRunSubsystem::RestoreRun` / `ResumeRun`; `USaveSubsystem::CaptureRun` / `RestoreRun`.
 
 ### Q-171 — A gear change's drops: how much is dropped, and during a fight?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-171, D-081 = A) · **Blocks:** — (ships with A)

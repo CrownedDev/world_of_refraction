@@ -8,7 +8,7 @@ One save slot per local player (`WoR_Main`) keeps what lives between play sessio
 
 - `Save/WoRSaveTypes.h`: the save structs, plain data with no pointers.
   - `FSavedAssetRef`: an asset as `FPrimaryAssetId` plus its path. `Resolve` tries the id through the Asset Manager first (it survives an asset move), then the path.
-  - `FSavedParty` / `FSavedPartyMember`: character, pawn class, formation cell, Player/AI control, carried HP/EP (always written as unset until the run is saved: B-208, Q-090).
+  - `FSavedParty` / `FSavedPartyMember`: character, pawn class, formation cell, Player/AI control, carried HP/EP; during a run also crystal wear and absorption (B-208).
   - `FSavedWallet` / `FSavedBalance`: every banked currency (Prisms, Diamond, Gear/Skill Essence, the 14 typed essences). Gold is never banked.
   - `FSavedPool` / `FSavedOwnedItem` / `FSavedCrystalStack`: the pool's weapons, rings, evolutions, spells, abilities (asset, instance id, tier, quality; evolution durability) and crystal stacks.
   - `FWoRSaveData`: all three.
@@ -38,7 +38,7 @@ One save slot per local player (`WoR_Main`) keeps what lives between play sessio
 ## Known limitations / TODOs
 
 - **Inventory isn't kept yet.** Pawns still rebuild their gear from their authored `CharacterData->Inventory`, and nothing in play adds to the pool. The pool round-trips, but it is filled only by `wor.PopulatePool`. Gear that persists is B-085 (loadouts point at owned gear), B-091 (equip from the pool) and B-124 (save each entry whole: crystal, spells, rolls).
-- **No run save:** quitting mid-trial abandons the run, so carried HP/EP, crystal wear and absorption are not written (Q-090). Resuming a run is B-208.
+- **Run save (B-208, Q-208):** `FSavedRun` holds the trial, seed, variation, difficulty, beaten encounters, found features, run memories and run Gold. A reload resumes only when the game starts in the hub (`wor.Save.ResumeRun`), at the trial's start; started anywhere else, the run and the party's carried state are dropped. The journal is not saved. If the start map is ever a menu instead of the hub, resuming needs revisiting.
 - Gold is never banked. Since B-178 it rides `USaveSubsystem::CarriedGold` in memory across level changes, and `ClearRunGold` zeroes it when a run starts and ends.
 - One slot, shared by every PIE instance and the standalone game. No split screen.
 - The backlog row named the print command `wor.PrintSave`; it is `wor.Save.Print`, next to `wor.Save.Now` / `Delete`.
@@ -49,3 +49,4 @@ One save slot per local player (`WoR_Main`) keeps what lives between play sessio
 |---|---|---|
 | 2026-10-27 | Created (B-090): `UWoRSaveGame`, `USaveSubsystem`, save points, wallet carry, Asset Manager types, `WoR.Save`. | feature/B-090-save-keystone |
 | 2026-10-27 | B-178: the run's Gold carries across OpenLevel (`CarriedGold`, not written to the slot); `ClearRunGold` at trial entry and hub return. Case added to `WoR.Save`. | feature/B-178-run-repair |
+| 2026-10-27 | B-208: the trial run is saved (`FSavedRun`, `FSavedCarriedGear`, version 2) and resumed from the hub; `wor.Save.Print` shows it; spec `WoR.Save.Run`. | feature/B-208-save-trial-run |
