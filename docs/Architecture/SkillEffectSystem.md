@@ -303,3 +303,4 @@ Coverage mirrors `GetActiveStatBonus` per class plus the innate (primary-slot) e
 | 2026-10-27 | B-225: `ApplyTimingRule` in `ApplyEffect`: every timed effect counts holder turns (`FTurnSpan`, D-051); a per-turn payout (`IsPayoutType`, Start/End/Persistent timing) pays at the holder's turn start, exactly N (Q-044c, Q-063). `TickDurations` flagged obsolete. Q-225. | feature/B-225-effect-timing |
 | 2026-10-27 | B-042h: at UseGAS 1 turn start / end run the tracker first and the stored copies follow it (GASSystem.md); `CountHolderTurnSpans` broadcasts after counting every span. | feature/B-042h-gas-effect-lifetime |
 | 2026-10-27 | B-042x: `HasActiveDOT` / `GetEffectTags` read through `HasEffectOfType` (tags at UseGAS 1). | feature/B-042x-gas-tag-reads |
+| 2026-10-27 | B-042y: DOT / HOT payouts call `PayTickThroughGAS` first (GAS tick spec at UseGAS 1), enum write as fallback. | feature/B-042y-gas-getters-hp |
