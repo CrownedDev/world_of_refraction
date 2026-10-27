@@ -4781,18 +4781,19 @@ float UActionExecutor::GetChargeDamageMultiplier(int32 Level, EInfusionMode Mode
 	}
 
 	// Damage is the FOCUS in Physical mode, OFF-FOCUS in Status, BALANCED in Balanced.
+	const UCombatTuningData &Tuning = WoRTuning::Get();
 	float Base;
 	switch (Mode)
 	{
 	case EInfusionMode::Physical:
-		Base = ChargeBand(Level, WoRTuning::Get().ChargeFocusL1, WoRTuning::Get().ChargeFocusL2);
+		Base = ChargeBand(Level, Tuning.ChargeFocusL1, Tuning.ChargeFocusL2);
 		break;
 	case EInfusionMode::Status:
-		Base = ChargeBand(Level, WoRTuning::Get().ChargeOffFocusL1, WoRTuning::Get().ChargeOffFocusL2);
+		Base = ChargeBand(Level, Tuning.ChargeOffFocusL1, Tuning.ChargeOffFocusL2);
 		break;
 	case EInfusionMode::Balanced:
 	default:
-		Base = ChargeBand(Level, WoRTuning::Get().ChargeBalancedL1, WoRTuning::Get().ChargeBalancedL2);
+		Base = ChargeBand(Level, Tuning.ChargeBalancedL1, Tuning.ChargeBalancedL2);
 		break;
 	}
 
@@ -4809,18 +4810,19 @@ float UActionExecutor::GetChargeStatusMultiplier(int32 Level, EInfusionMode Mode
 	}
 
 	// Status is the FOCUS in Status mode, OFF-FOCUS in Physical, BALANCED in Balanced.
+	const UCombatTuningData &Tuning = WoRTuning::Get();
 	float Base;
 	switch (Mode)
 	{
 	case EInfusionMode::Physical:
-		Base = ChargeBand(Level, WoRTuning::Get().ChargeOffFocusL1, WoRTuning::Get().ChargeOffFocusL2);
+		Base = ChargeBand(Level, Tuning.ChargeOffFocusL1, Tuning.ChargeOffFocusL2);
 		break;
 	case EInfusionMode::Status:
-		Base = ChargeBand(Level, WoRTuning::Get().ChargeFocusL1, WoRTuning::Get().ChargeFocusL2);
+		Base = ChargeBand(Level, Tuning.ChargeFocusL1, Tuning.ChargeFocusL2);
 		break;
 	case EInfusionMode::Balanced:
 	default:
-		Base = ChargeBand(Level, WoRTuning::Get().ChargeBalancedL1, WoRTuning::Get().ChargeBalancedL2);
+		Base = ChargeBand(Level, Tuning.ChargeBalancedL1, Tuning.ChargeBalancedL2);
 		break;
 	}
 

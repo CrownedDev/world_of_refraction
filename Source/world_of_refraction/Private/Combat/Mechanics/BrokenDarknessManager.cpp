@@ -292,15 +292,16 @@ float UBrokenDarknessManager::ComputeStrainForDeficit(int32 Deficit) const
 	const float DefenceFrac = CharComp->GetEvolutionModifiedFlatDefense();    // [0, 0.5]
 
 	// Power amplifies, control dampens — both clamped (mirrors the durability-wear wrap).
-	const float PowerFactor = FMath::Min(1.0f + SpellDamageFrac, WoRTuning::Get().StrainPowerFactorMax);
-	const float ControlFactor = FMath::Max(1.0f - DefenceFrac, WoRTuning::Get().StrainControlFactorMin);
+	const UCombatTuningData &Tuning = WoRTuning::Get();
+	const float PowerFactor = FMath::Min(1.0f + SpellDamageFrac, Tuning.StrainPowerFactorMax);
+	const float ControlFactor = FMath::Max(1.0f - DefenceFrac, Tuning.StrainControlFactorMin);
 
-	const float StrainPerCast = Deficit * WoRTuning::Get().StrainPerDeficitPoint * PowerFactor * ControlFactor;
+	const float StrainPerCast = Deficit * Tuning.StrainPerDeficitPoint * PowerFactor * ControlFactor;
 
 	// Min-floor: a real deficit always accrues at least the UNMODULATED single-deficit-point
 	// strain (the flat translation of the old per-cent floor), so control-stacking can't grind
 	// a real deficit's strain below the raw 1-point value.
-	const float MinFloor = WoRTuning::Get().StrainPerDeficitPoint;
+	const float MinFloor = Tuning.StrainPerDeficitPoint;
 	return FMath::Max(StrainPerCast, MinFloor);
 }
 
