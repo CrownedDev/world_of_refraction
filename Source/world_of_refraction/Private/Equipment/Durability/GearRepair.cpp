@@ -5,6 +5,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
@@ -81,7 +82,7 @@ namespace
 	UCurrencyComponent *LocalWalletOf(const UWorld *World)
 	{
 		const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
-		const AWoRPlayerState *PS = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr;
+		const AWoRPlayerState *PS = PC && PC->IsLocalController() ? PC->GetPlayerState<AWoRPlayerState>() : nullptr;
 		return PS ? PS->GetWallet() : nullptr;
 	}
 
@@ -92,8 +93,9 @@ namespace
 		{
 			const UParty *Party = LocalPartyOf(World);
 			const UCurrencyComponent *Wallet = LocalWalletOf(World);
-			UE_LOG(LogWoR, Display, TEXT("[GearRepair] Repair costs %d Gold; the wallet has %d"),
-				   Party ? GearRepair::GetPartyRepairCost(*Party) : 0, Wallet ? Wallet->GetBalance(ECurrencyType::Gold) : 0);
+			UE_LOG(LogWoR, Display, TEXT("%s\n  The wallet has %d Gold"),
+				   Party ? *GearRepair::GetRepairQuoteString(*Party) : TEXT("[GearRepair] No local party"),
+				   Wallet ? Wallet->GetBalance(ECurrencyType::Gold) : 0);
 		}));
 
 	FAutoConsoleCommandWithWorld GRepairCmd(
@@ -119,20 +121,62 @@ int32 GearRepair::GetGoldForTier(EItemTier Tier)
 
 int32 GearRepair::GetRepairCost(const FRuntimeAttachedItem &Item)
 {
-	if (!CanRepair(Item) || Item.GetCurrentDurability() >= Item.GetMaxDurability())
+	if (!CanRepair(Item))
 	{
 		return 0;
 	}
-	return GetGoldForTier(AttachmentTier(Item));
+	return GetRepairGold(AttachmentTier(Item), Item.GetCurrentDurability(), Item.GetMaxDurability());
+}
+
+int32 GearRepair::GetRepairGold(EItemTier Tier, int32 Current, int32 Max)
+{
+	const int32 Missing = Max - FMath::Clamp(Current, 0, Max);
+	if (Missing <= 0)
+	{
+		return 0;
+	}
+	return FMath::DivideAndRoundUp(GetGoldForTier(Tier) * Missing, Max);
 }
 
 int32 GearRepair::GetRepairCost(const FEvolutionAttachment &Evolution)
 {
-	if (!Evolution.Item || IsUnbreakable(Evolution) || Evolution.CurrentDurability >= EvolutionMax(Evolution))
+	if (!Evolution.Item || IsUnbreakable(Evolution))
 	{
 		return 0;
 	}
-	return GetGoldForTier(Evolution.Tier);
+	return GetRepairGold(Evolution.Tier, Evolution.CurrentDurability, EvolutionMax(Evolution));
+}
+
+FString GearRepair::GetRepairQuoteString(const UParty &Party)
+{
+	FString Out = TEXT("[GearRepair] Quote");
+	for (int32 MemberIndex = 0; MemberIndex < Party.Members.Num(); ++MemberIndex)
+	{
+		const FCarriedGearState &Gear = Party.Members[MemberIndex].CarriedGear;
+		if (!Gear.bCarried)
+		{
+			Out += FString::Printf(TEXT("\n  [%d] nothing carried (authored gear, unworn)"), MemberIndex);
+			continue;
+		}
+		for (const FCarriedAttachment &Carried : Gear.Attachments)
+		{
+			if (const int32 Gold = GetRepairCost(Carried.Attached))
+			{
+				Out += FString::Printf(TEXT("\n  [%d] %s on %s, tier %s, %d/%d: %d Gold"), MemberIndex,
+									   *UEnum::GetValueAsString(Carried.Attached.Kind), *GetNameSafe(Carried.Holder),
+									   *ItemIdentity::GetTierLetter(AttachmentTier(Carried.Attached)),
+									   Carried.Attached.GetCurrentDurability(), Carried.Attached.GetMaxDurability(), Gold);
+			}
+		}
+		if (const int32 Gold = Gear.bHasPrimaryEvolution ? GetRepairCost(Gear.PrimaryEvolution) : 0)
+		{
+			Out += FString::Printf(TEXT("\n  [%d] primary evolution %s, tier %s, %d/%d: %d Gold"), MemberIndex,
+								   *GetNameSafe(Gear.PrimaryEvolution.Item), *ItemIdentity::GetTierLetter(Gear.PrimaryEvolution.Tier),
+								   Gear.PrimaryEvolution.CurrentDurability, EvolutionMax(Gear.PrimaryEvolution), Gold);
+		}
+	}
+	Out += FString::Printf(TEXT("\n  Total: %d Gold"), GetPartyRepairCost(Party));
+	return Out;
 }
 
 int32 GearRepair::GetPartyRepairCost(const UParty &Party)

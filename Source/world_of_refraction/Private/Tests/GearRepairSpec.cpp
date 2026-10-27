@@ -55,14 +55,20 @@ void FGearRepairSpec::Define()
 		Member.CarriedGear.PrimaryEvolution.CurrentDurability = REPAIR_TEST_EVOLUTION_WORN;
 
 		// The worn F gem, the broken C gem and the worn B evolution; the full gem is free.
-		ExpectedCost = GearRepair::GetGoldForTier(EItemTier::F_Tier) + GearRepair::GetGoldForTier(EItemTier::C_Tier) +
-					   GearRepair::GetGoldForTier(EItemTier::B_Tier);
+		ExpectedCost = GearRepair::GetRepairGold(EItemTier::F_Tier, 1, ItemIdentity::GetMaxDurability(REPAIR_TEST_F_GEM)) +
+					   GearRepair::GetGoldForTier(EItemTier::C_Tier) +
+					   GearRepair::GetRepairGold(EItemTier::B_Tier, REPAIR_TEST_EVOLUTION_WORN, REPAIR_TEST_EVOLUTION_MAX);
 	});
 
-	It("prices a repair by each worn item's tier", [this]()
+	It("prices a repair by each worn item's tier and missing share", [this]()
 	{
 		TestTrue(TEXT("A higher tier costs more"),
 				 GearRepair::GetGoldForTier(EItemTier::S_Tier) > GearRepair::GetGoldForTier(EItemTier::F_Tier));
+		const int32 FGold = GearRepair::GetGoldForTier(EItemTier::F_Tier);
+		TestEqual(TEXT("Broken pays the tier price"), GearRepair::GetRepairGold(EItemTier::F_Tier, 0, 30), FGold);
+		TestEqual(TEXT("Half worn pays half, rounded up"), GearRepair::GetRepairGold(EItemTier::F_Tier, 15, 30), (FGold + 1) / 2);
+		TestEqual(TEXT("A scratch still costs 1"), GearRepair::GetRepairGold(EItemTier::F_Tier, 29, 30), 1);
+		TestEqual(TEXT("Full is free"), GearRepair::GetRepairGold(EItemTier::F_Tier, 30, 30), 0);
 		TestEqual(TEXT("Party repair cost"), GearRepair::GetPartyRepairCost(*Party), ExpectedCost);
 	});
 
@@ -107,7 +113,7 @@ void FGearRepairSpec::Define()
 	{
 		Evolution->Breakability = EBreakability::Unbreakable;
 		TestEqual(TEXT("Cost without the evolution"), GearRepair::GetPartyRepairCost(*Party),
-				  ExpectedCost - GearRepair::GetGoldForTier(EItemTier::B_Tier));
+				  ExpectedCost - GearRepair::GetRepairGold(EItemTier::B_Tier, REPAIR_TEST_EVOLUTION_WORN, REPAIR_TEST_EVOLUTION_MAX));
 	});
 }
 
