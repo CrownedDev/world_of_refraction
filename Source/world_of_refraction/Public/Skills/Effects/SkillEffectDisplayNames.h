@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "WoRGameNames.h"
 
 /**
  * Status display information for UI
@@ -281,13 +282,9 @@ namespace SkillEffectDisplayNames
         case ESkillEffectType::LastStand:
             return TEXT("Last Stand");
 
-        // All other status types use their enum display name
+        // All other status types use the shared name table (cooked-safe, B-126)
         default:
-        {
-            const UEnum *EnumPtr = StaticEnum<ESkillEffectType>();
-            FString EnumName = EnumPtr ? EnumPtr->GetDisplayNameTextByValue(static_cast<int64>(StatusType)).ToString() : TEXT("Unknown");
-            return EnumName;
-        }
+            return WoRGameNames::GetSkillEffectTypeName(StatusType).ToString();
         }
     }
 
