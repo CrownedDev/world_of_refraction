@@ -22,11 +22,17 @@
 - **Swimming:** everyone can swim (base movement, like the sprint and the dash).
 - **Movement types (Crown, 2026-10-27):** Dash (everyone), Enhanced Sprint (faster sprint + wall-run + **run on water**), Glide, Flight (hovers in place when stationary), Teleport, High / double jump, **Air dash** (hover in place, aim, then dash that way: air dash and hover merged), Super launch (blast up, then glide), Phase / shadow step (through thin walls or bars), Mark and recall (drop a marker, snap back), **Regroup** (teleport to a party member; co-op catch-up). **Removed:** grapple, wall climb, ride / mount, surface surf (Enhanced Sprint covers water); hover merged into air dash and flight. 11 types with Regroup. Each element does each type its own way.
 - **Element styles: A** (Crown, 2026-10-27): one shared mechanic per type; each element changes the look and sound, with a few **signature** differences where it matters (Lightning teleport = chain of short blinks, Void teleport = one long vanish, Earth flight = magnetic).
+- **Element styles also set strengths** (Crown, 2026-10-27): each element is better at some movement than others, e.g. **Lightning has the fastest sprint, Wind the second fastest**.
+- **Unlocks: pinned** (Crown, 2026-10-27): leaning toward unlocking movement types by **tiers of certain skills / elemental skills**; up for discussion.
 - **Element styles (Crown's ideas, filled in as they come):**
 
   | Element | Movement | Style |
   |---|---|---|
   | Earth | Flight | Electromagnetism (magnetic levitation) |
+  | Lightning | Sprint | Fastest sprint |
+  | Wind | Sprint | Second-fastest sprint |
+  | Lightning | Teleport | Chain of short blinks |
+  | Void | Teleport | One long vanish |
 
 - **Locked field skills:** some need a specific skill equipped or learned first; once unlocked, anyone with the matching source can use it (lightning speed → any Lightning source).
 - **Picking it** (Crown): choose a source you have, then a movement type you've unlocked; the source styles it.
