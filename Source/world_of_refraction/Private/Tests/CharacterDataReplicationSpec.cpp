@@ -6,7 +6,6 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
-#include "WoRTestWorld.h"
 #include "Character/CharacterDataComponent.h"
 #include "UObject/UnrealType.h"
 
@@ -21,9 +20,9 @@ void FCharacterDataReplicationSpec::Define()
 		TestTrue(TEXT("Replicated"), GetDefault<UCharacterDataComponent>()->GetIsReplicated());
 	});
 
-	It("replicates HP, EP, the max pools, alive and Broken Darkness", [this]()
+	It("replicates HP, EP, the max pools, alive, Broken Darkness and the template", [this]()
 	{
-		for (const TCHAR *Name : {TEXT("CurrentHP"), TEXT("CurrentEP"), TEXT("MaxHP"), TEXT("MaxEP"), TEXT("bIsAlive"), TEXT("bIsBrokenDarkness")})
+		for (const TCHAR *Name : {TEXT("CurrentHP"), TEXT("CurrentEP"), TEXT("MaxHP"), TEXT("MaxEP"), TEXT("bIsAlive"), TEXT("bIsBrokenDarkness"), TEXT("CharacterData")})
 		{
 			const FProperty *Property = FindFProperty<FProperty>(UCharacterDataComponent::StaticClass(), Name);
 			TestTrue(FString::Printf(TEXT("%s replicates"), Name), Property && Property->HasAnyPropertyFlags(CPF_Net));

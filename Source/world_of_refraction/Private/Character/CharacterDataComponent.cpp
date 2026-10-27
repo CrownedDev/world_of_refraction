@@ -79,10 +79,18 @@ void UCharacterDataComponent::BeginPlay()
         // spawn is effectively a run-start, so this is the run seed until a run-state object exists.
         SeedWorldStats();
 
+        // B-131: the pools are the server's; a client receives them by replication and must not
+        // overwrite them from its own (local) party carry and loadout.
+        // TODO: B-230 - the inventory / loadout init above still runs on a client from local data.
+        const bool bSeedsPools = HasServerAuthority();
+
         // HP/EP init — crystal-aware path with equipment bonus folded in.
         // Formula lives in RecomputeMaxPools so equipment-swap code can re-run
         // it without duplicating the math.
-        RecomputeMaxPools();
+        if (bSeedsPools)
+        {
+            RecomputeMaxPools();
+        }
 
         // Trial carry-over: a rostered party member re-spawning into a battle
         // resumes the HP/EP it left the last one with, rather than arriving
@@ -91,7 +99,7 @@ void UCharacterDataComponent::BeginPlay()
         constexpr int32 MIN_POOL_VALUE = 0;
         bool bAppliedCarriedVitals = false;
 
-        if (const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr)
+        if (const UGameInstance *GI = bSeedsPools && GetWorld() ? GetWorld()->GetGameInstance() : nullptr)
         {
             if (const UPartySessionSubsystem *PartySession = GI->GetSubsystem<UPartySessionSubsystem>())
             {
@@ -109,7 +117,7 @@ void UCharacterDataComponent::BeginPlay()
             }
         }
 
-        if (!bAppliedCarriedVitals)
+        if (bSeedsPools && !bAppliedCarriedVitals)
         {
             CurrentHP = MaxHP;
             CurrentEP = MaxEP;
@@ -203,7 +211,7 @@ void UCharacterDataComponent::HandlePoolEffectChanged(AActor *Target, const FAct
     // effects (the vast majority) must not trigger a pool recompute. RecomputeMaxPools
     // writes only Max; CurrentHP/EP are untouched (overcap on a debuff/expiry, no heal
     // on a buff) — consistent with P0/P1 and the overcap-not-clamp design.
-    if (Target == GetOwner() && IsPoolEffect(Effect.EffectType))
+    if (Target == GetOwner() && IsPoolEffect(Effect.EffectType) && HasServerAuthority()) // B-131: replicated to clients
     {
         RecomputeMaxPools();
     }
@@ -217,6 +225,8 @@ void UCharacterDataComponent::GetLifetimeReplicatedProps(TArray<FLifetimePropert
     DOREPLIFETIME(UCharacterDataComponent, CurrentEP);
     DOREPLIFETIME(UCharacterDataComponent, MaxHP);
     DOREPLIFETIME(UCharacterDataComponent, MaxEP);
+    // B-131: the server picks the template when it spawns the pawn; a client needs it for names and panels.
+    DOREPLIFETIME_CONDITION(UCharacterDataComponent, CharacterData, COND_InitialOnly);
     DOREPLIFETIME(UCharacterDataComponent, bIsAlive);
     DOREPLIFETIME(UCharacterDataComponent, bIsBrokenDarkness);
 }

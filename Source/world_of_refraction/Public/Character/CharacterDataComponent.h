@@ -117,8 +117,8 @@ public:
     // CHARACTER TEMPLATE
     // ========================================
 
-    /** Reference to character template (set in editor/BP) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character")
+    /** Reference to character template (set in editor/BP). Replicated once, at spawn (B-131). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = "Character")
     UCharacterData *CharacterData;
 
     // ========================================
