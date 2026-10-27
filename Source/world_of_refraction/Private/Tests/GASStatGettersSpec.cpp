@@ -14,6 +14,8 @@
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
 #include "GAS/WoREffectMirrorComponent.h"
+#include "Skills/Effects/ActiveSkillEffect.h"
+#include "Skills/Effects/SkillEffectManager.h"
 
 namespace
 {
@@ -21,6 +23,10 @@ namespace
 	/** Small enough to stay under each attribute's clamp. */
 	constexpr float GETTER_EXTRA_SPELL_DAMAGE = 0.05f;
 	constexpr float GETTER_EXTRA_MIND = 1.0f;
+	/** An odd percentage, so the buff layer isn't a round factor. */
+	constexpr float GETTER_BUFF_PERCENT = 13.0f;
+	constexpr int32 GETTER_BUFF_ID = 4701;
+	constexpr int32 GETTER_BUFF_TURNS = 3;
 
 	struct FGetterCase
 	{
@@ -100,9 +106,24 @@ void FGASStatGettersSpec::Define()
 			UWoREffectMirrorComponent::SetReadsFromGAS(false);
 			const float OnGameSide = Case.Read(*Char);
 			UWoREffectMirrorComponent::SetReadsFromGAS(true);
-			TestEqual(FString::Printf(TEXT("%s: same on both paths"), Case.Label), Case.Read(*Char), OnGameSide, GETTER_TOLERANCE);
+			// Exactly: a caller may round these (turn speed, max pools), so an ulp could flip a result.
+			TestEqual(FString::Printf(TEXT("%s: same on both paths"), Case.Label), Case.Read(*Char), OnGameSide);
 		}
 		TestEqual(TEXT("UseGAS 1: attributes match the composition"), UWoRAttributeDebug::GetAttributeMismatchString(Hero), FString());
+	});
+
+	It("matches exactly with a buff layer that isn't 1", [this]()
+	{
+		if (!ASC) return;
+		USkillEffectManager *EffectManager = TestWorld->GetSubsystem<USkillEffectManager>();
+		if (!TestNotNull(TEXT("SkillEffectManager"), EffectManager)) return;
+		EffectManager->ApplyEffect(Hero, FActiveSkillEffect::CreateBuff(TEXT("Getter buff"), GETTER_BUFF_ID, ESkillEffectType::SpellDamageBuff,
+																	   GETTER_BUFF_PERCENT, GETTER_BUFF_TURNS),
+								   Hero);
+		UWoREffectMirrorComponent::SetReadsFromGAS(false);
+		const float OnGameSide = Char->GetEffectiveSpellDamage();
+		UWoREffectMirrorComponent::SetReadsFromGAS(true);
+		TestEqual(TEXT("SpellDamage with a buff: same on both paths, exactly"), Char->GetEffectiveSpellDamage(), OnGameSide);
 	});
 
 	It("returns the GAS attribute with UseGAS 1, and the composition with 0", [this]()
