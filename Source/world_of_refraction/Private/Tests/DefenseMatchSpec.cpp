@@ -21,6 +21,8 @@ namespace
 	constexpr double MATCH_TEST_IMPACT_LEAD_SECONDS = 10.0;
 	constexpr EActionType MATCH_TEST_ATTACK_TYPE = EActionType::Ability;
 	constexpr double MATCH_TEST_HALF = 0.5;
+	/** A press half a window past the window's edge. */
+	constexpr double MATCH_TEST_OUTSIDE = 1.5;
 }
 
 BEGIN_DEFINE_SPEC(FDefenseMatchSpec, "WoR.Defense.Match",
@@ -69,6 +71,8 @@ void FDefenseMatchSpec::Define()
 		Impact = UDefenseSystem::GetDefenseClockSeconds(DefenseSystem) + MATCH_TEST_IMPACT_LEAD_SECONDS;
 		BeforeWindow = DefenseSystem->GetEffectiveDefenseInputWindow(Defender, Attacker, MATCH_TEST_ATTACK_TYPE);
 		TestTrue(TEXT("The window is wider than the perfect band"), BeforeWindow > DefenseSystem->PerfectThreshold);
+		TestTrue(TEXT("The after-grace is wider than the perfect band"),
+				 CombatConstants::DEFENSE_AFTER_GRACE_SECONDS > DefenseSystem->PerfectThreshold);
 	});
 
 	AfterEach([this]()
@@ -105,8 +109,8 @@ void FDefenseMatchSpec::Define()
 	It("misses a press outside the window on either side", [this]()
 	{
 		if (!DefenseSystem) return;
-		Press(EDefenseType::Block, Impact - BeforeWindow * (1.0 + MATCH_TEST_HALF));
-		Press(EDefenseType::Block, Impact + CombatConstants::DEFENSE_AFTER_GRACE_SECONDS * (1.0 + MATCH_TEST_HALF));
+		Press(EDefenseType::Block, Impact - BeforeWindow * MATCH_TEST_OUTSIDE);
+		Press(EDefenseType::Block, Impact + CombatConstants::DEFENSE_AFTER_GRACE_SECONDS * MATCH_TEST_OUTSIDE);
 		TestFalse(TEXT("Neither press counts"), Match(Impact).bMatched);
 	});
 
@@ -122,13 +126,14 @@ void FDefenseMatchSpec::Define()
 	{
 		if (!DefenseSystem) return;
 		const double SecondImpact = Impact + BeforeWindow + CombatConstants::DEFENSE_AFTER_GRACE_SECONDS;
-		Press(EDefenseType::Dodge, Impact - DefenseSystem->PerfectThreshold * MATCH_TEST_HALF);
-		Press(EDefenseType::Block, Impact);
+		// The dodge is dead-on; the block is later but further away, so "latest" and "closest" differ.
+		Press(EDefenseType::Dodge, Impact);
+		Press(EDefenseType::Block, Impact + DefenseSystem->PerfectThreshold * MATCH_TEST_HALF);
 		Press(EDefenseType::Block, SecondImpact);
 
 		const FDefenseInputMatch First = Match(Impact);
 		TestTrue(TEXT("First impact matched"), First.bMatched);
-		TestEqual(TEXT("The latest press in range wins"), First.Type, EDefenseType::Block);
+		TestEqual(TEXT("The latest press in range wins, not the closest"), First.Type, EDefenseType::Block);
 		const FDefenseInputMatch Second = Match(SecondImpact);
 		TestTrue(TEXT("Second impact matched by its own press"), Second.bMatched && Second.bPerfect);
 		const FDefenseInputMatch Again = Match(Impact);

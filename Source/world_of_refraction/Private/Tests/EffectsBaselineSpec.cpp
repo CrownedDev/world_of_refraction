@@ -16,6 +16,7 @@
 #include "Combat/CombatConstants.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
+#include "Skills/Effects/StatusBuildupManager.h"
 
 namespace
 {
@@ -30,7 +31,10 @@ namespace
 	constexpr int32 BASELINE_DURATION_TURNS = 3;
 	constexpr int32 BASELINE_MAX_STACKS = 2;
 	/** Far past the bar's threshold, whatever the holder's resistance (below RESISTANCE_MAX). */
-	constexpr float BASELINE_OVERWHELMING_BUILDUP = CombatConstants::STATUS_EFFECT_THRESHOLD * 100.0f;
+	constexpr float BASELINE_OVERWHELMING_FACTOR = 100.0f;
+	constexpr float BASELINE_OVERWHELMING_BUILDUP = CombatConstants::STATUS_EFFECT_THRESHOLD * BASELINE_OVERWHELMING_FACTOR;
+	/** A holder-turn span landing during the holder's own turn counts that turn. */
+	constexpr int32 BASELINE_LANDING_TURN = 1;
 }
 
 BEGIN_DEFINE_SPEC(FEffectsBaselineSpec, "WoR.Effects.Baseline",
@@ -93,6 +97,20 @@ BEGIN_DEFINE_SPEC(FEffectsBaselineSpec, "WoR.Effects.Baseline",
 		const FActiveSkillEffect *Effect = Find(ID);
 		TestNotNull(FString::Printf(TEXT("Effect %d present"), ID), Effect);
 		return Effect ? Effect->RemainingTurns : INDEX_NONE;
+	}
+
+	/** The actor's stun's remaining turns, or INDEX_NONE (with a failed check) when it has none. */
+	int32 StunTurnsLeft(AActor *Actor)
+	{
+		for (const FActiveSkillEffect &Effect : EffectManager->GetActiveEffects(Actor))
+		{
+			if (Effect.EffectType == ESkillEffectType::Stun)
+			{
+				return Effect.RemainingTurns;
+			}
+		}
+		AddError(FString::Printf(TEXT("%s has no stun"), *GetNameSafe(Actor)));
+		return INDEX_NONE;
 	}
 
 	/** One of the holder's own turns ending: end-of-turn effects run, then durations tick. */
@@ -349,6 +367,13 @@ void FEffectsBaselineSpec::Define()
 			TestTrue(TEXT("The bar capped into a stun"), EffectManager->IsStunned(Holder));
 			TestNotNull(TEXT("The DOT is still there"), Find(BASELINE_DOT_ID));
 			TestEqual(TEXT("The DOT and the stun"), EffectManager->GetEffectCount(Holder), 2);
+
+			// The same bar cap off-turn, on the foe: a stun no holder turn has counted yet.
+			UStatusBuildupManager *Buildup = TestWorld->GetSubsystem<UStatusBuildupManager>();
+			if (!TestNotNull(TEXT("StatusBuildupManager"), Buildup)) return;
+			Buildup->AddStatusBuildup(nullptr, Foe, BASELINE_OVERWHELMING_BUILDUP, ESpellElement::Lightning, EPhysicalDamageType::None);
+			TestEqual(TEXT("Landing on the holder's own turn, the stun counts that turn once (D-030, TurnSpan.h)"),
+					  StunTurnsLeft(Holder), StunTurnsLeft(Foe) - BASELINE_LANDING_TURN);
 		});
 	});
 }

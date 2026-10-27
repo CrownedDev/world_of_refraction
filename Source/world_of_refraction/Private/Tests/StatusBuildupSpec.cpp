@@ -25,7 +25,8 @@ namespace
 	constexpr int32 BUILDUP_TEST_IMMUNITY_ID = 9502;
 	constexpr int32 BUILDUP_TEST_DURATION_TURNS = 3;
 	/** Far past the threshold, whatever the target's resistance (below RESISTANCE_MAX). */
-	constexpr float BUILDUP_TEST_OVERWHELMING_HIT = CombatConstants::STATUS_EFFECT_THRESHOLD * 100.0f;
+	constexpr float BUILDUP_TEST_OVERWHELMING_FACTOR = 100.0f;
+	constexpr float BUILDUP_TEST_OVERWHELMING_HIT = CombatConstants::STATUS_EFFECT_THRESHOLD * BUILDUP_TEST_OVERWHELMING_FACTOR;
 }
 
 BEGIN_DEFINE_SPEC(FStatusBuildupSpec, "WoR.Status.Buildup",
@@ -89,7 +90,7 @@ void FStatusBuildupSpec::Define()
 						Expected / CombatConstants::STATUS_EFFECT_THRESHOLD, BUILDUP_TEST_TOLERANCE);
 		TestEqual(TEXT("Remembers the element"), Buildup->GetPendingElement(Target), ESpellElement::Fire);
 		Hit(BUILDUP_TEST_HIT, ESpellElement::Fire);
-		TestNearlyEqual(TEXT("Hits add up"), Buildup->GetStatusBarBuildup(Target), 2.0f * Expected, BUILDUP_TEST_TOLERANCE);
+		TestNearlyEqual(TEXT("Hits add up"), Buildup->GetStatusBarBuildup(Target), Expected + Expected, BUILDUP_TEST_TOLERANCE);
 	});
 
 	It("lowers buildup with an element-matched resistance buff, and only for that element", [this]()
@@ -144,7 +145,8 @@ void FStatusBuildupSpec::Define()
 	It("fires the element's status at the threshold and empties the bar", [this]()
 	{
 		if (!Buildup) return;
-		TestEqual(TEXT("Lightning caps into Stun"), Buildup->GetPendingTrigger(Target), ESkillEffectType::None);
+		Hit(BUILDUP_TEST_HIT, ESpellElement::Lightning);
+		TestEqual(TEXT("Lightning caps into Stun"), Buildup->GetPendingTrigger(Target), ESkillEffectType::Stun);
 		TestTrue(TEXT("Fires"), Hit(BUILDUP_TEST_OVERWHELMING_HIT, ESpellElement::Lightning));
 		TestNearlyEqual(TEXT("Bar empty"), Buildup->GetStatusBarBuildup(Target), 0.0f, BUILDUP_TEST_TOLERANCE);
 		TestTrue(TEXT("Target stunned"), Effects->IsStunned(Target));
@@ -162,9 +164,13 @@ void FStatusBuildupSpec::Define()
 	It("forgets every bar between fights", [this]()
 	{
 		if (!Buildup) return;
+		AActor *Other = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), true);
+		if (!TestNotNull(TEXT("Second target"), Other)) return;
 		Hit(BUILDUP_TEST_HIT, ESpellElement::Fire);
+		Buildup->AddStatusBuildup(nullptr, Other, BUILDUP_TEST_HIT, ESpellElement::Fire, EPhysicalDamageType::None);
 		Buildup->ResetForCombat();
 		TestNearlyEqual(TEXT("Bar empty"), Buildup->GetStatusBarBuildup(Target), 0.0f, BUILDUP_TEST_TOLERANCE);
+		TestNearlyEqual(TEXT("The other bar empty"), Buildup->GetStatusBarBuildup(Other), 0.0f, BUILDUP_TEST_TOLERANCE);
 	});
 }
 

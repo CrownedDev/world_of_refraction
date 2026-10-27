@@ -20,6 +20,9 @@ namespace
 	constexpr int32 GRID_TEST_OTHER_COLUMN = 0;
 	constexpr int32 GRID_TEST_INVALID_TEAM = 2;
 	constexpr float GRID_TEST_TOLERANCE = 0.001f;
+	constexpr float GRID_TEST_NO_MODIFIER = 1.0f;
+	constexpr int32 GRID_TEST_PLAYER_COUNT = 2;
+	constexpr int32 GRID_TEST_ENEMY_COUNT = 1;
 }
 
 BEGIN_DEFINE_SPEC(FCombatGridSpec, "WoR.Combat.Grid",
@@ -95,8 +98,8 @@ void FCombatGridSpec::Define()
 		Place(Hero, ECombatRow::Front);
 		Place(Ally, ECombatRow::Back);
 		TestTrue(TEXT("The same cell on the other team is free"), Place(Foe, ECombatRow::Front, GRID_TEST_ENEMY_TEAM));
-		TestEqual(TEXT("Player team count"), Grid->GetTeamCount(GRID_TEST_PLAYER_TEAM), 2);
-		TestEqual(TEXT("Enemy team count"), Grid->GetTeamCount(GRID_TEST_ENEMY_TEAM), 1);
+		TestEqual(TEXT("Player team count"), Grid->GetTeamCount(GRID_TEST_PLAYER_TEAM), GRID_TEST_PLAYER_COUNT);
+		TestEqual(TEXT("Enemy team count"), Grid->GetTeamCount(GRID_TEST_ENEMY_TEAM), GRID_TEST_ENEMY_COUNT);
 		const TArray<AActor *> Front = Grid->GetActorsInRow(GRID_TEST_PLAYER_TEAM, ECombatRow::Front);
 		TestTrue(TEXT("Only the hero in the player front row"), Front.Num() == 1 && Front.Contains(Hero));
 	});
@@ -105,8 +108,8 @@ void FCombatGridSpec::Define()
 	{
 		if (!Grid) return;
 		TestEqual(TEXT("Off the grid reads Middle"), Grid->GetActorRow(Hero), ECombatRow::Middle);
-		TestNearlyEqual(TEXT("Off the grid: damage"), Grid->GetDamageModifier(Hero), 1.0f, GRID_TEST_TOLERANCE);
-		TestNearlyEqual(TEXT("Off the grid: defense"), Grid->GetDefenseModifier(Hero), 1.0f, GRID_TEST_TOLERANCE);
+		TestNearlyEqual(TEXT("Off the grid: damage"), Grid->GetDamageModifier(Hero), GRID_TEST_NO_MODIFIER, GRID_TEST_TOLERANCE);
+		TestNearlyEqual(TEXT("Off the grid: defense"), Grid->GetDefenseModifier(Hero), GRID_TEST_NO_MODIFIER, GRID_TEST_TOLERANCE);
 
 		Place(Hero, ECombatRow::Front);
 		TestNearlyEqual(TEXT("Front: damage"), Grid->GetDamageModifier(Hero), CombatGridConstants::FRONT_ROW_DAMAGE_MODIFIER, GRID_TEST_TOLERANCE);
