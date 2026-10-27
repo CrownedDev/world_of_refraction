@@ -2619,6 +2619,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. In Lyra the health set holds both health and max health and they move together; moving the cap alone would split one pair across two owners. (2) A getter reading a copy of itself adds a path that can only go stale (the Q-041 reasoning). (3) A resistance never feeds a rounding directly; the damage it scales is rounded once, so a last-bit difference changes a number only on an exact half, and the debug compare uses a tolerance. One read family per step, comparable on both paths (Martin Fowler, ParallelChange).
 **Notes for Claude:** applied (feature/B-042yc-gas-getters, UNBUILT). The other payouts are B-042yd, the per-effect value reads B-042ye.
 
+### Q-042i — Triggered effects onto GAS only: now, or after the payouts move?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042i) · **Blocks:** B-042i (now after B-042yd, B-042ye)
+**Question:** B-042i makes a trigger's effect (a defender trigger, a starting effect) go straight onto GAS instead of the game's stored effect list. With `wor.Effects.UseGAS 1` the game's turn pass still pays from the stored list: the landing payout (Q-063), the heal-block check, a burn's buildup per tick, energy restore / drain and the "effect triggered" event (Q-042y, B-042yd). The AI and the character panel still read the stored list too (B-042ye). A triggered effect kept only on GAS would lose all of that with the switch on. Do it now or later?
+**Options:**
+- **A** later: B-042i waits for B-042yd (the other payouts on GAS) and B-042ye (the per-effect reads on GAS), so nothing reads the stored list for a triggered effect any more when it moves. The "if the target is Burning" conditions already read GAS tags at UseGAS 1 (`HasEffectOfType`, B-042x), so that half needs no work.
+- **B** now, with the turn pass also walking GAS-only effects.
+**Recommendation:** A. Move the readers before the writer, so each step keeps both paths comparable (Martin Fowler, ParallelChange: expand, migrate the readers, then contract). B would build a second turn-pass path only to remove it at B-042g. Not lore.
+**Notes for Claude:** applied: B-042i Needs + B-042yd, B-042ye. Watch the TODO at `FWoREffectSpecBuilder::Apply` (a tick spec there pays on top of the turn pass) when it is picked.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
