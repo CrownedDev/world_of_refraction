@@ -7,7 +7,15 @@
 - Movement through field skills: flight, speed, etc.
 - Evolutions changing how a character moves (e.g. a character whose evolution lets them run at lightning speed).
 
-**Crown, 2026-10-27: leaning to simplify field skills.** The choices below may shrink.
+## Simplified model (Crown, 2026-10-27)
+
+- **Everyone:** fast free sprint.
+- **One active field skill per character**, set by level / source, costing EP.
+- **Enhanced Sprint** (a field skill): wall-running.
+- **Evolutions:** a small always-on movement bonus, and they augment the field skill to a degree.
+- **Sources:** a field skill can use a source; a crystal source still loses durability.
+- **Dropped:** field uses on battle skills, field-only slots. Choices 3 (movement types) and 7 (slots) below shrink to "which field skills exist".
+- **Open:** how level / source picks the field skill; dash-into-sprint meaning.
 
 ## Choices to make (one at a time)
 
