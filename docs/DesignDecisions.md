@@ -1489,6 +1489,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Hosting: A, one player hosts** (listen server; Nightreign and most co-op indies): the host runs the run, friends connect; no servers to pay for.
 - Already decided: invites by menus in the hub and **at rest spots** in a trial; players within the party radius join a fight (D-003); hidden memories per qualifying player (D-100); one wallet per player (D-046).
 - **Online service: A, Epic Online Services (EOS)** (Crown, 2026-10-27): free, cross-platform (PC and consoles together, pillar 9), with Steam friends and invites on top; Unreal's EOS online subsystem.
+- **Party in co-op: A** (Crown, 2026-10-27): up to **3 players**, each controlling their own character; empty spots can be filled by **AI allies, but only if recruited** (AI is optional, by recruitment, D-026). Same party size solo and co-op (pillar 7).
 **Notes for Claude:** open parts: online service (Steam / EOS), party make-up in co-op, join mid-run and host leaving, rewards.
 
 ### Q-044 — Re-applying the same effect: strength rule or replace?
