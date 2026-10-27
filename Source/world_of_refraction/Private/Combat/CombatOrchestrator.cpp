@@ -65,6 +65,21 @@ namespace CombatDebugAssetFallback
 	}
 }
 
+namespace CombatOwnedGearSync
+{
+	/** B-085 (Q-085): the active loadout led during the fight; its wear goes back to the owned gear. */
+	void WriteActiveLoadoutsToOwned(const TArray<AActor *> &Team)
+	{
+		for (AActor *Actor : Team)
+		{
+			if (UInventoryComponent *Inv = Actor ? Actor->FindComponentByClass<UInventoryComponent>() : nullptr)
+			{
+				Inv->WriteLoadoutToOwned(Inv->ActiveLoadoutIndex);
+			}
+		}
+	}
+}
+
 ACombatOrchestrator::ACombatOrchestrator()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -372,6 +387,8 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 	// Forced end: drop the combat HUD now. The results screen (BattleGameMode) is
 	// its own widget; win paths leave the HUD up and EndPlay removes it.
 	TeardownCombatHUD();
+
+	CombatOwnedGearSync::WriteActiveLoadoutsToOwned(LocalPartyCombatants);
 
 	ReleaseCombatResources();
 
@@ -915,6 +932,8 @@ void ACombatOrchestrator::OnActionCompleted()
 		// Auto-repair crystals between combats. Only fires on completed battles
 		// (ForceEndCombat does NOT repair — abort cases aren't "battles completed").
 		ApplyBetweenCombatRepair();
+
+		CombatOwnedGearSync::WriteActiveLoadoutsToOwned(LocalPartyCombatants);
 
 		TurnManagerRef->EndCombat();
 

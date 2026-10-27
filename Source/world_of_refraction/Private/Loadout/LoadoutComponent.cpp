@@ -177,6 +177,11 @@ bool ULoadoutComponent::SetActiveLoadoutIndex(int32 Index)
         return false;
     }
 
+    // B-085: the outgoing loadout's wear reaches the owned gear (and the incoming one) first.
+    if (Index != Inv->ActiveLoadoutIndex)
+    {
+        Inv->WriteLoadoutToOwned(Inv->ActiveLoadoutIndex);
+    }
     Inv->ActiveLoadoutIndex = Index;
     bIsReadyForBattle = false; // local field, stays
     OnLoadoutChanged.Broadcast(Index); // local delegate, broadcast preserved
@@ -3575,6 +3580,7 @@ int32 ULoadoutComponent::ApplyCarriedGear(const FCarriedGearState &Carried)
     {
         Loadout.PrimaryEvolution = Carried.PrimaryEvolution;
     }
+    Inv->WriteLoadoutToOwned(Inv->ActiveLoadoutIndex); // B-085: the owned gear starts the fight as carried
 
     UE_LOG(LogTemp, Log, TEXT("[ULoadoutComponent] %s: carried crystal state restored (%d of %d attachments%s)"),
            GetOwner() ? *GetOwner()->GetName() : TEXT("<null>"), Restored, Carried.Attachments.Num(),
