@@ -790,6 +790,7 @@ private:
 
 protected:
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
     /** Is loadout ready for battle? */
     UPROPERTY(BlueprintReadOnly, Category = "Loadout|Runtime")

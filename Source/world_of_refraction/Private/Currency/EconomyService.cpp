@@ -106,6 +106,7 @@ namespace
             if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
             {
                 Loadout->OnLoadoutChanged.Broadcast(Inv->ActiveLoadoutIndex);
+                Loadout->NotifyActiveWeaponChanged(); // the strip edits SavedLoadouts directly (B-138)
             }
         }
     }

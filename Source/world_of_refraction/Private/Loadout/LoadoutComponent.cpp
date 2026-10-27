@@ -90,6 +90,15 @@ void ULoadoutComponent::BeginPlay()
     EnsureDefaultLoadout();
 }
 
+void ULoadoutComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    if (UInventoryComponent *Inv = GetInventoryComponent())
+    {
+        Inv->OnInventoryChanged.RemoveDynamic(this, &ULoadoutComponent::HandleInventoryChanged);
+    }
+    Super::EndPlay(EndPlayReason);
+}
+
 void ULoadoutComponent::HandleInventoryChanged(EInventoryChangeType ChangeType)
 {
     NotifyActiveWeaponChanged();
