@@ -5,6 +5,10 @@
 
 #include "Misc/AutomationTest.h"
 #include "WoRGameNames.h"
+#include "Combat/Defense/EDefenseType.h"
+#include "Combat/Grid/ECombatRow.h"
+#include "Merchant/MerchantData.h"
+#include "Skills/Definitions/SpellSchool.h"
 
 BEGIN_DEFINE_SPEC(FGameNamesSpec, "WoR.Text.GameNames",
 				  EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -49,6 +53,17 @@ void FGameNamesSpec::Define()
 	It("names every character class", [this]()
 	{
 		ExpectEveryValueNamed<ECharacterClass>(&WoRGameNames::GetCharacterClassName);
+	});
+
+	It("names every defense, row, spell school and merchant type (B-207)", [this]()
+	{
+		ExpectEveryValueNamed<EDefenseType>(&WoRGameNames::GetDefenseTypeName);
+		ExpectEveryValueNamed<ECombatRow>(&WoRGameNames::GetCombatRowName);
+		ExpectEveryValueNamed<ESpellSchool>(&WoRGameNames::GetSpellSchoolName);
+		ExpectEveryValueNamed<EMerchantType>(&WoRGameNames::GetMerchantTypeName);
+		TestEqual(TEXT("Block reads Guard"), WoRGameNames::GetDefenseTypeName(EDefenseType::Block).ToString(), FString(TEXT("Guard")));
+		TestEqual(TEXT("Legacy Parry reads Guard"), WoRGameNames::GetDefenseTypeName(EDefenseType::Parry).ToString(),
+				  FString(TEXT("Guard")));
 	});
 
 	It("shows Reality as Unknown (D-095)", [this]()
