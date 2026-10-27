@@ -2007,6 +2007,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it, e.g. to B once the loadout screen exists.
 **Notes for Claude:** applied (feature/B-076-trial-recruits). Trial maps have no recruit spots yet (placing a recruitable pawn in a trial level is editor work): B-215. Until then, `wor.Party.RecruitForRun <CharacterData path>` recruits in a trial. Evolutions for a recruit wait for B with the real screen.
 
+### Q-032 — Reflect when the hit overkills: the hit's damage or the HP the target lost?
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-032 review) · **Blocks:** — (B-032c builds A)
+**Question:** Reflect (`DamageReflect`, the physical and spell reflects) returns a share of the hit's computed damage, before the target's HP drops. So a hit that overkills reflects its whole number, and DoubleHit's second hit on a target the first hit killed deals 0 but still reflects (and fires a second `OnDamageDealt` of 0). Which should reflect read?
+**Options:**
+- **A** The HP the target actually loses (capped at its remaining HP); DoubleHit skips its second hit when the first one killed.
+- **B** Keep today's: the hit's computed damage, whatever the target had left.
+**Recommendation:** A. Pokemon's Counter and Mirror Coat return a multiple of the damage the user actually took, so a finishing blow can't be inflated into a huge return; players read reflect as "you get back what you dealt to me". The deckbuilder leaves the amount undecided (`wor-deckbuilder/docs/reference/10-known-gaps.md`, "reflected damage is the attack's amount or the charge's"). Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B.
+**Notes for Claude:** B-032c: `ReflectShareOfHit` (ActionExecutor.cpp) gets min(FinalDamage, target CurrentHP); ApplyHit's DoubleHit block returns early when the target is dead. Tests: an overkilling hit reflects the HP lost; DoubleHit on a killed target deals no second hit.
+
 ### Q-080 — Which infusion sources give an ability their element?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-080) · **Blocks:** — (B-080 ships with A)
 **Question:** D-007: an ability starts Physical and "Generic gets elements on its abilities only through a crystal". An ability can be infused through a weapon crystal, a ring (its crystal), an evolution, the Innate source (Casters) or Raw. Which give the ability their element, and does a Caster infusing through a crystal deal the crystal's element or its own?
