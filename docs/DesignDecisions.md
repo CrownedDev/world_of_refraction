@@ -1977,7 +1977,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **C** Grant the item now into the leader's inventory.
 **Recommendation:** A. Shangri-La Frontier's Unique Scenarios and Destiny 2's exotic quests open by more than one route and hand out unique, sidegrade rewards, which players praise for rewarding curiosity without power creep. Keeping the first set where it is leaves anything already authored working. Logging until the grant systems exist follows the dialogue / quest placeholders already in the game. Not lore (which rewards is Crown's).
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it.
-**Notes for Claude:** grants go in `MemoryUnlock::Unlock`, the single unlock path, so every source gives the rewards once.
+**Notes for Claude:** grants go in `MemoryUnlock::Unlock`, the single unlock path, so every source gives the rewards once. Applied (feature/B-209-condition-sets-rewards): `FMemoryConditionSet`, `UMemoryData::AlternativeConditionSets` / `GetConditionSets` / `HasConditions`, `FMemoryReward` / `Rewards`; `MemoryConditions::AreMet` any route; rewards logged in `MemoryUnlock::Unlock`.
 
 ### Q-211 — Boss triggers: conditions, results and how they add up
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-211, D-100 part 1) · **Blocks:** — (B-211 ships with A)
