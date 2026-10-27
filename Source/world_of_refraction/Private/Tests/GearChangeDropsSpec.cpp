@@ -139,6 +139,9 @@ void FGearChangeDropsSpec::Define()
 		FCombatLoadout Bare;
 		Bare.PrimaryWeapon.AssignedSpells = {FireBolt};
 		const int32 BareIndex = Inventory->SavedLoadouts.Add(Bare);
+		const bool bInnateFlagged = Loadouts->CollectInvalidSlotFindings(0).ContainsByPredicate(
+			[](const FInvalidSlotFinding &Finding) { return Finding.SlotType == ELoadoutSlotType::InnateSpell && Finding.bClearable; });
+		if (!TestTrue(TEXT("The unlearned innate spell is a clearable problem"), bInnateFlagged)) return;
 
 		TestTrue(TEXT("Fire gem off"), Inventory->RemoveCrystalFromWeapon(0));
 		TestFalse(TEXT("Fire Bolt dropped where the sword is"), HoldsFireBolt(0));
