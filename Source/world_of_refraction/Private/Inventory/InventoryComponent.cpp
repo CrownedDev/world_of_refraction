@@ -952,6 +952,12 @@ int32 UInventoryComponent::LinkLoadoutsToOwned()
             CopyOwnedEvolution(Loadout.PrimaryEvolution, *Match);
             ++Linked;
         }
+        else
+        {
+            // One evolution, one slot: a second loadout naming the same owned evolution keeps its own copy.
+            UE_LOG(LogTemp, Warning, TEXT("[Inventory] %s: loadout '%s' evolution %s matches no free owned evolution - kept as its own copy"),
+                   *GetNameSafe(GetOwner()), *Loadout.LoadoutName, *GetNameSafe(Loadout.PrimaryEvolution.Item));
+        }
     }
     if (Linked > 0)
     {
@@ -1024,6 +1030,34 @@ int32 UInventoryComponent::RefreshEvolutionInLoadouts(const FGuid &EvoInstanceID
                *GetNameSafe(GetOwner()), *EvoInstanceID.ToString(), Changed);
     }
     return Changed;
+}
+
+int32 UInventoryComponent::DetachEvolutionFromOwnedGear(const FGuid &EvoInstanceID)
+{
+    TArray<FGuid> Detached;
+    const auto DetachFrom = [&EvoInstanceID, &Detached](auto &Gear)
+    {
+        for (auto &Entry : Gear)
+        {
+            if (Entry.AttachedItem.IsEvolution() && Entry.AttachedItem.Evolution.InstanceID == EvoInstanceID)
+            {
+                Entry.RemoveCrystal();
+                Detached.Add(Entry.PersistentID);
+            }
+        }
+    };
+    DetachFrom(Weapons);
+    DetachFrom(Rings);
+    for (const FGuid &GearID : Detached)
+    {
+        RefreshLoadoutsFromOwned(GearID);
+    }
+    if (Detached.Num() > 0)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Inventory] %s: evolution %s no longer owned, taken off %d weapon(s) / ring(s)"),
+               *GetNameSafe(GetOwner()), *EvoInstanceID.ToString(), Detached.Num());
+    }
+    return Detached.Num();
 }
 
 int32 UInventoryComponent::WriteLoadoutToOwned(int32 LoadoutIndex)
@@ -1389,6 +1423,7 @@ bool UInventoryComponent::RemoveEvolutionInstance(FGuid InstanceID)
     if (bRemoved)
     {
         RefreshEvolutionInLoadouts(InstanceID);
+        DetachEvolutionFromOwnedGear(InstanceID);
         BroadcastInventoryChanged(EInventoryChangeType::Removed);
     }
     return bRemoved;

@@ -1125,6 +1125,8 @@ void ACombatOrchestrator::HandleCombatEnded(int32 FinalTurnCount)
 			WinState = ECombatState::Draw; // No one alive = draw
 		}
 
+		CombatOwnedGearSync::WriteActiveLoadoutsToOwned(LocalPartyCombatants);
+
 		SetCombatState(WinState);
 
 		FCombatResult Result = BuildCombatResult();
