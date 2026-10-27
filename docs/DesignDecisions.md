@@ -1423,6 +1423,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
   - **Evolutions** add a small always-on movement bonus and **augment the field skill to a degree** (e.g. the lightning character's skill becomes a lightning dash).
   - **Sources:** a field skill can draw on a source like battle skills do; **a crystal source still loses durability** when used (`CrystalWear.md`).
   - **Dropped:** separate field uses on battle skills, and field-only skill slots.
+  - **Enhanced Sprint also runs on water** (Crown, 2026-10-27).
   - **Enhanced Sprint** is also **faster than the normal sprint** (Elden Ring Nightreign's surge sprint), on top of wall-running.
   - **Every element can do every movement type, each in its own way** (Crown, 2026-10-27, refines the line below): e.g. Lightning and Void can both teleport, but a Lightning teleport and a Void teleport look and behave differently. The **element decides the style**, not which movement type; an elemental source is still needed for the elemental movements (a Generic without one has only the normal dash and sprint).
   - **How a movement type unlocks: A** (Crown, 2026-10-27): each type has its **own unlock skill** (equip or learn it once: unlocked for good, for everyone); **some unlock by hidden conditions** instead (the memory condition system, D-100, pillar 10).
