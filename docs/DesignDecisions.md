@@ -1943,6 +1943,22 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-149-formation-cells): `ACombatOrchestrator::GetPlaceholderEnemyStartRow`. Authored enemy cells replace it later.
 
+### Q-178 — How a run's paid repair works
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-178) · **Blocks:** — (B-178 shipped with A)
+**Question:** D-093 says repair in a run costs Gold scaled by tier, at rest spots and vendors. How is it priced and bought?
+**Options:**
+- **A** (built):
+  - **Price:** each worn item costs its tier's price (F 5, E 10, D 15, C 25, B 40, A 60, S 90 Gold, `GearRepair::GOLD_BY_TIER`, TODO tune) times the share of durability it is missing, rounded up. A scratch costs at least 1. A fusion is priced at the higher tier of its two halves.
+  - **What:** one repair brings the whole party's worn gems, fusions (with a gem half) and evolutions to full, broken evolutions included. Augment stones and unbreakable evolutions never wear and cost nothing.
+  - **Paying:** all or nothing. With too little Gold nothing is paid or repaired.
+  - **Gold:** the run's Gold now carries across level changes (it used to reset on each one), and is cleared when a run starts and ends. It is never saved.
+  - **Where:** rest spots and vendors don't exist yet, so the placeholder party screen (`wor.UI.PartyControl`) offers the repair anywhere. The real rest-spot and vendor screens call the same `GearRepair::RepairParty`.
+- **B** a flat price per item, whatever its wear.
+- **C** repair item by item.
+**Recommendation:** A. Diablo's blacksmith charges by item level and missing durability, and players read it as fair: small wear is cheap. One button for the whole party matches Darkest Dungeon's and Diablo's "repair all", which players use far more than single repairs. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above).
+**Notes for Claude:** applied (feature/B-178-run-repair): `Equipment/Durability/GearRepair.h`, `USaveSubsystem::ClearRunGold`. Vendor and rest-spot screens: with the run map (D-047).
+
 ### Q-090 — Quitting mid-trial: resume the run, or abandon it?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-090) · **Blocks:** — (B-090 shipped with A now, B-208 for the rest)
 **Question:** The save keystone saves the party, the banked wallet and the pool. The run itself (trial, beaten encounters, seed, carried HP, crystal wear) is not saved. What happens when the player quits mid-trial?
