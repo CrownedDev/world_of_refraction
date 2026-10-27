@@ -6,6 +6,7 @@ copied in. Drafts are written to docs/Design/screen_mockups/<area>/<screen>/vN/ 
 <name>_annotated.png (LFS) so Crown can review them from the phone.
 """
 import functools
+import io
 import os
 import pathlib
 import random
@@ -87,6 +88,33 @@ def piece(kind, name):
     """A kit library piece (kind = backgrounds, badges, buttons, frames, icons, misc, ...), as a fresh copy the caller
     may draw on. Fails loudly if missing."""
     return _cached_piece(kind, name).copy()
+
+
+# Vendor originals the library doesn't hold (e.g. the four header-bar candidates, UI_Asset_Picks #2) are read from the
+# deckbuilder's Godot import cache: a .ctex there embeds the original as lossless WebP. Read-only, nothing is copied.
+GODOT_IMPORTED = KIT.parents[3] / ".godot" / "imported"
+VENDOR_MAX_SIDE = 2048   # the originals are up to 6144 px; drafts never need more
+
+
+@functools.lru_cache(None)
+def _cached_vendor_piece(name):
+    matches = sorted(GODOT_IMPORTED.glob(f"{name}.png-*.ctex"))
+    if not matches:
+        sys.exit(f"Vendor piece missing: {name}.png has no import cache under {GODOT_IMPORTED}")
+    data = matches[0].read_bytes()
+    riff = data.find(b"RIFF")
+    if riff < 0:
+        sys.exit(f"Vendor piece {matches[0].name} holds no lossless WebP (re-import it lossless in the deckbuilder)")
+    size = int.from_bytes(data[riff + 4:riff + 8], "little")
+    img = Image.open(io.BytesIO(data[riff:riff + 8 + size])).convert("RGBA")
+    img = img.crop(img.getbbox())
+    k = VENDOR_MAX_SIDE / max(img.size)
+    return img.resize((round(img.width * k), round(img.height * k)), Image.LANCZOS) if k < 1 else img
+
+
+def vendor_piece(name):
+    """A vendor original by file name (no extension), decoded from the deckbuilder's import cache. Fresh copy."""
+    return _cached_vendor_piece(name).copy()
 
 
 def scaled(img, width=None, height=None):
