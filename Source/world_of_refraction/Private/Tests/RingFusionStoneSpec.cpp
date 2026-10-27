@@ -7,6 +7,7 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
+#include "Combat/Damage/DamageCalculator.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Equipment/Rings/RingData.h"
 #include "Inventory/InventoryComponent.h"
@@ -95,6 +96,43 @@ void FRingFusionStoneSpec::Define()
 	{
 		Loadout->SetActiveRingIndex(RING_FUSION_PLAIN_RING);
 		TestEqual(TEXT("plain ring: no stone"), Loadout->GetAttachedStonePercent(ESubStat::Defense), 0.0f);
+	});
+
+	It("raises the defender's Defense in the damage calculator", [this]()
+	{
+		const UDamageCalculator *Damage = TestWorld->GetSubsystem<UDamageCalculator>();
+		if (!TestNotNull(TEXT("damage calculator"), Damage))
+		{
+			return;
+		}
+		AActor *Defender = Loadout->GetOwner();
+		const float WithFusion = Damage->GetDefenderFlatDefense(Defender);
+		Loadout->SetActiveRingIndex(RING_FUSION_PLAIN_RING);
+		const float WithPlain = Damage->GetDefenderFlatDefense(Defender);
+		// Zero base defense would hide a multiplier; only compare when there is some.
+		if (WithPlain > 0.0f)
+		{
+			TestTrue(TEXT("the fusion ring defends more"), WithFusion > WithPlain);
+		}
+		else
+		{
+			TestEqual(TEXT("no base defense: both zero"), WithFusion, WithPlain);
+		}
+	});
+
+	It("counts on a Caster's primary ring too", [this]()
+	{
+		UCharacterData *Data = FWoRTestWorld::NewCharacterData();
+		Data->CharacterClass = ECharacterClass::Caster;
+		AActor *Actor = TestWorld->SpawnCombatant(Data);
+		UInventoryComponent *Inventory = RingFusionAddComponent<UInventoryComponent>(Actor);
+		ULoadoutComponent *Caster = RingFusionAddComponent<ULoadoutComponent>(Actor);
+		Caster->InitializeFromCharacterData(Data, Inventory);
+		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+		Active.PrimarySlotType = EPrimarySlotType::Ring;
+		Active.PrimaryRing.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
+		Active.PrimaryRing.RingEntry.AttachedItem = RingFusionDefenseFire();
+		TestTrue(TEXT("the primary ring's stone counts"), Caster->GetAttachedStonePercent(ESubStat::Defense) > 0.0f);
 	});
 }
 
