@@ -197,6 +197,8 @@ void USaveSubsystem::DropRunVitals()
 	// The restored party carried the run's HP, wear and absorption; outside the run they start fresh.
 	if (UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>())
 	{
+		// B-076: and the characters found in that run leave with it.
+		PartySession->DismissRunMembers();
 		PartySession->ClearAllMemberVitals();
 	}
 }
@@ -310,12 +312,20 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 	Saved.bLetAIFinish = Party->bLetAIFinish;
 	for (const FPartyMember &Member : Party->Members)
 	{
+		// B-076: a run-only member belongs to the run; without one it isn't kept.
+		if (Member.bRunOnly && !bKeepVitals)
+		{
+			continue;
+		}
 		FSavedPartyMember &Out = Saved.Members.AddDefaulted_GetRef();
 		Out.CharacterData = FSavedAssetRef::Make(Member.CharacterData);
 		Out.PawnClass = FSoftClassPath(Member.PawnClass.ToSoftObjectPath().ToString());
 		Out.PreferredRow = Member.PreferredRow;
 		Out.PreferredColumn = Member.PreferredColumn;
 		Out.bPlayerControlled = Member.bPlayerControlled;
+		Out.bRunOnly = Member.bRunOnly;
+		Out.RunWeapon = Member.RunWeapon;
+		Out.RunRing = Member.RunRing;
 		if (bKeepVitals)
 		{
 			Out.CurrentHP = Member.CurrentHP;
@@ -477,6 +487,9 @@ bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsyst
 		Member.PreferredRow = In.PreferredRow;
 		Member.PreferredColumn = In.PreferredColumn;
 		Member.bPlayerControlled = In.bPlayerControlled;
+		Member.bRunOnly = In.bRunOnly;
+		Member.RunWeapon = In.RunWeapon;
+		Member.RunRing = In.RunRing;
 		Member.CurrentHP = In.CurrentHP;
 		Member.CurrentEP = In.CurrentEP;
 		Member.CarriedGear = In.CarriedGear.Restore();

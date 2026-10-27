@@ -100,6 +100,16 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	bool bPlayerControlled = true;
 
+	/** B-076: a character found in the trial; written only with a saved run. */
+	UPROPERTY()
+	bool bRunOnly = false;
+
+	UPROPERTY()
+	FGuid RunWeapon;
+
+	UPROPERTY()
+	FGuid RunRing;
+
 	UPROPERTY()
 	int32 CurrentHP = PartyConstants::NO_CARRIED_VITALS;
 
