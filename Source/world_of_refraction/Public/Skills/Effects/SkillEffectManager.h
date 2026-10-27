@@ -326,6 +326,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	TArray<FActiveSkillEffect> GetActiveEffects(AActor *Actor) const;
 
+	/** HP one tick of a DOT takes off Actor: its stacked value x Actor's resistance to the DOT's
+	 *  element (B-064b, Q-064; same 1:1, +-50% step as hits). Non-elemental DOTs are unchanged.
+	 *  The tick and the AI's lethality checks both read this. */
+	static int32 GetDotTickDamage(AActor *Actor, const FActiveSkillEffect &Effect);
+
 	/** Get all effects of a specific type on actor */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	TArray<FActiveSkillEffect> GetEffectsByType(AActor *Actor, ESkillEffectType EffectType) const;

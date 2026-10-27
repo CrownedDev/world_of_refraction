@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Skills/Effects/SkillEffectManager.h"
+#include "Combat/Damage/DamageMath.h"
+#include "Combat/Resistance/ResistanceQuery.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/TurnManager.h"
@@ -1419,6 +1421,15 @@ float USkillEffectManager::ConsumeLastStandCharge(AActor *Owner)
 	return LastStandHPPercent;
 }
 
+int32 USkillEffectManager::GetDotTickDamage(AActor *Actor, const FActiveSkillEffect &Effect)
+{
+	const float Multiplier =
+		Effect.bShareOfMaxHP
+			? 1.0f
+			: WoRDamageMath::GetElementMultiplier(WoRResistance::GetElementDamageResistance(Actor, Effect.Element), false);
+	return FMath::RoundToInt(Effect.GetStackedValue() * Multiplier);
+}
+
 void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Effect)
 {
 	UCharacterDataComponent *CharComp = GetCharacterDataComponent(Actor);
@@ -1440,13 +1451,13 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		// DOTs can kill — design changed (1-HP clamp removed). Full tick damage
 		// applies; CurrentHP can reach 0 and route through the normal death path
 		// (ServerTakeDamage -> CheckDeath -> OnDied), identical to a killing blow.
-		int32 DamageToApply = FMath::RoundToInt(Value);
+		const int32 DamageToApply = GetDotTickDamage(Actor, Effect);
 
 		if (DamageToApply > 0)
 		{
 			CharComp->ServerTakeDamage(DamageToApply);
-			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s took %d DOT damage from %s (can be lethal)"),
-				   *Actor->GetName(), DamageToApply, *Effect.EffectName);
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s took %d DOT damage from %s (value %.1f, %s; can be lethal)"),
+				   *Actor->GetName(), DamageToApply, *Effect.EffectName, Effect.GetStackedValue(), *UEnum::GetValueAsString(Effect.Element));
 		}
 
 		// Per-tick status buildup — mirrors the per-event amount the effect's
@@ -2747,6 +2758,7 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 		if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
 		{
 			Effect.EffectValue = TargetComp->MaxHP * 0.08f;
+			Effect.bShareOfMaxHP = true; // resistance already cut the buildup that capped the bar (Q-064)
 		}
 		else
 		{
