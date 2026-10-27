@@ -6,8 +6,8 @@
 // B-227: on a listen server, levels change by seamless travel and CopyProperties carries every
 // player's wallet to the next level's PlayerState.
 // B-090: the banked balances ride across OpenLevel and into the save through USaveSubsystem:
-// the local player's PlayerState banks them at EndPlay and takes them back at BeginPlay. Gold is
-// never banked, so it still resets on a level change.
+// the local player's PlayerState banks them at EndPlay and takes them back at BeginPlay. Gold rides
+// along as the save's carried run Gold (CarriedGold) and is cleared at run end.
 
 #pragma once
 

@@ -35,7 +35,7 @@ void AWoRPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void AWoRPlayerState::CopyProperties(APlayerState *PlayerState)
 {
 	Super::CopyProperties(PlayerState);
-	const AWoRPlayerState *Next = Cast<AWoRPlayerState>(PlayerState);
+	AWoRPlayerState *Next = Cast<AWoRPlayerState>(PlayerState);
 	if (Next && Next->Wallet && Wallet)
 	{
 		Next->Wallet->CopyBalancesFrom(*Wallet);

@@ -14,7 +14,7 @@ namespace
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 		{
 			const AWoRGameState *GameState = World ? World->GetGameState<AWoRGameState>() : nullptr;
-			UE_LOG(LogTemp, Log, TEXT("[GameState] %s"),
+			UE_LOG(LogWoR, Log, TEXT("[GameState] %s"),
 				   GameState ? *GameState->GetDebugString()
 							 : *FString::Printf(TEXT("no AWoRGameState (GameState %s)"), World ? *GetNameSafe(World->GetGameState()) : TEXT("-")));
 		}));
