@@ -8,9 +8,9 @@
 // Built once per combat (Build) and torn down once (Teardown). Per-turn data
 // updates stay inside each widget's own delegate bindings.
 //
-// Widget classes are config-backed soft refs with constructor defaults pointing
-// at the existing WBP assets — no editor step needed; override under
-// [/Script/world_of_refraction.CombatHUD] in DefaultGame.ini if an asset moves.
+// Widget classes are config-backed soft refs, set under
+// [/Script/world_of_refraction.CombatHUD] in Config/DefaultGame.ini (B-205);
+// change them there if an asset moves.
 // World of Refraction - Combat UI
 
 #pragma once
@@ -33,8 +33,6 @@ class WORLD_OF_REFRACTION_API UCombatHUD : public UObject
     GENERATED_BODY()
 
 public:
-    UCombatHUD();
-
     /** Create + initialise every combat widget. Idempotent: tears down first if already built. */
     void Build(APlayerController *PC, const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty);
 
@@ -47,14 +45,15 @@ public:
     FString GetHUDStateString() const;
 
     // ========================================
-    // Widget classes (config-backed, defaults = current WBP assets)
+    // Widget classes (config-backed: Config/DefaultGame.ini)
     // ========================================
 
     UPROPERTY(Config, EditAnywhere, Category = "Combat HUD")
     TSoftClassPtr<UCharacterPanelWidget> CharacterPanelClass;
 
-    /** Tried when CharacterPanelClass fails to load / isn't a UCharacterPanelWidget
-     *  (the project has two WBP_CharacterPanel assets — see review §9.5). */
+    /** Optional: tried when CharacterPanelClass fails to load / isn't a UCharacterPanelWidget.
+     *  Empty since B-205: the second WBP_CharacterPanel (review §9.5) is no longer in the project.
+     *  TODO: remove after Crown's PIE pass if nothing needs it. */
     UPROPERTY(Config, EditAnywhere, Category = "Combat HUD")
     TSoftClassPtr<UCharacterPanelWidget> FallbackCharacterPanelClass;
 
