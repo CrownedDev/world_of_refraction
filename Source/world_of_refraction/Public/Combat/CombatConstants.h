@@ -384,6 +384,10 @@ namespace CombatConstants
     // a raw sub-stat point value drives a percentage-style multiplier.
     constexpr float STAT_PERCENT_DIVISOR = 100.0f;
 
+    // An IgnoreDefense effect valued at or below this (per application, in percent points) is a flag
+    // (the "1 = on" gate convention), not an amount: it ignores all Defense (D-086, B-042m).
+    constexpr float IGNORE_DEFENSE_FLAG_VALUE = 1.0f;
+
     // [-100%, +100%] normalization range for a composed stat modifier, expressed as a
     // [0, 2] multiplier (0.0 = −100% / fully nullified, 1.0 = unchanged, 2.0 = +100% /
     // doubled). The hard cap on a modifier-bearing stat's COMPOSED product (the product of

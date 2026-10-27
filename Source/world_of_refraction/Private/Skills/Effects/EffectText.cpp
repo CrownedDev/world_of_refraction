@@ -4,6 +4,7 @@
 // payouts. This game's own triggers, stats and effect kinds are worded in Q-045.
 
 #include "Skills/Effects/EffectText.h"
+#include "Combat/CombatConstants.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "WoRGameNames.h"
 
@@ -85,14 +86,11 @@ namespace
     /** Ignore Defense's amount: a Value is percent points (D-086); none (or a 1 = on flag) is all of it. */
     FText IgnoreDefenseAmount(const FSkillEffectPayload &P)
     {
-        constexpr float IGNORE_DEFENSE_FLAG_VALUE = 1.0f;
-        if (FMath::Abs(P.Value) > IGNORE_DEFENSE_FLAG_VALUE)
+        // The runtime value: Value, or Magnitude as percent points (SkillEffectManager's payload rule).
+        const float Points = P.Value != 0 ? FMath::Abs(static_cast<float>(P.Value)) : P.Magnitude * PERCENT_SCALE;
+        if (Points > CombatConstants::IGNORE_DEFENSE_FLAG_VALUE)
         {
-            return Percent(P.Value / PERCENT_SCALE);
-        }
-        if (P.Value == 0 && P.Magnitude > 0.0f)
-        {
-            return Percent(P.Magnitude);
+            return Percent(Points / PERCENT_SCALE);
         }
         return LOCTEXT("IgnoreDefense_All", "all");
     }

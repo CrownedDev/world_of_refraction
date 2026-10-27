@@ -253,12 +253,6 @@ float UDamageCalculator::GetEffectiveStatForScaling(AActor *Attacker, ESubStat S
 	}
 }
 
-namespace
-{
-	/** An IgnoreDefense value at or below this is a flag (the "1 = on" gate convention), not an amount. */
-	constexpr float IGNORE_DEFENSE_FLAG_VALUE = 1.0f;
-}
-
 float UDamageCalculator::GetIgnoreDefenseFraction(AActor *Attacker, const FDamageCalculationInput &Input) const
 {
 	float Percent = Input.bIgnoreDefense ? CombatConstants::STAT_PERCENT_DIVISOR : Input.IgnoreDefensePercent;
@@ -268,8 +262,9 @@ float UDamageCalculator::GetIgnoreDefenseFraction(AActor *Attacker, const FDamag
 		{
 			// An effect authored without an amount (no value, or a 1 = on flag) keeps the old full ignore
 			// (D-086: old skills map to 100%).
-			const float EffectPercent = Effect.GetStackedValue();
-			Percent += EffectPercent > IGNORE_DEFENSE_FLAG_VALUE ? EffectPercent : CombatConstants::STAT_PERCENT_DIVISOR;
+			// The flag test is per application, so a stacked flag stays a flag.
+			Percent += Effect.EffectValue > CombatConstants::IGNORE_DEFENSE_FLAG_VALUE ? Effect.GetStackedValue()
+																					   : CombatConstants::STAT_PERCENT_DIVISOR;
 		}
 	}
 	return FMath::Clamp(Percent / CombatConstants::STAT_PERCENT_DIVISOR, 0.0f, 1.0f);
