@@ -1,10 +1,12 @@
 // EffectsBaselineSpec.cpp
 // B-134: today's effect lifecycle, pinned so B-042 (effects on the ASC) and later effect work can
-// prove an identical before/after: apply, stack, refresh, tick-down, expiry, DOT ticks, clear and
-// reset, and the re-entrancy regression (an effect whose logic removes effects while the
-// turn-start pass is walking the same list). Each case records what the code does today,
-// including the surprising parts (a DOT fires on application; a no-refresh re-apply still reports
-// DurationRefreshed), so change a case only on purpose.
+// prove an identical before/after: apply, stack, refresh, tick-down, expiry, the timing windows
+// (fire on application, bDelayFirstExecution, Immediate, Persistent), clear and reset, and the
+// re-entrancy regression (2405fa82: an effect whose logic removes effects while the turn-start
+// pass is walking the same list). Each case records what the code does today, including the
+// surprising parts (a DOT fires on application; a no-refresh re-apply still reports
+// DurationRefreshed), so change a case only on purpose. Cleanse's gear exclusion is
+// WoR.Effects.CleanseGear; holder-turn spans are WoR.Effects.StatusBreaks.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -22,6 +24,7 @@ namespace
 	constexpr int32 BASELINE_DOT_ID = 9404;
 	constexpr int32 BASELINE_CLEANSE_ID = 9405;
 	constexpr float BASELINE_BUFF_VALUE = 20.0f;
+	constexpr float BASELINE_STRONGER_BUFF_VALUE = 25.0f;
 	constexpr float BASELINE_DOT_DAMAGE = 5.0f;
 	constexpr int32 BASELINE_DURATION_TURNS = 3;
 	constexpr int32 BASELINE_MAX_STACKS = 2;
@@ -33,16 +36,20 @@ BEGIN_DEFINE_SPEC(FEffectsBaselineSpec, "WoR.Effects.Baseline",
 	USkillEffectManager *EffectManager = nullptr;
 	AActor *Holder = nullptr;
 	AActor *Foe = nullptr;
+	UCharacterDataComponent *HolderStats = nullptr;
 
-	static FActiveSkillEffect Buff()
+	/** GetActiveEffects returns copies, so a found effect is copied here; valid until the next Find. */
+	FActiveSkillEffect FoundEffect;
+
+	static FActiveSkillEffect Buff(float Value = BASELINE_BUFF_VALUE)
 	{
 		return FActiveSkillEffect::CreateBuff(TEXT("Baseline buff"), BASELINE_BUFF_ID, ESkillEffectType::DamageBuff,
-											  BASELINE_BUFF_VALUE, BASELINE_DURATION_TURNS);
+											  Value, BASELINE_DURATION_TURNS);
 	}
 
-	static FActiveSkillEffect StackingBuff()
+	static FActiveSkillEffect StackingBuff(float Value = BASELINE_BUFF_VALUE)
 	{
-		FActiveSkillEffect Effect = Buff();
+		FActiveSkillEffect Effect = Buff(Value);
 		Effect.bCanStack = true;
 		Effect.MaxStacks = BASELINE_MAX_STACKS;
 		return Effect;
@@ -54,8 +61,15 @@ BEGIN_DEFINE_SPEC(FEffectsBaselineSpec, "WoR.Effects.Baseline",
 											  BASELINE_BUFF_VALUE, BASELINE_DURATION_TURNS);
 	}
 
-	/** GetActiveEffects returns copies, so a found effect is copied here; valid until the next Find. */
-	FActiveSkillEffect FoundEffect;
+	static FActiveSkillEffect Burn(ESkillEffectTiming Timing = ESkillEffectTiming::EndOfOwnTurn)
+	{
+		FActiveSkillEffect Effect = FActiveSkillEffect::CreateDOT(TEXT("Baseline burn"), BASELINE_DOT_ID, BASELINE_DOT_DAMAGE,
+																  BASELINE_DURATION_TURNS, ESpellElement::Fire);
+		Effect.ProcessTiming = Timing;
+		return Effect;
+	}
+
+	static int32 Tick() { return FMath::RoundToInt(BASELINE_DOT_DAMAGE); }
 
 	const FActiveSkillEffect *Find(int32 ID)
 	{
@@ -70,6 +84,14 @@ BEGIN_DEFINE_SPEC(FEffectsBaselineSpec, "WoR.Effects.Baseline",
 		return nullptr;
 	}
 
+	/** The effect's remaining turns, or INDEX_NONE (with a failed check) when it's gone. */
+	int32 TurnsLeft(int32 ID)
+	{
+		const FActiveSkillEffect *Effect = Find(ID);
+		TestNotNull(FString::Printf(TEXT("Effect %d present"), ID), Effect);
+		return Effect ? Effect->RemainingTurns : INDEX_NONE;
+	}
+
 	/** One of the holder's own turns ending: end-of-turn effects run, then durations tick. */
 	void EndHolderTurn() { EffectManager->ProcessEndOfTurnEffects(Holder); }
 END_DEFINE_SPEC(FEffectsBaselineSpec)
@@ -81,15 +103,20 @@ void FEffectsBaselineSpec::Define()
 		TestWorld = MakeUnique<FWoRTestWorld>();
 		TestTrue(TEXT("Test world created"), TestWorld->Create());
 		EffectManager = TestWorld->GetSubsystem<USkillEffectManager>();
-		TestNotNull(TEXT("SkillEffectManager"), EffectManager);
 		Holder = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
 		Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), true);
+		HolderStats = Holder ? Holder->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		if (!TestNotNull(TEXT("SkillEffectManager"), EffectManager) || !TestNotNull(TEXT("Holder stats"), HolderStats))
+		{
+			EffectManager = nullptr; // each case returns early
+		}
 	});
 
 	AfterEach([this]()
 	{
 		Holder = nullptr;
 		Foe = nullptr;
+		HolderStats = nullptr;
 		EffectManager = nullptr;
 		TestWorld.Reset();
 	});
@@ -100,9 +127,7 @@ void FEffectsBaselineSpec::Define()
 		{
 			if (!EffectManager) return;
 			TestTrue(TEXT("Applied"), EffectManager->ApplyEffect(Holder, Buff(), Foe) == EEffectApplicationResult::Applied);
-			const FActiveSkillEffect *Effect = Find(BASELINE_BUFF_ID);
-			if (!TestNotNull(TEXT("On the holder"), Effect)) return;
-			TestEqual(TEXT("Full duration"), Effect->RemainingTurns, BASELINE_DURATION_TURNS);
+			TestEqual(TEXT("Full duration"), TurnsLeft(BASELINE_BUFF_ID), BASELINE_DURATION_TURNS);
 			TestEqual(TEXT("One effect"), EffectManager->GetEffectCount(Holder), 1);
 		});
 
@@ -111,9 +136,9 @@ void FEffectsBaselineSpec::Define()
 			if (!EffectManager) return;
 			EffectManager->ApplyEffect(Holder, Buff(), Foe);
 			EndHolderTurn();
-			TestEqual(TEXT("Ticked once"), Find(BASELINE_BUFF_ID)->RemainingTurns, BASELINE_DURATION_TURNS - 1);
+			TestEqual(TEXT("Ticked once"), TurnsLeft(BASELINE_BUFF_ID), BASELINE_DURATION_TURNS - 1);
 			TestTrue(TEXT("Refreshed"), EffectManager->ApplyEffect(Holder, Buff(), Foe) == EEffectApplicationResult::DurationRefreshed);
-			TestEqual(TEXT("Back to full"), Find(BASELINE_BUFF_ID)->RemainingTurns, BASELINE_DURATION_TURNS);
+			TestEqual(TEXT("Back to full"), TurnsLeft(BASELINE_BUFF_ID), BASELINE_DURATION_TURNS);
 			TestEqual(TEXT("Still one effect"), EffectManager->GetEffectCount(Holder), 1);
 		});
 
@@ -124,26 +149,38 @@ void FEffectsBaselineSpec::Define()
 			Effect.bRefreshDurationOnReapply = false;
 			EffectManager->ApplyEffect(Holder, Effect, Foe);
 			EndHolderTurn();
-			Effect.EffectValue = BASELINE_BUFF_VALUE * 2.0f;
+			Effect.EffectValue = BASELINE_STRONGER_BUFF_VALUE;
 			TestTrue(TEXT("Reported as a refresh"),
 					 EffectManager->ApplyEffect(Holder, Effect, Foe) == EEffectApplicationResult::DurationRefreshed);
-			TestEqual(TEXT("Duration not reset"), Find(BASELINE_BUFF_ID)->RemainingTurns, BASELINE_DURATION_TURNS - 1);
-			TestEqual(TEXT("Value replaced"), Find(BASELINE_BUFF_ID)->EffectValue, BASELINE_BUFF_VALUE * 2.0f);
+			TestEqual(TEXT("Duration not reset"), TurnsLeft(BASELINE_BUFF_ID), BASELINE_DURATION_TURNS - 1);
+			const FActiveSkillEffect *Stored = Find(BASELINE_BUFF_ID);
+			if (!TestNotNull(TEXT("Stored"), Stored)) return;
+			TestEqual(TEXT("Value replaced"), Stored->EffectValue, BASELINE_STRONGER_BUFF_VALUE);
 		});
 	});
 
 	Describe("Stack", [this]()
 	{
-		It("adds stacks up to the cap, then refreshes instead", [this]()
+		It("adds a stack (refreshing the duration and taking the new per-stack value) up to the cap, then refreshes", [this]()
 		{
 			if (!EffectManager) return;
 			EffectManager->ApplyEffect(Holder, StackingBuff(), Foe);
+			EndHolderTurn();
 			TestTrue(TEXT("Second application stacks"),
-					 EffectManager->ApplyEffect(Holder, StackingBuff(), Foe) == EEffectApplicationResult::StackAdded);
-			TestEqual(TEXT("Two stacks"), Find(BASELINE_BUFF_ID)->CurrentStacks, BASELINE_MAX_STACKS);
+					 EffectManager->ApplyEffect(Holder, StackingBuff(BASELINE_STRONGER_BUFF_VALUE), Foe) == EEffectApplicationResult::StackAdded);
+			const FActiveSkillEffect *Stacked = Find(BASELINE_BUFF_ID);
+			if (!TestNotNull(TEXT("Stacked"), Stacked)) return;
+			TestEqual(TEXT("Two stacks"), Stacked->CurrentStacks, BASELINE_MAX_STACKS);
+			TestEqual(TEXT("Duration refreshed"), Stacked->RemainingTurns, BASELINE_DURATION_TURNS);
+			TestEqual(TEXT("New per-stack value"), Stacked->EffectValue, BASELINE_STRONGER_BUFF_VALUE);
+			TestEqual(TEXT("Stacked total"), EffectManager->GetTotalStatModifier(Holder, ESkillEffectType::DamageBuff),
+					  BASELINE_STRONGER_BUFF_VALUE * BASELINE_MAX_STACKS);
+
 			TestTrue(TEXT("At the cap it refreshes"),
-					 EffectManager->ApplyEffect(Holder, StackingBuff(), Foe) == EEffectApplicationResult::DurationRefreshed);
-			TestEqual(TEXT("Still two stacks"), Find(BASELINE_BUFF_ID)->CurrentStacks, BASELINE_MAX_STACKS);
+					 EffectManager->ApplyEffect(Holder, StackingBuff(BASELINE_STRONGER_BUFF_VALUE), Foe) == EEffectApplicationResult::DurationRefreshed);
+			const FActiveSkillEffect *Capped = Find(BASELINE_BUFF_ID);
+			if (!TestNotNull(TEXT("Capped"), Capped)) return;
+			TestEqual(TEXT("Still two stacks"), Capped->CurrentStacks, BASELINE_MAX_STACKS);
 			TestEqual(TEXT("One entry"), EffectManager->GetEffectCount(Holder), 1);
 		});
 	});
@@ -157,8 +194,7 @@ void FEffectsBaselineSpec::Define()
 			for (int32 Turn = 1; Turn < BASELINE_DURATION_TURNS; ++Turn)
 			{
 				EndHolderTurn();
-				TestEqual(FString::Printf(TEXT("After turn %d"), Turn), Find(BASELINE_BUFF_ID)->RemainingTurns,
-						  BASELINE_DURATION_TURNS - Turn);
+				TestEqual(FString::Printf(TEXT("After turn %d"), Turn), TurnsLeft(BASELINE_BUFF_ID), BASELINE_DURATION_TURNS - Turn);
 			}
 			EndHolderTurn();
 			TestNull(TEXT("Expired"), Find(BASELINE_BUFF_ID));
@@ -175,22 +211,62 @@ void FEffectsBaselineSpec::Define()
 			}
 			TestNotNull(TEXT("Still there"), Find(BASELINE_BUFF_ID));
 		});
+	});
 
-		It("hits once when a DOT lands, skips that turn's end, then hits at the end of each later holder turn", [this]()
+	Describe("Timing windows", [this]()
+	{
+		It("fires an end-of-turn DOT on application, skips that turn's end, then hits at the end of each later turn", [this]()
 		{
 			if (!EffectManager) return;
-			UCharacterDataComponent *Stats = Holder->FindComponentByClass<UCharacterDataComponent>();
-			const int32 Tick = FMath::RoundToInt(BASELINE_DOT_DAMAGE);
-			const int32 StartHP = Stats->CurrentHP;
-			EffectManager->ApplyEffect(Holder, FActiveSkillEffect::CreateDOT(TEXT("Baseline burn"), BASELINE_DOT_ID, BASELINE_DOT_DAMAGE,
-																			BASELINE_DURATION_TURNS, ESpellElement::Fire), Foe);
-			TestEqual(TEXT("Fires on application"), Stats->CurrentHP, StartHP - Tick);
+			const int32 StartHP = HolderStats->CurrentHP;
+			EffectManager->ApplyEffect(Holder, Burn(), Foe);
+			TestEqual(TEXT("Fires on application"), HolderStats->CurrentHP, StartHP - Tick());
 			EndHolderTurn();
-			TestEqual(TEXT("Same turn's end is skipped"), Stats->CurrentHP, StartHP - Tick);
+			TestEqual(TEXT("Same turn's end is skipped"), HolderStats->CurrentHP, StartHP - Tick());
 			EffectManager->ProcessStartOfTurnEffects(Holder);
-			TestEqual(TEXT("Nothing at turn start"), Stats->CurrentHP, StartHP - Tick);
+			TestEqual(TEXT("Nothing at turn start"), HolderStats->CurrentHP, StartHP - Tick());
 			EndHolderTurn();
-			TestEqual(TEXT("Next turn's end hits"), Stats->CurrentHP, StartHP - 2 * Tick);
+			TestEqual(TEXT("Next turn's end hits"), HolderStats->CurrentHP, StartHP - 2 * Tick());
+		});
+
+		It("waits for its first window with bDelayFirstExecution", [this]()
+		{
+			if (!EffectManager) return;
+			const int32 StartHP = HolderStats->CurrentHP;
+			FActiveSkillEffect Delayed = Burn();
+			Delayed.bDelayFirstExecution = true;
+			EffectManager->ApplyEffect(Holder, Delayed, Foe);
+			TestEqual(TEXT("No hit on application"), HolderStats->CurrentHP, StartHP);
+			EndHolderTurn();
+			TestEqual(TEXT("First end of turn hits"), HolderStats->CurrentHP, StartHP - Tick());
+		});
+
+		It("runs an Immediate effect once on application, keeps it stored, and sweeps it at the end of the turn", [this]()
+		{
+			if (!EffectManager) return;
+			const int32 StartHP = HolderStats->CurrentHP;
+			EffectManager->ApplyEffect(Holder, Burn(ESkillEffectTiming::Immediate), Foe);
+			TestEqual(TEXT("Hit once"), HolderStats->CurrentHP, StartHP - Tick());
+			TestEqual(TEXT("Still stored"), EffectManager->GetEffectCount(Holder), 1);
+			EffectManager->ProcessStartOfTurnEffects(Holder);
+			EndHolderTurn();
+			TestEqual(TEXT("No second hit"), HolderStats->CurrentHP, StartHP - Tick());
+			TestEqual(TEXT("Swept"), EffectManager->GetEffectCount(Holder), 0);
+		});
+
+		It("re-runs a Persistent effect at every turn start", [this]()
+		{
+			if (!EffectManager) return;
+			const int32 StartHP = HolderStats->CurrentHP;
+			FActiveSkillEffect Aura = Burn(ESkillEffectTiming::Persistent);
+			Aura.bPermanent = true;
+			EffectManager->ApplyEffect(Holder, Aura, Foe);
+			TestEqual(TEXT("Fires on application"), HolderStats->CurrentHP, StartHP - Tick());
+			EffectManager->ProcessStartOfTurnEffects(Holder);
+			TestEqual(TEXT("First turn start"), HolderStats->CurrentHP, StartHP - 2 * Tick());
+			EndHolderTurn();
+			EffectManager->ProcessStartOfTurnEffects(Holder);
+			TestEqual(TEXT("Second turn start"), HolderStats->CurrentHP, StartHP - 3 * Tick());
 		});
 	});
 
@@ -207,7 +283,7 @@ void FEffectsBaselineSpec::Define()
 			TestEqual(TEXT("Foe untouched"), EffectManager->GetEffectCount(Foe), 1);
 		});
 
-		It("clears every holder with ClearAllEffects; ResetForNewCombat only resets the once-per-match record", [this]()
+		It("clears effects with ClearAllEffects, and only ResetForNewCombat resets the once-per-match record", [this]()
 		{
 			if (!EffectManager) return;
 			FActiveSkillEffect Once = Buff();
@@ -215,11 +291,15 @@ void FEffectsBaselineSpec::Define()
 			EffectManager->ApplyEffect(Holder, Once, Foe);
 			EffectManager->ApplyEffect(Foe, Buff(), Holder);
 
-			EffectManager->ResetForNewCombat();
-			TestEqual(TEXT("Reset leaves the holder's effects"), EffectManager->GetEffectCount(Holder), 1);
 			EffectManager->ClearAllEffects();
 			TestEqual(TEXT("Holder clear"), EffectManager->GetEffectCount(Holder), 0);
 			TestEqual(TEXT("Foe clear"), EffectManager->GetEffectCount(Foe), 0);
+			TestTrue(TEXT("Clearing keeps the once-per-match record"),
+					 EffectManager->ApplyEffect(Holder, Once, Foe) == EEffectApplicationResult::Rejected);
+
+			EffectManager->ApplyEffect(Foe, Buff(), Holder);
+			EffectManager->ResetForNewCombat();
+			TestEqual(TEXT("Reset leaves effects"), EffectManager->GetEffectCount(Foe), 1);
 			TestTrue(TEXT("Once-per-match works again"),
 					 EffectManager->ApplyEffect(Holder, Once, Foe) == EEffectApplicationResult::Applied);
 		});
@@ -227,21 +307,30 @@ void FEffectsBaselineSpec::Define()
 
 	Describe("Re-entrancy (2405fa82)", [this]()
 	{
-		It("survives a turn-start cleanse that removes effects from the list being walked", [this]()
+		It("skips an effect a turn-start cleanse removed earlier in the same pass", [this]()
 		{
 			if (!EffectManager) return;
-			EffectManager->ApplyEffect(Holder, Debuff(BASELINE_DEBUFF_ID), Foe);
 			FActiveSkillEffect Cleanse = FActiveSkillEffect::CreateBuff(TEXT("Baseline cleanse"), BASELINE_CLEANSE_ID,
 																		ESkillEffectType::CleanseSelf, 0.0f, BASELINE_DURATION_TURNS);
+			Cleanse.bDelayFirstExecution = true;
+			EffectManager->ApplyEffect(Holder, Debuff(BASELINE_DEBUFF_ID), Foe);
 			EffectManager->ApplyEffect(Holder, Cleanse, Holder);
-			EffectManager->ApplyEffect(Holder, Debuff(BASELINE_SECOND_DEBUFF_ID), Foe);
+			FActiveSkillEffect LaterBurn = Burn(ESkillEffectTiming::StartOfOwnTurn);
+			LaterBurn.bDelayFirstExecution = true;
+			EffectManager->ApplyEffect(Holder, LaterBurn, Foe);
+			TestEqual(TEXT("All three stored before the pass"), EffectManager->GetEffectCount(Holder), 3);
+			const int32 StartHP = HolderStats->CurrentHP;
 
 			EffectManager->ProcessStartOfTurnEffects(Holder);
-			TestNull(TEXT("First debuff cleansed"), Find(BASELINE_DEBUFF_ID));
-			TestNull(TEXT("Second debuff cleansed"), Find(BASELINE_SECOND_DEBUFF_ID));
+			TestNull(TEXT("Debuff cleansed"), Find(BASELINE_DEBUFF_ID));
+			TestNull(TEXT("Burn cleansed"), Find(BASELINE_DOT_ID));
+			TestEqual(TEXT("The cleansed burn never ran"), HolderStats->CurrentHP, StartHP);
 			TestNotNull(TEXT("The cleanse stays"), Find(BASELINE_CLEANSE_ID));
 			TestEqual(TEXT("Only the cleanse left"), EffectManager->GetEffectCount(Holder), 1);
 		});
+
+		// TODO: the "add" half of 2405fa82 (an effect appended mid-pass waits for its own window)
+		// needs a DOT whose buildup caps a bar and triggers a status; pin it with B-135's buildup spec.
 	});
 }
 
