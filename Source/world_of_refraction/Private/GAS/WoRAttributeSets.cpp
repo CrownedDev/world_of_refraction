@@ -56,6 +56,11 @@ void UWoRAttributeSet_Stats::PreAttributeChange(const FGameplayAttribute &Attrib
 		// The pillar modifier is capped alone, so the clamp follows the world base the sync set.
 		NewValue = FWoRStatLayers::ForPillar(Attribute.GetGameplayAttributeData(this)->GetBaseValue()).Clamp(NewValue);
 	}
+	else if (Attribute == GetTurnSpeedAttribute())
+	{
+		// As turn order runs it (UTurnManager::GetEffectiveTurnSpeed): rounded, at least 1 (B-042v).
+		NewValue = FWoRStatLayers::ForTurnSpeed(NewValue).Clamp(FMath::RoundToFloat(NewValue));
+	}
 	else if (Attribute == GetCritChanceAttribute())
 	{
 		// A chance; GetCriticalChance clamps the same.

@@ -161,6 +161,7 @@ TSubclassOf<UGameplayEffect> UWoRGE_StatSources::GetClassFor(ESubStat Stat)
 	case ESubStat::Luck: return UWoRGE_StatSources_Luck::StaticClass();
 	case ESubStat::Reflex: return UWoRGE_StatSources_Reflex::StaticClass();
 	case ESubStat::Efficiency: return UWoRGE_StatSources_Efficiency::StaticClass();
+	case ESubStat::TurnSpeed: return UWoRGE_StatSources_TurnSpeed::StaticClass();
 	default: return nullptr;
 	}
 }
@@ -242,6 +243,11 @@ UWoRGE_StatSources_Reflex::UWoRGE_StatSources_Reflex()
 UWoRGE_StatSources_Efficiency::UWoRGE_StatSources_Efficiency()
 {
 	AddSourceModifiers(UWoRAttributeSet_Stats::GetEfficiencyReductionAttribute());
+}
+
+UWoRGE_StatSources_TurnSpeed::UWoRGE_StatSources_TurnSpeed()
+{
+	AddSourceModifiers(UWoRAttributeSet_Stats::GetTurnSpeedAttribute());
 }
 
 UWoRGE_StatSources_Mind::UWoRGE_StatSources_Mind()
