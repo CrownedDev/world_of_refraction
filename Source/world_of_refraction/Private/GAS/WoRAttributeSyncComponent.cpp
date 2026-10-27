@@ -164,17 +164,24 @@ void UWoRAttributeSyncComponent::SyncAttributes()
 	for (const FWoRAttributeSourceValue &Source : ReadSourceValues(GetOwner()))
 	{
 		ESubStat Stat;
+		EWorldPillar Pillar;
 		FWoRStatLayers Layers;
 		const bool bComposed = Char && UWoRAttributeSet_Stats::GetComposedStat(Source.Attribute, Stat);
 		if (bComposed && Char->GetStatLayers(Stat, Layers))
 		{
-			SyncComposedStat(*ASC, Stat, Source.Attribute, Layers);
+			SyncComposedStat(*ASC, Source.Attribute, Layers, UWoRGE_StatSources::GetClassFor(Stat));
+			continue;
+		}
+		const bool bPillar = Char && UWoRAttributeSet_Stats::GetComposedPillar(Source.Attribute, Pillar);
+		if (bPillar && Char->GetPillarLayers(Pillar, Layers))
+		{
+			SyncComposedStat(*ASC, Source.Attribute, Layers, UWoRGE_StatSources::GetClassFor(Pillar));
 			continue;
 		}
 		// Not composed (or no layers, e.g. Defense without CharacterData): the getter's value, no sources.
-		if (bComposed)
+		if (bComposed || bPillar)
 		{
-			RemoveStatSources(*ASC, Stat);
+			RemoveStatSources(*ASC, Source.Attribute);
 		}
 		if (const TSubclassOf<UGameplayEffect> DerivedClass = UWoRGE_DerivedStat::GetClassFor(Source.Attribute))
 		{
@@ -226,21 +233,21 @@ void UWoRAttributeSyncComponent::SyncDerivedStat(UAbilitySystemComponent &ASC, c
 		   Transient);
 }
 
-void UWoRAttributeSyncComponent::RemoveStatSources(UAbilitySystemComponent &ASC, ESubStat Stat)
+void UWoRAttributeSyncComponent::RemoveStatSources(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute)
 {
 	FWoRAppliedStatSources Applied;
-	if (AppliedStatSources.RemoveAndCopyValue(Stat, Applied))
+	if (AppliedStatSources.RemoveAndCopyValue(Attribute, Applied))
 	{
 		ASC.RemoveActiveGameplayEffect(Applied.Handle);
 	}
 }
 
-void UWoRAttributeSyncComponent::SyncComposedStat(UAbilitySystemComponent &ASC, ESubStat Stat, const FGameplayAttribute &Attribute,
-												  const FWoRStatLayers &Layers)
+void UWoRAttributeSyncComponent::SyncComposedStat(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute,
+												  const FWoRStatLayers &Layers, TSubclassOf<UGameplayEffect> SourcesClass)
 {
 	ASC.SetNumericAttributeBase(Attribute, Layers.StatBase);
 
-	FWoRAppliedStatSources &Applied = AppliedStatSources.FindOrAdd(Stat);
+	FWoRAppliedStatSources &Applied = AppliedStatSources.FindOrAdd(Attribute);
 	const bool bLive = ASC.GetActiveGameplayEffect(Applied.Handle) != nullptr;
 	if (bLive && SameLayers(Applied.Layers, Layers))
 	{
@@ -254,12 +261,11 @@ void UWoRAttributeSyncComponent::SyncComposedStat(UAbilitySystemComponent &ASC, 
 			{WoRTags::SetByCaller_Stat_Transient, Layers.TransientFactor},
 		});
 		Applied.Layers = Layers;
-		UE_LOG(LogWoR, Verbose, TEXT("[AttributeSync] %s %s sources updated: %s"), *GetOwner()->GetName(),
-			   *UEnum::GetValueAsString(Stat), *Layers.ToString());
+		UE_LOG(LogWoR, Verbose, TEXT("[AttributeSync] %s %s sources updated: %s"), *GetOwner()->GetName(), *Attribute.GetName(),
+			   *Layers.ToString());
 		return;
 	}
-	const FGameplayEffectSpecHandle Spec =
-		ASC.MakeOutgoingSpec(UWoRGE_StatSources::GetClassFor(Stat), STAT_SOURCES_EFFECT_LEVEL, ASC.MakeEffectContext());
+	const FGameplayEffectSpecHandle Spec = ASC.MakeOutgoingSpec(SourcesClass, STAT_SOURCES_EFFECT_LEVEL, ASC.MakeEffectContext());
 	if (!Spec.IsValid())
 	{
 		Applied = FWoRAppliedStatSources();
@@ -270,7 +276,7 @@ void UWoRAttributeSyncComponent::SyncComposedStat(UAbilitySystemComponent &ASC, 
 	Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Transient, Layers.TransientFactor);
 	Applied.Handle = ASC.ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
 	Applied.Layers = Layers;
-	UE_LOG(LogWoR, Verbose, TEXT("[AttributeSync] %s %s sources: %s"), *GetOwner()->GetName(), *UEnum::GetValueAsString(Stat),
+	UE_LOG(LogWoR, Verbose, TEXT("[AttributeSync] %s %s sources: %s"), *GetOwner()->GetName(), *Attribute.GetName(),
 		   *Layers.ToString());
 }
 
@@ -291,7 +297,7 @@ void UWoRAttributeSyncComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 	UnbindSources();
 	if (UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner()))
 	{
-		for (const TPair<ESubStat, FWoRAppliedStatSources> &Applied : AppliedStatSources)
+		for (const TPair<FGameplayAttribute, FWoRAppliedStatSources> &Applied : AppliedStatSources)
 		{
 			ASC->RemoveActiveGameplayEffect(Applied.Value.Handle);
 		}

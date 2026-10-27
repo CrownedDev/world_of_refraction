@@ -99,8 +99,18 @@ void UWoRAttributeDebug::AddComposedMismatches(const AActor *Actor, const UAbili
 		return;
 	}
 	ESubStat Stat;
+	EWorldPillar Pillar;
 	FWoRStatLayers Layers;
-	if (!UWoRAttributeSet_Stats::GetComposedStat(Attribute, Stat) || !Char->GetStatLayers(Stat, Layers))
+	TSubclassOf<UGameplayEffect> SourcesClass;
+	if (UWoRAttributeSet_Stats::GetComposedStat(Attribute, Stat) && Char->GetStatLayers(Stat, Layers))
+	{
+		SourcesClass = UWoRGE_StatSources::GetClassFor(Stat);
+	}
+	else if (UWoRAttributeSet_Stats::GetComposedPillar(Attribute, Pillar) && Char->GetPillarLayers(Pillar, Layers))
+	{
+		SourcesClass = UWoRGE_StatSources::GetClassFor(Pillar);
+	}
+	else
 	{
 		return;
 	}
@@ -110,7 +120,7 @@ void UWoRAttributeDebug::AddComposedMismatches(const AActor *Actor, const UAbili
 		Mismatches.Add(FString::Printf(TEXT("%s: base %.5f, capped stat %.5f"), *Attribute.GetName(), Base, Layers.StatBase));
 	}
 	FGameplayEffectQuery Query;
-	Query.EffectDefinition = UWoRGE_StatSources::GetClassFor(Stat);
+	Query.EffectDefinition = SourcesClass;
 	const int32 Sources = ASC.GetActiveEffects(Query).Num();
 	if (Sources != 1)
 	{
