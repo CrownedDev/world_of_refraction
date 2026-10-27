@@ -16,6 +16,7 @@
 #include "AbilitySystemComponent.h"
 #include "GAS/WoRAttributeSyncComponent.h"
 #include "GAS/WoRTurnEffectTracker.h"
+#include "GAS/WoREffectMirrorComponent.h"
 #include "GAS/WoRAttributeSets.h"
 
 ACombatCharacter::ACombatCharacter()
@@ -43,6 +44,7 @@ ACombatCharacter::ACombatCharacter()
     ResistanceAttributes = CreateDefaultSubobject<UWoRAttributeSet_Resistance>(TEXT("ResistanceAttributes"));
     AttributeSyncComponent = CreateDefaultSubobject<UWoRAttributeSyncComponent>(TEXT("AttributeSyncComponent"));
     TurnEffectTracker = CreateDefaultSubobject<UWoRTurnEffectTracker>(TEXT("TurnEffectTracker"));
+    EffectMirrorComponent = CreateDefaultSubobject<UWoREffectMirrorComponent>(TEXT("EffectMirrorComponent"));
 
     // Every combat character gets an AI controller by default, so engine
     // possession can answer "who is driving this?" truthfully. PC0 takes over the

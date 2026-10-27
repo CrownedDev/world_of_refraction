@@ -2368,6 +2368,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. It keeps one source of truth for the grouping maths, is provably equal to today's sum (spec `WoR.GAS.EffectBuilder`), and is the pattern GASDocumentation describes for values that need custom aggregation (an MMC reading tagged effects) rather than plain modifiers. B would apply buffs with GAS's own grouping, which differs from ours.
 **Notes for Claude:** B-042b built A. DOT and HOT pay at holder turn start through the tracker (Q-044c); a DOT tick is its flat stacked value until B-042e moves `GetDotTickDamage` into the damage execution.
 
+### Q-042c — Switch effects to GAS in one move, or mirror first?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042c) · **Blocks:** —
+**Question:** B-042c's row asked for the whole switch-over in one job: `ApplyEffect` routes ported families to the ASC, every read moves, and `wor.Effects.UseGAS` flips back. That touches most of the effect manager at once. Do it in one move, or mirror first?
+**Context:** the effect manager has ~20 places that change stored effects and many readers (damage, turn order, the AI, the HUD). The done-when is the B-134 baseline identical on both paths.
+**Options:**
+- **A** mirror first (as built): the enum path keeps storing effects and owning their lifetime; a component copies each stored effect of a ported type onto the ASC, and `wor.Effects.UseGAS 1` makes the manager's type and total reads use the copy. The baseline runs on both values. The write side (routing lifetime to GAS, cleanse by query, fires-once on the tracker, HP/EP through the ASC) is B-042h, after the remaining families and maths (B-042d, B-042e).
+- **B** one move: route writes and reads together in B-042c.
+**Recommendation:** A. It is the parallel-run pattern GitHub used to replace its merge and permissions code (the Scientist library, "Move Fast and Fix Things", 2015): run the old and new paths side by side, compare, and switch reads only once they agree. It is widely cited as the safe way to swap a core system. It already paid off here: the UseGAS 1 baseline run found a stun that the GAS path missed (a holder-turn span stored with 0 turns), before anything depended on it. Default stays **0** until Crown's PIE pass with it set to 1.
+**Notes for Claude:** B-042c built A. A GAS read resyncs that actor's mirror first, because turn order (`NotifySpeedChanged`) and the HP/EP pool read before or beside the event the mirror listens to. The GAS reads count every WoR GE on the ASC, so B-042d's directly applied GEs must not land beside the mirror without B-042h, or they count twice.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

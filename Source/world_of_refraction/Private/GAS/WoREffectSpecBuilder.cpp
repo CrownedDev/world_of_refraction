@@ -144,11 +144,12 @@ FWoREffectIdentity FWoREffectSpecBuilder::MakeIdentity(const FActiveSkillEffect 
 	return Identity;
 }
 
-FWoRBuiltEffect FWoREffectSpecBuilder::Build(UAbilitySystemComponent &TargetASC, const FActiveSkillEffect &Effect, AActor *Source)
+FWoRBuiltEffect FWoREffectSpecBuilder::Build(UAbilitySystemComponent &TargetASC, const FActiveSkillEffect &Effect, AActor *Source,
+											 bool bAlreadyStored)
 {
 	FWoRBuiltEffect Built;
 	const TSubclassOf<UGameplayEffect> Class = GetEffectClass(Effect.EffectType);
-	if (!Class || Effect.IsInstant())
+	if (!Class || (Effect.IsInstant() && !bAlreadyStored))
 	{
 		UE_LOG(LogWoREffects, Verbose, TEXT("[EffectSpecBuilder] %s: not built (%s)"), *Effect.EffectName,
 			   Class ? TEXT("instant") : TEXT("type not ported"));

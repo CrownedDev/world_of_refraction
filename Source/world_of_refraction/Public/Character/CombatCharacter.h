@@ -32,6 +32,7 @@ class UBattleConfigComponent;
 class UAbilitySystemComponent;
 class UWoRAttributeSyncComponent;
 class UWoRTurnEffectTracker;
+class UWoREffectMirrorComponent;
 class UWoRAttributeSet_Vitals;
 class UWoRAttributeSet_Stats;
 class UWoRAttributeSet_Resistance;
@@ -108,6 +109,10 @@ public:
     /** GAS stage 3 (B-042): counts this pawn's turns for its turn-counted GameplayEffects. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
     TObjectPtr<UWoRTurnEffectTracker> TurnEffectTracker;
+
+    /** GAS stage 3 (B-042c): mirrors this pawn's stored effects onto its ASC for `wor.Effects.UseGAS`. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
+    TObjectPtr<UWoREffectMirrorComponent> EffectMirrorComponent;
 
 private:
     /** Default subobjects, so the ASC finds them at InitializeComponent on every machine (the

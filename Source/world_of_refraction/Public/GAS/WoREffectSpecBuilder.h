@@ -40,8 +40,10 @@ struct WORLD_OF_REFRACTION_API FWoREffectSpecBuilder
 	static FWoREffectIdentity MakeIdentity(const FActiveSkillEffect &Effect);
 
 	/** Build Effect's spec on the target's ASC, with Source as instigator. Invalid when the type
-	 *  isn't ported or the effect is instant. */
-	static FWoRBuiltEffect Build(UAbilitySystemComponent &TargetASC, const FActiveSkillEffect &Effect, AActor *Source);
+	 *  isn't ported or the effect is instant. bAlreadyStored: Effect is held on the enum path, so it
+	 *  lasts even when its turns read 0 (a holder-turn span that counted its landing turn). */
+	static FWoRBuiltEffect Build(UAbilitySystemComponent &TargetASC, const FActiveSkillEffect &Effect, AActor *Source,
+								 bool bAlreadyStored = false);
 
 	/** Build and apply to Target, replacing its GE of the same identity. Timed effects go through
 	 *  the target's tracker, permanent ones straight onto the ASC. Invalid handle when nothing applied. */

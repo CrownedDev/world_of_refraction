@@ -108,6 +108,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-178](B-178.md) | `feature/B-178-run-repair` (in `dev`) | Paid gear repair in a run; the run's Gold carries between levels | Not tested |
 | [B-093](B-093.md) | `feature/B-093-menu-keys` (in `dev`) | Keys for Defend and infusion (keyboard + gamepad) | Not tested |
 | [B-209](B-209.md) | `feature/B-209-memory-sources` (in `dev`) | Memories from bosses, reactions, map spots and bound gear | Not tested |
+| [B-042c](B-042c.md) | `feature/B-042c-gas-effect-mirror` (in `dev`) | GAS stage 3, part 3: effects mirrored onto GAS; `wor.Effects.UseGAS 1` reads them | Not tested |
 | [B-042b](B-042b.md) | `feature/B-042b-gas-effect-builder` (in `dev`) | GAS stage 3, part 2: effect context, family GEs, spec builder (nothing uses them in play yet) | Not tested |
 | [B-042](B-042.md) | `feature/B-042-gas-turn-tracker` (in `dev`) | GAS stage 3, part 1: Stun GE + turn tracker (nothing uses it in play yet) | Not tested |
 | [B-034](B-034.md) | `refactor/B-034-infusion-level-on-pending-action` (in `dev`) | The menu holds the infusion level; the VFX only shows it | Not tested |
