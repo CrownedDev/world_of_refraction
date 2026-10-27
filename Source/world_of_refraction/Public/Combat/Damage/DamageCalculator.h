@@ -155,12 +155,12 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationResult
 	EInfusionSourceOption SelectedSource = EInfusionSourceOption::None;
 };
 
+struct FDamageMathInputs;
+
 /**
  * Centralized damage calculation subsystem
  * All damage should flow through this for consistency
  */
-struct FDamageMathInputs;
-
 UCLASS()
 class WORLD_OF_REFRACTION_API UDamageCalculator : public UGameInstanceSubsystem
 {

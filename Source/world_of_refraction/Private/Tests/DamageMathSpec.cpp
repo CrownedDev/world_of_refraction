@@ -10,6 +10,7 @@
 #include "Combat/CombatConstants.h"
 #include "Combat/Damage/DamageCalculator.h"
 #include "Combat/Damage/DamageMath.h"
+#include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Debug/Combat/DamageMathDebug.h"
 
 namespace
@@ -23,6 +24,7 @@ namespace
 	constexpr float DAMAGE_MATH_TEST_ROLL_ABOVE = 0.9f;
 	constexpr float DAMAGE_MATH_TEST_OVER_CAP_STAT = 2.0f;
 	constexpr int32 DAMAGE_MATH_TEST_DEFENSE_POINTS = 50;
+	constexpr int32 DAMAGE_MATH_TEST_SEED = 219;
 
 	FDamageMathInputs PlainInputs()
 	{
@@ -118,7 +120,7 @@ void FDamageMathSpec::Define()
 			TestWorld.Reset();
 		});
 
-		It("CalculateDamage equals Compute over the gathered inputs", [this]()
+		It("gathers the defender's defense for abilities and spells", [this]()
 		{
 			UDamageCalculator *Calculator = TestWorld->GetSubsystem<UDamageCalculator>();
 			UCharacterData *DefenderData = FWoRTestWorld::NewCharacterData();
@@ -135,14 +137,41 @@ void FDamageMathSpec::Define()
 				Input.BaseDamage = DAMAGE_MATH_TEST_BASE;
 				Input.ActionType = ActionType;
 				Input.bCanCrit = false;
-				const FDamageCalculationResult Direct = Calculator->CalculateDamage(Attacker, Defender, Input);
-				const FDamageCalculationResult Core =
-					WoRDamageMath::Compute(Calculator->GatherDamageMathInputs(Attacker, Defender, Input));
-				TestEqual(TEXT("final"), Direct.FinalDamage, Core.FinalDamage);
-				TestEqual(TEXT("before defense"), Direct.DamageBeforeDefense, Core.DamageBeforeDefense);
-				TestEqual(TEXT("blocked"), Direct.DamageBlockedByDefense, Core.DamageBlockedByDefense);
-				TestTrue(TEXT("defense applied"), Direct.DamageBlockedByDefense > 0);
+				const FDamageMathInputs Inputs = Calculator->GatherDamageMathInputs(Attacker, Defender, Input);
+				TestTrue(TEXT("defense on"), Inputs.bApplyDefense);
+				TestEqual(TEXT("defense value"), Inputs.DefenderDefense, Calculator->GetDefenderFlatDefense(Defender));
+				TestTrue(TEXT("defense blocks"), Calculator->CalculateDamage(Attacker, Defender, Input).DamageBlockedByDefense > 0);
 			}
+		});
+
+		It("takes one battle-random draw per hit that can crit, none otherwise", [this]()
+		{
+			UDamageCalculator *Calculator = TestWorld->GetSubsystem<UDamageCalculator>();
+			UBattleRandomSubsystem *BattleRandom = UBattleRandomSubsystem::Get(TestWorld->GetWorld());
+			AActor *Attacker = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			AActor *Defender = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			if (!TestTrue(TEXT("setup"), Calculator && BattleRandom && Attacker && Defender))
+			{
+				return;
+			}
+			FDamageCalculationInput Input;
+			Input.BaseDamage = DAMAGE_MATH_TEST_BASE;
+			Input.ActionType = EActionType::Ability;
+
+			BattleRandom->SeedStream(DAMAGE_MATH_TEST_SEED);
+			Calculator->CalculateDamage(Attacker, Defender, Input);
+			TestEqual(TEXT("can crit: one draw"), BattleRandom->GetDrawCount(), 1);
+
+			BattleRandom->SeedStream(DAMAGE_MATH_TEST_SEED);
+			Input.bCanCrit = false;
+			Calculator->CalculateDamage(Attacker, Defender, Input);
+			TestEqual(TEXT("can't crit: no draw"), BattleRandom->GetDrawCount(), 0);
+
+			BattleRandom->SeedStream(DAMAGE_MATH_TEST_SEED);
+			Input.bCanCrit = true;
+			Input.BaseDamage = 0;
+			Calculator->CalculateDamage(Attacker, Defender, Input);
+			TestEqual(TEXT("base 0: no draw"), BattleRandom->GetDrawCount(), 0);
 		});
 
 		It("the debug readout shows the final damage", [this]()

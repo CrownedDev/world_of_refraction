@@ -11,10 +11,12 @@
 #include "CoreMinimal.h"
 #include "Combat/Damage/DamageCalculator.h"
 
-/** One authored per-skill scaling entry with the attacker's stat already turned into a fraction. */
+/** One authored per-skill scaling entry, resolved: its grade's coefficient and the attacker's stat
+ *  as a fraction. */
 struct FDamageMathScalingTerm
 {
-	EScalingTier Tier = EScalingTier::C;
+	/** GetScalingTierCoefficient(grade) (tuning data aware). */
+	float Coefficient = 0.0f;
 	/** GetScalingFraction(stat, attacker's effective stat). */
 	float StatFraction = 0.0f;
 };

@@ -32,6 +32,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	AActor *Defender,
 	const FDamageCalculationInput &Input)
 {
+	// Checked here as well as in Compute so a no-damage hit takes no crit roll from the battle stream.
 	if (Input.BaseDamage <= 0)
 	{
 		FDamageCalculationResult Result;
@@ -76,7 +77,7 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 			continue;
 		}
 		FDamageMathScalingTerm Term;
-		Term.Tier = Entry.Tier;
+		Term.Coefficient = GetScalingTierCoefficient(Entry.Tier);
 		Term.StatFraction = GetScalingFraction(Entry.Stat, GetEffectiveStatForScaling(Attacker, Entry.Stat));
 		Inputs.ScalingTerms.Add(Term);
 	}

@@ -23,7 +23,7 @@ FDamageCalculationResult WoRDamageMath::Compute(const FDamageMathInputs &Inputs)
 	float TierScalingBonus = 0.0f;
 	for (const FDamageMathScalingTerm &Term : Inputs.ScalingTerms)
 	{
-		TierScalingBonus += GetScalingTierCoefficient(Term.Tier) * Term.StatFraction;
+		TierScalingBonus += Term.Coefficient * Term.StatFraction;
 	}
 	AttackerMult += TierScalingBonus;
 
@@ -101,7 +101,7 @@ FString WoRDamageMath::GetInputsString(const FDamageMathInputs &Inputs)
 						   Inputs.AttackerStatMultiplier, Inputs.EquipmentTermInMultiplier, Inputs.ScalingTerms.Num());
 	for (const FDamageMathScalingTerm &Term : Inputs.ScalingTerms)
 	{
-		Out += FString::Printf(TEXT("  grade %d  fraction %.4f\n"), static_cast<int32>(Term.Tier), Term.StatFraction);
+		Out += FString::Printf(TEXT("  coefficient %.4f  fraction %.4f\n"), Term.Coefficient, Term.StatFraction);
 	}
 	Out += FString::Printf(TEXT("Attacker stats %s: gear %.4f  stone x%.4f  transient x%.4f  evolution stat x%.4f\n"),
 						   Inputs.bHasAttackerStats ? TEXT("yes") : TEXT("no"), Inputs.EquipmentTerm, Inputs.StoneFactor,
