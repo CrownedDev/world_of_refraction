@@ -91,6 +91,12 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 - `UWoRAttributeSyncComponent::ReadSyncedAttribute`: the read gate both executions share (set present, owner has the sync and character data).
 - Not applied in play; the bar, cap and decay move with B-042o.
 
+### Tick execution (stage 3, B-042n part 5d)
+
+- `Skills/Effects/TickMath.h`: `WoRTickMath::GetDotTickDamage` (value x the element multiplier, 1 for a share of max HP, rounded) and `GetHotTickHeal` (value x (1 + healing received / 100), rounded) over `FTickMathInputs`. `USkillEffectManager::GetDotTickDamage` and the HealthRestore tick call them.
+- `GAS/WoRTickExecution.h`: `UWoRTickExecution`, run by `UWoRGE_HealthTick` / `UWoRGE_HealTick`, over an `FWoRTickRequest` on `FWoREffectContext::TickRequest` (set by `FWoREffectSpecBuilder::Build`, authority only). A DOT reads the holder's element resistance (`UWoRDamageExecution::ReadElementResistance`, shared with hits), a HOT its HealingReceivedBuff total as the enum path reads it (`GetTotalStatModifier`). Output: Health -= damage or += heal.
+- Not applied in play; a DOT's `BuildupPerTick` moves with the status bar (B-042o, Q-042n).
+
 ### Stat sources (stage 3, B-042p part 5f)
 
 - `Character/StatLayers.h`: `FWoRStatLayers` (StatBase capped alone, Gear, Stone, Transient factors; `Compose()` clamps to `STAT_MODIFIER_MIN/MAX`). `UCharacterDataComponent::GetStatLayers` fills them for SpellDamage, RawDamage, ActionSpeed, SpellSpeed; those four `GetEffective*` getters return `Compose()`.
@@ -154,3 +160,4 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 | 2026-10-27 | B-042u (stage 3, part 5k): MaxHealth / MaxEnergy composed on GAS from the last recompute's pool layers (Q-042u). | feature/B-042u-gas-pools |
 | 2026-10-27 | B-042v (stage 3, part 5l, narrowed): turn speed composed on GAS from turn order's own getter; the resistance sources split into B-042w (Q-042v). | feature/B-042v-gas-turn-speed |
 | 2026-10-27 | B-042w (stage 3, part 5m): the resistances composed on GAS from one effect per source; general status resistance on the stat-sources shape (Q-042w). | feature/B-042w-gas-resistance |
+| 2026-10-27 | B-042n (stage 3, part 5d, narrowed): `WoRTickMath`, `UWoRTickExecution` on the DOT / HOT tick GEs, `ReadElementResistance`; the per-tick buildup split into B-042o (Q-042n). | feature/B-042n-gas-dot-hot-ticks |
