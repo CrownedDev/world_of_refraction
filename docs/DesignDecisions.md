@@ -1424,6 +1424,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
   - **Sources:** a field skill can draw on a source like battle skills do; **a crystal source still loses durability** when used (`CrystalWear.md`).
   - **Dropped:** separate field uses on battle skills, and field-only skill slots.
   - **Enhanced Sprint** is also **faster than the normal sprint** (Elden Ring Nightreign's surge sprint), on top of wall-running.
+  - **Every element can do every movement type, each in its own way** (Crown, 2026-10-27, refines the line below): e.g. Lightning and Void can both teleport, but a Lightning teleport and a Void teleport look and behave differently. The **element decides the style**, not which movement type; an elemental source is still needed for the elemental movements (a Generic without one has only the normal dash and sprint).
   - **Source picks the skill: A** (Crown, 2026-10-27): the **source decides which field skill** you have (e.g. a Wind crystal glides, a Lightning one dashes) and **its level decides how strong** it is. The source also decides **what is available at all**: e.g. a Generic can't fly without an elemental source that gives flight.
   - **A range of movement** (Crown, 2026-10-27): dash, Enhanced Sprint, glide, flight, teleport and more. **All are locked until unlocked, except the normal dash**, which everyone has.
   - **Activation:** **double-click L3** (the sprint stick) uses your field movement skill (keyboard: a double-tap of the sprint key, `// TODO` confirm; unique input action name, D-063).
