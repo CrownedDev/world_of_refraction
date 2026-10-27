@@ -72,10 +72,11 @@ void UResistanceProfileData::ResetToCodeTable()
 
 void UResistanceProfileData::FillFromCodeTable()
 {
-	using namespace ClassInnateResistanceTable;
-	BrokenDarkness = FResistanceProfileRow::FromTableRow(ResolveRow(ECharacterClass::Caster, ESpellElement::None, true));
-	GenericClass = FResistanceProfileRow::FromTableRow(ResolveRow(ECharacterClass::Generic, ESpellElement::None, false));
-	ResonatorClass = FResistanceProfileRow::FromTableRow(ResolveRow(ECharacterClass::Resonator, ESpellElement::None, false));
+	// Qualified: the member ResolveRow would read these rows before they are filled.
+	using ClassInnateResistanceTable::GetElementRow;
+	BrokenDarkness = FResistanceProfileRow::FromTableRow(ClassInnateResistanceTable::ResolveRow(ECharacterClass::Caster, ESpellElement::None, true));
+	GenericClass = FResistanceProfileRow::FromTableRow(ClassInnateResistanceTable::ResolveRow(ECharacterClass::Generic, ESpellElement::None, false));
+	ResonatorClass = FResistanceProfileRow::FromTableRow(ClassInnateResistanceTable::ResolveRow(ECharacterClass::Resonator, ESpellElement::None, false));
 	CasterByInnateElement.Reset();
 	for (const ESpellElement Element : CASTER_ELEMENTS)
 	{
