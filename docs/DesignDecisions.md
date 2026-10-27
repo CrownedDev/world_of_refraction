@@ -1483,17 +1483,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** reuse `AddEarnedWorldStat`; drop chance and mini-boss counts as tuning rows (`UCombatTuningData`, `// TODO: tune`); a placeholder C++ "choose a pillar" prompt (Backlog rule 4). Retire the pool / draft path (`PendingWorldStatPool`, `OnWorldStatDraftReady`) flagged obsolete until PIE. Also: nothing resets world stats at run end yet (rules 05 note), add it.
 
 ### D-103 — Co-op online: hosting and when to build it
-**Status:** ANSWERED in part (2026-10-27; more parts asked one at a time) · **Raised:** 2026-10-27 (Crown) · **Blocks:** —
+**Status:** ANSWERED (2026-10-27) · **Raised:** 2026-10-27 (Crown) · **Blocks:** —
 **Answer (Crown):** (2026-10-27)
 - **Co-op plumbing starts now**, not after the new HUD (**changes D-065**): the network infrastructure (travel, replication, input RPCs, state ownership) doesn't need B-105; today's HUD and placeholder screens read the shared state. Order: `Design/CoopStateOwnership.md` "Suggested order".
 - **Hosting: A, one player hosts** (listen server; Nightreign and most co-op indies): the host runs the run, friends connect; no servers to pay for.
 - Already decided: invites by menus in the hub and **at rest spots** in a trial; players within the party radius join a fight (D-003); hidden memories per qualifying player (D-100); one wallet per player (D-046).
 - **Online service: A, Epic Online Services (EOS)** (Crown, 2026-10-27): free, cross-platform (PC and consoles together, pillar 9), with Steam friends and invites on top; Unreal's EOS online subsystem.
 - **Party in co-op: A** (Crown, 2026-10-27): up to **3 players**, each controlling their own character; empty spots can be filled by **AI allies, but only if recruited** (AI is optional, by recruitment, D-026). Same party size solo and co-op (pillar 7).
-- **Joining and leaving: A** (Crown, 2026-10-27): friends can **join a run in progress at a rest spot**; a friend who leaves drops out and the run goes on; **if the host leaves, the run is saved and ends for everyone** (the host can resume it, B-208); friends keep what their own save already earned. No host migration.
+- **Joining and leaving: A** (Crown, 2026-10-27): friends can **join a run in progress at a rest spot**; a friend who leaves drops out and the run goes on; if the host leaves, the run passes to a friend (see "Passing on host" below); friends keep what their own save already earned.
 - **Rewards: A, personal** (Crown, 2026-10-27): loot drops separately per player (instanced), Gold to each player's own wallet, level drops and hidden memories to whoever qualifies, the run-end payout paid to every player in full. **Hidden unlocks are private:** only the player who got a hidden memory / quest is notified; the party isn't told.
 - **Passing on host** (Crown, 2026-10-27, replaces "the host leaving ends the run"): at each checkpoint (fight exit, rest spot) the host sends **a copy of the run save to every friend**. **Planned:** at a rest spot the host hands over to a chosen friend; the run carries on there. **Sudden drop, even mid-fight:** the next friend in party order becomes host from their copy; **the fight is exited** and the run resumes at the last checkpoint (enemies still on the map); everyone reconnects. No mid-fight host migration.
-**Notes for Claude:** open parts: online service (Steam / EOS), party make-up in co-op, join mid-run and host leaving, rewards.
+**Notes for Claude:** build order per `Design/CoopStateOwnership.md` "Suggested order", then EOS sessions / invites (hub menu, rest spots), join at rest spots, checkpoint save copies to clients and host hand-over, personal loot. Backlog jobs: B-227 onward.
 
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
