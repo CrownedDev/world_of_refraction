@@ -45,6 +45,25 @@
 #include "TimerManager.h"
 #include "Combat/CombatControl.h"
 #include "Party/PartySessionSubsystem.h"
+#include "HAL/IConsoleManager.h"
+#include "WoRLog.h"
+
+namespace CombatDebugAssetFallback
+{
+	// OBSOLETE (B-118): the debug commands below used to load a hard-coded test asset when the
+	// actor had no skill (one path is not in git). Off by default; remove this cvar and the
+	// paths after Crown's PIE pass.
+	TAutoConsoleVariable<bool> CVarAllowTestAssetFallback(
+		TEXT("wor.Debug.AllowTestAssetFallback"), false,
+		TEXT("OBSOLETE (B-118): let combat debug commands load a hard-coded test skill when the actor has none."));
+
+	/** The test asset when the obsolete fallback is on; otherwise null (the command logs the error). */
+	template <class TSkill>
+	TSkill *LoadTestSkill(const TCHAR *Path)
+	{
+		return CVarAllowTestAssetFallback.GetValueOnGameThread() ? LoadObject<TSkill>(nullptr, Path) : nullptr;
+	}
+}
 
 ACombatOrchestrator::ACombatOrchestrator()
 {
@@ -2185,16 +2204,16 @@ void ACombatOrchestrator::DebugTestAbilityMovement()
 		}
 	}
 
-	// Fallback to test ability
+	// OBSOLETE (B-118): test-asset fallback, only with wor.Debug.AllowTestAssetFallback 1
 	if (!AbilityAction.SkillData)
 	{
-		AbilityAction.SkillData = LoadObject<UAbilityData>(nullptr,
-															 TEXT("/Game/Testing/Weapons/Abilities/DA_Test_Ability.DA_Test_Ability"));
+		AbilityAction.SkillData = CombatDebugAssetFallback::LoadTestSkill<UAbilityData>(
+			TEXT("/Game/Testing/Weapons/Abilities/DA_Test_Ability.DA_Test_Ability"));
 	}
 
 	if (!AbilityAction.SkillData)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[DebugTestAbilityMovement] No ability available on %s"),
+		UE_LOG(LogWoRCombat, Error, TEXT("[DebugTestAbilityMovement] No ability available on %s - give it one in its loadout (B-118)"),
 			   *Actor->GetName());
 		return;
 	}
@@ -2268,16 +2287,16 @@ void ACombatOrchestrator::DebugTestSpellMovement()
 		}
 	}
 
-	// Final fallback to test spell
+	// OBSOLETE (B-118): test-asset fallback, only with wor.Debug.AllowTestAssetFallback 1
 	if (!SpellAction.SpellData)
 	{
-		SpellAction.SpellData = LoadObject<USpellData>(nullptr,
-													   TEXT("/Game/Data/Spells/Fire/DA_Spell_Fireball.DA_Spell_Fireball"));
+		SpellAction.SpellData = CombatDebugAssetFallback::LoadTestSkill<USpellData>(
+			TEXT("/Game/Data/Spells/Fire/DA_Spell_Fireball.DA_Spell_Fireball"));
 	}
 
 	if (!SpellAction.SpellData)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[DebugTestSpellMovement] No spell available on %s"),
+		UE_LOG(LogWoRCombat, Error, TEXT("[DebugTestSpellMovement] No spell available on %s - give it one in its loadout (B-118)"),
 			   *Actor->GetName());
 		return;
 	}
@@ -2606,16 +2625,16 @@ void ACombatOrchestrator::DebugExecuteAsyncSpell()
 		}
 	}
 
-	// Fallback: Load a test spell directly
+	// OBSOLETE (B-118): test-asset fallback, only with wor.Debug.AllowTestAssetFallback 1
 	if (!SpellData)
 	{
-		SpellData = LoadObject<USpellData>(nullptr,
-										   TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Fire_FireBall.DA_Spells_Fire_FireBall"));
+		SpellData = CombatDebugAssetFallback::LoadTestSkill<USpellData>(
+			TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Fire_FireBall.DA_Spells_Fire_FireBall"));
 	}
 
 	if (!SpellData)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[DebugExecuteAsyncSpell] No spell available"));
+		UE_LOG(LogWoRCombat, Error, TEXT("[DebugExecuteAsyncSpell] No spell available - give the actor one in its loadout (B-118)"));
 		return;
 	}
 
@@ -2784,16 +2803,16 @@ void ACombatOrchestrator::DebugExecuteAsyncAbility()
 		}
 	}
 
-	// Fallback: Load a test ability directly
+	// OBSOLETE (B-118): test-asset fallback, only with wor.Debug.AllowTestAssetFallback 1
 	if (!AbilityData)
 	{
-		AbilityData = LoadObject<UAbilityData>(nullptr,
-											   TEXT("/Game/Testing/Weapons/Abilities/DA_Test_Ability.DA_Test_Ability"));
+		AbilityData = CombatDebugAssetFallback::LoadTestSkill<UAbilityData>(
+			TEXT("/Game/Testing/Weapons/Abilities/DA_Test_Ability.DA_Test_Ability"));
 	}
 
 	if (!AbilityData)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[DebugExecuteAsyncAbility] No ability available"));
+		UE_LOG(LogWoRCombat, Error, TEXT("[DebugExecuteAsyncAbility] No ability available - give the actor one in its loadout (B-118)"));
 		return;
 	}
 
