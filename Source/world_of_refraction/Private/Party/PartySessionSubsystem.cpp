@@ -127,7 +127,7 @@ UParty *UPartySessionSubsystem::CreateSoloParty(APlayerController *Leader, TSoft
 	// ⚠️ Outer is the GameInstance, NOT the world: a world-outered UObject is
 	// destroyed by OpenLevel and the party would empty on the first transition.
 	UParty *NewParty = NewObject<UParty>(GetGameInstance());
-	NewParty->Leader = Leader;
+	NewParty->SetLeader(Leader);
 	NewParty->DisplayName = MakeDefaultDisplayName(Leader);
 	Parties.Add(NewParty);
 
@@ -478,7 +478,7 @@ void UPartySessionSubsystem::RebindLeader(APlayerController *Leader)
 		return;
 	}
 
-	Party->Leader = Leader;
+	Party->SetLeader(Leader);
 	// Only re-derive the name while it is still the generated default — an
 	// explicit SetDisplayName must not be clobbered by a level transition.
 	if (Party->DisplayName.IsEmpty())

@@ -3,6 +3,25 @@
 #include "Party/Party.h"
 
 #include "Character/CharacterData.h"
+#include "Engine/LocalPlayer.h"
+#include "GameFramework/PlayerController.h"
+
+void UParty::SetLeader(APlayerController *NewLeader)
+{
+	Leader = NewLeader;
+	LeaderPlayer = NewLeader ? NewLeader->GetLocalPlayer() : nullptr;
+}
+
+APlayerController *UParty::ResolveLeader(const UWorld *World) const
+{
+	APlayerController *Current = Leader.Get();
+	if (Current && Current->GetWorld() == World)
+	{
+		return Current;
+	}
+	const ULocalPlayer *Player = LeaderPlayer.Get();
+	return Player && World ? Player->GetPlayerController(World) : nullptr;
+}
 
 TArray<UCharacterData *> UParty::GetMemberCharacterData() const
 {

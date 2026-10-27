@@ -22,6 +22,7 @@
 class ACombatCharacter;
 class APlayerController;
 class UCharacterData;
+class ULocalPlayer;
 
 namespace PartyConstants
 {
@@ -128,6 +129,19 @@ public:
 	 *  within the level that set it — see UPartySessionSubsystem::RebindLeader. */
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	TWeakObjectPtr<APlayerController> Leader;
+
+	/** The leader's local player. It lives on the GameInstance, so it survives OpenLevel and
+	 *  finds the leader's new controller in the next level (B-132). TODO(co-op): a remote
+	 *  leader has no local player; use its PlayerState's unique id (CoopStateOwnership.md). */
+	UPROPERTY(Transient)
+	TWeakObjectPtr<ULocalPlayer> LeaderPlayer;
+
+	/** Sets Leader and LeaderPlayer together. */
+	void SetLeader(APlayerController *NewLeader);
+
+	/** The leader's controller in World: Leader when it belongs to World, else LeaderPlayer's
+	 *  controller there. Null when neither is known (never falls back to player 0). */
+	APlayerController *ResolveLeader(const UWorld *World) const;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	TArray<FPartyMember> Members;

@@ -68,6 +68,11 @@ private:
     /** Abort helper: log Reason and send the player back through ExitEncounter. */
     void AbortToTrial(const FString &Reason);
 
+    /** The party leader's controller in this level, rebound on the party so later reads are
+     *  fresh (B-132). When the leader can't be found (no party: a battle map opened directly)
+     *  it falls back to the first local player, with a warning (a dev path). */
+    APlayerController *ResolvePartyLeader();
+
     UFUNCTION()
     void HandleCombatEnd(const FCombatResult &Result);
 

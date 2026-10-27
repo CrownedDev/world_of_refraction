@@ -95,6 +95,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-207](B-207.md) | `fix/B-207-cooked-labels` (in `dev`) | Shop, defense prompt, party row and merchant hint names | Not tested |
 | [B-130](B-130.md) | `chore/B-130-coop-state-doc` (in `dev`) | Docs only: read the co-op state map | Not tested |
 | [B-133](B-133.md) | `chore/B-133-test-harness` (in `dev`) | Tests only: nothing to play | Not tested |
+| [B-132](B-132.md) | `fix/B-132-no-player0-lookups` (in `dev`) | Encounters, battle start and the party wallet use the party leader | Not tested |
 | [B-195](B-195.md) | `feature/B-195-hub-services` (in `dev`) | Hub services: one V NPC per service (Stone Smith, loadout vendor added), each opens its shop | Not tested |
 | [B-194](B-194.md) | `feature/B-194-memory-journal` (in `dev`) | Hub journal: reread memories and lore, V's next line, play a conversation (placeholder screen) | Not tested |
 | [B-070](B-070.md) | `fix/B-070-trial-strong-ref` (in `dev`) | The trial run keeps hold of its trial (packaged builds) | Not tested |

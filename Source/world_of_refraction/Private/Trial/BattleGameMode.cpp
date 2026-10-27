@@ -90,7 +90,7 @@ void ABattleGameMode::BootstrapCombat()
         return;
     }
 
-    APlayerController *PC = UGameplayStatics::GetPlayerController(this, 0);
+    APlayerController *PC = ResolvePartyLeader();
     const AActor *StartSpot = FindPlayerStart(PC);
     const FVector Origin = StartSpot ? StartSpot->GetActorLocation() : FVector::ZeroVector;
 
@@ -342,6 +342,25 @@ bool ABattleGameMode::CanEnterCombat(const AActor *Combatant)
     // GetActiveRing: a Resonator's rings sit in its ring slots, not the primary slot.
     return Loadout && (Loadout->GetPrimaryWeapon() || Loadout->GetPrimaryRing() || Loadout->GetPrimaryEvolution() ||
                        Loadout->HasSecondaryEquipment() || Loadout->GetActiveRing());
+}
+
+APlayerController *ABattleGameMode::ResolvePartyLeader()
+{
+    UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
+    const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+    APlayerController *Leader = Party ? Party->ResolveLeader(GetWorld()) : nullptr;
+    if (!Leader)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s - using the first local player"),
+               Party ? TEXT("The party's leader isn't in this level") : TEXT("No party (battle map opened directly?)"));
+        Leader = GetWorld()->GetFirstPlayerController();
+    }
+    if (Party && Leader)
+    {
+        // Rebind in both cases so the wallet and later reads agree with the start spot.
+        PartySession->RebindLeader(Leader);
+    }
+    return Leader;
 }
 
 void ABattleGameMode::AbortToTrial(const FString &Reason)
