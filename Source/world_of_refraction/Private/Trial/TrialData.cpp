@@ -56,7 +56,7 @@ EDataValidationResult UTrialData::IsDataValid(FDataValidationContext &Context) c
         }
         if (!Variations[Index].Boss)
         {
-            Context.AddWarning(FText::FromString(FString::Printf(TEXT("Variation %d has no Boss"), Index)));
+            Context.AddWarning(FText::FromString(FString::Printf(TEXT("Variation %d has no Boss - the arena uses the fallback boss"), Index)));
         }
     }
     return Result;

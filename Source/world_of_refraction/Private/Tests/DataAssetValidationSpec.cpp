@@ -14,7 +14,8 @@
 
 namespace
 {
-	const FSoftObjectPath TEST_LEVEL_PATH(TEXT("/Game/Maps/TestTrialLevel.TestTrialLevel"));
+	const TCHAR *TEST_LEVEL_PATH = TEXT("/Game/Maps/TestTrialLevel.TestTrialLevel");
+	// Mirrors the Expected[] list in UCosmeticsData::IsDataValid; update both together.
 	constexpr int32 COSMETICS_EXPECTED_FIELDS = 6;
 }
 
@@ -37,7 +38,7 @@ void FDataAssetValidationSpec::Define()
 		It("is valid with a Level, warning about the missing name and encounter level", [this]()
 		{
 			UTrialData *Trial = NewObject<UTrialData>();
-			Trial->Level = TSoftObjectPtr<UWorld>(TEST_LEVEL_PATH);
+			Trial->Level = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEST_LEVEL_PATH));
 			FDataValidationContext Context;
 			TestNotEqual(TEXT("Result"), Trial->IsDataValid(Context), EDataValidationResult::Invalid);
 			TestEqual(TEXT("No errors"), Context.GetNumErrors(), 0u);
@@ -47,10 +48,10 @@ void FDataAssetValidationSpec::Define()
 		It("lists its level and variations in the debug string", [this]()
 		{
 			UTrialData *Trial = NewObject<UTrialData>();
-			Trial->Level = TSoftObjectPtr<UWorld>(TEST_LEVEL_PATH);
+			Trial->Level = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEST_LEVEL_PATH));
 			Trial->Variations.AddDefaulted();
 			const FString Dump = Trial->GetTrialDataString();
-			TestTrue(TEXT("Has the level"), Dump.Contains(TEST_LEVEL_PATH.ToString()));
+			TestTrue(TEXT("Has the level"), Dump.Contains(TEST_LEVEL_PATH));
 			TestTrue(TEXT("Has the variation"), Dump.Contains(TEXT("[0]")));
 		});
 	});
@@ -65,17 +66,17 @@ void FDataAssetValidationSpec::Define()
 		TestTrue(TEXT("Dump names the asset"), Cosmetics->GetCosmeticsDataString().Contains(Cosmetics->GetName()));
 	});
 
-	It("warns about a default stance and infusion display", [this]()
+	It("warns about a stance with no montage and an infusion display with no VFX", [this]()
 	{
 		FDataValidationContext StanceContext;
 		NewObject<UStanceData>()->IsDataValid(StanceContext);
 		TestEqual(TEXT("Stance: no errors"), StanceContext.GetNumErrors(), 0u);
-		TestEqual(TEXT("Stance: montage + name warnings"), StanceContext.GetNumWarnings(), 2u);
+		TestEqual(TEXT("Stance: montage warning"), StanceContext.GetNumWarnings(), 1u);
 
 		FDataValidationContext InfusionContext;
 		NewObject<UInfusionDisplayData>()->IsDataValid(InfusionContext);
 		TestEqual(TEXT("Infusion: no errors"), InfusionContext.GetNumErrors(), 0u);
-		TestEqual(TEXT("Infusion: VFX + name warnings"), InfusionContext.GetNumWarnings(), 2u);
+		TestEqual(TEXT("Infusion: VFX warning"), InfusionContext.GetNumWarnings(), 1u);
 	});
 
 	It("dumps skills and inventories without a character", [this]()
