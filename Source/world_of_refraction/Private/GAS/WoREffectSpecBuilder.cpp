@@ -217,7 +217,8 @@ FWoRBuiltEffect FWoREffectSpecBuilder::Build(UAbilitySystemComponent &TargetASC,
 		Built.Spec.Data->AddDynamicAssetTag(WoRTags::Effect_Origin_Gear);
 	}
 
-	// B-042n: each payout runs UWoRTickExecution over this request (WoRTickMath, as the enum path's tick).
+	// B-042n: each payout runs UWoRTickExecution over this request (WoRTickMath, as the enum path's tick). The
+	// tick's SetByCaller magnitude isn't read by the execution; it stays for GetDebugString-style inspection.
 	if (Effect.EffectType == ESkillEffectType::DOT)
 	{
 		Built.TickSpec = MakeSpec(TargetASC, UWoRGE_HealthTick::StaticClass(), Identity, Source, -Magnitude);

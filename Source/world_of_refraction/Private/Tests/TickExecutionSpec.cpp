@@ -9,6 +9,7 @@
 #include "WoRTestWorld.h"
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterData.h"
+#include "Character/CharacterDataComponent.h"
 #include "Combat/Resistance/ResistanceQuery.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "GAS/WoRAttributeSets.h"
@@ -39,6 +40,8 @@ namespace
 	constexpr float TICK_TEST_START_HEALTH = 50.0f;
 	/** 7 x 1.25 = 8.75, rounded. */
 	constexpr int32 TICK_TEST_EXPECTED_HEAL = 9;
+	/** Enough damage that the heal is not capped by max HP. */
+	constexpr int32 TICK_TEST_HURT = 30;
 }
 
 BEGIN_DEFINE_SPEC(FTickExecutionSpec, "WoR.GAS.TickExecution",
@@ -149,14 +152,24 @@ void FTickExecutionSpec::Define()
 	It("pays a HOT tick with the holder's healing received, rounded as the enum path's heal", [this]()
 	{
 		if (!ASC) return;
-		FWoREffectSpecBuilder::Apply(Hero, MakeTickEffect(ESkillEffectType::HealingReceivedBuff, TICK_TEST_BOOST_ID, TICK_TEST_HEALING_RECEIVED,
-														  ESpellElement::None), Hero);
-		FWoREffectSpecBuilder::Apply(Hero, MakeTickEffect(ESkillEffectType::HealthRestore, TICK_TEST_HOT_ID, TICK_TEST_HOT, ESpellElement::None), Hero);
-		FTickMathInputs Enum;
-		Enum.Value = TICK_TEST_HOT;
-		Enum.HealingReceivedPercent = TICK_TEST_HEALING_RECEIVED;
-		const int32 EnumHeal = WoRTickMath::GetHotTickHeal(Enum);
+		USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
+		UCharacterDataComponent *Char = Hero->FindComponentByClass<UCharacterDataComponent>();
+		if (!TestNotNull(TEXT("Character data"), Char)) return;
+		const FActiveSkillEffect Boost =
+			MakeTickEffect(ESkillEffectType::HealingReceivedBuff, TICK_TEST_BOOST_ID, TICK_TEST_HEALING_RECEIVED, ESpellElement::None);
+		const FActiveSkillEffect Hot = MakeTickEffect(ESkillEffectType::HealthRestore, TICK_TEST_HOT_ID, TICK_TEST_HOT, ESpellElement::None);
+
+		// The enum path's own heal: both effects in its store, one turn start on a hurt holder.
+		Effects->ApplyEffect(Hero, Boost, Hero);
+		Effects->ApplyEffect(Hero, Hot, Hero);
+		Char->ServerTakeDamage(TICK_TEST_HURT);
+		const int32 HPBefore = Char->CurrentHP;
+		Effects->ProcessStartOfTurnEffects(Hero);
+		const int32 EnumHeal = Char->CurrentHP - HPBefore;
 		TestEqual(TEXT("The enum heal, rounded"), EnumHeal, TICK_TEST_EXPECTED_HEAL);
+
+		FWoREffectSpecBuilder::Apply(Hero, Boost, Hero);
+		FWoREffectSpecBuilder::Apply(Hero, Hot, Hero);
 		TestEqual(TEXT("GAS heal = enum heal"), PayTicks(), static_cast<float>(EnumHeal));
 	});
 }

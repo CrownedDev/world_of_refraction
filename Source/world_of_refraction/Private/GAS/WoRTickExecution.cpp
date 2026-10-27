@@ -6,9 +6,29 @@
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRDamageExecution.h"
 #include "GAS/WoREffectContext.h"
-#include "GAS/WoREffectSpecBuilder.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
+#include "Skills/Effects/SkillEffectManager.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "WoRLog.h"
+
+namespace
+{
+	/** The holder's HealingReceivedBuff total as the enum path reads it (GetTotalStatModifier, which reads the GAS
+	 *  mirror for that type when it is the read source), or false without an effect manager. */
+	bool ReadHealingReceived(AActor *Holder, float &OutPercent)
+	{
+		const UWorld *World = Holder ? Holder->GetWorld() : nullptr;
+		const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+		const USkillEffectManager *Effects = GameInstance ? GameInstance->GetSubsystem<USkillEffectManager>() : nullptr;
+		if (!Effects)
+		{
+			return false;
+		}
+		OutPercent = Effects->GetTotalStatModifier(Holder, ESkillEffectType::HealingReceivedBuff);
+		return true;
+	}
+}
 
 FTickMathInputs UWoRTickExecution::ReadAttributes(const FWoRTickRequest &Request, const UAbilitySystemComponent *Holder)
 {
@@ -17,7 +37,7 @@ FTickMathInputs UWoRTickExecution::ReadAttributes(const FWoRTickRequest &Request
 	{
 		if (Holder)
 		{
-			Inputs.HealingReceivedPercent = FWoREffectSpecBuilder::SumMagnitude(*Holder, ESkillEffectType::HealingReceivedBuff);
+			ReadHealingReceived(Holder->GetAvatarActor(), Inputs.HealingReceivedPercent);
 		}
 	}
 	else if (!Inputs.bShareOfMaxHP)
@@ -29,8 +49,9 @@ FTickMathInputs UWoRTickExecution::ReadAttributes(const FWoRTickRequest &Request
 
 float UWoRTickExecution::GetHealthChange(const FWoRTickRequest &Request, const FTickMathInputs &Inputs)
 {
-	return Request.bHeal ? static_cast<float>(WoRTickMath::GetHotTickHeal(Inputs))
-						 : -static_cast<float>(WoRTickMath::GetDotTickDamage(Inputs));
+	// As the enum path: a DOT only ever damages, a HOT only ever heals.
+	return Request.bHeal ? static_cast<float>(FMath::Max(0, WoRTickMath::GetHotTickHeal(Inputs)))
+						 : -static_cast<float>(FMath::Max(0, WoRTickMath::GetDotTickDamage(Inputs)));
 }
 
 void UWoRTickExecution::Execute_Implementation(const FGameplayEffectCustomExecutionParameters &ExecutionParams,
@@ -44,6 +65,7 @@ void UWoRTickExecution::Execute_Implementation(const FGameplayEffectCustomExecut
 	}
 	const UAbilitySystemComponent *Holder = ExecutionParams.GetTargetAbilitySystemComponent();
 	const float Change = GetHealthChange(*Context->TickRequest, ReadAttributes(*Context->TickRequest, Holder));
+	UE_LOG(LogWoR, VeryVerbose, TEXT("[TickExecution] %s"), *GetRequestString(*Context->TickRequest));
 
 	const FGameplayAttribute Health = UWoRAttributeSet_Vitals::GetHealthAttribute();
 	if (!FMath::IsNearlyZero(Change) && Holder && Holder->HasAttributeSetForAttribute(Health))
@@ -61,7 +83,11 @@ FWoRTickRequest UWoRTickExecution::MakeRequest(const FActiveSkillEffect &Effect,
 	Request.Element = Effect.Element;
 	Request.Inputs.Value = Effect.GetStackedValue();
 	Request.Inputs.bShareOfMaxHP = Effect.bShareOfMaxHP;
-	if (!Request.bHeal && !Effect.bShareOfMaxHP)
+	if (Request.bHeal)
+	{
+		ReadHealingReceived(Holder, Request.Inputs.HealingReceivedPercent);
+	}
+	else if (!Effect.bShareOfMaxHP)
 	{
 		Request.Inputs.ElementResistance = WoRResistance::GetElementDamageResistance(Holder, Effect.Element);
 	}

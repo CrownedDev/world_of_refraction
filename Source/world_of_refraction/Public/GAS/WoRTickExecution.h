@@ -2,8 +2,8 @@
 // GAS stage 3 (B-042n): a DOT's and a HOT's tick run WoRTickMath at the holder's turn start, as the enum
 // path does. A DOT tick reads the holder's resistance to its element from the attributes (Resist_<type>, Ice
 // also resists Water: UWoRDamageExecution::ReadElementResistance); a HOT tick reads the holder's
-// HealingReceivedBuff GEs (FWoREffectSpecBuilder::SumMagnitude). The value, the element and the share-of-max-HP
-// flag travel in the tick spec's context as an FWoRTickRequest. The output is Health -= the damage or += the
+// HealingReceivedBuff total as the enum path does (GetTotalStatModifier, GAS mirror or enum store). The value,
+// the element and the share-of-max-HP flag travel in the tick spec's context as an FWoRTickRequest. The output is Health -= the damage or += the
 // heal. A DOT's BuildupPerTick stays on the enum path until the status bar is GAS's own (B-042o, Q-042n).
 // Nothing in play applies these yet (B-042h); the spec proves both paths give the same number.
 // Debug: GetRequestString; WoRTickMath::GetInputsString.
@@ -23,7 +23,8 @@ struct FActiveSkillEffect;
 /** What a tick execution needs besides attributes. */
 struct FWoRTickRequest
 {
-	/** Gathered as the enum path does: the fallback when the holder's attributes aren't synced. */
+	/** Gathered as the enum path does when the effect lands: the fallback when the holder's attributes aren't
+	 *  synced (then a DOT keeps the resistance it landed with, Q-042n). */
 	FTickMathInputs Inputs;
 	ESpellElement Element = ESpellElement::None;
 	/** A HOT tick (heal); otherwise a DOT tick (damage). */
