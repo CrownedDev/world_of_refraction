@@ -416,11 +416,11 @@ public:
 
     // ==================== EQUIPMENT STATE HELPERS ====================
 
-    /** Check if character has secondary equipment (Generic only) */
+    /** Check if character has secondary equipment (Generic only; kept with an evolution primary, D-027) */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     bool HasSecondaryEquipment() const;
 
-    /** Check if secondary slot has a ring (Generic only) */
+    /** Always false: the secondary slot holds a weapon only (ESecondarySlotType) */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     bool HasRingInSecondary() const;
 
