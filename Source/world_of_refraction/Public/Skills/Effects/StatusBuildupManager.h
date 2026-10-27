@@ -11,6 +11,7 @@
 #include "StatusBuildupManager.generated.h"
 
 class USkillEffectManager;
+class UAbilitySystemComponent;
 
 // ========================================
 // DELEGATE DECLARATIONS
@@ -49,6 +50,15 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
  * on this manager: element resistance is a buildup-side concept (it reduces
  * buildup, not damage). The query reaches over to the effect manager via the
  * thin GetEffectsByType accessor.
+ *
+ * GAS stage 3 (B-042o): with `wor.Effects.UseGAS 1` and a target whose ASC holds the
+ * Buildup attribute, that attribute is the bar. A hit is added by UWoRBuildupExecution (the same
+ * WoRBuildupMath as the enum bar), and reset, reduce and decay write the attribute. The immunity
+ * gates read the holder's tags (HasEffectOfType at UseGAS 1), the cap fires the break through
+ * ApplyEffect (its lifetime on the tracker, B-042h), and decay runs after the tracker's turn start.
+ * A DOT's BuildupPerTick reaches the bar through AddStatusBuildup, so on GAS it runs the execution too.
+ * The pending element, physical type, last source and turns since the last hit stay here.
+ * Debug: GetBarDebugString, `wor.DumpStatusBars`.
  */
 UCLASS()
 class WORLD_OF_REFRACTION_API UStatusBuildupManager : public UGameInstanceSubsystem
@@ -89,6 +99,9 @@ public:
 	 *  Used by UI for bar tinting. */
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
 	ESpellElement GetPendingElement(AActor *Target) const;
+
+	/** One line: the bar's value and where it lives (GAS or the enum bar), its pending element and decay count. */
+	FString GetBarDebugString(AActor *Target) const;
 
 	// ========================================
 	// STATUS BAR MUTATION
@@ -206,6 +219,17 @@ private:
 
 	/** Status bar state tracking */
 	TMap<TWeakObjectPtr<AActor>, FStatusBarState> StatusBarStates;
+
+	/** B-042o: with `wor.Effects.UseGAS 1` the bar's number is Target's Buildup attribute; the ASC
+	 *  that holds it, or null when the enum bar (FStatusBarState::CurrentBuildup) is the store. */
+	static UAbilitySystemComponent *GetBarASC(const AActor *Target);
+
+	/** Write the bar (the attribute on GAS, else the state); the state keeps a copy either way. */
+	void SetBar(const AActor *Target, FStatusBarState &State, float Value);
+
+	/** Add one hit onto TargetASC's Buildup through UWoRBuildupExecution; returns the amount added. */
+	float AddThroughExecution(UAbilitySystemComponent &TargetASC, AActor *Source, AActor *Target, float Amount,
+							  ESpellElement Element, EPhysicalDamageType PhysicalType, bool bSkipBaseStatAmp);
 
 	/** Trigger the status effect when bar fills. Looks up the effect manager
 	 *  and calls ApplyTriggeredSkillEffect on it. */

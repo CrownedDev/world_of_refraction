@@ -5,12 +5,19 @@
 // STATUS_DECAY_FULL_RESET_TURNS; at STATUS_EFFECT_THRESHOLD it fires the element's status and
 // empties; an immunity blocks the hit. Source-side amplification and the infused path are
 // WoR.Status.InfusedBuildup; bar-cap break lengths are WoR.Effects.StatusBreaks.
+// B-042o: every case runs on the enum bar (wor.Effects.UseGAS 0) and on GAS (1: the target carries
+// an ASC with synced attributes and an effect mirror, so the bar is its Buildup attribute).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
 #include "Combat/CombatConstants.h"
+#include "GAS/WoRAttributeSets.h"
+#include "GAS/WoRAttributeSyncComponent.h"
+#include "GAS/WoREffectMirrorComponent.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/StatusBuildupManager.h"
@@ -23,6 +30,11 @@ namespace
 	constexpr float BUILDUP_TEST_TOLERANCE = 0.01f;
 	constexpr int32 BUILDUP_TEST_RESIST_ID = 9501;
 	constexpr int32 BUILDUP_TEST_IMMUNITY_ID = 9502;
+	constexpr int32 BUILDUP_TEST_STUN_IMMUNITY_ID = 9503;
+	constexpr int32 BUILDUP_TEST_DOT_ID = 9504;
+	constexpr int32 BUILDUP_TEST_FIRE_IMMUNITY_ID = 9505;
+	constexpr float BUILDUP_TEST_DOT_DAMAGE = 1.0f;
+	constexpr float BUILDUP_TEST_PER_TICK = 10.0f;
 	constexpr int32 BUILDUP_TEST_DURATION_TURNS = 3;
 	/** Far past the threshold, whatever the target's resistance (below RESISTANCE_MAX). */
 	constexpr float BUILDUP_TEST_OVERWHELMING_FACTOR = 100.0f;
@@ -54,6 +66,15 @@ BEGIN_DEFINE_SPEC(FStatusBuildupSpec, "WoR.Status.Buildup",
 		Effect.bDelayFirstExecution = true;
 		Effects->ApplyEffect(Target, Effect, Target);
 	}
+
+	/** What a GAS bar needs: an ASC, the attribute sync and an effect mirror (tag reads). */
+	static void PutOnGAS(AActor *Actor)
+	{
+		FWoRTestWorld::AddEffectMirror(Actor);
+		FWoRTestWorld::AddComponent<UWoRAttributeSyncComponent>(Actor)->SyncAttributes();
+	}
+
+	void DefineCases();
 END_DEFINE_SPEC(FStatusBuildupSpec)
 
 void FStatusBuildupSpec::Define()
@@ -74,12 +95,32 @@ void FStatusBuildupSpec::Define()
 
 	AfterEach([this]()
 	{
+		UWoREffectMirrorComponent::SetReadsFromGAS(false);
 		Target = nullptr;
 		Buildup = nullptr;
 		Effects = nullptr;
 		TestWorld.Reset();
 	});
 
+	for (const bool bOnGAS : {false, true})
+	{
+		Describe(bOnGAS ? TEXT("UseGAS 1") : TEXT("UseGAS 0"), [this, bOnGAS]()
+		{
+			BeforeEach([this, bOnGAS]()
+			{
+				UWoREffectMirrorComponent::SetReadsFromGAS(bOnGAS);
+				if (bOnGAS && Target)
+				{
+					PutOnGAS(Target);
+				}
+			});
+			DefineCases();
+		});
+	}
+}
+
+void FStatusBuildupSpec::DefineCases()
+{
 	It("fills by the hit less the target's total status resistance", [this]()
 	{
 		if (!Buildup) return;
@@ -161,16 +202,81 @@ void FStatusBuildupSpec::Define()
 		TestFalse(TEXT("Not stunned"), Effects->IsStunned(Target));
 	});
 
+	It("blocks a hit whose break the target is immune to, and only that one", [this]()
+	{
+		if (!Buildup) return;
+		GiveEffect(BUILDUP_TEST_STUN_IMMUNITY_ID, ESkillEffectType::GrantStunImmunity, 0.0f, ESpellElement::None);
+		TestFalse(TEXT("A Lightning hit (Stun) is absorbed"), Hit(BUILDUP_TEST_HIT, ESpellElement::Lightning));
+		TestNearlyEqual(TEXT("Bar untouched"), Buildup->GetStatusBarBuildup(Target), 0.0f, BUILDUP_TEST_TOLERANCE);
+		Hit(BUILDUP_TEST_HIT, ESpellElement::Fire);
+		TestNearlyEqual(TEXT("A Fire hit still lands"), Buildup->GetStatusBarBuildup(Target), Landed(BUILDUP_TEST_HIT, ESpellElement::Fire),
+						BUILDUP_TEST_TOLERANCE);
+	});
+
+	It("blocks a hit of an element the target is immune to, and only that element", [this]()
+	{
+		if (!Buildup) return;
+		GiveEffect(BUILDUP_TEST_FIRE_IMMUNITY_ID, ESkillEffectType::GrantFireImmunity, 0.0f, ESpellElement::None);
+		TestFalse(TEXT("A Fire hit is absorbed"), Hit(BUILDUP_TEST_HIT, ESpellElement::Fire));
+		TestNearlyEqual(TEXT("Bar untouched"), Buildup->GetStatusBarBuildup(Target), 0.0f, BUILDUP_TEST_TOLERANCE);
+		Hit(BUILDUP_TEST_HIT, ESpellElement::Lightning);
+		TestNearlyEqual(TEXT("A Lightning hit still lands"), Buildup->GetStatusBarBuildup(Target),
+						Landed(BUILDUP_TEST_HIT, ESpellElement::Lightning), BUILDUP_TEST_TOLERANCE);
+	});
+
+	It("fills the bar at each tick of a DOT that builds status", [this]()
+	{
+		if (!Buildup) return;
+		FActiveSkillEffect Burn = FActiveSkillEffect::CreateDOT(TEXT("Buildup test burn"), BUILDUP_TEST_DOT_ID, BUILDUP_TEST_DOT_DAMAGE,
+																BUILDUP_TEST_DURATION_TURNS, ESpellElement::Fire);
+		Burn.BuildupPerTick = BUILDUP_TEST_PER_TICK;
+		Effects->ApplyEffect(Target, Burn, Target);
+		TestNearlyEqual(TEXT("Nothing on landing"), Buildup->GetStatusBarBuildup(Target), 0.0f, BUILDUP_TEST_TOLERANCE);
+		// The tick's source is the DOT's source (here the target itself), as the enum formula reads it.
+		const float PerTick = WoRBuildupMath::Compute(Buildup->GatherBuildupMathInputs(
+			Target, Target, FMath::RoundToInt(BUILDUP_TEST_PER_TICK), ESpellElement::Fire, EPhysicalDamageType::None, false));
+		Effects->ProcessStartOfTurnEffects(Target);
+		TestNearlyEqual(TEXT("One tick's buildup"), Buildup->GetStatusBarBuildup(Target), PerTick, BUILDUP_TEST_TOLERANCE);
+		TestEqual(TEXT("Tinted by the DOT's element"), Buildup->GetPendingElement(Target), ESpellElement::Fire);
+	});
+
 	It("forgets every bar between fights", [this]()
 	{
 		if (!Buildup) return;
 		AActor *Other = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), true);
 		if (!TestNotNull(TEXT("Second target"), Other)) return;
+		if (UWoREffectMirrorComponent::ReadsFromGAS())
+		{
+			PutOnGAS(Other);
+		}
 		Hit(BUILDUP_TEST_HIT, ESpellElement::Fire);
 		Buildup->AddStatusBuildup(nullptr, Other, BUILDUP_TEST_HIT, ESpellElement::Fire, EPhysicalDamageType::None);
 		Buildup->ResetForCombat();
 		TestNearlyEqual(TEXT("Bar empty"), Buildup->GetStatusBarBuildup(Target), 0.0f, BUILDUP_TEST_TOLERANCE);
 		TestNearlyEqual(TEXT("The other bar empty"), Buildup->GetStatusBarBuildup(Other), 0.0f, BUILDUP_TEST_TOLERANCE);
+	});
+
+	It("keeps the bar in the Buildup attribute on GAS, and only there", [this]()
+	{
+		if (!Buildup) return;
+		Hit(BUILDUP_TEST_HIT, ESpellElement::Fire);
+		const UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Target);
+		if (!UWoREffectMirrorComponent::ReadsFromGAS())
+		{
+			TestTrue(TEXT("Enum bar"), Buildup->GetBarDebugString(Target).Contains(TEXT("the enum bar")));
+			return;
+		}
+		if (!TestNotNull(TEXT("ASC"), ASC)) return;
+		const FGameplayAttribute Attribute = UWoRAttributeSet_Vitals::GetBuildupAttribute();
+		const float Expected = Landed(BUILDUP_TEST_HIT, ESpellElement::Fire);
+		TestNearlyEqual(TEXT("The attribute holds the hit"), ASC->GetNumericAttribute(Attribute), Expected, BUILDUP_TEST_TOLERANCE);
+		TestTrue(TEXT("On GAS"), Buildup->GetBarDebugString(Target).Contains(TEXT("on GAS")));
+		TestTrue(TEXT("The state keeps a copy"), Buildup->GetBarDebugString(Target).Contains(FString::Printf(TEXT("state copy %.1f"), Expected)));
+		Buildup->ProcessStatusBarDecay(Target);
+		TestNearlyEqual(TEXT("Decay writes the attribute"), ASC->GetNumericAttribute(Attribute),
+						Expected * (1.0f - CombatConstants::STATUS_DECAY_RATE), BUILDUP_TEST_TOLERANCE);
+		Buildup->ResetStatusBar(Target);
+		TestNearlyEqual(TEXT("Reset empties the attribute"), ASC->GetNumericAttribute(Attribute), 0.0f, BUILDUP_TEST_TOLERANCE);
 	});
 }
 
