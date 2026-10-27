@@ -142,6 +142,25 @@ public:
 
     const TArray<TObjectPtr<UMemoryData>> &GetRunMemories() const { return RunMemories; }
 
+    // ==================== SAVED RUN (B-208, Q-208) ====================
+
+    /** A trial run is under way (entered, not exited). */
+    bool IsRunActive() const { return ActiveTrial != nullptr && RunSeed != 0; }
+
+    const TSet<FName> &GetBeatenEncounters() const { return BeatenEncounters; }
+    const TMap<FName, FText> &GetFoundFeatures() const { return FoundFeatures; }
+
+    /** Puts a saved run back without EnterTrial's fresh start (no full heal, no new seed, the
+     *  map's beaten fights and found features kept). Opens nothing: ResumeRun does. */
+    void RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 InVariationIndex, ETrialDifficulty InDifficulty,
+                    const TArray<FName> &Beaten, const TMap<FName, FText> &Found, const TArray<UMemoryData *> &Memories);
+
+    /** Opens the run's trial level (the player lands at its start). False when no run is active. */
+    bool ResumeRun();
+
+    /** Is World the configured hub level, where a saved run is resumed from? */
+    bool IsHubWorld(const UWorld *World) const;
+
     /** B-185: who struck first on the map, for the pending fight. Call before EnterEncounter. */
     void SetPendingFirstStrike(EFirstStrike FirstStrike) { PendingFirstStrike = FirstStrike; }
 

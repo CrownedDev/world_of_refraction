@@ -306,6 +306,48 @@ namespace
 }
 #endif // !UE_BUILD_SHIPPING
 
+void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 InVariationIndex, ETrialDifficulty InDifficulty,
+                                    const TArray<FName> &Beaten, const TMap<FName, FText> &Found,
+                                    const TArray<UMemoryData *> &Memories)
+{
+    ActiveTrial = Trial;
+    RunSeed = InRunSeed;
+    VariationIndex = InVariationIndex;
+    TrialDifficulty = InDifficulty;
+    BeatenEncounters = TSet<FName>(Beaten);
+    FoundFeatures = Found;
+    RunMemories = TArray<TObjectPtr<UMemoryData>>(Memories);
+    PendingEncounterSources.Reset();
+    PendingFirstStrike = EFirstStrike::None;
+    PendingZone = FEncounterZoneInfo();
+    UE_LOG(LogTemp, Log, TEXT("[TrialRun] Restored saved run of '%s' (seed %d, %d beaten, %d found, %d memories)"),
+           Trial ? *Trial->Name.ToString() : TEXT("<none>"), RunSeed, BeatenEncounters.Num(), FoundFeatures.Num(),
+           RunMemories.Num());
+}
+
+bool UTrialRunSubsystem::ResumeRun()
+{
+    if (!IsRunActive() || ActiveTrial->Level.IsNull())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[TrialRun] ResumeRun: no run with a level to resume — ignored."));
+        return false;
+    }
+    UE_LOG(LogTemp, Log, TEXT("[TrialRun] Resuming trial '%s' -> %s"), *ActiveTrial->Name.ToString(),
+           *ActiveTrial->Level.ToString());
+    UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), ActiveTrial->Level);
+    return true;
+}
+
+bool UTrialRunSubsystem::IsHubWorld(const UWorld *World) const
+{
+    if (!World || HubLevel.IsNull())
+    {
+        return false;
+    }
+    const FString WorldPackage = UWorld::RemovePIEPrefix(World->GetOutermost()->GetName());
+    return WorldPackage == HubLevel.GetLongPackageName();
+}
+
 FString UTrialRunSubsystem::GetTrialRunString() const
 {
     const FTrialVariation *Variation = GetChosenVariation();

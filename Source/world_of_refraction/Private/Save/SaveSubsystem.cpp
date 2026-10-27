@@ -19,6 +19,12 @@
 #include "Pool/PoolSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
+#include "HAL/IConsoleManager.h"
+#include "Memory/MemoryData.h"
+#include "TimerManager.h"
+#include "Trial/TrialData.h"
+#include "Trial/TrialGate.h"
+#include "Trial/TrialRunSubsystem.h"
 #include "WoRLog.h"
 
 const TCHAR *USaveSubsystem::SLOT_NAME = TEXT("WoR_Main");
@@ -48,6 +54,13 @@ namespace
 	}
 }
 
+namespace SaveRunResume
+{
+	TAutoConsoleVariable<bool> CVarResumeRun(
+		TEXT("wor.Save.ResumeRun"), true,
+		TEXT("B-208: resume a saved trial run when the game starts in the hub (0: start in the hub; the run is dropped at the next save)."));
+}
+
 void USaveSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
@@ -71,6 +84,7 @@ void USaveSubsystem::Deinitialize()
 	UGameInstance *GI = GetGameInstance();
 	GI->OnLocalPlayerAddedEvent.Remove(LocalPlayerAddedHandle);
 	GI->OnLocalPlayerRemovedEvent.Remove(LocalPlayerRemovedHandle);
+	FWorldDelegates::OnWorldInitializedActors.Remove(WorldActorsInitializedHandle);
 	Super::Deinitialize();
 }
 
@@ -115,6 +129,59 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 	UE_LOG(LogWoR, Log, TEXT("[Save] Loaded slot '%s' (version %d): party %s, %d pool entries, wallet %s"),
 		   SLOT_NAME, Loaded->GetSavedDataVersion(), bParty ? TEXT("restored") : TEXT("not restored"), PoolEntries,
 		   Data.Wallet.bHasWallet ? TEXT("banked") : TEXT("empty"));
+
+	// B-208: a saved run waits for the first game world, then resumes from the hub (Q-208).
+	if (Data.Run.bHasRun)
+	{
+		PendingRun = Data.Run;
+		UWorld *World = GI->GetWorld();
+		if (World && World->IsGameWorld() && World->AreActorsInitialized())
+		{
+			TryResumeRun(World);
+		}
+		else
+		{
+			WorldActorsInitializedHandle =
+				FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &USaveSubsystem::HandleWorldActorsInitialized);
+		}
+	}
+}
+
+void USaveSubsystem::HandleWorldActorsInitialized(const FActorsInitializedParams &Params)
+{
+	if (Params.World && Params.World->IsGameWorld() && Params.World->GetGameInstance() == GetGameInstance())
+	{
+		TryResumeRun(Params.World);
+	}
+}
+
+void USaveSubsystem::TryResumeRun(UWorld *World)
+{
+	FWorldDelegates::OnWorldInitializedActors.Remove(WorldActorsInitializedHandle);
+	WorldActorsInitializedHandle.Reset();
+	const FSavedRun Run = PendingRun;
+	PendingRun = FSavedRun();
+
+	UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
+	if (!TrialRun || !SaveRunResume::CVarResumeRun.GetValueOnGameThread() || !TrialRun->IsHubWorld(World))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Save] Saved run of %s not resumed (started in %s, not the hub, or wor.Save.ResumeRun 0); it is dropped at the next save"),
+			   *Run.Trial.Path.ToString(), World ? *World->GetMapName() : TEXT("<no world>"));
+		return;
+	}
+	if (!RestoreRun(Run, *TrialRun))
+	{
+		return;
+	}
+	CarriedGold = Run.RunGold;
+	// Not inside world initialisation: open the trial on the next tick.
+	World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+	{
+		if (UTrialRunSubsystem *Resumed = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>())
+		{
+			Resumed->ResumeRun();
+		}
+	}));
 }
 
 void USaveSubsystem::CaptureInto(UWorld *World)
@@ -122,14 +189,21 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 	UGameInstance *GI = GetGameInstance();
 	FWoRSaveData &Data = SaveGame->Data;
 	// A level that never builds a party keeps the saved one.
+	const UTrialRunSubsystem *TrialRun = GI->GetSubsystem<UTrialRunSubsystem>();
+	const bool bInRun = TrialRun && TrialRun->IsRunActive();
 	if (const UParty *Party = GI->GetSubsystem<UPartySessionSubsystem>()->GetLocalParty())
 	{
-		Data.Party = CaptureParty(Party, false);
+		Data.Party = CaptureParty(Party, bInRun);
 	}
 	Data.Pool = CapturePool(*GI->GetSubsystem<UPoolSubsystem>());
 	if (const UCurrencyComponent *Wallet = FindLocalWallet(World))
 	{
 		BankWallet(Wallet);
+	}
+	// A run still waiting to resume stays as loaded.
+	if (TrialRun && !PendingRun.bHasRun)
+	{
+		Data.Run = CaptureRun(*TrialRun, CarriedGold);
 	}
 }
 
@@ -229,6 +303,8 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 		{
 			Out.CurrentHP = Member.CurrentHP;
 			Out.CurrentEP = Member.CurrentEP;
+			Out.CarriedGear = FSavedCarriedGear::Make(Member.CarriedGear);
+			Out.CarriedAbsorption = Member.CarriedAbsorption;
 		}
 	}
 	return Saved;
@@ -301,7 +377,57 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 	return Saved;
 }
 
+FSavedRun USaveSubsystem::CaptureRun(const UTrialRunSubsystem &TrialRun, int32 RunGold)
+{
+	FSavedRun Saved;
+	if (!TrialRun.IsRunActive())
+	{
+		return Saved;
+	}
+	Saved.bHasRun = true;
+	Saved.Trial = FSavedAssetRef::Make(TrialRun.GetActiveTrial());
+	Saved.RunSeed = TrialRun.GetRunSeed();
+	Saved.VariationIndex = TrialRun.GetVariationIndex();
+	Saved.Difficulty = static_cast<uint8>(TrialRun.GetTrialDifficulty());
+	Saved.BeatenEncounters = TrialRun.GetBeatenEncounters().Array();
+	Saved.FoundFeatures = TrialRun.GetFoundFeatures();
+	for (const UMemoryData *Memory : TrialRun.GetRunMemories())
+	{
+		Saved.RunMemories.Add(FSavedAssetRef::Make(Memory));
+	}
+	Saved.RunGold = RunGold;
+	return Saved;
+}
+
 // ==================== RESTORE ====================
+
+bool USaveSubsystem::RestoreRun(const FSavedRun &Saved, UTrialRunSubsystem &TrialRun)
+{
+	if (!Saved.bHasRun)
+	{
+		return false;
+	}
+	UTrialData *Trial = Saved.Trial.ResolveAs<UTrialData>();
+	if (!Trial || Saved.RunSeed == 0)
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Save] Saved run dropped: trial %s not found"), *Saved.Trial.Path.ToString());
+		return false;
+	}
+	TArray<UMemoryData *> Memories;
+	for (const FSavedAssetRef &Ref : Saved.RunMemories)
+	{
+		if (UMemoryData *Memory = Ref.ResolveAs<UMemoryData>())
+		{
+			Memories.Add(Memory);
+		}
+	}
+	const ETrialDifficulty Difficulty = StaticEnum<ETrialDifficulty>()->IsValidEnumValue(Saved.Difficulty)
+		? static_cast<ETrialDifficulty>(Saved.Difficulty)
+		: TrialGate::DEFAULT_DIFFICULTY;
+	TrialRun.RestoreRun(Trial, Saved.RunSeed, Saved.VariationIndex, Difficulty, Saved.BeatenEncounters,
+						Saved.FoundFeatures, Memories);
+	return true;
+}
 
 bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsystem &PartySession)
 {
@@ -322,6 +448,8 @@ bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsyst
 		Member.bPlayerControlled = In.bPlayerControlled;
 		Member.CurrentHP = In.CurrentHP;
 		Member.CurrentEP = In.CurrentEP;
+		Member.CarriedGear = In.CarriedGear.Restore();
+		Member.CarriedAbsorption = In.CarriedAbsorption;
 		Members.Add(Member);
 	}
 	return PartySession.RestoreLocalParty(Saved.DisplayName, Saved.bLetAIFinish, Members) != nullptr;
