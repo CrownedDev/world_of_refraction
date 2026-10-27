@@ -364,6 +364,7 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 
 ### Delegates broadcast
 
+- `FOnActiveWeaponChanged OnActiveWeaponChanged(UWeaponData *NewWeapon)` (B-138): fired only when `GetActiveWeapon()` really changes. Every loadout mutator that can change it announces on each return path (a scope guard calls `NotifyActiveWeaponChanged`); the component also re-checks on the inventory's `OnInventoryChanged` (loads and gear removal edit `SavedLoadouts` directly). Code that edits `SavedLoadouts` itself calls `NotifyActiveWeaponChanged()` after. Listener: `UWeaponMeshComponent`.
 - `FOnLoadoutChanged OnLoadoutChanged(int32 NewLoadoutIndex)` — fired by
   `SetActiveLoadoutIndex()`. Consumers re-query `GetActiveLoadout()`.
 - `FOnLoadoutItemUsed OnItemUsed(int32 SlotIndex, UEvolutionItemData* Item)` — fired by
@@ -450,3 +451,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-10-26 | B-099 (D-027): a Generic with an evolution primary keeps its secondary weapon on every path. `HasSecondaryEquipment` no longer returns false for it; `GetCurrentStance` shows the secondary weapon's stance (an evolution has none; a ring primary still shows unarmed); `HasRingInSecondary` is always false (the secondary holds weapons only; no callers, kept until PIE). Already agreeing: `GetActiveWeaponLoadout`, `FCombatCapabilities`, conversion, rules. Not changed: `TrySwitchWeaponThisTurn` doesn't check for two weapons (the UI hides the button); the secondary weapon still gives spells (`FCombatLoadout.cpp:209`, B-098). Spec `WoR.Loadout.EvolutionSecondary`. | fix/B-099-evolution-keeps-secondary |
 | 2026-10-26 | B-081 (D-008): `ToggleEquipment` and `SetActiveRingIndex` gather the old gear's effects first, then `SwapGearEffects` (see SkillEffectSystem.md). | feature/B-081-gear-effects-follow-swap |
 | 2026-10-26 | B-082: `GetStoneRingAttachment`, `GetAttachedStonePercent(Stat)`, `GetAttachedStonePercentForType` (weapon plus counting ring); see AugmentStoneSystem.md. | feature/B-082-ring-fusion-stone |
+| 2026-10-27 | B-138: `OnActiveWeaponChanged` delegate and `NotifyActiveWeaponChanged()`; 13 mutators announce through `FActiveWeaponChangeScope`; the component binds the inventory's `OnInventoryChanged`. | refactor/B-138-weapon-mesh-delegate |

@@ -235,7 +235,8 @@ weapon meshes spawn and how abilities gate. It has three values:
 `UWeaponData::IsDualWielded()` returns `true` for `Dual` and `OffHandShield`,
 `false` for `Single`.
 
-`UWeaponMeshComponent` spawns and attaches the meshes at runtime. It resolves
+`UWeaponMeshComponent` spawns and attaches the meshes at runtime. It never ticks: it follows
+`ULoadoutComponent::OnActiveWeaponChanged` (B-138), bound in `BeginPlay` and unbound in `EndPlay`. It resolves
 attachment sockets **from `WeaponType`**, not from any per-DA field — the
 weapon DA carries no socket names:
 
@@ -424,3 +425,4 @@ mesh spawns). They are hidden in the details panel while `WieldMode` is
 | 2026-07-03 | `UAbilityData::bRequiresDualWeapon` (bool) replaced by `RequiredWieldMode` (`EWeaponWieldMode`, default `Single` = no requirement / any mode) + inline `AllowsWieldMode(WeaponWieldMode)` helper. The off-hand gate now distinguishes `Dual` from `OffHandShield` (previously lumped together as `IsDualWielded`). Straight field swap — no existing asset had the old flag set, so no migration needed. | feature/hub-merchants |
 | 2026-07-22 | Weapon material overrides — `UWeaponData::WeaponMaterialOverride` + `LeftHandMaterialOverride` (`TObjectPtr<UMaterialInterface>`, "Mesh" category; left-hand field gated like the left-hand mesh fields). `UWeaponMeshComponent::SpawnWeaponMesh`/`SpawnDualWeaponMesh` apply the matching override to slot 0 right after `SetSkeletalMesh`/`SetStaticMesh` in all six spawn sites (static + skeletal, both hands). Null = mesh default (backward compatible; no asset authors the fields yet). Motivated by the N-Hance pack's per-colour `MI_` variants (single slot, no tint param on `M_Armor_Master`). | feature/weapon-material-override |
 | 2026-07-11 | **PhysicalDamageType migrated weapon → ability (Clusters A–C).** A: `UAbilityData::PhysicalDamageType` added (default `None`) with weapon fallback. B: populated on ~204 pool attack/ability assets + legacy weapon skills. C: `UWeaponData::PhysicalDamageType` **removed** (with its `IsDataValid` None-rejection); `ActionExecutor` reads the executing ability directly — no weapon fallback, `None` logs a warning and suppresses the physical bar-cap / authored-DoT trigger. Rationale: the same swing delivers the same physical type on any weapon. | feature/hub-merchants |
+| 2026-10-27 | B-138: `UWeaponMeshComponent` no longer ticks (the 10 Hz `GetActiveWeapon` poll is gone); it updates on `ULoadoutComponent::OnActiveWeaponChanged`. Test: `WoR.Weapons.MeshFollowsLoadout`. | refactor/B-138-weapon-mesh-delegate |

@@ -64,6 +64,15 @@ namespace
                    Count - Returned, *ItemIdentity::GetDisplayName(Id));
         }
     }
+
+    /** B-138: announces an active-weapon change when the mutator it guards returns, on every path. */
+    struct FActiveWeaponChangeScope
+    {
+        explicit FActiveWeaponChangeScope(ULoadoutComponent &InLoadout) : Loadout(InLoadout) {}
+        ~FActiveWeaponChangeScope() { Loadout.NotifyActiveWeaponChanged(); }
+
+        ULoadoutComponent &Loadout;
+    };
 }
 
 ULoadoutComponent::ULoadoutComponent()
@@ -74,11 +83,30 @@ ULoadoutComponent::ULoadoutComponent()
 void ULoadoutComponent::BeginPlay()
 {
     Super::BeginPlay();
+    if (UInventoryComponent *Inv = GetInventoryComponent())
+    {
+        Inv->OnInventoryChanged.AddUniqueDynamic(this, &ULoadoutComponent::HandleInventoryChanged);
+    }
     EnsureDefaultLoadout();
+}
+
+void ULoadoutComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    if (UInventoryComponent *Inv = GetInventoryComponent())
+    {
+        Inv->OnInventoryChanged.RemoveDynamic(this, &ULoadoutComponent::HandleInventoryChanged);
+    }
+    Super::EndPlay(EndPlayReason);
+}
+
+void ULoadoutComponent::HandleInventoryChanged(EInventoryChangeType ChangeType)
+{
+    NotifyActiveWeaponChanged();
 }
 
 void ULoadoutComponent::EnsureDefaultLoadout()
 {
+    const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
     {
@@ -137,6 +165,7 @@ bool ULoadoutComponent::GetActiveLoadoutRef(FCombatLoadout &OutLoadout) const
 
 bool ULoadoutComponent::SetActiveLoadoutIndex(int32 Index)
 {
+    const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
     {
@@ -372,6 +401,7 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
 
 bool ULoadoutComponent::DeleteLoadout(int32 Index)
 {
+    const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
     {
@@ -1336,6 +1366,7 @@ void ULoadoutComponent::AnnounceDroppedParts(int32 LoadoutIndex, const TArray<FI
 
 TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index)
 {
+    const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     TArray<FInvalidSlotFinding> Dropped;
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv || !Inv->SavedLoadouts.IsValidIndex(Index))
@@ -1565,6 +1596,7 @@ bool ULoadoutComponent::TryChangeLoadout(int32 LoadoutIndex, bool bHasPick,
                                          TFunctionRef<FText(const FCombatLoadout &, ECharacterClass)> CheckTarget,
                                          TFunctionRef<void(FCombatLoadout &)> Change, FText &OutRefusal)
 {
+    const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv || !Inv->SavedLoadouts.IsValidIndex(LoadoutIndex))
     {
@@ -1704,6 +1736,7 @@ bool ULoadoutComponent::TryAssignInnateSpell(int32 LoadoutIndex, USpellData *Spe
 
 bool ULoadoutComponent::PrepareForBattle(UInventoryComponent *Inventory)
 {
+    const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
     {
@@ -2219,6 +2252,7 @@ void ULoadoutComponent::ResetBattleState()
 
 bool ULoadoutComponent::AutoPopulateLoadout(int32 LoadoutIndex, UInventoryComponent *Inventory)
 {
+    const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
     {
@@ -2249,6 +2283,7 @@ bool ULoadoutComponent::AutoPopulateLoadout(int32 LoadoutIndex, UInventoryCompon
 
 void ULoadoutComponent::ClearLoadout(int32 LoadoutIndex)
 {
+    const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
     {
@@ -2266,6 +2301,7 @@ void ULoadoutComponent::ClearLoadout(int32 LoadoutIndex)
 
 void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterData, UInventoryComponent *Inventory)
 {
+    const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     if (!CharacterData)
     {
         UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] InitializeFromCharacterData: Null CharacterData"));
@@ -2366,6 +2402,20 @@ void ULoadoutComponent::ApplyBDPoolsIfBroken()
 }
 
 // ==================== COMBAT ACCESSORS ====================
+
+void ULoadoutComponent::NotifyActiveWeaponChanged()
+{
+    // GetActiveWeapon warns when there is no inventory; with none there is no weapon to announce.
+    UWeaponData *ActiveWeapon = GetInventoryComponent() ? GetActiveWeapon() : nullptr;
+    if (ActiveWeapon == LastNotifiedWeapon)
+    {
+        return;
+    }
+    LastNotifiedWeapon = ActiveWeapon;
+    UE_LOG(LogWoRLoadout, Log, TEXT("%s: active weapon is now %s"), *GetNameSafe(GetOwner()),
+           ActiveWeapon ? *ActiveWeapon->Name : TEXT("none"));
+    OnActiveWeaponChanged.Broadcast(ActiveWeapon);
+}
 
 UWeaponData *ULoadoutComponent::GetActiveWeapon() const
 {
@@ -2717,6 +2767,7 @@ bool ULoadoutComponent::IsShowingPrimary() const
 
 void ULoadoutComponent::ToggleEquipment()
 {
+    const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
     {
@@ -3495,6 +3546,7 @@ FCarriedGearState ULoadoutComponent::SnapshotCarriedGear() const
 
 int32 ULoadoutComponent::ApplyCarriedGear(const FCarriedGearState &Carried)
 {
+    const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Carried.bCarried || !Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
@@ -3532,6 +3584,7 @@ int32 ULoadoutComponent::ApplyCarriedGear(const FCarriedGearState &Carried)
 
 bool ULoadoutComponent::ClearBrokenPrimaryEvolution()
 {
+    const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
@@ -3550,6 +3603,7 @@ bool ULoadoutComponent::ClearBrokenPrimaryEvolution()
 
 bool ULoadoutComponent::ClearPrimaryEvolution()
 {
+    const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
