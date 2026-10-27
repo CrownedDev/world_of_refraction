@@ -28,6 +28,8 @@ namespace
 	/** The every-type sweep's IDs start here (one per enum index) and its effects hold this value. */
 	constexpr int32 MIRROR_TYPE_SWEEP_ID = 4400;
 	constexpr float MIRROR_SWEEP_VALUE = 1.0f;
+	/** At least 1 in this many swept types must be held (immunities can reject some). */
+	constexpr int32 MIRROR_SWEEP_MIN_SHARE = 2;
 }
 
 BEGIN_DEFINE_SPEC(FEffectMirrorSpec, "WoR.GAS.EffectMirror",
@@ -183,6 +185,8 @@ void FEffectMirrorSpec::Define()
 			EffectManager->ApplyEffect(Hero, Effect, Foe);
 		}
 		TestMatches(TEXT("every type"));
+		// Immunities may turn a few away, but most must land, or the per-type compare proves nothing.
+		TestTrue(TEXT("Most types mirrored"), Mirror->NumMirrored() >= (Types->NumEnums() - 1) / MIRROR_SWEEP_MIN_SHARE);
 
 		for (int32 Index = 0; Index < Types->NumEnums() - 1; ++Index)
 		{
