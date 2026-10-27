@@ -1928,6 +1928,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-149-formation-cells): `ACombatOrchestrator::GetPlaceholderEnemyStartRow`. Authored enemy cells replace it later.
 
+### Q-090 — Quitting mid-trial: resume the run, or abandon it?
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-090) · **Blocks:** — (B-090 shipped with A now, B-208 for the rest)
+**Question:** The save keystone saves the party, the banked wallet and the pool. The run itself (trial, beaten encounters, seed, carried HP, crystal wear) is not saved. What happens when the player quits mid-trial?
+**Options:**
+- **A** resume the run where it was left (at the last fight's exit), like Slay the Spire and Hades. Until that save exists, quitting abandons the run: the save writes no carried HP/EP, and a reload starts in the hub at full health.
+- **B** quitting always abandons the run.
+**Recommendation:** A. Slay the Spire (save and quit, resume the floor) and Hades (resume the chamber) both keep a run across a quit, and players expect it of a run-based game; losing a run to closing the game reads as a bug. Building it is its own job (B-208); B-090 does the abandon half safely now, so no damaged HP is carried into the hub.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). B-208 builds the run save.
+**Notes for Claude:** applied (feature/B-090-save-keystone): `USaveSubsystem::CaptureParty(Party, false)`. `docs/Architecture/SaveSystem.md`.
+
 ### Q-045 — How this game's triggers, conditions and effects read as text
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-045) · **Blocks:** — (B-045 shipped with A)
 **Question:** D-031 takes the deckbuilder's nested text. This game's effect data differs: its triggers and HP/Energy checks sit in one list joined by AND/OR, it has its own effect kinds (immunities, row moves, buildup, reflect...), and its skills have no card opener. How do those read?
