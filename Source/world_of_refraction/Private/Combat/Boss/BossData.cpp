@@ -4,6 +4,7 @@
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Character/CharacterData.h"
+#include "Equipment/EquipmentDataBase.h"
 #include "WoRLog.h"
 
 namespace BossPresetConstants
@@ -104,7 +105,41 @@ FString UBossData::GetBossDataString() const
 							   *FString::Join(Conditions, TEXT(" and ")), Phase.PhaseEffects.Num(), Phase.AggressionSteps,
 							   Phase.WeatherIntensity, Phase.DialogueId.IsNone() ? TEXT("") : *FString::Printf(TEXT(", dialogue %s"), *Phase.DialogueId.ToString()));
 	}
+	for (const FBossTrigger &Trigger : Triggers)
+	{
+		Out += TEXT("\n  ") + GetTriggerString(Trigger);
+	}
 	return Out;
+}
+
+FString UBossData::GetTriggerString(const FBossTrigger &Trigger)
+{
+	const auto NameOf = [](const UObject *Object) { return Object ? Object->GetName() : FString(TEXT("anyone")); };
+	TArray<FString> Conditions;
+	for (const FBossTriggerCondition &Condition : Trigger.Conditions)
+	{
+		switch (Condition.Kind)
+		{
+		case EBossTriggerConditionKind::PartyMember:
+			Conditions.Add(FString::Printf(TEXT("%s in the party"), *NameOf(Condition.Character)));
+			break;
+		case EBossTriggerConditionKind::GearWorn:
+			Conditions.Add(FString::Printf(TEXT("%s worn by %s at +%d"), Condition.Item ? *Condition.Item->GetName() : TEXT("<none>"),
+										   *NameOf(Condition.Character), Condition.UpgradeLevel));
+			break;
+		case EBossTriggerConditionKind::Hidden:
+			Conditions.Add(TEXT("hidden (not built)"));
+			break;
+		}
+	}
+	TArray<FString> Results;
+	for (const EBossTriggerResult Result : Trigger.Results)
+	{
+		Results.Add(UEnum::GetDisplayValueAsText(Result).ToString());
+	}
+	return FString::Printf(TEXT("Trigger %s: when [%s] -> [%s]%s"), *Trigger.TriggerId.ToString(), *FString::Join(Conditions, TEXT(" and ")),
+						   *FString::Join(Results, TEXT(", ")),
+						   Trigger.DialogueId.IsNone() ? TEXT("") : *FString::Printf(TEXT(", dialogue %s"), *Trigger.DialogueId.ToString()));
 }
 
 void UBossData::PrintBossData() const

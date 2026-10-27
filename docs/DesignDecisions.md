@@ -1968,6 +1968,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-149-formation-cells): `ACombatOrchestrator::GetPlaceholderEnemyStartRow`. Authored enemy cells replace it later.
 
+### Q-211 — Boss triggers: conditions, results and how they add up
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-211, D-100 part 1) · **Blocks:** — (B-211 ships with A)
+**Question:** D-100 part 1 gives each boss / mini-boss its own "if these conditions, then this" rules, using only what's true in the fight. Which conditions and results exist now, when are they checked, and how do several add up?
+**Options:**
+- **A** `UBossData::Triggers`: each trigger has conditions, all needed: **Party member** (a character in the party), **Gear worn** (an item worn, by a given character or anyone, at least N tiers above its authored tier), **Hidden** (never met for now, TODO). Its results are any of **weaken**, **strengthen**, **skip a phase**, **add a phase** and a **dialogue line** (an id, logged until the dialogue system, B-194). Checked once at fight start, after the boss's phases are set up. Weaken / strengthen from every fired trigger add up to one net change (−1 / +1 step each, the same 15% max HP and damage step and ±3 cap memories used). Skip a phase and add a phase each happen at most once per boss per fight, however many triggers ask (no doubled last stand, no boss stripped of every phase; Hades' Pact of Punishment likewise offers each modifier once). Memories no longer change bosses: the fight-start hook stops reading run memories; `UMemoryData::BossModifiers` stays, marked obsolete, until Crown's PIE.
+- **B** Each trigger authors its own percentage instead of steps.
+- **C** Re-check triggers during the fight (a swap of gear mid-fight).
+**Recommendation:** A. Elden Ring's Rykard (the Serpent-Hunter makes the fight winnable) and Sekiro's Divine Confetti show the right gear changing a boss fight, and players remember those moments; Hades' bosses greet you with lines about the weapon aspect you bring, widely praised. Steps keep triggers comparable and capped so stacking can't trivialise a boss; checking once at the start matches reaction triggers (B-191) and fixed-loadout fights. Not lore (which bosses react to what is Crown's).
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** conditions reuse the memory condition check (`MemoryConditions::IsMet` on a fight-start event), with only the fight-true kinds exposed (D-100: not memory-based). Applied (feature/B-211-boss-triggers): `UBossData::Triggers` (`FBossTrigger`), `Combat/Boss/BossTriggers.h`, `ReactionTriggers::ApplyBossSteps` (shared with the obsolete memory path), `ABattleGameMode` fight start.
+
 ### Q-209b — Memories by conditions: how the conditions are checked
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-209, D-100 restructured) · **Blocks:** — (B-209 ships with A)
 **Question:** D-100 part 2 gives each memory a list of unlock conditions, all needed, checked on events. Which condition types exist now, what does each event know, and what does a source do when its memory's conditions aren't met?
