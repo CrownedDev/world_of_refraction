@@ -137,13 +137,10 @@ TArray<FWoRAttributeSourceValue> UWoRAttributeSyncComponent::ReadSourceValues(co
 		Add(UWoRAttributeSet_Stats::GetCritChanceAttribute(), Calc->GetCriticalChance(MutableActor));
 		Add(UWoRAttributeSet_Stats::GetCritDamageAttribute(), Calc->GetCritDamageMultiplier(MutableActor));
 	}
-	// Turn order's stat x buff layer, as UStatModifierDebug's snapshot composes it.
-	const USkillEffectManager *SEM = AttributeSyncSubsystem<USkillEffectManager>(Actor);
-	if (SEM && Char->CharacterData)
+	// The speed turn order runs this actor at (B-042v).
+	if (const UTurnManager *Turns = AttributeSyncSubsystem<UTurnManager>(Actor))
 	{
-		Add(UWoRAttributeSet_Stats::GetTurnSpeedAttribute(),
-			Char->CharacterData->CalculateTurnSpeedWithSpirit(Char->GetEvolutionModifiedSpirit()) *
-				(1.0f + SEM->GetNetStatModifier(const_cast<AActor *>(Actor), ESubStat::TurnSpeed) / CombatConstants::STAT_PERCENT_DIVISOR));
+		Add(UWoRAttributeSet_Stats::GetTurnSpeedAttribute(), Turns->GetEffectiveTurnSpeed(Actor));
 	}
 
 	// B-216: one resistance per damage type (None is Resist_NonElemental), and the buildup layers.
@@ -166,6 +163,7 @@ void UWoRAttributeSyncComponent::SyncAttributes()
 		return;
 	}
 	const UCharacterDataComponent *Char = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+	const UTurnManager *Turns = AttributeSyncSubsystem<UTurnManager>(this);
 	for (const FWoRAttributeSourceValue &Source : ReadSourceValues(GetOwner()))
 	{
 		ESubStat Stat;
@@ -183,6 +181,12 @@ void UWoRAttributeSyncComponent::SyncAttributes()
 			SyncComposedStat(*ASC, Source.Attribute, Layers, UWoRGE_StatSources::GetClassFor(Pillar));
 			continue;
 		}
+		const bool bTurnSpeed = Source.Attribute == UWoRAttributeSet_Stats::GetTurnSpeedAttribute();
+		if (bTurnSpeed && Turns && Turns->GetTurnSpeedLayers(GetOwner(), Layers))
+		{
+			SyncComposedStat(*ASC, Source.Attribute, Layers, UWoRGE_StatSources::GetClassFor(ESubStat::TurnSpeed));
+			continue;
+		}
 		const TSubclassOf<UGameplayEffect> PoolClass = UWoRGE_PoolSources::GetClassFor(Source.Attribute);
 		FWoRPoolLayers PoolLayers;
 		const bool bMaxHealth = Source.Attribute == UWoRAttributeSet_Vitals::GetMaxHealthAttribute();
@@ -193,7 +197,7 @@ void UWoRAttributeSyncComponent::SyncAttributes()
 		}
 		// Not composed (or no layers, e.g. Defense without CharacterData, a max set another way): the
 		// getter's value, no sources.
-		if (bComposed || bPillar || PoolClass)
+		if (bComposed || bPillar || PoolClass || bTurnSpeed)
 		{
 			RemoveStatSources(*ASC, Source.Attribute);
 		}
@@ -397,6 +401,8 @@ void UWoRAttributeSyncComponent::BindSources()
 	if (UTurnManager *Turns = AttributeSyncSubsystem<UTurnManager>(this))
 	{
 		Turns->OnTurnStarted.AddUniqueDynamic(this, &UWoRAttributeSyncComponent::HandleTurnStarted);
+		// A loadout change re-caches turn speed after it broadcasts, and some re-caches have no loadout event.
+		Turns->OnSpeedChanged.AddUniqueDynamic(this, &UWoRAttributeSyncComponent::HandleSpeedChanged);
 	}
 }
 
@@ -416,6 +422,7 @@ void UWoRAttributeSyncComponent::UnbindSources()
 	if (UTurnManager *Turns = AttributeSyncSubsystem<UTurnManager>(this))
 	{
 		Turns->OnTurnStarted.RemoveDynamic(this, &UWoRAttributeSyncComponent::HandleTurnStarted);
+		Turns->OnSpeedChanged.RemoveDynamic(this, &UWoRAttributeSyncComponent::HandleSpeedChanged);
 	}
 }
 
@@ -454,6 +461,14 @@ void UWoRAttributeSyncComponent::HandleLoadoutChanged(int32 NewLoadoutIndex)
 }
 
 void UWoRAttributeSyncComponent::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
+{
+	if (Actor == GetOwner())
+	{
+		SyncAttributes();
+	}
+}
+
+void UWoRAttributeSyncComponent::HandleSpeedChanged(AActor *Actor)
 {
 	if (Actor == GetOwner())
 	{

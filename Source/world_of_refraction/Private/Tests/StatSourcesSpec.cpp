@@ -37,6 +37,8 @@ namespace
 	constexpr float STAT_SOURCES_TOLERANCE = 1.0e-4f;
 	/** MaxHealth and MaxEnergy (UWoRGE_PoolSources). */
 	constexpr int32 STAT_SOURCES_POOL_COUNT = 2;
+	/** Turn speed (UWoRGE_StatSources_TurnSpeed, outside GetComposedStats). */
+	constexpr int32 STAT_SOURCES_TURN_SPEED_COUNT = 1;
 }
 
 BEGIN_DEFINE_SPEC(FStatSourcesSpec, "WoR.GAS.StatSources",
@@ -64,10 +66,12 @@ BEGIN_DEFINE_SPEC(FStatSourcesSpec, "WoR.GAS.StatSources",
 		};
 	}
 
-	/** The sources effects share one family tag: one per composed stat, per pillar (B-042t) and per max pool (B-042u). */
+	/** The sources effects share one family tag: one per composed stat, per pillar (B-042t), per max pool (B-042u)
+	 *  and turn speed (B-042v). */
 	static int32 ComposedCount()
 	{
-		return UWoRAttributeSet_Stats::GetComposedStats().Num() + UWoRAttributeSet_Stats::GetComposedPillars().Num() + STAT_SOURCES_POOL_COUNT;
+		return UWoRAttributeSet_Stats::GetComposedStats().Num() + UWoRAttributeSet_Stats::GetComposedPillars().Num() + STAT_SOURCES_POOL_COUNT +
+			   STAT_SOURCES_TURN_SPEED_COUNT;
 	}
 
 	TArray<FActiveGameplayEffectHandle> SourceEffects() const

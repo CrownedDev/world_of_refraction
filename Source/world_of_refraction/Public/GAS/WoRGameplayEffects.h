@@ -317,6 +317,17 @@ public:
 	UWoRGE_StatSources_Efficiency();
 };
 
+/** Turn speed (B-042v): the turn manager's cached base, the attached stone and the net buff; gear stays at 1 (it
+ *  is inside the cached base). Not in GetComposedStats: its layers come from UTurnManager::GetTurnSpeedLayers. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_StatSources_TurnSpeed : public UWoRGE_StatSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_StatSources_TurnSpeed();
+};
+
 UCLASS()
 class WORLD_OF_REFRACTION_API UWoRGE_StatSources_Mind : public UWoRGE_StatSources
 {

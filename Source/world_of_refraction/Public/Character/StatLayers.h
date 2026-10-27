@@ -67,6 +67,17 @@ struct FWoRStatLayers
 		return Layers;
 	}
 
+	/** Turn speed's layers (B-042v): the cached base (the stat, its gear and ceiling, already rounded) x the
+	 *  attached stone x the net buff, never below 1; the turn manager rounds the product. */
+	static FWoRStatLayers ForTurnSpeed(float CachedBase)
+	{
+		FWoRStatLayers Layers;
+		Layers.StatBase = CachedBase;
+		Layers.Min = CombatConstants::TURN_SPEED_FLOOR;
+		Layers.Max = TNumericLimits<float>::Max();
+		return Layers;
+	}
+
 	/** StatBase x gear x stone x transient, clamped to [Min, Max]. */
 	float Compose() const
 	{

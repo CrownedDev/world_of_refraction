@@ -7,6 +7,8 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/TurnManager.h"
+#include "Engine/GameInstance.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -149,6 +151,17 @@ void UWoRAttributeDebug::AddComposedMismatches(const AActor *Actor, const UAbili
 	{
 		SourcesClass = UWoRGE_StatSources::GetClassFor(Pillar);
 		BaseLabel = TEXT("world base");
+	}
+	else if (Attribute == UWoRAttributeSet_Stats::GetTurnSpeedAttribute())
+	{
+		const UGameInstance *GI = Actor->GetWorld() ? Actor->GetWorld()->GetGameInstance() : nullptr;
+		const UTurnManager *Turns = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+		if (!Turns || !Turns->GetTurnSpeedLayers(Actor, Layers))
+		{
+			return;
+		}
+		SourcesClass = UWoRGE_StatSources::GetClassFor(ESubStat::TurnSpeed);
+		BaseLabel = TEXT("cached turn speed");
 	}
 	else
 	{

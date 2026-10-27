@@ -14,6 +14,7 @@ namespace TurnManagerTeams
 }
 
 class USkillEffectManager;
+struct FWoRStatLayers;
 
 /**
  * The KIND of a scheduled/current turn. Normal = ordinary debt-picked rotation turn.
@@ -212,6 +213,14 @@ public:
 	/** Get current actor */
 	UFUNCTION(BlueprintPure, Category = "Turn Manager")
 	AActor *GetCurrentActor() const;
+
+	/** The speed turn order runs Actor at (B-042v): its cached base x the attached stone x the net buff, rounded,
+	 *  at least 1. The cached base is its combatant entry's, or worked out now when Actor isn't in the fight. */
+	int32 GetEffectiveTurnSpeed(const AActor *Actor) const;
+
+	/** GetEffectiveTurnSpeed's layers, before the round (FWoRStatLayers::ForTurnSpeed), for the GAS turn speed.
+	 *  False when the speed takes a fallback instead (no cached base, no skill effect manager). */
+	bool GetTurnSpeedLayers(const AActor *Actor, FWoRStatLayers &OutLayers) const;
 
 	/** True when the CURRENT turn is a bonus turn being taken (Emerald). Per-turn transient:
 	 *  recomputed every AdvanceToNextTurn at the consume point, so it always describes the
@@ -418,6 +427,14 @@ private:
 
 	/** Cache actor stats from CharacterDataComponent */
 	void CacheActorStats(FCombatantTurnDebt &Combatant);
+
+	/** The cached turn speed CacheActorStats stores for Actor: the Spirit stat capped, its gear multiplying past
+	 *  the cap up to the ceiling, rounded (a fallback without character data). */
+	int32 ComputeCachedTurnSpeed(const AActor *Actor) const;
+
+	bool BuildTurnSpeedLayers(const AActor *Actor, int32 CachedSpeed, FWoRStatLayers &OutLayers) const;
+	int32 EffectiveTurnSpeedOf(const AActor *Actor, int32 CachedSpeed) const;
+	const FCombatantTurnDebt *FindCombatantEntry(const AActor *Actor) const;
 
 	/** Lazy-acquired SkillEffectManager pointer used by CalculateSpeedRatios to
 	 *  fold ModifyTurnSpeed / TurnSpeedBuff / TurnSpeedDebuff into the cached

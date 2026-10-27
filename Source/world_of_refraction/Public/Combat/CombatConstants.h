@@ -301,6 +301,7 @@ namespace CombatConstants
     // maxed no-gear rival = 20-15 = 5, well under TURN_SPEED_THRESHOLD_DOUBLE (15), so the 2:1 ratio
     // stays out of trivial reach. FLAG: Crown may tune (22-30 = more gear weight, nearer the 2:1 gate).
     constexpr float TURN_SPEED_GEAR_CEILING = 20.0f; // max turn speed WITH gear (>= TURN_SPEED_CAP)
+    constexpr float TURN_SPEED_FLOOR = 1.0f;          // turn order never runs a combatant below 1 (UTurnManager::GetEffectiveTurnSpeed)
 
     // Luck - Multi-system fortune stat (drop chance/quality, crit bonus, dodge, break skip)
     constexpr float LUCK_PER_POINT = PCT_STAT_PER_POINT; // -> 0.50 raw luck at max (= LUCK_RAW_MAX normalization basis)
