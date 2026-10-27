@@ -70,6 +70,12 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 - A GAS read resyncs the actor's mirror first (turn order and the HP/EP pool read before or beside the mirror's events). The reads count every WoR GE on the ASC: GEs applied any other way (B-042d) would count twice until B-042h makes GAS the store.
 - At UseGAS 1 a const effect-manager read can apply or remove GEs (the resync), so ASC listeners run inside it, sometimes while the manager walks an actor's effects; an ASC listener must not change the effect manager. Each read costs a full sync (fine for the PIE pass; B-042h drops it).
 
+### Effect lifetime on GAS (stage 3, B-042h part 3b)
+
+- At UseGAS 1 on an owner with a `UWoRTurnEffectTracker` (`UWoREffectMirrorComponent::OwnsLifetime`), the mirror applies each timed effect's GE through `ApplySpecForSpan` with the stored span; permanent and Immediate effects stay untracked. A refresh in `ApplyEffect` restarts the stored span and the sync pushes it (`SetSpan`); a stack swaps the GE with the copy's span.
+- Turn end: the tracker counts first and the stored copies take its count (`GetTrackedTurnsLeft`). Turn start: the tracker ends finished GEs, then `ReleaseEndedCopies` removes their copies (`RemoveEffectByIdentity`); the enum expiry only finds what GAS doesn't hold. A GE GAS ends early stays off (`EndedByGAS`) until then; a same-source re-apply starts it again (`ForgetEnded`).
+- Payouts stay on the enum path (tick-less GEs) until B-042y (Q-042hb). Debug: `UWoREffectMirrorComponent::GetDebugString` (tracked / turns left / pending releases), `wor.DumpTurnEffects`, `wor.CompareEffects`; spec `WoR.GAS.EffectLifetime`.
+
 ### Combat GameplayEvents (stage 3, B-042d part 4)
 
 - `GAS/WoRCombatEvents.h`: `WoRCombatEvents::Send(Target, Event, Instigator, Magnitude)` hands an `FGameplayEventData` to the target's ASC (`HandleGameplayEvent`); no ASC, no event, no error. `wor.Events.Log 1` logs each.
@@ -161,3 +167,4 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 | 2026-10-27 | B-042v (stage 3, part 5l, narrowed): turn speed composed on GAS from turn order's own getter; the resistance sources split into B-042w (Q-042v). | feature/B-042v-gas-turn-speed |
 | 2026-10-27 | B-042w (stage 3, part 5m): the resistances composed on GAS from one effect per source; general status resistance on the stat-sources shape (Q-042w). | feature/B-042w-gas-resistance |
 | 2026-10-27 | B-042n (stage 3, part 5d, narrowed): `WoRTickMath`, `UWoRTickExecution` on the DOT / HOT tick GEs, `ReadElementResistance`; the per-tick buildup split into B-042o (Q-042n). | feature/B-042n-gas-dot-hot-ticks |
+| 2026-10-27 | B-042h (stage 3, part 3b, narrowed): at UseGAS 1 the tracker owns timed effects' lifetime (`ApplySpecForSpan`, `SetSpan`, `ReleaseEndedCopies`, `ForgetEnded`); payouts move with B-042y (Q-042hb). | feature/B-042h-gas-effect-lifetime |

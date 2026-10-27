@@ -11,6 +11,13 @@
 // speed, the HP/EP pool on its own OnEffectApplied) sees the change too.
 // The GAS reads count every GE with a WoR context on the ASC and the owner's tags: once anything
 // else puts such GEs on it (B-042d), they count too, so the mirror must give way by then (B-042h).
+// B-042h (Q-042h): at UseGAS 1 on an owner with a UWoRTurnEffectTracker, GAS owns the lifetime. A
+// timed effect's GE is turn-counted by the tracker from the stored effect's span. A refresh in
+// ApplyEffect pushes its new span to the tracker. The stored enum effect becomes a read-only copy:
+// its turns follow the tracker (GetTrackedTurnsLeft), and when the tracker ends a GE at the holder's
+// turn start, ReleaseEndedCopies removes the copy through the effect manager. Removing a stored
+// effect (cleanse, death, combat end) still ends its GE through the sync. Payouts stay on the enum
+// path until B-042y routes the tick's Health write through the real HP path (Q-042hb).
 // Debug: UWoREffectDebug (wor.CompareEffects).
 
 #pragma once
@@ -22,6 +29,7 @@
 #include "WoREffectMirrorComponent.generated.h"
 
 class UAbilitySystemComponent;
+class UWoRTurnEffectTracker;
 struct FActiveSkillEffect;
 
 /** One stored enum-path effect as the mirror sees it: who it is and what it adds up to. */
@@ -30,6 +38,8 @@ struct FWoRMirroredEffect
 	FWoREffectIdentity Identity;
 	float Magnitude = 0.0f;
 	FActiveGameplayEffectHandle Handle;
+	/** Its GE is turn-counted by the owner's tracker (GAS owns its lifetime, B-042h). */
+	bool bTracked = false;
 
 	bool Matches(const FWoRMirroredEffect &Other) const;
 };
@@ -47,6 +57,19 @@ public:
 	void SyncMirror();
 
 	int32 NumMirrored() const { return Mirrored.Num(); }
+
+	/** GAS owns Actor's effect lifetime: the switch is on and Actor carries a mirror and a tracker. */
+	static bool OwnsLifetime(const AActor *Actor);
+
+	/** Holder turns left on the tracked GE of Effect's identity; INDEX_NONE when it has none. */
+	int32 GetTrackedTurnsLeft(const FActiveSkillEffect &Effect) const;
+
+	/** Remove, through the effect manager, the stored copies of the effects whose tracked GE GAS
+	 *  ended (the tracker at the holder's turn start). Called right after the tracker's turn start. */
+	void ReleaseEndedCopies();
+
+	/** A re-apply of an identity GAS ended (refresh or stack) starts it again: its GE comes back. */
+	void ForgetEnded(const FActiveSkillEffect &Effect);
 
 	/** What the owner's stored effects should look like on GAS: one entry per ported, stored effect. */
 	static TArray<FWoRMirroredEffect> ReadEnumEffects(const AActor *Actor);
@@ -77,7 +100,11 @@ private:
 	void BindSources();
 	void UnbindSources();
 
+	UWoRTurnEffectTracker *GetTracker() const;
+
 	TArray<FWoRMirroredEffect> Mirrored;
+	/** Identities whose tracked GE GAS ended; their stored copies go in ReleaseEndedCopies. */
+	TArray<FWoREffectIdentity> EndedByGAS;
 	/** An ASC listener that re-enters the effect manager mid-sync re-runs the sync instead. */
 	bool bSyncing = false;
 	bool bResyncRequested = false;

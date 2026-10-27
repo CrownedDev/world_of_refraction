@@ -18,6 +18,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GAS/WoREffectMirrorComponent.h"
+#include "GAS/WoRTurnEffectTracker.h"
 #include "WoRLog.h"
 
 class UWeaponData;
@@ -101,8 +102,8 @@ public:
 		return Component;
 	}
 
-	/** Gives Actor an ability system component (unless it has one) and an effect mirror (B-042c),
-	 *  so its stored effects are mirrored onto GAS and `wor.Effects.UseGAS` reads can use them. */
+	/** Gives Actor an ability system component (unless it has one), a turn tracker and an effect mirror
+	 *  (B-042c, B-042h), so its stored effects are mirrored onto GAS and `wor.Effects.UseGAS` can use them. */
 	static UWoREffectMirrorComponent *AddEffectMirror(AActor *Actor)
 	{
 		if (!Actor)
@@ -112,6 +113,11 @@ public:
 		if (!UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor))
 		{
 			AddComponent<UAbilitySystemComponent>(Actor)->InitAbilityActorInfo(Actor, Actor);
+		}
+		// As on ACombatCharacter: with UseGAS 1 the tracker owns the effects' lifetime (B-042h).
+		if (!Actor->FindComponentByClass<UWoRTurnEffectTracker>())
+		{
+			AddComponent<UWoRTurnEffectTracker>(Actor);
 		}
 		return AddComponent<UWoREffectMirrorComponent>(Actor);
 	}
