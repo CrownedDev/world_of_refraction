@@ -36,6 +36,9 @@ namespace MemoryUnlock
 	 *  many were new. */
 	WORLD_OF_REFRACTION_API int32 UnlockBossDrops(UGameInstance *GameInstance, const TArray<UCharacterData *> &Beaten);
 
+	/** The items Actor wears now, each with the level of the owned copy. */
+	WORLD_OF_REFRACTION_API TArray<TPair<const UEquipmentDataBase *, EItemTier>> GetWornWithTiers(const AActor *Actor);
+
 	/** How many tiers InstanceTier is above Item's authored tier. */
 	WORLD_OF_REFRACTION_API int32 GetUpgradeSteps(const UEquipmentDataBase &Item, EItemTier InstanceTier);
 
