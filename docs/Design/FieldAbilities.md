@@ -7,12 +7,14 @@
 - Movement through field skills: flight, speed, etc.
 - Evolutions changing how a character moves (e.g. a character whose evolution lets them run at lightning speed).
 
+**Crown, 2026-10-27: leaning to simplify field skills.** The choices below may shrink.
+
 ## Choices to make (one at a time)
 
 1. **Decided (Crown, 2026-10-27): a fast, free sprint for everyone** (Nightreign); field skills and evolutions build on top.
 2. **Decided (Crown, 2026-10-27): evolutions give both**: a small always-on movement bonus (e.g. +10-20% sprint, `// TODO: tune`) **and** one active movement skill that costs EP (e.g. a lightning dash burst). Kingdom Hearts 2's forms.
 3. **Decided (Crown, 2026-10-27): speed and dash first, glide next, flight last.** Plus:
-   - **Dash evolves into sprint**: a dash carries on into a faster sprint (exact meaning being confirmed).
+   - **Dash evolves into sprint**: a dash carries on into a faster sprint (in motion or through upgrades: to look into, Crown).
    - **Wall-running at speed**: moving fast enough lets you run along walls (Prototype, Warframe-style parkour).
 4. How flight is limited (EP drain, height ceiling, no-fly zones, launch points).
 5. Element rules on the world (burn, freeze, wind lift, conduct, douse) defined once for the whole game.
