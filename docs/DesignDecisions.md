@@ -1423,7 +1423,10 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
   - **Evolutions** add a small always-on movement bonus and **augment the field skill to a degree** (e.g. the lightning character's skill becomes a lightning dash).
   - **Sources:** a field skill can draw on a source like battle skills do; **a crystal source still loses durability** when used (`CrystalWear.md`).
   - **Dropped:** separate field uses on battle skills, and field-only skill slots.
-**Notes for Claude:** built on GAS (stage 4 abilities, B-043): one ability per skill with a battle and a field mode. Open details: how level / source picks the field skill; dash-into-sprint meaning (`Design/FieldAbilities.md`).
+  - **Enhanced Sprint** is also **faster than the normal sprint** (Elden Ring Nightreign's surge sprint), on top of wall-running.
+  - **Source picks the skill: A** (Crown, 2026-10-27): the **source decides which field skill** you have (e.g. a Wind crystal glides, a Lightning one dashes) and **its level decides how strong** it is. The source also decides **what is available at all**: e.g. a Generic can't fly without an elemental source that gives flight.
+  - **Some field skills are locked** until unlocked: you must have **equipped or learned a specific skill** first. **Once unlocked, anyone can use it** with the matching source: e.g. after the lightning character's lightning speed is unlocked, **any character with a Lightning source** gets lightning speed as their field skill.
+**Notes for Claude:** built on GAS (stage 4 abilities, B-043): one ability per skill with a battle and a field mode. Open details: dash-into-sprint meaning; which field skill each source gives and which are locked (`Design/FieldAbilities.md`).
 
 ### D-100 — Memories and boss triggers: two separate systems
 **Status:** ANSWERED (2026-10-27, restructured the same day) · **Raised:** 2026-10-27 (Q-190 review) · **Blocks:** —
