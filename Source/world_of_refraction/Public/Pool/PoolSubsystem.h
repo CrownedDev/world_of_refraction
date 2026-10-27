@@ -146,6 +146,9 @@ public:
      *  (reserved for a future Luck-biased acquisition roll; authored banking is deterministic today). */
     void PopulateFromInventoryAsset(UInventoryData *Asset, AActor *OwnerContext);
 
+    /** B-090: a pool restored from a save counts as populated, so the authored seed can't add a second copy. */
+    void MarkPopulated() { bPopulated = true; }
+
     // ==================== DEBUG ====================
 
     /** Dump the whole pool to log + screen: per-category counts, crystal stacks, and the

@@ -68,7 +68,29 @@ namespace CurrencyWalletInternal
 		const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
 		UE_LOG(LogTemp, Log, TEXT("%s"), *CurrencyWallet::GetWalletOwnerString(PC ? PC->GetPawn() : nullptr));
 	}
+
+	/** wor.Wallet.Add <Gold|Prisms|Diamond|GearEssence|SkillEssence> <amount>: a test grant (B-090 PIE checks). */
+	void AddToLocalWallet(const TArray<FString> &Args, UWorld *World)
+	{
+		const int64 Currency = Args.Num() == 2 ? StaticEnum<ECurrencyType>()->GetValueByNameString(Args[0]) : INDEX_NONE;
+		const int32 Amount = Args.Num() == 2 ? FCString::Atoi(*Args[1]) : 0;
+		const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
+		UCurrencyComponent *Wallet = PC ? PlayerWalletOf(PC->PlayerState) : nullptr;
+		if (Currency == INDEX_NONE || Currency == static_cast<int64>(ECurrencyType::EssenceTyped) || Amount <= 0 || !Wallet)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Wallet] Usage: wor.Wallet.Add <Gold|Prisms|Diamond|GearEssence|SkillEssence> <amount> (needs the player's wallet)"));
+			return;
+		}
+		Wallet->Add(static_cast<ECurrencyType>(Currency), Amount);
+		UE_LOG(LogTemp, Log, TEXT("[Wallet] Added %d %s: now %d"), Amount, *Args[0],
+			   Wallet->GetBalance(static_cast<ECurrencyType>(Currency)));
+	}
 }
+
+static FAutoConsoleCommandWithWorldAndArgs GWalletAddCommand(
+	TEXT("wor.Wallet.Add"),
+	TEXT("DEBUG: wor.Wallet.Add <Gold|Prisms|Diamond|GearEssence|SkillEssence> <amount> - add to the local player's wallet."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&CurrencyWalletInternal::AddToLocalWallet));
 
 static FAutoConsoleCommandWithWorld GWalletPrintCommand(
 	TEXT("wor.Wallet.Print"),

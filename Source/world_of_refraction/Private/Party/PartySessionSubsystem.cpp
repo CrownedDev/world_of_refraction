@@ -147,6 +147,35 @@ UParty *UPartySessionSubsystem::CreateSoloParty(APlayerController *Leader, TSoft
 	return NewParty;
 }
 
+UParty *UPartySessionSubsystem::RestoreLocalParty(const FText &DisplayName, bool bLetAIFinish,
+												  const TArray<FPartyMember> &Members)
+{
+	if (GetLocalParty() || Members.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PartySession] Saved party not restored: %s"),
+			   GetLocalParty() ? TEXT("a local party already exists") : TEXT("no members"));
+		return nullptr;
+	}
+
+	// GameInstance outer, as in CreateSoloParty: the party must outlive OpenLevel.
+	UParty *Restored = NewObject<UParty>(GetGameInstance());
+	Restored->DisplayName = DisplayName;
+	Restored->bLetAIFinish = bLetAIFinish;
+	Restored->Members = Members;
+	if (Restored->Members.Num() > PartyConstants::MAX_PARTY_MEMBERS)
+	{
+		Restored->Members.SetNum(PartyConstants::MAX_PARTY_MEMBERS);
+	}
+	// D-004: the leader is always Player-controlled.
+	Restored->Members[0].bPlayerControlled = true;
+	Parties.Add(Restored);
+
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] Restored saved party '%s' (%d members)"),
+		   *Restored->DisplayName.ToString(), Restored->GetMemberCount());
+	OnPartyChanged.Broadcast(Restored);
+	return Restored;
+}
+
 UParty *UPartySessionSubsystem::EnsureLocalParty(APlayerController *PC, TSoftClassPtr<ACombatCharacter> PawnClass)
 {
 	if (UParty *Existing = GetLocalParty())
