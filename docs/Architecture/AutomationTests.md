@@ -17,7 +17,7 @@ All files live in `Source/world_of_refraction/Private/Tests/`, wrapped in `WITH_
 | `WoRTestWorld.h` | `FWoRTestWorld`: wraps the engine's `FTestWorldWrapper`. Real `UGameInstance`, so every WoR subsystem exists. Ticked by hand. `SpawnCombatant` gives a bare actor (player path) or an unpossessed pawn (AI path) carrying only a `UCharacterDataComponent`; `SpawnCombatantWithLoadout` adds an inventory and a loadout initialised from the character data, optionally with a primary weapon (B-133); `AddComponent<T>` adds and registers any component |
 | `ActionExecutedRecorder.h`, `CombatResultRecorder.h`, `InventoryChangeRecorder.h`, `PartsDroppedRecorder.h` | `UObject` listeners with a `UFUNCTION` handler, so a spec can bind a dynamic delegate and check what it broadcast |
 
-### Specs (76 files)
+### Specs (77 files)
 
 | File | Test names | Covers |
 |---|---|---|
@@ -41,6 +41,7 @@ All files live in `Source/world_of_refraction/Private/Tests/`, wrapped in `WITH_
 | `CrystalBreakSpec.cpp` | `WoR.Durability.CrystalBreak` | between-combat crystal destruction, split out of ACombatOrchestrator (B-035). |
 | `CrystalMergeSpec.cpp` | `WoR.Economy.CrystalMerge` | a crystal merge gives back its overshoot as the fewest lower-tier crystals of the same type; an exact merge is unchanged (ER-28 (Crown, 2026-10-26; B-177)). |
 | `CurrencyClampSpec.cpp` | `WoR.Economy.CurrencyClamp` | a balance stops at the int32 limit instead of wrapping negative (B-075). |
+| `EconomyRoundTripSpec.cpp` | `WoR.Economy.RoundTrip` | today's economy numbers as literals: a cart's Prisms price, all-or-nothing purchase, weapon level-up (Gear plus half in Reality) and revert (half the Gear back, never below the authored tier), dismantle yields by instance tier and gem element (B-137). |
 | `DamageCalculatorSpec.cpp` | `WoR.Damage` | UDamageCalculator::CalculateDamage on bare combatants (no loadout, no grid slot, no effects): Pattern-P stat cap, defense reduction + clamp, crit damage. |
 | `DataAssetValidationSpec.cpp` | `WoR.Data.Validation` | editor validation and debug dumps for the data assets that had none (B-120). |
 | `DefenseClockSpec.cpp` | `WoR.Defense.Clock` | every defense timestamp runs on world time, so wall-clock time passing without a world tick (a pause) leaves the press window untouched (B-009). |
@@ -123,3 +124,4 @@ Combatants are bare unless a spec needs more: `SpawnCombatant` gives no loadout,
 | 2026-10-27 | B-134: `WoR.Effects.Baseline` (13 cases) records how effects behave today, including two surprises kept as they are: a DOT fires on application (then skips that turn's end), and a same-source re-apply with refresh off replaces the value but keeps the duration while reporting DurationRefreshed. `ClearAllEffects` removes effects and armed gear; only `ResetForNewCombat` resets the once-per-match record (it also clears armed gear). | chore/B-134-effects-baseline-spec |
 | 2026-10-27 | B-135: three specs record today's behaviour: `WoR.Status.Buildup` (7 cases), `WoR.Defense.Match` (7) and `WoR.Combat.Grid` (6); `WoR.Effects.Baseline` gains the add-mid-pass case (a DOT tick caps the bar and adds a stun while the pass walks the list; landing on the holder's own turn, the stun counts that turn, per TurnSpan.h). | chore/B-135-buildup-defense-grid-specs |
 | 2026-10-27 | B-136: `WoR.Infusion.Cost` (6 cases) pins infusion EP and HP costs with literal numbers; it records that a chosen ability source at L0 still pays x1.5. Not covered: `ApplyCommitCosts`' HP routing by source (needs a running action). | chore/B-136-infusion-cost-spec |
+| 2026-10-27 | B-137: `WoR.Economy.RoundTrip` (5 cases) pins cart cost, the level-up/revert round trip and dismantle yields with literal numbers. | chore/B-137-economy-spec |
