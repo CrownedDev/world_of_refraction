@@ -176,6 +176,8 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 
 	// Attacks are physical unless infused. Infused attacks still scale by RawDamage; their element
 	// steers status and, since B-064, the defender's element resistance.
+	// TODO: B-080 — Blueprint-only (no C++ caller); still gives an infused attack the innate element,
+	// not the selected source's (D-007). Combat reads UActionExecutor::PreviewActionDamage instead.
 	Input.Element = bIsInfused ? AttackerData->InnateElement : ESpellElement::None;
 
 	Input.bCanCrit = true;

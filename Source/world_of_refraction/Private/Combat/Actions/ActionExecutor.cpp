@@ -684,10 +684,19 @@ FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FA
 	else
 	{
 		// Element-infusion damage penalty was removed per the locked cost matrix, so bIsInfused no
-		// longer changes the base. Infusion routes the user's innate element through; non-infused
-		// abilities stay non-elemental.
+		// longer changes the base. An infused ability deals its selected source's element (D-007:
+		// a Generic + fire crystal deals Fire); uninfused, Raw or an unbound source stay Physical (None).
 		Preview.BaseDamage = Skill->CalculateDamage(UserData, bIsInfused);
-		Preview.Element = (bIsInfused && UserData->HasInnateElement()) ? UserData->InnateElement : ESpellElement::None;
+		Preview.Element = bIsInfused ? GetElementForSourceOption(User, Action.SelectedSource) : ESpellElement::None;
+		if (Preview.Element == ESpellElement::Generic)
+		{
+			if (bLog)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Ability %s infused through an unbound source (Generic) — using None"),
+					   *Skill->Name);
+			}
+			Preview.Element = ESpellElement::None;
+		}
 	}
 
 	// 6-3-3: per-mode, stat-scaled charge damage (L0 x1.0), resolved from the action's infusion source.
@@ -1529,8 +1538,6 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	}
 
 	// Calculate and spend energy
-	const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
-
 	// Cost is DRY-sourced from CalculateActionEnergyCost (ability branch) — the exact
 	// formula this used to inline (BaseCost × charge × efficiency × tier-power; crystal
 	// sources → 0; same rounding), so the spend stays equal to preview/validation.
@@ -1551,7 +1558,7 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	// Calculate base damage. Element-infusion damage penalty was removed per
 	// the locked cost matrix — infusion now pays its tax via durability wear /
 	// HP backlash / status build / energy multipliers, not flat damage tax.
-	// Base x charge x tier-gap x tier-power and the element (infused: the user's innate; otherwise
+	// Base x charge x tier-gap x tier-power and the element (infused: the selected source's; otherwise
 	// None), from the one calculation the AI estimate shares (B-029). Abilities don't read ActionMods
 	// for their base.
 	const FActionDamagePreview DamagePreview = PreviewActionDamage(User, Action, FActionStatModifiers(), /*bLog*/ true);
@@ -1591,7 +1598,7 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 
 	// Buildup amount only. Session Y: trigger type resolves in the manager from
 	// (Element, PhysicalType). Abilities have no physical type - if the action
-	// is non-infused (Element=Generic, Physical=None) the resolver returns None
+	// is non-infused (Element=None, Physical=None) the resolver returns None
 	// and nothing fires on cap; if infused, Element drives the trigger.
 	// TODO: a future ability-specific override (via Effects[]) could route a
 	// different trigger when uninfused — wire when the design lands.
@@ -1616,11 +1623,10 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	//   - PhysicalDamageType: from the executing ability/attack itself —
 	//     Cluster C moved the field off the weapon (same swing, same type,
 	//     any weapon)
-	//   - Element: from Action.SelectedSource — per-action infusion choice.
-	//     Only resolves to the user's InnateElement when an elemental source
-	//     is selected (Generic/Resonator default to None; Caster picks
-	//     elemental source to push their innate element)
-	ESpellElement AbilityElement = ESpellElement::None;
+	//   - Element: from Action.SelectedSource — per-action infusion choice
+	//     (a crystal, ring or innate source's element; None when uninfused),
+	//     the same element the damage uses (D-007)
+	const ESpellElement AbilityElement = Element;
 
 	// Cluster C: the ability/attack is the sole PhysicalDamageType source; the
 	// weapon no longer carries it.
@@ -1630,13 +1636,6 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	{
 		UE_LOG(LogTemp, Warning, TEXT("ActionExecutor: '%s' resolved PhysicalDamageType None — physical bar-cap trigger will not fire."),
 			Ability ? *Ability->Name : TEXT("<unknown>"));
-	}
-
-	// bIsInfused was already computed at the top of the function from
-	// Action.SelectedSource — reuse it here for the buildup-bar element.
-	if (bIsInfused && UserData && UserData->HasInnateElement())
-	{
-		AbilityElement = UserData->InnateElement;
 	}
 
 	OpenDefenseWindowsForTargets(
