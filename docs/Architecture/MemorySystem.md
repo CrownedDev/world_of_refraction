@@ -37,6 +37,7 @@ Memories are the story the player collects in trials (RunStructure §5). A memor
 ## Changelog
 | Date | Change | Branch |
 |---|---|---|
+| 2026-10-27 | B-209 requirement fit (Q-209e): `EMemoryRequirementFit` (Any / Met / Above / Under) + `RequirementMargin` on gear, evolution and skill-slotted conditions; `MemoryConditions::FitsRequirements` per pillar on the wearer's world levels. | feature/B-209-requirement-fit |
 | 2026-10-27 | B-209 gear and skill conditions (Q-209d): kinds EvolutionEquipped / SkillSlotted / SkillUsed / BreakthroughUsed / FinishingBlow; `FMemoryEventMember` carries the primary evolution (owned tier), slotted skills and `FMemoryFightUsage`; `MemoryConditions::RecordAction` / `RecordKill`; `ABattleGameMode::FightUsage` fed by the action executor's start and kill events; evolution level-ups are upgrade events. | feature/B-209-gear-skill-conditions |
 | 2026-10-27 | B-209 Crown's additions (Q-209c): `FMemoryConditionSet` / `AlternativeConditionSets` (any route opens it; `GetConditionSets`, `HasConditions`), `FMemoryReward` (`EMemoryRewardKind` Item / Skill / Title / Curse) / `Rewards`, logged once by `MemoryUnlock::Unlock` (grants TODO). | feature/B-209-condition-sets-rewards |
 | 2026-10-27 | B-211: memories no longer change bosses (D-100 part 1); `UMemoryData::BossModifiers` is obsolete, unread, tagged so in `GetMemoryString`, kept until Crown's PIE. | feature/B-211-boss-triggers |
