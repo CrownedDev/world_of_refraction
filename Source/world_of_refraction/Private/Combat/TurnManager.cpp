@@ -248,7 +248,7 @@ void UTurnManager::CalculateSpeedRatios()
 		const float Multiplier = 1.0f + SEM->GetNetStatModifier(Combatant.Actor, ESubStat::TurnSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
 
 		// Attached TurnSpeedStone — a PERMANENT, equipment-derived turn-speed multiplier
-		// from the combatant's OWN active weapon attachment (live-resolved). Multiplies
+		// from the combatant's OWN weapon and ring attachments (live-resolved). Multiplies
 		// EFFECTIVE speed alongside the buff/debuff Multiplier — deliberately NOT folded
 		// into CachedSpeed, which stays the pristine tie-break base. Inert (×1) unless a
 		// TurnSpeedStone is attached (GetAttachedStonePercent stat-match guard).

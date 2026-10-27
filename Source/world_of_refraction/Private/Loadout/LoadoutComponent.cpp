@@ -167,7 +167,7 @@ bool ULoadoutComponent::SetActiveLoadoutIndex(int32 Index)
     }
 
     // Active equipment changed → recompute the stat-derived pools (equipment
-    // BonusMaxHP/BonusMaxEnergy; the active weapon's pool-stone in P1). Does NOT
+    // BonusMaxHP/BonusMaxEnergy; the weapon's and ring's pool stones, B-082). Does NOT
     // touch CurrentHP/EP (overcap-not-clamp) — see RecomputeMaxPools doc.
     if (UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr)
     {
@@ -2752,7 +2752,7 @@ void ULoadoutComponent::ToggleEquipment()
     SwapGearEffects(OldGearEffects);
 
     // Active equipment changed → recompute the stat-derived pools (equipment
-    // BonusMaxHP/BonusMaxEnergy; the active weapon's pool-stone in P1). Does NOT
+    // BonusMaxHP/BonusMaxEnergy; the weapon's and ring's pool stones, B-082). Does NOT
     // touch CurrentHP/EP (overcap-not-clamp) — see RecomputeMaxPools doc.
     if (UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr)
     {
@@ -3073,7 +3073,8 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
 
 const FRuntimeAttachedItem *ULoadoutComponent::GetStoneRingAttachment() const
 {
-    const FRingLoadoutEntry *Ring = GetActiveRingLoadout() ? GetActiveRingLoadout() : GetPrimaryRingLoadout();
+    const FRingLoadoutEntry *Ring = GetActiveRingLoadout();
+    Ring = Ring ? Ring : GetPrimaryRingLoadout();
     return Ring ? &Ring->RingEntry.AttachedItem : nullptr;
 }
 
@@ -3609,7 +3610,7 @@ void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
     SwapGearEffects(OldGearEffects);
 
     // Active equipment changed → recompute the stat-derived pools (equipment
-    // BonusMaxHP/BonusMaxEnergy; the active weapon's pool-stone in P1). Does NOT
+    // BonusMaxHP/BonusMaxEnergy; the weapon's and ring's pool stones, B-082). Does NOT
     // touch CurrentHP/EP (overcap-not-clamp) — see RecomputeMaxPools doc.
     if (UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr)
     {
