@@ -7,6 +7,8 @@
 #include "Character/CharacterDataComponent.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoREffectSpecBuilder.h"
+#include "GAS/WoRGameplayEffects.h"
+#include "Tags/WoRGameplayTags.h"
 #include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
 #include "WoRLog.h"
@@ -15,6 +17,16 @@ namespace
 {
 	constexpr int32 MIN_TRACKED_TURNS = 1;
 	constexpr float TRACKED_EFFECT_LEVEL = 1.0f;
+
+	FGameplayTag AbsorbVerbTag(EWoRAbsorbVerb Verb)
+	{
+		switch (Verb)
+		{
+		case EWoRAbsorbVerb::Ward: return WoRTags::Status_Absorb_Ward;
+		case EWoRAbsorbVerb::Shield: return WoRTags::Status_Absorb_Shield;
+		default: return WoRTags::Status_Absorb_Barrier;
+		}
+	}
 
 	FAutoConsoleCommandWithWorld GDumpTurnEffectsCmd(
 		TEXT("wor.DumpTurnEffects"),
@@ -31,6 +43,53 @@ namespace
 						UE_LOG(LogWoREffects, Log, TEXT("[TurnEffectTracker] %s GEs:\n%s"), *It->GetName(),
 							   *FWoREffectSpecBuilder::GetDebugString(*ASC));
 					}
+				}
+			}
+		}));
+}
+
+namespace
+{
+	/** Arguments: name part, verb, magnitude, uses ("pool" for a pool), turns, then the Ward's element. */
+	constexpr int32 ABSORB_ADD_MIN_ARGS = 5;
+	constexpr int32 ABSORB_ADD_ELEMENT_ARG = 5;
+
+	FAutoConsoleCommandWithWorldAndArgs GAddAbsorbCmd(
+		TEXT("wor.Absorb.Add"),
+		TEXT("DEBUG (B-042j): wor.Absorb.Add <NamePart> <Barrier|Shield|Ward> <Magnitude> <Uses (0 = unlimited) | pool> ")
+		TEXT("<Turns (0 = until spent)> [Element]. Gives every combatant whose name contains NamePart an absorber."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString> &Args, UWorld *World)
+		{
+			if (Args.Num() < ABSORB_ADD_MIN_ARGS)
+			{
+				UE_LOG(LogWoREffects, Warning, TEXT("[TurnEffectTracker] wor.Absorb.Add needs at least %d arguments"), ABSORB_ADD_MIN_ARGS);
+				return;
+			}
+			FWoRAbsorbCharge Charge;
+			const int64 Verb = StaticEnum<EWoRAbsorbVerb>()->GetValueByNameString(Args[1]);
+			if (Verb == INDEX_NONE)
+			{
+				UE_LOG(LogWoREffects, Warning, TEXT("[TurnEffectTracker] wor.Absorb.Add: unknown verb %s"), *Args[1]);
+				return;
+			}
+			Charge.Verb = static_cast<EWoRAbsorbVerb>(Verb);
+			Charge.Magnitude = FCString::Atoi(*Args[2]);
+			const bool bPool = Args[3].Equals(TEXT("pool"), ESearchCase::IgnoreCase);
+			Charge.Mode = bPool ? EWoRChargeMode::Pool : EWoRChargeMode::Uses;
+			Charge.MaxUses = bPool ? 0 : FCString::Atoi(*Args[3]);
+			const int32 Turns = FCString::Atoi(*Args[4]);
+			if (Args.IsValidIndex(ABSORB_ADD_ELEMENT_ARG))
+			{
+				const int64 Element = StaticEnum<ESpellElement>()->GetValueByNameString(Args[ABSORB_ADD_ELEMENT_ARG]);
+				Charge.Element = Element == INDEX_NONE ? ESpellElement::None : static_cast<ESpellElement>(Element);
+			}
+			for (TActorIterator<AActor> It(World); It; ++It)
+			{
+				UWoRTurnEffectTracker *Tracker = It->FindComponentByClass<UWoRTurnEffectTracker>();
+				if (Tracker && It->GetName().Contains(Args[0]))
+				{
+					Tracker->ApplyAbsorb(Charge, Turns, *It);
+					Tracker->PrintState();
 				}
 			}
 		}));
@@ -58,6 +117,7 @@ void UWoRTurnEffectTracker::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	// TODO: co-op (D-065) - battle pawns die with the fight today, so the GEs go with the ASC; a
 	// pawn that outlives a fight should remove its tracked GEs here.
 	Tracked.Reset();
+	Absorbs.Reset();
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -158,6 +218,15 @@ void UWoRTurnEffectTracker::OnHolderTurnStart()
 		UE_LOG(LogWoREffects, Log, TEXT("[TurnEffectTracker] %s: a span ended at turn start"), *GetNameSafe(GetOwner()));
 		RemoveTracked(Handle);
 	}
+	// B-042j, D-092 rule 4: a counted, timed absorber refills at the holder's turn start.
+	for (TPair<FActiveGameplayEffectHandle, FWoRAbsorbCharge> &Absorb : Absorbs)
+	{
+		FWoRAbsorbCharge &Charge = Absorb.Value;
+		if (Charge.bTimed && Charge.Mode == EWoRChargeMode::Uses && Charge.MaxUses > 0)
+		{
+			Charge.UsesLeft = Charge.MaxUses;
+		}
+	}
 
 	// Copied first: a payout can kill the holder, and its removals reach Tracked through the ASC.
 	TArray<const FTrackedEffect *> Ticking;
@@ -230,6 +299,86 @@ int32 UWoRTurnEffectTracker::GetTurnsLeft(FActiveGameplayEffectHandle Handle) co
 void UWoRTurnEffectTracker::HandleEffectRemoved(const FActiveGameplayEffect &Removed)
 {
 	Tracked.Remove(Removed.Handle);
+	Absorbs.Remove(Removed.Handle);
+}
+
+FActiveGameplayEffectHandle UWoRTurnEffectTracker::ApplyAbsorb(const FWoRAbsorbCharge &Charge, int32 Turns, AActor *Instigator)
+{
+	UAbilitySystemComponent *ASC = GetOwnerASC();
+	if (!ASC || !WoRAbsorb::IsValidCharge(Charge))
+	{
+		UE_LOG(LogWoREffects, Warning, TEXT("[TurnEffectTracker] %s: absorber %s not applied (ASC %s)"), *GetNameSafe(GetOwner()),
+			   *Charge.ToString(), ASC ? TEXT("ok; a Ward needs an element, a magnitude above 0") : TEXT("missing"));
+		return FActiveGameplayEffectHandle();
+	}
+	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+	Context.AddInstigator(Instigator, Instigator);
+	const FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(UWoRGE_Absorb::StaticClass(), TRACKED_EFFECT_LEVEL, Context);
+	if (!Spec.IsValid())
+	{
+		return FActiveGameplayEffectHandle();
+	}
+	Spec.Data->DynamicGrantedTags.AddTag(AbsorbVerbTag(Charge.Verb));
+
+	FWoRAbsorbCharge Added = Charge;
+	Added.Fill();
+	Added.bTimed = Turns >= MIN_TRACKED_TURNS;
+	Added.Arrival = NextAbsorbArrival++;
+	BindRemovedEvent();
+	// D-092 rule 3: with a duration it ends at whichever comes first; without one it stands until spent.
+	const FActiveGameplayEffectHandle Handle =
+		Added.bTimed ? ApplySpecForHolderTurns(Spec, Turns) : ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+	if (Handle.IsValid())
+	{
+		Absorbs.Add(Handle, Added);
+		UE_LOG(LogWoREffects, Log, TEXT("[TurnEffectTracker] %s gains %s"), *GetNameSafe(GetOwner()), *Added.ToString());
+	}
+	return Handle;
+}
+
+int32 UWoRTurnEffectTracker::AbsorbHit(int32 Damage, ESpellElement HitElement, EPhysicalDamageType HitPhysical)
+{
+	if (Damage <= 0 || Absorbs.Num() == 0)
+	{
+		return 0;
+	}
+	TArray<FWoRAbsorbCharge *> Charges;
+	for (TPair<FActiveGameplayEffectHandle, FWoRAbsorbCharge> &Absorb : Absorbs)
+	{
+		Charges.Add(&Absorb.Value);
+	}
+	const int32 Negated = WoRAbsorb::Spend(Charges, Damage, HitElement, HitPhysical);
+
+	TArray<FActiveGameplayEffectHandle> UsedUp;
+	for (const TPair<FActiveGameplayEffectHandle, FWoRAbsorbCharge> &Absorb : Absorbs)
+	{
+		if (Absorb.Value.IsUsedUp())
+		{
+			UsedUp.Add(Absorb.Key);
+		}
+	}
+	UAbilitySystemComponent *ASC = GetOwnerASC();
+	for (const FActiveGameplayEffectHandle &Handle : UsedUp)
+	{
+		Absorbs.Remove(Handle);
+		if (!RemoveTracked(Handle) && ASC)
+		{
+			ASC->RemoveActiveGameplayEffect(Handle);
+		}
+	}
+	if (Negated > 0)
+	{
+		UE_LOG(LogWoREffects, Log, TEXT("[TurnEffectTracker] %s's absorbers negate %d of %d damage (%d used up)"),
+			   *GetNameSafe(GetOwner()), Negated, Damage, UsedUp.Num());
+	}
+	return Negated;
+}
+
+TArray<FWoRAbsorbCharge> UWoRTurnEffectTracker::GetAbsorbs() const
+{
+	TArray<FWoRAbsorbCharge> Out;
+	Absorbs.GenerateValueArray(Out);
+	return Out;
 }
 
 FString UWoRTurnEffectTracker::GetDebugString() const
@@ -241,6 +390,10 @@ FString UWoRTurnEffectTracker::GetDebugString() const
 		const FActiveGameplayEffect *Active = ASC ? ASC->GetActiveGameplayEffect(Entry.Key) : nullptr;
 		const UGameplayEffect *Def = Active ? Active->Spec.Def.Get() : nullptr;
 		Out += FString::Printf(TEXT("\n  %s [%s]: %s"), *GetNameSafe(Def), *Entry.Key.ToString(), *Entry.Value.Span.GetDebugString());
+	}
+	for (const TPair<FActiveGameplayEffectHandle, FWoRAbsorbCharge> &Absorb : Absorbs)
+	{
+		Out += FString::Printf(TEXT("\n  absorber [%s]: %s"), *Absorb.Key.ToString(), *Absorb.Value.ToString());
 	}
 	return Out;
 }

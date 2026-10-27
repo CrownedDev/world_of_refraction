@@ -17,6 +17,7 @@
 #include "Components/ActorComponent.h"
 #include "ActiveGameplayEffectHandle.h"
 #include "GameplayEffectTypes.h"
+#include "GAS/WoRAbsorb.h"
 #include "Skills/Effects/TurnSpan.h"
 #include "WoRTurnEffectTracker.generated.h"
 
@@ -62,6 +63,17 @@ public:
 	/** Holder turns left on a tracked GE; -1 when the handle isn't tracked here. */
 	int32 GetTurnsLeft(FActiveGameplayEffectHandle Handle) const;
 
+	/** B-042j (D-092): give the holder an absorber (a UWoRGE_Absorb with its verb's tag) for Turns of its turns,
+	 *  or until spent when Turns is 0. Invalid handle for an invalid charge (WoRAbsorb::IsValidCharge) or no ASC. */
+	FActiveGameplayEffectHandle ApplyAbsorb(const FWoRAbsorbCharge &Charge, int32 Turns, AActor *Instigator);
+
+	/** B-042j: one damage instance after Guard and Defense (Q-044e B): the damage the absorbers negate. A used-up
+	 *  absorber goes (its GE is removed); a timed counted one waits for its refill at the holder's turn start. */
+	int32 AbsorbHit(int32 Damage, ESpellElement HitElement, EPhysicalDamageType HitPhysical);
+
+	/** B-042j: the holder's absorbers as they stand (copies, in no order). */
+	TArray<FWoRAbsorbCharge> GetAbsorbs() const;
+
 	int32 NumTracked() const { return Tracked.Num(); }
 
 	/** One line per tracked GE: its class and its span. */
@@ -95,4 +107,8 @@ private:
 	/** The ASC whose removed event this component listens to. */
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
 	FDelegateHandle RemovedHandle;
+
+	/** B-042j: each absorber's charges, by its UWoRGE_Absorb handle (timed ones are also in Tracked). */
+	TMap<FActiveGameplayEffectHandle, FWoRAbsorbCharge> Absorbs;
+	int32 NextAbsorbArrival = 0;
 };
