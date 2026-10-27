@@ -3064,17 +3064,15 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 
 			Result.bWasCritical = CalcResult.bWasCritical;
 
-			// Pre-mitigation pass — AbsorbDamage.
-			// Runs after DamageCalculator (so element/crit/defense are already
-			// resolved) but before HP is actually decremented. Mutates a local
-			// FinalDamage copy; CalcResult itself stays const.
+			// Absorb — runs after DamageCalculator (element/crit/defense resolved) and before
+			// the HP drop, on a local FinalDamage copy (CalcResult stays const).
 			int32 FinalDamage = CalcResult.FinalDamage;
 			if (USkillEffectManager *SEM = GetSkillEffectManager())
 			{
 				// AbsorbDamage — convert a percent of incoming damage to target EP.
 				if (SEM->HasEffectOfType(Input.Target, ESkillEffectType::AbsorbDamage))
 				{
-					const float AbsorbPct = SEM->GetTotalStatModifier(Input.Target, ESkillEffectType::AbsorbDamage) / 100.0f;
+					const float AbsorbPct = SEM->GetTotalStatModifier(Input.Target, ESkillEffectType::AbsorbDamage) / CombatConstants::STAT_PERCENT_DIVISOR;
 					const int32 Absorbed = FMath::RoundToInt(FinalDamage * AbsorbPct);
 					FinalDamage -= Absorbed;
 					if (Absorbed > 0)
@@ -3085,28 +3083,30 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 					}
 				}
 
-
 				FinalDamage = FMath::Max(0, FinalDamage);
 			}
 
 			const int32 HPBefore = TargetComp->CurrentHP;
 			TargetComp->ServerTakeDamage(FinalDamage);
+			// TODO: B-032c review — a Last Stand save inside ServerTakeDamage (CheckDeath raises HP)
+			// makes this negative; OnDamageDealt / PartialResult then see it. Clamp once decided.
 			Result.DamageDealt = HPBefore - TargetComp->CurrentHP;
 
-			// Reflect — bounce a percent of the HP the target actually lost back to the attacker
-			// (Q-032: an overkill reflects only what was lost): the generic reflect for any
-			// ActionType, the physical one for abilities (attacks folded in, Cluster 3), the spell
-			// one for spells.
+			// Reflect — bounce a percent of the HP the hit took back to the attacker, after the hit
+			// lands (Q-032: an overkill reflects only the HP the target had; read before the hit so
+			// a Last Stand save doesn't cancel it): the generic reflect for any ActionType, the
+			// physical one for abilities (attacks folded in, Cluster 3), the spell one for spells.
+			const int32 ReflectBase = FMath::Min(FinalDamage, HPBefore);
 			if (USkillEffectManager *SEM = GetSkillEffectManager())
 			{
-				ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::DamageReflect, Result.DamageDealt, TEXT(""));
+				ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::DamageReflect, ReflectBase, TEXT(""));
 				if (Input.ActionType == EActionType::Ability)
 				{
-					ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::ReflectPhysicalDamage, Result.DamageDealt, TEXT(" physical"));
+					ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::ReflectPhysicalDamage, ReflectBase, TEXT(" physical"));
 				}
 				else if (Input.ActionType == EActionType::Spell)
 				{
-					ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::ReflectSpellDamage, Result.DamageDealt, TEXT(" spell"));
+					ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::ReflectSpellDamage, ReflectBase, TEXT(" spell"));
 				}
 			}
 		}
@@ -3127,9 +3127,12 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 		OnElementDamageDealt.Broadcast(Input.Attacker, Input.Target, Result.DamageDealt, Result.bWasCritical, Input.Element);
 
 		// DoubleHit — re-run ApplyHit once more at 50% damage when the attacker
-		// has the effect and the target survived the first hit (Q-032). bIsDoubleHit
-		// guards against infinite recursion (second invocation skips this block).
-		if (!Input.bIsDoubleHit && Input.Attacker && TargetComp->bIsAlive)
+		// has the effect and both sides survived the first hit (Q-032; a reflect can
+		// kill the attacker). bIsDoubleHit guards against infinite recursion (second
+		// invocation skips this block).
+		const UCharacterDataComponent *AttackerComp =
+			Input.Attacker ? Input.Attacker->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		if (!Input.bIsDoubleHit && AttackerComp && AttackerComp->bIsAlive && TargetComp->bIsAlive)
 		{
 			if (USkillEffectManager *SEM = GetSkillEffectManager())
 			{

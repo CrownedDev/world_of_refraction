@@ -18,7 +18,7 @@ namespace
 {
 	constexpr int32 HIT_PATH_TEST_BASE = 100;
 	constexpr float HIT_PATH_TEST_REFLECT_PERCENT = 50.0f;
-	constexpr int32 HIT_PATH_TEST_REFLECT_TURNS = 3;
+	constexpr int32 HIT_PATH_TEST_EFFECT_TURNS = 3;
 	constexpr int32 HIT_PATH_TEST_TOUGH_HP = 10000; // no test hit overkills
 	constexpr int32 HIT_PATH_TEST_FRAIL_HP = 10;	   // any test hit overkills
 }
@@ -60,7 +60,7 @@ AActor *SpawnWithReflect(ESkillEffectType ReflectType, int32 HP = HIT_PATH_TEST_
 	TestWorld->GetSubsystem<USkillEffectManager>()->ApplyEffect(
 		Target,
 		FActiveSkillEffect::CreateBuff(TEXT("Test reflect"), 0, ReflectType, HIT_PATH_TEST_REFLECT_PERCENT,
-									   HIT_PATH_TEST_REFLECT_TURNS),
+									   HIT_PATH_TEST_EFFECT_TURNS),
 		Target);
 	return Target;
 }
@@ -169,7 +169,7 @@ void FHitPathSpec::Define()
 		USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
 		Effects->ApplyEffect(Attacker,
 							 FActiveSkillEffect::CreateBuff(TEXT("Test double hit"), 0, ESkillEffectType::DoubleHit, 0.0f,
-															HIT_PATH_TEST_REFLECT_TURNS),
+															HIT_PATH_TEST_EFFECT_TURNS),
 							 Attacker);
 		UElementDamageRecorder *Recorder = NewObject<UElementDamageRecorder>();
 		Recorder->Listen(Executor);
