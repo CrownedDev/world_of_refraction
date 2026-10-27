@@ -1499,6 +1499,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Status:** ANSWERED in part (2026-10-27; details asked one at a time) · **Raised:** 2026-10-27 (Crown) · **Blocks:** —
 **Answer (Crown):** (2026-10-27)
 - **PvP is part of this game: B, planned for now**, so the co-op plumbing (D-103) allows for it. Earlier concept: a **PvP trial door** in the hub (`Resources_Design.md` "Hub→Trial door model + PvP options", June; its "Lord" wording is a placeholder).
+- **Modes** (Crown, 2026-10-27): **1v1, 2v2, 3v3** and a **free-for-all** (every player for themselves; its player-facing name: Crown to pick).
 **Notes for Claude:** open parts: what kind of PvP, how it's matched, rewards / stakes, balance (normalised or own gear).
 
 ### Q-044 — Re-applying the same effect: strength rule or replace?
