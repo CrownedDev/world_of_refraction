@@ -2991,6 +2991,28 @@ void UActionExecutor::ProcessPostCastBySource(AActor *Caster, USpellData *Spell,
 // DAMAGE APPLICATION
 // ========================================
 
+namespace
+{
+	/** Deals the Target's ReflectType share (percent, summed over its effects) of a hit's Damage back to the Attacker. */
+	void ReflectShareOfHit(USkillEffectManager *SEM, AActor *Attacker, AActor *Target, ESkillEffectType ReflectType,
+						   int32 Damage, const TCHAR *KindLabel)
+	{
+		if (!Attacker || !SEM->HasEffectOfType(Target, ReflectType))
+		{
+			return;
+		}
+		const float ReflectPct = SEM->GetTotalStatModifier(Target, ReflectType) / 100.0f;
+		const int32 Reflected = FMath::RoundToInt(Damage * ReflectPct);
+		UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
+		if (Reflected > 0 && AttackerComp)
+		{
+			AttackerComp->ServerTakeDamage(Reflected);
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s reflected %d%s damage back to %s"),
+				   *Target->GetName(), Reflected, KindLabel, *Attacker->GetName());
+		}
+	}
+}
+
 FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 {
 	FCombatHitResult Result;
@@ -3063,57 +3085,17 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 					}
 				}
 
-				// DamageReflect — bounce a percent of incoming damage back to attacker
-				// (any ActionType — generic reflect).
-				if (Input.Attacker && SEM->HasEffectOfType(Input.Target, ESkillEffectType::DamageReflect))
+				// Reflect — bounce a percent of incoming damage back to the attacker: the generic
+				// reflect for any ActionType, the physical one for abilities (attacks folded in,
+				// Cluster 3), the spell one for spells.
+				ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::DamageReflect, FinalDamage, TEXT(""));
+				if (Input.ActionType == EActionType::Ability)
 				{
-					const float ReflectPct = SEM->GetTotalStatModifier(Input.Target, ESkillEffectType::DamageReflect) / 100.0f;
-					const int32 Reflected = FMath::RoundToInt(FinalDamage * ReflectPct);
-					if (Reflected > 0)
-					{
-						if (UCharacterDataComponent *AC = Input.Attacker->FindComponentByClass<UCharacterDataComponent>())
-						{
-							AC->ServerTakeDamage(Reflected);
-							UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s reflected %d damage back to %s"),
-								   *Input.Target->GetName(), Reflected, *Input.Attacker->GetName());
-						}
-					}
+					ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::ReflectPhysicalDamage, FinalDamage, TEXT(" physical"));
 				}
-
-				// ReflectPhysicalDamage — only fires for Ability ActionType (attacks folded in, Cluster 3).
-				if (Input.Attacker &&
-					(Input.ActionType == EActionType::Ability) &&
-					SEM->HasEffectOfType(Input.Target, ESkillEffectType::ReflectPhysicalDamage))
+				else if (Input.ActionType == EActionType::Spell)
 				{
-					const float ReflectPct = SEM->GetTotalStatModifier(Input.Target, ESkillEffectType::ReflectPhysicalDamage) / 100.0f;
-					const int32 Reflected = FMath::RoundToInt(FinalDamage * ReflectPct);
-					if (Reflected > 0)
-					{
-						if (UCharacterDataComponent *AC = Input.Attacker->FindComponentByClass<UCharacterDataComponent>())
-						{
-							AC->ServerTakeDamage(Reflected);
-							UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s reflected %d physical damage back to %s"),
-								   *Input.Target->GetName(), Reflected, *Input.Attacker->GetName());
-						}
-					}
-				}
-
-				// ReflectSpellDamage — only fires for Spell ActionType.
-				if (Input.Attacker &&
-					Input.ActionType == EActionType::Spell &&
-					SEM->HasEffectOfType(Input.Target, ESkillEffectType::ReflectSpellDamage))
-				{
-					const float ReflectPct = SEM->GetTotalStatModifier(Input.Target, ESkillEffectType::ReflectSpellDamage) / 100.0f;
-					const int32 Reflected = FMath::RoundToInt(FinalDamage * ReflectPct);
-					if (Reflected > 0)
-					{
-						if (UCharacterDataComponent *AC = Input.Attacker->FindComponentByClass<UCharacterDataComponent>())
-						{
-							AC->ServerTakeDamage(Reflected);
-							UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s reflected %d spell damage back to %s"),
-								   *Input.Target->GetName(), Reflected, *Input.Attacker->GetName());
-						}
-					}
+					ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::ReflectSpellDamage, FinalDamage, TEXT(" spell"));
 				}
 
 				FinalDamage = FMath::Max(0, FinalDamage);
@@ -3191,70 +3173,21 @@ FCombatHitResult UActionExecutor::ApplyDamage(
 	ESpellElement Element,
 	bool bCanCrit)
 {
-	FCombatHitResult Result;
-	Result.Target = Target;
-
-	if (!Target)
+	// B-032: one hit path. A damage-only hit through ApplyHit (no buildup, no infusion), so it gets the
+	// same absorb, reflect and DoubleHit as every combat hit. ActionMods + ActionType come from the
+	// running action when there is one (Reality + Evolution + future buffs).
+	FActionHitInput Hit;
+	Hit.Attacker = Attacker;
+	Hit.Target = Target;
+	Hit.BaseDamage = BaseDamage;
+	Hit.Element = Element;
+	Hit.bCanCrit = bCanCrit;
+	if (CurrentExecutionContext.IsSet())
 	{
-		return Result;
+		Hit.ActionMods = CurrentExecutionContext->ActionMods;
+		Hit.ActionType = CurrentExecutionContext->Action.ActionType;
 	}
-
-	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
-	if (!TargetComp)
-	{
-		return Result;
-	}
-
-	// Use centralized DamageCalculator
-	UDamageCalculator *DamageCalc = GetDamageCalculator();
-	if (DamageCalc)
-	{
-		FDamageCalculationInput Input;
-		Input.BaseDamage = BaseDamage;
-		Input.Element = Element;
-		Input.bCanCrit = bCanCrit;
-		// ActionMods + ActionType are the canonical per-action signal path
-		// (Reality + Evolution + future buffs). Stashed on context at action start
-		// so every ApplyDamage call site (defense resolution, beam ticks, projectile
-		// impacts, support spells) reads the same snapshot.
-		if (CurrentExecutionContext.IsSet())
-		{
-			Input.ActionMods = CurrentExecutionContext->ActionMods;
-			Input.ActionType = CurrentExecutionContext->Action.ActionType;
-		}
-
-		FDamageCalculationResult CalcResult = DamageCalc->CalculateDamage(Attacker, Target, Input);
-
-		Result.bWasCritical = CalcResult.bWasCritical;
-
-		// Apply the calculated damage
-		int32 HPBefore = TargetComp->CurrentHP;
-		TargetComp->ServerTakeDamage(CalcResult.FinalDamage);
-		Result.DamageDealt = HPBefore - TargetComp->CurrentHP;
-	}
-	else
-	{
-		// Q-031 = A: a missing DamageCalculator is a setup error; no "deal at least 1" fallback.
-		UE_LOG(LogTemp, Error, TEXT("[ActionExecutor] DamageCalculator missing - damage not applied"));
-	}
-
-	// Check for death
-	if (!TargetComp->bIsAlive)
-	{
-		Result.bTargetDied = true;
-	}
-
-	// Broadcast damage event
-	OnDamageDealt.Broadcast(Attacker, Target, Result.DamageDealt, Result.bWasCritical);
-	OnElementDamageDealt.Broadcast(Attacker, Target, Result.DamageDealt, Result.bWasCritical, Element);
-
-	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] %s dealt %d damage to %s%s"),
-		   Attacker ? *Attacker->GetName() : TEXT("Unknown"),
-		   Result.DamageDealt,
-		   *Target->GetName(),
-		   Result.bWasCritical ? TEXT(" (CRIT)") : TEXT(""));
-
-	return Result;
+	return ApplyHit(Hit);
 }
 
 // ========================================

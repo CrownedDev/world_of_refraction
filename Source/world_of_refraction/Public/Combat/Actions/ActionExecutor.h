@@ -311,8 +311,8 @@ public:
 	// ========================================
 
 	/**
-	 * Apply damage to target
-	 * Handles defense calculations, critical hits, death
+	 * Apply a damage-only hit to target: a thin wrapper over ApplyHit (B-032), so it gets the same
+	 * damage maths, absorb, reflect and DoubleHit (no status buildup). Blueprint and test entry point.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Damage")
 	FCombatHitResult ApplyDamage(
@@ -338,11 +338,11 @@ public:
 	 *
 	 * Status: production applicator for all async damage (Phase B) and for spell
 	 * + async-attack buildup (Phase C1, C3). Sync Spell/Ability/Attack paths and
-	 * ApplySpellStatusBuildup were removed in Phase D. Remaining legacy slated for
-	 * Phase E review: ApplyDamage, ProcessMultiHit, ApplyDamageAfterDefense.
+	 * ApplySpellStatusBuildup were removed in Phase D. ApplyDamage wraps it (B-032);
+	 * ProcessMultiHit is OBSOLETE (no callers).
 	 *
-	 * Single-hit by contract — multi-hit looping stays in ProcessMultiHit / the
-	 * orchestrators. Routes damage through UDamageCalculator and buildup through
+	 * Single-hit by contract — multi-hit looping stays in the per-impact
+	 * defense path (ResolveImpactDefense -> ApplyOneImpact). Routes damage through UDamageCalculator and buildup through
 	 * USkillEffectManager::AddStatusBuildup; both are unchanged primitives.
 	 */
 	FCombatHitResult ApplyHit(const FActionHitInput &Input);
@@ -763,7 +763,7 @@ private:
 	void ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex, bool bDamageIsPerImpact = false);
 
 	/** Handle multi-hit abilities. OBSOLETE (B-167): its only caller was the no-DefenseSystem
-	 *  fallback; remove after Crown's PIE pass (or with B-032). */
+	 *  fallback; remove after Crown's PIE pass of B-167 / B-032. */
 	int32 ProcessMultiHit(
 		AActor *Attacker,
 		AActor *Target,
