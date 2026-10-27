@@ -813,4 +813,7 @@ protected:
                           TFunctionRef<void(FCombatLoadout &)> Change, FText &OutRefusal);
 
     void AnnounceDroppedParts(int32 LoadoutIndex, const TArray<FInvalidSlotFinding> &Dropped);
+
+    /** B-091: claims the active loadout's shared gear; announces what another member wears. */
+    void ClaimSharedGear();
 };
