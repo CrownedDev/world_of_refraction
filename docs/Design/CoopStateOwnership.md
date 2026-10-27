@@ -6,14 +6,14 @@
 
 ## Why GameInstance subsystems can't hold co-op state
 
-- **Every machine has its own GameInstance, and it never replicates.** A `UGameInstanceSubsystem` on the host is invisible to a client, and the client's copy is empty. Today 13 of the 21 subsystems hold fight state there.
+- **Every machine has its own GameInstance, and it never replicates.** A `UGameInstanceSubsystem` on the host is invisible to a client, and the client's copy is empty. Today 15 of the 21 subsystems hold state there: 11 per-fight, 4 per-run (the tables below).
 - **Unreal's standard shape for a networked match** (Epic's networking docs; Lyra; Cedric Neukirchen's *Network Compendium*):
   - **GameMode** (server only): the rules, and spawning.
-  - **GameState** (replicated to all): match state everyone sees, such as turn order, the current actor and weather. Lyra splits this into GameState *components* (`ULyraExperienceManagerComponent`, the game-phase component), one per system.
+  - **GameState** (replicated to all): match state everyone sees, such as turn order, the current actor and weather. Lyra splits this into GameState *components* (`ULyraExperienceManagerComponent`, `ULyraPlayerSpawningManagerComponent`), one per system.
   - **PlayerState** (replicated, one per player): what belongs to one player, such as the wallet and their characters. With seamless travel, it survives a level change through `CopyProperties`.
   - **Actors and their components** (replicated): per-combatant state, such as HP, effects, buildup and grid position.
   - **GameInstance** (local only): things that outlive levels and aren't shared, such as settings, the save slot and the local journal.
-- **Recommendation:** follow Lyra and give each subsystem's fight state its own **GameState component**, or put it on the combatant's own component where it is per-actor. Keep the subsystem as a stateless service that reads from those. The calls stay the same (`GetSubsystem<UTurnManager>()->...`); only the storage moves. Migrating this way is incremental, one subsystem at a time, which fits the project's working principles.
+- **Proposal** (decided when co-op is scheduled, D-065; not a ruling yet): follow Lyra and give each subsystem's fight state its own **GameState component**, or put it on the combatant's own component where it is per-actor. Keep the subsystem as a stateless service that reads from those. The calls stay the same (`GetSubsystem<UTurnManager>()->...`); only the storage moves. Migrating this way is incremental, one subsystem at a time, which fits the project's working principles.
 
 ## Per system
 
@@ -25,7 +25,7 @@ Owner key: **GS** = a GameState component; **Actor** = a component on the combat
 |---|---|---|---|
 | `UTurnManager` (`Combat/TurnManager.h:349-394`) | `Combatants`, `PendingTurns`, `TurnBelt`, `CurrentActor`, bonus/turn type/payload, `GlobalTurnCount`, `bCombatActive` | **GS** (`UTurnStateComponent`): `TurnBelt`, `CurrentActor`, turn type, turn count, active flag replicated; `Combatants` debt and `PendingTurns` **Server** | Clients only need the belt and whose turn it is to draw the HUD. |
 | `UActionExecutor` (`Combat/Actions/ActionExecutor.h:503-1217`) | Pending spell (caster, data, targets, size, damage, element), montage chain, async action context and callbacks, burst queue, telegraph timers, grid cache | **Server** (the action in flight); results reach clients through replicated actor state (HP, effects) plus a multicast for the cosmetic part (montage, VFX) | The biggest one. `EffectIDCounter` (:677) never resets: make it server-only and per-fight. |
-| `UDefenseSystem` (`Combat/Defense/DefenseSystem.h:480-483`) | `ActiveDefenseStates` (incl. the input buffer), `WindowTimerHandles` | **Server**; window open/close sent to the defender's owning client (Client RPC) | See "what breaks first" #3. The tuning values (:436-472) are config and stay. |
+| `UDefenseSystem` (`Combat/Defense/DefenseSystem.h:480-483`) | `ActiveDefenseStates` (incl. the input buffer), `WindowTimerHandles` | **Server**; window open/close sent to the defender's owning client (Client RPC) | See "what breaks first" #3. The tuning values (:434-474) are config and stay. |
 | `USkillEffectManager` (`Skills/Effects/SkillEffectManager.h:480-494`) | `ActiveEffects` per actor, `FiredOnceThisMatch`, `ArmedConditionals`, `NextInstanceID` | **Actor** (`ActiveEffects` on each combatant, replicated for the HUD); fired-once set and armed conditionals **Server** | The B-042/B-062 effect rework is the natural moment to move it. |
 | `UStatusBuildupManager` (`Skills/Effects/StatusBuildupManager.h:204`) | `StatusBarStates` per actor | **Actor** (replicated: the bars are on the HUD) | |
 | `UCombatGridSubsystem` (`Combat/Grid/CombatGridSubsystem.h:282`) | `ActorPositions` | **Actor** (each combatant's row/slot, replicated), or **GS** if it stays a map | |
@@ -41,7 +41,7 @@ Owner key: **GS** = a GameState component; **Actor** = a component on the combat
 |---|---|---|---|
 | `UTrialRunSubsystem` run state (`Trial/TrialRunSubsystem.h:186-222`) | Active trial, seed, variation, difficulty, `BeatenEncounters`, `FoundFeatures`, `RunMemories` | **GS** (shared run: everyone sees the same beaten encounters and found features); the seed is **Server** | Joining a run mid-way (pillar 7) needs this replicated to the joiner. |
 | `UPartySessionSubsystem` (`Party/PartySessionSubsystem.h:230`) | `Parties` (characters, trial-scoped HP/EP) | **PS** (each player's characters) plus **GS** (the combined `LocalParty` for the fight) | `PartyMatchSetup.md` already models co-op as two players in one `LocalParty`. |
-| `UPoolSubsystem` (`Pool/PoolSubsystem.h:167-229`) | Owned weapons, rings, evolutions, spells, abilities, crystals, stones, all currencies | **PS** while playing; the **save** (B-090) between sessions | The shared pool (D-020) is per player. `PoolGold` (:211) is the one currency not marked `SaveGame`: flag for B-090. |
+| `UPoolSubsystem` (`Pool/PoolSubsystem.h:167-229`) | Owned weapons, rings, evolutions, spells, abilities, crystals, stones, all currencies | **PS** while playing; the **save** (B-090) between sessions | The shared pool (D-020) is per player. B-090's save struct must include `PoolGold` (:211), which unlike its siblings has no `SaveGame` tag; the tags themselves are ignored (D-059). |
 | `AWoRPlayerState` wallet (`Player/WoRPlayerState.h`) | One wallet per player (D-046) | **PS** already | Not yet carried across OpenLevel (see #1 below). |
 | `UMemoryJournalSubsystem` (`Memory/MemoryJournalSubsystem.h:68-74`) | Memories, lore, heard V lines, played conversations | **Local** + the save (each player's own journal) | Shared run memories are the run state above. |
 | `UMerchantShopSubsystem` (`Shop/MerchantShopSubsystem.h:73-79`) | Open shop widget, merchant, pawn, modal flag | **Local** (UI); the purchase goes to the server | Stock lives in the trial run / data assets. |
@@ -58,7 +58,7 @@ Owner key: **GS** = a GameState component; **Actor** = a component on the combat
 4. **Player-0 lookups.** `GetFirstPlayerController` / `GetPlayerController(…, 0)` in the pool (`PoolSubsystem.cpp:449, 496, 519`), economy (`EconomyService.cpp:1533, 1564, 1599, 1630`), wallet (`CurrencyWallet.cpp:41, 72`), battle mode (`BattleGameMode.cpp:93, 433`), encounter (`EncounterComponent.cpp:176`), orchestrator (`CombatOrchestrator.cpp:164, 1292`) and camera (`CombatCameraDirector.cpp:383`). On the server, player 0 is always the host, so a client's rewards and purchases go to the host. This is **B-132** (blocked on B-030). The UI and test uses (`PartyControlWidget`, `DismantleWidget`, `MemoryJournalWidget`, `WoRTestScreen`, `NativeUIDebug`, `HUDTestActor`) are local and fine.
 5. **Almost nothing replicates.** Only `UCurrencyComponent` sets `SetIsReplicatedByDefault(true)`. `UCharacterDataComponent` and the GAS attribute sets declare `GetLifetimeReplicatedProps` but the component isn't replicated (**B-131**). No actor sets `bReplicates`, and there is no `AGameStateBase` subclass yet: one (`AWoRGameState`) is needed to hold the GameState components above.
 
-## Suggested order (when co-op is scheduled)
+## Suggested order (a proposal, decided when co-op is scheduled, D-065)
 
 1. `ServerTravel` + seamless travel + `AWoRGameState` + `CopyProperties` (#1, #5).
 2. B-131 (character data replicates) and B-132 (no player-0 lookups).
