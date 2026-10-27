@@ -22,6 +22,7 @@ class UMemoryData;
 class USkillDataBase;
 struct FAction;
 struct FMemoryCondition;
+struct FWorldStatRequirements;
 
 /** Q-209d: what one combatant used in a fight (kept on the battle for that fight, D-064). */
 struct FMemoryFightUsage
@@ -87,6 +88,11 @@ namespace MemoryConditions
 
 	WORLD_OF_REFRACTION_API bool IsMet(const FMemoryCondition &Condition, const FMemoryEvent &Event,
 									   const UMemoryJournalSubsystem *Journal);
+
+	/** Q-209e: Wearer fits Condition's RequirementFit against Requirements (null: none, which is
+	 *  always Met). An unknown wearer fits only Any. */
+	WORLD_OF_REFRACTION_API bool FitsRequirements(const FMemoryCondition &Condition, const FWorldStatRequirements *Requirements,
+												  const UCharacterData *Wearer);
 
 	/** Every unlock condition of Memory holds (none: true). */
 	WORLD_OF_REFRACTION_API bool AreMet(const UMemoryData &Memory, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal);

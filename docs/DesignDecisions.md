@@ -1969,6 +1969,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-149-formation-cells): `ACombatOrchestrator::GetPlaceholderEnemyStartRow`. Authored enemy cells replace it later.
 
+### Q-209e — Equip conditions relative to requirements: how "above" and "under" are measured
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-209, D-100 "Equip conditions", clarified by Crown) · **Blocks:** — (ships with A)
+**Question:** Crown clarified that an equip condition can ask for a character equipping a skill, spell, ring, weapon or evolution **while meeting its requirements, above them by some amount, or under them**. How is "above by N" / "under by N" measured across the three pillars (Mind, Body, Spirit), and what of things with no requirements?
+**Options:**
+- **A** Each gear or skill condition gets **Requirement Fit** (Any / Met / Above / Under) and **Requirement Margin** N, measured on the wearer's world levels against the item's or skill's `Requirements` (the same numbers as the D-082 / CL-39 requirement gap). **Met**: every pillar meets it. **Above by N**: met, and every pillar the item asks for is at least N over (N 0 = met). **Under by N**: some pillar is at least N short (N 0 counts as 1). Something with no requirements (evolutions have none) is always **Met**, never above or under. A level-up with an unknown wearer can't satisfy a fit other than Any.
+- **B** Sum the three pillars' gaps (one number; hides which pillar is short).
+- **C** Use the gap's damage multiplier as the threshold (hard to author).
+**Recommendation:** A. Dark Souls and Elden Ring judge requirements per stat (one short stat is "under", shown in red), which players read at a glance; measuring the same way keeps the hidden condition consistent with the requirement gap players already feel in damage (D-082). "Under" quests follow Elden Ring's and Dark Souls' low-level challenge runs, which players celebrate. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applies to GearEquipped, EvolutionEquipped and SkillSlotted. Crown's clarification is about **equipping**; the **used** kinds from Q-209d (skill used, Breakthrough, finishing blow) stay built as extras until Crown says to drop them. Applied (feature/B-209-requirement-fit): `EMemoryRequirementFit`, `FMemoryCondition::RequirementFit` / `RequirementMargin`, `MemoryConditions::FitsRequirements`. It reads the character asset's world levels, as the D-082 gap does today; a pillar raised during the run doesn't count yet (TODO: both move to the live stats, `UCharacterDataComponent::GetWorldStat`).
+
 ### Q-209d — Memory conditions on gear and skills: equipped, levelled, used
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-209, D-100 "gear and skills can trigger them") · **Blocks:** — (ships with A)
 **Question:** Crown added gear and skills as memory triggers: evolutions, weapons and skills equipped or slotted, their upgrade level, and **used** (a skill cast, an evolution's Breakthrough, a finishing blow with a certain weapon). Which condition kinds, and when does "used" count?
