@@ -1424,6 +1424,8 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
   - **Sources:** a field skill can draw on a source like battle skills do; **a crystal source still loses durability** when used (`CrystalWear.md`).
   - **Dropped:** separate field uses on battle skills, and field-only skill slots.
   - **Enhanced Sprint also runs on water** (Crown, 2026-10-27).
+  - **Flight limits: A** (Crown, 2026-10-27): EP drain while flying, a height ceiling, no-fly zones; **effects can raise them** (an evolution might give unlimited flight; a character with unlimited energy: for another day). **Hidden areas in the sky** are welcome (pillar 10).
+  - **Swimming:** everyone can swim (base movement).
   - **Enhanced Sprint** is also **faster than the normal sprint** (Elden Ring Nightreign's surge sprint), on top of wall-running.
   - **Every element can do every movement type, each in its own way** (Crown, 2026-10-27, refines the line below): e.g. Lightning and Void can both teleport, but a Lightning teleport and a Void teleport look and behave differently. The **element decides the style**, not which movement type; an elemental source is still needed for the elemental movements (a Generic without one has only the normal dash and sprint).
   - **How a movement type unlocks: A** (Crown, 2026-10-27): each type has its **own unlock skill** (equip or learn it once: unlocked for good, for everyone); **some unlock by hidden conditions** instead (the memory condition system, D-100, pillar 10).
