@@ -962,12 +962,21 @@ void ACombatOrchestrator::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 
 	// W-B: an Execution turn carries a scheduled ritual fire instead of an action request.
 	// Q-044d (B-225): it is still one of the caster's turns, so the turn-start step runs first
-	// (spans end, payouts land); FireScheduledExecution skips the fire if that step killed the
-	// caster. Every other turn kind (Normal / Bonus) runs the ordinary flow. The countdown that
-	// decides WHEN this fires lives in TurnManager (delay burns on Normal turns).
+	// (spans end, payouts land). A caster that step killed ends the turn as a dead actor's turn
+	// does (the fight-over check runs) and its ritual is dropped with its payload. Every other
+	// turn kind (Normal / Bonus) runs the ordinary flow. The countdown that decides WHEN this
+	// fires lives in TurnManager (delay burns on Normal turns).
 	if (TurnManagerRef && TurnManagerRef->GetCurrentTurnType() == ETurnType::Execution)
 	{
 		ProcessStartOfTurnEffects(CurrentActor);
+		if (!IsActorAlive(CurrentActor))
+		{
+			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s died at its Execution turn start, ritual dropped"),
+				   *CurrentActor->GetName());
+			DeferredPayloads.Remove(TurnManagerRef->GetCurrentTurnPayloadId());
+			OnActionCompleted();
+			return;
+		}
 		FireScheduledExecution();
 		return;
 	}
