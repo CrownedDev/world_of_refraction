@@ -7,7 +7,8 @@
 // only with a saved run, which doesn't exist yet: Q-090),
 // the player's banked wallet (AWoRPlayerState; Gold is never banked) and the shared pool
 // (UPoolSubsystem). The wallet also rides here across OpenLevel: the PlayerState banks it at
-// EndPlay and takes it back at BeginPlay.
+// EndPlay and takes it back at BeginPlay. Gold rides along too (B-178), in memory only: it is a
+// run currency, never written to the slot, and cleared when a run starts and ends.
 // Debug: wor.Save.Print, wor.Save.Now, wor.Save.Delete (SaveDebug.cpp).
 
 #pragma once
@@ -52,11 +53,16 @@ public:
 	/** Undo DeleteSave's stop (wor.Save.Now). */
 	void ResumeWrites() { bWritesStopped = false; }
 
-	/** PlayerState EndPlay: bank the wallet's persistent balances. */
+	/** PlayerState EndPlay: bank the wallet's persistent balances and carry its run Gold. */
 	void BankWallet(const UCurrencyComponent *Wallet);
 
-	/** PlayerState BeginPlay: give a fresh wallet the banked balances. */
+	/** PlayerState BeginPlay: give a fresh wallet the banked balances and the carried Gold. */
 	void ApplyWalletTo(UCurrencyComponent *Wallet) const;
+
+	/** A run starts or ends: the carried Gold and the local wallet's Gold go to 0 (B-178). */
+	void ClearRunGold(UWorld *World);
+
+	int32 GetCarriedGold() const { return CarriedGold; }
 
 	const FWoRSaveData &GetData() const;
 	bool IsBoundToPlayer() const;
@@ -87,6 +93,9 @@ private:
 
 	FDelegateHandle LocalPlayerAddedHandle;
 	FDelegateHandle LocalPlayerRemovedHandle;
+
+	/** The run's Gold between levels. Not part of FWoRSaveData: Gold is never banked. */
+	int32 CarriedGold = 0;
 
 	/** Set by DeleteSave: automatic saves stop for the rest of the session. */
 	bool bWritesStopped = false;
