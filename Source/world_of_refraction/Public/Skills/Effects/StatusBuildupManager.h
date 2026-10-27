@@ -163,14 +163,10 @@ public:
 
 	/** Unified DEFENDER-side status resistance for an incoming (Element, PhysicalType)
 	 *  hit — the single value AddStatusBuildup applies as Amount *= (1 - this).
-	 *  Composes all six resistance sources, then clamps to [RESISTANCE_MIN,
-	 *  RESISTANCE_MAX] and returns the POST-clamp value:
-	 *    1. base Spirit CalculateResistance()      (itself pre-clamped to [0, MAX])
-	 *    2. equipment BonusResistance substat
-	 *    3. attached ResistanceStone
-	 *    4. GetTotalElementResistance (element + physical effects)
-	 *    5. GetClassInnateResistance (class/innate profile)
-	 *    6. ModifyStatusResist skill-effect
+	 *  Since B-216 this is WoRResistance::GetTotalStatusResistance (ResistanceQuery.h):
+	 *  General (Spirit stat, gear points, stones) + the hit's damage types (typed
+	 *  buffs/debuffs, class table, gear rolls) + the signed bonus (ModifyStatusResist,
+	 *  boss rising resistance), clamped to [RESISTANCE_MIN, RESISTANCE_MAX].
 	 *  Offense-side amplification (StatusMultiplier, BD absorption stack) is NOT
 	 *  here — that is source-side and applied separately. Returns 0.0 when Target
 	 *  or its CharacterData is absent (caller's Amount stays unchanged). */
