@@ -62,12 +62,10 @@ namespace
 		Gear.Attached = Entry.AttachedItem;
 		Gear.EvolutionItem = FSavedAssetRef::Make(Entry.AttachedItem.Evolution.Item);
 		Gear.Attached.Evolution.Item = nullptr;
+		// One ref per spell slot, an empty slot as an unset ref, so slot positions survive.
 		for (const USpellData *Spell : Entry.AssignedSpells)
 		{
-			if (Spell)
-			{
-				Gear.AssignedSpells.Add(FSavedAssetRef::Make(Spell));
-			}
+			Gear.AssignedSpells.Add(FSavedAssetRef::Make(Spell));
 		}
 		Gear.StatBonus = Entry.StatBonus;
 		Gear.ResistanceBonus = Entry.ResistanceBonus;
@@ -91,10 +89,12 @@ namespace
 		Entry.AssignedSpells.Reset();
 		for (const FSavedAssetRef &Ref : Gear.AssignedSpells)
 		{
-			if (USpellData *Spell = Ref.ResolveAs<USpellData>())
+			USpellData *Spell = Ref.IsSet() ? Ref.ResolveAs<USpellData>() : nullptr;
+			if (Ref.IsSet() && !Spell)
 			{
-				Entry.AssignedSpells.Add(Spell);
+				UE_LOG(LogWoR, Warning, TEXT("[Save] A saved gear spell %s is gone: its slot stays empty"), *Ref.Path.ToString());
 			}
+			Entry.AssignedSpells.Add(Spell);
 		}
 		Entry.StatBonus = Gear.StatBonus;
 		Entry.ResistanceBonus = Gear.ResistanceBonus;
