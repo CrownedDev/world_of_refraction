@@ -1,56 +1,90 @@
 # Content naming and folders
 
-One page. **New assets follow it; existing names stay** (D-058: renames make redirectors and touch LFS files for little gain). The junk and duplicate cleanup is B-122. Source: Epic's *Recommended Asset Naming Conventions* plus the extensions this project already uses (survey in `docs/analysis/BestPractice_2026-10.md`, "Content naming and folders").
+One page. **New assets follow it; existing names stay** (D-058: renames create redirectors and touch LFS files, for little gain). The junk and duplicate cleanup is B-122.
+
+Sources:
+- Epic's *Recommended Asset Naming Conventions*.
+- What this project's content already does. The survey is in `docs/analysis/BestPractice_2026-10.md`, under "Content naming and folders".
+
+Where the two differ, the project's existing usage wins, so new assets sit next to their siblings.
 
 ## Pattern
 
-`Prefix_BaseName_Descriptor_Variant`, in PascalCase, with no spaces. For example `DA_Spell_Fireball`, `T_Sword_Iron_D`, `AM_Sword_Slash_02`.
+`Prefix_BaseName_Descriptor_Variant`, in PascalCase, with no spaces. Examples: `DA_Spell_Bolt`, `T_Sword_Iron_D`, `AM_Sword_Slash_02`.
 
-- **Singular** kind words: `DA_Spell_`, not `DA_Spells_`.
-- Spell the kind the same way every time. Use `DA_Equipment_`, not `DA_Equpment_`.
-- A variant is a number with two digits (`_01`) or a short word (`_Fire`).
+- Kind words are **singular**: `DA_Spell_`, not `DA_Spells_`.
+- A kind is spelled the same way every time: `DA_Equipment_`, not `DA_Equpment_`.
+- A variant is either a two-digit number (`_01`) or a short word (`_Fire`).
 
 ## Prefixes
 
-| Asset | Prefix | Note |
-|---|---|---|
-| Blueprint class | `BP_` | |
-| Widget Blueprint | `WBP_` | |
-| Animation Blueprint | `ABP_` | |
-| Animation montage | `AM_` | Don't use `Anim_` for new assets (15 old ones stay) |
-| Animation sequence | `A_` | |
-| Blend space | `BS_` | |
-| Skeletal mesh | `SK_` | Engine mannequin assets keep `SKM_` |
-| Static mesh | `SM_` | |
-| Material / instance / function | `M_` / `MI_` / `MF_` | |
-| Texture | `T_` | Suffix the type: `_D` (colour), `_N` (normal), `_ORM` (packed mask) |
-| Niagara system / emitter | `NS_` / `NE_` | |
-| Sound cue / wave / class | `SC_` / `SW_` / `SCL_` | |
-| Data table / curve | `DT_` / `C_` | |
-| **Data asset** | `DA_<Kind>_` | The kind is the C++ class's short name: `DA_Spell_`, `DA_Ability_`, `DA_Weapon_`, `DA_Ring_`, `DA_Character_`, `DA_Inventory_`, `DA_Trial_`, `DA_Cosmetics_`, `DA_Stance_`, `DA_Effect_`, `DA_Boss_` |
-| Input action / mapping context | `IA_` / `IMC_` | One unique name per action (D-063, for rebinding later) |
-| **Map** | `L_` | New maps only: `L_Hub`, `L_Trial_Fire_01`. The current `Level/*` maps keep their names |
-| Primary asset label | `PAL_` | |
+**Epic** = Epic's list, as quoted in the survey. **Project** = a project choice for a type that Epic's list leaves out.
 
-A type that isn't listed gets a short prefix added to this table in the same change.
+| Asset | Prefix | Source | Note |
+|---|---|---|---|
+| Blueprint class | `BP_` | Epic | |
+| Widget Blueprint | `WBP_` | Epic | |
+| Animation Blueprint | `ABP_` | Epic | |
+| Animation montage | `AM_` | Epic | New montages use `AM_`, not `Anim_`. The 15 existing `Anim_` assets stay. |
+| Animation sequence / blend space | `AS_` / `BS_` | Project | |
+| Skeletal / static mesh | `SK_` / `SM_` | Epic | Engine mannequin assets keep `SKM_`. |
+| Material / instance / function | `M_` / `MI_` / `MF_` | Epic | |
+| Texture | `T_` | Epic | Add the type as a suffix: `_D` (colour), `_N` (normal), `_ORM` (packed mask). |
+| Niagara system / emitter | `FXS_` / `FXE_` | Epic | |
+| Enum / struct (Blueprint) | `E_` / `F_` | Epic | |
+| Sound cue / wave | `SC_` / `SW_` | Project | |
+| Data table / curve | `DT_` / `C_` | Epic / Project | |
+| Input action / mapping context | `IA_` / `IMC_` | Project (also Lyra) | Every action name is unique (D-063, so keys can be rebound later). |
+| Map | `L_` | Project (also Lyra) | New maps only, e.g. `L_Hub`, `L_Trial_Fire_01`. The current `Level/*` maps keep their names. |
+| Primary asset label | `PAL_` | Project | |
+| **Data asset** | `DA_<Kind>_` | Project | See below. |
+
+To add a type that isn't listed, add its short prefix to this table in the same change.
+
+### Data assets
+
+- **Weapon skills** are named by weapon family, then skill kind: `DA_<WeaponFamily>_<Attack|Ability>_<Name>`. Examples are `DA_Sword_Ability_BullRush` and `DA_SAS_Attack_F`. The families in use are `Sword`, `SAS`, `Greatsword`, `Axe`, `DualAxe` and `Gauntlets`; 224 assets follow this.
+- **Everything else** is named by its kind:
+
+  | Kind | Assets |
+  |---|---|
+  | `DA_Spell_` | Spells |
+  | `DA_Ring_` | Rings |
+  | `DA_Weapon_` | Weapons |
+  | `DA_Evo_` | Evolution items |
+  | `DA_Equipment_` | Equipment |
+  | `DA_Character_` | Characters |
+  | `DA_Inventory_` | Inventories |
+  | `DA_Enemy_` | Enemies |
+  | `DA_Merchant_` | Merchants |
+  | `DA_Trial_` | Trials |
+  | `DA_Cosmetics_` | Cosmetics |
+  | `DA_Stance_` | Stances |
+  | `DA_Effect_` | Effects |
+  | `DA_Boss_` | Bosses |
+
+  A new kind takes the C++ class's short name, without `Data`.
+- **Test and dev data** goes under `Content/Testing/`, named `DA_Test_<Kind>_<Name>`. Examples are `DA_Test_Weapon_Sword` and `DA_Test_Ability`; 23 assets already follow this.
 
 ## Folders
 
 | Folder | Holds |
 |---|---|
-| `Content/Data/<Kind>/` | Design-time data assets, grouped by kind (`Characters`, `Pool`, `Skills`, `Spells`, `Trials`, `Items`, `Merchant`, `Enemy`). |
-| `Content/Blueprints/` | Blueprint classes: characters, enemies, game modes. |
-| `Content/UI/` | `Core/` for CommonUI input data and styles. `UMG/<Screen>/` for widgets. |
-| `Content/VFX/` | Niagara systems and their materials. |
-| `Content/Level/` | Maps (new ones prefixed `L_`). |
-| `Content/Testing/` | **The one root for test and dev content.** Nothing in a shipping folder may reference it. `Data/Testing/` is folded in by B-122. |
-| `Content/UI/Vendor/`, `SourceArt/` | Imported kit pieces (`UI_DeckbuilderReuse.md` §4). |
+| `Content/Data/<Kind>/` | Design-time data assets, grouped by kind: `Characters`, `Pool`, `Skills`, `Spells`, `Trials`, `Items`, `Merchant`, `Enemy`. |
+| `Content/Blueprints/` | Blueprint classes: characters, enemies and game modes. |
+| `Content/Core/` | Game-wide Blueprints: game modes and hub. B-122 merges the duplicates between this folder and `Blueprints/GameModes/`. |
+| `Content/UI/` | `Core/` holds CommonUI input data and styles. `UMG/<Screen>/` holds widgets. |
+| `Content/VFX/` | Niagara systems and their materials. **Library assets copied from the engine keep their engine names** (`ENiagara_*`, `FN_*`). Don't copy those names for new assets. |
+| `Content/Level/` | Shipping maps. New maps use the `L_` prefix. |
+| `Content/Testing/` | **The one root for test and dev content.** New test maps go here too, as `L_Test_<Name>` (the three existing `Level/TestLevel_*` maps stay). Nothing in a shipping folder may reference this folder. B-122 folds `Data/Testing/` into it. |
+| `Content/RPGIcons/`, `Content/MSPresets/` | Vendor icon and material-preset packs, kept as imported. Don't add to them. Project icons go next to the screen that uses them, under `UI/`. |
+| `Content/UI/Vendor/`, `SourceArt/` | Planned for imported kit pieces (`UI_DeckbuilderReuse.md` §4, B-104). Nothing is tracked there yet. |
 
-- Input assets currently live under `Data/Characters/Models/CharacterBase/Input/`. New input assets go there too until a move is planned. Moving them needs redirectors and the B-205 config paths.
-- Vendor packs under `Content/Imports/` stay out of git (`.gitignore`). Only the originals of assets the game uses are committed (CLAUDE.md, LFS coverage).
+- Input assets live under `Data/Characters/Models/CharacterBase/Input/`, and new ones go there too until a move is planned. A move needs redirectors and an update to the B-205 config paths.
+- Vendor packs under `Content/Imports/` stay out of git (`.gitignore`). Only the originals of assets the game uses are committed (CLAUDE.md, "LFS coverage").
 
 ## Checking
 
-- No naming validator exists yet. Epic's `UEditorValidatorBase` could add one later; it's deferred (BestPractice §"Data validation").
-- When you add an asset, check its prefix against the table above.
-- Data validation in `Scripts/ue/test.sh` (B-119) checks content, not names.
+- Nothing checks names yet. An Epic `UEditorValidatorBase` validator could do it later; that is deferred (BestPractice, "Data validation").
+- When you add an asset, check its name against this page.
+- `Scripts/ue/test.sh` runs data validation (B-119). It checks content, not names.
