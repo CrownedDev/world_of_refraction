@@ -66,15 +66,16 @@ void UWoRBuildupExecution::Execute_Implementation(const FGameplayEffectCustomExe
 		return;
 	}
 	const UAbilitySystemComponent *Target = ExecutionParams.GetTargetAbilitySystemComponent();
-	const float Buildup = WoRBuildupMath::Compute(
-		ReadAttributes(*Context->BuildupRequest, ExecutionParams.GetSourceAbilitySystemComponent(), Target));
+	const FWoRBuildupRequest &Request = *Context->BuildupRequest;
+	const float Buildup = WoRBuildupMath::Compute(ReadAttributes(Request, ExecutionParams.GetSourceAbilitySystemComponent(), Target));
 
 	const FGameplayAttribute BuildupAttribute = UWoRAttributeSet_Vitals::GetBuildupAttribute();
 	if (Buildup != 0.0f && Target && Target->HasAttributeSetForAttribute(BuildupAttribute))
 	{
 		OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(BuildupAttribute, EGameplayModOp::Additive, Buildup));
 	}
-	UE_LOG(LogWoR, Verbose, TEXT("[BuildupExecution] %s: +%.2f buildup"), *GetNameSafe(Target ? Target->GetOwner() : nullptr), Buildup);
+	UE_LOG(LogWoR, Verbose, TEXT("[BuildupExecution] %s: +%.2f buildup\n%s"), *GetNameSafe(Target ? Target->GetOwner() : nullptr), Buildup,
+		   *GetRequestString(Request));
 }
 
 FWoRBuildupRequest UWoRBuildupExecution::MakeRequest(const UStatusBuildupManager &Buildup, AActor *Source, AActor *Target, float Amount,

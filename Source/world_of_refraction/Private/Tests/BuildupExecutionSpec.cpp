@@ -8,6 +8,7 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "AbilitySystemComponent.h"
+#include "Combat/CombatConstants.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
 #include "GAS/WoRBuildupExecution.h"
@@ -22,7 +23,11 @@ namespace
 	constexpr int32 BUILDUP_EXEC_RESIST_ID = 4601;
 	constexpr int32 BUILDUP_EXEC_SLASH_RESIST_ID = 4602;
 	constexpr int32 BUILDUP_EXEC_MULTIPLIER_ID = 4603;
+	constexpr int32 BUILDUP_EXEC_FIRE_MULTIPLIER_ID = 4604;
+	constexpr int32 BUILDUP_EXEC_CURSE_ID = 4605;
 	constexpr int32 BUILDUP_EXEC_TURNS = 3;
+	/** A ModifyStatusResist far below the floor, so the clamp at RESISTANCE_MIN is what counts. */
+	constexpr float BUILDUP_EXEC_CURSE_PERCENT = -300.0f;
 	/** Percents, as buff values are. */
 	constexpr float BUILDUP_EXEC_RESIST_PERCENT = 20.0f;
 	constexpr float BUILDUP_EXEC_MULTIPLIER_PERCENT = 50.0f;
@@ -139,6 +144,39 @@ void FBuildupExecutionSpec::Define()
 																			   ESpellElement::Fire, EPhysicalDamageType::Slash);
 		TestTrue(TEXT("The source multiplier is raised"), FireSlash.Inputs.SourceStatusMultiplier > 1.0f);
 		TestTrue(TEXT("Fire + Slash reads real resistances"), FireSlash.Inputs.HitTypeResistance > 0.0f);
+	});
+
+	It("matches with an element-keyed multiplier, a resistance below the floor and a baked-in multiplier", [this]()
+	{
+		if (!Buildup) return;
+		USkillEffectManager *SEM = TestWorld->GetSubsystem<USkillEffectManager>();
+		if (!TestNotNull(TEXT("SkillEffectManager"), SEM)) return;
+		FActiveSkillEffect FireMultiplier = FActiveSkillEffect::CreateBuff(TEXT("Buildup exec fire multiplier"), BUILDUP_EXEC_FIRE_MULTIPLIER_ID,
+																		   ESkillEffectType::StatusMultiplierBuff, BUILDUP_EXEC_MULTIPLIER_PERCENT,
+																		   BUILDUP_EXEC_TURNS);
+		FireMultiplier.Element = ESpellElement::Fire;
+		SEM->ApplyEffect(Source, FireMultiplier, Source);
+		SEM->ApplyEffect(Target, FActiveSkillEffect::CreateBuff(TEXT("Buildup exec curse"), BUILDUP_EXEC_CURSE_ID,
+															   ESkillEffectType::ModifyStatusResist, BUILDUP_EXEC_CURSE_PERCENT,
+															   BUILDUP_EXEC_TURNS), Target);
+		Resync(Source);
+		Resync(Target);
+		for (const bool bSkip : {false, true})
+		{
+			const FString Case = bSkip ? TEXT("baked-in multiplier") : TEXT("full pipeline");
+			const FWoRBuildupRequest Request = UWoRBuildupExecution::MakeRequest(*Buildup, Source, Target, BUILDUP_EXEC_AMOUNT,
+																				 ESpellElement::Fire, EPhysicalDamageType::None, bSkip);
+			// A baked-in multiplier skips the element-keyed step too (AddStatusBuildup's step 5b).
+			TestEqual(*(Case + TEXT(": element-keyed multiplier read only on the full pipeline")),
+					  Request.Inputs.ElementStatusMultiplier > 1.0f, !bSkip);
+			TestEqual(*(Case + TEXT(": resistance clamped at the floor")), WoRBuildupMath::GetTotalStatusResistance(Request.Inputs),
+					  CombatConstants::RESISTANCE_MIN);
+			Buildup->ResetStatusBar(Target);
+			Buildup->AddStatusBuildup(Source, Target, BUILDUP_EXEC_AMOUNT, ESpellElement::Fire, EPhysicalDamageType::None, bSkip);
+			const float Live = Buildup->GetStatusBarBuildup(Target);
+			Buildup->ResetStatusBar(Target);
+			TestEqual(*(Case + TEXT(": buildup")), GASBuildup(Request), Live, BUILDUP_EXEC_TOLERANCE);
+		}
 	});
 
 	It("reads the attributes, not the gathered numbers", [this]()
