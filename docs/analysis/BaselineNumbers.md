@@ -4,7 +4,7 @@
 
 ## Decided
 
-_None yet._
+- **Skill + weapon are added** (Crown, 2026-10-27; the deckbuilder's flat weapon bonus): base = skill part + weapon part (Power × scaling × requirement factor). Weapon Power defaults to 0, so today's fights stay the same until Power is set.
 
 ---
 
