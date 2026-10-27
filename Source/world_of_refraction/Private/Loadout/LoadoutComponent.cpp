@@ -3071,6 +3071,32 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
     return Loadout.PrimaryWeapon.IsValid() ? &Loadout.PrimaryWeapon : nullptr;
 }
 
+const FRuntimeAttachedItem *ULoadoutComponent::GetStoneRingAttachment() const
+{
+    const FRingLoadoutEntry *Ring = GetActiveRingLoadout() ? GetActiveRingLoadout() : GetPrimaryRingLoadout();
+    return Ring ? &Ring->RingEntry.AttachedItem : nullptr;
+}
+
+float ULoadoutComponent::GetAttachedStonePercent(ESubStat Stat) const
+{
+    float Total = 0.0f;
+    for (const FRuntimeAttachedItem *Attachment : {GetActiveWeaponAttachment(), GetStoneRingAttachment()})
+    {
+        Total += Attachment ? CrystalEffectTable::GetAttachedStonePercent(*Attachment, Stat) : 0.0f;
+    }
+    return Total;
+}
+
+float ULoadoutComponent::GetAttachedStonePercentForType(ECrystalType StoneType) const
+{
+    float Total = 0.0f;
+    for (const FRuntimeAttachedItem *Attachment : {GetActiveWeaponAttachment(), GetStoneRingAttachment()})
+    {
+        Total += Attachment ? CrystalEffectTable::GetAttachedStonePercentForType(*Attachment, StoneType) : 0.0f;
+    }
+    return Total;
+}
+
 const FRuntimeAttachedItem *ULoadoutComponent::GetActiveWeaponAttachment() const
 {
     // Single source for the GetActiveWeaponLoadout()->WeaponEntry.GetAttachedItem() idiom.
