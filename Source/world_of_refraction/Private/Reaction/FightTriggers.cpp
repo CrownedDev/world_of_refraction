@@ -16,11 +16,22 @@
 
 namespace
 {
-	/** Percent of max HP; -1 when it can't be read. */
+	constexpr float PERCENT_SCALE = 100.0f;
+	/** GetHPPercent for a combatant whose HP can't be read, or who is down: no line counts. */
+	constexpr float NO_HP_PERCENT = -1.0f;
+
+	bool IsAlive(const AActor *Actor)
+	{
+		const UCharacterDataComponent *Stats = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		return Stats && Stats->CurrentHP > 0;
+	}
+
+	/** Percent of max HP. A killing blow is not an HP line crossed: what fires there would act on
+	 *  the dead (and could lift a boss back to 1 HP). */
 	float GetHPPercent(const AActor *Actor)
 	{
 		const UCharacterDataComponent *Stats = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-		return Stats && Stats->MaxHP > 0 ? 100.0f * Stats->CurrentHP / Stats->MaxHP : -1.0f;
+		return Stats && Stats->MaxHP > 0 && Stats->CurrentHP > 0 ? PERCENT_SCALE * Stats->CurrentHP / Stats->MaxHP : NO_HP_PERCENT;
 	}
 
 	bool IsPastLine(const FFightMoment &When, float HPPercent)
@@ -247,6 +258,15 @@ void UFightTriggers::CheckHPLines()
 
 void UFightTriggers::Fire(FWaitingTrigger &Entry)
 {
+	// Its wearer and faced character (a reaction) or its boss must still be standing; else it keeps
+	// waiting (for a fight that's ending anyway).
+	const bool bStanding = Entry.Reaction.Trigger
+		? Entry.Ours.Num() == 1 && Entry.Theirs.Num() == 1 && IsAlive(Entry.Ours[0].Get()) && IsAlive(Entry.Theirs[0].Get())
+		: IsAlive(Entry.Boss.Get());
+	if (!bStanding)
+	{
+		return;
+	}
 	// Marked first: what it does can re-enter (an HP change) and must not fire it again.
 	Entry.bFired = true;
 	++FiredMidFight;

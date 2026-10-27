@@ -154,6 +154,87 @@ void FFightTriggersSpec::Define()
 		TestEqual(TEXT("The wearer hitting: fires"), Triggers->GetFiredMidFightCount(), 1);
 	});
 
+	It("listens to the real HP delegate while watching, and not after", [this]()
+	{
+		AActor *Wearer = SpawnWearer();
+		AActor *Boss = TestWorld->SpawnCombatant(BossCharacter, true);
+		if (!TestNotNull(TEXT("Combatants"), Wearer) || !TestNotNull(TEXT("Boss"), Boss))
+		{
+			return;
+		}
+		Triggers->StartReactions({SwordReaction(EFightMoment::HPBelow, EFightMomentSide::Theirs)}, {Wearer}, {Boss});
+		UFightTriggers *Unwatched = NewObject<UFightTriggers>(GetTransientPackage());
+		Unwatched->StartReactions({SwordReaction(EFightMoment::HPBelow, EFightMomentSide::Theirs)}, {Wearer}, {Boss});
+		Triggers->Watch(true);
+		Unwatched->Watch(true);
+		Unwatched->Watch(false);
+		UCharacterDataComponent *Stats = StatsOf(Boss);
+		SetHPShare(Boss, FIGHT_TRIGGER_TEST_BELOW);
+		Stats->OnHPChanged.Broadcast(Stats->CurrentHP, Stats->MaxHP);
+		TestEqual(TEXT("Bound: fires"), Triggers->GetFiredMidFightCount(), 1);
+		TestEqual(TEXT("Unbound: doesn't"), Unwatched->GetFiredMidFightCount(), 0);
+	});
+
+	It("does nothing on a killing blow, and a dead boss stays dead", [this]()
+	{
+		UBossData *Data = NewObject<UBossData>(GetTransientPackage());
+		Data->Boss = BossCharacter;
+		FBossTriggerCondition InParty;
+		InParty.Kind = EBossTriggerConditionKind::PartyMember;
+		InParty.Character = Lord;
+		FBossTrigger Trigger;
+		Trigger.TriggerId = FIGHT_TRIGGER_TEST_ID;
+		Trigger.Conditions.Add(InParty);
+		Trigger.Results.Add(EBossTriggerResult::Strengthen);
+		Trigger.When.Moment = EFightMoment::HPBelow;
+		Trigger.When.Side = EFightMomentSide::Theirs;
+		Trigger.When.ThresholdPercent = FIGHT_TRIGGER_TEST_LINE;
+		Data->Triggers.Add(Trigger);
+		Trigger.When.Moment = EFightMoment::DamageTaken;
+		Data->Triggers.Add(Trigger);
+
+		AActor *Member = TestWorld->SpawnCombatant(Lord);
+		AActor *Boss = TestWorld->SpawnCombatant(BossCharacter, true);
+		Triggers->StartBoss(Boss, *Data, {Member});
+		Triggers->Watch(true);
+		StatsOf(Boss)->CurrentHP = 0;
+		Triggers->HandleDamageDealt(Member, Boss, 1, false);
+		TestEqual(TEXT("Killed outright: nothing fires"), Triggers->GetFiredMidFightCount(), 0);
+		TestEqual(TEXT("Still dead"), StatsOf(Boss)->CurrentHP, 0);
+	});
+
+	It("takes a mid-fight weaken back off when a strengthen follows", [this]()
+	{
+		UBossData *Data = NewObject<UBossData>(GetTransientPackage());
+		Data->Boss = BossCharacter;
+		FBossTriggerCondition InParty;
+		InParty.Kind = EBossTriggerConditionKind::PartyMember;
+		InParty.Character = Lord;
+		FBossTrigger Weaken;
+		Weaken.TriggerId = FIGHT_TRIGGER_TEST_ID;
+		Weaken.Conditions.Add(InParty);
+		Weaken.Results.Add(EBossTriggerResult::Weaken);
+		Weaken.When.Moment = EFightMoment::TurnStart;
+		Weaken.When.Side = EFightMomentSide::Theirs;
+		FBossTrigger Strengthen = Weaken;
+		Strengthen.Results = {EBossTriggerResult::Strengthen};
+		Strengthen.When.Moment = EFightMoment::Hit;
+		Strengthen.When.Side = EFightMomentSide::Ours;
+		Data->Triggers.Add(Weaken);
+		Data->Triggers.Add(Strengthen);
+
+		AActor *Member = TestWorld->SpawnCombatant(Lord);
+		AActor *Boss = TestWorld->SpawnCombatant(BossCharacter, true);
+		const int32 BaseMaxHP = StatsOf(Boss)->MaxHP;
+		Triggers->StartBoss(Boss, *Data, {Member});
+		Triggers->Watch(true);
+		Triggers->HandleTurnStarted(Boss, 1);
+		TestTrue(TEXT("Weakened"), StatsOf(Boss)->MaxHP < BaseMaxHP);
+		Triggers->HandleDamageDealt(Member, Boss, 1, false);
+		TestEqual(TEXT("Net 0: back to its own max HP"), StatsOf(Boss)->MaxHP, BaseMaxHP);
+		TestEqual(TEXT("Both fired"), Triggers->GetFiredMidFightCount(), 2);
+	});
+
 	It("weakens a boss at its turn start and keeps its share of HP", [this]()
 	{
 		UBossData *Data = NewObject<UBossData>(GetTransientPackage());

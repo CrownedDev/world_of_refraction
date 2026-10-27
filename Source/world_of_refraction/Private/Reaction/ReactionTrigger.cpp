@@ -259,8 +259,16 @@ bool ReactionTriggers::ApplyBossSteps(AActor *Boss, int32 NetSteps, bool bBefore
 		if (CharComp)
 		{
 			CharComp->RecomputeMaxPools();
-			// Before the fight: the boss starts at its new full HP, like the trial's enemy strength.
-			CharComp->CurrentHP = bBeforeFight ? CharComp->MaxHP : FMath::Max(1, FMath::RoundToInt(HPShare * CharComp->MaxHP));
+			if (bBeforeFight)
+			{
+				// Before the fight: the boss starts at its new full HP, like the trial's enemy strength.
+				CharComp->CurrentHP = CharComp->MaxHP;
+				return;
+			}
+			// Mid-fight through the setter, so HP bars and HP lines see it; a living boss never drops
+			// to 0 from rounding, a dead one stays dead.
+			const int32 Kept = FMath::RoundToInt(HPShare * CharComp->MaxHP);
+			CharComp->ServerSetHP(HPShare > 0.0f ? FMath::Max(1, Kept) : 0);
 		}
 	};
 	if (NetSteps == 0)
