@@ -194,6 +194,14 @@ void FEffectTextSpec::Define()
 				Eff({Cond(ESkillTrigger::OnHit)}, {Pay(ESkillEffectType::Heal, ETargetType::Self, 2)})};
 			ExpectLines(EffectText::BuildTree(Effects, EEffectTextSource::Gear),
 						{TEXT("On Hit"), TEXT("Heal 2"), TEXT("Passive"), TEXT("Gain +20% Defense")});
+			ExpectLines(EffectText::BuildTree(Effects, EEffectTextSource::Skill),
+						{TEXT("Activate"), TEXT("Gain +20% Defense"), TEXT("On Hit"), TEXT("Heal 2")});
+			FSkillEffect CostCut = Eff({}, {Pay(ESkillEffectType::ModifyEnergyCost, ETargetType::Self, 0, 0.2f)});
+			const TArray<FEffectTextLine> CostLines = EffectText::BuildTree({CostCut}, EEffectTextSource::Gear);
+			if (TestEqual(TEXT("Cost lines"), CostLines.Num(), 2))
+			{
+				TestFalse(TEXT("A cheaper cost is not a debuff"), CostLines[1].bDebuff);
+			}
 		});
 
 		It("prints the OR checks as one level that holds when any does", [this]()
@@ -280,7 +288,7 @@ void FEffectTextSpec::Define()
 					  FString(TEXT("all Allies take 20% less damage")));
 			TestEqual(TEXT("One extra turn"), Body(Pay(ESkillEffectType::ExtraAction, ETargetType::Self, 2)), FString(TEXT("take an extra turn")));
 			TestEqual(TEXT("Positive Energy cost is cheaper"), Body(Pay(ESkillEffectType::ModifyEnergyCost, ETargetType::Self, 0, 0.2f)),
-					  FString(TEXT("your Refractions cost 20% less")));
+					  FString(TEXT("your Refractions and Abilities cost 20% less")));
 			TestEqual(TEXT("Random stat"), Body(Pay(ESkillEffectType::RandomDebuff, ETargetType::Enemy, 0, 0.1f, 2)),
 					  FString(TEXT("give an Enemy -10% to a random stat for 2 turns")));
 			TestEqual(TEXT("Stun"), Body(Pay(ESkillEffectType::Stun, ETargetType::Enemy, 0, 0.0f, 1)), FString(TEXT("stun an Enemy for 1 turn")));

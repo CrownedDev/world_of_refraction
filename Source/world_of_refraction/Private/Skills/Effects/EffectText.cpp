@@ -13,6 +13,16 @@ namespace
 {
     constexpr float PERCENT_SCALE = 100.0f;
     constexpr int32 INDENT_SPACES_PER_LEVEL = 2;
+    constexpr int32 ACTIVATE_BLOCK = 0;
+    constexpr int32 TRIGGERED_BLOCK = 1;
+    constexpr int32 PASSIVE_BLOCK = 2;
+
+    /** ModifyEnergyCost: positive is cheaper, like SpellCostBuff (ActionExecutor's cost multiplier). */
+    bool IsCostCut(const FSkillEffectPayload &P)
+    {
+        return P.EffectType == ESkillEffectType::SpellCostBuff
+               || (P.EffectType == ESkillEffectType::ModifyEnergyCost && (P.Value != 0 ? P.Value > 0 : P.Magnitude >= 0.0f));
+    }
 
     /** The recipient of a payload, as the verb's object ("an Enemy", "2 Allies", "all Enemies"). */
     struct FSide
@@ -414,7 +424,7 @@ namespace
     {
         FEffectTextLine Line;
         TArray<FNode> Children;
-        bool bUntriggered = false;
+        int32 BlockOrder = 0;
     };
 
     FNode &FindOrAdd(TArray<FNode> &Nodes, const FEffectTextLine &Line)
@@ -497,7 +507,8 @@ namespace
                     continue;
                 }
                 FNode &HeadingNode = FindOrAdd(Headings, Heading);
-                HeadingNode.bUntriggered = !HasHeadingTrigger(Effect);
+                HeadingNode.BlockOrder = HasHeadingTrigger(Effect) ? TRIGGERED_BLOCK
+                                         : Source == EEffectTextSource::Skill ? ACTIVATE_BLOCK : PASSIVE_BLOCK;
                 TArray<FNode> *Siblings = &HeadingNode.Children;
                 for (int32 d = 0; d < Levels.Num(); ++d)
                 {
@@ -517,11 +528,14 @@ namespace
                 Leaf.Line.Text = FText::Format(LOCTEXT("LeafWithRiders", "{0}{1}"),
                                                Capitalise(EffectText::DescribePayload(P)), Riders(Effect, P));
                 Leaf.Line.EffectIndex = e;
-                Leaf.Line.bDebuff = SkillEffectClassification::IsDebuff(P.EffectType, P.Magnitude);
+                // ModifyEnergyCost is classed a debuff whatever its sign; the text lights by what it does.
+                Leaf.Line.bDebuff = P.EffectType == ESkillEffectType::ModifyEnergyCost
+                                        ? !IsCostCut(P)
+                                        : SkillEffectClassification::IsDebuff(P.EffectType, P.Magnitude);
             }
         }
-        // Passive (or Activate) comes last (07, "The card-text tree").
-        Headings.StableSort([](const FNode &A, const FNode &B) { return !A.bUntriggered && B.bUntriggered; });
+        // Activate first, Passive last (07, "Block structure" and "The card-text tree").
+        Headings.StableSort([](const FNode &A, const FNode &B) { return A.BlockOrder < B.BlockOrder; });
         return Headings;
     }
 }
@@ -743,13 +757,11 @@ namespace EffectText
         case ESkillEffectType::SpellCostDebuff:
         case ESkillEffectType::ModifyEnergyCost:
         {
-            // ModifyEnergyCost: positive is cheaper, like SpellCostBuff (ActionExecutor's cost multiplier).
-            const bool bCheaper = P.EffectType == ESkillEffectType::SpellCostBuff
-                                  || (P.EffectType == ESkillEffectType::ModifyEnergyCost && (P.Value != 0 ? P.Value > 0 : P.Magnitude >= 0.0f));
+            // The cost multiplier applies to Refractions and Abilities alike.
             const FText Whose = Side.bSelf ? LOCTEXT("Whose_Self", "your") : Side.Possessive;
-            return bCheaper
-                       ? FText::Format(LOCTEXT("SpellCost_Less", "{0} Refractions cost {1} less{2}"), Whose, Amount(P), Span(P))
-                       : FText::Format(LOCTEXT("SpellCost_More", "{0} Refractions cost {1} more{2}"), Whose, Amount(P), Span(P));
+            return IsCostCut(P)
+                       ? FText::Format(LOCTEXT("Cost_Less", "{0} Refractions and Abilities cost {1} less{2}"), Whose, Amount(P), Span(P))
+                       : FText::Format(LOCTEXT("Cost_More", "{0} Refractions and Abilities cost {1} more{2}"), Whose, Amount(P), Span(P));
         }
 
         // ---- status bars and rows ----
