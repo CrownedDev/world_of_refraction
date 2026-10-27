@@ -375,6 +375,13 @@ class WORLD_OF_REFRACTION_API UWoRGE_ResistanceSources : public UWoRGameplayEffe
 {
 	GENERATED_BODY()
 
+public:
+	/** The four source effects, in the order WoRResistance adds them. */
+	static TConstArrayView<TSubclassOf<UGameplayEffect>> GetSourceClasses();
+
+	/** Whether Attribute is built from these sources (every type resistance and StatusResistBonus). */
+	static bool CoversAttribute(const FGameplayAttribute &Attribute);
+
 protected:
 	UWoRGE_ResistanceSources();
 

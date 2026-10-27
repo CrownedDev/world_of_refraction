@@ -7,6 +7,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/Resistance/ResistanceQuery.h"
 #include "Combat/TurnManager.h"
 #include "Engine/GameInstance.h"
 #include "Engine/Engine.h"
@@ -116,6 +117,39 @@ void UWoRAttributeDebug::AddComposedMismatches(const AActor *Actor, const UAbili
 		if (Derived != 1)
 		{
 			Mismatches.Add(FString::Printf(TEXT("%s: %d derived-stat effects, expected 1"), *Attribute.GetName(), Derived));
+		}
+		return;
+	}
+	if (UWoRGE_ResistanceSources::CoversAttribute(Attribute))
+	{
+		const float Base = ASC.GetNumericAttributeBase(Attribute);
+		if (!FMath::IsNearlyZero(Base, ATTRIBUTE_DEBUG_TOLERANCE))
+		{
+			Mismatches.Add(FString::Printf(TEXT("%s: base %.5f, expected 0 (the resistance sources add it all)"), *Attribute.GetName(), Base));
+		}
+		// Once per combatant: the four source effects, one each.
+		if (Attribute == UWoRAttributeSet_Resistance::GetStatusResistBonusAttribute())
+		{
+			for (const TSubclassOf<UGameplayEffect> &SourceClass : UWoRGE_ResistanceSources::GetSourceClasses())
+			{
+				FGameplayEffectQuery Query;
+				Query.EffectDefinition = SourceClass;
+				const int32 Sources = ASC.GetActiveEffects(Query).Num();
+				if (Sources != 1)
+				{
+					Mismatches.Add(FString::Printf(TEXT("%s: %d effects, expected 1"), *SourceClass->GetName(), Sources));
+				}
+			}
+		}
+		return;
+	}
+	if (Attribute == UWoRAttributeSet_Resistance::GetStatusResistanceAttribute())
+	{
+		FWoRStatLayers ResistLayers;
+		if (WoRResistance::GetGeneralStatusResistanceLayers(const_cast<AActor *>(Actor), ResistLayers))
+		{
+			AddSourcesMismatches(ASC, Attribute, ResistLayers.StatBase, TEXT("capped stat"),
+								 UWoRGE_StatSources_StatusResistance::StaticClass(), ResistLayers.ToString(), Mismatches);
 		}
 		return;
 	}

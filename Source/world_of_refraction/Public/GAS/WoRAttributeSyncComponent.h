@@ -10,7 +10,9 @@
 // holds the capped stat (FWoRStatLayers::StatBase) and a UWoRGE_StatSources effect multiplies in the
 // gear, stone and buff layers, so their current value still equals the getter (Q-042p). B-042t: the
 // pillars the same way, over their world base. B-042u: MaxHealth / MaxEnergy from the layers the last
-// RecomputeMaxPools used (a UWoRGE_PoolSources effect over the stat portion, Q-042u).
+// RecomputeMaxPools used (a UWoRGE_PoolSources effect over the stat portion, Q-042u). B-042w: the
+// resistances from one UWoRGE_ResistanceSources effect per source over a 0 base, and general status
+// resistance on the stat-sources shape (Q-042w).
 // Debug: UWoRAttributeDebug (wor.CompareAttributes).
 
 #pragma once
@@ -19,6 +21,7 @@
 #include "Components/ActorComponent.h"
 #include "AttributeSet.h"
 #include "ActiveGameplayEffectHandle.h"
+#include "GameplayTagContainer.h"
 #include "Character/StatLayers.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "WoRAttributeSyncComponent.generated.h"
@@ -40,6 +43,13 @@ struct FWoRAppliedPoolSources
 {
 	FActiveGameplayEffectHandle Handle;
 	FWoRPoolLayers Layers;
+};
+
+/** One resistance source effect, and the magnitudes it carries (B-042w). */
+struct FWoRAppliedResistanceSources
+{
+	FActiveGameplayEffectHandle Handle;
+	TMap<FGameplayTag, float> Magnitudes;
 };
 
 /** The derived-stat effect applied for one attribute, and the buff layer it carries (crit chance only). */
@@ -110,6 +120,11 @@ private:
 	/** Removes Attribute's stat or pool sources effect, if any. */
 	void RemoveStatSources(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute);
 
+	/** Each resistance source effect carries its buckets; their attributes' base is 0 (B-042w). */
+	void SyncResistanceSources(UAbilitySystemComponent &ASC);
+	void SyncResistanceSource(UAbilitySystemComponent &ASC, TSubclassOf<UGameplayEffect> SourceClass,
+							  const TMap<FGameplayTag, float> &Magnitudes);
+
 	/** Base = the pool's stat portion; applies its pool sources effect once and keeps its layers current (B-042u). */
 	void SyncPoolStat(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute, const FWoRPoolLayers &Layers,
 					  TSubclassOf<UGameplayEffect> PoolClass);
@@ -120,5 +135,6 @@ private:
 
 	TMap<FGameplayAttribute, FWoRAppliedStatSources> AppliedStatSources;
 	TMap<FGameplayAttribute, FWoRAppliedPoolSources> AppliedPoolSources;
+	TMap<const UClass *, FWoRAppliedResistanceSources> AppliedResistanceSources;
 	TMap<FGameplayAttribute, FWoRAppliedDerivedStat> AppliedDerivedStats;
 };

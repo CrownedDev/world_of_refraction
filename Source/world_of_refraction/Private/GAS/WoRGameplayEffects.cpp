@@ -290,6 +290,33 @@ namespace
 	}
 }
 
+TConstArrayView<TSubclassOf<UGameplayEffect>> UWoRGE_ResistanceSources::GetSourceClasses()
+{
+	static const TSubclassOf<UGameplayEffect> SourceClasses[] = {
+		UWoRGE_ResistanceSources_Effect::StaticClass(),
+		UWoRGE_ResistanceSources_Class::StaticClass(),
+		UWoRGE_ResistanceSources_Gear::StaticClass(),
+		UWoRGE_ResistanceSources_Boss::StaticClass(),
+	};
+	return SourceClasses;
+}
+
+bool UWoRGE_ResistanceSources::CoversAttribute(const FGameplayAttribute &Attribute)
+{
+	if (Attribute == UWoRAttributeSet_Resistance::GetStatusResistBonusAttribute())
+	{
+		return true;
+	}
+	for (const EWoRDamageType DamageType : WoRDamageType::All())
+	{
+		if (Attribute == UWoRAttributeSet_Resistance::GetTypeAttribute(DamageType))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void UWoRGE_ResistanceSources::AddTypeModifiers()
 {
 	for (const EWoRDamageType DamageType : WoRDamageType::All())
