@@ -12,7 +12,10 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/TurnManager.h"
 #include "Debug/GAS/WoRAttributeDebug.h"
+#include "Equipment/Crystals/CrystalEffectTable.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Inventory/InventoryComponent.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
 #include "GAS/WoRGameplayEffects.h"
@@ -115,6 +118,28 @@ void FTurnSpeedSourcesSpec::Define()
 		TestEqual(TEXT("Current = turn order's speed"), TurnSpeed(), static_cast<float>(Turns->GetEffectiveTurnSpeed(Hero)));
 		TestEqual(TEXT("A whole number"), FMath::Frac(TurnSpeed()), 0.0f);
 		TestTrue(TEXT("Same effect, updated in place"), TurnSpeedSources() == HandlesBefore);
+	});
+
+	It("multiplies an attached stone and a buff in, as turn order does", [this]()
+	{
+		if (!ASC) return;
+		UInventoryComponent *Inventory = Hero->FindComponentByClass<UInventoryComponent>();
+		if (!TestNotNull(TEXT("Inventory"), Inventory) ||
+			!TestTrue(TEXT("An active loadout"), Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex)))
+		{
+			return;
+		}
+		FRuntimeAttachedItem Stone;
+		Stone.Kind = EAttachedItemKind::AugmentStone;
+		Stone.Crystal = FCrystalAttachment(FCrystalId(ECrystalType::TurnSpeedStone, EItemTier::F_Tier), 0);
+		Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryWeapon.WeaponEntry.AttachedItem = Stone;
+		Buff(ESkillEffectType::TurnSpeedBuff, TURN_SPEED_SOURCES_BUFF_PERCENT);
+		FWoRStatLayers Layers;
+		TestTrue(TEXT("Turn speed layers"), Turns->GetTurnSpeedLayers(Hero, Layers));
+		TestTrue(TEXT("The stone is in"), Layers.StoneFactor > 1.0f);
+		TestTrue(TEXT("The buff is in"), Layers.TransientFactor > 1.0f);
+		TestEqual(TEXT("Current = turn order's speed"), TurnSpeed(), static_cast<float>(Turns->GetEffectiveTurnSpeed(Hero)));
+		TestTrue(TEXT("The compare sees no mismatch"), UWoRAttributeDebug::GetAttributeMismatchString(Hero).IsEmpty());
 	});
 
 	It("floors at 1 under a debuff past -100%, as turn order does", [this]()

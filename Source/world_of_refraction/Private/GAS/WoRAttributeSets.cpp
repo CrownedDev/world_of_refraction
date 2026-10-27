@@ -5,6 +5,12 @@
 #include "Character/StatLayers.h"
 #include "Net/UnrealNetwork.h"
 
+namespace
+{
+	/** Turn order never runs a combatant below 1 (UTurnManager::GetEffectiveTurnSpeed). */
+	constexpr float TURN_SPEED_FLOOR = 1.0f;
+}
+
 #define WOR_REPLICATE_ATTRIBUTE(ClassName, PropertyName) \
 	DOREPLIFETIME_CONDITION_NOTIFY(ClassName, PropertyName, COND_None, REPNOTIFY_Always)
 
@@ -59,7 +65,7 @@ void UWoRAttributeSet_Stats::PreAttributeChange(const FGameplayAttribute &Attrib
 	else if (Attribute == GetTurnSpeedAttribute())
 	{
 		// As turn order runs it (UTurnManager::GetEffectiveTurnSpeed): rounded, at least 1 (B-042v).
-		NewValue = FWoRStatLayers::ForTurnSpeed(NewValue).Clamp(FMath::RoundToFloat(NewValue));
+		NewValue = FMath::Max(TURN_SPEED_FLOOR, FMath::RoundToFloat(NewValue));
 	}
 	else if (Attribute == GetCritChanceAttribute())
 	{

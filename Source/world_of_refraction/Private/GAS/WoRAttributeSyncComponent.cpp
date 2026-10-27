@@ -163,6 +163,7 @@ void UWoRAttributeSyncComponent::SyncAttributes()
 		return;
 	}
 	const UCharacterDataComponent *Char = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+	const UTurnManager *Turns = AttributeSyncSubsystem<UTurnManager>(this);
 	for (const FWoRAttributeSourceValue &Source : ReadSourceValues(GetOwner()))
 	{
 		ESubStat Stat;
@@ -181,7 +182,6 @@ void UWoRAttributeSyncComponent::SyncAttributes()
 			continue;
 		}
 		const bool bTurnSpeed = Source.Attribute == UWoRAttributeSet_Stats::GetTurnSpeedAttribute();
-		const UTurnManager *Turns = AttributeSyncSubsystem<UTurnManager>(this);
 		if (bTurnSpeed && Turns && Turns->GetTurnSpeedLayers(GetOwner(), Layers))
 		{
 			SyncComposedStat(*ASC, Source.Attribute, Layers, UWoRGE_StatSources::GetClassFor(ESubStat::TurnSpeed));
@@ -401,6 +401,8 @@ void UWoRAttributeSyncComponent::BindSources()
 	if (UTurnManager *Turns = AttributeSyncSubsystem<UTurnManager>(this))
 	{
 		Turns->OnTurnStarted.AddUniqueDynamic(this, &UWoRAttributeSyncComponent::HandleTurnStarted);
+		// A loadout change re-caches turn speed after it broadcasts, and some re-caches have no loadout event.
+		Turns->OnSpeedChanged.AddUniqueDynamic(this, &UWoRAttributeSyncComponent::HandleSpeedChanged);
 	}
 }
 
@@ -420,6 +422,7 @@ void UWoRAttributeSyncComponent::UnbindSources()
 	if (UTurnManager *Turns = AttributeSyncSubsystem<UTurnManager>(this))
 	{
 		Turns->OnTurnStarted.RemoveDynamic(this, &UWoRAttributeSyncComponent::HandleTurnStarted);
+		Turns->OnSpeedChanged.RemoveDynamic(this, &UWoRAttributeSyncComponent::HandleSpeedChanged);
 	}
 }
 
@@ -458,6 +461,14 @@ void UWoRAttributeSyncComponent::HandleLoadoutChanged(int32 NewLoadoutIndex)
 }
 
 void UWoRAttributeSyncComponent::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
+{
+	if (Actor == GetOwner())
+	{
+		SyncAttributes();
+	}
+}
+
+void UWoRAttributeSyncComponent::HandleSpeedChanged(AActor *Actor)
 {
 	if (Actor == GetOwner())
 	{

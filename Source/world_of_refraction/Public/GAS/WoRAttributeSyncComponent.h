@@ -3,7 +3,8 @@
 // values the existing getters return. Q-041: the getters stay the source of truth until stage 3
 // moves effects onto GameplayEffects; this component is the bridge until then.
 // Syncs on: BeginPlay, HP/EP change, effect applied/removed/restacked on the owner, status buildup
-// change, loadout change, and the owner's own turn start (a safety net for changes with no event).
+// change, loadout change, the owner's turn speed re-cached (B-042v), and the owner's own turn start
+// (a safety net for changes with no event).
 // Only the authority writes; clients get the values by replication.
 // B-042p: SpellDamage, RawDamage, ActionSpeed and SpellSpeed are composed on GAS instead: the base
 // holds the capped stat (FWoRStatLayers::StatBase) and a UWoRGE_StatSources effect multiplies in the
@@ -96,6 +97,8 @@ private:
 	void HandleLoadoutChanged(int32 NewLoadoutIndex);
 	UFUNCTION()
 	void HandleTurnStarted(AActor *Actor, int32 TurnNumber);
+	UFUNCTION()
+	void HandleSpeedChanged(AActor *Actor);
 
 	void BindSources();
 	void UnbindSources();
