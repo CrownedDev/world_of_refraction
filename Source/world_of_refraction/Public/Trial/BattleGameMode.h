@@ -109,6 +109,12 @@ private:
     /** Bind / unbind the two handlers above on the action executor. */
     void WatchFightUsage(bool bWatch);
 
+    /** The executor outlives the level: unbind if the battle ends without a result. */
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+    /** Debug: one member's fight usage in words. */
+    static FString GetFightUsageString(const FMemoryFightUsage &Usage);
+
     /** Per fight (D-064): what each player-side combatant used, read when the fight is won. */
     TMap<TWeakObjectPtr<const AActor>, FMemoryFightUsage> FightUsage;
 
