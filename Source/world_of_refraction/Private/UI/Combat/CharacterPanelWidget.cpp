@@ -442,7 +442,7 @@ void UCharacterPanelWidget::ApplyStaticText_Implementation()
 	// InnateElement=Generic, so "Generic | Generic" is noise. BD is a Caster
 	// (Darkness + bBrokenDarknessInnate) and keeps its element token; BD-specific
 	// display is banked with the wider BD arc.
-	const FString ClassLabel = UEnum::GetDisplayValueAsText(Data->CharacterClass).ToString();
+	const FString ClassLabel = WoRGameNames::GetCharacterClassName(Data->CharacterClass).ToString();
 	SetTextSafe(ClassElementText,
 				Data->CharacterClass == ECharacterClass::Caster
 					? FString::Printf(TEXT("%s | %s"), *ClassLabel,

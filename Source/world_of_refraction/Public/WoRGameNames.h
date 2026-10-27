@@ -3,11 +3,13 @@
 // survive cooked builds, where UMETA(DisplayName) metadata is stripped and
 // UEnum::GetDisplayNameTextByValue falls back to the raw identifier ("DOT", "SkipTurn").
 // Generated from each enum's UMETA DisplayName (B-126); edit the text here, not in the enum.
+// Reality reads "Unknown" to players (D-095); code and docs keep Reality.
 // A new enum value needs a case here: WoR.Text.GameNames fails until it has one.
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Character/ECharacterClass.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Skills/Effects/ESkillEffectType.h"
 
@@ -18,4 +20,7 @@ namespace WoRGameNames
 
     /** "Damage Over Time", "Skip Turn", ... Element-specific names ("Burn") stay in SkillEffectDisplayNames. */
     WORLD_OF_REFRACTION_API FText GetSkillEffectTypeName(ESkillEffectType EffectType);
+
+    /** "Generic", "Refractor" (code: Caster), "Resonator". */
+    WORLD_OF_REFRACTION_API FText GetCharacterClassName(ECharacterClass CharacterClass);
 }

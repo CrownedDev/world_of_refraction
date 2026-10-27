@@ -30,7 +30,7 @@ FText GetElementName(ESpellElement Element)
     case ESpellElement::Void:
         return LOCTEXT("ESpellElement_Void", "Void");
     case ESpellElement::Reality:
-        return LOCTEXT("ESpellElement_Reality", "Reality");
+        return LOCTEXT("ESpellElement_Reality", "Unknown"); // D-095: players never see "Reality"
     case ESpellElement::None:
         return LOCTEXT("ESpellElement_None", "None");
     }
@@ -214,7 +214,7 @@ FText GetSkillEffectTypeName(ESkillEffectType EffectType)
     case ESkillEffectType::GrantVoidImmunity:
         return LOCTEXT("ESkillEffectType_GrantVoidImmunity", "Void Immunity");
     case ESkillEffectType::GrantRealityImmunity:
-        return LOCTEXT("ESkillEffectType_GrantRealityImmunity", "Reality Immunity");
+        return LOCTEXT("ESkillEffectType_GrantRealityImmunity", "Unknown Immunity"); // D-095
     case ESkillEffectType::ApplyBurnToTarget:
         return LOCTEXT("ESkillEffectType_ApplyBurnToTarget", "Apply Burn");
     case ESkillEffectType::ApplyChillToTarget:
@@ -261,6 +261,20 @@ FText GetSkillEffectTypeName(ESkillEffectType EffectType)
         return LOCTEXT("ESkillEffectType_PushBack", "Push Back (one row)");
     case ESkillEffectType::PullForward:
         return LOCTEXT("ESkillEffectType_PullForward", "Pull Forward (one row)");
+    }
+    return FText::GetEmpty();
+}
+
+FText GetCharacterClassName(ECharacterClass CharacterClass)
+{
+    switch (CharacterClass)
+    {
+    case ECharacterClass::Generic:
+        return LOCTEXT("ECharacterClass_Generic", "Generic");
+    case ECharacterClass::Caster:
+        return LOCTEXT("ECharacterClass_Caster", "Refractor");
+    case ECharacterClass::Resonator:
+        return LOCTEXT("ECharacterClass_Resonator", "Resonator");
     }
     return FText::GetEmpty();
 }
