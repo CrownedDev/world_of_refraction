@@ -72,12 +72,6 @@ namespace
         return P.Value != 0 ? FText::AsNumber(FMath::Abs(P.Value)) : Percent(P.Magnitude);
     }
 
-    /** Repeat counts read as whole numbers, at least one ("skip 1 turn"). */
-    int32 CountOf(const FSkillEffectPayload &P)
-    {
-        return FMath::Max(1, P.Value != 0 ? FMath::Abs(P.Value) : P.Duration);
-    }
-
     /** "Fire " before a noun, "Elemental " for Generic (it takes the caster's element), nothing for None. */
     FText ElementPrefix(ESpellElement Element)
     {
@@ -167,16 +161,10 @@ namespace
             OutStat = LOCTEXT("Stat_Speed", "Speed"); return true;
         case ESkillEffectType::EnergyDebuff:
             OutStat = LOCTEXT("Stat_Energy", "Energy"); return true;
-        case ESkillEffectType::RandomDebuff:
-            OutStat = LOCTEXT("Stat_Random", "a random stat"); return true;
         case ESkillEffectType::ModifyStatusResist:
             OutStat = LOCTEXT("Stat_StatusResistance", "Status Resistance"); return true;
         case ESkillEffectType::HealingReceivedBuff:
             OutStat = LOCTEXT("Stat_HealingReceived", "Healing Received"); return true;
-        case ESkillEffectType::ModifyEnergyCost:
-            OutStat = LOCTEXT("Stat_EnergyCost", "Energy Cost");
-            bOutRaises = true; // "Energy Cost Up": the cost goes up.
-            return true;
         default:
             return false;
         }
@@ -351,6 +339,28 @@ namespace
         return SkillTriggerUtils::IsThresholdTrigger(Trigger);
     }
 
+    /** EvaluateConditionGroup puts every OR entry, event or state, in one any-of set. When that
+     *  set mixes both, it reads as one either-or heading ("On Hit or while your HP is below 30%"). */
+    bool HasMixedAnyOf(const FSkillEffect &Effect)
+    {
+        bool bOrEvent = false;
+        bool bOrState = false;
+        for (const FSkillCondition &C : Effect.Conditions)
+        {
+            if (C.Combine == ECondCombine::Or)
+            {
+                bOrEvent = bOrEvent || EffectText::IsEventTrigger(C.Trigger);
+                bOrState = bOrState || IsStateTrigger(C.Trigger);
+            }
+        }
+        return bOrEvent && bOrState;
+    }
+
+    bool HasHeadingTrigger(const FSkillEffect &Effect)
+    {
+        return Effect.Conditions.ContainsByPredicate([](const FSkillCondition &C) { return EffectText::IsEventTrigger(C.Trigger); });
+    }
+
     // ==================== THE TREE ====================
 
     struct FLevel
@@ -360,14 +370,16 @@ namespace
         bool bAnyOf = false;
     };
 
-    /** A condition level per AND entry (each must hold), one level for all the OR entries
-     *  (any may hold): the same rule as EvaluateConditionGroup. */
+    /** A condition level per AND state check (each must hold), one level for all the OR state
+     *  checks (any may hold): the same rule as EvaluateConditionGroup. A mixed any-of set is
+     *  the heading's instead. */
     TArray<FLevel> ConditionLevels(const FSkillEffect &Effect)
     {
         TArray<FLevel> Levels;
         FLevel AnyOf;
         AnyOf.bAnyOf = true;
         TArray<FText> AnyOfClauses;
+        const bool bAnyOfInHeading = HasMixedAnyOf(Effect);
         for (int32 i = 0; i < Effect.Conditions.Num(); ++i)
         {
             const FSkillCondition &C = Effect.Conditions[i];
@@ -377,6 +389,10 @@ namespace
             }
             if (C.Combine == ECondCombine::Or)
             {
+                if (bAnyOfInHeading)
+                {
+                    continue;
+                }
                 AnyOf.ConditionIndices.Add(i);
                 AnyOfClauses.Add(StateClause(C));
                 continue;
@@ -398,6 +414,7 @@ namespace
     {
         FEffectTextLine Line;
         TArray<FNode> Children;
+        bool bUntriggered = false;
     };
 
     FNode &FindOrAdd(TArray<FNode> &Nodes, const FEffectTextLine &Line)
@@ -449,7 +466,7 @@ namespace
         }
         if (Effect.bStackable)
         {
-            Out = FText::Format(LOCTEXT("Rider_Stacks", "{0}, stacks up to {1} times"), Out, Effect.MaxStacks);
+            Out = FText::Format(LOCTEXT("Rider_Stacks", "{0}, stacks up to {1} {1}|plural(one=time,other=times)"), Out, Effect.MaxStacks);
         }
         if (Effect.bFiresOncePerMatch)
         {
@@ -479,7 +496,9 @@ namespace
                 {
                     continue;
                 }
-                TArray<FNode> *Siblings = &FindOrAdd(Headings, Heading).Children;
+                FNode &HeadingNode = FindOrAdd(Headings, Heading);
+                HeadingNode.bUntriggered = !HasHeadingTrigger(Effect);
+                TArray<FNode> *Siblings = &HeadingNode.Children;
                 for (int32 d = 0; d < Levels.Num(); ++d)
                 {
                     FEffectTextLine Condition;
@@ -501,6 +520,8 @@ namespace
                 Leaf.Line.bDebuff = SkillEffectClassification::IsDebuff(P.EffectType, P.Magnitude);
             }
         }
+        // Passive (or Activate) comes last (07, "The card-text tree").
+        Headings.StableSort([](const FNode &A, const FNode &B) { return !A.bUntriggered && B.bUntriggered; });
         return Headings;
     }
 }
@@ -512,23 +533,51 @@ namespace EffectText
         return Trigger != ESkillTrigger::None && Trigger != ESkillTrigger::Always && !IsStateTrigger(Trigger);
     }
 
+    /** Built from EvaluateConditionGroup's two sets: every AND event, then the any-of set
+     *  ("On Crit and either On Hit or On Dodge"). A lone OR entry must hold, so it reads as AND. */
     FText DescribeHeading(const FSkillEffect &Effect, EEffectTextSource Source)
     {
-        FText Heading = FText::GetEmpty();
+        const bool bMixed = HasMixedAnyOf(Effect);
+        TArray<FText> AllOf;
+        TArray<FText> AnyOfEvents;
+        TArray<FText> AnyOfStates;
         for (const FSkillCondition &C : Effect.Conditions)
         {
-            if (!IsEventTrigger(C.Trigger))
+            const bool bEvent = IsEventTrigger(C.Trigger);
+            if (C.Combine == ECondCombine::And)
             {
-                continue;
+                if (bEvent)
+                {
+                    AllOf.Add(EventPhrase(C));
+                }
             }
-            const FText Phrase = EventPhrase(C);
-            Heading = Heading.IsEmpty() ? Phrase
-                      : C.Combine == ECondCombine::Or ? FText::Format(LOCTEXT("HeadingOr", "{0} or {1}"), Heading, Phrase)
-                                                      : FText::Format(LOCTEXT("HeadingAnd", "{0} and {1}"), Heading, Phrase);
+            else if (bEvent)
+            {
+                AnyOfEvents.Add(EventPhrase(C));
+            }
+            else if (bMixed && IsStateTrigger(C.Trigger))
+            {
+                AnyOfStates.Add(StateClause(C));
+            }
         }
-        if (!Heading.IsEmpty())
+
+        const int32 AnyOfCount = AnyOfEvents.Num() + AnyOfStates.Num();
+        if (AnyOfCount == 1)
         {
-            return Heading;
+            AllOf.Append(AnyOfEvents);
+        }
+        else if (AnyOfCount > 1)
+        {
+            FText AnyOf = JoinTexts(AnyOfEvents, LOCTEXT("OrJoin", " or "));
+            if (AnyOfStates.Num() > 0)
+            {
+                AnyOf = FText::Format(LOCTEXT("HeadingOrWhile", "{0} or while {1}"), AnyOf, JoinTexts(AnyOfStates, LOCTEXT("OrJoin", " or ")));
+            }
+            AllOf.Add(AllOf.Num() > 0 ? FText::Format(LOCTEXT("HeadingEither", "either {0}"), AnyOf) : AnyOf);
+        }
+        if (AllOf.Num() > 0)
+        {
+            return JoinTexts(AllOf, LOCTEXT("AndJoin", " and "));
         }
         return Source == EEffectTextSource::Skill ? LOCTEXT("Heading_Activate", "Activate")
                                                   : LOCTEXT("Heading_Passive", "Passive");
@@ -599,12 +648,13 @@ namespace EffectText
             return Side.bSelf ? FText::Format(LOCTEXT("Stun_Self", "become stunned{0}"), Span(P))
                               : FText::Format(LOCTEXT("Stun_Other", "stun {0}{1}"), Side.Noun, Span(P));
         case ESkillEffectType::SkipTurn:
-        {
-            const int32 Turns = CountOf(P);
-            return Side.bSelf ? FText::Format(LOCTEXT("Skip_Self", "skip {0} {0}|plural(one=turn,other=turns)"), Turns)
-                              : Fronted(Side, LOCTEXT("Skip_Sg", "skips"), LOCTEXT("Skip_Pl", "skip"),
-                                        FText::Format(LOCTEXT("Skip_Rest", " {0} {0}|plural(one=turn,other=turns)"), Turns));
-        }
+            // Wind's break pushes the next turn back (D-014); nothing skips a turn outright.
+            return Side.bSelf ? LOCTEXT("Delay_Self", "delay your next turn")
+                              : FText::Format(Side.bPlural ? LOCTEXT("Delay_Pl", "delay {0} next turns") : LOCTEXT("Delay_Sg", "delay {0} next turn"),
+                                              Side.Possessive);
+        case ESkillEffectType::RandomDebuff:
+            return Side.bSelf ? FText::Format(LOCTEXT("RandomDebuff_Self", "lose {0} of a random stat{1}"), Amount(P), Span(P))
+                              : FText::Format(LOCTEXT("RandomDebuff_Other", "give {0} -{1} to a random stat{2}"), Side.Noun, Amount(P), Span(P));
         case ESkillEffectType::Silenced:
             return Side.bSelf ? FText::Format(LOCTEXT("Silence_Self", "become silenced{0}"), Span(P))
                               : FText::Format(LOCTEXT("Silence_Other", "silence {0}{1}"), Side.Noun, Span(P));
@@ -677,11 +727,9 @@ namespace EffectText
 
         // ---- attacks ----
         case ESkillEffectType::ExtraAction:
-        {
-            const int32 Actions = CountOf(P);
-            return Side.bSelf ? FText::Format(LOCTEXT("Extra_Self", "take {0} extra {0}|plural(one=action,other=actions)"), Actions)
-                              : FText::Format(LOCTEXT("Extra_Other", "give {1} {0} extra {0}|plural(one=action,other=actions)"), Actions, Side.Noun);
-        }
+            // The runtime grants one turn per apply (TurnManager::RequestExtraTurn).
+            return Side.bSelf ? LOCTEXT("Extra_Self", "take an extra turn")
+                              : FText::Format(LOCTEXT("Extra_Other", "give {0} an extra turn"), Side.Noun);
         case ESkillEffectType::GuaranteedCrit:
             return FText::Format(LOCTEXT("Crit", "{0} next attack is a critical hit"),
                                  Side.bSelf ? LOCTEXT("Whose_Self", "your") : Side.Possessive);
@@ -693,9 +741,13 @@ namespace EffectText
                                  Side.bSelf ? LOCTEXT("Whose_Self", "your") : Side.Possessive, Amount(P), Span(P));
         case ESkillEffectType::SpellCostBuff:
         case ESkillEffectType::SpellCostDebuff:
+        case ESkillEffectType::ModifyEnergyCost:
         {
+            // ModifyEnergyCost: positive is cheaper, like SpellCostBuff (ActionExecutor's cost multiplier).
+            const bool bCheaper = P.EffectType == ESkillEffectType::SpellCostBuff
+                                  || (P.EffectType == ESkillEffectType::ModifyEnergyCost && (P.Value != 0 ? P.Value > 0 : P.Magnitude >= 0.0f));
             const FText Whose = Side.bSelf ? LOCTEXT("Whose_Self", "your") : Side.Possessive;
-            return P.EffectType == ESkillEffectType::SpellCostBuff
+            return bCheaper
                        ? FText::Format(LOCTEXT("SpellCost_Less", "{0} Refractions cost {1} less{2}"), Whose, Amount(P), Span(P))
                        : FText::Format(LOCTEXT("SpellCost_More", "{0} Refractions cost {1} more{2}"), Whose, Amount(P), Span(P));
         }

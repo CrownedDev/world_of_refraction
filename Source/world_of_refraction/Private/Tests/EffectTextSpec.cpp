@@ -160,9 +160,40 @@ void FEffectTextSpec::Define()
 												  EEffectTextSource::Gear).ToString(),
 					  TEXT("When a Team Member takes damage"));
 			TestEqual(TEXT("Either trigger"),
-					  EffectText::DescribeHeading(Eff({Cond(ESkillTrigger::OnHit), Cond(ESkillTrigger::OnCrit, ECondCombine::Or)}, {}),
+					  EffectText::DescribeHeading(Eff({Cond(ESkillTrigger::OnHit, ECondCombine::Or), Cond(ESkillTrigger::OnCrit, ECondCombine::Or)}, {}),
 												  EEffectTextSource::Gear).ToString(),
 					  TEXT("On Hit or On Critical Hit"));
+		});
+
+		It("builds headings from the AND and OR sets the way the game evaluates them", [this]()
+		{
+			TestEqual(TEXT("A lone OR entry must hold, so it reads as AND"),
+					  EffectText::DescribeHeading(Eff({Cond(ESkillTrigger::OnHit), Cond(ESkillTrigger::OnCrit, ECondCombine::Or)}, {}),
+												  EEffectTextSource::Gear).ToString(),
+					  TEXT("On Hit and On Critical Hit"));
+			TestEqual(TEXT("Every AND event, then the any-of set"),
+					  EffectText::DescribeHeading(Eff({Cond(ESkillTrigger::OnHit, ECondCombine::Or), Cond(ESkillTrigger::OnCrit),
+													   Cond(ESkillTrigger::OnDodge, ECondCombine::Or)}, {}),
+												  EEffectTextSource::Gear).ToString(),
+					  TEXT("On Critical Hit and either On Hit or On Dodge"));
+		});
+
+		It("reads an any-of set of an event and a state check as one either-or heading", [this]()
+		{
+			const TArray<FSkillEffect> Effects = {Eff(
+				{Cond(ESkillTrigger::OnHit, ECondCombine::Or), Cond(ESkillTrigger::OnHPBelowThreshold, ECondCombine::Or)},
+				{Pay(ESkillEffectType::Heal, ETargetType::Self, 2)})};
+			ExpectLines(EffectText::BuildTree(Effects, EEffectTextSource::Gear),
+						{TEXT("On Hit or while your HP is below 30%"), TEXT("Heal 2")});
+		});
+
+		It("puts Passive last", [this]()
+		{
+			const TArray<FSkillEffect> Effects = {
+				Eff({}, {Pay(ESkillEffectType::DefenseBuff, ETargetType::Self, 0, 0.2f)}),
+				Eff({Cond(ESkillTrigger::OnHit)}, {Pay(ESkillEffectType::Heal, ETargetType::Self, 2)})};
+			ExpectLines(EffectText::BuildTree(Effects, EEffectTextSource::Gear),
+						{TEXT("On Hit"), TEXT("Heal 2"), TEXT("Passive"), TEXT("Gain +20% Defense")});
 		});
 
 		It("prints the OR checks as one level that holds when any does", [this]()
@@ -188,6 +219,10 @@ void FEffectTextSpec::Define()
 			Effect.bFiresOncePerMatch = true;
 			ExpectLines(EffectText::BuildTree({Effect}, EEffectTextSource::Gear),
 						{TEXT("On Hit"), TEXT("Gain +10% Defense, stacks up to 3 times, once per fight")});
+			Effect.MaxStacks = 1;
+			Effect.bFiresOncePerMatch = false;
+			ExpectLines(EffectText::BuildTree({Effect}, EEffectTextSource::Gear),
+						{TEXT("On Hit"), TEXT("Gain +10% Defense, stacks up to 1 time")});
 		});
 
 		It("gives the same text for the same data", [this]()
@@ -237,10 +272,17 @@ void FEffectTextSpec::Define()
 			TestEqual(TEXT("Element-keyed stat"), Body(Pay(ESkillEffectType::StatusMultiplierBuff, ETargetType::Self, 0, 0.25f, 0, ESpellElement::Lightning)),
 					  FString(TEXT("gain +25% Lightning Status Multiplier")));
 			TestEqual(TEXT("Drain"), Body(Pay(ESkillEffectType::DrainEnergy, ETargetType::Enemy, 2)), FString(TEXT("drain 2 Energy from an Enemy")));
-			TestEqual(TEXT("Fronted, plural"), Body(Pay(ESkillEffectType::SkipTurn, ETargetType::Enemy, 0, 0.0f, 1, ESpellElement::None, ETargetCount::All)),
-					  FString(TEXT("all Enemies skip 1 turn")));
-			TestEqual(TEXT("Fronted, singular"), Body(Pay(ESkillEffectType::SkipTurn, ETargetType::Enemy, 0, 0.0f, 2)),
-					  FString(TEXT("an Enemy skips 2 turns")));
+			TestEqual(TEXT("Delay, plural"), Body(Pay(ESkillEffectType::SkipTurn, ETargetType::Enemy, 0, 0.0f, 1, ESpellElement::None, ETargetCount::All)),
+					  FString(TEXT("delay all Enemies' next turns")));
+			TestEqual(TEXT("Delay, singular"), Body(Pay(ESkillEffectType::SkipTurn, ETargetType::Enemy, 0, 0.0f, 2)),
+					  FString(TEXT("delay an Enemy's next turn")));
+			TestEqual(TEXT("Fronted"), Body(Pay(ESkillEffectType::ReduceDamageTaken, ETargetType::Ally, 0, 0.2f, 0, ESpellElement::None, ETargetCount::All)),
+					  FString(TEXT("all Allies take 20% less damage")));
+			TestEqual(TEXT("One extra turn"), Body(Pay(ESkillEffectType::ExtraAction, ETargetType::Self, 2)), FString(TEXT("take an extra turn")));
+			TestEqual(TEXT("Positive Energy cost is cheaper"), Body(Pay(ESkillEffectType::ModifyEnergyCost, ETargetType::Self, 0, 0.2f)),
+					  FString(TEXT("your Refractions cost 20% less")));
+			TestEqual(TEXT("Random stat"), Body(Pay(ESkillEffectType::RandomDebuff, ETargetType::Enemy, 0, 0.1f, 2)),
+					  FString(TEXT("give an Enemy -10% to a random stat for 2 turns")));
 			TestEqual(TEXT("Stun"), Body(Pay(ESkillEffectType::Stun, ETargetType::Enemy, 0, 0.0f, 1)), FString(TEXT("stun an Enemy for 1 turn")));
 			TestEqual(TEXT("Immunity"), Body(Pay(ESkillEffectType::GrantFireImmunity, ETargetType::Self, 0, 0.0f, 2)),
 					  FString(TEXT("become immune to Fire for 2 turns")));
@@ -335,7 +377,7 @@ void FEffectTextSpec::Define()
 			CharComp->CurrentHP = TEST_LOW_HP;
 			TestTrue(TEXT("HP below 30% holds"), Manager->IsConditionHeld(Cond(ESkillTrigger::OnHPBelowThreshold), Actor, nullptr));
 			TestFalse(TEXT("HP above 30% does not"), Manager->IsConditionHeld(Cond(ESkillTrigger::OnHPAboveThreshold), Actor, nullptr));
-			TestFalse(TEXT("No target, so a target check does not hold"),
+			TestTrue(TEXT("No target: the runtime skips a target check, so it holds"),
 					  Manager->IsConditionHeld(Cond(ESkillTrigger::OnHPBelowThreshold, ECondCombine::And, ECondSubject::Target), Actor, nullptr));
 		});
 	});
