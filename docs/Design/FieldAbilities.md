@@ -9,7 +9,7 @@
 
 ## Choices to make (one at a time)
 
-1. Base movement: a fast free sprint for everyone (Nightreign), with skills on top.
+1. **Decided (Crown, 2026-10-27): a fast, free sprint for everyone** (Nightreign); field skills and evolutions build on top.
 2. How evolutions give traversal: a passive trait, an active skill, or both (Kingdom Hearts 2's Drive Form growth abilities).
 3. Which movement types first (suggested order: haste, dash, glide, flight last).
 4. How flight is limited (EP drain, height ceiling, no-fly zones, launch points).
