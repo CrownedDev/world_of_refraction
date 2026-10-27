@@ -1,7 +1,8 @@
 // StatSourcesSpec.cpp
-// GAS stage 3 (B-042p): SpellDamage, RawDamage, ActionSpeed and SpellSpeed are composed on GAS. The
+// GAS stage 3 (B-042p, B-042q): the composed stats (UWoRAttributeSet_Stats::GetComposedStats) on GAS. The
 // attribute's base is the capped stat, a UWoRGE_StatSources effect multiplies in the gear, stone and
-// buff layers, and the current value equals the getter (UCharacterDataComponent::GetEffective*).
+// buff layers, and the current value equals the getter (UCharacterDataComponent::GetEffective*,
+// UDamageCalculator::GetDefenderFlatDefense / GetCritDamageMultiplier), clamped as the getter is.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -11,6 +12,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/Damage/DamageCalculator.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
@@ -26,7 +28,9 @@ namespace
 	constexpr float STAT_SOURCES_BUFF_PERCENT = 50.0f;
 	/** Far past the compose ceiling, so the clamp decides. */
 	constexpr float STAT_SOURCES_HUGE_BUFF_PERCENT = 500.0f;
-	constexpr int32 STAT_SOURCES_COMPOSED_COUNT = 4;
+	constexpr int32 STAT_SOURCES_DEBUFF_ID = 4803;
+	/** Enough Defense points for the stat alone to reach its 0.5 cap. */
+	constexpr int32 STAT_SOURCES_DEFENSE_POINTS = 50;
 	constexpr float STAT_SOURCES_TOLERANCE = 1.0e-4f;
 }
 
@@ -41,13 +45,19 @@ BEGIN_DEFINE_SPEC(FStatSourcesSpec, "WoR.GAS.StatSources",
 	/** Each composed stat with its attribute and getter. */
 	TArray<TTuple<ESubStat, FGameplayAttribute, float>> ComposedStats() const
 	{
+		const UDamageCalculator *Calc = TestWorld->GetSubsystem<UDamageCalculator>();
 		return {
 			MakeTuple(ESubStat::SpellDamage, UWoRAttributeSet_Stats::GetSpellDamageAttribute(), Char->GetEffectiveSpellDamage()),
 			MakeTuple(ESubStat::RawDamage, UWoRAttributeSet_Stats::GetRawDamageAttribute(), Char->GetEffectiveRawDamage()),
 			MakeTuple(ESubStat::ActionSpeed, UWoRAttributeSet_Stats::GetActionSpeedAttribute(), Char->GetEffectiveActionSpeed()),
 			MakeTuple(ESubStat::SpellSpeed, UWoRAttributeSet_Stats::GetSpellSpeedAttribute(), Char->GetEffectiveSpellSpeed()),
+			MakeTuple(ESubStat::StatusMultiplier, UWoRAttributeSet_Stats::GetStatusMultiplierAttribute(), Char->GetEffectiveStatusMultiplier()),
+			MakeTuple(ESubStat::Defense, UWoRAttributeSet_Stats::GetDefenseAttribute(), Calc ? Calc->GetDefenderFlatDefense(Hero) : 0.0f),
+			MakeTuple(ESubStat::CritDamage, UWoRAttributeSet_Stats::GetCritDamageAttribute(), Calc ? Calc->GetCritDamageMultiplier(Hero) : 0.0f),
 		};
 	}
+
+	static int32 ComposedCount() { return UWoRAttributeSet_Stats::GetComposedStats().Num(); }
 
 	TArray<FActiveGameplayEffectHandle> SourceEffects() const
 	{
@@ -81,7 +91,8 @@ void FStatSourcesSpec::Define()
 			Sync = FWoRTestWorld::AddComponent<UWoRAttributeSyncComponent>(Hero);
 			Char = Hero->FindComponentByClass<UCharacterDataComponent>();
 		}
-		if (!TestNotNull(TEXT("ASC"), ASC) || !TestNotNull(TEXT("Sync"), Sync) || !TestNotNull(TEXT("Character data"), Char))
+		if (!TestNotNull(TEXT("ASC"), ASC) || !TestNotNull(TEXT("Sync"), Sync) || !TestNotNull(TEXT("Character data"), Char) ||
+			!TestNotNull(TEXT("Damage calculator"), TestWorld->GetSubsystem<UDamageCalculator>()))
 		{
 			ASC = nullptr; // each case returns early
 		}
@@ -99,7 +110,7 @@ void FStatSourcesSpec::Define()
 	It("holds the capped stat as the base and the getter as the current value", [this]()
 	{
 		if (!ASC) return;
-		TestEqual(TEXT("One sources effect per composed stat"), CountSourceEffects(), STAT_SOURCES_COMPOSED_COUNT);
+		TestEqual(TEXT("One sources effect per composed stat"), CountSourceEffects(), ComposedCount());
 		for (const TTuple<ESubStat, FGameplayAttribute, float> &Stat : ComposedStats())
 		{
 			const FString Name = UEnum::GetValueAsString(Stat.Get<0>());
@@ -124,7 +135,7 @@ void FStatSourcesSpec::Define()
 		TestEqual(TEXT("Current = getter"), ASC->GetNumericAttribute(SpellDamage), Char->GetEffectiveSpellDamage(), STAT_SOURCES_TOLERANCE);
 		TestEqual(TEXT("Base unchanged"), ASC->GetNumericAttributeBase(SpellDamage), BaseBefore, STAT_SOURCES_TOLERANCE);
 		const TArray<FActiveGameplayEffectHandle> HandlesAfter = SourceEffects();
-		TestEqual(TEXT("Still one sources effect per stat"), HandlesAfter.Num(), STAT_SOURCES_COMPOSED_COUNT);
+		TestEqual(TEXT("Still one sources effect per stat"), HandlesAfter.Num(), ComposedCount());
 		for (const FActiveGameplayEffectHandle &Handle : HandlesBefore)
 		{
 			TestTrue(TEXT("Same effect, updated in place"), HandlesAfter.Contains(Handle));
@@ -139,7 +150,7 @@ void FStatSourcesSpec::Define()
 			ASC->RemoveActiveGameplayEffect(Handle);
 		}
 		Sync->SyncAttributes();
-		TestEqual(TEXT("One sources effect per stat again"), CountSourceEffects(), STAT_SOURCES_COMPOSED_COUNT);
+		TestEqual(TEXT("One sources effect per stat again"), CountSourceEffects(), ComposedCount());
 		for (const TTuple<ESubStat, FGameplayAttribute, float> &Stat : ComposedStats())
 		{
 			TestEqual(*(UEnum::GetValueAsString(Stat.Get<0>()) + TEXT(": current = getter")), ASC->GetNumericAttribute(Stat.Get<1>()),
@@ -154,6 +165,27 @@ void FStatSourcesSpec::Define()
 		const FGameplayAttribute ActionSpeed = UWoRAttributeSet_Stats::GetActionSpeedAttribute();
 		TestEqual(TEXT("Getter at the ceiling"), Char->GetEffectiveActionSpeed(), CombatConstants::STAT_MODIFIER_MAX);
 		TestEqual(TEXT("Attribute at the ceiling"), ASC->GetNumericAttribute(ActionSpeed), CombatConstants::STAT_MODIFIER_MAX);
+	});
+
+	It("clamps Defense at its own reduction ceiling", [this]()
+	{
+		if (!ASC) return;
+		Char->CharacterData->Defense = STAT_SOURCES_DEFENSE_POINTS;
+		Buff(STAT_SOURCES_HUGE_BUFF_ID, ESkillEffectType::DefenseBuff, STAT_SOURCES_HUGE_BUFF_PERCENT);
+		const UDamageCalculator *Calc = TestWorld->GetSubsystem<UDamageCalculator>();
+		TestEqual(TEXT("Getter at the Defense ceiling"), Calc->GetDefenderFlatDefense(Hero), CombatConstants::DEFENSE_REDUCTION_CEILING);
+		TestEqual(TEXT("Attribute at the Defense ceiling"), ASC->GetNumericAttribute(UWoRAttributeSet_Stats::GetDefenseAttribute()),
+				  CombatConstants::DEFENSE_REDUCTION_CEILING);
+	});
+
+	It("floors crit damage at a normal hit under a large debuff", [this]()
+	{
+		if (!ASC) return;
+		Buff(STAT_SOURCES_DEBUFF_ID, ESkillEffectType::CritDamageDebuff, STAT_SOURCES_HUGE_BUFF_PERCENT);
+		const UDamageCalculator *Calc = TestWorld->GetSubsystem<UDamageCalculator>();
+		TestEqual(TEXT("Getter at a normal hit"), Calc->GetCritDamageMultiplier(Hero), CombatConstants::CRIT_DMG_BASE);
+		TestEqual(TEXT("Attribute at a normal hit"), ASC->GetNumericAttribute(UWoRAttributeSet_Stats::GetCritDamageAttribute()),
+				  CombatConstants::CRIT_DMG_BASE);
 	});
 
 	It("leaves every other attribute equal to its getter", [this]()
