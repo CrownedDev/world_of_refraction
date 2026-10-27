@@ -7,6 +7,8 @@
 // surprising parts (a DOT fires on application; a no-refresh re-apply still reports
 // DurationRefreshed), so change a case only on purpose. Cleanse's gear exclusion is
 // WoR.Effects.CleanseGear; holder-turn spans are WoR.Effects.StatusBreaks.
+// B-042c: both combatants carry an effect mirror, every case runs with wor.Effects.UseGAS 0 and 1,
+// and each case ends with the mirrored GameplayEffects matching the stored effects.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -17,6 +19,8 @@
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/StatusBuildupManager.h"
+#include "Debug/GAS/WoREffectDebug.h"
+#include "GAS/WoREffectMirrorComponent.h"
 
 namespace
 {
@@ -115,6 +119,8 @@ BEGIN_DEFINE_SPEC(FEffectsBaselineSpec, "WoR.Effects.Baseline",
 
 	/** One of the holder's own turns ending: end-of-turn effects run, then durations tick. */
 	void EndHolderTurn() { EffectManager->ProcessEndOfTurnEffects(Holder); }
+
+	void DefineCases();
 END_DEFINE_SPEC(FEffectsBaselineSpec)
 
 void FEffectsBaselineSpec::Define()
@@ -127,6 +133,8 @@ void FEffectsBaselineSpec::Define()
 		Holder = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
 		Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), true);
 		HolderStats = Holder ? Holder->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		FWoRTestWorld::AddEffectMirror(Holder);
+		FWoRTestWorld::AddEffectMirror(Foe);
 		if (!TestNotNull(TEXT("SkillEffectManager"), EffectManager) || !TestNotNull(TEXT("Holder stats"), HolderStats))
 		{
 			EffectManager = nullptr; // each case returns early
@@ -135,6 +143,12 @@ void FEffectsBaselineSpec::Define()
 
 	AfterEach([this]()
 	{
+		if (EffectManager)
+		{
+			TestEqual(TEXT("Holder's mirror matches"), UWoREffectDebug::GetEffectMismatchString(Holder), FString());
+			TestEqual(TEXT("Foe's mirror matches"), UWoREffectDebug::GetEffectMismatchString(Foe), FString());
+		}
+		UWoREffectMirrorComponent::SetReadsFromGAS(false);
 		Holder = nullptr;
 		Foe = nullptr;
 		HolderStats = nullptr;
@@ -142,6 +156,18 @@ void FEffectsBaselineSpec::Define()
 		TestWorld.Reset();
 	});
 
+	for (const bool bReadsFromGAS : {false, true})
+	{
+		Describe(bReadsFromGAS ? TEXT("UseGAS 1") : TEXT("UseGAS 0"), [this, bReadsFromGAS]()
+		{
+			BeforeEach([bReadsFromGAS]() { UWoREffectMirrorComponent::SetReadsFromGAS(bReadsFromGAS); });
+			DefineCases();
+		});
+	}
+}
+
+void FEffectsBaselineSpec::DefineCases()
+{
 	Describe("Apply", [this]()
 	{
 		It("adds a new effect with its full duration", [this]()

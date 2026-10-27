@@ -31,9 +31,11 @@ namespace
 		return GI ? GI->GetSubsystem<USkillEffectManager>() : nullptr;
 	}
 
+	/** Every stored effect of a ported type. Not IsInstant: a stored holder-turn span that counted
+	 *  its landing turn reads 0 turns but is held until the holder's next turn starts. */
 	bool IsMirrored(const FActiveSkillEffect &Effect)
 	{
-		return !Effect.IsInstant() && FWoREffectSpecBuilder::GetEffectClass(Effect.EffectType) != nullptr;
+		return FWoREffectSpecBuilder::GetEffectClass(Effect.EffectType) != nullptr;
 	}
 
 	FWoRMirroredEffect ToMirrored(const FActiveSkillEffect &Effect)
@@ -114,7 +116,7 @@ void UWoREffectMirrorComponent::SyncMirror()
 
 	for (const FActiveSkillEffect &Effect : Missing)
 	{
-		const FWoRBuiltEffect Built = FWoREffectSpecBuilder::Build(*ASC, Effect, Effect.SourceActor.Get());
+		const FWoRBuiltEffect Built = FWoREffectSpecBuilder::Build(*ASC, Effect, Effect.SourceActor.Get(), true);
 		if (!Built.IsValid())
 		{
 			continue;
