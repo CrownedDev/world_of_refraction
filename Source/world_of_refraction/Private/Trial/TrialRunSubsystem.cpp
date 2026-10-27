@@ -82,7 +82,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     RunSeed = ForcedSeed != 0 ? ForcedSeed : MakeFreshRunSeed();
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Entering trial '%s' -> %s (run seed %d; replay with: wor.Trial.Seed %d)"),
            *Trial->Name.ToString(), *Trial->Level.ToString(), RunSeed, RunSeed);
-    UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), Trial->Level);
+    TravelTo(Trial->Level);
 }
 
 void UTrialRunSubsystem::SetGateChoice(int32 InVariationIndex, ETrialDifficulty InDifficulty)
@@ -138,7 +138,7 @@ void UTrialRunSubsystem::ExitTrial()
     PendingZone = FEncounterZoneInfo();
     // B-090: a trial's exit is a save point.
     GetGameInstance()->GetSubsystem<USaveSubsystem>()->SaveNow(GetGameInstance()->GetWorld(), true);
-    UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), HubLevel);
+    TravelTo(HubLevel);
 }
 
 // ==================== ENCOUNTER (T-C1) ====================
@@ -174,7 +174,7 @@ void UTrialRunSubsystem::EnterEncounter(UTrialData *Trial, const TArray<UCharact
 
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Entering encounter %d v %d -> %s (return %s)"),
            BattleParty.Num(), OpposingParty.Num(), *Trial->EncounterLevel.ToString(), *EncounterReturnLevel.ToString());
-    UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), Trial->EncounterLevel);
+    TravelTo(Trial->EncounterLevel);
 }
 
 void UTrialRunSubsystem::ExitEncounter()
@@ -209,7 +209,7 @@ void UTrialRunSubsystem::ExitEncounter()
                                          {
                                              // B-090: a fight's exit is a save point (the vitals are banked by now).
                                              GetGameInstance()->GetSubsystem<USaveSubsystem>()->SaveNow(GetGameInstance()->GetWorld(), true);
-                                             UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), ReturnLevel);
+                                             TravelTo(ReturnLevel);
                                          }));
 }
 
@@ -336,7 +336,7 @@ bool UTrialRunSubsystem::ResumeRun()
     }
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Resuming trial '%s' -> %s"), *ActiveTrial->Name.ToString(),
            *ActiveTrial->Level.ToString());
-    UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), ActiveTrial->Level);
+    TravelTo(ActiveTrial->Level);
     return true;
 }
 
@@ -369,4 +369,23 @@ FString UTrialRunSubsystem::GetTrialRunString() const
                            PendingBattleParty.Num(), PendingOpposingParty.Num(),
                            *UEnum::GetValueAsString(PendingRank),
                            EncounterReturnLevel.IsNull() ? TEXT("<none>") : *EncounterReturnLevel.ToString());
+}
+
+void UTrialRunSubsystem::TravelTo(const TSoftObjectPtr<UWorld> &Level)
+{
+    UWorld *World = GetGameInstance()->GetWorld();
+    const ENetMode NetMode = World ? World->GetNetMode() : NM_Standalone;
+    if (NetMode == NM_Client)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[TrialRun] A client can't change level (%s); the server travels for everyone"),
+               *Level.ToString());
+        return;
+    }
+    if (NetMode == NM_ListenServer || NetMode == NM_DedicatedServer)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[TrialRun] Server travel -> %s (clients follow)"), *Level.ToString());
+        World->ServerTravel(Level.GetLongPackageName());
+        return;
+    }
+    UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), Level);
 }
