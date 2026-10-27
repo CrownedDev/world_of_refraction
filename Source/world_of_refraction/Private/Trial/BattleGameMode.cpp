@@ -90,7 +90,7 @@ void ABattleGameMode::BootstrapCombat()
         return;
     }
 
-    APlayerController *PC = UGameplayStatics::GetPlayerController(this, 0);
+    APlayerController *PC = ResolvePartyLeader();
     const AActor *StartSpot = FindPlayerStart(PC);
     const FVector Origin = StartSpot ? StartSpot->GetActorLocation() : FVector::ZeroVector;
 
@@ -342,6 +342,19 @@ bool ABattleGameMode::CanEnterCombat(const AActor *Combatant)
     // GetActiveRing: a Resonator's rings sit in its ring slots, not the primary slot.
     return Loadout && (Loadout->GetPrimaryWeapon() || Loadout->GetPrimaryRing() || Loadout->GetPrimaryEvolution() ||
                        Loadout->HasSecondaryEquipment() || Loadout->GetActiveRing());
+}
+
+APlayerController *ABattleGameMode::ResolvePartyLeader() const
+{
+    UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
+    const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+    if (APlayerController *Leader = Party ? Party->ResolveLeader(GetWorld()) : nullptr)
+    {
+        PartySession->RebindLeader(Leader);
+        return Leader;
+    }
+    UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] No party leader in this level (battle map opened directly?) - using the first local player"));
+    return GetWorld()->GetFirstPlayerController();
 }
 
 void ABattleGameMode::AbortToTrial(const FString &Reason)

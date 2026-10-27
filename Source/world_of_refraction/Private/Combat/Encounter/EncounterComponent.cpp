@@ -8,6 +8,7 @@
 #include "Combat/Encounter/EnemyZone.h"
 #include "Character/CombatCharacter.h"
 #include "Kismet/GameplayStatics.h"
+#include "GameFramework/PlayerController.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Components/SphereComponent.h"
@@ -167,14 +168,25 @@ void UEncounterComponent::HandleOverlap(UPrimitiveComponent *OverlappedComponent
 
 	// Trial Party (session-scoped) must exist before we can ask who belongs to it.
 	// Created HERE rather than at battle bootstrap: this is where the player is
-	// possessing their real character. Leader is PC0 as a session property — NOT
-	// the triggering pawn's controller, which is an ACombatAIController when an AI
-	// companion trips the sphere.
+	// possessing their real character. The leader is the player who walked in (B-132); when an
+	// AI companion trips the sphere (an ACombatAIController), it is its party's leader.
 	UPartySessionSubsystem *PartySession = GetPartySession();
 	if (PartySession)
 	{
-		PartySession->EnsureLocalParty(UGameplayStatics::GetPlayerController(this, 0),
-									   TSoftClassPtr<ACombatCharacter>(OtherActor->GetClass()->GetPathName()));
+		const APawn *Instigator = Cast<APawn>(OtherActor);
+		APlayerController *Leader = Instigator ? Cast<APlayerController>(Instigator->GetController()) : nullptr;
+		if (!Leader)
+		{
+			const UParty *Party = PartySession->GetLocalParty();
+			Leader = Party ? Party->ResolveLeader(GetWorld()) : nullptr;
+		}
+		if (!Leader)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[EncounterComponent] %s has no player behind it and no party leader - not engaging"),
+				   *OtherActor->GetName());
+			return;
+		}
+		PartySession->EnsureLocalParty(Leader, TSoftClassPtr<ACombatCharacter>(OtherActor->GetClass()->GetPathName()));
 	}
 
 	// Battle Party = the subset of the Trial Party present when the window closes.
