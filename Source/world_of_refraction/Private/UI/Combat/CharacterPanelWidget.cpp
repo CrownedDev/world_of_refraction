@@ -18,6 +18,7 @@
 #include "Components/VerticalBox.h"
 #include "Blueprint/WidgetTree.h"
 #include "Engine/GameInstance.h"
+#include "WoRGameNames.h"
 
 namespace PanelLabels
 {
@@ -445,7 +446,7 @@ void UCharacterPanelWidget::ApplyStaticText_Implementation()
 	SetTextSafe(ClassElementText,
 				Data->CharacterClass == ECharacterClass::Caster
 					? FString::Printf(TEXT("%s | %s"), *ClassLabel,
-									  *UEnum::GetDisplayValueAsText(Data->InnateElement).ToString())
+									  *WoRGameNames::GetElementName(Data->InnateElement).ToString())
 					: ClassLabel);
 	if (ClassElementText)
 	{
@@ -714,10 +715,7 @@ void UCharacterPanelWidget::RefreshEffectsList()
 		if (StackCount > 0)
 		{
 			const ESpellElement Element = BDManager->GetCurrentAlignment();
-			const UEnum *ElementEnum = StaticEnum<ESpellElement>();
-			const FString ElementName = ElementEnum
-											? ElementEnum->GetDisplayNameTextByValue(static_cast<int64>(Element)).ToString()
-											: FString(TEXT("?"));
+			const FString ElementName = WoRGameNames::GetElementName(Element).ToString();
 
 			FActiveSkillEffect StackEntry;
 			StackEntry.EffectName = ElementName;
