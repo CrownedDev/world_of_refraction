@@ -2358,6 +2358,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** B-042 is `BLOCKED (B-145, B-146; Q-042)`. Unblock it when Crown approves both plans; the plan docs list what changes in B-042.
 
+### Q-042b — How do stat buffs sit on GAS before the stat MMCs exist?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042b) · **Blocks:** —
+**Question:** B-042b builds the first family GameplayEffects. A stat buff could modify its attribute directly, or carry its value for a reader to sum. Which, before B-042e builds the stat MMCs?
+**Context:** today every stat buff is a percent that `GetTotalStatModifier` sums per type and the getters apply in groups (cap, then gear, stones, buffs; `StatMathsRedesign.md` §2.1). GAS modifiers can't express that grouping, and the plan has the buffs feed one MMC-backed modifier per stat. The attributes are still mirrored from the getters (Q-041) until B-042c.
+**Options:**
+- **A** one `UWoRGE_StatModifier` class that modifies no attribute: the effect type rides in the effect context, the value in `SetByCaller.Magnitude`, and `FWoREffectSpecBuilder::SumMagnitude` adds them up exactly like `GetTotalStatModifier`. B-042e's MMC reads that sum. (As built.)
+- **B** a class per stat that modifies the attribute directly (MultiplyAdditive).
+**Recommendation:** A. It keeps one source of truth for the grouping maths, is provably equal to today's sum (spec `WoR.GAS.EffectBuilder`), and is the pattern GASDocumentation describes for values that need custom aggregation (an MMC reading tagged effects) rather than plain modifiers. B would apply buffs with GAS's own grouping, which differs from ours.
+**Notes for Claude:** B-042b built A. DOT and HOT pay at holder turn start through the tracker (Q-044c); a DOT tick is its flat stacked value until B-042e moves `GetDotTickDamage` into the damage execution.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

@@ -55,6 +55,13 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 - `GAS/WoRTurnEffectTracker.h`: `UWoRTurnEffectTracker`, a default subobject of `ACombatCharacter`. `ApplyForHolderTurns(Class, Turns, Instigator)` applies an Infinite GE through the owner's ASC and keeps an `FTurnSpan` per handle. `OnHolderTurnStart` removes finished GEs by handle (before payouts), `OnHolderTurnEnd` counts the turn. A GE removed elsewhere leaves the map through `OnAnyGameplayEffectRemovedDelegate`. `USkillEffectManager::ProcessStartOfTurnEffects` / `ProcessEndOfTurnEffects` call the hooks.
 - Debug: `wor.DumpTurnEffects`, `UWoRTurnEffectTracker::GetDebugString` / `PrintState`, `showdebug abilitysystem`. Spec `WoR.GAS.TurnTracker`.
 
+### Effects (stage 3, B-042b part 2)
+
+- `GAS/WoREffectContext.h`: `FWoREffectIdentity` (type, element, EffectID, SourceKey, gear origin; `IsSameIdentity` = EffectID + SourceKey, like `FActiveSkillEffect`) inside `FWoREffectContext`. `UWoRAbilitySystemGlobals` allocates it for every context (`DefaultGame.ini`).
+- Family classes on `UWoRGameplayEffect`: `UWoRGE_Stun` / `Silence` / `HealBlock` (granted `Status.*`), `UWoRGE_Immunity` (the `Immunity.*` tag per spec), `UWoRGE_StatModifier` (no attribute modifier; value in `SetByCaller.Magnitude`, Q-042b), `UWoRGE_DamageOverTime` (grants `Status.DOT`) / `UWoRGE_HealOverTime`, `UWoRGE_HealthTick` (Instant, Health += magnitude). Asset tags `Effect.Family.*`; gear adds `Effect.Origin.Gear`.
+- `GAS/WoREffectSpecBuilder.h`: `GetEffectClass`, `Build` (spec + tick spec + turns), `Apply` (replaces the same identity; timed through the tracker, permanent straight to the ASC), `FindByIdentity`, `SumMagnitude` (= `GetTotalStatModifier`), `GetDebugString`.
+- The tracker's `ApplySpecForHolderTurns` takes a tick spec, paid at each holder turn start the GE survives (Q-044c).
+
 ## Integration points
 
 - Delegates it listens to:
@@ -90,3 +97,4 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 | 2026-10-26 | B-040: native tags, enum to tag maps, `GetEffectTags`, `wor.DumpTags` / `wor.CompareTags`. | feature/B-040-gas-tags |
 | 2026-10-26 | B-041: attribute sets, ASC + `UWoRAttributeSyncComponent` on `ACombatCharacter`, `wor.DumpAttributes` / `wor.CompareAttributes`; effect clears broadcast after removal. | feature/B-041-gas-attributes |
 | 2026-10-27 | B-042 (stage 3, part 1): native `UWoRGE_Stun`; `UWoRTurnEffectTracker` on `ACombatCharacter`, driven by the effect manager's turn hooks; `wor.DumpTurnEffects`. The rest of stage 3 is B-042b-g. | feature/B-042-gas-turn-tracker |
+| 2026-10-27 | B-042b (stage 3, part 2): `FWoREffectContext` + globals class; family GEs; `FWoREffectSpecBuilder`; tracker tick specs. Not routed in play yet (B-042c). | feature/B-042b-gas-effect-builder |

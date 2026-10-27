@@ -55,6 +55,14 @@ namespace WoRTags
 	UE_DEFINE_GAMEPLAY_TAG(DamageType_Element_Reality, "DamageType.Element.Reality");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(DamageType_Ice, "DamageType.Ice", "D-029: keyed Water");
 
+	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_Status, "Effect.Family.Status");
+	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_Immunity, "Effect.Family.Immunity");
+	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_StatModifier, "Effect.Family.StatModifier");
+	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_DOT, "Effect.Family.DOT");
+	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_HOT, "Effect.Family.HOT");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Origin_Gear, "Effect.Origin.Gear", "D-015: a cleanse leaves it");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Magnitude, "SetByCaller.Magnitude", "The effect value a family GE reads");
+
 	namespace
 	{
 		struct FElementTagRow

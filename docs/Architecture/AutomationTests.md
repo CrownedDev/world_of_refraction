@@ -128,3 +128,4 @@ Combatants are bare unless a spec needs more: `SpawnCombatant` gives no loadout,
 | 2026-10-27 | B-137: `WoR.Economy.RoundTrip` (5 cases) pins cart cost, the level-up/revert round trip and dismantle yields with literal numbers. | chore/B-137-economy-spec |
 | 2026-10-27 | B-138: `WoR.Weapons.MeshFollowsLoadout` (9 cases); `SpawnCombatantWithLoadout` now announces its direct weapon write. | refactor/B-138-weapon-mesh-delegate |
 | 2026-10-27 | B-042: `WoR.GAS.TurnTracker` (7 cases): the native Stun GE's tag, the turn-counting rule on the tracker, external removal, refusals, the effect manager's hooks, a real `ACombatCharacter`. | feature/B-042-gas-turn-tracker |
+| 2026-10-27 | B-042b: `WoR.GAS.EffectBuilder` (10 cases): context class, status / immunity tags, the stat sum equal to the effect manager's, element sums, replace vs another source, DOT / HOT ticks, HealBlocked HOT, a killing DOT, gear origin + permanent, refusals. | feature/B-042b-gas-effect-builder |
