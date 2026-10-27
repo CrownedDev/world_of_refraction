@@ -86,7 +86,7 @@ void FStoryJournalSpec::Define()
 		TestTrue(TEXT("It is the opening"), Widget->GetBody().ToString().Contains(TEXT("awake")));
 		TestFalse(TEXT("Nothing more before the memory"), Widget->HearNextVLine());
 
-		Journal->RecordMemory(StoryTestMemory());
+		Journal->RecordMemory(StoryTestMemory(), EMemorySource::Fragment);
 		TestTrue(TEXT("The memory's line unlocks"), Widget->HearNextVLine());
 		TestTrue(TEXT("It is the bar line"), Widget->GetBody().ToString().Contains(TEXT("bar")));
 		TestFalse(TEXT("Heard lines don't repeat"), Widget->HearNextVLine());
@@ -99,7 +99,7 @@ void FStoryJournalSpec::Define()
 			return;
 		}
 		TestFalse(TEXT("No conversation before the memory"), Widget->SelectNextConversation());
-		Journal->RecordMemory(StoryTestMemory());
+		Journal->RecordMemory(StoryTestMemory(), EMemorySource::Fragment);
 		TestTrue(TEXT("Unlocked"), Widget->SelectNextConversation());
 		TestTrue(TEXT("First line shown"), Widget->GetBody().ToString().Contains(TEXT("one")));
 		TestTrue(TEXT("Second line"), Widget->AdvanceConversation());
@@ -118,7 +118,7 @@ void FStoryJournalSpec::Define()
 		{
 			return;
 		}
-		Journal->RecordMemory(StoryTestMemory());
+		Journal->RecordMemory(StoryTestMemory(), EMemorySource::Fragment);
 		TestTrue(TEXT("Lore kept"), Journal->RecordLore(TEXT("Stone1"), FText::FromString(TEXT("Old stone")),
 														FText::FromString(TEXT("Carved words."))));
 		TestFalse(TEXT("Same object: kept once"), Journal->RecordLore(TEXT("Stone1"), FText::FromString(TEXT("Old stone")),

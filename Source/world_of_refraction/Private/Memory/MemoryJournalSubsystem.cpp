@@ -22,10 +22,10 @@ bool UMemoryJournalSubsystem::RecordMemory(UMemoryData *Memory, EMemorySource So
 	return true;
 }
 
-EMemorySource UMemoryJournalSubsystem::GetSource(const UMemoryData *Memory) const
+TOptional<EMemorySource> UMemoryJournalSubsystem::GetSource(const UMemoryData *Memory) const
 {
 	const int32 Index = Memories.IndexOfByKey(Memory);
-	return Sources.IsValidIndex(Index) ? Sources[Index] : EMemorySource::Fragment;
+	return Sources.IsValidIndex(Index) ? TOptional<EMemorySource>(Sources[Index]) : TOptional<EMemorySource>();
 }
 
 bool UMemoryJournalSubsystem::HasMemoryId(FName MemoryId) const
@@ -52,8 +52,8 @@ FString UMemoryJournalSubsystem::GetJournalString() const
 	{
 		if (const UMemoryData *Memory = Memories[Index])
 		{
-			Out += FString::Printf(TEXT("\n  [%s] "), *UEnum::GetDisplayValueAsText(Sources[Index]).ToString()) +
-				   Memory->GetMemoryString();
+			const FString Source = Sources.IsValidIndex(Index) ? UEnum::GetDisplayValueAsText(Sources[Index]).ToString() : TEXT("?");
+			Out += FString::Printf(TEXT("\n  [%s] "), *Source) + Memory->GetMemoryString();
 		}
 	}
 	for (const FJournalLoreEntry &Entry : Lore)

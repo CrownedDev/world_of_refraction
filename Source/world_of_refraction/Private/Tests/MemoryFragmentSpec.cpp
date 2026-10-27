@@ -87,7 +87,7 @@ void FMemoryFragmentSpec::Define()
 		Fragment->Interact(nullptr);
 		TestEqual(TEXT("Once in the run"), TrialRun->GetRunMemories().Num(), 1);
 		TestEqual(TEXT("Once in the journal"), Journal->GetMemories().Num(), 1);
-		TestFalse(TEXT("The journal refuses a repeat"), Journal->RecordMemory(Memory));
+		TestFalse(TEXT("The journal refuses a repeat"), Journal->RecordMemory(Memory, EMemorySource::Fragment));
 	});
 
 	It("stays gone when the level reloads after it was taken this run", [this]()

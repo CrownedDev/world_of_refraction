@@ -49,10 +49,10 @@ class WORLD_OF_REFRACTION_API UMemoryJournalSubsystem : public UGameInstanceSubs
 public:
 	/** Add Memory to the journal, noting where it came from. False when it is null or already
 	 *  there (the first source stays). */
-	bool RecordMemory(UMemoryData *Memory, EMemorySource Source = EMemorySource::Fragment);
+	bool RecordMemory(UMemoryData *Memory, EMemorySource Source);
 
-	/** Where Memory first came from; Fragment when it isn't in the journal. */
-	EMemorySource GetSource(const UMemoryData *Memory) const;
+	/** Where Memory first came from; unset when it isn't in the journal. */
+	TOptional<EMemorySource> GetSource(const UMemoryData *Memory) const;
 
 	bool HasMemory(const UMemoryData *Memory) const { return Memories.Contains(Memory); }
 
@@ -82,7 +82,7 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMemoryData>> Memories;
 
-	/** Parallel to Memories. */
+	/** Parallel to Memories (RecordMemory is the only writer of either). */
 	TArray<EMemorySource> Sources;
 
 	UPROPERTY(Transient)
