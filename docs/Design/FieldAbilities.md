@@ -31,7 +31,8 @@
     - **Enhancement Aura** → **Enhanced Sprint**.
     - **Elemental Aura** → maybe the **Dash** (it uses elemental bursts).
   - **Generic's version** of these is something else (open).
-  - Open: what each other element's auras grant; which tiers unlock what.
+  - **What an aura grants differs per element** (Crown, 2026-10-27: B): Wind's Manipulation Aura grants Flight; another element's may grant Teleport, Super launch, etc., by its lore. The per-element table is Crown's (open).
+  - **For now: unlocking needs the skill at max rank** (S tier, Crown, 2026-10-27); a movement type unlocks once its aura skill reaches max rank.
 - **Element styles (Crown's ideas, filled in as they come):**
 
   | Element | Movement | Style |
