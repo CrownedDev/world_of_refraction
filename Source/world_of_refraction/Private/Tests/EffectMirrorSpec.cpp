@@ -134,7 +134,9 @@ void FEffectMirrorSpec::Define()
 		TestTrue(TEXT("Status.Stun"), ASC->HasMatchingGameplayTag(WoRTags::Status_Stun));
 		TestMatches(TEXT("stunned"));
 
+		// D-051 (B-225): the turn end counts the stun's one turn; it ends as the holder's next turn starts.
 		EffectManager->ProcessEndOfTurnEffects(Hero);
+		EffectManager->ProcessStartOfTurnEffects(Hero);
 		TestFalse(TEXT("Stun stored no more"), EffectManager->GetActiveEffects(Hero).ContainsByPredicate(
 			[](const FActiveSkillEffect &E) { return E.EffectType == ESkillEffectType::Stun; }));
 		TestFalse(TEXT("Tag gone with it"), ASC->HasMatchingGameplayTag(WoRTags::Status_Stun));

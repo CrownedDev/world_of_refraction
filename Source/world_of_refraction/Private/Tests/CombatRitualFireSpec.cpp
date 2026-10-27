@@ -13,6 +13,8 @@
 #include "Combat/Actions/ActionExecutor.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Skills/Effects/ActiveSkillEffect.h"
+#include "Skills/Effects/SkillEffectManager.h"
 
 namespace
 {
@@ -22,6 +24,8 @@ namespace
 	/** Test-world ticks are 0.01s; spans the executor's 10s timeout, which covers the defense
 	 *  window's 8s failsafe a montage-less ability waits on (no impacts land to close it). */
 	constexpr int32 RITUAL_SETTLE_FRAMES = 1100;
+	constexpr int32 RITUAL_BURN_ID = 22501;
+	constexpr int32 RITUAL_BURN_TURNS = 1;
 }
 
 BEGIN_DEFINE_SPEC(FCombatRitualFireSpec, "WoR.Combat.RitualFire",
@@ -184,6 +188,60 @@ void FCombatRitualFireSpec::Define()
 		TestTrue(TEXT("The ritual fired and fizzled"), Recorder->Saw(Hero, EActionType::Ability, false));
 		TestTrue(TEXT("Combat still running"), Orchestrator->GetCombatState() == ECombatState::InProgress);
 		TestTrue(TEXT("Back on a normal turn"), TurnManager->GetCurrentTurnType() == ETurnType::Normal);
+	});
+
+	It("runs the caster's turn-start step on its Execution turn (Q-044d)", [this]()
+	{
+		const auto MakeDefend = []()
+		{
+			FAction Defend;
+			Defend.ActionType = EActionType::Defend;
+			return Defend;
+		};
+		USkillEffectManager *EffectManager = TestWorld->GetSubsystem<USkillEffectManager>();
+		if (!TestNotNull(TEXT("EffectManager"), EffectManager) || !StartDuelWithRitual(MakeDefend))
+		{
+			return;
+		}
+		UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
+		if (!TestNotNull(TEXT("Hero data"), HeroData))
+		{
+			return;
+		}
+		// Ends turns until the next one is the Execution turn, then lands a lethal burn on the
+		// caster: only the Execution turn's own turn-start step can pay it before the fire.
+		for (int32 Turn = 0; Turn < RITUAL_MAX_TURNS_TO_PLAY; ++Turn)
+		{
+			const TArray<FPreviewTurnEntry> Next = TurnManager->PreviewTurnOrder(1);
+			if (Next.Num() > 0 && Next[0].Type == ETurnType::Execution)
+			{
+				break;
+			}
+			Orchestrator->OnActionCompleted();
+			TestWorld->Tick(RITUAL_SETTLE_FRAMES);
+		}
+		const TArray<FPreviewTurnEntry> Next = TurnManager->PreviewTurnOrder(1);
+		if (!TestTrue(TEXT("The Execution turn is next"), Next.Num() > 0 && Next[0].Type == ETurnType::Execution))
+		{
+			return;
+		}
+		// Landing on the caster's own turn would pay at once (Q-063), before the Execution turn.
+		if (!TestTrue(TEXT("Foe's turn before the Execution turn"), Orchestrator->GetCurrentActor() == Foe))
+		{
+			return;
+		}
+		FActiveSkillEffect Burn = FActiveSkillEffect::CreateDOT(TEXT("Lethal burn"), RITUAL_BURN_ID, HeroData->CurrentHP,
+																 RITUAL_BURN_TURNS, ESpellElement::None);
+		Burn.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
+		EffectManager->ApplyEffect(Hero, Burn, Foe);
+		TestTrue(TEXT("Alive until the turn starts"), HeroData->bIsAlive);
+
+		Orchestrator->OnActionCompleted();
+		TestWorld->Tick(RITUAL_SETTLE_FRAMES);
+
+		TestFalse(TEXT("The burn paid at the Execution turn start"), HeroData->bIsAlive);
+		TestEqual(TEXT("The dead caster's ritual never fired"), Recorder->Entries.Num(), 0);
+		TestTrue(TEXT("The fight is over"), Orchestrator->GetCombatState() != ECombatState::InProgress);
 	});
 
 	It("advances past a ritual that can't fire", [this]()

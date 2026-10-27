@@ -108,6 +108,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-178](B-178.md) | `feature/B-178-run-repair` (in `dev`) | Paid gear repair in a run; the run's Gold carries between levels | Not tested |
 | [B-093](B-093.md) | `feature/B-093-menu-keys` (in `dev`) | Keys for Defend and infusion (keyboard + gamepad) | Not tested |
 | [B-209](B-209.md) | `feature/B-209-memory-sources` (in `dev`) | Memories from bosses, reactions, map spots and bound gear | Not tested |
+| [B-225](B-225.md) | `feature/B-225-effect-timing` (in `dev`) | Effect timing per D-051 / Q-044c / Q-044d: N holder turns, payouts at turn start, Execution turns run the turn-start step | Not tested |
 | [B-042n](B-042n.md) | `feature/B-042n-gas-dot-hot-ticks` (in `dev`) | GAS stage 3, part 5d: DOT and HOT ticks on GAS pay what the enum path pays | Not tested |
 | [B-042w](B-042w.md) | `feature/B-042w-gas-resistance` (in `dev`) | GAS stage 3, part 5m: the resistances built on GAS from their sources | Not tested |
 | [B-042v](B-042v.md) | `feature/B-042v-gas-turn-speed` (in `dev`) | GAS stage 3, part 5l: turn speed built on GAS from the number turn order uses | Not tested |

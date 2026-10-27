@@ -157,6 +157,8 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 		return EEffectApplicationResult::Applied;
 	}
 
+	ApplyTimingRule(Target, Effect);
+
 	// Get or create effect array for this actor
 	TArray<FActiveSkillEffect> &Effects = ActiveEffects.FindOrAdd(Target);
 
@@ -1231,6 +1233,8 @@ void USkillEffectManager::ProcessEffectsWithTiming(AActor *Actor, ESkillEffectTi
 	}
 }
 
+// TODO: obsolete since B-225: every timed effect ApplyEffect stores counts holder turns
+// (FTurnSpan), so none reaches this plain tick-down. Remove after Crown's PIE pass on B-225.
 void USkillEffectManager::TickDurations(AActor *Actor)
 {
 	if (!ActiveEffects.Contains(Actor))
@@ -1435,6 +1439,56 @@ float USkillEffectManager::ConsumeLastStandCharge(AActor *Owner)
 	ConsumeCharge(Owner, Effects[BestIndex]);
 
 	return LastStandHPPercent;
+}
+
+bool USkillEffectManager::IsPayoutType(ESkillEffectType EffectType)
+{
+	switch (EffectType)
+	{
+	case ESkillEffectType::DOT:
+	case ESkillEffectType::HealthRestore:
+	case ESkillEffectType::RestoreHPPercent:
+	case ESkillEffectType::EnergyRestore:
+	case ESkillEffectType::RestoreEnergyPercent:
+	case ESkillEffectType::EnergyDrain:
+	case ESkillEffectType::DrainEnergy:
+	case ESkillEffectType::DrainHP:
+	case ESkillEffectType::SelfDamage:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool USkillEffectManager::IsHoldersOwnTurn(const AActor *Target) const
+{
+	const UTurnManager *TurnManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+	return Target && TurnManager && TurnManager->IsCombatActive() && TurnManager->GetCurrentActor() == Target;
+}
+
+void USkillEffectManager::ApplyTimingRule(const AActor *Target, FActiveSkillEffect &Effect) const
+{
+	if (Effect.bPermanent || Effect.ProcessTiming == ESkillEffectTiming::Immediate)
+	{
+		return;
+	}
+	// D-051: every timed effect counts the holder's own turns; the landing turn counts when it is
+	// theirs, and the effect ends as the holder's turn after those starts.
+	if (!Effect.bCountsHolderTurns)
+	{
+		Effect.StartHolderTurnSpan(Effect.RemainingTurns);
+	}
+	// Q-044c: every payout lands at the holder's turn start, exactly N of them. Q-063: one landing
+	// on the holder's own turn counts that turn, whose start has passed, so it pays on landing.
+	// Persistent (the payload default) runs at every turn start too, so it is timed the same way.
+	const bool bPaysPerTurn = Effect.ProcessTiming == ESkillEffectTiming::StartOfOwnTurn ||
+							  Effect.ProcessTiming == ESkillEffectTiming::EndOfOwnTurn ||
+							  Effect.ProcessTiming == ESkillEffectTiming::Persistent;
+	if (bPaysPerTurn && IsPayoutType(Effect.EffectType))
+	{
+		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
+		Effect.bDelayFirstExecution = !IsHoldersOwnTurn(Target);
+	}
 }
 
 int32 USkillEffectManager::GetDotTickDamage(AActor *Actor, const FActiveSkillEffect &Effect)
@@ -2931,16 +2985,9 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 
 	// Every break lasts STATUS_CAP_TURNS of the holder's own turns (D-030, D-090), counted
 	// by the one rule (FTurnSpan, D-051): it ends as the holder's turn after those starts.
+	// ApplyEffect's timing rule then times a payout break (Burn, EP drain) as Q-063 says.
 	Effect.StartHolderTurnSpan(CombatConstants::STATUS_CAP_TURNS);
-
-	// Q-063: a break landing on the holder's OWN turn counts that turn (D-051), whose start has
-	// already passed, so a payout break (Burn, EP drain) pays once on landing instead: exactly
-	// N payouts either way.
 	UTurnManager *TurnManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
-	if (Effect.bDelayFirstExecution && TurnManager && TurnManager->IsCombatActive() && TurnManager->GetCurrentActor() == Target)
-	{
-		Effect.bDelayFirstExecution = false;
-	}
 	Effect.EffectID = EffectIdentity::MakeStatusCapEffectID(static_cast<uint8>(Effect.EffectType), static_cast<uint8>(Element));
 	const EEffectApplicationResult Result = ApplyEffect(Target, Effect, Source, TEXT("Status Bar Trigger"), -1);
 

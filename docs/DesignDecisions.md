@@ -2534,6 +2534,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. The rulings are decided (D-051 is Crown's answer; Q-044c and Q-044d approved), and the deckbuilder gives exactly N ticks (`04-effects.md`, "Lasts"). Changing the behaviour and the engine underneath it in one step would make a difference in play impossible to place; one change at a time with the comparison on is the standard way to migrate (Martin Fowler, ParallelChange / Strangler Fig). B would build the old timings into GAS only to change them again.
 **Notes for Claude:** applied: B-225 inserted above B-042h; B-042h narrowed; B-042x / y / z added; B-042f also needs them.
 
+### Q-225 — What the one timing rule covers
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-225) · **Blocks:** —
+**Question:** Building D-051 / Q-044c / Q-044d into the game's effect code left three small choices. (1) Which effects are "payouts" that pay at turn start: damage over time, heal over time, EP restore and drain (the rulings), and also HP drain and self-damage over time? (2) Is the Broken Darkness overflow (its aura damage, self-damage and EP drain at turn start) part of an Execution turn's turn-start step? (3) An effect landing on its holder's own turn now counts that turn as turn 1 and lasts through the others' turns until the holder's next turn starts (so Defend, 1 turn, now covers the enemies' attacks until your next turn instead of ending at your own turn end). Keep that?
+**Options:**
+- **A** (as built) (1) yes, every type that pays something each turn, including HP drain and self-damage; (2) yes, an Execution turn's start is a normal turn start minus the choice; (3) yes, as D-051 says.
+- **B** (1) only the ruled types; (2) skip the overflow on Execution turns; (3) end own-turn effects at that turn's end.
+**Recommendation:** A. (1) and (2) follow from one rule for every timed effect and Q-044d ("runs the turn-start step"); fewer exceptions is what the deckbuilder does (`04-effects.md` "Lasts": an effect lasts N of the holder's turns, ticks at its start). (3) is D-051 itself, and it matches Slay the Spire, whose defence is widely praised as easy to read: Block gained on your turn protects you through the enemy turn and goes at the start of your next turn.
+**Notes for Claude:** applied in B-225: `USkillEffectManager::IsPayoutType` / `ApplyTimingRule`; the Execution branch of `ACombatOrchestrator::HandleTurnStarted`. Known gap: the AI's lethal-DOT guess (`AIDecisionManager.cpp`, TickDamage x RemainingTurns) is one tick high during the holder's own turn; harmless (it only over-fears a DOT), fix with B-042y's getters.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
