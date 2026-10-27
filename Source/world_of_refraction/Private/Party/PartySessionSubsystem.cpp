@@ -67,6 +67,21 @@ namespace PartySessionDebug
 		}
 	}
 
+	void RecruitForRun(const TArray<FString> &Args, UWorld *World)
+	{
+		UPartySessionSubsystem *PartySession = FindPartySession(World);
+		UCharacterData *Data = Args.Num() >= 1 ? LoadObject<UCharacterData>(nullptr, *Args[0]) : nullptr;
+		const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+		if (!Data || !Party || Party->Members.Num() == 0)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[PartySession] Usage: wor.Party.RecruitForRun <CharacterData path> (needs a party)"));
+			return;
+		}
+		// The leader's pawn class carries the found character until trial maps place their own.
+		PartySession->InviteRunMember(Party->Members[0].PawnClass, Data);
+		PartySession->LogPartyState();
+	}
+
 	void Print(UWorld *World)
 	{
 		if (const UPartySessionSubsystem *PartySession = FindPartySession(World))
@@ -95,6 +110,11 @@ static FAutoConsoleCommandWithWorld GPartyReviveFallenCommand(
 	TEXT("wor.Party.ReviveFallen"),
 	TEXT("wor.Party.ReviveFallen - a rest spot's revive (D-043): fallen members come back at full HP/EP."),
 	FConsoleCommandWithWorldDelegate::CreateStatic(&PartySessionDebug::ReviveFallen));
+
+static FAutoConsoleCommandWithWorldAndArgs GPartyRecruitForRunCommand(
+	TEXT("wor.Party.RecruitForRun"),
+	TEXT("wor.Party.RecruitForRun <CharacterData path> - a character found in the trial joins for this run only, ungeared (B-076, D-026)."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&PartySessionDebug::RecruitForRun));
 
 static FAutoConsoleCommandWithWorld GPartyPrintCommand(
 	TEXT("wor.Party.Print"),
@@ -357,6 +377,46 @@ bool UPartySessionSubsystem::DismissMember(int32 SlotIndex)
 	UE_LOG(LogTemp, Log, TEXT("[PartySession] Dismissed slot %d (%d remaining)"),
 		   SlotIndex, Party->GetMemberCount());
 
+	OnPartyChanged.Broadcast(Party);
+	return true;
+}
+
+bool UPartySessionSubsystem::InviteRunMember(TSoftClassPtr<ACombatCharacter> PawnClass, UCharacterData *Data)
+{
+	if (!Data || !InviteMemberInternal(PawnClass, Data))
+	{
+		return false;
+	}
+	FPartyMember &Member = GetLocalParty()->Members.Last();
+	Member.bRunOnly = true;
+	// The rest of the party was seeded full at trial entry; the newcomer joins the same way.
+	SetMemberVitalsFull(Member);
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] %s joins for this run only, ungeared"), *Data->Name);
+	OnPartyChanged.Broadcast(GetLocalParty());
+	return true;
+}
+
+int32 UPartySessionSubsystem::DismissRunMembers()
+{
+	UParty *Party = GetLocalParty();
+	const int32 Left = Party ? Party->Members.RemoveAll([](const FPartyMember &Member) { return Member.bRunOnly; }) : 0;
+	if (Left > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[PartySession] The run is over: %d run-only member(s) leave"), Left);
+		OnPartyChanged.Broadcast(Party);
+	}
+	return Left;
+}
+
+bool UPartySessionSubsystem::SetRunMemberGear(int32 SlotIndex, const FGuid &Weapon, const FGuid &Ring)
+{
+	UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex) || !Party->Members[SlotIndex].bRunOnly)
+	{
+		return false;
+	}
+	Party->Members[SlotIndex].RunWeapon = Weapon;
+	Party->Members[SlotIndex].RunRing = Ring;
 	OnPartyChanged.Broadcast(Party);
 	return true;
 }
@@ -678,7 +738,8 @@ FString UPartySessionSubsystem::GetPartyStateString() const
 				? FString::Printf(TEXT("%s/%d"), *CombatRowHelpers::GetRowName(Member.PreferredRow),
 								  Member.PreferredColumn)
 				: FString(TEXT("unplaced"));
-		const TCHAR *Control = Member.bPlayerControlled ? TEXT("Player") : TEXT("AI");
+		const TCHAR *Control = Member.bRunOnly ? (Member.bPlayerControlled ? TEXT("Player, run only") : TEXT("AI, run only"))
+							   : Member.bPlayerControlled ? TEXT("Player") : TEXT("AI");
 
 		if (!Member.HasCarriedVitals())
 		{
