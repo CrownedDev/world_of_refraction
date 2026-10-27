@@ -67,6 +67,15 @@ namespace WoRTags
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageType_Element_Reality);
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageType_Ice);
 
+	// B-042b: what a GameplayEffect is (asset tags, Q-040b), where it came from, and its SetByCaller key.
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Effect_Family_Status);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Effect_Family_Immunity);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Effect_Family_StatModifier);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Effect_Family_DOT);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Effect_Family_HOT);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Effect_Origin_Gear);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Magnitude);
+
 	/** Element.<name>; every ESpellElement has one. */
 	WORLD_OF_REFRACTION_API FGameplayTag ElementToTag(ESpellElement Element);
 	/** False for a tag outside Element.*. */
