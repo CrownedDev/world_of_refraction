@@ -2031,7 +2031,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** The full ladder both ways, as skills do (up to ×1.40 at +5).
 **Recommendation:** A. In Dark Souls and Elden Ring a weapon's requirement only removes a penalty; extra stats help through the weapon's scaling, not the requirement. Here the skill's own requirement and its per-skill stat scaling already reward being over (D-041), so B would pay the same stats twice. Not lore.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B.
-**Notes for Claude:** B-162 builds it as a separate damage factor on attacks and abilities through the weapon (not ActionMods, which spreads a pillar percent to every sub-stat and has no floor), `min(1, ladder)` with a floor. Broken Darkness strain keeps reading the weapon requirement as today.
+**Notes for Claude:** B-162 builds it as a separate damage factor on attacks and abilities through the weapon (not ActionMods, which spreads a pillar percent to every sub-stat and has no floor), `clamp(ladder, WEAPON_REQ_FACTOR_MIN, 1)` (the floor a named constant, `// TODO: tune`). Broken Darkness strain keeps reading the weapon requirement as today.
 
 ### Q-145 — The resistance plan: approve it, and does physical resistance cut physical damage?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-145) · **Blocks:** — (B-216 ships with B)

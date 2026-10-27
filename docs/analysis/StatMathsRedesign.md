@@ -86,7 +86,7 @@ The only intended changes are the two Crown already ruled: Ignore Defense become
 ### 2.9 Weapon requirements scale the weapon (D-082, B-162)
 
 - **Today:** the weapon's requirement only feeds Broken Darkness strain (`GetTotalDeficit`, `WorldStatRequirements.cpp:92`). The skill's requirement uses the ±5 gap ladder (2.2).
-- **Standard:** the same ladder on the weapon's own contribution, built beside the skill's (`ActionExecutor.cpp:6987`) but **not** through ActionMods: `AddPillarPercent` (`Public/Combat/Actions/ActionStatModifiers.h:131`) spreads a percent to every sub-stat of the pillar (Efficiency, Defense, …) and adds percents with no floor (`ApplyTo`, `:188`), so a skill's and a weapon's −68% would sum below −100%. The weapon's gap is a **separate damage factor** on attacks and abilities through that weapon, `max(floor, ladder)`, multiplied in. Being over the requirement: Q-146c.
+- **Standard:** the same ladder on the weapon's own contribution, built beside the skill's (`ActionExecutor.cpp:6987`) but **not** through ActionMods: `AddPillarPercent` (`Public/Combat/Actions/ActionStatModifiers.h:131`) spreads a percent to every sub-stat of the pillar (Efficiency, Defense, …) and adds percents with no floor (`ApplyTo`, `:188`), so a skill's and a weapon's −68% would sum below −100%. The weapon's gap is a **separate damage factor** on attacks and abilities through that weapon, `clamp(ladder, WEAPON_REQ_FACTOR_MIN, 1)`, multiplied in (the 1 is Q-146c; the floor a named constant, `// TODO: tune`: the ladder's lowest rung is 0.32, so it matters only if set above that). Being over the requirement: Q-146c.
 - **What changes:** the rule (D-082). B-162 builds it.
 
 ## 3. Tuning numbers in data (Q-146)
