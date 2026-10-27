@@ -6,6 +6,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Kismet/GameplayStatics.h"
@@ -111,6 +112,35 @@ void FSaveGearDetailSpec::Define()
 		TestEqual(TEXT("Same GUID"), Back.PersistentID, Entry.PersistentID);
 		TestTrue(TEXT("The same crystal"), Back.AttachedItem.Crystal.Id == GEAR_DETAIL_CRYSTAL);
 		TestEqual(TEXT("The same roll"), Back.StatBonus.BonusRawDamage, GEAR_DETAIL_RAW_DAMAGE);
+	});
+
+	It("brings back an attached evolution and keeps empty spell slots in place", [this]()
+	{
+		FWoRTestWorld Before;
+		FWoRTestWorld After;
+		UPoolSubsystem *Pool = Before.Create() ? Before.GetSubsystem<UPoolSubsystem>() : nullptr;
+		if (!TestNotNull(TEXT("Pool"), Pool)) return;
+
+		UEvolutionItemData *Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(NewObject<UWeaponData>(GetTransientPackage()));
+		Entry.PersistentID = FGuid::NewGuid();
+		Entry.AttachedItem = FRuntimeAttachedItem();
+		Entry.AttachedItem.Kind = EAttachedItemKind::Evolution;
+		Entry.AttachedItem.Evolution.Item = Evolution;
+		Entry.AttachedItem.Evolution.InstanceID = FGuid::NewGuid();
+		Entry.AttachedItem.Evolution.CurrentDurability = GEAR_DETAIL_WEAR;
+		Entry.AssignedSpells = {nullptr, Spell};
+		Pool->AddWeaponToPool(Entry);
+
+		const UPoolSubsystem *Restored = GearDetailRoundTrip(*this, *Pool, After);
+		if (!Restored || !TestEqual(TEXT("One weapon"), Restored->GetOwnedWeapons().Num(), 1)) return;
+		const FWeaponInventoryEntry &Back = Restored->GetOwnedWeapons()[0];
+		TestTrue(TEXT("The same evolution"), Back.AttachedItem.IsEvolution() && Back.AttachedItem.Evolution.Item == Evolution);
+		TestEqual(TEXT("Its instance"), Back.AttachedItem.Evolution.InstanceID, Entry.AttachedItem.Evolution.InstanceID);
+		TestEqual(TEXT("Its wear"), Back.AttachedItem.Evolution.CurrentDurability, GEAR_DETAIL_WEAR);
+		TestTrue(TEXT("The empty first slot stays empty"),
+				 Back.AssignedSpells.Num() == 2 && Back.AssignedSpells[0] == nullptr && Back.AssignedSpells[1] == Spell);
 	});
 
 	It("keeps the asset's defaults for a weapon saved before B-124", [this]()
