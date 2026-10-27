@@ -15,6 +15,8 @@
 - A field hit on an enemy also gives **status buildup** of its element, carried into the fight it starts (with first strike).
 - **Holding the field attack with a Water source turns it into an Ice attack** (Ice is Water's sub-element).
 
+**Movement (Crown, 2026-10-27): A, movement leaves its element lightly** on what it touches (Genshin's elemental sprints): a Fire dash lights the grass it crosses, a Lightning sprint through water charges it, an Ice sprint freezes a path on water. Small, short effects only; never harms teammates.
+
 ## Changelog
 
 | Date | Change | Branch |
