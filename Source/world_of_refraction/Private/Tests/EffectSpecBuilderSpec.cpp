@@ -225,13 +225,23 @@ void FEffectSpecBuilderSpec::Define()
 		TestTrue(TEXT("Identity travels in the context"), Context && Context->Identity.bFromGear && Context->Identity.EffectID == BUILDER_EFFECT_ID);
 	});
 
-	It("builds nothing for an unported type or an instant effect", [this]()
+	It("builds nothing for None or an instant effect, and has a family for every other type", [this]()
 	{
 		if (!ASC)
 		{
 			return;
 		}
-		TestFalse(TEXT("Unported type"), FWoREffectSpecBuilder::Apply(Hero, MakeBuilderEffect(ESkillEffectType::ExtraAction, 1.0f), Hero).IsValid());
+		TestFalse(TEXT("None"), FWoREffectSpecBuilder::Apply(Hero, MakeBuilderEffect(ESkillEffectType::None, 1.0f), Hero).IsValid());
+		const UEnum *Types = StaticEnum<ESkillEffectType>();
+		for (int32 Index = 0; Index < Types->NumEnums() - 1; ++Index)
+		{
+			const ESkillEffectType Type = static_cast<ESkillEffectType>(Types->GetValueByIndex(Index));
+			if (Type != ESkillEffectType::None)
+			{
+				TestNotNull(*FString::Printf(TEXT("%s has a family (B-042k)"), *UEnum::GetValueAsString(Type)),
+							FWoREffectSpecBuilder::GetEffectClass(Type).Get());
+			}
+		}
 		FActiveSkillEffect Instant = MakeBuilderEffect(ESkillEffectType::DefenseBuff, BUILDER_BUFF);
 		Instant.RemainingTurns = 0;
 		TestFalse(TEXT("Instant"), FWoREffectSpecBuilder::Apply(Hero, Instant, Hero).IsValid());
