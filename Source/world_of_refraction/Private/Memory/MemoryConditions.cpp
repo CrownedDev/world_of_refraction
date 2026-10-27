@@ -48,9 +48,13 @@ namespace
 				}
 			}
 		}
-		// A gear upgrade: the levelled item counts as worn by its wearer, if that one is in the party.
-		return Event.UpgradedItem == Condition.Item && IsLevelled(Event.UpgradedTier) &&
-			   (!Condition.Character || IsInParty(Condition.Character, Event));
+		// A gear upgrade: the levelled item counts as worn by whoever levelled it (unknown: anyone in
+		// the party).
+		if (Event.UpgradedItem != Condition.Item || !IsLevelled(Event.UpgradedTier) || !Condition.Character)
+		{
+			return Event.UpgradedItem == Condition.Item && IsLevelled(Event.UpgradedTier);
+		}
+		return Event.UpgradedBy ? Event.UpgradedBy == Condition.Character : IsInParty(Condition.Character, Event);
 	}
 }
 

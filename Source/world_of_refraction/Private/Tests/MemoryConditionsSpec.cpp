@@ -129,6 +129,11 @@ void FMemoryConditionsSpec::Define()
 		Upgrade.UpgradedItem = Weapon;
 		Upgrade.UpgradedTier = Reached;
 		TestTrue(TEXT("Upgraded with its character in the party"), MemoryConditions::IsMet(Gear, Upgrade, Journal));
+		Upgrade.UpgradedBy = FWoRTestWorld::NewCharacterData();
+		TestFalse(TEXT("Upgraded by someone else"), MemoryConditions::IsMet(Gear, Upgrade, Journal));
+		Upgrade.UpgradedBy = Lord;
+		TestTrue(TEXT("Upgraded by its character"), MemoryConditions::IsMet(Gear, Upgrade, Journal));
+		Upgrade.UpgradedBy = nullptr;
 		Upgrade.Party.Reset();
 		TestFalse(TEXT("Upgraded without its character"), MemoryConditions::IsMet(Gear, Upgrade, Journal));
 	});

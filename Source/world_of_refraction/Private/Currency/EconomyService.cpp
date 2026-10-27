@@ -38,11 +38,14 @@
 namespace
 {
     /** B-209 (D-100 part 2): a gear upgrade is an event that checks memory unlock conditions. */
-    void CheckUpgradeMemories(UGameInstance *GameInstance, const UEquipmentDataBase *Item, EItemTier Tier)
+    void CheckUpgradeMemories(const AActor *Owner, const UEquipmentDataBase *Item, EItemTier Tier)
     {
+        UGameInstance *GameInstance = Owner->GetGameInstance();
         FMemoryEvent Event = MemoryConditions::MakeEvent(GameInstance, EMemorySource::BoundGear);
         Event.UpgradedItem = Item;
         Event.UpgradedTier = Tier;
+        const UCharacterDataComponent *OwnerData = Owner->FindComponentByClass<UCharacterDataComponent>();
+        Event.UpgradedBy = OwnerData ? OwnerData->CharacterData : nullptr;
         MemoryConditions::CheckEvent(GameInstance, Event);
     }
 
@@ -1247,7 +1250,7 @@ bool UEconomyService::LevelUpWeapon(AActor *Owner, FGuid PersistentID)
     }
     // B-209 (D-100): a bound weapon's memories unlock bit by bit as it is levelled.
     MemoryUnlock::UnlockBoundOnLevelUp(Owner->GetGameInstance(), Entry->Weapon, Entry->Tier);
-    CheckUpgradeMemories(Owner->GetGameInstance(), Entry->Weapon, Entry->Tier);
+    CheckUpgradeMemories(Owner, Entry->Weapon, Entry->Tier);
     return true;
 }
 
@@ -1279,7 +1282,7 @@ bool UEconomyService::LevelUpRing(AActor *Owner, FGuid PersistentID)
         return false;
     }
     MemoryUnlock::UnlockBoundOnLevelUp(Owner->GetGameInstance(), Entry->Ring, Entry->Tier);
-    CheckUpgradeMemories(Owner->GetGameInstance(), Entry->Ring, Entry->Tier);
+    CheckUpgradeMemories(Owner, Entry->Ring, Entry->Tier);
     return true;
 }
 

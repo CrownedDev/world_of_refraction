@@ -39,6 +39,8 @@ struct FMemoryEvent
 	/** A gear upgrade: the levelled item, worn as far as GearEquipped is concerned. */
 	const UEquipmentDataBase *UpgradedItem = nullptr;
 	EItemTier UpgradedTier = EItemTier::F_Tier;
+	/** Whose item was levelled; null when unknown (then any party member may be its wearer). */
+	const UCharacterData *UpgradedBy = nullptr;
 	/** Memories the source itself names; checked even with no conditions (none: always met). */
 	TArray<UMemoryData *> Named;
 };
@@ -58,7 +60,8 @@ namespace MemoryConditions
 	/** Every unlock condition of Memory holds (none: true). */
 	WORLD_OF_REFRACTION_API bool AreMet(const UMemoryData &Memory, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal);
 
-	/** Every authored memory with unlock conditions (the asset registry, sorted by path). */
+	/** Every authored memory with unlock conditions (the asset registry, sorted by path). TODO: loads
+	 *  every memory asset per event; cache it once authored memories make that slow. */
 	WORLD_OF_REFRACTION_API TArray<UMemoryData *> GatherConditional();
 
 	/** Unlock every memory among Conditional and Event.Named whose conditions hold, repeating so
