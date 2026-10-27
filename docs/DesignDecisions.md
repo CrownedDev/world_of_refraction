@@ -2550,7 +2550,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **A** (as built) B-042h moves the lifetime only; the payouts stay on the game's own code, and B-042y moves them once a GAS tick writes the real HP (through the death path).
 - **B** do B-042y's HP link first, then B-042h with the ticks.
 **Recommendation:** A. It keeps each step one change with the comparison on (Martin Fowler, ParallelChange / Strangler Fig): lifetime now, the HP write and the ticks together later. B would hold the lifetime work back for a bigger job. Also as built: an effect GAS ends early (nothing does that in play yet) keeps its game copy until the holder's next turn start, where the copy goes; the reads already see it gone. A same-source re-apply before then restores it (on the refreshed span, or its old one when that effect doesn't refresh), as the game's own record would.
-**Notes for Claude:** applied: B-042h narrowed; B-042y also moves the payouts onto the tracker's tick specs.
+**Notes for Claude:** applied: B-042h narrowed; B-042y also moves the payouts onto the tracker's tick specs (superseded by Q-042y: the turn pass pays through `PayTick`).
 
 ### Q-042o — The status bar on GAS: does Water buildup read Ice resistance?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042o) · **Blocks:** —
@@ -2568,7 +2568,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **A** (as built) the yes/no checks read tags now; the numbers stay on the stored copies until B-042y moves the payouts and getters onto GAS.
 - **B** move the numbers in this job as well.
 **Recommendation:** A. One read family per step keeps each step comparable on both paths (Martin Fowler, StranglerFigApplication / ParallelChange). The numbers are exactly what B-042y moves; moving them twice would need a second parallel-run check.
-**Notes for Claude:** applied: B-042y covers `GetDotTickDamage` / `RemainingTurns` reads in `UAIDecisionManager`, `GetDebuffCount`, and the character panel's effect list.
+**Notes for Claude:** applied: B-042yb covers `GetDotTickDamage` / `RemainingTurns` reads in `UAIDecisionManager`, `GetDebuffCount`, and the character panel's effect list.
+
+### Q-042y — Burns and heals on GAS: who decides when a tick pays, and whose HP is the truth?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042y) · **Blocks:** —
+**Question:** B-042y moves the burn and heal-over-time payouts onto GAS (behind `wor.Effects.UseGAS`). GAS's tick calculation now gives each tick's number. Two choices came with it: (1) does GAS's turn tracker also decide *when* to pay, or does the game's turn pass keep that? (2) does GAS's Health become the HP, or does the game's own HP stay the truth with GAS handing its change over?
+**Options:**
+- **A** (as built) the game's turn pass keeps the timing: same order, the landing payout (Q-063), the heal-block check, a burn's per-tick buildup and the "effect triggered" event. At each tick it asks GAS to pay. The game's HP stays the truth: GAS's Health change goes through the normal damage / heal / death path, and Health is set back to the HP.
+- **B** the tracker pays at the turn start itself, and Health becomes the HP, with everything reading it.
+**Recommendation:** A. Epic's Lyra keeps death in a health component: the attribute set only reports the change, and the component runs death and its events. Keeping the timing in one place also keeps the comparison with the switch off exact, one change at a time (Martin Fowler, ParallelChange). B would move the order, the landing rule and the buildup together with the number. The tracker takes the timing when the stored copies retire (B-042g), and Health takes over when the getters move (B-042yb).
+**Notes for Claude:** applied: `PayTickThroughGAS` falls back to the enum write when the actor has no live GE with a tick spec, no Health set, or no character data. B-042yb also moves energy, drains and self-damage. Watch: at UseGAS 1 every Health-changing GE execution reaches the HP path, so a GE applied with its tick spec through `FWoREffectSpecBuilder::Apply` (only specs today) would pay on top of the turn pass; B-042i must keep such effects off the enum store or pass no tick spec (TODO at `Apply`).
 
 ## Parked
 
