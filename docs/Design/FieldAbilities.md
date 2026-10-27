@@ -19,6 +19,12 @@
 - **The source decides which field skill and whether it's available; its level decides how strong** (a Generic can't fly without an elemental source that gives flight).
 - **Range of movement:** dash, Enhanced Sprint, glide, flight, teleport…; **all locked except the normal dash** (everyone has it). **Double-click L3** activates (keyboard: double-tap sprint, to confirm).
 - **Every element does every movement type its own way** (Crown): Lightning and Void both teleport, differently. The element sets the style; an elemental source is needed for elemental movement.
+- **Element styles (Crown's ideas, filled in as they come):**
+
+  | Element | Movement | Style |
+  |---|---|---|
+  | Earth | Flight | Electromagnetism (magnetic levitation) |
+
 - **Locked field skills:** some need a specific skill equipped or learned first; once unlocked, anyone with the matching source can use it (lightning speed → any Lightning source).
 - **Open:** how a character picks their one movement type; each element's style per type (Crown's, close to lore); dash-into-sprint meaning.
 
