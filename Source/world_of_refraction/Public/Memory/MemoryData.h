@@ -12,6 +12,7 @@
 class UCharacterData;
 class UEquipmentDataBase;
 class UMemoryData;
+class USkillDataBase;
 
 /** How much a memory means to one character: the same fragment can be deep for one lord and
  *  minor for another. */
@@ -97,6 +98,46 @@ struct WORLD_OF_REFRACTION_API FMemoryCondition
 	TObjectPtr<UMemoryData> PriorMemory = nullptr;
 };
 
+/** Q-209c (D-100 alternative routes): another way to open a memory; all its conditions needed. */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FMemoryConditionSet
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Unlock")
+	TArray<FMemoryCondition> Conditions;
+};
+
+/** Q-209c (D-100 rewards): different, not stronger. Append new values at the end. */
+UENUM(BlueprintType)
+enum class EMemoryRewardKind : uint8
+{
+	Item,
+	Skill,
+	Title,
+	/** A penalty and a key at once. */
+	Curse
+};
+
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FMemoryReward
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
+	EMemoryRewardKind Kind = EMemoryRewardKind::Item;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
+	TObjectPtr<UEquipmentDataBase> Item = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
+	TObjectPtr<USkillDataBase> Skill = nullptr;
+
+	/** Title / Curse: its id (logged until titles and curses exist). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
+	FName RewardId;
+};
+
 UCLASS(BlueprintType)
 class WORLD_OF_REFRACTION_API UMemoryData : public UPrimaryDataAsset
 {
@@ -128,10 +169,27 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Unlock")
 	TArray<FMemoryCondition> UnlockConditions;
 
+	/** Q-209c: other routes; meeting UnlockConditions or any one of these opens the memory. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Unlock")
+	TArray<FMemoryConditionSet> AlternativeConditionSets;
+
+	/** Q-209c: granted once, when the memory unlocks (logged until each grant exists). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Unlock")
+	TArray<FMemoryReward> Rewards;
+
+	/** UnlockConditions and each alternative set, empty ones left out. */
+	TArray<TArray<FMemoryCondition>> GetConditionSets() const;
+
+	/** Some set has conditions (else only a source naming it opens it). */
+	bool HasConditions() const { return !GetConditionSets().IsEmpty(); }
+
 	FName GetMemoryId() const;
 
 	/** Debug: one condition in words. */
 	static FString GetConditionString(const FMemoryCondition &Condition);
+
+	/** Debug: one reward in words. */
+	static FString GetRewardString(const FMemoryReward &Reward);
 
 	EMemoryDepth GetDepthFor(const UCharacterData *Character) const;
 

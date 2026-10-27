@@ -4,6 +4,7 @@
 
 #include "Character/CharacterData.h"
 #include "Equipment/EquipmentDataBase.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "WoRLog.h"
 
 FName UMemoryData::GetMemoryId() const
@@ -37,15 +38,50 @@ FString UMemoryData::GetMemoryString() const
 		Modifiers.Add(FString::Printf(TEXT("%s %s"), *UEnum::GetDisplayValueAsText(Modifier.Kind).ToString(),
 									  Modifier.Boss ? *Modifier.Boss->Name : TEXT("<no boss>")));
 	}
-	TArray<FString> Conditions;
-	for (const FMemoryCondition &Condition : UnlockConditions)
+	TArray<FString> Routes;
+	for (const TArray<FMemoryCondition> &Set : GetConditionSets())
 	{
-		Conditions.Add(GetConditionString(Condition));
+		Routes.Add(FString::JoinBy(Set, TEXT(" + "), [](const FMemoryCondition &Condition) { return GetConditionString(Condition); }));
 	}
-	return FString::Printf(TEXT("Memory %s '%s' | depth: %s | boss (obsolete, B-211): %s | unlock: %s"), *GetMemoryId().ToString(),
+	const FString RewardList = FString::JoinBy(Rewards, TEXT(", "), [](const FMemoryReward &Reward) { return GetRewardString(Reward); });
+	return FString::Printf(TEXT("Memory %s '%s' | depth: %s | boss (obsolete, B-211): %s | unlock: %s | rewards: %s"), *GetMemoryId().ToString(),
 						   *Title.ToString(), Depths.IsEmpty() ? TEXT("none") : *FString::Join(Depths, TEXT(", ")),
 						   Modifiers.IsEmpty() ? TEXT("none") : *FString::Join(Modifiers, TEXT(", ")),
-						   Conditions.IsEmpty() ? TEXT("by its source only") : *FString::Join(Conditions, TEXT(" + ")));
+						   Routes.IsEmpty() ? TEXT("by its source only") : *FString::Join(Routes, TEXT(" OR ")),
+						   RewardList.IsEmpty() ? TEXT("none") : *RewardList);
+}
+
+TArray<TArray<FMemoryCondition>> UMemoryData::GetConditionSets() const
+{
+	TArray<TArray<FMemoryCondition>> Sets;
+	if (!UnlockConditions.IsEmpty())
+	{
+		Sets.Add(UnlockConditions);
+	}
+	for (const FMemoryConditionSet &Alternative : AlternativeConditionSets)
+	{
+		if (!Alternative.Conditions.IsEmpty())
+		{
+			Sets.Add(Alternative.Conditions);
+		}
+	}
+	return Sets;
+}
+
+FString UMemoryData::GetRewardString(const FMemoryReward &Reward)
+{
+	const FString Kind = UEnum::GetDisplayValueAsText(Reward.Kind).ToString();
+	switch (Reward.Kind)
+	{
+	case EMemoryRewardKind::Item:
+		return FString::Printf(TEXT("%s %s"), *Kind, Reward.Item ? *Reward.Item->GetName() : TEXT("<none>"));
+	case EMemoryRewardKind::Skill:
+		return FString::Printf(TEXT("%s %s"), *Kind, Reward.Skill ? *Reward.Skill->GetName() : TEXT("<none>"));
+	case EMemoryRewardKind::Title:
+	case EMemoryRewardKind::Curse:
+		return FString::Printf(TEXT("%s %s"), *Kind, *Reward.RewardId.ToString());
+	}
+	return Kind;
 }
 
 FString UMemoryData::GetConditionString(const FMemoryCondition &Condition)

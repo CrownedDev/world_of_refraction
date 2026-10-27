@@ -111,7 +111,12 @@ bool MemoryConditions::IsMet(const FMemoryCondition &Condition, const FMemoryEve
 
 bool MemoryConditions::AreMet(const UMemoryData &Memory, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal)
 {
-	return Algo::AllOf(Memory.UnlockConditions, [&](const FMemoryCondition &Condition) { return IsMet(Condition, Event, Journal); });
+	// Q-209c: any one route opens it; none authored: only the source's naming it counts.
+	const TArray<TArray<FMemoryCondition>> Sets = Memory.GetConditionSets();
+	return Sets.IsEmpty() || Sets.ContainsByPredicate([&](const TArray<FMemoryCondition> &Set)
+	{
+		return Algo::AllOf(Set, [&](const FMemoryCondition &Condition) { return IsMet(Condition, Event, Journal); });
+	});
 }
 
 TArray<UMemoryData *> MemoryConditions::GatherConditional()
@@ -126,7 +131,7 @@ TArray<UMemoryData *> MemoryConditions::GatherConditional()
 	for (const FAssetData &Asset : Assets)
 	{
 		UMemoryData *Memory = Cast<UMemoryData>(Asset.GetAsset());
-		if (Memory && !Memory->UnlockConditions.IsEmpty())
+		if (Memory && Memory->HasConditions())
 		{
 			Conditional.Add(Memory);
 		}
@@ -176,15 +181,18 @@ int32 MemoryConditions::CheckEvent(UGameInstance *GameInstance, const FMemoryEve
 
 FString MemoryConditions::GetConditionsString(const UMemoryData &Memory, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal)
 {
-	TArray<FString> Parts;
-	for (const FMemoryCondition &Condition : Memory.UnlockConditions)
+	TArray<FString> Routes;
+	for (const TArray<FMemoryCondition> &Set : Memory.GetConditionSets())
 	{
-		Parts.Add(FString::Printf(TEXT("%s [%s]"), *UMemoryData::GetConditionString(Condition),
-								  IsMet(Condition, Event, Journal) ? TEXT("met") : TEXT("not yet")));
+		Routes.Add(FString::JoinBy(Set, TEXT(" + "), [&](const FMemoryCondition &Condition)
+		{
+			return FString::Printf(TEXT("%s [%s]"), *UMemoryData::GetConditionString(Condition),
+								   IsMet(Condition, Event, Journal) ? TEXT("met") : TEXT("not yet"));
+		}));
 	}
 	const bool bCollected = Journal && Journal->HasMemory(&Memory);
 	return FString::Printf(TEXT("%s%s: %s"), *Memory.GetMemoryId().ToString(), bCollected ? TEXT(" (collected)") : TEXT(""),
-						   Parts.IsEmpty() ? TEXT("by its source only") : *FString::Join(Parts, TEXT(" + ")));
+						   Routes.IsEmpty() ? TEXT("by its source only") : *FString::Join(Routes, TEXT(" OR ")));
 }
 
 #if !UE_BUILD_SHIPPING
