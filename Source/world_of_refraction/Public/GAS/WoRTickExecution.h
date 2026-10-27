@@ -3,8 +3,8 @@
 // path does. A DOT tick reads the holder's resistance to its element from the attributes (Resist_<type>, Ice
 // also resists Water: UWoRDamageExecution::ReadElementResistance); a HOT tick reads the holder's
 // HealingReceivedBuff total as the enum path does (GetTotalStatModifier, GAS mirror or enum store). The value,
-// the element and the share-of-max-HP flag travel in the tick spec's context as an FWoRTickRequest. The output is Health -= the damage or += the
-// heal. A DOT's BuildupPerTick stays on the enum path until the status bar is GAS's own (B-042o, Q-042n).
+// the element and the share-of-max-HP flag travel in the tick spec's context as an FWoRTickRequest. The
+// output is Health -= the damage or += the heal. A DOT's BuildupPerTick stays on the enum path until the status bar is GAS's own (B-042o, Q-042n).
 // Nothing in play applies these yet (B-042h); the spec proves both paths give the same number.
 // Debug: GetRequestString; WoRTickMath::GetInputsString.
 
