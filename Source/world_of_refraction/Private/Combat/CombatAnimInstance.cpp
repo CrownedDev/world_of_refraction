@@ -25,8 +25,6 @@ void UCombatAnimInstance::NativeInitializeAnimation()
 
 void UCombatAnimInstance::HandleMontageNotify(FName NotifyName, const FBranchingPointNotifyPayload &BranchingPointPayload)
 {
-    UE_LOG(LogTemp, Warning, TEXT("[CombatAnimInstance] >>> HandleMontageNotify ENTERED: %s"),
-           *NotifyName.ToString());
     UE_LOG(LogTemp, Log, TEXT("[CombatAnimInstance] Notify: %s"), *NotifyName.ToString());
     OnActionNotify.Broadcast(NotifyName);
 }
@@ -35,38 +33,14 @@ void UCombatAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
     Super::NativeUpdateAnimation(DeltaSeconds);
 
-    if (!CharacterDataComponent)
+    if (!bReferencesCached)
     {
         CacheReferences();
     }
 
     UpdateCombatState();
-
-    // Diagnostic - what's actually playing?
-    static int32 LogCounter = 0;
-    if (++LogCounter % 60 == 0) // Log every 60 frames (~1s)
-    {
-        APawn *Owner = TryGetPawnOwner();
-        if (Owner)
-        {
-            FString MontageInfo = TEXT("None");
-            UAnimMontage *ActiveMontage = GetCurrentActiveMontage();
-            if (ActiveMontage)
-            {
-                MontageInfo = FString::Printf(TEXT("%s (Pos: %.2f)"),
-                                              *ActiveMontage->GetName(),
-                                              Montage_GetPosition(ActiveMontage));
-            }
-
-            // UE_LOG(LogTemp, Display, TEXT("[CombatAnimInstance] %s: Action=%s, Movement=%s, Stance=%s, Active=%s"),
-            //        *Owner->GetName(),
-            //        bIsPlayingAction ? TEXT("Y") : TEXT("N"),
-            //        bIsPlayingMovement ? TEXT("Y") : TEXT("N"),
-            //        CurrentStanceMontage ? *CurrentStanceMontage->GetName() : TEXT("None"),
-            //        *MontageInfo);
-        }
-    }
 }
+
 void UCombatAnimInstance::CacheReferences()
 {
     APawn *Owner = TryGetPawnOwner();
@@ -76,6 +50,8 @@ void UCombatAnimInstance::CacheReferences()
     }
 
     CharacterDataComponent = Owner->FindComponentByClass<UCharacterDataComponent>();
+    LoadoutComponent = Owner->FindComponentByClass<ULoadoutComponent>();
+    bReferencesCached = true;
 }
 
 UStanceData *UCombatAnimInstance::GetDesiredStance() const
@@ -85,8 +61,7 @@ UStanceData *UCombatAnimInstance::GetDesiredStance() const
         return nullptr;
     }
 
-    ULoadoutComponent *LoadoutComp = GetOwningActor() ? GetOwningActor()->FindComponentByClass<ULoadoutComponent>() : nullptr;
-    return LoadoutComp ? LoadoutComp->GetCurrentStance() : nullptr;
+    return LoadoutComponent ? LoadoutComponent->GetCurrentStance() : nullptr;
 }
 
 void UCombatAnimInstance::UpdateCombatState()
@@ -115,9 +90,7 @@ void UCombatAnimInstance::UpdateCombatState()
         return;
     }
 
-    UCharacterData *Data = CharacterDataComponent->CharacterData;
-    ULoadoutComponent *LoadoutComp = GetOwningActor() ? GetOwningActor()->FindComponentByClass<ULoadoutComponent>() : nullptr;
-    bIsArmed = LoadoutComp ? LoadoutComp->IsArmed() : false;
+    bIsArmed = LoadoutComponent ? LoadoutComponent->IsArmed() : false;
 
     // Get the stance we should be in
     UStanceData *DesiredStance = GetDesiredStance();
