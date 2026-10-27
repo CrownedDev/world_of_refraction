@@ -75,6 +75,10 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 - `GAS/WoRCombatEvents.h`: `WoRCombatEvents::Send(Target, Event, Instigator, Magnitude)` hands an `FGameplayEventData` to the target's ASC (`HandleGameplayEvent`); no ASC, no event, no error. `wor.Events.Log 1` logs each.
 - Sent by `USkillEffectManager` beside its dispatcher (Q-044j A): `Event.Combat.Hit` (target; attacker; damage), `Event.Combat.DefenseResolved` (defender; attacker; attack base cost), `Event.Combat.TurnStart` / `TurnEnd` (the actor). Nothing listens yet; B-043's passive abilities will.
 
+### Every effect type has a family (stage 3, B-042k part 4b)
+
+- `UWoRGE_Reflect`, `UWoRGE_LastStand`, `UWoRGE_OnHit`, `UWoRGE_AttackModifier`, `UWoRGE_Control`, `UWoRGE_Periodic`, `UWoRGE_Action`: Infinite, `Effect.Family.*` asset tag, no modifier or granted tag (Q-042k). `GetEffectClass` returns a class for every type but None, so the mirror copies every stored effect; the game code they run stays on the enum path until B-042h. At UseGAS 1 every read of these types now resyncs the mirror too, including hot paths (crit, Ignore Defense, Lifesteal, Absorb, Double Hit, AI scoring): fine for the PIE pass.
+
 ## Integration points
 
 - Delegates it listens to:
@@ -113,3 +117,4 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 | 2026-10-27 | B-042b (stage 3, part 2): `FWoREffectContext` + globals class; family GEs; `FWoREffectSpecBuilder`; tracker tick specs. Not routed in play yet (B-042c). | feature/B-042b-gas-effect-builder |
 | 2026-10-27 | B-042c (stage 3, part 3): `UWoREffectMirrorComponent`; `wor.Effects.UseGAS` facade reads; `wor.CompareEffects`; `Build` takes `bAlreadyStored`. Write side moved to B-042h (Q-042c). | feature/B-042c-gas-effect-mirror |
 | 2026-10-27 | B-042d (stage 3, part 4, narrowed): `WoRCombatEvents::Send`; `Event.Combat.*` sent from the effect manager. Rest split into B-042i, B-042j, B-042k. | feature/B-042d-gas-combat-events |
+| 2026-10-27 | B-042k (stage 3, part 4b): seven role families; every effect type mirrored. | feature/B-042k-gas-remaining-families |

@@ -1,7 +1,7 @@
 // EffectMirrorSpec.cpp
 // GAS stage 3 (B-042c): UWoREffectMirrorComponent keeps one GameplayEffect per stored, ported
-// enum-path effect (value, stacks, same-source replace, removal, expiry, clear), skips unported
-// types, and `wor.Effects.UseGAS 1` makes the effect manager's reads use those GEs.
+// enum-path effect (value, stacks, same-source replace, removal, expiry, clear), skips instant
+// effects, mirrors every effect type (B-042k), and `wor.Effects.UseGAS 1` makes the effect manager's reads use those GEs.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -25,6 +25,11 @@ namespace
 	constexpr float MIRROR_BUFF = 20.0f;
 	constexpr float MIRROR_STRONGER_BUFF = 30.0f;
 	constexpr float MIRROR_DOT = 5.0f;
+	/** The every-type sweep's IDs start here (one per enum index) and its effects hold this value. */
+	constexpr int32 MIRROR_TYPE_SWEEP_ID = 4400;
+	constexpr float MIRROR_SWEEP_VALUE = 1.0f;
+	/** At least 1 in this many swept types must be held (immunities can reject some). */
+	constexpr int32 MIRROR_SWEEP_MIN_SHARE = 2;
 }
 
 BEGIN_DEFINE_SPEC(FEffectMirrorSpec, "WoR.GAS.EffectMirror",
@@ -151,19 +156,53 @@ void FEffectMirrorSpec::Define()
 		TestFalse(TEXT("DOT tag gone"), ASC->HasMatchingGameplayTag(WoRTags::Status_DOT));
 	});
 
-	It("skips instant effects and unported types", [this]()
+	It("skips instant effects", [this]()
 	{
 		if (!EffectManager) return;
 		FActiveSkillEffect Instant = Buff();
 		Instant.RemainingTurns = 0;
 		EffectManager->ApplyEffect(Hero, Instant, Foe);
-		FActiveSkillEffect Unported = Buff();
-		Unported.EffectID = MIRROR_BUFF_ID + 1;
-		Unported.EffectType = ESkillEffectType::Lifesteal;
-		TestFalse(TEXT("Lifesteal isn't ported (else pick another type)"), FWoREffectSpecBuilder::GetEffectClass(Unported.EffectType) != nullptr);
-		EffectManager->ApplyEffect(Hero, Unported, Foe);
 		TestEqual(TEXT("Nothing mirrored"), Mirror->NumMirrored(), 0);
-		TestMatches(TEXT("unported"));
+		TestMatches(TEXT("instant"));
+	});
+
+	It("mirrors every effect type, and UseGAS 1 reads each the same as 0 (B-042k)", [this]()
+	{
+		if (!EffectManager) return;
+		const UEnum *Types = StaticEnum<ESkillEffectType>();
+		for (int32 Index = 0; Index < Types->NumEnums() - 1; ++Index)
+		{
+			const ESkillEffectType Type = static_cast<ESkillEffectType>(Types->GetValueByIndex(Index));
+			if (Type == ESkillEffectType::None)
+			{
+				continue;
+			}
+			// Held, not run: no window fires before the checks (an immunity may still turn one away).
+			FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(UEnum::GetValueAsString(Type), MIRROR_TYPE_SWEEP_ID + Index,
+																	   Type, MIRROR_SWEEP_VALUE, MIRROR_TURNS);
+			Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
+			Effect.bDelayFirstExecution = true;
+			EffectManager->ApplyEffect(Hero, Effect, Foe);
+		}
+		TestMatches(TEXT("every type"));
+		// Immunities may turn a few away, but most must land, or the per-type compare proves nothing.
+		TestTrue(TEXT("Most types mirrored"), Mirror->NumMirrored() >= (Types->NumEnums() - 1) / MIRROR_SWEEP_MIN_SHARE);
+
+		for (int32 Index = 0; Index < Types->NumEnums() - 1; ++Index)
+		{
+			const ESkillEffectType Type = static_cast<ESkillEffectType>(Types->GetValueByIndex(Index));
+			if (Type == ESkillEffectType::None)
+			{
+				continue;
+			}
+			const FString Name = UEnum::GetValueAsString(Type);
+			UWoREffectMirrorComponent::SetReadsFromGAS(false);
+			const bool bEnumHas = EffectManager->HasEffectOfType(Hero, Type);
+			const float EnumTotal = EffectManager->GetTotalStatModifier(Hero, Type);
+			UWoREffectMirrorComponent::SetReadsFromGAS(true);
+			TestEqual(*FString::Printf(TEXT("%s: has"), *Name), EffectManager->HasEffectOfType(Hero, Type), bEnumHas);
+			TestEqual(*FString::Printf(TEXT("%s: total"), *Name), EffectManager->GetTotalStatModifier(Hero, Type), EnumTotal);
+		}
 	});
 
 	It("reads from GAS with wor.Effects.UseGAS 1 and from the enum path with 0", [this]()

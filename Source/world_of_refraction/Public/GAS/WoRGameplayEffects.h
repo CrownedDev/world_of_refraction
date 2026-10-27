@@ -5,7 +5,7 @@
 // counts seconds. GE components are created in the constructor and added to GEComponents, the
 // supported native pattern (UGameplayEffect::PostInitProperties checks it). Each class carries its
 // Effect.Family.* asset tag (Q-040b). FWoREffectSpecBuilder picks the class for an effect type.
-// Nothing applies these in play yet; the facade routes effects here in B-042c.
+// The B-042c mirror applies them for every stored effect; B-042k gave every effect type a family.
 // Debug: `showdebug abilitysystem`, UWoRTurnEffectTracker::GetDebugString.
 
 #pragma once
@@ -124,4 +124,79 @@ class WORLD_OF_REFRACTION_API UWoRGE_HealTick : public UWoRGE_HealthTick
 
 public:
 	UWoRGE_HealTick();
+};
+
+// B-042k (Q-042k): one class per role for the types whose effects run game code. They grant
+// nothing and modify nothing: readers ask HasEffectOfType / GetTotalStatModifier, and the enum
+// path still runs the game code until B-042h. Action and Periodic types mostly run at once and
+// are rarely stored.
+
+/** Reflect, Reflect Physical, Reflect Spell: a share of a hit sent back. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_Reflect : public UWoRGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_Reflect();
+};
+
+/** Last Stand: the holder survives a killing blow once. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_LastStand : public UWoRGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_LastStand();
+};
+
+/** A rider on hits dealt or taken: Lifesteal, Absorb (to EP), Apply Burn / Chill / Stun, Retaliation. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_OnHit : public UWoRGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_OnHit();
+};
+
+/** Changes how the holder's attacks resolve: Guaranteed Crit, Ignore Defense, Double Hit. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_AttackModifier : public UWoRGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_AttackModifier();
+};
+
+/** Changes the holder's turns: Random Skill (Void broken), Skip Turn, Extra Action. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_Control : public UWoRGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_Control();
+};
+
+/** Restores, drains or deals something on its windows: energy / HP restore and drain, Heal, Self Damage, Burst, status buildup up or down. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_Periodic : public UWoRGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_Periodic();
+};
+
+/** A one-shot action held as an effect: the cleanses, Remove * Debuff, Push Back, Pull Forward. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_Action : public UWoRGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_Action();
 };

@@ -42,6 +42,7 @@ namespace
 		ESkillEffectType::SpellSizeBuff, ESkillEffectType::SpellSizeDebuff,
 		ESkillEffectType::HealingReceivedBuff,
 		ESkillEffectType::ReduceDamageTaken, ESkillEffectType::IncreaseDamageTaken,
+		ESkillEffectType::CritDebuff, ESkillEffectType::EnergyDebuff, ESkillEffectType::RandomDebuff, ESkillEffectType::ModifyHealing,
 	};
 
 	/** The Grant*Immunity types: tagged (WoRTags::EffectTypeToTag) and not one of the statuses. */
@@ -116,6 +117,49 @@ TSubclassOf<UGameplayEffect> FWoREffectSpecBuilder::GetEffectClass(ESkillEffectT
 		return UWoRGE_DamageOverTime::StaticClass();
 	case ESkillEffectType::HealthRestore:
 		return UWoRGE_HealOverTime::StaticClass();
+	// B-042k: the families whose effects run game code; the enum path still runs it (until B-042h).
+	case ESkillEffectType::DamageReflect:
+	case ESkillEffectType::ReflectPhysicalDamage:
+	case ESkillEffectType::ReflectSpellDamage:
+		return UWoRGE_Reflect::StaticClass();
+	case ESkillEffectType::LastStand:
+		return UWoRGE_LastStand::StaticClass();
+	case ESkillEffectType::Lifesteal:
+	case ESkillEffectType::AbsorbDamage:
+	case ESkillEffectType::ApplyBurnToTarget:
+	case ESkillEffectType::ApplyChillToTarget:
+	case ESkillEffectType::ApplyStunToTarget:
+	case ESkillEffectType::RetaliationDamage:
+		return UWoRGE_OnHit::StaticClass();
+	case ESkillEffectType::GuaranteedCrit:
+	case ESkillEffectType::IgnoreDefense:
+	case ESkillEffectType::DoubleHit:
+		return UWoRGE_AttackModifier::StaticClass();
+	case ESkillEffectType::RandomSkill:
+	case ESkillEffectType::SkipTurn:
+	case ESkillEffectType::ExtraAction:
+		return UWoRGE_Control::StaticClass();
+	case ESkillEffectType::EnergyRestore:
+	case ESkillEffectType::EnergyDrain:
+	case ESkillEffectType::Heal:
+	case ESkillEffectType::RestoreHPPercent:
+	case ESkillEffectType::RestoreEnergyPercent:
+	case ESkillEffectType::DrainHP:
+	case ESkillEffectType::DrainEnergy:
+	case ESkillEffectType::SelfDamage:
+	case ESkillEffectType::BurstDamage:
+	case ESkillEffectType::StatusIncrease:
+	case ESkillEffectType::StatusDecrease:
+		return UWoRGE_Periodic::StaticClass();
+	case ESkillEffectType::Cleanse:
+	case ESkillEffectType::RemoveSpeedDebuff:
+	case ESkillEffectType::RemoveDamageDebuff:
+	case ESkillEffectType::RemoveDefenseDebuff:
+	case ESkillEffectType::CleanseSelf:
+	case ESkillEffectType::CleanseAllies:
+	case ESkillEffectType::PushBack:
+	case ESkillEffectType::PullForward:
+		return UWoRGE_Action::StaticClass();
 	default:
 		break;
 	}
@@ -152,7 +196,7 @@ FWoRBuiltEffect FWoREffectSpecBuilder::Build(UAbilitySystemComponent &TargetASC,
 	if (!Class || (Effect.IsInstant() && !bAlreadyStored))
 	{
 		UE_LOG(LogWoREffects, Verbose, TEXT("[EffectSpecBuilder] %s: not built (%s)"), *Effect.EffectName,
-			   Class ? TEXT("instant") : TEXT("type not ported"));
+			   Class ? TEXT("instant") : TEXT("type None"));
 		return Built;
 	}
 
