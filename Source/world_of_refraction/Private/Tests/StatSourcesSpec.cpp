@@ -16,6 +16,7 @@
 #include "Debug/GAS/WoRAttributeDebug.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
+#include "GAS/WoRGameplayEffects.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Tags/WoRGameplayTags.h"
@@ -39,6 +40,8 @@ namespace
 	constexpr int32 STAT_SOURCES_POOL_COUNT = 2;
 	/** Turn speed (UWoRGE_StatSources_TurnSpeed, outside GetComposedStats). */
 	constexpr int32 STAT_SOURCES_TURN_SPEED_COUNT = 1;
+	/** General status resistance (UWoRGE_StatSources_StatusResistance, B-042w). */
+	constexpr int32 STAT_SOURCES_STATUS_RESISTANCE_COUNT = 1;
 }
 
 BEGIN_DEFINE_SPEC(FStatSourcesSpec, "WoR.GAS.StatSources",
@@ -67,11 +70,11 @@ BEGIN_DEFINE_SPEC(FStatSourcesSpec, "WoR.GAS.StatSources",
 	}
 
 	/** The sources effects share one family tag: one per composed stat, per pillar (B-042t), per max pool (B-042u)
-	 *  and turn speed (B-042v). */
+	 *  turn speed (B-042v), general status resistance and the resistance sources (B-042w). */
 	static int32 ComposedCount()
 	{
 		return UWoRAttributeSet_Stats::GetComposedStats().Num() + UWoRAttributeSet_Stats::GetComposedPillars().Num() + STAT_SOURCES_POOL_COUNT +
-			   STAT_SOURCES_TURN_SPEED_COUNT;
+			   STAT_SOURCES_TURN_SPEED_COUNT + STAT_SOURCES_STATUS_RESISTANCE_COUNT + UWoRGE_ResistanceSources::GetSourceClasses().Num();
 	}
 
 	TArray<FActiveGameplayEffectHandle> SourceEffects() const

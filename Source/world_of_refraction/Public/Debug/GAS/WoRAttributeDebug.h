@@ -36,6 +36,9 @@ public:
 	static int32 CompareAttributes(const UObject *WorldContextObject);
 
 private:
+	/** A resistance attribute (B-042w): its 0 base, and each source effect once with its source's magnitudes. */
+	static void AddResistanceSourceMismatches(const AActor *Actor, const UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute,
+											  TArray<FString> &Mismatches);
 	/** A composed stat's base vs its capped stat, and its one stat-sources effect (B-042q); a derived
 	 *  stat's one derived-stat effect (B-042s). */
 	static void AddComposedMismatches(const AActor *Actor, const UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute,

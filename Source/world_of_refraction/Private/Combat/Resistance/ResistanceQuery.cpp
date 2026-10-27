@@ -5,6 +5,7 @@
 #include "Combat/Boss/BossPhaseComponent.h"
 #include "Combat/CombatConstants.h"
 #include "Character/CharacterDataComponent.h"
+#include "Character/StatLayers.h"
 #include "Character/CharacterData.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Equipment/FEquipmentStatBonus.h"
@@ -109,20 +110,26 @@ namespace
 
 namespace WoRResistance
 {
-	float GetTypeResistance(AActor *Target, EWoRDamageType DamageType)
+	FTypeResistanceSources GetTypeResistanceSources(AActor *Target, EWoRDamageType DamageType)
 	{
+		FTypeResistanceSources Sources;
 		if (!Target)
 		{
-			return 0.0f;
+			return Sources;
 		}
 		ESpellElement Element;
 		EPhysicalDamageType Physical;
 		ToAxes(DamageType, Element, Physical);
 
-		float Resist = EffectTypeResistance(Target, DamageType);                                  // #4
-		Resist += ClassInnateResistanceTable::GetClassInnateResistance(Target, Element, Physical); // #5
-		Resist += GearTypeResistance(Target, Element, Physical);                                  // #6
-		return Resist;
+		Sources.Effect = EffectTypeResistance(Target, DamageType);                                 // #4
+		Sources.Class = ClassInnateResistanceTable::GetClassInnateResistance(Target, Element, Physical); // #5
+		Sources.Gear = GearTypeResistance(Target, Element, Physical);                              // #6
+		return Sources;
+	}
+
+	float GetTypeResistance(AActor *Target, EWoRDamageType DamageType)
+	{
+		return GetTypeResistanceSources(Target, DamageType).Sum();
 	}
 
 	float GetElementDamageResistance(AActor *Target, ESpellElement Element)
@@ -150,46 +157,60 @@ namespace WoRResistance
 		return Resist;
 	}
 
-	float GetGeneralStatusResistance(AActor *Target)
+	bool GetGeneralStatusResistanceLayers(AActor *Target, FWoRStatLayers &OutLayers)
 	{
 		const UCharacterDataComponent *TargetComp = Target ? Target->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 		if (!TargetComp || !TargetComp->CharacterData)
 		{
-			return 0.0f;
+			return false;
 		}
 		// The Spirit stat capped alone (UNIVERSAL_STAT_CAP), then gear points and the attached stones
 		// (weapon + ring, summed) multiply it toward RESISTANCE_MAX. Never negative: the amplify range
 		// comes from the type and bonus layers.
-		float General = TargetComp->GetCrystalResistanceStatCapped();                 // #1
+		OutLayers = FWoRStatLayers();
+		OutLayers.Min = 0.0f;
+		OutLayers.Max = CombatConstants::RESISTANCE_MAX;
+		OutLayers.StatBase = TargetComp->GetCrystalResistanceStatCapped();                 // #1
 		if (const ULoadoutComponent *Loadout = Target->FindComponentByClass<ULoadoutComponent>())
 		{
 			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Target);
-			General *= (1.0f + Bonus.BonusResistance * CombatConstants::RESISTANCE_PER_POINT);  // #2
-			General *= (1.0f + Loadout->GetAttachedStonePercent(ESubStat::Resistance) /
-								   CombatConstants::STAT_PERCENT_DIVISOR);                       // #3
+			OutLayers.GearFactor = 1.0f + Bonus.BonusResistance * CombatConstants::RESISTANCE_PER_POINT;  // #2
+			OutLayers.StoneFactor = 1.0f + Loadout->GetAttachedStonePercent(ESubStat::Resistance) /
+											   CombatConstants::STAT_PERCENT_DIVISOR;                 // #3
 		}
-		return FMath::Clamp(General, 0.0f, CombatConstants::RESISTANCE_MAX);
+		return true;
 	}
 
-	float GetStatusResistBonus(AActor *Target)
+	float GetGeneralStatusResistance(AActor *Target)
 	{
+		FWoRStatLayers Layers;
+		return GetGeneralStatusResistanceLayers(Target, Layers) ? Layers.Compose() : 0.0f;
+	}
+
+	FStatusResistBonusSources GetStatusResistBonusSources(AActor *Target)
+	{
+		FStatusResistBonusSources Sources;
 		if (!Target)
 		{
-			return 0.0f;
+			return Sources;
 		}
-		float Bonus = 0.0f;
 		// #7 signed: a negative ModifyStatusResist (the stone's enemy curse) reaches the amplify range.
 		if (const USkillEffectManager *EffectMgr = EffectManagerFor(Target))
 		{
-			Bonus += EffectMgr->GetTotalStatModifier(Target, ESkillEffectType::ModifyStatusResist) /
-					 CombatConstants::STAT_PERCENT_DIVISOR;
+			Sources.Effect = EffectMgr->GetTotalStatModifier(Target, ESkillEffectType::ModifyStatusResist) /
+							 CombatConstants::STAT_PERCENT_DIVISOR;
 		}
 		// #8 boss rising resistance (B-193): a step per status break this fight.
 		if (const UBossPhaseComponent *Boss = Target->FindComponentByClass<UBossPhaseComponent>())
 		{
-			Bonus += Boss->GetStatusResistanceBonus();
+			Sources.Boss = Boss->GetStatusResistanceBonus();
 		}
-		return Bonus;
+		return Sources;
+	}
+
+	float GetStatusResistBonus(AActor *Target)
+	{
+		return GetStatusResistBonusSources(Target).Sum();
 	}
 
 	float GetTotalStatusResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType)

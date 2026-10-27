@@ -164,8 +164,14 @@ void UWoRAttributeSyncComponent::SyncAttributes()
 	}
 	const UCharacterDataComponent *Char = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
 	const UTurnManager *Turns = AttributeSyncSubsystem<UTurnManager>(this);
+	const bool bResistanceSet = ASC->GetSet<UWoRAttributeSet_Resistance>() != nullptr;
 	for (const FWoRAttributeSourceValue &Source : ReadSourceValues(GetOwner()))
 	{
+		if (bResistanceSet && UWoRGE_ResistanceSources::CoversAttribute(Source.Attribute))
+		{
+			ASC->SetNumericAttributeBase(Source.Attribute, 0.0f); // the sources add it all (SyncResistanceSources)
+			continue;
+		}
 		ESubStat Stat;
 		EWorldPillar Pillar;
 		FWoRStatLayers Layers;
@@ -179,6 +185,12 @@ void UWoRAttributeSyncComponent::SyncAttributes()
 		if (bPillar && Char->GetPillarLayers(Pillar, Layers))
 		{
 			SyncComposedStat(*ASC, Source.Attribute, Layers, UWoRGE_StatSources::GetClassFor(Pillar));
+			continue;
+		}
+		const bool bStatusResistance = Source.Attribute == UWoRAttributeSet_Resistance::GetStatusResistanceAttribute();
+		if (bStatusResistance && WoRResistance::GetGeneralStatusResistanceLayers(GetOwner(), Layers))
+		{
+			SyncComposedStat(*ASC, Source.Attribute, Layers, UWoRGE_StatSources_StatusResistance::StaticClass());
 			continue;
 		}
 		const bool bTurnSpeed = Source.Attribute == UWoRAttributeSet_Stats::GetTurnSpeedAttribute();
@@ -197,7 +209,7 @@ void UWoRAttributeSyncComponent::SyncAttributes()
 		}
 		// Not composed (or no layers, e.g. Defense without CharacterData, a max set another way): the
 		// getter's value, no sources.
-		if (bComposed || bPillar || PoolClass || bTurnSpeed)
+		if (bComposed || bPillar || PoolClass || bTurnSpeed || bStatusResistance)
 		{
 			RemoveStatSources(*ASC, Source.Attribute);
 		}
@@ -208,6 +220,78 @@ void UWoRAttributeSyncComponent::SyncAttributes()
 		}
 		ASC->SetNumericAttributeBase(Source.Attribute, Source.Value);
 	}
+	if (bResistanceSet)
+	{
+		SyncResistanceSources(*ASC);
+	}
+}
+
+TArray<TPair<TSubclassOf<UGameplayEffect>, TMap<FGameplayTag, float>>> UWoRAttributeSyncComponent::GetResistanceSourceMagnitudes(
+	AActor *Owner)
+{
+	TMap<FGameplayTag, float> Effect;
+	TMap<FGameplayTag, float> Class;
+	TMap<FGameplayTag, float> Gear;
+	TMap<FGameplayTag, float> Boss;
+	for (const EWoRDamageType DamageType : WoRDamageType::All())
+	{
+		const WoRResistance::FTypeResistanceSources Sources = WoRResistance::GetTypeResistanceSources(Owner, DamageType);
+		const FGameplayTag Tag = WoRTags::DamageTypeToTag(DamageType);
+		Effect.Add(Tag, Sources.Effect);
+		Class.Add(Tag, Sources.Class);
+		Gear.Add(Tag, Sources.Gear);
+	}
+	const WoRResistance::FStatusResistBonusSources Bonus = WoRResistance::GetStatusResistBonusSources(Owner);
+	Effect.Add(WoRTags::SetByCaller_Magnitude, Bonus.Effect);
+	Boss.Add(WoRTags::SetByCaller_Magnitude, Bonus.Boss);
+
+	return {
+		MakeTuple(TSubclassOf<UGameplayEffect>(UWoRGE_ResistanceSources_Effect::StaticClass()), MoveTemp(Effect)),
+		MakeTuple(TSubclassOf<UGameplayEffect>(UWoRGE_ResistanceSources_Class::StaticClass()), MoveTemp(Class)),
+		MakeTuple(TSubclassOf<UGameplayEffect>(UWoRGE_ResistanceSources_Gear::StaticClass()), MoveTemp(Gear)),
+		MakeTuple(TSubclassOf<UGameplayEffect>(UWoRGE_ResistanceSources_Boss::StaticClass()), MoveTemp(Boss)),
+	};
+}
+
+void UWoRAttributeSyncComponent::SyncResistanceSources(UAbilitySystemComponent &ASC)
+{
+	for (const TPair<TSubclassOf<UGameplayEffect>, TMap<FGameplayTag, float>> &Source : GetResistanceSourceMagnitudes(GetOwner()))
+	{
+		SyncResistanceSource(ASC, Source.Key, Source.Value);
+	}
+}
+
+void UWoRAttributeSyncComponent::SyncResistanceSource(UAbilitySystemComponent &ASC, TSubclassOf<UGameplayEffect> SourceClass,
+													  const TMap<FGameplayTag, float> &Magnitudes)
+{
+	FWoRAppliedResistanceSources &Applied = AppliedResistanceSources.FindOrAdd(SourceClass.Get());
+	const bool bLive = ASC.GetActiveGameplayEffect(Applied.Handle) != nullptr;
+	if (bLive && Applied.Magnitudes.OrderIndependentCompareEqual(Magnitudes))
+	{
+		return;
+	}
+	if (bLive)
+	{
+		ASC.UpdateActiveGameplayEffectSetByCallerMagnitudes(Applied.Handle, Magnitudes);
+		Applied.Magnitudes = Magnitudes;
+		UE_LOG(LogWoR, Verbose, TEXT("[AttributeSync] %s %s updated"), *GetOwner()->GetName(), *SourceClass->GetName());
+		return;
+	}
+	const FGameplayEffectSpecHandle Spec = ASC.MakeOutgoingSpec(SourceClass, STAT_SOURCES_EFFECT_LEVEL, ASC.MakeEffectContext());
+	if (!Spec.IsValid())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[AttributeSync] %s: no spec for %s; resistances miss that source"), *GetOwner()->GetName(),
+			   *SourceClass->GetName());
+		AppliedResistanceSources.Remove(SourceClass.Get());
+		return;
+	}
+	for (const TPair<FGameplayTag, float> &Magnitude : Magnitudes)
+	{
+		Spec.Data->SetSetByCallerMagnitude(Magnitude.Key, Magnitude.Value);
+	}
+	Applied.Handle = ASC.ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+	Applied.Magnitudes = Magnitudes;
+	UE_LOG(LogWoR, Verbose, TEXT("[AttributeSync] %s %s applied"), *GetOwner()->GetName(), *SourceClass->GetName());
 }
 
 void UWoRAttributeSyncComponent::SyncDerivedStat(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute,
@@ -370,9 +454,14 @@ void UWoRAttributeSyncComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 		{
 			ASC->RemoveActiveGameplayEffect(Applied.Value.Handle);
 		}
+		for (const TPair<const UClass *, FWoRAppliedResistanceSources> &Applied : AppliedResistanceSources)
+		{
+			ASC->RemoveActiveGameplayEffect(Applied.Value.Handle);
+		}
 	}
 	AppliedStatSources.Reset();
 	AppliedPoolSources.Reset();
+	AppliedResistanceSources.Reset();
 	AppliedDerivedStats.Reset();
 	Super::EndPlay(EndPlayReason);
 }

@@ -108,6 +108,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-178](B-178.md) | `feature/B-178-run-repair` (in `dev`) | Paid gear repair in a run; the run's Gold carries between levels | Not tested |
 | [B-093](B-093.md) | `feature/B-093-menu-keys` (in `dev`) | Keys for Defend and infusion (keyboard + gamepad) | Not tested |
 | [B-209](B-209.md) | `feature/B-209-memory-sources` (in `dev`) | Memories from bosses, reactions, map spots and bound gear | Not tested |
+| [B-042w](B-042w.md) | `feature/B-042w-gas-resistance` (in `dev`) | GAS stage 3, part 5m: the resistances built on GAS from their sources | Not tested |
 | [B-042v](B-042v.md) | `feature/B-042v-gas-turn-speed` (in `dev`) | GAS stage 3, part 5l: turn speed built on GAS from the number turn order uses | Not tested |
 | [B-042u](B-042u.md) | `feature/B-042u-gas-pools` (in `dev`) | GAS stage 3, part 5k: max HP and max EP built on GAS from the pool layers | Not tested |
 | [B-042t](B-042t.md) | `feature/B-042t-gas-last-stats` (in `dev`) | GAS stage 3, part 5j: Mind, Body and Spirit built on GAS from their world base and layers | Not tested |

@@ -216,6 +216,9 @@ public:
 	/** The attribute holding DamageType's resistance (None: Resist_NonElemental). */
 	static FGameplayAttribute GetTypeAttribute(EWoRDamageType DamageType);
 
+	/** StatusResistance: [0, RESISTANCE_MAX], as GetGeneralStatusResistance clamps its layers (B-042w). */
+	virtual void PreAttributeChange(const FGameplayAttribute &Attribute, float &NewValue) override;
+
 	UPROPERTY(BlueprintReadOnly, Category = "DamageType", ReplicatedUsing = OnRep_Resist_Fire)
 	FGameplayAttributeData Resist_Fire;
 	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Resistance, Resist_Fire)
