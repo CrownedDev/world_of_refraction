@@ -181,7 +181,11 @@ public:
 	TArray<TArray<FMemoryCondition>> GetConditionSets() const;
 
 	/** Some set has conditions (else only a source naming it opens it). */
-	bool HasConditions() const { return !GetConditionSets().IsEmpty(); }
+	bool HasConditions() const
+	{
+		return !UnlockConditions.IsEmpty() ||
+			   AlternativeConditionSets.ContainsByPredicate([](const FMemoryConditionSet &Set) { return !Set.Conditions.IsEmpty(); });
+	}
 
 	FName GetMemoryId() const;
 
