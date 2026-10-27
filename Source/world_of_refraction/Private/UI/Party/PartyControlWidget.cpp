@@ -15,6 +15,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Party/PartySessionSubsystem.h"
+#include "WoRGameNames.h"
 
 #define LOCTEXT_NAMESPACE "PartyControl"
 
@@ -169,7 +170,7 @@ void UPartyControlWidget::Refresh()
 		const FText Name = Member->CharacterData ? FText::FromString(Member->CharacterData->Name) : LOCTEXT("NoData", "<no data>");
 		const FText Cell = Member->HasFormation()
 							   ? FText::Format(LOCTEXT("Cell", "{0}, column {1}"),
-											   StaticEnum<ECombatRow>()->GetDisplayNameTextByValue(static_cast<int64>(Member->PreferredRow)),
+											   WoRGameNames::GetCombatRowName(Member->PreferredRow),
 											   FText::AsNumber(Member->PreferredColumn))
 							   : LOCTEXT("NoCell", "auto");
 		FormationTexts[SlotIndex]->SetText(FText::Format(LOCTEXT("FormationRow", "{0} starts: {1}"), Name, Cell));

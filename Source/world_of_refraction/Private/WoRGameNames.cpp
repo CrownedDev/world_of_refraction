@@ -2,6 +2,10 @@
 // One case per enum value; see WoRGameNames.h.
 
 #include "WoRGameNames.h"
+#include "Combat/Defense/EDefenseType.h"
+#include "Combat/Grid/ECombatRow.h"
+#include "Merchant/MerchantData.h"
+#include "Skills/Definitions/SpellSchool.h"
 
 #define LOCTEXT_NAMESPACE "WoRGameNames"
 
@@ -275,6 +279,74 @@ FText GetCharacterClassName(ECharacterClass CharacterClass)
         return LOCTEXT("ECharacterClass_Caster", "Refractor");
     case ECharacterClass::Resonator:
         return LOCTEXT("ECharacterClass_Resonator", "Resonator");
+    }
+    return FText::GetEmpty();
+}
+
+FText GetDefenseTypeName(EDefenseType DefenseType)
+{
+    switch (DefenseType)
+    {
+    case EDefenseType::None:
+        return LOCTEXT("EDefenseType_None", "None");
+    case EDefenseType::Block:
+        return LOCTEXT("EDefenseType_Block", "Guard");
+    case EDefenseType::Parry:
+        return LOCTEXT("EDefenseType_Parry", "Guard"); // legacy value: every guard is a Guard (Q-182)
+    case EDefenseType::Dodge:
+        return LOCTEXT("EDefenseType_Dodge", "Dodge");
+    }
+    return FText::GetEmpty();
+}
+
+FText GetCombatRowName(ECombatRow Row)
+{
+    switch (Row)
+    {
+    case ECombatRow::Back:
+        return LOCTEXT("ECombatRow_Back", "Back Row");
+    case ECombatRow::Middle:
+        return LOCTEXT("ECombatRow_Middle", "Middle Row");
+    case ECombatRow::Front:
+        return LOCTEXT("ECombatRow_Front", "Front Row");
+    }
+    return FText::GetEmpty();
+}
+
+FText GetSpellSchoolName(ESpellSchool School)
+{
+    switch (School)
+    {
+    case ESpellSchool::Destruction:
+        return LOCTEXT("ESpellSchool_Destruction", "Destruction");
+    case ESpellSchool::Enhancement:
+        return LOCTEXT("ESpellSchool_Enhancement", "Enhancement");
+    case ESpellSchool::Restoration:
+        return LOCTEXT("ESpellSchool_Restoration", "Restoration");
+    case ESpellSchool::Conjuration:
+        return LOCTEXT("ESpellSchool_Conjuration", "Conjuration");
+    }
+    return FText::GetEmpty();
+}
+
+FText GetMerchantTypeName(EMerchantType MerchantType)
+{
+    switch (MerchantType)
+    {
+    case EMerchantType::Blacksmith:
+        return LOCTEXT("EMerchantType_Blacksmith", "Blacksmith (weapons, augment stones)");
+    case EMerchantType::Jeweler:
+        return LOCTEXT("EMerchantType_Jeweler", "Jeweler (rings)");
+    case EMerchantType::CombatMaster:
+        return LOCTEXT("EMerchantType_CombatMaster", "Combat Master (abilities)");
+    case EMerchantType::SpellShop:
+        return LOCTEXT("EMerchantType_SpellShop", "Spell Shop (spells)");
+    case EMerchantType::Spiritualist:
+        return LOCTEXT("EMerchantType_Spiritualist", "Spiritualist (evolutions, crystals, repairs)");
+    case EMerchantType::StoneSmith:
+        return LOCTEXT("EMerchantType_StoneSmith", "Stone Smith (augment stones)");
+    case EMerchantType::LoadoutVendor:
+        return LOCTEXT("EMerchantType_LoadoutVendor", "Loadout Vendor (purchase loadout)");
     }
     return FText::GetEmpty();
 }

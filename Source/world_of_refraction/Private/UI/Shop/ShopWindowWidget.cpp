@@ -14,7 +14,7 @@
 #include "Currency/EconomyYield.h" // scaling-grade letters for the detail panel
 #include "Engine/GameInstance.h"
 #include "Equipment/Crystals/CrystalDescription.h" // GetItemEffectText for the crystal Effect line
-#include "Equipment/Crystals/CrystalTypeHelpers.h" // GetElement for ring attached-crystal line
+#include "Equipment/Crystals/CrystalTypeHelpers.h" // GetElement for the gem and ring attached-crystal element lines
 #include "Equipment/Crystals/EvolutionItemData.h"  // single-owned cart-cap casts
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Rings/RingData.h"
@@ -28,6 +28,7 @@
 #include "UI/Shop/ShopRowWidget.h" // shared per-entry display ladder (NameFor/TierFor/DescriptionFor)
 #include "Skills/Definitions/SupportSkillRules.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "WoRGameNames.h"
 
 namespace ShopWindowConstants
 {
@@ -81,19 +82,12 @@ namespace
 
         if (E.IsCrystalEntry())
         {
-            // Element from the enum display's parenthetical ("Garnet (Fire - Damage)" →
-            // Fire); stones have no parenthetical → no Element line. Effect is the full
-            // mechanical sentence (3j — numbers on stone effect text accepted per Crown).
-            const FString Display = UEnum::GetDisplayValueAsText(E.Crystal.Type).ToString();
-            int32 Open = INDEX_NONE, Close = INDEX_NONE;
-            if (Display.FindChar(TEXT('('), Open) && Display.FindLastChar(TEXT(')'), Close) && Close > Open)
+            // Element line for elemental gems only (stones and Quartz have none, B-207). Effect is
+            // the full mechanical sentence (3j — numbers on stone effect text accepted per Crown).
+            const ESpellElement CrystalElement = CrystalTypeHelpers::GetElement(E.Crystal.Type);
+            if (CrystalElement != ESpellElement::None)
             {
-                const FString Inner = Display.Mid(Open + 1, Close - Open - 1);
-                FString ElementPart, EffectPart;
-                if (Inner.Split(TEXT(" - "), &ElementPart, &EffectPart))
-                {
-                    Lines.Add(FString::Printf(TEXT("Element: %s"), *ElementPart));
-                }
+                Lines.Add(FString::Printf(TEXT("Element: %s"), *WoRGameNames::GetElementName(CrystalElement).ToString()));
             }
             Lines.Add(FString::Printf(TEXT("Effect: %s"), *CrystalDescription::GetItemEffectText(E.Crystal)));
         }
@@ -136,7 +130,7 @@ namespace
                                           *ItemIdentity::GetTypeName(R->AttachedItem.CrystalType),
                                           *TierHelpers::GetTierName(R->AttachedItem.CrystalTier)));
                 Lines.Add(FString::Printf(TEXT("Attached Crystal Element: %s"),
-                                          *UEnum::GetDisplayValueAsText(CrystalTypeHelpers::GetElement(R->AttachedItem.CrystalType)).ToString()));
+                                          *WoRGameNames::GetElementName(CrystalTypeHelpers::GetElement(R->AttachedItem.CrystalType)).ToString()));
             }
         }
         else if (const UEvolutionItemData *Ev = Cast<UEvolutionItemData>(E.Asset))
@@ -144,14 +138,14 @@ namespace
             // 3f #7: element IS shown for evolutions — Crown reversed the 3e
             // deliberately-bare call. Still no effect reveal.
             Lines.Add(FString::Printf(TEXT("Element: %s"),
-                                      *UEnum::GetDisplayValueAsText(Ev->GetAssociatedElement()).ToString()));
+                                      *WoRGameNames::GetElementName(Ev->GetAssociatedElement()).ToString()));
         }
         else if (const USkillDataBase *Skill = Cast<USkillDataBase>(E.Asset)) // spell + ability
         {
             if (const USpellData *S = Cast<USpellData>(Skill))
             {
-                Lines.Add(FString::Printf(TEXT("School: %s"), *UEnum::GetDisplayValueAsText(S->School).ToString()));
-                Lines.Add(FString::Printf(TEXT("Element: %s"), *UEnum::GetDisplayValueAsText(S->Element).ToString()));
+                Lines.Add(FString::Printf(TEXT("School: %s"), *WoRGameNames::GetSpellSchoolName(S->School).ToString()));
+                Lines.Add(FString::Printf(TEXT("Element: %s"), *WoRGameNames::GetElementName(S->Element).ToString()));
             }
             Lines.Add(FString::Printf(TEXT("Damage: %d"), Skill->BaseDamage));
             Lines.Add(FString::Printf(TEXT("Hits: %d"), Skill->HitCount));
@@ -370,7 +364,7 @@ void UShopWindowWidget::RefreshHeader()
     FString TypeFlavour;
     if (ActiveMerchant)
     {
-        const FString TypeDisplay = UEnum::GetDisplayValueAsText(ActiveMerchant->MerchantType).ToString();
+        const FString TypeDisplay = WoRGameNames::GetMerchantTypeName(ActiveMerchant->MerchantType).ToString();
         int32 ParenIdx = INDEX_NONE;
         if (TypeDisplay.FindChar(TEXT('('), ParenIdx))
         {

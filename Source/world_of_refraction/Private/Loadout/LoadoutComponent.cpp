@@ -1532,8 +1532,8 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index)
                 if (Lost > 0)
                 {
                     LoadoutReturnDroppedCrystals(Inv, Untrimmed[i].CrystalId, Lost);
-                    Removed.Add(FString::Printf(TEXT("%s %s x%d"), *UEnum::GetDisplayValueAsText(Untrimmed[i].CrystalId.Tier).ToString(),
-                                                *UEnum::GetDisplayValueAsText(Untrimmed[i].CrystalId.Type).ToString(), Lost));
+                    Removed.Add(FString::Printf(TEXT("%s %s x%d"), *ItemIdentity::GetTierLetter(Untrimmed[i].CrystalId.Tier),
+                                                *ItemIdentity::GetTypeName(Untrimmed[i].CrystalId.Type), Lost));
                 }
             }
             if (Removed.IsEmpty())

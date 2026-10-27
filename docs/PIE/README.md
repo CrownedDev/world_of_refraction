@@ -92,6 +92,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-120](B-120.md) | `chore/B-120-data-asset-validation` (in `dev`) | Validate and Debug > Print on trial, cosmetics, stance, infusion, character, skill and inventory data assets (editor, no PIE) | Not tested |
 | [B-123](B-123.md) | `chore/B-123-content-naming` (in `dev`) | Read the one-page naming convention (doc only) | Not tested |
 | [B-126](B-126.md) | `fix/B-126-cooked-name-table` (in `dev`) | Element, status and class names on the combat panels; Reality reads Unknown | Not tested |
+| [B-207](B-207.md) | `fix/B-207-cooked-labels` (in `dev`) | Shop, defense prompt, party row and merchant hint names | Not tested |
 | [B-195](B-195.md) | `feature/B-195-hub-services` (in `dev`) | Hub services: one V NPC per service (Stone Smith, loadout vendor added), each opens its shop | Not tested |
 | [B-194](B-194.md) | `feature/B-194-memory-journal` (in `dev`) | Hub journal: reread memories and lore, V's next line, play a conversation (placeholder screen) | Not tested |
 | [B-070](B-070.md) | `fix/B-070-trial-strong-ref` (in `dev`) | The trial run keeps hold of its trial (packaged builds) | Not tested |

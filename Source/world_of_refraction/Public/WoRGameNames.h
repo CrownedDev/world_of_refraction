@@ -13,6 +13,12 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "Skills/Effects/ESkillEffectType.h"
 
+// Forward-declared so this header stays light (it is included by SkillEffectDisplayNames.h).
+enum class EDefenseType : uint8;
+enum class ECombatRow : uint8;
+enum class ESpellSchool : uint8;
+enum class EMerchantType : uint8;
+
 namespace WoRGameNames
 {
     /** "Fire", "Reality", ... Empty only for a value with no case (a bug the spec catches). */
@@ -23,4 +29,16 @@ namespace WoRGameNames
 
     /** "Generic", "Refractor" (code: Caster), "Resonator". */
     WORLD_OF_REFRACTION_API FText GetCharacterClassName(ECharacterClass CharacterClass);
+
+    /** "Guard", "Dodge" (the legacy Parry also reads "Guard"). */
+    WORLD_OF_REFRACTION_API FText GetDefenseTypeName(EDefenseType DefenseType);
+
+    /** "Front Row", "Middle Row", "Back Row". */
+    WORLD_OF_REFRACTION_API FText GetCombatRowName(ECombatRow Row);
+
+    /** "Destruction", "Enhancement", ... */
+    WORLD_OF_REFRACTION_API FText GetSpellSchoolName(ESpellSchool School);
+
+    /** The merchant and its wares in brackets: "Blacksmith (weapons, augment stones)". */
+    WORLD_OF_REFRACTION_API FText GetMerchantTypeName(EMerchantType MerchantType);
 }

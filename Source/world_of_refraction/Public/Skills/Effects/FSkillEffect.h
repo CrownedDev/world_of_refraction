@@ -11,6 +11,7 @@
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "Skills/Effects/FSkillCondition.h"
 #include "Skills/Effects/FSkillEffectPayload.h"
+#include "WoRGameNames.h"
 #include "FSkillEffect.generated.h"
 
 /**
@@ -254,8 +255,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     /** Render a single payload (type + value/magnitude/drain, duration, target + count). */
     FString DescribePayload(const FSkillEffectPayload &P) const
     {
-        const UEnum *StatusEnum = StaticEnum<ESkillEffectType>();
-        FString TypeName = StatusEnum ? StatusEnum->GetDisplayNameTextByValue(static_cast<int64>(P.EffectType)).ToString() : TEXT("Unknown");
+        FString TypeName = WoRGameNames::GetSkillEffectTypeName(P.EffectType).ToString();
 
         FString S;
         const bool bRestore = (P.EffectType == ESkillEffectType::HealthRestore ||
