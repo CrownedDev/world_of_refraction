@@ -22,7 +22,7 @@ enum class EWorldPillar : uint8;
 	GAMEPLAYATTRIBUTE_VALUE_INITTER(PropertyName)
 
 /** HP, EP and the status bar. No clamping here: EP may overload above MaxEnergy (Broken Darkness),
- *  and while these mirror the component its own rules already hold. */
+ *  and while these mirror the component its own rules already hold. The max pools are rounded (B-042u). */
 UCLASS()
 class WORLD_OF_REFRACTION_API UWoRAttributeSet_Vitals : public UAttributeSet
 {
@@ -30,6 +30,10 @@ class WORLD_OF_REFRACTION_API UWoRAttributeSet_Vitals : public UAttributeSet
 
 public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
+
+	/** MaxHealth / MaxEnergy are whole numbers: the pool sources multiply a fraction in, and
+	 *  RecomputeMaxPools rounds the product once (B-042u). */
+	virtual void PreAttributeChange(const FGameplayAttribute &Attribute, float &NewValue) override;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Vitals", ReplicatedUsing = OnRep_Health)
 	FGameplayAttributeData Health;

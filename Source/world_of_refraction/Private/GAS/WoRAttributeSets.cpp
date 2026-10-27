@@ -32,6 +32,15 @@ WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Vitals, MaxEnergy)
 WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Vitals, Buildup)
 WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Vitals, MaxBuildup)
 
+void UWoRAttributeSet_Vitals::PreAttributeChange(const FGameplayAttribute &Attribute, float &NewValue)
+{
+	Super::PreAttributeChange(Attribute, NewValue);
+	if (Attribute == GetMaxHealthAttribute() || Attribute == GetMaxEnergyAttribute())
+	{
+		NewValue = FMath::RoundToFloat(NewValue);
+	}
+}
+
 void UWoRAttributeSet_Stats::PreAttributeChange(const FGameplayAttribute &Attribute, float &NewValue)
 {
 	Super::PreAttributeChange(Attribute, NewValue);

@@ -344,6 +344,40 @@ public:
 	UWoRGE_StatSources_Spirit();
 };
 
+/** B-042u (Q-042u): a max pool's layers (FWoRPoolLayers) as one Infinite effect on MaxHealth / MaxEnergy over
+ *  the stat portion: the gear's flat amount added to the base (AddBase, SetByCaller.Stat.Gear), then one multiply
+ *  (MultiplyCompound, SetByCaller.Stat.Stone: the stone and buff percents summed). The attribute set rounds it. */
+UCLASS(Abstract)
+class WORLD_OF_REFRACTION_API UWoRGE_PoolSources : public UWoRGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	/** The pool sources effect for Attribute (MaxHealth, MaxEnergy); null for any other. */
+	static TSubclassOf<UGameplayEffect> GetClassFor(const FGameplayAttribute &Attribute);
+
+protected:
+	void AddPoolModifiers(const FGameplayAttribute &Attribute);
+};
+
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_PoolSources_MaxHealth : public UWoRGE_PoolSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_PoolSources_MaxHealth();
+};
+
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_PoolSources_MaxEnergy : public UWoRGE_PoolSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_PoolSources_MaxEnergy();
+};
+
 /** B-042s (Q-042s): a stat derived from other attributes, as one Infinite effect the attribute sync
  *  applies once. Each term is a magnitude calculation that captures its source live (not snapshot) and
  *  clamps it as the getter does (UWoRMMC_ClampedStatTerm), so the derived value follows it with no re-sync. */
