@@ -68,5 +68,66 @@ WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Stats, Luck)
 WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Stats, Reflex)
 WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Stats, CritChance)
 
+void UWoRAttributeSet_Resistance::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Resistance, Resist_Fire);
+	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Resistance, Resist_Water);
+	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Resistance, Resist_Earth);
+	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Resistance, Resist_Wind);
+	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Resistance, Resist_Light);
+	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Resistance, Resist_Darkness);
+	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Resistance, Resist_Lightning);
+	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Resistance, Resist_Void);
+	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Resistance, Resist_Reality);
+	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Resistance, Resist_Slash);
+	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Resistance, Resist_Pierce);
+	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Resistance, Resist_Impact);
+	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Resistance, Resist_Ice);
+	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Resistance, Resist_NonElemental);
+	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Resistance, StatusResistance);
+	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Resistance, StatusResistBonus);
+}
+
+WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, Resist_Fire)
+WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, Resist_Water)
+WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, Resist_Earth)
+WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, Resist_Wind)
+WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, Resist_Light)
+WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, Resist_Darkness)
+WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, Resist_Lightning)
+WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, Resist_Void)
+WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, Resist_Reality)
+WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, Resist_Slash)
+WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, Resist_Pierce)
+WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, Resist_Impact)
+WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, Resist_Ice)
+WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, Resist_NonElemental)
+WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, StatusResistance)
+WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, StatusResistBonus)
+
+FGameplayAttribute UWoRAttributeSet_Resistance::GetTypeAttribute(EWoRDamageType DamageType)
+{
+	switch (DamageType)
+	{
+	case EWoRDamageType::Fire: return GetResist_FireAttribute();
+	case EWoRDamageType::Water: return GetResist_WaterAttribute();
+	case EWoRDamageType::Earth: return GetResist_EarthAttribute();
+	case EWoRDamageType::Wind: return GetResist_WindAttribute();
+	case EWoRDamageType::Light: return GetResist_LightAttribute();
+	case EWoRDamageType::Darkness: return GetResist_DarknessAttribute();
+	case EWoRDamageType::Lightning: return GetResist_LightningAttribute();
+	case EWoRDamageType::Void: return GetResist_VoidAttribute();
+	case EWoRDamageType::Reality: return GetResist_RealityAttribute();
+	case EWoRDamageType::Slash: return GetResist_SlashAttribute();
+	case EWoRDamageType::Pierce: return GetResist_PierceAttribute();
+	case EWoRDamageType::Impact: return GetResist_ImpactAttribute();
+	case EWoRDamageType::Ice: return GetResist_IceAttribute();
+	case EWoRDamageType::None:
+	default:
+		return GetResist_NonElementalAttribute();
+	}
+}
+
 #undef WOR_REPLICATE_ATTRIBUTE
 #undef WOR_ATTRIBUTE_REPNOTIFY

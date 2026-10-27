@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "AttributeSet.h"
 #include "AbilitySystemComponent.h"
+#include "Combat/Resistance/EWoRDamageType.h"
 #include "WoRAttributeSets.generated.h"
 
 #define WOR_ATTRIBUTE_ACCESSORS(ClassName, PropertyName)           \
@@ -173,4 +174,118 @@ protected:
 	void OnRep_Reflex(const FGameplayAttributeData &OldValue);
 	UFUNCTION()
 	void OnRep_CritChance(const FGameplayAttributeData &OldValue);
+};
+
+/** B-216 (ResistanceRedesign.md §3.2): resistance as fractions (0.15 = 15%). Resist_<type> is one
+ *  damage type's resistance (WoRResistance::GetTypeResistance), uncapped; Resist_NonElemental the
+ *  bucket for buffs keyed to no element; StatusResistance the general buildup resistance (#1-3) and
+ *  StatusResistBonus its signed blanket term (#7-8). A mirror until GAS stage 3 (B-042). */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRAttributeSet_Resistance : public UAttributeSet
+{
+	GENERATED_BODY()
+
+public:
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
+
+	/** The attribute holding DamageType's resistance (None: Resist_NonElemental). */
+	static FGameplayAttribute GetTypeAttribute(EWoRDamageType DamageType);
+
+	UPROPERTY(BlueprintReadOnly, Category = "DamageType", ReplicatedUsing = OnRep_Resist_Fire)
+	FGameplayAttributeData Resist_Fire;
+	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Resistance, Resist_Fire)
+
+	UPROPERTY(BlueprintReadOnly, Category = "DamageType", ReplicatedUsing = OnRep_Resist_Water)
+	FGameplayAttributeData Resist_Water;
+	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Resistance, Resist_Water)
+
+	UPROPERTY(BlueprintReadOnly, Category = "DamageType", ReplicatedUsing = OnRep_Resist_Earth)
+	FGameplayAttributeData Resist_Earth;
+	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Resistance, Resist_Earth)
+
+	UPROPERTY(BlueprintReadOnly, Category = "DamageType", ReplicatedUsing = OnRep_Resist_Wind)
+	FGameplayAttributeData Resist_Wind;
+	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Resistance, Resist_Wind)
+
+	UPROPERTY(BlueprintReadOnly, Category = "DamageType", ReplicatedUsing = OnRep_Resist_Light)
+	FGameplayAttributeData Resist_Light;
+	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Resistance, Resist_Light)
+
+	UPROPERTY(BlueprintReadOnly, Category = "DamageType", ReplicatedUsing = OnRep_Resist_Darkness)
+	FGameplayAttributeData Resist_Darkness;
+	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Resistance, Resist_Darkness)
+
+	UPROPERTY(BlueprintReadOnly, Category = "DamageType", ReplicatedUsing = OnRep_Resist_Lightning)
+	FGameplayAttributeData Resist_Lightning;
+	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Resistance, Resist_Lightning)
+
+	UPROPERTY(BlueprintReadOnly, Category = "DamageType", ReplicatedUsing = OnRep_Resist_Void)
+	FGameplayAttributeData Resist_Void;
+	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Resistance, Resist_Void)
+
+	UPROPERTY(BlueprintReadOnly, Category = "DamageType", ReplicatedUsing = OnRep_Resist_Reality)
+	FGameplayAttributeData Resist_Reality;
+	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Resistance, Resist_Reality)
+
+	UPROPERTY(BlueprintReadOnly, Category = "DamageType", ReplicatedUsing = OnRep_Resist_Slash)
+	FGameplayAttributeData Resist_Slash;
+	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Resistance, Resist_Slash)
+
+	UPROPERTY(BlueprintReadOnly, Category = "DamageType", ReplicatedUsing = OnRep_Resist_Pierce)
+	FGameplayAttributeData Resist_Pierce;
+	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Resistance, Resist_Pierce)
+
+	UPROPERTY(BlueprintReadOnly, Category = "DamageType", ReplicatedUsing = OnRep_Resist_Impact)
+	FGameplayAttributeData Resist_Impact;
+	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Resistance, Resist_Impact)
+
+	UPROPERTY(BlueprintReadOnly, Category = "DamageType", ReplicatedUsing = OnRep_Resist_Ice)
+	FGameplayAttributeData Resist_Ice;
+	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Resistance, Resist_Ice)
+
+	UPROPERTY(BlueprintReadOnly, Category = "DamageType", ReplicatedUsing = OnRep_Resist_NonElemental)
+	FGameplayAttributeData Resist_NonElemental;
+	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Resistance, Resist_NonElemental)
+
+	UPROPERTY(BlueprintReadOnly, Category = "Buildup", ReplicatedUsing = OnRep_StatusResistance)
+	FGameplayAttributeData StatusResistance;
+	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Resistance, StatusResistance)
+
+	UPROPERTY(BlueprintReadOnly, Category = "Buildup", ReplicatedUsing = OnRep_StatusResistBonus)
+	FGameplayAttributeData StatusResistBonus;
+	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Resistance, StatusResistBonus)
+
+protected:
+	UFUNCTION()
+	void OnRep_Resist_Fire(const FGameplayAttributeData &OldValue);
+	UFUNCTION()
+	void OnRep_Resist_Water(const FGameplayAttributeData &OldValue);
+	UFUNCTION()
+	void OnRep_Resist_Earth(const FGameplayAttributeData &OldValue);
+	UFUNCTION()
+	void OnRep_Resist_Wind(const FGameplayAttributeData &OldValue);
+	UFUNCTION()
+	void OnRep_Resist_Light(const FGameplayAttributeData &OldValue);
+	UFUNCTION()
+	void OnRep_Resist_Darkness(const FGameplayAttributeData &OldValue);
+	UFUNCTION()
+	void OnRep_Resist_Lightning(const FGameplayAttributeData &OldValue);
+	UFUNCTION()
+	void OnRep_Resist_Void(const FGameplayAttributeData &OldValue);
+	UFUNCTION()
+	void OnRep_Resist_Reality(const FGameplayAttributeData &OldValue);
+	UFUNCTION()
+	void OnRep_Resist_Slash(const FGameplayAttributeData &OldValue);
+	UFUNCTION()
+	void OnRep_Resist_Pierce(const FGameplayAttributeData &OldValue);
+	UFUNCTION()
+	void OnRep_Resist_Impact(const FGameplayAttributeData &OldValue);
+	UFUNCTION()
+	void OnRep_Resist_Ice(const FGameplayAttributeData &OldValue);
+	UFUNCTION()
+	void OnRep_Resist_NonElemental(const FGameplayAttributeData &OldValue);
+	UFUNCTION()
+	void OnRep_StatusResistance(const FGameplayAttributeData &OldValue);
+	UFUNCTION()
+	void OnRep_StatusResistBonus(const FGameplayAttributeData &OldValue);
 };

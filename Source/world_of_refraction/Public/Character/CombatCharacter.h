@@ -33,6 +33,7 @@ class UAbilitySystemComponent;
 class UWoRAttributeSyncComponent;
 class UWoRAttributeSet_Vitals;
 class UWoRAttributeSet_Stats;
+class UWoRAttributeSet_Resistance;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API ACombatCharacter : public ACharacter, public IAbilitySystemInterface
@@ -111,4 +112,7 @@ private:
 
     UPROPERTY()
     TObjectPtr<UWoRAttributeSet_Stats> StatsAttributes;
+
+    UPROPERTY()
+    TObjectPtr<UWoRAttributeSet_Resistance> ResistanceAttributes;
 };

@@ -8,6 +8,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/Damage/DamageCalculator.h"
+#include "Combat/Resistance/ResistanceQuery.h"
 #include "Combat/TurnManager.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Effects/SkillEffectManager.h"
@@ -53,6 +54,10 @@ UAbilitySystemComponent *UWoRAttributeSyncComponent::PrepareAbilitySystem(AActor
 	if (!ASC->GetSet<UWoRAttributeSet_Stats>())
 	{
 		ASC->AddAttributeSetSubobject(NewObject<UWoRAttributeSet_Stats>(Owner));
+	}
+	if (!ASC->GetSet<UWoRAttributeSet_Resistance>())
+	{
+		ASC->AddAttributeSetSubobject(NewObject<UWoRAttributeSet_Resistance>(Owner));
 	}
 	// The ASC sets this in its own InitializeComponent; repeated for an ASC added after that ran.
 	ASC->InitAbilityActorInfo(Owner, Owner);
@@ -108,6 +113,15 @@ TArray<FWoRAttributeSourceValue> UWoRAttributeSyncComponent::ReadSourceValues(co
 			Char->CharacterData->CalculateTurnSpeedWithSpirit(Char->GetEvolutionModifiedSpirit()) *
 				(1.0f + SEM->GetNetStatModifier(const_cast<AActor *>(Actor), ESubStat::TurnSpeed) / CombatConstants::STAT_PERCENT_DIVISOR));
 	}
+
+	// B-216: one resistance per damage type (None is Resist_NonElemental), and the buildup layers.
+	AActor *ResistTarget = const_cast<AActor *>(Actor);
+	for (const EWoRDamageType DamageType : WoRDamageType::All())
+	{
+		Add(UWoRAttributeSet_Resistance::GetTypeAttribute(DamageType), WoRResistance::GetTypeResistance(ResistTarget, DamageType));
+	}
+	Add(UWoRAttributeSet_Resistance::GetStatusResistanceAttribute(), WoRResistance::GetGeneralStatusResistance(ResistTarget));
+	Add(UWoRAttributeSet_Resistance::GetStatusResistBonusAttribute(), WoRResistance::GetStatusResistBonus(ResistTarget));
 	return Values;
 }
 
