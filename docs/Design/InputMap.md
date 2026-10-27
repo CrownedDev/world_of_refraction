@@ -10,7 +10,7 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 | Move | WASD | Left stick | — | Built |
 | Camera | Mouse | Right stick | — | Built |
 | Sprint (fast, free) | Left Shift (hold) | L3 click (toggle) | `IA_Sprint` | Built (key: check editor) |
-| Movement skill (dash by default; D-099) | Double-tap Left Shift | **Double-click L3** | `IA_Field_MovementSkill` | Planned (Crown) |
+| Field movement (double-click sprint: Enhanced Sprint or the equipped field movement; D-099) | Double-tap Left Shift | **Double-click L3** | `IA_Field_MovementSkill` | Planned (Crown) |
 | Jump | Space | A (Cross) | `IA_Field_Jump` | Proposed |
 | Field attack (hold: charged; Water source → Ice) | Left mouse | RB (R1) | `IA_Field_Attack` | Proposed |
 | Aim (free aim for field spells / attacks) | Right mouse (hold) | LT (L2) (hold) | `IA_Field_Aim` | Proposed |
