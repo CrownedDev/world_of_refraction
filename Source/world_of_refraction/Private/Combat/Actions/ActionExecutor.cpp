@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Combat/Actions/ActionExecutor.h"
+#include "GAS/WoRTurnEffectTracker.h"
 #include "ActionExecutorInternal.h"
 #include "MotionWarpingComponent.h"
 #include "WoRLog.h"
@@ -2947,6 +2948,12 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			// Absorb — runs after DamageCalculator (element/crit/defense resolved) and before
 			// the HP drop, on a local FinalDamage copy (CalcResult stays const).
 			int32 FinalDamage = CalcResult.FinalDamage;
+			// B-042j (D-092): Ward, Shield and Barrier negate from what Guard and Defense left (Q-044e B), this
+			// impact being one damage instance (Q-044f A). Before Absorb: negated damage isn't damage.
+			if (UWoRTurnEffectTracker *Absorbers = Input.Target->FindComponentByClass<UWoRTurnEffectTracker>())
+			{
+				FinalDamage -= Absorbers->AbsorbHit(FinalDamage, Input.Element, Input.PhysicalDamageType);
+			}
 			if (USkillEffectManager *SEM = GetSkillEffectManager())
 			{
 				// AbsorbDamage — convert a percent of incoming damage to target EP.
