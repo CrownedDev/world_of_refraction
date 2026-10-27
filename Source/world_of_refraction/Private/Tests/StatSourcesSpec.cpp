@@ -13,6 +13,7 @@
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/Damage/DamageCalculator.h"
+#include "Debug/GAS/WoRAttributeDebug.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
@@ -140,6 +141,18 @@ void FStatSourcesSpec::Define()
 		{
 			TestTrue(TEXT("Same effect, updated in place"), HandlesAfter.Contains(Handle));
 		}
+	});
+
+	It("is seen by the attribute compare when a sources effect is missing", [this]()
+	{
+		if (!ASC) return;
+		TestTrue(TEXT("Synced: no mismatch"), UWoRAttributeDebug::GetAttributeMismatchString(Hero).IsEmpty());
+		for (const FActiveGameplayEffectHandle &Handle : SourceEffects())
+		{
+			ASC->RemoveActiveGameplayEffect(Handle);
+		}
+		TestTrue(TEXT("Missing sources reported"),
+				 UWoRAttributeDebug::GetAttributeMismatchString(Hero).Contains(TEXT("stat-sources effects, expected 1")));
 	});
 
 	It("re-applies a sources effect that something removed", [this]()

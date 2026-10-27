@@ -2,6 +2,8 @@
 
 #include "Debug/GAS/WoRAttributeDebug.h"
 #include "GAS/WoRAttributeSyncComponent.h"
+#include "GAS/WoRAttributeSets.h"
+#include "GAS/WoRGameplayEffects.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "Character/CharacterDataComponent.h"
@@ -72,8 +74,35 @@ FString UWoRAttributeDebug::GetAttributeMismatchString(AActor *Actor)
 		{
 			Mismatches.Add(FString::Printf(TEXT("%s: attribute %.5f, getter %.5f"), *Source.Attribute.GetName(), Attribute, Source.Value));
 		}
+		AddComposedMismatches(Actor, *ASC, Source.Attribute, Mismatches);
 	}
 	return FString::Join(Mismatches, TEXT("\n"));
+}
+
+void UWoRAttributeDebug::AddComposedMismatches(const AActor *Actor, const UAbilitySystemComponent &ASC,
+											   const FGameplayAttribute &Attribute, TArray<FString> &Mismatches)
+{
+	const UCharacterDataComponent *Char = Actor->FindComponentByClass<UCharacterDataComponent>();
+	ESubStat Stat;
+	FWoRStatLayers Layers;
+	if (!Char || !Actor->FindComponentByClass<UWoRAttributeSyncComponent>() || !UWoRAttributeSet_Stats::GetComposedStat(Attribute, Stat) ||
+		!Char->GetStatLayers(Stat, Layers))
+	{
+		return;
+	}
+	const float Base = ASC.GetNumericAttributeBase(Attribute);
+	if (!FMath::IsNearlyEqual(Base, Layers.StatBase, ATTRIBUTE_DEBUG_TOLERANCE))
+	{
+		Mismatches.Add(FString::Printf(TEXT("%s: base %.5f, capped stat %.5f"), *Attribute.GetName(), Base, Layers.StatBase));
+	}
+	FGameplayEffectQuery Query;
+	Query.EffectDefinition = UWoRGE_StatSources::GetClassFor(Stat);
+	const int32 Sources = ASC.GetActiveEffects(Query).Num();
+	if (Sources != 1)
+	{
+		Mismatches.Add(FString::Printf(TEXT("%s: %d stat-sources effects, expected 1 (%s)"), *Attribute.GetName(), Sources,
+									   *Layers.ToString()));
+	}
 }
 
 int32 UWoRAttributeDebug::CompareAttributes(const UObject *WorldContextObject)
