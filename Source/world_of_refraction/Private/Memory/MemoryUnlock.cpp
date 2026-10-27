@@ -33,14 +33,26 @@ namespace
 			return Worn;
 		}
 		const FCombatLoadout &Loadout = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+		// A level-up writes the owned entry, not the loadout's copy: read the owned one by its id.
+		// TODO(B-085): loadouts will point at owned gear, and this lookup goes.
+		auto OwnedTier = [](const auto &Owned, const auto &Copy)
+		{
+			const auto *Found = Owned.FindByPredicate([&Copy](const auto &Entry) { return Entry.PersistentID == Copy.PersistentID; });
+			return Found && Copy.PersistentID.IsValid() ? Found->Tier : Copy.Tier;
+		};
 		TArray<TPair<const UEquipmentDataBase *, EItemTier>> Entries;
-		Entries.Emplace(Loadout.PrimaryWeapon.WeaponEntry.Weapon, Loadout.PrimaryWeapon.WeaponEntry.Tier);
-		Entries.Emplace(Loadout.SecondaryWeapon.WeaponEntry.Weapon, Loadout.SecondaryWeapon.WeaponEntry.Tier);
-		Entries.Emplace(Loadout.PrimaryRing.RingEntry.Ring, Loadout.PrimaryRing.RingEntry.Tier);
+		for (const FWeaponInventoryEntry *Weapon : {&Loadout.PrimaryWeapon.WeaponEntry, &Loadout.SecondaryWeapon.WeaponEntry})
+		{
+			Entries.Emplace(Weapon->Weapon, OwnedTier(Inventory->Weapons, *Weapon));
+		}
+		TArray<const FRingInventoryEntry *> Rings = {&Loadout.PrimaryRing.RingEntry};
 		if (Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex))
 		{
-			const FRingInventoryEntry &Active = Loadout.RingLoadout[Loadout.ActiveRingIndex].RingEntry;
-			Entries.Emplace(Active.Ring, Active.Tier);
+			Rings.Add(&Loadout.RingLoadout[Loadout.ActiveRingIndex].RingEntry);
+		}
+		for (const FRingInventoryEntry *Ring : Rings)
+		{
+			Entries.Emplace(Ring->Ring, OwnedTier(Inventory->Rings, *Ring));
 		}
 		const TArray<const UEquipmentDataBase *> InUse = ReactionTriggers::GetWornItems(Actor);
 		for (const TPair<const UEquipmentDataBase *, EItemTier> &Entry : Entries)

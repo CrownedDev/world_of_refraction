@@ -23,6 +23,7 @@ namespace
 {
 	const FName SOURCES_TEST_MEMORY_NAME(TEXT("Memory_SourcesSpec"));
 	constexpr int32 SOURCES_TEST_UPGRADE_LEVEL = 2;
+	constexpr int32 SOURCES_TEST_ONE_LEVEL = 1;
 
 	/** Tier steps above Base (clamped to S). */
 	EItemTier SourcesTestTierAbove(EItemTier Base, int32 Steps)
@@ -151,16 +152,38 @@ void FMemorySourcesSpec::Define()
 		Weapon->BoundOwner = Lord;
 		FBoundMemory &Bound = Weapon->BoundMemories.AddDefaulted_GetRef();
 		Bound.Memory = Memory;
-		Bound.UpgradeLevel = 1;
+		Bound.UpgradeLevel = SOURCES_TEST_ONE_LEVEL;
 		Bound.bNeedsOwnerWearing = true;
 		Bound.FacingCharacter = Rival;
 		const TArray<AActor *> FacingRival = {TestWorld->SpawnCombatant(Rival)};
-		const EItemTier Levelled = SourcesTestTierAbove(Weapon->Tier, 1);
+		const EItemTier Levelled = SourcesTestTierAbove(Weapon->Tier, SOURCES_TEST_ONE_LEVEL);
 
 		TestEqual(TEXT("Not levelled: none"), MemoryUnlock::UnlockAtFightStart(GameInstance, {}, {SpawnWearing(Lord, Weapon, Weapon->Tier)}, FacingRival), 0);
 		TestEqual(TEXT("Not facing the rival: none"), MemoryUnlock::UnlockAtFightStart(GameInstance, {}, {SpawnWearing(Lord, Weapon, Levelled)}, {}), 0);
 		TestEqual(TEXT("Levelled, worn by its owner, facing the rival: one"),
 				  MemoryUnlock::UnlockAtFightStart(GameInstance, {}, {SpawnWearing(Lord, Weapon, Levelled)}, FacingRival), 1);
+	});
+
+	It("reads the owned copy's level, which a level-up changes, over the loadout's copy", [this]()
+	{
+		UCharacterData *Lord = FWoRTestWorld::NewCharacterData();
+		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
+		Weapon->BoundOwner = Lord;
+		FBoundMemory &Bound = Weapon->BoundMemories.AddDefaulted_GetRef();
+		Bound.Memory = Memory;
+		Bound.UpgradeLevel = SOURCES_TEST_ONE_LEVEL;
+		Bound.bNeedsOwnerWearing = true;
+
+		AActor *Wearer = SpawnWearing(Lord, Weapon, Weapon->Tier);
+		UInventoryComponent *Inventory = Wearer->FindComponentByClass<UInventoryComponent>();
+		FWeaponInventoryEntry &Copy = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryWeapon.WeaponEntry;
+		Copy.PersistentID = FGuid::NewGuid();
+		FWeaponInventoryEntry Owned = Copy;
+		// What UEconomyService::LevelUpWeapon writes: the owned entry's tier.
+		Owned.Tier = SourcesTestTierAbove(Weapon->Tier, SOURCES_TEST_ONE_LEVEL);
+		Inventory->Weapons.Add(Owned);
+
+		TestEqual(TEXT("Levelled owned copy counts"), MemoryUnlock::UnlockAtFightStart(GameInstance, {}, {Wearer}, {}), 1);
 	});
 
 	It("unlocks a map spot's memory once per run", [this]()
