@@ -15,9 +15,11 @@
 
 #pragma once
 
+#include "Combat/Actions/ActionStructs.h"
 #include "Combat/CombatOrchestrator.h"
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "Memory/MemoryConditions.h"
 #include "BattleGameMode.generated.h"
 
 class UCharacterData;
@@ -95,6 +97,26 @@ private:
 
     /** Per fight (D-064): each player-side combatant's HP when the fight started. */
     TMap<TWeakObjectPtr<const AActor>, int32> PartyStartHP;
+
+    /** B-209 (Q-209d): a party member's skill and Breakthrough use count toward memory conditions. */
+    UFUNCTION()
+    void HandleActionStarted(AActor *Executor, const FAction &Action, int32 EnergyCost);
+
+    /** B-209 (Q-209d): a party member's kill counts the weapon it held as a finishing blow. */
+    UFUNCTION()
+    void HandleTargetKilled(AActor *Killer, AActor *Victim);
+
+    /** Bind / unbind the two handlers above on the action executor. */
+    void WatchFightUsage(bool bWatch);
+
+    /** The executor outlives the level: unbind if the battle ends without a result. */
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+    /** Debug: one member's fight usage in words. */
+    static FString GetFightUsageString(const FMemoryFightUsage &Usage);
+
+    /** Per fight (D-064): what each player-side combatant used, read when the fight is won. */
+    TMap<TWeakObjectPtr<const AActor>, FMemoryFightUsage> FightUsage;
 
     UPROPERTY(Transient)
     TObjectPtr<UCombatResultsWidget> ResultsWidget;

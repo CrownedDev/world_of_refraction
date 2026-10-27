@@ -5,14 +5,22 @@
 #include "Algo/AllOf.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/Actions/ActionStructs.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Equipment/Crystals/EvolutionInventoryComponent.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/EquipmentDataBase.h"
+#include "Equipment/Weapons/WeaponData.h"
 #include "HAL/IConsoleManager.h"
+#include "Inventory/InventoryComponent.h"
+#include "Loadout/LoadoutComponent.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryUnlock.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SpellData.h"
 #include "Trial/TrialData.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "WoRLog.h"
@@ -56,6 +64,65 @@ namespace
 		}
 		return Event.UpgradedBy ? Event.UpgradedBy == Condition.Character : IsInParty(Condition.Character, Event);
 	}
+
+	/** Some party member (Condition.Character when set) satisfies Holds. */
+	template <class TPredicate>
+	bool AnyMember(const FMemoryCondition &Condition, const FMemoryEvent &Event, TPredicate Holds)
+	{
+		return Event.Party.ContainsByPredicate([&](const FMemoryEventMember &Member)
+		{
+			return (!Condition.Character || Member.Character == Condition.Character) && Holds(Member);
+		});
+	}
+
+	bool IsEvolutionMet(const FMemoryCondition &Condition, const FMemoryEvent &Event)
+	{
+		if (!Condition.Evolution)
+		{
+			return false;
+		}
+		const auto IsLevelled = [&Condition](EItemTier Tier)
+		{
+			return static_cast<int32>(Tier) - static_cast<int32>(Condition.Evolution->Tier) >= Condition.UpgradeLevel;
+		};
+		if (AnyMember(Condition, Event, [&](const FMemoryEventMember &Member)
+		{
+			return Member.Evolution == Condition.Evolution && IsLevelled(Member.EvolutionTier);
+		}))
+		{
+			return true;
+		}
+		// An evolution level-up, as for gear: whoever levelled it (unknown: anyone in the party).
+		if (Event.UpgradedEvolution != Condition.Evolution || !IsLevelled(Event.UpgradedTier))
+		{
+			return false;
+		}
+		return !Condition.Character || (Event.UpgradedBy ? Event.UpgradedBy == Condition.Character : IsInParty(Condition.Character, Event));
+	}
+
+	/** The evolution in Actor's primary slot and its level: the owned entry's, since a level-up
+	 *  writes that and not the loadout's copy. TODO(B-085): loadouts will point at owned gear. */
+	TPair<const UEvolutionItemData *, EItemTier> GetPrimaryEvolution(const AActor *Actor)
+	{
+		const UInventoryComponent *Inventory = Actor ? Actor->FindComponentByClass<UInventoryComponent>() : nullptr;
+		if (!Inventory || !Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))
+		{
+			return {nullptr, EItemTier::F_Tier};
+		}
+		const FCombatLoadout &Loadout = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+		if (Loadout.PrimarySlotType != EPrimarySlotType::Evolution || !Loadout.PrimaryEvolution.Item)
+		{
+			return {nullptr, EItemTier::F_Tier};
+		}
+		const UEvolutionInventoryComponent *Owned = Actor->FindComponentByClass<UEvolutionInventoryComponent>();
+		const FEvolutionInventoryEntry *Entry = Owned && Loadout.PrimaryEvolutionInstance.IsValid()
+			? Owned->Entries.FindByPredicate([&Loadout](const FEvolutionInventoryEntry &Candidate)
+			  {
+				  return Candidate.InstanceID == Loadout.PrimaryEvolutionInstance;
+			  })
+			: nullptr;
+		return {Loadout.PrimaryEvolution.Item, Entry ? Entry->Tier : Loadout.PrimaryEvolution.Tier};
+	}
 }
 
 FMemoryEvent MemoryConditions::MakeEvent(const UGameInstance *GameInstance, EMemorySource Source)
@@ -84,7 +151,54 @@ FMemoryEvent MemoryConditions::MakeEvent(const UGameInstance *GameInstance, EMem
 FMemoryEventMember MemoryConditions::MakeMember(const AActor *Combatant)
 {
 	const UCharacterDataComponent *DataComponent = Combatant ? Combatant->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-	return {DataComponent ? DataComponent->CharacterData : nullptr, MemoryUnlock::GetWornWithTiers(Combatant)};
+	FMemoryEventMember Member{DataComponent ? DataComponent->CharacterData : nullptr, MemoryUnlock::GetWornWithTiers(Combatant)};
+	const TPair<const UEvolutionItemData *, EItemTier> Evolution = GetPrimaryEvolution(Combatant);
+	Member.Evolution = Evolution.Key;
+	Member.EvolutionTier = Evolution.Value;
+	if (const ULoadoutComponent *Loadout = Combatant ? Combatant->FindComponentByClass<ULoadoutComponent>() : nullptr)
+	{
+		for (const USkillDataBase *Attack : Loadout->GetAllWeaponAttacks())
+		{
+			Member.Slotted.AddUnique(Attack);
+		}
+		for (const USkillDataBase *Ability : Loadout->GetAvailableAbilities())
+		{
+			Member.Slotted.AddUnique(Ability);
+		}
+		for (const USkillDataBase *Spell : Loadout->GetAvailableSpells())
+		{
+			Member.Slotted.AddUnique(Spell);
+		}
+		Member.Slotted.Remove(nullptr);
+	}
+	return Member;
+}
+
+void MemoryConditions::RecordAction(FMemoryFightUsage &Usage, const AActor *Actor, const FAction &Action)
+{
+	// A deferred spell reports when armed and again when it fires: AddUnique keeps one.
+	const USkillDataBase *Skill = Action.SpellData ? Action.SpellData : Action.SkillData;
+	if (Skill)
+	{
+		Usage.Skills.AddUnique(Skill);
+	}
+	// Breakthrough spells come from the evolution in the primary slot.
+	if (Action.SpellData && Action.SpellSource == ESpellSource::Evolution)
+	{
+		if (const UEvolutionItemData *Evolution = GetPrimaryEvolution(Actor).Key)
+		{
+			Usage.Breakthroughs.AddUnique(Evolution);
+		}
+	}
+}
+
+void MemoryConditions::RecordKill(FMemoryFightUsage &Usage, const AActor *Killer)
+{
+	const ULoadoutComponent *Loadout = Killer ? Killer->FindComponentByClass<ULoadoutComponent>() : nullptr;
+	if (const UWeaponData *Weapon = Loadout ? Loadout->GetActiveWeapon() : nullptr)
+	{
+		Usage.FinishingWeapons.AddUnique(Weapon);
+	}
 }
 
 bool MemoryConditions::IsMet(const FMemoryCondition &Condition, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal)
@@ -105,6 +219,18 @@ bool MemoryConditions::IsMet(const FMemoryCondition &Condition, const FMemoryEve
 		return Condition.PriorMemory && Journal && Journal->HasMemory(Condition.PriorMemory);
 	case EMemoryConditionKind::Hidden:
 		return false;
+	case EMemoryConditionKind::EvolutionEquipped:
+		return IsEvolutionMet(Condition, Event);
+	case EMemoryConditionKind::SkillSlotted:
+		return Condition.Skill && AnyMember(Condition, Event, [&](const FMemoryEventMember &Member) { return Member.Slotted.Contains(Condition.Skill.Get()); });
+	case EMemoryConditionKind::SkillUsed:
+		return Condition.Skill && AnyMember(Condition, Event, [&](const FMemoryEventMember &Member) { return Member.Used.Skills.Contains(Condition.Skill.Get()); });
+	case EMemoryConditionKind::BreakthroughUsed:
+		return Condition.Evolution &&
+			   AnyMember(Condition, Event, [&](const FMemoryEventMember &Member) { return Member.Used.Breakthroughs.Contains(Condition.Evolution.Get()); });
+	case EMemoryConditionKind::FinishingBlow:
+		return Condition.Item &&
+			   AnyMember(Condition, Event, [&](const FMemoryEventMember &Member) { return Member.Used.FinishingWeapons.Contains(Condition.Item.Get()); });
 	}
 	return false;
 }

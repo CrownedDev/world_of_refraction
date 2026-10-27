@@ -5,11 +5,15 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CombatCharacter.h"
+#include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Boss/BossPhaseComponent.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Combat/CombatControl.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "Engine/GameInstance.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/EquipmentDataBase.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
 #include "Loadout/LoadoutComponent.h"
@@ -303,6 +307,8 @@ void ABattleGameMode::BootstrapCombat()
             PartyStartHP.Add(Member, MemberData->CurrentHP);
         }
     }
+    FightUsage.Reset();
+    WatchFightUsage(true);
     SpawnedOrchestrator->StartCombat(LocalParty, OpposingParty, TrialRun->GetPendingDifficulty());
 }
 
@@ -394,6 +400,7 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
     {
         Orchestrator->OnCombatResultReady.RemoveDynamic(this, &ABattleGameMode::HandleCombatEnd);
     }
+    WatchFightUsage(false);
 
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Combat ended (%s, %d turns)"),
            *UEnum::GetValueAsString(Result.FinalState), Result.TotalTurns);
@@ -478,7 +485,12 @@ void ABattleGameMode::CheckFightWonMemories()
     Event.Party.Reset();
     for (const AActor *Member : Orchestrator->GetLocalParty())
     {
-        Event.Party.Add(MemoryConditions::MakeMember(Member));
+        FMemoryEventMember &Added = Event.Party.Add_GetRef(MemoryConditions::MakeMember(Member));
+        if (const FMemoryFightUsage *Used = FightUsage.Find(Member))
+        {
+            Added.Used = *Used;
+            UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] %s used: %s"), *Member->GetName(), *GetFightUsageString(*Used));
+        }
     }
     for (UCharacterData *Beaten : TrialRun->GetPendingOpposingParty())
     {
@@ -497,6 +509,60 @@ void ABattleGameMode::CheckFightWonMemories()
     MemoryConditions::CheckEvent(GetGameInstance(), BossEvent, {});
     Event.Named.Reset();
     MemoryConditions::CheckEvent(GetGameInstance(), Event);
+}
+
+void ABattleGameMode::HandleActionStarted(AActor *Executor, const FAction &Action, int32 EnergyCost)
+{
+    // The party's own use only: PartyStartHP holds the player side for this fight.
+    if (PartyStartHP.Contains(Executor))
+    {
+        MemoryConditions::RecordAction(FightUsage.FindOrAdd(Executor), Executor, Action);
+    }
+}
+
+void ABattleGameMode::HandleTargetKilled(AActor *Killer, AActor *Victim)
+{
+    // A finishing blow is on an enemy, not a party member.
+    if (PartyStartHP.Contains(Killer) && !PartyStartHP.Contains(Victim))
+    {
+        MemoryConditions::RecordKill(FightUsage.FindOrAdd(Killer), Killer);
+    }
+}
+
+void ABattleGameMode::WatchFightUsage(bool bWatch)
+{
+    UActionExecutor *Executor = GetGameInstance() ? GetGameInstance()->GetSubsystem<UActionExecutor>() : nullptr;
+    if (!Executor)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] No action executor - skill and weapon use won't count for memories"));
+        return;
+    }
+    if (bWatch)
+    {
+        Executor->OnActionStarted.AddUniqueDynamic(this, &ABattleGameMode::HandleActionStarted);
+        Executor->OnTargetKilled.AddUniqueDynamic(this, &ABattleGameMode::HandleTargetKilled);
+    }
+    else
+    {
+        Executor->OnActionStarted.RemoveDynamic(this, &ABattleGameMode::HandleActionStarted);
+        Executor->OnTargetKilled.RemoveDynamic(this, &ABattleGameMode::HandleTargetKilled);
+    }
+}
+
+void ABattleGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    WatchFightUsage(false);
+    Super::EndPlay(EndPlayReason);
+}
+
+FString ABattleGameMode::GetFightUsageString(const FMemoryFightUsage &Usage)
+{
+    const auto Names = [](const auto &Objects)
+    {
+        return Objects.IsEmpty() ? FString(TEXT("none")) : FString::JoinBy(Objects, TEXT(", "), [](const UObject *Object) { return GetNameSafe(Object); });
+    };
+    return FString::Printf(TEXT("skills: %s | Breakthroughs: %s | finishing weapons: %s"), *Names(Usage.Skills),
+                           *Names(Usage.Breakthroughs), *Names(Usage.FinishingWeapons));
 }
 
 bool ABattleGameMode::WasPartyUnhurt() const
