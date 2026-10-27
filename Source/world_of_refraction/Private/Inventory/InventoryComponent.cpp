@@ -1221,6 +1221,7 @@ namespace InventoryGearSync
         if (Authored)
         {
             Preset.InnateSpells = Authored->InnateSpells;
+            Preset.BDSpellPools = Authored->BDSpellPools;
             if (Authored->ItemSlots.Num() > 0)
             {
                 Preset.ItemSlots = Authored->ItemSlots;
