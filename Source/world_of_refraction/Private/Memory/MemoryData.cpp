@@ -42,7 +42,7 @@ FString UMemoryData::GetMemoryString() const
 	{
 		Conditions.Add(GetConditionString(Condition));
 	}
-	return FString::Printf(TEXT("Memory %s '%s' | depth: %s | boss: %s | unlock: %s"), *GetMemoryId().ToString(),
+	return FString::Printf(TEXT("Memory %s '%s' | depth: %s | boss (obsolete, B-211): %s | unlock: %s"), *GetMemoryId().ToString(),
 						   *Title.ToString(), Depths.IsEmpty() ? TEXT("none") : *FString::Join(Depths, TEXT(", ")),
 						   Modifiers.IsEmpty() ? TEXT("none") : *FString::Join(Modifiers, TEXT(", ")),
 						   Conditions.IsEmpty() ? TEXT("by its source only") : *FString::Join(Conditions, TEXT(" + ")));

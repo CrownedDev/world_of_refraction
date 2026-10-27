@@ -3,7 +3,7 @@
 // all of these items while facing this character, trigger effects, a quest, a dialogue. Checked
 // at encounter start (ABattleGameMode). Effects are ordinary FSkillEffects (the effects condition
 // model, B-044 / D-031): a payload aimed at Enemy lands on the faced character, any other on the
-// wearer. Memory boss changes (UMemoryData::BossModifiers) run from the same hook.
+// wearer. Boss changes come from each boss's own triggers since B-211 (BossTriggers).
 // Debug: wor.Reaction.Print.
 
 #pragma once
@@ -103,7 +103,8 @@ namespace ReactionTriggers
 
 	/** NetSteps (weaken -1, strengthen +1 each; capped) on Boss's max HP and damage, before the
 	 *  fight: it starts at its new full HP. False when nothing changed. Shared by memory boss
-	 *  changes and boss triggers (B-211). */
+	 *  changes and boss triggers (B-211). Call once per boss per fight: a second call refreshes the
+	 *  same effects instead of adding to them. */
 	bool ApplyBossSteps(AActor *Boss, int32 NetSteps);
 
 	FString GetTriggerString(const FReactionTrigger &Trigger);
