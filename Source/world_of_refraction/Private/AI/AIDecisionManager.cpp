@@ -882,6 +882,7 @@ int32 UAIDecisionManager::EstimateActionDamage(AActor *Attacker, AActor *Target,
     Input.bWasInfused = InfusionLevel > 0;
     Input.InfusionLevel = InfusionLevel;
     Input.StatScaling = Skill->StatScaling;
+    Input.IgnoreDefensePercent = Skill->IgnoreDefensePercent;
     const FDamageCalculationResult Result = DamageCalc->CalculateDamage(Attacker, Target, Input);
 
     // CalculateDamage ran with bCanCrit=false — fold expected crit value back in so the estimate
