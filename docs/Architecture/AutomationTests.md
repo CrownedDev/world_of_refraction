@@ -17,7 +17,7 @@ All files live in `Source/world_of_refraction/Private/Tests/`, wrapped in `WITH_
 | `WoRTestWorld.h` | `FWoRTestWorld`: wraps the engine's `FTestWorldWrapper`. Real `UGameInstance`, so every WoR subsystem exists. Ticked by hand. `SpawnCombatant` gives a bare actor (player path) or an unpossessed pawn (AI path) carrying only a `UCharacterDataComponent`; `SpawnCombatantWithLoadout` adds an inventory and a loadout initialised from the character data, optionally with a primary weapon (B-133); `AddComponent<T>` adds and registers any component |
 | `ActionExecutedRecorder.h`, `CombatResultRecorder.h`, `InventoryChangeRecorder.h`, `PartsDroppedRecorder.h` | `UObject` listeners with a `UFUNCTION` handler, so a spec can bind a dynamic delegate and check what it broadcast |
 
-### Specs (71 files)
+### Specs (72 files)
 
 | File | Test names | Covers |
 |---|---|---|
@@ -46,6 +46,7 @@ All files live in `Source/world_of_refraction/Private/Tests/`, wrapped in `WITH_
 | `DismantleEquippedSpec.cpp` | `WoR.Economy.DismantleEquipped` | dismantling an equipped weapon or ring warns first, then takes it out of every saved loadout; a Generic left with no gear is kept out of the fight (B-084 (D-016)). |
 | `EconomyPreambleSpec.cpp` | `WoR.Economy.Preamble` | Every UEconomyService entry point refuses a null owner and an owner missing its components, and a well-formed owner gets through to the action (B-025). |
 | `EffectIdentitySpec.cpp` | `WoR.Effects.Identity` | an effect is (holder, EffectID, source) (Effect identity (B-062)). |
+| `EffectsBaselineSpec.cpp` | `WoR.Effects.Baseline` | today's effect lifecycle, pinned for B-042: apply, stack, refresh, tick-down, expiry, the timing windows (fire on application, delayed first run, Immediate, Persistent), clear vs reset, and the 2405fa82 re-entrancy case (B-134). |
 | `EncounterDataSpec.cpp` | `WoR.Combat.EncounterData` | an enemy team authored as UEncounterData takes the field, up to three strong; a field encounter without one fights its own pawn alone (B-074). |
 | `EnemyZoneSpec.cpp` | `WoR.Trial.EnemyZone` | a zone on the map sets the strength of the fights started inside it (the highest tier where zones overlap), so the same team fights at two strengths in two zones (B-186 (Enemies §4, Q-186)). |
 | `EvolutionSecondarySpec.cpp` | `WoR.Loadout.EvolutionSecondary` | a Generic whose primary slot holds an evolution keeps its secondary weapon, attacks with it and uses its abilities; every loadout query agrees (B-099 (D-027)). |
@@ -115,3 +116,4 @@ Combatants are bare unless a spec needs more: `SpawnCombatant` gives no loadout,
 | 2026-10-26 | Dev-only tooling compiled out of Shipping. All `wor.*`/`WoR.*` console commands sit in `#if !UE_BUILD_SHIPPING`. The 5 legacy `*TestActor` classes keep their constructor + BeginPlay, but their logic is guarded, with empty UFUNCTION stubs in Shipping (UHT thunks need them). New console commands and test actors follow the same pattern | `chore/B-008-shipping-guards` |
 | 2026-10-27 | B-119: `test.sh` runs the `DataValidation` commandlet after the tests pass, on `PrimaryDataAsset` subclasses only (`-AssetType`, ~12 s; all of `/Game` took 200 s+ and 8 GB on vendor anims). Errors are normalised to `<path under Content/>: <message>` and compared with `Scripts/ue/validation_baseline.txt` (known content debt, 13 lines today, fixed in B-206): a new error fails, a baseline line that no longer appears prints as FIXED. `WOR_SKIP_VALIDATION=1` skips it. Not covered: assets that don't load (an LFS pointer file is skipped by the asset registry). | chore/B-119-data-validation |
 | 2026-10-27 | B-133: `FWoRTestWorld::SpawnCombatantWithLoadout` and `AddComponent<T>` (first used by `WoR.Equipment.BoundGear`, replacing its own copy); the doc now lists every spec file (71) and the recorder helpers. | chore/B-133-test-harness |
+| 2026-10-27 | B-134: `WoR.Effects.Baseline` (13 cases) records how effects behave today, including two surprises kept as they are: a DOT fires on application (then skips that turn's end), and a same-source re-apply with refresh off replaces the value but keeps the duration while reporting DurationRefreshed. `ResetForNewCombat` resets only the once-per-match record and armed gear; `ClearAllEffects` removes effects. | chore/B-134-effects-baseline-spec |
