@@ -69,7 +69,7 @@ BEGIN_DEFINE_SPEC(FEffectsBaselineSpec, "WoR.Effects.Baseline",
 		return Effect;
 	}
 
-	static int32 Tick() { return FMath::RoundToInt(BASELINE_DOT_DAMAGE); }
+	static int32 DotHit() { return FMath::RoundToInt(BASELINE_DOT_DAMAGE); }
 
 	const FActiveSkillEffect *Find(int32 ID)
 	{
@@ -215,18 +215,19 @@ void FEffectsBaselineSpec::Define()
 
 	Describe("Timing windows", [this]()
 	{
+		// TODO: Q-044c (answered: DOTs pay out at turn start) flips this case on purpose when it is built.
 		It("fires an end-of-turn DOT on application, skips that turn's end, then hits at the end of each later turn", [this]()
 		{
 			if (!EffectManager) return;
 			const int32 StartHP = HolderStats->CurrentHP;
 			EffectManager->ApplyEffect(Holder, Burn(), Foe);
-			TestEqual(TEXT("Fires on application"), HolderStats->CurrentHP, StartHP - Tick());
+			TestEqual(TEXT("Fires on application"), HolderStats->CurrentHP, StartHP - DotHit());
 			EndHolderTurn();
-			TestEqual(TEXT("Same turn's end is skipped"), HolderStats->CurrentHP, StartHP - Tick());
+			TestEqual(TEXT("Same turn's end is skipped"), HolderStats->CurrentHP, StartHP - DotHit());
 			EffectManager->ProcessStartOfTurnEffects(Holder);
-			TestEqual(TEXT("Nothing at turn start"), HolderStats->CurrentHP, StartHP - Tick());
+			TestEqual(TEXT("Nothing at turn start"), HolderStats->CurrentHP, StartHP - DotHit());
 			EndHolderTurn();
-			TestEqual(TEXT("Next turn's end hits"), HolderStats->CurrentHP, StartHP - 2 * Tick());
+			TestEqual(TEXT("Next turn's end hits"), HolderStats->CurrentHP, StartHP - 2 * DotHit());
 		});
 
 		It("waits for its first window with bDelayFirstExecution", [this]()
@@ -238,7 +239,7 @@ void FEffectsBaselineSpec::Define()
 			EffectManager->ApplyEffect(Holder, Delayed, Foe);
 			TestEqual(TEXT("No hit on application"), HolderStats->CurrentHP, StartHP);
 			EndHolderTurn();
-			TestEqual(TEXT("First end of turn hits"), HolderStats->CurrentHP, StartHP - Tick());
+			TestEqual(TEXT("First end of turn hits"), HolderStats->CurrentHP, StartHP - DotHit());
 		});
 
 		It("runs an Immediate effect once on application, keeps it stored, and sweeps it at the end of the turn", [this]()
@@ -246,11 +247,11 @@ void FEffectsBaselineSpec::Define()
 			if (!EffectManager) return;
 			const int32 StartHP = HolderStats->CurrentHP;
 			EffectManager->ApplyEffect(Holder, Burn(ESkillEffectTiming::Immediate), Foe);
-			TestEqual(TEXT("Hit once"), HolderStats->CurrentHP, StartHP - Tick());
+			TestEqual(TEXT("Hit once"), HolderStats->CurrentHP, StartHP - DotHit());
 			TestEqual(TEXT("Still stored"), EffectManager->GetEffectCount(Holder), 1);
 			EffectManager->ProcessStartOfTurnEffects(Holder);
 			EndHolderTurn();
-			TestEqual(TEXT("No second hit"), HolderStats->CurrentHP, StartHP - Tick());
+			TestEqual(TEXT("No second hit"), HolderStats->CurrentHP, StartHP - DotHit());
 			TestEqual(TEXT("Swept"), EffectManager->GetEffectCount(Holder), 0);
 		});
 
@@ -261,12 +262,12 @@ void FEffectsBaselineSpec::Define()
 			FActiveSkillEffect Aura = Burn(ESkillEffectTiming::Persistent);
 			Aura.bPermanent = true;
 			EffectManager->ApplyEffect(Holder, Aura, Foe);
-			TestEqual(TEXT("Fires on application"), HolderStats->CurrentHP, StartHP - Tick());
+			TestEqual(TEXT("Fires on application"), HolderStats->CurrentHP, StartHP - DotHit());
 			EffectManager->ProcessStartOfTurnEffects(Holder);
-			TestEqual(TEXT("First turn start"), HolderStats->CurrentHP, StartHP - 2 * Tick());
+			TestEqual(TEXT("First turn start"), HolderStats->CurrentHP, StartHP - 2 * DotHit());
 			EndHolderTurn();
 			EffectManager->ProcessStartOfTurnEffects(Holder);
-			TestEqual(TEXT("Second turn start"), HolderStats->CurrentHP, StartHP - 3 * Tick());
+			TestEqual(TEXT("Second turn start"), HolderStats->CurrentHP, StartHP - 3 * DotHit());
 		});
 	});
 
@@ -313,6 +314,7 @@ void FEffectsBaselineSpec::Define()
 			FActiveSkillEffect Cleanse = FActiveSkillEffect::CreateBuff(TEXT("Baseline cleanse"), BASELINE_CLEANSE_ID,
 																		ESkillEffectType::CleanseSelf, 0.0f, BASELINE_DURATION_TURNS);
 			Cleanse.bDelayFirstExecution = true;
+			// Order matters: the pass claims in insertion order, so the cleanse must come before the burn.
 			EffectManager->ApplyEffect(Holder, Debuff(BASELINE_DEBUFF_ID), Foe);
 			EffectManager->ApplyEffect(Holder, Cleanse, Holder);
 			FActiveSkillEffect LaterBurn = Burn(ESkillEffectTiming::StartOfOwnTurn);
