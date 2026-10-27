@@ -408,6 +408,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "Skill|Display")
     FString GetAttackSummary() const;
 
+    // ==================== DEBUG ====================
+
+    /** Caster-free dump (the Spell/AbilityDataDebug strings need a character). */
+    FString GetSkillDataString() const;
+
+    UFUNCTION(CallInEditor, Category = "Debug")
+    void PrintSkillData() const;
+
     // ==================== MIGRATION ====================
 
     /** Migrates the legacy conflated ETargetType (7 values) onto the new

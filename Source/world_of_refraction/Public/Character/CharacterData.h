@@ -696,6 +696,10 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
 #endif
 
+	/** Logs UCharacterDataDebug::GetCharacterStatsString. */
+	UFUNCTION(CallInEditor, Category = "Debug")
+	void PrintCharacterData();
+
 private:
 	/** Repopulate the transient ResistanceProfile mirror from
 	 *  ClassInnateResistanceTable::ResolveRow (the single source of truth).
