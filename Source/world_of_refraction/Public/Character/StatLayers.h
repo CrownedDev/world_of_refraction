@@ -87,3 +87,25 @@ struct FWoRStatLayers
 							   StoneFactor, TransientFactor, Compose(), *Bounds);
 	}
 };
+
+/** B-042u (StatMathsRedesign.md §2.1, the pools' exception): a max pool is (the stat portion, capped alone,
+ *  + the gear's flat amount) x one summed multiply of the stone and buff percents, rounded once. */
+struct FWoRPoolLayers
+{
+	/** The pool base + pillar points, capped alone at the pool cap. */
+	float StatPortion = 0.0f;
+	/** The gear's flat amount, outside the cap. */
+	float GearAmount = 0.0f;
+	/** 1 + (the attached pool stone's percent + the net pool buff percent) / 100. */
+	float PercentFactor = 1.0f;
+
+	int32 Compose() const
+	{
+		return FMath::RoundToInt((StatPortion + GearAmount) * PercentFactor);
+	}
+
+	FString ToString() const
+	{
+		return FString::Printf(TEXT("(stat %.4f + gear %.4f) x percent %.4f = %d"), StatPortion, GearAmount, PercentFactor, Compose());
+	}
+};

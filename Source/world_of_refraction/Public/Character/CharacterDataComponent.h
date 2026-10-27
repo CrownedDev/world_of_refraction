@@ -184,6 +184,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Character")
     void RecomputeMaxPools();
 
+    /** The layers the last RecomputeMaxPools built MaxHP / MaxEP from (B-042u, Q-042u), for the GAS pool sources.
+     *  False without CharacterData, or when the max no longer comes from them (set another way since:
+     *  InitializeFromTemplate, a direct write). */
+    bool GetMaxHPLayers(FWoRPoolLayers &OutLayers) const;
+    bool GetMaxEPLayers(FWoRPoolLayers &OutLayers) const;
+
     // ========================================
     // HP MANAGEMENT (SERVER ONLY)
     // ========================================
@@ -601,6 +607,10 @@ public:
     void IncrementPurchaseCount();
 
 private:
+    /** What RecomputeMaxPools built MaxHP / MaxEP from (GetMaxHPLayers / GetMaxEPLayers). */
+    FWoRPoolLayers MaxHPLayers;
+    FWoRPoolLayers MaxEPLayers;
+
     /** B-115: this character's party record when it is a rostered member, for the carried
      *  crystal and absorption state; null for an enemy or outside a party. */
     const struct FPartyMember *FindCarriedPartyMember() const;
