@@ -19,6 +19,11 @@ namespace WoRResistance
 	 *  source yet (B-064a). Uncapped; each caller applies its own cap. */
 	WORLD_OF_REFRACTION_API float GetTypeResistance(AActor *Target, EWoRDamageType DamageType);
 
+	/** Target's resistance to Element's damage (D-036): its element type's resistance, plus Ice for
+	 *  Water (Q-145b). 0 for a non-elemental element (None, a leftover Generic): physical is Defense
+	 *  only (Q-145). Uncapped; the damage step caps it (WoRDamageMath::GetElementMultiplier). */
+	WORLD_OF_REFRACTION_API float GetElementDamageResistance(AActor *Target, ESpellElement Element);
+
 	/** What a hit's two status axes resist: its element's type (or the non-elemental bucket) plus
 	 *  its physical subtype's, when it has one. The Matched layer of buildup without #7 and #8. */
 	WORLD_OF_REFRACTION_API float GetHitTypeResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType);

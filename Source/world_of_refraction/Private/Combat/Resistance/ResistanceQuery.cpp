@@ -125,6 +125,21 @@ namespace WoRResistance
 		return Resist;
 	}
 
+	float GetElementDamageResistance(AActor *Target, ESpellElement Element)
+	{
+		const EWoRDamageType ElementType = WoRDamageType::ElementToDamageType(Element);
+		if (!Target || ElementType == EWoRDamageType::None)
+		{
+			return 0.0f;
+		}
+		float Resist = GetTypeResistance(Target, ElementType);
+		if (ElementType == EWoRDamageType::Water)
+		{
+			Resist += GetTypeResistance(Target, EWoRDamageType::Ice);
+		}
+		return Resist;
+	}
+
 	float GetHitTypeResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType)
 	{
 		float Resist = GetTypeResistance(Target, WoRDamageType::ElementToDamageType(Element));
