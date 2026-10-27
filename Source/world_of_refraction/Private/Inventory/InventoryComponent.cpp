@@ -1276,22 +1276,36 @@ int32 UInventoryComponent::AdoptPresetOnlyGear(const UPoolSubsystem &Pool)
 {
     using namespace InventoryGearSync;
     int32 Adopted = 0;
+    TSet<FGuid> AdoptedIDs;
     for (FCombatLoadout &Loadout : SavedLoadouts)
     {
-        // A piece the pool already holds is linked to on the draw, not adopted as a second copy.
-        const auto Adopt = [&Adopted](auto &Slot, auto &Owned, const auto &Shared)
+        // A piece the pool already holds is linked to on the draw, not adopted as a second copy;
+        // a piece adopted for an earlier preset is reused (two copies only when one preset holds two).
+        TSet<FGuid> UsedHere;
+        const auto Adopt = [&Adopted, &AdoptedIDs, &UsedHere](auto &Slot, auto &Owned, const auto &Shared)
         {
             const UObject *Asset = GetGearAsset(Slot);
             const bool bShared = Shared.ContainsByPredicate([Asset](const auto &Entry) { return GetGearAsset(Entry) == Asset; });
-            if (Asset && !bShared && !FindOwned(Owned, Slot.PersistentID))
+            if (!Asset || bShared || FindOwned(Owned, Slot.PersistentID))
             {
-                if (!Slot.PersistentID.IsValid())
-                {
-                    Slot.PersistentID = FGuid::NewGuid();
-                }
+                return;
+            }
+            const auto *Earlier = Owned.FindByPredicate([Asset, &AdoptedIDs, &UsedHere](const auto &Entry)
+            {
+                return GetGearAsset(Entry) == Asset && AdoptedIDs.Contains(Entry.PersistentID) && !UsedHere.Contains(Entry.PersistentID);
+            });
+            if (Earlier)
+            {
+                CopyOwned(Slot, *Earlier);
+            }
+            else
+            {
+                Slot.PersistentID = FGuid::NewGuid();
                 Owned.Add(Slot);
+                AdoptedIDs.Add(Slot.PersistentID);
                 ++Adopted;
             }
+            UsedHere.Add(Slot.PersistentID);
         };
         ForEachGearSlot(Loadout,
                         [this, &Adopt, &Pool](FWeaponInventoryEntry &Slot) { Adopt(Slot, Weapons, Pool.GetOwnedWeapons()); },

@@ -219,6 +219,21 @@ void FSharedGearSpec::Define()
 		TestTrue(TEXT("Still in its loadout"), ActiveWeaponID(Member).IsValid());
 	});
 
+	It("adopts one copy when two presets name the same unlisted weapon", [this]()
+	{
+		if (!Pool) return;
+		AActor *Actor = TestWorld->SpawnCombatant(Members[0]);
+		if (!Actor) return;
+		FWoRTestWorld::AddComponent<UEvolutionInventoryComponent>(Actor);
+		UInventoryComponent *Member = FWoRTestWorld::AddComponent<UInventoryComponent>(Actor);
+		Member->SavedLoadouts = {SwordPreset(Sword), SwordPreset(Sword)};
+		Member->ActiveLoadoutIndex = 0;
+		TestTrue(TEXT("Drawn"), Member->DrawSharedGear());
+		TestEqual(TEXT("One sword banked"), Pool->GetOwnedWeapons().Num(), 1);
+		TestEqual(TEXT("Both presets hold it"), Member->SavedLoadouts[1].PrimaryWeapon.WeaponEntry.PersistentID,
+				  Member->SavedLoadouts[0].PrimaryWeapon.WeaponEntry.PersistentID);
+	});
+
 	It("leaves a character outside the party on its own gear", [this]()
 	{
 		if (!Pool) return;
