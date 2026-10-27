@@ -108,6 +108,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-178](B-178.md) | `feature/B-178-run-repair` (in `dev`) | Paid gear repair in a run; the run's Gold carries between levels | Not tested |
 | [B-093](B-093.md) | `feature/B-093-menu-keys` (in `dev`) | Keys for Defend and infusion (keyboard + gamepad) | Not tested |
 | [B-209](B-209.md) | `feature/B-209-memory-sources` (in `dev`) | Memories from bosses, reactions, map spots and bound gear | Not tested |
+| [B-217](B-217.md) | `fix/B-217-live-world-levels` (in `dev`) | Requirements count a pillar raised during the run | Not tested |
 | [B-219](B-219.md) | `refactor/B-219-damage-math-core` (in `dev`) | Damage maths moved into one core function; no number should change | Not tested |
 | [B-162](B-162.md) | `feature/B-162-weapon-requirement-factor` (in `dev`) | Under a weapon's requirement, its attacks and abilities deal less | Not tested |
 | [B-218](B-218.md) | `feature/B-218-combat-tuning-data` (in `dev`) | Combat tuning data asset and ladders in curve tables; no number changes without it | Not tested |
