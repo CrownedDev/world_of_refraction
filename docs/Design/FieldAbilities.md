@@ -33,6 +33,7 @@
   | Wind | Sprint | Second-fastest sprint |
   | Lightning | Teleport | Chain of short blinks |
   | Void | Teleport | One long vanish |
+  | Darkness | (style, type to confirm) | Shadow path: walk along shadows for a short time |
 
 - **Locked field skills:** some need a specific skill equipped or learned first; once unlocked, anyone with the matching source can use it (lightning speed → any Lightning source).
 - **Picking it** (Crown): choose a source you have, then a movement type you've unlocked; the source styles it.
