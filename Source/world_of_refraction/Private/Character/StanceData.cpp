@@ -21,10 +21,6 @@ EDataValidationResult UStanceData::IsDataValid(FDataValidationContext &Context) 
     {
         Context.AddWarning(FText::FromString(TEXT("No IdleAnimMontage - the character holds no idle pose")));
     }
-    if (StanceName == GetDefault<UStanceData>()->StanceName)
-    {
-        Context.AddWarning(FText::FromString(TEXT("StanceName is still the default")));
-    }
     return Result;
 }
 #endif

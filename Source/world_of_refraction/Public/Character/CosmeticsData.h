@@ -104,7 +104,8 @@ public:
 	void PrintCosmeticsData() const;
 
 #if WITH_EDITOR
-	/** Warnings only: a missing animation, stance or infusion display falls back to nothing at runtime. */
+	/** Warnings only, one per unset dodge, block, unarmed stance or item-use field (each plays nothing at runtime).
+	 *  Ring switch, infusion display and weather variant are optional and not checked. */
 	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif
 };

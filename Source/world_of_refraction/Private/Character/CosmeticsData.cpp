@@ -13,7 +13,7 @@
 
 namespace CosmeticsDebug
 {
-    FString AssetName(const UObject *Asset)
+    static FString AssetName(const UObject *Asset)
     {
         return Asset ? Asset->GetName() : TEXT("(none)");
     }

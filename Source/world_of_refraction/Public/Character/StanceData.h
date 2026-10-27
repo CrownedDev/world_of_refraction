@@ -58,7 +58,7 @@ public:
     void PrintStanceData();
 
 #if WITH_EDITOR
-    /** Warnings only: no idle montage, or the default name. */
+    /** Warning only: no idle montage. */
     virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif
 };

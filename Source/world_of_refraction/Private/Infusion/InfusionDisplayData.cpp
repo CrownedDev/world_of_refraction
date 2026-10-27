@@ -21,10 +21,6 @@ EDataValidationResult UInfusionDisplayData::IsDataValid(FDataValidationContext &
     {
         Context.AddWarning(FText::FromString(TEXT("No VFXSystem - the infusion shows nothing")));
     }
-    if (DisplayName == GetDefault<UInfusionDisplayData>()->DisplayName)
-    {
-        Context.AddWarning(FText::FromString(TEXT("DisplayName is still the default")));
-    }
     return Result;
 }
 #endif

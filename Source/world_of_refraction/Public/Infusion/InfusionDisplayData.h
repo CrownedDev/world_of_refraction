@@ -68,7 +68,7 @@ public:
     void PrintInfusionDisplayData();
 
 #if WITH_EDITOR
-    /** Warnings only: no VFX system (nothing shows), or the default name. */
+    /** Warning only: no VFX system (nothing shows). */
     virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif
 };
