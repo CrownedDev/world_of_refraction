@@ -18,6 +18,8 @@
 namespace
 {
 	constexpr int32 MENU_KEYS_SETTLE_FRAMES = 3;
+	/** Infusion levels 0, 1, 2 (UInfusionVFXComponent::CycleInfusionLevel). */
+	constexpr int32 MENU_KEYS_INFUSION_LEVELS = 3;
 
 	void MenuKeysAddLoadout(AActor *Actor)
 	{
@@ -105,6 +107,7 @@ void FCommandMenuKeysSpec::Define()
 		FPieMenuButtonData Abilities;
 		Abilities.Category = EPieMenuCategory::Abilities;
 		Menu->HandleSelection(Abilities);
+		TestFalse(TEXT("In a submenu"), Menu->IsAtMainMenu());
 		TestTrue(TEXT("Defend key pressed"), Menu->PressMenuKey(EPieMenuCategory::Defend));
 		TestTrue(TEXT("The turn moved on"), Orchestrator->GetCurrentActor() == Foe);
 	});
@@ -129,7 +132,7 @@ void FCommandMenuKeysSpec::Define()
 
 		const int32 LevelBefore = VFX->GetCurrentInfusionLevel();
 		TestTrue(TEXT("Infusion level key pressed"), Menu->PressMenuKey(EPieMenuCategory::CycleLevel));
-		TestNotEqual(TEXT("Level changed"), VFX->GetCurrentInfusionLevel(), LevelBefore);
+		TestEqual(TEXT("Next level"), VFX->GetCurrentInfusionLevel(), (LevelBefore + 1) % MENU_KEYS_INFUSION_LEVELS);
 		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
 	});
 
