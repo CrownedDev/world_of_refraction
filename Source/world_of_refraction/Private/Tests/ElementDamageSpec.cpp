@@ -13,6 +13,8 @@
 #include "Combat/Damage/DamageMath.h"
 #include "Combat/Resistance/EWoRDamageType.h"
 #include "Combat/Resistance/ResistanceQuery.h"
+#include "Skills/Effects/ActiveSkillEffect.h"
+#include "Skills/Effects/SkillEffectManager.h"
 
 namespace
 {
@@ -21,6 +23,7 @@ namespace
 	constexpr float ELEMENT_TEST_WEAK = -0.15f;
 	constexpr float ELEMENT_TEST_OVER_CAP = 0.7f;
 	constexpr float ELEMENT_TEST_UNDER_CAP = -0.9f;
+	constexpr float ELEMENT_TEST_DOT_PER_TURN = 40.0f;
 }
 
 BEGIN_DEFINE_SPEC(FElementDamageSpec, "WoR.Damage.Element",
@@ -137,6 +140,26 @@ void FElementDamageSpec::Define()
 				TestEqual(TEXT("element"), Recorder->Entries[0].Element, ESpellElement::Water);
 				TestEqual(TEXT("damage"), Recorder->Entries[0].Damage, Hit.DamageDealt);
 			}
+		});
+
+		It("cuts an elemental DoT tick the same way, and leaves a non-elemental one (B-064b, Q-064)", [this]()
+		{
+			if (!TestNotNull(TEXT("setup"), FireCaster))
+			{
+				return;
+			}
+			auto Tick = [this](ESpellElement Element)
+			{
+				return USkillEffectManager::GetDotTickDamage(
+					FireCaster, FActiveSkillEffect::CreateDOT(TEXT("Test DOT"), 0, ELEMENT_TEST_DOT_PER_TURN, 1, Element));
+			};
+			TestEqual(TEXT("non-elemental unchanged"), Tick(ESpellElement::None), FMath::RoundToInt(ELEMENT_TEST_DOT_PER_TURN));
+			TestTrue(TEXT("Fire ticks less"), Tick(ESpellElement::Fire) < FMath::RoundToInt(ELEMENT_TEST_DOT_PER_TURN));
+			TestTrue(TEXT("Water ticks more"), Tick(ESpellElement::Water) > FMath::RoundToInt(ELEMENT_TEST_DOT_PER_TURN));
+			const float FireMult = WoRDamageMath::GetElementMultiplier(
+				WoRResistance::GetElementDamageResistance(FireCaster, ESpellElement::Fire), false);
+			TestEqual(TEXT("Fire = value x multiplier"), Tick(ESpellElement::Fire),
+					  FMath::RoundToInt(ELEMENT_TEST_DOT_PER_TURN * FireMult));
 		});
 
 		It("skips element resistance when the input says so", [this]()
