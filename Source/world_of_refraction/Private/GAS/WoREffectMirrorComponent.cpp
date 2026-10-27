@@ -4,6 +4,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameplayEffect.h"
+#include "Character/CharacterDataComponent.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoREffectSpecBuilder.h"
 #include "GAS/WoRTurnEffectTracker.h"
@@ -228,8 +229,11 @@ bool UWoREffectMirrorComponent::PayTick(const FActiveSkillEffect &Effect)
 	UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
 	const FWoRMirroredEffect Wanted = ToMirrored(Effect);
 	const FWoRMirroredEffect *Entry = Mirrored.FindByPredicate([&Wanted](const FWoRMirroredEffect &Mirror) { return Mirror.Matches(Wanted); });
-	// Without the Vitals set the tick execution has no Health to change.
-	if (!ASC || !ASC->HasAttributeSetForAttribute(UWoRAttributeSet_Vitals::GetHealthAttribute()) || !Entry ||
+	// Without the Vitals set the tick execution has no Health to change, and without character data the
+	// Vitals set has no HP path to hand it to.
+	const UCharacterDataComponent *Char = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+	if (!ASC || !ASC->HasAttributeSetForAttribute(UWoRAttributeSet_Vitals::GetHealthAttribute()) || !Char ||
+		!Char->CharacterData || !Entry ||
 		!Entry->TickSpec.IsValid() || !ASC->GetActiveGameplayEffect(Entry->Handle))
 	{
 		return false;
@@ -314,8 +318,8 @@ FString UWoREffectMirrorComponent::GetDebugString() const
 		const FString Lifetime = Entry.bTracked && Tracker
 									 ? FString::Printf(TEXT("tracked, %d turn(s) left"), Tracker->GetTurnsLeft(Entry.Handle))
 									 : FString(TEXT("untracked"));
-		Lines.Add(FString::Printf(TEXT("%s magnitude=%.2f handle=%s %s"), *Entry.Identity.ToString(), Entry.Magnitude,
-								  *Entry.Handle.ToString(), *Lifetime));
+		Lines.Add(FString::Printf(TEXT("%s magnitude=%.2f handle=%s %s%s"), *Entry.Identity.ToString(), Entry.Magnitude,
+								  *Entry.Handle.ToString(), *Lifetime, Entry.TickSpec.IsValid() ? TEXT(", pays ticks") : TEXT("")));
 	}
 	for (const FWoREffectIdentity &Identity : EndedByGAS)
 	{

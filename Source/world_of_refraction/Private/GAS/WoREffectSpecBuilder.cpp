@@ -275,6 +275,9 @@ FActiveGameplayEffectHandle FWoREffectSpecBuilder::Apply(AActor *Target, const F
 	{
 		return ASC->ApplyGameplayEffectSpecToSelf(*Built.Spec.Data.Get());
 	}
+	// TODO: B-042i: at UseGAS 1 the Vitals set hands every Health change to the HP path (Q-042y), so a GE
+	// applied here pays its ticks through the tracker on top of the effect manager's pass. Only specs call
+	// it today; a play caller must keep the effect off the enum store, or pass no tick spec.
 	return Tracker->ApplySpecForHolderTurns(Built.Spec, Built.Turns, Built.TickSpec);
 }
 

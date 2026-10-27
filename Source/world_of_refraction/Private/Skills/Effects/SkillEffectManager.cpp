@@ -414,7 +414,6 @@ int32 USkillEffectManager::SwapEquipmentEffects(
 // FAutoConsoleCommandWithWorld — NOT UFUNCTION(Exec). A UGameInstanceSubsystem is not on the
 // engine's FExec dispatch chain, so an Exec here silently no-ops. Console commands resolve from
 // any class. "wor." prefix groups them. State is PIE-only, so the chain is null-checked.
-#if !UE_BUILD_SHIPPING
 namespace
 {
 	/** B-042y: with wor.Effects.UseGAS 1, a DOT / HOT tick on an actor with a mirror is paid by its GE's tick
@@ -426,7 +425,11 @@ namespace
 												: nullptr;
 		return Mirror && Mirror->PayTick(Effect);
 	}
+}
 
+#if !UE_BUILD_SHIPPING
+namespace
+{
 	static FAutoConsoleCommandWithWorld GStartingEffectsCmd(
 		TEXT("wor.StartingEffects"),
 		TEXT("Inspect the active combatant's starting effects per gear source (PIE debug)."),
@@ -1574,10 +1577,11 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		// (ServerTakeDamage -> CheckDeath -> OnDied), identical to a killing blow.
 		const int32 DamageToApply = GetDotTickDamage(Actor, Effect);
 
+		const int32 HPBeforeTick = CharComp->CurrentHP;
 		if (PayTickThroughGAS(Actor, Effect))
 		{
-			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: DOT %s paid through GAS (HP %d)"), *Actor->GetName(),
-				   *Effect.EffectName, CharComp->CurrentHP);
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: DOT %s paid through GAS, HP %d -> %d"), *Actor->GetName(),
+				   *Effect.EffectName, HPBeforeTick, CharComp->CurrentHP);
 		}
 		else if (DamageToApply > 0)
 		{
@@ -1619,10 +1623,10 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: HoT '%s' suppressed by HealBlock (no heal this tick)"),
 				   *Actor->GetName(), *Effect.EffectName);
 		}
-		else if (PayTickThroughGAS(Actor, Effect))
+		else if (const int32 HPBeforeTick = CharComp->CurrentHP; PayTickThroughGAS(Actor, Effect))
 		{
-			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: HoT %s paid through GAS (HP %d)"), *Actor->GetName(),
-				   *Effect.EffectName, CharComp->CurrentHP);
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: HoT %s paid through GAS, HP %d -> %d"), *Actor->GetName(),
+				   *Effect.EffectName, HPBeforeTick, CharComp->CurrentHP);
 		}
 		else
 		{
