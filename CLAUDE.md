@@ -36,7 +36,7 @@
 **Source-of-truth queries go to the owning object.** Crystal properties are queried from the crystal, not duplicated on the weapon.
 
 **Standing technical rules (Crown, 2026-10-26, D-057 to D-068):**
-- **Per-fight state** (anything that lives for one battle) goes on the battle's actors, GameState or PlayerState, not in a new field on a `UGameInstanceSubsystem` (D-064). Existing subsystem state moves when co-op is scheduled (after B-090 and B-105, D-065).
+- **Per-fight state** (anything that lives for one battle) goes on the battle's actors, GameState or PlayerState, not in a new field on a `UGameInstanceSubsystem` (D-064). Existing subsystem state moves with the co-op plumbing, which starts now (D-103 changes D-065: no longer waits for B-105).
 - **Heavy visuals and audio** (meshes, textures, sounds, Niagara) in a *new* data-asset field use `TSoftObjectPtr`; existing hard references stay (D-057).
 - **Player-facing text** is `FText` (`LOCTEXT` / `FText::Format`), never a built `FString` (D-061). Shared game words (element, status, trigger names, button verbs) live in C++ `LOCTEXT` name tables (D-062).
 - **Saves** use explicit save structs, not `SaveGame` property tags (D-059). Until the first public build, a save below the minimum version is wiped with a warning (D-060).
