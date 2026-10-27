@@ -17,6 +17,9 @@
 
 **Movement (Crown, 2026-10-27): A, movement leaves its element lightly** on what it touches (Genshin's elemental sprints): a Fire dash lights the grass it crosses, a Lightning sprint through water charges it, an Ice sprint freezes a path on water. Small, short effects only; never harms teammates.
 
+**Per element (Crown, 2026-10-27):**
+- **Fire:** sets wood / grass burning (spreads a little, burns away); melts ice to water; ignites gas / mist. With Water: steam (blocks sight briefly); with Ice: melt; with Wind: spreads further and faster. Secrets e.g. burn a vine wall to a hidden cave; light a brazier ring to open a door.
+
 ## Changelog
 
 | Date | Change | Branch |
