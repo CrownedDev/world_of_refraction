@@ -1980,6 +1980,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-149-formation-cells): `ACombatOrchestrator::GetPlaceholderEnemyStartRow`. Authored enemy cells replace it later.
 
+### Q-091 — The shared pool: what is shared, who wears what, and what happens on a clash
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-091, D-020 = A) · **Blocks:** — (ships with A)
+**Question:** D-020 gives the party one pool, and an item can sit in several characters' presets but is worn by one at a time. Building it raises four details: which items are shared, what "wearing" means, who keeps a piece when two members want it, and when the clash is settled.
+**Options:**
+- **A** **Gear is shared** (weapons, rings, evolutions): each character's starting gear is banked into the pool once, and every party member's inventory shows the whole armoury. **Wearing = in the active loadout**: other presets may name the piece. On a clash, **the member already wearing it keeps it**; the other's active loadout loses it with a "Removed: Fire Sword (worn by Ayla)" message, and the party panel lists the clash. The check runs when a member spawns, switches loadout, and before each fight. Skills (spells, abilities) stay with the character who learned them, and crystals stay per character until B-203 builds the D-097 shared item inventory.
+- **B** As A, but the party panel asks you to pick the wearer on every clash (a choice screen before each fight; more UI, the same outcome when you pick the current wearer).
+- **C** Share skills and crystals too (every character could use every learned spell, bypassing class gating; crystals would need the D-097 inventory first).
+**Recommendation:** A. Final Fantasy IX and X share one bag for the party: a weapon on one character is shown as theirs and can't be put on another until it's taken off. Fire Emblem's convoy works the same way. Players read it as fair because nothing is ever duplicated or silently swapped. Skills that stay with their learner match Final Fantasy X and Dragon Quest, where each character keeps their own spells.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it, e.g. to B's pick-the-wearer screen.
+**Notes for Claude:** applied (feature/B-091-shared-gear-pool): `UPoolSubsystem` wearers, banked characters and `OnPoolGearChanged`; `UInventoryComponent::DrawSharedGear` / `ClaimActiveSharedGear` / `PushGearToPool`; `ULoadoutComponent::ClaimSharedGear`; save `FSavedPool::Wearers` / `BankedCharacters`; party panel clash line. Limits: the per-inventory caps (20 weapons, 20 rings, 5 evolutions) now count the party's whole armoury; a saved weapon or ring still restores with its default crystal (B-124); the bought-loadout run start is B-116.
+
 ### Q-208 — Resuming a saved run: where the player lands, and what comes back
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-208, Q-090 = A) · **Blocks:** — (ships with A)
 **Question:** Q-090 resumes a quit run at the last fight's exit. Three details: where in the trial the player stands, whether the run's Gold comes back (B-178 keeps Gold in memory only, never banked), and what happens to a save loaded somewhere other than the game's start.
