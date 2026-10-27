@@ -110,6 +110,20 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout|Saved")
     int32 ActiveLoadoutIndex = 0;
 
+    /** Indices of the saved loadouts holding the weapon or ring instance PersistentID
+     *  (primary, secondary, primary ring or a Resonator ring slot). Empty when none or invalid. */
+    TArray<int32> GetLoadoutsUsing(const FGuid &PersistentID) const;
+
+    /** D-016: take the weapon or ring instance out of every saved loadout (its slot is emptied,
+     *  a Resonator ring slot is removed). Returns how many loadouts changed. */
+    int32 RemoveFromSavedLoadouts(const FGuid &PersistentID);
+
+    /** Takes the instance out of one loadout; true when something was removed. */
+    static bool StripFromLoadout(FCombatLoadout &Loadout, const FGuid &PersistentID);
+
+    /** Does the loadout hold any weapon, ring or evolution to fight with? */
+    static bool LoadoutHasGear(const FCombatLoadout &Loadout);
+
     // ==================== SPELL OPERATIONS ====================
 
     /** Learn a new spell */

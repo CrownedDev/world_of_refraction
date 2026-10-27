@@ -339,8 +339,9 @@ bool ABattleGameMode::CanEnterCombat(const AActor *Combatant)
         return true;
     }
     const ULoadoutComponent *Loadout = Combatant->FindComponentByClass<ULoadoutComponent>();
+    // GetActiveRing: a Resonator's rings sit in its ring slots, not the primary slot.
     return Loadout && (Loadout->GetPrimaryWeapon() || Loadout->GetPrimaryRing() || Loadout->GetPrimaryEvolution() ||
-                       Loadout->HasSecondaryEquipment());
+                       Loadout->HasSecondaryEquipment() || Loadout->GetActiveRing());
 }
 
 void ABattleGameMode::AbortToTrial(const FString &Reason)

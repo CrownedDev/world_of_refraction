@@ -731,6 +731,95 @@ bool UInventoryComponent::RemoveRingByPersistentID(FGuid PersistentID)
     return RemoveRing(Index);
 }
 
+TArray<int32> UInventoryComponent::GetLoadoutsUsing(const FGuid &PersistentID) const
+{
+    TArray<int32> Result;
+    for (int32 Index = 0; Index < SavedLoadouts.Num(); ++Index)
+    {
+        FCombatLoadout Copy = SavedLoadouts[Index];
+        if (StripFromLoadout(Copy, PersistentID))
+        {
+            Result.Add(Index);
+        }
+    }
+    return Result;
+}
+
+int32 UInventoryComponent::RemoveFromSavedLoadouts(const FGuid &PersistentID)
+{
+    int32 Changed = 0;
+    for (FCombatLoadout &Loadout : SavedLoadouts)
+    {
+        Changed += StripFromLoadout(Loadout, PersistentID) ? 1 : 0;
+    }
+    if (Changed > 0)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Inventory] %s: took instance %s out of %d saved loadout(s)"),
+               *GetNameSafe(GetOwner()), *PersistentID.ToString(), Changed);
+    }
+    return Changed;
+}
+
+bool UInventoryComponent::StripFromLoadout(FCombatLoadout &Loadout, const FGuid &PersistentID)
+{
+    if (!PersistentID.IsValid())
+    {
+        return false;
+    }
+    bool bRemoved = false;
+    if (Loadout.PrimaryWeapon.WeaponEntry.PersistentID == PersistentID)
+    {
+        Loadout.PrimaryWeapon.Clear();
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
+        {
+            Loadout.PrimarySlotType = EPrimarySlotType::None;
+        }
+        bRemoved = true;
+    }
+    if (Loadout.PrimaryRing.RingEntry.PersistentID == PersistentID)
+    {
+        Loadout.PrimaryRing.Clear();
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+        {
+            Loadout.PrimarySlotType = EPrimarySlotType::None;
+        }
+        bRemoved = true;
+    }
+    if (Loadout.SecondaryWeapon.WeaponEntry.PersistentID == PersistentID)
+    {
+        Loadout.SecondaryWeapon.Clear();
+        Loadout.SecondarySlotType = ESecondarySlotType::None;
+        bRemoved = true;
+    }
+    for (int32 RingIndex = Loadout.RingLoadout.Num() - 1; RingIndex >= 0; --RingIndex)
+    {
+        if (Loadout.RingLoadout[RingIndex].RingEntry.PersistentID != PersistentID)
+        {
+            continue;
+        }
+        Loadout.RingLoadout.RemoveAt(RingIndex);
+        // Keep the same ring active when an earlier slot goes; clamp when the active one goes.
+        if (RingIndex < Loadout.ActiveRingIndex)
+        {
+            --Loadout.ActiveRingIndex;
+        }
+        bRemoved = true;
+    }
+    Loadout.ActiveRingIndex = FMath::Clamp(Loadout.ActiveRingIndex, 0, FMath::Max(0, Loadout.RingLoadout.Num() - 1));
+    return bRemoved;
+}
+
+bool UInventoryComponent::LoadoutHasGear(const FCombatLoadout &Loadout)
+{
+    const bool bPrimary = (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid()) ||
+                          (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid()) ||
+                          (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item);
+    const bool bSecondary = Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid();
+    // The active ring, as ABattleGameMode::CanEnterCombat reads it (GetActiveRing).
+    const bool bRings = Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex) && Loadout.RingLoadout[Loadout.ActiveRingIndex].IsValid();
+    return bPrimary || bSecondary || bRings;
+}
+
 FRingInventoryEntry UInventoryComponent::GetRingAt(int32 Index) const
 {
     if (Rings.IsValidIndex(Index))

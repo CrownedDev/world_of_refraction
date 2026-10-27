@@ -60,8 +60,8 @@ This page covers the currencies, what a fight and a run pay out, what carries ov
 |---|---|---|---|
 | ER-30 | Dismantling destroys an item for essence by its current (upgraded) tier: weapons and rings give Gear essence, spells and abilities Skill essence, evolutions their element's essence, all at F 5, E 15, D 30, C 50, B 75, A 110, S 145 (`LEVELING_ESSENCE_YIELD_*`). | In game (no screen yet) | `Currency/EconomyYield.h:38-44`; `Currency/EconomyService.cpp:250-527` |
 | ER-31 | A crystal or stone gives typed essence (gem: its element; stat stone: its pillar; ability stone: Ability) at F 5, E 7, D 9, C 11, B 15, A 19, S 24 each (`TYPED_ESSENCE_YIELD_*`). | In game (no screen yet) | `Currency/EconomyYield.h:28-34,358-379`; `Currency/EconomyService.cpp:75-89` |
-| ER-32 | Dismantling an equipped item asks first ("This is equipped in loadout N. Dismantle anyway? You'll lose its upgrades"), then removes it from every loadout. Its upgrades are lost for good. Today there is no check, and the loadout keeps a usable copy. | Decided, not built (B-084) | `D-016`; `Currency/EconomyService.cpp:276-296` |
-| ER-33 | A Generic or Resonator with no gear can't enter a fight (a gearless party member is left out); a Refractor can. The dismantle warning says so. | Decided, not built (B-084) | `D-016` |
+| ER-32 | Dismantling an equipped weapon or ring asks first ("This is equipped in loadout N. Dismantle anyway? You'll lose its upgrades."), then removes it from every saved loadout and dismantles it. A Resonator's ring slot is removed and the ring that was active stays active (or the next one, if it was the active one) (Q-084). Not during a fight. | In game (B-084) | `D-016`; `Q-084`; `UEconomyService::GetDismantleWarning`, `UInventoryComponent::RemoveFromSavedLoadouts` |
+| ER-33 | A Generic or Resonator with no gear can't enter a fight (a gearless party member is left out); a Refractor can. The dismantle warning says so when the active loadout would be left with no gear (Q-084). | In game (B-084) | `D-016`; `Q-084` |
 
 ## Crystal wear and repair between fights
 | # | Rule | Status | Source |

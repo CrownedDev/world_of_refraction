@@ -102,6 +102,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Economy")
     bool DismantleRing(AActor *Owner, FGuid PersistentID);
 
+    /** D-016: the confirm text to show before dismantling an EQUIPPED weapon or ring: which
+     *  loadouts hold it, that its upgrades are lost, and (non-Caster) that the character can't
+     *  fight when the active loadout is left with no gear. Empty when no loadout holds it, so the
+     *  caller can dismantle without asking. DismantleWeapon / DismantleRing take it out of every
+     *  loadout themselves. */
+    UFUNCTION(BlueprintPure, Category = "Economy")
+    static FText GetDismantleWarning(const AActor *Owner, FGuid PersistentID);
+
     /**
      * Dismantle the owned EVOLUTION instance by InstanceID (NOT PersistentID — evolution identity).
      * HYBRID yield: the evolution's ELEMENT essence TYPE (GetAssociatedElement → ElementToEssenceType)
