@@ -24,6 +24,7 @@
 
 class UCharacterData;
 class UCombatResultsWidget;
+class UFightTriggers;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API ABattleGameMode : public AGameModeBase
@@ -120,6 +121,10 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UCombatResultsWidget> ResultsWidget;
+
+    /** Per fight (D-064, B-212): reactions and boss triggers waiting for their mid-fight moment. */
+    UPROPERTY(Transient)
+    TObjectPtr<UFightTriggers> FightTriggers;
 
     /** Orchestrator spawned by BootstrapCombat; source of OnCombatResultReady. */
     TWeakObjectPtr<ACombatOrchestrator> Orchestrator;

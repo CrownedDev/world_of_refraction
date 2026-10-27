@@ -137,7 +137,8 @@ FString UBossData::GetTriggerString(const FBossTrigger &Trigger)
 	{
 		Results.Add(UEnum::GetDisplayValueAsText(Result).ToString());
 	}
-	return FString::Printf(TEXT("Trigger %s: when [%s] -> [%s]%s"), *Trigger.TriggerId.ToString(), *FString::Join(Conditions, TEXT(" and ")),
+	return FString::Printf(TEXT("Trigger %s: when [%s], at %s -> [%s]%s"), *Trigger.TriggerId.ToString(),
+						   *FString::Join(Conditions, TEXT(" and ")), *Trigger.When.ToString(),
 						   *FString::Join(Results, TEXT(", ")),
 						   Trigger.DialogueId.IsNone() ? TEXT("") : *FString::Printf(TEXT(", dialogue %s"), *Trigger.DialogueId.ToString()));
 }

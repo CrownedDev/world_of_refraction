@@ -1,7 +1,7 @@
 // ReactionTrigger.h
 // B-191 (RunStructure §5, D-032, Q-191): one structure for every reaction: if a party member wears
 // all of these items while facing this character, trigger effects, a quest, a dialogue. Checked
-// at encounter start (ABattleGameMode). Effects are ordinary FSkillEffects (the effects condition
+// at encounter start (ABattleGameMode); since B-212 it fires then or at its When (UFightTriggers). Effects are ordinary FSkillEffects (the effects condition
 // model, B-044 / D-031): a payload aimed at Enemy lands on the faced character, any other on the
 // wearer. Boss changes come from each boss's own triggers since B-211 (BossTriggers).
 // Debug: wor.Reaction.Print.
@@ -10,6 +10,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Reaction/FightMoment.h"
 #include "Skills/Effects/FSkillEffect.h"
 #include "ReactionTrigger.generated.h"
 
@@ -32,6 +33,10 @@ struct WORLD_OF_REFRACTION_API FReactionTrigger
 	/** In the opposing team. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reaction")
 	TObjectPtr<UCharacterData> FacingCharacter = nullptr;
+
+	/** B-212 (Q-212): when it fires; who matches is still decided at fight start. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reaction")
+	FFightMoment When;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reaction")
 	TArray<FSkillEffect> Effects;
@@ -103,9 +108,10 @@ namespace ReactionTriggers
 
 	/** NetSteps (weaken -1, strengthen +1 each; capped) on Boss's max HP and damage, before the
 	 *  fight: it starts at its new full HP. False when nothing changed. Shared by memory boss
-	 *  changes and boss triggers (B-211). Call once per boss per fight: a second call refreshes the
-	 *  same effects instead of adding to them. */
-	bool ApplyBossSteps(AActor *Boss, int32 NetSteps);
+	 *  changes and boss triggers (B-211). A second call refreshes the same effects instead of adding
+	 *  to them: pass the fight's whole net. Mid-fight (B-212, Q-212) the boss keeps its share of HP,
+	 *  and a net of 0 takes the change off. */
+	bool ApplyBossSteps(AActor *Boss, int32 NetSteps, bool bBeforeFight = true);
 
 	FString GetTriggerString(const FReactionTrigger &Trigger);
 }

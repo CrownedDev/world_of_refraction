@@ -24,6 +24,7 @@
 #include "Combat/Boss/BossTriggers.h"
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryUnlock.h"
+#include "Reaction/FightTriggers.h"
 #include "Reaction/ReactionTrigger.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
@@ -268,9 +269,10 @@ void ABattleGameMode::BootstrapCombat()
            *TrialGate::GetDifficultyName(TrialRun->GetTrialDifficulty()).ToString(), Zone.Tier, EnemyStrength);
 
     // B-191: reactions (worn items facing a character) and the bosses' own triggers change the
-    // fight before it starts.
+    // fight before it starts; B-212: those with a mid-fight When wait in FightTriggers.
     const TArray<FReactionTrigger> Reactions = ReactionTriggers::GatherTriggers();
-    const TArray<FFiredReaction> Fired = ReactionTriggers::FindFired(Reactions, LocalParty, OpposingParty);
+    FightTriggers = NewObject<UFightTriggers>(this);
+    const TArray<FFiredReaction> Fired = FightTriggers->StartReactions(Reactions, LocalParty, OpposingParty);
     const int32 ReactionEffects = ReactionTriggers::ApplyFired(Fired);
     // B-209: fired reactions and worn bound gear whose conditions hold unlock their memories (since
     // B-211 memories no longer change bosses).
@@ -290,7 +292,7 @@ void ABattleGameMode::BootstrapCombat()
     }
 
     // B-211 (D-100 part 1): each boss's own triggers change it; memories no longer do.
-    const int32 BossTriggersFired = BossTriggers::Apply(LocalParty, OpposingParty);
+    const int32 BossTriggersFired = FightTriggers->StartBosses(LocalParty, OpposingParty);
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Reactions: %d of %d fired (%d effects); boss triggers fired: %d"),
            Fired.Num(), Reactions.Num(), ReactionEffects, BossTriggersFired);
 
@@ -309,6 +311,7 @@ void ABattleGameMode::BootstrapCombat()
     }
     FightUsage.Reset();
     WatchFightUsage(true);
+    FightTriggers->Watch(true);
     SpawnedOrchestrator->StartCombat(LocalParty, OpposingParty, TrialRun->GetPendingDifficulty());
 }
 
@@ -401,6 +404,10 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
         Orchestrator->OnCombatResultReady.RemoveDynamic(this, &ABattleGameMode::HandleCombatEnd);
     }
     WatchFightUsage(false);
+    if (FightTriggers)
+    {
+        FightTriggers->Watch(false);
+    }
 
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Combat ended (%s, %d turns)"),
            *UEnum::GetValueAsString(Result.FinalState), Result.TotalTurns);
@@ -552,6 +559,10 @@ void ABattleGameMode::WatchFightUsage(bool bWatch)
 void ABattleGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     WatchFightUsage(false);
+    if (FightTriggers)
+    {
+        FightTriggers->Watch(false);
+    }
     Super::EndPlay(EndPlayReason);
 }
 
