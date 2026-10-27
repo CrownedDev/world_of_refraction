@@ -960,12 +960,14 @@ void ACombatOrchestrator::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Turn %d started: %s"),
 		   TurnNumber, *Actor->GetName());
 
-	// W-B: an Execution turn carries a scheduled ritual fire — it is the ONLY thing
-	// that happens this turn (no start-of-turn effects, no action request). Every
-	// other turn kind (Normal / Bonus) runs the ordinary flow. The countdown that
-	// decides WHEN this fires now lives in TurnManager (delay burns on Normal turns).
+	// W-B: an Execution turn carries a scheduled ritual fire instead of an action request.
+	// Q-044d (B-225): it is still one of the caster's turns, so the turn-start step runs first
+	// (spans end, payouts land); FireScheduledExecution skips the fire if that step killed the
+	// caster. Every other turn kind (Normal / Bonus) runs the ordinary flow. The countdown that
+	// decides WHEN this fires lives in TurnManager (delay burns on Normal turns).
 	if (TurnManagerRef && TurnManagerRef->GetCurrentTurnType() == ETurnType::Execution)
 	{
+		ProcessStartOfTurnEffects(CurrentActor);
 		FireScheduledExecution();
 		return;
 	}

@@ -536,6 +536,17 @@ private:
 	/** Apply the actual effect logic (damage, heal, stat mod, etc.) */
 	void ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Effect);
 
+	/** The one timing rule (B-225; D-051, Q-044c, Q-063) on a timed effect about to be stored on Target:
+	 *  it counts Target's own turns (FTurnSpan) and a payout (IsPayoutType on a turn window) pays at
+	 *  Target's turn start, exactly N times: on landing only when it lands on Target's own turn. */
+	void ApplyTimingRule(const AActor *Target, FActiveSkillEffect &Effect) const;
+
+	/** A combat is running and it is Target's turn. */
+	bool IsHoldersOwnTurn(const AActor *Target) const;
+
+	/** Types whose windowed logic pays something out each run (damage, heal, energy). */
+	static bool IsPayoutType(ESkillEffectType EffectType);
+
 	/** Check if a trigger condition is met (handles compound primary + secondary).
 	 *  Target is the owner's target for target-side condition subjects (null → target-side
 	 *  subjects are skipped, the pre-C2a behaviour). */
