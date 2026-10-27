@@ -1753,7 +1753,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** The items may be spread across the party.
 - **C** Checked every turn, so a mid-fight swap can start or stop a reaction.
 **Recommendation:** A. Elden Ring and Dark Souls tie special boss dialogue and outcomes to what one character carries or wears (e.g. Ranni's ring, the Covenant items), and players like finding those hidden links; Persona and Fire Emblem's special battle conversations fire once at the start of a fight. One wearer keeps bound-gear stories (D-033) about one lord; a start-of-fight check keeps it predictable and cheap. Not lore (which items and characters to link is Crown's).
-**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it. **Changed by Crown (2026-10-27): reactions can also fire mid-fight**, at any trigger the effect system has (a turn start, a hit, an HP threshold for either side, a boss phase change), still **at most once per fight** each. Boss triggers (D-100) use the same timing.
 **Notes for Claude:** applied (feature/B-191-reaction-triggers): `FReactionTrigger`, `UReactionTriggerData`, `ReactionTriggers::FindFired` / `ApplyFired` / `ApplyMemoryBossModifiers`, called by `ABattleGameMode` before `StartCombat`. B-193 hooks phase changes into the same place.
 
 ### Q-190 — What does a memory fragment hold, and when is it kept?
