@@ -2169,6 +2169,19 @@ bool USkillEffectManager::HasEffectOfType(AActor *Actor, ESkillEffectType Effect
 	return false;
 }
 
+bool USkillEffectManager::IsConditionHeld(const FSkillCondition &Condition, AActor *Owner, AActor *Target) const
+{
+	// The runtime skips a target-side check when there is no target, so it never blocks.
+	if (!IsOwnerSide(Condition.Subject) && !Target)
+	{
+		return true;
+	}
+	const TArray<AActor *> Subjects = ResolveSubjectActors(Condition.Subject, Owner, Target);
+	return Subjects.ContainsByPredicate([&](AActor *A) {
+		return IsSingleTriggerMet(A, Condition.Trigger, Condition.Threshold);
+	});
+}
+
 FGameplayTagContainer USkillEffectManager::GetEffectTags(AActor *Actor) const
 {
 	FGameplayTagContainer Tags;

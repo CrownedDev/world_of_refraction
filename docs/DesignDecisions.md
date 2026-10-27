@@ -1928,6 +1928,22 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-149-formation-cells): `ACombatOrchestrator::GetPlaceholderEnemyStartRow`. Authored enemy cells replace it later.
 
+### Q-045 — How this game's triggers, conditions and effects read as text
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-045) · **Blocks:** — (B-045 shipped with A)
+**Question:** D-031 takes the deckbuilder's nested text. This game's effect data differs: its triggers and HP/Energy checks sit in one list joined by AND/OR, it has its own effect kinds (immunities, row moves, buildup, reflect...), and its skills have no card opener. How do those read?
+**Options:**
+- **A** (built), read exactly as the game evaluates them (all AND entries, and one of the OR entries):
+  - Headings: your own event named ("On Hit"), another side's as a sentence ("When a Team Member takes damage"). Every AND event, then the either-or set: "On Critical Hit and either On Hit or On Dodge". A lone OR entry must hold, so it reads "and". An either-or set mixing an event and an HP/Energy check is one heading: "On Hit or while your HP is below 30%".
+  - Each AND HP/Energy check is its own "While ..." level; all OR checks share one level ("While your HP is below 30% or your Energy is below 20%"). Thresholds print as percents.
+  - An untriggered effect sits under **Passive** on gear and **Activate** on a skill (the deckbuilder's active-block word); Activate comes first and Passive last, as in the deckbuilder.
+  - The deckbuilder's verbs where one exists (gain / lose / give, deal / take damage, heal, negate, reflect, drain); plain verbs for the rest ("become immune to Fire for 2 turns", "push an Enemy back one row", "add 10 Fire buildup to an Enemy").
+  - What the effect really does: Skip Turn reads "delay an Enemy's next turn" (Wind's break pushes it back, D-014); Extra Action reads "take an extra turn" (one per use); a positive Energy Cost change reads "your Refractions and Abilities cost 20% less" (the cost change applies to both) and lights as a buff (the type's debuff classification is left as is). Gear that applies Skip Turn directly doesn't delay a turn yet; only Wind's break does. Flagged as a TODO in `docs/Architecture/EffectText.md`.
+  - Stats keep this game's stat names ("Spell Damage", not the deckbuilder's "Refraction Damage"); spells are "Refractions" in sentences ("When you cast a Refraction"), as the deckbuilder names them; a Generic element reads "Elemental" (it takes the caster's element); a Double target reads "2 Enemies".
+- **B** write a custom sentence per item.
+**Recommendation:** A. Generated text that cannot drift is D-031's point; Slay the Spire and Hearthstone template every card from its data the same way, and players read the shared verbs at a glance. Mirroring the AND/OR evaluation keeps the text truthful. Not lore. New player-facing words in it ("Team Member", "the attacked Enemy", "Passive", "Activate") are the deckbuilder's.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change any word: they are `LOCTEXT` entries in `Private/Skills/Effects/EffectText.cpp`.
+**Notes for Claude:** applied (feature/B-045-effect-text). `docs/Architecture/EffectText.md`.
+
 ### Q-042 — Build GAS stage 3 now, or after the B-145 / B-146 plans?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-042) · **Blocks:** B-042 (until B-145 and B-146 are approved)
 **Question:** B-042 (GAS stage 3: effects on GameplayEffects, the getters reading attributes) became pickable when B-134 landed. B-145 (resistance) and B-146 (all stat maths) are plan jobs whose results are to be folded into B-041 to B-043: one Execution Calculation for damage and buildup, every bonus a modifier, constants in data tables. Build stage 3 first, or wait for those plans?
