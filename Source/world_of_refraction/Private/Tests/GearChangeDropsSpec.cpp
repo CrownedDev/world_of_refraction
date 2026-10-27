@@ -129,6 +129,24 @@ void FGearChangeDropsSpec::Define()
 				 Recorder->Messages.Num() > 0 && Recorder->Messages[0].ToString().Contains(TEXT("Fire Bolt")));
 	});
 
+	It("leaves what the change didn't break, and loadouts without the sword", [this]()
+	{
+		if (!Inventory || !SwordId.IsValid()) return;
+		AssignFireBoltInBothLoadouts();
+		USpellData *Unlearned = NewObject<USpellData>(GetTransientPackage());
+		Unlearned->Name = TEXT("Unlearned");
+		Inventory->SavedLoadouts[0].InnateSpells = {Unlearned};
+		FCombatLoadout Bare;
+		Bare.PrimaryWeapon.AssignedSpells = {FireBolt};
+		const int32 BareIndex = Inventory->SavedLoadouts.Add(Bare);
+
+		TestTrue(TEXT("Fire gem off"), Inventory->RemoveCrystalFromWeapon(0));
+		TestFalse(TEXT("Fire Bolt dropped where the sword is"), HoldsFireBolt(0));
+		TestTrue(TEXT("An unrelated problem waits for the pre-fight clean"),
+				 Inventory->SavedLoadouts[0].InnateSpells.Contains(Unlearned));
+		TestTrue(TEXT("A loadout without the sword is untouched"), HoldsFireBolt(BareIndex));
+	});
+
 	It("drops a spell the swapped-in crystal's element doesn't power", [this]()
 	{
 		if (!Inventory || !SwordId.IsValid()) return;

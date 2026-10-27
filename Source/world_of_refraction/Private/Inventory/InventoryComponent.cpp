@@ -430,7 +430,10 @@ bool UInventoryComponent::RemoveCrystalFromGear(TArray<TEntry> &Gear, int32 Inde
         CrystalEffectTable::GetAttachedStonePercent(Gear[Index].AttachedItem, ESubStat::TurnSpeed) > 0.0f;
 
     Gear[Index].RemoveCrystal();
-    HandleGearSocketChanged(Gear[Index].PersistentID);
+    if (bHadAttachment)
+    {
+        HandleGearSocketChanged(Gear[Index].PersistentID);
+    }
 
     // Notify TurnManager so the stone factor re-reads for this actor.
     // Out-of-combat / pre-combat case: actor isn't in Combatants, the loop in

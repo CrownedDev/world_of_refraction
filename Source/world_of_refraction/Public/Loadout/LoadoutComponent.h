@@ -243,8 +243,9 @@ public:
     /** Drops every clearable finding from the saved loadout at Index (D-081: parts a change
      *  broke are dropped). Mutates Inv->SavedLoadouts[Index] in place (the live runtime
      *  FCombatLoadout). Single-pass: validate once, clear once; a clear that exposes a new
-     *  invalidity persists until the next validation. Returns what was dropped. */
-    TArray<FInvalidSlotFinding> DropInvalidParts(int32 Index);
+     *  invalidity persists until the next validation. Returns what was dropped. With
+     *  OnlySlotTypes, only findings of those types are dropped (B-171: what a gear change breaks). */
+    TArray<FInvalidSlotFinding> DropInvalidParts(int32 Index, const TArray<ELoadoutSlotType> &OnlySlotTypes = TArray<ELoadoutSlotType>());
 
     /** DropInvalidParts on every saved loadout, announcing each drop (B-159: run after a load). */
     UFUNCTION(BlueprintCallable, Category = "Loadout")
