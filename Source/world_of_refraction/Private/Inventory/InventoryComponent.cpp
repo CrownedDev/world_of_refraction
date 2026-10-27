@@ -1331,6 +1331,17 @@ bool UInventoryComponent::DrawSharedGear()
     SharedPool = Pool;
     SharedGearKey = Key;
     Pool->OnPoolGearChanged.AddUniqueDynamic(this, &UInventoryComponent::HandlePoolGearChanged);
+    // B-203 (D-097): the party carries one set of items; a member's starting items go in once.
+    if (UCrystalInventoryComponent *CrystalInv = GetOwner()->FindComponentByClass<UCrystalInventoryComponent>())
+    {
+        if (!bRunOnly && !Pool->HasBankedItems(Key))
+        {
+            TMap<FCrystalId, int32> StartingItems = CrystalInv->Crystals;
+            StartingItems.Append(CrystalInv->Stones);
+            Pool->BankStartingItems(Key, StartingItems);
+        }
+        CrystalInv->BindSharedItems(Pool);
+    }
     ClaimActiveSharedGear();
 
     UE_LOG(LogTemp, Log, TEXT("[Inventory] %s draws the shared armoury: %d weapon(s), %d ring(s), %d evolution(s); %d preset slot(s) emptied"),

@@ -22,6 +22,11 @@
 // Identity by (Type, Tier) is sufficient because refined/item crystals are
 // fungible — two refined Garnet (F) crystals are interchangeable. Per-attachment
 // durability lives on the holder, not here.
+//
+// B-203 (D-097): a party member's component SHARES the party's carried items once bound
+// (BindSharedItems, at spawn). Its two pools then mirror UPoolSubsystem's carried slots;
+// AddCount carries what fits and stores the rest (so it never fails for space), RemoveCount
+// takes from the carried slots. Unbound components (enemies, tests) keep their own counts.
 
 #pragma once
 
@@ -30,6 +35,8 @@
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Inventory/ItemTier.h"
 #include "CrystalInventoryComponent.generated.h"
+
+class UPoolSubsystem;
 
 UCLASS(ClassGroup = (Inventory), meta = (BlueprintSpawnableComponent))
 class WORLD_OF_REFRACTION_API UCrystalInventoryComponent : public UActorComponent
@@ -98,7 +105,24 @@ public:
     UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
     bool CanAddCount(FCrystalId Id, int32 Count = 1) const;
 
+    // ==================== SHARED CARRIED ITEMS (B-203) ====================
+
+    /** Mirror the party's carried items from now on; changes go to Pool. ClearAll unbinds. */
+    void BindSharedItems(UPoolSubsystem *Pool);
+
+    bool IsSharingItems() const { return SharedPool.IsValid(); }
+
+protected:
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 private:
+    UFUNCTION()
+    void HandlePoolItemsChanged();
+
+    void UnbindSharedItems();
+
+    TWeakObjectPtr<UPoolSubsystem> SharedPool;
+
     // ==================== POOL DISPATCH ====================
     // Select the pool for a Type by the gem/stone axis (IsGemType): gem → Crystals,
     // stone → Stones. One dispatch, in one place — the item/refined axis is gone.
