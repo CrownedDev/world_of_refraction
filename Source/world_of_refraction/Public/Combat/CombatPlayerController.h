@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "InputActionValue.h"
+#include "UI/Combat/PieMenuButtonData.h"
 #include "CombatPlayerController.generated.h"
 
 class UInputMappingContext;
@@ -48,18 +49,25 @@ protected:
 	TObjectPtr<UInputAction> DodgeRightAction;
 
 	// ========================================
-	// INFUSION INPUT — PLACEHOLDERS (not implemented)
+	// MENU KEYS (B-093, Q-093) — built in code, fixed keys (D-063)
 	// ========================================
-	// TODO: Infusion input — charge/select the infusion source. Will hook the
-	//   infusion system. The live command menu drives infusion via
-	//   UInfusionVFXComponent::CycleInfusionLevel; the controller-side mechanic
-	//   (hold-to-charge via UInfusionChargeManager vs. cycle) is TBD by Crown.
-	// UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Infusion")
-	// TObjectPtr<UInputAction> InfusionAction;
-	//
-	// TODO: Infusion level input — cycle/select the infusion level.
-	// UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Infusion")
-	// TObjectPtr<UInputAction> InfusionLevelAction;
+	// Defend, the infusion source and the infusion level press the command menu's own
+	// buttons (UCombatCommandMenuSubsystem::PressMenuKey), so they follow the menu's rules.
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputMappingContext> MenuKeysContext;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> DefendAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> InfusionAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> InfusionLevelAction;
+
+	/** Creates the menu-key actions and their mapping context once. */
+	void BuildMenuKeys();
 
 	// ========================================
 	// DEFENSE INPUT HANDLERS
@@ -70,9 +78,18 @@ protected:
 	void OnDodgeLeft(const FInputActionValue &Value);
 	void OnDodgeRight(const FInputActionValue &Value);
 
-	// TODO: Infusion handlers (commented until the infusion mechanic is decided):
-	// void OnInfusion(const FInputActionValue &Value);
-	// void OnInfusionLevel(const FInputActionValue &Value);
+	void OnDefend(const FInputActionValue &Value);
+	void OnInfusion(const FInputActionValue &Value);
+	void OnInfusionLevel(const FInputActionValue &Value);
+
+	/** Routes a menu key to the command menu; only the local player's keys count. */
+	void PressMenuKey(EPieMenuCategory Category);
+
+public:
+	/** Debug: each menu key's action, keyboard key and gamepad button. */
+	static FString GetMenuKeysString();
+
+protected:
 
 	// ========================================
 	// HELPERS
