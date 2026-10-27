@@ -108,6 +108,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-178](B-178.md) | `feature/B-178-run-repair` (in `dev`) | Paid gear repair in a run; the run's Gold carries between levels | Not tested |
 | [B-093](B-093.md) | `feature/B-093-menu-keys` (in `dev`) | Keys for Defend and infusion (keyboard + gamepad) | Not tested |
 | [B-209](B-209.md) | `feature/B-209-memory-sources` (in `dev`) | Memories from bosses, reactions, map spots and bound gear | Not tested |
+| [B-032](B-032.md) | `refactor/B-032-one-hit-path` (in `dev`) | One hit path: same damage, defense and reflect as before | Not tested |
 | [B-080](B-080.md) | `fix/B-080-skill-damage-type` (in `dev`) | An infused ability deals its source's element (Generic + fire crystal = Fire) | Not tested |
 | [B-064b](B-064b.md) | `feature/B-064b-dot-element-resistance` (in `dev`) | Element resistance also cuts elemental DoT ticks | Not tested |
 | [B-064](B-064.md) | `feature/B-064-element-damage-resistance` (in `dev`) | Element resistance changes elemental damage (+-50% cap) | Not tested |

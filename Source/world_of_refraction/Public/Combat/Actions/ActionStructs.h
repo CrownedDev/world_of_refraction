@@ -550,9 +550,9 @@ struct WORLD_OF_REFRACTION_API FCombatHitResult
  * ApplyHit consolidation; see docs/analysis/Codebase_Analysis_Pass2_ApplyConsolidation.md).
  *
  * Single-hit by contract. For multi-hit attacks, BaseDamage is the already-split
- * per-hit value; the orchestrator's ProcessMultiHit loop calls ApplyHit N times
- * with the same input. Per-hit-independent crit and death-break semantics live
- * in the loop.
+ * per-hit value; the per-impact defense path (ResolveImpactDefense -> ApplyOneImpact)
+ * calls ApplyHit once per impact. Per-hit-independent crit and death-break semantics
+ * live there.
  *
  * Population rules per orchestrator (Session Y: trigger type resolves in
  * UStatusBuildupManager from Element + PhysicalDamageType — no StatusType is
