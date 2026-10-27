@@ -12,7 +12,6 @@
 #include "WoRTestWorld.h"
 #include "Currency/CurrencyComponent.h"
 #include "Currency/EconomyService.h"
-#include "Currency/EconomyYield.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -119,7 +118,8 @@ void FEconomyRoundTripSpec::Define()
 		Wallet->Add(ECurrencyType::Prisms, ECONOMY_TRIP_CART_PRISMS - ECONOMY_TRIP_SHORT);
 		TestFalse(TEXT("Short by one: refused"), Economy->Purchase(Owner, Cart()));
 		TestEqual(TEXT("Nothing spent"), Wallet->GetBalance(ECurrencyType::Prisms), ECONOMY_TRIP_CART_PRISMS - ECONOMY_TRIP_SHORT);
-		TestEqual(TEXT("Nothing given"), Inventory->Weapons.Num(), 0);
+		TestEqual(TEXT("No weapon given"), Inventory->Weapons.Num(), 0);
+		TestEqual(TEXT("No gems given"), Owner->FindComponentByClass<UCrystalInventoryComponent>()->GetCount(ECONOMY_TRIP_GEM), 0);
 
 		Wallet->Add(ECurrencyType::Prisms, ECONOMY_TRIP_SHORT);
 		TestTrue(TEXT("Exact: bought"), Economy->Purchase(Owner, Cart()));
@@ -148,6 +148,8 @@ void FEconomyRoundTripSpec::Define()
 		TestEqual(TEXT("Half the Gear essence back"), Wallet->GetGearEssence(), ECONOMY_TRIP_REVERT_REFUND);
 		TestEqual(TEXT("No Reality back"), Wallet->GetEssenceType(EEssenceType::Reality), 0);
 		TestFalse(TEXT("Never below the authored tier"), Economy->DowngradeWeapon(Owner, Id));
+		TestEqual(TEXT("The refused revert refunds nothing"), Wallet->GetGearEssence(), ECONOMY_TRIP_REVERT_REFUND);
+		TestEqual(TEXT("and leaves the tier"), Inventory->Weapons.Last().Tier, ECONOMY_TRIP_WEAPON_TIER);
 	});
 
 	It("refuses a level-up it can't fully pay for, and spends nothing", [this]()
@@ -160,6 +162,12 @@ void FEconomyRoundTripSpec::Define()
 		TestFalse(TEXT("No Reality: refused"), Economy->LevelUpWeapon(Owner, Id));
 		TestEqual(TEXT("Gear essence kept"), Wallet->GetGearEssence(), ECONOMY_TRIP_STEP_GEAR);
 		TestEqual(TEXT("Tier unchanged"), Inventory->Weapons.Last().Tier, ECONOMY_TRIP_WEAPON_TIER);
+
+		Wallet->SpendGearEssence(ECONOMY_TRIP_STEP_GEAR);
+		Wallet->AddEssenceType(EEssenceType::Reality, ECONOMY_TRIP_STEP_REALITY);
+		TestFalse(TEXT("No Gear essence: refused"), Economy->LevelUpWeapon(Owner, Id));
+		TestEqual(TEXT("Reality kept"), Wallet->GetEssenceType(EEssenceType::Reality), ECONOMY_TRIP_STEP_REALITY);
+		TestEqual(TEXT("Tier still unchanged"), Inventory->Weapons.Last().Tier, ECONOMY_TRIP_WEAPON_TIER);
 	});
 
 	It("pays a weapon's dismantle by its levelled tier, and a crystal's by type and count", [this]()
@@ -174,9 +182,8 @@ void FEconomyRoundTripSpec::Define()
 
 		Inventory->AddCrystal(ECONOMY_TRIP_GEM, ECONOMY_TRIP_GEM_COUNT);
 		TestTrue(TEXT("Gems dismantled"), Economy->DismantleCrystal(Owner, ECONOMY_TRIP_GEM, ECONOMY_TRIP_GEM_COUNT));
-		TestEqual(TEXT("Typed essence per gem"),
-				  Wallet->GetEssenceType(EconomyYield::ResolveEssenceType(ECONOMY_TRIP_GEM)),
-				  ECONOMY_TRIP_GEMS_YIELD);
+		TestEqual(TEXT("A Garnet pays Fire essence"), Wallet->GetEssenceType(EEssenceType::Fire), ECONOMY_TRIP_GEMS_YIELD);
+		TestEqual(TEXT("and no Generic essence"), Wallet->GetEssenceType(EEssenceType::Generic), 0);
 		TestFalse(TEXT("None left to dismantle"), Economy->DismantleCrystal(Owner, ECONOMY_TRIP_GEM, ECONOMY_TRIP_GEM_COUNT));
 	});
 }
