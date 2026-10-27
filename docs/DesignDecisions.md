@@ -1482,6 +1482,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - Head-start (up to 4, per character) and the run-end reset stay.
 **Notes for Claude:** reuse `AddEarnedWorldStat`; drop chance and mini-boss counts as tuning rows (`UCombatTuningData`, `// TODO: tune`); a placeholder C++ "choose a pillar" prompt (Backlog rule 4). Retire the pool / draft path (`PendingWorldStatPool`, `OnWorldStatDraftReady`) flagged obsolete until PIE. Also: nothing resets world stats at run end yet (rules 05 note), add it.
 
+### D-103 — Co-op online: hosting and when to build it
+**Status:** ANSWERED in part (2026-10-27; more parts asked one at a time) · **Raised:** 2026-10-27 (Crown) · **Blocks:** —
+**Answer (Crown):** (2026-10-27)
+- **Co-op plumbing starts now**, not after the new HUD (**changes D-065**): the network infrastructure (travel, replication, input RPCs, state ownership) doesn't need B-105; today's HUD and placeholder screens read the shared state. Order: `Design/CoopStateOwnership.md` "Suggested order".
+- **Hosting: A, one player hosts** (listen server; Nightreign and most co-op indies): the host runs the run, friends connect; no servers to pay for.
+- Already decided: invites by menus in the hub and **at rest spots** in a trial; players within the party radius join a fight (D-003); hidden memories per qualifying player (D-100); one wallet per player (D-046).
+**Notes for Claude:** open parts: online service (Steam / EOS), party make-up in co-op, join mid-run and host leaving, rewards.
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
