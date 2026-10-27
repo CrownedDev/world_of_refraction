@@ -4,7 +4,7 @@
 // damage execution (B-042) will fill the same struct from attributes. Compute runs the steps of
 // UDamageCalculator::CalculateDamage in the same order with the same rounding, the Pattern P
 // stat-cap correction included.
-// Debug: WoRDamageMath::GetInputsString; UDamageMathDebug (wor.PrintDamageMath).
+// Debug: WoRDamageMath::GetInputsString; UDamageMathDebug::PrintDamageMath.
 
 #pragma once
 
