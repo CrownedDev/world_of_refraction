@@ -25,6 +25,8 @@
 UCharacterDataComponent::UCharacterDataComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
+    // B-131: HP / EP / alive / Broken Darkness and the max pools reach the clients (co-op, D-103).
+    SetIsReplicatedByDefault(true);
 
     CurrentHP = 100;
     CurrentEP = 100;
@@ -213,6 +215,8 @@ void UCharacterDataComponent::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 
     DOREPLIFETIME(UCharacterDataComponent, CurrentHP);
     DOREPLIFETIME(UCharacterDataComponent, CurrentEP);
+    DOREPLIFETIME(UCharacterDataComponent, MaxHP);
+    DOREPLIFETIME(UCharacterDataComponent, MaxEP);
     DOREPLIFETIME(UCharacterDataComponent, bIsAlive);
     DOREPLIFETIME(UCharacterDataComponent, bIsBrokenDarkness);
 }
