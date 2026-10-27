@@ -32,6 +32,7 @@ namespace
 	constexpr int32 BUILDUP_TEST_IMMUNITY_ID = 9502;
 	constexpr int32 BUILDUP_TEST_STUN_IMMUNITY_ID = 9503;
 	constexpr int32 BUILDUP_TEST_DOT_ID = 9504;
+	constexpr int32 BUILDUP_TEST_FIRE_IMMUNITY_ID = 9505;
 	constexpr float BUILDUP_TEST_DOT_DAMAGE = 1.0f;
 	constexpr float BUILDUP_TEST_PER_TICK = 10.0f;
 	constexpr int32 BUILDUP_TEST_DURATION_TURNS = 3;
@@ -210,6 +211,17 @@ void FStatusBuildupSpec::DefineCases()
 		Hit(BUILDUP_TEST_HIT, ESpellElement::Fire);
 		TestNearlyEqual(TEXT("A Fire hit still lands"), Buildup->GetStatusBarBuildup(Target), Landed(BUILDUP_TEST_HIT, ESpellElement::Fire),
 						BUILDUP_TEST_TOLERANCE);
+	});
+
+	It("blocks a hit of an element the target is immune to, and only that element", [this]()
+	{
+		if (!Buildup) return;
+		GiveEffect(BUILDUP_TEST_FIRE_IMMUNITY_ID, ESkillEffectType::GrantFireImmunity, 0.0f, ESpellElement::None);
+		TestFalse(TEXT("A Fire hit is absorbed"), Hit(BUILDUP_TEST_HIT, ESpellElement::Fire));
+		TestNearlyEqual(TEXT("Bar untouched"), Buildup->GetStatusBarBuildup(Target), 0.0f, BUILDUP_TEST_TOLERANCE);
+		Hit(BUILDUP_TEST_HIT, ESpellElement::Lightning);
+		TestNearlyEqual(TEXT("A Lightning hit still lands"), Buildup->GetStatusBarBuildup(Target),
+						Landed(BUILDUP_TEST_HIT, ESpellElement::Lightning), BUILDUP_TEST_TOLERANCE);
 	});
 
 	It("fills the bar at each tick of a DOT that builds status", [this]()
