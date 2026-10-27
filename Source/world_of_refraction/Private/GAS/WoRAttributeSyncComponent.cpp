@@ -31,6 +31,8 @@ namespace
 	}
 
 	constexpr float STAT_SOURCES_EFFECT_LEVEL = 1.0f;
+	/** Efficiency's derived base: the full cost multiplier before its reduction. */
+	constexpr float EFFICIENCY_FULL_COST = 1.0f;
 
 	bool SameLayers(const FWoRStatLayers &A, const FWoRStatLayers &B)
 	{
@@ -114,6 +116,7 @@ TArray<FWoRAttributeSourceValue> UWoRAttributeSyncComponent::ReadSourceValues(co
 	Add(UWoRAttributeSet_Stats::GetBodyAttribute(), Char->GetEvolutionModifiedBody());
 	Add(UWoRAttributeSet_Stats::GetSpiritAttribute(), Char->GetEvolutionModifiedSpirit());
 	Add(UWoRAttributeSet_Stats::GetEfficiencyAttribute(), Char->GetEffectiveEfficiencyMultiplier());
+	Add(UWoRAttributeSet_Stats::GetEfficiencyReductionAttribute(), Char->GetEffectiveEfficiencyReduction());
 	Add(UWoRAttributeSet_Stats::GetSpellDamageAttribute(), Char->GetEffectiveSpellDamage());
 	Add(UWoRAttributeSet_Stats::GetStatusMultiplierAttribute(), Char->GetEffectiveStatusMultiplier());
 	Add(UWoRAttributeSet_Stats::GetSpellSpeedAttribute(), Char->GetEffectiveSpellSpeed());
@@ -173,8 +176,54 @@ void UWoRAttributeSyncComponent::SyncAttributes()
 		{
 			RemoveStatSources(*ASC, Stat);
 		}
+		if (const TSubclassOf<UGameplayEffect> DerivedClass = UWoRGE_DerivedStat::GetClassFor(Source.Attribute))
+		{
+			SyncDerivedStat(*ASC, Source.Attribute, DerivedClass);
+			continue;
+		}
 		ASC->SetNumericAttributeBase(Source.Attribute, Source.Value);
 	}
+}
+
+void UWoRAttributeSyncComponent::SyncDerivedStat(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute,
+												 TSubclassOf<UGameplayEffect> DerivedClass)
+{
+	// Crit chance = (CRIT_CHANCE_BASE + Luck x bonus) x buff layer; Efficiency = 1 - EfficiencyReduction.
+	// Without CharacterData GetCriticalChance skips the buff layer, so the GAS one stays at 1.
+	const bool bCritChance = Attribute == UWoRAttributeSet_Stats::GetCritChanceAttribute();
+	ASC.SetNumericAttributeBase(Attribute, bCritChance ? CombatConstants::CRIT_CHANCE_BASE : EFFICIENCY_FULL_COST);
+	float Transient = 1.0f;
+	const UCharacterDataComponent *Char = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+	const UDamageCalculator *Calc = AttributeSyncSubsystem<UDamageCalculator>(this);
+	if (bCritChance && Calc && Char && Char->CharacterData)
+	{
+		Transient = Calc->GetCritChanceTransientFactor(GetOwner());
+	}
+
+	FWoRAppliedDerivedStat &Applied = AppliedDerivedStats.FindOrAdd(Attribute);
+	if (ASC.GetActiveGameplayEffect(Applied.Handle))
+	{
+		if (bCritChance && Applied.Transient != Transient)
+		{
+			ASC.UpdateActiveGameplayEffectSetByCallerMagnitude(Applied.Handle, WoRTags::SetByCaller_Stat_Transient, Transient);
+			Applied.Transient = Transient;
+		}
+		return;
+	}
+	const FGameplayEffectSpecHandle Spec = ASC.MakeOutgoingSpec(DerivedClass, STAT_SOURCES_EFFECT_LEVEL, ASC.MakeEffectContext());
+	if (!Spec.IsValid())
+	{
+		AppliedDerivedStats.Remove(Attribute);
+		return;
+	}
+	if (bCritChance)
+	{
+		Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Transient, Transient);
+	}
+	Applied.Handle = ASC.ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+	Applied.Transient = Transient;
+	UE_LOG(LogWoR, Verbose, TEXT("[AttributeSync] %s %s derived (buff layer %.4f)"), *GetOwner()->GetName(), *Attribute.GetName(),
+		   Transient);
 }
 
 void UWoRAttributeSyncComponent::RemoveStatSources(UAbilitySystemComponent &ASC, ESubStat Stat)
@@ -246,8 +295,13 @@ void UWoRAttributeSyncComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 		{
 			ASC->RemoveActiveGameplayEffect(Applied.Value.Handle);
 		}
+		for (const TPair<FGameplayAttribute, FWoRAppliedDerivedStat> &Applied : AppliedDerivedStats)
+		{
+			ASC->RemoveActiveGameplayEffect(Applied.Value.Handle);
+		}
 	}
 	AppliedStatSources.Reset();
+	AppliedDerivedStats.Reset();
 	Super::EndPlay(EndPlayReason);
 }
 

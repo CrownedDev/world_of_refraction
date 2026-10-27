@@ -2,7 +2,8 @@
 // Inspection for the GAS stage 2 attributes (B-041, GAS/WoRAttributeSets.h).
 // - GetAttributesString: every mirrored attribute's current value on an actor.
 // - GetAttributeMismatchString: where an attribute differs from its source getter (empty = equal); for
-//   a composed stat (B-042q), also its base vs the capped stat and its one stat-sources effect.
+//   a composed stat (B-042q), also its base vs the capped stat and its one stat-sources effect; for a
+//   derived stat (B-042s), its one derived-stat effect.
 // - CompareAttributes: runs GetAttributeMismatchString on every combatant in the world.
 //   Console: wor.DumpAttributes, wor.CompareAttributes.
 
@@ -35,7 +36,8 @@ public:
 	static int32 CompareAttributes(const UObject *WorldContextObject);
 
 private:
-	/** A composed stat's base vs its capped stat, and its one stat-sources effect (B-042q). */
+	/** A composed stat's base vs its capped stat, and its one stat-sources effect (B-042q); a derived
+	 *  stat's one derived-stat effect (B-042s). */
 	static void AddComposedMismatches(const AActor *Actor, const UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute,
 									  TArray<FString> &Mismatches);
 };

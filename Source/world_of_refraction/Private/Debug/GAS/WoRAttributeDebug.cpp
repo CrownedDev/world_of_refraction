@@ -83,10 +83,24 @@ void UWoRAttributeDebug::AddComposedMismatches(const AActor *Actor, const UAbili
 											   const FGameplayAttribute &Attribute, TArray<FString> &Mismatches)
 {
 	const UCharacterDataComponent *Char = Actor->FindComponentByClass<UCharacterDataComponent>();
+	if (!Char || !Actor->FindComponentByClass<UWoRAttributeSyncComponent>())
+	{
+		return;
+	}
+	if (const TSubclassOf<UGameplayEffect> DerivedClass = UWoRGE_DerivedStat::GetClassFor(Attribute))
+	{
+		FGameplayEffectQuery Query;
+		Query.EffectDefinition = DerivedClass;
+		const int32 Derived = ASC.GetActiveEffects(Query).Num();
+		if (Derived != 1)
+		{
+			Mismatches.Add(FString::Printf(TEXT("%s: %d derived-stat effects, expected 1"), *Attribute.GetName(), Derived));
+		}
+		return;
+	}
 	ESubStat Stat;
 	FWoRStatLayers Layers;
-	if (!Char || !Actor->FindComponentByClass<UWoRAttributeSyncComponent>() || !UWoRAttributeSet_Stats::GetComposedStat(Attribute, Stat) ||
-		!Char->GetStatLayers(Stat, Layers))
+	if (!UWoRAttributeSet_Stats::GetComposedStat(Attribute, Stat) || !Char->GetStatLayers(Stat, Layers))
 	{
 		return;
 	}
