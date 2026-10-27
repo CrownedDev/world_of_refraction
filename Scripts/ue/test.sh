@@ -52,6 +52,11 @@ echo "TESTS OK"
 [ "${WOR_SKIP_VALIDATION:-0}" = "1" ] && { echo "Data validation skipped (WOR_SKIP_VALIDATION=1)"; exit 0; }
 VALIDATION_LOG="$WOR_LOG_DIR/validation.log"
 VALIDATION_BASELINE="$WOR_ROOT/Scripts/ue/validation_baseline.txt"
+if [ ! -f "$VALIDATION_BASELINE" ]; then
+    echo "VALIDATION FAILED: baseline $VALIDATION_BASELINE is missing (restore it from git)" >&2
+    exit 1
+fi
+rm -f "$VALIDATION_LOG"   # a stale log must never pass for this run
 echo "Validating data assets ... (log: $VALIDATION_LOG)"
 # MSYS_NO_PATHCONV keeps Git Bash from turning /Script/... into a Windows path.
 MSYS_NO_PATHCONV=1 "$UE_ROOT/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" "$WOR_PROJECT" \
@@ -66,8 +71,8 @@ fi
 
 # One line per error: "<path under Content/>: <message>", sorted, without duplicates.
 CURRENT_ERRORS="$(grep -F 'AssetCheck: Error: [AssetLog]' "$VALIDATION_LOG" \
-    | tr '\\' '/' | sed -e 's#.*/Content/##' -e 's#\.uasset: #: #' | tr -d '\r' | sort -u)"
-KNOWN_ERRORS="$(grep -v '^#' "$VALIDATION_BASELINE" 2>/dev/null | tr -d '\r' | sed '/^$/d' | sort -u)"
+    | tr '\\' '/' | sed -e 's#^.*\[AssetLog\] [^ ]*/Content/#Content/#' -e 's#^Content/##' -e 's#\.uasset: #: #' | tr -d '\r' | sort -u)"
+KNOWN_ERRORS="$(grep -v '^#' "$VALIDATION_BASELINE" | tr -d '\r' | sed '/^$/d' | sort -u)"
 NEW_ERRORS="$(comm -23 <(echo "$CURRENT_ERRORS" | sed '/^$/d') <(echo "$KNOWN_ERRORS"))"
 FIXED_ERRORS="$(comm -13 <(echo "$CURRENT_ERRORS" | sed '/^$/d') <(echo "$KNOWN_ERRORS"))"
 count_lines() { echo -n "$1" | grep -c '^' ; }
