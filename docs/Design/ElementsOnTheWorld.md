@@ -20,6 +20,7 @@
 **Per element (Crown, 2026-10-27):**
 - **Fire:** sets wood / grass burning (spreads a little, burns away); melts ice to water; ignites gas / mist. With Water: steam (blocks sight briefly); with Ice: melt; with Wind: spreads further and faster. Secrets e.g. burn a vine wall to a hidden cave; light a brazier ring to open a door.
 - **Water:** puts out fire; makes things wet (wet carries Lightning); fills dry basins (floats objects). **Ice (Water sub-element):** freezes water (walkable), freezes wet things, puts out fire, makes metal brittle and breakable. With Fire: **steam**, which blocks sight briefly, puts the fire out, **and lifts you like an updraft** (glide on it). Water + Lightning: the whole wet area is charged; Ice + Lightning: frozen things shatter; Water + Earth: mud (slows enemies; freezes into a bridge). Secrets e.g. freeze a waterfall into a climbable column; fill a basin to float a crate to a ledge.
+- **Earth:** raises / moves stone (platforms, steps, blocks); sand / soil into walls or pillars; shatters cracked walls. With Water: mud. With Lightning: **magnetism** (pull / push metal; ties to Earth flight). With **Fire: magma** (burns, melts ice and metal; **cools into new stone with Water or Ice**, e.g. a bridge or platform). With **Wind: a fast projectile** (wind-hurled stone; hits far targets, e.g. distant switches or cracked walls). Secrets e.g. raise pillars across a gap; break a cracked floor into a hidden room.
 
 ## Changelog
 
