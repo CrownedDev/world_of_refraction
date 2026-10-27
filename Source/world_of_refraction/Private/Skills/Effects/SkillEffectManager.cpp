@@ -1113,7 +1113,7 @@ void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 
 	// Check conditional triggers
 	ProcessTriggerEffects(Actor, ESkillTrigger::OnTurnEnd);
-	WoRCombatEvents::Send(Actor, WoRTags::Event_Combat_TurnEnd, Actor);
+	WoRCombatEvents::Send(Actor, WoRTags::Event_Combat_TurnEnd, Actor); // B-042d, Q-044j
 
 	// Tick durations and remove expired effects
 	CountHolderTurnSpans(Actor);
@@ -1898,7 +1898,8 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 	{
 		return;
 	}
-	WoRCombatEvents::Send(Target, WoRTags::Event_Combat_Hit, Attacker, Damage);
+	// TODO: B-043 - an attacker-side event and the crit flag (WoRCombatEvents.h).
+	WoRCombatEvents::Send(Target, WoRTags::Event_Combat_Hit, Attacker, Damage); // B-042d, Q-044j
 
 	// Lifesteal — heal the attacker for a percent of damage dealt.
 	if (HasEffectOfType(Attacker, ESkillEffectType::Lifesteal))

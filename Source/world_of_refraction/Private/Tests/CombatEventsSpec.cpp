@@ -118,7 +118,8 @@ void FCombatEventsSpec::Define()
 	{
 		if (!EffectManager) return;
 		TestFalse(TEXT("Not sent"), WoRCombatEvents::Send(Foe, WoRTags::Event_Combat_Hit, Hero, EVENTS_HIT_DAMAGE));
-		EffectManager->ProcessStartOfTurnEffects(Foe); // no error from an ASC-less actor
+		// The automation run fails on a logged error, so this also proves no error is logged.
+		EffectManager->ProcessStartOfTurnEffects(Foe);
 		TestTrue(TEXT("Sent to the hero"), WoRCombatEvents::Send(Hero, WoRTags::Event_Combat_Hit, Foe, EVENTS_HIT_DAMAGE));
 	});
 }

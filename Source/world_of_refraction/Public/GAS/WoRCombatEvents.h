@@ -6,7 +6,11 @@
 // - Event.Combat.DefenseResolved: to the defender; Instigator = attacker, EventMagnitude = the
 //   attack's base energy cost.
 // - Event.Combat.TurnStart / TurnEnd: to the actor whose turn it is.
-// An actor with no ability system component gets nothing (no error).
+// An actor with no ability system component gets nothing (no error). Hit is sent to a target the hit
+// killed too.
+// TODO: B-043 - an attacker-side event (lifesteal, on-crit triggers) and the crit flag; a guard against
+// a listener that deals damage re-entering OnDamageDealt (Hit and DefenseResolved are sent before the
+// handler's own trigger work); skip dead actors if a passive must not fire on them.
 // Debug: GetEventDebugString; `wor.Events.Log 1` logs every event sent.
 
 #pragma once
