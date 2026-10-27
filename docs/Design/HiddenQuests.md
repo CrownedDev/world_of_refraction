@@ -1,6 +1,6 @@
 # Hidden Quests and Lore (Shangri-La Frontier model)
 
-**Status:** decided in part (`DesignDecisions.md` D-100, pillar 10); open choices below, asked one at a time. The research that informs it is in the appendix (web summaries, fan-wiki details are what fans report, not canon).
+**Status:** decided (`DesignDecisions.md` D-100, pillar 10, Crown 2026-10-27). The research that informs it is in the appendix (web summaries, fan-wiki details are what fans report, not canon).
 
 ## 1. Decided (D-100)
 
@@ -12,6 +12,7 @@
 - **Never missed for good** (Crown, 2026-10-27): conditions are checked again every run; failing one only means "not this run".
 - **Co-op** (Crown, 2026-10-27): every player who meets the conditions gets the memory on their own save. Character and gear conditions are checked per player's own character; shared ones (what was beaten, where) count for everyone present. No first-come lock.
 - **Rewards beyond story** (Crown, 2026-10-27, SLF / Elden Ring): a hidden unlock can also give rewards, set per unlock: a unique item, a skill, a title, or a curse (a penalty that is also a key to other secrets). Rewards are **different, not stronger** (pillars 2, 3).
+- **More than one way in** (Crown, 2026-10-27, SLF's Akane / Rabituza): an unlock can list **alternative condition sets**; meeting any one set opens it.
 
 ## 2. What the research suggests (to decide)
 
@@ -19,7 +20,7 @@
 2. **Decided: never missable.** check conditions every run, so one-time means the unlock, not the chance (fixes the Elden Ring / Dragon's Dogma 2 complaints).
 3. **Decided: co-op per player.** each player who meets the conditions gets the memory on their own save; nothing is first-come (SLF's Lycagon EX, Destiny 2's Whisper).
 4. **Decided: rewards allowed (different, not stronger).** SLF's Unique Scenarios also give gear, skills, jobs and curses; whether this game's hidden content can grant more than story.
-5. **Soft exclusivity:** different routes can lead to the same unlock (SLF: Akane reached Rabituza through a different Colossus).
+5. **Decided: alternative routes.** different routes can lead to the same unlock (SLF: Akane reached Rabituza through a different Colossus).
 
 ## Changelog
 
