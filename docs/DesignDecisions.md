@@ -1812,6 +1812,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-074-encounter-data): `UEncounterData::BuildOpposingRoster`. B-184's `AFieldEnemyTeam` should hold a `UEncounterData` and call `BuildOpposingRoster` rather than carry a second list of enemies.
 
+### Q-119 — Data validation in test.sh: what to check, and what to do with today's errors
+**Status:** DECIDED · **Raised:** 2026-10-27 (B-119) · **Blocks:** — (B-119 built with A)
+**Question:** The job says "fail on errors", but current content already has 13 validation errors (missing damage types, test inventories over the loadout caps, test characters without Cosmetics), and validating all of `/Game` takes over 200 s and 8 GB because of the vendor animation packs. `test.sh` runs from the Stop hook after every C++ change.
+**Options:**
+- **A** validate data assets only (`PrimaryDataAsset` subclasses, ~12 s); today's errors go in a committed baseline file that is listed but doesn't fail; any new error fails; fixing the 13 is its own editor job (B-206).
+- **B** validate everything and fail on any error: every run fails until the content is fixed, and each run costs minutes.
+- **C** validate but never fail: errors are only printed.
+**Recommendation:** A. A committed "known issues" baseline that only lets new problems fail is how widely used checkers bring in a strict rule on an existing codebase (detekt and ktlint baselines, PHPStan's baseline, RuboCop's `.rubocop_todo.yml`); it keeps the check strict for new work without blocking everything on old debt. Data assets are what this game's `IsDataValid` overrides cover; the vendor packs have none. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** `Scripts/ue/test.sh` (end), `Scripts/ue/validation_baseline.txt`. When an asset is fixed, delete its baseline line in the same change.
+
 ### Q-111 — Combat HUD v2: damage colours, crack timing, overload look
 **Status:** DECIDED · **Raised:** 2026-10-27 (B-111) · **Blocks:** — (B-111 drew A)
 **Question:** The v2 drafts needed three looks Crown's notes didn't fix: the colours of the resistance gradient on damage numbers, when a status bar starts to crack, and how Broken Darkness overload darkens the EP bar.

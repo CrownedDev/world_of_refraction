@@ -40,7 +40,7 @@ if ! OUT="$(bash Scripts/ue/build.sh 2>&1)"; then
     exit 2
 fi
 if ! OUT="$(bash Scripts/ue/test.sh 2>&1)"; then
-    printf 'Tests failed - fix them before finishing (attempt %s/%s):\n%s\n' "$ATTEMPTS" "$MAX_ATTEMPTS" "$(echo "$OUT" | tail -40)" >&2
+    printf 'Tests or data validation failed - fix them before finishing (attempt %s/%s):\n%s\n' "$ATTEMPTS" "$MAX_ATTEMPTS" "$(echo "$OUT" | tail -40)" >&2
     exit 2
 fi
 
