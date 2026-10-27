@@ -14,6 +14,8 @@
 #include "GameplayEffect.h"
 #include "WoRGameplayEffects.generated.h"
 
+enum class ESubStat : uint8;
+
 /** Base for the native family GEs: the constructor helpers that add tag components. */
 UCLASS(Abstract)
 class WORLD_OF_REFRACTION_API UWoRGameplayEffect : public UGameplayEffect
@@ -199,4 +201,57 @@ class WORLD_OF_REFRACTION_API UWoRGE_Action : public UWoRGameplayEffect
 
 public:
 	UWoRGE_Action();
+};
+
+/** B-042p (StatMathsRedesign.md §2.1, Q-042p): a composed stat's gear, stone and transient layers
+ *  (FWoRStatLayers) as one Infinite effect of three MultiplyCompound modifiers on its attribute,
+ *  each magnitude by SetByCaller.Stat.*. The attribute sync applies one per stat over the capped
+ *  stat base; the attribute set clamps the result as Compose() does. */
+UCLASS(Abstract)
+class WORLD_OF_REFRACTION_API UWoRGE_StatSources : public UWoRGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	/** The sources effect for Stat; null when Stat isn't one of the four Pattern P stats. */
+	static TSubclassOf<UGameplayEffect> GetClassFor(ESubStat Stat);
+
+protected:
+	void AddSourceModifiers(const FGameplayAttribute &Attribute);
+};
+
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_StatSources_SpellDamage : public UWoRGE_StatSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_StatSources_SpellDamage();
+};
+
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_StatSources_RawDamage : public UWoRGE_StatSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_StatSources_RawDamage();
+};
+
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_StatSources_ActionSpeed : public UWoRGE_StatSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_StatSources_ActionSpeed();
+};
+
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_StatSources_SpellSpeed : public UWoRGE_StatSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_StatSources_SpellSpeed();
 };

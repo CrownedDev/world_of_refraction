@@ -4,6 +4,7 @@
 #include "GameplayEffectComponents/AssetTagsGameplayEffectComponent.h"
 #include "GameplayEffectComponents/TargetTagRequirementsGameplayEffectComponent.h"
 #include "GameplayEffectComponents/TargetTagsGameplayEffectComponent.h"
+#include "Combat/Actions/ActionStatModifiers.h"
 #include "GAS/WoRAttributeSets.h"
 #include "Tags/WoRGameplayTags.h"
 
@@ -141,4 +142,54 @@ UWoRGE_Action::UWoRGE_Action()
 {
 	DurationPolicy = EGameplayEffectDurationType::Infinite;
 	AddAssetTag(WoRTags::Effect_Family_Action);
+}
+
+TSubclassOf<UGameplayEffect> UWoRGE_StatSources::GetClassFor(ESubStat Stat)
+{
+	switch (Stat)
+	{
+	case ESubStat::SpellDamage: return UWoRGE_StatSources_SpellDamage::StaticClass();
+	case ESubStat::RawDamage: return UWoRGE_StatSources_RawDamage::StaticClass();
+	case ESubStat::ActionSpeed: return UWoRGE_StatSources_ActionSpeed::StaticClass();
+	case ESubStat::SpellSpeed: return UWoRGE_StatSources_SpellSpeed::StaticClass();
+	default: return nullptr;
+	}
+}
+
+void UWoRGE_StatSources::AddSourceModifiers(const FGameplayAttribute &Attribute)
+{
+	DurationPolicy = EGameplayEffectDurationType::Infinite;
+	AddAssetTag(WoRTags::Effect_Family_StatSources);
+	// Each layer multiplies the result (MultiplyCompound): base x gear x stone x transient.
+	const FGameplayTag Layers[] = {WoRTags::SetByCaller_Stat_Gear, WoRTags::SetByCaller_Stat_Stone, WoRTags::SetByCaller_Stat_Transient};
+	for (const FGameplayTag &Layer : Layers)
+	{
+		FSetByCallerFloat SetByCaller;
+		SetByCaller.DataTag = Layer;
+		FGameplayModifierInfo Modifier;
+		Modifier.Attribute = Attribute;
+		Modifier.ModifierOp = EGameplayModOp::MultiplyCompound;
+		Modifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(SetByCaller);
+		Modifiers.Add(Modifier);
+	}
+}
+
+UWoRGE_StatSources_SpellDamage::UWoRGE_StatSources_SpellDamage()
+{
+	AddSourceModifiers(UWoRAttributeSet_Stats::GetSpellDamageAttribute());
+}
+
+UWoRGE_StatSources_RawDamage::UWoRGE_StatSources_RawDamage()
+{
+	AddSourceModifiers(UWoRAttributeSet_Stats::GetRawDamageAttribute());
+}
+
+UWoRGE_StatSources_ActionSpeed::UWoRGE_StatSources_ActionSpeed()
+{
+	AddSourceModifiers(UWoRAttributeSet_Stats::GetActionSpeedAttribute());
+}
+
+UWoRGE_StatSources_SpellSpeed::UWoRGE_StatSources_SpellSpeed()
+{
+	AddSourceModifiers(UWoRAttributeSet_Stats::GetSpellSpeedAttribute());
 }

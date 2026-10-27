@@ -1,6 +1,7 @@
 // WoRAttributeSets.cpp
 
 #include "GAS/WoRAttributeSets.h"
+#include "Character/StatLayers.h"
 #include "Net/UnrealNetwork.h"
 
 #define WOR_REPLICATE_ATTRIBUTE(ClassName, PropertyName) \
@@ -29,6 +30,17 @@ WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Vitals, Energy)
 WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Vitals, MaxEnergy)
 WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Vitals, Buildup)
 WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Vitals, MaxBuildup)
+
+void UWoRAttributeSet_Stats::PreAttributeChange(const FGameplayAttribute &Attribute, float &NewValue)
+{
+	Super::PreAttributeChange(Attribute, NewValue);
+	// As Lyra clamps Health here: the stat-sources effect multiplies these past the base (Q-042p).
+	if (Attribute == GetSpellDamageAttribute() || Attribute == GetRawDamageAttribute() ||
+		Attribute == GetActionSpeedAttribute() || Attribute == GetSpellSpeedAttribute())
+	{
+		NewValue = FWoRStatLayers::Clamp(NewValue);
+	}
+}
 
 void UWoRAttributeSet_Stats::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const
 {
