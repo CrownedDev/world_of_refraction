@@ -98,6 +98,8 @@ The full layered model (refines the paragraph above):
 
 **5. Resettable.** The head-start allocation can be respec'd (reset → re-allocate the ≤4).
 
+**6. Cap: 7 per pillar, 21 in total, in a run** (Crown, 2026-10-27, `analysis/BaselineNumbers.md`; B-222): `WorldStatConstants::LIVE_MAX` = `MAX_WORLD_STAT_LEVEL` (7). Head-start and earned / bought levels clamp there; a pillar at 7 can't be bought or earned further. (Replaces the placeholder live cap of 20. How levels are gained in a run is D-102 / B-223.)
+
 **Storage (build shape):** live World Stats on `UCharacterDataComponent` runtime (line ~911 — already the designated runtime home). The head-start allocation is a per-character persistent field (SaveGame-tagged, dormant until save). In-run earned is run-scoped (needs the run-state container OR a runtime component field until run-state lands). The enemy-drop earn hooks `OnCombatResultReady` (fires already, no consumer — audit 🟡); the vendor-buy is an economy op (run currency → stat increment).
 
 **Earn model — REFINED (2026-06-25):**
