@@ -343,6 +343,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	FGameplayTagContainer GetEffectTags(AActor *Actor) const;
 
+	/** Does this condition hold right now (B-045 live lighting)? A state check (HP / Energy
+	 *  threshold) against its subject's actors, any one of a team; an event trigger always
+	 *  reads as held, as in IsTriggerConditionMet. Target is needed for target-side subjects. */
+	bool IsConditionHeld(const FSkillCondition &Condition, AActor *Owner, AActor *Target) const;
+
 	/** Last Stand support (death-DENIAL, not resurrection). Finds the bearer's LastStand effect
 	 *  (the HIGHEST-EffectValue one if several exist), consumes ONE of its charges via the C1
 	 *  ConsumeCharge path (so it's removed only when charges hit 0), and returns that effect's

@@ -2169,6 +2169,14 @@ bool USkillEffectManager::HasEffectOfType(AActor *Actor, ESkillEffectType Effect
 	return false;
 }
 
+bool USkillEffectManager::IsConditionHeld(const FSkillCondition &Condition, AActor *Owner, AActor *Target) const
+{
+	const TArray<AActor *> Subjects = ResolveSubjectActors(Condition.Subject, Owner, Target);
+	return Subjects.ContainsByPredicate([&](AActor *A) {
+		return IsSingleTriggerMet(A, Condition.Trigger, Condition.Threshold);
+	});
+}
+
 FGameplayTagContainer USkillEffectManager::GetEffectTags(AActor *Actor) const
 {
 	FGameplayTagContainer Tags;
