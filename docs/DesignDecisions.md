@@ -2543,6 +2543,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. (1) and (2) follow from one rule for every timed effect and Q-044d ("runs the turn-start step"); fewer exceptions is what the deckbuilder does (`04-effects.md` "Lasts": an effect lasts N of the holder's turns, ticks at its start). (3) is D-051 itself, and it matches Slay the Spire, whose defence is widely praised as easy to read: Block gained on your turn protects you through the enemy turn and goes at the start of your next turn.
 **Notes for Claude:** applied in B-225: `USkillEffectManager::IsPayoutType` / `ApplyTimingRule`; the Execution branch of `ACombatOrchestrator::HandleTurnStarted`. Known gap: the AI's lethal-DOT guess (`AIDecisionManager.cpp`, TickDamage x RemainingTurns) is one tick high during the holder's own turn; harmless (it only over-fears a DOT), fix with B-042y's getters.
 
+### Q-042hb — Effect lifetime on GAS: do the damage and heal ticks move now too?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042h) · **Blocks:** —
+**Question:** B-042h moves how long effects last onto GAS (behind the `wor.Effects.UseGAS` switch). Its plan also moved the damage-over-time and heal-over-time payouts to GAS's ticks. But a GAS tick changes GAS's copy of HP, not the game's own HP (that link is B-042y), so moving the ticks now would make burns and heals stop working with the switch on. Move them in B-042y instead?
+**Options:**
+- **A** (as built) B-042h moves the lifetime only; the payouts stay on the game's own code, and B-042y moves them once a GAS tick writes the real HP (through the death path).
+- **B** do B-042y's HP link first, then B-042h with the ticks.
+**Recommendation:** A. It keeps each step one change with the comparison on (Martin Fowler, ParallelChange / Strangler Fig): lifetime now, the HP write and the ticks together later. B would hold the lifetime work back for a bigger job. Also as built: an effect GAS ends early (nothing does that in play yet) keeps its game copy until the holder's next turn start, where the copy goes; the reads already see it gone. A same-source re-apply before then restores it (on the refreshed span, or its old one when that effect doesn't refresh), as the game's own record would.
+**Notes for Claude:** applied: B-042h narrowed; B-042y also moves the payouts onto the tracker's tick specs.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
