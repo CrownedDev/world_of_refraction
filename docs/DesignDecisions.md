@@ -1812,6 +1812,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-074-encounter-data): `UEncounterData::BuildOpposingRoster`. B-184's `AFieldEnemyTeam` should hold a `UEncounterData` and call `BuildOpposingRoster` rather than carry a second list of enemies.
 
+### Q-103 — CommonUI base: small defaults
+**Status:** DECIDED · **Raised:** 2026-10-27 (B-103) · **Blocks:** — (B-103 shipped with A)
+**Question:** Three small defaults in the CommonUI base: where a modal goes while the root layout WBP has no modal layer, a new button's job, and the test screen's layer.
+**Options:**
+- **A** a modal goes on the menu layer (with a warning) until the WBP gains a ModalLayer; a new button is a Confirm button; the test screen opens on the menu layer.
+- **B** a modal push fails until the WBP has a ModalLayer; a new button has no job until one is picked.
+**Recommendation:** A. Lyra's CommonUI sample (Epic's reference project) pushes menus and dialogs to named layers and falls back gracefully; Confirm is the commonest button, so it is the least-surprising default. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-103-commonui-base): `UWoRRootLayout::GetLayerStack`, `UWoRButtonBase::Job`.
+
 ### Q-084 — Dismantling an equipped ring: what happens to the slot, and which loadouts does the warning check?
 **Status:** DECIDED · **Raised:** 2026-10-27 (B-084) · **Blocks:** — (B-084 shipped with A)
 **Question:** D-016 says an equipped item is taken out of its loadouts and dismantled. For a Resonator's ring slots, is the slot removed or left empty, and which ring is active after? Does the "can't fight" line look at every loadout or only the one you fight with?
