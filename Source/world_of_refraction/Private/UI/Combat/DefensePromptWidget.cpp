@@ -10,6 +10,7 @@
 #include "GameFramework/Pawn.h"
 #include "TimerManager.h"
 #include "Combat/CombatControl.h"
+#include "WoRGameNames.h"
 
 namespace DefensePromptText
 {
@@ -150,7 +151,7 @@ void UDefensePromptWidget::ShowPrompt_Implementation(AActor *Defender, float Win
 void UDefensePromptWidget::HidePrompt_Implementation(const FDefenseResult &Result)
 {
 	const FString Outcome = Result.bSuccess
-								? UEnum::GetDisplayValueAsText(Result.DefenseType).ToString() + TEXT("!")
+								? WoRGameNames::GetDefenseTypeName(Result.DefenseType).ToString() + TEXT("!")
 								: FString(DefensePromptText::Missed);
 	SetPromptText(Outcome);
 
