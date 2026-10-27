@@ -85,6 +85,17 @@ private:
 
     void ReturnToTrial();
 
+    /** B-209 (D-100 part 2): a fight won is an event that checks memory unlock conditions; a
+     *  beaten boss's MemoryOnDefeat is the memory it names. */
+    void CheckFightWonMemories();
+
+    /** No player-side combatant is below the HP it started the fight with. TODO: a heal hides a
+     *  hit; count damage taken once a per-fight damage record exists. */
+    bool WasPartyUnhurt() const;
+
+    /** Per fight (D-064): each player-side combatant's HP when the fight started. */
+    TMap<TWeakObjectPtr<const AActor>, int32> PartyStartHP;
+
     UPROPERTY(Transient)
     TObjectPtr<UCombatResultsWidget> ResultsWidget;
 
