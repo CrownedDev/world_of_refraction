@@ -236,11 +236,32 @@ struct WORLD_OF_REFRACTION_API FSavedCrystalStack
 	int32 Count = 0;
 };
 
+/** B-091: a piece of shared gear and the character wearing it (UPoolSubsystem::GetCharacterKey). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedWearer
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FGuid GearID;
+
+	UPROPERTY()
+	FName Character;
+};
+
 /** UPoolSubsystem's owned items. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedPool
 {
 	GENERATED_BODY()
+
+	/** B-091: who wears each piece of the shared armoury. */
+	UPROPERTY()
+	TArray<FSavedWearer> Wearers;
+
+	/** B-091: characters whose starting gear is already in the pool (it isn't banked twice). */
+	UPROPERTY()
+	TArray<FName> BankedCharacters;
 
 	UPROPERTY()
 	TArray<FSavedOwnedItem> Weapons;
