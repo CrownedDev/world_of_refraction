@@ -5,6 +5,7 @@
 ## Decided
 
 - **Skill + weapon are added** (Crown, 2026-10-27; the deckbuilder's flat weapon bonus): base = skill part + weapon part (Power × scaling × requirement factor). Weapon Power defaults to 0, so today's fights stay the same until Power is set.
+- **Weapon Power by tier: F 40, E 52, D 68, C 88, B 114, A 148, S 192** (Crown, 2026-10-27; the tier-power steps; tunable in data).
 
 ---
 
