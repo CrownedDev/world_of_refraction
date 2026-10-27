@@ -2384,7 +2384,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:**
 - **A** split (as built): B-042d sends the `Event.Combat.*` GameplayEvents only (Q-044j A, additive); B-042k ports the remaining families onto the mirror (next); B-042i (triggers onto GAS) and B-042j (absorb) wait for B-042h, when GAS becomes the store.
 - **B** do all three now, applying GEs beside the mirror.
-**Recommendation:** A. It keeps each job inside the plan's ≤3-file clusters and the game playable after each (`EffectsOverhaul.md` §10.2), and keeps the UseGAS reads exact. The same strangler-fig order (send events first, move listeners later) is how Epic's Lyra moves gameplay onto GAS: messages and events first, abilities listening later.
+**Recommendation:** A. It keeps each job inside the plan's ≤3-file clusters and the game playable after each (`EffectsOverhaul.md` §10.2), and keeps the UseGAS reads exact. It is the strangler-fig order (Martin Fowler, "StranglerFigApplication", 2004; widely used for replacing a core system piece by piece): add the new seam beside the old code first (the events), move work onto it later, as with Q-042c's parallel run.
 **Notes for Claude:** B-042d built A.
 
 ## Parked
