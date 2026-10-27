@@ -145,6 +145,8 @@ void FWeaponRequirementSpec::Define()
 			Executor = TestWorld->GetSubsystem<UActionExecutor>();
 			Weapon = NewObject<UWeaponData>(GetTransientPackage());
 			Weapon->Requirements = BodyRequirement(WEAPON_REQ_TEST_REQUIRED_LEVEL);
+			// The copy SpawnCombatantWithLoadout makes is F; an F asset keeps Power unscaled (B-220).
+			Weapon->Tier = EItemTier::F_Tier;
 		});
 
 		AfterEach([this]()
