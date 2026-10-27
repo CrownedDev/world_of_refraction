@@ -2,8 +2,10 @@
 
 #include "GAS/WoRDamageExecution.h"
 #include "AbilitySystemComponent.h"
+#include "Character/CharacterDataComponent.h"
 #include "Combat/Resistance/EWoRDamageType.h"
 #include "GAS/WoRAttributeSets.h"
+#include "GAS/WoRAttributeSyncComponent.h"
 #include "GAS/WoREffectContext.h"
 #include "WoRLog.h"
 
@@ -11,10 +13,18 @@ namespace
 {
 	constexpr float DAMAGE_EFFECT_LEVEL = 1.0f;
 
-	/** Out = the attribute, when ASC holds its set; otherwise Out keeps the gathered value. */
+	/** The attributes hold the getters' values only when the attribute sync fills them from character data (B-041). */
+	bool HoldsSyncedAttributes(const UAbilitySystemComponent *ASC)
+	{
+		const AActor *Owner = ASC ? ASC->GetOwner() : nullptr;
+		return Owner && Owner->FindComponentByClass<UWoRAttributeSyncComponent>() &&
+			   Owner->FindComponentByClass<UCharacterDataComponent>();
+	}
+
+	/** Out = the attribute, when ASC holds its set and syncs it; otherwise Out keeps the gathered value. */
 	bool ReadAttribute(const UAbilitySystemComponent *ASC, const FGameplayAttribute &Attribute, float &Out)
 	{
-		if (!ASC || !ASC->HasAttributeSetForAttribute(Attribute))
+		if (!ASC || !ASC->HasAttributeSetForAttribute(Attribute) || !HoldsSyncedAttributes(ASC))
 		{
 			return false;
 		}

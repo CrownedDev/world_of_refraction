@@ -17,9 +17,8 @@
 #include "GAS/WoRGameplayEffects.h"
 #include "WoRDamageExecution.generated.h"
 
+class AActor;
 class UAbilitySystemComponent;
-class UDamageCalculator;
-struct FDamageCalculationInput;
 
 /** What a damage execution needs besides attributes: UDamageCalculator's gathered inputs. */
 struct FWoRDamageRequest

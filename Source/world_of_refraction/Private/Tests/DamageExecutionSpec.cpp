@@ -9,6 +9,7 @@
 #include "WoRTestWorld.h"
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterData.h"
+#include "Combat/Resistance/EWoRDamageType.h"
 #include "Combat/Damage/DamageCalculator.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
@@ -21,6 +22,8 @@ namespace
 	constexpr int32 EXECUTION_BASE_DAMAGE = 100;
 	constexpr int32 EXECUTION_DEFENSE_POINTS = 50;
 	constexpr int32 EXECUTION_RESIST_ID = 4501;
+	/** A fraction, as the Resist_* attributes hold. */
+	constexpr float EXECUTION_ICE_RESIST = 0.15f;
 	constexpr int32 EXECUTION_TURNS = 3;
 	/** A percent, as ResistanceBuff values are. */
 	constexpr float EXECUTION_RESIST_PERCENT = 20.0f;
@@ -133,6 +136,28 @@ void FDamageExecutionSpec::Define()
 		const FDamageMathInputs Read = UWoRDamageExecution::ReadAttributes(Request, AttackerASC, DefenderASC);
 		TestEqual(TEXT("Defense from the Defense attribute"), Read.DefenderDefense, GatheredDefense);
 		TestTrue(TEXT("Resistance from Resist_Fire"), Read.ElementResistance > 0.0f);
+
+		// Ice also resists Water (Q-145b). Nothing grants Ice resistance today, so set the attribute.
+		const FWoRDamageRequest Water = UWoRDamageExecution::MakeRequest(*Calculator, Attacker, Defender, Hit(EActionType::Spell, ESpellElement::Water));
+		DefenderASC->SetNumericAttributeBase(UWoRAttributeSet_Resistance::GetTypeAttribute(EWoRDamageType::Ice), EXECUTION_ICE_RESIST);
+		const float ReadWater = UWoRDamageExecution::ReadAttributes(Water, AttackerASC, DefenderASC).ElementResistance;
+		TestEqual(TEXT("Water: Resist_Water + Resist_Ice"), ReadWater, Water.Inputs.ElementResistance + EXECUTION_ICE_RESIST);
+	});
+
+	It("keeps the gathered numbers when the attributes aren't synced", [this]()
+	{
+		if (!Calculator) return;
+		// An ASC holding the sets but no attribute sync: its attributes are 0, not the getters' values.
+		AActor *Unsynced = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), true);
+		UAbilitySystemComponent *UnsyncedASC = Unsynced ? FWoRTestWorld::AddComponent<UAbilitySystemComponent>(Unsynced) : nullptr;
+		if (!TestNotNull(TEXT("Unsynced ASC"), UnsyncedASC)) return;
+		UnsyncedASC->AddAttributeSetSubobject(NewObject<UWoRAttributeSet_Stats>(Unsynced));
+		UnsyncedASC->AddAttributeSetSubobject(NewObject<UWoRAttributeSet_Resistance>(Unsynced));
+		const FWoRDamageRequest Request = UWoRDamageExecution::MakeRequest(*Calculator, Attacker, Defender, Hit(EActionType::Spell, ESpellElement::Fire));
+		const FDamageMathInputs Read = UWoRDamageExecution::ReadAttributes(Request, UnsyncedASC, UnsyncedASC);
+		TestEqual(TEXT("Crit damage kept"), Read.CritDamageMultiplier, Request.Inputs.CritDamageMultiplier);
+		TestEqual(TEXT("Defense kept"), Read.DefenderDefense, Request.Inputs.DefenderDefense);
+		TestEqual(TEXT("Resistance kept"), Read.ElementResistance, Request.Inputs.ElementResistance);
 	});
 
 	It("keeps an overridden crit chance and an ignored resistance", [this]()
