@@ -48,7 +48,7 @@
     | Mark and recall | Manipulation and Elemental |
     | Regroup | all three auras |
 
-  - **Rank needed** (Crown, 2026-10-27, replaces max rank for all): **rank 3 (D tier) for simpler movement, rank 7 (S tier, max) for advanced**; where two or three auras are listed, **all** are needed at that rank. Which are simple vs advanced: to confirm.
+  - **Rank needed** (Crown, 2026-10-27, replaces max rank for all): **rank 3 (D tier) for simpler movement, rank 7 (S tier, max) for advanced**; where two or three auras are listed, **all** are needed at that rank. **Simple (rank 3):** Dash, Enhanced Sprint, Glide, Double jump, Air dash. **Advanced (rank 7):** Flight, Teleport, Super launch, Phase / shadow step, Mark and recall, Regroup (all three auras at rank 7).
 - **Element styles (Crown's ideas, filled in as they come):**
 
   | Element | Movement | Style |
