@@ -384,7 +384,13 @@ void UTrialRunSubsystem::TravelTo(const TSoftObjectPtr<UWorld> &Level)
     if (NetMode == NM_ListenServer || NetMode == NM_DedicatedServer)
     {
         UE_LOG(LogTemp, Log, TEXT("[TrialRun] Server travel -> %s (clients follow)"), *Level.ToString());
-        World->ServerTravel(Level.GetLongPackageName());
+        // TODO: B-232 - a controller that survives seamless travel (the hub's) doesn't run BeginPlay again;
+        // rebuild its UI / input in NotifyLoadedWorld when hub <-> trial goes seamless (the hub's BP game mode).
+        if (!World->ServerTravel(Level.GetLongPackageName()))
+        {
+            UE_LOG(LogTemp, Error, TEXT("[TrialRun] Server travel to %s refused (in PIE: net.AllowPIESeamlessTravel 1)"),
+                   *Level.ToString());
+        }
         return;
     }
     UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), Level);
