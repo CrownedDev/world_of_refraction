@@ -6,6 +6,7 @@
 #include "AbilitySystemGlobals.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/Actions/ActionStatModifiers.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/Damage/DamageCalculator.h"
 #include "Combat/Resistance/ResistanceQuery.h"
@@ -13,6 +14,8 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/StatusBuildupManager.h"
+#include "GAS/WoRGameplayEffects.h"
+#include "Tags/WoRGameplayTags.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "WoRLog.h"
@@ -25,6 +28,27 @@ namespace
 		const UWorld *World = WorldContext ? WorldContext->GetWorld() : nullptr;
 		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 		return GI ? GI->GetSubsystem<TSubsystem>() : nullptr;
+	}
+
+	constexpr float STAT_SOURCES_EFFECT_LEVEL = 1.0f;
+
+	/** The Pattern P stats composed on GAS (B-042p), and their attributes. */
+	const TPair<ESubStat, FGameplayAttribute> *GetComposedStats(int32 &OutCount)
+	{
+		static const TPair<ESubStat, FGameplayAttribute> ComposedStats[] = {
+			{ESubStat::SpellDamage, UWoRAttributeSet_Stats::GetSpellDamageAttribute()},
+			{ESubStat::RawDamage, UWoRAttributeSet_Stats::GetRawDamageAttribute()},
+			{ESubStat::ActionSpeed, UWoRAttributeSet_Stats::GetActionSpeedAttribute()},
+			{ESubStat::SpellSpeed, UWoRAttributeSet_Stats::GetSpellSpeedAttribute()},
+		};
+		OutCount = UE_ARRAY_COUNT(ComposedStats);
+		return ComposedStats;
+	}
+
+	bool SameLayers(const FWoRStatLayers &A, const FWoRStatLayers &B)
+	{
+		return A.StatBase == B.StatBase && A.GearFactor == B.GearFactor && A.StoneFactor == B.StoneFactor &&
+			   A.TransientFactor == B.TransientFactor;
 	}
 }
 
@@ -146,10 +170,58 @@ void UWoRAttributeSyncComponent::SyncAttributes()
 	{
 		return;
 	}
+	int32 ComposedCount = 0;
+	const TPair<ESubStat, FGameplayAttribute> *ComposedStats = GetComposedStats(ComposedCount);
+	const UCharacterDataComponent *Char = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
 	for (const FWoRAttributeSourceValue &Source : ReadSourceValues(GetOwner()))
 	{
-		ASC->SetNumericAttributeBase(Source.Attribute, Source.Value);
+		bool bComposed = false;
+		for (int32 Index = 0; Index < ComposedCount && Char; ++Index)
+		{
+			if (ComposedStats[Index].Value == Source.Attribute)
+			{
+				FWoRStatLayers Layers;
+				Char->GetStatLayers(ComposedStats[Index].Key, Layers);
+				SyncComposedStat(*ASC, ComposedStats[Index].Key, Source.Attribute, Layers);
+				bComposed = true;
+				break;
+			}
+		}
+		if (!bComposed)
+		{
+			ASC->SetNumericAttributeBase(Source.Attribute, Source.Value);
+		}
 	}
+}
+
+void UWoRAttributeSyncComponent::SyncComposedStat(UAbilitySystemComponent &ASC, ESubStat Stat, const FGameplayAttribute &Attribute,
+												  const FWoRStatLayers &Layers)
+{
+	ASC.SetNumericAttributeBase(Attribute, Layers.StatBase);
+
+	FWoRAppliedStatSources &Applied = AppliedStatSources.FindOrAdd(Stat);
+	if (Applied.Handle.IsValid() && SameLayers(Applied.Layers, Layers))
+	{
+		return;
+	}
+	if (Applied.Handle.IsValid())
+	{
+		ASC.RemoveActiveGameplayEffect(Applied.Handle);
+	}
+	const FGameplayEffectSpecHandle Spec =
+		ASC.MakeOutgoingSpec(UWoRGE_StatSources::GetClassFor(Stat), STAT_SOURCES_EFFECT_LEVEL, ASC.MakeEffectContext());
+	if (!Spec.IsValid())
+	{
+		Applied = FWoRAppliedStatSources();
+		return;
+	}
+	Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Gear, Layers.GearFactor);
+	Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Stone, Layers.StoneFactor);
+	Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Transient, Layers.TransientFactor);
+	Applied.Handle = ASC.ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+	Applied.Layers = Layers;
+	UE_LOG(LogWoR, Verbose, TEXT("[AttributeSync] %s %s sources: %s"), *GetOwner()->GetName(), *UEnum::GetValueAsString(Stat),
+		   *Layers.ToString());
 }
 
 void UWoRAttributeSyncComponent::BeginPlay()

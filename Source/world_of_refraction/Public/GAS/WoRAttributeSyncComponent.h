@@ -5,6 +5,9 @@
 // Syncs on: BeginPlay, HP/EP change, effect applied/removed/restacked on the owner, status buildup
 // change, loadout change, and the owner's own turn start (a safety net for changes with no event).
 // Only the authority writes; clients get the values by replication.
+// B-042p: SpellDamage, RawDamage, ActionSpeed and SpellSpeed are composed on GAS instead: the base
+// holds the capped stat (FWoRStatLayers::StatBase) and a UWoRGE_StatSources effect multiplies in the
+// gear, stone and buff layers, so their current value still equals the getter (Q-042p).
 // Debug: UWoRAttributeDebug (wor.CompareAttributes).
 
 #pragma once
@@ -12,11 +15,21 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "AttributeSet.h"
+#include "ActiveGameplayEffectHandle.h"
+#include "Character/StatLayers.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "WoRAttributeSyncComponent.generated.h"
 
 class UAbilitySystemComponent;
 struct FActiveSkillEffect;
+enum class ESubStat : uint8;
+
+/** The stat-sources effect applied for one composed stat, and the layers it carries. */
+struct FWoRAppliedStatSources
+{
+	FActiveGameplayEffectHandle Handle;
+	FWoRStatLayers Layers;
+};
 
 /** One attribute and the value its source getter gives right now. */
 struct FWoRAttributeSourceValue
@@ -69,4 +82,10 @@ private:
 
 	void BindSources();
 	void UnbindSources();
+
+	/** Base = the capped stat; re-applies Stat's sources effect when its layers changed (B-042p). */
+	void SyncComposedStat(UAbilitySystemComponent &ASC, ESubStat Stat, const FGameplayAttribute &Attribute,
+						  const FWoRStatLayers &Layers);
+
+	TMap<ESubStat, FWoRAppliedStatSources> AppliedStatSources;
 };
