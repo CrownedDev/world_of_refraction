@@ -22,6 +22,7 @@
 #include "Skills/Definitions/ElementHelpers.h"
 #include "Character/StanceData.h"
 #include "Combat/TurnManager.h"
+#include "Skills/Effects/SkillEffectManager.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
@@ -2728,6 +2729,7 @@ void ULoadoutComponent::ToggleEquipment()
     }
 
     FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const TArray<FGatheredEffect> OldGearEffects = GetActiveEffectsGathered(GetOwner());
     Loadout.bShowPrimary = !Loadout.bShowPrimary;
 
     UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Toggled equipment: bShowPrimary = %s"),
@@ -2746,6 +2748,8 @@ void ULoadoutComponent::ToggleEquipment()
             }
         }
     }
+
+    SwapGearEffects(OldGearEffects);
 
     // Active equipment changed → recompute the stat-derived pools (equipment
     // BonusMaxHP/BonusMaxEnergy; the active weapon's pool-stone in P1). Does NOT
@@ -3557,6 +3561,7 @@ void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
         return;
     }
 
+    const TArray<FGatheredEffect> OldGearEffects = GetActiveEffectsGathered(GetOwner());
     Loadout.ActiveRingIndex = NewIndex;
 
     UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Set ActiveRingIndex to %d"), NewIndex);
@@ -3575,6 +3580,8 @@ void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
         }
     }
 
+    SwapGearEffects(OldGearEffects);
+
     // Active equipment changed → recompute the stat-derived pools (equipment
     // BonusMaxHP/BonusMaxEnergy; the active weapon's pool-stone in P1). Does NOT
     // touch CurrentHP/EP (overcap-not-clamp) — see RecomputeMaxPools doc.
@@ -3582,6 +3589,21 @@ void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
     {
         CharComp->RecomputeMaxPools();
     }
+}
+
+void ULoadoutComponent::SwapGearEffects(const TArray<FGatheredEffect> &OldGearEffects) const
+{
+    AActor *Owner = GetOwner();
+    UWorld *World = GetWorld();
+    UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+    USkillEffectManager *Effects = GI ? GI->GetSubsystem<USkillEffectManager>() : nullptr;
+    // Out of a fight, battle prep gathers the gear when the next one starts.
+    if (!Owner || !Effects || !Effects->IsGearArmed(Owner))
+    {
+        return;
+    }
+    Effects->ArmConditionalEffects(Owner, GetActiveConditionalEffectsGathered(Owner));
+    Effects->SwapEquipmentEffects(Owner, OldGearEffects, GetActiveEffectsGathered(Owner));
 }
 
 ESpellElement ULoadoutComponent::GetActiveRingElement() const

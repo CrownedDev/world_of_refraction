@@ -339,6 +339,63 @@ void USkillEffectManager::ApplyEquipmentEffects(
 	}
 }
 
+int32 USkillEffectManager::SwapEquipmentEffects(
+	AActor *Target,
+	const TArray<FGatheredEffect> &OldEffects,
+	const TArray<FGatheredEffect> &NewEffects)
+{
+	if (!Target)
+	{
+		return 0;
+	}
+	const auto SameGearEffect = [](const FGatheredEffect &A, const FGatheredEffect &B)
+	{
+		return A.DefID == B.DefID && A.BundleIndex == B.BundleIndex && A.SourceKey == B.SourceKey;
+	};
+	const auto Lists = [&SameGearEffect](const TArray<FGatheredEffect> &Effects, const FGatheredEffect &Effect)
+	{
+		return Effects.ContainsByPredicate([&](const FGatheredEffect &Other) { return SameGearEffect(Other, Effect); });
+	};
+
+	int32 Removed = 0;
+	for (const FGatheredEffect &Old : OldEffects)
+	{
+		if (Lists(NewEffects, Old) || !Old.Effect.IsValid())
+		{
+			continue;
+		}
+		// The same packing ApplyEquipmentEffects used gives back each payload's EffectID.
+		bool bRemovedAny = false;
+		for (const FActiveSkillEffect &Runtime :
+			 FActiveSkillEffect::CreateAllFromSkillEffect(Old.Effect.EffectName, Old.DefID, Old.Effect, Old.BundleIndex))
+		{
+			bRemovedAny |= RemoveEffectByIdentity(Target, Runtime.EffectID, Old.SourceKey);
+		}
+		Removed += bRemovedAny ? 1 : 0;
+	}
+
+	// Q-081: only lasting passives come on with a swap; a one-shot, timed or charged starting
+	// effect is the fight's start bonus, given once (a swap back would farm it).
+	const auto IsPassive = [](const FSkillEffect &Effect)
+	{
+		return Effect.Payloads.Num() > 0 &&
+			   !Effect.Payloads.ContainsByPredicate([](const FSkillEffectPayload &Payload) { return !Payload.bPermanent; });
+	};
+	TArray<FGatheredEffect> Added;
+	for (const FGatheredEffect &New : NewEffects)
+	{
+		if (!Lists(OldEffects, New) && IsPassive(New.Effect))
+		{
+			Added.Add(New);
+		}
+	}
+	ApplyEquipmentEffects(Target, Added);
+
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Gear swap on %s: %d gear effect(s) off, %d on"),
+		   *Target->GetName(), Removed, Added.Num());
+	return Removed + Added.Num();
+}
+
 // FAutoConsoleCommandWithWorld — NOT UFUNCTION(Exec). A UGameInstanceSubsystem is not on the
 // engine's FExec dispatch chain, so an Exec here silently no-ops. Console commands resolve from
 // any class. "wor." prefix groups them. State is PIE-only, so the chain is null-checked.
@@ -924,6 +981,8 @@ void USkillEffectManager::ClearAllEffects()
 	// Empty first, then broadcast (see RemoveAllEffects).
 	const auto Removed = MoveTemp(ActiveEffects);
 	ActiveEffects.Empty();
+	// B-081: the fight is over, so a later gear swap must not re-apply gear effects (IsGearArmed).
+	ArmedConditionals.Empty();
 
 	int32 TotalCount = 0;
 	for (const auto &Pair : Removed)

@@ -1812,6 +1812,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-074-encounter-data): `UEncounterData::BuildOpposingRoster`. B-184's `AFieldEnemyTeam` should hold a `UEncounterData` and call `BuildOpposingRoster` rather than carry a second list of enemies.
 
+### Q-081 — On a mid-fight swap, which of the new gear's effects come on?
+**Status:** DECIDED · **Raised:** 2026-10-26 (B-081) · **Blocks:** — (B-081 shipped with A)
+**Question:** D-008 says gear effects follow a swap (old off, new on). A starting effect can be a lasting passive, or a one-shot, timed or charged effect given at the start of the fight. With a free switch every turn, re-giving those on each swap back would farm them. Which come on?
+**Options:**
+- **A** only passives (every payload permanent) come on with a swap; one-shot, timed and charged starting effects are given once a fight. The old gear's effects always go off.
+- **B** everything comes on fresh on every swap.
+- **C** nothing new comes on mid-fight (effects locked at the start; against D-008).
+**Recommendation:** A. Final Fantasy X lets you swap weapons and armor mid-battle: their passive auto-abilities follow at once, but start-of-battle ones (First Strike, Initiative) only count at the start; players liked that swapping is tactical, not a loop to farm. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-081-gear-effects-follow-swap): `USkillEffectManager::SwapEquipmentEffects`.
+
 ### Q-198 — Which way does a Luck dodge step?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-198) · **Blocks:** — (B-198 shipped with A)
 **Question:** a Luck dodge (D-085) now plays the dodge montage, but no press chose a side. Left or right?
