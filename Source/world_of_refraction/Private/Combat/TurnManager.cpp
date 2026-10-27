@@ -255,12 +255,8 @@ void UTurnManager::CalculateSpeedRatios()
 		float StoneFactor = 1.0f;
 		if (ULoadoutComponent *Loadout = TurnManagerComponentOf<ULoadoutComponent>(Combatant.Actor))
 		{
-			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-			{
-				const FRuntimeAttachedItem &Att = *AttPtr;
-				const float StonePct = CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::TurnSpeed);
-				StoneFactor = 1.0f + StonePct / CombatConstants::STAT_PERCENT_DIVISOR;
-			}
+			// Weapon and ring (B-082) attachments.
+			StoneFactor = 1.0f + Loadout->GetAttachedStonePercent(ESubStat::TurnSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
 		}
 		return FMath::Max(1, FMath::RoundToInt(Combatant.CachedSpeed * Multiplier * StoneFactor));
 	};

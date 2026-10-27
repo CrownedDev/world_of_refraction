@@ -435,15 +435,9 @@ float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 		Reduction *= (1.0f + Loadout->GetActiveStatBonus(Defender).BonusDefense * CombatConstants::DEFENSE_PER_POINT);
 
 		// Attached DefenseStone — a % MULTIPLIER (×(1 + StonePct/100)) on the capped stat reduction,
-		// OUTSIDE the 0.5 cap, from the defender's OWN active weapon attachment (live-resolved, not
-		// cached). Inert (×1) unless a DefenseStone is attached.
-		if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-		{
-			const FRuntimeAttachedItem &Attachment = *AttPtr;
-			const float StonePct =
-				CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::Defense);
-			Reduction *= (1.0f + StonePct / CombatConstants::STAT_PERCENT_DIVISOR);
-		}
+		// OUTSIDE the 0.5 cap, from the defender's OWN active weapon and ring (B-082) attachments
+		// (live-resolved, not cached). Inert (×1) unless a DefenseStone is attached.
+		Reduction *= (1.0f + Loadout->GetAttachedStonePercent(ESubStat::Defense) / CombatConstants::STAT_PERCENT_DIVISOR);
 	}
 
 	// Combat-buff/debuff modifiers (from skill casts, e.g. Stoneskin) — MULTIPLICATIVE transient: the
@@ -620,10 +614,7 @@ float UDamageCalculator::GetCritDamageMultiplier(AActor *Attacker) const
 		// Attached CritStone (5f-A) — a % MULTIPLIER on the capped stat, from the attacker's OWN active
 		// weapon attachment. StoneTargetStat(CritStone) == ESubStat::CritDamage, so GetAttachedStonePercent
 		// returns 0 (factor x1, inert) unless a CritStone is attached. Mirrors GetStoneRawDamageFactor.
-		if (const FRuntimeAttachedItem *Att = Loadout->GetActiveWeaponAttachment())
-		{
-			Result *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(*Att, ESubStat::CritDamage) / CombatConstants::STAT_PERCENT_DIVISOR);
-		}
+		Result *= (1.0f + Loadout->GetAttachedStonePercent(ESubStat::CritDamage) / CombatConstants::STAT_PERCENT_DIVISOR);
 	}
 
 	// Transient crit-damage modifiers — MULTIPLY too. Directional (5f-C): ModifyCritDamage is the BUFF
