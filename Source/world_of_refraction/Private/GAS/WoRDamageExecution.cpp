@@ -38,24 +38,30 @@ FDamageMathInputs UWoRDamageExecution::ReadAttributes(const FWoRDamageRequest &R
 		UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Stats::GetDefenseAttribute(), Inputs.DefenderDefense);
 	}
 
-	// WoRResistance::GetElementDamageResistance's rule on the attributes: the element's own
-	// resistance, plus Ice for Water (Q-145b); non-elemental hits read none (Q-145).
-	const EWoRDamageType ElementType = WoRDamageType::ElementToDamageType(Inputs.Element);
-	if (!Request.bIgnoreResistance && ElementType != EWoRDamageType::None)
+	if (!Request.bIgnoreResistance)
 	{
-		float Resistance = 0.0f;
-		if (UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetTypeAttribute(ElementType), Resistance))
-		{
-			float IceResistance = 0.0f;
-			if (ElementType == EWoRDamageType::Water &&
-				UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetTypeAttribute(EWoRDamageType::Ice), IceResistance))
-			{
-				Resistance += IceResistance;
-			}
-			Inputs.ElementResistance = Resistance;
-		}
+		ReadElementResistance(Target, Inputs.Element, Inputs.ElementResistance);
 	}
 	return Inputs;
+}
+
+bool UWoRDamageExecution::ReadElementResistance(const UAbilitySystemComponent *Target, ESpellElement Element, float &OutResistance)
+{
+	const EWoRDamageType ElementType = WoRDamageType::ElementToDamageType(Element);
+	float Resistance = 0.0f;
+	if (ElementType == EWoRDamageType::None ||
+		!UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetTypeAttribute(ElementType), Resistance))
+	{
+		return false;
+	}
+	float IceResistance = 0.0f;
+	if (ElementType == EWoRDamageType::Water &&
+		UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetTypeAttribute(EWoRDamageType::Ice), IceResistance))
+	{
+		Resistance += IceResistance;
+	}
+	OutResistance = Resistance;
+	return true;
 }
 
 void UWoRDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecutionParameters &ExecutionParams,

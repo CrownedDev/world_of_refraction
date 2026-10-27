@@ -5,6 +5,7 @@
 #include "AbilitySystemGlobals.h"
 #include "GameplayEffect.h"
 #include "GAS/WoRGameplayEffects.h"
+#include "GAS/WoRTickExecution.h"
 #include "GAS/WoRTurnEffectTracker.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Tags/WoRGameplayTags.h"
@@ -216,8 +217,8 @@ FWoRBuiltEffect FWoREffectSpecBuilder::Build(UAbilitySystemComponent &TargetASC,
 		Built.Spec.Data->AddDynamicAssetTag(WoRTags::Effect_Origin_Gear);
 	}
 
-	// TODO: B-042e - a DOT's tick is its stacked value as flat damage; the enum path's
-	// GetDotTickDamage maths (share of max HP, resistance) moves into the damage execution.
+	// B-042n: each payout runs UWoRTickExecution over this request (WoRTickMath, as the enum path's tick). The
+	// tick's SetByCaller magnitude isn't read by the execution; it stays for GetDebugString-style inspection.
 	if (Effect.EffectType == ESkillEffectType::DOT)
 	{
 		Built.TickSpec = MakeSpec(TargetASC, UWoRGE_HealthTick::StaticClass(), Identity, Source, -Magnitude);
@@ -225,6 +226,14 @@ FWoRBuiltEffect FWoREffectSpecBuilder::Build(UAbilitySystemComponent &TargetASC,
 	else if (Effect.EffectType == ESkillEffectType::HealthRestore)
 	{
 		Built.TickSpec = MakeSpec(TargetASC, UWoRGE_HealTick::StaticClass(), Identity, Source, Magnitude);
+	}
+	if (Built.TickSpec.IsValid())
+	{
+		FGameplayEffectContextHandle TickContext = Built.TickSpec.Data->GetContext();
+		if (FWoREffectContext *WoRContext = FWoREffectContext::GetMutable(TickContext))
+		{
+			WoRContext->TickRequest = MakeShared<const FWoRTickRequest>(UWoRTickExecution::MakeRequest(Effect, TargetASC.GetAvatarActor()));
+		}
 	}
 
 	Built.bPermanent = Effect.bPermanent;

@@ -2516,6 +2516,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. In GAS, additive modifiers from separate effects sum in the attribute's aggregator, and each source as its own effect can later be removed or inspected on its own (tranek's GASDocumentation, the community GAS reference, Gameplay Effect Modifiers). B would hide which source moved a number, and the switch-over (B-042h) wants the sources apart. General status resistance is the same shape as the other capped stats, so it reuses that path.
 **Notes for Claude:** B-042w built A. Each source effect's magnitudes are updated in place (by tag) and skipped when unchanged. The getters stay the game's source of truth until B-042h; their numbers are unchanged (they now sum `GetTypeResistanceSources` / `GetStatusResistBonusSources`).
 
+### Q-042n — DOT and HOT ticks on GAS: where does a DOT's status buildup go?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042n) · **Blocks:** —
+**Question:** A DOT tick on the enum path does two things: damage through the holder's element resistance, and (for some DOTs) a little status buildup (`BuildupPerTick`) that fills the status bar, which can trigger a break. The damage and heal maths move onto GAS now. Should the per-tick buildup move with them, or with the status bar (B-042o)?
+**Options:**
+- **A** (as built) ticks pay damage and heals on GAS now, through one tick execution reading the holder's attributes at each payout (as the enum path reads them at each tick); the per-tick buildup moves with the status bar in B-042o, where the bar, cap and break trigger become GAS's own.
+- **B** also send the per-tick buildup through the buildup execution now, into a GAS bar that nothing caps or triggers yet.
+**Recommendation:** A. In GAS a periodic damage effect reads its target's attributes when it executes, not when it was applied (Epic's GAS documentation: executions capture target attributes at execution time; tranek's GASDocumentation, Execution Calculations), which is what the enum path does. Moving the buildup without its bar (B) would add to a number that can't break yet, and B-042o has to rebuild the bar's path anyway; doing them together is one change instead of two (Martin Fowler's ParallelChange: migrate one consumer path at a time).
+**Notes for Claude:** B-042n built A. `WoRTickMath` is shared by both paths, so the numbers can't drift. The B-042o row now includes the per-tick buildup. A holder whose attributes aren't synced keeps the resistance its DOT landed with (the request's gathered value), where the enum path reads it each tick; every combatant in play has the sync, so this only affects bare test actors.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

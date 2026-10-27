@@ -9,6 +9,7 @@
 #include "Combat/CombatConstants.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRDerivedStatMagnitudes.h"
+#include "GAS/WoRTickExecution.h"
 #include "Tags/WoRGameplayTags.h"
 
 void UWoRGameplayEffect::AddAssetTag(const FGameplayTag &Tag)
@@ -86,15 +87,9 @@ UWoRGE_HealOverTime::UWoRGE_HealOverTime()
 UWoRGE_HealthTick::UWoRGE_HealthTick()
 {
 	DurationPolicy = EGameplayEffectDurationType::Instant;
-
-	FSetByCallerFloat Magnitude;
-	Magnitude.DataTag = WoRTags::SetByCaller_Magnitude;
-
-	FGameplayModifierInfo HealthChange;
-	HealthChange.Attribute = UWoRAttributeSet_Vitals::GetHealthAttribute();
-	HealthChange.ModifierOp = EGameplayModOp::Additive;
-	HealthChange.ModifierMagnitude = FGameplayEffectModifierMagnitude(Magnitude);
-	Modifiers.Add(HealthChange);
+	FGameplayEffectExecutionDefinition Execution;
+	Execution.CalculationClass = UWoRTickExecution::StaticClass();
+	Executions.Add(Execution);
 }
 
 UWoRGE_HealTick::UWoRGE_HealTick()

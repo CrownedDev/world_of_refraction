@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Skills/Effects/SkillEffectManager.h"
+#include "Skills/Effects/TickMath.h"
 #include "Combat/Damage/DamageMath.h"
 #include "Combat/Resistance/ResistanceQuery.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
@@ -1438,11 +1439,14 @@ float USkillEffectManager::ConsumeLastStandCharge(AActor *Owner)
 
 int32 USkillEffectManager::GetDotTickDamage(AActor *Actor, const FActiveSkillEffect &Effect)
 {
-	const float Multiplier =
-		Effect.bShareOfMaxHP
-			? 1.0f
-			: WoRDamageMath::GetElementMultiplier(WoRResistance::GetElementDamageResistance(Actor, Effect.Element), false);
-	return FMath::RoundToInt(Effect.GetStackedValue() * Multiplier);
+	FTickMathInputs Inputs;
+	Inputs.Value = Effect.GetStackedValue();
+	Inputs.bShareOfMaxHP = Effect.bShareOfMaxHP;
+	if (!Effect.bShareOfMaxHP)
+	{
+		Inputs.ElementResistance = WoRResistance::GetElementDamageResistance(Actor, Effect.Element);
+	}
+	return WoRTickMath::GetDotTickDamage(Inputs);
 }
 
 void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Effect)
@@ -1512,8 +1516,10 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		{
 			// +healing-received amplify (HealBlock mirror) on the BEARER (Actor). Gate-then-amplify:
 			// only reached when NOT HealBlocked, so a suppressed bearer is never amplified.
-			const float HealRecvBonus = GetTotalStatModifier(Actor, ESkillEffectType::HealingReceivedBuff);
-			const int32 HealAmount = FMath::RoundToInt(Value * (1.0f + HealRecvBonus / CombatConstants::STAT_PERCENT_DIVISOR));
+			FTickMathInputs Inputs;
+			Inputs.Value = Value;
+			Inputs.HealingReceivedPercent = GetTotalStatModifier(Actor, ESkillEffectType::HealingReceivedBuff);
+			const int32 HealAmount = WoRTickMath::GetHotTickHeal(Inputs);
 			CharComp->ServerHeal(HealAmount);
 			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s healed %d from %s"),
 				   *Actor->GetName(), HealAmount, *Effect.EffectName);
