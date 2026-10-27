@@ -2002,6 +2002,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it, e.g. to B once the loadout screen exists.
 **Notes for Claude:** applied (feature/B-076-trial-recruits). Trial maps have no recruit spots yet (placing a recruitable pawn in a trial level is editor work): B-215. Until then, `wor.Party.RecruitForRun <CharacterData path>` recruits in a trial. Evolutions for a recruit wait for B with the real screen.
 
+### Q-218 — Which single tuning values move into the tuning data now?
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-218) · **Blocks:** — (B-218 ships with A)
+**Question:** B-218 puts the ladders into curve tables and "single tuning values (caps, per-point bases, Broken Darkness rates)" into `UCombatTuningData`. The stat caps and per-point bases (`UNIVERSAL_STAT_CAP`, `RESISTANCE_PER_POINT`, `PCT_STAT_PER_POINT`, …) feed compile-time formulas (`STAT_DERIVE_DENOM` and the derived per-point values in `CombatConstants.h`) read in many places. Which single values move now?
+**Options:**
+- **A** Now: the infusion charge bands and the Broken Darkness strain values (one reader each). The stat caps and per-point bases stay C++ until B-042, where they become MMC inputs.
+- **B** Now: everything, including the caps and per-point bases (turns the derived constants into runtime values across every stat reader).
+**Recommendation:** A. The plan already lists structural values derived from the caps as staying in C++ (`StatMathsRedesign.md` §3). In GAS the caps belong in the MMCs that compute the sub-stats (Epic's GASDocumentation: MMCs read their coefficients from scalable floats), so B-042 moves them once, in their final shape. Doing B now would touch every stat reader twice. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B.
+**Notes for Claude:** B-042: the MMCs read the caps and per-point bases from `UCombatTuningData` (add the fields then, defaults = the constants).
+
 ### Q-216 — A hit or a resistance buff left with the Generic element: which resistance is it?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-216) · **Blocks:** — (B-216 ships with A)
 **Question:** Resistance is now one value per damage type (`EWoRDamageType`). `ESpellElement::Generic` means "inherit the caster's element" and is resolved at cast time, so a hit should never reach resistance as Generic. If one does (or a resistance buff is authored with Generic), which type is it? Before B-216 a Generic hit only matched Generic-keyed resistance buffs, and the class table and gear gave it 0.
