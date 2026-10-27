@@ -28,6 +28,8 @@
 - **Broken Darkness:** must regenerate its EP, so its field attack **absorbs the element of whatever it touches** (restoring EP, as Broken Darkness absorbs in battle, `BrokenDarkness.md`); the **next use releases the dark variant of that element** with that element's world effect (Crown, 2026-10-27).
 - **Reality (shown as Unknown):** on its own does what **Light + Darkness + Void** do together: **creation** (makes something that wasn't there).
 - **Resonator:** uses its **active ring** as the source of its field attack and field skills.
+- **Void:** erases barriers, seals or thin walls **for a short time** (pass through); makes an object vanish and return; **restores broken things temporarily**; removes another element's state (frozen, burning, charged). With Light + Darkness: creation. Secrets e.g. erase a barrier for a few seconds; bring back a broken bridge just long enough to cross.
+- **Reality (addition, Crown 2026-10-27):** also **restores broken things like Void, but permanently**.
 
 ## Changelog
 
