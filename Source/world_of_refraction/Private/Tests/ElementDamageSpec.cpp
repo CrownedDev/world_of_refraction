@@ -162,6 +162,19 @@ void FElementDamageSpec::Define()
 					  FMath::RoundToInt(ELEMENT_TEST_DOT_PER_TURN * FireMult));
 		});
 
+		It("leaves a share-of-max-HP DOT unresisted", [this]()
+		{
+			if (!TestTrue(TEXT("setup"), FireCaster != nullptr))
+			{
+				return;
+			}
+			FActiveSkillEffect BarCapDot =
+				FActiveSkillEffect::CreateDOT(TEXT("Test bar-cap DOT"), 0, ELEMENT_TEST_DOT_PER_TURN, 1, ESpellElement::Fire);
+			BarCapDot.bShareOfMaxHP = true;
+			TestEqual(TEXT("full value"), USkillEffectManager::GetDotTickDamage(FireCaster, BarCapDot),
+					  FMath::RoundToInt(ELEMENT_TEST_DOT_PER_TURN));
+		});
+
 		It("skips element resistance when the input says so", [this]()
 		{
 			if (!TestTrue(TEXT("setup"), Calculator && Attacker && FireCaster))
