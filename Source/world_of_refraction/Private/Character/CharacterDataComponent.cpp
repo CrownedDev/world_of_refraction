@@ -1114,7 +1114,7 @@ bool UCharacterDataComponent::GetStatLayers(ESubStat Stat, FWoRStatLayers &OutLa
 {
     // Pattern P (clusters 5a, 5g): the stat term capped ALONE at STAT_MULT_CAP (x1.5), then gear,
     // stone and transient multiply it (FWoRStatLayers::Compose clamps). Gear points read as a fraction.
-    OutLayers = FWoRStatLayers();
+    OutLayers = FWoRStatLayers::ForStat(Stat);
     AActor *Owner = GetOwner();
     ULoadoutComponent *Loadout = Owner ? Owner->FindComponentByClass<ULoadoutComponent>() : nullptr;
     const USkillEffectManager *SEM = Owner ? GetSkillEffectManager() : nullptr;
@@ -1129,6 +1129,8 @@ bool UCharacterDataComponent::GetStatLayers(ESubStat Stat, FWoRStatLayers &OutLa
             OutLayers.TransientFactor = 1.0f + SEM->GetNetStatModifier(Owner, Stat) / CombatConstants::STAT_PERCENT_DIVISOR;
         }
     };
+    // StatusMultiplier and Defense floor a 100%+ debuff at x0 (never inverts).
+    auto FloorTransient = [&OutLayers]() { OutLayers.TransientFactor = FMath::Max(0.0f, OutLayers.TransientFactor); };
 
     switch (Stat)
     {
@@ -1165,6 +1167,45 @@ bool UCharacterDataComponent::GetStatLayers(ESubStat Stat, FWoRStatLayers &OutLa
             }
             ReadStoneAndTransient();
         }
+        return true;
+    case ESubStat::StatusMultiplier:
+        OutLayers.StatBase = FMath::Min(GetEvolutionModifiedStatusMultiplier(), CombatConstants::STAT_MULT_CAP);
+        if (Loadout)
+        {
+            OutLayers.GearFactor =
+                1.0f + Loadout->GetActiveStatBonus(Owner).BonusStatusMultiplier * CombatConstants::STATUS_MULTIPLIER_PER_POINT;
+        }
+        ReadStoneAndTransient();
+        FloorTransient();
+        return true;
+    case ESubStat::Defense:
+        // A reduction: the stat capped alone at UNIVERSAL_STAT_CAP (0.5), toward DEFENSE_REDUCTION_CEILING.
+        if (!CharacterData)
+        {
+            return false;
+        }
+        OutLayers.StatBase = FMath::Min(GetEvolutionModifiedFlatDefense(), CombatConstants::UNIVERSAL_STAT_CAP);
+        if (Loadout)
+        {
+            OutLayers.GearFactor = 1.0f + Loadout->GetActiveStatBonus(Owner).BonusDefense * CombatConstants::DEFENSE_PER_POINT;
+        }
+        ReadStoneAndTransient();
+        FloorTransient();
+        return true;
+    case ESubStat::CritDamage:
+        // x1.0 un-invested; the Mind crit-damage ramp capped alone at CRIT_DAMAGE_STAT_CAP.
+        OutLayers.StatBase = CombatConstants::CRIT_DMG_BASE;
+        if (CharacterData)
+        {
+            OutLayers.StatBase = FMath::Min(CombatConstants::CRIT_DMG_BASE + GetEvolutionModifiedMind() * CharacterData->GetTotalCritDamage() *
+                                                                               CombatConstants::CRIT_DAMAGE_PER_POINT,
+                                            CombatConstants::CRIT_DAMAGE_STAT_CAP);
+        }
+        if (Loadout)
+        {
+            OutLayers.GearFactor = 1.0f + Loadout->GetActiveStatBonus(Owner).BonusCritDamage * CombatConstants::CRIT_DAMAGE_PER_POINT;
+        }
+        ReadStoneAndTransient();
         return true;
     default:
         return false;
@@ -1374,41 +1415,14 @@ float UCharacterDataComponent::GetCrystalResistanceStatCapped() const
 
 float UCharacterDataComponent::GetEffectiveStatusMultiplier() const
 {
-    // THE SINGLE source of truth for a character's effective StatusMultiplier (T3 consolidation):
-    // GetSourceStatusMultiplierFactor was retired and AddStatusBuildup now calls THIS, so the live
-    // buildup + BD overload + crystal-wear all read one value — lockstep by construction, no twin to
-    // drift (closes the 5d divergence where this getter kept the old uncapped/additive base).
-    // GENERAL (permanent, Pattern-P multiplicative): stat term capped ALONE at STAT_MULT_CAP (×1.5),
-    // THEN BonusStatusMultiplier (per-point fraction) × attached StatusStone multiply it past 1.5.
-    const float StatBase = FMath::Min(GetEvolutionModifiedStatusMultiplier(), CombatConstants::STAT_MULT_CAP);
-    float Factor = StatBase;
-
-    if (AActor *Owner = GetOwner())
-    {
-        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
-        {
-            Factor *= (1.0f + Loadout->GetActiveStatBonus(Owner).BonusStatusMultiplier * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
-
-            Factor *= (1.0f + Loadout->GetAttachedStonePercent(ESubStat::StatusMultiplier) / CombatConstants::STAT_PERCENT_DIVISOR);
-        }
-
-        // Transient StatusMultiplierBuff/Debuff — MULTIPLICATIVE: the temporary net scales the
-        // permanent-gear factor proportionally, ×(1 + net/100). Max(0,…) floors a ≥100% debuff at ×0
-        // (never inverts); buff/debuff in lockstep. The final clamp bounds to [0, 2.0].
-        // GENERIC (Element == None) ONLY here: this getter is element-agnostic and multi-consumer
-        // (status buildup, overload tick, crystal wear), so it must NOT element-key. Element-keyed
-        // StatusMultiplierBuffs are applied at the status-buildup site (where the buildup element is
-        // known). Byte-identical to the prior all-effects sum while every StatusMultiplierBuff is None.
-        if (USkillEffectManager *SEM = GetSkillEffectManager())
-        {
-            // The table's StatusMultiplier row reads element-agnostic (None) effects only.
-            Factor *= FMath::Max(0.0f, 1.0f + SEM->GetNetStatModifier(Owner, ESubStat::StatusMultiplier) / CombatConstants::STAT_PERCENT_DIVISOR);
-        }
-    }
-
-    // Final clamp [0, STAT_MODIFIER_MAX ×2.0] — general gear caps at 1.5 alone, gear multiplies toward
-    // 2.0, multiplicative transient scales within [0,2]. The inner Max(0,…) floors the transient at ×0.
-    return FMath::Clamp(Factor, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+    // THE SINGLE source of truth for a character's effective StatusMultiplier (T3 consolidation): read by
+    // the live buildup, the BD overload and crystal-wear. Pattern P (GetStatLayers): the stat term capped
+    // ALONE at STAT_MULT_CAP (x1.5), then BonusStatusMultiplier, the StatusStone and the element-agnostic
+    // (None) StatusMultiplierBuff/Debuff net multiply it (the transient floored at x0), clamped [0, 2.0].
+    // Element-keyed StatusMultiplierBuffs apply at the status-buildup site, where the element is known.
+    FWoRStatLayers Layers;
+    GetStatLayers(ESubStat::StatusMultiplier, Layers);
+    return Layers.Compose();
 }
 
 float UCharacterDataComponent::GetEffectiveResistance() const

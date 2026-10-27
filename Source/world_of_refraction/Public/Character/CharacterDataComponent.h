@@ -340,9 +340,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEffectiveSpellDamage() const;
 
-    /** The Pattern P layers of SpellDamage, RawDamage, ActionSpeed or SpellSpeed (B-042p): the four
-     *  GetEffective* getters return Compose() of these, and the GAS stat sources apply them. False
-     *  (layers left at 1) for any other sub-stat. */
+    /** The Pattern P layers of SpellDamage, RawDamage, ActionSpeed, SpellSpeed (B-042p), StatusMultiplier,
+     *  Defense or CritDamage (B-042q): their getters return Compose() of these, and the GAS stat sources
+     *  apply them. False for any other sub-stat, and for Defense without CharacterData (its getter's 0). */
     bool GetStatLayers(ESubStat Stat, FWoRStatLayers &OutLayers) const;
 
     /** L2 — additive equipment SpellDamage term (BonusSpellDamage × per-point), the
