@@ -76,6 +76,9 @@ class WORLD_OF_REFRACTION_API UWoRAttributeSet_Stats : public UAttributeSet
 public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 
+	/** SpellDamage, RawDamage, ActionSpeed, SpellSpeed: the compose clamp over their source layers (B-042p). */
+	virtual void PreAttributeChange(const FGameplayAttribute &Attribute, float &NewValue) override;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Pillars", ReplicatedUsing = OnRep_Mind)
 	FGameplayAttributeData Mind;
 	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Stats, Mind)

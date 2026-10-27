@@ -6,8 +6,11 @@
 #include "Components/ActorComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Character/CharacterData.h"
+#include "Character/StatLayers.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "CharacterDataComponent.generated.h"
+
+enum class ESubStat : uint8;
 
 /** The three world-stat pillars — the shared, BlueprintType pillar key for the world-stat
  *  earn/buy/query ops (replaces the prior file-local non-UENUM EPillar/ECrystalPillar, which
@@ -336,6 +339,11 @@ public:
      *  which DamageCalculator DRY-sources at its own (unchanged) step order. */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEffectiveSpellDamage() const;
+
+    /** The Pattern P layers of SpellDamage, RawDamage, ActionSpeed or SpellSpeed (B-042p): the four
+     *  GetEffective* getters return Compose() of these, and the GAS stat sources apply them. False
+     *  (layers left at 1) for any other sub-stat. */
+    bool GetStatLayers(ESubStat Stat, FWoRStatLayers &OutLayers) const;
 
     /** L2 — additive equipment SpellDamage term (BonusSpellDamage × per-point), the
      *  value Step 1 of CalculateDamage adds into AttackerMult AFTER ActionMods. Single

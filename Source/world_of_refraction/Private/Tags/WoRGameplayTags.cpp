@@ -69,6 +69,10 @@ namespace WoRTags
 	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_Action, "Effect.Family.Action");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Origin_Gear, "Effect.Origin.Gear", "D-015: a cleanse leaves it");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Magnitude, "SetByCaller.Magnitude", "The effect value a family GE reads");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Stat_Gear, "SetByCaller.Stat.Gear", "A composed stat's gear factor (1 + points as a fraction)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Stat_Stone, "SetByCaller.Stat.Stone", "A composed stat's attached-stone factor");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Stat_Transient, "SetByCaller.Stat.Transient", "A composed stat's buff / debuff factor");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Family_StatSources, "Effect.Family.StatSources", "B-042p: a stat's gear / stone / buff layers");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_Hit, "Event.Combat.Hit", "Sent to the target of damage; magnitude = damage");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_DefenseResolved, "Event.Combat.DefenseResolved", "Sent to the defender once its defense resolves");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_TurnStart, "Event.Combat.TurnStart", "Sent to the actor whose turn starts");

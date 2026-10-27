@@ -2432,6 +2432,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. Path of Exile adds every source of resistance penetration together (one total per element, read easily as "+30% more ignore"). The cap at 100% keeps a full ignore the most it can do. Splitting keeps the game playable after each step (`StatMathsRedesign.md` §4).
 **Notes for Claude:** B-042m built A in the shared damage core (B-219), so the GAS damage execution and today's calculator both use it (D-086 asked for the GAS calculation; the core is that calculation). Behaviour change: an IgnoreDefense effect authored with a value above 1 now ignores that share, not all Defense; its text now reads "ignore 30% Defense" (or "all"). `Result.DefenderFlatDefense` still reports the full Defense under a partial ignore (the blocked amount is right). `USkillDataBase::IgnoreDefensePercent` is a new field (default 0), so no existing skill changes; a skill tooltip line for it is for the new HUD (B-105).
 
+### Q-042p — Stat sources on GAS: one effect per stat fed by the sync, or the loadout and buffs apply their own?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042p) · **Blocks:** —
+**Question:** `StatMathsRedesign.md` §2.1 puts each source group on GAS as one aggregated modifier (the loadout applies a gear GE and a stone GE, buffs feed an MMC). While the enum effects and the loadout still own those sources (until B-042h), who applies them? And B-042p held every stat (L): split it?
+**Options:**
+- **A** (as built) one `UWoRGE_StatSources` effect per stat, applied by the attribute sync, with the three group factors (gear, stone, transient) as SetByCaller magnitudes on MultiplyCompound modifiers over the capped-stat base; re-applied when a factor changes; the attribute set clamps. The four Pattern P stats now; the rest is B-042q.
+- **B** the loadout applies gear / stone GEs and buffs an MMC now, beside the getters.
+**Recommendation:** A. SetByCaller is GAS's documented way to pass magnitudes computed outside the effect (tranek's GASDocumentation, "SetByCallers"; Lyra's damage uses it), and MultiplyCompound is the engine's op for multipliers that compound rather than add (GameplayEffectTypes.h: `((Base + AddBase) x MultiplyAdditive / DivideAdditive x MultiplyCompound) + AddFinal`), which is exactly the §2.1 shape (sum within a group, multiply between groups). A keeps one source of truth (the getter's layers) while the enum path owns the sources, so nothing is counted twice; B-042h moves each group's applier to its owner (loadout, buffs) without changing the effect.
+**Notes for Claude:** B-042p built A. The current value equals the getter (spec + `wor.CompareAttributes`); the base is the capped stat. The executions read current values, so nothing changes for them.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

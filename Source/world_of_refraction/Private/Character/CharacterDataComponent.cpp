@@ -1012,9 +1012,9 @@ float UCharacterDataComponent::GetEffectiveSpellDamage() const
     // clamp, bounded by the higher STAT_MODIFIER_MAX (×2.0) compose ceiling. Stat saturates at ×1.5;
     // gear/stone/buff scale it from there toward ×2.0. EquipTerm read as a FRACTION (option ii).
     // Byte-identical below the caps with no gear.
-    const float StatBase = FMath::Min(GetEvolutionModifiedSpellDamage(), CombatConstants::STAT_MULT_CAP);
-    const float Composed = StatBase * (1.0f + GetEquipmentSpellDamageTerm()) * GetStoneSpellDamageFactor() * GetTransientSpellDamageFactor();
-    return FMath::Clamp(Composed, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+    FWoRStatLayers Layers;
+    GetStatLayers(ESubStat::SpellDamage, Layers);
+    return Layers.Compose();
 }
 
 float UCharacterDataComponent::GetEquipmentRawDamageTerm() const
@@ -1072,9 +1072,9 @@ float UCharacterDataComponent::GetEffectiveRawDamage() const
     // apply OUTSIDE that clamp, bounded by the higher STAT_MODIFIER_MAX (×2.0) compose ceiling. No
     // ActionMods / Grid / defender (damage-call-specific). The pipeline DRY-sources the same helpers
     // (Step 2.6). EquipTerm read as a FRACTION (option ii). Byte-identical below the caps with no gear.
-    const float StatBase = FMath::Min(GetEvolutionModifiedRawDamage(), CombatConstants::STAT_MULT_CAP);
-    const float Composed = StatBase * (1.0f + GetEquipmentRawDamageTerm()) * GetStoneRawDamageFactor() * GetTransientRawDamageFactor();
-    return FMath::Clamp(Composed, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+    FWoRStatLayers Layers;
+    GetStatLayers(ESubStat::RawDamage, Layers);
+    return Layers.Compose();
 }
 
 float UCharacterDataComponent::GetEffectiveActionSpeed() const
@@ -1090,26 +1090,9 @@ float UCharacterDataComponent::GetEffectiveActionSpeed() const
     // STAT_MODIFIER_MAX (×2.0) compose ceiling. Returns a pure ×1.0–×2.0 multiplier; the montage
     // BaseAnimSpeed and per-action ActionMods stay at the ActionExecutor call site. ×1.0 at zero
     // gear (the old additive path's zero-point), so byte-identical with no speed gear.
-    const float StatBase = FMath::Min(CharacterData->CalculateAnimationSpeed(), CombatConstants::STAT_MULT_CAP);
-
-    float GearFrac = 0.0f;
-    float StoneFactor = 1.0f;
-    float TransientFactor = 1.0f;
-    if (AActor *Owner = GetOwner())
-    {
-        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
-        {
-            GearFrac = Loadout->GetActiveStatBonus(Owner).BonusActionSpeed * CombatConstants::ANIMATION_SPEED_PER_POINT;
-            StoneFactor = 1.0f + Loadout->GetAttachedStonePercent(ESubStat::ActionSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
-        }
-        if (USkillEffectManager *SEM = GetSkillEffectManager())
-        {
-            TransientFactor = 1.0f + SEM->GetNetStatModifier(Owner, ESubStat::ActionSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
-        }
-    }
-
-    const float Composed = StatBase * (1.0f + GearFrac) * StoneFactor * TransientFactor;
-    return FMath::Clamp(Composed, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+    FWoRStatLayers Layers;
+    GetStatLayers(ESubStat::ActionSpeed, Layers);
+    return Layers.Compose();
 }
 
 float UCharacterDataComponent::GetEffectiveSpellSpeed() const
@@ -1122,26 +1105,70 @@ float UCharacterDataComponent::GetEffectiveSpellSpeed() const
     // ×1.5-capped) clamped ALONE, THEN BonusSpellSpeed (fraction) × attached SpellSpeedStone ×
     // transient SpellSpeedBuff/Debuff, bounded by STAT_MODIFIER_MAX (×2.0). Pure multiplier; the
     // montage BaseAnimSpeed and per-action ActionMods stay at the call site. ×1.0 at zero gear.
-    const float StatBase = FMath::Min(CharacterData->CalculateSpellSpeed(), CombatConstants::STAT_MULT_CAP);
+    FWoRStatLayers Layers;
+    GetStatLayers(ESubStat::SpellSpeed, Layers);
+    return Layers.Compose();
+}
 
-    float GearFrac = 0.0f;
-    float StoneFactor = 1.0f;
-    float TransientFactor = 1.0f;
-    if (AActor *Owner = GetOwner())
+bool UCharacterDataComponent::GetStatLayers(ESubStat Stat, FWoRStatLayers &OutLayers) const
+{
+    // Pattern P (clusters 5a, 5g): the stat term capped ALONE at STAT_MULT_CAP (x1.5), then gear,
+    // stone and transient multiply it (FWoRStatLayers::Compose clamps). Gear points read as a fraction.
+    OutLayers = FWoRStatLayers();
+    AActor *Owner = GetOwner();
+    ULoadoutComponent *Loadout = Owner ? Owner->FindComponentByClass<ULoadoutComponent>() : nullptr;
+    const USkillEffectManager *SEM = Owner ? GetSkillEffectManager() : nullptr;
+    auto ReadStoneAndTransient = [&]()
     {
-        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        if (Loadout)
         {
-            GearFrac = Loadout->GetActiveStatBonus(Owner).BonusSpellSpeed * CombatConstants::SPELL_SPEED_PER_POINT;
-            StoneFactor = 1.0f + Loadout->GetAttachedStonePercent(ESubStat::SpellSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
+            OutLayers.StoneFactor = 1.0f + Loadout->GetAttachedStonePercent(Stat) / CombatConstants::STAT_PERCENT_DIVISOR;
         }
-        if (USkillEffectManager *SEM = GetSkillEffectManager())
+        if (SEM)
         {
-            TransientFactor = 1.0f + SEM->GetNetStatModifier(Owner, ESubStat::SpellSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
+            OutLayers.TransientFactor = 1.0f + SEM->GetNetStatModifier(Owner, Stat) / CombatConstants::STAT_PERCENT_DIVISOR;
         }
-    }
+    };
 
-    const float Composed = StatBase * (1.0f + GearFrac) * StoneFactor * TransientFactor;
-    return FMath::Clamp(Composed, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+    switch (Stat)
+    {
+    case ESubStat::SpellDamage:
+        OutLayers.StatBase = FMath::Min(GetEvolutionModifiedSpellDamage(), CombatConstants::STAT_MULT_CAP);
+        OutLayers.GearFactor = 1.0f + GetEquipmentSpellDamageTerm();
+        OutLayers.StoneFactor = GetStoneSpellDamageFactor();
+        OutLayers.TransientFactor = GetTransientSpellDamageFactor();
+        return true;
+    case ESubStat::RawDamage:
+        OutLayers.StatBase = FMath::Min(GetEvolutionModifiedRawDamage(), CombatConstants::STAT_MULT_CAP);
+        OutLayers.GearFactor = 1.0f + GetEquipmentRawDamageTerm();
+        OutLayers.StoneFactor = GetStoneRawDamageFactor();
+        OutLayers.TransientFactor = GetTransientRawDamageFactor();
+        return true;
+    case ESubStat::ActionSpeed:
+        if (CharacterData)
+        {
+            OutLayers.StatBase = FMath::Min(CharacterData->CalculateAnimationSpeed(), CombatConstants::STAT_MULT_CAP);
+            if (Loadout)
+            {
+                OutLayers.GearFactor = 1.0f + Loadout->GetActiveStatBonus(Owner).BonusActionSpeed * CombatConstants::ANIMATION_SPEED_PER_POINT;
+            }
+            ReadStoneAndTransient();
+        }
+        return true;
+    case ESubStat::SpellSpeed:
+        if (CharacterData)
+        {
+            OutLayers.StatBase = FMath::Min(CharacterData->CalculateSpellSpeed(), CombatConstants::STAT_MULT_CAP);
+            if (Loadout)
+            {
+                OutLayers.GearFactor = 1.0f + Loadout->GetActiveStatBonus(Owner).BonusSpellSpeed * CombatConstants::SPELL_SPEED_PER_POINT;
+            }
+            ReadStoneAndTransient();
+        }
+        return true;
+    default:
+        return false;
+    }
 }
 
 float UCharacterDataComponent::SpeedWindowGearFactor(EActionType AttackType) const
