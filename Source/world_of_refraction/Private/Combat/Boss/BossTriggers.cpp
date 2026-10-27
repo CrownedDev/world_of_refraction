@@ -61,6 +61,10 @@ int32 BossTriggers::ApplyTo(AActor *Boss, const UBossData &Data, const TArray<AA
 	UBossPhaseComponent *Phases = Boss->FindComponentByClass<UBossPhaseComponent>();
 	int32 Fired = 0;
 	int32 NetSteps = 0;
+	// Q-211: a skip and an added phase each happen at most once per boss per fight, however many
+	// triggers ask (two identical last stands, or skipping every phase, would break the fight).
+	bool bSkipped = false;
+	bool bAdded = false;
 	for (const FBossTrigger &Trigger : Data.Triggers)
 	{
 		if (!Fires(Trigger, FightStart))
@@ -85,18 +89,27 @@ int32 BossTriggers::ApplyTo(AActor *Boss, const UBossData &Data, const TArray<AA
 					UE_LOG(LogWoR, Warning, TEXT("[BossTriggers] %s: %s on %s, which has no boss phases"), *Trigger.TriggerId.ToString(),
 						   *UEnum::GetValueAsString(Result), *GetNameSafe(Boss));
 				}
-				else if (Result == EBossTriggerResult::SkipPhase)
+				else if (Result == EBossTriggerResult::SkipPhase && !bSkipped)
 				{
 					Phases->SkipNextPhase();
+					bSkipped = true;
 				}
-				else
+				else if (Result == EBossTriggerResult::AddPhase && !bAdded)
 				{
 					Phases->AddPhase(UBossData::GetMemoryAddedPhase());
+					bAdded = true;
 				}
 				break;
 			case EBossTriggerResult::Dialogue:
-				// TODO: played by the dialogue system (B-194).
-				UE_LOG(LogWoR, Log, TEXT("[BossTriggers] %s: dialogue %s"), *Trigger.TriggerId.ToString(), *Trigger.DialogueId.ToString());
+				if (Trigger.DialogueId.IsNone())
+				{
+					UE_LOG(LogWoR, Warning, TEXT("[BossTriggers] %s: a Dialogue result with no DialogueId"), *Trigger.TriggerId.ToString());
+				}
+				else
+				{
+					// TODO: played by the dialogue system (B-194).
+					UE_LOG(LogWoR, Log, TEXT("[BossTriggers] %s: dialogue %s"), *Trigger.TriggerId.ToString(), *Trigger.DialogueId.ToString());
+				}
 				break;
 			}
 		}

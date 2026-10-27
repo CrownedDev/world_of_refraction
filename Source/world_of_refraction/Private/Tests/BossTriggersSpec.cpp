@@ -16,6 +16,10 @@
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Memory/MemoryConditions.h"
+#include "Memory/MemoryData.h"
+#include "Memory/MemoryUnlock.h"
+#include "Memory/MemoryJournalSubsystem.h"
+#include "Trial/TrialRunSubsystem.h"
 
 namespace
 {
@@ -152,6 +156,32 @@ void FBossTriggersSpec::Define()
 		const int32 BasePhases = Phases->GetPhaseCount();
 		TestEqual(TEXT("Fires"), BossTriggers::ApplyTo(Boss, *BossData, {SpawnWearing(Lord, OldSword)}), 1);
 		TestEqual(TEXT("One phase more"), Phases->GetPhaseCount(), BasePhases + 1);
+	});
+
+	It("adds or skips a phase at most once per boss, however many triggers ask", [this]()
+	{
+		BossData->Triggers.Add(LordWithOldSword({EBossTriggerResult::AddPhase}));
+		BossData->Triggers.Add(LordWithOldSword({EBossTriggerResult::AddPhase}));
+		AActor *Boss = SpawnBoss();
+		UBossPhaseComponent *Phases = BossTriggerAddComponent<UBossPhaseComponent>(Boss);
+		Phases->Setup(BossData);
+		const int32 BasePhases = Phases->GetPhaseCount();
+		TestEqual(TEXT("Both fire"), BossTriggers::ApplyTo(Boss, *BossData, {SpawnWearing(Lord, OldSword)}), 2);
+		TestEqual(TEXT("Still one phase more"), Phases->GetPhaseCount(), BasePhases + 1);
+	});
+
+	It("leaves a boss alone that only a memory in the run names (memories no longer change bosses)", [this]()
+	{
+		UMemoryData *Memory = NewObject<UMemoryData>(GetTransientPackage());
+		Memory->BossModifiers.Add({BossData->Boss, EMemoryBossModifierKind::Weaken});
+		UGameInstance *GameInstance = TestWorld->GetWorld()->GetGameInstance();
+		TestTrue(TEXT("Collected this run"), MemoryUnlock::Unlock(GameInstance, Memory, EMemorySource::Fragment) &&
+												 TestWorld->GetSubsystem<UTrialRunSubsystem>()->GetRunMemories().Contains(Memory));
+
+		AActor *Boss = SpawnBoss();
+		const int32 BaseMaxHP = MaxHPOf(Boss);
+		TestEqual(TEXT("No trigger fires"), BossTriggers::ApplyTo(Boss, *BossData, {SpawnWearing(Lord, OldSword)}), 0);
+		TestEqual(TEXT("Max HP as it was"), MaxHPOf(Boss), BaseMaxHP);
 	});
 
 	It("reads the fight, not memories: an event with no party fires nothing", [this]()
