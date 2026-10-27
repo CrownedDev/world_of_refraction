@@ -2637,6 +2637,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. Q-032 defines our Reflect as a share of the HP the hit took (an overkill reflects only the HP the target had), and Q-044e B already made the absorbers a deliberate difference from the deckbuilder ("negate 5" is exactly 5 HP you would have lost). Under A a fully stopped hit reflects nothing, and it keeps one reading of "what the hit did" for every after-hit effect. Not lore.
 **Notes for Claude:** applied (feature/B-042j-absorb-family, UNBUILT). "Reflect on the same shape" (one GE by tag and element, like the absorbers) moves to B-042j2 with the rest of D-092.
 
+### Q-227 — Co-op travel: can a client move the group to another level?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-227) · **Blocks:** —
+**Question:** On a listen server, level changes now take every player along (seamless server travel). What happens when a client walks into a trial door or a fight starts on their screen?
+**Options:**
+- **A** (as built) only the host moves the group. A client's own travel call is refused with a warning, and its requests reach the host through the input RPCs (B-229).
+- **B** let any player's trigger move everyone.
+**Recommendation:** A. Unreal's server-authoritative model only lets the server travel (`ServerTravel`). Co-op games with a host such as Deep Rock Galactic and Divinity: Original Sin 2 let clients vote or ready up, and the host's game moves the group. That keeps one source of truth for the run state. Not lore.
+**Notes for Claude:** applied (feature/B-227-seamless-travel, UNBUILT). The hub's Blueprint game mode still needs "Use Seamless Travel" and `AWoRGameState` set in the editor before hub <-> trial keeps clients.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
