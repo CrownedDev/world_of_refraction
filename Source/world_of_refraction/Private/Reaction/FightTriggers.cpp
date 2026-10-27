@@ -16,9 +16,10 @@
 
 namespace
 {
-	constexpr float PERCENT_SCALE = 100.0f;
+	// Prefixed: unity builds share one anonymous namespace across files (EffectText has a PERCENT_SCALE).
+	constexpr float FIGHT_TRIGGER_PERCENT_SCALE = 100.0f;
 	/** GetHPPercent for a combatant whose HP can't be read, or who is down: no line counts. */
-	constexpr float NO_HP_PERCENT = -1.0f;
+	constexpr float FIGHT_TRIGGER_NO_HP_PERCENT = -1.0f;
 
 	bool IsAlive(const AActor *Actor)
 	{
@@ -31,7 +32,7 @@ namespace
 	float GetHPPercent(const AActor *Actor)
 	{
 		const UCharacterDataComponent *Stats = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-		return Stats && Stats->MaxHP > 0 && Stats->CurrentHP > 0 ? PERCENT_SCALE * Stats->CurrentHP / Stats->MaxHP : NO_HP_PERCENT;
+		return Stats && Stats->MaxHP > 0 && Stats->CurrentHP > 0 ? FIGHT_TRIGGER_PERCENT_SCALE * Stats->CurrentHP / Stats->MaxHP : FIGHT_TRIGGER_NO_HP_PERCENT;
 	}
 
 	bool IsPastLine(const FFightMoment &When, float HPPercent)
