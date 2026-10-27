@@ -2855,22 +2855,6 @@ bool ULoadoutComponent::HasSecondaryEquipment() const
 
 bool ULoadoutComponent::HasRingInSecondary() const
 {
-    if (GetCharacterClass() != ECharacterClass::Generic)
-    {
-        return false;
-    }
-
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::HasRingInSecondary] No InventoryComponent found on owner"));
-        return false;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-    {
-        return false;
-    }
-
     // The Generic secondary slot holds a weapon only (ESecondarySlotType), whatever the primary.
     return false;
 }
@@ -2903,7 +2887,14 @@ UStanceData *ULoadoutComponent::GetCurrentStance() const
         {
             ShownWeapon = Loadout.PrimaryWeapon.IsValid() ? &Loadout.PrimaryWeapon : nullptr;
         }
-        // Ring/Evolution primary while showing primary => no weapon stance, fall through to unarmed.
+        // B-099 (D-027): an evolution has no stance, and the Generic fights with its secondary weapon.
+        else if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution &&
+                 GetCharacterClass() == ECharacterClass::Generic &&
+                 Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
+        {
+            ShownWeapon = Loadout.SecondaryWeapon.IsValid() ? &Loadout.SecondaryWeapon : nullptr;
+        }
+        // Ring primary while showing primary => no weapon stance, fall through to unarmed.
     }
     else
     {

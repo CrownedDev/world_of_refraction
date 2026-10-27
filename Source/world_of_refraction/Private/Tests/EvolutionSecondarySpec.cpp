@@ -7,6 +7,7 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Character/StanceData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
@@ -52,6 +53,8 @@ void FEvolutionSecondarySpec::Define()
 		Active.SecondarySlotType = ESecondarySlotType::Weapon;
 		UWeaponData *Sword = NewObject<UWeaponData>(GetTransientPackage());
 		Sword->Name = TEXT("Test Sword");
+		Sword->WeaponAttack = NewObject<UAbilityData>(GetTransientPackage());
+		Sword->WeaponStance = NewObject<UStanceData>(GetTransientPackage());
 		Active.SecondaryWeapon.WeaponEntry.Weapon = Sword;
 		SwordAbility = NewObject<UAbilityData>(GetTransientPackage());
 		Active.SecondaryWeapon.AssignedAbilities = {SwordAbility};
@@ -69,6 +72,10 @@ void FEvolutionSecondarySpec::Define()
 		TestTrue(TEXT("has secondary equipment"), Loadout->HasSecondaryEquipment());
 		TestTrue(TEXT("the secondary is the weapon in hand"), Loadout->GetActiveWeaponLoadout() == Loadout->GetSecondaryWeaponLoadout());
 		TestFalse(TEXT("no ring in the secondary slot"), Loadout->HasRingInSecondary());
+		TestTrue(TEXT("armed"), Loadout->IsArmed());
+		const UWeaponData *Sword = Loadout->GetSecondaryWeaponLoadout()->WeaponEntry.Weapon;
+		TestTrue(TEXT("attacks with the sword"), Loadout->GetCurrentAttack() == Sword->WeaponAttack);
+		TestTrue(TEXT("shows the sword's stance"), Loadout->GetCurrentStance() == Sword->WeaponStance);
 	});
 
 	It("attacks with the sword and uses its abilities, with no weapon switch", [this]()
