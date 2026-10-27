@@ -158,10 +158,11 @@ void FSharedGearSpec::Define()
 		if (!Pool) return;
 		UInventoryComponent *First = SpawnMember(0, true, true);
 		UInventoryComponent *Second = SpawnMember(1, false, false);
-		if (!First || !Second) return;
+		if (!First || !Second || !TestEqual(TEXT("One sword"), Pool->GetOwnedWeapons().Num(), 1)) return;
 		const FGuid SwordID = Pool->GetOwnedWeapons()[0].PersistentID;
 
 		TestTrue(TEXT("The wearer can still pick it"), First->GetSelectableWeapons().Num() == 1);
+		TestEqual(TEXT("No rings, none to pick"), Second->GetSelectableRings().Num(), Second->Rings.Num());
 		TestTrue(TEXT("Worn by another member for the second"), Second->IsWornByOtherMember(SwordID));
 		TestEqual(TEXT("Not in the second member's list"), Second->GetSelectableWeapons().Num(), 0);
 

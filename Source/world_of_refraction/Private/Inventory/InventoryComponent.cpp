@@ -1436,6 +1436,11 @@ int32 UInventoryComponent::StripUnownedGear()
 
 bool UInventoryComponent::IsWornByOtherMember(const FGuid &PersistentID) const
 {
+    return IsWornByOtherMemberOf(PersistentID, GetPartyMembersByKey());
+}
+
+bool UInventoryComponent::IsWornByOtherMemberOf(const FGuid &PersistentID, const TMap<FName, const UCharacterData *> &Party) const
+{
     const UPoolSubsystem *Pool = SharedPool.Get();
     if (!Pool || !PersistentID.IsValid())
     {
@@ -1443,17 +1448,19 @@ bool UInventoryComponent::IsWornByOtherMember(const FGuid &PersistentID) const
     }
     const FName Wearer = Pool->GetWearer(PersistentID);
     // A wearer who left the party has released it (UPartySessionSubsystem); only a current member counts.
-    return !Wearer.IsNone() && Wearer != SharedGearKey && GetPartyMembersByKey().Contains(Wearer);
+    return !Wearer.IsNone() && Wearer != SharedGearKey && Party.Contains(Wearer);
 }
 
 TArray<FWeaponInventoryEntry> UInventoryComponent::GetSelectableWeapons() const
 {
-    return Weapons.FilterByPredicate([this](const FWeaponInventoryEntry &Entry) { return !IsWornByOtherMember(Entry.PersistentID); });
+    const TMap<FName, const UCharacterData *> Party = GetPartyMembersByKey();
+    return Weapons.FilterByPredicate([this, &Party](const FWeaponInventoryEntry &Entry) { return !IsWornByOtherMemberOf(Entry.PersistentID, Party); });
 }
 
 TArray<FRingInventoryEntry> UInventoryComponent::GetSelectableRings() const
 {
-    return Rings.FilterByPredicate([this](const FRingInventoryEntry &Entry) { return !IsWornByOtherMember(Entry.PersistentID); });
+    const TMap<FName, const UCharacterData *> Party = GetPartyMembersByKey();
+    return Rings.FilterByPredicate([this, &Party](const FRingInventoryEntry &Entry) { return !IsWornByOtherMemberOf(Entry.PersistentID, Party); });
 }
 
 // TODO: OBSOLETE after Crown's PIE of B-221b (Q-091 changed by Crown): with worn gear out of the other members'

@@ -485,6 +485,9 @@ private:
     /** B-091: the local party's members by pool key. */
     TMap<FName, const UCharacterData *> GetPartyMembersByKey() const;
 
+    /** B-221: IsWornByOtherMember against a party map built once (the selectable lists). */
+    bool IsWornByOtherMemberOf(const FGuid &PersistentID, const TMap<FName, const UCharacterData *> &Party) const;
+
     TWeakObjectPtr<UPoolSubsystem> SharedPool;
     FName SharedGearKey;
     /** True while this inventory pushes to, or copies from, the pool (no echo). */
