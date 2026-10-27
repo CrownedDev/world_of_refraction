@@ -1,6 +1,6 @@
 # Elements on the World
 
-**Status:** model decided (`FieldAbilities.md` §5, B-215: Breath of the Wild's general rules); the rule table below is a **suggestion** being confirmed with Crown one element at a time (lore decides). The research is in the appendix; claims marked "(search summary)" came from search results only.
+**Status:** decided (Crown, 2026-10-27): the confirmed rules above the appendix are the game's; the appendix table was the starting suggestion. The research is in the appendix; claims marked "(search summary)" came from search results only.
 
 ## Confirmed rules
 
