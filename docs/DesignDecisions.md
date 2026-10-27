@@ -1401,6 +1401,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Hidden conditions as a wider principle (Shangri-La Frontier's secret quests and conditions):** Crown wants secret conditions for certain things across the game, not just bosses (see `Design/DesignPillars.md` pillar 10).
 **Notes for Claude:** build on the reaction-trigger condition model (B-191, B-044, D-031): a phase is a condition list plus what changes (skills, element, AI aggression, weather intensity). HP threshold is one condition among many. Weather: add a boss override to `UWeatherStateManager` (boss element + intensity per phase) instead of the HP blend. (planning / timing), statuses on bosses, long fights.
 
+### D-099 — Field commands: the battle menu outside battle
+**Status:** ANSWERED in part (2026-10-27; details being asked one at a time) · **Raised:** 2026-10-27 (Crown, from Q-185 first strike) · **Blocks:** — (builds on GASMigration decision 2, real-time field abilities)
+**Answer (Crown):** (2026-10-27; Metaphor: ReFantazio, Kingdom Hearts)
+- **The battle command menu also works on the map**, for different uses: **attacks, spells, abilities, items**.
+- **Spells and skills get field utility**: a skill can have an effect outside battle, e.g. a **movement speed spell actually makes you move faster** on the map. Authored per skill.
+- **Attacks and spells are free-aimed outside battle:** pick from the menu, the animation plays as in a fight, but there's **no lock-on**: you have to actually hit.
+- **Abilities may have two animations:** the battle one (warped to the target) and a **field one (not warped, in place)** so it works without a target.
+- **First strike (Q-185):** landing a field attack or spell on an enemy that hasn't noticed you gives your side first strike (it acts first). Until field commands exist, a touch from outside its notice cone stands in (as built).
+**Notes for Claude:** built on GAS (stage 4 abilities, B-043): one ability per skill with a battle and a field mode. Open details, asked one at a time: field costs, whether time slows while the menu is open, what a field hit does to an enemy beyond first strike, which skills get field effects.
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
