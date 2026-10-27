@@ -292,6 +292,23 @@ float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 	return Layers.Compose();
 }
 
+float UDamageCalculator::GetCritChanceTransientFactor(AActor *Attacker) const
+{
+	// Multiplicative compounding: GetTotalStatModifier already sums within each category, so each
+	// category is one factor. Debuff is x(1 - pct), NOT x(1 + pct): a 30% crit debuff is x0.7. The
+	// passive-layer ModifyCritChance compounds as another factor.
+	const USkillEffectManager *StatusManager = GetSkillEffectManager();
+	if (!StatusManager || !Attacker)
+	{
+		return 1.0f;
+	}
+	const float CritBuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::CritChanceBuff);
+	const float CritDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::CritChanceDebuff);
+	const float ModifyCrit = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyCritChance);
+	return (1.0f + CritBuff / CombatConstants::STAT_PERCENT_DIVISOR) * (1.0f - CritDebuff / CombatConstants::STAT_PERCENT_DIVISOR) *
+		   (1.0f + ModifyCrit / CombatConstants::STAT_PERCENT_DIVISOR);
+}
+
 float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 {
 	if (!Attacker)
@@ -317,23 +334,9 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 	// wouldn't apply to break-skip/dodge. CritStone's final home (a crit-DAMAGE stone, or a Luck stone
 	// wired into GetEquipmentModifiedLuck so it boosts ALL luck consumers) is a 5e-C3 content decision.
 
-	// Combat-buff/debuff modifiers (from skill casts).
-	USkillEffectManager *StatusManager = GetSkillEffectManager();
-	if (StatusManager)
-	{
-		float CritBuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::CritChanceBuff);
-		float CritDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::CritChanceDebuff);
-
-		// Multiplicative compounding: GetTotalStatModifier already sums within each
-		// category, so each category applies as one factor on the running crit value.
-		// Debuff is ×(1 − pct), NOT ×(1 + pct) — a 30% crit debuff is ×0.7.
-		BaseCrit *= (1.0f + CritBuff / 100.0f);
-		BaseCrit *= (1.0f - CritDebuff / 100.0f);
-
-		// Passive-layer ModifyCritChance: compounds as another multiplicative factor.
-		float ModifyCrit = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyCritChance);
-		BaseCrit *= (1.0f + ModifyCrit / 100.0f);
-	}
+	// Combat-buff/debuff modifiers (from skill casts), one multiplicative factor (B-042s: the GAS
+	// crit-chance effect multiplies the same factor in).
+	BaseCrit *= GetCritChanceTransientFactor(Attacker);
 
 	return FMath::Clamp(BaseCrit, 0.0f, 1.0f);
 }

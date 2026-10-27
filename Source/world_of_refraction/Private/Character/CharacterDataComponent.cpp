@@ -1178,6 +1178,20 @@ bool UCharacterDataComponent::GetStatLayers(ESubStat Stat, FWoRStatLayers &OutLa
         }
         ReadStoneAndTransient();
         return true;
+    case ESubStat::Efficiency:
+        // The cost REDUCTION: crystal-aware Mind x Efficiency points capped ALONE at EFFICIENCY_MAX (0.5).
+        if (!CharacterData)
+        {
+            return false;
+        }
+        OutLayers.StatBase = FMath::Min(GetEvolutionModifiedMind() * CharacterData->GetTotalEfficiency() * CombatConstants::EFFICIENCY_PER_POINT,
+                                        CombatConstants::EFFICIENCY_MAX);
+        if (Loadout)
+        {
+            OutLayers.GearFactor = 1.0f + Loadout->GetActiveStatBonus(Owner).BonusEfficiency * CombatConstants::EFFICIENCY_PER_POINT;
+        }
+        ReadStoneAndTransient();
+        return true;
     case ESubStat::Luck:
         // Normalized: the Spirit-scaled raw luck over LUCK_RAW_MAX, capped ALONE at 1.0.
         if (!CharacterData)
@@ -1312,52 +1326,21 @@ USkillEffectManager *UCharacterDataComponent::GetSkillEffectManager() const
     return CachedSkillEffectManager;
 }
 
+float UCharacterDataComponent::GetEffectiveEfficiencyReduction() const
+{
+    // Pattern P (cluster 5b, GetStatLayers): the crystal-aware Mind x Efficiency-points reduction capped
+    // ALONE at EFFICIENCY_MAX (0.5), then BonusEfficiency, the EfficiencyStone and the net Efficiency
+    // buff / debuff multiply it toward EFFICIENCY_GEAR_CEILING; a net debuff floors at 0. Distinct effect
+    // type from EP's SpellCostBuff/Debuff, so no double-count with the EP SkillEffectMult layer.
+    FWoRStatLayers Layers;
+    return GetStatLayers(ESubStat::Efficiency, Layers) ? Layers.Compose() : 0.0f;
+}
+
 float UCharacterDataComponent::GetEffectiveEfficiencyMultiplier() const
 {
-    if (!CharacterData)
-    {
-        return 1.0f;
-    }
-
-    // Pattern P (cluster 5b) — stat-capped, gear multiplies beyond. Efficiency is INVERTED: the stat
-    // produces a cost REDUCTION (0 to 0.5) and the final multiplier = (1 − reduction), so a larger
-    // reduction = a smaller multiplier = cheaper EP / slower BD drain / less wear. The crystal-aware
-    // Mind × Efficiency-points stat reduction is capped ALONE at EFFICIENCY_MAX (0.5); THEN
-    // gear/stone/buff MULTIPLY it past 0.5 toward EFFICIENCY_GEAR_CEILING (cheaper still on
-    // high-Efficiency builds). Mirrors 5a's damage/Defense shape.
-    const float ModifiedMind = GetEvolutionModifiedMind();
-    const int32 TotalPoints = CharacterData->GetTotalEfficiency();
-    float Reduction = FMath::Min(ModifiedMind * TotalPoints * CombatConstants::EFFICIENCY_PER_POINT,
-                                 CombatConstants::EFFICIENCY_MAX);
-
-    // Equipment BonusEfficiency + attached EfficiencyStone — both from the owner's active loadout
-    // (one lookup, reused). Each MULTIPLIES the capped stat reduction (×(1+fraction)) OUTSIDE the 0.5
-    // cap — option-(ii) interpretation (same as 5a damage gear): the BonusEfficiency × per-point
-    // magnitude is read as a fraction. ×1 (inert) when absent, so byte-identical with no gear.
-    if (AActor *Owner = GetOwner())
-    {
-        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
-        {
-            Reduction *= (1.0f + Loadout->GetActiveStatBonus(Owner).BonusEfficiency * CombatConstants::EFFICIENCY_PER_POINT);
-
-            Reduction *= (1.0f + Loadout->GetAttachedStonePercent(ESubStat::Efficiency)
-                          / CombatConstants::STAT_PERCENT_DIVISOR);
-        }
-
-        // Transient Efficiency buff/debuff — skill-effect layer. MULTIPLIES the reduction (a buff
-        // scales it up → cheaper; a debuff down). ×1 when none active, so byte-identical then.
-        // Distinct effect type from EP's SpellCostBuff/Debuff, so no double-count with the EP
-        // SkillEffectMult layer.
-        if (USkillEffectManager *SEM = GetSkillEffectManager())
-        {
-            Reduction *= (1.0f + SEM->GetNetStatModifier(Owner, ESubStat::Efficiency) / CombatConstants::STAT_PERCENT_DIVISOR);
-        }
-    }
-
-    // Pattern-P gear ceiling: stat alone capped at 0.5 above; gear multiplied past toward the higher
-    // EFFICIENCY_GEAR_CEILING. A net debuff can drive Reduction below 0; the clamp floors it at 0.
-    Reduction = FMath::Clamp(Reduction, 0.0f, CombatConstants::EFFICIENCY_GEAR_CEILING);
-    return 1.0f - Reduction;
+    // Efficiency is INVERTED: a larger reduction = a smaller multiplier = cheaper EP / slower BD drain /
+    // less wear. 1.0 without CharacterData.
+    return 1.0f - GetEffectiveEfficiencyReduction();
 }
 
 float UCharacterDataComponent::GetEvolutionModifiedStatusMultiplier() const
