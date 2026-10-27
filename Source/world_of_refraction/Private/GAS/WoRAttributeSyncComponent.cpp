@@ -138,6 +138,41 @@ bool UWoRAttributeSyncComponent::RefreshComposed(UAbilitySystemComponent &ASC, c
 		SyncComposedStat(ASC, Attribute, Layers, UWoRGE_StatSources::GetClassFor(Pillar));
 		return true;
 	}
+	// B-042yc: the attributes SyncAttributes composes from other sources, each refreshed the same way.
+	if (Attribute == UWoRAttributeSet_Stats::GetTurnSpeedAttribute())
+	{
+		const UTurnManager *Turns = AttributeSyncSubsystem<UTurnManager>(this);
+		if (!Turns || !Turns->GetTurnSpeedLayers(GetOwner(), Layers))
+		{
+			return false;
+		}
+		SyncComposedStat(ASC, Attribute, Layers, UWoRGE_StatSources::GetClassFor(ESubStat::TurnSpeed));
+		return true;
+	}
+	if (Attribute == UWoRAttributeSet_Resistance::GetStatusResistanceAttribute())
+	{
+		if (!WoRResistance::GetGeneralStatusResistanceLayers(GetOwner(), Layers))
+		{
+			return false;
+		}
+		SyncComposedStat(ASC, Attribute, Layers, UWoRGE_StatSources_StatusResistance::StaticClass());
+		return true;
+	}
+	if (UWoRGE_ResistanceSources::CoversAttribute(Attribute))
+	{
+		SyncResistanceSources(ASC);
+		return true;
+	}
+	// Crit chance derives from Luck (its effect captures the attribute), plus its own buff layer.
+	if (Attribute == UWoRAttributeSet_Stats::GetCritChanceAttribute())
+	{
+		if (!RefreshComposed(ASC, Char, UWoRAttributeSet_Stats::GetLuckAttribute()))
+		{
+			return false;
+		}
+		SyncDerivedStat(ASC, Attribute, UWoRGE_DerivedStat::GetClassFor(Attribute));
+		return true;
+	}
 	return false;
 }
 
@@ -347,7 +382,11 @@ void UWoRAttributeSyncComponent::SyncDerivedStat(UAbilitySystemComponent &ASC, c
 	// Crit chance = (CRIT_CHANCE_BASE + Luck x bonus) x buff layer; Efficiency = 1 - EfficiencyReduction.
 	// Without CharacterData GetCriticalChance skips the buff layer, so the GAS one stays at 1.
 	const bool bCritChance = Attribute == UWoRAttributeSet_Stats::GetCritChanceAttribute();
-	ASC.SetNumericAttributeBase(Attribute, bCritChance ? CombatConstants::CRIT_CHANCE_BASE : EFFICIENCY_FULL_COST);
+	const float Base = bCritChance ? CombatConstants::CRIT_CHANCE_BASE : EFFICIENCY_FULL_COST;
+	if (ASC.GetNumericAttributeBase(Attribute) != Base) // B-042yc reads refresh crit chance: skip the re-evaluation
+	{
+		ASC.SetNumericAttributeBase(Attribute, Base);
+	}
 	float Transient = 1.0f;
 	const UCharacterDataComponent *Char = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
 	const UDamageCalculator *Calc = AttributeSyncSubsystem<UDamageCalculator>(this);

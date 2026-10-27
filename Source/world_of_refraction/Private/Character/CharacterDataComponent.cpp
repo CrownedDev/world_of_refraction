@@ -918,6 +918,11 @@ float UCharacterDataComponent::GetEquipmentModifiedLuck() const
     // Spirit × Luck points stat caps ALONE at 1.0 (LUCK_RAW_MAX is the basis), then BonusLuck, the Luck
     // stone and the net LuckBuff / LuckDebuff multiply it, clamped [0, LUCK_GEAR_CEILING]. Consumers
     // (GetLuckModifiedChance) scale by their own max bonus and clamp at their own 100%.
+    float OnGAS = 0.0f;
+    if (UWoRAttributeSyncComponent::ReadComposedOnGAS(GetOwner(), UWoRAttributeSet_Stats::GetLuckAttribute(), OnGAS))
+    {
+        return OnGAS; // B-042yc: GAS's value at UseGAS 1
+    }
     FWoRStatLayers Layers;
     GetStatLayers(ESubStat::Luck, Layers);
     return Layers.Compose();
@@ -1376,6 +1381,11 @@ float UCharacterDataComponent::ReflexWindowGearFactor() const
     }
 
     // GetStatLayers: the Body pillar ratio x BonusReflex x ReflexStone x net Reflex buff, unclamped.
+    float OnGAS = 0.0f;
+    if (UWoRAttributeSyncComponent::ReadComposedOnGAS(GetOwner(), UWoRAttributeSet_Stats::GetReflexAttribute(), OnGAS))
+    {
+        return OnGAS; // B-042yc: GAS's value at UseGAS 1
+    }
     FWoRStatLayers Layers;
     GetStatLayers(ESubStat::Reflex, Layers);
     return Layers.Compose();
@@ -1418,6 +1428,12 @@ float UCharacterDataComponent::GetEffectiveEfficiencyReduction() const
     // ALONE at EFFICIENCY_MAX (0.5), then BonusEfficiency, the EfficiencyStone and the net Efficiency
     // buff / debuff multiply it toward EFFICIENCY_GEAR_CEILING; a net debuff floors at 0. Distinct effect
     // type from EP's SpellCostBuff/Debuff, so no double-count with the EP SkillEffectMult layer.
+    // The multiplier (1 - this) follows it onto GAS, as the Efficiency attribute derives.
+    float OnGAS = 0.0f;
+    if (UWoRAttributeSyncComponent::ReadComposedOnGAS(GetOwner(), UWoRAttributeSet_Stats::GetEfficiencyReductionAttribute(), OnGAS))
+    {
+        return OnGAS; // B-042yc: GAS's value at UseGAS 1
+    }
     FWoRStatLayers Layers;
     return GetStatLayers(ESubStat::Efficiency, Layers) ? Layers.Compose() : 0.0f;
 }
@@ -1463,6 +1479,11 @@ float UCharacterDataComponent::GetEffectiveStatusMultiplier() const
     // ALONE at STAT_MULT_CAP (x1.5), then BonusStatusMultiplier, the StatusStone and the element-agnostic
     // (None) StatusMultiplierBuff/Debuff net multiply it (the transient floored at x0), clamped [0, 2.0].
     // Element-keyed StatusMultiplierBuffs apply at the status-buildup site, where the element is known.
+    float OnGAS = 0.0f;
+    if (UWoRAttributeSyncComponent::ReadComposedOnGAS(GetOwner(), UWoRAttributeSet_Stats::GetStatusMultiplierAttribute(), OnGAS))
+    {
+        return OnGAS; // B-042yc: GAS's value at UseGAS 1
+    }
     FWoRStatLayers Layers;
     GetStatLayers(ESubStat::StatusMultiplier, Layers);
     return Layers.Compose();
