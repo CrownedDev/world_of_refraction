@@ -188,7 +188,8 @@ void UItemStorageWidget::MoveSelected(int32 Count)
 		return;
 	}
 	const FStackChoice Choice = Choices[SelectedIndex];
-	// Into the carried slots, a whole stack moves as far as its slot has room.
+	// Into the carried slots, a whole stack moves as far as its slot has room (at least one is
+	// tried, so a full slot reports "No room").
 	const int32 Room = Choice.bCarried ? Choice.Count : FMath::Max(1, Pool->GetCarryRoom(Choice.Id));
 	const int32 Moving = FMath::Min3(Count, Choice.Count, Room);
 	const bool bMoved = Choice.bCarried ? Pool->MoveToStorage(Choice.Id, Moving) : Pool->MoveToCarried(Choice.Id, Moving);

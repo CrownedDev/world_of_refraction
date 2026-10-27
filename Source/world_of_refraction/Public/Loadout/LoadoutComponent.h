@@ -697,7 +697,9 @@ public:
     // ==================== POST-BATTLE ====================
     // Crystal-refactor 9.5b: ConsumeUsedItems and GetItemsToConsume removed.
     // Item slot Quantity is now the persistent post-combat state; inventory
-    // is debited at equip/auto-equip time, not at battle end.
+    // is debited at equip/auto-equip time, not at battle end. B-203: for a member
+    // sharing the party's carried items, ResetBattleState hands the unused
+    // auto-equipped part back and lowers the slot to match.
 
     /** Reset battle state (call after battle ends). B-203: crystals auto-equip took from the party's
      *  shared carried items and the fight didn't use go back to them. */
