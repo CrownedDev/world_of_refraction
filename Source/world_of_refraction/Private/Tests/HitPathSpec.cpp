@@ -8,6 +8,7 @@
 #include "WoRTestWorld.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Actions/ActionExecutor.h"
+#include "Combat/Damage/DamageCalculator.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
 
@@ -16,6 +17,7 @@ namespace
 	constexpr int32 HIT_PATH_TEST_BASE = 100;
 	constexpr float HIT_PATH_TEST_REFLECT_PERCENT = 50.0f;
 	constexpr int32 HIT_PATH_TEST_REFLECT_TURNS = 3;
+	constexpr int32 HIT_PATH_TEST_TOUGH_HP = 10000; // no test hit overkills (reflect reads the hit's damage)
 }
 
 BEGIN_DEFINE_SPEC(FHitPathSpec, "WoR.Combat.HitPath",
@@ -35,9 +37,18 @@ FActionHitInput DamageOnlyHit(AActor *Target, EActionType ActionType) const
 	return Hit;
 }
 
-AActor *SpawnWithReflect(ESkillEffectType ReflectType)
+AActor *SpawnTough()
 {
 	AActor *Target = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+	UCharacterDataComponent *Comp = Target->FindComponentByClass<UCharacterDataComponent>();
+	Comp->MaxHP = HIT_PATH_TEST_TOUGH_HP;
+	Comp->CurrentHP = HIT_PATH_TEST_TOUGH_HP;
+	return Target;
+}
+
+AActor *SpawnWithReflect(ESkillEffectType ReflectType)
+{
+	AActor *Target = SpawnTough();
 	TestWorld->GetSubsystem<USkillEffectManager>()->ApplyEffect(
 		Target,
 		FActiveSkillEffect::CreateBuff(TEXT("Test reflect"), 0, ReflectType, HIT_PATH_TEST_REFLECT_PERCENT,
@@ -74,18 +85,22 @@ void FHitPathSpec::Define()
 		Attacker = nullptr;
 	});
 
-	It("ApplyDamage deals what a damage-only ApplyHit deals", [this]()
+	It("ApplyDamage deals the damage calculator's number, as before the merge", [this]()
 	{
-		if (!TestTrue(TEXT("setup"), Executor && Attacker))
+		UDamageCalculator *Calculator = TestWorld->GetSubsystem<UDamageCalculator>();
+		if (!TestTrue(TEXT("setup"), Executor && Attacker && Calculator))
 		{
 			return;
 		}
-		AActor *First = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
-		AActor *Second = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
-		const int32 ViaApplyDamage = Executor->ApplyDamage(Attacker, First, HIT_PATH_TEST_BASE, ESpellElement::None, false).DamageDealt;
-		const int32 ViaApplyHit = Executor->ApplyHit(DamageOnlyHit(Second, EActionType::None)).DamageDealt;
-		TestTrue(TEXT("dealt damage"), ViaApplyDamage > 0);
-		TestEqual(TEXT("same damage"), ViaApplyDamage, ViaApplyHit);
+		AActor *Target = SpawnTough();
+		FDamageCalculationInput Input;
+		Input.BaseDamage = HIT_PATH_TEST_BASE;
+		Input.Element = ESpellElement::Fire;
+		Input.bCanCrit = false;
+		const int32 Expected = Calculator->CalculateDamage(Attacker, Target, Input).FinalDamage;
+		TestTrue(TEXT("a number to compare"), Expected > 0);
+		TestEqual(TEXT("ApplyDamage"),
+				  Executor->ApplyDamage(Attacker, Target, HIT_PATH_TEST_BASE, ESpellElement::Fire, false).DamageDealt, Expected);
 	});
 
 	It("ApplyDamage is reflected like any hit", [this]()
@@ -107,7 +122,7 @@ void FHitPathSpec::Define()
 		{
 			return;
 		}
-		// A fresh target per hit: one test hit can take a default character's whole HP.
+		// A fresh target per hit, so one mirror's reflect never counts twice.
 		int32 HPBefore = AttackerHP();
 		Executor->ApplyHit(DamageOnlyHit(SpawnWithReflect(ESkillEffectType::ReflectSpellDamage), EActionType::Ability));
 		TestEqual(TEXT("an ability isn't spell-reflected"), AttackerHP(), HPBefore);
