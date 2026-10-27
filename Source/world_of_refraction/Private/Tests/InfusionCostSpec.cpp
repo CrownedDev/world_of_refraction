@@ -172,6 +172,7 @@ void FInfusionCostSpec::Define()
 		Effects->RemoveAllEffects(Caster);
 
 		GiveStatEffect(ESkillEffectType::RawDamageDebuff, COST_TEST_STAT_SWING_PERCENT);
+		TestTrue(TEXT("The debuff landed"), Stats->GetEffectiveRawDamage() < 1.0f);
 		TestEqual(TEXT("A low stat never makes it cheaper"), AbilityCost(EInfusionSourceOption::Raw, COST_TEST_L1), COST_TEST_ABILITY_L1_EP);
 	});
 
