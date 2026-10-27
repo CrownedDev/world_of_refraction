@@ -301,3 +301,4 @@ Coverage mirrors `GetActiveStatBonus` per class plus the innate (primary-slot) e
 | 2026-10-27 | B-042k: every effect type has a GAS family, so `wor.Effects.UseGAS 1` reads every type from the mirror. | feature/B-042k-gas-remaining-families |
 | 2026-10-27 | B-042n: the DOT and HealthRestore ticks compute through `WoRTickMath` (same numbers); GAS ticks share it (GASSystem.md, Q-042n). | feature/B-042n-gas-dot-hot-ticks |
 | 2026-10-27 | B-225: `ApplyTimingRule` in `ApplyEffect`: every timed effect counts holder turns (`FTurnSpan`, D-051); a per-turn payout (`IsPayoutType`, Start/End/Persistent timing) pays at the holder's turn start, exactly N (Q-044c, Q-063). `TickDurations` flagged obsolete. Q-225. | feature/B-225-effect-timing |
+| 2026-10-27 | B-042h: at UseGAS 1 turn start / end run the tracker first and the stored copies follow it (GASSystem.md); `CountHolderTurnSpans` broadcasts after counting every span. | feature/B-042h-gas-effect-lifetime |
