@@ -7,6 +7,7 @@
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
+#include "Skills/Effects/BuildupMath.h"
 #include "StatusBuildupManager.generated.h"
 
 class USkillEffectManager;
@@ -112,6 +113,11 @@ public:
 	bool AddStatusBuildup(AActor *Source, AActor *Target, float Amount,
 	                      ESpellElement Element, EPhysicalDamageType PhysicalType,
 	                      bool bSkipBaseStatAmp = false);
+
+	/** AddStatusBuildup's maths inputs for one hit (steps 5-6), read from the actors; the immunity
+	 *  gates are not part of it. WoRBuildupMath::Compute gives the buildup added (B-042l). */
+	FBuildupMathInputs GatherBuildupMathInputs(AActor *Source, AActor *Target, float Amount, ESpellElement Element,
+											   EPhysicalDamageType PhysicalType, bool bSkipBaseStatAmp) const;
 
 	// GetSourceStatusMultiplierFactor was retired in the T3 consolidation — the single source of truth
 	// is UCharacterDataComponent::GetEffectiveStatusMultiplier (base + additive transient), read by
