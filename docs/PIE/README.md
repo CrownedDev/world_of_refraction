@@ -112,6 +112,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-085](B-085.md) | `refactor/B-085-owned-gear-truth` (in `dev`) | Loadouts follow the owned gear: wear, level-ups, attaches and dismantles stay in sync | Not tested |
 | [B-171](B-171.md) | `feature/B-171-gear-change-drops` (in `dev`) | Taking a crystal off or swapping it drops the spells it powered, in every loadout, with a message | Not tested |
 | [B-208](B-208.md) | `feature/B-208-save-trial-run` (in `dev`) | Quitting mid-trial and restarting in the hub picks the run back up: fights, chests, HP, wear and Gold | Not tested |
+| [B-091](B-091.md) | `feature/B-091-shared-gear-pool` (in `dev`) | The party shares one armoury: each piece once, one wearer, changes reach everyone | Not tested |
 | [B-211](B-211.md) | `feature/B-211-boss-triggers` (in `dev`) | Boss triggers: the right character + gear weakens / strengthens / changes a boss | Not tested |
 | [B-209b](B-209b.md) | `feature/B-209-memory-conditions` (in `dev`) | Memories by conditions (who, gear, where, what you beat, how, chains) | Not tested |
 | [B-210](B-210.md) | `feature/B-210-collected-memories` (in `dev`) | A collected memory is gone for good: its fragment isn't in later runs | Not tested |
