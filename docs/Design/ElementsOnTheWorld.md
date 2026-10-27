@@ -30,6 +30,9 @@
 - **Resonator:** uses its **active ring** as the source of its field attack and field skills.
 - **Void:** erases barriers, seals or thin walls **for a short time** (pass through); makes an object vanish and return; **restores broken things temporarily**; removes another element's state (frozen, burning, charged). With Light + Darkness: creation. Secrets e.g. erase a barrier for a few seconds; bring back a broken bridge just long enough to cross.
 - **Reality (addition, Crown 2026-10-27):** also **restores broken things like Void, but permanently**.
+**Physical damage types and the source (Crown, 2026-10-27):**
+- **Weapons apply their damage type on the map too** (`EPhysicalDamageType`): **Slash** cuts ropes, vines and grass; **Pierce** hits far or small targets (switches, hanging objects) and pops things; **Impact** breaks cracked walls, crates and brittle (frozen) things. (Effects per type: suggestion, Crown to change.)
+- **Switch the field attack's source** between what you have (**innate, weapon, ring**), as infusion sources switch in battle; the chosen source sets the element (a Resonator's active ring is one of its sources).
 
 ## Changelog
 
