@@ -9,7 +9,7 @@ Companion to `RunStructure.md`. Values marked *tune* are placeholders: named con
 
 | Kind | Who | Role |
 |---|---|---|
-| **Mobs** | **V**, every one of them (concept: `Characters/V_turnaround.png`) | The normal fights on the map |
+| **Mobs** | **V**, every one of them (concept: `CharacterDesigns/V_turnaround.png`) | The normal fights on the map |
 | **Creatures** | Elemental creatures | Variety alongside V |
 | **Mini-bosses** | A mix chosen per trial: **elite V**, **story characters** tied to the lords, **big elemental creatures** | Guard fragments; beating one creates a rest spot |
 | **Bosses** | The trial lord's mirror, or the gate variation's figure (a younger self, someone related) | End of the trial |
