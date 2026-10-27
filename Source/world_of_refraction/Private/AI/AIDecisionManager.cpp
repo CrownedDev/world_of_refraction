@@ -1915,7 +1915,8 @@ float UAIDecisionManager::GetLethalDoTPerTick(AActor *Target)
     }
 
     const int32 TargetHP = GetCurrentHP(Target);
-    if (TargetHP <= 0)
+    // B-042x: the DOT check reads the Status.DOT tag at UseGAS 1; tick sizes stay on the stored copies (B-042y).
+    if (TargetHP <= 0 || !StatusManager->HasActiveDOT(Target))
     {
         return 0.0f;
     }

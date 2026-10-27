@@ -2317,17 +2317,13 @@ bool USkillEffectManager::IsConditionHeld(const FSkillCondition &Condition, AAct
 
 FGameplayTagContainer USkillEffectManager::GetEffectTags(AActor *Actor) const
 {
+	// B-042x: per type through HasEffectOfType, so wor.Effects.UseGAS 1 reads the holder's tags.
 	FGameplayTagContainer Tags;
-	if (!Actor || !ActiveEffects.Contains(Actor))
+	for (const ESkillEffectType Type : WoRTags::TaggedEffectTypes())
 	{
-		return Tags;
-	}
-	for (const FActiveSkillEffect &Effect : ActiveEffects[Actor])
-	{
-		const FGameplayTag Tag = WoRTags::EffectTypeToTag(Effect.EffectType);
-		if (Tag.IsValid())
+		if (HasEffectOfType(Actor, Type))
 		{
-			Tags.AddTag(Tag);
+			Tags.AddTag(WoRTags::EffectTypeToTag(Type));
 		}
 	}
 	return Tags;
@@ -2485,20 +2481,7 @@ int32 USkillEffectManager::GetSpendableEP(AActor *Actor) const
 
 bool USkillEffectManager::HasActiveDOT(AActor *Actor) const
 {
-	if (!Actor || !ActiveEffects.Contains(Actor))
-	{
-		return false;
-	}
-
-	for (const FActiveSkillEffect &Effect : ActiveEffects[Actor])
-	{
-		if (Effect.IsDOT())
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return HasEffectOfType(Actor, ESkillEffectType::DOT); // B-042x: the Status.DOT tag at UseGAS 1
 }
 
 bool USkillEffectManager::IsImmuneToEffectType(AActor *Actor, ESkillEffectType EffectType) const
