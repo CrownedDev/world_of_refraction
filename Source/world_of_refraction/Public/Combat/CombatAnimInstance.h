@@ -10,6 +10,7 @@
 
 class UCharacterDataComponent;
 class UCharacterData;
+class ULoadoutComponent;
 class UAnimMontage;
 class UStanceData;
 
@@ -99,6 +100,10 @@ protected:
     virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
 private:
+    /** Found once with CharacterDataComponent (B-139); never looked up per frame. */
+    UPROPERTY(Transient)
+    TObjectPtr<ULoadoutComponent> LoadoutComponent;
+
     void CacheReferences();
     void UpdateCombatState();
     UStanceData *GetDesiredStance() const;
