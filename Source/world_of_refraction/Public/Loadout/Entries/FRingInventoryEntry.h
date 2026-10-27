@@ -60,18 +60,18 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
      *  guid (= "not an owned instance") and a resolved-ref copy of an owned
      *  entry carries the owned guid verbatim. Distinct from the session-local
      *  int32 InstanceID above. */
-    UPROPERTY(BlueprintReadOnly, SaveGame, Category = "Identity")
+    UPROPERTY(BlueprintReadOnly, Category = "Identity")
     FGuid PersistentID;
 
     /** Per-instance TIER — seeded from the ring asset at acquisition, then MUTATED by the future
      *  leveling action (asset Tier is the starting value / fallback). Tier reads still use the asset
      *  Ring->Tier until the cluster-2 repoint, so this is written-but-unread now. */
-    UPROPERTY(BlueprintReadOnly, SaveGame, Category = "Identity")
+    UPROPERTY(BlueprintReadOnly, Category = "Identity")
     EItemTier Tier = EItemTier::F_Tier;
 
     /** Per-instance QUALITY — rolled at drop (weighted, Luck/perk-biased) and stamped here; never
      *  mutated by leveling. Placeholder default until the weighted-roll cluster; nothing reads it yet. */
-    UPROPERTY(BlueprintReadOnly, SaveGame, Category = "Identity")
+    UPROPERTY(BlueprintReadOnly, Category = "Identity")
     EItemQuality Quality = EItemQuality::F_Quality;
 
     /** Attached refined crystal or evolution item, discriminated by Kind. */
