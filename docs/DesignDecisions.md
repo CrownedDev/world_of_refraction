@@ -1471,6 +1471,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Requirements stay: A** (Elden Ring): being under a weapon's requirement still cuts its output (D-082; worst pillar decides, Q-162; no bonus over, Q-146c).
 **Notes for Claude:** weapon data gets `Power` (per upgrade level) and a `StatScaling` list like skills (`ScalingSystem.md`); the damage maths core (`WoRDamageMath`, B-219) takes the weapon's Power + its scaling for weapon-delivered attacks and abilities, then the requirement factor. Placeholder numbers chosen so today's test fights stay close (`// TODO: tune`); fold into the stat-maths plan (`docs/analysis/StatMathsRedesign.md`).
 
+### D-102 — How you gain Mind / Body / Spirit levels in a run
+**Status:** ANSWERED (2026-10-27) · **Raised:** 2026-10-27 (Crown, baseline numbers) · **Blocks:** —
+**Answer (Crown):** (2026-10-27) replaces the per-kill pool + 5-pick-3 draft (`Resources_Design.md` World Stats §3):
+- **Cap: 7 per pillar, 21 total** in a run (`analysis/BaselineNumbers.md`).
+- **Normal enemies: a chance** to drop a level; **tougher enemies (higher tier / rank) give better odds**.
+- **Mini-bosses: a guaranteed 1 or more**, by their tier.
+- **Vendors still sell a level** at a rising price (base + N × bought), as a backup.
+- **You choose which pillar** each level goes to.
+- Head-start (up to 4, per character) and the run-end reset stay.
+**Notes for Claude:** reuse `AddEarnedWorldStat`; drop chance and mini-boss counts as tuning rows (`UCombatTuningData`, `// TODO: tune`); a placeholder C++ "choose a pillar" prompt (Backlog rule 4). Retire the pool / draft path (`PendingWorldStatPool`, `OnWorldStatDraftReady`) flagged obsolete until PIE. Also: nothing resets world stats at run end yet (rules 05 note), add it.
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
