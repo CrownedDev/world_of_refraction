@@ -1206,6 +1206,36 @@ namespace InventoryGearSync
     }
 }
 
+namespace InventoryGearSync
+{
+    /** B-076 (Q-076): a run-only member's one loadout, from the armoury pieces it was given. */
+    FCombatLoadout MakeRunPreset(const FPartyMember &Member, const TArray<FWeaponInventoryEntry> &Weapons,
+                                 const TArray<FRingInventoryEntry> &Rings)
+    {
+        FCombatLoadout Preset;
+        Preset.LoadoutName = TEXT("Run gear");
+        if (const FWeaponInventoryEntry *Weapon = FindOwned(Weapons, Member.RunWeapon))
+        {
+            Preset.PrimarySlotType = EPrimarySlotType::Weapon;
+            Preset.PrimaryWeapon.WeaponEntry = *Weapon;
+        }
+        if (const FRingInventoryEntry *Ring = FindOwned(Rings, Member.RunRing))
+        {
+            Preset.RingLoadout.AddDefaulted_GetRef().RingEntry = *Ring;
+            Preset.ActiveRingIndex = 0;
+        }
+        return Preset;
+    }
+
+    const FPartyMember *FindLocalPartyMember(const UGameInstance *GI, const UCharacterData *Data)
+    {
+        const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+        const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+        return Party && Data ? Party->Members.FindByPredicate([Data](const FPartyMember &Member) { return Member.CharacterData == Data; })
+                             : nullptr;
+    }
+}
+
 TMap<FName, const UCharacterData *> UInventoryComponent::GetPartyMembersByKey() const
 {
     TMap<FName, const UCharacterData *> Members;
@@ -1236,11 +1266,17 @@ bool UInventoryComponent::DrawSharedGear()
         return false;
     }
     UEvolutionInventoryComponent *EvoInv = GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>();
-    if (!Pool->HasBankedGear(Key))
+    // B-076 (D-026): a character found in a trial brings no gear; it uses what the party gives it.
+    const FPartyMember *RunMember = InventoryGearSync::FindLocalPartyMember(GI, CharComp->CharacterData);
+    const bool bRunOnly = RunMember && RunMember->bRunOnly;
+    if (!bRunOnly && !Pool->HasBankedGear(Key))
     {
         AdoptPresetOnlyGear(*Pool);
     }
-    Pool->BankStartingGear(Key, Weapons, Rings, EvoInv ? EvoInv->Entries : TArray<FEvolutionInventoryEntry>());
+    if (!bRunOnly)
+    {
+        Pool->BankStartingGear(Key, Weapons, Rings, EvoInv ? EvoInv->Entries : TArray<FEvolutionInventoryEntry>());
+    }
 
     // The whole armoury: this member's pieces first so its presets link to them, then free pieces,
     // then pieces another member wears.
@@ -1257,6 +1293,11 @@ bool UInventoryComponent::DrawSharedGear()
     {
         EvoInv->Entries = Pool->GetOwnedEvolutions();
         EvoInv->Entries.StableSort([&Rank](const FEvolutionInventoryEntry &A, const FEvolutionInventoryEntry &B) { return Rank(A.InstanceID) < Rank(B.InstanceID); });
+    }
+    if (bRunOnly)
+    {
+        SavedLoadouts = {InventoryGearSync::MakeRunPreset(*RunMember, Weapons, Rings)};
+        ActiveLoadoutIndex = 0;
     }
 
     LinkLoadoutsToOwned();

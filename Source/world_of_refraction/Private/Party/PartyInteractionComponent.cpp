@@ -11,6 +11,7 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Trial/TrialRunSubsystem.h"
 
 namespace PartyInteractionConstants
 {
@@ -93,8 +94,11 @@ void UPartyInteractionComponent::Interact()
 	{
 		// Same TSoftClassPtr-from-path construction the encounter trigger uses. B-075: the member is
 		// this pawn's own CharacterData, not its class default, so the dismiss lookup above finds it.
-		const bool bInvited = PartySession->InviteMemberWithData(
-			TSoftClassPtr<ACombatCharacter>(GetOwner()->GetClass()->GetPathName()), OwnerData);
+		// B-076 (D-026): a character found during a trial joins for that run only.
+		const UTrialRunSubsystem *TrialRun = GetWorld()->GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
+		const TSoftClassPtr<ACombatCharacter> PawnClass(GetOwner()->GetClass()->GetPathName());
+		const bool bInvited = TrialRun && TrialRun->IsRunActive() ? PartySession->InviteRunMember(PawnClass, OwnerData)
+																  : PartySession->InviteMemberWithData(PawnClass, OwnerData);
 		UE_LOG(LogTemp, Log, TEXT("[PartyInteraction] %s: invite %s"),
 			   *OwnerData->Name, bInvited ? TEXT("accepted") : TEXT("rejected"));
 	}
