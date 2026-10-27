@@ -100,6 +100,8 @@ private:
 	/** B-208: the first game world is up; resume the loaded run if it is the hub (Q-208). */
 	void HandleWorldActorsInitialized(const FActorsInitializedParams &Params);
 	void TryResumeRun(UWorld *World);
+	/** A run not resumed: the restored party forgets its carried state. */
+	void DropRunVitals();
 
 	/** The run the slot was loaded with, waiting for the first game world. */
 	FSavedRun PendingRun;

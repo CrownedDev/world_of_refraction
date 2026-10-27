@@ -66,6 +66,7 @@ void USaveSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 	Super::Initialize(Collection);
 	Collection.InitializeDependency<UPartySessionSubsystem>();
 	Collection.InitializeDependency<UPoolSubsystem>();
+	Collection.InitializeDependency<UTrialRunSubsystem>();
 
 	SaveGame = NewObject<UWoRSaveGame>(this);
 	UGameInstance *GI = GetGameInstance();
@@ -167,13 +168,20 @@ void USaveSubsystem::TryResumeRun(UWorld *World)
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[Save] Saved run of %s not resumed (started in %s, not the hub, or wor.Save.ResumeRun 0); it is dropped at the next save"),
 			   *Run.Trial.Path.ToString(), World ? *World->GetMapName() : TEXT("<no world>"));
+		DropRunVitals();
 		return;
 	}
 	if (!RestoreRun(Run, *TrialRun))
 	{
+		DropRunVitals();
 		return;
 	}
 	CarriedGold = Run.RunGold;
+	// Loaded after the PlayerState's BeginPlay: its wallet takes the run's Gold now.
+	if (UCurrencyComponent *Wallet = FindLocalWallet(World))
+	{
+		ApplyWalletTo(Wallet);
+	}
 	// Not inside world initialisation: open the trial on the next tick.
 	World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
 	{
@@ -182,6 +190,15 @@ void USaveSubsystem::TryResumeRun(UWorld *World)
 			Resumed->ResumeRun();
 		}
 	}));
+}
+
+void USaveSubsystem::DropRunVitals()
+{
+	// The restored party carried the run's HP, wear and absorption; outside the run they start fresh.
+	if (UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>())
+	{
+		PartySession->ClearAllMemberVitals();
+	}
 }
 
 void USaveSubsystem::CaptureInto(UWorld *World)
@@ -408,9 +425,14 @@ bool USaveSubsystem::RestoreRun(const FSavedRun &Saved, UTrialRunSubsystem &Tria
 		return false;
 	}
 	UTrialData *Trial = Saved.Trial.ResolveAs<UTrialData>();
-	if (!Trial || Saved.RunSeed == 0)
+	if (!Trial)
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[Save] Saved run dropped: trial %s not found"), *Saved.Trial.Path.ToString());
+		return false;
+	}
+	if (Saved.RunSeed == 0)
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Save] Saved run of %s dropped: no run seed"), *Saved.Trial.Path.ToString());
 		return false;
 	}
 	TArray<UMemoryData *> Memories;
@@ -419,6 +441,10 @@ bool USaveSubsystem::RestoreRun(const FSavedRun &Saved, UTrialRunSubsystem &Tria
 		if (UMemoryData *Memory = Ref.ResolveAs<UMemoryData>())
 		{
 			Memories.Add(Memory);
+		}
+		else
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[Save] Run memory %s not found; dropped"), *Ref.Path.ToString());
 		}
 	}
 	const ETrialDifficulty Difficulty = StaticEnum<ETrialDifficulty>()->IsValidEnumValue(Saved.Difficulty)
