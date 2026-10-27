@@ -1969,6 +1969,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-149-formation-cells): `ACombatOrchestrator::GetPlaceholderEnemyStartRow`. Authored enemy cells replace it later.
 
+### Q-209d — Memory conditions on gear and skills: equipped, levelled, used
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-209, D-100 "gear and skills can trigger them") · **Blocks:** — (ships with A)
+**Question:** Crown added gear and skills as memory triggers: evolutions, weapons and skills equipped or slotted, their upgrade level, and **used** (a skill cast, an evolution's Breakthrough, a finishing blow with a certain weapon). Which condition kinds, and when does "used" count?
+**Options:**
+- **A** Five new kinds, appended: **EvolutionEquipped** (the evolution in the primary slot, at least UpgradeLevel tiers above its authored tier; an evolution level-up counts it as equipped), **SkillSlotted** (the skill is in the wearer's loadout: attacks, abilities, spells), **SkillUsed** (the skill was used in the fight just won), **BreakthroughUsed** (a Breakthrough spell was cast from that evolution in the fight just won), **FinishingBlow** (a kill in the fight just won by whoever held that weapon). Each takes an optional Character (empty: anyone). Weapons and rings keep GearEquipped. "Used" is recorded per fight on the battle (D-064) from the action executor's start and kill events, and checked at the fight-won event, so a fight lost or fled counts nothing.
+- **B** One generic "Used" kind with a target object (harder to author, harder to read in `wor.Memory.Print`).
+- **C** Count use across the whole run (needs a saved tally; no event to check it at).
+**Recommendation:** A. Destiny 2's exotic catalysts and weapon quests (kills with a given weapon) and Monster Hunter's weapon-specific requests unlock by using the thing itself, and players like them because they reward playing with the gear, not grinding a counter; checking at the fight's win follows Bloodborne's and Elden Ring's questline flags, which are set at an event, never by a menu. One kind per thing keeps each condition readable. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** usage lives on `ABattleGameMode` for one fight; `MemoryConditions::RecordAction` / `RecordKill` fill it so specs can drive it without a fight.
+
 ### Q-209c — Memory alternative routes and rewards: data and placeholder grants
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-209, D-100 rewards and alternative routes) · **Blocks:** — (ships with A)
 **Question:** Crown added two things to memories: several condition sets (any one opens it) and rewards (a unique item, a skill, a title or a curse). How are they authored, and what does a reward do before titles, curses and the item grant path exist?
