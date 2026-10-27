@@ -5,6 +5,7 @@
 #include "GameplayEffectComponents/TargetTagRequirementsGameplayEffectComponent.h"
 #include "GameplayEffectComponents/TargetTagsGameplayEffectComponent.h"
 #include "Combat/Actions/ActionStatModifiers.h"
+#include "Combat/CombatConstants.h"
 #include "GAS/WoRAttributeSets.h"
 #include "Tags/WoRGameplayTags.h"
 
@@ -157,6 +158,7 @@ TSubclassOf<UGameplayEffect> UWoRGE_StatSources::GetClassFor(ESubStat Stat)
 	case ESubStat::CritDamage: return UWoRGE_StatSources_CritDamage::StaticClass();
 	case ESubStat::Luck: return UWoRGE_StatSources_Luck::StaticClass();
 	case ESubStat::Reflex: return UWoRGE_StatSources_Reflex::StaticClass();
+	case ESubStat::Efficiency: return UWoRGE_StatSources_Efficiency::StaticClass();
 	default: return nullptr;
 	}
 }
@@ -222,4 +224,60 @@ UWoRGE_StatSources_Luck::UWoRGE_StatSources_Luck()
 UWoRGE_StatSources_Reflex::UWoRGE_StatSources_Reflex()
 {
 	AddSourceModifiers(UWoRAttributeSet_Stats::GetReflexAttribute());
+}
+
+UWoRGE_StatSources_Efficiency::UWoRGE_StatSources_Efficiency()
+{
+	AddSourceModifiers(UWoRAttributeSet_Stats::GetEfficiencyReductionAttribute());
+}
+
+TSubclassOf<UGameplayEffect> UWoRGE_DerivedStat::GetClassFor(const FGameplayAttribute &Attribute)
+{
+	if (Attribute == UWoRAttributeSet_Stats::GetCritChanceAttribute())
+	{
+		return UWoRGE_DerivedCritChance::StaticClass();
+	}
+	if (Attribute == UWoRAttributeSet_Stats::GetEfficiencyAttribute())
+	{
+		return UWoRGE_DerivedEfficiency::StaticClass();
+	}
+	return nullptr;
+}
+
+UWoRGE_DerivedStat::UWoRGE_DerivedStat()
+{
+	DurationPolicy = EGameplayEffectDurationType::Infinite;
+	AddAssetTag(WoRTags::Effect_Family_DerivedStat);
+}
+
+void UWoRGE_DerivedStat::AddAttributeTerm(const FGameplayAttribute &Target, const FGameplayAttribute &From, float Coefficient)
+{
+	FAttributeBasedFloat Term;
+	Term.Coefficient = FScalableFloat(Coefficient);
+	Term.BackingAttribute = FGameplayEffectAttributeCaptureDefinition(From, EGameplayEffectAttributeCaptureSource::Target, false);
+	FGameplayModifierInfo Modifier;
+	Modifier.Attribute = Target;
+	Modifier.ModifierOp = EGameplayModOp::AddBase;
+	Modifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(Term);
+	Modifiers.Add(Modifier);
+}
+
+UWoRGE_DerivedCritChance::UWoRGE_DerivedCritChance()
+{
+	const FGameplayAttribute CritChance = UWoRAttributeSet_Stats::GetCritChanceAttribute();
+	AddAttributeTerm(CritChance, UWoRAttributeSet_Stats::GetLuckAttribute(), CombatConstants::CRIT_CHANCE_LUCK_BONUS);
+	FSetByCallerFloat Transient;
+	Transient.DataTag = WoRTags::SetByCaller_Stat_Transient;
+	FGameplayModifierInfo Modifier;
+	Modifier.Attribute = CritChance;
+	Modifier.ModifierOp = EGameplayModOp::MultiplyCompound;
+	Modifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(Transient);
+	Modifiers.Add(Modifier);
+}
+
+UWoRGE_DerivedEfficiency::UWoRGE_DerivedEfficiency()
+{
+	constexpr float REDUCTION_SUBTRACTS = -1.0f;
+	AddAttributeTerm(UWoRAttributeSet_Stats::GetEfficiencyAttribute(), UWoRAttributeSet_Stats::GetEfficiencyReductionAttribute(),
+					 REDUCTION_SUBTRACTS);
 }

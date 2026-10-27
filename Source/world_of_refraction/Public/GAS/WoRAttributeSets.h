@@ -150,6 +150,11 @@ public:
 	FGameplayAttributeData CritChance;
 	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Stats, CritChance)
 
+	/** The composed Efficiency cost reduction (B-042s); Efficiency derives as 1 - this. */
+	UPROPERTY(BlueprintReadOnly, Category = "Derived", ReplicatedUsing = OnRep_EfficiencyReduction)
+	FGameplayAttributeData EfficiencyReduction;
+	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Stats, EfficiencyReduction)
+
 protected:
 	UFUNCTION()
 	void OnRep_Mind(const FGameplayAttributeData &OldValue);
@@ -183,6 +188,8 @@ protected:
 	void OnRep_Reflex(const FGameplayAttributeData &OldValue);
 	UFUNCTION()
 	void OnRep_CritChance(const FGameplayAttributeData &OldValue);
+	UFUNCTION()
+	void OnRep_EfficiencyReduction(const FGameplayAttributeData &OldValue);
 };
 
 /** B-216 (ResistanceRedesign.md §3.2): resistance as fractions (0.15 = 15%). Resist_<type> is one

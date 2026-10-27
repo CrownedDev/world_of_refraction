@@ -88,6 +88,8 @@ namespace WoRTags
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Stat_Stone);
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Stat_Transient);
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Effect_Family_StatSources);
+	// B-042s: a stat derived from other attributes (crit chance from Luck, Efficiency from its reduction).
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Effect_Family_DerivedStat);
 
 	// B-042d: GameplayEvents the combat code sends (GAS/WoRCombatEvents.h, Q-044j).
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_Hit);

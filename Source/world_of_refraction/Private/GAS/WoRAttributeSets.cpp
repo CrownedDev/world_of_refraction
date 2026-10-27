@@ -40,6 +40,11 @@ void UWoRAttributeSet_Stats::PreAttributeChange(const FGameplayAttribute &Attrib
 	{
 		NewValue = FWoRStatLayers::ForStat(Stat).Clamp(NewValue);
 	}
+	else if (Attribute == GetCritChanceAttribute())
+	{
+		// A chance; GetCriticalChance clamps the same.
+		NewValue = FMath::Clamp(NewValue, 0.0f, 1.0f);
+	}
 }
 
 TConstArrayView<TPair<ESubStat, FGameplayAttribute>> UWoRAttributeSet_Stats::GetComposedStats()
@@ -54,6 +59,7 @@ TConstArrayView<TPair<ESubStat, FGameplayAttribute>> UWoRAttributeSet_Stats::Get
 		{ESubStat::CritDamage, GetCritDamageAttribute()},
 		{ESubStat::Luck, GetLuckAttribute()},
 		{ESubStat::Reflex, GetReflexAttribute()},
+		{ESubStat::Efficiency, GetEfficiencyReductionAttribute()},
 	};
 	return ComposedStats;
 }
@@ -90,6 +96,7 @@ void UWoRAttributeSet_Stats::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Stats, Luck);
 	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Stats, Reflex);
 	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Stats, CritChance);
+	WOR_REPLICATE_ATTRIBUTE(UWoRAttributeSet_Stats, EfficiencyReduction);
 }
 
 WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Stats, Mind)
@@ -108,6 +115,7 @@ WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Stats, TurnSpeed)
 WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Stats, Luck)
 WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Stats, Reflex)
 WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Stats, CritChance)
+WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Stats, EfficiencyReduction)
 
 void UWoRAttributeSet_Resistance::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const
 {
