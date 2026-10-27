@@ -244,6 +244,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "Inventory|Weapons")
     FWeaponInventoryEntry GetWeaponAt(int32 Index) const;
 
+    /** B-221 (Q-091, Crown): a piece another party member wears is on them, not in the shared inventory. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Shared")
+    bool IsWornByOtherMember(const FGuid &PersistentID) const;
+
+    /** B-221: the weapons this member can pick: the inventory minus what other members wear. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Weapons")
+    TArray<FWeaponInventoryEntry> GetSelectableWeapons() const;
+
     /** Get total weapon slot cost */
     UFUNCTION(BlueprintPure, Category = "Inventory|Weapons")
     int32 GetWeaponSlotCostTotal() const;
@@ -348,6 +356,10 @@ public:
     /** Get ring at index */
     UFUNCTION(BlueprintPure, Category = "Inventory|Rings")
     FRingInventoryEntry GetRingAt(int32 Index) const;
+
+    /** B-221: the rings this member can pick: the inventory minus what other members wear. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Rings")
+    TArray<FRingInventoryEntry> GetSelectableRings() const;
 
     /** Get total ring slot cost */
     UFUNCTION(BlueprintPure, Category = "Inventory|Rings")

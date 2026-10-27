@@ -1434,6 +1434,31 @@ int32 UInventoryComponent::StripUnownedGear()
     return Stripped;
 }
 
+bool UInventoryComponent::IsWornByOtherMember(const FGuid &PersistentID) const
+{
+    const UPoolSubsystem *Pool = SharedPool.Get();
+    if (!Pool || !PersistentID.IsValid())
+    {
+        return false;
+    }
+    const FName Wearer = Pool->GetWearer(PersistentID);
+    // A wearer who left the party has released it (UPartySessionSubsystem); only a current member counts.
+    return !Wearer.IsNone() && Wearer != SharedGearKey && GetPartyMembersByKey().Contains(Wearer);
+}
+
+TArray<FWeaponInventoryEntry> UInventoryComponent::GetSelectableWeapons() const
+{
+    return Weapons.FilterByPredicate([this](const FWeaponInventoryEntry &Entry) { return !IsWornByOtherMember(Entry.PersistentID); });
+}
+
+TArray<FRingInventoryEntry> UInventoryComponent::GetSelectableRings() const
+{
+    return Rings.FilterByPredicate([this](const FRingInventoryEntry &Entry) { return !IsWornByOtherMember(Entry.PersistentID); });
+}
+
+// TODO: OBSOLETE after Crown's PIE of B-221b (Q-091 changed by Crown): with worn gear out of the other members'
+// lists, the clash step below is only reached by a saved loadout; B-221b keeps that slot empty-while-worn
+// instead of stripping it.
 TArray<FText> UInventoryComponent::ClaimActiveSharedGear()
 {
     using namespace InventoryGearSync;
