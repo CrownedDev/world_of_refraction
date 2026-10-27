@@ -153,6 +153,25 @@ void FSharedGearSpec::Define()
 		TestEqual(TEXT("Worn by the second"), Pool->GetWearer(SwordID), UPoolSubsystem::GetCharacterKey(Members[1]));
 	});
 
+	It("keeps a worn sword out of another member's list until it's taken off (B-221)", [this]()
+	{
+		if (!Pool) return;
+		UInventoryComponent *First = SpawnMember(0, true, true);
+		UInventoryComponent *Second = SpawnMember(1, false, false);
+		if (!First || !Second) return;
+		const FGuid SwordID = Pool->GetOwnedWeapons()[0].PersistentID;
+
+		TestTrue(TEXT("The wearer can still pick it"), First->GetSelectableWeapons().Num() == 1);
+		TestTrue(TEXT("Worn by another member for the second"), Second->IsWornByOtherMember(SwordID));
+		TestEqual(TEXT("Not in the second member's list"), Second->GetSelectableWeapons().Num(), 0);
+
+		TestTrue(TEXT("First switches to a loadout without it"),
+				 First->GetOwner()->FindComponentByClass<ULoadoutComponent>()->SetActiveLoadoutIndex(1));
+		TestFalse(TEXT("Free again"), Second->IsWornByOtherMember(SwordID));
+		const TArray<FWeaponInventoryEntry> Selectable = Second->GetSelectableWeapons();
+		TestTrue(TEXT("Back in the second member's list"), Selectable.Num() == 1 && Selectable[0].PersistentID == SwordID);
+	});
+
 	It("shows a crystal one member attaches on everyone's copy", [this]()
 	{
 		if (!Pool) return;
