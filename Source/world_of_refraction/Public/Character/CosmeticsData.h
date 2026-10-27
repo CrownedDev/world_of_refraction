@@ -11,6 +11,10 @@
 #include "Engine/DataAsset.h"
 #include "CosmeticsData.generated.h"
 
+#if WITH_EDITOR
+class FDataValidationContext;
+#endif
+
 class UAnimMontage;
 class UStanceData;
 class UInfusionDisplayData;
@@ -91,4 +95,16 @@ public:
 	 *  Leave null to use element default. Generic and Resonator classes ignore this. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weather")
 	UPrimaryDataAsset *EquippedWeatherVariant = nullptr;
+
+	// ==================== DEBUG ====================
+
+	FString GetCosmeticsDataString() const;
+
+	UFUNCTION(CallInEditor, Category = "Debug")
+	void PrintCosmeticsData() const;
+
+#if WITH_EDITOR
+	/** Warnings only: a missing animation, stance or infusion display falls back to nothing at runtime. */
+	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
+#endif
 };
