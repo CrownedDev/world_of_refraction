@@ -100,6 +100,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-135](B-135.md) | `chore/B-135-buildup-defense-grid-specs` (in `dev`) | Tests only: nothing to play | Not tested |
 | [B-136](B-136.md) | `chore/B-136-infusion-cost-spec` (in `dev`) | Tests only: nothing to play | Not tested |
 | [B-137](B-137.md) | `chore/B-137-economy-spec` (in `dev`) | Tests only: nothing to play | Not tested |
+| [B-138](B-138.md) | `refactor/B-138-weapon-mesh-delegate` (in `dev`) | Weapon mesh swaps without a tick | Not tested |
 | [B-195](B-195.md) | `feature/B-195-hub-services` (in `dev`) | Hub services: one V NPC per service (Stone Smith, loadout vendor added), each opens its shop | Not tested |
 | [B-194](B-194.md) | `feature/B-194-memory-journal` (in `dev`) | Hub journal: reread memories and lore, V's next line, play a conversation (placeholder screen) | Not tested |
 | [B-070](B-070.md) | `fix/B-070-trial-strong-ref` (in `dev`) | The trial run keeps hold of its trial (packaged builds) | Not tested |

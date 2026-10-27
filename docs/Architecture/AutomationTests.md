@@ -17,7 +17,7 @@ All files live in `Source/world_of_refraction/Private/Tests/`, wrapped in `WITH_
 | `WoRTestWorld.h` | `FWoRTestWorld`: wraps the engine's `FTestWorldWrapper`. Real `UGameInstance`, so every WoR subsystem exists. Ticked by hand. `SpawnCombatant` gives a bare actor (player path) or an unpossessed pawn (AI path) carrying only a `UCharacterDataComponent`; `SpawnCombatantWithLoadout` adds an inventory and a loadout initialised from the character data, optionally with a primary weapon (B-133); `AddComponent<T>` adds and registers any component |
 | `ActionExecutedRecorder.h`, `CombatResultRecorder.h`, `InventoryChangeRecorder.h`, `PartsDroppedRecorder.h` | `UObject` listeners with a `UFUNCTION` handler, so a spec can bind a dynamic delegate and check what it broadcast |
 
-### Specs (77 files)
+### Specs (78 files)
 
 | File | Test names | Covers |
 |---|---|---|
@@ -95,6 +95,7 @@ All files live in `Source/world_of_refraction/Private/Tests/`, wrapped in `WITH_
 | `TurnManagerSpec.cpp` | `WoR.TurnManager` | UTurnManager turn order on bare combatants: deterministic tie-break, alternation at equal speed, and a faster combatant acting first and more often. |
 | `TurnSwitchSpec.cpp` | `WoR.Loadout.TurnSwitch` | one free weapon or ring switch per turn (ET-19 (Crown, 2026-10-26; B-175)). |
 | `VoidRandomActionSpec.cpp` | `WoR.Effects.VoidRandomAction` | a Void break takes the holder's next turn away (B-199 (Q-063b, Q-199)). |
+| `WeaponMeshFollowSpec.cpp` | `WoR.Weapons.MeshFollowsLoadout` | the weapon mesh never ticks and follows `OnActiveWeaponChanged`: a loadout switch, an announced direct edit and any inventory change update the shown weapon at once, with no world tick (B-138). |
 | `WoRAttributeSpec.cpp` | `WoR.GAS.Attributes` | a combatant's GAS attributes equal the stat getters they mirror, and stay equal when HP changes or a stat buff lands (UWoRAttributeDebug::GetAttributeMismatchString) (GAS stage 2 (B-041)). |
 | `WoRTagsSpec.cpp` | `WoR.Tags` | the enum <-> tag maps round-trip, and an actor's effect tags give the same answers as the enum-based effect queries (UWoRTagDebug::GetTagMismatchString) (GAS stage 1 (B-040)). |
 | `WoRUIStackSpec.cpp` | `WoR.UI.Stack` | the CommonUI base layer (B-103). |
@@ -125,3 +126,4 @@ Combatants are bare unless a spec needs more: `SpawnCombatant` gives no loadout,
 | 2026-10-27 | B-135: three specs record today's behaviour: `WoR.Status.Buildup` (7 cases), `WoR.Defense.Match` (7) and `WoR.Combat.Grid` (6); `WoR.Effects.Baseline` gains the add-mid-pass case (a DOT tick caps the bar and adds a stun while the pass walks the list; landing on the holder's own turn, the stun counts that turn, per TurnSpan.h). | chore/B-135-buildup-defense-grid-specs |
 | 2026-10-27 | B-136: `WoR.Infusion.Cost` (6 cases) pins infusion EP and HP costs with literal numbers; it records that a chosen ability source at L0 still pays x1.5. Not covered: `ApplyCommitCosts`' HP routing by source (needs a running action). | chore/B-136-infusion-cost-spec |
 | 2026-10-27 | B-137: `WoR.Economy.RoundTrip` (5 cases) pins cart cost, the level-up/revert round trip and dismantle yields with literal numbers. | chore/B-137-economy-spec |
+| 2026-10-27 | B-138: `WoR.Weapons.MeshFollowsLoadout` (9 cases); `SpawnCombatantWithLoadout` now announces its direct weapon write. | refactor/B-138-weapon-mesh-delegate |
