@@ -133,6 +133,8 @@ public:
     FString GetCurrentSourceName() const;
 
     // ==================== Spell Infusion ====================
+    // OBSOLETE (B-034): bound to the dead UInfusionChargeManager; removed with it in B-034b.
+    // The menu drives the level through SetInfusionLevel.
     UFUNCTION()
     void OnChargeLevelChanged(AActor *Actor, int32 OldLevel, int32 NewLevel);
 

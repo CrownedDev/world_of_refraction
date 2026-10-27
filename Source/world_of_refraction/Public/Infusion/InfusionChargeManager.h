@@ -85,6 +85,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnChargeCancelled, AActor *, Actor
 /**
  * UInfusionChargeManager
  *
+ * OBSOLETE (B-034): nothing in C++ starts a charge; the command menu holds the infusion level on
+ * the pending action (UCombatCommandMenuSubsystem::GetPendingInfusionLevel) and the
+ * InfusionVFXComponent only shows it. Deleted by B-034b once the editor confirms no Blueprint
+ * calls it. Until then only ResetForCombat (orchestrator) and the VFX binding touch it.
+ *
  * GameInstanceSubsystem that tracks hold-to-charge timing for the infusion system.
  * Converts button hold duration into discrete charge levels (0, 1, 2).
  *
