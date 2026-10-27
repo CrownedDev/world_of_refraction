@@ -3,8 +3,9 @@
 // local player joins (before any level's BeginPlay builds a party) and written:
 //   - async at a fight's exit and a trial's exit (UTrialRunSubsystem),
 //   - sync when the local player leaves (the game shutting down), before any subsystem deinitialises.
-// What it saves (D-059, explicit structs): the party (members, formation, control; carried HP/EP
-// only with a saved run, which doesn't exist yet: Q-090),
+// What it saves (D-059, explicit structs): the party (members, formation, control; carried HP/EP,
+// crystal wear and absorption only during a run), the trial run itself (B-208, Q-208: resumed
+// when the save is loaded in the hub),
 // the player's banked wallet (AWoRPlayerState; Gold is never banked) and the shared pool
 // (UPoolSubsystem). The wallet also rides here across OpenLevel: the PlayerState banks it at
 // EndPlay and takes it back at BeginPlay. Gold rides along too (B-178), in memory only: it is a
@@ -24,6 +25,8 @@ class UParty;
 class UPartySessionSubsystem;
 class UPoolSubsystem;
 class UCurrencyComponent;
+class UTrialRunSubsystem;
+struct FActorsInitializedParams;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API USaveSubsystem : public UGameInstanceSubsystem
@@ -69,7 +72,8 @@ public:
 
 	// ==================== CAPTURE / RESTORE (pure, spec-tested) ====================
 
-	/** bKeepVitals false saves no carried HP/EP: without a saved run, a reload starts outside it (Q-090). */
+	/** bKeepVitals false saves no carried HP/EP, crystal wear or absorption: outside a run, a reload
+	 *  starts fresh (Q-090). */
 	static FSavedParty CaptureParty(const UParty *Party, bool bKeepVitals);
 	static FSavedWallet CaptureWallet(const UCurrencyComponent *Wallet);
 	static FSavedPool CapturePool(const UPoolSubsystem &Pool);
@@ -80,12 +84,28 @@ public:
 	/** Adds the saved items to the pool and marks it populated; returns how many entries came back. */
 	static int32 RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool);
 
+	/** B-208: the active run (bHasRun false when none), with the run's Gold. */
+	static FSavedRun CaptureRun(const UTrialRunSubsystem &TrialRun, int32 RunGold);
+	/** Puts the saved run back into the trial subsystem (opens nothing). False when there is no
+	 *  run or its trial can't be found. */
+	static bool RestoreRun(const FSavedRun &Saved, UTrialRunSubsystem &TrialRun);
+
 private:
 	void HandleLocalPlayerAdded(ULocalPlayer *LocalPlayer);
 	void HandleLocalPlayerRemoved(ULocalPlayer *LocalPlayer);
 	/** Write the slot as it stands (sync or async). False without a player or after DeleteSave. */
 	bool WriteSlot(bool bAsync);
 	void CaptureInto(UWorld *World);
+
+	/** B-208: the first game world is up; resume the loaded run if it is the hub (Q-208). */
+	void HandleWorldActorsInitialized(const FActorsInitializedParams &Params);
+	void TryResumeRun(UWorld *World);
+	/** A run not resumed: the restored party forgets its carried state. */
+	void DropRunVitals();
+
+	/** The run the slot was loaded with, waiting for the first game world. */
+	FSavedRun PendingRun;
+	FDelegateHandle WorldActorsInitializedHandle;
 
 	/** Always set: an unbound in-memory slot until a local player loads the real one. */
 	UPROPERTY()

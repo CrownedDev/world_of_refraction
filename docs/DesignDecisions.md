@@ -1980,6 +1980,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-149-formation-cells): `ACombatOrchestrator::GetPlaceholderEnemyStartRow`. Authored enemy cells replace it later.
 
+### Q-208 — Resuming a saved run: where the player lands, and what comes back
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-208, Q-090 = A) · **Blocks:** — (ships with A)
+**Question:** Q-090 resumes a quit run at the last fight's exit. Three details: where in the trial the player stands, whether the run's Gold comes back (B-178 keeps Gold in memory only, never banked), and what happens to a save loaded somewhere other than the game's start.
+**Options:**
+- **A** The save written at each fight's exit holds the run: the trial, seed, gate choice, beaten encounters, found features, run memories, the party's HP/EP, crystal wear and absorption, and the run's Gold (with the run, not the wallet; still lost when the run ends). Loading it at the game's start (the hub) reopens the trial level without a fresh start: the map comes back as it was (beaten fights gone, found chests open) and the player stands at the trial's start point, as after any fight. A trial's exit writes "no run". Loaded in any other level (a PIE test map), the run is not resumed and is dropped at the next save, with a warning. The memory journal is not part of it.
+- **B** Drop the run's Gold on a resume (Gold strictly never written).
+- **C** Save the player's position too (needs a position snapshot every save point; fights already return to the start point).
+**Recommendation:** A. Slay the Spire's save-and-quit keeps the floor, the deck and the gold, and Hades resumes the chamber with its obols; losing the run's money on a quit would feel like a penalty for closing the game. Landing at the start point matches how the game already returns from every fight. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** the shutdown save also captures the run, so a quit keeps chests opened after the last fight, and a quit mid-fight keeps the vitals from before that fight. Applied (feature/B-208-save-trial-run): `FSavedRun`, `FSavedCarriedGear`, `FSavedPartyMember::CarriedGear` / `CarriedAbsorption`, save version 2 (version-1 saves load with no run). `UTrialRunSubsystem::RestoreRun` / `ResumeRun`; `USaveSubsystem::CaptureRun` / `RestoreRun`.
+
 ### Q-171 — A gear change's drops: how much is dropped, and during a fight?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-171, D-081 = A) · **Blocks:** — (ships with A)
 **Question:** D-081 drops the parts a gear change breaks. A loadout can also hold problems the change didn't cause (an unlearned innate spell, a duplicate item slot), and a socket can in principle change mid-fight. Does the change drop those too, and does it drop during a fight?

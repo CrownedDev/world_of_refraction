@@ -163,8 +163,7 @@ public:
 
 	// ==================== CARRIED VITALS ====================
 	// Trial-scoped HP/EP that survives the trial→battle→trial OpenLevel chain.
-	// Deliberately NOT serialized: the state dies with the GameInstance, which is
-	// the correct lifetime for a trial run.
+	// Saved with the run at each save point during a trial (B-208, USaveSubsystem::CaptureParty).
 
 	/** Write both carried vitals onto a slot. No-op (with a warning) on an invalid
 	 *  slot. Values are stored verbatim — clamping is the caller's business. */

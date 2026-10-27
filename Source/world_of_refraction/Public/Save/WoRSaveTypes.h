@@ -12,6 +12,7 @@
 #include "Inventory/ItemTier.h"
 #include "Inventory/ItemQuality.h"
 #include "Party/Party.h"
+#include "Loadout/CarriedGearState.h"
 #include "WoRSaveTypes.generated.h"
 
 /** A data asset by id and path. Resolve loads it (synchronously) or returns null. */
@@ -34,8 +35,51 @@ struct WORLD_OF_REFRACTION_API FSavedAssetRef
 	T *ResolveAs() const { return Cast<T>(Resolve()); }
 };
 
-/** TODO(B-208): the run's carried crystal wear and absorption (FPartyMember::CarriedGear /
- *  CarriedAbsorption) are saved with the run, not here. */
+/** B-208: one weapon's or ring's carried attachment. The holder and an evolution's item are
+ *  saved as refs; the saved Attached has its evolution pointer cleared. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCarriedAttachment
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FSavedAssetRef Holder;
+
+	UPROPERTY()
+	FRuntimeAttachedItem Attached;
+
+	UPROPERTY()
+	FSavedAssetRef EvolutionItem;
+};
+
+/** B-208: FCarriedGearState without pointers (D-059). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCarriedGear
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	bool bCarried = false;
+
+	UPROPERTY()
+	TArray<FSavedCarriedAttachment> Attachments;
+
+	UPROPERTY()
+	bool bHasPrimaryEvolution = false;
+
+	/** Item cleared; the ref below carries it. */
+	UPROPERTY()
+	FEvolutionAttachment PrimaryEvolution;
+
+	UPROPERTY()
+	FSavedAssetRef PrimaryEvolutionItem;
+
+	static FSavedCarriedGear Make(const FCarriedGearState &Carried);
+	/** The state back; an attachment whose holder can't be found is dropped (logged). */
+	FCarriedGearState Restore() const;
+};
+
+/** Carried HP/EP, crystal wear and absorption are written only with a saved run (B-208, Q-090). */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedPartyMember
 {
@@ -61,6 +105,49 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 
 	UPROPERTY()
 	int32 CurrentEP = PartyConstants::NO_CARRIED_VITALS;
+
+	UPROPERTY()
+	FSavedCarriedGear CarriedGear;
+
+	/** Plain values (no pointers), saved as the fight left it. */
+	UPROPERTY()
+	FCarriedAbsorptionState CarriedAbsorption;
+};
+
+/** B-208 (Q-090, Q-208): the trial run as the last fight's exit left it; reloading resumes it. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedRun
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	bool bHasRun = false;
+
+	UPROPERTY()
+	FSavedAssetRef Trial;
+
+	UPROPERTY()
+	int32 RunSeed = 0;
+
+	UPROPERTY()
+	int32 VariationIndex = INDEX_NONE;
+
+	/** ETrialDifficulty. */
+	UPROPERTY()
+	uint8 Difficulty = 0;
+
+	UPROPERTY()
+	TArray<FName> BeatenEncounters;
+
+	UPROPERTY()
+	TMap<FName, FText> FoundFeatures;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> RunMemories;
+
+	/** Q-208: the run's Gold rides with the run (never banked into the wallet). */
+	UPROPERTY()
+	int32 RunGold = 0;
 };
 
 USTRUCT()
@@ -193,4 +280,7 @@ struct WORLD_OF_REFRACTION_API FWoRSaveData
 
 	UPROPERTY()
 	FSavedPool Pool;
+
+	UPROPERTY()
+	FSavedRun Run;
 };
