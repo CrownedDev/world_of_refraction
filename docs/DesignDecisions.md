@@ -2561,6 +2561,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. This job moves the bar without changing a number, so the two paths can be compared (Martin Fowler, ParallelChange). Nothing grants Ice resistance yet, so B changes nothing in play today; it belongs with the resistance work that adds Ice sources, as one visible rule change.
 **Notes for Claude:** applied: no change; revisit when an Ice resistance source is added.
 
+### Q-042x — Tag reads on GAS: where do a status's numbers come from?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042x) · **Blocks:** —
+**Question:** With `wor.Effects.UseGAS 1`, every "does the character have Stun / Silence / Heal block / a burn / an immunity" check now reads GAS's tags. Some code also reads an effect's numbers: a burn's tick size and turns left (the enemy AI's kill checks), the debuff count (AI), the effect list on the character panel. Move those now too?
+**Options:**
+- **A** (as built) the yes/no checks read tags now; the numbers stay on the stored copies until B-042y moves the payouts and getters onto GAS.
+- **B** move the numbers in this job as well.
+**Recommendation:** A. One read family per step keeps each step comparable on both paths (Martin Fowler, StranglerFigApplication / ParallelChange). The numbers are exactly what B-042y moves; moving them twice would need a second parallel-run check.
+**Notes for Claude:** applied: B-042y covers `GetDotTickDamage` / `RemainingTurns` reads in `UAIDecisionManager`, `GetDebuffCount`, and the character panel's effect list.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
