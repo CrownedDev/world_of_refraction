@@ -54,5 +54,6 @@ Mini-bosses author no phases: their **style** tag (pillar 8: Planning, Timing, B
 ## Changelog
 | Date | Change | Branch |
 |---|---|---|
+| 2026-10-27 | B-212 (Q-212): `FBossTrigger::When`; `BossTriggers::ApplyResults` + `FBossFightState` (net steps, skip / add once each); `ApplyTo` fires only fight-start triggers, the rest wait in `UFightTriggers` (`Reaction/FightTriggers.h`), which also listens to `OnBossPhaseReached`. | feature/B-212-mid-fight-triggers |
 | 2026-10-27 | B-211 (D-100 part 1, Q-211): boss triggers. `UBossData::Triggers` (`FBossTrigger`: `FBossTriggerCondition` PartyMember / GearWorn / Hidden, `EBossTriggerResult` Weaken / Strengthen / SkipPhase / AddPhase / Dialogue), shown by `wor.Boss.Print`; `BossTriggers::Apply` at fight start after phase setup, steps through `ReactionTriggers::ApplyBossSteps`. Memories no longer skip or add phases (`ApplyMemoryBossModifiers` obsolete, no caller). Spec `WoR.Boss.Triggers`. | feature/B-211-boss-triggers |
 | 2026-10-26 | B-193 (Q-193): `UBossData`, `UBossPhaseComponent`, style presets, the battle / memory / AI / weather / status hooks; spec `WoR.Boss.Phases`. | feature/B-193-boss-phases |
