@@ -10,6 +10,10 @@
 
 #include "StanceData.generated.h"
 
+#if WITH_EDITOR
+class FDataValidationContext;
+#endif
+
 /**
  * Stance Data Asset
  * Defines idle pose for characters (unarmed) and weapons (armed)
@@ -46,4 +50,15 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Stance")
     bool HasAnimation() const { return IdleAnimMontage != nullptr; }
+
+    // ==================== DEBUG ====================
+
+    /** Logs UStanceDataDebug::GetStanceStatsString. */
+    UFUNCTION(CallInEditor, Category = "Debug")
+    void PrintStanceData();
+
+#if WITH_EDITOR
+    /** Warnings only: no idle montage, or the default name. */
+    virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
+#endif
 };

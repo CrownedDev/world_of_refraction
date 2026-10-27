@@ -10,6 +10,10 @@
 #include "Infusion/EInfusionDisplayLocation.h"
 #include "InfusionDisplayData.generated.h"
 
+#if WITH_EDITOR
+class FDataValidationContext;
+#endif
+
 /**
  * Base Infusion Display Data Asset
  * Shared properties for character and weapon infusion visuals
@@ -56,4 +60,15 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "InfusionDisplay")
     bool HasVFX() const { return VFXSystem != nullptr; }
+
+    // ==================== DEBUG ====================
+
+    /** Logs UInfusionDisplayDataDebug::GetInfusionDisplayStatsString. */
+    UFUNCTION(CallInEditor, Category = "Debug")
+    void PrintInfusionDisplayData();
+
+#if WITH_EDITOR
+    /** Warnings only: no VFX system (nothing shows), or the default name. */
+    virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
+#endif
 };
