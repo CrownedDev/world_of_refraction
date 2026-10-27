@@ -32,6 +32,16 @@ void AWoRPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
+void AWoRPlayerState::CopyProperties(APlayerState *PlayerState)
+{
+	Super::CopyProperties(PlayerState);
+	const AWoRPlayerState *Next = Cast<AWoRPlayerState>(PlayerState);
+	if (Next && Next->Wallet && Wallet)
+	{
+		Next->Wallet->CopyBalancesFrom(*Wallet);
+	}
+}
+
 bool AWoRPlayerState::IsLocalPlayerWallet() const
 {
 	const APlayerController *PC = Cast<APlayerController>(GetOwner());
