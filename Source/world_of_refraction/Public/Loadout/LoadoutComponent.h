@@ -772,6 +772,11 @@ private:
     UFUNCTION()
     void HandleInventoryChanged(EInventoryChangeType ChangeType);
 
+    /** B-171 (D-081): an owned weapon's or ring's socket changed; the loadouts holding it drop
+     *  the parts the change broke (wrong-element spells, an over-cap list), with a message. */
+    UFUNCTION()
+    void HandleGearSocketChanged(FGuid GearID);
+
     /** Helper to get the sibling UInventoryComponent. Re-fetched per call (no
      *  cache) — loading screens hide the FindComponentByClass cost. Returns
      *  nullptr if the owner has no inventory component; callers must guard. */

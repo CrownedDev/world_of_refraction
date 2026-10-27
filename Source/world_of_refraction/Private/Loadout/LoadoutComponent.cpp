@@ -86,6 +86,7 @@ void ULoadoutComponent::BeginPlay()
     if (UInventoryComponent *Inv = GetInventoryComponent())
     {
         Inv->OnInventoryChanged.AddUniqueDynamic(this, &ULoadoutComponent::HandleInventoryChanged);
+        Inv->OnGearSocketChanged.AddUniqueDynamic(this, &ULoadoutComponent::HandleGearSocketChanged);
     }
     EnsureDefaultLoadout();
 }
@@ -95,6 +96,7 @@ void ULoadoutComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
     if (UInventoryComponent *Inv = GetInventoryComponent())
     {
         Inv->OnInventoryChanged.RemoveDynamic(this, &ULoadoutComponent::HandleInventoryChanged);
+        Inv->OnGearSocketChanged.RemoveDynamic(this, &ULoadoutComponent::HandleGearSocketChanged);
     }
     Super::EndPlay(EndPlayReason);
 }
@@ -102,6 +104,19 @@ void ULoadoutComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void ULoadoutComponent::HandleInventoryChanged(EInventoryChangeType ChangeType)
 {
     NotifyActiveWeaponChanged();
+}
+
+void ULoadoutComponent::HandleGearSocketChanged(FGuid GearID)
+{
+    const UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        return;
+    }
+    for (const int32 Index : Inv->GetLoadoutsUsing(GearID))
+    {
+        AnnounceDroppedParts(Index, DropInvalidParts(Index));
+    }
 }
 
 void ULoadoutComponent::EnsureDefaultLoadout()
