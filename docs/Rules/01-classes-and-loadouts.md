@@ -49,7 +49,7 @@ This page states what each class is, what a character can equip, and what that g
 | CL-26 | Ring use by class: a Resonator wears a ring loadout and casts the active ring, switching with **Switch Ring** (free menu toggle, needs 2+ rings, cycles in order). A Generic or Refractor can wear one ring, in the primary slot. | In game | `Private/UI/Combat/FCombatCapabilities.cpp:131-191`; `Private/UI/Combat/CombatCommandMenuSubsystem.cpp:923-947` |
 | CL-27 | Ring spells cost **no EP**; they wear the ring's crystal instead. A non-evolved ring can break. | In game | `Private/Combat/Actions/ActionExecutor.cpp:345-352`; `Private/UI/Combat/FCombatCapabilities.cpp:149`, `:182` |
 | CL-28 | A ring accepts a crystal, an evolution, or an **elemental fusion** (stat stone + crystal). It never accepts a bare augment stone or a two-stone fusion. | In game | `D-009`; `Private/Inventory/InventoryComponent.cpp:664-668`, `:879-882`; `Private/Equipment/Rings/RingData.cpp:26-46` |
-| CL-29 | On a ring, the stat-stone half of an elemental fusion gives its stat bonus to the wearer (today stone bonuses are read from the active weapon only). | Decided, not built (B-082) | `D-009` |
+| CL-29 | On a ring, the stat-stone half of an elemental fusion gives its stat bonus to the wearer, added to the weapon's stone; the fusion's bonus stat counts too, as on a weapon (Q-082). The ring that counts: the Resonator's active ring, else a primary ring. A broken fusion gives nothing. | In game (B-082) | `D-009`; `Q-082`; `ULoadoutComponent::GetAttachedStonePercent` |
 
 ## Attachments: crystals, stones, fusions, evolutions
 
