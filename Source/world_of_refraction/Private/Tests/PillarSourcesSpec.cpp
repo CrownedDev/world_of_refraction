@@ -150,7 +150,7 @@ void FPillarSourcesSpec::Define()
 		Loadout->NotifyActiveWeaponChanged(); // a direct edit, so announce it
 		Sync->SyncAttributes();
 		FWoRStatLayers Layers;
-		Char->GetPillarLayers(EWorldPillar::Mind, Layers);
+		TestTrue(TEXT("Mind has layers"), Char->GetPillarLayers(EWorldPillar::Mind, Layers));
 		TestEqual(TEXT("The weapon's percent is the gear layer"), Layers.GearFactor,
 				  1.0f + PILLAR_SOURCES_GEAR_PERCENT / CombatConstants::STAT_PERCENT_DIVISOR, PILLAR_SOURCES_TOLERANCE);
 		TestTrue(TEXT("The gear raised the getter"), Char->GetEvolutionModifiedMind() > Before);
