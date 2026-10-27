@@ -11,6 +11,7 @@
 #include "Memory/MemoryJournalSubsystem.h"
 
 class AActor;
+class UBossData;
 class UCharacterData;
 class UGameInstance;
 class UMemoryData;
@@ -20,6 +21,9 @@ namespace MemoryUnlock
 {
 	/** Into the run and the journal. False when Memory is null or both already have it. */
 	WORLD_OF_REFRACTION_API bool Unlock(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source);
+
+	/** BossData beaten: its MemoryOnDefeat, if any. */
+	WORLD_OF_REFRACTION_API bool UnlockBossDrop(UGameInstance *GameInstance, const UBossData *BossData);
 
 	/** A fight won: each beaten character with boss data unlocks its MemoryOnDefeat. Returns how
 	 *  many were new. */

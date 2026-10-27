@@ -24,16 +24,17 @@ bool MemoryUnlock::Unlock(UGameInstance *GameInstance, UMemoryData *Memory, EMem
 	return bNewInRun || bNewInJournal;
 }
 
+bool MemoryUnlock::UnlockBossDrop(UGameInstance *GameInstance, const UBossData *BossData)
+{
+	return BossData && Unlock(GameInstance, BossData->MemoryOnDefeat, EMemorySource::Boss);
+}
+
 int32 MemoryUnlock::UnlockBossDrops(UGameInstance *GameInstance, const TArray<UCharacterData *> &Beaten)
 {
 	int32 Unlocked = 0;
 	for (const UCharacterData *Character : Beaten)
 	{
-		const UBossData *BossData = UBossData::FindFor(Character);
-		if (BossData && Unlock(GameInstance, BossData->MemoryOnDefeat, EMemorySource::Boss))
-		{
-			++Unlocked;
-		}
+		Unlocked += UnlockBossDrop(GameInstance, UBossData::FindFor(Character)) ? 1 : 0;
 	}
 	return Unlocked;
 }
