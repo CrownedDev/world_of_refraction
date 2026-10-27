@@ -10,6 +10,7 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Actions/ActionExecutor.h"
+#include "Debug/Combat/RequirementGapDebug.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Definitions/AbilityData.h"
@@ -105,6 +106,18 @@ void FLiveWorldLevelsSpec::Define()
 		}
 		RaiseLiveBodyToRequirement();
 		TestEqual(TEXT("weapon factor"), Executor->GetWeaponRequirementFactor(User, AbilityAction()), 1.0f);
+	});
+
+	It("the live debug readout shows the raised level", [this]()
+	{
+		if (!TestNotNull(TEXT("setup"), User))
+		{
+			return;
+		}
+		RaiseLiveBodyToRequirement();
+		const FString Readout =
+			URequirementGapDebug::GetLiveRequirementGapString(Ability, User->FindComponentByClass<UCharacterDataComponent>());
+		TestTrue(TEXT("body gap 0"), Readout.Contains(FString::Printf(TEXT("Char %d  Gap +0"), LIVE_LEVELS_TEST_REQUIRED)));
 	});
 
 	It("the strain deficit counts the live levels", [this]()

@@ -14,6 +14,7 @@
 class USkillDataBase;
 class UCharacterData;
 class UWeaponData;
+class UCharacterDataComponent;
 
 /**
  * Debug utilities for the per-pillar requirement-gap scaling (TierGapConstants.h
@@ -32,6 +33,11 @@ public:
      *  are displayed verbatim (never recomputed here), so the readout can't drift. */
     UFUNCTION(BlueprintPure, Category = "Debug|RequirementGap")
     static FString GetRequirementGapString(const USkillDataBase *Skill, const UCharacterData *Character);
+
+    /** As GetRequirementGapString, but with the combatant's live run levels (what combat reads,
+     *  B-217) instead of its asset's authored levels. */
+    UFUNCTION(BlueprintPure, Category = "Debug|RequirementGap")
+    static FString GetLiveRequirementGapString(const USkillDataBase *Skill, const UCharacterDataComponent *Combatant);
 
     /** Log GetRequirementGapString via UE_LOG + on-screen (line by line, mirroring
      *  USpellDataDebug::PrintSpellStats). */
