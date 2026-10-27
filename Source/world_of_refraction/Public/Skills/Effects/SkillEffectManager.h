@@ -265,7 +265,7 @@ public:
 	void ArmConditionalEffects(AActor *Actor, const TArray<FGatheredEffect> &Conditionals);
 
 	/** True once battle prep armed this actor's gear (until combat end): a swap then re-gathers it. */
-	bool IsGearArmed(const AActor *Actor) const { return ArmedConditionals.Contains(Actor); }
+	bool IsGearArmed(const AActor *Actor) const { return FindArmedConditionals(Actor) != nullptr; }
 
 	/** Remove effects applied by a specific source (when source dies, etc.) */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
@@ -494,8 +494,8 @@ private:
 	TMap<TWeakObjectPtr<AActor>, TArray<FActiveSkillEffect>> ActiveEffects;
 
 	/** Fires-once uses spent this combat (bFiresOncePerMatch), per holder + EffectID + source
-	 *  (D-011); cleared per combat by ResetForNewCombat(). Existing per-fight state on this
-	 *  subsystem; moves to the battle's actors with co-op (D-065). */
+	 *  (D-011); cleared per combat by ResetForNewCombat(). B-042z: each holder's tracker keeps a copy,
+	 *  read at wor.Effects.UseGAS 1 (D-064); this set retires with the stored copies (B-042g). */
 	TSet<FWoRFiredOnceKey> FiredOnceThisMatch;
 
 	/** Gear conditional effects armed per actor at combat start (C3a). The
@@ -509,6 +509,12 @@ private:
 
 	/** Generate a unique instance ID */
 	int32 GenerateInstanceID() { return NextInstanceID++; }
+
+	/** B-042z: the fires-once and armed-conditional reads (the holder's tracker at UseGAS 1, else the sets
+	 *  above) and the record, written to both. */
+	bool HasFiredOnce(AActor *Holder, const FWoRFiredOnceKey &Key) const;
+	void RecordFiredOnce(AActor *Holder, const FWoRFiredOnceKey &Key);
+	const TArray<FGatheredEffect> *FindArmedConditionals(const AActor *Actor) const;
 
 	// ========================================
 	// INTERNAL HELPERS

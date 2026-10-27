@@ -120,7 +120,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	// source (D-011): two wearers of the same gear each get theirs. A doesn't-stack effect
 	// (D-053) has one use per holder whichever source brings it ("revive once per fight").
 	const FWoRFiredOnceKey FiredOnceKey{Target, Effect.EffectID, Effect.bDoesNotStack ? 0 : Effect.SourceKey};
-	if (Effect.bFiresOncePerMatch && FiredOnceThisMatch.Contains(FiredOnceKey))
+	if (Effect.bFiresOncePerMatch && HasFiredOnce(Target, FiredOnceKey))
 	{
 		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s rejected on %s — already fired once this match (ID=%d)"),
 			   *Effect.EffectName, *Target->GetName(), Effect.EffectID);
@@ -150,7 +150,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 		// A fires-once instant spends its use too, or it could fire every time (B-062).
 		if (Effect.bFiresOncePerMatch)
 		{
-			FiredOnceThisMatch.Add(FiredOnceKey);
+			RecordFiredOnce(Target, FiredOnceKey);
 		}
 		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Instant %s applied to %s (Value: %.1f, not stored)"),
 			   *Effect.EffectName, *Target->GetName(), Effect.EffectValue);
@@ -281,7 +281,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	// the gate above before it can reach the stack/refresh branches, so this lands exactly once.
 	if (Effect.bFiresOncePerMatch)
 	{
-		FiredOnceThisMatch.Add(FiredOnceKey);
+		RecordFiredOnce(Target, FiredOnceKey);
 	}
 
 	return EEffectApplicationResult::Applied;
@@ -988,9 +988,55 @@ void USkillEffectManager::RemoveAllEffects(AActor *Target)
 
 void USkillEffectManager::ResetForNewCombat()
 {
+	// Every record is written to both, so these keys reach every tracker holding one (B-042z).
+	for (const FWoRFiredOnceKey &Key : FiredOnceThisMatch)
+	{
+		const AActor *Holder = Key.Holder.ResolveObjectPtr();
+		if (UWoRTurnEffectTracker *Tracker = Holder ? Holder->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr)
+		{
+			Tracker->ResetFightRecords();
+		}
+	}
+	for (const TPair<TWeakObjectPtr<AActor>, TArray<FGatheredEffect>> &Armed : ArmedConditionals)
+	{
+		const AActor *Holder = Armed.Key.Get();
+		if (UWoRTurnEffectTracker *Tracker = Holder ? Holder->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr)
+		{
+			Tracker->ResetFightRecords();
+		}
+	}
 	FiredOnceThisMatch.Empty();
 	ArmedConditionals.Empty();
 	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] FiredOnceThisMatch + ArmedConditionals reset for new combat"));
+}
+
+bool USkillEffectManager::HasFiredOnce(AActor *Holder, const FWoRFiredOnceKey &Key) const
+{
+	const UWoRTurnEffectTracker *Tracker = Holder ? Holder->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr;
+	if (Tracker && UWoREffectMirrorComponent::ReadsFromGAS())
+	{
+		return Tracker->HasFiredOnce(Key.EffectID, Key.SourceKey);
+	}
+	return FiredOnceThisMatch.Contains(Key);
+}
+
+void USkillEffectManager::RecordFiredOnce(AActor *Holder, const FWoRFiredOnceKey &Key)
+{
+	FiredOnceThisMatch.Add(Key);
+	if (UWoRTurnEffectTracker *Tracker = Holder ? Holder->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr)
+	{
+		Tracker->RecordFiredOnce(Key.EffectID, Key.SourceKey);
+	}
+}
+
+const TArray<FGatheredEffect> *USkillEffectManager::FindArmedConditionals(const AActor *Actor) const
+{
+	const UWoRTurnEffectTracker *Tracker = Actor ? Actor->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr;
+	if (Tracker && UWoREffectMirrorComponent::ReadsFromGAS())
+	{
+		return Tracker->GetArmedConditionals();
+	}
+	return ArmedConditionals.Find(Actor);
 }
 
 void USkillEffectManager::ArmConditionalEffects(AActor *Actor, const TArray<FGatheredEffect> &Conditionals)
@@ -1000,6 +1046,10 @@ void USkillEffectManager::ArmConditionalEffects(AActor *Actor, const TArray<FGat
 		return;
 	}
 	ArmedConditionals.Add(Actor, Conditionals);
+	if (UWoRTurnEffectTracker *Tracker = Actor->FindComponentByClass<UWoRTurnEffectTracker>())
+	{
+		Tracker->ArmConditionals(Conditionals);
+	}
 	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Armed %d conditional effect(s) on %s"),
 		   Conditionals.Num(), *Actor->GetName());
 }
@@ -1010,6 +1060,14 @@ void USkillEffectManager::ClearAllEffects()
 	const auto Removed = MoveTemp(ActiveEffects);
 	ActiveEffects.Empty();
 	// B-081: the fight is over, so a later gear swap must not re-apply gear effects (IsGearArmed).
+	for (const TPair<TWeakObjectPtr<AActor>, TArray<FGatheredEffect>> &Armed : ArmedConditionals)
+	{
+		const AActor *Holder = Armed.Key.Get();
+		if (UWoRTurnEffectTracker *Tracker = Holder ? Holder->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr)
+		{
+			Tracker->DisarmConditionals();
+		}
+	}
 	ArmedConditionals.Empty();
 
 	int32 TotalCount = 0;
@@ -2120,7 +2178,7 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 		AActor *Owner = P.Owner;
 		AActor *Target = P.Target;
 
-		const TArray<FGatheredEffect> *Armed = ArmedConditionals.Find(Owner);
+		const TArray<FGatheredEffect> *Armed = FindArmedConditionals(Owner);
 		if (!Armed)
 		{
 			continue;
@@ -2597,6 +2655,11 @@ void USkillEffectManager::DebugPrintEffects(AActor *Actor) const
 	for (const FWoRFiredOnceKey &Key : FiredOnceThisMatch)
 	{
 		FiredOnceUses += (Key.Holder == TObjectKey<AActor>(Actor)) ? 1 : 0;
+	}
+	if (const UWoRTurnEffectTracker *Tracker = Actor->FindComponentByClass<UWoRTurnEffectTracker>())
+	{
+		UE_LOG(LogWoREffects, Display, TEXT("  Fight records on the tracker (B-042z): %d fires-once use(s), gear %s"),
+			   Tracker->NumFiredOnce(), Tracker->GetArmedConditionals() ? TEXT("armed") : TEXT("not armed"));
 	}
 	UE_LOG(LogWoREffects, Display, TEXT("  Once-per-match uses spent on %s: %d"), *Actor->GetName(), FiredOnceUses);
 	UE_LOG(LogWoREffects, Display, TEXT("  EP sealed by Silenced: %d, spendable: %d"), GetSealedEP(Actor), GetSpendableEP(Actor));
