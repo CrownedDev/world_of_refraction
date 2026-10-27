@@ -111,7 +111,11 @@ public:
 		UInventoryComponent *Inventory = AddComponent<UInventoryComponent>(Actor);
 		ULoadoutComponent *Loadout = AddComponent<ULoadoutComponent>(Actor);
 		Loadout->InitializeFromCharacterData(Data, Inventory);
-		if (PrimaryWeapon)
+		if (PrimaryWeapon && !Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[WoRTestWorld] No active saved loadout to hold the primary weapon"));
+		}
+		else if (PrimaryWeapon)
 		{
 			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
 			Active.PrimarySlotType = EPrimarySlotType::Weapon;

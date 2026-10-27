@@ -105,8 +105,7 @@ Combatants are bare unless a spec needs more: `SpawnCombatant` gives no loadout,
 
 - The gear-beyond-the-cap half of Pattern P (gear-ceiling multipliers in `WoR.Damage`) is still untested; loadouts, stones and gear sockets have their own specs.
 - Crit *chance* is forced with `OverrideCritChance` in `WoR.Damage`; rolled paths use the per-battle stream (B-010, `WoR.Combat.BattleRandom`).
-- `CombatHangFixesSpec` drives turns by calling `OnActionCompleted` and `SubmitActionAsync` directly. Real ability or spell execution (montages, the async runner) is not exercised.
-- The tests can't see the `OnCombatResultReady` payload: dynamic delegates need a `UFUNCTION` listener. They check the observable state after the win instead.
+- `CombatHangFixesSpec` drives turns by calling `OnActionCompleted` and `SubmitActionAsync` directly; `CombatRitualFireSpec` drives the async path. Montages never play headless.
 
 ## Changelog
 
