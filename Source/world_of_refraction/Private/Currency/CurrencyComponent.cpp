@@ -275,13 +275,30 @@ int32 UCurrencyComponent::GetWalletAmount(const FCurrencyArray &Wallet, uint8 Ke
 
 void UCurrencyComponent::CopyBalancesFrom(const UCurrencyComponent &Other)
 {
-    Gold = Other.Gold;
-    Prisms = Other.Prisms;
-    Diamond = Other.Diamond;
-    GearEssence = Other.GearEssence;
-    SkillEssence = Other.SkillEssence;
-    EssenceWallet.Items = Other.EssenceWallet.Items;
-    EssenceWallet.MarkArrayDirty();
+    const auto CopyScalar = [this](int32 &Field, int32 Value, ECurrencyType Currency)
+    {
+        if (Field != Value)
+        {
+            Field = Value;
+            NotifyChanged(Currency, 0, Field); // the listen server's own UI; clients get OnRep
+        }
+    };
+    CopyScalar(Gold, Other.Gold, ECurrencyType::Gold);
+    CopyScalar(Prisms, Other.Prisms, ECurrencyType::Prisms);
+    CopyScalar(Diamond, Other.Diamond, ECurrencyType::Diamond);
+    CopyScalar(GearEssence, Other.GearEssence, ECurrencyType::GearEssence);
+    CopyScalar(SkillEssence, Other.SkillEssence, ECurrencyType::SkillEssence);
+    // Entry by entry, so each gets this array's own replication ID (a copied ID could clash).
+    for (const FCurrencyEntry &Entry : Other.EssenceWallet.Items)
+    {
+        FCurrencyEntry &Mine = FindOrAddEntry(EssenceWallet, Entry.Key);
+        if (Mine.Amount != Entry.Amount)
+        {
+            Mine.Amount = Entry.Amount;
+            EssenceWallet.MarkItemDirty(Mine);
+            NotifyChanged(ECurrencyType::EssenceTyped, Entry.Key, Mine.Amount);
+        }
+    }
     UE_LOG(LogTemp, Log, TEXT("[Currency] %s: balances carried over from %s (Gold %d, Prisms %d)"), *GetNameSafe(GetOwner()),
            *GetNameSafe(Other.GetOwner()), Gold, Prisms);
 }
