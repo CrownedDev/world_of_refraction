@@ -33,6 +33,33 @@ class UCharacterData;
 class UMemoryData;
 class UTexture2D;
 
+/** B-209 (D-100, Crown 2026-10-27): a memory a bound item carries. It unlocks when every condition
+ *  set on it holds: the item upgraded far enough, and/or its trigger conditions. Checked when the
+ *  item is levelled up (the upgrade level alone) and when it is worn into a fight (all of them). */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FBoundMemory
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
+    TObjectPtr<UMemoryData> Memory = nullptr;
+
+    /** Tiers above the item's authored tier it must be levelled to (0: no upgrade needed). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound", meta = (ClampMin = 0))
+    int32 UpgradeLevel = 0;
+
+    /** Trigger: its owner (BoundOwner) wears it into a fight. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
+    bool bNeedsOwnerWearing = false;
+
+    /** Trigger: worn into a fight against this character. TODO: hidden conditions (pillar 10). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
+    TObjectPtr<UCharacterData> FacingCharacter = nullptr;
+
+    /** A trigger can only hold in a fight, so a memory with one never unlocks on a level-up. */
+    bool HasTrigger() const { return bNeedsOwnerWearing || FacingCharacter != nullptr; }
+};
+
 /**
  * UEquipmentDataBase
  * Common base for weapon and ring data assets. Subclasses extend with
@@ -232,10 +259,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
     TArray<TObjectPtr<UEffectDefinition>> BoundEffects;
 
-    /** B-209 (D-100): memories this item unlocks for its owner. TODO(D-100): when found or when
-     *  equipped is open; placeholder: when BoundOwner wears it into a fight. */
+    /** B-209 (D-100): memories this item carries, each unlocked by its upgrade level and/or its
+     *  trigger conditions (MemoryUnlock). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
-    TArray<TObjectPtr<UMemoryData>> BoundMemories;
+    TArray<FBoundMemory> BoundMemories;
 
     /** True when Wearer is this item's owner (never for an unbound item). */
     bool IsBoundBonusActive(const UCharacterData *Wearer) const;
