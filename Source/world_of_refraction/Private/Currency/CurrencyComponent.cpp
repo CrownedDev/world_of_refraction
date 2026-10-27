@@ -272,3 +272,16 @@ int32 UCurrencyComponent::GetWalletAmount(const FCurrencyArray &Wallet, uint8 Ke
     }
     return 0;
 }
+
+void UCurrencyComponent::CopyBalancesFrom(const UCurrencyComponent &Other)
+{
+    Gold = Other.Gold;
+    Prisms = Other.Prisms;
+    Diamond = Other.Diamond;
+    GearEssence = Other.GearEssence;
+    SkillEssence = Other.SkillEssence;
+    EssenceWallet.Items = Other.EssenceWallet.Items;
+    EssenceWallet.MarkArrayDirty();
+    UE_LOG(LogTemp, Log, TEXT("[Currency] %s: balances carried over from %s (Gold %d, Prisms %d)"), *GetNameSafe(GetOwner()),
+           *GetNameSafe(Other.GetOwner()), Gold, Prisms);
+}

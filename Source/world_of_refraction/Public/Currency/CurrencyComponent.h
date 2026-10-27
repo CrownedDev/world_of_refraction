@@ -111,6 +111,10 @@ public:
      *  wallet struct can route client-side changes back here. */
     void NotifyChanged(ECurrencyType Currency, uint8 SubKey, int32 NewBalance);
 
+    /** B-227: every balance (Gold included) set to Other's. Seamless travel's PlayerState hand-over
+     *  (AWoRPlayerState::CopyProperties); server side. */
+    void CopyBalancesFrom(const UCurrencyComponent &Other);
+
     // ==================== DEBUG ====================
 
     /** Log + on-screen dump of the full wallet. Formatting lives in
