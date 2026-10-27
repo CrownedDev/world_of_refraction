@@ -30,6 +30,7 @@ class USpellData;
 class UAbilityData;
 class UEffectDefinition;
 class UCharacterData;
+class UMemoryData;
 class UTexture2D;
 
 /**
@@ -230,6 +231,11 @@ public:
     /** The bound bonus: gathered with the item's effects only when BoundOwner wears it. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
     TArray<TObjectPtr<UEffectDefinition>> BoundEffects;
+
+    /** B-209 (D-100): memories this item unlocks for its owner. TODO(D-100): when found or when
+     *  equipped is open; placeholder: when BoundOwner wears it into a fight. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
+    TArray<TObjectPtr<UMemoryData>> BoundMemories;
 
     /** True when Wearer is this item's owner (never for an unbound item). */
     bool IsBoundBonusActive(const UCharacterData *Wearer) const;
