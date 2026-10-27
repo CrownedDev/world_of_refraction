@@ -112,6 +112,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat Command Menu")
     AActor *GetCurrentActor() const { return CurrentActor.Get(); }
 
+    /** B-034: the infusion level the open target picker will stamp on the action (0..2).
+     *  The menu owns it; the actor's InfusionVFXComponent only shows it. */
+    UFUNCTION(BlueprintPure, Category = "Combat Command Menu")
+    int32 GetPendingInfusionLevel() const { return PendingInfusionLevel; }
+
     // ==================== DEBUG ====================
 
     UFUNCTION(BlueprintCallable, Category = "Combat Command Menu|Debug",
@@ -160,6 +165,8 @@ private:
      *  picker). Narrowed to Single after the Allies/Enemies category step. */
     ETargetCount PendingTargetCount = ETargetCount::Single;
     ETargetCount ResolvedTargetCount = ETargetCount::Single;
+    /** B-034: the pending action's infusion level. Reset to 0 on every picker entry and exit. */
+    int32 PendingInfusionLevel = 0;
     ECombatMenuDepth DepthBeforeTargetSelection = ECombatMenuDepth::Main;
     TWeakObjectPtr<AActor> CurrentActor;
 
@@ -250,6 +257,9 @@ private:
     bool IsCurrentActorStunned() const;
     /** Infusion controls are inert for this pick: immune action/equipment, or a stunned actor. */
     bool IsInfusionLockedForPendingAction() const;
+    /** B-034: store the pending infusion level (0 when infusion is locked for this pick, else
+     *  clamped to 0..MAX_INFUSION_LEVEL) and show it on the actor's InfusionVFXComponent. */
+    void SetPendingInfusionLevel(int32 Level);
 
     // ==================== CAPABILITIES / BD LIVE REFRESH ====================
 

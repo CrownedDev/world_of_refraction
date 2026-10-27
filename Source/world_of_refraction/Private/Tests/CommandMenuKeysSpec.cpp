@@ -130,10 +130,43 @@ void FCommandMenuKeysSpec::Define()
 		Ability.DataReference = NewObject<UAbilityData>(GetTransientPackage());
 		Menu->HandleSelection(Ability);
 
-		const int32 LevelBefore = VFX->GetCurrentInfusionLevel();
+		const int32 LevelBefore = Menu->GetPendingInfusionLevel();
+		TestEqual(TEXT("The picker opens at L0"), LevelBefore, 0);
 		TestTrue(TEXT("Infusion level key pressed"), Menu->PressMenuKey(EPieMenuCategory::CycleLevel));
-		TestEqual(TEXT("Next level"), VFX->GetCurrentInfusionLevel(), (LevelBefore + 1) % MENU_KEYS_INFUSION_LEVELS);
+		TestEqual(TEXT("Next level"), Menu->GetPendingInfusionLevel(), (LevelBefore + 1) % MENU_KEYS_INFUSION_LEVELS);
+		TestEqual(TEXT("The VFX shows the pending level"), VFX->GetCurrentInfusionLevel(), Menu->GetPendingInfusionLevel());
 		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
+	});
+
+	It("wraps the pending infusion level and resets it when the picker closes (B-034)", [this]()
+	{
+		if (!StartDuel())
+		{
+			return;
+		}
+		UInfusionVFXComponent *VFX = Hero->FindComponentByClass<UInfusionVFXComponent>();
+		if (!VFX)
+		{
+			VFX = NewObject<UInfusionVFXComponent>(Hero);
+			Hero->AddInstanceComponent(VFX);
+			VFX->RegisterComponent();
+		}
+		FPieMenuButtonData Ability;
+		Ability.Category = EPieMenuCategory::Ability;
+		Ability.DataReference = NewObject<UAbilityData>(GetTransientPackage());
+		Menu->HandleSelection(Ability);
+
+		for (int32 Press = 0; Press < MENU_KEYS_INFUSION_LEVELS; ++Press)
+		{
+			Menu->PressMenuKey(EPieMenuCategory::CycleLevel);
+		}
+		TestEqual(TEXT("A full cycle wraps back to L0"), Menu->GetPendingInfusionLevel(), 0);
+
+		Menu->PressMenuKey(EPieMenuCategory::CycleLevel);
+		TestEqual(TEXT("Back to L1"), Menu->GetPendingInfusionLevel(), 1);
+		Menu->HandleBack();
+		TestEqual(TEXT("Leaving the picker resets the level"), Menu->GetPendingInfusionLevel(), 0);
+		TestEqual(TEXT("The VFX follows"), VFX->GetCurrentInfusionLevel(), 0);
 	});
 
 	It("ignores the infusion keys outside a target picker", [this]()

@@ -2020,6 +2020,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B.
 **Notes for Claude:** B-032c: `ReflectShareOfHit` (ActionExecutor.cpp) gets min(FinalDamage, target CurrentHP); ApplyHit's DoubleHit block returns early when the target is dead. Tests: an overkilling hit reflects the HP lost; DoubleHit on a killed target deals no second hit. Built (B-032c): reflect reads min(hit, HP before) after the hit lands, so a Last Stand save still reflects the HP the target had; DoubleHit also needs a living attacker (a reflect can kill it). TODO: a Last Stand save makes `DamageDealt` negative for `OnDamageDealt`.
 
+### Q-034 — Where does the pending infusion level live?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-034) · **Blocks:** —
+**Question:** B-034 moves the infusion level of the action being picked off the actor's `InfusionVFXComponent`. Where should it live, given D-064 (no new per-fight fields on a `UGameInstanceSubsystem`)?
+**Context:** the other pending-pick fields (`PendingActionCategory`, `PendingActionData`, `PendingTargetType`…) already sit on `UCombatCommandMenuSubsystem`, and the level is stamped onto the `FAction` when the pick is confirmed. Deleting `UInfusionChargeManager` needs an editor check for Blueprint callers, so it is split off to B-034b.
+**Options:**
+- **A** `PendingInfusionLevel` beside the other pending-pick fields on the menu subsystem; an accepted exception to D-064 (it is UI state for one pick, reset on every picker entry/exit and at fight end), and it moves with the pending-pick fields for co-op (D-065). (As built.)
+- **B** a new per-player component holding the whole pending pick (bigger change, only needed for co-op).
+**Recommendation:** A. Keep the pending pick together until co-op moves it all at once; the same call as `PendingRank` (Q-176).
+**Notes for Claude:** B-034 built A. When co-op is scheduled, move every `Pending*` field on the menu subsystem together.
+
 ### Q-080 — Which infusion sources give an ability their element?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-080) · **Blocks:** — (B-080 ships with A)
 **Question:** D-007: an ability starts Physical and "Generic gets elements on its abilities only through a crystal". An ability can be infused through a weapon crystal, a ring (its crystal), an evolution, the Innate source (Casters) or Raw. Which give the ability their element, and does a Caster infusing through a crystal deal the crystal's element or its own?

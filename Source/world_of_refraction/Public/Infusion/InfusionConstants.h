@@ -34,6 +34,11 @@ namespace InfusionConstants
 	/** Balanced: the middle to both, L2 (+25%) */
 	constexpr float CHARGE_BALANCED_L2 = 1.25f;
 
+	// ==================== LEVELS ====================
+
+	/** Highest infusion level a pick can carry (levels run 0..2; 0 is no infusion). */
+	constexpr int32 MAX_INFUSION_LEVEL = 2;
+
 	// ==================== TIMING ====================
 
 	/** Time to hold for Level 1 charge (seconds). Read only by the dead InfusionChargeManager (B-034). */
