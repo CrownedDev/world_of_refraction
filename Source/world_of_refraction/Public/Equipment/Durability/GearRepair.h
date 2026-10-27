@@ -2,7 +2,7 @@
 // B-178 (D-093): paid repair in a run. Wear lives on the party's carried gear between fights
 // (FPartyMember::CarriedGear, B-115); a repair at a rest spot brings every worn gem, fusion and
 // evolution (a broken evolution included, Q-159c) back to full for Gold, priced by each item's
-// tier. Outside a run there is nothing to repair: the carried gear is cleared when a run starts
+// tier times its missing share of durability (Q-178). Outside a run there is nothing to repair: the carried gear is cleared when a run starts
 // and ends, so the next fight starts from the authored, unworn gear.
 // Console: wor.Party.RepairQuote, wor.Party.Repair.
 

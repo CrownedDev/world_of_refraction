@@ -17,6 +17,8 @@ namespace
 {
 	constexpr int32 REPAIR_TEST_EVOLUTION_MAX = 20;
 	constexpr int32 REPAIR_TEST_EVOLUTION_WORN = 5;
+	constexpr int32 REPAIR_TEST_GEM_WORN = 1;
+	constexpr int32 REPAIR_TEST_SHARE_MAX = 30;
 	const FCrystalId REPAIR_TEST_F_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
 	const FCrystalId REPAIR_TEST_C_GEM(ECrystalType::Garnet, EItemTier::C_Tier);
 
@@ -46,7 +48,7 @@ void FGearRepairSpec::Define()
 
 		FPartyMember &Member = Party->Members.AddDefaulted_GetRef();
 		Member.CarriedGear.bCarried = true;
-		Member.CarriedGear.Attachments.Add(RepairTestGem(REPAIR_TEST_F_GEM, 1));
+		Member.CarriedGear.Attachments.Add(RepairTestGem(REPAIR_TEST_F_GEM, REPAIR_TEST_GEM_WORN));
 		Member.CarriedGear.Attachments.Add(RepairTestGem(REPAIR_TEST_C_GEM, 0));
 		Member.CarriedGear.Attachments.Add(RepairTestGem(REPAIR_TEST_F_GEM, ItemIdentity::GetMaxDurability(REPAIR_TEST_F_GEM)));
 		Member.CarriedGear.bHasPrimaryEvolution = true;
@@ -55,7 +57,7 @@ void FGearRepairSpec::Define()
 		Member.CarriedGear.PrimaryEvolution.CurrentDurability = REPAIR_TEST_EVOLUTION_WORN;
 
 		// The worn F gem, the broken C gem and the worn B evolution; the full gem is free.
-		ExpectedCost = GearRepair::GetRepairGold(EItemTier::F_Tier, 1, ItemIdentity::GetMaxDurability(REPAIR_TEST_F_GEM)) +
+		ExpectedCost = GearRepair::GetRepairGold(EItemTier::F_Tier, REPAIR_TEST_GEM_WORN, ItemIdentity::GetMaxDurability(REPAIR_TEST_F_GEM)) +
 					   GearRepair::GetGoldForTier(EItemTier::C_Tier) +
 					   GearRepair::GetRepairGold(EItemTier::B_Tier, REPAIR_TEST_EVOLUTION_WORN, REPAIR_TEST_EVOLUTION_MAX);
 	});
@@ -65,10 +67,11 @@ void FGearRepairSpec::Define()
 		TestTrue(TEXT("A higher tier costs more"),
 				 GearRepair::GetGoldForTier(EItemTier::S_Tier) > GearRepair::GetGoldForTier(EItemTier::F_Tier));
 		const int32 FGold = GearRepair::GetGoldForTier(EItemTier::F_Tier);
-		TestEqual(TEXT("Broken pays the tier price"), GearRepair::GetRepairGold(EItemTier::F_Tier, 0, 30), FGold);
-		TestEqual(TEXT("Half worn pays half, rounded up"), GearRepair::GetRepairGold(EItemTier::F_Tier, 15, 30), (FGold + 1) / 2);
-		TestEqual(TEXT("A scratch still costs 1"), GearRepair::GetRepairGold(EItemTier::F_Tier, 29, 30), 1);
-		TestEqual(TEXT("Full is free"), GearRepair::GetRepairGold(EItemTier::F_Tier, 30, 30), 0);
+		constexpr int32 Max = REPAIR_TEST_SHARE_MAX;
+		TestEqual(TEXT("Broken pays the tier price"), GearRepair::GetRepairGold(EItemTier::F_Tier, 0, Max), FGold);
+		TestEqual(TEXT("Half worn pays half, rounded up"), GearRepair::GetRepairGold(EItemTier::F_Tier, Max / 2, Max), (FGold + 1) / 2);
+		TestEqual(TEXT("A scratch still costs 1"), GearRepair::GetRepairGold(EItemTier::F_Tier, Max - 1, Max), 1);
+		TestEqual(TEXT("Full is free"), GearRepair::GetRepairGold(EItemTier::F_Tier, Max, Max), 0);
 		TestEqual(TEXT("Party repair cost"), GearRepair::GetPartyRepairCost(*Party), ExpectedCost);
 	});
 
