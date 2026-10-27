@@ -2560,7 +2560,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** Water buildup also reads Ice resistance.
 **Recommendation:** A. This job moves the bar without changing a number, so the two paths can be compared (Martin Fowler, ParallelChange). Nothing grants Ice resistance yet, so B changes nothing in play today; it belongs with the resistance work that adds Ice sources, as one visible rule change.
 **Answer (Crown):** **B, changed by Crown (2026-10-27): buildup matches damage**: a Water hit's status buildup is also cut by **Ice resistance** (Q-145b, the deckbuilder's rule), on both paths (B-226).
-**Notes for Claude:** applied: no change; revisit when an Ice resistance source is added.
+**Notes for Claude:** applied (B-226, fix/B-226-water-buildup-ice): `WoRResistance::GetHitTypeResistance` and `UWoRBuildupExecution::ReadAttributes` add Ice to a Water hit. No Ice source exists yet, so play is unchanged until one is added.
 
 ### Q-042x — Tag reads on GAS: where do a status's numbers come from?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042x) · **Blocks:** —
