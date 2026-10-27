@@ -238,13 +238,9 @@ float UStatusBuildupManager::GetTotalStatusResistance(AActor *Target, ESpellElem
 		const FEquipmentStatBonus TargetBonus = TargetLoadout->GetActiveStatBonus(Target);
 		General *= (1.0f + TargetBonus.BonusResistance * CombatConstants::RESISTANCE_PER_POINT);   // #2 equip (per-point fraction)
 
-		// #3 Attached ResistanceStone — the DEFENDER's OWN active weapon attachment (live-resolved,
-		// fusion-aware). % MULTIPLIER on the capped stat. Inert (×1) unless a ResistanceStone is attached.
-		if (const FRuntimeAttachedItem *AttPtr = TargetLoadout->GetActiveWeaponAttachment())
-		{
-			const FRuntimeAttachedItem &Attachment = *AttPtr;
-			General *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR);
-		}
+		// #3 Attached ResistanceStone — the DEFENDER's OWN active weapon and ring (B-082) attachments
+		// (live-resolved, fusion-aware). % MULTIPLIER on the capped stat. Inert (×1) unless one is attached.
+		General *= (1.0f + TargetLoadout->GetAttachedStonePercent(ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR);
 	}
 	General = FMath::Clamp(General, 0.0f, CombatConstants::RESISTANCE_MAX);   // general ceiling 1.0, floor 0
 
