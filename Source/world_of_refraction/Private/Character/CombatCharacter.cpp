@@ -39,6 +39,7 @@ ACombatCharacter::ACombatCharacter()
     AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
     VitalsAttributes = CreateDefaultSubobject<UWoRAttributeSet_Vitals>(TEXT("VitalsAttributes"));
     StatsAttributes = CreateDefaultSubobject<UWoRAttributeSet_Stats>(TEXT("StatsAttributes"));
+    ResistanceAttributes = CreateDefaultSubobject<UWoRAttributeSet_Resistance>(TEXT("ResistanceAttributes"));
     AttributeSyncComponent = CreateDefaultSubobject<UWoRAttributeSyncComponent>(TEXT("AttributeSyncComponent"));
 
     // Every combat character gets an AI controller by default, so engine

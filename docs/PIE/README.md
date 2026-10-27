@@ -108,6 +108,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-178](B-178.md) | `feature/B-178-run-repair` (in `dev`) | Paid gear repair in a run; the run's Gold carries between levels | Not tested |
 | [B-093](B-093.md) | `feature/B-093-menu-keys` (in `dev`) | Keys for Defend and infusion (keyboard + gamepad) | Not tested |
 | [B-209](B-209.md) | `feature/B-209-memory-sources` (in `dev`) | Memories from bosses, reactions, map spots and bound gear | Not tested |
+| [B-216](B-216.md) | `refactor/B-216-resistance-seam` (in `dev`) | Resistance per damage type; same buildup numbers; optional resistance profile asset | Not tested |
 | [B-212](B-212.md) | `feature/B-212-mid-fight-triggers` (in `dev`) | Reactions and boss triggers firing mid-fight (turn, hit, HP line, phase), once each | Not tested |
 | [B-085](B-085.md) | `refactor/B-085-owned-gear-truth` (in `dev`) | Loadouts follow the owned gear: wear, level-ups, attaches and dismantles stay in sync | Not tested |
 | [B-171](B-171.md) | `feature/B-171-gear-change-drops` (in `dev`) | Taking a crystal off or swapping it drops the spells it powered, in every loadout, with a message | Not tested |

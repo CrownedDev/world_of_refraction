@@ -7,10 +7,9 @@
 // additive term, sign preserved. Where a column is 0 the term is +0 — neutral
 // matchups are byte-identical to the pre-table behaviour.
 //
-// All values hardcoded here. Code change required to rebalance (mirrors the
-// CrystalEffectTable convention). Gear-side resistance (rings / weapons /
-// evolutions) is a SEPARATE future arc — it slots in additively at the
-// AddStatusBuildup call site, not here.
+// B-216: designers tune these in UResistanceProfileData (ResistanceProfileData.h),
+// which starts from this table; this table is the fallback while no asset exists.
+// Gear-side resistance is summed beside it in WoRResistance::GetTypeResistance.
 
 #pragma once
 

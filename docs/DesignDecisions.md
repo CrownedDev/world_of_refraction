@@ -2002,6 +2002,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it, e.g. to B once the loadout screen exists.
 **Notes for Claude:** applied (feature/B-076-trial-recruits). Trial maps have no recruit spots yet (placing a recruitable pawn in a trial level is editor work): B-215. Until then, `wor.Party.RecruitForRun <CharacterData path>` recruits in a trial. Evolutions for a recruit wait for B with the real screen.
 
+### Q-216 — A hit or a resistance buff left with the Generic element: which resistance is it?
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-216) · **Blocks:** — (B-216 ships with A)
+**Question:** Resistance is now one value per damage type (`EWoRDamageType`). `ESpellElement::Generic` means "inherit the caster's element" and is resolved at cast time, so a hit should never reach resistance as Generic. If one does (or a resistance buff is authored with Generic), which type is it? Before B-216 a Generic hit only matched Generic-keyed resistance buffs, and the class table and gear gave it 0.
+**Options:**
+- **A** Non-elemental, like `None`: it reads the non-elemental bucket (`Resist_NonElemental`), and a Generic-keyed buff counts there too.
+- **B** Its own fourteenth resistance, kept only for Generic.
+**Recommendation:** A. No outside game has this case; it follows this game's own rule that Generic is "inherit" and never a real element (`ESpellElement.h:28-31`), and it keeps one resistance per damage type. Nothing in the game sends a Generic hit to buildup today (every caller passes a resolved element), so no number changes. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B.
+**Notes for Claude:** `WoRDamageType::ElementToDamageType`; `wor.CompareResistance` leaves Generic out because it differs from the old composition by design.
+
 ### Q-146 — The stat maths plan: approve it, and where do the tuning numbers live?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-146) · **Blocks:** — (B-218, B-219 ship with A)
 **Question:** `docs/analysis/StatMathsRedesign.md` maps every stat-maths system to the GAS shape (attributes, modifiers, MMCs for stat-derived bases, one damage and one buildup execution) with the same numbers, in steps: tuning data (B-218), one damage core shared with the AI (B-219), then GAS stage 3 (B-042). Approve it, and where should the ladders and caps live (all C++ `constexpr` today)?

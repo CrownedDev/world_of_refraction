@@ -8,6 +8,7 @@
 #include "GameFramework/Actor.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
+#include "Combat/Resistance/ResistanceProfileData.h"
 
 namespace ClassInnateResistanceTable
 {
@@ -27,8 +28,12 @@ namespace ClassInnateResistanceTable
 		const UCharacterData *Data = Comp->CharacterData;
 
 		// Row selection: BD (runtime OR character-created, via IsBrokenDarkness) >
-		// Generic > Resonator > Caster-by-innate-element.
-		const FResistanceRow Row = ResolveRow(Data->CharacterClass, Data->GetElement(), Comp->IsBrokenDarkness());
+		// Generic > Resonator > Caster-by-innate-element. The data asset when one exists (B-216),
+		// else this table.
+		const UResistanceProfileData *Profiles = UResistanceProfileData::GetActive();
+		const FResistanceRow Row = Profiles
+									   ? Profiles->ResolveRow(Data->CharacterClass, Data->GetElement(), Comp->IsBrokenDarkness())
+									   : ResolveRow(Data->CharacterClass, Data->GetElement(), Comp->IsBrokenDarkness());
 
 		// Both axes compose: incoming element (BD-aliased) + incoming physical type.
 		const float ElementTerm = GetElementColumn(Row, Element);

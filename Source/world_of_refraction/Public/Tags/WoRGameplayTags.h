@@ -10,6 +10,7 @@
 #include "Character/ECharacterClass.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Skills/Effects/ESkillEffectType.h"
+#include "Combat/Resistance/EWoRDamageType.h"
 
 namespace WoRTags
 {
@@ -48,10 +49,33 @@ namespace WoRTags
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Immunity_Element_Void);
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Immunity_Element_Reality);
 
+	// B-216: one tag per EWoRDamageType; DamageType.Physical is the parent of the three subtypes,
+	// so a modifier or immunity can key all physical damage at once.
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageType_None);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageType_Physical);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageType_Physical_Slash);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageType_Physical_Pierce);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageType_Physical_Impact);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageType_Element_Fire);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageType_Element_Water);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageType_Element_Earth);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageType_Element_Wind);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageType_Element_Light);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageType_Element_Darkness);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageType_Element_Lightning);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageType_Element_Void);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageType_Element_Reality);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageType_Ice);
+
 	/** Element.<name>; every ESpellElement has one. */
 	WORLD_OF_REFRACTION_API FGameplayTag ElementToTag(ESpellElement Element);
 	/** False for a tag outside Element.*. */
 	WORLD_OF_REFRACTION_API bool TagToElement(const FGameplayTag &Tag, ESpellElement &OutElement);
+
+	/** DamageType.*; every EWoRDamageType has one. */
+	WORLD_OF_REFRACTION_API FGameplayTag DamageTypeToTag(EWoRDamageType DamageType);
+	/** False for a tag outside the DamageType.* leaves (the DamageType.Physical parent included). */
+	WORLD_OF_REFRACTION_API bool TagToDamageType(const FGameplayTag &Tag, EWoRDamageType &OutDamageType);
 
 	/** Class.<name>; every ECharacterClass has one. */
 	WORLD_OF_REFRACTION_API FGameplayTag ClassToTag(ECharacterClass CharacterClass);
