@@ -5,7 +5,7 @@
 // DOT or HOT. Apply replaces the target's GE of the same identity (Q-044 A: replace, fresh span)
 // and hands a timed effect to the target's UWoRTurnEffectTracker. The enum path still decides
 // stacking, does-not-stack and fires-once; the facade (B-042c) mirrors its result through here.
-// Unported types (GetEffectClass null) and instant effects build nothing yet (B-042d).
+// Every type but None has a family (B-042k); None and instant effects build nothing.
 // Debug: GetDebugString (every GE on an ASC with its identity and magnitude).
 
 #pragma once
@@ -34,7 +34,7 @@ struct FWoRBuiltEffect
 
 struct WORLD_OF_REFRACTION_API FWoREffectSpecBuilder
 {
-	/** The family GE class for an effect type; null when the type isn't ported yet. */
+	/** The family GE class for an effect type; null for None. */
 	static TSubclassOf<UGameplayEffect> GetEffectClass(ESkillEffectType Type);
 
 	static FWoREffectIdentity MakeIdentity(const FActiveSkillEffect &Effect);

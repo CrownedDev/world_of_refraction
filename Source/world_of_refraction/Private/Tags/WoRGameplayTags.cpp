@@ -60,6 +60,13 @@ namespace WoRTags
 	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_StatModifier, "Effect.Family.StatModifier");
 	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_DOT, "Effect.Family.DOT");
 	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_HOT, "Effect.Family.HOT");
+	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_Reflect, "Effect.Family.Reflect");
+	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_LastStand, "Effect.Family.LastStand");
+	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_OnHit, "Effect.Family.OnHit");
+	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_Attack, "Effect.Family.Attack");
+	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_Control, "Effect.Family.Control");
+	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_Periodic, "Effect.Family.Periodic");
+	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_Action, "Effect.Family.Action");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Origin_Gear, "Effect.Origin.Gear", "D-015: a cleanse leaves it");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Magnitude, "SetByCaller.Magnitude", "The effect value a family GE reads");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_Hit, "Event.Combat.Hit", "Sent to the target of damage; magnitude = damage");

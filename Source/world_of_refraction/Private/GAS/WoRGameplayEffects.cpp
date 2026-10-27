@@ -100,3 +100,45 @@ UWoRGE_HealTick::UWoRGE_HealTick()
 	GEComponents.Add(Requirements);
 	Requirements->ApplicationTagRequirements.IgnoreTags.AddTag(WoRTags::Status_HealBlock);
 }
+
+UWoRGE_Reflect::UWoRGE_Reflect()
+{
+	DurationPolicy = EGameplayEffectDurationType::Infinite;
+	AddAssetTag(WoRTags::Effect_Family_Reflect);
+}
+
+UWoRGE_LastStand::UWoRGE_LastStand()
+{
+	DurationPolicy = EGameplayEffectDurationType::Infinite;
+	AddAssetTag(WoRTags::Effect_Family_LastStand);
+}
+
+UWoRGE_OnHit::UWoRGE_OnHit()
+{
+	DurationPolicy = EGameplayEffectDurationType::Infinite;
+	AddAssetTag(WoRTags::Effect_Family_OnHit);
+}
+
+UWoRGE_AttackModifier::UWoRGE_AttackModifier()
+{
+	DurationPolicy = EGameplayEffectDurationType::Infinite;
+	AddAssetTag(WoRTags::Effect_Family_Attack);
+}
+
+UWoRGE_Control::UWoRGE_Control()
+{
+	DurationPolicy = EGameplayEffectDurationType::Infinite;
+	AddAssetTag(WoRTags::Effect_Family_Control);
+}
+
+UWoRGE_Periodic::UWoRGE_Periodic()
+{
+	DurationPolicy = EGameplayEffectDurationType::Infinite;
+	AddAssetTag(WoRTags::Effect_Family_Periodic);
+}
+
+UWoRGE_Action::UWoRGE_Action()
+{
+	DurationPolicy = EGameplayEffectDurationType::Infinite;
+	AddAssetTag(WoRTags::Effect_Family_Action);
+}
