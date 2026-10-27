@@ -56,6 +56,12 @@ FString USaveDebug::GetSaveString(const FWoRSaveData &Data)
 		Out.Add(FString::Printf(TEXT("  %s  HP %d  EP %d  cell %d/%d  %s"), *M.CharacterData.Id.ToString(), M.CurrentHP,
 								M.CurrentEP, static_cast<int32>(M.PreferredRow), M.PreferredColumn,
 								M.bPlayerControlled ? TEXT("Player") : TEXT("AI")));
+		if (M.CarriedGear.bCarried || M.CarriedAbsorption.bCarried)
+		{
+			Out.Add(FString::Printf(TEXT("    carried: %d worn attachment(s), primary evolution %s, %d absorption stack(s)"),
+									M.CarriedGear.Attachments.Num(), M.CarriedGear.bHasPrimaryEvolution ? TEXT("yes") : TEXT("no"),
+									M.CarriedAbsorption.AbsorptionStacks));
+		}
 	}
 	Out.Add(FString::Printf(TEXT("Wallet: %s, %d balance(s)"), Data.Wallet.bHasWallet ? TEXT("banked") : TEXT("empty"),
 							Data.Wallet.Balances.Num()));
@@ -66,6 +72,12 @@ FString USaveDebug::GetSaveString(const FWoRSaveData &Data)
 	const FSavedPool &P = Data.Pool;
 	Out.Add(FString::Printf(TEXT("Pool: %d weapon(s), %d ring(s), %d evolution(s), %d spell(s), %d ability(ies), %d crystal stack(s)"),
 							P.Weapons.Num(), P.Rings.Num(), P.Evolutions.Num(), P.Spells.Num(), P.Abilities.Num(), P.Crystals.Num()));
+	const FSavedRun &R = Data.Run;
+	Out.Add(R.bHasRun
+				? FString::Printf(TEXT("Run (B-208): %s  seed %d  variation %d  difficulty %d  %d beaten, %d found, %d memory(ies)  Gold %d"),
+								  *R.Trial.Path.ToString(), R.RunSeed, R.VariationIndex, R.Difficulty, R.BeatenEncounters.Num(),
+								  R.FoundFeatures.Num(), R.RunMemories.Num(), R.RunGold)
+				: FString(TEXT("Run (B-208): none (a reload starts in the hub)")));
 	return FString::Join(Out, TEXT("\n"));
 }
 
