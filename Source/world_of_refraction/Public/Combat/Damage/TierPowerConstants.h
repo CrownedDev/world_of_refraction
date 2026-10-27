@@ -9,6 +9,7 @@
 
 #include "CoreMinimal.h"
 #include "Inventory/ItemTier.h"
+#include "Combat/Tuning/CombatTuning.h"
 
 namespace TierPowerScaling
 {
@@ -27,8 +28,10 @@ namespace TierPowerScaling
         return (TierIndex >= 0 && TierIndex < 7) ? TIER_POWER[TierIndex] : 1.0f;
     }
 
+    /** Tuning data (B-218), else CodeTierPower. */
     inline float GetTierPowerMultiplier(EItemTier Tier)
     {
-        return CodeTierPower(TierHelpers::GetTierValue(Tier));
+        const int32 TierIndex = TierHelpers::GetTierValue(Tier);
+        return WoRTuning::GetLadderValue(ECombatLadder::TierPower, TierIndex, CodeTierPower(TierIndex));
     }
 }

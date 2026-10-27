@@ -8,6 +8,7 @@
 #include "CoreMinimal.h"
 #include "Combat/Actions/ActionStatModifiers.h" // ESubStat
 #include "Combat/CombatConstants.h"             // bucket normalization constants
+#include "Combat/Tuning/CombatTuning.h"
 #include "EScalingTier.generated.h"
 
 /** Souls-style stat-scaling grade: how STEEPLY a stat scales a skill's damage (S steepest -> F shallowest).
@@ -43,9 +44,10 @@ inline float CodeScalingTierCoefficient(EScalingTier Tier)
     }
 }
 
+/** Tuning data (B-218), else CodeScalingTierCoefficient. */
 inline float GetScalingTierCoefficient(EScalingTier Tier)
 {
-    return CodeScalingTierCoefficient(Tier);
+    return WoRTuning::GetLadderValue(ECombatLadder::ScalingGrade, static_cast<int32>(Tier), CodeScalingTierCoefficient(Tier));
 }
 
 /** Debug/inspection string for a scaling grade. */

@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "Inventory/ItemTier.h"
+#include "Combat/Tuning/CombatTuning.h"
 
 namespace TierGapDamage
 {
@@ -65,10 +66,11 @@ namespace TierGapDamage
         }
     }
 
-    /** CodeTierGapDamage at the gap between the two tiers (B-218 routes it through tuning data). */
+    /** The damage ladder at the gap between the two tiers: tuning data (B-218), else CodeTierGapDamage. */
     inline float GetTierGapDamageMultiplier(EItemTier ActionTier, EItemTier ChannelTier)
     {
-        return CodeTierGapDamage(TierHelpers::GetTierGap(ChannelTier, ActionTier));
+        const int32 Gap = TierHelpers::GetTierGap(ChannelTier, ActionTier);
+        return WoRTuning::GetLadderValue(ECombatLadder::TierGapDamage, Gap, CodeTierGapDamage(Gap));
     }
 
     // ===================== COST (reciprocal) =====================
@@ -124,10 +126,11 @@ namespace TierGapDamage
         }
     }
 
-    /** CodeTierGapCost at the gap between the two tiers. */
+    /** The cost ladder at the gap between the two tiers: tuning data, else CodeTierGapCost. */
     inline float GetTierGapCostMultiplier(EItemTier ActionTier, EItemTier ChannelTier)
     {
-        return CodeTierGapCost(TierHelpers::GetTierGap(ChannelTier, ActionTier));
+        const int32 Gap = TierHelpers::GetTierGap(ChannelTier, ActionTier);
+        return WoRTuning::GetLadderValue(ECombatLadder::TierGapCost, Gap, CodeTierGapCost(Gap));
     }
 
     // ===================== REQUIREMENT GAP (±5, raw int gap) =====================
@@ -181,8 +184,9 @@ namespace TierGapDamage
         }
     }
 
+    /** Tuning data, else CodeRequirementGap. */
     inline float GetRequirementGapMultiplier(int32 Gap)
     {
-        return CodeRequirementGap(Gap);
+        return WoRTuning::GetLadderValue(ECombatLadder::RequirementGap, Gap, CodeRequirementGap(Gap));
     }
 }
