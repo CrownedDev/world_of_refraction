@@ -2,6 +2,7 @@
 
 #include "Skills/Definitions/WorldStatRequirements.h"
 #include "Character/CharacterData.h"
+#include "Combat/Damage/TierGapConstants.h"
 
 bool FWorldStatRequirements::MeetsRequirements(const UCharacterData *Character) const
 {
@@ -113,4 +114,21 @@ float FWorldStatRequirements::CalculatePenalty(const UCharacterData *Character) 
     // Penalty = sqrt(deficit) × 0.10, capped at 60%
     float Penalty = FMath::Sqrt(static_cast<float>(TotalDeficit)) * StatConstants::PENALTY_MULTIPLIER;
     return FMath::Min(Penalty, StatConstants::MAX_REQUIREMENT_PENALTY);
+}
+
+float FWorldStatRequirements::GetWeaponRequirementFactor(const UCharacterData *Character) const
+{
+    if (!Character)
+    {
+        return WeaponRequirement::WEAPON_REQ_FACTOR_MAX;
+    }
+
+    auto PillarFactor = [](int32 Required, int32 CharLevel)
+    {
+        return FMath::Clamp(TierGapDamage::GetRequirementGapMultiplier(Required - CharLevel),
+                            WeaponRequirement::WEAPON_REQ_FACTOR_MIN, WeaponRequirement::WEAPON_REQ_FACTOR_MAX);
+    };
+    return FMath::Min3(PillarFactor(RequiredWorldMind, Character->WorldMindLevel),
+                       PillarFactor(RequiredWorldBody, Character->WorldBodyLevel),
+                       PillarFactor(RequiredWorldSpirit, Character->WorldSpiritLevel));
 }

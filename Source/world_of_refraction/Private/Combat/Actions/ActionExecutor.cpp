@@ -622,6 +622,22 @@ float UActionExecutor::ResolveTierGapMultiplier(AActor *Actor, const FAction &Ac
 	return Multiplier;
 }
 
+float UActionExecutor::GetWeaponRequirementFactor(AActor *Actor, const FAction &Action) const
+{
+	if (Action.ActionType == EActionType::Spell)
+	{
+		return WeaponRequirement::WEAPON_REQ_FACTOR_MAX;
+	}
+	const ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+	const UWeaponData *Weapon = LC ? LC->GetActiveWeapon() : nullptr;
+	const UCharacterData *UserData = GetCharacterData(Actor);
+	if (!Weapon || !UserData)
+	{
+		return WeaponRequirement::WEAPON_REQ_FACTOR_MAX;
+	}
+	return Weapon->Requirements.GetWeaponRequirementFactor(UserData);
+}
+
 FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FAction &Action,
 														   const FActionStatModifiers &ActionMods, bool bLog) const
 {
@@ -674,6 +690,15 @@ FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FA
 	const float TierGap = bLog ? ResolveTierGapMultiplier(User, Action, Skill->Name) : GetTierGapDamageMultiplier(User, Action);
 	Damage = FMath::RoundToInt(Damage * TierGap);
 	Damage = FMath::RoundToInt(Damage * TierPowerScaling::GetTierPowerMultiplier(Skill->Tier));
+
+	// Weapon requirement (D-082): under it the weapon gives less than its full output.
+	Preview.WeaponRequirementFactor = GetWeaponRequirementFactor(User, Action);
+	Damage = FMath::RoundToInt(Damage * Preview.WeaponRequirementFactor);
+	if (bLog && Preview.WeaponRequirementFactor < WeaponRequirement::WEAPON_REQ_FACTOR_MAX)
+	{
+		UE_LOG(LogWoRCombat, Log, TEXT("[WeaponReq] %s under the weapon's requirement -> x%.2f"),
+			   *Skill->Name, Preview.WeaponRequirementFactor);
+	}
 
 	Preview.FinalDamage = Damage;
 	Preview.HitCount = Skill->HitCount;
