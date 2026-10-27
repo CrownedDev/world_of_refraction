@@ -165,6 +165,11 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	// The copy this source already put on the holder, if any (D-012, D-053). Another
 	// source's copy is a separate effect, unless the definition says it doesn't stack.
 	FActiveSkillEffect *ExistingEffect = FindEffectByIdentity(Target, Effect.EffectID, Effect.SourceKey);
+	if (ExistingEffect && UWoREffectMirrorComponent::OwnsLifetime(Target))
+	{
+		// B-042h: a same-source re-apply of a copy whose GE GAS already ended starts it again.
+		Target->FindComponentByClass<UWoREffectMirrorComponent>()->ForgetEnded(*ExistingEffect);
+	}
 
 	if (!ExistingEffect && Effect.bDoesNotStack && FindEffectByID(Target, Effect.EffectID))
 	{

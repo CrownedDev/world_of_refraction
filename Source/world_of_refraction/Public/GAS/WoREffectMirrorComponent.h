@@ -61,12 +61,15 @@ public:
 	/** GAS owns Actor's effect lifetime: the switch is on and Actor carries a mirror and a tracker. */
 	static bool OwnsLifetime(const AActor *Actor);
 
-	/** Holder turns left on the tracked GE of Effect's identity; -1 when it has none. */
+	/** Holder turns left on the tracked GE of Effect's identity; INDEX_NONE when it has none. */
 	int32 GetTrackedTurnsLeft(const FActiveSkillEffect &Effect) const;
 
 	/** Remove, through the effect manager, the stored copies of the effects whose tracked GE GAS
 	 *  ended (the tracker at the holder's turn start). Called right after the tracker's turn start. */
 	void ReleaseEndedCopies();
+
+	/** A re-apply of an identity GAS ended (refresh or stack) starts it again: its GE comes back. */
+	void ForgetEnded(const FActiveSkillEffect &Effect);
 
 	/** What the owner's stored effects should look like on GAS: one entry per ported, stored effect. */
 	static TArray<FWoRMirroredEffect> ReadEnumEffects(const AActor *Actor);

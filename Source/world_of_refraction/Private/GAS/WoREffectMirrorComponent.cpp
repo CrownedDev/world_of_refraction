@@ -109,7 +109,15 @@ void UWoREffectMirrorComponent::SyncMirror()
 	TGuardValue<bool> SyncingGuard(bSyncing, true);
 
 	UWoRTurnEffectTracker *Tracker = OwnsLifetime(Owner) ? GetTracker() : nullptr;
-	const auto ShouldTrack = [Tracker](const FActiveSkillEffect &Effect) { return Tracker && !Effect.bPermanent; };
+	// Holder-turn spans only: an Immediate effect's teardown stays the enum path's (bPendingRemoval).
+	const auto ShouldTrack = [Tracker](const FActiveSkillEffect &Effect)
+	{
+		return Tracker && !Effect.bPermanent && Effect.bCountsHolderTurns;
+	};
+	if (!Tracker)
+	{
+		EndedByGAS.Reset(); // the enum path owns the lifetime again
+	}
 
 	TArray<FActiveSkillEffect> Missing = SEM->GetActiveEffects(Owner).FilterByPredicate(IsMirrored);
 	// A GE that GAS ended stays off until ReleaseEndedCopies drops its stored copy.
@@ -203,15 +211,22 @@ int32 UWoREffectMirrorComponent::GetTrackedTurnsLeft(const FActiveSkillEffect &E
 	{
 		return Mirror.bTracked && Mirror.Identity.IsSameIdentity(Identity);
 	});
-	return Entry && Tracker ? Tracker->GetTurnsLeft(Entry->Handle) : -1;
+	return Entry && Tracker ? Tracker->GetTurnsLeft(Entry->Handle) : INDEX_NONE;
+}
+
+void UWoREffectMirrorComponent::ForgetEnded(const FActiveSkillEffect &Effect)
+{
+	const FWoREffectIdentity Identity = FWoREffectSpecBuilder::MakeIdentity(Effect);
+	EndedByGAS.RemoveAll([&Identity](const FWoREffectIdentity &Ended) { return Ended.IsSameIdentity(Identity); });
 }
 
 void UWoREffectMirrorComponent::ReleaseEndedCopies()
 {
 	SyncMirror(); // notes the GEs the tracker just ended
 	USkillEffectManager *SEM = MirrorEffectManager(this);
-	const TArray<FWoREffectIdentity> Ended = MoveTemp(EndedByGAS);
-	EndedByGAS.Reset();
+	// A copy: each removal's sync must still see the others as ended (not re-apply them); it prunes
+	// each identity once its copy is gone.
+	const TArray<FWoREffectIdentity> Ended = EndedByGAS;
 	for (const FWoREffectIdentity &Identity : Ended)
 	{
 		UE_LOG(LogWoREffects, Log, TEXT("[EffectMirror] %s: GAS ended %s; its stored copy goes"), *GetNameSafe(GetOwner()),
@@ -257,11 +272,19 @@ bool UWoREffectMirrorComponent::HasEffectOfType(const UAbilitySystemComponent &A
 
 FString UWoREffectMirrorComponent::GetDebugString() const
 {
+	const UWoRTurnEffectTracker *Tracker = GetTracker();
 	TArray<FString> Lines;
 	for (const FWoRMirroredEffect &Entry : Mirrored)
 	{
-		Lines.Add(FString::Printf(TEXT("%s magnitude=%.2f handle=%s"), *Entry.Identity.ToString(), Entry.Magnitude,
-								  *Entry.Handle.ToString()));
+		const FString Lifetime = Entry.bTracked && Tracker
+									 ? FString::Printf(TEXT("tracked, %d turn(s) left"), Tracker->GetTurnsLeft(Entry.Handle))
+									 : FString(TEXT("untracked"));
+		Lines.Add(FString::Printf(TEXT("%s magnitude=%.2f handle=%s %s"), *Entry.Identity.ToString(), Entry.Magnitude,
+								  *Entry.Handle.ToString(), *Lifetime));
+	}
+	for (const FWoREffectIdentity &Identity : EndedByGAS)
+	{
+		Lines.Add(FString::Printf(TEXT("%s ended by GAS, stored copy pending release"), *Identity.ToString()));
 	}
 	return Lines.Num() > 0 ? FString::Join(Lines, TEXT("\n")) : TEXT("nothing mirrored");
 }
