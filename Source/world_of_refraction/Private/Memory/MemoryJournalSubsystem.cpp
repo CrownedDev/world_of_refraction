@@ -5,6 +5,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "WoRLog.h"
@@ -88,5 +89,11 @@ static FAutoConsoleCommandWithWorld GMemoryPrintCommand(
 		}
 		UE_LOG(LogWoR, Display, TEXT("This run: %d memories [%s]"), RunMemories.Num(), *FString::Join(RunMemories, TEXT(", ")));
 		UE_LOG(LogWoR, Display, TEXT("%s"), *Journal->GetJournalString());
+		// B-209: each memory with unlock conditions, met or not for the party now.
+		const FMemoryEvent Now = MemoryConditions::MakeEvent(GameInstance, EMemorySource::Fragment);
+		for (const UMemoryData *Memory : MemoryConditions::GatherConditional())
+		{
+			UE_LOG(LogWoR, Display, TEXT("  Unlock %s"), *MemoryConditions::GetConditionsString(*Memory, Now, Journal));
+		}
 	}));
 #endif

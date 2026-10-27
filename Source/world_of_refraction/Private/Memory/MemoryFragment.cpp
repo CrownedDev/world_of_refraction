@@ -5,6 +5,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryUnlock.h"
 #include "Trial/TrialRunSubsystem.h"
@@ -52,7 +53,17 @@ void AMemoryFragment::Interact(APawn * /*Pawn*/)
 		UE_LOG(LogWoR, Warning, TEXT("[MemoryFragment] %s has no Memory set - nothing to pick up"), *GetName());
 		return;
 	}
-	MemoryUnlock::Unlock(GameInstance, Memory, EMemorySource::Fragment);
+	// B-209 (D-100 part 2): the pickup is an event; its memory needs its own conditions, and other
+	// memories at this fragment can unlock too. Unmet: the fragment stays for another party.
+	FMemoryEvent Event = MemoryConditions::MakeEvent(GameInstance, EMemorySource::Fragment);
+	Event.Locations.Add(GetFeatureId());
+	Event.Named.Add(Memory);
+	MemoryConditions::CheckEvent(GameInstance, Event);
+	if (!MemoryUnlock::IsCollected(GameInstance, Memory))
+	{
+		ShowMessage(LOCTEXT("FragmentUnmoved", "Nothing happens."));
+		return;
+	}
 	TrialRun->RecordFound(GetFeatureId(), LOCTEXT("FragmentFound", "A memory fragment"));
 	ShowMessage(LOCTEXT("FragmentMessage", "You found a memory fragment."));
 	RemoveFromMap();

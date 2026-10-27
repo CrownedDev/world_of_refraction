@@ -22,50 +22,6 @@ namespace
 		return DataComponent ? DataComponent->CharacterData : nullptr;
 	}
 
-	/** The instance tier of each item Actor wears now (ReactionTriggers::GetWornItems decides what
-	 *  is worn; the active loadout's entries hold the levelled tiers). */
-	TArray<TPair<const UEquipmentDataBase *, EItemTier>> GetWornWithTiers(const AActor *Actor)
-	{
-		TArray<TPair<const UEquipmentDataBase *, EItemTier>> Worn;
-		const UInventoryComponent *Inventory = Actor ? Actor->FindComponentByClass<UInventoryComponent>() : nullptr;
-		if (!Inventory || !Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))
-		{
-			return Worn;
-		}
-		const FCombatLoadout &Loadout = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
-		// A level-up writes the owned entry, not the loadout's copy: read the owned one by its id.
-		// TODO(B-085): loadouts will point at owned gear, and this lookup goes.
-		auto OwnedTier = [](const auto &Owned, const auto &Copy)
-		{
-			const auto *Found = Owned.FindByPredicate([&Copy](const auto &Entry) { return Entry.PersistentID == Copy.PersistentID; });
-			return Found && Copy.PersistentID.IsValid() ? Found->Tier : Copy.Tier;
-		};
-		TArray<TPair<const UEquipmentDataBase *, EItemTier>> Entries;
-		for (const FWeaponInventoryEntry *Weapon : {&Loadout.PrimaryWeapon.WeaponEntry, &Loadout.SecondaryWeapon.WeaponEntry})
-		{
-			Entries.Emplace(Weapon->Weapon, OwnedTier(Inventory->Weapons, *Weapon));
-		}
-		TArray<const FRingInventoryEntry *> Rings = {&Loadout.PrimaryRing.RingEntry};
-		if (Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex))
-		{
-			Rings.Add(&Loadout.RingLoadout[Loadout.ActiveRingIndex].RingEntry);
-		}
-		for (const FRingInventoryEntry *Ring : Rings)
-		{
-			Entries.Emplace(Ring->Ring, OwnedTier(Inventory->Rings, *Ring));
-		}
-		const TArray<const UEquipmentDataBase *> InUse = ReactionTriggers::GetWornItems(Actor);
-		for (const TPair<const UEquipmentDataBase *, EItemTier> &Entry : Entries)
-		{
-			if (Entry.Key && InUse.Contains(Entry.Key) &&
-				!Worn.ContainsByPredicate([&Entry](const TPair<const UEquipmentDataBase *, EItemTier> &Kept) { return Kept.Key == Entry.Key; }))
-			{
-				Worn.Add(Entry);
-			}
-		}
-		return Worn;
-	}
-
 	bool IsFacing(const UCharacterData *Character, const TArray<AActor *> &Opposing)
 	{
 		return Opposing.ContainsByPredicate([Character](const AActor *Foe) { return CharacterOf(Foe) == Character; });
@@ -103,6 +59,50 @@ int32 MemoryUnlock::UnlockBossDrops(UGameInstance *GameInstance, const TArray<UC
 		Unlocked += UnlockBossDrop(GameInstance, UBossData::FindFor(Character)) ? 1 : 0;
 	}
 	return Unlocked;
+}
+
+/** The instance tier of each item Actor wears now (ReactionTriggers::GetWornItems decides what
+ *  is worn; the active loadout's entries hold the levelled tiers). */
+TArray<TPair<const UEquipmentDataBase *, EItemTier>> MemoryUnlock::GetWornWithTiers(const AActor *Actor)
+{
+	TArray<TPair<const UEquipmentDataBase *, EItemTier>> Worn;
+	const UInventoryComponent *Inventory = Actor ? Actor->FindComponentByClass<UInventoryComponent>() : nullptr;
+	if (!Inventory || !Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))
+	{
+		return Worn;
+	}
+	const FCombatLoadout &Loadout = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+	// A level-up writes the owned entry, not the loadout's copy: read the owned one by its id.
+	// TODO(B-085): loadouts will point at owned gear, and this lookup goes.
+	auto OwnedTier = [](const auto &Owned, const auto &Copy)
+	{
+		const auto *Found = Owned.FindByPredicate([&Copy](const auto &Entry) { return Entry.PersistentID == Copy.PersistentID; });
+		return Found && Copy.PersistentID.IsValid() ? Found->Tier : Copy.Tier;
+	};
+	TArray<TPair<const UEquipmentDataBase *, EItemTier>> Entries;
+	for (const FWeaponInventoryEntry *Weapon : {&Loadout.PrimaryWeapon.WeaponEntry, &Loadout.SecondaryWeapon.WeaponEntry})
+	{
+		Entries.Emplace(Weapon->Weapon, OwnedTier(Inventory->Weapons, *Weapon));
+	}
+	TArray<const FRingInventoryEntry *> Rings = {&Loadout.PrimaryRing.RingEntry};
+	if (Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex))
+	{
+		Rings.Add(&Loadout.RingLoadout[Loadout.ActiveRingIndex].RingEntry);
+	}
+	for (const FRingInventoryEntry *Ring : Rings)
+	{
+		Entries.Emplace(Ring->Ring, OwnedTier(Inventory->Rings, *Ring));
+	}
+	const TArray<const UEquipmentDataBase *> InUse = ReactionTriggers::GetWornItems(Actor);
+	for (const TPair<const UEquipmentDataBase *, EItemTier> &Entry : Entries)
+	{
+		if (Entry.Key && InUse.Contains(Entry.Key) &&
+			!Worn.ContainsByPredicate([&Entry](const TPair<const UEquipmentDataBase *, EItemTier> &Kept) { return Kept.Key == Entry.Key; }))
+		{
+			Worn.Add(Entry);
+		}
+	}
+	return Worn;
 }
 
 int32 MemoryUnlock::GetUpgradeSteps(const UEquipmentDataBase &Item, EItemTier InstanceTier)

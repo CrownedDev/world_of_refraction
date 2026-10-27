@@ -207,6 +207,23 @@ void FMemorySourcesSpec::Define()
 		TestFalse(TEXT("Spot not recorded as found"), TrialRun->HasFound(Spot->GetFeatureId()));
 	});
 
+	It("leaves a map spot unspent when its memory's unlock conditions aren't met", [this]()
+	{
+		AMemorySpot *Spot = TestWorld->GetWorld()->SpawnActor<AMemorySpot>(FVector::ZeroVector, FRotator::ZeroRotator);
+		if (!TestNotNull(TEXT("Spot"), Spot))
+		{
+			return;
+		}
+		FMemoryCondition NotHere;
+		NotHere.Kind = EMemoryConditionKind::Character;
+		NotHere.Character = FWoRTestWorld::NewCharacterData();
+		Memory->UnlockConditions.Add(NotHere);
+		Spot->Memory = Memory;
+		TestFalse(TEXT("Not reached"), Spot->Reach());
+		TestFalse(TEXT("Not in the journal"), Journal->HasMemory(Memory));
+		TestFalse(TEXT("Not recorded as found"), TrialRun->HasFound(Spot->GetFeatureId()));
+	});
+
 	It("unlocks a map spot's memory once per run", [this]()
 	{
 		AMemorySpot *Spot = TestWorld->GetWorld()->SpawnActor<AMemorySpot>(FVector::ZeroVector, FRotator::ZeroRotator);

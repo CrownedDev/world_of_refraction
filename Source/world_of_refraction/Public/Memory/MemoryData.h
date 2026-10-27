@@ -10,6 +10,8 @@
 #include "MemoryData.generated.h"
 
 class UCharacterData;
+class UEquipmentDataBase;
+class UMemoryData;
 
 /** How much a memory means to one character: the same fragment can be deep for one lord and
  *  minor for another. */
@@ -44,6 +46,57 @@ struct WORLD_OF_REFRACTION_API FMemoryBossModifier
 	EMemoryBossModifierKind Kind = EMemoryBossModifierKind::Weaken;
 };
 
+/** B-209 (D-100 part 2, Q-209b): one thing that must be true for a memory to unlock. Append new
+ *  values at the end (saved in assets). */
+UENUM(BlueprintType)
+enum class EMemoryConditionKind : uint8
+{
+	/** Character is in the party. */
+	Character,
+	/** Item is worn (by Character when set, else by anyone) at least UpgradeLevel tiers above its
+	 *  authored tier. A gear upgrade counts the levelled item as worn. */
+	GearEquipped,
+	/** LocationId is where it happens: the trial's asset name, or the fragment / spot's id. */
+	Location,
+	/** Enemy was beaten in the fight just won. */
+	EnemyBeaten,
+	/** The fight was won with no party member below their HP at its start. */
+	NoDamageTaken,
+	/** PriorMemory is already in the journal (memories chain). */
+	PriorMemory,
+	/** TODO: hidden conditions (pillar 10) are not built; never met for now. */
+	Hidden
+};
+
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FMemoryCondition
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
+	EMemoryConditionKind Kind = EMemoryConditionKind::Character;
+
+	/** Character: who must be in the party. GearEquipped: who must wear it (empty: anyone). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
+	TObjectPtr<UCharacterData> Character = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
+	TObjectPtr<UEquipmentDataBase> Item = nullptr;
+
+	/** GearEquipped: tiers above the item's authored tier. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory", meta = (ClampMin = "0"))
+	int32 UpgradeLevel = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
+	FName LocationId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
+	TObjectPtr<UCharacterData> Enemy = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
+	TObjectPtr<UMemoryData> PriorMemory = nullptr;
+};
+
 UCLASS(BlueprintType)
 class WORLD_OF_REFRACTION_API UMemoryData : public UPrimaryDataAsset
 {
@@ -68,7 +121,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
 	TArray<FMemoryBossModifier> BossModifiers;
 
+	/** B-209 (D-100 part 2): all must hold; never shown to the player. Empty: only a source that
+	 *  names this memory unlocks it (a fragment, a boss's MemoryOnDefeat...). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Unlock")
+	TArray<FMemoryCondition> UnlockConditions;
+
 	FName GetMemoryId() const;
+
+	/** Debug: one condition in words. */
+	static FString GetConditionString(const FMemoryCondition &Condition);
 
 	EMemoryDepth GetDepthFor(const UCharacterData *Character) const;
 

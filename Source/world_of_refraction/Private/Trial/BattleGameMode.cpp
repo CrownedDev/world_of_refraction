@@ -17,6 +17,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "TimerManager.h"
 #include "Combat/Encounter/EnemyZone.h"
+#include "Memory/MemoryConditions.h"
 #include "Memory/MemoryUnlock.h"
 #include "Reaction/ReactionTrigger.h"
 #include "Trial/TrialGate.h"
@@ -291,6 +292,15 @@ void ABattleGameMode::BootstrapCombat()
     // B-185: the side that struck first on the map takes the opening round.
     SpawnedOrchestrator->SetFirstStrike(TrialRun->GetPendingFirstStrike());
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] First strike: %s"), *UEnum::GetValueAsString(TrialRun->GetPendingFirstStrike()));
+    // B-209: a NoDamageTaken memory condition compares against this at the win.
+    PartyStartHP.Reset();
+    for (const AActor *Member : LocalParty)
+    {
+        if (const UCharacterDataComponent *MemberData = Member ? Member->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+        {
+            PartyStartHP.Add(Member, MemberData->CurrentHP);
+        }
+    }
     SpawnedOrchestrator->StartCombat(LocalParty, OpposingParty, TrialRun->GetPendingDifficulty());
 }
 
@@ -442,8 +452,9 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
         if (UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>())
         {
             TrialRun->MarkPendingEncounterBeaten();
-            // B-209: a beaten boss or mini-boss unlocks its memory.
-            MemoryUnlock::UnlockBossDrops(GetGameInstance(), TrialRun->GetPendingOpposingParty());
+            // B-209: a beaten boss or mini-boss unlocks its memory, and memories whose unlock
+            // conditions the win meets.
+            CheckFightWonMemories();
         }
     }
 
@@ -451,6 +462,53 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
     {
         ReturnToTrial();
     }
+}
+
+void ABattleGameMode::CheckFightWonMemories()
+{
+    const UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
+    if (!TrialRun || !Orchestrator.IsValid())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] Fight won: no trial run or orchestrator - memory conditions not checked"));
+        return;
+    }
+    FMemoryEvent Event = MemoryConditions::MakeEvent(GetGameInstance(), EMemorySource::FightWon);
+    Event.Party.Reset();
+    for (const AActor *Member : Orchestrator->GetLocalParty())
+    {
+        Event.Party.Add(MemoryConditions::MakeMember(Member));
+    }
+    for (UCharacterData *Beaten : TrialRun->GetPendingOpposingParty())
+    {
+        Event.Beaten.Add(Beaten);
+        const UBossData *BossData = UBossData::FindFor(Beaten);
+        if (BossData && BossData->MemoryOnDefeat)
+        {
+            Event.Named.AddUnique(BossData->MemoryOnDefeat);
+        }
+    }
+    Event.bNoDamageTaken = WasPartyUnhurt();
+    // The bosses' own memories first, journalled as from a boss; then every conditional memory
+    // the win meets, as from the fight.
+    FMemoryEvent BossEvent = Event;
+    BossEvent.Source = EMemorySource::Boss;
+    MemoryConditions::CheckEvent(GetGameInstance(), BossEvent, {});
+    Event.Named.Reset();
+    MemoryConditions::CheckEvent(GetGameInstance(), Event);
+}
+
+bool ABattleGameMode::WasPartyUnhurt() const
+{
+    for (const TPair<TWeakObjectPtr<const AActor>, int32> &Start : PartyStartHP)
+    {
+        const AActor *Member = Start.Key.Get();
+        const UCharacterDataComponent *MemberData = Member ? Member->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+        if (!MemberData || MemberData->CurrentHP < Start.Value)
+        {
+            return false;
+        }
+    }
+    return !PartyStartHP.IsEmpty();
 }
 
 bool ABattleGameMode::ShowResults(const FCombatResult &Result)

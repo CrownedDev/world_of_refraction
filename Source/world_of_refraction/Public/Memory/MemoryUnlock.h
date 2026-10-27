@@ -29,12 +29,17 @@ namespace MemoryUnlock
 	/** B-210 (Q-190 changed by Crown): Memory is in the journal, so no source grants it again. */
 	WORLD_OF_REFRACTION_API bool IsCollected(const UGameInstance *GameInstance, const UMemoryData *Memory);
 
-	/** BossData beaten: its MemoryOnDefeat, if any. */
+	/** BossData beaten: its MemoryOnDefeat, if any. Obsolete since B-209's conditions (a fight won is
+	 *  MemoryConditions' event; ABattleGameMode::CheckFightWonMemories): no game caller; remove after
+	 *  Crown's PIE pass. */
 	WORLD_OF_REFRACTION_API bool UnlockBossDrop(UGameInstance *GameInstance, const UBossData *BossData);
 
 	/** A fight won: each beaten character with boss data unlocks its MemoryOnDefeat. Returns how
 	 *  many were new. */
 	WORLD_OF_REFRACTION_API int32 UnlockBossDrops(UGameInstance *GameInstance, const TArray<UCharacterData *> &Beaten);
+
+	/** The items Actor wears now, each with the level of the owned copy. */
+	WORLD_OF_REFRACTION_API TArray<TPair<const UEquipmentDataBase *, EItemTier>> GetWornWithTiers(const AActor *Actor);
 
 	/** How many tiers InstanceTier is above Item's authored tier. */
 	WORLD_OF_REFRACTION_API int32 GetUpgradeSteps(const UEquipmentDataBase &Item, EItemTier InstanceTier);

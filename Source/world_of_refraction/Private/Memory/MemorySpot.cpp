@@ -7,6 +7,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "Memory/MemoryConditions.h"
 #include "Memory/MemoryUnlock.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "WoRLog.h"
@@ -57,7 +58,16 @@ bool AMemorySpot::Reach()
 		Spend();
 		return false;
 	}
-	MemoryUnlock::Unlock(GameInstance, Memory, EMemorySource::MapSpot);
+	// B-209 (D-100 part 2): reaching the spot is an event, like a fragment pickup. Unmet: the spot
+	// stays, silent, for another party.
+	FMemoryEvent Event = MemoryConditions::MakeEvent(GameInstance, EMemorySource::MapSpot);
+	Event.Locations.Add(GetFeatureId());
+	Event.Named.Add(Memory);
+	MemoryConditions::CheckEvent(GameInstance, Event);
+	if (!MemoryUnlock::IsCollected(GameInstance, Memory))
+	{
+		return false;
+	}
 	TrialRun->RecordFound(GetFeatureId(), LOCTEXT("SpotFound", "A memory spot"));
 	ShowMessage(LOCTEXT("SpotMessage", "A memory surfaces."));
 	Spend();
