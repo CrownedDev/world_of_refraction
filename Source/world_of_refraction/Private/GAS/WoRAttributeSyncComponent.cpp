@@ -64,6 +64,19 @@ UAbilitySystemComponent *UWoRAttributeSyncComponent::PrepareAbilitySystem(AActor
 	return ASC;
 }
 
+bool UWoRAttributeSyncComponent::ReadSyncedAttribute(const UAbilitySystemComponent *ASC, const FGameplayAttribute &Attribute, float &Out)
+{
+	const AActor *Owner = ASC ? ASC->GetOwner() : nullptr;
+	const UCharacterDataComponent *Char = Owner ? Owner->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (!Char || !Char->CharacterData || !Owner->FindComponentByClass<UWoRAttributeSyncComponent>() ||
+		!ASC->HasAttributeSetForAttribute(Attribute))
+	{
+		return false;
+	}
+	Out = ASC->GetNumericAttribute(Attribute);
+	return true;
+}
+
 TArray<FWoRAttributeSourceValue> UWoRAttributeSyncComponent::ReadSourceValues(const AActor *Actor)
 {
 	TArray<FWoRAttributeSourceValue> Values;

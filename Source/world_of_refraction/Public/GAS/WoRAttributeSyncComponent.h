@@ -41,6 +41,11 @@ public:
 	 *  Actor has no UCharacterDataComponent. Shared with the debug compare so both read one list. */
 	static TArray<FWoRAttributeSourceValue> ReadSourceValues(const AActor *Actor);
 
+	/** Out = Attribute, when ASC holds its set and its owner has this sync and character data (so the
+	 *  attribute holds the getter's value). Otherwise false and Out untouched: an unsynced set holds
+	 *  0s, so the executions keep their gathered inputs (B-042e, B-042l). */
+	static bool ReadSyncedAttribute(const UAbilitySystemComponent *ASC, const FGameplayAttribute &Attribute, float &Out);
+
 	/** Gives the owner's ASC both attribute sets (once) and its actor info. Null when the owner has no ASC. */
 	static UAbilitySystemComponent *PrepareAbilitySystem(AActor *Owner);
 
