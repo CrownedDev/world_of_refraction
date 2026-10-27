@@ -13,7 +13,11 @@
 #include "GameFramework/Pawn.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Inventory/InventoryComponent.h"
+#include "Loadout/LoadoutComponent.h"
 #include "WoRLog.h"
+
+class UWeaponData;
 
 class FWoRTestWorld
 {
@@ -82,6 +86,42 @@ public:
 		// The world has begun play, so registering runs the component's BeginPlay (HP/EP seed).
 		CharComp->RegisterComponent();
 		return Actor;
+	}
+
+	/** Adds and registers a component on an actor that has already begun play. */
+	template <class TComponent>
+	static TComponent *AddComponent(AActor *Actor)
+	{
+		TComponent *Component = NewObject<TComponent>(Actor);
+		Actor->AddInstanceComponent(Component);
+		Component->RegisterComponent();
+		return Component;
+	}
+
+	/** SpawnCombatant plus an inventory and a loadout initialised from Data. With PrimaryWeapon,
+	 *  the active saved loadout's primary slot holds it. The actor is the loadout's owner. */
+	ULoadoutComponent *SpawnCombatantWithLoadout(UCharacterData *Data, UWeaponData *PrimaryWeapon = nullptr,
+												 bool bAIControlled = false)
+	{
+		AActor *Actor = SpawnCombatant(Data, bAIControlled);
+		if (!Actor)
+		{
+			return nullptr;
+		}
+		UInventoryComponent *Inventory = AddComponent<UInventoryComponent>(Actor);
+		ULoadoutComponent *Loadout = AddComponent<ULoadoutComponent>(Actor);
+		Loadout->InitializeFromCharacterData(Data, Inventory);
+		if (PrimaryWeapon && !Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[WoRTestWorld] No active saved loadout to hold the primary weapon"));
+		}
+		else if (PrimaryWeapon)
+		{
+			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+			Active.PrimarySlotType = EPrimarySlotType::Weapon;
+			Active.PrimaryWeapon.WeaponEntry.Weapon = PrimaryWeapon;
+		}
+		return Loadout;
 	}
 
 private:
