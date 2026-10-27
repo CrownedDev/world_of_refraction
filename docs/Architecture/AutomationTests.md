@@ -127,3 +127,4 @@ Combatants are bare unless a spec needs more: `SpawnCombatant` gives no loadout,
 | 2026-10-27 | B-136: `WoR.Infusion.Cost` (6 cases) pins infusion EP and HP costs with literal numbers; it records that a chosen ability source at L0 still pays x1.5. Not covered: `ApplyCommitCosts`' HP routing by source (needs a running action). | chore/B-136-infusion-cost-spec |
 | 2026-10-27 | B-137: `WoR.Economy.RoundTrip` (5 cases) pins cart cost, the level-up/revert round trip and dismantle yields with literal numbers. | chore/B-137-economy-spec |
 | 2026-10-27 | B-138: `WoR.Weapons.MeshFollowsLoadout` (9 cases); `SpawnCombatantWithLoadout` now announces its direct weapon write. | refactor/B-138-weapon-mesh-delegate |
+| 2026-10-27 | B-042: `WoR.GAS.TurnTracker` (7 cases): the native Stun GE's tag, the turn-counting rule on the tracker, external removal, refusals, the effect manager's hooks, a real `ACombatCharacter`. | feature/B-042-gas-turn-tracker |

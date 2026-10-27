@@ -15,6 +15,7 @@
 #include "Loadout/LoadoutComponent.h"
 #include "AbilitySystemComponent.h"
 #include "GAS/WoRAttributeSyncComponent.h"
+#include "GAS/WoRTurnEffectTracker.h"
 #include "GAS/WoRAttributeSets.h"
 
 ACombatCharacter::ACombatCharacter()
@@ -41,6 +42,7 @@ ACombatCharacter::ACombatCharacter()
     StatsAttributes = CreateDefaultSubobject<UWoRAttributeSet_Stats>(TEXT("StatsAttributes"));
     ResistanceAttributes = CreateDefaultSubobject<UWoRAttributeSet_Resistance>(TEXT("ResistanceAttributes"));
     AttributeSyncComponent = CreateDefaultSubobject<UWoRAttributeSyncComponent>(TEXT("AttributeSyncComponent"));
+    TurnEffectTracker = CreateDefaultSubobject<UWoRTurnEffectTracker>(TEXT("TurnEffectTracker"));
 
     // Every combat character gets an AI controller by default, so engine
     // possession can answer "who is driving this?" truthfully. PC0 takes over the

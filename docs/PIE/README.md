@@ -108,6 +108,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-178](B-178.md) | `feature/B-178-run-repair` (in `dev`) | Paid gear repair in a run; the run's Gold carries between levels | Not tested |
 | [B-093](B-093.md) | `feature/B-093-menu-keys` (in `dev`) | Keys for Defend and infusion (keyboard + gamepad) | Not tested |
 | [B-209](B-209.md) | `feature/B-209-memory-sources` (in `dev`) | Memories from bosses, reactions, map spots and bound gear | Not tested |
+| [B-042](B-042.md) | `feature/B-042-gas-turn-tracker` (in `dev`) | GAS stage 3, part 1: Stun GE + turn tracker (nothing uses it in play yet) | Not tested |
 | [B-034](B-034.md) | `refactor/B-034-infusion-level-on-pending-action` (in `dev`) | The menu holds the infusion level; the VFX only shows it | Not tested |
 | [B-033](B-033.md) | `refactor/B-033-god-file-splits` (in `dev`) | God-file splits (move-only): debug buttons, montage runner, costs | Not tested |
 | [B-032c](B-032c.md) | `fix/B-032c-reflect-hp-lost` (in `dev`) | Reflect returns a share of the HP lost; Double Hit skips a killed target | Not tested |

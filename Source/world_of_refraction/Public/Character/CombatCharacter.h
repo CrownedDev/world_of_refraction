@@ -31,6 +31,7 @@ class UBrokenDarknessManager;
 class UBattleConfigComponent;
 class UAbilitySystemComponent;
 class UWoRAttributeSyncComponent;
+class UWoRTurnEffectTracker;
 class UWoRAttributeSet_Vitals;
 class UWoRAttributeSet_Stats;
 class UWoRAttributeSet_Resistance;
@@ -103,6 +104,10 @@ public:
      *  so its BeginPlay runs once their cascade has seeded them. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
     TObjectPtr<UWoRAttributeSyncComponent> AttributeSyncComponent;
+
+    /** GAS stage 3 (B-042): counts this pawn's turns for its turn-counted GameplayEffects. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
+    TObjectPtr<UWoRTurnEffectTracker> TurnEffectTracker;
 
 private:
     /** Default subobjects, so the ASC finds them at InitializeComponent on every machine (the

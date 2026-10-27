@@ -25,6 +25,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "GAS/WoRTurnEffectTracker.h"
 #include "Tags/WoRGameplayTags.h"
 #include "WoRLog.h"
 
@@ -1074,6 +1075,10 @@ void USkillEffectManager::ProcessStartOfTurnEffects(AActor *Actor)
 
 	// D-051: a finished holder-turn span ends as the turn starts, before this turn's payouts.
 	ExpireFinishedHolderTurnSpans(Actor);
+	if (UWoRTurnEffectTracker *Tracker = Actor->FindComponentByClass<UWoRTurnEffectTracker>())
+	{
+		Tracker->OnHolderTurnStart(); // the same rule for the GAS effects (B-042)
+	}
 
 	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Processing start-of-turn effects for %s"),
 		   *Actor->GetName());
@@ -1106,6 +1111,10 @@ void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 
 	// Tick durations and remove expired effects
 	CountHolderTurnSpans(Actor);
+	if (UWoRTurnEffectTracker *Tracker = Actor->FindComponentByClass<UWoRTurnEffectTracker>())
+	{
+		Tracker->OnHolderTurnEnd();
+	}
 	TickDurations(Actor);
 
 	// Clean up effects marked for removal
