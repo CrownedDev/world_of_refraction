@@ -2,8 +2,8 @@
 // B-134: today's effect lifecycle, pinned so B-042 (effects on the ASC) and later effect work can
 // prove an identical before/after: apply, stack, refresh, tick-down, expiry, the timing windows
 // (fire on application, bDelayFirstExecution, Immediate, Persistent), clear and reset, and the
-// re-entrancy regression (2405fa82: an effect whose logic removes effects while the turn-start
-// pass is walking the same list). Each case records what the code does today, including the
+// re-entrancy regression (2405fa82: an effect whose logic removes or adds effects while a pass is
+// walking the same list). Each case records what the code does today, including the
 // surprising parts (a DOT fires on application; a no-refresh re-apply still reports
 // DurationRefreshed), so change a case only on purpose. Cleanse's gear exclusion is
 // WoR.Effects.CleanseGear; holder-turn spans are WoR.Effects.StatusBreaks.
@@ -13,6 +13,7 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/CombatConstants.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
 
@@ -28,6 +29,8 @@ namespace
 	constexpr float BASELINE_DOT_DAMAGE = 5.0f;
 	constexpr int32 BASELINE_DURATION_TURNS = 3;
 	constexpr int32 BASELINE_MAX_STACKS = 2;
+	/** Far past the bar's threshold, whatever the holder's resistance (below RESISTANCE_MAX). */
+	constexpr float BASELINE_OVERWHELMING_BUILDUP = CombatConstants::STATUS_EFFECT_THRESHOLD * 100.0f;
 }
 
 BEGIN_DEFINE_SPEC(FEffectsBaselineSpec, "WoR.Effects.Baseline",
@@ -331,8 +334,22 @@ void FEffectsBaselineSpec::Define()
 			TestEqual(TEXT("Only the cleanse left"), EffectManager->GetEffectCount(Holder), 1);
 		});
 
-		// TODO: the "add" half of 2405fa82 (an effect appended mid-pass waits for its own window)
-		// needs a DOT whose buildup caps a bar and triggers a status; pin it with B-135's buildup spec.
+		It("survives a DOT tick whose buildup caps the bar and adds a stun mid-pass", [this]()
+		{
+			if (!EffectManager) return;
+			FActiveSkillEffect Charged = Burn();
+			Charged.Element = ESpellElement::Lightning;
+			Charged.BuildupPerTick = BASELINE_OVERWHELMING_BUILDUP;
+			Charged.bDelayFirstExecution = true;
+			EffectManager->ApplyEffect(Holder, Charged, Foe);
+			const int32 StartHP = HolderStats->CurrentHP;
+
+			EndHolderTurn();
+			TestEqual(TEXT("The DOT ran once, not again on the rescan"), HolderStats->CurrentHP, StartHP - DotHit());
+			TestTrue(TEXT("The bar capped into a stun"), EffectManager->IsStunned(Holder));
+			TestNotNull(TEXT("The DOT is still there"), Find(BASELINE_DOT_ID));
+			TestEqual(TEXT("The DOT and the stun"), EffectManager->GetEffectCount(Holder), 2);
+		});
 	});
 }
 
