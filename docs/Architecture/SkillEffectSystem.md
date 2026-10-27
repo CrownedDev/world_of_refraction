@@ -254,6 +254,7 @@ Bound to `UActionExecutor::OnDamageDealt`. When the attacker carries the effect:
 - **Defender-trigger element is `Generic`** — defense-fired effects have no cast context, so DOT/status payloads fired this way don't inherit an element (acceptable for the current gear authoring).
 - **Attacker-perspective is `Target`-subject only** — "react to how my target defended" works via `ECondSubject::Target`/`TargetTeam`; there is no separate attacker-side trigger and no accuracy-miss trigger (flagged future axes).
 - **Cast-time target-state conditions** — "cast fires only if target below X%" is not supported at the cast site (the cast loop is action-result-driven; target-side *state* eval is the impact path's job).
+- **AI lethal-DOT guess one tick high** — `AIDecisionManager` multiplies TickDamage by RemainingTurns; during the holder's own turn (after its turn-start payout) that is one tick more than is left (B-225, Q-225).
 - **id-overflow NOTE** — documented, unreachable (see ID scheme).
 
 ## Starting effects (gear, combat start)
@@ -299,3 +300,4 @@ Coverage mirrors `GetActiveStatBonus` per class plus the innate (primary-slot) e
 | 2026-10-27 | B-042d: `OnDamageDealtHandler`, `OnDefenseResolvedHandler` and the turn start / end processing send `Event.Combat.*` GameplayEvents (`GAS/WoRCombatEvents.h`). | feature/B-042d-gas-combat-events |
 | 2026-10-27 | B-042k: every effect type has a GAS family, so `wor.Effects.UseGAS 1` reads every type from the mirror. | feature/B-042k-gas-remaining-families |
 | 2026-10-27 | B-042n: the DOT and HealthRestore ticks compute through `WoRTickMath` (same numbers); GAS ticks share it (GASSystem.md, Q-042n). | feature/B-042n-gas-dot-hot-ticks |
+| 2026-10-27 | B-225: `ApplyTimingRule` in `ApplyEffect`: every timed effect counts holder turns (`FTurnSpan`, D-051); a per-turn payout (`IsPayoutType`, Start/End/Persistent timing) pays at the holder's turn start, exactly N (Q-044c, Q-063). `TickDurations` flagged obsolete. Q-225. | feature/B-225-effect-timing |
