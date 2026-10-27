@@ -2002,6 +2002,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it, e.g. to B once the loadout screen exists.
 **Notes for Claude:** applied (feature/B-076-trial-recruits). Trial maps have no recruit spots yet (placing a recruitable pawn in a trial level is editor work): B-215. Until then, `wor.Party.RecruitForRun <CharacterData path>` recruits in a trial. Evolutions for a recruit wait for B with the real screen.
 
+### Q-162 — A weapon asks for more than one pillar: which gap sets its damage factor?
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-162) · **Blocks:** — (B-162 ships with A)
+**Question:** D-082 / Q-146c: under a weapon's requirement it gives less (the requirement-gap ladder, capped at 100%). A weapon can require Mind, Body and Spirit at once, so up to three gaps. How do they make one factor?
+**Options:**
+- **A** The worst pillar decides: the factor is the lowest of the three pillars' ladder values (each clamped to [floor, 1]).
+- **B** Multiply them: each pillar you're short on cuts again (two pillars at gap +2: 0.78 x 0.78 = 0.61).
+**Recommendation:** A. In Elden Ring, missing any of a weapon's stat requirements gives one flat attack penalty, not one per missed stat; being one point short on several stats isn't punished more than being short on one, which players found fair. B compounds quickly toward the floor. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B.
+**Notes for Claude:** `FWorldStatRequirements::GetWeaponRequirementFactor` (`Min3`); the floor `WeaponRequirement::WEAPON_REQ_FACTOR_MIN` is 0.25 (`// TODO: tune`; the ladder's lowest rung is 0.32, so it doesn't bite today). Two readings built with the plan (`StatMathsRedesign.md` 2.9, "a separate damage factor on attacks and abilities"), for Crown to change if wanted: the factor scales the whole pre-defense damage of the attack or ability (the skill's base too, not only a weapon-only share, since this game has no separate weapon damage term), and it scales **damage only**: status buildup from the hit is unchanged.
+
 ### Q-218 — Which single tuning values move into the tuning data now?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-218) · **Blocks:** — (B-218 ships with A)
 **Question:** B-218 puts the ladders into curve tables and "single tuning values (caps, per-point bases, Broken Darkness rates)" into `UCombatTuningData`. The stat caps and per-point bases (`UNIVERSAL_STAT_CAP`, `RESISTANCE_PER_POINT`, `PCT_STAT_PER_POINT`, …) feed compile-time formulas (`STAT_DERIVE_DENOM` and the derived per-point values in `CombatConstants.h`) read in many places. Which single values move now?

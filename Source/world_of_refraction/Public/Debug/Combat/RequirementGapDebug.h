@@ -13,6 +13,7 @@
 
 class USkillDataBase;
 class UCharacterData;
+class UWeaponData;
 
 /**
  * Debug utilities for the per-pillar requirement-gap scaling (TierGapConstants.h
@@ -36,4 +37,10 @@ public:
      *  USpellDataDebug::PrintSpellStats). */
     UFUNCTION(BlueprintCallable, Category = "Debug|RequirementGap")
     static void PrintRequirementGap(const USkillDataBase *Skill, const UCharacterData *Character, float Duration = 15.0f);
+
+    /** Weapon requirement factor (B-162) for Weapon held by Character: each pillar's gap and its
+     *  clamped ladder value, and the live factor (FWorldStatRequirements::GetWeaponRequirementFactor,
+     *  the worst pillar) that scales attacks and abilities through the weapon. */
+    UFUNCTION(BlueprintPure, Category = "Debug|RequirementGap")
+    static FString GetWeaponRequirementFactorString(const UWeaponData *Weapon, const UCharacterData *Character);
 };
