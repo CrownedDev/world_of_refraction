@@ -2843,12 +2843,8 @@ bool ULoadoutComponent::HasSecondaryEquipment() const
 
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
-    // Evolved characters lose secondary
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
-    {
-        return false;
-    }
-
+    // B-099 (D-027): an evolution primary keeps the secondary weapon (GetActiveWeaponLoadout
+    // fights with it, FCombatCapabilities lists it).
     if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
     {
         return Loadout.SecondaryWeapon.IsValid();
@@ -2875,13 +2871,7 @@ bool ULoadoutComponent::HasRingInSecondary() const
         return false;
     }
 
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-
-    // Evolved characters lose secondary
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
-    {
-        return false;
-    }
+    // The Generic secondary slot holds a weapon only (ESecondarySlotType), whatever the primary.
     return false;
 }
 
