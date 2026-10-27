@@ -15,6 +15,7 @@
 #include "Misc/DataValidation.h"
 #endif
 
+#include "Equipment/Weapons/WeaponPower.h"
 #include "WeaponData.generated.h"
 
 // Forward declarations
@@ -67,6 +68,18 @@ public:
     // Idle stance when this weapon is equipped
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
     UStanceData *WeaponStance = nullptr;
+
+    // ==================== DAMAGE (D-101, B-220) ====================
+
+    /** The weapon's own damage at its asset Tier, added to the skill's part of every attack and ability
+     *  through it (WoRWeaponPower). A levelled copy scales it by tier power. 0 = no weapon part.
+     *  Reference by tier (BaselineNumbers.md): F 40, E 52, D 68, C 88, B 114, A 148, S 192. TODO: tune per weapon. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Damage", meta = (ClampMin = 0))
+    int32 Power = 0;
+
+    /** How the wielder's Mind / Body / Spirit add to Power (S steepest .. F). A pillar not listed doesn't. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Damage")
+    TArray<FPillarScaling> StatScaling;
 
     // ==================== ANIMATIONS ====================
 
