@@ -1,6 +1,7 @@
 // MemoryConditionsSpec.cpp
 // B-209 (D-100 part 2, Q-209b): a memory unlocks when every unlock condition holds at an event:
-// one spec per condition kind, a two-memory chain in one event, a source's own memory, once only.
+// one spec per condition kind, a two-memory chain in one event, a source's own memory, once only;
+// Q-209c: alternative condition sets (any one opens it) and rewards (logged on unlock).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -18,6 +19,7 @@ namespace
 {
 	const FName CONDITIONS_TEST_MEMORY_NAME(TEXT("Memory_ConditionsSpec"));
 	const FName CONDITIONS_TEST_LOCATION(TEXT("Spot_ConditionsSpec"));
+	const FName CONDITIONS_TEST_TITLE(TEXT("Title_ConditionsSpec"));
 	constexpr int32 CONDITIONS_TEST_UPGRADE_LEVEL = 2;
 
 	EItemTier ConditionsTestTierAbove(EItemTier Base, int32 Steps)
@@ -194,6 +196,44 @@ void FMemoryConditionsSpec::Define()
 		// Listed second-first: the chain must not depend on the order.
 		TestEqual(TEXT("Both in one event"), MemoryConditions::CheckEvent(GameInstance, EventWithLord(), {Second, First}), 2);
 		TestTrue(TEXT("The second too"), Journal->HasMemory(Second));
+	});
+
+	It("opens by any one route: the first set or an alternative", [this]()
+	{
+		FMemoryCondition At = Condition(EMemoryConditionKind::Location);
+		At.LocationId = CONDITIONS_TEST_LOCATION;
+		FMemoryCondition InParty = Condition(EMemoryConditionKind::Character);
+		InParty.Character = Lord;
+		UMemoryData *Memory = NewMemory({At});
+		Memory->AlternativeConditionSets.Add({{InParty}});
+
+		FMemoryEvent Stranger;
+		Stranger.Party.Add({FWoRTestWorld::NewCharacterData(), {}});
+		TestFalse(TEXT("Neither route"), MemoryConditions::AreMet(*Memory, Stranger, Journal));
+		Stranger.Locations.Add(CONDITIONS_TEST_LOCATION);
+		TestTrue(TEXT("The first route"), MemoryConditions::AreMet(*Memory, Stranger, Journal));
+		TestTrue(TEXT("The alternative route"), MemoryConditions::AreMet(*Memory, EventWithLord(), Journal));
+
+		UMemoryData *OnlyAlternative = NewMemory({});
+		OnlyAlternative->AlternativeConditionSets.Add({{InParty}});
+		TestTrue(TEXT("Alternatives alone count as conditions"), OnlyAlternative->HasConditions());
+		FMemoryEvent Pickup;
+		Pickup.Named.Add(OnlyAlternative);
+		TestEqual(TEXT("Named but unmet: not opened"), MemoryConditions::CheckEvent(GameInstance, Pickup, {}), 0);
+		TestTrue(TEXT("Debug string shows both routes"), MemoryConditions::GetConditionsString(*Memory, Stranger, Journal).Contains(TEXT(" OR ")));
+	});
+
+	It("unlocks a memory with rewards and lists them", [this]()
+	{
+		UMemoryData *Memory = NewMemory({});
+		FMemoryReward Title;
+		Title.Kind = EMemoryRewardKind::Title;
+		Title.RewardId = CONDITIONS_TEST_TITLE;
+		Memory->Rewards.Add(Title);
+		FMemoryEvent Pickup;
+		Pickup.Named.Add(Memory);
+		TestEqual(TEXT("Unlocked (the reward is logged)"), MemoryConditions::CheckEvent(GameInstance, Pickup, {}), 1);
+		TestTrue(TEXT("Debug string lists the reward"), Memory->GetMemoryString().Contains(CONDITIONS_TEST_TITLE.ToString()));
 	});
 
 	It("never meets a hidden condition (not built)", [this]()

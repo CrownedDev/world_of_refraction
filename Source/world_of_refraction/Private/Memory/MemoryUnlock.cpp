@@ -37,7 +37,19 @@ bool MemoryUnlock::Unlock(UGameInstance *GameInstance, UMemoryData *Memory, EMem
 		return false;
 	}
 	TrialRun->CollectMemory(Memory);
-	return Journal->RecordMemory(Memory, Source);
+	if (!Journal->RecordMemory(Memory, Source))
+	{
+		return false;
+	}
+	// Q-209c: rewards come once, with the unlock. TODO: grant each kind once it can be: the item
+	// into the party's inventory (out-of-fight gear, B-085), the skill once rewards teach skills,
+	// titles and curses once they are systems.
+	for (const FMemoryReward &Reward : Memory->Rewards)
+	{
+		UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s reward: %s (logged, not granted yet)"), *Memory->GetMemoryId().ToString(),
+			   *UMemoryData::GetRewardString(Reward));
+	}
+	return true;
 }
 
 bool MemoryUnlock::IsCollected(const UGameInstance *GameInstance, const UMemoryData *Memory)
