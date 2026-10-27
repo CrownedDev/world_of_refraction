@@ -39,17 +39,26 @@ namespace
 {
     /** Q-159 = A: utility crystals a loadout rule removes are not destroyed; they go back to the
      *  inventory, as many as fit. An authored loadout's crystals were never taken from the
-     *  inventory, so this can add extra ones: a dev-time case Q-159 accepts. */
-    void LoadoutReturnDroppedCrystals(UInventoryComponent *Inv, const FCrystalId &Id, int32 Count)
+     *  inventory, so this can add extra ones: a dev-time case Q-159 accepts while the inventory is
+     *  the member's own (it refills at each spawn). B-203: while the member shares the party's
+     *  carried items (saved), only crystals taken from them (Taken) go back, so none are made up. */
+    void LoadoutReturnDroppedCrystals(UInventoryComponent *Inv, const FCrystalId &Id, int32 Count, TMap<FCrystalId, int32> &Taken)
     {
-        if (Count <= 0)
-        {
-            return;
-        }
-        if (!Inv->GetOwner()->FindComponentByClass<UCrystalInventoryComponent>())
+        const UCrystalInventoryComponent *CrystalInv = Inv->GetOwner()->FindComponentByClass<UCrystalInventoryComponent>();
+        if (!CrystalInv)
         {
             // An enemy's authored loadout: no crystal inventory to return to.
             UE_LOG(LogWoRLoadout, Verbose, TEXT("No crystal inventory: %d dropped %s not returned"), Count, *ItemIdentity::GetDisplayName(Id));
+            return;
+        }
+        if (CrystalInv->IsSharingItems())
+        {
+            int32 &TakenOfType = Taken.FindOrAdd(Id);
+            Count = FMath::Min(Count, TakenOfType);
+            TakenOfType -= FMath::Max(Count, 0);
+        }
+        if (Count <= 0)
+        {
             return;
         }
         int32 Returned = 0;
@@ -59,8 +68,8 @@ namespace
         }
         if (Returned < Count)
         {
-            // TODO: D-097 - send the rest to home storage when the inventory is full (storage not built yet).
-            UE_LOG(LogWoRLoadout, Warning, TEXT("Inventory full: %d dropped %s lost (no storage yet, D-097)"),
+            // Only an unshared inventory refuses (its tier cap); a shared one stores what doesn't fit (D-097).
+            UE_LOG(LogWoRLoadout, Warning, TEXT("Inventory full: %d dropped %s lost (the member's own inventory is at its cap)"),
                    Count - Returned, *ItemIdentity::GetDisplayName(Id));
         }
     }
@@ -1561,7 +1570,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
                 }
                 if (Seen.Contains(Slot.CrystalId.Type))
                 {
-                    LoadoutReturnDroppedCrystals(Inv, Slot.CrystalId, Slot.Quantity);
+                    LoadoutReturnDroppedCrystals(Inv, Slot.CrystalId, Slot.Quantity, BattleItemsTaken);
                     Slot = FItemLoadoutSlot();
                 }
                 else
@@ -1599,7 +1608,8 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
             if (Loadout.ItemSlots.IsValidIndex(Finding.SlotIndex))
             {
                 FItemLoadoutSlot &Slot = Loadout.ItemSlots[Finding.SlotIndex];
-                LoadoutReturnDroppedCrystals(Inv, Slot.CrystalId, Slot.Quantity - InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT);
+                LoadoutReturnDroppedCrystals(Inv, Slot.CrystalId, Slot.Quantity - InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT,
+                                             BattleItemsTaken);
                 Slot.Quantity = FMath::Clamp(Slot.Quantity, 0, InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT);
             }
             break;
@@ -1613,7 +1623,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
                 const int32 Lost = Untrimmed[i].Quantity - Loadout.ItemSlots[i].Quantity;
                 if (Lost > 0)
                 {
-                    LoadoutReturnDroppedCrystals(Inv, Untrimmed[i].CrystalId, Lost);
+                    LoadoutReturnDroppedCrystals(Inv, Untrimmed[i].CrystalId, Lost, BattleItemsTaken);
                     Removed.Add(FString::Printf(TEXT("%s %s x%d"), *ItemIdentity::GetTierLetter(Untrimmed[i].CrystalId.Tier),
                                                 *ItemIdentity::GetTypeName(Untrimmed[i].CrystalId.Type), Lost));
                 }
@@ -1820,8 +1830,31 @@ bool ULoadoutComponent::PrepareForBattle(UInventoryComponent *Inventory)
         // Auto-equip refills item slots from the crystal inventory at combat
         // start when the loadout's flag is set. Pass the LIVE loadout element
         // (not a by-value accessor) so the Quantity writes persist.
-        FCombatLoadout::ApplyAutoEquip(
-            Inv->SavedLoadouts[Inv->ActiveLoadoutIndex], GetOwner());
+        FCombatLoadout &Active = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+        TMap<FCrystalId, int32> Before;
+        for (const FItemLoadoutSlot &ItemSlot : Active.ItemSlots)
+        {
+            Before.FindOrAdd(ItemSlot.CrystalId) += ItemSlot.Quantity;
+        }
+        FCombatLoadout::ApplyAutoEquip(Active, GetOwner());
+        // B-203: what auto-equip took from the party's carried items, so the unused part goes back.
+        const UCrystalInventoryComponent *CrystalInv = GetOwner()->FindComponentByClass<UCrystalInventoryComponent>();
+        if (CrystalInv && CrystalInv->IsSharingItems())
+        {
+            TMap<FCrystalId, int32> After;
+            for (const FItemLoadoutSlot &ItemSlot : Active.ItemSlots)
+            {
+                After.FindOrAdd(ItemSlot.CrystalId) += ItemSlot.Quantity;
+            }
+            for (const TPair<FCrystalId, int32> &Pair : After)
+            {
+                const int32 Taken = Pair.Value - Before.FindRef(Pair.Key);
+                if (Taken > 0)
+                {
+                    BattleItemsTaken.FindOrAdd(Pair.Key) += Taken;
+                }
+            }
+        }
     }
 
     bIsReadyForBattle = true;
@@ -2300,6 +2333,27 @@ int32 ULoadoutComponent::GetUsableItemCount() const
 void ULoadoutComponent::ResetBattleState()
 {
     bIsReadyForBattle = false;
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv || BattleItemsTaken.IsEmpty() || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        BattleItemsTaken.Reset();
+        return;
+    }
+    // B-203: unused crystals taken from the party's carried items go back (what fits; the rest is stored).
+    int32 Returned = 0;
+    for (FItemLoadoutSlot &ItemSlot : Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].ItemSlots)
+    {
+        int32 *Taken = BattleItemsTaken.Find(ItemSlot.CrystalId);
+        const int32 Back = Taken ? FMath::Min(*Taken, ItemSlot.Quantity) : 0;
+        if (Back > 0 && Inv->AddCrystal(ItemSlot.CrystalId, Back))
+        {
+            ItemSlot.Quantity -= Back;
+            *Taken -= Back;
+            Returned += Back;
+        }
+    }
+    BattleItemsTaken.Reset();
+    UE_LOG(LogWoRLoadout, Log, TEXT("%s: %d unused crystal(s) back to the party's items"), *GetNameSafe(GetOwner()), Returned);
 }
 
 // ==================== QUICK SETUP ====================

@@ -358,8 +358,9 @@ bool UPoolSubsystem::MoveToStorage(const FCrystalId &Id, int32 Count)
     {
         return false;
     }
-    TakeCarried(Id, Count);
+    // Into storage first, so listeners to TakeCarried's broadcast find the items there.
     AddCrystalToPool(Id, Count);
+    TakeCarried(Id, Count);
     return true;
 }
 
