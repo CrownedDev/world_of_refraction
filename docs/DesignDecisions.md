@@ -1495,6 +1495,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Passing on host** (Crown, 2026-10-27, replaces "the host leaving ends the run"): at each checkpoint (fight exit, rest spot) the host sends **a copy of the run save to every friend**. **Planned:** at a rest spot the host hands over to a chosen friend; the run carries on there. **Sudden drop, even mid-fight:** the next friend in party order becomes host from their copy; **the fight is exited** and the run resumes at the last checkpoint (enemies still on the map); everyone reconnects. No mid-fight host migration.
 **Notes for Claude:** build order per `Design/CoopStateOwnership.md` "Suggested order", then EOS sessions / invites (hub menu, rest spots), join at rest spots, checkpoint save copies to clients and host hand-over, personal loot. Backlog jobs: B-227 onward.
 
+### D-104 — PvP
+**Status:** ANSWERED in part (2026-10-27; details asked one at a time) · **Raised:** 2026-10-27 (Crown) · **Blocks:** —
+**Answer (Crown):** (2026-10-27)
+- **PvP is part of this game: B, planned for now**, so the co-op plumbing (D-103) allows for it. Earlier concept: a **PvP trial door** in the hub (`Resources_Design.md` "Hub→Trial door model + PvP options", June; its "Lord" wording is a placeholder).
+**Notes for Claude:** open parts: what kind of PvP, how it's matched, rewards / stakes, balance (normalised or own gear).
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
