@@ -19,7 +19,7 @@
 - **The source decides which field skill and whether it's available; its level decides how strong** (a Generic can't fly without an elemental source that gives flight).
 - **Range of movement:** dash, Enhanced Sprint, glide, flight, teleport…; **all locked except the normal dash** (everyone has it). **Double-click L3** activates (keyboard: double-tap sprint, to confirm).
 - **Every element does every movement type its own way** (Crown): Lightning and Void both teleport, differently. The element sets the style; an elemental source is needed for elemental movement.
-- **Movement types (Crown, 2026-10-27):** Dash (everyone), Enhanced Sprint (faster sprint + wall-run), Glide, Flight, Teleport, High / double jump, Air dash, Hover, Super launch (blast up, then glide), Phase / shadow step (through thin walls or bars), Surface surf (water, sand, rails), Mark and recall (drop a marker, snap back). **Removed:** grapple, wall climb, ride / mount. Each element does each type its own way.
+- **Movement types (Crown, 2026-10-27):** Dash (everyone), Enhanced Sprint (faster sprint + wall-run + **run on water**), Glide, Flight, Teleport, High / double jump, Air dash, Hover, Super launch (blast up, then glide), Phase / shadow step (through thin walls or bars), Surface surf (water, sand, rails), Mark and recall (drop a marker, snap back). **Removed:** grapple, wall climb, ride / mount. Each element does each type its own way.
 - **Element styles (Crown's ideas, filled in as they come):**
 
   | Element | Movement | Style |
