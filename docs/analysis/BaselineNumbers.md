@@ -6,6 +6,7 @@
 
 - **Skill + weapon are added** (Crown, 2026-10-27; the deckbuilder's flat weapon bonus): base = skill part + weapon part (Power × scaling × requirement factor). Weapon Power defaults to 0, so today's fights stay the same until Power is set.
 - **Weapon Power by tier: F 40, E 52, D 68, C 88, B 114, A 148, S 192** (Crown, 2026-10-27; the tier-power steps; tunable in data).
+- **Pillar cap in a run: 7 per pillar, 21 total** (Crown, 2026-10-27), matching `MAX_WORLD_STAT_LEVEL`. `WorldStatConstants::LIVE_MAX` (20, a placeholder) drops to 7; every curve and range in this doc keyed 0..20 is re-keyed to 0..7 (early 2-3, mid 4-5, late 6-7).
 
 ---
 
