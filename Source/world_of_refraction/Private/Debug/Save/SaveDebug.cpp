@@ -53,9 +53,9 @@ FString USaveDebug::GetSaveString(const FWoRSaveData &Data)
 							Data.Party.Members.Num(), Data.Party.bLetAIFinish ? TEXT("on") : TEXT("off")));
 	for (const FSavedPartyMember &M : Data.Party.Members)
 	{
-		Out.Add(FString::Printf(TEXT("  %s  HP %d  EP %d  cell %d/%d  %s"), *M.CharacterData.Id.ToString(), M.CurrentHP,
+		Out.Add(FString::Printf(TEXT("  %s  HP %d  EP %d  cell %d/%d  %s%s"), *M.CharacterData.Id.ToString(), M.CurrentHP,
 								M.CurrentEP, static_cast<int32>(M.PreferredRow), M.PreferredColumn,
-								M.bPlayerControlled ? TEXT("Player") : TEXT("AI")));
+								M.bPlayerControlled ? TEXT("Player") : TEXT("AI"), M.bRunOnly ? TEXT(", run only") : TEXT("")));
 		if (M.CarriedGear.bCarried || M.CarriedAbsorption.bCarried)
 		{
 			Out.Add(FString::Printf(TEXT("    carried: %d worn attachment(s), primary evolution %s, %d absorption stack(s)"),

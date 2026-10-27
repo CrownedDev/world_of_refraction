@@ -1,7 +1,8 @@
 // PartyControlWidget.h
 // PLACEHOLDER UI (B-071): who plays each party member in battle (D-004), what
 // happens when your fighters fall (D-045), each member's start cell (B-149, D-042) and a
-// stand-in rest spot that revives fallen members (B-150, D-043). Plain buttons built in C++, opened with
+// stand-in rest spot that revives fallen members (B-150, D-043), and the armoury weapon and ring a
+// trial recruit uses (B-076, Q-076). Plain buttons built in C++, opened with
 // the console command wor.UI.PartyControl. Replaced by the CommonUI party and
 // Settings screens (D-024).
 //
@@ -64,6 +65,19 @@ private:
 	UFUNCTION()
 	void HandleReviveFallenClicked();
 
+	/** B-076 (Q-076): step a run-only member's weapon or ring through the armoury. */
+	UFUNCTION()
+	void HandleSlot1RunWeaponClicked();
+
+	UFUNCTION()
+	void HandleSlot2RunWeaponClicked();
+
+	UFUNCTION()
+	void HandleSlot1RunRingClicked();
+
+	UFUNCTION()
+	void HandleSlot2RunRingClicked();
+
 	/** B-178: pay Gold to repair the party's carried gear, as at a rest spot. */
 	UFUNCTION()
 	void HandleRepairGearClicked();
@@ -79,6 +93,9 @@ private:
 	/** Step the member to the next start cell (Back/Left .. Front/Right, wrapping). */
 	void CycleFormation(int32 SlotIndex);
 
+	/** B-076: a run-only member's next armoury weapon (bWeapon) or ring, then none, wrapping. */
+	void CycleRunGear(int32 SlotIndex, bool bWeapon);
+
 	UPROPERTY()
 	TArray<TObjectPtr<UTextBlock>> SlotTexts;
 
@@ -90,6 +107,19 @@ private:
 
 	UPROPERTY()
 	TArray<TObjectPtr<UButton>> FormationButtons;
+
+	/** B-076: per slot; shown only for run-only members. */
+	UPROPERTY()
+	TArray<TObjectPtr<UTextBlock>> RunWeaponTexts;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UButton>> RunWeaponButtons;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UTextBlock>> RunRingTexts;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UButton>> RunRingButtons;
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> FallSettingText;

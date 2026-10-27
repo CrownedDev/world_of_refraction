@@ -17,6 +17,8 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Currency/CurrencyComponent.h"
 #include "Equipment/Durability/GearRepair.h"
+#include "Equipment/Rings/RingData.h"
+#include "Equipment/Weapons/WeaponData.h"
 #include "Player/WoRPlayerState.h"
 #include "Pool/PoolSubsystem.h"
 #include "WoRGameNames.h"
@@ -54,6 +56,26 @@ namespace PartyControlBuild
 	{
 		const UGameInstance *GI = Widget ? Widget->GetGameInstance() : nullptr;
 		return GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	}
+
+	const UPoolSubsystem *PoolOf(const UUserWidget *Widget)
+	{
+		const UGameInstance *GI = Widget ? Widget->GetGameInstance() : nullptr;
+		return GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+	}
+
+	/** The armoury piece after Current; after the last one comes none (an invalid ID), then the first. */
+	template <typename EntryType>
+	FGuid NextArmouryPiece(const TArray<EntryType> &Armoury, const FGuid &Current)
+	{
+		const int32 Index = Armoury.IndexOfByPredicate([&Current](const EntryType &Entry) { return Entry.PersistentID == Current; });
+		const int32 Next = Index == INDEX_NONE ? 0 : Index + 1;
+		return Armoury.IsValidIndex(Next) ? Armoury[Next].PersistentID : FGuid();
+	}
+
+	FText RunGearName(const UEquipmentDataBase *Piece)
+	{
+		return Piece ? FText::FromString(Piece->Name) : LOCTEXT("NoRunGear", "none");
 	}
 }
 
@@ -107,6 +129,22 @@ TSharedRef<SWidget> UPartyControlWidget::RebuildWidget()
 		FormationButtons[0]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot0FormationClicked);
 		FormationButtons[1]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot1FormationClicked);
 		FormationButtons[2]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot2FormationClicked);
+
+		for (int32 SlotIndex = 0; SlotIndex < PartyConstants::MAX_PARTY_MEMBERS; ++SlotIndex)
+		{
+			UButton *WeaponButton = nullptr;
+			RunWeaponTexts.Add(PartyControlBuild::AddButton(WidgetTree, Box, WeaponButton));
+			RunWeaponButtons.Add(WeaponButton);
+			UButton *RingButton = nullptr;
+			RunRingTexts.Add(PartyControlBuild::AddButton(WidgetTree, Box, RingButton));
+			RunRingButtons.Add(RingButton);
+		}
+		// The leader (LEADER_SLOT) is never a run-only member, so its slot has no handlers.
+		static_assert(PartyConstants::LEADER_SLOT == 0, "Run gear handlers assume the leader is slot 0");
+		RunWeaponButtons[1]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot1RunWeaponClicked);
+		RunWeaponButtons[2]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot2RunWeaponClicked);
+		RunRingButtons[1]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot1RunRingClicked);
+		RunRingButtons[2]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot2RunRingClicked);
 
 		UButton *FallButton = nullptr;
 		FallSettingText = PartyControlBuild::AddButton(WidgetTree, Box, FallButton);
@@ -194,6 +232,28 @@ void UPartyControlWidget::Refresh()
 		FormationTexts[SlotIndex]->SetText(FText::Format(LOCTEXT("FormationRow", "{0} starts: {1}"), Name, Cell));
 	}
 
+	const UPoolSubsystem *Pool = PartyControlBuild::PoolOf(this);
+	for (int32 SlotIndex = 0; SlotIndex < RunWeaponTexts.Num(); ++SlotIndex)
+	{
+		const FPartyMember *Member = Party && Party->Members.IsValidIndex(SlotIndex) ? &Party->Members[SlotIndex] : nullptr;
+		const bool bShow = Member && Member->bRunOnly && Pool;
+		RunWeaponButtons[SlotIndex]->SetVisibility(bShow ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		RunRingButtons[SlotIndex]->SetVisibility(bShow ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		if (!bShow)
+		{
+			continue;
+		}
+		const FText Name = Member->CharacterData ? FText::FromString(Member->CharacterData->Name) : LOCTEXT("NoData", "<no data>");
+		const FWeaponInventoryEntry *Weapon = Pool->GetOwnedWeapons().FindByPredicate(
+			[Member](const FWeaponInventoryEntry &Entry) { return Entry.PersistentID == Member->RunWeapon; });
+		const FRingInventoryEntry *Ring = Pool->GetOwnedRings().FindByPredicate(
+			[Member](const FRingInventoryEntry &Entry) { return Entry.PersistentID == Member->RunRing; });
+		RunWeaponTexts[SlotIndex]->SetText(FText::Format(LOCTEXT("RunWeaponRow", "{0}'s weapon (from the next fight): {1}"), Name,
+														 PartyControlBuild::RunGearName(Weapon ? Weapon->Weapon : nullptr)));
+		RunRingTexts[SlotIndex]->SetText(FText::Format(LOCTEXT("RunRingRow", "{0}'s ring (from the next fight): {1}"), Name,
+													   PartyControlBuild::RunGearName(Ring ? Ring->Ring : nullptr)));
+	}
+
 	if (FallSettingText)
 	{
 		const bool bLetAIFinish = PartySession && PartySession->GetLetAIFinish();
@@ -211,8 +271,6 @@ void UPartyControlWidget::Refresh()
 
 	if (GearClashText)
 	{
-		const UGameInstance *GI = GetGameInstance();
-		const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
 		TArray<FText> Lines;
 		for (const FPoolGearClash &Clash : Pool ? Pool->GetClashes() : TArray<FPoolGearClash>())
 		{
@@ -240,6 +298,14 @@ FString UPartyControlWidget::GetPartyControlString() const
 		if (FormationButtons[SlotIndex]->GetVisibility() != ESlateVisibility::Collapsed)
 		{
 			Out += FString::Printf(TEXT("\n  [%d] %s"), SlotIndex, *FormationTexts[SlotIndex]->GetText().ToString());
+		}
+	}
+	for (int32 SlotIndex = 0; SlotIndex < RunWeaponTexts.Num(); ++SlotIndex)
+	{
+		if (RunWeaponButtons[SlotIndex]->GetVisibility() != ESlateVisibility::Collapsed)
+		{
+			Out += FString::Printf(TEXT("\n  [%d] %s\n  [%d] %s"), SlotIndex, *RunWeaponTexts[SlotIndex]->GetText().ToString(),
+								   SlotIndex, *RunRingTexts[SlotIndex]->GetText().ToString());
 		}
 	}
 	if (FallSettingText)
@@ -284,6 +350,30 @@ void UPartyControlWidget::CycleFormation(int32 SlotIndex)
 	PartySession->SetMemberFormation(SlotIndex, static_cast<ECombatRow>(CellIndex / CombatGridConstants::GRID_COLUMNS),
 									 CellIndex % CombatGridConstants::GRID_COLUMNS);
 }
+
+void UPartyControlWidget::CycleRunGear(int32 SlotIndex, bool bWeapon)
+{
+	UPartySessionSubsystem *PartySession = PartyControlBuild::PartySessionOf(this);
+	const UPoolSubsystem *Pool = PartyControlBuild::PoolOf(this);
+	const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+	if (!Pool || !Party || !Party->Members.IsValidIndex(SlotIndex))
+	{
+		return;
+	}
+	// A piece another member wears is offered too; the one-wearer rule (B-091) settles it at the next spawn.
+	const FPartyMember &Member = Party->Members[SlotIndex];
+	const FGuid Weapon = bWeapon ? PartyControlBuild::NextArmouryPiece(Pool->GetOwnedWeapons(), Member.RunWeapon) : Member.RunWeapon;
+	const FGuid Ring = bWeapon ? Member.RunRing : PartyControlBuild::NextArmouryPiece(Pool->GetOwnedRings(), Member.RunRing);
+	PartySession->SetRunMemberGear(SlotIndex, Weapon, Ring); // OnPartyChanged refreshes this screen
+}
+
+void UPartyControlWidget::HandleSlot1RunWeaponClicked() { CycleRunGear(1, true); }
+
+void UPartyControlWidget::HandleSlot2RunWeaponClicked() { CycleRunGear(2, true); }
+
+void UPartyControlWidget::HandleSlot1RunRingClicked() { CycleRunGear(1, false); }
+
+void UPartyControlWidget::HandleSlot2RunRingClicked() { CycleRunGear(2, false); }
 
 void UPartyControlWidget::HandleSlot0FormationClicked() { CycleFormation(0); }
 

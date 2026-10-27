@@ -1206,6 +1206,61 @@ namespace InventoryGearSync
     }
 }
 
+namespace InventoryGearSync
+{
+    const TCHAR *const RUN_PRESET_NAME = TEXT("Run gear");
+
+    /** B-076 (Q-076): a run-only member's one loadout. Its authored preset keeps its spells and items;
+     *  the gear slots hold only the armoury pieces it was given. A Resonator wears the ring in its ring
+     *  loadout; a Generic or Caster wears it as the primary only when given no weapon. */
+    FCombatLoadout MakeRunPreset(const FPartyMember &Member, ECharacterClass Class, const FCombatLoadout *Authored,
+                                 const TArray<FWeaponInventoryEntry> &Weapons, const TArray<FRingInventoryEntry> &Rings)
+    {
+        FCombatLoadout Preset;
+        Preset.InitializeForClass(Class);
+        if (Authored)
+        {
+            Preset.InnateSpells = Authored->InnateSpells;
+            Preset.BDSpellPools = Authored->BDSpellPools;
+            if (Authored->ItemSlots.Num() > 0)
+            {
+                Preset.ItemSlots = Authored->ItemSlots;
+            }
+            Preset.bAutoEquipItemsOnCombatStart = Authored->bAutoEquipItemsOnCombatStart;
+            Preset.bShowPrimary = Authored->bShowPrimary;
+        }
+        Preset.LoadoutName = RUN_PRESET_NAME;
+        const FWeaponInventoryEntry *Weapon = FindOwned(Weapons, Member.RunWeapon);
+        if (Weapon)
+        {
+            Preset.PrimarySlotType = EPrimarySlotType::Weapon;
+            Preset.PrimaryWeapon.WeaponEntry = *Weapon;
+        }
+        if (const FRingInventoryEntry *Ring = FindOwned(Rings, Member.RunRing))
+        {
+            if (Class == ECharacterClass::Resonator)
+            {
+                Preset.RingLoadout.AddDefaulted_GetRef().RingEntry = *Ring;
+                Preset.ActiveRingIndex = 0;
+            }
+            else if (!Weapon)
+            {
+                Preset.PrimarySlotType = EPrimarySlotType::Ring;
+                Preset.PrimaryRing.RingEntry = *Ring;
+            }
+        }
+        return Preset;
+    }
+
+    const FPartyMember *FindLocalPartyMember(const UGameInstance *GI, UCharacterData *Data)
+    {
+        const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+        const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+        const int32 Slot = Party && Data ? PartySession->GetMemberSlotByData(Data) : INDEX_NONE;
+        return Party && Party->Members.IsValidIndex(Slot) ? &Party->Members[Slot] : nullptr;
+    }
+}
+
 TMap<FName, const UCharacterData *> UInventoryComponent::GetPartyMembersByKey() const
 {
     TMap<FName, const UCharacterData *> Members;
@@ -1236,11 +1291,17 @@ bool UInventoryComponent::DrawSharedGear()
         return false;
     }
     UEvolutionInventoryComponent *EvoInv = GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>();
-    if (!Pool->HasBankedGear(Key))
+    // B-076 (D-026): a character found in a trial brings no gear; it uses what the party gives it.
+    const FPartyMember *RunMember = InventoryGearSync::FindLocalPartyMember(GI, CharComp->CharacterData);
+    const bool bRunOnly = RunMember && RunMember->bRunOnly;
+    if (!bRunOnly && !Pool->HasBankedGear(Key))
     {
         AdoptPresetOnlyGear(*Pool);
     }
-    Pool->BankStartingGear(Key, Weapons, Rings, EvoInv ? EvoInv->Entries : TArray<FEvolutionInventoryEntry>());
+    if (!bRunOnly)
+    {
+        Pool->BankStartingGear(Key, Weapons, Rings, EvoInv ? EvoInv->Entries : TArray<FEvolutionInventoryEntry>());
+    }
 
     // The whole armoury: this member's pieces first so its presets link to them, then free pieces,
     // then pieces another member wears.
@@ -1257,6 +1318,12 @@ bool UInventoryComponent::DrawSharedGear()
     {
         EvoInv->Entries = Pool->GetOwnedEvolutions();
         EvoInv->Entries.StableSort([&Rank](const FEvolutionInventoryEntry &A, const FEvolutionInventoryEntry &B) { return Rank(A.InstanceID) < Rank(B.InstanceID); });
+    }
+    if (bRunOnly)
+    {
+        const FCombatLoadout *Authored = SavedLoadouts.IsValidIndex(ActiveLoadoutIndex) ? &SavedLoadouts[ActiveLoadoutIndex] : nullptr;
+        SavedLoadouts = {InventoryGearSync::MakeRunPreset(*RunMember, CharComp->CharacterData->CharacterClass, Authored, Weapons, Rings)};
+        ActiveLoadoutIndex = 0;
     }
 
     LinkLoadoutsToOwned();

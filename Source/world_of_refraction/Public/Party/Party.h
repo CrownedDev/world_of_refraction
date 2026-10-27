@@ -102,6 +102,18 @@ struct FPartyMember
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	bool bPlayerControlled = true;
 
+	/** B-076 (D-026): found during a trial. Joins for that run only and leaves when it ends. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	bool bRunOnly = false;
+
+	/** B-076 (Q-076): the shared-armoury weapon and ring a run-only member was given (it arrives
+	 *  ungeared). Invalid: none. Written by UPartySessionSubsystem::SetRunMemberGear. */
+	UPROPERTY()
+	FGuid RunWeapon;
+
+	UPROPERTY()
+	FGuid RunRing;
+
 	bool IsValidMember() const { return !PawnClass.IsNull() && CharacterData != nullptr; }
 
 	bool HasCarriedVitals() const { return CurrentHP != PartyConstants::NO_CARRIED_VITALS; }

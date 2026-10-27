@@ -109,6 +109,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	bool DismissMember(int32 SlotIndex);
 
+	/** B-076 (D-026, Q-076): a character found during a trial joins for this run only, ungeared,
+	 *  at full HP/EP. Console: wor.Party.RecruitForRun <CharacterData path>. */
+	UFUNCTION(BlueprintCallable, Category = "Party")
+	bool InviteRunMember(TSoftClassPtr<ACombatCharacter> PawnClass, UCharacterData *Data);
+
+	/** B-076: the run ended; every run-only member leaves. Returns how many left. */
+	UFUNCTION(BlueprintCallable, Category = "Party")
+	int32 DismissRunMembers();
+
+	/** B-076: the shared-armoury weapon and ring a run-only member uses (an invalid ID: none).
+	 *  Applies the next time the member spawns. False for a member who isn't run-only. */
+	bool SetRunMemberGear(int32 SlotIndex, const FGuid &Weapon, const FGuid &Ring);
+
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	void SetDisplayName(const FText &NewName);
 

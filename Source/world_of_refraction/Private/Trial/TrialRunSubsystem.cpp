@@ -113,6 +113,8 @@ void UTrialRunSubsystem::ExitTrial()
     // damage. Pairs with SetAllMembersFull above.
     if (UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>())
     {
+        // B-076 (D-026): characters found in the trial leave with it.
+        PartySession->DismissRunMembers();
         PartySession->ClearAllMemberVitals();
     }
     // B-178: the run's Gold is lost when it ends (never banked).
