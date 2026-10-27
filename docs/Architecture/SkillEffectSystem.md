@@ -297,3 +297,4 @@ Coverage mirrors `GetActiveStatBonus` per class plus the innate (primary-slot) e
 | 2026-10-27 | B-042b: `FWoREffectSpecBuilder` builds a GAS spec from an `FActiveSkillEffect` (identity, stacked value, ticks); nothing in the manager calls it yet (B-042c). | feature/B-042b-gas-effect-builder |
 | 2026-10-27 | B-042c: `HasEffectOfType`, `GetTotalStatModifier` and `GetTotalStatModifierForElement` read the GAS mirror for ported types when `wor.Effects.UseGAS` is 1 (default 0, Q-042c). | feature/B-042c-gas-effect-mirror |
 | 2026-10-27 | B-042d: `OnDamageDealtHandler`, `OnDefenseResolvedHandler` and the turn start / end processing send `Event.Combat.*` GameplayEvents (`GAS/WoRCombatEvents.h`). | feature/B-042d-gas-combat-events |
+| 2026-10-27 | B-042k: every effect type has a GAS family, so `wor.Effects.UseGAS 1` reads every type from the mirror. | feature/B-042k-gas-remaining-families |

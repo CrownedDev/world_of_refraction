@@ -2387,6 +2387,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. It keeps each job inside the plan's ≤3-file clusters and the game playable after each (`EffectsOverhaul.md` §10.2), and keeps the UseGAS reads exact. It is the strangler-fig order (Martin Fowler, "StranglerFigApplication", 2004; widely used for replacing a core system piece by piece): add the new seam beside the old code first (the events), move work onto it later, as with Q-042c's parallel run.
 **Notes for Claude:** B-042d built A.
 
+### Q-042k — One GameplayEffect class per effect type, or per role?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042k) · **Blocks:** —
+**Question:** about 45 effect types had no GAS class (reflects, Last Stand, on-hit riders, attack modifiers, control, restores and drains, cleanses and pushes). One class per type, or one per role?
+**Options:**
+- **A** one class per role (as built): Reflect, LastStand, OnHit, AttackModifier, Control, Periodic, Action, each with its `Effect.Family.*` asset tag; the type rides in the effect context and the value in `SetByCaller.Magnitude`, as Q-042b did for stat buffs.
+- **B** one class per type (~45 more classes).
+**Recommendation:** A. It is the shape `GASMigration.md` §3 already chose (about 35 family classes, not one per effect) and the pattern the GAS community documentation (tranek's GASDocumentation, "Gameplay Effects") recommends: few GE classes, data in SetByCaller and tags. Asset tags let a cleanse or a UI query a whole role at once.
+**Notes for Claude:** B-042k built A. CritDebuff, EnergyDebuff, RandomDebuff (all resolved to a stat debuff before they're stored) and ModifyHealing are summed values, so they joined the stat-modifier list. ExtraAction is in Control (it changes turns).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
