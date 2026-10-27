@@ -1953,6 +1953,22 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-149-formation-cells): `ACombatOrchestrator::GetPlaceholderEnemyStartRow`. Authored enemy cells replace it later.
 
+### Q-209 — How the new memory sources behave
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-209) · **Blocks:** — (B-209 shipped with A)
+**Question:** D-100 adds four memory sources: bosses, reactions, map spots and bound gear. When does each one unlock, and how often?
+**Options:**
+- **A** (built):
+  - **Bosses and mini-bosses:** the boss data (`UBossData`) names an optional memory; **winning** the fight unlocks it. A mini-boss drops one only if it has boss data, which it already needs for its phases.
+  - **Reactions:** a reaction can name a memory; it unlocks when the reaction fires at the start of the fight, and **counts in that same fight** (a memory that weakens this boss weakens it now).
+  - **Map spots:** an unseen spot; **walking into it** unlocks the memory at once, with the line "A memory surfaces." (no key, no hint; the interact key in it works too). Once per run.
+  - **Bound gear:** its memories unlock when **its owner wears it into a fight** (placeholder for D-100's open detail: when found or when equipped).
+  - Every source puts the memory in the run and the journal. The journal keeps it for good, with the **first** source it came from; a source met again in a later run adds it to that run again (so its boss change applies again).
+- **B** map spots need the interact key and show a hint.
+- **C** bound-gear memories unlock when the item is found.
+**Recommendation:** A. Hollow Knight's and Dark Souls' lore spots trigger when you walk into them, so finding them by exploring is the reward; a boss memory on the win matches how Hades gives story beats after a boss. Bound gear on its owner in a fight is the simplest reading until D-100's detail is answered. Not lore (which memory and what it says stays Crown's).
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). The bound-gear timing is still D-100's open detail.
+**Notes for Claude:** applied (feature/B-209-memory-sources): `Memory/MemoryUnlock.h`, `Memory/MemorySpot.h`, `ABattleGameMode` (fight start, Victory).
+
 ### Q-093 — Which keys do Defend and infusion use, and how do they behave?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-093) · **Blocks:** — (B-093 shipped with A)
 **Question:** B-093 adds keys for Defend, the infusion source and the infusion level next to the command menu. Which keys, when do they work, and does infusion cycle or charge?
