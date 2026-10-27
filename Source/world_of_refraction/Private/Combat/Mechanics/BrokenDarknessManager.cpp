@@ -2,6 +2,7 @@
 // Implementation for BrokenDarkness transformation and absorption system
 
 #include "Combat/Mechanics/BrokenDarknessManager.h"
+#include "WoRLog.h"
 #include "Combat/Defense/GuardRules.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Skills/Definitions/SpellData.h"
@@ -242,7 +243,7 @@ bool UBrokenDarknessManager::RollForBreak(EItemTier Tier, int32 InfusionLevel, c
 
 	if (bBreaks)
 	{
-		UE_LOG(LogTemp, Warning,
+		UE_LOG(LogWoRCombat, Log,
 			   TEXT("BrokenDarkness: %s BROKE! (Reason: %s, Tier: %s, Level: L%d, Roll: %.4f < %.4f)"),
 			   Owner ? *Owner->GetName() : TEXT("Unknown"),
 			   *TriggerReason,
@@ -255,7 +256,7 @@ bool UBrokenDarknessManager::RollForBreak(EItemTier Tier, int32 InfusionLevel, c
 	}
 	else
 	{
-		UE_LOG(LogTemp, Display,
+		UE_LOG(LogWoRCombat, Verbose,
 			   TEXT("BrokenDarkness: %s survived break check (Reason: %s, Tier: %s, Level: L%d, Roll: %.4f >= %.4f)"),
 			   Owner ? *Owner->GetName() : TEXT("Unknown"),
 			   *TriggerReason,
@@ -360,7 +361,7 @@ void UBrokenDarknessManager::AddStrain(int32 Deficit, const FString &TriggerReas
 
 	AccruedStrain += StrainAdded;
 
-	UE_LOG(LogTemp, Display,
+	UE_LOG(LogWoRCombat, Verbose,
 		   TEXT("BrokenDarkness: %s +%.2f strain (now %.2f / %.2f) (Reason: %s, Deficit: %d)"),
 		   Owner ? *Owner->GetName() : TEXT("Unknown"),
 		   StrainAdded, AccruedStrain, BreakThreshold,
@@ -368,7 +369,7 @@ void UBrokenDarknessManager::AddStrain(int32 Deficit, const FString &TriggerReas
 
 	if (AccruedStrain >= BreakThreshold)
 	{
-		UE_LOG(LogTemp, Warning,
+		UE_LOG(LogWoRCombat, Log,
 			   TEXT("BrokenDarkness: %s BROKE via strain! (%.2f >= %.2f, Reason: %s)"),
 			   Owner ? *Owner->GetName() : TEXT("Unknown"),
 			   AccruedStrain, BreakThreshold,
@@ -441,7 +442,7 @@ void UBrokenDarknessManager::TriggerTransformation()
 		}
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("BrokenDarkness: %s has TRANSFORMED into Broken Darkness!"),
+	UE_LOG(LogWoRCombat, Log, TEXT("BrokenDarkness: %s has TRANSFORMED into Broken Darkness!"),
 		   Owner ? *Owner->GetName() : TEXT("Unknown"));
 
 	// Broadcast event
@@ -476,7 +477,7 @@ void UBrokenDarknessManager::RevertTransformation()
 		CharComp->ServerSetBrokenDarkness(false);
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("BrokenDarkness: %s has REVERTED to Darkness."),
+	UE_LOG(LogWoRCombat, Log, TEXT("BrokenDarkness: %s has REVERTED to Darkness."),
 		   GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
 
 	// 4. Fire the reverted event (VFX/UI hook — trigger binds here, not OnTransformed).
@@ -566,7 +567,7 @@ bool UBrokenDarknessManager::ProcessForbiddenCast(ESpellElement SpellElement, fl
 		}
 	}
 
-	UE_LOG(LogTemp, Warning,
+	UE_LOG(LogWoRCombat, Log,
 		   TEXT("BrokenDarkness: Forbidden element %s self-cost on %s — damage %.1f, base buildup %.1f"),
 		   *UEnum::GetValueAsString(SpellElement),
 		   Owner ? *Owner->GetName() : TEXT("Unknown"),
@@ -729,7 +730,7 @@ void UBrokenDarknessManager::EnterOverload()
 
 	AActor *Owner = GetOwner();
 	const UCharacterDataComponent *CharComp = GetCharComp();
-	UE_LOG(LogTemp, Warning, TEXT("BrokenDarkness: %s entered OVERLOAD! (Energy: %d/%d)"),
+	UE_LOG(LogWoRCombat, Log, TEXT("BrokenDarkness: %s entered OVERLOAD! (Energy: %d/%d)"),
 		   Owner ? *Owner->GetName() : TEXT("Unknown"),
 		   CharComp ? CharComp->CurrentEP : 0, CharComp ? CharComp->MaxEP : 0);
 
@@ -1031,7 +1032,7 @@ void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,
 	// Dodge doesn't absorb - you avoided it entirely
 	if (DefenseType == EDefenseType::Dodge)
 	{
-		UE_LOG(LogTemp, Display, TEXT("BrokenDarkness: Dodge - nothing to absorb"));
+		UE_LOG(LogWoRCombat, Verbose, TEXT("BrokenDarkness: Dodge - nothing to absorb"));
 		return;
 	}
 
@@ -1044,7 +1045,7 @@ void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,
 	// Must be successful defense
 	if (!DefenseResult.bSuccess && !DefenseResult.bWasInWindow)
 	{
-		UE_LOG(LogTemp, Display, TEXT("BrokenDarkness: Defense failed - no absorption"));
+		UE_LOG(LogWoRCombat, Verbose, TEXT("BrokenDarkness: Defense failed - no absorption"));
 		return;
 	}
 
@@ -1067,7 +1068,7 @@ void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,
 	// Check if element can be absorbed (other non-absorbable elements → nothing happens)
 	if (!CanAbsorbElement(AttackElement))
 	{
-		UE_LOG(LogTemp, Display, TEXT("BrokenDarkness: Cannot absorb %s element"),
+		UE_LOG(LogWoRCombat, Verbose, TEXT("BrokenDarkness: Cannot absorb %s element"),
 			   *UEnum::GetValueAsString(AttackElement));
 		return;
 	}
