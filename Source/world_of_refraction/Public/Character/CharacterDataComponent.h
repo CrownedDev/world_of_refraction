@@ -7,6 +7,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Character/CharacterData.h"
 #include "Character/StatLayers.h"
+#include "Character/StatConstants.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "CharacterDataComponent.generated.h"
 
@@ -25,11 +26,10 @@ enum class EWorldPillar : uint8
 
 namespace WorldStatConstants
 {
-    /** Max a LIVE world-stat pillar can reach (live = asset baseline + head-start + earned/bought).
-     *  ⚠️ TUNING KNOB — placeholder. The asset ClampMax is 7, head-start adds up to 4, and earned/
-     *  bought stacks ON TOP, so the live cap MUST exceed 11 (else head-start clips). At the combat
-     *  7%/level scaling (CombatConstants::WORLD_*_SCALING_BONUS) this is a strong dial — tune in PIE. */
-    constexpr int32 LIVE_MAX = 20;
+    /** Max a LIVE world-stat pillar can reach in a run (live = asset baseline + head-start + earned/bought):
+     *  7 per pillar, 21 in total (Crown, 2026-10-27, analysis/BaselineNumbers.md; B-222), the asset's own
+     *  ceiling. Head-start and earned levels clamp here, so a high asset level leaves less to earn. */
+    constexpr int32 LIVE_MAX = StatConstants::MAX_WORLD_STAT_LEVEL;
 
     /** Total head-start points allocatable across Mind+Body+Spirit (the §8 account-perk budget). */
     constexpr int32 HEAD_START_BUDGET = 4;
