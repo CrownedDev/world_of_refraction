@@ -25,7 +25,10 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "AbilitySystemComponent.h"
 #include "GAS/WoRTurnEffectTracker.h"
+#include "GAS/WoREffectMirrorComponent.h"
+#include "GAS/WoREffectSpecBuilder.h"
 #include "Tags/WoRGameplayTags.h"
 #include "WoRLog.h"
 
@@ -2173,6 +2176,11 @@ bool USkillEffectManager::HasEffectByID(AActor *Actor, int32 EffectID) const
 
 bool USkillEffectManager::HasEffectOfType(AActor *Actor, ESkillEffectType EffectType) const
 {
+	// B-042c facade: wor.Effects.UseGAS 1 reads the mirrored GameplayEffects for ported types.
+	if (const UAbilitySystemComponent *ASC = UWoREffectMirrorComponent::GetGASReadSource(Actor, EffectType))
+	{
+		return UWoREffectMirrorComponent::HasEffectOfType(*ASC, EffectType);
+	}
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
 		return false;
@@ -2222,6 +2230,10 @@ FGameplayTagContainer USkillEffectManager::GetEffectTags(AActor *Actor) const
 
 float USkillEffectManager::GetTotalStatModifier(AActor *Actor, ESkillEffectType ModifierType) const
 {
+	if (const UAbilitySystemComponent *ASC = UWoREffectMirrorComponent::GetGASReadSource(Actor, ModifierType))
+	{
+		return FWoREffectSpecBuilder::SumMagnitude(*ASC, ModifierType);
+	}
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
 		return 0.0f;
@@ -2242,6 +2254,10 @@ float USkillEffectManager::GetTotalStatModifier(AActor *Actor, ESkillEffectType 
 
 float USkillEffectManager::GetTotalStatModifierForElement(AActor *Actor, ESkillEffectType ModifierType, ESpellElement BuildupElement) const
 {
+	if (const UAbilitySystemComponent *ASC = UWoREffectMirrorComponent::GetGASReadSource(Actor, ModifierType))
+	{
+		return FWoREffectSpecBuilder::SumMagnitudeForElement(*ASC, ModifierType, BuildupElement);
+	}
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
 		return 0.0f;
