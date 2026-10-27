@@ -84,6 +84,13 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 - `GAS/WoRDamageExecution.h`: `UWoRDamageExecution` runs `WoRDamageMath::Compute` (B-219) over an `FWoRDamageRequest` (`UDamageCalculator::GatherDamageMathInputs` + override / ignore-resistance flags) carried on `FWoREffectContext::DamageRequest` (authority only, not net serialized). `ReadAttributes` replaces the attacker's CritChance (unless overridden) and CritDamage, and the defender's Defense and `Resist_<type>` (+ Ice for Water), from the ASCs. Output: Health -= the final damage. `UWoRGE_Damage` (Instant) carries it; `MakeRequest` / `MakeDamageSpec` build one hit; `GetRequestString` (Q-042e).
 - Not applied in play: `UDamageCalculator` stays the damage path until B-042h.
 
+### Buildup execution (stage 3, B-042l part 5b)
+
+- `Skills/Effects/BuildupMath.h`: `WoRBuildupMath::Compute` over `FBuildupMathInputs` (amount, source StatusMultiplier, element-keyed multiplier, Broken Darkness stack factor, the three resistance layers, clamped). `UStatusBuildupManager::GatherBuildupMathInputs` fills it; `AddStatusBuildup` runs gather + Compute between the immunity gates and the bar.
+- `GAS/WoRBuildupExecution.h`: `UWoRBuildupExecution` runs the core over an `FWoRBuildupRequest` on `FWoREffectContext::BuildupRequest` (authority only). `ReadAttributes` takes the source's StatusMultiplier (with a source, not baked in) and the target's StatusResistance + `Resist_<element type>` (+ physical) + StatusResistBonus. Output: Buildup += the result. `UWoRGE_Buildup` (Instant); `MakeRequest` / `MakeBuildupSpec` / `GetRequestString` (Q-042l).
+- `UWoRAttributeSyncComponent::ReadSyncedAttribute`: the read gate both executions share (set present, owner has the sync and character data).
+- Not applied in play; the bar, cap and decay move with B-042o.
+
 ## Integration points
 
 - Delegates it listens to:
@@ -124,3 +131,4 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 | 2026-10-27 | B-042d (stage 3, part 4, narrowed): `WoRCombatEvents::Send`; `Event.Combat.*` sent from the effect manager. Rest split into B-042i, B-042j, B-042k. | feature/B-042d-gas-combat-events |
 | 2026-10-27 | B-042k (stage 3, part 4b): seven role families; every effect type mirrored. | feature/B-042k-gas-remaining-families |
 | 2026-10-27 | B-042e (stage 3, part 5, narrowed): `UWoRDamageExecution` + `UWoRGE_Damage`; rest split into B-042l, B-042m, B-042n. | feature/B-042e-gas-damage-execution |
+| 2026-10-27 | B-042l (stage 3, part 5b, narrowed): `WoRBuildupMath`, `UWoRBuildupExecution` + `UWoRGE_Buildup`, `ReadSyncedAttribute`; bar / cap / decay split into B-042o. | feature/B-042l-gas-buildup-execution |
