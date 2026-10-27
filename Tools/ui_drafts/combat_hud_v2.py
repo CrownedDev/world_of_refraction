@@ -3,13 +3,14 @@
 Same fight and layout as v1 (combat_hud_v1.py), with:
   - the four header-bar candidates plus a crystal-themed one, side by side (D-017, UI_DeckbuilderReuse.md section 3)
   - a harder crystal look: faceted crystal-tube bars, crystal-cut panel corners, element gems (D-024)
-  - the stunned chip reads "Stunned · 2 turns" (D-030: 2 of the holder's own turns)
+  - the stunned chip shows its duration: "Stunned · 1 turn" (the row said 2 from D-030; D-090 later cut every
+    status break to 1 of the holder's turns, STATUS_CAP_TURNS)
   - Broken Darkness on the party card: no pips or gold bar; the EP value shows the absorption stacks as a
     multiplier, "108 (x3)", and the overload sits on the EP bar itself (absorbed element's colour up to full, dark
     intensifying past full, up to 1.30 x MaxEP; BrokenDarkness.md Energy). Sera is BD, so she reads Darkness.
   - damage numbers coloured on a gradient by the target's resistance to the hit (no Weak/Resist labels)
   - status bars crack as they fill, shatter on the break, stay broken during it
-  - Reality badge indigo, Void violet
+  - Reality badge indigo, Void violet (the element gem strip on status_bars; Reality drawn, the kit has none)
 
 Drafts: header_candidates, command, hit, stunned, status_bars.
     python Tools/ui_drafts/combat_hud_v2.py
@@ -33,14 +34,15 @@ v1.ELEMENT.update({
     "void": (160, 60, 255),       # violet (ElementColors.h Void)
     "darkness": (118, 104, 160),  # Darkness is near-black in game; lifted so its glow and fills read in a draft
 })
-SERA = v1.PARTY[1]
+SERA = next(p for p in v1.PARTY if p["name"] == "Sera")
 SERA.update({"role": "Refractor · Darkness (BD)", "element": "darkness", "ep": (108, 90), "bd": 3})
 BD_ABSORBED = "fire"              # the element Sera has absorbed (its colour fills her EP bar)
 BD_OVERLOAD_CAP = 1.30            # BrokenDarknessManager: EP may reach 1.30 x MaxEP
-STUN_TURNS = 2                    # D-030: a stun lasts 2 of the holder's own turns
+STUN_TURNS = 1                    # D-090: a status break lasts 1 of the holder's turns (STATUS_CAP_TURNS)
 
 GEM = {"fire": "element_fire", "earth": "element_earth", "darkness": "element_darkness", "void": "element_void",
        "water": "element_water", "wind": "element_wind", "lightning": "element_lightning", "light": "element_light"}
+ELEMENT_ORDER = ["fire", "lightning", "earth", "wind", "water", "void", "reality", "light", "darkness"]   # the nine
 CRACK_LIGHT = (235, 245, 255)
 SHARD_COUNT = 6
 
@@ -83,8 +85,9 @@ def crystal_bar(canvas, x, y, w, h, frac, colour, ghost=0.0, cracks=0.0, broken=
     if overload:
         dark = Image.new("RGBA", canvas.size)
         ImageDraw.Draw(dark).polygon(tube(x + 1, y + 1, w - 2, h - 2), fill=(18, 6, 26, int(50 + 110 * overload)))
-        for i in range(int(3 + 6 * overload)):                                                        # dark facets
-            fx = x + 6 + i * (w - 12) / max(1, int(3 + 6 * overload))
+        facets = round(3 + 6 * overload)
+        for i in range(facets):                                                                       # dark facets
+            fx = x + 6 + i * (w - 12) / facets
             ImageDraw.Draw(dark).line((fx, y + 1, fx + h * 0.8, y + h - 1), fill=(60, 20, 70, 200), width=1)
         layer.alpha_composite(dark)
     clip(layer, x + 1 + round((w - 2) * frac))
@@ -157,10 +160,24 @@ def crystal_panel(canvas, x, y, w, h):
 
 
 def element_gem(canvas, centre, element, size=20):
+    """The element's kit gem; Reality has none in the kit, so it is drawn as an indigo crystal."""
+    if element == "reality":
+        drawn_gem(canvas, centre, v1.ELEMENT["reality"], size)
+        return
     if element not in GEM:
         return
     gem = kit.scaled(kit.piece("badges", GEM[element]), height=size)
     canvas.alpha_composite(gem, (round(centre[0] - gem.width / 2), round(centre[1] - gem.height / 2)))
+
+
+def drawn_gem(canvas, centre, colour, size):
+    cx, cy = centre
+    r = size / 2
+    kit.glow(canvas, centre, size * 0.9, colour, strength=0.35)
+    d = ImageDraw.Draw(canvas)
+    d.polygon(v1.hexagon(cx, cy, r), fill=colour + (255,), outline=(235, 238, 250, 255))
+    d.polygon([(cx, cy - r), (cx + r * 0.866, cy - r / 2), (cx, cy), (cx - r * 0.866, cy - r / 2)], fill=lighter(colour, 60) + (255,))
+    d.polygon([(cx, cy), (cx + r * 0.866, cy + r / 2), (cx, cy + r), (cx - r * 0.866, cy + r / 2)], fill=lighter(colour, -30) + (255,))
 
 
 # --- header-bar candidates -------------------------------------------------------------------------------------
@@ -241,8 +258,12 @@ def party_card(canvas, x, y, member, acting=False, stunned=False):
     return w, h
 
 
+def stun_label():
+    return f"Stunned · {STUN_TURNS} turn{'' if STUN_TURNS == 1 else 's'}"
+
+
 def stun_chip(canvas, x, y):
-    label = f"Stunned · {STUN_TURNS} turns"
+    label = stun_label()
     f = kit.font(kit.UI_BOLD, 11)
     tw = ImageDraw.Draw(canvas).textlength(label, font=f)
     d = ImageDraw.Draw(canvas)
@@ -354,10 +375,8 @@ def draw_hit():
     canvas = v1.board(active=0)
     turn_banner(canvas, "TURN 3 · GARRICK")
     hits = [(0, 31, -0.4), (1, 54, 0.0), (2, 12, 0.7)]   # (enemy, damage, resistance to this hit): a sweep, three targets
-    for i, e in enumerate(v1.ENEMIES):
-        if i == v1.TARGET:
-            enemy_plate(canvas, e, ghost=0.09, hp=(v1.TARGET_HP_BEFORE - 54, 600), buildup=("fire", 1.0), shattering=True,
-                        statuses=(("effect_damage_up_down", "debuff"), ("effect_damage_over_time_fire", "debuff")))
+    enemy_plate(canvas, v1.ENEMIES[v1.TARGET], ghost=0.09, hp=(v1.TARGET_HP_BEFORE - 54, 600), buildup=("fire", 1.0),
+                shattering=True, statuses=(("effect_damage_up_down", "debuff"), ("effect_damage_over_time_fire", "debuff")))
     for index, dmg, resistance in hits:
         cx, cy = v1.ENEMIES[index]["centre"]
         v1.outlined(canvas, (cx + 40, cy - 46), str(dmg), kit.font(kit.UI_BOLD, 44 if index == v1.TARGET else 34),
@@ -370,10 +389,11 @@ def draw_hit():
     gradient_key(canvas, 150, 640)
     party_row(canvas, acting=0)
     cx, cy = v1.ENEMIES[v1.TARGET]["centre"]
+    (wx, wy), (rx, ry) = v1.ENEMIES[0]["centre"], v1.ENEMIES[2]["centre"]
     notes = [
-        (1, (500 + 80, 360 - 80), "Weak target", ["Warm gold number: this hound is weak to the hit", "No 'Weak' label (rules page 02)"]),
+        (1, (wx + 80, wy - 80), "Weak target", ["Warm gold number: this hound is weak to the hit", "No 'Weak' label (rules page 02)"]),
         (2, (cx + 90, cy - 80), "Neutral target", ["Near-white number"]),
-        (3, (895 + 80, 372 - 80), "Resisting target", ["Cool steel-blue, dimmer: resists the hit; grey = immune"]),
+        (3, (rx + 80, ry - 80), "Resisting target", ["Cool steel-blue, dimmer: resists the hit; grey = immune"]),
         (4, (cx - 150, cy - 140), "Buildup bar shatters", ["The full Fire buildup tube bursts into shards on the break",
                                                            "Then lies broken while Burn lasts (status_bars)"]),
         (5, (kit.W // 2 - 230, by + 20), "Proc banner", ["As v1: 'BURN!' once, short, then gone"]),
@@ -390,7 +410,7 @@ def draw_stunned():
     party_row(canvas, acting=0, stunned=True)
     v1.hint_bar(canvas, [("Y", "Attack"), ("A", "Defend")])
     notes = [
-        (1, (650, 536), "Stun chip", [f"'Stunned · {STUN_TURNS} turns' (D-030: the holder's own turns)",
+        (1, (650, 536), "Stun chip", [f"'{stun_label()}' (D-090: a status break lasts 1 holder turn)",
                                       "Red pill next to the skip-turn icon; counts down on the holder's turn"]),
         (2, (1056, 296), "Stunned diamond", ["As v1: Attack (Y) and Defend (A) only"]),
     ]
@@ -418,20 +438,28 @@ def draw_status_bars():
     notes.append((2, (x + w + 30, 100 + 3 * 52 + h // 2), "Break", ["Bursts into shards with a short glow (one loud effect)",
                                                                     "Then the shards stay, dimmed, while the status lasts"]))
     y += 30
-    kit.text(canvas, (kit.W // 2, y), "Broken Darkness EP (Sera, absorbed Fire, MaxEP 90)", kit.font(kit.UI_BOLD, 15), shadow=False)
+    max_ep = SERA["ep"][1]
+    kit.text(canvas, (kit.W // 2, y), f"Broken Darkness EP (Sera, absorbed Fire, MaxEP {max_ep})", kit.font(kit.UI_BOLD, 15),
+             shadow=False)
     y += 30
     for ep, stacks in ((60, 1), (90, 1), (99, 2), (108, 3), (117, 3)):
-        over = max(0.0, (ep / 90 - 1.0) / (BD_OVERLOAD_CAP - 1.0))
-        crystal_bar(canvas, x, y, w, h, min(1.0, ep / 90), v1.ELEMENT[BD_ABSORBED], overload=over)
+        over = max(0.0, (ep / max_ep - 1.0) / (BD_OVERLOAD_CAP - 1.0))
+        crystal_bar(canvas, x, y, w, h, min(1.0, ep / max_ep), v1.ELEMENT[BD_ABSORBED], overload=over)
         kit.text(canvas, (x - 20, y + h // 2), f"{ep} (x{stacks})", kit.font(kit.UI_BOLD, 14), fill=(255, 214, 170),
                  anchor="rm", shadow=False)
-        kit.text(canvas, (x + w + 20, y + h // 2), "cap 1.30 x MaxEP" if ep == 117 else ("full" if ep == 90 else ""),
+        kit.text(canvas, (x + w + 20, y + h // 2), "cap 1.30 x MaxEP" if ep == 117 else ("full" if ep == max_ep else ""),
                  kit.font(kit.UI_FONT, 12), fill=kit.DIM, anchor="lm", shadow=False)
         y += 36
     notes.append((3, (x - 150, y - 5 * 36 + h // 2), "EP value", ["EP, then the absorption stacks as '(xN)', max 3",
                                                                    "No separate pips or gold bar (Crown, 2026-10-26)"]))
     notes.append((4, (x + w + 30, y - 2 * 36 + h // 2), "Overload on the bar", ["Full in the absorbed element's colour",
                                                                                "Past full: darker, denser facets, up to the 1.30 cap"]))
+    gx = kit.W // 2 - (len(ELEMENT_ORDER) - 1) * 60 // 2
+    for i, element in enumerate(ELEMENT_ORDER):
+        element_gem(canvas, (gx + i * 60, 660), element, 30)
+        kit.text(canvas, (gx + i * 60, 690), element.capitalize(), kit.font(kit.UI_FONT, 11), fill=kit.DIM, shadow=False)
+    notes.append((5, (gx - 50, 660), "Element gems", ["The nine elements as they mark cards and skills",
+                                                       "Reality: indigo crystal (drawn; no kit piece). Void: violet"]))
     return canvas, notes
 
 

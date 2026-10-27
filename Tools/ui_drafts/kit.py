@@ -96,15 +96,29 @@ GODOT_IMPORTED = KIT.parents[3] / ".godot" / "imported"
 VENDOR_MAX_SIDE = 2048   # the originals are up to 6144 px; drafts never need more
 
 
-@functools.lru_cache(None)
-def _cached_vendor_piece(name):
+def _vendor_ctex(name):
+    """The .ctex the deckbuilder's current import of <name>.png points at (its .import file's path=); the cache can
+    also hold stale copies from an old import path. Falls back to the first cached copy."""
+    for imp in sorted(KIT.parents[1].rglob(f"{name}.png.import")):
+        for line in imp.read_text(encoding="utf-8", errors="replace").splitlines():
+            if line.startswith("path=") and ".ctex" in line:
+                ctex = GODOT_IMPORTED / line.split("/")[-1].strip().strip('"')
+                if ctex.exists():
+                    return ctex
     matches = sorted(GODOT_IMPORTED.glob(f"{name}.png-*.ctex"))
     if not matches:
-        sys.exit(f"Vendor piece missing: {name}.png has no import cache under {GODOT_IMPORTED}")
-    data = matches[0].read_bytes()
+        sys.exit(f"Vendor piece missing: {name}.png has no import cache under {GODOT_IMPORTED} "
+                 "(open the deckbuilder in Godot once so it imports its vendor art)")
+    return matches[0]
+
+
+@functools.lru_cache(None)
+def _cached_vendor_piece(name):
+    ctex = _vendor_ctex(name)
+    data = ctex.read_bytes()
     riff = data.find(b"RIFF")
-    if riff < 0:
-        sys.exit(f"Vendor piece {matches[0].name} holds no lossless WebP (re-import it lossless in the deckbuilder)")
+    if riff < 0 or data[riff + 12:riff + 16] != b"VP8L":
+        sys.exit(f"Vendor piece {ctex.name} holds no lossless WebP (set its import to Lossless in the deckbuilder)")
     size = int.from_bytes(data[riff + 4:riff + 8], "little")
     img = Image.open(io.BytesIO(data[riff:riff + 8 + size])).convert("RGBA")
     img = img.crop(img.getbbox())
