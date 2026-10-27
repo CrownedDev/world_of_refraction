@@ -26,7 +26,8 @@
   | Earth | Flight | Electromagnetism (magnetic levitation) |
 
 - **Locked field skills:** some need a specific skill equipped or learned first; once unlocked, anyone with the matching source can use it (lightning speed → any Lightning source).
-- **Open:** how a character picks their one movement type; each element's style per type (Crown's, close to lore); dash-into-sprint meaning.
+- **Picking it** (Crown): choose a source you have, then a movement type you've unlocked; the source styles it.
+- **Open:** each element's style per type (Crown's, close to lore); dash-into-sprint meaning.
 
 ## Choices to make (one at a time)
 
