@@ -344,17 +344,23 @@ bool ABattleGameMode::CanEnterCombat(const AActor *Combatant)
                        Loadout->HasSecondaryEquipment() || Loadout->GetActiveRing());
 }
 
-APlayerController *ABattleGameMode::ResolvePartyLeader() const
+APlayerController *ABattleGameMode::ResolvePartyLeader()
 {
     UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
     const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
-    if (APlayerController *Leader = Party ? Party->ResolveLeader(GetWorld()) : nullptr)
+    APlayerController *Leader = Party ? Party->ResolveLeader(GetWorld()) : nullptr;
+    if (!Leader)
     {
-        PartySession->RebindLeader(Leader);
-        return Leader;
+        UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s - using the first local player"),
+               Party ? TEXT("The party's leader isn't in this level") : TEXT("No party (battle map opened directly?)"));
+        Leader = GetWorld()->GetFirstPlayerController();
     }
-    UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] No party leader in this level (battle map opened directly?) - using the first local player"));
-    return GetWorld()->GetFirstPlayerController();
+    if (Party && Leader)
+    {
+        // Rebind in both cases so the wallet and later reads agree with the start spot.
+        PartySession->RebindLeader(Leader);
+    }
+    return Leader;
 }
 
 void ABattleGameMode::AbortToTrial(const FString &Reason)

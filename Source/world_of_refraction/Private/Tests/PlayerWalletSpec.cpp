@@ -36,6 +36,7 @@ BEGIN_DEFINE_SPEC(FPlayerWalletSpec, "WoR.Economy.PlayerWallet",
 	AActor *Ally = nullptr;
 	AActor *Stranger = nullptr;
 	UParty *Party = nullptr;
+	APlayerController *LeaderController = nullptr;
 END_DEFINE_SPEC(FPlayerWalletSpec)
 
 void FPlayerWalletSpec::Define()
@@ -64,6 +65,7 @@ void FPlayerWalletSpec::Define()
 		}
 		PC->PlayerState = PlayerState;
 		PC->Player = NewObject<ULocalPlayer>(GEngine); // ULocalPlayer is ClassWithin UEngine
+		LeaderController = PC;
 		Party->SetLeader(PC);
 		PlayerWallet = PlayerState->GetWallet();
 
@@ -99,6 +101,11 @@ void FPlayerWalletSpec::Define()
 		Ally = nullptr;
 		Stranger = nullptr;
 		Party = nullptr;
+		if (LeaderController)
+		{
+			LeaderController->Player = nullptr; // the stand-in local player isn't the engine's
+			LeaderController = nullptr;
+		}
 		TestWorld.Reset();
 	});
 
@@ -119,7 +126,9 @@ void FPlayerWalletSpec::Define()
 	It("pays a party whose leader is not player 0 into that leader's wallet (B-132)", [this]()
 	{
 		if (!PlayerWallet || !TestNotNull(TEXT("player 0's wallet"), PlayerZeroWallet)) return;
-		TestTrue(TEXT("earned through the ally"), CurrencyWallet::FindFor(Ally)->Add(ECurrencyType::Prisms, WALLET_TEST_PRISMS));
+		UCurrencyComponent *AllyWallet = CurrencyWallet::FindFor(Ally);
+		if (!TestNotNull(TEXT("the ally's wallet"), AllyWallet)) return;
+		TestTrue(TEXT("earned through the ally"), AllyWallet->Add(ECurrencyType::Prisms, WALLET_TEST_PRISMS));
 		TestEqual(TEXT("the leader's balance"), PlayerWallet->GetBalance(ECurrencyType::Prisms), WALLET_TEST_PRISMS);
 		TestEqual(TEXT("player 0 got nothing"), PlayerZeroWallet->GetBalance(ECurrencyType::Prisms), 0);
 	});

@@ -170,6 +170,7 @@ void UEncounterComponent::HandleOverlap(UPrimitiveComponent *OverlappedComponent
 	// Created HERE rather than at battle bootstrap: this is where the player is
 	// possessing their real character. The leader is the player who walked in (B-132); when an
 	// AI companion trips the sphere (an ACombatAIController), it is its party's leader.
+	// TODO(co-op): a second local player walking in takes the leadership here (RebindLeader).
 	UPartySessionSubsystem *PartySession = GetPartySession();
 	if (PartySession)
 	{
