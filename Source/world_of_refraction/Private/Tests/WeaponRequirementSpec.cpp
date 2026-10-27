@@ -24,6 +24,8 @@ namespace
 	constexpr int32 WEAPON_REQ_TEST_SMALL_GAP = 1;
 	constexpr int32 WEAPON_REQ_TEST_LARGE_GAP = 3;
 	constexpr int32 WEAPON_REQ_TEST_FAR_UNDER_GAP = 7;
+	/** B-220: the weapon's own part, which the requirement cuts (the skill part isn't). */
+	constexpr int32 WEAPON_REQ_TEST_POWER = 40;
 
 	UCharacterData *NewCharacterAt(int32 Mind, int32 Body, int32 Spirit)
 	{
@@ -150,7 +152,22 @@ void FWeaponRequirementSpec::Define()
 			TestWorld.Reset();
 		});
 
-		It("an ability through an under-requirement weapon deals less", [this]()
+		It("an ability through an under-requirement weapon deals less: its weapon part is cut (B-220)", [this]()
+		{
+			if (!TestNotNull(TEXT("executor"), Executor))
+			{
+				return;
+			}
+			Weapon->Power = WEAPON_REQ_TEST_POWER;
+			const int32 AtRequirement = PreviewDamageAtBody(WEAPON_REQ_TEST_REQUIRED_LEVEL, EActionType::Ability);
+			const int32 Under = PreviewDamageAtBody(WEAPON_REQ_TEST_REQUIRED_LEVEL - WEAPON_REQ_TEST_LARGE_GAP, EActionType::Ability);
+			const int32 CutPower =
+				FMath::RoundToInt(WEAPON_REQ_TEST_POWER * TierGapDamage::GetRequirementGapMultiplier(WEAPON_REQ_TEST_LARGE_GAP));
+			TestTrue(TEXT("damage resolved"), AtRequirement > 0);
+			TestEqual(TEXT("under = at - (Power - cut Power)"), Under, AtRequirement - (WEAPON_REQ_TEST_POWER - CutPower));
+		});
+
+		It("the requirement doesn't cut the skill part (a weapon with Power 0)", [this]()
 		{
 			if (!TestNotNull(TEXT("executor"), Executor))
 			{
@@ -158,9 +175,7 @@ void FWeaponRequirementSpec::Define()
 			}
 			const int32 AtRequirement = PreviewDamageAtBody(WEAPON_REQ_TEST_REQUIRED_LEVEL, EActionType::Ability);
 			const int32 Under = PreviewDamageAtBody(WEAPON_REQ_TEST_REQUIRED_LEVEL - WEAPON_REQ_TEST_LARGE_GAP, EActionType::Ability);
-			TestTrue(TEXT("damage resolved"), AtRequirement > 0);
-			TestEqual(TEXT("under = at x ladder"), Under,
-					  FMath::RoundToInt(AtRequirement * TierGapDamage::GetRequirementGapMultiplier(WEAPON_REQ_TEST_LARGE_GAP)));
+			TestEqual(TEXT("under = at"), Under, AtRequirement);
 		});
 
 		It("at or over the requirement, an ability is unchanged", [this]()
