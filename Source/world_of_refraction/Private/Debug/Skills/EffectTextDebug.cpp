@@ -12,6 +12,8 @@
 
 namespace
 {
+	constexpr int32 INDENT_SPACES_PER_LEVEL = 2;
+
 	FAutoConsoleCommandWithWorld GDescribeEffectsCmd(
 		TEXT("wor.DescribeEffects"),
 		TEXT("DEBUG: print every combatant's gear effects as generated text, lit by what holds now (B-045)."),
@@ -33,7 +35,7 @@ FString UEffectTextDebug::GetEffectTextString(const TArray<FEffectTextLine> &Lin
 	TArray<FString> Out;
 	for (const FEffectTextLine &Line : Lines)
 	{
-		const FString Indent = FString::ChrN(Line.Depth * 2, TEXT(' '));
+		const FString Indent = FString::ChrN(Line.Depth * INDENT_SPACES_PER_LEVEL, TEXT(' '));
 		const TCHAR *Bullet = Line.Kind == EEffectTextLineKind::Effect ? TEXT("- ") : TEXT("");
 		Out.Add(FString::Printf(TEXT("%s%s%s%s"), *Indent, Bullet, *Line.Text.ToString(), LightTag(Line.Light)));
 	}
