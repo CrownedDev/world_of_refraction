@@ -47,7 +47,8 @@ bool AMemorySpot::Reach()
 	}
 	if (!Memory)
 	{
-		UE_LOG(LogWoR, Warning, TEXT("[MemorySpot] %s has no Memory set"), *GetName());
+		UE_LOG(LogWoR, Warning, TEXT("[MemorySpot] %s has no Memory set - spent"), *GetName());
+		Spend();
 		return false;
 	}
 	MemoryUnlock::Unlock(GameInstance, Memory, EMemorySource::MapSpot);
