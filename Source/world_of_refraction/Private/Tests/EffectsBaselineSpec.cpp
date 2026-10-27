@@ -4,8 +4,10 @@
 // (fire on application, bDelayFirstExecution, Immediate, Persistent), clear and reset, and the
 // re-entrancy regression (2405fa82: an effect whose logic removes or adds effects while a pass is
 // walking the same list). Each case records what the code does today, including the
-// surprising parts (a DOT fires on application; a no-refresh re-apply still reports
-// DurationRefreshed), so change a case only on purpose. Cleanse's gear exclusion is
+// surprising parts (a no-refresh re-apply still reports DurationRefreshed), so change a case only
+// on purpose. B-225 moved the cases to the ruled timings: every timed effect counts the holder's
+// turns and ends as the holder's turn after those starts (D-051); a DOT pays at the holder's turn
+// start, exactly N times (Q-044c). Cleanse's gear exclusion is
 // WoR.Effects.CleanseGear; holder-turn spans are WoR.Effects.StatusBreaks.
 // B-042c: both combatants carry an effect mirror, every case runs with wor.Effects.UseGAS 0 and 1,
 // and each case ends with the mirrored GameplayEffects matching the stored effects.
@@ -234,17 +236,18 @@ void FEffectsBaselineSpec::DefineCases()
 
 	Describe("Tick-down and expiry", [this]()
 	{
-		It("loses one turn per holder turn and is removed at zero", [this]()
+		It("loses one turn per holder turn end and ends as the holder's next turn starts (D-051)", [this]()
 		{
 			if (!EffectManager) return;
 			EffectManager->ApplyEffect(Holder, Buff(), Foe);
-			for (int32 Turn = 1; Turn < BASELINE_DURATION_TURNS; ++Turn)
+			for (int32 Turn = 1; Turn <= BASELINE_DURATION_TURNS; ++Turn)
 			{
 				EndHolderTurn();
 				TestEqual(FString::Printf(TEXT("After turn %d"), Turn), TurnsLeft(BASELINE_BUFF_ID), BASELINE_DURATION_TURNS - Turn);
 			}
-			EndHolderTurn();
-			TestNull(TEXT("Expired"), Find(BASELINE_BUFF_ID));
+			TestNotNull(TEXT("Held until the next turn starts"), Find(BASELINE_BUFF_ID));
+			EffectManager->ProcessStartOfTurnEffects(Holder);
+			TestNull(TEXT("Ended as the turn started"), Find(BASELINE_BUFF_ID));
 		});
 
 		It("never ticks a permanent effect", [this]()
@@ -262,22 +265,25 @@ void FEffectsBaselineSpec::DefineCases()
 
 	Describe("Timing windows", [this]()
 	{
-		// TODO: Q-044c (answered: DOTs pay out at turn start) flips this case on purpose when it is built.
-		It("fires an end-of-turn DOT on application, skips that turn's end, then hits at the end of each later turn", [this]()
+		It("pays an end-of-turn DOT at the holder's turn starts instead, exactly N times (Q-044c, D-051)", [this]()
 		{
 			if (!EffectManager) return;
 			const int32 StartHP = HolderStats->CurrentHP;
 			EffectManager->ApplyEffect(Holder, Burn(), Foe);
-			TestEqual(TEXT("Fires on application"), HolderStats->CurrentHP, StartHP - DotHit());
-			EndHolderTurn();
-			TestEqual(TEXT("Same turn's end is skipped"), HolderStats->CurrentHP, StartHP - DotHit());
+			TestEqual(TEXT("Landing off the holder's turn: no hit"), HolderStats->CurrentHP, StartHP);
+			for (int32 Tick = 1; Tick <= BASELINE_DURATION_TURNS; ++Tick)
+			{
+				EffectManager->ProcessStartOfTurnEffects(Holder);
+				TestEqual(FString::Printf(TEXT("Turn start %d hits"), Tick), HolderStats->CurrentHP, StartHP - Tick * DotHit());
+				EndHolderTurn();
+				TestEqual(FString::Printf(TEXT("Turn end %d doesn't"), Tick), HolderStats->CurrentHP, StartHP - Tick * DotHit());
+			}
 			EffectManager->ProcessStartOfTurnEffects(Holder);
-			TestEqual(TEXT("Nothing at turn start"), HolderStats->CurrentHP, StartHP - DotHit());
-			EndHolderTurn();
-			TestEqual(TEXT("Next turn's end hits"), HolderStats->CurrentHP, StartHP - 2 * DotHit());
+			TestEqual(TEXT("No tick past N"), HolderStats->CurrentHP, StartHP - BASELINE_DURATION_TURNS * DotHit());
+			TestNull(TEXT("Ended as the turn started"), Find(BASELINE_DOT_ID));
 		});
 
-		It("waits for its first window with bDelayFirstExecution", [this]()
+		It("times an authored bDelayFirstExecution DOT by the same rule", [this]()
 		{
 			if (!EffectManager) return;
 			const int32 StartHP = HolderStats->CurrentHP;
@@ -286,7 +292,9 @@ void FEffectsBaselineSpec::DefineCases()
 			EffectManager->ApplyEffect(Holder, Delayed, Foe);
 			TestEqual(TEXT("No hit on application"), HolderStats->CurrentHP, StartHP);
 			EndHolderTurn();
-			TestEqual(TEXT("First end of turn hits"), HolderStats->CurrentHP, StartHP - DotHit());
+			TestEqual(TEXT("No hit at turn end"), HolderStats->CurrentHP, StartHP);
+			EffectManager->ProcessStartOfTurnEffects(Holder);
+			TestEqual(TEXT("First turn start hits"), HolderStats->CurrentHP, StartHP - DotHit());
 		});
 
 		It("runs an Immediate effect once on application, keeps it stored, and sweeps it at the end of the turn", [this]()
@@ -388,6 +396,8 @@ void FEffectsBaselineSpec::DefineCases()
 			EffectManager->ApplyEffect(Holder, Charged, Foe);
 			const int32 StartHP = HolderStats->CurrentHP;
 
+			// The DOT pays at the holder's turn start (Q-044c); that turn's end then counts the stun.
+			EffectManager->ProcessStartOfTurnEffects(Holder);
 			EndHolderTurn();
 			TestEqual(TEXT("The DOT ran once, not again on the rescan"), HolderStats->CurrentHP, StartHP - DotHit());
 			TestTrue(TEXT("The bar capped into a stun"), EffectManager->IsStunned(Holder));

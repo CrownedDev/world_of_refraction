@@ -128,7 +128,10 @@ void FCombatHangFixesSpec::Define()
 
 		Orchestrator->OnActionCompleted();
 		TestTrue(TEXT("Turn 3 is back to Hero"), Orchestrator->GetCurrentActor() == Hero);
-		TestFalse(TEXT("Stun ticked off at the end of Foe's turn"), EffectManager->IsStunned(Foe));
+		// D-051 (B-225): Foe's turn counted the stun's one turn; it ends as Foe's next turn starts.
+		Orchestrator->OnActionCompleted();
+		TestTrue(TEXT("Turn 4 is Foe's"), Orchestrator->GetCurrentActor() == Foe);
+		TestFalse(TEXT("Stun ended as Foe's next turn started"), EffectManager->IsStunned(Foe));
 		TestTrue(TEXT("Combat still running"), Orchestrator->GetCombatState() == ECombatState::InProgress);
 	});
 
