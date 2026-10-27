@@ -8,8 +8,44 @@
 #include "Combat/Defense/DefenseSystem.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Defense/EDefenseDirection.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "HAL/IConsoleManager.h"
+#include "InputCoreTypes.h"
+#include "UI/Combat/CombatCommandMenuSubsystem.h"
+
+namespace CombatMenuKeys
+{
+	/** Above the editor-authored combat context (priority 0), so a shared key goes to the menu. */
+	constexpr int32 CONTEXT_PRIORITY = 1;
+
+	struct FBinding
+	{
+		FName ActionName;
+		EPieMenuCategory Category;
+		FKey Keyboard;
+		FKey Gamepad;
+	};
+
+	/** Q-093: fixed keys for now (D-063); each action name unique so rebinding can come later. */
+	TArray<FBinding> GetBindings()
+	{
+		return {
+			{TEXT("IA_Combat_MenuDefend"), EPieMenuCategory::Defend, EKeys::G, EKeys::Gamepad_FaceButton_Top},
+			{TEXT("IA_Combat_MenuInfusionSource"), EPieMenuCategory::CycleSource, EKeys::R, EKeys::Gamepad_LeftShoulder},
+			{TEXT("IA_Combat_MenuInfusionLevel"), EPieMenuCategory::CycleLevel, EKeys::T, EKeys::Gamepad_RightShoulder},
+		};
+	}
+
+	FAutoConsoleCommand GPrintMenuKeysCmd(
+		TEXT("wor.Input.MenuKeys"),
+		TEXT("DEBUG: the combat menu keys (B-093): action, keyboard key, gamepad button."),
+		FConsoleCommandDelegate::CreateLambda([]()
+		{
+			UE_LOG(LogTemp, Display, TEXT("%s"), *ACombatPlayerController::GetMenuKeysString());
+		}));
+}
 
 void ACombatPlayerController::BeginPlay()
 {
@@ -28,6 +64,8 @@ void ACombatPlayerController::BeginPlay()
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[CombatPlayerController] CombatMappingContext not assigned!"));
 		}
+		BuildMenuKeys();
+		Subsystem->AddMappingContext(MenuKeysContext, CombatMenuKeys::CONTEXT_PRIORITY);
 	}
 }
 
@@ -42,6 +80,10 @@ void ACombatPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		if (CombatMappingContext)
 		{
 			Subsystem->RemoveMappingContext(CombatMappingContext);
+		}
+		if (MenuKeysContext)
+		{
+			Subsystem->RemoveMappingContext(MenuKeysContext);
 		}
 	}
 
@@ -78,9 +120,10 @@ void ACombatPlayerController::SetupInputComponent()
 		EnhancedInput->BindAction(DodgeRightAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnDodgeRight);
 	}
 
-	// TODO: Infusion bindings (commented until the infusion input mechanic is decided):
-	// if (InfusionAction)      EnhancedInput->BindAction(InfusionAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnInfusion);
-	// if (InfusionLevelAction) EnhancedInput->BindAction(InfusionLevelAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnInfusionLevel);
+	BuildMenuKeys();
+	EnhancedInput->BindAction(DefendAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnDefend);
+	EnhancedInput->BindAction(InfusionAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnInfusion);
+	EnhancedInput->BindAction(InfusionLevelAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnInfusionLevel);
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatPlayerController] Defense input bindings complete"));
 }
@@ -144,11 +187,74 @@ void ACombatPlayerController::OnDodgeRight(const FInputActionValue &Value)
 	}
 }
 
-// TODO: Infusion handlers — implement when the infusion input mechanic is decided.
-// The live command menu drives infusion level via UInfusionVFXComponent::CycleInfusionLevel;
-// the controller path may hold-to-charge (UInfusionChargeManager) or cycle. Left unimplemented.
-// void ACombatPlayerController::OnInfusion(const FInputActionValue &Value) { }
-// void ACombatPlayerController::OnInfusionLevel(const FInputActionValue &Value) { }
+// ========================================
+// MENU KEYS (B-093)
+// ========================================
+
+void ACombatPlayerController::BuildMenuKeys()
+{
+	if (MenuKeysContext)
+	{
+		return;
+	}
+	MenuKeysContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Combat_MenuKeys"));
+	for (const CombatMenuKeys::FBinding &Binding : CombatMenuKeys::GetBindings())
+	{
+		UInputAction *Action = NewObject<UInputAction>(this, Binding.ActionName);
+		Action->ValueType = EInputActionValueType::Boolean;
+		// Don't eat the key: the context stays mapped all fight, and a defense key sharing it
+		// (priority 0) must still reach the defense window on an enemy's turn.
+		Action->bConsumeInput = false;
+		MenuKeysContext->MapKey(Action, Binding.Keyboard);
+		MenuKeysContext->MapKey(Action, Binding.Gamepad);
+		switch (Binding.Category)
+		{
+		case EPieMenuCategory::Defend:
+			DefendAction = Action;
+			break;
+		case EPieMenuCategory::CycleSource:
+			InfusionAction = Action;
+			break;
+		case EPieMenuCategory::CycleLevel:
+			InfusionLevelAction = Action;
+			break;
+		default:
+			checkNoEntry();
+			break;
+		}
+	}
+}
+
+void ACombatPlayerController::OnDefend(const FInputActionValue &Value) { PressMenuKey(EPieMenuCategory::Defend); }
+
+void ACombatPlayerController::OnInfusion(const FInputActionValue &Value) { PressMenuKey(EPieMenuCategory::CycleSource); }
+
+void ACombatPlayerController::OnInfusionLevel(const FInputActionValue &Value) { PressMenuKey(EPieMenuCategory::CycleLevel); }
+
+void ACombatPlayerController::PressMenuKey(EPieMenuCategory Category)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+	UGameInstance *GI = GetGameInstance();
+	if (UCombatCommandMenuSubsystem *Menu = GI ? GI->GetSubsystem<UCombatCommandMenuSubsystem>() : nullptr)
+	{
+		Menu->PressMenuKey(Category);
+	}
+}
+
+FString ACombatPlayerController::GetMenuKeysString()
+{
+	FString Out = TEXT("[CombatPC] Menu keys");
+	for (const CombatMenuKeys::FBinding &Binding : CombatMenuKeys::GetBindings())
+	{
+		Out += FString::Printf(TEXT("\n  %s (%s): %s / %s"), *Binding.ActionName.ToString(),
+							   *UEnum::GetValueAsString(Binding.Category), *Binding.Keyboard.GetDisplayName().ToString(),
+							   *Binding.Gamepad.GetDisplayName().ToString());
+	}
+	return Out;
+}
 
 // ========================================
 // HELPERS

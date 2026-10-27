@@ -2067,6 +2067,35 @@ void UCombatCommandMenuSubsystem::DebugLogCapabilities() const
     UE_LOG(LogTemp, Log, TEXT("BreakChance:    %s"), CurrentCapabilities.bRingHasBreakChance ? TEXT("YES") : TEXT("NO"));
 }
 
+bool UCombatCommandMenuSubsystem::PressMenuKey(EPieMenuCategory Category)
+{
+    if (!bIsOpen)
+    {
+        return false;
+    }
+    TArray<FPieMenuButtonData> View;
+    const bool bInActionMenu = CurrentDepth == ECombatMenuDepth::Main || CurrentDepth == ECombatMenuDepth::Submenu;
+    const bool bInfusionKey = Category == EPieMenuCategory::CycleSource || Category == EPieMenuCategory::CycleLevel;
+    if (Category == EPieMenuCategory::Defend && bInActionMenu)
+    {
+        View = BuildMainMenuButtons();
+    }
+    else if (bInfusionKey && CurrentDepth == ECombatMenuDepth::TargetSelection)
+    {
+        View = RebuildCurrentPicker();
+    }
+    const FPieMenuButtonData *Button = View.FindByPredicate([Category](const FPieMenuButtonData &Candidate)
+                                                            { return Candidate.Category == Category && Candidate.bEnabled; });
+    if (!Button)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Key for %s: no such button here"), *UEnum::GetValueAsString(Category));
+        return false;
+    }
+    const FPieMenuButtonData Pressed = *Button; // HandleSelection can rebuild the menu
+    HandleSelection(Pressed);
+    return true;
+}
+
 void UCombatCommandMenuSubsystem::RefreshMenu()
 {
     if (!bIsOpen)

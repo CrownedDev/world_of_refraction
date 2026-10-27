@@ -1953,6 +1953,21 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-149-formation-cells): `ACombatOrchestrator::GetPlaceholderEnemyStartRow`. Authored enemy cells replace it later.
 
+### Q-093 — Which keys do Defend and infusion use, and how do they behave?
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-093) · **Blocks:** — (B-093 shipped with A)
+**Question:** B-093 adds keys for Defend, the infusion source and the infusion level next to the command menu. Which keys, when do they work, and does infusion cycle or charge?
+**Options:**
+- **A** (built):
+  - **Keys** (fixed for now, D-063): Defend **G** / gamepad **Y**; infusion source **R** / **LB**; infusion level **T** / **RB**. Each has its own action name (`IA_Combat_MenuDefend`, `IA_Combat_MenuInfusionSource`, `IA_Combat_MenuInfusionLevel`) so rebinding can come later.
+  - **Same as the buttons:** a key presses the menu's own button, so it follows the button's rules. Defend works on your turn from the main menu **and from a submenu** (a shortcut out of it). The infusion keys work in the target picker when it offers them (not for items, a stunned actor or an immune action). While a target is being picked, Defend does nothing; on the Allies / Enemies step, no key does anything.
+  - **Infusion cycles**, like the menu's button (level 0, 1, 2, 0). Hold-to-charge is not used (its dead `InfusionChargeManager` is set for removal, B-034).
+  - **Defense keys win too:** the menu keys don't consume the press, so if a real-time Guard or Dodge key shares one of these keys, it still works on an enemy's turn.
+- **B** no Defend from a submenu (the button isn't shown there).
+- **C** hold-to-charge infusion on the key.
+**Recommendation:** A. Divinity: Original Sin 2 and Baldur's Gate 3 give every action-bar command a key that does exactly what clicking it does, which is how players expect a menu shortcut to behave; letting Defend skip out of a submenu saves a Back press. Cycling keeps one behaviour for the button and the key. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Change any key you like.
+**Notes for Claude:** applied (feature/B-093-menu-keys): `UCombatCommandMenuSubsystem::PressMenuKey`, `ACombatPlayerController::BuildMenuKeys`. The editor-authored defense context's keys can't be read here: PIE check 6 looks for a clash.
+
 ### Q-178 — How a run's paid repair works
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-178) · **Blocks:** — (B-178 shipped with A)
 **Question:** D-093 says repair in a run costs Gold scaled by tier, at rest spots and vendors. How is it priced and bought?
