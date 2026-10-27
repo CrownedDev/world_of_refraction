@@ -46,7 +46,7 @@ What Unreal's GAS and the games it's compared with do (Q-145 sources):
 
 ### 3.1 A damage type (D-037)
 
-New `EWoRDamageType : uint8`, append-only, explicit values, element members matching `ESpellElement`'s numbers so a cast element converts with no table:
+New `EWoRDamageType : uint8`, append-only, explicit values; the nine elements keep `ESpellElement`'s numbers 1–9 for readability, but conversion is always an **explicit** `ToDamageType(ESpellElement, EPhysicalDamageType)`: `ESpellElement` has `Generic` = 0 and `None` = 10, so a raw cast would turn `None` into `Slash`. Generic is resolved before a hit (`InfusionSystem.md`); an element-`None` hit becomes its physical subtype, or `None` with no subtype:
 
 | Value | Member | Notes |
 |---|---|---|
@@ -68,7 +68,8 @@ New `EWoRDamageType : uint8`, append-only, explicit values, element members matc
 
 | Attribute | Fed by (as modifiers) | Read by |
 |---|---|---|
-| `Resist_Fire` … `Resist_Reality` (9), `Resist_Slash`, `Resist_Pierce`, `Resist_Impact`, `Resist_Ice` (13) | #4 typed buffs/debuffs, #5 class table, #6 gear rolls | damage (capped ±50%) and buildup |
+| `Resist_Fire` … `Resist_Reality` (9), `Resist_Slash`, `Resist_Pierce`, `Resist_Impact`, `Resist_Ice` (13) | #4 typed buffs/debuffs, #5 class table, #6 gear rolls | elemental damage (capped ±50%) and buildup |
+| `Resist_NonElemental` | #4 buffs/debuffs keyed to element `None` (today they match every element-`None` hit, `StatusBuildupManager.cpp:187-192`; `FActiveSkillEffect::Element` defaults to `None`); the class table and gear have no `None` column (0) | buildup only, as the element axis of an element-`None` hit |
 | `StatusResistance` | #1 base (the capped Spirit stat), #2 gear points and #3 stone as multiply modifiers | buildup only (floor 0, ceiling 1) |
 | `StatusResistBonus` | #7 `ModifyStatusResist`, #8 boss rising resistance | buildup only (signed) |
 
@@ -77,9 +78,9 @@ Per source:
 | # | Today | Standard | Notes |
 |---|---|---|---|
 | 1 | `GetCrystalResistanceStatCapped` at hit time | base value of `StatusResistance`, from the Spirit composition (B-146) | the "capped alone, then gear multiplies" rule needs the base computed first |
-| 2, 3 | multiplied in by hand | **MultiplyCompound** modifiers (`EGameplayModOp::MultiplyCompound` multiplies, 1.5 × 1.5 = 2.25; plain Multiply adds the bonuses, 1 + Σ, which would change numbers) | one infinite GE per equipped piece / stone |
+| 2, 3 | multiplied in by hand: `× (1 + Σ gear points × k)` then `× (1 + Σ stone % / 100)` (`StatusBuildupManager.cpp:239, 243`; the weapon and ring stones are summed first, `LoadoutComponent::GetAttachedStonePercent`) | #2: one GE per equipped piece with a **MultiplyAdditive** modifier (GAS sums these into one 1 + Σ factor, exactly today's). #3: **one** GE holding the summed stone %, as a **MultiplyCompound** modifier (`EGameplayModOp::MultiplyCompound` multiplies on top, 1.5 × 1.5 = 2.25). One compound GE per stone would give Π(1 + sᵢ) and change numbers with two stones | the loadout reapplies the stone GE when either stone changes |
 | 4 | `GetTotalElementResistance` scans active effects | a duration GE per buff/debuff with an additive modifier on the matching `Resist_*` (or on all three physical ones for a `DamageType.Physical` buff) | B-042's turn tracker ends it (Q-044 durations) |
-| 5 | C++ table, resolved per hit | one infinite **class GE** at spawn, magnitudes from a **data table** (row per class / innate element / Broken Darkness) | B-095 becomes "the data table"; a BD transform removes the class GE and applies the BD row's (BD stays custom, D-P01: it only swaps the GE) |
+| 5 | C++ table, resolved per hit | one infinite **class GE** at spawn, magnitudes from the **resistance data asset** (row per class / innate element / Broken Darkness) | B-095's data asset, built in B-216; a BD transform removes the class GE and applies the BD row's (BD stays custom, D-P01: it only swaps the GE) |
 | 6 | `GetActiveResistanceBonus` summed per hit | one infinite GE per equipped piece, SetByCaller magnitudes from the instance's `FResistanceBonus` | the loadout keeps the handle; unequip removes it |
 | 7 | `GetTotalStatModifier(ModifyStatusResist)` | a duration GE with an additive modifier on `StatusResistBonus` | sign kept (curse reaches the amplify range, the A2 rule) |
 | 8 | `UBossPhaseComponent::GetStatusResistanceBonus` | an infinite GE whose stack count is the breaks so far | B-193's rule unchanged |
@@ -89,9 +90,9 @@ Per source:
 | Hit's damage type | Damage resist (capped ±50%, D-036) | Buildup: Matched part |
 |---|---|---|
 | an element (Fire…Reality) | `Resist_<element>` | `Resist_<element>` + `Resist_<physical type>` (if any) + `StatusResistBonus` |
-| Water | `Resist_Water` + `Resist_Ice` (Q-145b) | as above |
-| Ice | `Resist_Ice` | `Resist_Ice` + … |
-| Slash / Pierce / Impact | `Resist_<subtype>` (Q-145) | `Resist_<subtype>` + `StatusResistBonus` (as today: element None) |
+| Water | `Resist_Water` + `Resist_Ice` (D-029, Q-145b) | `Resist_Water` + `Resist_Ice` + physical + `StatusResistBonus` (no number changes today: nothing grants Ice resistance yet) |
+| Ice | `Resist_Ice` | `Resist_Ice` + physical + `StatusResistBonus` |
+| Slash / Pierce / Impact (element `None`) | none: Defense only (Q-145) | `Resist_NonElemental` + `Resist_<subtype>` + `StatusResistBonus` (exactly today's element-`None` read) |
 
 Buildup total stays `clamp(clamp(StatusResistance, 0, 1) + Matched, −1, +1)`, so **every buildup number is unchanged**. Immunities stay tag checks (`Immunity.*`, B-040) before the maths.
 
@@ -106,7 +107,7 @@ The game keeps working after each step (CLAUDE.md "Incremental"; Q-145c).
 
 | Step | Job | What | Proof |
 |---|---|---|---|
-| 1 | **B-216** (new, before GAS stage 3) | `EWoRDamageType` + tags; **one query** `GetTypeResistance(Target, DamageType)` = sources #4–6 for that type, used by `GetTotalStatusResistance`'s Matched layer; the class table moves to a data table (B-095 folded in); `UWoRAttributeSet_Resistance` added as a **mirror** (like B-041), filled by the sync component; `wor.CompareResistance` | every buildup number identical (`wor.CompareStats`, a spec over class × type × physical); `wor.CompareAttributes` 0 differ |
+| 1 | **B-216** (new, before GAS stage 3) | `EWoRDamageType` + tags + `ToDamageType`; **one query** `GetTypeResistance(Target, DamageType)` = sources #4–6 for that type (plus the non-elemental bucket), used by `GetTotalStatusResistance`'s Matched layer; the class table moves to a `UPrimaryDataAsset` editable in the Details panel (B-095 folded in, as it asked; CLAUDE.md: immutable design data is a data asset); `UWoRAttributeSet_Resistance` added as a **mirror** (like B-041), filled by the sync component; `wor.CompareResistance` | every buildup number identical (`wor.CompareStats`, a spec over class × type × physical, including an element-`None` resistance buff on a physical hit and two stones); `wor.CompareAttributes` 0 differ |
 | 2 | **B-080**, **B-064**, **B-064a** (now on B-216) | the hit's damage type (D-007); damage reads `GetTypeResistance` with the ±50% cap (D-005/D-036); Ice | their own tests (weak / resistant / neutral; Ice reaches Water resist) |
 | 3 | **B-042** (GAS stage 3) | sources become GEs (§3.2); the attributes become the truth; `GetTypeResistance` reads the attribute; buildup and damage move into the executions (with B-146) | `wor.CompareResistance` and the before snapshot (B-134) identical |
 
@@ -114,9 +115,9 @@ Step 1 is code Crown approves with this plan (Q-145). Steps 2–3 are already qu
 
 ## 5. Risks
 
-- **Multiply order (#2, #3).** MultiplyCompound runs after the additive and plain multiply terms; if that order doesn't reproduce "capped stat × gear × stone", the General layer stays a custom calculation (an MMC). Caught by `wor.CompareResistance` in step 3.
+- **Multiply order (#2, #3).** The grouping above (sum the gear, sum the stones, then multiply) must hold; if GAS's order doesn't reproduce "capped stat × gear × stone", the General layer stays a custom calculation (an MMC). Caught by `wor.CompareResistance` in step 3.
 - **Broken Darkness row swap.** The BD row replaces the class row mid-fight; a missed swap shows as a wrong row. `wor.PrintResistance` (today's `PrintResistanceProfile`) shows the active class GE.
-- **Physical damage now resisted (Q-145).** A Generic takes 15% less physical damage than today, on top of Defense; a Resonator 15% more. Balance change, flagged in B-064's hand-off.
+- **Physical damage (Q-145).** Defense only, so no balance change; the class table's physical columns stay buildup-only. If Crown picks A later, physical subtype resistance joins the damage step (resist ±50% then Defense up to 85% can reach ~92.5% together, the stacking D-036 avoided).
 - **Save data.** None: resistance is runtime only; gear rolls are already saved (B-124).
 
 ## Changelog

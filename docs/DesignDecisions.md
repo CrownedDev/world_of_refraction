@@ -2007,27 +2007,27 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Question:** `docs/analysis/ResistanceRedesign.md` puts resistance in the standard GAS shape: a damage type beside the element (D-037), one resistance attribute per damage type fed by modifiers (class table, gear, buffs), and the damage and buildup calculations reading them, with every buildup number unchanged. One rule isn't settled: D-036 says per-element resistance scales elemental damage, but the class table and gear also carry Slash / Pierce / Impact. Does a physical subtype's resistance scale physical damage?
 **Options:**
 - **A** Approve the plan; physical subtype resistance scales physical damage the same way (1:1, capped ±50%), with Defense still applied after it. A Generic takes 15% less physical damage, a Resonator 15% more.
-- **B** Approve the plan; physical damage is reduced by Defense only (subtype resistance stays buildup-only).
+- **B** Approve the plan; physical damage is reduced by Defense only (subtype resistance stays buildup-only, as today).
 - **C** Change the plan (say what).
-**Recommendation:** A. D-037 already makes Physical a damage type "a peer of the elements" with its own resistance. Elden Ring keeps a negation per physical subtype (Strike, Slash, Pierce) on top of armour, and Expedition 33 gives enemies weaknesses and resistances to Physical like any element. It also gives the class table's physical columns a visible meaning (pillar 2, distinct builds). The ±50% cap keeps it from stacking toward immunity with Defense. Not lore.
-**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it.
-**Notes for Claude:** a balance change for physical hits once B-064 lands: say so in B-064's hand-off.
+**Recommendation:** B. D-005's notes already say to leave the physical columns out of damage if they double-count with Defense, and they do: resistance (up to 50%) then Defense (up to 85%) could reach about 92.5% reduction, the stacking toward immunity D-036 avoided. Path of Exile and Diablo 4 do the same split: elemental resistances per element, physical damage reduced by armour. B changes no balance. A (Elden Ring's per-subtype negation on top of armour) stays open for Crown. Not lore.
+**Answer (Crown):** **B, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may pick A.
+**Notes for Claude:** the plan keeps a `Resist_<subtype>` attribute either way (buildup reads it), so A later is one step in the damage execution.
 
 ### Q-145b — Does Ice resistance also resist Water?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-145, D-029) · **Blocks:** — (ships with A)
-**Question:** Ice is a Water damage type (D-029). Which resistance does each read?
+**Question:** Ice is a Water damage type (D-029, which took the deckbuilder's model). Confirming the reach for the plan: which resistance does each read, for damage and buildup?
 **Options:**
 - **A** The deckbuilder's rule (`wor-deckbuilder/docs/reference/02-enums.md`, "Ice — a damage type"): Ice resistance resists **Ice and Water**; Water resistance resists **Water only**.
 - **B** Each reads only its own resistance.
 **Recommendation:** A, the deckbuilder's rule (it comes first where it has one). It makes Ice resistance the stronger, rarer pick, matching Ice as "a heavier Water". Not lore.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may change it.
-**Notes for Claude:** a Water hit reads `Resist_Water + Resist_Ice`; an Ice hit reads `Resist_Ice`. Built in B-064a.
+**Notes for Claude:** a Water hit reads `Resist_Water + Resist_Ice` (damage and buildup); an Ice hit reads `Resist_Ice`. Built in B-064a.
 
 ### Q-145c — Build the resistance seam now, or wait for GAS stage 3?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-145) · **Blocks:** — (ships with A)
 **Question:** B-064 (damage resistance), B-080 (damage type) and B-064a (Ice) wait on this plan. GAS stage 3 (B-042) also waits on B-146. Build them on the new shape now, or after stage 3?
 **Options:**
-- **A** Now: B-216 adds the damage type, one per-type resistance query, the class data table and a mirrored resistance attribute set (no behaviour change); B-064 / B-080 / B-064a build on that query; stage 3 later swaps the query's inside to read the attributes.
+- **A** Now: B-216 adds the damage type, one per-type resistance query, the class table as a data asset and a mirrored resistance attribute set (no behaviour change); B-064 / B-080 / B-064a build on that query; stage 3 later swaps the query's inside to read the attributes.
 - **B** Wait: build them inside B-042.
 **Recommendation:** A. CLAUDE.md's "Incremental" rule (build new beside old, prove it, then switch), and it's how B-041 mirrored stats before stage 3 (`GASSystem.md`). Lyra and GASDocumentation set up attributes before effects use them. Waiting would hold three jobs behind the largest one. Not lore.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may change it.
