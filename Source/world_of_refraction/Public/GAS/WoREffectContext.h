@@ -16,6 +16,8 @@
 #include "Skills/Effects/ESkillEffectType.h"
 #include "WoREffectContext.generated.h"
 
+struct FWoRDamageRequest;
+
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FWoREffectIdentity
 {
@@ -57,6 +59,9 @@ struct WORLD_OF_REFRACTION_API FWoREffectContext : public FGameplayEffectContext
 	GENERATED_BODY()
 
 	FWoREffectIdentity Identity;
+
+	/** A damage spec's gathered inputs (B-042e, UWoRDamageExecution). Authority only: not net serialized. */
+	TSharedPtr<const FWoRDamageRequest> DamageRequest;
 
 	/** The WoR context behind a handle, or null when the handle holds another kind (or none). */
 	static const FWoREffectContext *Get(const FGameplayEffectContextHandle &Handle);
