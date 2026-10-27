@@ -8,6 +8,7 @@
 - **Weapon Power by tier: F 40, E 52, D 68, C 88, B 114, A 148, S 192** (Crown, 2026-10-27; the tier-power steps; tunable in data).
 - **Pillar cap in a run: 7 per pillar, 21 total** (Crown, 2026-10-27), matching `MAX_WORLD_STAT_LEVEL`. `WorldStatConstants::LIVE_MAX` (20, a placeholder) drops to 7; every curve and range in this doc keyed 0..20 is re-keyed to 0..7 (early 2-3, mid 4-5, late 6-7).
 - **Pillar curve: soft cap** (Crown, 2026-10-27; Elden Ring / Dark Souls): `Curve(L) = 1 - (1 - L/7)^2` over levels 0..7 (L1 0.27, L2 0.49, L3 0.67, L4 0.82, L5 0.92, L6 0.98, L7 1.0).
+- **Requirement penalty: at most -50%, on the weapon's part only** (Crown, 2026-10-27; Elden Ring's flat under-requirement penalty): the requirement factor floors at 0.5 (`WEAPON_REQ_FACTOR_MIN` 0.25 -> 0.5, into data) and scales the weapon part, not the skill part. Worst pillar decides (Q-162).
 
 ---
 
