@@ -66,7 +66,9 @@ struct FWoRStatLayers
 
 	FString ToString() const
 	{
-		return FString::Printf(TEXT("base %.4f x gear %.4f x stone %.4f x transient %.4f = %.4f [%.2f, %.2f]"), StatBase,
-							   GearFactor, StoneFactor, TransientFactor, Compose(), Min, Max);
+		const FString Bounds = Max == TNumericLimits<float>::Max() ? FString(TEXT("unbounded"))
+																	: FString::Printf(TEXT("[%.2f, %.2f]"), Min, Max);
+		return FString::Printf(TEXT("base %.4f x gear %.4f x stone %.4f x transient %.4f = %.4f %s"), StatBase, GearFactor,
+							   StoneFactor, TransientFactor, Compose(), *Bounds);
 	}
 };

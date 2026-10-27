@@ -30,8 +30,8 @@ namespace
 	/** Far past the compose ceiling, so the clamp decides. */
 	constexpr float STAT_SOURCES_HUGE_BUFF_PERCENT = 500.0f;
 	constexpr int32 STAT_SOURCES_DEBUFF_ID = 4803;
-	/** Enough Defense points for the stat alone to reach its 0.5 cap. */
-	constexpr int32 STAT_SOURCES_DEFENSE_POINTS = 50;
+	/** Enough points for a stat alone (Defense, Luck) to reach its cap. */
+	constexpr int32 STAT_SOURCES_STAT_POINTS = 50;
 	constexpr float STAT_SOURCES_TOLERANCE = 1.0e-4f;
 }
 
@@ -185,12 +185,26 @@ void FStatSourcesSpec::Define()
 	It("clamps Defense at its own reduction ceiling", [this]()
 	{
 		if (!ASC) return;
-		Char->CharacterData->Defense = STAT_SOURCES_DEFENSE_POINTS;
+		Char->CharacterData->Defense = STAT_SOURCES_STAT_POINTS;
 		Buff(STAT_SOURCES_HUGE_BUFF_ID, ESkillEffectType::DefenseBuff, STAT_SOURCES_HUGE_BUFF_PERCENT);
 		const UDamageCalculator *Calc = TestWorld->GetSubsystem<UDamageCalculator>();
 		TestEqual(TEXT("Getter at the Defense ceiling"), Calc->GetDefenderFlatDefense(Hero), CombatConstants::DEFENSE_REDUCTION_CEILING);
 		TestEqual(TEXT("Attribute at the Defense ceiling"), ASC->GetNumericAttribute(UWoRAttributeSet_Stats::GetDefenseAttribute()),
 				  CombatConstants::DEFENSE_REDUCTION_CEILING);
+	});
+
+	It("clamps Luck at its gear ceiling and floors it at 0", [this]()
+	{
+		if (!ASC) return;
+		Char->CharacterData->Luck = STAT_SOURCES_STAT_POINTS;
+		Buff(STAT_SOURCES_HUGE_BUFF_ID, ESkillEffectType::LuckBuff, STAT_SOURCES_HUGE_BUFF_PERCENT);
+		const FGameplayAttribute Luck = UWoRAttributeSet_Stats::GetLuckAttribute();
+		TestEqual(TEXT("Getter at the Luck ceiling"), Char->GetEquipmentModifiedLuck(), CombatConstants::LUCK_GEAR_CEILING);
+		TestEqual(TEXT("Attribute at the Luck ceiling"), ASC->GetNumericAttribute(Luck), CombatConstants::LUCK_GEAR_CEILING);
+
+		Buff(STAT_SOURCES_DEBUFF_ID, ESkillEffectType::LuckDebuff, STAT_SOURCES_HUGE_BUFF_PERCENT * 2.0f);
+		TestEqual(TEXT("Getter floored at 0"), Char->GetEquipmentModifiedLuck(), 0.0f);
+		TestEqual(TEXT("Attribute floored at 0"), ASC->GetNumericAttribute(Luck), 0.0f);
 	});
 
 	It("leaves the Reflex factor unclamped, as its getter is", [this]()

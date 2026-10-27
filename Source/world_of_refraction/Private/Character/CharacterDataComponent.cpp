@@ -848,13 +848,10 @@ float UCharacterDataComponent::GetEquipmentModifiedLuck() const
         return 0.0f;
     }
 
-    // Pattern P (cluster 5e-C1) — returns a NORMALIZED luck value (not raw): the stat portion
-    // (crystal-aware Spirit × Luck points) caps ALONE at normalized 1.0 (LUCK_RAW_MAX is the basis —
-    // max investment lands on exactly 1.0), THEN gear (BonusLuck) and transient (LuckBuff/Debuff)
-    // MULTIPLY it past 1.0 toward LUCK_GEAR_CEILING. Consumers (GetLuckModifiedChance) scale by their
-    // own max bonus and clamp at their own 100% — they no longer re-normalize.
-    // Pattern P (GetStatLayers): normalized stat luck capped ALONE at 1.0, then BonusLuck, the Luck stone
-    // and the net LuckBuff / LuckDebuff multiply it, clamped [0, LUCK_GEAR_CEILING].
+    // Pattern P (cluster 5e-C1, GetStatLayers) — a NORMALIZED luck value (not raw): the crystal-aware
+    // Spirit × Luck points stat caps ALONE at 1.0 (LUCK_RAW_MAX is the basis), then BonusLuck, the Luck
+    // stone and the net LuckBuff / LuckDebuff multiply it, clamped [0, LUCK_GEAR_CEILING]. Consumers
+    // (GetLuckModifiedChance) scale by their own max bonus and clamp at their own 100%.
     FWoRStatLayers Layers;
     GetStatLayers(ESubStat::Luck, Layers);
     return Layers.Compose();
@@ -1197,7 +1194,9 @@ bool UCharacterDataComponent::GetStatLayers(ESubStat Stat, FWoRStatLayers &OutLa
         ReadStoneAndTransient();
         return true;
     case ESubStat::Reflex:
-        // The crystal's Body pillar as a ratio over raw Body (1 without a crystal), then gear.
+        // The evolution-pillar lift as a ratio over the RAW Body pillar (CalculateReflexWindowBonus uses
+        // raw Body), both from the live world base, so the ratio is pure crystal / gear / buff lift; 1.0
+        // without one. ApplyEvolutionPillarModifier already clamps the pillar modifier to [0, 2].
         if (!CharacterData)
         {
             return false;
@@ -1276,10 +1275,6 @@ float UCharacterDataComponent::ReflexWindowGearFactor() const
         return 1.0f;
     }
 
-    // Evolution-pillar modifier as a ratio over the RAW Body pillar (CalculateReflexWindowBonus uses the
-    // RAW GetEffectiveBody, so this ratio is the crystal/equipment-pillar/pillar-buff lift). 1.0 when no
-    // pillar gear. ApplyEvolutionPillarModifier already clamps the pillar modifier to [0,2].
-    // RawPillar uses the LIVE world base too (matching ModPillar, §7 C2) so the ratio is pure gear lift.
     // GetStatLayers: the Body pillar ratio x BonusReflex x ReflexStone x net Reflex buff, unclamped.
     FWoRStatLayers Layers;
     GetStatLayers(ESubStat::Reflex, Layers);
