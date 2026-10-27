@@ -13,6 +13,7 @@
 #include "Engine/StaticMesh.h"
 #include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
+#include "WoRGameNames.h"
 
 namespace MerchantInteractableConstants
 {
@@ -228,7 +229,7 @@ void AMerchantInteractable::OnTriggerEndOverlap(UPrimitiveComponent * /*Overlapp
 FString AMerchantInteractable::GetHintText() const
 {
     const FString MerchantLabel = Merchant
-                                      ? UEnum::GetDisplayValueAsText(Merchant->MerchantType).ToString()
+                                      ? WoRGameNames::GetMerchantTypeName(Merchant->MerchantType).ToString()
                                       : FString::Printf(TEXT("%s (no Merchant assigned)"), *GetName());
     return FString::Printf(TEXT("Press E — %s"), *MerchantLabel);
 }
