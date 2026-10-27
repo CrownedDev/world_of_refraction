@@ -91,6 +91,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	UParty *CreateSoloParty(APlayerController *Leader, TSoftClassPtr<ACombatCharacter> LeaderPawnClass);
 
+	/** B-090: rebuild the local party from a save, before any level has made one. No leader
+	 *  yet: the first CreateSoloParty / EnsureLocalParty rebinds it. Null (and no change) when a
+	 *  local party already exists or Members is empty. */
+	UParty *RestoreLocalParty(const FText &DisplayName, bool bLetAIFinish, const TArray<FPartyMember> &Members);
+
 	/** Append a member. Fails when the party is full, the class is null, or the
 	 *  class's CDO carries no CharacterData. */
 	UFUNCTION(BlueprintCallable, Category = "Party")

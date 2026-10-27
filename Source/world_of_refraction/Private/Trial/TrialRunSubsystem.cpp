@@ -14,6 +14,7 @@
 #include "Merchant/MerchantInteractable.h"
 #include "Merchant/MerchantStockRoll.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Save/SaveSubsystem.h"
 #include "Shop/MerchantShopSubsystem.h"
 #include "TimerManager.h"
 #include "Trial/TrialData.h"
@@ -123,6 +124,8 @@ void UTrialRunSubsystem::ExitTrial()
     PendingEncounterSources.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
+    // B-090: a trial's exit is a save point.
+    GetGameInstance()->GetSubsystem<USaveSubsystem>()->SaveNow(GetGameInstance()->GetWorld(), true);
     UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), HubLevel);
 }
 
@@ -191,7 +194,11 @@ void UTrialRunSubsystem::ExitEncounter()
     }
     World->GetTimerManager().SetTimerForNextTick(
         FTimerDelegate::CreateWeakLambda(this, [this, ReturnLevel]()
-                                         { UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), ReturnLevel); }));
+                                         {
+                                             // B-090: a fight's exit is a save point (the vitals are banked by now).
+                                             GetGameInstance()->GetSubsystem<USaveSubsystem>()->SaveNow(GetGameInstance()->GetWorld(), true);
+                                             UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), ReturnLevel);
+                                         }));
 }
 
 void UTrialRunSubsystem::MarkPendingEncounterBeaten()
