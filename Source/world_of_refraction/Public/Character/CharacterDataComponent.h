@@ -509,7 +509,7 @@ public:
     // until a save system exists — mirrors bIsBrokenDarkness above).
 
     /** Live combat world-stat value (per pillar). Run-scoped — NOT SaveGame; re-seeded each run.
-     *  Written-but-unread by combat until C2 repoints the asset readers here. */
+     *  Combat's requirement reads use it (B-217, FWorldPillarLevels::FromComponent). */
     UPROPERTY(BlueprintReadOnly, Category = "Stats|World")
     int32 LiveWorldMind = 0;
 

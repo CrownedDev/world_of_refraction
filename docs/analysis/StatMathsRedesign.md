@@ -116,7 +116,7 @@ Steps 1–2 make stage 3 smaller: the maths is already in one place and already 
 
 ## 6. Found while surveying (B-217)
 
-Kept as they are in the port (same numbers); checked separately:
+Kept as they are in the port (same numbers); checked separately. **B-217 (Q-217): combat now reads the live levels; `CalculatePenalty` recorded as intended (Blueprint-only).**
 - The requirement gap reads the character asset's world levels (`SkillDataBase.cpp:276-278`), while the stat getters read the live world levels (`CharacterDataComponent.cpp:755`, `CharacterDataComponent.h:543`): a levelled-up character may get the old gap. The same asset read is in the requirement checks and the Broken Darkness strain deficit (`WorldStatRequirements.cpp:13, 40, 97`).
 - `FWorldStatRequirements::CalculatePenalty` is Blueprint-only and unused by damage.
 

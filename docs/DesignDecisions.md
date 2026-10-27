@@ -2002,6 +2002,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it, e.g. to B once the loadout screen exists.
 **Notes for Claude:** applied (feature/B-076-trial-recruits). Trial maps have no recruit spots yet (placing a recruitable pawn in a trial level is editor work): B-215. Until then, `wor.Party.RecruitForRun <CharacterData path>` recruits in a trial. Evolutions for a recruit wait for B with the real screen.
 
+### Q-217 — Requirements in combat: the character's authored world levels, or the live run levels?
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-217) · **Blocks:** — (B-217 ships with A)
+**Question:** In a run, each world pillar has a live level: the authored level + the head start + levels earned or bought (CL-37). The stat getters read the live level, but the requirement gap (CL-39), the weapon requirement factor (CL-40), Broken Darkness strain and its exact-attunement waiver read the authored level, so a pillar raised during the run doesn't count. Which should they read?
+**Options:**
+- **A** The live level: a pillar raised in the run meets requirements at once.
+- **B** The authored level (today): raising a pillar changes the stats but not the requirements.
+**Recommendation:** A. In Dark Souls and Elden Ring, a level-up counts toward weapon and spell requirements at once; that is what makes levelling a stat for a weapon feel rewarding. The live value was built as the combat value (`CharacterDataComponent.h`: "C2 repoints readers here"). Numbers change only for a character with a head start or levels bought or earned this run. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B.
+**Notes for Claude:** B-217: `FWorldPillarLevels::FromComponent`; the combat readers in `ActionExecutor` pass it. Not changed: the memory requirement fit (`MemoryConditions.cpp`, reads the party snapshot's asset, TODO there), `URequirementGapDebug::GetRequirementGapString` (takes an asset; `GetLiveRequirementGapString` reads the live levels), and the Blueprint-only `UBrokenDarknessManager::DoesSpellExceedRequirements` / `DoesAbilityExceedRequirements` (asset levels, no C++ caller now). TODO: an executor-level test of the strain and attunement reads (`CheckBrokenDarknessBreak` is private; they use the same `GetLiveWorldLevels` helper the weapon factor test covers). `FWorldStatRequirements::CalculatePenalty` stays as recorded: Blueprint-only, not applied to damage (B-117).
+
 ### Q-162 — A weapon asks for more than one pillar: which gap sets its damage factor?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-162) · **Blocks:** — (B-162 ships with A)
 **Question:** D-082 / Q-146c: under a weapon's requirement it gives less (the requirement-gap ladder, capped at 100%). A weapon can require Mind, Body and Spirit at once, so up to three gaps. How do they make one factor?

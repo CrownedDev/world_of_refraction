@@ -622,6 +622,16 @@ float UActionExecutor::ResolveTierGapMultiplier(AActor *Actor, const FAction &Ac
 	return Multiplier;
 }
 
+namespace
+{
+	/** The live run world levels (B-217): the character component's, else the asset's. */
+	FWorldPillarLevels GetLiveWorldLevels(AActor *Actor, const UCharacterData &Character)
+	{
+		const UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		return CharComp ? FWorldPillarLevels::FromComponent(*CharComp) : FWorldPillarLevels::FromAsset(Character);
+	}
+}
+
 float UActionExecutor::GetWeaponRequirementFactor(AActor *Actor, const FAction &Action) const
 {
 	if (Action.ActionType == EActionType::Spell)
@@ -635,7 +645,7 @@ float UActionExecutor::GetWeaponRequirementFactor(AActor *Actor, const FAction &
 	{
 		return WeaponRequirement::WEAPON_REQ_FACTOR_MAX;
 	}
-	return Weapon->Requirements.GetWeaponRequirementFactor(UserData);
+	return Weapon->Requirements.GetWeaponRequirementFactor(GetLiveWorldLevels(Actor, *UserData));
 }
 
 FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FAction &Action,
@@ -1348,7 +1358,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// infusion multiplies output damage, not the metaphysical strain of the cast.
 	// Exact-attunement waiver: a BD whose world pillars exactly match the spell's
 	// requirements casts the forbidden element cleanly — no self-damage, no self-buildup.
-	const bool bExactAttunement = CasterData && Spell->Requirements.ExactlyMatchedBy(CasterData);
+	const bool bExactAttunement = CasterData && Spell->Requirements.ExactlyMatchedBy(GetLiveWorldLevels(Caster, *CasterData));
 	if (bExactAttunement)
 	{
 		UE_LOG(LogWoRCombat, Verbose,
@@ -4654,13 +4664,13 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 	// requirements (+ an additive infusion deficit bonus); abilities strain off the active
 	// WEAPON's requirements (no infusion bonus). Other action types don't strain.
 	FString TriggerReason;
+	const FWorldPillarLevels LiveLevels = GetLiveWorldLevels(Actor, *CharData);
 
 	if (Action.ActionType == EActionType::Spell && Action.SpellData)
 	{
 		const int32 InfusionLevel = Action.SpellInfusionLevel;
 		const bool bInfused = (InfusionLevel >= 1);
-		const bool bOverReq =
-			UBrokenDarknessManager::DoesSpellExceedRequirements(Action.SpellData, CharData);
+		const bool bOverReq = Action.SpellData->Requirements.GetTotalDeficit(LiveLevels) > 0;
 
 		// Spell strains when over-requirement OR infused at L1/L2.
 		if (!bOverReq && !bInfused)
@@ -4682,7 +4692,7 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 		}
 
 		// Spell deficit = the spell's own requirement shortfall + an additive infusion bonus.
-		int32 Deficit = Action.SpellData->Requirements.GetTotalDeficit(CharData);
+		int32 Deficit = Action.SpellData->Requirements.GetTotalDeficit(LiveLevels);
 		if (InfusionLevel == 1)
 		{
 			Deficit += WoRTuning::Get().StrainInfusionDeficitL1;
@@ -4723,7 +4733,7 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 			return;
 		}
 
-		const int32 Deficit = Weapon->Requirements.GetTotalDeficit(CharData);
+		const int32 Deficit = Weapon->Requirements.GetTotalDeficit(LiveLevels);
 		if (Deficit <= 0)
 		{
 			return; // Caster qualifies for the weapon — no strain.
@@ -7018,7 +7028,8 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 	if (ReqSkill && CharComp->CharacterData)
 	{
 		float MindPct = 0.0f, BodyPct = 0.0f, SpiritPct = 0.0f;
-		ReqSkill->GetRequirementGapPillarPercents(CharComp->CharacterData, MindPct, BodyPct, SpiritPct);
+		ReqSkill->Requirements.GetRequirementGapPillarPercents(FWorldPillarLevels::FromComponent(*CharComp), MindPct, BodyPct,
+															   SpiritPct);
 		Result.AddPillarPercent(MindPct, BodyPct, SpiritPct);
 	}
 

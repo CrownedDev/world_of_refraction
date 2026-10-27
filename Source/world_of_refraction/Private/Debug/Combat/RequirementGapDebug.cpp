@@ -3,6 +3,7 @@
 #include "Debug/Combat/RequirementGapDebug.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Character/CharacterData.h"
+#include "Character/CharacterDataComponent.h"
 #include "Combat/Damage/TierGapConstants.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Engine/Engine.h"
@@ -49,6 +50,25 @@ FString URequirementGapDebug::GetRequirementGapString(const USkillDataBase *Skil
     Output += TEXT("  Pillar% = delta applied to every substat in that pillar\n");
     Output += TEXT("  (gap +ve = under-statted -> penalty; -ve = over-statted -> boost)\n");
     Output += TEXT("===================================\n");
+    return Output;
+}
+
+FString URequirementGapDebug::GetLiveRequirementGapString(const USkillDataBase *Skill, const UCharacterDataComponent *Combatant)
+{
+    if (!Skill || !Combatant)
+    {
+        return TEXT("ERROR: Invalid Skill or Combatant");
+    }
+
+    // The same call ComputeActionStatModifiers makes, so the readout matches combat.
+    const FWorldPillarLevels Levels = FWorldPillarLevels::FromComponent(*Combatant);
+    float MindPct = 0.0f, BodyPct = 0.0f, SpiritPct = 0.0f;
+    Skill->Requirements.GetRequirementGapPillarPercents(Levels, MindPct, BodyPct, SpiritPct);
+
+    FString Output = FString::Printf(TEXT("REQUIREMENT GAP (live run levels): %s\n"), *Skill->Name);
+    Output += FormatPillarLine(TEXT("Mind"), Skill->Requirements.RequiredWorldMind, Levels.Mind, MindPct);
+    Output += FormatPillarLine(TEXT("Body"), Skill->Requirements.RequiredWorldBody, Levels.Body, BodyPct);
+    Output += FormatPillarLine(TEXT("Spirit"), Skill->Requirements.RequiredWorldSpirit, Levels.Spirit, SpiritPct);
     return Output;
 }
 

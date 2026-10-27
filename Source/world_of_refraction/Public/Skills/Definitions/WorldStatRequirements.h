@@ -8,6 +8,19 @@
 #include "WorldStatRequirements.generated.h"
 
 class UCharacterData;
+class UCharacterDataComponent;
+
+/** A character's Mind / Body / Spirit world levels as one value (B-217). In combat, read the live
+ *  run levels (FromComponent: asset + head start + earned/bought); FromAsset is the authored base. */
+struct WORLD_OF_REFRACTION_API FWorldPillarLevels
+{
+    int32 Mind = 0;
+    int32 Body = 0;
+    int32 Spirit = 0;
+
+    static FWorldPillarLevels FromAsset(const UCharacterData &Character);
+    static FWorldPillarLevels FromComponent(const UCharacterDataComponent &Component);
+};
 
 /**
  * Reusable world stat requirements
@@ -75,6 +88,17 @@ struct WORLD_OF_REFRACTION_API FWorldStatRequirements
      *  requirement-gap ladder value clamped to [WEAPON_REQ_FACTOR_MIN, 1]; the worst pillar decides.
      *  1.0 when every pillar is met (being over gives nothing extra) or there is no character. */
     float GetWeaponRequirementFactor(const UCharacterData *Character) const;
+
+    // ==================== BY LEVELS (B-217: combat passes the live levels) ====================
+    // The UCharacterData versions above read the asset's levels (FWorldPillarLevels::FromAsset).
+
+    bool ExactlyMatchedBy(const FWorldPillarLevels &Levels) const;
+    int32 GetTotalDeficit(const FWorldPillarLevels &Levels) const;
+    float GetWeaponRequirementFactor(const FWorldPillarLevels &Levels) const;
+
+    /** Per-pillar requirement-gap percents (whole-number, 5.0 = +5%) for AddPillarPercent. */
+    void GetRequirementGapPillarPercents(const FWorldPillarLevels &Levels, float &OutMindPct, float &OutBodyPct,
+                                         float &OutSpiritPct) const;
 };
 
 namespace WeaponRequirement

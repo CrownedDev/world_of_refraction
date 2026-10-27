@@ -2,7 +2,18 @@
 
 #include "Skills/Definitions/WorldStatRequirements.h"
 #include "Character/CharacterData.h"
+#include "Character/CharacterDataComponent.h"
 #include "Combat/Damage/TierGapConstants.h"
+
+FWorldPillarLevels FWorldPillarLevels::FromAsset(const UCharacterData &Character)
+{
+    return {Character.WorldMindLevel, Character.WorldBodyLevel, Character.WorldSpiritLevel};
+}
+
+FWorldPillarLevels FWorldPillarLevels::FromComponent(const UCharacterDataComponent &Component)
+{
+    return {Component.GetWorldMind(), Component.GetWorldBody(), Component.GetWorldSpirit()};
+}
 
 bool FWorldStatRequirements::MeetsRequirements(const UCharacterData *Character) const
 {
@@ -22,9 +33,12 @@ bool FWorldStatRequirements::ExactlyMatchedBy(const UCharacterData *Character) c
     {
         return false;
     }
-    return Character->WorldMindLevel   == RequiredWorldMind &&
-           Character->WorldBodyLevel   == RequiredWorldBody &&
-           Character->WorldSpiritLevel == RequiredWorldSpirit;
+    return ExactlyMatchedBy(FWorldPillarLevels::FromAsset(*Character));
+}
+
+bool FWorldStatRequirements::ExactlyMatchedBy(const FWorldPillarLevels &Levels) const
+{
+    return Levels.Mind == RequiredWorldMind && Levels.Body == RequiredWorldBody && Levels.Spirit == RequiredWorldSpirit;
 }
 
 FString FWorldStatRequirements::GetRequirementsSummary(const UCharacterData *Character) const
@@ -95,9 +109,14 @@ int32 FWorldStatRequirements::GetTotalDeficit(const UCharacterData *Character) c
     if (!Character)
         return 0;
 
-    int32 MindDeficit = FMath::Max(0, RequiredWorldMind - Character->WorldMindLevel);
-    int32 BodyDeficit = FMath::Max(0, RequiredWorldBody - Character->WorldBodyLevel);
-    int32 SpiritDeficit = FMath::Max(0, RequiredWorldSpirit - Character->WorldSpiritLevel);
+    return GetTotalDeficit(FWorldPillarLevels::FromAsset(*Character));
+}
+
+int32 FWorldStatRequirements::GetTotalDeficit(const FWorldPillarLevels &Levels) const
+{
+    const int32 MindDeficit = FMath::Max(0, RequiredWorldMind - Levels.Mind);
+    const int32 BodyDeficit = FMath::Max(0, RequiredWorldBody - Levels.Body);
+    const int32 SpiritDeficit = FMath::Max(0, RequiredWorldSpirit - Levels.Spirit);
 
     return MindDeficit + BodyDeficit + SpiritDeficit;
 }
@@ -122,13 +141,25 @@ float FWorldStatRequirements::GetWeaponRequirementFactor(const UCharacterData *C
     {
         return WeaponRequirement::WEAPON_REQ_FACTOR_MAX;
     }
+    return GetWeaponRequirementFactor(FWorldPillarLevels::FromAsset(*Character));
+}
 
+float FWorldStatRequirements::GetWeaponRequirementFactor(const FWorldPillarLevels &Levels) const
+{
     auto PillarFactor = [](int32 Required, int32 CharLevel)
     {
         return FMath::Clamp(TierGapDamage::GetRequirementGapMultiplier(Required - CharLevel),
                             WeaponRequirement::WEAPON_REQ_FACTOR_MIN, WeaponRequirement::WEAPON_REQ_FACTOR_MAX);
     };
-    return FMath::Min3(PillarFactor(RequiredWorldMind, Character->WorldMindLevel),
-                       PillarFactor(RequiredWorldBody, Character->WorldBodyLevel),
-                       PillarFactor(RequiredWorldSpirit, Character->WorldSpiritLevel));
+    return FMath::Min3(PillarFactor(RequiredWorldMind, Levels.Mind), PillarFactor(RequiredWorldBody, Levels.Body),
+                       PillarFactor(RequiredWorldSpirit, Levels.Spirit));
+}
+
+void FWorldStatRequirements::GetRequirementGapPillarPercents(const FWorldPillarLevels &Levels, float &OutMindPct,
+                                                             float &OutBodyPct, float &OutSpiritPct) const
+{
+    // Gap = required - yours (positive = under-statted); percent = (ladder - 1) x 100.
+    OutMindPct = (TierGapDamage::GetRequirementGapMultiplier(RequiredWorldMind - Levels.Mind) - 1.0f) * 100.0f;
+    OutBodyPct = (TierGapDamage::GetRequirementGapMultiplier(RequiredWorldBody - Levels.Body) - 1.0f) * 100.0f;
+    OutSpiritPct = (TierGapDamage::GetRequirementGapMultiplier(RequiredWorldSpirit - Levels.Spirit) - 1.0f) * 100.0f;
 }
