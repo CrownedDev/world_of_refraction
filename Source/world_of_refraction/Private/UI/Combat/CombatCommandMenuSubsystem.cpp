@@ -119,6 +119,7 @@ void UCombatCommandMenuSubsystem::ClearCombatOrchestrator()
     PendingActionID.Empty();
     PendingActionData.Reset();
     PendingActionDataIndex = -1;
+    PendingInfusionLevel = 0;
     PendingTargetType = ETargetType::Enemy;
     PendingTargetCount = ETargetCount::Single;
     ResolvedTargetType = PendingTargetType;

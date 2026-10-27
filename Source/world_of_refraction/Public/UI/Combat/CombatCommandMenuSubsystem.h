@@ -114,6 +114,7 @@ public:
 
     /** B-034: the infusion level the open target picker will stamp on the action (0..2).
      *  The menu owns it; the actor's InfusionVFXComponent only shows it. */
+    UFUNCTION(BlueprintPure, Category = "Combat Command Menu")
     int32 GetPendingInfusionLevel() const { return PendingInfusionLevel; }
 
     // ==================== DEBUG ====================
