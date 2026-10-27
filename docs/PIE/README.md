@@ -97,6 +97,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-133](B-133.md) | `chore/B-133-test-harness` (in `dev`) | Tests only: nothing to play | Not tested |
 | [B-132](B-132.md) | `fix/B-132-no-player0-lookups` (in `dev`) | Encounters, battle start and the party wallet use the party leader | Not tested |
 | [B-134](B-134.md) | `chore/B-134-effects-baseline-spec` (in `dev`) | Tests only: nothing to play | Not tested |
+| [B-135](B-135.md) | `chore/B-135-buildup-defense-grid-specs` (in `dev`) | Tests only: nothing to play | Not tested |
 | [B-195](B-195.md) | `feature/B-195-hub-services` (in `dev`) | Hub services: one V NPC per service (Stone Smith, loadout vendor added), each opens its shop | Not tested |
 | [B-194](B-194.md) | `feature/B-194-memory-journal` (in `dev`) | Hub journal: reread memories and lore, V's next line, play a conversation (placeholder screen) | Not tested |
 | [B-070](B-070.md) | `fix/B-070-trial-strong-ref` (in `dev`) | The trial run keeps hold of its trial (packaged builds) | Not tested |
