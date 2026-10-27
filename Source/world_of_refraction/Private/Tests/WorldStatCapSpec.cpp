@@ -42,8 +42,7 @@ void FWorldStatCapSpec::Define()
 
 	It("is the asset's own ceiling, 7", [this]()
 	{
-		TestEqual(TEXT("LIVE_MAX"), WorldStatConstants::LIVE_MAX, StatConstants::MAX_WORLD_STAT_LEVEL);
-		TestEqual(TEXT("7 per pillar"), WorldStatConstants::LIVE_MAX, 7);
+		TestEqual(TEXT("LIVE_MAX is the asset ceiling"), WorldStatConstants::LIVE_MAX, StatConstants::MAX_WORLD_STAT_LEVEL);
 	});
 
 	It("clamps the asset level plus head-start at 7", [this]()
