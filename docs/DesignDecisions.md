@@ -1436,6 +1436,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Never missed for good** (Crown, 2026-10-27): conditions are checked again every run; failing them only means "not this run".
 - **Co-op** (Crown, 2026-10-27): each player who meets the conditions gets the memory on their own save; character / gear conditions per player's character, shared conditions for everyone present; nothing first-come.
 - **Rewards** (Crown, 2026-10-27): a hidden unlock can also grant a unique item, a skill, a title or a curse (penalty and key at once), set per unlock; different, not stronger.
+- **Gear and skills can trigger them** (Crown, 2026-10-27): conditions include **evolutions, weapons and skills**: having one equipped or slotted, its upgrade level, and **using** it (e.g. casting a certain skill, a certain evolution's Breakthrough, finishing an enemy with a certain weapon).
 - **Alternative routes** (Crown, 2026-10-27): an unlock can list several condition sets; meeting any one set opens it (all conditions within a set).
 - **Never told, no hints** (Crown, 2026-10-27): the game doesn't show the conditions and gives no rumours, cues or "?" slots; they activate when they activate (pillar 10).
 
