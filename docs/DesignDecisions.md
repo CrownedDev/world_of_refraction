@@ -1425,6 +1425,8 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
   - **Dropped:** separate field uses on battle skills, and field-only skill slots.
   - **Enhanced Sprint** is also **faster than the normal sprint** (Elden Ring Nightreign's surge sprint), on top of wall-running.
   - **Source picks the skill: A** (Crown, 2026-10-27): the **source decides which field skill** you have (e.g. a Wind crystal glides, a Lightning one dashes) and **its level decides how strong** it is. The source also decides **what is available at all**: e.g. a Generic can't fly without an elemental source that gives flight.
+  - **A range of movement** (Crown, 2026-10-27): dash, Enhanced Sprint, glide, flight, teleport and more. **All are locked until unlocked, except the normal dash**, which everyone has.
+  - **Activation:** **double-click L3** (the sprint stick) uses your field movement skill (keyboard: a double-tap of the sprint key, `// TODO` confirm; unique input action name, D-063).
   - **Some field skills are locked** until unlocked: you must have **equipped or learned a specific skill** first. **Once unlocked, anyone can use it** with the matching source: e.g. after the lightning character's lightning speed is unlocked, **any character with a Lightning source** gets lightning speed as their field skill.
 **Notes for Claude:** built on GAS (stage 4 abilities, B-043): one ability per skill with a battle and a field mode. Open details: dash-into-sprint meaning; which field skill each source gives and which are locked (`Design/FieldAbilities.md`).
 
