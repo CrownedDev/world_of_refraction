@@ -62,7 +62,8 @@ BEGIN_DEFINE_SPEC(FStatSourcesSpec, "WoR.GAS.StatSources",
 		};
 	}
 
-	static int32 ComposedCount() { return UWoRAttributeSet_Stats::GetComposedStats().Num(); }
+	/** The sources effects share one family tag: one per composed stat and per pillar (B-042t). */
+	static int32 ComposedCount() { return UWoRAttributeSet_Stats::GetComposedStats().Num() + UWoRAttributeSet_Stats::GetComposedPillars().Num(); }
 
 	TArray<FActiveGameplayEffectHandle> SourceEffects() const
 	{

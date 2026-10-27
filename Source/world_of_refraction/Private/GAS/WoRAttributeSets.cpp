@@ -1,6 +1,7 @@
 // WoRAttributeSets.cpp
 
 #include "GAS/WoRAttributeSets.h"
+#include "Character/CharacterDataComponent.h"
 #include "Character/StatLayers.h"
 #include "Net/UnrealNetwork.h"
 
@@ -36,9 +37,15 @@ void UWoRAttributeSet_Stats::PreAttributeChange(const FGameplayAttribute &Attrib
 	Super::PreAttributeChange(Attribute, NewValue);
 	// As Lyra clamps Health here: the stat-sources effect multiplies these past the base (Q-042p).
 	ESubStat Stat;
+	EWorldPillar Pillar;
 	if (GetComposedStat(Attribute, Stat))
 	{
 		NewValue = FWoRStatLayers::ForStat(Stat).Clamp(NewValue);
+	}
+	else if (GetComposedPillar(Attribute, Pillar))
+	{
+		// The pillar modifier is capped alone, so the clamp follows the world base the sync set.
+		NewValue = FWoRStatLayers::ForPillar(Attribute.GetGameplayAttributeData(this)->GetBaseValue()).Clamp(NewValue);
 	}
 	else if (Attribute == GetCritChanceAttribute())
 	{
@@ -71,6 +78,29 @@ bool UWoRAttributeSet_Stats::GetComposedStat(const FGameplayAttribute &Attribute
 		if (Composed.Value == Attribute)
 		{
 			OutStat = Composed.Key;
+			return true;
+		}
+	}
+	return false;
+}
+
+TConstArrayView<TPair<EWorldPillar, FGameplayAttribute>> UWoRAttributeSet_Stats::GetComposedPillars()
+{
+	static const TPair<EWorldPillar, FGameplayAttribute> ComposedPillars[] = {
+		{EWorldPillar::Mind, GetMindAttribute()},
+		{EWorldPillar::Body, GetBodyAttribute()},
+		{EWorldPillar::Spirit, GetSpiritAttribute()},
+	};
+	return ComposedPillars;
+}
+
+bool UWoRAttributeSet_Stats::GetComposedPillar(const FGameplayAttribute &Attribute, EWorldPillar &OutPillar)
+{
+	for (const TPair<EWorldPillar, FGameplayAttribute> &Composed : GetComposedPillars())
+	{
+		if (Composed.Value == Attribute)
+		{
+			OutPillar = Composed.Key;
 			return true;
 		}
 	}

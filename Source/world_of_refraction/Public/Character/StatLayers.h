@@ -56,6 +56,17 @@ struct FWoRStatLayers
 		return Layers;
 	}
 
+	/** A pillar's layers (B-042t): the pillar modifier is capped alone, so the compose clamp is that cap
+	 *  times the world base, and the base itself is never clamped. */
+	static FWoRStatLayers ForPillar(float WorldBase)
+	{
+		FWoRStatLayers Layers;
+		Layers.StatBase = WorldBase;
+		Layers.Min = FMath::Min(WorldBase * CombatConstants::STAT_MODIFIER_MIN, WorldBase * CombatConstants::STAT_MODIFIER_MAX);
+		Layers.Max = FMath::Max(WorldBase * CombatConstants::STAT_MODIFIER_MIN, WorldBase * CombatConstants::STAT_MODIFIER_MAX);
+		return Layers;
+	}
+
 	/** StatBase x gear x stone x transient, clamped to [Min, Max]. */
 	float Compose() const
 	{

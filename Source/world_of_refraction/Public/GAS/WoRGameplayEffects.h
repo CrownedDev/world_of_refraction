@@ -17,6 +17,7 @@
 class UWoRMMC_ClampedStatTerm;
 
 enum class ESubStat : uint8;
+enum class EWorldPillar : uint8;
 
 /** Base for the native family GEs: the constructor helpers that add tag components. */
 UCLASS(Abstract)
@@ -218,6 +219,9 @@ public:
 	/** The sources effect for Stat; null when Stat isn't composed (UWoRAttributeSet_Stats::GetComposedStats). */
 	static TSubclassOf<UGameplayEffect> GetClassFor(ESubStat Stat);
 
+	/** A pillar's sources effect (B-042t): gear = the equipment layer, stone = the crystal layer. */
+	static TSubclassOf<UGameplayEffect> GetClassFor(EWorldPillar Pillar);
+
 protected:
 	void AddSourceModifiers(const FGameplayAttribute &Attribute);
 };
@@ -311,6 +315,33 @@ class WORLD_OF_REFRACTION_API UWoRGE_StatSources_Efficiency : public UWoRGE_Stat
 
 public:
 	UWoRGE_StatSources_Efficiency();
+};
+
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_StatSources_Mind : public UWoRGE_StatSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_StatSources_Mind();
+};
+
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_StatSources_Body : public UWoRGE_StatSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_StatSources_Body();
+};
+
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_StatSources_Spirit : public UWoRGE_StatSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_StatSources_Spirit();
 };
 
 /** B-042s (Q-042s): a stat derived from other attributes, as one Infinite effect the attribute sync

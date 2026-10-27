@@ -2479,6 +2479,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** B. A capture reads the source attribute's aggregator, and the attribute set's clamp (PreAttributeChange) only clamps the stored current value, never what a capture sees (tranek's GASDocumentation, "PreAttributeChange": clamping there doesn't change the aggregator, so later reads recompute from the unclamped value). With A, Luck past its 2.0 ceiling gave a higher crit chance on GAS than the game's getter. A custom calculation class is GAS's tool for a formula the built-in magnitude types (Scalable Float, Attribute Based, Set By Caller) can't express, which a clamp is. Same live tracking, one shared class.
 **Notes for Claude:** B-042s built B (A first; the reviewer caught the clamp gap). Crit chance and Efficiency derive live (a Luck change moves crit chance with no re-sync). B-042t takes the pillars, pools, turn speed and resistance.
 
+### Q-042t — The pillars on GAS: how to clamp a cap that is on the modifier, not the value?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042t) · **Blocks:** —
+**Question:** `GetEvolutionModified*` caps the pillar's modifier (crystal x equipment x buff) at [0, 2] and never clamps the world base, so the bound on the value depends on each character's base. The other composed stats have fixed bounds (`FWoRStatLayers::ForStat`). How does GAS clamp the pillars? And split the pools, turn speed and resistance off?
+**Options:**
+- **A** (as built) the stat-sources shape over the world base, and the attribute set clamps the pillar to [0, 2] x its own base value (the world base the sync sets). For a non-negative base that is the same number as capping the modifier.
+- **B** one custom calculation computing the whole modifier, so the clamp lives in code next to the layers.
+- **C** no clamp on GAS until something reads it.
+**Recommendation:** A. Clamping one attribute against another value in `PreAttributeChange` is the standard GAS pattern: Lyra's health set clamps Health to [0, MaxHealth] there (`ULyraHealthSet::ClampAttribute`), and tranek's GASDocumentation recommends `PreAttributeChange` for clamps of this kind. It reuses the shape nine stats already use, and nothing captures a pillar, so the capture gap of Q-042s doesn't arise. B adds a class for the same number. C leaves `wor.CompareAttributes` wrong under a big buff. The pools need a whole-number round and turn speed needs one getter first, so they go to their own jobs: B-042u (pools) and B-042v (turn speed, resistance).
+**Notes for Claude:** B-042t built A. If anything ever captures a pillar (an MMC), clamp the captured value the way `UWoRMMC_ClampedStatTerm` does.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

@@ -7,7 +7,8 @@
 // Only the authority writes; clients get the values by replication.
 // B-042p: SpellDamage, RawDamage, ActionSpeed and SpellSpeed are composed on GAS instead: the base
 // holds the capped stat (FWoRStatLayers::StatBase) and a UWoRGE_StatSources effect multiplies in the
-// gear, stone and buff layers, so their current value still equals the getter (Q-042p).
+// gear, stone and buff layers, so their current value still equals the getter (Q-042p). B-042t: the
+// pillars the same way, over their world base.
 // Debug: UWoRAttributeDebug (wor.CompareAttributes).
 
 #pragma once
@@ -25,7 +26,7 @@ class UGameplayEffect;
 struct FActiveSkillEffect;
 enum class ESubStat : uint8;
 
-/** The stat-sources effect applied for one composed stat, and the layers it carries. */
+/** The stat-sources effect applied for one composed stat or pillar, and the layers it carries. */
 struct FWoRAppliedStatSources
 {
 	FActiveGameplayEffectHandle Handle;
@@ -91,15 +92,16 @@ private:
 	void BindSources();
 	void UnbindSources();
 
-	/** Base = the capped stat; re-applies Stat's sources effect when its layers changed (B-042p). */
-	void SyncComposedStat(UAbilitySystemComponent &ASC, ESubStat Stat, const FGameplayAttribute &Attribute,
-						  const FWoRStatLayers &Layers);
-	void RemoveStatSources(UAbilitySystemComponent &ASC, ESubStat Stat);
+	/** Base = the capped stat (or the pillar's world base); applies its sources effect once and keeps its
+	 *  layers current (B-042p, B-042t). */
+	void SyncComposedStat(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute, const FWoRStatLayers &Layers,
+						  TSubclassOf<UGameplayEffect> SourcesClass);
+	void RemoveStatSources(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute);
 
 	/** Base = the derived stat's constant part; applies its derived effect once and keeps crit chance's
 	 *  buff layer current (B-042s). */
 	void SyncDerivedStat(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute, TSubclassOf<UGameplayEffect> DerivedClass);
 
-	TMap<ESubStat, FWoRAppliedStatSources> AppliedStatSources;
+	TMap<FGameplayAttribute, FWoRAppliedStatSources> AppliedStatSources;
 	TMap<FGameplayAttribute, FWoRAppliedDerivedStat> AppliedDerivedStats;
 };

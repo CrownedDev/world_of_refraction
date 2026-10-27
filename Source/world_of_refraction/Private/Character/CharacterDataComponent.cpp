@@ -635,18 +635,22 @@ namespace
      *  model) before applying to the base. Every layer is independently optional; each
      *  collapses to ×1.0 when absent, so a character with none is byte-identical to the
      *  raw base value (the cap is inert below 2.0). */
-    enum class ECrystalPillar : uint8 { Mind, Body, Spirit };
+    using ECrystalPillar = EWorldPillar;
 
-    float ApplyEvolutionPillarModifier(AActor *Owner, float BaseValue, ECrystalPillar Pillar)
+    /** The three layers as FWoRStatLayers (B-042t), so the getter and the GAS pillar sources build one
+     *  number: StoneFactor = the crystal layer, GearFactor = the equipment layer, TransientFactor = the
+     *  floored pillar buff, over the world base. */
+    FWoRStatLayers BuildPillarLayers(AActor *Owner, float BaseValue, ECrystalPillar Pillar)
     {
+        FWoRStatLayers Layers = FWoRStatLayers::ForPillar(BaseValue);
         if (!Owner)
         {
-            return BaseValue;
+            return Layers;
         }
         ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>();
         if (!Loadout)
         {
-            return BaseValue;
+            return Layers;
         }
 
         // Crystal layer — read pillar percent directly from the crystal's
@@ -663,7 +667,6 @@ namespace
         // attachment's Generated (the per-instance roll) — rolled pillars are
         // PERMANENT (always-on), inheriting Base pillars' permanence per the
         // locked option-(a) split. All-zero Generated falls back to Base only.
-        float Modifier = 1.0f;
         const FEvolutionAttachment WeaponEvo = Loadout->GetActivePrimaryEvolutionAttachment(Owner);
         if (WeaponEvo.Item)
         {
@@ -674,7 +677,7 @@ namespace
             case ECrystalPillar::Body:   CrystalPercent = WeaponEvo.Item->BaseStatBonus.BonusBodyModifierPercent   + WeaponEvo.GeneratedStatBonus.BonusBodyModifierPercent;   break;
             case ECrystalPillar::Spirit: CrystalPercent = WeaponEvo.Item->BaseStatBonus.BonusSpiritModifierPercent + WeaponEvo.GeneratedStatBonus.BonusSpiritModifierPercent; break;
             }
-            Modifier *= (1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR);
+            Layers.StoneFactor = 1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR;
         }
         else
         {
@@ -689,7 +692,7 @@ namespace
                 case ECrystalPillar::Body:   CrystalPercent = PrimaryEvo->BaseStatBonus.BonusBodyModifierPercent   + Active.PrimaryEvolution.GeneratedStatBonus.BonusBodyModifierPercent;   break;
                 case ECrystalPillar::Spirit: CrystalPercent = PrimaryEvo->BaseStatBonus.BonusSpiritModifierPercent + Active.PrimaryEvolution.GeneratedStatBonus.BonusSpiritModifierPercent; break;
                 }
-                Modifier *= (1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR);
+                Layers.StoneFactor = 1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR;
             }
         }
 
@@ -702,7 +705,7 @@ namespace
         case ECrystalPillar::Body:   EquipmentPercent = Bonus.BonusBodyModifierPercent;   break;
         case ECrystalPillar::Spirit: EquipmentPercent = Bonus.BonusSpiritModifierPercent; break;
         }
-        Modifier *= (1.0f + EquipmentPercent / CombatConstants::STAT_PERCENT_DIVISOR);
+        Layers.GearFactor = 1.0f + EquipmentPercent / CombatConstants::STAT_PERCENT_DIVISOR;
 
         // Transient layer — pillar-wide buff/debuff (MindBuff/BodyBuff/SpiritBuff and their
         // Debuffs): the broad "scale ALL of this pillar's sub-stats" skill-effect channel.
@@ -729,18 +732,23 @@ namespace
                     }
                     const float PillarBuff = SEM->GetTotalStatModifier(Owner, BuffType);
                     const float PillarDebuff = SEM->GetTotalStatModifier(Owner, DebuffType);
-                    Modifier *= FMath::Max(0.0f, 1.0f + (PillarBuff - PillarDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+                    Layers.TransientFactor = FMath::Max(0.0f, 1.0f + (PillarBuff - PillarDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
                 }
             }
         }
 
-        // [-100%, +100%] normalization — hard-cap the COMPOSED modifier (crystal × equipment
-        // × transient) to [0, 2], additional to the inner Max(0,…) transient floor. Byte-
-        // identical below 2.0 (a bare/normally-geared character's product is < 2.0, so the
-        // clamp is inert). The lower bound (0) is the safety floor: the transient is already
-        // Max(0,…)-floored, but a ≤−100% crystal/equipment modifier percent would make its
-        // factor negative — the Clamp guarantees the modifier never goes below 0 regardless.
-        Modifier = FMath::Clamp(Modifier, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+        return Layers;
+    }
+
+    float ApplyEvolutionPillarModifier(AActor *Owner, float BaseValue, ECrystalPillar Pillar)
+    {
+        // [-100%, +100%] normalization: the COMPOSED modifier (crystal x equipment x transient) is
+        // hard-capped to [0, 2], additional to the transient's own Max(0,...) floor; a <= -100% crystal
+        // or equipment percent would otherwise make it negative. Inert below 2.0, so a bare or
+        // normally geared character is byte-identical. The base is never clamped.
+        const FWoRStatLayers Layers = BuildPillarLayers(Owner, BaseValue, Pillar);
+        const float Modifier = FMath::Clamp(Layers.StoneFactor * Layers.GearFactor * Layers.TransientFactor,
+                                            CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
         return BaseValue * Modifier;
     }
 }
@@ -771,6 +779,23 @@ float UCharacterDataComponent::GetEvolutionModifiedSpirit() const
         return 0.0f;
     }
     return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveSpiritForLevel(GetWorldSpirit()), ECrystalPillar::Spirit);
+}
+
+bool UCharacterDataComponent::GetPillarLayers(EWorldPillar Pillar, FWoRStatLayers &OutLayers) const
+{
+    if (!CharacterData)
+    {
+        return false;
+    }
+    float WorldBase = 0.0f;
+    switch (Pillar)
+    {
+    case EWorldPillar::Mind:   WorldBase = CharacterData->GetEffectiveMindForLevel(GetWorldMind());     break;
+    case EWorldPillar::Body:   WorldBase = CharacterData->GetEffectiveBodyForLevel(GetWorldBody());     break;
+    case EWorldPillar::Spirit: WorldBase = CharacterData->GetEffectiveSpiritForLevel(GetWorldSpirit()); break;
+    }
+    OutLayers = BuildPillarLayers(GetOwner(), WorldBase, Pillar);
+    return true;
 }
 
 void UCharacterDataComponent::RecomputeMaxPools()
