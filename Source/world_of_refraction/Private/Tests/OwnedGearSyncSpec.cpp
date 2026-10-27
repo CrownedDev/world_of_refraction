@@ -186,6 +186,25 @@ void FOwnedGearSyncSpec::Define()
 		TestNull(TEXT("No ghost evolution in the loadout"), Inventory->SavedLoadouts[1].PrimaryEvolution.Item);
 		TestFalse(TEXT("No stale instance id"), Inventory->SavedLoadouts[1].PrimaryEvolutionInstance.IsValid());
 	});
+
+	It("takes a dismantled evolution off the sword it was attached to, in every loadout", [this]()
+	{
+		if (!Inventory || !Evolutions || !SwordId.IsValid()) return;
+		UEconomyService *Economy = TestWorld->GetSubsystem<UEconomyService>();
+		if (!TestNotNull(TEXT("EconomyService"), Economy)) return;
+		UEvolutionItemData *Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+		Evolution->MaxDurability = OWNED_SYNC_EVO_MAX_DURABILITY;
+		TestTrue(TEXT("Evolution owned"), Evolutions->AddInstance(Evolution));
+		const FGuid EvolutionId = Evolutions->Entries.Num() > 0 ? Evolutions->Entries.Last().InstanceID : FGuid();
+		Inventory->LinkLoadoutsToOwned();
+		TestTrue(TEXT("Attached to the owned sword"), Inventory->AttachEvolutionToWeapon(SwordId, EvolutionId));
+		TestTrue(TEXT("Loadout 1 shows it"), SlotIn(1).AttachedItem.IsEvolution());
+
+		TestTrue(TEXT("Dismantled"), Economy->DismantleEvolution(Owner, EvolutionId));
+		TestTrue(TEXT("Owned sword's socket empty"), OwnedSword().AttachedItem.IsEmpty());
+		TestTrue(TEXT("Loadout 0 socket empty"), SlotIn(0).AttachedItem.IsEmpty());
+		TestTrue(TEXT("Loadout 1 socket empty"), SlotIn(1).AttachedItem.IsEmpty());
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
