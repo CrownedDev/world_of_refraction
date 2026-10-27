@@ -20,6 +20,8 @@ namespace
 	constexpr float HIT_PATH_TEST_REFLECT_PERCENT = 50.0f;
 	constexpr int32 HIT_PATH_TEST_EFFECT_TURNS = 3;
 	constexpr int32 HIT_PATH_TEST_TOUGH_HP = 10000; // no test hit overkills
+	constexpr float HIT_PATH_TEST_LAST_STAND_PERCENT = 50.0f;
+	constexpr int32 HIT_PATH_TEST_LAST_STAND_ID = 1; // distinct from the reflect's 0, so both are held
 	constexpr int32 HIT_PATH_TEST_FRAIL_HP = 10;	   // any test hit overkills
 }
 
@@ -158,6 +160,24 @@ void FHitPathSpec::Define()
 		TestTrue(TEXT("the hit killed"), Hit.bTargetDied);
 		TestEqual(TEXT("lost only its HP"), Hit.DamageDealt, HIT_PATH_TEST_FRAIL_HP);
 		TestEqual(TEXT("reflect is a share of that"), HPBefore - AttackerHP(), ReflectedShare(HIT_PATH_TEST_FRAIL_HP));
+	});
+
+	It("a Last Stand save still reflects a share of the HP the target had (Q-032)", [this]()
+	{
+		if (!TestTrue(TEXT("setup"), Executor && Attacker))
+		{
+			return;
+		}
+		AActor *Target = SpawnWithReflect(ESkillEffectType::DamageReflect, HIT_PATH_TEST_FRAIL_HP);
+		TestWorld->GetSubsystem<USkillEffectManager>()->ApplyEffect(
+			Target,
+			FActiveSkillEffect::CreateBuff(TEXT("Test last stand"), HIT_PATH_TEST_LAST_STAND_ID, ESkillEffectType::LastStand, HIT_PATH_TEST_LAST_STAND_PERCENT,
+										   HIT_PATH_TEST_EFFECT_TURNS),
+			Target);
+		const int32 HPBefore = AttackerHP();
+		const FCombatHitResult Hit = Executor->ApplyHit(DamageOnlyHit(Target, EActionType::None));
+		TestFalse(TEXT("Last Stand saved it"), Hit.bTargetDied);
+		TestEqual(TEXT("reflect is a share of the HP it had"), HPBefore - AttackerHP(), ReflectedShare(HIT_PATH_TEST_FRAIL_HP));
 	});
 
 	It("DoubleHit skips its second hit when the first one killed (Q-032)", [this]()
