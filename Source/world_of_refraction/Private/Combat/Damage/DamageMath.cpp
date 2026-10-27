@@ -3,10 +3,16 @@
 #include "Combat/Damage/DamageMath.h"
 #include "Combat/CombatConstants.h"
 
-float WoRDamageMath::GetElementMultiplier(float ElementResistance, bool bIgnoreDefense)
+float WoRDamageMath::GetElementMultiplier(float ElementResistance, float IgnoreDefense)
 {
-	const float Resistance = bIgnoreDefense ? FMath::Min(ElementResistance, 0.0f) : ElementResistance;
+	const float Resistance = ElementResistance > 0.0f ? ElementResistance * (1.0f - FMath::Clamp(IgnoreDefense, 0.0f, 1.0f))
+													  : ElementResistance;
 	return 1.0f - FMath::Clamp(Resistance, -ELEMENT_DAMAGE_RESIST_CAP, ELEMENT_DAMAGE_RESIST_CAP);
+}
+
+float WoRDamageMath::GetIgnoredDefense(float DefenderDefense, float IgnoreDefense)
+{
+	return DefenderDefense * (1.0f - FMath::Clamp(IgnoreDefense, 0.0f, 1.0f));
 }
 
 FDamageCalculationResult WoRDamageMath::Compute(const FDamageMathInputs &Inputs)
@@ -62,7 +68,7 @@ FDamageCalculationResult WoRDamageMath::Compute(const FDamageMathInputs &Inputs)
 	}
 
 	// Step 3: the defender's resistance to the hit's element (D-005 C, D-036).
-	Result.ElementMultiplier = GetElementMultiplier(Inputs.ElementResistance, Inputs.bIgnoreDefense);
+	Result.ElementMultiplier = GetElementMultiplier(Inputs.ElementResistance, Inputs.IgnoreDefense);
 	RunningDamage *= Result.ElementMultiplier;
 
 	// Step 4: critical hit. ActionMods' crit-chance boost routes through Luck (5e-C2).
@@ -84,7 +90,7 @@ FDamageCalculationResult WoRDamageMath::Compute(const FDamageMathInputs &Inputs)
 	{
 		Result.DefenderFlatDefense = Inputs.DefenderDefense;
 		const int32 PreDefenseDamage = FMath::RoundToInt(RunningDamage);
-		RunningDamage *= (1.0f - Inputs.DefenderDefense);
+		RunningDamage *= (1.0f - GetIgnoredDefense(Inputs.DefenderDefense, Inputs.IgnoreDefense));
 		Result.DamageBlockedByDefense = PreDefenseDamage - FMath::RoundToInt(RunningDamage);
 	}
 
@@ -117,9 +123,9 @@ FString WoRDamageMath::GetInputsString(const FDamageMathInputs &Inputs)
 	Out += FString::Printf(TEXT("Crit %s: chance %.4f  forced %s  roll %.4f  damage x%.4f\n"),
 						   Inputs.bCanCrit ? TEXT("on") : TEXT("off"), Inputs.CritChance,
 						   Inputs.bForceCrit ? TEXT("yes") : TEXT("no"), Inputs.CritRoll, Inputs.CritDamageMultiplier);
-	Out += FString::Printf(TEXT("Element resistance %.4f (x%.4f)  ignore defense %s\n"), Inputs.ElementResistance,
-						   GetElementMultiplier(Inputs.ElementResistance, Inputs.bIgnoreDefense),
-						   Inputs.bIgnoreDefense ? TEXT("yes") : TEXT("no"));
+	Out += FString::Printf(TEXT("Element resistance %.4f (x%.4f)  ignore defense %.0f%%\n"), Inputs.ElementResistance,
+						   GetElementMultiplier(Inputs.ElementResistance, Inputs.IgnoreDefense),
+						   Inputs.IgnoreDefense * CombatConstants::STAT_PERCENT_DIVISOR);
 	Out += FString::Printf(TEXT("Defense %s: %.4f  grid defense %.4f\n"), Inputs.bApplyDefense ? TEXT("on") : TEXT("off"),
 						   Inputs.DefenderDefense, Inputs.GridDefenseModifier);
 	return Out;

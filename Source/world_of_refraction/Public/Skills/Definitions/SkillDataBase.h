@@ -255,6 +255,11 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
     TArray<FStatScaling> StatScaling;
 
+    /** Ignore Defense, as a percent (D-086): this skill's hits cut the target's Defense and positive
+     *  element resistance by this share (Q-146b A). 0 = none, 100 = all (the old all-or-nothing). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "0", ClampMax = "100", Units = "Percent"))
+    float IgnoreDefensePercent = 0.0f;
+
     /** Default 0 means free. Attacks are free unless designers set a cost. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "0"))
     int32 BaseEnergyCost = 0;

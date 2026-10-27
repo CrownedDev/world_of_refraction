@@ -107,16 +107,10 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 		Inputs.CritDamageMultiplier = GetCritDamageMultiplier(Attacker);
 	}
 
-	// Defender. Input.bIgnoreDefense or the attacker's IgnoreDefense effect skips defense.
-	bool bSkipDefense = Input.bIgnoreDefense;
-	if (!bSkipDefense && Attacker)
-	{
-		if (USkillEffectManager *DefMgr = GetSkillEffectManager())
-		{
-			bSkipDefense = DefMgr->HasEffectOfType(Attacker, ESkillEffectType::IgnoreDefense);
-		}
-	}
-	Inputs.bIgnoreDefense = bSkipDefense;
+	// Defender. Ignore Defense is an amount (D-086): the skill's, plus the attacker's IgnoreDefense
+	// effects; all of it skips the Defense step, as the old all-or-nothing did.
+	Inputs.IgnoreDefense = GetIgnoreDefenseFraction(Attacker, Input);
+	const bool bSkipDefense = Inputs.IgnoreDefense >= 1.0f;
 
 	// Element resistance (D-005 C, D-036): the defender's per-element resistance; Ice resistance
 	// also resists Water (Q-145b). Non-elemental hits read none: physical is Defense only (Q-145).
@@ -257,6 +251,23 @@ float UDamageCalculator::GetEffectiveStatForScaling(AActor *Attacker, ESubStat S
 	case ESubStat::None:
 	default:                         return 0.0f;
 	}
+}
+
+float UDamageCalculator::GetIgnoreDefenseFraction(AActor *Attacker, const FDamageCalculationInput &Input) const
+{
+	float Percent = Input.bIgnoreDefense ? CombatConstants::STAT_PERCENT_DIVISOR : Input.IgnoreDefensePercent;
+	if (const USkillEffectManager *EffectMgr = Attacker ? GetSkillEffectManager() : nullptr)
+	{
+		for (const FActiveSkillEffect &Effect : EffectMgr->GetEffectsByType(Attacker, ESkillEffectType::IgnoreDefense))
+		{
+			// An effect authored without an amount (no value, or a 1 = on flag) keeps the old full ignore
+			// (D-086: old skills map to 100%).
+			// The flag test is per application, so a stacked flag stays a flag.
+			Percent += Effect.EffectValue > CombatConstants::IGNORE_DEFENSE_FLAG_VALUE ? Effect.GetStackedValue()
+																					   : CombatConstants::STAT_PERCENT_DIVISOR;
+		}
+	}
+	return FMath::Clamp(Percent / CombatConstants::STAT_PERCENT_DIVISOR, 0.0f, 1.0f);
 }
 
 float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const

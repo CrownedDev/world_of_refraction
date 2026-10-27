@@ -59,9 +59,10 @@ struct WORLD_OF_REFRACTION_API FDamageMathInputs
 	/** The defender's resistance to the hit's element (fraction, + resists, - weak; uncapped).
 	 *  0 for non-elemental hits (D-005, D-036, Q-145). */
 	float ElementResistance = 0.0f;
-	/** Ignore Defense (input flag or the attacker's effect): also ignores positive element
-	 *  resistance (Q-146b, all-or-nothing today). */
-	bool bIgnoreDefense = false;
+	/** Ignore Defense as a fraction, 0-1 (D-086): the skill's amount plus the attacker's IgnoreDefense
+	 *  effects. It scales down Defense and positive element resistance alike; weaknesses stay
+	 *  (Q-146b A). 1 = today's full ignore: the Defense step is skipped. */
+	float IgnoreDefense = 0.0f;
 	bool bApplyDefense = false;
 	/** GetDefenderFlatDefense: a reduction fraction. */
 	float DefenderDefense = 0.0f;
@@ -75,8 +76,11 @@ namespace WoRDamageMath
 	constexpr float ELEMENT_DAMAGE_RESIST_CAP = 0.5f;
 
 	/** The element step's multiplier: 1 - resistance, resistance capped at +-ELEMENT_DAMAGE_RESIST_CAP,
-	 *  positive resistance ignored under Ignore Defense. */
-	WORLD_OF_REFRACTION_API float GetElementMultiplier(float ElementResistance, bool bIgnoreDefense);
+	 *  positive resistance scaled by (1 - IgnoreDefense) (Q-146b A). */
+	WORLD_OF_REFRACTION_API float GetElementMultiplier(float ElementResistance, float IgnoreDefense);
+
+	/** Defense after Ignore Defense: Defense x (1 - IgnoreDefense) (D-086). */
+	WORLD_OF_REFRACTION_API float GetIgnoredDefense(float DefenderDefense, float IgnoreDefense);
 
 	/** The damage for Inputs. No actor, subsystem or random reads. */
 	WORLD_OF_REFRACTION_API FDamageCalculationResult Compute(const FDamageMathInputs &Inputs);

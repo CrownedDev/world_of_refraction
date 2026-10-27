@@ -2937,6 +2937,7 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			if (const USkillDataBase *ChainSkillData = GetCurrentSkillData())
 			{
 				DmgInput.StatScaling = ChainSkillData->StatScaling;
+				DmgInput.IgnoreDefensePercent = ChainSkillData->IgnoreDefensePercent;
 			}
 
 			const FDamageCalculationResult CalcResult = DamageCalc->CalculateDamage(Input.Attacker, Input.Target, DmgInput);
