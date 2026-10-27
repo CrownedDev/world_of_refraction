@@ -18,6 +18,7 @@
 #include "Equipment/Crystals/FEvolutionInventoryEntry.h"
 #include "Equipment/Crystals/EvolutionItemData.h" // GetAssociatedElement for the dismantle yield
 #include "Loadout/LoadoutComponent.h"              // ClearPrimaryEvolution for the primary-remove action
+#include "Combat/TurnManager.h"                     // gear dismantle waits until the fight is over
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Rings/RingData.h"
 #include "Skills/Definitions/SpellData.h"
@@ -76,6 +77,37 @@ namespace
         ((Missing += OutComponents ? FString() : TComponents::StaticClass()->GetName() + TEXT(" ")), ...);
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s: %s missing %s"), Op, *Owner->GetName(), *Missing.TrimEnd());
         return false;
+    }
+
+    /** Players count loadouts from 1; SavedLoadouts from 0. */
+    constexpr int32 LOADOUT_DISPLAY_OFFSET = 1;
+
+    /** Gear dismantle changes loadouts, so it waits until the fight is over (B-081 effects stay armed mid-fight). */
+    bool EconomyOutOfCombat(const AActor *Owner, const TCHAR *Op)
+    {
+        const UWorld *World = Owner->GetWorld();
+        const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+        const UTurnManager *TurnManager = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+        if (TurnManager && TurnManager->IsCombatActive())
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s: refused during combat"), Op);
+            return false;
+        }
+        return true;
+    }
+
+    /** D-016: take the instance out of every saved loadout; tell listeners when the active one changed. */
+    void EconomyStripFromLoadouts(AActor *Owner, UInventoryComponent *Inv, const FGuid &PersistentID)
+    {
+        const bool bActiveChanged = Inv->GetLoadoutsUsing(PersistentID).Contains(Inv->ActiveLoadoutIndex);
+        Inv->RemoveFromSavedLoadouts(PersistentID);
+        if (bActiveChanged)
+        {
+            if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+            {
+                Loadout->OnLoadoutChanged.Broadcast(Inv->ActiveLoadoutIndex);
+            }
+        }
     }
 }
 
@@ -281,7 +313,7 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
 
 bool UEconomyService::DismantleWeapon(AActor *Owner, FGuid PersistentID)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("DismantleWeapon")))
+    if (!EconomyHasAuthority(Owner, TEXT("DismantleWeapon")) || !EconomyOutOfCombat(Owner, TEXT("DismantleWeapon")))
     {
         return false;
     }
@@ -308,7 +340,7 @@ bool UEconomyService::DismantleWeapon(AActor *Owner, FGuid PersistentID)
     const int32 Yield = EconomyYield::GetLevelingEssenceYieldForTier(Tier);
 
     // D-016: no ghost copy left in a saved loadout. Doesn't touch Inv->Weapons, so Entry stays valid.
-    Inv->RemoveFromSavedLoadouts(PersistentID);
+    EconomyStripFromLoadouts(Owner, Inv, PersistentID);
 
     // REMOVE FIRST — a failed removal must never grant phantom essence.
     if (!Inv->RemoveWeaponByPersistentID(PersistentID))
@@ -326,7 +358,7 @@ bool UEconomyService::DismantleWeapon(AActor *Owner, FGuid PersistentID)
 
 bool UEconomyService::DismantleRing(AActor *Owner, FGuid PersistentID)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("DismantleRing")))
+    if (!EconomyHasAuthority(Owner, TEXT("DismantleRing")) || !EconomyOutOfCombat(Owner, TEXT("DismantleRing")))
     {
         return false;
     }
@@ -349,7 +381,7 @@ bool UEconomyService::DismantleRing(AActor *Owner, FGuid PersistentID)
     const EItemTier Tier = Entry->Tier; // INSTANCE tier (leveled), not Entry->Ring->Tier (asset/base)
     const int32 Yield = EconomyYield::GetLevelingEssenceYieldForTier(Tier);
 
-    Inv->RemoveFromSavedLoadouts(PersistentID); // D-016: no ghost copy left in a saved loadout
+    EconomyStripFromLoadouts(Owner, Inv, PersistentID); // D-016: no ghost copy left in a saved loadout
 
     if (!Inv->RemoveRingByPersistentID(PersistentID))
     {
@@ -378,7 +410,7 @@ FText UEconomyService::GetDismantleWarning(const AActor *Owner, FGuid Persistent
     TArray<FText> LoadoutNumbers;
     for (const int32 Index : Using)
     {
-        LoadoutNumbers.Add(FText::AsNumber(Index + 1)); // players count loadouts from 1
+        LoadoutNumbers.Add(FText::AsNumber(Index + LOADOUT_DISPLAY_OFFSET));
     }
     TArray<FText> Lines;
     Lines.Add(FText::Format(LOCTEXT("DismantleEquipped", "This is equipped in {0}|plural(one=loadout,other=loadouts) {1}. Dismantle anyway?"),
@@ -398,7 +430,7 @@ FText UEconomyService::GetDismantleWarning(const AActor *Owner, FGuid Persistent
                                     FText::FromString(Data->Name)));
         }
     }
-    return FText::Join(FText::FromString(LINE_TERMINATOR), Lines);
+    return FText::Join(FText::FromString(TEXT("\n")), Lines);
 }
 
 #undef LOCTEXT_NAMESPACE

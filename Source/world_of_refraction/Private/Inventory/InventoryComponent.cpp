@@ -815,7 +815,8 @@ bool UInventoryComponent::LoadoutHasGear(const FCombatLoadout &Loadout)
                           (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid()) ||
                           (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item);
     const bool bSecondary = Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid();
-    const bool bRings = Loadout.RingLoadout.ContainsByPredicate([](const FRingLoadoutEntry &Ring) { return Ring.IsValid(); });
+    // The active ring, as ABattleGameMode::CanEnterCombat reads it (GetActiveRing).
+    const bool bRings = Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex) && Loadout.RingLoadout[Loadout.ActiveRingIndex].IsValid();
     return bPrimary || bSecondary || bRings;
 }
 

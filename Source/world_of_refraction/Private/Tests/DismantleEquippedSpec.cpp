@@ -79,7 +79,8 @@ void FDismantleEquippedSpec::Define()
 		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
 		Active.PrimarySlotType = EPrimarySlotType::Weapon;
 		Active.PrimaryWeapon.WeaponEntry = Inventory->Weapons[0];
-		Inventory->SavedLoadouts.Add(Active); // equipped in a second loadout too
+		const FCombatLoadout SecondLoadout = Active; // copy first: Add may reallocate under Active
+		Inventory->SavedLoadouts.Add(SecondLoadout); // equipped in a second loadout too
 		TestTrue(TEXT("armed: may fight"), ABattleGameMode::CanEnterCombat(Owner));
 
 		const FString Warning = UEconomyService::GetDismantleWarning(Owner, WeaponId).ToString();
