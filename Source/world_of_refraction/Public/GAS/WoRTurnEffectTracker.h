@@ -42,6 +42,14 @@ public:
 	FActiveGameplayEffectHandle ApplySpecForHolderTurns(const FGameplayEffectSpecHandle &Spec, int32 Turns,
 														const FGameplayEffectSpecHandle &TickSpec = FGameplayEffectSpecHandle());
 
+	/** Apply a built spec with a span already under way (B-042h: the stored enum copy's span, which may
+	 *  have counted its landing turn and read 0, held until the holder's next turn starts). */
+	FActiveGameplayEffectHandle ApplySpecForSpan(const FGameplayEffectSpecHandle &Spec, const FTurnSpan &Span,
+												 const FGameplayEffectSpecHandle &TickSpec = FGameplayEffectSpecHandle());
+
+	/** Restart a tracked GE's span (a refresh). False when the handle isn't tracked here. */
+	bool SetSpan(FActiveGameplayEffectHandle Handle, const FTurnSpan &Span);
+
 	/** The holder's turn starts: remove every GE whose span is over, then pay the survivors' ticks. */
 	void OnHolderTurnStart();
 

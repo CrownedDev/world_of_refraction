@@ -1080,9 +1080,18 @@ void USkillEffectManager::ProcessStartOfTurnEffects(AActor *Actor)
 
 	ResetTurnFlags(Actor);
 
-	// D-051: a finished holder-turn span ends as the turn starts, before this turn's payouts.
+	// D-051: a finished holder-turn span ends as the turn starts, before this turn's payouts. B-042h:
+	// where GAS owns the lifetime the tracker ends the GEs first and their stored copies follow; the
+	// enum expiry then only finds effects GAS doesn't hold.
+	UWoRTurnEffectTracker *Tracker = Actor->FindComponentByClass<UWoRTurnEffectTracker>();
+	const bool bGASLifetime = UWoREffectMirrorComponent::OwnsLifetime(Actor);
+	if (bGASLifetime)
+	{
+		Tracker->OnHolderTurnStart();
+		Actor->FindComponentByClass<UWoREffectMirrorComponent>()->ReleaseEndedCopies();
+	}
 	ExpireFinishedHolderTurnSpans(Actor);
-	if (UWoRTurnEffectTracker *Tracker = Actor->FindComponentByClass<UWoRTurnEffectTracker>())
+	if (Tracker && !bGASLifetime)
 	{
 		Tracker->OnHolderTurnStart(); // the same rule for the GAS effects (B-042)
 	}
@@ -1118,9 +1127,16 @@ void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 	ProcessTriggerEffects(Actor, ESkillTrigger::OnTurnEnd);
 	WoRCombatEvents::Send(Actor, WoRTags::Event_Combat_TurnEnd, Actor); // B-042d, Q-044j
 
-	// Tick durations and remove expired effects
+	// Tick durations and remove expired effects. B-042h: where GAS owns the lifetime the tracker
+	// counts first and the stored copies take its count.
+	UWoRTurnEffectTracker *Tracker = Actor->FindComponentByClass<UWoRTurnEffectTracker>();
+	const bool bGASLifetime = UWoREffectMirrorComponent::OwnsLifetime(Actor);
+	if (bGASLifetime)
+	{
+		Tracker->OnHolderTurnEnd();
+	}
 	CountHolderTurnSpans(Actor);
-	if (UWoRTurnEffectTracker *Tracker = Actor->FindComponentByClass<UWoRTurnEffectTracker>())
+	if (Tracker && !bGASLifetime)
 	{
 		Tracker->OnHolderTurnEnd();
 	}
@@ -1299,14 +1315,31 @@ void USkillEffectManager::CountHolderTurnSpans(AActor *Actor)
 		return;
 	}
 
+	const UWoREffectMirrorComponent *GASLifetime =
+		UWoREffectMirrorComponent::OwnsLifetime(Actor) ? Actor->FindComponentByClass<UWoREffectMirrorComponent>() : nullptr;
+	TArray<FActiveSkillEffect> Counted;
 	for (FActiveSkillEffect &Effect : *Effects)
 	{
 		if (Effect.bCountsHolderTurns && !Effect.bPermanent)
 		{
-			Effect.HolderTurns.CountHolderTurn();
+			const int32 TrackedTurnsLeft = GASLifetime ? GASLifetime->GetTrackedTurnsLeft(Effect) : INDEX_NONE;
+			if (TrackedTurnsLeft >= 0)
+			{
+				Effect.HolderTurns.TurnsLeft = TrackedTurnsLeft; // a read-only copy of the tracker's span (B-042h)
+			}
+			else
+			{
+				Effect.HolderTurns.CountHolderTurn();
+			}
 			Effect.RemainingTurns = Effect.HolderTurns.TurnsLeft;
-			OnEffectDurationChanged.Broadcast(Actor, Effect, Effect.RemainingTurns);
+			Counted.Add(Effect);
 		}
+	}
+	// Every span counted before anyone hears of one, so a listener's mirror sync sees each copy
+	// already in line with the tracker (it would read a stale copy as a refresh).
+	for (const FActiveSkillEffect &Effect : Counted)
+	{
+		OnEffectDurationChanged.Broadcast(Actor, Effect, Effect.RemainingTurns);
 	}
 }
 

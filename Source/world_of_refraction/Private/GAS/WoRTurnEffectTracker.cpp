@@ -93,12 +93,24 @@ FActiveGameplayEffectHandle UWoRTurnEffectTracker::ApplyForHolderTurns(TSubclass
 FActiveGameplayEffectHandle UWoRTurnEffectTracker::ApplySpecForHolderTurns(const FGameplayEffectSpecHandle &Spec, int32 Turns,
 																		   const FGameplayEffectSpecHandle &TickSpec)
 {
+	if (Turns < MIN_TRACKED_TURNS)
+	{
+		UE_LOG(LogWoREffects, Warning, TEXT("[TurnEffectTracker] %s: can't apply %s for %d turn(s)"), *GetNameSafe(GetOwner()),
+			   Spec.IsValid() ? *GetNameSafe(Spec.Data->Def.Get()) : TEXT("None"), Turns);
+		return FActiveGameplayEffectHandle();
+	}
+	return ApplySpecForSpan(Spec, FTurnSpan::OfHolderTurns(Turns), TickSpec);
+}
+
+FActiveGameplayEffectHandle UWoRTurnEffectTracker::ApplySpecForSpan(const FGameplayEffectSpecHandle &Spec, const FTurnSpan &Span,
+																	const FGameplayEffectSpecHandle &TickSpec)
+{
 	UAbilitySystemComponent *ASC = GetOwnerASC();
 	const UGameplayEffect *Def = Spec.IsValid() ? Spec.Data->Def.Get() : nullptr;
-	if (!ASC || !Def || Turns < MIN_TRACKED_TURNS)
+	if (!ASC || !Def)
 	{
-		UE_LOG(LogWoREffects, Warning, TEXT("[TurnEffectTracker] %s: can't apply %s for %d turn(s) (ASC %s)"),
-			   *GetNameSafe(GetOwner()), *GetNameSafe(Def), Turns, ASC ? TEXT("ok") : TEXT("missing"));
+		UE_LOG(LogWoREffects, Warning, TEXT("[TurnEffectTracker] %s: can't apply %s (ASC %s)"),
+			   *GetNameSafe(GetOwner()), *GetNameSafe(Def), ASC ? TEXT("ok") : TEXT("missing"));
 		return FActiveGameplayEffectHandle();
 	}
 	if (Def->DurationPolicy != EGameplayEffectDurationType::Infinite)
@@ -112,11 +124,22 @@ FActiveGameplayEffectHandle UWoRTurnEffectTracker::ApplySpecForHolderTurns(const
 	const FActiveGameplayEffectHandle Handle = ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
 	if (Handle.IsValid())
 	{
-		Tracked.Add(Handle, FTrackedEffect{FTurnSpan::OfHolderTurns(Turns), TickSpec, NextArrival++});
+		Tracked.Add(Handle, FTrackedEffect{Span, TickSpec, NextArrival++});
 		UE_LOG(LogWoREffects, Log, TEXT("[TurnEffectTracker] %s gains %s for %d holder turn(s)%s"),
-			   *GetNameSafe(GetOwner()), *Def->GetName(), Turns, TickSpec.IsValid() ? TEXT(", ticking") : TEXT(""));
+			   *GetNameSafe(GetOwner()), *Def->GetName(), Span.TurnsLeft, TickSpec.IsValid() ? TEXT(", ticking") : TEXT(""));
 	}
 	return Handle;
+}
+
+bool UWoRTurnEffectTracker::SetSpan(FActiveGameplayEffectHandle Handle, const FTurnSpan &Span)
+{
+	FTrackedEffect *Entry = Tracked.Find(Handle);
+	if (!Entry)
+	{
+		return false;
+	}
+	Entry->Span = Span;
+	return true;
 }
 
 void UWoRTurnEffectTracker::OnHolderTurnStart()

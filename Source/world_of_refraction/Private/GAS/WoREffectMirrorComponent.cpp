@@ -5,6 +5,7 @@
 #include "AbilitySystemGlobals.h"
 #include "GameplayEffect.h"
 #include "GAS/WoREffectSpecBuilder.h"
+#include "GAS/WoRTurnEffectTracker.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Tags/WoRGameplayTags.h"
@@ -44,6 +45,12 @@ namespace
 		Entry.Identity = FWoREffectSpecBuilder::MakeIdentity(Effect);
 		Entry.Magnitude = Effect.GetStackedValue();
 		return Entry;
+	}
+
+	/** The stored effect's span as the tracker counts it (B-225: every timed effect counts holder turns). */
+	FTurnSpan SpanOf(const FActiveSkillEffect &Effect)
+	{
+		return Effect.bCountsHolderTurns ? Effect.HolderTurns : FTurnSpan::OfHolderTurns(Effect.RemainingTurns);
 	}
 }
 
@@ -101,7 +108,24 @@ void UWoREffectMirrorComponent::SyncMirror()
 	}
 	TGuardValue<bool> SyncingGuard(bSyncing, true);
 
+	UWoRTurnEffectTracker *Tracker = OwnsLifetime(Owner) ? GetTracker() : nullptr;
+	const auto ShouldTrack = [Tracker](const FActiveSkillEffect &Effect) { return Tracker && !Effect.bPermanent; };
+
 	TArray<FActiveSkillEffect> Missing = SEM->GetActiveEffects(Owner).FilterByPredicate(IsMirrored);
+	// A GE that GAS ended stays off until ReleaseEndedCopies drops its stored copy.
+	EndedByGAS.RemoveAll([&Missing](const FWoREffectIdentity &Identity)
+	{
+		return !Missing.ContainsByPredicate([&Identity](const FActiveSkillEffect &Effect)
+		{
+			return Identity.IsSameIdentity(FWoREffectSpecBuilder::MakeIdentity(Effect));
+		});
+	});
+	Missing.RemoveAll([this](const FActiveSkillEffect &Effect)
+	{
+		const FWoREffectIdentity Identity = FWoREffectSpecBuilder::MakeIdentity(Effect);
+		return EndedByGAS.ContainsByPredicate([&Identity](const FWoREffectIdentity &Ended) { return Ended.IsSameIdentity(Identity); });
+	});
+
 	TArray<FWoRMirroredEffect> Kept;
 	for (const FWoRMirroredEffect &Entry : Mirrored)
 	{
@@ -109,12 +133,24 @@ void UWoREffectMirrorComponent::SyncMirror()
 		{
 			return Entry.Matches(ToMirrored(Effect));
 		});
-		if (Index != INDEX_NONE && ASC->GetActiveGameplayEffect(Entry.Handle))
+		const bool bLive = ASC->GetActiveGameplayEffect(Entry.Handle) != nullptr;
+		if (Index != INDEX_NONE && !bLive && Entry.bTracked && Tracker)
 		{
+			EndedByGAS.Add(Entry.Identity); // GAS ended it (the tracker's span): the copy follows
+			Missing.RemoveAt(Index);
+		}
+		else if (Index != INDEX_NONE && bLive && Entry.bTracked == ShouldTrack(Missing[Index]))
+		{
+			// A refresh in ApplyEffect restarts the stored span; the tracker takes it.
+			const FTurnSpan Span = SpanOf(Missing[Index]);
+			if (Entry.bTracked && Tracker->GetTurnsLeft(Entry.Handle) != Span.TurnsLeft)
+			{
+				Tracker->SetSpan(Entry.Handle, Span);
+			}
 			Kept.Add(Entry);
 			Missing.RemoveAt(Index);
 		}
-		else
+		else if (!Entry.bTracked || !Tracker || !Tracker->RemoveTracked(Entry.Handle))
 		{
 			ASC->RemoveActiveGameplayEffect(Entry.Handle);
 		}
@@ -127,9 +163,12 @@ void UWoREffectMirrorComponent::SyncMirror()
 		{
 			continue;
 		}
-		// Untracked and tick-less: the enum path counts the turns and pays the ticks.
+		// Tick-less either way: the enum path pays the ticks until B-042y (Q-042hb). Untracked when
+		// the enum path owns the lifetime (UseGAS 0, or no tracker) and for permanent effects.
 		FWoRMirroredEffect Entry = ToMirrored(Effect);
-		Entry.Handle = ASC->ApplyGameplayEffectSpecToSelf(*Built.Spec.Data.Get());
+		Entry.bTracked = ShouldTrack(Effect);
+		Entry.Handle = Entry.bTracked ? Tracker->ApplySpecForSpan(Built.Spec, SpanOf(Effect))
+									  : ASC->ApplyGameplayEffectSpecToSelf(*Built.Spec.Data.Get());
 		if (Entry.Handle.IsValid())
 		{
 			Kept.Add(Entry);
@@ -142,6 +181,45 @@ void UWoREffectMirrorComponent::SyncMirror()
 		bResyncRequested = false;
 		bSyncing = false;
 		SyncMirror();
+	}
+}
+
+UWoRTurnEffectTracker *UWoREffectMirrorComponent::GetTracker() const
+{
+	return GetOwner() ? GetOwner()->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr;
+}
+
+bool UWoREffectMirrorComponent::OwnsLifetime(const AActor *Actor)
+{
+	return ReadsFromGAS() && Actor && Actor->FindComponentByClass<UWoREffectMirrorComponent>() &&
+		   Actor->FindComponentByClass<UWoRTurnEffectTracker>();
+}
+
+int32 UWoREffectMirrorComponent::GetTrackedTurnsLeft(const FActiveSkillEffect &Effect) const
+{
+	const UWoRTurnEffectTracker *Tracker = GetTracker();
+	const FWoREffectIdentity Identity = FWoREffectSpecBuilder::MakeIdentity(Effect);
+	const FWoRMirroredEffect *Entry = Mirrored.FindByPredicate([&Identity](const FWoRMirroredEffect &Mirror)
+	{
+		return Mirror.bTracked && Mirror.Identity.IsSameIdentity(Identity);
+	});
+	return Entry && Tracker ? Tracker->GetTurnsLeft(Entry->Handle) : -1;
+}
+
+void UWoREffectMirrorComponent::ReleaseEndedCopies()
+{
+	SyncMirror(); // notes the GEs the tracker just ended
+	USkillEffectManager *SEM = MirrorEffectManager(this);
+	const TArray<FWoREffectIdentity> Ended = MoveTemp(EndedByGAS);
+	EndedByGAS.Reset();
+	for (const FWoREffectIdentity &Identity : Ended)
+	{
+		UE_LOG(LogWoREffects, Log, TEXT("[EffectMirror] %s: GAS ended %s; its stored copy goes"), *GetNameSafe(GetOwner()),
+			   *Identity.ToString());
+		if (SEM)
+		{
+			SEM->RemoveEffectByIdentity(GetOwner(), Identity.EffectID, Identity.SourceKey);
+		}
 	}
 }
 
