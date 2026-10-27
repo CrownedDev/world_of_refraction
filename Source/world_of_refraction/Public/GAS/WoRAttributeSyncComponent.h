@@ -27,6 +27,7 @@
 #include "WoRAttributeSyncComponent.generated.h"
 
 class UAbilitySystemComponent;
+class UCharacterDataComponent;
 class UGameplayEffect;
 struct FActiveSkillEffect;
 enum class ESubStat : uint8;
@@ -90,6 +91,11 @@ public:
 	 *  0s, so the executions keep their gathered inputs (B-042e, B-042l). */
 	static bool ReadSyncedAttribute(const UAbilitySystemComponent *ASC, const FGameplayAttribute &Attribute, float &Out);
 
+	/** B-042yb: with wor.Effects.UseGAS 1, Out = a composed sub-stat or pillar Attribute on Owner's ASC, its layers
+	 *  refreshed first on the authority (so GAS holds what the getter would compose). False without the switch, a
+	 *  sync, character data or the set, and while ReadSourceValues runs: the getter then composes it itself. */
+	static bool ReadComposedOnGAS(const AActor *Owner, const FGameplayAttribute &Attribute, float &Out);
+
 	/** Gives the owner's ASC both attribute sets (once) and its actor info. Null when the owner has no ASC. */
 	static UAbilitySystemComponent *PrepareAbilitySystem(AActor *Owner);
 
@@ -120,6 +126,9 @@ private:
 	 *  layers current (B-042p, B-042t). */
 	void SyncComposedStat(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute, const FWoRStatLayers &Layers,
 						  TSubclassOf<UGameplayEffect> SourcesClass);
+	/** Re-syncs one composed sub-stat or pillar from its layers (B-042yb). False when Attribute isn't one. */
+	bool RefreshComposed(UAbilitySystemComponent &ASC, const UCharacterDataComponent &Char, const FGameplayAttribute &Attribute);
+
 	/** Removes Attribute's stat or pool sources effect, if any. */
 	void RemoveStatSources(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute);
 

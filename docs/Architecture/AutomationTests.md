@@ -149,3 +149,4 @@ Combatants are bare unless a spec needs more: `SpawnCombatant` gives no loadout,
 | 2026-10-27 | B-042o: `WoR.Status.Buildup` runs on both paths (UseGAS 0 / 1), plus the GAS-bar, stun-immunity, fire-immunity and DOT-tick cases. | feature/B-042o-gas-status-bar |
 | 2026-10-27 | B-042x: `WoR.GAS.TagReads` (status / immunity checks read tags at UseGAS 1, the store at 0). | feature/B-042x-gas-tag-reads |
 | 2026-10-27 | B-042y: `WoR.GAS.Payouts` (both paths); `FWoRTestWorld::AddEffectMirror` adds the attribute sets. | feature/B-042y-gas-getters-hp |
+| 2026-10-27 | B-042yb: `WoR.GAS.StatGetters` (seven getters on both paths; a GAS-only bonus seen only at UseGAS 1). | feature/B-042yb-gas-stat-getters |

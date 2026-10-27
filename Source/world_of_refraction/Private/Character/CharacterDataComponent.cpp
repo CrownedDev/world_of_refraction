@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Character/CharacterDataComponent.h"
+#include "GAS/WoRAttributeSets.h"
+#include "GAS/WoRAttributeSyncComponent.h"
 #include "WoRAuthority.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
@@ -760,6 +762,11 @@ float UCharacterDataComponent::GetEvolutionModifiedMind() const
         return 0.0f;
     }
     // §7 C2: world base from the LIVE level (asset + head-start + earned), not the asset's authored level.
+    float OnGAS = 0.0f;
+    if (UWoRAttributeSyncComponent::ReadComposedOnGAS(GetOwner(), UWoRAttributeSet_Stats::GetMindAttribute(), OnGAS))
+    {
+        return OnGAS; // B-042yb: GAS's value at UseGAS 1
+    }
     return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveMindForLevel(GetWorldMind()), ECrystalPillar::Mind);
 }
 
@@ -769,6 +776,11 @@ float UCharacterDataComponent::GetEvolutionModifiedBody() const
     {
         return 0.0f;
     }
+    float OnGAS = 0.0f;
+    if (UWoRAttributeSyncComponent::ReadComposedOnGAS(GetOwner(), UWoRAttributeSet_Stats::GetBodyAttribute(), OnGAS))
+    {
+        return OnGAS; // B-042yb: GAS's value at UseGAS 1
+    }
     return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveBodyForLevel(GetWorldBody()), ECrystalPillar::Body);
 }
 
@@ -777,6 +789,11 @@ float UCharacterDataComponent::GetEvolutionModifiedSpirit() const
     if (!CharacterData)
     {
         return 0.0f;
+    }
+    float OnGAS = 0.0f;
+    if (UWoRAttributeSyncComponent::ReadComposedOnGAS(GetOwner(), UWoRAttributeSet_Stats::GetSpiritAttribute(), OnGAS))
+    {
+        return OnGAS; // B-042yb: GAS's value at UseGAS 1
     }
     return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveSpiritForLevel(GetWorldSpirit()), ECrystalPillar::Spirit);
 }
@@ -1032,6 +1049,11 @@ float UCharacterDataComponent::GetEffectiveSpellDamage() const
     // clamp, bounded by the higher STAT_MODIFIER_MAX (×2.0) compose ceiling. Stat saturates at ×1.5;
     // gear/stone/buff scale it from there toward ×2.0. EquipTerm read as a FRACTION (option ii).
     // Byte-identical below the caps with no gear.
+    float OnGAS = 0.0f;
+    if (UWoRAttributeSyncComponent::ReadComposedOnGAS(GetOwner(), UWoRAttributeSet_Stats::GetSpellDamageAttribute(), OnGAS))
+    {
+        return OnGAS; // B-042yb: GAS's value at UseGAS 1
+    }
     FWoRStatLayers Layers;
     GetStatLayers(ESubStat::SpellDamage, Layers);
     return Layers.Compose();
@@ -1092,6 +1114,11 @@ float UCharacterDataComponent::GetEffectiveRawDamage() const
     // apply OUTSIDE that clamp, bounded by the higher STAT_MODIFIER_MAX (×2.0) compose ceiling. No
     // ActionMods / Grid / defender (damage-call-specific). The pipeline DRY-sources the same helpers
     // (Step 2.6). EquipTerm read as a FRACTION (option ii). Byte-identical below the caps with no gear.
+    float OnGAS = 0.0f;
+    if (UWoRAttributeSyncComponent::ReadComposedOnGAS(GetOwner(), UWoRAttributeSet_Stats::GetRawDamageAttribute(), OnGAS))
+    {
+        return OnGAS; // B-042yb: GAS's value at UseGAS 1
+    }
     FWoRStatLayers Layers;
     GetStatLayers(ESubStat::RawDamage, Layers);
     return Layers.Compose();
@@ -1110,6 +1137,11 @@ float UCharacterDataComponent::GetEffectiveActionSpeed() const
     // STAT_MODIFIER_MAX (×2.0) compose ceiling. Returns a pure ×1.0–×2.0 multiplier; the montage
     // BaseAnimSpeed and per-action ActionMods stay at the ActionExecutor call site. ×1.0 at zero
     // gear (the old additive path's zero-point), so byte-identical with no speed gear.
+    float OnGAS = 0.0f;
+    if (UWoRAttributeSyncComponent::ReadComposedOnGAS(GetOwner(), UWoRAttributeSet_Stats::GetActionSpeedAttribute(), OnGAS))
+    {
+        return OnGAS; // B-042yb: GAS's value at UseGAS 1
+    }
     FWoRStatLayers Layers;
     GetStatLayers(ESubStat::ActionSpeed, Layers);
     return Layers.Compose();
@@ -1125,6 +1157,11 @@ float UCharacterDataComponent::GetEffectiveSpellSpeed() const
     // ×1.5-capped) clamped ALONE, THEN BonusSpellSpeed (fraction) × attached SpellSpeedStone ×
     // transient SpellSpeedBuff/Debuff, bounded by STAT_MODIFIER_MAX (×2.0). Pure multiplier; the
     // montage BaseAnimSpeed and per-action ActionMods stay at the call site. ×1.0 at zero gear.
+    float OnGAS = 0.0f;
+    if (UWoRAttributeSyncComponent::ReadComposedOnGAS(GetOwner(), UWoRAttributeSet_Stats::GetSpellSpeedAttribute(), OnGAS))
+    {
+        return OnGAS; // B-042yb: GAS's value at UseGAS 1
+    }
     FWoRStatLayers Layers;
     GetStatLayers(ESubStat::SpellSpeed, Layers);
     return Layers.Compose();

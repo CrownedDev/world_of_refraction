@@ -2580,6 +2580,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. Epic's Lyra keeps death in a health component: the attribute set only reports the change, and the component runs death and its events. Keeping the timing in one place also keeps the comparison with the switch off exact, one change at a time (Martin Fowler, ParallelChange). B would move the order, the landing rule and the buildup together with the number. The tracker takes the timing when the stored copies retire (B-042g), and Health takes over when the getters move (B-042yb).
 **Notes for Claude:** applied: `PayTickThroughGAS` falls back to the enum write when the actor has no live GE with a tick spec, no Health set, or no character data. B-042yb also moves energy, drains and self-damage. Watch: at UseGAS 1 every Health-changing GE execution reaches the HP path, so a GE applied with its tick spec through `FWoREffectSpecBuilder::Apply` (only specs today) would pay on top of the turn pass; B-042i must keep such effects off the enum store or pass no tick spec (TODO at `Apply`).
 
+### Q-042yb — Stats read from GAS: can the value be stale?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042yb) · **Blocks:** —
+**Question:** With `wor.Effects.UseGAS 1`, spell / raw damage, action / spell speed and the three pillars now come from GAS's attributes. GAS's copy is refreshed on events (an effect, a loadout change, a turn start). Some changes have no event (weather, a crystal breaking mid-turn), so a plain read could return last turn's number. What should a read do?
+**Options:**
+- **A** (as built) each read first refreshes that one attribute from the character's gear, stones and buffs, then returns GAS's value. It is never stale, and with the switch off nothing changes.
+- **B** read GAS's value as it is, and add the missing events later.
+**Recommendation:** A. The game's effect reads already resync before reading (B-042c), and the step must keep the two paths identical to be checked (Martin Fowler, ParallelChange). B could show a different number for a turn after a weather change. A costs one layer check per read (no GE work when nothing changed). It goes away once the gear and stones are GameplayEffects themselves (B-042f), as in Lyra, where the attribute is the truth.
+**Notes for Claude:** applied: `UWoRAttributeSyncComponent::ReadComposedOnGAS`; `ReadSourceValues` composes on the game side (a guard), so `wor.CompareAttributes` still checks GAS against the game's maths. A client returns the replicated attribute (no refresh). With the switch on, a getter returns whatever GAS holds, including a GE only GAS knows about. `FWoRStatLayers::Compose` now multiplies the factors first, in GAS's MultiplyCompound order, so both paths match exactly (at most an ulp from before). Split: the other getters, the other payouts and the per-effect reads are B-042yc.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
