@@ -40,7 +40,7 @@
     | Enhanced Sprint | Enhancement Aura |
     | Glide | Manipulation Aura, at **D tier** (a lower rank than Flight) |
     | Flight | Manipulation Aura |
-    | Teleport | **Void** Manipulation |
+    | Teleport | **Void** Manipulation (**Void only**: no other element teleports; Crown, 2026-10-27) |
     | High / double jump | Enhancement Aura |
     | Air dash | Elemental Aura |
     | Super launch | Enhancement **and** Elemental |
@@ -56,7 +56,7 @@
   | Earth | Flight | Electromagnetism (magnetic levitation) |
   | Lightning | Sprint | Fastest sprint |
   | Wind | Sprint | Second-fastest sprint |
-  | Lightning | Teleport | Chain of short blinks |
+  | Lightning | Air dash / Dash | Chain of short blinks (moved from Teleport: Teleport is Void only) |
   | Void | Teleport | One long vanish |
   | Darkness | (style, type to confirm) | Shadow path: walk along shadows for a short time |
 
