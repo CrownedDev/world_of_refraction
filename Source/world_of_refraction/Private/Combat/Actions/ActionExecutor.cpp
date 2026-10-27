@@ -690,6 +690,11 @@ FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FA
 		Preview.Element = bIsInfused ? GetElementForSourceOption(User, Action.SelectedSource) : ESpellElement::None;
 		if (Preview.Element == ESpellElement::Generic)
 		{
+			if (bLog)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Ability %s infused through an unbound source (Generic) — using None"),
+					   *Skill->Name);
+			}
 			Preview.Element = ESpellElement::None;
 		}
 	}
@@ -1593,7 +1598,7 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 
 	// Buildup amount only. Session Y: trigger type resolves in the manager from
 	// (Element, PhysicalType). Abilities have no physical type - if the action
-	// is non-infused (Element=Generic, Physical=None) the resolver returns None
+	// is non-infused (Element=None, Physical=None) the resolver returns None
 	// and nothing fires on cap; if infused, Element drives the trigger.
 	// TODO: a future ability-specific override (via Effects[]) could route a
 	// different trigger when uninfused — wire when the design lands.
@@ -1619,8 +1624,9 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	//     Cluster C moved the field off the weapon (same swing, same type,
 	//     any weapon)
 	//   - Element: from Action.SelectedSource — per-action infusion choice
-	//     (a crystal, ring or innate source's element; None when uninfused)
-	ESpellElement AbilityElement = ESpellElement::None;
+	//     (a crystal, ring or innate source's element; None when uninfused),
+	//     the same element the damage uses (D-007)
+	const ESpellElement AbilityElement = Element;
 
 	// Cluster C: the ability/attack is the sole PhysicalDamageType source; the
 	// weapon no longer carries it.
@@ -1631,9 +1637,6 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 		UE_LOG(LogTemp, Warning, TEXT("ActionExecutor: '%s' resolved PhysicalDamageType None — physical bar-cap trigger will not fire."),
 			Ability ? *Ability->Name : TEXT("<unknown>"));
 	}
-
-	// The buildup-bar element is the damage element: the selected source's (D-007).
-	AbilityElement = Element;
 
 	OpenDefenseWindowsForTargets(
 		User,

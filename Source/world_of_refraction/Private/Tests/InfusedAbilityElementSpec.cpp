@@ -114,7 +114,7 @@ void FInfusedAbilityElementSpec::Define()
 		TestEqual(TEXT("crystal"), PreviewAbilityElement(EInfusionSourceOption::WeaponCrystal), ESpellElement::Fire);
 	});
 
-	It("a Generic's innate source (no element) stays Physical", [this]()
+	It("an unbound source (a Generic's innate, not offered in play) stays Physical, never Generic", [this]()
 	{
 		SpawnWithFireWeaponCrystal(ECharacterClass::Generic, ESpellElement::Generic);
 		if (!TestNotNull(TEXT("executor"), Executor) || !TestNotNull(TEXT("user"), User))
