@@ -39,6 +39,11 @@ namespace
 		return A.StatBase == B.StatBase && A.GearFactor == B.GearFactor && A.StoneFactor == B.StoneFactor &&
 			   A.TransientFactor == B.TransientFactor;
 	}
+
+	bool SamePoolLayers(const FWoRPoolLayers &A, const FWoRPoolLayers &B)
+	{
+		return A.StatPortion == B.StatPortion && A.GearAmount == B.GearAmount && A.PercentFactor == B.PercentFactor;
+	}
 }
 
 UWoRAttributeSyncComponent::UWoRAttributeSyncComponent()
@@ -178,8 +183,17 @@ void UWoRAttributeSyncComponent::SyncAttributes()
 			SyncComposedStat(*ASC, Source.Attribute, Layers, UWoRGE_StatSources::GetClassFor(Pillar));
 			continue;
 		}
-		// Not composed (or no layers, e.g. Defense without CharacterData): the getter's value, no sources.
-		if (bComposed || bPillar)
+		const TSubclassOf<UGameplayEffect> PoolClass = UWoRGE_PoolSources::GetClassFor(Source.Attribute);
+		FWoRPoolLayers PoolLayers;
+		const bool bMaxHealth = Source.Attribute == UWoRAttributeSet_Vitals::GetMaxHealthAttribute();
+		if (PoolClass && Char && (bMaxHealth ? Char->GetMaxHPLayers(PoolLayers) : Char->GetMaxEPLayers(PoolLayers)))
+		{
+			SyncPoolStat(*ASC, Source.Attribute, PoolLayers, PoolClass);
+			continue;
+		}
+		// Not composed (or no layers, e.g. Defense without CharacterData, a max set another way): the
+		// getter's value, no sources.
+		if (bComposed || bPillar || PoolClass)
 		{
 			RemoveStatSources(*ASC, Source.Attribute);
 		}
@@ -240,6 +254,47 @@ void UWoRAttributeSyncComponent::RemoveStatSources(UAbilitySystemComponent &ASC,
 	{
 		ASC.RemoveActiveGameplayEffect(Applied.Handle);
 	}
+	FWoRAppliedPoolSources AppliedPool;
+	if (AppliedPoolSources.RemoveAndCopyValue(Attribute, AppliedPool))
+	{
+		ASC.RemoveActiveGameplayEffect(AppliedPool.Handle);
+	}
+}
+
+void UWoRAttributeSyncComponent::SyncPoolStat(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute,
+											  const FWoRPoolLayers &Layers, TSubclassOf<UGameplayEffect> PoolClass)
+{
+	ASC.SetNumericAttributeBase(Attribute, Layers.StatPortion);
+
+	FWoRAppliedPoolSources &Applied = AppliedPoolSources.FindOrAdd(Attribute);
+	const bool bLive = ASC.GetActiveGameplayEffect(Applied.Handle) != nullptr;
+	if (bLive && SamePoolLayers(Applied.Layers, Layers))
+	{
+		return;
+	}
+	if (bLive)
+	{
+		ASC.UpdateActiveGameplayEffectSetByCallerMagnitudes(Applied.Handle, {
+			{WoRTags::SetByCaller_Stat_Gear, Layers.GearAmount},
+			{WoRTags::SetByCaller_Stat_Stone, Layers.PercentFactor},
+		});
+		Applied.Layers = Layers;
+		UE_LOG(LogWoR, Verbose, TEXT("[AttributeSync] %s %s pool sources updated: %s"), *GetOwner()->GetName(), *Attribute.GetName(),
+			   *Layers.ToString());
+		return;
+	}
+	const FGameplayEffectSpecHandle Spec = ASC.MakeOutgoingSpec(PoolClass, STAT_SOURCES_EFFECT_LEVEL, ASC.MakeEffectContext());
+	if (!Spec.IsValid())
+	{
+		AppliedPoolSources.Remove(Attribute);
+		return;
+	}
+	Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Gear, Layers.GearAmount);
+	Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Stone, Layers.PercentFactor);
+	Applied.Handle = ASC.ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+	Applied.Layers = Layers;
+	UE_LOG(LogWoR, Verbose, TEXT("[AttributeSync] %s %s pool sources: %s"), *GetOwner()->GetName(), *Attribute.GetName(),
+		   *Layers.ToString());
 }
 
 void UWoRAttributeSyncComponent::SyncComposedStat(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute,
@@ -305,8 +360,13 @@ void UWoRAttributeSyncComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 		{
 			ASC->RemoveActiveGameplayEffect(Applied.Value.Handle);
 		}
+		for (const TPair<FGameplayAttribute, FWoRAppliedPoolSources> &Applied : AppliedPoolSources)
+		{
+			ASC->RemoveActiveGameplayEffect(Applied.Value.Handle);
+		}
 	}
 	AppliedStatSources.Reset();
+	AppliedPoolSources.Reset();
 	AppliedDerivedStats.Reset();
 	Super::EndPlay(EndPlayReason);
 }
