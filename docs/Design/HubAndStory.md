@@ -17,7 +17,7 @@
   - **every normal enemy** (`Enemies.md`)
   - **every hub NPC** (§3)
 - Players should slowly notice that everyone looks like V and wonder why. That's the intended "figure it out".
-- V's look (concept: `Characters/V_turnaround.png`; void material and clothing on Manny/Quinn, B-143/B-144) carries all of this, so it's **imperative**.
+- V's look (concept: `CharacterDesigns/V_turnaround.png`; void material and clothing on Manny/Quinn, B-143/B-144) carries all of this, so it's **imperative**.
 
 ## 3. The hub: the Void Realm
 
