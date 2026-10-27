@@ -2016,7 +2016,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** Keep today's: the hit's computed damage, whatever the target had left.
 **Recommendation:** A. Pokemon's Counter and Mirror Coat return a multiple of the damage the user actually took, so a finishing blow can't be inflated into a huge return; players read reflect as "you get back what you dealt to me". The deckbuilder leaves the amount undecided (`wor-deckbuilder/docs/reference/10-known-gaps.md`, "reflected damage is the attack's amount or the charge's"). Not lore.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B.
-**Notes for Claude:** B-032c: `ReflectShareOfHit` (ActionExecutor.cpp) gets min(FinalDamage, target CurrentHP); ApplyHit's DoubleHit block returns early when the target is dead. Tests: an overkilling hit reflects the HP lost; DoubleHit on a killed target deals no second hit.
+**Notes for Claude:** B-032c: `ReflectShareOfHit` (ActionExecutor.cpp) gets min(FinalDamage, target CurrentHP); ApplyHit's DoubleHit block returns early when the target is dead. Tests: an overkilling hit reflects the HP lost; DoubleHit on a killed target deals no second hit. Built (B-032c): reflect reads min(hit, HP before) after the hit lands, so a Last Stand save still reflects the HP the target had; DoubleHit also needs a living attacker (a reflect can kill it). TODO: a Last Stand save makes `DamageDealt` negative for `OnDamageDealt`.
 
 ### Q-080 — Which infusion sources give an ability their element?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-080) · **Blocks:** — (B-080 ships with A)
