@@ -68,11 +68,11 @@ FString URequirementGapDebug::GetWeaponRequirementFactorString(const UWeaponData
         return FString::Printf(TEXT("  %-7s Req %d  Char %d  Gap %+d  ->  x%.2f\n"), PillarName, Required, CharLevel, Gap, Clamped);
     };
 
-    FString Output = FString::Printf(TEXT("WEAPON REQUIREMENT: %s (CHARACTER: %s)\n"),*Weapon->GetName(), *Character->Name);
+    FString Output = FString::Printf(TEXT("WEAPON REQUIREMENT: %s (CHARACTER: %s)\n"), *Weapon->GetName(), *Character->Name);
     Output += PillarLine(TEXT("Mind"), Req.RequiredWorldMind, Character->WorldMindLevel);
     Output += PillarLine(TEXT("Body"), Req.RequiredWorldBody, Character->WorldBodyLevel);
     Output += PillarLine(TEXT("Spirit"), Req.RequiredWorldSpirit, Character->WorldSpiritLevel);
-    Output += FString::Printf(TEXT("  Factor (worst pillar): x%.2f on attacks and abilities\n"),Req.GetWeaponRequirementFactor(Character));
+    Output += FString::Printf(TEXT("  Factor (worst pillar): x%.2f on attacks and abilities\n"), Req.GetWeaponRequirementFactor(Character));
     return Output;
 }
 
