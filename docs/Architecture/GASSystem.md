@@ -79,6 +79,11 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 
 - `UWoRGE_Reflect`, `UWoRGE_LastStand`, `UWoRGE_OnHit`, `UWoRGE_AttackModifier`, `UWoRGE_Control`, `UWoRGE_Periodic`, `UWoRGE_Action`: Infinite, `Effect.Family.*` asset tag, no modifier or granted tag (Q-042k). `GetEffectClass` returns a class for every type but None, so the mirror copies every stored effect; the game code they run stays on the enum path until B-042h. At UseGAS 1 every read of these types now resyncs the mirror too, including hot paths (crit, Ignore Defense, Lifesteal, Absorb, Double Hit, AI scoring): fine for the PIE pass.
 
+### Damage execution (stage 3, B-042e part 5)
+
+- `GAS/WoRDamageExecution.h`: `UWoRDamageExecution` runs `WoRDamageMath::Compute` (B-219) over an `FWoRDamageRequest` (`UDamageCalculator::GatherDamageMathInputs` + override / ignore-resistance flags) carried on `FWoREffectContext::DamageRequest` (authority only, not net serialized). `ReadAttributes` replaces the attacker's CritChance (unless overridden) and CritDamage, and the defender's Defense and `Resist_<type>` (+ Ice for Water), from the ASCs. Output: Health -= the final damage. `UWoRGE_Damage` (Instant) carries it; `MakeRequest` / `MakeDamageSpec` build one hit; `GetRequestString` (Q-042e).
+- Not applied in play: `UDamageCalculator` stays the damage path until B-042h.
+
 ## Integration points
 
 - Delegates it listens to:
@@ -118,3 +123,4 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 | 2026-10-27 | B-042c (stage 3, part 3): `UWoREffectMirrorComponent`; `wor.Effects.UseGAS` facade reads; `wor.CompareEffects`; `Build` takes `bAlreadyStored`. Write side moved to B-042h (Q-042c). | feature/B-042c-gas-effect-mirror |
 | 2026-10-27 | B-042d (stage 3, part 4, narrowed): `WoRCombatEvents::Send`; `Event.Combat.*` sent from the effect manager. Rest split into B-042i, B-042j, B-042k. | feature/B-042d-gas-combat-events |
 | 2026-10-27 | B-042k (stage 3, part 4b): seven role families; every effect type mirrored. | feature/B-042k-gas-remaining-families |
+| 2026-10-27 | B-042e (stage 3, part 5, narrowed): `UWoRDamageExecution` + `UWoRGE_Damage`; rest split into B-042l, B-042m, B-042n. | feature/B-042e-gas-damage-execution |

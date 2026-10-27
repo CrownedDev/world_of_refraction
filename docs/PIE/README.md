@@ -108,6 +108,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-178](B-178.md) | `feature/B-178-run-repair` (in `dev`) | Paid gear repair in a run; the run's Gold carries between levels | Not tested |
 | [B-093](B-093.md) | `feature/B-093-menu-keys` (in `dev`) | Keys for Defend and infusion (keyboard + gamepad) | Not tested |
 | [B-209](B-209.md) | `feature/B-209-memory-sources` (in `dev`) | Memories from bosses, reactions, map spots and bound gear | Not tested |
+| [B-042e](B-042e.md) | `feature/B-042e-gas-damage-execution` (in `dev`) | GAS stage 3, part 5: damage execution on GAS (not used in play yet) | Not tested |
 | [B-042k](B-042k.md) | `feature/B-042k-gas-remaining-families` (in `dev`) | GAS stage 3, part 4b: every effect type has a GAS family; the mirror copies them all | Not tested |
 | [B-042d](B-042d.md) | `feature/B-042d-gas-combat-events` (in `dev`) | GAS stage 3, part 4: `Event.Combat.*` GameplayEvents sent (nothing listens yet) | Not tested |
 | [B-042c](B-042c.md) | `feature/B-042c-gas-effect-mirror` (in `dev`) | GAS stage 3, part 3: effects mirrored onto GAS; `wor.Effects.UseGAS 1` reads them | Not tested |

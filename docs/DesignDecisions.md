@@ -2396,6 +2396,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. It is the shape `GASMigration.md` §3 already chose (about 35 family classes, not one per effect) and the pattern the GAS community documentation (tranek's GASDocumentation, "Gameplay Effects") recommends: few GE classes, data in SetByCaller and tags. Asset tags let a cleanse or a UI query a whole role at once.
 **Notes for Claude:** B-042k built A. CritDebuff, EnergyDebuff, RandomDebuff (all resolved to a stat debuff before they're stored) and ModifyHealing are summed values, so they joined the stat-modifier list. ExtraAction is in Control (it changes turns).
 
+### Q-042e — Which damage inputs does the execution take from attributes?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042e) · **Blocks:** —
+**Question:** the damage execution can read every input from attributes, or only those that are already attributes, with the rest (base damage, action mods, scaling, grid and status modifiers, the crit roll) carried in from today's gather. And B-042e held four large pieces (damage, buildup, sources as GEs, tick maths). Which inputs now, and split the job?
+**Options:**
+- **A** (as built) the execution reads what is an attribute today (attacker CritChance and CritDamage, defender Defense and element resistance) and takes the rest from `UDamageCalculator::GatherDamageMathInputs` in the effect context; the job is split into B-042e (damage), B-042l (buildup), B-042m (sources as GEs), B-042n (tick maths).
+- **B** move every input onto attributes first (all the MMCs), then build the execution.
+**Recommendation:** A. It is the shape of Lyra's damage execution (`ULyraDamageExecution`, Epic's sample game): it captures the attributes it needs, takes the per-hit damage from the spec (SetByCaller) and the hit data (hit result, distance, physical material) from its effect context, and it keeps the game playable after each step (`StatMathsRedesign.md` §4: "no big bang"). B-042m moves the rest onto attributes later without changing the execution's shape.
+**Notes for Claude:** B-042e built A. The execution reads the attributes directly (no capture definitions) because they only hold base values today; add captures with B-042m, when modifiers land. The attributes are trusted only on an actor with the attribute sync and character data; otherwise the gathered value stays. The check looks at the ASC's owner, right while the ASC sits on the character; if co-op moves it to the PlayerState, check the avatar instead. A sync that found no damage calculator would leave Defense and crit at 0; that can't happen in a real world. The request is authority-only (not net serialized), like Lyra's server-side damage. The execution writes Health on the ASC only; `CharacterDataComponent::CurrentHP` is untouched and the next sync overwrites it, so nothing in play may apply `UWoRGE_Damage` before B-042h (which also adds the Health floor and death).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
