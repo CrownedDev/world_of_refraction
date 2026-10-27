@@ -37,7 +37,7 @@ One save slot per local player (`WoR_Main`) keeps what lives between play sessio
 
 ## Known limitations / TODOs
 
-- **Inventory isn't kept yet.** Pawns still rebuild their gear from their authored `CharacterData->Inventory`, and nothing in play adds to the pool. The pool round-trips, but it is filled only by `wor.PopulatePool`. Gear that persists is B-085 (loadouts point at owned gear), B-091 (equip from the pool) and B-124 (save each entry whole: crystal, spells, rolls).
+- **Gear:** the party's armoury lives in the pool since B-091 and is saved whole since B-124 (`FSavedGearDetail`: attached crystal, evolution or fusion with its wear, spell slots, rolls). Only what was pushed to the pool is saved, so a crystal's wear keeps its last pushed value. The party's carried items and storage are saved since B-203.
 - **Run save (B-208, Q-208):** `FSavedRun` holds the trial, seed, variation, difficulty, beaten encounters, found features, run memories and run Gold. A reload resumes only when the game starts in the hub (`wor.Save.ResumeRun`), at the trial's start; started anywhere else, the run and the party's carried state are dropped. The journal is not saved. If the start map is ever a menu instead of the hub, resuming needs revisiting.
 - Gold is never banked. Since B-178 it rides `USaveSubsystem::CarriedGold` in memory across level changes, and `ClearRunGold` zeroes it when a run starts and ends.
 - One slot, shared by every PIE instance and the standalone game. No split screen.
@@ -50,3 +50,4 @@ One save slot per local player (`WoR_Main`) keeps what lives between play sessio
 | 2026-10-27 | Created (B-090): `UWoRSaveGame`, `USaveSubsystem`, save points, wallet carry, Asset Manager types, `WoR.Save`. | feature/B-090-save-keystone |
 | 2026-10-27 | B-178: the run's Gold carries across OpenLevel (`CarriedGold`, not written to the slot); `ClearRunGold` at trial entry and hub return. Case added to `WoR.Save`. | feature/B-178-run-repair |
 | 2026-10-27 | B-208: the trial run is saved (`FSavedRun`, `FSavedCarriedGear`, version 2) and resumed from the hub; `wor.Save.Print` shows it; spec `WoR.Save.Run`. | feature/B-208-save-trial-run |
+| 2026-10-27 | B-124 (D-059 = B): `FSavedOwnedItem::Gear` (`FSavedGearDetail`) saves a weapon's or ring's attachment (evolution item as a ref), spell slots (an empty slot as an unset ref), stat and resistance rolls and roll pools; save version 3 (older saves load with the asset defaults). The entries' partial `SaveGame` tags are gone. `wor.Save.Print` lists each item's detail. Spec `WoR.Save.GearDetail`. | fix/B-124-save-gear-detail |
