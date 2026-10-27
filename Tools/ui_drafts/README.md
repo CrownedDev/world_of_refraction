@@ -14,7 +14,8 @@ The tool is ported from `wor-deckbuilder/tools/ui_drafts/`. Only its shared help
 
    Reopen the shell afterwards. Every script stops with a clear message if `WOR_UI_KIT` is unset or wrong.
 2. **Install Python 3.9 or later, with Pillow and NumPy:** `pip install pillow numpy`.
-3. **Fonts are found automatically.** Spectral SC (titles) and Lato (everything else) are always used, read from the deckbuilder's `wor.game/assets/fonts`, next to the library. If they aren't there, Windows fonts stand in, and the script prints a note saying so.
+3. **Vendor originals (header-bar candidates).** A few pieces the library doesn't hold (`text_frame_gold`, `Main_big_bar_horizontal`, `Main_big_bar_transparent`) are read by `kit.vendor_piece()` from the deckbuilder's Godot import cache (`<deckbuilder>/.godot/imported/*.ctex`, lossless WebP inside), found from `WOR_UI_KIT` (three folders up). Open the deckbuilder in Godot once so the cache exists. Read-only: nothing is copied into this repo.
+4. **Fonts are found automatically.** Spectral SC (titles) and Lato (everything else) are always used, read from the deckbuilder's `wor.game/assets/fonts`, next to the library. If they aren't there, Windows fonts stand in, and the script prints a note saying so.
    - **How this differs from the deckbuilder:** there, `GAME_FONTS` was opt-in, so old drafts would rebuild unchanged. This repo has no old drafts, so the game fonts are always on.
 
 ## Draw a draft
@@ -38,12 +39,13 @@ python Tools/ui_drafts/test_draft.py
 | `kit.py` | Shared pieces. It covers the kit loader (`piece(kind, name)`), fonts, tint/steel recolour, five-slice stretch, background, vignette, glow, motes, text with shadow, the annotation legend, frozen version folders and `save_draft` |
 | `test_draft.py` | The B-100 smoke test. It touches every kit kind the HUD drafts use. Output: `tool/test_draft/v1/` |
 | `combat_hud_v1.py` | The B-101 combat HUD in four states: `command`, `target`, `hit` and `stunned`. Output: `combat/hud/v1/` |
+| `combat_hud_v2.py` | The B-111 combat HUD v2: `header_candidates` (A-E), `command`, `hit`, `stunned`, `status_bars`. Reuses v1's pieces. Output: `combat/hud/v2/` |
 
 ## Current drafts
 
 | Screen | Current | Command |
 |---|---|---|
-| combat/hud | v1 | `python Tools/ui_drafts/combat_hud_v1.py` |
+| combat/hud | v2 | `python Tools/ui_drafts/combat_hud_v2.py` |
 | tool/test_draft | v1 | `python Tools/ui_drafts/test_draft.py` |
 
 ## Kit gaps found so far
@@ -51,4 +53,4 @@ python Tools/ui_drafts/test_draft.py
 - There is no `badges/element_reality` in the library. It has badges for 8 of this game's 9 elements (`ESpellElement`: Fire … Void, plus Reality). B-101 needs a stand-in, or new art, for Reality.
 - **No enemy art.** The HUD drafts draw dark silhouettes as stand-ins. Party portraits are crops of the kit's character cards (`cards/garrick`, `common_void_refractor`, `common_resonator`).
 - **No gamepad glyphs.** The kit's `glyph_*` icons are UI glyphs, not face buttons, so the drafts draw Xbox-style A/B/X/Y circles in code until a glyph set is picked.
-- **Header bar:** the pick is still open (`UI_DeckbuilderReuse.md` open item 1). The turn banner uses `frames/nameplate` as a placeholder.
+- **Header bar:** the pick is still open (`UI_DeckbuilderReuse.md` open item 1, D-017). v2 draws five candidates (`header_candidates`); three are vendor originals outside the library, read with `kit.vendor_piece()`. Reality is drawn in code as an indigo crystal.

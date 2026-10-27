@@ -264,7 +264,7 @@ The queue of questions only Crown can answer.
 ### D-017 — Header bar style (UI)
 **Status:** PARKED until the B-101 mockup · **Raised:** 2026-10-25 · **Blocks:** UI work (later)
 **Question:** Which of the four deckbuilder candidates (`UI_DeckbuilderReuse.md` §3)?
-**Answer (Crown):** (2026-10-26) Pick from pictures: B-101 draws all four candidates (plus a crystal-themed one, see D-024) in the combat HUD mockup, and Crown chooses there.
+**Answer (Crown):** (2026-10-26) Pick from pictures: B-101 draws all four candidates (plus a crystal-themed one, see D-024) in the combat HUD mockup, and Crown chooses there. **Drawn (B-111, 2026-10-27):** `combat/hud/v2/header_candidates_annotated.png` shows A-E; Crown picks in B-102.
 
 ### D-018 — Art pack licences for Unreal
 **Status:** DECIDED · **Raised:** 2026-10-25 · **Blocks:** asset import (later)
@@ -1811,6 +1811,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. Symbol encounters work this way in Dragon Quest XI and Persona 5 (one shadow on the map opens a fight with a whole group), and players read the map symbol as "a fight", not as one of the enemies. It keeps the team's full make-up in one asset. Not lore.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-074-encounter-data): `UEncounterData::BuildOpposingRoster`. B-184's `AFieldEnemyTeam` should hold a `UEncounterData` and call `BuildOpposingRoster` rather than carry a second list of enemies.
+
+### Q-111 — Combat HUD v2: damage colours, crack timing, overload look
+**Status:** DECIDED · **Raised:** 2026-10-27 (B-111) · **Blocks:** — (B-111 drew A)
+**Question:** The v2 drafts needed three looks Crown's notes didn't fix: the colours of the resistance gradient on damage numbers, when a status bar starts to crack, and how Broken Darkness overload darkens the EP bar.
+**Options:**
+- **A** damage numbers run warm gold (weak) → near-white (neutral) → cool steel-blue (resisted) → grey (immune); status bars stay clean below half, then crack more and more until they shatter on the break and lie in dimmed shards while it lasts; overload darkens the full EP bar with denser dark facets up to the 1.30 cap, the absorbed element still showing through.
+- **B** a red-to-blue gradient; cracks from the first point of buildup; overload as a separate band past the bar's end.
+**Recommendation:** A. Warm = good for you, cool/grey = wasted is how Honkai: Star Rail and Persona 5 read their weakness hits at a glance (both praised for readable feedback). A bar that visibly breaks is Octopath Traveler's shield break and Star Rail's toughness bar shattering, both widely liked. Keeping the overload on the bar follows Crown's note (one bar, EP above max). Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it with the v2 review (B-102).
+**Notes for Claude:** applied in `Tools/ui_drafts/combat_hud_v2.py` (`DAMAGE_GRADIENT`, `crystal_bar`, `shards`).
 
 ### Q-103 — CommonUI base: small defaults
 **Status:** DECIDED · **Raised:** 2026-10-27 (B-103) · **Blocks:** — (B-103 shipped with A)
