@@ -17,7 +17,7 @@ All files live in `Source/world_of_refraction/Private/Tests/`, wrapped in `WITH_
 | `WoRTestWorld.h` | `FWoRTestWorld`: wraps the engine's `FTestWorldWrapper`. Real `UGameInstance`, so every WoR subsystem exists. Ticked by hand. `SpawnCombatant` gives a bare actor (player path) or an unpossessed pawn (AI path) carrying only a `UCharacterDataComponent`; `SpawnCombatantWithLoadout` adds an inventory and a loadout initialised from the character data, optionally with a primary weapon (B-133); `AddComponent<T>` adds and registers any component |
 | `ActionExecutedRecorder.h`, `CombatResultRecorder.h`, `InventoryChangeRecorder.h`, `PartsDroppedRecorder.h` | `UObject` listeners with a `UFUNCTION` handler, so a spec can bind a dynamic delegate and check what it broadcast |
 
-### Specs (75 files)
+### Specs (76 files)
 
 | File | Test names | Covers |
 |---|---|---|
@@ -63,6 +63,7 @@ All files live in `Source/world_of_refraction/Private/Tests/`, wrapped in `WITH_
 | `GuardSpec.cpp` | `WoR.Defense.Guard` | Block and Parry are one defense, Guard (D-084 / D-087 (Crown, 2026-10-26; B-168)). |
 | `HubServicesSpec.cpp` | `WoR.Hub.Services` | every hub service has a merchant NPC (V in an outfit), including the Stone Smith and the loadout vendor; the coverage check names the gaps (B-195 (HubAndStory §3, D-047, D-048, Q-195)). |
 | `InfusedBuildupSpec.cpp` | `WoR.Status.InfusedBuildup` | an infused hit's status buildup is authored × charge band × (1 + StatFraction(M)) in the executor, then × M again in AddStatusBuildup (B-113 / Q-113). |
+| `InfusionCostSpec.cpp` | `WoR.Infusion.Cost` | what an infused action costs today, as literals: ability x2.25 / x3.0 (D-035), spell x1.5 / x2.0, the upside-only stat surcharge, crystal and deferred casts free, and the HP cost (share of max EP applied to max HP, less Resistance) (B-136). |
 | `ItemUseSpec.cpp` | `WoR.Items.Use` | item use reports whether it landed (B-060). |
 | `LoadoutGetterSpec.cpp` | `WoR.Loadout.Getters` | the active loadout is the inventory's saved loadout at ActiveLoadoutIndex (or an empty default), and the loadout's class follows the owner's CharacterData (ULoadoutComponent's read getters (B-022)). |
 | `LoadoutPicksSpec.cpp` | `WoR.Loadout.Picks` | a pick that is itself invalid is refused with a reason; a loadout's invalid parts (too many abilities, too many utility crystals of a tier band) are dropped and named (B-159 (D-081 = A)). |
@@ -121,3 +122,4 @@ Combatants are bare unless a spec needs more: `SpawnCombatant` gives no loadout,
 | 2026-10-27 | B-133: `FWoRTestWorld::SpawnCombatantWithLoadout` and `AddComponent<T>` (first used by `WoR.Equipment.BoundGear`, replacing its own copy); the doc now lists every spec file (71) and the recorder helpers. | chore/B-133-test-harness |
 | 2026-10-27 | B-134: `WoR.Effects.Baseline` (13 cases) records how effects behave today, including two surprises kept as they are: a DOT fires on application (then skips that turn's end), and a same-source re-apply with refresh off replaces the value but keeps the duration while reporting DurationRefreshed. `ClearAllEffects` removes effects and armed gear; only `ResetForNewCombat` resets the once-per-match record (it also clears armed gear). | chore/B-134-effects-baseline-spec |
 | 2026-10-27 | B-135: three specs record today's behaviour: `WoR.Status.Buildup` (7 cases), `WoR.Defense.Match` (7) and `WoR.Combat.Grid` (6); `WoR.Effects.Baseline` gains the add-mid-pass case (a DOT tick caps the bar and adds a stun while the pass walks the list; landing on the holder's own turn, the stun counts that turn, per TurnSpan.h). | chore/B-135-buildup-defense-grid-specs |
+| 2026-10-27 | B-136: `WoR.Infusion.Cost` (6 cases) pins infusion EP and HP costs with literal numbers; it records that a chosen ability source at L0 still pays x1.5. Not covered: `ApplyCommitCosts`' HP routing by source (needs a running action). | chore/B-136-infusion-cost-spec |
