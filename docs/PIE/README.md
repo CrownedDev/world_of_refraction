@@ -104,6 +104,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-139](B-139.md) | `refactor/B-139-anim-instance-cleanup` (in `dev`) | Combat stances and infusion glow unchanged | Not tested |
 | [B-141](B-141.md) | `chore/B-141-per-hit-logs-verbose` (in `dev`) | A normal fight has a quiet Output Log | Not tested |
 | [B-045](B-045.md) | `feature/B-045-effect-text` (in `dev`) | Item text generated from its effects | Not tested |
+| [B-090](B-090.md) | `feature/B-090-save-keystone` (in `dev`) | Party and currencies saved between sessions | Not tested |
 | [B-195](B-195.md) | `feature/B-195-hub-services` (in `dev`) | Hub services: one V NPC per service (Stone Smith, loadout vendor added), each opens its shop | Not tested |
 | [B-194](B-194.md) | `feature/B-194-memory-journal` (in `dev`) | Hub journal: reread memories and lore, V's next line, play a conversation (placeholder screen) | Not tested |
 | [B-070](B-070.md) | `fix/B-070-trial-strong-ref` (in `dev`) | The trial run keeps hold of its trial (packaged builds) | Not tested |
