@@ -8,6 +8,8 @@
 // ASC's removed event. A tracked GE may carry a tick spec (a DOT or HOT payout, B-042b): it is
 // applied at each holder turn start the GE survives, after the finished spans end (Q-044c), in the
 // order the effects arrived, and no more once the holder's Health reaches 0.
+// B-042z: it also holds the holder's fires-once uses (D-011) and its armed gear conditionals (C3a); the
+// effect manager writes them here and in its own sets, and reads them here at wor.Effects.UseGAS 1.
 // Per-fight state on the battle actor (D-064).
 // Debug: GetDebugString, PrintState, `wor.DumpTurnEffects` (every combatant, with its GEs).
 
@@ -17,6 +19,7 @@
 #include "Components/ActorComponent.h"
 #include "ActiveGameplayEffectHandle.h"
 #include "GameplayEffectTypes.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "Skills/Effects/TurnSpan.h"
 #include "WoRTurnEffectTracker.generated.h"
 
@@ -64,6 +67,19 @@ public:
 
 	int32 NumTracked() const { return Tracked.Num(); }
 
+	/** B-042z: a fires-once use (EffectID + source key, D-011) spent this fight on this holder. */
+	bool HasFiredOnce(int32 EffectID, int32 SourceKey) const { return FiredOnce.Contains(FIntPoint(EffectID, SourceKey)); }
+	void RecordFiredOnce(int32 EffectID, int32 SourceKey);
+	int32 NumFiredOnce() const { return FiredOnce.Num(); }
+
+	/** B-042z: the gear conditionals armed at battle prep (replaces any earlier set). Null until armed. */
+	void ArmConditionals(const TArray<FGatheredEffect> &Conditionals);
+	const TArray<FGatheredEffect> *GetArmedConditionals() const { return bArmed ? &ArmedConditionals : nullptr; }
+	void DisarmConditionals();
+
+	/** B-042z: a new fight (or its end): the fires-once uses and the armed conditionals go. */
+	void ResetFightRecords();
+
 	/** One line per tracked GE: its class and its span. */
 	FString GetDebugString() const;
 
@@ -91,6 +107,11 @@ private:
 
 	TMap<FActiveGameplayEffectHandle, FTrackedEffect> Tracked;
 	int32 NextArrival = 0;
+
+	/** Fires-once uses: X = EffectID, Y = source key (0 for a doesn't-stack effect, D-053). */
+	TSet<FIntPoint> FiredOnce;
+	TArray<FGatheredEffect> ArmedConditionals;
+	bool bArmed = false;
 
 	/** The ASC whose removed event this component listens to. */
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
