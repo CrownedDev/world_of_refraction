@@ -2498,6 +2498,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. This stage is a parallel run: GAS must give the game's numbers until B-042h switches the readers over (the "parallel change" / strangler-fig migration pattern, Martin Fowler's ParallelChange and StranglerFigApplication). B would change when max HP moves, which is a gameplay decision of its own, not part of a migration, and would make `wor.CompareAttributes` report a difference after every pillar buff.
 **Notes for Claude:** B-042u built A. Whether a Body / Spirit buff should move max HP / EP during a fight is a separate gameplay question; raise it with Crown if it comes up (not changed here).
 
+### Q-042v — Turn speed on GAS: which number is "turn speed"?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042v) · **Blocks:** —
+**Question:** The TurnSpeed attribute mirrored the Spirit stat x the buff, but turn order runs a combatant at a different number: the stat capped, its gear multiplying up to the ceiling, rounded and cached at the start of the fight, then x the attached stone x the buff, rounded again, at least 1. Which number should the GAS turn speed be? And split the resistance sources off?
+**Options:**
+- **A** (as built) the number turn order uses: one getter (`UTurnManager::GetEffectiveTurnSpeed`) that turn order and the attribute both read; on GAS the cached base with one sources effect (stone, buff), rounded and floored at 1 by the attribute set. Outside a fight the base is worked out the way the fight would cache it.
+- **B** keep the stat x buff estimate and compose that on GAS.
+**Recommendation:** A. A parallel run is only useful if it checks the number the game really uses (Martin Fowler, ParallelChange: compare the old and new paths on the same output before switching readers). With B, the GAS turn speed would match a number nothing plays with, and the switch-over (B-042h) would change turn order. The resistance sources are a different shape (additive buckets), so they go to their own job, B-042w.
+**Notes for Claude:** B-042v built A. The cached base still refreshes only when turn order recaches (fight start, weapon / ring switch), as today; the sync also runs on `UTurnManager::OnSpeedChanged`. GAS multiplies the stone and buff together before the base (MultiplyCompound) while turn order multiplies base x buff x stone: the last float bit can differ, which only matters on an exact .5 before the round (rare; the compare would show it).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
