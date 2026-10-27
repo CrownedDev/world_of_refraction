@@ -1433,7 +1433,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Per character**: the same situation can give each character a different memory, or none.
 - **Memories can chain**: earning one can be a condition of the next (also a way for one story phase to unlock the next, HubAndStory §6).
 - **One time only**: once in the journal, a memory isn't granted again (Q-190 changed).
-- **Never told**: the game doesn't show the conditions; players discover them (pillar 10).
+- **Never told, no hints** (Crown, 2026-10-27): the game doesn't show the conditions and gives no rumours, cues or "?" slots; they activate when they activate (pillar 10).
 
 **Notes for Claude:** a memory = `UMemoryData` + a condition list (character, items + levels, location, beaten enemy, behaviour, prior memories, hidden). Sources (fragment pickups, boss defeat, trigger volumes, gear upgrades) are just *events that check* memory conditions; all grant through `CollectMemory` / the journal (B-190). B-191's `BossModifiers` on memories move to the boss's own trigger list (B-211). Design and research: `Design/HiddenQuests.md`.
 

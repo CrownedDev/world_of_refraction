@@ -8,10 +8,11 @@
   - **Boss triggers:** each boss / mini-boss has its own "if these conditions, then this" rules (weaken, strengthen, skip / add a phase, a line). Not memory-based.
   - **Memories:** unlock when **all** their conditions are met (who, gear and its level, where, what you beat, how you played, earlier memories, hidden). Per character, can chain, one-time, never shown.
 - Hidden conditions are a pillar (10): reward curiosity and experimenting.
+- **No hints at all** (Crown, 2026-10-27, pure Shangri-La): hidden memories and scenarios give no rumours, cues or "?" slots; "they activate when they activate".
 
 ## 2. What the research suggests (to decide)
 
-1. **Hints:** SLF has none (it relies on 30 million players trading tips). Small games that did well give **soft hints that never show the conditions**: NPC rumours (V's lines), a small cue when you're close, journal "?" slots (Outer Wilds' ship log, Hades II's prophecy list).
+1. ~~Hints~~ **decided: none.** SLF has none (it relies on 30 million players trading tips). Small games that did well give **soft hints that never show the conditions**: NPC rumours (V's lines), a small cue when you're close, journal "?" slots (Outer Wilds' ship log, Hades II's prophecy list).
 2. **Never permanently missable:** check conditions every run, so one-time means the unlock, not the chance (fixes the Elden Ring / Dragon's Dogma 2 complaints).
 3. **Co-op:** each player who meets the conditions gets the memory on their own save; nothing is first-come (SLF's Lycagon EX, Destiny 2's Whisper).
 4. **Hidden scenarios beyond memories:** SLF's Unique Scenarios also give gear, skills, jobs and curses; whether this game's hidden content can grant more than story.
@@ -22,6 +23,7 @@
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-27 | Created from D-100 and the research | docs/hidden-quests-research |
+| 2026-10-27 | No hints (Crown) | docs/hidden-no-hints |
 
 ---
 
