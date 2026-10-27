@@ -1,7 +1,8 @@
 // MemoryConditions.h
 // B-209 (D-100 part 2, Q-209b): memories by conditions. Each UMemoryData lists unlock conditions
 // (all must hold, never shown); an event (a fragment pickup, reaching a map spot, a gear upgrade,
-// a fight won) checks every memory that has conditions, plus the memory its source names. A
+// a fight won) checks every memory that has conditions, plus the memory its source names. Gear and
+// skills count equipped, levelled or used in the fight (Q-209d). A
 // memory earned in an event can meet the next one's PriorMemory in the same event (chains). All
 // grants go through MemoryUnlock::Unlock (journal once, B-210).
 // Debug: wor.Memory.Conditions (each memory's conditions, met or not, for the party now).
@@ -15,15 +16,35 @@
 class AActor;
 class UCharacterData;
 class UEquipmentDataBase;
+class UEvolutionItemData;
 class UGameInstance;
 class UMemoryData;
+class USkillDataBase;
+struct FAction;
 struct FMemoryCondition;
 
-/** One party member as an event sees them: who, and what they wear at which level. */
+/** Q-209d: what one combatant used in a fight (kept on the battle for that fight, D-064). */
+struct FMemoryFightUsage
+{
+	TArray<const USkillDataBase *> Skills;
+	TArray<const UEvolutionItemData *> Breakthroughs;
+	/** The weapons held when it made a kill. */
+	TArray<const UEquipmentDataBase *> FinishingWeapons;
+};
+
+/** One party member as an event sees them: who, what they wear at which level, what they have
+ *  slotted and what they used. */
 struct FMemoryEventMember
 {
 	const UCharacterData *Character = nullptr;
 	TArray<TPair<const UEquipmentDataBase *, EItemTier>> Worn;
+	/** The evolution in the primary slot, and its level. */
+	const UEvolutionItemData *Evolution = nullptr;
+	EItemTier EvolutionTier = EItemTier::F_Tier;
+	/** Attacks, abilities and spells in the active loadout. */
+	TArray<const USkillDataBase *> Slotted;
+	/** Filled for a fight won. */
+	FMemoryFightUsage Used;
 };
 
 /** What is true when an event checks memory conditions. */
@@ -38,6 +59,9 @@ struct FMemoryEvent
 	bool bNoDamageTaken = false;
 	/** A gear upgrade: the levelled item, worn as far as GearEquipped is concerned. */
 	const UEquipmentDataBase *UpgradedItem = nullptr;
+	/** An evolution level-up: the levelled evolution, equipped as far as EvolutionEquipped is
+	 *  concerned (its level in UpgradedTier). */
+	const UEvolutionItemData *UpgradedEvolution = nullptr;
 	EItemTier UpgradedTier = EItemTier::F_Tier;
 	/** Whose item was levelled; null when unknown (then any party member may be its wearer). */
 	const UCharacterData *UpgradedBy = nullptr;
@@ -51,8 +75,15 @@ namespace MemoryConditions
 	 *  on combat pawns until B-085) and the active trial's name as a location. */
 	WORLD_OF_REFRACTION_API FMemoryEvent MakeEvent(const UGameInstance *GameInstance, EMemorySource Source);
 
-	/** A combatant: its character and worn gear with levels. */
+	/** A combatant: its character, worn gear and primary-slot evolution with levels, and slotted
+	 *  skills (not what it used: that comes from the fight's record). */
 	WORLD_OF_REFRACTION_API FMemoryEventMember MakeMember(const AActor *Combatant);
+
+	/** Q-209d: Actor used Action: its skill, and a Breakthrough spell's evolution. */
+	WORLD_OF_REFRACTION_API void RecordAction(FMemoryFightUsage &Usage, const AActor *Actor, const FAction &Action);
+
+	/** Q-209d: Killer made a kill: the weapon it held. */
+	WORLD_OF_REFRACTION_API void RecordKill(FMemoryFightUsage &Usage, const AActor *Killer);
 
 	WORLD_OF_REFRACTION_API bool IsMet(const FMemoryCondition &Condition, const FMemoryEvent &Event,
 									   const UMemoryJournalSubsystem *Journal);

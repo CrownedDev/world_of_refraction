@@ -1,19 +1,23 @@
 // MemoryConditionsSpec.cpp
 // B-209 (D-100 part 2, Q-209b): a memory unlocks when every unlock condition holds at an event:
 // one spec per condition kind, a two-memory chain in one event, a source's own memory, once only;
-// Q-209c: alternative condition sets (any one opens it) and rewards (logged on unlock).
+// Q-209c: alternative condition sets (any one opens it) and rewards (logged on unlock);
+// Q-209d: evolutions and skills equipped, slotted and used, and a fight's usage record.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
+#include "Combat/Actions/ActionStructs.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
+#include "Skills/Definitions/SpellData.h"
 
 namespace
 {
@@ -234,6 +238,95 @@ void FMemoryConditionsSpec::Define()
 		Pickup.Named.Add(Memory);
 		TestEqual(TEXT("Unlocked (the reward is logged)"), MemoryConditions::CheckEvent(GameInstance, Pickup, {}), 1);
 		TestTrue(TEXT("Debug string lists the reward"), Memory->GetMemoryString().Contains(CONDITIONS_TEST_TITLE.ToString()));
+	});
+
+	It("meets evolution, skill, Breakthrough and finishing-blow conditions", [this]()
+	{
+		UEvolutionItemData *Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
+		FMemoryCondition Equipped = Condition(EMemoryConditionKind::EvolutionEquipped);
+		Equipped.Evolution = Evolution;
+		Equipped.Character = Lord;
+		Equipped.UpgradeLevel = CONDITIONS_TEST_UPGRADE_LEVEL;
+		FMemoryCondition Slotted = Condition(EMemoryConditionKind::SkillSlotted);
+		Slotted.Skill = Spell;
+		FMemoryCondition Used = Condition(EMemoryConditionKind::SkillUsed);
+		Used.Skill = Spell;
+		FMemoryCondition Breakthrough = Condition(EMemoryConditionKind::BreakthroughUsed);
+		Breakthrough.Evolution = Evolution;
+		FMemoryCondition Finisher = Condition(EMemoryConditionKind::FinishingBlow);
+		Finisher.Item = Weapon;
+
+		FMemoryEvent Event = EventWithLord();
+		for (const FMemoryCondition &Each : {Equipped, Slotted, Used, Breakthrough, Finisher})
+		{
+			TestFalse(TEXT("Nothing equipped or used yet"), MemoryConditions::IsMet(Each, Event, Journal));
+		}
+		FMemoryEventMember &Member = Event.Party[0];
+		Member.Evolution = Evolution;
+		Member.EvolutionTier = ConditionsTestTierAbove(Evolution->Tier, CONDITIONS_TEST_UPGRADE_LEVEL - 1);
+		TestFalse(TEXT("Evolution a level short"), MemoryConditions::IsMet(Equipped, Event, Journal));
+		Member.EvolutionTier = ConditionsTestTierAbove(Evolution->Tier, CONDITIONS_TEST_UPGRADE_LEVEL);
+		TestTrue(TEXT("Evolution equipped, levelled"), MemoryConditions::IsMet(Equipped, Event, Journal));
+		Member.Slotted.Add(Spell);
+		TestTrue(TEXT("Skill slotted"), MemoryConditions::IsMet(Slotted, Event, Journal));
+		TestFalse(TEXT("Slotted is not used"), MemoryConditions::IsMet(Used, Event, Journal));
+		Member.Used.Skills.Add(Spell);
+		Member.Used.Breakthroughs.Add(Evolution);
+		Member.Used.FinishingWeapons.Add(Weapon);
+		TestTrue(TEXT("Skill used"), MemoryConditions::IsMet(Used, Event, Journal));
+		TestTrue(TEXT("Breakthrough used"), MemoryConditions::IsMet(Breakthrough, Event, Journal));
+		TestTrue(TEXT("Finishing blow"), MemoryConditions::IsMet(Finisher, Event, Journal));
+
+		FMemoryEvent Stranger;
+		Stranger.Party.Add(Member);
+		Stranger.Party[0].Character = FWoRTestWorld::NewCharacterData();
+		TestFalse(TEXT("Equipped by someone else"), MemoryConditions::IsMet(Equipped, Stranger, Journal));
+		TestTrue(TEXT("Anyone's use counts when no character is set"), MemoryConditions::IsMet(Used, Stranger, Journal));
+
+		FMemoryEvent Upgrade = EventWithLord();
+		Upgrade.UpgradedEvolution = Evolution;
+		Upgrade.UpgradedTier = ConditionsTestTierAbove(Evolution->Tier, CONDITIONS_TEST_UPGRADE_LEVEL);
+		Upgrade.UpgradedBy = Lord;
+		TestTrue(TEXT("A level-up counts the evolution as equipped"), MemoryConditions::IsMet(Equipped, Upgrade, Journal));
+		Upgrade.UpgradedBy = Stranger.Party[0].Character;
+		TestFalse(TEXT("Levelled by someone else"), MemoryConditions::IsMet(Equipped, Upgrade, Journal));
+	});
+
+	It("records what a combatant used in a fight", [this]()
+	{
+		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
+		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(Lord, Weapon);
+		if (!TestNotNull(TEXT("Combatant"), Loadout))
+		{
+			return;
+		}
+		AActor *Actor = Loadout->GetOwner();
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		FAction Cast;
+		Cast.SpellData = Spell;
+		Cast.SpellSource = ESpellSource::Evolution;
+
+		FMemoryFightUsage Usage;
+		MemoryConditions::RecordAction(Usage, Actor, Cast);
+		MemoryConditions::RecordAction(Usage, Actor, Cast);
+		TestEqual(TEXT("The spell, once"), Usage.Skills.Num(), 1);
+		TestTrue(TEXT("No evolution in the primary slot: no Breakthrough"), Usage.Breakthroughs.IsEmpty());
+		MemoryConditions::RecordKill(Usage, Actor);
+		TestTrue(TEXT("The weapon it held for the kill"), Usage.FinishingWeapons.Contains(Weapon));
+
+		UEvolutionItemData *Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+		UInventoryComponent *Inventory = Actor->FindComponentByClass<UInventoryComponent>();
+		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+		Active.PrimarySlotType = EPrimarySlotType::Evolution;
+		Active.PrimaryEvolution.Item = Evolution;
+		Active.PrimaryEvolution.Tier = ConditionsTestTierAbove(Evolution->Tier, CONDITIONS_TEST_UPGRADE_LEVEL);
+		MemoryConditions::RecordAction(Usage, Actor, Cast);
+		TestTrue(TEXT("A Breakthrough spell names its evolution"), Usage.Breakthroughs.Contains(Evolution));
+		const FMemoryEventMember Member = MemoryConditions::MakeMember(Actor);
+		TestEqual(TEXT("Its primary-slot evolution"), Member.Evolution, static_cast<const UEvolutionItemData *>(Evolution));
+		TestEqual(TEXT("At its level"), Member.EvolutionTier, Active.PrimaryEvolution.Tier);
 	});
 
 	It("never meets a hidden condition (not built)", [this]()

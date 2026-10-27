@@ -11,6 +11,7 @@
 
 class UCharacterData;
 class UEquipmentDataBase;
+class UEvolutionItemData;
 class UMemoryData;
 class USkillDataBase;
 
@@ -66,7 +67,18 @@ enum class EMemoryConditionKind : uint8
 	/** PriorMemory is already in the journal (memories chain). */
 	PriorMemory,
 	/** TODO: hidden conditions (pillar 10) are not built; never met for now. */
-	Hidden
+	Hidden,
+	/** Q-209d: Evolution is in the primary slot (of Character when set) at least UpgradeLevel tiers
+	 *  above its authored tier. An evolution level-up counts the levelled one as equipped. */
+	EvolutionEquipped,
+	/** Q-209d: Skill (an attack, ability or spell) is in the loadout of Character / anyone. */
+	SkillSlotted,
+	/** Q-209d: Skill was used in the fight just won. */
+	SkillUsed,
+	/** Q-209d: a Breakthrough spell was cast from Evolution in the fight just won. */
+	BreakthroughUsed,
+	/** Q-209d: whoever held the weapon Item made a kill in the fight just won. */
+	FinishingBlow
 };
 
 USTRUCT(BlueprintType)
@@ -77,14 +89,20 @@ struct WORLD_OF_REFRACTION_API FMemoryCondition
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
 	EMemoryConditionKind Kind = EMemoryConditionKind::Character;
 
-	/** Character: who must be in the party. GearEquipped: who must wear it (empty: anyone). */
+	/** Character: who must be in the party. Gear and skill kinds: whose it must be (empty: anyone). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
 	TObjectPtr<UCharacterData> Character = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
 	TObjectPtr<UEquipmentDataBase> Item = nullptr;
 
-	/** GearEquipped: tiers above the item's authored tier. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
+	TObjectPtr<UEvolutionItemData> Evolution = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
+	TObjectPtr<USkillDataBase> Skill = nullptr;
+
+	/** GearEquipped / EvolutionEquipped: tiers above the authored tier. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory", meta = (ClampMin = "0"))
 	int32 UpgradeLevel = 0;
 
