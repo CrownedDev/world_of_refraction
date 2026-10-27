@@ -95,13 +95,18 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 - `Skills/Effects/BuildupMath.h`: `WoRBuildupMath::Compute` over `FBuildupMathInputs` (amount, source StatusMultiplier, element-keyed multiplier, Broken Darkness stack factor, the three resistance layers, clamped). `UStatusBuildupManager::GatherBuildupMathInputs` fills it; `AddStatusBuildup` runs gather + Compute between the immunity gates and the bar.
 - `GAS/WoRBuildupExecution.h`: `UWoRBuildupExecution` runs the core over an `FWoRBuildupRequest` on `FWoREffectContext::BuildupRequest` (authority only). `ReadAttributes` takes the source's StatusMultiplier (with a source, not baked in) and the target's StatusResistance + `Resist_<element type>` (+ physical) + StatusResistBonus. Output: Buildup += the result. `UWoRGE_Buildup` (Instant); `MakeRequest` / `MakeBuildupSpec` / `GetRequestString` (Q-042l).
 - `UWoRAttributeSyncComponent::ReadSyncedAttribute`: the read gate both executions share (set present, owner has the sync and character data).
-- Not applied in play; the bar, cap and decay move with B-042o.
+- B-042o: at UseGAS 1 `UStatusBuildupManager::AddStatusBuildup` applies it to the target (the bar is the Buildup attribute; see "Status bar on GAS").
+
+### Status bar on GAS (stage 3, B-042o part 5e)
+
+- At UseGAS 1, for a target whose ASC holds the Buildup attribute (`UStatusBuildupManager::GetBarASC`), the attribute is the bar: hits go through `AddThroughExecution` (the spec's source is the hitter's ASC; a source with none keeps its gathered multiplier), reset / reduce / decay / `ResetForCombat` write it (`SetBar`), the getters read it. `FStatusBarState` keeps a copy and the pending element, physical type, last source and decay count (Q-042o: the hit-type read is unchanged).
+- The immunity gates read tags (`HasEffectOfType` at UseGAS 1), the cap fires the break through `ApplyEffect` (tracker lifetime, B-042h), decay runs after the tracker's turn start. Debug: `GetBarDebugString`, `wor.DumpStatusBars`.
 
 ### Tick execution (stage 3, B-042n part 5d)
 
 - `Skills/Effects/TickMath.h`: `WoRTickMath::GetDotTickDamage` (value x the element multiplier, 1 for a share of max HP, rounded) and `GetHotTickHeal` (value x (1 + healing received / 100), rounded) over `FTickMathInputs`. `USkillEffectManager::GetDotTickDamage` and the HealthRestore tick call them.
 - `GAS/WoRTickExecution.h`: `UWoRTickExecution`, run by `UWoRGE_HealthTick` / `UWoRGE_HealTick`, over an `FWoRTickRequest` on `FWoREffectContext::TickRequest` (set by `FWoREffectSpecBuilder::Build`, authority only). A DOT reads the holder's element resistance (`UWoRDamageExecution::ReadElementResistance`, shared with hits), a HOT its HealingReceivedBuff total as the enum path reads it (`GetTotalStatModifier`). Output: Health -= damage or += heal.
-- Not applied in play; a DOT's `BuildupPerTick` moves with the status bar (B-042o, Q-042n).
+- Ticks are paid on the enum path until B-042y (Q-042hb); a DOT's `BuildupPerTick` goes through `AddStatusBuildup`, so at UseGAS 1 it runs the buildup execution (B-042o).
 
 ### Stat sources (stage 3, B-042p part 5f)
 
@@ -168,3 +173,4 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 | 2026-10-27 | B-042w (stage 3, part 5m): the resistances composed on GAS from one effect per source; general status resistance on the stat-sources shape (Q-042w). | feature/B-042w-gas-resistance |
 | 2026-10-27 | B-042n (stage 3, part 5d, narrowed): `WoRTickMath`, `UWoRTickExecution` on the DOT / HOT tick GEs, `ReadElementResistance`; the per-tick buildup split into B-042o (Q-042n). | feature/B-042n-gas-dot-hot-ticks |
 | 2026-10-27 | B-042h (stage 3, part 3b, narrowed): at UseGAS 1 the tracker owns timed effects' lifetime (`ApplySpecForSpan`, `SetSpan`, `ReleaseEndedCopies`, `ForgetEnded`); payouts move with B-042y (Q-042hb). | feature/B-042h-gas-effect-lifetime |
+| 2026-10-27 | B-042o (stage 3, part 5e): at UseGAS 1 the status bar is the Buildup attribute; hits through `UWoRBuildupExecution` (Q-042o). | feature/B-042o-gas-status-bar |
