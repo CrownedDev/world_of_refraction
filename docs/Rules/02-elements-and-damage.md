@@ -7,6 +7,7 @@ This page covers the elements, how a skill's damage element is picked, every ste
 | # | Rule | Status | Source |
 |---|---|---|---|
 | ED-01 | There are nine elements: Fire, Water, Earth, Wind, Light, Darkness, Lightning, Void, Reality. | In game | `Skills/Definitions/ESpellElement.h:16-34` |
+| ED-42 | Players never see the word Reality: the element, its immunity and Reality-resolved spell names read **Unknown** ("Unknown Ball"). Element, status-type and class names come from one name table that survives packaged builds (Caster reads Refractor). | In game | `D-095`, `D-062`; `WoRGameNames.cpp` |
 | ED-02 | Two more values are not elements. **Generic** means "inherit": a Generic spell takes its source's element when cast. **None** means non-elemental (physical, or no source). | In game | `ESpellElement.h:18,28-34` |
 | ED-03 | An element by itself does not change damage: there is no weakness wheel, and the element step is always x1.0. Today elements only steer status buildup, resistance and Broken Darkness. | In game | `Combat/Damage/DamageCalculator.cpp:207-208` |
 | ED-04 | Ice is a **damage type of Water**, not a tenth element: no Ice crystal, ring or Refractor. Ice skills are Water-keyed and need a Water source; Ice resistance also resists Water; Water boosts don't boost Ice; "on Water hit" triggers hear Ice. A full Ice bar slows action speed (Freeze). | Decided, not built (B-064a) | `D-029`; `D-030`; deckbuilder `02-enums.md` "Ice — a damage type, not an element" |
