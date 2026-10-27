@@ -23,7 +23,7 @@ Companion to `RunStructure.md`. Values marked *tune* are placeholders: named con
 
 - Enemies are **visible**, standing guard or patrolling. You can approach or avoid them.
 - **Touching one starts the fight.**
-- **First strike, both ways:** hit an enemy with a field ability before it notices you and you start with an advantage (Crown, 2026-10-26: **the side with first strike acts first**); get caught from behind and the enemy gets it. This is a real-time field ability (`GASMigration.md`).
+- **First strike, both ways:** hit an enemy with a field ability before it notices you and you start with an advantage (Crown, 2026-10-26: **the side with first strike acts first**); get caught from behind and the enemy gets it. This is a real-time field ability (`GASMigration.md`): the **field command menu** (D-099), free-aimed, no lock-on; until it exists, a touch from outside the notice cone stands in.
 
 ## 3. Fight size
 
