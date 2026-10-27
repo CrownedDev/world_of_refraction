@@ -95,7 +95,8 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 
 - `Character/StatLayers.h`: `FWoRStatLayers` (StatBase capped alone, Gear, Stone, Transient factors; `Compose()` clamps to `STAT_MODIFIER_MIN/MAX`). `UCharacterDataComponent::GetStatLayers` fills them for SpellDamage, RawDamage, ActionSpeed, SpellSpeed; those four `GetEffective*` getters return `Compose()`.
 - `UWoRGE_StatSources` (+ one subclass per stat): Infinite, `Effect.Family.StatSources`, three MultiplyCompound modifiers reading `SetByCaller.Stat.Gear / Stone / Transient`. `UWoRAttributeSet_Stats::PreAttributeChange` clamps the four.
-- `UWoRAttributeSyncComponent::SyncComposedStat`: base = StatBase; applies the stat's sources effect once and updates its SetByCaller magnitudes in place when the layers change (re-applied if something removed it; removed at EndPlay). Current value = the getter (Q-042p). The other stats are B-042q.
+- B-042q: StatusMultiplier, Defense and CritDamage join them (seven composed stats, `UWoRAttributeSet_Stats::GetComposedStats`, the one table the clamp and the sync read). Each stat's clamp comes from `FWoRStatLayers::ForStat` (Defense [0, 0.85], crit damage [x1.0, x2.5], the rest [0, 2]). `wor.CompareAttributes` also checks each composed base and its one sources effect. The rest is B-042r.
+- `UWoRAttributeSyncComponent::SyncComposedStat`: base = StatBase; applies the stat's sources effect once and updates its SetByCaller magnitudes in place when the layers change (re-applied if something removed it; removed at EndPlay). Current value = the getter (Q-042p).
 
 ## Integration points
 
@@ -140,3 +141,4 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 | 2026-10-27 | B-042l (stage 3, part 5b, narrowed): `WoRBuildupMath`, `UWoRBuildupExecution` + `UWoRGE_Buildup`, `ReadSyncedAttribute`; bar / cap / decay split into B-042o. | feature/B-042l-gas-buildup-execution |
 | 2026-10-27 | B-042m (stage 3, part 5c, narrowed): Ignore Defense as an amount in the shared damage core the damage execution runs; sources as GEs split into B-042p. | feature/B-042m-ignore-defense-amount |
 | 2026-10-27 | B-042p (stage 3, part 5f, narrowed): the four Pattern P stats composed on GAS (`UWoRGE_StatSources`, base = capped stat); other stats split into B-042q. | feature/B-042p-gas-stat-sources |
+| 2026-10-27 | B-042q (stage 3, part 5g, narrowed): StatusMultiplier, Defense and crit damage composed on GAS (per-stat clamps); `wor.CompareAttributes` checks composed bases and sources effects; other stats split into B-042r. | feature/B-042q-gas-stat-sources-rest |

@@ -2441,6 +2441,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. SetByCaller is GAS's documented way to pass magnitudes computed outside the effect (tranek's GASDocumentation, "SetByCallers"; Lyra's damage uses it), and MultiplyCompound is the engine's op for multipliers that compound rather than add (GameplayEffectTypes.h: `((Base + AddBase) x MultiplyAdditive / DivideAdditive x MultiplyCompound) + AddFinal`), which is exactly the §2.1 shape (sum within a group, multiply between groups). A keeps one source of truth (the getter's layers) while the enum path owns the sources, so nothing is counted twice; B-042h moves each group's applier to its owner (loadout, buffs) without changing the effect.
 **Notes for Claude:** B-042p built A. The current value equals the getter (spec + `wor.CompareAttributes`); the base is the capped stat. The executions read current values, so nothing changes for them.
 
+### Q-042q — The rest of the stats on GAS: all in one job, or the base-times-factors stats first?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042q) · **Blocks:** —
+**Question:** B-042q held every remaining stat (L). Three of them (StatusMultiplier, Defense, crit damage) have exactly B-042p's shape (a capped stat times gear, stone and buff factors) but different clamps; the rest don't (Efficiency is a reduction the attribute inverts, crit chance is Luck-driven, pools add gear flat, resistance has its own buckets). Do them together, and where do the per-stat clamps live?
+**Options:**
+- **A** (as built) the three same-shape stats now, each clamp carried by the layers (`FWoRStatLayers::ForStat`) so the getter and the attribute set clamp from one place; the others split into B-042r, each designed for its own shape.
+- **B** all stats in one change.
+**Recommendation:** A. Ship the identical-shape cases first and keep the odd ones for their own design: the strangler-fig pattern (Fowler, "StranglerFigApplication") moves one slice at a time with the old path still answering, which is how this GAS migration has gone since stage 1. GAS itself clamps per attribute in `PreAttributeChange` (Lyra's health set; tranek's GASDocumentation, "PreAttributeChange"), so one bounds table per stat is the engine's own pattern.
+**Notes for Claude:** B-042q built A. Seven composed stats share `UWoRAttributeSet_Stats::GetComposedStats`. B-042r takes the rest.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
