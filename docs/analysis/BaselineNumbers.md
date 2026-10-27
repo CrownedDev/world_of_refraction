@@ -1,6 +1,6 @@
 # Combat Numbers Baseline (proposal)
 
-**Status:** proposal (2026-10-27), being decided with Crown one question at a time. Nothing here is a ruling until marked. Outside sources were partly search summaries (see notes).
+**Status:** decided (Crown, 2026-10-27): the **Decided** list is the baseline; the rest of the doc is the proposal and research it came from (where they differ, Decided wins). Outside sources were partly search summaries (see notes).
 
 ## Decided
 
