@@ -535,7 +535,7 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 
 	// Validate action
 	FActionValidationResult Validation = ActionExecutorRef->ValidateAction(CurrentActor, Action);
-	UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Validation: %s - %s"),
+	UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatOrchestrator] Validation: %s - %s"),
 		   Validation.bIsValid ? TEXT("VALID") : TEXT("INVALID"),
 		   *Validation.ErrorMessage);
 	if (!Validation.bIsValid)

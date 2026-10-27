@@ -2,6 +2,7 @@
 // Manages infusion VFX spawning based on weapon's display location setting
 
 #include "Infusion/InfusionVFXComponent.h"
+#include "WoRLog.h"
 #include "Character/CharacterDataComponent.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Weapons/WeaponMeshComponent.h"
@@ -84,7 +85,7 @@ void UInfusionVFXComponent::SetInfusionLevel(int32 Level)
     {
         CurrentInfusionLevel = 0;
         DeactivateInfusion();
-        UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Suppressed - action is immune to infusion"));
+        UE_LOG(LogWoRCombat, Verbose, TEXT("[InfusionVFX] Suppressed - action is immune to infusion"));
         return;
     }
 
@@ -95,7 +96,7 @@ void UInfusionVFXComponent::SetInfusionLevel(int32 Level)
     if (CurrentInfusionLevel == 0)
     {
         DeactivateInfusion();
-        UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Level 0 - VFX disabled"));
+        UE_LOG(LogWoRCombat, Verbose, TEXT("[InfusionVFX] Level 0 - VFX disabled"));
         return;
     }
 
@@ -111,7 +112,7 @@ void UInfusionVFXComponent::SetInfusionLevel(int32 Level)
     if (ActiveVFXComponent)
     {
         ActiveVFXComponent->SetVariableFloat(ScaleParameterName, ScaleMultiplier);
-        UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Level %d - Scale: %.2f"), CurrentInfusionLevel, ScaleMultiplier);
+        UE_LOG(LogWoRCombat, Verbose, TEXT("[InfusionVFX] Level %d - Scale: %.2f"), CurrentInfusionLevel, ScaleMultiplier);
     }
 }
 
@@ -196,7 +197,7 @@ void UInfusionVFXComponent::ActivateInfusion(EInfusionSourceOption Source)
 
     bIsInfusionActive = true;
 
-    UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Activated - Source: %d, Element: %d"),
+    UE_LOG(LogWoRCombat, Verbose, TEXT("[InfusionVFX] Activated - Source: %d, Element: %d"),
            (int32)CurrentSource, (int32)CurrentElement);
 }
 
@@ -213,7 +214,7 @@ void UInfusionVFXComponent::DeactivateInfusion()
     CurrentElement = ESpellElement::None;
     bIsInfusionActive = false;
 
-    UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Deactivated"));
+    UE_LOG(LogWoRCombat, Verbose, TEXT("[InfusionVFX] Deactivated"));
 }
 
 void UInfusionVFXComponent::RefreshVFX()
