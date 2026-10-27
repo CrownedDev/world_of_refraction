@@ -258,6 +258,7 @@ bool UInventoryComponent::AttachEvolutionToGear(TArray<TEntry> &Gear, FGuid Gear
 
     // Reference the owned entry (entry stays in EvoInv->Entries — reference model, not move).
     Gear[Index].AttachedItem = MakeEvolutionAttachment(*Entry, EvoInstanceID);
+    RefreshLoadoutsFromOwned(GearID);
     UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached evolution %s (tier %d) to %s %s"),
            *EvoInstanceID.ToString(), static_cast<int32>(Entry->Tier), GearLabel<TEntry>(), *GearID.ToString());
     BroadcastInventoryChanged(EInventoryChangeType::Equipped);
@@ -301,6 +302,7 @@ bool UInventoryComponent::AttachCrystalToGear(TArray<TEntry> &Gear, FGuid GearID
     }
 
     Gear[Index].AttachedItem = MakeCrystalAttachment(Id, bIsStone);
+    RefreshLoadoutsFromOwned(GearID);
     UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached %s %s to %s %s"),
            bIsStone ? TEXT("augment stone") : TEXT("refined crystal"),
            *ItemIdentity::GetDisplayName(Id), GearLabel<TEntry>(), *GearID.ToString());
@@ -350,6 +352,7 @@ bool UInventoryComponent::AttachFusionToGear(TArray<TEntry> &Gear, FGuid GearID,
     }
 
     Gear[Index].AttachedItem = MakeFusionAttachment(FusionId);
+    RefreshLoadoutsFromOwned(GearID);
     UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Fused %s + %s onto %s %s"),
            *ItemIdentity::GetDisplayName(FusionId.HalfA), *ItemIdentity::GetDisplayName(FusionId.HalfB),
            GearLabel<TEntry>(), *GearID.ToString());
@@ -399,6 +402,7 @@ bool UInventoryComponent::RemoveEvolutionFromGear(TArray<TEntry> &Gear, FGuid Ge
 
     // Un-reference: clear the gear slot regardless (the evo leaves the weapon/ring).
     Gear[Index].RemoveCrystal();
+    RefreshLoadoutsFromOwned(GearID);
 
     // Q-159: an evolution is equipment, never lost to wear. If the removal wear took it to 0 it
     // returns to the inventory broken (repairable), no longer dismantled (§5.3b, superseded).
@@ -426,6 +430,7 @@ bool UInventoryComponent::RemoveCrystalFromGear(TArray<TEntry> &Gear, int32 Inde
         CrystalEffectTable::GetAttachedStonePercent(Gear[Index].AttachedItem, ESubStat::TurnSpeed) > 0.0f;
 
     Gear[Index].RemoveCrystal();
+    RefreshLoadoutsFromOwned(Gear[Index].PersistentID);
 
     // Notify TurnManager so the stone factor re-reads for this actor.
     // Out-of-combat / pre-combat case: actor isn't in Combatants, the loop in
@@ -820,6 +825,322 @@ bool UInventoryComponent::LoadoutHasGear(const FCombatLoadout &Loadout)
     return bPrimary || bSecondary || bRings;
 }
 
+// ==================== OWNED GEAR SYNC (B-085, Q-085) ====================
+
+namespace InventoryGearSync
+{
+    const UObject *GetGearAsset(const FWeaponInventoryEntry &Entry) { return Entry.Weapon; }
+    const UObject *GetGearAsset(const FRingInventoryEntry &Entry) { return Entry.Ring; }
+
+    /** The owned weapon or ring with ID (const or not, as Owned is), or null. */
+    template <typename TArrayType>
+    auto FindOwned(TArrayType &Owned, const FGuid &ID)
+    {
+        return ID.IsValid() ? Owned.FindByPredicate([&ID](const auto &Entry) { return Entry.PersistentID == ID; })
+                            : nullptr;
+    }
+
+    /** Calls WeaponFunc / RingFunc on each weapon and ring entry the loadout holds. */
+    template <typename TLoadout, typename FWeaponFunc, typename FRingFunc>
+    void ForEachGearSlot(TLoadout &Loadout, FWeaponFunc &&WeaponFunc, FRingFunc &&RingFunc)
+    {
+        WeaponFunc(Loadout.PrimaryWeapon.WeaponEntry);
+        WeaponFunc(Loadout.SecondaryWeapon.WeaponEntry);
+        RingFunc(Loadout.PrimaryRing.RingEntry);
+        for (auto &Ring : Loadout.RingLoadout)
+        {
+            RingFunc(Ring.RingEntry);
+        }
+    }
+
+    /** The owned entry onto the slot; the slot keeps its own spell picks (a Resonator ring slot's). */
+    template <typename TEntry>
+    void CopyOwned(TEntry &Slot, const TEntry &Owned)
+    {
+        TArray<USpellData *> Picks = MoveTemp(Slot.AssignedSpells);
+        Slot = Owned;
+        Slot.AssignedSpells = MoveTemp(Picks);
+    }
+
+    void CopyOwnedEvolution(FEvolutionAttachment &Slot, const FEvolutionInventoryEntry &Owned)
+    {
+        Slot.Tier = Owned.Tier;
+        Slot.CurrentDurability = Owned.CurrentDurability;
+        Slot.GeneratedStatBonus = Owned.GeneratedStatBonus;
+        Slot.GeneratedResistance = Owned.GeneratedResistance;
+        Slot.StatPool = Owned.StatPool;
+        Slot.StatMaxPool = Owned.StatMaxPool;
+        Slot.ResistancePool = Owned.ResistancePool;
+        Slot.ResistanceMaxPool = Owned.ResistanceMaxPool;
+    }
+
+    /** Links an unlinked slot to the first owned entry of its asset this loadout doesn't use yet. */
+    template <typename TEntry>
+    bool LinkSlot(TEntry &Slot, const TArray<TEntry> &Owned, TSet<FGuid> &UsedHere)
+    {
+        if (!GetGearAsset(Slot) || FindOwned(Owned, Slot.PersistentID))
+        {
+            return false;
+        }
+        const TEntry *Match = Owned.FindByPredicate([&Slot, &UsedHere](const TEntry &Entry)
+        {
+            return Entry.PersistentID.IsValid() && GetGearAsset(Entry) == GetGearAsset(Slot) &&
+                   !UsedHere.Contains(Entry.PersistentID);
+        });
+        if (!Match)
+        {
+            return false;
+        }
+        UsedHere.Add(Match->PersistentID);
+        CopyOwned(Slot, *Match);
+        return true;
+    }
+
+    template <typename TEntry, typename TArrayType>
+    FString DescribeSlot(const TCHAR *Label, const TEntry &Slot, const TArrayType &Owned)
+    {
+        if (!GetGearAsset(Slot))
+        {
+            return FString();
+        }
+        const auto *Match = FindOwned(Owned, Slot.PersistentID);
+        if (!Match)
+        {
+            return FString::Printf(TEXT("\n    %s %s: not linked (own copy)"), Label, *GetNameSafe(GetGearAsset(Slot)));
+        }
+        const int32 SlotDurability = Slot.AttachedItem.GetCurrentDurability();
+        const int32 OwnedDurability = Match->AttachedItem.GetCurrentDurability();
+        const bool bInSync = Match->Tier == Slot.Tier && Match->AttachedItem.Kind == Slot.AttachedItem.Kind &&
+                             OwnedDurability == SlotDurability;
+        return FString::Printf(TEXT("\n    %s %s -> owned %s: %s"), Label, *GetNameSafe(GetGearAsset(Slot)),
+                               *Slot.PersistentID.ToString(EGuidFormats::Short),
+                               bInSync ? TEXT("in sync")
+                                       : *FString::Printf(TEXT("DIFFERS (tier %d / owned %d, durability %d / owned %d)"),
+                                                          static_cast<int32>(Slot.Tier), static_cast<int32>(Match->Tier),
+                                                          SlotDurability, OwnedDurability));
+    }
+}
+
+int32 UInventoryComponent::LinkLoadoutsToOwned()
+{
+    using namespace InventoryGearSync;
+    UEvolutionInventoryComponent *EvoInv = GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+    int32 Linked = 0;
+    for (FCombatLoadout &Loadout : SavedLoadouts)
+    {
+        // Slots already linked claim their entries first, so a second copy of a ring links to another one.
+        TSet<FGuid> UsedHere;
+        ForEachGearSlot(Loadout,
+                        [this, &UsedHere](const FWeaponInventoryEntry &Slot) { if (FindOwned(Weapons, Slot.PersistentID)) { UsedHere.Add(Slot.PersistentID); } },
+                        [this, &UsedHere](const FRingInventoryEntry &Slot) { if (FindOwned(Rings, Slot.PersistentID)) { UsedHere.Add(Slot.PersistentID); } });
+        ForEachGearSlot(Loadout,
+                        [this, &UsedHere, &Linked](FWeaponInventoryEntry &Slot) { Linked += LinkSlot(Slot, Weapons, UsedHere) ? 1 : 0; },
+                        [this, &UsedHere, &Linked](FRingInventoryEntry &Slot) { Linked += LinkSlot(Slot, Rings, UsedHere) ? 1 : 0; });
+
+        const bool bEvolutionSlot = Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item;
+        if (!EvoInv || !bEvolutionSlot || FindOwnedEvolution(GetOwner(), Loadout.PrimaryEvolutionInstance))
+        {
+            continue;
+        }
+        const FEvolutionInventoryEntry *Match = EvoInv->Entries.FindByPredicate([this, &Loadout](const FEvolutionInventoryEntry &Entry)
+        {
+            return Entry.Item == Loadout.PrimaryEvolution.Item && !IsEvolutionSlottedAnywhere(*this, Entry.InstanceID);
+        });
+        if (Match)
+        {
+            Loadout.PrimaryEvolutionInstance = Match->InstanceID;
+            CopyOwnedEvolution(Loadout.PrimaryEvolution, *Match);
+            ++Linked;
+        }
+        else
+        {
+            // One evolution, one slot: a second loadout naming the same owned evolution keeps its own copy.
+            UE_LOG(LogTemp, Warning, TEXT("[Inventory] %s: loadout '%s' evolution %s matches no free owned evolution - kept as its own copy"),
+                   *GetNameSafe(GetOwner()), *Loadout.LoadoutName, *GetNameSafe(Loadout.PrimaryEvolution.Item));
+        }
+    }
+    if (Linked > 0)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Inventory] %s: linked %d loadout slot(s) to owned gear"), *GetNameSafe(GetOwner()), Linked);
+    }
+    return Linked;
+}
+
+int32 UInventoryComponent::RefreshLoadoutsFromOwned(const FGuid &GearID)
+{
+    using namespace InventoryGearSync;
+    const FWeaponInventoryEntry *OwnedWeapon = FindOwned(Weapons, GearID);
+    const FRingInventoryEntry *OwnedRing = FindOwned(Rings, GearID);
+    if (!OwnedWeapon && !OwnedRing)
+    {
+        return RemoveFromSavedLoadouts(GearID);
+    }
+    int32 Changed = 0;
+    for (FCombatLoadout &Loadout : SavedLoadouts)
+    {
+        ForEachGearSlot(Loadout,
+                        [&GearID, OwnedWeapon, &Changed](FWeaponInventoryEntry &Slot)
+                        {
+                            if (OwnedWeapon && Slot.PersistentID == GearID)
+                            {
+                                CopyOwned(Slot, *OwnedWeapon);
+                                ++Changed;
+                            }
+                        },
+                        [&GearID, OwnedRing, &Changed](FRingInventoryEntry &Slot)
+                        {
+                            if (OwnedRing && Slot.PersistentID == GearID)
+                            {
+                                CopyOwned(Slot, *OwnedRing);
+                                ++Changed;
+                            }
+                        });
+    }
+    return Changed;
+}
+
+int32 UInventoryComponent::RefreshEvolutionInLoadouts(const FGuid &EvoInstanceID)
+{
+    if (!EvoInstanceID.IsValid())
+    {
+        return 0;
+    }
+    const FEvolutionInventoryEntry *Owned = FindOwnedEvolution(GetOwner(), EvoInstanceID);
+    int32 Changed = 0;
+    for (FCombatLoadout &Loadout : SavedLoadouts)
+    {
+        if (Loadout.PrimaryEvolutionInstance != EvoInstanceID)
+        {
+            continue;
+        }
+        if (Owned)
+        {
+            InventoryGearSync::CopyOwnedEvolution(Loadout.PrimaryEvolution, *Owned);
+        }
+        else
+        {
+            Loadout.PrimaryEvolution = FEvolutionAttachment();
+            Loadout.PrimaryEvolutionInstance = FGuid();
+        }
+        ++Changed;
+    }
+    if (!Owned && Changed > 0)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Inventory] %s: evolution %s no longer owned, taken out of %d loadout(s)"),
+               *GetNameSafe(GetOwner()), *EvoInstanceID.ToString(), Changed);
+    }
+    return Changed;
+}
+
+int32 UInventoryComponent::DetachEvolutionFromOwnedGear(const FGuid &EvoInstanceID)
+{
+    if (!EvoInstanceID.IsValid())
+    {
+        return 0; // built-in evolutions have no instance id and never leave
+    }
+    TArray<FGuid> Detached;
+    const auto DetachFrom = [&EvoInstanceID, &Detached](auto &Gear)
+    {
+        for (auto &Entry : Gear)
+        {
+            if (Entry.AttachedItem.IsEvolution() && Entry.AttachedItem.Evolution.InstanceID == EvoInstanceID)
+            {
+                Entry.RemoveCrystal();
+                Detached.Add(Entry.PersistentID);
+            }
+        }
+    };
+    DetachFrom(Weapons);
+    DetachFrom(Rings);
+    for (const FGuid &GearID : Detached)
+    {
+        RefreshLoadoutsFromOwned(GearID);
+    }
+    if (Detached.Num() > 0)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Inventory] %s: evolution %s no longer owned, taken off %d weapon(s) / ring(s)"),
+               *GetNameSafe(GetOwner()), *EvoInstanceID.ToString(), Detached.Num());
+    }
+    return Detached.Num();
+}
+
+int32 UInventoryComponent::WriteLoadoutToOwned(int32 LoadoutIndex)
+{
+    using namespace InventoryGearSync;
+    if (!SavedLoadouts.IsValidIndex(LoadoutIndex))
+    {
+        return 0;
+    }
+    const FCombatLoadout &Loadout = SavedLoadouts[LoadoutIndex];
+    TArray<FGuid> Written;
+    ForEachGearSlot(Loadout,
+                    [this, &Written](const FWeaponInventoryEntry &Slot)
+                    {
+                        if (FWeaponInventoryEntry *Owned = FindOwned(Weapons, Slot.PersistentID))
+                        {
+                            Owned->AttachedItem = Slot.AttachedItem;
+                            Written.Add(Slot.PersistentID);
+                        }
+                    },
+                    [this, &Written](const FRingInventoryEntry &Slot)
+                    {
+                        if (FRingInventoryEntry *Owned = FindOwned(Rings, Slot.PersistentID))
+                        {
+                            Owned->AttachedItem = Slot.AttachedItem;
+                            Written.Add(Slot.PersistentID);
+                        }
+                    });
+    int32 WrittenCount = Written.Num();
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
+    {
+        if (FEvolutionInventoryEntry *Owned = FindOwnedEvolution(GetOwner(), Loadout.PrimaryEvolutionInstance))
+        {
+            Owned->CurrentDurability = Loadout.PrimaryEvolution.CurrentDurability;
+            ++WrittenCount;
+        }
+    }
+    // The other loadouts holding the same gear (this one already matches).
+    for (const FGuid &GearID : Written)
+    {
+        RefreshLoadoutsFromOwned(GearID);
+    }
+    UE_LOG(LogTemp, Verbose, TEXT("[Inventory] %s: loadout %d wrote %d owned entr(ies)"), *GetNameSafe(GetOwner()),
+           LoadoutIndex, WrittenCount);
+    return WrittenCount;
+}
+
+FString UInventoryComponent::GetOwnedGearSyncString() const
+{
+    using namespace InventoryGearSync;
+    FString Out = FString::Printf(TEXT("Owned gear sync (%s): %d loadout(s), active %d"), *GetNameSafe(GetOwner()),
+                                  SavedLoadouts.Num(), ActiveLoadoutIndex);
+    for (int32 Index = 0; Index < SavedLoadouts.Num(); ++Index)
+    {
+        const FCombatLoadout &Loadout = SavedLoadouts[Index];
+        Out += FString::Printf(TEXT("\n  [%d] %s"), Index, *Loadout.LoadoutName);
+        Out += DescribeSlot(TEXT("Primary weapon"), Loadout.PrimaryWeapon.WeaponEntry, Weapons);
+        Out += DescribeSlot(TEXT("Secondary weapon"), Loadout.SecondaryWeapon.WeaponEntry, Weapons);
+        Out += DescribeSlot(TEXT("Primary ring"), Loadout.PrimaryRing.RingEntry, Rings);
+        for (const FRingLoadoutEntry &Ring : Loadout.RingLoadout)
+        {
+            Out += DescribeSlot(TEXT("Ring"), Ring.RingEntry, Rings);
+        }
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+        {
+            const FEvolutionInventoryEntry *Owned =
+                FindOwnedEvolution(GetOwner(), Loadout.PrimaryEvolutionInstance);
+            Out += Owned ? FString::Printf(TEXT("\n    Evolution %s -> owned %s: %s"), *GetNameSafe(Loadout.PrimaryEvolution.Item),
+                                           *Loadout.PrimaryEvolutionInstance.ToString(EGuidFormats::Short),
+                                           Owned->Tier == Loadout.PrimaryEvolution.Tier &&
+                                                   Owned->CurrentDurability == Loadout.PrimaryEvolution.CurrentDurability
+                                               ? TEXT("in sync")
+                                               : TEXT("DIFFERS (written back at the fight's end)"))
+                         : FString::Printf(TEXT("\n    Evolution %s: not linked (own copy)"), *GetNameSafe(Loadout.PrimaryEvolution.Item));
+        }
+    }
+    return Out;
+}
+
 FRingInventoryEntry UInventoryComponent::GetRingAt(int32 Index) const
 {
     if (Rings.IsValidIndex(Index))
@@ -1105,6 +1426,8 @@ bool UInventoryComponent::RemoveEvolutionInstance(FGuid InstanceID)
     const bool bRemoved = EvolutionInv->RemoveInstance(InstanceID);
     if (bRemoved)
     {
+        RefreshEvolutionInLoadouts(InstanceID);
+        DetachEvolutionFromOwnedGear(InstanceID);
         BroadcastInventoryChanged(EInventoryChangeType::Removed);
     }
     return bRemoved;
@@ -1349,6 +1672,8 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
            SavedLoadouts.Num(),
            ActiveLoadoutIndex);
 
+    LinkLoadoutsToOwned();
+
     // One signal for the whole bulk (re)load — NOT per entry. InitializeFromCharacterData
     // delegates here, so this single broadcast covers the seed path too (no double-fire).
     BroadcastInventoryChanged(EInventoryChangeType::Loaded);
@@ -1460,6 +1785,8 @@ void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)
            Abilities.GetCount(),
            SavedLoadouts.Num(),
            ActiveLoadoutIndex);
+
+    LinkLoadoutsToOwned();
 
     // One signal for the whole pool draw — NOT per entry.
     BroadcastInventoryChanged(EInventoryChangeType::Loaded);
@@ -1613,6 +1940,7 @@ FString UInventoryComponent::GetInventoryInstanceString() const
         Out += TEXT("\n  Crystals: (no UCrystalInventoryComponent)");
     }
 
+    Out += TEXT("\n") + GetOwnedGearSyncString();
     return Out;
 }
 

@@ -200,7 +200,7 @@ Built from `Design/RunStructure.md`, `Design/Enemies.md`, `Design/HubAndStory.md
 | B-082 | Ring fusions per D-009: the stat-stone half of an elemental fusion on a ring applies its attached self-passive (today stone reads go through the weapon only) | CC | S | D-009 | Test: DefenseStone + Fire crystal ring raises Defense and keeps its Fire spells | REVIEW (in dev) |
 | B-083 | D-010/D-027: correct the stale class comment in `ECharacterClass.h` (Resonator budget of 5, no same-element cap; Generic/Refractor slots as in D-027). Comment-only | CC | S | — | Comment matches D-027 and the code | DONE (already fixed by B-117, 476c92ad; checked 2026-10-26, nothing to play-test) |
 | B-084 | Dismantle equipped per D-016: confirm warning, then remove from every loadout and dismantle; Generic/Resonator with no gear is left out of the fight; the warning says upgrades are lost | CC | S | D-016 | Tests: no ghost copy after dismantle; gearless Generic refused at fight start | REVIEW (in dev) |
-| B-085 | Loadouts reference owned gear by `PersistentID` (no copies) | CC | L | B-090 | Wear/dismantle stay in sync | TODO |
+| B-085 | Loadouts reference owned gear by `PersistentID` (no copies) | CC | L | B-090 | Wear/dismantle stay in sync | REVIEW (in dev): owned gear is the truth, loadouts sync (Q-085) |
 
 ## Phase 6 — Persistence
 

@@ -124,6 +124,34 @@ public:
     /** Does the loadout hold any weapon, ring or evolution to fight with? */
     static bool LoadoutHasGear(const FCombatLoadout &Loadout);
 
+    // ==================== OWNED GEAR SYNC (B-085, Q-085) ====================
+    // The owned entry is the truth; a loadout slot is a cache keyed by PersistentID (weapons,
+    // rings) or PrimaryEvolutionInstance. Owned changes are made out of a fight; during one the
+    // active loadout leads until WriteLoadoutToOwned.
+
+    /** Points each slot whose ID matches nothing owned at an owned entry of the same asset (a
+     *  weapon or ring once per loadout; an evolution not slotted anywhere). Returns slots linked. */
+    int32 LinkLoadoutsToOwned();
+
+    /** Copies the owned weapon or ring onto every loadout slot holding GearID, keeping the slot's
+     *  spell picks; strips it from the loadouts when it's no longer owned. Returns slots changed. */
+    int32 RefreshLoadoutsFromOwned(const FGuid &GearID);
+
+    /** Copies the owned evolution's tier, rolls and durability onto every primary slot holding it;
+     *  empties those slots when it's no longer owned. Returns slots changed. */
+    int32 RefreshEvolutionInLoadouts(const FGuid &EvoInstanceID);
+
+    /** An evolution no longer owned comes off every owned weapon and ring holding it (and the
+     *  loadouts follow). Returns pieces of gear changed. */
+    int32 DetachEvolutionFromOwnedGear(const FGuid &EvoInstanceID);
+
+    /** Writes the loadout's worn state (each linked slot's attachment, the primary evolution's
+     *  durability) to the owned entries, then refreshes the other loadouts. Returns entries written. */
+    int32 WriteLoadoutToOwned(int32 LoadoutIndex);
+
+    /** Debug: each loadout slot, the owned entry it points at and whether the two agree. */
+    FString GetOwnedGearSyncString() const;
+
     // ==================== SPELL OPERATIONS ====================
 
     /** Learn a new spell */

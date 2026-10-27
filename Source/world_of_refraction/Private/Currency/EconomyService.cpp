@@ -126,6 +126,16 @@ namespace
             }
         }
     }
+
+    /** B-085: an owned evolution's new tier reaches the loadouts holding it (an owner with no
+     *  inventory facade has no loadouts). */
+    void EconomyRefreshEvolutionInLoadouts(AActor *Owner, const FGuid &InstanceID)
+    {
+        if (UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>())
+        {
+            Inv->RefreshEvolutionInLoadouts(InstanceID);
+        }
+    }
 }
 
 bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int32 Count)
@@ -1250,6 +1260,7 @@ bool UEconomyService::LevelUpWeapon(AActor *Owner, FGuid PersistentID)
     {
         return false;
     }
+    Inv->RefreshLoadoutsFromOwned(PersistentID); // B-085: the loadouts show the new tier
     // B-209 (D-100): a bound weapon's memories unlock bit by bit as it is levelled.
     MemoryUnlock::UnlockBoundOnLevelUp(Owner->GetGameInstance(), Entry->Weapon, Entry->Tier);
     CheckUpgradeMemories(Owner, Entry->Weapon, nullptr, Entry->Tier);
@@ -1283,6 +1294,7 @@ bool UEconomyService::LevelUpRing(AActor *Owner, FGuid PersistentID)
     {
         return false;
     }
+    Inv->RefreshLoadoutsFromOwned(PersistentID); // B-085
     MemoryUnlock::UnlockBoundOnLevelUp(Owner->GetGameInstance(), Entry->Ring, Entry->Tier);
     CheckUpgradeMemories(Owner, Entry->Ring, nullptr, Entry->Tier);
     return true;
@@ -1319,6 +1331,7 @@ bool UEconomyService::LevelUpEvolution(AActor *Owner, FGuid InstanceID)
     {
         return false;
     }
+    EconomyRefreshEvolutionInLoadouts(Owner, InstanceID); // B-085
     CheckUpgradeMemories(Owner, nullptr, Entry->Item, Entry->Tier);
     return true;
 }
@@ -1400,7 +1413,12 @@ bool UEconomyService::DowngradeWeapon(AActor *Owner, FGuid PersistentID)
     }
 
     // Floor = the weapon asset's authored Tier (leveling only mutates the instance .Tier).
-    return TryDowngradeEntry(Currency, Entry->Tier, Entry->Weapon->Tier, ECurrencyType::GearEssence);
+    if (!TryDowngradeEntry(Currency, Entry->Tier, Entry->Weapon->Tier, ECurrencyType::GearEssence))
+    {
+        return false;
+    }
+    Inv->RefreshLoadoutsFromOwned(PersistentID); // B-085
+    return true;
 }
 
 bool UEconomyService::DowngradeRing(AActor *Owner, FGuid PersistentID)
@@ -1426,7 +1444,12 @@ bool UEconomyService::DowngradeRing(AActor *Owner, FGuid PersistentID)
         return false;
     }
 
-    return TryDowngradeEntry(Currency, Entry->Tier, Entry->Ring->Tier, ECurrencyType::GearEssence);
+    if (!TryDowngradeEntry(Currency, Entry->Tier, Entry->Ring->Tier, ECurrencyType::GearEssence))
+    {
+        return false;
+    }
+    Inv->RefreshLoadoutsFromOwned(PersistentID); // B-085
+    return true;
 }
 
 bool UEconomyService::DowngradeEvolution(AActor *Owner, FGuid InstanceID)
@@ -1452,7 +1475,12 @@ bool UEconomyService::DowngradeEvolution(AActor *Owner, FGuid InstanceID)
         return false;
     }
 
-    return TryDowngradeEntry(Currency, Entry->Tier, Entry->Item->Tier, ECurrencyType::GearEssence);
+    if (!TryDowngradeEntry(Currency, Entry->Tier, Entry->Item->Tier, ECurrencyType::GearEssence))
+    {
+        return false;
+    }
+    EconomyRefreshEvolutionInLoadouts(Owner, InstanceID); // B-085
+    return true;
 }
 
 bool UEconomyService::DowngradeSpell(AActor *Owner, const USpellData *Spell)
