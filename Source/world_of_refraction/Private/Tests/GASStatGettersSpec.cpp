@@ -20,6 +20,8 @@
 namespace
 {
 	constexpr float GETTER_TOLERANCE = 0.0001f;
+	/** TestEqual on floats defaults to a tolerance; the getters must match to the bit. */
+	constexpr float GETTER_EXACT = 0.0f;
 	/** Small enough to stay under each attribute's clamp. */
 	constexpr float GETTER_EXTRA_SPELL_DAMAGE = 0.05f;
 	constexpr float GETTER_EXTRA_MIND = 1.0f;
@@ -107,7 +109,7 @@ void FGASStatGettersSpec::Define()
 			const float OnGameSide = Case.Read(*Char);
 			UWoREffectMirrorComponent::SetReadsFromGAS(true);
 			// Exactly: a caller may round these (turn speed, max pools), so an ulp could flip a result.
-			TestEqual(FString::Printf(TEXT("%s: same on both paths"), Case.Label), Case.Read(*Char), OnGameSide);
+			TestEqual(FString::Printf(TEXT("%s: same on both paths"), Case.Label), Case.Read(*Char), OnGameSide, GETTER_EXACT);
 		}
 		TestEqual(TEXT("UseGAS 1: attributes match the composition"), UWoRAttributeDebug::GetAttributeMismatchString(Hero), FString());
 	});
@@ -123,7 +125,7 @@ void FGASStatGettersSpec::Define()
 		UWoREffectMirrorComponent::SetReadsFromGAS(false);
 		const float OnGameSide = Char->GetEffectiveSpellDamage();
 		UWoREffectMirrorComponent::SetReadsFromGAS(true);
-		TestEqual(TEXT("SpellDamage with a buff: same on both paths, exactly"), Char->GetEffectiveSpellDamage(), OnGameSide);
+		TestEqual(TEXT("SpellDamage with a buff: same on both paths, exactly"), Char->GetEffectiveSpellDamage(), OnGameSide, GETTER_EXACT);
 	});
 
 	It("returns the GAS attribute with UseGAS 1, and the composition with 0", [this]()
