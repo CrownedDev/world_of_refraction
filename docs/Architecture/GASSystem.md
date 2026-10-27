@@ -62,6 +62,13 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 - `GAS/WoREffectSpecBuilder.h`: `GetEffectClass`, `Build` (spec + tick spec + turns), `Apply` (replaces the same identity; timed through the tracker, permanent straight to the ASC), `FindByIdentity`, `SumMagnitude` (= `GetTotalStatModifier`), `GetDebugString`.
 - The tracker's `ApplySpecForHolderTurns` takes a tick spec, paid at each holder turn start the GE survives (Q-044c).
 
+### Effect mirror and the UseGAS switch (stage 3, B-042c part 3)
+
+- `GAS/WoREffectMirrorComponent.h` (on `ACombatCharacter`): one untracked, tick-less Infinite GE per stored enum-path effect of a ported type (`FWoREffectSpecBuilder::GetEffectClass`), built with `Build(..., bAlreadyStored = true)`. Resyncs on the effect manager's applied / removed / stacks / duration events for its owner by diffing identity, element, gear and stacked value; the enum path still owns lifetime, stacking and ticks.
+- `wor.Effects.UseGAS` (default 0, Q-042c): at 1, `USkillEffectManager::HasEffectOfType` (and so `IsStunned` / `IsSilenced`), `GetTotalStatModifier` and `GetTotalStatModifierForElement` read the mirror for ported types on actors that carry one (`UWoREffectMirrorComponent::GetGASReadSource`). Tagged types read their tag.
+- Debug: `UWoREffectDebug::GetEffectMismatchString` / `wor.CompareEffects`.
+- A GAS read resyncs the actor's mirror first (turn order and the HP/EP pool read before or beside the mirror's events). The reads count every WoR GE on the ASC: GEs applied any other way (B-042d) would count twice until B-042h makes GAS the store.
+
 ## Integration points
 
 - Delegates it listens to:
@@ -98,3 +105,4 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 | 2026-10-26 | B-041: attribute sets, ASC + `UWoRAttributeSyncComponent` on `ACombatCharacter`, `wor.DumpAttributes` / `wor.CompareAttributes`; effect clears broadcast after removal. | feature/B-041-gas-attributes |
 | 2026-10-27 | B-042 (stage 3, part 1): native `UWoRGE_Stun`; `UWoRTurnEffectTracker` on `ACombatCharacter`, driven by the effect manager's turn hooks; `wor.DumpTurnEffects`. The rest of stage 3 is B-042b-g. | feature/B-042-gas-turn-tracker |
 | 2026-10-27 | B-042b (stage 3, part 2): `FWoREffectContext` + globals class; family GEs; `FWoREffectSpecBuilder`; tracker tick specs. Not routed in play yet (B-042c). | feature/B-042b-gas-effect-builder |
+| 2026-10-27 | B-042c (stage 3, part 3): `UWoREffectMirrorComponent`; `wor.Effects.UseGAS` facade reads; `wor.CompareEffects`; `Build` takes `bAlreadyStored`. Write side moved to B-042h (Q-042c). | feature/B-042c-gas-effect-mirror |
