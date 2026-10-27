@@ -107,9 +107,8 @@ public:
 	UWoRGE_HealOverTime();
 };
 
-/** One DOT payout: Instant, adds SetByCaller.Magnitude to Health (negative for damage). Built once
- *  when the effect lands, with its magnitude fixed then (§4.3). TODO: B-042e - the source's boost,
- *  resistance and BuildupPerTick come with the damage execution. */
+/** One DOT payout: Instant, runs UWoRTickExecution (B-042n): the tick request built when the effect
+ *  lands (§4.3), with the holder's element resistance read at each payout, as the enum path's tick. */
 UCLASS()
 class WORLD_OF_REFRACTION_API UWoRGE_HealthTick : public UWoRGameplayEffect
 {
@@ -120,8 +119,8 @@ public:
 };
 
 /** One HOT payout: a HealthTick that doesn't land while the holder has Status.HealBlock, so the
- *  HOT goes dormant and resumes, as the enum path's per-tick HealBlock check does.
- *  TODO: B-042e - HealingReceivedBuff and the int rounding of the enum path's heal. */
+ *  HOT goes dormant and resumes, as the enum path's per-tick HealBlock check does. The execution
+ *  adds HealingReceivedBuff and rounds as the enum path's heal (B-042n). */
 UCLASS()
 class WORLD_OF_REFRACTION_API UWoRGE_HealTick : public UWoRGE_HealthTick
 {
