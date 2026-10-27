@@ -25,6 +25,9 @@ static TComponent *TurnManagerComponentOf(const AActor *Actor)
 	return IsValid(Actor) ? Actor->FindComponentByClass<TComponent>() : nullptr;
 }
 
+/** CacheActorStats' turn speed without character data (tests). */
+static constexpr int32 TURN_SPEED_FALLBACK = 5;
+
 // File-local: ETurnType -> label for debug prints.
 static const TCHAR *TurnTypeToString(ETurnType Type)
 {
@@ -229,36 +232,12 @@ void UTurnManager::CalculateSpeedRatios()
 	if (Combatants.Num() == 0)
 		return;
 
-	// Effective speed = CachedSpeed (base) * (1 + (ModifyTurnSpeed + TurnSpeedBuff
-	// − TurnSpeedDebuff)/100). Computed on-the-fly each call so OnActorDied /
-	// OnActorResurrected — which invoke CalculateSpeedRatios without a fresh
-	// CacheActorStats — don't compound. CachedSpeed remains the pristine base.
-	USkillEffectManager *SEM = GetSkillEffectManager();
-
-	auto GetEffectiveSpeed = [SEM](const FCombatantTurnDebt &Combatant) -> int32
+	// Effective speed is computed on the fly each call (EffectiveTurnSpeedOf), so OnActorDied /
+	// OnActorResurrected, which invoke CalculateSpeedRatios without a fresh CacheActorStats, don't
+	// compound. CachedSpeed remains the pristine base.
+	auto GetEffectiveSpeed = [this](const FCombatantTurnDebt &Combatant) -> int32
 	{
-		if (!Combatant.Actor || Combatant.CachedSpeed <= 0)
-		{
-			return FMath::Max(1, Combatant.CachedSpeed);
-		}
-		if (!SEM)
-		{
-			return Combatant.CachedSpeed;
-		}
-		const float Multiplier = 1.0f + SEM->GetNetStatModifier(Combatant.Actor, ESubStat::TurnSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
-
-		// Attached TurnSpeedStone — a PERMANENT, equipment-derived turn-speed multiplier
-		// from the combatant's OWN weapon and ring attachments (live-resolved). Multiplies
-		// EFFECTIVE speed alongside the buff/debuff Multiplier — deliberately NOT folded
-		// into CachedSpeed, which stays the pristine tie-break base. Inert (×1) unless a
-		// TurnSpeedStone is attached (GetAttachedStonePercent stat-match guard).
-		float StoneFactor = 1.0f;
-		if (ULoadoutComponent *Loadout = TurnManagerComponentOf<ULoadoutComponent>(Combatant.Actor))
-		{
-			// Weapon and ring (B-082) attachments.
-			StoneFactor = 1.0f + Loadout->GetAttachedStonePercent(ESubStat::TurnSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
-		}
-		return FMath::Max(1, FMath::RoundToInt(Combatant.CachedSpeed * Multiplier * StoneFactor));
+		return EffectiveTurnSpeedOf(Combatant.Actor, Combatant.CachedSpeed);
 	};
 
 	// Find slowest effective speed among living combatants.
@@ -281,6 +260,59 @@ void UTurnManager::CalculateSpeedRatios()
 		const int32 Effective = GetEffectiveSpeed(Combatant);
 		Combatant.SpeedRatio = (Effective > 0) ? (float)Effective / (float)SlowestSpeed : 1.0f;
 	}
+}
+
+bool UTurnManager::BuildTurnSpeedLayers(const AActor *Actor, int32 CachedSpeed, FWoRStatLayers &OutLayers) const
+{
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!Actor || CachedSpeed <= 0 || !SEM)
+	{
+		return false;
+	}
+	OutLayers = FWoRStatLayers::ForTurnSpeed(CachedSpeed);
+	// Effective speed = CachedSpeed x (1 + (ModifyTurnSpeed + TurnSpeedBuff - TurnSpeedDebuff)/100).
+	OutLayers.TransientFactor =
+		1.0f + SEM->GetNetStatModifier(const_cast<AActor *>(Actor), ESubStat::TurnSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
+
+	// Attached TurnSpeedStone — a PERMANENT, equipment-derived turn-speed multiplier
+	// from the combatant's OWN weapon and ring attachments (live-resolved). Multiplies
+	// EFFECTIVE speed alongside the buff/debuff Multiplier — deliberately NOT folded
+	// into CachedSpeed, which stays the pristine tie-break base. Inert (×1) unless a
+	// TurnSpeedStone is attached (GetAttachedStonePercent stat-match guard).
+	if (ULoadoutComponent *Loadout = TurnManagerComponentOf<ULoadoutComponent>(Actor))
+	{
+		// Weapon and ring (B-082) attachments.
+		OutLayers.StoneFactor = 1.0f + Loadout->GetAttachedStonePercent(ESubStat::TurnSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
+	}
+	return true;
+}
+
+int32 UTurnManager::EffectiveTurnSpeedOf(const AActor *Actor, int32 CachedSpeed) const
+{
+	FWoRStatLayers Layers;
+	if (!BuildTurnSpeedLayers(Actor, CachedSpeed, Layers))
+	{
+		// No actor or no base: at least 1. No skill effect manager: the base as it is.
+		return (!Actor || CachedSpeed <= 0) ? FMath::Max(1, CachedSpeed) : CachedSpeed;
+	}
+	return FMath::Max(1, FMath::RoundToInt(Layers.StatBase * Layers.TransientFactor * Layers.StoneFactor));
+}
+
+const FCombatantTurnDebt *UTurnManager::FindCombatantEntry(const AActor *Actor) const
+{
+	return Combatants.FindByPredicate([Actor](const FCombatantTurnDebt &Combatant) { return Combatant.Actor == Actor; });
+}
+
+int32 UTurnManager::GetEffectiveTurnSpeed(const AActor *Actor) const
+{
+	const FCombatantTurnDebt *Entry = FindCombatantEntry(Actor);
+	return EffectiveTurnSpeedOf(Actor, Entry ? Entry->CachedSpeed : ComputeCachedTurnSpeed(Actor));
+}
+
+bool UTurnManager::GetTurnSpeedLayers(const AActor *Actor, FWoRStatLayers &OutLayers) const
+{
+	const FCombatantTurnDebt *Entry = FindCombatantEntry(Actor);
+	return BuildTurnSpeedLayers(Actor, Entry ? Entry->CachedSpeed : ComputeCachedTurnSpeed(Actor), OutLayers);
 }
 
 USkillEffectManager *UTurnManager::GetSkillEffectManager() const
@@ -419,6 +451,35 @@ bool UTurnManager::ShouldBreakTieInFavor(const FCombatantTurnDebt &A, const FCom
 	return A.PositionInTeam < B.PositionInTeam;
 }
 
+int32 UTurnManager::ComputeCachedTurnSpeed(const AActor *Actor) const
+{
+	UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Actor);
+	if (!CharComp || !CharComp->CharacterData)
+	{
+		return TURN_SPEED_FALLBACK;
+	}
+	// Pattern P (cluster 5c, option B) — stat-capped, dedicated gear multiplies beyond. The stat
+	// uses the GEARED/BUFFED Spirit (GetEvolutionModifiedSpirit — crystal% × equipment% × transient
+	// pillar buffs), so SpiritBuff and pillar% feed TurnSpeed exactly like they feed every other
+	// Spirit substat (MaxEP, Resistance, Luck, StatusMultiplier). That whole stat term is capped at
+	// TURN_SPEED_CAP (15) inside CalculateTurnSpeedWithSpirit — i.e. the Spirit-pillar contribution
+	// rides INSIDE the 15 cap with the base stat. THEN the dedicated BonusTurnSpeed gear MULTIPLIES
+	// the capped value past 15 toward TURN_SPEED_GEAR_CEILING — that field alone is the "gear beyond".
+	float StatTurn = CharComp->CharacterData->CalculateTurnSpeedWithSpirit(CharComp->GetEvolutionModifiedSpirit());
+
+	// Dedicated BonusTurnSpeed gear — MULTIPLIES the capped stat past TURN_SPEED_CAP (option-(ii):
+	// gear points × the stat's per-point rate, read as a fraction), bounded below by the final
+	// Min to TURN_SPEED_GEAR_CEILING. ×1 (inert) with no gear, so byte-identical then. Hot-swap
+	// re-cache is driven by LoadoutComponent calling OnActorSpeedChanged on weapon/ring switch.
+	if (ULoadoutComponent *LoadoutComp = TurnManagerComponentOf<ULoadoutComponent>(Actor))
+	{
+		const FEquipmentStatBonus Bonus = LoadoutComp->GetActiveStatBonus(const_cast<AActor *>(Actor));
+		StatTurn *= (1.0f + Bonus.BonusTurnSpeed * CombatConstants::TURN_SPEED_PER_POINT);
+	}
+	StatTurn = FMath::Min(StatTurn, CombatConstants::TURN_SPEED_GEAR_CEILING);
+	return FMath::RoundToInt(StatTurn);
+}
+
 void UTurnManager::CacheActorStats(FCombatantTurnDebt &Combatant)
 {
 	UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Combatant.Actor);
@@ -426,27 +487,7 @@ void UTurnManager::CacheActorStats(FCombatantTurnDebt &Combatant)
 	if (CharComp && CharComp->CharacterData)
 	{
 		UCharacterData *CharData = CharComp->CharacterData;
-
-		// Pattern P (cluster 5c, option B) — stat-capped, dedicated gear multiplies beyond. The stat
-		// uses the GEARED/BUFFED Spirit (GetEvolutionModifiedSpirit — crystal% × equipment% × transient
-		// pillar buffs), so SpiritBuff and pillar% feed TurnSpeed exactly like they feed every other
-		// Spirit substat (MaxEP, Resistance, Luck, StatusMultiplier). That whole stat term is capped at
-		// TURN_SPEED_CAP (15) inside CalculateTurnSpeedWithSpirit — i.e. the Spirit-pillar contribution
-		// rides INSIDE the 15 cap with the base stat. THEN the dedicated BonusTurnSpeed gear MULTIPLIES
-		// the capped value past 15 toward TURN_SPEED_GEAR_CEILING — that field alone is the "gear beyond".
-		float StatTurn = CharData->CalculateTurnSpeedWithSpirit(CharComp->GetEvolutionModifiedSpirit());
-
-		// Dedicated BonusTurnSpeed gear — MULTIPLIES the capped stat past TURN_SPEED_CAP (option-(ii):
-		// gear points × the stat's per-point rate, read as a fraction), bounded below by the final
-		// Min to TURN_SPEED_GEAR_CEILING. ×1 (inert) with no gear, so byte-identical then. Hot-swap
-		// re-cache is driven by LoadoutComponent calling OnActorSpeedChanged on weapon/ring switch.
-		if (ULoadoutComponent *LoadoutComp = TurnManagerComponentOf<ULoadoutComponent>(Combatant.Actor))
-		{
-			const FEquipmentStatBonus Bonus = LoadoutComp->GetActiveStatBonus(Combatant.Actor);
-			StatTurn *= (1.0f + Bonus.BonusTurnSpeed * CombatConstants::TURN_SPEED_PER_POINT);
-		}
-		StatTurn = FMath::Min(StatTurn, CombatConstants::TURN_SPEED_GEAR_CEILING);
-		Combatant.CachedSpeed = FMath::RoundToInt(StatTurn);
+		Combatant.CachedSpeed = ComputeCachedTurnSpeed(Combatant.Actor);
 
 		Combatant.CachedActionSpeed = CharData->GetTotalActionSpeed();
 		// §7 C2: turn-order tiebreak reads the LIVE world stats (asset + head-start + earned), not the
@@ -459,7 +500,7 @@ void UTurnManager::CacheActorStats(FCombatantTurnDebt &Combatant)
 	else
 	{
 		// Fallback defaults for testing
-		Combatant.CachedSpeed = 5;
+		Combatant.CachedSpeed = TURN_SPEED_FALLBACK;
 		Combatant.CachedActionSpeed = 5;
 		Combatant.CachedMind = 3;
 		Combatant.CachedBody = 3;
