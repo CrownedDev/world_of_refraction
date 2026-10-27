@@ -13,6 +13,9 @@
 #include "Inventory/ItemQuality.h"
 #include "Party/Party.h"
 #include "Loadout/CarriedGearState.h"
+#include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/FResistanceBonus.h"
+#include "Equipment/FRuntimeAttachedItem.h"
 #include "WoRSaveTypes.generated.h"
 
 /** A data asset by id and path. Resolve loads it (synchronously) or returns null. */
@@ -207,8 +210,47 @@ struct WORLD_OF_REFRACTION_API FSavedWallet
 	TArray<FSavedBalance> Balances;
 };
 
+/** B-124 (D-059): the rest of an owned weapon or ring: its attached crystal or evolution, the
+ *  spells on it and its rolls. Pointers are saved as refs; the saved Attached has its evolution
+ *  pointer cleared. bSaved is false in a save from before B-124 (the asset's defaults stay). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedGearDetail
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	bool bSaved = false;
+
+	UPROPERTY()
+	FRuntimeAttachedItem Attached;
+
+	UPROPERTY()
+	FSavedAssetRef EvolutionItem;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> AssignedSpells;
+
+	UPROPERTY()
+	FEquipmentStatBonus StatBonus;
+
+	UPROPERTY()
+	FResistanceBonus ResistanceBonus;
+
+	UPROPERTY()
+	int32 StatPool = 0;
+
+	UPROPERTY()
+	int32 StatMaxPool = 0;
+
+	UPROPERTY()
+	int32 ResistancePool = 0;
+
+	UPROPERTY()
+	int32 ResistanceMaxPool = 0;
+};
+
 /** An owned gear or skill instance. InstanceID is the weapon/ring PersistentID or the
- *  spell/ability/evolution InstanceID. TODO(B-124): the rest of the entry (crystal, spells, rolls). */
+ *  spell/ability/evolution InstanceID. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedOwnedItem
 {
@@ -228,6 +270,10 @@ struct WORLD_OF_REFRACTION_API FSavedOwnedItem
 
 	UPROPERTY()
 	int32 Durability = 0;
+
+	/** B-124: weapons and rings only. */
+	UPROPERTY()
+	FSavedGearDetail Gear;
 };
 
 /** A counted crystal stack. Gem or stone follows from the type (UPoolSubsystem::AddCrystalToPool). */

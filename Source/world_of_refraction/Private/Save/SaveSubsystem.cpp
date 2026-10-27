@@ -52,6 +52,57 @@ namespace
 		Item.Quality = Entry.Quality;
 		return Item;
 	}
+
+	/** B-124: a weapon or ring entry's attachment, spells and rolls. */
+	template <typename TGearEntry>
+	FSavedGearDetail SaveGearDetail(const TGearEntry &Entry)
+	{
+		FSavedGearDetail Gear;
+		Gear.bSaved = true;
+		Gear.Attached = Entry.AttachedItem;
+		Gear.EvolutionItem = FSavedAssetRef::Make(Entry.AttachedItem.Evolution.Item);
+		Gear.Attached.Evolution.Item = nullptr;
+		for (const USpellData *Spell : Entry.AssignedSpells)
+		{
+			if (Spell)
+			{
+				Gear.AssignedSpells.Add(FSavedAssetRef::Make(Spell));
+			}
+		}
+		Gear.StatBonus = Entry.StatBonus;
+		Gear.ResistanceBonus = Entry.ResistanceBonus;
+		Gear.StatPool = Entry.StatPool;
+		Gear.StatMaxPool = Entry.StatMaxPool;
+		Gear.ResistancePool = Entry.ResistancePool;
+		Gear.ResistanceMaxPool = Entry.ResistanceMaxPool;
+		return Gear;
+	}
+
+	/** B-124: puts the saved detail on a freshly made entry; an older save keeps the asset's defaults. */
+	template <typename TGearEntry>
+	void RestoreGearDetail(const FSavedGearDetail &Gear, TGearEntry &Entry)
+	{
+		if (!Gear.bSaved)
+		{
+			return;
+		}
+		Entry.AttachedItem = Gear.Attached;
+		Entry.AttachedItem.Evolution.Item = Gear.EvolutionItem.IsSet() ? Gear.EvolutionItem.ResolveAs<UEvolutionItemData>() : nullptr;
+		Entry.AssignedSpells.Reset();
+		for (const FSavedAssetRef &Ref : Gear.AssignedSpells)
+		{
+			if (USpellData *Spell = Ref.ResolveAs<USpellData>())
+			{
+				Entry.AssignedSpells.Add(Spell);
+			}
+		}
+		Entry.StatBonus = Gear.StatBonus;
+		Entry.ResistanceBonus = Gear.ResistanceBonus;
+		Entry.StatPool = Gear.StatPool;
+		Entry.StatMaxPool = Gear.StatMaxPool;
+		Entry.ResistancePool = Gear.ResistancePool;
+		Entry.ResistanceMaxPool = Gear.ResistanceMaxPool;
+	}
 }
 
 namespace SaveRunResume
@@ -373,11 +424,11 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 	FSavedPool Saved;
 	for (const FWeaponInventoryEntry &E : Pool.GetOwnedWeapons())
 	{
-		Saved.Weapons.Add(SaveItem(E.Weapon, E, E.PersistentID));
+		Saved.Weapons.Add_GetRef(SaveItem(E.Weapon, E, E.PersistentID)).Gear = SaveGearDetail(E);
 	}
 	for (const FRingInventoryEntry &E : Pool.GetOwnedRings())
 	{
-		Saved.Rings.Add(SaveItem(E.Ring, E, E.PersistentID));
+		Saved.Rings.Add_GetRef(SaveItem(E.Ring, E, E.PersistentID)).Gear = SaveGearDetail(E);
 	}
 	for (const FEvolutionInventoryEntry &E : Pool.GetOwnedEvolutions())
 	{
@@ -541,6 +592,7 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 			Entry.PersistentID = In.InstanceID;
 			Entry.Tier = In.Tier;
 			Entry.Quality = In.Quality;
+			RestoreGearDetail(In.Gear, Entry);
 			Pool.AddWeaponToPool(Entry);
 			++Restored;
 		}
@@ -553,6 +605,7 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 			Entry.PersistentID = In.InstanceID;
 			Entry.Tier = In.Tier;
 			Entry.Quality = In.Quality;
+			RestoreGearDetail(In.Gear, Entry);
 			Pool.AddRingToPool(Entry);
 			++Restored;
 		}
