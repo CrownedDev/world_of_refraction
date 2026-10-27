@@ -1491,6 +1491,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Online service: A, Epic Online Services (EOS)** (Crown, 2026-10-27): free, cross-platform (PC and consoles together, pillar 9), with Steam friends and invites on top; Unreal's EOS online subsystem.
 - **Party in co-op: A** (Crown, 2026-10-27): up to **3 players**, each controlling their own character; empty spots can be filled by **AI allies, but only if recruited** (AI is optional, by recruitment, D-026). Same party size solo and co-op (pillar 7).
 - **Joining and leaving: A** (Crown, 2026-10-27): friends can **join a run in progress at a rest spot**; a friend who leaves drops out and the run goes on; **if the host leaves, the run is saved and ends for everyone** (the host can resume it, B-208); friends keep what their own save already earned. No host migration.
+- **Rewards: A, personal** (Crown, 2026-10-27): loot drops separately per player (instanced), Gold to each player's own wallet, level drops and hidden memories to whoever qualifies, the run-end payout paid to every player in full. **Hidden unlocks are private:** only the player who got a hidden memory / quest is notified; the party isn't told.
 **Notes for Claude:** open parts: online service (Steam / EOS), party make-up in co-op, join mid-run and host leaving, rewards.
 
 ### Q-044 — Re-applying the same effect: strength rule or replace?
