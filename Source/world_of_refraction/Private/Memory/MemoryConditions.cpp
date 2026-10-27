@@ -266,7 +266,9 @@ bool MemoryConditions::FitsRequirements(const FMemoryCondition &Condition, const
 	{
 		return Condition.RequirementFit == EMemoryRequirementFit::Met;
 	}
-	// Per pillar: the wearer's world level, and what is required.
+	// Per pillar: the wearer's world level, and what is required. TODO: the asset's levels, as the
+	// D-082 gap reads today; switch both to the run's live stats (UCharacterDataComponent::GetWorldStat)
+	// so a pillar raised mid-run counts.
 	const TPair<int32, int32> Pillars[] = {{Wearer->WorldMindLevel, Requirements->RequiredWorldMind},
 										   {Wearer->WorldBodyLevel, Requirements->RequiredWorldBody},
 										   {Wearer->WorldSpiritLevel, Requirements->RequiredWorldSpirit}};

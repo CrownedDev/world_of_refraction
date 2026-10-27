@@ -98,7 +98,8 @@ FString UMemoryData::GetConditionString(const FMemoryCondition &Condition)
 		Fit = TEXT(", meeting its requirements");
 		break;
 	case EMemoryRequirementFit::Above:
-		Fit = FString::Printf(TEXT(", %d over its requirements"), Condition.RequirementMargin);
+		Fit = Condition.RequirementMargin == 0 ? FString(TEXT(", meeting its requirements"))
+											   : FString::Printf(TEXT(", %d over its requirements"), Condition.RequirementMargin);
 		break;
 	case EMemoryRequirementFit::Under:
 		Fit = FString::Printf(TEXT(", %d under its requirements"), FMath::Max(Condition.RequirementMargin, 1));

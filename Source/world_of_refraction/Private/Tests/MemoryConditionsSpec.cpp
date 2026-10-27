@@ -375,6 +375,39 @@ void FMemoryConditionsSpec::Define()
 		TestFalse(TEXT("Unknown wearer: only Any fits"), MemoryConditions::FitsRequirements(Gear, &Weapon->Requirements, nullptr));
 	});
 
+	It("measures a level-up and an evolution against requirements", [this]()
+	{
+		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
+		Weapon->Requirements.RequiredWorldMind = 3;
+		Lord->WorldMindLevel = 3;
+		FMemoryCondition Gear = Condition(EMemoryConditionKind::GearEquipped);
+		Gear.Item = Weapon;
+		Gear.RequirementFit = EMemoryRequirementFit::Above;
+		FMemoryEvent Upgrade = EventWithLord();
+		Upgrade.UpgradedItem = Weapon;
+		Upgrade.UpgradedTier = Weapon->Tier;
+		Upgrade.UpgradedBy = Lord;
+		TestTrue(TEXT("Above by 0 is met, on a level-up by its wearer"), MemoryConditions::IsMet(Gear, Upgrade, Journal));
+		Gear.RequirementFit = EMemoryRequirementFit::Under;
+		TestFalse(TEXT("Met is not under"), MemoryConditions::IsMet(Gear, Upgrade, Journal));
+		Gear.RequirementFit = EMemoryRequirementFit::Met;
+		Upgrade.UpgradedBy = nullptr;
+		TestFalse(TEXT("Unknown upgrader, no character named: a fit can't hold"), MemoryConditions::IsMet(Gear, Upgrade, Journal));
+		Gear.Character = Lord;
+		TestTrue(TEXT("Unknown upgrader, its named character in the party"), MemoryConditions::IsMet(Gear, Upgrade, Journal));
+
+		UEvolutionItemData *Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+		FMemoryCondition Equipped = Condition(EMemoryConditionKind::EvolutionEquipped);
+		Equipped.Evolution = Evolution;
+		Equipped.RequirementFit = EMemoryRequirementFit::Met;
+		FMemoryEvent Event = EventWithLord();
+		Event.Party[0].Evolution = Evolution;
+		Event.Party[0].EvolutionTier = Evolution->Tier;
+		TestTrue(TEXT("An evolution always meets its (no) requirements"), MemoryConditions::IsMet(Equipped, Event, Journal));
+		Equipped.RequirementFit = EMemoryRequirementFit::Under;
+		TestFalse(TEXT("Nor is it ever under them"), MemoryConditions::IsMet(Equipped, Event, Journal));
+	});
+
 	It("never meets a hidden condition (not built)", [this]()
 	{
 		UMemoryData *Memory = NewMemory({Condition(EMemoryConditionKind::Hidden)});
