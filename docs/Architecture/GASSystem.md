@@ -144,7 +144,7 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 ## Known limitations / TODOs
 
 - B-042y (Q-042y): at UseGAS 1 every Health-changing GE execution on a combatant with character data reaches the HP path, so `FWoREffectSpecBuilder::Apply` with a tick spec would pay on top of the effect manager's pass (no play caller yet; B-042i).
-- **Mirror only.** Nothing gameplay-facing reads the tags or attributes yet. The read sites (Q-040) and the getters and HP/EP writes (Q-041) switch in stage 3.
+- **Mirror, switching.** At UseGAS 1 the tag read sites (B-042x), the DOT / HOT payouts (B-042y) and the sub-stat and pillar getters (B-042yb, `UWoRAttributeSyncComponent::ReadComposedOnGAS`) read GAS; the other getters, payouts and per-effect reads switch with B-042yc.
 - MaxBuildup mirrors the fixed bar cap (`CombatConstants::STATUS_EFFECT_THRESHOLD`).
 - A stat change with no event (e.g. weather, a crystal breaking mid-turn) reaches the attributes at that character's next turn start. `wor.CompareAttributes` shows such drift in between.
 - Bare test actors (and anything that isn't an `ACombatCharacter`) have no ASC unless one is added, as `WoR.GAS.Attributes` does.
@@ -177,3 +177,4 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 | 2026-10-27 | B-042o (stage 3, part 5e): at UseGAS 1 the status bar is the Buildup attribute; hits through `UWoRBuildupExecution` (Q-042o). | feature/B-042o-gas-status-bar |
 | 2026-10-27 | B-042x (stage 3, part 3c): `HasActiveDOT` / `GetEffectTags` read through `HasEffectOfType`, so at UseGAS 1 every tagged-type check reads the holder's tags; AI lethal-burn gate; `WoR.GAS.TagReads`. | feature/B-042x-gas-tag-reads |
 | 2026-10-27 | B-042y (stage 3, part 3d): at UseGAS 1 DOT / HOT ticks paid by the mirror's tick spec; the Vitals set hands GAS Health changes to the HP / death path; the tracker reads real HP (Q-042y). | feature/B-042y-gas-getters-hp |
+| 2026-10-27 | B-042yb (stage 3, part 3d2): at UseGAS 1 the sub-stat and pillar getters return their attribute after a one-attribute refresh (`ReadComposedOnGAS`, Q-042yb); `ReadSourceValues` composes on the game side. | feature/B-042yb-gas-stat-getters |
