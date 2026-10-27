@@ -43,6 +43,10 @@ struct WORLD_OF_REFRACTION_API FReactionTrigger
 	/** TODO: played by the dialogue system (B-194). Logged when it fires. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reaction")
 	FName DialogueId;
+
+	/** B-209 (D-100): a memory this reaction unlocks when it fires; empty: none. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reaction")
+	TObjectPtr<UMemoryData> UnlockMemory = nullptr;
 };
 
 /** A set of reactions, found by the asset registry (any number of these assets). */

@@ -17,6 +17,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "TimerManager.h"
 #include "Combat/Encounter/EnemyZone.h"
+#include "Memory/MemoryUnlock.h"
 #include "Reaction/ReactionTrigger.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
@@ -265,6 +266,9 @@ void ABattleGameMode::BootstrapCombat()
     const TArray<FReactionTrigger> Reactions = ReactionTriggers::GatherTriggers();
     const TArray<FFiredReaction> Fired = ReactionTriggers::FindFired(Reactions, LocalParty, OpposingParty);
     const int32 ReactionEffects = ReactionTriggers::ApplyFired(Fired);
+    // B-209: fired reactions and worn bound gear whose conditions hold unlock their memories (before the
+    // memory boss changes below, so a memory unlocked now counts this fight).
+    MemoryUnlock::UnlockAtFightStart(GetGameInstance(), Fired, LocalParty, OpposingParty);
     // B-193: any opposing combatant with boss data gets its phases: after reactions change its
     // stats (so they can't reach a phase early), before memories skip or add phases.
     for (AActor *Enemy : OpposingParty)
@@ -438,6 +442,8 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
         if (UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>())
         {
             TrialRun->MarkPendingEncounterBeaten();
+            // B-209: a beaten boss or mini-boss unlocks its memory.
+            MemoryUnlock::UnlockBossDrops(GetGameInstance(), TrialRun->GetPendingOpposingParty());
         }
     }
 

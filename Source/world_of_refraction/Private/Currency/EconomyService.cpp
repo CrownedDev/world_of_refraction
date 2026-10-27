@@ -32,6 +32,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "HAL/IConsoleManager.h"
+#include "Memory/MemoryUnlock.h"
 
 namespace
 {
@@ -1230,7 +1231,13 @@ bool UEconomyService::LevelUpWeapon(AActor *Owner, FGuid PersistentID)
         return false;
     }
 
-    return TryLevelUpEntry(Currency, Entry->Tier);
+    if (!TryLevelUpEntry(Currency, Entry->Tier))
+    {
+        return false;
+    }
+    // B-209 (D-100): a bound weapon's memories unlock bit by bit as it is levelled.
+    MemoryUnlock::UnlockBoundOnLevelUp(Owner->GetGameInstance(), Entry->Weapon, Entry->Tier);
+    return true;
 }
 
 bool UEconomyService::LevelUpRing(AActor *Owner, FGuid PersistentID)
@@ -1256,7 +1263,12 @@ bool UEconomyService::LevelUpRing(AActor *Owner, FGuid PersistentID)
         return false;
     }
 
-    return TryLevelUpEntry(Currency, Entry->Tier);
+    if (!TryLevelUpEntry(Currency, Entry->Tier))
+    {
+        return false;
+    }
+    MemoryUnlock::UnlockBoundOnLevelUp(Owner->GetGameInstance(), Entry->Ring, Entry->Tier);
+    return true;
 }
 
 bool UEconomyService::LevelUpEvolution(AActor *Owner, FGuid InstanceID)

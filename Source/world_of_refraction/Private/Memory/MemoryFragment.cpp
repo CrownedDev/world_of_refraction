@@ -6,7 +6,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Memory/MemoryData.h"
-#include "Memory/MemoryJournalSubsystem.h"
+#include "Memory/MemoryUnlock.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "WoRLog.h"
 
@@ -36,9 +36,8 @@ void AMemoryFragment::BeginPlay()
 void AMemoryFragment::Interact(APawn * /*Pawn*/)
 {
 	UTrialRunSubsystem *TrialRun = GetTrialRun();
-	const UGameInstance *GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-	UMemoryJournalSubsystem *Journal = GameInstance ? GameInstance->GetSubsystem<UMemoryJournalSubsystem>() : nullptr;
-	if (!TrialRun || !Journal || TrialRun->HasFound(GetFeatureId()))
+	UGameInstance *GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	if (!TrialRun || !GameInstance || TrialRun->HasFound(GetFeatureId()))
 	{
 		return;
 	}
@@ -47,8 +46,7 @@ void AMemoryFragment::Interact(APawn * /*Pawn*/)
 		UE_LOG(LogWoR, Warning, TEXT("[MemoryFragment] %s has no Memory set - nothing to pick up"), *GetName());
 		return;
 	}
-	TrialRun->CollectMemory(Memory);
-	Journal->RecordMemory(Memory);
+	MemoryUnlock::Unlock(GameInstance, Memory, EMemorySource::Fragment);
 	TrialRun->RecordFound(GetFeatureId(), LOCTEXT("FragmentFound", "A memory fragment"));
 	ShowMessage(LOCTEXT("FragmentMessage", "You found a memory fragment."));
 	RemoveFromMap();

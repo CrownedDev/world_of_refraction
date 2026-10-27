@@ -1955,6 +1955,21 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-149-formation-cells): `ACombatOrchestrator::GetPlaceholderEnemyStartRow`. Authored enemy cells replace it later.
 
+### Q-209 — How the new memory sources behave
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-209) · **Blocks:** — (B-209 shipped with A)
+**Question:** D-100 adds four memory sources: bosses, reactions, map spots and bound gear. When does each one unlock, and how often?
+**Options:**
+- **A** (built):
+  - **Bosses and mini-bosses:** the boss data (`UBossData`) names an optional memory; **winning** the fight unlocks it. A mini-boss drops one only if it has boss data, which it already needs for its phases.
+  - **Reactions:** a reaction can name a memory; it unlocks when the reaction fires at the start of the fight, and **counts in that same fight** (a memory that weakens this boss weakens it now).
+  - **Map spots:** an unseen spot; **walking into it** unlocks the memory at once, with the line "A memory surfaces." (no key, no hint; the interact key in it works too). Once per run.
+  - **Bound gear** (D-100 as Crown answered it): each memory on a bound item names an **upgrade level** (tiers above the item's authored tier) and/or **trigger conditions**: its owner wearing it, and/or facing a certain character (hidden conditions: TODO). It needs every one set. A memory with only an upgrade level unlocks when the item is levelled that far (in the shop); one with a trigger is checked when the item is worn into a fight, using the owned item's level. One with nothing set unlocks the first time it's levelled or worn into a fight.
+  - Every source puts the memory in the run and the journal. The journal keeps it for good, with the **first** source it came from. Until B-210 (Q-190 changed by Crown), a source met again in a later run adds it to that run again; B-210 stops that.
+- **B** map spots need the interact key and show a hint.
+**Recommendation:** A. Hollow Knight's and Dark Souls' lore spots trigger when you walk into them, so finding them by exploring is the reward; a boss memory on the win matches how Hades gives story beats after a boss. Bound gear follows Crown's D-100 answer (NieR: Automata's weapon stories). Not lore (which memory and what it says stays Crown's).
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above); bound gear is Crown's D-100 answer.
+**Notes for Claude:** applied (feature/B-209-memory-sources): `Memory/MemoryUnlock.h`, `Memory/MemorySpot.h`, `FBoundMemory` (`Equipment/EquipmentDataBase.h`), `ABattleGameMode` (fight start, Victory), `UEconomyService::LevelUpWeapon` / `LevelUpRing`. A fight reads the owned gear's level by its id, since loadouts hold copies until B-085.
+
 ### Q-093 — Which keys do Defend and infusion use, and how do they behave?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-093) · **Blocks:** — (B-093 shipped with A)
 **Question:** B-093 adds keys for Defend, the infusion source and the infusion level next to the command menu. Which keys, when do they work, and does infusion cycle or charge?

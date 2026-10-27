@@ -14,6 +14,7 @@
 
 class UCharacterData;
 class UEffectDefinition;
+class UMemoryData;
 class USkillDataBase;
 
 /** Pillar 8: what kind of challenge a boss is. Picks a mini-boss's preset phases; only a guide
@@ -111,6 +112,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss")
 	EBossStyle Style = EBossStyle::None;
+
+	/** B-209 (D-100): the memory beating this boss or mini-boss unlocks; empty: none. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss")
+	TObjectPtr<UMemoryData> MemoryOnDefeat = nullptr;
 
 	/** In order. Empty: the preset for Style (a mini-boss). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss")
