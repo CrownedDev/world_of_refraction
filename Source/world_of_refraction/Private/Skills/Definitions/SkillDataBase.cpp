@@ -270,16 +270,10 @@ void USkillDataBase::GetRequirementGapPillarPercents(const UCharacterData *Chara
         return;
     }
 
-    // Per-pillar gap = RequiredLevel - CharLevel (positive = under-statted). RAW world-pillar
-    // levels (0-7), NOT the GetEffective* multipliers. AddPillarPercent wants whole-number
-    // percent (5.0 = +5%), so percent = (mult - 1) * 100.
-    const int32 MindGap = Requirements.RequiredWorldMind - Character->WorldMindLevel;
-    const int32 BodyGap = Requirements.RequiredWorldBody - Character->WorldBodyLevel;
-    const int32 SpiritGap = Requirements.RequiredWorldSpirit - Character->WorldSpiritLevel;
-
-    OutMindPct = (TierGapDamage::GetRequirementGapMultiplier(MindGap) - 1.0f) * 100.0f;
-    OutBodyPct = (TierGapDamage::GetRequirementGapMultiplier(BodyGap) - 1.0f) * 100.0f;
-    OutSpiritPct = (TierGapDamage::GetRequirementGapMultiplier(SpiritGap) - 1.0f) * 100.0f;
+    // The asset's RAW world-pillar levels (0-7), NOT the GetEffective* multipliers. Combat passes
+    // the live levels to FWorldStatRequirements::GetRequirementGapPillarPercents instead (B-217).
+    Requirements.GetRequirementGapPillarPercents(FWorldPillarLevels::FromAsset(*Character), OutMindPct, OutBodyPct,
+                                                 OutSpiritPct);
 }
 
 // Damage / energy — hoisted from UAbilityData at the attack/ability merge (Cluster 1) so the
