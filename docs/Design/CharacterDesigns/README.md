@@ -18,7 +18,7 @@ One folder for everything visual and identity-related about characters: concept 
 
 ## Starter (novice) kit (Crown, 2026-10-27)
 
-Simple, non-technical gear and skills a novice could use, lore-wise; the base everyone can start from (also the blank-slate start). **To expand later.**
+Simple, non-technical gear and skills a novice could use, lore-wise; the base everyone can start from. **To expand later.**
 
 - **Spells:** the 15 Generic-element spells that take the caster's element (Bolt, Missile, Lance, Wave, Storm; Might, Grace, Warding, Aura, Enhancement Aura; Mend, Restore, Renewal, Rally, Cleanse), all **F tier**.
 - **Abilities:** the **3-4 simplest per weapon type** (e.g. a basic strike, a charge, a guard-break), picked from the existing sets (Sword, Sword-and-Shield, Greatsword, Axe, Dual Axe, Gauntlets).
