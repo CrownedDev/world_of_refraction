@@ -11,6 +11,7 @@
 #include "GameplayEffect.h"
 #include "GAS/WoRGameplayEffects.h"
 #include "GAS/WoRTurnEffectTracker.h"
+#include "Skills/Effects/SkillEffectManager.h"
 #include "Tags/WoRGameplayTags.h"
 
 namespace
@@ -124,6 +125,21 @@ void FTurnEffectTrackerSpec::Define()
 		ASC->RemoveActiveGameplayEffect(Handle);
 		TestEqual(TEXT("Nothing tracked"), Tracker->NumTracked(), 0);
 		TestFalse(TEXT("No longer stunned"), IsStunned());
+	});
+
+	It("is driven by the effect manager's turn start and end", [this]()
+	{
+		USkillEffectManager *EffectManager = TestWorld ? TestWorld->GetSubsystem<USkillEffectManager>() : nullptr;
+		if (!Tracker || !EffectManager)
+		{
+			return;
+		}
+		Tracker->ApplyForHolderTurns(UWoRGE_Stun::StaticClass(), TRACKER_ONE_TURN, Hero);
+		EffectManager->ProcessStartOfTurnEffects(Hero);
+		EffectManager->ProcessEndOfTurnEffects(Hero);
+		TestTrue(TEXT("Held through the holder's next turn"), IsStunned());
+		EffectManager->ProcessStartOfTurnEffects(Hero);
+		TestFalse(TEXT("Gone as the following turn starts"), IsStunned());
 	});
 
 	It("refuses a span under 1 turn and a GE that isn't Infinite", [this]()
