@@ -10,6 +10,7 @@
 #include "Character/CharacterData.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Damage/TierGapConstants.h"
+#include "Debug/Combat/RequirementGapDebug.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Definitions/AbilityData.h"
@@ -111,13 +112,25 @@ void FWeaponRequirementSpec::Define()
 					  TierGapDamage::GetRequirementGapMultiplier(WEAPON_REQ_TEST_LARGE_GAP));
 		});
 
-		It("never drops below the floor", [this]()
+		It("far under is the ladder's end, clamped to the floor", [this]()
 		{
 			FWorldStatRequirements Requirements;
 			Requirements.RequiredWorldBody = WEAPON_REQ_TEST_FAR_UNDER_GAP;
 			const UCharacterData *Character = NewCharacterAt(0, 0, 0);
-			TestTrue(TEXT("at or above WEAPON_REQ_FACTOR_MIN"),
-					 Requirements.GetWeaponRequirementFactor(Character) >= WeaponRequirement::WEAPON_REQ_FACTOR_MIN);
+			TestEqual(TEXT("ladder end, at least WEAPON_REQ_FACTOR_MIN"), Requirements.GetWeaponRequirementFactor(Character),
+					  FMath::Max(TierGapDamage::GetRequirementGapMultiplier(WEAPON_REQ_TEST_FAR_UNDER_GAP),
+								 WeaponRequirement::WEAPON_REQ_FACTOR_MIN));
+		});
+
+		It("the debug readout shows the live factor", [this]()
+		{
+			UWeaponData *DebugWeapon = NewObject<UWeaponData>(GetTransientPackage());
+			DebugWeapon->Requirements = BodyRequirement(WEAPON_REQ_TEST_REQUIRED_LEVEL);
+			const UCharacterData *Character = NewCharacterAt(0, WEAPON_REQ_TEST_REQUIRED_LEVEL - WEAPON_REQ_TEST_LARGE_GAP, 0);
+			const FString Expected = FString::Printf(TEXT("Factor (worst pillar): x%.2f"),
+													 DebugWeapon->Requirements.GetWeaponRequirementFactor(Character));
+			TestTrue(TEXT("factor line"),
+					 URequirementGapDebug::GetWeaponRequirementFactorString(DebugWeapon, Character).Contains(Expected));
 		});
 	});
 

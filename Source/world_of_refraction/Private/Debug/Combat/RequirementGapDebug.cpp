@@ -4,6 +4,7 @@
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Character/CharacterData.h"
 #include "Combat/Damage/TierGapConstants.h"
+#include "Equipment/Weapons/WeaponData.h"
 #include "Engine/Engine.h"
 
 namespace
@@ -48,6 +49,30 @@ FString URequirementGapDebug::GetRequirementGapString(const USkillDataBase *Skil
     Output += TEXT("  Pillar% = delta applied to every substat in that pillar\n");
     Output += TEXT("  (gap +ve = under-statted -> penalty; -ve = over-statted -> boost)\n");
     Output += TEXT("===================================\n");
+    return Output;
+}
+
+FString URequirementGapDebug::GetWeaponRequirementFactorString(const UWeaponData *Weapon, const UCharacterData *Character)
+{
+    if (!Weapon || !Character)
+    {
+        return TEXT("ERROR: Invalid Weapon or Character Data");
+    }
+
+    const FWorldStatRequirements &Req = Weapon->Requirements;
+    auto PillarLine = [](const TCHAR *PillarName, int32 Required, int32 CharLevel)
+    {
+        const int32 Gap = Required - CharLevel;
+        const float Clamped = FMath::Clamp(TierGapDamage::GetRequirementGapMultiplier(Gap),
+                                           WeaponRequirement::WEAPON_REQ_FACTOR_MIN, WeaponRequirement::WEAPON_REQ_FACTOR_MAX);
+        return FString::Printf(TEXT("  %-7s Req %d  Char %d  Gap %+d  ->  x%.2f\n"), PillarName, Required, CharLevel, Gap, Clamped);
+    };
+
+    FString Output = FString::Printf(TEXT("WEAPON REQUIREMENT: %s (CHARACTER: %s)\n"),*Weapon->GetName(), *Character->Name);
+    Output += PillarLine(TEXT("Mind"), Req.RequiredWorldMind, Character->WorldMindLevel);
+    Output += PillarLine(TEXT("Body"), Req.RequiredWorldBody, Character->WorldBodyLevel);
+    Output += PillarLine(TEXT("Spirit"), Req.RequiredWorldSpirit, Character->WorldSpiritLevel);
+    Output += FString::Printf(TEXT("  Factor (worst pillar): x%.2f on attacks and abilities\n"),Req.GetWeaponRequirementFactor(Character));
     return Output;
 }
 

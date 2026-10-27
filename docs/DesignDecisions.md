@@ -2010,7 +2010,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** Multiply them: each pillar you're short on cuts again (two pillars at gap +2: 0.78 x 0.78 = 0.61).
 **Recommendation:** A. In Elden Ring, missing any of a weapon's stat requirements gives one flat attack penalty, not one per missed stat; being one point short on several stats isn't punished more than being short on one, which players found fair. B compounds quickly toward the floor. Not lore.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B.
-**Notes for Claude:** `FWorldStatRequirements::GetWeaponRequirementFactor` (`Min3`); the floor `WeaponRequirement::WEAPON_REQ_FACTOR_MIN` is 0.25 (`// TODO: tune`; the ladder's lowest rung is 0.32, so it doesn't bite today).
+**Notes for Claude:** `FWorldStatRequirements::GetWeaponRequirementFactor` (`Min3`); the floor `WeaponRequirement::WEAPON_REQ_FACTOR_MIN` is 0.25 (`// TODO: tune`; the ladder's lowest rung is 0.32, so it doesn't bite today). Two readings built with the plan (`StatMathsRedesign.md` 2.9, "a separate damage factor on attacks and abilities"), for Crown to change if wanted: the factor scales the whole pre-defense damage of the attack or ability (the skill's base too, not only a weapon-only share, since this game has no separate weapon damage term), and it scales **damage only**: status buildup from the hit is unchanged.
 
 ### Q-218 — Which single tuning values move into the tuning data now?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-218) · **Blocks:** — (B-218 ships with A)
