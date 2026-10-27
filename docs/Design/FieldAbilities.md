@@ -43,12 +43,12 @@
     | Teleport | **Void** Manipulation |
     | High / double jump | Enhancement Aura |
     | Air dash | Elemental Aura |
-    | Super launch | Enhancement / Elemental (either or both: to confirm) |
-    | Phase / shadow step | Elemental / Manipulation (either or both: to confirm) |
+    | Super launch | Enhancement **and** Elemental |
+    | Phase / shadow step | Elemental **and** Manipulation |
     | Mark and recall | Manipulation and Elemental |
     | Regroup | all three auras |
 
-  - **For now: unlocking needs the skill at max rank** (S tier, Crown, 2026-10-27); a movement type unlocks once its aura skill reaches max rank.
+  - **Rank needed** (Crown, 2026-10-27, replaces max rank for all): **rank 3 (D tier) for simpler movement, rank 7 (S tier, max) for advanced**; where two or three auras are listed, **all** are needed at that rank. Which are simple vs advanced: to confirm.
 - **Element styles (Crown's ideas, filled in as they come):**
 
   | Element | Movement | Style |
