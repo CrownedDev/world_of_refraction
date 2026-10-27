@@ -33,15 +33,19 @@ FBuildupMathInputs UWoRBuildupExecution::ReadAttributes(const FWoRBuildupRequest
 	}
 
 	// WoRResistance::GetHitTypeResistance's rule on the attributes: the element's type (None and
-	// Generic read Resist_NonElemental), plus the physical subtype when the hit has one.
+	// Generic read Resist_NonElemental; Water adds Ice, B-226), plus the physical subtype when the hit has one.
+	const EWoRDamageType ElementType = WoRDamageType::ElementToDamageType(Request.Element);
 	float General = 0.0f;
 	float HitType = 0.0f;
 	float Bonus = 0.0f;
+	float Ice = 0.0f;
 	if (UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetStatusResistanceAttribute(), General) &&
-		UWoRAttributeSyncComponent::ReadSyncedAttribute(
-			Target, UWoRAttributeSet_Resistance::GetTypeAttribute(WoRDamageType::ElementToDamageType(Request.Element)), HitType) &&
-		UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetStatusResistBonusAttribute(), Bonus))
+		UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetTypeAttribute(ElementType), HitType) &&
+		UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetStatusResistBonusAttribute(), Bonus) &&
+		(ElementType != EWoRDamageType::Water ||
+		 UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetTypeAttribute(EWoRDamageType::Ice), Ice)))
 	{
+		HitType += Ice;
 		float Physical = 0.0f;
 		if (Request.PhysicalType != EPhysicalDamageType::None &&
 			UWoRAttributeSyncComponent::ReadSyncedAttribute(

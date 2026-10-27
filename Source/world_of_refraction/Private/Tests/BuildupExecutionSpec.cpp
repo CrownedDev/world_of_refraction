@@ -8,6 +8,7 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "AbilitySystemComponent.h"
+#include "GameplayEffect.h"
 #include "Combat/CombatConstants.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
@@ -32,6 +33,8 @@ namespace
 	constexpr float BUILDUP_EXEC_RESIST_PERCENT = 20.0f;
 	constexpr float BUILDUP_EXEC_MULTIPLIER_PERCENT = 50.0f;
 	constexpr float BUILDUP_EXEC_TOLERANCE = 1.0e-4f;
+	/** An Ice resistance only GAS holds: nothing in the game grants Ice resistance yet (Q-042o). */
+	constexpr float BUILDUP_EXEC_ICE_RESIST = 0.2f;
 }
 
 BEGIN_DEFINE_SPEC(FBuildupExecutionSpec, "WoR.GAS.BuildupExecution",
@@ -130,7 +133,7 @@ void FBuildupExecutionSpec::Define()
 	It("adds the same buildup as AddStatusBuildup for the same hit", [this]()
 	{
 		if (!Buildup) return;
-		for (const ESpellElement Element : {ESpellElement::None, ESpellElement::Fire, ESpellElement::Lightning})
+		for (const ESpellElement Element : {ESpellElement::None, ESpellElement::Fire, ESpellElement::Lightning, ESpellElement::Water})
 		{
 			for (const EPhysicalDamageType Physical : {EPhysicalDamageType::None, EPhysicalDamageType::Slash})
 			{
@@ -194,6 +197,33 @@ void FBuildupExecutionSpec::Define()
 		TestEqual(TEXT("StatusResistance"), Read.GeneralStatusResistance, Gathered.GeneralStatusResistance, BUILDUP_EXEC_TOLERANCE);
 		TestEqual(TEXT("Resist_Fire + Resist_Slash"), Read.HitTypeResistance, Gathered.HitTypeResistance, BUILDUP_EXEC_TOLERANCE);
 		TestEqual(TEXT("StatusResistBonus"), Read.StatusResistBonus, Gathered.StatusResistBonus, BUILDUP_EXEC_TOLERANCE);
+	});
+
+	It("cuts Water buildup by Ice resistance too, and only Water (B-226)", [this]()
+	{
+		if (!Buildup) return;
+		const FWoRBuildupRequest Water =
+			UWoRBuildupExecution::MakeRequest(*Buildup, Source, Target, BUILDUP_EXEC_AMOUNT, ESpellElement::Water, EPhysicalDamageType::None);
+		const FWoRBuildupRequest Fire =
+			UWoRBuildupExecution::MakeRequest(*Buildup, Source, Target, BUILDUP_EXEC_AMOUNT, ESpellElement::Fire, EPhysicalDamageType::None);
+		const float WaterBefore = GASBuildup(Water);
+		const float FireBefore = GASBuildup(Fire);
+		const float WaterHitTypeBefore = UWoRBuildupExecution::ReadAttributes(Water, SourceASC, TargetASC).HitTypeResistance;
+
+		UGameplayEffect *IceResist = NewObject<UGameplayEffect>(GetTransientPackage());
+		IceResist->DurationPolicy = EGameplayEffectDurationType::Infinite;
+		FGameplayModifierInfo Modifier;
+		Modifier.Attribute = UWoRAttributeSet_Resistance::GetTypeAttribute(EWoRDamageType::Ice);
+		Modifier.ModifierOp = EGameplayModOp::Additive;
+		Modifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(BUILDUP_EXEC_ICE_RESIST));
+		IceResist->Modifiers.Add(Modifier);
+		TargetASC->ApplyGameplayEffectToSelf(IceResist, 1.0f, TargetASC->MakeEffectContext());
+
+		TestEqual(TEXT("Water: Ice adds to the hit-type resistance"),
+				  UWoRBuildupExecution::ReadAttributes(Water, SourceASC, TargetASC).HitTypeResistance, WaterHitTypeBefore + BUILDUP_EXEC_ICE_RESIST,
+				  BUILDUP_EXEC_TOLERANCE);
+		TestTrue(TEXT("Water: less buildup"), GASBuildup(Water) < WaterBefore - BUILDUP_EXEC_TOLERANCE);
+		TestEqual(TEXT("Fire: unchanged"), GASBuildup(Fire), FireBefore, BUILDUP_EXEC_TOLERANCE);
 	});
 
 	It("keeps a baked-in or missing source multiplier", [this]()

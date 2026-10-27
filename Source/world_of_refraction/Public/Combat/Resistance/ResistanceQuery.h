@@ -53,8 +53,8 @@ namespace WoRResistance
 	 *  only (Q-145). Uncapped; the damage step caps it (WoRDamageMath::GetElementMultiplier). */
 	WORLD_OF_REFRACTION_API float GetElementDamageResistance(AActor *Target, ESpellElement Element);
 
-	/** What a hit's two status axes resist: its element's type (or the non-elemental bucket) plus
-	 *  its physical subtype's, when it has one. The Matched layer of buildup without #7 and #8. */
+	/** What a hit's two status axes resist: its element's type (or the non-elemental bucket; Water
+	 *  adds Ice, as Water damage does, B-226) plus its physical subtype's, when it has one. The Matched layer of buildup without #7 and #8. */
 	WORLD_OF_REFRACTION_API float GetHitTypeResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType);
 
 	/** General buildup resistance (#1-3): the capped Spirit stat, times gear points, times attached

@@ -149,7 +149,12 @@ namespace WoRResistance
 
 	float GetHitTypeResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType)
 	{
-		float Resist = GetTypeResistance(Target, WoRDamageType::ElementToDamageType(Element));
+		const EWoRDamageType ElementType = WoRDamageType::ElementToDamageType(Element);
+		float Resist = GetTypeResistance(Target, ElementType);
+		if (ElementType == EWoRDamageType::Water)
+		{
+			Resist += GetTypeResistance(Target, EWoRDamageType::Ice); // B-226: as Water damage (Q-042o, Q-145b)
+		}
 		if (PhysicalType != EPhysicalDamageType::None)
 		{
 			Resist += GetTypeResistance(Target, WoRDamageType::PhysicalToDamageType(PhysicalType));
