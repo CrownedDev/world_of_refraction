@@ -2002,6 +2002,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it, e.g. to B once the loadout screen exists.
 **Notes for Claude:** applied (feature/B-076-trial-recruits). Trial maps have no recruit spots yet (placing a recruitable pawn in a trial level is editor work): B-215. Until then, `wor.Party.RecruitForRun <CharacterData path>` recruits in a trial. Evolutions for a recruit wait for B with the real screen.
 
+### Q-064 — Element resistance and damage that isn't a hit: DoT ticks, Reality Burst, reflect
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-064) · **Blocks:** — (B-064 ships hits only; B-064b builds A)
+**Question:** Since B-064, element resistance scales every hit's elemental damage (D-036). Three kinds of damage don't go through the damage maths: status DoT ticks (Burn, Chill… `SkillEffectManager.cpp`, `ESkillEffectType::DOT`), Reality Burst (25% of max HP) and reflected damage. Should element resistance cut them?
+**Options:**
+- **A** Elemental DoT ticks are resisted like hits (the effect's element, the same 1:1, +-50% cap); Reality Burst (a share of max HP) and reflect stay unresisted.
+- **B** Only hits; nothing else is resisted.
+- **C** Everything with an element, Reality Burst and reflect included.
+**Recommendation:** A. In Path of Exile, ignite (burning) damage is reduced by fire resistance, and in Diablo 4 burning damage over time is reduced by fire resistance; players expect a fire-resistant enemy to burn less. Max-HP-percentage effects are usually left unresisted so they stay a reliable answer to tough enemies, and reflected damage returns what the attacker dealt. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B or C.
+**Notes for Claude:** B-064b: the DoT effect needs its element (check `FActiveSkillEffect`); apply `WoRDamageMath::GetElementMultiplier(GetTypeResistance(target, element), false)` to the tick; tests: a Fire DoT on a Fire Caster ticks less.
+
 ### Q-217 — Requirements in combat: the character's authored world levels, or the live run levels?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-217) · **Blocks:** — (B-217 ships with A)
 **Question:** In a run, each world pillar has a live level: the authored level + the head start + levels earned or bought (CL-37). The stat getters read the live level, but the requirement gap (CL-39), the weapon requirement factor (CL-40), Broken Darkness strain and its exact-attunement waiver read the authored level, so a pillar raised during the run doesn't count. Which should they read?
