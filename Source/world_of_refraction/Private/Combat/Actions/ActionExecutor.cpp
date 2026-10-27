@@ -3617,7 +3617,7 @@ void UActionExecutor::SpawnAOEEffect(
 	// AOE resolution = NOW (the Cast notify). No travel, so this dispatch IS the impact moment.
 	// Resolve THIS defender per-impact against the count-based window the gate opened at action start
 	// (ExpectedImpacts=1): read the cast-entry defense difficulty, apply the single full-damage impact,
-	// and close. Mirrors OnProjectileImpact's converted branch — the AOE "arrival" is here, now.
+	// and close. Shared with Instant and projectiles via ResolveSpellArrival — the AOE "arrival" is here, now.
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
 	if (ResolveSpellArrival(Target, CastEntryIndex, Caster, Skill, TEXT("AOE")))
 	{
@@ -3680,7 +3680,7 @@ void UActionExecutor::ResolveInstantSpell(
 	// Instant is now DEFENDABLE per-impact (all three defenses, Hard difficulty): resolve THIS defender
 	// against the count-based window the gate opened at action start (ExpectedImpacts=1), read the
 	// cast-entry defense difficulty, apply the single full-damage impact through the defense, and close.
-	// Byte-identical to SpawnAOEEffect's converted branch — the Instant "arrival" is here, now.
+	// Shared with AOE and projectiles via ResolveSpellArrival — the Instant "arrival" is here, now.
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
 	if (ResolveSpellArrival(Target, CastEntryIndex, Caster, Skill, TEXT("Instant")))
 	{
