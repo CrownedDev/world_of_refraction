@@ -1748,7 +1748,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** The journal only gets the memories of a run that is won.
 - **C** Numeric depth (0-10) instead of three levels.
 **Recommendation:** A. Hades keeps every story unlock when a run fails, and players praise that a failed run still moves the story on; Hollow Knight's and Elden Ring's lore items are kept the moment you pick them up and explain themselves only when read, matching the no-hint rule. Three depth levels are easy to author and read. Not lore (the memories themselves are Crown's to write).
-**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Answer (Crown):** A, approved by the reference-backed default (2026-10-26), **except, changed by Crown (2026-10-27): a collected fragment is gone for good**: once a memory is in the journal, its fragment no longer appears in later runs (D-100).
 **Notes for Claude:** applied (feature/B-190-memory-fragments): `UMemoryData`, `AMemoryFragment` (a trial map feature, B-188), `UTrialRunSubsystem::CollectMemory` (run state, D-065), `UMemoryJournalSubsystem` (lasts while the game runs; saved with B-090). `FMemoryBossModifier::Boss` is a `UCharacterData` for now; B-193 may switch it to `UBossData`.
 
 ### Q-188 — How do the trial map's chest, lore object and boss arena behave?
