@@ -27,6 +27,7 @@
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Skills/Definitions/ESpellSource.h"
 #include "Loadout/CarriedGearState.h"
+#include "Inventory/EInventoryChangeType.h"
 #include "LoadoutComponent.generated.h"
 
 struct FBrokenCrystalPayload;
@@ -45,12 +46,15 @@ class USkillDataBase;
 class UAnimMontage;
 class USpellData;
 class UInfusionDisplayData;
+class UWeaponData;
 
 /** Delegate for loadout changes (query GetActiveLoadout() for data) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutChanged, int32, NewLoadoutIndex);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnLoadoutItemUsed, int32, SlotIndex, FCrystalId, ItemId, int32, NewQuantity);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutValidationFailed, const FString &, Reason);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLoadoutPartsDropped, int32, LoadoutIndex, const TArray<FText> &, Messages);
+/** The weapon GetActiveWeapon() returns has changed (null = no weapon now). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActiveWeaponChanged, UWeaponData *, NewWeapon);
 
 /** A single crystal-bearing slot — discriminated by Kind. Refined slots
  *  identify by FCrystalId (refined crystals have no asset pointer in the
@@ -730,6 +734,15 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Loadout|Events")
     FOnLoadoutPartsDropped OnPartsDropped;
 
+    /** Fired when the active weapon changes (B-138): loadout switch, weapon toggle, slot edits,
+     *  init, carried gear, evolution cleared, and any inventory change (a load, gear removed). */
+    UPROPERTY(BlueprintAssignable, Category = "Loadout|Events")
+    FOnActiveWeaponChanged OnActiveWeaponChanged;
+
+    /** Broadcasts OnActiveWeaponChanged if GetActiveWeapon() differs from the last broadcast.
+     *  Mutators here call it on every return; code that edits SavedLoadouts directly calls it after. */
+    void NotifyActiveWeaponChanged();
+
     /** Debug: Log current loadout state */
     UFUNCTION(BlueprintCallable, Category = "Debug")
     void DebugLogLoadout();
@@ -750,6 +763,14 @@ public:
 private:
     /** ET-19: the free weapon / ring switch was used this turn (per-fight, reset each turn). */
     bool bUsedTurnSwitch = false;
+
+    /** The weapon OnActiveWeaponChanged last announced. */
+    UPROPERTY(Transient)
+    TObjectPtr<UWeaponData> LastNotifiedWeapon;
+
+    /** Inventory edits (loads, gear removed) write SavedLoadouts directly; re-check the weapon. */
+    UFUNCTION()
+    void HandleInventoryChanged(EInventoryChangeType ChangeType);
 
     /** Helper to get the sibling UInventoryComponent. Re-fetched per call (no
      *  cache) — loading screens hide the FindComponentByClass cost. Returns

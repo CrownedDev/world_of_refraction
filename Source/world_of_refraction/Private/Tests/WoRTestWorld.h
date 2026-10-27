@@ -120,6 +120,7 @@ public:
 			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
 			Active.PrimarySlotType = EPrimarySlotType::Weapon;
 			Active.PrimaryWeapon.WeaponEntry.Weapon = PrimaryWeapon;
+			Loadout->NotifyActiveWeaponChanged(); // a direct edit, so announce it (B-138)
 		}
 		return Loadout;
 	}
