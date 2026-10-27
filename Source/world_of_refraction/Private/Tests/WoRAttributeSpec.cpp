@@ -78,7 +78,7 @@ void FWoRAttributeSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("gives the ASC both attribute sets, filled from the getters", [this]()
+	It("gives the ASC its attribute sets, filled from the getters", [this]()
 	{
 		if (!ASC || !Char)
 		{
@@ -86,6 +86,7 @@ void FWoRAttributeSpec::Define()
 		}
 		TestNotNull(TEXT("Vitals set"), ASC->GetSet<UWoRAttributeSet_Vitals>());
 		TestNotNull(TEXT("Stats set"), ASC->GetSet<UWoRAttributeSet_Stats>());
+		TestNotNull(TEXT("Resistance set (B-216)"), ASC->GetSet<UWoRAttributeSet_Resistance>());
 		TestEqual(TEXT("Health = CurrentHP"), ASC->GetNumericAttribute(UWoRAttributeSet_Vitals::GetHealthAttribute()), static_cast<float>(Char->CurrentHP));
 		TestTrue(TEXT("Health is set"), Char->CurrentHP > 0);
 		TestAttributesMatch(TEXT("at begin play"));
@@ -140,6 +141,7 @@ void FWoRAttributeSpec::Define()
 		TestNotNull(TEXT("Own ASC"), FighterASC);
 		TestTrue(TEXT("Vitals set"), FighterASC && FighterASC->GetSet<UWoRAttributeSet_Vitals>() != nullptr);
 		TestTrue(TEXT("Stats set"), FighterASC && FighterASC->GetSet<UWoRAttributeSet_Stats>() != nullptr);
+		TestTrue(TEXT("Resistance set"), FighterASC && FighterASC->GetSet<UWoRAttributeSet_Resistance>() != nullptr);
 		TestTrue(TEXT("Health filled"), FighterASC && FighterASC->GetNumericAttribute(UWoRAttributeSet_Vitals::GetHealthAttribute()) > 0.0f);
 		const FString Mismatches = UWoRAttributeDebug::GetAttributeMismatchString(Fighter);
 		TestTrue(FString::Printf(TEXT("Attributes match [%s]"), *Mismatches), Mismatches.IsEmpty());
