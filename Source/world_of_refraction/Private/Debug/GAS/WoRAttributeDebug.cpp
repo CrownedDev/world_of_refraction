@@ -124,6 +124,15 @@ void UWoRAttributeDebug::AddComposedMismatches(const AActor *Actor, const UAbili
 		if (bMaxHealth ? Char->GetMaxHPLayers(PoolLayers) : Char->GetMaxEPLayers(PoolLayers))
 		{
 			AddSourcesMismatches(ASC, Attribute, PoolLayers.StatPortion, TEXT("stat portion"), PoolClass, PoolLayers.ToString(), Mismatches);
+			return;
+		}
+		// Mirrored (a max set another way): no pool effect may be left on it.
+		FGameplayEffectQuery Query;
+		Query.EffectDefinition = PoolClass;
+		const int32 Leftover = ASC.GetActiveEffects(Query).Num();
+		if (Leftover != 0)
+		{
+			Mismatches.Add(FString::Printf(TEXT("%s: mirrored, but %d pool sources effects left"), *Attribute.GetName(), Leftover));
 		}
 		return;
 	}

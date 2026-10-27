@@ -286,6 +286,8 @@ void UWoRAttributeSyncComponent::SyncPoolStat(UAbilitySystemComponent &ASC, cons
 	const FGameplayEffectSpecHandle Spec = ASC.MakeOutgoingSpec(PoolClass, STAT_SOURCES_EFFECT_LEVEL, ASC.MakeEffectContext());
 	if (!Spec.IsValid())
 	{
+		// No effect to carry the layers, so the base holds the composed max.
+		ASC.SetNumericAttributeBase(Attribute, Layers.Compose());
 		AppliedPoolSources.Remove(Attribute);
 		return;
 	}

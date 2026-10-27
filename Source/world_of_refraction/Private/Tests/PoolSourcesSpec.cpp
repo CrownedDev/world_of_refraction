@@ -136,11 +136,16 @@ void FPoolSourcesSpec::Define()
 		}
 		const int32 Before = Char->MaxHP;
 		Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryWeapon.WeaponEntry.StatBonus.BonusMaxHP = POOL_SOURCES_GEAR_POINTS;
+		// The buff's percent multiplies the gear too, so the order shows.
+		TestWorld->GetSubsystem<USkillEffectManager>()->ApplyEffect(
+			Hero, FActiveSkillEffect::CreateBuff(TEXT("Pool sources test"), POOL_SOURCES_BUFF_ID, ESkillEffectType::MaxHPBuff,
+												 POOL_SOURCES_BUFF_PERCENT, POOL_SOURCES_TURNS), Hero);
 		Char->RecomputeMaxPools(); // what an equipment change runs
 		Sync->SyncAttributes();
 		FWoRPoolLayers HP;
 		TestTrue(TEXT("MaxHP layers"), Char->GetMaxHPLayers(HP));
 		TestTrue(TEXT("The gear is the flat amount"), HP.GearAmount > 0.0f);
+		TestTrue(TEXT("The percent is in"), HP.PercentFactor > 1.0f);
 		TestTrue(TEXT("The gear raised MaxHP"), Char->MaxHP > Before);
 		TestEqual(TEXT("MaxHealth = MaxHP"), MaxHealth(), static_cast<float>(Char->MaxHP));
 	});
