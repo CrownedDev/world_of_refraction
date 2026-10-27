@@ -1,6 +1,7 @@
 // MemoryFragmentSpec.cpp
 // B-190 (RunStructure §5, Q-190): a memory runs deep for one character and minor for another; a
-// fragment pickup adds its memory to the run and the journal once, and is gone afterwards.
+// fragment pickup adds its memory to the run and the journal once, and is gone afterwards; once its
+// memory is in the journal it no longer appears in later runs (B-210).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -37,6 +38,21 @@ BEGIN_DEFINE_SPEC(FMemoryFragmentSpec, "WoR.Memory.Fragment",
 		if (Fragment && Property)
 		{
 			Property->SetObjectPropertyValue_InContainer(Fragment, Memory);
+		}
+		return Fragment;
+	}
+
+	/** SpawnFragment, but Memory is set before BeginPlay runs (as on a level load). */
+	AMemoryFragment *SpawnFragmentOnLoad(UMemoryData *Memory)
+	{
+		AMemoryFragment *Fragment = TestWorld->GetWorld()->SpawnActorDeferred<AMemoryFragment>(
+			AMemoryFragment::StaticClass(), FTransform::Identity);
+		const FObjectPropertyBase *Property = CastField<FObjectPropertyBase>(
+			AMemoryFragment::StaticClass()->FindPropertyByName(MEMORY_TEST_FRAGMENT_PROPERTY));
+		if (Fragment && Property)
+		{
+			Property->SetObjectPropertyValue_InContainer(Fragment, Memory);
+			Fragment->FinishSpawning(FTransform::Identity);
 		}
 		return Fragment;
 	}
@@ -100,6 +116,27 @@ void FMemoryFragmentSpec::Define()
 		Fragment->FinishSpawning(FTransform::Identity);
 		TestTrue(TEXT("Hidden"), Fragment->IsHidden());
 		TestFalse(TEXT("Out of reach"), Fragment->GetActorEnableCollision());
+	});
+
+	It("doesn't appear in a later run once its memory is in the journal", [this]()
+	{
+		UTrialRunSubsystem *TrialRun = TestWorld->GetSubsystem<UTrialRunSubsystem>();
+		UMemoryData *Memory = NewMemory();
+		AMemoryFragment *FirstRun = SpawnFragment(Memory);
+		if (!TestTrue(TEXT("Spawned"), TrialRun && FirstRun)) return;
+		FirstRun->Interact(nullptr);
+
+		// A fresh fragment for the same memory, not found this run: only the journal hides it.
+		AMemoryFragment *LaterRun = SpawnFragmentOnLoad(Memory);
+		if (!TestNotNull(TEXT("Spawned again"), LaterRun)) return;
+		TestFalse(TEXT("Not found in this run"), TrialRun->HasFound(LaterRun->GetFeatureId()));
+		TestTrue(TEXT("Taken"), LaterRun->IsTaken());
+		TestTrue(TEXT("Not on the map"), LaterRun->IsHidden());
+		TestFalse(TEXT("Out of reach"), LaterRun->GetActorEnableCollision());
+
+		LaterRun->Interact(nullptr);
+		TestEqual(TEXT("Not granted again"), TrialRun->GetRunMemories().Num(), 1);
+		TestFalse(TEXT("Not recorded as found"), TrialRun->HasFound(LaterRun->GetFeatureId()));
 	});
 
 	It("picks up nothing when no memory is set", [this]()

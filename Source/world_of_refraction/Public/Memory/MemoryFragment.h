@@ -23,6 +23,9 @@ public:
 
 	UMemoryData *GetMemory() const { return Memory; }
 
+	/** Picked up this run, or its memory is already in the journal (B-210: gone for good). */
+	bool IsTaken() const;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual FString GetHintText() const override;

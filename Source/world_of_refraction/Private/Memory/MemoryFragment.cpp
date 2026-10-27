@@ -25,19 +25,25 @@ AMemoryFragment::AMemoryFragment()
 void AMemoryFragment::BeginPlay()
 {
 	Super::BeginPlay();
-	// The trial level reloads after each fight; a fragment taken earlier this run stays gone.
-	const UTrialRunSubsystem *TrialRun = GetTrialRun();
-	if (TrialRun && TrialRun->HasFound(GetFeatureId()))
+	// The trial level reloads after each fight; a fragment taken earlier this run stays gone, and
+	// one whose memory is already collected is gone for good (B-210).
+	if (IsTaken())
 	{
 		RemoveFromMap();
 	}
+}
+
+bool AMemoryFragment::IsTaken() const
+{
+	const UTrialRunSubsystem *TrialRun = GetTrialRun();
+	return (TrialRun && TrialRun->HasFound(GetFeatureId())) || MemoryUnlock::IsCollected(GetGameInstance(), Memory);
 }
 
 void AMemoryFragment::Interact(APawn * /*Pawn*/)
 {
 	UTrialRunSubsystem *TrialRun = GetTrialRun();
 	UGameInstance *GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-	if (!TrialRun || !GameInstance || TrialRun->HasFound(GetFeatureId()))
+	if (!TrialRun || !GameInstance || IsTaken())
 	{
 		return;
 	}
@@ -54,8 +60,7 @@ void AMemoryFragment::Interact(APawn * /*Pawn*/)
 
 FString AMemoryFragment::GetHintText() const
 {
-	const UTrialRunSubsystem *TrialRun = GetTrialRun();
-	return TrialRun && TrialRun->HasFound(GetFeatureId())
+	return IsTaken()
 			   ? FString()
 			   : LOCTEXT("FragmentHint", "Press E to pick up the memory fragment").ToString();
 }
