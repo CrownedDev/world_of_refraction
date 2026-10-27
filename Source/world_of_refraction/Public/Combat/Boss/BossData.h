@@ -4,6 +4,7 @@
 // Every change is optional and authored per boss. Phases are reached in order and stay reached.
 // Mini-bosses with no authored phases use a preset picked by their style tag.
 // Runtime: UBossPhaseComponent on the boss in the fight. Debug: PrintBossData, wor.Boss.Print.
+// B-211 (D-100 part 1): Triggers, the boss's own "if these conditions, then this" (BossTriggers).
 
 #pragma once
 
@@ -14,6 +15,7 @@
 
 class UCharacterData;
 class UEffectDefinition;
+class UEquipmentDataBase;
 class UMemoryData;
 class USkillDataBase;
 
@@ -100,6 +102,71 @@ struct WORLD_OF_REFRACTION_API FBossPhase
 	TArray<TObjectPtr<USkillDataBase>> AddedSkills;
 };
 
+/** B-211 (D-100 part 1, Q-211): what must be true in the fight for a boss trigger. Append new
+ *  values at the end (saved in assets). */
+UENUM(BlueprintType)
+enum class EBossTriggerConditionKind : uint8
+{
+	/** Character is in the party. */
+	PartyMember,
+	/** Item is worn (by Character when set, else by anyone) at least UpgradeLevel tiers above its
+	 *  authored tier. */
+	GearWorn,
+	/** TODO: hidden conditions (pillar 10) are not built; never met for now. */
+	Hidden
+};
+
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FBossTriggerCondition
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger")
+	EBossTriggerConditionKind Kind = EBossTriggerConditionKind::PartyMember;
+
+	/** PartyMember: who. GearWorn: who must wear it (empty: anyone). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger")
+	TObjectPtr<UCharacterData> Character = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger")
+	TObjectPtr<UEquipmentDataBase> Item = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger", meta = (ClampMin = "0"))
+	int32 UpgradeLevel = 0;
+};
+
+/** What a fired boss trigger does. Append new values at the end (saved in assets). */
+UENUM(BlueprintType)
+enum class EBossTriggerResult : uint8
+{
+	Weaken,
+	Strengthen,
+	SkipPhase,
+	AddPhase,
+	/** Plays the trigger's DialogueId (logged until the dialogue system, B-194). */
+	Dialogue
+};
+
+/** B-211: "if these conditions, then this", owned by the boss. Checked once at fight start. */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FBossTrigger
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger")
+	FName TriggerId;
+
+	/** All must hold. Empty: never fires. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger")
+	TArray<FBossTriggerCondition> Conditions;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger")
+	TArray<EBossTriggerResult> Results;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger")
+	FName DialogueId;
+};
+
 UCLASS(BlueprintType)
 class WORLD_OF_REFRACTION_API UBossData : public UPrimaryDataAsset
 {
@@ -121,6 +188,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss")
 	TArray<FBossPhase> Phases;
 
+	/** B-211 (D-100 part 1): what changes this boss, from who is in the fight and what they wear. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss")
+	TArray<FBossTrigger> Triggers;
+
 	/** The authored phases, else the style's preset. */
 	TArray<FBossPhase> GetPhasesToUse() const;
 
@@ -134,6 +205,9 @@ public:
 	static UBossData *FindFor(const UCharacterData *Character);
 
 	FString GetBossDataString() const;
+
+	/** Debug: one trigger in words. */
+	static FString GetTriggerString(const FBossTrigger &Trigger);
 
 	UFUNCTION(CallInEditor, Category = "Debug")
 	void PrintBossData() const;

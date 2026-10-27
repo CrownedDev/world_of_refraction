@@ -96,8 +96,15 @@ namespace ReactionTriggers
 
 	/** Memory boss changes for this fight: the run memories naming one of the Opposing combatants'
 	 *  characters add up (weaken -1, strengthen +1 step, capped) to one net change on it; phase
-	 *  changes wait for B-193. Returns the number of combatants changed. */
+	 *  changes wait for B-193. Returns the number of combatants changed. Obsolete since B-211
+	 *  (D-100: memories no longer change bosses; BossTriggers do): no game caller; remove after
+	 *  Crown's PIE pass. */
 	int32 ApplyMemoryBossModifiers(const TArray<TObjectPtr<UMemoryData>> &RunMemories, const TArray<AActor *> &Opposing);
+
+	/** NetSteps (weaken -1, strengthen +1 each; capped) on Boss's max HP and damage, before the
+	 *  fight: it starts at its new full HP. False when nothing changed. Shared by memory boss
+	 *  changes and boss triggers (B-211). */
+	bool ApplyBossSteps(AActor *Boss, int32 NetSteps);
 
 	FString GetTriggerString(const FReactionTrigger &Trigger);
 }

@@ -118,6 +118,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
 	TMap<TObjectPtr<UCharacterData>, EMemoryDepth> CharacterDepth;
 
+	/** Obsolete since B-211 (D-100: memories no longer change bosses; UBossData::Triggers do). Kept,
+	 *  unread, until Crown's PIE pass. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
 	TArray<FMemoryBossModifier> BossModifiers;
 

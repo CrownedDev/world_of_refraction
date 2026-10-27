@@ -234,35 +234,43 @@ int32 ReactionTriggers::ApplyMemoryBossModifiers(const TArray<TObjectPtr<UMemory
 				}
 			}
 		}
-		NetSteps = FMath::Clamp(NetSteps, -ReactionTriggerConstants::MAX_MEMORY_BOSS_STEPS,
-								ReactionTriggerConstants::MAX_MEMORY_BOSS_STEPS);
-		if (NetSteps == 0)
+		if (ApplyBossSteps(Boss, NetSteps))
 		{
-			continue;
+			++Changed;
 		}
-		const bool bWeaken = NetSteps < 0;
-		const float Percent = FMath::Abs(NetSteps) * ReactionTriggerConstants::MEMORY_BOSS_STEP_PERCENT;
-		FActiveSkillEffect HP = FActiveSkillEffect::CreatePersistent(TEXT("Memory (boss HP)"),
-			ReactionTriggerConstants::MEMORY_BOSS_HP_EFFECT_ID,
-			bWeaken ? ESkillEffectType::MaxHPDebuff : ESkillEffectType::MaxHPBuff, Percent);
-		HP.bFromGear = true;
-		FActiveSkillEffect Damage = FActiveSkillEffect::CreatePersistent(TEXT("Memory (boss damage)"),
-			ReactionTriggerConstants::MEMORY_BOSS_DAMAGE_EFFECT_ID,
-			bWeaken ? ESkillEffectType::DamageDebuff : ESkillEffectType::DamageBuff, Percent);
-		Damage.bFromGear = true;
-		Effects->ApplyEffect(Boss, HP);
-		Effects->ApplyEffect(Boss, Damage);
-		if (UCharacterDataComponent *CharComp = Boss->FindComponentByClass<UCharacterDataComponent>())
-		{
-			// Before the fight: the boss starts at its new full HP, like the trial's enemy strength.
-			CharComp->RecomputeMaxPools();
-			CharComp->CurrentHP = CharComp->MaxHP;
-		}
-		UE_LOG(LogWoR, Log, TEXT("[Reaction] Memories %s %s by %.0f%%"), bWeaken ? TEXT("weaken") : TEXT("strengthen"),
-			   *GetNameSafe(Boss), Percent);
-		++Changed;
 	}
 	return Changed;
+}
+
+bool ReactionTriggers::ApplyBossSteps(AActor *Boss, int32 NetSteps)
+{
+	USkillEffectManager *Effects = GetReactionEffectManager(Boss);
+	NetSteps = FMath::Clamp(NetSteps, -ReactionTriggerConstants::MAX_MEMORY_BOSS_STEPS,
+							ReactionTriggerConstants::MAX_MEMORY_BOSS_STEPS);
+	if (!Boss || !Effects || NetSteps == 0)
+	{
+		return false;
+	}
+	const bool bWeaken = NetSteps < 0;
+	const float Percent = FMath::Abs(NetSteps) * ReactionTriggerConstants::MEMORY_BOSS_STEP_PERCENT;
+	FActiveSkillEffect HP = FActiveSkillEffect::CreatePersistent(TEXT("Boss change (HP)"),
+		ReactionTriggerConstants::MEMORY_BOSS_HP_EFFECT_ID,
+		bWeaken ? ESkillEffectType::MaxHPDebuff : ESkillEffectType::MaxHPBuff, Percent);
+	HP.bFromGear = true;
+	FActiveSkillEffect Damage = FActiveSkillEffect::CreatePersistent(TEXT("Boss change (damage)"),
+		ReactionTriggerConstants::MEMORY_BOSS_DAMAGE_EFFECT_ID,
+		bWeaken ? ESkillEffectType::DamageDebuff : ESkillEffectType::DamageBuff, Percent);
+	Damage.bFromGear = true;
+	Effects->ApplyEffect(Boss, HP);
+	Effects->ApplyEffect(Boss, Damage);
+	if (UCharacterDataComponent *CharComp = Boss->FindComponentByClass<UCharacterDataComponent>())
+	{
+		// Before the fight: the boss starts at its new full HP, like the trial's enemy strength.
+		CharComp->RecomputeMaxPools();
+		CharComp->CurrentHP = CharComp->MaxHP;
+	}
+	UE_LOG(LogWoR, Log, TEXT("[Reaction] %s %s by %.0f%%"), bWeaken ? TEXT("Weaken") : TEXT("Strengthen"), *GetNameSafe(Boss), Percent);
+	return true;
 }
 
 FString ReactionTriggers::GetTriggerString(const FReactionTrigger &Trigger)
