@@ -139,6 +139,23 @@ void FMemoryFragmentSpec::Define()
 		TestFalse(TEXT("Not recorded as found"), TrialRun->HasFound(LaterRun->GetFeatureId()));
 	});
 
+	It("stays on the map when its memory's unlock conditions aren't met", [this]()
+	{
+		UTrialRunSubsystem *TrialRun = TestWorld->GetSubsystem<UTrialRunSubsystem>();
+		UMemoryData *Memory = NewMemory();
+		FMemoryCondition NotHere;
+		NotHere.Kind = EMemoryConditionKind::Character;
+		NotHere.Character = FWoRTestWorld::NewCharacterData();
+		Memory->UnlockConditions.Add(NotHere);
+		AMemoryFragment *Fragment = SpawnFragment(Memory);
+		if (!TestTrue(TEXT("Spawned"), TrialRun && Fragment)) return;
+
+		Fragment->Interact(nullptr);
+		TestEqual(TEXT("No memory collected"), TrialRun->GetRunMemories().Num(), 0);
+		TestFalse(TEXT("Not recorded as found"), TrialRun->HasFound(Fragment->GetFeatureId()));
+		TestFalse(TEXT("Still on the map"), Fragment->IsHidden());
+	});
+
 	It("picks up nothing when no memory is set", [this]()
 	{
 		UTrialRunSubsystem *TrialRun = TestWorld->GetSubsystem<UTrialRunSubsystem>();
