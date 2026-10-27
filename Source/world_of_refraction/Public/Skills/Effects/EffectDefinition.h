@@ -45,6 +45,11 @@ public:
     UFUNCTION(CallInEditor, Category = "Debug")
     void LogEffect() const;
 
+    /** Details-panel button: logs the player-facing text generated from this bundle (B-045):
+     *  the tree, then the short form. */
+    UFUNCTION(CallInEditor, Category = "Debug")
+    void LogEffectText() const;
+
 #if WITH_EDITOR
     /** Threshold-visibility flags live on each bundled effect (not the owner that only
      *  references this asset), so the bundle syncs its own — keeps the Threshold

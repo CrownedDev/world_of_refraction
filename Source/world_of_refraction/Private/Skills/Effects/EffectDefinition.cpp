@@ -2,6 +2,8 @@
 
 #include "Skills/Effects/EffectDefinition.h"
 #include "Debug/Skills/SkillEffectDebug.h"
+#include "Debug/Skills/EffectTextDebug.h"
+#include "WoRLog.h"
 #include "Skills/Effects/EffectIdentity.h"
 #include "Loadout/LoadoutConstants.h"
 
@@ -14,6 +16,14 @@ void UEffectDefinition::LogEffect() const
     {
         UE_LOG(LogTemp, Display, TEXT("  [%d] %s"), i, *SkillEffectDebug::DescribeEffect(Effects[i]));
     }
+}
+
+void UEffectDefinition::LogEffectText() const
+{
+    const FString Label = DisplayName.IsEmpty() ? GetName() : DisplayName.ToString();
+    UE_LOG(LogWoREffects, Display, TEXT("=== %s, as the player reads it ===\n%s"), *Label,
+           *UEffectTextDebug::GetEffectTextString(EffectText::BuildTree(Effects, EEffectTextSource::Gear),
+                                                  EffectText::BuildShortForm(Effects, EEffectTextSource::Gear)));
 }
 
 #if WITH_EDITOR
