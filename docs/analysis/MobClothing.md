@@ -30,7 +30,7 @@
 | **D** | **Custom suit** made in Marvelous Designer (or commissioned), skinned to Manny in-engine with weight transfer (Dataflow Transfer Skin Weights, or Epic's skin-weight action utility) | A Marvelous Designer subscription, or an artist commission *(quote)* | Ours outright | High: pattern, export, weight transfer, clean-up; MD 2025.2+ pairs with UE 5.6+ for Chaos Cloth *(check)* | Exactly V's concept sheet (`V_turnaround.png`, still to be added to the repo, D-069) |
 | **E** | **A rigged character pack with its own suit** (a full "businessman" character), then retarget | $20–60 *(check)* | Fab Standard | Medium–high: if its skeleton differs, IK-retarget and re-skin; brings a face/hands V doesn't want | Off-model; mainly a source of parts |
 
-Skeleton warning (`Design/Resources_Design.md`, hub locomotion notes): the project's combat character is on the **UE5** Manny skeleton; some in-project content is on the UE4 mannequin. Buy only listings that say **UE5 Manny/Quinn** (or MetaHuman + UE5 skeleton), not UE4.
+Skeleton warning (`Design/Resources_Design.md`, hub locomotion notes): the project's combat character is on the **UE5** Manny skeleton (`SK_Manny_HTS`; see the bone-name check above); some in-project content is on the UE4 mannequin. Buy only listings that say **UE5 Manny/Quinn** (or MetaHuman + UE5 skeleton), not UE4.
 
 ## Variations
 
