@@ -2011,7 +2011,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **C** Everything with an element, Reality Burst and reflect included.
 **Recommendation:** A. In Path of Exile, ignite (burning) damage is reduced by fire resistance, and in Diablo 4 burning damage over time is reduced by fire resistance; players expect a fire-resistant enemy to burn less. Max-HP-percentage effects are usually left unresisted so they stay a reliable answer to tough enemies, and reflected damage returns what the attacker dealt. Not lore.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B or C.
-**Notes for Claude:** B-064b: the DoT effect needs its element (check `FActiveSkillEffect`); apply `WoRDamageMath::GetElementMultiplier(GetTypeResistance(target, element), false)` to the tick; tests: a Fire DoT on a Fire Caster ticks less.
+**Notes for Claude:** B-064b: the DoT effect needs its element (check `FActiveSkillEffect`); apply `WoRDamageMath::GetElementMultiplier(GetTypeResistance(target, element), false)` to the tick (a Water DoT also reads Ice, Q-145b, as `GatherDamageMathInputs` does); tests: a Fire DoT on a Fire Caster ticks less.
 
 ### Q-217 — Requirements in combat: the character's authored world levels, or the live run levels?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-217) · **Blocks:** — (B-217 ships with A)
