@@ -20,6 +20,8 @@ namespace
 {
 	constexpr int32 LIFETIME_BUFF_ID = 4501;
 	constexpr int32 LIFETIME_GEAR_ID = 4502;
+	constexpr int32 LIFETIME_SECOND_ID = 4503;
+	constexpr int32 LIFETIME_MAX_STACKS = 3;
 	constexpr int32 LIFETIME_TURNS = 2;
 	constexpr float LIFETIME_BUFF = 20.0f;
 }
@@ -147,6 +149,46 @@ void FEffectLifetimeSpec::Define()
 		TestEqual(TEXT("Still one tracked GE"), Tracker->NumTracked(), 1);
 	});
 
+	It("keeps the tracked span when a stack swaps the GE", [this]()
+	{
+		if (!EffectManager) return;
+		FActiveSkillEffect Stacking = Buff();
+		Stacking.bCanStack = true;
+		Stacking.MaxStacks = LIFETIME_MAX_STACKS;
+		EffectManager->ApplyEffect(Hero, Stacking, Foe);
+		EffectManager->ProcessEndOfTurnEffects(Hero);
+		EffectManager->ApplyEffect(Hero, Stacking, Foe);
+		const FActiveSkillEffect *Copy = StoredBuff();
+		if (!TestNotNull(TEXT("Stored"), Copy))
+		{
+			return;
+		}
+		TestEqual(TEXT("Stacked"), Copy->CurrentStacks, 2);
+		TestEqual(TEXT("One tracked GE"), Tracker->NumTracked(), 1);
+		TestEqual(TEXT("Tracked for the copy's span"), Tracker->GetTurnsLeft(BuffGE()), Copy->RemainingTurns);
+		TestMatches(TEXT("stacked"));
+	});
+
+	It("ends two effects on the same turn start without re-applying either", [this]()
+	{
+		if (!EffectManager) return;
+		EffectManager->ApplyEffect(Hero, Buff(), Foe);
+		EffectManager->ApplyEffect(Hero, FActiveSkillEffect::CreateBuff(TEXT("Lifetime second buff"), LIFETIME_SECOND_ID,
+																	  ESkillEffectType::DefenseBuff, LIFETIME_BUFF, LIFETIME_TURNS), Foe);
+		for (int32 Turn = 1; Turn <= LIFETIME_TURNS; ++Turn)
+		{
+			EffectManager->ProcessEndOfTurnEffects(Hero);
+		}
+		int32 Added = 0;
+		const FDelegateHandle AddedHandle = ASC->OnActiveGameplayEffectAddedDelegateToSelf.AddLambda(
+			[&Added](UAbilitySystemComponent *, const FGameplayEffectSpec &, FActiveGameplayEffectHandle) { ++Added; });
+		EffectManager->ProcessStartOfTurnEffects(Hero);
+		ASC->OnActiveGameplayEffectAddedDelegateToSelf.Remove(AddedHandle);
+		TestEqual(TEXT("No GE re-applied while the copies went"), Added, 0);
+		TestEqual(TEXT("Both ended on the tracker"), Tracker->NumTracked(), 0);
+		TestEqual(TEXT("Both copies gone"), EffectManager->GetActiveEffects(Hero).Num(), 0);
+	});
+
 	It("drops the stored copy at the next turn start when GAS ends the GE early", [this]()
 	{
 		if (!EffectManager) return;
@@ -156,6 +198,19 @@ void FEffectLifetimeSpec::Define()
 		TestFalse(TEXT("Not re-applied by a sync"), BuffGE().IsValid());
 		EffectManager->ProcessStartOfTurnEffects(Hero);
 		TestNull(TEXT("Stored copy gone"), StoredBuff());
+	});
+
+	It("starts a GAS-ended effect again when its source re-applies it before the turn start", [this]()
+	{
+		if (!EffectManager) return;
+		EffectManager->ApplyEffect(Hero, Buff(), Foe);
+		TestTrue(TEXT("Tracker removed the GE"), Tracker->RemoveTracked(BuffGE()));
+		EffectManager->ApplyEffect(Hero, Buff(), Foe);
+		TestTrue(TEXT("GE back"), BuffGE().IsValid());
+		TestEqual(TEXT("Tracked again for the refreshed span"), Tracker->GetTurnsLeft(BuffGE()), LIFETIME_TURNS);
+		EffectManager->ProcessStartOfTurnEffects(Hero);
+		TestNotNull(TEXT("The fresh copy stays"), StoredBuff());
+		TestMatches(TEXT("re-applied"));
 	});
 
 	It("ends the tracked GE when the stored effect is removed", [this]()
