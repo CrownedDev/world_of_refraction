@@ -14,6 +14,8 @@
 #include "GameplayEffect.h"
 #include "WoRGameplayEffects.generated.h"
 
+class UWoRMMC_ClampedStatTerm;
+
 enum class ESubStat : uint8;
 
 /** Base for the native family GEs: the constructor helpers that add tag components. */
@@ -299,4 +301,54 @@ class WORLD_OF_REFRACTION_API UWoRGE_StatSources_Reflex : public UWoRGE_StatSour
 
 public:
 	UWoRGE_StatSources_Reflex();
+};
+
+/** On the EfficiencyReduction attribute (B-042s); Efficiency derives from it (UWoRGE_DerivedEfficiency). */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_StatSources_Efficiency : public UWoRGE_StatSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_StatSources_Efficiency();
+};
+
+/** B-042s (Q-042s): a stat derived from other attributes, as one Infinite effect the attribute sync
+ *  applies once. Each term is a magnitude calculation that captures its source live (not snapshot) and
+ *  clamps it as the getter does (UWoRMMC_ClampedStatTerm), so the derived value follows it with no re-sync. */
+UCLASS(Abstract)
+class WORLD_OF_REFRACTION_API UWoRGE_DerivedStat : public UWoRGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	/** The derived-stat effect for Attribute (CritChance, Efficiency); null for any other. */
+	static TSubclassOf<UGameplayEffect> GetClassFor(const FGameplayAttribute &Attribute);
+
+protected:
+	UWoRGE_DerivedStat();
+
+	/** Target += the term's clamped source x coefficient, before the multipliers (AddBase). */
+	void AddClampedTerm(const FGameplayAttribute &Target, TSubclassOf<UWoRMMC_ClampedStatTerm> Term);
+};
+
+/** Crit chance = (CRIT_CHANCE_BASE + Luck x CRIT_CHANCE_LUCK_BONUS) x the buff layer
+ *  (SetByCaller.Stat.Transient, UDamageCalculator::GetCritChanceTransientFactor), clamped [0, 1] by the set. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_DerivedCritChance : public UWoRGE_DerivedStat
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_DerivedCritChance();
+};
+
+/** Efficiency = 1 - EfficiencyReduction. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_DerivedEfficiency : public UWoRGE_DerivedStat
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_DerivedEfficiency();
 };

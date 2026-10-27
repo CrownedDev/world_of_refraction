@@ -42,6 +42,10 @@ struct FWoRStatLayers
 		case ESubStat::Luck:
 			Layers.Max = CombatConstants::LUCK_GEAR_CEILING;
 			break;
+		case ESubStat::Efficiency:
+			// The cost REDUCTION (the multiplier is 1 - this), up to its gear ceiling.
+			Layers.Max = CombatConstants::EFFICIENCY_GEAR_CEILING;
+			break;
 		case ESubStat::Reflex:
 			Layers.Min = TNumericLimits<float>::Lowest();
 			Layers.Max = TNumericLimits<float>::Max();

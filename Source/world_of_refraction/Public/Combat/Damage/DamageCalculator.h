@@ -228,6 +228,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
 	float GetCriticalChance(AActor *Attacker) const;
 
+	/** The crit-chance buff layer: (1 + CritChanceBuff%) x (1 - CritChanceDebuff%) x (1 + ModifyCritChance%);
+	 *  1 without a skill-effect manager. GetCriticalChance multiplies it into the Luck-driven chance. */
+	float GetCritChanceTransientFactor(AActor *Attacker) const;
+
 	/**
 	 * Get the attacker's full crit-DAMAGE multiplier (CRIT_DMG_BASE x1.0 + CritDamage stat ramp to
 	 * x1.5, then BonusCritDamage gear + ModifyCritDamage transient toward x2.5, D-034). The same value the

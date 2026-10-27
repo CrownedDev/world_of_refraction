@@ -2459,6 +2459,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. GAS's own answer for a derived attribute is a Modifier Magnitude Calculation reading the attributes it depends on (tranek's GASDocumentation, "Modifier Magnitude Calculation"; Lyra derives its damage magnitudes the same way), and flat additions are the AddBase op, so B would bend each stat into a shape the engine doesn't use for it. Shipping the two same-shape stats keeps this migration's one-slice-at-a-time path (strangler fig, as Q-042q).
 **Notes for Claude:** B-042r built A (nine composed stats). B-042s designs each remaining stat's shape; turn speed first needs one getter for the turn manager's value.
 
+### Q-042s — Derived stats on GAS: the built-in attribute-based magnitude, or a custom calculation?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042s) · **Blocks:** —
+**Question:** Q-042r put crit chance (from Luck) and Efficiency (1 - its reduction) on "an MMC reading the attributes it depends on". Both formulas are linear in one attribute. Write a custom Modifier Magnitude Calculation class, or use the engine's built-in attribute-based magnitude? And split the pillars, pools, turn speed and resistance off?
+**Options:**
+- **A** the built-in attribute-based magnitude: crit chance = base + Luck x bonus (Luck captured live), times its buff layer (SetByCaller); Efficiency = 1 - EfficiencyReduction.
+- **B** (as built) the same formulas through one small custom calculation class (`UWoRMMC_ClampedStatTerm`) that captures the source live and clamps it as the getter does before scaling it. EfficiencyReduction is a new composed attribute on the stat-sources shape. The rest goes to B-042t.
+**Recommendation:** B. A capture reads the source attribute's aggregator, and the attribute set's clamp (PreAttributeChange) only clamps the stored current value, never what a capture sees (tranek's GASDocumentation, "PreAttributeChange": clamping there doesn't change the aggregator, so later reads recompute from the unclamped value). With A, Luck past its 2.0 ceiling gave a higher crit chance on GAS than the game's getter. A custom calculation class is GAS's tool for a formula the built-in magnitude types (Scalable Float, Attribute Based, Set By Caller) can't express, which a clamp is. Same live tracking, one shared class.
+**Notes for Claude:** B-042s built B (A first; the reviewer caught the clamp gap). Crit chance and Efficiency derive live (a Luck change moves crit chance with no re-sync). B-042t takes the pillars, pools, turn speed and resistance.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

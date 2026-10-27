@@ -21,6 +21,7 @@
 #include "WoRAttributeSyncComponent.generated.h"
 
 class UAbilitySystemComponent;
+class UGameplayEffect;
 struct FActiveSkillEffect;
 enum class ESubStat : uint8;
 
@@ -29,6 +30,13 @@ struct FWoRAppliedStatSources
 {
 	FActiveGameplayEffectHandle Handle;
 	FWoRStatLayers Layers;
+};
+
+/** The derived-stat effect applied for one attribute, and the buff layer it carries (crit chance only). */
+struct FWoRAppliedDerivedStat
+{
+	FActiveGameplayEffectHandle Handle;
+	float Transient = 1.0f;
 };
 
 /** One attribute and the value its source getter gives right now. */
@@ -88,5 +96,10 @@ private:
 						  const FWoRStatLayers &Layers);
 	void RemoveStatSources(UAbilitySystemComponent &ASC, ESubStat Stat);
 
+	/** Base = the derived stat's constant part; applies its derived effect once and keeps crit chance's
+	 *  buff layer current (B-042s). */
+	void SyncDerivedStat(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute, TSubclassOf<UGameplayEffect> DerivedClass);
+
 	TMap<ESubStat, FWoRAppliedStatSources> AppliedStatSources;
+	TMap<FGameplayAttribute, FWoRAppliedDerivedStat> AppliedDerivedStats;
 };

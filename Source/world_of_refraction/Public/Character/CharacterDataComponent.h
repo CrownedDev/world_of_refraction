@@ -341,8 +341,9 @@ public:
     float GetEffectiveSpellDamage() const;
 
     /** The Pattern P layers of SpellDamage, RawDamage, ActionSpeed, SpellSpeed (B-042p), StatusMultiplier,
-     *  Defense, CritDamage (B-042q), Luck or Reflex (B-042r): their getters return Compose() of these, and the GAS stat sources
-     *  apply them. False for any other sub-stat, and for Defense, Luck or Reflex without CharacterData
+     *  Defense, CritDamage (B-042q), Luck, Reflex (B-042r) or the Efficiency reduction (B-042s): their getters return
+     *  Compose() of these, and the GAS stat sources apply them. False for any other sub-stat, and for Defense, Luck,
+     *  Reflex or Efficiency without CharacterData
      *  (their getters' early returns). */
     bool GetStatLayers(ESubStat Stat, FWoRStatLayers &OutLayers) const;
 
@@ -433,6 +434,10 @@ public:
      *  EfficiencyStone. */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEffectiveEfficiencyMultiplier() const;
+
+    /** The composed Efficiency cost REDUCTION (GetStatLayers), [0, EFFICIENCY_GEAR_CEILING]; the multiplier
+     *  is 1 - this. 0 without CharacterData. */
+    float GetEffectiveEfficiencyReduction() const;
 
     /** Crystal-aware StatusMultiplier — mirrors
      *  UCharacterData::CalculateStatusMultiplier but uses
