@@ -108,6 +108,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-178](B-178.md) | `feature/B-178-run-repair` (in `dev`) | Paid gear repair in a run; the run's Gold carries between levels | Not tested |
 | [B-093](B-093.md) | `feature/B-093-menu-keys` (in `dev`) | Keys for Defend and infusion (keyboard + gamepad) | Not tested |
 | [B-209](B-209.md) | `feature/B-209-memory-sources` (in `dev`) | Memories from bosses, reactions, map spots and bound gear | Not tested |
+| [B-042x](B-042x.md) | `feature/B-042x-gas-tag-reads` (in `dev`) | GAS stage 3, part 3c: with UseGAS 1 the status and immunity checks read tags | Not tested |
 | [B-042o](B-042o.md) | `feature/B-042o-gas-status-bar` (in `dev`) | GAS stage 3, part 5e: with UseGAS 1 the status bar lives on GAS | Not tested |
 | [B-042h](B-042h.md) | `feature/B-042h-gas-effect-lifetime` (in `dev`) | GAS stage 3, part 3b: with UseGAS 1 the turn tracker owns how long effects last | Not tested |
 | [B-225](B-225.md) | `feature/B-225-effect-timing` (in `dev`) | Effect timing per D-051 / Q-044c / Q-044d: N holder turns, payouts at turn start, Execution turns run the turn-start step | Not tested |

@@ -2302,6 +2302,22 @@ bool USkillEffectManager::HasEffectOfType(AActor *Actor, ESkillEffectType Effect
 	return false;
 }
 
+bool USkillEffectManager::HasCleansableEffectOfType(AActor *Actor, ESkillEffectType EffectType) const
+{
+	if (const UAbilitySystemComponent *ASC = UWoREffectMirrorComponent::GetGASReadSource(Actor, EffectType))
+	{
+		return UWoREffectMirrorComponent::HasCleansableEffectOfType(*ASC, EffectType);
+	}
+	if (!Actor || !ActiveEffects.Contains(Actor))
+	{
+		return false;
+	}
+	return ActiveEffects[Actor].ContainsByPredicate([EffectType](const FActiveSkillEffect &Effect)
+	{
+		return Effect.EffectType == EffectType && Effect.IsCleansable();
+	});
+}
+
 bool USkillEffectManager::IsConditionHeld(const FSkillCondition &Condition, AActor *Owner, AActor *Target) const
 {
 	// The runtime skips a target-side check when there is no target, so it never blocks.
@@ -2317,17 +2333,14 @@ bool USkillEffectManager::IsConditionHeld(const FSkillCondition &Condition, AAct
 
 FGameplayTagContainer USkillEffectManager::GetEffectTags(AActor *Actor) const
 {
+	// B-042x: per type through HasEffectOfType, so wor.Effects.UseGAS 1 reads the holder's tags.
+	// One mirror resync per type: fine for its debug / Blueprint callers, not for a hot path.
 	FGameplayTagContainer Tags;
-	if (!Actor || !ActiveEffects.Contains(Actor))
+	for (const ESkillEffectType Type : WoRTags::TaggedEffectTypes())
 	{
-		return Tags;
-	}
-	for (const FActiveSkillEffect &Effect : ActiveEffects[Actor])
-	{
-		const FGameplayTag Tag = WoRTags::EffectTypeToTag(Effect.EffectType);
-		if (Tag.IsValid())
+		if (HasEffectOfType(Actor, Type))
 		{
-			Tags.AddTag(Tag);
+			Tags.AddTag(WoRTags::EffectTypeToTag(Type));
 		}
 	}
 	return Tags;
@@ -2485,20 +2498,7 @@ int32 USkillEffectManager::GetSpendableEP(AActor *Actor) const
 
 bool USkillEffectManager::HasActiveDOT(AActor *Actor) const
 {
-	if (!Actor || !ActiveEffects.Contains(Actor))
-	{
-		return false;
-	}
-
-	for (const FActiveSkillEffect &Effect : ActiveEffects[Actor])
-	{
-		if (Effect.IsDOT())
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return HasEffectOfType(Actor, ESkillEffectType::DOT); // B-042x: the Status.DOT tag at UseGAS 1
 }
 
 bool USkillEffectManager::IsImmuneToEffectType(AActor *Actor, ESkillEffectType EffectType) const

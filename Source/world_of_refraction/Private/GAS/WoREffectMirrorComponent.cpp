@@ -270,6 +270,19 @@ bool UWoREffectMirrorComponent::HasEffectOfType(const UAbilitySystemComponent &A
 	return ASC.GetActiveEffects(OfType).Num() > 0;
 }
 
+bool UWoREffectMirrorComponent::HasCleansableEffectOfType(const UAbilitySystemComponent &ASC, ESkillEffectType Type)
+{
+	const FGameplayEffectQuery Cleansable(FActiveGameplayEffectQueryCustomMatch::CreateLambda(
+		[Type](const FActiveGameplayEffect &Active)
+		{
+			const FWoREffectContext *Context = FWoREffectContext::Get(Active.Spec.GetContext());
+			FGameplayTagContainer AssetTags;
+			Active.Spec.GetAllAssetTags(AssetTags);
+			return Context && Context->Identity.EffectType == Type && !AssetTags.HasTagExact(WoRTags::Effect_Origin_Gear);
+		}));
+	return ASC.GetActiveEffects(Cleansable).Num() > 0;
+}
+
 FString UWoREffectMirrorComponent::GetDebugString() const
 {
 	const UWoRTurnEffectTracker *Tracker = GetTracker();
