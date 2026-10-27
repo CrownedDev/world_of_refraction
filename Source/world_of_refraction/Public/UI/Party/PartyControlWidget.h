@@ -64,6 +64,10 @@ private:
 	UFUNCTION()
 	void HandleReviveFallenClicked();
 
+	/** B-178: pay Gold to repair the party's carried gear, as at a rest spot. */
+	UFUNCTION()
+	void HandleRepairGearClicked();
+
 	UFUNCTION()
 	void HandleCloseClicked();
 
@@ -89,4 +93,7 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> FallSettingText;
+
+	UPROPERTY()
+	TObjectPtr<UTextBlock> RepairGearText;
 };
