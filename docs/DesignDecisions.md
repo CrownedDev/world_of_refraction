@@ -1742,7 +1742,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** A stat bonus (numbers) instead of effects.
 - **C** Show "Bound to <lord>" to everyone, with the bonus hidden.
 **Recommendation:** A. The deckbuilder's Bonded effects (`WoR_TCG_Pivot_Design.md`) are effects that only their Character gets; Fire Emblem's personal weapons and Xenoblade's character-specific gear give their owner an extra effect, and players like discovering them. Reusing effect bundles keeps one system. Hiding the whole line follows RunStructure §5's hidden rule. Not lore.
-**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it. **Confirmed by Crown (2026-10-27): fully hidden**, no bound mark for anyone else.
 **Notes for Claude:** applied (feature/B-192-bound-gear): `UEquipmentDataBase::BoundOwner` / `BoundEffects` / `IsBoundBonusActive` / `GetBoundBonusText`; the loadout's gathered combat effects pass the wearer. Known gaps: no screen shows the bonus line yet (no description generator, D-031 / B-045; the text is the debug line, a D-061 gap until then); the flat `GetActiveEffects` used by the gear-effect debug dump's PRE list still leaves bound effects out (they appear in POST); evolutions can't be bound; ownership is the character asset, so a trial mirror enemy with its own asset won't match (decide with trial loot). B-081 must pass the wearer when a swap re-gathers effects.
 
 ### Q-191 — How do reaction triggers fire, and what do memories do to a boss now?
