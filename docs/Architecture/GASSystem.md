@@ -99,7 +99,7 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 
 ### Status bar on GAS (stage 3, B-042o part 5e)
 
-- At UseGAS 1, for a target whose ASC holds the Buildup attribute (`UStatusBuildupManager::GetBarASC`), the attribute is the bar: hits go through `AddThroughExecution` (the spec's source is the hitter's ASC; a source with none keeps its gathered multiplier), reset / reduce / decay / `ResetForCombat` write it (`SetBar`), the getters read it. `FStatusBarState` keeps a copy and the pending element, physical type, last source and decay count (Q-042o: the hit-type read is unchanged).
+- At UseGAS 1, for a target whose ASC holds the Buildup attribute (`UStatusBuildupManager::GetBarASC`), the attribute is the bar: hits go through `AddThroughExecution` (the spec's source is the hitter's ASC; a source with none keeps its gathered multiplier), reset / reduce / decay / `ResetForCombat` write it (`SetBar`), the getters read it. `FStatusBarState` keeps a copy and the pending element, physical type, last source and decay count (Q-042o changed by Crown: a Water hit also reads Ice, B-226).
 - The immunity gates read tags (`HasEffectOfType` at UseGAS 1), the cap fires the break through `ApplyEffect` (tracker lifetime, B-042h), decay runs after the tracker's turn start. Debug: `GetBarDebugString`, `wor.DumpStatusBars`.
 
 ### Tick execution (stage 3, B-042n part 5d)
@@ -178,3 +178,4 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 | 2026-10-27 | B-042x (stage 3, part 3c): `HasActiveDOT` / `GetEffectTags` read through `HasEffectOfType`, so at UseGAS 1 every tagged-type check reads the holder's tags; AI lethal-burn gate; `WoR.GAS.TagReads`. | feature/B-042x-gas-tag-reads |
 | 2026-10-27 | B-042y (stage 3, part 3d): at UseGAS 1 DOT / HOT ticks paid by the mirror's tick spec; the Vitals set hands GAS Health changes to the HP / death path; the tracker reads real HP (Q-042y). | feature/B-042y-gas-getters-hp |
 | 2026-10-27 | B-042yb (stage 3, part 3d2): at UseGAS 1 the sub-stat and pillar getters return their attribute after a one-attribute refresh (`ReadComposedOnGAS`, Q-042yb); `ReadSourceValues` composes on the game side. | feature/B-042yb-gas-stat-getters |
+| 2026-10-27 | B-226: `UWoRBuildupExecution::ReadAttributes` adds `Resist_Ice` for a Water hit (Q-042o changed). | fix/B-226-water-buildup-ice |
