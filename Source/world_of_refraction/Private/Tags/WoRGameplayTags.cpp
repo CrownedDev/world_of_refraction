@@ -39,6 +39,22 @@ namespace WoRTags
 	UE_DEFINE_GAMEPLAY_TAG(Immunity_Element_Void, "Immunity.Element.Void");
 	UE_DEFINE_GAMEPLAY_TAG(Immunity_Element_Reality, "Immunity.Element.Reality");
 
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(DamageType_None, "DamageType.None", "No damage type: pure effects; the non-elemental resistance bucket");
+	UE_DEFINE_GAMEPLAY_TAG(DamageType_Physical, "DamageType.Physical");
+	UE_DEFINE_GAMEPLAY_TAG(DamageType_Physical_Slash, "DamageType.Physical.Slash");
+	UE_DEFINE_GAMEPLAY_TAG(DamageType_Physical_Pierce, "DamageType.Physical.Pierce");
+	UE_DEFINE_GAMEPLAY_TAG(DamageType_Physical_Impact, "DamageType.Physical.Impact");
+	UE_DEFINE_GAMEPLAY_TAG(DamageType_Element_Fire, "DamageType.Element.Fire");
+	UE_DEFINE_GAMEPLAY_TAG(DamageType_Element_Water, "DamageType.Element.Water");
+	UE_DEFINE_GAMEPLAY_TAG(DamageType_Element_Earth, "DamageType.Element.Earth");
+	UE_DEFINE_GAMEPLAY_TAG(DamageType_Element_Wind, "DamageType.Element.Wind");
+	UE_DEFINE_GAMEPLAY_TAG(DamageType_Element_Light, "DamageType.Element.Light");
+	UE_DEFINE_GAMEPLAY_TAG(DamageType_Element_Darkness, "DamageType.Element.Darkness");
+	UE_DEFINE_GAMEPLAY_TAG(DamageType_Element_Lightning, "DamageType.Element.Lightning");
+	UE_DEFINE_GAMEPLAY_TAG(DamageType_Element_Void, "DamageType.Element.Void");
+	UE_DEFINE_GAMEPLAY_TAG(DamageType_Element_Reality, "DamageType.Element.Reality");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(DamageType_Ice, "DamageType.Ice", "D-029: keyed Water");
+
 	namespace
 	{
 		struct FElementTagRow
@@ -54,6 +70,21 @@ namespace WoRTags
 			{ESpellElement::Darkness, Element_Darkness}, {ESpellElement::Lightning, Element_Lightning},
 			{ESpellElement::Void, Element_Void}, {ESpellElement::Reality, Element_Reality},
 			{ESpellElement::None, Element_None}};
+
+		struct FDamageTypeTagRow
+		{
+			EWoRDamageType DamageType;
+			const FNativeGameplayTag &Tag;
+		};
+
+		const FDamageTypeTagRow DAMAGE_TYPE_TAG_ROWS[] = {
+			{EWoRDamageType::None, DamageType_None}, {EWoRDamageType::Fire, DamageType_Element_Fire},
+			{EWoRDamageType::Water, DamageType_Element_Water}, {EWoRDamageType::Earth, DamageType_Element_Earth},
+			{EWoRDamageType::Wind, DamageType_Element_Wind}, {EWoRDamageType::Light, DamageType_Element_Light},
+			{EWoRDamageType::Darkness, DamageType_Element_Darkness}, {EWoRDamageType::Lightning, DamageType_Element_Lightning},
+			{EWoRDamageType::Void, DamageType_Element_Void}, {EWoRDamageType::Reality, DamageType_Element_Reality},
+			{EWoRDamageType::Slash, DamageType_Physical_Slash}, {EWoRDamageType::Pierce, DamageType_Physical_Pierce},
+			{EWoRDamageType::Impact, DamageType_Physical_Impact}, {EWoRDamageType::Ice, DamageType_Ice}};
 
 		struct FClassTagRow
 		{
@@ -110,6 +141,31 @@ namespace WoRTags
 			if (Row.Tag.GetTag() == Tag)
 			{
 				OutElement = Row.Element;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	FGameplayTag DamageTypeToTag(EWoRDamageType DamageType)
+	{
+		for (const FDamageTypeTagRow &Row : DAMAGE_TYPE_TAG_ROWS)
+		{
+			if (Row.DamageType == DamageType)
+			{
+				return Row.Tag;
+			}
+		}
+		return FGameplayTag();
+	}
+
+	bool TagToDamageType(const FGameplayTag &Tag, EWoRDamageType &OutDamageType)
+	{
+		for (const FDamageTypeTagRow &Row : DAMAGE_TYPE_TAG_ROWS)
+		{
+			if (Row.Tag.GetTag() == Tag)
+			{
+				OutDamageType = Row.DamageType;
 				return true;
 			}
 		}
