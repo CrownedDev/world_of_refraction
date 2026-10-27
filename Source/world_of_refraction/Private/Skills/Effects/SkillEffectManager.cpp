@@ -339,6 +339,55 @@ void USkillEffectManager::ApplyEquipmentEffects(
 	}
 }
 
+int32 USkillEffectManager::SwapEquipmentEffects(
+	AActor *Target,
+	const TArray<FGatheredEffect> &OldEffects,
+	const TArray<FGatheredEffect> &NewEffects)
+{
+	if (!Target)
+	{
+		return 0;
+	}
+	const auto SameGearEffect = [](const FGatheredEffect &A, const FGatheredEffect &B)
+	{
+		return A.DefID == B.DefID && A.BundleIndex == B.BundleIndex && A.SourceKey == B.SourceKey;
+	};
+	const auto Lists = [&SameGearEffect](const TArray<FGatheredEffect> &Effects, const FGatheredEffect &Effect)
+	{
+		return Effects.ContainsByPredicate([&](const FGatheredEffect &Other) { return SameGearEffect(Other, Effect); });
+	};
+
+	int32 Removed = 0;
+	for (const FGatheredEffect &Old : OldEffects)
+	{
+		if (Lists(NewEffects, Old) || !Old.Effect.IsValid())
+		{
+			continue;
+		}
+		// The same packing ApplyEquipmentEffects used gives back each payload's EffectID.
+		for (const FActiveSkillEffect &Runtime :
+			 FActiveSkillEffect::CreateAllFromSkillEffect(Old.Effect.EffectName, Old.DefID, Old.Effect, Old.BundleIndex))
+		{
+			RemoveEffectByIdentity(Target, Runtime.EffectID, Old.SourceKey);
+		}
+		++Removed;
+	}
+
+	TArray<FGatheredEffect> Added;
+	for (const FGatheredEffect &New : NewEffects)
+	{
+		if (!Lists(OldEffects, New))
+		{
+			Added.Add(New);
+		}
+	}
+	ApplyEquipmentEffects(Target, Added);
+
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Gear swap on %s: %d gear effect(s) off, %d on"),
+		   *Target->GetName(), Removed, Added.Num());
+	return Removed + Added.Num();
+}
+
 // FAutoConsoleCommandWithWorld — NOT UFUNCTION(Exec). A UGameInstanceSubsystem is not on the
 // engine's FExec dispatch chain, so an Exec here silently no-ops. Console commands resolve from
 // any class. "wor." prefix groups them. State is PIE-only, so the chain is null-checked.
@@ -924,6 +973,8 @@ void USkillEffectManager::ClearAllEffects()
 	// Empty first, then broadcast (see RemoveAllEffects).
 	const auto Removed = MoveTemp(ActiveEffects);
 	ActiveEffects.Empty();
+	// B-081: the fight is over, so a later gear swap must not re-apply gear effects (IsGearArmed).
+	ArmedConditionals.Empty();
 
 	int32 TotalCount = 0;
 	for (const auto &Pair : Removed)

@@ -171,6 +171,15 @@ public:
 	void ApplyEquipmentEffects(AActor *Target, const TArray<FGatheredEffect> &Effects);
 
 	/**
+	 * B-081 (D-008): a mid-fight weapon toggle or ring switch. Removes the starting effects only
+	 * the old gear gave and applies those only the new gear gives; gear on both sides keeps its
+	 * effects as they are (no reset, no stacking). Skill and enemy effects are untouched.
+	 * @return the number of gathered effects removed plus applied.
+	 */
+	int32 SwapEquipmentEffects(AActor *Target, const TArray<FGatheredEffect> &OldEffects,
+							   const TArray<FGatheredEffect> &NewEffects);
+
+	/**
 	 * Apply physical damage type skill effect (Generic character weapon attacks)
 	 * Slash → Bleed, Pierce → Armor Break, Impact → Stun
 	 */
@@ -253,6 +262,9 @@ public:
 	/** Store the gear conditional effects for an actor (replaces any prior entry).
 	 *  Called at combat start; the OnDefenseResolved handler reads these (C3b). */
 	void ArmConditionalEffects(AActor *Actor, const TArray<FGatheredEffect> &Conditionals);
+
+	/** True once battle prep armed this actor's gear (until combat end): a swap then re-gathers it. */
+	bool IsGearArmed(const AActor *Actor) const { return ArmedConditionals.Contains(Actor); }
 
 	/** Remove effects applied by a specific source (when source dies, etc.) */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")

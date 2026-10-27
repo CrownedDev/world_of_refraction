@@ -402,6 +402,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Loadout|Combat")
     void ToggleEquipment();
 
+    /** B-081 (D-008): after a mid-fight weapon toggle or ring switch, the gear effects follow
+     *  (old gear's off, new gear's on, conditionals re-armed). No-op out of a fight. */
+    void SwapGearEffects(const TArray<FGatheredEffect> &OldGearEffects) const;
+
     /** Check if character has weapon access in current state */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     bool HasWeaponAccess() const;
