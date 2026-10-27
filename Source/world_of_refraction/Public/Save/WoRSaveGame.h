@@ -12,7 +12,7 @@
 namespace WoRSaveVersion
 {
 	/** Bump when a save struct changes shape. */
-	constexpr int32 LATEST = 1;
+	constexpr int32 LATEST = 2; // 2: B-208's run and carried state
 	/** Saves below this are wiped (D-060). Upgrade steps in HandlePostLoad after the first public build. */
 	constexpr int32 MIN_SUPPORTED = 1;
 }
