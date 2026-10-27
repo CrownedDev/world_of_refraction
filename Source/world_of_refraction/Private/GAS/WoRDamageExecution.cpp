@@ -2,7 +2,6 @@
 
 #include "GAS/WoRDamageExecution.h"
 #include "AbilitySystemComponent.h"
-#include "Character/CharacterDataComponent.h"
 #include "Combat/Resistance/EWoRDamageType.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
@@ -12,25 +11,6 @@
 namespace
 {
 	constexpr float DAMAGE_EFFECT_LEVEL = 1.0f;
-
-	/** The attributes hold the getters' values only when the attribute sync fills them from character data (B-041). */
-	bool HoldsSyncedAttributes(const UAbilitySystemComponent *ASC)
-	{
-		const AActor *Owner = ASC ? ASC->GetOwner() : nullptr;
-		return Owner && Owner->FindComponentByClass<UWoRAttributeSyncComponent>() &&
-			   Owner->FindComponentByClass<UCharacterDataComponent>();
-	}
-
-	/** Out = the attribute, when ASC holds its set and syncs it; otherwise Out keeps the gathered value. */
-	bool ReadAttribute(const UAbilitySystemComponent *ASC, const FGameplayAttribute &Attribute, float &Out)
-	{
-		if (!ASC || !ASC->HasAttributeSetForAttribute(Attribute) || !HoldsSyncedAttributes(ASC))
-		{
-			return false;
-		}
-		Out = ASC->GetNumericAttribute(Attribute);
-		return true;
-	}
 }
 
 UWoRGE_Damage::UWoRGE_Damage()
@@ -49,13 +29,13 @@ FDamageMathInputs UWoRDamageExecution::ReadAttributes(const FWoRDamageRequest &R
 	{
 		if (!Request.bCritChanceOverridden)
 		{
-			ReadAttribute(Source, UWoRAttributeSet_Stats::GetCritChanceAttribute(), Inputs.CritChance);
+			UWoRAttributeSyncComponent::ReadSyncedAttribute(Source, UWoRAttributeSet_Stats::GetCritChanceAttribute(), Inputs.CritChance);
 		}
-		ReadAttribute(Source, UWoRAttributeSet_Stats::GetCritDamageAttribute(), Inputs.CritDamageMultiplier);
+		UWoRAttributeSyncComponent::ReadSyncedAttribute(Source, UWoRAttributeSet_Stats::GetCritDamageAttribute(), Inputs.CritDamageMultiplier);
 	}
 	if (Inputs.bApplyDefense)
 	{
-		ReadAttribute(Target, UWoRAttributeSet_Stats::GetDefenseAttribute(), Inputs.DefenderDefense);
+		UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Stats::GetDefenseAttribute(), Inputs.DefenderDefense);
 	}
 
 	// WoRResistance::GetElementDamageResistance's rule on the attributes: the element's own
@@ -64,11 +44,11 @@ FDamageMathInputs UWoRDamageExecution::ReadAttributes(const FWoRDamageRequest &R
 	if (!Request.bIgnoreResistance && ElementType != EWoRDamageType::None)
 	{
 		float Resistance = 0.0f;
-		if (ReadAttribute(Target, UWoRAttributeSet_Resistance::GetTypeAttribute(ElementType), Resistance))
+		if (UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetTypeAttribute(ElementType), Resistance))
 		{
 			float IceResistance = 0.0f;
 			if (ElementType == EWoRDamageType::Water &&
-				ReadAttribute(Target, UWoRAttributeSet_Resistance::GetTypeAttribute(EWoRDamageType::Ice), IceResistance))
+				UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetTypeAttribute(EWoRDamageType::Ice), IceResistance))
 			{
 				Resistance += IceResistance;
 			}

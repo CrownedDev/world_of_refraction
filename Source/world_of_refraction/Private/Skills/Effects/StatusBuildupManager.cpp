@@ -306,67 +306,9 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	// Get or create state
 	FStatusBarState &State = StatusBarStates.FindOrAdd(Target);
 
-	// Apply attacker StatusMultiplier amplification — the single crystal-aware getter
-	// GetEffectiveStatusMultiplier (T3 consolidation): crystal-aware Spirit stat capped ×1.5, gear
-	// (BonusStatusMultiplier + StatusStone) multiplicative beyond, additive transient buff/debuff.
-	if (Source)
-	{
-		// Step 5 (+ former 5b) — source StatusMultiplier amplification: base-stat AND transient
-		// buff/debuff, now a SINGLE factor from UCharacterDataComponent::GetEffectiveStatusMultiplier
-		// (T3 consolidation — GetSourceStatusMultiplierFactor was retired). Gated by bSkipBaseStatAmp
-		// for callers that already baked it into the incoming Amount (the BD overload aura: `released =
-		// BaseRelease × StatusMult × Efficiency` is the single coupled quantity feeding both drain and
-		// self-status — re-applying here would double-count). Steps 5c/6 still run below. 1.0 (no-op)
-		// when Source has no CharacterDataComponent.
-		if (!bSkipBaseStatAmp)
-		{
-			if (UCharacterDataComponent *SrcComp = Source->FindComponentByClass<UCharacterDataComponent>())
-			{
-				Amount *= SrcComp->GetEffectiveStatusMultiplier();
-			}
-
-			// 5b-element: element-KEYED StatusMultiplierBuff/Debuff. The generic (Element == None)
-			// layer is already folded into GetEffectiveStatusMultiplier above; this adds ONLY the
-			// element-match (non-None) contribution, so the two layers are additive — a matching-element
-			// buildup gets generic × element-keyed, a non-matching element gets generic only. Skipped for
-			// a None-element (generic / physical) buildup, which has no element to key on (and would
-			// otherwise re-read the generic None buffs, double-counting). Cast-driven for free: a
-			// spell-granted StatusMultiplierBuff is stamped with the resolved cast element, so e.g. a Fire
-			// spell's buff keys to Fire automatically.
-			if (Element != ESpellElement::None)
-			{
-				if (USkillEffectManager *EffectMgr = GetEffectManager())
-				{
-					const float SmBuffElem = EffectMgr->GetTotalStatModifierForElement(Source, ESkillEffectType::StatusMultiplierBuff, Element);
-					const float SmDebuffElem = EffectMgr->GetTotalStatModifierForElement(Source, ESkillEffectType::StatusMultiplierDebuff, Element);
-					Amount *= FMath::Max(0.0f, 1.0f + (SmBuffElem - SmDebuffElem) / CombatConstants::STAT_PERCENT_DIVISOR);
-				}
-			}
-		}
-
-		// 5c. BD absorption-stack amplification (matching-element only).
-		// Restores the stack→buildup link that went dead in sweep-3 (the only
-		// caller of the old DamageCalculator::GetBDStackStatusMultiplier was
-		// the deleted CalculateStatusBuildup). Stacks amplify STATUS BUILDUP
-		// on matching-alignment spells: 1×/1×/2×/4× at stacks 0-3. Separate
-		// from the StatusMultiplier-stat amplification above — both layers
-		// legitimately apply (stat amp = Spirit-driven, stack amp = absorption-
-		// driven). Element gate + transform gate live inside
-		// GetElementStackStatusMultiplier; non-BD sources and non-matching
-		// elements return 1.0 — safe to call unconditionally.
-		if (UBrokenDarknessManager *SourceBD = Source->FindComponentByClass<UBrokenDarknessManager>())
-		{
-			Amount *= SourceBD->GetElementStackStatusMultiplier(Element);
-		}
-	}
-
-	// Apply target's DEFENDER-side resistance reduction — the full six-source
-	// composition (base Spirit + equipment + attached stone + element/physical
-	// effects + class/innate profile + ModifyStatusResist), clamped, as one value.
-	// Offense-side amps (StatusMultiplier, BD absorption stack) are applied ABOVE
-	// and deliberately stay out of this. Returns 0 when Target has no CharacterData,
-	// so Amount *= (1 - 0) leaves it unchanged (same as the old guarded block).
-	Amount *= (1.0f - GetTotalStatusResistance(Target, Element, PhysicalType));
+	// Steps 5-6 (source amplification, then the target's resistance): WoRBuildupMath over the
+	// gathered inputs (B-042l), the same core the GAS buildup execution runs.
+	Amount = WoRBuildupMath::Compute(GatherBuildupMathInputs(Source, Target, Amount, Element, PhysicalType, bSkipBaseStatAmp));
 
 	// Update bar state - most recent hit wins on element + physical type
 	State.PendingElement = Element;
@@ -415,6 +357,78 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	}
 
 	return false;
+}
+
+FBuildupMathInputs UStatusBuildupManager::GatherBuildupMathInputs(AActor *Source, AActor *Target, float Amount,
+																		 ESpellElement Element, EPhysicalDamageType PhysicalType,
+																		 bool bSkipBaseStatAmp) const
+{
+	FBuildupMathInputs Inputs;
+	Inputs.Amount = Amount;
+
+	if (Source)
+	{
+		// Step 5 (+ former 5b) — source StatusMultiplier amplification: base-stat AND transient
+		// buff/debuff, now a SINGLE factor from UCharacterDataComponent::GetEffectiveStatusMultiplier
+		// (T3 consolidation — GetSourceStatusMultiplierFactor was retired). Gated by bSkipBaseStatAmp
+		// for callers that already baked it into the incoming Amount (the BD overload aura: `released =
+		// BaseRelease × StatusMult × Efficiency` is the single coupled quantity feeding both drain and
+		// self-status — re-applying here would double-count). Steps 5c/6 still run below. 1.0 (no-op)
+		// when Source has no CharacterDataComponent.
+		if (!bSkipBaseStatAmp)
+		{
+			if (const UCharacterDataComponent *SrcComp = Source->FindComponentByClass<UCharacterDataComponent>())
+			{
+				Inputs.SourceStatusMultiplier = SrcComp->GetEffectiveStatusMultiplier();
+			}
+
+			// 5b-element: element-KEYED StatusMultiplierBuff/Debuff. The generic (Element == None)
+			// layer is already folded into GetEffectiveStatusMultiplier above; this adds ONLY the
+			// element-match (non-None) contribution, so the two layers are additive — a matching-element
+			// buildup gets generic × element-keyed, a non-matching element gets generic only. Skipped for
+			// a None-element (generic / physical) buildup, which has no element to key on (and would
+			// otherwise re-read the generic None buffs, double-counting). Cast-driven for free: a
+			// spell-granted StatusMultiplierBuff is stamped with the resolved cast element, so e.g. a Fire
+			// spell's buff keys to Fire automatically.
+			if (Element != ESpellElement::None)
+			{
+				if (USkillEffectManager *EffectMgr = GetEffectManager())
+				{
+					const float SmBuffElem = EffectMgr->GetTotalStatModifierForElement(Source, ESkillEffectType::StatusMultiplierBuff, Element);
+					const float SmDebuffElem = EffectMgr->GetTotalStatModifierForElement(Source, ESkillEffectType::StatusMultiplierDebuff, Element);
+					Inputs.ElementStatusMultiplier = FMath::Max(0.0f, 1.0f + (SmBuffElem - SmDebuffElem) / CombatConstants::STAT_PERCENT_DIVISOR);
+				}
+			}
+		}
+
+		// 5c. BD absorption-stack amplification (matching-element only).
+		// Restores the stack→buildup link that went dead in sweep-3 (the only
+		// caller of the old DamageCalculator::GetBDStackStatusMultiplier was
+		// the deleted CalculateStatusBuildup). Stacks amplify STATUS BUILDUP
+		// on matching-alignment spells: 1×/1×/2×/4× at stacks 0-3. Separate
+		// from the StatusMultiplier-stat amplification above — both layers
+		// legitimately apply (stat amp = Spirit-driven, stack amp = absorption-
+		// driven). Element gate + transform gate live inside
+		// GetElementStackStatusMultiplier; non-BD sources and non-matching
+		// elements return 1.0 — safe to call unconditionally.
+		if (const UBrokenDarknessManager *SourceBD = Source->FindComponentByClass<UBrokenDarknessManager>())
+		{
+			Inputs.StackMultiplier = SourceBD->GetElementStackStatusMultiplier(Element);
+		}
+	}
+
+	// Step 6: the target's DEFENDER-side resistance — the full composition (base Spirit + equipment +
+	// attached stone + element/physical effects + class/innate profile + ModifyStatusResist), as its
+	// three layers; WoRBuildupMath clamps their sum. Offense-side amps stay out of it. All 0 when
+	// Target has no CharacterData (WoRResistance::GetTotalStatusResistance returns 0 then).
+	const UCharacterDataComponent *TargetComp = Target ? Target->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (TargetComp && TargetComp->CharacterData)
+	{
+		Inputs.GeneralStatusResistance = WoRResistance::GetGeneralStatusResistance(Target);
+		Inputs.HitTypeResistance = WoRResistance::GetHitTypeResistance(Target, Element, PhysicalType);
+		Inputs.StatusResistBonus = WoRResistance::GetStatusResistBonus(Target);
+	}
+	return Inputs;
 }
 
 void UStatusBuildupManager::ResetForCombat()
