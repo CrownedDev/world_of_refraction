@@ -20,6 +20,9 @@ namespace
 	/** Float noise allowed when comparing asset values with the C++ constants. */
 	constexpr float TUNING_COMPARE_TOLERANCE = 1.0e-6f;
 
+	/** A ladder's FScalableFloat multiplies its curve by Value; 1 keeps the curve's own numbers. */
+	constexpr float LADDER_CURVE_SCALE = 1.0f;
+
 	const ECombatLadder TUNING_LADDERS[] = {
 		ECombatLadder::TierPower, ECombatLadder::TierGapDamage, ECombatLadder::TierGapCost,
 		ECombatLadder::RequirementGap, ECombatLadder::ScalingGrade};
@@ -46,7 +49,12 @@ namespace
 }
 
 UCombatTuningData::UCombatTuningData()
-	: ChargeFocusL1(InfusionConstants::CHARGE_FOCUS_L1)
+	: TierPower(LADDER_CURVE_SCALE)
+	, TierGapDamage(LADDER_CURVE_SCALE)
+	, TierGapCost(LADDER_CURVE_SCALE)
+	, RequirementGap(LADDER_CURVE_SCALE)
+	, ScalingGrade(LADDER_CURVE_SCALE)
+	, ChargeFocusL1(InfusionConstants::CHARGE_FOCUS_L1)
 	, ChargeFocusL2(InfusionConstants::CHARGE_FOCUS_L2)
 	, ChargeOffFocusL1(InfusionConstants::CHARGE_OFFFOCUS_L1)
 	, ChargeOffFocusL2(InfusionConstants::CHARGE_OFFFOCUS_L2)
@@ -77,7 +85,8 @@ const UCombatTuningData *UCombatTuningData::GetActive()
 	{
 		return Cached.Get();
 	}
-	if (bMissing || !UObjectInitialized())
+	// The statics and the load are game-thread only; elsewhere the C++ values apply.
+	if (bMissing || !UObjectInitialized() || !IsInGameThread())
 	{
 		return nullptr;
 	}
@@ -158,7 +167,7 @@ float UCombatTuningData::GetCodeLadderValue(ECombatLadder Ladder, int32 Key)
 float UCombatTuningData::GetLadder(ECombatLadder Ladder, int32 Key, float CodeValue) const
 {
 	const FScalableFloat &Field = LadderField(Ladder);
-	if (!Field.Curve.CurveTable)
+	if (!Field.Curve.CurveTable || Field.Curve.RowName.IsNone())
 	{
 		return CodeValue;
 	}
@@ -168,7 +177,14 @@ float UCombatTuningData::GetLadder(ECombatLadder Ladder, int32 Key, float CodeVa
 	{
 		return CodeValue;
 	}
-	return Field.GetValueAtLevel(static_cast<float>(FMath::Clamp(Key, First, Last)));
+	// A row that isn't in the table keeps the C++ value (FScalableFloat alone would return Value).
+	float Out = CodeValue;
+	const FRealCurve *Found = nullptr;
+	if (!Field.EvaluateCurveAtLevel(Out, Found, static_cast<float>(FMath::Clamp(Key, First, Last)), GetName(), true) || !Found)
+	{
+		return CodeValue;
+	}
+	return Out;
 }
 
 bool UCombatTuningData::FillLadderRows(UCurveTable *Table)
@@ -193,7 +209,7 @@ bool UCombatTuningData::FillLadderRows(UCurveTable *Table)
 			Curve.SetKeyInterpMode(Handle, RCIM_Constant);
 		}
 		FScalableFloat &Field = const_cast<FScalableFloat &>(LadderField(Ladder));
-		Field.Value = 1.0f;
+		Field.Value = LADDER_CURVE_SCALE;
 		Field.Curve.CurveTable = Table;
 		Field.Curve.RowName = Row;
 	}

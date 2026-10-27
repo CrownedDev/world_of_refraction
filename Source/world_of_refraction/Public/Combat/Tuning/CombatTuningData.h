@@ -24,7 +24,7 @@ class WORLD_OF_REFRACTION_API UCombatTuningData : public UPrimaryDataAsset
 public:
 	UCombatTuningData();
 
-	// ---- Ladders (a curve row each; no curve = the C++ ladder) ----
+	// ---- Ladders (a curve row each, times Value (starts 1); no curve or a missing row = the C++ ladder) ----
 
 	/** Power of a thing of its own tier, keyed F = 0 .. S = 6. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ladders")

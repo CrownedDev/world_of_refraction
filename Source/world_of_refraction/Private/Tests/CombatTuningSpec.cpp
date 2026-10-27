@@ -87,13 +87,23 @@ void FCombatTuningSpec::Define()
 		TestFalse(TEXT("reported as a difference"), Tuning->GetDifferencesFromCode().IsEmpty());
 	});
 
+	It("keeps the C++ value for a table without the ladder's row, and starts each ladder at scale 1", [this]()
+	{
+		Tuning->TierGapDamage.Curve.CurveTable = Table;
+		Tuning->TierGapDamage.Curve.RowName = FName(TEXT("NoSuchRow"));
+		TestEqual(TEXT("ladder scale starts at 1"), Tuning->TierGapDamage.Value, 1.0f);
+		AddExpectedError(TEXT("NoSuchRow"), EAutomationExpectedErrorFlags::Contains, 0);
+		TestEqual(TEXT("missing row: the value passed in"), Tuning->GetLadder(ECombatLadder::TierGapDamage, 1, TierGapDamage::PENALTY_GAP_1),
+				  TierGapDamage::PENALTY_GAP_1);
+	});
+
 	It("keeps the C++ value for a ladder with no curve", [this]()
 	{
 		TestEqual(TEXT("no curve: the value passed in"), Tuning->GetLadder(ECombatLadder::TierGapDamage, 1, TierGapDamage::PENALTY_GAP_1),
 				  TierGapDamage::PENALTY_GAP_1);
 	});
 
-	It("leaves every getter at its C++ value while no tuning asset exists", [this]()
+	It("routes every getter to its own ladder and key while no tuning asset exists", [this]()
 	{
 		if (UCombatTuningData::GetActive())
 		{
