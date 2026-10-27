@@ -32,10 +32,20 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "HAL/IConsoleManager.h"
+#include "Memory/MemoryConditions.h"
 #include "Memory/MemoryUnlock.h"
 
 namespace
 {
+    /** B-209 (D-100 part 2): a gear upgrade is an event that checks memory unlock conditions. */
+    void CheckUpgradeMemories(UGameInstance *GameInstance, const UEquipmentDataBase *Item, EItemTier Tier)
+    {
+        FMemoryEvent Event = MemoryConditions::MakeEvent(GameInstance, EMemorySource::BoundGear);
+        Event.UpgradedItem = Item;
+        Event.UpgradedTier = Tier;
+        MemoryConditions::CheckEvent(GameInstance, Event);
+    }
+
     /** Null + server-authority gate every mutating entry point starts with (WoRAuthority);
      *  logs only the authority refusal, a null owner is refused silently. */
     bool EconomyHasAuthority(AActor *Owner, const TCHAR *Op)
@@ -1237,6 +1247,7 @@ bool UEconomyService::LevelUpWeapon(AActor *Owner, FGuid PersistentID)
     }
     // B-209 (D-100): a bound weapon's memories unlock bit by bit as it is levelled.
     MemoryUnlock::UnlockBoundOnLevelUp(Owner->GetGameInstance(), Entry->Weapon, Entry->Tier);
+    CheckUpgradeMemories(Owner->GetGameInstance(), Entry->Weapon, Entry->Tier);
     return true;
 }
 
@@ -1268,6 +1279,7 @@ bool UEconomyService::LevelUpRing(AActor *Owner, FGuid PersistentID)
         return false;
     }
     MemoryUnlock::UnlockBoundOnLevelUp(Owner->GetGameInstance(), Entry->Ring, Entry->Tier);
+    CheckUpgradeMemories(Owner->GetGameInstance(), Entry->Ring, Entry->Tier);
     return true;
 }
 
