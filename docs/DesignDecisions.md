@@ -1414,8 +1414,8 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **EP on the map: B** (Persona's SP model): EP does **not** refill over time; only **rest spots and items** restore it. EP spent on the map is EP you don't have in the next fight.
 - **Battle skills can double as field skills** (a field use is one more side of the same skill), **and there are also field-only skills** (Crown, 2026-10-27, corrected): skills that only do something on the map (e.g. traversal). Where field-only skills are slotted: open.
 - **First strike (Q-185):** landing a field attack or spell on an enemy that hasn't noticed you gives your side first strike (it acts first). Until field commands exist, a touch from outside its notice cone stands in (as built).
-- **What a field hit does: pinned** (Crown, 2026-10-27, to flesh out later). Leaning: **first strike for everyone**, plus, **for elemental classes, an elemental field strike like Expedition 33's**; details to come. Options considered: beat weak enemies outright on the map (Metaphor), first strike only, carry damage/statuses into the fight.
-**Notes for Claude:** built on GAS (stage 4 abilities, B-043): one ability per skill with a battle and a field mode. Open details, asked one at a time: (pinned) what a field hit does to an enemy beyond first strike, which skills get field effects.
+- **What a field hit does** (Crown, 2026-10-27): a field hit **starts the encounter with turn advantage** (your side acts first, as first strike). No outright kills on the map and no damage carried in. (The earlier idea of an elemental field strike for elemental classes stays a note for later.)
+**Notes for Claude:** built on GAS (stage 4 abilities, B-043): one ability per skill with a battle and a field mode. Open details, asked one at a time: does to an enemy beyond first strike, which skills get field effects.
 
 ### D-100 — Memories and boss triggers: two separate systems
 **Status:** ANSWERED (2026-10-27, restructured the same day) · **Raised:** 2026-10-27 (Q-190 review) · **Blocks:** —
