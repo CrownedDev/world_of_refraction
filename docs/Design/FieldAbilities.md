@@ -32,6 +32,22 @@
     - **Elemental Aura** → maybe the **Dash** (it uses elemental bursts).
   - **Generic's version** of these is something else (open).
   - **The same for every element** (Crown, 2026-10-27, corrected: Wind was an example): every element's Manipulation Aura grants Flight, in that element's style. **Each movement type gets one spell** (its Generic version, picked by Crown); its **elemental variants** are the skills that actually unlock the movement.
+  - **Movement → aura (Crown, 2026-10-27):**
+
+    | Movement | Comes from |
+    |---|---|
+    | Dash | Elemental Aura (maybe; everyone has the basic dash) |
+    | Enhanced Sprint | Enhancement Aura |
+    | Glide | Manipulation Aura, at **D tier** (a lower rank than Flight) |
+    | Flight | Manipulation Aura |
+    | Teleport | **Void** Manipulation |
+    | High / double jump | Enhancement Aura |
+    | Air dash | Elemental Aura |
+    | Super launch | Enhancement / Elemental (either or both: to confirm) |
+    | Phase / shadow step | Elemental / Manipulation (either or both: to confirm) |
+    | Mark and recall | Manipulation and Elemental |
+    | Regroup | all three auras |
+
   - **For now: unlocking needs the skill at max rank** (S tier, Crown, 2026-10-27); a movement type unlocks once its aura skill reaches max rank.
 - **Element styles (Crown's ideas, filled in as they come):**
 
