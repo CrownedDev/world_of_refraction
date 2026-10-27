@@ -225,6 +225,11 @@ void FCombatRitualFireSpec::Define()
 		{
 			return;
 		}
+		// Landing on the caster's own turn would pay at once (Q-063), before the Execution turn.
+		if (!TestTrue(TEXT("Foe's turn before the Execution turn"), Orchestrator->GetCurrentActor() == Foe))
+		{
+			return;
+		}
 		FActiveSkillEffect Burn = FActiveSkillEffect::CreateDOT(TEXT("Lethal burn"), RITUAL_BURN_ID, HeroData->CurrentHP,
 																 RITUAL_BURN_TURNS, ESpellElement::None);
 		Burn.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;

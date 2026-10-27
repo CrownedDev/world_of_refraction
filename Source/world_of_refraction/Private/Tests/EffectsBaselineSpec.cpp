@@ -283,6 +283,22 @@ void FEffectsBaselineSpec::DefineCases()
 			TestNull(TEXT("Ended as the turn started"), Find(BASELINE_DOT_ID));
 		});
 
+		It("times a Persistent DOT (the payload default) by the same rule", [this]()
+		{
+			if (!EffectManager) return;
+			const int32 StartHP = HolderStats->CurrentHP;
+			EffectManager->ApplyEffect(Holder, Burn(ESkillEffectTiming::Persistent), Foe);
+			TestEqual(TEXT("Landing off the holder's turn: no hit"), HolderStats->CurrentHP, StartHP);
+			for (int32 Tick = 1; Tick <= BASELINE_DURATION_TURNS; ++Tick)
+			{
+				EffectManager->ProcessStartOfTurnEffects(Holder);
+				EndHolderTurn();
+			}
+			EffectManager->ProcessStartOfTurnEffects(Holder);
+			TestEqual(TEXT("Exactly N hits"), HolderStats->CurrentHP, StartHP - BASELINE_DURATION_TURNS * DotHit());
+			TestNull(TEXT("Ended as the turn started"), Find(BASELINE_DOT_ID));
+		});
+
 		It("times an authored bDelayFirstExecution DOT by the same rule", [this]()
 		{
 			if (!EffectManager) return;
