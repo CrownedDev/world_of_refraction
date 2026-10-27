@@ -83,6 +83,16 @@ void FLuckDodgeSpec::Define()
 		});
 	});
 
+	Describe("the dodge montage (B-198)", [this]()
+	{
+		It("steps right, then left, alternating by impact", [this]()
+		{
+			TestEqual(TEXT("first impact"), LuckDodge::Direction(0), EDefenseDirection::Right);
+			TestEqual(TEXT("second impact"), LuckDodge::Direction(1), EDefenseDirection::Left);
+			TestEqual(TEXT("third impact"), LuckDodge::Direction(2), EDefenseDirection::Right);
+		});
+	});
+
 	Describe("on a fixed seed", [this]()
 	{
 		It("dodges at the expected rate", [this]()

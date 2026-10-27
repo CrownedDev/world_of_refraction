@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/Defense/EDefenseDirection.h"
 
 namespace LuckDodge
 {
@@ -21,5 +22,12 @@ namespace LuckDodge
 	inline bool Rolls(float LuckNorm, float Roll)
 	{
 		return Roll < Chance(LuckNorm);
+	}
+
+	/** B-198: the side the dodge montage steps to. Alternates by impact (no extra random draw, so
+	 *  the seeded stream is unchanged) and a multi-hit attack weaves. */
+	inline EDefenseDirection Direction(int32 ImpactIndex)
+	{
+		return ImpactIndex % 2 == 0 ? EDefenseDirection::Right : EDefenseDirection::Left;
 	}
 }
