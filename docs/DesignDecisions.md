@@ -2002,6 +2002,37 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it, e.g. to B once the loadout screen exists.
 **Notes for Claude:** applied (feature/B-076-trial-recruits). Trial maps have no recruit spots yet (placing a recruitable pawn in a trial level is editor work): B-215. Until then, `wor.Party.RecruitForRun <CharacterData path>` recruits in a trial. Evolutions for a recruit wait for B with the real screen.
 
+### Q-145 — The resistance plan: approve it, and does physical resistance cut physical damage?
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-145) · **Blocks:** B-216 (ships with A)
+**Question:** `docs/analysis/ResistanceRedesign.md` puts resistance in the standard GAS shape: a damage type beside the element (D-037), one resistance attribute per damage type fed by modifiers (class table, gear, buffs), and the damage and buildup calculations reading them, with every buildup number unchanged. One rule isn't settled: D-036 says per-element resistance scales elemental damage, but the class table and gear also carry Slash / Pierce / Impact. Does a physical subtype's resistance scale physical damage?
+**Options:**
+- **A** Approve the plan; physical subtype resistance scales physical damage the same way (1:1, capped ±50%), with Defense still applied after it. A Generic takes 15% less physical damage, a Resonator 15% more.
+- **B** Approve the plan; physical damage is reduced by Defense only (subtype resistance stays buildup-only).
+- **C** Change the plan (say what).
+**Recommendation:** A. D-037 already makes Physical a damage type "a peer of the elements" with its own resistance. Elden Ring keeps a negation per physical subtype (Strike, Slash, Pierce) on top of armour, and Expedition 33 gives enemies weaknesses and resistances to Physical like any element. It also gives the class table's physical columns a visible meaning (pillar 2, distinct builds). The ±50% cap keeps it from stacking toward immunity with Defense. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** a balance change for physical hits once B-064 lands: say so in B-064's hand-off.
+
+### Q-145b — Does Ice resistance also resist Water?
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-145, D-029) · **Blocks:** — (ships with A)
+**Question:** Ice is a Water damage type (D-029). Which resistance does each read?
+**Options:**
+- **A** The deckbuilder's rule (`wor-deckbuilder/docs/reference/02-enums.md`, "Ice — a damage type"): Ice resistance resists **Ice and Water**; Water resistance resists **Water only**.
+- **B** Each reads only its own resistance.
+**Recommendation:** A, the deckbuilder's rule (it comes first where it has one). It makes Ice resistance the stronger, rarer pick, matching Ice as "a heavier Water". Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may change it.
+**Notes for Claude:** a Water hit reads `Resist_Water + Resist_Ice`; an Ice hit reads `Resist_Ice`. Built in B-064a.
+
+### Q-145c — Build the resistance seam now, or wait for GAS stage 3?
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-145) · **Blocks:** — (ships with A)
+**Question:** B-064 (damage resistance), B-080 (damage type) and B-064a (Ice) wait on this plan. GAS stage 3 (B-042) also waits on B-146. Build them on the new shape now, or after stage 3?
+**Options:**
+- **A** Now: B-216 adds the damage type, one per-type resistance query, the class data table and a mirrored resistance attribute set (no behaviour change); B-064 / B-080 / B-064a build on that query; stage 3 later swaps the query's inside to read the attributes.
+- **B** Wait: build them inside B-042.
+**Recommendation:** A. CLAUDE.md's "Incremental" rule (build new beside old, prove it, then switch), and it's how B-041 mirrored stats before stage 3 (`GASSystem.md`). Lyra and GASDocumentation set up attributes before effects use them. Waiting would hold three jobs behind the largest one. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may change it.
+**Notes for Claude:** B-216's proof is "every buildup number identical" (`wor.CompareResistance`, `wor.CompareStats`, a spec).
+
 ### Q-144 — V's clothing: painted on, bought, or custom-made
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-144) · **Blocks:** — (ships with A, then B)
 **Question:** V's black suit, gold tie, elite look and the hub NPCs' role outfits need clothing on the UE5 Manny/Quinn skeleton (`docs/analysis/MobClothing.md`). Paint it in V's material, buy a rigged pack, or have one made?
