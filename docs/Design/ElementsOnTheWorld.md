@@ -4,7 +4,16 @@
 
 ## Confirmed rules
 
-_None yet: being walked through with Crown._
+**General rules (Crown, 2026-10-27):**
+1. **An element hitting something changes it** (Fire on a wooden door: it burns; Ice on a lake: walkable). The **field attack** (the standard out-of-combat attack) and field skills carry your source's element.
+2. **Two elements together make a reaction** (Fire + Water = steam; Water + Lightning = the whole puddle is charged).
+3. **Objects don't change each other on their own**, but some **carry** an element (a metal fence carries Lightning; Wind spreads fire).
+- **Never needed on the main path:** elements open shortcuts and secrets; an item route always exists.
+- **Co-op:** world reactions don't hurt teammates.
+
+**Field attack (Crown, 2026-10-27):**
+- A field hit on an enemy also gives **status buildup** of its element, carried into the fight it starts (with first strike).
+- **Holding the field attack with a Water source turns it into an Ice attack** (Ice is Water's sub-element).
 
 ## Changelog
 
