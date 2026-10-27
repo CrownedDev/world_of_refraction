@@ -202,6 +202,9 @@ void ACombatPlayerController::BuildMenuKeys()
 	{
 		UInputAction *Action = NewObject<UInputAction>(this, Binding.ActionName);
 		Action->ValueType = EInputActionValueType::Boolean;
+		// Don't eat the key: the context stays mapped all fight, and a defense key sharing it
+		// (priority 0) must still reach the defense window on an enemy's turn.
+		Action->bConsumeInput = false;
 		MenuKeysContext->MapKey(Action, Binding.Keyboard);
 		MenuKeysContext->MapKey(Action, Binding.Gamepad);
 		switch (Binding.Category)
@@ -212,8 +215,11 @@ void ACombatPlayerController::BuildMenuKeys()
 		case EPieMenuCategory::CycleSource:
 			InfusionAction = Action;
 			break;
-		default:
+		case EPieMenuCategory::CycleLevel:
 			InfusionLevelAction = Action;
+			break;
+		default:
+			checkNoEntry();
 			break;
 		}
 	}
@@ -227,9 +233,12 @@ void ACombatPlayerController::OnInfusionLevel(const FInputActionValue &Value) { 
 
 void ACombatPlayerController::PressMenuKey(EPieMenuCategory Category)
 {
+	if (!IsLocalController())
+	{
+		return;
+	}
 	UGameInstance *GI = GetGameInstance();
-	UCombatCommandMenuSubsystem *Menu = GI ? GI->GetSubsystem<UCombatCommandMenuSubsystem>() : nullptr;
-	if (IsLocalController() && Menu)
+	if (UCombatCommandMenuSubsystem *Menu = GI ? GI->GetSubsystem<UCombatCommandMenuSubsystem>() : nullptr)
 	{
 		Menu->PressMenuKey(Category);
 	}

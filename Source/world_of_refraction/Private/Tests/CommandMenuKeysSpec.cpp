@@ -9,6 +9,7 @@
 #include "WoRTestWorld.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/CombatPlayerController.h"
+#include "Infusion/InfusionVFXComponent.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Loadout/LoadoutComponent.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
@@ -93,6 +94,43 @@ void FCommandMenuKeysSpec::Define()
 		}
 		TestTrue(TEXT("Defend key pressed the button"), Menu->PressMenuKey(EPieMenuCategory::Defend));
 		TestTrue(TEXT("The turn moved on"), Orchestrator->GetCurrentActor() == Foe);
+	});
+
+	It("defends from a submenu too", [this]()
+	{
+		if (!StartDuel())
+		{
+			return;
+		}
+		FPieMenuButtonData Abilities;
+		Abilities.Category = EPieMenuCategory::Abilities;
+		Menu->HandleSelection(Abilities);
+		TestTrue(TEXT("Defend key pressed"), Menu->PressMenuKey(EPieMenuCategory::Defend));
+		TestTrue(TEXT("The turn moved on"), Orchestrator->GetCurrentActor() == Foe);
+	});
+
+	It("cycles the infusion level in a target picker that offers it", [this]()
+	{
+		if (!StartDuel())
+		{
+			return;
+		}
+		UInfusionVFXComponent *VFX = Hero->FindComponentByClass<UInfusionVFXComponent>();
+		if (!VFX)
+		{
+			VFX = NewObject<UInfusionVFXComponent>(Hero);
+			Hero->AddInstanceComponent(VFX);
+			VFX->RegisterComponent();
+		}
+		FPieMenuButtonData Ability;
+		Ability.Category = EPieMenuCategory::Ability;
+		Ability.DataReference = NewObject<UAbilityData>(GetTransientPackage());
+		Menu->HandleSelection(Ability);
+
+		const int32 LevelBefore = VFX->GetCurrentInfusionLevel();
+		TestTrue(TEXT("Infusion level key pressed"), Menu->PressMenuKey(EPieMenuCategory::CycleLevel));
+		TestNotEqual(TEXT("Level changed"), VFX->GetCurrentInfusionLevel(), LevelBefore);
+		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
 	});
 
 	It("ignores the infusion keys outside a target picker", [this]()
