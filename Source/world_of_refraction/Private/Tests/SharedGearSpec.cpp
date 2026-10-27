@@ -210,6 +210,15 @@ void FSharedGearSpec::Define()
 		TestTrue(TEXT("Starting gear stays banked"), Restored->HasBankedGear(UPoolSubsystem::GetCharacterKey(Members[0])));
 	});
 
+	It("keeps a preset weapon the authored inventory doesn't list, as starting gear", [this]()
+	{
+		if (!Pool) return;
+		UInventoryComponent *Member = SpawnMember(0, false, true);
+		if (!Member) return;
+		TestEqual(TEXT("Banked into the pool"), Pool->GetOwnedWeapons().Num(), 1);
+		TestTrue(TEXT("Still in its loadout"), ActiveWeaponID(Member).IsValid());
+	});
+
 	It("leaves a character outside the party on its own gear", [this]()
 	{
 		if (!Pool) return;

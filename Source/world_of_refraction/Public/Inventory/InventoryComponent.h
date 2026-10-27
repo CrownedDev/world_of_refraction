@@ -462,6 +462,11 @@ private:
     UFUNCTION()
     void HandlePoolGearChanged(FGuid GearID);
 
+    /** B-091: before the first banking, a preset piece the authored inventory doesn't list (an
+     *  asset-built copy) the pool holds none of becomes owned starting gear, so it isn't lost.
+     *  Returns pieces adopted. */
+    int32 AdoptPresetOnlyGear(const UPoolSubsystem &Pool);
+
     /** B-091: preset slots naming gear the armoury doesn't hold are emptied. Returns slots emptied. */
     int32 StripUnownedGear();
 

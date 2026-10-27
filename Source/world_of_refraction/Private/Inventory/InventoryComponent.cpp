@@ -1236,6 +1236,10 @@ bool UInventoryComponent::DrawSharedGear()
         return false;
     }
     UEvolutionInventoryComponent *EvoInv = GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>();
+    if (!Pool->HasBankedGear(Key))
+    {
+        AdoptPresetOnlyGear(*Pool);
+    }
     Pool->BankStartingGear(Key, Weapons, Rings, EvoInv ? EvoInv->Entries : TArray<FEvolutionInventoryEntry>());
 
     // The whole armoury: this member's pieces first so its presets link to them, then free pieces,
@@ -1266,6 +1270,39 @@ bool UInventoryComponent::DrawSharedGear()
            *GetNameSafe(GetOwner()), Weapons.Num(), Rings.Num(), EvoInv ? EvoInv->Num() : 0, Stripped);
     BroadcastInventoryChanged(EInventoryChangeType::Loaded);
     return true;
+}
+
+int32 UInventoryComponent::AdoptPresetOnlyGear(const UPoolSubsystem &Pool)
+{
+    using namespace InventoryGearSync;
+    int32 Adopted = 0;
+    for (FCombatLoadout &Loadout : SavedLoadouts)
+    {
+        // A piece the pool already holds is linked to on the draw, not adopted as a second copy.
+        const auto Adopt = [&Adopted](auto &Slot, auto &Owned, const auto &Shared)
+        {
+            const UObject *Asset = GetGearAsset(Slot);
+            const bool bShared = Shared.ContainsByPredicate([Asset](const auto &Entry) { return GetGearAsset(Entry) == Asset; });
+            if (Asset && !bShared && !FindOwned(Owned, Slot.PersistentID))
+            {
+                if (!Slot.PersistentID.IsValid())
+                {
+                    Slot.PersistentID = FGuid::NewGuid();
+                }
+                Owned.Add(Slot);
+                ++Adopted;
+            }
+        };
+        ForEachGearSlot(Loadout,
+                        [this, &Adopt, &Pool](FWeaponInventoryEntry &Slot) { Adopt(Slot, Weapons, Pool.GetOwnedWeapons()); },
+                        [this, &Adopt, &Pool](FRingInventoryEntry &Slot) { Adopt(Slot, Rings, Pool.GetOwnedRings()); });
+    }
+    if (Adopted > 0)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Inventory] %s: %d preset piece(s) not in the authored inventory join the starting gear"),
+               *GetNameSafe(GetOwner()), Adopted);
+    }
+    return Adopted;
 }
 
 int32 UInventoryComponent::StripUnownedGear()
@@ -1327,6 +1364,7 @@ TArray<FText> UInventoryComponent::ClaimActiveSharedGear()
     }
 
     const UCharacterData *const *Self = Party.Find(SharedGearKey);
+    // TODO: character and gear names are FString assets; FText with B-127 (D-061).
     const FText SelfName = FText::FromString(Self && *Self ? (*Self)->Name : SharedGearKey.ToString());
     TArray<FPoolGearClash> Clashes;
     TSet<FGuid> Kept;
