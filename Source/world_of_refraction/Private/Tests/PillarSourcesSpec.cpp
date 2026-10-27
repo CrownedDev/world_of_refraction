@@ -12,9 +12,11 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/CombatConstants.h"
 #include "Debug/GAS/WoRAttributeDebug.h"
+#include "Equipment/Weapons/WeaponData.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
 #include "GAS/WoRGameplayEffects.h"
+#include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
@@ -28,6 +30,8 @@ namespace
 	constexpr float PILLAR_SOURCES_BUFF_PERCENT = 50.0f;
 	/** Far past the modifier cap, so the clamp decides. */
 	constexpr float PILLAR_SOURCES_HUGE_PERCENT = 500.0f;
+	/** The equipped weapon's Mind percent (the equipment layer). */
+	constexpr float PILLAR_SOURCES_GEAR_PERCENT = 30.0f;
 	constexpr float PILLAR_SOURCES_TOLERANCE = 1.0e-3f;
 }
 
@@ -38,6 +42,7 @@ BEGIN_DEFINE_SPEC(FPillarSourcesSpec, "WoR.GAS.PillarSources",
 	UAbilitySystemComponent *ASC = nullptr;
 	UCharacterDataComponent *Char = nullptr;
 	UWoRAttributeSyncComponent *Sync = nullptr;
+	ULoadoutComponent *Loadout = nullptr;
 
 	/** Each pillar with its attribute and getter. */
 	TArray<TTuple<EWorldPillar, FGameplayAttribute, float>> Pillars() const
@@ -72,8 +77,9 @@ void FPillarSourcesSpec::Define()
 	{
 		TestWorld = MakeUnique<FWoRTestWorld>();
 		TestTrue(TEXT("Test world created"), TestWorld->Create());
-		// The pillar layers sit behind the loadout (ApplyEvolutionPillarModifier's early return).
-		const ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(FWoRTestWorld::NewCharacterData());
+		// The pillar layers sit behind the loadout (ApplyEvolutionPillarModifier's early return); the
+		// weapon carries the equipment layer.
+		Loadout = TestWorld->SpawnCombatantWithLoadout(FWoRTestWorld::NewCharacterData(), NewObject<UWeaponData>(GetTransientPackage()));
 		Hero = Loadout ? Loadout->GetOwner() : nullptr;
 		if (Hero)
 		{
@@ -94,6 +100,7 @@ void FPillarSourcesSpec::Define()
 		ASC = nullptr;
 		Char = nullptr;
 		Sync = nullptr;
+		Loadout = nullptr;
 		TestWorld.Reset();
 	});
 
@@ -126,6 +133,29 @@ void FPillarSourcesSpec::Define()
 		TestEqual(TEXT("Current = getter"), ASC->GetNumericAttribute(Mind), Char->GetEvolutionModifiedMind(), PILLAR_SOURCES_TOLERANCE);
 		TestEqual(TEXT("Base unchanged"), ASC->GetNumericAttributeBase(Mind), BaseBefore, PILLAR_SOURCES_TOLERANCE);
 		TestEqual(TEXT("Still one Mind sources effect"), CountPillarSources(EWorldPillar::Mind), 1);
+	});
+
+	It("multiplies the equipment layer in", [this]()
+	{
+		if (!ASC) return;
+		UInventoryComponent *Inventory = Hero->FindComponentByClass<UInventoryComponent>();
+		if (!TestNotNull(TEXT("Inventory"), Inventory) ||
+			!TestTrue(TEXT("An active loadout"), Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex)))
+		{
+			return;
+		}
+		const float Before = Char->GetEvolutionModifiedMind();
+		Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryWeapon.WeaponEntry.StatBonus.BonusMindModifierPercent =
+			PILLAR_SOURCES_GEAR_PERCENT;
+		Loadout->NotifyActiveWeaponChanged(); // a direct edit, so announce it
+		Sync->SyncAttributes();
+		FWoRStatLayers Layers;
+		Char->GetPillarLayers(EWorldPillar::Mind, Layers);
+		TestEqual(TEXT("The weapon's percent is the gear layer"), Layers.GearFactor,
+				  1.0f + PILLAR_SOURCES_GEAR_PERCENT / CombatConstants::STAT_PERCENT_DIVISOR, PILLAR_SOURCES_TOLERANCE);
+		TestTrue(TEXT("The gear raised the getter"), Char->GetEvolutionModifiedMind() > Before);
+		TestEqual(TEXT("Current = getter"), ASC->GetNumericAttribute(UWoRAttributeSet_Stats::GetMindAttribute()),
+				  Char->GetEvolutionModifiedMind(), PILLAR_SOURCES_TOLERANCE);
 	});
 
 	It("caps the modifier at the ceiling times the base, as the getter does", [this]()
