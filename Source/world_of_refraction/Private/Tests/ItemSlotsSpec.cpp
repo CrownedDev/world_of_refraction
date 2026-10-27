@@ -169,6 +169,42 @@ void FItemSlotsSpec::Define()
 		TestEqual(TEXT("The party's items are untouched"), Pool->GetCarriedCount(Garnet), ITEM_SLOTS_STARTING_COUNT);
 	});
 
+	It("gives back what a fight's auto-equip took and didn't use, and makes none up", [this]()
+	{
+		if (!Pool) return;
+		UCrystalInventoryComponent *Crystals = SpawnMember(0);
+		if (!Crystals) return;
+		AActor *Owner = Crystals->GetOwner();
+		UInventoryComponent *Inventory = Owner->FindComponentByClass<UInventoryComponent>();
+		ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>();
+		const FCrystalId Garnet = ItemSlotsType(0);
+		const FCrystalId Sapphire = ItemSlotsType(1);
+		Pool->CarryOrStore(Garnet, InventoryConstants::ITEM_STACK_MAX);
+
+		FCombatLoadout Battle;
+		Battle.bAutoEquipItemsOnCombatStart = true;
+		Battle.ItemSlots.SetNum(InventoryConstants::MAX_ITEM_LOADOUT_SLOTS);
+		Battle.ItemSlots[0].CrystalId = Garnet;
+		// Two authored Sapphire slots: the duplicate is dropped, and its crystals were never carried.
+		Battle.ItemSlots[1].CrystalId = Sapphire;
+		Battle.ItemSlots[1].Quantity = 1;
+		Battle.ItemSlots[2].CrystalId = Sapphire;
+		Battle.ItemSlots[2].Quantity = 1;
+		Inventory->SavedLoadouts = {Battle};
+		Inventory->ActiveLoadoutIndex = 0;
+		if (!TestTrue(TEXT("Ready"), Loadout->PrepareForBattle(Inventory))) return;
+
+		const int32 Equipped = InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT;
+		TestEqual(TEXT("Auto-equip took from the party's items"), Pool->GetCarriedCount(Garnet), InventoryConstants::ITEM_STACK_MAX - Equipped);
+		TestEqual(TEXT("The dropped duplicate made no Sapphire"), Pool->GetCarriedCount(Sapphire) + Pool->GetStoredCount(Sapphire), 0);
+
+		Inventory->SavedLoadouts[0].ItemSlots[0].Quantity -= 1; // one thrown in the fight
+		Loadout->ResetBattleState();
+		TestEqual(TEXT("The unused ones are back"), Pool->GetCarriedCount(Garnet), InventoryConstants::ITEM_STACK_MAX - 1);
+		TestEqual(TEXT("They left the slot"), Inventory->SavedLoadouts[0].ItemSlots[0].Quantity, 0);
+		TestTrue(TEXT("Nothing still owed"), Loadout->GetBattleItemsTaken().IsEmpty());
+	});
+
 	It("keeps an enemy's crystals its own", [this]()
 	{
 		if (!Pool) return;

@@ -187,12 +187,19 @@ void UItemStorageWidget::MoveSelected(int32 Count)
 	{
 		return;
 	}
-	const FStackChoice &Choice = Choices[SelectedIndex];
-	const int32 Moving = FMath::Min(Count, Choice.Count);
+	const FStackChoice Choice = Choices[SelectedIndex];
+	// Into the carried slots, a whole stack moves as far as its slot has room.
+	const int32 Room = Choice.bCarried ? Choice.Count : FMath::Max(1, Pool->GetCarryRoom(Choice.Id));
+	const int32 Moving = FMath::Min3(Count, Choice.Count, Room);
 	const bool bMoved = Choice.bCarried ? Pool->MoveToStorage(Choice.Id, Moving) : Pool->MoveToCarried(Choice.Id, Moving);
 	const FText Name = ItemStorageBuild::ItemName(Choice.Id);
 	StatusText = bMoved ? FText::Format(LOCTEXT("Moved", "Moved {0} x{1}"), Name, Moving)
-		: FText::Format(LOCTEXT("NoRoom", "No room for {0} x{1}: free a slot first (or move fewer)"), Name, Moving);
+		: FText::Format(LOCTEXT("NoRoom", "No room for {0}: free a slot first"), Name);
+	// Keep the moved stack selected (the lists' order can change).
+	const TArray<FStackChoice> After = GatherChoices();
+	const int32 Moved = After.IndexOfByPredicate([&Choice, bMoved](const FStackChoice &Other)
+		{ return Other.Id == Choice.Id && Other.bCarried == (bMoved ? !Choice.bCarried : Choice.bCarried); });
+	SelectedIndex = Moved != INDEX_NONE ? Moved : SelectedIndex;
 	Refresh();
 	UE_LOG(LogTemp, Log, TEXT("%s"), *GetItemStorageString());
 }
