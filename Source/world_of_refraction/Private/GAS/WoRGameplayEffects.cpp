@@ -259,6 +259,50 @@ UWoRGE_StatSources_Spirit::UWoRGE_StatSources_Spirit()
 	AddSourceModifiers(UWoRAttributeSet_Stats::GetSpiritAttribute());
 }
 
+TSubclassOf<UGameplayEffect> UWoRGE_PoolSources::GetClassFor(const FGameplayAttribute &Attribute)
+{
+	if (Attribute == UWoRAttributeSet_Vitals::GetMaxHealthAttribute())
+	{
+		return UWoRGE_PoolSources_MaxHealth::StaticClass();
+	}
+	if (Attribute == UWoRAttributeSet_Vitals::GetMaxEnergyAttribute())
+	{
+		return UWoRGE_PoolSources_MaxEnergy::StaticClass();
+	}
+	return nullptr;
+}
+
+void UWoRGE_PoolSources::AddPoolModifiers(const FGameplayAttribute &Attribute)
+{
+	DurationPolicy = EGameplayEffectDurationType::Infinite;
+	AddAssetTag(WoRTags::Effect_Family_StatSources);
+	// (stat portion + gear) x percent: AddBase lands before the multiply in the aggregator.
+	const TPair<FGameplayTag, EGameplayModOp::Type> Layers[] = {
+		{WoRTags::SetByCaller_Stat_Gear, EGameplayModOp::AddBase},
+		{WoRTags::SetByCaller_Stat_Stone, EGameplayModOp::MultiplyCompound},
+	};
+	for (const TPair<FGameplayTag, EGameplayModOp::Type> &Layer : Layers)
+	{
+		FSetByCallerFloat SetByCaller;
+		SetByCaller.DataTag = Layer.Key;
+		FGameplayModifierInfo Modifier;
+		Modifier.Attribute = Attribute;
+		Modifier.ModifierOp = Layer.Value;
+		Modifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(SetByCaller);
+		Modifiers.Add(Modifier);
+	}
+}
+
+UWoRGE_PoolSources_MaxHealth::UWoRGE_PoolSources_MaxHealth()
+{
+	AddPoolModifiers(UWoRAttributeSet_Vitals::GetMaxHealthAttribute());
+}
+
+UWoRGE_PoolSources_MaxEnergy::UWoRGE_PoolSources_MaxEnergy()
+{
+	AddPoolModifiers(UWoRAttributeSet_Vitals::GetMaxEnergyAttribute());
+}
+
 TSubclassOf<UGameplayEffect> UWoRGE_DerivedStat::GetClassFor(const FGameplayAttribute &Attribute)
 {
 	if (Attribute == UWoRAttributeSet_Stats::GetCritChanceAttribute())

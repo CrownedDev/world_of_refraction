@@ -19,6 +19,25 @@ namespace
 	/** Mirrored floats are copied, not recomputed, so anything above rounding noise is drift. */
 	constexpr float ATTRIBUTE_DEBUG_TOLERANCE = 0.001f;
 
+	/** A sources-composed attribute: its base is ExpectedBase and exactly one SourcesClass effect is on it. */
+	void AddSourcesMismatches(const UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute, float ExpectedBase,
+							  const TCHAR *BaseLabel, TSubclassOf<UGameplayEffect> SourcesClass, const FString &LayersText,
+							  TArray<FString> &Mismatches)
+	{
+		const float Base = ASC.GetNumericAttributeBase(Attribute);
+		if (!FMath::IsNearlyEqual(Base, ExpectedBase, ATTRIBUTE_DEBUG_TOLERANCE))
+		{
+			Mismatches.Add(FString::Printf(TEXT("%s: base %.5f, %s %.5f"), *Attribute.GetName(), Base, BaseLabel, ExpectedBase));
+		}
+		FGameplayEffectQuery Query;
+		Query.EffectDefinition = SourcesClass;
+		const int32 Sources = ASC.GetActiveEffects(Query).Num();
+		if (Sources != 1)
+		{
+			Mismatches.Add(FString::Printf(TEXT("%s: %d stat-sources effects, expected 1 (%s)"), *Attribute.GetName(), Sources, *LayersText));
+		}
+	}
+
 	FAutoConsoleCommandWithWorld GDumpAttributesCmd(
 		TEXT("wor.DumpAttributes"),
 		TEXT("DEBUG: print every combatant's GAS attributes (B-041)."),
@@ -98,6 +117,25 @@ void UWoRAttributeDebug::AddComposedMismatches(const AActor *Actor, const UAbili
 		}
 		return;
 	}
+	if (const TSubclassOf<UGameplayEffect> PoolClass = UWoRGE_PoolSources::GetClassFor(Attribute))
+	{
+		FWoRPoolLayers PoolLayers;
+		const bool bMaxHealth = Attribute == UWoRAttributeSet_Vitals::GetMaxHealthAttribute();
+		if (bMaxHealth ? Char->GetMaxHPLayers(PoolLayers) : Char->GetMaxEPLayers(PoolLayers))
+		{
+			AddSourcesMismatches(ASC, Attribute, PoolLayers.StatPortion, TEXT("stat portion"), PoolClass, PoolLayers.ToString(), Mismatches);
+			return;
+		}
+		// Mirrored (a max set another way): no pool effect may be left on it.
+		FGameplayEffectQuery Query;
+		Query.EffectDefinition = PoolClass;
+		const int32 Leftover = ASC.GetActiveEffects(Query).Num();
+		if (Leftover != 0)
+		{
+			Mismatches.Add(FString::Printf(TEXT("%s: mirrored, but %d pool sources effects left"), *Attribute.GetName(), Leftover));
+		}
+		return;
+	}
 	ESubStat Stat;
 	EWorldPillar Pillar;
 	FWoRStatLayers Layers;
@@ -116,19 +154,7 @@ void UWoRAttributeDebug::AddComposedMismatches(const AActor *Actor, const UAbili
 	{
 		return;
 	}
-	const float Base = ASC.GetNumericAttributeBase(Attribute);
-	if (!FMath::IsNearlyEqual(Base, Layers.StatBase, ATTRIBUTE_DEBUG_TOLERANCE))
-	{
-		Mismatches.Add(FString::Printf(TEXT("%s: base %.5f, %s %.5f"), *Attribute.GetName(), Base, BaseLabel, Layers.StatBase));
-	}
-	FGameplayEffectQuery Query;
-	Query.EffectDefinition = SourcesClass;
-	const int32 Sources = ASC.GetActiveEffects(Query).Num();
-	if (Sources != 1)
-	{
-		Mismatches.Add(FString::Printf(TEXT("%s: %d stat-sources effects, expected 1 (%s)"), *Attribute.GetName(), Sources,
-									   *Layers.ToString()));
-	}
+	AddSourcesMismatches(ASC, Attribute, Layers.StatBase, BaseLabel, SourcesClass, Layers.ToString(), Mismatches);
 }
 
 int32 UWoRAttributeDebug::CompareAttributes(const UObject *WorldContextObject)

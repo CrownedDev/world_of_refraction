@@ -852,8 +852,10 @@ void UCharacterDataComponent::RecomputeMaxPools()
         CombatConstants::MAX_HEALTH_CAP);
     // Gear MaxHP at a real per-point rate (TierPowerScaling §5) — was a flat +1/point.
     // Stacks OUTSIDE the stat clamp above (gear headroom over the 1000 cap, as before).
-    const float HPSubtotal = HPStatPortion + BonusMaxHP * CombatConstants::GEAR_MAX_HEALTH_PER_POINT;
-    MaxHP = FMath::RoundToInt(HPSubtotal * (1.0f + HPPct / CombatConstants::STAT_PERCENT_DIVISOR));
+    MaxHPLayers.StatPortion = HPStatPortion;
+    MaxHPLayers.GearAmount = BonusMaxHP * CombatConstants::GEAR_MAX_HEALTH_PER_POINT;
+    MaxHPLayers.PercentFactor = 1.0f + HPPct / CombatConstants::STAT_PERCENT_DIVISOR;
+    MaxHP = MaxHPLayers.Compose();
 
     const float ModifiedSpirit = GetEvolutionModifiedSpirit();
     const float EPStatPortion = FMath::Min(
@@ -862,8 +864,30 @@ void UCharacterDataComponent::RecomputeMaxPools()
         CombatConstants::MAX_ENERGY_CAP);
     // Gear MaxEnergy at a real per-point rate (TierPowerScaling §5) — was a flat +1/point.
     // Stacks OUTSIDE the stat clamp above (gear headroom over the 1000 cap, as before).
-    const float EPSubtotal = EPStatPortion + BonusMaxEnergy * CombatConstants::GEAR_MAX_ENERGY_PER_POINT;
-    MaxEP = FMath::RoundToInt(EPSubtotal * (1.0f + EPPct / CombatConstants::STAT_PERCENT_DIVISOR));
+    MaxEPLayers.StatPortion = EPStatPortion;
+    MaxEPLayers.GearAmount = BonusMaxEnergy * CombatConstants::GEAR_MAX_ENERGY_PER_POINT;
+    MaxEPLayers.PercentFactor = 1.0f + EPPct / CombatConstants::STAT_PERCENT_DIVISOR;
+    MaxEP = MaxEPLayers.Compose();
+}
+
+bool UCharacterDataComponent::GetMaxHPLayers(FWoRPoolLayers &OutLayers) const
+{
+    if (!CharacterData || MaxHPLayers.Compose() != MaxHP)
+    {
+        return false;
+    }
+    OutLayers = MaxHPLayers;
+    return true;
+}
+
+bool UCharacterDataComponent::GetMaxEPLayers(FWoRPoolLayers &OutLayers) const
+{
+    if (!CharacterData || MaxEPLayers.Compose() != MaxEP)
+    {
+        return false;
+    }
+    OutLayers = MaxEPLayers;
+    return true;
 }
 
 float UCharacterDataComponent::GetEquipmentModifiedLuck() const

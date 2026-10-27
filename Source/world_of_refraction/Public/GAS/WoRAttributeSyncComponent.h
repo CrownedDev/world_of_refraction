@@ -8,7 +8,8 @@
 // B-042p: SpellDamage, RawDamage, ActionSpeed and SpellSpeed are composed on GAS instead: the base
 // holds the capped stat (FWoRStatLayers::StatBase) and a UWoRGE_StatSources effect multiplies in the
 // gear, stone and buff layers, so their current value still equals the getter (Q-042p). B-042t: the
-// pillars the same way, over their world base.
+// pillars the same way, over their world base. B-042u: MaxHealth / MaxEnergy from the layers the last
+// RecomputeMaxPools used (a UWoRGE_PoolSources effect over the stat portion, Q-042u).
 // Debug: UWoRAttributeDebug (wor.CompareAttributes).
 
 #pragma once
@@ -31,6 +32,13 @@ struct FWoRAppliedStatSources
 {
 	FActiveGameplayEffectHandle Handle;
 	FWoRStatLayers Layers;
+};
+
+/** The pool sources effect applied for one max pool, and the layers it carries. */
+struct FWoRAppliedPoolSources
+{
+	FActiveGameplayEffectHandle Handle;
+	FWoRPoolLayers Layers;
 };
 
 /** The derived-stat effect applied for one attribute, and the buff layer it carries (crit chance only). */
@@ -96,12 +104,18 @@ private:
 	 *  layers current (B-042p, B-042t). */
 	void SyncComposedStat(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute, const FWoRStatLayers &Layers,
 						  TSubclassOf<UGameplayEffect> SourcesClass);
+	/** Removes Attribute's stat or pool sources effect, if any. */
 	void RemoveStatSources(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute);
+
+	/** Base = the pool's stat portion; applies its pool sources effect once and keeps its layers current (B-042u). */
+	void SyncPoolStat(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute, const FWoRPoolLayers &Layers,
+					  TSubclassOf<UGameplayEffect> PoolClass);
 
 	/** Base = the derived stat's constant part; applies its derived effect once and keeps crit chance's
 	 *  buff layer current (B-042s). */
 	void SyncDerivedStat(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute, TSubclassOf<UGameplayEffect> DerivedClass);
 
 	TMap<FGameplayAttribute, FWoRAppliedStatSources> AppliedStatSources;
+	TMap<FGameplayAttribute, FWoRAppliedPoolSources> AppliedPoolSources;
 	TMap<FGameplayAttribute, FWoRAppliedDerivedStat> AppliedDerivedStats;
 };

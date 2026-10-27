@@ -2489,6 +2489,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. Clamping one attribute against another value in `PreAttributeChange` is the standard GAS pattern: Lyra's health set clamps Health to [0, MaxHealth] there (`ULyraHealthSet::ClampAttribute`), and tranek's GASDocumentation recommends `PreAttributeChange` for clamps of this kind. It reuses the shape nine stats already use, and nothing captures a pillar, so the capture gap of Q-042s doesn't arise. B adds a class for the same number. C leaves `wor.CompareAttributes` wrong under a big buff. The pools need a whole-number round and turn speed needs one getter first, so they go to their own jobs: B-042u (pools) and B-042v (turn speed, resistance).
 **Notes for Claude:** B-042t built A. If anything ever captures a pillar (an MMC), clamp the captured value the way `UWoRMMC_ClampedStatTerm` does.
 
+### Q-042u — The pools on GAS: follow the live layers, or the last recompute?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042u) · **Blocks:** —
+**Question:** The game's MaxHP / MaxEP are stored numbers, rebuilt by `RecomputeMaxPools` only at the start, on an equipment change, on a max-HP / max-EP buff and on a boss phase. So a Body or Spirit buff mid-fight doesn't move the max today, and some code and tests write the max directly. Should the GAS pools follow the layers live, or the layers of the last recompute?
+**Options:**
+- **A** (as built) the last recompute's layers: `RecomputeMaxPools` keeps the layers it built the max from, and the GAS pool composes from them. While they still give the stored max; a max set another way (a direct write) is mirrored with no pool effect.
+- **B** the live layers, so a Body buff moves MaxHealth on GAS at once (a gameplay change: today it doesn't).
+**Recommendation:** A. This stage is a parallel run: GAS must give the game's numbers until B-042h switches the readers over (the "parallel change" / strangler-fig migration pattern, Martin Fowler's ParallelChange and StranglerFigApplication). B would change when max HP moves, which is a gameplay decision of its own, not part of a migration, and would make `wor.CompareAttributes` report a difference after every pillar buff.
+**Notes for Claude:** B-042u built A. Whether a Body / Spirit buff should move max HP / EP during a fight is a separate gameplay question; raise it with Crown if it comes up (not changed here).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
