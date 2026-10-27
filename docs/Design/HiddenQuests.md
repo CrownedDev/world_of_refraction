@@ -9,11 +9,12 @@
   - **Memories:** unlock when **all** their conditions are met (who, gear and its level, where, what you beat, how you played, earlier memories, hidden). Per character, can chain, one-time, never shown.
 - Hidden conditions are a pillar (10): reward curiosity and experimenting.
 - **No hints at all** (Crown, 2026-10-27, pure Shangri-La): hidden memories and scenarios give no rumours, cues or "?" slots; "they activate when they activate".
+- **Never missed for good** (Crown, 2026-10-27): conditions are checked again every run; failing one only means "not this run".
 
 ## 2. What the research suggests (to decide)
 
 1. ~~Hints~~ **decided: none.** SLF has none (it relies on 30 million players trading tips). Small games that did well give **soft hints that never show the conditions**: NPC rumours (V's lines), a small cue when you're close, journal "?" slots (Outer Wilds' ship log, Hades II's prophecy list).
-2. **Never permanently missable:** check conditions every run, so one-time means the unlock, not the chance (fixes the Elden Ring / Dragon's Dogma 2 complaints).
+2. **Decided: never missable.** check conditions every run, so one-time means the unlock, not the chance (fixes the Elden Ring / Dragon's Dogma 2 complaints).
 3. **Co-op:** each player who meets the conditions gets the memory on their own save; nothing is first-come (SLF's Lycagon EX, Destiny 2's Whisper).
 4. **Hidden scenarios beyond memories:** SLF's Unique Scenarios also give gear, skills, jobs and curses; whether this game's hidden content can grant more than story.
 5. **Soft exclusivity:** different routes can lead to the same unlock (SLF: Akane reached Rabituza through a different Colossus).
