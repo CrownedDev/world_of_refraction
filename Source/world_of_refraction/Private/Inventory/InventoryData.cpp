@@ -3,6 +3,7 @@
 // FSavedLoadout against the asset's ownership lists.
 
 #include "Inventory/InventoryData.h"
+#include "WoRLog.h"
 
 #include "Skills/Definitions/AbilityData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -327,4 +328,59 @@ void UInventoryData::PostLoad()
         ItemCrystals.Empty();
         RefinedCrystals.Empty();
     }
+}
+
+namespace InventoryDataDebug
+{
+    template <typename TAsset>
+    FString JoinNames(const TArray<TAsset *> &Assets)
+    {
+        TArray<FString> Names;
+        for (const TAsset *Asset : Assets)
+        {
+            Names.Add(Asset ? Asset->GetName() : TEXT("(empty)"));
+        }
+        return Names.IsEmpty() ? TEXT("(none)") : FString::Join(Names, TEXT(", "));
+    }
+}
+
+FString UInventoryData::GetInventoryDataString() const
+{
+    using InventoryDataDebug::JoinNames;
+    int32 CrystalCount = 0;
+    for (const TPair<FCrystalId, int32> &Entry : CrystalStock)
+    {
+        CrystalCount += Entry.Value;
+    }
+
+    FString Output = FString::Printf(TEXT("INVENTORY: %s\n"), *GetName());
+    Output += FString::Printf(TEXT("  Weapons (%d): %s\n"), Weapons.Num(), *JoinNames(Weapons));
+    Output += FString::Printf(TEXT("  Rings (%d): %s\n"), Rings.Num(), *JoinNames(Rings));
+    Output += FString::Printf(TEXT("  Crystals: %d in %d stacks | Evolution items: %s\n"), CrystalCount, CrystalStock.Num(),
+                              *JoinNames(EvolutionEquipment));
+    Output += FString::Printf(TEXT("  Spells (%d): %s\n"), Spells.Num(), *JoinNames(Spells));
+    Output += FString::Printf(TEXT("  Abilities (%d): %s\n"), Abilities.Num(), *JoinNames(Abilities));
+    for (int32 Index = 0; Index < SavedLoadouts.Num(); ++Index)
+    {
+        Output += FString::Printf(TEXT("  Loadout %d: %s%s\n"), Index, *SavedLoadouts[Index].LoadoutName,
+                                  Index == DefaultActiveLoadoutIndex ? TEXT(" (default)") : TEXT(""));
+    }
+
+    TArray<FString> Errors;
+    TArray<FString> Warnings;
+    GetStandaloneValidation(Errors, Warnings);
+    for (const FString &Error : Errors)
+    {
+        Output += FString::Printf(TEXT("  ERROR: %s\n"), *Error);
+    }
+    for (const FString &Warning : Warnings)
+    {
+        Output += FString::Printf(TEXT("  WARNING: %s\n"), *Warning);
+    }
+    return Output;
+}
+
+void UInventoryData::PrintInventoryData() const
+{
+    UE_LOG(LogWoR, Log, TEXT("%s"), *GetInventoryDataString());
 }

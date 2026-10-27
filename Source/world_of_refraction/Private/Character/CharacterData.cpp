@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Character/CharacterData.h"
+#include "Debug/Character/CharacterDataDebug.h"
 #include "Equipment/Rings/RingData.h"
 
 #include "Character/StanceData.h"
@@ -113,4 +114,9 @@ void UCharacterData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChang
 int32 UCharacterData::GetAuthoredSpellDiscount() const
 {
     return SpellPoolConstants::SpellSlotDiscount(WorldMindLevel, WorldBodyLevel, WorldSpiritLevel);
+}
+
+void UCharacterData::PrintCharacterData()
+{
+    UCharacterDataDebug::LogCharacterStats(this);
 }

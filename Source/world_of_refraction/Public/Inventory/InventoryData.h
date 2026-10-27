@@ -143,6 +143,14 @@ public:
      *  (unlike IsDataValid, which warns about them, Q-161). */
     bool HasValidationErrors() const;
 
+    // ==================== DEBUG ====================
+
+    /** Owned gear, knowledge, loadouts and standalone validation, one line each. */
+    FString GetInventoryDataString() const;
+
+    UFUNCTION(CallInEditor, Category = "Debug")
+    void PrintInventoryData() const;
+
     // ==================== EDITOR ====================
 
 #if WITH_EDITOR

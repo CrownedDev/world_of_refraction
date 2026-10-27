@@ -17,6 +17,10 @@
 #include "Trial/TrialGate.h"
 #include "TrialData.generated.h"
 
+#if WITH_EDITOR
+class FDataValidationContext;
+#endif
+
 class UWorld;
 
 UCLASS(BlueprintType)
@@ -64,4 +68,16 @@ public:
     // - Boss         : the trial's boss encounter definition
     // - Modifiers    : trial-wide rule modifiers
     // Authored here when their clusters land — fields intentionally absent now.
+
+    // ==================== DEBUG ====================
+
+    FString GetTrialDataString() const;
+
+    UFUNCTION(CallInEditor, Category = "Debug")
+    void PrintTrialData() const;
+
+#if WITH_EDITOR
+    /** Error: no Level (the door would open nothing). Warnings: no name, no encounter level, a variation without a name or boss. */
+    virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
+#endif
 };

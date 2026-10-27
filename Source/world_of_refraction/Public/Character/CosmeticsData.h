@@ -11,6 +11,10 @@
 #include "Engine/DataAsset.h"
 #include "CosmeticsData.generated.h"
 
+#if WITH_EDITOR
+class FDataValidationContext;
+#endif
+
 class UAnimMontage;
 class UStanceData;
 class UInfusionDisplayData;
@@ -91,4 +95,17 @@ public:
 	 *  Leave null to use element default. Generic and Resonator classes ignore this. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weather")
 	UPrimaryDataAsset *EquippedWeatherVariant = nullptr;
+
+	// ==================== DEBUG ====================
+
+	FString GetCosmeticsDataString() const;
+
+	UFUNCTION(CallInEditor, Category = "Debug")
+	void PrintCosmeticsData() const;
+
+#if WITH_EDITOR
+	/** Warnings only, one per unset dodge, block, unarmed stance or item-use field (each plays nothing at runtime).
+	 *  Ring switch, infusion display and weather variant are optional and not checked. */
+	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
+#endif
 };

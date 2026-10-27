@@ -2,6 +2,8 @@
 // Shared base class implementation.
 
 #include "Skills/Definitions/SkillDataBase.h"
+#include "Animation/AnimMontage.h"
+#include "WoRLog.h"
 #include "Skills/Definitions/SkillCastEntry.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "Skills/Effects/EffectDefinition.h"
@@ -338,6 +340,22 @@ FString USkillDataBase::GetAttackSummary() const
     Summary += FString::Printf(TEXT(" | Speed: %.2fx"), BaseAnimSpeed);
 
     return Summary;
+}
+
+FString USkillDataBase::GetSkillDataString() const
+{
+    FString Output = FString::Printf(TEXT("SKILL: %s (%s, %s)\n"), *Name, *GetName(), *GetClass()->GetName());
+    Output += FString::Printf(TEXT("  Tier: %s | %s\n"), *GetTierString(), *GetAttackSummary());
+    Output += FString::Printf(TEXT("  Execution: %s, range %.0f | Target: %s\n"), *UEnum::GetValueAsString(ExecutionType),
+                              ExecutionRange, *UEnum::GetValueAsString(TargetType));
+    Output += FString::Printf(TEXT("  Base damage: %d | Activation delay: %d\n"), BaseDamage, ActivationDelay);
+    Output += FString::Printf(TEXT("  Montage: %s\n"), SkillMontage ? *SkillMontage->GetName() : TEXT("(none)"));
+    return Output;
+}
+
+void USkillDataBase::PrintSkillData() const
+{
+    UE_LOG(LogWoR, Log, TEXT("%s"), *GetSkillDataString());
 }
 
 void USkillDataBase::PostLoad()
