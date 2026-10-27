@@ -10,7 +10,7 @@
 ## Choices to make (one at a time)
 
 1. **Decided (Crown, 2026-10-27): a fast, free sprint for everyone** (Nightreign); field skills and evolutions build on top.
-2. How evolutions give traversal: a passive trait, an active skill, or both (Kingdom Hearts 2's Drive Form growth abilities).
+2. **Decided (Crown, 2026-10-27): evolutions give both**: a small always-on movement bonus (e.g. +10-20% sprint, `// TODO: tune`) **and** one active movement skill that costs EP (e.g. a lightning dash burst). Kingdom Hearts 2's forms.
 3. Which movement types first (suggested order: haste, dash, glide, flight last).
 4. How flight is limited (EP drain, height ceiling, no-fly zones, launch points).
 5. Element rules on the world (burn, freeze, wind lift, conduct, douse) defined once for the whole game.
