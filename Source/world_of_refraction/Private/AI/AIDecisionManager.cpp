@@ -1861,7 +1861,7 @@ bool UAIDecisionManager::HasDangerousDebuff(AActor *Actor)
             return true;
         case ESkillEffectType::DOT:
             // Check if DOT will kill us
-            if (Effect.EffectValue * Effect.RemainingTurns >= GetCurrentHP(Actor))
+            if (USkillEffectManager::GetDotTickDamage(Actor, Effect) * Effect.RemainingTurns >= GetCurrentHP(Actor))
             {
                 return true;
             }
@@ -1927,11 +1927,14 @@ float UAIDecisionManager::GetLethalDoTPerTick(AActor *Target)
     float BestPerTick = 0.0f;
     for (const FActiveSkillEffect &Effect : StatusManager->GetActiveEffects(Target))
     {
-        if (Effect.EffectType == ESkillEffectType::DOT &&
-            Effect.EffectValue >= static_cast<float>(TargetHP) &&
-            Effect.EffectValue > BestPerTick)
+        if (Effect.EffectType != ESkillEffectType::DOT)
         {
-            BestPerTick = Effect.EffectValue;
+            continue;
+        }
+        const float Tick = static_cast<float>(USkillEffectManager::GetDotTickDamage(Target, Effect));
+        if (Tick >= static_cast<float>(TargetHP) && Tick > BestPerTick)
+        {
+            BestPerTick = Tick;
         }
     }
 
