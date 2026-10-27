@@ -3064,7 +3064,7 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 
 			Result.bWasCritical = CalcResult.bWasCritical;
 
-			// Pre-mitigation pass — AbsorbDamage / DamageReflect.
+			// Pre-mitigation pass — AbsorbDamage.
 			// Runs after DamageCalculator (so element/crit/defense are already
 			// resolved) but before HP is actually decremented. Mutates a local
 			// FinalDamage copy; CalcResult itself stays const.
@@ -3085,18 +3085,6 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 					}
 				}
 
-				// Reflect — bounce a percent of incoming damage back to the attacker: the generic
-				// reflect for any ActionType, the physical one for abilities (attacks folded in,
-				// Cluster 3), the spell one for spells.
-				ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::DamageReflect, FinalDamage, TEXT(""));
-				if (Input.ActionType == EActionType::Ability)
-				{
-					ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::ReflectPhysicalDamage, FinalDamage, TEXT(" physical"));
-				}
-				else if (Input.ActionType == EActionType::Spell)
-				{
-					ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::ReflectSpellDamage, FinalDamage, TEXT(" spell"));
-				}
 
 				FinalDamage = FMath::Max(0, FinalDamage);
 			}
@@ -3104,6 +3092,23 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			const int32 HPBefore = TargetComp->CurrentHP;
 			TargetComp->ServerTakeDamage(FinalDamage);
 			Result.DamageDealt = HPBefore - TargetComp->CurrentHP;
+
+			// Reflect — bounce a percent of the HP the target actually lost back to the attacker
+			// (Q-032: an overkill reflects only what was lost): the generic reflect for any
+			// ActionType, the physical one for abilities (attacks folded in, Cluster 3), the spell
+			// one for spells.
+			if (USkillEffectManager *SEM = GetSkillEffectManager())
+			{
+				ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::DamageReflect, Result.DamageDealt, TEXT(""));
+				if (Input.ActionType == EActionType::Ability)
+				{
+					ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::ReflectPhysicalDamage, Result.DamageDealt, TEXT(" physical"));
+				}
+				else if (Input.ActionType == EActionType::Spell)
+				{
+					ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::ReflectSpellDamage, Result.DamageDealt, TEXT(" spell"));
+				}
+			}
 		}
 		else
 		{
@@ -3122,9 +3127,9 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 		OnElementDamageDealt.Broadcast(Input.Attacker, Input.Target, Result.DamageDealt, Result.bWasCritical, Input.Element);
 
 		// DoubleHit — re-run ApplyHit once more at 50% damage when the attacker
-		// has the effect. bIsDoubleHit guards against infinite recursion (second
-		// invocation skips this block).
-		if (!Input.bIsDoubleHit && Input.Attacker)
+		// has the effect and the target survived the first hit (Q-032). bIsDoubleHit
+		// guards against infinite recursion (second invocation skips this block).
+		if (!Input.bIsDoubleHit && Input.Attacker && TargetComp->bIsAlive)
 		{
 			if (USkillEffectManager *SEM = GetSkillEffectManager())
 			{

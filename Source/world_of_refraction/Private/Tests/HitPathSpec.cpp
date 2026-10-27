@@ -1,6 +1,7 @@
 // HitPathSpec.cpp
 // B-032 (Q-031): one hit path. ApplyDamage is a damage-only ApplyHit, so it deals the same damage and
 // gets the same reflect; the typed reflects (physical / spell) follow the hit's action type.
+// B-032c (Q-032): reflect returns a share of the HP actually lost; DoubleHit skips a killed target.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -9,6 +10,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Damage/DamageCalculator.h"
+#include "ElementDamageRecorder.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
 
@@ -17,7 +19,8 @@ namespace
 	constexpr int32 HIT_PATH_TEST_BASE = 100;
 	constexpr float HIT_PATH_TEST_REFLECT_PERCENT = 50.0f;
 	constexpr int32 HIT_PATH_TEST_REFLECT_TURNS = 3;
-	constexpr int32 HIT_PATH_TEST_TOUGH_HP = 10000; // no test hit overkills (reflect reads the hit's damage)
+	constexpr int32 HIT_PATH_TEST_TOUGH_HP = 10000; // no test hit overkills
+	constexpr int32 HIT_PATH_TEST_FRAIL_HP = 10;	   // any test hit overkills
 }
 
 BEGIN_DEFINE_SPEC(FHitPathSpec, "WoR.Combat.HitPath",
@@ -37,18 +40,23 @@ FActionHitInput DamageOnlyHit(AActor *Target, EActionType ActionType) const
 	return Hit;
 }
 
-AActor *SpawnTough()
+AActor *SpawnWithHP(int32 HP)
 {
 	AActor *Target = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
 	UCharacterDataComponent *Comp = Target->FindComponentByClass<UCharacterDataComponent>();
-	Comp->MaxHP = HIT_PATH_TEST_TOUGH_HP;
-	Comp->CurrentHP = HIT_PATH_TEST_TOUGH_HP;
+	Comp->MaxHP = HP;
+	Comp->CurrentHP = HP;
 	return Target;
 }
 
-AActor *SpawnWithReflect(ESkillEffectType ReflectType)
+AActor *SpawnTough()
 {
-	AActor *Target = SpawnTough();
+	return SpawnWithHP(HIT_PATH_TEST_TOUGH_HP);
+}
+
+AActor *SpawnWithReflect(ESkillEffectType ReflectType, int32 HP = HIT_PATH_TEST_TOUGH_HP)
+{
+	AActor *Target = SpawnWithHP(HP);
 	TestWorld->GetSubsystem<USkillEffectManager>()->ApplyEffect(
 		Target,
 		FActiveSkillEffect::CreateBuff(TEXT("Test reflect"), 0, ReflectType, HIT_PATH_TEST_REFLECT_PERCENT,
@@ -136,6 +144,39 @@ void FHitPathSpec::Define()
 		const int32 AbilityDealt =
 			Executor->ApplyHit(DamageOnlyHit(SpawnWithReflect(ESkillEffectType::ReflectPhysicalDamage), EActionType::Ability)).DamageDealt;
 		TestEqual(TEXT("an ability is"), HPBefore - AttackerHP(), ReflectedShare(AbilityDealt));
+	});
+
+	It("an overkilling hit reflects a share of the HP the target lost (Q-032)", [this]()
+	{
+		if (!TestTrue(TEXT("setup"), Executor && Attacker))
+		{
+			return;
+		}
+		const int32 HPBefore = AttackerHP();
+		const FCombatHitResult Hit =
+			Executor->ApplyHit(DamageOnlyHit(SpawnWithReflect(ESkillEffectType::DamageReflect, HIT_PATH_TEST_FRAIL_HP), EActionType::None));
+		TestTrue(TEXT("the hit killed"), Hit.bTargetDied);
+		TestEqual(TEXT("lost only its HP"), Hit.DamageDealt, HIT_PATH_TEST_FRAIL_HP);
+		TestEqual(TEXT("reflect is a share of that"), HPBefore - AttackerHP(), ReflectedShare(HIT_PATH_TEST_FRAIL_HP));
+	});
+
+	It("DoubleHit skips its second hit when the first one killed (Q-032)", [this]()
+	{
+		if (!TestTrue(TEXT("setup"), Executor && Attacker))
+		{
+			return;
+		}
+		USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
+		Effects->ApplyEffect(Attacker,
+							 FActiveSkillEffect::CreateBuff(TEXT("Test double hit"), 0, ESkillEffectType::DoubleHit, 0.0f,
+															HIT_PATH_TEST_REFLECT_TURNS),
+							 Attacker);
+		UElementDamageRecorder *Recorder = NewObject<UElementDamageRecorder>();
+		Recorder->Listen(Executor);
+		Executor->ApplyHit(DamageOnlyHit(SpawnWithHP(HIT_PATH_TEST_FRAIL_HP), EActionType::None));
+		TestEqual(TEXT("one hit on the killed target"), Recorder->Entries.Num(), 1);
+		Executor->ApplyHit(DamageOnlyHit(SpawnTough(), EActionType::None));
+		TestEqual(TEXT("a survivor still takes the second hit"), Recorder->Entries.Num(), 3);
 	});
 }
 
