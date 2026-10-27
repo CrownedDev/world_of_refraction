@@ -126,7 +126,12 @@ public:
 	UWoRGE_HealTick();
 };
 
-/** Reflect, Reflect Physical, Reflect Spell: a share of a hit sent back. Grants nothing: readers ask HasEffectOfType / GetTotalStatModifier (B-042k). */
+// B-042k (Q-042k): one class per role for the types whose effects run game code. They grant
+// nothing and modify nothing: readers ask HasEffectOfType / GetTotalStatModifier, and the enum
+// path still runs the game code until B-042h. Action and Periodic types mostly run at once and
+// are rarely stored.
+
+/** Reflect, Reflect Physical, Reflect Spell: a share of a hit sent back. */
 UCLASS()
 class WORLD_OF_REFRACTION_API UWoRGE_Reflect : public UWoRGameplayEffect
 {
@@ -136,7 +141,7 @@ public:
 	UWoRGE_Reflect();
 };
 
-/** Last Stand: the holder survives a killing blow once. Grants nothing: readers ask HasEffectOfType / GetTotalStatModifier (B-042k). */
+/** Last Stand: the holder survives a killing blow once. */
 UCLASS()
 class WORLD_OF_REFRACTION_API UWoRGE_LastStand : public UWoRGameplayEffect
 {
@@ -146,7 +151,7 @@ public:
 	UWoRGE_LastStand();
 };
 
-/** A rider on hits dealt or taken: Lifesteal, Absorb (to EP), Apply Burn / Chill / Stun, Retaliation. Grants nothing: readers ask HasEffectOfType / GetTotalStatModifier (B-042k). */
+/** A rider on hits dealt or taken: Lifesteal, Absorb (to EP), Apply Burn / Chill / Stun, Retaliation. */
 UCLASS()
 class WORLD_OF_REFRACTION_API UWoRGE_OnHit : public UWoRGameplayEffect
 {
@@ -156,7 +161,7 @@ public:
 	UWoRGE_OnHit();
 };
 
-/** Changes how the holder's attacks resolve: Guaranteed Crit, Ignore Defense, Double Hit, Extra Action. Grants nothing: readers ask HasEffectOfType / GetTotalStatModifier (B-042k). */
+/** Changes how the holder's attacks resolve: Guaranteed Crit, Ignore Defense, Double Hit. */
 UCLASS()
 class WORLD_OF_REFRACTION_API UWoRGE_AttackModifier : public UWoRGameplayEffect
 {
@@ -166,7 +171,7 @@ public:
 	UWoRGE_AttackModifier();
 };
 
-/** Takes the holder's choice away: Random Skill (Void broken), Skip Turn, Random Debuff. Grants nothing: readers ask HasEffectOfType / GetTotalStatModifier (B-042k). */
+/** Changes the holder's turns: Random Skill (Void broken), Skip Turn, Extra Action. */
 UCLASS()
 class WORLD_OF_REFRACTION_API UWoRGE_Control : public UWoRGameplayEffect
 {
@@ -176,7 +181,7 @@ public:
 	UWoRGE_Control();
 };
 
-/** Restores, drains or deals something on its windows: energy / HP restore and drain, Heal, Self Damage, Burst, status buildup up or down. Grants nothing: readers ask HasEffectOfType / GetTotalStatModifier (B-042k). */
+/** Restores, drains or deals something on its windows: energy / HP restore and drain, Heal, Self Damage, Burst, status buildup up or down. */
 UCLASS()
 class WORLD_OF_REFRACTION_API UWoRGE_Periodic : public UWoRGameplayEffect
 {
@@ -186,7 +191,7 @@ public:
 	UWoRGE_Periodic();
 };
 
-/** A one-shot action held as an effect: the cleanses, Remove * Debuff, Push Back, Pull Forward. Grants nothing: readers ask HasEffectOfType / GetTotalStatModifier (B-042k). */
+/** A one-shot action held as an effect: the cleanses, Remove * Debuff, Push Back, Pull Forward. */
 UCLASS()
 class WORLD_OF_REFRACTION_API UWoRGE_Action : public UWoRGameplayEffect
 {

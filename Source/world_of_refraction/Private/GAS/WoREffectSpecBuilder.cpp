@@ -42,7 +42,7 @@ namespace
 		ESkillEffectType::SpellSizeBuff, ESkillEffectType::SpellSizeDebuff,
 		ESkillEffectType::HealingReceivedBuff,
 		ESkillEffectType::ReduceDamageTaken, ESkillEffectType::IncreaseDamageTaken,
-		ESkillEffectType::CritDebuff, ESkillEffectType::EnergyDebuff, ESkillEffectType::ModifyHealing,
+		ESkillEffectType::CritDebuff, ESkillEffectType::EnergyDebuff, ESkillEffectType::RandomDebuff, ESkillEffectType::ModifyHealing,
 	};
 
 	/** The Grant*Immunity types: tagged (WoRTags::EffectTypeToTag) and not one of the statuses. */
@@ -134,11 +134,10 @@ TSubclassOf<UGameplayEffect> FWoREffectSpecBuilder::GetEffectClass(ESkillEffectT
 	case ESkillEffectType::GuaranteedCrit:
 	case ESkillEffectType::IgnoreDefense:
 	case ESkillEffectType::DoubleHit:
-	case ESkillEffectType::ExtraAction:
 		return UWoRGE_AttackModifier::StaticClass();
 	case ESkillEffectType::RandomSkill:
 	case ESkillEffectType::SkipTurn:
-	case ESkillEffectType::RandomDebuff:
+	case ESkillEffectType::ExtraAction:
 		return UWoRGE_Control::StaticClass();
 	case ESkillEffectType::EnergyRestore:
 	case ESkillEffectType::EnergyDrain:
@@ -197,7 +196,7 @@ FWoRBuiltEffect FWoREffectSpecBuilder::Build(UAbilitySystemComponent &TargetASC,
 	if (!Class || (Effect.IsInstant() && !bAlreadyStored))
 	{
 		UE_LOG(LogWoREffects, Verbose, TEXT("[EffectSpecBuilder] %s: not built (%s)"), *Effect.EffectName,
-			   Class ? TEXT("instant") : TEXT("type not ported"));
+			   Class ? TEXT("instant") : TEXT("type None"));
 		return Built;
 	}
 

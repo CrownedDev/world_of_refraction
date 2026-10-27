@@ -122,7 +122,7 @@ UWoRGE_OnHit::UWoRGE_OnHit()
 UWoRGE_AttackModifier::UWoRGE_AttackModifier()
 {
 	DurationPolicy = EGameplayEffectDurationType::Infinite;
-	AddAssetTag(WoRTags::Effect_Family_Attack);
+	AddAssetTag(WoRTags::Effect_Family_AttackModifier);
 }
 
 UWoRGE_Control::UWoRGE_Control()
