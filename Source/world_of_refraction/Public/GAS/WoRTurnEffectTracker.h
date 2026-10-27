@@ -6,9 +6,10 @@
 // USkillEffectManager calls both hooks from its own turn start/end, so bonus and Execution turns
 // count the same way. A GE removed some other way (a cleanse, death) leaves the map through the
 // ASC's removed event. A tracked GE may carry a tick spec (a DOT or HOT payout, B-042b): it is
-// applied at each holder turn start the GE survives, after the finished spans end (Q-044c).
+// applied at each holder turn start the GE survives, after the finished spans end (Q-044c), in the
+// order the effects arrived, and no more once the holder's Health reaches 0.
 // Per-fight state on the battle actor (D-064).
-// Debug: GetDebugString, PrintState, `wor.DumpTurnEffects` (every combatant).
+// Debug: GetDebugString, PrintState, `wor.DumpTurnEffects` (every combatant, with its GEs).
 
 #pragma once
 
@@ -74,9 +75,14 @@ private:
 	{
 		FTurnSpan Span;
 		FGameplayEffectSpecHandle TickSpec;
+		/** When it arrived, for the tick order (TMap order isn't arrival order). */
+		int32 Arrival = 0;
 	};
 
+	bool IsHolderDown() const;
+
 	TMap<FActiveGameplayEffectHandle, FTrackedEffect> Tracked;
+	int32 NextArrival = 0;
 
 	/** The ASC whose removed event this component listens to. */
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;

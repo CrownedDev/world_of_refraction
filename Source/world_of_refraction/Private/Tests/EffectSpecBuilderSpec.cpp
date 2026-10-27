@@ -159,6 +159,54 @@ void FEffectSpecBuilderSpec::Define()
 		TestEqual(TEXT("No tick from the ended DOT"), Health(), BUILDER_START_HEALTH - 2.0f * BUILDER_DOT + 2.0f * BUILDER_HOT);
 	});
 
+	It("holds a HOT's tick while the holder is HealBlocked", [this]()
+	{
+		if (!ASC)
+		{
+			return;
+		}
+		FWoREffectSpecBuilder::Apply(Hero, MakeBuilderEffect(ESkillEffectType::HealthRestore, BUILDER_HOT), Hero);
+		FActiveSkillEffect Block = MakeBuilderEffect(ESkillEffectType::HealBlock, 0.0f, BUILDER_SOURCE_B);
+		Block.EffectID = BUILDER_EFFECT_ID + 1;
+		Block.RemainingTurns = 1;
+		FWoREffectSpecBuilder::Apply(Hero, Block, Hero);
+		Tracker->OnHolderTurnStart();
+		TestEqual(TEXT("No heal while blocked"), Health(), BUILDER_START_HEALTH);
+		Tracker->OnHolderTurnEnd();
+		Tracker->OnHolderTurnStart();
+		TestFalse(TEXT("HealBlock ended"), Has(WoRTags::Status_HealBlock));
+		TestEqual(TEXT("The HOT resumes"), Health(), BUILDER_START_HEALTH + BUILDER_HOT);
+	});
+
+	It("stops paying ticks once the holder is down", [this]()
+	{
+		if (!ASC)
+		{
+			return;
+		}
+		FWoREffectSpecBuilder::Apply(Hero, MakeBuilderEffect(ESkillEffectType::DOT, BUILDER_START_HEALTH), Hero);
+		FActiveSkillEffect Heal = MakeBuilderEffect(ESkillEffectType::HealthRestore, BUILDER_HOT, BUILDER_SOURCE_B);
+		Heal.EffectID = BUILDER_EFFECT_ID + 1;
+		FWoREffectSpecBuilder::Apply(Hero, Heal, Hero);
+		Tracker->OnHolderTurnStart();
+		TestEqual(TEXT("The killing DOT landed first; the later HOT didn't"), Health(), 0.0f);
+	});
+
+	It("sums element-keyed modifiers per element", [this]()
+	{
+		if (!ASC)
+		{
+			return;
+		}
+		FActiveSkillEffect Fire = MakeBuilderEffect(ESkillEffectType::StatusMultiplierBuff, BUILDER_BUFF);
+		Fire.Element = ESpellElement::Fire;
+		FWoREffectSpecBuilder::Apply(Hero, Fire, Hero);
+		FWoREffectSpecBuilder::Apply(Hero, MakeBuilderEffect(ESkillEffectType::StatusMultiplierBuff, BUILDER_STRONGER_BUFF, BUILDER_SOURCE_B), Hero);
+		TestEqual(TEXT("Fire only"), FWoREffectSpecBuilder::SumMagnitudeForElement(*ASC, ESkillEffectType::StatusMultiplierBuff, ESpellElement::Fire), BUILDER_BUFF);
+		TestEqual(TEXT("Generic only"), FWoREffectSpecBuilder::SumMagnitudeForElement(*ASC, ESkillEffectType::StatusMultiplierBuff, ESpellElement::None), BUILDER_STRONGER_BUFF);
+		TestEqual(TEXT("Both"), FWoREffectSpecBuilder::SumMagnitude(*ASC, ESkillEffectType::StatusMultiplierBuff), BUILDER_BUFF + BUILDER_STRONGER_BUFF);
+	});
+
 	It("marks gear effects and applies a permanent one untracked", [this]()
 	{
 		if (!ASC)

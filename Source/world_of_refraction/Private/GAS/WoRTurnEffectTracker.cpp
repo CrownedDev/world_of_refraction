@@ -4,6 +4,8 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameplayEffect.h"
+#include "GAS/WoRAttributeSets.h"
+#include "GAS/WoREffectSpecBuilder.h"
 #include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
 #include "WoRLog.h"
@@ -23,6 +25,11 @@ namespace
 				if (const UWoRTurnEffectTracker *Tracker = It->FindComponentByClass<UWoRTurnEffectTracker>())
 				{
 					Tracker->PrintState();
+					if (const UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(*It))
+					{
+						UE_LOG(LogWoREffects, Log, TEXT("[TurnEffectTracker] %s GEs:\n%s"), *It->GetName(),
+							   *FWoREffectSpecBuilder::GetDebugString(*ASC));
+					}
 				}
 			}
 		}));
@@ -105,7 +112,7 @@ FActiveGameplayEffectHandle UWoRTurnEffectTracker::ApplySpecForHolderTurns(const
 	const FActiveGameplayEffectHandle Handle = ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
 	if (Handle.IsValid())
 	{
-		Tracked.Add(Handle, FTrackedEffect{FTurnSpan::OfHolderTurns(Turns), TickSpec});
+		Tracked.Add(Handle, FTrackedEffect{FTurnSpan::OfHolderTurns(Turns), TickSpec, NextArrival++});
 		UE_LOG(LogWoREffects, Log, TEXT("[TurnEffectTracker] %s gains %s for %d holder turn(s)%s"),
 			   *GetNameSafe(GetOwner()), *Def->GetName(), Turns, TickSpec.IsValid() ? TEXT(", ticking") : TEXT(""));
 	}
@@ -129,22 +136,37 @@ void UWoRTurnEffectTracker::OnHolderTurnStart()
 	}
 
 	// Copied first: a payout can kill the holder, and its removals reach Tracked through the ASC.
-	TArray<FGameplayEffectSpecHandle> Ticks;
+	TArray<const FTrackedEffect *> Ticking;
 	for (const TPair<FActiveGameplayEffectHandle, FTrackedEffect> &Entry : Tracked)
 	{
 		if (Entry.Value.TickSpec.IsValid())
 		{
-			Ticks.Add(Entry.Value.TickSpec);
+			Ticking.Add(&Entry.Value);
 		}
 	}
+	Ticking.Sort([](const FTrackedEffect &A, const FTrackedEffect &B) { return A.Arrival < B.Arrival; });
+	TArray<FGameplayEffectSpecHandle> Ticks;
+	for (const FTrackedEffect *Entry : Ticking)
+	{
+		Ticks.Add(Entry->TickSpec);
+	}
+
 	UAbilitySystemComponent *ASC = GetOwnerASC();
 	for (const FGameplayEffectSpecHandle &Tick : Ticks)
 	{
-		if (ASC)
+		if (!ASC || IsHolderDown())
 		{
-			ASC->ApplyGameplayEffectSpecToSelf(*Tick.Data.Get());
+			break;
 		}
+		ASC->ApplyGameplayEffectSpecToSelf(*Tick.Data.Get());
 	}
+}
+
+bool UWoRTurnEffectTracker::IsHolderDown() const
+{
+	const UAbilitySystemComponent *ASC = GetOwnerASC();
+	const FGameplayAttribute Health = UWoRAttributeSet_Vitals::GetHealthAttribute();
+	return ASC && ASC->HasAttributeSetForAttribute(Health) && ASC->GetNumericAttribute(Health) <= 0.0f;
 }
 
 void UWoRTurnEffectTracker::OnHolderTurnEnd()
