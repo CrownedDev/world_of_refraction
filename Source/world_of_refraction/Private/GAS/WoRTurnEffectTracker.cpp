@@ -51,8 +51,13 @@ namespace
 namespace
 {
 	/** Arguments: name part, verb, magnitude, uses ("pool" for a pool), turns, then the Ward's element. */
-	constexpr int32 ABSORB_ADD_MIN_ARGS = 5;
+	constexpr int32 ABSORB_ADD_NAME_ARG = 0;
+	constexpr int32 ABSORB_ADD_VERB_ARG = 1;
+	constexpr int32 ABSORB_ADD_MAGNITUDE_ARG = 2;
+	constexpr int32 ABSORB_ADD_USES_ARG = 3;
+	constexpr int32 ABSORB_ADD_TURNS_ARG = 4;
 	constexpr int32 ABSORB_ADD_ELEMENT_ARG = 5;
+	constexpr int32 ABSORB_ADD_MIN_ARGS = ABSORB_ADD_TURNS_ARG + 1;
 
 	FAutoConsoleCommandWithWorldAndArgs GAddAbsorbCmd(
 		TEXT("wor.Absorb.Add"),
@@ -66,18 +71,23 @@ namespace
 				return;
 			}
 			FWoRAbsorbCharge Charge;
-			const int64 Verb = StaticEnum<EWoRAbsorbVerb>()->GetValueByNameString(Args[1]);
+			const int64 Verb = StaticEnum<EWoRAbsorbVerb>()->GetValueByNameString(Args[ABSORB_ADD_VERB_ARG]);
 			if (Verb == INDEX_NONE)
 			{
-				UE_LOG(LogWoREffects, Warning, TEXT("[TurnEffectTracker] wor.Absorb.Add: unknown verb %s"), *Args[1]);
+				UE_LOG(LogWoREffects, Warning, TEXT("[TurnEffectTracker] wor.Absorb.Add: unknown verb %s"), *Args[ABSORB_ADD_VERB_ARG]);
 				return;
 			}
 			Charge.Verb = static_cast<EWoRAbsorbVerb>(Verb);
-			Charge.Magnitude = FCString::Atoi(*Args[2]);
-			const bool bPool = Args[3].Equals(TEXT("pool"), ESearchCase::IgnoreCase);
+			Charge.Magnitude = FCString::Atoi(*Args[ABSORB_ADD_MAGNITUDE_ARG]);
+			const bool bPool = Args[ABSORB_ADD_USES_ARG].Equals(TEXT("pool"), ESearchCase::IgnoreCase);
 			Charge.Mode = bPool ? EWoRChargeMode::Pool : EWoRChargeMode::Uses;
-			Charge.MaxUses = bPool ? 0 : FCString::Atoi(*Args[3]);
-			const int32 Turns = FCString::Atoi(*Args[4]);
+			Charge.MaxUses = bPool ? 0 : FCString::Atoi(*Args[ABSORB_ADD_USES_ARG]);
+			const int32 Turns = FCString::Atoi(*Args[ABSORB_ADD_TURNS_ARG]);
+			if (Turns < 0 || Charge.MaxUses < 0)
+			{
+				UE_LOG(LogWoREffects, Warning, TEXT("[TurnEffectTracker] wor.Absorb.Add: uses and turns can't be negative"));
+				return;
+			}
 			if (Args.IsValidIndex(ABSORB_ADD_ELEMENT_ARG))
 			{
 				const int64 Element = StaticEnum<ESpellElement>()->GetValueByNameString(Args[ABSORB_ADD_ELEMENT_ARG]);
@@ -86,7 +96,7 @@ namespace
 			for (TActorIterator<AActor> It(World); It; ++It)
 			{
 				UWoRTurnEffectTracker *Tracker = It->FindComponentByClass<UWoRTurnEffectTracker>();
-				if (Tracker && It->GetName().Contains(Args[0]))
+				if (Tracker && It->GetName().Contains(Args[ABSORB_ADD_NAME_ARG]))
 				{
 					Tracker->ApplyAbsorb(Charge, Turns, *It);
 					Tracker->PrintState();

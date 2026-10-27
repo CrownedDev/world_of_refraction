@@ -1,6 +1,7 @@
 // WoRAbsorb.cpp
 
 #include "GAS/WoRAbsorb.h"
+#include "UObject/Class.h"
 
 namespace
 {
@@ -100,6 +101,8 @@ namespace WoRAbsorb
 
 	bool IsValidCharge(const FWoRAbsorbCharge &Charge)
 	{
-		return Charge.Magnitude > 0 && (Charge.Verb != EWoRAbsorbVerb::Ward || Charge.Element != ESpellElement::None);
+		// Hits arrive with their element resolved, so a Generic ("inherit") Ward would never catch one.
+		const bool bWardElement = Charge.Element != ESpellElement::None && Charge.Element != ESpellElement::Generic;
+		return Charge.Magnitude > 0 && Charge.MaxUses >= 0 && (Charge.Verb != EWoRAbsorbVerb::Ward || bWardElement);
 	}
 }

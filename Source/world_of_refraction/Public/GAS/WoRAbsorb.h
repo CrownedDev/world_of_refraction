@@ -46,7 +46,8 @@ struct WORLD_OF_REFRACTION_API FWoRAbsorbCharge
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Absorb")
 	EWoRChargeMode Mode = EWoRChargeMode::Uses;
 
-	/** Ward only: the element it catches. */
+	/** Ward only: the element it catches. TODO: B-042j2 - the deckbuilder's "All" (every element and physical)
+	 *  and "Elemental" (every element) Wards. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Absorb")
 	ESpellElement Element = ESpellElement::None;
 
@@ -88,6 +89,7 @@ namespace WoRAbsorb
 	WORLD_OF_REFRACTION_API int32 Spend(TArrayView<FWoRAbsorbCharge *> Charges, int32 Damage, ESpellElement HitElement,
 										EPhysicalDamageType HitPhysical);
 
-	/** A ward with no element would just be a Barrier: refused (logged) by the appliers. */
+	/** Refused (logged) by the appliers: a magnitude of 0, negative uses, a Ward with no element (it would just be
+	 *  a Barrier) or a Generic one (it would never catch a resolved hit). */
 	WORLD_OF_REFRACTION_API bool IsValidCharge(const FWoRAbsorbCharge &Charge);
 }

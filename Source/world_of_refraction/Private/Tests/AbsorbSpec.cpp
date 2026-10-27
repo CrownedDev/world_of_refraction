@@ -22,6 +22,7 @@ namespace
 	constexpr int32 ABSORB_TWO_TURNS = 2;
 	constexpr int32 HIT_SMALL = 3;
 	constexpr int32 HIT_BIG = 8;
+	constexpr int32 WARD_COUNT = 2;
 
 	FWoRAbsorbCharge MakeCharge(EWoRAbsorbVerb Verb, EWoRChargeMode Mode, int32 MaxUses, ESpellElement Element = ESpellElement::None)
 	{
@@ -163,6 +164,34 @@ void FAbsorbSpec::Define()
 		TestEqual(TEXT("Nothing negated"), HitPhysical(HIT_SMALL), 0);
 	});
 
+	It("timed Pool: doesn't refill, and goes when spent before its duration", [this]()
+	{
+		if (!Tracker) return;
+		Give(MakeCharge(EWoRAbsorbVerb::Barrier, EWoRChargeMode::Pool, ABSORB_UNLIMITED), ABSORB_TWO_TURNS);
+		TestEqual(TEXT("Takes 3 of 5"), HitPhysical(HIT_SMALL), HIT_SMALL);
+		PassHolderTurn();
+		TestEqual(TEXT("Turn 2: only the 2 left, no refill"), HitPhysical(HIT_SMALL), ABSORB_MAGNITUDE - HIT_SMALL);
+		TestEqual(TEXT("Spent before its duration: gone"), Tracker->GetAbsorbs().Num(), 0);
+	});
+
+	It("grants each verb's own tag", [this]()
+	{
+		if (!Tracker) return;
+		Give(MakeCharge(EWoRAbsorbVerb::Shield, EWoRChargeMode::Uses, ABSORB_UNLIMITED));
+		Give(MakeCharge(EWoRAbsorbVerb::Ward, EWoRChargeMode::Uses, ABSORB_UNLIMITED, ESpellElement::Fire));
+		TestTrue(TEXT("Shield"), ASC->HasMatchingGameplayTag(WoRTags::Status_Absorb_Shield));
+		TestTrue(TEXT("Ward"), ASC->HasMatchingGameplayTag(WoRTags::Status_Absorb_Ward));
+		TestFalse(TEXT("No Barrier"), ASC->HasMatchingGameplayTag(WoRTags::Status_Absorb_Barrier));
+	});
+
+	It("refuses a Generic Ward (a resolved hit is never Generic)", [this]()
+	{
+		if (!Tracker) return;
+		AddExpectedError(TEXT("absorber"), EAutomationExpectedErrorFlags::Contains, 0);
+		TestFalse(TEXT("No handle"),
+				  Give(MakeCharge(EWoRAbsorbVerb::Ward, EWoRChargeMode::Uses, ABSORB_ONE_USE, ESpellElement::Generic)).IsValid());
+	});
+
 	It("spends Ward, then Shield, then Barrier, oldest first within a verb", [this]()
 	{
 		if (!Tracker) return;
@@ -185,7 +214,7 @@ void FAbsorbSpec::Define()
 			}
 		}
 		TestEqual(TEXT("The Barrier is untouched"), BarrierPool, ABSORB_MAGNITUDE);
-		TestEqual(TEXT("The Wards keep 2 between them (the older one went)"), WardPoolLeft, 2 * ABSORB_MAGNITUDE - HIT_BIG);
+		TestEqual(TEXT("The Wards keep 2 between them (the older one went)"), WardPoolLeft, WARD_COUNT * ABSORB_MAGNITUDE - HIT_BIG);
 		TestEqual(TEXT("Two absorbers left"), Tracker->GetAbsorbs().Num(), 2);
 	});
 
