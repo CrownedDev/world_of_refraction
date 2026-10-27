@@ -1418,12 +1418,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** built on GAS (stage 4 abilities, B-043): one ability per skill with a battle and a field mode. Open details, asked one at a time: (pinned) what a field hit does to an enemy beyond first strike, which skills get field effects.
 
 ### D-100 — What counts as a memory fragment
-**Status:** ANSWERED (2026-10-27; one detail open) · **Raised:** 2026-10-27 (Q-190 review) · **Blocks:** —
+**Status:** ANSWERED (2026-10-27) · **Raised:** 2026-10-27 (Q-190 review) · **Blocks:** —
 **Answer (Crown):** (2026-10-27) a memory can come from:
 - **Map pickups** (as built, B-190).
 - **B: bosses and mini-bosses**, **depending on the boss**: each boss / mini-boss authors whether it drops a memory and which one.
 - **C: moments**: a reaction trigger (certain gear worn while facing a certain character) or reaching a special spot on the map.
-- **Bound gear carries memories** (D-032 part 3, D-033: "items, gear and dialogue relating to themselves"; "the Garnet Lord carrying a weapon may get a deep memory"): a bound item names one or more memories it unlocks. **Open:** exactly when it unlocks (when found, or when its owner equips it).
+- **Bound gear carries memories** (D-032 part 3, D-033: "items, gear and dialogue relating to themselves"; "the Garnet Lord carrying a weapon may get a deep memory"): a bound item names one or more memories it unlocks. **When (Crown, 2026-10-27): A + trigger conditions.** Its memories unlock **bit by bit as the item is upgraded** (NieR: Automata's weapon stories), and each memory can also have **trigger conditions** (e.g. its owner wearing it, facing a certain character, a hidden condition, pillar 10). A memory set on both needs both.
 **Notes for Claude:** all sources feed the same `UTrialRunSubsystem::CollectMemory` / journal path (B-190). Boss drops: a memory field on the boss / mini-boss data. Moments: a reaction trigger's result can be "unlock memory X", and a map trigger volume can too. Bound gear: a memory list on the bound item.
 
 ### Q-044 — Re-applying the same effect: strength rule or replace?
