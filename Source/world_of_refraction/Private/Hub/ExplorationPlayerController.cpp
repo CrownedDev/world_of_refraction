@@ -75,10 +75,6 @@ namespace ExplorationInteract
     }
 }
 
-AExplorationPlayerController::AExplorationPlayerController()
-{
-}
-
 void AExplorationPlayerController::BeginPlay()
 {
     Super::BeginPlay();

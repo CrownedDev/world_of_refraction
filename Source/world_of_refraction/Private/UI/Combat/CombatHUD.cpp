@@ -168,7 +168,7 @@ UClass *UCombatHUD::ResolvePanelClass() const
     }
     if (UClass *Fallback = FallbackCharacterPanelClass.LoadSynchronous())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[CombatHUD] CharacterPanelClass unresolved (%s) - using fallback %s"),
+        UE_LOG(LogWoRUI, Warning, TEXT("[CombatHUD] CharacterPanelClass unresolved (%s) - using fallback %s"),
                *CharacterPanelClass.ToString(), *FallbackCharacterPanelClass.ToString());
         return Fallback;
     }

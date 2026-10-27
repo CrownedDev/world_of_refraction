@@ -29,8 +29,6 @@ class WORLD_OF_REFRACTION_API AExplorationPlayerController : public APlayerContr
     GENERATED_BODY()
 
 public:
-    AExplorationPlayerController();
-
     /** Interact with the nearest in-range interactable. Also callable from BP / console. */
     UFUNCTION(BlueprintCallable, Category = "Interaction")
     void InteractWithNearest();
