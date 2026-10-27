@@ -46,12 +46,25 @@ void FGameNamesSpec::Define()
 		ExpectEveryValueNamed<ESkillEffectType>(&WoRGameNames::GetSkillEffectTypeName);
 	});
 
+	It("names every character class", [this]()
+	{
+		ExpectEveryValueNamed<ECharacterClass>(&WoRGameNames::GetCharacterClassName);
+	});
+
+	It("shows Reality as Unknown (D-095)", [this]()
+	{
+		TestEqual(TEXT("Element"), WoRGameNames::GetElementName(ESpellElement::Reality).ToString(), FString(TEXT("Unknown")));
+		TestFalse(TEXT("Immunity"),
+				  WoRGameNames::GetSkillEffectTypeName(ESkillEffectType::GrantRealityImmunity).ToString().Contains(TEXT("Reality")));
+	});
+
 	It("uses the player-facing word, not the code name", [this]()
 	{
 		TestEqual(TEXT("DOT"), WoRGameNames::GetSkillEffectTypeName(ESkillEffectType::DOT).ToString(),
 				  FString(TEXT("Damage Over Time")));
 		TestEqual(TEXT("SkipTurn"), WoRGameNames::GetSkillEffectTypeName(ESkillEffectType::SkipTurn).ToString(),
 				  FString(TEXT("Skip Turn")));
+		TestEqual(TEXT("Caster"), WoRGameNames::GetCharacterClassName(ECharacterClass::Caster).ToString(), FString(TEXT("Refractor")));
 	});
 }
 

@@ -176,10 +176,10 @@ FString USpellData::GetDisplayName(ESpellElement ResolvedElement, bool bIsBroken
         return Name;
     }
 
-    // Reality is its own identity — "Reality Ball", never "Dark Reality".
+    // Reality is its own identity — "Unknown Ball" (D-095), never "Dark Unknown".
     if (ResolvedElement == ESpellElement::Reality)
     {
-        return FString::Printf(TEXT("Reality %s"), *Name);
+        return FString::Printf(TEXT("%s %s"), *ElementName, *Name);
     }
 
     if (bIsBrokenDarkness)
@@ -187,7 +187,7 @@ FString USpellData::GetDisplayName(ESpellElement ResolvedElement, bool bIsBroken
         // BD: "Dark [Element] [Name]" — but Darkness never doubles ("Darkness Ball").
         if (ResolvedElement == ESpellElement::Darkness)
         {
-            return FString::Printf(TEXT("Darkness %s"), *Name);
+            return FString::Printf(TEXT("%s %s"), *ElementName, *Name);
         }
         return FString::Printf(TEXT("Dark %s %s"), *ElementName, *Name);
     }
