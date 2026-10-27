@@ -2552,6 +2552,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. It keeps each step one change with the comparison on (Martin Fowler, ParallelChange / Strangler Fig): lifetime now, the HP write and the ticks together later. B would hold the lifetime work back for a bigger job. Also as built: an effect GAS ends early (nothing does that in play yet) keeps its game copy until the holder's next turn start, where the copy goes; the reads already see it gone. A same-source re-apply before then restores it (on the refreshed span, or its old one when that effect doesn't refresh), as the game's own record would.
 **Notes for Claude:** applied: B-042h narrowed; B-042y also moves the payouts onto the tracker's tick specs.
 
+### Q-042o — The status bar on GAS: does Water buildup read Ice resistance?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042o) · **Blocks:** —
+**Question:** With the status bar moved onto GAS (behind `wor.Effects.UseGAS`), each hit's buildup is cut by the target's resistance to the hit's type. The design note (`ResistanceRedesign.md` §3.3) says a Water hit's buildup should also be cut by Ice resistance, as Water damage is; the game's code today doesn't do that for buildup (Q-042l flagged it). Change it now?
+**Options:**
+- **A** (as built) keep today's read: Water buildup reads Water resistance only, on both paths.
+- **B** Water buildup also reads Ice resistance.
+**Recommendation:** A. This job moves the bar without changing a number, so the two paths can be compared (Martin Fowler, ParallelChange). Nothing grants Ice resistance yet, so B changes nothing in play today; it belongs with the resistance work that adds Ice sources, as one visible rule change.
+**Notes for Claude:** applied: no change; revisit when an Ice resistance source is added.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
