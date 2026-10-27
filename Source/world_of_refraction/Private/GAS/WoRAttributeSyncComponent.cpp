@@ -200,13 +200,22 @@ void UWoRAttributeSyncComponent::SyncComposedStat(UAbilitySystemComponent &ASC, 
 	ASC.SetNumericAttributeBase(Attribute, Layers.StatBase);
 
 	FWoRAppliedStatSources &Applied = AppliedStatSources.FindOrAdd(Stat);
-	if (Applied.Handle.IsValid() && SameLayers(Applied.Layers, Layers))
+	const bool bLive = ASC.GetActiveGameplayEffect(Applied.Handle) != nullptr;
+	if (bLive && SameLayers(Applied.Layers, Layers))
 	{
 		return;
 	}
-	if (Applied.Handle.IsValid())
+	if (bLive)
 	{
-		ASC.RemoveActiveGameplayEffect(Applied.Handle);
+		ASC.UpdateActiveGameplayEffectSetByCallerMagnitudes(Applied.Handle, {
+			{WoRTags::SetByCaller_Stat_Gear, Layers.GearFactor},
+			{WoRTags::SetByCaller_Stat_Stone, Layers.StoneFactor},
+			{WoRTags::SetByCaller_Stat_Transient, Layers.TransientFactor},
+		});
+		Applied.Layers = Layers;
+		UE_LOG(LogWoR, Verbose, TEXT("[AttributeSync] %s %s sources updated: %s"), *GetOwner()->GetName(),
+			   *UEnum::GetValueAsString(Stat), *Layers.ToString());
+		return;
 	}
 	const FGameplayEffectSpecHandle Spec =
 		ASC.MakeOutgoingSpec(UWoRGE_StatSources::GetClassFor(Stat), STAT_SOURCES_EFFECT_LEVEL, ASC.MakeEffectContext());
@@ -239,6 +248,14 @@ void UWoRAttributeSyncComponent::BeginPlay()
 void UWoRAttributeSyncComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UnbindSources();
+	if (UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner()))
+	{
+		for (const TPair<ESubStat, FWoRAppliedStatSources> &Applied : AppliedStatSources)
+		{
+			ASC->RemoveActiveGameplayEffect(Applied.Value.Handle);
+		}
+	}
+	AppliedStatSources.Reset();
 	Super::EndPlay(EndPlayReason);
 }
 

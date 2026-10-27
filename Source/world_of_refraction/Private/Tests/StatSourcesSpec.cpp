@@ -49,12 +49,14 @@ BEGIN_DEFINE_SPEC(FStatSourcesSpec, "WoR.GAS.StatSources",
 		};
 	}
 
-	int32 CountSourceEffects() const
+	TArray<FActiveGameplayEffectHandle> SourceEffects() const
 	{
 		const FGameplayEffectQuery Query =
 			FGameplayEffectQuery::MakeQuery_MatchAnyEffectTags(FGameplayTagContainer(WoRTags::Effect_Family_StatSources));
-		return ASC->GetActiveEffects(Query).Num();
+		return ASC->GetActiveEffects(Query);
 	}
+
+	int32 CountSourceEffects() const { return SourceEffects().Num(); }
 
 	void Buff(int32 EffectID, ESkillEffectType Type, float Percent) const
 	{
@@ -110,17 +112,39 @@ void FStatSourcesSpec::Define()
 		}
 	});
 
-	It("multiplies a buff in through the sources effect and re-applies only that stat's", [this]()
+	It("multiplies a buff in by updating the sources effects in place", [this]()
 	{
 		if (!ASC) return;
 		const FGameplayAttribute SpellDamage = UWoRAttributeSet_Stats::GetSpellDamageAttribute();
 		const float BaseBefore = ASC->GetNumericAttributeBase(SpellDamage);
 		const float Before = ASC->GetNumericAttribute(SpellDamage);
+		const TArray<FActiveGameplayEffectHandle> HandlesBefore = SourceEffects();
 		Buff(STAT_SOURCES_BUFF_ID, ESkillEffectType::SpellDamageBuff, STAT_SOURCES_BUFF_PERCENT);
 		TestTrue(TEXT("The buff raised the getter"), Char->GetEffectiveSpellDamage() > Before);
 		TestEqual(TEXT("Current = getter"), ASC->GetNumericAttribute(SpellDamage), Char->GetEffectiveSpellDamage(), STAT_SOURCES_TOLERANCE);
 		TestEqual(TEXT("Base unchanged"), ASC->GetNumericAttributeBase(SpellDamage), BaseBefore, STAT_SOURCES_TOLERANCE);
-		TestEqual(TEXT("Still one sources effect per stat"), CountSourceEffects(), STAT_SOURCES_COMPOSED_COUNT);
+		const TArray<FActiveGameplayEffectHandle> HandlesAfter = SourceEffects();
+		TestEqual(TEXT("Still one sources effect per stat"), HandlesAfter.Num(), STAT_SOURCES_COMPOSED_COUNT);
+		for (const FActiveGameplayEffectHandle &Handle : HandlesBefore)
+		{
+			TestTrue(TEXT("Same effect, updated in place"), HandlesAfter.Contains(Handle));
+		}
+	});
+
+	It("re-applies a sources effect that something removed", [this]()
+	{
+		if (!ASC) return;
+		for (const FActiveGameplayEffectHandle &Handle : SourceEffects())
+		{
+			ASC->RemoveActiveGameplayEffect(Handle);
+		}
+		Sync->SyncAttributes();
+		TestEqual(TEXT("One sources effect per stat again"), CountSourceEffects(), STAT_SOURCES_COMPOSED_COUNT);
+		for (const TTuple<ESubStat, FGameplayAttribute, float> &Stat : ComposedStats())
+		{
+			TestEqual(*(UEnum::GetValueAsString(Stat.Get<0>()) + TEXT(": current = getter")), ASC->GetNumericAttribute(Stat.Get<1>()),
+					  Stat.Get<2>(), STAT_SOURCES_TOLERANCE);
+		}
 	});
 
 	It("clamps at the compose ceiling as the getter does", [this]()
