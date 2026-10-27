@@ -106,6 +106,12 @@ UWoRGE_Reflect::UWoRGE_Reflect()
 	AddAssetTag(WoRTags::Effect_Family_Reflect);
 }
 
+UWoRGE_Absorb::UWoRGE_Absorb()
+{
+	DurationPolicy = EGameplayEffectDurationType::Infinite;
+	AddAssetTag(WoRTags::Effect_Family_Absorb);
+}
+
 UWoRGE_LastStand::UWoRGE_LastStand()
 {
 	DurationPolicy = EGameplayEffectDurationType::Infinite;
