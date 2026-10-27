@@ -4,12 +4,28 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameplayEffect.h"
+#include "EngineUtils.h"
+#include "HAL/IConsoleManager.h"
 #include "WoRLog.h"
 
 namespace
 {
 	constexpr int32 MIN_TRACKED_TURNS = 1;
 	constexpr float TRACKED_EFFECT_LEVEL = 1.0f;
+
+	FAutoConsoleCommandWithWorld GDumpTurnEffectsCmd(
+		TEXT("wor.DumpTurnEffects"),
+		TEXT("DEBUG: print every combatant's turn-counted GameplayEffects (B-042)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+		{
+			for (TActorIterator<AActor> It(World); It; ++It)
+			{
+				if (const UWoRTurnEffectTracker *Tracker = It->FindComponentByClass<UWoRTurnEffectTracker>())
+				{
+					Tracker->PrintState();
+				}
+			}
+		}));
 }
 
 UWoRTurnEffectTracker::UWoRTurnEffectTracker()

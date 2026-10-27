@@ -6,7 +6,7 @@
 // USkillEffectManager calls both hooks from its own turn start/end, so bonus and Execution turns
 // count the same way. A GE removed some other way (a cleanse, death) leaves the map through the
 // ASC's removed event. Per-fight state on the battle actor (D-064).
-// Debug: GetDebugString, PrintState (wor.GAS.PrintTurnEffects).
+// Debug: GetDebugString, PrintState, `wor.DumpTurnEffects` (every combatant).
 
 #pragma once
 
