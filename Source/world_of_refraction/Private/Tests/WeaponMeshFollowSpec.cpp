@@ -113,6 +113,37 @@ void FWeaponMeshFollowSpec::Define()
 		Loadout->ClearLoadout(FirstLoadout);
 		TestNull(TEXT("Nothing shown"), Mesh->GetDisplayedWeapon());
 	});
+
+	It("follows a Generic's weapon toggle", [this]()
+	{
+		if (!Loadout) return;
+		UCharacterDataComponent *CharComp = Loadout->GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+		if (!TestNotNull(TEXT("Character data"), CharComp)) return;
+		CharComp->CharacterData->CharacterClass = ECharacterClass::Generic;
+		FCombatLoadout &First = Inventory->SavedLoadouts[FirstLoadout];
+		First.SecondarySlotType = ESecondarySlotType::Weapon;
+		First.SecondaryWeapon.WeaponEntry.Weapon = SecondWeapon;
+		Loadout->ToggleEquipment();
+		TestEqual(TEXT("Secondary weapon shown"), Mesh->GetDisplayedWeapon(), SecondWeapon);
+		Loadout->ToggleEquipment();
+		TestEqual(TEXT("Primary weapon shown again"), Mesh->GetDisplayedWeapon(), FirstWeapon);
+	});
+
+	It("does not announce when the weapon did not change", [this]()
+	{
+		if (!Loadout) return;
+		Mesh->ClearWeaponMesh(); // a cleared mesh re-shows only on the next announcement
+		TestTrue(TEXT("Same loadout chosen"), Loadout->SetActiveLoadoutIndex(FirstLoadout));
+		TestNull(TEXT("No announcement, so still cleared"), Mesh->GetDisplayedWeapon());
+	});
+
+	It("stops listening once the mesh component ends play", [this]()
+	{
+		if (!Loadout) return;
+		TestTrue(TEXT("Listening"), Loadout->OnActiveWeaponChanged.IsBound());
+		Mesh->DestroyComponent();
+		TestFalse(TEXT("Unbound"), Loadout->OnActiveWeaponChanged.IsBound());
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
