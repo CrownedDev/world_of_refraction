@@ -7,6 +7,8 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
+#include "ElementDamageRecorder.h"
+#include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Damage/DamageCalculator.h"
 #include "Combat/Damage/DamageMath.h"
 #include "Combat/Resistance/EWoRDamageType.h"
@@ -112,9 +114,29 @@ void FElementDamageSpec::Define()
 			const int32 Water = HitFireCaster(ESpellElement::Water);
 			TestTrue(TEXT("resistant: less"), Fire < Neutral);
 			TestTrue(TEXT("weak: more"), Water > Neutral);
-			TestEqual(TEXT("Fire = neutral x (1 - resistance)"), Fire, ExpectedAgainstFireCaster(ESpellElement::Fire, Neutral));
-			TestEqual(TEXT("Water = neutral x (1 - resistance)"), Water, ExpectedAgainstFireCaster(ESpellElement::Water, Neutral));
+			// Rounded before vs after the step: within 1.
+			TestTrue(TEXT("Fire = neutral x (1 - resistance)"),
+					 FMath::Abs(Fire - ExpectedAgainstFireCaster(ESpellElement::Fire, Neutral)) <= 1);
+			TestTrue(TEXT("Water = neutral x (1 - resistance)"),
+					 FMath::Abs(Water - ExpectedAgainstFireCaster(ESpellElement::Water, Neutral)) <= 1);
 			TestEqual(TEXT("a leftover Generic counts as non-elemental"), HitFireCaster(ESpellElement::Generic), Neutral);
+		});
+
+		It("OnElementDamageDealt fires once per hit with the hit's element", [this]()
+		{
+			UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+			if (!TestTrue(TEXT("setup"), Executor && Attacker && FireCaster))
+			{
+				return;
+			}
+			UElementDamageRecorder *Recorder = NewObject<UElementDamageRecorder>();
+			Recorder->Listen(Executor);
+			const FCombatHitResult Hit = Executor->ApplyDamage(Attacker, FireCaster, ELEMENT_TEST_BASE, ESpellElement::Water, false);
+			if (TestEqual(TEXT("one event"), Recorder->Entries.Num(), 1))
+			{
+				TestEqual(TEXT("element"), Recorder->Entries[0].Element, ESpellElement::Water);
+				TestEqual(TEXT("damage"), Recorder->Entries[0].Damage, Hit.DamageDealt);
+			}
 		});
 
 		It("skips element resistance when the input says so", [this]()

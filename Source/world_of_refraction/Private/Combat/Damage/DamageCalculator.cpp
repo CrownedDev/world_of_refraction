@@ -180,8 +180,8 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	// (RequirementGapScaling). CalculateRequirementPenalty has no C++ reader (Blueprint only);
 	// the BD strain gate reads GetTotalDeficit. It is no longer applied to damage.
 
-	// Attacks are physical unless infused. Per locked design, infused attacks
-	// still scale by RawDamage — the element only affects status routing.
+	// Attacks are physical unless infused. Infused attacks still scale by RawDamage; their element
+	// steers status and, since B-064, the defender's element resistance.
 	Input.Element = bIsInfused ? AttackerData->InnateElement : ESpellElement::None;
 
 	Input.bCanCrit = true;
