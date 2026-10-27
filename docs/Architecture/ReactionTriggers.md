@@ -22,5 +22,6 @@ One structure for every hidden link between gear and characters (RunStructure §
 ## Changelog
 | Date | Change | Branch |
 |---|---|---|
+| 2026-10-27 | B-211: the weaken / strengthen effect moved into `ReactionTriggers::ApplyBossSteps` (shared with boss triggers, once per boss per fight); `ApplyMemoryBossModifiers` obsolete (no game caller; memories no longer change bosses, D-100). | feature/B-211-boss-triggers |
 | 2026-10-26 | B-191 (Q-191): `FReactionTrigger`, `UReactionTriggerData`, the start-of-fight hook, memory boss weaken / strengthen; spec `WoR.Reaction.Trigger`. | feature/B-191-reaction-triggers |
 | 2026-10-26 | B-193: memory SkipPhase / AddPhase now change the boss's phases (`UBossPhaseComponent::SkipNextPhase` / `AddPhase`). | feature/B-193-boss-phases |
