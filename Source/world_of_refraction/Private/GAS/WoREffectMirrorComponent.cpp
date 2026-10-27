@@ -94,6 +94,12 @@ void UWoREffectMirrorComponent::SyncMirror()
 	{
 		return;
 	}
+	if (bSyncing)
+	{
+		bResyncRequested = true;
+		return;
+	}
+	TGuardValue<bool> SyncingGuard(bSyncing, true);
 
 	TArray<FActiveSkillEffect> Missing = SEM->GetActiveEffects(Owner).FilterByPredicate(IsMirrored);
 	TArray<FWoRMirroredEffect> Kept;
@@ -130,15 +136,28 @@ void UWoREffectMirrorComponent::SyncMirror()
 		}
 	}
 	Mirrored = MoveTemp(Kept);
+
+	if (bResyncRequested)
+	{
+		bResyncRequested = false;
+		bSyncing = false;
+		SyncMirror();
+	}
 }
 
 const UAbilitySystemComponent *UWoREffectMirrorComponent::GetGASReadSource(const AActor *Actor, ESkillEffectType Type)
 {
-	if (!ReadsFromGAS() || !Actor || !FWoREffectSpecBuilder::GetEffectClass(Type) ||
-		!Actor->FindComponentByClass<UWoREffectMirrorComponent>())
+	if (!ReadsFromGAS() || !Actor || !FWoREffectSpecBuilder::GetEffectClass(Type))
 	{
 		return nullptr;
 	}
+	UWoREffectMirrorComponent *Mirror = Actor->FindComponentByClass<UWoREffectMirrorComponent>();
+	if (!Mirror)
+	{
+		return nullptr;
+	}
+	// The read may come between a change and its event (NotifySpeedChanged, another listener).
+	Mirror->SyncMirror();
 	return UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor);
 }
 
