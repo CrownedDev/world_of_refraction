@@ -1919,9 +1919,9 @@ float UAIDecisionManager::GetLethalDoTPerTick(AActor *Target)
         return 0.0f;
     }
 
-    // One-tick-lethal: a SINGLE DoT tick (EffectValue) alone reaches/exceeds current
+    // One-tick-lethal: a SINGLE DoT tick (GetDotTickDamage) alone reaches/exceeds current
     // HP. Only then does forcing ONE bonus turn guarantee the kill at that turn's
-    // end-of-turn tick. (Accumulated-lethal — EffectValue*RemainingTurns — is the
+    // end-of-turn tick. (Accumulated-lethal — tick x RemainingTurns — is the
     // self-preservation test in HasDangerousDebuff; NOT enough here, since one bonus
     // turn triggers only ONE tick.)
     float BestPerTick = 0.0f;

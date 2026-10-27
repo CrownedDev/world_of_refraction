@@ -179,6 +179,11 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	UPROPERTY(BlueprintReadOnly, Category = "Effect")
 	float BuildupPerTick = 0.0f;
 
+	/** A DOT sized as a share of the holder's max HP (the status-bar cap DOT): its ticks ignore
+	 *  element resistance, as Reality Burst does (Q-064). */
+	UPROPERTY(BlueprintReadOnly, Category = "Effect")
+	bool bShareOfMaxHP = false;
+
 	// ========================================
 	// STACKING
 	// ========================================
