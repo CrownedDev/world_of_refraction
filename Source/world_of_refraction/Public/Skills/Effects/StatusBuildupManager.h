@@ -146,7 +146,9 @@ public:
 	// RESISTANCE QUERY
 	// ========================================
 
-	/** Net resistance fraction from active ResistanceBuff − ResistanceDebuff
+	/** OBSOLETE since B-216 (no gameplay caller; WoRResistance::GetTypeResistance replaces it). Kept
+	 *  for UResistanceQueryDebug's legacy comparison; remove after Crown's PIE pass.
+	 *  Net resistance fraction from active ResistanceBuff − ResistanceDebuff
 	 *  effects on Target, matched per effect on EITHER axis: a physical-keyed
 	 *  effect (PhysicalType != None) matches the incoming PhysicalType; otherwise
 	 *  the effect's Element matches the incoming Element. So a Fire-Resistance buff

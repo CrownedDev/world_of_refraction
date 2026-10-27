@@ -4,7 +4,7 @@
 // ESpellElement stays the identity (Generic = inherit) and EPhysicalDamageType the status axis;
 // convert only through ToDamageType / PhysicalToDamageType, never a raw cast: ESpellElement has
 // Generic = 0 and None = 10, and EPhysicalDamageType has Slash = 0.
-// Tags: WoRTags::DamageTypeToTag. Debug: WoRResistanceDebug (wor.CompareResistance).
+// Tags: WoRTags::DamageTypeToTag. Debug: UResistanceQueryDebug (wor.CompareResistance).
 
 #pragma once
 

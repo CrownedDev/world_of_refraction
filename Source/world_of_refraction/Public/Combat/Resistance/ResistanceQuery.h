@@ -2,7 +2,7 @@
 // B-216 (ResistanceRedesign.md §3.2-3.3): one resistance per damage type, and the buildup
 // resistance composed from it. Until GAS stage 3 (B-042) these read the existing sources; then
 // GetTypeResistance reads UWoRAttributeSet_Resistance instead, and callers don't change.
-// Fractions throughout (0.15 = 15%). Debug: WoRResistanceDebug (wor.CompareResistance).
+// Fractions throughout (0.15 = 15%). Debug: UResistanceQueryDebug (wor.CompareResistance).
 
 #pragma once
 
