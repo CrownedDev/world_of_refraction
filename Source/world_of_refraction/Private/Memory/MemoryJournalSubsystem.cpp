@@ -9,16 +9,23 @@
 #include "Trial/TrialRunSubsystem.h"
 #include "WoRLog.h"
 
-bool UMemoryJournalSubsystem::RecordMemory(UMemoryData *Memory)
+bool UMemoryJournalSubsystem::RecordMemory(UMemoryData *Memory, EMemorySource Source)
 {
 	if (!Memory || Memories.Contains(Memory))
 	{
 		return false;
 	}
 	Memories.Add(Memory);
-	UE_LOG(LogWoR, Log, TEXT("[MemoryJournal] Recorded %s (%d in the journal)"), *Memory->GetMemoryId().ToString(),
-		   Memories.Num());
+	Sources.Add(Source);
+	UE_LOG(LogWoR, Log, TEXT("[MemoryJournal] Recorded %s from %s (%d in the journal)"), *Memory->GetMemoryId().ToString(),
+		   *UEnum::GetDisplayValueAsText(Source).ToString(), Memories.Num());
 	return true;
+}
+
+EMemorySource UMemoryJournalSubsystem::GetSource(const UMemoryData *Memory) const
+{
+	const int32 Index = Memories.IndexOfByKey(Memory);
+	return Sources.IsValidIndex(Index) ? Sources[Index] : EMemorySource::Fragment;
 }
 
 bool UMemoryJournalSubsystem::HasMemoryId(FName MemoryId) const
@@ -41,11 +48,12 @@ FString UMemoryJournalSubsystem::GetJournalString() const
 {
 	FString Out = FString::Printf(TEXT("Memory journal: %d memories, %d lore, %d V line(s) heard, %d conversation(s) played"),
 								  Memories.Num(), Lore.Num(), HeardVLines.Num(), PlayedConversations.Num());
-	for (const UMemoryData *Memory : Memories)
+	for (int32 Index = 0; Index < Memories.Num(); ++Index)
 	{
-		if (Memory)
+		if (const UMemoryData *Memory = Memories[Index])
 		{
-			Out += TEXT("\n  ") + Memory->GetMemoryString();
+			Out += FString::Printf(TEXT("\n  [%s] "), *UEnum::GetDisplayValueAsText(Sources[Index]).ToString()) +
+				   Memory->GetMemoryString();
 		}
 	}
 	for (const FJournalLoreEntry &Entry : Lore)

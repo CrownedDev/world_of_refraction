@@ -14,6 +14,17 @@
 
 class UMemoryData;
 
+/** B-209 (D-100): where a memory came from. Append-only. */
+UENUM(BlueprintType)
+enum class EMemorySource : uint8
+{
+	Fragment UMETA(DisplayName = "Map fragment"),
+	Boss UMETA(DisplayName = "Boss or mini-boss beaten"),
+	Reaction UMETA(DisplayName = "Reaction trigger"),
+	MapSpot UMETA(DisplayName = "Special spot on the map"),
+	BoundGear UMETA(DisplayName = "Bound gear")
+};
+
 /** A lore object read on a trial map (B-194). */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FJournalLoreEntry
@@ -36,8 +47,12 @@ class WORLD_OF_REFRACTION_API UMemoryJournalSubsystem : public UGameInstanceSubs
 	GENERATED_BODY()
 
 public:
-	/** Add Memory to the journal. False when it is null or already there. */
-	bool RecordMemory(UMemoryData *Memory);
+	/** Add Memory to the journal, noting where it came from. False when it is null or already
+	 *  there (the first source stays). */
+	bool RecordMemory(UMemoryData *Memory, EMemorySource Source = EMemorySource::Fragment);
+
+	/** Where Memory first came from; Fragment when it isn't in the journal. */
+	EMemorySource GetSource(const UMemoryData *Memory) const;
 
 	bool HasMemory(const UMemoryData *Memory) const { return Memories.Contains(Memory); }
 
@@ -66,6 +81,9 @@ public:
 private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMemoryData>> Memories;
+
+	/** Parallel to Memories. */
+	TArray<EMemorySource> Sources;
 
 	UPROPERTY(Transient)
 	TArray<FJournalLoreEntry> Lore;
