@@ -1,0 +1,15 @@
+# Known data-validation errors (B-119): content debt, listed by Scripts/ue/test.sh but not failing it.
+# One line per error, '<path under Content/>: <message>'. Fix the asset, then delete its line (B-206).
+Data/Characters/Data/DA_Test_Inventory: Loadout[0] 'loadout0': 2 of the item's own spells are over the holder's spell cap (1)
+Data/Characters/Data/DA_Test_Inventory: Loadout[0] 'loadout0': Too many S-tier utility crystals: 3 (max 1)
+Data/Characters/Data/Generic/Inventory/DA_Inventory_Generic: Loadout[0] 'loadout0': 2 of the item's own spells are over the holder's spell cap (1)
+Data/Characters/Data/Generic/Inventory/DA_Inventory_Generic: Loadout[0] 'loadout0': Too many S-tier utility crystals: 3 (max 1)
+Data/Skills/Weapons/DualAxe/Attack/DA_DualAxe_Attack: PhysicalDamageType must be set (not None) for a basic attack or damage-dealing ability.
+Data/Skills/Weapons/SwordAndShield/Attack/Attack1/DA_SAS_Attack_F: PhysicalDamageType must be set (not None) for a basic attack or damage-dealing ability.
+Data/Skills/Weapons/SwordAndShield/Attack/Attack1/DA_SAS_Attack_S: PhysicalDamageType must be set (not None) for a basic attack or damage-dealing ability.
+Testing/Characters/DA_Test_Caster: UCharacterData 'Caster' has no Cosmetics asset assigned. Assign a UCosmeticsData asset before using this character in combat.
+Testing/Characters/DA_Test_Char_DualCaster: UCharacterData 'Dual Caster' has no Cosmetics asset assigned. Assign a UCosmeticsData asset before using this character in combat.
+Testing/Characters/DA_Test_Generic: UCharacterData 'Generic' has no Cosmetics asset assigned. Assign a UCosmeticsData asset before using this character in combat.
+Testing/Characters/DA_Test_Resonator: UCharacterData 'Resonator Lord' has no Cosmetics asset assigned. Assign a UCosmeticsData asset before using this character in combat.
+Testing/Weapons/Abilities/DA_Test_Ability2: PhysicalDamageType must be set (not None) for a basic attack or damage-dealing ability.
+Testing/Weapons/Abilities/DA_Test_Ability: PhysicalDamageType must be set (not None) for a basic attack or damage-dealing ability.
