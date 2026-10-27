@@ -15,6 +15,9 @@
 #include "Character/CharacterDataComponent.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
+#include "GAS/WoREffectMirrorComponent.h"
 #include "WoRLog.h"
 
 class UWeaponData;
@@ -96,6 +99,21 @@ public:
 		Actor->AddInstanceComponent(Component);
 		Component->RegisterComponent();
 		return Component;
+	}
+
+	/** Gives Actor an ability system component (unless it has one) and an effect mirror (B-042c),
+	 *  so its stored effects are mirrored onto GAS and `wor.Effects.UseGAS` reads can use them. */
+	static UWoREffectMirrorComponent *AddEffectMirror(AActor *Actor)
+	{
+		if (!Actor)
+		{
+			return nullptr;
+		}
+		if (!UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor))
+		{
+			AddComponent<UAbilitySystemComponent>(Actor)->InitAbilityActorInfo(Actor, Actor);
+		}
+		return AddComponent<UWoREffectMirrorComponent>(Actor);
 	}
 
 	/** SpawnCombatant plus an inventory and a loadout initialised from Data. With PrimaryWeapon,
