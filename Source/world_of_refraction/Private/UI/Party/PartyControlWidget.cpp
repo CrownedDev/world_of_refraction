@@ -139,7 +139,8 @@ TSharedRef<SWidget> UPartyControlWidget::RebuildWidget()
 			RunRingTexts.Add(PartyControlBuild::AddButton(WidgetTree, Box, RingButton));
 			RunRingButtons.Add(RingButton);
 		}
-		// The leader is never a run-only member, so slot 0 has no handlers.
+		// The leader (LEADER_SLOT) is never a run-only member, so its slot has no handlers.
+		static_assert(PartyConstants::LEADER_SLOT == 0, "Run gear handlers assume the leader is slot 0");
 		RunWeaponButtons[1]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot1RunWeaponClicked);
 		RunWeaponButtons[2]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot2RunWeaponClicked);
 		RunRingButtons[1]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot1RunRingClicked);

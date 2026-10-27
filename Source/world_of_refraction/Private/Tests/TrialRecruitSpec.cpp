@@ -12,7 +12,9 @@
 #include "Currency/CurrencyComponent.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
+#include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Skills/Definitions/SpellData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Party/Party.h"
@@ -35,7 +37,7 @@ BEGIN_DEFINE_SPEC(FTrialRecruitSpec, "WoR.Party.TrialRecruit",
 	UCharacterData *Recruit = nullptr;
 
 	/** Spawns a party member as each level does: its authored gear and a preset naming it, then the shared draw. */
-	UInventoryComponent *Spawn(UCharacterData *Data, bool bBringsSword)
+	UInventoryComponent *Spawn(UCharacterData *Data, bool bBringsSword, USpellData *InnateSpell = nullptr)
 	{
 		AActor *Actor = TestWorld->SpawnCombatant(Data);
 		if (!Actor)
@@ -48,6 +50,11 @@ BEGIN_DEFINE_SPEC(FTrialRecruitSpec, "WoR.Party.TrialRecruit",
 		UInventoryComponent *Inventory = FWoRTestWorld::AddComponent<UInventoryComponent>(Actor);
 		FWoRTestWorld::AddComponent<ULoadoutComponent>(Actor);
 		FCombatLoadout Preset;
+		Preset.InitializeForClass(Data->CharacterClass);
+		if (InnateSpell)
+		{
+			Preset.InnateSpells.Add(InnateSpell);
+		}
 		if (bBringsSword)
 		{
 			Inventory->AddWeapon(Sword);
@@ -142,6 +149,64 @@ void FTrialRecruitSpec::Define()
 		if (!Inventory) return;
 		TestEqual(TEXT("The recruit holds the sword"), ActiveWeaponID(Inventory), SwordID);
 		TestEqual(TEXT("And wears it"), Pool->GetWearer(SwordID), UPoolSubsystem::GetCharacterKey(Recruit));
+	});
+
+	It("keeps a Caster recruit's spells and puts its ring in the primary slot", [this]()
+	{
+		if (!Pool) return;
+		UInventoryComponent *LeaderInventory = Spawn(Leader, false);
+		if (!LeaderInventory) return;
+		LeaderInventory->AddRing(NewObject<URingData>(GetTransientPackage()));
+		if (!TestEqual(TEXT("One ring in the armoury"), Pool->GetOwnedRings().Num(), 1)) return;
+		const FGuid RingID = Pool->GetOwnedRings()[0].PersistentID;
+
+		Recruit->CharacterClass = ECharacterClass::Caster;
+		PartySession->InviteRunMember(ACombatCharacter::StaticClass(), Recruit);
+		PartySession->SetRunMemberGear(TRIAL_RECRUIT_SLOT, FGuid(), RingID);
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		UInventoryComponent *Inventory = Spawn(Recruit, false, Spell);
+		if (!Inventory) return;
+		const FCombatLoadout &Preset = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+		TestTrue(TEXT("Its innate spell stays"), Preset.InnateSpells.Num() == 1 && Preset.InnateSpells[0] == Spell);
+		TestTrue(TEXT("The ring is its primary"), Preset.HasPrimaryRing() && Preset.PrimaryRing.RingEntry.PersistentID == RingID);
+		TestEqual(TEXT("It has its item slots"), Preset.ItemSlots.Num(), InventoryConstants::MAX_ITEM_LOADOUT_SLOTS);
+	});
+
+	It("puts a Resonator recruit's ring in its ring loadout", [this]()
+	{
+		if (!Pool) return;
+		UInventoryComponent *LeaderInventory = Spawn(Leader, true);
+		if (!LeaderInventory) return;
+		LeaderInventory->AddRing(NewObject<URingData>(GetTransientPackage()));
+		const FGuid RingID = Pool->GetOwnedRings()[0].PersistentID;
+
+		Recruit->CharacterClass = ECharacterClass::Resonator;
+		PartySession->InviteRunMember(ACombatCharacter::StaticClass(), Recruit);
+		PartySession->SetRunMemberGear(TRIAL_RECRUIT_SLOT, FGuid(), RingID);
+		UInventoryComponent *Inventory = Spawn(Recruit, false);
+		if (!Inventory) return;
+		const FCombatLoadout &Preset = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+		TestTrue(TEXT("The ring is in the ring loadout"), Preset.RingLoadout.Num() == 1 && Preset.RingLoadout[0].RingEntry.PersistentID == RingID);
+		TestEqual(TEXT("And the recruit wears it"), Pool->GetWearer(RingID), UPoolSubsystem::GetCharacterKey(Recruit));
+	});
+
+	It("frees what a recruit wore when it leaves, and never lets one lead", [this]()
+	{
+		if (!Pool) return;
+		UInventoryComponent *LeaderInventory = Spawn(Leader, false);
+		if (!LeaderInventory) return;
+		LeaderInventory->AddRing(NewObject<URingData>(GetTransientPackage()));
+		const FGuid RingID = Pool->GetOwnedRings()[0].PersistentID;
+		PartySession->InviteRunMember(ACombatCharacter::StaticClass(), Recruit);
+		PartySession->SetRunMemberGear(TRIAL_RECRUIT_SLOT, FGuid(), RingID);
+		if (!Spawn(Recruit, false)) return;
+		TestEqual(TEXT("The recruit wears the ring"), Pool->GetWearer(RingID), UPoolSubsystem::GetCharacterKey(Recruit));
+
+		PartySession->DismissRunMembers();
+		TestTrue(TEXT("The ring is free again"), Pool->GetWearer(RingID).IsNone());
+
+		PartySession->GetLocalParty()->Members.Empty();
+		TestFalse(TEXT("No recruit joins a party with no leader"), PartySession->InviteRunMember(ACombatCharacter::StaticClass(), Recruit));
 	});
 
 	It("keeps a piece another member wears with that member", [this]()
