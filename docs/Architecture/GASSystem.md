@@ -65,7 +65,7 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 ### Effect mirror and the UseGAS switch (stage 3, B-042c part 3)
 
 - `GAS/WoREffectMirrorComponent.h` (on `ACombatCharacter`): one untracked, tick-less Infinite GE per stored enum-path effect of a ported type (`FWoREffectSpecBuilder::GetEffectClass`), built with `Build(..., bAlreadyStored = true)`. Resyncs on the effect manager's applied / removed / stacks / duration events for its owner by diffing identity, element, gear and stacked value; the enum path still owns lifetime, stacking and ticks.
-- `wor.Effects.UseGAS` (default 0, Q-042c): at 1, `USkillEffectManager::HasEffectOfType` (and so `IsStunned` / `IsSilenced`), `GetTotalStatModifier` and `GetTotalStatModifierForElement` read the mirror for ported types on actors that carry one (`UWoREffectMirrorComponent::GetGASReadSource`). Tagged types read their tag; `HasActiveDOT` and `GetEffectTags` go through `HasEffectOfType` too (B-042x), so every Stun / Silence / HealBlock / immunity / DOT check reads the tag. A DOT's tick size still comes from the stored copy until B-042y.
+- `wor.Effects.UseGAS` (default 0, Q-042c): at 1, `USkillEffectManager::HasEffectOfType` (and so `IsStunned` / `IsSilenced`), `GetTotalStatModifier` and `GetTotalStatModifierForElement` read the mirror for ported types on actors that carry one (`UWoREffectMirrorComponent::GetGASReadSource`). Tagged types read their tag; `HasActiveDOT` and `GetEffectTags` go through `HasEffectOfType` too (B-042x), so every Stun / Silence / HealBlock / immunity / DOT check reads the tag. The AI's DOT tick-size read stays on the stored copy until B-042yb.
 - Debug: `UWoREffectDebug::GetEffectMismatchString` / `wor.CompareEffects`.
 - A GAS read resyncs the actor's mirror first (turn order and the HP/EP pool read before or beside the mirror's events). The reads count every WoR GE on the ASC: GEs applied any other way (B-042d) would count twice until B-042h makes GAS the store.
 - At UseGAS 1 a const effect-manager read can apply or remove GEs (the resync), so ASC listeners run inside it, sometimes while the manager walks an actor's effects; an ASC listener must not change the effect manager. Each read costs a full sync (fine for the PIE pass; B-042h drops it).
@@ -74,7 +74,7 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 
 - At UseGAS 1 on an owner with a `UWoRTurnEffectTracker` (`UWoREffectMirrorComponent::OwnsLifetime`), the mirror applies each timed effect's GE through `ApplySpecForSpan` with the stored span; permanent and Immediate effects stay untracked. A refresh in `ApplyEffect` restarts the stored span and the sync pushes it (`SetSpan`); a stack swaps the GE with the copy's span.
 - Turn end: the tracker counts first and the stored copies take its count (`GetTrackedTurnsLeft`). Turn start: the tracker ends finished GEs, then `ReleaseEndedCopies` removes their copies (`RemoveEffectByIdentity`); the enum expiry only finds what GAS doesn't hold. A GE GAS ends early stays off (`EndedByGAS`) until then; a same-source re-apply starts it again (`ForgetEnded`).
-- Payouts stay on the enum path (tick-less GEs) until B-042y (Q-042hb). Debug: `UWoREffectMirrorComponent::GetDebugString` (tracked / turns left / pending releases), `wor.DumpTurnEffects`, `wor.CompareEffects`; spec `WoR.GAS.EffectLifetime`.
+- B-042y: each mirrored GE keeps its tick spec; at UseGAS 1 the effect manager's DOT / HOT payout calls `UWoREffectMirrorComponent::PayTick` (Q-042y), and the tracker's own tick loop stays unused for them. Debug: `UWoREffectMirrorComponent::GetDebugString` (tracked / turns left / pending releases), `wor.DumpTurnEffects`, `wor.CompareEffects`; spec `WoR.GAS.EffectLifetime`.
 
 ### Combat GameplayEvents (stage 3, B-042d part 4)
 
@@ -106,7 +106,7 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 
 - `Skills/Effects/TickMath.h`: `WoRTickMath::GetDotTickDamage` (value x the element multiplier, 1 for a share of max HP, rounded) and `GetHotTickHeal` (value x (1 + healing received / 100), rounded) over `FTickMathInputs`. `USkillEffectManager::GetDotTickDamage` and the HealthRestore tick call them.
 - `GAS/WoRTickExecution.h`: `UWoRTickExecution`, run by `UWoRGE_HealthTick` / `UWoRGE_HealTick`, over an `FWoRTickRequest` on `FWoREffectContext::TickRequest` (set by `FWoREffectSpecBuilder::Build`, authority only). A DOT reads the holder's element resistance (`UWoRDamageExecution::ReadElementResistance`, shared with hits), a HOT its HealingReceivedBuff total as the enum path reads it (`GetTotalStatModifier`). Output: Health -= damage or += heal.
-- Ticks are paid on the enum path until B-042y (Q-042hb); a DOT's `BuildupPerTick` goes through `AddStatusBuildup`, so at UseGAS 1 it runs the buildup execution (B-042o).
+- B-042y: at UseGAS 1 a DOT / HOT tick is paid by this execution (`PayTick`), and `UWoRAttributeSet_Vitals::PostGameplayEffectExecute` hands the Health change to `ServerTakeDamage` / `ServerHeal` (death path), then sets Health back to the HP; a DOT's `BuildupPerTick` goes through `AddStatusBuildup`, so at UseGAS 1 it runs the buildup execution (B-042o).
 
 ### Stat sources (stage 3, B-042p part 5f)
 
@@ -143,6 +143,7 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 
 ## Known limitations / TODOs
 
+- B-042y (Q-042y): at UseGAS 1 every Health-changing GE execution on a combatant with character data reaches the HP path, so `FWoREffectSpecBuilder::Apply` with a tick spec would pay on top of the effect manager's pass (no play caller yet; B-042i).
 - **Mirror only.** Nothing gameplay-facing reads the tags or attributes yet. The read sites (Q-040) and the getters and HP/EP writes (Q-041) switch in stage 3.
 - MaxBuildup mirrors the fixed bar cap (`CombatConstants::STATUS_EFFECT_THRESHOLD`).
 - A stat change with no event (e.g. weather, a crystal breaking mid-turn) reaches the attributes at that character's next turn start. `wor.CompareAttributes` shows such drift in between.
@@ -175,3 +176,4 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 | 2026-10-27 | B-042h (stage 3, part 3b, narrowed): at UseGAS 1 the tracker owns timed effects' lifetime (`ApplySpecForSpan`, `SetSpan`, `ReleaseEndedCopies`, `ForgetEnded`); payouts move with B-042y (Q-042hb). | feature/B-042h-gas-effect-lifetime |
 | 2026-10-27 | B-042o (stage 3, part 5e): at UseGAS 1 the status bar is the Buildup attribute; hits through `UWoRBuildupExecution` (Q-042o). | feature/B-042o-gas-status-bar |
 | 2026-10-27 | B-042x (stage 3, part 3c): `HasActiveDOT` / `GetEffectTags` read through `HasEffectOfType`, so at UseGAS 1 every tagged-type check reads the holder's tags; AI lethal-burn gate; `WoR.GAS.TagReads`. | feature/B-042x-gas-tag-reads |
+| 2026-10-27 | B-042y (stage 3, part 3d): at UseGAS 1 DOT / HOT ticks paid by the mirror's tick spec; the Vitals set hands GAS Health changes to the HP / death path; the tracker reads real HP (Q-042y). | feature/B-042y-gas-getters-hp |

@@ -3,7 +3,10 @@
 #include "GAS/WoRAttributeSets.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/StatLayers.h"
+#include "GameplayEffectExtension.h"
+#include "GAS/WoREffectMirrorComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "WoRLog.h"
 
 #define WOR_REPLICATE_ATTRIBUTE(ClassName, PropertyName) \
 	DOREPLIFETIME_CONDITION_NOTIFY(ClassName, PropertyName, COND_None, REPNOTIFY_Always)
@@ -39,6 +42,33 @@ void UWoRAttributeSet_Vitals::PreAttributeChange(const FGameplayAttribute &Attri
 	{
 		NewValue = FMath::RoundToFloat(NewValue);
 	}
+}
+
+void UWoRAttributeSet_Vitals::PostGameplayEffectExecute(const FGameplayEffectModCallbackData &Data)
+{
+	Super::PostGameplayEffectExecute(Data);
+	const UAbilitySystemComponent *ASC = GetOwningAbilitySystemComponent();
+	AActor *Owner = ASC ? ASC->GetOwner() : nullptr;
+	UCharacterDataComponent *Char = Owner ? Owner->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (Data.EvaluatedData.Attribute != GetHealthAttribute() || !UWoREffectMirrorComponent::ReadsFromGAS() || !Char ||
+		!Char->CharacterData)
+	{
+		return;
+	}
+	// The game's HP stays the truth (Q-042y): Health goes back to it, the change goes through its path.
+	const int32 Change = FMath::RoundToInt(Data.EvaluatedData.Magnitude);
+	SetHealth(Char->CurrentHP);
+	if (Change < 0)
+	{
+		Char->ServerTakeDamage(-Change);
+	}
+	else if (Change > 0)
+	{
+		Char->ServerHeal(Change);
+	}
+	SetHealth(Char->CurrentHP);
+	UE_LOG(LogWoR, Verbose, TEXT("[Vitals] %s: GAS Health change %d through the HP path (HP %d)"), *GetNameSafe(ASC->GetOwner()),
+		   Change, Char->CurrentHP);
 }
 
 void UWoRAttributeSet_Stats::PreAttributeChange(const FGameplayAttribute &Attribute, float &NewValue)

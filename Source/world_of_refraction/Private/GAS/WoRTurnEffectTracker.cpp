@@ -4,6 +4,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameplayEffect.h"
+#include "Character/CharacterDataComponent.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoREffectSpecBuilder.h"
 #include "EngineUtils.h"
@@ -187,6 +188,13 @@ void UWoRTurnEffectTracker::OnHolderTurnStart()
 
 bool UWoRTurnEffectTracker::IsHolderDown() const
 {
+	// B-042y: the game's HP and death state where the holder has them, and Health (a bare ASC, or a GAS
+	// tick at UseGAS 0 that only moves the attribute).
+	const UCharacterDataComponent *Char = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (Char && Char->CharacterData && (!Char->bIsAlive || Char->CurrentHP <= 0))
+	{
+		return true;
+	}
 	const UAbilitySystemComponent *ASC = GetOwnerASC();
 	const FGameplayAttribute Health = UWoRAttributeSet_Vitals::GetHealthAttribute();
 	return ASC && ASC->HasAttributeSetForAttribute(Health) && ASC->GetNumericAttribute(Health) <= 0.0f;

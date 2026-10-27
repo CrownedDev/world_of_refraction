@@ -17,6 +17,7 @@
 #include "Loadout/LoadoutComponent.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
+#include "GAS/WoRAttributeSyncComponent.h"
 #include "GAS/WoREffectMirrorComponent.h"
 #include "GAS/WoRTurnEffectTracker.h"
 #include "WoRLog.h"
@@ -114,7 +115,9 @@ public:
 		{
 			AddComponent<UAbilitySystemComponent>(Actor)->InitAbilityActorInfo(Actor, Actor);
 		}
-		// As on ACombatCharacter: with UseGAS 1 the tracker owns the effects' lifetime (B-042h).
+		// As on ACombatCharacter: the attribute sets (a GAS tick changes Health, B-042y), and with
+		// UseGAS 1 the tracker owns the effects' lifetime (B-042h).
+		UWoRAttributeSyncComponent::PrepareAbilitySystem(Actor);
 		if (!Actor->FindComponentByClass<UWoRTurnEffectTracker>())
 		{
 			AddComponent<UWoRTurnEffectTracker>(Actor);
