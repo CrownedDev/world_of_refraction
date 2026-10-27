@@ -40,7 +40,7 @@
 - **Heavy visuals and audio** (meshes, textures, sounds, Niagara) in a *new* data-asset field use `TSoftObjectPtr`; existing hard references stay (D-057).
 - **Player-facing text** is `FText` (`LOCTEXT` / `FText::Format`), never a built `FString` (D-061). Shared game words (element, status, trigger names, button verbs) live in C++ `LOCTEXT` name tables (D-062).
 - **Saves** use explicit save structs, not `SaveGame` property tags (D-059). Until the first public build, a save below the minimum version is wiped with a warning (D-060).
-- **Input:** fixed keys for now; keep every input action name unique so rebinding can come later (D-063).
+- **Input:** fixed keys for now; keep every input action name unique so rebinding can come later (D-063). **Every input added or changed gets its row in `docs/Design/InputMap.md` in the same change** (Crown, 2026-10-27); new keys follow its standard-practice defaults.
 - **Content naming:** new assets follow `docs/Conventions/ContentNaming.md` (B-123); existing names stay (D-058).
 - **Tests:** headless specs until the new HUD (B-105), then functional level tests (D-066). A legacy `*TestActor` is retired only after a matching spec lands and Crown's PIE pass (D-067).
 - **Frame budget:** 60 fps at 1080p on Crown's PC, checked once per milestone (D-068).
