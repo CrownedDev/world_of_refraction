@@ -55,6 +55,8 @@ BEGIN_DEFINE_SPEC(FStatSourcesSpec, "WoR.GAS.StatSources",
 			MakeTuple(ESubStat::StatusMultiplier, UWoRAttributeSet_Stats::GetStatusMultiplierAttribute(), Char->GetEffectiveStatusMultiplier()),
 			MakeTuple(ESubStat::Defense, UWoRAttributeSet_Stats::GetDefenseAttribute(), Calc ? Calc->GetDefenderFlatDefense(Hero) : 0.0f),
 			MakeTuple(ESubStat::CritDamage, UWoRAttributeSet_Stats::GetCritDamageAttribute(), Calc ? Calc->GetCritDamageMultiplier(Hero) : 0.0f),
+			MakeTuple(ESubStat::Luck, UWoRAttributeSet_Stats::GetLuckAttribute(), Char->GetEquipmentModifiedLuck()),
+			MakeTuple(ESubStat::Reflex, UWoRAttributeSet_Stats::GetReflexAttribute(), Char->ReflexWindowGearFactor()),
 		};
 	}
 
@@ -189,6 +191,16 @@ void FStatSourcesSpec::Define()
 		TestEqual(TEXT("Getter at the Defense ceiling"), Calc->GetDefenderFlatDefense(Hero), CombatConstants::DEFENSE_REDUCTION_CEILING);
 		TestEqual(TEXT("Attribute at the Defense ceiling"), ASC->GetNumericAttribute(UWoRAttributeSet_Stats::GetDefenseAttribute()),
 				  CombatConstants::DEFENSE_REDUCTION_CEILING);
+	});
+
+	It("leaves the Reflex factor unclamped, as its getter is", [this]()
+	{
+		if (!ASC) return;
+		Buff(STAT_SOURCES_HUGE_BUFF_ID, ESkillEffectType::ReflexBuff, STAT_SOURCES_HUGE_BUFF_PERCENT);
+		const float Getter = Char->ReflexWindowGearFactor();
+		TestTrue(TEXT("Getter past the default ceiling"), Getter > CombatConstants::STAT_MODIFIER_MAX);
+		TestEqual(TEXT("Attribute = getter"), ASC->GetNumericAttribute(UWoRAttributeSet_Stats::GetReflexAttribute()), Getter,
+				  STAT_SOURCES_TOLERANCE);
 	});
 
 	It("floors crit damage at a normal hit under a large debuff", [this]()
