@@ -343,6 +343,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	bool HasEffectOfType(AActor *Actor, ESkillEffectType EffectType) const;
 
+	/** B-042x: does Actor hold an effect of this type that a cleanse would remove (not from gear, D-015)? */
+	bool HasCleansableEffectOfType(AActor *Actor, ESkillEffectType EffectType) const;
+
 	/** GAS stage 1 (B-040): the Status.* / Immunity.* tags the actor's active effects give it
 	 *  (WoRTags::EffectTypeToTag). Read-only view of the same effects HasEffectOfType reads. */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")

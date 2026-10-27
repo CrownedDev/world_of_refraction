@@ -85,6 +85,9 @@ public:
 	/** The GAS twins of HasEffectOfType: the type's tag when it has one, else any GE of that type. */
 	static bool HasEffectOfType(const UAbilitySystemComponent &ASC, ESkillEffectType Type);
 
+	/** B-042x: a GE of Type a cleanse would remove (no Effect.Origin.Gear asset tag, D-015). */
+	static bool HasCleansableEffectOfType(const UAbilitySystemComponent &ASC, ESkillEffectType Type);
+
 	FString GetDebugString() const;
 
 protected:
