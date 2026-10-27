@@ -29,6 +29,8 @@ namespace
 	constexpr float STAT_SOURCES_BUFF_PERCENT = 50.0f;
 	/** Far past the compose ceiling, so the clamp decides. */
 	constexpr float STAT_SOURCES_HUGE_BUFF_PERCENT = 500.0f;
+	/** Larger than the huge buff, so the net goes negative and only the clamp floors it. */
+	constexpr float STAT_SOURCES_HUGE_DEBUFF_PERCENT = 1000.0f;
 	constexpr int32 STAT_SOURCES_DEBUFF_ID = 4803;
 	/** Enough points for a stat alone (Defense, Luck) to reach its cap. */
 	constexpr int32 STAT_SOURCES_STAT_POINTS = 50;
@@ -202,7 +204,7 @@ void FStatSourcesSpec::Define()
 		TestEqual(TEXT("Getter at the Luck ceiling"), Char->GetEquipmentModifiedLuck(), CombatConstants::LUCK_GEAR_CEILING);
 		TestEqual(TEXT("Attribute at the Luck ceiling"), ASC->GetNumericAttribute(Luck), CombatConstants::LUCK_GEAR_CEILING);
 
-		Buff(STAT_SOURCES_DEBUFF_ID, ESkillEffectType::LuckDebuff, STAT_SOURCES_HUGE_BUFF_PERCENT * 2.0f);
+		Buff(STAT_SOURCES_DEBUFF_ID, ESkillEffectType::LuckDebuff, STAT_SOURCES_HUGE_DEBUFF_PERCENT);
 		TestEqual(TEXT("Getter floored at 0"), Char->GetEquipmentModifiedLuck(), 0.0f);
 		TestEqual(TEXT("Attribute floored at 0"), ASC->GetNumericAttribute(Luck), 0.0f);
 	});
