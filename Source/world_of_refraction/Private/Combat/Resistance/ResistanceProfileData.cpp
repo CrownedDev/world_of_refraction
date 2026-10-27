@@ -2,6 +2,7 @@
 
 #include "Combat/Resistance/ResistanceProfileData.h"
 #include "UObject/SoftObjectPath.h"
+#include "Engine/World.h"
 #include "WoRLog.h"
 
 namespace
@@ -10,25 +11,25 @@ namespace
 	const TCHAR *RESISTANCE_PROFILE_ASSET_PATH = TEXT("/Game/Data/Combat/DA_ResistanceProfile_Class.DA_ResistanceProfile_Class");
 
 	/** Every ESpellElement a Caster row exists for in the C++ table. */
-	const ESpellElement CASTER_ELEMENTS[] = {
+	const ESpellElement PROFILE_CASTER_ELEMENTS[] = {
 		ESpellElement::Fire, ESpellElement::Water, ESpellElement::Earth, ESpellElement::Wind, ESpellElement::Light,
 		ESpellElement::Darkness, ESpellElement::Lightning, ESpellElement::Void, ESpellElement::Reality};
 
-	FString RowString(const ClassInnateResistanceTable::FResistanceRow &R)
+	FString ProfileRowString(const ClassInnateResistanceTable::FResistanceRow &R)
 	{
 		return FString::Printf(TEXT("Fi %+.0f Wa %+.0f Ea %+.0f Wi %+.0f Li %+.0f Da %+.0f Lt %+.0f Vo %+.0f Re %+.0f | Sl %+.0f Pi %+.0f Im %+.0f"),
 							   R.Fire, R.Water, R.Earth, R.Wind, R.Light, R.Darkness, R.Lightning, R.Void, R.Reality,
 							   R.Slash, R.Pierce, R.Impact);
 	}
 
-	bool RowsEqual(const ClassInnateResistanceTable::FResistanceRow &A, const ClassInnateResistanceTable::FResistanceRow &B)
+	bool ProfileRowsEqual(const ClassInnateResistanceTable::FResistanceRow &A, const ClassInnateResistanceTable::FResistanceRow &B)
 	{
 		return A.Fire == B.Fire && A.Water == B.Water && A.Earth == B.Earth && A.Wind == B.Wind && A.Light == B.Light &&
 			   A.Darkness == B.Darkness && A.Lightning == B.Lightning && A.Void == B.Void && A.Reality == B.Reality &&
 			   A.Slash == B.Slash && A.Pierce == B.Pierce && A.Impact == B.Impact;
 	}
 
-	FString ElementName(ESpellElement Element)
+	FString ProfileElementName(ESpellElement Element)
 	{
 		FString Name = UEnum::GetValueAsString(Element);
 		Name.RemoveFromStart(TEXT("ESpellElement::"));
@@ -78,7 +79,7 @@ void UResistanceProfileData::FillFromCodeTable()
 	GenericClass = FResistanceProfileRow::FromTableRow(ClassInnateResistanceTable::ResolveRow(ECharacterClass::Generic, ESpellElement::None, false));
 	ResonatorClass = FResistanceProfileRow::FromTableRow(ClassInnateResistanceTable::ResolveRow(ECharacterClass::Resonator, ESpellElement::None, false));
 	CasterByInnateElement.Reset();
-	for (const ESpellElement Element : CASTER_ELEMENTS)
+	for (const ESpellElement Element : PROFILE_CASTER_ELEMENTS)
 	{
 		CasterByInnateElement.Add(Element, FResistanceProfileRow::FromTableRow(GetElementRow(Element)));
 	}
@@ -104,10 +105,16 @@ ClassInnateResistanceTable::FResistanceRow UResistanceProfileData::ResolveRow(EC
 
 const UResistanceProfileData *UResistanceProfileData::GetActive()
 {
-	// Weak: a collected asset is simply loaded again. Missing is remembered for the session, so a
-	// project without the asset doesn't search the disk on every hit.
+	// Missing is remembered until the next world starts (so an asset created in the editor counts
+	// from the next PIE), and a project without the asset doesn't search the disk on every hit.
 	static TWeakObjectPtr<const UResistanceProfileData> Cached;
 	static bool bMissing = false;
+	static bool bResetBound = false;
+	if (!bResetBound)
+	{
+		bResetBound = true;
+		FWorldDelegates::OnPostWorldInitialization.AddLambda([](UWorld *, const UWorld::InitializationValues) { bMissing = false; });
+	}
 	if (Cached.IsValid())
 	{
 		return Cached.Get();
@@ -123,6 +130,12 @@ const UResistanceProfileData *UResistanceProfileData::GetActive()
 		UE_LOG(LogWoRCombat, Log, TEXT("[ResistanceProfile] No asset at %s; using the C++ class table"), RESISTANCE_PROFILE_ASSET_PATH);
 		return nullptr;
 	}
+	// Outside the editor keep it loaded, so a garbage collection never forces a load mid-fight.
+	// In the editor it stays weak so the asset can still be renamed or deleted.
+	if (!GIsEditor)
+	{
+		const_cast<UResistanceProfileData *>(Loaded)->AddToRoot();
+	}
 	Cached = Loaded;
 	return Loaded;
 }
@@ -130,13 +143,13 @@ const UResistanceProfileData *UResistanceProfileData::GetActive()
 FString UResistanceProfileData::GetResistanceProfileString() const
 {
 	FString Out = FString::Printf(TEXT("=== Resistance profiles (%s) ===\n"), *GetName());
-	Out += FString::Printf(TEXT("  Broken Darkness  %s\n"), *RowString(BrokenDarkness.ToTableRow()));
-	Out += FString::Printf(TEXT("  Generic          %s\n"), *RowString(GenericClass.ToTableRow()));
-	Out += FString::Printf(TEXT("  Resonator        %s\n"), *RowString(ResonatorClass.ToTableRow()));
-	for (const ESpellElement Element : CASTER_ELEMENTS)
+	Out += FString::Printf(TEXT("  Broken Darkness  %s\n"), *ProfileRowString(BrokenDarkness.ToTableRow()));
+	Out += FString::Printf(TEXT("  Generic          %s\n"), *ProfileRowString(GenericClass.ToTableRow()));
+	Out += FString::Printf(TEXT("  Resonator        %s\n"), *ProfileRowString(ResonatorClass.ToTableRow()));
+	for (const ESpellElement Element : PROFILE_CASTER_ELEMENTS)
 	{
-		Out += FString::Printf(TEXT("  Caster %-9s %s\n"), *ElementName(Element),
-							   *RowString(ResolveRow(ECharacterClass::Caster, Element, false)));
+		Out += FString::Printf(TEXT("  Caster %-9s %s\n"), *ProfileElementName(Element),
+							   *ProfileRowString(ResolveRow(ECharacterClass::Caster, Element, false)));
 	}
 	return Out;
 }
@@ -152,18 +165,18 @@ void UResistanceProfileData::CompareWithCodeTable() const
 	int32 Differ = 0;
 	auto Check = [&Differ](const FString &Label, const FResistanceRow &Asset, const FResistanceRow &Code)
 	{
-		if (!RowsEqual(Asset, Code))
+		if (!ProfileRowsEqual(Asset, Code))
 		{
 			++Differ;
-			UE_LOG(LogWoRCombat, Warning, TEXT("[ResistanceProfile] %s differs\n  asset %s\n  code  %s"), *Label, *RowString(Asset), *RowString(Code));
+			UE_LOG(LogWoRCombat, Warning, TEXT("[ResistanceProfile] %s differs\n  asset %s\n  code  %s"), *Label, *ProfileRowString(Asset), *ProfileRowString(Code));
 		}
 	};
 	Check(TEXT("Broken Darkness"), ResolveRow(ECharacterClass::Caster, ESpellElement::None, true), ClassInnateResistanceTable::ResolveRow(ECharacterClass::Caster, ESpellElement::None, true));
 	Check(TEXT("Generic"), ResolveRow(ECharacterClass::Generic, ESpellElement::None, false), ClassInnateResistanceTable::ResolveRow(ECharacterClass::Generic, ESpellElement::None, false));
 	Check(TEXT("Resonator"), ResolveRow(ECharacterClass::Resonator, ESpellElement::None, false), ClassInnateResistanceTable::ResolveRow(ECharacterClass::Resonator, ESpellElement::None, false));
-	for (const ESpellElement Element : CASTER_ELEMENTS)
+	for (const ESpellElement Element : PROFILE_CASTER_ELEMENTS)
 	{
-		Check(FString::Printf(TEXT("Caster %s"), *ElementName(Element)), ResolveRow(ECharacterClass::Caster, Element, false), GetElementRow(Element));
+		Check(FString::Printf(TEXT("Caster %s"), *ProfileElementName(Element)), ResolveRow(ECharacterClass::Caster, Element, false), GetElementRow(Element));
 	}
 	UE_LOG(LogWoRCombat, Log, TEXT("[ResistanceProfile] %s: %d profile(s) differ from the C++ table"), *GetName(), Differ);
 }
