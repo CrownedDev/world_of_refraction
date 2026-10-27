@@ -86,6 +86,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-084](B-084.md) | `feature/B-084-dismantle-equipped` (in `dev`) | Dismantling equipped gear warns, then leaves no copy in any loadout | Not tested |
 | [B-103](B-103.md) | `feature/B-103-commonui-base` (in `dev`) | CommonUI layers: an empty test screen opens and closes with Back (keyboard and gamepad) | Not tested |
 | [B-118](B-118.md) | `chore/B-118-debug-asset-fallbacks` (in `dev`) | Combat debug commands with no skill log an error instead of loading a test asset | Not tested |
+| [B-111](B-111.md) | `feature/B-111-hud-mockup-v2` (in `dev`) | Combat HUD drafts v2: header candidates A-E, crystal look, BD EP, damage colours, cracking bars. Review is B-102 | Not tested |
 | [B-195](B-195.md) | `feature/B-195-hub-services` (in `dev`) | Hub services: one V NPC per service (Stone Smith, loadout vendor added), each opens its shop | Not tested |
 | [B-194](B-194.md) | `feature/B-194-memory-journal` (in `dev`) | Hub journal: reread memories and lore, V's next line, play a conversation (placeholder screen) | Not tested |
 | [B-070](B-070.md) | `fix/B-070-trial-strong-ref` (in `dev`) | The trial run keeps hold of its trial (packaged builds) | Not tested |
