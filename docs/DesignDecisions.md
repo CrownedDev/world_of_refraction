@@ -1411,8 +1411,10 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Field durations are in minutes:** a skill's duration in turns becomes minutes on the map, **1 turn = 1 minute** (a 1-turn speed buff lasts 1 minute).
 - **Field skills cost Energy (EP)**, as in battle.
 - **Time while the menu is open: B, it keeps running** (Kingdom Hearts), because of multiplayer (pillar 7): a shared world can't pause or slow for one player. **Noted for later:** A, slowing time while choosing (Final Fantasy VII Remake), perhaps as a solo-only option.
+- **EP on the map: B** (Persona's SP model): EP does **not** refill over time; only **rest spots and items** restore it. EP spent on the map is EP you don't have in the next fight.
+- **Field skills are the same skills as in battle**: no separate field-only skills; a skill's field use is one more side of the same skill in your loadout.
 - **First strike (Q-185):** landing a field attack or spell on an enemy that hasn't noticed you gives your side first strike (it acts first). Until field commands exist, a touch from outside its notice cone stands in (as built).
-**Notes for Claude:** built on GAS (stage 4 abilities, B-043): one ability per skill with a battle and a field mode. Open details, asked one at a time: how EP comes back on the map, what a field hit does to an enemy beyond first strike, which skills get field effects.
+**Notes for Claude:** built on GAS (stage 4 abilities, B-043): one ability per skill with a battle and a field mode. Open details, asked one at a time: what a field hit does to an enemy beyond first strike, which skills get field effects.
 
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
