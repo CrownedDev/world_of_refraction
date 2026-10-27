@@ -1418,12 +1418,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** built on GAS (stage 4 abilities, B-043): one ability per skill with a battle and a field mode. Open details, asked one at a time: (pinned) what a field hit does to an enemy beyond first strike, which skills get field effects.
 
 ### D-100 — What counts as a memory fragment
-**Status:** ANSWERED (2026-10-27; one detail open) · **Raised:** 2026-10-27 (Q-190 review) · **Blocks:** —
+**Status:** ANSWERED (2026-10-27) · **Raised:** 2026-10-27 (Q-190 review) · **Blocks:** —
 **Answer (Crown):** (2026-10-27) a memory can come from:
 - **Map pickups** (as built, B-190).
 - **B: bosses and mini-bosses**, **depending on the boss**: each boss / mini-boss authors whether it drops a memory and which one.
 - **C: moments**: a reaction trigger (certain gear worn while facing a certain character) or reaching a special spot on the map.
-- **Bound gear carries memories** (D-032 part 3, D-033: "items, gear and dialogue relating to themselves"; "the Garnet Lord carrying a weapon may get a deep memory"): a bound item names one or more memories it unlocks. **Open:** exactly when it unlocks (when found, or when its owner equips it).
+- **Bound gear carries memories** (D-032 part 3, D-033: "items, gear and dialogue relating to themselves"; "the Garnet Lord carrying a weapon may get a deep memory"): a bound item names one or more memories it unlocks. **When (Crown, 2026-10-27): A + trigger conditions.** Its memories unlock **bit by bit as the item is upgraded** (NieR: Automata's weapon stories), and each memory can also have **trigger conditions** (e.g. its owner wearing it, facing a certain character, a hidden condition, pillar 10). A memory set on both needs both.
 **Notes for Claude:** all sources feed the same `UTrialRunSubsystem::CollectMemory` / journal path (B-190). Boss drops: a memory field on the boss / mini-boss data. Moments: a reaction trigger's result can be "unlock memory X", and a map trigger volume can too. Bound gear: a memory list on the bound item.
 
 ### Q-044 — Re-applying the same effect: strength rule or replace?
@@ -1748,7 +1748,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** The journal only gets the memories of a run that is won.
 - **C** Numeric depth (0-10) instead of three levels.
 **Recommendation:** A. Hades keeps every story unlock when a run fails, and players praise that a failed run still moves the story on; Hollow Knight's and Elden Ring's lore items are kept the moment you pick them up and explain themselves only when read, matching the no-hint rule. Three depth levels are easy to author and read. Not lore (the memories themselves are Crown's to write).
-**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
+**Answer (Crown):** A, approved by the reference-backed default (2026-10-26), **except, changed by Crown (2026-10-27): a collected fragment is gone for good**: once a memory is in the journal, its fragment no longer appears in later runs (D-100).
 **Notes for Claude:** applied (feature/B-190-memory-fragments): `UMemoryData`, `AMemoryFragment` (a trial map feature, B-188), `UTrialRunSubsystem::CollectMemory` (run state, D-065), `UMemoryJournalSubsystem` (lasts while the game runs; saved with B-090). `FMemoryBossModifier::Boss` is a `UCharacterData` for now; B-193 may switch it to `UBossData`.
 
 ### Q-188 — How do the trial map's chest, lore object and boss arena behave?
