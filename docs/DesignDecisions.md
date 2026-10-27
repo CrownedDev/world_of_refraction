@@ -2002,6 +2002,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it, e.g. to B once the loadout screen exists.
 **Notes for Claude:** applied (feature/B-076-trial-recruits). Trial maps have no recruit spots yet (placing a recruitable pawn in a trial level is editor work): B-215. Until then, `wor.Party.RecruitForRun <CharacterData path>` recruits in a trial. Evolutions for a recruit wait for B with the real screen.
 
+### Q-144 — V's clothing: painted on, bought, or custom-made
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-144) · **Blocks:** — (ships with A, then B)
+**Question:** V's black suit, gold tie, elite look and the hub NPCs' role outfits need clothing on the UE5 Manny/Quinn skeleton (`docs/analysis/MobClothing.md`). Paint it in V's material, buy a rigged pack, or have one made?
+**Options:**
+- **A then B** Paint the suit, tie and element trims as masks in B-143's one V master material, with the tie as a small attached mesh (free, ships with B-143). Then add one bought suit pack rigged to the UE5 skeleton (Fab Standard License, about $20–40) as a Leader Pose child for a real suit silhouette. Elite V and the hub roles add one piece each (a coat, an apron) and socketed props.
+- **B only** Buy a pack first; V waits on the purchase. (C, single pieces from a collection, is B in smaller parts; E, a retargeted character pack, is a parts source only.)
+- **D** A custom suit (Marvelous Designer or a commission), weight-transferred to Manny in-engine; matches the turnaround sheet exactly, highest cost.
+**Recommendation:** A then B. Destiny's majors (the stronger version of a common enemy, read at a glance; [Destinypedia](https://destinypedia.com/Major)) and Expedition 33's Chromatic Nevrons (recoloured, stronger versions of normal enemies; [guide](https://www.next-stage.fr/2025/06/guide-clair-obscur-expedition-33-comment-battre-boss-bourgeon-chromatique.html)) give tough variants from a shared model: that is D-069's one-body rule with an elite add-on. Monster Hunter's subspecies (a new colour and element on one model; [GameSpot](https://gamespot.com/articles/monster-hunter-rise-sunbreak-new-monsters-guide/1100-6505092/)) show element recolours are accepted when the colour means something. Not lore.
+**Answer (Crown):** **A then B, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Which pack to buy (and any later commission, D) is Crown's: Claude doesn't buy.
+**Notes for Claude:** A is built in B-143 (CC+UE): suit/tie/trim masks in the master material, element instances, tie mesh. B needs Crown's purchase first: only UE5-skeleton listings (some project content is UE4 mannequin), and confirm the pack's bone names match `SK_Manny_HTS` before buying (Leader Pose matches by name). B-143's material also needs a body opacity mask so the body doesn't poke through bought clothing. Hub props attach to hand sockets (B-195's outfit/prop slot).
+
 ### Q-203 — The item inventory: what one item type is, and how big a stack is
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-203, D-097) · **Blocks:** — (ships with A)
 **Question:** D-097 gives the party an inventory of item slots (one item type per slot, stacked to the item's max) and unlimited storage. Building it needs: what one "item type" is, each item's stack size, whether the old per-tier crystal cap still applies, and who shares the slots.
