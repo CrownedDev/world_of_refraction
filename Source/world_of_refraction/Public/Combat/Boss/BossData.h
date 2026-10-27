@@ -10,6 +10,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Reaction/FightMoment.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "BossData.generated.h"
 
@@ -147,7 +148,8 @@ enum class EBossTriggerResult : uint8
 	Dialogue
 };
 
-/** B-211: "if these conditions, then this", owned by the boss. Checked once at fight start. */
+/** B-211: "if these conditions, then this", owned by the boss. Its conditions are checked at fight
+ *  start; it fires then or at its When (B-212). */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FBossTrigger
 {
@@ -159,6 +161,10 @@ struct WORLD_OF_REFRACTION_API FBossTrigger
 	/** All must hold. Empty: never fires. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger")
 	TArray<FBossTriggerCondition> Conditions;
+
+	/** B-212 (Q-212): when it fires. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger")
+	FFightMoment When;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger")
 	TArray<EBossTriggerResult> Results;

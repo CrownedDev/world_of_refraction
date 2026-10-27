@@ -242,14 +242,36 @@ int32 ReactionTriggers::ApplyMemoryBossModifiers(const TArray<TObjectPtr<UMemory
 	return Changed;
 }
 
-bool ReactionTriggers::ApplyBossSteps(AActor *Boss, int32 NetSteps)
+bool ReactionTriggers::ApplyBossSteps(AActor *Boss, int32 NetSteps, bool bBeforeFight)
 {
 	USkillEffectManager *Effects = GetReactionEffectManager(Boss);
 	NetSteps = FMath::Clamp(NetSteps, -ReactionTriggerConstants::MAX_MEMORY_BOSS_STEPS,
 							ReactionTriggerConstants::MAX_MEMORY_BOSS_STEPS);
-	if (!Boss || !Effects || NetSteps == 0)
+	if (!Boss || !Effects)
 	{
 		return false;
+	}
+	UCharacterDataComponent *CharComp = Boss->FindComponentByClass<UCharacterDataComponent>();
+	// Mid-fight the boss keeps its share of HP (Q-212): a change never undoes the party's damage.
+	const float HPShare = CharComp && CharComp->MaxHP > 0 ? static_cast<float>(CharComp->CurrentHP) / CharComp->MaxHP : 1.0f;
+	const auto SettleHP = [CharComp, HPShare, bBeforeFight]()
+	{
+		if (CharComp)
+		{
+			CharComp->RecomputeMaxPools();
+			// Before the fight: the boss starts at its new full HP, like the trial's enemy strength.
+			CharComp->CurrentHP = bBeforeFight ? CharComp->MaxHP : FMath::Max(1, FMath::RoundToInt(HPShare * CharComp->MaxHP));
+		}
+	};
+	if (NetSteps == 0)
+	{
+		const bool bRemoved = Effects->RemoveEffectByID(Boss, ReactionTriggerConstants::MEMORY_BOSS_HP_EFFECT_ID) |
+							  Effects->RemoveEffectByID(Boss, ReactionTriggerConstants::MEMORY_BOSS_DAMAGE_EFFECT_ID);
+		if (bRemoved && !bBeforeFight)
+		{
+			SettleHP();
+		}
+		return bRemoved;
 	}
 	const bool bWeaken = NetSteps < 0;
 	const float Percent = FMath::Abs(NetSteps) * ReactionTriggerConstants::MEMORY_BOSS_STEP_PERCENT;
@@ -263,12 +285,7 @@ bool ReactionTriggers::ApplyBossSteps(AActor *Boss, int32 NetSteps)
 	Damage.bFromGear = true;
 	Effects->ApplyEffect(Boss, HP);
 	Effects->ApplyEffect(Boss, Damage);
-	if (UCharacterDataComponent *CharComp = Boss->FindComponentByClass<UCharacterDataComponent>())
-	{
-		// Before the fight: the boss starts at its new full HP, like the trial's enemy strength.
-		CharComp->RecomputeMaxPools();
-		CharComp->CurrentHP = CharComp->MaxHP;
-	}
+	SettleHP();
 	UE_LOG(LogWoR, Log, TEXT("[Reaction] %s %s by %.0f%%"), bWeaken ? TEXT("Weaken") : TEXT("Strengthen"), *GetNameSafe(Boss), Percent);
 	return true;
 }
@@ -280,9 +297,10 @@ FString ReactionTriggers::GetTriggerString(const FReactionTrigger &Trigger)
 	{
 		Items.Add(Item ? Item->GetDisplayName() : TEXT("<none>"));
 	}
-	return FString::Printf(TEXT("Reaction %s: wearing [%s] facing %s -> %d effect(s), quest %s, dialogue %s"),
+	return FString::Printf(TEXT("Reaction %s: wearing [%s] facing %s, at %s -> %d effect(s), quest %s, dialogue %s"),
 						   *Trigger.TriggerId.ToString(), *FString::Join(Items, TEXT(", ")),
-						   Trigger.FacingCharacter ? *Trigger.FacingCharacter->Name : TEXT("<none>"), Trigger.Effects.Num(),
+						   Trigger.FacingCharacter ? *Trigger.FacingCharacter->Name : TEXT("<none>"), *Trigger.When.ToString(),
+						   Trigger.Effects.Num(),
 						   *Trigger.QuestId.ToString(), *Trigger.DialogueId.ToString());
 }
 
