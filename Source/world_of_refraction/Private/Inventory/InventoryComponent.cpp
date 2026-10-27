@@ -1034,6 +1034,10 @@ int32 UInventoryComponent::RefreshEvolutionInLoadouts(const FGuid &EvoInstanceID
 
 int32 UInventoryComponent::DetachEvolutionFromOwnedGear(const FGuid &EvoInstanceID)
 {
+    if (!EvoInstanceID.IsValid())
+    {
+        return 0; // built-in evolutions have no instance id and never leave
+    }
     TArray<FGuid> Detached;
     const auto DetachFrom = [&EvoInstanceID, &Detached](auto &Gear)
     {
