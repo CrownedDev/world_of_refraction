@@ -65,6 +65,7 @@
 #include "Skills/Definitions/SupportSkillRules.h"
 #include "GameFramework/Character.h"
 #include "Combat/CombatControl.h"
+#include "Combat/Tuning/CombatTuningData.h"
 
 class UCharacterDataComponent;
 class UCharacterData;
@@ -4659,11 +4660,11 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 		int32 Deficit = Action.SpellData->Requirements.GetTotalDeficit(CharData);
 		if (InfusionLevel == 1)
 		{
-			Deficit += BrokenDarknessConstants::STRAIN_INFUSION_DEFICIT_L1;
+			Deficit += WoRTuning::Get().StrainInfusionDeficitL1;
 		}
 		else if (InfusionLevel >= 2)
 		{
-			Deficit += BrokenDarknessConstants::STRAIN_INFUSION_DEFICIT_L2;
+			Deficit += WoRTuning::Get().StrainInfusionDeficitL2;
 		}
 
 		BDManager->AddStrain(Deficit, TriggerReason);
@@ -4784,14 +4785,14 @@ float UActionExecutor::GetChargeDamageMultiplier(int32 Level, EInfusionMode Mode
 	switch (Mode)
 	{
 	case EInfusionMode::Physical:
-		Base = ChargeBand(Level, InfusionConstants::CHARGE_FOCUS_L1, InfusionConstants::CHARGE_FOCUS_L2);
+		Base = ChargeBand(Level, WoRTuning::Get().ChargeFocusL1, WoRTuning::Get().ChargeFocusL2);
 		break;
 	case EInfusionMode::Status:
-		Base = ChargeBand(Level, InfusionConstants::CHARGE_OFFFOCUS_L1, InfusionConstants::CHARGE_OFFFOCUS_L2);
+		Base = ChargeBand(Level, WoRTuning::Get().ChargeOffFocusL1, WoRTuning::Get().ChargeOffFocusL2);
 		break;
 	case EInfusionMode::Balanced:
 	default:
-		Base = ChargeBand(Level, InfusionConstants::CHARGE_BALANCED_L1, InfusionConstants::CHARGE_BALANCED_L2);
+		Base = ChargeBand(Level, WoRTuning::Get().ChargeBalancedL1, WoRTuning::Get().ChargeBalancedL2);
 		break;
 	}
 
@@ -4812,14 +4813,14 @@ float UActionExecutor::GetChargeStatusMultiplier(int32 Level, EInfusionMode Mode
 	switch (Mode)
 	{
 	case EInfusionMode::Physical:
-		Base = ChargeBand(Level, InfusionConstants::CHARGE_OFFFOCUS_L1, InfusionConstants::CHARGE_OFFFOCUS_L2);
+		Base = ChargeBand(Level, WoRTuning::Get().ChargeOffFocusL1, WoRTuning::Get().ChargeOffFocusL2);
 		break;
 	case EInfusionMode::Status:
-		Base = ChargeBand(Level, InfusionConstants::CHARGE_FOCUS_L1, InfusionConstants::CHARGE_FOCUS_L2);
+		Base = ChargeBand(Level, WoRTuning::Get().ChargeFocusL1, WoRTuning::Get().ChargeFocusL2);
 		break;
 	case EInfusionMode::Balanced:
 	default:
-		Base = ChargeBand(Level, InfusionConstants::CHARGE_BALANCED_L1, InfusionConstants::CHARGE_BALANCED_L2);
+		Base = ChargeBand(Level, WoRTuning::Get().ChargeBalancedL1, WoRTuning::Get().ChargeBalancedL2);
 		break;
 	}
 

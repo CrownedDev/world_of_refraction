@@ -22,6 +22,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
+#include "Combat/Tuning/CombatTuningData.h"
 
 namespace BrokenDarknessConstants
 {
@@ -291,15 +292,15 @@ float UBrokenDarknessManager::ComputeStrainForDeficit(int32 Deficit) const
 	const float DefenceFrac = CharComp->GetEvolutionModifiedFlatDefense();    // [0, 0.5]
 
 	// Power amplifies, control dampens — both clamped (mirrors the durability-wear wrap).
-	const float PowerFactor = FMath::Min(1.0f + SpellDamageFrac, BrokenDarknessConstants::STRAIN_POWER_FACTOR_MAX);
-	const float ControlFactor = FMath::Max(1.0f - DefenceFrac, BrokenDarknessConstants::STRAIN_CONTROL_FACTOR_MIN);
+	const float PowerFactor = FMath::Min(1.0f + SpellDamageFrac, WoRTuning::Get().StrainPowerFactorMax);
+	const float ControlFactor = FMath::Max(1.0f - DefenceFrac, WoRTuning::Get().StrainControlFactorMin);
 
-	const float StrainPerCast = Deficit * BrokenDarknessConstants::STRAIN_PER_DEFICIT_POINT * PowerFactor * ControlFactor;
+	const float StrainPerCast = Deficit * WoRTuning::Get().StrainPerDeficitPoint * PowerFactor * ControlFactor;
 
 	// Min-floor: a real deficit always accrues at least the UNMODULATED single-deficit-point
 	// strain (the flat translation of the old per-cent floor), so control-stacking can't grind
 	// a real deficit's strain below the raw 1-point value.
-	const float MinFloor = BrokenDarknessConstants::STRAIN_PER_DEFICIT_POINT;
+	const float MinFloor = WoRTuning::Get().StrainPerDeficitPoint;
 	return FMath::Max(StrainPerCast, MinFloor);
 }
 
@@ -311,7 +312,7 @@ float UBrokenDarknessManager::GetBreakThreshold() const
 	{
 		return 0.0f;
 	}
-	return static_cast<float>(CharComp->MaxEP) * BrokenDarknessConstants::STRAIN_THRESHOLD_PER_EP;
+	return static_cast<float>(CharComp->MaxEP) * WoRTuning::Get().StrainThresholdPerEP;
 }
 
 void UBrokenDarknessManager::AddStrain(int32 Deficit, const FString &TriggerReason)
@@ -1167,12 +1168,12 @@ void UBrokenDarknessManager::DebugLogStrain() const
 	const FString Name = Owner ? Owner->GetName() : TEXT("?");
 
 	const float Threshold = GetBreakThreshold();
-	const int32 MaxEP = (Threshold > 0.0f && BrokenDarknessConstants::STRAIN_THRESHOLD_PER_EP > 0.0f)
-							? FMath::RoundToInt(Threshold / BrokenDarknessConstants::STRAIN_THRESHOLD_PER_EP)
+	const int32 MaxEP = (Threshold > 0.0f && WoRTuning::Get().StrainThresholdPerEP > 0.0f)
+							? FMath::RoundToInt(Threshold / WoRTuning::Get().StrainThresholdPerEP)
 							: 0;
 
 	UE_LOG(LogTemp, Display, TEXT("=== StrainSnapshot: %s — strain %.1f / %.1f (MaxEP %d x%.1f)%s ==="),
-		   *Name, AccruedStrain, Threshold, MaxEP, BrokenDarknessConstants::STRAIN_THRESHOLD_PER_EP,
+		   *Name, AccruedStrain, Threshold, MaxEP, WoRTuning::Get().StrainThresholdPerEP,
 		   bIsFlipped ? TEXT(" [ALREADY BROKEN — strain inert]") : TEXT(""));
 
 	if (bIsFlipped)
@@ -1191,7 +1192,7 @@ void UBrokenDarknessManager::DebugLogStrain() const
 
 	UE_LOG(LogTemp, Display,
 		   TEXT("  Projected casts-to-break at current stats (infusion adds +%d / +%d deficit → reads as a higher row):"),
-		   BrokenDarknessConstants::STRAIN_INFUSION_DEFICIT_L1, BrokenDarknessConstants::STRAIN_INFUSION_DEFICIT_L2);
+		   WoRTuning::Get().StrainInfusionDeficitL1, WoRTuning::Get().StrainInfusionDeficitL2);
 	UE_LOG(LogTemp, Display, TEXT("  Deficit | strain/cast | casts-to-break"));
 	UE_LOG(LogTemp, Display, TEXT("  --------+-------------+---------------"));
 
