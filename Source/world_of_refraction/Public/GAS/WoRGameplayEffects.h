@@ -282,3 +282,21 @@ class WORLD_OF_REFRACTION_API UWoRGE_StatSources_CritDamage : public UWoRGE_Stat
 public:
 	UWoRGE_StatSources_CritDamage();
 };
+
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_StatSources_Luck : public UWoRGE_StatSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_StatSources_Luck();
+};
+
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_StatSources_Reflex : public UWoRGE_StatSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_StatSources_Reflex();
+};
