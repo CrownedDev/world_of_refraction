@@ -1417,6 +1417,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **What a field hit does: pinned** (Crown, 2026-10-27, to flesh out later). Leaning: **first strike for everyone**, plus, **for elemental classes, an elemental field strike like Expedition 33's**; details to come. Options considered: beat weak enemies outright on the map (Metaphor), first strike only, carry damage/statuses into the fight.
 **Notes for Claude:** built on GAS (stage 4 abilities, B-043): one ability per skill with a battle and a field mode. Open details, asked one at a time: (pinned) what a field hit does to an enemy beyond first strike, which skills get field effects.
 
+### D-100 — What counts as a memory fragment
+**Status:** ANSWERED (2026-10-27; one detail open) · **Raised:** 2026-10-27 (Q-190 review) · **Blocks:** —
+**Answer (Crown):** (2026-10-27) a memory can come from:
+- **Map pickups** (as built, B-190).
+- **B: bosses and mini-bosses**, **depending on the boss**: each boss / mini-boss authors whether it drops a memory and which one.
+- **C: moments**: a reaction trigger (certain gear worn while facing a certain character) or reaching a special spot on the map.
+- **Bound gear carries memories** (D-032 part 3, D-033: "items, gear and dialogue relating to themselves"; "the Garnet Lord carrying a weapon may get a deep memory"): a bound item names one or more memories it unlocks. **Open:** exactly when it unlocks (when found, or when its owner equips it).
+**Notes for Claude:** all sources feed the same `UTrialRunSubsystem::CollectMemory` / journal path (B-190). Boss drops: a memory field on the boss / mini-boss data. Moments: a reaction trigger's result can be "unlock memory X", and a map trigger volume can too. Bound gear: a memory list on the bound item.
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
