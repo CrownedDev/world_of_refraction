@@ -22,7 +22,9 @@ enum class EMemorySource : uint8
 	Boss UMETA(DisplayName = "Boss or mini-boss beaten"),
 	Reaction UMETA(DisplayName = "Reaction trigger"),
 	MapSpot UMETA(DisplayName = "Special spot on the map"),
-	BoundGear UMETA(DisplayName = "Bound gear")
+	BoundGear UMETA(DisplayName = "Bound gear"),
+	/** B-209 (D-100 part 2): a fight won met a memory's unlock conditions. */
+	FightWon UMETA(DisplayName = "Fight won")
 };
 
 /** A lore object read on a trial map (B-194). */
