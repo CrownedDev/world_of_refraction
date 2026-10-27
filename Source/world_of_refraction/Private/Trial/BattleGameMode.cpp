@@ -469,6 +469,7 @@ void ABattleGameMode::CheckFightWonMemories()
     const UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
     if (!TrialRun || !Orchestrator.IsValid())
     {
+        UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] Fight won: no trial run or orchestrator - memory conditions not checked"));
         return;
     }
     FMemoryEvent Event = MemoryConditions::MakeEvent(GetGameInstance(), EMemorySource::FightWon);
@@ -484,10 +485,15 @@ void ABattleGameMode::CheckFightWonMemories()
         if (BossData && BossData->MemoryOnDefeat)
         {
             Event.Named.AddUnique(BossData->MemoryOnDefeat);
-            Event.Source = EMemorySource::Boss;
         }
     }
     Event.bNoDamageTaken = WasPartyUnhurt();
+    // The bosses' own memories first, journalled as from a boss; then every conditional memory
+    // the win meets, as from the fight.
+    FMemoryEvent BossEvent = Event;
+    BossEvent.Source = EMemorySource::Boss;
+    MemoryConditions::CheckEvent(GetGameInstance(), BossEvent, {});
+    Event.Named.Reset();
     MemoryConditions::CheckEvent(GetGameInstance(), Event);
 }
 
