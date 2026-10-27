@@ -83,7 +83,9 @@ void FSaveSpec::Define()
 
 		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
 		Save->HandlePreSave();
-		Save->Data.Party = USaveSubsystem::CaptureParty(Party);
+		Save->Data.Party = USaveSubsystem::CaptureParty(Party, true);
+		TestEqual(TEXT("Without a saved run, no carried HP"),
+				  USaveSubsystem::CaptureParty(Party, false).Members[1].CurrentHP, PartyConstants::NO_CARRIED_VITALS);
 		UWoRSaveGame *Loaded = RoundTrip(Save);
 		UPartySessionSubsystem *PartySession = After.GetSubsystem<UPartySessionSubsystem>();
 		if (!TestNotNull(TEXT("Loaded"), Loaded) || !TestNotNull(TEXT("Party session"), PartySession))
