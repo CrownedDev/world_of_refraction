@@ -2002,6 +2002,37 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it, e.g. to B once the loadout screen exists.
 **Notes for Claude:** applied (feature/B-076-trial-recruits). Trial maps have no recruit spots yet (placing a recruitable pawn in a trial level is editor work): B-215. Until then, `wor.Party.RecruitForRun <CharacterData path>` recruits in a trial. Evolutions for a recruit wait for B with the real screen.
 
+### Q-146 — The stat maths plan: approve it, and where do the tuning numbers live?
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-146) · **Blocks:** — (B-218, B-219 ship with A)
+**Question:** `docs/analysis/StatMathsRedesign.md` maps every stat-maths system to the GAS shape (attributes, modifiers, MMCs for stat-derived bases, one damage and one buildup execution) with the same numbers, in steps: tuning data (B-218), one damage core shared with the AI (B-219), then GAS stage 3 (B-042). Approve it, and where should the ladders and caps live (all C++ `constexpr` today)?
+**Options:**
+- **A** Approve; ladders as curve tables (`FScalableFloat`), single tuning values in one `UCombatTuningData` data asset, read through one accessor that falls back to the C++ value.
+- **B** Approve; keep every number in C++ (`CombatConstants.h` etc.).
+- **C** Change the plan (say what).
+**Recommendation:** A. Curve tables and `FScalableFloat` are Epic's standard for values by level in GAS (GASDocumentation, attribute init and scalable floats), and Lyra keeps its tuning in data assets; designers tune without a rebuild. The C++ fallback means a missing asset can't change the game. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** curve interpolation must be constant (step), not linear; a spec checks every key. Broken Darkness stays custom (D-P01) but reads its rates from the same data.
+
+### Q-146b — Ignore Defense as an amount (D-086): what does it ignore?
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-146, D-086) · **Blocks:** — (B-042 ships with A)
+**Question:** D-086 makes Ignore Defense an amount per skill ("ignores 30% of Defense"), like the deckbuilder's Ignore Defense N, which removes up to N, **the hit's element Resistance first**, then plain Defense (`wor-deckbuilder/docs/reference/04-effects.md`, `IgnoreDefense`). Here Defense and elemental resistance are both percentage reductions. Which does the amount reduce?
+**Options:**
+- **A** Both, like the deckbuilder: the amount scales down the target's **positive** elemental resistance for that hit and its Defense (a 30% ignore keeps 70% of each); weaknesses (negative resistance) are untouched.
+- **B** Defense only (D-086's example wording).
+**Recommendation:** A, the deckbuilder's rule (it comes first where it has one): there, an ignore reaches the element's resistance first. Path of Exile's penetration works the same way on resistances. Weaknesses stay, so ignoring never makes a hit weaker. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B.
+**Notes for Claude:** today's all-or-nothing skills map to 100% (Defense only, as now; resistance didn't touch damage before B-064). Built in the damage execution (B-042).
+
+### Q-146c — Being over a weapon's requirement (D-082): a bonus, or capped at 100%?
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-146, D-082 "to confirm") · **Blocks:** — (B-162 ships with A)
+**Question:** D-082: under a weapon's requirement you don't get its full output (the ±5 requirement-gap ladder). Skills also get the ladder's bonus when you're over their requirement. Does the weapon?
+**Options:**
+- **A** The weapon caps at 100%: under the requirement the ladder's penalty applies, over it nothing extra.
+- **B** The full ladder both ways, as skills do (up to ×1.40 at +5).
+**Recommendation:** A. In Dark Souls and Elden Ring a weapon's requirement only removes a penalty; extra stats help through the weapon's scaling, not the requirement. Here the skill's own requirement and its per-skill stat scaling already reward being over (D-041), so B would pay the same stats twice. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B.
+**Notes for Claude:** B-162 builds it as one more ActionMods source per pillar, clamped at 0% from above. Broken Darkness strain keeps reading the weapon requirement as today.
+
 ### Q-145 — The resistance plan: approve it, and does physical resistance cut physical damage?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-145) · **Blocks:** — (B-216 ships with B)
 **Question:** `docs/analysis/ResistanceRedesign.md` puts resistance in the standard GAS shape: a damage type beside the element (D-037), one resistance attribute per damage type fed by modifiers (class table, gear, buffs), and the damage and buildup calculations reading them, with every buildup number unchanged. One rule isn't settled: D-036 says per-element resistance scales elemental damage, but the class table and gear also carry Slash / Pierce / Impact. Does a physical subtype's resistance scale physical damage?
