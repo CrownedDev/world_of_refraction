@@ -3,6 +3,8 @@
 
 #include "Combat/Damage/DamageCalculator.h"
 #include "Combat/Damage/DamageMath.h"
+#include "Combat/Resistance/EWoRDamageType.h"
+#include "Combat/Resistance/ResistanceQuery.h"
 #include "Combat/CombatConstants.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
@@ -115,6 +117,20 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 			bSkipDefense = DefMgr->HasEffectOfType(Attacker, ESkillEffectType::IgnoreDefense);
 		}
 	}
+	Inputs.bIgnoreDefense = bSkipDefense;
+
+	// Element resistance (D-005 C, D-036): the defender's per-element resistance; Ice resistance
+	// also resists Water (Q-145b). Non-elemental hits read none: physical is Defense only (Q-145).
+	const EWoRDamageType ElementType = WoRDamageType::ElementToDamageType(Input.Element);
+	if (Defender && !Input.bIgnoreResistance && ElementType != EWoRDamageType::None)
+	{
+		Inputs.ElementResistance = WoRResistance::GetTypeResistance(Defender, ElementType);
+		if (ElementType == EWoRDamageType::Water)
+		{
+			Inputs.ElementResistance += WoRResistance::GetTypeResistance(Defender, EWoRDamageType::Ice);
+		}
+	}
+
 	if (!bSkipDefense && Defender)
 	{
 		Inputs.bApplyDefense = true;
@@ -164,8 +180,8 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	// (RequirementGapScaling). CalculateRequirementPenalty has no C++ reader (Blueprint only);
 	// the BD strain gate reads GetTotalDeficit. It is no longer applied to damage.
 
-	// Attacks are physical unless infused. Per locked design, infused attacks
-	// still scale by RawDamage — the element only affects status routing.
+	// Attacks are physical unless infused. Infused attacks still scale by RawDamage; their element
+	// steers status and, since B-064, the defender's element resistance.
 	Input.Element = bIsInfused ? AttackerData->InnateElement : ESpellElement::None;
 
 	Input.bCanCrit = true;
