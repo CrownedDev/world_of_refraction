@@ -4,6 +4,7 @@
 #include "GameplayEffectComponents/AssetTagsGameplayEffectComponent.h"
 #include "GameplayEffectComponents/TargetTagRequirementsGameplayEffectComponent.h"
 #include "GameplayEffectComponents/TargetTagsGameplayEffectComponent.h"
+#include "Character/CharacterDataComponent.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Combat/CombatConstants.h"
 #include "GAS/WoRAttributeSets.h"
@@ -164,6 +165,17 @@ TSubclassOf<UGameplayEffect> UWoRGE_StatSources::GetClassFor(ESubStat Stat)
 	}
 }
 
+TSubclassOf<UGameplayEffect> UWoRGE_StatSources::GetClassFor(EWorldPillar Pillar)
+{
+	switch (Pillar)
+	{
+	case EWorldPillar::Mind: return UWoRGE_StatSources_Mind::StaticClass();
+	case EWorldPillar::Body: return UWoRGE_StatSources_Body::StaticClass();
+	case EWorldPillar::Spirit: return UWoRGE_StatSources_Spirit::StaticClass();
+	default: return nullptr;
+	}
+}
+
 void UWoRGE_StatSources::AddSourceModifiers(const FGameplayAttribute &Attribute)
 {
 	DurationPolicy = EGameplayEffectDurationType::Infinite;
@@ -230,6 +242,21 @@ UWoRGE_StatSources_Reflex::UWoRGE_StatSources_Reflex()
 UWoRGE_StatSources_Efficiency::UWoRGE_StatSources_Efficiency()
 {
 	AddSourceModifiers(UWoRAttributeSet_Stats::GetEfficiencyReductionAttribute());
+}
+
+UWoRGE_StatSources_Mind::UWoRGE_StatSources_Mind()
+{
+	AddSourceModifiers(UWoRAttributeSet_Stats::GetMindAttribute());
+}
+
+UWoRGE_StatSources_Body::UWoRGE_StatSources_Body()
+{
+	AddSourceModifiers(UWoRAttributeSet_Stats::GetBodyAttribute());
+}
+
+UWoRGE_StatSources_Spirit::UWoRGE_StatSources_Spirit()
+{
+	AddSourceModifiers(UWoRAttributeSet_Stats::GetSpiritAttribute());
 }
 
 TSubclassOf<UGameplayEffect> UWoRGE_DerivedStat::GetClassFor(const FGameplayAttribute &Attribute)

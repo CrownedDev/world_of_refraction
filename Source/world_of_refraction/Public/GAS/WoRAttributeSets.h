@@ -13,6 +13,7 @@
 #include "WoRAttributeSets.generated.h"
 
 enum class ESubStat : uint8;
+enum class EWorldPillar : uint8;
 
 #define WOR_ATTRIBUTE_ACCESSORS(ClassName, PropertyName)           \
 	GAMEPLAYATTRIBUTE_PROPERTY_GETTER(ClassName, PropertyName) \
@@ -78,12 +79,16 @@ class WORLD_OF_REFRACTION_API UWoRAttributeSet_Stats : public UAttributeSet
 public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 
-	/** The composed stats (GetComposedStat): each one's compose clamp over its source layers (B-042p, B-042q). */
+	/** The composed stats and pillars: each one's compose clamp over its source layers (B-042p, B-042q, B-042t). */
 	virtual void PreAttributeChange(const FGameplayAttribute &Attribute, float &NewValue) override;
 
 	/** The attributes composed on GAS from a stat-sources effect, with their sub-stat; false for the rest. */
 	static bool GetComposedStat(const FGameplayAttribute &Attribute, ESubStat &OutStat);
 	static TConstArrayView<TPair<ESubStat, FGameplayAttribute>> GetComposedStats();
+
+	/** The pillars, composed on GAS from a pillar-sources effect over their world base (B-042t). */
+	static bool GetComposedPillar(const FGameplayAttribute &Attribute, EWorldPillar &OutPillar);
+	static TConstArrayView<TPair<EWorldPillar, FGameplayAttribute>> GetComposedPillars();
 
 	UPROPERTY(BlueprintReadOnly, Category = "Pillars", ReplicatedUsing = OnRep_Mind)
 	FGameplayAttributeData Mind;
