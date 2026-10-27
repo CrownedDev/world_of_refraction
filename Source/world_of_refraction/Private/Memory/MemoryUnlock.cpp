@@ -76,13 +76,18 @@ bool MemoryUnlock::Unlock(UGameInstance *GameInstance, UMemoryData *Memory, EMem
 {
 	UTrialRunSubsystem *TrialRun = GameInstance ? GameInstance->GetSubsystem<UTrialRunSubsystem>() : nullptr;
 	UMemoryJournalSubsystem *Journal = GameInstance ? GameInstance->GetSubsystem<UMemoryJournalSubsystem>() : nullptr;
-	if (!Memory || !TrialRun || !Journal)
+	if (!Memory || !TrialRun || !Journal || Journal->HasMemory(Memory))
 	{
 		return false;
 	}
-	const bool bNewInRun = TrialRun->CollectMemory(Memory);
-	const bool bNewInJournal = Journal->RecordMemory(Memory, Source);
-	return bNewInRun || bNewInJournal;
+	TrialRun->CollectMemory(Memory);
+	return Journal->RecordMemory(Memory, Source);
+}
+
+bool MemoryUnlock::IsCollected(const UGameInstance *GameInstance, const UMemoryData *Memory)
+{
+	const UMemoryJournalSubsystem *Journal = GameInstance ? GameInstance->GetSubsystem<UMemoryJournalSubsystem>() : nullptr;
+	return Journal && Memory && Journal->HasMemory(Memory);
 }
 
 bool MemoryUnlock::UnlockBossDrop(UGameInstance *GameInstance, const UBossData *BossData)

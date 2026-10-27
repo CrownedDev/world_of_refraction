@@ -186,6 +186,27 @@ void FMemorySourcesSpec::Define()
 		TestEqual(TEXT("Levelled owned copy counts"), MemoryUnlock::UnlockAtFightStart(GameInstance, {}, {Wearer}, {}), 1);
 	});
 
+	It("grants no memory already in the journal again, from any source", [this]()
+	{
+		Journal->RecordMemory(Memory, EMemorySource::Fragment);
+		UBossData *Boss = NewObject<UBossData>(GetTransientPackage());
+		Boss->MemoryOnDefeat = Memory;
+		TestFalse(TEXT("Boss: not again"), MemoryUnlock::UnlockBossDrop(GameInstance, Boss));
+		TestFalse(TEXT("Level-up: not again"), MemoryUnlock::Unlock(GameInstance, Memory, EMemorySource::BoundGear));
+		TestTrue(TEXT("Collected"), MemoryUnlock::IsCollected(GameInstance, Memory));
+		TestFalse(TEXT("Not added to this run"), TrialRun->GetRunMemories().Contains(Memory));
+		TestEqual(TEXT("Keeps its first source"), Journal->GetSource(Memory), TOptional<EMemorySource>(EMemorySource::Fragment));
+
+		AMemorySpot *Spot = TestWorld->GetWorld()->SpawnActor<AMemorySpot>(FVector::ZeroVector, FRotator::ZeroRotator);
+		if (!TestNotNull(TEXT("Spot"), Spot))
+		{
+			return;
+		}
+		Spot->Memory = Memory;
+		TestFalse(TEXT("Spot: not again"), Spot->Reach());
+		TestFalse(TEXT("Spot not recorded as found"), TrialRun->HasFound(Spot->GetFeatureId()));
+	});
+
 	It("unlocks a map spot's memory once per run", [this]()
 	{
 		AMemorySpot *Spot = TestWorld->GetWorld()->SpawnActor<AMemorySpot>(FVector::ZeroVector, FRotator::ZeroRotator);

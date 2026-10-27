@@ -24,9 +24,10 @@ void AMemorySpot::BeginPlay()
 {
 	Super::BeginPlay();
 	InteractionTrigger->OnComponentBeginOverlap.AddDynamic(this, &AMemorySpot::OnSpotBeginOverlap);
-	// The trial level reloads after each fight; a spot reached earlier this run stays spent.
+	// The trial level reloads after each fight; a spot reached earlier this run stays spent, and
+	// one whose memory is already collected is spent for good (B-210).
 	const UTrialRunSubsystem *TrialRun = GetTrialRun();
-	if (TrialRun && TrialRun->HasFound(GetFeatureId()))
+	if ((TrialRun && TrialRun->HasFound(GetFeatureId())) || MemoryUnlock::IsCollected(GetGameInstance(), Memory))
 	{
 		Spend();
 	}
@@ -48,6 +49,11 @@ bool AMemorySpot::Reach()
 	if (!Memory)
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[MemorySpot] %s has no Memory set - spent"), *GetName());
+		Spend();
+		return false;
+	}
+	if (MemoryUnlock::IsCollected(GameInstance, Memory))
+	{
 		Spend();
 		return false;
 	}
