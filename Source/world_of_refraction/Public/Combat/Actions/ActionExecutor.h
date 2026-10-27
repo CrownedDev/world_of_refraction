@@ -81,6 +81,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionCompleted, AActor *, Execu
 /** Broadcast when damage is dealt (for floating numbers, hit effects) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDamageDealt, AActor *, Attacker, AActor *, Target, int32, Damage, bool, bCritical);
 
+/** OnDamageDealt plus the hit's element (B-064), so damage numbers can tint by element. Fires right
+ *  after OnDamageDealt for the same hit; None = non-elemental. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnElementDamageDealt, AActor *, Attacker, AActor *, Target, int32, Damage,
+											  bool, bCritical, ESpellElement, Element);
+
 /** Broadcast when healing is done */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnHealingDone, AActor *, Healer, AActor *, Target, int32, Amount);
 
@@ -408,6 +413,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
 	FOnDamageDealt OnDamageDealt;
+
+	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
+	FOnElementDamageDealt OnElementDamageDealt;
 
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
 	FOnHealingDone OnHealingDone;

@@ -3139,6 +3139,7 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 		// ApplyHit preserves the per-hit broadcast so floating-number widgets,
 		// hit-flash VFX, and any other listener see one event per hit landed.
 		OnDamageDealt.Broadcast(Input.Attacker, Input.Target, Result.DamageDealt, Result.bWasCritical);
+		OnElementDamageDealt.Broadcast(Input.Attacker, Input.Target, Result.DamageDealt, Result.bWasCritical, Input.Element);
 
 		// DoubleHit — re-run ApplyHit once more at 50% damage when the attacker
 		// has the effect. bIsDoubleHit guards against infinite recursion (second
@@ -3246,6 +3247,7 @@ FCombatHitResult UActionExecutor::ApplyDamage(
 
 	// Broadcast damage event
 	OnDamageDealt.Broadcast(Attacker, Target, Result.DamageDealt, Result.bWasCritical);
+	OnElementDamageDealt.Broadcast(Attacker, Target, Result.DamageDealt, Result.bWasCritical, Element);
 
 	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] %s dealt %d damage to %s%s"),
 		   Attacker ? *Attacker->GetName() : TEXT("Unknown"),
