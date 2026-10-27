@@ -56,6 +56,12 @@ struct WORLD_OF_REFRACTION_API FDamageMathInputs
 	float CritDamageMultiplier = 1.0f;
 
 	// ---- Defender ----
+	/** The defender's resistance to the hit's element (fraction, + resists, - weak; uncapped).
+	 *  0 for non-elemental hits (D-005, D-036, Q-145). */
+	float ElementResistance = 0.0f;
+	/** Ignore Defense (input flag or the attacker's effect): also ignores positive element
+	 *  resistance (Q-146b, all-or-nothing today). */
+	bool bIgnoreDefense = false;
 	bool bApplyDefense = false;
 	/** GetDefenderFlatDefense: a reduction fraction. */
 	float DefenderDefense = 0.0f;
@@ -65,6 +71,13 @@ struct WORLD_OF_REFRACTION_API FDamageMathInputs
 
 namespace WoRDamageMath
 {
+	/** Element resistance scales elemental damage 1:1 up to this, either way (D-036). */
+	constexpr float ELEMENT_DAMAGE_RESIST_CAP = 0.5f;
+
+	/** The element step's multiplier: 1 - resistance, resistance capped at +-ELEMENT_DAMAGE_RESIST_CAP,
+	 *  positive resistance ignored under Ignore Defense. */
+	WORLD_OF_REFRACTION_API float GetElementMultiplier(float ElementResistance, bool bIgnoreDefense);
+
 	/** The damage for Inputs. No actor, subsystem or random reads. */
 	WORLD_OF_REFRACTION_API FDamageCalculationResult Compute(const FDamageMathInputs &Inputs);
 
