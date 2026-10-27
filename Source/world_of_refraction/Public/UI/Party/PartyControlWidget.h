@@ -96,4 +96,8 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> RepairGearText;
+
+	/** B-091 (Q-091): shared gear another member wears, taken out of a loadout. */
+	UPROPERTY()
+	TObjectPtr<UTextBlock> GearClashText;
 };

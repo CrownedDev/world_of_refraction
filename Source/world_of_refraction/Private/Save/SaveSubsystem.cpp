@@ -391,6 +391,11 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 			Out.Count = Stack.Value;
 		}
 	}
+	for (const TPair<FGuid, FName> &Worn : Pool.GetWearers())
+	{
+		Saved.Wearers.Add({Worn.Key, Worn.Value});
+	}
+	Saved.BankedCharacters = Pool.GetBankedCharacters().Array();
 	return Saved;
 }
 
@@ -579,6 +584,12 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		Pool.AddCrystalToPool(Id, In.Count);
 		++Restored;
 	}
+	TMap<FGuid, FName> Wearers;
+	for (const FSavedWearer &Worn : Saved.Wearers)
+	{
+		Wearers.Add(Worn.GearID, Worn.Character);
+	}
+	Pool.RestoreSharedGear(Wearers, Saved.BankedCharacters);
 	if (Restored > 0)
 	{
 		Pool.MarkPopulated();

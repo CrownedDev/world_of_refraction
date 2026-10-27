@@ -57,6 +57,8 @@ void UCharacterDataComponent::BeginPlay()
             if (Inventory)
             {
                 Inventory->InitializeFromCharacterData(CharacterData);
+                // B-091 (D-020): a party member's gear is the party's shared armoury.
+                Inventory->DrawSharedGear();
             }
             if (Loadout && Inventory)
             {

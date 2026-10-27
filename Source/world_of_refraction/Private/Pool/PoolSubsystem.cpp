@@ -8,6 +8,7 @@
 #include "Equipment/Crystals/CrystalTypeHelpers.h" // IsGemType — item/refined gem/stone dispatch
 #include "Inventory/ItemTier.h"             // TierHelpers::GetTierName
 #include "Engine/Engine.h"                  // GEngine on-screen debug
+#include "Misc/Paths.h"                     // FPaths::GetBaseFilename for the wearer dump
 
 // --- Populate (authored → pool): the asset + the factories/types the populate dereferences ---
 #include "Inventory/InventoryData.h"               // UInventoryData (the authored source)
@@ -87,6 +88,135 @@ const FEvolutionInventoryEntry *UPoolSubsystem::FindEvolutionInPool(const FGuid 
 {
     return OwnedEvolutions.FindByPredicate(
         [&InstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == InstanceID; });
+}
+
+// ==================== SHARED GEAR (B-091) ====================
+
+FName UPoolSubsystem::GetCharacterKey(const UCharacterData *CharacterData)
+{
+    return CharacterData ? FName(*CharacterData->GetPathName()) : NAME_None;
+}
+
+bool UPoolSubsystem::BankStartingGear(FName CharacterKey, const TArray<FWeaponInventoryEntry> &Weapons,
+                                      const TArray<FRingInventoryEntry> &Rings,
+                                      const TArray<FEvolutionInventoryEntry> &Evolutions)
+{
+    if (CharacterKey.IsNone() || BankedCharacters.Contains(CharacterKey))
+    {
+        return false;
+    }
+    BankedCharacters.Add(CharacterKey);
+    for (const FWeaponInventoryEntry &Entry : Weapons)
+    {
+        UpdateWeapon(Entry);
+    }
+    for (const FRingInventoryEntry &Entry : Rings)
+    {
+        UpdateRing(Entry);
+    }
+    for (const FEvolutionInventoryEntry &Entry : Evolutions)
+    {
+        UpdateEvolution(Entry);
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Banked %s's starting gear: %d weapon(s), %d ring(s), %d evolution(s)"),
+           *CharacterKey.ToString(), Weapons.Num(), Rings.Num(), Evolutions.Num());
+    return true;
+}
+
+void UPoolSubsystem::UpdateWeapon(const FWeaponInventoryEntry &Entry)
+{
+    if (!Entry.PersistentID.IsValid())
+    {
+        return;
+    }
+    if (FWeaponInventoryEntry *Existing = FindWeaponInPool(Entry.PersistentID))
+    {
+        *Existing = Entry;
+    }
+    else
+    {
+        AddWeaponToPool(Entry);
+    }
+    OnPoolGearChanged.Broadcast(Entry.PersistentID);
+}
+
+void UPoolSubsystem::UpdateRing(const FRingInventoryEntry &Entry)
+{
+    if (!Entry.PersistentID.IsValid())
+    {
+        return;
+    }
+    if (FRingInventoryEntry *Existing = FindRingInPool(Entry.PersistentID))
+    {
+        *Existing = Entry;
+    }
+    else
+    {
+        AddRingToPool(Entry);
+    }
+    OnPoolGearChanged.Broadcast(Entry.PersistentID);
+}
+
+void UPoolSubsystem::UpdateEvolution(const FEvolutionInventoryEntry &Entry)
+{
+    if (!Entry.InstanceID.IsValid())
+    {
+        return;
+    }
+    if (FEvolutionInventoryEntry *Existing = FindEvolutionInPool(Entry.InstanceID))
+    {
+        *Existing = Entry;
+    }
+    else
+    {
+        AddEvolutionToPool(Entry);
+    }
+    OnPoolGearChanged.Broadcast(Entry.InstanceID);
+}
+
+void UPoolSubsystem::RemoveGear(const FGuid &GearID)
+{
+    const auto MatchesWeapon = [&GearID](const FWeaponInventoryEntry &E) { return E.PersistentID == GearID; };
+    const auto MatchesRing = [&GearID](const FRingInventoryEntry &E) { return E.PersistentID == GearID; };
+    const auto MatchesEvolution = [&GearID](const FEvolutionInventoryEntry &E) { return E.InstanceID == GearID; };
+    const int32 Removed = OwnedWeapons.RemoveAll(MatchesWeapon) + OwnedRings.RemoveAll(MatchesRing) +
+                          OwnedEvolutions.RemoveAll(MatchesEvolution);
+    Wearers.Remove(GearID);
+    if (Removed > 0)
+    {
+        OnPoolGearChanged.Broadcast(GearID);
+    }
+}
+
+FName UPoolSubsystem::GetWearer(const FGuid &GearID) const
+{
+    const FName *Wearer = Wearers.Find(GearID);
+    return Wearer ? *Wearer : NAME_None;
+}
+
+void UPoolSubsystem::SetWearer(const FGuid &GearID, FName CharacterKey)
+{
+    if (GearID.IsValid() && !CharacterKey.IsNone())
+    {
+        Wearers.Add(GearID, CharacterKey);
+    }
+}
+
+void UPoolSubsystem::ReleaseWearer(const FGuid &GearID)
+{
+    Wearers.Remove(GearID);
+}
+
+void UPoolSubsystem::NoteClashes(FName LoserKey, const TArray<FPoolGearClash> &NewClashes)
+{
+    Clashes.RemoveAll([LoserKey](const FPoolGearClash &Clash) { return Clash.LoserKey == LoserKey; });
+    Clashes.Append(NewClashes);
+}
+
+void UPoolSubsystem::RestoreSharedGear(const TMap<FGuid, FName> &InWearers, const TArray<FName> &InBanked)
+{
+    Wearers = InWearers;
+    BankedCharacters = TSet<FName>(InBanked);
 }
 
 // ==================== KNOWLEDGE ====================
@@ -356,6 +486,18 @@ FString UPoolSubsystem::GetPoolString() const
     FString Out = TEXT("[Pool]");
     Out += FString::Printf(TEXT("\n  Armoury  : Weapons=%d Rings=%d Evolutions=%d"),
                            OwnedWeapons.Num(), OwnedRings.Num(), OwnedEvolutions.Num());
+    Out += FString::Printf(TEXT("\n  Shared gear (B-091): %d worn, %d character(s) banked, %d clash(es)"),
+                           Wearers.Num(), BankedCharacters.Num(), Clashes.Num());
+    for (const TPair<FGuid, FName> &Worn : Wearers)
+    {
+        Out += FString::Printf(TEXT("\n    %s worn by %s"), *Worn.Key.ToString(EGuidFormats::Short),
+                               *FPaths::GetBaseFilename(Worn.Value.ToString()));
+    }
+    for (const FPoolGearClash &Clash : Clashes)
+    {
+        Out += FString::Printf(TEXT("\n    CLASH: %s worn by %s, taken out of %s's loadout"), *Clash.ItemName.ToString(),
+                               *Clash.WearerName.ToString(), *Clash.LoserName.ToString());
+    }
     Out += FString::Printf(TEXT("\n  Knowledge: Spells=%d Abilities=%d"),
                            OwnedSpells.Num(), OwnedAbilities.Num());
     Out += FString::Printf(TEXT("\n  Items    : Crystals=%d (%d), Stones=%d (%d)  [stacks (total)]"),

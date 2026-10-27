@@ -18,6 +18,7 @@
 #include "Currency/CurrencyComponent.h"
 #include "Equipment/Durability/GearRepair.h"
 #include "Player/WoRPlayerState.h"
+#include "Pool/PoolSubsystem.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
 
@@ -119,6 +120,15 @@ TSharedRef<SWidget> UPartyControlWidget::RebuildWidget()
 		RepairGearText = PartyControlBuild::AddButton(WidgetTree, Box, RepairButton);
 		RepairButton->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleRepairGearClicked);
 
+		GearClashText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("GearClashes"));
+		FSlateFontInfo ClashFont = GearClashText->GetFont();
+		ClashFont.Size = PartyControlStyle::FontSize;
+		GearClashText->SetFont(ClashFont);
+		if (UVerticalBoxSlot *ClashSlot = Box->AddChildToVerticalBox(GearClashText))
+		{
+			ClashSlot->SetPadding(FMargin(PartyControlStyle::RowPadding));
+		}
+
 		UButton *CloseButton = nullptr;
 		PartyControlBuild::AddButton(WidgetTree, Box, CloseButton)->SetText(LOCTEXT("Close", "Close"));
 		CloseButton->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleCloseClicked);
@@ -198,6 +208,21 @@ void UPartyControlWidget::Refresh()
 									? FText::Format(LOCTEXT("RepairGear", "Rest: repair gear ({0} Gold)"), RepairGold)
 									: LOCTEXT("NothingToRepair", "Rest: no gear to repair"));
 	}
+
+	if (GearClashText)
+	{
+		const UGameInstance *GI = GetGameInstance();
+		const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+		TArray<FText> Lines;
+		for (const FPoolGearClash &Clash : Pool ? Pool->GetClashes() : TArray<FPoolGearClash>())
+		{
+			Lines.Add(FText::Format(LOCTEXT("GearClashRow", "{0} is worn by {1}: taken out of {2}'s loadout"),
+									Clash.ItemName, Clash.WearerName, Clash.LoserName));
+		}
+		GearClashText->SetText(Lines.Num() > 0
+								   ? FText::Join(FText::FromString(TEXT("\n")), Lines)
+								   : LOCTEXT("NoGearClash", "Shared gear: each piece has one wearer"));
+	}
 }
 
 FString UPartyControlWidget::GetPartyControlString() const
@@ -224,6 +249,10 @@ FString UPartyControlWidget::GetPartyControlString() const
 	if (RepairGearText)
 	{
 		Out += TEXT("\n  ") + RepairGearText->GetText().ToString();
+	}
+	if (GearClashText)
+	{
+		Out += TEXT("\n  ") + GearClashText->GetText().ToString();
 	}
 	return Out;
 }

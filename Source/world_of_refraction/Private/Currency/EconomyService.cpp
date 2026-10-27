@@ -1064,7 +1064,8 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
             {
                 if (UEvolutionItemData *Ev = Cast<UEvolutionItemData>(E.Asset))
                 {
-                    if (!EvolutionInv->AddInstance(Ev)) // EvolutionInv non-null: guaranteed by the demand check
+                    // Through the inventory, so a party member's purchase reaches the shared armoury (B-091).
+                    if (!Inv->AddEvolutionInstance(Ev)) // EvolutionInv non-null: guaranteed by the demand check
                     {
                         bGrantOk = false;
                         FailName = Ev->GetName();

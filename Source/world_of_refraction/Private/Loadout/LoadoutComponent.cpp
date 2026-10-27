@@ -210,6 +210,7 @@ bool ULoadoutComponent::SetActiveLoadoutIndex(int32 Index)
         Inv->WriteLoadoutToOwned(Inv->ActiveLoadoutIndex);
     }
     Inv->ActiveLoadoutIndex = Index;
+    ClaimSharedGear();
     bIsReadyForBattle = false; // local field, stays
     OnLoadoutChanged.Broadcast(Index); // local delegate, broadcast preserved
 
@@ -1381,6 +1382,24 @@ void ULoadoutComponent::DropInvalidPartsFromAllLoadouts()
     }
 }
 
+void ULoadoutComponent::ClaimSharedGear()
+{
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv || !Inv->DrawsSharedGear())
+    {
+        return;
+    }
+    TArray<FText> Messages;
+    for (const FText &Taken : Inv->ClaimActiveSharedGear())
+    {
+        Messages.Add(FText::Format(LOCTEXT("SharedGearTaken", "Removed: {0}"), Taken));
+    }
+    if (Messages.Num() > 0)
+    {
+        OnPartsDropped.Broadcast(Inv->ActiveLoadoutIndex, Messages);
+    }
+}
+
 void ULoadoutComponent::AnnounceDroppedParts(int32 LoadoutIndex, const TArray<FInvalidSlotFinding> &Dropped)
 {
     if (Dropped.Num() == 0)
@@ -1782,6 +1801,9 @@ bool ULoadoutComponent::PrepareForBattle(UInventoryComponent *Inventory)
         UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] PrepareForBattle called before initialization"));
         return false;
     }
+
+    // B-091: a piece another party member wears leaves this loadout before the fight.
+    ClaimSharedGear();
 
     // Soft-fail: ValidateActiveLoadout broadcasts OnValidationFailed for each
     // error but its return value is intentionally ignored. Combat proceeds
