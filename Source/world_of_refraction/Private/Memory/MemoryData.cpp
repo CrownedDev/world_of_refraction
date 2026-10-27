@@ -89,12 +89,27 @@ FString UMemoryData::GetConditionString(const FMemoryCondition &Condition)
 {
 	const auto NameOf = [](const UObject *Object) { return Object ? Object->GetName() : FString(TEXT("<none>")); };
 	const FString Whose = Condition.Character ? NameOf(Condition.Character) : FString(TEXT("anyone"));
+	FString Fit;
+	switch (Condition.RequirementFit)
+	{
+	case EMemoryRequirementFit::Any:
+		break;
+	case EMemoryRequirementFit::Met:
+		Fit = TEXT(", meeting its requirements");
+		break;
+	case EMemoryRequirementFit::Above:
+		Fit = FString::Printf(TEXT(", %d over its requirements"), Condition.RequirementMargin);
+		break;
+	case EMemoryRequirementFit::Under:
+		Fit = FString::Printf(TEXT(", %d under its requirements"), FMath::Max(Condition.RequirementMargin, 1));
+		break;
+	}
 	switch (Condition.Kind)
 	{
 	case EMemoryConditionKind::Character:
 		return FString::Printf(TEXT("%s in the party"), *NameOf(Condition.Character));
 	case EMemoryConditionKind::GearEquipped:
-		return FString::Printf(TEXT("%s worn by %s at +%d"), *NameOf(Condition.Item), *Whose, Condition.UpgradeLevel);
+		return FString::Printf(TEXT("%s worn by %s at +%d%s"), *NameOf(Condition.Item), *Whose, Condition.UpgradeLevel, *Fit);
 	case EMemoryConditionKind::Location:
 		return FString::Printf(TEXT("at %s"), *Condition.LocationId.ToString());
 	case EMemoryConditionKind::EnemyBeaten:
@@ -106,9 +121,9 @@ FString UMemoryData::GetConditionString(const FMemoryCondition &Condition)
 	case EMemoryConditionKind::Hidden:
 		return TEXT("hidden (not built)");
 	case EMemoryConditionKind::EvolutionEquipped:
-		return FString::Printf(TEXT("%s equipped by %s at +%d"), *NameOf(Condition.Evolution), *Whose, Condition.UpgradeLevel);
+		return FString::Printf(TEXT("%s equipped by %s at +%d%s"), *NameOf(Condition.Evolution), *Whose, Condition.UpgradeLevel, *Fit);
 	case EMemoryConditionKind::SkillSlotted:
-		return FString::Printf(TEXT("%s slotted by %s"), *NameOf(Condition.Skill), *Whose);
+		return FString::Printf(TEXT("%s slotted by %s%s"), *NameOf(Condition.Skill), *Whose, *Fit);
 	case EMemoryConditionKind::SkillUsed:
 		return FString::Printf(TEXT("%s used by %s"), *NameOf(Condition.Skill), *Whose);
 	case EMemoryConditionKind::BreakthroughUsed:

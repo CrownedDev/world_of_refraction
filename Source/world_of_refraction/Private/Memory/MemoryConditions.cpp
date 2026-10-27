@@ -3,7 +3,9 @@
 #include "Memory/MemoryConditions.h"
 
 #include "Algo/AllOf.h"
+#include "Algo/AnyOf.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Actions/ActionStructs.h"
 #include "Engine/GameInstance.h"
@@ -32,6 +34,18 @@ namespace
 		return Event.Party.ContainsByPredicate([Character](const FMemoryEventMember &Member) { return Member.Character == Character; });
 	}
 
+	/** A level-up's wearer can be Condition.Character: whoever levelled it, or (unknown) anyone in the party. */
+	bool IsUpgradedBy(const FMemoryCondition &Condition, const FMemoryEvent &Event)
+	{
+		return !Condition.Character || (Event.UpgradedBy ? Event.UpgradedBy == Condition.Character : IsInParty(Condition.Character, Event));
+	}
+
+	/** Who levelled it, as far as requirements go (unknown and no character named: null). */
+	const UCharacterData *GetUpgrader(const FMemoryCondition &Condition, const FMemoryEvent &Event)
+	{
+		return Event.UpgradedBy ? Event.UpgradedBy : Condition.Character.Get();
+	}
+
 	bool IsGearMet(const FMemoryCondition &Condition, const FMemoryEvent &Event)
 	{
 		if (!Condition.Item)
@@ -50,7 +64,8 @@ namespace
 			}
 			for (const TPair<const UEquipmentDataBase *, EItemTier> &Worn : Member.Worn)
 			{
-				if (Worn.Key == Condition.Item && IsLevelled(Worn.Value))
+				if (Worn.Key == Condition.Item && IsLevelled(Worn.Value) &&
+					MemoryConditions::FitsRequirements(Condition, &Condition.Item->Requirements, Member.Character))
 				{
 					return true;
 				}
@@ -58,11 +73,8 @@ namespace
 		}
 		// A gear upgrade: the levelled item counts as worn by whoever levelled it (unknown: anyone in
 		// the party).
-		if (Event.UpgradedItem != Condition.Item || !IsLevelled(Event.UpgradedTier) || !Condition.Character)
-		{
-			return Event.UpgradedItem == Condition.Item && IsLevelled(Event.UpgradedTier);
-		}
-		return Event.UpgradedBy ? Event.UpgradedBy == Condition.Character : IsInParty(Condition.Character, Event);
+		return Event.UpgradedItem == Condition.Item && IsLevelled(Event.UpgradedTier) && IsUpgradedBy(Condition, Event) &&
+			   MemoryConditions::FitsRequirements(Condition, &Condition.Item->Requirements, GetUpgrader(Condition, Event));
 	}
 
 	/** Some party member (Condition.Character when set) satisfies Holds. */
@@ -87,7 +99,8 @@ namespace
 		};
 		if (AnyMember(Condition, Event, [&](const FMemoryEventMember &Member)
 		{
-			return Member.Evolution == Condition.Evolution && IsLevelled(Member.EvolutionTier);
+			return Member.Evolution == Condition.Evolution && IsLevelled(Member.EvolutionTier) &&
+				   MemoryConditions::FitsRequirements(Condition, nullptr, Member.Character);
 		}))
 		{
 			return true;
@@ -97,7 +110,7 @@ namespace
 		{
 			return false;
 		}
-		return !Condition.Character || (Event.UpgradedBy ? Event.UpgradedBy == Condition.Character : IsInParty(Condition.Character, Event));
+		return IsUpgradedBy(Condition, Event) && MemoryConditions::FitsRequirements(Condition, nullptr, GetUpgrader(Condition, Event));
 	}
 
 	/** The evolution in Actor's primary slot and its level: the owned entry's, since a level-up
@@ -222,7 +235,10 @@ bool MemoryConditions::IsMet(const FMemoryCondition &Condition, const FMemoryEve
 	case EMemoryConditionKind::EvolutionEquipped:
 		return IsEvolutionMet(Condition, Event);
 	case EMemoryConditionKind::SkillSlotted:
-		return Condition.Skill && AnyMember(Condition, Event, [&](const FMemoryEventMember &Member) { return Member.Slotted.Contains(Condition.Skill.Get()); });
+		return Condition.Skill && AnyMember(Condition, Event, [&](const FMemoryEventMember &Member)
+		{
+			return Member.Slotted.Contains(Condition.Skill.Get()) && FitsRequirements(Condition, &Condition.Skill->Requirements, Member.Character);
+		});
 	case EMemoryConditionKind::SkillUsed:
 		return Condition.Skill && AnyMember(Condition, Event, [&](const FMemoryEventMember &Member) { return Member.Used.Skills.Contains(Condition.Skill.Get()); });
 	case EMemoryConditionKind::BreakthroughUsed:
@@ -231,6 +247,45 @@ bool MemoryConditions::IsMet(const FMemoryCondition &Condition, const FMemoryEve
 	case EMemoryConditionKind::FinishingBlow:
 		return Condition.Item &&
 			   AnyMember(Condition, Event, [&](const FMemoryEventMember &Member) { return Member.Used.FinishingWeapons.Contains(Condition.Item.Get()); });
+	}
+	return false;
+}
+
+bool MemoryConditions::FitsRequirements(const FMemoryCondition &Condition, const FWorldStatRequirements *Requirements,
+										 const UCharacterData *Wearer)
+{
+	if (Condition.RequirementFit == EMemoryRequirementFit::Any)
+	{
+		return true;
+	}
+	if (!Wearer)
+	{
+		return false;
+	}
+	if (!Requirements || !Requirements->HasRequirements())
+	{
+		return Condition.RequirementFit == EMemoryRequirementFit::Met;
+	}
+	// Per pillar: the wearer's world level, and what is required.
+	const TPair<int32, int32> Pillars[] = {{Wearer->WorldMindLevel, Requirements->RequiredWorldMind},
+										   {Wearer->WorldBodyLevel, Requirements->RequiredWorldBody},
+										   {Wearer->WorldSpiritLevel, Requirements->RequiredWorldSpirit}};
+	switch (Condition.RequirementFit)
+	{
+	case EMemoryRequirementFit::Any:
+		return true;
+	case EMemoryRequirementFit::Met:
+		return Requirements->MeetsRequirements(Wearer);
+	case EMemoryRequirementFit::Above:
+		return Requirements->MeetsRequirements(Wearer) && Algo::AllOf(Pillars, [&Condition](const TPair<int32, int32> &Pillar)
+		{
+			return Pillar.Value == 0 || Pillar.Key - Pillar.Value >= Condition.RequirementMargin;
+		});
+	case EMemoryRequirementFit::Under:
+	{
+		const int32 Short = FMath::Max(Condition.RequirementMargin, 1);
+		return Algo::AnyOf(Pillars, [Short](const TPair<int32, int32> &Pillar) { return Pillar.Value - Pillar.Key >= Short; });
+	}
 	}
 	return false;
 }

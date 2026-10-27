@@ -81,6 +81,20 @@ enum class EMemoryConditionKind : uint8
 	FinishingBlow
 };
 
+/** Q-209e: the wearer against what an equipped item or skill requires, per pillar. */
+UENUM(BlueprintType)
+enum class EMemoryRequirementFit : uint8
+{
+	/** Requirements don't matter. */
+	Any,
+	/** Every pillar meets them. */
+	Met,
+	/** Met, and every pillar asked for is RequirementMargin or more over. */
+	Above,
+	/** Some pillar is RequirementMargin (at least 1) or more short. */
+	Under
+};
+
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FMemoryCondition
 {
@@ -105,6 +119,15 @@ struct WORLD_OF_REFRACTION_API FMemoryCondition
 	/** GearEquipped / EvolutionEquipped: tiers above the authored tier. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory", meta = (ClampMin = "0"))
 	int32 UpgradeLevel = 0;
+
+	/** GearEquipped / EvolutionEquipped / SkillSlotted: the wearer against its requirements
+	 *  (evolutions have none: always Met). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
+	EMemoryRequirementFit RequirementFit = EMemoryRequirementFit::Any;
+
+	/** Above / Under: by how many levels on a pillar. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory", meta = (ClampMin = "0"))
+	int32 RequirementMargin = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
 	FName LocationId;

@@ -2,7 +2,8 @@
 // B-209 (D-100 part 2, Q-209b): a memory unlocks when every unlock condition holds at an event:
 // one spec per condition kind, a two-memory chain in one event, a source's own memory, once only;
 // Q-209c: alternative condition sets (any one opens it) and rewards (logged on unlock);
-// Q-209d: evolutions and skills equipped, slotted and used, and a fight's usage record.
+// Q-209d: evolutions and skills equipped, slotted and used, and a fight's usage record;
+// Q-209e: equipped while meeting, over or under the requirements.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -327,6 +328,51 @@ void FMemoryConditionsSpec::Define()
 		const FMemoryEventMember Member = MemoryConditions::MakeMember(Actor);
 		TestEqual(TEXT("Its primary-slot evolution"), Member.Evolution, static_cast<const UEvolutionItemData *>(Evolution));
 		TestEqual(TEXT("At its level"), Member.EvolutionTier, Active.PrimaryEvolution.Tier);
+	});
+
+	It("measures an equip condition against its requirements", [this]()
+	{
+		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
+		Weapon->Requirements.RequiredWorldMind = 3;
+		FMemoryCondition Gear = Condition(EMemoryConditionKind::GearEquipped);
+		Gear.Item = Weapon;
+		Lord->WorldMindLevel = 1;
+		FMemoryEvent Event = EventWithLord();
+		Event.Party[0].Worn.Add({Weapon, Weapon->Tier});
+		TestTrue(TEXT("Any: requirements don't matter"), MemoryConditions::IsMet(Gear, Event, Journal));
+		Gear.RequirementFit = EMemoryRequirementFit::Met;
+		TestFalse(TEXT("Two short: not met"), MemoryConditions::IsMet(Gear, Event, Journal));
+		Gear.RequirementFit = EMemoryRequirementFit::Under;
+		Gear.RequirementMargin = 2;
+		TestTrue(TEXT("Two under"), MemoryConditions::IsMet(Gear, Event, Journal));
+		Gear.RequirementMargin = 3;
+		TestFalse(TEXT("Not three under"), MemoryConditions::IsMet(Gear, Event, Journal));
+
+		Lord->WorldMindLevel = 5;
+		TestFalse(TEXT("Over it: not under"), MemoryConditions::IsMet(Gear, Event, Journal));
+		Gear.RequirementFit = EMemoryRequirementFit::Met;
+		TestTrue(TEXT("Met"), MemoryConditions::IsMet(Gear, Event, Journal));
+		Gear.RequirementFit = EMemoryRequirementFit::Above;
+		Gear.RequirementMargin = 2;
+		TestTrue(TEXT("Two over"), MemoryConditions::IsMet(Gear, Event, Journal));
+		Gear.RequirementMargin = 3;
+		TestFalse(TEXT("Not three over"), MemoryConditions::IsMet(Gear, Event, Journal));
+
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		Spell->Requirements.RequiredWorldBody = 2;
+		Lord->WorldBodyLevel = 0;
+		FMemoryCondition Slotted = Condition(EMemoryConditionKind::SkillSlotted);
+		Slotted.Skill = Spell;
+		Slotted.RequirementFit = EMemoryRequirementFit::Under;
+		Event.Party[0].Slotted.Add(Spell);
+		TestTrue(TEXT("A spell slotted while under its requirements"), MemoryConditions::IsMet(Slotted, Event, Journal));
+
+		FMemoryCondition NoRequirements = Condition(EMemoryConditionKind::EvolutionEquipped);
+		NoRequirements.RequirementFit = EMemoryRequirementFit::Met;
+		TestTrue(TEXT("Nothing required: always met"), MemoryConditions::FitsRequirements(NoRequirements, nullptr, Lord));
+		NoRequirements.RequirementFit = EMemoryRequirementFit::Above;
+		TestFalse(TEXT("Nothing required: never above"), MemoryConditions::FitsRequirements(NoRequirements, nullptr, Lord));
+		TestFalse(TEXT("Unknown wearer: only Any fits"), MemoryConditions::FitsRequirements(Gear, &Weapon->Requirements, nullptr));
 	});
 
 	It("never meets a hidden condition (not built)", [this]()
