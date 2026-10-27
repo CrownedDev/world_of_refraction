@@ -62,6 +62,10 @@ namespace WoRTags
 	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_HOT, "Effect.Family.HOT");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Origin_Gear, "Effect.Origin.Gear", "D-015: a cleanse leaves it");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Magnitude, "SetByCaller.Magnitude", "The effect value a family GE reads");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_Hit, "Event.Combat.Hit", "Sent to the target of damage; magnitude = damage");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_DefenseResolved, "Event.Combat.DefenseResolved", "Sent to the defender once its defense resolves");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_TurnStart, "Event.Combat.TurnStart", "Sent to the actor whose turn starts");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_TurnEnd, "Event.Combat.TurnEnd", "Sent to the actor whose turn ends");
 
 	namespace
 	{
