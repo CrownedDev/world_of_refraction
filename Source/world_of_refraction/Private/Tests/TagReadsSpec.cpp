@@ -115,6 +115,25 @@ void FTagReadsSpec::Define()
 			TestTrue(FString::Printf(TEXT("%s: GetEffectTags lists Status.Stun"), Path),
 					 EffectManager->GetEffectTags(Hero).HasTagExact(WoRTags::Status_Stun));
 			TestFalse(FString::Printf(TEXT("%s: no DOT"), Path), EffectManager->HasActiveDOT(Hero));
+			TestTrue(FString::Printf(TEXT("%s: the stun is cleansable"), Path),
+					 EffectManager->HasCleansableEffectOfType(Hero, ESkillEffectType::Stun));
+		}
+	});
+
+	It("leaves a gear stun out of the cleansable read on both paths (D-015)", [this]()
+	{
+		if (!EffectManager) return;
+		FActiveSkillEffect GearStun = FActiveSkillEffect::CreateBuff(TEXT("Tag read gear stun"), TAG_READ_STUN_ID,
+																	 ESkillEffectType::Stun, 0.0f, TAG_READ_TURNS);
+		GearStun.bFromGear = true;
+		EffectManager->ApplyEffect(Hero, GearStun, Foe);
+		for (const bool bReadsFromGAS : {false, true})
+		{
+			UWoREffectMirrorComponent::SetReadsFromGAS(bReadsFromGAS);
+			const TCHAR *Path = bReadsFromGAS ? TEXT("UseGAS 1") : TEXT("UseGAS 0");
+			TestTrue(FString::Printf(TEXT("%s: stunned"), Path), EffectManager->IsStunned(Hero));
+			TestFalse(FString::Printf(TEXT("%s: a gear stun isn't cleansable"), Path),
+					  EffectManager->HasCleansableEffectOfType(Hero, ESkillEffectType::Stun));
 		}
 	});
 }

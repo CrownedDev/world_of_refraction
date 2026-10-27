@@ -1846,29 +1846,25 @@ bool UAIDecisionManager::HasDangerousDebuff(AActor *Actor)
         return false;
     }
 
-    TArray<FActiveSkillEffect> Effects = StatusManager->GetActiveEffects(Actor);
-    for (const FActiveSkillEffect &Effect : Effects)
+    // A cleanse leaves gear effects (D-015), so they're no reason to cast one.
+    // Lightning bar cap (Attack/Defend only). Wind's SkipTurn is a turn-order
+    // delay, not a stun (D-014), so it isn't dangerous.
+    if (StatusManager->HasCleansableEffectOfType(Actor, ESkillEffectType::Stun))
     {
-        // A cleanse leaves gear effects (D-015), so they're no reason to cast one.
-        if (!Effect.IsCleansable())
+        return true;
+    }
+    // B-042x: the DOT check reads the tag at UseGAS 1; tick sizes and turns stay on the stored copies (B-042y).
+    if (!StatusManager->HasCleansableEffectOfType(Actor, ESkillEffectType::DOT))
+    {
+        return false;
+    }
+    for (const FActiveSkillEffect &Effect : StatusManager->GetActiveEffects(Actor))
+    {
+        // Check if DOT will kill us
+        if (Effect.IsDOT() && Effect.IsCleansable() &&
+            USkillEffectManager::GetDotTickDamage(Actor, Effect) * Effect.RemainingTurns >= GetCurrentHP(Actor))
         {
-            continue;
-        }
-        switch (Effect.EffectType)
-        {
-        // Lightning bar cap (Attack/Defend only). Wind's SkipTurn is a turn-order
-        // delay, not a stun (D-014), so it isn't dangerous.
-        case ESkillEffectType::Stun:
             return true;
-        case ESkillEffectType::DOT:
-            // Check if DOT will kill us
-            if (USkillEffectManager::GetDotTickDamage(Actor, Effect) * Effect.RemainingTurns >= GetCurrentHP(Actor))
-            {
-                return true;
-            }
-            break;
-        default:
-            break;
         }
     }
 
