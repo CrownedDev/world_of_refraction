@@ -108,6 +108,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-178](B-178.md) | `feature/B-178-run-repair` (in `dev`) | Paid gear repair in a run; the run's Gold carries between levels | Not tested |
 | [B-093](B-093.md) | `feature/B-093-menu-keys` (in `dev`) | Keys for Defend and infusion (keyboard + gamepad) | Not tested |
 | [B-209](B-209.md) | `feature/B-209-memory-sources` (in `dev`) | Memories from bosses, reactions, map spots and bound gear | Not tested |
+| [B-042r](B-042r.md) | `feature/B-042r-gas-luck-reflex` (in `dev`) | GAS stage 3, part 5h: Luck and the Reflex window factor composed on GAS | Not tested |
 | [B-042q](B-042q.md) | `feature/B-042q-gas-stat-sources-rest` (in `dev`) | GAS stage 3, part 5g: status multiplier, Defense and crit damage composed on GAS; `wor.CompareAttributes` checks the composed bases | Not tested |
 | [B-042p](B-042p.md) | `feature/B-042p-gas-stat-sources` (in `dev`) | GAS stage 3, part 5f: spell / raw damage and action / spell speed composed on GAS from their gear, stone and buff layers | Not tested |
 | [B-042m](B-042m.md) | `feature/B-042m-ignore-defense-amount` (in `dev`) | Ignore Defense is an amount per skill (D-086); IgnoreDefense effects ignore their value | Not tested |

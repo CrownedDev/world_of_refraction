@@ -52,6 +52,8 @@ TConstArrayView<TPair<ESubStat, FGameplayAttribute>> UWoRAttributeSet_Stats::Get
 		{ESubStat::StatusMultiplier, GetStatusMultiplierAttribute()},
 		{ESubStat::Defense, GetDefenseAttribute()},
 		{ESubStat::CritDamage, GetCritDamageAttribute()},
+		{ESubStat::Luck, GetLuckAttribute()},
+		{ESubStat::Reflex, GetReflexAttribute()},
 	};
 	return ComposedStats;
 }

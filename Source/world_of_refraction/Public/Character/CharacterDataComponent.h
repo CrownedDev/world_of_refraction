@@ -341,8 +341,9 @@ public:
     float GetEffectiveSpellDamage() const;
 
     /** The Pattern P layers of SpellDamage, RawDamage, ActionSpeed, SpellSpeed (B-042p), StatusMultiplier,
-     *  Defense or CritDamage (B-042q): their getters return Compose() of these, and the GAS stat sources
-     *  apply them. False for any other sub-stat, and for Defense without CharacterData (its getter's 0). */
+     *  Defense, CritDamage (B-042q), Luck or Reflex (B-042r): their getters return Compose() of these, and the GAS stat sources
+     *  apply them. False for any other sub-stat, and for Defense, Luck or Reflex without CharacterData
+     *  (their getters' early returns). */
     bool GetStatLayers(ESubStat Stat, FWoRStatLayers &OutLayers) const;
 
     /** L2 — additive equipment SpellDamage term (BonusSpellDamage × per-point), the

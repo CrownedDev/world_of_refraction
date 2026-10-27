@@ -2450,6 +2450,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. Ship the identical-shape cases first and keep the odd ones for their own design: the strangler-fig pattern (Fowler, "StranglerFigApplication") moves one slice at a time with the old path still answering, which is how this GAS migration has gone since stage 1. GAS itself clamps per attribute in `PreAttributeChange` (Lyra's health set; tranek's GASDocumentation, "PreAttributeChange"), so one bounds table per stat is the engine's own pattern.
 **Notes for Claude:** B-042q built A. Seven composed stats share `UWoRAttributeSet_Stats::GetComposedStats`. B-042r takes the rest.
 
+### Q-042r — Which stats share the stat-sources shape, and how do the others go on GAS?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042r) · **Blocks:** —
+**Question:** B-042r held every remaining stat. Only Luck and the Reflex window factor are a capped base times gear, stone and buff factors. Crit chance is derived from Luck, Efficiency's attribute is 1 minus a capped reduction, pools add gear flat, resistance adds buckets, and turn speed's real value (the turn manager's rounded int base x stone x buff) isn't what the sync mirrors today. Build them all now on the stat-sources effect, or split?
+**Options:**
+- **A** (as built) Luck and Reflex on the stat-sources effect now; the rest in B-042s, each on the GAS shape that fits it: an MMC for a derived stat (crit chance from Luck, Efficiency from its reduction), AddBase modifiers for flat gear and additive resistance buckets, and turn speed only after its base, stone and buff are read in one place.
+- **B** force every stat into base x three factors.
+**Recommendation:** A. GAS's own answer for a derived attribute is a Modifier Magnitude Calculation reading the attributes it depends on (tranek's GASDocumentation, "Modifier Magnitude Calculation"; Lyra derives its damage magnitudes the same way), and flat additions are the AddBase op, so B would bend each stat into a shape the engine doesn't use for it. Shipping the two same-shape stats keeps this migration's one-slice-at-a-time path (strangler fig, as Q-042q).
+**Notes for Claude:** B-042r built A (nine composed stats). B-042s designs each remaining stat's shape; turn speed first needs one getter for the turn manager's value.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

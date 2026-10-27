@@ -155,6 +155,8 @@ TSubclassOf<UGameplayEffect> UWoRGE_StatSources::GetClassFor(ESubStat Stat)
 	case ESubStat::StatusMultiplier: return UWoRGE_StatSources_StatusMultiplier::StaticClass();
 	case ESubStat::Defense: return UWoRGE_StatSources_Defense::StaticClass();
 	case ESubStat::CritDamage: return UWoRGE_StatSources_CritDamage::StaticClass();
+	case ESubStat::Luck: return UWoRGE_StatSources_Luck::StaticClass();
+	case ESubStat::Reflex: return UWoRGE_StatSources_Reflex::StaticClass();
 	default: return nullptr;
 	}
 }
@@ -210,4 +212,14 @@ UWoRGE_StatSources_Defense::UWoRGE_StatSources_Defense()
 UWoRGE_StatSources_CritDamage::UWoRGE_StatSources_CritDamage()
 {
 	AddSourceModifiers(UWoRAttributeSet_Stats::GetCritDamageAttribute());
+}
+
+UWoRGE_StatSources_Luck::UWoRGE_StatSources_Luck()
+{
+	AddSourceModifiers(UWoRAttributeSet_Stats::GetLuckAttribute());
+}
+
+UWoRGE_StatSources_Reflex::UWoRGE_StatSources_Reflex()
+{
+	AddSourceModifiers(UWoRAttributeSet_Stats::GetReflexAttribute());
 }

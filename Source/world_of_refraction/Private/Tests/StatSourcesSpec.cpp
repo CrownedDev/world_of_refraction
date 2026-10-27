@@ -29,9 +29,11 @@ namespace
 	constexpr float STAT_SOURCES_BUFF_PERCENT = 50.0f;
 	/** Far past the compose ceiling, so the clamp decides. */
 	constexpr float STAT_SOURCES_HUGE_BUFF_PERCENT = 500.0f;
+	/** Larger than the huge buff, so the net goes negative and only the clamp floors it. */
+	constexpr float STAT_SOURCES_HUGE_DEBUFF_PERCENT = 1000.0f;
 	constexpr int32 STAT_SOURCES_DEBUFF_ID = 4803;
-	/** Enough Defense points for the stat alone to reach its 0.5 cap. */
-	constexpr int32 STAT_SOURCES_DEFENSE_POINTS = 50;
+	/** Enough points for a stat alone (Defense, Luck) to reach its cap. */
+	constexpr int32 STAT_SOURCES_STAT_POINTS = 50;
 	constexpr float STAT_SOURCES_TOLERANCE = 1.0e-4f;
 }
 
@@ -55,6 +57,8 @@ BEGIN_DEFINE_SPEC(FStatSourcesSpec, "WoR.GAS.StatSources",
 			MakeTuple(ESubStat::StatusMultiplier, UWoRAttributeSet_Stats::GetStatusMultiplierAttribute(), Char->GetEffectiveStatusMultiplier()),
 			MakeTuple(ESubStat::Defense, UWoRAttributeSet_Stats::GetDefenseAttribute(), Calc ? Calc->GetDefenderFlatDefense(Hero) : 0.0f),
 			MakeTuple(ESubStat::CritDamage, UWoRAttributeSet_Stats::GetCritDamageAttribute(), Calc ? Calc->GetCritDamageMultiplier(Hero) : 0.0f),
+			MakeTuple(ESubStat::Luck, UWoRAttributeSet_Stats::GetLuckAttribute(), Char->GetEquipmentModifiedLuck()),
+			MakeTuple(ESubStat::Reflex, UWoRAttributeSet_Stats::GetReflexAttribute(), Char->ReflexWindowGearFactor()),
 		};
 	}
 
@@ -183,12 +187,36 @@ void FStatSourcesSpec::Define()
 	It("clamps Defense at its own reduction ceiling", [this]()
 	{
 		if (!ASC) return;
-		Char->CharacterData->Defense = STAT_SOURCES_DEFENSE_POINTS;
+		Char->CharacterData->Defense = STAT_SOURCES_STAT_POINTS;
 		Buff(STAT_SOURCES_HUGE_BUFF_ID, ESkillEffectType::DefenseBuff, STAT_SOURCES_HUGE_BUFF_PERCENT);
 		const UDamageCalculator *Calc = TestWorld->GetSubsystem<UDamageCalculator>();
 		TestEqual(TEXT("Getter at the Defense ceiling"), Calc->GetDefenderFlatDefense(Hero), CombatConstants::DEFENSE_REDUCTION_CEILING);
 		TestEqual(TEXT("Attribute at the Defense ceiling"), ASC->GetNumericAttribute(UWoRAttributeSet_Stats::GetDefenseAttribute()),
 				  CombatConstants::DEFENSE_REDUCTION_CEILING);
+	});
+
+	It("clamps Luck at its gear ceiling and floors it at 0", [this]()
+	{
+		if (!ASC) return;
+		Char->CharacterData->Luck = STAT_SOURCES_STAT_POINTS;
+		Buff(STAT_SOURCES_HUGE_BUFF_ID, ESkillEffectType::LuckBuff, STAT_SOURCES_HUGE_BUFF_PERCENT);
+		const FGameplayAttribute Luck = UWoRAttributeSet_Stats::GetLuckAttribute();
+		TestEqual(TEXT("Getter at the Luck ceiling"), Char->GetEquipmentModifiedLuck(), CombatConstants::LUCK_GEAR_CEILING);
+		TestEqual(TEXT("Attribute at the Luck ceiling"), ASC->GetNumericAttribute(Luck), CombatConstants::LUCK_GEAR_CEILING);
+
+		Buff(STAT_SOURCES_DEBUFF_ID, ESkillEffectType::LuckDebuff, STAT_SOURCES_HUGE_DEBUFF_PERCENT);
+		TestEqual(TEXT("Getter floored at 0"), Char->GetEquipmentModifiedLuck(), 0.0f);
+		TestEqual(TEXT("Attribute floored at 0"), ASC->GetNumericAttribute(Luck), 0.0f);
+	});
+
+	It("leaves the Reflex factor unclamped, as its getter is", [this]()
+	{
+		if (!ASC) return;
+		Buff(STAT_SOURCES_HUGE_BUFF_ID, ESkillEffectType::ReflexBuff, STAT_SOURCES_HUGE_BUFF_PERCENT);
+		const float Getter = Char->ReflexWindowGearFactor();
+		TestTrue(TEXT("Getter past the default ceiling"), Getter > CombatConstants::STAT_MODIFIER_MAX);
+		TestEqual(TEXT("Attribute = getter"), ASC->GetNumericAttribute(UWoRAttributeSet_Stats::GetReflexAttribute()), Getter,
+				  STAT_SOURCES_TOLERANCE);
 	});
 
 	It("floors crit damage at a normal hit under a large debuff", [this]()
