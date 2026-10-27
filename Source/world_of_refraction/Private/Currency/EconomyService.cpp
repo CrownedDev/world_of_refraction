@@ -6,6 +6,7 @@
 #include "Currency/CurrencyWallet.h"
 #include "WoRAuthority.h"
 #include "Character/CharacterDataComponent.h" // BuyWorldStat reach target (§7 C4)
+#include "Character/CharacterData.h"          // class + name for the dismantle warning
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Inventory/InventoryComponent.h"
@@ -306,6 +307,9 @@ bool UEconomyService::DismantleWeapon(AActor *Owner, FGuid PersistentID)
     const EItemTier Tier = Entry->Tier; // INSTANCE tier (leveled), not Entry->Weapon->Tier (asset/base)
     const int32 Yield = EconomyYield::GetLevelingEssenceYieldForTier(Tier);
 
+    // D-016: no ghost copy left in a saved loadout. Doesn't touch Inv->Weapons, so Entry stays valid.
+    Inv->RemoveFromSavedLoadouts(PersistentID);
+
     // REMOVE FIRST — a failed removal must never grant phantom essence.
     if (!Inv->RemoveWeaponByPersistentID(PersistentID))
     {
@@ -345,6 +349,8 @@ bool UEconomyService::DismantleRing(AActor *Owner, FGuid PersistentID)
     const EItemTier Tier = Entry->Tier; // INSTANCE tier (leveled), not Entry->Ring->Tier (asset/base)
     const int32 Yield = EconomyYield::GetLevelingEssenceYieldForTier(Tier);
 
+    Inv->RemoveFromSavedLoadouts(PersistentID); // D-016: no ghost copy left in a saved loadout
+
     if (!Inv->RemoveRingByPersistentID(PersistentID))
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleRing: removal failed for GUID %s — no grant"),
@@ -357,6 +363,45 @@ bool UEconomyService::DismantleRing(AActor *Owner, FGuid PersistentID)
            *PersistentID.ToString(), static_cast<int32>(Tier), Yield);
     return true;
 }
+
+#define LOCTEXT_NAMESPACE "EconomyService"
+
+FText UEconomyService::GetDismantleWarning(const AActor *Owner, FGuid PersistentID)
+{
+    const UInventoryComponent *Inv = Owner ? Owner->FindComponentByClass<UInventoryComponent>() : nullptr;
+    const TArray<int32> Using = Inv ? Inv->GetLoadoutsUsing(PersistentID) : TArray<int32>();
+    if (Using.IsEmpty())
+    {
+        return FText::GetEmpty();
+    }
+
+    TArray<FText> LoadoutNumbers;
+    for (const int32 Index : Using)
+    {
+        LoadoutNumbers.Add(FText::AsNumber(Index + 1)); // players count loadouts from 1
+    }
+    TArray<FText> Lines;
+    Lines.Add(FText::Format(LOCTEXT("DismantleEquipped", "This is equipped in {0}|plural(one=loadout,other=loadouts) {1}. Dismantle anyway?"),
+                            Using.Num(), FText::Join(LOCTEXT("LoadoutListSeparator", ", "), LoadoutNumbers)));
+    Lines.Add(LOCTEXT("DismantleLosesUpgrades", "You'll lose its upgrades."));
+
+    // The fight starts from the active loadout; a Caster fights on innate spells without gear.
+    const UCharacterDataComponent *CharComp = Owner->FindComponentByClass<UCharacterDataComponent>();
+    const UCharacterData *Data = CharComp ? CharComp->CharacterData : nullptr;
+    if (Data && Data->CharacterClass != ECharacterClass::Caster && Using.Contains(Inv->ActiveLoadoutIndex))
+    {
+        FCombatLoadout After = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+        UInventoryComponent::StripFromLoadout(After, PersistentID);
+        if (!UInventoryComponent::LoadoutHasGear(After))
+        {
+            Lines.Add(FText::Format(LOCTEXT("DismantleLeavesGearless", "{0} will have no gear and can't fight until you equip something."),
+                                    FText::FromString(Data->Name)));
+        }
+    }
+    return FText::Join(FText::FromString(LINE_TERMINATOR), Lines);
+}
+
+#undef LOCTEXT_NAMESPACE
 
 bool UEconomyService::DismantleEvolution(AActor *Owner, FGuid InstanceID)
 {
