@@ -24,6 +24,9 @@ namespace WoRTags
 	UE_DEFINE_GAMEPLAY_TAG(Status_Silence, "Status.Silence");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_HealBlock, "Status.HealBlock", "Can't be healed");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_DOT, "Status.DOT", "Takes damage over time");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Absorb_Barrier, "Status.Absorb.Barrier", "Negates damage of any kind");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Absorb_Shield, "Status.Absorb.Shield", "Negates physical damage");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Absorb_Ward, "Status.Absorb.Ward", "Negates one element's damage");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Immunity_All, "Immunity.All", "Immune to every status");
 	UE_DEFINE_GAMEPLAY_TAG(Immunity_Stun, "Immunity.Stun");
@@ -61,6 +64,7 @@ namespace WoRTags
 	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_DOT, "Effect.Family.DOT");
 	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_HOT, "Effect.Family.HOT");
 	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_Reflect, "Effect.Family.Reflect");
+	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_Absorb, "Effect.Family.Absorb");
 	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_LastStand, "Effect.Family.LastStand");
 	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_OnHit, "Effect.Family.OnHit");
 	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_AttackModifier, "Effect.Family.AttackModifier");
