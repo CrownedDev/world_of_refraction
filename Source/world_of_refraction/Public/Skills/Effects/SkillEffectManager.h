@@ -174,6 +174,7 @@ public:
 	 * B-081 (D-008): a mid-fight weapon toggle or ring switch. Removes the starting effects only
 	 * the old gear gave and applies those only the new gear gives; gear on both sides keeps its
 	 * effects as they are (no reset, no stacking). Skill and enemy effects are untouched.
+	 * Q-081: only passives (every payload bPermanent) come on; start-of-fight one-shots don't.
 	 * @return the number of gathered effects removed plus applied.
 	 */
 	int32 SwapEquipmentEffects(AActor *Target, const TArray<FGatheredEffect> &OldEffects,

@@ -18,6 +18,7 @@ namespace
 	constexpr int32 GEAR_SWAP_TEST_BUFF_PERCENT = 10;
 	constexpr int32 GEAR_SWAP_EFFECT_RING = 0;
 	constexpr int32 GEAR_SWAP_PLAIN_RING = 1;
+	constexpr int32 GEAR_SWAP_TEST_TIMED_TURNS = 3;
 
 	template <class TComponent>
 	TComponent *GearSwapAddComponent(AActor *Actor)
@@ -114,6 +115,26 @@ void FGearSwapEffectsSpec::Define()
 		TestEqual(TEXT("switched back: on once, no stacking"), Effects->GetEffectCount(Wearer), WithRing);
 		Loadout->SetActiveRingIndex(GEAR_SWAP_EFFECT_RING);
 		TestEqual(TEXT("the same ring again changes nothing"), Effects->GetEffectCount(Wearer), WithRing);
+	});
+
+	It("gives a timed starting effect once a fight, not again on the swap back (Q-081)", [this]()
+	{
+		if (!Effects)
+		{
+			return;
+		}
+		UInventoryComponent *Inventory = Wearer->FindComponentByClass<UInventoryComponent>();
+		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+		UEffectDefinition *Timed = GearSwapBuff();
+		Timed->Effects[0].Payloads[0].bPermanent = false;
+		Timed->Effects[0].Payloads[0].Duration = GEAR_SWAP_TEST_TIMED_TURNS;
+		Active.RingLoadout[GEAR_SWAP_EFFECT_RING].RingEntry.Ring->ReferencedEffects = {Timed};
+		ArmForFight();
+		TestTrue(TEXT("on at the start"), Effects->GetEffectCount(Wearer) > 0);
+		Loadout->SetActiveRingIndex(GEAR_SWAP_PLAIN_RING);
+		TestEqual(TEXT("off with its ring"), Effects->GetEffectCount(Wearer), 0);
+		Loadout->SetActiveRingIndex(GEAR_SWAP_EFFECT_RING);
+		TestEqual(TEXT("not given again"), Effects->GetEffectCount(Wearer), 0);
 	});
 
 	It("leaves effects alone out of a fight", [this]()
