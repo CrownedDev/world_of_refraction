@@ -42,7 +42,33 @@
 #include "PoolSubsystem.generated.h"
 
 class UInventoryData;
+class UCharacterData;
 class AActor;
+
+/** B-091: a piece of shared gear changed in the pool (added, updated or removed). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPoolGearChanged, FGuid, GearID);
+
+/** B-091 (Q-091): a piece another member wears, taken out of a member's active loadout. */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FPoolGearClash
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, Category = "Pool|Armoury")
+    FGuid GearID;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Pool|Armoury")
+    FText ItemName;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Pool|Armoury")
+    FText WearerName;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Pool|Armoury")
+    FName LoserKey;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Pool|Armoury")
+    FText LoserName;
+};
 
 /**
  * UPoolSubsystem
@@ -149,6 +175,44 @@ public:
     /** B-090: a pool restored from a save counts as populated, so the authored seed can't add a second copy. */
     void MarkPopulated() { bPopulated = true; }
 
+    // ==================== SHARED GEAR (B-091, D-020, Q-091) ====================
+    // One armoury for the party. Each party member's inventory holds a copy of every piece
+    // (UInventoryComponent::DrawSharedGear); a piece is worn by one member at a time, the one whose
+    // active loadout holds it. A member that changes a piece pushes it here, and the others copy it.
+
+    /** The key the pool knows a character by (its asset path). */
+    static FName GetCharacterKey(const UCharacterData *CharacterData);
+
+    /** Banks a character's starting gear the first time it draws; false when it was banked before. */
+    bool BankStartingGear(FName CharacterKey, const TArray<FWeaponInventoryEntry> &Weapons,
+                          const TArray<FRingInventoryEntry> &Rings, const TArray<FEvolutionInventoryEntry> &Evolutions);
+    bool HasBankedGear(FName CharacterKey) const { return BankedCharacters.Contains(CharacterKey); }
+    const TSet<FName> &GetBankedCharacters() const { return BankedCharacters; }
+
+    /** Adds the piece, or replaces the one with its ID, and fires OnPoolGearChanged. */
+    void UpdateWeapon(const FWeaponInventoryEntry &Entry);
+    void UpdateRing(const FRingInventoryEntry &Entry);
+    void UpdateEvolution(const FEvolutionInventoryEntry &Entry);
+
+    /** Takes a sold or dismantled piece out of the pool (and off its wearer). */
+    void RemoveGear(const FGuid &GearID);
+
+    /** The character wearing the piece, or NAME_None. */
+    FName GetWearer(const FGuid &GearID) const;
+    void SetWearer(const FGuid &GearID, FName CharacterKey);
+    void ReleaseWearer(const FGuid &GearID);
+    const TMap<FGuid, FName> &GetWearers() const { return Wearers; }
+
+    /** Replaces the clashes noted for LoserKey (the party panel lists them). */
+    void NoteClashes(FName LoserKey, const TArray<FPoolGearClash> &NewClashes);
+    const TArray<FPoolGearClash> &GetClashes() const { return Clashes; }
+
+    /** B-090 restore of who wears what and whose starting gear is banked. */
+    void RestoreSharedGear(const TMap<FGuid, FName> &InWearers, const TArray<FName> &InBanked);
+
+    UPROPERTY(BlueprintAssignable, Category = "Pool|Armoury")
+    FOnPoolGearChanged OnPoolGearChanged;
+
     // ==================== DEBUG ====================
 
     /** Dump the whole pool to log + screen: per-category counts, crystal stacks, and the
@@ -230,4 +294,19 @@ private:
     // dormant here) and it functions as a pure serializable balance store.
     UPROPERTY(SaveGame)
     FCurrencyArray PoolEssence;
+
+    // ==================== SHARED GEAR (B-091) ====================
+    // Saved by explicit structs (FSavedPool, D-059), not these tags.
+
+    /** Gear PersistentID / evolution InstanceID -> the character key wearing it. */
+    UPROPERTY()
+    TMap<FGuid, FName> Wearers;
+
+    /** Characters whose starting gear is already in the pool. */
+    UPROPERTY()
+    TSet<FName> BankedCharacters;
+
+    /** The latest pieces taken out of a member's loadout because another member wears them. */
+    UPROPERTY(Transient)
+    TArray<FPoolGearClash> Clashes;
 };
