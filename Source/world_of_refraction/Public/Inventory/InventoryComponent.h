@@ -154,6 +154,23 @@ public:
     /** Debug: each loadout slot, the owned entry it points at and whether the two agree. */
     FString GetOwnedGearSyncString() const;
 
+    // ==================== SHARED GEAR (B-091, D-020, Q-091) ====================
+    // A party member's weapons, rings and evolutions are the party's one armoury (UPoolSubsystem):
+    // the owned lists hold a copy of every piece, a change is pushed to the pool and the other
+    // members' copies follow. A piece is worn by one member at a time: the one whose active loadout
+    // holds it.
+
+    /** For a party member: banks its starting gear the first time, takes the whole armoury, re-links
+     *  its presets (its own pieces first, then free ones) and claims the active loadout's gear.
+     *  False, changing nothing, for anyone else. */
+    bool DrawSharedGear();
+
+    /** Claims the active loadout's gear for this member. A piece another party member wears is taken
+     *  out of this loadout; returns a line per piece taken ("Fire Sword (worn by Ayla)"). */
+    TArray<FText> ClaimActiveSharedGear();
+
+    bool DrawsSharedGear() const { return SharedPool.IsValid(); }
+
     // ==================== SPELL OPERATIONS ====================
 
     /** Learn a new spell */
@@ -438,6 +455,24 @@ private:
     /** RefreshLoadoutsFromOwned, then OnGearSocketChanged. */
     void HandleGearSocketChanged(const FGuid &GearID);
 
+    /** B-091: the owned piece to the shared pool, or out of it when no longer owned. */
+    void PushGearToPool(const FGuid &GearID);
+
+    /** B-091: another member changed a piece; copy it (or drop it) and refresh the loadouts. */
+    UFUNCTION()
+    void HandlePoolGearChanged(FGuid GearID);
+
+    /** B-091: preset slots naming gear the armoury doesn't hold are emptied. Returns slots emptied. */
+    int32 StripUnownedGear();
+
+    /** B-091: the local party's members by pool key. */
+    TMap<FName, const UCharacterData *> GetPartyMembersByKey() const;
+
+    TWeakObjectPtr<UPoolSubsystem> SharedPool;
+    FName SharedGearKey;
+    /** True while this inventory pushes to, or copies from, the pool (no echo). */
+    bool bSyncingWithPool = false;
+
     /** Single broadcast funnel for OnInventoryChanged — every mutation site
      *  routes through here on its success path. const: the delegate broadcast
      *  doesn't mutate logical inventory state. */
@@ -479,6 +514,7 @@ private:
 
 protected:
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 #if WITH_EDITOR
     /** Context menu debug */

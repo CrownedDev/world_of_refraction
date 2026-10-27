@@ -18,6 +18,9 @@
 #include "Equipment/Crystals/CrystalTypeHelpers.h"   // IsGemType / IsValidFusionPair / IsElementalFusion
 #include "Equipment/Crystals/ItemIdentity.h"         // GetMaxDurability + GetDisplayName for attach
 #include "Pool/PoolSubsystem.h" // InitializeFromPool draw source (step 2)
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h" // B-091: party members draw the shared armoury
+#include "Equipment/EquipmentDataBase.h" // B-091: gear display names
 #include "Inventory/ItemTier.h" // TierHelpers::GetTierName for the instance dump
 #include "Equipment/FRuntimeAttachedItem.h" // attached-crystal description in the instance dump
 #include "Combat/CombatConstants.h"
@@ -469,6 +472,16 @@ void UInventoryComponent::BeginPlay()
     Super::BeginPlay();
 }
 
+void UInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    if (UPoolSubsystem *Pool = SharedPool.Get())
+    {
+        Pool->OnPoolGearChanged.RemoveDynamic(this, &UInventoryComponent::HandlePoolGearChanged);
+    }
+    SharedPool.Reset();
+    Super::EndPlay(EndPlayReason);
+}
+
 // ==================== SPELL OPERATIONS ====================
 
 void UInventoryComponent::BroadcastInventoryChanged(EInventoryChangeType ChangeType) const
@@ -612,6 +625,7 @@ bool UInventoryComponent::AddWeapon(UWeaponData *Weapon)
         Entry.Quality = EconomyYield::RollQuality(ResolveInventoryOwnerLuck(this));
     }
     Weapons.Add(Entry);
+    PushGearToPool(Entry.PersistentID);
     BroadcastInventoryChanged(EInventoryChangeType::Added);
     return true;
 }
@@ -623,7 +637,9 @@ bool UInventoryComponent::RemoveWeapon(int32 WeaponIndex)
         return false;
     }
 
+    const FGuid RemovedID = Weapons[WeaponIndex].PersistentID;
     Weapons.RemoveAt(WeaponIndex);
+    PushGearToPool(RemovedID);
     // RemoveWeaponByPersistentID delegates here, so this single broadcast covers
     // both entry points (no double-fire).
     BroadcastInventoryChanged(EInventoryChangeType::Removed);
@@ -711,6 +727,7 @@ bool UInventoryComponent::AddRing(URingData *Ring)
         Entry.Quality = EconomyYield::RollQuality(ResolveInventoryOwnerLuck(this));
     }
     Rings.Add(Entry);
+    PushGearToPool(Entry.PersistentID);
     BroadcastInventoryChanged(EInventoryChangeType::Added);
     return true;
 }
@@ -722,7 +739,9 @@ bool UInventoryComponent::RemoveRing(int32 RingIndex)
         return false;
     }
 
+    const FGuid RemovedID = Rings[RingIndex].PersistentID;
     Rings.RemoveAt(RingIndex);
+    PushGearToPool(RemovedID);
     // RemoveRingByPersistentID delegates here — single broadcast covers both.
     BroadcastInventoryChanged(EInventoryChangeType::Removed);
     return true;
@@ -972,6 +991,7 @@ int32 UInventoryComponent::LinkLoadoutsToOwned()
 int32 UInventoryComponent::RefreshLoadoutsFromOwned(const FGuid &GearID)
 {
     using namespace InventoryGearSync;
+    PushGearToPool(GearID);
     const FWeaponInventoryEntry *OwnedWeapon = FindOwned(Weapons, GearID);
     const FRingInventoryEntry *OwnedRing = FindOwned(Rings, GearID);
     if (!OwnedWeapon && !OwnedRing)
@@ -1015,6 +1035,7 @@ int32 UInventoryComponent::RefreshEvolutionInLoadouts(const FGuid &EvoInstanceID
         return 0;
     }
     const FEvolutionInventoryEntry *Owned = FindOwnedEvolution(GetOwner(), EvoInstanceID);
+    PushGearToPool(EvoInstanceID);
     int32 Changed = 0;
     for (FCombatLoadout &Loadout : SavedLoadouts)
     {
@@ -1105,6 +1126,7 @@ int32 UInventoryComponent::WriteLoadoutToOwned(int32 LoadoutIndex)
         if (FEvolutionInventoryEntry *Owned = FindOwnedEvolution(GetOwner(), Loadout.PrimaryEvolutionInstance))
         {
             Owned->CurrentDurability = Loadout.PrimaryEvolution.CurrentDurability;
+            PushGearToPool(Loadout.PrimaryEvolutionInstance);
             ++WrittenCount;
         }
     }
@@ -1149,6 +1171,293 @@ FString UInventoryComponent::GetOwnedGearSyncString() const
     }
     return Out;
 }
+
+// ==================== SHARED GEAR (B-091, D-020, Q-091) ====================
+
+#define LOCTEXT_NAMESPACE "InventorySharedGear"
+
+namespace InventoryGearSync
+{
+    /** The pool's copy of a weapon or ring into this member's owned list (added when new). */
+    template <typename TEntry>
+    void MirrorShared(TArray<TEntry> &Owned, const TEntry &Shared)
+    {
+        if (TEntry *Mine = FindOwned(Owned, Shared.PersistentID))
+        {
+            *Mine = Shared;
+        }
+        else
+        {
+            Owned.Add(Shared);
+        }
+    }
+
+    FText GetGearDisplayName(const UObject *Asset)
+    {
+        if (const UEquipmentDataBase *Equipment = Cast<UEquipmentDataBase>(Asset))
+        {
+            return FText::FromString(Equipment->Name);
+        }
+        if (const UEvolutionItemData *Evolution = Cast<UEvolutionItemData>(Asset))
+        {
+            return FText::FromString(Evolution->ItemName);
+        }
+        return FText::FromString(GetNameSafe(Asset));
+    }
+}
+
+TMap<FName, const UCharacterData *> UInventoryComponent::GetPartyMembersByKey() const
+{
+    TMap<FName, const UCharacterData *> Members;
+    const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+    if (const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr)
+    {
+        for (const FPartyMember &Member : Party->Members)
+        {
+            if (Member.CharacterData)
+            {
+                Members.Add(UPoolSubsystem::GetCharacterKey(Member.CharacterData), Member.CharacterData);
+            }
+        }
+    }
+    return Members;
+}
+
+bool UInventoryComponent::DrawSharedGear()
+{
+    const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+    const UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    const FName Key = UPoolSubsystem::GetCharacterKey(CharComp ? CharComp->CharacterData : nullptr);
+    const TMap<FName, const UCharacterData *> Party = GetPartyMembersByKey();
+    if (!Pool || !Party.Contains(Key))
+    {
+        return false;
+    }
+    UEvolutionInventoryComponent *EvoInv = GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>();
+    Pool->BankStartingGear(Key, Weapons, Rings, EvoInv ? EvoInv->Entries : TArray<FEvolutionInventoryEntry>());
+
+    // The whole armoury: this member's pieces first so its presets link to them, then free pieces,
+    // then pieces another member wears.
+    const auto Rank = [Pool, Key, &Party](const FGuid &ID)
+    {
+        const FName Wearer = Pool->GetWearer(ID);
+        return Wearer == Key ? 0 : (Wearer.IsNone() || !Party.Contains(Wearer)) ? 1 : 2;
+    };
+    Weapons = Pool->GetOwnedWeapons();
+    Weapons.StableSort([&Rank](const FWeaponInventoryEntry &A, const FWeaponInventoryEntry &B) { return Rank(A.PersistentID) < Rank(B.PersistentID); });
+    Rings = Pool->GetOwnedRings();
+    Rings.StableSort([&Rank](const FRingInventoryEntry &A, const FRingInventoryEntry &B) { return Rank(A.PersistentID) < Rank(B.PersistentID); });
+    if (EvoInv)
+    {
+        EvoInv->Entries = Pool->GetOwnedEvolutions();
+        EvoInv->Entries.StableSort([&Rank](const FEvolutionInventoryEntry &A, const FEvolutionInventoryEntry &B) { return Rank(A.InstanceID) < Rank(B.InstanceID); });
+    }
+
+    LinkLoadoutsToOwned();
+    const int32 Stripped = StripUnownedGear();
+    SharedPool = Pool;
+    SharedGearKey = Key;
+    Pool->OnPoolGearChanged.AddUniqueDynamic(this, &UInventoryComponent::HandlePoolGearChanged);
+    ClaimActiveSharedGear();
+
+    UE_LOG(LogTemp, Log, TEXT("[Inventory] %s draws the shared armoury: %d weapon(s), %d ring(s), %d evolution(s); %d preset slot(s) emptied"),
+           *GetNameSafe(GetOwner()), Weapons.Num(), Rings.Num(), EvoInv ? EvoInv->Num() : 0, Stripped);
+    BroadcastInventoryChanged(EInventoryChangeType::Loaded);
+    return true;
+}
+
+int32 UInventoryComponent::StripUnownedGear()
+{
+    using namespace InventoryGearSync;
+    int32 Stripped = 0;
+    for (FCombatLoadout &Loadout : SavedLoadouts)
+    {
+        // An unlinked slot can carry no ID (an asset-built copy): tag it so it strips like the rest.
+        TArray<FGuid> Unowned;
+        const auto Collect = [&Unowned](auto &Slot, const auto &Owned)
+        {
+            if (GetGearAsset(Slot) && !FindOwned(Owned, Slot.PersistentID))
+            {
+                if (!Slot.PersistentID.IsValid())
+                {
+                    Slot.PersistentID = FGuid::NewGuid();
+                }
+                Unowned.Add(Slot.PersistentID);
+            }
+        };
+        ForEachGearSlot(Loadout,
+                        [this, &Collect](FWeaponInventoryEntry &Slot) { Collect(Slot, Weapons); },
+                        [this, &Collect](FRingInventoryEntry &Slot) { Collect(Slot, Rings); });
+        for (const FGuid &ID : Unowned)
+        {
+            Stripped += StripFromLoadout(Loadout, ID) ? 1 : 0;
+        }
+        const bool bEvolutionSlot = Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item;
+        if (bEvolutionSlot && !FindOwnedEvolution(GetOwner(), Loadout.PrimaryEvolutionInstance))
+        {
+            Loadout.PrimaryEvolution = FEvolutionAttachment();
+            Loadout.PrimaryEvolutionInstance = FGuid();
+            ++Stripped;
+        }
+    }
+    return Stripped;
+}
+
+TArray<FText> UInventoryComponent::ClaimActiveSharedGear()
+{
+    using namespace InventoryGearSync;
+    TArray<FText> Taken;
+    UPoolSubsystem *Pool = SharedPool.Get();
+    if (!Pool || !SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return Taken;
+    }
+    const TMap<FName, const UCharacterData *> Party = GetPartyMembersByKey();
+    FCombatLoadout &Active = SavedLoadouts[ActiveLoadoutIndex];
+    TArray<TPair<FGuid, const UObject *>> Worn;
+    ForEachGearSlot(Active,
+                    [&Worn](const FWeaponInventoryEntry &Slot) { if (Slot.Weapon && Slot.PersistentID.IsValid()) { Worn.Emplace(Slot.PersistentID, Slot.Weapon); } },
+                    [&Worn](const FRingInventoryEntry &Slot) { if (Slot.Ring && Slot.PersistentID.IsValid()) { Worn.Emplace(Slot.PersistentID, Slot.Ring); } });
+    const bool bEvolutionWorn = Active.PrimarySlotType == EPrimarySlotType::Evolution && Active.PrimaryEvolutionInstance.IsValid();
+    if (bEvolutionWorn)
+    {
+        Worn.Emplace(Active.PrimaryEvolutionInstance, Active.PrimaryEvolution.Item);
+    }
+
+    const UCharacterData *const *Self = Party.Find(SharedGearKey);
+    const FText SelfName = FText::FromString(Self && *Self ? (*Self)->Name : SharedGearKey.ToString());
+    TArray<FPoolGearClash> Clashes;
+    TSet<FGuid> Kept;
+    for (const TPair<FGuid, const UObject *> &Piece : Worn)
+    {
+        const FName Wearer = Pool->GetWearer(Piece.Key);
+        const UCharacterData *const *Other = Wearer != SharedGearKey ? Party.Find(Wearer) : nullptr;
+        if (!Other)
+        {
+            Pool->SetWearer(Piece.Key, SharedGearKey);
+            Kept.Add(Piece.Key);
+            continue;
+        }
+        if (bEvolutionWorn && Piece.Key == Active.PrimaryEvolutionInstance)
+        {
+            Active.PrimaryEvolution = FEvolutionAttachment();
+            Active.PrimaryEvolutionInstance = FGuid();
+        }
+        else
+        {
+            StripFromLoadout(Active, Piece.Key);
+        }
+        FPoolGearClash &Clash = Clashes.AddDefaulted_GetRef();
+        Clash.GearID = Piece.Key;
+        Clash.ItemName = GetGearDisplayName(Piece.Value);
+        Clash.WearerName = FText::FromString(*Other ? (*Other)->Name : Wearer.ToString());
+        Clash.LoserKey = SharedGearKey;
+        Clash.LoserName = SelfName;
+        Taken.Add(FText::Format(LOCTEXT("WornByOther", "{0} (worn by {1})"), Clash.ItemName, Clash.WearerName));
+    }
+
+    // What this member wore before and no longer does is free for the others.
+    TArray<FGuid> Released;
+    for (const TPair<FGuid, FName> &Pair : Pool->GetWearers())
+    {
+        if (Pair.Value == SharedGearKey && !Kept.Contains(Pair.Key))
+        {
+            Released.Add(Pair.Key);
+        }
+    }
+    for (const FGuid &ID : Released)
+    {
+        Pool->ReleaseWearer(ID);
+    }
+    Pool->NoteClashes(SharedGearKey, Clashes);
+    for (const FText &Line : Taken)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Inventory] %s: taken out of the active loadout: %s"), *GetNameSafe(GetOwner()), *Line.ToString());
+    }
+    return Taken;
+}
+
+void UInventoryComponent::PushGearToPool(const FGuid &GearID)
+{
+    using namespace InventoryGearSync;
+    UPoolSubsystem *Pool = SharedPool.Get();
+    if (!Pool || bSyncingWithPool || !GearID.IsValid())
+    {
+        return;
+    }
+    TGuardValue<bool> Syncing(bSyncingWithPool, true);
+    if (const FWeaponInventoryEntry *Weapon = FindOwned(Weapons, GearID))
+    {
+        Pool->UpdateWeapon(*Weapon);
+    }
+    else if (const FRingInventoryEntry *Ring = FindOwned(Rings, GearID))
+    {
+        Pool->UpdateRing(*Ring);
+    }
+    else if (const FEvolutionInventoryEntry *Evolution = FindOwnedEvolution(GetOwner(), GearID))
+    {
+        Pool->UpdateEvolution(*Evolution);
+    }
+    else
+    {
+        Pool->RemoveGear(GearID);
+    }
+}
+
+void UInventoryComponent::HandlePoolGearChanged(FGuid GearID)
+{
+    using namespace InventoryGearSync;
+    const UPoolSubsystem *Pool = SharedPool.Get();
+    if (!Pool || bSyncingWithPool)
+    {
+        return;
+    }
+    TGuardValue<bool> Syncing(bSyncingWithPool, true);
+    UEvolutionInventoryComponent *EvoInv = GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+    if (const FWeaponInventoryEntry *SharedWeapon = Pool->FindWeaponInPool(GearID))
+    {
+        MirrorShared(Weapons, *SharedWeapon);
+        RefreshLoadoutsFromOwned(GearID);
+    }
+    else if (const FRingInventoryEntry *SharedRing = Pool->FindRingInPool(GearID))
+    {
+        MirrorShared(Rings, *SharedRing);
+        RefreshLoadoutsFromOwned(GearID);
+    }
+    else if (const FEvolutionInventoryEntry *SharedEvolution = Pool->FindEvolutionInPool(GearID))
+    {
+        if (EvoInv)
+        {
+            if (FEvolutionInventoryEntry *Mine = FindOwnedEvolution(GetOwner(), GearID))
+            {
+                *Mine = *SharedEvolution;
+            }
+            else
+            {
+                EvoInv->Entries.Add(*SharedEvolution);
+            }
+            RefreshEvolutionInLoadouts(GearID);
+        }
+    }
+    else
+    {
+        const auto Matches = [&GearID](const auto &Entry) { return Entry.PersistentID == GearID; };
+        if (Weapons.RemoveAll(Matches) + Rings.RemoveAll(Matches) > 0)
+        {
+            RefreshLoadoutsFromOwned(GearID);
+        }
+        if (EvoInv && EvoInv->RemoveInstance(GearID))
+        {
+            RefreshEvolutionInLoadouts(GearID);
+            DetachEvolutionFromOwnedGear(GearID);
+        }
+    }
+    BroadcastInventoryChanged(EInventoryChangeType::Loaded);
+}
+
+#undef LOCTEXT_NAMESPACE
 
 FRingInventoryEntry UInventoryComponent::GetRingAt(int32 Index) const
 {
@@ -1419,6 +1728,7 @@ bool UInventoryComponent::AddEvolutionInstance(UEvolutionItemData *Item)
     const bool bAdded = EvolutionInv->AddInstance(Item);
     if (bAdded)
     {
+        PushGearToPool(EvolutionInv->Entries.Last().InstanceID);
         BroadcastInventoryChanged(EInventoryChangeType::Added);
     }
     return bAdded;
