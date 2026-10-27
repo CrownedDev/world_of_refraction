@@ -1496,11 +1496,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** build order per `Design/CoopStateOwnership.md` "Suggested order", then EOS sessions / invites (hub menu, rest spots), join at rest spots, checkpoint save copies to clients and host hand-over, personal loot. Backlog jobs: B-227 onward.
 
 ### D-104 — PvP
-**Status:** ANSWERED in part (2026-10-27; details asked one at a time) · **Raised:** 2026-10-27 (Crown) · **Blocks:** —
+**Status:** ANSWERED in part (2026-10-27; rest pinned) · **Raised:** 2026-10-27 (Crown) · **Blocks:** —
 **Answer (Crown):** (2026-10-27)
 - **PvP is part of this game: B, planned for now**, so the co-op plumbing (D-103) allows for it. Earlier concept: a **PvP trial door** in the hub (`Resources_Design.md` "Hub→Trial door model + PvP options", June; its "Lord" wording is a placeholder).
 - **Modes** (Crown, 2026-10-27): **1v1, 2v2, 3v3** and **Fracture**: **any vs any** (uneven sides such as 1v2 or 2v3, or every player for themselves).
-**Notes for Claude:** open parts: what kind of PvP, how it's matched, rewards / stakes, balance (normalised or own gear).
+- **Pinned for later** (Crown, 2026-10-27): what gear players bring (own builds with a tier cap, uncapped, or preset loadouts), how matches are found, rewards / stakes.
+**Notes for Claude:** the co-op plumbing (B-227 onward) should not assume two sides are fixed at 3 or that only PvE fights exist; nothing else to build for PvP yet.
 
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
