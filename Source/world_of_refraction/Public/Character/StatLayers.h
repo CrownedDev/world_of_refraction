@@ -71,11 +71,9 @@ struct FWoRStatLayers
 	 *  attached stone x the net buff, never below 1; the turn manager rounds the product. */
 	static FWoRStatLayers ForTurnSpeed(float CachedBase)
 	{
-		/** Turn order never runs a combatant below 1 (UTurnManager's Max(1, ...)). */
-		constexpr float TURN_SPEED_FLOOR = 1.0f;
 		FWoRStatLayers Layers;
 		Layers.StatBase = CachedBase;
-		Layers.Min = TURN_SPEED_FLOOR;
+		Layers.Min = CombatConstants::TURN_SPEED_FLOOR;
 		Layers.Max = TNumericLimits<float>::Max();
 		return Layers;
 	}
