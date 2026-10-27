@@ -39,6 +39,7 @@
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Currency/CurrencyTypes.h"             // ECurrencyType / EEssenceType / FCurrencyArray
 #include "Pool/PoolQueryTypes.h"                // FPoolFilter + the per-category result views
+#include "Inventory/InventoryConstants.h"       // ITEM_SLOTS_START
 #include "PoolSubsystem.generated.h"
 
 class UInventoryData;
@@ -47,6 +48,9 @@ class AActor;
 
 /** B-091: a piece of shared gear changed in the pool (added, updated or removed). */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPoolGearChanged, FGuid, GearID);
+
+/** B-203: the party's carried items changed. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPoolItemsChanged);
 
 /** B-091 (Q-091): a piece another member wears, taken out of a member's active loadout. */
 USTRUCT(BlueprintType)
@@ -213,6 +217,51 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Pool|Armoury")
     FOnPoolGearChanged OnPoolGearChanged;
 
+    // ==================== CARRIED ITEMS AND STORAGE (B-203, D-097) ====================
+    // The party carries one inventory of item slots (one item type, a crystal type and tier, per
+    // slot, stacked to ITEM_STACK_MAX); everything else waits in storage (the Crystals / Stones
+    // above, unlimited). Each party member's UCrystalInventoryComponent mirrors the carried items.
+
+    const TMap<FCrystalId, int32> &GetCarriedItems() const { return CarriedItems; }
+    int32 GetCarriedCount(const FCrystalId &Id) const;
+    int32 GetItemSlotCount() const { return ItemSlotCount; }
+    int32 GetUsedItemSlots() const { return CarriedItems.Num(); }
+
+    /** How many of Count fit the carried slots (a free slot, or room in Id's stack). */
+    int32 GetCarryRoom(const FCrystalId &Id) const;
+
+    /** D-097: what fits is carried, the rest goes to storage (never thrown away). Returns how many
+     *  went to storage. */
+    int32 CarryOrStore(const FCrystalId &Id, int32 Count);
+
+    /** Takes up to Count carried items; returns how many. */
+    int32 TakeCarried(const FCrystalId &Id, int32 Count);
+
+    /** Storage holds Id: the count waiting there. */
+    int32 GetStoredCount(const FCrystalId &Id) const;
+
+    /** Moves Count carried items to storage. False (nothing moved) when fewer are carried. */
+    bool MoveToStorage(const FCrystalId &Id, int32 Count);
+
+    /** Moves Count stored items into the carried slots. False (nothing moved) when fewer are
+     *  stored or they don't fit (no free slot, or the stack is full). */
+    bool MoveToCarried(const FCrystalId &Id, int32 Count);
+
+    /** Banks a character's starting items the first time it draws (fitted into the slots, the rest
+     *  stored); false when banked before. */
+    bool BankStartingItems(FName CharacterKey, const TMap<FCrystalId, int32> &Items);
+    bool HasBankedItems(FName CharacterKey) const { return BankedItemCharacters.Contains(CharacterKey); }
+    const TSet<FName> &GetBankedItemCharacters() const { return BankedItemCharacters; }
+
+    /** B-090 restore of the carried items, the slot count and whose items are banked. */
+    void RestoreCarriedItems(const TMap<FCrystalId, int32> &InCarried, int32 InSlotCount, const TArray<FName> &InBanked);
+
+    /** Debug: the slots in use, each carried stack, and storage. wor.Inventory.PrintSlots. */
+    FString GetItemSlotsString() const;
+
+    UPROPERTY(BlueprintAssignable, Category = "Pool|Items")
+    FOnPoolItemsChanged OnPoolItemsChanged;
+
     // ==================== DEBUG ====================
 
     /** Dump the whole pool to log + screen: per-category counts, crystal stacks, and the
@@ -309,4 +358,21 @@ private:
     /** The latest pieces taken out of a member's loadout because another member wears them. */
     UPROPERTY(Transient)
     TArray<FPoolGearClash> Clashes;
+
+    // ==================== CARRIED ITEMS (B-203) ====================
+    // Saved by explicit structs (FSavedPool, D-059), not these tags.
+
+    /** Crystal and stone stacks the party carries; one entry per slot. */
+    UPROPERTY()
+    TMap<FCrystalId, int32> CarriedItems;
+
+    UPROPERTY()
+    int32 ItemSlotCount = InventoryConstants::ITEM_SLOTS_START;
+
+    /** Characters whose starting items are already carried or stored. */
+    UPROPERTY()
+    TSet<FName> BankedItemCharacters;
+
+    /** Takes up to Count stored items; returns how many. */
+    int32 TakeStored(const FCrystalId &Id, int32 Count);
 };

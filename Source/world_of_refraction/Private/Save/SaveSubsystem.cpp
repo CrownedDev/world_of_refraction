@@ -407,6 +407,15 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 		Saved.Wearers.Add({Worn.Key, Worn.Value});
 	}
 	Saved.BankedCharacters = Pool.GetBankedCharacters().Array();
+	for (const TPair<FCrystalId, int32> &Stack : Pool.GetCarriedItems())
+	{
+		FSavedCrystalStack &Out = Saved.CarriedItems.AddDefaulted_GetRef();
+		Out.Type = static_cast<uint8>(Stack.Key.Type);
+		Out.Tier = Stack.Key.Tier;
+		Out.Count = Stack.Value;
+	}
+	Saved.ItemSlotCount = Pool.GetItemSlotCount();
+	Saved.BankedItemCharacters = Pool.GetBankedItemCharacters().Array();
 	return Saved;
 }
 
@@ -604,6 +613,16 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		Wearers.Add(Worn.GearID, Worn.Character);
 	}
 	Pool.RestoreSharedGear(Wearers, Saved.BankedCharacters);
+	TMap<FCrystalId, int32> Carried;
+	for (const FSavedCrystalStack &In : Saved.CarriedItems)
+	{
+		if (In.Count > 0 && StaticEnum<ECrystalType>()->IsValidEnumValue(In.Type))
+		{
+			Carried.FindOrAdd(FCrystalId(static_cast<ECrystalType>(In.Type), In.Tier)) += In.Count;
+			++Restored;
+		}
+	}
+	Pool.RestoreCarriedItems(Carried, Saved.ItemSlotCount, Saved.BankedItemCharacters);
 	if (Restored > 0)
 	{
 		Pool.MarkPopulated();

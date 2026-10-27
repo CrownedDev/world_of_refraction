@@ -2002,6 +2002,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it, e.g. to B once the loadout screen exists.
 **Notes for Claude:** applied (feature/B-076-trial-recruits). Trial maps have no recruit spots yet (placing a recruitable pawn in a trial level is editor work): B-215. Until then, `wor.Party.RecruitForRun <CharacterData path>` recruits in a trial. Evolutions for a recruit wait for B with the real screen.
 
+### Q-203 — The item inventory: what one item type is, and how big a stack is
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-203, D-097) · **Blocks:** — (ships with A)
+**Question:** D-097 gives the party an inventory of item slots (one item type per slot, stacked to the item's max) and unlimited storage. Building it needs: what one "item type" is, each item's stack size, whether the old per-tier crystal cap still applies, and who shares the slots.
+**Options:**
+- **A** One item type = **crystal type and tier** (Garnet F and Garnet E take two slots). Every stack holds up to **10** for now (`ITEM_STACK_MAX`, one value until items carry their own). The slots **replace** the old cap of 20 per tier for the party (the loadout's own tier caps, Q-155, still apply in a fight). The **whole party shares** one set of slots and one storage (D-020); a character's starting items go in once; a trial recruit brings none (Q-076). Found items, a merge's change and dropped crystals fill the slots and overflow to storage, so nothing is refused for space. A fight's auto-equip takes from the slots, and what the fight doesn't use goes back after it. Moving items between slots and storage is the placeholder `wor.UI.ItemStorage` until rest spots (B-187) and the hub screen.
+- **B** One item type = crystal type only (all tiers in one slot; fewer slots used, but a slot then mixes tiers).
+- **C** Keep the per-tier cap as well as the slots (two limits on one inventory).
+**Recommendation:** A. Monster Hunter's item pouch, which D-097 follows, gives each distinct item its own slot and stack limit; a potion and a mega potion are two slots. Resident Evil 4's attaché case and Diablo II's belt make the same trade: a small carried space and a big stash at home. One limit (slots) is easier to read than two. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it, e.g. the stack size per item.
+**Notes for Claude:** applied (feature/B-203-item-inventory-storage). Still to come: auto-refill at rest spots (D-097, with B-187); buying more slots with Prisms (D-097 growth, a hub vendor job); found gear in a run's gear list. An authored loadout's item slots still start with their authored crystals each spawn (free crystals, as before; only crystals taken from the carried items go back after a fight). Known limit: crystals auto-equipped for a fight that never ends (the level closes mid-fight) are not given back.
+
 ### Q-208 — Resuming a saved run: where the player lands, and what comes back
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-208, Q-090 = A) · **Blocks:** — (ships with A)
 **Question:** Q-090 resumes a quit run at the last fight's exit. Three details: where in the trial the player stands, whether the run's Gold comes back (B-178 keeps Gold in memory only, never banked), and what happens to a save loaded somewhere other than the game's start.

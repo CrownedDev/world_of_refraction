@@ -9,6 +9,7 @@
 #include "Inventory/ItemTier.h"             // TierHelpers::GetTierName
 #include "Engine/Engine.h"                  // GEngine on-screen debug
 #include "Misc/Paths.h"                     // FPaths::GetBaseFilename for the wearer dump
+#include "Equipment/Crystals/ItemIdentity.h"  // item names for the slot dump
 
 // --- Populate (authored → pool): the asset + the factories/types the populate dereferences ---
 #include "Inventory/InventoryData.h"               // UInventoryData (the authored source)
@@ -265,6 +266,161 @@ void UPoolSubsystem::AddCrystalToPool(const FCrystalId &Id, int32 Count)
     }
     // gem/stone by IsGemType (mirrors the run component's PoolFor).
     (CrystalTypeHelpers::IsGemType(Id.Type) ? Crystals : Stones).FindOrAdd(Id) += Count;
+}
+
+// ==================== CARRIED ITEMS AND STORAGE (B-203) ====================
+
+int32 UPoolSubsystem::GetCarriedCount(const FCrystalId &Id) const
+{
+    const int32 *Found = CarriedItems.Find(Id);
+    return Found ? *Found : 0;
+}
+
+int32 UPoolSubsystem::GetCarryRoom(const FCrystalId &Id) const
+{
+    if (Id.Type == ECrystalType::None)
+    {
+        return 0;
+    }
+    const int32 *Stack = CarriedItems.Find(Id);
+    if (!Stack && CarriedItems.Num() >= ItemSlotCount)
+    {
+        return 0;
+    }
+    return FMath::Max(0, InventoryConstants::ITEM_STACK_MAX - (Stack ? *Stack : 0));
+}
+
+int32 UPoolSubsystem::CarryOrStore(const FCrystalId &Id, int32 Count)
+{
+    if (Count <= 0 || Id.Type == ECrystalType::None)
+    {
+        return 0;
+    }
+    const int32 Carried = FMath::Min(Count, GetCarryRoom(Id));
+    if (Carried > 0)
+    {
+        CarriedItems.FindOrAdd(Id) += Carried;
+    }
+    const int32 Stored = Count - Carried;
+    if (Stored > 0)
+    {
+        AddCrystalToPool(Id, Stored);
+        UE_LOG(LogTemp, Log, TEXT("[Pool] %d %s didn't fit the carried slots: sent to storage"), Stored,
+               *ItemIdentity::GetDisplayName(Id));
+    }
+    OnPoolItemsChanged.Broadcast();
+    return Stored;
+}
+
+int32 UPoolSubsystem::TakeCarried(const FCrystalId &Id, int32 Count)
+{
+    int32 *Stack = CarriedItems.Find(Id);
+    if (!Stack || Count <= 0)
+    {
+        return 0;
+    }
+    const int32 Taken = FMath::Min(*Stack, Count);
+    *Stack -= Taken;
+    if (*Stack <= 0)
+    {
+        CarriedItems.Remove(Id);
+    }
+    OnPoolItemsChanged.Broadcast();
+    return Taken;
+}
+
+int32 UPoolSubsystem::GetStoredCount(const FCrystalId &Id) const
+{
+    const int32 *Found = (CrystalTypeHelpers::IsGemType(Id.Type) ? Crystals : Stones).Find(Id);
+    return Found ? *Found : 0;
+}
+
+int32 UPoolSubsystem::TakeStored(const FCrystalId &Id, int32 Count)
+{
+    TMap<FCrystalId, int32> &Storage = CrystalTypeHelpers::IsGemType(Id.Type) ? Crystals : Stones;
+    int32 *Stack = Storage.Find(Id);
+    if (!Stack || Count <= 0)
+    {
+        return 0;
+    }
+    const int32 Taken = FMath::Min(*Stack, Count);
+    *Stack -= Taken;
+    if (*Stack <= 0)
+    {
+        Storage.Remove(Id);
+    }
+    return Taken;
+}
+
+bool UPoolSubsystem::MoveToStorage(const FCrystalId &Id, int32 Count)
+{
+    if (Count <= 0 || GetCarriedCount(Id) < Count)
+    {
+        return false;
+    }
+    // Into storage first, so listeners to TakeCarried's broadcast find the items there.
+    AddCrystalToPool(Id, Count);
+    TakeCarried(Id, Count);
+    return true;
+}
+
+bool UPoolSubsystem::MoveToCarried(const FCrystalId &Id, int32 Count)
+{
+    if (Count <= 0 || GetStoredCount(Id) < Count || GetCarryRoom(Id) < Count)
+    {
+        return false;
+    }
+    TakeStored(Id, Count);
+    CarriedItems.FindOrAdd(Id) += Count;
+    OnPoolItemsChanged.Broadcast();
+    return true;
+}
+
+bool UPoolSubsystem::BankStartingItems(FName CharacterKey, const TMap<FCrystalId, int32> &Items)
+{
+    if (CharacterKey.IsNone() || BankedItemCharacters.Contains(CharacterKey))
+    {
+        return false;
+    }
+    BankedItemCharacters.Add(CharacterKey);
+    for (const TPair<FCrystalId, int32> &Pair : Items)
+    {
+        CarryOrStore(Pair.Key, Pair.Value);
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Banked %s's starting items: %d of %d slot(s) in use"),
+           *FPaths::GetBaseFilename(CharacterKey.ToString()), CarriedItems.Num(), ItemSlotCount);
+    return true;
+}
+
+void UPoolSubsystem::RestoreCarriedItems(const TMap<FCrystalId, int32> &InCarried, int32 InSlotCount, const TArray<FName> &InBanked)
+{
+    CarriedItems = InCarried;
+    ItemSlotCount = FMath::Max(InSlotCount, InventoryConstants::ITEM_SLOTS_START);
+    BankedItemCharacters = TSet<FName>(InBanked);
+    OnPoolItemsChanged.Broadcast();
+}
+
+FString UPoolSubsystem::GetItemSlotsString() const
+{
+    FString Out = FString::Printf(TEXT("[Pool] Carried items (B-203): %d of %d slot(s), %d character(s) banked"),
+                                  CarriedItems.Num(), ItemSlotCount, BankedItemCharacters.Num());
+    for (const TPair<FCrystalId, int32> &Pair : CarriedItems)
+    {
+        Out += FString::Printf(TEXT("\n    slot: %s x%d"), *ItemIdentity::GetDisplayName(Pair.Key), Pair.Value);
+    }
+    Out += TEXT("\n  Storage:");
+    for (const TMap<FCrystalId, int32> *Storage : {&Crystals, &Stones})
+    {
+        for (const TPair<FCrystalId, int32> &Pair : *Storage)
+        {
+            Out += FString::Printf(TEXT("\n    %s x%d"), *ItemIdentity::GetDisplayName(Pair.Key), Pair.Value);
+        }
+    }
+    if (Crystals.Num() + Stones.Num() == 0)
+    {
+        Out += TEXT(" empty");
+    }
+    return Out;
 }
 
 // ==================== CATEGORY GETTERS ====================
@@ -602,6 +758,18 @@ namespace
 
                 Pool->PopulateFromInventoryAsset(Inventory, Pawn);
                 Pool->PrintPoolState();
+            }));
+
+    static FAutoConsoleCommandWithWorld GPrintItemSlotsCmd(
+        TEXT("wor.Inventory.PrintSlots"),
+        TEXT("B-203: the party's carried item slots (one item type per slot) and storage (PIE debug)."),
+        FConsoleCommandWithWorldDelegate::CreateLambda(
+            [](UWorld *World)
+            {
+                if (const UPoolSubsystem *Pool = ResolvePoolFromWorld(World))
+                {
+                    UE_LOG(LogTemp, Log, TEXT("%s"), *Pool->GetItemSlotsString());
+                }
             }));
 
     static FAutoConsoleCommandWithWorld GPrintPoolCmd(

@@ -982,7 +982,17 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
             const FCrystalId Id = E.Crystal;
             if (Inv->AddCrystal(Id, Count))
             {
-                Undo.Add([Inv, Id, Count]() { TArray<FCrystalId> R; R.Init(Id, Count); Inv->RemoveCrystals(R); });
+                Undo.Add([Inv, Id, Count]()
+                {
+                    TArray<FCrystalId> R;
+                    R.Init(Id, Count);
+                    if (!Inv->RemoveCrystals(R))
+                    {
+                        // B-203: part went to the party's storage (carried slots full); it stays there.
+                        UE_LOG(LogTemp, Warning, TEXT("[Economy] Purchase undo: %s x%d not all carried, left where it landed"),
+                               *ItemIdentity::GetDisplayName(Id), Count);
+                    }
+                });
             }
             else
             {

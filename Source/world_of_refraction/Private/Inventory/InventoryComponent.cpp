@@ -1331,6 +1331,17 @@ bool UInventoryComponent::DrawSharedGear()
     SharedPool = Pool;
     SharedGearKey = Key;
     Pool->OnPoolGearChanged.AddUniqueDynamic(this, &UInventoryComponent::HandlePoolGearChanged);
+    // B-203 (D-097): the party carries one set of items; a member's starting items go in once.
+    if (UCrystalInventoryComponent *CrystalInv = GetOwner()->FindComponentByClass<UCrystalInventoryComponent>())
+    {
+        if (!bRunOnly && !Pool->HasBankedItems(Key))
+        {
+            TMap<FCrystalId, int32> StartingItems = CrystalInv->Crystals;
+            StartingItems.Append(CrystalInv->Stones);
+            Pool->BankStartingItems(Key, StartingItems);
+        }
+        CrystalInv->BindSharedItems(Pool);
+    }
     ClaimActiveSharedGear();
 
     UE_LOG(LogTemp, Log, TEXT("[Inventory] %s draws the shared armoury: %d weapon(s), %d ring(s), %d evolution(s); %d preset slot(s) emptied"),
@@ -2169,11 +2180,9 @@ void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)
 
     if (CrystalInv)
     {
-        // Crystal pools are TMap<FCrystalId,int32> on both sides — structural parity, so a
-        // direct map copy (assignment) is the whole-store transfer. ClearAll() above means
-        // assignment (not merge) is correct. Two pools now (gem-merge): Crystals + Stones.
-        CrystalInv->Crystals = Pool->GetCrystals();
-        CrystalInv->Stones = Pool->GetStones();
+        // B-203 (D-097): the pool's Crystals / Stones are storage now; a member carries the party's
+        // carried items instead, so the draw binds to those rather than copying storage.
+        CrystalInv->BindSharedItems(Pool);
     }
     if (EvolutionInv)
     {

@@ -288,12 +288,26 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	UPROPERTY()
 	TArray<FSavedOwnedItem> Abilities;
 
+	/** Storage (D-097): crystals and stones not carried. */
 	UPROPERTY()
 	TArray<FSavedCrystalStack> Crystals;
 
+	/** B-203: the party's carried items, one stack per slot. */
+	UPROPERTY()
+	TArray<FSavedCrystalStack> CarriedItems;
+
+	/** B-203: carried item slots (0 in an older save: the starting count). */
+	UPROPERTY()
+	int32 ItemSlotCount = 0;
+
+	/** B-203: characters whose starting items are already carried or stored. */
+	UPROPERTY()
+	TArray<FName> BankedItemCharacters;
+
 	int32 Num() const
 	{
-		return Weapons.Num() + Rings.Num() + Evolutions.Num() + Spells.Num() + Abilities.Num() + Crystals.Num();
+		return Weapons.Num() + Rings.Num() + Evolutions.Num() + Spells.Num() + Abilities.Num() + Crystals.Num() +
+			   CarriedItems.Num();
 	}
 };
 

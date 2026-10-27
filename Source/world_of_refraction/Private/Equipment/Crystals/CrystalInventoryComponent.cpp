@@ -1,6 +1,7 @@
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Inventory/InventoryConstants.h"
+#include "Pool/PoolSubsystem.h"
 
 UCrystalInventoryComponent::UCrystalInventoryComponent()
 {
@@ -46,6 +47,11 @@ bool UCrystalInventoryComponent::AddCount(FCrystalId Id, int32 Count)
     {
         return false;
     }
+    if (UPoolSubsystem *Pool = SharedPool.Get())
+    {
+        Pool->CarryOrStore(Id, Count); // OnPoolItemsChanged refreshes this mirror
+        return true;
+    }
     PoolFor(Id.Type).FindOrAdd(Id) += Count;
     return true;
 }
@@ -59,6 +65,10 @@ int32 UCrystalInventoryComponent::RemoveCount(FCrystalId Id, int32 Count)
     if (Count <= 0)
     {
         return 0;
+    }
+    if (UPoolSubsystem *Shared = SharedPool.Get())
+    {
+        return Shared->TakeCarried(Id, Count);
     }
     TMap<FCrystalId, int32> &Pool = PoolFor(Id.Type);
     int32 *Found = Pool.Find(Id);
@@ -114,6 +124,8 @@ int32 UCrystalInventoryComponent::GetStackCount() const
 
 void UCrystalInventoryComponent::ClearAll()
 {
+    // A re-init refills from the authored asset: that must not reach the party's shared items.
+    UnbindSharedItems();
     Crystals.Empty();
     Stones.Empty();
 }
@@ -128,5 +140,53 @@ bool UCrystalInventoryComponent::CanAddCount(FCrystalId Id, int32 Count) const
     {
         return false;
     }
+    // D-097: shared items never run out of room; what doesn't fit the slots is stored.
+    if (SharedPool.IsValid())
+    {
+        return true;
+    }
     return SumAtTier(PoolFor(Id.Type), Id.Tier) + Count <= InventoryConstants::CRYSTAL_PER_TIER_CAP;
+}
+
+// ==================== SHARED CARRIED ITEMS (B-203) ====================
+
+void UCrystalInventoryComponent::BindSharedItems(UPoolSubsystem *Pool)
+{
+    if (!Pool)
+    {
+        return;
+    }
+    SharedPool = Pool;
+    Pool->OnPoolItemsChanged.AddUniqueDynamic(this, &UCrystalInventoryComponent::HandlePoolItemsChanged);
+    HandlePoolItemsChanged();
+}
+
+void UCrystalInventoryComponent::UnbindSharedItems()
+{
+    if (UPoolSubsystem *Pool = SharedPool.Get())
+    {
+        Pool->OnPoolItemsChanged.RemoveDynamic(this, &UCrystalInventoryComponent::HandlePoolItemsChanged);
+    }
+    SharedPool.Reset();
+}
+
+void UCrystalInventoryComponent::HandlePoolItemsChanged()
+{
+    const UPoolSubsystem *Pool = SharedPool.Get();
+    if (!Pool)
+    {
+        return;
+    }
+    Crystals.Empty();
+    Stones.Empty();
+    for (const TPair<FCrystalId, int32> &Pair : Pool->GetCarriedItems())
+    {
+        PoolFor(Pair.Key.Type).Add(Pair.Key, Pair.Value);
+    }
+}
+
+void UCrystalInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    UnbindSharedItems();
+    Super::EndPlay(EndPlayReason);
 }

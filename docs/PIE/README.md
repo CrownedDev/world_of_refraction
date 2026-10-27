@@ -114,6 +114,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-208](B-208.md) | `feature/B-208-save-trial-run` (in `dev`) | Quitting mid-trial and restarting in the hub picks the run back up: fights, chests, HP, wear and Gold | Not tested |
 | [B-091](B-091.md) | `feature/B-091-shared-gear-pool` (in `dev`) | The party shares one armoury: each piece once, one wearer, changes reach everyone | Not tested |
 | [B-076](B-076.md) | `feature/B-076-trial-recruits` (in `dev`) | A character found in a trial joins for that run, ungeared, uses armoury gear, and leaves at the end | Not tested |
+| [B-203](B-203.md) | `feature/B-203-item-inventory-storage` (in `dev`) | The party carries 10 item slots; the rest goes to storage; move items between them | Not tested |
 | [B-211](B-211.md) | `feature/B-211-boss-triggers` (in `dev`) | Boss triggers: the right character + gear weakens / strengthens / changes a boss | Not tested |
 | [B-209b](B-209b.md) | `feature/B-209-memory-conditions` (in `dev`) | Memories by conditions (who, gear, where, what you beat, how, chains) | Not tested |
 | [B-210](B-210.md) | `feature/B-210-collected-memories` (in `dev`) | A collected memory is gone for good: its fragment isn't in later runs | Not tested |

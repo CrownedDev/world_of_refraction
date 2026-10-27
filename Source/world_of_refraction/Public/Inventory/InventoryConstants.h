@@ -46,6 +46,13 @@ namespace InventoryConstants
      *  and refined-crystal pools each respect this cap independently. */
     constexpr int32 CRYSTAL_PER_TIER_CAP = 20;
 
+    /** B-203 (D-097, Q-203): item slots the party's carried inventory starts with (raised later by
+     *  a hub vendor). One item type (crystal type and tier) per slot. */
+    constexpr int32 ITEM_SLOTS_START = 10;
+
+    /** B-203 (Q-203): how many of one item type a slot holds. // TODO: tune, per item once items say. */
+    constexpr int32 ITEM_STACK_MAX = 10;
+
     // ==================== EQUIPMENT SLOT COSTS ====================
     // These determine how much inventory space each item uses
 
