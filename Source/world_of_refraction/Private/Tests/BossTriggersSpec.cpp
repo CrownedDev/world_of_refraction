@@ -18,7 +18,6 @@
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryUnlock.h"
-#include "Memory/MemoryJournalSubsystem.h"
 #include "Trial/TrialRunSubsystem.h"
 
 namespace

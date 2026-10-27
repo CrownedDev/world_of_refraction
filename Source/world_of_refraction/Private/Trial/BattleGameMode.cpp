@@ -268,8 +268,8 @@ void ABattleGameMode::BootstrapCombat()
     const TArray<FReactionTrigger> Reactions = ReactionTriggers::GatherTriggers();
     const TArray<FFiredReaction> Fired = ReactionTriggers::FindFired(Reactions, LocalParty, OpposingParty);
     const int32 ReactionEffects = ReactionTriggers::ApplyFired(Fired);
-    // B-209: fired reactions and worn bound gear whose conditions hold unlock their memories (before the
-    // memory boss changes below, so a memory unlocked now counts this fight).
+    // B-209: fired reactions and worn bound gear whose conditions hold unlock their memories (since
+    // B-211 memories no longer change bosses).
     MemoryUnlock::UnlockAtFightStart(GetGameInstance(), Fired, LocalParty, OpposingParty);
     // B-193: any opposing combatant with boss data gets its phases: after reactions change its
     // stats (so they can't reach a phase early), before boss triggers skip or add phases.
