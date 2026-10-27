@@ -1928,6 +1928,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-149-formation-cells): `ACombatOrchestrator::GetPlaceholderEnemyStartRow`. Authored enemy cells replace it later.
 
+### Q-042 — Build GAS stage 3 now, or after the B-145 / B-146 plans?
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-042) · **Blocks:** B-042 (until B-145 and B-146 are approved)
+**Question:** B-042 (GAS stage 3: effects on GameplayEffects, the getters reading attributes) became pickable when B-134 landed. B-145 (resistance) and B-146 (all stat maths) are plan jobs whose results are to be folded into B-041 to B-043: one Execution Calculation for damage and buildup, every bonus a modifier, constants in data tables. Build stage 3 first, or wait for those plans?
+**Context:** `docs/Design/GASMigration.md` stage 3 has six steps and touches the whole combat core (its Risks section asks for a feature freeze). B-145 and B-146 say "no code until Crown approves", and they decide how the GameplayEffects and the damage calculation that B-042 builds are shaped.
+**Options:**
+- **A** write the B-145 / B-146 plans first; B-042 waits until Crown approves them, then builds the agreed shape once.
+- **B** build B-042 now to the current GASMigration plan; B-145 / B-146 later rework it.
+**Recommendation:** A. Plan the data model before the large port: Epic's Lyra and the GASDocumentation community guide both settle the attribute sets, the modifiers and the one damage Execution Calculation before moving effects onto GameplayEffects, because reshaping effects after they are ported is the costly part. B would build stage 3 twice. It also keeps the feature freeze short (one pass through the combat core). Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** B-042 is `BLOCKED (B-145, B-146; Q-042)`. Unblock it when Crown approves both plans; the plan docs list what changes in B-042.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
