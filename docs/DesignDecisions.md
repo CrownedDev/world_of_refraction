@@ -1435,7 +1435,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **One time only**: once in the journal, a memory isn't granted again (Q-190 changed).
 - **Never told**: the game doesn't show the conditions; players discover them (pillar 10).
 
-**Notes for Claude:** a memory = `UMemoryData` + a condition list (character, items + levels, location, beaten enemy, behaviour, prior memories, hidden). Sources (fragment pickups, boss defeat, trigger volumes, gear upgrades) are just *events that check* memory conditions; all grant through `CollectMemory` / the journal (B-190). B-191's `BossModifiers` on memories move to the boss's own trigger list (B-211). Crown wants this hidden quest / lore system explored further (research: `Design/HiddenQuests.md`).
+**Notes for Claude:** a memory = `UMemoryData` + a condition list (character, items + levels, location, beaten enemy, behaviour, prior memories, hidden). Sources (fragment pickups, boss defeat, trigger volumes, gear upgrades) are just *events that check* memory conditions; all grant through `CollectMemory` / the journal (B-190). B-191's `BossModifiers` on memories move to the boss's own trigger list (B-211). Design and research: `Design/HiddenQuests.md`.
 
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
