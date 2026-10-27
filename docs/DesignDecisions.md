@@ -1964,6 +1964,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-149-formation-cells): `ACombatOrchestrator::GetPlaceholderEnemyStartRow`. Authored enemy cells replace it later.
 
+### Q-209b — Memories by conditions: how the conditions are checked
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-209, D-100 restructured) · **Blocks:** — (B-209 ships with A)
+**Question:** D-100 part 2 gives each memory a list of unlock conditions, all needed, checked on events. Which condition types exist now, what does each event know, and what does a source do when its memory's conditions aren't met?
+**Options:**
+- **A** A memory's `UnlockConditions` is a list of typed conditions: **Character** (in the party), **Gear equipped** (an item worn, by a given character or anyone, at least N tiers above its authored tier), **Location** (an id: the trial, or the fragment / spot where it happens), **Enemy beaten** (in that fight), **No damage taken** (the fight was won with no party member below their HP at its start), **Prior memory** (already in the journal; this is how memories chain), **Hidden** (never met for now, TODO). The events are a fragment pickup, reaching a map spot, a gear upgrade (the levelled item counts as equipped) and a fight won (a beaten boss is that event's source). Each event checks every memory that has conditions, plus the memory the source itself names (which needs its own conditions, and none means always). A memory earned in an event can satisfy the next one's Prior memory in the same event. A fragment or spot whose memory isn't unlocked stays where it is (come back with the right party); pressing at a fragment shows "Nothing happens." Out of a fight, an event knows the party's characters but not their worn gear (loadouts live on combat pawns until B-085), so gear conditions are met there only by the upgraded item.
+- **B** One condition struct with every field (all set ones must hold), no kinds.
+- **C** Conditions only on the source (the fragment, the boss), not on the memory.
+**Recommendation:** A. Shangri-La Frontier's Unique Scenarios (Crown's model) start from hidden mixes of who you are, where you go and how you fought; Hollow Knight and Elden Ring NPC questlines chain one discovery to the next, and players praise working them out. A typed list is the boss-phase condition model already in use (D-098, `FBossPhaseCondition`), so it reads the same in the editor. Not lore (which memories and conditions to author is Crown's).
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** building on B-209's first pass (in dev): `MemoryUnlock::Unlock` stays the single grant (journal once, B-210). The old per-source fields (`MemoryOnDefeat`, `UnlockMemory`, fragment / spot `Memory`, `BoundMemories`) stay as the memory the source names, until Crown's PIE; B-211 moves boss changes off memories.
+
 ### Q-209 — How the new memory sources behave
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-209) · **Blocks:** — (B-209 shipped with A)
 **Question:** D-100 adds four memory sources: bosses, reactions, map spots and bound gear. When does each one unlock, and how often?
