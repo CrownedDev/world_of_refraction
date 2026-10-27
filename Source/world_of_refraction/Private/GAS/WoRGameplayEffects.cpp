@@ -265,6 +265,65 @@ UWoRGE_StatSources_Spirit::UWoRGE_StatSources_Spirit()
 	AddSourceModifiers(UWoRAttributeSet_Stats::GetSpiritAttribute());
 }
 
+UWoRGE_StatSources_StatusResistance::UWoRGE_StatSources_StatusResistance()
+{
+	AddSourceModifiers(UWoRAttributeSet_Resistance::GetStatusResistanceAttribute());
+}
+
+UWoRGE_ResistanceSources::UWoRGE_ResistanceSources()
+{
+	DurationPolicy = EGameplayEffectDurationType::Infinite;
+	AddAssetTag(WoRTags::Effect_Family_StatSources);
+}
+
+namespace
+{
+	FGameplayModifierInfo AddBaseBySetByCaller(const FGameplayAttribute &Attribute, const FGameplayTag &DataTag)
+	{
+		FSetByCallerFloat SetByCaller;
+		SetByCaller.DataTag = DataTag;
+		FGameplayModifierInfo Modifier;
+		Modifier.Attribute = Attribute;
+		Modifier.ModifierOp = EGameplayModOp::AddBase;
+		Modifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(SetByCaller);
+		return Modifier;
+	}
+}
+
+void UWoRGE_ResistanceSources::AddTypeModifiers()
+{
+	for (const EWoRDamageType DamageType : WoRDamageType::All())
+	{
+		Modifiers.Add(AddBaseBySetByCaller(UWoRAttributeSet_Resistance::GetTypeAttribute(DamageType), WoRTags::DamageTypeToTag(DamageType)));
+	}
+}
+
+void UWoRGE_ResistanceSources::AddStatusResistBonusModifier()
+{
+	Modifiers.Add(AddBaseBySetByCaller(UWoRAttributeSet_Resistance::GetStatusResistBonusAttribute(), WoRTags::SetByCaller_Magnitude));
+}
+
+UWoRGE_ResistanceSources_Effect::UWoRGE_ResistanceSources_Effect()
+{
+	AddTypeModifiers();
+	AddStatusResistBonusModifier();
+}
+
+UWoRGE_ResistanceSources_Class::UWoRGE_ResistanceSources_Class()
+{
+	AddTypeModifiers();
+}
+
+UWoRGE_ResistanceSources_Gear::UWoRGE_ResistanceSources_Gear()
+{
+	AddTypeModifiers();
+}
+
+UWoRGE_ResistanceSources_Boss::UWoRGE_ResistanceSources_Boss()
+{
+	AddStatusResistBonusModifier();
+}
+
 TSubclassOf<UGameplayEffect> UWoRGE_PoolSources::GetClassFor(const FGameplayAttribute &Attribute)
 {
 	if (Attribute == UWoRAttributeSet_Vitals::GetMaxHealthAttribute())

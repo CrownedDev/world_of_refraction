@@ -199,6 +199,15 @@ WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, Resist_NonElemental)
 WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, StatusResistance)
 WOR_ATTRIBUTE_REPNOTIFY(UWoRAttributeSet_Resistance, StatusResistBonus)
 
+void UWoRAttributeSet_Resistance::PreAttributeChange(const FGameplayAttribute &Attribute, float &NewValue)
+{
+	Super::PreAttributeChange(Attribute, NewValue);
+	if (Attribute == GetStatusResistanceAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.0f, CombatConstants::RESISTANCE_MAX);
+	}
+}
+
 FGameplayAttribute UWoRAttributeSet_Resistance::GetTypeAttribute(EWoRDamageType DamageType)
 {
 	switch (DamageType)

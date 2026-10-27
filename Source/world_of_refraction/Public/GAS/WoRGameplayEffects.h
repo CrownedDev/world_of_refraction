@@ -355,6 +355,73 @@ public:
 	UWoRGE_StatSources_Spirit();
 };
 
+/** General status resistance (B-042w): the capped Spirit stat, gear points and attached stones on
+ *  UWoRAttributeSet_Resistance::StatusResistance (WoRResistance::GetGeneralStatusResistanceLayers); transient stays 1. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_StatSources_StatusResistance : public UWoRGE_StatSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_StatSources_StatusResistance();
+};
+
+/** B-042w (Q-042w, ResistanceRedesign.md §3.2): one resistance source as one Infinite effect adding (AddBase) its
+ *  bucket to every damage type's resistance, each magnitude by SetByCaller keyed by the type's DamageType.* tag
+ *  (WoRTags::DamageTypeToTag); the buff and boss sources add to StatusResistBonus (SetByCaller.Magnitude). The
+ *  resistance attributes' base is 0, so the sum of the sources is WoRResistance's sum. */
+UCLASS(Abstract)
+class WORLD_OF_REFRACTION_API UWoRGE_ResistanceSources : public UWoRGameplayEffect
+{
+	GENERATED_BODY()
+
+protected:
+	UWoRGE_ResistanceSources();
+
+	void AddTypeModifiers();
+	void AddStatusResistBonusModifier();
+};
+
+/** #4 typed resistance buffs minus debuffs, and #7 ModifyStatusResist. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_ResistanceSources_Effect : public UWoRGE_ResistanceSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_ResistanceSources_Effect();
+};
+
+/** #5 the class table. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_ResistanceSources_Class : public UWoRGE_ResistanceSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_ResistanceSources_Class();
+};
+
+/** #6 gear rolls. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_ResistanceSources_Gear : public UWoRGE_ResistanceSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_ResistanceSources_Gear();
+};
+
+/** #8 boss rising resistance. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_ResistanceSources_Boss : public UWoRGE_ResistanceSources
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_ResistanceSources_Boss();
+};
+
 /** B-042u (Q-042u): a max pool's layers (FWoRPoolLayers) as one Infinite effect on MaxHealth / MaxEnergy over
  *  the stat portion: the gear's flat amount added to the base (AddBase, SetByCaller.Stat.Gear), then one multiply
  *  (MultiplyCompound, SetByCaller.Stat.Stone: the stone and buff percents summed). The attribute set rounds it. */
