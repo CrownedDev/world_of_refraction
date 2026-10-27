@@ -2,6 +2,7 @@
 
 #include "Combat/Actions/ActionExecutor.h"
 #include "MotionWarpingComponent.h"
+#include "WoRLog.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
 #include "AI/AIDecisionManager.h"
@@ -606,13 +607,13 @@ float UActionExecutor::ResolveTierGapMultiplier(AActor *Actor, const FAction &Ac
 	const TOptional<EItemTier> ChannelTier = ResolveChannelTier(Actor, Action);
 	if (!ChannelTier.IsSet())
 	{
-		UE_LOG(LogTemp, Display,
+		UE_LOG(LogWoRCombat, Verbose,
 			   TEXT("[TierGap] %s action=%s channel=NONE -> mult=1.00 (no channel, no scaling)"),
 			   *ActionName, *TierHelpers::GetTierName(ActionTier));
 	}
 	else
 	{
-		UE_LOG(LogTemp, Display, TEXT("[TierGap] %s %s (applied)"),
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[TierGap] %s %s (applied)"),
 			   *ActionName,
 			   *UTierGapDamageDebug::GetMultiplierString(ActionTier, ChannelTier.GetValue()));
 	}
@@ -1324,7 +1325,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	const bool bExactAttunement = CasterData && Spell->Requirements.ExactlyMatchedBy(CasterData);
 	if (bExactAttunement)
 	{
-		UE_LOG(LogTemp, Display,
+		UE_LOG(LogWoRCombat, Verbose,
 			   TEXT("BrokenDarkness: %s exact-attuned to %s — forbidden-cast backlash waived"),
 			   *Caster->GetName(), *Spell->GetName());
 	}
@@ -1782,7 +1783,7 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 
 void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResult &DefenseResult)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] OnDefenseWindowClosed CALLBACK FIRED for %s"),
+	UE_LOG(LogWoRCombat, Verbose, TEXT("[ActionExecutor] OnDefenseWindowClosed for %s"),
 		   Defender ? *Defender->GetName() : TEXT("null"));
 
 	if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
@@ -2741,7 +2742,7 @@ void UActionExecutor::BindDefenseSystemEvents()
 	}
 
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
-	UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] BindDefenseSystemEvents called - DefenseSys: %s"),
+	UE_LOG(LogWoRCombat, Verbose, TEXT("[ActionExecutor] BindDefenseSystemEvents called - DefenseSys: %s"),
 		   DefenseSys ? TEXT("VALID") : TEXT("NULL"));
 
 	if (DefenseSys)
@@ -2749,7 +2750,7 @@ void UActionExecutor::BindDefenseSystemEvents()
 		DefenseSys->OnDefenseWindowClosed.AddDynamic(this, &UActionExecutor::OnDefenseWindowClosed);
 		bDefenseEventsBound = true;
 
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Bound to DefenseSystem events - IsBound: %s"),
+		UE_LOG(LogWoRCombat, Log, TEXT("[ActionExecutor] Bound to DefenseSystem events - IsBound: %s"),
 			   DefenseSys->OnDefenseWindowClosed.IsBound() ? TEXT("TRUE") : TEXT("FALSE"));
 	}
 	else

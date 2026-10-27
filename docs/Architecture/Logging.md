@@ -35,3 +35,4 @@ All are `Log` verbosity by default, compile-time `All`, and exported with `WORLD
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-26 | Created: 7 categories; first user is the test-world helper (B-006) | `chore/B-006-log-categories` |
+| 2026-10-27 | B-141: routine per-hit / per-turn lines move to `Verbose` (TierGap, defense-window close, action validation, infusion VFX, Broken Darkness checks and strain, combat-menu traces) on `LogWoRCombat` / `LogWoRUI`; Broken Darkness events (break, transform, revert, overload, forbidden cast) go from Warning to `Log`. Error paths unchanged. | `chore/B-141-per-hit-logs-verbose` |

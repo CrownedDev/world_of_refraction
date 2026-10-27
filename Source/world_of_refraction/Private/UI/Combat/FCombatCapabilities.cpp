@@ -3,6 +3,7 @@
 
 #include "UI/Combat/FCombatCapabilities.h"
 #include "Loadout/LoadoutComponent.h"
+#include "WoRLog.h"
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Loadout/Entries/FRingLoadoutEntry.h"
@@ -36,7 +37,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
 
     const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 
-    UE_LOG(LogTemp, Warning, TEXT("[FCombatCapabilities] DEBUG PrimarySlotType=%d PrimaryRingPtr=%s"),
+    UE_LOG(LogWoRUI, Verbose, TEXT("[FCombatCapabilities] PrimarySlotType=%d PrimaryRingPtr=%s"),
            static_cast<int32>(Loadout.PrimarySlotType),
            LC->GetPrimaryRingLoadout() ? TEXT("valid") : TEXT("null"));
 
@@ -50,7 +51,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
 
     if (ActiveWeapon && ActiveWeapon->WeaponEntry.Weapon)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[FCombatCapabilities] ActiveWeapon='%s' HasCrystal=%d"),
+        UE_LOG(LogWoRUI, Verbose, TEXT("[FCombatCapabilities] ActiveWeapon='%s' HasCrystal=%d"),
                *ActiveWeapon->WeaponEntry.Weapon->Name,
                ActiveWeapon->WeaponEntry.HasCrystal());
         Out.bCanAttack = true;
