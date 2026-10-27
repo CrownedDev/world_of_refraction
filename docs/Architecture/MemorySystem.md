@@ -37,6 +37,7 @@ Memories are the story the player collects in trials (RunStructure §5). A memor
 ## Changelog
 | Date | Change | Branch |
 |---|---|---|
+| 2026-10-27 | B-210 (Q-190 changed by Crown): a collected memory is gone for good. `MemoryUnlock::Unlock` refuses a memory the journal has (`MemoryUnlock::IsCollected`); `AMemoryFragment::IsTaken` hides its fragment on load, `AMemorySpot` is spent. A later run's memories (and so its boss changes) leave it out. Specs in `WoR.Memory.Fragment` and `WoR.Memory.Sources`. | feature/B-210-collected-memories |
 | 2026-10-27 | B-209 (D-100, Q-209): more sources, one path. `MemoryUnlock` (`Unlock`, `UnlockBossDrop(s)`, `UnlockAtFightStart`) into the run and the journal, which records `EMemorySource` per memory (`GetSource`, shown by `wor.Memory.Print`). `UBossData::MemoryOnDefeat` (on a win), `FReactionTrigger::UnlockMemory` (fight start), `UEquipmentDataBase::BoundMemories` (`FBoundMemory`: upgrade level and/or triggers, owner wearing / facing a character; on `LevelUpWeapon` / `LevelUpRing` and at fight start), `AMemorySpot` (walk-in map spot). Spec `WoR.Memory.Sources`. | feature/B-209-memory-sources |
 | 2026-10-26 | B-194 (Q-194): `UStoryLinesData` (V lines, conversations), the journal keeps lore / heard lines / played conversations, placeholder `UMemoryJournalWidget` + `AHubJournalStation`; spec `WoR.Story.Journal`. | feature/B-194-memory-journal |
 | 2026-10-26 | B-191: `BossModifiers` read at fight start: weaken / strengthen one step (see `ReactionTriggers.md`). | feature/B-191-reaction-triggers |

@@ -23,8 +23,11 @@ struct FFiredReaction;
 
 namespace MemoryUnlock
 {
-	/** Into the run and the journal. False when Memory is null or both already have it. */
+	/** Into the run and the journal. False when Memory is null or already collected. */
 	WORLD_OF_REFRACTION_API bool Unlock(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source);
+
+	/** B-210 (Q-190 changed by Crown): Memory is in the journal, so no source grants it again. */
+	WORLD_OF_REFRACTION_API bool IsCollected(const UGameInstance *GameInstance, const UMemoryData *Memory);
 
 	/** BossData beaten: its MemoryOnDefeat, if any. */
 	WORLD_OF_REFRACTION_API bool UnlockBossDrop(UGameInstance *GameInstance, const UBossData *BossData);
