@@ -18,6 +18,7 @@
 
 struct FWoRBuildupRequest;
 struct FWoRDamageRequest;
+struct FWoRTickRequest;
 
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FWoREffectIdentity
@@ -66,6 +67,9 @@ struct WORLD_OF_REFRACTION_API FWoREffectContext : public FGameplayEffectContext
 
 	/** A buildup spec's gathered inputs (B-042l, UWoRBuildupExecution). Authority only: not net serialized. */
 	TSharedPtr<const FWoRBuildupRequest> BuildupRequest;
+
+	/** A DOT / HOT tick spec's request (B-042n, UWoRTickExecution). Authority only: not net serialized. */
+	TSharedPtr<const FWoRTickRequest> TickRequest;
 
 	/** The WoR context behind a handle, or null when the handle holds another kind (or none). */
 	static const FWoREffectContext *Get(const FGameplayEffectContextHandle &Handle);

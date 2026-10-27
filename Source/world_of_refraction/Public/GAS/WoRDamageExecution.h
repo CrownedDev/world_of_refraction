@@ -44,6 +44,11 @@ public:
 	static FDamageMathInputs ReadAttributes(const FWoRDamageRequest &Request, const UAbilitySystemComponent *Source,
 											const UAbilitySystemComponent *Target);
 
+	/** Out = Target's resistance to Element's damage from the attributes, WoRResistance::GetElementDamageResistance's
+	 *  rule: the element's own, plus Ice for Water (Q-145b); none for non-elemental (Q-145). False and Out
+	 *  untouched when the element has none or Target's attributes aren't synced. Also read by DOT ticks (B-042n). */
+	static bool ReadElementResistance(const UAbilitySystemComponent *Target, ESpellElement Element, float &OutResistance);
+
 	/** The request for one hit, gathered by Calculator as CalculateDamage does (rolls the crit once). */
 	static FWoRDamageRequest MakeRequest(const UDamageCalculator &Calculator, AActor *Attacker, AActor *Defender,
 										 const FDamageCalculationInput &Input);
