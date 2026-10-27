@@ -22,6 +22,7 @@
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Actions/ActionStructs.h"
 #include "Infusion/InfusionVFXComponent.h"
+#include "Infusion/InfusionConstants.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Engine/GameInstance.h"
 
@@ -379,7 +380,7 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
             VFX->CycleToNextSource();
-            if (VFX->GetCurrentInfusionLevel() > 0)
+            if (PendingInfusionLevel > 0)
             {
                 VFX->ActivateCurrentSource();
             }
@@ -395,9 +396,9 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
 
     case EPieMenuCategory::CycleLevel:
     {
-        if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
+        if (GetInfusionVFXComponent())
         {
-            VFX->CycleInfusionLevel();
+            SetPendingInfusionLevel((PendingInfusionLevel + 1) % (InfusionConstants::MAX_INFUSION_LEVEL + 1));
         }
         // Re-broadcast picker with updated label — preserve original shape
         // (group confirm vs per-actor) via RebuildCurrentPicker.
@@ -1148,7 +1149,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
             VFX->SetImmuneToInfusion(IsInfusionLockedForPendingAction());
 
             VFX->CacheAvailableSources(); // refresh available sources
-            VFX->SetInfusionLevel(0);     // reset to L0 (no VFX)
+            SetPendingInfusionLevel(0);   // reset to L0 (no VFX)
 
             // Breakthrough spells are the only spell submenu that exposes a
             // CycleSource button. 6-5-f: narrow the cache to EXACTLY the sources the
@@ -1328,9 +1329,9 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetCategoryButto
 void UCombatCommandMenuSubsystem::ExitTargetSelectionToActionMenu()
 {
     // Reset infusion state — picker is closing without commit
+    SetPendingInfusionLevel(0);
     if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
     {
-        VFX->SetInfusionLevel(0);
         VFX->SetImmuneToInfusion(false);
     }
 
@@ -1497,7 +1498,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
             const FString CycleLvlText = FString::Printf(
                 TEXT("%s: L%d"),
                 *SourceLabel,
-                VFX->GetCurrentInfusionLevel());
+                PendingInfusionLevel);
 
             FPieMenuButtonData CycleLvl;
             CycleLvl.ButtonID = TEXT("CycleLevel");
@@ -1636,7 +1637,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
             const FString CycleLvlText = FString::Printf(
                 TEXT("%s: L%d"),
                 *SourceLabel,
-                VFX->GetCurrentInfusionLevel());
+                PendingInfusionLevel);
 
             FPieMenuButtonData CycleLvl;
             CycleLvl.ButtonID = TEXT("CycleLevel");
@@ -1943,7 +1944,7 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
     {
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
-            const int32 Level = VFX->GetCurrentInfusionLevel();
+            const int32 Level = PendingInfusionLevel;
             if (Level > 0)
             {
                 const TArray<EInfusionSourceOption> &Sources = VFX->GetCachedSources();
@@ -2032,6 +2033,17 @@ bool UCombatCommandMenuSubsystem::IsCurrentActorStunned() const
 bool UCombatCommandMenuSubsystem::IsInfusionLockedForPendingAction() const
 {
     return IsCurrentActorStunned() || ResolveImmuneFlag(PendingActionData.Get(), CurrentActor.Get());
+}
+
+void UCombatCommandMenuSubsystem::SetPendingInfusionLevel(int32 Level)
+{
+    PendingInfusionLevel = IsInfusionLockedForPendingAction()
+                               ? 0
+                               : FMath::Clamp(Level, 0, InfusionConstants::MAX_INFUSION_LEVEL);
+    if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
+    {
+        VFX->SetInfusionLevel(PendingInfusionLevel);
+    }
 }
 
 FLinearColor UCombatCommandMenuSubsystem::GetElementColor(int32 ElementIndex) const
