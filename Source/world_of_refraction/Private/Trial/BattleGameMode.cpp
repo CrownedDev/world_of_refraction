@@ -17,6 +17,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "TimerManager.h"
 #include "Combat/Encounter/EnemyZone.h"
+#include "Combat/Boss/BossTriggers.h"
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryUnlock.h"
 #include "Reaction/ReactionTrigger.h"
@@ -262,8 +263,8 @@ void ABattleGameMode::BootstrapCombat()
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Trial difficulty %s, zone tier %d: enemy strength x%.2f"),
            *TrialGate::GetDifficultyName(TrialRun->GetTrialDifficulty()).ToString(), Zone.Tier, EnemyStrength);
 
-    // B-191: reactions (worn items facing a character) and this run's memories change the fight
-    // before it starts.
+    // B-191: reactions (worn items facing a character) and the bosses' own triggers change the
+    // fight before it starts.
     const TArray<FReactionTrigger> Reactions = ReactionTriggers::GatherTriggers();
     const TArray<FFiredReaction> Fired = ReactionTriggers::FindFired(Reactions, LocalParty, OpposingParty);
     const int32 ReactionEffects = ReactionTriggers::ApplyFired(Fired);
@@ -271,7 +272,7 @@ void ABattleGameMode::BootstrapCombat()
     // memory boss changes below, so a memory unlocked now counts this fight).
     MemoryUnlock::UnlockAtFightStart(GetGameInstance(), Fired, LocalParty, OpposingParty);
     // B-193: any opposing combatant with boss data gets its phases: after reactions change its
-    // stats (so they can't reach a phase early), before memories skip or add phases.
+    // stats (so they can't reach a phase early), before boss triggers skip or add phases.
     for (AActor *Enemy : OpposingParty)
     {
         const UCharacterDataComponent *EnemyData = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
@@ -284,9 +285,10 @@ void ABattleGameMode::BootstrapCombat()
         }
     }
 
-    const int32 MemoryChanges = ReactionTriggers::ApplyMemoryBossModifiers(TrialRun->GetRunMemories(), OpposingParty);
-    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Reactions: %d of %d fired (%d effects); memory boss changes: %d"),
-           Fired.Num(), Reactions.Num(), ReactionEffects, MemoryChanges);
+    // B-211 (D-100 part 1): each boss's own triggers change it; memories no longer do.
+    const int32 BossTriggersFired = BossTriggers::Apply(LocalParty, OpposingParty);
+    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Reactions: %d of %d fired (%d effects); boss triggers fired: %d"),
+           Fired.Num(), Reactions.Num(), ReactionEffects, BossTriggersFired);
 
     SpawnedOrchestrator->SetEncounterRank(TrialRun->GetPendingRank());
     // B-185: the side that struck first on the map takes the opening round.
