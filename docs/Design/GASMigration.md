@@ -82,7 +82,7 @@ GAS durations are in seconds. We need "lasts N turns".
   - `Immunity.{All, Stun, Silence, DOT, Element.<element>}` (owned tags a ward grants; built in B-040, Q-040b)
   - `Effect.Family.{StatModifier, DOT, HOT, Control, Immunity, Reflect, LastStand, …}` (asset tags saying what a GameplayEffect *is*; with the GameplayEffects, B-042)
   - `Data.{Duration.Turns, Charges, Magnitude, Element}` (SetByCaller keys)
-  - `Event.Combat.{Impact, DefenseResolved, TurnStart, TurnEnd}` (GameplayEvents)
+  - `Event.Combat.{Hit, DefenseResolved, TurnStart, TurnEnd}` (GameplayEvents, sent since B-042d; `Event.Combat.Impact` is the separate montage-notify event of stage 4, §5)
   - `Class.{Generic, Caster, Resonator}`
 - **Keep the enums for now; each gets a mapping table.** The enums are serialized in assets. Tags become the runtime language first, and the enums retire later.
 

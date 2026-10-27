@@ -29,6 +29,7 @@
 #include "GAS/WoRTurnEffectTracker.h"
 #include "GAS/WoREffectMirrorComponent.h"
 #include "GAS/WoREffectSpecBuilder.h"
+#include "GAS/WoRCombatEvents.h"
 #include "Tags/WoRGameplayTags.h"
 #include "WoRLog.h"
 
@@ -1094,6 +1095,7 @@ void USkillEffectManager::ProcessStartOfTurnEffects(AActor *Actor)
 
 	// Check conditional triggers with current state
 	ProcessTriggerEffects(Actor, ESkillTrigger::OnTurnStart);
+	WoRCombatEvents::Send(Actor, WoRTags::Event_Combat_TurnStart, Actor); // B-042d, Q-044j
 }
 
 void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
@@ -1111,6 +1113,7 @@ void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 
 	// Check conditional triggers
 	ProcessTriggerEffects(Actor, ESkillTrigger::OnTurnEnd);
+	WoRCombatEvents::Send(Actor, WoRTags::Event_Combat_TurnEnd, Actor); // B-042d, Q-044j
 
 	// Tick durations and remove expired effects
 	CountHolderTurnSpans(Actor);
@@ -1895,6 +1898,8 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 	{
 		return;
 	}
+	// TODO: B-043 - an attacker-side event and the crit flag (WoRCombatEvents.h).
+	WoRCombatEvents::Send(Target, WoRTags::Event_Combat_Hit, Attacker, Damage); // B-042d, Q-044j
 
 	// Lifesteal — heal the attacker for a percent of damage dealt.
 	if (HasEffectOfType(Attacker, ESkillEffectType::Lifesteal))
@@ -1971,6 +1976,8 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 	{
 		return;
 	}
+	// TODO: B-043 - the defense type and perfect flag as event tags when an ability needs them.
+	WoRCombatEvents::Send(Defender, WoRTags::Event_Combat_DefenseResolved, Attacker, AttackEnergyCost);
 
 	// The outcome maps to its trigger set (perfect outcomes fire both perfect + base).
 	TArray<ESkillTrigger> OutcomeTriggers;

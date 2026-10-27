@@ -76,6 +76,12 @@ namespace WoRTags
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Effect_Origin_Gear);
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Magnitude);
 
+	// B-042d: GameplayEvents the combat code sends (GAS/WoRCombatEvents.h, Q-044j).
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_Hit);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_DefenseResolved);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_TurnStart);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_TurnEnd);
+
 	/** Element.<name>; every ESpellElement has one. */
 	WORLD_OF_REFRACTION_API FGameplayTag ElementToTag(ESpellElement Element);
 	/** False for a tag outside Element.*. */

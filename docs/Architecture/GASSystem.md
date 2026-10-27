@@ -70,6 +70,11 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 - A GAS read resyncs the actor's mirror first (turn order and the HP/EP pool read before or beside the mirror's events). The reads count every WoR GE on the ASC: GEs applied any other way (B-042d) would count twice until B-042h makes GAS the store.
 - At UseGAS 1 a const effect-manager read can apply or remove GEs (the resync), so ASC listeners run inside it, sometimes while the manager walks an actor's effects; an ASC listener must not change the effect manager. Each read costs a full sync (fine for the PIE pass; B-042h drops it).
 
+### Combat GameplayEvents (stage 3, B-042d part 4)
+
+- `GAS/WoRCombatEvents.h`: `WoRCombatEvents::Send(Target, Event, Instigator, Magnitude)` hands an `FGameplayEventData` to the target's ASC (`HandleGameplayEvent`); no ASC, no event, no error. `wor.Events.Log 1` logs each.
+- Sent by `USkillEffectManager` beside its dispatcher (Q-044j A): `Event.Combat.Hit` (target; attacker; damage), `Event.Combat.DefenseResolved` (defender; attacker; attack base cost), `Event.Combat.TurnStart` / `TurnEnd` (the actor). Nothing listens yet; B-043's passive abilities will.
+
 ## Integration points
 
 - Delegates it listens to:
@@ -107,3 +112,4 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 | 2026-10-27 | B-042 (stage 3, part 1): native `UWoRGE_Stun`; `UWoRTurnEffectTracker` on `ACombatCharacter`, driven by the effect manager's turn hooks; `wor.DumpTurnEffects`. The rest of stage 3 is B-042b-g. | feature/B-042-gas-turn-tracker |
 | 2026-10-27 | B-042b (stage 3, part 2): `FWoREffectContext` + globals class; family GEs; `FWoREffectSpecBuilder`; tracker tick specs. Not routed in play yet (B-042c). | feature/B-042b-gas-effect-builder |
 | 2026-10-27 | B-042c (stage 3, part 3): `UWoREffectMirrorComponent`; `wor.Effects.UseGAS` facade reads; `wor.CompareEffects`; `Build` takes `bAlreadyStored`. Write side moved to B-042h (Q-042c). | feature/B-042c-gas-effect-mirror |
+| 2026-10-27 | B-042d (stage 3, part 4, narrowed): `WoRCombatEvents::Send`; `Event.Combat.*` sent from the effect manager. Rest split into B-042i, B-042j, B-042k. | feature/B-042d-gas-combat-events |
