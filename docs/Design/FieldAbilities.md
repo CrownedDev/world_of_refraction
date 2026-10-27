@@ -20,7 +20,7 @@
 - **Range of movement:** dash, Enhanced Sprint, glide, flight, teleport…; **all locked except the normal dash** (everyone has it). **Double-click L3** activates (keyboard: double-tap sprint, to confirm).
 - **Every element does every movement type its own way** (Crown): Lightning and Void both teleport, differently. The element sets the style; an elemental source is needed for elemental movement.
 - **Swimming:** everyone can swim (base movement, like the sprint and the dash).
-- **Movement types (Crown, 2026-10-27):** Dash (everyone), Enhanced Sprint (faster sprint + wall-run + **run on water**), Glide, Flight (hovers in place when stationary), Teleport, High / double jump, **Air dash** (hover in place, aim, then dash that way: air dash and hover merged), Super launch (blast up, then glide), Phase / shadow step (through thin walls or bars), Mark and recall (drop a marker, snap back). **Removed:** grapple, wall climb, ride / mount, surface surf (Enhanced Sprint covers water); hover merged into air dash and flight. 10 types. Each element does each type its own way.
+- **Movement types (Crown, 2026-10-27):** Dash (everyone), Enhanced Sprint (faster sprint + wall-run + **run on water**), Glide, Flight (hovers in place when stationary), Teleport, High / double jump, **Air dash** (hover in place, aim, then dash that way: air dash and hover merged), Super launch (blast up, then glide), Phase / shadow step (through thin walls or bars), Mark and recall (drop a marker, snap back), **Regroup** (teleport to a party member; co-op catch-up). **Removed:** grapple, wall climb, ride / mount, surface surf (Enhanced Sprint covers water); hover merged into air dash and flight. 11 types with Regroup. Each element does each type its own way.
 - **Element styles: A** (Crown, 2026-10-27): one shared mechanic per type; each element changes the look and sound, with a few **signature** differences where it matters (Lightning teleport = chain of short blinks, Void teleport = one long vanish, Earth flight = magnetic).
 - **Element styles (Crown's ideas, filled in as they come):**
 
@@ -41,7 +41,7 @@
    - **Wall-running at speed**: moving fast enough lets you run along walls (Prototype, Warframe-style parkour).
 4. **Decided (Crown, 2026-10-27): flight drains EP while flying, with a height ceiling and no-fly zones** (boss arenas, some secrets). **But effects can raise these limits**: e.g. an evolution might give **unlimited flight**; one of Crown's characters uses unlimited energy (for another day). **Hidden areas in the sky** (Shangri-La Frontier style secrets) are welcome.
 5. **Decided (Crown, 2026-10-27): elements change the world through a few general rules defined once** (Breath of the Wild): elements change materials (Fire burns wood and grass, Water / Ice douses or freezes, Wind lifts, Lightning conducts…), elements change each other (Water puts out Fire), materials don't change each other. Each map region gets 1-2 element shortcuts or secrets. The rule table is Crown's to fill (`// TODO: Crown`).
-6. Co-op: regroup / teleport to leader, party-wide movement buffs, whether a fight one player starts pulls in nearby teammates.
+6. **Decided (Crown, 2026-10-27): catching up in co-op is a spell / movement type, not a free system**: **Regroup**, a teleport to a party member (unlocked like other movement types; EP cost; not in or entering a fight). Who joins a fight: players within the party radius (D-003).
 7. Where field-only skills are slotted.
 
 ## Changelog
