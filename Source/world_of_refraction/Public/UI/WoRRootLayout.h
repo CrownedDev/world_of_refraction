@@ -12,6 +12,8 @@
 // contain two UCommonActivatableWidgetStack widgets named exactly GameLayer
 // and MenuLayer, or it fails to compile in the widget editor. That is
 // deliberate — a silently-missing layer would fail at push time instead.
+// ModalLayer (B-103) is BindWidgetOptional only so the existing WBP keeps
+// compiling until it gains one; until then modal pushes go to MenuLayer.
 
 #pragma once
 
@@ -22,6 +24,15 @@
 
 class UCommonActivatableWidget;
 class UCommonActivatableWidgetStack;
+
+/** The root layout's layer stacks, bottom to top (B-103). */
+UENUM(BlueprintType)
+enum class EWoRUILayer : uint8
+{
+	Game UMETA(DisplayName = "Game"),
+	Menu UMETA(DisplayName = "Menu"),
+	Modal UMETA(DisplayName = "Modal")
+};
 
 UCLASS(Abstract)
 class WORLD_OF_REFRACTION_API UWoRRootLayout : public UCommonUserWidget
@@ -44,6 +55,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Root Layout")
 	void PopMenu();
 
+	/** Push onto any layer (same pooling caveat as PushToMenu). A missing ModalLayer
+	 *  falls back to MenuLayer with a warning. */
+	UFUNCTION(BlueprintCallable, Category = "Root Layout")
+	UCommonActivatableWidget *PushToLayer(EWoRUILayer Layer, TSubclassOf<UCommonActivatableWidget> WidgetClass);
+
+	/** Remove the top widget of a layer. No-op when it is empty. */
+	UFUNCTION(BlueprintCallable, Category = "Root Layout")
+	void PopLayer(EWoRUILayer Layer);
+
+	/** The stack a layer pushes to (Modal falls back to Menu); null when unbound. */
+	UCommonActivatableWidgetStack *GetLayerStack(EWoRUILayer Layer) const;
+
+	/** Debug: each layer's widget count and active widget. */
+	FString GetRootLayoutString() const;
+
 protected:
 	/** Persistent gameplay HUD layer. Present but EMPTY for now — the existing
 	 *  viewport-added HUD (party strip, combat panels) moves here in a later
@@ -54,4 +80,9 @@ protected:
 	/** Menu layer — the party menu and anything else non-modal pushes here. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UCommonActivatableWidgetStack *MenuLayer;
+
+	/** Modal layer — confirm dialogs and anything that sits above menus (B-103).
+	 *  TODO: add a ModalLayer stack to the root layout WBP (editor), above MenuLayer. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UCommonActivatableWidgetStack *ModalLayer;
 };
