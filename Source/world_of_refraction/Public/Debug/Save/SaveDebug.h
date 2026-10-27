@@ -19,7 +19,7 @@ class WORLD_OF_REFRACTION_API USaveDebug : public UBlueprintFunctionLibrary
 public:
 	static FString GetSaveString(const FWoRSaveData &Data);
 
-	/** Logs the live slot (after capturing the world's current state into it, without writing). */
+	/** Logs the slot as last captured (at the last save point or level change), without writing. */
 	UFUNCTION(BlueprintCallable, Category = "Debug|Save", meta = (WorldContext = "WorldContextObject"))
 	static void PrintSaveState(const UObject *WorldContextObject);
 };

@@ -11,6 +11,7 @@
 #include "Combat/Grid/ECombatRow.h"
 #include "Inventory/ItemTier.h"
 #include "Inventory/ItemQuality.h"
+#include "Party/Party.h"
 #include "WoRSaveTypes.generated.h"
 
 /** A data asset by id and path. Resolve loads it (synchronously) or returns null. */
@@ -33,6 +34,8 @@ struct WORLD_OF_REFRACTION_API FSavedAssetRef
 	T *ResolveAs() const { return Cast<T>(Resolve()); }
 };
 
+/** TODO(B-208): the run's carried crystal wear and absorption (FPartyMember::CarriedGear /
+ *  CarriedAbsorption) are saved with the run, not here. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedPartyMember
 {
@@ -48,16 +51,16 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	ECombatRow PreferredRow = ECombatRow::Middle;
 
 	UPROPERTY()
-	int32 PreferredColumn = 0;
+	int32 PreferredColumn = PartyConstants::UNSET_FORMATION;
 
 	UPROPERTY()
 	bool bPlayerControlled = true;
 
 	UPROPERTY()
-	int32 CurrentHP = 0;
+	int32 CurrentHP = PartyConstants::NO_CARRIED_VITALS;
 
 	UPROPERTY()
-	int32 CurrentEP = 0;
+	int32 CurrentEP = PartyConstants::NO_CARRIED_VITALS;
 };
 
 USTRUCT()

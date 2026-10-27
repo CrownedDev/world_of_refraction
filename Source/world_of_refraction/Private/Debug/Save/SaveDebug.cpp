@@ -27,6 +27,7 @@ namespace
 		{
 			if (USaveSubsystem *Save = GetSave(World))
 			{
+				Save->ResumeWrites();
 				UE_LOG(LogWoR, Display, TEXT("[SaveDebug] wor.Save.Now: %s"),
 					   Save->SaveNow(World, false) ? TEXT("written") : TEXT("not written (no local player owns the slot)"));
 			}

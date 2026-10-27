@@ -57,6 +57,7 @@ void USaveSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 	SaveGame = NewObject<UWoRSaveGame>(this);
 	UGameInstance *GI = GetGameInstance();
 	LocalPlayerAddedHandle = GI->OnLocalPlayerAddedEvent.AddUObject(this, &USaveSubsystem::HandleLocalPlayerAdded);
+	LocalPlayerRemovedHandle = GI->OnLocalPlayerRemovedEvent.AddUObject(this, &USaveSubsystem::HandleLocalPlayerRemoved);
 	if (ULocalPlayer *First = GI->GetFirstGamePlayer())
 	{
 		LoadForPlayer(First);
@@ -65,8 +66,11 @@ void USaveSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 
 void USaveSubsystem::Deinitialize()
 {
-	GetGameInstance()->OnLocalPlayerAddedEvent.Remove(LocalPlayerAddedHandle);
-	SaveNow(nullptr, false);
+	// No save here: the subsystems deinitialise in creation order, so the party may already be
+	// gone. The shutdown save runs when the local player is removed, before any of them.
+	UGameInstance *GI = GetGameInstance();
+	GI->OnLocalPlayerAddedEvent.Remove(LocalPlayerAddedHandle);
+	GI->OnLocalPlayerRemovedEvent.Remove(LocalPlayerRemovedHandle);
 	Super::Deinitialize();
 }
 
@@ -75,6 +79,16 @@ void USaveSubsystem::HandleLocalPlayerAdded(ULocalPlayer *LocalPlayer)
 	if (!IsBoundToPlayer())
 	{
 		LoadForPlayer(LocalPlayer);
+	}
+}
+
+void USaveSubsystem::HandleLocalPlayerRemoved(ULocalPlayer *LocalPlayer)
+{
+	if (IsBoundToPlayer() && SaveGame->GetLocalPlayer() == LocalPlayer)
+	{
+		// The PlayerState banked the wallet at EndPlay; the world is gone by now.
+		CaptureInto(nullptr);
+		WriteSlot(false);
 	}
 }
 
@@ -107,7 +121,11 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 {
 	UGameInstance *GI = GetGameInstance();
 	FWoRSaveData &Data = SaveGame->Data;
-	Data.Party = CaptureParty(GI->GetSubsystem<UPartySessionSubsystem>()->GetLocalParty());
+	// A level that never builds a party keeps the saved one.
+	if (const UParty *Party = GI->GetSubsystem<UPartySessionSubsystem>()->GetLocalParty())
+	{
+		Data.Party = CaptureParty(Party, false);
+	}
 	Data.Pool = CapturePool(*GI->GetSubsystem<UPoolSubsystem>());
 	if (const UCurrencyComponent *Wallet = FindLocalWallet(World))
 	{
@@ -118,7 +136,12 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 bool USaveSubsystem::SaveNow(UWorld *World, bool bAsync)
 {
 	CaptureInto(World);
-	if (!IsBoundToPlayer())
+	return WriteSlot(bAsync);
+}
+
+bool USaveSubsystem::WriteSlot(bool bAsync)
+{
+	if (!IsBoundToPlayer() || bWritesStopped)
 	{
 		return false;
 	}
@@ -135,7 +158,8 @@ void USaveSubsystem::DeleteSave()
 	const int32 UserIndex = Player ? Player->GetPlatformUserIndex() : 0;
 	UGameplayStatics::DeleteGameInSlot(SLOT_NAME, UserIndex);
 	SaveGame->ResetToDefault();
-	UE_LOG(LogWoR, Warning, TEXT("[Save] Slot '%s' deleted"), SLOT_NAME);
+	bWritesStopped = true;
+	UE_LOG(LogWoR, Warning, TEXT("[Save] Slot '%s' deleted; no automatic saves until the next start (or wor.Save.Now)"), SLOT_NAME);
 }
 
 void USaveSubsystem::BankWallet(const UCurrencyComponent *Wallet)
@@ -163,7 +187,7 @@ bool USaveSubsystem::IsBoundToPlayer() const
 
 // ==================== CAPTURE ====================
 
-FSavedParty USaveSubsystem::CaptureParty(const UParty *Party)
+FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 {
 	FSavedParty Saved;
 	if (!Party)
@@ -181,8 +205,11 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party)
 		Out.PreferredRow = Member.PreferredRow;
 		Out.PreferredColumn = Member.PreferredColumn;
 		Out.bPlayerControlled = Member.bPlayerControlled;
-		Out.CurrentHP = Member.CurrentHP;
-		Out.CurrentEP = Member.CurrentEP;
+		if (bKeepVitals)
+		{
+			Out.CurrentHP = Member.CurrentHP;
+			Out.CurrentEP = Member.CurrentEP;
+		}
 	}
 	return Saved;
 }
@@ -288,6 +315,10 @@ void USaveSubsystem::ApplyWallet(const FSavedWallet &Saved, UCurrencyComponent *
 	}
 	for (const FSavedBalance &Balance : Saved.Balances)
 	{
+		if (!StaticEnum<ECurrencyType>()->IsValidEnumValue(Balance.Currency))
+		{
+			continue;
+		}
 		const ECurrencyType Currency = static_cast<ECurrencyType>(Balance.Currency);
 		const int32 Missing = Balance.Amount - Wallet->GetBalance(Currency, Balance.SubKey);
 		if (Currency != ECurrencyType::Gold && Missing > 0)
@@ -364,11 +395,19 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 	}
 	for (const FSavedCrystalStack &In : Saved.Crystals)
 	{
+		if (!StaticEnum<ECrystalType>()->IsValidEnumValue(In.Type))
+		{
+			continue;
+		}
 		FCrystalId Id;
 		Id.Type = static_cast<ECrystalType>(In.Type);
 		Id.Tier = In.Tier;
 		Pool.AddCrystalToPool(Id, In.Count);
 		++Restored;
+	}
+	if (Restored > 0)
+	{
+		Pool.MarkPopulated();
 	}
 	return Restored;
 }
