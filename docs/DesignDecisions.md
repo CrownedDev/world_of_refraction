@@ -2004,6 +2004,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it, e.g. to B once the loadout screen exists.
 **Notes for Claude:** applied (feature/B-076-trial-recruits). Trial maps have no recruit spots yet (placing a recruitable pawn in a trial level is editor work): B-215. Until then, `wor.Party.RecruitForRun <CharacterData path>` recruits in a trial. Evolutions for a recruit wait for B with the real screen.
 
+### Q-080 — Which infusion sources give an ability their element?
+**Status:** ANSWERED · **Raised:** 2026-10-27 (B-080) · **Blocks:** — (B-080 ships with A)
+**Question:** D-007: an ability starts Physical and "Generic gets elements on its abilities only through a crystal". An ability can be infused through a weapon crystal, a ring (its crystal), an evolution, the Innate source (Casters) or Raw. Which give the ability their element, and does a Caster infusing through a crystal deal the crystal's element or its own?
+**Options:**
+- **A** Every source gives its own element: weapon crystal, ring, evolution and Innate; Raw gives none. A Caster through a crystal deals the crystal's element.
+- **B** Only crystals (weapon or ring) give an element; evolution and Raw give none; Innate keeps the innate element.
+**Recommendation:** A. The deckbuilder's Generic ability "takes its source's element" (`wor-deckbuilder/docs/reference/01-card-model.md`, "Cast through"), whatever the source; Final Fantasy XII's and Elden Ring's weapon infusions likewise give the element of the infusion chosen, and players read the choice of source as the choice of element. The status path already used the selected source (`ActionExecutor.cpp`, effects element). Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B.
+**Notes for Claude:** Built in B-080 (`PreviewActionDamage`, `GetElementForSourceOption`); an unbound source (Generic) becomes None with a warning. Not changed: `UDamageCalculator::CalculateAttackDamage` (Blueprint-only, still innate; TODO there). Not tested here: D-007's "Generic with a ring can cast its spells" (covered by D-027's ring-spell paths, `BrokenSourceSpec`).
+
 ### Q-064 — Element resistance and damage that isn't a hit: DoT ticks, Reality Burst, reflect
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-064) · **Blocks:** — (B-064 ships hits only; B-064b builds A)
 **Question:** Since B-064, element resistance scales every hit's elemental damage (D-036). Three kinds of damage don't go through the damage maths: status DoT ticks (Burn, Chill… `SkillEffectManager.cpp`, `ESkillEffectType::DOT`), Reality Burst (25% of max HP) and reflected damage. Should element resistance cut them?
