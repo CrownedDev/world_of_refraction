@@ -234,12 +234,12 @@ void UTurnManager::CalculateSpeedRatios()
 	if (Combatants.Num() == 0)
 		return;
 
-	// Effective speed is computed on the fly each call (EffectiveTurnSpeedOf), so OnActorDied /
-	// OnActorResurrected, which invoke CalculateSpeedRatios without a fresh CacheActorStats, don't
-	// compound. CachedSpeed remains the pristine base.
+	// Effective speed is computed on the fly each call (GetEffectiveTurnSpeed over the entry's CachedSpeed), so
+	// OnActorDied / OnActorResurrected, which invoke CalculateSpeedRatios without a fresh CacheActorStats, don't
+	// compound. CachedSpeed remains the pristine base. Through the getter, so turn order reads GAS at UseGAS 1 (B-042yc).
 	auto GetEffectiveSpeed = [this](const FCombatantTurnDebt &Combatant) -> int32
 	{
-		return EffectiveTurnSpeedOf(Combatant.Actor, Combatant.CachedSpeed);
+		return GetEffectiveTurnSpeed(Combatant.Actor);
 	};
 
 	// Find slowest effective speed among living combatants.

@@ -160,6 +160,8 @@ bool UWoRAttributeSyncComponent::RefreshComposed(UAbilitySystemComponent &ASC, c
 	}
 	if (UWoRGE_ResistanceSources::CoversAttribute(Attribute))
 	{
+		// TODO: B-042f - every type's sources are gathered per read (a buildup hit reads up to five); one refresh per
+		// query, or none once gear and effects write these GEs themselves. Cheap enough turn-based (no GE work unchanged).
 		SyncResistanceSources(ASC);
 		return true;
 	}

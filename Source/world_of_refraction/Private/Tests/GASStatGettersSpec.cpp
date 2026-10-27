@@ -34,6 +34,7 @@ namespace
 	constexpr float GETTER_BUFF_PERCENT = 13.0f;
 	constexpr int32 GETTER_BUFF_ID = 4701;
 	constexpr int32 GETTER_BUFF_TURNS = 3;
+	constexpr int32 GETTER_CRIT_BUFF_ID = 4702;
 
 	struct FGetterCase
 	{
@@ -161,6 +162,21 @@ void FGASStatGettersSpec::Define()
 		const float OnGameSide = Char->GetEffectiveSpellDamage();
 		UWoREffectMirrorComponent::SetReadsFromGAS(true);
 		TestEqual(TEXT("SpellDamage with a buff: same on both paths, exactly"), Char->GetEffectiveSpellDamage(), OnGameSide, GETTER_EXACT);
+	});
+
+	It("matches crit chance exactly with its buff layer (B-042yc)", [this]()
+	{
+		if (!ASC) return;
+		USkillEffectManager *EffectManager = TestWorld->GetSubsystem<USkillEffectManager>();
+		const UDamageCalculator *Calc = TestWorld->GetSubsystem<UDamageCalculator>();
+		if (!TestNotNull(TEXT("SkillEffectManager"), EffectManager) || !TestNotNull(TEXT("DamageCalculator"), Calc)) return;
+		EffectManager->ApplyEffect(Hero, FActiveSkillEffect::CreateBuff(TEXT("Getter crit buff"), GETTER_CRIT_BUFF_ID,
+																	   ESkillEffectType::CritChanceBuff, GETTER_BUFF_PERCENT, GETTER_BUFF_TURNS),
+								   Hero);
+		UWoREffectMirrorComponent::SetReadsFromGAS(false);
+		const float OnGameSide = Calc->GetCriticalChance(Hero);
+		UWoREffectMirrorComponent::SetReadsFromGAS(true);
+		TestEqual(TEXT("CritChance with a buff: same on both paths, exactly"), Calc->GetCriticalChance(Hero), OnGameSide, GETTER_EXACT);
 	});
 
 	It("returns the GAS attribute with UseGAS 1, and the composition with 0", [this]()
