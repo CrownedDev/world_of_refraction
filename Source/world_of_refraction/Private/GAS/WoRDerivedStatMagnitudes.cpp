@@ -4,6 +4,7 @@
 #include "Character/StatLayers.h"
 #include "Combat/CombatConstants.h"
 #include "GAS/WoRAttributeSets.h"
+#include "WoRLog.h"
 
 namespace
 {
@@ -25,7 +26,11 @@ float UWoRMMC_ClampedStatTerm::CalculateBaseMagnitude_Implementation(const FGame
 	Parameters.SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
 	Parameters.TargetTags = Spec.CapturedTargetTags.GetAggregatedTags();
 	float Source = 0.0f;
-	GetCapturedAttributeMagnitude(FromCapture, Spec, Parameters, Source);
+	if (!GetCapturedAttributeMagnitude(FromCapture, Spec, Parameters, Source))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[DerivedStat] %s: %s not captured; the term is 0"), *GetClass()->GetName(),
+			   *FromCapture.AttributeToCapture.GetName());
+	}
 	return FWoRStatLayers::ForStat(SourceStat).Clamp(Source) * TermCoefficient;
 }
 

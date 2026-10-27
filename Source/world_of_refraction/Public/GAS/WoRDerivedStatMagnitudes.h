@@ -27,7 +27,7 @@ protected:
 
 private:
 	FGameplayEffectAttributeCaptureDefinition FromCapture;
-	ESubStat SourceStat;
+	ESubStat SourceStat = ESubStat(0);
 	float TermCoefficient = 0.0f;
 };
 
