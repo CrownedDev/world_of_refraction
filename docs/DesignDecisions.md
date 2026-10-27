@@ -2378,6 +2378,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. It is the parallel-run pattern GitHub used to replace its merge and permissions code (the Scientist library, "Move Fast and Fix Things", 2015): run the old and new paths side by side, compare, and switch reads only once they agree. It is widely cited as the safe way to swap a core system. It already paid off here: the UseGAS 1 baseline run found a stun that the GAS path missed (a holder-turn span stored with 0 turns), before anything depended on it. Default stays **0** until Crown's PIE pass with it set to 1.
 **Notes for Claude:** B-042c built A. A GAS read resyncs that actor's mirror first, because turn order (`NotifySpeedChanged`) and the HP/EP pool read before or beside the event the mirror listens to. The GAS reads count every WoR GE on the ASC, so B-042d's directly applied GEs must not land beside the mirror without B-042h, or they count twice.
 
+### Q-042d — Split B-042d?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042d) · **Blocks:** —
+**Question:** B-042d held three large pieces: triggers onto GAS with GameplayEvents (step 9), the absorb family (step 10, D-092) and the remaining families (step 11). Two of them put GameplayEffects on the ASC directly, which the B-042c mirror would count twice (Q-042c). Split it?
+**Options:**
+- **A** split (as built): B-042d sends the `Event.Combat.*` GameplayEvents only (Q-044j A, additive); B-042k ports the remaining families onto the mirror (next); B-042i (triggers onto GAS) and B-042j (absorb) wait for B-042h, when GAS becomes the store.
+- **B** do all three now, applying GEs beside the mirror.
+**Recommendation:** A. It keeps each job inside the plan's ≤3-file clusters and the game playable after each (`EffectsOverhaul.md` §10.2), and keeps the UseGAS reads exact. The same strangler-fig order (send events first, move listeners later) is how Epic's Lyra moves gameplay onto GAS: messages and events first, abilities listening later.
+**Notes for Claude:** B-042d built A.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
