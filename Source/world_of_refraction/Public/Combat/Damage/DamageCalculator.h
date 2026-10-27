@@ -159,6 +159,8 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationResult
  * Centralized damage calculation subsystem
  * All damage should flow through this for consistency
  */
+struct FDamageMathInputs;
+
 UCLASS()
 class WORLD_OF_REFRACTION_API UDamageCalculator : public UGameInstanceSubsystem
 {
@@ -178,6 +180,11 @@ public:
 		AActor *Attacker,
 		AActor *Defender,
 		const FDamageCalculationInput &Input);
+
+	/** The damage maths' inputs read from the actors (B-219): what WoRDamageMath::Compute runs on.
+	 *  Rolls the crit (one battle-random draw, none when the crit is forced or can't happen), so
+	 *  call it once per hit. */
+	FDamageMathInputs GatherDamageMathInputs(AActor *Attacker, AActor *Defender, const FDamageCalculationInput &Input) const;
 
 	/**
 	 * Calculate weapon attack damage

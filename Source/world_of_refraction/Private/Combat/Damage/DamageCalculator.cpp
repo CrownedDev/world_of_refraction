@@ -2,6 +2,7 @@
 // Centralized damage calculation implementation
 
 #include "Combat/Damage/DamageCalculator.h"
+#include "Combat/Damage/DamageMath.h"
 #include "Combat/CombatConstants.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
@@ -31,220 +32,80 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	AActor *Defender,
 	const FDamageCalculationInput &Input)
 {
-	FDamageCalculationResult Result;
-	Result.EffectiveElement = Input.Element;
-
 	if (Input.BaseDamage <= 0)
 	{
+		FDamageCalculationResult Result;
+		Result.EffectiveElement = Input.Element;
 		return Result;
 	}
+	return WoRDamageMath::Compute(GatherDamageMathInputs(Attacker, Defender, Input));
+}
 
-	float RunningDamage = static_cast<float>(Input.BaseDamage);
+FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AActor *Defender,
+															const FDamageCalculationInput &Input) const
+{
+	FDamageMathInputs Inputs;
+	Inputs.BaseDamage = Input.BaseDamage;
+	Inputs.bIsSpell = Input.ActionType == EActionType::Spell;
+	Inputs.Element = Input.Element;
+	Inputs.ActionMods = Input.ActionMods;
 
-	// Step 1: Attacker's damage multiplier — branched on EActionType.
-	// Spell → SpellDamage. Ability/Attack/None → RawDamage. Per-action ActionMods
-	// boost the matching sub-stat. ActionMods carries Reality + Evolution + any
-	// future per-action stat modifier sources.
-	// Cross-stat scaling (e.g. a fire-punch scaling off SpellDamage) is now authored per-skill via the
-	// StatScaling tiers (the tier loop below), so the old Raw↔Spell stat-swap was retired — the baseline
-	// stat is simply the ActionType default.
-	float AttackerMult = GetAttackerDamageMultiplier(Attacker, Input.ActionType);
-	const ESubStat AttackerStat = (Input.ActionType == EActionType::Spell) ? ESubStat::SpellDamage : ESubStat::RawDamage;
-	AttackerMult = Input.ActionMods.ApplyTo(AttackerMult, AttackerStat);
-
-	// Equipment stat bonus — direct read from the attacker's active loadout.
-	// Replaces the prior RawDamageBuff/StatusMultiplierBuff status-effect path
-	// (never wired in production; that dead chain was deleted in cleanup).
-	// Folded into AttackerMult so each rolled point contributes a small
-	// fractional multiplier rather than flat damage.
-	if (Attacker)
+	// Attacker. Cross-stat scaling is authored per skill (StatScaling), so the baseline stat is the
+	// action type's default.
+	Inputs.AttackerStatMultiplier = GetAttackerDamageMultiplier(Attacker, Input.ActionType);
+	UCharacterDataComponent *AttackerComp = Attacker ? Attacker->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (AttackerComp)
 	{
-		if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
+		Inputs.bHasAttackerStats = true;
+		Inputs.EquipmentTerm = Inputs.bIsSpell ? AttackerComp->GetEquipmentSpellDamageTerm() : AttackerComp->GetEquipmentRawDamageTerm();
+		Inputs.StoneFactor = Inputs.bIsSpell ? AttackerComp->GetStoneSpellDamageFactor() : AttackerComp->GetStoneRawDamageFactor();
+		Inputs.TransientFactor = Inputs.bIsSpell ? AttackerComp->GetTransientSpellDamageFactor() : AttackerComp->GetTransientRawDamageFactor();
+		Inputs.EvolutionModifiedStat = Inputs.bIsSpell ? AttackerComp->GetEvolutionModifiedSpellDamage() : AttackerComp->GetEvolutionModifiedRawDamage();
+		// The gear term joins the attacker multiplier only with a loadout (as before B-219).
+		if (Attacker->FindComponentByClass<ULoadoutComponent>())
 		{
-			if (Input.ActionType != EActionType::Spell)
-			{
-				// L2 (physical) — DRY-sourced from the shared helper, which returns the
-				// IDENTICAL BonusRawDamage × RAW_DAMAGE_PER_POINT. Mirrors the spell branch
-				// below; the outer Loadout guard is kept so the add only fires with a loadout.
-				if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
-				{
-					AttackerMult += AttackerComp->GetEquipmentRawDamageTerm();
-				}
-			}
-			// L2 (spell) — DRY-sourced from the shared helper, which returns the
-			// IDENTICAL BonusSpellDamage × SPELL_DAMAGE_PER_POINT. Same additive op,
-			// same spot (after ActionMods on L1). The outer Loadout guard is kept so
-			// the add only fires when a loadout exists, matching prior behaviour.
-			else if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
-			{
-				AttackerMult += AttackerComp->GetEquipmentSpellDamageTerm();
-			}
+			Inputs.EquipmentTermInMultiplier = Inputs.EquipmentTerm;
 		}
 	}
 
-	// Souls-style authored per-skill scaling (stage b2 / b2b): each (stat, grade) entry adds
-	// GetScalingTierCoefficient(grade) × GetScalingFraction(stat, attacker's effective stat) to the
-	// attacker multiplier, additive on top of the baseline above. GetScalingFraction (b2b) normalizes
-	// each stat in its OWN bucket (Model Y) so Luck/Defense/Resistance/Efficiency/Reflex contribute
-	// instead of the naive StatFraction's 0. EMPTY array → loop runs zero times → TierScalingBonus 0 →
-	// byte-identical to pre-b2.
-	float TierScalingBonus = 0.0f;
+	// Souls-style per-skill scaling (stage b2 / b2b): each stat normalised in its own bucket.
 	for (const FStatScaling &Entry : Input.StatScaling)
 	{
 		if (Entry.Stat == ESubStat::None)
 		{
 			continue;
 		}
-		TierScalingBonus += GetScalingTierCoefficient(Entry.Tier) * GetScalingFraction(Entry.Stat, GetEffectiveStatForScaling(Attacker, Entry.Stat));
-	}
-	AttackerMult += TierScalingBonus;
-
-	Result.AttackerDamageMultiplier = AttackerMult;
-	RunningDamage *= AttackerMult;
-
-	// Step 1.25: Attached augment-stone raw-damage multiplier — DRY-sourced from
-	// GetStoneRawDamageFactor() (physical actions only; the magical mirror is Step 1.25b).
-	// Byte-identical to the prior inline IsAugmentStone()||IsFusion() guard: GetAttachedStonePercent
-	// returns 0 for any non-stone / non-fusion attachment (and the 1.0 fallbacks cover no-loadout /
-	// no-active-weapon), so the factor is 1.0 exactly where the inline guard skipped. Same
-	// multiplicative op, same spot. A fusion's DamageStone half(s) still flow.
-	if (Attacker && Input.ActionType != EActionType::Spell)
-	{
-		if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
-		{
-			RunningDamage *= AttackerComp->GetStoneRawDamageFactor();
-		}
+		FDamageMathScalingTerm Term;
+		Term.Tier = Entry.Tier;
+		Term.StatFraction = GetScalingFraction(Entry.Stat, GetEffectiveStatForScaling(Attacker, Entry.Stat));
+		Inputs.ScalingTerms.Add(Term);
 	}
 
-	// Step 1.25b: Attached augment-stone SPELL-damage multiplier — the magical mirror
-	// of the physical block above, gated to Spell actions (mutually exclusive with the
-	// != Spell gate above, so a given action runs at most one of the two). DRY-sourced
-	// from GetStoneSpellDamageFactor(), which returns the IDENTICAL fusion-aware
-	// (1 + GetAttachedStonePercent(.., SpellDamage)/100): for a non-stone / non-fusion
-	// attachment (or no active weapon) GetAttachedStonePercent is 0, so the factor is
-	// 1.0 exactly as the prior IsAugmentStone()||IsFusion() guard's skip. Same
-	// multiplicative op, same spot. A fusion's SpellDamageStone half(s) still flow.
-	if (Attacker && Input.ActionType == EActionType::Spell)
-	{
-		if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
-		{
-			RunningDamage *= AttackerComp->GetStoneSpellDamageFactor();
-		}
-	}
-
-	// Step 1.5: Grid position damage modifier (attacker)
 	UCombatGridSubsystem *Grid = GetCombatGridSubsystem();
 	if (Grid)
 	{
-		float GridDamageMod = Grid->GetDamageModifier(Attacker);
-		RunningDamage *= GridDamageMod;
+		Inputs.GridDamageModifier = Grid->GetDamageModifier(Attacker);
 	}
+	Inputs.StatusEffectModifier = GetStatusEffectDamageModifier(Attacker, Defender, Input.ActionType);
 
-	// Step 2: Status effect modifiers (buffs/debuffs)
-	float StatusMod = GetStatusEffectDamageModifier(Attacker, Defender, Input.ActionType);
-	RunningDamage *= StatusMod;
-
-	// Step 2.5: Pattern P (cluster 5a) — stat-capped, gear-beyond (SPELL only). The STAT term
-	// (GetEvolutionModifiedSpellDamage) is capped ALONE at STAT_MULT_CAP (×1.5 — the stat ceiling,
-	// now ENFORCED in the live path); THEN equipment MULTIPLIES it (×(1+EquipTerm)) and stone/transient
-	// apply OUTSIDE that clamp, bounded by the higher STAT_MODIFIER_MAX (×2.0) compose ceiling. So the
-	// stat saturates at ×1.5 and gear/stone/buff scale it from there toward ×2.0. We re-derive the target
-	// modifier and divide out the UNCLAMPED product currently baked into RunningDamage (Steps 1 /
-	// 1.25b / 2) as a scalar correction. Below the caps, target == raw → Correction is 1.0f →
-	// byte-identical. ActionMods (folded into L1), Grid, and defender terms are deliberately
-	// OUTSIDE this product — call-specific, left uncapped. Mirrors GetEffectiveSpellDamage.
-	if (Input.ActionType == EActionType::Spell && Attacker)
-	{
-		if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
-		{
-			const float EquipTerm = AttackerComp->GetEquipmentSpellDamageTerm();
-			const float Stone = AttackerComp->GetStoneSpellDamageFactor();
-			const float Transient = AttackerComp->GetTransientSpellDamageFactor();
-			// Uncapped char modifier currently baked into RunningDamage (the denominator).
-			const float RawCharMod =
-				(AttackerComp->GetEvolutionModifiedSpellDamage() + EquipTerm) * Stone * Transient;
-			// Pattern-P target: stat clamped to ×1.5 ALONE, THEN gear MULTIPLIES (×(1+EquipTerm)),
-			// stone/transient beyond, capped ×2.0. EquipTerm read as a FRACTION (option ii).
-			const float StatBase =
-				FMath::Min(AttackerComp->GetEvolutionModifiedSpellDamage(), CombatConstants::STAT_MULT_CAP);
-			const float TargetCharMod =
-				FMath::Clamp(StatBase * (1.0f + EquipTerm) * Stone * Transient,
-							 CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
-			const float Correction = (RawCharMod > KINDA_SMALL_NUMBER) ? (TargetCharMod / RawCharMod) : 1.0f;
-			RunningDamage *= Correction;
-		}
-	}
-
-	// Step 2.6: Pattern P (cluster 5a) — physical mirror of Step 2.5, gated != Spell (the complement,
-	// so exactly one of the two fires per action). The STAT term (GetEvolutionModifiedRawDamage) is
-	// capped ALONE at STAT_MULT_CAP (×1.5 — now ENFORCED live); THEN equipment MULTIPLIES it
-	// (×(1+EquipTerm)) and stone/transient apply OUTSIDE that clamp, bounded by STAT_MODIFIER_MAX
-	// (×2.0). Stat saturates at ×1.5; gear/stone/buff scale it toward ×2.0. We divide out the UNCLAMPED product baked into
-	// RunningDamage as a scalar correction. Below the caps, target == raw → Correction 1.0f →
-	// byte-identical. ActionMods (folded into L1), Grid, and defender terms stay OUTSIDE this
-	// product — call-specific, left uncapped. Mirrors GetEffectiveRawDamage.
-	if (Input.ActionType != EActionType::Spell && Attacker)
-	{
-		if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
-		{
-			const float EquipTerm = AttackerComp->GetEquipmentRawDamageTerm();
-			const float Stone = AttackerComp->GetStoneRawDamageFactor();
-			const float Transient = AttackerComp->GetTransientRawDamageFactor();
-			// Uncapped char modifier currently baked into RunningDamage (the denominator).
-			const float RawCharMod =
-				(AttackerComp->GetEvolutionModifiedRawDamage() + EquipTerm) * Stone * Transient;
-			// Pattern-P target: stat clamped to ×1.5 ALONE, THEN gear MULTIPLIES (×(1+EquipTerm)),
-			// stone/transient beyond, capped ×2.0. EquipTerm read as a FRACTION (option ii).
-			const float StatBase =
-				FMath::Min(AttackerComp->GetEvolutionModifiedRawDamage(), CombatConstants::STAT_MULT_CAP);
-			const float TargetCharMod =
-				FMath::Clamp(StatBase * (1.0f + EquipTerm) * Stone * Transient,
-							 CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
-			const float Correction = (RawCharMod > KINDA_SMALL_NUMBER) ? (TargetCharMod / RawCharMod) : 1.0f;
-			RunningDamage *= Correction;
-		}
-	}
-
-	// Step 3: Element interaction — no elemental advantage system; always neutral.
-	Result.ElementMultiplier = 1.0f;
-
-	// Step 4: Critical hit
+	// Crit. The one battle-random roll; skipped when the crit is forced, as before.
+	Inputs.bCanCrit = Input.bCanCrit;
 	if (Input.bCanCrit)
 	{
-		float CritChance = Input.OverrideCritChance >= 0.0f ? Input.OverrideCritChance : GetCriticalChance(Attacker);
-		// ActionMods per-action crit-chance boost. Cluster 5e-C2: crit chance is Luck-driven, so this
-		// routes through the Luck axis (was ESubStat::CritChance — which becomes crit DAMAGE in 5e-C3;
-		// routing here prevents a crit-CHANCE modifier from silently flipping onto crit-DAMAGE). No
-		// re-clamp — preserves the prior uncapped Reality-boost behaviour at this site.
-		CritChance = Input.ActionMods.ApplyTo(CritChance, ESubStat::Luck);
-
-		// (5e-C2) The standalone Luck-driven crit BONUS block was REMOVED here. Luck IS the crit chance
-		// now — GetCriticalChance -> GetEvolutionModifiedCritChance -> GetLuckModifiedChance — not a
-		// ×(1+LuckCritBonus) layered on top. Re-applying it would double-count Luck.
-
-		// GuaranteedCrit (passive skill-effect): forces a crit when active on attacker.
-		bool bForceCrit = false;
+		Inputs.CritChance = Input.OverrideCritChance >= 0.0f ? Input.OverrideCritChance : GetCriticalChance(Attacker);
 		if (USkillEffectManager *CritMgr = GetSkillEffectManager())
 		{
-			bForceCrit = CritMgr->HasEffectOfType(Attacker, ESkillEffectType::GuaranteedCrit);
+			Inputs.bForceCrit = CritMgr->HasEffectOfType(Attacker, ESkillEffectType::GuaranteedCrit);
 		}
-		Result.bWasCritical = bForceCrit || (UBattleRandomSubsystem::FRand(this) < CritChance);
-
-		if (Result.bWasCritical)
+		if (!Inputs.bForceCrit)
 		{
-			// GetCritDamageMultiplier now returns the FULL multiplier (x1.5 base + stat ramp, then
-			// gear/transient) — 5e-B folded the base in, so it is NOT pre-multiplied here any more.
-			const float CritMult = GetCritDamageMultiplier(Attacker);
-			Result.CritMultiplier = CritMult;
-			RunningDamage *= CritMult;
+			Inputs.CritRoll = UBattleRandomSubsystem::FRand(this);
 		}
+		// GetCritDamageMultiplier is the full multiplier (x1.5 base + stat ramp, then gear/transient).
+		Inputs.CritDamageMultiplier = GetCritDamageMultiplier(Attacker);
 	}
 
-	// Store damage before defense
-	Result.DamageBeforeDefense = FMath::RoundToInt(RunningDamage);
-
-	// Step 5: Defender's flat defense — Input.bIgnoreDefense OR the attacker
-	// having an IgnoreDefense skill effect both skip this step.
+	// Defender. Input.bIgnoreDefense or the attacker's IgnoreDefense effect skips defense.
 	bool bSkipDefense = Input.bIgnoreDefense;
 	if (!bSkipDefense && Attacker)
 	{
@@ -255,34 +116,14 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	}
 	if (!bSkipDefense && Defender)
 	{
-		// Defense is now a capped % reduction (cluster 4): dmg ×= (1 − reduction), reduction in
-		// [0, 0.85] (DEFENSE_REDUCTION_CEILING). DamageBlockedByDefense records the HP actually removed by the reduction.
-		Result.DefenderFlatDefense = GetDefenderFlatDefense(Defender);
-		const int32 PreDefenseDamage = FMath::RoundToInt(RunningDamage);
-		RunningDamage *= (1.0f - Result.DefenderFlatDefense);
-		Result.DamageBlockedByDefense = PreDefenseDamage - FMath::RoundToInt(RunningDamage);
+		Inputs.bApplyDefense = true;
+		Inputs.DefenderDefense = GetDefenderFlatDefense(Defender);
 	}
-
-	// Step 6.5: Grid position defense modifier (defender)
 	if (Grid && Defender)
 	{
-		float GridDefenseMod = Grid->GetDefenseModifier(Defender);
-		if (GridDefenseMod > 0.0f)
-		{
-			RunningDamage /= GridDefenseMod;
-		}
+		Inputs.GridDefenseModifier = Grid->GetDefenseModifier(Defender);
 	}
-
-	// Step 7: Ensure minimum damage
-	Result.FinalDamage = FMath::Max(DamageConstants::MIN_DAMAGE, FMath::RoundToInt(RunningDamage));
-
-	// Step 7: Ensure minimum damage
-	Result.FinalDamage = FMath::Max(DamageConstants::MIN_DAMAGE, FMath::RoundToInt(RunningDamage));
-
-	// Calculate status buildup if applicable
-	// (Caller should handle this separately based on spell/ability data)
-
-	return Result;
+	return Inputs;
 }
 
 FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
