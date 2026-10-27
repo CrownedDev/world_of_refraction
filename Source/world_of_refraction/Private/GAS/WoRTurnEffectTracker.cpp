@@ -47,6 +47,8 @@ void UWoRTurnEffectTracker::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	BoundASC.Reset();
 	RemovedHandle.Reset();
+	// TODO: co-op (D-065) - battle pawns die with the fight today, so the GEs go with the ASC; a
+	// pawn that outlives a fight should remove its tracked GEs here.
 	Spans.Reset();
 	Super::EndPlay(EndPlayReason);
 }

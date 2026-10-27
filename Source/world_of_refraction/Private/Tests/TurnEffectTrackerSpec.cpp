@@ -8,6 +8,9 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "AbilitySystemComponent.h"
+#include "Character/CharacterDataComponent.h"
+#include "Character/CombatCharacter.h"
+#include "Kismet/GameplayStatics.h"
 #include "GameplayEffect.h"
 #include "GAS/WoRGameplayEffects.h"
 #include "GAS/WoRTurnEffectTracker.h"
@@ -18,15 +21,6 @@ namespace
 {
 	constexpr int32 TRACKER_ONE_TURN = 1;
 	constexpr int32 TRACKER_TWO_TURNS = 2;
-
-	template <typename TComponent>
-	TComponent *TrackerTestAddComponent(AActor *Actor)
-	{
-		TComponent *Component = NewObject<TComponent>(Actor);
-		Actor->AddInstanceComponent(Component);
-		Component->RegisterComponent();
-		return Component;
-	}
 }
 
 BEGIN_DEFINE_SPEC(FTurnEffectTrackerSpec, "WoR.GAS.TurnTracker",
@@ -55,9 +49,9 @@ void FTurnEffectTrackerSpec::Define()
 		Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
 		if (Hero)
 		{
-			ASC = TrackerTestAddComponent<UAbilitySystemComponent>(Hero);
+			ASC = FWoRTestWorld::AddComponent<UAbilitySystemComponent>(Hero);
 			ASC->InitAbilityActorInfo(Hero, Hero);
-			Tracker = TrackerTestAddComponent<UWoRTurnEffectTracker>(Hero);
+			Tracker = FWoRTestWorld::AddComponent<UWoRTurnEffectTracker>(Hero);
 		}
 		TestNotNull(TEXT("AbilitySystemComponent"), ASC);
 		TestNotNull(TEXT("Tracker"), Tracker);
@@ -140,6 +134,36 @@ void FTurnEffectTrackerSpec::Define()
 		TestTrue(TEXT("Held through the holder's next turn"), IsStunned());
 		EffectManager->ProcessStartOfTurnEffects(Hero);
 		TestFalse(TEXT("Gone as the following turn starts"), IsStunned());
+	});
+
+	// The real path: ACombatCharacter's own tracker and ASC, deferred spawn as ABattleGameMode does.
+	It("works on a combat character's own tracker and ability system", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		if (!World)
+		{
+			return;
+		}
+		ACombatCharacter *Fighter = World->SpawnActorDeferred<ACombatCharacter>(ACombatCharacter::StaticClass(), FTransform::Identity, nullptr, nullptr,
+																				 ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		if (!TestNotNull(TEXT("Combat character spawned"), Fighter))
+		{
+			return;
+		}
+		Fighter->CharacterDataComponent->CharacterData = FWoRTestWorld::NewCharacterData();
+		UGameplayStatics::FinishSpawningActor(Fighter, FTransform::Identity);
+
+		UWoRTurnEffectTracker *OwnTracker = Fighter->TurnEffectTracker;
+		UAbilitySystemComponent *OwnASC = Fighter->GetAbilitySystemComponent();
+		if (!TestNotNull(TEXT("Own tracker"), OwnTracker) || !TestNotNull(TEXT("Own ASC"), OwnASC))
+		{
+			return;
+		}
+		const FActiveGameplayEffectHandle Handle = OwnTracker->ApplyForHolderTurns(UWoRGE_Stun::StaticClass(), TRACKER_ONE_TURN, Fighter);
+		TestTrue(TEXT("Stunned"), OwnASC->HasMatchingGameplayTag(WoRTags::Status_Stun));
+		OwnASC->RemoveActiveGameplayEffect(Handle);
+		TestEqual(TEXT("The tracker heard the removal"), OwnTracker->NumTracked(), 0);
+		Fighter->Destroy();
 	});
 
 	It("refuses a span under 1 turn and a GE that isn't Infinite", [this]()
