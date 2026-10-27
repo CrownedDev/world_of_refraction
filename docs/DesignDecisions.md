@@ -1812,6 +1812,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
 **Notes for Claude:** applied (feature/B-074-encounter-data): `UEncounterData::BuildOpposingRoster`. B-184's `AFieldEnemyTeam` should hold a `UEncounterData` and call `BuildOpposingRoster` rather than carry a second list of enemies.
 
+### Q-084 — Dismantling an equipped ring: what happens to the slot, and which loadouts does the warning check?
+**Status:** DECIDED · **Raised:** 2026-10-27 (B-084) · **Blocks:** — (B-084 shipped with A)
+**Question:** D-016 says an equipped item is taken out of its loadouts and dismantled. For a Resonator's ring slots, is the slot removed or left empty, and which ring is active after? Does the "can't fight" line look at every loadout or only the one you fight with?
+**Options:**
+- **A** the ring slot is removed (the rest close up); the ring that was active stays active, or the next one if it was the active one. The "can't fight" line checks the active loadout, the one a fight starts from. Not allowed during a fight.
+- **B** the slot stays, empty; the active index is unchanged (it may point at an empty slot). The warning checks every loadout.
+**Recommendation:** A. Removing the gone item and keeping the player's current pick is what inventory games do: Diablo and Path of Exile salvage an item straight out of its slot with no empty placeholder, and Final Fantasy XIV's gear sets simply drop a desynthesized item. Warning about the loadout you fight with keeps the message short. Not lore.
+**Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it.
+**Notes for Claude:** applied (feature/B-084-dismantle-equipped): `UInventoryComponent::StripFromLoadout`, `UEconomyService::GetDismantleWarning`.
+
 ### Q-082 — Does a ring fusion's bonus stat count too?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-082) · **Blocks:** — (B-082 shipped with A)
 **Question:** D-009 says the stat-stone half of an elemental fusion counts on a ring. A fusion also has a bonus stat of its own (the average of its halves' tiers). Does that count on a ring, and which rings count?
