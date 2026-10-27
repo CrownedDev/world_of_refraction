@@ -191,7 +191,9 @@ void FResistanceSourcesSpec::Define()
 		const TArray<FActiveGameplayEffectHandle> Gear = SourceEffects(UWoRGE_ResistanceSources_Gear::StaticClass());
 		if (!TestEqual(TEXT("One gear source"), Gear.Num(), 1)) return;
 		// The class bucket on the gear effect: the sum moves, and the compare names the source.
-		const float ClassFire = WoRResistance::GetTypeResistanceSources(Hero, EWoRDamageType::Fire).Class;
+		const WoRResistance::FTypeResistanceSources Fire = WoRResistance::GetTypeResistanceSources(Hero, EWoRDamageType::Fire);
+		const float ClassFire = Fire.Class;
+		if (!TestFalse(TEXT("The class and gear buckets differ"), FMath::IsNearlyEqual(ClassFire, Fire.Gear))) return;
 		ASC->UpdateActiveGameplayEffectSetByCallerMagnitude(Gear[0], WoRTags::DamageTypeToTag(EWoRDamageType::Fire), ClassFire);
 		TestTrue(TEXT("Wrong bucket reported"), UWoRAttributeDebug::GetAttributeMismatchString(Hero).Contains(TEXT("carries")));
 	});
