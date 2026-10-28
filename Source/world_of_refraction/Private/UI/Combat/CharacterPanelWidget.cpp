@@ -707,7 +707,7 @@ void UCharacterPanelWidget::RefreshEffectsList()
 	// character is no longer BD, the next refresh just doesn't append it.
 	UCharacterDataComponent *CharComp = BoundCharData.Get();
 	UBrokenDarknessManager *BDManager = BoundBDManager.Get();
-	if (CharComp && BDManager && UBrokenDarknessManager::IsInBDForm(BDManager->GetOwner())) // B-255
+	if (CharComp && BDManager && BDManager->IsTransformed()) // B-255: the manager's flag is the one BD-form check
 	{
 		const int32 StackCount = BDManager->GetCurrentStackCount();
 		if (StackCount > 0)

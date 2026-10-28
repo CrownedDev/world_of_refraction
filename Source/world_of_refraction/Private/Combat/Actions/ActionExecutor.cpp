@@ -1724,9 +1724,9 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 		DefenseResult);
 
 	// Broken Darkness absorption from defense
-	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Defender);
 	if (UBrokenDarknessManager::IsInBDForm(Defender))
 	{
+		UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Defender);
 		// Get attack info from pending context
 		if (CurrentExecutionContext.IsSet())
 		{
