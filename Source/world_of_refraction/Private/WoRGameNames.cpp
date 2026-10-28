@@ -352,4 +352,30 @@ FText GetMerchantTypeName(EMerchantType MerchantType)
 }
 }
 
+FText WoRGameNames::GetElementBreakName(ESpellElement Element)
+{
+    // Today's flavour words, each on the trigger that fires for its element (B-248).
+    switch (Element)
+    {
+    case ESpellElement::Fire:
+        return LOCTEXT("ElementBreak_Fire", "Burn");
+    case ESpellElement::Water:
+        return LOCTEXT("ElementBreak_Water", "Frozen");
+    case ESpellElement::Earth:
+        return LOCTEXT("ElementBreak_Earth", "Softened");
+    case ESpellElement::Wind:
+        return LOCTEXT("ElementBreak_Wind", "Tripped");
+    case ESpellElement::Lightning:
+        return LOCTEXT("ElementBreak_Lightning", "Stunned");
+    case ESpellElement::Light:
+        return LOCTEXT("ElementBreak_Light", "Dimmed");
+    case ESpellElement::Darkness:
+        return LOCTEXT("ElementBreak_Darkness", "Silenced");
+    case ESpellElement::Void:
+        return LOCTEXT("ElementBreak_Void", "Voided");
+    default:
+        return FText::GetEmpty();
+    }
+}
+
 #undef LOCTEXT_NAMESPACE
