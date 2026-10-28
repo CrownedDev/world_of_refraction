@@ -4297,8 +4297,8 @@ float UActionExecutor::GetEffectiveEnergyCostEfficiencyMultiplier(AActor *Actor)
 		const float CostDebuff = SEM->GetTotalStatModifier(Actor, ESkillEffectType::SpellCostDebuff);
 		const float ModifyEnergy = SEM->GetTotalStatModifier(Actor, ESkillEffectType::ModifyEnergyCost);
 		SkillEffectMult = FMath::Clamp(
-			1.0f - (CostBuff - CostDebuff + ModifyEnergy) / 100.0f,
-			0.1f, 2.0f);
+			1.0f - (CostBuff - CostDebuff + ModifyEnergy) / CombatConstants::STAT_PERCENT_DIVISOR,
+			CombatConstants::SKILL_EFFECT_COST_MULT_MIN, CombatConstants::SKILL_EFFECT_COST_MULT_MAX);
 	}
 
 	return CharMult * SkillEffectMult;

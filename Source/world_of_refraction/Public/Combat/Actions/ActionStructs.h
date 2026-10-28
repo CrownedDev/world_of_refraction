@@ -531,6 +531,9 @@ struct WORLD_OF_REFRACTION_API FCombatHitResult
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hit")
 	bool bWasCritical = false;
 
+	// OBSOLETE (B-277): bWasBlocked / bWasParried / bWasDodged are never written in C++; EDefenseType says which
+	// defense landed. Kept until Crown checks no Blueprint reads them, then one EDefenseType field replaces them
+	// (B-105 era).
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hit")
 	bool bWasBlocked = false;
 
