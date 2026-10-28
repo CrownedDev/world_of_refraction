@@ -7,6 +7,7 @@
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "WoRGameNames.h"
+#include "Skills/Effects/BarCapTriggerResolver.h"
 
 /**
  * Status display information for UI
@@ -27,6 +28,17 @@ namespace SkillEffectDisplayNames
     /** Get display name for status type + element combination */
     inline FString GetDisplayName(ESkillEffectType StatusType, ESpellElement Element)
     {
+        // B-248 (DRY audit A8): an element's bar-cap break shows that element's one break name, read off the
+        // trigger it actually fires, so a moved trigger (D-090) takes its name along.
+        if (Element != ESpellElement::None && BarCapTriggerResolver::ResolveTrigger(Element, EPhysicalDamageType::None, false) == StatusType)
+        {
+            const FText BreakName = WoRGameNames::GetElementBreakName(Element);
+            if (!BreakName.IsEmpty())
+            {
+                return BreakName.ToString();
+            }
+        }
+
         switch (StatusType)
         {
         case ESkillEffectType::DOT:
@@ -149,8 +161,6 @@ namespace SkillEffectDisplayNames
             return TEXT("Stunned");
         case ESkillEffectType::HealBlock:
             return TEXT("Frozen");
-        case ESkillEffectType::Silenced:
-            return TEXT("Silenced");
         case ESkillEffectType::RandomSkill:
             return TEXT("Voided");
 
@@ -179,116 +189,27 @@ namespace SkillEffectDisplayNames
 
         // ==================== PASSIVE LAYER (Phase 2) ====================
         // Stat modifiers
-        case ESkillEffectType::ModifyDamageDealt:
-            return TEXT("Damage Up");
-        case ESkillEffectType::ReduceDamageTaken:
-            return TEXT("Reduce Damage Taken");
-        case ESkillEffectType::IncreaseDamageTaken:
-            return TEXT("Increase Damage Taken");
-        case ESkillEffectType::ModifyHealing:
-            return TEXT("Healing Up");
-        case ESkillEffectType::HealingReceivedBuff:
-            return TEXT("Healing Boost");
         case ESkillEffectType::PushBack:
             return TEXT("Push Back");
         case ESkillEffectType::PullForward:
             return TEXT("Pull Forward");
-        case ESkillEffectType::ModifyCritChance:
-            return TEXT("Crit Chance Up");
-        case ESkillEffectType::ModifyCritDamage:
-            return TEXT("Crit Damage Up");
         case ESkillEffectType::CritDamageDebuff:
             return TEXT("Crit Damage Down");
-        case ESkillEffectType::ModifyEnergyCost:
-            return TEXT("Energy Cost Up");
-        case ESkillEffectType::ModifyTurnSpeed:
-            return TEXT("Turn Speed Up");
-        case ESkillEffectType::ModifyStatusResist:
-            return TEXT("Status Resist Up");
 
-        // Resource changes
-        case ESkillEffectType::RestoreHPPercent:
-            return TEXT("Restore HP %");
-        case ESkillEffectType::RestoreEnergyPercent:
-            return TEXT("Restore Energy %");
-        case ESkillEffectType::DrainHP:
-            return TEXT("Drain HP");
-        case ESkillEffectType::DrainEnergy:
-            return TEXT("Drain Energy");
-
-        // Defensive
-        case ESkillEffectType::DamageReflect:
-            return TEXT("Reflect");
-        case ESkillEffectType::ReflectPhysicalDamage:
-            return TEXT("Reflect Physical");
-        case ESkillEffectType::ReflectSpellDamage:
-            return TEXT("Reflect Spell");
-        case ESkillEffectType::Lifesteal:
-            return TEXT("Lifesteal");
-        case ESkillEffectType::AbsorbDamage:
-            return TEXT("Absorb");
-
-        // Immunities — trigger-type
-        case ESkillEffectType::GrantDOTImmunity:
-            return TEXT("DOT Immunity");
-        case ESkillEffectType::GrantStunImmunity:
-            return TEXT("Stun Immunity");
-        case ESkillEffectType::GrantSilenceImmunity:
-            return TEXT("Silence Immunity");
-        case ESkillEffectType::GrantAllStatusImmunity:
-            return TEXT("All-Status Immunity");
-
-        // Immunities — per element
-        case ESkillEffectType::GrantFireImmunity:
-            return TEXT("Fire Immunity");
-        case ESkillEffectType::GrantWaterImmunity:
-            return TEXT("Water Immunity");
-        case ESkillEffectType::GrantEarthImmunity:
-            return TEXT("Earth Immunity");
-        case ESkillEffectType::GrantWindImmunity:
-            return TEXT("Wind Immunity");
-        case ESkillEffectType::GrantLightImmunity:
-            return TEXT("Light Immunity");
-        case ESkillEffectType::GrantDarknessImmunity:
-            return TEXT("Darkness Immunity");
-        case ESkillEffectType::GrantLightningImmunity:
-            return TEXT("Lightning Immunity");
-        case ESkillEffectType::GrantVoidImmunity:
-            return TEXT("Void Immunity");
+        // Shown as "Reality Immunity" (the shared table has none for it)
         case ESkillEffectType::GrantRealityImmunity:
             return TEXT("Reality Immunity");
 
-        // Status application on trigger
-        case ESkillEffectType::ApplyBurnToTarget:
-            return TEXT("Apply Burn");
-        case ESkillEffectType::ApplyChillToTarget:
-            return TEXT("Apply Chill");
-        case ESkillEffectType::ApplyStunToTarget:
-            return TEXT("Apply Stun");
-        case ESkillEffectType::CleanseSelf:
-            return TEXT("Cleanse Self");
-        case ESkillEffectType::CleanseAllies:
-            return TEXT("Cleanse Allies");
-
-        // Special mechanics
-        case ESkillEffectType::ExtraAction:
-            return TEXT("Extra Action");
-        case ESkillEffectType::GuaranteedCrit:
-            return TEXT("Guaranteed Crit");
-        case ESkillEffectType::IgnoreDefense:
-            return TEXT("Ignore Defense");
-        case ESkillEffectType::DoubleHit:
-            return TEXT("Double Hit");
-        case ESkillEffectType::LastStand:
-            return TEXT("Last Stand");
-
-        // All other status types use the shared name table (cooked-safe, B-126)
+        // All other status types use the shared name table (cooked-safe, B-126); B-248 dropped the cases
+        // that only repeated it word for word.
         default:
             return WoRGameNames::GetSkillEffectTypeName(StatusType).ToString();
         }
     }
 
-    /** Get full display info (name, description, color) */
+    /** Get full display info (name, description, color).
+     *  OBSOLETE (B-248, DRY audit A8): nothing calls it; remove after Crown's PIE pass of B-248 (a Blueprint check
+     *  first). Its FString descriptions are against D-061. */
     inline FSkillEffectDisplayInfo GetDisplayInfo(ESkillEffectType StatusType, ESpellElement Element)
     {
         FSkillEffectDisplayInfo Info;
