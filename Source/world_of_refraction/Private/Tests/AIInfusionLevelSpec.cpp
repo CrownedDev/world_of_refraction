@@ -65,6 +65,8 @@ void FAIInfusionLevelSpec::Define()
 		TestEqual(TEXT("nothing kills: same"), Decide(Spell, INFUSION_TEST_WEAK_DAMAGE, INFUSION_TEST_WEAK_DAMAGE),
 				  Decide(Ability, INFUSION_TEST_WEAK_DAMAGE, INFUSION_TEST_WEAK_DAMAGE));
 		TestEqual(TEXT("L0 kills: no infusion"), Decide(Spell, INFUSION_TEST_KILLING_DAMAGE, INFUSION_TEST_KILLING_DAMAGE), 0);
+		// No combat set: Medium difficulty, and a fresh attacker has full EP.
+		TestEqual(TEXT("only L2 kills: level 2"), Decide(Spell, INFUSION_TEST_WEAK_DAMAGE, INFUSION_TEST_KILLING_DAMAGE), 2);
 	});
 
 	It("reads Max EP 0 as no energy", [this]()
