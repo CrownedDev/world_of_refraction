@@ -371,8 +371,7 @@ bool UEconomyService::DismantleWeapon(AActor *Owner, FGuid PersistentID)
     // Find the owned instance and capture its tier BEFORE removal — the entry pointer dangles once
     // the array is mutated, so nothing past the remove dereferences it. Reads the INSTANCE Tier
     // (cluster 2b read-flip): a leveled weapon now dismantles for its CURRENT tier, not its base.
-    const FWeaponInventoryEntry *Entry = Inv->Weapons.FindByPredicate(
-        [&PersistentID](const FWeaponInventoryEntry &E) { return E.PersistentID == PersistentID; });
+    const FWeaponInventoryEntry *Entry = Inv->FindOwnedWeapon(PersistentID);
     if (!Entry || !Entry->Weapon)
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleWeapon: %s has no weapon instance for GUID %s (or null asset)"),
@@ -413,8 +412,7 @@ bool UEconomyService::DismantleRing(AActor *Owner, FGuid PersistentID)
         return false;
     }
 
-    const FRingInventoryEntry *Entry = Inv->Rings.FindByPredicate(
-        [&PersistentID](const FRingInventoryEntry &E) { return E.PersistentID == PersistentID; });
+    const FRingInventoryEntry *Entry = Inv->FindOwnedRing(PersistentID);
     if (!Entry || !Entry->Ring)
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleRing: %s has no ring instance for GUID %s (or null asset)"),
@@ -1274,8 +1272,7 @@ bool UEconomyService::LevelUpWeapon(AActor *Owner, FGuid PersistentID)
 
     // MUTABLE entry — the core writes Entry.Tier in place. Nothing mutates Inv->Weapons here, so
     // the pointer stays valid across the currency spend inside TryLevelUpEntry.
-    FWeaponInventoryEntry *Entry = Inv->Weapons.FindByPredicate(
-        [&PersistentID](const FWeaponInventoryEntry &E) { return E.PersistentID == PersistentID; });
+    FWeaponInventoryEntry *Entry = Inv->FindOwnedWeapon(PersistentID);
     if (!Entry || !Entry->Weapon)
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpWeapon: %s has no weapon instance for GUID %s (or null asset)"),
@@ -1308,8 +1305,7 @@ bool UEconomyService::LevelUpRing(AActor *Owner, FGuid PersistentID)
         return false;
     }
 
-    FRingInventoryEntry *Entry = Inv->Rings.FindByPredicate(
-        [&PersistentID](const FRingInventoryEntry &E) { return E.PersistentID == PersistentID; });
+    FRingInventoryEntry *Entry = Inv->FindOwnedRing(PersistentID);
     if (!Entry || !Entry->Ring)
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpRing: %s has no ring instance for GUID %s (or null asset)"),
@@ -1430,8 +1426,7 @@ bool UEconomyService::DowngradeWeapon(AActor *Owner, FGuid PersistentID)
         return false;
     }
 
-    FWeaponInventoryEntry *Entry = Inv->Weapons.FindByPredicate(
-        [&PersistentID](const FWeaponInventoryEntry &E) { return E.PersistentID == PersistentID; });
+    FWeaponInventoryEntry *Entry = Inv->FindOwnedWeapon(PersistentID);
     if (!Entry || !Entry->Weapon)
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeWeapon: %s has no weapon instance for GUID %s (or null asset)"),
@@ -1462,8 +1457,7 @@ bool UEconomyService::DowngradeRing(AActor *Owner, FGuid PersistentID)
         return false;
     }
 
-    FRingInventoryEntry *Entry = Inv->Rings.FindByPredicate(
-        [&PersistentID](const FRingInventoryEntry &E) { return E.PersistentID == PersistentID; });
+    FRingInventoryEntry *Entry = Inv->FindOwnedRing(PersistentID);
     if (!Entry || !Entry->Ring)
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeRing: %s has no ring instance for GUID %s (or null asset)"),
