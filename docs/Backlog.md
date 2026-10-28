@@ -125,7 +125,7 @@ Each job: one source of truth, same behaviour unless its Q says otherwise, specs
 | B-254 | **A11: command-menu infusion controls** (`CombatCommandMenuSubsystem.cpp:1452` / `:1593`, ~75 lines) into one helper | CC | S | — | Menu behaves the same (spec) | TODO |
 | B-255 | **A15: one "is in Broken Darkness form" check** (two definitions), in two clusters | CC | S | — | Spec: both readers agree | TODO |
 | B-256 | **A16 / A17: interact-hint actor base (4 copies) and debug-print repeats** | CC | S | — | Same hints and prints | TODO |
-| B-257 | **Obsolete code with no job yet** (left by B-148, B-167, B-202, B-216, Q-159, B-118) and the dead `EnsureResultResolved` (`ActionExecutor.cpp:1770`): list each with the PIE check that unlocks its deletion; delete only what's already PIE-passed | CC | S | — | A list in the audit doc; deletions only after PIE | TODO |
+| B-257 | **Obsolete code with no job yet** (left by B-148, B-167, B-202, B-216, Q-159, B-118) and the dead `EnsureResultResolved` (`ActionExecutor.cpp:1770`): list each with the PIE check that unlocks its deletion; delete only what's already PIE-passed | CC | S | — | A list in the audit doc; deletions only after PIE | DONE (docs only): `DryAudit_2026-10-28.md` §E lists each piece with the PIE pass that unlocks it; none of those passes is done yet, so nothing was deleted |
 
 ## Phase 1c — Performance (`analysis/PerfAudit_2026-10-28.md`)
 
