@@ -100,6 +100,9 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 		return EEffectApplicationResult::Rejected;
 	}
 
+	// B-268: a legacy authored type (CritDebuff, EnergyDebuff) is stored as the type that's read.
+	Effect.EffectType = SkillEffectClassification::ResolveLegacyAlias(Effect.EffectType);
+
 	// Check immunity
 	if (IsImmuneToEffectType(Target, Effect.EffectType))
 	{
@@ -2937,6 +2940,9 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 		break;
 
+	// OBSOLETE (B-268): the four cases below are unreachable. BarCapTriggerResolver never returns SpeedDebuff,
+	// CritDebuff, EnergyDebuff or RandomDebuff, and StatusBuildupManager is this function's one caller. Remove
+	// after Crown's PIE pass of the status breaks (DryAudit_2026-10-28.md §E).
 	case ESkillEffectType::SpeedDebuff:
 		Effect.EffectType = ESkillEffectType::SpeedDebuff;
 		Effect.EffectValue = 50.0f; // 50%

@@ -6,6 +6,7 @@
 #include "WoRLog.h"
 #include "Skills/Effects/EffectIdentity.h"
 #include "Loadout/LoadoutConstants.h"
+#include "Skills/Effects/ESkillEffectType.h"
 
 void UEffectDefinition::LogEffect() const
 {
@@ -62,6 +63,24 @@ EDataValidationResult UEffectDefinition::IsDataValid(FDataValidationContext &Con
                 TEXT("Effect %d has too many payloads (%d). Maximum is %d."),
                 i, Effects[i].Payloads.Num(), LoadoutConstants::MAX_PAYLOADS)));
             Result = EDataValidationResult::Invalid;
+        }
+        for (const FSkillEffectPayload &Payload : Effects[i].Payloads)
+        {
+            const FString TypeName = UEnum::GetValueAsString(Payload.EffectType);
+            if (SkillEffectClassification::IsRetired(Payload.EffectType))
+            {
+                // D-056: the generic Speed Buff / Debuff do nothing; turn order reads the Turn Speed family.
+                Context.AddError(FText::FromString(FString::Printf(
+                    TEXT("Effect %d uses %s, which is retired (D-056) and does nothing. Use TurnSpeedBuff / TurnSpeedDebuff."),
+                    i, *TypeName)));
+                Result = EDataValidationResult::Invalid;
+            }
+            else if (SkillEffectClassification::ResolveLegacyAlias(Payload.EffectType) != Payload.EffectType)
+            {
+                Context.AddWarning(FText::FromString(FString::Printf(
+                    TEXT("Effect %d uses legacy %s; it works as %s. Pick that type instead."), i, *TypeName,
+                    *UEnum::GetValueAsString(SkillEffectClassification::ResolveLegacyAlias(Payload.EffectType)))));
+            }
         }
     }
 

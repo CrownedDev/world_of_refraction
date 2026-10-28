@@ -25,23 +25,24 @@ enum class ESkillEffectType : uint8
     /** Damage over time - display varies by element */
     DOT UMETA(DisplayName = "Damage Over Time"),
 
-    /** Speed reduction - display varies by element */
-    SpeedDebuff UMETA(DisplayName = "Speed Debuff"),
+    /** RETIRED (D-056): reads nothing; turn order reads the Turn Speed family. Kept (append-only), hidden,
+     *  and refused by EffectDefinition validation. */
+    SpeedDebuff UMETA(Hidden, DisplayName = "Speed Debuff"),
 
     /** Defense reduction - display varies by element */
     DefenseDebuff UMETA(DisplayName = "Defense Debuff"),
 
-    /** Crit chance reduction - display varies by element */
-    CritDebuff UMETA(DisplayName = "Crit Chance Debuff"),
+    /** LEGACY (B-268): stored as CritChanceDebuff (ResolveLegacyAlias). Hidden; author CritChanceDebuff. */
+    CritDebuff UMETA(Hidden, DisplayName = "Crit Chance Debuff"),
 
-    /** Energy manipulation - display varies by element */
-    EnergyDebuff UMETA(DisplayName = "Energy Debuff"),
+    /** LEGACY (B-268): stored as EnergyDrain (ResolveLegacyAlias). Hidden; author EnergyDrain. */
+    EnergyDebuff UMETA(Hidden, DisplayName = "Energy Debuff"),
 
     /** Skip turn / stun - display varies by element */
     SkipTurn UMETA(DisplayName = "Skip Turn"),
 
-    /** Random stat debuff - display varies by element */
-    RandomDebuff UMETA(DisplayName = "Random Stat Debuff"),
+    /** LEGACY bar-cap trigger (superseded by RandomSkill); never authored. Hidden. */
+    RandomDebuff UMETA(Hidden, DisplayName = "Random Stat Debuff"),
 
     /** Burst damage (Reality/Raw mode) */
     BurstDamage UMETA(DisplayName = "Burst Damage"),
@@ -95,7 +96,8 @@ enum class ESkillEffectType : uint8
 
     DamageBuff UMETA(DisplayName = "Damage Buff (Generic)"),
     DamageDebuff UMETA(DisplayName = "Damage Debuff (Generic)"),
-    SpeedBuff UMETA(DisplayName = "Speed Buff (Generic)"),
+    /** RETIRED (D-056): reads nothing, like SpeedDebuff. Hidden and refused by validation. */
+    SpeedBuff UMETA(Hidden, DisplayName = "Speed Buff (Generic)"),
 
     // ==================== UTILITY ====================
 
@@ -281,6 +283,23 @@ enum class ESkillEffectType : uint8
  */
 namespace SkillEffectClassification
 {
+    /** B-268: legacy types that still mean something are stored as today's type, once, when applied. */
+    inline ESkillEffectType ResolveLegacyAlias(ESkillEffectType Type)
+    {
+        switch (Type)
+        {
+        case ESkillEffectType::CritDebuff:   return ESkillEffectType::CritChanceDebuff;
+        case ESkillEffectType::EnergyDebuff: return ESkillEffectType::EnergyDrain;
+        default:                             return Type;
+        }
+    }
+
+    /** D-056: the generic Speed Buff / Debuff are retired; nothing reads them and validation refuses them. */
+    inline bool IsRetired(ESkillEffectType Type)
+    {
+        return Type == ESkillEffectType::SpeedBuff || Type == ESkillEffectType::SpeedDebuff;
+    }
+
     inline bool IsBuff(ESkillEffectType Type, float Magnitude)
     {
         switch (Type)
