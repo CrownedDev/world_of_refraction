@@ -230,6 +230,10 @@ private:
     void ExitTargetSelectionToActionMenu();
     TArray<FPieMenuButtonData> BuildTargetButtons(const TArray<AActor *> &Targets) const;
     TArray<FPieMenuButtonData> BuildGroupTargetButtons(ETargetType TargetType, const TArray<AActor *> &Targets) const;
+
+    /** B-254 (DRY audit A11): the infusion controls (cycle level with the source readout, cycle source) a target
+     *  picker ends with; none for items or an infusion-locked action. */
+    void AppendInfusionControls(TArray<FPieMenuButtonData> &Buttons) const;
     /** Rebuild the active target picker using ResolvedTargetType + ResolvedTargetCount
      *  to pick between the per-actor picker (Single/Double) and the group confirm
      *  picker (auto-resolve: Self, or any TargetType with count All).

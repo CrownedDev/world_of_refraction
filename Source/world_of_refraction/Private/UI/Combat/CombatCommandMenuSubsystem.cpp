@@ -1450,86 +1450,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
         Buttons.Add(MakeTargetButton(Target, Tint));
     }
 
-    // ==================== INFUSION CONTROLS ====================
-    // Below targets, minimal buttons. Items skip infusion entirely.
-    // Actions flagged bImmuneToInfusion also skip — the controls would be inert.
-    // Equipment-level immunity (active weapon / ring on the wielder) ORs in.
-    //   - Cycle Level button doubles as the state readout: "<source>: L<n>"
-    //     Pressing it cycles 0 -> 1 -> 2 -> 0.
-    //   - Cycle Source is a separate button, only for Attack / Ability.
-    //   - Spells show their intrinsic source in the label (not cyclable).
-    if (PendingActionCategory != EPieMenuCategory::Item &&
-        !IsInfusionLockedForPendingAction())
-    {
-        if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
-        {
-            // Resolve source label depending on action type.
-            // Attack / Ability: read VFX cycled source.
-            // Spell submenus: source is intrinsic to the action category.
-            // For Spell, intrinsic source comes from the originating submenu.
-            // For Attack/Ability, source is what the player has cycled to.
-            const EPieMenuCategory SourceLookup =
-                (PendingActionCategory == EPieMenuCategory::Spell)
-                    ? ActiveSubmenuSource
-                    : PendingActionCategory;
-
-            FString SourceLabel;
-            switch (SourceLookup)
-            {
-            case EPieMenuCategory::Refractions:
-                SourceLabel = TEXT("Innate");
-                break;
-            case EPieMenuCategory::ResonateWeapon:
-                SourceLabel = TEXT("Weapon Crystal");
-                break;
-            case EPieMenuCategory::ResonateRing:
-                SourceLabel = TEXT("Ring");
-                break;
-            case EPieMenuCategory::Attack:
-            case EPieMenuCategory::Ability:
-            case EPieMenuCategory::Breakthrough:
-            default:
-                // Breakthrough spells can cycle source (Evolution / Innate),
-                // so label reads from the live VFX state like Attack/Ability.
-                SourceLabel = VFX->GetCurrentSourceName();
-                break;
-            }
-
-            // Combined cycle-level + state-display button
-            const FString CycleLvlText = FString::Printf(
-                TEXT("%s: L%d"),
-                *SourceLabel,
-                PendingInfusionLevel);
-
-            FPieMenuButtonData CycleLvl;
-            CycleLvl.ButtonID = TEXT("CycleLevel");
-            CycleLvl.DisplayName = FText::FromString(CycleLvlText);
-            CycleLvl.Category = EPieMenuCategory::CycleLevel;
-            CycleLvl.bEnabled = true;
-            Buttons.Add(CycleLvl);
-
-            // Cycle Source — Attack / Ability always; Breakthrough spells too
-            // (so BD can pick Innate for Darkness-conversion). Other spell
-            // submenus stay element-locked. Suppressed when the filtered cache
-            // has ≤1 entry (cycling would be a no-op).
-            const bool bShowCycleSource =
-                ((PendingActionCategory == EPieMenuCategory::Attack) ||
-                 (PendingActionCategory == EPieMenuCategory::Ability) ||
-                 (PendingActionCategory == EPieMenuCategory::Spell &&
-                  ActiveSubmenuSource == EPieMenuCategory::Breakthrough)) &&
-                VFX->GetCachedSources().Num() > 1;
-
-            if (bShowCycleSource)
-            {
-                FPieMenuButtonData CycleSrc;
-                CycleSrc.ButtonID = TEXT("CycleSource");
-                CycleSrc.DisplayName = FText::FromString(TEXT("Cycle Source"));
-                CycleSrc.Category = EPieMenuCategory::CycleSource;
-                CycleSrc.bEnabled = true;
-                Buttons.Add(CycleSrc);
-            }
-        }
-    }
+    AppendInfusionControls(Buttons); // B-254: one copy for single and group targets
 
     Buttons.Add(FPieMenuButtonData::MakeBackButton());
 
@@ -1590,11 +1511,22 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
     }
     Buttons.Add(ConfirmBtn);
 
-    // ==================== INFUSION CONTROLS ====================
-    // Same block as BuildTargetButtons. Items skip infusion entirely.
+    AppendInfusionControls(Buttons);
+
+    Buttons.Add(FPieMenuButtonData::MakeBackButton());
+    return Buttons;
+}
+
+#define LOCTEXT_NAMESPACE "CombatCommandMenu"
+
+void UCombatCommandMenuSubsystem::AppendInfusionControls(TArray<FPieMenuButtonData> &Buttons) const
+{
+    // B-254 (DRY audit A11): the infusion controls under a target list, single or group. Labels are FText (D-061).
+    // Below targets, minimal buttons. Items skip infusion entirely.
     // Actions flagged bImmuneToInfusion also skip — the controls would be inert.
     // Equipment-level immunity (active weapon / ring on the wielder) ORs in.
     //   - Cycle Level button doubles as the state readout: "<source>: L<n>"
+    //     Pressing it cycles 0 -> 1 -> 2 -> 0.
     //   - Cycle Source is a separate button, only for Attack / Ability.
     //   - Spells show their intrinsic source in the label (not cyclable).
     if (PendingActionCategory != EPieMenuCategory::Item &&
@@ -1612,17 +1544,17 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
                     ? ActiveSubmenuSource
                     : PendingActionCategory;
 
-            FString SourceLabel;
+            FText SourceLabel;
             switch (SourceLookup)
             {
             case EPieMenuCategory::Refractions:
-                SourceLabel = TEXT("Innate");
+                SourceLabel = LOCTEXT("InfusionSourceInnate", "Innate");
                 break;
             case EPieMenuCategory::ResonateWeapon:
-                SourceLabel = TEXT("Weapon Crystal");
+                SourceLabel = LOCTEXT("InfusionSourceWeaponCrystal", "Weapon Crystal");
                 break;
             case EPieMenuCategory::ResonateRing:
-                SourceLabel = TEXT("Ring");
+                SourceLabel = LOCTEXT("InfusionSourceRing", "Ring");
                 break;
             case EPieMenuCategory::Attack:
             case EPieMenuCategory::Ability:
@@ -1630,19 +1562,14 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
             default:
                 // Breakthrough spells can cycle source (Evolution / Innate),
                 // so label reads from the live VFX state like Attack/Ability.
-                SourceLabel = VFX->GetCurrentSourceName();
+                SourceLabel = FText::FromString(VFX->GetCurrentSourceName()); // TODO: FText at the source (D-061)
                 break;
             }
 
             // Combined cycle-level + state-display button
-            const FString CycleLvlText = FString::Printf(
-                TEXT("%s: L%d"),
-                *SourceLabel,
-                PendingInfusionLevel);
-
             FPieMenuButtonData CycleLvl;
             CycleLvl.ButtonID = TEXT("CycleLevel");
-            CycleLvl.DisplayName = FText::FromString(CycleLvlText);
+            CycleLvl.DisplayName = FText::Format(LOCTEXT("InfusionCycleLevel", "{0}: L{1}"), SourceLabel, FText::AsNumber(PendingInfusionLevel));
             CycleLvl.Category = EPieMenuCategory::CycleLevel;
             CycleLvl.bEnabled = true;
             Buttons.Add(CycleLvl);
@@ -1662,17 +1589,16 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
             {
                 FPieMenuButtonData CycleSrc;
                 CycleSrc.ButtonID = TEXT("CycleSource");
-                CycleSrc.DisplayName = FText::FromString(TEXT("Cycle Source"));
+                CycleSrc.DisplayName = LOCTEXT("InfusionCycleSource", "Cycle Source");
                 CycleSrc.Category = EPieMenuCategory::CycleSource;
                 CycleSrc.bEnabled = true;
                 Buttons.Add(CycleSrc);
             }
         }
     }
-
-    Buttons.Add(FPieMenuButtonData::MakeBackButton());
-    return Buttons;
 }
+
+#undef LOCTEXT_NAMESPACE
 
 TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::RebuildCurrentPicker() const
 {
