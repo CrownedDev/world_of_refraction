@@ -95,10 +95,15 @@ namespace
         return false;
     }
 
+    /** How long the "not during a fight" refusal stays on screen. */
+    constexpr float ECONOMY_REFUSAL_MESSAGE_SECONDS = 3.0f;
+
     /** Players count loadouts from 1; SavedLoadouts from 0. */
     constexpr int32 LOADOUT_DISPLAY_OFFSET = 1;
 
-    /** Gear dismantle changes loadouts, so it waits until the fight is over (B-081 effects stay armed mid-fight). */
+    /** Q-252 (Crown): every economy action waits until the fight is over (dismantle, merge, level-up, revert,
+     *  buy); gear changes would also break B-081's armed effects mid-fight. The refusal is said on screen too
+     *  (placeholder until the real UI, D-024). */
     bool EconomyOutOfCombat(const AActor *Owner, const TCHAR *Op)
     {
         const UWorld *World = Owner->GetWorld();
@@ -106,10 +111,21 @@ namespace
         const UTurnManager *TurnManager = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
         if (TurnManager && TurnManager->IsCombatActive())
         {
+            const FText Refusal = NSLOCTEXT("EconomyService", "RefusedInCombat", "Not during a fight.");
             UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s: refused during combat"), Op);
+            if (GEngine)
+            {
+                GEngine->AddOnScreenDebugMessage(-1, ECONOMY_REFUSAL_MESSAGE_SECONDS, FColor::Yellow, Refusal.ToString());
+            }
             return false;
         }
         return true;
+    }
+
+    /** B-252: the gate every economy action passes: the authority, then out of combat (Q-252). */
+    bool EconomyMayAct(AActor *Owner, const TCHAR *Op)
+    {
+        return EconomyHasAuthority(Owner, Op) && EconomyOutOfCombat(Owner, Op);
     }
 
     /** D-016: take the instance out of every saved loadout; tell listeners when the active one changed. */
@@ -140,7 +156,7 @@ namespace
 
 bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int32 Count)
 {
-    if (Count <= 0 || !EconomyHasAuthority(Owner, TEXT("DismantleCrystal")))
+    if (Count <= 0 || !EconomyMayAct(Owner, TEXT("DismantleCrystal")))
     {
         return false;
     }
@@ -189,7 +205,7 @@ bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int3
 
 bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier TargetTier)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("MergeCrystals")))
+    if (!EconomyMayAct(Owner, TEXT("MergeCrystals")))
     {
         return false;
     }
@@ -340,7 +356,7 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
 
 bool UEconomyService::DismantleWeapon(AActor *Owner, FGuid PersistentID)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("DismantleWeapon")) || !EconomyOutOfCombat(Owner, TEXT("DismantleWeapon")))
+    if (!EconomyMayAct(Owner, TEXT("DismantleWeapon")))
     {
         return false;
     }
@@ -385,7 +401,7 @@ bool UEconomyService::DismantleWeapon(AActor *Owner, FGuid PersistentID)
 
 bool UEconomyService::DismantleRing(AActor *Owner, FGuid PersistentID)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("DismantleRing")) || !EconomyOutOfCombat(Owner, TEXT("DismantleRing")))
+    if (!EconomyMayAct(Owner, TEXT("DismantleRing")))
     {
         return false;
     }
@@ -464,7 +480,7 @@ FText UEconomyService::GetDismantleWarning(const AActor *Owner, FGuid Persistent
 
 bool UEconomyService::DismantleEvolution(AActor *Owner, FGuid InstanceID)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("DismantleEvolution")))
+    if (!EconomyMayAct(Owner, TEXT("DismantleEvolution")))
     {
         return false;
     }
@@ -511,7 +527,7 @@ bool UEconomyService::DismantleEvolution(AActor *Owner, FGuid InstanceID)
 
 bool UEconomyService::RemovePrimaryEvolution(AActor *Owner)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("RemovePrimaryEvolution")))
+    if (!EconomyMayAct(Owner, TEXT("RemovePrimaryEvolution")))
     {
         return false;
     }
@@ -543,7 +559,7 @@ bool UEconomyService::RemovePrimaryEvolution(AActor *Owner)
 
 bool UEconomyService::DismantleSpell(AActor *Owner, USpellData *Spell)
 {
-    if (!Spell || !EconomyHasAuthority(Owner, TEXT("DismantleSpell")))
+    if (!Spell || !EconomyMayAct(Owner, TEXT("DismantleSpell")))
     {
         return false;
     }
@@ -575,7 +591,7 @@ bool UEconomyService::DismantleSpell(AActor *Owner, USpellData *Spell)
 
 bool UEconomyService::DismantleAbility(AActor *Owner, UAbilityData *Ability)
 {
-    if (!Ability || !EconomyHasAuthority(Owner, TEXT("DismantleAbility")))
+    if (!Ability || !EconomyMayAct(Owner, TEXT("DismantleAbility")))
     {
         return false;
     }
@@ -782,7 +798,7 @@ FPurchaseCost UEconomyService::PreviewCartCost(const TArray<FMerchantStockEntry>
 
 bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> &Items)
 {
-    if (Items.Num() == 0 || !EconomyHasAuthority(Owner, TEXT("Purchase")))
+    if (Items.Num() == 0 || !EconomyMayAct(Owner, TEXT("Purchase")))
     {
         return false;
     }
@@ -1105,7 +1121,7 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
 
 bool UEconomyService::BuyWorldStat(AActor *Owner, EWorldPillar Pillar)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("BuyWorldStat")))
+    if (!EconomyMayAct(Owner, TEXT("BuyWorldStat")))
     {
         return false;
     }
@@ -1244,7 +1260,7 @@ bool UEconomyService::TryDowngradeEntry(UCurrencyComponent *Currency, EItemTier 
 
 bool UEconomyService::LevelUpWeapon(AActor *Owner, FGuid PersistentID)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("LevelUpWeapon")))
+    if (!EconomyMayAct(Owner, TEXT("LevelUpWeapon")))
     {
         return false;
     }
@@ -1280,7 +1296,7 @@ bool UEconomyService::LevelUpWeapon(AActor *Owner, FGuid PersistentID)
 
 bool UEconomyService::LevelUpRing(AActor *Owner, FGuid PersistentID)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("LevelUpRing")))
+    if (!EconomyMayAct(Owner, TEXT("LevelUpRing")))
     {
         return false;
     }
@@ -1313,7 +1329,7 @@ bool UEconomyService::LevelUpRing(AActor *Owner, FGuid PersistentID)
 
 bool UEconomyService::LevelUpEvolution(AActor *Owner, FGuid InstanceID)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("LevelUpEvolution")))
+    if (!EconomyMayAct(Owner, TEXT("LevelUpEvolution")))
     {
         return false;
     }
@@ -1349,7 +1365,7 @@ bool UEconomyService::LevelUpEvolution(AActor *Owner, FGuid InstanceID)
 
 bool UEconomyService::LevelUpSpell(AActor *Owner, const USpellData *Spell)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("LevelUpSpell")))
+    if (!EconomyMayAct(Owner, TEXT("LevelUpSpell")))
     {
         return false;
     }
@@ -1377,7 +1393,7 @@ bool UEconomyService::LevelUpSpell(AActor *Owner, const USpellData *Spell)
 
 bool UEconomyService::LevelUpAbility(AActor *Owner, const UAbilityData *Ability)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("LevelUpAbility")))
+    if (!EconomyMayAct(Owner, TEXT("LevelUpAbility")))
     {
         return false;
     }
@@ -1402,7 +1418,7 @@ bool UEconomyService::LevelUpAbility(AActor *Owner, const UAbilityData *Ability)
 
 bool UEconomyService::DowngradeWeapon(AActor *Owner, FGuid PersistentID)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("DowngradeWeapon")))
+    if (!EconomyMayAct(Owner, TEXT("DowngradeWeapon")))
     {
         return false;
     }
@@ -1434,7 +1450,7 @@ bool UEconomyService::DowngradeWeapon(AActor *Owner, FGuid PersistentID)
 
 bool UEconomyService::DowngradeRing(AActor *Owner, FGuid PersistentID)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("DowngradeRing")))
+    if (!EconomyMayAct(Owner, TEXT("DowngradeRing")))
     {
         return false;
     }
@@ -1465,7 +1481,7 @@ bool UEconomyService::DowngradeRing(AActor *Owner, FGuid PersistentID)
 
 bool UEconomyService::DowngradeEvolution(AActor *Owner, FGuid InstanceID)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("DowngradeEvolution")))
+    if (!EconomyMayAct(Owner, TEXT("DowngradeEvolution")))
     {
         return false;
     }
@@ -1496,7 +1512,7 @@ bool UEconomyService::DowngradeEvolution(AActor *Owner, FGuid InstanceID)
 
 bool UEconomyService::DowngradeSpell(AActor *Owner, const USpellData *Spell)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("DowngradeSpell")))
+    if (!EconomyMayAct(Owner, TEXT("DowngradeSpell")))
     {
         return false;
     }
@@ -1522,7 +1538,7 @@ bool UEconomyService::DowngradeSpell(AActor *Owner, const USpellData *Spell)
 
 bool UEconomyService::DowngradeAbility(AActor *Owner, const UAbilityData *Ability)
 {
-    if (!EconomyHasAuthority(Owner, TEXT("DowngradeAbility")))
+    if (!EconomyMayAct(Owner, TEXT("DowngradeAbility")))
     {
         return false;
     }
