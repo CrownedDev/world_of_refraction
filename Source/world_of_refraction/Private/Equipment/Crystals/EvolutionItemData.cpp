@@ -4,6 +4,7 @@
 
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Skills/Effects/EffectDefinition.h"
+#include "Skills/Effects/EffectBundles.h"
 #include "Inventory/ItemConstants.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Equipment/Durability/DurabilityConstants.h"
@@ -272,98 +273,24 @@ int32 UEvolutionItemData::GetEffectCount() const
 
 TArray<FSkillEffect> UEvolutionItemData::GetStartingEffects() const
 {
-    TArray<FSkillEffect> Result;
-
-    // Flatten referenced bundles, partition by condition (null/unloaded skipped).
-    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
-    {
-        if (!Def)
-        {
-            continue;
-        }
-        for (const FSkillEffect &E : Def->Effects)
-        {
-            if (!E.IsConditionalEffect())
-            {
-                Result.Add(E);
-            }
-        }
-    }
-
-    return Result;
+    return EffectBundles::Flatten(ReferencedEffects, /*bConditional=*/false);
 }
 
 TArray<FSkillEffect> UEvolutionItemData::GetConditionalEffects() const
 {
-    TArray<FSkillEffect> Result;
-
-    // Flatten referenced bundles, partition by condition (null/unloaded skipped).
-    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
-    {
-        if (!Def)
-        {
-            continue;
-        }
-        for (const FSkillEffect &E : Def->Effects)
-        {
-            if (E.IsConditionalEffect())
-            {
-                Result.Add(E);
-            }
-        }
-    }
-
-    return Result;
+    return EffectBundles::Flatten(ReferencedEffects, /*bConditional=*/true);
 }
 
 TArray<FGatheredEffect> UEvolutionItemData::GetStartingEffectsGathered() const
 {
-    TArray<FGatheredEffect> Result;
     // The item is the source of its effects (D-053): another item with the same definition adds its own.
-    const int32 ItemSourceKey = EffectIdentity::MakeSourceKey(GetUniqueID(), GetName());
-
-    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
-    {
-        if (!Def)
-        {
-            continue;
-        }
-        const int32 DefID = static_cast<int32>(Def->GetUniqueID());
-        for (int32 b = 0; b < Def->Effects.Num(); ++b)
-        {
-            if (!Def->Effects[b].IsConditionalEffect())
-            {
-                Result.Emplace(DefID, b, Def->Effects[b], ItemSourceKey);
-            }
-        }
-    }
-
-    return Result;
+    return EffectBundles::GatherWithIds(ReferencedEffects, /*bConditional=*/false, EffectIdentity::MakeSourceKey(GetUniqueID(), GetName()));
 }
 
 TArray<FGatheredEffect> UEvolutionItemData::GetConditionalEffectsGathered() const
 {
-    TArray<FGatheredEffect> Result;
     // The item is the source of its effects (D-053): another item with the same definition adds its own.
-    const int32 ItemSourceKey = EffectIdentity::MakeSourceKey(GetUniqueID(), GetName());
-
-    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
-    {
-        if (!Def)
-        {
-            continue;
-        }
-        const int32 DefID = static_cast<int32>(Def->GetUniqueID());
-        for (int32 b = 0; b < Def->Effects.Num(); ++b)
-        {
-            if (Def->Effects[b].IsConditionalEffect())
-            {
-                Result.Emplace(DefID, b, Def->Effects[b], ItemSourceKey);
-            }
-        }
-    }
-
-    return Result;
+    return EffectBundles::GatherWithIds(ReferencedEffects, /*bConditional=*/true, EffectIdentity::MakeSourceKey(GetUniqueID(), GetName()));
 }
 // ==================== DURABILITY ====================
 
