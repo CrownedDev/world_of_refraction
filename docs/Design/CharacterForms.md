@@ -9,6 +9,7 @@
 - **You build your own loadout.** Every piece you equip that belongs to a character's loadout **fills a meter for that character**; the more of their pieces you use, the faster it fills (it fills through play, not at once).
 - **At 100% you unlock the character's skin** (their form). The unlock also **reveals their full loadout**: all their weapons, skills and so on, so you see what else they used.
 - **Wearing the skin makes their bound gear work** (D-033's owner bonus): one of the benefits of playing as them.
+- **How it fills (Crown, 2026-10-28: A):** **per fight won**, by how many of the character's pieces were equipped in that fight (1 of 6: a trickle; all 6: fast). An **exact piece counts in full**; the **same piece at a different tier counts for less** (`// TODO: tune` the amounts). Monster Hunter's weapon mastery / Hades' affinity: visible progress after every fight.
 - **Switching:** once unlocked, you can switch between skins (where: open, §5).
 - No character creator (face sliders, hair, body types) is planned; the skins are the customisation.
 
@@ -32,7 +33,6 @@
 
 ## 5. Open (to discuss)
 
-- How fast the meter fills (per fight using the pieces? per run?), and whether partial matches (a piece's tier or element) count.
 - Whether switching characters is hub-only, or also at rest spots.
 - What the formless being can do: full play with the starter kit, or limited until a character is picked.
 - Whether a skin changes anything beyond looks and bound gear (stats, a signature skill).
@@ -43,4 +43,5 @@
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-28 | Draft from Crown's Mortal Shell idea | docs/character-forms |
+| 2026-10-28 | Meter fills per fight won by matching pieces, partial credit for other tiers (Crown) | docs/character-forms-fill |
 | 2026-10-28 | The loadout-match meter unlocks the skin and reveals the loadout; bound gear works on the skin (Crown) | docs/character-forms-meter |
