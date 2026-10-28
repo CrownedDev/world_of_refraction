@@ -295,8 +295,7 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
     // else, including a null component, respects the asset's Breakability gate.
     const bool bForceWear =
         CasterCharComp && (CasterCharComp->IsBrokenDarkness() ||
-                           (CasterCharComp->CharacterData &&
-                            CasterCharComp->CharacterData->InnateElement == ESpellElement::Reality));
+                           (CasterCharComp->CharacterData && CasterCharComp->CharacterData->IsRealityRefractor()));
 
     const bool bBroke = LC->ApplyWearToActivePrimaryEvolution(Wear, bForceWear);
 
@@ -386,8 +385,7 @@ void UCrystalManager::ProcessPostCastGearEvolutionWear(
     // else respects the asset's Breakability gate (now Breakable by default, so anyone wears it).
     const bool bForceWear =
         CasterCharComp && (CasterCharComp->IsBrokenDarkness() ||
-                           (CasterCharComp->CharacterData &&
-                            CasterCharComp->CharacterData->InnateElement == ESpellElement::Reality));
+                           (CasterCharComp->CharacterData && CasterCharComp->CharacterData->IsRealityRefractor()));
 
     const bool bBroke = Attachment.Evolution.ApplyWear(Wear, bForceWear);
 

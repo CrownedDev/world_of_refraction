@@ -4090,7 +4090,7 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAllowedInfusionSourcesForSpell
 		// Exception: BD / Reality casters may ALSO route an evolution spell through Innate.
 		const UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
 		const UCharacterData *Data = GetCharacterData(Actor);
-		const bool bReality = Data && Data->InnateElement == ESpellElement::Reality;
+		const bool bReality = Data && Data->IsRealityRefractor();
 		const bool bBD = Comp && Comp->IsBrokenDarkness();
 		if (bReality || bBD)
 		{
@@ -5518,8 +5518,7 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 		return Result;
 
 	// 1. Reality innate — Refractor (Caster + InnateElement = Reality)
-	if (CharComp->CharacterData->CharacterClass == ECharacterClass::Caster &&
-		CharComp->CharacterData->InnateElement == ESpellElement::Reality)
+	if (CharComp->CharacterData->IsRealityRefractor())
 	{
 		Result.AddFlatPercent(RealityBoost::INNATE_PERCENT);
 	}
