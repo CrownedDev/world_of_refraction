@@ -1153,9 +1153,8 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
     }
 
     float HPPercent = static_cast<float>(CharComp->CurrentHP) / CharComp->MaxHP;
-    int32 CurrentEnergy = GetCurrentEP(AIActor); // CurrentEP — unified BD/non-BD pool
-    int32 MaxEnergy = CharComp->MaxEP;
-    float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
+    const int32 CurrentEnergy = GetCurrentEP(AIActor); // CurrentEP — unified BD/non-BD pool
+    const float EnergyPercent = GetEnergyFraction(AIActor); // 0 with no pool (B-241)
 
     // HP threshold based on difficulty
     EAIDifficulty Difficulty = GetDifficultyFor(AIActor);
@@ -2118,7 +2117,31 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
     {
         return 0;
     }
+    // 6-5-d: resolve the (level-independent) infusion source so estimates use the real mode.
+    const EInfusionSourceOption Source = DecideSpellInfusionSource(Attacker, Spell);
+    return DecideInfusionLevel(Attacker, Target, Spell, Source,
+                               [this, Attacker, Target, Spell, Source](int32 Level)
+                               { return EstimateSpellDamage(Attacker, Target, Spell, Level, Source); });
+}
 
+int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *Target, UAbilityData *Ability) const
+{
+    if (!Attacker || !Target || !Ability)
+    {
+        return 0;
+    }
+    // 6-5-d: resolve the (level-independent) ability infusion source for accurate estimates.
+    const EInfusionSourceOption Source = DecideAbilityInfusionSource(Attacker);
+    return DecideInfusionLevel(Attacker, Target, Ability, Source,
+                               [this, Attacker, Target, Ability, Source](int32 Level)
+                               { return EstimateAbilityDamage(Attacker, Target, Ability, Level, Source); });
+}
+
+int32 UAIDecisionManager::DecideInfusionLevel(AActor *Attacker, AActor *Target, const USkillDataBase *Skill,
+                                              EInfusionSourceOption Source, TFunctionRef<int32(int32)> EstimateDamageAtLevel) const
+{
+    // B-241 (DRY audit A4): one decision for spells and abilities (the two copies had drifted: only the
+    // ability's had the Medium+ gate on the status-bar step).
     UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
     UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
     if (!AttackerComp || !TargetComp || !AttackerComp->CharacterData)
@@ -2126,29 +2149,20 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
         return 0;
     }
 
-    // Get difficulty
-    EAIDifficulty Difficulty = GetDifficultyFor(Attacker);
-
+    const EAIDifficulty Difficulty = GetDifficultyFor(Attacker);
     // Easy: Never infuse
     if (Difficulty == EAIDifficulty::Easy)
     {
         return 0;
     }
 
-    // Get energy state
-    int32 CurrentEnergy = GetCurrentEP(Attacker);
-    int32 MaxEnergy = GetMaxEP(Attacker);
-    float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
-
-    // 6-5-d: resolve the (level-independent) infusion source so estimates use the real mode.
-    const EInfusionSourceOption Source = DecideSpellInfusionSource(Attacker, Spell);
+    const float EnergyPercent = GetEnergyFraction(Attacker);
 
     // Calculate damage at each level. The estimator applies per-mode charge damage internally
     // (single application point — no hand re-multiply), so L2Damage matches execution.
-    int32 L0Damage = EstimateSpellDamage(Attacker, Target, Spell, 0, Source);
-    int32 L2Damage = EstimateSpellDamage(Attacker, Target, Spell, 2, Source);
-
-    int32 TargetHP = TargetComp->CurrentHP;
+    const int32 L0Damage = EstimateDamageAtLevel(0);
+    const int32 L2Damage = EstimateDamageAtLevel(2);
+    const int32 TargetHP = TargetComp->CurrentHP;
 
     // Priority 1: Can we kill with L0? Don't waste energy
     if (L0Damage >= TargetHP)
@@ -2164,25 +2178,24 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
 
     // Priority 3: Status bar considerations (Medium+)
     UStatusBuildupManager *BuildupManager = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
-    if (BuildupManager)
+    if (BuildupManager && Difficulty >= EAIDifficulty::Medium)
     {
         // Calculate L1 buildup — per-mode, stat-scaled status (matches execution's GetChargeStatusMultiplier).
-        float BaseBuildup = EstimateBaseStatusBuildup(AttackerComp, Spell);
+        const float BaseBuildup = EstimateBaseStatusBuildup(AttackerComp, Skill);
         UActionExecutor *StatusExec = GetActionExecutor();
         const float L1StatusMult = StatusExec
                                        ? StatusExec->GetChargeStatusMultiplier(1, StatusExec->ResolveInfusionMode(Source, Attacker), AttackerComp)
                                        : 1.0f;
-        float L1Buildup = BaseBuildup * L1StatusMult;
+        const float L1Buildup = BaseBuildup * L1StatusMult;
 
         // Would L1 trigger the bar?
-        bool bL1WouldTrigger = WouldTriggerStatusBar(Attacker, Target, L1Buildup);
-        bool bL0WouldTrigger = WouldTriggerStatusBar(Attacker, Target, BaseBuildup);
+        const bool bL1WouldTrigger = WouldTriggerStatusBar(Attacker, Target, L1Buildup);
+        const bool bL0WouldTrigger = WouldTriggerStatusBar(Attacker, Target, BaseBuildup);
 
-        // Get pending status type (abilities apply physical status, not specific types)
+        // Pending status type; none yet reads as a DOT (infusion applies status)
         ESkillEffectType PendingTrigger = BuildupManager->GetPendingTrigger(Target);
         if (PendingTrigger == ESkillEffectType::None)
         {
-            // Default to DOT for abilities (they apply status via infusion)
             PendingTrigger = ESkillEffectType::DOT;
         }
 
@@ -2202,109 +2215,15 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
         }
     }
 
-    // Conserve energy if low
-    if (EnergyPercent < AIConstants::ENERGY_CONSERVATION_THRESHOLD)
-    {
-        return 0;
-    }
-
-    // Default: No infusion
+    // Default (and low energy): No infusion
     return 0;
 }
 
-int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *Target, UAbilityData *Ability) const
+float UAIDecisionManager::GetEnergyFraction(AActor *Actor) const
 {
-    if (!Attacker || !Target || !Ability)
-    {
-        return 0;
-    }
-
-    UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
-    UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
-    if (!AttackerComp || !TargetComp || !AttackerComp->CharacterData)
-    {
-        return 0;
-    }
-
-    EAIDifficulty Difficulty = GetDifficultyFor(Attacker);
-    if (Difficulty == EAIDifficulty::Easy)
-    {
-        return 0;
-    }
-
-    int32 CurrentEnergy = GetCurrentEP(Attacker);
-    int32 MaxEnergy = GetMaxEP(Attacker);
-    float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
-
-    // 6-5-d: resolve the (level-independent) ability infusion source for accurate estimates.
-    const EInfusionSourceOption Source = DecideAbilityInfusionSource(Attacker);
-
-    // Calculate damage at each level. The estimator applies per-mode charge damage internally
-    // (single application point — no hand re-multiply), so L2Damage matches execution.
-    int32 L0Damage = EstimateAbilityDamage(Attacker, Target, Ability, 0, Source);
-    int32 L2Damage = EstimateAbilityDamage(Attacker, Target, Ability, 2, Source);
-    int32 TargetHP = TargetComp->CurrentHP;
-
-    // Priority 1: Can we kill with L0? Don't waste
-    if (L0Damage >= TargetHP)
-    {
-        return 0;
-    }
-
-    // Priority 2: Can we kill with L2? Use it
-    if (L2Damage >= TargetHP && EnergyPercent > AIConstants::ENERGY_CONSERVATION_THRESHOLD)
-    {
-        return 2;
-    }
-
-    // Priority 3: Status bar considerations (Medium+)
-    UStatusBuildupManager *BuildupManager = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
-    if (BuildupManager && Difficulty >= EAIDifficulty::Medium)
-    {
-        // Calculate L1 status buildup
-        float BaseBuildup = EstimateBaseStatusBuildup(AttackerComp, Ability);
-        // 6-5-d: per-mode, stat-scaled status (matches execution's GetChargeStatusMultiplier).
-        UActionExecutor *StatusExec = GetActionExecutor();
-        const float L1StatusMult = StatusExec
-                                       ? StatusExec->GetChargeStatusMultiplier(1, StatusExec->ResolveInfusionMode(Source, Attacker), AttackerComp)
-                                       : 1.0f;
-        float L1Buildup = BaseBuildup * L1StatusMult;
-
-        // Would L1 trigger the bar?
-        bool bL1WouldTrigger = WouldTriggerStatusBar(Attacker, Target, L1Buildup);
-        bool bL0WouldTrigger = WouldTriggerStatusBar(Attacker, Target, BaseBuildup);
-
-        // Get pending status type
-        ESkillEffectType PendingTrigger = BuildupManager->GetPendingTrigger(Target);
-        if (PendingTrigger == ESkillEffectType::None)
-        {
-            PendingTrigger = ESkillEffectType::DOT;
-        }
-
-        // Use L1 if it triggers valuable status and L0 wouldn't
-        if (bL1WouldTrigger && !bL0WouldTrigger && IsValuableStatus(PendingTrigger, Target))
-        {
-            return 1;
-        }
-
-        // Hard+: Use L1 if bar is high (>70%) and we have good energy
-        if (Difficulty >= EAIDifficulty::Hard &&
-            IsStatusBarNearTrigger(Target) &&
-            EnergyPercent > AIConstants::ENERGY_ABUNDANT_THRESHOLD &&
-            IsValuableStatus(PendingTrigger, Target))
-        {
-            return 1;
-        }
-    }
-
-    // Conserve energy if low
-    if (EnergyPercent < AIConstants::ENERGY_CONSERVATION_THRESHOLD)
-    {
-        return 0;
-    }
-
-    // Default: No infusion
-    return 0;
+    // B-241: a pool-less actor (Max EP 0) reads as empty, not a divide by zero.
+    const int32 MaxEnergy = GetMaxEP(Actor);
+    return MaxEnergy > 0 ? static_cast<float>(GetCurrentEP(Actor)) / MaxEnergy : 0.0f;
 }
 
 EInfusionSourceOption UAIDecisionManager::DecideSpellInfusionSource(AActor *Attacker, USpellData *Spell) const

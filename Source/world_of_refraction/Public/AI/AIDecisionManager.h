@@ -286,6 +286,13 @@ private:
     // Energy helpers
     int32 GetCurrentEP(AActor *Actor) const;
     int32 GetMaxEP(AActor *Actor) const;
+    /** B-241: current / max EP; 0 when the max is 0. */
+    float GetEnergyFraction(AActor *Actor) const;
+
+    /** B-241 (DRY audit A4): the infusion level for a spell or ability, one decision for both. Skill feeds the
+     *  status-bar estimate; EstimateDamageAtLevel gives the damage at a level with Source's mode. */
+    int32 DecideInfusionLevel(AActor *Attacker, AActor *Target, const USkillDataBase *Skill, EInfusionSourceOption Source,
+                              TFunctionRef<int32(int32)> EstimateDamageAtLevel) const;
 
     // Character data helper
     UCharacterData *GetCharacterData(AActor *Actor) const;
