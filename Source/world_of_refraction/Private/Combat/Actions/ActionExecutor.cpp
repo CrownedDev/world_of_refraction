@@ -5381,29 +5381,16 @@ void UActionExecutor::ApplySkillEffects(
 				{
 					if (P.EffectType == ESkillEffectType::HealthRestore)
 					{
-						// HealBlock gates the RECIPIENT — drain self-heals the User, so the immunity
-						// check is on User (NOT the cast target). Mirrors the ApplyEffect HealthRestore
-						// immunity gate; a HealBlocked attacker drains no HP. (StatusMgr null → no
-						// HealBlock can exist, so heal as before.)
-						if (StatusMgr && StatusMgr->IsImmuneToEffectType(User, ESkillEffectType::HealthRestore))
+						// The recipient's HealBlock, its healing-received boost and OnHealingDone (HealActor, B-247).
+						// StatusMgr null: no HealBlock or boost can exist, so heal as before.
+						const int32 Healed = StatusMgr ? StatusMgr->HealActor(User, DrainAmount, User) : DrainAmount;
+						if (!StatusMgr)
 						{
-							UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain heal on %s blocked by HealBlock"),
-								   *User->GetName());
+							CharComp->ServerHeal(Healed);
+							OnHealingDone.Broadcast(User, User, Healed);
 						}
-						else
-						{
-							// +healing-received amplify (HealBlock mirror) on the RECIPIENT (User).
-							// Gate-then-amplify. StatusMgr may be null here (the gate short-circuits on
-							// null), in which case no HealingReceivedBuff can exist → no amplification.
-							const float HealRecvBonus = StatusMgr
-								? StatusMgr->GetTotalStatModifier(User, ESkillEffectType::HealingReceivedBuff)
-								: 0.0f;
-							const int32 AmplifiedDrain = FMath::RoundToInt(DrainAmount * (1.0f + HealRecvBonus / CombatConstants::STAT_PERCENT_DIVISOR));
-							CharComp->ServerHeal(AmplifiedDrain);
-							OnHealingDone.Broadcast(User, User, AmplifiedDrain);
-							UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain healed %s for %d HP (%.0f%% of %d damage)"),
-								   *User->GetName(), AmplifiedDrain, P.DrainPercent * 100.0f, Result.TotalDamageDealt);
-						}
+						UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain healed %s for %d HP (%.0f%% of %d damage)"),
+							   *User->GetName(), Healed, P.DrainPercent * 100.0f, Result.TotalDamageDealt);
 					}
 					else // EnergyRestore
 					{
