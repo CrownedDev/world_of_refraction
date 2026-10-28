@@ -617,6 +617,12 @@ private:
 	UFUNCTION()
 	void HandleCombatEnded(int32 FinalTurnCount);
 
+	/** B-246 (DRY audit A7, Q-246): the one end of a fight, however it ends: effects cleared, broken crystals
+	 *  destroyed then repair on a finished (won or lost) fight, gear written back, the TurnManager ended
+	 *  unless it ended the fight, the result broadcast (and the win-only draft), resources released, every
+	 *  per-fight field reset, Idle. */
+	void FinishCombat(ECombatState Result, bool bTurnManagerEnded);
+
 	// ========================================
 	// INTERNAL METHODS
 	// ========================================
@@ -654,8 +660,8 @@ private:
 
 	/** Apply +REPAIR_PER_BATTLE via CrystalBreak::RepairOn to every combatant's attached gems
 	 *  (not broken ones) and evolutions (broken included, Q-159c), plus a primary-slot
-	 *  evolution. Fired when a fight finishes (win or loss) inside OnActionCompleted.
-	 *  NOT called from ForceEndCombat (aborts don't count as completed battles). */
+	 *  evolution. Fired by FinishCombat when a fight finishes won or lost, however it ended
+	 *  (B-246, Q-246); a flee, draw or abort keeps its wear (Q-115b). */
 	void ApplyBetweenCombatRepair();
 
 	/** Phase B — Crystal destruction at combat end.

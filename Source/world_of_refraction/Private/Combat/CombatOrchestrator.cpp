@@ -364,26 +364,55 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Force ending combat with state %d"), (int32)ForcedState);
 
-	// Unbind first so TurnManager::EndCombat below can't re-enter HandleCombatEnded.
-	UnbindTurnManagerEvents();
-
 	// Forced end: drop the combat HUD now. The results screen (BattleGameMode) is
 	// its own widget; win paths leave the HUD up and EndPlay removes it.
 	TeardownCombatHUD();
 
+	FinishCombat(ForcedState, /*bTurnManagerEnded=*/false);
+}
+
+void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnded)
+{
+	// B-246 (DRY audit A7, Q-246): every way a fight ends runs these steps. Unbind first so
+	// TurnManager::EndCombat below can't re-enter HandleCombatEnded.
+	UnbindTurnManagerEvents();
+
+	// Clear all status effects from combat
+	if (SkillEffectManagerRef)
+	{
+		SkillEffectManagerRef->ClearAllEffects();
+	}
+
+	// A finished fight, won or lost (ER-35): destroy the crystals that broke, BEFORE repair so they
+	// aren't candidates, then the between-fight repair. A flee or draw keeps its wear (Q-115b); an
+	// aborted fight (Idle) is not a battle.
+	if (Result == ECombatState::Victory || Result == ECombatState::Defeat)
+	{
+		ApplyBetweenCombatCrystalDestruction();
+		ApplyBetweenCombatRepair();
+	}
+
 	CombatOwnedGearSync::WriteActiveLoadoutsToOwned(LocalPartyCombatants);
 
-	ReleaseCombatResources();
-
-	if (TurnManagerRef)
+	if (!bTurnManagerEnded && TurnManagerRef)
 	{
 		TurnManagerRef->EndCombat();
 	}
 
-	SetCombatState(ForcedState);
+	SetCombatState(Result);
 
-	FCombatResult Result = BuildCombatResult();
-	OnCombatResultReady.Broadcast(Result);
+	FCombatResult CombatResult = BuildCombatResult();
+	OnCombatResultReady.Broadcast(CombatResult);
+
+	// §7 C3 — the draft-ready hook WIN-ONLY (the deferred 5-pick-3 UI binds it). No reward on a
+	// loss/draw. Nothing consumes it yet; the pool persists until the next StartCombat reset.
+	if (Result == ECombatState::Victory && PendingWorldStatPool > 0)
+	{
+		OnWorldStatDraftReady.Broadcast(PendingWorldStatPool);
+	}
+
+	// BEFORE the team arrays empty — it walks them for per-actor unbinds.
+	ReleaseCombatResources();
 
 	// Reset for next combat
 	LocalPartyCombatants.Empty();
@@ -898,49 +927,7 @@ void ACombatOrchestrator::OnActionCompleted()
 	{
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Win condition met: %d"), (int32)WinState);
 
-		// Unbind first: TurnManager::EndCombat below would otherwise re-enter
-		// HandleCombatEnded. Everything that handler did now happens here.
-		UnbindTurnManagerEvents();
-
-		// Clear all status effects from combat
-		if (SkillEffectManagerRef)
-		{
-			SkillEffectManagerRef->ClearAllEffects();
-		}
-
-		// Phase B: destroy any crystals that broke during combat. Runs BEFORE
-		// repair so destroyed crystals aren't candidates for repair.
-		ApplyBetweenCombatCrystalDestruction();
-
-		// Auto-repair crystals between combats. Only fires on completed battles
-		// (ForceEndCombat does NOT repair — abort cases aren't "battles completed").
-		ApplyBetweenCombatRepair();
-
-		CombatOwnedGearSync::WriteActiveLoadoutsToOwned(LocalPartyCombatants);
-
-		TurnManagerRef->EndCombat();
-
-		SetCombatState(WinState);
-
-		FCombatResult Result = BuildCombatResult();
-		OnCombatResultReady.Broadcast(Result);
-
-		// §7 C3 — win-only world-stat draft. Was in HandleCombatEnded, which never ran
-		// on this path (events were unbound above), so it never fired on a real win.
-		if (WinState == ECombatState::Victory && PendingWorldStatPool > 0)
-		{
-			OnWorldStatDraftReady.Broadcast(PendingWorldStatPool);
-		}
-
-		ReleaseCombatResources();
-
-		// Reset for next combat
-		LocalPartyCombatants.Empty();
-		OpposingPartyCombatants.Empty();
-		CurrentActor = nullptr;
-		DeferredPayloads.Empty(); // W-B: no armed ritual leaks across combats
-
-		SetCombatState(ECombatState::Idle);
+		FinishCombat(WinState, /*bTurnManagerEnded=*/false);
 		return;
 	}
 
@@ -1121,29 +1108,9 @@ void ACombatOrchestrator::HandleCombatEnded(int32 FinalTurnCount)
 			WinState = ECombatState::Draw; // No one alive = draw
 		}
 
-		CombatOwnedGearSync::WriteActiveLoadoutsToOwned(LocalPartyCombatants);
-
-		SetCombatState(WinState);
-
-		FCombatResult Result = BuildCombatResult();
-		OnCombatResultReady.Broadcast(Result);
-
-		// §7 C3 — fire the draft-ready hook WIN-ONLY (the deferred 5-pick-3 UI binds it). No reward on
-		// a loss/draw. Nothing consumes it yet; the pool persists until the next StartCombat reset.
-		if (WinState == ECombatState::Victory && PendingWorldStatPool > 0)
-		{
-			OnWorldStatDraftReady.Broadcast(PendingWorldStatPool);
-		}
-
-		// BEFORE the team arrays empty — it walks them for per-actor unbinds.
-		ReleaseCombatResources();
-
-		LocalPartyCombatants.Empty();
-		OpposingPartyCombatants.Empty();
-		CurrentActor = nullptr;
-		DeferredPayloads.Empty(); // W-B: no armed ritual leaks across combats
-
-		SetCombatState(ECombatState::Idle);
+		// Q-246: the same end steps as a win through OnActionCompleted (destruction and repair on a
+		// finished fight); the TurnManager has already ended.
+		FinishCombat(WinState, /*bTurnManagerEnded=*/true);
 	}
 }
 
