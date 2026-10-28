@@ -1226,8 +1226,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	PendingSpellSize = FinalSpellSize;
 	PendingSpellDamage = FinalDamage;
 
-	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
-	bPendingSpellIsBrokenDarkness = BDManager && BDManager->IsTransformed();
+	bPendingSpellIsBrokenDarkness = UBrokenDarknessManager::IsInBDForm(Caster);
 	// Mirror bPendingSpellIsBrokenDarkness: cache the resolved element for the deferred
 	// notify-triggered VFX (muzzle + delivery colours). Set here, reset in ClearPendingSpellData.
 	PendingResolvedElement = ResolvedElement;
@@ -1726,7 +1725,7 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 
 	// Broken Darkness absorption from defense
 	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Defender);
-	if (BDManager && BDManager->IsTransformed())
+	if (UBrokenDarknessManager::IsInBDForm(Defender))
 	{
 		// Get attack info from pending context
 		if (CurrentExecutionContext.IsSet())
@@ -3242,8 +3241,7 @@ void UActionExecutor::SpawnSpellVFX(AActor *Caster, USpellData *Spell, float Spe
 		return;
 	}
 
-	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
-	bool bIsBD = BDManager && BDManager->IsTransformed();
+	bool bIsBD = UBrokenDarknessManager::IsInBDForm(Caster);
 
 	float FinalImpactRadius = Spell->BaseSize * Spell->HitboxRatio * SpellSize;
 	float FinalVisualScale = Spell->BaseSize * SpellSize;
@@ -3604,8 +3602,7 @@ void UActionExecutor::DispatchSpellCast(
 		return;
 	}
 
-	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
-	const bool bIsBD = BDManager && BDManager->IsTransformed();
+	const bool bIsBD = UBrokenDarknessManager::IsInBDForm(Caster);
 
 	// Entry-sourced sizing. Migrated entries carry Size = BaseSize×HitboxRatio
 	// and VisualScale = BaseSize, so these reproduce the legacy

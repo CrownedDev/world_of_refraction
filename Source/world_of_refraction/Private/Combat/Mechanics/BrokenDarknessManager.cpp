@@ -412,6 +412,12 @@ void UBrokenDarknessManager::ForceTransformation()
 	}
 }
 
+bool UBrokenDarknessManager::IsInBDForm(const AActor *Actor)
+{
+	const UBrokenDarknessManager *Manager = Actor ? Actor->FindComponentByClass<UBrokenDarknessManager>() : nullptr;
+	return Manager && Manager->IsTransformed();
+}
+
 void UBrokenDarknessManager::TriggerTransformation()
 {
 	if (bIsFlipped)
