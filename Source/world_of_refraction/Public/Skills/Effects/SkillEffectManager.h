@@ -428,6 +428,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Status Checks")
 	bool IsImmuneToEffectType(AActor *Actor, ESkillEffectType EffectType) const;
 
+	/** B-247 (DRY audit A6): the one heal entry point outside the HOT tick. Refused while Recipient is immune to
+	 *  GateType (HealBlock); else Amount x the recipient's healing-received boost (WoRTickMath::AmplifyHeal) goes
+	 *  through ServerHeal and UActionExecutor::OnHealingDone. Returns the HP healed (0 when blocked). */
+	int32 HealActor(AActor *Recipient, int32 Amount, AActor *Healer, ESkillEffectType GateType = ESkillEffectType::HealthRestore);
+
 	// ========================================
 	// EVENTS
 	// ========================================

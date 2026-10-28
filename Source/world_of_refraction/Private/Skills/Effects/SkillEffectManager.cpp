@@ -1774,25 +1774,14 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// Resource changes — percent restore / drain. Value is the percent (0..100).
 	case ESkillEffectType::RestoreHPPercent:
 	{
-		// HealBlock re-gate (per-tick) — same as HealthRestore above: suppress the heal while the
-		// bearer (Actor) is HealBlocked; the effect persists and its duration still decrements.
-		if (IsImmuneToEffectType(Actor, ESkillEffectType::RestoreHPPercent))
+		// HealBlock re-gate (per-tick): no heal while the bearer is HealBlocked; the effect persists and its
+		// duration still decrements. Gate, amplify, heal and report through HealActor (B-247).
+		if (CharComp->MaxHP > 0)
 		{
-			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: HoT '%s' (%%-restore) suppressed by HealBlock (no heal this tick)"),
-				   *Actor->GetName(), *Effect.EffectName);
-		}
-		else if (CharComp->MaxHP > 0)
-		{
-			int32 Amount = FMath::RoundToInt(CharComp->MaxHP * Value / CombatConstants::STAT_PERCENT_DIVISOR);
-			// +healing-received amplify (HealBlock mirror) on the BEARER (Actor). Gate-then-amplify.
-			const float HealRecvBonus = GetTotalStatModifier(Actor, ESkillEffectType::HealingReceivedBuff);
-			Amount = FMath::RoundToInt(Amount * (1.0f + HealRecvBonus / CombatConstants::STAT_PERCENT_DIVISOR));
-			if (Amount > 0)
-			{
-				CharComp->ServerHeal(Amount);
-				UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s restored %d HP (%.1f%% of MaxHP) from %s"),
-					   *Actor->GetName(), Amount, Value, *Effect.EffectName);
-			}
+			const int32 Amount = FMath::RoundToInt(CharComp->MaxHP * Value / CombatConstants::STAT_PERCENT_DIVISOR);
+			const int32 Healed = HealActor(Actor, Amount, Effect.SourceActor.Get(), ESkillEffectType::RestoreHPPercent);
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s restored %d HP (%.1f%% of MaxHP) from %s"),
+				   *Actor->GetName(), Healed, Value, *Effect.EffectName);
 		}
 		break;
 	}
@@ -2028,26 +2017,10 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 	{
 		const float LifestealPct = GetTotalStatModifier(Attacker, ESkillEffectType::Lifesteal) / CombatConstants::STAT_PERCENT_DIVISOR;
 		const int32 HealAmount = FMath::Max(1, FMath::RoundToInt(Damage * LifestealPct));
-		if (UCharacterDataComponent *Comp = Attacker->FindComponentByClass<UCharacterDataComponent>())
-		{
-			// HealBlock gates the RECIPIENT — lifesteal self-heals the Attacker, so the immunity
-			// check is on Attacker (NOT the Target). Mirrors the ApplyEffect HealthRestore immunity
-			// gate; a HealBlocked attacker gains no lifesteal HP.
-			if (IsImmuneToEffectType(Attacker, ESkillEffectType::HealthRestore))
-			{
-				UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Lifesteal on %s blocked by HealBlock"),
-					   *Attacker->GetName());
-			}
-			else
-			{
-				// +healing-received amplify (HealBlock mirror) on the RECIPIENT (Attacker). Gate-then-amplify.
-				const float HealRecvBonus = GetTotalStatModifier(Attacker, ESkillEffectType::HealingReceivedBuff);
-				const int32 AmplifiedHeal = FMath::RoundToInt(HealAmount * (1.0f + HealRecvBonus / CombatConstants::STAT_PERCENT_DIVISOR));
-				Comp->ServerHeal(AmplifiedHeal);
-				UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Lifesteal: %s healed %d from hit on %s"),
-					   *Attacker->GetName(), AmplifiedHeal, *Target->GetName());
-			}
-		}
+		// HealBlock gates the RECIPIENT: lifesteal self-heals the Attacker, not the Target (HealActor, B-247).
+		const int32 Healed = HealActor(Attacker, HealAmount, Attacker);
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Lifesteal: %s healed %d from hit on %s"), *Attacker->GetName(), Healed,
+			   *Target->GetName());
 	}
 
 	// ApplyBurnToTarget — DOT (Fire) on the victim. Damage-per-turn = stored
@@ -2523,6 +2496,32 @@ int32 USkillEffectManager::GetSpendableEP(AActor *Actor) const
 bool USkillEffectManager::HasActiveDOT(AActor *Actor) const
 {
 	return HasEffectOfType(Actor, ESkillEffectType::DOT); // B-042x: the Status.DOT tag at UseGAS 1
+}
+
+int32 USkillEffectManager::HealActor(AActor *Recipient, int32 Amount, AActor *Healer, ESkillEffectType GateType)
+{
+	UCharacterDataComponent *Comp = Recipient ? Recipient->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (!Comp || Amount <= 0)
+	{
+		return 0;
+	}
+	if (IsImmuneToEffectType(Recipient, GateType))
+	{
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Heal of %d on %s blocked by HealBlock"), Amount, *Recipient->GetName());
+		return 0;
+	}
+	// Gate, then amplify on the RECIPIENT (the HealBlock mirror).
+	const int32 Healed = WoRTickMath::AmplifyHeal(Amount, GetTotalStatModifier(Recipient, ESkillEffectType::HealingReceivedBuff));
+	if (Healed <= 0)
+	{
+		return 0;
+	}
+	Comp->ServerHeal(Healed);
+	if (UActionExecutor *Executor = GetGameInstance() ? GetGameInstance()->GetSubsystem<UActionExecutor>() : nullptr)
+	{
+		Executor->OnHealingDone.Broadcast(Healer, Recipient, Healed);
+	}
+	return Healed;
 }
 
 bool USkillEffectManager::IsImmuneToEffectType(AActor *Actor, ESkillEffectType EffectType) const
