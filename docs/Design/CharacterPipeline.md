@@ -1,6 +1,15 @@
 # Character Pipeline (2D sheets to UE5 characters)
 
-**Status:** research and recommendation (2026-10-28) for Crown's character session; nothing decided but the VRoid route is the suggested default. Fab prices come from search summaries (listing hosts couldn't be fetched): check before buying.
+**Status:** route decided (Crown, 2026-10-28); details below are the research behind it.
+
+## Decided route (Crown, 2026-10-28)
+
+1. **A V template in VRoid Studio**: one base body (V's proportions) that every character, and the player's Manny/Quinn form, derives from. No per-character Blender re-proportioning: VRM4U retargets the whole cast to Manny the same way, so any difference is consistent.
+2. **Steps, in order:** (a) create the **plain character first** (body, face, hair, colours, no clothing), bring it into Unreal and check what needs adjusting (retarget, proportions, material); (b) only then **apply clothing**. The uniform coat (high black collar, tails, white belt, gem colour) is tried in VRoid first (coat preset + custom texture); **Blender is the fallback** only if VRoid can't make the silhouette.
+3. **Driven through the VRoid MCP** by Claude Code on Crown's desktop, from each sheet's colour key.
+4. Into Unreal with **VRM4U** (5.8 support), the anime-on-painterly material (MeshBites or in-house), VRoid's expression morphs for the expression sheets.
+5. First test: **Amethyst Prisma** from his sheet (B-280).
+ Fab prices come from search summaries (listing hosts couldn't be fetched): check before buying.
 
 ## VRoid Studio MCP (Crown's question, 2026-10-28)
 
