@@ -3,6 +3,7 @@
 // of the crystal/evolution refactor sequence.
 
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 #include "Skills/Effects/EffectDefinition.h"
 #include "Inventory/ItemConstants.h"
 #include "Skills/Definitions/SpellData.h"
@@ -20,77 +21,17 @@ FString UEvolutionItemData::GetFullItemName() const
 
 FString UEvolutionItemData::GetTierName() const
 {
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return TEXT("F-Tier");
-    case EItemTier::E_Tier:
-        return TEXT("E-Tier");
-    case EItemTier::D_Tier:
-        return TEXT("D-Tier");
-    case EItemTier::C_Tier:
-        return TEXT("C-Tier");
-    case EItemTier::B_Tier:
-        return TEXT("B-Tier");
-    case EItemTier::A_Tier:
-        return TEXT("A-Tier");
-    case EItemTier::S_Tier:
-        return TEXT("S-Tier");
-    default:
-        return TEXT("Unknown");
-    }
+    return TierHelpers::GetTierDisplayString(Tier); // B-253: the one tier-name table
 }
 
 FString UEvolutionItemData::GetTierString() const
 {
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return TEXT("F");
-    case EItemTier::E_Tier:
-        return TEXT("E");
-    case EItemTier::D_Tier:
-        return TEXT("D");
-    case EItemTier::C_Tier:
-        return TEXT("C");
-    case EItemTier::B_Tier:
-        return TEXT("B");
-    case EItemTier::A_Tier:
-        return TEXT("A");
-    case EItemTier::S_Tier:
-        return TEXT("S");
-    default:
-        return TEXT("?");
-    }
+    return TierHelpers::GetTierName(Tier);
 }
 
 FString UEvolutionItemData::GetCrystalName() const
 {
-    switch (CrystalType)
-    {
-    case ECrystalType::Garnet:
-        return TEXT("Garnet");
-    case ECrystalType::Sapphire:
-        return TEXT("Sapphire");
-    case ECrystalType::Citrine:
-        return TEXT("Citrine");
-    case ECrystalType::Emerald:
-        return TEXT("Emerald");
-    case ECrystalType::Amber:
-        return TEXT("Amber");
-    case ECrystalType::Opal:
-        return TEXT("Opal");
-    case ECrystalType::Onyx:
-        return TEXT("Onyx");
-    case ECrystalType::Amethyst:
-        return TEXT("Amethyst");
-    case ECrystalType::Iolite:
-        return TEXT("Iolite");
-    case ECrystalType::Quartz:
-        return TEXT("Quartz");
-    default:
-        return TEXT("Unknown Crystal");
-    }
+    return ItemIdentity::GetTypeName(CrystalType); // B-253: the one crystal-name table
 }
 
 int32 UEvolutionItemData::GetTierValue() const
