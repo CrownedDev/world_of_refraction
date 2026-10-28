@@ -372,6 +372,7 @@ void ASkillProjectile::ResolveImpact()
     if (bHasImpacted)
         return;
     bHasImpacted = true;
+    SetActorTickEnabled(false); // B-262: nothing moves after impact
 
     UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Resolving impact at %s (CastEntryIndex=%d)"),
            *GetActorLocation().ToString(), CastEntryIndex);
