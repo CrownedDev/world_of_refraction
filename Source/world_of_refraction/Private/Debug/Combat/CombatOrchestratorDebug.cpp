@@ -589,18 +589,8 @@ void ACombatOrchestrator::DebugTestItemOnEnemy()
 		return;
 	}
 
-	// Find enemy target
-	AActor *Target = nullptr;
-	bool bActorInLocalParty = LocalPartyCombatants.Contains(Actor);
-
-	if (bActorInLocalParty && OpposingPartyCombatants.Num() > 0)
-	{
-		Target = OpposingPartyCombatants[0];
-	}
-	else if (!bActorInLocalParty && LocalPartyCombatants.Num() > 0)
-	{
-		Target = LocalPartyCombatants[0];
-	}
+	// Find target from opposing team (B-256: GetDebugOpponent)
+	AActor *Target = GetDebugOpponent(Actor);
 
 	if (!Target)
 	{
@@ -916,12 +906,8 @@ void ACombatOrchestrator::DebugTestPrimarySpell()
 		return;
 	}
 
-	AActor *Target = nullptr;
-	bool bActorInLocalParty = LocalPartyCombatants.Contains(Actor);
-	if (bActorInLocalParty && OpposingPartyCombatants.Num() > 0)
-		Target = OpposingPartyCombatants[0];
-	else if (!bActorInLocalParty && LocalPartyCombatants.Num() > 0)
-		Target = LocalPartyCombatants[0];
+	// Find target from opposing team (B-256: GetDebugOpponent)
+	AActor *Target = GetDebugOpponent(Actor);
 
 	if (!Target)
 	{
@@ -968,12 +954,8 @@ void ACombatOrchestrator::DebugTestSecondarySpell()
 		return;
 	}
 
-	AActor *Target = nullptr;
-	bool bActorInLocalParty = LocalPartyCombatants.Contains(Actor);
-	if (bActorInLocalParty && OpposingPartyCombatants.Num() > 0)
-		Target = OpposingPartyCombatants[0];
-	else if (!bActorInLocalParty && LocalPartyCombatants.Num() > 0)
-		Target = LocalPartyCombatants[0];
+	// Find target from opposing team (B-256: GetDebugOpponent)
+	AActor *Target = GetDebugOpponent(Actor);
 
 	if (!Target)
 	{
