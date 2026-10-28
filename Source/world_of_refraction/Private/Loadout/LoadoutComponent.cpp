@@ -4420,8 +4420,6 @@ FGuid ULoadoutComponent::GetActivePrimaryEvolutionInstance() const
     return GetActiveLoadout().PrimaryEvolutionInstance;
 }
 
-#undef LOCTEXT_NAMESPACE
-
 const FCombatLoadout *ULoadoutComponent::FindActiveLoadout(const TCHAR *Caller) const
 {
     // B-243 (DRY audit A2): the "inventory + valid active index" preamble, once.
@@ -4433,3 +4431,5 @@ const FCombatLoadout *ULoadoutComponent::FindActiveLoadout(const TCHAR *Caller) 
     }
     return Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex) ? &Inv->SavedLoadouts[Inv->ActiveLoadoutIndex] : nullptr;
 }
+
+#undef LOCTEXT_NAMESPACE
