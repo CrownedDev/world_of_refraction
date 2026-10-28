@@ -110,6 +110,14 @@ Gap: no Fab pack found for "void realm / cosmic / astral" by name; the hub is be
 
 ---
 
+## 2f. The galaxy material as the Void Realm's template (Crown, 2026-10-28)
+
+V's galaxy parallax material (the free tutorial above) is also **the template for the Void Realm**: V *is* the realm (`HubAndStory.md` §2), so the hub wears his skin.
+- One master material, two looks by parameters: **skin** on V's head and hands; **dark stone with the galaxy showing through** cracks, seams and crystal faces on the hub's ground and walls.
+- The sky is the same nebula, so V, ground and sky share one look; the slow parallax drift makes the realm feel alive.
+- Hidden clue (pillar 10, suggestion): the galaxy shows through more, or matches V's exact pattern more closely, as memories are collected.
+- Cheap: one parallax material reused everywhere; no runtime volumetrics.
+
 ## 3. Free / Epic-provided options
 - **Fab free drops**: three (sometimes more) commercial packs free every two weeks since Nov 2024, kept forever once claimed; mostly Fab Standard License, a few Personal-only. Check Fab each fortnight. https://www.cgchannel.com/2024/11/epic-games-to-share-new-free-assets-on-fab-every-two-weeks · https://gamefromscratch.com/massive-changes-to-the-unreal-engine-fab-marketplace-giveaways/
 - **Epic free content index** (Paragon, Infinity Blade, samples; filter Price > Free on Fab). https://dev.epicgames.com/documentation/unreal-engine/free-epic-games-content-for-unreal-engine
