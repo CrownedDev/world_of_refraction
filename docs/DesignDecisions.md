@@ -1508,6 +1508,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-28): one rule for all three: the gear that counts (the weapon actually held, the rings in use) gives its stats, resistances **and** effects alike. Fixes today's Generic case where a primary weapon's stats count but its effects don't.
 **Notes for Claude:** _optional_
 
+### Q-245 — Crystal wear for abilities: which tier
+**Status:** DECIDED · **Raised:** 2026-10-28 (DRY audit 2, `analysis/DryAudit_2026-10-28.md`) · **Blocks:** —
+**Answer (Crown):** **A** (2026-10-28): every action uses **one tier** (`ResolveActionTier`) for both wear and tier-gap damage: an ability wears its crystal by **its own tier**, not the weapon's. Changes ability wear numbers where the weapon's tier differs (PIE note in B-245).
+**Notes for Claude:** _optional_
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
