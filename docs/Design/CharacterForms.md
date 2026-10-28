@@ -4,7 +4,7 @@
 
 ## 1. The idea (Crown, 2026-10-28)
 
-- **The player character is Manny or Quinn, an extension of V** (Crown, 2026-10-28): the default form is the UE5 mannequin wearing V's void / galaxy material (a lighter cousin of V's own, `VisualDirection.md` §2f). The only choice at the start is **Manny or Quinn** (and class). No creator. Lore: the player *is* part of V (hidden from players like V's identity, `HubAndStory.md` §2: to confirm).
+- **The player character is Manny or Quinn, an extension of V** (Crown, 2026-10-28): the default form is the UE5 mannequin wearing V's void / galaxy material (a lighter cousin of V's own, `VisualDirection.md` §2f). The only choices at the start are **Manny or Quinn** and class. **No player-facing creator.** Lore: the player *is* part of V (hidden from players like V's identity, `HubAndStory.md` §2: to confirm).
 - **Each authored character has a loadout**: their weapons, rings, skills, evolution (and lore).
 - **You build your own loadout.** Every piece you equip that belongs to a character's loadout **fills a meter for that character**; the more of their pieces you use, the faster it fills (it fills through play, not at once).
 - **At 100% you unlock the character's skin** (their form). The unlock also **reveals their full loadout**: all their weapons, skills and so on, so you see what else they used.
@@ -17,7 +17,7 @@
 
 ## 2. The editor
 
-- **One in-engine character editor** (Unreal editor tool over data assets: form, materials, loadout, lore ids) used by Crown to author characters players aspire to become.
+- **One in-engine character editor** (Unreal editor tool over data assets: form, materials, loadout, lore ids) used by Crown to author the characters players unlock as skins. **This stays (Crown, 2026-10-28).**
 - The same tool could later let players make their own character, if ever wanted. Not planned.
 
 ## 3. What this replaces and saves
@@ -36,14 +36,14 @@
 ## 5. Open (to discuss)
 
 - Name for the formless state and for "characters" in player-facing text (Crown's).
-- ~~A creator for the nameless one~~ **Closed (Crown, 2026-10-28): no creator; the player is Manny / Quinn as an extension of V.**
+- ~~A creator for the nameless one~~ **Closed (Crown, 2026-10-28): no player-facing creator; the player is Manny / Quinn as an extension of V. The dev-side character editor (§2) stays.**
 
 ## Changelog
 
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-28 | Draft from Crown's Mortal Shell idea | docs/character-forms |
-| 2026-10-28 | Player character = Manny / Quinn in V's material, an extension of V; no creator (Crown) | docs/player-is-v |
+| 2026-10-28 | Player character = Manny / Quinn in V's material, an extension of V; no player creator; the dev editor stays (Crown) | docs/player-is-v, docs/player-is-v-editor |
 | 2026-10-28 | A skin changes only looks and bound gear; doc decided; B-279 (Crown) | docs/character-forms-done |
 | 2026-10-28 | The formless being plays fully (Crown) | docs/character-forms-formless |
 | 2026-10-28 | Switch skins in the hub and at rest spots (Crown) | docs/character-forms-switch |
