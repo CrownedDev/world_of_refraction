@@ -2,6 +2,7 @@
 
 #include "Equipment/Durability/GearRepair.h"
 #include "Currency/CurrencyComponent.h"
+#include "Currency/EconomyService.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -203,6 +204,10 @@ int32 GearRepair::GetPartyRepairCost(const UParty &Party)
 bool GearRepair::RepairParty(UParty &Party, UCurrencyComponent &Wallet, int32 &OutGoldSpent)
 {
 	OutGoldSpent = 0;
+	if (!UEconomyService::IsOutOfCombat(Wallet.GetOwner(), TEXT("RepairParty"))) // Q-252
+	{
+		return false;
+	}
 	const int32 Cost = GetPartyRepairCost(Party);
 	if (Cost <= 0 || !Wallet.Spend(ECurrencyType::Gold, Cost))
 	{

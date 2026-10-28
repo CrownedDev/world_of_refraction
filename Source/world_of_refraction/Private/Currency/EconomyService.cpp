@@ -101,31 +101,10 @@ namespace
     /** Players count loadouts from 1; SavedLoadouts from 0. */
     constexpr int32 LOADOUT_DISPLAY_OFFSET = 1;
 
-    /** Q-252 (Crown): every economy action waits until the fight is over (dismantle, merge, level-up, revert,
-     *  buy); gear changes would also break B-081's armed effects mid-fight. The refusal is said on screen too
-     *  (placeholder until the real UI, D-024). */
-    bool EconomyOutOfCombat(const AActor *Owner, const TCHAR *Op)
-    {
-        const UWorld *World = Owner->GetWorld();
-        const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-        const UTurnManager *TurnManager = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
-        if (TurnManager && TurnManager->IsCombatActive())
-        {
-            const FText Refusal = NSLOCTEXT("EconomyService", "RefusedInCombat", "Not during a fight.");
-            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s: refused during combat"), Op);
-            if (GEngine)
-            {
-                GEngine->AddOnScreenDebugMessage(-1, ECONOMY_REFUSAL_MESSAGE_SECONDS, FColor::Yellow, Refusal.ToString());
-            }
-            return false;
-        }
-        return true;
-    }
-
     /** B-252: the gate every economy action passes: the authority, then out of combat (Q-252). */
     bool EconomyMayAct(AActor *Owner, const TCHAR *Op)
     {
-        return EconomyHasAuthority(Owner, Op) && EconomyOutOfCombat(Owner, Op);
+        return EconomyHasAuthority(Owner, Op) && UEconomyService::IsOutOfCombat(Owner, Op);
     }
 
     /** D-016: take the instance out of every saved loadout; tell listeners when the active one changed. */
@@ -152,6 +131,28 @@ namespace
             Inv->RefreshEvolutionInLoadouts(InstanceID);
         }
     }
+}
+
+
+/** Q-252 (Crown): every economy action waits until the fight is over (dismantle, merge, level-up, revert,
+ *  buy, repair); gear changes would also break B-081's armed effects mid-fight. The refusal is said on
+ *  screen too (placeholder until the real UI, D-024). */
+bool UEconomyService::IsOutOfCombat(const AActor *Owner, const TCHAR *Op)
+{
+    const UWorld *World = Owner ? Owner->GetWorld() : nullptr;
+    const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+    const UTurnManager *TurnManager = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+    if (TurnManager && TurnManager->IsCombatActive())
+    {
+        const FText Refusal = NSLOCTEXT("EconomyService", "RefusedInCombat", "Not during a fight.");
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s: refused during combat"), Op);
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, ECONOMY_REFUSAL_MESSAGE_SECONDS, FColor::Yellow, Refusal.ToString());
+        }
+        return false;
+    }
+    return true;
 }
 
 bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int32 Count)
