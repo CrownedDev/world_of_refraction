@@ -1503,6 +1503,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Pinned for later** (Crown, 2026-10-27): what gear players bring (own builds with a tier cap, uncapped, or preset loadouts), how matches are found, rewards / stakes.
 **Notes for Claude:** the co-op plumbing (B-227 onward) should not assume two sides are fixed at 3 or that only PvE fights exist; nothing else to build for PvP yet.
 
+### Q-244 — Stats, resistances and effects: the same gear
+**Status:** DECIDED · **Raised:** 2026-10-28 (DRY audit 2, `analysis/DryAudit_2026-10-28.md`) · **Blocks:** —
+**Answer (Crown):** **A** (2026-10-28): one rule for all three: the gear that counts (the weapon actually held, the rings in use) gives its stats, resistances **and** effects alike. Fixes today's Generic case where a primary weapon's stats count but its effects don't.
+**Notes for Claude:** _optional_
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
