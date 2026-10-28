@@ -4208,7 +4208,7 @@ ESpellElement UActionExecutor::ResolveSpellCastElement(AActor *Caster, const USp
 		{
 			if (ULoadoutComponent *LC = GetLoadoutComponent(Caster))
 			{
-				const FCombatLoadout Loadout = LC->GetActiveLoadout();
+				const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 				if (Loadout.InnateSpells.Contains(MutableSpell))
 				{
 					return ESpellElement::Darkness;
@@ -4359,7 +4359,7 @@ FRuntimeAttachedItem UActionExecutor::ResolveInfusionAttachment(AActor *Actor, c
 		{
 			return FRuntimeAttachedItem();
 		}
-		const FCombatLoadout Loadout = LC->GetActiveLoadout();
+		const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 		// Evolution primary slot is its own thing — wrap it as an evolution attachment.
 		// Whole-struct copy: the per-instance rolled state (GeneratedStatBonus/
 		// GeneratedResistance + pools) must travel with the attachment so the
@@ -5528,7 +5528,7 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 	UEvolutionItemData *PrimaryEvolutionCrystal = nullptr;
 	if (ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>())
 	{
-		const FCombatLoadout Loadout = LC->GetActiveLoadout();
+		const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 		if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
 		{
 			PrimaryEvolutionCrystal = Loadout.PrimaryEvolution.Item;

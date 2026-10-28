@@ -218,7 +218,7 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
         return;
     }
 
-    FCombatLoadout Active = Loadout->GetActiveLoadout();
+    const FCombatLoadout &Active = Loadout->GetActiveLoadout();
 
     LogSeparator(FString::Printf(TEXT("ACTIVE LOADOUT: %s"), *Active.LoadoutName));
     UE_LOG(LogTemp, Display, TEXT("Ready for Battle: %s"),
