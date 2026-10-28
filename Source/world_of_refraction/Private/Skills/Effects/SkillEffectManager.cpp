@@ -93,15 +93,16 @@ void USkillEffectManager::Deinitialize()
 
 namespace
 {
-	/** D-054: true when Source is on the other side from Target. Unknown sides (out of combat, no source) count
-	 *  as the same side. SourceTeam, when given, wins over the turn order's record. */
+	/** D-054: true when the applier is on the other side from Target. SourceTeam, when given, wins over the turn
+	 *  order's record of Source (gear reactions pass only the wearer's team). Unknown sides (out of combat, no
+	 *  source and no team) and self count as the same side. */
 	bool IsOnOpposingSide(const UTurnManager *TurnManager, AActor *Target, AActor *Source, int32 SourceTeam)
 	{
-		if (!TurnManager || !Source || Source == Target)
+		if (!TurnManager || Source == Target)
 		{
 			return false;
 		}
-		const int32 SideOfSource = SourceTeam >= 0 ? SourceTeam : TurnManager->GetActorTeam(Source);
+		const int32 SideOfSource = SourceTeam >= 0 ? SourceTeam : (Source ? TurnManager->GetActorTeam(Source) : -1);
 		const int32 SideOfTarget = TurnManager->GetActorTeam(Target);
 		return SideOfSource >= 0 && SideOfTarget >= 0 && SideOfSource != SideOfTarget;
 	}
@@ -149,14 +150,17 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	Effect.SourceTeamIndex = SourceTeam;
 	Effect.InitialDuration = Effect.RemainingTurns;
 
-	// D-054 / Q-267: Turn Speed and Energy Cost modifiers are authored as a size (never negative); the side
-	// sets the direction. On an ally a buff, on an enemy a debuff. ModifyStatusResist arrives signed by its
-	// applier (the stone), so it's left as it is.
+	// D-054 / Q-267: Turn Speed and Energy Cost modifiers are authored as a size; the side sets the direction.
+	// On an enemy the value turns negative (slower turns, dearer skills: a debuff); on an ally or self it stays
+	// as authored (a buff, or a self-drawback a designer wrote negative). ModifyStatusResist arrives signed by
+	// its applier (the stone), so it's left as it is.
 	if (Effect.EffectType == ESkillEffectType::ModifyTurnSpeed || Effect.EffectType == ESkillEffectType::ModifyEnergyCost)
 	{
 		const UTurnManager *TurnManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
-		const float Size = FMath::Abs(Effect.EffectValue);
-		Effect.EffectValue = IsOnOpposingSide(TurnManager, Target, Source, SourceTeam) ? -Size : Size;
+		if (IsOnOpposingSide(TurnManager, Target, Source, SourceTeam))
+		{
+			Effect.EffectValue = -FMath::Abs(Effect.EffectValue);
+		}
 	}
 
 	// INSTANT lane — a true one-shot. It has already passed the immunity + fires-once gates

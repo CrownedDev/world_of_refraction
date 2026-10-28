@@ -200,7 +200,7 @@ namespace SkillEffectDisplayNames
         case ESkillEffectType::CritDamageDebuff:
             return TEXT("Crit Damage Down");
         case ESkillEffectType::ModifyEnergyCost:
-            return TEXT("Energy Cost Up");
+            return TEXT("Energy Cost Down");
         case ESkillEffectType::ModifyTurnSpeed:
             return TEXT("Turn Speed Up");
         case ESkillEffectType::ModifyStatusResist:
