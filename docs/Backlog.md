@@ -127,6 +127,22 @@ Each job: one source of truth, same behaviour unless its Q says otherwise, specs
 | B-256 | **A16 / A17: interact-hint actor base (4 copies) and debug-print repeats** | CC | S | — | Same hints and prints | TODO |
 | B-257 | **Obsolete code with no job yet** (left by B-148, B-167, B-202, B-216, Q-159, B-118) and the dead `EnsureResultResolved` (`ActionExecutor.cpp:1770`): list each with the PIE check that unlocks its deletion; delete only what's already PIE-passed | CC | S | — | A list in the audit doc; deletions only after PIE | TODO |
 
+## Phase 1c — Performance (`analysis/PerfAudit_2026-10-28.md`)
+
+Per-frame code is clean; the cost is per hit and per AI turn. Same behaviour in every job (specs pin it); confirm with the profiling job.
+
+| ID | Job | Who | Size | Needs | Done when | Status |
+|---|---|---|---|---|---|---|
+| B-258 | **P1: stop copying the loadout on every stat read**: the 22 sites that store `GetActiveLoadout()` by value take `const &` (hot: `LoadoutComponent.cpp:4129, 4247, 4355, 4442, 4524, 4602, 4622`, `CharacterDataComponent.cpp:686`); real copies stay where the loadout is changed while used (`CrystalManager.cpp:303`, `ActionExecutor.cpp:4168`) | CC | S | — | Specs green; no by-value copies left on read paths | TODO |
+| B-259 | **P3: memoise AI damage estimates within one decision** (`AIDecisionManager.cpp:715-805, 1501-1590, 1685-1790`; ~50-100 full previews per enemy turn) | CC | M | B-241 | Spec: same AI choices; each target × skill previewed once per decision | TODO |
+| B-260 | **P2: lighter attribute sync**: HP / EP / buildup events update only those attributes; everything else batched once on the next tick (`WoRAttributeSyncComponent.cpp:204, 521-616`) | CC | M | — | `wor.CompareAttributes` equal; one full sync per hit at most | TODO |
+| B-261 | **P5: effect mirror re-syncs only when effects change** (dirty flag; `WoREffectMirrorComponent.cpp:267-281`) | CC | S | B-042f | `wor.CompareEffects` equal at `UseGAS 1` | TODO |
+| B-262 | **P8: small per-frame fixes**: projectile moves and rotates in one call; anim instance caches its component lookups; infusion timer uses real delta time instead of a fixed 1/60 | CC | S | — | Same visuals; specs | TODO |
+| B-263 | **P9: boss data found without loading every boss** (`UBossData::FindFor`, `BossData.cpp:71`: asset registry tags / a lookup by enemy) | CC | S | — | Same boss picked; no sync load of every BossData | TODO |
+| B-264 | **P7: log levels**: the ~706 Log / Display lines in game code on hot paths move to Verbose (after B-141) | CC | S | — | Output Log quiet during a normal fight | TODO |
+| B-265 | **P10: build time**: forward declarations to cut `ActionExecutor.h`, `LoadoutComponent.h` (83 includers) and `CharacterDataComponent.h` (102) includes; one local non-unity check build to catch clashes | CC | M | — | Non-unity build green; fewer recompiles on header edits | TODO |
+| B-266 | **Profiling markers + trace** (D-068, B-142): `TRACE_CPUPROFILER_EVENT_SCOPE` on the five suspect functions (stat reads, attribute sync, AI decision, preview damage, effect mirror); Crown runs the steps in the audit doc (`stat unit`, Unreal Insights, `memreport`, `stat net`) on a Development build at 1080p | CC | S | — | Markers in; Crown's trace saved to `docs/analysis/` | TODO |
+
 ## Phase 2 — GAS migration (see `Design/GASMigration.md`)
 
 | ID | Job | Who | Size | Needs | Done when | Status |
@@ -264,7 +280,7 @@ Built from `Design/RunStructure.md`, `Design/Enemies.md`, `Design/HubAndStory.md
 
 ## Co-op (D-103: starts now; order from `Design/CoopStateOwnership.md`)
 
-Listen server (one player hosts), EOS, up to 3 players (AI only if recruited), join at rest spots, host hand-over, personal rewards. B-131 and B-132 are part of this order.
+Listen server (one player hosts), EOS, up to 3 players (AI only if recruited), join at rest spots, host hand-over, personal rewards. B-131 and B-132 are part of this order. **Network defaults (perf audit):** ASC replication `Minimal` on AI pawns, `Mixed` on player pawns; ~10 Hz net update + `ForceNetUpdate` after each action; push model on the new GameState / PlayerState / effect components; HP, EP, buildup to everyone, derived stats owner-only; no wholesale inventory / loadout replication; reliable server RPCs only for commands, cosmetics as unreliable multicast; dormancy on hub actors; no ReplicationGraph / Iris for ≤3 players.
 
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
@@ -349,7 +365,7 @@ Later groups follow `UI_ScreenInventory.md` order; CC adds their rows when B-109
 | B-137 | `WoR.Economy` spec: cart cost, upgrade/downgrade refund round-trip, dismantle | CC | S | B-133 | Spec passes on `dev` | REVIEW (in dev): `WoR.Economy.RoundTrip`, 5 cases, literal numbers |
 | B-138 | Weapon mesh follows a new `ULoadoutComponent::OnActiveWeaponChanged` delegate; drop the 10 Hz polling tick (`WeaponMeshComponent.cpp:14-31`) | CC | S | — | No tick on the component; the mesh still swaps on weapon switch (PIE) | REVIEW (in dev): no tick; `WoR.Weapons.MeshFollowsLoadout`; mesh swap is a PIE check |
 | B-139 | Anim instance cleanup: remove the function-local `static int32 LogCounter` and the dead `Printf` (`CombatAnimInstance.cpp:46-68`), cache the loadout component; remove the empty `InfusionVFXComponent::TickComponent` | CC | S | — | No mutable statics or per-frame lookups in the anim update; build + tests pass | REVIEW (in dev): build + 462 tests pass; stance and armed pose are a PIE check |
-| B-140 | Async preload of equipped skills' VFX at combat start, released at combat end; no `LoadSynchronous` at cast (`ActionExecutor.cpp:3452-3454, 3511, 3620, 5320, 5827`) | CC | M | B-030, B-142 | First cast has no load hitch (PIE / Insights); `LoadSynchronous` only as a logged fallback | BLOCKED (B-142) |
+| B-140 | Async preload of equipped skills' VFX at combat start, released at combat end; no `LoadSynchronous` at cast (`ActionExecutor.cpp:3452-3454, 3511, 3620, 5320, 5827`) **Also (perf audit P4):** `ActionExecutorMontage.cpp:537` (montage VFX notifies), `DefenseSystem.cpp:551, 555` (Perfect Guard flash and sound), `CombatCameraDirector.cpp:276` (camera sequences). | CC | M | B-030, B-142 | First cast has no load hitch (PIE / Insights); `LoadSynchronous` only as a logged fallback | BLOCKED (B-142) |
 | B-141 | Per-hit logs to `Verbose` on `LogWoRCombat` (`ActionExecutor.cpp:584-591, 1744, 2635-2644` and the like) | CC | S | B-006 | A normal fight logs no per-hit Warning/Display lines | REVIEW (in dev): routine lines on `LogWoRCombat`/`LogWoRUI` Verbose; output-log check is PIE |
 | B-142 | Unreal Insights baseline of the demo fight (CPU frame, game thread, loads), saved under `docs/analysis/` | Crown | S | — | Trace summary committed | TODO |
 | B-143 | **Imperative (Crown, 2026-10-26): V is the guide, every mob and every hub NPC (D-079).** **V's void material** for Manny/Quinn (D-069, `Design/Enemies.md`): violet body base, **galaxy pattern** on head and hands (panning/parallax galaxy texture, fresnel rim highlight), gold star tie detail, dark smoke wisps (Niagara). One master material + instances per element tint. Also the suit, tie and trim masks from Q-144 (A; `docs/analysis/MobClothing.md`), and a body opacity mask so bought clothing (Q-144 B) doesn't show the body through it. Show screenshots to Crown | CC+UE | M | B-004 | V mob visible in PIE on the Manny/Quinn skeleton; Crown approves the look | TODO |
