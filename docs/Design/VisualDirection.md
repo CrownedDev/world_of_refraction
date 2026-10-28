@@ -122,6 +122,13 @@ Gap: no Fab pack found for "void realm / cosmic / astral" by name; the hub is be
 
 ---
 
+## 3b. Humble Bundle and bundle sales (check before buying singles)
+
+Humble runs an Unreal asset bundle every month or two; keys redeem on Fab. Fab's own free drops come every two weeks.
+- **Live (June 2026):** [65-Item Bigger Better Unreal Engine Bundle](https://slickdeals.net/f/19615476-65-item-bigger-better-unreal-engine-assets-bundle-12-000-assets-22): 12,000+ assets (Meshingun, Dekogon), stylised / fantasy / modular themes, tiers $5 / $15 / $22, redeem by May 2027.
+- **Past bundles that may repeat:** [Legendary Game Dev Environments (Leartes)](https://gamefromscratch.com/legendary-game-dev-environments-humble-bundle/): stylised fantasy, steampunk, VFX; [Unreal Ultimate Game Dev Assets (Sidearm)](https://gamefromscratch.com/unreal-engine-ultimate-game-dev-assets-humble-bundle/): stylised dungeons, forest, Niagara magic projectiles; [Unreal Ultra Asset Megapack](https://gamefromscratch.com/unreal-ultra-asset-megapack-humble-bundle/): stylised crypt, DEKO fog / rain / water VFX; [Hivemind Unreal + Unity](https://gamefromscratch.com/massive-unreal-unity-hivemind-asset-humble-bundle/): includes Stylized Nature.
+- Habit: check Humble and the Fab free drops before each single-pack purchase.
+
 ## 4. Performance notes for this style (60 fps @ 1080p, mid-range PC; consoles later)
 - **The style is cheap by construction**: few/small textures, flat roughness, no normal maps → low bandwidth; it's the lighting and VFX that cost.
 - **Lumen Lite + VSM + TSR** (5.8): Lumen Lite "preserves much of the visual impact at a significantly lower GPU cost", ~2× faster than Lumen HQ, built for 60 fps on Switch 2-class hardware; still marked Beta. Sloclap used VSM + TSR for its 60 fps. https://gamefromscratch.com/unreal-engine-5-8-released/ · https://www.guru3d.com/story/unreal-engine-58-debuts-lumen-lite-and-productionready-megalights/ · https://tomlooman.com/unreal-engine-5-8-performance-highlights/
