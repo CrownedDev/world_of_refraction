@@ -1,6 +1,6 @@
 # Character Forms (Mortal Shell model)
 
-**Status:** draft for discussion (Crown, 2026-10-28). Nothing here is built or in the backlog yet; it replaces the idea of a full character creator (face sliders, hair, body types), which is not planned.
+**Status:** decided (Crown, 2026-10-28), except naming (§5). Built by B-279. It replaces the idea of a full character creator (face sliders, hair, body types), which is not planned.
 
 ## 1. The idea (Crown, 2026-10-28)
 
@@ -12,6 +12,7 @@
 - **How it fills (Crown, 2026-10-28: A):** **per fight won**, by how many of the character's pieces were equipped in that fight (1 of 6: a trickle; all 6: fast). An **exact piece counts in full**; the **same piece at a different tier counts for less** (`// TODO: tune` the amounts). Monster Hunter's weapon mastery / Hades' affinity: visible progress after every fight.
 - **Switching (Crown, 2026-10-28: A):** once unlocked, you can switch skins **in the hub and at rest spots** (where loadouts change); never in a fight.
 - **The formless being plays fully (Crown, 2026-10-28: A):** the starter kit and any gear found; it only lacks a skin and the bound-gear bonuses. The first skin is earned by playing.
+- **A skin changes only looks and bound gear (Crown, 2026-10-28: A):** no stats or signature perk; a character's power lives in their gear and evolution, usable without the skin.
 - No character creator (face sliders, hair, body types) is planned; the skins are the customisation.
 
 ## 2. The editor
@@ -34,7 +35,6 @@
 
 ## 5. Open (to discuss)
 
-- Whether a skin changes anything beyond looks and bound gear (stats, a signature skill).
 - Name for the formless state and for "characters" in player-facing text (Crown's).
 
 ## Changelog
@@ -42,6 +42,7 @@
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-28 | Draft from Crown's Mortal Shell idea | docs/character-forms |
+| 2026-10-28 | A skin changes only looks and bound gear; doc decided; B-279 (Crown) | docs/character-forms-done |
 | 2026-10-28 | The formless being plays fully (Crown) | docs/character-forms-formless |
 | 2026-10-28 | Switch skins in the hub and at rest spots (Crown) | docs/character-forms-switch |
 | 2026-10-28 | Meter fills per fight won by matching pieces, partial credit for other tiers (Crown) | docs/character-forms-fill |
