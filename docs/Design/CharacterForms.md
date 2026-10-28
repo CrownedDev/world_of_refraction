@@ -15,6 +15,12 @@
 - **A skin changes only looks and bound gear (Crown, 2026-10-28: A):** no stats or signature perk; a character's power lives in their gear and evolution, usable without the skin.
 - No character creator (face sliders, hair, body types) is planned; the skins are the customisation.
 
+## 1b. Authored characters double as mini-bosses (Crown, 2026-10-28)
+
+- Every authored character is also a **mini-boss** in trials: the same form, loadout and lore, fought with the same gear and skills (Enemies §1 already lists "story characters tied to the lords" among mini-bosses; this makes it one data set).
+- Beating one is a natural source of their memories, bound gear and meter progress (D-100, the loadout-match meter).
+- The dev character editor (§2) therefore authors one asset that serves both: the unlockable skin and the mini-boss.
+
 ## 2. The editor
 
 - **One in-engine character editor** (Unreal editor tool over data assets: form, materials, loadout, lore ids) used by Crown to author the characters players unlock as skins. **This stays (Crown, 2026-10-28).**
@@ -43,6 +49,7 @@
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-28 | Draft from Crown's Mortal Shell idea | docs/character-forms |
+| 2026-10-28 | Authored characters double as mini-bosses (Crown) | docs/characters-as-minibosses |
 | 2026-10-28 | Player character = Manny / Quinn in V's material, an extension of V; no player creator; the dev editor stays (Crown) | docs/player-is-v, docs/player-is-v-editor |
 | 2026-10-28 | A skin changes only looks and bound gear; doc decided; B-279 (Crown) | docs/character-forms-done |
 | 2026-10-28 | The formless being plays fully (Crown) | docs/character-forms-formless |
