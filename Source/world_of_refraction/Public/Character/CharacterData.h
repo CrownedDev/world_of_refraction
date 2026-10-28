@@ -283,6 +283,11 @@ public:
 		return IsCaster() ? InnateElement : ESpellElement::Generic;
 	}
 
+	/** B-276: the Reality Refractor (a Caster whose innate element is Reality). Class-gated like GetElement, so a
+	 *  non-Caster's hidden, stale InnateElement never counts. */
+	UFUNCTION(BlueprintPure, Category = "Character|Class")
+	bool IsRealityRefractor() const { return GetElement() == ESpellElement::Reality; }
+
 	// ==================== RESISTANCES (read-only inspection) ====================
 	// Display-layer query over the code-side ClassInnateResistanceTable. Resolves
 	// this character's profile row (BD > Generic > Resonator > Caster-by-element)
