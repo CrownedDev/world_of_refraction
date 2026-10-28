@@ -15,6 +15,7 @@
  *  F is the shallowest REAL scaling, not zero -- a stat simply ABSENT from a skill's scaling array is the
  *  true no-scaling case. Distinct from EItemTier (item rarity/budget) despite the shared letters.
  *  Append-only -- never reorder/remove. */
+// B-277: S=0 .. F=6, the reverse of EItemTier (F=0 .. S=6). Never cast between them.
 UENUM(BlueprintType)
 enum class EScalingTier : uint8
 {

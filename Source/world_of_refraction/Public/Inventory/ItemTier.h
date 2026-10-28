@@ -21,6 +21,8 @@
  * - Infusion ALWAYS adds break risk (+10%)
  * - Even S-tier can break when infused (5%)
  */
+// B-277: F=0 .. S=6. EScalingTier runs the other way (S=0 .. F=6) and EItemQuality shares the letters: never cast
+// between these three; go through their letter helpers (TierHelpers).
 UENUM(BlueprintType)
 enum class EItemTier : uint8
 {
