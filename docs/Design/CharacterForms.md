@@ -2,12 +2,15 @@
 
 **Status:** draft for discussion (Crown, 2026-10-28). Nothing here is built or in the backlog yet; it replaces the idea of a full character creator (face sliders, hair, body types), which is not planned.
 
-## 1. The idea
+## 1. The idea (Crown, 2026-10-28)
 
 - **The player starts as a formless being** with no character design: a translucent, galaxy-touched silhouette on the mannequin (it echoes V, "any and all concepts", and must look intended, never like a missing asset).
-- **Characters are unlocked.** Each character is an authored person from Crown's story with a **form** (body, look, materials), **lore**, and **a loadout tied to them** (their gear, skills, evolution).
-- **Picking a character gives you their form**, the way a Foundling inhabits a Shell in Mortal Shell. No character picked: formless.
-- **Characters are separate from their loadouts** (Crown): you **unlock the character**, and can then **switch** between unlocked characters. The loadout belongs to the character (its starting kit and what you've unlocked for them), but the player plays *as* the character, not just with its gear.
+- **Each authored character has a loadout**: their weapons, rings, skills, evolution (and lore).
+- **You build your own loadout.** Every piece you equip that belongs to a character's loadout **fills a meter for that character**; the more of their pieces you use, the faster it fills (it fills through play, not at once).
+- **At 100% you unlock the character's skin** (their form). The unlock also **reveals their full loadout**: all their weapons, skills and so on, so you see what else they used.
+- **Wearing the skin makes their bound gear work** (D-033's owner bonus): one of the benefits of playing as them.
+- **Switching:** once unlocked, you can switch between skins (where: open, §5).
+- No character creator (face sliders, hair, body types) is planned; the skins are the customisation.
 
 ## 2. The editor
 
@@ -21,18 +24,18 @@
 
 ## 4. Ties to what exists
 
-- **Loadouts and the pool** (D-020, D-021): a character's loadout is what you've unlocked for that character; buying it at run start was discussed (D-021 model).
-- **Memories and hidden unlocks** (D-100): a natural way to unlock a character: meet its conditions.
+- **Loadouts and the pool** (D-020, D-021): the player's own loadout drives the meters; a character's authored loadout is the reference it's matched against.
+- **Memories and hidden unlocks** (D-100): the meter is the visible path; hidden conditions could add to it or unlock extra lore for a character.
 - **Blank-slate start / uncovering who you are** (Crown's idea, discussed in chat 2026-10-27; details still Crown's to settle): the formless being is that blank slate; class is picked at the start.
 - **V's material** (`VisualDirection.md` §2f): the formless look can be a lighter cousin of V's galaxy material.
 - **Co-op**: each player's current form replicates like any character choice.
 
 ## 5. Open (to discuss)
 
-- How a character is unlocked (memory conditions, a run outcome, purchase).
+- How fast the meter fills (per fight using the pieces? per run?), and whether partial matches (a piece's tier or element) count.
 - Whether switching characters is hub-only, or also at rest spots.
 - What the formless being can do: full play with the starter kit, or limited until a character is picked.
-- Whether a character's loadout can be edited freely or stays its own (bound gear, D-033, suggests parts stay the character's).
+- Whether a skin changes anything beyond looks and bound gear (stats, a signature skill).
 - Name for the formless state and for "characters" in player-facing text (Crown's).
 
 ## Changelog
@@ -40,3 +43,4 @@
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-28 | Draft from Crown's Mortal Shell idea | docs/character-forms |
+| 2026-10-28 | The loadout-match meter unlocks the skin and reveals the loadout; bound gear works on the skin (Crown) | docs/character-forms-meter |
