@@ -36,6 +36,7 @@
 ## 5. Open (to discuss)
 
 - Name for the formless state and for "characters" in player-facing text (Crown's).
+- **Pinned (Crown, 2026-10-28): a creator for the nameless one.** Crown's idea: players make their own character, which *is* the nameless one. Options discussed: a light creator (silhouette presets, height, galaxy / void tint, glow colour, a mark, a name; no faces / hair / clothing) or a full creator (face, hair, body, clothing: the big rigging, clothing and save job). Crown wants to think about what kind of game this is first. B-279 ships the formless default without a creator until decided.
 
 ## Changelog
 
