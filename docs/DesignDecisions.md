@@ -1523,6 +1523,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-28): **every economy action is refused during a fight** (dismantle, level-up, revert, merge, buy / sell, repair), with a message; they work outside fights as today. Matches party swaps being outside battle only.
 **Notes for Claude:** _optional_
 
+### Q-248 — What Water's break is called
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-28 (B-248) · **Blocks:** —
+**Question:** D-090 says what Water's break does (an Action Speed slow), not its name. Its old name, "Frozen", was dead code; the screen showed "Action Speed Debuff". What does the player see?
+**Options:** A "Frozen" (the old flavour word) / B "Slowed" / C keep "Action Speed Debuff".
+**Recommendation:** A. Every other element's break has a one-word status name (Burn, Stunned, Silenced…), and Pokémon and Final Fantasy name their status conditions this way ("Frozen", "Slow"). A plain stat name reads as a bug next to them.
+**Answer:** **A**, by the reference-backed default (2026-10-28). Crown may rename it; the word lives in one row, `WoRGameNames::GetElementBreakName`. After a Water break the panel shows "Frozen" plus the separate "Slowed Casting" effect (`SkillEffectManager.cpp:3060`).
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
