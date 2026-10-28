@@ -244,6 +244,13 @@ public:
     UFUNCTION(BlueprintPure, Category = "Inventory|Weapons")
     FWeaponInventoryEntry GetWeaponAt(int32 Index) const;
 
+    /** B-252 (DRY audit A12): the owned weapon / ring with this PersistentID, or null. The pointer is into the
+     *  inventory: it dangles once the array changes. */
+    FWeaponInventoryEntry *FindOwnedWeapon(const FGuid &PersistentID);
+    const FWeaponInventoryEntry *FindOwnedWeapon(const FGuid &PersistentID) const;
+    FRingInventoryEntry *FindOwnedRing(const FGuid &PersistentID);
+    const FRingInventoryEntry *FindOwnedRing(const FGuid &PersistentID) const;
+
     /** Get total weapon slot cost */
     UFUNCTION(BlueprintPure, Category = "Inventory|Weapons")
     int32 GetWeaponSlotCostTotal() const;

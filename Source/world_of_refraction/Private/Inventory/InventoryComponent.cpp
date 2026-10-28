@@ -657,6 +657,35 @@ bool UInventoryComponent::RemoveWeaponByPersistentID(FGuid PersistentID)
     return RemoveWeapon(Index);
 }
 
+namespace
+{
+    template <class TEntry>
+    TEntry *FindOwnedGear(TArray<TEntry> &Gear, const FGuid &PersistentID)
+    {
+        return Gear.FindByPredicate([&PersistentID](const TEntry &Entry) { return Entry.PersistentID == PersistentID; });
+    }
+}
+
+FWeaponInventoryEntry *UInventoryComponent::FindOwnedWeapon(const FGuid &PersistentID)
+{
+    return FindOwnedGear(Weapons, PersistentID);
+}
+
+const FWeaponInventoryEntry *UInventoryComponent::FindOwnedWeapon(const FGuid &PersistentID) const
+{
+    return const_cast<UInventoryComponent *>(this)->FindOwnedWeapon(PersistentID);
+}
+
+FRingInventoryEntry *UInventoryComponent::FindOwnedRing(const FGuid &PersistentID)
+{
+    return FindOwnedGear(Rings, PersistentID);
+}
+
+const FRingInventoryEntry *UInventoryComponent::FindOwnedRing(const FGuid &PersistentID) const
+{
+    return const_cast<UInventoryComponent *>(this)->FindOwnedRing(PersistentID);
+}
+
 FWeaponInventoryEntry UInventoryComponent::GetWeaponAt(int32 Index) const
 {
     if (Weapons.IsValidIndex(Index))
