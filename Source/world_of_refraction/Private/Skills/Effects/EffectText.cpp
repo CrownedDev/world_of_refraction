@@ -18,11 +18,12 @@ namespace
     constexpr int32 TRIGGERED_BLOCK = 1;
     constexpr int32 PASSIVE_BLOCK = 2;
 
-    /** ModifyEnergyCost: positive is cheaper, like SpellCostBuff (ActionExecutor's cost multiplier). */
+    /** ModifyEnergyCost: positive is cheaper, like SpellCostBuff (ActionExecutor's cost multiplier); aimed at an
+     *  enemy it makes their skills dearer (D-054 / Q-267). */
     bool IsCostCut(const FSkillEffectPayload &P)
     {
         return P.EffectType == ESkillEffectType::SpellCostBuff
-               || (P.EffectType == ESkillEffectType::ModifyEnergyCost && (P.Value != 0 ? P.Value > 0 : P.Magnitude >= 0.0f));
+               || (P.EffectType == ESkillEffectType::ModifyEnergyCost && P.GetClassifyingMagnitude() >= 0.0f);
     }
 
     /** The recipient of a payload, as the verb's object ("an Enemy", "2 Allies", "all Enemies"). */
@@ -541,10 +542,8 @@ namespace
                 Leaf.Line.Text = FText::Format(LOCTEXT("LeafWithRiders", "{0}{1}"),
                                                Capitalise(EffectText::DescribePayload(P)), Riders(Effect, P));
                 Leaf.Line.EffectIndex = e;
-                // ModifyEnergyCost is classed a debuff whatever its sign; the text lights by what it does.
-                Leaf.Line.bDebuff = P.EffectType == ESkillEffectType::ModifyEnergyCost
-                                        ? !IsCostCut(P)
-                                        : SkillEffectClassification::IsDebuff(P.EffectType, P.Magnitude);
+                // The side-signed modifiers light by what they do to whom (GetClassifyingMagnitude).
+                Leaf.Line.bDebuff = SkillEffectClassification::IsDebuff(P.EffectType, P.GetClassifyingMagnitude());
             }
         }
         // Activate first, Passive last (07, "Block structure" and "The card-text tree").
@@ -615,7 +614,7 @@ namespace EffectText
         const FSide Side = GetSide(P.Target, P.TargetCount);
         FText Stat;
         bool bRaises = false;
-        if (GetStatChange(P.EffectType, P.Magnitude, Stat, bRaises))
+        if (GetStatChange(P.EffectType, P.GetClassifyingMagnitude(), Stat, bRaises))
         {
             return StatBody(P, Side, Stat, bRaises);
         }

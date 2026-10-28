@@ -97,4 +97,17 @@ struct WORLD_OF_REFRACTION_API FSkillEffectPayload
      *  primitive (EnergyRestore → EP via ServerGainEnergy, HealthRestore → HP via ServerHeal). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect", meta = (ClampMin = "0"))
     float AttackCostScale = 0.0f;
+
+    /** The magnitude the card and the template classify by. D-054 / Q-267: a Turn Speed or Energy Cost
+     *  modifier aimed at an enemy works the other way (slower turns, dearer skills), so it counts negative
+     *  there, as SkillEffectManager::ApplyEffect signs it. Every other type: Magnitude, as authored. */
+    float GetClassifyingMagnitude() const
+    {
+        if (EffectType != ESkillEffectType::ModifyTurnSpeed && EffectType != ESkillEffectType::ModifyEnergyCost)
+        {
+            return Magnitude;
+        }
+        const float Size = Value != 0 ? static_cast<float>(Value) : Magnitude;
+        return Target == ETargetType::Enemy ? -FMath::Abs(Size) : Size;
+    }
 };
