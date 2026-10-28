@@ -1530,6 +1530,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. Every other element's break has a one-word status name (Burn, Stunned, Silenced…), and Pokémon and Final Fantasy name their status conditions this way ("Frozen", "Slow"). A plain stat name reads as a bug next to them.
 **Answer:** **A**, by the reference-backed default (2026-10-28). Crown may rename it; the word lives in one row, `WoRGameNames::GetElementBreakName`. After a Water break the panel shows "Frozen" plus the separate "Slowed Casting" effect (`SkillEffectManager.cpp:3060`).
 
+### D-105 — Quartz essence: name and use
+**Status:** ANSWERED (2026-10-28) · **Raised:** 2026-10-28 (simplification audit S3) · **Blocks:** —
+**Answer (Crown):** (2026-10-28)
+- The Generic typed essence (from dismantling Quartz crystals) is called **Quartz essence** in game (for now).
+- **A: Quartz essence buys Generic spells**, as each element's essence buys its spells (one rule). This replaces the note that Generic spells are priced like abilities with no typed essence (`Resources_Design.md` §5, `EconomySystem.md` cost table). Reality essence keeps its roles: wildcard substitute, the ½ upgrade companion cost, shop rerolls.
+**Notes for Claude:** `EEssenceType::Generic` stays (append-only); only its display name and the spell-cost rule change. Price Generic spells like elemental ones (same typed-essence amount at tier) in B-269's cluster or a follow-up; update `docs/Rules/05-economy-and-runs.md`.
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
