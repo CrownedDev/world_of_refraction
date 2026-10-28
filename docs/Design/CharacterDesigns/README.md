@@ -25,3 +25,13 @@ Simple, non-technical gear and skills a novice could use, lore-wise; the base ev
 - **Weapons:** simple ones per weapon type (e.g. Arming Sword, Longsword, Tomahawk, Combat Gauntlets: candidates from the existing set), **F tier**.
 - **Rings:** simple rings (e.g. `DA_Ring_Generic`, plus one plain ring per element: candidates), **F tier**.
 - Which exact abilities, weapons and rings: picked in the character design session (pinned).
+
+## Character sheets (Crown's Google Drive, "My World of Refraction / Characters")
+
+Source folder: https://drive.google.com/drive/folders/1-gc1wYbPD8mcoarMTvl-lqTJRZkgo_uZ (sheets as PNG; written profiles as .odt in `Character Sheet/`, drafts in `Coming up/`, alternates in `Variants/`).
+
+**The style (from the Amethyst Prisma, Aron Citrine and Amber sheets, 2026-10-28):** anime-style turnarounds with expression sheets and a colour key (skin, blush, hair, eyes, gradation, pupil, highlight); clean line art, flat colours; **long military-cut coats with a high black collar and a white belt**, each in the character's gem colour (amethyst purple, citrine orange-red, amber ochre); slim, realistic proportions (5'9"–6'1"); ages given as apparent (19, 20) and real (100+).
+
+**Roster on Drive (file names):** Amethyst Prisma, Orthos Prisma; Aron Citrine, Alexander Citrine, Eric Citrine, Eva Citrine; Amber; Garnet; Aurora Rite (+ Aurora variant); Sapphire Flowers; Emerald Sanctum; Peridot Crown, Historica Crown (+ young), Shadow Crown (+ young); Celina Riley (+ young), Elizabeth Riley, Ricardo Riley (+ young, + Sr); Keira Knight; Maximus Madman; Rage (Adult Love) / Love (Young Rage); Shade (Umbra Knight); Alphonso (+ hidden blade); Zandark; Vortrix; V.
+
+Lore stays Crown's; this list is for asset and editor planning only.
