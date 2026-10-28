@@ -284,6 +284,10 @@ public:
 	 */
 	void ApplyCommitCosts(AActor *Actor, const FAction &Action);
 
+	/** B-245 (DRY audit A3): a ring source's durability wear on the ring's slotted crystal, by the action's
+	 *  own tier (ResolveActionTier, Q-245). Nothing when the ring holds no attachment. */
+	void ApplyCrystalWearOn(AActor *Actor, URingData *Ring, const FAction &Action, int32 Level);
+
 	/** Deduct the deferred infusion HP cost stashed at commit
 	 *  (FActionExecutionContext::PendingInfusionHPCost). Called from
 	 *  FinalizeAsyncAction, AFTER the infused effect resolves. No clamp — a
@@ -473,6 +477,7 @@ private:
 	 *  ApplyCommitCosts wear blocks use — they keep their inline copies until the
 	 *  swap is approved separately. */
 	EItemTier ResolveActionTier(AActor *Actor, const FAction &Action) const;
+	friend class FActionTierSpec;
 
 	/** The tier of the channel the action is used THROUGH: attack/ability →
 	 *  active weapon; spell → the catalyst crystal per Action.SpellSource

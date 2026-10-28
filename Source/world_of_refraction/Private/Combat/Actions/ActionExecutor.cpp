@@ -353,9 +353,8 @@ bool UActionExecutor::CanActorCastSpells(AActor *Actor) const
 
 EItemTier UActionExecutor::ResolveActionTier(AActor *Actor, const FAction &Action) const
 {
-	// Spell: the spell's own tier. Ability/attack: tier inherits from the active
-	// weapon. Same dispatch as the ApplyCommitCosts wear blocks (which keep
-	// their inline copies until the swap is approved separately).
+	// Spell: the spell's own tier. Ability/attack: its own authored tier. The one action tier for
+	// tier-gap damage and crystal wear alike (B-245, Q-245).
 	if (Action.ActionType == EActionType::Spell && Action.SpellData)
 	{
 		return UInventoryComponent::ResolveSpellTier(Actor, Action.SpellData);

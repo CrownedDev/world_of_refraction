@@ -440,131 +440,31 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		break;
 
 	case EInfusionSourceOption::ActiveRing:
-	{
-		// Ring sources pay durability wear on the active ring's slotted crystal.
-		// Action tier resolution per Phase 4d Path A:
-		//   - Spell: SpellData->Tier (the spell's own tier)
-		//   - Ability/Attack: Weapon->Tier (action tier inherits from weapon)
-		ULoadoutComponent *RingLoadout = GetLoadoutComponent(Actor);
-		if (!RingLoadout)
-		{
-			break;
-		}
-
-		URingData *Ring = RingLoadout->GetActiveRing();
-		if (!Ring)
-		{
-			UE_LOG(LogTemp, Warning,
-				   TEXT("[ActionExecutor] %s: ActiveRing infusion but no active ring resolved"),
-				   *Actor->GetName());
-			break;
-		}
-
-		const bool bIsSpell = (Action.ActionType == EActionType::Spell);
-		EItemTier ActionTier = EItemTier::F_Tier; // sensible default
-
-		if (bIsSpell && Action.SpellData)
-		{
-			ActionTier = UInventoryComponent::ResolveSpellTier(Actor, Action.SpellData);
-		}
-		else
-		{
-			// Ability or attack: action tier inherits from the active weapon's
-			// instance entry (leveling-correct); fall back to base asset tier.
-			if (const FWeaponInventoryEntry *WeaponEntry = ResolveActiveWeaponEntry(Actor))
-			{
-				ActionTier = WeaponEntry->Tier;
-			}
-			else if (UWeaponData *Weapon = RingLoadout->GetActiveWeapon())
-			{
-				ActionTier = Weapon->Tier;
-			}
-		}
-
-		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		FRuntimeAttachedItem *Attachment = LC ? LC->FindAttachedItemByHolder(Ring) : nullptr;
-		if (Attachment && !Attachment->IsEmpty())
-		{
-			if (UCrystalManager *CrystalMgr = GetGameInstance()
-												  ? GetGameInstance()->GetSubsystem<UCrystalManager>()
-												  : nullptr)
-			{
-				CrystalMgr->ProcessPostCastWear(
-					Actor, Ring, *Attachment, ActionTier, Level, bIsSpell);
-			}
-		}
-
-		// Per-action stat modifiers are computed by ComputeActionStatModifiers
-		// at action start (ExecuteActionAsync) and stashed on
-		// FActionExecutionContext::ActionMods. No commit-time call needed here.
-		break;
-	}
 	case EInfusionSourceOption::PrimaryRing:
 	{
-		// Primary Ring source: Generic/Caster with a ring in their primary slot.
-		// Mirrors ActiveRing structure — same wear path, same Iolite check,
-		// just resolves the primary ring instead of active.
+		// Ring sources pay durability wear on the ring's slotted crystal: the active ring (Resonator) or the
+		// primary-slot ring (Generic / Caster). B-245 (DRY audit A3): one wear path for both.
+		const bool bActiveRing = Action.SelectedSource == EInfusionSourceOption::ActiveRing;
 		ULoadoutComponent *RingLoadout = GetLoadoutComponent(Actor);
-		if (!RingLoadout)
-		{
-			break;
-		}
-
-		URingData *Ring = RingLoadout->GetPrimaryRing();
+		URingData *Ring = RingLoadout ? (bActiveRing ? RingLoadout->GetActiveRing() : RingLoadout->GetPrimaryRing()) : nullptr;
 		if (!Ring)
 		{
-			UE_LOG(LogTemp, Warning,
-				   TEXT("[ActionExecutor] %s: PrimaryRing infusion but no primary ring resolved"),
-				   *Actor->GetName());
+			if (RingLoadout)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] %s: %s infusion but no %s ring resolved"), *Actor->GetName(),
+					   bActiveRing ? TEXT("ActiveRing") : TEXT("PrimaryRing"), bActiveRing ? TEXT("active") : TEXT("primary"));
+			}
 			break;
 		}
-
-		const bool bIsSpell = (Action.ActionType == EActionType::Spell);
-		EItemTier ActionTier = EItemTier::F_Tier;
-
-		if (bIsSpell && Action.SpellData)
-		{
-			ActionTier = UInventoryComponent::ResolveSpellTier(Actor, Action.SpellData);
-		}
-		else
-		{
-			// Ability or attack: action tier inherits from the active weapon's
-			// instance entry (leveling-correct); fall back to base asset tier.
-			if (const FWeaponInventoryEntry *WeaponEntry = ResolveActiveWeaponEntry(Actor))
-			{
-				ActionTier = WeaponEntry->Tier;
-			}
-			else if (UWeaponData *Weapon = RingLoadout->GetActiveWeapon())
-			{
-				ActionTier = Weapon->Tier;
-			}
-		}
-
-		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		FRuntimeAttachedItem *Attachment = LC ? LC->FindAttachedItemByHolder(Ring) : nullptr;
-		if (Attachment && !Attachment->IsEmpty())
-		{
-			if (UCrystalManager *CrystalMgr = GetGameInstance()
-												  ? GetGameInstance()->GetSubsystem<UCrystalManager>()
-												  : nullptr)
-			{
-				CrystalMgr->ProcessPostCastWear(
-					Actor, Ring, *Attachment, ActionTier, Level, bIsSpell);
-			}
-		}
-
+		ApplyCrystalWearOn(Actor, Ring, Action, Level);
 		// Per-action stat modifiers live on the execution context (action-start), not here.
 		break;
 	}
 
 	case EInfusionSourceOption::WeaponCrystal:
 	{
-		// Weapon crystal infusion: durability wear on the slotted crystal.
-		// ActionTier dispatch:
-		//   Spell: SpellData->Tier (the spell's own tier — symmetric with Ring path)
-		//   Ability/Attack: Weapon->Tier (action tier inherits from weapon)
-		// Spells wear based on their own tier regardless of catalyst (weapon vs
-		// ring), so an S-Tier spell stresses any catalyst's crystal equally.
+		// Weapon crystal infusion: durability wear on the slotted crystal, by the action's own tier
+		// (ResolveActionTier, Q-245), whatever the catalyst.
 		ULoadoutComponent *WeaponLoadout = GetLoadoutComponent(Actor);
 		if (!WeaponLoadout)
 		{
@@ -602,15 +502,8 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		}
 
 		const bool bIsSpell = (Action.ActionType == EActionType::Spell);
-		// Instance tier from the weapon's inventory entry (leveling-correct); the
-		// asset `Weapon` above is still used to resolve the slotted-crystal holder,
-		// and remains the asset-tier fallback when no entry resolves.
-		const FWeaponInventoryEntry *WeaponEntry = ResolveActiveWeaponEntry(Actor);
-		EItemTier ActionTier = WeaponEntry ? WeaponEntry->Tier : Weapon->Tier;
-		if (bIsSpell && Action.SpellData)
-		{
-			ActionTier = UInventoryComponent::ResolveSpellTier(Actor, Action.SpellData);
-		}
+		// B-245 (Q-245): wear reads the action's own tier, as tier-gap damage does (ResolveActionTier).
+		const EItemTier ActionTier = ResolveActionTier(Actor, Action);
 
 		// A gear-attached evolution provides the weapon's spells (so WeaponCrystal infusion is
 		// offered), but ProcessPostCastWear skips evolution — route it to the gear-evolution wear
@@ -678,25 +571,12 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		// 4. Durability wear on the primary-slot evolution. Non-spell actions
 		//    only — spells pay via the ExecuteSpellAsync evolution hook, so an
 		//    unconditional charge here would double-bill an evolution-source
-		//    spell. Tier follows the non-spell sibling convention (active
-		//    weapon's tier, as in the ActiveRing/WeaponCrystal cases). The
+		//    spell. Tier: the action's own (ResolveActionTier, Q-245). The
 		//    BD/Reality breakable gate lives inside ProcessPostCastEvolutionWear.
 		if (Action.ActionType != EActionType::Spell)
 		{
-			// Instance tier from the active weapon's inventory entry (leveling-correct);
-			// fall back to base asset tier when no entry resolves.
-			EItemTier ActionTier = EItemTier::F_Tier;
-			if (const FWeaponInventoryEntry *WeaponEntry = ResolveActiveWeaponEntry(Actor))
-			{
-				ActionTier = WeaponEntry->Tier;
-			}
-			else if (ULoadoutComponent *TierLoadout = GetLoadoutComponent(Actor))
-			{
-				if (UWeaponData *Weapon = TierLoadout->GetActiveWeapon())
-				{
-					ActionTier = Weapon->Tier;
-				}
-			}
+			// B-245 (Q-245): the action's own tier, as tier-gap damage reads it.
+			const EItemTier ActionTier = ResolveActionTier(Actor, Action);
 
 			if (UCrystalManager *CrystalMgr = GetGameInstance()
 												  ? GetGameInstance()->GetSubsystem<UCrystalManager>()
@@ -755,4 +635,18 @@ void UActionExecutor::ApplyPendingInfusionHPCost(AActor *Actor)
 		   TEXT("[ActionExecutor] %s paid %d HP for infusion at finalize (HP: %d -> %d)%s"),
 		   *Actor->GetName(), Cost, Before, CharComp->CurrentHP,
 		   CharComp->bIsAlive ? TEXT("") : TEXT(" — LETHAL"));
+}
+
+void UActionExecutor::ApplyCrystalWearOn(AActor *Actor, URingData *Ring, const FAction &Action, int32 Level)
+{
+	ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+	FRuntimeAttachedItem *Attachment = LC ? LC->FindAttachedItemByHolder(Ring) : nullptr;
+	UCrystalManager *CrystalMgr = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCrystalManager>() : nullptr;
+	if (!Attachment || Attachment->IsEmpty() || !CrystalMgr)
+	{
+		return;
+	}
+	// B-245 (Q-245): the action's own tier, as tier-gap damage reads it.
+	CrystalMgr->ProcessPostCastWear(Actor, Ring, *Attachment, ResolveActionTier(Actor, Action), Level,
+									Action.ActionType == EActionType::Spell);
 }
