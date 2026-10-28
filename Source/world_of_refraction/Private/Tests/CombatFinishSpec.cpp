@@ -53,12 +53,17 @@ BEGIN_DEFINE_SPEC(FCombatFinishSpec, "WoR.Combat.FinishPath", EAutomationTestFla
 		ULoadoutComponent *Loadout = FWoRTestWorld::AddComponent<ULoadoutComponent>(Hero);
 		FWoRTestWorld::AddComponent<UCurrencyComponent>(Hero);
 		Loadout->InitializeFromCharacterData(Data, Inventory);
+		// Owned first, so battle prep (ClearInvalidSlots) keeps the slots.
+		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
+		URingData *Ring = NewObject<URingData>(GetTransientPackage());
+		Inventory->AddWeapon(Weapon);
+		Inventory->AddRing(Ring);
 		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
 		Active.PrimarySlotType = EPrimarySlotType::Weapon;
-		Active.PrimaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
+		Active.PrimaryWeapon.WeaponEntry = Inventory->Weapons.Last();
 		Active.PrimaryWeapon.WeaponEntry.AttachedItem = FinishGem(FINISH_WORN_DURABILITY);
 		FRingLoadoutEntry RingEntry;
-		RingEntry.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
+		RingEntry.RingEntry = Inventory->Rings.Last();
 		RingEntry.RingEntry.AttachedItem = FinishGem(FINISH_BROKEN_DURABILITY);
 		Active.RingLoadout = {RingEntry};
 		Active.ActiveRingIndex = 0;
