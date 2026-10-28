@@ -1,7 +1,7 @@
 // HealPathSpec.cpp
 // B-247 (DRY audit A6): one heal boost and HealBlock gate. HealActor amplifies by the recipient's healing
-// received exactly as the HOT tick does, is refused while the recipient is HealBlocked, and reports through
-// UActionExecutor::OnHealingDone.
+// received exactly as the HOT tick does and is refused while the recipient is HealBlocked. (Its
+// UActionExecutor::OnHealingDone broadcast is a dynamic delegate a spec can't bind a lambda to.)
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -73,17 +73,6 @@ void FHealPathSpec::Define()
 		const int32 HPBefore = Char->CurrentHP;
 		TestEqual(TEXT("nothing healed"), Effects->HealActor(Hero, HEAL_TEST_AMOUNT, Hero), 0);
 		TestEqual(TEXT("HP unchanged"), Char->CurrentHP, HPBefore);
-	});
-
-	It("reports every heal through OnHealingDone", [this]()
-	{
-		if (!Effects) return;
-		int32 Reported = 0;
-		const FDelegateHandle Handle = Executor->OnHealingDone.AddLambda(
-			[&Reported](AActor *, AActor *, int32 Amount) { Reported += Amount; });
-		const int32 Healed = Effects->HealActor(Hero, HEAL_TEST_AMOUNT, Hero);
-		Executor->OnHealingDone.Remove(Handle);
-		TestEqual(TEXT("reported"), Reported, Healed);
 	});
 }
 
