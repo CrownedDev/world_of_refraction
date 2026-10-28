@@ -300,7 +300,7 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
 
     const bool bBroke = LC->ApplyWearToActivePrimaryEvolution(Wear, bForceWear);
 
-    const FCombatLoadout AfterLoadout = LC->GetActiveLoadout();
+    const FCombatLoadout &AfterLoadout = LC->GetActiveLoadout();
     const int32 AfterDur = AfterLoadout.PrimaryEvolution.CurrentDurability;
 
     UE_LOG(LogTemp, Verbose,

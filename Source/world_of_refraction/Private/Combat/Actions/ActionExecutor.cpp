@@ -4165,7 +4165,7 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 		ULoadoutComponent *Loadout = GetLoadoutComponent(Actor);
 		if (Loadout && Loadout->IsEvolved())
 		{
-			FCombatLoadout ActiveLoadout = Loadout->GetActiveLoadout();
+			const FCombatLoadout &ActiveLoadout = Loadout->GetActiveLoadout();
 			if (ActiveLoadout.PrimaryEvolution.Item)
 			{
 				return ActiveLoadout.PrimaryEvolution.Item->GetAssociatedElement();
