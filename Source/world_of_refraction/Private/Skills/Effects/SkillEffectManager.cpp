@@ -91,6 +91,22 @@ void USkillEffectManager::Deinitialize()
 // EFFECT APPLICATION
 // ========================================
 
+namespace
+{
+	/** D-054: true when Source is on the other side from Target. Unknown sides (out of combat, no source) count
+	 *  as the same side. SourceTeam, when given, wins over the turn order's record. */
+	bool IsOnOpposingSide(const UTurnManager *TurnManager, AActor *Target, AActor *Source, int32 SourceTeam)
+	{
+		if (!TurnManager || !Source || Source == Target)
+		{
+			return false;
+		}
+		const int32 SideOfSource = SourceTeam >= 0 ? SourceTeam : TurnManager->GetActorTeam(Source);
+		const int32 SideOfTarget = TurnManager->GetActorTeam(Target);
+		return SideOfSource >= 0 && SideOfTarget >= 0 && SideOfSource != SideOfTarget;
+	}
+}
+
 EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiveSkillEffect Effect,
 														  AActor *Source, const FString &SourceAbility, int32 SourceTeam)
 {
@@ -132,6 +148,16 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	Effect.SourceAbilityName = SourceAbility;
 	Effect.SourceTeamIndex = SourceTeam;
 	Effect.InitialDuration = Effect.RemainingTurns;
+
+	// D-054 / Q-267: Turn Speed and Energy Cost modifiers are authored as a size (never negative); the side
+	// sets the direction. On an ally a buff, on an enemy a debuff. ModifyStatusResist arrives signed by its
+	// applier (the stone), so it's left as it is.
+	if (Effect.EffectType == ESkillEffectType::ModifyTurnSpeed || Effect.EffectType == ESkillEffectType::ModifyEnergyCost)
+	{
+		const UTurnManager *TurnManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+		const float Size = FMath::Abs(Effect.EffectValue);
+		Effect.EffectValue = IsOnOpposingSide(TurnManager, Target, Source, SourceTeam) ? -Size : Size;
+	}
 
 	// INSTANT lane — a true one-shot. It has already passed the immunity + fires-once gates
 	// above (so it stays interceptable; HealBlock enforcement lands here in a later cluster).
