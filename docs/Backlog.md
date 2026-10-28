@@ -144,6 +144,7 @@ Per-frame code is clean; the cost is per hit and per AI turn. Same behaviour in 
 | B-264 | **P7: log levels**: the ~706 Log / Display lines in game code on hot paths move to Verbose (after B-141) | CC | S | — | Output Log quiet during a normal fight | TODO |
 | B-265 | **P10: build time**: forward declarations to cut `ActionExecutor.h`, `LoadoutComponent.h` (83 includers) and `CharacterDataComponent.h` (102) includes; one local non-unity check build to catch clashes | CC | M | — | Non-unity build green; fewer recompiles on header edits | TODO |
 | B-266 | **Profiling markers + trace** (D-068, B-142): `TRACE_CPUPROFILER_EVENT_SCOPE` on the five suspect functions (stat reads, attribute sync, AI decision, preview damage, effect mirror); Crown runs the steps in the audit doc (`stat unit`, Unreal Insights, `memreport`, `stat net`) on a Development build at 1080p | CC | S | — | Markers in; Crown's trace saved to `docs/analysis/` | TODO |
+| B-278 | **Release basics**: Asset Manager rules so packaged builds cook every data asset type (`UStoryLinesData`, `TrialLoot`, boss / memory / story assets: the open TODOs), and a PSO (shader) cache set up so first fights don't stutter; document in `docs/Architecture/Packaging.md` | CC+UE | M | — | A packaged Development build runs a hub → trial → fight with no missing assets; PSO cache recorded | TODO |
 
 ## Phase 1d — Simplify elements and effects (`analysis/SimplifyAudit_2026-10-28.md`)
 
