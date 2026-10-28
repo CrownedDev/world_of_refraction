@@ -1513,6 +1513,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-28): every action uses **one tier** (`ResolveActionTier`) for both wear and tier-gap damage: an ability wears its crystal by **its own tier**, not the weapon's. Changes ability wear numbers where the weapon's tier differs (PIE note in B-245).
 **Notes for Claude:** _optional_
 
+### Q-246 — Every way a fight ends runs the same steps
+**Status:** DECIDED · **Raised:** 2026-10-28 (DRY audit 2, `analysis/DryAudit_2026-10-28.md`) · **Blocks:** —
+**Answer (Crown):** **A** (2026-10-28): one combat-finish path: however a fight ends (turn system, forced end, flee / draw as their rules allow), it runs the same end steps: broken crystals destroyed with their essence payout (ER-35), the between-fight repair, and the turn-count / async-wait reset.
+**Notes for Claude:** _optional_
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
