@@ -41,6 +41,30 @@ void UCrystalManager::NotifyCrystalBroken(AActor *Actor, UObject *Holder, const 
     OnCrystalBroken.Broadcast(Actor, Holder, Payload);
 }
 
+int32 UCrystalManager::ComputeCastWear(const AActor *Actor, EItemTier WearTier, EItemTier ActionTier, int32 InfusionLevel,
+                                      bool bIsSpell)
+{
+    // B-242 (DRY audit A5): the one wear formula for a crystal, a primary-slot evolution and a gear evolution.
+    // Substat-modified path when the caster's UCharacterData is reachable — wear tracks real power output
+    // (gear-inclusive via crystal-modified pillar accessors). Falls back to the base formula if the asset is
+    // missing rather than crashing.
+    const UCharacterDataComponent *CasterCharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    if (!CasterCharComp || !CasterCharComp->CharacterData)
+    {
+        return UBreakCalculator::CalculateDurabilityWear(WearTier, ActionTier, InfusionLevel, bIsSpell);
+    }
+    // Snapshot the wear-input stats in one call. All four substats are the FULL composed values (innate +
+    // equipment + stone + transient) via GetEffectiveStats; wear is a POWER term, so a geared/buffed caster
+    // wears crystals faster — more spell power / status amp / control = more strain.
+    const FEffectiveStats Stats = CasterCharComp->GetEffectiveStats();
+    const float SpellDmgFrac = Stats.SpellDamage - 1.0f;
+    const float StatusMultFrac = Stats.StatusMultiplier - 1.0f;
+    const float EfficiencyFrac = 1.0f - Stats.EfficiencyMultiplier;
+    const float ResistanceFrac = Stats.Resistance;
+    return UBreakCalculator::CalculateDurabilityWearWithSubstats(WearTier, ActionTier, InfusionLevel, bIsSpell, SpellDmgFrac,
+                                                                 StatusMultFrac, EfficiencyFrac, ResistanceFrac);
+}
+
 void UCrystalManager::ProcessPostCastWear(
     AActor *Actor,
     UObject *Holder,
@@ -93,37 +117,7 @@ void UCrystalManager::ProcessPostCastWear(
     // wear tracks real power output (gear-inclusive via crystal-modified
     // pillar accessors). Falls back to the base formula if the asset is
     // missing rather than crashing.
-    UCharacterDataComponent *CasterCharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
-    int32 Wear = 0;
-    if (CasterCharComp && CasterCharComp->CharacterData)
-    {
-        // Snapshot the wear-input stats in one call. All four substats are the FULL
-        // composed values (innate + equipment + stone + transient) via GetEffectiveStats;
-        // wear is a POWER term, so a geared/buffed caster wears crystals faster — more
-        // spell power / status amp / control = more strain.
-        const FEffectiveStats Stats = CasterCharComp->GetEffectiveStats();
-        const float SpellDmgFrac    = Stats.SpellDamage - 1.0f;
-        const float StatusMultFrac  = Stats.StatusMultiplier - 1.0f;
-        const float EfficiencyFrac  = 1.0f - Stats.EfficiencyMultiplier;
-        const float ResistanceFrac  = Stats.Resistance;
-        Wear = UBreakCalculator::CalculateDurabilityWearWithSubstats(
-            WearTier,
-            ActionTier,
-            InfusionLevel,
-            bIsSpell,
-            SpellDmgFrac,
-            StatusMultFrac,
-            EfficiencyFrac,
-            ResistanceFrac);
-    }
-    else
-    {
-        Wear = UBreakCalculator::CalculateDurabilityWear(
-            WearTier,
-            ActionTier,
-            InfusionLevel,
-            bIsSpell);
-    }
+    const int32 Wear = ComputeCastWear(Actor, WearTier, ActionTier, InfusionLevel, bIsSpell);
 
     if (Wear <= 0)
     {
@@ -229,37 +223,7 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
 
     const EItemTier EvoTier = Loadout.PrimaryEvolution.Tier;
 
-    UCharacterDataComponent *CasterCharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
-    int32 Wear = 0;
-    if (CasterCharComp && CasterCharComp->CharacterData)
-    {
-        // Snapshot the wear-input stats in one call. All four substats are the FULL
-        // composed values (innate + equipment + stone + transient) via GetEffectiveStats;
-        // wear is a POWER term, so a geared/buffed caster wears crystals faster — more
-        // spell power / status amp / control = more strain.
-        const FEffectiveStats Stats = CasterCharComp->GetEffectiveStats();
-        const float SpellDmgFrac    = Stats.SpellDamage - 1.0f;
-        const float StatusMultFrac  = Stats.StatusMultiplier - 1.0f;
-        const float EfficiencyFrac  = 1.0f - Stats.EfficiencyMultiplier;
-        const float ResistanceFrac  = Stats.Resistance;
-        Wear = UBreakCalculator::CalculateDurabilityWearWithSubstats(
-            EvoTier,
-            ActionTier,
-            InfusionLevel,
-            bIsSpell,
-            SpellDmgFrac,
-            StatusMultFrac,
-            EfficiencyFrac,
-            ResistanceFrac);
-    }
-    else
-    {
-        Wear = UBreakCalculator::CalculateDurabilityWear(
-            EvoTier,
-            ActionTier,
-            InfusionLevel,
-            bIsSpell);
-    }
+    const int32 Wear = ComputeCastWear(Actor, EvoTier, ActionTier, InfusionLevel, bIsSpell);
 
     if (Wear <= 0)
     {
@@ -342,23 +306,7 @@ void UCrystalManager::ProcessPostCastGearEvolutionWear(
 
     const EItemTier EvoTier = Attachment.Evolution.Tier;
 
-    UCharacterDataComponent *CasterCharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
-    int32 Wear = 0;
-    if (CasterCharComp && CasterCharComp->CharacterData)
-    {
-        const FEffectiveStats Stats = CasterCharComp->GetEffectiveStats();
-        const float SpellDmgFrac    = Stats.SpellDamage - 1.0f;
-        const float StatusMultFrac  = Stats.StatusMultiplier - 1.0f;
-        const float EfficiencyFrac  = 1.0f - Stats.EfficiencyMultiplier;
-        const float ResistanceFrac  = Stats.Resistance;
-        Wear = UBreakCalculator::CalculateDurabilityWearWithSubstats(
-            EvoTier, ActionTier, InfusionLevel, bIsSpell,
-            SpellDmgFrac, StatusMultFrac, EfficiencyFrac, ResistanceFrac);
-    }
-    else
-    {
-        Wear = UBreakCalculator::CalculateDurabilityWear(EvoTier, ActionTier, InfusionLevel, bIsSpell);
-    }
+    const int32 Wear = ComputeCastWear(Actor, EvoTier, ActionTier, InfusionLevel, bIsSpell);
 
     if (Wear <= 0)
     {
