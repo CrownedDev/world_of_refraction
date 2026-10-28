@@ -1537,6 +1537,25 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **A: Quartz essence buys Generic spells**, as each element's essence buys its spells (one rule). This replaces the note that Generic spells are priced like abilities with no typed essence (`Resources_Design.md` §5, `EconomySystem.md` cost table). Reality essence keeps its roles: wildcard substitute, the ½ upgrade companion cost, shop rerolls.
 **Notes for Claude:** `EEssenceType::Generic` stays (append-only); only its display name and the spell-cost rule change. Price Generic spells like elemental ones (same typed-essence amount at tier) in B-269's cluster or a follow-up; update `docs/Rules/05-economy-and-runs.md`.
 
+### Q-267 — Energy Cost modifier: buff or debuff?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-28 (B-267, SimplifyAudit S1) · **Blocks:** —
+**Question:** "Energy Cost Up" (`ModifyEnergyCost`) makes skills cheaper but was classed as a debuff, so a cleanse stripped an ally's cost cut. How should it work?
+**Options:** A same rule as D-054's Turn Speed: on an ally a buff (cheaper), on an enemy a debuff (dearer) / B always a buff / C leave it.
+**Recommendation:** A. Final Fantasy and Persona count "MP cost down" as a buff, and D-054 already rules this way for Turn Speed.
+**Answer:** **A**, by the reference-backed default (2026-10-28). It is authored as a size; aimed at an enemy (payload Target Enemy, or applied by the other side) it turns negative. The name is now "Energy Cost Down". Card text and tint follow the target ("cost N more" on an enemy). The cost maths, `ActionExecutor`'s multiplier, already read the sign.
+
+### Q-268 — Legacy effect types nothing reads
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-28 (B-268) · **Blocks:** —
+**Question:** `CritDebuff`, `EnergyDebuff` and `RandomDebuff` can be authored, but nothing reads them. Make them work, or refuse them?
+**Options:** A alias the one with the same meaning (`CritDebuff` → `CritChanceDebuff`); others only warn / B alias `EnergyDebuff` to `EnergyDrain` too / C refuse all.
+**Recommendation:** A. `EnergyDrain` is a per-turn payout, so an authored `EnergyDebuff` (a stat word) would start draining Energy every turn, a different effect. Warn, and let the designer pick the type.
+**Answer:** **A**, by the reference-backed default (2026-10-28). All five legacy types are hidden in the editor. `SpeedBuff` / `SpeedDebuff` are refused by validation (D-056).
+
+### Q-262 — Infusion charge timer: fixed step or real time?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-28 (B-262, PerfAudit P8) · **Blocks:** —
+**Question:** The audit asked for real delta time instead of the fixed 1/60 step.
+**Answer:** **Keep the fixed step** (2026-10-28). UE's looping timer calls the callback once per elapsed interval, so on a slow frame it runs several times and the total matches real time. Real time would need a timestamp on a GameInstance subsystem, which D-064 rules out. The step is now a named constant.
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
