@@ -1627,6 +1627,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		{
 			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: HoT %s paid through GAS, HP %d -> %d"), *Actor->GetName(),
 				   *Effect.EffectName, HPBeforeTick, CharComp->CurrentHP);
+			BroadcastHealing(Effect.SourceActor.Get(), Actor, CharComp->CurrentHP - HPBeforeTick); // B-247
 		}
 		else
 		{
@@ -1637,6 +1638,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 			Inputs.HealingReceivedPercent = GetTotalStatModifier(Actor, ESkillEffectType::HealingReceivedBuff);
 			const int32 HealAmount = WoRTickMath::GetHotTickHeal(Inputs);
 			CharComp->ServerHeal(HealAmount);
+			BroadcastHealing(Effect.SourceActor.Get(), Actor, HealAmount); // B-247: every heal is reported
 			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s healed %d from %s"),
 				   *Actor->GetName(), HealAmount, *Effect.EffectName);
 		}
@@ -2517,11 +2519,17 @@ int32 USkillEffectManager::HealActor(AActor *Recipient, int32 Amount, AActor *He
 		return 0;
 	}
 	Comp->ServerHeal(Healed);
-	if (UActionExecutor *Executor = GetGameInstance() ? GetGameInstance()->GetSubsystem<UActionExecutor>() : nullptr)
-	{
-		Executor->OnHealingDone.Broadcast(Healer, Recipient, Healed);
-	}
+	BroadcastHealing(Healer, Recipient, Healed);
 	return Healed;
+}
+
+void USkillEffectManager::BroadcastHealing(AActor *Healer, AActor *Recipient, int32 Amount) const
+{
+	UActionExecutor *Executor = GetGameInstance() ? GetGameInstance()->GetSubsystem<UActionExecutor>() : nullptr;
+	if (Executor && Amount > 0)
+	{
+		Executor->OnHealingDone.Broadcast(Healer, Recipient, Amount);
+	}
 }
 
 bool USkillEffectManager::IsImmuneToEffectType(AActor *Actor, ESkillEffectType EffectType) const

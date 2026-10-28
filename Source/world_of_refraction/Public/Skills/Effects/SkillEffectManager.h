@@ -433,6 +433,9 @@ public:
 	 *  through ServerHeal and UActionExecutor::OnHealingDone. Returns the HP healed (0 when blocked). */
 	int32 HealActor(AActor *Recipient, int32 Amount, AActor *Healer, ESkillEffectType GateType = ESkillEffectType::HealthRestore);
 
+	/** B-247: UActionExecutor::OnHealingDone for a heal already paid (the HOT tick keeps its own rounding). */
+	void BroadcastHealing(AActor *Healer, AActor *Recipient, int32 Amount) const;
+
 	// ========================================
 	// EVENTS
 	// ========================================
