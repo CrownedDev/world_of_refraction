@@ -472,10 +472,9 @@ public:
 private:
 	// ==================== TIER-GAP RESOLUTION (D9) ====================
 
-	/** The action's own tier: spell → SpellData->Tier; ability/attack → active
-	 *  weapon's Tier (F_Tier when unarmed). Shared extraction of the dispatch the
-	 *  ApplyCommitCosts wear blocks use — they keep their inline copies until the
-	 *  swap is approved separately. */
+	/** The action's own tier: a spell's, an ability's or attack's own (the skill's), the weapon's only when no
+	 *  skill resolves (F_Tier unarmed). The one tier for tier-gap damage and every crystal wear path
+	 *  (B-245, Q-245; basic attacks included). */
 	EItemTier ResolveActionTier(AActor *Actor, const FAction &Action) const;
 	friend class FActionTierSpec;
 
