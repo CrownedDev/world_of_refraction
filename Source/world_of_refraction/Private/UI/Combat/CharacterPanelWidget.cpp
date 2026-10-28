@@ -860,7 +860,7 @@ void UCharacterPanelWidget::ApplyEnergyBarTint()
 	}
 
 	// --- Default: character's innate element ---
-	const ESpellElement Element = CharComp->CharacterData->InnateElement;
+	const ESpellElement Element = CharComp->CharacterData->GetElement(); // B-276: class-gated
 	BarColour = ElementColors::GetColorForElement(Element);
 	EPBar->SetFillColorAndOpacity(BarColour);
 }
