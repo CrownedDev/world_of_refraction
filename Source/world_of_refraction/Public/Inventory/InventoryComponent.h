@@ -27,6 +27,7 @@ class USpellData;
 class UAbilityData;
 class USkillDataBase;
 class UWeaponData;
+class UEquipmentDataBase;
 class URingData;
 class UEvolutionItemData;
 class UInventoryData;
@@ -511,6 +512,12 @@ private:
     bool RemoveEvolutionFromGear(TArray<TEntry> &Gear, FGuid GearID, const TCHAR *Op);
     template <class TEntry>
     bool RemoveCrystalFromGear(TArray<TEntry> &Gear, int32 Index);
+    /** B-251 (DRY audit A13): the weapon / ring acquisition (mint the owned ID, the pickup roll, pool push,
+     *  broadcast) and removal, once for both entry types. */
+    template <class TEntry>
+    bool AddGearEntry(TArray<TEntry> &Gear, TEntry Entry, const UEquipmentDataBase &Asset);
+    template <class TEntry>
+    bool RemoveGearAt(TArray<TEntry> &Gear, int32 Index);
 
     /** Populates ownership lists + SavedLoadouts + ActiveLoadoutIndex from
      *  CharacterData->Inventory (a UInventoryData asset). Sole loadout-init
