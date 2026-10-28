@@ -79,19 +79,34 @@ UBossData *UBossData::FindFor(const UCharacterData *Character)
 	TArray<FAssetData> Assets;
 	Registry.GetAssetsByClass(UBossData::StaticClass()->GetClassPathName(), Assets, /*bSearchSubClasses=*/true);
 	const FSoftObjectPath CharacterPath(Character);
+	const auto LoadIfFor = [Character](const FAssetData &Asset)
+	{
+		UBossData *Data = Cast<UBossData>(Asset.GetAsset());
+		return Data && Data->Boss == Character ? Data : nullptr;
+	};
+	// B-263: an asset saved since Boss became searchable carries its boss as a tag, so a non-match is skipped
+	// without loading it (and the montages and VFX it references). An older asset has no tag and is loaded.
+	TArray<const FAssetData *> SkippedByTag;
 	for (const FAssetData &Asset : Assets)
 	{
-		// B-263: an asset saved since Boss became searchable carries its boss as a tag, so a non-match is skipped
-		// without loading it (and the montages and VFX it references). An older asset has no tag and is loaded.
 		FString BossTag;
 		if (Asset.GetTagValue(GET_MEMBER_NAME_CHECKED(UBossData, Boss), BossTag)
 			&& FSoftObjectPath(FPackageName::ExportTextPathToObjectPath(BossTag)) != CharacterPath)
 		{
+			SkippedByTag.Add(&Asset);
 			continue;
 		}
-		UBossData *Data = Cast<UBossData>(Asset.GetAsset());
-		if (Data && Data->Boss == Character)
+		if (UBossData *Data = LoadIfFor(Asset))
 		{
+			return Data;
+		}
+	}
+	// A tag can hold the character's old path if it was renamed since the boss was saved; check those the slow way.
+	for (const FAssetData *Asset : SkippedByTag)
+	{
+		if (UBossData *Data = LoadIfFor(*Asset))
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[BossData] %s's Boss tag is stale (renamed character?); resave it"), *Asset->AssetName.ToString());
 			return Data;
 		}
 	}
