@@ -785,10 +785,15 @@ private:
     UFUNCTION()
     void HandleGearSocketChanged(FGuid GearID);
 
-    /** Helper to get the sibling UInventoryComponent. Re-fetched per call (no
-     *  cache) — loading screens hide the FindComponentByClass cost. Returns
-     *  nullptr if the owner has no inventory component; callers must guard. */
+    /** Helper to get the sibling UInventoryComponent. Found once and cached (B-262: the anim instance and every
+     *  stat read call it per frame / per read); found again if the cached one is gone. Returns nullptr if the
+     *  owner has no inventory component; callers must guard. */
     UInventoryComponent *GetInventoryComponent() const;
+
+    /** B-262: the sibling components, found once (GetInventoryComponent / GetOwnerCharacterData). Weak, so a
+     *  removed component is looked up again rather than read stale. */
+    mutable TWeakObjectPtr<UInventoryComponent> CachedInventory;
+    mutable TWeakObjectPtr<UCharacterDataComponent> CachedCharacterDataComponent;
 
     // FindAttachedItemByHolder is the unified mutable-lookup helper, now public above.
 

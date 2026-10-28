@@ -45,6 +45,8 @@ namespace SkillProjectileConstants
 ASkillProjectile::ASkillProjectile()
 {
     PrimaryActorTick.bCanEverTick = true;
+    // B-262: no movement before Launch, so no tick until then.
+    PrimaryActorTick.bStartWithTickEnabled = false;
 
     // Root
     Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
@@ -303,6 +305,7 @@ void ASkillProjectile::Launch()
     }
 
     bIsLaunched = true;
+    SetActorTickEnabled(true);
 
     UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Launched toward %s (VFX: %s)"),
            *Target->GetName(),
@@ -325,8 +328,8 @@ void ASkillProjectile::TickProjectile(float DeltaTime)
     }
 
     FVector NewLocation = CurrentLocation + Direction * Speed * DeltaTime;
-    SetActorLocation(NewLocation);
-    SetActorRotation(Direction.Rotation());
+    // B-262: one move, so the overlap update runs once per frame, not twice.
+    SetActorLocationAndRotation(NewLocation, Direction.Rotation());
 
     // Check if reached destination
     float DistanceRemaining = FVector::Dist(NewLocation, TargetLocation);

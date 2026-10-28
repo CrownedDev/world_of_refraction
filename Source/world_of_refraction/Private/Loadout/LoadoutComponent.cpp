@@ -4061,7 +4061,11 @@ UCharacterData *ULoadoutComponent::GetOwnerCharacterData() const
         return nullptr;
     }
 
-    if (UCharacterDataComponent *CharComp = GetOwner()->FindComponentByClass<UCharacterDataComponent>())
+    if (!CachedCharacterDataComponent.IsValid())
+    {
+        CachedCharacterDataComponent = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+    }
+    if (UCharacterDataComponent *CharComp = CachedCharacterDataComponent.Get())
     {
         return CharComp->CharacterData;
     }
@@ -4074,7 +4078,11 @@ UInventoryComponent *ULoadoutComponent::GetInventoryComponent() const
     {
         return nullptr;
     }
-    return GetOwner()->FindComponentByClass<UInventoryComponent>();
+    if (!CachedInventory.IsValid())
+    {
+        CachedInventory = GetOwner()->FindComponentByClass<UInventoryComponent>();
+    }
+    return CachedInventory.Get();
 }
 
 // ==================== EQUIPMENT STAT QUERIES ====================
