@@ -75,6 +75,11 @@ EDataValidationResult UEffectDefinition::IsDataValid(FDataValidationContext &Con
                     i, *TypeName)));
                 Result = EDataValidationResult::Invalid;
             }
+            else if (SkillEffectClassification::HasNoReader(Payload.EffectType))
+            {
+                Context.AddWarning(FText::FromString(FString::Printf(
+                    TEXT("Effect %d uses legacy %s, which nothing reads; it does nothing. Pick a current type."), i, *TypeName)));
+            }
             else if (SkillEffectClassification::ResolveLegacyAlias(Payload.EffectType) != Payload.EffectType)
             {
                 Context.AddWarning(FText::FromString(FString::Printf(

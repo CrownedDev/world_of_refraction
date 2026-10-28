@@ -100,7 +100,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 		return EEffectApplicationResult::Rejected;
 	}
 
-	// B-268: a legacy authored type (CritDebuff, EnergyDebuff) is stored as the type that's read.
+	// B-268: a legacy authored CritDebuff is stored as the type that's read (CritChanceDebuff).
 	Effect.EffectType = SkillEffectClassification::ResolveLegacyAlias(Effect.EffectType);
 
 	// Check immunity

@@ -35,13 +35,14 @@ enum class ESkillEffectType : uint8
     /** LEGACY (B-268): stored as CritChanceDebuff (ResolveLegacyAlias). Hidden; author CritChanceDebuff. */
     CritDebuff UMETA(Hidden, DisplayName = "Crit Chance Debuff"),
 
-    /** LEGACY (B-268): stored as EnergyDrain (ResolveLegacyAlias). Hidden; author EnergyDrain. */
+    /** LEGACY (B-268): read by nothing. Not aliased: EnergyDrain is a per-turn payout, a different effect
+     *  (Q-268). Hidden; validation warns. */
     EnergyDebuff UMETA(Hidden, DisplayName = "Energy Debuff"),
 
     /** Skip turn / stun - display varies by element */
     SkipTurn UMETA(DisplayName = "Skip Turn"),
 
-    /** LEGACY bar-cap trigger (superseded by RandomSkill); never authored. Hidden. */
+    /** LEGACY bar-cap trigger (superseded by RandomSkill); read by nothing when authored. Hidden; validation warns. */
     RandomDebuff UMETA(Hidden, DisplayName = "Random Stat Debuff"),
 
     /** Burst damage (Reality/Raw mode) */
@@ -283,15 +284,16 @@ enum class ESkillEffectType : uint8
  */
 namespace SkillEffectClassification
 {
-    /** B-268: legacy types that still mean something are stored as today's type, once, when applied. */
+    /** B-268: a legacy type with the same meaning as today's is stored as today's type, once, when applied. */
     inline ESkillEffectType ResolveLegacyAlias(ESkillEffectType Type)
     {
-        switch (Type)
-        {
-        case ESkillEffectType::CritDebuff:   return ESkillEffectType::CritChanceDebuff;
-        case ESkillEffectType::EnergyDebuff: return ESkillEffectType::EnergyDrain;
-        default:                             return Type;
-        }
+        return Type == ESkillEffectType::CritDebuff ? ESkillEffectType::CritChanceDebuff : Type;
+    }
+
+    /** B-268 / Q-268: legacy types nothing reads and nothing equals; an authored one does nothing (validation warns). */
+    inline bool HasNoReader(ESkillEffectType Type)
+    {
+        return Type == ESkillEffectType::EnergyDebuff || Type == ESkillEffectType::RandomDebuff;
     }
 
     /** D-056: the generic Speed Buff / Debuff are retired; nothing reads them and validation refuses them. */
