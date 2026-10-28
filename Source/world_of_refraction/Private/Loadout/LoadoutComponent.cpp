@@ -2,6 +2,7 @@
 // Active combat loadout and runtime battle state implementation
 
 #include "Loadout/LoadoutComponent.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Loadout/SourceBreakRules.h"
 #include "Loadout/LoadoutConstants.h"
 #include "Inventory/InventoryConstants.h"
@@ -4081,6 +4082,7 @@ UInventoryComponent *ULoadoutComponent::GetInventoryComponent() const
 
 FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE(WoR_GetActiveStatBonus); // B-266: Insights marker (PerfAudit_2026-10-28.md)
     (void)Actor; // Always == GetOwner(); parameter kept for caller clarity.
 
     FEquipmentStatBonus Combined;

@@ -1,6 +1,7 @@
 // WoREffectMirrorComponent.cpp
 
 #include "GAS/WoREffectMirrorComponent.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameplayEffect.h"
@@ -96,6 +97,7 @@ TArray<FWoRMirroredEffect> UWoREffectMirrorComponent::ReadEnumEffects(const AAct
 
 void UWoREffectMirrorComponent::SyncMirror()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(WoR_SyncMirror); // B-266: Insights marker (PerfAudit_2026-10-28.md)
 	AActor *Owner = GetOwner();
 	UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner);
 	const USkillEffectManager *SEM = MirrorEffectManager(this);

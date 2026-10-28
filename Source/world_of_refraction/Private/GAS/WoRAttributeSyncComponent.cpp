@@ -1,6 +1,7 @@
 // WoRAttributeSyncComponent.cpp
 
 #include "GAS/WoRAttributeSyncComponent.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "GAS/WoRAttributeSets.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
@@ -203,6 +204,7 @@ TArray<FWoRAttributeSourceValue> UWoRAttributeSyncComponent::ReadSourceValues(co
 
 void UWoRAttributeSyncComponent::SyncAttributes()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(WoR_SyncAttributes); // B-266: Insights marker (PerfAudit_2026-10-28.md)
 	// The authority owns the values; clients receive them by replication.
 	UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
 	if (!ASC || !GetOwner()->HasAuthority())
