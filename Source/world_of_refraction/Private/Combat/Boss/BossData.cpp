@@ -5,6 +5,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Character/CharacterData.h"
 #include "Equipment/EquipmentDataBase.h"
+#include "Misc/PackageName.h"
 #include "WoRLog.h"
 
 namespace BossPresetConstants
@@ -77,8 +78,17 @@ UBossData *UBossData::FindFor(const UCharacterData *Character)
 	const IAssetRegistry &Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 	TArray<FAssetData> Assets;
 	Registry.GetAssetsByClass(UBossData::StaticClass()->GetClassPathName(), Assets, /*bSearchSubClasses=*/true);
+	const FSoftObjectPath CharacterPath(Character);
 	for (const FAssetData &Asset : Assets)
 	{
+		// B-263: an asset saved since Boss became searchable carries its boss as a tag, so a non-match is skipped
+		// without loading it (and the montages and VFX it references). An older asset has no tag and is loaded.
+		FString BossTag;
+		if (Asset.GetTagValue(GET_MEMBER_NAME_CHECKED(UBossData, Boss), BossTag)
+			&& FSoftObjectPath(FPackageName::ExportTextPathToObjectPath(BossTag)) != CharacterPath)
+		{
+			continue;
+		}
 		UBossData *Data = Cast<UBossData>(Asset.GetAsset());
 		if (Data && Data->Boss == Character)
 		{
