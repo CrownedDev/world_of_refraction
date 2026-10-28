@@ -1905,18 +1905,12 @@ bool ULoadoutComponent::UseItem(int32 SlotIndex)
 
 int32 ULoadoutComponent::GetItemRemainingUses(int32 SlotIndex) const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetItemRemainingUses] No InventoryComponent found on owner"));
-        return 0;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    const FCombatLoadout *Active = FindActiveLoadout(TEXT("GetItemRemainingUses"));
+    if (!Active)
     {
         return 0;
     }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = *Active;
 
     if (!Loadout.ItemSlots.IsValidIndex(SlotIndex))
     {
@@ -1930,18 +1924,12 @@ TArray<USkillDataBase *> ULoadoutComponent::GetAllWeaponAttacks() const
 {
     TArray<USkillDataBase *> Result;
 
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetAllWeaponAttacks] No InventoryComponent found on owner"));
-        return Result;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    const FCombatLoadout *Active = FindActiveLoadout(TEXT("GetAllWeaponAttacks"));
+    if (!Active)
     {
         return Result;
     }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = *Active;
 
     // Primary weapon attack — OverrideAttack takes precedence over the asset attack.
     if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
@@ -2203,18 +2191,12 @@ TArray<USpellData *> ULoadoutComponent::GetPrimarySlotSpells() const
 {
     TArray<USpellData *> Result;
 
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetPrimarySlotSpells] No InventoryComponent found on owner"));
-        return Result;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    const FCombatLoadout *Active = FindActiveLoadout(TEXT("GetPrimarySlotSpells"));
+    if (!Active)
     {
         return Result;
     }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = *Active;
 
     // Ring primary
     if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid())
@@ -2245,18 +2227,12 @@ TArray<USpellData *> ULoadoutComponent::GetSecondarySlotSpells() const
 {
     TArray<USpellData *> Result;
 
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetSecondarySlotSpells] No InventoryComponent found on owner"));
-        return Result;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    const FCombatLoadout *Active = FindActiveLoadout(TEXT("GetSecondarySlotSpells"));
+    if (!Active)
     {
         return Result;
     }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = *Active;
 
     // Only Generic has secondary
     if (GetCharacterClass() != ECharacterClass::Generic)
@@ -2275,18 +2251,12 @@ TArray<USpellData *> ULoadoutComponent::GetSecondarySlotSpells() const
 
 TArray<USpellData *> ULoadoutComponent::GetActiveSlotSpells() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveSlotSpells] No InventoryComponent found on owner"));
-        return TArray<USpellData *>();
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    const FCombatLoadout *Active = FindActiveLoadout(TEXT("GetActiveSlotSpells"));
+    if (!Active)
     {
         return TArray<USpellData *>();
     }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = *Active;
 
     // Resonator uses active ring
     if (GetCharacterClass() == ECharacterClass::Resonator)
@@ -2527,184 +2497,43 @@ void ULoadoutComponent::NotifyActiveWeaponChanged()
 
 UWeaponData *ULoadoutComponent::GetActiveWeapon() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveWeapon] No InventoryComponent found on owner"));
-        return nullptr;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-    {
-        return nullptr;
-    }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-    const bool bIsGeneric = GetCharacterClass() == ECharacterClass::Generic;
-
-    // Evolution primary = no weapon access
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
-    {
-        // Evolved Generic uses secondary weapon
-        if (bIsGeneric &&
-            Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
-        {
-            return Loadout.SecondaryWeapon.IsValid() ? Loadout.SecondaryWeapon.WeaponEntry.Weapon : nullptr;
-        }
-        // Caster/Resonator have no weapon when evolved
-        return nullptr;
-    }
-
-    // Ring primary - bShowPrimary controls stance display only, not combat capability.
-    // Generic with weapon-secondary always has weapon access; Caster/Resonator have none.
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
-    {
-        if (bIsGeneric &&
-            Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
-        {
-            return Loadout.SecondaryWeapon.IsValid() ? Loadout.SecondaryWeapon.WeaponEntry.Weapon : nullptr;
-        }
-
-        return nullptr;
-    }
-
-    // Weapon primary - class-specific behavior
-    if (bIsGeneric)
-    {
-        // Generic dual-weapon: bShowPrimary IS a real gameplay toggle.
-        if (Loadout.bShowPrimary)
-        {
-            return Loadout.PrimaryWeapon.IsValid() ? Loadout.PrimaryWeapon.WeaponEntry.Weapon : nullptr;
-        }
-        else if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
-        {
-            return Loadout.SecondaryWeapon.IsValid() ? Loadout.SecondaryWeapon.WeaponEntry.Weapon : nullptr;
-        }
-        return nullptr;
-    }
-
-    // Caster/Resonator: weapon equipped iff primary slot has weapon.
-    // bShowPrimary controls stance display only, not combat capability.
-    return Loadout.PrimaryWeapon.IsValid() ? Loadout.PrimaryWeapon.WeaponEntry.Weapon : nullptr;
+    // B-243 (DRY audit A2): the class / slot rule lives once, in GetActiveWeaponLoadout.
+    const FWeaponLoadoutEntry *Entry = GetActiveWeaponLoadout();
+    return Entry ? Entry->WeaponEntry.Weapon : nullptr;
 }
 
 UWeaponData *ULoadoutComponent::GetPrimaryWeapon() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetPrimaryWeapon] No InventoryComponent found on owner"));
-        return nullptr;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-    {
-        return nullptr;
-    }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-
-    if (Loadout.PrimarySlotType != EPrimarySlotType::Weapon)
-    {
-        return nullptr;
-    }
-
-    return Loadout.PrimaryWeapon.IsValid() ? Loadout.PrimaryWeapon.WeaponEntry.Weapon : nullptr;
+    const FWeaponLoadoutEntry *Entry = GetPrimaryWeaponLoadout();
+    return Entry ? Entry->WeaponEntry.Weapon : nullptr;
 }
 
 UWeaponData *ULoadoutComponent::GetSecondaryWeapon() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetSecondaryWeapon] No InventoryComponent found on owner"));
-        return nullptr;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-    {
-        return nullptr;
-    }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-
-    if (GetCharacterClass() != ECharacterClass::Generic)
-    {
-        return nullptr;
-    }
-
-    if (Loadout.SecondarySlotType != ESecondarySlotType::Weapon)
-    {
-        return nullptr;
-    }
-
-    return Loadout.SecondaryWeapon.IsValid() ? Loadout.SecondaryWeapon.WeaponEntry.Weapon : nullptr;
+    const FWeaponLoadoutEntry *Entry = GetSecondaryWeaponLoadout();
+    return Entry ? Entry->WeaponEntry.Weapon : nullptr;
 }
 
 URingData *ULoadoutComponent::GetPrimaryRing() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetPrimaryRing] No InventoryComponent found on owner"));
-        return nullptr;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-    {
-        return nullptr;
-    }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-
-    if (Loadout.PrimarySlotType != EPrimarySlotType::Ring)
-    {
-        return nullptr;
-    }
-
-    return Loadout.PrimaryRing.IsValid() ? Loadout.PrimaryRing.RingEntry.Ring : nullptr;
+    const FRingLoadoutEntry *Entry = GetPrimaryRingLoadout();
+    return Entry ? Entry->RingEntry.Ring : nullptr;
 }
 
 URingData *ULoadoutComponent::GetActiveRing() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveRing] No InventoryComponent found on owner"));
-        return nullptr;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-    {
-        return nullptr;
-    }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-
-    // Only Resonators have ring loadout
-    if (GetCharacterClass() != ECharacterClass::Resonator)
-    {
-        return nullptr;
-    }
-
-    if (!Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex))
-    {
-        return nullptr;
-    }
-
-    const FRingLoadoutEntry &Entry = Loadout.RingLoadout[Loadout.ActiveRingIndex];
-    return Entry.IsValid() ? Entry.RingEntry.Ring : nullptr;
+    const FRingLoadoutEntry *Entry = GetActiveRingLoadout();
+    return Entry ? Entry->RingEntry.Ring : nullptr;
 }
 
 UEvolutionItemData *ULoadoutComponent::GetPrimaryEvolution() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetPrimaryEvolution] No InventoryComponent found on owner"));
-        return nullptr;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    const FCombatLoadout *Active = FindActiveLoadout(TEXT("GetPrimaryEvolution"));
+    if (!Active)
     {
         return nullptr;
     }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = *Active;
 
     if (Loadout.PrimarySlotType != EPrimarySlotType::Evolution)
     {
@@ -2921,18 +2750,12 @@ void ULoadoutComponent::ToggleEquipment()
 
 bool ULoadoutComponent::HasWeaponAccess() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::HasWeaponAccess] No InventoryComponent found on owner"));
-        return false;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    const FCombatLoadout *Active = FindActiveLoadout(TEXT("HasWeaponAccess"));
+    if (!Active)
     {
         return false;
     }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = *Active;
     const bool bIsGeneric = GetCharacterClass() == ECharacterClass::Generic;
 
     // Evolution primary = no weapon access
@@ -2993,18 +2816,12 @@ bool ULoadoutComponent::HasSecondaryEquipment() const
         return false;
     }
 
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::HasSecondaryEquipment] No InventoryComponent found on owner"));
-        return false;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    const FCombatLoadout *Active = FindActiveLoadout(TEXT("HasSecondaryEquipment"));
+    if (!Active)
     {
         return false;
     }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = *Active;
 
     // B-099 (D-027): an evolution primary keeps the secondary weapon (GetActiveWeaponLoadout
     // fights with it, FCombatCapabilities lists it).
@@ -3026,18 +2843,12 @@ bool ULoadoutComponent::HasRingInSecondary() const
 
 UStanceData *ULoadoutComponent::GetCurrentStance() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetCurrentStance] No InventoryComponent found on owner"));
-        return nullptr;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    const FCombatLoadout *Active = FindActiveLoadout(TEXT("GetCurrentStance"));
+    if (!Active)
     {
         return nullptr;
     }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = *Active;
 
     // Stance is a visual concern, decoupled from combat capability:
     // bShowPrimary picks which slot is currently DISPLAYED, regardless of
@@ -3138,18 +2949,12 @@ TArray<USpellData *> ULoadoutComponent::GetRingResonateSpells() const
 {
     TArray<USpellData *> Result;
 
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetRingResonateSpells] No InventoryComponent found on owner"));
-        return Result;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    const FCombatLoadout *Active = FindActiveLoadout(TEXT("GetRingResonateSpells"));
+    if (!Active)
     {
         return Result;
     }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = *Active;
 
     // Caster with ring primary
     if (GetCharacterClass() == ECharacterClass::Caster && Loadout.PrimarySlotType == EPrimarySlotType::Ring)
@@ -3178,16 +2983,12 @@ TArray<USpellData *> ULoadoutComponent::GetRingResonateSpells() const
 
 const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
+    const FCombatLoadout *Active = FindActiveLoadout(TEXT("GetActiveWeaponLoadout"));
+    if (!Active)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveWeaponLoadout] No InventoryComponent found on owner"));
         return nullptr;
     }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-        return nullptr;
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = *Active;
     const bool bIsGeneric = GetCharacterClass() == ECharacterClass::Generic;
 
     // Evolution primary = no weapon
@@ -3271,16 +3072,12 @@ const FRuntimeAttachedItem *ULoadoutComponent::GetActiveWeaponAttachment() const
 
 const FWeaponLoadoutEntry *ULoadoutComponent::GetPrimaryWeaponLoadout() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
+    const FCombatLoadout *Active = FindActiveLoadout(TEXT("GetPrimaryWeaponLoadout"));
+    if (!Active)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetPrimaryWeaponLoadout] No InventoryComponent found on owner"));
         return nullptr;
     }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-        return nullptr;
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = *Active;
 
     if (Loadout.PrimarySlotType != EPrimarySlotType::Weapon)
         return nullptr;
@@ -3290,16 +3087,12 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetPrimaryWeaponLoadout() const
 
 const FWeaponLoadoutEntry *ULoadoutComponent::GetSecondaryWeaponLoadout() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
+    const FCombatLoadout *Active = FindActiveLoadout(TEXT("GetSecondaryWeaponLoadout"));
+    if (!Active)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetSecondaryWeaponLoadout] No InventoryComponent found on owner"));
         return nullptr;
     }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-        return nullptr;
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = *Active;
 
     if (GetCharacterClass() != ECharacterClass::Generic)
         return nullptr;
@@ -3312,35 +3105,27 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetSecondaryWeaponLoadout() const
 
 const FRingLoadoutEntry *ULoadoutComponent::GetPrimaryRingLoadout() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
+    const FCombatLoadout *Active = FindActiveLoadout(TEXT("GetPrimaryRingLoadout"));
+    if (!Active)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetPrimaryRingLoadout] No InventoryComponent found on owner"));
         return nullptr;
     }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-        return nullptr;
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = *Active;
 
     if (Loadout.PrimarySlotType != EPrimarySlotType::Ring)
         return nullptr;
 
-    return Loadout.PrimaryRing.RingEntry.Ring != nullptr ? &Loadout.PrimaryRing : nullptr;
+    return Loadout.PrimaryRing.IsValid() ? &Loadout.PrimaryRing : nullptr; // B-243: one validity check
 }
 
 const FRingLoadoutEntry *ULoadoutComponent::GetActiveRingLoadout() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
+    const FCombatLoadout *Active = FindActiveLoadout(TEXT("GetActiveRingLoadout"));
+    if (!Active)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveRingLoadout] No InventoryComponent found on owner"));
         return nullptr;
     }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-        return nullptr;
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = *Active;
 
     if (GetCharacterClass() != ECharacterClass::Resonator)
         return nullptr;
@@ -4636,3 +4421,15 @@ FGuid ULoadoutComponent::GetActivePrimaryEvolutionInstance() const
 }
 
 #undef LOCTEXT_NAMESPACE
+
+const FCombatLoadout *ULoadoutComponent::FindActiveLoadout(const TCHAR *Caller) const
+{
+    // B-243 (DRY audit A2): the "inventory + valid active index" preamble, once.
+    const UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::%s] No InventoryComponent found on owner"), Caller);
+        return nullptr;
+    }
+    return Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex) ? &Inv->SavedLoadouts[Inv->ActiveLoadoutIndex] : nullptr;
+}

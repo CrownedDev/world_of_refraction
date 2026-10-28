@@ -790,6 +790,9 @@ private:
      *  nullptr if the owner has no inventory component; callers must guard. */
     UInventoryComponent *GetInventoryComponent() const;
 
+    /** B-243: the active saved loadout, or null without an inventory (logged with Caller) or a valid index. */
+    const FCombatLoadout *FindActiveLoadout(const TCHAR *Caller) const;
+
     // FindAttachedItemByHolder is the unified mutable-lookup helper, now public above.
 
     /** Build the Broken Darkness element-spell pools on a loadout — one empty
