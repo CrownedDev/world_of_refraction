@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Combat/Actions/ActionExecutor.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "ActionExecutorInternal.h"
 #include "MotionWarpingComponent.h"
 #include "WoRLog.h"
@@ -540,6 +541,7 @@ float UActionExecutor::GetWeaponRequirementFactor(AActor *Actor, const FAction &
 FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FAction &Action,
 														   const FActionStatModifiers &ActionMods, bool bLog) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(WoR_PreviewActionDamage); // B-266: Insights marker (PerfAudit_2026-10-28.md)
 	FActionDamagePreview Preview;
 	const bool bIsSpell = Action.ActionType == EActionType::Spell;
 	const USkillDataBase *Skill = bIsSpell ? Action.SpellData : ResolveActionSkill(Action);
