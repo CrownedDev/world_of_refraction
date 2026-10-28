@@ -4618,7 +4618,7 @@ FEvolutionAttachment ULoadoutComponent::GetActivePrimaryEvolutionAttachment(AAct
     (void)Actor;
 
     // Same resolution as GetActivePrimaryEvolutionCrystal, returning the whole
-    // attachment (by value — GetActiveLoadout copies, so no stable pointer exists).
+    // attachment by value, so the result outlives a later loadout change.
     const FCombatLoadout &Loadout = GetActiveLoadout();
     if (Loadout.PrimarySlotType != EPrimarySlotType::Weapon || !Loadout.PrimaryWeapon.IsValid())
     {
