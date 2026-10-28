@@ -11,6 +11,7 @@
 - **Wearing the skin makes their bound gear work** (D-033's owner bonus): one of the benefits of playing as them.
 - **How it fills (Crown, 2026-10-28: A):** **per fight won**, by how many of the character's pieces were equipped in that fight (1 of 6: a trickle; all 6: fast). An **exact piece counts in full**; the **same piece at a different tier counts for less** (`// TODO: tune` the amounts). Monster Hunter's weapon mastery / Hades' affinity: visible progress after every fight.
 - **Switching (Crown, 2026-10-28: A):** once unlocked, you can switch skins **in the hub and at rest spots** (where loadouts change); never in a fight.
+- **The formless being plays fully (Crown, 2026-10-28: A):** the starter kit and any gear found; it only lacks a skin and the bound-gear bonuses. The first skin is earned by playing.
 - No character creator (face sliders, hair, body types) is planned; the skins are the customisation.
 
 ## 2. The editor
@@ -33,7 +34,6 @@
 
 ## 5. Open (to discuss)
 
-- What the formless being can do: full play with the starter kit, or limited until a character is picked.
 - Whether a skin changes anything beyond looks and bound gear (stats, a signature skill).
 - Name for the formless state and for "characters" in player-facing text (Crown's).
 
@@ -42,6 +42,7 @@
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-28 | Draft from Crown's Mortal Shell idea | docs/character-forms |
+| 2026-10-28 | The formless being plays fully (Crown) | docs/character-forms-formless |
 | 2026-10-28 | Switch skins in the hub and at rest spots (Crown) | docs/character-forms-switch |
 | 2026-10-28 | Meter fills per fight won by matching pieces, partial credit for other tiers (Crown) | docs/character-forms-fill |
 | 2026-10-28 | The loadout-match meter unlocks the skin and reveals the loadout; bound gear works on the skin (Crown) | docs/character-forms-meter |
