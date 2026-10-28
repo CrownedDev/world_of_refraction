@@ -31,10 +31,21 @@ void FElementBreakNameSpec::Define()
 		}
 	});
 
-	It("shows Water's break as Frozen", [this]()
+	It("shows each element's break word (Water's is Frozen, D-090)", [this]()
 	{
-		TestEqual(TEXT("Water"), SkillEffectDisplayNames::GetDisplayName(ESkillEffectType::ActionSpeedDebuff, ESpellElement::Water),
-				  FString(TEXT("Frozen")));
+		const TPair<ESpellElement, const TCHAR *> ExpectedWords[] = {
+			{ESpellElement::Fire, TEXT("Burn")},		  {ESpellElement::Water, TEXT("Frozen")},
+			{ESpellElement::Earth, TEXT("Softened")},	  {ESpellElement::Wind, TEXT("Tripped")},
+			{ESpellElement::Lightning, TEXT("Stunned")}, {ESpellElement::Light, TEXT("Dimmed")},
+			{ESpellElement::Darkness, TEXT("Silenced")}, {ESpellElement::Void, TEXT("Voided")},
+		};
+		for (const TPair<ESpellElement, const TCHAR *> &Expected : ExpectedWords)
+		{
+			const ESkillEffectType Trigger = BarCapTriggerResolver::ResolveTrigger(Expected.Key, EPhysicalDamageType::None, false);
+			TestEqual(UEnum::GetValueAsString(Expected.Key), SkillEffectDisplayNames::GetDisplayName(Trigger, Expected.Key),
+					  FString(Expected.Value));
+		}
+		TestTrue(TEXT("Reality has no break word"), WoRGameNames::GetElementBreakName(ESpellElement::Reality).IsEmpty());
 	});
 
 	It("keeps the shared table's words for the dropped repeats", [this]()
