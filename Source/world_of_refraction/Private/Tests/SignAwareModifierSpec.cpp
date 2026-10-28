@@ -10,6 +10,7 @@
 #include "Combat/TurnManager.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/ESkillEffectType.h"
+#include "Skills/Effects/FSkillEffectPayload.h"
 #include "Skills/Effects/SkillEffectManager.h"
 
 namespace
@@ -56,6 +57,22 @@ void FSignAwareModifierSpec::Define()
 		TestTrue(TEXT("TurnSpeedDebuff stays a debuff"), SkillEffectClassification::IsDebuff(ESkillEffectType::TurnSpeedDebuff, SIGN_TEST_SIZE));
 	});
 
+	It("classifies an authored payload by its target: aimed at an enemy it reads as a debuff", [this]()
+	{
+		for (const ESkillEffectType Type : {ESkillEffectType::ModifyEnergyCost, ESkillEffectType::ModifyTurnSpeed})
+		{
+			FSkillEffectPayload Payload;
+			Payload.EffectType = Type;
+			Payload.Value = static_cast<int32>(SIGN_TEST_SIZE);
+			Payload.Target = ETargetType::Ally;
+			TestTrue(UEnum::GetValueAsString(Type) + TEXT(" on an ally: buff"),
+					 SkillEffectClassification::IsBuff(Type, Payload.GetClassifyingMagnitude()));
+			Payload.Target = ETargetType::Enemy;
+			TestTrue(UEnum::GetValueAsString(Type) + TEXT(" on an enemy: debuff"),
+					 SkillEffectClassification::IsDebuff(Type, Payload.GetClassifyingMagnitude()));
+		}
+	});
+
 	Describe("in a fight", [this]()
 	{
 		BeforeEach([this]()
@@ -85,6 +102,26 @@ void FSignAwareModifierSpec::Define()
 			EffectManager = nullptr;
 			TurnManager = nullptr;
 			Caster = Ally = Enemy = nullptr;
+		});
+
+		It("signs by a passed team when there's no source actor (gear reactions)", [this]()
+		{
+			if (!EffectManager) return;
+			EffectManager->ApplyEffect(Enemy,
+									   FActiveSkillEffect::CreateBuff(TEXT("Sign test"), SIGN_TEST_EFFECT_ID, ESkillEffectType::ModifyTurnSpeed,
+																	  SIGN_TEST_SIZE, SIGN_TEST_TURNS),
+									   nullptr, FString(), TurnManager->GetActorTeam(Caster));
+			TestEqual(TEXT("slower"), EffectManager->GetTotalStatModifier(Enemy, ESkillEffectType::ModifyTurnSpeed), -SIGN_TEST_SIZE);
+		});
+
+		It("keeps a value authored negative on its own side (a self-drawback)", [this]()
+		{
+			if (!EffectManager) return;
+			EffectManager->ApplyEffect(Ally,
+									   FActiveSkillEffect::CreateBuff(TEXT("Sign test"), SIGN_TEST_EFFECT_ID, ESkillEffectType::ModifyTurnSpeed,
+																	  -SIGN_TEST_SIZE, SIGN_TEST_TURNS),
+									   Caster, TEXT("SignTest"));
+			TestEqual(TEXT("still slower"), EffectManager->GetTotalStatModifier(Ally, ESkillEffectType::ModifyTurnSpeed), -SIGN_TEST_SIZE);
 		});
 
 		for (const ESkillEffectType Type : {ESkillEffectType::ModifyEnergyCost, ESkillEffectType::ModifyTurnSpeed})

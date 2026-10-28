@@ -100,7 +100,8 @@ struct WORLD_OF_REFRACTION_API FSkillEffectPayload
 
     /** The magnitude the card and the template classify by. D-054 / Q-267: a Turn Speed or Energy Cost
      *  modifier aimed at an enemy works the other way (slower turns, dearer skills), so it counts negative
-     *  there, as SkillEffectManager::ApplyEffect signs it. Every other type: Magnitude, as authored. */
+     *  there, as SkillEffectManager::ApplyEffect signs it. Every other type: Magnitude, as authored.
+     *  An Anyone target reads as the ally case here; at runtime the side it lands on decides. */
     float GetClassifyingMagnitude() const
     {
         if (EffectType != ESkillEffectType::ModifyTurnSpeed && EffectType != ESkillEffectType::ModifyEnergyCost)
