@@ -683,7 +683,7 @@ namespace
         }
         else
         {
-            const FCombatLoadout Active = Loadout->GetActiveLoadout();
+            const FCombatLoadout &Active = Loadout->GetActiveLoadout();
             if (Active.PrimarySlotType == EPrimarySlotType::Evolution && Active.PrimaryEvolution.Item)
             {
                 UEvolutionItemData *PrimaryEvo = Active.PrimaryEvolution.Item;
