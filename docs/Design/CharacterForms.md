@@ -4,7 +4,7 @@
 
 ## 1. The idea (Crown, 2026-10-28)
 
-- **The player starts as a formless being** with no character design: a translucent, galaxy-touched silhouette on the mannequin (it echoes V, "any and all concepts", and must look intended, never like a missing asset).
+- **The player character is Manny or Quinn, an extension of V** (Crown, 2026-10-28): the default form is the UE5 mannequin wearing V's void / galaxy material (a lighter cousin of V's own, `VisualDirection.md` §2f). The only choice at the start is **Manny or Quinn** (and class). No creator. Lore: the player *is* part of V (hidden from players like V's identity, `HubAndStory.md` §2: to confirm).
 - **Each authored character has a loadout**: their weapons, rings, skills, evolution (and lore).
 - **You build your own loadout.** Every piece you equip that belongs to a character's loadout **fills a meter for that character**; the more of their pieces you use, the faster it fills (it fills through play, not at once).
 - **At 100% you unlock the character's skin** (their form). The unlock also **reveals their full loadout**: all their weapons, skills and so on, so you see what else they used.
@@ -36,13 +36,14 @@
 ## 5. Open (to discuss)
 
 - Name for the formless state and for "characters" in player-facing text (Crown's).
-- **Pinned (Crown, 2026-10-28): a creator for the nameless one.** Crown's idea: players make their own character, which *is* the nameless one. Options discussed: a light creator (silhouette presets, height, galaxy / void tint, glow colour, a mark, a name; no faces / hair / clothing) or a full creator (face, hair, body, clothing: the big rigging, clothing and save job). Crown wants to think about what kind of game this is first. B-279 ships the formless default without a creator until decided.
+- ~~A creator for the nameless one~~ **Closed (Crown, 2026-10-28): no creator; the player is Manny / Quinn as an extension of V.**
 
 ## Changelog
 
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-28 | Draft from Crown's Mortal Shell idea | docs/character-forms |
+| 2026-10-28 | Player character = Manny / Quinn in V's material, an extension of V; no creator (Crown) | docs/player-is-v |
 | 2026-10-28 | A skin changes only looks and bound gear; doc decided; B-279 (Crown) | docs/character-forms-done |
 | 2026-10-28 | The formless being plays fully (Crown) | docs/character-forms-formless |
 | 2026-10-28 | Switch skins in the hub and at rest spots (Crown) | docs/character-forms-switch |
