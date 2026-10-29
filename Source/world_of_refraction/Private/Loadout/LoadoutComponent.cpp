@@ -3507,6 +3507,12 @@ FRuntimeAttachedItem *ULoadoutComponent::FindAttachedItemByHolder(UObject *Holde
     // regardless of PrimarySlotType. A holder lookup is by identity, not slot.
     if (UWeaponData *Weapon = Cast<UWeaponData>(Holder))
     {
+        // B-310: a Generic showing its secondary is fighting with it, so with two identical weapons the wear goes
+        // there first (only a Generic has a secondary weapon).
+        if (!Loadout.bShowPrimary && Loadout.SecondaryWeapon.WeaponEntry.Weapon == Weapon)
+        {
+            return &Loadout.SecondaryWeapon.WeaponEntry.AttachedItem;
+        }
         if (Loadout.PrimaryWeapon.WeaponEntry.Weapon == Weapon)
         {
             return &Loadout.PrimaryWeapon.WeaponEntry.AttachedItem;
@@ -3522,6 +3528,12 @@ FRuntimeAttachedItem *ULoadoutComponent::FindAttachedItemByHolder(UObject *Holde
     // RingLoadout array.
     if (URingData *Ring = Cast<URingData>(Holder))
     {
+        // B-310: the adapter in use first, so with two identical adapters the cast's wear lands on the one cast
+        // through, not on the first copy in the list.
+        if (Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex) && Loadout.RingLoadout[Loadout.ActiveRingIndex].RingEntry.Ring == Ring)
+        {
+            return &Loadout.RingLoadout[Loadout.ActiveRingIndex].RingEntry.AttachedItem;
+        }
         if (Loadout.PrimaryRing.RingEntry.Ring == Ring)
         {
             return &Loadout.PrimaryRing.RingEntry.AttachedItem;
@@ -3616,12 +3628,15 @@ namespace LoadoutCarryInternal
     template <typename TLoadout, typename FFunc>
     void ForEachAttachmentSlot(TLoadout &Loadout, FFunc &&Func)
     {
-        Func(static_cast<UObject *>(Loadout.PrimaryWeapon.WeaponEntry.Weapon), Loadout.PrimaryWeapon.WeaponEntry.AttachedItem);
-        Func(static_cast<UObject *>(Loadout.SecondaryWeapon.WeaponEntry.Weapon), Loadout.SecondaryWeapon.WeaponEntry.AttachedItem);
-        Func(static_cast<UObject *>(Loadout.PrimaryRing.RingEntry.Ring), Loadout.PrimaryRing.RingEntry.AttachedItem);
+        Func(static_cast<UObject *>(Loadout.PrimaryWeapon.WeaponEntry.Weapon), Loadout.PrimaryWeapon.WeaponEntry.PersistentID,
+             Loadout.PrimaryWeapon.WeaponEntry.AttachedItem);
+        Func(static_cast<UObject *>(Loadout.SecondaryWeapon.WeaponEntry.Weapon), Loadout.SecondaryWeapon.WeaponEntry.PersistentID,
+             Loadout.SecondaryWeapon.WeaponEntry.AttachedItem);
+        Func(static_cast<UObject *>(Loadout.PrimaryRing.RingEntry.Ring), Loadout.PrimaryRing.RingEntry.PersistentID,
+             Loadout.PrimaryRing.RingEntry.AttachedItem);
         for (auto &Entry : Loadout.RingLoadout)
         {
-            Func(static_cast<UObject *>(Entry.RingEntry.Ring), Entry.RingEntry.AttachedItem);
+            Func(static_cast<UObject *>(Entry.RingEntry.Ring), Entry.RingEntry.PersistentID, Entry.RingEntry.AttachedItem);
         }
     }
 }
@@ -3636,11 +3651,14 @@ FCarriedGearState ULoadoutComponent::SnapshotCarriedGear() const
     }
 
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried](UObject *Holder, const FRuntimeAttachedItem &Attached)
+    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried](UObject *Holder, const FGuid &GearID, const FRuntimeAttachedItem &Attached)
     {
         if (Holder)
         {
-            Carried.Attachments.Add({Holder, Attached});
+            FCarriedAttachment &Entry = Carried.Attachments.AddDefaulted_GetRef();
+            Entry.Holder = Holder;
+            Entry.GearID = GearID;
+            Entry.Attached = Attached;
         }
     });
     Carried.bHasPrimaryEvolution = Loadout.PrimarySlotType == EPrimarySlotType::Evolution;
@@ -3662,18 +3680,35 @@ int32 ULoadoutComponent::ApplyCarriedGear(const FCarriedGearState &Carried)
     }
 
     FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-    // Matched in slot order, each carried entry used once, so two copies of one ring keep their own state.
+    // B-310 (D-111): matched by the owned item's GUID first, so an item gets its own wear wherever it sits. A slot
+    // with no GUID (asset-built gear) or an entry saved before B-310 falls back to the asset, in slot order, each
+    // carried entry used once.
     TBitArray<> Used(false, Carried.Attachments.Num());
     int32 Restored = 0;
-    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried, &Used, &Restored](UObject *Holder, FRuntimeAttachedItem &Attached)
+    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried, &Used, &Restored](UObject *Holder, const FGuid &GearID, FRuntimeAttachedItem &Attached)
     {
+        const auto Take = [&](int32 i)
+        {
+            Attached = Carried.Attachments[i].Attached;
+            Used[i] = true;
+            ++Restored;
+        };
+        if (GearID.IsValid())
+        {
+            for (int32 i = 0; i < Carried.Attachments.Num(); ++i)
+            {
+                if (!Used[i] && Carried.Attachments[i].GearID == GearID)
+                {
+                    Take(i);
+                    return;
+                }
+            }
+        }
         for (int32 i = 0; Holder && i < Carried.Attachments.Num(); ++i)
         {
-            if (!Used[i] && Carried.Attachments[i].Holder == Holder)
+            if (!Used[i] && !Carried.Attachments[i].GearID.IsValid() && Carried.Attachments[i].Holder == Holder)
             {
-                Attached = Carried.Attachments[i].Attached;
-                Used[i] = true;
-                ++Restored;
+                Take(i);
                 return;
             }
         }
