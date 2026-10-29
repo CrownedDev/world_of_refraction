@@ -1151,10 +1151,10 @@ FString UInventoryComponent::GetOwnedGearSyncString() const
         Out += FString::Printf(TEXT("\n  [%d] %s"), Index, *Loadout.LoadoutName);
         Out += DescribeSlot(TEXT("Primary weapon"), Loadout.PrimaryWeapon.WeaponEntry, Weapons);
         Out += DescribeSlot(TEXT("Secondary weapon"), Loadout.SecondaryWeapon.WeaponEntry, Weapons);
-        Out += DescribeSlot(TEXT("Primary ring"), Loadout.PrimaryRing.RingEntry, Rings);
+        Out += DescribeSlot(TEXT("Primary adapter"), Loadout.PrimaryRing.RingEntry, Rings);
         for (const FRingLoadoutEntry &Ring : Loadout.RingLoadout)
         {
-            Out += DescribeSlot(TEXT("Ring"), Ring.RingEntry, Rings);
+            Out += DescribeSlot(TEXT("Adapter"), Ring.RingEntry, Rings);
         }
         if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
         {

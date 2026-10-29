@@ -1779,7 +1779,7 @@ bool ULoadoutComponent::TryAssignRingSpell(int32 LoadoutIndex, USpellData *Spell
     return TryChangeLoadout(LoadoutIndex, Spell != nullptr,
                             [Spell](const FCombatLoadout &Loadout, ECharacterClass CharacterClass)
                             {
-                                return RefuseUnlessFree(UsesPrimaryRing(Loadout, CharacterClass), LOCTEXT("PickNoRing", "No primary ring is equipped."),
+                                return RefuseUnlessFree(UsesPrimaryRing(Loadout, CharacterClass), LOCTEXT("PickNoAdapter", "No primary adapter is equipped."),
                                                         Loadout.PrimaryRing.RingEntry.AssignedSpells, Spell);
                             },
                             [Spell](FCombatLoadout &Loadout) { AddToFirstGap(Loadout.PrimaryRing.RingEntry.AssignedSpells, Spell); }, OutRefusal);

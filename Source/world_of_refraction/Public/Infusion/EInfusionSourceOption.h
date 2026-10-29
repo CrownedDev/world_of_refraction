@@ -35,10 +35,10 @@ enum class EInfusionSourceOption : uint8
     Innate UMETA(DisplayName = "Innate Element"),
 
     /** Resonator's currently equipped ring - L2 risks ring break */
-    ActiveRing UMETA(DisplayName = "Active Ring"),
+    ActiveRing UMETA(DisplayName = "Active Adapter"),
 
     /** Gaster/Generics's current primary ring - L2 risks ring break */
-    PrimaryRing UMETA(DisplayName = "Primary Ring"),
+    PrimaryRing UMETA(DisplayName = "Primary Adapter"),
 
     /** Weapon's slotted crystal element - L2 risks crystal break */
     WeaponCrystal UMETA(DisplayName = "Weapon Crystal"),
