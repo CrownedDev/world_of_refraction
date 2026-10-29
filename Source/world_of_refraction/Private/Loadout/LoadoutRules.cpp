@@ -455,7 +455,7 @@ int32 FLoadoutRules::SlotCost(const FLoadoutSlot &Slot)
 TArray<FInvalidSlotFinding> FLoadoutRules::CollectClassLimitFindings(const FCombatLoadout &Loadout, ECharacterClass Class)
 {
 	FCombatLoadout Mirror = Loadout;
-	Mirror.RebuildSlotsFromLegacy(Class == ECharacterClass::Generic);
+	Mirror.RebuildSlotsFromLegacy(Class);
 	const FLoadoutClassLimits Limits = LoadoutClassTable::Get(Class);
 
 	const bool bEvolutionSeat = Mirror.PrimarySlotType == EPrimarySlotType::Evolution;
