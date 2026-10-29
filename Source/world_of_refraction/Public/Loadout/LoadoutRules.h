@@ -13,6 +13,7 @@
 #include "CoreMinimal.h"
 #include "Character/ECharacterClass.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "Loadout/LoadoutConstants.h"
 #include "LoadoutRules.generated.h"
 
 struct FCombatLoadout;
@@ -139,7 +140,7 @@ namespace LoadoutClassTable
 	/** Generic: budget 6, two items: up to two weapons, and it keeps one adapter (D-110 B). */
 	constexpr FLoadoutClassLimits GENERIC{6, 2, 2, 1};
 	/** Resonator: budget 5 (CL-10), one weapon, any number of adapters. */
-	constexpr FLoadoutClassLimits RESONATOR{5, NO_LIMIT, 1, NO_LIMIT};
+	constexpr FLoadoutClassLimits RESONATOR{LoadoutConstants::LOADOUT_TOTAL_BUDGET, NO_LIMIT, 1, NO_LIMIT};
 
 	inline FLoadoutClassLimits Get(ECharacterClass Class)
 	{
@@ -161,6 +162,10 @@ struct WORLD_OF_REFRACTION_API FLoadoutRules
 	/** D-110: one cost for every class. Weapon: bare 1 / with a crystal, stone or fusion 2 / with an evolution 3.
 	 *  Adapter: 1 / with an evolution 2 (InventoryConstants). The evolution seat is EVOLUTION_PRIMARY_SLOT_COST. */
 	static int32 SlotCost(const FLoadoutSlot &Slot);
+
+	/** What the class's weapons and evolution seat cost (everything but adapters), over the slots the fight reads.
+	 *  The budget finding and ClearInvalidSlots' adapter drop both use it, so they can't disagree. */
+	static int32 NonAdapterCost(const FCombatLoadout &Loadout, ECharacterClass Class);
 
 	/** D-110: the class's budget, item count and per-kind limits over the unified slots (B-302's mirror, rebuilt
 	 *  here from the old fields so it is never stale). A Resonator's budget finding stays RingOverflow (cleared by
