@@ -36,9 +36,9 @@ Source folder: https://drive.google.com/drive/folders/1-gc1wYbPD8mcoarMTvl-lqTJR
 
 Lore stays Crown's; this list is for asset and editor planning only.
 
-## Confirmed characters to build first (Crown, 2026-10-29)
+## First characters: draft, under discussion (Crown, 2026-10-29; not committed)
 
-Class, evolution and weapon per character (Crown's words; lore stays Crown's). "Adapter" = the proposed new name for rings (and some weapons), see `DesignDecisions.md` D-107.
+Class, evolution and weapon per character (Crown's words; lore stays Crown's). "Adapter" = the new name for the ring loadout (D-107): a specialised tool for channelling spells, in any form (ring, pistols, trainers). Weapons stay weapons.
 
 | Character | Class | Evolution | Weapon / adapters | Notes |
 |---|---|---|---|---|
@@ -46,9 +46,9 @@ Class, evolution and weapon per character (Crown's words; lore stays Crown's). "
 | **Orthos Prisma** | Generic | Light: "All for One" | Great axe with a B Light crystal | |
 | **Garnet** | Generic | Fire: "Rise from the Ashes" | Halberd | |
 | **Sapphire Flowers** | Refractor (Water) | Water evolution | — | lore: sleep; people near her get tired, herself included |
-| **Amethyst Prisma** | Resonator | Void: "Monster Creation" | Dual pistols as adapters (casts resonance refractions through them) | adapters may get a slot cost |
-| **Emerald Sanctum** | Refractor | — | An S-tier Emerald ring / adapter | |
+| **Amethyst Prisma** | Resonator | Void: "Monster Creation" | Adapters: dual pistols (casts resonance refractions through them); weapon: open | adapters may get a slot cost |
+| **Emerald Sanctum** | Refractor | — | An S-tier Emerald adapter | |
 | **Amber** | Generic | Amber: "Infinite Stamina" | Dual chain scythes | |
-| **Ares** (sheet: Aron Citrine?) | Resonator | Lightning: "Lightning Speed" | Trainer adapters; two Lightning rings / adapters | Crown to confirm the name vs the Drive sheet |
+| **Ares** (sheet: Aron Citrine?) | Resonator | Lightning: "Lightning Speed" | Adapters: trainers, two Lightning adapters | Crown to confirm the name vs the Drive sheet |
 
-Build order for B-280 / the character editor: V template, then these in Crown's order.
+Build order once agreed: V template first, then these in Crown's order.
