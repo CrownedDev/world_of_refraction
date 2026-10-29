@@ -183,7 +183,7 @@ void FLastStandSpec::Define()
 
 	It("Sapphire on a dead ally revives it at 30% (PA-24)", [this]()
 	{
-		if (!Items) return;
+		if (!Items || !Effects) return;
 		AActor *Ally = SpawnAlly();
 		UCharacterDataComponent *Comp = CharOf(Ally);
 		LethalBlow(Ally);
