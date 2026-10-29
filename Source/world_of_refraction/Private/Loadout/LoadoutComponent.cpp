@@ -1520,20 +1520,9 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
         {
             // Walk rings accumulating cost from the primary slot's cost; truncate
             // from the first index where adding the next ring would exceed budget.
-            int32 PrimaryCost = 0;
-            switch (Loadout.PrimarySlotType)
-            {
-            case EPrimarySlotType::Weapon:
-                PrimaryCost = Loadout.PrimaryWeapon.WeaponEntry.GetSlotCost();
-                break;
-            case EPrimarySlotType::Evolution:
-                PrimaryCost = LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST;
-                break;
-            case EPrimarySlotType::None:
-            case EPrimarySlotType::Ring:
-                PrimaryCost = 0;
-                break;
-            }
+            // B-303: the same cost and budget the finding used (FLoadoutRules over the slots the fight reads).
+            const int32 PrimaryCost = FLoadoutRules::NonAdapterCost(Loadout, GetCharacterClass());
+            const int32 Budget = LoadoutClassTable::Get(GetCharacterClass()).Budget;
 
             int32 RunningTotal = PrimaryCost;
             int32 TruncateFromIndex = INDEX_NONE;
@@ -1544,7 +1533,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
                     continue;
                 }
                 const int32 NextCost = InventoryConstants::GetRingSlotCost(Loadout.RingLoadout[i].IsEvolved());
-                if (RunningTotal + NextCost > LoadoutConstants::LOADOUT_TOTAL_BUDGET)
+                if (RunningTotal + NextCost > Budget)
                 {
                     TruncateFromIndex = i;
                     break;

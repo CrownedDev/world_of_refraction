@@ -452,6 +452,18 @@ int32 FLoadoutRules::SlotCost(const FLoadoutSlot &Slot)
 	return Slot.Gear.HasAttachment() ? InventoryConstants::GetWeaponSlotCost(true, bEvolved) : InventoryConstants::WEAPON_BASE_SLOT_COST;
 }
 
+int32 FLoadoutRules::NonAdapterCost(const FCombatLoadout &Loadout, ECharacterClass Class)
+{
+	FCombatLoadout Mirror = Loadout;
+	Mirror.RebuildSlotsFromLegacy(Class);
+	int32 Cost = Mirror.PrimarySlotType == EPrimarySlotType::Evolution ? LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST : 0;
+	for (const FLoadoutSlot &Slot : Mirror.Slots)
+	{
+		Cost += Slot.Kind() == EGearKind::Weapon ? SlotCost(Slot) : 0;
+	}
+	return Cost;
+}
+
 TArray<FInvalidSlotFinding> FLoadoutRules::CollectClassLimitFindings(const FCombatLoadout &Loadout, ECharacterClass Class)
 {
 	FCombatLoadout Mirror = Loadout;
