@@ -116,13 +116,32 @@ void FClassLimitsSpec::Define()
 																				 { return F.SlotType == ELoadoutSlotType::RingOverflow && F.bClearable; }));
 	});
 
-	It("counts a Refractor's evolution seat as its one item", [this]()
+	It("counts only the gear the fight reads for the class", [this]()
 	{
-		FCombatLoadout Refractor;
-		Refractor.PrimarySlotType = EPrimarySlotType::Evolution;
-		Refractor.RingLoadout.Add(ClassLimitsTestAdapter()); // a shape a Refractor can't author today
-		const TArray<FInvalidSlotFinding> Findings = FLoadoutRules::CollectClassLimitFindings(Refractor, ECharacterClass::Caster);
-		TestTrue(TEXT("two items refused"), Findings.ContainsByPredicate([](const FInvalidSlotFinding &F) { return F.Reason.Contains(TEXT("Too many items")); }));
+		// A loadout authored for a Generic, worn by a Resonator: its secondary weapon isn't read, so it costs nothing.
+		FCombatLoadout Loadout;
+		Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
+		Loadout.PrimaryWeapon = ClassLimitsTestWeapon(ClassLimitsTestEvolution()); // 3
+		Loadout.SecondarySlotType = ESecondarySlotType::Weapon;
+		Loadout.SecondaryWeapon = ClassLimitsTestWeapon(ClassLimitsTestEvolution()); // ignored for a Resonator
+		Loadout.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 2: 5
+		TestEqual(TEXT("weapons and seat"), FLoadoutRules::NonAdapterCost(Loadout, ECharacterClass::Resonator),
+				  InventoryConstants::WEAPON_EVOLUTION_SLOT_COST);
+		TestFalse(TEXT("no budget finding"), ClassLimitsHasBudgetFinding(FLoadoutRules::CollectClassLimitFindings(Loadout, ECharacterClass::Resonator)));
+	});
+
+	It("words a Resonator's budget finding as the old check did", [this]()
+	{
+		FCombatLoadout Resonator;
+		Resonator.PrimarySlotType = EPrimarySlotType::Evolution; // seat 2
+		Resonator.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 2
+		Resonator.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 2: 6
+		const FString Expected = FString::Printf(TEXT("Loadout exceeds budget: primary (cost %d) + rings (cost %d) = %d, max is %d"),
+												 LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST, 2 * InventoryConstants::RING_EVOLUTION_SLOT_COST,
+												 LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST + 2 * InventoryConstants::RING_EVOLUTION_SLOT_COST,
+												 LoadoutConstants::LOADOUT_TOTAL_BUDGET);
+		const TArray<FInvalidSlotFinding> Findings = FLoadoutRules::CollectClassLimitFindings(Resonator, ECharacterClass::Resonator);
+		TestTrue(TEXT("same words: ") + Expected, Findings.ContainsByPredicate([&Expected](const FInvalidSlotFinding &F) { return F.Reason == Expected; }));
 	});
 }
 
