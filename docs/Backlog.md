@@ -166,6 +166,23 @@ Bugs first, then one source of truth for "an element" / "a damage type". No enum
 | B-276 | **S10: element helpers**: `IsConcrete` / `IsInherit`; the ~15 direct `InnateElement` reads go through the Caster check; one "Reality Refractor" check (≥5 copies) | CC | S | — | Specs green; one helper per question | REVIEW (branch, UNBUILT): `refactor/B-276-element-helpers`, written in a cloud session; the infusion-source innate reads are left for B-270, and the ~12 inline Generic comparisons still to move onto IsConcrete / IsInherit; run `WoR.Elements.Helpers` + the suite, then hand off |
 | B-277 | **S11: small tidy-ups**: cost-clamp literals named; unused `FCombatHitResult` block / parry / dodge flags flagged obsolete; note `EItemTier` (F=0) vs `EScalingTier` (S=0) opposite order in both headers; `EItemQuality` has no reader (flag) | CC | S | — | Comments / constants only; behaviour unchanged | REVIEW (branch, UNBUILT): `chore/B-277-small-tidy-ups`, written in a cloud session; build, then hand off |
 
+## Phase 1e — Rules pinned by tests (`analysis/RulesTraceability_2026-10-29.md`)
+
+Every rule in `docs/Rules/` gets a spec that asserts its number or order (not only its constant). Clusters ≤3 files.
+
+| ID | Job | Who | Size | Needs | Done when | Status |
+|---|---|---|---|---|---|---|
+| B-281 | **Rules-page hygiene**: renumber the duplicate ED-42 (ED-42b); flip the stale "not built / Conflict" rows shipped by B-225, B-045, B-090, B-085 / B-091, B-076 (ET-11, ET-33/34, ET-50, ER-04, ER-17, ER-40..42, PA-15..17); PA-08 says up to three enemies; function-name citations instead of stale line numbers on pages 02 and 04; add rule rows for D-101 (weapon Power) and D-102 (level drops) | CC | S | — | Index count matches; no stale rows | TODO |
+| B-282 | **LastStandSpec**: ET-37, PA-23, PA-24 (50% / 30%, window 2..5) | CC | S | — | Spec asserts the numbers | TODO |
+| B-283 | **BonusTurnSpec**: Emerald bonus turn / Extra Action ET-12..15 (delays 6..0, S = two turns) | CC | S | — | Spec asserts delays and S | TODO |
+| B-284 | **Turn-start order**: ET-17 order of operations and ritual ordering, asserted step by step | CC | M | — | Spec fails if two steps swap | TODO |
+| B-285 | **LoadoutBudgetSpec**: Resonator budget ≤5 and slot costs (CL-10..12), innate budget 24 / 48 (CL-34 / 35): `LOADOUT_TOTAL_BUDGET`, `INNATE_SPELL_BUDGET` read by a spec | CC | S | — | Spec asserts the numbers | TODO |
+| B-286 | **Break sizes as named constants + spec**: SB-19 8% (bare literal `SkillEffectManager.cpp:2914`), SB-20 30%, SB-22 30%, SB-28 Reality 25% | CC | S | — | No bare literal; spec asserts sizes | TODO |
+| B-287 | **BrokenDarknessSpec**: ED-39..41, SB-06 (absorption 5% / 10% / x2, overload 30%, forbidden-cast 25%) | CC | M | — | Spec asserts the numbers | TODO |
+| B-288 | **Ladders asserted by number**: tier gap, cost gap, requirement gap, tier power, crit ceiling 2.5 (`CRIT_DAMAGE_GEAR_CEILING`), Damage Taken Down 90% cap | CC | S | B-224 | Each ladder rung pinned | TODO |
+| B-289 | **Turn speed and tie-break**: 10 / 15 / 20 and the 8-step tie-break, each step tested | CC | S | — | Spec per step | TODO |
+| B-290 | **Economy numbers**: world-stat vendor 50 / +25 (ER-24; now D-102's rising price), merge Prisms cost (ER-29), spell essence (incl. Quartz, D-105), seeded drop quality weights (ER-38) | CC | S | — | Spec asserts each | TODO |
+
 ## Phase 2 — GAS migration (see `Design/GASMigration.md`)
 
 | ID | Job | Who | Size | Needs | Done when | Status |
