@@ -2791,11 +2791,23 @@ bool ULoadoutComponent::IsShowingPrimary() const
 
 void ULoadoutComponent::ToggleEquipment()
 {
+    // B-305: one shared after-switch path (ApplyActiveGearChange). bShowPrimary is also the draw / sheathe look for
+    // classes with one weapon, so the toggle stays a flip rather than a slot pick.
+    ApplyActiveGearChange([](FCombatLoadout &Loadout)
+    {
+        Loadout.bShowPrimary = !Loadout.bShowPrimary;
+        UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Toggled equipment: bShowPrimary = %s"),
+               Loadout.bShowPrimary ? TEXT("true") : TEXT("false"));
+    });
+}
+
+void ULoadoutComponent::ApplyActiveGearChange(TFunctionRef<void(FCombatLoadout &)> Change)
+{
     const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::ToggleEquipment] No InventoryComponent found on owner"));
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::ApplyActiveGearChange] No InventoryComponent found on owner"));
         return;
     }
     if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
@@ -2803,12 +2815,8 @@ void ULoadoutComponent::ToggleEquipment()
         return;
     }
 
-    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
     const TArray<FGatheredEffect> OldGearEffects = GetActiveEffectsGathered(GetOwner());
-    Loadout.bShowPrimary = !Loadout.bShowPrimary;
-
-    UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Toggled equipment: bShowPrimary = %s"),
-           Loadout.bShowPrimary ? TEXT("true") : TEXT("false"));
+    Change(Inv->SavedLoadouts[Inv->ActiveLoadoutIndex]);
 
     // Notify TurnManager so cached BonusTurnSpeed re-reads for this actor.
     // Out-of-combat / pre-combat case: actor isn't in Combatants, the loop in
@@ -3281,32 +3289,110 @@ FText ULoadoutComponent::GetTurnSwitchRefusedReason() const
 
 bool ULoadoutComponent::TrySwitchWeaponThisTurn(FText &OutReason)
 {
-    OutReason = GetTurnSwitchRefusedReason();
-    if (!OutReason.IsEmpty())
-    {
-        UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] %s: weapon switch refused - already switched this turn"), *GetNameSafe(GetOwner()));
-        return false;
-    }
     // A toggle that changes nothing (no loadout) doesn't use up the turn's switch.
-    const bool bShowPrimaryBefore = GetActiveLoadout().bShowPrimary;
-    ToggleEquipment();
-    bUsedTurnSwitch = GetActiveLoadout().bShowPrimary != bShowPrimaryBefore;
-    return bUsedTurnSwitch;
+    return TryUseTurnSwitch(TEXT("weapon"), OutReason, [this]()
+    {
+        const bool bShowPrimaryBefore = GetActiveLoadout().bShowPrimary;
+        ToggleEquipment();
+        return GetActiveLoadout().bShowPrimary != bShowPrimaryBefore;
+    });
 }
 
-bool ULoadoutComponent::TrySwitchRingThisTurn(int32 NewRingIndex, FText &OutReason)
+bool ULoadoutComponent::TryUseTurnSwitch(const TCHAR *What, FText &OutReason, TFunctionRef<bool()> Switch)
 {
     OutReason = GetTurnSwitchRefusedReason();
     if (!OutReason.IsEmpty())
     {
-        UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] %s: ring switch refused - already switched this turn"), *GetNameSafe(GetOwner()));
+        UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] %s: %s switch refused - already switched this turn"), *GetNameSafe(GetOwner()), What);
         return false;
     }
-    // A ring switch that changes nothing (bad or current index) doesn't use up the turn's switch.
-    const int32 RingIndexBefore = GetActiveLoadout().ActiveRingIndex;
-    SetActiveRingIndex(NewRingIndex);
-    bUsedTurnSwitch = GetActiveLoadout().ActiveRingIndex != RingIndexBefore;
+    bUsedTurnSwitch = Switch();
     return bUsedTurnSwitch;
+}
+
+bool ULoadoutComponent::TrySwitchActiveSlot(EGearKind Kind, int32 SlotIndex, FText &OutReason)
+{
+    return TryUseTurnSwitch(Kind == EGearKind::Weapon ? TEXT("weapon") : TEXT("adapter"), OutReason,
+                            [this, Kind, SlotIndex]() { return SetActiveSlotIndex(Kind, SlotIndex); });
+}
+
+bool ULoadoutComponent::SetActiveSlotIndex(EGearKind Kind, int32 SlotIndex)
+{
+    const FCombatLoadout *Loadout = GetActiveLoadoutInStep();
+    const FLoadoutSlot *Current = GetActiveSlot(Kind);
+    if (!Loadout || !Loadout->Slots.IsValidIndex(SlotIndex) || Loadout->Slots[SlotIndex].Kind() != Kind ||
+        Loadout->Slots[SlotIndex].IsEmpty() || Current == &Loadout->Slots[SlotIndex])
+    {
+        return false; // no such slot, the wrong kind, or already in use: nothing changes
+    }
+    // The old fields still hold which slot is in use: a Generic's shown weapon, a Resonator's active ring.
+    const ELegacySlotOrigin Origin = Loadout->Slots[SlotIndex].LegacyOrigin;
+    const int32 LegacyIndex = Loadout->Slots[SlotIndex].LegacyIndex;
+    if (Origin == ELegacySlotOrigin::RingLoadout)
+    {
+        SetActiveRingIndex(LegacyIndex);
+        return true;
+    }
+    if (Origin == ELegacySlotOrigin::PrimaryWeapon || Origin == ELegacySlotOrigin::SecondaryWeapon)
+    {
+        const bool bShowPrimary = Origin == ELegacySlotOrigin::PrimaryWeapon;
+        ApplyActiveGearChange([bShowPrimary](FCombatLoadout &Changed) { Changed.bShowPrimary = bShowPrimary; });
+        return true;
+    }
+    return false; // a primary ring is the only adapter its class has
+}
+
+int32 ULoadoutComponent::CountUsableSlots(EGearKind Kind) const
+{
+    const FCombatLoadout *Loadout = GetActiveLoadoutInStep();
+    if (!Loadout)
+    {
+        return 0;
+    }
+    int32 Count = 0;
+    for (const FLoadoutSlot &Slot : Loadout->Slots)
+    {
+        Count += (!Slot.IsEmpty() && Slot.Kind() == Kind && !IsWornByAnother(Slot.GearID)) ? 1 : 0;
+    }
+    return Count;
+}
+
+bool ULoadoutComponent::SwitchToNextUsableSlot(EGearKind Kind)
+{
+    const FCombatLoadout *Loadout = GetActiveLoadoutInStep();
+    const FLoadoutSlot *Current = GetActiveSlot(Kind);
+    if (!Loadout || Loadout->Slots.Num() == 0)
+    {
+        return false;
+    }
+    // The next slot of the kind after the one in use (wrapping) whose attachment is intact.
+    const int32 SlotCount = Loadout->Slots.Num();
+    const int32 Start = Current ? static_cast<int32>(Current - Loadout->Slots.GetData()) : SlotCount - 1;
+    for (int32 Step = 1; Step <= SlotCount; ++Step)
+    {
+        const int32 Index = (Start + Step) % SlotCount;
+        const FLoadoutSlot &Slot = Loadout->Slots[Index];
+        if (Slot.IsEmpty() || Slot.Kind() != Kind || IsWornByAnother(Slot.GearID))
+        {
+            continue;
+        }
+        if (Slot.Gear.HasAttachment() && !Slot.Gear.AttachedItem.IsBroken())
+        {
+            return SetActiveSlotIndex(Kind, Index);
+        }
+    }
+    return false;
+}
+
+bool ULoadoutComponent::TrySwitchRingThisTurn(int32 NewRingIndex, FText &OutReason)
+{
+    // A ring switch that changes nothing (bad or current index) doesn't use up the turn's switch.
+    return TryUseTurnSwitch(TEXT("ring"), OutReason, [this, NewRingIndex]()
+    {
+        const int32 RingIndexBefore = GetActiveLoadout().ActiveRingIndex;
+        SetActiveRingIndex(NewRingIndex);
+        return GetActiveLoadout().ActiveRingIndex != RingIndexBefore;
+    });
 }
 
 void ULoadoutComponent::ResetTurnSwitch()
@@ -3690,54 +3776,22 @@ bool ULoadoutComponent::ClearPrimaryEvolution()
 
 void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
 {
-    // B-302: an adapter switch announces too, so the slot mirror's active adapter follows it.
-    const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
     {
         UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::SetActiveRingIndex] No InventoryComponent found on owner"));
         return;
     }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex) || !Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].RingLoadout.IsValidIndex(NewIndex))
     {
         return;
     }
-
-    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-
-    if (!Loadout.RingLoadout.IsValidIndex(NewIndex))
+    // B-305: the shared after-switch path (it also announces, so the slot mirror follows, B-302).
+    ApplyActiveGearChange([NewIndex](FCombatLoadout &Loadout)
     {
-        return;
-    }
-
-    const TArray<FGatheredEffect> OldGearEffects = GetActiveEffectsGathered(GetOwner());
-    Loadout.ActiveRingIndex = NewIndex;
-
-    UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Set ActiveRingIndex to %d"), NewIndex);
-
-    // Notify TurnManager so cached BonusTurnSpeed re-reads for this actor.
-    // Out-of-combat / pre-combat case: actor isn't in Combatants, the loop in
-    // OnActorSpeedChanged simply finds no match and returns — safe no-op.
-    if (UWorld *World = GetWorld())
-    {
-        if (UGameInstance *GI = World->GetGameInstance())
-        {
-            if (UTurnManager *TurnManager = GI->GetSubsystem<UTurnManager>())
-            {
-                TurnManager->OnActorSpeedChanged(GetOwner());
-            }
-        }
-    }
-
-    SwapGearEffects(OldGearEffects);
-
-    // Active equipment changed → recompute the stat-derived pools (equipment
-    // BonusMaxHP/BonusMaxEnergy; the weapon's and ring's pool stones, B-082). Does NOT
-    // touch CurrentHP/EP (overcap-not-clamp) — see RecomputeMaxPools doc.
-    if (UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr)
-    {
-        CharComp->RecomputeMaxPools();
-    }
+        Loadout.ActiveRingIndex = NewIndex;
+        UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Set ActiveRingIndex to %d"), NewIndex);
+    });
 }
 
 void ULoadoutComponent::SwapGearEffects(const TArray<FGatheredEffect> &OldGearEffects) const
@@ -3763,25 +3817,8 @@ ESpellElement ULoadoutComponent::GetActiveRingElement() const
 
 bool ULoadoutComponent::SwitchToNextUsableRing()
 {
-    const FCombatLoadout &Loadout = GetActiveLoadout();
-    const int32 RingCount = Loadout.RingLoadout.Num();
-    if (RingCount == 0)
-    {
-        return false;
-    }
-
-    const int32 StartIndex = Loadout.ActiveRingIndex;
-    for (int32 Step = 1; Step <= RingCount; ++Step)
-    {
-        const int32 CheckIndex = (StartIndex + Step) % RingCount;
-        const FRuntimeAttachedItem &Attachment = Loadout.RingLoadout[CheckIndex].RingEntry.AttachedItem;
-        if (!Attachment.IsEmpty() && !Attachment.IsBroken())
-        {
-            SetActiveRingIndex(CheckIndex);
-            return true;
-        }
-    }
-    return false;
+    // B-305: the one switch rule (the adapter crystal-break auto-switch).
+    return SwitchToNextUsableSlot(EGearKind::Adapter);
 }
 
 void ULoadoutComponent::HandleCrystalBroken(UObject *Holder, const FBrokenCrystalPayload &Payload)

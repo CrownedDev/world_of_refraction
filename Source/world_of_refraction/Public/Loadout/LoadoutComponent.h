@@ -537,6 +537,17 @@ public:
      *  active-weapon / adapter getters forward here. The pointer is valid until the loadout next changes. */
     const FLoadoutSlot *GetActiveSlot(EGearKind Kind) const;
 
+    /** B-305 (D-110): usable slots of a kind in the active loadout; the command menu offers a switch at two or more. */
+    int32 CountUsableSlots(EGearKind Kind) const;
+
+    /** B-305: makes SlotIndex the active slot of its kind, using the turn's one free switch (ET-19). False when
+     *  refused (already switched) or nothing changed (no such slot, the wrong kind, already in use). */
+    bool TrySwitchActiveSlot(EGearKind Kind, int32 SlotIndex, FText &OutReason);
+
+    /** B-305: the next usable slot of the kind (after the one in use, wrapping) with an intact attachment becomes
+     *  active, free. The adapter crystal-break auto-switch; SwitchToNextUsableRing forwards here. */
+    bool SwitchToNextUsableSlot(EGearKind Kind);
+
     /** D-083: why Spell can't be cast right now because the active weapon's or ring's crystal
      *  is broken (a broken ring still casts F-tier spells). Empty when it can. */
     FText GetBrokenSourceReason(const USpellData *Spell) const;
@@ -808,6 +819,16 @@ private:
 
     /** B-304: the old ring entry behind the active adapter slot. */
     const FRingLoadoutEntry *GetActiveAdapterLegacyEntry() const;
+
+    /** B-305: the one after-switch path for weapons and adapters: change the active loadout, then the turn-speed
+     *  re-read, the gear-effect swap (D-008) and the pool recompute, inside an announcement. */
+    void ApplyActiveGearChange(TFunctionRef<void(FCombatLoadout &)> Change);
+
+    /** B-305: the one free switch per turn (ET-19) around any switch; What names it in the log. */
+    bool TryUseTurnSwitch(const TCHAR *What, FText &OutReason, TFunctionRef<bool()> Switch);
+
+    /** B-305: sets the old fields so SlotIndex is the slot in use; false when nothing changes. Not turn-gated. */
+    bool SetActiveSlotIndex(EGearKind Kind, int32 SlotIndex);
 
     // FindAttachedItemByHolder is the unified mutable-lookup helper, now public above.
 

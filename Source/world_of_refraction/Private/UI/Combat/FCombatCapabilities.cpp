@@ -170,7 +170,8 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         }
 
         Out.bHasRingLoadout = RingCount > 0;
-        Out.bCanSwitchRing = RingCount > 1;
+        // B-305 (D-110): one rule for both switch buttons: two or more usable slots of the kind.
+        Out.bCanSwitchRing = LC->CountUsableSlots(EGearKind::Adapter) > 1;
 
         const FRingLoadoutEntry *ActiveRing = LC->GetActiveRingLoadout();
         if (ActiveRing && ActiveRing->IsValid())
@@ -222,11 +223,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
     // Reading A confirmed in 30/04/2026 session: Generic Secondary is Weapon only,
     // so we don't need to handle Secondary Ring here.
 
-    Out.bCanSwitchWeapon =
-        Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
-        Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
-        Loadout.PrimaryWeapon.IsValid() &&
-        Loadout.SecondaryWeapon.IsValid();
+    Out.bCanSwitchWeapon = LC->CountUsableSlots(EGearKind::Weapon) > 1;
 
     UE_LOG(LogTemp, Log, TEXT("[FCombatCapabilities] Built for %s: Attack=%d Abilities=%d WeaponCrystal=%d Refractions=%d Breakthrough=%d PrimaryRing=%d RingLoadout=%d SwitchWeapon=%d SwitchRing=%d AugmentStoneAbilities=%d BrokenSourceSpells=%d"),
            *UEnum::GetValueAsString(CharClass),
