@@ -528,65 +528,16 @@ void USkillEffectManager::WOR_StartingEffects()
 		return Specs.Num();
 	};
 
-	// PRE — per gear source, mirroring GetActiveEffects' per-class coverage.
+	// PRE — per gear source, the same gear GetActiveEffects counts.
 	// Debug-only re-enumeration; the TOTAL cross-check below self-reports drift.
 	int32 Labeled = 0;
-	const FCombatLoadout Loadout = LC->GetActiveLoadout();
-	switch (LC->GetCharacterClass())
+	const FCombatLoadout &Loadout = LC->GetActiveLoadout();
+	// B-306: the same gear the readers count (ForEachContributingGear), labelled by kind.
+	LC->ForEachContributingGear([&Labeled, &PrintSpecs](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
 	{
-	case ECharacterClass::Generic:
-		if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
-		{
-			if (UWeaponData *Weapon = LC->GetActiveWeapon())
-			{
-				Labeled += PrintSpecs(TEXT("ActiveWeapon"), Weapon->GetStartingEffects());
-			}
-		}
-		else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
-		{
-			if (URingData *Ring = LC->GetPrimaryRing())
-			{
-				Labeled += PrintSpecs(TEXT("PrimaryRing"), Ring->GetStartingEffects());
-			}
-			if (UWeaponData *Weapon = LC->GetActiveWeapon())
-			{
-				Labeled += PrintSpecs(TEXT("SecondaryWeapon"), Weapon->GetStartingEffects());
-			}
-		}
-		break;
-
-	case ECharacterClass::Resonator:
-		if (URingData *Ring = LC->GetActiveRing())
-		{
-			Labeled += PrintSpecs(TEXT("ActiveRing"), Ring->GetStartingEffects());
-		}
-		if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
-		{
-			if (UWeaponData *Weapon = LC->GetPrimaryWeapon())
-			{
-				Labeled += PrintSpecs(TEXT("PrimaryWeapon"), Weapon->GetStartingEffects());
-			}
-		}
-		break;
-
-	case ECharacterClass::Caster:
-	default:
-		if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
-		{
-			if (UWeaponData *Weapon = LC->GetPrimaryWeapon())
-			{
-				Labeled += PrintSpecs(TEXT("PrimaryWeapon"), Weapon->GetStartingEffects());
-			}
-		}
-		else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
-		{
-			if (URingData *Ring = LC->GetPrimaryRing())
-			{
-				Labeled += PrintSpecs(TEXT("PrimaryRing"), Ring->GetStartingEffects());
-			}
-		}
-		break;
-	}
+		Labeled += Weapon ? PrintSpecs(TEXT("ActiveWeapon"), Weapon->WeaponEntry.Weapon->GetStartingEffects())
+						  : PrintSpecs(TEXT("ActiveAdapter"), Adapter->RingEntry.Ring->GetStartingEffects());
+	});
 	if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
 	{
 		Labeled += PrintSpecs(TEXT("InnateEvolution"), Loadout.PrimaryEvolution.Item->GetStartingEffects());

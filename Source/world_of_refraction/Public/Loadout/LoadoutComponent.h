@@ -540,6 +540,11 @@ public:
     /** B-305 (D-110): usable slots of a kind in the active loadout; the command menu offers a switch at two or more. */
     int32 CountUsableSlots(EGearKind Kind) const;
 
+    /** B-306 (Q-244, D-110): the gear that counts, for every class and every reader (stats, resistances, effects):
+     *  the adapter in use, then the weapon in hand. Visit gets the live entry behind each (one of the two is null).
+     *  The primary evolution seat is not gear; callers add it. */
+    void ForEachContributingGear(TFunctionRef<void(const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)> Visit) const;
+
     /** B-305: makes SlotIndex the active slot of its kind, using the turn's one free switch (ET-19). False when
      *  refused (already switched) or nothing changed (no such slot, the wrong kind, already in use). */
     bool TrySwitchActiveSlot(EGearKind Kind, int32 SlotIndex, FText &OutReason);
