@@ -21,6 +21,11 @@ struct WORLD_OF_REFRACTION_API FCarriedAttachment
 	UPROPERTY()
 	TObjectPtr<UObject> Holder = nullptr;
 
+	/** B-310 (D-111): the owned item the attachment sits on. Matched first, so two identical adapters keep their
+	 *  own wear; invalid for asset-built gear and for state saved before B-310 (then Holder + slot order). */
+	UPROPERTY()
+	FGuid GearID;
+
 	UPROPERTY()
 	FRuntimeAttachedItem Attached;
 };
