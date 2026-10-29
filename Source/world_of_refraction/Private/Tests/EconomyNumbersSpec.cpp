@@ -54,14 +54,18 @@ namespace
 	constexpr int32 ECONOMY_NUMBERS_QUALITY_GRADES = static_cast<int32>(UE_ARRAY_COUNT(ECONOMY_NUMBERS_QUALITY_WEIGHTS));
 	constexpr float ECONOMY_NUMBERS_LUCK_TILT = 0.5f;
 	constexpr float ECONOMY_NUMBERS_MAXED_LUCK = 1.0f;
-	constexpr float ECONOMY_NUMBERS_MAXED_LUCK_S_SHARE = 0.07f; // "about 7%"
+	/** At maxed Luck the 0.5 tilt makes S weigh 6 of 82.33 (13, 14.67, 15, 14, 11.67, 8, 6): 7.29%, the page's
+	 *  "about 7%". Pinned to the computed share so a halved tilt (about 5.5%) fails. */
+	constexpr float ECONOMY_NUMBERS_MAXED_LUCK_S_SHARE = 0.0729f;
+	/** About 3 standard deviations of a 7.3% share over 10 000 rolls. */
+	constexpr float ECONOMY_NUMBERS_S_SHARE_TOLERANCE = 0.008f;
 	constexpr int32 ECONOMY_NUMBERS_QUALITY_SEED = 2908;
 	constexpr int32 ECONOMY_NUMBERS_QUALITY_ROLLS = 10000;
 	/** Allowed gap per grade share: about 3 standard deviations of the widest share over 10 000 rolls. */
 	constexpr float ECONOMY_NUMBERS_SHARE_TOLERANCE = 0.015f;
 
-	/** Share of each quality grade over Rolls seeded rolls. RollQuality draws from FMath's global
-	 *  random, so it is seeded here and re-seeded from the clock afterwards. */
+	/** Share of each quality grade over Rolls seeded rolls. RollQuality draws from FMath's global random, so it is
+	 *  seeded here. TODO: let RollQuality take an FRandomStream (like BattleRandom) so this needn't touch it. */
 	TArray<float> EconomyNumbersQualityShares(float NormalizedLuck)
 	{
 		TArray<int32> Counts;
@@ -75,7 +79,7 @@ namespace
 				++Counts[Grade];
 			}
 		}
-		FMath::RandInit(static_cast<int32>(FPlatformTime::Cycles()));
+		// Not re-seeded from the clock afterwards: that would undo a -FixedSeed run for every later test.
 
 		TArray<float> Shares;
 		for (const int32 Count : Counts)
@@ -298,7 +302,7 @@ void FEconomyNumbersSpec::Define()
 		It("rolls S about 7% of the time at maxed Luck, on a fixed seed", [this]()
 		{
 			const TArray<float> Shares = EconomyNumbersQualityShares(ECONOMY_NUMBERS_MAXED_LUCK);
-			TestNearlyEqual(TEXT("S share"), Shares.Last(), ECONOMY_NUMBERS_MAXED_LUCK_S_SHARE, ECONOMY_NUMBERS_SHARE_TOLERANCE);
+			TestNearlyEqual(TEXT("S share"), Shares.Last(), ECONOMY_NUMBERS_MAXED_LUCK_S_SHARE, ECONOMY_NUMBERS_S_SHARE_TOLERANCE);
 		});
 	});
 }
