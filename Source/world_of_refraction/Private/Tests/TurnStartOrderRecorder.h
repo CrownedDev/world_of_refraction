@@ -67,6 +67,10 @@ public:
 		AlwaysOnEffectId = InAlwaysOnEffectId;
 		WatchedLoadout = Actor ? Actor->FindComponentByClass<ULoadoutComponent>() : nullptr;
 
+		if (!Effects || !Buildup || !Orchestrator)
+		{
+			return; // the spec checks these first; nothing to bind without them
+		}
 		Effects->OnEffectTriggered.AddDynamic(this, &UTurnStartOrderRecorder::HandleEffectTriggered);
 		Buildup->OnStatusBuildupChanged.AddDynamic(this, &UTurnStartOrderRecorder::HandleBuildupChanged);
 		Orchestrator->OnActorTurnStarted.AddDynamic(this, &UTurnStartOrderRecorder::HandleActorTurnStarted);

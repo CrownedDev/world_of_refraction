@@ -30,6 +30,8 @@ namespace
 	constexpr int32 TURN_START_ORDER_HOT_ID = 28401;
 	constexpr int32 TURN_START_ORDER_ALWAYS_ON_ID = 28402;
 	constexpr int32 TURN_START_ORDER_TRIGGER_ID = 28403;
+	/** The lethal burn deals this many times max HP, so a future flat mitigation can't make it survivable. */
+	constexpr int32 TURN_START_ORDER_OVERKILL_FACTOR = 2;
 	constexpr int32 TURN_START_ORDER_LETHAL_ID = 28404;
 	/** Long enough that nothing the setup applies ends at the watched turn start. */
 	constexpr int32 TURN_START_ORDER_EFFECT_TURNS = 5;
@@ -289,7 +291,8 @@ void FTurnStartOrderSpec::Define()
 				return;
 			}
 			FActiveSkillEffect Burn = FActiveSkillEffect::CreateDOT(TEXT("Turn start order lethal burn"), TURN_START_ORDER_LETHAL_ID,
-																	 HeroComp->CurrentHP, TURN_START_ORDER_EFFECT_TURNS, ESpellElement::None);
+																	 HeroComp->MaxHP * TURN_START_ORDER_OVERKILL_FACTOR,
+																	 TURN_START_ORDER_EFFECT_TURNS, ESpellElement::None);
 			Burn.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 			EffectManager->ApplyEffect(Hero, Burn, Foe);
 			TestTrue(TEXT("Alive until the turn starts"), HeroComp->bIsAlive);
