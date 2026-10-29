@@ -86,9 +86,9 @@ namespace InfusionSourceOptionHelpers
         case EInfusionSourceOption::Innate:
             return TEXT("Innate");
         case EInfusionSourceOption::ActiveRing:
-            return TEXT("Active Ring");
+            return TEXT("Active Adapter"); // D-107
         case EInfusionSourceOption::PrimaryRing:
-            return TEXT("Primary Ring");
+            return TEXT("Primary Adapter"); // D-107
         case EInfusionSourceOption::WeaponCrystal:
             return TEXT("Weapon Crystal");
         case EInfusionSourceOption::Evolution:
