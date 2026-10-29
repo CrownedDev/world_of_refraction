@@ -24,6 +24,7 @@
 #include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Loadout/Entries/FRingLoadoutEntry.h"
 #include "Loadout/Entries/FItemLoadoutSlot.h"
+#include "Loadout/FLoadoutSlot.h"
 #include "FCombatLoadout.generated.h"
 
 class USpellData;
@@ -185,6 +186,27 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     /** Active ring index for Resonator */
     UPROPERTY(BlueprintReadWrite, Category = "Runtime")
     int32 ActiveRingIndex = 0;
+
+    // ==================== UNIFIED SLOTS (D-110, mirror) ====================
+    // B-302: the weapons and adapters above as one slot list, rebuilt from the old fields by RebuildSlotsFromLegacy
+    // (the loadout component calls it whenever it announces a gear change). Read-only mirror until B-304 moves the
+    // getters onto it; wor.Loadout.CompareSlots prints both sides.
+
+    /** Order: the primary weapon or adapter, the secondary weapon, then the Resonator's adapters. */
+    UPROPERTY(BlueprintReadOnly, Category = "Runtime|Slots")
+    TArray<FLoadoutSlot> Slots;
+
+    /** The weapon in hand, INDEX_NONE for none (mirrors ULoadoutComponent::GetActiveWeapon). */
+    UPROPERTY(BlueprintReadOnly, Category = "Runtime|Slots")
+    int32 ActiveWeaponSlot = INDEX_NONE;
+
+    /** The adapter in use, INDEX_NONE for none (the Resonator's active ring, or a primary ring). */
+    UPROPERTY(BlueprintReadOnly, Category = "Runtime|Slots")
+    int32 ActiveAdapterSlot = INDEX_NONE;
+
+    /** Rebuilds Slots and the two active indices from the old fields. bGenericWeaponRules: the character is a
+     *  Generic, whose bShowPrimary picks which of two weapons is in hand (for other classes it is look only). */
+    void RebuildSlotsFromLegacy(bool bGenericWeaponRules);
 
     // ==================== VALIDATION ====================
     // Live validation lives on ULoadoutComponent::GetValidationErrors —
