@@ -59,6 +59,7 @@
   | Lightning | Air dash / Dash | Chain of short blinks (moved from Teleport: Teleport is Void only) |
   | Void | Teleport | One long vanish |
   | Darkness | (style, type to confirm) | Shadow path: walk along shadows for a short time |
+  | Fire (Garnet) | Flight | Phoenix Rising at S rank: rides the winged halberd / spear like a broom |
 
 - **Locked field skills:** some need a specific skill equipped or learned first; once unlocked, anyone with the matching source can use it (lightning speed → any Lightning source).
 - **Picking it** (Crown): choose a source you have, then a movement type you've unlocked; the source styles it.
