@@ -13,14 +13,14 @@ Code paths are relative to `Source/world_of_refraction/`. The deckbuilder is 1v1
 | PA-03 | **Recruiting:** walk up to a recruitable character and press Interact to invite them; press Interact again on a member to dismiss them. Only a player-controlled pawn triggers it, within 200 units (`DEFAULT_INTERACTION_RADIUS`) and in front of the camera. | In game | `Party/PartyInteractionComponent.cpp:17`, `:79-115`, `:170-190`; `docs/Architecture/PartySystem.md` (Party Assembly POC) |
 | PA-04 | The leader (slot 0) can't be dismissed. | In game | `Party/PartySessionSubsystem.cpp:205-213` |
 | PA-05 | The same character can't be in the party twice (identity is the character's data asset). | In game | `Party/PartySessionSubsystem.cpp:174-193` |
-| PA-06 | You build the team in the hub before a run, from the same character templates you can also find in trials. | Decided, partly built (hub recruiting works; trial finding is B-076) | `D-003`; `D-026` |
+| PA-06 | You build the team in the hub before a run, from the same character templates you can also find in trials. | In game (hub recruiting; trial finding since B-076, recruit spots on the trial maps are B-215) | `D-003`; `D-026` |
 | PA-07 | Each member can be given a preferred formation cell (row + column). Moving a member onto an occupied cell swaps the two. Placeholder controls: `wor.UI.PartyControl` (a start-cell button per member) or `wor.Party.SetFormation`. | In game; used at fight start (PA-31) | `Party/PartySessionSubsystem.cpp` (`SetMemberFormation`); `Party/Party.h` (`PreferredRow`, `PreferredColumn`) |
 
 ## Going into battle
 
 | # | Rule | Status | Source |
 |---|---|---|---|
-| PA-08 | When an encounter starts, the battle side is taken **from the party list**, not from who is standing near the enemy: every living member fights. Today an encounter is your party against **one** enemy (the encounter's owner). | In game | `D-003` (A); `Combat/Encounter/EncounterComponent.cpp:210-260` |
+| PA-08 | When an encounter starts, the battle side is taken **from the party list**, not from who is standing near the enemy: every living member fights. The other side is the encounter's team, **up to three** enemies (ER-45, ER-47); an encounter with no team fights its owner alone. | In game | `D-003` (A); `B-074`, `B-184`; `Combat/Encounter/EncounterComponent.cpp` (`OnJoinWindowExpired`); `Combat/Encounter/EncounterData.h` (`ENCOUNTER_MAX_ENEMIES`) |
 | PA-09 | Each member spawns as **their own pawn** (`FPartyMember.PawnClass`), next to the leader; a member with no pawn class (or one that fails to load) spawns as `DefaultPlayerPawnClass`. | In game | `D-003`; `Trial/BattleGameMode.cpp` (`BootstrapCombat`) |
 | PA-10 | A Generic or Resonator with no gear (no primary weapon, ring or evolution and no secondary item) is left out of the fight; the fight starts with the others. A Caster ("Refractor") can enter gearless (innate). A gearless leader sits out too; you then play the first member set to You (Q-071b). | In game | `D-016` notes; `Q-071b`; `Trial/BattleGameMode.cpp` (`CanEnterCombat`) |
 | PA-11 | The **leader is always player-controlled.** Each other member has a Player/AI setting (default Player), set before a fight on the party screen (placeholder: `wor.UI.PartyControl`, or `wor.Party.SetControl`). A Player member uses the normal command menu on its turn and you press its defence inputs; an AI member uses the AI. | In game | `D-004`; `Party/Party.h` (`bPlayerControlled`); `Combat/CombatControl.h`; `Party/PartySessionSubsystem.cpp` (`SetMemberPlayerControlled`) |
@@ -32,9 +32,9 @@ Code paths are relative to `Source/world_of_refraction/`. The deckbuilder is 1v1
 
 | # | Rule | Status | Source |
 |---|---|---|---|
-| PA-15 | You can find characters during a trial and add them to the party (same recruit flow as the hub, same character templates). | Decided, not built (B-076) | `D-003`; `D-026` |
-| PA-16 | A character found in a trial is in the party **for that run only** and leaves when the run ends (no roster or save change). | Decided, not built (B-076) | `D-026` (1) B |
-| PA-17 | Found characters arrive **ungeared**. You equip them from the run inventory, which the whole party shares; gear stays in the run inventory when unequipped or when the character leaves. | Decided, not built (B-076) | `D-026` (1); `D-020` |
+| PA-15 | You can find characters during a trial and add them to the party, with the same recruit flow as the hub and the same character templates. No trial map has a recruit spot yet (B-215); until then `wor.Party.RecruitForRun <CharacterData path>` recruits one in a trial. | In game (B-076) | `D-003`; `D-026`; `Q-076`; `Party/PartyInteractionComponent.cpp` (in a run, the recruit calls `InviteRunMember`); `Party/PartySessionSubsystem.cpp` (`InviteRunMember`, `RecruitForRun`) |
+| PA-16 | A character found in a trial is in the party **for that run only** and leaves when the run ends (no roster change). A run saved mid-trial keeps it until that run ends (Q-076). It never leads the party. | In game (B-076) | `D-026` (1) B; `Q-076`; `Party/PartySessionSubsystem.cpp` (`DismissRunMembers`, called from `Trial/TrialRunSubsystem.cpp`); `Tests/TrialRecruitSpec.cpp` |
+| PA-17 | Found characters arrive **ungeared**: none of their own gear comes into the shared armoury. You equip them from the armoury the whole party shares: the party panel gives a weapon and a ring, used from the next fight (Q-076). What they wore goes back to the armoury when they leave. | In game (B-076) | `D-026` (1); `D-020`; `Q-076`; `Party/PartySessionSubsystem.cpp` (`SetRunMemberGear`, `DismissRunMembers`); `UI/Party/PartyControlWidget.cpp` (`CycleRunGear`); `Tests/TrialRecruitSpec.cpp` |
 
 ## HP and EP between fights
 
@@ -103,4 +103,4 @@ Code paths are relative to `Source/world_of_refraction/`. The deckbuilder is 1v1
 - No player action to change row in combat, and no skill that pushes or pulls (PA-32); row bonuses have no source today. **Ruled: D-096** (free move one row per turn; push/pull skills). Built in B-180 (PA-32).
 - Party size vs grid: the grid holds 9 cells, but sides are capped at 3; no rule says whether bigger enemy groups (more than 3) are ever allowed (`AutoAssignTeam` silently drops extras, `Combat/Grid/CombatGridSubsystem.cpp:286-306`).
 - No rule for a Draw (both sides wiped at once): today it routes like any other fight end.
-- Party HP is not saved to disk (B-090); quitting mid-trial loses the carried state.
+- Party HP was not saved to disk. **Built:** the party and its carried HP/EP are saved (B-090), and since B-208 a run saved mid-trial keeps the carried state, crystal wear and absorption (`Tests/SaveSpec.cpp`, `Tests/SaveRunSpec.cpp`).
