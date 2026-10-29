@@ -336,7 +336,7 @@ FText GetMerchantTypeName(EMerchantType MerchantType)
     case EMerchantType::Blacksmith:
         return LOCTEXT("EMerchantType_Blacksmith", "Blacksmith (weapons, augment stones)");
     case EMerchantType::Jeweler:
-        return LOCTEXT("EMerchantType_Jeweler", "Jeweler (rings)");
+        return LOCTEXT("EMerchantType_Jeweler", "Jeweler (adapters)");
     case EMerchantType::CombatMaster:
         return LOCTEXT("EMerchantType_CombatMaster", "Combat Master (abilities)");
     case EMerchantType::SpellShop:
@@ -350,6 +350,36 @@ FText GetMerchantTypeName(EMerchantType MerchantType)
     }
     return FText::GetEmpty();
 }
+
+FText GetAdapterWord()
+{
+    return LOCTEXT("Adapter", "Adapter");
 }
+
+FText GetAdapterWordPlural()
+{
+    return LOCTEXT("Adapters", "Adapters");
+}
+
+FText GetActiveAdapterWord()
+{
+    return LOCTEXT("ActiveAdapter", "Active adapter");
+}
+
+FText GetAdapterFormName(EAdapterForm Form)
+{
+    switch (Form)
+    {
+    case EAdapterForm::Ring:
+        return LOCTEXT("EAdapterForm_Ring", "Ring");
+    case EAdapterForm::Pistol:
+        return LOCTEXT("EAdapterForm_Pistol", "Pistol");
+    case EAdapterForm::Trainer:
+        return LOCTEXT("EAdapterForm_Trainer", "Trainer");
+    default:
+        return GetAdapterWord();
+    }
+}
+} // namespace WoRGameNames
 
 #undef LOCTEXT_NAMESPACE
