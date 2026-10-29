@@ -5,6 +5,7 @@
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/Entries/FRingInventoryEntry.h"
 #include "Loadout/Entries/FWeaponInventoryEntry.h"
+#include "Skills/Definitions/SpellData.h"
 
 namespace
 {

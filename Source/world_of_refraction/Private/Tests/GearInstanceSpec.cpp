@@ -13,6 +13,7 @@
 #include "Loadout/Entries/FRingInventoryEntry.h"
 #include "Loadout/Entries/FWeaponInventoryEntry.h"
 #include "Loadout/FGearInstance.h"
+#include "Skills/Definitions/SpellData.h"
 
 namespace
 {
