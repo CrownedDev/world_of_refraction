@@ -1618,6 +1618,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
   - **Evolutions can break from wear** in a run; a broken one can be **repaired in the run**, and it **resets outside the run** (never lost: Q-159, Q-159c, D-093).
 **Notes for Claude:** bugs found by the analysis to fix regardless: run wear keyed by asset (two identical adapters share one wear record); found gear never dropped at run end; player-edited presets not saved (PIE check). Remaining details: where it lives (pool now, PlayerState with co-op), presets as GUID lists per character, the run purchase marks pieces rather than copying, the per-preset 6 x 3 item slots retire, spells / abilities stay per character, outfits as entries, co-op visibility.
 
+### Q-303 — A Generic's item limit: two weapons and an adapter at once?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-29 (B-303 review) · **Blocks:** —
+**Question:** D-110 gives a Generic "up to 2 weapons, and keeps one adapter". May it carry both weapons **and** the adapter (three items), or two items in all?
+**Options:** A two items (two weapons, or a weapon and an adapter, as today) / B three items.
+**Recommendation:** A, the analysis's default (`UnifiedLoadout_2026-10-29.md` Q-5): two slots, at most two weapons and one adapter. It keeps every Generic build that works today and mirrors the deckbuilder's vessel rule. B would be a one-number change in `LoadoutClassTable::GENERIC`.
+**Answer:** **A**, by the reference-backed default (2026-10-29). Crown may change it.
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
