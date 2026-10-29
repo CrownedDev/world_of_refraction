@@ -145,8 +145,9 @@ namespace
 		}
 	}
 
-	/** B-304 (D-110): the same checks for both of a Generic's weapon slots. A secondary weapon's ability and spell
-	 *  findings carry SubIndex SECONDARY_WEAPON so ClearInvalidSlots clears the right weapon. */
+	/** B-304 (D-110): one check for both of a Generic's weapon slots: ownership, spells (element and cap) and ability
+	 *  counts; the ability type / wield checks are the primary's only (see below). A secondary weapon's findings carry
+	 *  SubIndex SECONDARY_WEAPON so ClearInvalidSlots clears the right weapon. */
 	void CheckWeapon(FFindingSink &Sink, const FWeaponLoadoutEntry &Weapon, const FLoadoutRuleContext &Context, bool bSecondary)
 	{
 		const int32 WeaponSub = bSecondary ? LoadoutAbilityOverflowIndex::SECONDARY_WEAPON : -1;
@@ -156,8 +157,10 @@ namespace
 					 bSecondary ? TEXT("Secondary weapon not in inventory") : TEXT("Primary weapon not in inventory"));
 		}
 
+		// The ability checks stay the primary's for now: a secondary's authored abilities were never type-checked, so
+		// checking them would newly refuse authored Generic loadouts (B-304 review). The row's spell checks apply.
 		const UWeaponData *EquippedWeapon = Weapon.WeaponEntry.Weapon;
-		for (int32 i = 0; i < Weapon.AssignedAbilities.Num(); ++i)
+		for (int32 i = 0; !bSecondary && i < Weapon.AssignedAbilities.Num(); ++i)
 		{
 			const UAbilityData *Ability = Weapon.AssignedAbilities[i];
 			if (!Ability)
