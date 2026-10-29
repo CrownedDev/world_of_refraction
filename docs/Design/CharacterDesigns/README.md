@@ -35,3 +35,20 @@ Source folder: https://drive.google.com/drive/folders/1-gc1wYbPD8mcoarMTvl-lqTJR
 **Roster on Drive (file names):** Amethyst Prisma, Orthos Prisma; Aron Citrine, Alexander Citrine, Eric Citrine, Eva Citrine; Amber; Garnet; Aurora Rite (+ Aurora variant); Sapphire Flowers; Emerald Sanctum; Peridot Crown, Historica Crown (+ young), Shadow Crown (+ young); Celina Riley (+ young), Elizabeth Riley, Ricardo Riley (+ young, + Sr); Keira Knight; Maximus Madman; Rage (Adult Love) / Love (Young Rage); Shade (Umbra Knight); Alphonso (+ hidden blade); Zandark; Vortrix; V.
 
 Lore stays Crown's; this list is for asset and editor planning only.
+
+## First characters: draft, under discussion (Crown, 2026-10-29; not committed)
+
+Class, evolution and weapon per character (Crown's words; lore stays Crown's). "Adapter" = the new name for the ring loadout (D-107): a specialised tool for channelling spells, in any form (ring, pistols, trainers). Weapons stay weapons.
+
+| Character | Class | Evolution | Weapon / adapters | Notes |
+|---|---|---|---|---|
+| **V** | — (the Void) | — | — | guide, mobs, hub NPCs (`Enemies.md`, `HubAndStory.md`) |
+| **Orthos Prisma** | Generic | Light: "All for One" | Great axe with a B Light crystal | |
+| **Garnet** | Generic | Fire: "Rise from the Ashes" | Halberd | |
+| **Sapphire Flowers** | Refractor (Water) | Water evolution | — | lore: sleep; people near her get tired, herself included |
+| **Amethyst Prisma** | Resonator | Void: "Monster Creation" | Adapters: dual pistols (casts resonance refractions through them); weapon: open | adapters may get a slot cost |
+| **Emerald Sanctum** | Refractor | — | An S-tier Emerald adapter | |
+| **Amber** | Generic | Amber: "Infinite Stamina" | Dual chain scythes | |
+| **Ares** (sheet: Aron Citrine?) | Resonator | Lightning: "Lightning Speed" | Adapters: trainers, two Lightning adapters | Crown to confirm the name vs the Drive sheet |
+
+Build order once agreed: V template first, then these in Crown's order.
