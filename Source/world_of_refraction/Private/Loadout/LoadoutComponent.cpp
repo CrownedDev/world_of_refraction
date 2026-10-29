@@ -3256,6 +3256,22 @@ bool ULoadoutComponent::IsWornByAnother(const FGuid &GearID) const
     return Wearer != WearerKey;
 }
 
+void ULoadoutComponent::ForEachContributingGear(TFunctionRef<void(const FWeaponLoadoutEntry *, const FRingLoadoutEntry *)> Visit) const
+{
+    // Q-244 (A): the adapter in use, then the weapon in hand, for every class (the evolution seat is the caller's).
+    // Each is the live entry behind its slot, not the mirror's copy, so levels and rolls are current (D-111).
+    const FRingLoadoutEntry *Adapter = GetActiveAdapterLegacyEntry();
+    if (Adapter && Adapter->RingEntry.Ring)
+    {
+        Visit(nullptr, Adapter);
+    }
+    const FWeaponLoadoutEntry *Weapon = GetActiveWeaponLoadout();
+    if (Weapon && Weapon->WeaponEntry.Weapon)
+    {
+        Visit(Weapon, nullptr);
+    }
+}
+
 const FLoadoutSlot *ULoadoutComponent::GetActiveSlot(EGearKind Kind) const
 {
     const FCombatLoadout *Loadout = GetActiveLoadoutInStep();
@@ -4230,77 +4246,18 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
 
     const FCombatLoadout &Loadout = GetActiveLoadout();
 
-    switch (GetCharacterClass())
+    // B-306 (Q-244): the gear that counts, one rule for stats, resistances and effects.
+    ForEachContributingGear([&](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
     {
-    case ECharacterClass::Generic:
-    {
-        const bool bHasSecondaryWeapon =
-            Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
-            Loadout.SecondaryWeapon.IsValid();
-
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
+        if (Weapon)
         {
-            if (bHasSecondaryWeapon)
-            {
-                // Dual weapon — bShowPrimary picks which one is active.
-                if (const FWeaponLoadoutEntry *Active = GetActiveWeaponLoadout())
-                {
-                    AddScaled(Active->WeaponEntry.StatBonus, WeaponTier(Active->WeaponEntry));
-                }
-            }
-            else if (Loadout.PrimaryWeapon.IsValid())
-            {
-                AddScaled(Loadout.PrimaryWeapon.WeaponEntry.StatBonus, WeaponTier(Loadout.PrimaryWeapon.WeaponEntry));
-            }
+            AddScaled(Weapon->WeaponEntry.StatBonus, WeaponTier(Weapon->WeaponEntry));
         }
-        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+        else
         {
-            // Ring primary; weapon-secondary (if any) sums in.
-            if (Loadout.PrimaryRing.IsValid())
-            {
-                AddScaled(Loadout.PrimaryRing.RingEntry.StatBonus, RingTier(Loadout.PrimaryRing.RingEntry));
-            }
-            if (bHasSecondaryWeapon)
-            {
-                AddScaled(Loadout.SecondaryWeapon.WeaponEntry.StatBonus, WeaponTier(Loadout.SecondaryWeapon.WeaponEntry));
-            }
+            AddScaled(Adapter->RingEntry.StatBonus, RingTier(Adapter->RingEntry));
         }
-        // Evolution primary slots contribute via the innate-evolution sum after
-        // this switch (Base + Generated, pillar percents excluded).
-        break;
-    }
-
-    case ECharacterClass::Resonator:
-    {
-        // Active ring (from RingLoadout) + primary weapon (if equipped).
-        if (const FRingLoadoutEntry *ActiveRing = GetActiveRingLoadout())
-        {
-            AddScaled(ActiveRing->RingEntry.StatBonus, RingTier(ActiveRing->RingEntry));
-        }
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
-            Loadout.PrimaryWeapon.IsValid())
-        {
-            AddScaled(Loadout.PrimaryWeapon.WeaponEntry.StatBonus, WeaponTier(Loadout.PrimaryWeapon.WeaponEntry));
-        }
-        break;
-    }
-
-    case ECharacterClass::Caster:
-    default:
-    {
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
-            Loadout.PrimaryWeapon.IsValid())
-        {
-            AddScaled(Loadout.PrimaryWeapon.WeaponEntry.StatBonus, WeaponTier(Loadout.PrimaryWeapon.WeaponEntry));
-        }
-        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring &&
-                 Loadout.PrimaryRing.IsValid())
-        {
-            AddScaled(Loadout.PrimaryRing.RingEntry.StatBonus, RingTier(Loadout.PrimaryRing.RingEntry));
-        }
-        break;
-    }
-    }
+    });
 
     // Innate (primary-slot) evolution — its flat substats are slot-level stats,
     // summed like a weapon/ring entry's (asset Base + per-instance Generated roll).
@@ -4350,72 +4307,11 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
 
     // Mirrors GetActiveStatBonus's per-class slot resolution exactly, summing
     // each contributing entry's ResistanceBonus instead of StatBonus.
-    switch (GetCharacterClass())
+    // B-306 (Q-244): the gear that counts, one rule for stats, resistances and effects.
+    ForEachContributingGear([&Combined](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
     {
-    case ECharacterClass::Generic:
-    {
-        const bool bHasSecondaryWeapon =
-            Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
-            Loadout.SecondaryWeapon.IsValid();
-
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
-        {
-            if (bHasSecondaryWeapon)
-            {
-                if (const FWeaponLoadoutEntry *Active = GetActiveWeaponLoadout())
-                {
-                    Combined = Active->WeaponEntry.ResistanceBonus;
-                }
-            }
-            else if (Loadout.PrimaryWeapon.IsValid())
-            {
-                Combined = Loadout.PrimaryWeapon.WeaponEntry.ResistanceBonus;
-            }
-        }
-        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
-        {
-            if (Loadout.PrimaryRing.IsValid())
-            {
-                Combined.Accumulate(Loadout.PrimaryRing.RingEntry.ResistanceBonus);
-            }
-            if (bHasSecondaryWeapon)
-            {
-                Combined.Accumulate(Loadout.SecondaryWeapon.WeaponEntry.ResistanceBonus);
-            }
-        }
-        break;
-    }
-
-    case ECharacterClass::Resonator:
-    {
-        if (const FRingLoadoutEntry *ActiveRing = GetActiveRingLoadout())
-        {
-            Combined.Accumulate(ActiveRing->RingEntry.ResistanceBonus);
-        }
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
-            Loadout.PrimaryWeapon.IsValid())
-        {
-            Combined.Accumulate(Loadout.PrimaryWeapon.WeaponEntry.ResistanceBonus);
-        }
-        break;
-    }
-
-    case ECharacterClass::Caster:
-    default:
-    {
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
-            Loadout.PrimaryWeapon.IsValid())
-        {
-            Combined = Loadout.PrimaryWeapon.WeaponEntry.ResistanceBonus;
-        }
-        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring &&
-                 Loadout.PrimaryRing.IsValid())
-        {
-            Combined = Loadout.PrimaryRing.RingEntry.ResistanceBonus;
-        }
-        break;
-    }
-    }
+        Combined.Accumulate(Weapon ? Weapon->WeaponEntry.ResistanceBonus : Adapter->RingEntry.ResistanceBonus);
+    });
 
     // Evolution resistance — a PERMANENT equipped bonus (always-on while slotted):
     // authored Base from the ASSET + rolled Generated from the slotted ATTACHMENT
@@ -4456,71 +4352,13 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
 
     const FCombatLoadout &Loadout = GetActiveLoadout();
 
-    switch (GetCharacterClass())
+    // B-306 (Q-244): the gear that counts, one rule for stats, resistances and effects.
+    ForEachContributingGear([&Result](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
     {
-    case ECharacterClass::Generic:
-    {
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
-        {
-            if (UWeaponData *Weapon = GetActiveWeapon())
-            {
-                Result.Append(Weapon->GetStartingEffects());
-            }
-        }
-        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
-        {
-            // Ring primary; weapon-secondary sums in (GetActiveWeapon resolves
-            // to the secondary weapon here) — matching the stat sum.
-            if (URingData *Ring = GetPrimaryRing())
-            {
-                Result.Append(Ring->GetStartingEffects());
-            }
-            if (UWeaponData *Weapon = GetActiveWeapon())
-            {
-                Result.Append(Weapon->GetStartingEffects());
-            }
-        }
-        break;
-    }
-
-    case ECharacterClass::Resonator:
-    {
-        // Active ring + primary weapon (if equipped) — matching the stat sum.
-        if (URingData *Ring = GetActiveRing())
-        {
-            Result.Append(Ring->GetStartingEffects());
-        }
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
-        {
-            if (UWeaponData *Weapon = GetPrimaryWeapon())
-            {
-                Result.Append(Weapon->GetStartingEffects());
-            }
-        }
-        break;
-    }
-
-    case ECharacterClass::Caster:
-    default:
-    {
-        // Primary slot only (weapon OR ring, not both).
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
-        {
-            if (UWeaponData *Weapon = GetPrimaryWeapon())
-            {
-                Result.Append(Weapon->GetStartingEffects());
-            }
-        }
-        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
-        {
-            if (URingData *Ring = GetPrimaryRing())
-            {
-                Result.Append(Ring->GetStartingEffects());
-            }
-        }
-        break;
-    }
-    }
+        const UEquipmentDataBase *Asset = Weapon ? static_cast<const UEquipmentDataBase *>(Weapon->WeaponEntry.Weapon)
+                                                 : static_cast<const UEquipmentDataBase *>(Adapter->RingEntry.Ring);
+        Result.Append(Asset->GetStartingEffects());
+    });
 
     // Innate (primary-slot) evolution starting effects. ATTACHED evolutions are
     // deliberately excluded — same two-branch exclusivity on PrimarySlotType as
@@ -4545,67 +4383,13 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
     // B-192: bound gear adds its bonus only on its owner.
     const UCharacterData *Wearer = GetOwnerCharacterData();
 
-    switch (GetCharacterClass())
+    // B-306 (Q-244): the gear that counts, one rule for stats, resistances and effects.
+    ForEachContributingGear([&Result, Wearer](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
     {
-    case ECharacterClass::Generic:
-    {
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
-        {
-            if (UWeaponData *Weapon = GetActiveWeapon())
-            {
-                Result.Append(Weapon->GetStartingEffectsGathered(Wearer));
-            }
-        }
-        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
-        {
-            if (URingData *Ring = GetPrimaryRing())
-            {
-                Result.Append(Ring->GetStartingEffectsGathered(Wearer));
-            }
-            if (UWeaponData *Weapon = GetActiveWeapon())
-            {
-                Result.Append(Weapon->GetStartingEffectsGathered(Wearer));
-            }
-        }
-        break;
-    }
-
-    case ECharacterClass::Resonator:
-    {
-        if (URingData *Ring = GetActiveRing())
-        {
-            Result.Append(Ring->GetStartingEffectsGathered(Wearer));
-        }
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
-        {
-            if (UWeaponData *Weapon = GetPrimaryWeapon())
-            {
-                Result.Append(Weapon->GetStartingEffectsGathered(Wearer));
-            }
-        }
-        break;
-    }
-
-    case ECharacterClass::Caster:
-    default:
-    {
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
-        {
-            if (UWeaponData *Weapon = GetPrimaryWeapon())
-            {
-                Result.Append(Weapon->GetStartingEffectsGathered(Wearer));
-            }
-        }
-        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
-        {
-            if (URingData *Ring = GetPrimaryRing())
-            {
-                Result.Append(Ring->GetStartingEffectsGathered(Wearer));
-            }
-        }
-        break;
-    }
-    }
+        const UEquipmentDataBase *Asset = Weapon ? static_cast<const UEquipmentDataBase *>(Weapon->WeaponEntry.Weapon)
+                                                 : static_cast<const UEquipmentDataBase *>(Adapter->RingEntry.Ring);
+        Result.Append(Asset->GetStartingEffectsGathered(Wearer));
+    });
 
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
     {
@@ -4627,67 +4411,13 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
     // B-192: bound gear adds its bonus only on its owner.
     const UCharacterData *Wearer = GetOwnerCharacterData();
 
-    switch (GetCharacterClass())
+    // B-306 (Q-244): the gear that counts, one rule for stats, resistances and effects.
+    ForEachContributingGear([&Result, Wearer](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
     {
-    case ECharacterClass::Generic:
-    {
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
-        {
-            if (UWeaponData *Weapon = GetActiveWeapon())
-            {
-                Result.Append(Weapon->GetConditionalEffectsGathered(Wearer));
-            }
-        }
-        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
-        {
-            if (URingData *Ring = GetPrimaryRing())
-            {
-                Result.Append(Ring->GetConditionalEffectsGathered(Wearer));
-            }
-            if (UWeaponData *Weapon = GetActiveWeapon())
-            {
-                Result.Append(Weapon->GetConditionalEffectsGathered(Wearer));
-            }
-        }
-        break;
-    }
-
-    case ECharacterClass::Resonator:
-    {
-        if (URingData *Ring = GetActiveRing())
-        {
-            Result.Append(Ring->GetConditionalEffectsGathered(Wearer));
-        }
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
-        {
-            if (UWeaponData *Weapon = GetPrimaryWeapon())
-            {
-                Result.Append(Weapon->GetConditionalEffectsGathered(Wearer));
-            }
-        }
-        break;
-    }
-
-    case ECharacterClass::Caster:
-    default:
-    {
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
-        {
-            if (UWeaponData *Weapon = GetPrimaryWeapon())
-            {
-                Result.Append(Weapon->GetConditionalEffectsGathered(Wearer));
-            }
-        }
-        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
-        {
-            if (URingData *Ring = GetPrimaryRing())
-            {
-                Result.Append(Ring->GetConditionalEffectsGathered(Wearer));
-            }
-        }
-        break;
-    }
-    }
+        const UEquipmentDataBase *Asset = Weapon ? static_cast<const UEquipmentDataBase *>(Weapon->WeaponEntry.Weapon)
+                                                 : static_cast<const UEquipmentDataBase *>(Adapter->RingEntry.Ring);
+        Result.Append(Asset->GetConditionalEffectsGathered(Wearer));
+    });
 
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
     {

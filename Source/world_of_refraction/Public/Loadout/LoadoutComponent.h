@@ -546,6 +546,11 @@ public:
      *  the game thread only (the anim instance reads it from NativeUpdateAnimation, not the thread-safe update). */
     const FLoadoutSlot *GetActiveSlot(EGearKind Kind) const;
 
+    /** B-306 (Q-244, D-110): the gear that counts, for every class and every reader (stats, resistances, effects):
+     *  the adapter in use, then the weapon in hand. Visit gets the live entry behind each (one of the two is null).
+     *  The primary evolution seat is not gear; callers add it. */
+    void ForEachContributingGear(TFunctionRef<void(const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)> Visit) const;
+
     /** D-083: why Spell can't be cast right now because the active weapon's or ring's crystal
      *  is broken (a broken ring still casts F-tier spells). Empty when it can. */
     FText GetBrokenSourceReason(const USpellData *Spell) const;
