@@ -666,4 +666,5 @@ void UStatusBuildupManager::TriggerSkillEffectFromBuildup(AActor *Source, AActor
 	}
 
 	EffectMgr->ApplyTriggeredSkillEffect(Source, Target, StatusType, Element);
+	OnStatusTriggered.Broadcast(Target, Source, StatusType, Element);
 }

@@ -30,6 +30,15 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
     ESpellElement, PendingElement,
     AActor *, Source);
 
+/** B-291: a status bar hit its cap and fired its break (StatusType, e.g. DOT for Fire's Burn), from Source's hit
+ *  of Element. For the balance simulator's break counts, and the HUD later. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
+    FOnStatusTriggered,
+    AActor *, Target,
+    AActor *, Source,
+    ESkillEffectType, StatusType,
+    ESpellElement, Element);
+
 /**
  * UStatusBuildupManager
  *
@@ -201,6 +210,10 @@ public:
 	/** Broadcast when status bar buildup changes */
 	UPROPERTY(BlueprintAssignable, Category = "Status|Bar|Events")
 	FOnStatusBuildupChanged OnStatusBuildupChanged;
+
+	/** Broadcast when a full bar fires its break (B-291) */
+	UPROPERTY(BlueprintAssignable, Category = "Status|Bar|Events")
+	FOnStatusTriggered OnStatusTriggered;
 
 private:
 	// ========================================
