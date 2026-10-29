@@ -204,9 +204,10 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     UPROPERTY(BlueprintReadOnly, Category = "Runtime|Slots")
     int32 ActiveAdapterSlot = INDEX_NONE;
 
-    /** Rebuilds Slots and the two active indices from the old fields. bGenericWeaponRules: the character is a
-     *  Generic, whose bShowPrimary picks which of two weapons is in hand (for other classes it is look only). */
-    void RebuildSlotsFromLegacy(bool bGenericWeaponRules);
+    /** Rebuilds Slots and the two active indices from the old fields, by the character's class: only a Generic's
+     *  bShowPrimary picks which of two weapons is in hand, and only a Resonator's adapter loadout has an active one
+     *  (everyone else's adapter is the primary one), as GetActiveWeapon / GetActiveRing / GetPrimaryRing. */
+    void RebuildSlotsFromLegacy(ECharacterClass CharacterClass);
 
     // ==================== VALIDATION ====================
     // Live validation lives on ULoadoutComponent::GetValidationErrors —

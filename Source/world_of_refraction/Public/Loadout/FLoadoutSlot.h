@@ -20,11 +20,13 @@ struct WORLD_OF_REFRACTION_API FLoadoutSlot
 {
 	GENERATED_BODY()
 
-	/** The owned piece this slot references (B-085: owned is the truth); invalid for an asset-built slot. */
+	/** THE TRUTH (D-111, B-085): the owned item this slot holds, by its GUID; invalid only for an asset-built slot.
+	 *  A slot never owns gear: an item that is gone or worn elsewhere leaves the slot empty. */
 	UPROPERTY(BlueprintReadOnly, Category = "Slot")
 	FGuid GearID;
 
-	/** The gear in the slot (a copy of the owned instance, as today's entries are). */
+	/** A DERIVED cache of the owned item GearID names (today copied from the old loadout entry). Never the source:
+	 *  readers that need the item's live state (wear, tier, attachment) look the GUID up in the owned store. */
 	UPROPERTY(BlueprintReadOnly, Category = "Slot")
 	FGearInstance Gear;
 

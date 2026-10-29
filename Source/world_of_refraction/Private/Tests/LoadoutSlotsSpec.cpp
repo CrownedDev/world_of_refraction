@@ -53,14 +53,14 @@ void FLoadoutSlotsSpec::Define()
 	It("mirrors a Generic's two weapons, with bShowPrimary picking the one in hand", [this]()
 	{
 		FCombatLoadout Shown = LoadoutSlotsTestDualWeapons(true);
-		Shown.RebuildSlotsFromLegacy(true);
+		Shown.RebuildSlotsFromLegacy(ECharacterClass::Generic);
 		TestEqual(TEXT("two slots"), Shown.Slots.Num(), 2);
 		TestTrue(TEXT("both weapons"), Shown.Slots[0].Kind() == EGearKind::Weapon && Shown.Slots[1].Kind() == EGearKind::Weapon);
 		TestEqual(TEXT("primary in hand"), Shown.ActiveWeaponSlot, 0);
 		TestEqual(TEXT("no adapter"), Shown.ActiveAdapterSlot, static_cast<int32>(INDEX_NONE));
 
 		FCombatLoadout Hidden = LoadoutSlotsTestDualWeapons(false);
-		Hidden.RebuildSlotsFromLegacy(true);
+		Hidden.RebuildSlotsFromLegacy(ECharacterClass::Generic);
 		TestEqual(TEXT("secondary in hand"), Hidden.ActiveWeaponSlot, 1);
 	});
 
@@ -70,9 +70,9 @@ void FLoadoutSlotsSpec::Define()
 		Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
 		Loadout.PrimaryWeapon = LoadoutSlotsTestWeapon();
 		Loadout.bShowPrimary = false;
-		Loadout.RebuildSlotsFromLegacy(false);
+		Loadout.RebuildSlotsFromLegacy(ECharacterClass::Caster);
 		TestEqual(TEXT("primary in hand"), Loadout.ActiveWeaponSlot, 0);
-		Loadout.RebuildSlotsFromLegacy(true);
+		Loadout.RebuildSlotsFromLegacy(ECharacterClass::Generic);
 		TestEqual(TEXT("a Generic showing an empty secondary holds nothing"), Loadout.ActiveWeaponSlot, static_cast<int32>(INDEX_NONE));
 	});
 
@@ -83,7 +83,7 @@ void FLoadoutSlotsSpec::Define()
 		Loadout.PrimaryRing = LoadoutSlotsTestRing();
 		Loadout.SecondarySlotType = ESecondarySlotType::Weapon;
 		Loadout.SecondaryWeapon = LoadoutSlotsTestWeapon();
-		Loadout.RebuildSlotsFromLegacy(true);
+		Loadout.RebuildSlotsFromLegacy(ECharacterClass::Generic);
 		TestTrue(TEXT("adapter then weapon"), Loadout.Slots.Num() == 2 && Loadout.Slots[0].Kind() == EGearKind::Adapter &&
 												   Loadout.Slots[1].Kind() == EGearKind::Weapon);
 		TestEqual(TEXT("active adapter"), Loadout.ActiveAdapterSlot, 0);
@@ -100,7 +100,7 @@ void FLoadoutSlotsSpec::Define()
 			Loadout.RingLoadout.Add(LoadoutSlotsTestRing());
 		}
 		Loadout.ActiveRingIndex = LOADOUT_SLOTS_TEST_ACTIVE_RING;
-		Loadout.RebuildSlotsFromLegacy(false);
+		Loadout.RebuildSlotsFromLegacy(ECharacterClass::Resonator);
 		TestEqual(TEXT("weapon plus three adapters"), Loadout.Slots.Num(), 1 + LOADOUT_SLOTS_TEST_RINGS);
 		TestEqual(TEXT("weapon in hand"), Loadout.ActiveWeaponSlot, 0);
 		TestEqual(TEXT("active adapter after the weapon"), Loadout.ActiveAdapterSlot, 1 + LOADOUT_SLOTS_TEST_ACTIVE_RING);
@@ -108,15 +108,29 @@ void FLoadoutSlotsSpec::Define()
 				 Loadout.Slots[Loadout.ActiveAdapterSlot].Gear.GetAdapter() == Loadout.RingLoadout[LOADOUT_SLOTS_TEST_ACTIVE_RING].RingEntry.Ring);
 
 		Loadout.ActiveRingIndex = LOADOUT_SLOTS_TEST_STALE_RING;
-		Loadout.RebuildSlotsFromLegacy(false);
+		Loadout.RebuildSlotsFromLegacy(ECharacterClass::Resonator);
 		TestEqual(TEXT("stale index: no active adapter"), Loadout.ActiveAdapterSlot, static_cast<int32>(INDEX_NONE));
+	});
+
+	It("follows a Generic's empty primary as GetActiveWeapon does (a sold primary weapon)", [this]()
+	{
+		FCombatLoadout Loadout;
+		Loadout.PrimarySlotType = EPrimarySlotType::None;
+		Loadout.SecondarySlotType = ESecondarySlotType::Weapon;
+		Loadout.SecondaryWeapon = LoadoutSlotsTestWeapon();
+		Loadout.bShowPrimary = true;
+		Loadout.RebuildSlotsFromLegacy(ECharacterClass::Generic);
+		TestEqual(TEXT("showing the empty primary: nothing in hand"), Loadout.ActiveWeaponSlot, static_cast<int32>(INDEX_NONE));
+		Loadout.bShowPrimary = false;
+		Loadout.RebuildSlotsFromLegacy(ECharacterClass::Generic);
+		TestEqual(TEXT("showing the secondary"), Loadout.ActiveWeaponSlot, 0);
 	});
 
 	It("gives an evolution primary no weapon or adapter slot", [this]()
 	{
 		FCombatLoadout Loadout;
 		Loadout.PrimarySlotType = EPrimarySlotType::Evolution;
-		Loadout.RebuildSlotsFromLegacy(false);
+		Loadout.RebuildSlotsFromLegacy(ECharacterClass::Caster);
 		TestEqual(TEXT("no slots"), Loadout.Slots.Num(), 0);
 		TestEqual(TEXT("no weapon"), Loadout.ActiveWeaponSlot, static_cast<int32>(INDEX_NONE));
 	});

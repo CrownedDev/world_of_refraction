@@ -2518,7 +2518,7 @@ void ULoadoutComponent::NotifyActiveWeaponChanged()
     {
         if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
         {
-            Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].RebuildSlotsFromLegacy(GetCharacterClass() == ECharacterClass::Generic);
+            Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].RebuildSlotsFromLegacy(GetCharacterClass());
         }
     }
     // GetActiveWeapon warns when there is no inventory; with none there is no weapon to announce.
