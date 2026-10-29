@@ -16,6 +16,7 @@
 #include "LoadoutRules.generated.h"
 
 struct FCombatLoadout;
+struct FLoadoutSlot;
 struct FSavedLoadout;
 class UWeaponData;
 class URingData;
@@ -118,8 +119,54 @@ struct WORLD_OF_REFRACTION_API FLoadoutRuleContext
 	TFunction<bool(ESpellElement)> CanCastElement;
 };
 
+/** D-110 (Crown, 2026-10-29): what each class may carry. Each class is a budget plus limits; costs are one table for
+ *  every class (FLoadoutRules::SlotCost). The evolution seat (an evolution on its own) uses up an item. */
+struct FLoadoutClassLimits
+{
+	int32 Budget = 0;
+	int32 MaxItems = 0;
+	int32 MaxWeapons = 0;
+	int32 MaxAdapters = 0;
+};
+
+namespace LoadoutClassTable
+{
+	/** A limit that doesn't apply (the Resonator's adapter count, CL-11). */
+	constexpr int32 NO_LIMIT = INDEX_NONE;
+
+	/** Refractor: budget 3, one item (a weapon, an adapter or an evolution) beside its innate pool. */
+	constexpr FLoadoutClassLimits REFRACTOR{3, 1, 1, 1};
+	/** Generic: budget 6, two items: up to two weapons, and it keeps one adapter (D-110 B). */
+	constexpr FLoadoutClassLimits GENERIC{6, 2, 2, 1};
+	/** Resonator: budget 5 (CL-10), one weapon, any number of adapters. */
+	constexpr FLoadoutClassLimits RESONATOR{5, NO_LIMIT, 1, NO_LIMIT};
+
+	inline FLoadoutClassLimits Get(ECharacterClass Class)
+	{
+		switch (Class)
+		{
+		case ECharacterClass::Caster:
+			return REFRACTOR;
+		case ECharacterClass::Resonator:
+			return RESONATOR;
+		case ECharacterClass::Generic:
+		default:
+			return GENERIC;
+		}
+	}
+}
+
 struct WORLD_OF_REFRACTION_API FLoadoutRules
 {
+	/** D-110: one cost for every class. Weapon: bare 1 / with a crystal, stone or fusion 2 / with an evolution 3.
+	 *  Adapter: 1 / with an evolution 2 (InventoryConstants). The evolution seat is EVOLUTION_PRIMARY_SLOT_COST. */
+	static int32 SlotCost(const FLoadoutSlot &Slot);
+
+	/** D-110: the class's budget, item count and per-kind limits over the unified slots (B-302's mirror, rebuilt
+	 *  here from the old fields so it is never stale). A Resonator's budget finding stays RingOverflow (cleared by
+	 *  dropping adapters); another class's is a diagnostic its slot shapes can't reach today. */
+	static TArray<FInvalidSlotFinding> CollectClassLimitFindings(const FCombatLoadout &Loadout, ECharacterClass Class);
+
 	/** Every rule the fight enforces, on the fight's loadout shape. */
 	static TArray<FInvalidSlotFinding> CollectFindings(const FCombatLoadout &Loadout, const FLoadoutRuleContext &Context);
 

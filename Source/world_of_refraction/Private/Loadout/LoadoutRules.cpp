@@ -217,7 +217,8 @@ namespace
 		CheckAbilityCounts(Sink, Weapon, TEXT("Primary"), LoadoutAbilityOverflowIndex::PRIMARY_WEAPON);
 	}
 
-	int32 PrimarySlotCost(const FCombatLoadout &Loadout)
+	// OBSOLETE (B-303): the budget now reads FLoadoutRules::SlotCost over the unified slots. Remove with B-309.
+	[[maybe_unused]] int32 PrimarySlotCost(const FCombatLoadout &Loadout)
 	{
 		switch (Loadout.PrimarySlotType)
 		{
@@ -409,7 +410,6 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 
 	if (Context.CharacterClass == ECharacterClass::Resonator)
 	{
-		int32 RingCost = 0;
 		for (int32 i = 0; i < Loadout.RingLoadout.Num(); ++i)
 		{
 			const FRingLoadoutEntry &RingEntry = Loadout.RingLoadout[i];
@@ -423,19 +423,11 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 			}
 			CheckRingSpellCoherence(Sink, RingEntry.RingEntry, i);
 			CheckRingSpellCap(Sink, RingEntry, i);
-			RingCost += InventoryConstants::GetRingSlotCost(RingEntry.IsEvolved());
-		}
-
-		// Unified budget: primary slot cost + ring slot costs must fit one budget.
-		const int32 PrimaryCost = PrimarySlotCost(Loadout);
-		const int32 TotalCost = PrimaryCost + RingCost;
-		if (TotalCost > LoadoutConstants::LOADOUT_TOTAL_BUDGET)
-		{
-			Sink.Add(ELoadoutSlotType::RingOverflow, -1, true,
-					 FString::Printf(TEXT("Loadout exceeds budget: primary (cost %d) + rings (cost %d) = %d, max is %d"),
-									 PrimaryCost, RingCost, TotalCost, LoadoutConstants::LOADOUT_TOTAL_BUDGET));
 		}
 	}
+
+	// D-110 (B-303): every class's budget and limits, from one table over the unified slots.
+	Sink.Findings.Append(CollectClassLimitFindings(Loadout, Context.CharacterClass));
 
 	if (Context.CharacterClass == ECharacterClass::Caster)
 	{
@@ -444,6 +436,85 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 
 	CheckItems(Sink, Loadout);
 	return MoveTemp(Sink.Findings);
+}
+
+int32 FLoadoutRules::SlotCost(const FLoadoutSlot &Slot)
+{
+	if (Slot.IsEmpty())
+	{
+		return 0;
+	}
+	const bool bEvolved = Slot.Gear.AttachedItem.IsEvolution();
+	if (Slot.Kind() == EGearKind::Adapter)
+	{
+		return InventoryConstants::GetRingSlotCost(bEvolved);
+	}
+	return Slot.Gear.HasAttachment() ? InventoryConstants::GetWeaponSlotCost(true, bEvolved) : InventoryConstants::WEAPON_BASE_SLOT_COST;
+}
+
+TArray<FInvalidSlotFinding> FLoadoutRules::CollectClassLimitFindings(const FCombatLoadout &Loadout, ECharacterClass Class)
+{
+	FCombatLoadout Mirror = Loadout;
+	Mirror.RebuildSlotsFromLegacy(Class == ECharacterClass::Generic);
+	const FLoadoutClassLimits Limits = LoadoutClassTable::Get(Class);
+
+	const bool bEvolutionSeat = Mirror.PrimarySlotType == EPrimarySlotType::Evolution;
+	int32 GearCost = bEvolutionSeat ? LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST : 0;
+	int32 AdapterCost = 0;
+	int32 Weapons = 0;
+	int32 Adapters = 0;
+	for (const FLoadoutSlot &Slot : Mirror.Slots)
+	{
+		if (Slot.IsEmpty())
+		{
+			continue;
+		}
+		if (Slot.Kind() == EGearKind::Adapter)
+		{
+			++Adapters;
+			AdapterCost += SlotCost(Slot);
+		}
+		else
+		{
+			++Weapons;
+			GearCost += SlotCost(Slot);
+		}
+	}
+
+	TArray<FInvalidSlotFinding> Findings;
+	const auto Add = [&Findings](ELoadoutSlotType Type, bool bClearable, const FString &Reason)
+	{
+		FInvalidSlotFinding &Finding = Findings.AddDefaulted_GetRef();
+		Finding.SlotType = Type;
+		Finding.SlotIndex = -1;
+		Finding.bClearable = bClearable;
+		Finding.Reason = Reason;
+	};
+
+	// The Resonator's budget finding keeps its shape and words (ClearInvalidSlots drops adapters for it). The other
+	// classes can't exceed theirs with today's slots, so theirs are diagnostics, not auto-cleared.
+	const bool bResonator = Class == ECharacterClass::Resonator;
+	const int32 TotalCost = GearCost + AdapterCost;
+	if (TotalCost > Limits.Budget)
+	{
+		Add(bResonator ? ELoadoutSlotType::RingOverflow : ELoadoutSlotType::None, bResonator,
+			FString::Printf(TEXT("Loadout exceeds budget: primary (cost %d) + rings (cost %d) = %d, max is %d"), GearCost,
+							AdapterCost, TotalCost, Limits.Budget));
+	}
+	const int32 Items = Weapons + Adapters + (bEvolutionSeat ? 1 : 0);
+	if (Limits.MaxItems != LoadoutClassTable::NO_LIMIT && Items > Limits.MaxItems)
+	{
+		Add(ELoadoutSlotType::None, false, FString::Printf(TEXT("Too many items for the class (%d/%d)"), Items, Limits.MaxItems));
+	}
+	if (Limits.MaxWeapons != LoadoutClassTable::NO_LIMIT && Weapons > Limits.MaxWeapons)
+	{
+		Add(ELoadoutSlotType::None, false, FString::Printf(TEXT("Too many weapons for the class (%d/%d)"), Weapons, Limits.MaxWeapons));
+	}
+	if (Limits.MaxAdapters != LoadoutClassTable::NO_LIMIT && Adapters > Limits.MaxAdapters)
+	{
+		Add(ELoadoutSlotType::None, false, FString::Printf(TEXT("Too many adapters for the class (%d/%d)"), Adapters, Limits.MaxAdapters));
+	}
+	return Findings;
 }
 
 TArray<FString> FLoadoutRules::CollectAuthoredShapeErrors(const FSavedLoadout &Saved)
