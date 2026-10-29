@@ -1561,6 +1561,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** (2026-10-29) **A**: the tuned element palette (each element's identity kept, lightness spread so every pair reads under protanopia, deuteranopia and tritanopia), an **element gem beside every damage number and on every status bar** (on by default; a setting "Element markers: always / numbers only"), and **resisted hits shown by size, transparency and glow, not a darker shade**. **Darkness stays a darkened black** (Crown), drawn with a pale outline wherever it's text. Ice gets its own pale colour. The two contradicting code tables collapse into the one element table (B-271).
 **Notes for Claude:** values in `analysis/ElementPalette_2026-10-29.md` §proposal (a) with Darkness kept near-black (#262626-ish, outline for text); apply in B-271's table, the HUD drafts (v3) and B-105's damage numbers / bars; the setting in the per-player settings struct (D-059). **Confirmed (Crown, 2026-10-29): the only purples are Void = violet (lighter) and Unknown / Reality = indigo (darker); Darkness is near-black with no purple tint.**
 
+### D-107 — Rings become Adapters
+**Status:** ANSWERED (2026-10-29) · **Raised:** 2026-10-29 (Crown, character planning) · **Blocks:** —
+**Answer (Crown):** (2026-10-29)
+- **The ring loadout becomes the adapter loadout.** An **adapter** is a specialised tool for channelling spells; a ring is one **form** of adapter, and others exist (Amethyst's dual pistols, which he casts resonance refractions through; Ares's trainer adapters; whatever the lore adds). **Weapons stay weapons** (physical attacks and abilities); an adapter never sits in a weapon slot.
+- Same mechanics as rings today (crystal, element, spells, active adapter for the Resonator, infusion source, wear); the **form** sets look and casting animation only.
+- **Rename: A.** "Adapter" is the player-facing word everywhere now (name tables, D-062); the code keeps its `Ring` names (~95 types) until a later move-only rename. A **slot cost for adapters** in the Resonator budget stays open.
+**Notes for Claude:** B-298: `EAdapterForm` (appended enum: Ring, Pistol, Trainer, …) on the ring data asset, LOCTEXT "Adapter" / "Adapters" / "Active adapter" replacing "Ring" in every player string, rules pages and design docs updated (CL-24 etc.). Code rename is a later move-only job (B-299, after GAS stage 3 settles).
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
