@@ -49,6 +49,6 @@ Class, evolution and weapon per character (Crown's words; lore stays Crown's). "
 | **Amethyst Prisma** | Resonator | Void: "Monster Creation" | Adapters: dual pistols (casts resonance refractions through them); weapon: open | adapters may get a slot cost |
 | **Emerald Sanctum** | Refractor | — | An S-tier Emerald adapter | |
 | **Amber** | Generic | Amber: "Infinite Stamina" | Dual chain scythes | |
-| **Ares** (sheet: Aron Citrine?) | Resonator | Lightning: "Lightning Speed" | Adapters: trainers, two Lightning adapters | Crown to confirm the name vs the Drive sheet |
+| **Ares Citrine** (the Drive sheet "Aron Citrine"; Crown, 2026-10-29) | Resonator | Lightning: "Lightning Speed" | Adapters: trainers, two Lightning adapters | Sibling of Artemis Citrine; MoR 2020: Imperial Blade, Prince, "Protagonist" |
 
 Build order once agreed: V template first, then these in Crown's order.
