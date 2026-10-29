@@ -54,7 +54,7 @@ Class, evolution and weapon per character (Crown's words; lore stays Crown's). "
   - **Cross Cutter Buzz Saw** (black automatic): two shots become a spinning four-point saw that chases the target.
   - Cost / possession: void tendrils wrap him and he collapses at the end (p35).
   Two guns: a black automatic (plain shots, Cross Cutter) and a silver revolver (Void Bullet, Fire!); casting is through the barrel. |
-| **Emerald Sanctum** | Refractor | — | An S-tier Emerald adapter | |
+| **Emerald Sanctum** | Refractor (Wind) | **No evolution** (Crown, 2026-10-29) | An S-tier Emerald adapter | The pure Refractor: mastery through a maxed Wind adapter and its spells. |
 | **Amber** | Generic | Amber: "Infinite Stamina" | Dual chain scythes | |
 | **Ares Citrine** (the Drive sheet "Aron Citrine"; Crown, 2026-10-29) | Resonator | Lightning: "Lightning Speed" | Adapters: trainers, two Lightning adapters | Sibling of Artemis Citrine; MoR 2020: Imperial Blade, Prince, "Protagonist" |
 
