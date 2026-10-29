@@ -2,6 +2,7 @@
 // Active combat loadout and runtime battle state implementation
 
 #include "Loadout/LoadoutComponent.h"
+#include "Pool/PoolSubsystem.h"
 #include "Loadout/SourceBreakRules.h"
 #include "Loadout/LoadoutConstants.h"
 #include "Inventory/InventoryConstants.h"
@@ -2524,64 +2525,9 @@ void ULoadoutComponent::NotifyActiveWeaponChanged()
 
 UWeaponData *ULoadoutComponent::GetActiveWeapon() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveWeapon] No InventoryComponent found on owner"));
-        return nullptr;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-    {
-        return nullptr;
-    }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-    const bool bIsGeneric = GetCharacterClass() == ECharacterClass::Generic;
-
-    // Evolution primary = no weapon access
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
-    {
-        // Evolved Generic uses secondary weapon
-        if (bIsGeneric &&
-            Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
-        {
-            return Loadout.SecondaryWeapon.IsValid() ? Loadout.SecondaryWeapon.WeaponEntry.Weapon : nullptr;
-        }
-        // Caster/Resonator have no weapon when evolved
-        return nullptr;
-    }
-
-    // Ring primary - bShowPrimary controls stance display only, not combat capability.
-    // Generic with weapon-secondary always has weapon access; Caster/Resonator have none.
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
-    {
-        if (bIsGeneric &&
-            Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
-        {
-            return Loadout.SecondaryWeapon.IsValid() ? Loadout.SecondaryWeapon.WeaponEntry.Weapon : nullptr;
-        }
-
-        return nullptr;
-    }
-
-    // Weapon primary - class-specific behavior
-    if (bIsGeneric)
-    {
-        // Generic dual-weapon: bShowPrimary IS a real gameplay toggle.
-        if (Loadout.bShowPrimary)
-        {
-            return Loadout.PrimaryWeapon.IsValid() ? Loadout.PrimaryWeapon.WeaponEntry.Weapon : nullptr;
-        }
-        else if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
-        {
-            return Loadout.SecondaryWeapon.IsValid() ? Loadout.SecondaryWeapon.WeaponEntry.Weapon : nullptr;
-        }
-        return nullptr;
-    }
-
-    // Caster/Resonator: weapon equipped iff primary slot has weapon.
-    // bShowPrimary controls stance display only, not combat capability.
-    return Loadout.PrimaryWeapon.IsValid() ? Loadout.PrimaryWeapon.WeaponEntry.Weapon : nullptr;
+    // B-304 (D-110): forwards to the one active-slot rule.
+    const FLoadoutSlot *Slot = GetActiveSlot(EGearKind::Weapon);
+    return Slot ? Slot->Gear.GetWeapon() : nullptr;
 }
 
 UWeaponData *ULoadoutComponent::GetPrimaryWeapon() const
@@ -2637,55 +2583,24 @@ UWeaponData *ULoadoutComponent::GetSecondaryWeapon() const
 
 URingData *ULoadoutComponent::GetPrimaryRing() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetPrimaryRing] No InventoryComponent found on owner"));
-        return nullptr;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    // B-304: a Generic's or Refractor's adapter is its active adapter (a Resonator's lives in its adapter loadout).
+    if (GetCharacterClass() == ECharacterClass::Resonator)
     {
         return nullptr;
     }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-
-    if (Loadout.PrimarySlotType != EPrimarySlotType::Ring)
-    {
-        return nullptr;
-    }
-
-    return Loadout.PrimaryRing.IsValid() ? Loadout.PrimaryRing.RingEntry.Ring : nullptr;
+    const FLoadoutSlot *Slot = GetActiveSlot(EGearKind::Adapter);
+    return Slot ? Slot->Gear.GetAdapter() : nullptr;
 }
 
 URingData *ULoadoutComponent::GetActiveRing() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveRing] No InventoryComponent found on owner"));
-        return nullptr;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-    {
-        return nullptr;
-    }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-
-    // Only Resonators have ring loadout
+    // B-304: the Resonator's active adapter (others answer through GetPrimaryRing, as before).
     if (GetCharacterClass() != ECharacterClass::Resonator)
     {
         return nullptr;
     }
-
-    if (!Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex))
-    {
-        return nullptr;
-    }
-
-    const FRingLoadoutEntry &Entry = Loadout.RingLoadout[Loadout.ActiveRingIndex];
-    return Entry.IsValid() ? Entry.RingEntry.Ring : nullptr;
+    const FLoadoutSlot *Slot = GetActiveSlot(EGearKind::Adapter);
+    return Slot ? Slot->Gear.GetAdapter() : nullptr;
 }
 
 UEvolutionItemData *ULoadoutComponent::GetPrimaryEvolution() const
@@ -3175,56 +3090,10 @@ TArray<USpellData *> ULoadoutComponent::GetRingResonateSpells() const
 
 const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveWeaponLoadout] No InventoryComponent found on owner"));
-        return nullptr;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-        return nullptr;
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-    const bool bIsGeneric = GetCharacterClass() == ECharacterClass::Generic;
-
-    // Evolution primary = no weapon
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
-    {
-        // Evolved Generic uses secondary weapon
-        if (bIsGeneric &&
-            Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
-            Loadout.SecondaryWeapon.IsValid())
-        {
-            return &Loadout.SecondaryWeapon;
-        }
-        return nullptr;
-    }
-
-    // Ring primary - bShowPrimary controls stance display only, not combat capability.
-    // Generic with weapon-secondary always has weapon access; Caster/Resonator have none.
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
-    {
-        if (bIsGeneric &&
-            Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
-            return Loadout.SecondaryWeapon.IsValid() ? &Loadout.SecondaryWeapon : nullptr;
-
-        return nullptr;
-    }
-
-    // Weapon primary - class-specific behavior
-    if (bIsGeneric)
-    {
-        // Generic dual-weapon: bShowPrimary IS a real gameplay toggle.
-        if (Loadout.bShowPrimary)
-            return Loadout.PrimaryWeapon.IsValid() ? &Loadout.PrimaryWeapon : nullptr;
-        else if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
-            return Loadout.SecondaryWeapon.IsValid() ? &Loadout.SecondaryWeapon : nullptr;
-        return nullptr;
-    }
-
-    // Caster/Resonator: weapon equipped iff primary slot has weapon.
-    // bShowPrimary controls stance display only, not combat capability.
-    return Loadout.PrimaryWeapon.IsValid() ? &Loadout.PrimaryWeapon : nullptr;
+    // B-304: the old entry behind the active weapon slot.
+    const FCombatLoadout *Loadout = GetActiveLoadoutInStep();
+    const FLoadoutSlot *Slot = GetActiveSlot(EGearKind::Weapon);
+    return Loadout && Slot ? Loadout->GetLegacyWeaponEntry(static_cast<int32>(Slot - Loadout->Slots.GetData())) : nullptr;
 }
 
 const FRuntimeAttachedItem *ULoadoutComponent::GetStoneRingAttachment() const
@@ -3309,44 +3178,96 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetSecondaryWeaponLoadout() const
 
 const FRingLoadoutEntry *ULoadoutComponent::GetPrimaryRingLoadout() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
+    // B-304: the old entry behind a Generic's or Refractor's adapter.
+    if (GetCharacterClass() == ECharacterClass::Resonator)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetPrimaryRingLoadout] No InventoryComponent found on owner"));
         return nullptr;
     }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-        return nullptr;
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-
-    if (Loadout.PrimarySlotType != EPrimarySlotType::Ring)
-        return nullptr;
-
-    return Loadout.PrimaryRing.RingEntry.Ring != nullptr ? &Loadout.PrimaryRing : nullptr;
+    return GetActiveAdapterLegacyEntry();
 }
 
 const FRingLoadoutEntry *ULoadoutComponent::GetActiveRingLoadout() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
+    // B-304: the old entry behind the Resonator's active adapter.
+    if (GetCharacterClass() != ECharacterClass::Resonator)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveRingLoadout] No InventoryComponent found on owner"));
         return nullptr;
     }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    return GetActiveAdapterLegacyEntry();
+}
+
+const FRingLoadoutEntry *ULoadoutComponent::GetActiveAdapterLegacyEntry() const
+{
+    const FCombatLoadout *Loadout = GetActiveLoadoutInStep();
+    const FLoadoutSlot *Slot = GetActiveSlot(EGearKind::Adapter);
+    return Loadout && Slot ? Loadout->GetLegacyRingEntry(static_cast<int32>(Slot - Loadout->Slots.GetData())) : nullptr;
+}
+
+FCombatLoadout *ULoadoutComponent::GetActiveLoadoutInStep() const
+{
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
         return nullptr;
+    }
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    Loadout.EnsureSlotsInStep(GetCharacterClass());
+    return &Loadout;
+}
 
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+bool ULoadoutComponent::IsWornByAnother(const FGuid &GearID) const
+{
+    if (!GearID.IsValid())
+    {
+        return false;
+    }
+    const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+    const FName Wearer = Pool ? Pool->GetWearer(GearID) : NAME_None;
+    if (Wearer.IsNone())
+    {
+        return false;
+    }
+    const UCharacterData *Data = GetOwnerCharacterData();
+    if (WearerKeyData.Get() != Data)
+    {
+        WearerKeyData = Data;
+        WearerKey = UPoolSubsystem::GetCharacterKey(Data);
+    }
+    return Wearer != WearerKey;
+}
 
-    if (GetCharacterClass() != ECharacterClass::Resonator)
+const FLoadoutSlot *ULoadoutComponent::GetActiveSlot(EGearKind Kind) const
+{
+    const FCombatLoadout *Loadout = GetActiveLoadoutInStep();
+    if (!Loadout)
+    {
         return nullptr;
-
-    if (!Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex))
-        return nullptr;
-
-    const FRingLoadoutEntry &Entry = Loadout.RingLoadout[Loadout.ActiveRingIndex];
-    return Entry.IsValid() ? &Entry : nullptr;
+    }
+    const auto IsUsable = [this, Loadout, Kind](int32 Index)
+    {
+        if (!Loadout->Slots.IsValidIndex(Index))
+        {
+            return false;
+        }
+        const FLoadoutSlot &Slot = Loadout->Slots[Index];
+        return !Slot.IsEmpty() && Slot.Kind() == Kind && !IsWornByAnother(Slot.GearID);
+    };
+    const int32 Active = Kind == EGearKind::Weapon ? Loadout->ActiveWeaponSlot : Loadout->ActiveAdapterSlot;
+    if (IsUsable(Active))
+    {
+        return &Loadout->Slots[Active];
+    }
+    // D-110: no primary rule. With the active slot empty (or its piece worn by another member, B-221b), the first
+    // usable slot of the kind is the one in use.
+    for (int32 Index = 0; Index < Loadout->Slots.Num(); ++Index)
+    {
+        if (IsUsable(Index))
+        {
+            return &Loadout->Slots[Index];
+        }
+    }
+    return nullptr;
 }
 
 FText ULoadoutComponent::GetTurnSwitchRefusedReason() const

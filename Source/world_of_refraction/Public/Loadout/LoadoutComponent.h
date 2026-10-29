@@ -532,6 +532,11 @@ public:
     /** Get active ring loadout entry (Resonator) */
     const FRingLoadoutEntry *GetActiveRingLoadout() const;
 
+    /** B-304 (D-110): the slot in use for a kind: the active one, else the first usable slot of that kind (a Generic's
+     *  two weapon slots are equal; no primary rule). A piece another member wears is skipped (B-221b). The old
+     *  active-weapon / adapter getters forward here. The pointer is valid until the loadout next changes. */
+    const FLoadoutSlot *GetActiveSlot(EGearKind Kind) const;
+
     /** D-083: why Spell can't be cast right now because the active weapon's or ring's crystal
      *  is broken (a broken ring still casts F-tier spells). Empty when it can. */
     FText GetBrokenSourceReason(const USpellData *Spell) const;
@@ -789,6 +794,20 @@ private:
      *  cache) — loading screens hide the FindComponentByClass cost. Returns
      *  nullptr if the owner has no inventory component; callers must guard. */
     UInventoryComponent *GetInventoryComponent() const;
+
+    /** B-304: the active loadout with its slot mirror brought in step with the old fields (null when none). */
+    FCombatLoadout *GetActiveLoadoutInStep() const;
+
+    /** B-304 / B-221b: the piece is worn by another member (UPoolSubsystem's wearers). */
+    bool IsWornByAnother(const FGuid &GearID) const;
+
+    /** B-304: this character's wearer key (UPoolSubsystem::GetCharacterKey builds it from the asset path), kept per
+     *  character data so the active-gear getters don't rebuild it on every read. */
+    mutable TWeakObjectPtr<const UCharacterData> WearerKeyData;
+    mutable FName WearerKey;
+
+    /** B-304: the old ring entry behind the active adapter slot. */
+    const FRingLoadoutEntry *GetActiveAdapterLegacyEntry() const;
 
     // FindAttachedItemByHolder is the unified mutable-lookup helper, now public above.
 
