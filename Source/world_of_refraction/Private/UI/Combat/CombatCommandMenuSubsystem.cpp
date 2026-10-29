@@ -719,7 +719,7 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateResonateRingButton() const
 
     FPieMenuButtonData Button;
     Button.ButtonID = TEXT("ResonateRing");
-    Button.DisplayName = FText::FromString(TEXT("Resonate (R)"));
+    Button.DisplayName = NSLOCTEXT("CombatCommandMenu", "ResonateAdapter", "Resonate (A)"); // D-107: A for adapter
     Button.Description = FText::FromString(
         FString::Printf(TEXT("%s — %d spells%s"),
                         *CurrentCapabilities.ActiveRingName,
