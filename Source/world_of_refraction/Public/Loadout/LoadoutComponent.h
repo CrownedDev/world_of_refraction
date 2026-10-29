@@ -821,6 +821,9 @@ private:
     /** B-304: the old ring entry behind the active adapter slot. */
     const FRingLoadoutEntry *GetActiveAdapterLegacyEntry() const;
 
+    /** B-304: GetActiveSlot on a loadout already brought in step (one walk for the forwards). */
+    const FLoadoutSlot *GetActiveSlotIn(const FCombatLoadout &Loadout, EGearKind Kind) const;
+
     // FindAttachedItemByHolder is the unified mutable-lookup helper, now public above.
 
     /** Build the Broken Darkness element-spell pools on a loadout — one empty
