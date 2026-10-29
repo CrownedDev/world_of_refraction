@@ -587,7 +587,9 @@ namespace
     template <typename FVisit>
     void ForEachReadLegacySlot(const FCombatLoadout &Loadout, ECharacterClass CharacterClass, FVisit &&Visit)
     {
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
+        // A weapon in the primary counts with a Weapon or None type (AutoPopulateLoadout leaves None), as GetActiveWeapon.
+        if ((Loadout.PrimarySlotType == EPrimarySlotType::Weapon || Loadout.PrimarySlotType == EPrimarySlotType::None) &&
+            Loadout.PrimaryWeapon.IsValid())
         {
             Visit(ELegacySlotOrigin::PrimaryWeapon, INDEX_NONE, &Loadout.PrimaryWeapon, nullptr);
         }
