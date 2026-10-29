@@ -554,6 +554,15 @@ private:
 	UFUNCTION()
 	void OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 Index);
 
+	/** One Impact frame (defense resolve + damage slice per defender, interrupt check, count-based close). The
+	 *  Impact notify calls it; so does ResolveMontagelessAction for a skill with no montage (B-291). */
+	void ResolveImpactFrame(int32 Index);
+
+	/** B-291 (wor.Combat.InstantImpacts 1): a skill with no montage resolves now, the way a montage would. A
+	 *  spell releases its primary cast; an ability lands each expected impact, defended, then its windows close.
+	 *  With the switch off, a montage-less action waits for the defense failsafe and lands undefended, as before. */
+	void ResolveMontagelessAction(const FAction &Action);
+
 	void BindCombatNotify(AActor *Actor);
 	void UnbindCombatNotify(AActor *Actor);
 

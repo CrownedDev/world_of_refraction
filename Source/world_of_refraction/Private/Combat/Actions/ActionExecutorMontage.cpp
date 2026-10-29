@@ -347,6 +347,109 @@ USkillDataBase *UActionExecutor::GetCurrentSkillData() const
 	}
 }
 
+/** One Impact frame: its broadcast, then per defender the defense resolve and the damage slice, the interrupt check
+ *  and the count-based close (B-291: factored out of the Impact notify so a montage-less ability runs the same code,
+ *  ResolveMontagelessAction). */
+void UActionExecutor::ResolveImpactFrame(int32 Index)
+{
+	if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
+	{
+		return;
+	}
+	// Read ChainActor, not PendingExecutionActor: the latter is nulled by the
+	// prior action's CompleteAsyncActionFinal during a deferred fire (re-entrant
+	// clobber), so it can be NULL while this action's skill montage is still
+	// firing hits. ChainActor is the stable handle, valid through the whole
+	// montage chain — same source OnActionAnimationEnded advances off.
+	AActor *Executor = ChainActor.Get();
+	USkillDataBase *Skill = GetCurrentSkillData();
+	const int32 HitCount = Skill ? Skill->HitCount : 0;
+	// Fires into the void this stage — Stage 2's per-impact resolver binds OnImpactFrame.
+	UE_LOG(LogTemp, Log, TEXT("[ImpactFrame] impact %d of %d for %s"),
+		   Index, HitCount, *GetNameSafe(Executor));
+	OnImpactFrame.Broadcast(Executor, Index);
+
+	// Per-impact apply (Stage 2) + count-based "later of" close (Stage 1), melee.
+	// Each landed impact APPLIES ITS DAMAGE at its frame (ResolvedDamageSplit[Index] of
+	// the stashed reduced total) and increments the count. A defender closes only once it
+	// has taken ALL its impacts AND the hitting animation has finished (bAnimationFinished);
+	// for melee the animation is normally the LATER signal, so the close usually happens at
+	// Skill-end (ReconcileCountBasedDefenseWindows) — this branch handles the symmetric
+	// "impact after animation" case. ExpectedImpacts==0 ⇒ timer-close window (non-attack) →
+	// left untouched. One swing hits all current defenders (melee cleave).
+	// Three phases, all DEFERRED out of the iteration: ApplyOneImpact can broadcast
+	// OnTargetKilled (subscribers may mutate PendingDefenses) and CloseDefenseWindow
+	// re-entrantly removes the entry — neither is safe mid-iteration.
+	if (UDefenseSystem *DefenseSys = GetDefenseSystem())
+	{
+		const bool bAnimationFinished = CurrentExecutionContext->bAnimationFinished;
+		TArray<AActor *> DefendersToApply;
+		TArray<AActor *> DefendersToClose;
+		for (auto &Pair : CurrentExecutionContext->PendingDefenses)
+		{
+			FPendingDefenseContext &Ctx = Pair.Value;
+			if (Ctx.ExpectedImpacts <= 0)
+			{
+				continue; // timer-close window — not count-based
+			}
+			AActor *Defender = Pair.Key.Get();
+			if (!Defender)
+			{
+				continue;
+			}
+			// In-order sanity — the close-time tail [ImpactsLanded, HitCount) assumes
+			// contiguous in-order notifies (authoring contract: 0..HitCount-1).
+			if (Index != Ctx.ImpactsLanded)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[Stage2] impact index %d != drain pointer %d for %s — out-of-order/gapped notify (authoring-contract)"),
+					   Index, Ctx.ImpactsLanded, *Defender->GetName());
+			}
+			DefendersToApply.Add(Defender);
+			if (++Ctx.ImpactsLanded >= Ctx.ExpectedImpacts && bAnimationFinished)
+			{
+				DefendersToClose.Add(Defender);
+			}
+		}
+		// Resolve THIS impact's defense (split-then-reduce + match-and-consume) and apply
+		// its reduced slice. One impact frame = one moment, so all defenders share a single
+		// ImpactTime. Done after iteration — see above.
+		const double ImpactTime = UDefenseSystem::GetDefenseClockSeconds(this);
+		for (AActor *Defender : DefendersToApply)
+		{
+			FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Defender);
+			if (!Ctx)
+			{
+				continue; // removed by a prior impact's death broadcast
+			}
+			// Melee difficulty source: the per-impact-ordinal table (IsValidIndex guard → Easy ×1.0).
+			const FDefenseDifficultyTriple MeleeDifficulty =
+				CurrentExecutionContext->ResolvedDifficulty.IsValidIndex(Index)
+					? CurrentExecutionContext->ResolvedDifficulty[Index]
+					: FDefenseDifficultyTriple();
+			ResolveImpactDefense(Defender, Index, ImpactTime, MeleeDifficulty);
+			StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedHitFlags, Index);
+			ApplyOneImpact(Ctx->Attacker.Get(), Defender, *Ctx, Index, /*bDamageIsPerImpact=*/true);
+		}
+		// Hybrid B2 interrupt: if THIS impact was authored interruptable and EVERY targeted defender
+		// parried/dodged it, abort the rest of the attack. Checked HERE — after all defenders resolved
+		// this impact, BEFORE the closes remove their contexts — so AllInterruptSucceeded sees the full
+		// set. Single-target degenerates to the one defender's outcome (the grab).
+		if (CurrentExecutionContext->ResolvedHitFlags.IsValidIndex(Index) &&
+			CurrentExecutionContext->ResolvedHitFlags[Index].bInterruptable &&
+			AllInterruptSucceeded())
+		{
+			InterruptAsyncAction(ChainActor.Get(), ChainSkill);
+			return;
+		}
+		for (AActor *Defender : DefendersToClose)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[ImpactFrame] impacts + animation done for %s — closing window"),
+				   *GetNameSafe(Defender));
+			DefenseSys->CloseDefenseWindow(Defender);
+		}
+	}
+}
+
 void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 Index)
 {
 	if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
@@ -376,98 +479,7 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 
 	case ECombatNotifyFamily::Impact:
 	{
-		// Read ChainActor, not PendingExecutionActor: the latter is nulled by the
-		// prior action's CompleteAsyncActionFinal during a deferred fire (re-entrant
-		// clobber), so it can be NULL while this action's skill montage is still
-		// firing hits. ChainActor is the stable handle, valid through the whole
-		// montage chain — same source OnActionAnimationEnded advances off.
-		AActor *Executor = ChainActor.Get();
-		USkillDataBase *Skill = GetCurrentSkillData();
-		const int32 HitCount = Skill ? Skill->HitCount : 0;
-		// Fires into the void this stage — Stage 2's per-impact resolver binds OnImpactFrame.
-		UE_LOG(LogTemp, Log, TEXT("[ImpactFrame] impact %d of %d for %s"),
-			   Index, HitCount, *GetNameSafe(Executor));
-		OnImpactFrame.Broadcast(Executor, Index);
-
-		// Per-impact apply (Stage 2) + count-based "later of" close (Stage 1), melee.
-		// Each landed impact APPLIES ITS DAMAGE at its frame (ResolvedDamageSplit[Index] of
-		// the stashed reduced total) and increments the count. A defender closes only once it
-		// has taken ALL its impacts AND the hitting animation has finished (bAnimationFinished);
-		// for melee the animation is normally the LATER signal, so the close usually happens at
-		// Skill-end (ReconcileCountBasedDefenseWindows) — this branch handles the symmetric
-		// "impact after animation" case. ExpectedImpacts==0 ⇒ timer-close window (non-attack) →
-		// left untouched. One swing hits all current defenders (melee cleave).
-		// Three phases, all DEFERRED out of the iteration: ApplyOneImpact can broadcast
-		// OnTargetKilled (subscribers may mutate PendingDefenses) and CloseDefenseWindow
-		// re-entrantly removes the entry — neither is safe mid-iteration.
-		if (UDefenseSystem *DefenseSys = GetDefenseSystem())
-		{
-			const bool bAnimationFinished = CurrentExecutionContext->bAnimationFinished;
-			TArray<AActor *> DefendersToApply;
-			TArray<AActor *> DefendersToClose;
-			for (auto &Pair : CurrentExecutionContext->PendingDefenses)
-			{
-				FPendingDefenseContext &Ctx = Pair.Value;
-				if (Ctx.ExpectedImpacts <= 0)
-				{
-					continue; // timer-close window — not count-based
-				}
-				AActor *Defender = Pair.Key.Get();
-				if (!Defender)
-				{
-					continue;
-				}
-				// In-order sanity — the close-time tail [ImpactsLanded, HitCount) assumes
-				// contiguous in-order notifies (authoring contract: 0..HitCount-1).
-				if (Index != Ctx.ImpactsLanded)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("[Stage2] impact index %d != drain pointer %d for %s — out-of-order/gapped notify (authoring-contract)"),
-						   Index, Ctx.ImpactsLanded, *Defender->GetName());
-				}
-				DefendersToApply.Add(Defender);
-				if (++Ctx.ImpactsLanded >= Ctx.ExpectedImpacts && bAnimationFinished)
-				{
-					DefendersToClose.Add(Defender);
-				}
-			}
-			// Resolve THIS impact's defense (split-then-reduce + match-and-consume) and apply
-			// its reduced slice. One impact frame = one moment, so all defenders share a single
-			// ImpactTime. Done after iteration — see above.
-			const double ImpactTime = UDefenseSystem::GetDefenseClockSeconds(this);
-			for (AActor *Defender : DefendersToApply)
-			{
-				FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Defender);
-				if (!Ctx)
-				{
-					continue; // removed by a prior impact's death broadcast
-				}
-				// Melee difficulty source: the per-impact-ordinal table (IsValidIndex guard → Easy ×1.0).
-				const FDefenseDifficultyTriple MeleeDifficulty =
-					CurrentExecutionContext->ResolvedDifficulty.IsValidIndex(Index)
-						? CurrentExecutionContext->ResolvedDifficulty[Index]
-						: FDefenseDifficultyTriple();
-				ResolveImpactDefense(Defender, Index, ImpactTime, MeleeDifficulty);
-				StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedHitFlags, Index);
-				ApplyOneImpact(Ctx->Attacker.Get(), Defender, *Ctx, Index, /*bDamageIsPerImpact=*/true);
-			}
-			// Hybrid B2 interrupt: if THIS impact was authored interruptable and EVERY targeted defender
-			// parried/dodged it, abort the rest of the attack. Checked HERE — after all defenders resolved
-			// this impact, BEFORE the closes remove their contexts — so AllInterruptSucceeded sees the full
-			// set. Single-target degenerates to the one defender's outcome (the grab).
-			if (CurrentExecutionContext->ResolvedHitFlags.IsValidIndex(Index) &&
-				CurrentExecutionContext->ResolvedHitFlags[Index].bInterruptable &&
-				AllInterruptSucceeded())
-			{
-				InterruptAsyncAction(ChainActor.Get(), ChainSkill);
-				return;
-			}
-			for (AActor *Defender : DefendersToClose)
-			{
-				UE_LOG(LogTemp, Log, TEXT("[ImpactFrame] impacts + animation done for %s — closing window"),
-					   *GetNameSafe(Defender));
-				DefenseSys->CloseDefenseWindow(Defender);
-			}
-		}
+		ResolveImpactFrame(Index);
 		return;
 	}
 

@@ -68,6 +68,18 @@
 #include "Combat/CombatControl.h"
 #include "Combat/Tuning/CombatTuningData.h"
 
+namespace
+{
+	/** B-291: a skill with no montage resolves its impacts / cast at once, defended, instead of waiting for the
+	 *  defense failsafe and landing undefended. Off by default until montage-less content is PIE-checked; the
+	 *  balance simulator turns it on. */
+	TAutoConsoleVariable<bool> CVarCombatInstantImpacts(
+		TEXT("wor.Combat.InstantImpacts"),
+		false,
+		TEXT("1 = a skill with no montage lands each impact (or releases its spell) at once, through the same defense ")
+		TEXT("code as a montage. 0 = it waits for the defense failsafe (lands undefended)."));
+}
+
 class UCharacterDataComponent;
 class UCharacterData;
 class USkillEffectManager;
@@ -4780,6 +4792,10 @@ void UActionExecutor::BeginSkillExecution(AActor *Actor)
 	if (!bWaitingForAnimationEnd)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] No animation to wait for"));
+		if (CVarCombatInstantImpacts.GetValueOnGameThread())
+		{
+			ResolveMontagelessAction(Action);
+		}
 		if (CurrentExecutionContext.IsSet() && CurrentExecutionContext->AreAllDefensesResolved())
 		{
 			bAllDefensesResolved = true;
@@ -4787,6 +4803,40 @@ void UActionExecutor::BeginSkillExecution(AActor *Actor)
 		TryFinalizeAsyncAction();
 	}
 	// Otherwise, OnActionAnimationEnded will call TryFinalizeAsyncAction
+}
+
+void UActionExecutor::ResolveMontagelessAction(const FAction &Action)
+{
+	if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
+	{
+		return;
+	}
+	if (Action.ActionType == EActionType::Spell)
+	{
+		// The SpellRelease notify's work (primary cast entry, or the loose VFX path), with no notify to wait for.
+		if (PendingSpellCaster && PendingSpellData)
+		{
+			OnSpellAnimNotify(FName("SpellRelease"));
+		}
+		return;
+	}
+	const USkillDataBase *Skill = GetCurrentSkillData();
+	const int32 HitCount = Skill ? Skill->HitCount : 0;
+	// No animation is playing, so each defender's window closes as its last impact lands.
+	CurrentExecutionContext->bAnimationFinished = true;
+	for (int32 Index = 0; Index < HitCount; ++Index)
+	{
+		if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
+		{
+			return; // the impact killed, interrupted or finished the action
+		}
+		ResolveImpactFrame(Index);
+	}
+	if (CurrentExecutionContext.IsSet())
+	{
+		// Any window still expecting impacts (fewer authored than expected) closes now, as at a montage's end.
+		ReconcileCountBasedDefenseWindows(*CurrentExecutionContext, GetDefenseSystem());
+	}
 }
 
 UCombatAnimInstance *UActionExecutor::GetCombatAnimInstance(AActor *Actor) const
