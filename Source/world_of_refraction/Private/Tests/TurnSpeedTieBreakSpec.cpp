@@ -169,7 +169,7 @@ void FTurnSpeedTieBreakSpec::Define()
 					  SPEED_TIES_RULE_GEAR_CEILING);
 		});
 
-		It("keeps the base the fight caches equal to the base outside it", [this]()
+		It("caches the capped and the plain base at fight start", [this]()
 		{
 			UCharacterData *Data = FWoRTestWorld::NewCharacterData();
 			Data->TurnSpeed = SPEED_TIES_OVERCAP_POINTS;
@@ -195,8 +195,13 @@ void FTurnSpeedTieBreakSpec::Define()
 			{
 				return;
 			}
-			Effects->ApplyEffect(Local, FActiveSkillEffect::CreateBuff(TEXT("Tie-break speed buff"), SPEED_TIES_BUFF_ID,
-				ESkillEffectType::TurnSpeedBuff, SPEED_TIES_BUFF_PERCENT, SPEED_TIES_BUFF_TURNS), Local);
+			if (!TestTrue(TEXT("speed buff applied"),
+						  Effects->ApplyEffect(Local, FActiveSkillEffect::CreateBuff(TEXT("Tie-break speed buff"), SPEED_TIES_BUFF_ID,
+							  ESkillEffectType::TurnSpeedBuff, SPEED_TIES_BUFF_PERCENT, SPEED_TIES_BUFF_TURNS), Local)
+							  == EEffectApplicationResult::Applied))
+			{
+				return;
+			}
 
 			const TArray<AActor *> Order = RecordTurns({Local}, {Opposing}, 1);
 			TestEqual(TEXT("Local base"), BaseTurnSpeedOf(Local), SPEED_TIES_RULE_BASE);
