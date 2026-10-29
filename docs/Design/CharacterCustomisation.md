@@ -9,9 +9,9 @@ Every form (the player's Manny / Quinn form and each authored character) wears *
 | Slot | Covers |
 |---|---|
 | Helmet | head: hats, hoods, masks, crowns (hair shows unless the piece hides it) |
-| Jacket | outer layer: coats, cloaks, the uniform coat |
+| Jacket | outer layer: coats, cloaks; **the uniform coat is the upper coat only** (body, sleeves, collar) |
 | Shirt | inner top |
-| Waist | belts, sashes, pouches, tails |
+| Waist | belts, sashes, pouches; **the uniform coat's lower half** (the skirt / tails below the belt) is a Waist piece, so the coat is **two parts: Jacket + Waist** (Crown, 2026-10-29) |
 | Trousers | legs |
 | Footwear | boots, shoes |
 
@@ -42,10 +42,11 @@ Every form (the player's Manny / Quinn form and each authored character) wears *
 
 - Piece sources (find / buy / skin); whether any piece is also gear.
 - Slot names in player-facing text (Crown's).
-- Whether the uniform coat is one mesh for all body shapes (V template says yes).
+- Whether the uniform coat is one mesh for all body shapes (V template says yes). The coat is two pieces (Jacket upper + Waist lower), so a different belt or tails can pair with the same upper.
 
 ## Changelog
 
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-29 | Created from Crown's six-slot outline and authoring order | docs/character-customisation |
+| 2026-10-29 | The uniform coat splits into Jacket (upper) + Waist (lower) (Crown) | docs/coat-split |
