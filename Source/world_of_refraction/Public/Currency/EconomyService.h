@@ -173,8 +173,8 @@ public:
      *                     AbilityStone half). WeaponAttack is never priced (weapon identity).
      *                     [quality is the C placeholder until shop-roll]
      *   - Spell         : Prisms base + 50×Σ scaling-grade + element essence @ tier + Σ pillar
-     *                     essence per scaling grade. GENERIC-element spells instead price like
-     *                     abilities: Prisms base + SkillEssence @ tier (no surcharge, no typed).
+     *                     essence per scaling grade. A GENERIC spell's element essence is Quartz
+     *                     essence (EEssenceType::Generic, D-105).
      *   - Ability       : Prisms base + SkillEssence @ tier.
      *   - Evolution     : 2× Prisms base (premium item class) + element essence @ tier
      *                     + ½ Reality essence.
