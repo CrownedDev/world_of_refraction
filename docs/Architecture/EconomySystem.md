@@ -84,8 +84,7 @@ price at 0 (Purchase itself rejects them).
 | Type | Prisms | Essence | Count |
 |---|---|---|---|
 | Weapon / Ring | (base by tier + attached-item surcharge **+ bundled-skill surcharge**) × Count | — | honoured |
-| Spell (element-typed) | base + `50 × Σ scaling-grade` surcharge | element @ tier + Σ pillar @ each scaling grade | clamped 1 |
-| Spell (**Generic** element) | base | **SkillEssence** @ tier (prices like an ability — no surcharge, no typed; Generic would otherwise charge "Quartz essence") | clamped 1 |
+| Spell (any element) | base + `50 × Σ scaling-grade` surcharge | element @ tier (a **Generic** spell's is **Quartz essence**, D-105 / B-296) + Σ pillar @ each scaling grade | clamped 1 |
 | Ability | base | SkillEssence @ tier | clamped 1 |
 | Evolution | **2× base** (premium item class; multiplier lives in `BuildCartCost`, not the shared tier-base helper, so a future merge-cost reuse can't double it) | element @ tier + ½ Reality | clamped 1 |
 | Crystal / stone | base by `Crystal.Tier` × Count — **Prisms-only** | none — essence stays a dismantle-side currency for crystal stock | honoured |
@@ -210,3 +209,4 @@ and the 14-key **typed Essence** (`EssenceTyped`, FastArray). Server-gated, repl
 | 2026-10-26 | B-177 (ER-28) — `MergeCrystals` gives back its overshoot as the fewest same-Type crystals below the target (`EconomyYield::GetMergeChange`, greedy highest-first), added atomically with the output; change that does not fit refunds the whole merge (Q-177). New debug command `wor.Economy.Merge <Type> <Tier>`. Spec `WoR.Economy.CrystalMerge`. | feature/B-177-merge-overshoot |
 | 2026-10-27 | B-084 (D-016, ER-32/33): `DismantleWeapon` / `DismantleRing` refuse during combat and first take the instance out of every saved loadout (`UInventoryComponent::RemoveFromSavedLoadouts` / `StripFromLoadout`; `OnLoadoutChanged` fires when the active loadout changed). `UEconomyService::GetDismantleWarning` builds the confirm text (loadouts, upgrades lost, can't fight when gearless). `UInventoryComponent::LoadoutHasGear`; `CanEnterCombat` counts a Resonator's active ring. Placeholder screen `UDismantleWidget` (`wor.UI.Dismantle`). Spec `WoR.Economy.DismantleEquipped`. TODO (B-085/B-090): dismantle does not remove the item from the account pool, so a pool draw can bring it back. | feature/B-084-dismantle-equipped |
 | 2026-10-27 | B-137: `WoR.Economy.RoundTrip` pins today's numbers: 3 F gems plus a bare F weapon cost 100 Prisms; F to E costs 10 Gear plus 5 Reality and reverting refunds 5 Gear only; an E-levelled weapon dismantles for 15 Gear; 3 F Garnets for 15 Fire essence. Refusals spend nothing. | chore/B-137-economy-spec |
+| 2026-10-29 | B-296 (D-105, ER-23): a Generic spell is priced like an elemental one; its essence is Quartz essence (`EEssenceType::Generic`), no Skill essence. `WoR.Economy.GenericSpellPrice`. Cloud-written, unbuilt. | `fix/B-296-generic-spell-quartz-price` |
