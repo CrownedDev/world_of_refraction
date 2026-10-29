@@ -83,6 +83,11 @@ struct WORLD_OF_REFRACTION_API FEquippedCrystalSlot
 
     UPROPERTY(BlueprintReadOnly, Category = "Crystal")
     UObject *Holder = nullptr;
+
+    /** B-310 (D-111): the owned item the attachment sits on, so two identical holders stay apart; invalid for
+     *  asset-built gear and the evolution seat (then Holder alone). */
+    UPROPERTY(BlueprintReadOnly, Category = "Crystal")
+    FGuid GearID;
 };
 
 /**
@@ -103,7 +108,7 @@ class WORLD_OF_REFRACTION_API ULoadoutComponent : public UActorComponent
 public:
     ULoadoutComponent();
 
-    // ==================== CONFIGURATION ====================
+    // ==================== CONFIGURATION =============
 
     /** Character class (determines loadout rules). Synced from CharacterData in
      *  InitializeFromCharacterData; only the fallback when the owner has no CharacterData.
@@ -656,6 +661,13 @@ public:
      *  which perform fetch-and-use within a single scope. */
     FRuntimeAttachedItem *FindAttachedItemByHolder(UObject *Holder);
 
+    /** B-310: the attachment a GetEquippedCrystals slot names: matched by its item's GUID when it has one (so two
+     *  identical adapters stay apart), else by holder. Crystal break / destroy / repair use these. */
+    FRuntimeAttachedItem *FindAttachedItemForSlot(const FEquippedCrystalSlot &Slot);
+    FRuntimeAttachedItem GetCrystalEntryForSlot(const FEquippedCrystalSlot &Slot) const;
+    void ResetCrystalEntryForSlot(const FEquippedCrystalSlot &Slot);
+    int32 RepairCrystalEntryForSlot(const FEquippedCrystalSlot &Slot, int32 Amount);
+
     /** Resets the attachment to its default (empty) state. Used by end-of-combat
      *  crystal destruction. No-op if no matching entry exists. */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Crystal")
@@ -834,6 +846,9 @@ private:
 
     /** B-305: sets the old fields so SlotIndex is the slot in use; false when nothing changes. Not turn-gated. */
     bool SetActiveSlotIndex(EGearKind Kind, int32 SlotIndex);
+=======
+    /** B-304: GetActiveSlot on a loadout already brought in step (one walk for the forwards). */
+    const FLoadoutSlot *GetActiveSlotIn(const FCombatLoadout &Loadout, EGearKind Kind) const;
 
     // FindAttachedItemByHolder is the unified mutable-lookup helper, now public above.
 
