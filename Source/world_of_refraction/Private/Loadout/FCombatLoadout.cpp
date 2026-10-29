@@ -588,7 +588,8 @@ void FCombatLoadout::RebuildSlotsFromLegacy(ECharacterClass CharacterClass)
 
     int32 PrimaryWeaponSlot = INDEX_NONE;
     int32 PrimaryAdapterSlot = INDEX_NONE;
-    if (PrimarySlotType == EPrimarySlotType::Weapon && PrimaryWeapon.IsValid())
+    // A weapon in the primary counts with a Weapon or None type (AutoPopulateLoadout leaves None), as GetActiveWeapon.
+    if ((PrimarySlotType == EPrimarySlotType::Weapon || PrimarySlotType == EPrimarySlotType::None) && PrimaryWeapon.IsValid())
     {
         PrimaryWeaponSlot = Slots.Add(FLoadoutSlot::FromWeaponLoadoutEntry(PrimaryWeapon));
     }
