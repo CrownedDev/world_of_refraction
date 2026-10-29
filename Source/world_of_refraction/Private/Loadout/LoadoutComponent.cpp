@@ -2718,7 +2718,7 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
 {
     TArray<FEquippedCrystalSlot> Result;
 
-    auto AddAttachment = [&Result](const FRuntimeAttachedItem &Attachment, UObject *Holder)
+    auto AddAttachment = [&Result](const FRuntimeAttachedItem &Attachment, UObject *Holder, const FGuid &GearID)
     {
         if (Attachment.IsEmpty() || !Holder)
         {
@@ -2727,6 +2727,7 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
 
         FEquippedCrystalSlot Slot;
         Slot.Holder = Holder;
+        Slot.GearID = GearID;
         Slot.Kind = Attachment.Kind;
         if (Attachment.IsCrystal())
         {
@@ -2754,26 +2755,26 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
     if (const FWeaponLoadoutEntry *PrimaryLoadout = GetPrimaryWeaponLoadout())
     {
         AddAttachment(PrimaryLoadout->WeaponEntry.AttachedItem,
-                      PrimaryLoadout->WeaponEntry.Weapon);
+                      PrimaryLoadout->WeaponEntry.Weapon, PrimaryLoadout->WeaponEntry.PersistentID);
     }
     if (const FWeaponLoadoutEntry *SecondaryLoadout = GetSecondaryWeaponLoadout())
     {
         AddAttachment(SecondaryLoadout->WeaponEntry.AttachedItem,
-                      SecondaryLoadout->WeaponEntry.Weapon);
+                      SecondaryLoadout->WeaponEntry.Weapon, SecondaryLoadout->WeaponEntry.PersistentID);
     }
 
     // Primary ring (Generic / Caster) — runtime entry
     if (const FRingLoadoutEntry *PrimaryRingLoadout = GetPrimaryRingLoadout())
     {
         AddAttachment(PrimaryRingLoadout->RingEntry.AttachedItem,
-                      PrimaryRingLoadout->RingEntry.Ring);
+                      PrimaryRingLoadout->RingEntry.Ring, PrimaryRingLoadout->RingEntry.PersistentID);
     }
 
     // Resonator ring loadout — every ring in the array, runtime entry
     const FCombatLoadout ActiveLoadout = GetActiveLoadout();
     for (const FRingLoadoutEntry &Entry : ActiveLoadout.RingLoadout)
     {
-        AddAttachment(Entry.RingEntry.AttachedItem, Entry.RingEntry.Ring);
+        AddAttachment(Entry.RingEntry.AttachedItem, Entry.RingEntry.Ring, Entry.RingEntry.PersistentID);
     }
 
     // Evolution crystal slot — no inventory entry, evolution IS the crystal.
@@ -3549,6 +3550,72 @@ FRuntimeAttachedItem *ULoadoutComponent::FindAttachedItemByHolder(UObject *Holde
     }
 
     return nullptr;
+}
+
+FRuntimeAttachedItem *ULoadoutComponent::FindAttachedItemForSlot(const FEquippedCrystalSlot &Slot)
+{
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Slot.GearID.IsValid() || !Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        return FindAttachedItemByHolder(Slot.Holder);
+    }
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const auto Is = [&Slot](const UObject *Asset, const FGuid &GearID) { return Asset == Slot.Holder && GearID == Slot.GearID; };
+    if (Is(Loadout.PrimaryWeapon.WeaponEntry.Weapon, Loadout.PrimaryWeapon.WeaponEntry.PersistentID))
+    {
+        return &Loadout.PrimaryWeapon.WeaponEntry.AttachedItem;
+    }
+    if (Is(Loadout.SecondaryWeapon.WeaponEntry.Weapon, Loadout.SecondaryWeapon.WeaponEntry.PersistentID))
+    {
+        return &Loadout.SecondaryWeapon.WeaponEntry.AttachedItem;
+    }
+    if (Is(Loadout.PrimaryRing.RingEntry.Ring, Loadout.PrimaryRing.RingEntry.PersistentID))
+    {
+        return &Loadout.PrimaryRing.RingEntry.AttachedItem;
+    }
+    for (FRingLoadoutEntry &Entry : Loadout.RingLoadout)
+    {
+        if (Is(Entry.RingEntry.Ring, Entry.RingEntry.PersistentID))
+        {
+            return &Entry.RingEntry.AttachedItem;
+        }
+    }
+    return FindAttachedItemByHolder(Slot.Holder);
+}
+
+FRuntimeAttachedItem ULoadoutComponent::GetCrystalEntryForSlot(const FEquippedCrystalSlot &Slot) const
+{
+    // const_cast as GetCrystalEntryByHolder: the lookup is shared with the mutating helpers; this only copies.
+    const FRuntimeAttachedItem *Found = const_cast<ULoadoutComponent *>(this)->FindAttachedItemForSlot(Slot);
+    return Found ? *Found : FRuntimeAttachedItem();
+}
+
+void ULoadoutComponent::ResetCrystalEntryForSlot(const FEquippedCrystalSlot &Slot)
+{
+    if (!Slot.GearID.IsValid())
+    {
+        ResetCrystalEntryByHolder(Slot.Holder);
+        return;
+    }
+    if (FRuntimeAttachedItem *Found = FindAttachedItemForSlot(Slot))
+    {
+        *Found = FRuntimeAttachedItem();
+    }
+}
+
+int32 ULoadoutComponent::RepairCrystalEntryForSlot(const FEquippedCrystalSlot &Slot, int32 Amount)
+{
+    if (!Slot.GearID.IsValid())
+    {
+        return RepairCrystalEntryByHolder(Slot.Holder, Amount);
+    }
+    FRuntimeAttachedItem *Found = FindAttachedItemForSlot(Slot);
+    if (!Found)
+    {
+        return -1;
+    }
+    Found->RepairBetweenCombats(Amount);
+    return Found->GetCurrentDurability();
 }
 
 FRuntimeAttachedItem ULoadoutComponent::GetCrystalEntryByHolder(UObject *Holder) const
