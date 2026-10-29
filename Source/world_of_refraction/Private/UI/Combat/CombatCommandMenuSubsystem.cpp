@@ -25,6 +25,7 @@
 #include "Infusion/InfusionConstants.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Engine/GameInstance.h"
+#include "WoRGameNames.h"
 
 namespace
 {
@@ -838,7 +839,7 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateSwitchRingButton() const
 {
     FPieMenuButtonData Button;
     Button.ButtonID = TEXT("SwitchRing");
-    Button.DisplayName = FText::FromString(TEXT("Switch Ring"));
+    Button.DisplayName = NSLOCTEXT("CombatCommandMenu", "SwitchAdapter", "Switch Adapter"); // D-107
     Button.Category = EPieMenuCategory::ChangeRing;
     Button.bEnabled = true;
     GreyIfTurnSwitchUsed(Button);
@@ -1483,7 +1484,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
                 SourceLabel = TEXT("Weapon Crystal");
                 break;
             case EPieMenuCategory::ResonateRing:
-                SourceLabel = TEXT("Ring");
+                SourceLabel = WoRGameNames::GetAdapterWord().ToString(); // D-107
                 break;
             case EPieMenuCategory::Attack:
             case EPieMenuCategory::Ability:
@@ -1622,7 +1623,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
                 SourceLabel = TEXT("Weapon Crystal");
                 break;
             case EPieMenuCategory::ResonateRing:
-                SourceLabel = TEXT("Ring");
+                SourceLabel = WoRGameNames::GetAdapterWord().ToString(); // D-107
                 break;
             case EPieMenuCategory::Attack:
             case EPieMenuCategory::Ability:
