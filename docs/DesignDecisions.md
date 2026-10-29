@@ -1569,6 +1569,28 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Rename: A.** "Adapter" is the player-facing word everywhere now (name tables, D-062); the code keeps its `Ring` names (~95 types) until a later move-only rename. A **slot cost for adapters** in the Resonator budget stays open.
 **Notes for Claude:** B-298: `EAdapterForm` (appended enum: Ring, Pistol, Trainer, …) on the ring data asset, LOCTEXT "Adapter" / "Adapters" / "Active adapter" replacing "Ring" in every player string, rules pages and design docs updated (CL-24 etc.). Code rename is a later move-only job (B-299, after GAS stage 3 settles).
 
+### D-108 — Weapon crystals grant their element's abilities
+**Status:** ANSWERED (2026-10-29) · **Raised:** 2026-10-29 (Crown, character planning) · **Blocks:** —
+**Answer (Crown):** a **crystal on a weapon allows the elemental abilities of its element**: the weapon's abilities can be used as that element's elemental abilities (the crystal is the element source). The same holds for adapters.
+**Notes for Claude:** relates to D-007 (skill damage type = the infusion source's element) and B-098 (the crystal keys the weapon's abilities); fold into the unified-loadout analysis (D-110).
+
+### D-109 — Trials revolve around the Imperial Blades (phased content)
+**Status:** ANSWERED in part (2026-10-29; one line to clarify) · **Raised:** 2026-10-29 (Crown) · **Blocks:** —
+**Answer (Crown):** (2026-10-29)
+- Content comes in **phases**: the characters available, the bosses, and the named mini-bosses (characters you can become: likely **just the bosses**).
+- **Phase 1: the first trial, "Remember Yourself" / "Lost Memories".** Available characters: **Orthos and the Imperial Blades**. **Bosses: the Blades themselves** (the lost memories). **Mini-bosses: characters tied to those lost memories** (e.g. Aurora).
+- **The game revolves around the Imperial Blades**: each trial's theme relates to a Blade and holds its bosses; the theme ties to that Blade's **element**.
+- **Trial maps share one map** with slight visual differences per theme / element (as RunStructure §4 already says).
+- **The Reality / Unknown trial picks a random trial.** (Crown also wrote "darkness" here: to clarify whether the Darkness trial does the same, or something else.)
+**Notes for Claude:** `RunStructure.md` §1-3 and `Enemies.md` §1 to update once the line is clarified; the gate's variation list (B-183) becomes the Blade / theme list.
+
+### D-110 — Unify the primary weapon, secondary weapon and adapter (Resonator) loadouts
+**Status:** OPEN (analysis requested 2026-10-29) · **Raised:** 2026-10-29 (Crown) · **Blocks:** —
+**Question:** Crown: the primary weapon, secondary weapon and the Resonator's adapter loadout "all do the same thing in different ways"; merge them into **one loadout model**. Weapons are limited to **abilities and elemental abilities** (also valid for adapters, D-108), so the unified approach works; the open issue is **how / where weapons get attached** (crystals, evolutions). Class rules under it: **Generic: 2 weapons; Caster: 1 weapon or 1 adapter; Resonator: its adapter loadout plus a weapon, with the loadout cost rules**, which should **branch out to the other classes**. Ares's trainer adapters must still be portrayable.
+**Context:** Crown wants this kind of analysis (unification that cuts code because the rules are known). Analysis: `docs/analysis/UnifiedLoadout_2026-10-29.md` (being written).
+**Options:** to come from the analysis.
+**Answer (Crown):** _pending_
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
