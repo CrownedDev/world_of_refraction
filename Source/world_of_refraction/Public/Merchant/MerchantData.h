@@ -26,7 +26,7 @@ UENUM(BlueprintType)
 enum class EMerchantType : uint8
 {
     Blacksmith UMETA(DisplayName = "Blacksmith (weapons, augment stones)"),
-    Jeweler UMETA(DisplayName = "Jeweler (rings)"),
+    Jeweler UMETA(DisplayName = "Jeweler (adapters)"),
     CombatMaster UMETA(DisplayName = "Combat Master (abilities)"),
     SpellShop UMETA(DisplayName = "Spell Shop (spells)"),
     Spiritualist UMETA(DisplayName = "Spiritualist (evolutions, crystals, repairs)"),
