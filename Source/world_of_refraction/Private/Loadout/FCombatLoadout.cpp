@@ -597,15 +597,18 @@ void FCombatLoadout::RebuildSlotsFromLegacy(ECharacterClass CharacterClass)
         PrimaryAdapterSlot = Slots.Add(FLoadoutSlot::FromRingLoadoutEntry(PrimaryRing));
     }
 
+    // Only what the fight reads for this class: a secondary weapon is a Generic's, an adapter loadout a Resonator's
+    // (a loadout authored for another class may carry the other fields; the getters ignore them, so does the mirror).
     int32 SecondaryWeaponSlot = INDEX_NONE;
-    if (SecondarySlotType == ESecondarySlotType::Weapon && SecondaryWeapon.IsValid())
+    if (bGenericWeaponRules && SecondarySlotType == ESecondarySlotType::Weapon && SecondaryWeapon.IsValid())
     {
         SecondaryWeaponSlot = Slots.Add(FLoadoutSlot::FromWeaponLoadoutEntry(SecondaryWeapon));
     }
 
     int32 FirstRingLoadoutSlot = INDEX_NONE;
     int32 ActiveRingLoadoutSlot = INDEX_NONE;
-    for (int32 RingIndex = 0; RingIndex < RingLoadout.Num(); ++RingIndex)
+    const int32 RingsRead = CharacterClass == ECharacterClass::Resonator ? RingLoadout.Num() : 0;
+    for (int32 RingIndex = 0; RingIndex < RingsRead; ++RingIndex)
     {
         if (!RingLoadout[RingIndex].IsValid())
         {
