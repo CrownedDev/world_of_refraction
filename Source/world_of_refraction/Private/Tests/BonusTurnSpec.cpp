@@ -3,8 +3,8 @@
 // Emerald schedules a pinned turn after a delay by tier, F..S: 6,5,4,3,2,1,0 turns; S grants two
 // turns back to back; the pinned turn beats the speed pick; delays count every turn taken, pinned
 // ones included; a dead holder's pinned turn is dropped. Extra Action adds a real owed turn.
-// ET-14 (the bonus turn costs a later normal turn) is left out: D-052 answered A (a real extra
-// turn) but the code still borrows the turn, so it is reported, not asserted.
+// ET-14 is left out here: D-052 answered A (a real extra turn), built by B-295, whose
+// WoR.Turns.EmeraldExtraTurn pins it. Every case here passes with and without B-295.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
