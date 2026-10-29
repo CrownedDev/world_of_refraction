@@ -42,7 +42,7 @@ Every form (the player's Manny / Quinn form and each authored character) wears *
 
 - Piece sources (find / buy / skin); whether any piece is also gear.
 - Slot names in player-facing text (Crown's).
-- Whether the uniform coat is one mesh for all body shapes (V template says yes). The coat is two pieces (Jacket upper + Waist lower), so a different belt or tails can pair with the same upper.
+- Whether the uniform coat is one mesh for all body shapes (V template says yes). The coat is two pieces (Jacket upper + Waist lower), so any Jacket pairs with any Waist: a different belt or tails on the same upper, or a different jacket on the same lower half.
 
 ## Changelog
 
