@@ -1575,13 +1575,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** relates to D-007 (skill damage type = the infusion source's element) and B-098 (the crystal keys the weapon's abilities); fold into the unified-loadout analysis (D-110).
 
 ### D-109 — Trials revolve around the Imperial Blades (phased content)
-**Status:** ANSWERED in part (2026-10-29; one line to clarify) · **Raised:** 2026-10-29 (Crown) · **Blocks:** —
+**Status:** ANSWERED (2026-10-29) · **Raised:** 2026-10-29 (Crown) · **Blocks:** —
 **Answer (Crown):** (2026-10-29)
 - Content comes in **phases**: the characters available, the bosses, and the named mini-bosses (characters you can become: likely **just the bosses**).
 - **Phase 1: the first trial, "Remember Yourself" / "Lost Memories".** Available characters: **Orthos and the Imperial Blades**. **Bosses: the Blades themselves** (the lost memories). **Mini-bosses: characters tied to those lost memories** (e.g. Aurora).
 - **The game revolves around the Imperial Blades**: each trial's theme relates to a Blade and holds its bosses; the theme ties to that Blade's **element**.
 - **Trial maps share one map** with slight visual differences per theme / element (as RunStructure §4 already says).
-- **The Reality / Unknown trial picks a random trial.** (Crown also wrote "darkness" here: to clarify whether the Darkness trial does the same, or something else.)
+- **The Reality / Unknown trial picks a random trial.** Darkness has its own trial like the rest (Crown, 2026-10-29).
 **Notes for Claude:** `RunStructure.md` §1-3 and `Enemies.md` §1 to update once the line is clarified; the gate's variation list (B-183) becomes the Blade / theme list.
 
 ### D-110 — Unify the primary weapon, secondary weapon and adapter (Resonator) loadouts
