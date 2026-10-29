@@ -77,8 +77,9 @@ namespace
 	 *  so only appended ones (the last assigned) can be cleared to get under the cap; anything
 	 *  still over is the item's own spells (one non-clearable finding). Assigned is what the merge
 	 *  reads (empty for a ring whose crystal can't provide spells). */
+	/** WeaponSub (weapon spells only): -1 primary, SECONDARY_WEAPON for a Generic's secondary (B-304). */
 	void CheckSpellCap(FFindingSink &Sink, ELoadoutSlotType Type, int32 SlotIndex, bool bSpellIsSubIndex,
-					   const TArray<USpellData *> &Assigned, int32 PresetCount, int32 UncappedCount, int32 Cap)
+					   const TArray<USpellData *> &Assigned, int32 PresetCount, int32 UncappedCount, int32 Cap, int32 WeaponSub = -1)
 	{
 		int32 OverCap = FMath::Max(0, UncappedCount - Cap);
 		int32 Clearable = FMath::Min(OverCap, FMath::Max(0, UncappedCount - PresetCount));
@@ -89,7 +90,7 @@ namespace
 				continue;
 			}
 			const FString Reason = FString::Printf(TEXT("Spell '%s' is over the holder's spell cap (%d)"), *Assigned[i]->Name, Cap);
-			Sink.Add(Type, bSpellIsSubIndex ? SlotIndex : i, true, Reason, bSpellIsSubIndex ? i : -1);
+			Sink.Add(Type, bSpellIsSubIndex ? SlotIndex : i, true, Reason, bSpellIsSubIndex ? i : WeaponSub);
 			--OverCap;
 			--Clearable;
 		}
@@ -144,12 +145,15 @@ namespace
 		}
 	}
 
-	void CheckPrimaryWeapon(FFindingSink &Sink, const FCombatLoadout &Loadout, const FLoadoutRuleContext &Context)
+	/** B-304 (D-110): the same checks for both of a Generic's weapon slots. A secondary weapon's ability and spell
+	 *  findings carry SubIndex SECONDARY_WEAPON so ClearInvalidSlots clears the right weapon. */
+	void CheckWeapon(FFindingSink &Sink, const FWeaponLoadoutEntry &Weapon, const FLoadoutRuleContext &Context, bool bSecondary)
 	{
-		const FWeaponLoadoutEntry &Weapon = Loadout.PrimaryWeapon;
+		const int32 WeaponSub = bSecondary ? LoadoutAbilityOverflowIndex::SECONDARY_WEAPON : -1;
 		if (!Passes<const UWeaponData *>(Context.OwnsWeapon, Weapon.WeaponEntry.Weapon))
 		{
-			Sink.Add(ELoadoutSlotType::PrimaryWeapon, -1, true, TEXT("Primary weapon not in inventory"));
+			Sink.Add(bSecondary ? ELoadoutSlotType::SecondaryWeapon : ELoadoutSlotType::PrimaryWeapon, -1, true,
+					 bSecondary ? TEXT("Secondary weapon not in inventory") : TEXT("Primary weapon not in inventory"));
 		}
 
 		const UWeaponData *EquippedWeapon = Weapon.WeaponEntry.Weapon;
@@ -162,7 +166,7 @@ namespace
 			}
 			if (!Passes<const UAbilityData *>(Context.KnowsAbility, Ability))
 			{
-				Sink.Add(ELoadoutSlotType::WeaponAbility, i, true, FString::Printf(TEXT("Ability '%s' not learned"), *Ability->Name));
+				Sink.Add(ELoadoutSlotType::WeaponAbility, i, true, FString::Printf(TEXT("Ability '%s' not learned"), *Ability->Name), WeaponSub);
 				continue;
 			}
 			// Weapon-type coherence: ability must match the equipped weapon type.
@@ -171,7 +175,7 @@ namespace
 				Sink.Add(ELoadoutSlotType::WeaponAbility, i, true,
 						 FString::Printf(TEXT("Ability '%s' requires weapon type %s, equipped weapon is %s"),
 										 *Ability->Name, *UEnum::GetValueAsString(Ability->RequiredWeaponType),
-										 *UEnum::GetValueAsString(EquippedWeapon->WeaponType)));
+										 *UEnum::GetValueAsString(EquippedWeapon->WeaponType)), WeaponSub);
 				continue;
 			}
 			if (!Ability->AllowsWieldMode(EquippedWeapon->WieldMode))
@@ -179,7 +183,7 @@ namespace
 				Sink.Add(ELoadoutSlotType::WeaponAbility, i, true,
 						 FString::Printf(TEXT("Ability '%s' requires wield mode %s, equipped weapon is %s"),
 										 *Ability->Name, *UEnum::GetValueAsString(Ability->RequiredWieldMode),
-										 *UEnum::GetValueAsString(EquippedWeapon->WieldMode)));
+										 *UEnum::GetValueAsString(EquippedWeapon->WieldMode)), WeaponSub);
 			}
 		}
 
@@ -192,14 +196,14 @@ namespace
 			}
 			if (!Passes<const USpellData *>(Context.KnowsSpell, Spell))
 			{
-				Sink.Add(ELoadoutSlotType::WeaponSpell, i, true, FString::Printf(TEXT("Spell '%s' not learned"), *Spell->Name));
+				Sink.Add(ELoadoutSlotType::WeaponSpell, i, true, FString::Printf(TEXT("Spell '%s' not learned"), *Spell->Name), WeaponSub);
 				continue;
 			}
 			// Element coherence: weapon-sourced spell must match the weapon crystal.
 			if (!Weapon.WeaponEntry.HasCrystal())
 			{
 				Sink.Add(ELoadoutSlotType::WeaponSpell, i, true,
-						 FString::Printf(TEXT("Weapon spell '%s' requires a crystal but equipped weapon has none"), *Spell->Name));
+						 FString::Printf(TEXT("Weapon spell '%s' requires a crystal but equipped weapon has none"), *Spell->Name), WeaponSub);
 				continue;
 			}
 			const ESpellElement CrystalElement = Weapon.WeaponEntry.GetElement();
@@ -208,13 +212,14 @@ namespace
 				Sink.Add(ELoadoutSlotType::WeaponSpell, i, true,
 						 FString::Printf(TEXT("Weapon spell '%s' element %s does not match weapon crystal element %s"),
 										 *Spell->Name, *UEnum::GetValueAsString(Spell->Element),
-										 *UEnum::GetValueAsString(CrystalElement)));
+										 *UEnum::GetValueAsString(CrystalElement)), WeaponSub);
 			}
 		}
 
 		CheckSpellCap(Sink, ELoadoutSlotType::WeaponSpell, -1, /*bSpellIsSubIndex=*/false, Weapon.AssignedSpells,
-					  Weapon.WeaponEntry.GetSpells().Num(), Weapon.GetAllSpellsUncapped().Num(), Weapon.GetSpellSlotCap());
-		CheckAbilityCounts(Sink, Weapon, TEXT("Primary"), LoadoutAbilityOverflowIndex::PRIMARY_WEAPON);
+					  Weapon.WeaponEntry.GetSpells().Num(), Weapon.GetAllSpellsUncapped().Num(), Weapon.GetSpellSlotCap(), WeaponSub);
+		CheckAbilityCounts(Sink, Weapon, bSecondary ? TEXT("Secondary") : TEXT("Primary"),
+						   bSecondary ? LoadoutAbilityOverflowIndex::SECONDARY_WEAPON : LoadoutAbilityOverflowIndex::PRIMARY_WEAPON);
 	}
 
 	// OBSOLETE (B-303): the budget now reads FLoadoutRules::SlotCost over the unified slots. Remove with B-309.
@@ -370,7 +375,7 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 
 	if (Loadout.PrimarySlotType != EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
 	{
-		CheckPrimaryWeapon(Sink, Loadout, Context);
+		CheckWeapon(Sink, Loadout.PrimaryWeapon, Context, /*bSecondary=*/false);
 	}
 
 	if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid())
@@ -401,11 +406,9 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 	if (Context.CharacterClass == ECharacterClass::Generic &&
 		Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid())
 	{
-		if (!Passes<const UWeaponData *>(Context.OwnsWeapon, Loadout.SecondaryWeapon.WeaponEntry.Weapon))
-		{
-			Sink.Add(ELoadoutSlotType::SecondaryWeapon, -1, true, TEXT("Secondary weapon not in inventory"));
-		}
-		CheckAbilityCounts(Sink, Loadout.SecondaryWeapon, TEXT("Secondary"), LoadoutAbilityOverflowIndex::SECONDARY_WEAPON);
+		// B-304 (D-110): the secondary gets the primary's checks (abilities' weapon type and wield mode, spells,
+		// spell cap), not only ownership and counts.
+		CheckWeapon(Sink, Loadout.SecondaryWeapon, Context, /*bSecondary=*/true);
 	}
 
 	if (Context.CharacterClass == ECharacterClass::Resonator)

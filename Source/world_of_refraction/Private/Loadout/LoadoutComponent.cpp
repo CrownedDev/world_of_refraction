@@ -1475,17 +1475,21 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
             }
             break;
         case ELoadoutSlotType::WeaponAbility:
-            if (Loadout.PrimaryWeapon.AssignedAbilities.IsValidIndex(Finding.SlotIndex))
-            {
-                Loadout.PrimaryWeapon.AssignedAbilities[Finding.SlotIndex] = nullptr;
-            }
-            break;
         case ELoadoutSlotType::WeaponSpell:
-            if (Loadout.PrimaryWeapon.AssignedSpells.IsValidIndex(Finding.SlotIndex))
+        {
+            // B-304: SubIndex SECONDARY_WEAPON names a Generic's secondary weapon; anything else the primary.
+            FWeaponLoadoutEntry &Weapon = Finding.SubIndex == LoadoutAbilityOverflowIndex::SECONDARY_WEAPON ? Loadout.SecondaryWeapon
+                                                                                                           : Loadout.PrimaryWeapon;
+            if (Finding.SlotType == ELoadoutSlotType::WeaponAbility && Weapon.AssignedAbilities.IsValidIndex(Finding.SlotIndex))
             {
-                Loadout.PrimaryWeapon.AssignedSpells[Finding.SlotIndex] = nullptr;
+                Weapon.AssignedAbilities[Finding.SlotIndex] = nullptr;
+            }
+            else if (Finding.SlotType == ELoadoutSlotType::WeaponSpell && Weapon.AssignedSpells.IsValidIndex(Finding.SlotIndex))
+            {
+                Weapon.AssignedSpells[Finding.SlotIndex] = nullptr;
             }
             break;
+        }
         case ELoadoutSlotType::RingSpell:
         {
             // SlotIndex -1 = Generic/Caster primary ring; otherwise the Resonator
