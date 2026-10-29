@@ -2905,13 +2905,13 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	case ESkillEffectType::DOT:
 	{
 		Effect.EffectType = ESkillEffectType::DOT;
-		// 8% MaxHP per tick - scaled at apply time via target's MaxHP.
+		// BURN_BREAK_MAX_HP_FRACTION of MaxHP per tick - scaled at apply time via target's MaxHP.
 		// TODO: long-term, change DOT processing to interpret Value as % of MaxHP
 		// directly; for now we resolve to flat damage here for compatibility with
 		// ApplyEffectLogic's int-damage handler.
 		if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
 		{
-			Effect.EffectValue = TargetComp->MaxHP * 0.08f;
+			Effect.EffectValue = TargetComp->MaxHP * CombatConstants::BURN_BREAK_MAX_HP_FRACTION;
 			Effect.bShareOfMaxHP = true; // resistance already cut the buildup that capped the bar (Q-064)
 		}
 		else
@@ -2927,7 +2927,7 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 
 	case ESkillEffectType::DefenseDebuff:
 		Effect.EffectType = ESkillEffectType::DefenseDebuff;
-		Effect.EffectValue = 30.0f; // 30% defence reduction
+		Effect.EffectValue = CombatConstants::EARTH_BREAK_DEFENSE_DOWN_PERCENT;
 		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
@@ -3023,19 +3023,19 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 
 	case ESkillEffectType::BurstDamage:
 	{
-		// Design changed: 25% MaxHP target-scaled, can kill (1-HP clamp removed).
+		// Design changed: REALITY_BREAK_MAX_HP_FRACTION of MaxHP, target-scaled, can kill (1-HP clamp removed).
 		// Full damage routes through the normal death path (ServerTakeDamage ->
 		// CheckDeath -> OnDied), identical to a killing blow / the DoT change.
 		UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
 		if (TargetComp)
 		{
-			int32 BurstDamage = FMath::RoundToInt(TargetComp->MaxHP * 0.25f);
+			int32 BurstDamage = FMath::RoundToInt(TargetComp->MaxHP * CombatConstants::REALITY_BREAK_MAX_HP_FRACTION);
 
 			if (BurstDamage > 0)
 			{
 				TargetComp->ServerTakeDamage(BurstDamage);
-				UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Reality Burst dealt %d (25%% MaxHP, can be lethal) to %s"),
-					   BurstDamage, *Target->GetName());
+				UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Reality Burst dealt %d (%.2f of MaxHP, can be lethal) to %s"),
+					   BurstDamage, CombatConstants::REALITY_BREAK_MAX_HP_FRACTION, *Target->GetName());
 			}
 		}
 		return; // one-shot, no FActiveSkillEffect applied
