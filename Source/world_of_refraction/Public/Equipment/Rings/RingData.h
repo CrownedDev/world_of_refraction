@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Equipment/EquipmentDataBase.h"
 #include "Infusion/EInfusionMode.h"
+#include "Equipment/Rings/EAdapterForm.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -14,6 +15,7 @@
 #include "RingData.generated.h"
 
 class UStaticMesh;
+class UAnimMontage;
 class USpellData;
 
 /**
@@ -50,6 +52,23 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Ring")
 	bool IsConjuredRing() const { return bSpellsLocked; }
+
+	// ==================== ADAPTER FORM (D-107) ====================
+
+	/** What this adapter looks like and how its holder casts through it (a ring, Amethyst's pistols, Ares's
+	 *  trainers). Look and animation only: the mechanics are the same for every form. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Adapter")
+	EAdapterForm Form = EAdapterForm::Ring;
+
+	/** The form's mesh; empty = RingStaticMesh. Soft (D-057).
+	 *  TODO: read by the gear visuals once a non-ring form has art (until then RingStaticMesh is shown). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Adapter")
+	TSoftObjectPtr<UStaticMesh> FormMesh;
+
+	/** The form's cast montage; empty = the spell's own montage. Soft (D-057).
+	 *  TODO: read by the cast path once a non-ring form has its animation. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Adapter")
+	TSoftObjectPtr<UAnimMontage> FormCastMontage;
 
 	// ==================== MESH ====================
 
