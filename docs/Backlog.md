@@ -216,6 +216,21 @@ New model beside the old, adapters first; each cluster ≤3 files; old getters f
 | B-308 | **Unified loadout 8: owned gear and save v4**: `UInventoryComponent::OwnedGear` with weapon / adapter views, pool lists, save v4 with a loader that reads v3 (no wipe); attachments on the item instance. Supersedes B-251 and the pair half of B-252 | CC | L | B-307 | Specs green; behaviour unchanged except the D-110 rules | TODO |
 | B-309 | **Unified loadout 9: delete the old path** after Crown's PIE: old fields, entries, wrappers and legacy validators (B-172 folds in); then the code rename (B-299) shrinks to what's left | CC | M | B-308 | Specs green; behaviour unchanged except the D-110 rules | BLOCKED (Crown: PIE of B-301..B-308) |
 
+## Owned-items store (D-111, `analysis/InventoryArchitecture_2026-10-29.md`)
+
+After the unified loadout (B-301..B-308). Changes to that plan: B-302 treats the slot GUID as the truth; B-308 puts the kind-agnostic owned list in the pool store; run wear by GUID lands before B-304.
+
+| ID | Job | Who | Size | Needs | Done when | Status |
+|---|---|---|---|---|---|---|
+| B-310 | **Run wear keyed by item GUID** (D-111 bug): `FindAttachedItemByHolder` matches by asset (`LoadoutComponent.cpp:3508-3518`), so two identical adapters share one wear record; key carried wear by the item's `PersistentID`. Before B-304 | CC | S | — | Specs green; one instance per item | TODO |
+| B-311 | **Player-edited presets are saved** (D-111 bug): `SavedLoadouts` is rebuilt from the authored asset at spawn and never saved; save custom loadouts per character (GUID lists, up to 5) in the save struct (D-059), lore loadouts read-only from the character asset | CC | M | B-302 | Specs green; one instance per item | TODO |
+| B-312 | **Store 1: views, not copies**: the per-member armoury copies and the ~700 lines of sync (`InventoryComponent.cpp:850-1530`) become views over the pool store; GUID index replaces the ~55 scans | CC | L | B-308 | Specs green; one instance per item | TODO |
+| B-313 | **Store 2: one pouch**: the 10-slot party pouch is the only carried-items list; the per-member mirrors and the per-preset 6 x 3 item lists retire (flag obsolete; delete after PIE) | CC | M | B-312 | Specs green; one instance per item | TODO |
+| B-314 | **Store 3: the run layer**: entries carry a run-only flag and "on the run" mark; the run purchase takes the real item as it is at home; at run end items reset to their pre-run state (wear, run-added attachments), found gear is dropped and its upgrade progress remembered per definition (rebuilds B-238) | CC | L | B-313 | Specs green; one instance per item | TODO |
+| B-315 | **Store 4: worn-by on the entry**: "worn by whom" lives on the store entry, replacing the wearers map; B-221's not-selectable rule becomes a view filter | CC | M | B-314 | Specs green; one instance per item | TODO |
+| B-316 | **Store 5: give / request**: give a skill to another character (one copy moves), request a teammate's; in co-op, gear / items / skills move only by give / request (placeholder C++ UI); learned skills carry an owner | CC | M | B-315 | Specs green; one instance per item | TODO |
+| B-317 | **Store 6: delete the old copies and sync** after Crown's PIE; then the co-op move of the store to `AWoRPlayerState` (owner-only replicated list; equipped gear visible to all) | CC | M | B-316 | Specs green; one instance per item | BLOCKED (Crown: PIE of the store jobs) |
+
 ## Phase 2 — GAS migration (see `Design/GASMigration.md`)
 
 | ID | Job | Who | Size | Needs | Done when | Status |
