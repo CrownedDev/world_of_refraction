@@ -99,7 +99,7 @@ Rule text is shortened to its subject; the page holds the full wording. Runs of 
 | ED-34 | buildup through Guard 50% / Perfect 0% | In game | GuardSpec "lets less status through a Perfect Guard" | B-168 | OK\* |
 | ED-35, ED-36, ED-37 | window 0.5 s, grace 0.15 s, difficulty bands, Perfect 0.1 s | In game | DefenseMatchSpec (7 tests); DefenseClockSpec | B-009, B-168 | OK\* |
 | ED-38 | legacy per-spell defense list | In game | — | — | A (low risk, dead code) |
-| ED-42 (luck dodge) | Luck dodge max 15% | In game | LuckDodgeSpec "is capped at 15%" | B-169, B-198 | OK |
+| ED-42b (luck dodge) | Luck dodge max 15% | In game | LuckDodgeSpec "is capped at 15%" | B-169, B-198 | OK |
 | ED-39 | BD resistance row | In game | — | — | **A** |
 | ED-40 | BD absorbs EP on Guard 5%/10%, ×2 Perfect, overload 30% | In game | — | — | **A** |
 | ED-41 | BD forbidden Light/Void cost 25% HP + buildup | In game | — | — | **A** |
@@ -321,7 +321,7 @@ Risk order: numbers and order-of-operations first, then recent D-/Q- changes, th
 Citations that name a function (`GuardRules.h`, `CrystalBreak::RepairOn`, `FleeRules::GOLD_LOSS_SHARE`, `ResolveImpactDefense`…) all still resolve. `WoRGameNames.cpp` (ED-42) lives at `Private/WoRGameNames.cpp` (no `Text/` folder). All 150-odd cited files exist.
 
 **Stale rows (status or text behind the code):**
-- **ED-42 is two rules** (Unknown naming and the Luck dodge). One needs a new id (ED-43).
+- **ED-42 is two rules** (Unknown naming and the Luck dodge). One needs a new id: the Luck dodge became **ED-42b** (B-281).
 - ET-11 says Wind is "Decided, not built (B-063)" and "next two turns"; SB-23 and `StatusBreakSpec` say built, one place.
 - ET-33, ET-34 are marked Conflict; B-225 built D-051 / Q-044c (`EffectsBaselineSpec` pins it). CL-C3/C4-3/C4-4 should close.
 - ET-50 says "Decided, not built (B-045)"; `EffectTextSpec` and `docs/PIE/B-045.md` exist.
