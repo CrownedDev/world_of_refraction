@@ -245,7 +245,7 @@ void FBrokenDarknessSpec::Define()
 		});
 	});
 
-	Describe("The forbidden-cast waiver (ED-41)", [this]()
+	Describe("The forbidden-cast waiver gate, FWorldStatRequirements::ExactlyMatchedBy (ED-41; the cast path that reads it, ActionExecutor ExecuteSpellAsync, is PIE-checked)", [this]()
 	{
 		It("applies only when the world levels exactly match the spell's requirements", [this]()
 		{
