@@ -55,7 +55,7 @@ Class, evolution and weapon per character (Crown's words; lore stays Crown's). "
   - Cost / possession: void tendrils wrap him and he collapses at the end (p35).
   Two guns: a black automatic (plain shots, Cross Cutter) and a silver revolver (Void Bullet, Fire!); casting is through the barrel. |
 | **Emerald Sanctum** | Refractor (Wind) | **No evolution** (Crown, 2026-10-29) | An S-tier Emerald adapter | The pure Refractor: mastery through a maxed Wind adapter and its spells. |
-| **Amber** | Generic | Amber: "Infinite Stamina" | Dual chain scythes | |
+| **Amber** | Generic (Earth) | Amber: **"Infinite Stamina"** | Dual chain scythes | **Mechanics (Crown, 2026-10-29: A):** EP regenerates every turn and her field movement costs no EP; breakthrough: a burst of several actions in a row (`// TODO: tune`). |
 | **Ares Citrine** (the Drive sheet "Aron Citrine"; Crown, 2026-10-29) | Resonator | Lightning: "Lightning Speed" | Adapters: trainers, two Lightning adapters | Sibling of Artemis Citrine; MoR 2020: Imperial Blade, Prince, "Protagonist" |
 
 Build order once agreed: V template first, then these in Crown's order.
