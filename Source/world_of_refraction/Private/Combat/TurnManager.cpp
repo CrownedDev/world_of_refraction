@@ -657,6 +657,8 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 		// D-052 (Crown, A): an Emerald bonus turn is a real extra turn, so it isn't counted as taken and no later
 		// normal turn is lost. Other pinned turns (Execution) still count as taken, costing one slot of future
 		// normal priority. (Winner may be gone after RemoveAt; OutEntry.Type holds its type.)
+		// TODO: D-052 says the bonus still respects the 2:1 cap (D-049, CombatConstants::MAX_TURN_RATIO), which the
+		// scheduler doesn't read yet; now that a bonus isn't counted, a fast holder can pass 2:1 (B-297).
 		if (OutEntry.Type != ETurnType::Bonus)
 		{
 			for (FCombatantTurnDebt &Combatant : State)
