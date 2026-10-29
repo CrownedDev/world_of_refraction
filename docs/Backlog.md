@@ -183,6 +183,16 @@ Every rule in `docs/Rules/` gets a spec that asserts its number or order (not on
 | B-289 | **Turn speed and tie-break**: 10 / 15 / 20 and the 8-step tie-break, each step tested | CC | S | — | Spec per step | TODO |
 | B-290 | **Economy numbers**: world-stat vendor 50 / +25 (ER-24; now D-102's rising price), merge Prisms cost (ER-29), spell essence (incl. Quartz, D-105), seeded drop quality weights (ER-38) | CC | S | — | Spec asserts each | TODO |
 
+## Phase 1f — Balance simulator (`Design/BalanceSimulator.md`)
+
+Headless AI-vs-AI fights, seeded, checked against `analysis/BaselineNumbers.md` targets; runs on both effect paths and diffs them.
+
+| ID | Job | Who | Size | Needs | Done when | Status |
+|---|---|---|---|---|---|---|
+| B-291 | **Headless seams (also fixes montage-less content):** CVar `wor.AI.ThinkDelayScale` (`AIDecisionManager.cpp:127-140`); `ResolveImpactFrame(Index)` factored from the Impact-notify loop (`ActionExecutorMontage.cpp:350-470`) and called per expected impact in the no-animation branch behind `wor.Combat.InstantImpacts` (`ActionExecutor.cpp:4783-4790`; today damage lands undefended after the 8 s failsafe); montage-less spells dispatch `CastArray[0]` (`:5073-5091`); `OnStatusTriggered` delegate (`StatusBuildupManager.cpp:385, 654-668`); `TurnManager::GetRoundCount()`. First spec `WoR.Balance.Sim.OneFight` (1v1 to the end) | CC | M | — | OneFight spec green; a no-animation ability lands defended impacts | TODO |
+| B-292 | **Recorder, runner, archetypes:** `Private/Balance/` with `UBalanceSimRecorder` on the existing delegates, `FBalanceSimRunner` over `FWoRTestWorld` + a real orchestrator with all combatants AI, seeds `BaseSeed + i`, difficulty × zone scaling as `BattleGameMode.cpp:258-262`, tick cap → `Stalled`; archetypes P-EarlyGenericF / P-MidResonatorC / P-LateCasterS / P-LowLevelSGear / P-HighLevelFGear and enemies E-F / E-C / E-S × 4 ranks, as transient data assets in code | CC | L | B-291 | 100 seeded fights run and record turns, rounds, hits-to-kill, win rate | TODO |
+| B-293 | **Targets, reports, GAS parity, command:** target table with tolerances (normal 3-5 turns, mini-boss 8-10 rounds, boss 12-14, hits-to-kill bands, worked-example attacks ±10%, pillar-6 win rate 35-65%, stall 0), `Saved/Balance/<preset>_<stamp>.{csv,json,md}`, `WoR.Balance.Sim.GASParity` (same seed both paths, 0 diffs), `wor.Balance.Run <preset> <N> [seed] [gas]`, presets quick / nightly / full via `test.sh` flags, `docs/Architecture/BalanceSimulator.md` | CC | M | B-292, B-220, B-224 | `quick` preset in the suite; nightly report written; targets asserted | TODO |
+
 ## Phase 2 — GAS migration (see `Design/GASMigration.md`)
 
 | ID | Job | Who | Size | Needs | Done when | Status |
