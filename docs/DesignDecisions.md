@@ -1593,6 +1593,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Go: A**, the unified model, built incrementally (adapters first) per `analysis/UnifiedLoadout_2026-10-29.md`.
 - **Points for everyone (A):** today's costs for every class (plain weapon / adapter 1; with a crystal, stone or fusion 2; weapon with an evolution attached 3; evolution on its own 2; adapter with an evolution 2), and **each class = a budget + a limit**: **Refractor** budget 3, **1 item** (weapon or adapter or evolution) plus its innate spell pool; **Generic** budget 6, up to **2 weapons**, and **keeps one adapter** (B: a Generic may still wear one adapter, as today's ring primary); **Resonator** budget 5, up to **1 weapon**, any number of adapters. Checks: a Refractor with an evolution has no other gear; a Generic may carry two evolved weapons (3 + 3); a Resonator with an evolution has 3 left (e.g. one weapon with an evolution).
 - **Class identity:** Generic = weapons, Resonator = adapters, Refractor = innate magic (the only class with an innate element and spell pool; its lever is the innate budget, not more gear).
+- **One active weapon at a time (A):** a Generic's two weapons switch freely; only the active one gives its abilities, stats and passives (no stacking of two evolved weapons).
 
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
