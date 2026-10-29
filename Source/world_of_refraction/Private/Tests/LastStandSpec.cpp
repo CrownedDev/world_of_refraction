@@ -141,7 +141,10 @@ void FLastStandSpec::Define()
 	{
 		if (!Items || !Effects) return;
 		AActor *Ally = SpawnAlly();
-		Items->UseItem(User, FCrystalId(ECrystalType::Sapphire, EItemTier::F_Tier), Ally);
+		if (!TestTrue(TEXT("Sapphire used"), Items->UseItem(User, FCrystalId(ECrystalType::Sapphire, EItemTier::F_Tier), Ally).bSuccess))
+		{
+			return;
+		}
 		LethalBlow(Ally);
 		UCharacterDataComponent *Comp = CharOf(Ally);
 		TestTrue(TEXT("still alive"), Comp->bIsAlive);
