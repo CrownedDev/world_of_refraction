@@ -618,7 +618,9 @@ void FCombatLoadout::RebuildSlotsFromLegacy(bool bGenericWeaponRules)
     // The weapon in hand, as ULoadoutComponent::GetActiveWeapon picks it. An evolution or adapter primary leaves
     // only a Generic's secondary weapon. A Generic with a weapon primary uses bShowPrimary to choose between its two
     // weapons (none in hand when it shows the secondary and has none); other classes always use the primary.
-    if (PrimarySlotType == EPrimarySlotType::Weapon)
+    // An empty primary (a sold primary weapon, StripFromLoadout) is read like a weapon primary, as GetActiveWeapon
+    // does: a Generic showing it holds nothing.
+    if (PrimarySlotType == EPrimarySlotType::Weapon || PrimarySlotType == EPrimarySlotType::None)
     {
         ActiveWeaponSlot = (bGenericWeaponRules && !bShowPrimary) ? SecondaryWeaponSlot : PrimaryWeaponSlot;
     }
