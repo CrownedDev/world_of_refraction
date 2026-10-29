@@ -23,7 +23,7 @@ Each page ends with **Open questions** (unanswered `D-xxx`; the D-entry holds th
 
 | # | Page | Prefix | What it covers |
 |---|---|---|---|
-| 01 | [Classes and loadouts](01-classes-and-loadouts.md) | CL | Generic, Refractor (`Caster`) and Resonator; slots and caps; weapons, rings, crystals, stones, fusions, evolutions; Refractor innate spells; pillars and requirements |
+| 01 | [Classes and loadouts](01-classes-and-loadouts.md) | CL | Generic, Refractor (`Caster`) and Resonator; slots and caps; weapons, adapters, crystals, stones, fusions, evolutions; Refractor innate spells; pillars and requirements |
 | 02 | [Elements and damage](02-elements-and-damage.md) | ED | The nine elements, Generic and None; how a skill's element is chosen; every damage step with its constants; resistance; infusion L0–L2; real-time defense; Broken Darkness and Reality on the damage side |
 | 03 | [Status bars](03-status-bars.md) | SB | What fills each bar and how fast; resistance; draining; what each full bar does and for how long; the stun rules |
 | 04 | [Effects and turns](04-effects-and-turns.md) | ET | Turn order and bonus/Execution turns; what a turn allows and costs; effect durations, ticking, stacking, identity, cleanse, gear effects and auras; how a fight starts and ends |
