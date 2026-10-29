@@ -1556,6 +1556,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Question:** The audit asked for real delta time instead of the fixed 1/60 step.
 **Answer:** **Keep the fixed step** (2026-10-28). UE's looping timer calls the callback once per elapsed interval, so on a slow frame it runs several times and the total matches real time. Real time would need a timestamp on a GameInstance subsystem, which D-064 rules out. The step is now a named constant.
 
+### D-106 — Element palette, colour-blind readability
+**Status:** ANSWERED (2026-10-29; one detail being confirmed) · **Raised:** 2026-10-29 (`analysis/ElementPalette_2026-10-29.md`) · **Blocks:** —
+**Answer (Crown):** (2026-10-29) **A**: the tuned element palette (each element's identity kept, lightness spread so every pair reads under protanopia, deuteranopia and tritanopia), an **element gem beside every damage number and on every status bar** (on by default; a setting "Element markers: always / numbers only"), and **resisted hits shown by size, transparency and glow, not a darker shade**. **Darkness stays a darkened black** (Crown), drawn with a pale outline wherever it's text. Ice gets its own pale colour. The two contradicting code tables collapse into the one element table (B-271).
+**Notes for Claude:** values in `analysis/ElementPalette_2026-10-29.md` §proposal (a) with Darkness kept near-black (#262626-ish, outline for text); apply in B-271's table, the HUD drafts (v3) and B-105's damage numbers / bars; the setting in the per-player settings struct (D-059). Open: Crown confirms the Void (lighter purple) / Reality (darker indigo) lightness order.
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
