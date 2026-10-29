@@ -191,11 +191,16 @@ void UTurnManager::AdvanceToNextTurn()
 	// bonus fire, round-check+accumulate, select+tiebreak, TurnsTaken++ and the normal-turn
 	// delay countdown — none of those may be repeated here or they would double-apply.
 	FPreviewTurnEntry Picked;
-	if (!AdvanceSimState(Combatants, PendingTurns, Picked))
+	bool bRoundAdded = false;
+	if (!AdvanceSimState(Combatants, PendingTurns, Picked, &bRoundAdded))
 	{
 		UE_LOG(LogWoRCombat, Error, TEXT("[TurnManager] No valid combatant found for next turn"));
 		EndCombat();
 		return;
+	}
+	if (bRoundAdded)
+	{
+		OnRoundAdded.Broadcast();
 	}
 
 	CurrentActor = Picked.Actor;
@@ -566,7 +571,8 @@ TArray<FPreviewTurnEntry> UTurnManager::PreviewTurnOrder(int32 NumTurns) const
 
 bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 								   TArray<FScheduledTurn> &Pending,
-								   FPreviewTurnEntry &OutEntry) const
+								   FPreviewTurnEntry &OutEntry,
+								   bool *bOutRoundAdded) const
 {
 	// THE scheduler step: the live path (AdvanceToNextTurn, real state) and the belt fill
 	// (RebuildBelt, scratch state) both run through here — the only place a turn is
@@ -698,6 +704,10 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 	// near its death-time net debt. Same live bIsAlive read as the selection below.
 	if (MaxNetDebt <= KINDA_SMALL_NUMBER)
 	{
+		if (bOutRoundAdded)
+		{
+			*bOutRoundAdded = true;
+		}
 		for (FCombatantTurnDebt &Combatant : State)
 		{
 			UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Combatant.Actor);

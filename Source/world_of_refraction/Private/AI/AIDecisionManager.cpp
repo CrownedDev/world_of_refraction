@@ -35,6 +35,17 @@
 #include "Inventory/ItemEffectType.h"
 #include "Combat/TurnManager.h"
 #include "Skills/Definitions/SupportSkillRules.h"
+#include "HAL/IConsoleManager.h"
+
+namespace
+{
+	/** B-291: headless runs (the balance simulator) scale the AI thinking delay; 0 decides on the next tick. The
+	 *  delay is still drawn, so a seeded fight replays the same as live. */
+	TAutoConsoleVariable<float> CVarAIThinkDelayScale(
+		TEXT("wor.AI.ThinkDelayScale"),
+		1.0f,
+		TEXT("Multiplier on the AI thinking delay (1 = live; 0 = decide on the next tick, for headless runs)."));
+}
 
 TArray<USpellData *> UAIDecisionManager::GetUsableSpells(const ULoadoutComponent *Loadout)
 {
@@ -130,14 +141,22 @@ void UAIDecisionManager::RequestDecision(AActor *AIActor)
            *AIActor->GetName(), Delay, static_cast<int32>(Difficulty));
 
     // Schedule decision after delay
+    Delay *= FMath::Max(0.0f, CVarAIThinkDelayScale.GetValueOnGameThread());
     if (UWorld *World = GetWorld())
     {
-        World->GetTimerManager().SetTimer(
-            ThinkingTimerHandle,
-            this,
-            &UAIDecisionManager::ExecuteDecision,
-            Delay,
-            false);
+        if (Delay > 0.0f)
+        {
+            World->GetTimerManager().SetTimer(
+                ThinkingTimerHandle,
+                this,
+                &UAIDecisionManager::ExecuteDecision,
+                Delay,
+                false);
+        }
+        else
+        {
+            ThinkingTimerHandle = World->GetTimerManager().SetTimerForNextTick(this, &UAIDecisionManager::ExecuteDecision);
+        }
     }
 }
 

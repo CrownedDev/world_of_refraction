@@ -169,6 +169,9 @@ struct FPreviewTurnEntry
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTurnStarted, AActor *, Actor, int32, TurnNumber);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCombatEnded, int32, FinalTurnCount);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpeedChanged, AActor *, Actor);
+/** B-291: a new round began (every living combatant was owed its next turn). Listeners count rounds themselves
+ *  (the balance simulator's recorder); per-fight state stays off this subsystem (D-064). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRoundAdded);
 
 /**
  * TurnManager - GameInstanceSubsystem
@@ -308,6 +311,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Turn Manager|Events")
 	FOnTurnStarted OnTurnStarted;
 
+	/** B-291: broadcast when the live turn order adds a round (never for the belt preview). */
+	UPROPERTY(BlueprintAssignable, Category = "Turn Manager|Events")
+	FOnRoundAdded OnRoundAdded;
+
 	UPROPERTY(BlueprintAssignable, Category = "Turn Manager|Events")
 	FOnCombatEnded OnCombatEnded;
 
@@ -417,7 +424,8 @@ private:
 	 *  passed refs. */
 	bool AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 						 TArray<FScheduledTurn> &Pending,
-						 FPreviewTurnEntry &OutEntry) const;
+						 FPreviewTurnEntry &OutEntry,
+						 bool *bOutRoundAdded = nullptr) const;
 
 	/** Refill TurnBelt (up to TURN_BELT_HORIZON) from a scratch copy of live state. */
 	void RebuildBelt();
