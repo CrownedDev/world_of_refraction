@@ -579,8 +579,9 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
 
 // ==================== UNIFIED SLOTS (D-110 mirror, B-302) ====================
 
-void FCombatLoadout::RebuildSlotsFromLegacy(bool bGenericWeaponRules)
+void FCombatLoadout::RebuildSlotsFromLegacy(ECharacterClass CharacterClass)
 {
+    const bool bGenericWeaponRules = CharacterClass == ECharacterClass::Generic;
     Slots.Reset();
     ActiveWeaponSlot = INDEX_NONE;
     ActiveAdapterSlot = INDEX_NONE;
@@ -629,16 +630,10 @@ void FCombatLoadout::RebuildSlotsFromLegacy(bool bGenericWeaponRules)
         ActiveWeaponSlot = SecondaryWeaponSlot;
     }
 
-    // The adapter in use: the Resonator's active ring (none when the index is stale, as GetActiveRing), else a
-    // primary ring. (B-304's GetActiveSlot falls back to the first adapter; the mirror keeps today's answer.)
-    if (FirstRingLoadoutSlot != INDEX_NONE)
-    {
-        ActiveAdapterSlot = ActiveRingLoadoutSlot;
-    }
-    else
-    {
-        ActiveAdapterSlot = PrimaryAdapterSlot;
-    }
+    // The adapter in use, as today's getters: a Resonator's active ring (none when the index is stale, GetActiveRing),
+    // anyone else's primary ring (GetPrimaryRing). B-304's GetActiveSlot falls back to the first adapter instead.
+    (void)FirstRingLoadoutSlot;
+    ActiveAdapterSlot = CharacterClass == ECharacterClass::Resonator ? ActiveRingLoadoutSlot : PrimaryAdapterSlot;
 }
 
 // ==================== AUTO-EQUIP ====================
