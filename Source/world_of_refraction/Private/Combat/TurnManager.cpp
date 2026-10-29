@@ -654,14 +654,18 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 			Pending.RemoveAt(WinnerIdx);
 		}
 
-		// Pinned turns still count as taken (matching pre-2b). NOTE: no TurnsOwed credit —
-		// the pinned turn deliberately costs one slot of future normal priority.
-		for (FCombatantTurnDebt &Combatant : State)
+		// D-052 (Crown, A): an Emerald bonus turn is a real extra turn, so it isn't counted as taken and no later
+		// normal turn is lost. Other pinned turns (Execution) still count as taken, costing one slot of future
+		// normal priority. (Winner may be gone after RemoveAt; OutEntry.Type holds its type.)
+		if (OutEntry.Type != ETurnType::Bonus)
 		{
-			if (Combatant.Actor == PinnedActor)
+			for (FCombatantTurnDebt &Combatant : State)
 			{
-				Combatant.TurnsTaken++;
-				break;
+				if (Combatant.Actor == PinnedActor)
+				{
+					Combatant.TurnsTaken++;
+					break;
+				}
 			}
 		}
 
