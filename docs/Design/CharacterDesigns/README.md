@@ -43,7 +43,7 @@ Class, evolution and weapon per character (Crown's words; lore stays Crown's). "
 | Character | Class | Evolution | Weapon / adapters | Notes |
 |---|---|---|---|---|
 | **V** | — (the Void) | — | — | guide, mobs, hub NPCs (`Enemies.md`, `HubAndStory.md`) |
-| **Orthos Prisma** | Generic | Light: "All for One" | Great axe with a B Light crystal | |
+| **Orthos Prisma** | Generic | Light: **"United"** | Great axe with a B Light crystal | Evolution spells (Crown, 2026-10-29): **One for All** gives chosen allies some of his extended life and **Prismatic mode** (enhanced abilities); **All for One** takes it back, enhancing himself. Both are unique spells of the evolution, **boosted when Orthos wears it as bound gear** (D-033). Lore: United extends his life. |
 | **Garnet** | Generic | Fire: "Rise from the Ashes" | Halberd | |
 | **Sapphire Flowers** | Refractor (Water) | Water evolution | — | lore: sleep; people near her get tired, herself included |
 | **Amethyst Prisma** | Resonator | Void: "Monster Creation" | Adapters: dual pistols (casts resonance refractions through them); weapon: open | adapters may get a slot cost |
