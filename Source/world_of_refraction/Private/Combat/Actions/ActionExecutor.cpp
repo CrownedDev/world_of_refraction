@@ -4795,6 +4795,10 @@ void UActionExecutor::BeginSkillExecution(AActor *Actor)
 		if (CVarCombatInstantImpacts.GetValueOnGameThread())
 		{
 			ResolveMontagelessAction(Action);
+			if (!CurrentExecutionContext.IsSet() || AsyncActionSerial != ActionSerial)
+			{
+				return; // it finished this action (and may have started the next): nothing left to finalize here
+			}
 		}
 		if (CurrentExecutionContext.IsSet() && CurrentExecutionContext->AreAllDefensesResolved())
 		{
@@ -4811,6 +4815,13 @@ void UActionExecutor::ResolveMontagelessAction(const FAction &Action)
 	{
 		return;
 	}
+	// The last impact (or an Instant spell) can finish this action and start the next one synchronously (a
+	// deferred fire); everything below must stop the moment the action it began with is gone.
+	const int32 ActionSerial = AsyncActionSerial;
+	const auto ThisActionGone = [this, ActionSerial]()
+	{
+		return !CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress || AsyncActionSerial != ActionSerial;
+	};
 	if (Action.ActionType == EActionType::Spell)
 	{
 		// The SpellRelease notify's work (primary cast entry, or the loose VFX path), with no notify to wait for.
@@ -4826,13 +4837,13 @@ void UActionExecutor::ResolveMontagelessAction(const FAction &Action)
 	CurrentExecutionContext->bAnimationFinished = true;
 	for (int32 Index = 0; Index < HitCount; ++Index)
 	{
-		if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
+		if (ThisActionGone())
 		{
 			return; // the impact killed, interrupted or finished the action
 		}
 		ResolveImpactFrame(Index);
 	}
-	if (CurrentExecutionContext.IsSet())
+	if (!ThisActionGone())
 	{
 		// Any window still expecting impacts (fewer authored than expected) closes now, as at a montage's end.
 		ReconcileCountBasedDefenseWindows(*CurrentExecutionContext, GetDefenseSystem());

@@ -13,7 +13,6 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Equipment/Weapons/WeaponData.h"
-#include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Definitions/AbilityData.h"
 
@@ -53,22 +52,10 @@ BEGIN_DEFINE_SPEC(FBalanceSimOneFightSpec, "WoR.Balance.Sim.OneFight",
 	/** A combatant whose active weapon offers the montage-less Strike, so the AI has an attack to choose. */
 	AActor *SpawnArmed(bool bAIControlled)
 	{
-		UCharacterData *Data = FWoRTestWorld::NewCharacterData();
-		AActor *Actor = TestWorld->SpawnCombatant(Data, bAIControlled);
-		if (!Actor)
-		{
-			return nullptr;
-		}
-		UInventoryComponent *Inventory = FWoRTestWorld::AddComponent<UInventoryComponent>(Actor);
-		ULoadoutComponent *Loadout = FWoRTestWorld::AddComponent<ULoadoutComponent>(Actor);
-		Loadout->InitializeFromCharacterData(Data, Inventory);
 		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
 		Weapon->PresetAbilities.Add(Strike);
-		Inventory->AddWeapon(Weapon);
-		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
-		Active.PrimarySlotType = EPrimarySlotType::Weapon;
-		Active.PrimaryWeapon.WeaponEntry = Inventory->Weapons.Last();
-		return Actor;
+		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(FWoRTestWorld::NewCharacterData(), Weapon, bAIControlled);
+		return Loadout ? Loadout->GetOwner() : nullptr;
 	}
 
 	static int32 CurrentHPOf(const AActor *Actor)
@@ -123,10 +110,12 @@ void FBalanceSimOneFightSpec::Define()
 	It("lands each impact of a montage-less ability at once, on the defended path", [this]()
 	{
 		if (!TestNotNull(TEXT("Orchestrator"), Orchestrator)) return;
-		// Equal stats: the tie-break gives the local party (Hero) turn 1. Both are player-routed, so the foe's turn
-		// waits for input and adds no impacts of its own.
+		// Equal stats: the tie-break gives the local party (Hero) turn 1. The foe is AI, so its defense is
+		// synthesized per impact (the defended path); with the live think delay its own turn waits far past
+		// these frames and adds no impacts.
+		SetSimCVar(TEXT("wor.AI.ThinkDelayScale"), 1.0f);
 		AActor *Hero = SpawnArmed(false);
-		AActor *Foe = SpawnArmed(false);
+		AActor *Foe = SpawnArmed(true);
 		if (!TestTrue(TEXT("Combatants spawned"), Hero && Foe)) return;
 		Orchestrator->StartCombat({Hero}, {Foe});
 		const int32 FoeHPBefore = CurrentHPOf(Foe);

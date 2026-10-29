@@ -361,7 +361,8 @@ void UActionExecutor::ResolveImpactFrame(int32 Index)
 	// clobber), so it can be NULL while this action's skill montage is still
 	// firing hits. ChainActor is the stable handle, valid through the whole
 	// montage chain — same source OnActionAnimationEnded advances off.
-	AActor *Executor = ChainActor.Get();
+	// A montage-less action (ResolveMontagelessAction) has no chain; its executor is the context's.
+	AActor *Executor = ChainActor.IsValid() ? ChainActor.Get() : CurrentExecutionContext->Executor.Get();
 	USkillDataBase *Skill = GetCurrentSkillData();
 	const int32 HitCount = Skill ? Skill->HitCount : 0;
 	// Fires into the void this stage — Stage 2's per-impact resolver binds OnImpactFrame.
@@ -438,7 +439,7 @@ void UActionExecutor::ResolveImpactFrame(int32 Index)
 			CurrentExecutionContext->ResolvedHitFlags[Index].bInterruptable &&
 			AllInterruptSucceeded())
 		{
-			InterruptAsyncAction(ChainActor.Get(), ChainSkill);
+			InterruptAsyncAction(Executor, ChainSkill ? ChainSkill : Skill);
 			return;
 		}
 		for (AActor *Defender : DefendersToClose)
