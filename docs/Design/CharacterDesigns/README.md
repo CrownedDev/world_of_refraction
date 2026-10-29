@@ -36,7 +36,7 @@ Source folder: https://drive.google.com/drive/folders/1-gc1wYbPD8mcoarMTvl-lqTJR
 
 Lore stays Crown's; this list is for asset and editor planning only.
 
-## Confirmed characters to build first (Crown, 2026-10-29)
+## First characters: draft, under discussion (Crown, 2026-10-29; not committed)
 
 Class, evolution and weapon per character (Crown's words; lore stays Crown's). "Adapter" = the proposed new name for rings (and some weapons), see `DesignDecisions.md` D-107.
 
@@ -51,4 +51,4 @@ Class, evolution and weapon per character (Crown's words; lore stays Crown's). "
 | **Amber** | Generic | Amber: "Infinite Stamina" | Dual chain scythes | |
 | **Ares** (sheet: Aron Citrine?) | Resonator | Lightning: "Lightning Speed" | Trainer adapters; two Lightning rings / adapters | Crown to confirm the name vs the Drive sheet |
 
-Build order for B-280 / the character editor: V template, then these in Crown's order.
+Build order once agreed: V template first, then these in Crown's order.
