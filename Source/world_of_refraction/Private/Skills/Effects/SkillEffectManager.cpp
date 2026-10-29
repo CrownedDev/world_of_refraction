@@ -1179,49 +1179,59 @@ void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 
 void USkillEffectManager::ProcessTriggerEffects(AActor *Actor, ESkillTrigger Trigger, float TriggerValue)
 {
-	if (!Actor || !ActiveEffects.Contains(Actor))
+	TArray<FActiveSkillEffect> *Effects = Actor ? ActiveEffects.Find(Actor) : nullptr;
+	if (!Effects)
 	{
 		return;
 	}
 
-	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Actor];
-
-	// Forward index loop (NOT range-based): ConsumeCharge below can RemoveAt the fired effect,
-	// which would invalidate a range-based for. Same forward order + identical body, so uncharged
-	// effects (ConsumeCharge no-ops, returns false) behave byte-identically to the prior loop.
-	for (int32 i = 0; i < Effects.Num(); ++i)
+	// Claim, then fire (as ProcessEffectsWithTiming): ApplyEffectLogic can add or remove effects on this actor, or
+	// rehash ActiveEffects, so no reference into the list is held across it. The latch is set while claiming.
+	// B-300: only a threshold (state) trigger latches, so "HP below 30%" fires once per crossing. An event trigger
+	// (On Turn Start / End) fires every time its event comes, so it never latches.
+	TArray<FActiveSkillEffect> ToFire;
+	for (FActiveSkillEffect &Effect : *Effects)
 	{
-		FActiveSkillEffect &Effect = Effects[i];
-
-		if (Effect.ProcessTiming == ESkillEffectTiming::OnTrigger &&
-			Effect.TriggerCondition == Trigger)
+		if (Effect.ProcessTiming != ESkillEffectTiming::OnTrigger || Effect.TriggerCondition != Trigger)
 		{
-			if (IsTriggerConditionMet(Actor, Effect, TriggerValue))
-			{
-				// B-298: only a threshold (state) trigger latches, so "HP below 30%" fires once per crossing. An
-				// event trigger (On Turn Start / End) fires every time its event comes, so it never latches.
-				if (!Effect.bTriggerActive)
-				{
-					Effect.bTriggerActive = SkillTriggerUtils::IsThresholdTrigger(Trigger);
-					ApplyEffectLogic(Actor, Effect);
+			continue;
+		}
+		if (!IsTriggerConditionMet(Actor, Effect, TriggerValue))
+		{
+			Effect.bTriggerActive = false;
+			continue;
+		}
+		if (!Effect.bTriggerActive)
+		{
+			Effect.bTriggerActive = SkillTriggerUtils::IsThresholdTrigger(Trigger);
+			ToFire.Add(Effect);
+		}
+	}
 
-					UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Trigger activated: %s on %s"),
-						   *Effect.EffectName, *Actor->GetName());
+	for (FActiveSkillEffect &Fired : ToFire)
+	{
+		const auto IsFired = [&Fired](const FActiveSkillEffect &Candidate)
+		{
+			return Candidate.EffectID == Fired.EffectID && Candidate.SourceKey == Fired.SourceKey &&
+				   Candidate.EffectType == Fired.EffectType && Candidate.EffectName == Fired.EffectName;
+		};
+		const TArray<FActiveSkillEffect> *Live = ActiveEffects.Find(Actor);
+		if (!Live || !Live->ContainsByPredicate(IsFired))
+		{
+			continue; // removed earlier in this pass (e.g. cleansed)
+		}
 
-					// A trigger FIRE consumes a charge (the primary charge consumer). Charges == 0
-					// → no-op (unlimited). If charges hit 0 the effect is removed here; compensate
-					// the index so the next slot isn't skipped. NOTE: periodic ticks
-					// (ProcessEffectsWithTiming) deliberately do NOT consume — a DOT tick is not a
-					// charge fire. Per-tick consumption is a future opt-in, not built here.
-					if (ConsumeCharge(Actor, Effect))
-					{
-						--i;
-					}
-				}
-			}
-			else
+		ApplyEffectLogic(Actor, Fired);
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Trigger activated: %s on %s"),
+			   *Fired.EffectName, *Actor->GetName());
+
+		// A trigger FIRE consumes a charge (the primary charge consumer); Charges == 0 is unlimited. Found again
+		// after the apply, which may have moved it. Periodic ticks (ProcessEffectsWithTiming) don't consume.
+		if (TArray<FActiveSkillEffect> *After = ActiveEffects.Find(Actor))
+		{
+			if (FActiveSkillEffect *LiveEffect = After->FindByPredicate(IsFired))
 			{
-				Effect.bTriggerActive = false;
+				ConsumeCharge(Actor, *LiveEffect);
 			}
 		}
 	}

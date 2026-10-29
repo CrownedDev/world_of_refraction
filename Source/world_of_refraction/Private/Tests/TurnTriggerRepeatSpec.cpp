@@ -1,5 +1,5 @@
 // TurnTriggerRepeatSpec.cpp
-// B-298 (ET-17): an "On Turn Start" / "On Turn End" triggered effect fires at every such event, not once for its
+// B-300 (ET-17): an "On Turn Start" / "On Turn End" triggered effect fires at every such event, not once for its
 // whole life. Before the fix the trigger latched on its first fire and only re-armed when its condition was
 // unmet, which never happens for an event trigger. A threshold trigger (HP below %) still fires once per crossing.
 
@@ -12,7 +12,7 @@
 
 namespace
 {
-	constexpr int32 TURN_TRIGGER_TEST_EFFECT_ID = 9298;
+	constexpr int32 TURN_TRIGGER_TEST_EFFECT_ID = 9300;
 	constexpr int32 TURN_TRIGGER_TEST_CHARGES = 5;
 	constexpr float TURN_TRIGGER_TEST_HEAL = 1.0f;
 	/** HP threshold (percent) for the latch case; a fresh combatant is at full HP, so "above" is met. */
