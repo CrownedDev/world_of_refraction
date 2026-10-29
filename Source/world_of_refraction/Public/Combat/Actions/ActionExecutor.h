@@ -73,6 +73,19 @@ enum class EMontagePhase : uint8
 // ========================================
 
 /** Broadcast when action execution starts (for animations/VFX) */
+/** B-307 (D-110, CL-24): everything an infusion source gives, from one resolver (UActionExecutor::ResolveInfusionSource). */
+struct FInfusionSourceView
+{
+	/** The crystal or evolution the source channels (a copy; empty for Raw / Innate / none). */
+	FRuntimeAttachedItem Attached;
+	/** The element pushed: None when the attachment is missing or broken, on every path (CL-24). */
+	ESpellElement Element = ESpellElement::None;
+	/** How the infused action splits its charge bonus. */
+	EInfusionMode Mode = EInfusionMode::Balanced;
+	/** The source can be chosen right now (a broken adapter crystal can't, Q-163 = B). */
+	bool bUsable = false;
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnActionStarted, AActor *, Executor, const FAction &, Action, int32, EnergyCost);
 
 /** Broadcast when action execution completes */
@@ -210,9 +223,14 @@ public:
 	 *  (not infusable). Plain C++ (not BlueprintPure): a rule helper for AI + validation. */
 	TArray<EInfusionSourceOption> GetAllowedInfusionSourcesForSpell(AActor *Actor, const USpellData *Spell) const;
 
-	/** Get element for selected source option */
+	/** Get element for selected source option (B-307: ResolveInfusionSource's element) */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
 	ESpellElement GetElementForSourceOption(AActor *Actor, EInfusionSourceOption Option) const;
+
+	/** B-307: the one infusion-source resolver. The adapter options (ActiveRing / PrimaryRing) both mean "the adapter
+	 *  in use" (GetActiveSlot); WeaponCrystal the weapon in hand; Evolution the primary seat. The element, mode,
+	 *  attachment and availability readers all read it, so the broken rule is stated once. */
+	FInfusionSourceView ResolveInfusionSource(AActor *Actor, EInfusionSourceOption Option) const;
 
 	/**
 	 *  Resolve a spell's effective CAST element (Cluster 3 — the Generic-inherit step).

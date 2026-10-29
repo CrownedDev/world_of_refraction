@@ -3995,36 +3995,15 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActo
 
 	ULoadoutComponent *LC = GetLoadoutComponent(Actor);
 
-	// A ring whose crystal broke has no element to push, so it is no infusion source (Q-163 = B,
-	// like a broken weapon crystal); its own F-tier spells still cast (D-083).
-	auto IsUsableRing = [](const FRingLoadoutEntry *Entry)
+	// B-307: availability reads the one resolver (the broken rule, Q-163 = B, lives there). The adapter in use is
+	// offered as ActiveRing for a Resonator and PrimaryRing for anyone else, the menu's two names for it.
+	if (LC && ResolveInfusionSource(Actor, EInfusionSourceOption::ActiveRing).bUsable)
 	{
-		return Entry && Entry->IsValid() && !Entry->RingEntry.AttachedItem.IsBroken();
-	};
-
-	// Active Ring (Resonator only)
-	if (Data->IsResonator() && LC && IsUsableRing(LC->GetActiveRingLoadout()))
-	{
-		Sources.Add(EInfusionSourceOption::ActiveRing);
+		Sources.Add(Data->IsResonator() ? EInfusionSourceOption::ActiveRing : EInfusionSourceOption::PrimaryRing);
 	}
-
-	// Primary Ring (Generic/Caster with ring in primary slot)
-	if (LC && IsUsableRing(LC->GetPrimaryRingLoadout()))
+	if (LC && ResolveInfusionSource(Actor, EInfusionSourceOption::WeaponCrystal).bUsable)
 	{
-		Sources.Add(EInfusionSourceOption::PrimaryRing);
-	}
-
-	// Weapon Crystal — read runtime entry, not data asset.
-	// Aligns with FCombatCapabilities::BuildFrom path; the data-asset
-	// AttachedItem field is the design-time default that diverges from runtime
-	// when crystals are slotted/changed at runtime.
-	if (LC)
-	{
-		const FWeaponLoadoutEntry *ActiveWeapon = LC->GetActiveWeaponLoadout();
-		if (ActiveWeapon && ActiveWeapon->WeaponEntry.AttachedItem.CanProvideSpells())
-		{
-			Sources.Add(EInfusionSourceOption::WeaponCrystal);
-		}
+		Sources.Add(EInfusionSourceOption::WeaponCrystal);
 	}
 
 	// Evolution (any class, if evolved)
@@ -4110,73 +4089,90 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAllowedInfusionSourcesForSpell
 
 ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusionSourceOption Option) const
 {
-	UCharacterData *Data = GetCharacterData(Actor);
-	if (!Data)
-	{
-		return ESpellElement::None;
-	}
+    return ResolveInfusionSource(Actor, Option).Element; // B-307
+}
 
-	switch (Option)
-	{
-	case EInfusionSourceOption::None:
-		return ESpellElement::None;
+FInfusionSourceView UActionExecutor::ResolveInfusionSource(AActor *Actor, EInfusionSourceOption Option) const
+{
+    FInfusionSourceView View;
+    const UCharacterData *Data = GetCharacterData(Actor);
+    ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+    if (!Data)
+    {
+        return View;
+    }
+    // CL-24 for every attached source: a missing or broken attachment pushes no element.
+    const auto ElementOf = [](const FRuntimeAttachedItem &Attached)
+    { return !Attached.IsEmpty() && !Attached.IsBroken() ? Attached.GetElement() : ESpellElement::None; };
 
-	case EInfusionSourceOption::Raw:
-		// Raw is elementless infusion — pays HP, no channeled element
-		return ESpellElement::None;
+    switch (Option)
+    {
+    case EInfusionSourceOption::Innate:
+        View.Element = Data->InnateElement;
+        View.Mode = Data->InfusionMode;
+        View.bUsable = Data->IsCaster();
+        break;
 
-	case EInfusionSourceOption::Innate:
-		return Data->InnateElement;
+    case EInfusionSourceOption::ActiveRing:
+    case EInfusionSourceOption::PrimaryRing:
+    {
+        // D-110: both options mean the adapter in use (a Resonator's active one, anyone else's only one).
+        const FRingLoadoutEntry *Adapter = LC ? (LC->GetActiveRingLoadout() ? LC->GetActiveRingLoadout() : LC->GetPrimaryRingLoadout()) : nullptr;
+        if (Adapter && Adapter->IsValid())
+        {
+            View.Attached = Adapter->RingEntry.AttachedItem;
+            View.Element = ElementOf(View.Attached);
+            View.Mode = Adapter->RingEntry.Ring->InfusionMode;
+            // A broken adapter crystal has no element to push, so it's no source (Q-163 = B); its F-tier spells still cast.
+            View.bUsable = !View.Attached.IsBroken();
+        }
+        break;
+    }
 
-	case EInfusionSourceOption::ActiveRing:
-	{
-		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		return LC ? LC->GetActiveRingElement() : ESpellElement::None;
-	}
+    case EInfusionSourceOption::WeaponCrystal:
+    case EInfusionSourceOption::Raw:
+    case EInfusionSourceOption::None:
+    default:
+    {
+        // Raw pays HP and pushes no element, but its charge bonus splits by the weapon in hand's mode (as does an
+        // action with no source, as ResolveInfusionMode always did).
+        const FWeaponLoadoutEntry *Weapon = LC ? LC->GetActiveWeaponLoadout() : nullptr;
+        if (Weapon && Weapon->WeaponEntry.Weapon)
+        {
+            View.Mode = Weapon->WeaponEntry.Weapon->InfusionMode;
+        }
+        if (Option != EInfusionSourceOption::WeaponCrystal)
+        {
+            View.bUsable = Option == EInfusionSourceOption::Raw;
+            break;
+        }
+        if (Weapon)
+        {
+            View.Attached = Weapon->WeaponEntry.AttachedItem;
+            View.Element = ElementOf(View.Attached);
+            View.bUsable = View.Attached.CanProvideSpells();
+        }
+        break;
+    }
 
-	case EInfusionSourceOption::PrimaryRing:
-	{
-		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		if (LC)
-		{
-			if (const FRingLoadoutEntry *Entry = LC->GetPrimaryRingLoadout())
-			{
-				return Entry->RingEntry.AttachedItem.GetElement();
-			}
-		}
-		return ESpellElement::None;
-	}
+    case EInfusionSourceOption::Evolution:
+        if (LC && LC->IsEvolved())
+        {
+            const FCombatLoadout &Loadout = LC->GetActiveLoadout();
+            if (Loadout.PrimaryEvolution.Item)
+            {
+                // The seat is wrapped whole, so its per-instance roll travels with it.
+                View.Attached.Kind = EAttachedItemKind::Evolution;
+                View.Attached.Evolution = Loadout.PrimaryEvolution;
+                View.Element = Loadout.PrimaryEvolution.Item->GetAssociatedElement();
+                View.Mode = Loadout.PrimaryEvolution.Item->InfusionMode;
+            }
+            View.bUsable = true;
+        }
+        break;
 
-	case EInfusionSourceOption::WeaponCrystal:
-	{
-		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		if (LC)
-		{
-			if (const FWeaponLoadoutEntry *Entry = LC->GetActiveWeaponLoadout())
-			{
-				return Entry->WeaponEntry.AttachedItem.GetElement();
-			}
-		}
-		return ESpellElement::None;
-	}
-
-	case EInfusionSourceOption::Evolution:
-	{
-		ULoadoutComponent *Loadout = GetLoadoutComponent(Actor);
-		if (Loadout && Loadout->IsEvolved())
-		{
-			FCombatLoadout ActiveLoadout = Loadout->GetActiveLoadout();
-			if (ActiveLoadout.PrimaryEvolution.Item)
-			{
-				return ActiveLoadout.PrimaryEvolution.Item->GetAssociatedElement();
-			}
-		}
-		return ESpellElement::None;
-	}
-
-	default:
-		return ESpellElement::None;
-	}
+    }
+    return View;
 }
 
 ESpellElement UActionExecutor::ResolveSpellCastElement(AActor *Caster, const USpellData *Spell) const
@@ -4256,6 +4252,7 @@ ESpellElement UActionExecutor::ResolveSpellCastElement(AActor *Caster, const USp
 	return ESpellElement::None;
 }
 
+// OBSOLETE (B-307, SimplifyAudit S4): no callers, and its comment contradicts the code. Remove with B-309.
 bool UActionExecutor::DoWeaponStatsApply(EInfusionSourceOption Option) const
 {
 	return Option == EInfusionSourceOption::None || Option == EInfusionSourceOption::Raw;
@@ -4306,78 +4303,8 @@ float UActionExecutor::GetEffectiveEnergyCostEfficiencyMultiplier(AActor *Actor)
 
 FRuntimeAttachedItem UActionExecutor::ResolveInfusionAttachment(AActor *Actor, const FAction &Action) const
 {
-	if (!Actor)
-	{
-		return FRuntimeAttachedItem();
-	}
-
-	switch (Action.SelectedSource)
-	{
-	case EInfusionSourceOption::None:
-	case EInfusionSourceOption::Raw:
-	case EInfusionSourceOption::Innate:
-		// Not crystal-sourced — Raw/Innate pay HP, None means no infusion.
-		return FRuntimeAttachedItem();
-
-	case EInfusionSourceOption::ActiveRing:
-	{
-		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		if (!LC)
-		{
-			return FRuntimeAttachedItem();
-		}
-		const FRingLoadoutEntry *Entry = LC->GetActiveRingLoadout();
-		return Entry ? Entry->RingEntry.AttachedItem : FRuntimeAttachedItem();
-	}
-
-	case EInfusionSourceOption::PrimaryRing:
-	{
-		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		if (!LC)
-		{
-			return FRuntimeAttachedItem();
-		}
-		const FRingLoadoutEntry *Entry = LC->GetPrimaryRingLoadout();
-		return Entry ? Entry->RingEntry.AttachedItem : FRuntimeAttachedItem();
-	}
-
-	case EInfusionSourceOption::WeaponCrystal:
-	{
-		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		if (!LC)
-		{
-			return FRuntimeAttachedItem();
-		}
-		const FWeaponLoadoutEntry *Entry = LC->GetActiveWeaponLoadout();
-		return Entry ? Entry->WeaponEntry.AttachedItem : FRuntimeAttachedItem();
-	}
-
-	case EInfusionSourceOption::Evolution:
-	{
-		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		if (!LC)
-		{
-			return FRuntimeAttachedItem();
-		}
-		const FCombatLoadout Loadout = LC->GetActiveLoadout();
-		// Evolution primary slot is its own thing — wrap it as an evolution attachment.
-		// Whole-struct copy: the per-instance rolled state (GeneratedStatBonus/
-		// GeneratedResistance + pools) must travel with the attachment so the
-		// infusion read at the call site sees the roll — a field-by-field copy
-		// here previously dropped Generated*, silencing rolled ints for the
-		// standalone slot (the only slot path that can carry a roll today).
-		FRuntimeAttachedItem Result;
-		if (Loadout.PrimaryEvolution.Item)
-		{
-			Result.Kind = EAttachedItemKind::Evolution;
-			Result.Evolution = Loadout.PrimaryEvolution;
-		}
-		return Result;
-	}
-
-	default:
-		return FRuntimeAttachedItem();
-	}
+    // B-307: the resolver's attachment (empty for Raw / Innate / none).
+    return Actor ? ResolveInfusionSource(Actor, Action.SelectedSource).Attached : FRuntimeAttachedItem();
 }
 
 // ============================================================

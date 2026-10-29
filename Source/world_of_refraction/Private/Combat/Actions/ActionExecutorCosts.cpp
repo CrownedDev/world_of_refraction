@@ -250,54 +250,8 @@ float UActionExecutor::GetChargeStatusMultiplier(int32 Level, EInfusionMode Mode
 
 EInfusionMode UActionExecutor::ResolveInfusionMode(EInfusionSourceOption Source, AActor *Actor) const
 {
-	switch (Source)
-	{
-	case EInfusionSourceOption::ActiveRing:
-		if (ULoadoutComponent *LC = GetLoadoutComponent(Actor))
-		{
-			if (URingData *Ring = LC->GetActiveRing())
-			{
-				return Ring->InfusionMode;
-			}
-		}
-		break;
-	case EInfusionSourceOption::PrimaryRing:
-		if (ULoadoutComponent *LC = GetLoadoutComponent(Actor))
-		{
-			if (URingData *Ring = LC->GetPrimaryRing())
-			{
-				return Ring->InfusionMode;
-			}
-		}
-		break;
-	case EInfusionSourceOption::Innate:
-		if (UCharacterData *CharData = GetCharacterData(Actor))
-		{
-			return CharData->InfusionMode;
-		}
-		break;
-	case EInfusionSourceOption::Evolution:
-		if (ULoadoutComponent *LC = GetLoadoutComponent(Actor))
-		{
-			if (UEvolutionItemData *Evo = LC->GetPrimaryEvolution())
-			{
-				return Evo->InfusionMode;
-			}
-		}
-		break;
-	case EInfusionSourceOption::Raw:
-	case EInfusionSourceOption::WeaponCrystal:
-	default:
-		if (ULoadoutComponent *LC = GetLoadoutComponent(Actor))
-		{
-			if (UWeaponData *Weapon = LC->GetActiveWeapon())
-			{
-				return Weapon->InfusionMode;
-			}
-		}
-		break;
-	}
-	return EInfusionMode::Balanced; // null-safe fallback
+    // B-307: the resolver's mode (a source with no gear behind it falls back to Balanced, as before).
+    return ResolveInfusionSource(Actor, Source).Mode;
 }
 
 float UActionExecutor::GetAbilityChargeCostMultiplier(int32 Level) const
