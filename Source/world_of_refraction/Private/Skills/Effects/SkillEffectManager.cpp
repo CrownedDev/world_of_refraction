@@ -1198,9 +1198,11 @@ void USkillEffectManager::ProcessTriggerEffects(AActor *Actor, ESkillTrigger Tri
 		{
 			if (IsTriggerConditionMet(Actor, Effect, TriggerValue))
 			{
+				// B-298: only a threshold (state) trigger latches, so "HP below 30%" fires once per crossing. An
+				// event trigger (On Turn Start / End) fires every time its event comes, so it never latches.
 				if (!Effect.bTriggerActive)
 				{
-					Effect.bTriggerActive = true;
+					Effect.bTriggerActive = SkillTriggerUtils::IsThresholdTrigger(Trigger);
 					ApplyEffectLogic(Actor, Effect);
 
 					UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Trigger activated: %s on %s"),
