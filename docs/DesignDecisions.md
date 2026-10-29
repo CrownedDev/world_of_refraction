@@ -1585,11 +1585,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** `RunStructure.md` §1-3 and `Enemies.md` §1 to update once the line is clarified; the gate's variation list (B-183) becomes the Blade / theme list.
 
 ### D-110 — Unify the primary weapon, secondary weapon and adapter (Resonator) loadouts
-**Status:** OPEN (analysis requested 2026-10-29) · **Raised:** 2026-10-29 (Crown) · **Blocks:** —
+**Status:** ANSWERED in part (2026-10-29) · **Raised:** 2026-10-29 (Crown) · **Blocks:** —
 **Question:** Crown: the primary weapon, secondary weapon and the Resonator's adapter loadout "all do the same thing in different ways"; merge them into **one loadout model**. Weapons are limited to **abilities and elemental abilities** (also valid for adapters, D-108), so the unified approach works; the open issue is **how / where weapons get attached** (crystals, evolutions). Class rules under it: **Generic: 2 weapons; Caster: 1 weapon or 1 adapter; Resonator: its adapter loadout plus a weapon, with the loadout cost rules**, which should **branch out to the other classes**. Ares's trainer adapters must still be portrayable.
 **Context:** Crown wants this kind of analysis (unification that cuts code because the rules are known). Analysis: `docs/analysis/UnifiedLoadout_2026-10-29.md` (being written).
 **Options:** to come from the analysis.
-**Answer (Crown):** _pending_
+**Answer (Crown):** (2026-10-29, in progress, one question at a time)
+- **Go: A**, the unified model, built incrementally (adapters first) per `analysis/UnifiedLoadout_2026-10-29.md`.
+- **Points for everyone (A):** today's costs for every class (plain weapon / adapter 1; with a crystal, stone or fusion 2; weapon with an evolution attached 3; evolution on its own 2; adapter with an evolution 2), and **each class = a budget + a limit**: **Refractor** budget 3, **1 item** (weapon or adapter or evolution) plus its innate spell pool; **Generic** budget 6, up to **2 weapons**, and **keeps one adapter** (B: a Generic may still wear one adapter, as today's ring primary); **Resonator** budget 5, up to **1 weapon**, any number of adapters. Checks: a Refractor with an evolution has no other gear; a Generic may carry two evolved weapons (3 + 3); a Resonator with an evolution has 3 left (e.g. one weapon with an evolution).
+- **Class identity:** Generic = weapons, Resonator = adapters, Refractor = innate magic (the only class with an innate element and spell pool; its lever is the innate budget, not more gear).
 
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
