@@ -173,6 +173,9 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-035](B-035.md) | `refactor/B-035-flatten-crystal-destruction` (in `dev`) | Combat-end crystal destruction split out (no behaviour change) | Not tested |
 | [B-117](B-117.md) | `chore/B-117-stale-text-sweep` (in `dev`) | Stale comments and docs fixed; unread constants removed (no behaviour change) | Not tested |
 | [B-147](B-147.md) | `fix/B-147-rulings-in-code` (in `dev`) | D-034 / D-035 / D-039 / D-041 in comments, docs and a test (no behaviour change) | Not tested |
+| [B-042yc](B-042yc.md) | `feature/B-042yc-gas-getters` (in `dev`) | GAS stage 3 part 3d3: resistances, turn speed, Defense, crit, luck, reflex, efficiency and status multiplier read GAS at UseGAS 1; no change at UseGAS 0 | Not tested |
+| [B-042z](B-042z.md) | `feature/B-042z-fight-records-on-tracker` (in `dev`) | GAS stage 3 part 3e: fires-once records and armed conditionals live on each fighter's turn tracker (per-fight state on the battle's actors, D-064) | Not tested |
+| [B-042j](B-042j.md) | `feature/B-042j-absorb-family` (in `dev`) | Barrier / Shield / Ward absorbers (D-092): spent after Guard and Defense, one charge per impact; `wor.Absorb.Add` to try them | Not tested |
 
 Move rows to **Done** when every check passes.
 
