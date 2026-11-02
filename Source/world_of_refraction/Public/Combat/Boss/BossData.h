@@ -179,8 +179,9 @@ class WORLD_OF_REFRACTION_API UBossData : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	/** The character this boss data belongs to (the one in the fight). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss")
+	/** The character this boss data belongs to (the one in the fight). Searchable (B-263): FindFor matches it in
+	 *  the asset registry without loading every boss. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, AssetRegistrySearchable, Category = "Boss")
 	TObjectPtr<UCharacterData> Boss = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss")
