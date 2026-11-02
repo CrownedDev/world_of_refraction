@@ -148,7 +148,7 @@ enum class ESkillEffectType : uint8
     ModifyHealing UMETA(Hidden, DisplayName = "Healing Up"),
     ModifyCritChance UMETA(DisplayName = "Crit Chance Up"),
     ModifyCritDamage UMETA(DisplayName = "Crit Damage Up"),
-    ModifyEnergyCost UMETA(DisplayName = "Energy Cost Up"),
+    ModifyEnergyCost UMETA(DisplayName = "Energy Cost Down"),
     ModifyTurnSpeed UMETA(DisplayName = "Turn Speed Up"),
     ModifyStatusResist UMETA(DisplayName = "Status Resist Up"),
 
@@ -274,13 +274,22 @@ enum class ESkillEffectType : uint8
  * FActiveSkillEffect (both delegate their IsBuff/IsDebuff here, passing their own
  * magnitude field). Reads the enum only — does NOT affect enum order/serialization.
  *
- * `Magnitude` is consulted ONLY for sign-aware types (currently just ModifyStatusResist:
- * >0 = buff, <0 = debuff, exactly 0 = neither). Every other type is pure type->bool and
+ * `Magnitude` is consulted ONLY for sign-aware types (IsSignAware: >0 = buff, <0 = debuff, exactly 0 =
+ * neither). Every other type is pure type->bool and
  * ignores Magnitude. Callers pass the SIGN-PRESERVING field for their struct
  * (FSkillEffect::Magnitude, FActiveSkillEffect::EffectValue = Value!=0 ? Value : Magnitude*100).
  */
 namespace SkillEffectClassification
 {
+    /** D-054 (and Q-267 for the cost): the sign says the direction. On an ally it's a buff (faster turns, a
+     *  cheaper cost, more status resistance); on an enemy it's a debuff. ModifyEnergyCost counts "cheaper" as
+     *  positive (ActionExecutor's cost multiplier). The applier's side sets the sign (SkillEffectManager). */
+    inline bool IsSignAware(ESkillEffectType Type)
+    {
+        return Type == ESkillEffectType::ModifyStatusResist || Type == ESkillEffectType::ModifyTurnSpeed
+               || Type == ESkillEffectType::ModifyEnergyCost;
+    }
+
     inline bool IsBuff(ESkillEffectType Type, float Magnitude)
     {
         switch (Type)
@@ -346,12 +355,9 @@ namespace SkillEffectClassification
         // recipient-side healing amplifier (HealBlock mirror)
         case ESkillEffectType::HealingReceivedBuff:
             return true;
-        // ModifyStatusResist is sign-aware: +magnitude raises status resistance (a buff),
-        // -magnitude lowers it (a debuff), exactly 0 is neither.
-        case ESkillEffectType::ModifyStatusResist:
-            return Magnitude > 0.0f;
         default:
-            return false;
+            // Sign-aware types (see IsSignAware): +magnitude is a buff, exactly 0 is neither.
+            return IsSignAware(Type) && Magnitude > 0.0f;
         }
     }
 
@@ -393,8 +399,6 @@ namespace SkillEffectClassification
         case ESkillEffectType::SelfDamage:
         // Phase 2 passive-layer debuffs
         case ESkillEffectType::IncreaseDamageTaken:
-        case ESkillEffectType::ModifyEnergyCost:
-        case ESkillEffectType::ModifyTurnSpeed:
         case ESkillEffectType::DrainHP:
         case ESkillEffectType::DrainEnergy:
         case ESkillEffectType::ApplyBurnToTarget:
@@ -403,11 +407,9 @@ namespace SkillEffectClassification
         // sweep-4: status-bar manipulation debuff (builds target's gauge)
         case ESkillEffectType::StatusIncrease:
             return true;
-        // ModifyStatusResist sign-aware (see IsBuff): -magnitude = a resistance debuff.
-        case ESkillEffectType::ModifyStatusResist:
-            return Magnitude < 0.0f;
         default:
-            return false;
+            // Sign-aware types (see IsSignAware): -magnitude is a debuff.
+            return IsSignAware(Type) && Magnitude < 0.0f;
         }
     }
 }

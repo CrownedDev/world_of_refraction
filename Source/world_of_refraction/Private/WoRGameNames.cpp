@@ -170,7 +170,7 @@ FText GetSkillEffectTypeName(ESkillEffectType EffectType)
     case ESkillEffectType::ModifyCritDamage:
         return LOCTEXT("ESkillEffectType_ModifyCritDamage", "Crit Damage Up");
     case ESkillEffectType::ModifyEnergyCost:
-        return LOCTEXT("ESkillEffectType_ModifyEnergyCost", "Energy Cost Up");
+        return LOCTEXT("ESkillEffectType_ModifyEnergyCost", "Energy Cost Down");
     case ESkillEffectType::ModifyTurnSpeed:
         return LOCTEXT("ESkillEffectType_ModifyTurnSpeed", "Turn Speed Up");
     case ESkillEffectType::ModifyStatusResist:
