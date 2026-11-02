@@ -128,7 +128,7 @@ TArray<FLeadershipEntry> UWeatherStateManager::BuildHierarchy(const TArray<AActo
         {
             if (Comp->CharacterData)
             {
-                Entry.Element = Comp->CharacterData->InnateElement;
+                Entry.Element = Comp->CharacterData->GetElement(); // B-276: class-gated
             }
         }
 
