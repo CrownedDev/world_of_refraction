@@ -13,6 +13,7 @@ You are in **Backlog mode** (CLAUDE.md, "Backlog mode"). Follow these steps exac
 - **Apply answers first:** for every decision marked `ANSWERED`, set the jobs it blocks back to `TODO`. Note in its "Notes for Claude" anything you'll do differently.
 
 ## 1. Pick
+- **On a machine with Unreal, once all UNBUILT branches are merged:** delete every remote branch already merged into `dev` (`git fetch --prune origin` then `git branch -r --merged origin/dev`, excluding `dev` and `main`; delete in batches of ~50).
 - **On a machine with Unreal (`UE_ROOT` set): first finish every `REVIEW (branch, UNBUILT)` job**, oldest first (Crown, 2026-10-27, cloud + desktop split): check out its branch, merge the latest `dev` into it, then do steps 4 and 5 (build, test, reviewer, hand off, merge). Only then pick new jobs.
 - **In a cloud session (no Unreal):** work as normal but stop at step 4.3: push the branch, mark the job `REVIEW (branch, UNBUILT)`, and **don't merge into `dev`**. Skip a job whose `Needs` include a job that is still `UNBUILT`. Docs-only jobs (no C++, no config) are merged as usual.
 - Pick the **first `TODO`** whose `Needs` are all `DONE` or `REVIEW (in dev)` and whose decisions aren't `OPEN`.
@@ -55,6 +56,7 @@ Only once step 4 is fully green (build, tests, reviewer).
 7. Merge into dev with a real message, never `--no-edit`:
    `git checkout dev && git pull --ff-only origin dev && git merge --no-ff -m "Merge B-xxx: <what it does> — tests green, PIE pending" <branch> && git push origin dev`.
    If the merge conflicts, resolve it, rebuild and retest before pushing.
+8. **Delete the job branch** once it is merged into `dev` and pushed: `git branch -d <branch> && git push origin --delete <branch>` (Crown, 2026-10-29: keep only live branches). Never delete `main`, `dev`, or an unmerged branch.
 - **Never commit to, merge into, or push `main`.** Crown merges `dev → main` after play-testing.
 - Next job: back to step 1 (branch from the updated `dev`).
 

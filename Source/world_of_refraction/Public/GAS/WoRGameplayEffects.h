@@ -145,6 +145,17 @@ public:
 	UWoRGE_Reflect();
 };
 
+/** B-042j (D-092): one absorber, Barrier / Shield / Ward. The verb's Status.Absorb.* tag is granted by the spec
+ *  (dynamic), and its charges live on the holder's UWoRTurnEffectTracker under this GE's handle. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_Absorb : public UWoRGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_Absorb();
+};
+
 /** Last Stand: the holder survives a killing blow once. */
 UCLASS()
 class WORLD_OF_REFRACTION_API UWoRGE_LastStand : public UWoRGameplayEffect
