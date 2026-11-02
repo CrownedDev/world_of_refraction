@@ -212,6 +212,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-290](B-290.md) | `chore/B-290-economy-numbers-spec` (in `dev`) | World-stat vendor price and cap, merge, spell essence and drop-quality numbers pinned by a test | Not tested |
 | [B-295](B-295.md) | `fix/B-295-emerald-real-extra-turn` (in `dev`) | An Emerald bonus turn is a real extra turn (no later turn lost, D-052) | Not tested |
 | [B-296](B-296.md) | `fix/B-296-generic-spell-quartz-price` (in `dev`) | Generic spells cost Quartz essence like elemental ones (D-105) | Not tested |
+| [B-300](B-300.md) | `fix/B-300-turn-triggers-every-turn` (in `dev`) | On Turn Start / End triggers fire every turn (not just once) | Not tested |
 
 Move rows to **Done** when every check passes.
 
