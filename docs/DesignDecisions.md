@@ -2802,6 +2802,7 @@ Moved here once applied. Newest first.
 
 | ID | Decision | Date | Applied in |
 |---|---|---|---|
+| D-112 | **[VRoid]** VRoid is driven through the VRoid MCP: Crown installs VRoid Studio 2.14.0 (the latest), BepInEx 6 IL2CPP be.788 and brainrom/vroid-studio-mcp v1.0.0, chosen after the Terms flag on reverse engineering (`CharacterPipeline.md` Licensing). VRM export stays in VRoid's own window | 2026-11-02 | B-280 (`chore/B-280-vroid-pipeline`) |
 | D-075 | A fight that ends mid-action: the unfinished action pays no infusion HP cost; its defense windows are dropped | 2026-10-26 | B-030 (`UActionExecutor::ResetForCombat`; TODO removed in `chore/apply-D-073-D-075-D-076`) |
 | D-040 | A Refractor's innate spells always work, whatever it wears (already the code) | 2026-10-26 | `chore/apply-D-034-041` (Rules 01 CL-C2) |
 | D-034 | Crit damage ceiling with gear is x2.5 (the code); docs fixed | 2026-10-26 | `chore/apply-D-034-041` (docs); comments in B-147 |
