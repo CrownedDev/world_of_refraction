@@ -2235,6 +2235,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B.
 **Notes for Claude:** `FWorldStatRequirements::GetWeaponRequirementFactor` (`Min3`); the floor `WeaponRequirement::WEAPON_REQ_FACTOR_MIN` is 0.25 (`// TODO: tune`; the ladder's lowest rung is 0.32, so it doesn't bite today). Two readings built with the plan (`StatMathsRedesign.md` 2.9, "a separate damage factor on attacks and abilities"), for Crown to change if wanted: the factor scales the whole pre-defense damage of the attack or ability (the skill's base too, not only a weapon-only share, since this game has no separate weapon damage term), and it scales **damage only**: status buildup from the hit is unchanged.
 
+### Q-220 — Weapon Power on a multi-hit skill: every hit, or once?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-02 (B-220 review) · **Blocks:** —
+**Question:** B-220 adds the weapon part (Power + scaling, times the requirement factor) to each hit's damage, so a three-hit ability gets it three times; it also sits outside the charge band and the infusion boost. Keep that, or add it once per action?
+**Options:**
+- **A** (as built) every hit gets the weapon part; charge and infusion don't scale it.
+- **B** once per action, split across the hits.
+**Recommendation:** A. In Elden Ring and Expedition 33 a weapon's attack rating applies to every hit of a combo or multi-hit skill; skill designers balance hit count through the skill's own multiplier. Power defaults to 0, so nothing changes until Crown authors Power. Not lore.
+**Answer:** **A**, by the reference-backed default (2026-11-02). Crown may pick B.
+**Notes for Claude:** `ActionExecutor.cpp` `PreviewActionDamage` / `GetWeaponPart`. Under the requirement the cut now applies to the weapon part only, so with Power 0 being under a requirement costs nothing until Power is set (PIE B-220).
+
 ### Q-218 — Which single tuning values move into the tuning data now?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-218) · **Blocks:** — (B-218 ships with A)
 **Question:** B-218 puts the ladders into curve tables and "single tuning values (caps, per-point bases, Broken Darkness rates)" into `UCombatTuningData`. The stat caps and per-point bases (`UNIVERSAL_STAT_CAP`, `RESISTANCE_PER_POINT`, `PCT_STAT_PER_POINT`, …) feed compile-time formulas (`STAT_DERIVE_DENOM` and the derived per-point values in `CombatConstants.h`) read in many places. Which single values move now?
