@@ -259,7 +259,7 @@ int32 UWoREffectMirrorComponent::PreviewDotTick(const FActiveSkillEffect &Effect
 {
 	UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
 	// As PayTick: where GAS wouldn't pay the tick, the enum path's number is the one paid.
-	const UCharacterDataComponent *Char = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+	const UCharacterDataComponent *Char = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	if (!ASC || !GetOwner()->HasAuthority() || bSyncing || Effect.EffectType != ESkillEffectType::DOT ||
 		!ASC->HasAttributeSetForAttribute(UWoRAttributeSet_Vitals::GetHealthAttribute()) || !Char || !Char->CharacterData)
 	{
