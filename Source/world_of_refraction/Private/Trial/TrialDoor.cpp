@@ -1,6 +1,7 @@
 // TrialDoor.cpp
 
 #include "Trial/TrialDoor.h"
+#include "Player/WoRInteract.h"
 
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -121,27 +122,7 @@ void ATrialDoor::Interact()
 
 ATrialDoor *ATrialDoor::FindNearestInRange(APawn *Pawn)
 {
-    if (!Pawn)
-    {
-        return nullptr;
-    }
-
-    TArray<AActor *> Overlapping;
-    Pawn->GetOverlappingActors(Overlapping, ATrialDoor::StaticClass());
-
-    ATrialDoor *Nearest = nullptr;
-    float NearestDistSquared = TNumericLimits<float>::Max();
-    const FVector PawnLocation = Pawn->GetActorLocation();
-    for (AActor *Actor : Overlapping)
-    {
-        const float DistSquared = FVector::DistSquared(PawnLocation, Actor->GetActorLocation());
-        if (DistSquared < NearestDistSquared)
-        {
-            NearestDistSquared = DistSquared;
-            Nearest = Cast<ATrialDoor>(Actor);
-        }
-    }
-    return Nearest;
+    return WoRInteract::FindNearestOverlapping<ATrialDoor>(Pawn); // B-256
 }
 
 void ATrialDoor::OnTriggerBeginOverlap(UPrimitiveComponent * /*OverlappedComponent*/, AActor *OtherActor,
