@@ -43,7 +43,7 @@ namespace CombatConstants
 
     // World-stat KILL faucet (§7 C3): WSP earned per enemy kill = max(1, victim caliber / divisor),
     // where caliber = the victim's GetTotalPool() (~30 with no world levels … ~93 at world 7/7/7).
-    // ⚠️ TUNING KNOB — divisor 30 yields ~1-3 WSP/kill against the LIVE_MAX=20/pillar cap. Tune in PIE.
+    // ⚠️ TUNING KNOB — divisor 30 yields ~1-3 WSP/kill against the LIVE_MAX=7/pillar cap (B-222). Tune in PIE.
     constexpr int32 WORLDSTAT_KILL_DIVISOR = 30;
 
     // ==================== EQUIPMENT STAT BONUS LIMITS ====================
@@ -390,6 +390,11 @@ namespace CombatConstants
     // Final = Base * (1 + StatValue / STAT_PERCENT_DIVISOR). Used wherever
     // a raw sub-stat point value drives a percentage-style multiplier.
     constexpr float STAT_PERCENT_DIVISOR = 100.0f;
+
+    // B-277: the skill-effect energy-cost multiplier (cost buffs / debuffs / ModifyEnergyCost) stays in this
+    // range: never free, never more than double (UActionExecutor::GetEffectiveEnergyCostEfficiencyMultiplier).
+    constexpr float SKILL_EFFECT_COST_MULT_MIN = 0.1f;
+    constexpr float SKILL_EFFECT_COST_MULT_MAX = 2.0f;
 
     // An IgnoreDefense effect valued at or below this (per application, in percent points) is a flag
     // (the "1 = on" gate convention), not an amount: it ignores all Defense (D-086, B-042m).

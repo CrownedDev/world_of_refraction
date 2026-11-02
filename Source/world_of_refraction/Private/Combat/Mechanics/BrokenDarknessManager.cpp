@@ -412,6 +412,12 @@ void UBrokenDarknessManager::ForceTransformation()
 	}
 }
 
+bool UBrokenDarknessManager::IsInBDForm(const AActor *Actor)
+{
+	const UBrokenDarknessManager *Manager = Actor ? Actor->FindComponentByClass<UBrokenDarknessManager>() : nullptr;
+	return Manager && Manager->IsTransformed();
+}
+
 void UBrokenDarknessManager::TriggerTransformation()
 {
 	if (bIsFlipped)
@@ -1012,8 +1018,10 @@ bool UBrokenDarknessManager::IsElementCastable(AActor *Actor,
 	{
 		return true;
 	}
-	return Element == CharData->InnateElement
-		|| ElementHelpers::IsAnySpellSource(CharData->InnateElement)
+	// B-276: the class-gated innate element (a non-Caster's hidden InnateElement never counts).
+	const ESpellElement Innate = CharData->GetElement();
+	return Element == Innate
+		|| ElementHelpers::IsAnySpellSource(Innate)
 		|| ULoadoutComponent::HasEquippedSourceForElement(Actor, Element);
 }
 

@@ -53,6 +53,10 @@ class WORLD_OF_REFRACTION_API UEconomyService : public UGameInstanceSubsystem
     GENERATED_BODY()
 
 public:
+    /** Q-252: false (and says "Not during a fight." on screen) while a fight is on. Every economy action
+     *  checks it; paid repair (GearRepair::RepairParty) too. Op names the action in the log. */
+    static bool IsOutOfCombat(const AActor *Owner, const TCHAR *Op);
+
     /**
      * Dismantle Count crystals/stones of Id from Owner's inventory, granting typed essence per
      * EconomyYield. Server-authoritative. The pool (gem vs stone) is dispatched by Id.Type inside
