@@ -239,7 +239,12 @@ void UTurnManager::CalculateSpeedRatios()
 	// compound. CachedSpeed remains the pristine base. Through the getter, so turn order reads GAS at UseGAS 1 (B-042yc).
 	auto GetEffectiveSpeed = [this](const FCombatantTurnDebt &Combatant) -> int32
 	{
-		return GetEffectiveTurnSpeed(Combatant.Actor);
+		float OnGAS = 0.0f;
+		if (UWoRAttributeSyncComponent::ReadComposedOnGAS(Combatant.Actor, UWoRAttributeSet_Stats::GetTurnSpeedAttribute(), OnGAS))
+		{
+			return FMath::RoundToInt(OnGAS);
+		}
+		return EffectiveTurnSpeedOf(Combatant.Actor, Combatant.CachedSpeed);
 	};
 
 	// Find slowest effective speed among living combatants.
