@@ -96,7 +96,8 @@ UBossData *UBossData::FindFor(const UCharacterData *Character)
 			if (TagPath != CharacterPath)
 			{
 				// Only a tag naming no asset any more (a renamed character) is worth loading the slow way.
-				if (!TagPath.IsNull() && !Registry.GetAssetByObjectPath(TagPath).IsValid())
+				const FAssetData Target = TagPath.IsNull() ? FAssetData() : Registry.GetAssetByObjectPath(TagPath);
+				if (!TagPath.IsNull() && (!Target.IsValid() || Target.IsRedirector())) // a rename leaves a redirector
 				{
 					SkippedByTag.Add(&Asset);
 				}
