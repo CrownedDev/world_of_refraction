@@ -178,6 +178,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-042j](B-042j.md) | `feature/B-042j-absorb-family` (in `dev`) | Barrier / Shield / Ward absorbers (D-092): spent after Guard and Defense, one charge per impact; `wor.Absorb.Add` to try them | Not tested |
 | [B-220](B-220.md) | `feature/B-220-weapon-power` (in `dev`) | Weapons get Power and Mind / Body / Spirit scaling grades (D-101); Power 0 by default, so no damage changes until set; `wor.Weapon.Print` | Not tested |
 | [B-221](B-221.md) | `feature/B-221-worn-gear-leaves-inventory` (in `dev`) | Shared pool: lists of gear selectable by a member (worn-by-others filtered out) and the inventory debug tag; the pickers switch with B-221b | Not tested |
+| [B-222](B-222.md) | `feature/B-222-pillar-cap-7` (in `dev`) | Mind / Body / Spirit can't pass 7 in a run (was 20): head-start, earned and bought levels clamp at 7; the vendor refuses at 7 | Not tested |
 
 Move rows to **Done** when every check passes.
 
