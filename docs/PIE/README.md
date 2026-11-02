@@ -185,6 +185,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-242](B-242.md) | `refactor/B-242-crystal-wear-formula` (in `dev`) | One crystal / evolution cast-wear formula (`ComputeCastWear`); same wear numbers | Not tested |
 | [B-245](B-245.md) | `refactor/B-245-one-action-tier` (in `dev`) | Wear and the tier gap use the same action tier (`ResolveActionTier`); ability and basic-attack wear numbers change (Q-245) | Not tested |
 | [B-246](B-246.md) | `refactor/B-246-combat-finish` (in `dev`) | Every way a fight ends runs one finish tail (crystal destruction, repair, resets); a TurnManager-ended fight now runs destruction and repair (Q-246) | Not tested |
+| [B-247](B-247.md) | `refactor/B-247-one-heal-path` (in `dev`) | One heal amplify + HealBlock gate for every heal kind; every heal broadcasts `OnHealingDone` | Not tested |
 
 Move rows to **Done** when every check passes.
 
