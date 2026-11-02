@@ -117,8 +117,8 @@ public:
     // CHARACTER TEMPLATE
     // ========================================
 
-    /** Reference to character template (set in editor/BP) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character")
+    /** Reference to character template (set in editor/BP). Replicated (B-131); sent only when it changes. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = "Character")
     UCharacterData *CharacterData;
 
     // ========================================
@@ -131,10 +131,12 @@ public:
     UPROPERTY(ReplicatedUsing = OnRep_CurrentEP, BlueprintReadOnly, Category = "Combat")
     int32 CurrentEP;
 
-    UPROPERTY(BlueprintReadOnly, Category = "Combat")
+    /** Replicated (B-131): derived on the server from gear the client may not hold, and read by the
+     *  clients' OnRep_CurrentHP / EP and HUD bars. A max-only change re-broadcasts through the same OnRep. */
+    UPROPERTY(ReplicatedUsing = OnRep_CurrentHP, BlueprintReadOnly, Category = "Combat")
     int32 MaxHP;
 
-    UPROPERTY(BlueprintReadOnly, Category = "Combat")
+    UPROPERTY(ReplicatedUsing = OnRep_CurrentEP, BlueprintReadOnly, Category = "Combat")
     int32 MaxEP;
 
     UPROPERTY(ReplicatedUsing = OnRep_bIsAlive, BlueprintReadOnly, Category = "Combat")
@@ -193,6 +195,8 @@ public:
     // ========================================
     // HP MANAGEMENT (SERVER ONLY)
     // ========================================
+    // B-131: the Server* functions here are plain calls, not RPCs: run them on the authority. A client's
+    // inputs reach the server through the player controller's RPCs (B-229).
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void ServerTakeDamage(int32 Damage);
