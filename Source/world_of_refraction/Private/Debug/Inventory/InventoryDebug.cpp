@@ -105,13 +105,14 @@ void UInventoryDebug::LogWeapons(UInventoryComponent *Inventory)
             FString CrystalStr = Entry.HasCrystal() ? TEXT("Crystal") : TEXT("None");
             FString EvoStr = Entry.IsEvolved() ? TEXT(", Evolved") : TEXT("");
 
-            UE_LOG(LogTemp, Display, TEXT("  [%d] %s (Type: %d, %s%s) Cost: %d"),
+            UE_LOG(LogTemp, Display, TEXT("  [%d] %s (Type: %d, %s%s) Cost: %d%s"),
                    i,
                    *Entry.Weapon->Name,
                    static_cast<int32>(Entry.Weapon->WeaponType),
                    *CrystalStr,
                    *EvoStr,
-                   Entry.GetSlotCost());
+                   Entry.GetSlotCost(),
+                   Inventory->IsWornByOtherMember(Entry.PersistentID) ? TEXT(" (worn by another member, B-221)") : TEXT(""));
         }
     }
 }
