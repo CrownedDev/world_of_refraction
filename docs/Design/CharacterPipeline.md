@@ -4,7 +4,7 @@
 
 ## Decided route (Crown, 2026-10-28)
 
-1. **A V template in VRoid Studio**: one base body (V's proportions) that every character, and the player's Manny/Quinn form, derives from. No per-character Blender re-proportioning: VRM4U retargets the whole cast to Manny the same way, so any difference is consistent.
+1. **No V template (D-114, Crown, 2026-11-02):** V is Manny/Quinn + the void material (B-143, Unreal), not a VRoid model. Each named character starts from **VRoid's base body**, with proportions kept consistent across the cast by **one shared slider preset** (saved after Amethyst; `docs/sessions/vroid-2026-11-02.md` has the values). No per-character Blender re-proportioning: VRM4U retargets the whole cast to Manny the same way, so any difference is consistent. Characters are built **nude**; clothing is separate cosmetics later (D-113).
 2. **Steps, in order:** (a) create the **plain character first** (body, face, hair, colours, no clothing), bring it into Unreal and check what needs adjusting (retarget, proportions, material); (b) only then **apply clothing**. The uniform coat (high black collar, tails, white belt, gem colour) is tried in VRoid first (coat preset + custom texture); **Blender is the fallback** only if VRoid can't make the silhouette.
 3. **Driven through the VRoid MCP** by Claude Code on Crown's desktop, from each sheet's colour key.
 4. Into Unreal with **VRM4U** (5.8 support), the anime-on-painterly material (MeshBites or in-house), VRoid's expression morphs for the expression sheets.
