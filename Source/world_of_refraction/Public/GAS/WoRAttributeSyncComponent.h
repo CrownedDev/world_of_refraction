@@ -92,8 +92,10 @@ public:
 	static bool ReadSyncedAttribute(const UAbilitySystemComponent *ASC, const FGameplayAttribute &Attribute, float &Out);
 
 	/** B-042yb: with wor.Effects.UseGAS 1, Out = a composed sub-stat or pillar Attribute on Owner's ASC, its layers
-	 *  refreshed first on the authority (so GAS holds what the getter would compose). False without the switch, a
-	 *  sync, character data or the set, and while ReadSourceValues runs: the getter then composes it itself. */
+	 *  refreshed first on the authority (so GAS holds what the getter would compose). B-042yc adds turn speed, the
+	 *  status resistance, the resistance-source attributes (per type, the blanket bonus) and crit chance. False
+	 *  without the switch, a sync, character data or the set, for any other attribute, and while ReadSourceValues
+	 *  runs: the getter then composes it itself. */
 	static bool ReadComposedOnGAS(const AActor *Owner, const FGameplayAttribute &Attribute, float &Out);
 
 	/** Gives the owner's ASC both attribute sets (once) and its actor info. Null when the owner has no ASC. */
@@ -126,7 +128,8 @@ private:
 	 *  layers current (B-042p, B-042t). */
 	void SyncComposedStat(UAbilitySystemComponent &ASC, const FGameplayAttribute &Attribute, const FWoRStatLayers &Layers,
 						  TSubclassOf<UGameplayEffect> SourcesClass);
-	/** Re-syncs one composed sub-stat or pillar from its layers (B-042yb). False when Attribute isn't one. */
+	/** Re-syncs one composed sub-stat or pillar from its layers (B-042yb), or turn speed, the status resistance, the
+	 *  resistance sources or crit chance from theirs (B-042yc). False when Attribute isn't one or has no layers. */
 	bool RefreshComposed(UAbilitySystemComponent &ASC, const UCharacterDataComponent &Char, const FGameplayAttribute &Attribute);
 
 	/** Removes Attribute's stat or pool sources effect, if any. */
