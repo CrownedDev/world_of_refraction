@@ -128,7 +128,31 @@ void UWoRTurnEffectTracker::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	// pawn that outlives a fight should remove its tracked GEs here.
 	Tracked.Reset();
 	Absorbs.Reset();
+	ResetFightRecords();
 	Super::EndPlay(EndPlayReason);
+}
+
+void UWoRTurnEffectTracker::RecordFiredOnce(int32 EffectID, int32 SourceKey)
+{
+	FiredOnce.Add(FIntPoint(EffectID, SourceKey));
+}
+
+void UWoRTurnEffectTracker::ArmConditionals(const TArray<FGatheredEffect> &Conditionals)
+{
+	ArmedConditionals = Conditionals;
+	bArmed = true;
+}
+
+void UWoRTurnEffectTracker::DisarmConditionals()
+{
+	ArmedConditionals.Reset();
+	bArmed = false;
+}
+
+void UWoRTurnEffectTracker::ResetFightRecords()
+{
+	FiredOnce.Reset();
+	DisarmConditionals();
 }
 
 UAbilitySystemComponent *UWoRTurnEffectTracker::GetOwnerASC() const
@@ -394,7 +418,9 @@ TArray<FWoRAbsorbCharge> UWoRTurnEffectTracker::GetAbsorbs() const
 FString UWoRTurnEffectTracker::GetDebugString() const
 {
 	const UAbilitySystemComponent *ASC = GetOwnerASC();
-	FString Out = FString::Printf(TEXT("%s: %d turn-counted effect(s)"), *GetNameSafe(GetOwner()), Tracked.Num());
+	FString Out = FString::Printf(TEXT("%s: %d turn-counted effect(s), %d fires-once use(s) spent, %s"), *GetNameSafe(GetOwner()),
+								  Tracked.Num(), FiredOnce.Num(),
+								  bArmed ? *FString::Printf(TEXT("%d gear conditional(s) armed"), ArmedConditionals.Num()) : TEXT("gear not armed"));
 	for (const TPair<FActiveGameplayEffectHandle, FTrackedEffect> &Entry : Tracked)
 	{
 		const FActiveGameplayEffect *Active = ASC ? ASC->GetActiveGameplayEffect(Entry.Key) : nullptr;
