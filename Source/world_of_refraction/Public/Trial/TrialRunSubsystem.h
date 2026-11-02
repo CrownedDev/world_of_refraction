@@ -195,6 +195,11 @@ public:
     FString GetTrialRunString() const;
 
 private:
+    /** B-227: every level change. A listen server travels seamlessly and takes its clients along
+     *  (World->ServerTravel; the game modes set bUseSeamlessTravel); standalone keeps OpenLevel. A client
+     *  doesn't travel on its own (it follows the server; its inputs reach the server with B-229). */
+    void TravelTo(const TSoftObjectPtr<UWorld> &Level);
+
     /** The map ExitTrial returns to — authored in DefaultGame.ini. */
     UPROPERTY(Config)
     TSoftObjectPtr<UWorld> HubLevel;

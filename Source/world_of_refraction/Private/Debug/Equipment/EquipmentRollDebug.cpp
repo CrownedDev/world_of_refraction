@@ -79,7 +79,7 @@ FString UEquipmentRollDebug::GetEquipmentRollString(AActor *Actor)
 		return FString::Printf(TEXT("ERROR: %s has no LoadoutComponent"), *Actor->GetName());
 	}
 
-	const FCombatLoadout Loadout = LC->GetActiveLoadout();
+	const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 
 	FString Out;
 	Out += TEXT("========= EQUIPMENT ROLL STATE =========\n");
