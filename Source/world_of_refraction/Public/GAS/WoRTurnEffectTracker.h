@@ -8,6 +8,8 @@
 // ASC's removed event. A tracked GE may carry a tick spec (a DOT or HOT payout, B-042b): it is
 // applied at each holder turn start the GE survives, after the finished spans end (Q-044c), in the
 // order the effects arrived, and no more once the holder's Health reaches 0.
+// B-042z: it also holds the holder's fires-once uses (D-011) and its armed gear conditionals (C3a); the
+// effect manager writes them here and in its own sets, and reads them here at wor.Effects.UseGAS 1.
 // Per-fight state on the battle actor (D-064).
 // Debug: GetDebugString, PrintState, `wor.DumpTurnEffects` (every combatant, with its GEs).
 
@@ -17,6 +19,8 @@
 #include "Components/ActorComponent.h"
 #include "ActiveGameplayEffectHandle.h"
 #include "GameplayEffectTypes.h"
+#include "GAS/WoRAbsorb.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "Skills/Effects/TurnSpan.h"
 #include "WoRTurnEffectTracker.generated.h"
 
@@ -62,7 +66,31 @@ public:
 	/** Holder turns left on a tracked GE; -1 when the handle isn't tracked here. */
 	int32 GetTurnsLeft(FActiveGameplayEffectHandle Handle) const;
 
+	/** B-042j (D-092): give the holder an absorber (a UWoRGE_Absorb with its verb's tag) for Turns of its turns,
+	 *  or until spent when Turns is 0. Invalid handle for an invalid charge (WoRAbsorb::IsValidCharge) or no ASC. */
+	FActiveGameplayEffectHandle ApplyAbsorb(const FWoRAbsorbCharge &Charge, int32 Turns, AActor *Instigator);
+
+	/** B-042j: one damage instance after Guard and Defense (Q-044e B): the damage the absorbers negate. A used-up
+	 *  absorber goes (its GE is removed); a timed counted one waits for its refill at the holder's turn start. */
+	int32 AbsorbHit(int32 Damage, ESpellElement HitElement, EPhysicalDamageType HitPhysical);
+
+	/** B-042j: the holder's absorbers as they stand (copies, in no order). */
+	TArray<FWoRAbsorbCharge> GetAbsorbs() const;
+
 	int32 NumTracked() const { return Tracked.Num(); }
+
+	/** B-042z: a fires-once use (EffectID + source key, D-011) spent this fight on this holder. */
+	bool HasFiredOnce(int32 EffectID, int32 SourceKey) const { return FiredOnce.Contains(FIntPoint(EffectID, SourceKey)); }
+	void RecordFiredOnce(int32 EffectID, int32 SourceKey);
+	int32 NumFiredOnce() const { return FiredOnce.Num(); }
+
+	/** B-042z: the gear conditionals armed at battle prep (replaces any earlier set). Null until armed. */
+	void ArmConditionals(const TArray<FGatheredEffect> &Conditionals);
+	const TArray<FGatheredEffect> *GetArmedConditionals() const { return bArmed ? &ArmedConditionals : nullptr; }
+	void DisarmConditionals();
+
+	/** B-042z: a new fight (or its end): the fires-once uses and the armed conditionals go. */
+	void ResetFightRecords();
 
 	/** One line per tracked GE: its class and its span. */
 	FString GetDebugString() const;
@@ -92,7 +120,17 @@ private:
 	TMap<FActiveGameplayEffectHandle, FTrackedEffect> Tracked;
 	int32 NextArrival = 0;
 
+	/** Fires-once uses: X = EffectID, Y = source key (0 for a doesn't-stack effect, D-053). */
+	TSet<FIntPoint> FiredOnce;
+	UPROPERTY()
+	TArray<FGatheredEffect> ArmedConditionals;
+	bool bArmed = false;
+
 	/** The ASC whose removed event this component listens to. */
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
 	FDelegateHandle RemovedHandle;
+
+	/** B-042j: each absorber's charges, by its UWoRGE_Absorb handle (timed ones are also in Tracked). */
+	TMap<FActiveGameplayEffectHandle, FWoRAbsorbCharge> Absorbs;
+	int32 NextAbsorbArrival = 0;
 };
