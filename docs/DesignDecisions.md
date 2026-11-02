@@ -2733,7 +2733,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **A** (as built) the yes/no checks read tags now; the numbers stay on the stored copies until B-042y moves the payouts and getters onto GAS.
 - **B** move the numbers in this job as well.
 **Recommendation:** A. One read family per step keeps each step comparable on both paths (Martin Fowler, StranglerFigApplication / ParallelChange). The numbers are exactly what B-042y moves; moving them twice would need a second parallel-run check.
-**Notes for Claude:** applied: B-042yb covers `GetDotTickDamage` / `RemainingTurns` reads in `UAIDecisionManager`, `GetDebuffCount`, and the character panel's effect list.
+**Notes for Claude:** applied: B-042ye (split from B-042yb / B-042yc) covers `GetDotTickDamage` / `RemainingTurns` reads in `UAIDecisionManager`, `GetDebuffCount`, and the character panel's effect list (Q-042ye).
 
 ### Q-042y — Burns and heals on GAS: who decides when a tick pays, and whose HP is the truth?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042y) · **Blocks:** —

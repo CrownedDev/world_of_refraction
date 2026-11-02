@@ -10,6 +10,7 @@
 #include "WoRTestWorld.h"
 #include "AI/AIDecisionManager.h"
 #include "GAS/WoREffectMirrorComponent.h"
+#include "GAS/WoRTurnEffectTracker.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
 
@@ -112,6 +113,31 @@ void FGASEffectReadsSpec::Define()
 					{
 						TestEqual(*FString::Printf(TEXT("%s turns left"), *Effect.EffectName), Read->RemainingTurns, Effect.RemainingTurns);
 					}
+				}
+			});
+
+			It("leaves out a burn GAS ended before its stored copy goes", [this, bReadsFromGAS]()
+			{
+				if (!EffectManager) return;
+				EffectManager->ApplyEffect(Hero, Burn(), Foe);
+				UWoRTurnEffectTracker *Tracker = Hero->FindComponentByClass<UWoRTurnEffectTracker>();
+				if (!TestNotNull(TEXT("Tracker"), Tracker)) return;
+				// The tracker's turns alone (it counts at the end, ends at the start): GAS ends the burn's GE, the
+				// stored copy waits for the effect manager's release.
+				for (int32 Turn = 0; Turn <= READS_TURNS; ++Turn)
+				{
+					Tracker->OnHolderTurnStart();
+					Tracker->OnHolderTurnEnd();
+				}
+				TestNotNull(TEXT("The stored copy is still there"), FindHeld(EffectManager->GetActiveEffects(Hero), READS_DOT_ID));
+				const FActiveSkillEffect *Held = FindHeld(EffectManager->GetHeldEffects(Hero), READS_DOT_ID);
+				if (bReadsFromGAS)
+				{
+					TestNull(TEXT("GAS ended it: not held"), Held);
+				}
+				else
+				{
+					TestNotNull(TEXT("The stored list holds it"), Held);
 				}
 			});
 
