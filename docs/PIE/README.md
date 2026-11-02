@@ -190,6 +190,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-250](B-250.md) | `refactor/B-250-bundle-flatten` (in `dev`) | One effect-bundle flatten for equipment and evolutions (8 copies before); same effects listed | Not tested |
 | [B-251](B-251.md) | `refactor/B-251-gear-templates` (in `dev`) | Inventory add / remove and the owned-gear resolvers for weapons and rings share one template each; same behaviour | Not tested |
 | [B-252](B-252.md) | `refactor/B-252-economy-pairs` (in `dev`) | Economy actions (dismantle, level-up, revert, repair) are refused during a fight; one owned-gear lookup by PersistentID | Not tested |
+| [B-253](B-253.md) | `refactor/B-253-name-tables` (in `dev`) | Crystal names and tier letters come from the cooked-safe name table (B-126); stones now named properly | Not tested |
 
 Move rows to **Done** when every check passes.
 
