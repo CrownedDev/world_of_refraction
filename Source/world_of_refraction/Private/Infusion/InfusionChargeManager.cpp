@@ -6,6 +6,13 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 
+namespace
+{
+	/** The charge bar's update step (60 per second). A looping timer is called once per elapsed interval, so
+	 *  on a slow frame it runs several times and the fixed step still adds up to real time (B-262). */
+	constexpr float INFUSION_CHARGE_UPDATE_INTERVAL = 1.0f / 60.0f;
+}
+
 UInfusionChargeManager::UInfusionChargeManager()
 {
 }
@@ -67,12 +74,11 @@ bool UInfusionChargeManager::BeginCharge(AActor *Actor, EChargeInfusionType Char
 	{
 		if (UWorld *World = GetWorld())
 		{
-			// Update at 60fps for smooth progress
 			World->GetTimerManager().SetTimer(
 				UpdateTimerHandle,
 				this,
 				&UInfusionChargeManager::OnUpdateTimer,
-				1.0f / 60.0f,
+				INFUSION_CHARGE_UPDATE_INTERVAL,
 				true);
 		}
 	}
@@ -388,6 +394,5 @@ void UInfusionChargeManager::ResetState()
 
 void UInfusionChargeManager::OnUpdateTimer()
 {
-	// Fixed timestep update (1/60th second)
-	UpdateCharge(1.0f / 60.0f);
+	UpdateCharge(INFUSION_CHARGE_UPDATE_INTERVAL);
 }
