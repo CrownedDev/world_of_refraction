@@ -33,6 +33,10 @@ namespace
 		TEXT("DEBUG: print every combatant's turn-counted GameplayEffects (B-042)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 		{
+			if (!World)
+			{
+				return;
+			}
 			for (TActorIterator<AActor> It(World); It; ++It)
 			{
 				if (const UWoRTurnEffectTracker *Tracker = It->FindComponentByClass<UWoRTurnEffectTracker>())
@@ -92,6 +96,10 @@ namespace
 			{
 				const int64 Element = StaticEnum<ESpellElement>()->GetValueByNameString(Args[ABSORB_ADD_ELEMENT_ARG]);
 				Charge.Element = Element == INDEX_NONE ? ESpellElement::None : static_cast<ESpellElement>(Element);
+			}
+			if (!World)
+			{
+				return;
 			}
 			for (TActorIterator<AActor> It(World); It; ++It)
 			{
