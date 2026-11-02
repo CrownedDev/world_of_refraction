@@ -181,6 +181,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-222](B-222.md) | `feature/B-222-pillar-cap-7` (in `dev`) | Mind / Body / Spirit can't pass 7 in a run (was 20): head-start, earned and bought levels clamp at 7; the vendor refuses at 7 | Not tested |
 | [B-227](B-227.md) | `feature/B-227-seamless-travel` (in `dev`) | Co-op travel: hub / trial / battle changes use seamless ServerTravel so clients come along; `AWoRGameState`; PlayerState carries currencies over | Not tested |
 | [B-131](B-131.md) | `feature/B-131-chardata-replicates` (in `dev`) | Co-op: the character data component replicates (HP / EP and their max, alive, Broken Darkness, the template); only the server derives the max pools | Not tested |
+| [B-241](B-241.md) | `refactor/B-241-ai-infusion-level` (in `dev`) | AI picks its infusion level with one helper for spells and abilities; energy-percent reads safe at Max EP 0 | Not tested |
 
 Move rows to **Done** when every check passes.
 
