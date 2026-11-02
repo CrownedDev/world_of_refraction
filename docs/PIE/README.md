@@ -210,6 +210,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-286](B-286.md) | `chore/B-286-break-size-constants` (in `dev`) | Break sizes (Burn 8%, Earth 30%, Water 30%, Reality 25%) as named constants, pinned by a test | Not tested |
 | [B-287](B-287.md) | `chore/B-287-broken-darkness-spec` (in `dev`) | Broken Darkness absorption, overload and forbidden-cast numbers pinned by a test | Not tested |
 | [B-290](B-290.md) | `chore/B-290-economy-numbers-spec` (in `dev`) | World-stat vendor price and cap, merge, spell essence and drop-quality numbers pinned by a test | Not tested |
+| [B-295](B-295.md) | `fix/B-295-emerald-real-extra-turn` (in `dev`) | An Emerald bonus turn is a real extra turn (no later turn lost, D-052) | Not tested |
 
 Move rows to **Done** when every check passes.
 
