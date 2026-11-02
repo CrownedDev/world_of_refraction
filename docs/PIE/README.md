@@ -208,6 +208,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-289](B-289.md) | `chore/B-289-turn-speed-tiebreak` (in `dev`) | Turn speed 10 / 15 / 20 and every tie-break step pinned by a test | Not tested |
 | [B-285](B-285.md) | `chore/B-285-loadout-budget-spec` (in `dev`) | Loadout budgets (Resonator 5, innate 24 / 48) pinned by a test | Not tested |
 | [B-286](B-286.md) | `chore/B-286-break-size-constants` (in `dev`) | Break sizes (Burn 8%, Earth 30%, Water 30%, Reality 25%) as named constants, pinned by a test | Not tested |
+| [B-287](B-287.md) | `chore/B-287-broken-darkness-spec` (in `dev`) | Broken Darkness absorption, overload and forbidden-cast numbers pinned by a test | Not tested |
 
 Move rows to **Done** when every check passes.
 
