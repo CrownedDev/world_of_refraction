@@ -11,6 +11,16 @@
 5. First test: **Amethyst Prisma** from his sheet (B-280).
  Fab prices come from search summaries (listing hosts couldn't be fetched): check before buying.
 
+## Licensing: VRoid Studio for a paid Steam game (checked 2026-11-02, VRoid sub-brain)
+
+Sources: [VRoid Studio Guidelines](https://vroid.com/en/studio/guidelines) (edited 2023-12-21) and the FAQ [Can I use the models created with VRoid Studio Stable Ver. for commercial purposes?](https://vroid.pixiv.help/hc/en-us/articles/4405813333657); details in Articles 5 and 11 of the VRoid Studio Terms of Use. Not legal advice.
+
+- **Selling the game is allowed.** Models exported from VRoid Studio, including pixiv's base bodies, preset hair, clothing and textures, may be sold and used commercially by an individual or a company, in games and apps, **unless an item shows a special licence clause** (then that clause rules). No credit to pixiv is required, but nothing may suggest the game is made with or backed by pixiv.
+- **Editing outside VRoid is allowed** (Blender, Unreal), so retargeting to Manny and new materials are fine.
+- **Ownership:** textures and hair meshes made from scratch are Crown's; pixiv's base meshes and presets stay pixiv's (licensed to us, not CC0). Bought items (BOOTH etc.) follow their own licences.
+- **Flag 1, character-creation tools:** an app that "can generate or output 3D models, avatars, or items" from combined VRoid meshes and textures needs a separate pixiv licence, unless only the creator uses it. The dev-side editor (Crown only) is fine. The **player's outfit mixing** (`CharacterCustomisation.md`: pieces mix freely across characters) is a grey area if those pieces are VRoid meshes: keep shared outfit pieces as our own meshes (the coat is planned in Blender anyway), or ask pixiv before shipping VRoid-mesh outfit pieces to players.
+- **Flag 2, the VRoid MCP:** the Terms forbid "reverse engineering, decompiling, or disassembling the program" (Article 5). [brainrom/vroid-studio-mcp](https://github.com/brainrom/vroid-studio-mcp) works by hooking VRoid's internal code (BepInEx/IL2CPP, reverse-engineered APIs). Using it is Crown's call; the alternative is driving VRoid's normal window by screen control (no mod), which the Terms allow.
+
 ## VRoid Studio MCP (Crown's question, 2026-10-28)
 
 An MCP server lets Claude Code drive VRoid Studio directly: [brainrom/vroid-studio-mcp](https://github.com/brainrom/vroid-studio-mcp) (fork: [vietgs03](https://github.com/vietgs03/vroid-studio-mcp)) hooks VRoid's internal API through a BepInEx/IL2CPP plugin: presets, every slider, colours, camera, save; works minimised. Unofficial; targets **VRoid Studio 2.14.0** (check the version). The older [nhodges/mcp-vroid](https://github.com/nhodges/mcp-vroid) drives the GUI by screenshots and OCR: fragile, not Windows; skip. Limit: VRoid's clothing set (the military coat with high collar and white belt likely needs a custom texture, or one coat mesh made in Blender and shared by the cast).
