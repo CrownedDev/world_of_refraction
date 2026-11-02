@@ -79,13 +79,20 @@ BEGIN_DEFINE_SPEC(FGASOtherPayoutsSpec, "WoR.GAS.OtherPayouts",
 
 	int32 ExpectedTicks(bool bReadsFromGAS, int32 Ticks) const { return bReadsFromGAS ? Ticks : 0; }
 
-	/** HP and EP match their attributes on the GAS path (the game's pools stay the truth). */
-	void TestAttributesHoldPools()
+	/** On the GAS path the attribute a payout changed holds the game's pool (the pools stay the truth). The
+	 *  test world has no attribute sync, so only the changed one is set. */
+	void TestAttributeHoldsPool(bool bEnergy)
 	{
-		TestEqual(TEXT("Health holds the HP"),
-				  FMath::RoundToInt(ASC->GetNumericAttribute(UWoRAttributeSet_Vitals::GetHealthAttribute())), HeroStats->CurrentHP);
-		TestEqual(TEXT("Energy holds the EP"),
-				  FMath::RoundToInt(ASC->GetNumericAttribute(UWoRAttributeSet_Vitals::GetEnergyAttribute())), HeroStats->CurrentEP);
+		if (bEnergy)
+		{
+			TestEqual(TEXT("Energy holds the EP"),
+					  FMath::RoundToInt(ASC->GetNumericAttribute(UWoRAttributeSet_Vitals::GetEnergyAttribute())), HeroStats->CurrentEP);
+		}
+		else
+		{
+			TestEqual(TEXT("Health holds the HP"),
+					  FMath::RoundToInt(ASC->GetNumericAttribute(UWoRAttributeSet_Vitals::GetHealthAttribute())), HeroStats->CurrentHP);
+		}
 	}
 END_DEFINE_SPEC(FGASOtherPayoutsSpec)
 
@@ -161,7 +168,7 @@ void FGASOtherPayoutsSpec::Define()
 					TestEqual(TEXT("Ticks through GAS"), TicksThroughGAS, ExpectedTicks(bReadsFromGAS, OTHER_PAYOUT_TURNS));
 					if (bReadsFromGAS)
 					{
-						TestAttributesHoldPools();
+						TestAttributeHoldsPool(Case.bEnergy);
 					}
 				});
 			}
@@ -178,7 +185,7 @@ void FGASOtherPayoutsSpec::Define()
 				TestEqual(TEXT("Ticks through GAS"), TicksThroughGAS, ExpectedTicks(bReadsFromGAS, 1));
 				if (bReadsFromGAS)
 				{
-					TestAttributesHoldPools();
+					TestAttributeHoldsPool(false);
 				}
 			});
 

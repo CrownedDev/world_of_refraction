@@ -226,8 +226,11 @@ void UWoREffectMirrorComponent::ForgetEnded(const FActiveSkillEffect &Effect)
 bool UWoREffectMirrorComponent::PayTick(const FActiveSkillEffect &Effect)
 {
 	UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
-	// Without the Vitals set the tick execution has no Health / Energy to change.
-	if (!ASC || !ASC->HasAttributeSetForAttribute(UWoRAttributeSet_Vitals::GetHealthAttribute()))
+	// Without the Vitals set the tick execution has no Health / Energy to change, and without character data
+	// the Vitals set has no HP / EP path to hand it to.
+	const UCharacterDataComponent *Char = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+	if (!ASC || !ASC->HasAttributeSetForAttribute(UWoRAttributeSet_Vitals::GetHealthAttribute()) || !Char ||
+		!Char->CharacterData)
 	{
 		return false;
 	}

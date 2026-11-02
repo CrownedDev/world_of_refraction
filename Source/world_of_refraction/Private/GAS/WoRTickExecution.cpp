@@ -32,19 +32,19 @@ namespace
 	}
 
 	/** A gain as the game's ServerHeal / ServerGainEnergy take it: nothing below 1. */
-	float Gain(int32 Amount)
+	float TickGain(int32 Amount)
 	{
 		return static_cast<float>(FMath::Max(0, Amount));
 	}
 
 	/** A loss as ServerTakeDamage / ServerSpendEnergy take it: nothing below 1. */
-	float Loss(int32 Amount)
+	float TickLoss(int32 Amount)
 	{
-		return -Gain(Amount);
+		return -TickGain(Amount);
 	}
 
 	/** Percent of a max pool, rounded, as the enum path's percent restores. */
-	int32 ShareOf(int32 MaxPool, float Percent)
+	int32 TickShareOf(int32 MaxPool, float Percent)
 	{
 		return FMath::RoundToInt(MaxPool * Percent / CombatConstants::STAT_PERCENT_DIVISOR);
 	}
@@ -122,7 +122,7 @@ FWoRTickPayout UWoRTickExecution::GetPayout(const FWoRTickRequest &Request, cons
 		return {Health, GetHealthChange(Request, Inputs)};
 	case ESkillEffectType::DrainHP:
 	case ESkillEffectType::SelfDamage:
-		return {Health, Loss(Flat)};
+		return {Health, TickLoss(Flat)};
 	case ESkillEffectType::RestoreHPPercent:
 	{
 		// As the enum path: the share is rounded, then the healing received amplifies it and rounds again.
@@ -130,16 +130,16 @@ FWoRTickPayout UWoRTickExecution::GetPayout(const FWoRTickRequest &Request, cons
 		{
 			return {Health, 0.0f};
 		}
-		const int32 Share = ShareOf(Pools.MaxHP, Inputs.Value);
-		return {Health, Gain(FMath::RoundToInt(Share * (1.0f + Inputs.HealingReceivedPercent / CombatConstants::STAT_PERCENT_DIVISOR)))};
+		const int32 Share = TickShareOf(Pools.MaxHP, Inputs.Value);
+		return {Health, TickGain(FMath::RoundToInt(Share * (1.0f + Inputs.HealingReceivedPercent / CombatConstants::STAT_PERCENT_DIVISOR)))};
 	}
 	case ESkillEffectType::EnergyRestore:
-		return {Energy, Gain(Flat)};
+		return {Energy, TickGain(Flat)};
 	case ESkillEffectType::EnergyDrain:
 	case ESkillEffectType::DrainEnergy:
-		return {Energy, Loss(Flat)};
+		return {Energy, TickLoss(Flat)};
 	case ESkillEffectType::RestoreEnergyPercent:
-		return {Energy, Pools.MaxEP > 0 ? Gain(ShareOf(Pools.MaxEP, Inputs.Value)) : 0.0f};
+		return {Energy, Pools.MaxEP > 0 ? TickGain(TickShareOf(Pools.MaxEP, Inputs.Value)) : 0.0f};
 	default:
 		return {Health, 0.0f};
 	}
