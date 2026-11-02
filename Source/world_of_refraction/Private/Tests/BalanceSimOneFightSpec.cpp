@@ -49,11 +49,12 @@ BEGIN_DEFINE_SPEC(FBalanceSimOneFightSpec, "WoR.Balance.Sim.OneFight",
 	UBalanceSimSignalRecorder *Recorder = nullptr;
 	UAbilityData *Strike = nullptr;
 
-	/** A combatant whose active weapon offers the montage-less Strike, so the AI has an attack to choose. */
+	/** A combatant whose weapon attack is the montage-less Strike, so the AI has an attack to choose (the AI reads
+	 *  the weapon attack and the loadout's slotted abilities, not PresetAbilities). */
 	AActor *SpawnArmed(bool bAIControlled)
 	{
 		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
-		Weapon->PresetAbilities.Add(Strike);
+		Weapon->WeaponAttack = Strike;
 		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(FWoRTestWorld::NewCharacterData(), Weapon, bAIControlled);
 		return Loadout ? Loadout->GetOwner() : nullptr;
 	}
@@ -76,6 +77,7 @@ void FBalanceSimOneFightSpec::Define()
 		Strike->Name = TEXT("Montage-less Strike");
 		Strike->BaseDamage = SIM_TEST_BASE_DAMAGE;
 		Strike->HitCount = SIM_TEST_HIT_COUNT;
+		Strike->bIsAttack = true;
 		Strike->AddToRoot();
 		Recorder = NewObject<UBalanceSimSignalRecorder>();
 		Recorder->AddToRoot();
@@ -148,6 +150,13 @@ void FBalanceSimOneFightSpec::Define()
 		{
 			TestWorld->Tick();
 			++Ticks;
+		}
+		if (Orchestrator->GetCombatState() == ECombatState::InProgress)
+		{
+			const AActor *Current = Orchestrator->GetCurrentActor();
+			AddError(FString::Printf(TEXT("stalled after %d ticks: rounds %d, impacts %d, HP hero %d / foe %d, turn of %s"),
+									 Ticks, Recorder->Rounds, Recorder->ImpactIndices.Num(), CurrentHPOf(Hero), CurrentHPOf(Foe),
+									 Current ? *Current->GetName() : TEXT("none")));
 		}
 		TestNotEqual(TEXT("the fight ended (not stalled at the tick cap)"), Orchestrator->GetCombatState(), ECombatState::InProgress);
 		TestTrue(TEXT("one side is down"), CurrentHPOf(Hero) <= 0 || CurrentHPOf(Foe) <= 0);

@@ -128,3 +128,4 @@ No-op if `Target` null or `StatusType` is `None`. Resolves `USkillEffectManager`
 | 2026-10-27 | B-042o: `GetBarASC` / `SetBar` / `AddThroughExecution`: at UseGAS 1 the bar lives on GAS (GASSystem.md); `GetBarDebugString`, `wor.DumpStatusBars`. | feature/B-042o-gas-status-bar |
 | 2026-10-27 | B-226: Water buildup also reads Ice resistance (enum path via `GetHitTypeResistance`, GAS path in `UWoRBuildupExecution`). | fix/B-226-water-buildup-ice |
 | 2026-11-02 | B-286: break sizes are named constants in `CombatConstants` (`BURN_BREAK_MAX_HP_FRACTION` 8%, `EARTH_BREAK_DEFENSE_DOWN_PERCENT` 30%, `REALITY_BREAK_MAX_HP_FRACTION` 25%; Water already `WATER_BREAK_SPEED_SLOW_PERCENT`); spec `WoR.Effects.StatusBreaks` pins SB-19 / 20 / 22 / 28. Same numbers. | chore/B-286-break-size-constants |
+| 2026-11-02 | B-291: `OnStatusTriggered(Target, Source, StatusType, Element)` broadcast when a bar breaks, for the balance simulator. | feature/B-291-headless-seams |
