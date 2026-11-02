@@ -36,7 +36,7 @@ The brain itself doesn't do long jobs: it delegates, so its context stays small 
 
 | Worker | Where | Does | Limit |
 |---|---|---|---|
-| **Unreal builder** | local, this repo, Unreal installed | C++ jobs: build (`Scripts/ue/build.sh`), tests (`Scripts/ue/test.sh`), `wor-reviewer`, PIE checklist; also merges cloud-written `UNBUILT` branches | **one at a time** (two Unreal builds on one project fight over the same files) |
+| **Unreal builder / writer** | local, this repo, Unreal installed | the main coder (Crown, 2026-11-02): writes C++ jobs itself end to end (code, `Scripts/ue/build.sh`, `Scripts/ue/test.sh`, `wor-reviewer`, PIE checklist, merge), and merges cloud-written `UNBUILT` branches first (`work-backlog` step 1); opens and closes the editor itself (§3a) | **one at a time** (two Unreal builds on one project fight over the same files; a second worktree means a second full compile) |
 | **Unreal editor (CC+UE)** | local, Unreal editor open, unreal-mcp connected | `.uasset` / Blueprint / level work: `CC+UE` jobs (e.g. B-240 hub game mode, B-206 data errors, B-216 key check, B-280 character import) | one; never while the builder is compiling the same project |
 | **VRoid** | local, VRoid Studio 2.14.0 + the VRoid MCP | characters from Crown's sheets (`docs/Design/CharacterPipeline.md`, `CharacterDesigns/`): the V template first, then each character plain, then outfits; exports VRM to a fixed folder for the editor worker | one |
 | **Cloud writer** | cloud session on this repo | docs, research, analysis, and C++ written as `REVIEW (branch, UNBUILT)` for the Unreal builder | up to 2 |
@@ -52,6 +52,15 @@ The brain itself doesn't do long jobs: it delegates, so its context stays small 
 - Every worker gets **its own branch** (`feature/`, `fix/`, `refactor/`, `chore/` + `B-xxx`); no two workers touch the same files.
 
 ---
+
+## 3a. Opening and closing Unreal (Crown, 2026-11-02)
+
+The builder / writer may open and close the Unreal editor itself, so it can switch between C++ work and editor work without Crown:
+- **Build and tests need the editor closed** (or Live Coding off): `build.sh` fails with "Live Coding is active" otherwise. `test.sh` runs its own headless editor and doesn't need the window.
+- **Open:** `"$UE_ROOT/Engine/Binaries/Win64/UnrealEditor.exe" "<repo>/world_of_refraction.uproject" &`, then wait until unreal-mcp answers a read-only call.
+- **Close:** first save everything through unreal-mcp, then ask the editor to quit (unreal-mcp, or `taskkill //IM UnrealEditor.exe` without `/F`, which asks it to close normally). **Never force-kill (`/F`)** unless Crown says: unsaved `.uasset` work is lost.
+- **Don't close it while Crown is using it.** If Crown might be in the editor (PIE, level work), ask first.
+- Only one session opens or closes the editor: the builder / writer. The editor worker uses it while it's open and says when it's done.
 
 ## 3b. Sub-brains (Crown, 2026-11-02)
 
