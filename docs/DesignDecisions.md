@@ -2763,13 +2763,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** applied (feature/B-042yc-gas-getters, UNBUILT). The other payouts are B-042yd, the per-effect value reads B-042ye.
 
 ### Q-042ye — Per-effect reads on GAS: what does the list show for an effect GAS has just ended?
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-02 (B-042ye) · **Blocks:** —
+**Status:** DECIDED: A, confirmed by Crown 2026-11-02 (applied in refactor/B-042ye-gas-effect-reads, UNBUILT; the client half is B-318) · **Raised:** 2026-11-02 (B-042ye) · **Blocks:** —
 **Question:** With `wor.Effects.UseGAS 1`, the character panel's effect list, the buff / debuff counts and the enemy AI's burn checks now read what GAS holds (Q-042x): each effect's turns left come from GAS's turn tracker, and a burn's tick size from its GameplayEffect's tick calculation. Between GAS ending an effect at the holder's turn start and the game dropping its stored copy, the two can differ for a moment. What should the reads show then, and do they need anything on a client?
 **Options:**
 - **A** (as built) show what GAS holds: an effect whose GameplayEffect GAS ended is left out, even if its stored copy hasn't gone yet; a type GAS doesn't hold yet stays as stored. A client (GAS's copy is the server's) reads the stored list, as today. The buff count moves with the debuff count.
 - **B** keep showing the stored copy until the game drops it.
 **Recommendation:** A. The step is "read GAS, compare both paths" (Martin Fowler, ParallelChange: migrate the readers before removing the old store at B-042g); B would keep the stored list as the reader, so the step would move nothing. In Lyra the UI lists active GameplayEffects from the ability system component. The client rule keeps today's replicated path until the stored copies retire. Not lore.
-**Notes for Claude:** applied (refactor/B-042ye-gas-effect-reads, UNBUILT): `USkillEffectManager::GetHeldEffects`, `PreviewDotTickDamage`; `UWoREffectMirrorComponent::ReadHeldEffects`, `PreviewDotTick`.
+**Notes for Claude:** applied (refactor/B-042ye-gas-effect-reads, UNBUILT): `USkillEffectManager::GetHeldEffects`, `PreviewDotTickDamage`; `UWoREffectMirrorComponent::ReadHeldEffects`, `PreviewDotTick`. Follow-up B-318: co-op guests read effects from GAS too, before the switch goes (B-042g).
 
 ### Q-042i — Triggered effects onto GAS only: now, or after the payouts move?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042i) · **Blocks:** B-042i (now after B-042yd, B-042ye)
