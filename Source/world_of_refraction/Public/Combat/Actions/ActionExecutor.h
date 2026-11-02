@@ -377,6 +377,13 @@ public:
 	 *  1.0 for spells and unarmed. See FWorldStatRequirements::GetWeaponRequirementFactor. */
 	float GetWeaponRequirementFactor(AActor *Actor, const FAction &Action) const;
 
+	/** B-220 (D-101): the active weapon's part of an attack or ability (WoRWeaponPower::GetWeaponPart at the copy's
+	 *  tier, the live pillar levels and the requirement factor); 0 for spells, unarmed and a weapon with Power 0. */
+	float GetWeaponPart(AActor *Actor, const FAction &Action) const;
+
+	/** B-220: the active weapon's Power, grades, requirement factor and part for Actor (`wor.Weapon.Print`). */
+	FString GetWeaponPartString(AActor *Actor) const;
+
 	/** Pre-defense damage and element of a spell or ability action (B-029): the one calculation both
 	 *  execution (ExecuteSpellAsync / ExecuteSkillAsync) and the AI damage estimate use. bLog adds the
 	 *  execution-path log lines (tier gap, unresolved Generic spell); AI scoring leaves it off. */
