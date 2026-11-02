@@ -48,6 +48,7 @@ The brain itself doesn't do long jobs: it delegates, so its context stays small 
 **How to start them:**
 - **Local workers:** a new Claude Code session in the project folder (or a git worktree for parallel branches), started by the brain or by Crown, given the brief.
 - **Cloud writers:** `create_session` (claude-code-remote) on `https://github.com/CrownedDev/world_of_refraction`, revision `dev`, with the brief; they follow the `work-backlog` skill's cloud rule.
+- **One folder per local session** (2026-11-02, after the brain switched the builder's folder mid-job): never `checkout`/`switch` in a folder another session is working in. The brain reads `dev` with `git fetch` + `git show origin/dev:<path>` / `git log origin/dev`; every other local sub-session (VRoid, editor, a second builder) gets its own `git worktree add ../wor-<name> -b <branch> origin/dev`, removed after its branch is merged.
 - Every worker gets **its own branch** (`feature/`, `fix/`, `refactor/`, `chore/` + `B-xxx`); no two workers touch the same files.
 
 ---
