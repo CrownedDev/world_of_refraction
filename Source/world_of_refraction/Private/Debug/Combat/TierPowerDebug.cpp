@@ -103,7 +103,7 @@ void UTierPowerDebug::PrintGearContribution(ULoadoutComponent *Loadout)
 
     // Primary-slot evolution — contributes Base + Generated at the item's tier
     // (mirrors GetActiveStatBonus; pillar percents are not summed there).
-    const FCombatLoadout Active = Loadout->GetActiveLoadout();
+    const FCombatLoadout &Active = Loadout->GetActiveLoadout();
     if (Active.IsEvolutionLoadout() && Active.PrimaryEvolution.Item)
     {
         FEquipmentStatBonus EvoBonus = Active.PrimaryEvolution.Item->BaseStatBonus;
