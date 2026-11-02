@@ -1,10 +1,10 @@
 # The Brain Session
 
-**What this is:** the standing instructions for the coordinating session ("the brain"). **The brain is Crown's main cloud planning session** (Crown, 2026-11-02): the one Crown talks to about design, decisions and the plan, from the desk or the phone. It plans, records decisions, starts cloud workers, reads every worker's and sub-brain's hand-off note, and reports. Local sessions (Unreal, VRoid) are workers or sub-brains under it.
+**What this is:** the standing instructions for the coordinating session ("the brain"): **one main session on Crown's PC** (Crown, 2026-11-02), started by Crown and handed over from the cloud planning session (`docs/sessions/brain-2026-11-02.md`). Crown talks to it at the desk or from the phone. It plans, records decisions, **creates its own sub-sessions** (they show under it in the Claude app), reads their hand-off notes, merges, and reports.
 
-**How the brain reaches local sessions:** a cloud session can't message a desktop session directly yet, so the link is the repo. The brain writes a brief (§4); Crown pastes it into the local session; the local session hands back by a note in `docs/sessions/` pushed to its branch or `dev`, which the brain reads. If Crown adds the project folder to Remote Control (desktop app: Settings → Claude Code → Remote Control), the brain can attach to it and work there directly. A fresh brain (if this one's context runs out) is opened with the §1 message.
+**Sub-sessions:** the brain creates them with `create_session` (cloud writers) or as local sessions on the PC (Unreal builder, editor, VRoid). Local work needs the PC, so the project folder is shared through Remote Control (desktop app: Settings → Claude Code → Remote Control) and a sub-session that needs it connects to that folder. Every sub-session hands back through a note in `docs/sessions/`.
 
-Written 2026-11-02 (Crown's request; sub-brains added and the brain set as the main cloud session the same day). Update it when the setup changes.
+Written 2026-11-02 (Crown's request; sub-brains added and the brain moved to a main session on Crown's PC the same day). Update it when the setup changes.
 
 ---
 
