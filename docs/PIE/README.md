@@ -204,6 +204,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-277](B-277.md) | `chore/B-277-small-tidy-ups` (in `dev`) | Small tidy-ups: cost-clamp constants named, unused hit-result flags and `EItemQuality` flagged, tier order notes | Not tested |
 | [B-282](B-282.md) | `chore/B-282-last-stand-spec` (in `dev`) | Last Stand / Sapphire numbers pinned by a test (50%, the 30% fallback, the 2..5 turn window, the revive) | Not tested |
 | [B-283](B-283.md) | `chore/B-283-bonus-turn-spec` (in `dev`) | Emerald bonus-turn delays 6..0 and S giving two turns, and Extra Action, pinned by a test | Not tested |
+| [B-284](B-284.md) | `chore/B-284-turn-start-order` (in `dev`) | The order of the turn-start steps and the ritual fire order pinned step by step (swapping two steps fails a test); slow, ~1100 frames per ritual step | Not tested |
 
 Move rows to **Done** when every check passes.
 
