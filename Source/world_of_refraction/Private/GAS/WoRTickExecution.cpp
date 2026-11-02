@@ -52,21 +52,7 @@ namespace
 
 bool UWoRTickExecution::IsPaidByTick(ESkillEffectType Type)
 {
-	switch (Type)
-	{
-	case ESkillEffectType::DOT:
-	case ESkillEffectType::HealthRestore:
-	case ESkillEffectType::RestoreHPPercent:
-	case ESkillEffectType::EnergyRestore:
-	case ESkillEffectType::RestoreEnergyPercent:
-	case ESkillEffectType::EnergyDrain:
-	case ESkillEffectType::DrainEnergy:
-	case ESkillEffectType::DrainHP:
-	case ESkillEffectType::SelfDamage:
-		return true;
-	default:
-		return false;
-	}
+	return USkillEffectManager::IsPayoutType(Type);
 }
 
 FTickMathInputs UWoRTickExecution::ReadAttributes(const FWoRTickRequest &Request, const UAbilitySystemComponent *Holder)

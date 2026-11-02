@@ -322,6 +322,10 @@ public:
 	// QUERIES
 	// ========================================
 
+	/** Types whose windowed logic pays something out each run (damage, heal, energy); GAS pays the same types
+	 *  through a tick spec (UWoRTickExecution, B-042yd). */
+	static bool IsPayoutType(ESkillEffectType EffectType);
+
 	/** Get all active effects on an actor */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	TArray<FActiveSkillEffect> GetActiveEffects(AActor *Actor) const;
@@ -553,8 +557,6 @@ private:
 	/** A combat is running and it is Target's turn. */
 	bool IsHoldersOwnTurn(const AActor *Target) const;
 
-	/** Types whose windowed logic pays something out each run (damage, heal, energy). */
-	static bool IsPayoutType(ESkillEffectType EffectType);
 
 	/** Check if a trigger condition is met (handles compound primary + secondary).
 	 *  Target is the owner's target for target-side condition subjects (null → target-side
