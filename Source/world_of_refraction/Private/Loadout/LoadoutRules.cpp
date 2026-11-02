@@ -58,14 +58,14 @@ namespace
 			if (!Ring.HasCrystal())
 			{
 				Sink.Add(ELoadoutSlotType::RingSpell, RingLoadoutIndex, true,
-						 FString::Printf(TEXT("Ring spell '%s' requires a crystal but the ring has none"), *Spell->Name), j);
+						 FString::Printf(TEXT("Adapter spell '%s' requires a crystal but the adapter has none"), *Spell->Name), j);
 				continue;
 			}
 			const ESpellElement RingElement = Ring.GetElement();
 			if (!ElementHelpers::SpellElementMatchesHost(Spell->Element, RingElement))
 			{
 				Sink.Add(ELoadoutSlotType::RingSpell, RingLoadoutIndex, true,
-						 FString::Printf(TEXT("Ring spell '%s' element %s does not match ring crystal element %s"),
+						 FString::Printf(TEXT("Adapter spell '%s' element %s does not match adapter crystal element %s"),
 										 *Spell->Name, *UEnum::GetValueAsString(Spell->Element), *UEnum::GetValueAsString(RingElement)),
 						 j);
 			}
@@ -376,7 +376,7 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 	{
 		if (!Passes<const URingData *>(Context.OwnsRing, Loadout.PrimaryRing.RingEntry.Ring))
 		{
-			Sink.Add(ELoadoutSlotType::PrimaryRing, -1, true, TEXT("Primary ring not in inventory"));
+			Sink.Add(ELoadoutSlotType::PrimaryRing, -1, true, TEXT("Primary adapter not in inventory"));
 		}
 		CheckRingSpellCoherence(Sink, Loadout.PrimaryRing.RingEntry, -1);
 		CheckRingSpellCap(Sink, Loadout.PrimaryRing, -1);
@@ -419,7 +419,7 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 			}
 			if (!Passes<const URingData *>(Context.OwnsRing, RingEntry.RingEntry.Ring))
 			{
-				Sink.Add(ELoadoutSlotType::ResonatorRing, i, true, TEXT("Ring in loadout not in inventory"));
+				Sink.Add(ELoadoutSlotType::ResonatorRing, i, true, TEXT("Adapter in loadout not in inventory"));
 			}
 			CheckRingSpellCoherence(Sink, RingEntry.RingEntry, i);
 			CheckRingSpellCap(Sink, RingEntry, i);
@@ -432,7 +432,7 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 		if (TotalCost > LoadoutConstants::LOADOUT_TOTAL_BUDGET)
 		{
 			Sink.Add(ELoadoutSlotType::RingOverflow, -1, true,
-					 FString::Printf(TEXT("Loadout exceeds budget: primary (cost %d) + rings (cost %d) = %d, max is %d"),
+					 FString::Printf(TEXT("Loadout exceeds budget: primary (cost %d) + adapters (cost %d) = %d, max is %d"),
 									 PrimaryCost, RingCost, TotalCost, LoadoutConstants::LOADOUT_TOTAL_BUDGET));
 		}
 	}
@@ -461,11 +461,11 @@ TArray<FString> FLoadoutRules::CollectAuthoredShapeErrors(const FSavedLoadout &S
 	case EPrimarySlotType::Ring:
 		if (Saved.RequiredClass == ECharacterClass::Resonator)
 		{
-			Errors.Add(TEXT("Resonator cannot use Ring as primary slot"));
+			Errors.Add(TEXT("Resonator cannot use an Adapter as primary slot"));
 		}
 		else if (!Saved.PrimaryRing)
 		{
-			Errors.Add(TEXT("Primary slot set to Ring but no ring assigned"));
+			Errors.Add(TEXT("Primary slot set to Adapter but no adapter assigned"));
 		}
 		break;
 	case EPrimarySlotType::Evolution:

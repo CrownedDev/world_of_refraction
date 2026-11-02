@@ -25,6 +25,7 @@
 #include "Infusion/InfusionConstants.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Engine/GameInstance.h"
+#include "WoRGameNames.h"
 
 namespace
 {
@@ -718,7 +719,7 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateResonateRingButton() const
 
     FPieMenuButtonData Button;
     Button.ButtonID = TEXT("ResonateRing");
-    Button.DisplayName = FText::FromString(TEXT("Resonate (R)"));
+    Button.DisplayName = NSLOCTEXT("CombatCommandMenu", "ResonateAdapter", "Resonate (A)"); // D-107: A for adapter
     Button.Description = FText::FromString(
         FString::Printf(TEXT("%s — %d spells%s"),
                         *CurrentCapabilities.ActiveRingName,
@@ -838,7 +839,7 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateSwitchRingButton() const
 {
     FPieMenuButtonData Button;
     Button.ButtonID = TEXT("SwitchRing");
-    Button.DisplayName = FText::FromString(TEXT("Switch Ring"));
+    Button.DisplayName = NSLOCTEXT("CombatCommandMenu", "SwitchAdapter", "Switch Adapter"); // D-107
     Button.Category = EPieMenuCategory::ChangeRing;
     Button.bEnabled = true;
     GreyIfTurnSwitchUsed(Button);
@@ -1554,7 +1555,7 @@ void UCombatCommandMenuSubsystem::AppendInfusionControls(TArray<FPieMenuButtonDa
                 SourceLabel = LOCTEXT("InfusionSourceWeaponCrystal", "Weapon Crystal");
                 break;
             case EPieMenuCategory::ResonateRing:
-                SourceLabel = LOCTEXT("InfusionSourceRing", "Ring");
+                SourceLabel = WoRGameNames::GetAdapterWord(); // D-107
                 break;
             case EPieMenuCategory::Attack:
             case EPieMenuCategory::Ability:

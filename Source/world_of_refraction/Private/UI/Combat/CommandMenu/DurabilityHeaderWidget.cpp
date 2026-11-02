@@ -16,7 +16,7 @@
 
 namespace HeaderLabels
 {
-	constexpr const TCHAR* RingDur   = TEXT("RD");
+	constexpr const TCHAR* RingDur   = TEXT("AD"); // adapter durability (D-107)
 	constexpr const TCHAR* WeaponDur = TEXT("WD");  // Reserved for Item 32
 }
 

@@ -1523,6 +1523,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-28): **every economy action is refused during a fight** (dismantle, level-up, revert, merge, buy / sell, repair), with a message; they work outside fights as today. Matches party swaps being outside battle only.
 **Notes for Claude:** _optional_
 
+### Q-298 — Adapter shortcut letter and durability tag
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-02 (B-298) · **Blocks:** —
+**Question:** D-107 renames the player-facing Ring to Adapter. The command menu's Resonate shortcut said "(R)" for ring, and the durability header tagged rings "RD". What do they say now?
+**Options:** A "Resonate (A)" and the tag "AD" / B keep "(R)" and "RD" (the letter no longer matches the word).
+**Recommendation:** A. A shortcut letter or tag follows the item's name (Final Fantasy and Persona menus label by the shown word); "AD" matches the old "RD" (ring durability) form.
+**Answer:** **A**, by the reference-backed default (2026-11-02). Crown may change it: `CombatCommandMenuSubsystem.cpp` (Resonate label), `CharacterPanelWidget.cpp` / `DurabilityHeaderWidget.cpp` (tag).
+
 ### Q-248 — What Water's break is called
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-28 (B-248) · **Blocks:** —
 **Question:** D-090 says what Water's break does (an Action Speed slow), not its name. Its old name, "Frozen", was dead code; the screen showed "Action Speed Debuff". What does the player see?
