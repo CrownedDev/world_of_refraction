@@ -1852,16 +1852,16 @@ bool UAIDecisionManager::HasDangerousDebuff(AActor *Actor)
     {
         return true;
     }
-    // B-042x: the DOT check reads the tag at UseGAS 1; tick sizes and turns stay on the stored copies (B-042y).
+    // B-042x: the DOT check reads the tag at UseGAS 1; B-042ye: so do the tick sizes and turns left.
     if (!StatusManager->HasCleansableEffectOfType(Actor, ESkillEffectType::DOT))
     {
         return false;
     }
-    for (const FActiveSkillEffect &Effect : StatusManager->GetActiveEffects(Actor))
+    for (const FActiveSkillEffect &Effect : StatusManager->GetHeldEffects(Actor))
     {
         // Check if DOT will kill us
         if (Effect.IsDOT() && Effect.IsCleansable() &&
-            USkillEffectManager::GetDotTickDamage(Actor, Effect) * Effect.RemainingTurns >= GetCurrentHP(Actor))
+            StatusManager->PreviewDotTickDamage(Actor, Effect) * Effect.RemainingTurns >= GetCurrentHP(Actor))
         {
             return true;
         }
@@ -1910,7 +1910,7 @@ float UAIDecisionManager::GetLethalDoTPerTick(AActor *Target)
     }
 
     const int32 TargetHP = GetCurrentHP(Target);
-    // B-042x: the DOT check reads the Status.DOT tag at UseGAS 1; tick sizes stay on the stored copies (B-042y).
+    // B-042x: the DOT check reads the Status.DOT tag at UseGAS 1; B-042ye: so do the tick sizes.
     if (TargetHP <= 0 || !StatusManager->HasActiveDOT(Target))
     {
         return 0.0f;
@@ -1922,13 +1922,13 @@ float UAIDecisionManager::GetLethalDoTPerTick(AActor *Target)
     // self-preservation test in HasDangerousDebuff; NOT enough here, since one bonus
     // turn triggers only ONE tick.)
     float BestPerTick = 0.0f;
-    for (const FActiveSkillEffect &Effect : StatusManager->GetActiveEffects(Target))
+    for (const FActiveSkillEffect &Effect : StatusManager->GetHeldEffects(Target))
     {
         if (Effect.EffectType != ESkillEffectType::DOT)
         {
             continue;
         }
-        const float Tick = static_cast<float>(USkillEffectManager::GetDotTickDamage(Target, Effect));
+        const float Tick = static_cast<float>(StatusManager->PreviewDotTickDamage(Target, Effect));
         if (Tick >= static_cast<float>(TargetHP) && Tick > BestPerTick)
         {
             BestPerTick = Tick;
