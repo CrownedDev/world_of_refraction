@@ -377,8 +377,10 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 	// TurnManager::EndCombat below can't re-enter HandleCombatEnded.
 	UnbindTurnManagerEvents();
 
-	// Clear all status effects from combat
-	if (SkillEffectManagerRef)
+	// Clear all status effects from combat. A forced end (flee, abort) keeps them until
+	// ReleaseCombatResources, after the result is built, so the banked HP / EP isn't moved by a
+	// max-HP buff falling off (as before B-246).
+	if (SkillEffectManagerRef && bTurnManagerEnded)
 	{
 		SkillEffectManagerRef->ClearAllEffects();
 	}
