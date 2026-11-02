@@ -363,6 +363,12 @@ namespace CombatConstants
     // Status breaks (a full bar's effect, D-030 / D-090): every break lasts this many of the
     // holder's own turns, counted by FTurnSpan (D-051).
     constexpr int32 STATUS_CAP_TURNS = 1;
+    // TODO: tune — Fire / Slash break (Burn / Bleed): one tick of this share of the holder's max HP (SB-19, D-090).
+    constexpr float BURN_BREAK_MAX_HP_FRACTION = 0.08f;
+    // TODO: tune — Earth / Pierce break: defence down, percent (SB-20, D-090).
+    constexpr float EARTH_BREAK_DEFENSE_DOWN_PERCENT = 30.0f;
+    // TODO: tune — Reality break: instant damage, share of the holder's max HP; it can kill (SB-28).
+    constexpr float REALITY_BREAK_MAX_HP_FRACTION = 0.25f;
     // TODO: tune — Wind break: how many places the holder's next turn moves back (D-014, D-090).
     constexpr int32 WIND_BREAK_DELAY_PLACES = 1;
     // TODO: tune — Water break: Action Speed and Spell Speed slow, percent (D-090).
