@@ -1,0 +1,58 @@
+# Character Forms (Mortal Shell model)
+
+**Status:** decided (Crown, 2026-10-28), except naming (§5). Built by B-279. It replaces the idea of a full character creator (face sliders, hair, body types), which is not planned.
+
+## 1. The idea (Crown, 2026-10-28)
+
+- **The player character is Manny or Quinn, an extension of V** (Crown, 2026-10-28): the default form is the UE5 mannequin wearing V's void / galaxy material (a lighter cousin of V's own, `VisualDirection.md` §2f). The only choices at the start are **Manny or Quinn** and class. **No player-facing creator.** Lore: the player *is* part of V (hidden from players like V's identity, `HubAndStory.md` §2: to confirm).
+- **Each authored character has a loadout**: their weapons, rings, skills, evolution (and lore).
+- **You build your own loadout.** Every piece you equip that belongs to a character's loadout **fills a meter for that character**; the more of their pieces you use, the faster it fills (it fills through play, not at once).
+- **At 100% you unlock the character's skin** (their form). The unlock also **reveals their full loadout**: all their weapons, skills and so on, so you see what else they used.
+- **Wearing the skin makes their bound gear work** (D-033's owner bonus): one of the benefits of playing as them.
+- **How it fills (Crown, 2026-10-28: A):** **per fight won**, by how many of the character's pieces were equipped in that fight (1 of 6: a trickle; all 6: fast). An **exact piece counts in full**; the **same piece at a different tier counts for less** (`// TODO: tune` the amounts). Monster Hunter's weapon mastery / Hades' affinity: visible progress after every fight.
+- **Switching (Crown, 2026-10-28: A):** once unlocked, you can switch skins **in the hub and at rest spots** (where loadouts change); never in a fight.
+- **The formless being plays fully (Crown, 2026-10-28: A):** the starter kit and any gear found; it only lacks a skin and the bound-gear bonuses. The first skin is earned by playing.
+- **A skin changes only looks and bound gear (Crown, 2026-10-28: A):** no stats or signature perk; a character's power lives in their gear and evolution, usable without the skin.
+- No character creator (face sliders, hair, body types) is planned; the skins are the customisation.
+
+## 1b. Authored characters double as mini-bosses (Crown, 2026-10-28)
+
+- Every authored character is also a **mini-boss** in trials: the same form, loadout and lore, fought with the same gear and skills (Enemies §1 already lists "story characters tied to the lords" among mini-bosses; this makes it one data set).
+- Beating one is a natural source of their memories, bound gear and meter progress (D-100, the loadout-match meter).
+- The dev character editor (§2) therefore authors one asset that serves both: the unlockable skin and the mini-boss.
+
+## 2. The editor
+
+- **One in-engine character editor** (Unreal editor tool over data assets: form, materials, loadout, lore ids) used by Crown to author the characters players unlock as skins. **This stays (Crown, 2026-10-28).**
+- The same tool could later let players make their own character, if ever wanted. Not planned.
+
+## 3. What this replaces and saves
+
+- No character creator to build (rigging, clothing fits per body type, saving every option, syncing them in co-op).
+- Aspiration is the hook (Mortal Shell's shells, Nightreign's fixed characters): players see a form and want to earn it.
+
+## 4. Ties to what exists
+
+- **Loadouts and the pool** (D-020, D-021): the player's own loadout drives the meters; a character's authored loadout is the reference it's matched against.
+- **Memories and hidden unlocks** (D-100): the meter is the visible path; hidden conditions could add to it or unlock extra lore for a character.
+- **Blank-slate start / uncovering who you are** (Crown's idea, discussed in chat 2026-10-27; details still Crown's to settle): the formless being is that blank slate; class is picked at the start.
+- **V's material** (`VisualDirection.md` §2f): the formless look can be a lighter cousin of V's galaxy material.
+- **Co-op**: each player's current form replicates like any character choice.
+
+## 5. Open (to discuss)
+
+- Name for the formless state and for "characters" in player-facing text (Crown's).
+- ~~A creator for the nameless one~~ **Closed (Crown, 2026-10-28): no player-facing creator; the player is Manny / Quinn as an extension of V. The dev-side character editor (§2) stays.**
+
+## Changelog
+
+| Date | Change | Branch |
+|---|---|---|
+| 2026-10-28 | Draft from Crown's Mortal Shell idea | docs/character-forms |
+| 2026-10-28 | Authored characters double as mini-bosses (Crown) | docs/characters-as-minibosses |
+| 2026-10-28 | Player character = Manny / Quinn in V's material, an extension of V; no player creator; the dev editor stays (Crown) | docs/player-is-v, docs/player-is-v-editor |
+| 2026-10-28 | A skin changes only looks and bound gear; doc decided; B-279 (Crown) | docs/character-forms-done |
+| 2026-10-28 | The formless being plays fully (Crown) | docs/character-forms-formless |
+| 2026-10-28 | Switch skins in the hub and at rest spots (Crown) | docs/character-forms-switch |
+| 2026-10-28 | Meter fills per fight won by matching pieces, partial credit for other tiers (Crown) | docs/character-forms-fill |
+| 2026-10-28 | The loadout-match meter unlocks the skin and reveals the loadout; bound gear works on the skin (Crown) | docs/character-forms-meter |
