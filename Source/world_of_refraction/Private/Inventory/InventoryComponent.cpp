@@ -1404,6 +1404,38 @@ int32 UInventoryComponent::StripUnownedGear()
     return Stripped;
 }
 
+bool UInventoryComponent::IsWornByOtherMember(const FGuid &PersistentID) const
+{
+    return IsWornByOtherMemberOf(PersistentID, GetPartyMembersByKey());
+}
+
+bool UInventoryComponent::IsWornByOtherMemberOf(const FGuid &PersistentID, const TMap<FName, const UCharacterData *> &Party) const
+{
+    const UPoolSubsystem *Pool = SharedPool.Get();
+    if (!Pool || !PersistentID.IsValid())
+    {
+        return false;
+    }
+    const FName Wearer = Pool->GetWearer(PersistentID);
+    // A wearer who left the party has released it (UPartySessionSubsystem); only a current member counts.
+    return !Wearer.IsNone() && Wearer != SharedGearKey && Party.Contains(Wearer);
+}
+
+TArray<FWeaponInventoryEntry> UInventoryComponent::GetSelectableWeapons() const
+{
+    const TMap<FName, const UCharacterData *> Party = GetPartyMembersByKey();
+    return Weapons.FilterByPredicate([this, &Party](const FWeaponInventoryEntry &Entry) { return !IsWornByOtherMemberOf(Entry.PersistentID, Party); });
+}
+
+TArray<FRingInventoryEntry> UInventoryComponent::GetSelectableRings() const
+{
+    const TMap<FName, const UCharacterData *> Party = GetPartyMembersByKey();
+    return Rings.FilterByPredicate([this, &Party](const FRingInventoryEntry &Entry) { return !IsWornByOtherMemberOf(Entry.PersistentID, Party); });
+}
+
+// TODO: OBSOLETE after Crown's PIE of B-221b (Q-091 changed by Crown): with worn gear out of the other members'
+// lists, the clash step below is only reached by a saved loadout; B-221b keeps that slot empty-while-worn
+// instead of stripping it.
 TArray<FText> UInventoryComponent::ClaimActiveSharedGear()
 {
     using namespace InventoryGearSync;
