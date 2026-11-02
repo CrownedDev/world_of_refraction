@@ -344,6 +344,8 @@ public:
 
 	/** Helper to get actor for debug commands */
 	AActor *GetDebugActor() const;
+	/** B-256 (DRY audit A17): the first member of Actor's opposing team, or null (the debug commands' target). */
+	AActor *GetDebugOpponent(AActor *Actor) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
 	void DebugPrintCombatState();
