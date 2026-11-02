@@ -284,6 +284,10 @@ public:
 	 */
 	void ApplyCommitCosts(AActor *Actor, const FAction &Action);
 
+	/** B-245 (DRY audit A3): a ring source's durability wear on the ring's slotted crystal, by the action's
+	 *  own tier (ResolveActionTier, Q-245). Nothing when the ring holds no attachment. */
+	void ApplyCrystalWearOn(AActor *Actor, URingData *Ring, const FAction &Action, int32 Level);
+
 	/** Deduct the deferred infusion HP cost stashed at commit
 	 *  (FActionExecutionContext::PendingInfusionHPCost). Called from
 	 *  FinalizeAsyncAction, AFTER the infused effect resolves. No clamp — a
@@ -377,6 +381,13 @@ public:
 	 *  1.0 for spells and unarmed. See FWorldStatRequirements::GetWeaponRequirementFactor. */
 	float GetWeaponRequirementFactor(AActor *Actor, const FAction &Action) const;
 
+	/** B-220 (D-101): the active weapon's part of an attack or ability (WoRWeaponPower::GetWeaponPart at the copy's
+	 *  tier, the live pillar levels and the requirement factor); 0 for spells, unarmed and a weapon with Power 0. */
+	float GetWeaponPart(AActor *Actor, const FAction &Action) const;
+
+	/** B-220: the active weapon's Power, grades, requirement factor and part for Actor (`wor.Weapon.Print`). */
+	FString GetWeaponPartString(AActor *Actor) const;
+
 	/** Pre-defense damage and element of a spell or ability action (B-029): the one calculation both
 	 *  execution (ExecuteSpellAsync / ExecuteSkillAsync) and the AI damage estimate use. bLog adds the
 	 *  execution-path log lines (tier gap, unresolved Generic spell); AI scoring leaves it off. */
@@ -468,11 +479,11 @@ public:
 private:
 	// ==================== TIER-GAP RESOLUTION (D9) ====================
 
-	/** The action's own tier: spell → SpellData->Tier; ability/attack → active
-	 *  weapon's Tier (F_Tier when unarmed). Shared extraction of the dispatch the
-	 *  ApplyCommitCosts wear blocks use — they keep their inline copies until the
-	 *  swap is approved separately. */
+	/** The action's own tier: a spell's, an ability's or attack's own (the skill's), the weapon's only when no
+	 *  skill resolves (F_Tier unarmed). The one tier for tier-gap damage and every crystal wear path
+	 *  (B-245, Q-245; basic attacks included). */
 	EItemTier ResolveActionTier(AActor *Actor, const FAction &Action) const;
+	friend class FActionTierSpec;
 
 	/** The tier of the channel the action is used THROUGH: attack/ability →
 	 *  active weapon; spell → the catalyst crystal per Action.SpellSource
