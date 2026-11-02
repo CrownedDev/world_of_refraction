@@ -180,6 +180,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-221](B-221.md) | `feature/B-221-worn-gear-leaves-inventory` (in `dev`) | Shared pool: lists of gear selectable by a member (worn-by-others filtered out) and the inventory debug tag; the pickers switch with B-221b | Not tested |
 | [B-222](B-222.md) | `feature/B-222-pillar-cap-7` (in `dev`) | Mind / Body / Spirit can't pass 7 in a run (was 20): head-start, earned and bought levels clamp at 7; the vendor refuses at 7 | Not tested |
 | [B-227](B-227.md) | `feature/B-227-seamless-travel` (in `dev`) | Co-op travel: hub / trial / battle changes use seamless ServerTravel so clients come along; `AWoRGameState`; PlayerState carries currencies over | Not tested |
+| [B-131](B-131.md) | `feature/B-131-chardata-replicates` (in `dev`) | Co-op: the character data component replicates (HP / EP and their max, alive, Broken Darkness, the template); only the server derives the max pools | Not tested |
 
 Move rows to **Done** when every check passes.
 
