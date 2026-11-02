@@ -22,11 +22,11 @@ namespace WoRInteract
 		Pawn->GetOverlappingActors(Overlapping, TActor::StaticClass());
 
 		TActor *Nearest = nullptr;
-		float NearestDistSquared = TNumericLimits<float>::Max();
+		double NearestDistSquared = TNumericLimits<double>::Max();
 		const FVector PawnLocation = Pawn->GetActorLocation();
 		for (AActor *Actor : Overlapping)
 		{
-			const float DistSquared = FVector::DistSquared(PawnLocation, Actor->GetActorLocation());
+			const double DistSquared = FVector::DistSquared(PawnLocation, Actor->GetActorLocation());
 			if (DistSquared < NearestDistSquared)
 			{
 				NearestDistSquared = DistSquared;
