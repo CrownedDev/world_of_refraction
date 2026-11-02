@@ -385,6 +385,11 @@ namespace CombatConstants
     // a raw sub-stat point value drives a percentage-style multiplier.
     constexpr float STAT_PERCENT_DIVISOR = 100.0f;
 
+    // B-277: the skill-effect energy-cost multiplier (cost buffs / debuffs / ModifyEnergyCost) stays in this
+    // range: never free, never more than double (UActionExecutor::GetEffectiveEnergyCostEfficiencyMultiplier).
+    constexpr float SKILL_EFFECT_COST_MULT_MIN = 0.1f;
+    constexpr float SKILL_EFFECT_COST_MULT_MAX = 2.0f;
+
     // An IgnoreDefense effect valued at or below this (per application, in percent points) is a flag
     // (the "1 = on" gate convention), not an amount: it ignores all Defense (D-086, B-042m).
     constexpr float IGNORE_DEFENSE_FLAG_VALUE = 1.0f;
