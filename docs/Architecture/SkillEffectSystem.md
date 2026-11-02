@@ -304,3 +304,4 @@ Coverage mirrors `GetActiveStatBonus` per class plus the innate (primary-slot) e
 | 2026-10-27 | B-042h: at UseGAS 1 turn start / end run the tracker first and the stored copies follow it (GASSystem.md); `CountHolderTurnSpans` broadcasts after counting every span. | feature/B-042h-gas-effect-lifetime |
 | 2026-10-27 | B-042x: `HasActiveDOT` / `GetEffectTags` read through `HasEffectOfType` (tags at UseGAS 1). | feature/B-042x-gas-tag-reads |
 | 2026-10-27 | B-042y: DOT / HOT payouts call `PayTickThroughGAS` first (GAS tick spec at UseGAS 1), enum write as fallback. | feature/B-042y-gas-getters-hp |
+| 2026-11-02 | B-247 (A6): `USkillEffectManager::HealActor` is the one heal path (amplify + HealBlock gate) for direct heals, HOT ticks, lifesteal, drain and percent restores; each broadcasts `OnHealingDone` (lifesteal, percent and HOT did not before). The broadcast amount is the amplified heal, before the max-HP cap. | refactor/B-247-one-heal-path |
