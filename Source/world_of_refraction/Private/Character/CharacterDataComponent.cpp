@@ -226,7 +226,7 @@ void UCharacterDataComponent::GetLifetimeReplicatedProps(TArray<FLifetimePropert
     DOREPLIFETIME(UCharacterDataComponent, MaxHP);
     DOREPLIFETIME(UCharacterDataComponent, MaxEP);
     // B-131: the server picks the template when it spawns the pawn; a client needs it for names and panels.
-    DOREPLIFETIME_CONDITION(UCharacterDataComponent, CharacterData, COND_InitialOnly);
+    DOREPLIFETIME(UCharacterDataComponent, CharacterData); // also a template set after spawn (recruit, swap)
     DOREPLIFETIME(UCharacterDataComponent, bIsAlive);
     DOREPLIFETIME(UCharacterDataComponent, bIsBrokenDarkness);
 }
@@ -831,7 +831,8 @@ bool UCharacterDataComponent::GetPillarLayers(EWorldPillar Pillar, FWoRStatLayer
 
 void UCharacterDataComponent::RecomputeMaxPools()
 {
-    if (!CharacterData)
+    // B-131: the max pools are the server's; every caller (gear swaps, crystals, boss phases) is covered here.
+    if (!HasServerAuthority() || !CharacterData)
     {
         return;
     }

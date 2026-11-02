@@ -117,7 +117,7 @@ public:
     // CHARACTER TEMPLATE
     // ========================================
 
-    /** Reference to character template (set in editor/BP). Replicated once, at spawn (B-131). */
+    /** Reference to character template (set in editor/BP). Replicated (B-131); sent only when it changes. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = "Character")
     UCharacterData *CharacterData;
 
@@ -132,11 +132,11 @@ public:
     int32 CurrentEP;
 
     /** Replicated (B-131): derived on the server from gear the client may not hold, and read by the
-     *  clients' OnRep_CurrentHP / EP and HUD bars. */
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Combat")
+     *  clients' OnRep_CurrentHP / EP and HUD bars. A max-only change re-broadcasts through the same OnRep. */
+    UPROPERTY(ReplicatedUsing = OnRep_CurrentHP, BlueprintReadOnly, Category = "Combat")
     int32 MaxHP;
 
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Combat")
+    UPROPERTY(ReplicatedUsing = OnRep_CurrentEP, BlueprintReadOnly, Category = "Combat")
     int32 MaxEP;
 
     UPROPERTY(ReplicatedUsing = OnRep_bIsAlive, BlueprintReadOnly, Category = "Combat")
