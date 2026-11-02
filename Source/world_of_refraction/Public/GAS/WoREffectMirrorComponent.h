@@ -18,6 +18,8 @@
 // turn start, ReleaseEndedCopies removes the copy through the effect manager. Removing a stored
 // effect (cleanse, death, combat end) still ends its GE through the sync. Payouts stay on the enum
 // path until B-042y routes the tick's Health write through the real HP path (Q-042hb).
+// B-042ye: the per-effect reads (the AI's tick and turns, the debuff count, the character panel's list)
+// go through ReadHeldEffects / PreviewDotTick at UseGAS 1.
 // Debug: UWoREffectDebug (wor.CompareEffects).
 
 #pragma once
@@ -65,6 +67,15 @@ public:
 
 	/** Holder turns left on the tracked GE of Effect's identity; INDEX_NONE when it has none. */
 	int32 GetTrackedTurnsLeft(const FActiveSkillEffect &Effect) const;
+
+	/** B-042ye (Q-042x): Stored as GAS holds it. An effect with a family GE is kept only while its mirrored GE
+	 *  is live, with the tracker's turns left; one without stays as stored. Resyncs first (Q-042yb). A client
+	 *  (the mirror is the server's) gets Stored unchanged. */
+	TArray<FActiveSkillEffect> ReadHeldEffects(const TArray<FActiveSkillEffect> &Stored);
+
+	/** B-042ye: the HP one tick of the DOT Effect takes now, from its GE's tick spec (UWoRTickExecution), or
+	 *  INDEX_NONE when no live mirrored GE of it carries one. */
+	int32 PreviewDotTick(const FActiveSkillEffect &Effect);
 
 	/** Remove, through the effect manager, the stored copies of the effects whose tracked GE GAS
 	 *  ended (the tracker at the holder's turn start). Called right after the tracker's turn start. */
