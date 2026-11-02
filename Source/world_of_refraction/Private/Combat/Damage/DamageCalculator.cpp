@@ -3,6 +3,8 @@
 
 #include "Combat/Damage/DamageCalculator.h"
 #include "Combat/Damage/DamageMath.h"
+#include "GAS/WoRAttributeSets.h"
+#include "GAS/WoRAttributeSyncComponent.h"
 #include "Combat/Resistance/ResistanceQuery.h"
 #include "Combat/CombatConstants.h"
 #include "Character/CharacterData.h"
@@ -287,6 +289,11 @@ float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 	// reduction capped ALONE at UNIVERSAL_STAT_CAP (0.5), then BonusDefense, the DefenseStone and the
 	// DefenseBuff/Debuff net (floored at x0) MULTIPLY it toward DEFENSE_REDUCTION_CEILING (0.85).
 	// Multiplicative by design intent (Crown): a +X% stone/buff rewards a high-defense build more.
+	float OnGAS = 0.0f;
+	if (UWoRAttributeSyncComponent::ReadComposedOnGAS(Defender, UWoRAttributeSet_Stats::GetDefenseAttribute(), OnGAS))
+	{
+		return OnGAS; // B-042yc: GAS's value at UseGAS 1
+	}
 	FWoRStatLayers Layers;
 	DefenderComp->GetStatLayers(ESubStat::Defense, Layers);
 	return Layers.Compose();
@@ -320,6 +327,12 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 	if (!AttackerComp || !AttackerComp->CharacterData)
 	{
 		return DamageConstants::BASE_CRIT_CHANCE;
+	}
+
+	float OnGAS = 0.0f;
+	if (UWoRAttributeSyncComponent::ReadComposedOnGAS(Attacker, UWoRAttributeSet_Stats::GetCritChanceAttribute(), OnGAS))
+	{
+		return OnGAS; // B-042yc: GAS's value at UseGAS 1
 	}
 
 	// Crystal-aware crit chance — uses GetEvolutionModifiedMind so the slotted
@@ -431,6 +444,11 @@ float UDamageCalculator::GetCritDamageMultiplier(AActor *Attacker) const
 	if (!AttackerComp)
 	{
 		return CombatConstants::CRIT_DMG_BASE;
+	}
+	float OnGAS = 0.0f;
+	if (UWoRAttributeSyncComponent::ReadComposedOnGAS(Attacker, UWoRAttributeSet_Stats::GetCritDamageAttribute(), OnGAS))
+	{
+		return OnGAS; // B-042yc: GAS's value at UseGAS 1
 	}
 	FWoRStatLayers Layers;
 	AttackerComp->GetStatLayers(ESubStat::CritDamage, Layers);
