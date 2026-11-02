@@ -176,6 +176,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-042yc](B-042yc.md) | `feature/B-042yc-gas-getters` (in `dev`) | GAS stage 3 part 3d3: resistances, turn speed, Defense, crit, luck, reflex, efficiency and status multiplier read GAS at UseGAS 1; no change at UseGAS 0 | Not tested |
 | [B-042z](B-042z.md) | `feature/B-042z-fight-records-on-tracker` (in `dev`) | GAS stage 3 part 3e: fires-once records and armed conditionals live on each fighter's turn tracker (per-fight state on the battle's actors, D-064) | Not tested |
 | [B-042j](B-042j.md) | `feature/B-042j-absorb-family` (in `dev`) | Barrier / Shield / Ward absorbers (D-092): spent after Guard and Defense, one charge per impact; `wor.Absorb.Add` to try them | Not tested |
+| [B-220](B-220.md) | `feature/B-220-weapon-power` (in `dev`) | Weapons get Power and Mind / Body / Spirit scaling grades (D-101); Power 0 by default, so no damage changes until set; `wor.Weapon.Print` | Not tested |
 
 Move rows to **Done** when every check passes.
 
