@@ -193,6 +193,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-253](B-253.md) | `refactor/B-253-name-tables` (in `dev`) | Crystal names and tier letters come from the cooked-safe name table (B-126); stones now named properly | Not tested |
 | [B-254](B-254.md) | `refactor/B-254-infusion-controls` (in `dev`) | The command menu's infusion level / source controls are one helper for the single and group pickers; same behaviour | Not tested |
 | [B-255](B-255.md) | `refactor/B-255-bd-form-check` (in `dev`) | One "is in Broken Darkness form" check (two definitions before); same behaviour | Not tested |
+| [B-256](B-256.md) | `refactor/B-256-interact-debug-repeats` (in `dev`) | Shared nearest-interactable search (`WoRInteract`) and debug-opponent helper; same hints and prints | Not tested |
 
 Move rows to **Done** when every check passes.
 
