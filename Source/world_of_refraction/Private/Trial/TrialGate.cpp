@@ -100,7 +100,7 @@ bool TrialGate::ApplyEnemyStrength(AActor *Enemy, float StrengthMultiplier)
 	Effects->ApplyEffect(Enemy, HPEffect);
 	Effects->ApplyEffect(Enemy, DamageEffect);
 	CharComp->RecomputeMaxPools();
-	CharComp->CurrentHP = CharComp->MaxHP;
+	CharComp->ServerSetHP(CharComp->MaxHP); // B-131: server-only, and the HP change is broadcast
 	return true;
 }
 
