@@ -3,6 +3,8 @@
 
 #include "Combat/TurnManager.h"
 #include "Combat/CombatConstants.h"
+#include "GAS/WoRAttributeSets.h"
+#include "GAS/WoRAttributeSyncComponent.h"
 #include "WoRLog.h"
 #include "Engine/Engine.h" // GEngine for on-screen debug (DebugPrintPendingTurns)
 #include "Character/CharacterDataComponent.h"
@@ -232,11 +234,16 @@ void UTurnManager::CalculateSpeedRatios()
 	if (Combatants.Num() == 0)
 		return;
 
-	// Effective speed is computed on the fly each call (EffectiveTurnSpeedOf), so OnActorDied /
-	// OnActorResurrected, which invoke CalculateSpeedRatios without a fresh CacheActorStats, don't
-	// compound. CachedSpeed remains the pristine base.
+	// Effective speed is computed on the fly each call (GetEffectiveTurnSpeed over the entry's CachedSpeed), so
+	// OnActorDied / OnActorResurrected, which invoke CalculateSpeedRatios without a fresh CacheActorStats, don't
+	// compound. CachedSpeed remains the pristine base. Through the getter, so turn order reads GAS at UseGAS 1 (B-042yc).
 	auto GetEffectiveSpeed = [this](const FCombatantTurnDebt &Combatant) -> int32
 	{
+		float OnGAS = 0.0f;
+		if (UWoRAttributeSyncComponent::ReadComposedOnGAS(Combatant.Actor, UWoRAttributeSet_Stats::GetTurnSpeedAttribute(), OnGAS))
+		{
+			return FMath::RoundToInt(OnGAS);
+		}
 		return EffectiveTurnSpeedOf(Combatant.Actor, Combatant.CachedSpeed);
 	};
 
@@ -305,6 +312,11 @@ const FCombatantTurnDebt *UTurnManager::FindCombatantEntry(const AActor *Actor) 
 
 int32 UTurnManager::GetEffectiveTurnSpeed(const AActor *Actor) const
 {
+	float OnGAS = 0.0f;
+	if (UWoRAttributeSyncComponent::ReadComposedOnGAS(Actor, UWoRAttributeSet_Stats::GetTurnSpeedAttribute(), OnGAS))
+	{
+		return FMath::RoundToInt(OnGAS); // B-042yc: GAS's value at UseGAS 1
+	}
 	const FCombatantTurnDebt *Entry = FindCombatantEntry(Actor);
 	return EffectiveTurnSpeedOf(Actor, Entry ? Entry->CachedSpeed : ComputeCachedTurnSpeed(Actor));
 }
