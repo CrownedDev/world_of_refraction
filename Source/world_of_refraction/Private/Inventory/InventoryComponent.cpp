@@ -595,66 +595,101 @@ EItemTier UInventoryComponent::ResolveAbilityTier(const AActor *Caster, const US
     return Skill->Tier; // not owned / basic attack → asset tier
 }
 
-// ==================== WEAPON OPERATIONS ====================
+// ==================== GEAR ACQUISITION (B-251) ====================
 
-bool UInventoryComponent::AddWeapon(UWeaponData *Weapon)
+namespace
 {
-    if (!Weapon)
+    template <class TEntry>
+    int32 FindGearIndex(const TArray<TEntry> &Gear, const FGuid &PersistentID)
     {
-        return false;
+        return Gear.IndexOfByPredicate([&PersistentID](const TEntry &Entry) { return Entry.PersistentID == PersistentID; });
     }
+}
 
-    // Check capacity
-    if (!CanAddWeapon(Weapon))
-    {
-        return false;
-    }
-
-    FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon);
-    // Acquisition is the ONE mint point for the persistent owned-instance guid —
-    // CreateFromWeapon deliberately leaves it invalid (loadout inflation reuses
-    // that factory and must not mint).
+template <class TEntry>
+bool UInventoryComponent::AddGearEntry(TArray<TEntry> &Gear, TEntry Entry, const UEquipmentDataBase &Asset)
+{
+    // Acquisition is the ONE mint point for the persistent owned-instance guid — the CreateFrom* factories
+    // deliberately leave it invalid (loadout inflation reuses them and must not mint). Tier/Quality are
+    // seeded in the factory, so loadout-inflated entries get them too (cluster 2a).
     Entry.PersistentID = FGuid::NewGuid();
-    // Tier/Quality are seeded in CreateFromWeapon (the factory, called above) so loadout-inflated
-    // entries get them too — see cluster 2a. Acquisition only mints the persistent guid here.
-    if (Weapon->bRandomGenerateOnPickup)
+    if (Asset.bRandomGenerateOnPickup)
     {
-        ApplyPickupRoll(Weapon, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
+        ApplyPickupRoll(&Asset, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
         // Fresh pickup → roll a per-instance Quality (§11), Luck-biased. Toggle-OFF acquisitions
-        // (purchases, authored gear) skip this and keep the CreateFromWeapon C_Quality placeholder.
+        // (purchases, authored gear) skip this and keep the factory's C_Quality placeholder.
         Entry.Quality = EconomyYield::RollQuality(ResolveInventoryOwnerLuck(this));
     }
-    Weapons.Add(Entry);
+    Gear.Add(Entry);
     PushGearToPool(Entry.PersistentID);
     BroadcastInventoryChanged(EInventoryChangeType::Added);
     return true;
 }
 
-bool UInventoryComponent::RemoveWeapon(int32 WeaponIndex)
+template <class TEntry>
+bool UInventoryComponent::RemoveGearAt(TArray<TEntry> &Gear, int32 Index)
 {
-    if (!Weapons.IsValidIndex(WeaponIndex))
+    if (!Gear.IsValidIndex(Index))
     {
         return false;
     }
-
-    const FGuid RemovedID = Weapons[WeaponIndex].PersistentID;
-    Weapons.RemoveAt(WeaponIndex);
+    const FGuid RemovedID = Gear[Index].PersistentID;
+    Gear.RemoveAt(Index);
     PushGearToPool(RemovedID);
-    // RemoveWeaponByPersistentID delegates here, so this single broadcast covers
-    // both entry points (no double-fire).
+    // Remove*ByPersistentID delegate here, so this single broadcast covers both entry points (no double-fire).
     BroadcastInventoryChanged(EInventoryChangeType::Removed);
     return true;
 }
 
-bool UInventoryComponent::RemoveWeaponByPersistentID(FGuid PersistentID)
+// ==================== WEAPON OPERATIONS ====================
+
+bool UInventoryComponent::AddWeapon(UWeaponData *Weapon)
 {
-    const int32 Index = Weapons.IndexOfByPredicate(
-        [&PersistentID](const FWeaponInventoryEntry &Entry) { return Entry.PersistentID == PersistentID; });
-    if (Index == INDEX_NONE)
+    if (!Weapon || !CanAddWeapon(Weapon))
     {
         return false;
     }
-    return RemoveWeapon(Index);
+    return AddGearEntry(Weapons, FWeaponInventoryEntry::CreateFromWeapon(Weapon), *Weapon);
+}
+
+bool UInventoryComponent::RemoveWeapon(int32 WeaponIndex)
+{
+    return RemoveGearAt(Weapons, WeaponIndex);
+}
+
+bool UInventoryComponent::RemoveWeaponByPersistentID(FGuid PersistentID)
+{
+    const int32 Index = FindGearIndex(Weapons, PersistentID);
+    return Index != INDEX_NONE && RemoveWeapon(Index);
+}
+
+namespace
+{
+    template <class TEntry>
+    TEntry *FindOwnedGear(TArray<TEntry> &Gear, const FGuid &PersistentID)
+    {
+        return Gear.FindByPredicate([&PersistentID](const TEntry &Entry) { return Entry.PersistentID == PersistentID; });
+    }
+}
+
+FWeaponInventoryEntry *UInventoryComponent::FindOwnedWeapon(const FGuid &PersistentID)
+{
+    return FindOwnedGear(Weapons, PersistentID);
+}
+
+const FWeaponInventoryEntry *UInventoryComponent::FindOwnedWeapon(const FGuid &PersistentID) const
+{
+    return const_cast<UInventoryComponent *>(this)->FindOwnedWeapon(PersistentID);
+}
+
+FRingInventoryEntry *UInventoryComponent::FindOwnedRing(const FGuid &PersistentID)
+{
+    return FindOwnedGear(Rings, PersistentID);
+}
+
+const FRingInventoryEntry *UInventoryComponent::FindOwnedRing(const FGuid &PersistentID) const
+{
+    return const_cast<UInventoryComponent *>(this)->FindOwnedRing(PersistentID);
 }
 
 FWeaponInventoryEntry UInventoryComponent::GetWeaponAt(int32 Index) const
@@ -704,58 +739,22 @@ bool UInventoryComponent::RemoveCrystalFromWeapon(int32 WeaponIndex)
 
 bool UInventoryComponent::AddRing(URingData *Ring)
 {
-    if (!Ring)
+    if (!Ring || !CanAddRing(Ring))
     {
         return false;
     }
-
-    // Check capacity
-    if (!CanAddRing(Ring))
-    {
-        return false;
-    }
-
-    FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring);
-    // Acquisition mint — see AddWeapon; CreateFromRing leaves the guid invalid.
-    Entry.PersistentID = FGuid::NewGuid();
-    // Tier/Quality are seeded in CreateFromRing (the factory, called above); see cluster 2a.
-    if (Ring->bRandomGenerateOnPickup)
-    {
-        ApplyPickupRoll(Ring, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
-        // Fresh pickup → roll a per-instance Quality (§11), Luck-biased. Toggle-OFF acquisitions
-        // keep the CreateFromRing C_Quality placeholder.
-        Entry.Quality = EconomyYield::RollQuality(ResolveInventoryOwnerLuck(this));
-    }
-    Rings.Add(Entry);
-    PushGearToPool(Entry.PersistentID);
-    BroadcastInventoryChanged(EInventoryChangeType::Added);
-    return true;
+    return AddGearEntry(Rings, FRingInventoryEntry::CreateFromRing(Ring), *Ring);
 }
 
 bool UInventoryComponent::RemoveRing(int32 RingIndex)
 {
-    if (!Rings.IsValidIndex(RingIndex))
-    {
-        return false;
-    }
-
-    const FGuid RemovedID = Rings[RingIndex].PersistentID;
-    Rings.RemoveAt(RingIndex);
-    PushGearToPool(RemovedID);
-    // RemoveRingByPersistentID delegates here — single broadcast covers both.
-    BroadcastInventoryChanged(EInventoryChangeType::Removed);
-    return true;
+    return RemoveGearAt(Rings, RingIndex);
 }
 
 bool UInventoryComponent::RemoveRingByPersistentID(FGuid PersistentID)
 {
-    const int32 Index = Rings.IndexOfByPredicate(
-        [&PersistentID](const FRingInventoryEntry &Entry) { return Entry.PersistentID == PersistentID; });
-    if (Index == INDEX_NONE)
-    {
-        return false;
-    }
-    return RemoveRing(Index);
+    const int32 Index = FindGearIndex(Rings, PersistentID);
+    return Index != INDEX_NONE && RemoveRing(Index);
 }
 
 TArray<int32> UInventoryComponent::GetLoadoutsUsing(const FGuid &PersistentID) const
@@ -1434,6 +1433,38 @@ int32 UInventoryComponent::StripUnownedGear()
     return Stripped;
 }
 
+bool UInventoryComponent::IsWornByOtherMember(const FGuid &PersistentID) const
+{
+    return IsWornByOtherMemberOf(PersistentID, GetPartyMembersByKey());
+}
+
+bool UInventoryComponent::IsWornByOtherMemberOf(const FGuid &PersistentID, const TMap<FName, const UCharacterData *> &Party) const
+{
+    const UPoolSubsystem *Pool = SharedPool.Get();
+    if (!Pool || !PersistentID.IsValid())
+    {
+        return false;
+    }
+    const FName Wearer = Pool->GetWearer(PersistentID);
+    // A wearer who left the party has released it (UPartySessionSubsystem); only a current member counts.
+    return !Wearer.IsNone() && Wearer != SharedGearKey && Party.Contains(Wearer);
+}
+
+TArray<FWeaponInventoryEntry> UInventoryComponent::GetSelectableWeapons() const
+{
+    const TMap<FName, const UCharacterData *> Party = GetPartyMembersByKey();
+    return Weapons.FilterByPredicate([this, &Party](const FWeaponInventoryEntry &Entry) { return !IsWornByOtherMemberOf(Entry.PersistentID, Party); });
+}
+
+TArray<FRingInventoryEntry> UInventoryComponent::GetSelectableRings() const
+{
+    const TMap<FName, const UCharacterData *> Party = GetPartyMembersByKey();
+    return Rings.FilterByPredicate([this, &Party](const FRingInventoryEntry &Entry) { return !IsWornByOtherMemberOf(Entry.PersistentID, Party); });
+}
+
+// TODO: OBSOLETE after Crown's PIE of B-221b (Q-091 changed by Crown): with worn gear out of the other members'
+// lists, the clash step below is only reached by a saved loadout; B-221b keeps that slot empty-while-worn
+// instead of stripping it.
 TArray<FText> UInventoryComponent::ClaimActiveSharedGear()
 {
     using namespace InventoryGearSync;

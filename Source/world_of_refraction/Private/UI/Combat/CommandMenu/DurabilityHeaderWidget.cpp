@@ -76,7 +76,7 @@ void UDurabilityHeaderWidget::RefreshForActor(AActor *InActor)
 	ULoadoutComponent *LC = InActor->FindComponentByClass<ULoadoutComponent>();
 	if (LC)
 	{
-		const FCombatLoadout Loadout = LC->GetActiveLoadout();
+		const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 
 		// Ring resource: any usable ring across the loadout. Resonators
 		// hold rings in RingLoadout; Generic/Caster hold a single ring
@@ -317,7 +317,7 @@ void UDurabilityHeaderWidget::HandleCrystalDurabilityChanged(AActor *Actor, UObj
 	bool bHasRingResource = false;
 	if (LC)
 	{
-		const FCombatLoadout Loadout = LC->GetActiveLoadout();
+		const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 		auto RingIsUsable = [](const FRingLoadoutEntry &Entry)
 		{
 			return Entry.IsValid() &&
