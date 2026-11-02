@@ -27,6 +27,7 @@ class USpellData;
 class UAbilityData;
 class USkillDataBase;
 class UWeaponData;
+class UEquipmentDataBase;
 class URingData;
 class UEvolutionItemData;
 class UInventoryData;
@@ -251,6 +252,14 @@ public:
     FRingInventoryEntry *FindOwnedRing(const FGuid &PersistentID);
     const FRingInventoryEntry *FindOwnedRing(const FGuid &PersistentID) const;
 
+    /** B-221 (Q-091, Crown): a piece another party member wears is on them, not in the shared inventory. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Shared")
+    bool IsWornByOtherMember(const FGuid &PersistentID) const;
+
+    /** B-221: the weapons this member can pick: the inventory minus what other members wear. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Weapons")
+    TArray<FWeaponInventoryEntry> GetSelectableWeapons() const;
+
     /** Get total weapon slot cost */
     UFUNCTION(BlueprintPure, Category = "Inventory|Weapons")
     int32 GetWeaponSlotCostTotal() const;
@@ -355,6 +364,10 @@ public:
     /** Get ring at index */
     UFUNCTION(BlueprintPure, Category = "Inventory|Rings")
     FRingInventoryEntry GetRingAt(int32 Index) const;
+
+    /** B-221: the rings this member can pick: the inventory minus what other members wear. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Rings")
+    TArray<FRingInventoryEntry> GetSelectableRings() const;
 
     /** Get total ring slot cost */
     UFUNCTION(BlueprintPure, Category = "Inventory|Rings")
@@ -480,6 +493,9 @@ private:
     /** B-091: the local party's members by pool key. */
     TMap<FName, const UCharacterData *> GetPartyMembersByKey() const;
 
+    /** B-221: IsWornByOtherMember against a party map built once (the selectable lists). */
+    bool IsWornByOtherMemberOf(const FGuid &PersistentID, const TMap<FName, const UCharacterData *> &Party) const;
+
     TWeakObjectPtr<UPoolSubsystem> SharedPool;
     FName SharedGearKey;
     /** True while this inventory pushes to, or copies from, the pool (no echo). */
@@ -518,6 +534,12 @@ private:
     bool RemoveEvolutionFromGear(TArray<TEntry> &Gear, FGuid GearID, const TCHAR *Op);
     template <class TEntry>
     bool RemoveCrystalFromGear(TArray<TEntry> &Gear, int32 Index);
+    /** B-251 (DRY audit A13): the weapon / ring acquisition (mint the owned ID, the pickup roll, pool push,
+     *  broadcast) and removal, once for both entry types. */
+    template <class TEntry>
+    bool AddGearEntry(TArray<TEntry> &Gear, TEntry Entry, const UEquipmentDataBase &Asset);
+    template <class TEntry>
+    bool RemoveGearAt(TArray<TEntry> &Gear, int32 Index);
 
     /** Populates ownership lists + SavedLoadouts + ActiveLoadoutIndex from
      *  CharacterData->Inventory (a UInventoryData asset). Sole loadout-init

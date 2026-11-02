@@ -3,6 +3,7 @@
 #include "Equipment/EquipmentDataBase.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Skills/Effects/EffectDefinition.h"
+#include "Skills/Effects/EffectBundles.h"
 #include "Equipment/EquipmentBonusGenerator.h"
 #include "Character/FPillarWeights.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
@@ -236,49 +237,16 @@ int32 UEquipmentDataBase::GetEffectCount() const
 
 TArray<FSkillEffect> UEquipmentDataBase::GetStartingEffects() const
 {
-    TArray<FSkillEffect> Result;
-    // Flatten referenced bundles, partition by condition (null/unloaded skipped).
-    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
-    {
-        if (!Def)
-        {
-            continue;
-        }
-        for (const FSkillEffect &E : Def->Effects)
-        {
-            if (!E.IsConditionalEffect())
-            {
-                Result.Add(E);
-            }
-        }
-    }
-    return Result;
+    return EffectBundles::Flatten(ReferencedEffects, /*bConditional=*/false);
 }
 
 TArray<FSkillEffect> UEquipmentDataBase::GetConditionalEffects() const
 {
-    TArray<FSkillEffect> Result;
-    // Flatten referenced bundles, partition by condition (null/unloaded skipped).
-    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
-    {
-        if (!Def)
-        {
-            continue;
-        }
-        for (const FSkillEffect &E : Def->Effects)
-        {
-            if (E.IsConditionalEffect())
-            {
-                Result.Add(E);
-            }
-        }
-    }
-    return Result;
+    return EffectBundles::Flatten(ReferencedEffects, /*bConditional=*/true);
 }
 
 TArray<FGatheredEffect> UEquipmentDataBase::GetStartingEffectsGathered(const UCharacterData *Wearer) const
 {
-    TArray<FGatheredEffect> Result;
     // The item is the source of its effects (D-053): another item with the same definition adds its own.
     const int32 ItemSourceKey = EffectIdentity::MakeSourceKey(GetUniqueID(), GetName());
     // B-192: the bound bonus joins the item's own effects only on its owner (D-033).
@@ -287,27 +255,11 @@ TArray<FGatheredEffect> UEquipmentDataBase::GetStartingEffectsGathered(const UCh
     {
         Defs.Append(BoundEffects);
     }
-    for (const TObjectPtr<UEffectDefinition> &Def : Defs)
-    {
-        if (!Def)
-        {
-            continue;
-        }
-        const int32 DefID = static_cast<int32>(Def->GetUniqueID());
-        for (int32 b = 0; b < Def->Effects.Num(); ++b)
-        {
-            if (!Def->Effects[b].IsConditionalEffect())
-            {
-                Result.Emplace(DefID, b, Def->Effects[b], ItemSourceKey);
-            }
-        }
-    }
-    return Result;
+    return EffectBundles::GatherWithIds(Defs, /*bConditional=*/false, ItemSourceKey);
 }
 
 TArray<FGatheredEffect> UEquipmentDataBase::GetConditionalEffectsGathered(const UCharacterData *Wearer) const
 {
-    TArray<FGatheredEffect> Result;
     // The item is the source of its effects (D-053): another item with the same definition adds its own.
     const int32 ItemSourceKey = EffectIdentity::MakeSourceKey(GetUniqueID(), GetName());
     // B-192: the bound bonus joins the item's own effects only on its owner (D-033).
@@ -316,22 +268,7 @@ TArray<FGatheredEffect> UEquipmentDataBase::GetConditionalEffectsGathered(const 
     {
         Defs.Append(BoundEffects);
     }
-    for (const TObjectPtr<UEffectDefinition> &Def : Defs)
-    {
-        if (!Def)
-        {
-            continue;
-        }
-        const int32 DefID = static_cast<int32>(Def->GetUniqueID());
-        for (int32 b = 0; b < Def->Effects.Num(); ++b)
-        {
-            if (Def->Effects[b].IsConditionalEffect())
-            {
-                Result.Emplace(DefID, b, Def->Effects[b], ItemSourceKey);
-            }
-        }
-    }
-    return Result;
+    return EffectBundles::GatherWithIds(Defs, /*bConditional=*/true, ItemSourceKey);
 }
 
 bool UEquipmentDataBase::IsBoundBonusActive(const UCharacterData *Wearer) const
