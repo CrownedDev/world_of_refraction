@@ -531,7 +531,7 @@ void USkillEffectManager::WOR_StartingEffects()
 	// PRE — per gear source, mirroring GetActiveEffects' per-class coverage.
 	// Debug-only re-enumeration; the TOTAL cross-check below self-reports drift.
 	int32 Labeled = 0;
-	const FCombatLoadout Loadout = LC->GetActiveLoadout();
+	const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 	switch (LC->GetCharacterClass())
 	{
 	case ECharacterClass::Generic:
