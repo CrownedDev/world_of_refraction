@@ -177,6 +177,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-042z](B-042z.md) | `feature/B-042z-fight-records-on-tracker` (in `dev`) | GAS stage 3 part 3e: fires-once records and armed conditionals live on each fighter's turn tracker (per-fight state on the battle's actors, D-064) | Not tested |
 | [B-042j](B-042j.md) | `feature/B-042j-absorb-family` (in `dev`) | Barrier / Shield / Ward absorbers (D-092): spent after Guard and Defense, one charge per impact; `wor.Absorb.Add` to try them | Not tested |
 | [B-220](B-220.md) | `feature/B-220-weapon-power` (in `dev`) | Weapons get Power and Mind / Body / Spirit scaling grades (D-101); Power 0 by default, so no damage changes until set; `wor.Weapon.Print` | Not tested |
+| [B-221](B-221.md) | `feature/B-221-worn-gear-leaves-inventory` (in `dev`) | Shared pool: lists of gear selectable by a member (worn-by-others filtered out) and the inventory debug tag; the pickers switch with B-221b | Not tested |
 
 Move rows to **Done** when every check passes.
 
