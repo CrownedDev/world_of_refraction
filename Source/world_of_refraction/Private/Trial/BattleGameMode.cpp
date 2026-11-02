@@ -30,6 +30,7 @@
 #include "Trial/TrialRunSubsystem.h"
 #include "UI/Combat/CombatResultsWidget.h"
 #include "GameFramework/PlayerController.h"
+#include "Player/WoRGameState.h"
 #include "Player/WoRPlayerState.h"
 
 namespace BattleGameModeConstants
@@ -43,6 +44,9 @@ namespace BattleGameModeConstants
 ABattleGameMode::ABattleGameMode()
 {
     PlayerStateClass = AWoRPlayerState::StaticClass();
+    // B-227: a listen server's level change keeps its clients (seamless travel; CopyProperties).
+    GameStateClass = AWoRGameState::StaticClass();
+    bUseSeamlessTravel = true;
 }
 
 void ABattleGameMode::BeginPlay()
