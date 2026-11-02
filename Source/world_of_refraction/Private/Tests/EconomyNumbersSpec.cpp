@@ -1,20 +1,19 @@
 // EconomyNumbersSpec.cpp
 // B-290: pins the economy numbers to the rules page (docs/Rules/05-economy-and-runs.md).
 // ER-24 / D-102: a run vendor's world-stat point costs 50 Gold, +25 for each one bought this run
-//                (base + N x bought), and the ramp restarts with the run.
+//                (base + N x bought), and the ramp restarts with the run; a buy is refused at the
+//                pillar cap of 7 (B-222).
 // ER-29: a merge costs half the produced tier's Prism price (E 25 ... S 800).
 // ER-23: a spell costs element essence at its tier (F 10 ... S 48), pillar essence per scaling
 //        grade and +50 Prisms per grade (F=1 ... S=7). D-105: Quartz's essence is the Generic one.
 // ER-38: fresh-pickup quality weights F 26 / E 22 / D 18 / C 14 / B 10 / A 6 / S 4; at maxed Luck
 //        S goes to about 7% (tilt 0.5). Rolled on a fixed seed.
-// Not pinned here (code and ruling disagree, reported on B-290): the world-stat cap (LIVE_MAX 20
-// vs D-102's 7 per pillar) and D-105's Quartz-essence price for Generic spells.
+// Not pinned here: D-105's Quartz-essence price for Generic spells (B-296 pins it).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
-#include "HAL/PlatformTime.h"
 #include "Character/CharacterDataComponent.h"
 #include "Currency/CurrencyComponent.h"
 #include "Currency/EconomyService.h"
@@ -30,6 +29,7 @@ namespace
 	constexpr int32 ECONOMY_NUMBERS_WORLDSTAT_FIRST = 50;
 	constexpr int32 ECONOMY_NUMBERS_WORLDSTAT_STEP = 25;
 	constexpr int32 ECONOMY_NUMBERS_WORLDSTAT_SECOND = 75;
+	constexpr int32 ECONOMY_NUMBERS_WORLDSTAT_PILLAR_CAP = 7;
 
 	// ER-29: E 25, D 50, C 100, B 200, A 400, S 800.
 	constexpr int32 ECONOMY_NUMBERS_MERGE_E = 25;
@@ -177,6 +177,22 @@ void FEconomyNumbersSpec::Define()
 			Wallet->Add(ECurrencyType::Gold, ECONOMY_NUMBERS_WORLDSTAT_SECOND);
 			TestFalse(TEXT("third buy (100) refused at 75 Gold"), Economy->BuyWorldStat(Owner, EWorldPillar::Spirit));
 			TestEqual(TEXT("nothing spent"), Wallet->GetBalance(ECurrencyType::Gold), ECONOMY_NUMBERS_WORLDSTAT_SECOND);
+		});
+
+		It("refuses a buy on a pillar at the cap of 7, charging nothing", [this]()
+		{
+			TestEqual(TEXT("LIVE_MAX"), WorldStatConstants::LIVE_MAX, ECONOMY_NUMBERS_WORLDSTAT_PILLAR_CAP);
+			if (!Economy)
+			{
+				return;
+			}
+			CharComp->AddEarnedWorldStat(EWorldPillar::Mind, ECONOMY_NUMBERS_WORLDSTAT_PILLAR_CAP);
+			TestEqual(TEXT("Mind at the cap"), CharComp->GetWorldStat(EWorldPillar::Mind), ECONOMY_NUMBERS_WORLDSTAT_PILLAR_CAP);
+
+			Wallet->Add(ECurrencyType::Gold, ECONOMY_NUMBERS_WORLDSTAT_FIRST);
+			TestFalse(TEXT("buy at 7 refused"), Economy->BuyWorldStat(Owner, EWorldPillar::Mind));
+			TestEqual(TEXT("Mind still 7"), CharComp->GetWorldStat(EWorldPillar::Mind), ECONOMY_NUMBERS_WORLDSTAT_PILLAR_CAP);
+			TestEqual(TEXT("nothing spent"), Wallet->GetBalance(ECurrencyType::Gold), ECONOMY_NUMBERS_WORLDSTAT_FIRST);
 		});
 
 		It("starts again at 50 when the run resets", [this]()
