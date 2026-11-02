@@ -1,6 +1,7 @@
 // AIDecisionManager.cpp
 
 #include "AI/AIDecisionManager.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Combat/Defense/GuardRules.h"
 #include "AI/AIDecisionConstants.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
@@ -337,6 +338,7 @@ EAIDifficulty UAIDecisionManager::GetDifficultyFor(const AActor *ForActor) const
 
 FAction UAIDecisionManager::BuildAction(AActor *AIActor)
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE(WoR_AIBuildAction); // B-266: Insights marker (PerfAudit_2026-10-28.md)
     FAction Action;
     Action.ActionType = EActionType::Defend; // Safe default
 
