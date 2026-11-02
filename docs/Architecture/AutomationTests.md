@@ -151,3 +151,4 @@ Combatants are bare unless a spec needs more: `SpawnCombatant` gives no loadout,
 | 2026-10-27 | B-042y: `WoR.GAS.Payouts` (both paths); `FWoRTestWorld::AddEffectMirror` adds the attribute sets. | feature/B-042y-gas-getters-hp |
 | 2026-10-27 | B-042yb: `WoR.GAS.StatGetters` (seven getters on both paths; a GAS-only bonus seen only at UseGAS 1). | feature/B-042yb-gas-stat-getters |
 | 2026-11-02 | B-282: `WoR.Effects.LastStand` pins ET-37, PA-23, PA-24 (50% / 30%, window 2..5, revive). | chore/B-282-last-stand-spec |
+| 2026-11-02 | B-283: `WoR.Turns.BonusTurn` pins ET-12..15 (Emerald delays 6..0, S two turns; Extra Action). | chore/B-283-bonus-turn-spec |

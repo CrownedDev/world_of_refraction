@@ -203,6 +203,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-276](B-276.md) | `refactor/B-276-element-helpers` (in `dev`) | Element helpers (`IsConcrete` / `IsInherit`, one Reality Refractor check); innate element read only for Casters | Not tested |
 | [B-277](B-277.md) | `chore/B-277-small-tidy-ups` (in `dev`) | Small tidy-ups: cost-clamp constants named, unused hit-result flags and `EItemQuality` flagged, tier order notes | Not tested |
 | [B-282](B-282.md) | `chore/B-282-last-stand-spec` (in `dev`) | Last Stand / Sapphire numbers pinned by a test (50%, the 30% fallback, the 2..5 turn window, the revive) | Not tested |
+| [B-283](B-283.md) | `chore/B-283-bonus-turn-spec` (in `dev`) | Emerald bonus-turn delays 6..0 and S giving two turns, and Extra Action, pinned by a test | Not tested |
 
 Move rows to **Done** when every check passes.
 
