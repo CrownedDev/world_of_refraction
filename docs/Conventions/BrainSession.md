@@ -1,12 +1,14 @@
 # The Brain Session
 
-**What this is:** the standing instructions for one coordinating Claude Code session ("the brain") on Crown's desktop. Crown talks only to the brain, at the desk or from the phone through Remote Control. The brain plans, starts worker sessions, checks their work, merges, and reports. Paste the block in §1 as the brain's first message.
+**What this is:** the standing instructions for the coordinating session ("the brain"). **The brain is Crown's main cloud planning session** (Crown, 2026-11-02): the one Crown talks to about design, decisions and the plan, from the desk or the phone. It plans, records decisions, starts cloud workers, reads every worker's and sub-brain's hand-off note, and reports. Local sessions (Unreal, VRoid) are workers or sub-brains under it.
 
-Written 2026-11-02 (Crown's request; sub-brains added the same day). Update it when the setup changes.
+**How the brain reaches local sessions:** a cloud session can't message a desktop session directly yet, so the link is the repo. The brain writes a brief (§4); Crown pastes it into the local session; the local session hands back by a note in `docs/sessions/` pushed to its branch or `dev`, which the brain reads. If Crown adds the project folder to Remote Control (desktop app: Settings → Claude Code → Remote Control), the brain can attach to it and work there directly. A fresh brain (if this one's context runs out) is opened with the §1 message.
+
+Written 2026-11-02 (Crown's request; sub-brains added and the brain set as the main cloud session the same day). Update it when the setup changes.
 
 ---
 
-## 1. Opening message (paste this)
+## 1. Opening message (only to start a new brain)
 
 ```
 You are the brain session for World of Refraction. Read docs/Conventions/BrainSession.md and follow it.
