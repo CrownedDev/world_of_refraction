@@ -68,13 +68,14 @@ public:
 	/** Holder turns left on the tracked GE of Effect's identity; INDEX_NONE when it has none. */
 	int32 GetTrackedTurnsLeft(const FActiveSkillEffect &Effect) const;
 
-	/** B-042ye (Q-042x): Stored as GAS holds it. An effect with a family GE is kept only while its mirrored GE
-	 *  is live, with the tracker's turns left; one without stays as stored. Resyncs first (Q-042yb). A client
-	 *  (the mirror is the server's) gets Stored unchanged. */
+	/** B-042ye (Q-042x, Q-042ye): Stored as GAS holds it: an effect whose GE GAS ended is left out, a live one
+	 *  takes the tracker's turns left, the rest stay as stored. Resyncs first (Q-042yb). A client (the mirror
+	 *  is the server's) or a read mid-sync gets Stored unchanged. */
 	TArray<FActiveSkillEffect> ReadHeldEffects(const TArray<FActiveSkillEffect> &Stored);
 
 	/** B-042ye: the HP one tick of the DOT Effect takes now, from its GE's tick spec (UWoRTickExecution), or
-	 *  INDEX_NONE when no live mirrored GE of it carries one. */
+	 *  INDEX_NONE where PayTick wouldn't pay it through GAS (no live GE with a tick spec, no Vitals set, no
+	 *  character data), so the caller uses the enum path's number. */
 	int32 PreviewDotTick(const FActiveSkillEffect &Effect);
 
 	/** Remove, through the effect manager, the stored copies of the effects whose tracked GE GAS
