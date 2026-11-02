@@ -27,6 +27,10 @@ namespace WoRGameNames
     /** "Damage Over Time", "Skip Turn", ... Element-specific names ("Burn") stay in SkillEffectDisplayNames. */
     WORLD_OF_REFRACTION_API FText GetSkillEffectTypeName(ESkillEffectType EffectType);
 
+    /** B-248 (DRY audit A8): an element's status-break name (its bar-cap trigger, BarCapTriggerResolver), e.g.
+     *  Fire "Burn", Water "Frozen" (D-090). Empty for an element with no flavour name (the trigger's name shows). */
+    WORLD_OF_REFRACTION_API FText GetElementBreakName(ESpellElement Element);
+
     /** "Generic", "Refractor" (code: Caster), "Resonator". */
     WORLD_OF_REFRACTION_API FText GetCharacterClassName(ECharacterClass CharacterClass);
 
