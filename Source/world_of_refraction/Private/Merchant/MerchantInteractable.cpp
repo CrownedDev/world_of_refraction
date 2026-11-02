@@ -1,6 +1,7 @@
 // MerchantInteractable.cpp
 
 #include "Merchant/MerchantInteractable.h"
+#include "Player/WoRInteract.h"
 
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -166,27 +167,7 @@ void AMerchantInteractable::Interact()
 
 AMerchantInteractable *AMerchantInteractable::FindNearestInRange(APawn *Pawn)
 {
-    if (!Pawn)
-    {
-        return nullptr;
-    }
-
-    TArray<AActor *> Overlapping;
-    Pawn->GetOverlappingActors(Overlapping, AMerchantInteractable::StaticClass());
-
-    AMerchantInteractable *Nearest = nullptr;
-    float NearestDistSquared = TNumericLimits<float>::Max();
-    const FVector PawnLocation = Pawn->GetActorLocation();
-    for (AActor *Actor : Overlapping)
-    {
-        const float DistSquared = FVector::DistSquared(PawnLocation, Actor->GetActorLocation());
-        if (DistSquared < NearestDistSquared)
-        {
-            NearestDistSquared = DistSquared;
-            Nearest = Cast<AMerchantInteractable>(Actor);
-        }
-    }
-    return Nearest;
+    return WoRInteract::FindNearestOverlapping<AMerchantInteractable>(Pawn); // B-256
 }
 
 void AMerchantInteractable::OnTriggerBeginOverlap(UPrimitiveComponent * /*OverlappedComponent*/, AActor *OtherActor,
