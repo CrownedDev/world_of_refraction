@@ -90,11 +90,18 @@ UBossData *UBossData::FindFor(const UCharacterData *Character)
 	for (const FAssetData &Asset : Assets)
 	{
 		FString BossTag;
-		if (Asset.GetTagValue(GET_MEMBER_NAME_CHECKED(UBossData, Boss), BossTag)
-			&& FSoftObjectPath(FPackageName::ExportTextPathToObjectPath(BossTag)) != CharacterPath)
+		if (Asset.GetTagValue(GET_MEMBER_NAME_CHECKED(UBossData, Boss), BossTag))
 		{
-			SkippedByTag.Add(&Asset);
-			continue;
+			const FSoftObjectPath TagPath(FPackageName::ExportTextPathToObjectPath(BossTag));
+			if (TagPath != CharacterPath)
+			{
+				// Only a tag naming no asset any more (a renamed character) is worth loading the slow way.
+				if (!TagPath.IsNull() && !Registry.GetAssetByObjectPath(TagPath).IsValid())
+				{
+					SkippedByTag.Add(&Asset);
+				}
+				continue;
+			}
 		}
 		if (UBossData *Data = LoadIfFor(Asset))
 		{
