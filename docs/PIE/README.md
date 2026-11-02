@@ -199,6 +199,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-266](B-266.md) | `chore/B-266-profiling-markers` (in `dev`) | CPU profiler markers on the five suspect functions; Crown's profiling run (D-068) | Not tested |
 | [B-263](B-263.md) | `refactor/B-263-boss-lookup` (in `dev`) | Boss data found by an asset-registry tag instead of loading every BossData; resave the BossData assets once | Not tested |
 | [B-267](B-267.md) | `fix/B-267-sign-aware-cost-speed` (in `dev`) | Energy Cost and Turn Speed modifiers follow D-054: a buff on an ally, a debuff on an enemy; an ally's cost cut makes skills cheaper and survives cleanse | Not tested |
+| [B-268](B-268.md) | `fix/B-268-dead-effect-types` (in `dev`) | Dead effect types: Speed Buff / Debuff refused by validation (D-056), Crit Debuff stored as Crit Chance Debuff, Energy / Random Debuff warn and are hidden in the editor | Not tested |
 
 Move rows to **Done** when every check passes.
 
