@@ -674,7 +674,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrorsLegacy(int32 Index, UInven
         }
         if (!bFound)
         {
-            Errors.Add(TEXT("Primary ring not in inventory"));
+            Errors.Add(TEXT("Primary adapter not in inventory"));
         }
     }
 
@@ -752,7 +752,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrorsLegacy(int32 Index, UInven
                 }
                 if (!bFound)
                 {
-                    Errors.Add(TEXT("Ring in loadout not in inventory"));
+                    Errors.Add(TEXT("Adapter in loadout not in inventory"));
                 }
 
                 // Add slot cost (1 for normal, 2 for evolved)
@@ -780,7 +780,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrorsLegacy(int32 Index, UInven
         if (TotalCost > LoadoutConstants::LOADOUT_TOTAL_BUDGET)
         {
             Errors.Add(FString::Printf(
-                TEXT("Loadout exceeds budget: primary (cost %d) + rings (cost %d) = %d, max is %d"),
+                TEXT("Loadout exceeds budget: primary (cost %d) + adapters (cost %d) = %d, max is %d"),
                 PrimaryCost, TotalSlotCost, TotalCost, LoadoutConstants::LOADOUT_TOTAL_BUDGET));
         }
     }
@@ -1021,7 +1021,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindingsLegacy(
             if (!Ring.HasCrystal())
             {
                 AddRingSpellFinding(RingLoadoutIndex, j,
-                                    FString::Printf(TEXT("Ring spell '%s' requires a crystal but the ring has none"),
+                                    FString::Printf(TEXT("Adapter spell '%s' requires a crystal but the adapter has none"),
                                                     *Spell->Name));
                 continue;
             }
@@ -1029,7 +1029,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindingsLegacy(
             if (!ElementHelpers::SpellElementMatchesHost(Spell->Element, RingElement))
             {
                 AddRingSpellFinding(RingLoadoutIndex, j,
-                                    FString::Printf(TEXT("Ring spell '%s' element %s does not match ring crystal element %s"),
+                                    FString::Printf(TEXT("Adapter spell '%s' element %s does not match adapter crystal element %s"),
                                                     *Spell->Name,
                                                     *UEnum::GetValueAsString(Spell->Element),
                                                     *UEnum::GetValueAsString(RingElement)));
@@ -1158,7 +1158,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindingsLegacy(
         }
         if (!bFound)
         {
-            AddFinding(ELoadoutSlotType::PrimaryRing, -1, true, TEXT("Primary ring not in inventory"));
+            AddFinding(ELoadoutSlotType::PrimaryRing, -1, true, TEXT("Primary adapter not in inventory"));
         }
 
         // Element coherence for the primary ring's customisable spells (SlotIndex -1 = primary ring).
@@ -1229,7 +1229,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindingsLegacy(
                 }
                 if (!bFound)
                 {
-                    AddFinding(ELoadoutSlotType::ResonatorRing, i, true, TEXT("Ring in loadout not in inventory"));
+                    AddFinding(ELoadoutSlotType::ResonatorRing, i, true, TEXT("Adapter in loadout not in inventory"));
                 }
 
                 // Element coherence for this ring's customisable spells (SlotIndex = ring-loadout index).
@@ -1260,7 +1260,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindingsLegacy(
         {
             AddFinding(ELoadoutSlotType::RingOverflow, -1, true,
                        FString::Printf(
-                           TEXT("Loadout exceeds budget: primary (cost %d) + rings (cost %d) = %d, max is %d"),
+                           TEXT("Loadout exceeds budget: primary (cost %d) + adapters (cost %d) = %d, max is %d"),
                            PrimaryCost, TotalSlotCost, TotalCost, LoadoutConstants::LOADOUT_TOTAL_BUDGET));
         }
     }
