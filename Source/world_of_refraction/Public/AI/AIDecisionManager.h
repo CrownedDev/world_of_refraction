@@ -111,6 +111,7 @@ private:
     friend class FAIStatusQuerySpec;
     friend class FAIDamageEstimateSpec;
     friend class FAIInfusionLevelSpec;
+    friend class FGASEffectReadsSpec;
 
     // ==================== INTERNAL ====================
 
