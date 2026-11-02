@@ -30,7 +30,10 @@ namespace WoRTickMath
 	/** One DOT tick: Value x the element multiplier (1 for a share of max HP), rounded. */
 	WORLD_OF_REFRACTION_API int32 GetDotTickDamage(const FTickMathInputs &Inputs);
 
-	/** One HOT tick: Value x (1 + healing received / 100), rounded. */
+	/** B-247: any heal x (1 + the recipient's healing received / 100), rounded: the one heal boost. */
+	WORLD_OF_REFRACTION_API int32 AmplifyHeal(float Amount, float HealingReceivedPercent);
+
+	/** One HOT tick: Value x (1 + healing received / 100), rounded (AmplifyHeal). */
 	WORLD_OF_REFRACTION_API int32 GetHotTickHeal(const FTickMathInputs &Inputs);
 
 	WORLD_OF_REFRACTION_API FString GetInputsString(const FTickMathInputs &Inputs);
