@@ -73,3 +73,4 @@ Owner key: **GS** = a GameState component; **Actor** = a component on the combat
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-27 | B-130: first survey of all 21 GameInstance subsystems, owners and the first breakages. | chore/B-130-coop-state-doc |
+| 2026-10-27 | B-227: #1 built (UNBUILT, cloud): `UTrialRunSubsystem::TravelTo` (listen server: `World->ServerTravel`, clients follow; standalone: OpenLevel as before), `bUseSeamlessTravel` + `AWoRGameState` on the trial and battle game modes, `AWoRPlayerState::CopyProperties` carries the wallet. A Blueprint hub game mode must pick `AWoRGameState` and seamless travel too. Spec `WoR.Coop.SeamlessTravel`; debug `wor.GameState.Print`. | feature/B-227-seamless-travel |
