@@ -197,6 +197,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-258](B-258.md) | `refactor/B-258-loadout-by-ref` (in `dev`) | Stat reads stop copying the loadout (const reference); no behaviour change | Not tested |
 | [B-262](B-262.md) | `refactor/B-262-per-frame-fixes` (in `dev`) | Per-frame fixes: projectiles move in one call and tick only in flight; the loadout caches its sibling components | Not tested |
 | [B-266](B-266.md) | `chore/B-266-profiling-markers` (in `dev`) | CPU profiler markers on the five suspect functions; Crown's profiling run (D-068) | Not tested |
+| [B-263](B-263.md) | `refactor/B-263-boss-lookup` (in `dev`) | Boss data found by an asset-registry tag instead of loading every BossData; resave the BossData assets once | Not tested |
 
 Move rows to **Done** when every check passes.
 
