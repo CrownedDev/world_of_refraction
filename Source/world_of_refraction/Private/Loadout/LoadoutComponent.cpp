@@ -2771,7 +2771,7 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
     }
 
     // Resonator ring loadout — every ring in the array, runtime entry
-    const FCombatLoadout ActiveLoadout = GetActiveLoadout();
+    const FCombatLoadout &ActiveLoadout = GetActiveLoadout();
     for (const FRingLoadoutEntry &Entry : ActiveLoadout.RingLoadout)
     {
         AddAttachment(Entry.RingEntry.AttachedItem, Entry.RingEntry.Ring);
@@ -4062,7 +4062,11 @@ UCharacterData *ULoadoutComponent::GetOwnerCharacterData() const
         return nullptr;
     }
 
-    if (UCharacterDataComponent *CharComp = GetOwner()->FindComponentByClass<UCharacterDataComponent>())
+    if (!CachedCharacterDataComponent.IsValid())
+    {
+        CachedCharacterDataComponent = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+    }
+    if (UCharacterDataComponent *CharComp = CachedCharacterDataComponent.Get())
     {
         return CharComp->CharacterData;
     }
@@ -4075,7 +4079,11 @@ UInventoryComponent *ULoadoutComponent::GetInventoryComponent() const
     {
         return nullptr;
     }
-    return GetOwner()->FindComponentByClass<UInventoryComponent>();
+    if (!CachedInventory.IsValid())
+    {
+        CachedInventory = GetOwner()->FindComponentByClass<UInventoryComponent>();
+    }
+    return CachedInventory.Get();
 }
 
 // ==================== EQUIPMENT STAT QUERIES ====================
@@ -4128,7 +4136,7 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
     auto WeaponTier = [](const FWeaponInventoryEntry &E) { return E.Weapon ? E.Tier : EItemTier::F_Tier; }; // instance Tier (was E.Weapon->Tier)
     auto RingTier   = [](const FRingInventoryEntry &E)   { return E.Ring   ? E.Tier : EItemTier::F_Tier; };  // instance Tier (was E.Ring->Tier)
 
-    const FCombatLoadout Loadout = GetActiveLoadout();
+    const FCombatLoadout &Loadout = GetActiveLoadout();
 
     switch (GetCharacterClass())
     {
@@ -4246,7 +4254,7 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
 
     FResistanceBonus Combined;
 
-    const FCombatLoadout Loadout = GetActiveLoadout();
+    const FCombatLoadout &Loadout = GetActiveLoadout();
 
     // Mirrors GetActiveStatBonus's per-class slot resolution exactly, summing
     // each contributing entry's ResistanceBonus instead of StatBonus.
@@ -4354,7 +4362,7 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
     // evolution does (the deliberate exception).
     TArray<FSkillEffect> Result;
 
-    const FCombatLoadout Loadout = GetActiveLoadout();
+    const FCombatLoadout &Loadout = GetActiveLoadout();
 
     switch (GetCharacterClass())
     {
@@ -4441,7 +4449,7 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
     // calls the ...Gathered() accessors so each effect carries its def id + bundle index.
     TArray<FGatheredEffect> Result;
 
-    const FCombatLoadout Loadout = GetActiveLoadout();
+    const FCombatLoadout &Loadout = GetActiveLoadout();
     // B-192: bound gear adds its bonus only on its owner.
     const UCharacterData *Wearer = GetOwnerCharacterData();
 
@@ -4523,7 +4531,7 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
     // subset (effects gated by a trigger, fired on impact rather than at combat start).
     TArray<FGatheredEffect> Result;
 
-    const FCombatLoadout Loadout = GetActiveLoadout();
+    const FCombatLoadout &Loadout = GetActiveLoadout();
     // B-192: bound gear adds its bonus only on its owner.
     const UCharacterData *Wearer = GetOwnerCharacterData();
 
@@ -4601,7 +4609,7 @@ UEvolutionItemData *ULoadoutComponent::GetActivePrimaryEvolutionCrystal(AActor *
 {
     (void)Actor;
 
-    const FCombatLoadout Loadout = GetActiveLoadout();
+    const FCombatLoadout &Loadout = GetActiveLoadout();
     if (Loadout.PrimarySlotType != EPrimarySlotType::Weapon)
     {
         return nullptr;
@@ -4620,8 +4628,8 @@ FEvolutionAttachment ULoadoutComponent::GetActivePrimaryEvolutionAttachment(AAct
     (void)Actor;
 
     // Same resolution as GetActivePrimaryEvolutionCrystal, returning the whole
-    // attachment (by value — GetActiveLoadout copies, so no stable pointer exists).
-    const FCombatLoadout Loadout = GetActiveLoadout();
+    // attachment by value, so the result outlives a later loadout change.
+    const FCombatLoadout &Loadout = GetActiveLoadout();
     if (Loadout.PrimarySlotType != EPrimarySlotType::Weapon || !Loadout.PrimaryWeapon.IsValid())
     {
         return FEvolutionAttachment();

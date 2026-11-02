@@ -630,9 +630,7 @@ void UCharacterPanelWidget::ApplyStatusBarTint(ESpellElement PendingElement, AAc
 	// BD attacker — darkened element colour.
 	if (Source)
 	{
-		UBrokenDarknessManager *BDManager = Source->FindComponentByClass<UBrokenDarknessManager>();
-		UCharacterDataComponent *SourceChar = Source->FindComponentByClass<UCharacterDataComponent>();
-		if (BDManager && BDManager->IsTransformed() && SourceChar && SourceChar->IsBrokenDarkness())
+		if (UBrokenDarknessManager::IsInBDForm(Source)) // B-255: the one BD-form check
 		{
 			StatusBar->SetFillColorAndOpacity(
 				UHybridSpellColors::GetHybridSpellColors(PendingElement).BlendedColor);
@@ -709,7 +707,7 @@ void UCharacterPanelWidget::RefreshEffectsList()
 	// character is no longer BD, the next refresh just doesn't append it.
 	UCharacterDataComponent *CharComp = BoundCharData.Get();
 	UBrokenDarknessManager *BDManager = BoundBDManager.Get();
-	if (CharComp && CharComp->IsBrokenDarkness() && BDManager && BDManager->IsTransformed())
+	if (CharComp && BDManager && BDManager->IsTransformed()) // B-255: the manager's flag is the one BD-form check
 	{
 		const int32 StackCount = BDManager->GetCurrentStackCount();
 		if (StackCount > 0)

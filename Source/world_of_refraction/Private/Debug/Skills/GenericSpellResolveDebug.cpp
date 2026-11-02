@@ -146,7 +146,7 @@ void UGenericSpellResolveDebug::PrintBDPools(AActor *Caster, float Duration)
 
         if (LC)
         {
-            const FCombatLoadout Loadout = LC->GetActiveLoadout();
+            const FCombatLoadout &Loadout = LC->GetActiveLoadout();
             // The Darkness/base pool lives in InnateSpells (not BDSpellPools).
             Output += FString::Printf(TEXT("    Darkness (base/InnateSpells): %d spell(s)%s\n"),
                                       Loadout.InnateSpells.Num(),
