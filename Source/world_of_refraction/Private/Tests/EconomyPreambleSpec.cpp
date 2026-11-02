@@ -7,6 +7,8 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "Combat/CombatOrchestrator.h"
+#include "Combat/TurnManager.h"
 #include "WoRTestWorld.h"
 #include "Currency/CurrencyComponent.h"
 #include "Currency/EconomyService.h"
@@ -121,6 +123,34 @@ void FEconomyPreambleSpec::Define()
 		TestTrue(TEXT("gems added"), Inventory->AddCrystal(ECONOMY_TEST_GEM, ECONOMY_TEST_GEM_COUNT));
 		TestTrue(TEXT("dismantled"), Economy->DismantleCrystal(Owner, ECONOMY_TEST_GEM, 1));
 		TestEqual(TEXT("one gem left"), Crystals->GetCount(ECONOMY_TEST_GEM), ECONOMY_TEST_GEM_COUNT - 1);
+	});
+
+	It("refuses dismantle, level-up and revert during a fight, and allows them after (Q-252)", [this]()
+	{
+		AActor *Owner = SpawnWellFormedOwner();
+		AActor *Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		ACombatOrchestrator *Orchestrator = TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>();
+		UInventoryComponent *Inventory = Owner->FindComponentByClass<UInventoryComponent>();
+		UCrystalInventoryComponent *Crystals = Owner->FindComponentByClass<UCrystalInventoryComponent>();
+		if (!TestNotNull(TEXT("Orchestrator"), Orchestrator) || !TestNotNull(TEXT("Foe"), Foe)) return;
+		TestTrue(TEXT("gems added"), Inventory->AddCrystal(ECONOMY_TEST_GEM, ECONOMY_TEST_GEM_COUNT));
+		TestTrue(TEXT("weapon added"), Inventory->AddWeapon(NewObject<UWeaponData>(GetTransientPackage())));
+		const FGuid WeaponId = Inventory->Weapons.Num() > 0 ? Inventory->Weapons[0].PersistentID : FGuid();
+
+		Orchestrator->StartCombat({Owner}, {Foe});
+		const UTurnManager *TurnManager = TestWorld->GetSubsystem<UTurnManager>();
+		if (!TestTrue(TEXT("the fight is on"), TurnManager && TurnManager->IsCombatActive())) return;
+		TestFalse(TEXT("mid-fight: dismantle a crystal refused"), Economy->DismantleCrystal(Owner, ECONOMY_TEST_GEM, 1));
+		TestEqual(TEXT("mid-fight: gems kept"), Crystals->GetCount(ECONOMY_TEST_GEM), ECONOMY_TEST_GEM_COUNT);
+		TestFalse(TEXT("mid-fight: level-up refused"), Economy->LevelUpWeapon(Owner, WeaponId));
+		TestFalse(TEXT("mid-fight: revert refused"), Economy->DowngradeWeapon(Owner, WeaponId));
+		TestFalse(TEXT("mid-fight: weapon dismantle refused"), Economy->DismantleWeapon(Owner, WeaponId));
+
+		Orchestrator->ForceEndCombat();
+		TestTrue(TEXT("after the fight: dismantle a crystal"), Economy->DismantleCrystal(Owner, ECONOMY_TEST_GEM, 1));
+		// Level-up and revert also need currency and a higher / lower tier; the weapon dismantle needs
+		// neither, so it proves the mid-fight refusal above came from the fight, not a missing input.
+		TestTrue(TEXT("after the fight: weapon dismantle"), Economy->DismantleWeapon(Owner, WeaponId));
 	});
 
 	It("lets a well-formed owner dismantle a weapon", [this]()
