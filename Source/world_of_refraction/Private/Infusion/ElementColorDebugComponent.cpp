@@ -52,7 +52,7 @@ void UElementColorDebugComponent::ApplyElementColor()
         return;
     }
 
-    ESpellElement Element = CharDataComp->CharacterData->InnateElement;
+    ESpellElement Element = CharDataComp->CharacterData->GetElement(); // B-276: class-gated
     FLinearColor CharacterColor;
 
     // Use IsBrokenDarkness() helper to handle both runtime-transformed and
