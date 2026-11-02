@@ -2763,7 +2763,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** applied (feature/B-042yc-gas-getters, UNBUILT). The other payouts are B-042yd, the per-effect value reads B-042ye.
 
 ### Q-042yd — The other payouts on GAS: do one-shots go through GAS too?
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-02 (B-042yd) · **Blocks:** —
+**Status:** DECIDED: A, confirmed by Crown 2026-11-02 (applied in refactor/B-042yd-gas-payouts, UNBUILT) · **Raised:** 2026-11-02 (B-042yd) · **Blocks:** —
 **Question:** With `wor.Effects.UseGAS 1`, energy restore / drain, HP drain, self-damage and the percent restores now pay through GAS, as burns and heal-over-time did (Q-042y). Some of these land as one-shots (a zero-turn effect such as Lunge's self-damage) that are never stored, so they have no mirrored GameplayEffect to pay from. Two smaller points came with it: (1) the percent restores read the max HP / EP at the tick from the game's character data (max pools stay the game's, Q-042yc); (2) an energy change goes through the game's EP path (the Broken Darkness and Resonator gain rules), with GAS's Energy set back to the EP, as Health is. Should a one-shot pay through GAS?
 **Options:**
 - **A** (as built) yes: a one-shot builds its own tick spec and applies it once (an Instant GameplayEffect with the tick execution); a stored payout pays from its mirrored effect's tick spec. Points (1) and (2) as above.
