@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Combat/Actions/ActionExecutor.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "GAS/WoRTurnEffectTracker.h"
 #include "ActionExecutorInternal.h"
 #include "MotionWarpingComponent.h"
 #include "WoRLog.h"
@@ -26,9 +28,11 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "HAL/IConsoleManager.h"
+#include "EngineUtils.h"
 #include "TimerManager.h"
 #include "Equipment/Rings/RingManager.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Equipment/Weapons/WeaponPower.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/CrystalType.h"
 #include "Equipment/Crystals/ItemIdentity.h"
@@ -353,9 +357,8 @@ bool UActionExecutor::CanActorCastSpells(AActor *Actor) const
 
 EItemTier UActionExecutor::ResolveActionTier(AActor *Actor, const FAction &Action) const
 {
-	// Spell: the spell's own tier. Ability/attack: tier inherits from the active
-	// weapon. Same dispatch as the ApplyCommitCosts wear blocks (which keep
-	// their inline copies until the swap is approved separately).
+	// Spell: the spell's own tier. Ability/attack: its own authored tier. The one action tier for
+	// tier-gap damage and crystal wear alike (B-245, Q-245).
 	if (Action.ActionType == EActionType::Spell && Action.SpellData)
 	{
 		return UInventoryComponent::ResolveSpellTier(Actor, Action.SpellData);
@@ -521,6 +524,29 @@ namespace
 	}
 }
 
+namespace
+{
+	FAutoConsoleCommandWithWorld GPrintWeaponPowerCmd(
+		TEXT("wor.Weapon.Print"),
+		TEXT("DEBUG (B-220): every combatant's active weapon: Power, grades, requirement factor and weapon part."),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+		{
+			const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+			const UActionExecutor *Executor = GI ? GI->GetSubsystem<UActionExecutor>() : nullptr;
+			if (!Executor)
+			{
+				return;
+			}
+			for (TActorIterator<AActor> It(World); It; ++It)
+			{
+				if (It->FindComponentByClass<ULoadoutComponent>())
+				{
+					UE_LOG(LogWoRCombat, Log, TEXT("[WeaponPower] %s"), *Executor->GetWeaponPartString(*It));
+				}
+			}
+		}));
+}
+
 float UActionExecutor::GetWeaponRequirementFactor(AActor *Actor, const FAction &Action) const
 {
 	if (Action.ActionType == EActionType::Spell)
@@ -537,9 +563,45 @@ float UActionExecutor::GetWeaponRequirementFactor(AActor *Actor, const FAction &
 	return Weapon->Requirements.GetWeaponRequirementFactor(GetLiveWorldLevels(Actor, *UserData));
 }
 
+float UActionExecutor::GetWeaponPart(AActor *Actor, const FAction &Action) const
+{
+	if (Action.ActionType == EActionType::Spell)
+	{
+		return 0.0f;
+	}
+	const ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+	const UWeaponData *Weapon = LC ? LC->GetActiveWeapon() : nullptr;
+	const UCharacterData *UserData = GetCharacterData(Actor);
+	const TOptional<EItemTier> InstanceTier = ResolveChannelTier(Actor, Action);
+	if (!Weapon || !UserData || !InstanceTier.IsSet())
+	{
+		return 0.0f;
+	}
+	return WoRWeaponPower::GetWeaponPart(*Weapon, InstanceTier.GetValue(), GetLiveWorldLevels(Actor, *UserData),
+										 GetWeaponRequirementFactor(Actor, Action));
+}
+
+FString UActionExecutor::GetWeaponPartString(AActor *Actor) const
+{
+	const ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+	const UWeaponData *Weapon = LC ? LC->GetActiveWeapon() : nullptr;
+	const UCharacterData *UserData = GetCharacterData(Actor);
+	if (!Weapon || !UserData)
+	{
+		return FString::Printf(TEXT("%s: no active weapon"), *GetNameSafe(Actor));
+	}
+	FAction Attack;
+	Attack.ActionType = EActionType::Ability;
+	const TOptional<EItemTier> InstanceTier = ResolveChannelTier(Actor, Attack);
+	return FString::Printf(TEXT("%s: %s\n%s"), *GetNameSafe(Actor), *Weapon->GetName(),
+						   *WoRWeaponPower::GetWeaponPartString(*Weapon, InstanceTier.Get(Weapon->Tier), GetLiveWorldLevels(Actor, *UserData),
+																GetWeaponRequirementFactor(Actor, Attack)));
+}
+
 FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FAction &Action,
 														   const FActionStatModifiers &ActionMods, bool bLog) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(WoR_PreviewActionDamage); // B-266: Insights marker (PerfAudit_2026-10-28.md)
 	FActionDamagePreview Preview;
 	const bool bIsSpell = Action.ActionType == EActionType::Spell;
 	const USkillDataBase *Skill = bIsSpell ? Action.SpellData : ResolveActionSkill(Action);
@@ -599,13 +661,15 @@ FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FA
 	Damage = FMath::RoundToInt(Damage * TierGap);
 	Damage = FMath::RoundToInt(Damage * TierPowerScaling::GetTierPowerMultiplier(Skill->Tier));
 
-	// Weapon requirement (D-082): under it the weapon gives less than its full output.
+	// B-220 (D-101, BaselineNumbers.md "Decided"): the weapon part adds to the skill part; the requirement factor
+	// (D-082) cuts the weapon part only. A weapon with Power 0 adds nothing and its requirement cuts nothing.
 	Preview.WeaponRequirementFactor = GetWeaponRequirementFactor(User, Action);
-	Damage = FMath::RoundToInt(Damage * Preview.WeaponRequirementFactor);
-	if (bLog && Preview.WeaponRequirementFactor < WeaponRequirement::WEAPON_REQ_FACTOR_MAX)
+	const float WeaponPart = GetWeaponPart(User, Action);
+	Damage += FMath::RoundToInt(WeaponPart);
+	if (bLog && WeaponPart > 0.0f)
 	{
-		UE_LOG(LogWoRCombat, Log, TEXT("[WeaponReq] %s under the weapon's requirement -> x%.2f"),
-			   *Skill->Name, Preview.WeaponRequirementFactor);
+		UE_LOG(LogWoRCombat, Log, TEXT("[WeaponPower] %s: weapon part %.1f (requirement x%.2f)"), *Skill->Name, WeaponPart,
+			   Preview.WeaponRequirementFactor);
 	}
 
 	Preview.FinalDamage = Damage;
@@ -1226,8 +1290,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	PendingSpellSize = FinalSpellSize;
 	PendingSpellDamage = FinalDamage;
 
-	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
-	bPendingSpellIsBrokenDarkness = BDManager && BDManager->IsTransformed();
+	bPendingSpellIsBrokenDarkness = UBrokenDarknessManager::IsInBDForm(Caster);
 	// Mirror bPendingSpellIsBrokenDarkness: cache the resolved element for the deferred
 	// notify-triggered VFX (muzzle + delivery colours). Set here, reset in ClearPendingSpellData.
 	PendingResolvedElement = ResolvedElement;
@@ -1725,9 +1788,9 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 		DefenseResult);
 
 	// Broken Darkness absorption from defense
-	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Defender);
-	if (BDManager && BDManager->IsTransformed())
+	if (UBrokenDarknessManager::IsInBDForm(Defender))
 	{
+		UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Defender);
 		// Get attack info from pending context
 		if (CurrentExecutionContext.IsSet())
 		{
@@ -2947,6 +3010,12 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			// Absorb — runs after DamageCalculator (element/crit/defense resolved) and before
 			// the HP drop, on a local FinalDamage copy (CalcResult stays const).
 			int32 FinalDamage = CalcResult.FinalDamage;
+			// B-042j (D-092): Ward, Shield and Barrier negate from what Guard and Defense left (Q-044e B), this
+			// impact being one damage instance (Q-044f A). Before Absorb: negated damage isn't damage.
+			if (UWoRTurnEffectTracker *Absorbers = Input.Target->FindComponentByClass<UWoRTurnEffectTracker>())
+			{
+				FinalDamage -= Absorbers->AbsorbHit(FinalDamage, Input.Element, Input.PhysicalDamageType);
+			}
 			if (USkillEffectManager *SEM = GetSkillEffectManager())
 			{
 				// AbsorbDamage — convert a percent of incoming damage to target EP.
@@ -3242,8 +3311,7 @@ void UActionExecutor::SpawnSpellVFX(AActor *Caster, USpellData *Spell, float Spe
 		return;
 	}
 
-	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
-	bool bIsBD = BDManager && BDManager->IsTransformed();
+	bool bIsBD = UBrokenDarknessManager::IsInBDForm(Caster);
 
 	float FinalImpactRadius = Spell->BaseSize * Spell->HitboxRatio * SpellSize;
 	float FinalVisualScale = Spell->BaseSize * SpellSize;
@@ -3604,8 +3672,7 @@ void UActionExecutor::DispatchSpellCast(
 		return;
 	}
 
-	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
-	const bool bIsBD = BDManager && BDManager->IsTransformed();
+	const bool bIsBD = UBrokenDarknessManager::IsInBDForm(Caster);
 
 	// Entry-sourced sizing. Migrated entries carry Size = BaseSize×HitboxRatio
 	// and VisualScale = BaseSize, so these reproduce the legacy
@@ -4165,7 +4232,7 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 		ULoadoutComponent *Loadout = GetLoadoutComponent(Actor);
 		if (Loadout && Loadout->IsEvolved())
 		{
-			FCombatLoadout ActiveLoadout = Loadout->GetActiveLoadout();
+			const FCombatLoadout &ActiveLoadout = Loadout->GetActiveLoadout();
 			if (ActiveLoadout.PrimaryEvolution.Item)
 			{
 				return ActiveLoadout.PrimaryEvolution.Item->GetAssociatedElement();
@@ -4208,7 +4275,7 @@ ESpellElement UActionExecutor::ResolveSpellCastElement(AActor *Caster, const USp
 		{
 			if (ULoadoutComponent *LC = GetLoadoutComponent(Caster))
 			{
-				const FCombatLoadout Loadout = LC->GetActiveLoadout();
+				const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 				if (Loadout.InnateSpells.Contains(MutableSpell))
 				{
 					return ESpellElement::Darkness;
@@ -4359,7 +4426,7 @@ FRuntimeAttachedItem UActionExecutor::ResolveInfusionAttachment(AActor *Actor, c
 		{
 			return FRuntimeAttachedItem();
 		}
-		const FCombatLoadout Loadout = LC->GetActiveLoadout();
+		const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 		// Evolution primary slot is its own thing — wrap it as an evolution attachment.
 		// Whole-struct copy: the per-instance rolled state (GeneratedStatBonus/
 		// GeneratedResistance + pools) must travel with the attachment so the
@@ -5381,29 +5448,16 @@ void UActionExecutor::ApplySkillEffects(
 				{
 					if (P.EffectType == ESkillEffectType::HealthRestore)
 					{
-						// HealBlock gates the RECIPIENT — drain self-heals the User, so the immunity
-						// check is on User (NOT the cast target). Mirrors the ApplyEffect HealthRestore
-						// immunity gate; a HealBlocked attacker drains no HP. (StatusMgr null → no
-						// HealBlock can exist, so heal as before.)
-						if (StatusMgr && StatusMgr->IsImmuneToEffectType(User, ESkillEffectType::HealthRestore))
+						// The recipient's HealBlock, its healing-received boost and OnHealingDone (HealActor, B-247).
+						// StatusMgr null: no HealBlock or boost can exist, so heal as before.
+						const int32 Healed = StatusMgr ? StatusMgr->HealActor(User, DrainAmount, User) : DrainAmount;
+						if (!StatusMgr)
 						{
-							UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain heal on %s blocked by HealBlock"),
-								   *User->GetName());
+							CharComp->ServerHeal(Healed);
+							OnHealingDone.Broadcast(User, User, Healed);
 						}
-						else
-						{
-							// +healing-received amplify (HealBlock mirror) on the RECIPIENT (User).
-							// Gate-then-amplify. StatusMgr may be null here (the gate short-circuits on
-							// null), in which case no HealingReceivedBuff can exist → no amplification.
-							const float HealRecvBonus = StatusMgr
-								? StatusMgr->GetTotalStatModifier(User, ESkillEffectType::HealingReceivedBuff)
-								: 0.0f;
-							const int32 AmplifiedDrain = FMath::RoundToInt(DrainAmount * (1.0f + HealRecvBonus / CombatConstants::STAT_PERCENT_DIVISOR));
-							CharComp->ServerHeal(AmplifiedDrain);
-							OnHealingDone.Broadcast(User, User, AmplifiedDrain);
-							UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain healed %s for %d HP (%.0f%% of %d damage)"),
-								   *User->GetName(), AmplifiedDrain, P.DrainPercent * 100.0f, Result.TotalDamageDealt);
-						}
+						UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain healed %s for %d HP (%.0f%% of %d damage)"),
+							   *User->GetName(), Healed, P.DrainPercent * 100.0f, Result.TotalDamageDealt);
 					}
 					else // EnergyRestore
 					{
@@ -5528,7 +5582,7 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 	UEvolutionItemData *PrimaryEvolutionCrystal = nullptr;
 	if (ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>())
 	{
-		const FCombatLoadout Loadout = LC->GetActiveLoadout();
+		const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 		if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
 		{
 			PrimaryEvolutionCrystal = Loadout.PrimaryEvolution.Item;
