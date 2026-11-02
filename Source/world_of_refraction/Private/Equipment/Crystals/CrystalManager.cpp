@@ -223,6 +223,7 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
 
     const EItemTier EvoTier = Loadout.PrimaryEvolution.Tier;
 
+    UCharacterDataComponent *CasterCharComp = Actor->FindComponentByClass<UCharacterDataComponent>(); // luck skip and force wear below
     const int32 Wear = ComputeCastWear(Actor, EvoTier, ActionTier, InfusionLevel, bIsSpell);
 
     if (Wear <= 0)
@@ -306,6 +307,7 @@ void UCrystalManager::ProcessPostCastGearEvolutionWear(
 
     const EItemTier EvoTier = Attachment.Evolution.Tier;
 
+    UCharacterDataComponent *CasterCharComp = Actor->FindComponentByClass<UCharacterDataComponent>(); // luck skip and force wear below
     const int32 Wear = ComputeCastWear(Actor, EvoTier, ActionTier, InfusionLevel, bIsSpell);
 
     if (Wear <= 0)
