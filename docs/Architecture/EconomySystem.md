@@ -84,8 +84,7 @@ price at 0 (Purchase itself rejects them).
 | Type | Prisms | Essence | Count |
 |---|---|---|---|
 | Weapon / Ring | (base by tier + attached-item surcharge **+ bundled-skill surcharge**) × Count | — | honoured |
-| Spell (element-typed) | base + `50 × Σ scaling-grade` surcharge | element @ tier + Σ pillar @ each scaling grade | clamped 1 |
-| Spell (**Generic** element) | base | **SkillEssence** @ tier (prices like an ability — no surcharge, no typed; Generic would otherwise charge "Quartz essence") | clamped 1 |
+| Spell (any element) | base + `50 × Σ scaling-grade` surcharge | element @ tier (a **Generic** spell's is **Quartz essence**, D-105 / B-296) + Σ pillar @ each scaling grade | clamped 1 |
 | Ability | base | SkillEssence @ tier | clamped 1 |
 | Evolution | **2× base** (premium item class; multiplier lives in `BuildCartCost`, not the shared tier-base helper, so a future merge-cost reuse can't double it) | element @ tier + ½ Reality | clamped 1 |
 | Crystal / stone | base by `Crystal.Tier` × Count — **Prisms-only** | none — essence stays a dismantle-side currency for crystal stock | honoured |
@@ -212,3 +211,4 @@ and the 14-key **typed Essence** (`EssenceTyped`, FastArray). Server-gated, repl
 | 2026-10-27 | B-137: `WoR.Economy.RoundTrip` pins today's numbers: 3 F gems plus a bare F weapon cost 100 Prisms; F to E costs 10 Gear plus 5 Reality and reverting refunds 5 Gear only; an E-levelled weapon dismantles for 15 Gear; 3 F Garnets for 15 Fire essence. Refusals spend nothing. | chore/B-137-economy-spec |
 | 2026-11-02 | B-252 (A12, first cluster, Q-252): `UInventoryComponent::FindOwnedWeapon` / `FindOwnedRing` by `PersistentID`; the `EconomyService` preamble refuses every economy action while a fight is on. The remaining weapon / ring pairs are B-252b. | refactor/B-252-economy-pairs |
 | 2026-11-02 | B-290: spec `WoR.Economy.Numbers` pins the world-stat vendor 50 / +25 and the refusal at the pillar cap of 7 (ER-24), merge Prisms E 25 .. S 800 (ER-29), spell essence by tier and the per-grade surcharge (ER-23), and seeded drop-quality weights with the Luck tilt (ER-38). No code change. | chore/B-290-economy-numbers-spec |
+| 2026-11-02 | B-296 (D-105, ER-23): a Generic spell is priced like an elemental one; its essence is Quartz essence (`EEssenceType::Generic`), no Skill essence. `WoR.Economy.GenericSpellPrice`. | `fix/B-296-generic-spell-quartz-price` |
