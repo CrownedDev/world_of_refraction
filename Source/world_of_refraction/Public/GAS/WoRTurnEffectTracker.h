@@ -110,6 +110,7 @@ private:
 
 	/** Fires-once uses: X = EffectID, Y = source key (0 for a doesn't-stack effect, D-053). */
 	TSet<FIntPoint> FiredOnce;
+	UPROPERTY()
 	TArray<FGatheredEffect> ArmedConditionals;
 	bool bArmed = false;
 
