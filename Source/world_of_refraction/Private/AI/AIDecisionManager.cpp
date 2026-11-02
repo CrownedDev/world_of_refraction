@@ -1241,8 +1241,8 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
         }
     }
 
-    // Priority 2: Low energy - need energy restoration
-    if (EnergyPercent < AIConstants::ENERGY_CONSERVATION_THRESHOLD) // 30%
+    // Priority 2: Low energy - need energy restoration (a fighter with no pool has nothing to restore)
+    if (GetMaxEP(AIActor) > 0 && EnergyPercent < AIConstants::ENERGY_CONSERVATION_THRESHOLD) // 30%
     {
         bool bFoundEnergy = false;
         const FCrystalId EnergyId = FindEnergyItem(Loadout, bFoundEnergy);
