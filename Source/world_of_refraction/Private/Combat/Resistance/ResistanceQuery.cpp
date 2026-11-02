@@ -1,6 +1,8 @@
 // ResistanceQuery.cpp
 
 #include "Combat/Resistance/ResistanceQuery.h"
+#include "GAS/WoRAttributeSets.h"
+#include "GAS/WoRAttributeSyncComponent.h"
 #include "Combat/Resistance/ClassInnateResistanceTable.h"
 #include "Combat/Boss/BossPhaseComponent.h"
 #include "Combat/CombatConstants.h"
@@ -129,6 +131,11 @@ namespace WoRResistance
 
 	float GetTypeResistance(AActor *Target, EWoRDamageType DamageType)
 	{
+		float OnGAS = 0.0f;
+		if (UWoRAttributeSyncComponent::ReadComposedOnGAS(Target, UWoRAttributeSet_Resistance::GetTypeAttribute(DamageType), OnGAS))
+		{
+			return OnGAS; // B-042yc: GAS's value at UseGAS 1
+		}
 		return GetTypeResistanceSources(Target, DamageType).Sum();
 	}
 
@@ -188,6 +195,11 @@ namespace WoRResistance
 
 	float GetGeneralStatusResistance(AActor *Target)
 	{
+		float OnGAS = 0.0f;
+		if (UWoRAttributeSyncComponent::ReadComposedOnGAS(Target, UWoRAttributeSet_Resistance::GetStatusResistanceAttribute(), OnGAS))
+		{
+			return OnGAS; // B-042yc: GAS's value at UseGAS 1
+		}
 		FWoRStatLayers Layers;
 		return GetGeneralStatusResistanceLayers(Target, Layers) ? Layers.Compose() : 0.0f;
 	}
@@ -215,6 +227,11 @@ namespace WoRResistance
 
 	float GetStatusResistBonus(AActor *Target)
 	{
+		float OnGAS = 0.0f;
+		if (UWoRAttributeSyncComponent::ReadComposedOnGAS(Target, UWoRAttributeSet_Resistance::GetStatusResistBonusAttribute(), OnGAS))
+		{
+			return OnGAS; // B-042yc: GAS's value at UseGAS 1
+		}
 		return GetStatusResistBonusSources(Target).Sum();
 	}
 
