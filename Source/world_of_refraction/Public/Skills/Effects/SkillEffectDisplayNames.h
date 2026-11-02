@@ -160,7 +160,7 @@ namespace SkillEffectDisplayNames
         case ESkillEffectType::Stun:
             return TEXT("Stunned");
         case ESkillEffectType::HealBlock:
-            return TEXT("Frozen");
+            return TEXT("Heal Blocked"); // B-248: "Frozen" is Water's break now (D-090); names key removal
         case ESkillEffectType::RandomSkill:
             return TEXT("Voided");
 
