@@ -186,6 +186,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-245](B-245.md) | `refactor/B-245-one-action-tier` (in `dev`) | Wear and the tier gap use the same action tier (`ResolveActionTier`); ability and basic-attack wear numbers change (Q-245) | Not tested |
 | [B-246](B-246.md) | `refactor/B-246-combat-finish` (in `dev`) | Every way a fight ends runs one finish tail (crystal destruction, repair, resets); a TurnManager-ended fight now runs destruction and repair (Q-246) | Not tested |
 | [B-247](B-247.md) | `refactor/B-247-one-heal-path` (in `dev`) | One heal amplify + HealBlock gate for every heal kind; every heal broadcasts `OnHealingDone` | Not tested |
+| [B-248](B-248.md) | `refactor/B-248-status-per-element` (in `dev`) | Each element's break name comes from one table (D-061 / D-062); Water's break shows Frozen (D-090); Heal Block shows Heal Blocked | Not tested |
 
 Move rows to **Done** when every check passes.
 
