@@ -196,6 +196,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-256](B-256.md) | `refactor/B-256-interact-debug-repeats` (in `dev`) | Shared nearest-interactable search (`WoRInteract`) and debug-opponent helper; same hints and prints | Not tested |
 | [B-258](B-258.md) | `refactor/B-258-loadout-by-ref` (in `dev`) | Stat reads stop copying the loadout (const reference); no behaviour change | Not tested |
 | [B-262](B-262.md) | `refactor/B-262-per-frame-fixes` (in `dev`) | Per-frame fixes: projectiles move in one call and tick only in flight; the loadout caches its sibling components | Not tested |
+| [B-266](B-266.md) | `chore/B-266-profiling-markers` (in `dev`) | CPU profiler markers on the five suspect functions; Crown's profiling run (D-068) | Not tested |
 
 Move rows to **Done** when every check passes.
 
