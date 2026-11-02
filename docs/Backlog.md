@@ -181,7 +181,7 @@ Every rule in `docs/Rules/` gets a spec that asserts its number or order (not on
 | B-287 | **BrokenDarknessSpec**: ED-39..41, SB-06 (absorption 5% / 10% / x2, overload 30%, forbidden-cast 25%) | CC | M | — | Spec asserts the numbers | REVIEW (in dev): `chore/B-287-broken-darkness-spec`, `docs/PIE/B-287.md` |
 | B-288 | **Ladders asserted by number**: tier gap, cost gap, requirement gap, tier power, crit ceiling 2.5 (`CRIT_DAMAGE_GEAR_CEILING`), Damage Taken Down 90% cap | CC | S | B-224 | Each ladder rung pinned | TODO |
 | B-289 | **Turn speed and tie-break**: 10 / 15 / 20 and the 8-step tie-break, each step tested | CC | S | — | Spec per step | REVIEW (in dev): `chore/B-289-turn-speed-tiebreak`; built and tested on the desktop 2026-11-02 (872 green incl. `WoR.TurnManager.SpeedAndTies`); reviewer clean; ET-08 step 6 (Spirit) can never decide: noted |
-| B-290 | **Economy numbers**: world-stat vendor 50 / +25 (ER-24; now D-102's rising price), merge Prisms cost (ER-29), spell essence (incl. Quartz, D-105), seeded drop quality weights (ER-38) | CC | S | — | Spec asserts each | REVIEW (branch, UNBUILT): `chore/B-290-economy-numbers-spec`, run `WoR.Economy.Numbers` (D-102 cap is B-222; D-105 price is B-296) + the suite, then hand off |
+| B-290 | **Economy numbers**: world-stat vendor 50 / +25 (ER-24; now D-102's rising price), merge Prisms cost (ER-29), spell essence (incl. Quartz, D-105), seeded drop quality weights (ER-38) | CC | S | — | Spec asserts each | REVIEW (in dev): `chore/B-290-economy-numbers-spec`, `docs/PIE/B-290.md` (D-105 price is B-296) |
 
 ## Phase 1f — Balance simulator (`Design/BalanceSimulator.md`)
 
