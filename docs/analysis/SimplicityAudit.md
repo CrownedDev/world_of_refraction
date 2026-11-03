@@ -736,6 +736,320 @@ Nobody can remember which of four effect printers is current.
 - **Memories and story unlocks.** These are lore (Crown's). The only engineering note is §14's shared conditions.
 - **Encounters** (ER-45 onward): one team per encounter, up to three enemies.
 
+---
+
+# Round 3 (2026-11-03): content systems
+
+**Same rules as before.** Every finding keeps the intention and gives a fix. Where the deckbuilder has a rule, it is cited first (`wor-deckbuilder/docs/reference/`).
+
+**Already ruled (D-120 to D-140), not raised again.** Evolution and fusion wear stays (Crown).
+
+## Ranked
+
+| # | Finding | Fix in one line | Cost |
+|---|---|---|---|
+| 26 | One socket holds four families (gems, stones, fusions, evolutions); fusion exists to fit two things in it | Two sockets per weapon / adapter (element + stone); fusion stays only as a paired item | M–L (**Ruling**) |
+| 27 | 17 stone kinds, 14 of them a stat each | One Stat Stone with a stat field (the deckbuilder's stat list) | M |
+| 28 | Seven separate limits on what a character carries | The D-110 budget, the pouch size and one S-tier cap | S (**Ruling** D-072) |
+| 29 | A boss has two condition lists that both change the boss | One rule list per boss; "next phase" is one of its results | S–M |
+| 30 | Class identity is split over a budget, a resistance table and an unbuilt passive | Class = budget + one passive (the deckbuilder's) | M (**Ruling**: D-027's open part) |
+| 31 | Spell school is authored on every spell but only the AI reads it | The AI reads the spell's effects; the school retires | S |
+| 32 | An evolution can sit in two places at two costs | One placement | M (**Ruling** D-110) |
+| 33 | Three physical damage types each carry a resistance column | One Physical resistance; the subtype only picks the break | M (**Ruling** D-037) |
+| 34 | Weather has three intended drivers and no rule effect | One driver: the trial's element, stepped by boss phases | S |
+| 35 | Skins, six shared outfit slots and a tier-credited meter | Unlock by one condition; outfits as whole sets | S (**Ruling** Q-279) |
+| 36 | Six ways to make an item stronger | Upgrade and attach; merge stays for crystals | S (follows #26) |
+
+---
+
+## 26. One socket, four families
+
+### What exists
+- **One attachment slot.** Each weapon and adapter has one, `FAttachedItem` / `FRuntimeAttachedItem`, discriminated by `EAttachedItemKind`: Crystal, Evolution, AugmentStone, Fusion (`AugmentStoneSystem.md` "EAttachedItemKind").
+- **What can go in it:**
+  - 10 gem crystals, each an element plus its own use: Garnet damage, Sapphire healing, Citrine energy, Emerald bonus turn, Amber defence, Opal crit, Onyx silence, Amethyst gambling, Iolite cleanse, Quartz status clear (`ECrystalType`).
+  - 17 stones (#27).
+  - Evolutions.
+- **A fusion.** It is a player-made item that joins a stat stone with a gem or an Ability Stone, with a tier-formula bonus % to a chosen sub-stat (`AugmentStoneSystem.md` "FusionStone").
+- **Why fusion exists.** It is the only way to have an element *and* a stat on one weapon.
+- **Its rules:** the fusion id (`FFusionId`, symmetric halves), its restrictions, its wear, its 1.5× price and its own counting rule (D-077).
+
+### Why it's too much
+- Fusion is a second socket in disguise, with its own crafting step, identity type, price and restrictions.
+- **The deckbuilder** has two attachable kinds only, `Crystal` and `Evolution` (`02-enums.md` "ECardKind"). It has no stones and no fusions.
+
+### Fix (keeps: element plus stat on one weapon)
+- **A. Two sockets: an element socket and a stone socket.** A gem or an evolution goes in the first, a stone in the second.
+  - Monster Hunter's decoration slots and Diablo II's sockets let you combine effects without crafting a combined item; both are long-running and well liked.
+  - Fusion items, their bonus formula and `FFusionId` retire (enum append-only: kept, retired).
+- **B. Keep fusion, drop the bonus formula.** A fusion is just the two halves. This removes the per-fusion sub-stat choice and the 7×7 bonus rule.
+
+### Recommendation
+**A.** The second socket gives the same builds with one rule fewer.
+
+**Ruling:** Crown kept fusion wear (round 3 brief), and D-009 and D-077 mention fusions. If Crown wants fusions to stay, take **B**.
+
+**Cost:** A is M–L (slot struct, loadout costs, validation, save; B-299's rename rides along). B is S.
+
+---
+
+## 27. Seventeen stone kinds
+
+### What exists
+**The stone enum** (`ECrystalType` after the gems) holds:
+- `DamageStone` and `AbilityStone`.
+- 14 single-stat stones: Defense, Crit, TurnSpeed, Status, Efficiency, MaxHP, MaxEP, SpellDamage, Resistance, SpellSpeed, ActionSpeed, Durability, Luck and Reflex.
+- `HealingStone`.
+
+**Shared machinery:**
+- They share a row table (`StoneRowTable.h`, B-021) and a "dual-form" model: each attaches and is also a consumable.
+- D-123 merges Action Speed and Spell Speed into one Speed, so two stone kinds now mean the same thing.
+
+### Why it's too much
+- Each new sub-stat needs a new enum member, a row, a price, an essence and a name.
+- The stones duplicate gear's own sub-stat bonuses (D-123: sub-stats come from the asset and gear).
+
+### Fix (keeps: stones that raise one stat)
+- **A. One `StatStone` kind with a sub-stat field.** This is the deckbuilder's rule: stats are an ordered list of (stat, value) on the card, not fixed fields (`01-card-model.md` "`Stats` — an ordered list, not fixed fields").
+  - Diablo III's gems work this way: few gem types, and what a gem raises depends on where it sits.
+  - Damage, Ability and Healing stones stay as they are, because each does something other than one stat.
+- **B.** Keep the kinds, but retire the two speed stones into one (D-123), plus Durability, which only feeds wear.
+
+### Recommendation
+**A,** built beside the old kinds: the old members map to a `StatStone` + sub-stat when loaded.
+
+**Ruling:** none (D-123 already merges Speed). **Cost:** M.
+
+---
+
+## 28. Seven limits on what a character carries
+
+### What exists
+- **D-110 point budget per class:** Refractor 3, Generic 6, Resonator 5.
+- **D-110 item limit per class:** 1 / 2 weapons / 1 weapon.
+- **Skill slots by tier per weapon or crystal:** F 1 to S 6 (`ATTACHMENT_SLOTS`, `AugmentStoneConstants.h:35`; D-039).
+- **D-072 crystal tier caps for carried crystals:** S 1, A/B 2, C/D 3, E/F 4.
+- **The pouch:** 10 slots per character (Q-322).
+- **D-115:** one copy per character.
+- **D-116:** always one primary.
+- **Presets:** up to 5 per character (D-111).
+
+### Why it's too much
+- Three of these (budget, tier caps, pouch size) limit the same thing: how much power a character brings.
+- The deckbuilder leaves crystals **uncapped** (D-072's notes cite `WoR_TCG_Pivot_Design.md` §8b rule 4).
+
+### Fix (keeps: no character carries everything)
+- **A.** The D-110 budget limits gear and the pouch size limits items. D-072's caps keep only "1 S-tier crystal". Expedition 33 limits Pictos by slots and Lumina by one point budget, two limits that players read at a glance.
+- **B.** Drop D-072 entirely, as the deckbuilder does.
+
+### Recommendation
+**A.**
+
+**Ruling:** D-072. **Cost:** S (loadout validation, constants, Rules 01).
+
+---
+
+## 29. A boss's two condition lists
+
+### What exists
+- **Boss phases:** `EBossPhaseConditionKind` / `FBossPhaseCondition` (D-098). Phases are triggered by HP and also by other conditions (absorption max, a crystal breaking, being infused).
+- **Boss triggers:** `EBossTriggerConditionKind` / `FBossTriggerCondition` (D-100). Their results are weaken, strengthen, **skip a phase**, **add a phase** and a dialogue line (`Public/Combat/Boss/BossData.h:36-141`).
+
+D-130 already gives them one condition vocabulary.
+
+### Why it's too much
+- Both lists answer "if this, change the boss", and each can move the boss's phase.
+- So a phase change has two authoring places and two orders to resolve.
+
+### Fix (keeps: hidden conditions, one-way phases, D-100's separation from memories)
+- **A. One boss rule list.** Each rule is a condition set (D-130) and a result. "Enter the next phase" is one result, beside weaken, strengthen and dialogue. HP thresholds are just conditions.
+  - This is the deckbuilder's trigger → condition → effect row (`05-triggers-conditions.md`).
+  - Elden Ring's bosses switch phase on HP; the hidden extras (pillar 10) are more rows in the same list.
+
+### Recommendation
+**A.**
+
+**Ruling:** none (D-098 already says phase triggers aren't only HP). **Cost:** S–M (`BossData`, the phase runner, `wor.Boss.Print`), after B-337.
+
+---
+
+## 30. Class identity is split three ways
+
+### What exists
+**A class is built from three things:**
+- the D-110 budget and limit
+- a row of `ClassInnateResistanceTable` (class × element resistance, `Public/Combat/Resistance/ClassInnateResistanceTable.h:47`)
+- for the Refractor, the innate element and spell pool (CL-04)
+
+**Two more pieces sit beside it:**
+- Broken Darkness picks a separate resistance row.
+- Class passives are a listed gap (Rules 01 Gaps; D-027 "part unruled").
+
+### Why it's too much
+- Resistance by class is a hidden number table the player can't see, while the readable passive doesn't exist.
+- Pillars (stats) and class (shape) don't overlap; that part is fine.
+
+### Fix (keeps: three distinct classes)
+- **A. Class = budget + one passive.** Use the deckbuilder's passives: Generic +1 Physical Resistance, Resonator +1 Resistance per keyed adapter element, Refractor +3 Amp and +1 Resistance to its innate (`01-card-model.md` "Class passives"). The class rows of the resistance table become those passives. Character-specific resistances stay on the character asset.
+  - Octopath's job identities are similar: each job is its kit plus one or two printed support skills.
+
+### Recommendation
+**A.**
+
+**Ruling:** D-027's unruled part (class passives); D-005's table "could be improved" (Crown). **Cost:** M.
+
+---
+
+## 31. Spell school, read only by the AI
+
+### What exists
+- Every spell authors `ESpellSchool`: Destruction, Enhancement, Restoration or Conjuration (`Public/Skills/Definitions/SpellSchool.h`).
+- Outside debug, it is read only by the AI, which uses it to find damage and heal spells (`AIDecisionManager.cpp:1580, 1765, 2040`).
+- **A leftover:** `ESpellSource::WeaponCrystal` remains after D-108 / B-098 (weapons stop giving spells).
+
+### Why it's too much
+- An authored field that can disagree with the spell's actual effects: a "Restoration" spell that deals damage.
+- The deckbuilder: "schools don't license" (`02-enums.md` "ECardKind", Spell). What a skill does is its effect verbs.
+
+### Fix (keeps: the AI knows a heal from an attack)
+- **A.** The AI classifies a spell by its effects: has a damage row, has a heal row, has a buff. `ESpellSchool` is retired from authoring (append-only, kept in the enum).
+
+### Recommendation
+**A,** inside B-345 (one AI path).
+
+**Ruling:** none. **Cost:** S.
+
+---
+
+## 32. Evolutions in two places
+
+### What exists
+An evolution can sit on a weapon or adapter (an "evolved weapon") or alone in the primary slot (D-110 costs: weapon + evolution 3, evolution alone 2, adapter + evolution 2). It holds spells by tier (D-039).
+
+Code and rules split on where it is:
+- `GetActiveLoadout().PrimaryEvolution` vs the attachment.
+- The infusion source picker's Evolution case (round 1 §8).
+- Evolutions aren't on loadout slots for the form meter yet (`CharacterForms.md`).
+
+### Why it's too much
+- Two placements mean two cost rows, two resolve paths, and an "is it attached or standalone?" check in every reader.
+
+### Fix (keeps: evolutions as the big transformation)
+- **A. Evolutions attach to gear only.** With #26 they take the element socket. A Refractor who wants one alone carries it on an adapter.
+- **B. Evolutions attach to the character only.** This is the deckbuilder's rule ("Attaching it to the Character costs 1 Action + its EN", `02-enums.md` `ECardKind` Evolution).
+
+### Recommendation
+**B,** the deckbuilder's rule. It is one slot per character, it is never "evolved weapon or not", and it makes evolutions read as Expedition 33's character-level Pictos.
+
+**Ruling:** D-110's evolution costs. **Cost:** M (loadout slot, costs, infusion source, save).
+
+---
+
+## 33. Three physical resistances
+
+### What exists
+- D-037 made Physical a damage type with subtypes Slash, Pierce and Impact.
+- Each subtype has its own resistance column in all four resistance shapes (round 1 §7 of `SimplifyAudit_2026-10-28.md`).
+- Each subtype shares its break with an element: Slash with Fire, Pierce with Earth, Impact with Lightning (SB-19 to SB-21).
+
+### Why it's too much
+- Three resistance numbers per character for one kind of damage.
+- The deckbuilder has a single `Physical` (`02-enums.md` "EWoRElement" 10).
+
+### Fix (keeps: weapon types feel different through their break)
+- **A.** One Physical resistance column. The subtype only picks which break fires.
+  - Expedition 33 and Elden Ring both print one physical defence.
+  - Elden Ring's per-type standard / slash / strike / pierce absorption is a common example of numbers players don't read.
+
+### Recommendation
+**A.**
+
+**Ruling:** D-037's subtypes stay; only their resistance columns merge. **Cost:** M (resistance shapes, columns; save append-only).
+
+---
+
+## 34. Weather with three drivers
+
+### What exists
+- **In battle:** the sky follows which leader "dominates" by HP (`UWeatherStateManager`, `WeatherSystem.md`). Its element field is captured but never read.
+- **Boss fights:** D-098 makes weather show a phase change.
+- **Trials:** B-189 makes a trial's element set the map's weather.
+- **No rules:** weather changes no rule.
+
+### Why it's too much
+- Three sources for one cosmetic channel, with no priority between them.
+- The HP tug-of-war is hard to read: a small HP swing changes the sky.
+
+### Fix (keeps: weather as mood and as the boss-phase signal)
+- **A. One driver.** The trial's element sets the weather (B-189), and a boss phase steps it (D-098). The leader-HP tug retires.
+  - Hades' regions have fixed looks, and the final boss's arena changes only between phases.
+
+### Recommendation
+**A.**
+
+**Ruling:** none (the HP tug was never ruled). **Cost:** S.
+
+---
+
+## 35. Cosmetics: skins, outfits and the meter
+
+### What exists
+- **Skins.** Forms are whole-character skins unlocked by a loadout-match meter (per fight won, by share of the form's pieces worn; a piece at another tier gives partial credit, `OTHER_TIER_CREDIT`) (B-279, B-279b).
+- **Outfits.** On top of that, six outfit slots (Helmet, Jacket, Shirt, Waist, Trousers, Footwear) whose pieces are shared store entries any member can wear (D-111, B-279c).
+- **Mini-bosses.** Forms double as mini-bosses (B-279d), which is the good part: one data set.
+
+### Why it's too much
+- Two cosmetic layers (a whole skin, and six piece slots on top of it).
+- The meter has a partial-credit rule by tier that the player can't see.
+
+### Fix (keeps: "become the character by using their gear", the Mortal Shell model)
+- **A. Unlock by one condition.** "Win N fights wearing M of their pieces" is a D-130 condition set with no tier credit. It also fits pillar 10 (hidden conditions).
+- **B. Outfits as whole sets per form.** Expedition 33's outfits are whole per character, with hair separate. B-279c's six slots become one set choice per form.
+
+### Recommendation
+**A + B.**
+
+**Ruling:** Q-279 (tier credit), D-111's "outfit pieces as store entries". **Cost:** S each; B shrinks B-279c.
+
+---
+
+## 36. Ways to make an item stronger
+
+### What exists
+**Six routes:**
+- upgrade tier (essence, ER-25)
+- merge crystals to a higher tier (ER-28)
+- attach a crystal, stone or evolution
+- fuse two attachables (#26)
+- evolve a weapon (#32)
+- in a fight only, infuse (round 1 §8)
+
+**Around them:**
+- downgrade for a half refund (ER-27), dismantle (ER-30), convert duplicates (D-115) and repair.
+
+### Why it's too much
+Fuse and evolve-a-weapon are attach-with-extra-rules. Downgrade exists to undo an upgrade.
+
+### Fix (keeps: upgrading as the main sink for essence)
+- **A.** Once #26 and #32 land, the routes are **upgrade, attach, merge (crystals only)**: the same three Monster Hunter has (upgrade the weapon, slot decorations, craft decorations).
+- **B.** Downgrade can retire too, because dismantle already turns an item back into essence.
+
+### Recommendation
+**A** (it falls out of #26 and #32). **B** is optional.
+
+**Ruling:** ER-27 ("kept by Crown"). **Cost:** S.
+
+---
+
+## Round 3: kept, already simple
+
+- **One status bar** with one break per damage type (SB-01, B-274).
+- **Gems with an element and a use.** Each gem is an element source *and* a utility (Emerald bonus turn matches Wind's push). The theme is consistent, and it matches the deckbuilder's utility `Crystal`.
+- **Element weakness by per-character resistance** (D-005 C) rather than a wheel.
+- **Spells and abilities** as the two skill kinds, the same as the deckbuilder's `Ability` / `Spell`. The basic attack is an ability.
+- **Forms doubling as mini-bosses** (one data set).
+- **Lore, Crown's alone:** Reality / Unknown (D-095) and Void. The deckbuilder has retired Reality (`02-enums.md` "`Elemental`"), but here it carries lore, so it is noted, not raised.
+
 ## Sources
 
 - Expedition 33: [Maxroll weapons and attributes](https://maxroll.gg/clair-obscur-expedition-33/guides/weapon-attributes-upgrades-guide), [Deltia's scaling](https://deltiasgaming.com/?p=216376), [Gfinity attributes](https://www.gfinityesports.com/article/clair-obscur-expedition-33-best-attributes-for-each-character), [Steam: attribute effects](https://steamcommunity.com/app/1903340/discussions/0/592896965922002093)
@@ -750,4 +1064,5 @@ Nobody can remember which of four effect printers is current.
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-03 | Audit written | chore/simplicity-audit |
+| 2026-11-03 | Round 3: §26–§36 (attachments and stones, carry limits, boss rules, class passives, spell school, evolution placement, physical resistance, weather, cosmetics, upgrade routes) | chore/simplicity-audit |
 | 2026-11-03 | Round 2: §12–§25 (process, subsystems and co-op, conditions, screens, docs, turns, grid, input, AI, party, run buy-in, saves, debug, tests) | chore/simplicity-audit |
