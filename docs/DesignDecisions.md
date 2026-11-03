@@ -2894,6 +2894,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. The deckbuilder makes Ice "a damage type of Water" (`wor-deckbuilder/docs/reference/02-enums.md`), and D-029 / ED-04 key Ice to Water. Pokemon-style sub-types and Path of Exile's damage conversion both let a sub-type count as its parent for "on hit" effects, which players read as expected. Nesting is free now (no content uses the tag) and costly later. Resistance is unaffected: an Ice hit still reads Ice resistance alone (Q-145b). Not lore.
 **Notes for Claude:** applied in B-273 (`refactor/B-273-hit-kind`). If any asset referenced `DamageType.Ice` it needs a tag redirect; none is known (C++ and Config checked, Content not searchable).
 
+### Q-275 — Element-keyed effects: which elements, and whose element?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-275) · **Blocks:** —
+**Question:** The new keyed members `GrantElementImmunity` and `ApplyDOTOnHit` carry an element. (1) May an on-hit DoT be of an element with no old member (Earth, Wind...), or only Fire (Burn) and Water (Chill)? (2) When the authored effect names an element and the spell has another, which wins?
+**Options:** **A** (as built) any element: Fire and Water become the old Burn / Chill members, any other stays keyed and deals a DoT of its element; the authored element wins, and None or Generic (inherit) takes the spell's element. **B** only Fire and Water; others refused by validation.
+**Recommendation:** A. Divinity: Original Sin 2 and Path of Exile let damage over time come in any element and both are praised for build variety; the deckbuilder keys its effects by `Affinity` the same way (`wor-deckbuilder/docs/reference/02-enums.md`). The authored element winning matches Generic meaning inherit (`ESpellElement.h`). The old per-element members stay usable until content moves. Not lore.
+**Notes for Claude:** applied in B-275 (`refactor/B-275-keyed-effects`). Size and length of a non-Fire/Water on-hit DoT are named constants in `SkillEffectManager.cpp` (`ON_HIT_DOT_DEFAULT_DAMAGE`, `ON_HIT_DOT_TURNS`). Retiring the old members waits for content to move.
+
 ### Q-297 — Do Emerald bonus turns wait at the 2:1 cap?
 **Status:** ANSWERED · **Raised:** 2026-11-03 (B-297) · **Blocks:** —
 **Question:** D-052 says an Emerald bonus turn still respects the 2:1 cap (D-049). ET-12 says an S Emerald grants two turns back to back at once. Used on the holder's own turn, that is 3 turns in a row before the opponent acts, past the cap. Which wins?

@@ -130,6 +130,7 @@ TSubclassOf<UGameplayEffect> FWoREffectSpecBuilder::GetEffectClass(ESkillEffectT
 	case ESkillEffectType::ApplyBurnToTarget:
 	case ESkillEffectType::ApplyChillToTarget:
 	case ESkillEffectType::ApplyStunToTarget:
+	case ESkillEffectType::ApplyDOTOnHit:
 	case ESkillEffectType::RetaliationDamage:
 		return UWoRGE_OnHit::StaticClass();
 	case ESkillEffectType::GuaranteedCrit:
@@ -164,7 +165,8 @@ TSubclassOf<UGameplayEffect> FWoREffectSpecBuilder::GetEffectClass(ESkillEffectT
 	default:
 		break;
 	}
-	if (IsImmunityType(Type))
+	// B-275: an unresolved GrantElementImmunity has no element, so no tag: the immunity family, blocking nothing.
+	if (IsImmunityType(Type) || Type == ESkillEffectType::GrantElementImmunity)
 	{
 		return UWoRGE_Immunity::StaticClass();
 	}

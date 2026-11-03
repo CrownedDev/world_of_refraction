@@ -266,6 +266,10 @@ FText GetSkillEffectTypeName(ESkillEffectType EffectType)
         return LOCTEXT("ESkillEffectType_PushBack", "Push Back (one row)");
     case ESkillEffectType::PullForward:
         return LOCTEXT("ESkillEffectType_PullForward", "Pull Forward (one row)");
+    case ESkillEffectType::GrantElementImmunity:
+        return LOCTEXT("ESkillEffectType_GrantElementImmunity", "Element Immunity");
+    case ESkillEffectType::ApplyDOTOnHit:
+        return LOCTEXT("ESkillEffectType_ApplyDOTOnHit", "Apply Damage over Time");
     }
     return FText::GetEmpty();
 }
