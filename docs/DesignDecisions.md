@@ -1769,6 +1769,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** remove `CombatOrchestratorTestActor`, `TurnManagerTestActor`, `SkillEffectManagerTestActor`, `HUDTestActor` and `SkillProjectileTestActor` now, with no PIE gate. Where an actor covers something no spec covers, the spec comes first in the same job. Any actor placed in a map or referenced by a Blueprint is listed for an editor step instead of deleted blind. The GAS parity specs are deleted with the enum path (D-121, B-042g). `test.sh` prints the 10 slowest tests. The quick balance sim runs in the nightly preset only. CLAUDE.md's Tests rule changes (Crown to approve that edit).
 **Notes for Claude:** job B-350; the parity-spec delete rides with B-042g.
 
+### D-141 — Two sockets per weapon and adapter; fusions retire (audit round 3 §26; changes D-009, D-077)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §26, `chore/simplicity-audit` eb478300) · **Blocks:** —
+**Answer (Crown):** every weapon and adapter has two sockets: an **element socket** (a gem or an evolution) and a **stone socket** (a stone). Fusions retire: the fusion items, their bonus formula, `FFusionId`, fusion wear and pricing, and D-077's counting rule. Enums are append-only, so their values are marked retired. Fusion wear goes with fusions; evolution wear stays (this narrows round 1's "§5 no change" note).
+**What it changes:** D-009 (stones and fusions on rings), D-077 (what counts as "a crystal" for tier caps), the round-1 §5 note.
+**Notes for Claude:** jobs B-351 (the two sockets: slot struct, loadout costs, validation, save bump with wipe per D-138) and B-352 (fusions retire); B-299's rename follows D-138 (no migration: a pre-rename save is wiped).
+
 ### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
 **Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.
