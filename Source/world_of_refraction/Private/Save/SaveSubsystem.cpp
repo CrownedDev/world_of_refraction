@@ -427,11 +427,11 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 	FSavedPool Saved;
 	for (const FWeaponInventoryEntry &E : Pool.GetOwnedWeapons())
 	{
-		Saved.Weapons.Add_GetRef(SaveItem(E.Weapon, E, E.PersistentID)).Gear = SaveGearDetail(E);
+		Saved.Gear.Add_GetRef(SaveItem(E.Weapon, E, E.PersistentID)).Gear = SaveGearDetail(E);
 	}
 	for (const FRingInventoryEntry &E : Pool.GetOwnedRings())
 	{
-		Saved.Rings.Add_GetRef(SaveItem(E.Ring, E, E.PersistentID)).Gear = SaveGearDetail(E);
+		Saved.Gear.Add_GetRef(SaveItem(E.Ring, E, E.PersistentID)).Gear = SaveGearDetail(E);
 	}
 	for (const FEvolutionInventoryEntry &E : Pool.GetOwnedEvolutions())
 	{
@@ -587,30 +587,32 @@ void USaveSubsystem::ApplyWallet(const FSavedWallet &Saved, UCurrencyComponent *
 int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 {
 	int32 Restored = 0;
-	for (const FSavedOwnedItem &In : Saved.Weapons)
+	// B-308: v5 saves one gear list; v3 / v4 saves the weapon and adapter lists. The kind follows from the asset.
+	for (const TArray<FSavedOwnedItem> *List : {&Saved.Gear, &Saved.Weapons, &Saved.Rings})
 	{
-		if (UWeaponData *Weapon = In.Def.ResolveAs<UWeaponData>())
+		for (const FSavedOwnedItem &In : *List)
 		{
-			FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon);
-			Entry.PersistentID = In.InstanceID;
-			Entry.Tier = In.Tier;
-			Entry.Quality = In.Quality;
-			RestoreGearDetail(In.Gear, Entry);
-			Pool.AddWeaponToPool(Entry);
-			++Restored;
-		}
-	}
-	for (const FSavedOwnedItem &In : Saved.Rings)
-	{
-		if (URingData *Ring = In.Def.ResolveAs<URingData>())
-		{
-			FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring);
-			Entry.PersistentID = In.InstanceID;
-			Entry.Tier = In.Tier;
-			Entry.Quality = In.Quality;
-			RestoreGearDetail(In.Gear, Entry);
-			Pool.AddRingToPool(Entry);
-			++Restored;
+			UObject *Asset = In.Def.Resolve();
+			if (UWeaponData *Weapon = Cast<UWeaponData>(Asset))
+			{
+				FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon);
+				Entry.PersistentID = In.InstanceID;
+				Entry.Tier = In.Tier;
+				Entry.Quality = In.Quality;
+				RestoreGearDetail(In.Gear, Entry);
+				Pool.AddWeaponToPool(Entry);
+				++Restored;
+			}
+			else if (URingData *Ring = Cast<URingData>(Asset))
+			{
+				FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring);
+				Entry.PersistentID = In.InstanceID;
+				Entry.Tier = In.Tier;
+				Entry.Quality = In.Quality;
+				RestoreGearDetail(In.Gear, Entry);
+				Pool.AddRingToPool(Entry);
+				++Restored;
+			}
 		}
 	}
 	for (const FSavedOwnedItem &In : Saved.Evolutions)

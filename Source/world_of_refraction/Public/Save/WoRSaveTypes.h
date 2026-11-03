@@ -323,9 +323,15 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	UPROPERTY()
 	TArray<FName> BankedCharacters;
 
+	/** B-308 (D-110, save v5): owned weapons and adapters in one list; the kind follows from the asset. */
+	UPROPERTY()
+	TArray<FSavedOwnedItem> Gear;
+
+	/** Before v5: weapons. Read on load (B-308), never written. */
 	UPROPERTY()
 	TArray<FSavedOwnedItem> Weapons;
 
+	/** Before v5: adapters. Read on load (B-308), never written. */
 	UPROPERTY()
 	TArray<FSavedOwnedItem> Rings;
 
@@ -356,7 +362,7 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 
 	int32 Num() const
 	{
-		return Weapons.Num() + Rings.Num() + Evolutions.Num() + Spells.Num() + Abilities.Num() + Crystals.Num() +
+		return Gear.Num() + Weapons.Num() + Rings.Num() + Evolutions.Num() + Spells.Num() + Abilities.Num() + Crystals.Num() +
 			   CarriedItems.Num();
 	}
 };
