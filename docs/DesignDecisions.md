@@ -3091,6 +3091,15 @@ Moved here once applied. Newest first.
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-224b. Authoring `EnemyTier` on the enemy assets is editor work (CC+UE).
 
+### Q-318 — How a co-op guest reads another character's effects from GAS
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-318, cloud) · **Blocks:** —
+**Question:** B-318 asks a client to read effects "from the replicated GAS state (its ASC's active GEs with their WoR context, and the tracker's turns left)". Player characters use the Mixed replication mode, in which other players' characters (simulated proxies) receive **no** GameplayEffects, only tags and cues; and active-GE handles differ between server and client, so the tracker's turns can't be keyed by them. How does a guest get the list?
+**Context:** `Private/Character/CombatCharacter.cpp` (`SetReplicationMode(Mixed)`); `Private/GAS/WoREffectMirrorComponent.cpp` (`ReadHeldEffects`, `BuildHeld`, `HeldSnapshot`).
+**Options / as built:** **A** the server replicates its own GAS read (`ReadHeldEffects`' answer, turns included) as a snapshot on the effect mirror; a client returns it. **B** switch every character to Full replication and replicate the tracker's turns keyed by effect identity, so a client rebuilds the list itself. **C** Mixed for owners, read the owner's own ASC, and the snapshot only for others.
+**Recommendation:** A. Epic's GAS guidance keeps Mixed for player characters and Minimal for AI to save bandwidth (Full is for single-player); Lyra shows other players' state through replicated tags / attributes, not their GEs. One snapshot is the same data on every client and keeps the server's read as the single truth until the stored list retires (B-042g).
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-318. The snapshot is refreshed by each sync; a guest's view is as fresh as the server's last sync.
+
 ### Q-279c — Outfits: the details B-279c needed
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-279c, cloud) · **Blocks:** —
 **Question:** `CharacterCustomisation.md` leaves four details open for the build: (1) where outfit pieces may be swapped; (2) whether taking a skin off keeps its outfit; (3) what wearing an outfit with no skin does to the body; (4) slot names in player text.
@@ -3111,7 +3120,7 @@ Moved here once applied. Newest first.
 **Notes for Claude:** applied in B-293c. Re-run `WOR_BALANCE=nightly Scripts/ue/test.sh WoR.Balance.` before tuning further.
 
 ### Q-293d — Balance targets that clash with the Decided numbers
-**Status:** OPEN · **Raised:** 2026-11-03 (B-293c, cloud) · **Blocks:** B-293d
+**Status:** ANSWERED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (B-293c, cloud) · **Blocks:** B-293d
 **Question:** Three targets can't be met without changing a Decided number (BaselineNumbers.md). Which gives way?
 **Context:** `docs/analysis/Expedition33Balance.md` ("Not changed"); `Public/Combat/Tuning/CombatBaselineConstants.h` (rank HP); `Private/Balance/BalanceSimReport.cpp` (bands).
 **Options:**
@@ -3119,8 +3128,19 @@ Moved here once applied. Newest first.
 - **Pillar 6** (S gear under-levelled wins 92%, band 35–65%): **A** keep the floor 0.5 and move the band (e.g. 60–95%: gear leads, never certain); **B** harsher under-requirement penalty.
 - **Stacked reduction** (Defense 75% × Damage Taken Down 90% × Guard 50% lets 1.25% through): **A** an overall cap on damage taken (e.g. at most 90% off before Perfect Guard), as E33 capped stacking after Stendhal ([Destructoid](https://www.destructoid.com/expedition-33-stendhal-nerf-update-patch-notes/)); **B** leave the per-source caps.
 **Recommendation:** none taken by default: each changes a number Crown decided. C for bosses (E33's model), A for pillar 6 (BaselineNumbers §4 already expects S gear ~2.3x ahead), A for stacking.
-**Answer (Crown):** _write here_
+**Answer (Crown, 2026-11-03):** (1) rank HP: mini-boss x3 -> x4, boss x6 -> x8; (2) the requirement floor 0.5 -> 0.25 (under-levelled gear works at a quarter strength); (3) a damage floor: after Defense, Damage Taken Down and Guard a hit always deals at least 10% of itself (Elden Ring style), a named constant.
+**Notes for Claude:** applied in B-293d (`chore/B-293d-decided-balance`). The floor measures from the hit before the defender's Damage Taken Down, Defense and Guard (each impact's guarded share travels to the damage maths); a Perfect Guard or a dodge still takes the whole hit, since no damage reaches the maths. The pillar-6 band stays 35–65% (not moved by the answer); re-run the nightly. Details decided by default in the build (reviewer, 2026-11-03): the floor also undoes grid-position defense (the measurement comes before it); a net Damage Taken Up is not divided out, so it raises the floor with the hit; the floor rounds up (`CeilToInt`, less a 0.001 float slack) while normal hits round to nearest. **For Crown:** the 0.25 requirement floor doesn't bite yet: the ladder's lowest rung (gap +5) is 0.32, so under-levelled gear bottoms out at about a third, not a quarter. Add a rung (gap +6 → 0.25) if you want the quarter reached.
 
+
+### Q-293e — Mid/Late fights after B-293c: enemy HP stacking, or the sim?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-293d, cloud, from the second nightly) · **Blocks:** —
+**Question:** The second nightly lost Mid/Late normal fights at Medium (win rate 0.12 / 0.00) and ran their mini-boss and boss fights 18–21 rounds. Is that enemy HP stacking (tier power x2.2–x4.8 × rank x4/x8 × zone, about x38 for a late boss), and should it be capped?
+**Context:** `Private/Trial/TrialGate.cpp` (`ApplyEnemyRankHealth`), `Private/Balance/BalanceArchetypes.cpp`, `docs/analysis/BaselineNumbers.md` §2.9 and §3.
+**Finding:** mostly not. (1) The x38 is by design: §2.9's reference enemies (606 HP at C, 2,106 at S, boss about 12,600) already include tier power, sized against the §3 examples' 196 / 572 hits, and the sim's zone is tier 0 (x1). (2) Normal fights are rank x1, so rank stacking can't explain losing them. (3) The sim's `P-GenericC` / `P-GenericS`, two of the three Mid/Late members, were the early F build with only the weapon swapped: 7 HP points (~149 HP), 4 Defense, 6 Raw Damage, skill base 20. They dealt well under §3's numbers and an S enemy's basic hit (~265) one-shot them.
+**Options:** **A** fix the sim: those members take the same-tier enemy's HP / Defense / Body points and §3's Raw Damage and skill base; **B** cap rank × tier HP (changes a Decided number, Crown's); **C** flatten the enemy tier curve (also Decided, and B-325 would inherit it).
+**Recommendation:** A. Measure first, as B-293c did: E33's balance patches fixed outliers after measuring, not the base curve ([Destructoid](https://www.destructoid.com/expedition-33-stendhal-nerf-update-patch-notes/)).
+**Answer:** A (approved by the reference-backed default). B-325 is unaffected: an enemy's Combat Tier still feeds the same tier-power HP.
+**Notes for Claude:** applied in B-293d (`chore/B-293d-decided-balance`). **For Crown, still open after the re-run:** enemy damage rides tier power (an S weapon is Power 192) but a party member's HP doesn't (gear MaxHP per point is the same at every tier, and D-118 keeps a player's tier statless), so even tier-matched S members fall in about 2 enemy hits against about 3.5 at F. If the next nightly still loses Mid/Late normal fights, that is the lever (enemy damage tier power, or player HP growth), and it is Crown's call.
 
 ### Q-223 — Level drops: the numbers, when you place them, and the save
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-223) · **Blocks:** —
@@ -3128,5 +3148,23 @@ Moved here once applied. Newest first.
 **Context:** `Public/Combat/Tuning/CombatBaselineConstants.h` (`LEVEL_DROP_CHANCE_BY_TIER`, `LEVEL_DROP_ELITE_CHANCE_FACTOR`, `MINIBOSS_LEVELS_BY_TIER`); `Private/Trial/TrialGate.cpp` (`RollLevelDrops`); `Private/Combat/CombatOrchestrator.cpp` (`FinishCombat`); `Private/Trial/LevelDropPlacement.cpp`.
 **Options / as built:** **odds** a normal enemy 10 % at F rising to 30 % at S, an elite double; **mini-boss and boss** guaranteed levels by tier: F/E/D 1, C/B 2, A/S 3 (a boss gives the same as a mini-boss of its tier); **rolled at the win** (the fight's own random draws don't shift); **placing** the drops wait in the run until you place them (`wor.UI.LevelDrop`), one press per level, any party member, refused at 7; **save** a run's levels and waiting drops are not saved yet (a reload mid-run loses them).
 **Recommendation:** as built. Hades' boons and Slay the Spire's card rewards come after the fight, chosen by the player, not mid-fight; low odds from normal enemies with guaranteed rewards from bosses is the Hades / Dead Cells pattern (elites as a better-odds middle step, as Slay the Spire's elites). Over a 3-floor run that's about 6-10 levels, under the 21 cap, with the vendor as backup. Every number is a tuning row (`LevelDropChance`, `MiniBossLevels`) for B-293c.
-**Answer (Crown):** _write here_
+**Answer (Crown, 2026-11-03): changed.** Level-ups are per character, not a shared pile: after a win each party member rolls its own drop at these odds, a mini-boss or boss gives each member its guaranteed levels, and each character places its levels on its own pillars (cap 7). Applied in B-223b.
 **Notes for Claude:** applied in B-223. The run's levels go into the save with the run-save work (the save version bump belongs there, not here); the placeholder prompt opens by console only (the real post-fight screen is D-024).
+
+### Q-223b — Per-character level drops: keep the odds?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-223b, cloud) · **Blocks:** —
+**Question:** With Crown's change to Q-223 every party member rolls its own drop, so a party gets about three times the levels it did. Do B-223's odds (10–30% per normal enemy, elites doubled; mini-boss / boss 1–3 by tier) need lowering to keep about 6–10 levels per character per run?
+**Context:** `Public/Combat/Tuning/CombatBaselineConstants.h` (`LEVEL_DROP_CHANCE_BY_TIER`, `MINIBOSS_LEVELS_BY_TIER`); `Private/Combat/CombatOrchestrator.cpp` (`FinishCombat`); Q-223's estimate of about 6–10 levels over a 3-floor run.
+**Options / as built:** **A** keep the odds: Q-223's 6–10 was the party's whole take; one roll per member at the same odds gives each character that same 6–10, the target. **B** lower them (each character would then get fewer than 6–10). **Also as built: a member who fell in the fight still rolls** (it was in the fight; the party won). The alternative is living members only.
+**Recommendation:** A, and fallen members roll: Expedition 33 and Octopath Traveler give the whole party its rewards after a win, fallen included, and players like that a bad fight doesn't also cost growth; Persona's living-only rule mostly punishes the healer's slip. The odds were set for one stream of levels; each character now has its own stream at that rate, which is exactly about 6–10 per character, under the 21 cap, with the vendor as backup. Diablo III's and Borderlands' instanced loot keep the per-player drop rates of single player for the same reason.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-223b; the odds are tuning rows (`LevelDropChance`, `MiniBossLevels`) if the nightly sim shows otherwise. A fallen member still gets its roll after a win (it was in the fight).
+
+### Q-042i-b — B-042i: what is left once the mirror builds a trigger's GE in the same call?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-042i, desktop) · **Blocks:** —
+**Question:** B-042i says a trigger's payload "fires through the spec builder onto the ASC, not into `FActiveSkillEffect`". Since B-042h the mirror binds `OnEffectApplied`, so every `ApplyEffect` (a defender trigger's payload, a starting effect, a cast) already builds its GE through `FWoREffectSpecBuilder` in the same call; the stored copy is read-only under GAS. What does B-042i still do?
+**Context:** `Private/Skills/Effects/SkillEffectManager.cpp` (`OnDefenseResolvedHandler`, `ApplyEquipmentEffects`, `ApplyEffect`); `Private/GAS/WoREffectMirrorComponent.cpp` (`BindSources`, `SyncMirror`); `Private/Tests/GASTriggerParitySpec.cpp`.
+**Options / as built:** **A** B-042i proves the path with parity specs (`WoR.GAS.TriggerParity`: a defender trigger's payload and a starting effect land as one GE of their identity on both paths, a re-fire replaces, a removal ends the GE) and changes no code; the "no stored copy" half is B-042g's, when the enum store goes. **B** write a second apply path that skips the store now (a GAS-only effect the panel, AI and payouts can't see until B-042g).
+**Recommendation:** A. Fowler's ParallelChange: readers moved (B-042ye), payouts moved (B-042yd); the writer's copy is removed last, in one step (B-042g), not kept half-alive. Tag conditions already read GAS tags (B-042x).
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-042i. B-042g deletes the stored copies and the mirror's "Missing" rebuild with them; the `TODO` at `FWoREffectSpecBuilder::Apply` is retagged to B-042g. No authorable "if the target is Burning" condition exists in `ESkillTrigger`: B-042x's tag reads are the hit-time checks (`WoR.GAS.TagReads`), so this spec has no tag-condition case.
