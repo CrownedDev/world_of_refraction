@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "Combat/Resistance/EWoRDamageType.h"
+#include "Combat/Damage/WoRHitKind.h"
 
 class AActor;
 struct FWoRStatLayers;
@@ -53,9 +54,16 @@ namespace WoRResistance
 	 *  only (Q-145). Uncapped; the damage step caps it (WoRDamageMath::GetElementMultiplier). */
 	WORLD_OF_REFRACTION_API float GetElementDamageResistance(AActor *Target, ESpellElement Element);
 
+	/** B-273: Target's resistance to the hit's damage: its element-axis type (Ice for an Ice hit) plus the
+	 *  type that also resists it (Water adds Ice, Ice adds Water). 0 for a non-elemental hit. */
+	WORLD_OF_REFRACTION_API float GetHitDamageResistance(AActor *Target, const FWoRHitKind &Hit);
+
 	/** What a hit's two status axes resist: its element's type (or the non-elemental bucket; Water
 	 *  adds Ice, as Water damage does, B-226) plus its physical subtype's, when it has one. The Matched layer of buildup without #7 and #8. */
 	WORLD_OF_REFRACTION_API float GetHitTypeResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType);
+
+	/** B-273: the same by hit kind; an Ice hit's element axis is Ice (plus Water). */
+	WORLD_OF_REFRACTION_API float GetHitTypeResistance(AActor *Target, const FWoRHitKind &Hit);
 
 	/** General buildup resistance (#1-3): the capped Spirit stat, times gear points, times attached
 	 *  stones, clamped to [0, RESISTANCE_MAX]. 0 without CharacterData. */
@@ -67,4 +75,7 @@ namespace WoRResistance
 	/** The value AddStatusBuildup applies as Amount *= (1 - this):
 	 *  clamp(General + HitType + Bonus, RESISTANCE_MIN, RESISTANCE_MAX). 0 without CharacterData. */
 	WORLD_OF_REFRACTION_API float GetTotalStatusResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType);
+
+	/** B-273: the same by hit kind. */
+	WORLD_OF_REFRACTION_API float GetTotalStatusResistance(AActor *Target, const FWoRHitKind &Hit);
 }
