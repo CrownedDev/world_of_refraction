@@ -270,6 +270,7 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 	Attack->HitCount = SIM_ATTACK_HIT_COUNT;
 	Attack->Tier = Archetype.WeaponTier;
 	Attack->PhysicalDamageType = EPhysicalDamageType::Slash;
+	Attack->StatusBuildup = Archetype.StatusBuildup;
 
 	UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
 	Weapon->Tier = Archetype.WeaponTier;
@@ -321,6 +322,7 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 		Ability->HitCount = SIM_ATTACK_HIT_COUNT;
 		Ability->Tier = Archetype.WeaponTier;
 		Ability->PhysicalDamageType = EPhysicalDamageType::Slash;
+		Ability->StatusBuildup = Archetype.StatusBuildup;
 		Ability->RequiredWeaponType = Weapon->WeaponType;
 		FightAssets.Emplace(Ability);
 		Inventory->LearnAbility(Ability);
@@ -337,6 +339,7 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 		Spell->Tier = Archetype.WeaponTier;
 		Spell->Element = Archetype.SpellElement;
 		Spell->DeliveryType = ESpellDeliveryType::Instant;
+		Spell->StatusBuildup = Archetype.StatusBuildup;
 		FSkillCastEntry &Cast = Spell->CastArray.AddDefaulted_GetRef();
 		Cast.DeliveryType = ESpellDeliveryType::Instant;
 		FightAssets.Emplace(Spell);
