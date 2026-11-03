@@ -125,7 +125,7 @@ float TrialGate::GetEnemyTierHealthMultiplier(const AActor *Enemy)
 {
 	const UCharacterDataComponent *CharComp = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	const UCharacterData *Data = CharComp ? CharComp->CharacterData : nullptr;
-	return Data ? TierPowerScaling::GetTierPowerMultiplier(Data->EnemyTier) : TierPowerScaling::CodeTierPower(0);
+	return TierPowerScaling::GetTierPowerMultiplier(Data ? Data->EnemyTier : EItemTier::F_Tier);
 }
 
 bool TrialGate::ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EEncounterRank Rank)

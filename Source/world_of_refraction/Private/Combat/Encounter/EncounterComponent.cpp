@@ -390,6 +390,7 @@ void UEncounterComponent::OnJoinWindowExpired()
 	if (!TrialRun->HasPendingEncounter())
 	{
 		TrialRun->SetPendingEncounterSources({});
+		TrialRun->SetPendingEnemyRanks({});
 		TrialRun->SetPendingFirstStrike(EFirstStrike::None);
 		TrialRun->SetPendingZone(FEncounterZoneInfo());
 		RearmEncounter();
