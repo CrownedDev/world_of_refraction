@@ -41,6 +41,9 @@ struct FBalanceArchetype
 	 *  SpellElement; a Caster has it innate. */
 	int32 SpellBase = 0;
 	ESpellElement SpellElement = ESpellElement::Fire;
+	/** B-293b: status buildup per hit on the attack, ability and spell (0 = none, as every preset archetype), so a
+	 *  parity fight breaks status bars and the effect path really runs on both sides. */
+	int32 StatusBuildup = 0;
 };
 
 /** A party against enemies. Enemy count and rank come from the encounter (Normal 2-3, Mini-boss / Boss 1). */

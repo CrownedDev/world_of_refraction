@@ -62,6 +62,12 @@ public:
 
 	int32 NumMirrored() const { return Mirrored.Num(); }
 
+	/** B-261: what a sync reads (the stored effects, the live GE count, the tracker, the switch), hashed; a read
+	 *  skips the sync while it matches the last sync's. */
+	uint32 GetSyncFingerprint() const;
+	/** Debug / spec: how many full syncs ran. */
+	int32 GetSyncCount() const { return SyncCount; }
+
 	/** GAS owns Actor's effect lifetime: the switch is on and Actor carries a mirror and a tracker. */
 	static bool OwnsLifetime(const AActor *Actor);
 
@@ -131,4 +137,7 @@ private:
 	/** An ASC listener that re-enters the effect manager mid-sync re-runs the sync instead. */
 	bool bSyncing = false;
 	bool bResyncRequested = false;
+	/** The fingerprint the last finished sync left (unset until one finishes). */
+	TOptional<uint32> SyncedFingerprint;
+	int32 SyncCount = 0;
 };

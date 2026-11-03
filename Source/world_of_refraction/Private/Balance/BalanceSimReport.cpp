@@ -108,8 +108,13 @@ namespace BalanceSimReport
 		switch (Matchup.Rank)
 		{
 		case EEncounterRank::Normal:
-			Out.Add(Target(Id, TEXT("party turns to clear a normal fight"), A.MeanPartyTurns, NORMAL_PARTY_TURNS_MIN, NORMAL_PARTY_TURNS_MAX, true));
-			Out.Add(Target(Id, TEXT("party turns p90"), A.P90PartyTurns, 0.0f, NORMAL_PARTY_TURNS_P90_MAX, false));
+		{
+			// B-293c: BaselineNumbers §2.9's "3-5 player turns" are party ROUNDS ("a group of 2-3 dies in about 3-5 party
+			// rounds, 3 actors"), so the member turns are divided by the party size.
+			const float PartySize = FMath::Max(1, Matchup.Party.Num());
+			Out.Add(Target(Id, TEXT("party rounds to clear a normal fight"), A.MeanPartyTurns / PartySize, NORMAL_PARTY_TURNS_MIN, NORMAL_PARTY_TURNS_MAX, true));
+			Out.Add(Target(Id, TEXT("party rounds p90"), A.P90PartyTurns / PartySize, 0.0f, NORMAL_PARTY_TURNS_P90_MAX, false));
+		}
 			Out.Add(Target(Id, TEXT("hits to kill a normal enemy"), A.MeanHitsToKill, NORMAL_HITS_TO_KILL_MIN, NORMAL_HITS_TO_KILL_MAX, false));
 			if (bMedium)
 			{

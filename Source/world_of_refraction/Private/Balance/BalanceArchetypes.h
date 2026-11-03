@@ -22,6 +22,11 @@ namespace BalanceArchetypes
 	/** Fights per matchup a preset runs: quick 3, nightly 50, full 200 (0 for an unknown name). */
 	int32 PresetFights(FName Name);
 
+	/** B-293b: the parity check's own matchup: a party whose every hit builds status (Bleed from Slash, Burn from the
+	 *  Fire spell) against same-tier enemies, so the GAS and enum paths both apply break effects. Not in any preset,
+	 *  so the balance numbers (B-293c) don't move. */
+	FBalanceMatchup ParityStatusMatchup();
+
 	/** Every preset name, for the command and the spec. */
 	const TArray<FName> &PresetNames();
 }

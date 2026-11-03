@@ -270,6 +270,7 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 	Attack->HitCount = SIM_ATTACK_HIT_COUNT;
 	Attack->Tier = Archetype.WeaponTier;
 	Attack->PhysicalDamageType = EPhysicalDamageType::Slash;
+	Attack->StatusBuildup = Archetype.StatusBuildup;
 
 	UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
 	Weapon->Tier = Archetype.WeaponTier;
@@ -321,6 +322,7 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 		Ability->HitCount = SIM_ATTACK_HIT_COUNT;
 		Ability->Tier = Archetype.WeaponTier;
 		Ability->PhysicalDamageType = EPhysicalDamageType::Slash;
+		Ability->StatusBuildup = Archetype.StatusBuildup;
 		Ability->RequiredWeaponType = Weapon->WeaponType;
 		FightAssets.Emplace(Ability);
 		Inventory->LearnAbility(Ability);
@@ -337,6 +339,7 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 		Spell->Tier = Archetype.WeaponTier;
 		Spell->Element = Archetype.SpellElement;
 		Spell->DeliveryType = ESpellDeliveryType::Instant;
+		Spell->StatusBuildup = Archetype.StatusBuildup;
 		FSkillCastEntry &Cast = Spell->CastArray.AddDefaulted_GetRef();
 		Cast.DeliveryType = ESpellDeliveryType::Instant;
 		FightAssets.Emplace(Spell);
@@ -369,10 +372,11 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 void FBalanceSimRunner::ApplyEnemyStrength(AActor *Enemy, const FBalanceMatchup &Matchup)
 {
 	// The same multipliers as BattleGameMode's trial fights: difficulty x zone, then rank x tier power (B-224 / B-224b).
-	const float Strength = TrialGate::GetEnemyStrengthMultiplier(Matchup.TrialDifficulty) *
-						   AEnemyZone::GetTierStrengthMultiplier(Matchup.ZoneTier);
-	TrialGate::ApplyEnemyStrength(Enemy, Strength);
-	TrialGate::ApplyEnemyRankHealth(Enemy, Strength, Matchup.Rank);
+	const float ZoneStrength = AEnemyZone::GetTierStrengthMultiplier(Matchup.ZoneTier);
+	const float Strength = TrialGate::GetEnemyStrengthMultiplier(Matchup.TrialDifficulty) * ZoneStrength;
+	const float Health = TrialGate::GetEnemyHealthMultiplier(Matchup.TrialDifficulty) * ZoneStrength; // B-293c: difficulty is damage only
+	TrialGate::ApplyEnemyStrength(Enemy, Health, Strength);
+	TrialGate::ApplyEnemyRankHealth(Enemy, Health, Matchup.Rank);
 }
 
 void FBalanceSimRunner::ClearFight()
