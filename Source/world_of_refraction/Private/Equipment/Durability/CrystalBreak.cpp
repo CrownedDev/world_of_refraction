@@ -81,7 +81,7 @@ namespace
 		const EEssenceType EssenceType = EconomyYield::ResolveEssenceType(CrystalId);
 		const int32 Yield = EconomyYield::GetTypedEssenceYieldForTier(CrystalId.Tier);
 		Currency->AddEssenceType(EssenceType, Yield);
-		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broken crystal '%s' on %s dismantled -> %d %s essence"),
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broken crystal '%s' on %s dismantled -> %d %s"),
 			   *CrystalName, *Actor->GetName(), Yield, *CrystalBreakEssenceName(EssenceType));
 	}
 
@@ -110,7 +110,7 @@ namespace
 			}
 			const EEssenceType EssenceType = EconomyYield::ResolveEssenceType(Half);
 			Currency->AddEssenceType(EssenceType, HalfYield);
-			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broken fusion gem '%s' on %s dismantled -> %d %s essence (half of %d)"),
+			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broken fusion gem '%s' on %s dismantled -> %d %s (half of %d)"),
 				   *ItemIdentity::GetDisplayName(Half), *Actor->GetName(), HalfYield, *CrystalBreakEssenceName(EssenceType), FullYield);
 		}
 	}

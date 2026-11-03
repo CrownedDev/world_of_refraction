@@ -533,7 +533,7 @@ void UShopWindowWidget::EnsureTotalsPool()
     TotalsRows[2].Label->SetText(NSLOCTEXT("Shop", "TotalsSkill", "Skill Essence"));
     for (int32 e = 0; e < EssenceCount; ++e)
     {
-        TotalsRows[3 + e].Label->SetText(WoRGameNames::GetEssenceName(static_cast<EEssenceType>(EssenceEnum->GetValueByIndex(e))));
+        TotalsRows[3 + e].Label->SetText(WoRGameNames::GetEssenceName(static_cast<EEssenceType>(e)) /* as RefreshTotals */);
     }
 }
 
