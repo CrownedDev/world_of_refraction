@@ -1799,6 +1799,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A, Crown's words read literally. Octopath Traveler's Boost (the audit's reference) prices each boost level as one flat step that players read at a glance, and the factors that apply to every action stay where every action has them. Consequence for Crown to check in PIE: an L1 infusion now costs the same EP as no infusion for a spell (and pays no HP, D-126); its price is the source's wear or the ability's D-035 x1.5. If L1 should cost more, B is the change.
 **Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
 
+### Q-335 — When the rolls are deleted, what happens to `bRandomGenerateOnPickup`, which also gates the Quality roll?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-335, D-127) · **Blocks:** —
+**Question:** the same toggle that turns on the per-instance stat / resistance roll also turns on the per-instance Quality roll (`EconomyYield::RollQuality`, `InventoryComponent.cpp` `AddGearEntry`, `EvolutionInventoryComponent.cpp` `AddInstance`). D-127 deletes the rolls and keeps tier + quality.
+**Options:** A keep the toggle; after the sweep it gates only the Quality roll (rename it then, e.g. `bRollQualityOnPickup`, with a redirect) / B delete it with the rolls and always roll Quality on a fresh pickup / C delete it and never roll Quality (always the C placeholder).
+**Recommendation:** A. It keeps D-127 to "nothing changes in play" (assets that opt in keep their Quality roll; the rest keep C), and the change is a delete, not a new rule. Expedition 33 and Hades ship gear with fixed stats per item; how often quality varies is a separate tuning call for the drop tables (TierOnInstance.md).
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
 ### Q-321 — Can the shared home chest hold gear, or only items?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
 **Question:** D-097's storage holds items (crystals, stones, consumables); gear lived in the shared pool. With gear per character (D-117), can a character put an unworn weapon or adapter in the shared chest for another to take?

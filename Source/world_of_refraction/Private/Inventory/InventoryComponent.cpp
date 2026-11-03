@@ -37,7 +37,9 @@
 
 namespace
 {
-    /** U2 pickup roll — when the asset opts in (bRandomGenerateOnPickup), a fresh
+    /** OBSOLETE (B-335, D-127; delete in the D-124 sweep): per-instance random rolls retire;
+     *  gear keeps tier + quality. Reached only when an asset opts in (default off).
+     *  U2 pickup roll — when the asset opts in (bRandomGenerateOnPickup), a fresh
      *  instance ROLLS its stat/resistance layers at acquisition:
      *    - MaxPools seed from the per-asset override (when set) or the tier budget
      *      (POOL_OVERRIDE_USE_TIER sentinel); the roll then consumes the STORED
@@ -644,6 +646,7 @@ bool UInventoryComponent::AddGearEntry(TArray<TEntry> &Gear, TEntry Entry, const
     Entry.PersistentID = FGuid::NewGuid();
     if (Asset.bRandomGenerateOnPickup)
     {
+        // OBSOLETE (B-335, D-127; delete in the D-124 sweep): the stat / resistance roll. The Quality roll below stays (Q-335).
         ApplyPickupRoll(&Asset, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
         // Fresh pickup → roll a per-instance Quality (§11), Luck-biased. Toggle-OFF acquisitions
         // (purchases, authored gear) skip this and keep the factory's C_Quality placeholder.

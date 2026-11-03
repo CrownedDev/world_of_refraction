@@ -104,7 +104,7 @@ These rows join the sweep once their branch merges.
 | # | Flag | Replaced by | PIE check | Branch | Result |
 |---|---|---|---|---|---|
 | 44 | The 3-points-per-level sub-stat pool: `StatConstants::POINTS_PER_WORLD_STAT_LEVEL`, `MAX_SUBSTAT_POINTS_PER_PILLAR`, `INITIAL_STAT_BUDGET`; `UCharacterData::GetTotalPool` (as a pool), `GetPointsRemaining`, `IsValidDistribution` (B-330, D-123). Before deleting, the enemy caliber and the Broken Darkness EP aura range need their own constants | `GetSubStatBudget` / `IsWithinSubStatBudget` | [B-330](B-330.md) | `feature/B-330-pillars-only` | [ ] |
-| 45 | Per-instance random rolls (B-335, D-127): `RerollSubstats` / `RerollPillars` / `RerollResistance`, the generated stat bonuses and their call sites | Tier + quality (`TierOnInstance.md`) | B-335's PIE file | `chore/B-335-per-instance-rolls-obsolete` | [ ] |
+| 45 | Per-instance random rolls (B-335, D-127): `RerollSubstats` / `RerollPillars` / `RerollResistance`, their call sites and `UEquipmentRollDebug`; the `StatBonus` / `ResistanceBonus` instance fields and the `MaxPool` save fields stay (authored bonuses use them) | Tier + quality (`TierOnInstance.md`) | B-335's PIE file | `chore/B-335-per-instance-rolls-obsolete` | [ ] |
 
 ---
 
