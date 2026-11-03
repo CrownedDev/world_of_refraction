@@ -8,7 +8,10 @@
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryComponent.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "GearGive"
@@ -21,11 +24,49 @@ namespace
 		return GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
 	}
 
-	FText NameOf(FName CharacterKey)
+	const UParty *LocalPartyOf(const UWorld *World)
 	{
-		// TODO: the character's display name (the key is the asset path; the pawn may not be spawned).
+		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+		return PartySession ? PartySession->GetLocalParty() : nullptr;
+	}
+
+	/** The character's name as the party shows it; the asset's base name when it isn't a party member. */
+	FText NameOf(const UWorld *World, FName CharacterKey)
+	{
+		if (const UParty *Party = LocalPartyOf(World))
+		{
+			for (const FPartyMember &Member : Party->Members)
+			{
+				if (Member.CharacterData && UPoolSubsystem::GetCharacterKey(Member.CharacterData) == CharacterKey)
+				{
+					return FText::FromString(Member.CharacterData->Name);
+				}
+			}
+		}
 		return FText::FromString(FPaths::GetBaseFilename(CharacterKey.ToString()));
 	}
+
+	/** wor.Give.Print: what every local party member could give. */
+	FAutoConsoleCommandWithWorld GGivePrintCmd(
+		TEXT("wor.Give.Print"),
+		TEXT("DEBUG: list what each party member could give (weapons, adapters, pouch stacks) (B-323)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+		{
+			const UParty *Party = LocalPartyOf(World);
+			if (!Party)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[Give] wor.Give.Print: no local party"));
+				return;
+			}
+			for (const FPartyMember &Member : Party->Members)
+			{
+				if (Member.CharacterData)
+				{
+					UE_LOG(LogTemp, Log, TEXT("%s"), *WoRGive::GetGiveableString(World, UPoolSubsystem::GetCharacterKey(Member.CharacterData)));
+				}
+			}
+		}));
 }
 
 namespace WoRGive
@@ -71,7 +112,7 @@ namespace WoRGive
 		}
 		if (Pool->GetGearOwner(GearID) != FromKey)
 		{
-			return FText::Format(LOCTEXT("NotTheirs", "{0} doesn't own that"), NameOf(FromKey));
+			return FText::Format(LOCTEXT("NotTheirs", "{0} doesn't own that"), NameOf(World, FromKey));
 		}
 		// D-116: a loadout's primary stays until another primary is swapped in. Checked on the spawned giver; an
 		// unspawned giver's next draw refills its primary instead.
@@ -102,11 +143,11 @@ namespace WoRGive
 		}
 		if (Count <= 0 || Pool->GetCarriedCount(FromKey, Id) < Count)
 		{
-			return FText::Format(LOCTEXT("NotCarried", "{0} doesn't carry that many"), NameOf(FromKey));
+			return FText::Format(LOCTEXT("NotCarried", "{0} doesn't carry that many"), NameOf(World, FromKey));
 		}
 		if (Pool->GetCarryRoom(ToKey, Id) < Count)
 		{
-			return FText::Format(LOCTEXT("PouchFull", "{0}'s pouch has no room for {1}"), NameOf(ToKey),
+			return FText::Format(LOCTEXT("PouchFull", "{0}'s pouch has no room for {1}"), NameOf(World, ToKey),
 								 FText::FromString(ItemIdentity::GetDisplayName(Id)));
 		}
 		if (!Pool->GiveCarried(FromKey, ToKey, Id, Count))
