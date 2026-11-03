@@ -13,6 +13,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 ## Pending
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-328](B-328.md) | `feature/B-328-enemy-hp-no-zone` | Zone adds enemy damage, not HP; zone tier guide | Not built |
 | [B-327](B-327.md) | `fix/B-327-zone-health-once` | Spec only: enemy HP takes the zone once | Not built |
 | [B-224](B-224.md) | `feature/B-224-combat-numbers` (in `dev`) | Combat numbers baseline: rank HP x1.5/3/6, Defense cap 75%, crit base x1.25, requirement floor 0.5, tuning ladders | Not built |
 | [B-288](B-288.md) | `feature/B-288-ladders` (in `dev`) | Every ladder rung pinned by a spec; Damage Taken Down cap named; no gameplay change | Not built |
