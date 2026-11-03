@@ -264,6 +264,7 @@ After the unified loadout (B-301..B-308). Changes to that plan: B-302 treats the
 | B-344 | **Difficulty sets the AI tier** (D-136): the trial difficulty picks enemy damage and the enemy AI tier together; a per-encounter AI override stays (D-044) | CC | S | — | Spec: Hard difficulty → Hard AI unless the encounter overrides | TODO |
 | B-345 | **One AI path, weights in data** (D-136): spell and ability AI share one scoring path; the AI weights move into `UCombatTuningData` | CC | M | B-344 | Specs: the AI picks the same actions as before at default weights | TODO |
 | B-346 | **Party control by seat** (Q-21-audit, the deckbuilder's rule): the player commands every member; an AI member only if the leader sets it before the fight (fixed during it); in co-op an unclaimed member's turns rotate through its side's players; the per-member Player / AI default, takeover rules and "Let AI finish" retire (obsolete); the switch command stays for debug | CC | M | — | Specs: solo commands all; an AI seat stays AI all fight; co-op rotation | TODO |
+| B-347 | **Free run loadout** (D-137, changes D-021): a run takes the member's worn loadout within the D-110 slot budget, free (no start-of-run purchase; none was built); Gold is run money for in-run vendors; on top of B-314, `TakeHomeGearOnRun` takes the worn loadout instead of every home piece | CC | S | B-314 | Spec: a run starts with exactly the worn loadout within the budget and the run's starting Gold | TODO |
 
 ## Phase 2 — GAS migration (see `Design/GASMigration.md`)
 
@@ -364,7 +365,7 @@ After the unified loadout (B-301..B-308). Changes to that plan: B-302 treats the
 | B-074 | Encounter Composition Arc 2: `UEncounterData`, multi-enemy battles, AI formation | CC | L | B-001 | 1v3 fight from data | REVIEW (in dev) |
 | B-075 | Recruit duplicate fix; currency clamp; shop soft-lock; hint cleanup on EndPlay | CC | S | — | Each verified | REVIEW (in dev) |
 | B-115 | D-013: **durability and absorption carry over** between fights in a run. Only HP/EP are saved today, so wear and the +10 repair never reach the next fight (`docs/Rules/05-economy-and-runs.md` Cx-3) | CC | M | B-001 | Test: crystal durability and BD absorption after fight 1 are what fight 2 starts with | REVIEW (in dev) |
-| B-116 | D-021 run start: **buy your loadout from your pool** with a starting Gold budget; unspent Gold carries into the run; slot limits (1 weapon / 2 rings / 1 evolution early). Budget and price curve as named constants `// TODO: tune`. Update `Resources_Design.md` §draft | CC | L | B-073, B-091 | Test: a run starts with only the bought gear and the leftover Gold | BLOCKED (B-073) |
+| B-116 | D-021 run start: **buy your loadout from your pool** with a starting Gold budget; unspent Gold carries into the run; slot limits (1 weapon / 2 rings / 1 evolution early). Budget and price curve as named constants `// TODO: tune`. Update `Resources_Design.md` §draft | CC | L | B-073, B-091 | Test: a run starts with only the bought gear and the leftover Gold | DROPPED (D-137: the run loadout is free; B-347) |
 
 ## Phase 4b — Run, map and hub plumbing (Crown, 2026-10-26: every decided mechanic built, placeholders where content or details are missing)
 

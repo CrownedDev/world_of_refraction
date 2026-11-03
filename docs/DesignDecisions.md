@@ -1653,6 +1653,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** an enemy's max HP = its own HP × its rank × its Combat Tier power (D-118). The zone tier no longer adds HP; a harder zone places higher-tier enemies instead. Combat Tier keeps its HP boost.
 **What it changes:** B-186's zone strength on HP (`AEnemyZone::GetTierStrengthMultiplier` in `ABattleGameMode` and the balance sim); zone damage is a separate question (not ruled: keep as is). Note: B-327 found the zone was counted once, not twice (MaxHPBuff percents add); its spec is updated by the job.
 **Notes for Claude:** job B-328.
+**Widened (Crown, 2026-11-03):** zones add **no damage and no HP**; they only decide which enemies are placed. (The Unreal writer applies this on B-327; B-328 follows.)
 
 ### D-121 — Finish GAS stage 3, then delete the enum effect path; new effects GAS-only (audit §2)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
@@ -1747,6 +1748,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** as read above (Crown, 2026-11-03: follow the deckbuilder). Touches pillar 7's "ally AI" and D-026's wording.
 **Notes for Claude:** job B-346.
 
+
+### D-137 — A run loadout is free (audit §22; changes D-021)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §22) · **Blocks:** —
+**Answer (Crown):** you bring whatever fits the D-110 slot budget, free, as Hades does. Players already pay to upgrade gear. Gold is run money for in-run vendors only. B-116 (buying the loadout at run start) is dropped.
+**What it changes:** D-021 and ER-16; Q-314's "every home piece goes on the run until B-116" becomes "the worn loadout within the slot budget goes on the run".
+**Notes for Claude:** job B-347.
 
 ### Q-321 — Can the shared home chest hold gear, or only items?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
