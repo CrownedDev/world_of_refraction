@@ -1662,7 +1662,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** **A** round down (C C B is C; B A is B); **B** round to nearest, a half up (B A is A). Counted: the gear that counts (B-306's `ForEachContributingGear`: the adapter in use and the weapon in hand, at their instance tiers), the primary evolution, and every ability and spell the loadout offers, each once.
 **Recommendation:** A. Destiny 2's Power level is the plain average of the equipped items, rounded down ([Destiny wiki](https://www.destinypedia.com/Power)): the next level shows only once it's earned, and one stray high item doesn't lift the whole tier. Counting gear by B-306's rule keeps one answer for "what counts" across stats and tier.
 **Answer:** A (approved by the reference-backed default).
-**Notes for Claude:** applied in B-325 (`feature/B-325-combat-tier`).
+**Notes for Claude:** applied in B-325 (`feature/B-325-combat-tier`). Skills count at their asset tier (`USkillDataBase::Tier`); a levelled skill instance's tier (`FAbilityInstance` / `FSpellInstance::Tier`) is not read yet: a follow-up if skills level.
 
 ### Q-321 — Can the shared home chest hold gear, or only items?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
