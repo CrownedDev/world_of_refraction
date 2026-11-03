@@ -40,7 +40,7 @@ namespace
 	}
 
 	template <typename TValue>
-	void Expect(TArray<FString> &Out, const FString &What, TValue Table, TValue Old)
+	void ExpectElement(TArray<FString> &Out, const FString &What, TValue Table, TValue Old)
 	{
 		if (Table != Old)
 		{
@@ -69,9 +69,9 @@ TArray<FString> UElementTableDebug::CompareElements()
 	const TArray<FElementRow> &Rows = ElementTable::Rows();
 	for (int32 Index = 0; Index < Rows.Num(); ++Index)
 	{
-		Expect(Mismatches, FString::Printf(TEXT("row %d is %s"), Index, *ElementEnumName(Rows[Index].Type)), static_cast<int32>(Rows[Index].Type), Index);
+		ExpectElement(Mismatches, FString::Printf(TEXT("row %d is %s"), Index, *ElementEnumName(Rows[Index].Type)), static_cast<int32>(Rows[Index].Type), Index);
 	}
-	Expect(Mismatches, TEXT("one row per damage type"), Rows.Num(), WoRDamageType::All().Num());
+	ExpectElement(Mismatches, TEXT("one row per damage type"), Rows.Num(), WoRDamageType::All().Num());
 
 	const UEnum *Elements = StaticEnum<ESpellElement>();
 	for (int32 Index = 0; Index < Elements->NumEnums() - 1; ++Index)
@@ -79,28 +79,28 @@ TArray<FString> UElementTableDebug::CompareElements()
 		const ESpellElement Element = static_cast<ESpellElement>(Elements->GetValueByIndex(Index));
 		const FElementRow &Row = ElementTable::ForElement(Element);
 		const FString Name = ElementEnumName(Element);
-		Expect(Mismatches, Name + TEXT(" essence"), Row.Essence, EconomyYield::ElementToEssenceType(Element));
-		Expect(Mismatches, Name + TEXT(" immunity"), Row.Immunity, SkillEffectClassification::GetElementImmunityType(Element));
-		Expect(Mismatches, Name + TEXT(" colour"), Row.Colour, ElementColors::GetColorForElement(Element));
-		Expect(Mismatches, Name + TEXT(" break trigger"), Row.BreakTrigger,
+		ExpectElement(Mismatches, Name + TEXT(" essence"), Row.Essence, EconomyYield::ElementToEssenceType(Element));
+		ExpectElement(Mismatches, Name + TEXT(" immunity"), Row.Immunity, SkillEffectClassification::GetElementImmunityType(Element));
+		ExpectElement(Mismatches, Name + TEXT(" colour"), Row.Colour, ElementColors::GetColorForElement(Element));
+		ExpectElement(Mismatches, Name + TEXT(" break trigger"), Row.BreakTrigger,
 			   BarCapTriggerResolver::ResolveTrigger(Element, EPhysicalDamageType::None, false));
-		Expect(Mismatches, Name + TEXT(" BD absorbs"), Row.bBDAbsorbable, UBrokenDarknessManager::CanAbsorbElement(Element));
-		Expect(Mismatches, Name + TEXT(" BD forbidden"), Row.bBDForbidden, UBrokenDarknessManager::IsForbiddenElement(Element));
-		Expect(Mismatches, Name + TEXT(" BD forbidden (colours)"), Row.bBDForbidden, UHybridSpellColors::IsForbiddenElement(Element));
+		ExpectElement(Mismatches, Name + TEXT(" BD absorbs"), Row.bBDAbsorbable, UBrokenDarknessManager::CanAbsorbElement(Element));
+		ExpectElement(Mismatches, Name + TEXT(" BD forbidden"), Row.bBDForbidden, UBrokenDarknessManager::IsForbiddenElement(Element));
+		ExpectElement(Mismatches, Name + TEXT(" BD forbidden (colours)"), Row.bBDForbidden, UHybridSpellColors::IsForbiddenElement(Element));
 	}
 
 	for (const EPhysicalDamageType Physical : {EPhysicalDamageType::Slash, EPhysicalDamageType::Pierce, EPhysicalDamageType::Impact})
 	{
 		const FElementRow &Row = ElementTable::ForPhysical(Physical);
-		Expect(Mismatches, ElementEnumName(Physical) + TEXT(" physical axis"), Row.Physical, Physical);
-		Expect(Mismatches, ElementEnumName(Physical) + TEXT(" break trigger"), Row.BreakTrigger,
+		ExpectElement(Mismatches, ElementEnumName(Physical) + TEXT(" physical axis"), Row.Physical, Physical);
+		ExpectElement(Mismatches, ElementEnumName(Physical) + TEXT(" break trigger"), Row.BreakTrigger,
 			   BarCapTriggerResolver::ResolveTrigger(ESpellElement::None, Physical, false));
 	}
 
 	for (uint8 Gem = static_cast<uint8>(FIRST_GEM); Gem <= static_cast<uint8>(LAST_GEM); ++Gem)
 	{
 		const ECrystalType Crystal = static_cast<ECrystalType>(Gem);
-		Expect(Mismatches, ElementEnumName(Crystal) + TEXT(" gem"), ElementTable::ForElement(CrystalTypeHelpers::GetElement(Crystal)).Gem, Crystal);
+		ExpectElement(Mismatches, ElementEnumName(Crystal) + TEXT(" gem"), ElementTable::ForElement(CrystalTypeHelpers::GetElement(Crystal)).Gem, Crystal);
 	}
 	return Mismatches;
 }

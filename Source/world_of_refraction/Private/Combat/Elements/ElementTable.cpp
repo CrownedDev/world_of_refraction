@@ -9,20 +9,21 @@
 
 namespace
 {
-	/** Physical damage reads white (B-105). */
-	const FLinearColor PHYSICAL_COLOUR = FLinearColor::White;
-	/** Ice has no colour of its own yet; it is keyed Water (D-029). // TODO: an Ice colour */
-	const FLinearColor ICE_COLOUR = ElementColors::Water;
-
-	using T = EWoRDamageType;
-	using E = ESpellElement;
-	using P = EPhysicalDamageType;
-	using G = ECrystalType;
-	using Ess = EEssenceType;
-	using S = ESkillEffectType;
-
 	TArray<FElementRow> BuildRows()
 	{
+		// Built on first use, so every colour below is already initialised.
+		/** Physical damage reads white (B-105). */
+		const FLinearColor PHYSICAL_COLOUR = FLinearColor::White;
+		/** Ice has no colour of its own yet; it is keyed Water (D-029). // TODO: an Ice colour (palette follow-up) */
+		const FLinearColor ICE_COLOUR = ElementColors::Water;
+
+		using T = EWoRDamageType;
+		using E = ESpellElement;
+		using P = EPhysicalDamageType;
+		using G = ECrystalType;
+		using Ess = EEssenceType;
+		using S = ESkillEffectType;
+
 		// Water's break slows Action and Spell Speed (D-090; ApplyTriggeredSkillEffect adds the Spell Speed half).
 		// Ice resists as Water damage too (B-226, Q-042o, Q-145b).
 		// Type, Element, Physical, AlsoResistedBy, Gem, Essence, BreakTrigger, Immunity, Colour, bBDAbsorbable, bBDForbidden
