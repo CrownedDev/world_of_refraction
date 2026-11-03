@@ -1648,6 +1648,52 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - B-319's `FindDuplicateGear` counts the shared list each member sees; B-320's refill draws from it; Q-320b (dismantling gear another member wears) goes away once gear is per character.
 - B-203's carried slots are one party list (`wor.Inventory.PrintSlots`).
 
+### D-120 — Enemy HP: own HP × rank × Combat Tier power; zones place stronger enemies (audit §1)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** an enemy's max HP = its own HP × its rank × its Combat Tier power (D-118). The zone tier no longer adds HP; a harder zone places higher-tier enemies instead. Combat Tier keeps its HP boost.
+**What it changes:** B-186's zone strength on HP (`AEnemyZone::GetTierStrengthMultiplier` in `ABattleGameMode` and the balance sim); zone damage is a separate question (not ruled: keep as is). Note: B-327 found the zone was counted once, not twice (MaxHPBuff percents add); its spec is updated by the job.
+**Notes for Claude:** **widened the same day (Crown, via the brain): the zone adds no damage either**; a zone only decides which enemies are placed there, their strength is their Combat Tier. Applied in B-327 (desktop, 2026-11-03): `ABattleGameMode` and `FBalanceSimRunner` pass only the door's shares to `TrialGate::ApplyEnemyStrength`; `AEnemyZone::GetTierStrengthMultiplier` is OBSOLETE (kept for its log line until PIE); `WoR.Trial.ZoneHealthOnce` and `WoR.Trial.EnemyZone` pin it; Q-186 and ER-48 updated. What is left for B-328 is the placement half: harder zones place higher-tier enemies.
+
+### D-121 — Finish GAS stage 3, then delete the enum effect path; new effects GAS-only (audit §2)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** finish GAS stage 3 (B-042i, B-042j2, B-042f, B-042g), then delete the enum effect path. Until then every new effect goes in as a GAS effect only, and no feature job touches both paths.
+**What it changes:** B-042g is the deletion job (`FActiveSkillEffect` storage, the mirror, the sync and the enum branches); B-318 folds in.
+**Notes for Claude:** a standing rule for every job; the CLAUDE.md rules section should say it (Crown to approve that edit).
+
+### D-122 — Each character's inventory component is their store; the pool keeps only the home chest (audit §3; changes D-111's wording)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** each character's inventory component is their store; `UPoolSubsystem` keeps only the shared home chest. D-111's behaviour (GUIDs, references, the run layer) stays; its "one store per player" wording changes.
+**What it changes:** B-312b becomes "readers onto the member's component"; B-313 and B-314 stay; **B-315 is dropped** (the owner is the component); B-316 (give) is simpler; B-317 deletes the pool wearers and the copies.
+**Notes for Claude:** rows re-scoped in `Backlog.md`.
+
+### D-123 — The player picks pillars only; sub-stats come from the asset and gear; one Speed (audit §4)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** the player picks pillars only. Sub-stats come from the character asset and gear (WoW-like); the 3-points-per-level sub-stat pool retires. Action Speed and Spell Speed merge into one **Speed**.
+**What it changes:** the level-up sub-stat pool; D-088's Ice → Action Speed wording (now Speed); `StatModifierTable`, the defense window maths, a stone kind.
+**Notes for Claude:** jobs B-330 (pool retires) and B-331 (Speed merge).
+
+### D-124 — One PIE sweep checklist; deletes batched per milestone (audit §6)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** one combined checklist, `docs/PIE/Sweep.md`, covers every retire-after-PIE delete; from then on deletes are batched into one sweep per milestone. Otherwise unchanged: nothing is deleted before Crown's PIE.
+**Notes for Claude:** job B-332.
+
+### D-125 — Seven balances (audit §7; changes D-105)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** seven balances: **Gold, Prisms, Diamond, Gear Essence, Skill Essence, Elemental Essence, Pillar Essence**. The 14 typed essences retire. Elemental pays for anything with an element; Pillar pays for stat stones; Skill pays for spells, abilities and ability stones. A spell costs Skill + Elemental; a non-elemental ability costs Skill only. Quartz folds into Elemental (changes D-105). Pre-release saves may be wiped (D-060).
+**Notes for Claude:** job B-333.
+
+### D-126 — Infusion keeps the source choice; EP = base × charge level; HP cost only at level 2 (audit §8)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** keep choosing the infusion source. The EP cost is the base × the charge level; the HP cost applies only at level 2. (The audit recommended dropping the source choice; Crown kept it, so D-007 and D-035 stand.)
+**Notes for Claude:** job B-334.
+
+### D-127 — Per-instance random rolls retire (audit §9)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** delete per-instance random rolls: flag them OBSOLETE now, delete them in the sweep (D-124). They are already off, so nothing changes in play.
+**Notes for Claude:** job B-335.
+
+(Audit §5: **no change** — evolutions and fusions keep their wear. §10 is Q-293d.)
+
 ### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
 **Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.
@@ -3200,8 +3246,3 @@ Moved here once applied. Newest first.
 **Recommendation:** A. Fowler's ParallelChange: readers moved (B-042ye), payouts moved (B-042yd); the writer's copy is removed last, in one step (B-042g), not kept half-alive. Tag conditions already read GAS tags (B-042x).
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-042i. B-042g deletes the stored copies and the mirror's "Missing" rebuild with them; the `TODO` at `FWoREffectSpecBuilder::Apply` is retagged to B-042g. No authorable "if the target is Burning" condition exists in `ESkillTrigger`: B-042x's tag reads are the hit-time checks (`WoR.GAS.TagReads`), so this spec has no tag-condition case.
-
-### D-120 — Enemy HP = own × rank × Combat Tier; the zone adds no HP (changes Q-186, ER-48)
-**Status:** ANSWERED (2026-11-03) · **Raised:** 2026-11-03 (Crown, simplicity audit, via the brain) · **Blocks:** —
-**Answer (Crown):** (2026-11-03) an enemy's max HP is its own HP × its rank (Normal 1, Elite 1.5, Mini-boss 4, Boss 8) × its Combat Tier power. **The zone adds no HP, and (widened the same day) no damage either**: a zone only decides which enemies are placed there; their strength is their Combat Tier. The door's damage scaling (Q-293c) stays.
-**Notes for Claude:** applied in B-327: `ABattleGameMode` and `FBalanceSimRunner` pass only the door's shares to `TrialGate::ApplyEnemyStrength`; `AEnemyZone::GetTierStrengthMultiplier` is OBSOLETE (kept for its log line until PIE); `WoR.Trial.ZoneHealthOnce` pins base × rank × tier, `WoR.Trial.EnemyZone` that two zones leave the stats alike. Q-186's "scales every enemy's max HP and damage" and ER-48 now say the zone scales nothing.
