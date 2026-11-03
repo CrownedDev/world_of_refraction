@@ -1,6 +1,7 @@
 // TrialGate.cpp
 
 #include "Trial/TrialGate.h"
+#include "Combat/Tier/CombatTier.h"
 
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
@@ -145,9 +146,8 @@ float TrialGate::GetRankHealthMultiplier(EEncounterRank Rank)
 
 float TrialGate::GetEnemyTierHealthMultiplier(const AActor *Enemy)
 {
-	const UCharacterDataComponent *CharComp = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-	const UCharacterData *Data = CharComp ? CharComp->CharacterData : nullptr;
-	return TierPowerScaling::GetTierPowerMultiplier(Data ? Data->EnemyTier : EItemTier::F_Tier);
+	// B-325 (D-118): the enemy's Combat Tier (its gear and skills; EnemyTier only as the fallback).
+	return TierPowerScaling::GetTierPowerMultiplier(WoRCombatTier::GetCombatTier(Enemy));
 }
 
 bool TrialGate::ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EEncounterRank Rank)
