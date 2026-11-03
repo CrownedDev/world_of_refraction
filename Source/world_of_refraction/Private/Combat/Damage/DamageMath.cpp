@@ -84,8 +84,8 @@ FDamageCalculationResult WoRDamageMath::Compute(const FDamageMathInputs &Inputs)
 	}
 
 	Result.DamageBeforeDefense = FMath::RoundToInt(RunningDamage);
-	// B-293d: the hit before the defender's Damage Taken Down, Defense and Guard, for the floor. A net Damage Taken Up
-	// raises the hit, not the floor.
+	// B-293d: the hit before the defender's Damage Taken Down, Defense, grid defense and Guard, for the floor. A net
+	// Damage Taken Up is not divided out, so it raises the floor along with the hit (Q-293d notes).
 	const float DamageTakenShare = FMath::Min(1.0f, Inputs.DamageTakenFactor);
 	const float UnreducedDamage = RunningDamage / FMath::Max(DamageTakenShare, KINDA_SMALL_NUMBER) /
 								  FMath::Clamp(Inputs.GuardFactor, KINDA_SMALL_NUMBER, 1.0f);
@@ -109,7 +109,14 @@ FDamageCalculationResult WoRDamageMath::Compute(const FDamageMathInputs &Inputs)
 	// Less a hair of float noise, so an exact 10.0000001 doesn't round up to 11.
 	constexpr float FLOOR_ROUNDING_SLACK = 1.0e-3f;
 	const int32 DamageFloor = FMath::CeilToInt(UnreducedDamage * DamageConstants::HIT_DAMAGE_FLOOR_SHARE - FLOOR_ROUNDING_SLACK);
-	Result.FinalDamage = FMath::Max3(DamageConstants::MIN_DAMAGE, DamageFloor, FMath::RoundToInt(RunningDamage));
+	const int32 ReducedDamage = FMath::RoundToInt(RunningDamage);
+	Result.FinalDamage = FMath::Max3(DamageConstants::MIN_DAMAGE, DamageFloor, ReducedDamage);
+	if (DamageFloor > ReducedDamage && DamageFloor > DamageConstants::MIN_DAMAGE)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("WoRDamageMath: floored %d -> %d (%.0f%% of unreduced %.1f)"), ReducedDamage,
+			   DamageFloor, DamageConstants::HIT_DAMAGE_FLOOR_SHARE * CombatConstants::STAT_PERCENT_DIVISOR,
+			   UnreducedDamage);
+	}
 	return Result;
 }
 
@@ -136,5 +143,8 @@ FString WoRDamageMath::GetInputsString(const FDamageMathInputs &Inputs)
 						   Inputs.IgnoreDefense * CombatConstants::STAT_PERCENT_DIVISOR);
 	Out += FString::Printf(TEXT("Defense %s: %.4f  grid defense %.4f\n"), Inputs.bApplyDefense ? TEXT("on") : TEXT("off"),
 						   Inputs.DefenderDefense, Inputs.GridDefenseModifier);
+	Out += FString::Printf(TEXT("Damage taken x%.4f  guard x%.4f  floor %.0f%% of the unreduced hit\n"),
+						   Inputs.DamageTakenFactor, Inputs.GuardFactor,
+						   DamageConstants::HIT_DAMAGE_FLOOR_SHARE * CombatConstants::STAT_PERCENT_DIVISOR);
 	return Out;
 }

@@ -47,6 +47,7 @@ namespace
 	constexpr float LADDER_AT_GAP_FOUR = 0.50f;
 	constexpr float LADDER_AT_GAP_FIVE = 0.32f;
 	/** B-293d damage floor: a hit of 100 through 75% Defense, 90% Damage Taken Down and a Guard (half) keeps 10. */
+	constexpr float FLOOR_SHARE = 0.1f; // B-293d (Q-293d, Crown): a hit keeps at least a tenth
 	constexpr int32 FLOOR_HIT = 100;
 	constexpr float FLOOR_GUARD_SHARE = 0.5f;
 	constexpr float FLOOR_DAMAGE_TAKEN = 0.1f;
@@ -140,7 +141,7 @@ void FCombatNumbersBaselineSpec::Define()
 
 	It("B-293d: keeps at least 10% of a hit after Defense, Damage Taken Down and Guard", [this]()
 	{
-		TestEqual(TEXT("the floor share"), DamageConstants::HIT_DAMAGE_FLOOR_SHARE, 0.1f, BASELINE_TOLERANCE);
+		TestEqual(TEXT("the floor share"), DamageConstants::HIT_DAMAGE_FLOOR_SHARE, FLOOR_SHARE, BASELINE_TOLERANCE);
 		FDamageMathInputs Inputs;
 		Inputs.BaseDamage = FMath::RoundToInt(FLOOR_HIT * FLOOR_GUARD_SHARE); // Guard already took half
 		Inputs.GuardFactor = FLOOR_GUARD_SHARE;
