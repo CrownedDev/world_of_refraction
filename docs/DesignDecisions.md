@@ -1663,6 +1663,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. Selling back for a fraction of the buy price is the genre norm (Diablo / Path of Exile vendors, Skyrim ~1/3, Elden Ring), and half matches this game's merge cost. Letting the choice wait, as Monster Hunter's and Destiny's postmaster / duplicate prompts do, avoids interrupting loot mid-trial. With the shared pool, a duplicate is counted across the party's armoury (every member sees the same owned list).
 **Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
 
+### Q-319b — With the shared armoury, is "one copy" per character or per party?
+**Status:** OPEN (Crown) · **Raised:** 2026-11-03 (B-319 review) · **Blocks:** — (B-319 ships counting the owned list each member sees)
+**Question:** D-115 says a *character* never keeps two copies. Since B-091 the party shares one armoury: every member's owned list is the same pool, so B-319 counts duplicates across the party. Two members can't each own the same sword. Also, D-115's job said the inventory "never ends with two copies", but the choice waits in a list (Q-319), so two copies exist until the player chooses (and buying two of one weapon makes a duplicate on purpose).
+**Options:** A one copy per party armoury (today's behaviour) / B one copy per member: a second copy is allowed while another member wears the first (needs a per-member owner on pool gear) / C force the choice the moment the copy arrives.
+**Recommendation:** none: this reads D-115's wording, so it is Crown's call. A is the simplest and fits a shared stash (Diablo IV's shared stash keeps per-character equipped items only); B matches the wording.
+**Answer:** —
+
 ### Q-320 — How far does "always one primary" reach (D-116)?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-320) · **Blocks:** —
 **Question:** D-116 says a character always has one valid primary. Three edges: (1) which loadouts get an empty primary filled: only the active one, or every saved loadout? (2) should validation block an empty primary, or only flag it? (3) a member who owns nothing usable (a Caster or Resonator with no weapon) has no primary to give.
