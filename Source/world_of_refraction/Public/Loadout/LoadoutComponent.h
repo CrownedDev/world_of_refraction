@@ -83,6 +83,11 @@ struct WORLD_OF_REFRACTION_API FEquippedCrystalSlot
 
     UPROPERTY(BlueprintReadOnly, Category = "Crystal")
     UObject *Holder = nullptr;
+
+    /** B-310 (D-111): the owned item the attachment sits on, so two identical holders stay apart; invalid for
+     *  asset-built gear and the evolution seat (then Holder alone). */
+    UPROPERTY(BlueprintReadOnly, Category = "Crystal")
+    FGuid GearID;
 };
 
 /**
@@ -634,6 +639,13 @@ public:
      *  the live attachment, and by the public Reset/Repair/ApplyWear wrappers
      *  which perform fetch-and-use within a single scope. */
     FRuntimeAttachedItem *FindAttachedItemByHolder(UObject *Holder);
+
+    /** B-310: the attachment a GetEquippedCrystals slot names: matched by its item's GUID when it has one (so two
+     *  identical adapters stay apart), else by holder. Crystal break / destroy / repair use these. */
+    FRuntimeAttachedItem *FindAttachedItemForSlot(const FEquippedCrystalSlot &Slot);
+    FRuntimeAttachedItem GetCrystalEntryForSlot(const FEquippedCrystalSlot &Slot) const;
+    void ResetCrystalEntryForSlot(const FEquippedCrystalSlot &Slot);
+    int32 RepairCrystalEntryForSlot(const FEquippedCrystalSlot &Slot, int32 Amount);
 
     /** Resets the attachment to its default (empty) state. Used by end-of-combat
      *  crystal destruction. No-op if no matching entry exists. */

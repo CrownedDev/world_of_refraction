@@ -2716,7 +2716,7 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
 {
     TArray<FEquippedCrystalSlot> Result;
 
-    auto AddAttachment = [&Result](const FRuntimeAttachedItem &Attachment, UObject *Holder)
+    auto AddAttachment = [&Result](const FRuntimeAttachedItem &Attachment, UObject *Holder, const FGuid &GearID)
     {
         if (Attachment.IsEmpty() || !Holder)
         {
@@ -2725,6 +2725,7 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
 
         FEquippedCrystalSlot Slot;
         Slot.Holder = Holder;
+        Slot.GearID = GearID;
         Slot.Kind = Attachment.Kind;
         if (Attachment.IsCrystal())
         {
@@ -2752,26 +2753,26 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
     if (const FWeaponLoadoutEntry *PrimaryLoadout = GetPrimaryWeaponLoadout())
     {
         AddAttachment(PrimaryLoadout->WeaponEntry.AttachedItem,
-                      PrimaryLoadout->WeaponEntry.Weapon);
+                      PrimaryLoadout->WeaponEntry.Weapon, PrimaryLoadout->WeaponEntry.PersistentID);
     }
     if (const FWeaponLoadoutEntry *SecondaryLoadout = GetSecondaryWeaponLoadout())
     {
         AddAttachment(SecondaryLoadout->WeaponEntry.AttachedItem,
-                      SecondaryLoadout->WeaponEntry.Weapon);
+                      SecondaryLoadout->WeaponEntry.Weapon, SecondaryLoadout->WeaponEntry.PersistentID);
     }
 
     // Primary ring (Generic / Caster) — runtime entry
     if (const FRingLoadoutEntry *PrimaryRingLoadout = GetPrimaryRingLoadout())
     {
         AddAttachment(PrimaryRingLoadout->RingEntry.AttachedItem,
-                      PrimaryRingLoadout->RingEntry.Ring);
+                      PrimaryRingLoadout->RingEntry.Ring, PrimaryRingLoadout->RingEntry.PersistentID);
     }
 
     // Resonator ring loadout — every ring in the array, runtime entry
     const FCombatLoadout &ActiveLoadout = GetActiveLoadout();
     for (const FRingLoadoutEntry &Entry : ActiveLoadout.RingLoadout)
     {
-        AddAttachment(Entry.RingEntry.AttachedItem, Entry.RingEntry.Ring);
+        AddAttachment(Entry.RingEntry.AttachedItem, Entry.RingEntry.Ring, Entry.RingEntry.PersistentID);
     }
 
     // Evolution crystal slot — no inventory entry, evolution IS the crystal.
@@ -3505,6 +3506,12 @@ FRuntimeAttachedItem *ULoadoutComponent::FindAttachedItemByHolder(UObject *Holde
     // regardless of PrimarySlotType. A holder lookup is by identity, not slot.
     if (UWeaponData *Weapon = Cast<UWeaponData>(Holder))
     {
+        // B-310: a Generic showing its secondary is fighting with it, so with two identical weapons the wear goes
+        // there first (only a Generic has a secondary weapon).
+        if (!Loadout.bShowPrimary && Loadout.SecondaryWeapon.WeaponEntry.Weapon == Weapon)
+        {
+            return &Loadout.SecondaryWeapon.WeaponEntry.AttachedItem;
+        }
         if (Loadout.PrimaryWeapon.WeaponEntry.Weapon == Weapon)
         {
             return &Loadout.PrimaryWeapon.WeaponEntry.AttachedItem;
@@ -3520,6 +3527,12 @@ FRuntimeAttachedItem *ULoadoutComponent::FindAttachedItemByHolder(UObject *Holde
     // RingLoadout array.
     if (URingData *Ring = Cast<URingData>(Holder))
     {
+        // B-310: the adapter in use first, so with two identical adapters the cast's wear lands on the one cast
+        // through, not on the first copy in the list.
+        if (Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex) && Loadout.RingLoadout[Loadout.ActiveRingIndex].RingEntry.Ring == Ring)
+        {
+            return &Loadout.RingLoadout[Loadout.ActiveRingIndex].RingEntry.AttachedItem;
+        }
         if (Loadout.PrimaryRing.RingEntry.Ring == Ring)
         {
             return &Loadout.PrimaryRing.RingEntry.AttachedItem;
@@ -3535,6 +3548,74 @@ FRuntimeAttachedItem *ULoadoutComponent::FindAttachedItemByHolder(UObject *Holde
     }
 
     return nullptr;
+}
+
+FRuntimeAttachedItem *ULoadoutComponent::FindAttachedItemForSlot(const FEquippedCrystalSlot &Slot)
+{
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Slot.GearID.IsValid() || !Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        return FindAttachedItemByHolder(Slot.Holder);
+    }
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const auto Is = [&Slot](const UObject *Asset, const FGuid &GearID) { return Asset == Slot.Holder && GearID == Slot.GearID; };
+    if (Is(Loadout.PrimaryWeapon.WeaponEntry.Weapon, Loadout.PrimaryWeapon.WeaponEntry.PersistentID))
+    {
+        return &Loadout.PrimaryWeapon.WeaponEntry.AttachedItem;
+    }
+    if (Is(Loadout.SecondaryWeapon.WeaponEntry.Weapon, Loadout.SecondaryWeapon.WeaponEntry.PersistentID))
+    {
+        return &Loadout.SecondaryWeapon.WeaponEntry.AttachedItem;
+    }
+    if (Is(Loadout.PrimaryRing.RingEntry.Ring, Loadout.PrimaryRing.RingEntry.PersistentID))
+    {
+        return &Loadout.PrimaryRing.RingEntry.AttachedItem;
+    }
+    for (FRingLoadoutEntry &Entry : Loadout.RingLoadout)
+    {
+        if (Is(Entry.RingEntry.Ring, Entry.RingEntry.PersistentID))
+        {
+            return &Entry.RingEntry.AttachedItem;
+        }
+    }
+    // A GUID that names nothing in the loadout: an asset match could be the other identical copy (D-111), so none.
+    UE_LOG(LogTemp, Verbose, TEXT("[ULoadoutComponent::FindAttachedItemForSlot] GUID %s not in the active loadout"), *Slot.GearID.ToString());
+    return nullptr;
+}
+
+FRuntimeAttachedItem ULoadoutComponent::GetCrystalEntryForSlot(const FEquippedCrystalSlot &Slot) const
+{
+    // const_cast as GetCrystalEntryByHolder: the lookup is shared with the mutating helpers; this only copies.
+    const FRuntimeAttachedItem *Found = const_cast<ULoadoutComponent *>(this)->FindAttachedItemForSlot(Slot);
+    return Found ? *Found : FRuntimeAttachedItem();
+}
+
+void ULoadoutComponent::ResetCrystalEntryForSlot(const FEquippedCrystalSlot &Slot)
+{
+    if (!Slot.GearID.IsValid())
+    {
+        ResetCrystalEntryByHolder(Slot.Holder);
+        return;
+    }
+    if (FRuntimeAttachedItem *Found = FindAttachedItemForSlot(Slot))
+    {
+        *Found = FRuntimeAttachedItem();
+    }
+}
+
+int32 ULoadoutComponent::RepairCrystalEntryForSlot(const FEquippedCrystalSlot &Slot, int32 Amount)
+{
+    if (!Slot.GearID.IsValid())
+    {
+        return RepairCrystalEntryByHolder(Slot.Holder, Amount);
+    }
+    FRuntimeAttachedItem *Found = FindAttachedItemForSlot(Slot);
+    if (!Found)
+    {
+        return -1;
+    }
+    Found->RepairBetweenCombats(Amount);
+    return Found->GetCurrentDurability();
 }
 
 FRuntimeAttachedItem ULoadoutComponent::GetCrystalEntryByHolder(UObject *Holder) const
@@ -3614,12 +3695,15 @@ namespace LoadoutCarryInternal
     template <typename TLoadout, typename FFunc>
     void ForEachAttachmentSlot(TLoadout &Loadout, FFunc &&Func)
     {
-        Func(static_cast<UObject *>(Loadout.PrimaryWeapon.WeaponEntry.Weapon), Loadout.PrimaryWeapon.WeaponEntry.AttachedItem);
-        Func(static_cast<UObject *>(Loadout.SecondaryWeapon.WeaponEntry.Weapon), Loadout.SecondaryWeapon.WeaponEntry.AttachedItem);
-        Func(static_cast<UObject *>(Loadout.PrimaryRing.RingEntry.Ring), Loadout.PrimaryRing.RingEntry.AttachedItem);
+        Func(static_cast<UObject *>(Loadout.PrimaryWeapon.WeaponEntry.Weapon), Loadout.PrimaryWeapon.WeaponEntry.PersistentID,
+             Loadout.PrimaryWeapon.WeaponEntry.AttachedItem);
+        Func(static_cast<UObject *>(Loadout.SecondaryWeapon.WeaponEntry.Weapon), Loadout.SecondaryWeapon.WeaponEntry.PersistentID,
+             Loadout.SecondaryWeapon.WeaponEntry.AttachedItem);
+        Func(static_cast<UObject *>(Loadout.PrimaryRing.RingEntry.Ring), Loadout.PrimaryRing.RingEntry.PersistentID,
+             Loadout.PrimaryRing.RingEntry.AttachedItem);
         for (auto &Entry : Loadout.RingLoadout)
         {
-            Func(static_cast<UObject *>(Entry.RingEntry.Ring), Entry.RingEntry.AttachedItem);
+            Func(static_cast<UObject *>(Entry.RingEntry.Ring), Entry.RingEntry.PersistentID, Entry.RingEntry.AttachedItem);
         }
     }
 }
@@ -3634,11 +3718,14 @@ FCarriedGearState ULoadoutComponent::SnapshotCarriedGear() const
     }
 
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried](UObject *Holder, const FRuntimeAttachedItem &Attached)
+    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried](UObject *Holder, const FGuid &GearID, const FRuntimeAttachedItem &Attached)
     {
         if (Holder)
         {
-            Carried.Attachments.Add({Holder, Attached});
+            FCarriedAttachment &Entry = Carried.Attachments.AddDefaulted_GetRef();
+            Entry.Holder = Holder;
+            Entry.GearID = GearID;
+            Entry.Attached = Attached;
         }
     });
     Carried.bHasPrimaryEvolution = Loadout.PrimarySlotType == EPrimarySlotType::Evolution;
@@ -3660,18 +3747,35 @@ int32 ULoadoutComponent::ApplyCarriedGear(const FCarriedGearState &Carried)
     }
 
     FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-    // Matched in slot order, each carried entry used once, so two copies of one ring keep their own state.
+    // B-310 (D-111): matched by the owned item's GUID first, so an item gets its own wear wherever it sits. A slot
+    // with no GUID (asset-built gear) or an entry saved before B-310 falls back to the asset, in slot order, each
+    // carried entry used once.
     TBitArray<> Used(false, Carried.Attachments.Num());
     int32 Restored = 0;
-    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried, &Used, &Restored](UObject *Holder, FRuntimeAttachedItem &Attached)
+    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried, &Used, &Restored](UObject *Holder, const FGuid &GearID, FRuntimeAttachedItem &Attached)
     {
+        const auto Take = [&](int32 i)
+        {
+            Attached = Carried.Attachments[i].Attached;
+            Used[i] = true;
+            ++Restored;
+        };
+        if (GearID.IsValid())
+        {
+            for (int32 i = 0; i < Carried.Attachments.Num(); ++i)
+            {
+                if (!Used[i] && Carried.Attachments[i].GearID == GearID)
+                {
+                    Take(i);
+                    return;
+                }
+            }
+        }
         for (int32 i = 0; Holder && i < Carried.Attachments.Num(); ++i)
         {
-            if (!Used[i] && Carried.Attachments[i].Holder == Holder)
+            if (!Used[i] && !Carried.Attachments[i].GearID.IsValid() && Carried.Attachments[i].Holder == Holder)
             {
-                Attached = Carried.Attachments[i].Attached;
-                Used[i] = true;
-                ++Restored;
+                Take(i);
                 return;
             }
         }
