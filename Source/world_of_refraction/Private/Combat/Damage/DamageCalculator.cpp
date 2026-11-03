@@ -287,7 +287,7 @@ float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 
 	// Pattern P (cluster 5a, revised; UCharacterDataComponent::GetStatLayers): the crystal-aware STAT
 	// reduction capped ALONE at UNIVERSAL_STAT_CAP (0.5), then BonusDefense, the DefenseStone and the
-	// DefenseBuff/Debuff net (floored at x0) MULTIPLY it toward DEFENSE_REDUCTION_CEILING (0.85).
+	// DefenseBuff/Debuff net (floored at x0) MULTIPLY it toward DEFENSE_REDUCTION_CEILING (0.75, B-224).
 	// Multiplicative by design intent (Crown): a +X% stone/buff rewards a high-defense build more.
 	float OnGAS = 0.0f;
 	if (UWoRAttributeSyncComponent::ReadComposedOnGAS(Defender, UWoRAttributeSet_Stats::GetDefenseAttribute(), OnGAS))
@@ -427,16 +427,15 @@ UBrokenDarknessManager *UDamageCalculator::GetBrokenDarknessManager(AActor *Acto
 
 float UDamageCalculator::GetCritDamageMultiplier(AActor *Attacker) const
 {
-	// Returns the FULL crit-damage multiplier. Crown-locked (5e-B-fix): un-invested crit = CRIT_DMG_BASE
-	// (x1.0 = normal damage); the crit-damage stat ramps it to x1.5 (stat-ALONE cap); gear/transient
-	// MULTIPLY past toward x2.0 (Pattern P / cluster 5). The fixed x1.5 CRIT_MULTIPLIER base is GONE
-	// from the crit path — a crit now does NOTHING extra without crit-damage investment.
+	// Returns the FULL crit-damage multiplier. Un-invested crit = CRIT_DMG_BASE (x1.25 since B-224; was x1.0);
+	// the crit-damage stat ramps it to x1.5 (stat-ALONE cap); gear/transient MULTIPLY past toward x2.5
+	// (Pattern P / cluster 5, D-034).
 	if (!Attacker)
 	{
-		return CombatConstants::CRIT_DMG_BASE; // x1.0 (normal damage) when no attacker
+		return CombatConstants::CRIT_DMG_BASE; // the un-invested crit when no attacker
 	}
 
-	// Pattern P (UCharacterDataComponent::GetStatLayers): CRIT_DMG_BASE (x1.0) + the Mind crit-damage ramp,
+	// Pattern P (UCharacterDataComponent::GetStatLayers): CRIT_DMG_BASE (x1.25) + the Mind crit-damage ramp,
 	// capped ALONE at CRIT_DAMAGE_STAT_CAP (x1.5), then BonusCritDamage, the CritStone and the net
 	// ModifyCritDamage / CritDamageDebuff multiply it, clamped [CRIT_DMG_BASE, CRIT_DAMAGE_GEAR_CEILING]:
 	// a debuff can cancel the crit bonus but never make a crit weaker than a normal hit.

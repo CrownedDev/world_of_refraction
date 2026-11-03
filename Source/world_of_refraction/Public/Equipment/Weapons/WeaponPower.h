@@ -42,7 +42,7 @@ namespace WoRWeaponPower
 	WORLD_OF_REFRACTION_API float GetReferencePower(EItemTier Tier);
 
 	/** The main-pillar requirement a weapon of Tier is expected to ask for (F0 E1 D2 C3 B5 A6 S7; B-224): the
-	 *  WeaponRequirement ladder, else the C++ table. An authoring guide; the asset's own requirement rules. */
+	 *  WeaponRequirementByTier ladder, else the C++ table. An authoring guide; the asset's own requirement rules. */
 	WORLD_OF_REFRACTION_API int32 GetReferenceRequirement(EItemTier Tier);
 
 	/** Power at a copy's tier: authored Power x TIER_POWER(instance) / TIER_POWER(asset tier). */
