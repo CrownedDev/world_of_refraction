@@ -227,24 +227,39 @@ void UWoREffectMirrorComponent::ForgetEnded(const FActiveSkillEffect &Effect)
 
 bool UWoREffectMirrorComponent::PayTick(const FActiveSkillEffect &Effect)
 {
-	SyncMirror(); // a payout on landing comes before the applied event's sync (Q-063)
 	UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
-	const FWoRMirroredEffect Wanted = ToMirrored(Effect);
-	const FWoRMirroredEffect *Entry = Mirrored.FindByPredicate([&Wanted](const FWoRMirroredEffect &Mirror) { return Mirror.Matches(Wanted); });
-	// Without the Vitals set the tick execution has no Health to change, and without character data the
-	// Vitals set has no HP path to hand it to.
+	// Without the Vitals set the tick execution has no Health / Energy to change, and without character data
+	// the Vitals set has no HP / EP path to hand it to.
 	const UCharacterDataComponent *Char = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
 	if (!ASC || !ASC->HasAttributeSetForAttribute(UWoRAttributeSet_Vitals::GetHealthAttribute()) || !Char ||
-		!Char->CharacterData || !Entry ||
-		!Entry->TickSpec.IsValid() || !ASC->GetActiveGameplayEffect(Entry->Handle))
+		!Char->CharacterData)
 	{
 		return false;
 	}
-	// A copy keeps the spec alive: a lethal tick's death path can resync (and rebuild) Mirrored mid-apply.
-	const FGameplayEffectSpecHandle Tick = Entry->TickSpec;
+	FGameplayEffectSpecHandle Tick;
+	if (Effect.IsInstant())
+	{
+		// B-042yd: a one-shot is never stored, so never mirrored: its payout is a tick spec of its own.
+		Tick = FWoREffectSpecBuilder::Build(*ASC, Effect, Effect.SourceActor.Get(), true).TickSpec;
+	}
+	else
+	{
+		SyncMirror(); // a payout on landing comes before the applied event's sync (Q-063)
+		const FWoRMirroredEffect Wanted = ToMirrored(Effect);
+		const FWoRMirroredEffect *Entry = Mirrored.FindByPredicate([&Wanted](const FWoRMirroredEffect &Mirror) { return Mirror.Matches(Wanted); });
+		if (Entry && ASC->GetActiveGameplayEffect(Entry->Handle))
+		{
+			// A copy keeps the spec alive: a lethal tick's death path can resync (and rebuild) Mirrored mid-apply.
+			Tick = Entry->TickSpec;
+		}
+	}
+	if (!Tick.IsValid())
+	{
+		return false;
+	}
 	ASC->ApplyGameplayEffectSpecToSelf(*Tick.Data.Get());
-	UE_LOG(LogWoREffects, Verbose, TEXT("[EffectMirror] %s: %s tick paid through GAS"), *GetNameSafe(GetOwner()),
-		   *Wanted.Identity.ToString());
+	UE_LOG(LogWoREffects, Verbose, TEXT("[EffectMirror] %s: %s %s paid through GAS"), *GetNameSafe(GetOwner()),
+		   *UEnum::GetValueAsString(Effect.EffectType), *FWoREffectSpecBuilder::MakeIdentity(Effect).ToString());
 	return true;
 }
 

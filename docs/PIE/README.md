@@ -219,6 +219,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-303](B-303.md) | `refactor/B-303-class-table-cost` (in `dev`) | Unified loadout 3: one class table and one slot cost (budget unchanged except Q-303b) | Not tested |
 | [B-310](B-310.md) | `fix/B-310-run-wear-by-guid` (in `dev`) | Run wear follows the item's GUID: two identical adapters keep their own wear | Not tested |
 | [B-304](B-304.md) | `refactor/B-304-active-slot` (in `dev`) | Unified loadout 4: one active-slot rule; empty slot falls back (Q-304); secondary weapon spell checks | Not tested |
+| [B-042yd](B-042yd.md) | `refactor/B-042yd-gas-payouts` (in `dev`) | GAS: energy, drains, self-damage and percent restores pay through GAS at UseGAS 1 | Not tested |
 
 Move rows to **Done** when every check passes.
 

@@ -458,6 +458,21 @@ namespace
 												: nullptr;
 		return Mirror && Mirror->PayTick(Effect);
 	}
+
+	/** B-042yd: the other payouts (energy, drains, self-damage, percent restores) as PayTickThroughGAS, logged. */
+	bool PayPayoutThroughGAS(AActor *Actor, const FActiveSkillEffect &Effect, const UCharacterDataComponent &Char)
+	{
+		const int32 HPBefore = Char.CurrentHP;
+		const int32 EPBefore = Char.CurrentEP;
+		if (!PayTickThroughGAS(Actor, Effect))
+		{
+			return false;
+		}
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: %s %s paid through GAS, HP %d -> %d, EP %d -> %d"),
+			   *Actor->GetName(), *UEnum::GetValueAsString(Effect.EffectType), *Effect.EffectName, HPBefore, Char.CurrentHP,
+			   EPBefore, Char.CurrentEP);
+		return true;
+	}
 }
 
 #if !UE_BUILD_SHIPPING
@@ -1751,12 +1766,20 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 
 	// ==================== ENERGY ====================
 	case ESkillEffectType::EnergyRestore:
+		if (PayPayoutThroughGAS(Actor, Effect, *CharComp))
+		{
+			break;
+		}
 		CharComp->ServerGainEnergy(FMath::RoundToInt(Value));
 		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s gained %d energy from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
 		break;
 
 	case ESkillEffectType::EnergyDrain:
+		if (PayPayoutThroughGAS(Actor, Effect, *CharComp))
+		{
+			break;
+		}
 		CharComp->ServerSpendEnergy(FMath::RoundToInt(Value));
 		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s lost %d energy from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
@@ -1829,6 +1852,10 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// Wired Session X. Lunge's self-damage effect applied cleanly but had no
 	// handler here, so it sat on the actor without ticking (May 2026 PIE).
 	case ESkillEffectType::SelfDamage:
+		if (PayPayoutThroughGAS(Actor, Effect, *CharComp))
+		{
+			break;
+		}
 		CharComp->ServerTakeDamage(FMath::RoundToInt(Value));
 		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s took %d self-damage from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
@@ -1881,6 +1908,13 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// Resource changes — percent restore / drain. Value is the percent (0..100).
 	case ESkillEffectType::RestoreHPPercent:
 	{
+		// B-042yd: past the HealBlock gate, the restore pays through GAS at UseGAS 1, and reports its heal (B-247).
+		if (const int32 HPBefore = CharComp->CurrentHP;
+			!IsImmuneToEffectType(Actor, ESkillEffectType::RestoreHPPercent) && PayPayoutThroughGAS(Actor, Effect, *CharComp))
+		{
+			BroadcastHealing(Effect.SourceActor.Get(), Actor, CharComp->CurrentHP - HPBefore);
+			break;
+		}
 		// HealBlock re-gate (per-tick): no heal while the bearer is HealBlocked; the effect persists and its
 		// duration still decrements. Gate, amplify, heal and report through HealActor (B-247).
 		if (CharComp->MaxHP > 0)
@@ -1894,6 +1928,10 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	}
 	case ESkillEffectType::RestoreEnergyPercent:
 	{
+		if (PayPayoutThroughGAS(Actor, Effect, *CharComp))
+		{
+			break;
+		}
 		if (CharComp->MaxEP > 0)
 		{
 			const int32 Amount = FMath::RoundToInt(CharComp->MaxEP * Value / CombatConstants::STAT_PERCENT_DIVISOR);
@@ -1909,6 +1947,10 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// DrainHP — distinct from DOT: flat damage, no "leave 1 HP" clamp (can be lethal).
 	case ESkillEffectType::DrainHP:
 	{
+		if (PayPayoutThroughGAS(Actor, Effect, *CharComp))
+		{
+			break;
+		}
 		const int32 Amount = FMath::RoundToInt(Value);
 		if (Amount > 0)
 		{
@@ -1921,6 +1963,10 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// DrainEnergy — distinct from the bar-cap EnergyDrain trigger above.
 	case ESkillEffectType::DrainEnergy:
 	{
+		if (PayPayoutThroughGAS(Actor, Effect, *CharComp))
+		{
+			break;
+		}
 		const int32 Amount = FMath::RoundToInt(Value);
 		if (Amount > 0)
 		{
