@@ -438,7 +438,8 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 		{
 			const UCharacterDataComponent *MemberData = Member ? Member->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 			const FName MemberKey = UPoolSubsystem::GetCharacterKey(MemberData ? MemberData->CharacterData : nullptr);
-			if (MemberKey.IsNone())
+			// Only rostered members: a guest or summon has no level-drop screen row to spend them from.
+			if (MemberKey.IsNone() || !MemberData->FindCarriedPartyMember())
 			{
 				continue;
 			}

@@ -140,7 +140,7 @@ public:
     /** Levels Character bought from a vendor this run (the rising price, D-102). */
     int32 GetRunLevelPurchases(FName CharacterKey) const;
     void AddRunLevelPurchase(FName CharacterKey);
-    /** Forgets one character's run levels and purchases (UCharacterDataComponent::ResetRunWorldStats). */
+    /** Forgets one character's run levels, purchases and waiting dropped levels (UCharacterDataComponent::ResetRunWorldStats). */
     void ForgetRunLevels(FName CharacterKey);
 
     /** B-223b (Q-223 changed by Crown, 2026-11-03): each character's own dropped levels, not yet given to one of its
