@@ -76,6 +76,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     FoundFeatures.Reset();
     RunMemories.Reset();
     PendingEncounterSources.Reset();
+    PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
     const int32 ForcedSeed = CVarTrialSeed.GetValueOnGameThread();
@@ -134,6 +135,7 @@ void UTrialRunSubsystem::ExitTrial()
     FoundFeatures.Reset();
     RunMemories.Reset();
     PendingEncounterSources.Reset();
+    PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
     // B-090: a trial's exit is a save point.
@@ -190,6 +192,7 @@ void UTrialRunSubsystem::ExitEncounter()
     PendingBattleParty.Reset();
     PendingOpposingParty.Reset();
     PendingEncounterSources.Reset();
+    PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
     EncounterReturnLevel = nullptr;
@@ -320,6 +323,7 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     FoundFeatures = Found;
     RunMemories = TArray<TObjectPtr<UMemoryData>>(Memories);
     PendingEncounterSources.Reset();
+    PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Restored saved run of '%s' (seed %d, %d beaten, %d found, %d memories)"),
@@ -358,7 +362,9 @@ FString UTrialRunSubsystem::GetTrialRunString() const
     {
         Found.Add(Entry.Value.ToString());
     }
-    return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | variation=%s | difficulty=%s (enemy x%.2f, payout x%.2f) | beaten=%d | found %d [%s] | memories %d | first strike=%s | zone tier %d (%s) | hub=%s | pending %d v %d (%s) | return=%s"),
+    // B-224b: each fielded enemy's own rank (its HP), beside the fight's rank.
+    const FString EnemyRanks = FString::JoinBy(PendingEnemyRanks, TEXT(","), [](EEncounterRank Rank) { return UEnum::GetValueAsString(Rank); });
+    return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | variation=%s | difficulty=%s (enemy x%.2f, payout x%.2f) | beaten=%d | found %d [%s] | memories %d | first strike=%s | zone tier %d (%s) | hub=%s | pending %d v %d (%s; per enemy [%s]) | return=%s"),
                            ActiveTrial ? *ActiveTrial->Name.ToString() : TEXT("<none>"), RunSeed,
                            Variation ? *Variation->Name.ToString() : TEXT("<none>"),
                            *TrialGate::GetDifficultyName(TrialDifficulty).ToString(), GetEnemyStrengthMultiplier(),
@@ -367,7 +373,7 @@ FString UTrialRunSubsystem::GetTrialRunString() const
                            PendingZone.LootPool.IsValid() ? *PendingZone.LootPool.ToString() : TEXT("no loot pool"),
                            HubLevel.IsNull() ? TEXT("<UNSET>") : *HubLevel.ToString(),
                            PendingBattleParty.Num(), PendingOpposingParty.Num(),
-                           *UEnum::GetValueAsString(PendingRank),
+                           *UEnum::GetValueAsString(PendingRank), *EnemyRanks,
                            EncounterReturnLevel.IsNull() ? TEXT("<none>") : *EncounterReturnLevel.ToString());
 }
 

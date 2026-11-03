@@ -3071,3 +3071,12 @@ Moved here once applied. Newest first.
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-293; flip `bError` per target in `EvaluateTargets` to change a band's severity. Desktop build: the sim's spell costs **0 EP** (sim-only; the AI may cast it every turn its EP allows); set `BaseEnergyCost` in `BalanceSimRunner.cpp` when B-293c tunes. The first nightly fails 19 bands (B-293c).
 
+### Q-224d — Enemy HP by tier power: where the enemy's tier comes from
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-224b, cloud) · **Blocks:** —
+**Question:** BaselineNumbers' Decided list puts enemy HP "on top of the stat formula and the enemy's tier power, zone and difficulty", but a character asset has no tier. Where does an enemy's tier come from, and does it stack with the zone tier (B-186)?
+**Context:** `Public/Character/CharacterData.h` (`EnemyTier`); `Private/Trial/TrialGate.cpp` (`GetEnemyTierHealthMultiplier`, `ApplyEnemyRankHealth`); `Private/Combat/Encounter/EnemyZone.cpp` (`TIER_STRENGTH`).
+**Options / as built:** **A** a new `EnemyTier` field on the character asset, default F (x1.0), read through the TierPower ladder and multiplied with rank, zone and difficulty (all four stack, as the Decided list says). **B** take the tier from the enemy's weapon. **C** use the zone tier instead.
+**Recommendation:** A. Elden Ring and Dark Souls author each enemy's strength on the enemy and let the area add on top; defaulting to F keeps every existing enemy as it is (the same pattern as weapon Power defaulting to 0). The zone tier stays a separate, small step (x1.0 to x1.75).
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-224b. Authoring `EnemyTier` on the enemy assets is editor work (CC+UE).
+

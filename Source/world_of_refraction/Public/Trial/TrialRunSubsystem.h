@@ -120,6 +120,17 @@ public:
      *  EnterEncounter; a win marks them all beaten. */
     void SetPendingEncounterSources(const TArray<FName> &EncounterIds) { PendingEncounterSources = EncounterIds; }
 
+    /** B-224b (Q-224c): each opposing member's own rank for its HP, parallel to the opposing party. Call before
+     *  EnterEncounter. A fight entered without it (a map feature's boss) gives every enemy the fight's rank. */
+    void SetPendingEnemyRanks(const TArray<EEncounterRank> &Ranks) { PendingEnemyRanks = Ranks; }
+
+    /** The rank whose HP the Index-th opposing member gets: its own when one was set for every member, else the
+     *  fight's rank (GetPendingRank). */
+    EEncounterRank GetPendingEnemyRank(int32 Index) const
+    {
+        return PendingEnemyRanks.Num() == PendingOpposingParty.Num() && PendingEnemyRanks.IsValidIndex(Index) ? PendingEnemyRanks[Index] : PendingRank;
+    }
+
     /** B-184: the pending fight was won; its map encounters stay beaten for the rest of the run
      *  (a rest spot doesn't bring them back). */
     void MarkPendingEncounterBeaten();
@@ -233,6 +244,10 @@ private:
 
     /** B-184: map encounters of the pending fight. */
     TArray<FName> PendingEncounterSources;
+
+    /** B-224b: each opposing member's rank, carried across the OpenLevel like PendingRank (D-065); reset with the
+     *  encounter sources. */
+    TArray<EEncounterRank> PendingEnemyRanks;
 
     /** B-184: map encounters beaten this run. Run state like RunSeed; cleared on trial entry and exit. */
     TSet<FName> BeatenEncounters;

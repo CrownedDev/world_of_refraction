@@ -238,6 +238,7 @@ void ABossArenaTrigger::Interact(APawn * /*Pawn*/)
 		   BattleParty.Num());
 	// Same hand-off as a map encounter (UEncounterComponent): a win marks the arena beaten.
 	TrialRun->SetPendingEncounterSources({GetFeatureId()});
+	TrialRun->SetPendingEnemyRanks({}); // B-224b: no stale list from an earlier fight; the boss takes the fight's rank
 	TrialRun->SetPendingFirstStrike(EFirstStrike::None);
 	TrialRun->SetPendingZone(AEnemyZone::FindZoneAt(GetWorld(), GetActorLocation()));
 	TrialRun->EnterEncounter(TrialRun->GetActiveTrial(), BattleParty, {Boss}, Difficulty, EEncounterRank::Boss);
