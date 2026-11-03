@@ -115,6 +115,17 @@ void FGASClientReadsSpec::Define()
 		TestSameHeld(TEXT("client read through the effect manager"), ServerHeld, EffectManager->GetHeldEffects(Hero));
 	});
 
+	It("a client at UseGAS 0 still reads the server's snapshot when the server is at 1", [this]()
+	{
+		if (!EffectManager) return;
+		UWoREffectMirrorComponent::SetReadsFromGAS(true);
+		ApplyMix();
+		const TArray<FActiveSkillEffect> ServerHeld = EffectManager->GetHeldEffects(Hero);
+		Hero->SetRole(ROLE_SimulatedProxy);
+		UWoREffectMirrorComponent::SetReadsFromGAS(false); // this client's own switch; the server's snapshot says 1
+		TestSameHeld(TEXT("client follows the server through the effect manager"), ServerHeld, EffectManager->GetHeldEffects(Hero));
+	});
+
 	It("changes nothing at UseGAS 0: no snapshot, and a client reads its stored list", [this]()
 	{
 		if (!EffectManager) return;
