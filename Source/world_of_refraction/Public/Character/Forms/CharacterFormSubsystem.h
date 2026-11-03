@@ -85,6 +85,25 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Forms")
     FOnWornFormChanged OnWornFormChanged;
 
+    // ==================== OUTFITS (B-279c) ====================
+
+    /** The player's current outfit (CharacterCustomisation.md §3). Putting a skin on wears its authored outfit; pieces
+     *  swap afterwards. // TODO: co-op replicates it as six ids on the PlayerState (B-228+). */
+    const FOutfitSet &GetCurrentOutfit() const { return CurrentOutfit; }
+
+    /** Swap one piece in (it replaces only its own slot). Refused where a skin switch would be (in a fight, away
+     *  from the hub / a rest spot); true when worn. */
+    bool TryWearOutfitPiece(UOutfitPieceData *Piece);
+
+    /** Empty one slot, under the same rule. */
+    bool TryClearOutfitSlot(EOutfitSlot Slot);
+
+    /** Save / load (USaveSubsystem): the current outfit, set as it was (no switch rule). */
+    void RestoreOutfit(const FOutfitSet &Outfit);
+
+    /** Fired when the current outfit changes (a swap, a skin's authored outfit, a load). */
+    FSimpleMulticastDelegate OnOutfitChanged;
+
     /** Debug: every known form with its meter. */
     FString GetFormsString() const;
 
@@ -102,4 +121,7 @@ private:
 
     EPlayerBaseForm BaseForm = EPlayerBaseForm::Manny;
     bool bAtRestSpot = false;
+
+    UPROPERTY()
+    FOutfitSet CurrentOutfit;
 };
