@@ -1382,12 +1382,13 @@ bool UCharacterDataComponent::GetStatLayers(ESubStat Stat, FWoRStatLayers &OutLa
 }
 
 // B-331 (D-123, Q-331): one Speed. The window term no longer depends on the attack type: the Body pillar
-// ratio, both old gear speed bonuses, both old speed stones and both old speed buff/debuff pairs all feed it.
-// Each pair's values add, so a character with only one of the two old speeds reads as before.
+// ratio, both old gear speed bonuses and both old speed stones (added), and the stronger of the two old speed
+// buff/debuff nets (one Water break debuffs both by 30%: the window slows by 30%, not 60%, SB-22). A character
+// with only one of the two old speeds reads as before. Never below 0, so a deep slow can't widen the window.
 static_assert(CombatConstants::SPELL_SPEED_PER_POINT == CombatConstants::ANIMATION_SPEED_PER_POINT,
               "One Speed reads both old gear speed bonuses at one per-point value");
 
-float UCharacterDataComponent::SpeedWindowGearFactor(EActionType AttackType) const
+float UCharacterDataComponent::SpeedWindowGearFactor(EActionType /*AttackType*/) const
 {
     if (!CharacterData)
     {
@@ -1429,13 +1430,15 @@ float UCharacterDataComponent::SpeedWindowGearFactor(EActionType AttackType) con
         // transients; see the transient-additive conversion.)
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
-            const float NetPercent = SEM->GetNetStatModifier(Owner, ESubStat::SpellSpeed) +
-                                     SEM->GetNetStatModifier(Owner, ESubStat::ActionSpeed);
+            // The stronger of the two old speed nets until B-331b gives Speed one effect pair (Q-331).
+            const float SpellNet = SEM->GetNetStatModifier(Owner, ESubStat::SpellSpeed);
+            const float ActionNet = SEM->GetNetStatModifier(Owner, ESubStat::ActionSpeed);
+            const float NetPercent = FMath::Abs(SpellNet) >= FMath::Abs(ActionNet) ? SpellNet : ActionNet;
             Factor *= (1.0f + NetPercent / CombatConstants::STAT_PERCENT_DIVISOR);
         }
     }
 
-    return Factor;
+    return FMath::Max(0.0f, Factor);
 }
 
 float UCharacterDataComponent::ReflexWindowGearFactor() const

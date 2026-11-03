@@ -617,16 +617,13 @@ public:
 		return FMath::Min(EffectiveBody * TotalPoints * CombatConstants::REFLEX_WINDOW_PER_POINT, CombatConstants::WINDOW_CAP_SECONDS);
 	}
 
-	/** ATTACKER side of the defense-window duel: how many SECONDS this character's speed
-	 *  shaves off a defender's input window. Exact mirror of CalculateReflexWindowBonus's
-	 *  shape (EffectivePillar × RAW speed points × weight) so equal points + equal world
-	 *  level cancel to the base window. Reads the RAW speed substat point getters — NOT the
-	 *  play-rate getters (CalculateAnimationSpeed / CalculateSpellSpeed carry bases + caps that
-	 *  would distort the seconds math). Type-aware: physical (Attack/Ability) narrows via
-	 *  ActionSpeed/Body; Spell narrows via SpellSpeed/Mind (cross-pillar by design — clean
-	 *  cancel for physical, well-defined for spell). NOTE: the spell branch is DORMANT until
-	 *  Stage 6 — per-impact resolution is melee-only today, so only the physical branch is
-	 *  exercised. Consumed by UDefenseSystem::GetEffectiveDefenseInputWindow. */
+	/** ATTACKER side of the defense-window duel: how many SECONDS this character's one Speed
+	 *  shaves off a defender's input window (B-331, D-123, Q-331): Body × GetTotalSpeed ×
+	 *  WINDOW_PER_SPEED_POINT, capped at WINDOW_CAP_SECONDS, the same for every attack type.
+	 *  Exact mirror of CalculateReflexWindowBonus (Body × Reflex points × the same weight), so equal
+	 *  points + equal Body world level cancel to the base window. Reads raw points, not the play-rate
+	 *  getters (their bases and caps would distort the seconds maths). AttackType no longer picks a
+	 *  stat; it stays for the Blueprint signature. Consumed by UDefenseSystem::GetEffectiveDefenseInputWindow. */
 	UFUNCTION(BlueprintPure, Category = "Combat|Body")
 	float CalculateSpeedWindowPenalty(EActionType AttackType) const
 	{
