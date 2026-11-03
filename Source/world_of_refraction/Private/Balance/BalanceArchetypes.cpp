@@ -33,6 +33,9 @@ namespace
 	const FName SimHighLevelFGear(TEXT("P-HighLevelFGear"));
 	const FName SimGenericC(TEXT("P-GenericC"));
 	const FName SimGenericS(TEXT("P-GenericS"));
+	const FName SimStatusBuilder(TEXT("P-StatusBuilder"));
+	/** Per hit: two or three landed hits fill a 100-point bar (STATUS_EFFECT_THRESHOLD) before scaling. */
+	constexpr int32 SIM_PARITY_STATUS_BUILDUP = 40;
 	const FName SimEnemyF(TEXT("E-F"));
 	const FName SimEnemyC(TEXT("E-C"));
 	const FName SimEnemyS(TEXT("E-S"));
@@ -117,6 +120,12 @@ namespace
 		HighF.RawDamage = 20;
 		HighF.AbilityBase = 20;
 		Out.Add(HighF);
+
+		// B-293b: the Mid Resonator with status on every hit, for the parity matchup only.
+		FBalanceArchetype StatusBuilder = Mid;
+		StatusBuilder.Id = SimStatusBuilder;
+		StatusBuilder.StatusBuildup = SIM_PARITY_STATUS_BUILDUP;
+		Out.Add(StatusBuilder);
 
 		FBalanceArchetype EF = MakeSimArchetype(SimEnemyF, ECharacterClass::Generic, EItemTier::F_Tier, SIM_POWER_F);
 		EF.Body = 1;
@@ -204,6 +213,12 @@ TArray<FBalanceMatchup> BalanceArchetypes::Preset(FName Name)
 						EEncounterRank::Normal, EAIDifficulty::Medium));
 	}
 	return Out;
+}
+
+FBalanceMatchup BalanceArchetypes::ParityStatusMatchup()
+{
+	return MakeSimMatchup(TEXT("ParityStatus"), {SimStatusBuilder, SimStatusBuilder, SimStatusBuilder}, SimEnemyC, EEncounterRank::Normal,
+						  EAIDifficulty::Medium);
 }
 
 int32 BalanceArchetypes::PresetFights(FName Name)

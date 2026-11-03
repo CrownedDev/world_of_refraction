@@ -62,4 +62,23 @@ namespace CombatBaseline
 	{
 		return (RankValue >= 0 && RankValue < ENEMY_RANK_COUNT) ? ENEMY_RANK_HEALTH[RankValue] : ENEMY_RANK_HEALTH_NORMAL;
 	}
+
+	/** B-223 (D-102, Q-223): a normal enemy's chance to drop a pillar level, by its tier (F..S). An elite
+	 *  doubles it. TODO: tune with B-293c's nightly runs. */
+	constexpr int32 LEVEL_DROP_TIER_COUNT = 7;
+	constexpr float LEVEL_DROP_CHANCE_BY_TIER[LEVEL_DROP_TIER_COUNT] = {0.10f, 0.12f, 0.15f, 0.18f, 0.22f, 0.26f, 0.30f};
+	constexpr float LEVEL_DROP_ELITE_CHANCE_FACTOR = 2.0f;
+
+	/** Levels a mini-boss (or boss) always gives, by its tier: 1 at F..D, 2 at C..B, 3 at A..S. TODO: tune. */
+	constexpr int32 MINIBOSS_LEVELS_BY_TIER[LEVEL_DROP_TIER_COUNT] = {1, 1, 1, 2, 2, 3, 3};
+
+	inline float CodeLevelDropChance(int32 TierIndex)
+	{
+		return (TierIndex >= 0 && TierIndex < LEVEL_DROP_TIER_COUNT) ? LEVEL_DROP_CHANCE_BY_TIER[TierIndex] : 0.0f;
+	}
+
+	inline int32 CodeMiniBossLevels(int32 TierIndex)
+	{
+		return (TierIndex >= 0 && TierIndex < LEVEL_DROP_TIER_COUNT) ? MINIBOSS_LEVELS_BY_TIER[TierIndex] : 0;
+	}
 }

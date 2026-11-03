@@ -2,6 +2,7 @@
 // Character inventory storage and management implementation
 
 #include "Inventory/InventoryComponent.h"
+#include "Inventory/GearFind.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -194,7 +195,7 @@ namespace
     template <class TEntry>
     int32 FindGearIndex(const TArray<TEntry> &Gear, FGuid GearID, const TCHAR *Op)
     {
-        const int32 Index = Gear.IndexOfByPredicate([&GearID](const TEntry &E) { return E.PersistentID == GearID; });
+        const int32 Index = WoRGearFind::IndexOf(Gear, GearID);
         if (Index == INDEX_NONE)
         {
             UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: no %s for GUID %s"), Op, GearLabel<TEntry>(),
@@ -621,12 +622,6 @@ EItemTier UInventoryComponent::ResolveAbilityTier(const AActor *Caster, const US
 namespace
 {
     template <class TEntry>
-    int32 FindGearIndex(const TArray<TEntry> &Gear, const FGuid &PersistentID)
-    {
-        return Gear.IndexOfByPredicate([&PersistentID](const TEntry &Entry) { return Entry.PersistentID == PersistentID; });
-    }
-
-    template <class TEntry>
     const UEquipmentDataBase *GearEntryAsset(const TEntry &Entry)
     {
         if constexpr (std::is_same_v<TEntry, FWeaponInventoryEntry>)
@@ -702,22 +697,13 @@ bool UInventoryComponent::RemoveWeapon(int32 WeaponIndex)
 
 bool UInventoryComponent::RemoveWeaponByPersistentID(FGuid PersistentID)
 {
-    const int32 Index = FindGearIndex(Weapons, PersistentID);
+    const int32 Index = WoRGearFind::IndexOf(Weapons, PersistentID);
     return Index != INDEX_NONE && RemoveWeapon(Index);
-}
-
-namespace
-{
-    template <class TEntry>
-    TEntry *FindOwnedGear(TArray<TEntry> &Gear, const FGuid &PersistentID)
-    {
-        return Gear.FindByPredicate([&PersistentID](const TEntry &Entry) { return Entry.PersistentID == PersistentID; });
-    }
 }
 
 FWeaponInventoryEntry *UInventoryComponent::FindOwnedWeapon(const FGuid &PersistentID)
 {
-    return FindOwnedGear(Weapons, PersistentID);
+    return WoRGearFind::Find(Weapons, PersistentID);
 }
 
 const FWeaponInventoryEntry *UInventoryComponent::FindOwnedWeapon(const FGuid &PersistentID) const
@@ -727,7 +713,7 @@ const FWeaponInventoryEntry *UInventoryComponent::FindOwnedWeapon(const FGuid &P
 
 FRingInventoryEntry *UInventoryComponent::FindOwnedRing(const FGuid &PersistentID)
 {
-    return FindOwnedGear(Rings, PersistentID);
+    return WoRGearFind::Find(Rings, PersistentID);
 }
 
 const FRingInventoryEntry *UInventoryComponent::FindOwnedRing(const FGuid &PersistentID) const
@@ -796,7 +782,7 @@ bool UInventoryComponent::RemoveRing(int32 RingIndex)
 
 bool UInventoryComponent::RemoveRingByPersistentID(FGuid PersistentID)
 {
-    const int32 Index = FindGearIndex(Rings, PersistentID);
+    const int32 Index = WoRGearFind::IndexOf(Rings, PersistentID);
     return Index != INDEX_NONE && RemoveRing(Index);
 }
 
@@ -921,8 +907,7 @@ namespace InventoryGearSync
     template <typename TArrayType>
     auto FindOwned(TArrayType &Owned, const FGuid &ID)
     {
-        return ID.IsValid() ? Owned.FindByPredicate([&ID](const auto &Entry) { return Entry.PersistentID == ID; })
-                            : nullptr;
+        return ID.IsValid() ? WoRGearFind::Find(Owned, ID) : nullptr;
     }
 
     /** Calls WeaponFunc / RingFunc on each weapon and ring entry the loadout holds. */
@@ -1449,6 +1434,132 @@ bool UInventoryComponent::DrawSharedGear()
            *GetNameSafe(GetOwner()), Weapons.Num(), Rings.Num(), EvoInv ? EvoInv->Num() : 0, Stripped);
     BroadcastInventoryChanged(EInventoryChangeType::Loaded);
     return true;
+}
+
+namespace
+{
+    /** One side's pieces by ID, with what the compare looks at. */
+    struct FStoreCompareEntry
+    {
+        FString Label;
+        EItemTier Tier = EItemTier::F_Tier;
+        EItemQuality Quality = EItemQuality::C_Quality;
+        EAttachedItemKind Attached = EAttachedItemKind::None;
+    };
+
+    template <class TEntry>
+    FStoreCompareEntry StoreCompareEntryOf(const TEntry &Entry, const TCHAR *Kind)
+    {
+        FStoreCompareEntry Out;
+        Out.Label = FString::Printf(TEXT("%s %s"), Kind, *GetNameSafe(InventoryGearSync::GetGearAsset(Entry)));
+        Out.Tier = Entry.Tier;
+        Out.Quality = Entry.Quality;
+        Out.Attached = Entry.AttachedItem.Kind;
+        return Out;
+    }
+
+    FStoreCompareEntry StoreCompareEntryOf(const FEvolutionInventoryEntry &Entry)
+    {
+        FStoreCompareEntry Out;
+        Out.Label = FString::Printf(TEXT("evolution %s"), *GetNameSafe(Entry.Item));
+        Out.Tier = Entry.Tier;
+        Out.Quality = Entry.Quality;
+        return Out;
+    }
+}
+
+FString UInventoryComponent::CompareWithStore() const
+{
+    const UPoolSubsystem *Pool = SharedPool.Get();
+    if (!Pool)
+    {
+        return FString();
+    }
+    TMap<FGuid, FStoreCompareEntry> Mine;
+    for (const FWeaponInventoryEntry &Entry : Weapons)
+    {
+        Mine.Add(Entry.PersistentID, StoreCompareEntryOf(Entry, TEXT("weapon")));
+    }
+    for (const FRingInventoryEntry &Entry : Rings)
+    {
+        Mine.Add(Entry.PersistentID, StoreCompareEntryOf(Entry, TEXT("adapter")));
+    }
+    if (const UEvolutionInventoryComponent *EvoInv = GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr)
+    {
+        for (const FEvolutionInventoryEntry &Entry : EvoInv->Entries)
+        {
+            Mine.Add(Entry.InstanceID, StoreCompareEntryOf(Entry));
+        }
+    }
+    TMap<FGuid, FStoreCompareEntry> Store;
+    if (bDrawsWholeArmoury)
+    {
+        // A run-only recruit draws the whole armoury but the chest (Q-321): no owner view covers that.
+        for (const FWeaponInventoryEntry &Entry : Pool->GetOwnedWeapons())
+        {
+            if (!Pool->IsInChest(Entry.PersistentID))
+            {
+                Store.Add(Entry.PersistentID, StoreCompareEntryOf(Entry, TEXT("weapon")));
+            }
+        }
+        for (const FRingInventoryEntry &Entry : Pool->GetOwnedRings())
+        {
+            if (!Pool->IsInChest(Entry.PersistentID))
+            {
+                Store.Add(Entry.PersistentID, StoreCompareEntryOf(Entry, TEXT("adapter")));
+            }
+        }
+        for (const FEvolutionInventoryEntry &Entry : Pool->GetOwnedEvolutions())
+        {
+            if (!Pool->IsInChest(Entry.InstanceID))
+            {
+                Store.Add(Entry.InstanceID, StoreCompareEntryOf(Entry));
+            }
+        }
+    }
+    else
+    {
+        // The very view B-312b will read, so silence proves that view.
+        const FPoolGearView View = Pool->GetOwnedGearOf(SharedGearKey);
+        for (const FWeaponInventoryEntry *Entry : View.Weapons)
+        {
+            Store.Add(Entry->PersistentID, StoreCompareEntryOf(*Entry, TEXT("weapon")));
+        }
+        for (const FRingInventoryEntry *Entry : View.Adapters)
+        {
+            Store.Add(Entry->PersistentID, StoreCompareEntryOf(*Entry, TEXT("adapter")));
+        }
+        for (const FEvolutionInventoryEntry *Entry : View.Evolutions)
+        {
+            Store.Add(Entry->InstanceID, StoreCompareEntryOf(*Entry));
+        }
+    }
+    FString Out;
+    if (Mine.Contains(FGuid()))
+    {
+        Out += TEXT("a copy with no ID (unlinked): it can never match the store\n");
+        Mine.Remove(FGuid());
+    }
+    for (const TPair<FGuid, FStoreCompareEntry> &Pair : Mine)
+    {
+        const FStoreCompareEntry *InStore = Store.Find(Pair.Key);
+        if (!InStore)
+        {
+            Out += FString::Printf(TEXT("%s %s: a copy here, not in this member's store view\n"), *Pair.Value.Label, *Pair.Key.ToString());
+        }
+        else if (InStore->Tier != Pair.Value.Tier || InStore->Quality != Pair.Value.Quality || InStore->Attached != Pair.Value.Attached)
+        {
+            Out += FString::Printf(TEXT("%s %s: the copy differs from the store (tier, quality or attachment)\n"), *Pair.Value.Label, *Pair.Key.ToString());
+        }
+    }
+    for (const TPair<FGuid, FStoreCompareEntry> &Pair : Store)
+    {
+        if (!Mine.Contains(Pair.Key))
+        {
+            Out += FString::Printf(TEXT("%s %s: in the store view, no copy here\n"), *Pair.Value.Label, *Pair.Key.ToString());
+        }
+    }
+    return Out;
 }
 
 int32 UInventoryComponent::AdoptPresetOnlyGear(const UPoolSubsystem &Pool)

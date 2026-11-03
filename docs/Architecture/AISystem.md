@@ -71,7 +71,7 @@ All tunable values are `constexpr` in this namespace:
 - **Target scoring** — `KILL_POTENTIAL_SCORE` (2000), `HP_MISSING_WEIGHT` (500), `THREAT_WEIGHT` (2.0).
 - **Status buildup** — `STATUS_SCORE_WEIGHT` (0.3), tier scores `STATUS_SCORE_TRIGGER` (50), `STATUS_SCORE_CONTRIBUTE` (12), `STATUS_SCORE_REDUNDANT` (5); threat multipliers `RAW_DAMAGE_THREAT_MULT` (2.0), `STATUS_MULTIPLIER_THREAT_MULT` (1.5), `SPELL_POWER_THREAT_MULT` (2.0).
 - **Thinking delays** — per-difficulty min/max ranges (`EASY_THINK_*` 2.0–3.5s … `EXPERT_THINK_*` 0.2–0.3s).
-- **Defense rates** — per-difficulty `*_DEFENSE_ATTEMPT` (0.40–0.95) for the per-impact attempt roll, and `*_DELTA_BAND_MULT` (Easy 3.0 → Expert 0.35) governing aim-within-the-authored-band.
+- **Defense rates** — per-difficulty `*_DEFENSE_ATTEMPT` (Easy 0.30 → Expert 0.75, B-293c) for the per-impact attempt roll, and `*_DELTA_BAND_MULT` (Easy 2.6 → Expert 0.8, B-293c) governing aim-within-the-authored-band.
 - **Survival thresholds** — `SURVIVAL_HP_THRESHOLD` (0.25), `ENERGY_CONSERVATION_THRESHOLD` (0.50), `ENERGY_ABUNDANT_THRESHOLD` (0.70).
 - **Emerald valuation** — `KILL_SECURE_FACTOR` (1.0), `FREE_ACTION_FACTOR` (1.0), `EMERALD_EXPOSURE_LOOKAHEAD` (10), `STARVE_MARGIN` (1.3), `DELAY_DECAY` (0.15), `ESTIMATED_EP_REGEN_PER_TURN` (0 — self-target dormant; no passive EP regen exists).
 

@@ -280,6 +280,7 @@ void ABattleGameMode::BootstrapCombat()
         AActor *Enemy = OpposingParty[EnemyIndex];
         // B-224 / B-224b: the enemy's own rank (its team's; Q-224c) and tier multiply max HP on top.
         const EEncounterRank EnemyRank = OpposingRanks.IsValidIndex(EnemyIndex) ? OpposingRanks[EnemyIndex] : TrialRun->GetPendingRank();
+        SpawnedOrchestrator->SetEnemyRank(Enemy, EnemyRank); // B-223: its level drop
         if (!TrialGate::ApplyEnemyStrength(Enemy, EnemyHealth, EnemyStrength))
         {
             UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s: trial difficulty not applied (no character data or effect manager)"),
@@ -291,8 +292,8 @@ void ABattleGameMode::BootstrapCombat()
                    *GetNameSafe(Enemy), *UEnum::GetValueAsString(EnemyRank));
         }
     }
-    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Trial difficulty %s, zone tier %d: enemy strength x%.2f"),
-           *TrialGate::GetDifficultyName(TrialRun->GetTrialDifficulty()).ToString(), Zone.Tier, EnemyStrength);
+    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Trial difficulty %s, zone tier %d: enemy HP x%.2f, damage x%.2f"),
+           *TrialGate::GetDifficultyName(TrialRun->GetTrialDifficulty()).ToString(), Zone.Tier, EnemyHealth, EnemyStrength);
 
     // B-191: reactions (worn items facing a character) and the bosses' own triggers change the
     // fight before it starts; B-212: those with a mid-fight When wait in FightTriggers.

@@ -330,6 +330,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	TArray<FActiveSkillEffect> GetActiveEffects(AActor *Actor) const;
 
+	/** B-261: Actor's stored effects without a copy; nullptr when it has none. */
+	const TArray<FActiveSkillEffect> *FindActiveEffects(AActor *Actor) const { return ActiveEffects.Find(Actor); }
+
 	/** HP one tick of a DOT takes off Actor: its stacked value x Actor's resistance to the DOT's
 	 *  element (B-064b, Q-064; same 1:1, +-50% step as hits). Non-elemental DOTs are unchanged.
 	 *  The tick and the AI's lethality checks both read this. */

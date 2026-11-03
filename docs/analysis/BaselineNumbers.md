@@ -12,6 +12,8 @@
 - **Weapon requirements by tier (main pillar): F 0, E 1, D 2, C 3, B 5, A 6, S 7** (Crown, 2026-10-27, steeper: an S weapon's full power needs a maxed pillar). A second pillar asks a level or two less. No bonus over a requirement (Q-146c).
 - **Enemy HP by rank: Normal x1, Elite x1.5, Mini-boss x4, Boss x8** (Crown, 2026-10-27; mini-boss x3 -> x4 and boss x6 -> x8 on 2026-11-03, Q-293d), on top of the stat formula and the enemy's tier power, zone and difficulty. Targets: normal 3-5 player turns, mini-boss 8-10 rounds, boss 12-14 rounds (~8-10 min).
 - **Damage floor: 10% of the hit** (Crown, 2026-11-03, Q-293d; Elden Ring's chip damage): after Defense, Damage Taken Down and Guard a hit always deals at least 10% of itself (`HIT_DAMAGE_FLOOR_SHARE`). A Perfect Guard or a dodge still takes the whole hit.
+
+- **Enemy HP by rank: Normal x1, Elite x1.5, Mini-boss x3, Boss x6** (Crown, 2026-10-27), on top of the stat formula and the enemy's tier power and zone (the trial difficulty scales enemy damage only, Q-293c / B-293c). Targets: normal 3-5 player turns, mini-boss 8-10 rounds, boss 12-14 rounds (~8-10 min).
 - **Defense reduction cap: 75%** with all gear and buffs (Crown, 2026-10-27; was 85%): a tank takes a quarter of a hit (~4x effective HP). Stat-only cap stays 50%.
 - **Base crit damage x1.25** with no investment (Crown, 2026-10-27; Monster Hunter's 1.25); stats and gear raise it to the existing caps (x1.5 stats, x2.5 gear).
 - **Body counting twice is kept** (Crown, 2026-10-27): a Body level boosts the weapon through its grade, and its sub-stat points may also go into Raw Damage, a build choice, not automatic.

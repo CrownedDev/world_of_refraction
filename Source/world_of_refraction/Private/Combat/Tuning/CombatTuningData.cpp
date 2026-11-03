@@ -30,7 +30,7 @@ namespace
 		ECombatLadder::TierPower, ECombatLadder::TierGapDamage, ECombatLadder::TierGapCost,
 		ECombatLadder::RequirementGap, ECombatLadder::ScalingGrade,
 		ECombatLadder::PillarCurve, ECombatLadder::WeaponReferencePower, ECombatLadder::WeaponRequirementByTier,
-		ECombatLadder::EnemyRankHealth};
+		ECombatLadder::EnemyRankHealth, ECombatLadder::LevelDropChance, ECombatLadder::MiniBossLevels};
 
 	const TCHAR *TuningLadderName(ECombatLadder Ladder)
 	{
@@ -45,6 +45,8 @@ namespace
 		case ECombatLadder::WeaponReferencePower: return TEXT("WeaponReferencePower");
 		case ECombatLadder::WeaponRequirementByTier:    return TEXT("WeaponRequirementByTier");
 		case ECombatLadder::EnemyRankHealth:      return TEXT("EnemyRankHealth");
+		case ECombatLadder::LevelDropChance:      return TEXT("LevelDropChance");
+		case ECombatLadder::MiniBossLevels:       return TEXT("MiniBossLevels");
 		default:                            return TEXT("?");
 		}
 	}
@@ -68,6 +70,8 @@ UCombatTuningData::UCombatTuningData()
 	, WeaponReferencePower(LADDER_CURVE_SCALE)
 	, WeaponRequirementByTier(LADDER_CURVE_SCALE)
 	, EnemyRankHealth(LADDER_CURVE_SCALE)
+	, LevelDropChance(LADDER_CURVE_SCALE)
+	, MiniBossLevels(LADDER_CURVE_SCALE)
 	, WeaponReqFactorMin(WeaponRequirement::WEAPON_REQ_FACTOR_MIN)
 	, ChargeFocusL1(InfusionConstants::CHARGE_FOCUS_L1)
 	, ChargeFocusL2(InfusionConstants::CHARGE_FOCUS_L2)
@@ -132,6 +136,8 @@ const FScalableFloat &UCombatTuningData::LadderField(ECombatLadder Ladder) const
 	case ECombatLadder::WeaponReferencePower: return WeaponReferencePower;
 	case ECombatLadder::WeaponRequirementByTier:    return WeaponRequirementByTier;
 	case ECombatLadder::EnemyRankHealth:      return EnemyRankHealth;
+	case ECombatLadder::LevelDropChance:      return LevelDropChance;
+	case ECombatLadder::MiniBossLevels:       return MiniBossLevels;
 	case ECombatLadder::TierPower:
 	default:
 		return TierPower;
@@ -167,6 +173,8 @@ void UCombatTuningData::GetLadderKeyRange(ECombatLadder Ladder, int32 &OutFirst,
 	case ECombatLadder::ScalingGrade:
 	case ECombatLadder::WeaponReferencePower:
 	case ECombatLadder::WeaponRequirementByTier:
+	case ECombatLadder::LevelDropChance:
+	case ECombatLadder::MiniBossLevels:
 	default:
 		OutFirst = 0;
 		OutLast = TIER_INDEX_LAST;
@@ -191,6 +199,8 @@ float UCombatTuningData::GetCodeLadderValue(ECombatLadder Ladder, int32 Key)
 	case ECombatLadder::WeaponReferencePower: return CombatBaseline::CodeWeaponReferencePower(Key);
 	case ECombatLadder::WeaponRequirementByTier:    return static_cast<float>(CombatBaseline::CodeWeaponRequirement(Key));
 	case ECombatLadder::EnemyRankHealth:      return CombatBaseline::CodeEnemyRankHealth(Key);
+	case ECombatLadder::LevelDropChance:      return CombatBaseline::CodeLevelDropChance(Key);
+	case ECombatLadder::MiniBossLevels:       return static_cast<float>(CombatBaseline::CodeMiniBossLevels(Key));
 	case ECombatLadder::TierPower:
 	default:
 		return TierPowerScaling::CodeTierPower(Key);
