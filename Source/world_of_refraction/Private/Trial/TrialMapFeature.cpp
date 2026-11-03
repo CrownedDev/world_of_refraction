@@ -28,7 +28,6 @@
 namespace TrialMapFeatureConstants
 {
 	const FVector DEFAULT_INTERACTION_EXTENT(150.0f, 150.0f, 100.0f);
-	constexpr float HINT_DURATION = 1e9f; // effectively "until removed"
 	constexpr float MESSAGE_SECONDS = 6.0f;
 	constexpr int32 MESSAGE_KEY = -1; // a new line each time, not keyed
 }
@@ -72,10 +71,7 @@ void ATrialMapFeature::BeginPlay()
 
 void ATrialMapFeature::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (GEngine)
-	{
-		GEngine->RemoveOnScreenDebugMessage(static_cast<int32>(GetUniqueID()));
-	}
+	WoRInteract::HideHint(*this);
 	PawnInRange.Reset();
 	Super::EndPlay(EndPlayReason);
 }
@@ -98,19 +94,7 @@ UTrialRunSubsystem *ATrialMapFeature::GetTrialRun() const
 
 void ATrialMapFeature::RefreshHint()
 {
-	if (!GEngine)
-	{
-		return;
-	}
-	// Keyed on this actor's id so the hint updates in place and is removable (int32 cast: see ATrialDoor).
-	const FString Hint = PawnInRange.IsValid() ? GetHintText() : FString();
-	if (Hint.IsEmpty())
-	{
-		GEngine->RemoveOnScreenDebugMessage(static_cast<int32>(GetUniqueID()));
-		return;
-	}
-	GEngine->AddOnScreenDebugMessage(static_cast<int32>(GetUniqueID()), TrialMapFeatureConstants::HINT_DURATION,
-									 FColor::Cyan, Hint);
+	WoRInteract::ShowHint(*this, FColor::Cyan, PawnInRange.IsValid() ? GetHintText() : FString());
 }
 
 void ATrialMapFeature::OnTriggerBeginOverlap(UPrimitiveComponent * /*OverlappedComponent*/, AActor *OtherActor,
