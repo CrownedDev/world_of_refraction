@@ -221,6 +221,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-304](B-304.md) | `refactor/B-304-active-slot` (in `dev`) | Unified loadout 4: one active-slot rule; empty slot falls back (Q-304); secondary weapon spell checks | Not tested |
 | [B-042yd](B-042yd.md) | `refactor/B-042yd-gas-payouts` (in `dev`) | GAS: energy, drains, self-damage and percent restores pay through GAS at UseGAS 1 | Not tested |
 | [B-042ye](B-042ye.md) | `refactor/B-042ye-gas-effect-reads` (in `dev`) | GAS: the AI's burn checks, buff / debuff counts and the panel's effect list read GAS at UseGAS 1 | Not tested |
+| [B-249](B-249.md) | `refactor/B-249-element-immunity-map` (in `dev`) | One element -> immunity map (no change in play) | Not tested |
 
 Move rows to **Done** when every check passes.
 
