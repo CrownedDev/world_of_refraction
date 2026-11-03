@@ -70,10 +70,10 @@ FString USaveDebug::GetSaveString(const FWoRSaveData &Data)
 		Out.Add(FString::Printf(TEXT("  currency %d key %d: %d"), B.Currency, B.SubKey, B.Amount));
 	}
 	const FSavedPool &P = Data.Pool;
-	Out.Add(FString::Printf(TEXT("Pool: %d weapon(s), %d ring(s), %d evolution(s), %d spell(s), %d ability(ies), %d crystal stack(s)"),
-							P.Weapons.Num(), P.Rings.Num(), P.Evolutions.Num(), P.Spells.Num(), P.Abilities.Num(), P.Crystals.Num()));
-	// B-124: each saved weapon's and ring's attachment, spells and rolls.
-	for (const TArray<FSavedOwnedItem> *Gear : {&P.Weapons, &P.Rings})
+	Out.Add(FString::Printf(TEXT("Pool: %d gear (v5), %d weapon(s) + %d ring(s) (before v5), %d evolution(s), %d spell(s), %d ability(ies), %d crystal stack(s)"),
+							P.Gear.Num(), P.Weapons.Num(), P.Rings.Num(), P.Evolutions.Num(), P.Spells.Num(), P.Abilities.Num(), P.Crystals.Num()));
+	// B-124: each saved weapon's and ring's attachment, spells and rolls (B-308: the v5 gear list, then the older lists).
+	for (const TArray<FSavedOwnedItem> *Gear : {&P.Gear, &P.Weapons, &P.Rings})
 	{
 		for (const FSavedOwnedItem &Item : *Gear)
 		{

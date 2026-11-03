@@ -2986,3 +2986,10 @@ Moved here once applied. Newest first.
 **Options:** **A** (as built, today's behaviour) still offered, pushes no element. **B** not offered, like a broken adapter.
 **Recommendation:** A for now: no behaviour change beyond CL-24, and the evolution seat is the Resonator's core, so taking the option away mid-fight is harsher than a broken ring. Revisit with B-309 if PIE shows it confuses. (Games that keep a broken tool usable at reduced effect: Breath of the Wild's last hit, Monster Hunter's sharpness.)
 **Notes for Claude:** applied in B-307 (`ResolveInfusionSource`, Evolution case, `bUsable = true`).
+
+### Q-308 — B-308's in-memory one store: now, or with B-312?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-308) · **Blocks:** —
+**Question:** B-308 asks for `UInventoryComponent::OwnedGear` with weapon / adapter views plus save v5. Today ~130 call sites read and write `Weapons` / `Rings` directly (and Blueprints may), so an `OwnedGear` list now needs a two-way sync with them, and B-312 then replaces the per-member copies with views over the pool store anyway.
+**Options:** **A** (as built) B-308 does save v5 (one gear list, v3 / v4 still load); B-312 builds the one in-memory store with weapon / adapter views over the pool. **B** add `OwnedGear` now with a sync to `Weapons` / `Rings`, removed again in B-312.
+**Recommendation:** A: build new alongside old without a throwaway layer (the strangler-fig pattern, Fowler; CLAUDE.md "incremental"). No player-facing difference.
+**Notes for Claude:** applied in B-308; B-312's row now carries `OwnedGear`.
