@@ -97,7 +97,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     {
         for (const FSkillEffectPayload &P : Payloads)
         {
-            if (SkillEffectClassification::IsBuff(P.EffectType, P.Magnitude)) return true;
+            if (SkillEffectClassification::IsBuff(P.EffectType, P.GetClassifyingMagnitude())) return true;
         }
         return false;
     }
@@ -107,7 +107,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     {
         for (const FSkillEffectPayload &P : Payloads)
         {
-            if (SkillEffectClassification::IsDebuff(P.EffectType, P.Magnitude)) return true;
+            if (SkillEffectClassification::IsDebuff(P.EffectType, P.GetClassifyingMagnitude())) return true;
         }
         return false;
     }

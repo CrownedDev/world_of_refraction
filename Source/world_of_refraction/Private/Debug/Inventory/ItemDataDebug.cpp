@@ -513,54 +513,12 @@ bool UItemDataDebug::RunAllTests()
 
 FString UItemDataDebug::GetCrystalTypeName(ECrystalType CrystalType)
 {
-    switch (CrystalType)
-    {
-    case ECrystalType::Garnet:
-        return TEXT("Garnet");
-    case ECrystalType::Sapphire:
-        return TEXT("Sapphire");
-    case ECrystalType::Citrine:
-        return TEXT("Citrine");
-    case ECrystalType::Emerald:
-        return TEXT("Emerald");
-    case ECrystalType::Amber:
-        return TEXT("Amber");
-    case ECrystalType::Opal:
-        return TEXT("Opal");
-    case ECrystalType::Onyx:
-        return TEXT("Onyx");
-    case ECrystalType::Amethyst:
-        return TEXT("Amethyst");
-    case ECrystalType::Iolite:
-        return TEXT("Iolite");
-    case ECrystalType::Quartz:
-        return TEXT("Quartz");
-    default:
-        return TEXT("Unknown");
-    }
+    return ItemIdentity::GetTypeName(CrystalType); // B-253
 }
 
 FString UItemDataDebug::GetTierName(EItemTier Tier)
 {
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return TEXT("F");
-    case EItemTier::E_Tier:
-        return TEXT("E");
-    case EItemTier::D_Tier:
-        return TEXT("D");
-    case EItemTier::C_Tier:
-        return TEXT("C");
-    case EItemTier::B_Tier:
-        return TEXT("B");
-    case EItemTier::A_Tier:
-        return TEXT("A");
-    case EItemTier::S_Tier:
-        return TEXT("S");
-    default:
-        return TEXT("?");
-    }
+    return TierHelpers::GetTierName(Tier); // B-253
 }
 
 float UItemDataDebug::GetPrimaryValue(const UEvolutionItemData *Item)

@@ -3,6 +3,8 @@
 
 #include "Combat/TurnManager.h"
 #include "Combat/CombatConstants.h"
+#include "GAS/WoRAttributeSets.h"
+#include "GAS/WoRAttributeSyncComponent.h"
 #include "WoRLog.h"
 #include "Engine/Engine.h" // GEngine for on-screen debug (DebugPrintPendingTurns)
 #include "Character/CharacterDataComponent.h"
@@ -232,11 +234,16 @@ void UTurnManager::CalculateSpeedRatios()
 	if (Combatants.Num() == 0)
 		return;
 
-	// Effective speed is computed on the fly each call (EffectiveTurnSpeedOf), so OnActorDied /
-	// OnActorResurrected, which invoke CalculateSpeedRatios without a fresh CacheActorStats, don't
-	// compound. CachedSpeed remains the pristine base.
+	// Effective speed is computed on the fly each call (GetEffectiveTurnSpeed over the entry's CachedSpeed), so
+	// OnActorDied / OnActorResurrected, which invoke CalculateSpeedRatios without a fresh CacheActorStats, don't
+	// compound. CachedSpeed remains the pristine base. Through the getter, so turn order reads GAS at UseGAS 1 (B-042yc).
 	auto GetEffectiveSpeed = [this](const FCombatantTurnDebt &Combatant) -> int32
 	{
+		float OnGAS = 0.0f;
+		if (UWoRAttributeSyncComponent::ReadComposedOnGAS(Combatant.Actor, UWoRAttributeSet_Stats::GetTurnSpeedAttribute(), OnGAS))
+		{
+			return FMath::RoundToInt(OnGAS);
+		}
 		return EffectiveTurnSpeedOf(Combatant.Actor, Combatant.CachedSpeed);
 	};
 
@@ -305,6 +312,11 @@ const FCombatantTurnDebt *UTurnManager::FindCombatantEntry(const AActor *Actor) 
 
 int32 UTurnManager::GetEffectiveTurnSpeed(const AActor *Actor) const
 {
+	float OnGAS = 0.0f;
+	if (UWoRAttributeSyncComponent::ReadComposedOnGAS(Actor, UWoRAttributeSet_Stats::GetTurnSpeedAttribute(), OnGAS))
+	{
+		return FMath::RoundToInt(OnGAS); // B-042yc: GAS's value at UseGAS 1
+	}
 	const FCombatantTurnDebt *Entry = FindCombatantEntry(Actor);
 	return EffectiveTurnSpeedOf(Actor, Entry ? Entry->CachedSpeed : ComputeCachedTurnSpeed(Actor));
 }
@@ -654,14 +666,20 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 			Pending.RemoveAt(WinnerIdx);
 		}
 
-		// Pinned turns still count as taken (matching pre-2b). NOTE: no TurnsOwed credit —
-		// the pinned turn deliberately costs one slot of future normal priority.
-		for (FCombatantTurnDebt &Combatant : State)
+		// D-052 (Crown, A): an Emerald bonus turn is a real extra turn, so it isn't counted as taken and no later
+		// normal turn is lost. Other pinned turns (Execution) still count as taken, costing one slot of future
+		// normal priority. (Winner may be gone after RemoveAt; OutEntry.Type holds its type.)
+		// TODO: D-052 says the bonus still respects the 2:1 cap (D-049, CombatConstants::MAX_TURN_RATIO), which the
+		// scheduler doesn't read yet; now that a bonus isn't counted, a fast holder can pass 2:1 (B-297).
+		if (OutEntry.Type != ETurnType::Bonus)
 		{
-			if (Combatant.Actor == PinnedActor)
+			for (FCombatantTurnDebt &Combatant : State)
 			{
-				Combatant.TurnsTaken++;
-				break;
+				if (Combatant.Actor == PinnedActor)
+				{
+					Combatant.TurnsTaken++;
+					break;
+				}
 			}
 		}
 

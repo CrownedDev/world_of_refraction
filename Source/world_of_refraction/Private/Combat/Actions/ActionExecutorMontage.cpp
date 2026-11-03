@@ -572,8 +572,7 @@ void UActionExecutor::SpawnVFXArrayEntry(const FSkillVFXEntry &Entry, int32 Inde
 	// BD-aware like the legacy spell VFX spawns.
 	if (Spawned && Entry.bElementTinted)
 	{
-		UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
-		const bool bIsBD = BDManager && BDManager->IsTransformed();
+		const bool bIsBD = UBrokenDarknessManager::IsInBDForm(Caster);
 		const ESpellElement Element = CurrentExecutionContext->PartialResult.AttackElement;
 		const FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(Element, bIsBD);
 		Spawned->SetColorParameter(FName("CoreColor"), Colors.PrimaryColor);

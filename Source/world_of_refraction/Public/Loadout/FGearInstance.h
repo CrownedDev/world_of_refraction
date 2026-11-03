@@ -35,8 +35,9 @@ struct WORLD_OF_REFRACTION_API FGearInstance
 {
 	GENERATED_BODY()
 
-	/** The template: a UWeaponData for a weapon, a URingData for an adapter. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gear")
+	/** The template: a UWeaponData for a weapon, a URingData for an adapter. Read-only outside C++ so it can't
+	 *  disagree with Kind (both are set together by the From* converters). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gear")
 	TObjectPtr<UEquipmentDataBase> Asset = nullptr;
 
 	/** Set from the asset's class when built; stored so a save can say what it holds. */
@@ -101,4 +102,7 @@ struct WORLD_OF_REFRACTION_API FGearInstance
 	/** Back to today's entries; the wrong kind gives an empty entry. */
 	FWeaponInventoryEntry ToWeaponEntry() const;
 	FRingInventoryEntry ToRingEntry() const;
+
+	/** Debug: kind, asset, ids, tier / quality, element and attachment, on one line. */
+	FString GetGearString() const;
 };

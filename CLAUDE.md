@@ -205,6 +205,10 @@ The project is worked from one queue, `docs/Backlog.md`, with open questions in 
 
 Still always: no Blueprint/`.uasset` edits outside the editor connection, no deleting code before it's verified in PIE, no history rewriting, and the Architecture rules above.
 
+## Brain session (Crown, 2026-11-02)
+
+One coordinating session on Crown's desktop plans, starts worker sessions (Unreal builder, Unreal editor, VRoid, cloud writers) and merges their work: `docs/Conventions/BrainSession.md`. A worker follows its brief and hands back; it does not merge into `dev`.
+
 ## Session orientation
 
 At the start of a session, the user will state:
