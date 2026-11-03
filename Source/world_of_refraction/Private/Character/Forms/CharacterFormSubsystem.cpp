@@ -156,12 +156,17 @@ EFormSwitchRefusal UCharacterFormSubsystem::TryWearForm(UCharacterFormData *Form
         WornForm = Form;
         UE_LOG(LogWoR, Log, TEXT("[CharacterForms] now wearing %s"), Form ? *Form->GetName() : TEXT("the base form"));
         // B-279c: a skin comes with its authored outfit (CharacterCustomisation.md §3); taking it off keeps the outfit.
-        if (Form && !Form->AuthoredOutfit.IsEmpty())
+        // The outfit is announced after the skin, so the look never pairs the new outfit with the old skin.
+        const bool bOutfitChanges = Form && !Form->AuthoredOutfit.IsEmpty();
+        if (bOutfitChanges)
         {
             CurrentOutfit = Form->AuthoredOutfit;
-            OnOutfitChanged.Broadcast();
         }
         OnWornFormChanged.Broadcast(WornForm);
+        if (bOutfitChanges)
+        {
+            OnOutfitChanged.Broadcast();
+        }
     }
     return EFormSwitchRefusal::None;
 }

@@ -145,6 +145,11 @@ void AWoRPlayerState::ApplyFormLook()
 	const UGameInstance *OutfitGI = GetGameInstance();
 	const UCharacterFormSubsystem *LocalForms = OutfitGI && IsLocalPlayerWallet() ? OutfitGI->GetSubsystem<UCharacterFormSubsystem>() : nullptr;
 	const bool bWearsOutfit = LocalForms && !LocalForms->GetCurrentOutfit().IsEmpty();
+	// An outfit emptied (the last piece cleared, a save without one) takes its meshes off, even on the default look.
+	if (UOutfitComponent *Worn = Mesh && !bWearsOutfit && Character ? Character->FindComponentByClass<UOutfitComponent>() : nullptr)
+	{
+		Worn->ApplyOutfit(FOutfitSet(), Mesh);
+	}
 	if (!Mesh || (!WornForm && BaseForm == EPlayerBaseForm::Manny && DressedPawn.Get() != Character && !bWearsOutfit))
 	{
 		return;

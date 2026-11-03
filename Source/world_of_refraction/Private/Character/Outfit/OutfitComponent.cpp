@@ -5,6 +5,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/GameInstance.h"
 #include "Engine/SkeletalMesh.h"
+#include "Animation/Skeleton.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
@@ -16,6 +17,43 @@ namespace
 {
 	/** The piece's one material slot. */
 	constexpr int32 OUTFIT_MATERIAL_INDEX = 0;
+
+	UCharacterFormSubsystem *OutfitForms(UWorld *World)
+	{
+		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		return GI ? GI->GetSubsystem<UCharacterFormSubsystem>() : nullptr;
+	}
+
+	/** Placeholder (Backlog rule 4) until the CommonUI wardrobe: wear a piece by asset path. */
+	FAutoConsoleCommandWithWorldAndArgs GWearOutfitCmd(
+		TEXT("wor.Outfit.Wear"),
+		TEXT("PLACEHOLDER: wor.Outfit.Wear <outfit piece asset path> - wear it in its slot (hub or rest spot only, B-279c)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString> &Args, UWorld *World)
+		{
+			UCharacterFormSubsystem *Forms = OutfitForms(World);
+			UOutfitPieceData *Piece = Args.Num() > 0 ? LoadObject<UOutfitPieceData>(nullptr, *Args[0]) : nullptr;
+			if (!Forms || !Piece)
+			{
+				UE_LOG(LogWoR, Warning, TEXT("[Outfit] usage: wor.Outfit.Wear <outfit piece asset path> (piece not found)"));
+				return;
+			}
+			UE_LOG(LogWoR, Log, TEXT("[Outfit] wear %s: %s"), *Piece->GetName(), Forms->TryWearOutfitPiece(Piece) ? TEXT("worn") : TEXT("refused (in a fight, or away from the hub / a rest spot)"));
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs GClearOutfitCmd(
+		TEXT("wor.Outfit.Clear"),
+		TEXT("PLACEHOLDER: wor.Outfit.Clear <slot: Helmet|Jacket|Shirt|Waist|Trousers|Footwear> - empty that slot (B-279c)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString> &Args, UWorld *World)
+		{
+			UCharacterFormSubsystem *Forms = OutfitForms(World);
+			const int64 SlotValue = Args.Num() > 0 ? StaticEnum<EOutfitSlot>()->GetValueByNameString(Args[0]) : INDEX_NONE;
+			if (!Forms || SlotValue == INDEX_NONE)
+			{
+				UE_LOG(LogWoR, Warning, TEXT("[Outfit] usage: wor.Outfit.Clear <Helmet|Jacket|Shirt|Waist|Trousers|Footwear>"));
+				return;
+			}
+			UE_LOG(LogWoR, Log, TEXT("[Outfit] clear %s: %s"), *Args[0], Forms->TryClearOutfitSlot(static_cast<EOutfitSlot>(SlotValue)) ? TEXT("cleared") : TEXT("refused"));
+		}));
 
 	FAutoConsoleCommandWithWorld GPrintOutfitCmd(
 		TEXT("wor.Outfit.Print"),
@@ -74,6 +112,18 @@ int32 UOutfitComponent::ApplyOutfit(const FOutfitSet &Outfit, USkeletalMeshCompo
 			SlotMesh->SetupAttachment(Body);
 			SlotMesh->RegisterComponent();
 		}
+		else if (SlotMesh->GetAttachParent() != Body)
+		{
+			SlotMesh->AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		}
+		// Leader Pose needs the piece skinned to the body's skeleton; warn so a wrong mesh is found in PIE.
+		const USkeletalMesh *BodyMesh = Body->GetSkeletalMeshAsset();
+		if (BodyMesh && PieceMesh->GetSkeleton() != BodyMesh->GetSkeleton())
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[Outfit] %s's mesh uses another skeleton than the body (%s); it may not follow the body"), *Piece->GetName(),
+				   *GetNameSafe(BodyMesh));
+		}
+		// TODO: load the pieces asynchronously if outfit changes ever hitch (six synchronous loads today).
 		SlotMesh->SetSkeletalMesh(PieceMesh);
 		SlotMesh->SetLeaderPoseComponent(Body);
 		SlotMesh->SetVisibility(true);
