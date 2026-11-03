@@ -156,6 +156,8 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 - B-042ye: the AI resyncs the mirror per DOT preview and per `GetDebuffCount` (cheap when nothing changed,
   but per candidate x target); `wor.CompareEffects` doesn't show the held list beside the stored one yet.
 
+- B-318: the held-effects snapshot (`UWoREffectMirrorComponent::HeldSnapshot`) is refreshed by the mirror's syncs; a GE that GAS ends without an effect-manager event (outside the holder-turn start, which `ReleaseEndedCopies` covers) shows on guests only from the next sync. Each entry sends the whole `FActiveSkillEffect` (names, conditions); a slim replicated struct can come later if bandwidth asks.
+
 ## Changelog
 
 | Date | Change | Branch |

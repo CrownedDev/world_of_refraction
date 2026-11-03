@@ -92,9 +92,16 @@ void FGASClientReadsSpec::Define()
 		if (!EffectManager) return;
 		UWoREffectMirrorComponent::SetReadsFromGAS(true);
 		ApplyMix();
+		// Read before anything could resync: the effect events' syncs alone must have filled it.
+		const TArray<FActiveSkillEffect> Snapshot = Mirror->GetHeldSnapshot();
+		TestEqual(TEXT("both effects in the snapshot"), Snapshot.Num(), 2);
+		for (const FActiveSkillEffect &Held : Snapshot)
+		{
+			TestTrue(FString::Printf(TEXT("%s: a holder turn counted, not over"), *Held.EffectName),
+					 Held.RemainingTurns > 0 && Held.RemainingTurns <= CLIENT_READS_TURNS);
+		}
 		const TArray<FActiveSkillEffect> ServerHeld = EffectManager->GetHeldEffects(Hero);
-		TestTrue(TEXT("the server holds effects"), ServerHeld.Num() > 0);
-		TestSameHeld(TEXT("snapshot"), ServerHeld, Mirror->GetHeldSnapshot());
+		TestSameHeld(TEXT("snapshot"), ServerHeld, Snapshot);
 	});
 
 	It("gives an actor without authority the server's list and turns, not its stored list, at UseGAS 1", [this]()
