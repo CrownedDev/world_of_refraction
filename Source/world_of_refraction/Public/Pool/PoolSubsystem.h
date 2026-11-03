@@ -302,6 +302,10 @@ public:
     /** Moves Count of the character's carried items to storage. False (nothing moved) when fewer are carried. */
     bool MoveToStorage(FName CharacterKey, const FCrystalId &Id, int32 Count);
 
+    /** A character leaves for good (a run-only member at run end): its whole pouch goes to storage
+     *  (D-097: items are never thrown away) and the pouch is removed. Returns how many items moved. */
+    int32 ReleasePouch(FName CharacterKey);
+
     /** Moves Count stored items into the character's pouch. False (nothing moved) when fewer are
      *  stored or they don't fit (no free slot, or the stack is full). */
     bool MoveToCarried(FName CharacterKey, const FCrystalId &Id, int32 Count);

@@ -459,6 +459,24 @@ bool UPoolSubsystem::MoveToStorage(FName CharacterKey, const FCrystalId &Id, int
     return true;
 }
 
+int32 UPoolSubsystem::ReleasePouch(FName CharacterKey)
+{
+    FPoolPouch Released;
+    if (!Pouches.RemoveAndCopyValue(CharacterKey, Released))
+    {
+        return 0;
+    }
+    int32 Moved = 0;
+    for (const TPair<FCrystalId, int32> &Stack : Released.Stacks)
+    {
+        AddCrystalToPool(Stack.Key, Stack.Value);
+        Moved += Stack.Value;
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] %s leaves: %d carried item(s) go to storage"), *CharacterKey.ToString(), Moved);
+    OnPoolItemsChanged.Broadcast();
+    return Moved;
+}
+
 bool UPoolSubsystem::MoveToCarried(FName CharacterKey, const FCrystalId &Id, int32 Count)
 {
     if (Count <= 0 || GetStoredCount(Id) < Count || GetCarryRoom(CharacterKey, Id) < Count)
