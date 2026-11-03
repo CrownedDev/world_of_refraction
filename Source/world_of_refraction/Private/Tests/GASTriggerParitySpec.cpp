@@ -97,7 +97,21 @@ BEGIN_DEFINE_SPEC(FGASTriggerParitySpec, "WoR.GAS.TriggerParity", EAutomationTes
 		return Count;
 	}
 
-	void CheckOneHealOnGAS(const TCHAR *What, int32 EffectID)
+	/** At UseGAS 1 the tracker owns the GE's turns (B-042h); at 0 the mirror holds it untracked. */
+	void CheckPathOwnership(const TCHAR *What, const FActiveSkillEffect &Stored, bool bReadsFromGAS)
+	{
+		const int32 TrackedTurns = Mirror->GetTrackedTurnsLeft(Stored);
+		if (bReadsFromGAS)
+		{
+			TestEqual(FString::Printf(TEXT("%s: the tracker counts its turns"), What), TrackedTurns, TRIGGER_PARITY_TURNS);
+		}
+		else
+		{
+			TestEqual(FString::Printf(TEXT("%s: untracked on the enum path"), What), TrackedTurns, INDEX_NONE);
+		}
+	}
+
+	void CheckOneHealOnGAS(const TCHAR *What, int32 EffectID, bool bReadsFromGAS)
 	{
 		const TArray<FActiveSkillEffect> Stored = StoredWithID(EffectID);
 		if (!TestEqual(FString::Printf(TEXT("%s: one stored copy"), What), Stored.Num(), 1))
@@ -108,6 +122,7 @@ BEGIN_DEFINE_SPEC(FGASTriggerParitySpec, "WoR.GAS.TriggerParity", EAutomationTes
 		TestTrue(FString::Printf(TEXT("%s: a value"), What), Stored[0].EffectValue > 0.0f);
 		TestEqual(FString::Printf(TEXT("%s: exactly one GE of its identity"), What), LiveGEsOf(Stored[0]), 1);
 		TestEqual(FString::Printf(TEXT("%s: the mirror holds it"), What), Mirror->NumMirrored(), 1);
+		CheckPathOwnership(What, Stored[0], bReadsFromGAS);
 	}
 END_DEFINE_SPEC(FGASTriggerParitySpec)
 
@@ -147,29 +162,31 @@ void FGASTriggerParitySpec::Define()
 		{
 			BeforeEach([bReadsFromGAS]() { UWoREffectMirrorComponent::SetReadsFromGAS(bReadsFromGAS); });
 
-			It("lands a defender trigger's payload as one GE of its identity when it fires", [this]()
+			It("lands a defender trigger's payload as one GE of its identity when it fires", [this, bReadsFromGAS]()
 			{
 				if (!EffectManager) return;
 				EffectManager->ArmConditionalEffects(Holder, {ParryHealGear()});
 				TestEqual(TEXT("armed, nothing on GAS yet"), Mirror->NumMirrored(), 0);
 				Parry();
-				CheckOneHealOnGAS(TEXT("parry heal"), EffectIdentity::PackEffectID(TRIGGER_PARITY_DEF_ID, 0, 0));
+				CheckOneHealOnGAS(TEXT("parry heal"), EffectIdentity::PackEffectID(TRIGGER_PARITY_DEF_ID, 0, 0), bReadsFromGAS);
 			});
 
-			It("replaces, never doubles, when the trigger fires again", [this]()
+			It("replaces, never doubles, when the trigger fires again", [this, bReadsFromGAS]()
 			{
 				if (!EffectManager) return;
 				EffectManager->ArmConditionalEffects(Holder, {ParryHealGear()});
 				Parry();
+				// A holder turn passes, then the second parry refreshes the span to its full length again.
+				EffectManager->ProcessStartOfTurnEffects(Holder);
 				Parry();
-				CheckOneHealOnGAS(TEXT("second parry"), EffectIdentity::PackEffectID(TRIGGER_PARITY_DEF_ID, 0, 0));
+				CheckOneHealOnGAS(TEXT("second parry"), EffectIdentity::PackEffectID(TRIGGER_PARITY_DEF_ID, 0, 0), bReadsFromGAS);
 			});
 
-			It("lands a starting effect as one GE of its identity at combat start", [this]()
+			It("lands a starting effect as one GE of its identity at combat start", [this, bReadsFromGAS]()
 			{
 				if (!EffectManager) return;
 				EffectManager->ApplyEquipmentEffects(Holder, {StartingHealGear()});
-				CheckOneHealOnGAS(TEXT("starting heal"), EffectIdentity::PackEffectID(TRIGGER_PARITY_DEF_ID, 1, 0));
+				CheckOneHealOnGAS(TEXT("starting heal"), EffectIdentity::PackEffectID(TRIGGER_PARITY_DEF_ID, 1, 0), bReadsFromGAS);
 			});
 
 			It("ends the GE with the stored copy when the effect is removed", [this]()
