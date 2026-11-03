@@ -46,9 +46,34 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ladders")
 	FScalableFloat ScalingGrade;
 
+	// B-224 (BaselineNumbers.md "Decided"): the combat numbers baseline, C++ tables in CombatBaselineConstants.h.
+
+	/** The pillar soft cap a weapon's scaling grades read, keyed by live pillar level 0 .. 7. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ladders|Baseline")
+	FScalableFloat PillarCurve;
+
+	/** Reference weapon Power of a tier, keyed F = 0 .. S = 6 (authoring guide and debug, not read by damage). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ladders|Baseline")
+	FScalableFloat WeaponReferencePower;
+
+	/** Main-pillar requirement of a weapon of its tier, keyed F = 0 .. S = 6 (authoring guide and debug). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ladders|Baseline")
+	FScalableFloat WeaponRequirement;
+
+	/** Enemy max HP multiplier by encounter rank, keyed by EEncounterRank value. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ladders|Baseline")
+	FScalableFloat EnemyRankHealth;
+
 	/** The curve table FillLadderTable writes into (create an empty Curve Table and pick it here). */
 	UPROPERTY(EditAnywhere, Category = "Ladders")
 	TObjectPtr<UCurveTable> LadderTable;
+
+	// ---- Weapon requirement (B-224) ----
+
+	/** Floor on a weapon's requirement factor: at most this much of the weapon part is lost under the
+	 *  requirement (the skill part is never cut). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (ClampMin = 0, ClampMax = 1))
+	float WeaponReqFactorMin;
 
 	// ---- Infusion charge bands (damage or status multiplier at charge level 1 / 2) ----
 
@@ -101,7 +126,7 @@ public:
 	/** Lowest and highest key a ladder row holds. */
 	static void GetLadderKeyRange(ECombatLadder Ladder, int32 &OutFirst, int32 &OutLast);
 
-	/** Every ladder value and single value, one line each. */
+	/** Every ladder value and single value, one line each, then the caps that stay C++ until B-042 (Q-218). */
 	FString GetCombatTuningString() const;
 
 	/** Lines for every value that differs from the C++ constants (empty when none do). */
