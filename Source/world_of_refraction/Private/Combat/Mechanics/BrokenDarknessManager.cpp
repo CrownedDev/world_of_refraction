@@ -3,6 +3,7 @@
 
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "WoRLog.h"
+#include "Combat/Elements/ElementTable.h"
 #include "Combat/Defense/GuardRules.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Skills/Definitions/SpellData.h"
@@ -496,27 +497,14 @@ void UBrokenDarknessManager::RevertTransformation()
 
 bool UBrokenDarknessManager::IsForbiddenElement(ESpellElement Element)
 {
-	return Element == ESpellElement::Light || Element == ESpellElement::Void;
+	return ElementTable::ForElement(Element).bBDForbidden;
 }
 
 bool UBrokenDarknessManager::CanAbsorbElement(ESpellElement Element)
 {
-	// Allowlist gate — reject the non-absorbable sentinels/values; everything that
-	// passes (the 7 elements + Darkness) rotates the active pool on absorption.
-	//   Generic — polymorphic placeholder, nothing concrete to absorb
-	//   None    — non-elemental / physical attack, no element to absorb
-	//   Reality — too powerful
-	// Darkness is intentionally absorbable: it is the rotation target that points the
-	// active pool back to the innate Darkness pool (a normal rotation, NOT the
-	// out-of-combat RevertTransformation BD-exit).
-	if (Element == ESpellElement::Generic ||
-		Element == ESpellElement::None ||
-		Element == ESpellElement::Reality)
-	{
-		return false;
-	}
-
-	return true;
+	// Generic, None and Reality can't be absorbed; Darkness can (the rotation back to the innate pool,
+	// not the out-of-combat RevertTransformation).
+	return ElementTable::ForElement(Element).bBDAbsorbable;
 }
 
 float UBrokenDarknessManager::CalculateForbiddenCastDamage(float SpellBaseDamage) const
