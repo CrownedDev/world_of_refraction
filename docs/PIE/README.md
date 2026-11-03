@@ -11,6 +11,8 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 - A `[!]` becomes a new backlog job (or reopens the old one) — Claude reads the notes.
 
 ## Pending
+**The sweep:** [`Sweep.md`](Sweep.md) lists every retire-after-PIE delete as one checklist (deletes batched into one sweep per milestone, D-124) and the running list of every job waiting on Crown's PIE; nothing is DONE without it (D-128).
+
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
 | [B-224](B-224.md) | `feature/B-224-combat-numbers` (in `dev`) | Combat numbers baseline: rank HP x1.5/3/6, Defense cap 75%, crit base x1.25, requirement floor 0.5, tuning ladders | Not built |
