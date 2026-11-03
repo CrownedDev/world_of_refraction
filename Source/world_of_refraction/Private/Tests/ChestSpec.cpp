@@ -1,6 +1,6 @@
 // ChestSpec.cpp
 // B-324 (D-117, Q-321): the shared home chest holds gear. A puts a spare sword in the chest (it leaves A's
-// armoury, nobody owns it, every member's draw leaves it alone); B takes it and owns it; worn gear can't be put
+// armoury, the chest owns it, every member's draw leaves it alone); B takes it and owns it; worn gear can't be put
 // away; the chest survives a save.
 
 #if WITH_DEV_AUTOMATION_TESTS

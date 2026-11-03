@@ -3026,4 +3026,5 @@ Moved here once applied. Newest first.
 **Recommendation:** as built. (1) keeps B-323 to one instance kind moving; (2) matches how B-321 treats gear that changed hands while a member was away. BG3 only allows trades between present companions, which the CommonUI screen can enforce later.
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-323. If (2) should refuse, `TryGiveGear` returns a refusal when `FindMemberInventory` is null.
+**Added by B-324 (same defaults):** a run-only recruit can't be given gear nor take it from the chest (Q-321: it owns nothing, and `DismissRunMembers` releases wearers, not owners), and its whole-armoury draw skips chest gear; a put from an unspawned member releases any stale wearer.
 
