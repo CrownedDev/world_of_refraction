@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Run WoR automation tests headless, then validate data assets (B-119). Exit 0 = all passed, 1 = failures, 3 = UE_ROOT missing.
 # Usage: Scripts/ue/test.sh [filter]   (default filter "WoR."; e.g. "WoR.Damage")
+# B-293: WOR_BALANCE=nightly|full Scripts/ue/test.sh WoR.Balance.  runs that balance preset in WoR.Balance.Sim.Targets
+# (and the parity check over its matchups) and writes Saved/Balance/<preset>_<stamp>.{csv,json,md}; unset = quick.
 set -uo pipefail
 source "$(dirname "$0")/common.sh"
 wor_require_ue || exit $?
@@ -10,8 +12,10 @@ REPORT="$WOR_LOG_DIR/tests"
 LOG="$WOR_LOG_DIR/test.log"
 rm -rf "$REPORT"
 
-echo "Running automation tests '$FILTER' ... (log: $LOG)"
-"$UE_ROOT/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" "$WOR_PROJECT" \
+BALANCE_ARGS=()
+[ -n "${WOR_BALANCE:-}" ] && BALANCE_ARGS=("-WoRBalance=$WOR_BALANCE")
+echo "Running automation tests '$FILTER' ${WOR_BALANCE:+(balance preset $WOR_BALANCE) }... (log: $LOG)"
+"$UE_ROOT/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" "$WOR_PROJECT" "${BALANCE_ARGS[@]}" \
     -ExecCmds="Automation RunTests $FILTER" -TestExit="Automation Test Queue Empty" \
     -ReportExportPath="$REPORT" -unattended -nullrhi -nosplash -nosound -NoP4 -abslog="$LOG" > /dev/null 2>&1
 
