@@ -112,6 +112,7 @@ private:
     friend class FAIDamageEstimateSpec;
     friend class FAIInfusionLevelSpec;
     friend class FGASEffectReadsSpec;
+    friend class FAIOneSkillPathSpec;
 
     // ==================== INTERNAL ====================
 
@@ -195,12 +196,13 @@ private:
     /** Estimate damage to target with best available action */
     int32 EstimateBestDamage(AActor *Attacker, AActor *Target);
 
-    /** Execution-accurate spell damage estimate — routes the spell through
+    /** OBSOLETE (B-345): forwards to EstimateSkillDamage; kept until the one path is proven in PIE.
+     *  Execution-accurate spell damage estimate — routes the spell through
      *  DamageCalculator so attacker stats, ActionMods and defender defense
      *  are all applied, matching what real execution would deal. */
     int32 EstimateSpellDamage(AActor *Attacker, AActor *Target, USpellData *Spell, int32 InfusionLevel = 0, EInfusionSourceOption InfusionSource = EInfusionSourceOption::None) const;
 
-    /** Execution-accurate ability damage estimate — see EstimateSpellDamage. */
+    /** OBSOLETE (B-345): forwards to EstimateSkillDamage. Execution-accurate ability damage estimate. */
     int32 EstimateAbilityDamage(AActor *Attacker, AActor *Target, UAbilityData *Ability, int32 InfusionLevel = 0, EInfusionSourceOption InfusionSource = EInfusionSourceOption::None) const;
 
     /** One estimator behind EstimateSpellDamage / EstimateAbilityDamage (B-029): the executor's own
@@ -223,18 +225,62 @@ private:
     mutable int32 EstimatePreviewCount = 0;
     mutable int32 EstimateMemoHitCount = 0;
 
-    /** Score the value of a spell's status-buildup payload against a target
-     *  (pre-weight, ~0..50). Non-const — reads HasDangerousDebuff. */
+    /** OBSOLETE (B-345): forwards to EstimateSkillStatusScore. */
     float EstimateStatusScore(AActor *Attacker, AActor *Target, USpellData *Spell);
 
-    /** Ability equivalent of EstimateStatusScore — see the spell overload. */
+    /** OBSOLETE (B-345): forwards to EstimateSkillStatusScore. */
     float EstimateStatusScore(AActor *Attacker, AActor *Target, UAbilityData *Ability);
 
-    /** True if the actor can afford the spell at the given infusion level. */
+    /** OBSOLETE (B-345): forwards to CanAffordSkill. */
     bool CanAffordSpell(AActor *Actor, USpellData *Spell, int32 InfusionLevel = 0) const;
 
-    /** True if the actor can afford the ability at the given infusion level. */
+    /** OBSOLETE (B-345): forwards to CanAffordSkill. */
     bool CanAffordAbility(AActor *Actor, UAbilityData *Ability, int32 InfusionLevel = 0) const;
+
+    // ==================== ONE SKILL PATH (B-345, D-136) ====================
+    // Spells and abilities are scored, costed and infused by the same functions; the type only
+    // decides which FAction fields carry the skill (MakeSkillAction) and where the infusion source
+    // comes from (DecideSkillInfusionSource).
+
+    /** The FAction Skill goes out as: a spell carries SpellData, its resolved SpellSource and
+     *  SpellInfusionLevel; anything else (abilities, weapon attacks) SkillData and AbilityInfusionLevel.
+     *  A source rides only an infused (L1+) action. Target null = no target (a cost probe). */
+    FAction MakeSkillAction(AActor *Attacker, AActor *Target, USkillDataBase *Skill, int32 InfusionLevel = 0,
+                            EInfusionSourceOption InfusionSource = EInfusionSourceOption::None) const;
+
+    /** Execution-accurate damage estimate for a spell or an ability (EstimateActionDamage). */
+    int32 EstimateSkillDamage(AActor *Attacker, AActor *Target, USkillDataBase *Skill, int32 InfusionLevel = 0,
+                              EInfusionSourceOption InfusionSource = EInfusionSourceOption::None) const;
+
+    /** Value of Skill's status buildup against Target, pre-weight (trigger / contribute / redundant
+     *  tiers from the tuning data). Non-const — reads HasDangerousDebuff. */
+    float EstimateSkillStatusScore(AActor *Attacker, AActor *Target, USkillDataBase *Skill);
+
+    /** The one skill score: damage estimate + status score x the tuning's AIStatusScoreWeight. */
+    float ScoreSkill(AActor *Attacker, AActor *Target, USkillDataBase *Skill);
+
+    /** True if Actor can pay Skill's EP at InfusionLevel (true when the executor is missing). */
+    bool CanAffordSkill(AActor *Actor, USkillDataBase *Skill, int32 InfusionLevel = 0) const;
+
+    /** A spell's origin-bound source (DecideSpellInfusionSource), else the ability heuristic. */
+    EInfusionSourceOption DecideSkillInfusionSource(AActor *Attacker, USkillDataBase *Skill) const;
+
+    /** DecideInfusionLevel with Skill's source and EstimateSkillDamage. */
+    int32 DecideSkillInfusionLevel(AActor *Attacker, AActor *Target, USkillDataBase *Skill) const;
+
+    /** The best affordable candidate on Target and its score (0 with none affordable). Ties keep the
+     *  first. An unaffordable candidate that beats InOutUnaffordableBest replaces it and its L0 cost
+     *  (the self-target Emerald reads them). */
+    USkillDataBase *ChooseBestSkill(AActor *AIActor, AActor *Target, const TArray<USkillDataBase *> &Candidates,
+                                    float &OutBestScore, float &InOutUnaffordableBest, int32 &InOutUnaffordableCost);
+
+    /** Writes Skill into Action (whose Targets are set) through MakeSkillAction's fields, then its
+     *  infusion: DecideSkillInfusionLevel, dropped to 0 when that level is unaffordable or there is no
+     *  legal source, then ClampInfusionLevelForHP. */
+    void ApplySkillChoice(AActor *AIActor, UCharacterDataComponent *CharComp, USkillDataBase *Skill, FAction &Action) const;
+
+    /** The candidates of one offensive category: usable Destruction spells, or available abilities. */
+    static TArray<USkillDataBase *> GetOffensiveSkills(ULoadoutComponent *Loadout, EAIActionChoice Category);
 
     /** Calculate threat level of an actor */
     int32 CalculateThreatLevel(AActor *Actor);
@@ -315,8 +361,11 @@ private:
     UCharacterData *GetCharacterData(AActor *Actor) const;
     // ==================== STATUS BAR QUERIES ====================
 
-    /** Check if target's status bar is near triggering */
-    bool IsStatusBarNearTrigger(AActor *Target, float Threshold = AIConstants::STATUS_BAR_NEAR_TRIGGER_THRESHOLD) const;
+    /** Check if target's status bar is at or above Threshold */
+    bool IsStatusBarNearTrigger(AActor *Target, float Threshold) const;
+
+    /** B-345: at or above the tuning data's AIStatusBarNearTrigger. */
+    bool IsStatusBarNearTrigger(AActor *Target) const;
 
     /** Would this spell/ability trigger the status bar? */
     bool WouldTriggerStatusBar(AActor *Attacker, AActor *Target, float BuildupAmount) const;
@@ -326,10 +375,10 @@ private:
 
     // ==================== INFUSION DECISIONS ====================
 
-    /** Decide infusion level for a spell (0, 1, or 2) */
+    /** OBSOLETE (B-345): forwards to DecideSkillInfusionLevel. */
     int32 DecideSpellInfusionLevel(AActor *Attacker, AActor *Target, USpellData *Spell) const;
 
-    /** Decide infusion level for an ability (0, 1, or 2) */
+    /** OBSOLETE (B-345): forwards to DecideSkillInfusionLevel. */
     int32 DecideAbilityInfusionLevel(AActor *Attacker, AActor *Target, UAbilityData *Ability) const;
 
     /** Decide the infusion SOURCE for a SPELL (origin-bound): the first allowed source from
