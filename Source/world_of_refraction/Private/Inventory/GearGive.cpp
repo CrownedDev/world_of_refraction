@@ -24,7 +24,7 @@ namespace
 		return GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
 	}
 
-	const UParty *LocalPartyOf(const UWorld *World)
+	const UParty *GiveLocalPartyOf(const UWorld *World)
 	{
 		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 		const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
@@ -34,7 +34,7 @@ namespace
 	/** The character's name as the party shows it; the asset's base name when it isn't a party member. */
 	FText NameOf(const UWorld *World, FName CharacterKey)
 	{
-		if (const UParty *Party = LocalPartyOf(World))
+		if (const UParty *Party = GiveLocalPartyOf(World))
 		{
 			for (const FPartyMember &Member : Party->Members)
 			{
@@ -50,7 +50,7 @@ namespace
 	/** Q-321: a run-only recruit owns nothing (what it has goes back when it leaves), so it can't be given gear. */
 	bool IsRunOnlyMember(const UWorld *World, FName CharacterKey)
 	{
-		if (const UParty *Party = LocalPartyOf(World))
+		if (const UParty *Party = GiveLocalPartyOf(World))
 		{
 			for (const FPartyMember &Member : Party->Members)
 			{
@@ -69,7 +69,7 @@ namespace
 		TEXT("DEBUG: list what each party member could give (weapons, adapters, pouch stacks) (B-323)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 		{
-			const UParty *Party = LocalPartyOf(World);
+			const UParty *Party = GiveLocalPartyOf(World);
 			if (!Party)
 			{
 				UE_LOG(LogTemp, Warning, TEXT("[Give] wor.Give.Print: no local party"));
