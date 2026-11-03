@@ -53,10 +53,12 @@ namespace AIConstants
     // ==================== DEFENSE RATES ====================
 
     // Chance to attempt defense when window opens
-    constexpr float EASY_DEFENSE_ATTEMPT = 0.40f;
-    constexpr float MEDIUM_DEFENSE_ATTEMPT = 0.65f;
-    constexpr float HARD_DEFENSE_ATTEMPT = 0.85f;
-    constexpr float EXPERT_DEFENSE_ATTEMPT = 0.95f;
+    // B-293c (Q-293c, Expedition 33): even steps of 0.15, and Hard no longer turns most hits away. The first nightly
+    // sim had Hard fights ~2.5x Medium from enemy defending alone (was 0.40 / 0.65 / 0.85 / 0.95). TODO: tune in PIE.
+    constexpr float EASY_DEFENSE_ATTEMPT = 0.30f;
+    constexpr float MEDIUM_DEFENSE_ATTEMPT = 0.45f;
+    constexpr float HARD_DEFENSE_ATTEMPT = 0.60f;
+    constexpr float EXPERT_DEFENSE_ATTEMPT = 0.75f;
 
     // ==================== SURVIVAL THRESHOLDS ====================
 
@@ -66,8 +68,9 @@ namespace AIConstants
 
     // ==================== PARRY CHANCE ====================
     // Parry-vs-block choice; only the Hard/Expert "smart choice" path reaches this.
-    constexpr float HARD_PARRY_CHANCE = 0.4f;
-    constexpr float EXPERT_PARRY_CHANCE = 0.7f;
+    // B-293c: a Perfect Guard turns the whole hit away; Hard parries less (was 0.4 / 0.7).
+    constexpr float HARD_PARRY_CHANCE = 0.25f;
+    constexpr float EXPERT_PARRY_CHANCE = 0.5f;
 
     // ==================== DEFENSE DELTA AIM (PER-IMPACT) ====================
     // Aim offset for a synthesized per-impact defense press, expressed as a MULTIPLE of the
@@ -76,10 +79,12 @@ namespace AIConstants
     // aims looser. AI difficulty governs aim-WITHIN-band only; the band itself comes from the
     // impact's authored difficulty so it matches what MatchAndConsumeInput judges against.
     // Placeholders — Crown tunes in PIE.
-    constexpr float EASY_DELTA_BAND_MULT = 3.0f;    // ~3x outside band → usually whiffs early
-    constexpr float MEDIUM_DELTA_BAND_MULT = 1.6f;
-    constexpr float HARD_DELTA_BAND_MULT = 0.9f;    // just inside the band edge
-    constexpr float EXPERT_DELTA_BAND_MULT = 0.35f; // deep in perfect band
+    // B-293c: closer, gently narrowing steps (was 3.0 / 1.6 / 0.9 / 0.35); Hard sits just outside the perfect band,
+    // Expert just inside its edge.
+    constexpr float EASY_DELTA_BAND_MULT = 2.6f;    // well outside band → usually whiffs early
+    constexpr float MEDIUM_DELTA_BAND_MULT = 1.9f;
+    constexpr float HARD_DELTA_BAND_MULT = 1.3f;    // just outside the band: catches the wider window, rarely perfect
+    constexpr float EXPERT_DELTA_BAND_MULT = 0.8f;  // just inside the band edge
 
     // Randomized +/- fraction of the computed delta, so the AI isn't frame-perfect-deterministic.
     constexpr float DEFENSE_DELTA_JITTER_FRAC = 0.25f;

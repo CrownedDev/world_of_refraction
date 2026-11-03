@@ -609,6 +609,10 @@ private:
      *  crystal and absorption state; null for an enemy or outside a party. */
     const struct FPartyMember *FindCarriedPartyMember() const;
 
+    /** B-223 (D-102): the run that keeps this party member's earned pillar levels across level travel, and its
+     *  key there; null for an enemy, outside a party or without a game instance. */
+    class UTrialRunSubsystem *FindRunLevelStore(FName &OutKey) const;
+
     /** Mutable pointer to a pillar's live field — the single dispatch for the pillar-keyed ops. */
     int32 *LiveFieldFor(EWorldPillar Pillar);
 

@@ -112,6 +112,7 @@ void UWoREffectMirrorComponent::SyncMirror()
 		return;
 	}
 	TGuardValue<bool> SyncingGuard(bSyncing, true);
+	++SyncCount;
 
 	UWoRTurnEffectTracker *Tracker = OwnsLifetime(Owner) ? GetTracker() : nullptr;
 	// Holder-turn spans only: an Immediate effect's teardown stays the enum path's (bPendingRemoval).
@@ -189,6 +190,7 @@ void UWoREffectMirrorComponent::SyncMirror()
 		}
 	}
 	Mirrored = MoveTemp(Kept);
+	SyncedFingerprint = GetSyncFingerprint();
 
 	if (bResyncRequested)
 	{
@@ -196,6 +198,39 @@ void UWoREffectMirrorComponent::SyncMirror()
 		bSyncing = false;
 		SyncMirror();
 	}
+}
+
+uint32 UWoREffectMirrorComponent::GetSyncFingerprint() const
+{
+	AActor *Owner = GetOwner();
+	const UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner);
+	const USkillEffectManager *SEM = MirrorEffectManager(this);
+	uint32 Hash = HashCombineFast(GetTypeHash(ReadsFromGAS()), PointerHash(GetTracker()));
+	Hash = HashCombineFast(Hash, GetTypeHash(ASC ? ASC->GetActiveGameplayEffects().GetNumGameplayEffects() : INDEX_NONE));
+	// Which of our GEs are still live (one ending while another GE lands keeps the count).
+	for (const FWoRMirroredEffect &Entry : Mirrored)
+	{
+		Hash = HashCombineFast(Hash, ASC && ASC->GetActiveGameplayEffect(Entry.Handle) ? 1u : 0u);
+	}
+	const TArray<FActiveSkillEffect> *Stored = SEM ? SEM->FindActiveEffects(Owner) : nullptr;
+	if (!Stored)
+	{
+		return Hash;
+	}
+	for (const FActiveSkillEffect &Effect : *Stored)
+	{
+		// Every field the sync's identity, magnitude and span checks read.
+		Hash = HashCombineFast(Hash, GetTypeHash(Effect.EffectID));
+		Hash = HashCombineFast(Hash, GetTypeHash(Effect.SourceKey));
+		Hash = HashCombineFast(Hash, GetTypeHash(static_cast<uint8>(Effect.EffectType)));
+		Hash = HashCombineFast(Hash, GetTypeHash(static_cast<uint8>(Effect.Element)));
+		Hash = HashCombineFast(Hash, GetTypeHash(Effect.GetStackedValue()));
+		Hash = HashCombineFast(Hash, GetTypeHash(Effect.RemainingTurns));
+		Hash = HashCombineFast(Hash, GetTypeHash(Effect.HolderTurns.TurnsLeft));
+		const uint32 Flags = (Effect.bFromGear ? 1u : 0u) | (Effect.bPermanent ? 2u : 0u) | (Effect.bCountsHolderTurns ? 4u : 0u);
+		Hash = HashCombineFast(Hash, Flags);
+	}
+	return Hash;
 }
 
 UWoRTurnEffectTracker *UWoREffectMirrorComponent::GetTracker() const
@@ -287,6 +322,7 @@ void UWoREffectMirrorComponent::ForgetEnded(const FActiveSkillEffect &Effect)
 {
 	const FWoREffectIdentity Identity = FWoREffectSpecBuilder::MakeIdentity(Effect);
 	EndedByGAS.RemoveAll([&Identity](const FWoREffectIdentity &Ended) { return Ended.IsSameIdentity(Identity); });
+	SyncedFingerprint.Reset(); // the sync reads EndedByGAS, which the fingerprint doesn't hash
 }
 
 bool UWoREffectMirrorComponent::PayTick(const FActiveSkillEffect &Effect)
@@ -356,8 +392,12 @@ const UAbilitySystemComponent *UWoREffectMirrorComponent::GetGASReadSource(const
 	{
 		return nullptr;
 	}
-	// The read may come between a change and its event (NotifySpeedChanged, another listener).
-	Mirror->SyncMirror();
+	// The read may come between a change and its event (NotifySpeedChanged, another listener), so it checks
+	// what the sync reads rather than waiting for an event (B-261: it skips the sync when nothing changed).
+	if (!Mirror->SyncedFingerprint.IsSet() || Mirror->GetSyncFingerprint() != Mirror->SyncedFingerprint.GetValue())
+	{
+		Mirror->SyncMirror();
+	}
 	return UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor);
 }
 
@@ -406,7 +446,10 @@ FString UWoREffectMirrorComponent::GetDebugString() const
 	{
 		Lines.Add(FString::Printf(TEXT("%s ended by GAS, stored copy pending release"), *Identity.ToString()));
 	}
-	return Lines.Num() > 0 ? FString::Join(Lines, TEXT("\n")) : TEXT("nothing mirrored");
+	Lines.Add(FString::Printf(TEXT("%d sync(s); last fingerprint %s, now %u"), SyncCount,
+							  SyncedFingerprint.IsSet() ? *FString::Printf(TEXT("%u"), SyncedFingerprint.GetValue()) : TEXT("<none>"),
+							  GetSyncFingerprint()));
+	return FString::Join(Lines, TEXT("\n"));
 }
 
 void UWoREffectMirrorComponent::BeginPlay()

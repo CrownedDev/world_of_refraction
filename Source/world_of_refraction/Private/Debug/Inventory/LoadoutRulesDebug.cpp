@@ -34,6 +34,33 @@ namespace
 				ULoadoutRulesDebug::CompareLoadoutSlots(World);
 			}));
 
+	// B-312 (Q-312): each member's gear copies against its view of the pool store; silence means the views are ready.
+	FAutoConsoleCommandWithWorld GCompareStoreCmd(
+		TEXT("wor.Inventory.CompareStore"),
+		TEXT("DEBUG: per character, its weapon / adapter / evolution copies against its view of the pool store (B-312)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				int32 Members = 0;
+				int32 Differing = 0;
+				for (TActorIterator<AActor> It(World); It; ++It)
+				{
+					const UInventoryComponent *Inventory = It->FindComponentByClass<UInventoryComponent>();
+					if (!Inventory || !Inventory->DrawsSharedGear())
+					{
+						continue;
+					}
+					++Members;
+					const FString Differences = Inventory->CompareWithStore();
+					if (!Differences.IsEmpty())
+					{
+						++Differing;
+						UE_LOG(LogTemp, Warning, TEXT("[CompareStore] %s:\n%s"), *GetNameSafe(*It), *Differences);
+					}
+				}
+				UE_LOG(LogTemp, Log, TEXT("[CompareStore] %d member(s) drawing from the store, %d differ"), Members, Differing);
+			}));
+
 	FAutoConsoleCommandWithWorldAndArgs GTryAbilityPickCmd(
 		TEXT("wor.Loadout.TryAbility"),
 		TEXT("DEBUG: wor.Loadout.TryAbility <ability name> - try a learned ability as a pick on each character's active loadout (B-159)."),
