@@ -309,6 +309,20 @@ struct WORLD_OF_REFRACTION_API FSavedWearer
 	FName Character;
 };
 
+/** B-311: a Broken Darkness element's spell pool in a custom loadout. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCustomBDPool
+{
+	GENERATED_BODY()
+
+	/** ESpellElement. */
+	UPROPERTY()
+	uint8 Element = 0;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> Spells;
+};
+
 /** B-311 (D-111): one custom loadout; each piece by its owned GUID and asset, the rest by asset. An adapter's spells
  *  ride on the adapter itself (FSavedGearDetail). */
 USTRUCT()
@@ -370,6 +384,9 @@ struct WORLD_OF_REFRACTION_API FSavedCustomLoadout
 
 	UPROPERTY()
 	TArray<FSavedAssetRef> InnateSpells;
+
+	UPROPERTY()
+	TArray<FSavedCustomBDPool> BDSpellPools;
 };
 
 /** B-311: one character's custom loadouts (UPoolSubsystem::GetCharacterKey). */

@@ -108,6 +108,8 @@ namespace
 	}
 }
 
+namespace
+{
 /** B-311: asset lists to refs and back (a gone asset is dropped). */
 template <typename TAsset>
 TArray<FSavedAssetRef> SaveLoadoutRefs(const TArray<TAsset *> &Assets)
@@ -193,6 +195,12 @@ FSavedCustomLoadout SaveCustomLoadout(const FSavedLoadout &Loadout)
 		}
 	}
 	Saved.InnateSpells = SaveLoadoutSpellRefs(Loadout.InnateSpells);
+	for (const FSavedBDElementSpellPool &Pool : Loadout.BDSpellPools)
+	{
+		FSavedCustomBDPool &Out = Saved.BDSpellPools.AddDefaulted_GetRef();
+		Out.Element = static_cast<uint8>(Pool.Element);
+		Out.Spells = SaveLoadoutSpellRefs(Pool.Spells);
+	}
 	return Saved;
 }
 
@@ -227,7 +235,14 @@ FSavedLoadout RestoreCustomLoadout(const FSavedCustomLoadout &Saved)
 		}
 	}
 	Loadout.InnateSpells = RestoreLoadoutSpellRefs(Saved.InnateSpells);
+	for (const FSavedCustomBDPool &In : Saved.BDSpellPools)
+	{
+		FSavedBDElementSpellPool &Pool = Loadout.BDSpellPools.AddDefaulted_GetRef();
+		Pool.Element = static_cast<ESpellElement>(In.Element);
+		Pool.Spells = RestoreLoadoutSpellRefs(In.Spells);
+	}
 	return Loadout;
+}
 }
 
 namespace SaveRunResume

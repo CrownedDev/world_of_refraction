@@ -169,6 +169,7 @@ void ULoadoutComponent::EnsureDefaultLoadout()
         FCombatLoadout DefaultLoadout;
         DefaultLoadout.LoadoutName = TEXT("Default");
         DefaultLoadout.InitializeForClass(GetCharacterClass());
+        DefaultLoadout.bLore = true; // B-311: a seed, not the player's own
         Inv->SavedLoadouts.Add(DefaultLoadout);
         Inv->ActiveLoadoutIndex = 0;
     }
@@ -2458,11 +2459,13 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
         UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::InitializeFromCharacterData] No InventoryComponent found on owner — cannot seed empty loadout"));
         return;
     }
-    Inv->SavedLoadouts.Empty();
+    // B-311: the seed replaces the lore loadouts only; custom ones drawn from the pool stay.
+    Inv->SavedLoadouts.RemoveAll([](const FCombatLoadout &Loadout) { return Loadout.bLore; });
     FCombatLoadout EmptyLoadout;
     EmptyLoadout.LoadoutName = TEXT("Default");
     EmptyLoadout.InitializeForClass(CharacterData->CharacterClass);
-    Inv->SavedLoadouts.Add(EmptyLoadout);
+    EmptyLoadout.bLore = true;
+    Inv->SavedLoadouts.Insert(EmptyLoadout, 0);
     Inv->ActiveLoadoutIndex = 0;
     bIsReadyForBattle = false;
 
