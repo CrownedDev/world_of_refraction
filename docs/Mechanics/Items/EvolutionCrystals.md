@@ -50,8 +50,9 @@ the slot on next inflation); **gear-attached is frozen** (not levelable while at
 [`../Economy/Upgrading.md`](../Economy/Upgrading.md).
 
 **Remove:**
-- **From primary → destroyed + dust.** `RemovePrimaryEvolution` self-resolves the slotted GUID, clears
-  the slot, then `DismantleEvolution` (element essence at the gear amount, leveled tier) + frees a cap slot.
+- **From primary → refused (D-116, B-320).** A loadout's primary can't be emptied: swap another primary in
+  first, then the evolution dismantles from inventory (`DismantleEvolution`: element essence at the gear
+  amount, leveled tier, frees a cap slot). `RemovePrimaryEvolution` is kept but always refuses today.
 - **From weapon/ring → returns to inventory + 10% wear.** `RemoveEvolutionFromWeapon/Ring` copies the
   worn runtime durability back onto the owned entry, applies 10% removal wear, un-references the slot
   (entry persists). If the 10% wear drops durability to 0 it **breaks → forced dismantle** instead.

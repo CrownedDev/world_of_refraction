@@ -783,6 +783,8 @@ int32 UInventoryComponent::RemoveFromSavedLoadouts(const FGuid &PersistentID)
         UE_LOG(LogTemp, Log, TEXT("[Inventory] %s: took instance %s out of %d saved loadout(s)"),
                *GetNameSafe(GetOwner()), *PersistentID.ToString(), Changed);
     }
+    // D-116: also fills an active loadout that was already empty; counts as a change so listeners hear it.
+    Changed += RefillActivePrimary(PersistentID) ? 1 : 0;
     return Changed;
 }
 
@@ -835,11 +837,30 @@ bool UInventoryComponent::StripFromLoadout(FCombatLoadout &Loadout, const FGuid 
     return bRemoved;
 }
 
+bool UInventoryComponent::LoadoutHasPrimary(const FCombatLoadout &Loadout)
+{
+    // A weapon counts with a Weapon or None type (AutoPopulateLoadout leaves None), as the fight reads it.
+    const bool bWeaponType = Loadout.PrimarySlotType == EPrimarySlotType::Weapon || Loadout.PrimarySlotType == EPrimarySlotType::None;
+    return (bWeaponType && Loadout.PrimaryWeapon.IsValid()) ||
+           (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid()) ||
+           (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item);
+}
+
+bool UInventoryComponent::IsPrimaryInAnyLoadout(FGuid PersistentID) const
+{
+    return PersistentID.IsValid() &&
+           SavedLoadouts.ContainsByPredicate([&PersistentID](const FCombatLoadout &Loadout)
+           {
+               const bool bWeaponType = Loadout.PrimarySlotType == EPrimarySlotType::Weapon || Loadout.PrimarySlotType == EPrimarySlotType::None;
+               return (bWeaponType && Loadout.PrimaryWeapon.WeaponEntry.PersistentID == PersistentID) ||
+                      (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.RingEntry.PersistentID == PersistentID) ||
+                      (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolutionInstance == PersistentID);
+           });
+}
+
 bool UInventoryComponent::LoadoutHasGear(const FCombatLoadout &Loadout)
 {
-    const bool bPrimary = (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid()) ||
-                          (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid()) ||
-                          (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item);
+    const bool bPrimary = LoadoutHasPrimary(Loadout);
     const bool bSecondary = Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid();
     // The active ring, as ABattleGameMode::CanEnterCombat reads it (GetActiveRing).
     const bool bRings = Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex) && Loadout.RingLoadout[Loadout.ActiveRingIndex].IsValid();
@@ -1329,6 +1350,7 @@ bool UInventoryComponent::DrawSharedGear()
     const int32 Stripped = StripUnownedGear();
     SharedPool = Pool;
     SharedGearKey = Key;
+    RefillActivePrimary(); // after the pool is set, so gear another member wears is skipped
     Pool->OnPoolGearChanged.AddUniqueDynamic(this, &UInventoryComponent::HandlePoolGearChanged);
     // B-203 (D-097): the party carries one set of items; a member's starting items go in once.
     if (UCrystalInventoryComponent *CrystalInv = GetOwner()->FindComponentByClass<UCrystalInventoryComponent>())
@@ -1431,6 +1453,60 @@ int32 UInventoryComponent::StripUnownedGear()
         }
     }
     return Stripped;
+}
+
+bool UInventoryComponent::RefillActivePrimary(const FGuid &Excluded)
+{
+    using namespace InventoryGearSync;
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex) || LoadoutHasPrimary(SavedLoadouts[ActiveLoadoutIndex]))
+    {
+        return false;
+    }
+    const UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    const bool bTakesAdapterPrimary = !(CharComp && CharComp->CharacterData && CharComp->CharacterData->CharacterClass == ECharacterClass::Resonator);
+    const TMap<FName, const UCharacterData *> Party = GetPartyMembersByKey();
+    FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    {
+        TSet<FGuid> InLoadout;
+        ForEachGearSlot(Loadout,
+                        [&InLoadout](const FWeaponInventoryEntry &Slot) { InLoadout.Add(Slot.PersistentID); },
+                        [&InLoadout](const FRingInventoryEntry &Slot) { InLoadout.Add(Slot.PersistentID); });
+        const auto Usable = [this, &Excluded, &InLoadout, &Party](const auto &Entry)
+        {
+            return GetGearAsset(Entry) && Entry.PersistentID.IsValid() && Entry.PersistentID != Excluded &&
+                   !InLoadout.Contains(Entry.PersistentID) && !IsWornByOtherMemberOf(Entry.PersistentID, Party);
+        };
+        FString Filler;
+        if (const FWeaponInventoryEntry *Weapon = Weapons.FindByPredicate(Usable))
+        {
+            Loadout.PrimaryRing.Clear();
+            Loadout.PrimaryEvolution = FEvolutionAttachment();
+            Loadout.PrimaryEvolutionInstance = FGuid();
+            Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
+            Loadout.PrimaryWeapon.Clear(); // no picks carried over from an old slot
+            Loadout.PrimaryWeapon.WeaponEntry = *Weapon;
+            Loadout.PrimaryWeapon.InitializeFromWeapon();
+            Filler = GetNameSafe(Weapon->Weapon);
+        }
+        else if (const FRingInventoryEntry *Ring = bTakesAdapterPrimary ? Rings.FindByPredicate(Usable) : nullptr)
+        {
+            Loadout.PrimaryWeapon.Clear();
+            Loadout.PrimaryEvolution = FEvolutionAttachment();
+            Loadout.PrimaryEvolutionInstance = FGuid();
+            Loadout.PrimarySlotType = EPrimarySlotType::Ring;
+            Loadout.PrimaryRing.Clear();
+            Loadout.PrimaryRing.RingEntry = *Ring;
+            Loadout.PrimaryRing.InitializeFromRing();
+            Filler = GetNameSafe(Ring->Ring);
+        }
+        else
+        {
+            return false; // nothing usable owned: the empty-primary fallback (Q-304) stays the guard
+        }
+        UE_LOG(LogTemp, Warning, TEXT("[Inventory] %s: loadout '%s' had no primary - filled with %s (D-116)"),
+               *GetNameSafe(GetOwner()), *Loadout.LoadoutName, *Filler);
+    }
+    return true;
 }
 
 bool UInventoryComponent::IsWornByOtherMember(const FGuid &PersistentID) const
