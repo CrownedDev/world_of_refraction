@@ -24,6 +24,9 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-223](B-223.md) | `feature/B-223-level-drops` (in `dev`) | Level drops: chance from normal enemies, guaranteed from mini-bosses; place them with `wor.UI.LevelDrop` | Pending |
 | [B-224b](B-224b.md) | `feature/B-224b-rank-hp-per-team` (in `dev`) | Rank HP per team; enemy HP by tier (F default) | Pending |
 | [B-293d](B-293d.md) | `chore/B-293d-decided-balance` (UNBUILT, on B-293c) | Crown's balance answers: rank HP x4 / x8, requirement floor 0.25, 10% damage floor | Not built |
+| [B-223b](B-223b.md) | `feature/B-223b-personal-level-drops` (in `dev`) | Level drops per character: each member rolls its own, places its own | Not built |
+| [B-318](B-318.md) | `feature/B-318-client-gas-reads` (in `dev`) | Co-op guests read effects from the server's GAS read (UseGAS 1) | Not built |
+| [B-279c](B-279c.md) | `feature/B-279c-outfits` (in `dev`) | Outfits: six slots, piece assets, authored / current outfit (save v10), Leader Pose assembly | Not built |
 | [B-293b](B-293b.md) | `feature/B-293b-parity-effects` (in `dev`) | GAS parity with status breaks; test code only | Not built |
 | [B-293c](B-293c.md) | `chore/B-293c-balance-tuning` (in `dev`) | Balance first pass: AI defends less in even steps; difficulty scales enemy damage, not HP; normal fights in party rounds | Not built |
 | [B-001](B-001.md) | `fix/combat-hang-arc-a` (in `dev`) | Combat can no longer freeze; clean end of combat | Not tested |

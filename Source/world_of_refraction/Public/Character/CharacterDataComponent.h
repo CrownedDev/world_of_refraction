@@ -600,14 +600,16 @@ public:
     /** Bump the run purchase counter after a successful vendor buy (called by C4's BuyWorldStat). */
     void IncrementPurchaseCount();
 
+    /** B-115: this character's party record when it is a rostered member, for the carried
+     *  crystal and absorption state; null for an enemy or outside a party. B-223b: the orchestrator asks it
+     *  which fallen or standing members roll a level drop. */
+    const struct FPartyMember *FindCarriedPartyMember() const;
+
 private:
     /** What RecomputeMaxPools built MaxHP / MaxEP from (GetMaxHPLayers / GetMaxEPLayers). */
     FWoRPoolLayers MaxHPLayers;
     FWoRPoolLayers MaxEPLayers;
 
-    /** B-115: this character's party record when it is a rostered member, for the carried
-     *  crystal and absorption state; null for an enemy or outside a party. */
-    const struct FPartyMember *FindCarriedPartyMember() const;
 
     /** B-223 (D-102): the run that keeps this party member's earned pillar levels across level travel, and its
      *  key there; null for an enemy, outside a party or without a game instance. */

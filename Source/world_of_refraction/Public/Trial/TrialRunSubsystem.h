@@ -140,14 +140,16 @@ public:
     /** Levels Character bought from a vendor this run (the rising price, D-102). */
     int32 GetRunLevelPurchases(FName CharacterKey) const;
     void AddRunLevelPurchase(FName CharacterKey);
-    /** Forgets one character's run levels and purchases (UCharacterDataComponent::ResetRunWorldStats). */
+    /** Forgets one character's run levels, purchases and waiting dropped levels (UCharacterDataComponent::ResetRunWorldStats). */
     void ForgetRunLevels(FName CharacterKey);
 
-    /** Dropped levels not yet given to a pillar: the player picks (wor.UI.LevelDrop). */
-    int32 GetUnspentLevels() const { return UnspentLevels; }
-    void AddUnspentLevels(int32 Count);
-    /** Takes one unspent level; false when there is none. */
-    bool TakeUnspentLevel();
+    /** B-223b (Q-223 changed by Crown, 2026-11-03): each character's own dropped levels, not yet given to one of its
+     *  pillars (wor.UI.LevelDrop). A character's levels go only to its own pillars. */
+    int32 GetUnspentLevels(FName CharacterKey) const;
+    int32 GetTotalUnspentLevels() const;
+    void AddUnspentLevels(FName CharacterKey, int32 Count);
+    /** Takes one of the character's unspent levels; false when it has none. */
+    bool TakeUnspentLevel(FName CharacterKey);
 
     /** Debug: every character's run levels and the unspent count. wor.WorldStat.Print. */
     FString GetRunLevelsString() const;
@@ -282,7 +284,8 @@ private:
     };
     /** B-223: run state like BeatenEncounters (cleared on trial entry and exit). TODO: not in the save yet (Q-223). */
     TMap<FName, FRunLevels> RunLevels;
-    int32 UnspentLevels = 0;
+    /** B-223b: per character key. */
+    TMap<FName, int32> UnspentLevels;
 
     /** B-184: map encounters beaten this run. Run state like RunSeed; cleared on trial entry and exit. */
     TSet<FName> BeatenEncounters;
