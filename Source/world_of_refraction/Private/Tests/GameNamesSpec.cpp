@@ -74,6 +74,15 @@ void FGameNamesSpec::Define()
 		TestEqual(TEXT("Reality"), WoRGameNames::GetEssenceName(EEssenceType::Reality).ToString(), FString(TEXT("Unknown Essence")));
 	});
 
+	It("names every balance: the seven of D-125 (B-333)", [this]()
+	{
+		ExpectEveryValueNamed<ECurrencyType>(&WoRGameNames::GetCurrencyName);
+		TestEqual(TEXT("Elemental"), WoRGameNames::GetCurrencyName(ECurrencyType::ElementalEssence).ToString(),
+				  FString(TEXT("Elemental Essence")));
+		TestEqual(TEXT("Pillar"), WoRGameNames::GetCurrencyName(ECurrencyType::PillarEssence).ToString(),
+				  FString(TEXT("Pillar Essence")));
+	});
+
 	It("shows Reality as Unknown (D-095)", [this]()
 	{
 		TestEqual(TEXT("Element"), WoRGameNames::GetElementName(ESpellElement::Reality).ToString(), FString(TEXT("Unknown")));
