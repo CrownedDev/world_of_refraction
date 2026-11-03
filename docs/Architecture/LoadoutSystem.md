@@ -412,6 +412,11 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 - `FWeaponLoadoutEntry::ValidateSpells()` validates `WeaponEntry.AssignedSpells`
   rather than the entry's own `AssignedSpells` field — a possible inconsistency
   worth confirming against intended design.
+- The B-302 slot mirror (`FCombatLoadout::Slots`) is rebuilt only for the
+  active loadout, and only when the loadout component announces a gear change.
+  `InventoryComponent` edits that don't announce (run-preset swap,
+  `LinkLoadoutsToOwned` / `StripUnownedGear`, loadout inflation) leave it stale
+  until the next announcement. Nothing reads it yet; B-304 heals it on read.
 
 ## Changelog
 

@@ -602,7 +602,6 @@ void FCombatLoadout::RebuildSlotsFromLegacy(ECharacterClass CharacterClass)
         SecondaryWeaponSlot = Slots.Add(FLoadoutSlot::FromWeaponLoadoutEntry(SecondaryWeapon));
     }
 
-    int32 FirstRingLoadoutSlot = INDEX_NONE;
     int32 ActiveRingLoadoutSlot = INDEX_NONE;
     const int32 RingsRead = CharacterClass == ECharacterClass::Resonator ? RingLoadout.Num() : 0;
     for (int32 RingIndex = 0; RingIndex < RingsRead; ++RingIndex)
@@ -612,7 +611,6 @@ void FCombatLoadout::RebuildSlotsFromLegacy(ECharacterClass CharacterClass)
             continue;
         }
         const int32 SlotIndex = Slots.Add(FLoadoutSlot::FromRingLoadoutEntry(RingLoadout[RingIndex]));
-        FirstRingLoadoutSlot = FirstRingLoadoutSlot == INDEX_NONE ? SlotIndex : FirstRingLoadoutSlot;
         ActiveRingLoadoutSlot = RingIndex == ActiveRingIndex ? SlotIndex : ActiveRingLoadoutSlot;
     }
 
@@ -632,7 +630,6 @@ void FCombatLoadout::RebuildSlotsFromLegacy(ECharacterClass CharacterClass)
 
     // The adapter in use, as today's getters: a Resonator's active ring (none when the index is stale, GetActiveRing),
     // anyone else's primary ring (GetPrimaryRing). B-304's GetActiveSlot falls back to the first adapter instead.
-    (void)FirstRingLoadoutSlot;
     ActiveAdapterSlot = CharacterClass == ECharacterClass::Resonator ? ActiveRingLoadoutSlot : PrimaryAdapterSlot;
 }
 
