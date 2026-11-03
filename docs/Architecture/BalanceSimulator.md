@@ -29,7 +29,7 @@ Between `Begin` and `End` the runner sets `wor.Combat.InstantImpacts 1` and `wor
 
 - Rank HP is the game's own since B-224 (`TrialGate::ApplyEnemyRankHealth`, the `EnemyRankHealth` ladder). `EEncounterRank` now has Elite (x1.5), but the presets don't use it yet.
 - **No spells yet**: the Resonator and Caster archetypes fight with weapon and ability (B-293).
-- Neither the game nor the sim scales enemy HP by the enemy's tier power (`BalanceSimulator.md` §2 row 6); B-224 kept the Decided list (rank x zone x difficulty) and left tier power open.
+- Enemy HP by tier power since B-224b (`UCharacterData::EnemyTier`, Q-224d); the sim's enemies take the archetype's tier.
 - Damage with no attacker (damage over time, status) counts as a hit, on neither side.
 - Targets, reports (CSV / JSON / Markdown), GAS parity and the `wor.Balance.Run` command are B-293.
 - Party-side AI difficulty is fixed at Hard (`AIConstants::ALLY_AI_DIFFICULTY`).
@@ -40,3 +40,4 @@ Between `Begin` and `End` the runner sets `wor.Combat.InstantImpacts 1` and `wor
 |---|---|---|
 | 2026-11-03 | B-292: types, recorder, archetypes and presets, runner (seeded fights in one reused world, enemy strength, rank HP stand-in, stall cap, quiet logs, Let AI finish); spec `WoR.Balance.Sim.Runner`. | feature/B-292-sim-runner |
 | 2026-11-03 | B-224: the rank HP stand-in is gone; the runner calls `TrialGate::ApplyEnemyRankHealth` after `ApplyEnemyStrength`, as `ABattleGameMode` does. Unbuilt (cloud). | feature/B-224-combat-numbers |
+| 2026-11-03 | B-224b: enemies fight at rank x tier power HP (`UCharacterData::EnemyTier` from the archetype's tier; E-C x2.2, E-S x4.8), as §2 row 6 planned. Unbuilt (cloud). | feature/B-224b-rank-hp-per-team |
