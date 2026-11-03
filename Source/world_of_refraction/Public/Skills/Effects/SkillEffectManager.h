@@ -339,7 +339,7 @@ public:
 	 *  character panel, the buff / debuff counts): with wor.Effects.UseGAS 1 on an actor with a mirror, the
 	 *  stored effects GAS holds, with the tracker's turns left (UWoREffectMirrorComponent::ReadHeldEffects);
 	 *  otherwise GetActiveEffects. Not pure in Blueprint: the GAS read resyncs the mirror. */
-	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query", meta = (BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "Skill Effects|Query")
 	TArray<FActiveSkillEffect> GetHeldEffects(AActor *Actor) const;
 
 	/** B-042ye: GetDotTickDamage as the read source would pay it: from the DOT's GE tick spec at UseGAS 1
