@@ -5,6 +5,7 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CombatCharacter.h"
+#include "Character/Forms/CharacterFormSubsystem.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Boss/BossPhaseComponent.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
@@ -198,6 +199,14 @@ void ABattleGameMode::BootstrapCombat()
         if (APawn *Spawned = SpawnCombatant(EnemyPawnClass, OpposingPartyData[i], FTransform(Location)))
         {
             OpposingParty.Add(Spawned);
+            // B-279d: an authored character fought as a mini-boss wears its form.
+            const UCharacterFormSubsystem *Forms = GetGameInstance()->GetSubsystem<UCharacterFormSubsystem>();
+            const UCharacterFormData *Form = Forms ? Forms->FindFormForCharacter(OpposingPartyData[i]) : nullptr;
+            const ACharacter *FormPawn = Cast<ACharacter>(Spawned);
+            if (Form && FormPawn && FormPawn->GetMesh() && Form->DressMesh(*FormPawn->GetMesh()))
+            {
+                UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] %s fights as form %s"), *GetNameSafe(OpposingPartyData[i]), *Form->GetName());
+            }
         }
     }
     if (LocalParty.Num() == 0 || OpposingParty.Num() == 0)

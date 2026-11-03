@@ -74,6 +74,9 @@ public:
     const TArray<TObjectPtr<UCharacterFormData>> &GetForms() const { return Forms; }
     UCharacterFormData *FindFormByName(FName FormName) const;
 
+    /** B-279d: the form whose character is Character (fought as a mini-boss, it wears this look); null if none. */
+    UCharacterFormData *FindFormForCharacter(const UCharacterData *Character) const;
+
     /** Save / load (USaveSubsystem): the worn form by asset name (None: no skin) and the base body. A form
      *  no longer known or unlocked loads as no skin. */
     FName GetWornFormName() const { return WornForm ? WornForm->GetFName() : NAME_None; }

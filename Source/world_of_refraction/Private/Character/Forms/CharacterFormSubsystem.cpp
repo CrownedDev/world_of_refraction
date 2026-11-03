@@ -198,6 +198,16 @@ UCharacterFormData *UCharacterFormSubsystem::FindFormByName(FName FormName) cons
     return Found ? Found->Get() : nullptr;
 }
 
+UCharacterFormData *UCharacterFormSubsystem::FindFormForCharacter(const UCharacterData *Character) const
+{
+    if (!Character)
+    {
+        return nullptr;
+    }
+    const TObjectPtr<UCharacterFormData> *Found = Forms.FindByPredicate([Character](const UCharacterFormData *Form) { return Form && Form->Character == Character; });
+    return Found ? Found->Get() : nullptr;
+}
+
 void UCharacterFormSubsystem::RestoreWorn(FName FormName, EPlayerBaseForm InBaseForm)
 {
     BaseForm = InBaseForm;
