@@ -144,6 +144,7 @@ void AWoRPlayerState::ApplyFormLook()
 	// The default look leaves an authored pawn alone until this PlayerState has dressed it (unless an outfit is worn).
 	const UGameInstance *OutfitGI = GetGameInstance();
 	const UCharacterFormSubsystem *LocalForms = OutfitGI && IsLocalPlayerWallet() ? OutfitGI->GetSubsystem<UCharacterFormSubsystem>() : nullptr;
+	// TODO: co-op (D-103): a remote player's outfit isn't known here, so its pawn is stripped; replicate the set.
 	const bool bWearsOutfit = LocalForms && !LocalForms->GetCurrentOutfit().IsEmpty();
 	// An outfit emptied (the last piece cleared, a save without one) takes its meshes off, even on the default look.
 	if (UOutfitComponent *Worn = Mesh && !bWearsOutfit && Character ? Character->FindComponentByClass<UOutfitComponent>() : nullptr)

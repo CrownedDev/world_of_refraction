@@ -165,6 +165,8 @@ EFormSwitchRefusal UCharacterFormSubsystem::TryWearForm(UCharacterFormData *Form
         OnWornFormChanged.Broadcast(WornForm);
         if (bOutfitChanges)
         {
+            // TODO: the player state's ApplyFormLook already dresses the new outfit on the skin event; this second
+            // pass redresses it (six loads). Fold into one event when the look moves to the PlayerState (D-064).
             OnOutfitChanged.Broadcast();
         }
     }
