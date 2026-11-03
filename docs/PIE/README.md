@@ -11,6 +11,8 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 - A `[!]` becomes a new backlog job (or reopens the old one) — Claude reads the notes.
 
 ## Pending
+**The sweep:** [`Sweep.md`](Sweep.md) lists every retire-after-PIE delete as one checklist (deletes batched into one sweep per milestone, D-124) and the running list of every job waiting on Crown's PIE; nothing is DONE without it (D-128).
+
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
 | [B-326](B-326.md) | `chore/B-326-flat-requirement-penalty` (in `dev`) | Unmet requirement = x0.6 and no scaling for weapons, abilities and spells; still castable | Not built |
