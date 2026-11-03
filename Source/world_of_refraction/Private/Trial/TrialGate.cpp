@@ -6,6 +6,7 @@
 #include "Character/CharacterData.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/Damage/TierPowerConstants.h"
+#include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Combat/Tuning/CombatBaselineConstants.h"
 #include "Combat/Tuning/CombatTuning.h"
 #include "Engine/GameInstance.h"
@@ -179,3 +180,39 @@ bool TrialGate::ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EE
 }
 
 #undef LOCTEXT_NAMESPACE
+
+float TrialGate::GetLevelDropChance(EItemTier EnemyTier, EEncounterRank Rank)
+{
+	if (Rank == EEncounterRank::MiniBoss || Rank == EEncounterRank::Boss)
+	{
+		return 0.0f;
+	}
+	const int32 TierIndex = static_cast<int32>(EnemyTier);
+	const float Chance = WoRTuning::GetLadderValue(ECombatLadder::LevelDropChance, TierIndex, CombatBaseline::CodeLevelDropChance(TierIndex));
+	const float RankFactor = Rank == EEncounterRank::Elite ? CombatBaseline::LEVEL_DROP_ELITE_CHANCE_FACTOR : 1.0f;
+	return FMath::Clamp(Chance * RankFactor, 0.0f, 1.0f);
+}
+
+int32 TrialGate::GetGuaranteedLevels(EItemTier EnemyTier, EEncounterRank Rank)
+{
+	if (Rank != EEncounterRank::MiniBoss && Rank != EEncounterRank::Boss)
+	{
+		return 0;
+	}
+	const int32 TierIndex = static_cast<int32>(EnemyTier);
+	const float Levels = WoRTuning::GetLadderValue(ECombatLadder::MiniBossLevels, TierIndex,
+												   static_cast<float>(CombatBaseline::CodeMiniBossLevels(TierIndex)));
+	return FMath::Max(0, FMath::RoundToInt(Levels));
+}
+
+int32 TrialGate::RollLevelDrops(const UObject *WorldContext, EItemTier EnemyTier, EEncounterRank Rank)
+{
+	const int32 Guaranteed = GetGuaranteedLevels(EnemyTier, Rank);
+	if (Guaranteed > 0)
+	{
+		return Guaranteed;
+	}
+	const float Chance = GetLevelDropChance(EnemyTier, Rank);
+	return Chance > 0.0f && UBattleRandomSubsystem::FRand(WorldContext) < Chance ? 1 : 0;
+}
+

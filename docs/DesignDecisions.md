@@ -3063,6 +3063,16 @@ Moved here once applied. Newest first.
 **Notes for Claude:** applied in B-323. If (2) should refuse, `TryGiveGear` returns a refusal when `FindMemberInventory` is null. Desktop build added two defaults: (3) a pouch stack **can** be given to a run-only recruit (gear can't): its pouch goes to storage at run end (B-322 `ReleasePouch`), so nothing is lost; (4) a receiver that isn't in the level gets no D-115 duplicate prompt at its next draw (the piece still arrives; the prompt comes from the live give). TODO: check for duplicates at the draw if Crown wants it.
 **Added by B-324 (same defaults):** a run-only recruit can't be given gear nor take it from the chest (Q-321: it owns nothing, and `DismissRunMembers` releases wearers, not owners), and its whole-armoury draw skips chest gear; a put from an unspawned member releases any stale wearer.
 
+### Q-312 — The store's views: switch every reader in one job, or prove the views first?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-312, cloud) · **Blocks:** —
+**Question:** B-312 asks for the per-member armoury copies and ~700 lines of sync to become views over the pool store. Today 39 game-code reads in 12 files and 108 test reads use a member's `Weapons` / `Rings` copies directly, many of them writing (adds, removes, loadout links). Switching them all in one unbuilt job would touch far more than 3 files per step and could not be checked before the desktop build.
+**Context:** `Private/Inventory/InventoryComponent.cpp` (`DrawSharedGear`, `HandlePoolGearChanged`, `PushGearToPool`, `MirrorShared`); `Private/Pool/PoolSubsystem.cpp` (`GetOwnedGearOf`); CLAUDE.md "Incremental: build new alongside old … remove old code only after the new path is proven in PIE"; B-317 deletes the copies after PIE.
+**Options / as built:** **A** B-312 builds the store side beside the copies: the GUID index, per-owner views, one finder, and `CompareWithStore` / `wor.Inventory.CompareStore` proving each member's copies equal its view. A new **B-312b** moves the readers to the views in ≤3-file steps, guided by the compare. B-317 deletes the copies. **B** switch every reader in B-312.
+**Recommendation:** A. It is the strangler-fig pattern (Fowler) already chosen for the store in Q-308, and it keeps every step buildable; the compare command makes the switch measurable in PIE.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-312; B-312b added to the Backlog after B-312. Two small rules the index adds (desktop build): an unset ID finds nothing (the old scan could match an entry with no ID; every pool entry has one, so no change in play), and when two entries share an ID the first wins (as before). Reviewer notes for B-312b: never change an entry's ID through a `Find*InPool` pointer.
+
+
 ### Q-293 — Balance targets the Decided list doesn't give
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-293, cloud) · **Blocks:** —
 **Question:** `docs/Design/BalanceSimulator.md` §3 lists targets beyond `BaselineNumbers.md`'s Decided list: the boss win-rate band at Medium, the hits-to-kill bands for Elite / Mini-boss / Boss, the crit bands, and the worked-example hit medians (which assume Mind 8 and 14 where the sim's archetypes clamp to 7). Which of these may fail a nightly run, and which only warn?
@@ -3101,3 +3111,12 @@ Moved here once applied. Newest first.
 **Recommendation:** none taken by default: each changes a number Crown decided. C for bosses (E33's model), A for pillar 6 (BaselineNumbers §4 already expects S gear ~2.3x ahead), A for stacking.
 **Answer (Crown):** _write here_
 
+
+### Q-223 — Level drops: the numbers, when you place them, and the save
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-223) · **Blocks:** —
+**Question:** D-102 sets the shape (a chance from normal enemies, guaranteed levels from a mini-boss, you choose the pillar) but not the odds, how many a mini-boss gives, when you place a drop, or whether a run's levels are saved.
+**Context:** `Public/Combat/Tuning/CombatBaselineConstants.h` (`LEVEL_DROP_CHANCE_BY_TIER`, `LEVEL_DROP_ELITE_CHANCE_FACTOR`, `MINIBOSS_LEVELS_BY_TIER`); `Private/Trial/TrialGate.cpp` (`RollLevelDrops`); `Private/Combat/CombatOrchestrator.cpp` (`FinishCombat`); `Private/Trial/LevelDropPlacement.cpp`.
+**Options / as built:** **odds** a normal enemy 10 % at F rising to 30 % at S, an elite double; **mini-boss and boss** guaranteed levels by tier: F/E/D 1, C/B 2, A/S 3 (a boss gives the same as a mini-boss of its tier); **rolled at the win** (the fight's own random draws don't shift); **placing** the drops wait in the run until you place them (`wor.UI.LevelDrop`), one press per level, any party member, refused at 7; **save** a run's levels and waiting drops are not saved yet (a reload mid-run loses them).
+**Recommendation:** as built. Hades' boons and Slay the Spire's card rewards come after the fight, chosen by the player, not mid-fight; low odds from normal enemies with guaranteed rewards from bosses is the Hades / Dead Cells pattern (elites as a better-odds middle step, as Slay the Spire's elites). Over a 3-floor run that's about 6-10 levels, under the 21 cap, with the vendor as backup. Every number is a tuning row (`LevelDropChance`, `MiniBossLevels`) for B-293c.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-223. The run's levels go into the save with the run-save work (the save version bump belongs there, not here); the placeholder prompt opens by console only (the real post-fight screen is D-024).

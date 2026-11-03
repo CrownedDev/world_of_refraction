@@ -280,6 +280,7 @@ void ABattleGameMode::BootstrapCombat()
         AActor *Enemy = OpposingParty[EnemyIndex];
         // B-224 / B-224b: the enemy's own rank (its team's; Q-224c) and tier multiply max HP on top.
         const EEncounterRank EnemyRank = OpposingRanks.IsValidIndex(EnemyIndex) ? OpposingRanks[EnemyIndex] : TrialRun->GetPendingRank();
+        SpawnedOrchestrator->SetEnemyRank(Enemy, EnemyRank); // B-223: its level drop
         if (!TrialGate::ApplyEnemyStrength(Enemy, EnemyHealth, EnemyStrength))
         {
             UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s: trial difficulty not applied (no character data or effect manager)"),
