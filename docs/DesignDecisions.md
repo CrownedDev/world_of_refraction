@@ -2980,3 +2980,9 @@ Moved here once applied. Newest first.
 | — | All gameplay logic in C++; BP for layout/visuals only | 2026-10-25 | `analysis/CodebaseReview_2026-10.md` §8 |
 | — | UI: Expedition 33 combat layout; deckbuilder art direction + layouts; gamepad yes; flat panels for now | 2026-10-25 | `Design/UI_ScreenInventory.md`, `Design/UI_DeckbuilderReuse.md` |
 | — | Source art: save what we use (LFS) | 2026-10-25 | `.gitattributes`, `UI_DeckbuilderReuse.md` §4 |
+### Q-307 — A broken evolution seat: still an infusion source?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-307) · **Blocks:** —
+**Question:** B-307 makes a broken crystal or evolution push no element (CL-24). A broken adapter crystal is also not offered as a source (Q-163 = B). Should a broken primary evolution likewise stop being offered, or stay offered as an elementless infusion?
+**Options:** **A** (as built, today's behaviour) still offered, pushes no element. **B** not offered, like a broken adapter.
+**Recommendation:** A for now: no behaviour change beyond CL-24, and the evolution seat is the Resonator's core, so taking the option away mid-fight is harsher than a broken ring. Revisit with B-309 if PIE shows it confuses. (Games that keep a broken tool usable at reduced effect: Breath of the Wild's last hit, Monster Hunter's sharpness.)
+**Notes for Claude:** applied in B-307 (`ResolveInfusionSource`, Evolution case, `bUsable = true`).
