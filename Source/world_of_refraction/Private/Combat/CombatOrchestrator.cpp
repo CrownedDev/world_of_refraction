@@ -30,6 +30,8 @@
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Character/CharacterData.h"
+#include "Trial/TrialGate.h"
+#include "Trial/TrialRunSubsystem.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Skills/Effects/FSkillEffect.h"
@@ -245,6 +247,7 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	// filters to enemy/OpposingParty deaths). Mirrors TurnManager's OnDied bind/unbind lifecycle; AddUnique
 	// so a re-init can't double-bind. Unbound in HandleCombatEnded before the team arrays empty.
 	PendingWorldStatPool = 0;
+	PendingLevelDropSources.Reset();
 	for (const TArray<AActor *> *Team : {&LocalPartyCombatants, &OpposingPartyCombatants})
 	{
 		for (AActor *Actor : *Team)
@@ -421,6 +424,25 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 	if (Result == ECombatState::Victory && PendingWorldStatPool > 0)
 	{
 		OnWorldStatDraftReady.Broadcast(PendingWorldStatPool);
+	}
+	// B-223 (D-102): a win's dropped levels wait in the run for the player to place (wor.UI.LevelDrop).
+	int32 LevelDrops = 0;
+	if (Result == ECombatState::Victory)
+	{
+		for (const TPair<EItemTier, EEncounterRank> &Source : PendingLevelDropSources)
+		{
+			LevelDrops += TrialGate::RollLevelDrops(this, Source.Key, Source.Value);
+		}
+	}
+	PendingLevelDropSources.Reset();
+	if (LevelDrops > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] The win dropped %d pillar level(s)"), LevelDrops);
+		if (UTrialRunSubsystem *Run = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTrialRunSubsystem>() : nullptr)
+		{
+			Run->AddUnspentLevels(LevelDrops);
+		}
+		OnLevelDropsReady.Broadcast(LevelDrops);
 	}
 
 	// BEFORE the team arrays empty — it walks them for per-actor unbinds.
@@ -1155,6 +1177,15 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 	const int32 Caliber = VictimData->GetTotalPool();
 	const int32 WSP = FMath::Max(1, Caliber / CombatConstants::WORLDSTAT_KILL_DIVISOR);
 	PendingWorldStatPool += WSP;
+
+	// B-223 (D-102): the enemy's own rank (B-224b) and tier set its level drop.
+	EEncounterRank Rank = EEncounterRank::Normal;
+	if (const UTrialRunSubsystem *Run = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTrialRunSubsystem>() : nullptr)
+	{
+		const int32 RosterIndex = Run->GetPendingOpposingParty().IndexOfByKey(VictimData);
+		Rank = RosterIndex != INDEX_NONE ? Run->GetPendingEnemyRank(RosterIndex) : Run->GetPendingRank();
+	}
+	PendingLevelDropSources.Emplace(VictimData->EnemyTier, Rank);
 
 	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Enemy %s down (caliber %d) -> +%d WSP (pool now %d)"),
 		   *Victim->GetName(), Caliber, WSP, PendingWorldStatPool);

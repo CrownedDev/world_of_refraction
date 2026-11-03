@@ -104,6 +104,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionExecuted, AActor *, Actor,
  *  INERT until that UI exists (like OnInventoryChanged was) — C3 only FIRES it. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWorldStatDraftReady, int32, PoolAmount);
 
+/** B-223 (D-102): a won fight dropped pillar levels; they wait in the trial run for the player to place. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLevelDropsReady, int32, Levels);
+
 /**
  * CombatOrchestrator - Coordinates all combat subsystems
  *
@@ -284,9 +287,15 @@ public:
 	FOnCombatResultReady OnCombatResultReady;
 
 	/** §7 C3 — fired at combat end on a player WIN when PendingWorldStatPool > 0. The 5-pick-3
-	 *  draft UI binds this (deferred); nothing consumes it yet. */
+	 *  draft UI binds this (deferred); nothing consumes it yet.
+	 *  OBSOLETE (B-223, D-102): replaced by OnLevelDropsReady; delete after Crown's PIE pass. */
 	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
 	FOnWorldStatDraftReady OnWorldStatDraftReady;
+
+	/** B-223 (D-102): fired at combat end on a player win that dropped pillar levels (already added to the
+	 *  trial run's unspent levels). */
+	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
+	FOnLevelDropsReady OnLevelDropsReady;
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
 	FOnActorTurnStarted OnActorTurnStarted;
@@ -356,6 +365,9 @@ public:
 	 *  combat start). Read by the draft event / debug. */
 	UFUNCTION(BlueprintPure, Category = "Combat|WorldStats")
 	int32 GetPendingWorldStatPool() const { return PendingWorldStatPool; }
+
+	/** B-223: enemies defeated this fight whose level drops are rolled on a win. */
+	int32 GetPendingLevelDropSources() const { return PendingLevelDropSources.Num(); }
 
 	/** DEBUG-ONLY: dump the entire pending pool into the player team's Mind via AddEarnedWorldStat,
 	 *  then clear the pool. NOT the real draft (that's the deferred 5-pick-3 UI on
@@ -517,7 +529,11 @@ private:
 	/** §7 C3 — World Stat Points earned THIS encounter (enemy kills, caliber-scaled). Reset at
 	 *  combat start; fed by OnCombatantDied; surfaced via OnWorldStatDraftReady on a player win. */
 	UPROPERTY()
-	int32 PendingWorldStatPool = 0;
+	int32 PendingWorldStatPool = 0; // OBSOLETE (B-223): the per-kill pool; delete after Crown's PIE pass
+
+	/** B-223 (D-102): each defeated enemy's tier and rank, rolled (TrialGate::RollLevelDrops) only on a win so the
+	 *  fight's own random draws don't shift. */
+	TArray<TPair<EItemTier, EEncounterRank>> PendingLevelDropSources;
 
 	/** Death listener bound per-combatant in StartCombat (both teams), unbound at combat end —
 	 *  mirrors TurnManager's OnDied lifecycle. Enemy (OpposingParty) deaths add caliber WSP to the pool;
