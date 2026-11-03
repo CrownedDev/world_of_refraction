@@ -52,12 +52,14 @@ namespace BreakTable
 	{
 		static const TCHAR *SIZE_KIND_NAMES[] = {TEXT("gate"), TEXT("percent"), TEXT("share of max HP"), TEXT("share of max EP"),
 												 TEXT("one-shot share of max HP")};
+		static_assert(UE_ARRAY_COUNT(SIZE_KIND_NAMES) == static_cast<size_t>(EBreakSize::OneShotShareOfMaxHP) + 1,
+					  "one name per EBreakSize");
 		FString Out = FString::Printf(TEXT("Break table (%d rows)\n"), Rows().Num());
 		for (const FBreakRow &Row : Rows())
 		{
 			Out += FString::Printf(TEXT("  %-18s -> %-18s %s %.2f, %s%s%s%s\n"), *BreakEnumName(Row.Trigger), *BreakEnumName(Row.Applied),
 								   SIZE_KIND_NAMES[static_cast<uint8>(Row.SizeKind)], Row.Size,
-								   *UEnum::GetValueAsString(Row.Timing), Row.bDelayFirstExecution ? TEXT(", from next turn") : TEXT(""),
+								   *UEnum::GetValueAsString(Row.Timing).Replace(TEXT("ESkillEffectTiming::"), TEXT("")), Row.bDelayFirstExecution ? TEXT(", from next turn") : TEXT(""),
 								   Row.AlsoApplied != ESkillEffectType::None ? *(TEXT(", also ") + BreakEnumName(Row.AlsoApplied)) : TEXT(""),
 								   Row.DelayTurnPlaces > 0 ? *FString::Printf(TEXT(", delays %d"), Row.DelayTurnPlaces) : TEXT(""));
 		}
