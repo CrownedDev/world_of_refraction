@@ -127,10 +127,8 @@ float UResistanceQueryDebug::GetLegacyTotalStatusResistance(AActor *Target, ESpe
 	if (ULoadoutComponent *GearLoadout = Target->FindComponentByClass<ULoadoutComponent>())
 	{
 		const FResistanceBonus GearResist = GearLoadout->GetActiveResistanceBonus(Target);
-		const ClassInnateResistanceTable::FResistanceRow GearRow{
-			GearResist.Fire, GearResist.Water, GearResist.Earth, GearResist.Wind,
-			GearResist.Light, GearResist.Darkness, GearResist.Lightning, GearResist.Void,
-			GearResist.Reality, GearResist.Slash, GearResist.Pierce, GearResist.Impact};
+		const ClassInnateResistanceTable::FResistanceRow GearRow =
+			ResistanceColumns::Convert<ClassInnateResistanceTable::FResistanceRow>(GearResist);
 		Matched += (ClassInnateResistanceTable::GetElementColumn(GearRow, Element) +
 					ClassInnateResistanceTable::GetPhysicalColumn(GearRow, PhysicalType)) /
 				   ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR;
