@@ -166,8 +166,9 @@ bool TrialGate::ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EE
 	{
 		return true;
 	}
-	// Strength (zone x difficulty HP) is already a +(S - 1) MaxHPBuff from ApplyEnemyStrength. MaxHPBuff percents
-	// add, so S x (rank x tier - 1) on top makes S x rank x tier: the zone counts once (B-327, WoR.Trial.ZoneHealthOnce).
+	// Strength (the difficulty's HP share, x1 since B-293c; D-120: no zone HP) is already a +(S - 1) MaxHPBuff from
+	// ApplyEnemyStrength. MaxHPBuff percents add, so S x (rank x tier - 1) on top makes S x rank x tier (B-327,
+	// WoR.Trial.ZoneHealthOnce).
 	const float Percent = StrengthMultiplier * (HealthMultiplier - 1.0f) * CombatConstants::STAT_PERCENT_DIVISOR;
 	FActiveSkillEffect HPEffect = FActiveSkillEffect::CreatePersistent(TEXT("Enemy rank (HP)"), TrialGateInternal::ENEMY_RANK_HP_EFFECT_ID,
 																	   Percent >= 0.0f ? ESkillEffectType::MaxHPBuff : ESkillEffectType::MaxHPDebuff,

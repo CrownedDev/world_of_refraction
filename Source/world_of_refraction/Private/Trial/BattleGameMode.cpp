@@ -274,7 +274,8 @@ void ABattleGameMode::BootstrapCombat()
     // B-293c (Q-293c): the door's difficulty scales enemy damage only; the zone scales both (B-186).
     const float ZoneStrength = AEnemyZone::GetTierStrengthMultiplier(Zone.Tier);
     const float EnemyStrength = TrialRun->GetEnemyStrengthMultiplier() * ZoneStrength;
-    const float EnemyHealth = TrialGate::GetEnemyHealthMultiplier(TrialRun->GetTrialDifficulty()) * ZoneStrength;
+    // D-120 (B-327): enemy HP = own x rank x Combat Tier; the zone adds no HP (it scales damage and places higher tiers).
+    const float EnemyHealth = TrialGate::GetEnemyHealthMultiplier(TrialRun->GetTrialDifficulty());
     for (int32 EnemyIndex = 0; EnemyIndex < OpposingParty.Num(); ++EnemyIndex)
     {
         AActor *Enemy = OpposingParty[EnemyIndex];

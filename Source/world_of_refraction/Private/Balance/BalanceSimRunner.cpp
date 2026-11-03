@@ -374,7 +374,7 @@ void FBalanceSimRunner::ApplyEnemyStrength(AActor *Enemy, const FBalanceMatchup 
 	// The same multipliers as BattleGameMode's trial fights: difficulty x zone, then rank x tier power (B-224 / B-224b).
 	const float ZoneStrength = AEnemyZone::GetTierStrengthMultiplier(Matchup.ZoneTier);
 	const float Strength = TrialGate::GetEnemyStrengthMultiplier(Matchup.TrialDifficulty) * ZoneStrength;
-	const float Health = TrialGate::GetEnemyHealthMultiplier(Matchup.TrialDifficulty) * ZoneStrength; // B-293c: difficulty is damage only
+	const float Health = TrialGate::GetEnemyHealthMultiplier(Matchup.TrialDifficulty); // B-293c: difficulty is damage only; D-120: no zone HP
 	TrialGate::ApplyEnemyStrength(Enemy, Health, Strength);
 	TrialGate::ApplyEnemyRankHealth(Enemy, Health, Matchup.Rank);
 }
