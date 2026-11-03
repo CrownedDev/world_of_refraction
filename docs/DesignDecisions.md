@@ -3062,3 +3062,12 @@ Moved here once applied. Newest first.
 **Notes for Claude:** applied in B-323. If (2) should refuse, `TryGiveGear` returns a refusal when `FindMemberInventory` is null. Desktop build added two defaults: (3) a pouch stack **can** be given to a run-only recruit (gear can't): its pouch goes to storage at run end (B-322 `ReleasePouch`), so nothing is lost; (4) a receiver that isn't in the level gets no D-115 duplicate prompt at its next draw (the piece still arrives; the prompt comes from the live give). TODO: check for duplicates at the draw if Crown wants it.
 **Added by B-324 (same defaults):** a run-only recruit can't be given gear nor take it from the chest (Q-321: it owns nothing, and `DismissRunMembers` releases wearers, not owners), and its whole-armoury draw skips chest gear; a put from an unspawned member releases any stale wearer.
 
+### Q-312 — The store's views: switch every reader in one job, or prove the views first?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-312, cloud) · **Blocks:** —
+**Question:** B-312 asks for the per-member armoury copies and ~700 lines of sync to become views over the pool store. Today 39 game-code reads in 12 files and 108 test reads use a member's `Weapons` / `Rings` copies directly, many of them writing (adds, removes, loadout links). Switching them all in one unbuilt job would touch far more than 3 files per step and could not be checked before the desktop build.
+**Context:** `Private/Inventory/InventoryComponent.cpp` (`DrawSharedGear`, `HandlePoolGearChanged`, `PushGearToPool`, `MirrorShared`); `Private/Pool/PoolSubsystem.cpp` (`GetOwnedGearOf`); CLAUDE.md "Incremental: build new alongside old … remove old code only after the new path is proven in PIE"; B-317 deletes the copies after PIE.
+**Options / as built:** **A** B-312 builds the store side beside the copies: the GUID index, per-owner views, one finder, and `CompareWithStore` / `wor.Inventory.CompareStore` proving each member's copies equal its view. A new **B-312b** moves the readers to the views in ≤3-file steps, guided by the compare. B-317 deletes the copies. **B** switch every reader in B-312.
+**Recommendation:** A. It is the strangler-fig pattern (Fowler) already chosen for the store in Q-308, and it keeps every step buildable; the compare command makes the switch measurable in PIE.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-312; B-312b added to the Backlog after B-312.
+
