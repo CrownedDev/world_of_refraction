@@ -122,9 +122,13 @@ namespace
     /** D-016: take the instance out of every saved loadout; tell listeners when the active one changed. */
     void EconomyStripFromLoadouts(AActor *Owner, UInventoryComponent *Inv, const FGuid &PersistentID)
     {
-        const bool bActiveChanged = Inv->GetLoadoutsUsing(PersistentID).Contains(Inv->ActiveLoadoutIndex);
+        const bool bActiveHeldIt = Inv->GetLoadoutsUsing(PersistentID).Contains(Inv->ActiveLoadoutIndex);
+        const bool bHadPrimary = Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex) &&
+                                 UInventoryComponent::LoadoutHasPrimary(Inv->SavedLoadouts[Inv->ActiveLoadoutIndex]);
         Inv->RemoveFromSavedLoadouts(PersistentID);
-        if (bActiveChanged)
+        const bool bRefilled = !bHadPrimary && Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex) &&
+                               UInventoryComponent::LoadoutHasPrimary(Inv->SavedLoadouts[Inv->ActiveLoadoutIndex]);
+        if (bActiveHeldIt || bRefilled)
         {
             if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
             {
