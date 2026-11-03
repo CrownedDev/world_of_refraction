@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-334](B-334.md) | `feature/B-334-infusion-costs` (in `dev`) | Infusion EP = base × charge level (L1 ×1, L2 ×2); HP cost only at L2; source choice stays | Not built |
 | [B-330](B-330.md) | `feature/B-330-pillars-only` (in `dev`) | Pillars only: a level-up grants no sub-stat points; the authored budget is 93 at every level | Not built |
 | [B-326](B-326.md) | `chore/B-326-flat-requirement-penalty` (in `dev`) | Unmet requirement = x0.6 and no scaling for weapons, abilities and spells; still castable | Not built |
 | [B-327](B-327.md) | `fix/B-327-zone-health-once` (in `dev`) | The zone scales no stats; enemy HP = own x rank x Combat Tier (D-120) | Pending |

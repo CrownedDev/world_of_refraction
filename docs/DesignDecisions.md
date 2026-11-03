@@ -1792,6 +1792,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. In WoW and Expedition 33 a character's base stats are authored per character with a fixed design ceiling and gear adds the rest; no player-spent budget. 93 keeps every existing asset valid and the per-point values unchanged, so nothing moves in play. B would flag every levelled enemy over budget; C drops the authoring check.
 **Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it. `GetTotalPool` (the old pool) stays live only as the enemy caliber (WSP per kill, a team's strongest member) until the D-124 sweep gives the caliber its own read.
 
+### Q-334 — What is "the base" in D-126's infusion EP cost, and what does L1 cost?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-334, D-126) · **Blocks:** —
+**Question:** D-126 says the EP cost is the base × the charge level. Today it is base × charge tax (x1.5 / x2.0) × (1 + Raw / Spell Damage above x1.0) × Efficiency × own-tier power × tier-gap cost, and an infused ability's base is x1.5 (D-035). Which factors are "the base", and is L1 x1?
+**Options:** A "the base" is the action's own EP cost, the factors every action pays infused or not (base EP, D-035's x1.5 for an infused ability since D-035 stands, Efficiency, own-tier power, tier gap); the charge level replaces the x1.5 / x2.0 tax and the infusion-only stat surcharge retires; L1 x1, L2 x2 / B as A, but L1 x2 and L2 x3 (each level adds one base on top) / C keep x1.5 / x2.0, drop only the surcharge.
+**Recommendation:** A, Crown's words read literally. Octopath Traveler's Boost (the audit's reference) prices each boost level as one flat step that players read at a glance, and the factors that apply to every action stay where every action has them. Consequence for Crown to check in PIE: an L1 infusion now costs the same EP as no infusion for a spell (and pays no HP, D-126); its price is the source's wear or the ability's D-035 x1.5. If L1 should cost more, B is the change.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
 ### Q-321 — Can the shared home chest hold gear, or only items?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
 **Question:** D-097's storage holds items (crystals, stones, consumables); gear lived in the shared pool. With gear per character (D-117), can a character put an unworn weapon or adapter in the shared chest for another to take?
