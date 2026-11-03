@@ -417,6 +417,10 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
   `InventoryComponent` edits that don't announce (run-preset swap,
   `LinkLoadoutsToOwned` / `StripUnownedGear`, loadout inflation) leave it stale
   until the next announcement. Nothing reads it yet; B-304 heals it on read.
+- B-303: a Resonator with an adapter in the *primary* slot (blocked for saved
+  loadouts, not for runtime edits) has it counted in the budget finding, but
+  `ClearInvalidSlots` drops only `RingLoadout` adapters, so the finding could
+  survive the clear. Not reachable from today's screens.
 
 ## Changelog
 
@@ -464,3 +468,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-11-02 | B-285: spec `WoR.Loadout.Budget` pins the Resonator budget 5 and slot costs (CL-10..12) and the innate budget 24 / 48 with tier costs and pillar cuts (CL-34 / 35). No code change. | chore/B-285-loadout-budget-spec |
 | 2026-11-02 | B-301 (D-110 step 1): `FGearInstance` (+ `EGearKind` Weapon / Adapter, append-only) is one owned-gear shape for a weapon or an adapter, with converters to and from `FWeaponInventoryEntry` / `FRingInventoryEntry`. Nothing reads it yet (B-302 mirrors slots onto it). Spec `WoR.Loadout.GearInstance`. | refactor/B-301-gear-instance |
 | 2026-11-02 | B-302 (D-110 step 2, D-111): `FLoadoutSlot` (the owned item by GUID is the truth, the gear copy a derived cache) and `FCombatLoadout::Slots` / `ActiveWeaponSlot` / `ActiveAdapterSlot`, rebuilt from the old fields by `RebuildSlotsFromLegacy(Class)` after every loadout change; the mirror holds what the fight reads for the class. Nothing reads it yet (B-303 moves the rules onto it). Debug `wor.Loadout.CompareSlots` (`ULoadoutRulesDebug::GetCompareSlotsString`). Spec `WoR.Loadout.Slots`. | refactor/B-302-loadout-slots |
+| 2026-11-03 | B-303 (D-110 step 3): `LoadoutClassTable` (Refractor 3 / 1 item; Generic 6 / 2 items, 2 weapons, 1 adapter (Q-303); Resonator 5 / 1 weapon / any adapters) and one `FLoadoutRules::SlotCost` over the unified slots; `CollectClassLimitFindings` replaces the Resonator-only budget block, and `ClearInvalidSlots`' adapter drop uses the same `NonAdapterCost`. Same results, except the budget charges the gear the fight uses (Q-303b). Spec `WoR.Loadout.ClassLimits`. | refactor/B-303-class-table-cost |
