@@ -1739,6 +1739,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** the trial difficulty sets both enemy damage and the enemy AI tier; a per-encounter AI override stays (D-044). Spell and ability AI share one path, and the AI weights move into `UCombatTuningData`.
 **Notes for Claude:** jobs B-344 (difficulty → AI tier) and B-345 (one path, weights to data).
 
+### Q-344 — Do boss arenas follow the trial difficulty too?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-344, cloud) · **Blocks:** —
+**Question:** boss arenas (`ATrialMapFeature`) were authored Hard by default. Under D-136, do they follow the trial difficulty, or keep their own tier?
+**Options:** **A** follow the trial unless overridden (bosses still harden by phase, B-193); **B** keep each arena's own tier.
+**Recommendation:** A. Hades' Heat and Diablo's difficulty tiers change bosses with everything else, so one setting means one thing; set pieces stay special through their phases.
+**Answer:** A (approved by the reference-backed default). An arena that should stay Hard sets `bOverrideAIDifficulty`.
+**Notes for Claude:** applied in B-344.
+
 ### Q-21-audit — Party control: the deckbuilder's seat rule (audit §21)
 **Status:** ANSWERED (Crown: follow the deckbuilder's rule) · **Raised:** 2026-11-03 (audit §21) · **Blocks:** —
 **Question:** who commands each party member, solo and in co-op?
