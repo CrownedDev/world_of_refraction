@@ -1,7 +1,8 @@
 // EconomyRoundTripSpec.cpp
 // B-137: what the economy charges and pays back today. A cart costs the sum of its Prisms prices
 // (a crystal per unit, bare gear at its tier's base); a purchase spends exactly that or nothing.
-// Levelling a weapon costs the tier-up price in Gear essence plus half that in Reality; reverting
+// B-333 (D-125): a crystal also costs its essence (a gem Elemental). Levelling a weapon costs the
+// tier-up price in Gear essence only (a weapon has no element, Q-333); reverting
 // the step refunds half the Gear essence only, and never below the weapon's authored tier.
 // Dismantling pays by the instance tier. Every entry point's owner checks are WoR.Economy.Preamble;
 // dismantling equipped gear is WoR.Economy.DismantleEquipped.
@@ -28,8 +29,8 @@ namespace
 	constexpr EItemTier ECONOMY_TRIP_LEVELLED_TIER = EItemTier::E_Tier;
 	/** Today's prices, as literals so a changed ladder fails here on purpose. */
 	constexpr int32 ECONOMY_TRIP_CART_PRISMS = 100;  // 3 F gems x 25 + an F weapon 25
+	constexpr int32 ECONOMY_TRIP_CART_ELEMENTAL = 30; // B-333: 3 F gems x 10 Elemental
 	constexpr int32 ECONOMY_TRIP_STEP_GEAR = 10;     // F to E
-	constexpr int32 ECONOMY_TRIP_STEP_REALITY = 5;   // half the step
 	constexpr int32 ECONOMY_TRIP_REVERT_REFUND = 5;  // half the step, Gear only
 	constexpr int32 ECONOMY_TRIP_E_WEAPON_YIELD = 15; // dismantling an E weapon
 	constexpr int32 ECONOMY_TRIP_GEMS_YIELD = 15;    // 3 F gems x 5
@@ -108,45 +109,48 @@ void FEconomyRoundTripSpec::Define()
 		if (!Economy) return;
 		const FPurchaseCost Cost = Economy->PreviewCartCost(Cart());
 		TestEqual(TEXT("Prisms"), Cost.Prisms, ECONOMY_TRIP_CART_PRISMS);
-		TestEqual(TEXT("No skill essence for crystals and bare gear"), Cost.SkillEssence, 0);
-		TestEqual(TEXT("No typed essence"), Cost.Typed.Num(), 0);
+		TestEqual(TEXT("Gems cost Elemental essence (B-333)"), Cost.ElementalEssence, ECONOMY_TRIP_CART_ELEMENTAL);
+		TestEqual(TEXT("No skill essence for gems and bare gear"), Cost.SkillEssence, 0);
+		TestEqual(TEXT("No pillar essence"), Cost.PillarEssence, 0);
+		TestEqual(TEXT("No typed essence (obsolete)"), Cost.Typed.Num(), 0);
 	});
 
 	It("spends exactly the cart's price, or nothing when short", [this]()
 	{
 		if (!Economy) return;
+		Wallet->Add(ECurrencyType::ElementalEssence, ECONOMY_TRIP_CART_ELEMENTAL);
 		Wallet->Add(ECurrencyType::Prisms, ECONOMY_TRIP_CART_PRISMS - ECONOMY_TRIP_SHORT);
 		TestFalse(TEXT("Short by one: refused"), Economy->Purchase(Owner, Cart()));
 		TestEqual(TEXT("Nothing spent"), Wallet->GetBalance(ECurrencyType::Prisms), ECONOMY_TRIP_CART_PRISMS - ECONOMY_TRIP_SHORT);
+		TestEqual(TEXT("No Elemental spent"), Wallet->GetElementalEssence(), ECONOMY_TRIP_CART_ELEMENTAL);
 		TestEqual(TEXT("No weapon given"), Inventory->Weapons.Num(), 0);
 		TestEqual(TEXT("No gems given"), Owner->FindComponentByClass<UCrystalInventoryComponent>()->GetCount(ECONOMY_TRIP_GEM), 0);
 
 		Wallet->Add(ECurrencyType::Prisms, ECONOMY_TRIP_SHORT);
 		TestTrue(TEXT("Exact: bought"), Economy->Purchase(Owner, Cart()));
 		TestEqual(TEXT("All spent"), Wallet->GetBalance(ECurrencyType::Prisms), 0);
+		TestEqual(TEXT("All Elemental spent"), Wallet->GetElementalEssence(), 0);
 		TestEqual(TEXT("The weapon arrived"), Inventory->Weapons.Num(), 1);
 		const UCrystalInventoryComponent *Crystals = Owner->FindComponentByClass<UCrystalInventoryComponent>();
 		TestEqual(TEXT("The gems arrived"), Crystals->GetCount(ECONOMY_TRIP_GEM), ECONOMY_TRIP_GEM_COUNT);
 	});
 
-	It("levels a weapon for Gear plus half in Reality, and refunds half the Gear on the way back", [this]()
+	It("levels a weapon for Gear only (B-333), and refunds half the Gear on the way back", [this]()
 	{
 		if (!Economy) return;
 		FWeaponInventoryEntry *Entry = GiveWeapon();
 		if (!Entry) return;
 		const FGuid Id = Entry->PersistentID;
 		Wallet->AddGearEssence(ECONOMY_TRIP_STEP_GEAR);
-		Wallet->AddEssenceType(EEssenceType::Reality, ECONOMY_TRIP_STEP_REALITY);
 
-		TestTrue(TEXT("Levelled"), Economy->LevelUpWeapon(Owner, Id));
+		TestTrue(TEXT("Levelled with Gear essence alone"), Economy->LevelUpWeapon(Owner, Id));
 		TestEqual(TEXT("One tier up"), Inventory->Weapons.Last().Tier, ECONOMY_TRIP_LEVELLED_TIER);
 		TestEqual(TEXT("Gear essence spent"), Wallet->GetGearEssence(), 0);
-		TestEqual(TEXT("Reality spent"), Wallet->GetEssenceType(EEssenceType::Reality), 0);
+		TestEqual(TEXT("No Elemental asked"), Wallet->GetElementalEssence(), 0);
 
 		TestTrue(TEXT("Reverted"), Economy->DowngradeWeapon(Owner, Id));
 		TestEqual(TEXT("Back to its authored tier"), Inventory->Weapons.Last().Tier, ECONOMY_TRIP_WEAPON_TIER);
 		TestEqual(TEXT("Half the Gear essence back"), Wallet->GetGearEssence(), ECONOMY_TRIP_REVERT_REFUND);
-		TestEqual(TEXT("No Reality back"), Wallet->GetEssenceType(EEssenceType::Reality), 0);
 		TestFalse(TEXT("Never below the authored tier"), Economy->DowngradeWeapon(Owner, Id));
 		TestEqual(TEXT("The refused revert refunds nothing"), Wallet->GetGearEssence(), ECONOMY_TRIP_REVERT_REFUND);
 		TestEqual(TEXT("and leaves the tier"), Inventory->Weapons.Last().Tier, ECONOMY_TRIP_WEAPON_TIER);
@@ -158,16 +162,10 @@ void FEconomyRoundTripSpec::Define()
 		FWeaponInventoryEntry *Entry = GiveWeapon();
 		if (!Entry) return;
 		const FGuid Id = Entry->PersistentID;
-		Wallet->AddGearEssence(ECONOMY_TRIP_STEP_GEAR);
-		TestFalse(TEXT("No Reality: refused"), Economy->LevelUpWeapon(Owner, Id));
-		TestEqual(TEXT("Gear essence kept"), Wallet->GetGearEssence(), ECONOMY_TRIP_STEP_GEAR);
+		Wallet->AddGearEssence(ECONOMY_TRIP_STEP_GEAR - ECONOMY_TRIP_SHORT);
+		TestFalse(TEXT("Short of Gear essence: refused"), Economy->LevelUpWeapon(Owner, Id));
+		TestEqual(TEXT("Gear essence kept"), Wallet->GetGearEssence(), ECONOMY_TRIP_STEP_GEAR - ECONOMY_TRIP_SHORT);
 		TestEqual(TEXT("Tier unchanged"), Inventory->Weapons.Last().Tier, ECONOMY_TRIP_WEAPON_TIER);
-
-		Wallet->SpendGearEssence(ECONOMY_TRIP_STEP_GEAR);
-		Wallet->AddEssenceType(EEssenceType::Reality, ECONOMY_TRIP_STEP_REALITY);
-		TestFalse(TEXT("No Gear essence: refused"), Economy->LevelUpWeapon(Owner, Id));
-		TestEqual(TEXT("Reality kept"), Wallet->GetEssenceType(EEssenceType::Reality), ECONOMY_TRIP_STEP_REALITY);
-		TestEqual(TEXT("Tier still unchanged"), Inventory->Weapons.Last().Tier, ECONOMY_TRIP_WEAPON_TIER);
 	});
 
 	It("pays a weapon's dismantle by its levelled tier, and a crystal's by type and count", [this]()
@@ -182,8 +180,8 @@ void FEconomyRoundTripSpec::Define()
 
 		Inventory->AddCrystal(ECONOMY_TRIP_GEM, ECONOMY_TRIP_GEM_COUNT);
 		TestTrue(TEXT("Gems dismantled"), Economy->DismantleCrystal(Owner, ECONOMY_TRIP_GEM, ECONOMY_TRIP_GEM_COUNT));
-		TestEqual(TEXT("A Garnet pays Fire essence"), Wallet->GetEssenceType(EEssenceType::Fire), ECONOMY_TRIP_GEMS_YIELD);
-		TestEqual(TEXT("and no Generic essence"), Wallet->GetEssenceType(EEssenceType::Generic), 0);
+		TestEqual(TEXT("A Garnet pays Elemental essence (B-333)"), Wallet->GetElementalEssence(), ECONOMY_TRIP_GEMS_YIELD);
+		TestEqual(TEXT("and no Pillar essence"), Wallet->GetPillarEssence(), 0);
 		TestFalse(TEXT("None left to dismantle"), Economy->DismantleCrystal(Owner, ECONOMY_TRIP_GEM, ECONOMY_TRIP_GEM_COUNT));
 	});
 }

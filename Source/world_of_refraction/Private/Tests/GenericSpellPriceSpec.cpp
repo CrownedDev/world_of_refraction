@@ -1,7 +1,6 @@
 // GenericSpellPriceSpec.cpp
-// B-296 (D-105, Crown A): Quartz essence buys Generic spells, as each element's essence buys its spells (one rule).
-// A Generic spell costs its tier's Quartz essence (EEssenceType::Generic) and no Skill essence, the same amount a
-// Fire spell of that tier costs in Fire essence.
+// B-296 (D-105), updated by B-333 (D-125): Quartz folded into Elemental, so a Generic spell costs exactly what a
+// Fire spell of its tier costs: Skill + Elemental essence at the tier, and the same Prisms.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -31,12 +30,6 @@ BEGIN_DEFINE_SPEC(FGenericSpellPriceSpec, "WoR.Economy.GenericSpellPrice",
 		Entry.Asset = Spell;
 		return Economy->PreviewCartCost({Entry});
 	}
-
-	static int32 TypedOf(const FPurchaseCost &Cost, EEssenceType Type)
-	{
-		const int32 *Amount = Cost.Typed.Find(Type);
-		return Amount ? *Amount : 0;
-	}
 END_DEFINE_SPEC(FGenericSpellPriceSpec)
 
 void FGenericSpellPriceSpec::Define()
@@ -54,7 +47,7 @@ void FGenericSpellPriceSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("prices a Generic spell in its tier's Quartz essence, like an elemental one (D-105)", [this]()
+	It("prices a Generic spell in Elemental essence, like an elemental one (D-125)", [this]()
 	{
 		if (!TestNotNull(TEXT("EconomyService"), Economy)) return;
 		for (const EItemTier Tier : GENERIC_PRICE_TEST_TIERS)
@@ -62,11 +55,10 @@ void FGenericSpellPriceSpec::Define()
 			const FString TierName = UEnum::GetValueAsString(Tier);
 			const FPurchaseCost Generic = CostOf(ESpellElement::Generic, Tier);
 			const FPurchaseCost Fire = CostOf(ESpellElement::Fire, Tier);
-			TestEqual(TierName + TEXT(": Quartz essence"), TypedOf(Generic, EEssenceType::Generic),
+			TestEqual(TierName + TEXT(": Elemental essence"), Generic.ElementalEssence,
 					  EconomyYield::GetTypedEssencePurchaseCostForTier(Tier));
-			TestEqual(TierName + TEXT(": same amount as Fire's"), TypedOf(Generic, EEssenceType::Generic),
-					  TypedOf(Fire, EEssenceType::Fire));
-			TestEqual(TierName + TEXT(": no Skill essence"), Generic.SkillEssence, 0);
+			TestEqual(TierName + TEXT(": same Elemental as Fire's"), Generic.ElementalEssence, Fire.ElementalEssence);
+			TestEqual(TierName + TEXT(": same Skill as Fire's"), Generic.SkillEssence, Fire.SkillEssence);
 			TestEqual(TierName + TEXT(": same Prisms as Fire"), Generic.Prisms, Fire.Prisms);
 		}
 	});
