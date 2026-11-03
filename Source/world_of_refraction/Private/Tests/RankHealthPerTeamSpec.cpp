@@ -12,6 +12,7 @@
 #include "Character/Forms/CharacterFormData.h"
 #include "Combat/Encounter/EncounterData.h"
 #include "Trial/TrialGate.h"
+#include "Trial/TrialRunSubsystem.h"
 
 namespace
 {
@@ -21,7 +22,7 @@ namespace
 	constexpr float RANK_HP_BOSS = 6.0f;
 	constexpr float RANK_HP_TIER_C = 2.2f;
 	/** MaxHP is rounded once after the multiply. */
-	constexpr int32 RANK_HP_ROUNDING = 1;
+	constexpr float RANK_HP_ROUNDING = 1.0f;
 	constexpr float NO_STRENGTH_CHANGE = 1.0f;
 }
 
@@ -71,7 +72,7 @@ void FRankHealthPerTeamSpec::Define()
 		TArray<int32> OneTeam;
 		const TArray<UCharacterData *> Whole = UEncounterData::BuildCaughtRoster({NormalTeam}, OneTeam);
 		TestEqual(TEXT("one team fights whole"), Whole.Num(), RANK_HP_NORMAL_TEAM_SIZE);
-		TestEqual(TEXT("every member from team 0"), OneTeam, TArray<int32>{0, 0});
+		TestEqual(TEXT("every member from team 0"), OneTeam, TArray<int32>{RANK_HP_BOSS_TEAM, RANK_HP_BOSS_TEAM});
 	});
 
 	It("makes a mini-boss form alone a mini-boss; its teammates keep the team's rank", [this]()
@@ -94,9 +95,20 @@ void FRankHealthPerTeamSpec::Define()
 		const int32 BaseMaxHP = Normal->MaxHP;
 		TestTrue(TEXT("boss applied"), TrialGate::ApplyEnemyRankHealth(Boss->GetOwner(), NO_STRENGTH_CHANGE, EEncounterRank::Boss));
 		TestTrue(TEXT("normal applied"), TrialGate::ApplyEnemyRankHealth(Normal->GetOwner(), NO_STRENGTH_CHANGE, EEncounterRank::Normal));
-		TestEqual(TEXT("the boss has x6"), Boss->MaxHP, FMath::RoundToInt(BaseMaxHP * RANK_HP_BOSS), RANK_HP_ROUNDING);
+		TestEqual(TEXT("the boss has x6"), static_cast<float>(Boss->MaxHP), BaseMaxHP * RANK_HP_BOSS, RANK_HP_ROUNDING);
 		TestEqual(TEXT("the boss starts full"), Boss->CurrentHP, Boss->MaxHP);
 		TestEqual(TEXT("the normal enemy keeps its HP"), Normal->MaxHP, BaseMaxHP);
+	});
+
+	It("falls back to the fight's rank when no rank list was set for the roster", [this]()
+	{
+		UTrialRunSubsystem *TrialRun = TestWorld->GetSubsystem<UTrialRunSubsystem>();
+		if (!TestNotNull(TEXT("trial run"), TrialRun)) return;
+		TrialRun->SetPendingEnemyRanks({EEncounterRank::Boss});
+		// No pending roster (no EnterEncounter): the list doesn't match it, so every index reads the fight's rank.
+		TestTrue(TEXT("a mismatched list is ignored"), TrialRun->GetPendingEnemyRank(0) == TrialRun->GetPendingRank());
+		TrialRun->SetPendingEnemyRanks({});
+		TestTrue(TEXT("no list: the fight's rank"), TrialRun->GetPendingEnemyRank(0) == TrialRun->GetPendingRank());
 	});
 
 	It("multiplies an enemy's HP by its tier power; F changes nothing", [this]()
@@ -109,7 +121,7 @@ void FRankHealthPerTeamSpec::Define()
 		TestEqual(TEXT("C is x2.2"), TrialGate::GetEnemyTierHealthMultiplier(TierC->GetOwner()), RANK_HP_TIER_C, KINDA_SMALL_NUMBER);
 		TrialGate::ApplyEnemyRankHealth(TierC->GetOwner(), NO_STRENGTH_CHANGE, EEncounterRank::Normal);
 		TrialGate::ApplyEnemyRankHealth(TierF->GetOwner(), NO_STRENGTH_CHANGE, EEncounterRank::Normal);
-		TestEqual(TEXT("a normal C enemy has x2.2"), TierC->MaxHP, FMath::RoundToInt(BaseMaxHP * RANK_HP_TIER_C), RANK_HP_ROUNDING);
+		TestEqual(TEXT("a normal C enemy has x2.2"), static_cast<float>(TierC->MaxHP), BaseMaxHP * RANK_HP_TIER_C, RANK_HP_ROUNDING);
 		TestEqual(TEXT("a normal F enemy is unchanged"), TierF->MaxHP, BaseMaxHP);
 	});
 }
