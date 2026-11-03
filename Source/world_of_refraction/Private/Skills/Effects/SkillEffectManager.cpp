@@ -2014,7 +2014,9 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		UTurnManager *TM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
 		if (TM)
 		{
-			TM->RequestExtraTurn(Actor);
+			// B-341 (D-133): Extra Action is a bonus turn under the one rule: it lands right after the
+			// current turn. OBSOLETE (B-341): RequestExtraTurn (an owed turn in the speed pick) retired.
+			TM->GrantBonusTurn(Actor);
 		}
 		break;
 	}
