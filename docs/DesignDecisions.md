@@ -1693,6 +1693,81 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** job B-335.
 
 (Audit §5: **no change** — evolutions and fusions keep their wear. §10 is Q-293d.)
+### D-128 — Nothing is DONE without Crown's PIE; one running list (audit §12)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** no job is marked DONE without Crown's PIE pass. `docs/PIE/Sweep.md` keeps a running list of every job waiting on PIE, and Crown plans one sweep when ready. CLAUDE.md's Backlog-mode rule 6 is unchanged.
+**Notes for Claude:** folded into B-332 (the sweep file).
+
+### D-129 — Per-fight subsystems become world subsystems; co-op as one working two-player fight first (audit §13)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** the per-fight `UGameInstanceSubsystem`s move to `UWorldSubsystem`, one system per cluster (D-064). Co-op is built as one working two-player fight first: B-228 to B-232 are re-scoped into that slice. Host hand-over (D-103) stays, built last.
+**Notes for Claude:** job B-336 (world subsystems); the co-op rows re-scoped in `Backlog.md`.
+
+### D-130 — One condition vocabulary (audit §14)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** one shared `FWoRCondition` / `FWoRConditionSet` and one evaluator, on the deckbuilder's trigger → condition → effect model (`CrownedDev/wor-deckbuilder` `docs/design/WoR_TCG_Pivot_Design.md` and its `docs/reference/05-triggers-conditions.md`). Built beside the old ones, memories first. D-100 still holds (memories and boss triggers stay separate systems).
+**Notes for Claude:** job B-337.
+
+### D-131 — One placeholder inventory screen (audit §15)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** delete `wor.UI.ItemStorage` now. Then one placeholder inventory screen with verbs: **Give, Store, Take, Dismantle, Convert**, so the CommonUI screen (D-024) has one placeholder to replace.
+**Notes for Claude:** jobs B-338 (delete) and B-339 (the screen). Crown's ruling is the PIE exception for the delete.
+
+### D-132 — Docs: one rule source, archive the rest (audit §16)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** docs moves only, no rewrites. `docs/Rules/` is the single rule source; `docs/Mechanics/` folds in or goes to `docs/archive/`. The May overviews go to the archive. `DesignDecisions.md` splits into open and archive files. Finished backlog rows go to `Backlog_Done.md`; REVIEW rows waiting on PIE stay.
+**Notes for Claude:** job B-340.
+
+### D-133 — Keep the speed timeline; trim it (audit §17; closes D-088 for now)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** keep the speed timeline (D-088's latest). Trim the tie-break to 3 steps and make one bonus-turn rule. The reference is the deckbuilder's turn belt (`CrownedDev/wor-deckbuilder` `docs/design/WoR_TCG_Pivot_Design.md` §7c): round-robin; a bonus turn lands immediately after the current turn; a skip removes that player's next turn; death purges a player's turns, revive re-enters them.
+**Notes for Claude:** job B-341.
+
+### D-134 — Three rows, no columns, a bigger row effect (audit §18; changes D-042)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** three rows, no columns. Placeholder effect: the front row deals and takes +20%, the back row −20% (`// TODO: tune`). The D-096 row step stays. Changes D-042 (formation cells).
+**Notes for Claude:** job B-342.
+
+### D-135 — Guard and Dodge only (audit §19)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** only Guard and Dodge (D-084). Remove Parry and the left / right dodge split from the combat controller; removing the `.uasset` input actions is a later editor step. `docs/Design/InputMap.md` follows.
+**Notes for Claude:** job B-343.
+
+### D-136 — Trial difficulty sets enemy damage and the AI tier; one AI path (audit §20)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** the trial difficulty sets both enemy damage and the enemy AI tier; a per-encounter AI override stays (D-044). Spell and ability AI share one path, and the AI weights move into `UCombatTuningData`.
+**Notes for Claude:** jobs B-344 (difficulty → AI tier) and B-345 (one path, weights to data).
+
+### Q-21-audit — Party control: the deckbuilder's seat rule (audit §21)
+**Status:** ANSWERED (Crown: follow the deckbuilder's rule) · **Raised:** 2026-11-03 (audit §21) · **Blocks:** —
+**Question:** who commands each party member, solo and in co-op?
+**Context:** PA-11 to PA-13 and PA-33 (`docs/Rules/`); the deckbuilder's seats: `CrownedDev/wor-deckbuilder` `docs/design/WoR_TCG_Pivot_Design.md` §8 items 23, 29 and 80.
+**The deckbuilder's rule:** each seat is a player or an AI. An AI seat exists only when the table's owner adds it, its settings are fixed for the match (item 23, 80), and nothing is auto-filled. An empty seat's turns are taken by its side's players, rotating in seat order (item 29).
+**This game's reading (as built):** a party member is commanded by its player. Solo, the player commands every member (Expedition 33 and Octopath do the same). In co-op, a member with no player of its own is commanded by its side's players in rotation. A member is AI only if the party leader sets it to AI before the fight; that setting is fixed during the fight. The per-member default Player / AI setting, the takeover rules and "Let AI finish" retire (flag obsolete); the switch command stays for debug. Ally AI difficulty becomes the AI seat's setting (default Medium, the deckbuilder's default).
+**Answer:** as read above (Crown, 2026-11-03: follow the deckbuilder). Touches pillar 7's "ally AI" and D-026's wording.
+**Notes for Claude:** job B-346.
+
+
+### D-137 — A run loadout is free (audit §22; changes D-021)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §22) · **Blocks:** —
+**Answer (Crown):** you bring whatever fits the D-110 slot budget, free, as Hades does. Players already pay to upgrade gear. Gold is run money for in-run vendors only. B-116 (buying the loadout at run start) is dropped.
+**What it changes:** D-021 and ER-16; Q-314's "every home piece goes on the run until B-116" becomes "the worn loadout within the slot budget goes on the run".
+**Notes for Claude:** job B-347.
+
+### D-138 — One save version while in dev (audit §23)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §23) · **Blocks:** —
+**Answer (Crown):** while in dev there is one save version. `MIN_SUPPORTED` rises to `LATEST`; every old-shape reader (v3 / v4 gear lists, the party pouch and the rest) is deleted; older saves are wiped with a warning (D-060). The 14 `SaveGame`-tagged fields move into `FWoRSaveData` (D-059). From now on a save-format change bumps the version and the minimum together, with no migration code until the first public build.
+**Notes for Claude:** job B-348. The CLAUDE.md Saves rule should carry the note (Crown to approve that edit).
+
+### D-139 — One console naming rule (audit §24)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §24) · **Blocks:** —
+**Answer (Crown):** every console command is `wor.<System>.<Verb>`, with one `Print` per system. Duplicates are removed outright, with no alias period. Every `docs/PIE/*.md` and Architecture doc naming an old command is updated, as is CLAUDE.md's debug-tools section (Crown to approve that edit).
+**Notes for Claude:** job B-349, split by system (≤3 files per commit).
+
+### D-140 — Legacy test actors go now; test-run hygiene (audit §25; changes D-067)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §25) · **Blocks:** —
+**Answer (Crown):** remove `CombatOrchestratorTestActor`, `TurnManagerTestActor`, `SkillEffectManagerTestActor`, `HUDTestActor` and `SkillProjectileTestActor` now, with no PIE gate. Where an actor covers something no spec covers, the spec comes first in the same job. Any actor placed in a map or referenced by a Blueprint is listed for an editor step instead of deleted blind. The GAS parity specs are deleted with the enum path (D-121, B-042g). `test.sh` prints the 10 slowest tests. The quick balance sim runs in the nightly preset only. CLAUDE.md's Tests rule changes (Crown to approve that edit).
+**Notes for Claude:** job B-350; the parity-spec delete rides with B-042g.
 
 ### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
