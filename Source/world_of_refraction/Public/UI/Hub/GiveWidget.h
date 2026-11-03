@@ -1,0 +1,105 @@
+// GiveWidget.h
+// PLACEHOLDER UI (B-323, D-117): give a weapon, adapter or pouch stack from one of your characters to
+// another. Plain buttons built in C++, opened with the console command wor.UI.Give (Backlog rule 4).
+// Replaced by the CommonUI inventory screen (D-024). Rules and refusals: WoRGive (Inventory/GearGive.h).
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Blueprint/UserWidget.h"
+#include "Equipment/Crystals/FCrystalId.h"
+#include "GiveWidget.generated.h"
+
+class UButton;
+class UTextBlock;
+class UPoolSubsystem;
+
+UCLASS()
+class WORLD_OF_REFRACTION_API UGiveWidget : public UUserWidget
+{
+	GENERATED_BODY()
+
+public:
+	/** Add a fresh one to PC's viewport (UI-only input, cursor on). Null when PC is null. */
+	static UGiveWidget *Open(APlayerController *PC);
+
+	/** Re-read the giver's gear and pouch and rewrite every row. */
+	void Refresh();
+
+	/** Debug: one line per row as shown. */
+	FString GetGiveString() const;
+
+protected:
+	virtual TSharedRef<SWidget> RebuildWidget() override;
+	virtual void NativeConstruct() override;
+
+private:
+	/** A party member, as giver or receiver. */
+	struct FMember
+	{
+		FName Key;
+		FText Name;
+	};
+
+	/** One thing the giver could give: a piece of gear (GearID) or a pouch stack (Item, Count). */
+	struct FGiveChoice
+	{
+		FGuid GearID;
+		FCrystalId Item;
+		int32 Count = 0;
+		FText Label;
+		bool IsGear() const { return GearID.IsValid(); }
+	};
+
+	TArray<FMember> GatherMembers() const;
+	TArray<FGiveChoice> GatherChoices() const;
+	UPoolSubsystem *GetPool() const;
+
+	FName GiverKey() const;
+	FName ReceiverKey() const;
+
+	/** Gives the selected gear, or Count of the selected stack. */
+	void GiveSelected(int32 Count);
+
+	UFUNCTION()
+	void HandleNextGiverClicked();
+
+	UFUNCTION()
+	void HandleNextItemClicked();
+
+	UFUNCTION()
+	void HandleNextReceiverClicked();
+
+	UFUNCTION()
+	void HandleGiveOneClicked();
+
+	UFUNCTION()
+	void HandleGiveStackClicked();
+
+	UFUNCTION()
+	void HandleCloseClicked();
+
+	int32 GiverIndex = 0;
+	int32 ReceiverIndex = 1;
+	int32 SelectedIndex = 0;
+
+	FText StatusText;
+
+	UPROPERTY()
+	TObjectPtr<UTextBlock> GiverText;
+
+	UPROPERTY()
+	TObjectPtr<UTextBlock> ItemText;
+
+	UPROPERTY()
+	TObjectPtr<UTextBlock> ReceiverText;
+
+	UPROPERTY()
+	TObjectPtr<UTextBlock> StatusLine;
+
+	UPROPERTY()
+	TObjectPtr<UButton> GiveOneButton;
+
+	UPROPERTY()
+	TObjectPtr<UButton> GiveStackButton;
+};
