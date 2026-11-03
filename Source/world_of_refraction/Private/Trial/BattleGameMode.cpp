@@ -271,18 +271,21 @@ void ABattleGameMode::BootstrapCombat()
     // B-183 / B-186: the gate's difficulty and the zone the fight started in scale every enemy
     // before the fight (and its HUD) starts.
     const FEncounterZoneInfo Zone = TrialRun->GetPendingZone();
-    const float EnemyStrength = TrialRun->GetEnemyStrengthMultiplier() * AEnemyZone::GetTierStrengthMultiplier(Zone.Tier);
+    // B-293c (Q-293c): the door's difficulty scales enemy damage only; the zone scales both (B-186).
+    const float ZoneStrength = AEnemyZone::GetTierStrengthMultiplier(Zone.Tier);
+    const float EnemyStrength = TrialRun->GetEnemyStrengthMultiplier() * ZoneStrength;
+    const float EnemyHealth = TrialGate::GetEnemyHealthMultiplier(TrialRun->GetTrialDifficulty()) * ZoneStrength;
     for (int32 EnemyIndex = 0; EnemyIndex < OpposingParty.Num(); ++EnemyIndex)
     {
         AActor *Enemy = OpposingParty[EnemyIndex];
         // B-224 / B-224b: the enemy's own rank (its team's; Q-224c) and tier multiply max HP on top.
         const EEncounterRank EnemyRank = OpposingRanks.IsValidIndex(EnemyIndex) ? OpposingRanks[EnemyIndex] : TrialRun->GetPendingRank();
-        if (!TrialGate::ApplyEnemyStrength(Enemy, EnemyStrength))
+        if (!TrialGate::ApplyEnemyStrength(Enemy, EnemyHealth, EnemyStrength))
         {
             UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s: trial difficulty not applied (no character data or effect manager)"),
                    *GetNameSafe(Enemy));
         }
-        else if (!TrialGate::ApplyEnemyRankHealth(Enemy, EnemyStrength, EnemyRank))
+        else if (!TrialGate::ApplyEnemyRankHealth(Enemy, EnemyHealth, EnemyRank))
         {
             UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s: rank health (%s) not applied"),
                    *GetNameSafe(Enemy), *UEnum::GetValueAsString(EnemyRank));
