@@ -148,6 +148,11 @@ float FWorldStatRequirements::GetWeaponRequirementFactor(const UCharacterData *C
 float FWorldStatRequirements::GetWeaponRequirementFactor(const FWorldPillarLevels &Levels) const
 {
     // B-326 (D-119): one penalty for any shortfall (was the requirement-gap ladder with a floor, B-224 / Q-293d).
+    return GetRequirementFactor(Levels);
+}
+
+float FWorldStatRequirements::GetRequirementFactor(const FWorldPillarLevels &Levels) const
+{
     return IsMetBy(Levels) ? WeaponRequirement::WEAPON_REQ_FACTOR_MAX : WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR;
 }
 

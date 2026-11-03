@@ -87,7 +87,7 @@ struct WORLD_OF_REFRACTION_API FWorldStatRequirements
     /** A weapon's damage factor from its requirement (D-119, Elden Ring's single penalty): 1.0 when every pillar
      *  is met (being over gives nothing extra) or there is no character; any shortfall, of 1 level or 5, is
      *  REQUIREMENT_UNMET_DAMAGE_FACTOR, and that weapon gives no pillar scaling (WoRWeaponPower::GetWeaponPart).
-     *  It scales the weapon part only (B-220), never the skill part. Skills keep the requirement-gap ladder. */
+     *  It scales the weapon part only (B-220); a skill's own requirement cuts the skill part (GetRequirementFactor). */
     float GetWeaponRequirementFactor(const UCharacterData *Character) const;
 
     // ==================== BY LEVELS (B-217: combat passes the live levels) ====================
@@ -96,6 +96,9 @@ struct WORLD_OF_REFRACTION_API FWorldStatRequirements
     bool ExactlyMatchedBy(const FWorldPillarLevels &Levels) const;
     /** B-326 (D-119): every pillar at or over its requirement. */
     bool IsMetBy(const FWorldPillarLevels &Levels) const;
+    /** B-326 (D-119): 1.0 when met, else WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR. The one penalty for
+     *  weapons, abilities and spells alike; an unmet skill still works (nothing becomes uncastable). */
+    float GetRequirementFactor(const FWorldPillarLevels &Levels) const;
     int32 GetTotalDeficit(const FWorldPillarLevels &Levels) const;
     float GetWeaponRequirementFactor(const FWorldPillarLevels &Levels) const;
 
@@ -106,8 +109,8 @@ struct WORLD_OF_REFRACTION_API FWorldStatRequirements
 
 namespace WeaponRequirement
 {
-    /** B-326 (D-119, Crown 2026-11-03; replaces Q-293d (2)): a weapon whose requirement isn't met deals this share
-     *  of its weapon part, however far short, and gives no pillar scaling. Elden Ring's under-requirement penalty. */
+    /** B-326 (D-119, Crown 2026-11-03; replaces Q-293d (2)): a weapon, ability or spell whose requirement isn't met
+     *  deals this share of its part, however far short, and gives no pillar scaling. Elden Ring's penalty. */
     constexpr float REQUIREMENT_UNMET_DAMAGE_FACTOR = 0.6f;
     /** OBSOLETE (B-326, D-119): the old ladder's floor; nothing reads it but UCombatTuningData::WeaponReqFactorMin's
      *  default. Delete with that field after Crown's PIE pass. */
