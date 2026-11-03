@@ -20,6 +20,8 @@
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Party/Party.h"
+#include "Pool/PoolSubsystem.h"
+#include "Trial/TrialRunSubsystem.h"
 #include "Engine/GameInstance.h"
 
 UCharacterDataComponent::UCharacterDataComponent()
@@ -40,6 +42,17 @@ const FPartyMember *UCharacterDataComponent::FindCarriedPartyMember() const
     const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
     const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
     return PartySession && CharacterData ? PartySession->GetMemberCarriedState(PartySession->GetMemberSlotByData(CharacterData)) : nullptr;
+}
+
+UTrialRunSubsystem *UCharacterDataComponent::FindRunLevelStore(FName &OutKey) const
+{
+    UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    if (!GI || !FindCarriedPartyMember())
+    {
+        return nullptr;
+    }
+    OutKey = UPoolSubsystem::GetCharacterKey(CharacterData);
+    return GI->GetSubsystem<UTrialRunSubsystem>();
 }
 
 void UCharacterDataComponent::BeginPlay()
@@ -75,8 +88,8 @@ void UCharacterDataComponent::BeginPlay()
             }
         }
 
-        // Seed the runtime world-stat layer from the asset baseline + head-start (§7). Each PIE
-        // spawn is effectively a run-start, so this is the run seed until a run-state object exists.
+        // Seed the runtime world-stat layer from the asset baseline + head-start (§7), plus the levels this
+        // party member earned this run (B-223: the trial run keeps them across level travel).
         SeedWorldStats();
 
         // B-131: the pools are the server's; a client receives them by replication and must not
@@ -286,13 +299,26 @@ void UCharacterDataComponent::SeedWorldStats()
     const int32 BaseBody   = CharacterData ? CharacterData->WorldBodyLevel   : 0;
     const int32 BaseSpirit = CharacterData ? CharacterData->WorldSpiritLevel : 0;
 
-    LiveWorldMind   = FMath::Clamp(BaseMind   + HeadStartMind,   0, WorldStatConstants::LIVE_MAX);
-    LiveWorldBody   = FMath::Clamp(BaseBody   + HeadStartBody,   0, WorldStatConstants::LIVE_MAX);
-    LiveWorldSpirit = FMath::Clamp(BaseSpirit + HeadStartSpirit, 0, WorldStatConstants::LIVE_MAX);
+    // B-223: plus what this party member earned or bought this run (kept by the run across level travel).
+    FName RunKey;
+    const UTrialRunSubsystem *Run = FindRunLevelStore(RunKey);
+    const int32 RunMind   = Run ? Run->GetRunEarnedLevels(RunKey, EWorldPillar::Mind)   : 0;
+    const int32 RunBody   = Run ? Run->GetRunEarnedLevels(RunKey, EWorldPillar::Body)   : 0;
+    const int32 RunSpirit = Run ? Run->GetRunEarnedLevels(RunKey, EWorldPillar::Spirit) : 0;
+
+    LiveWorldMind   = FMath::Clamp(BaseMind   + HeadStartMind   + RunMind,   0, WorldStatConstants::LIVE_MAX);
+    LiveWorldBody   = FMath::Clamp(BaseBody   + HeadStartBody   + RunBody,   0, WorldStatConstants::LIVE_MAX);
+    LiveWorldSpirit = FMath::Clamp(BaseSpirit + HeadStartSpirit + RunSpirit, 0, WorldStatConstants::LIVE_MAX);
+    WorldStatPurchaseCount = Run ? Run->GetRunLevelPurchases(RunKey) : WorldStatPurchaseCount;
 }
 
 void UCharacterDataComponent::ResetRunWorldStats()
 {
+    FName RunKey;
+    if (UTrialRunSubsystem *Run = FindRunLevelStore(RunKey))
+    {
+        Run->ForgetRunLevels(RunKey);
+    }
     SeedWorldStats();           // Live = asset + head-start (wipes this run's earned/bought)
     WorldStatPurchaseCount = 0; // reset the escalating vendor ramp
 }
@@ -308,7 +334,13 @@ bool UCharacterDataComponent::AddEarnedWorldStat(EWorldPillar Pillar, int32 N)
     {
         return false; // already at cap (or bad pillar) — nothing granted
     }
-    *Live = FMath::Min(*Live + N, WorldStatConstants::LIVE_MAX);
+    const int32 Granted = FMath::Min(*Live + N, WorldStatConstants::LIVE_MAX) - *Live;
+    *Live += Granted;
+    FName RunKey;
+    if (UTrialRunSubsystem *Run = FindRunLevelStore(RunKey))
+    {
+        Run->AddRunEarnedLevels(RunKey, Pillar, Granted); // B-223: kept for the next level's seed
+    }
     return true;
 }
 
@@ -332,6 +364,11 @@ bool UCharacterDataComponent::SetHeadStartAllocation(int32 M, int32 B, int32 S)
 void UCharacterDataComponent::IncrementPurchaseCount()
 {
     ++WorldStatPurchaseCount;
+    FName RunKey;
+    if (UTrialRunSubsystem *Run = FindRunLevelStore(RunKey))
+    {
+        Run->AddRunLevelPurchase(RunKey); // B-223: the vendor's rising price lasts the run
+    }
 }
 
 void UCharacterDataComponent::ResetToMax()
