@@ -3043,3 +3043,12 @@ Moved here once applied. Newest first.
 **Recommendation:** **A**. Final Fantasy XVI / Persona 5 boss fights with adds keep the adds at normal toughness; the boss alone carries the boss HP. BaselineNumbers' round targets (8-10 / 12-14) assume one boss, not a whole team at boss HP.
 **Notes for Claude:** queued as B-224b (with the enemy HP by tier power TODO). The fight's rank still rules fleeing (D-091).
 
+### Q-293 — Balance targets the Decided list doesn't give
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-293, cloud) · **Blocks:** —
+**Question:** `docs/Design/BalanceSimulator.md` §3 lists targets beyond `BaselineNumbers.md`'s Decided list: the boss win-rate band at Medium, the hits-to-kill bands for Elite / Mini-boss / Boss, the crit bands, and the worked-example hit medians (which assume Mind 8 and 14 where the sim's archetypes clamp to 7). Which of these may fail a nightly run, and which only warn?
+**Context:** `Private/Balance/BalanceSimReport.cpp` (`EvaluateTargets`); `Private/Tests/BalanceTargetsSpec.cpp`.
+**Options / as built:** **errors** (fail nightly / full): stalls, normal-fight party turns 2.5–5.5, mini-boss rounds 7–11, boss rounds 11–15.5, win rate vs normal at Medium 85–99 %, the pillar-6 bands (35–65 %; reverse still clears). **Warn only:** p90s, the hits-to-kill bands (±20 %), the worked-example medians (±10 %), crit rate 3–8 % and crit / uncrit 1.2–1.3, boss win rate at Medium 50–80 %. `quick` (3 fights) never fails on a band.
+**Recommendation:** as built. The error set is exactly the Decided numbers; the boss band follows Expedition 33 / Hades (a first boss attempt is lost more often than a normal fight, never a coin flip at Normal), and the example medians stay warn-only until the examples are redone at the pillar cap of 7.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-293; flip `bError` per target in `EvaluateTargets` to change a band's severity.
+
