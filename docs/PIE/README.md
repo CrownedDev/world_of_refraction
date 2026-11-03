@@ -13,6 +13,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 ## Pending
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-331](B-331.md) | `feature/B-331-one-speed` (UNBUILT) | One Speed, part 1: Body × Speed narrows every defense window; old Action + Spell Speed points add into Speed | Not built |
 | [B-330](B-330.md) | `feature/B-330-pillars-only` (UNBUILT) | Pillars only: a level-up grants no sub-stat points; the authored budget is 93 at every level | Not built |
 | [B-224](B-224.md) | `feature/B-224-combat-numbers` (in `dev`) | Combat numbers baseline: rank HP x1.5/3/6, Defense cap 75%, crit base x1.25, requirement floor 0.5, tuning ladders | Not built |
 | [B-288](B-288.md) | `feature/B-288-ladders` (in `dev`) | Every ladder rung pinned by a spec; Damage Taken Down cap named; no gameplay change | Not built |
