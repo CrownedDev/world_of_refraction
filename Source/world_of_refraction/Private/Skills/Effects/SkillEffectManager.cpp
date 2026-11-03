@@ -2208,7 +2208,8 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 	}
 
 	// B-275: ApplyDOTOnHit of an element with no old member (Fire / Water resolve to Burn / Chill at build
-	// time) - a DoT of the effect's element, one per element held, same default size and length.
+	// time) - a DoT of the effect's element per effect held (the same attacker and element share an ID, so a
+	// second one refreshes it), same default size and length.
 	for (const FActiveSkillEffect &OnHitDOT : GetEffectsByType(Attacker, ESkillEffectType::ApplyDOTOnHit))
 	{
 		if (OnHitDOT.Element == ESpellElement::None || OnHitDOT.Element == ESpellElement::Generic)

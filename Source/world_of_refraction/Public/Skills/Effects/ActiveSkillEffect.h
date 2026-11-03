@@ -315,7 +315,8 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		Effect.EffectName = Name;
 		Effect.EffectID = PackedEffectID;
 		// B-275: a keyed member keyed by the payload's own Element, else the caller's, becomes the old member.
-		const ESpellElement KeyElement = P.Element != ESpellElement::None ? P.Element : Element;
+		const bool bPayloadKeysElement = P.Element != ESpellElement::None && P.Element != ESpellElement::Generic; // Generic = inherit
+		const ESpellElement KeyElement = bPayloadKeysElement ? P.Element : Element;
 		Effect.EffectType = SkillEffectClassification::ResolveKeyed(P.EffectType, KeyElement);
 		Effect.EffectValue = (P.Value != 0) ? static_cast<float>(P.Value) : (P.Magnitude * 100.0f);
 		// Permanent is an EXPLICIT authored toggle now — NOT derived from duration-0.
