@@ -182,6 +182,10 @@ void FOwnedGearSyncSpec::Define()
 		Inventory->LinkLoadoutsToOwned();
 		TestTrue(TEXT("Primary slot points at the owned evolution"), Inventory->SavedLoadouts[1].PrimaryEvolutionInstance == EvolutionId);
 
+		TestFalse(TEXT("D-116: refused while it is the primary"), Economy->DismantleEvolution(Owner, EvolutionId));
+		Inventory->SavedLoadouts[1].PrimarySlotType = EPrimarySlotType::Weapon; // the sword swapped in
+		Inventory->SavedLoadouts[1].PrimaryWeapon.WeaponEntry = OwnedSword();
+
 		TestTrue(TEXT("Dismantled"), Economy->DismantleEvolution(Owner, EvolutionId));
 		TestNull(TEXT("No ghost evolution in the loadout"), Inventory->SavedLoadouts[1].PrimaryEvolution.Item);
 		TestFalse(TEXT("No stale instance id"), Inventory->SavedLoadouts[1].PrimaryEvolutionInstance.IsValid());

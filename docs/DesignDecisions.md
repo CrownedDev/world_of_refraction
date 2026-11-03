@@ -1656,6 +1656,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A (D-111: wear follows the item actually used). Side effect: debug and socket tools that ask for "the primary weapon" by asset get the copy in hand when both are the same weapon. B-304's `GetActiveSlot` carries the GUID and makes this exact.
 **Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
 
+### Q-320 — How far does "always one primary" reach (D-116)?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-320) · **Blocks:** —
+**Question:** D-116 says a character always has one valid primary. Three edges: (1) which loadouts get an empty primary filled: only the active one, or every saved loadout? (2) should validation block an empty primary, or only flag it? (3) a member who owns nothing usable (a Caster or Resonator with no weapon) has no primary to give.
+**Options:** A fill the active loadout only; validation logs a warning, doesn't block; nothing usable owned = stays empty (Q-304's fallback is the guard) / B fill every saved loadout and block an empty primary.
+**Recommendation:** A. Spare loadouts in games with weapon sets (Diablo II / Path of Exile weapon swap, Elden Ring's empty hand slots) may sit empty until used. Filling every loadout would give each spare loadout the same shared piece, which stops B-221's "switch to another loadout to take the sword off". Blocking would lock out a member who owns nothing usable. Dismantling any loadout's primary is still refused.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
 ### Q-304 — When the active slot is empty, which gear is in use?
 **Status:** CHANGED by Crown 2026-11-03 (D-116; the lookup / fallback stays as a safety net only) · **Raised:** 2026-11-03 (B-304 review) · **Blocks:** —
 **Question:** D-110 says an empty or stale active slot falls back to the first usable one. Today's content reaches three cases: (1) a Generic showing an emptied primary (sold, or stripped before a fight) used to be unarmed and now fights with its secondary; (2) a Generic toggling to an empty secondary uses up the turn's switch but keeps its primary; (3) a Resonator with a stale active-adapter index used to have no adapter and now uses its first one. Also, a piece another member wears is skipped now (B-221b), not only stripped before a fight.
