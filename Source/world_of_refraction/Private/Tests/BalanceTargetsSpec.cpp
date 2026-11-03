@@ -69,6 +69,15 @@ void FBalanceTargetsSpec::Define()
 		{
 			Records.Append(Runner->RunMatchup(Matchup, Fights, BALANCE_TARGETS_BASE_SEED));
 		}
+		// B-293: the Resonator and Caster archetypes carry a spell; the AI must actually cast it.
+		int32 SpellCasts = 0;
+		for (const FBalanceFightRecord &Record : Records)
+		{
+			SpellCasts += Record.SpellCasts;
+		}
+		AddInfo(FString::Printf(TEXT("spells cast: %d"), SpellCasts));
+		TestTrue(TEXT("the spell archetypes cast their spell"), SpellCasts > 0);
+
 		TArray<FBalanceAggregate> Aggregates;
 		TArray<FBalanceTargetResult> Results;
 		const TArray<FString> Paths = BalanceSimReport::WriteReport(Preset, Matchups, Records, Aggregates, Results);

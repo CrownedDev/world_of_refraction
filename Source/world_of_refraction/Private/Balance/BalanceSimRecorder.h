@@ -29,6 +29,7 @@ public:
 		{
 			Executor->OnDamageDealt.AddUniqueDynamic(this, &UBalanceSimRecorder::RecordDamage);
 			Executor->OnTargetKilled.AddUniqueDynamic(this, &UBalanceSimRecorder::RecordKill);
+			Executor->OnActionStarted.AddUniqueDynamic(this, &UBalanceSimRecorder::RecordAction);
 		}
 		if (Orchestrator)
 		{
@@ -86,6 +87,12 @@ public:
 	void RecordKill(AActor *Killer, AActor *Victim)
 	{
 		Record.HitsToKill.Add(HitsTaken.FindRef(Victim));
+	}
+
+	UFUNCTION()
+	void RecordAction(AActor *Executor, const FAction &Action, int32 EnergyCost)
+	{
+		Record.SpellCasts += Action.ActionType == EActionType::Spell ? 1 : 0;
 	}
 
 	UFUNCTION()

@@ -83,6 +83,8 @@ struct FBalanceFightRecord
 	int32 Hits = 0;
 	int32 Crits = 0;
 	int32 StatusBreaks = 0;
+	/** Spells cast (either side): the spell archetypes really cast what B-293 gave them. */
+	int32 SpellCasts = 0;
 	/** Damage events landed on each combatant that died, before it died, in death order. */
 	TArray<int32> HitsToKill;
 	/** Every damage number in order (the determinism check compares it). */
@@ -96,7 +98,7 @@ struct FBalanceFightRecord
 		return MatchupId == Other.MatchupId && Seed == Other.Seed && Outcome == Other.Outcome && Turns == Other.Turns &&
 			   PartyTurns == Other.PartyTurns && Rounds == Other.Rounds && PartyDamage == Other.PartyDamage &&
 			   EnemyDamage == Other.EnemyDamage && Hits == Other.Hits && Crits == Other.Crits &&
-			   StatusBreaks == Other.StatusBreaks && HitsToKill == Other.HitsToKill && DamageSequence == Other.DamageSequence &&
+			   StatusBreaks == Other.StatusBreaks && SpellCasts == Other.SpellCasts && HitsToKill == Other.HitsToKill && DamageSequence == Other.DamageSequence &&
 			   PartyUncritHits == Other.PartyUncritHits && PartyCritHits == Other.PartyCritHits;
 	}
 
