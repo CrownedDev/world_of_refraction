@@ -2,6 +2,8 @@
 // B-314 (D-111, D-097, Q-314): the run layer over the gear store. Going on a run marks the real home piece (no copy);
 // at run end its wear and anything attached in the run come off; gear found in the run is gone after it, and its tier
 // is remembered for its definition, so the next copy found arrives at that tier. One instance per item throughout.
+// Review fixes: a reloaded layer is discarded, not applied; a home piece on the run can't be dismantled (Q-314b); a
+// run-only piece dismantled before run end is still remembered (Q-314c).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -10,6 +12,7 @@
 #include "Character/CharacterData.h"
 #include "Character/CombatCharacter.h"
 #include "Currency/CurrencyComponent.h"
+#include "Currency/EconomyService.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/FRuntimeAttachedItem.h"
@@ -50,6 +53,7 @@ BEGIN_DEFINE_SPEC(FPoolRunLayerSpec, "WoR.Pool.RunLayer", EAutomationTestFlags_A
 	UPoolSubsystem *Pool = nullptr;
 	UWeaponData *Sword = nullptr;
 	UWeaponData *Dagger = nullptr;
+	UWeaponData *Axe = nullptr;
 	URingData *Adapter = nullptr;
 	UCharacterData *Member = nullptr;
 
@@ -116,6 +120,8 @@ void FPoolRunLayerSpec::Define()
 		Sword->Name = TEXT("Run layer sword");
 		Dagger = NewObject<UWeaponData>(GetTransientPackage());
 		Dagger->Name = TEXT("Run layer dagger");
+		Axe = NewObject<UWeaponData>(GetTransientPackage());
+		Axe->Name = TEXT("Run layer axe");
 		Adapter = NewObject<URingData>(GetTransientPackage());
 		Member = FWoRTestWorld::NewCharacterData();
 		Member->Name = TEXT("Run layer member");
@@ -133,6 +139,7 @@ void FPoolRunLayerSpec::Define()
 		Pool = nullptr;
 		Sword = nullptr;
 		Dagger = nullptr;
+		Axe = nullptr;
 		Adapter = nullptr;
 		Member = nullptr;
 		TestWorld.Reset();
@@ -258,6 +265,56 @@ void FPoolRunLayerSpec::Define()
 		TestTrue(TEXT("the member's copy agrees"), MemberCopy && MemberCopy->Tier == RUN_LAYER_UPGRADED_TIER);
 		TestEqual(TEXT("one instance"), CountInStore(*Pool, SecondDagger), 1);
 		Pool->EndRunLayer();
+	});
+
+	It("discards a layer without putting anything back", [this]()
+	{
+		if (!Pool) return;
+		const FGuid SwordID = AddHomeSword(RUN_LAYER_FULL);
+		Pool->BeginRunLayer();
+		Pool->TakeHomeGearOnRun();
+		FWeaponInventoryEntry Worn = *Pool->FindWeaponInPool(SwordID);
+		Worn.AttachedItem = RunLayerGem(RUN_LAYER_WORN); // as a reloaded save would hold it
+		Pool->UpdateWeapon(Worn);
+
+		Pool->BeginRunLayer(); // a still-open layer is discarded, not applied
+		TestTrue(TEXT("a new layer is open"), Pool->IsRunLayerActive());
+		TestFalse(TEXT("the old mark is gone"), Pool->IsOnRun(SwordID));
+		const FWeaponInventoryEntry *Kept = Pool->FindWeaponInPool(SwordID);
+		TestTrue(TEXT("the gear is left as loaded"), Kept && Kept->AttachedItem.GetCurrentDurability() == RUN_LAYER_WORN);
+
+		Pool->DiscardRunLayer();
+		TestFalse(TEXT("discarded: closed"), Pool->IsRunLayerActive());
+		TestEqual(TEXT("still one sword"), CountInStore(*Pool, SwordID), 1);
+	});
+
+	It("refuses to dismantle a home piece on the run, and remembers a run-only piece dismantled before run end", [this]()
+	{
+		if (!Pool) return;
+		UEconomyService *Economy = TestWorld->GetSubsystem<UEconomyService>();
+		UInventoryComponent *Inventory = SpawnMember();
+		if (!TestNotNull(TEXT("Economy"), Economy) || !TestNotNull(TEXT("Member"), Inventory)) return;
+		AActor *Owner = Inventory->GetOwner();
+		TestTrue(TEXT("a home dagger"), Inventory->AddWeapon(Dagger));
+		const FGuid DaggerID = OwnedID(Inventory, Dagger);
+
+		Pool->BeginRunLayer();
+		Pool->TakeHomeGearOnRun();
+		TestFalse(TEXT("the home dagger on the run is refused"), Economy->DismantleWeapon(Owner, DaggerID));
+		TestEqual(TEXT("the home dagger stays"), CountInStore(*Pool, DaggerID), 1);
+
+		TestTrue(TEXT("an axe found"), Inventory->AddWeapon(Axe));
+		const FGuid AxeID = OwnedID(Inventory, Axe);
+		TestTrue(TEXT("the axe is run-only"), Pool->IsRunOnly(AxeID));
+		FWeaponInventoryEntry Upgraded = *Pool->FindWeaponInPool(AxeID);
+		Upgraded.Tier = RUN_LAYER_UPGRADED_TIER;
+		Pool->UpdateWeapon(Upgraded);
+		TestTrue(TEXT("a run-only axe can be dismantled"), Economy->DismantleWeapon(Owner, AxeID));
+		EItemTier Remembered = EItemTier::F_Tier;
+		TestTrue(TEXT("its tier is remembered at the removal"), Pool->FindRememberedTier(Axe, Remembered) && Remembered == RUN_LAYER_UPGRADED_TIER);
+		TestFalse(TEXT("its mark is gone"), Pool->IsRunOnly(AxeID));
+		Pool->EndRunLayer();
+		TestEqual(TEXT("the home dagger is still home"), CountInStore(*Pool, DaggerID), 1);
 	});
 }
 
