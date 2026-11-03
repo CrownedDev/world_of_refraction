@@ -3,13 +3,46 @@
 #include "Character/Forms/CharacterFormData.h"
 
 #include "Character/CharacterData.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "Materials/MaterialInterface.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
 
+#define LOCTEXT_NAMESPACE "CharacterForms"
+
 const FPrimaryAssetType UCharacterFormData::FormAssetType(TEXT("CharacterForm"));
+
+EFormSwitchRefusal CharacterFormSwitch::CanSwitch(bool bUnlocked, bool bInFight, bool bAtSwitchSpot)
+{
+    if (!bUnlocked)
+    {
+        return EFormSwitchRefusal::Locked;
+    }
+    if (bInFight)
+    {
+        return EFormSwitchRefusal::InFight;
+    }
+    return bAtSwitchSpot ? EFormSwitchRefusal::None : EFormSwitchRefusal::NotAtSwitchSpot;
+}
+
+FText CharacterFormSwitch::GetRefusalText(EFormSwitchRefusal Refusal)
+{
+    switch (Refusal)
+    {
+    case EFormSwitchRefusal::Locked:
+        return LOCTEXT("RefusedLocked", "That form isn't unlocked yet.");
+    case EFormSwitchRefusal::InFight:
+        return LOCTEXT("RefusedInFight", "You can't change form in a fight.");
+    case EFormSwitchRefusal::NotAtSwitchSpot:
+        return LOCTEXT("RefusedNotAtSpot", "Change form in the hub or at a rest spot.");
+    default:
+        return FText::GetEmpty();
+    }
+}
 
 float CharacterFormMeter::GetFightFill(const TArray<FCharacterFormPiece> &Reference, const TArray<FCharacterFormPiece> &Equipped)
 {
@@ -82,6 +115,39 @@ TArray<FCharacterFormPiece> UCharacterFormData::GetReferencePieces() const
     return Pieces;
 }
 
+FText UCharacterFormData::GetRevealedLoadoutText() const
+{
+    TArray<FText> Lines;
+    for (const FCharacterFormPiece &Piece : GetReferencePieces())
+    {
+        // TODO: skills carry no player-facing FText name yet; the gear name is the authored FString (placeholder screen).
+        const UEquipmentDataBase *Gear = Cast<UEquipmentDataBase>(Piece.Asset);
+        const FText Name = FText::FromString(Gear ? Gear->GetDisplayName() : GetNameSafe(Piece.Asset));
+        Lines.Add(Piece.bHasTier ? FText::Format(LOCTEXT("RevealGearRow", "- {0} ({1})"), Name, FText::FromString(TierHelpers::GetTierName(Piece.Tier)))
+                                 : FText::Format(LOCTEXT("RevealSkillRow", "- {0}"), Name));
+    }
+    return FText::Join(FText::FromString(TEXT("\n")), Lines);
+}
+
+bool UCharacterFormData::DressMesh(USkeletalMeshComponent &Mesh) const
+{
+    USkeletalMesh *NewMesh = FormMesh.LoadSynchronous();
+    if (!NewMesh)
+    {
+        return false;
+    }
+    Mesh.EmptyOverrideMaterials();
+    Mesh.SetSkeletalMesh(NewMesh);
+    for (int32 Index = 0; Index < FormMaterials.Num(); ++Index)
+    {
+        if (UMaterialInterface *Material = FormMaterials[Index].LoadSynchronous())
+        {
+            Mesh.SetMaterial(Index, Material);
+        }
+    }
+    return true;
+}
+
 FString UCharacterFormData::GetFormString() const
 {
     const TArray<FCharacterFormPiece> Pieces = GetReferencePieces();
@@ -99,3 +165,5 @@ void UCharacterFormData::PrintForm() const
 {
     UE_LOG(LogTemp, Log, TEXT("%s"), *GetFormString());
 }
+
+#undef LOCTEXT_NAMESPACE

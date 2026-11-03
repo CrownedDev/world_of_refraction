@@ -246,8 +246,8 @@ public:
     /** Def-identity carriers (R1): same partition as the flat accessors, but each effect
      *  carries its source def's id + bundle index for R2's per-definition ID packing.
      *  Additive — nothing reads these yet. */
-    TArray<FGatheredEffect> GetStartingEffectsGathered(const UCharacterData *Wearer = nullptr) const;
-    TArray<FGatheredEffect> GetConditionalEffectsGathered(const UCharacterData *Wearer = nullptr) const;
+    TArray<FGatheredEffect> GetStartingEffectsGathered(const UCharacterData *Wearer = nullptr, const UCharacterData *WornSkin = nullptr) const;
+    TArray<FGatheredEffect> GetConditionalEffectsGathered(const UCharacterData *Wearer = nullptr, const UCharacterData *WornSkin = nullptr) const;
 
     // ==================== BOUND GEAR (B-192, D-033) ====================
 
@@ -264,8 +264,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
     TArray<FBoundMemory> BoundMemories;
 
-    /** True when Wearer is this item's owner (never for an unbound item). */
-    bool IsBoundBonusActive(const UCharacterData *Wearer) const;
+    /** True when Wearer is this item's owner, or wears the owner's skin (B-279b: WornSkin is the skin's
+     *  character). Never for an unbound item. */
+    bool IsBoundBonusActive(const UCharacterData *Wearer, const UCharacterData *WornSkin = nullptr) const;
 
     /** The bound bonus line for Wearer's view of the item: empty (hidden) unless Wearer is the
      *  owner (D-033). For the item description. */

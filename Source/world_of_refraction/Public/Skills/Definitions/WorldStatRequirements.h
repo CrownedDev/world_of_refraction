@@ -85,7 +85,8 @@ struct WORLD_OF_REFRACTION_API FWorldStatRequirements
     float CalculatePenalty(const UCharacterData *Character) const;
 
     /** A weapon's damage factor from its requirement (D-082, Q-146c, Q-162): each pillar's
-     *  requirement-gap ladder value clamped to [WEAPON_REQ_FACTOR_MIN, 1]; the worst pillar decides.
+     *  requirement-gap ladder value clamped to [the tuning floor (WEAPON_REQ_FACTOR_MIN), 1]; the worst pillar decides.
+     *  It scales the weapon part only (B-220), never the skill part.
      *  1.0 when every pillar is met (being over gives nothing extra) or there is no character. */
     float GetWeaponRequirementFactor(const UCharacterData *Character) const;
 
@@ -103,8 +104,9 @@ struct WORLD_OF_REFRACTION_API FWorldStatRequirements
 
 namespace WeaponRequirement
 {
-    /** Floor on the weapon requirement factor. The ladder's lowest rung (gap +5) is 0.32, so this
-     *  only bites if set above that. */
-    constexpr float WEAPON_REQ_FACTOR_MIN = 0.25f; // TODO: tune
+    /** Floor on the weapon requirement factor (Crown, BaselineNumbers.md: at most half the weapon part is lost,
+     *  like Elden Ring's flat under-requirement penalty). The ladder's lowest rung (gap +5) is 0.32, so the floor
+     *  bites from gap +4 (0.50) down. The C++ fallback of UCombatTuningData::WeaponReqFactorMin (B-224). */
+    constexpr float WEAPON_REQ_FACTOR_MIN = 0.5f;
     constexpr float WEAPON_REQ_FACTOR_MAX = 1.0f;
 }

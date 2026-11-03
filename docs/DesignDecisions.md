@@ -3001,6 +3001,24 @@ Moved here once applied. Newest first.
 **Recommendation:** as built. Monster Hunter's equipment sets: the gear you wear changes freely, a set is kept only when you save it; Destiny 2's loadouts likewise save on an explicit action. Remembering the active loadout is a small follow-up if PIE shows players miss it.
 **Notes for Claude:** applied in B-311. If Crown wants lore loadouts locked, gate the loadout edit calls on `bLore`.
 
+### Q-224 — Elite rank: where it sits and whether it can be fled
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-224, cloud) · **Blocks:** —
+**Question:** The Decided list gives Elite enemies x1.5 HP, but `EEncounterRank` (D-091) only had Normal / Mini-boss / Boss. Elite had to be appended after Boss (the enum is authored on encounters, so the old values can't move). Does an Elite fight count as a normal fight for Flee, and does it rank below a mini-boss when several teams are caught in one arena?
+**Context:** `Public/Combat/Encounter/EEncounterRank.h` (Elite appended; `EncounterRankSeverity` orders Normal < Elite < Mini-boss < Boss); `Public/Combat/FleeRules.h` (`CanFleeRank`); `Private/Combat/Encounter/EncounterComponent.cpp` (`HarderEncounterRank`, "the hardest rank rules the fight"); `TrialGate::ApplyEnemyRankHealth`.
+**Options:** **A** (as built) Elite is a beefier normal fight: fleeable, below a mini-boss, x1.5 HP. **B** Elite can't be fled, like a mini-boss.
+**Recommendation:** A. Hades' elite rooms and Slay the Spire's elites are stronger normal encounters, not bosses; D-091's "flee a normal fight, not a mini-boss or boss" wording keeps its meaning. No encounter is authored Elite yet, so nothing changes in play until one is.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-224. If B, flip `CanFleeRank` and ET-21.
+
+### Q-224b — Base crit x1.25: how fast the crit-damage stat reaches x1.5
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-224, cloud) · **Blocks:** —
+**Question:** With `CRIT_DMG_BASE` 1.0 -> 1.25 and the stat cap kept at x1.5, the stat ramp has half the room. Keep the old per-point rate (the cap is hit at half investment, the rest is wasted) or derive the rate from (cap - base) so full investment lands on the cap, which also halves what each gear crit-damage point gives?
+**Context:** `Public/Combat/CombatConstants.h` (`CRIT_DMG_BASE`, `CRIT_DAMAGE_STAT_CAP`, `CRIT_DAMAGE_PER_POINT`); `Private/Character/CharacterDataComponent.cpp` `GetStatLayers` (CritDamage: the same per-point for the stat ramp and the gear factor).
+**Options:** **A** (as built) `CRIT_DAMAGE_PER_POINT = (CRIT_DAMAGE_STAT_CAP - CRIT_DMG_BASE) / STAT_DERIVE_DENOM`: full investment = x1.5, no wasted points; a gear crit point gives half what it did. **B** keep `STAT_MULT_PER_POINT`: gear unchanged, the stat caps at half investment. **C** raise the stat cap to x1.75 and keep the rate (changes the Decided "x1.5 stats" cap).
+**Recommendation:** A: the header's own rule ("per-point constants derive from (cap − base) so max investment hits the cap exactly") and the Decided caps both hold. Monster Hunter's Critical Boost likewise adds a fixed +15% in three steps over the 1.25 base.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-224. If B or C, change one constant.
+
 ### Q-321 — Per-character gear: who owns what nobody owned
 
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-321) · **Blocks:** —
@@ -3009,11 +3027,27 @@ Moved here once applied. Newest first.
 **Recommendation:** as built. Final Fantasy X-2 / Dragon Quest guest members borrow from the party's stock and leave nothing behind; a temporary member owning gear would lose it when they leave. The leader is the player's own character, the natural default holder (Dragon Quest's bag).
 **Notes for Claude:** applied in B-321. B-323's give can move a piece to anyone; if Crown wants the recruit to own its pickups, drop the `bDrawsWholeArmoury` branch in `PushGearToPool`.
 
+### Q-279b — Skins: who wears one, and where the base body changes
+
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-279b) · **Blocks:** —
+**Question:** (1) In a party of several characters, which one wears the player's skin and gets its bound bonus? (2) Where can the player switch Manny / Quinn after the start? (3) With no skin and Manny, should the game re-dress the pawn?
+**Options / as built:** (1) **the player's own character**: the local party's first permanent member (a run-only recruit never). (2) **where skins switch**: the hub or a rest spot, never in a fight. (3) **no**: the authored pawn is left as it is; only a skin or Quinn re-dresses it. Combat actors aren't dressed yet (TODO with the HUD / co-op work).
+**Recommendation:** as built. Mortal Shell: only the player's Foundling takes a shell; companions don't. Elden Ring changes the body only at the Roundtable Hold's mirror, a safe hub spot, which matches Crown's skin rule here (2026-10-28: hub and rest spots); one rule for both is simpler to learn.
+**Notes for Claude:** applied in B-279b. A co-op host trusts a client's unlocked skin (TODO B-233+). If Crown wants the base body fixed after the start, drop the Manny / Quinn buttons from `wor.UI.Forms`.
+
+### Q-224c — Rank HP: the whole fight, or each team
+
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-224 desktop build) · **Blocks:** —
+**Question:** B-224 multiplies every enemy's HP by the fight's single rank. When B-184 catches a Boss team with a normal team, the normal enemies get x6 too; a form's mini-boss teammates get x3. Should the rank's HP apply per team (or per mini-boss) instead?
+**Options:** (A) per team: each caught team's own rank sets its members' HP; (B) as built: the hardest rank for everyone.
+**Recommendation:** **A**. Final Fantasy XVI / Persona 5 boss fights with adds keep the adds at normal toughness; the boss alone carries the boss HP. BaselineNumbers' round targets (8-10 / 12-14) assume one boss, not a whole team at boss HP.
+**Notes for Claude:** queued as B-224b (with the enemy HP by tier power TODO). The fight's rank still rules fleeing (D-091).
+
 ### Q-322b — Pouch details D-117 / Q-322 left open
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-322, cloud) · **Blocks:** —
 **Question:** Three details of the pouch per character: (1) where a save from before B-322 puts the party's one pouch and any slots bought for it; (2) where an item added with no character (an enemy's drop into the pool, a debug add) goes; (3) whether a run-only recruit has a pouch.
 **Context:** `Private/Pool/PoolSubsystem.cpp` (`AdoptLegacyCarriedItems`, `CarryOrStore` with `NAME_None`); `Private/Inventory/InventoryComponent.cpp` (`DrawSharedGear`, `InitializeFromPool`); B-321 sent an old save's unowned gear to the leader the same way (Q-321).
-**Options / as built:** (1) **the party leader's pouch**, with the bought slots (B-321's rule for gear); (2) **straight to the shared storage**; (3) **yes, 10 slots** (a run-only recruit carries items like anyone; its pouch is lost with it at run end, as its gear is).
+**Options / as built:** (1) **the party leader's pouch**, with the bought slots (B-321's rule for gear); (2) **straight to the shared storage**; (3) **yes, 10 slots** (a run-only recruit carries items like anyone; at run end its pouch goes to the shared storage (D-097: items are never thrown away), as its gear goes back to the pool; it stays banked, so recruiting it again brings no second set of starting items).
 **Recommendation:** as built. Baldur's Gate 3 gives every companion, temporary ones too, a full inventory; what the party owned before goes to the character the player controls.
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-322. If (3) should be "no pouch", bind run-only recruits to the leader's pouch instead.
@@ -3025,6 +3059,6 @@ Moved here once applied. Newest first.
 **Options / as built:** (1) **weapons and adapters only**; an evolution gives "Evolutions can't be given yet" (TODO: with B-324's chest, which needs the same detach rule). (2) **let it through**: the owner changes; the giver's next draw strips the piece and refills its primary with a warning (B-320's guard), as an old save does.
 **Recommendation:** as built. (1) keeps B-323 to one instance kind moving; (2) matches how B-321 treats gear that changed hands while a member was away. BG3 only allows trades between present companions, which the CommonUI screen can enforce later.
 **Answer (Crown):** _write here_
-**Notes for Claude:** applied in B-323. If (2) should refuse, `TryGiveGear` returns a refusal when `FindMemberInventory` is null.
+**Notes for Claude:** applied in B-323. If (2) should refuse, `TryGiveGear` returns a refusal when `FindMemberInventory` is null. Desktop build added two defaults: (3) a pouch stack **can** be given to a run-only recruit (gear can't): its pouch goes to storage at run end (B-322 `ReleasePouch`), so nothing is lost; (4) a receiver that isn't in the level gets no D-115 duplicate prompt at its next draw (the piece still arrives; the prompt comes from the live give). TODO: check for duplicates at the draw if Crown wants it.
 **Added by B-324 (same defaults):** a run-only recruit can't be given gear nor take it from the chest (Q-321: it owns nothing, and `DismissRunMembers` releases wearers, not owners), and its whole-armoury draw skips chest gear; a put from an unspawned member releases any stale wearer.
 

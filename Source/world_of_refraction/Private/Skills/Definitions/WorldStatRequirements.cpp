@@ -4,6 +4,7 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Damage/TierGapConstants.h"
+#include "Combat/Tuning/CombatTuningData.h"
 
 FWorldPillarLevels FWorldPillarLevels::FromAsset(const UCharacterData &Character)
 {
@@ -146,10 +147,12 @@ float FWorldStatRequirements::GetWeaponRequirementFactor(const UCharacterData *C
 
 float FWorldStatRequirements::GetWeaponRequirementFactor(const FWorldPillarLevels &Levels) const
 {
-    auto PillarFactor = [](int32 Required, int32 CharLevel)
+    // B-224: the floor is tuning data (C++ fallback WEAPON_REQ_FACTOR_MIN).
+    const float Floor = WoRTuning::Get().WeaponReqFactorMin;
+    auto PillarFactor = [Floor](int32 Required, int32 CharLevel)
     {
-        return FMath::Clamp(TierGapDamage::GetRequirementGapMultiplier(Required - CharLevel),
-                            WeaponRequirement::WEAPON_REQ_FACTOR_MIN, WeaponRequirement::WEAPON_REQ_FACTOR_MAX);
+        return FMath::Clamp(TierGapDamage::GetRequirementGapMultiplier(Required - CharLevel), Floor,
+                            WeaponRequirement::WEAPON_REQ_FACTOR_MAX);
     };
     return FMath::Min3(PillarFactor(RequiredWorldMind, Levels.Mind), PillarFactor(RequiredWorldBody, Levels.Body),
                        PillarFactor(RequiredWorldSpirit, Levels.Spirit));

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Combat/Encounter/EEncounterRank.h"
 #include "TrialGate.generated.h"
 
 class AActor;
@@ -57,4 +58,13 @@ namespace TrialGate
 	 *  buffs (or debuffs below 1), then a full refill to the new max. No-op at 1. Returns false when Enemy
 	 *  has no character data or the effect manager is missing. */
 	bool ApplyEnemyStrength(AActor *Enemy, float StrengthMultiplier);
+
+	/** The rank's max HP multiplier (B-224, BaselineNumbers.md): the EnemyRankHealth tuning ladder, else
+	 *  Normal 1 / Elite 1.5 / Mini-boss 3 / Boss 6. */
+	float GetRankHealthMultiplier(EEncounterRank Rank);
+
+	/** Gives Enemy its rank's HP on top of ApplyEnemyStrength (HP only, no damage): a permanent, uncleansable
+	 *  max-HP buff, then a full refill. MaxHP percents add up, so the rank's share is Strength x (rank - 1),
+	 *  making the total Strength x rank. No-op for a x1 rank. False as ApplyEnemyStrength. */
+	bool ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EEncounterRank Rank);
 }

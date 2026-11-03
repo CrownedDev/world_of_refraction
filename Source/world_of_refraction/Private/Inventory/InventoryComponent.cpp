@@ -1824,9 +1824,11 @@ void UInventoryComponent::HandlePoolGearChanged(FGuid GearID)
     const FName GearOwner = Pool->GetGearOwner(GearID);
     const bool bOthers = !bDrawsWholeArmoury && !GearOwner.IsNone() && GearOwner != SharedGearKey;
     // B-323 (D-115): a piece given to this member that it already owns a copy of waits for the duplicate choice.
-    const auto NoteDuplicate = [this, &GearID](const FGuid &OwnedID, const FString &AssetName)
+    // Only a piece now this member's own: a run-only recruit hears the whole armoury, and unowned gear isn't a gift.
+    const bool bMineNow = !bDrawsWholeArmoury && !GearOwner.IsNone() && GearOwner == SharedGearKey;
+    const auto NoteDuplicate = [this, &GearID, bMineNow](const FGuid &OwnedID, const FString &AssetName)
     {
-        if (OwnedID.IsValid() && OwnedID != GearID)
+        if (bMineNow && OwnedID.IsValid() && OwnedID != GearID)
         {
             UE_LOG(LogTemp, Log, TEXT("[Inventory] %s: received a second %s - choose Gold or dismantle (wor.UI.Duplicates)"),
                    *GetNameSafe(GetOwner()), *AssetName);

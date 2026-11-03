@@ -481,6 +481,24 @@ bool UPoolSubsystem::MoveToStorage(FName CharacterKey, const FCrystalId &Id, int
     return true;
 }
 
+int32 UPoolSubsystem::ReleasePouch(FName CharacterKey)
+{
+    FPoolPouch Released;
+    if (!Pouches.RemoveAndCopyValue(CharacterKey, Released))
+    {
+        return 0;
+    }
+    int32 Moved = 0;
+    for (const TPair<FCrystalId, int32> &Stack : Released.Stacks)
+    {
+        AddCrystalToPool(Stack.Key, Stack.Value);
+        Moved += Stack.Value;
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] %s leaves: %d carried item(s) go to storage"), *CharacterKey.ToString(), Moved);
+    OnPoolItemsChanged.Broadcast();
+    return Moved;
+}
+
 bool UPoolSubsystem::MoveToCarried(FName CharacterKey, const FCrystalId &Id, int32 Count)
 {
     if (Count <= 0 || GetStoredCount(Id) < Count || GetCarryRoom(CharacterKey, Id) < Count)
@@ -532,12 +550,13 @@ void UPoolSubsystem::RestoreLegacyCarriedItems(const TMap<FCrystalId, int32> &In
 
 int32 UPoolSubsystem::AdoptLegacyCarriedItems(FName LeaderKey)
 {
-    if (LegacyCarriedItems.Stacks.IsEmpty() || LeaderKey.IsNone())
+    if (!HasLegacyCarriedItems() || LeaderKey.IsNone())
     {
         return 0;
     }
     // The old party pouch's extra slots (if any were bought) go with it.
-    FindOrAddPouch(LeaderKey).SlotCount = FMath::Max(GetPouch(LeaderKey).SlotCount, LegacyCarriedItems.SlotCount);
+    const int32 LegacySlots = LegacyCarriedItems.SlotCount;
+    FindOrAddPouch(LeaderKey).SlotCount = FMath::Max(GetPouch(LeaderKey).SlotCount, LegacySlots);
     const TMap<FCrystalId, int32> Legacy = MoveTemp(LegacyCarriedItems.Stacks);
     LegacyCarriedItems = FPoolPouch();
     int32 Stored = 0;
@@ -545,8 +564,8 @@ int32 UPoolSubsystem::AdoptLegacyCarriedItems(FName LeaderKey)
     {
         Stored += CarryOrStore(LeaderKey, Pair.Key, Pair.Value);
     }
-    UE_LOG(LogTemp, Log, TEXT("[Pool] An older save's party pouch (%d stack(s)) is now %s's; %d item(s) went to storage"), Legacy.Num(),
-           *FPaths::GetBaseFilename(LeaderKey.ToString()), Stored);
+    UE_LOG(LogTemp, Log, TEXT("[Pool] An older save's party pouch (%d stack(s), %d slot(s)) is now %s's; %d item(s) went to storage"), Legacy.Num(),
+           LegacySlots, *FPaths::GetBaseFilename(LeaderKey.ToString()), Stored);
     return Legacy.Num();
 }
 

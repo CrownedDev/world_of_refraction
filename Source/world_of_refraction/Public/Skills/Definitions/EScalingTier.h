@@ -90,11 +90,17 @@ inline float GetScalingFraction(ESubStat Stat, float EffectiveValue)
         // StatusMultiplier, SpellSpeed, ActionSpeed
         case ESubStat::RawDamage:
         case ESubStat::SpellDamage:
-        case ESubStat::CritDamage:
         case ESubStat::StatusMultiplier:
         case ESubStat::SpellSpeed:
         case ESubStat::ActionSpeed:
             return StatFraction(EffectiveValue); // max(0, v - 1)
+
+        // B-224 (Q-224b): crit damage starts at CRIT_DMG_BASE (x1.25), not 1.0. Zero without investment;
+        // the stat cap still gives the 0.5 the other multiplier stats give (CAP - 1).
+        case ESubStat::CritDamage:
+            return FMath::Max(0.0f, (EffectiveValue - CombatConstants::CRIT_DMG_BASE) *
+                                        (CombatConstants::CRIT_DAMAGE_STAT_CAP - 1.0f) /
+                                        (CombatConstants::CRIT_DAMAGE_STAT_CAP - CombatConstants::CRIT_DMG_BASE));
 
         // Bucket B — fraction-family [0..0.5]: Defense, Resistance (read via the capped accessor)
         case ESubStat::Defense:

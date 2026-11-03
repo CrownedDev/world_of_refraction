@@ -233,7 +233,7 @@ public:
 	float GetCritChanceTransientFactor(AActor *Attacker) const;
 
 	/**
-	 * Get the attacker's full crit-DAMAGE multiplier (CRIT_DMG_BASE x1.0 + CritDamage stat ramp to
+	 * Get the attacker's full crit-DAMAGE multiplier (CRIT_DMG_BASE x1.25 + CritDamage stat ramp to
 	 * x1.5, then BonusCritDamage gear + ModifyCritDamage transient toward x2.5, D-034). The same value the
 	 * live crit path applies; public so the AI scorer can value crits at the attacker's real crit damage.
 	 */
@@ -268,6 +268,11 @@ public:
 	// callers that already hold an FDamageCalculationResult.
 	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Debug")
 	void DebugPrintCalculation(const FDamageCalculationResult &Result) const;
+
+	/** The defender's share of the status-effect damage modifier from whole-number percents: (1 - Damage Taken
+	 *  Down, capped at DAMAGE_TAKEN_DOWN_CAP_PERCENT) x (1 + Damage Taken Up, uncapped). Pure, so a spec can pin
+	 *  the cap (B-288). */
+	static float GetDamageTakenFactor(float ReduceDamageTakenPercent, float IncreaseDamageTakenPercent);
 
 private:
 	/** Get CharacterData from actor */

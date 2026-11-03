@@ -32,6 +32,7 @@
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Crystals/FBrokenCrystalPayload.h"
 #include "Engine/GameInstance.h"
+#include "Character/Forms/CharacterFormSubsystem.h"
 #include "Engine/Engine.h"
 
 #include "Skills/Definitions/SkillDataBase.h"
@@ -4181,6 +4182,18 @@ UAnimMontage *ULoadoutComponent::GetItemUseAnimation(bool bIsSelfTarget) const
     return bIsSelfTarget ? CharData->Cosmetics->ItemUseSelfMontage : CharData->Cosmetics->ItemUseTargetMontage;
 }
 
+namespace LoadoutBoundSkin
+{
+    /** B-279b (D-033): the character whose skin Wearer wears, so its bound gear gets the bonus; null without one. */
+    const UCharacterData *GetWornSkinFor(const UActorComponent &Component, const UCharacterData *Wearer)
+    {
+        const UWorld *World = Component.GetWorld();
+        const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+        const UCharacterFormSubsystem *Forms = GI ? GI->GetSubsystem<UCharacterFormSubsystem>() : nullptr;
+        return Forms ? Forms->GetSkinCharacterFor(Wearer) : nullptr;
+    }
+}
+
 UCharacterData *ULoadoutComponent::GetOwnerCharacterData() const
 {
     if (!GetOwner())
@@ -4396,15 +4409,16 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
     TArray<FGatheredEffect> Result;
 
     const FCombatLoadout &Loadout = GetActiveLoadout();
-    // B-192: bound gear adds its bonus only on its owner.
+    // B-192: bound gear adds its bonus only on its owner (B-279b: or in the owner's skin).
     const UCharacterData *Wearer = GetOwnerCharacterData();
+    const UCharacterData *WornSkin = LoadoutBoundSkin::GetWornSkinFor(*this, Wearer);
 
     // B-306 (Q-244): the gear that counts, one rule for stats, resistances and effects.
-    ForEachContributingGear([&Result, Wearer](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
+    ForEachContributingGear([&Result, Wearer, WornSkin](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
     {
         const UEquipmentDataBase *Asset = Weapon ? static_cast<const UEquipmentDataBase *>(Weapon->WeaponEntry.Weapon)
                                                  : static_cast<const UEquipmentDataBase *>(Adapter->RingEntry.Ring);
-        Result.Append(Asset->GetStartingEffectsGathered(Wearer));
+        Result.Append(Asset->GetStartingEffectsGathered(Wearer, WornSkin));
     });
 
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
@@ -4424,15 +4438,16 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
     TArray<FGatheredEffect> Result;
 
     const FCombatLoadout &Loadout = GetActiveLoadout();
-    // B-192: bound gear adds its bonus only on its owner.
+    // B-192: bound gear adds its bonus only on its owner (B-279b: or in the owner's skin).
     const UCharacterData *Wearer = GetOwnerCharacterData();
+    const UCharacterData *WornSkin = LoadoutBoundSkin::GetWornSkinFor(*this, Wearer);
 
     // B-306 (Q-244): the gear that counts, one rule for stats, resistances and effects.
-    ForEachContributingGear([&Result, Wearer](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
+    ForEachContributingGear([&Result, Wearer, WornSkin](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
     {
         const UEquipmentDataBase *Asset = Weapon ? static_cast<const UEquipmentDataBase *>(Weapon->WeaponEntry.Weapon)
                                                  : static_cast<const UEquipmentDataBase *>(Adapter->RingEntry.Ring);
-        Result.Append(Asset->GetConditionalEffectsGathered(Wearer));
+        Result.Append(Asset->GetConditionalEffectsGathered(Wearer, WornSkin));
     });
 
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)

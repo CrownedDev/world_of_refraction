@@ -246,7 +246,7 @@ enum class ESkillEffectType : uint8
     // Appended (not mid-inserted) to preserve enum-by-value stamping. The debuff side of the
     // crit-DAMAGE consumable: ModifyCritDamage ("Crit Damage Up") is the BUFF, this is its paired
     // debuff. GetCritDamageMultiplier reads (Max(0,ModifyCritDamage) − CritDamageDebuff) and floors the
-    // final multiplier at CRIT_DMG_BASE (1.0) — a debuff drags crit damage toward a normal hit, never below.
+    // final multiplier at CRIT_DMG_BASE (x1.25, B-224) — a debuff drags crit damage toward a normal hit, never below.
     CritDamageDebuff UMETA(DisplayName = "Crit Damage Debuff"),
 
     // ==================== REFLEX (transient — Cluster B-4) ====================

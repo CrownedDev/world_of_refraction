@@ -5,6 +5,7 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CombatCharacter.h"
+#include "Character/Forms/CharacterFormSubsystem.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Boss/BossPhaseComponent.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
@@ -191,6 +192,8 @@ void ABattleGameMode::BootstrapCombat()
         }
         LocalParty.Add(Spawned);
     }
+    // B-279d: an authored character fought as a mini-boss wears its form (any enemy whose character has one, §1b).
+    const UCharacterFormSubsystem *Forms = GetGameInstance()->GetSubsystem<UCharacterFormSubsystem>();
     for (int32 i = 0; i < OpposingPartyData.Num(); ++i)
     {
         const FVector Location = Origin + FVector(BattleGameModeConstants::TEAM_X_OFFSET,
@@ -198,6 +201,12 @@ void ABattleGameMode::BootstrapCombat()
         if (APawn *Spawned = SpawnCombatant(EnemyPawnClass, OpposingPartyData[i], FTransform(Location)))
         {
             OpposingParty.Add(Spawned);
+            const UCharacterFormData *Form = Forms ? Forms->FindFormForCharacter(OpposingPartyData[i]) : nullptr;
+            const ACharacter *FormPawn = Cast<ACharacter>(Spawned);
+            if (Form && FormPawn && FormPawn->GetMesh() && Form->DressMesh(*FormPawn->GetMesh()))
+            {
+                UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] %s fights as form %s"), *GetNameSafe(OpposingPartyData[i]), *Form->GetName());
+            }
         }
     }
     if (LocalParty.Num() == 0 || OpposingParty.Num() == 0)
@@ -263,10 +272,16 @@ void ABattleGameMode::BootstrapCombat()
     const float EnemyStrength = TrialRun->GetEnemyStrengthMultiplier() * AEnemyZone::GetTierStrengthMultiplier(Zone.Tier);
     for (AActor *Enemy : OpposingParty)
     {
+        // B-224: the encounter rank multiplies max HP on top (Normal 1 / Elite 1.5 / Mini-boss 3 / Boss 6).
         if (!TrialGate::ApplyEnemyStrength(Enemy, EnemyStrength))
         {
             UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s: trial difficulty not applied (no character data or effect manager)"),
                    *GetNameSafe(Enemy));
+        }
+        else if (!TrialGate::ApplyEnemyRankHealth(Enemy, EnemyStrength, TrialRun->GetPendingRank()))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s: rank health (%s) not applied"),
+                   *GetNameSafe(Enemy), *UEnum::GetValueAsString(TrialRun->GetPendingRank()));
         }
     }
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Trial difficulty %s, zone tier %d: enemy strength x%.2f"),

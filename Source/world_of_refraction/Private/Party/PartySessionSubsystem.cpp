@@ -425,6 +425,7 @@ int32 UPartySessionSubsystem::DismissRunMembers()
 				Pool->ReleaseWearer(GearID);
 			}
 			Pool->NoteClashes(Key, {});
+			Pool->ReleasePouch(Key);
 		}
 	}
 	const int32 Left = Party ? Party->Members.RemoveAll([](const FPartyMember &Member) { return Member.bRunOnly; }) : 0;

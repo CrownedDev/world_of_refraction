@@ -173,6 +173,23 @@ void FGiveSpec::Define()
 		TestEqual(TEXT("Still A's"), Pool->GetGearOwner(DaggerID), KeyOf(0));
 	});
 
+	It("refuses gear to a run-only recruit, and the recruit hears no duplicate for another member's new piece", [this]()
+	{
+		if (!Pool) return;
+		TestWorld->GetSubsystem<UPartySessionSubsystem>()->GetLocalParty()->Members[1].bRunOnly = true;
+		UInventoryComponent *A = SpawnMember(0, true, false);
+		UInventoryComponent *Recruit = SpawnMember(1, false, false);
+		if (!A || !Recruit) return;
+		const FGuid DaggerID = OwnedID(A, Dagger);
+		TestFalse(TEXT("A recruit can't be given gear"), WoRGive::TryGiveGear(TestWorld->GetWorld(), KeyOf(0), KeyOf(1), DaggerID).IsEmpty());
+		TestEqual(TEXT("Still A's"), Pool->GetGearOwner(DaggerID), KeyOf(0));
+
+		UDuplicateGearRecorder *Recorder = NewObject<UDuplicateGearRecorder>(GetTransientPackage());
+		Recorder->Listen(Recruit);
+		A->AddWeapon(Dagger);
+		TestEqual(TEXT("A's second dagger is no gift to the recruit"), Recorder->NewIDs.Num(), 0);
+	});
+
 	It("wakes the receiver's duplicate choice when it already owns a copy (D-115)", [this]()
 	{
 		if (!Pool) return;
