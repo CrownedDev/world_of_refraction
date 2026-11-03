@@ -74,8 +74,10 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     }
     // B-314 (D-111, Q-314): the run layer opens. Every home piece goes along as it is now (rest spots reach everything
     // you own, D-097) until B-116's run purchase picks pieces with TakeOnRun; gear found or bought in the run is run-only.
+    // A layer left open by a run that never exited is ended (applied) first: its gear is this session's, not reloaded.
     if (UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>())
     {
+        Pool->EndRunLayer();
         Pool->BeginRunLayer();
         Pool->TakeHomeGearOnRun();
     }
@@ -415,6 +417,7 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     if (Pool && IsRunActive())
     {
         UE_LOG(LogTemp, Log, TEXT("[TrialRun] Resumed run: the run layer starts afresh from the saved gear (TODO: B-314b saves it)"));
+        Pool->DiscardRunLayer(); // the store was reloaded: an open layer's home states are stale
         Pool->BeginRunLayer();
         Pool->TakeHomeGearOnRun();
     }

@@ -1922,27 +1922,24 @@ void UInventoryComponent::PushGearToPool(const FGuid &GearID)
     }
     if (FWeaponInventoryEntry *Weapon = FindOwned(Weapons, GearID))
     {
-        if (bFoundOnRun)
+        if (bFoundOnRun && Pool->MarkRunOnly(GearID))
         {
-            Pool->MarkRunOnly(GearID);
             Pool->ApplyUpgradeMemory(*Weapon);
         }
         Pool->UpdateWeapon(*Weapon);
     }
     else if (FRingInventoryEntry *Ring = FindOwned(Rings, GearID))
     {
-        if (bFoundOnRun)
+        if (bFoundOnRun && Pool->MarkRunOnly(GearID))
         {
-            Pool->MarkRunOnly(GearID);
             Pool->ApplyUpgradeMemory(*Ring);
         }
         Pool->UpdateRing(*Ring);
     }
     else if (FEvolutionInventoryEntry *Evolution = FindOwnedEvolution(GetOwner(), GearID))
     {
-        if (bFoundOnRun)
+        if (bFoundOnRun && Pool->MarkRunOnly(GearID))
         {
-            Pool->MarkRunOnly(GearID);
             Pool->ApplyUpgradeMemory(*Evolution);
         }
         Pool->UpdateEvolution(*Evolution);
