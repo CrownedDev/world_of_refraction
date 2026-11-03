@@ -2886,6 +2886,23 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. Q-032 defines our Reflect as a share of the HP the hit took (an overkill reflects only the HP the target had), and Q-044e B already made the absorbers a deliberate difference from the deckbuilder ("negate 5" is exactly 5 HP you would have lost). Under A a fully stopped hit reflects nothing, and it keeps one reading of "what the hit did" for every after-hit effect. Not lore.
 **Notes for Claude:** applied (feature/B-042j-absorb-family, UNBUILT). "Reflect on the same shape" (one GE by tag and element, like the absorbers) moves to B-042j2 with the rest of D-092.
 
+### Q-297 — Do Emerald bonus turns wait at the 2:1 cap?
+**Status:** OPEN · **Raised:** 2026-11-03 (B-297) · **Blocks:** B-297b
+**Question:** D-052 says an Emerald bonus turn still respects the 2:1 cap (D-049). ET-12 says an S Emerald grants two turns back to back at once. Used on the holder's own turn, that is 3 turns in a row before the opponent acts, past the cap. Which wins?
+**Options:**
+- **A** bonus turns ignore the cap (as built): an Emerald is a spent consumable, so it buys turns past the speed limit. ET-12 stays as written.
+- **B** a bonus turn waits at the cap: it fires once an opponent has acted. An S Emerald's two turns come one before and one after the opponent's next turn (ET-12 changes).
+- **C** an S Emerald grants one bonus turn plus one turn of delay removed, so it never makes 3 in a row.
+**Recommendation:** A. Items that grant extra actions beyond the speed system, such as Octopath Traveler's Boost and Final Fantasy X's Quick Hit / Haste stacking, are well received because they feel like a payoff for spending a resource. The cap's job (D-049) is to stop stacked speed stats locking enemies out, and a one-off consumable can't do that. It keeps ET-12 and the current specs unchanged. Not lore, but it changes a ruling either way (D-052 or ET-12), so it's Crown's call.
+**Notes for Claude:** B-297 caps speed picks and Wind yields; pinned turns (Bonus and Execution) already count toward the streak (`TurnsSinceOpponent`), so a ritual's Execution turn can push the caster's next normal turn after an opponent's. The cap is read per combatant: at most 2 turns in a row, restarting when anyone on the other side acts, plus ratios capped at 2 (the long-run share per turn of the slowest). For B, skip a ready Bonus entry whose holder is at the cap in `AdvanceSimState`'s winner scan.
+
+### Q-297b — A Wind delay the cap blocks: spent, or kept?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-297) · **Blocks:** —
+**Question:** In a 1v1 where the opponent is twice as fast, the delayed one's next-in-line is always at the cap when the delay would apply. Does the delay wait (and land suddenly later, e.g. when speeds change) or is it spent?
+**Options:** **A** (as built) spent: the place is used up without moving, so the cap wins and nothing lingers. **B** kept until it can apply.
+**Recommendation:** A. D-049 says Wind acts within the cap. Turn-delay effects in CTB games such as Final Fantasy X's Delay Attack and Honkai: Star Rail's action delay are read on the timeline when they land and don't bank for later; a delay that fires many turns later would read as a bug. Not lore.
+**Notes for Claude:** applied in fix/B-297-turn-cap (`AdvanceSimState`, the Wind yield block). Spec `WoR.Turns.TurnCap`.
+
 ### Q-279 — Character-form meter: who counts, and how untiered pieces credit
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-279) · **Blocks:** —
 **Question:** A won fight fills a form's meter from what the party wore. Whose pieces count, and do skills (which carry no tier yet) need a tier match?
