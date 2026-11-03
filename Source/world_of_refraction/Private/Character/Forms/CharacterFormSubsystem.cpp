@@ -155,9 +155,46 @@ EFormSwitchRefusal UCharacterFormSubsystem::TryWearForm(UCharacterFormData *Form
     {
         WornForm = Form;
         UE_LOG(LogWoR, Log, TEXT("[CharacterForms] now wearing %s"), Form ? *Form->GetName() : TEXT("the base form"));
+        // B-279c: a skin comes with its authored outfit (CharacterCustomisation.md §3); taking it off keeps the outfit.
+        if (Form && !Form->AuthoredOutfit.IsEmpty())
+        {
+            CurrentOutfit = Form->AuthoredOutfit;
+            OnOutfitChanged.Broadcast();
+        }
         OnWornFormChanged.Broadcast(WornForm);
     }
     return EFormSwitchRefusal::None;
+}
+
+bool UCharacterFormSubsystem::TryWearOutfitPiece(UOutfitPieceData *Piece)
+{
+    // Outfits change where skins do (the hub, a rest spot), never in a fight.
+    if (!Piece || CharacterFormSwitch::CanSwitch(true, IsInFight(), IsAtSwitchSpot()) != EFormSwitchRefusal::None)
+    {
+        UE_LOG(LogWoR, Log, TEXT("[Outfit] wear %s refused"), *GetNameSafe(Piece));
+        return false;
+    }
+    CurrentOutfit.SetPiece(Piece);
+    UE_LOG(LogWoR, Log, TEXT("[Outfit] now wearing %s as %s"), *Piece->GetName(), *UEnum::GetValueAsString(Piece->Slot));
+    OnOutfitChanged.Broadcast();
+    return true;
+}
+
+bool UCharacterFormSubsystem::TryClearOutfitSlot(EOutfitSlot Slot)
+{
+    if (CharacterFormSwitch::CanSwitch(true, IsInFight(), IsAtSwitchSpot()) != EFormSwitchRefusal::None)
+    {
+        return false;
+    }
+    CurrentOutfit.ClearSlot(Slot);
+    OnOutfitChanged.Broadcast();
+    return true;
+}
+
+void UCharacterFormSubsystem::RestoreOutfit(const FOutfitSet &Outfit)
+{
+    CurrentOutfit = Outfit;
+    OnOutfitChanged.Broadcast();
 }
 
 bool UCharacterFormSubsystem::TrySetBaseForm(EPlayerBaseForm InBaseForm)
