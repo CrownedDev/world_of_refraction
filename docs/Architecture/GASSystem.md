@@ -153,6 +153,8 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 - B-042yd: a heal paid through GAS (HOT tick, percent HP restore) reports the HP actually gained (it stops at
   MaxHP); the game path's `HealActor` reports the full amplified heal. Near full HP the two `OnHealingDone`
   amounts differ. No spec yet for a HealingReceived buff on a percent restore at UseGAS 1.
+- B-042ye: the AI resyncs the mirror per DOT preview and per `GetDebuffCount` (cheap when nothing changed,
+  but per candidate x target); `wor.CompareEffects` doesn't show the held list beside the stored one yet.
 
 ## Changelog
 
