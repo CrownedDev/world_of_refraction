@@ -1,5 +1,8 @@
 // AIDecisionConstants.h
 // Constants for AI decision making
+// B-345 (D-136): the scoring weights, thresholds, Emerald factors and defence attempt chances are
+// read from UCombatTuningData (WoRTuning::Get(), "AI" category); the values here are its defaults,
+// so a missing asset changes nothing. Think times, parry chance and the defence aim stay C++.
 
 #pragma once
 
