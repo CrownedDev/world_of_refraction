@@ -23,6 +23,7 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Effects/StatusBuildupManager.h"
+#include "Skills/Effects/BreakTable.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
@@ -3071,153 +3072,99 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	// Generate element-aware display name
 	Effect.EffectName = SkillEffectDisplayNames::GetDisplayName(StatusType, Element);
 
-	// Triggered effects: bar-cap design magnitudes (Session X)
-	switch (StatusType)
+	// B-274 (S8): what the capped bar applies, its size and timing come from the break table.
+	const FBreakRow *Row = BreakTable::For(StatusType);
+	UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
+	if (Row && Row->SizeKind == EBreakSize::OneShotShareOfMaxHP)
 	{
-	case ESkillEffectType::DOT:
-	{
-		Effect.EffectType = ESkillEffectType::DOT;
-		// BURN_BREAK_MAX_HP_FRACTION of MaxHP per tick - scaled at apply time via target's MaxHP.
-		// TODO: long-term, change DOT processing to interpret Value as % of MaxHP
-		// directly; for now we resolve to flat damage here for compatibility with
-		// ApplyEffectLogic's int-damage handler.
-		if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
-		{
-			Effect.EffectValue = TargetComp->MaxHP * CombatConstants::BURN_BREAK_MAX_HP_FRACTION;
-			Effect.bShareOfMaxHP = true; // resistance already cut the buildup that capped the bar (Q-064)
-		}
-		else
-		{
-			Effect.EffectValue = 30.0f; // fallback
-		}
-		// Pays out at the holder's turn start, exactly once per counted turn (D-051, Q-044c):
-		// not on landing, and not at turn end.
-		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
-		Effect.bDelayFirstExecution = true;
-		break;
-	}
-
-	case ESkillEffectType::DefenseDebuff:
-		Effect.EffectType = ESkillEffectType::DefenseDebuff;
-		Effect.EffectValue = CombatConstants::EARTH_BREAK_DEFENSE_DOWN_PERCENT;
-		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
-		break;
-
-	case ESkillEffectType::SkipTurn:
-		Effect.EffectType = ESkillEffectType::SkipTurn;
-		Effect.EffectValue = 1.0f; // gate
-		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
-		break;
-
-	// OBSOLETE (B-268): the four cases below are unreachable. BarCapTriggerResolver never returns SpeedDebuff,
-	// CritDebuff, EnergyDebuff or RandomDebuff, and StatusBuildupManager is this function's one caller. Remove
-	// after Crown's PIE pass of the status breaks (DryAudit_2026-10-28.md §E).
-	case ESkillEffectType::SpeedDebuff:
-		Effect.EffectType = ESkillEffectType::SpeedDebuff;
-		Effect.EffectValue = 50.0f; // 50%
-		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
-		break;
-
-	case ESkillEffectType::CritDebuff:
-		Effect.EffectType = ESkillEffectType::CritChanceDebuff;
-		Effect.EffectValue = CombatConstants::LIGHT_BREAK_CRIT_CHANCE_DOWN_PERCENT;
-		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
-		break;
-
-	case ESkillEffectType::EnergyDebuff:
-		Effect.EffectType = ESkillEffectType::EnergyDrain;
-		Effect.EffectValue = 100.0f; // 100% locked
-		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
-		break;
-
-	case ESkillEffectType::RandomDebuff:
-	{
-		// Superseded by RandomSkill below in the new bar-cap design; left wired
-		// so any pre-existing trigger mappings still resolve until Session Y.
-		TArray<ESkillEffectType> Debuffs = {
-			ESkillEffectType::DamageDebuff,
-			ESkillEffectType::DefenseDebuff,
-			ESkillEffectType::SpeedDebuff,
-			ESkillEffectType::CritChanceDebuff};
-		Effect.EffectType = Debuffs[UBattleRandomSubsystem::RandRange(this, 0, Debuffs.Num() - 1)];
-		Effect.EffectValue = 30.0f; // 30%
-		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
-	}
-	break;
-
-	// ==================== BAR-CAP GATE EFFECTS (Session X) ====================
-	case ESkillEffectType::Stun:
-		Effect.EffectType = ESkillEffectType::Stun;
-		Effect.EffectValue = 1.0f; // gate
-		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
-		break;
-
-	case ESkillEffectType::HealBlock:
-		Effect.EffectType = ESkillEffectType::HealBlock;
-		Effect.EffectValue = 1.0f; // gate
-		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
-		break;
-
-	case ESkillEffectType::Silenced:
-		Effect.EffectType = ESkillEffectType::Silenced;
-		Effect.EffectValue = 1.0f; // gate
-		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
-		break;
-
-	case ESkillEffectType::RandomSkill:
-		Effect.EffectType = ESkillEffectType::RandomSkill;
-		Effect.EffectValue = 1.0f; // gate
-		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
-		break;
-
-	// Light break (D-030): crit chance down. Before B-112 this type fell to default and did nothing.
-	case ESkillEffectType::CritChanceDebuff:
-		Effect.EffectType = ESkillEffectType::CritChanceDebuff;
-		Effect.EffectValue = CombatConstants::LIGHT_BREAK_CRIT_CHANCE_DOWN_PERCENT;
-		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
-		break;
-
-	// Water break (D-090): Action Speed and Spell Speed both slowed. Applied as two effects;
-	// this one is Action Speed, Spell Speed is added after the switch.
-	case ESkillEffectType::ActionSpeedDebuff:
-		Effect.EffectType = ESkillEffectType::ActionSpeedDebuff;
-		Effect.EffectValue = CombatConstants::WATER_BREAK_SPEED_SLOW_PERCENT;
-		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
-		break;
-
-	// Broken Darkness break: drains a share of max EP at the holder's turn start.
-	case ESkillEffectType::DrainEnergy:
-		Effect.EffectType = ESkillEffectType::DrainEnergy;
-		if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
-		{
-			Effect.EffectValue = FMath::RoundToFloat(TargetComp->MaxEP * CombatConstants::BD_BREAK_EP_DRAIN_FRACTION);
-		}
-		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
-		Effect.bDelayFirstExecution = true;
-		break;
-
-	case ESkillEffectType::BurstDamage:
-	{
-		// Design changed: REALITY_BREAK_MAX_HP_FRACTION of MaxHP, target-scaled, can kill (1-HP clamp removed).
-		// Full damage routes through the normal death path (ServerTakeDamage ->
-		// CheckDeath -> OnDied), identical to a killing blow / the DoT change.
-		UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
+		// Reality Burst: a share of max HP, target-scaled, can kill (no 1-HP clamp). Full damage routes
+		// through the normal death path (ServerTakeDamage -> CheckDeath -> OnDied), like a killing blow.
 		if (TargetComp)
 		{
-			int32 BurstDamage = FMath::RoundToInt(TargetComp->MaxHP * CombatConstants::REALITY_BREAK_MAX_HP_FRACTION);
-
+			const int32 BurstDamage = FMath::RoundToInt(TargetComp->MaxHP * Row->Size);
 			if (BurstDamage > 0)
 			{
 				TargetComp->ServerTakeDamage(BurstDamage);
 				UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] Reality Burst dealt %d (%.2f of MaxHP, can be lethal) to %s"),
-					   BurstDamage, CombatConstants::REALITY_BREAK_MAX_HP_FRACTION, *Target->GetName());
+					   BurstDamage, Row->Size, *Target->GetName());
 			}
 		}
 		return; // one-shot, no FActiveSkillEffect applied
 	}
+	if (Row)
+	{
+		Effect.EffectType = Row->Applied;
+		Effect.ProcessTiming = Row->Timing;
+		Effect.bDelayFirstExecution = Row->bDelayFirstExecution;
+		switch (Row->SizeKind)
+		{
+		case EBreakSize::ShareOfMaxHP:
+			// Resolved to flat damage per payout for ApplyEffectLogic's int-damage handler.
+			// TODO: long-term, DOT processing reads Value as a share of MaxHP directly.
+			if (TargetComp)
+			{
+				Effect.EffectValue = TargetComp->MaxHP * Row->Size;
+				Effect.bShareOfMaxHP = true; // resistance already cut the buildup that capped the bar (Q-064)
+			}
+			else
+			{
+				Effect.EffectValue = BreakTable::BREAK_DOT_FALLBACK_DAMAGE;
+			}
+			break;
+		case EBreakSize::ShareOfMaxEP:
+			if (TargetComp)
+			{
+				Effect.EffectValue = FMath::RoundToFloat(TargetComp->MaxEP * Row->Size);
+			}
+			break;
+		default:
+			Effect.EffectValue = Row->Size;
+			break;
+		}
+	}
+	else
+	{
+		switch (StatusType)
+		{
+		// OBSOLETE (B-268): the four cases below are unreachable. BarCapTriggerResolver never returns SpeedDebuff,
+		// CritDebuff, EnergyDebuff or RandomDebuff, and StatusBuildupManager is this function's one caller. Remove
+		// after Crown's PIE pass of the status breaks (DryAudit_2026-10-28.md §E).
+		case ESkillEffectType::SpeedDebuff:
+			Effect.EffectType = ESkillEffectType::SpeedDebuff;
+			Effect.EffectValue = 50.0f; // 50%
+			Effect.ProcessTiming = ESkillEffectTiming::Persistent;
+			break;
 
-	default:
-		return;
+		case ESkillEffectType::CritDebuff:
+			Effect.EffectType = ESkillEffectType::CritChanceDebuff;
+			Effect.EffectValue = CombatConstants::LIGHT_BREAK_CRIT_CHANCE_DOWN_PERCENT;
+			Effect.ProcessTiming = ESkillEffectTiming::Persistent;
+			break;
+
+		case ESkillEffectType::EnergyDebuff:
+			Effect.EffectType = ESkillEffectType::EnergyDrain;
+			Effect.EffectValue = 100.0f; // 100% locked
+			Effect.ProcessTiming = ESkillEffectTiming::Persistent;
+			break;
+
+		case ESkillEffectType::RandomDebuff:
+		{
+			// Superseded by RandomSkill below in the new bar-cap design; left wired
+			// so any pre-existing trigger mappings still resolve until Session Y.
+			TArray<ESkillEffectType> Debuffs = {
+				ESkillEffectType::DamageDebuff,
+				ESkillEffectType::DefenseDebuff,
+				ESkillEffectType::SpeedDebuff,
+				ESkillEffectType::CritChanceDebuff};
+			Effect.EffectType = Debuffs[UBattleRandomSubsystem::RandRange(this, 0, Debuffs.Num() - 1)];
+			Effect.EffectValue = 30.0f; // 30%
+			Effect.ProcessTiming = ESkillEffectTiming::Persistent;
+		}
+		break;
+
+		default:
+			return;
+		}
 	}
 
 	// Every break lasts STATUS_CAP_TURNS of the holder's own turns (D-030, D-090), counted
@@ -3228,23 +3175,23 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	Effect.EffectID = EffectIdentity::MakeStatusCapEffectID(static_cast<uint8>(Effect.EffectType), static_cast<uint8>(Element));
 	const EEffectApplicationResult Result = ApplyEffect(Target, Effect, Source, TEXT("Status Bar Trigger"), -1);
 
-	if (Effect.EffectType == ESkillEffectType::ActionSpeedDebuff)
+	if (Row && Row->AlsoApplied != ESkillEffectType::None)
 	{
 		FActiveSkillEffect SpellSlow = Effect;
-		SpellSlow.EffectType = ESkillEffectType::SpellSpeedDebuff;
-		SpellSlow.EffectName = SkillEffectDisplayNames::GetDisplayName(ESkillEffectType::SpellSpeedDebuff, Element);
+		SpellSlow.EffectType = Row->AlsoApplied;
+		SpellSlow.EffectName = SkillEffectDisplayNames::GetDisplayName(Row->AlsoApplied, Element);
 		SpellSlow.EffectID = EffectIdentity::MakeStatusCapEffectID(static_cast<uint8>(SpellSlow.EffectType), static_cast<uint8>(Element));
 		if (ApplyEffect(Target, SpellSlow, Source, TEXT("Status Bar Trigger"), -1) == EEffectApplicationResult::Rejected)
 		{
-			UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] Water break's Spell Speed slow refused on %s"), *Target->GetName());
+			UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] Break's second effect %s refused on %s"), *SpellSlow.EffectName, *Target->GetName());
 		}
 	}
 
 	// Wind break (D-014, D-090): a NEW gust pushes the holder's next turn back. The same
 	// attacker's refresh doesn't push again (D-012: same source refreshes, it doesn't add).
-	if (Effect.EffectType == ESkillEffectType::SkipTurn && Result == EEffectApplicationResult::Applied && TurnManager)
+	if (Row && Row->DelayTurnPlaces > 0 && Result == EEffectApplicationResult::Applied && TurnManager)
 	{
-		TurnManager->DelayNextTurn(Target, CombatConstants::WIND_BREAK_DELAY_PLACES);
+		TurnManager->DelayNextTurn(Target, Row->DelayTurnPlaces);
 	}
 
 	UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] Applied triggered %s to %s for %d holder turn(s)"),
