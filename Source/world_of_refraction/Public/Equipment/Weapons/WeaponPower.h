@@ -10,7 +10,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Character/CharacterDataComponent.h"
+#include "Character/EWorldPillar.h"
 #include "Inventory/ItemTier.h"
 #include "Skills/Definitions/EScalingTier.h"
 #include "WeaponPower.generated.h"

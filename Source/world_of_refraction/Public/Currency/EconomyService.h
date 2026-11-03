@@ -14,7 +14,7 @@
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Merchant/MerchantData.h" // FMerchantStockEntry — the Purchase cart element
 #include "Currency/CurrencyTypes.h" // ECurrencyType for the leveling-essence param on TryLevelUpEntry
-#include "Character/CharacterDataComponent.h" // EWorldPillar for BuyWorldStat (§7 C4)
+#include "Character/EWorldPillar.h" // BuyWorldStat (§7 C4)
 #include "EconomyService.generated.h"
 
 class AActor;
