@@ -1492,30 +1492,54 @@ FString UInventoryComponent::CompareWithStore() const
         }
     }
     TMap<FGuid, FStoreCompareEntry> Store;
-    const auto InView = [this, Pool](const FGuid &ID)
-    { return bDrawsWholeArmoury ? !Pool->IsInChest(ID) : Pool->GetGearOwner(ID) == SharedGearKey; };
-    for (const FWeaponInventoryEntry &Entry : Pool->GetOwnedWeapons())
+    if (bDrawsWholeArmoury)
     {
-        if (InView(Entry.PersistentID))
+        // A run-only recruit draws the whole armoury but the chest (Q-321): no owner view covers that.
+        for (const FWeaponInventoryEntry &Entry : Pool->GetOwnedWeapons())
         {
-            Store.Add(Entry.PersistentID, StoreCompareEntryOf(Entry, TEXT("weapon")));
+            if (!Pool->IsInChest(Entry.PersistentID))
+            {
+                Store.Add(Entry.PersistentID, StoreCompareEntryOf(Entry, TEXT("weapon")));
+            }
+        }
+        for (const FRingInventoryEntry &Entry : Pool->GetOwnedRings())
+        {
+            if (!Pool->IsInChest(Entry.PersistentID))
+            {
+                Store.Add(Entry.PersistentID, StoreCompareEntryOf(Entry, TEXT("adapter")));
+            }
+        }
+        for (const FEvolutionInventoryEntry &Entry : Pool->GetOwnedEvolutions())
+        {
+            if (!Pool->IsInChest(Entry.InstanceID))
+            {
+                Store.Add(Entry.InstanceID, StoreCompareEntryOf(Entry));
+            }
         }
     }
-    for (const FRingInventoryEntry &Entry : Pool->GetOwnedRings())
+    else
     {
-        if (InView(Entry.PersistentID))
+        // The very view B-312b will read, so silence proves that view.
+        const FPoolGearView View = Pool->GetOwnedGearOf(SharedGearKey);
+        for (const FWeaponInventoryEntry *Entry : View.Weapons)
         {
-            Store.Add(Entry.PersistentID, StoreCompareEntryOf(Entry, TEXT("adapter")));
+            Store.Add(Entry->PersistentID, StoreCompareEntryOf(*Entry, TEXT("weapon")));
         }
-    }
-    for (const FEvolutionInventoryEntry &Entry : Pool->GetOwnedEvolutions())
-    {
-        if (InView(Entry.InstanceID))
+        for (const FRingInventoryEntry *Entry : View.Adapters)
         {
-            Store.Add(Entry.InstanceID, StoreCompareEntryOf(Entry));
+            Store.Add(Entry->PersistentID, StoreCompareEntryOf(*Entry, TEXT("adapter")));
+        }
+        for (const FEvolutionInventoryEntry *Entry : View.Evolutions)
+        {
+            Store.Add(Entry->InstanceID, StoreCompareEntryOf(*Entry));
         }
     }
     FString Out;
+    if (Mine.Contains(FGuid()))
+    {
+        Out += TEXT("a copy with no ID (unlinked): it can never match the store\n");
+        Mine.Remove(FGuid());
+    }
     for (const TPair<FGuid, FStoreCompareEntry> &Pair : Mine)
     {
         const FStoreCompareEntry *InStore = Store.Find(Pair.Key);

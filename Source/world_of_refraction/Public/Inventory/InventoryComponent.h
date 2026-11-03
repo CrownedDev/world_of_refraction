@@ -214,7 +214,8 @@ public:
     /** B-312 (Q-312): this member's weapon / adapter / evolution copies against its view of the pool store
      *  (UPoolSubsystem::GetOwnedGearOf; a run-only recruit, which draws the whole armoury, against every piece not in
      *  the chest). One line per difference (missing either side, or a differing tier, quality or attachment); empty
-     *  when they agree or the member doesn't draw from the pool. Proves the views before the readers move to them. */
+     *  when they agree or the member doesn't draw from the pool. Proves the views before the readers move to them.
+     *  Step 1 compares identity, tier, quality and the attachment's kind, not durability or what is attached. */
     FString CompareWithStore() const;
 
     // ==================== SPELL OPERATIONS ====================

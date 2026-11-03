@@ -53,17 +53,27 @@ void UPoolSubsystem::RebuildGearIndex() const
     WeaponIndex.Reset();
     AdapterIndex.Reset();
     EvolutionIndex.Reset();
+    // The first entry with an ID wins, as the old scan found it; a second with the same ID is a data fault.
+    const auto AddFirst = [](TMap<FGuid, int32> &Map, const FGuid &ID, int32 Index, const TCHAR *Kind)
+    {
+        if (Map.Contains(ID))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[Pool] two %ss share the ID %s; lookups find the first"), Kind, *ID.ToString());
+            return;
+        }
+        Map.Add(ID, Index);
+    };
     for (int32 Index = 0; Index < OwnedWeapons.Num(); ++Index)
     {
-        WeaponIndex.Add(OwnedWeapons[Index].PersistentID, Index);
+        AddFirst(WeaponIndex, OwnedWeapons[Index].PersistentID, Index, TEXT("weapon"));
     }
     for (int32 Index = 0; Index < OwnedRings.Num(); ++Index)
     {
-        AdapterIndex.Add(OwnedRings[Index].PersistentID, Index);
+        AddFirst(AdapterIndex, OwnedRings[Index].PersistentID, Index, TEXT("adapter"));
     }
     for (int32 Index = 0; Index < OwnedEvolutions.Num(); ++Index)
     {
-        EvolutionIndex.Add(OwnedEvolutions[Index].InstanceID, Index);
+        AddFirst(EvolutionIndex, OwnedEvolutions[Index].InstanceID, Index, TEXT("evolution"));
     }
     bGearIndexDirty = false;
 }
@@ -80,11 +90,15 @@ int32 UPoolSubsystem::FindIndexed(const TArray<TEntry> &Entries, const TMap<FGui
         RebuildGearIndex();
     }
     const int32 *Found = Index.Find(ID);
-    if (Found && Entries.IsValidIndex(*Found) && IdOf(Entries[*Found]) == ID)
+    if (!Found)
+    {
+        return INDEX_NONE; // the index is clean (every add and removal marks it dirty), so a miss is a real miss
+    }
+    if (Entries.IsValidIndex(*Found) && IdOf(Entries[*Found]) == ID)
     {
         return *Found;
     }
-    // A miss or a stale hit (an entry changed under the index): rebuild once and look again.
+    // A stale hit (an entry changed under the index): rebuild once and look again.
     RebuildGearIndex();
     Found = Index.Find(ID);
     return Found && Entries.IsValidIndex(*Found) ? *Found : INDEX_NONE;
