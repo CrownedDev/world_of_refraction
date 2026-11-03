@@ -28,6 +28,7 @@
 #include "Components/ActorComponent.h"
 #include "ActiveGameplayEffectHandle.h"
 #include "GAS/WoREffectContext.h"
+#include "Skills/Effects/ActiveSkillEffect.h"
 #include "WoREffectMirrorComponent.generated.h"
 
 class UAbilitySystemComponent;
@@ -75,9 +76,17 @@ public:
 	int32 GetTrackedTurnsLeft(const FActiveSkillEffect &Effect) const;
 
 	/** B-042ye (Q-042x, Q-042ye): Stored as GAS holds it: an effect whose GE GAS ended is left out, a live one
-	 *  takes the tracker's turns left, the rest stay as stored. Resyncs first (Q-042yb). A client (the mirror
-	 *  is the server's) or a read mid-sync gets Stored unchanged. */
+	 *  takes the tracker's turns left, the rest stay as stored. Resyncs first (Q-042yb). A read mid-sync gets
+	 *  Stored unchanged. B-318 (Q-318): on a client (the mirror is the server's) at UseGAS 1 it is the server's
+	 *  read, replicated (GetHeldSnapshot); Stored is ignored there. */
 	TArray<FActiveSkillEffect> ReadHeldEffects(const TArray<FActiveSkillEffect> &Stored);
+
+	/** B-318: the server's last GAS read of the owner's held effects (each effect with its turns left), refreshed
+	 *  by every sync at UseGAS 1 and replicated to every client (other players' characters get no GEs in Mixed
+	 *  replication, so a client can't read its own copy). Empty at UseGAS 0. */
+	const TArray<FActiveSkillEffect> &GetHeldSnapshot() const { return HeldSnapshot; }
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 
 	/** B-042ye: the HP one tick of the DOT Effect takes now, from its GE's tick spec (UWoRTickExecution), or
 	 *  INDEX_NONE where PayTick wouldn't pay it through GAS (no live GE with a tick spec, no Vitals set, no
@@ -134,6 +143,12 @@ private:
 	TArray<FWoRMirroredEffect> Mirrored;
 	/** Identities whose tracked GE GAS ended; their stored copies go in ReleaseEndedCopies. */
 	TArray<FWoREffectIdentity> EndedByGAS;
+
+	/** ReadHeldEffects' server answer without the resync (the sync itself refreshes HeldSnapshot with it). */
+	TArray<FActiveSkillEffect> BuildHeld(const TArray<FActiveSkillEffect> &Stored);
+
+	UPROPERTY(Replicated)
+	TArray<FActiveSkillEffect> HeldSnapshot;
 	/** An ASC listener that re-enters the effect manager mid-sync re-runs the sync instead. */
 	bool bSyncing = false;
 	bool bResyncRequested = false;
