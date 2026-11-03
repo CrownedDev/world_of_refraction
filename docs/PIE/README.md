@@ -215,6 +215,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-300](B-300.md) | `fix/B-300-turn-triggers-every-turn` (in `dev`) | On Turn Start / End triggers fire every turn (not just once) | Not tested |
 | [B-298](B-298.md) | `feature/B-298-adapters` (in `dev`) | Player-facing Ring is now Adapter; adapter Form field (D-107) | Not tested |
 | [B-301](B-301.md) | `refactor/B-301-gear-instance` (in `dev`) | Unified loadout 1: one gear-instance type (not used yet) | Not tested |
+| [B-302](B-302.md) | `refactor/B-302-loadout-slots` (in `dev`) | Unified loadout 2: slot list mirrored beside the old fields; `wor.Loadout.CompareSlots` | Not tested |
 
 Move rows to **Done** when every check passes.
 

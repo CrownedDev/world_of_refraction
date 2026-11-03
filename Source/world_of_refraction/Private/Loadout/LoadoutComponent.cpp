@@ -2514,6 +2514,14 @@ void ULoadoutComponent::ApplyBDPoolsIfBroken()
 
 void ULoadoutComponent::NotifyActiveWeaponChanged()
 {
+    // B-302: every gear change announces here, so the unified slot mirror (D-110) is rebuilt first.
+    if (UInventoryComponent *Inv = GetInventoryComponent())
+    {
+        if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+        {
+            Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].RebuildSlotsFromLegacy(GetCharacterClass());
+        }
+    }
     // GetActiveWeapon warns when there is no inventory; with none there is no weapon to announce.
     UWeaponData *ActiveWeapon = GetInventoryComponent() ? GetActiveWeapon() : nullptr;
     if (ActiveWeapon == LastNotifiedWeapon)
@@ -3734,6 +3742,8 @@ bool ULoadoutComponent::ClearPrimaryEvolution()
 
 void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
 {
+    // B-302: an adapter switch announces too, so the slot mirror's active adapter follows it.
+    const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
     {
