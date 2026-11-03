@@ -183,11 +183,12 @@ namespace CombatConstants
     // (x1.0 = NORMAL damage — a crit does nothing extra without crit-damage investment). The
     // crit-damage stat ramps it to x1.5 at max (base 1.0 + 0.5), gear pushes past toward x2.5
     // (CRIT_DAMAGE_GEAR_CEILING, D-034).
-    constexpr float CRIT_DMG_BASE = 1.0f;            // un-invested crit = normal damage
-    constexpr float CRIT_DAMAGE_STAT_CAP = 1.5f;     // crit-damage stat-ALONE ceiling (1.0 base + 0.5 stat)
-    // Same per-point rate as RawDamage's 1.0->1.5 ramp = (CRIT_DAMAGE_STAT_CAP - CRIT_DMG_BASE)/DENOM,
-    // which equals STAT_MULT_PER_POINT exactly — so the stat lands on x1.5 at max investment.
-    constexpr float CRIT_DAMAGE_PER_POINT = STAT_MULT_PER_POINT; // (1.5-1.0)/STAT_DERIVE_DENOM
+    // B-224 (Crown, BaselineNumbers.md; Monster Hunter's 1.25): an un-invested crit does +25%.
+    constexpr float CRIT_DMG_BASE = 1.25f;           // un-invested crit = x1.25
+    constexpr float CRIT_DAMAGE_STAT_CAP = 1.5f;     // crit-damage stat-ALONE ceiling (1.25 base + 0.25 stat)
+    // (CRIT_DAMAGE_STAT_CAP - CRIT_DMG_BASE)/DENOM, so the stat lands on x1.5 at max investment (Q-224b:
+    // half RawDamage's per-point rate now that the base starts higher).
+    constexpr float CRIT_DAMAGE_PER_POINT = (CRIT_DAMAGE_STAT_CAP - CRIT_DMG_BASE) / STAT_DERIVE_DENOM;
     // Pattern-P gear ceiling: stat caps at x1.5; gear/transient (ModifyCritDamage now, BonusCritDamage
     // post-5e-C3) MULTIPLY the capped stat past 1.5 toward this.
     constexpr float CRIT_DAMAGE_GEAR_CEILING = 2.5f; // max crit damage WITH gear (>= CRIT_DAMAGE_STAT_CAP)
@@ -204,9 +205,11 @@ namespace CombatConstants
 
     // Hard ceiling on composed DEFENSE damage-reduction (stat 0.5 cap, then
     // stone/gear/buff multiply past it). Bounds defense-stacking below full
-    // immunity. Distinct from RESISTANCE_MAX (1.0) — that is a correctness bound
-    // for the separate status-resistance system and must stay 1.0.
-    constexpr float DEFENSE_REDUCTION_CEILING = 0.85f;
+    // immunity: a full tank takes a quarter of a hit, about x4 effective HP
+    // (B-224, Crown, BaselineNumbers.md; was 0.85). Distinct from RESISTANCE_MAX
+    // (1.0) — that is a correctness bound for the separate status-resistance
+    // system and must stay 1.0. C++ only until B-042 (Q-218).
+    constexpr float DEFENSE_REDUCTION_CEILING = 0.75f;
 
     // Action Speed - animation play-rate (the x400 MOVEMENT_SPEED_BASE/PER_POINT approach-speed
     // constants were retired with CalculateActionSpeed — approach is montage-driven now, not
