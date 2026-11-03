@@ -4262,8 +4262,8 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
     // Innate (primary-slot) evolution — its flat substats are slot-level stats,
     // summed like a weapon/ring entry's (asset Base + per-instance Generated roll).
     // ATTACHED-to-gear evolutions stay infusion-only — deliberately not summed here.
-    // Mutually exclusive with the weapon/ring primary branches on PrimarySlotType
-    // (same two-branch precedent as ApplyEvolutionPillarModifier). Base + Generated
+    // Sums with the gear ForEachContributingGear visits (a Generic's secondary weapon
+    // beside the seat, Q-244). Base + Generated
     // are the SAME item, so both ride the evolution item's tier.
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
     {
@@ -4305,8 +4305,6 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
 
     const FCombatLoadout &Loadout = GetActiveLoadout();
 
-    // Mirrors GetActiveStatBonus's per-class slot resolution exactly, summing
-    // each contributing entry's ResistanceBonus instead of StatBonus.
     // B-306 (Q-244): the gear that counts, one rule for stats, resistances and effects.
     ForEachContributingGear([&Combined](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
     {
@@ -4375,7 +4373,7 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
 {
     (void)Actor; // Always == GetOwner(); parameter kept for caller clarity.
 
-    // Def-identity mirror of GetActiveEffects: identical per-class gear coverage, but
+    // Def-identity mirror of GetActiveEffects: the same gear (ForEachContributingGear), but
     // calls the ...Gathered() accessors so each effect carries its def id + bundle index.
     TArray<FGatheredEffect> Result;
 
@@ -4403,7 +4401,7 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
 {
     (void)Actor; // Always == GetOwner(); parameter kept for caller clarity.
 
-    // Identical per-class gear coverage to GetActiveEffectsGathered, but the CONDITIONAL
+    // The same gear as GetActiveEffectsGathered (ForEachContributingGear), but the CONDITIONAL
     // subset (effects gated by a trigger, fired on impact rather than at combat start).
     TArray<FGatheredEffect> Result;
 
