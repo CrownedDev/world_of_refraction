@@ -80,12 +80,15 @@ void FWeaponPowerSpec::Define()
 				  POWER_LOW * GetScalingTierCoefficient(EScalingTier::A) * WoRWeaponPower::GetPillarCurve(BODY_LEVEL), CURVE_TOLERANCE);
 	});
 
-	It("cuts the part by the requirement factor", [this]()
+	It("gives an unmet requirement x0.6 of the bare Power, with no pillar scaling (D-119)", [this]()
 	{
 		UWeaponData *Weapon = NewWeapon(POWER_LOW, EScalingTier::C);
 		const float Full = WoRWeaponPower::GetWeaponPart(*Weapon, EItemTier::F_Tier, AtBody(BODY_LEVEL), FULL_REQUIREMENT);
-		const float Half = WoRWeaponPower::GetWeaponPart(*Weapon, EItemTier::F_Tier, AtBody(BODY_LEVEL), HALF_REQUIREMENT);
-		TestEqual(TEXT("half the factor, half the part"), Half, Full * HALF_REQUIREMENT, CURVE_TOLERANCE);
+		const float Unmet = WoRWeaponPower::GetWeaponPart(*Weapon, EItemTier::F_Tier, AtBody(BODY_LEVEL),
+														  WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR);
+		TestTrue(TEXT("met: the pillar scales the part"), Full > WoRWeaponPower::GetScaledPower(*Weapon, EItemTier::F_Tier));
+		TestEqual(TEXT("unmet: bare Power x0.6"), Unmet,
+				  WoRWeaponPower::GetScaledPower(*Weapon, EItemTier::F_Tier) * WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR, CURVE_TOLERANCE);
 	});
 
 	It("grows Power with a levelled copy's tier power", [this]()

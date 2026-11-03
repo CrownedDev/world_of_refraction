@@ -72,7 +72,7 @@ namespace TrialGate
 	 *  Normal 1 / Elite 1.5 / Mini-boss 3 / Boss 6. */
 	float GetRankHealthMultiplier(EEncounterRank Rank);
 
-	/** B-224b: the enemy's tier power for its HP (UCharacterData::EnemyTier through the TierPower ladder; x1 at F). */
+	/** B-224b: the enemy's tier power for its HP: its Combat Tier (B-325, WoRCombatTier) through the TierPower ladder; x1 at F. */
 	float GetEnemyTierHealthMultiplier(const AActor *Enemy);
 
 	/** Gives Enemy its rank's and its tier's HP on top of ApplyEnemyStrength (HP only, no damage): a permanent,

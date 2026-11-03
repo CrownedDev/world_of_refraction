@@ -1,7 +1,7 @@
 // WeaponRequirementSpec.cpp
-// B-162 (D-082, Q-146c, Q-162): under a weapon's requirement, attacks and abilities through it deal
-// less (the requirement-gap ladder, worst pillar, clamped to [WEAPON_REQ_FACTOR_MIN, 1]); at or over
-// the requirement nothing changes; spells ignore the weapon's requirement.
+// B-162 (D-082, Q-146c), B-326 (D-119): under a weapon's requirement, by any amount on any pillar, attacks and
+// abilities through it deal x0.6 on the weapon part with no scaling; at or over it nothing changes; spells ignore the
+// weapon's requirement. An ability or spell under its own requirement still works at x0.6 on its skill part.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -52,7 +52,7 @@ UWeaponData *Weapon = nullptr;
 
 /** Pre-defense damage of an ability (or spell) used by a character at the given Body level,
  *  holding Weapon. */
-int32 PreviewDamageAtBody(int32 BodyLevel, EActionType ActionType)
+int32 PreviewDamageAtBody(int32 BodyLevel, EActionType ActionType, int32 SkillRequiredBody = 0)
 {
 	ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(NewCharacterAt(0, BodyLevel, 0), Weapon);
 	if (!Loadout)
@@ -66,12 +66,14 @@ int32 PreviewDamageAtBody(int32 BodyLevel, EActionType ActionType)
 		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
 		Spell->BaseDamage = WEAPON_REQ_TEST_BASE_DAMAGE;
 		Spell->Element = ESpellElement::Fire;
+		Spell->Requirements = BodyRequirement(SkillRequiredBody);
 		Action.SpellData = Spell;
 	}
 	else
 	{
 		UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
 		Ability->BaseDamage = WEAPON_REQ_TEST_BASE_DAMAGE;
+		Ability->Requirements = BodyRequirement(SkillRequiredBody);
 		Action.SkillData = Ability;
 	}
 	return Executor->PreviewActionDamage(Loadout->GetOwner(), Action, FActionStatModifiers()).FinalDamage;
@@ -95,33 +97,30 @@ void FWeaponRequirementSpec::Define()
 			TestEqual(TEXT("no character"), BodyRequirement(WEAPON_REQ_TEST_REQUIRED_LEVEL).GetWeaponRequirementFactor(nullptr), 1.0f);
 		});
 
-		It("under the requirement is the requirement-gap ladder", [this]()
+		It("any shortfall is the one flat factor (D-119), 1 level under or far under", [this]()
 		{
-			const UCharacterData *Character = NewCharacterAt(0, WEAPON_REQ_TEST_REQUIRED_LEVEL - WEAPON_REQ_TEST_SMALL_GAP, 0);
-			TestEqual(TEXT("gap 1"), BodyRequirement(WEAPON_REQ_TEST_REQUIRED_LEVEL).GetWeaponRequirementFactor(Character),
-					  TierGapDamage::GetRequirementGapMultiplier(WEAPON_REQ_TEST_SMALL_GAP));
-			TestTrue(TEXT("below 1"), BodyRequirement(WEAPON_REQ_TEST_REQUIRED_LEVEL).GetWeaponRequirementFactor(Character) < 1.0f);
+			const UCharacterData *OneUnder = NewCharacterAt(0, WEAPON_REQ_TEST_REQUIRED_LEVEL - WEAPON_REQ_TEST_SMALL_GAP, 0);
+			TestEqual(TEXT("one under"), BodyRequirement(WEAPON_REQ_TEST_REQUIRED_LEVEL).GetWeaponRequirementFactor(OneUnder),
+					  WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR);
+			FWorldStatRequirements FarRequirement;
+			FarRequirement.RequiredWorldBody = WEAPON_REQ_TEST_FAR_UNDER_GAP;
+			TestEqual(TEXT("far under: the same"), FarRequirement.GetWeaponRequirementFactor(NewCharacterAt(0, 0, 0)),
+					  WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR);
 		});
 
-		It("takes the worst pillar (Q-162)", [this]()
+		It("one unmet pillar is enough, and two unmet don't stack", [this]()
 		{
 			FWorldStatRequirements Requirements;
 			Requirements.RequiredWorldMind = WEAPON_REQ_TEST_REQUIRED_LEVEL;
 			Requirements.RequiredWorldBody = WEAPON_REQ_TEST_REQUIRED_LEVEL;
-			const UCharacterData *Character = NewCharacterAt(WEAPON_REQ_TEST_REQUIRED_LEVEL - WEAPON_REQ_TEST_LARGE_GAP,
+			const UCharacterData *MindShort = NewCharacterAt(WEAPON_REQ_TEST_REQUIRED_LEVEL - WEAPON_REQ_TEST_SMALL_GAP,
+															 WEAPON_REQ_TEST_REQUIRED_LEVEL, 0);
+			const UCharacterData *BothShort = NewCharacterAt(WEAPON_REQ_TEST_REQUIRED_LEVEL - WEAPON_REQ_TEST_LARGE_GAP,
 															 WEAPON_REQ_TEST_REQUIRED_LEVEL - WEAPON_REQ_TEST_SMALL_GAP, 0);
-			TestEqual(TEXT("the larger gap decides"), Requirements.GetWeaponRequirementFactor(Character),
-					  TierGapDamage::GetRequirementGapMultiplier(WEAPON_REQ_TEST_LARGE_GAP));
-		});
-
-		It("far under is the ladder's end, clamped to the floor", [this]()
-		{
-			FWorldStatRequirements Requirements;
-			Requirements.RequiredWorldBody = WEAPON_REQ_TEST_FAR_UNDER_GAP;
-			const UCharacterData *Character = NewCharacterAt(0, 0, 0);
-			TestEqual(TEXT("ladder end, at least WEAPON_REQ_FACTOR_MIN"), Requirements.GetWeaponRequirementFactor(Character),
-					  FMath::Max(TierGapDamage::GetRequirementGapMultiplier(WEAPON_REQ_TEST_FAR_UNDER_GAP),
-								 WeaponRequirement::WEAPON_REQ_FACTOR_MIN));
+			TestEqual(TEXT("one pillar short"), Requirements.GetWeaponRequirementFactor(MindShort),
+					  WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR);
+			TestEqual(TEXT("both short"), Requirements.GetWeaponRequirementFactor(BothShort),
+					  WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR);
 		});
 
 		It("the debug readout shows the live factor", [this]()
@@ -129,7 +128,7 @@ void FWeaponRequirementSpec::Define()
 			UWeaponData *DebugWeapon = NewObject<UWeaponData>(GetTransientPackage());
 			DebugWeapon->Requirements = BodyRequirement(WEAPON_REQ_TEST_REQUIRED_LEVEL);
 			const UCharacterData *Character = NewCharacterAt(0, WEAPON_REQ_TEST_REQUIRED_LEVEL - WEAPON_REQ_TEST_LARGE_GAP, 0);
-			const FString Expected = FString::Printf(TEXT("Factor (worst pillar): x%.2f"),
+			const FString Expected = FString::Printf(TEXT("Factor: x%.2f"),
 													 DebugWeapon->Requirements.GetWeaponRequirementFactor(Character));
 			TestTrue(TEXT("factor line"),
 					 URequirementGapDebug::GetWeaponRequirementFactorString(DebugWeapon, Character).Contains(Expected));
@@ -163,13 +162,29 @@ void FWeaponRequirementSpec::Define()
 			Weapon->Power = WEAPON_REQ_TEST_POWER;
 			const int32 AtRequirement = PreviewDamageAtBody(WEAPON_REQ_TEST_REQUIRED_LEVEL, EActionType::Ability);
 			const int32 Under = PreviewDamageAtBody(WEAPON_REQ_TEST_REQUIRED_LEVEL - WEAPON_REQ_TEST_LARGE_GAP, EActionType::Ability);
-			const int32 CutPower =
-				FMath::RoundToInt(WEAPON_REQ_TEST_POWER * TierGapDamage::GetRequirementGapMultiplier(WEAPON_REQ_TEST_LARGE_GAP));
+			const int32 CutPower = FMath::RoundToInt(WEAPON_REQ_TEST_POWER * WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR);
 			TestTrue(TEXT("damage resolved"), AtRequirement > 0);
 			TestEqual(TEXT("under = at - (Power - cut Power)"), Under, AtRequirement - (WEAPON_REQ_TEST_POWER - CutPower));
 		});
 
-		It("the requirement doesn't cut the skill part (a weapon with Power 0)", [this]()
+		It("B-326 (D-119): an ability or spell under its own requirement still works, its skill part x0.6", [this]()
+		{
+			if (!TestNotNull(TEXT("executor"), Executor))
+			{
+				return;
+			}
+			Weapon->Power = 0; // the skill part alone
+			const int32 Body = WEAPON_REQ_TEST_REQUIRED_LEVEL - WEAPON_REQ_TEST_SMALL_GAP;
+			for (const EActionType Type : {EActionType::Ability, EActionType::Spell})
+			{
+				const int32 Met = PreviewDamageAtBody(Body, Type, Body);
+				const int32 Unmet = PreviewDamageAtBody(Body, Type, WEAPON_REQ_TEST_REQUIRED_LEVEL);
+				TestTrue(TEXT("still deals damage"), Unmet > 0);
+				TestEqual(TEXT("x0.6"), Unmet, FMath::RoundToInt(Met * WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR));
+			}
+		});
+
+		It("the weapon's requirement doesn't cut the skill part (a weapon with Power 0)", [this]()
 		{
 			if (!TestNotNull(TEXT("executor"), Executor))
 			{
