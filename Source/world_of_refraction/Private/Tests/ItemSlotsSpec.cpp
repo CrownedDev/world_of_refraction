@@ -265,7 +265,7 @@ void FItemSlotsSpec::Define()
 		TestFalse(TEXT("Its own tier cap still applies"), Crystals->CanAddCount(ItemSlotsType(1), InventoryConstants::CRYSTAL_PER_TIER_CAP));
 	});
 
-	It("keeps each pouch, its slot count and who is banked through a save (v8)", [this]()
+	It("keeps each pouch, its slot count and who is banked through a save (v9)", [this]()
 	{
 		if (!Pool) return;
 		Pool->BankStartingItems(KeyOf(0), {{ItemSlotsType(0), ITEM_SLOTS_STARTING_COUNT}});

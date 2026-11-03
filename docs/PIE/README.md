@@ -13,6 +13,8 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 ## Pending
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-224](B-224.md) | `feature/B-224-combat-numbers` (in `dev`) | Combat numbers baseline: rank HP x1.5/3/6, Defense cap 75%, crit base x1.25, requirement floor 0.5, tuning ladders | Not built |
+| [B-288](B-288.md) | `feature/B-288-ladders` (in `dev`) | Every ladder rung pinned by a spec; Damage Taken Down cap named; no gameplay change | Not built |
 | [B-322](B-322.md) | `feature/B-322-per-character-pouch` (UNBUILT) | A 10-slot pouch per character; save v8; older save's pouch to the leader | Not built |
 | [B-001](B-001.md) | `fix/combat-hang-arc-a` (in `dev`) | Combat can no longer freeze; clean end of combat | Not tested |
 | [B-007](B-007.md) | `feature/B-007-automation-tests` (in `dev`) | 26 headless tests + test.sh output; no gameplay change | Not tested |
@@ -235,6 +237,8 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-308](B-308.md) | `refactor/B-308-gear-save-v5` (in `dev`) | Save v5: one gear list; older saves still load | Not tested |
 | [B-311](B-311.md) | `feature/B-311-custom-loadouts-saved` (in `dev`) | Your own loadouts (up to 5 per character) are kept and saved; the character's own loadouts stay as authored | Not tested |
 | [B-321](B-321.md) | `feature/B-321-per-character-gear` (in `dev`) | Each character has its own gear; an old save gives each piece to its wearer, else the leader | Not tested |
+| [B-279b](B-279b.md) | `feature/B-279b-form-skins` (in `dev`) | Wear an unlocked character's skin (hub / rest spot); its bound gear works; Manny or Quinn | Not tested |
+| [B-279d](B-279d.md) | `feature/B-279d-form-minibosses` (in `dev`) | An encounter can field a character form as its mini-boss (its look, loadout, phases) | Not tested |
 | [B-297](B-297.md) | `fix/B-297-turn-cap` (in `dev`) | 2:1 turn cap: a fast combatant gets at most 2 turns per opponent turn | Not tested |
 | [B-271](B-271.md) | `refactor/B-271-element-table` (in `dev`) | One element table behind the element switches; no behaviour change | Not tested |
 | [B-279](B-279.md) | `feature/B-279-character-forms` (in `dev`) | Character-form meter fills on a won fight, unlocks at 100%, survives save | Not tested |

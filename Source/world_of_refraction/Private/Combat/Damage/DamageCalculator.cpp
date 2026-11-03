@@ -105,7 +105,7 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 		{
 			Inputs.CritRoll = UBattleRandomSubsystem::FRand(this);
 		}
-		// GetCritDamageMultiplier is the full multiplier (x1.5 base + stat ramp, then gear/transient).
+		// GetCritDamageMultiplier is the full multiplier (CRIT_DMG_BASE + stat ramp, then gear/transient).
 		Inputs.CritDamageMultiplier = GetCritDamageMultiplier(Attacker);
 	}
 
@@ -287,7 +287,7 @@ float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 
 	// Pattern P (cluster 5a, revised; UCharacterDataComponent::GetStatLayers): the crystal-aware STAT
 	// reduction capped ALONE at UNIVERSAL_STAT_CAP (0.5), then BonusDefense, the DefenseStone and the
-	// DefenseBuff/Debuff net (floored at x0) MULTIPLY it toward DEFENSE_REDUCTION_CEILING (0.85).
+	// DefenseBuff/Debuff net (floored at x0) MULTIPLY it toward DEFENSE_REDUCTION_CEILING (0.75, B-224).
 	// Multiplicative by design intent (Crown): a +X% stone/buff rewards a high-defense build more.
 	float OnGAS = 0.0f;
 	if (UWoRAttributeSyncComponent::ReadComposedOnGAS(Defender, UWoRAttributeSet_Stats::GetDefenseAttribute(), OnGAS))
@@ -427,16 +427,15 @@ UBrokenDarknessManager *UDamageCalculator::GetBrokenDarknessManager(AActor *Acto
 
 float UDamageCalculator::GetCritDamageMultiplier(AActor *Attacker) const
 {
-	// Returns the FULL crit-damage multiplier. Crown-locked (5e-B-fix): un-invested crit = CRIT_DMG_BASE
-	// (x1.0 = normal damage); the crit-damage stat ramps it to x1.5 (stat-ALONE cap); gear/transient
-	// MULTIPLY past toward x2.0 (Pattern P / cluster 5). The fixed x1.5 CRIT_MULTIPLIER base is GONE
-	// from the crit path — a crit now does NOTHING extra without crit-damage investment.
+	// Returns the FULL crit-damage multiplier. Un-invested crit = CRIT_DMG_BASE (x1.25 since B-224; was x1.0);
+	// the crit-damage stat ramps it to x1.5 (stat-ALONE cap); gear/transient MULTIPLY past toward x2.5
+	// (Pattern P / cluster 5, D-034).
 	if (!Attacker)
 	{
-		return CombatConstants::CRIT_DMG_BASE; // x1.0 (normal damage) when no attacker
+		return CombatConstants::CRIT_DMG_BASE; // the un-invested crit when no attacker
 	}
 
-	// Pattern P (UCharacterDataComponent::GetStatLayers): CRIT_DMG_BASE (x1.0) + the Mind crit-damage ramp,
+	// Pattern P (UCharacterDataComponent::GetStatLayers): CRIT_DMG_BASE (x1.25) + the Mind crit-damage ramp,
 	// capped ALONE at CRIT_DAMAGE_STAT_CAP (x1.5), then BonusCritDamage, the CritStone and the net
 	// ModifyCritDamage / CritDamageDebuff multiply it, clamped [CRIT_DMG_BASE, CRIT_DAMAGE_GEAR_CEILING]:
 	// a debuff can cancel the crit bonus but never make a crit weaker than a normal hit.
@@ -516,15 +515,19 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 		// ModifyDamageTaken magnitude redirects to ReduceDamageTaken by name but
 		// keeps the old sign — a negative reduction reads as zero/negative here.
 		// Re-author those magnitudes as positive percent values.
-		float Reduction = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::ReduceDamageTaken);
-		float Increase = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::IncreaseDamageTaken);
-		// Reduction capped at 90%, increase uncapped
-		Reduction = FMath::Min(Reduction, 90.0f);
-		Modifier *= (1.0f - Reduction / CombatConstants::STAT_PERCENT_DIVISOR);
-		Modifier *= (1.0f + Increase / CombatConstants::STAT_PERCENT_DIVISOR);
+		const float Reduction = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::ReduceDamageTaken);
+		const float Increase = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::IncreaseDamageTaken);
+		Modifier *= GetDamageTakenFactor(Reduction, Increase);
 	}
 
 	return FMath::Max(0.0f, Modifier);
+}
+
+float UDamageCalculator::GetDamageTakenFactor(float ReduceDamageTakenPercent, float IncreaseDamageTakenPercent)
+{
+	// Damage Taken Down is capped (ED-17); Damage Taken Up is not.
+	const float Reduction = FMath::Min(ReduceDamageTakenPercent, CombatConstants::DAMAGE_TAKEN_DOWN_CAP_PERCENT);
+	return (1.0f - Reduction / CombatConstants::STAT_PERCENT_DIVISOR) * (1.0f + IncreaseDamageTakenPercent / CombatConstants::STAT_PERCENT_DIVISOR);
 }
 
 UCombatGridSubsystem *UDamageCalculator::GetCombatGridSubsystem() const

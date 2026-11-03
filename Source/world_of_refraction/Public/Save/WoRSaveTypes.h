@@ -402,7 +402,7 @@ struct WORLD_OF_REFRACTION_API FSavedCharacterLoadouts
 	TArray<FSavedCustomLoadout> Loadouts;
 };
 
-/** B-322 (D-117, save v8): one character's pouch. */
+/** B-322 (D-117, save v9): one character's pouch. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedPouch
 {
@@ -463,16 +463,16 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	UPROPERTY()
 	TArray<FSavedCrystalStack> Crystals;
 
-	/** B-322 (D-117, save v8): each character's pouch. */
+	/** B-322 (D-117, save v9): each character's pouch. */
 	UPROPERTY()
 	TArray<FSavedPouch> Pouches;
 
-	/** Before v8 (B-203): the party's one pouch, one stack per slot. Read on load (it goes to the party leader at
+	/** Before v9 (B-203): the party's one pouch, one stack per slot. Read on load (it goes to the party leader at
 	 *  the next draw); written again only while no member has drawn it yet. */
 	UPROPERTY()
 	TArray<FSavedCrystalStack> CarriedItems;
 
-	/** Before v8: the party pouch's slots (0: the starting count). Read on load; written only with CarriedItems. */
+	/** Before v9: the party pouch's slots (0: the starting count). Read on load; written only with CarriedItems. */
 	UPROPERTY()
 	int32 ItemSlotCount = 0;
 
@@ -503,6 +503,14 @@ struct WORLD_OF_REFRACTION_API FSavedForms
 
 	UPROPERTY()
 	TMap<FName, float> Progress;
+
+	/** B-279b (save v8): the worn skin's form asset name (None: no skin). */
+	UPROPERTY()
+	FName WornForm;
+
+	/** B-279b: EPlayerBaseForm as a byte (0 Manny, 1 Quinn). */
+	UPROPERTY()
+	uint8 BaseForm = 0;
 };
 
 /** Everything one save slot holds. */
