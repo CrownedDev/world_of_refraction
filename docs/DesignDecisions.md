@@ -1648,6 +1648,52 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - B-319's `FindDuplicateGear` counts the shared list each member sees; B-320's refill draws from it; Q-320b (dismantling gear another member wears) goes away once gear is per character.
 - B-203's carried slots are one party list (`wor.Inventory.PrintSlots`).
 
+### D-120 — Enemy HP: own HP × rank × Combat Tier power; zones place stronger enemies (audit §1)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** an enemy's max HP = its own HP × its rank × its Combat Tier power (D-118). The zone tier no longer adds HP; a harder zone places higher-tier enemies instead. Combat Tier keeps its HP boost.
+**What it changes:** B-186's zone strength on HP (`AEnemyZone::GetTierStrengthMultiplier` in `ABattleGameMode` and the balance sim); zone damage is a separate question (not ruled: keep as is). Note: B-327 found the zone was counted once, not twice (MaxHPBuff percents add); its spec is updated by the job.
+**Notes for Claude:** job B-328.
+
+### D-121 — Finish GAS stage 3, then delete the enum effect path; new effects GAS-only (audit §2)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** finish GAS stage 3 (B-042i, B-042j2, B-042f, B-042g), then delete the enum effect path. Until then every new effect goes in as a GAS effect only, and no feature job touches both paths.
+**What it changes:** B-042g is the deletion job (`FActiveSkillEffect` storage, the mirror, the sync and the enum branches); B-318 folds in.
+**Notes for Claude:** a standing rule for every job; the CLAUDE.md rules section should say it (Crown to approve that edit).
+
+### D-122 — Each character's inventory component is their store; the pool keeps only the home chest (audit §3; changes D-111's wording)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** each character's inventory component is their store; `UPoolSubsystem` keeps only the shared home chest. D-111's behaviour (GUIDs, references, the run layer) stays; its "one store per player" wording changes.
+**What it changes:** B-312b becomes "readers onto the member's component"; B-313 and B-314 stay; **B-315 is dropped** (the owner is the component); B-316 (give) is simpler; B-317 deletes the pool wearers and the copies.
+**Notes for Claude:** rows re-scoped in `Backlog.md`.
+
+### D-123 — The player picks pillars only; sub-stats come from the asset and gear; one Speed (audit §4)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** the player picks pillars only. Sub-stats come from the character asset and gear (WoW-like); the 3-points-per-level sub-stat pool retires. Action Speed and Spell Speed merge into one **Speed**.
+**What it changes:** the level-up sub-stat pool; D-088's Ice → Action Speed wording (now Speed); `StatModifierTable`, the defense window maths, a stone kind.
+**Notes for Claude:** jobs B-330 (pool retires) and B-331 (Speed merge).
+
+### D-124 — One PIE sweep checklist; deletes batched per milestone (audit §6)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** one combined checklist, `docs/PIE/Sweep.md`, covers every retire-after-PIE delete; from then on deletes are batched into one sweep per milestone. Otherwise unchanged: nothing is deleted before Crown's PIE.
+**Notes for Claude:** job B-332.
+
+### D-125 — Seven balances (audit §7; changes D-105)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** seven balances: **Gold, Prisms, Diamond, Gear Essence, Skill Essence, Elemental Essence, Pillar Essence**. The 14 typed essences retire. Elemental pays for anything with an element; Pillar pays for stat stones; Skill pays for spells, abilities and ability stones. A spell costs Skill + Elemental; a non-elemental ability costs Skill only. Quartz folds into Elemental (changes D-105). Pre-release saves may be wiped (D-060).
+**Notes for Claude:** job B-333.
+
+### D-126 — Infusion keeps the source choice; EP = base × charge level; HP cost only at level 2 (audit §8)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** keep choosing the infusion source. The EP cost is the base × the charge level; the HP cost applies only at level 2. (The audit recommended dropping the source choice; Crown kept it, so D-007 and D-035 stand.)
+**Notes for Claude:** job B-334.
+
+### D-127 — Per-instance random rolls retire (audit §9)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** delete per-instance random rolls: flag them OBSOLETE now, delete them in the sweep (D-124). They are already off, so nothing changes in play.
+**Notes for Claude:** job B-335.
+
+(Audit §5: **no change** — evolutions and fusions keep their wear. §10 is Q-293d.)
+
 ### Q-321 — Can the shared home chest hold gear, or only items?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
 **Question:** D-097's storage holds items (crystals, stones, consumables); gear lived in the shared pool. With gear per character (D-117), can a character put an unworn weapon or adapter in the shared chest for another to take?
