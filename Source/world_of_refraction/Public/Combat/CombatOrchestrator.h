@@ -369,6 +369,10 @@ public:
 	/** B-223: enemies defeated this fight whose level drops are rolled on a win. */
 	int32 GetPendingLevelDropSources() const { return PendingLevelDropSources.Num(); }
 
+	/** B-223: Enemy's own rank (its team's, B-224b) for its level drop; set by the battle mode at spawn. An enemy
+	 *  without one uses the fight's rank. */
+	void SetEnemyRank(const AActor *Enemy, EEncounterRank Rank) { EnemyRanks.Add(Enemy, Rank); }
+
 	/** DEBUG-ONLY: dump the entire pending pool into the player team's Mind via AddEarnedWorldStat,
 	 *  then clear the pool. NOT the real draft (that's the deferred 5-pick-3 UI on
 	 *  OnWorldStatDraftReady) — this just proves the pool→grant pipe end-to-end in PIE. */
@@ -534,6 +538,9 @@ private:
 	/** B-223 (D-102): each defeated enemy's tier and rank, rolled (TrialGate::RollLevelDrops) only on a win so the
 	 *  fight's own random draws don't shift. */
 	TArray<TPair<EItemTier, EEncounterRank>> PendingLevelDropSources;
+
+	/** B-223: each spawned enemy's own rank (SetEnemyRank); two enemies of one asset can differ. */
+	TMap<TWeakObjectPtr<const AActor>, EEncounterRank> EnemyRanks;
 
 	/** Death listener bound per-combatant in StartCombat (both teams), unbound at combat end —
 	 *  mirrors TurnManager's OnDied lifecycle. Enemy (OpposingParty) deaths add caliber WSP to the pool;

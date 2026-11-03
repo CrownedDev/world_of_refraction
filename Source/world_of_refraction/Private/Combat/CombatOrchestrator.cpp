@@ -427,7 +427,8 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 	}
 	// B-223 (D-102): a win's dropped levels wait in the run for the player to place (wor.UI.LevelDrop).
 	int32 LevelDrops = 0;
-	if (Result == ECombatState::Victory)
+	UTrialRunSubsystem *LevelDropRun = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	if (Result == ECombatState::Victory && LevelDropRun && LevelDropRun->IsRunActive())
 	{
 		for (const TPair<EItemTier, EEncounterRank> &Source : PendingLevelDropSources)
 		{
@@ -438,10 +439,7 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 	if (LevelDrops > 0)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] The win dropped %d pillar level(s)"), LevelDrops);
-		if (UTrialRunSubsystem *Run = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTrialRunSubsystem>() : nullptr)
-		{
-			Run->AddUnspentLevels(LevelDrops);
-		}
+		LevelDropRun->AddUnspentLevels(LevelDrops);
 		OnLevelDropsReady.Broadcast(LevelDrops);
 	}
 
@@ -1179,11 +1177,10 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 	PendingWorldStatPool += WSP;
 
 	// B-223 (D-102): the enemy's own rank (B-224b) and tier set its level drop.
-	EEncounterRank Rank = EEncounterRank::Normal;
-	if (const UTrialRunSubsystem *Run = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTrialRunSubsystem>() : nullptr)
+	EEncounterRank Rank = EncounterRank;
+	if (const EEncounterRank *OwnRank = EnemyRanks.Find(Victim))
 	{
-		const int32 RosterIndex = Run->GetPendingOpposingParty().IndexOfByKey(VictimData);
-		Rank = RosterIndex != INDEX_NONE ? Run->GetPendingEnemyRank(RosterIndex) : Run->GetPendingRank();
+		Rank = *OwnRank;
 	}
 	PendingLevelDropSources.Emplace(VictimData->EnemyTier, Rank);
 
