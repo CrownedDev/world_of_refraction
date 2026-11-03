@@ -17,10 +17,13 @@
 
 namespace TrialGateInternal
 {
-	// TODO: tune (Q-183).
+	// Enemy damage by difficulty (Q-183; B-293c: even steps, was 0.8 / 1 / 1.25). TODO: tune.
 	constexpr float EASY_ENEMY_STRENGTH = 0.8f;
 	constexpr float MEDIUM_ENEMY_STRENGTH = 1.0f;
-	constexpr float HARD_ENEMY_STRENGTH = 1.25f;
+	constexpr float HARD_ENEMY_STRENGTH = 1.2f;
+	/** B-293c (Q-293c): the difficulty leaves enemy HP alone (Expedition 33 scales enemy damage and the defence
+	 *  windows, not HP bars). */
+	constexpr float ENEMY_HEALTH_BY_DIFFICULTY = 1.0f;
 	constexpr float EASY_PAYOUT = 0.75f;
 	constexpr float MEDIUM_PAYOUT = 1.0f;
 	constexpr float HARD_PAYOUT = 1.5f;
@@ -77,7 +80,17 @@ ETrialDifficulty TrialGate::NextDifficulty(ETrialDifficulty Difficulty)
 	return static_cast<ETrialDifficulty>((static_cast<int32>(Difficulty) + 1) % DIFFICULTY_COUNT);
 }
 
+float TrialGate::GetEnemyHealthMultiplier(ETrialDifficulty Difficulty)
+{
+	return TrialGateInternal::ENEMY_HEALTH_BY_DIFFICULTY;
+}
+
 bool TrialGate::ApplyEnemyStrength(AActor *Enemy, float StrengthMultiplier)
+{
+	return ApplyEnemyStrength(Enemy, StrengthMultiplier, StrengthMultiplier);
+}
+
+bool TrialGate::ApplyEnemyStrength(AActor *Enemy, float HealthMultiplier, float DamageMultiplier)
 {
 	UCharacterDataComponent *CharComp = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	const UGameInstance *GI = Enemy && Enemy->GetWorld() ? Enemy->GetWorld()->GetGameInstance() : nullptr;
@@ -86,24 +99,32 @@ bool TrialGate::ApplyEnemyStrength(AActor *Enemy, float StrengthMultiplier)
 	{
 		return false;
 	}
-	if (FMath::IsNearlyEqual(StrengthMultiplier, 1.0f))
+	const bool bHealth = !FMath::IsNearlyEqual(HealthMultiplier, 1.0f);
+	const bool bDamage = !FMath::IsNearlyEqual(DamageMultiplier, 1.0f);
+	if (!bHealth && !bDamage)
 	{
 		return true;
 	}
 
-	const bool bStronger = StrengthMultiplier > 1.0f;
-	const float Percent = FMath::Abs(StrengthMultiplier - 1.0f) * CombatConstants::STAT_PERCENT_DIVISOR;
 	// The level is part of the enemy, not a buff: no cleanse strips it (same rule as gear, D-015).
-	FActiveSkillEffect HPEffect = FActiveSkillEffect::CreatePersistent(TEXT("Enemy strength (HP)"),
-		TrialGateInternal::ENEMY_STRENGTH_HP_EFFECT_ID,
-		bStronger ? ESkillEffectType::MaxHPBuff : ESkillEffectType::MaxHPDebuff, Percent);
-	HPEffect.bFromGear = true;
-	FActiveSkillEffect DamageEffect = FActiveSkillEffect::CreatePersistent(TEXT("Enemy strength (damage)"),
-		TrialGateInternal::ENEMY_STRENGTH_DAMAGE_EFFECT_ID,
-		bStronger ? ESkillEffectType::DamageBuff : ESkillEffectType::DamageDebuff, Percent);
-	DamageEffect.bFromGear = true;
-	Effects->ApplyEffect(Enemy, HPEffect);
-	Effects->ApplyEffect(Enemy, DamageEffect);
+	if (bHealth)
+	{
+		FActiveSkillEffect HPEffect = FActiveSkillEffect::CreatePersistent(TEXT("Enemy strength (HP)"),
+			TrialGateInternal::ENEMY_STRENGTH_HP_EFFECT_ID,
+			HealthMultiplier > 1.0f ? ESkillEffectType::MaxHPBuff : ESkillEffectType::MaxHPDebuff,
+			FMath::Abs(HealthMultiplier - 1.0f) * CombatConstants::STAT_PERCENT_DIVISOR);
+		HPEffect.bFromGear = true;
+		Effects->ApplyEffect(Enemy, HPEffect);
+	}
+	if (bDamage)
+	{
+		FActiveSkillEffect DamageEffect = FActiveSkillEffect::CreatePersistent(TEXT("Enemy strength (damage)"),
+			TrialGateInternal::ENEMY_STRENGTH_DAMAGE_EFFECT_ID,
+			DamageMultiplier > 1.0f ? ESkillEffectType::DamageBuff : ESkillEffectType::DamageDebuff,
+			FMath::Abs(DamageMultiplier - 1.0f) * CombatConstants::STAT_PERCENT_DIVISOR);
+		DamageEffect.bFromGear = true;
+		Effects->ApplyEffect(Enemy, DamageEffect);
+	}
 	CharComp->RecomputeMaxPools();
 	CharComp->ServerSetHP(CharComp->MaxHP); // B-131: server-only, and the HP change is broadcast
 	return true;
