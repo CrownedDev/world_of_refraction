@@ -2,8 +2,13 @@
 
 #include "Character/Forms/CharacterFormSubsystem.h"
 
+#include "Combat/TurnManager.h"
 #include "Engine/AssetManager.h"
+#include "Engine/GameInstance.h"
 #include "Loadout/FCombatLoadout.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
+#include "Trial/TrialRunSubsystem.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
@@ -121,9 +126,97 @@ void UCharacterFormSubsystem::RestoreProgress(const TMap<FName, float> &InProgre
     Progress = InProgress;
 }
 
+bool UCharacterFormSubsystem::IsInFight() const
+{
+    const UTurnManager *TurnManager = GetGameInstance()->GetSubsystem<UTurnManager>();
+    return TurnManager && TurnManager->IsCombatActive();
+}
+
+bool UCharacterFormSubsystem::IsAtSwitchSpot() const
+{
+    if (bAtRestSpot)
+    {
+        return true;
+    }
+    const UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
+    return TrialRun && TrialRun->IsHubWorld(GetGameInstance()->GetWorld());
+}
+
+EFormSwitchRefusal UCharacterFormSubsystem::TryWearForm(UCharacterFormData *Form)
+{
+    const bool bUnlocked = !Form || IsUnlocked(Form);
+    const EFormSwitchRefusal Refusal = CharacterFormSwitch::CanSwitch(bUnlocked, IsInFight(), IsAtSwitchSpot());
+    if (Refusal != EFormSwitchRefusal::None)
+    {
+        UE_LOG(LogWoR, Log, TEXT("[CharacterForms] wear %s refused: %s"), *GetNameSafe(Form), *UEnum::GetValueAsString(Refusal));
+        return Refusal;
+    }
+    if (WornForm != Form)
+    {
+        WornForm = Form;
+        UE_LOG(LogWoR, Log, TEXT("[CharacterForms] now wearing %s"), Form ? *Form->GetName() : TEXT("the base form"));
+        OnWornFormChanged.Broadcast(WornForm);
+    }
+    return EFormSwitchRefusal::None;
+}
+
+bool UCharacterFormSubsystem::TrySetBaseForm(EPlayerBaseForm InBaseForm)
+{
+    if (IsInFight())
+    {
+        return false;
+    }
+    if (BaseForm != InBaseForm)
+    {
+        BaseForm = InBaseForm;
+        UE_LOG(LogWoR, Log, TEXT("[CharacterForms] base form %s"), *UEnum::GetValueAsString(BaseForm));
+        OnWornFormChanged.Broadcast(WornForm);
+    }
+    return true;
+}
+
+const UCharacterData *UCharacterFormSubsystem::GetSkinCharacterFor(const UCharacterData *Wearer) const
+{
+    if (!WornForm || !Wearer)
+    {
+        return nullptr;
+    }
+    const UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
+    const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+    if (!Party)
+    {
+        return nullptr;
+    }
+    const FPartyMember *Player = Party->Members.FindByPredicate([](const FPartyMember &Member) { return !Member.bRunOnly && Member.CharacterData; });
+    return Player && Player->CharacterData == Wearer ? WornForm->Character.Get() : nullptr;
+}
+
+UCharacterFormData *UCharacterFormSubsystem::FindFormByName(FName FormName) const
+{
+    const TObjectPtr<UCharacterFormData> *Found = Forms.FindByPredicate([FormName](const UCharacterFormData *Form) { return Form && Form->GetFName() == FormName; });
+    return Found ? Found->Get() : nullptr;
+}
+
+void UCharacterFormSubsystem::RestoreWorn(FName FormName, EPlayerBaseForm InBaseForm)
+{
+    BaseForm = InBaseForm;
+    UCharacterFormData *Form = FormName.IsNone() ? nullptr : FindFormByName(FormName);
+    if (Form && !IsUnlocked(Form))
+    {
+        Form = nullptr;
+    }
+    if (!FormName.IsNone() && !Form)
+    {
+        UE_LOG(LogWoR, Warning, TEXT("[CharacterForms] saved skin %s is unknown or locked; wearing the base form"), *FormName.ToString());
+    }
+    WornForm = Form;
+    OnWornFormChanged.Broadcast(WornForm);
+}
+
 FString UCharacterFormSubsystem::GetFormsString() const
 {
-    FString Out = FString::Printf(TEXT("[CharacterForms] %d form(s)"), Forms.Num());
+    FString Out = FString::Printf(TEXT("[CharacterForms] %d form(s); wearing %s, base %s"), Forms.Num(),
+                                  WornForm ? *WornForm->GetName() : TEXT("no skin"), *UEnum::GetValueAsString(BaseForm));
     for (const UCharacterFormData *Form : Forms)
     {
         if (Form)
