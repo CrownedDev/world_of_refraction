@@ -241,6 +241,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-319](B-319.md) | `feature/B-319-duplicate-choice` (in `dev`) | A duplicate weapon / adapter: weaker copy to Gold or dismantled (`wor.UI.Duplicates`) | Not tested |
 | [B-320](B-320.md) | `fix/B-320-always-a-primary` (in `dev`) | A loadout's primary can't be dismantled; an empty active primary is filled (D-116) | Not tested |
 | [B-291](B-291.md) | `feature/B-291-headless-seams` (in `dev`) | Balance-sim seams: InstantImpacts / AI think-delay console variables (off by default), round and bar-break events | Not tested |
+| [B-292](B-292.md) | `feature/B-292-sim-runner` (in `dev`) | Balance sim runner, recorder, archetypes (tests only; nothing in play changes) | Not tested |
 
 Move rows to **Done** when every check passes.
 
