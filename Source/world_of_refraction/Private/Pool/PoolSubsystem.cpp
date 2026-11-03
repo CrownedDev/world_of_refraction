@@ -2,6 +2,7 @@
 // Phase 1c (all owned types, INERT) implementation. See PoolSubsystem.h.
 
 #include "Pool/PoolSubsystem.h"
+#include "Equipment/Rings/RingData.h"
 
 #include "Pool/PoolAccessors.h"             // the filter/translation layer
 #include "Equipment/Crystals/CrystalType.h" // StaticEnum<ECrystalType> for the debug dump
@@ -107,16 +108,20 @@ bool UPoolSubsystem::BankStartingGear(FName CharacterKey, const TArray<FWeaponIn
         return false;
     }
     BankedCharacters.Add(CharacterKey);
+    // B-321 (D-117): a character's starting gear is its own (owner set first, so listeners see it).
     for (const FWeaponInventoryEntry &Entry : Weapons)
     {
+        SetGearOwner(Entry.PersistentID, CharacterKey);
         UpdateWeapon(Entry);
     }
     for (const FRingInventoryEntry &Entry : Rings)
     {
+        SetGearOwner(Entry.PersistentID, CharacterKey);
         UpdateRing(Entry);
     }
     for (const FEvolutionInventoryEntry &Entry : Evolutions)
     {
+        SetGearOwner(Entry.InstanceID, CharacterKey);
         UpdateEvolution(Entry);
     }
     UE_LOG(LogTemp, Log, TEXT("[Pool] Banked %s's starting gear: %d weapon(s), %d ring(s), %d evolution(s)"),
@@ -183,6 +188,7 @@ void UPoolSubsystem::RemoveGear(const FGuid &GearID)
     const int32 Removed = OwnedWeapons.RemoveAll(MatchesWeapon) + OwnedRings.RemoveAll(MatchesRing) +
                           OwnedEvolutions.RemoveAll(MatchesEvolution);
     Wearers.Remove(GearID);
+    GearOwners.Remove(GearID);
     if (Removed > 0)
     {
         OnPoolGearChanged.Broadcast(GearID);
@@ -206,6 +212,55 @@ void UPoolSubsystem::SetWearer(const FGuid &GearID, FName CharacterKey)
 void UPoolSubsystem::ReleaseWearer(const FGuid &GearID)
 {
     Wearers.Remove(GearID);
+}
+
+FName UPoolSubsystem::GetGearOwner(const FGuid &GearID) const
+{
+    const FName *Owner = GearOwners.Find(GearID);
+    return Owner ? *Owner : NAME_None;
+}
+
+void UPoolSubsystem::SetGearOwner(const FGuid &GearID, FName CharacterKey)
+{
+    if (GearID.IsValid() && !CharacterKey.IsNone())
+    {
+        GearOwners.Add(GearID, CharacterKey);
+    }
+}
+
+int32 UPoolSubsystem::AssignUnownedGear(FName Fallback)
+{
+    int32 Assigned = 0;
+    const auto Assign = [this, Fallback, &Assigned](const FGuid &ID, const FString &Name)
+    {
+        if (!ID.IsValid() || GearOwners.Contains(ID))
+        {
+            return;
+        }
+        const FName Wearer = GetWearer(ID);
+        const FName Owner = Wearer.IsNone() ? Fallback : Wearer;
+        if (Owner.IsNone())
+        {
+            return;
+        }
+        GearOwners.Add(ID, Owner);
+        ++Assigned;
+        UE_LOG(LogTemp, Log, TEXT("[Pool] %s now belongs to %s (%s, D-117)"), *Name, *FPaths::GetBaseFilename(Owner.ToString()),
+               Wearer.IsNone() ? TEXT("the party leader") : TEXT("its wearer"));
+    };
+    for (const FWeaponInventoryEntry &Entry : OwnedWeapons)
+    {
+        Assign(Entry.PersistentID, GetNameSafe(Entry.Weapon));
+    }
+    for (const FRingInventoryEntry &Entry : OwnedRings)
+    {
+        Assign(Entry.PersistentID, GetNameSafe(Entry.Ring));
+    }
+    for (const FEvolutionInventoryEntry &Entry : OwnedEvolutions)
+    {
+        Assign(Entry.InstanceID, GetNameSafe(Entry.Item));
+    }
+    return Assigned;
 }
 
 void UPoolSubsystem::NoteClashes(FName LoserKey, const TArray<FPoolGearClash> &NewClashes)
@@ -667,12 +722,17 @@ FString UPoolSubsystem::GetPoolString() const
     FString Out = TEXT("[Pool]");
     Out += FString::Printf(TEXT("\n  Armoury  : Weapons=%d Rings=%d Evolutions=%d"),
                            OwnedWeapons.Num(), OwnedRings.Num(), OwnedEvolutions.Num());
-    Out += FString::Printf(TEXT("\n  Shared gear (B-091): %d worn, %d character(s) banked, %d clash(es)"),
-                           Wearers.Num(), BankedCharacters.Num(), Clashes.Num());
+    Out += FString::Printf(TEXT("\n  Shared gear (B-091): %d worn, %d character(s) banked, %d clash(es); %d owned (B-321)"),
+                           Wearers.Num(), BankedCharacters.Num(), Clashes.Num(), GearOwners.Num());
     for (const TPair<FGuid, FName> &Worn : Wearers)
     {
         Out += FString::Printf(TEXT("\n    %s worn by %s"), *Worn.Key.ToString(EGuidFormats::Short),
                                *FPaths::GetBaseFilename(Worn.Value.ToString()));
+    }
+    for (const TPair<FGuid, FName> &Owned : GearOwners)
+    {
+        Out += FString::Printf(TEXT("\n    %s owned by %s"), *Owned.Key.ToString(EGuidFormats::Short),
+                               *FPaths::GetBaseFilename(Owned.Value.ToString()));
     }
     for (const FPoolGearClash &Clash : Clashes)
     {

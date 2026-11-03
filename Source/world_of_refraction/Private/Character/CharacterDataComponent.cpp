@@ -1270,7 +1270,7 @@ bool UCharacterDataComponent::GetStatLayers(ESubStat Stat, FWoRStatLayers &OutLa
         FloorTransient();
         return true;
     case ESubStat::CritDamage:
-        // x1.0 un-invested; the Mind crit-damage ramp capped alone at CRIT_DAMAGE_STAT_CAP.
+        // x1.25 un-invested (B-224); the Mind crit-damage ramp capped alone at CRIT_DAMAGE_STAT_CAP.
         OutLayers.StatBase = CombatConstants::CRIT_DMG_BASE;
         if (CharacterData)
         {

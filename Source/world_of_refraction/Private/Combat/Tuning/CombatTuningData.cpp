@@ -1,11 +1,14 @@
 // CombatTuningData.cpp
 
 #include "Combat/Tuning/CombatTuningData.h"
+#include "Combat/CombatConstants.h"
 #include "Combat/Damage/TierGapConstants.h"
 #include "Combat/Damage/TierPowerConstants.h"
+#include "Combat/Tuning/CombatBaselineConstants.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Infusion/InfusionConstants.h"
 #include "Skills/Definitions/EScalingTier.h"
+#include "Skills/Definitions/WorldStatRequirements.h"
 #include "Engine/CurveTable.h"
 #include "Engine/World.h"
 #include "UObject/SoftObjectPath.h"
@@ -25,7 +28,9 @@ namespace
 
 	const ECombatLadder TUNING_LADDERS[] = {
 		ECombatLadder::TierPower, ECombatLadder::TierGapDamage, ECombatLadder::TierGapCost,
-		ECombatLadder::RequirementGap, ECombatLadder::ScalingGrade};
+		ECombatLadder::RequirementGap, ECombatLadder::ScalingGrade,
+		ECombatLadder::PillarCurve, ECombatLadder::WeaponReferencePower, ECombatLadder::WeaponRequirementByTier,
+		ECombatLadder::EnemyRankHealth};
 
 	const TCHAR *TuningLadderName(ECombatLadder Ladder)
 	{
@@ -36,6 +41,10 @@ namespace
 		case ECombatLadder::TierGapCost:    return TEXT("TierGapCost");
 		case ECombatLadder::RequirementGap: return TEXT("RequirementGap");
 		case ECombatLadder::ScalingGrade:   return TEXT("ScalingGrade");
+		case ECombatLadder::PillarCurve:          return TEXT("PillarCurve");
+		case ECombatLadder::WeaponReferencePower: return TEXT("WeaponReferencePower");
+		case ECombatLadder::WeaponRequirementByTier:    return TEXT("WeaponRequirementByTier");
+		case ECombatLadder::EnemyRankHealth:      return TEXT("EnemyRankHealth");
 		default:                            return TEXT("?");
 		}
 	}
@@ -44,7 +53,8 @@ namespace
 	 *  gap ladders instead hold their end values past the range, as the C++ clamp does. */
 	bool TuningLadderIsIndexed(ECombatLadder Ladder)
 	{
-		return Ladder == ECombatLadder::TierPower || Ladder == ECombatLadder::ScalingGrade;
+		return Ladder != ECombatLadder::TierGapDamage && Ladder != ECombatLadder::TierGapCost &&
+			   Ladder != ECombatLadder::RequirementGap;
 	}
 }
 
@@ -54,6 +64,11 @@ UCombatTuningData::UCombatTuningData()
 	, TierGapCost(LADDER_CURVE_SCALE)
 	, RequirementGap(LADDER_CURVE_SCALE)
 	, ScalingGrade(LADDER_CURVE_SCALE)
+	, PillarCurve(LADDER_CURVE_SCALE)
+	, WeaponReferencePower(LADDER_CURVE_SCALE)
+	, WeaponRequirementByTier(LADDER_CURVE_SCALE)
+	, EnemyRankHealth(LADDER_CURVE_SCALE)
+	, WeaponReqFactorMin(WeaponRequirement::WEAPON_REQ_FACTOR_MIN)
 	, ChargeFocusL1(InfusionConstants::CHARGE_FOCUS_L1)
 	, ChargeFocusL2(InfusionConstants::CHARGE_FOCUS_L2)
 	, ChargeOffFocusL1(InfusionConstants::CHARGE_OFFFOCUS_L1)
@@ -113,6 +128,10 @@ const FScalableFloat &UCombatTuningData::LadderField(ECombatLadder Ladder) const
 	case ECombatLadder::TierGapCost:    return TierGapCost;
 	case ECombatLadder::RequirementGap: return RequirementGap;
 	case ECombatLadder::ScalingGrade:   return ScalingGrade;
+	case ECombatLadder::PillarCurve:          return PillarCurve;
+	case ECombatLadder::WeaponReferencePower: return WeaponReferencePower;
+	case ECombatLadder::WeaponRequirementByTier:    return WeaponRequirementByTier;
+	case ECombatLadder::EnemyRankHealth:      return EnemyRankHealth;
 	case ECombatLadder::TierPower:
 	default:
 		return TierPower;
@@ -136,8 +155,18 @@ void UCombatTuningData::GetLadderKeyRange(ECombatLadder Ladder, int32 &OutFirst,
 		OutFirst = -REQUIREMENT_GAP_LAST_STEP;
 		OutLast = REQUIREMENT_GAP_LAST_STEP;
 		return;
+	case ECombatLadder::PillarCurve:
+		OutFirst = 0;
+		OutLast = CombatBaseline::PILLAR_CURVE_MAX_LEVEL;
+		return;
+	case ECombatLadder::EnemyRankHealth:
+		OutFirst = 0;
+		OutLast = CombatBaseline::ENEMY_RANK_COUNT - 1;
+		return;
 	case ECombatLadder::TierPower:
 	case ECombatLadder::ScalingGrade:
+	case ECombatLadder::WeaponReferencePower:
+	case ECombatLadder::WeaponRequirementByTier:
 	default:
 		OutFirst = 0;
 		OutLast = TIER_INDEX_LAST;
@@ -158,6 +187,10 @@ float UCombatTuningData::GetCodeLadderValue(ECombatLadder Ladder, int32 Key)
 		GetLadderKeyRange(Ladder, First, Last);
 		return (Key >= First && Key <= Last) ? CodeScalingTierCoefficient(static_cast<EScalingTier>(Key)) : 0.0f;
 	}
+	case ECombatLadder::PillarCurve:          return CombatBaseline::CodePillarCurve(Key);
+	case ECombatLadder::WeaponReferencePower: return CombatBaseline::CodeWeaponReferencePower(Key);
+	case ECombatLadder::WeaponRequirementByTier:    return static_cast<float>(CombatBaseline::CodeWeaponRequirement(Key));
+	case ECombatLadder::EnemyRankHealth:      return CombatBaseline::CodeEnemyRankHealth(Key);
 	case ECombatLadder::TierPower:
 	default:
 		return TierPowerScaling::CodeTierPower(Key);
@@ -231,11 +264,16 @@ FString UCombatTuningData::GetCombatTuningString() const
 		}
 		Out += TEXT("\n");
 	}
+	Out += FString::Printf(TEXT("  Weapon req floor %.3f (weapon part only)\n"), WeaponReqFactorMin);
 	Out += FString::Printf(TEXT("  Charge bands    focus %.3f/%.3f  off-focus %.3f/%.3f  balanced %.3f/%.3f\n"),
 						   ChargeFocusL1, ChargeFocusL2, ChargeOffFocusL1, ChargeOffFocusL2, ChargeBalancedL1, ChargeBalancedL2);
 	Out += FString::Printf(TEXT("  BD strain       per deficit %.3f  threshold/EP %.3f  infusion deficit %d/%d  power max %.3f  control min %.3f"),
 						   StrainPerDeficitPoint, StrainThresholdPerEP, StrainInfusionDeficitL1, StrainInfusionDeficitL2,
 						   StrainPowerFactorMax, StrainControlFactorMin);
+	// C++ only until B-042 moves the caps into data (Q-218); listed so one print shows the whole baseline.
+	Out += FString::Printf(TEXT("\n  C++ caps        defense ceiling %.2f  crit base x%.2f  crit stat cap x%.2f  crit gear ceiling x%.2f"),
+						   CombatConstants::DEFENSE_REDUCTION_CEILING, CombatConstants::CRIT_DMG_BASE,
+						   CombatConstants::CRIT_DAMAGE_STAT_CAP, CombatConstants::CRIT_DAMAGE_GEAR_CEILING);
 	return Out;
 }
 
@@ -270,6 +308,7 @@ FString UCombatTuningData::GetDifferencesFromCode() const
 			Out += FString::Printf(TEXT("%s: data %.4f, C++ %.4f\n"), Name, Data, Code);
 		}
 	};
+	Single(TEXT("WeaponReqFactorMin"), WeaponReqFactorMin, WeaponRequirement::WEAPON_REQ_FACTOR_MIN);
 	Single(TEXT("ChargeFocusL1"), ChargeFocusL1, InfusionConstants::CHARGE_FOCUS_L1);
 	Single(TEXT("ChargeFocusL2"), ChargeFocusL2, InfusionConstants::CHARGE_FOCUS_L2);
 	Single(TEXT("ChargeOffFocusL1"), ChargeOffFocusL1, InfusionConstants::CHARGE_OFFFOCUS_L1);

@@ -5,6 +5,7 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Damage/TierGapConstants.h"
+#include "Combat/Tuning/CombatTuningData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Engine/Engine.h"
 
@@ -80,11 +81,12 @@ FString URequirementGapDebug::GetWeaponRequirementFactorString(const UWeaponData
     }
 
     const FWorldStatRequirements &Req = Weapon->Requirements;
-    auto PillarLine = [](const TCHAR *PillarName, int32 Required, int32 CharLevel)
+    const float Floor = WoRTuning::Get().WeaponReqFactorMin;
+    auto PillarLine = [Floor](const TCHAR *PillarName, int32 Required, int32 CharLevel)
     {
         const int32 Gap = Required - CharLevel;
-        const float Clamped = FMath::Clamp(TierGapDamage::GetRequirementGapMultiplier(Gap),
-                                           WeaponRequirement::WEAPON_REQ_FACTOR_MIN, WeaponRequirement::WEAPON_REQ_FACTOR_MAX);
+        const float Clamped = FMath::Clamp(TierGapDamage::GetRequirementGapMultiplier(Gap), Floor,
+                                           WeaponRequirement::WEAPON_REQ_FACTOR_MAX);
         return FString::Printf(TEXT("  %-7s Req %d  Char %d  Gap %+d  ->  x%.2f\n"), PillarName, Required, CharLevel, Gap, Clamped);
     };
 
