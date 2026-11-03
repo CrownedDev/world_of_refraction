@@ -4,6 +4,7 @@
 
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Character/Forms/CharacterFormSubsystem.h"
 #include "Combat/Encounter/EncounterData.h"
 #include "Combat/Encounter/EnemyZone.h"
 #include "Character/CombatCharacter.h"
@@ -323,15 +324,26 @@ void UEncounterComponent::OnJoinWindowExpired()
 	TArray<TArray<UCharacterData *>> CaughtTeams;
 	TArray<FName> CaughtIds;
 	EAIDifficulty FightDifficulty = Difficulty;
-	EEncounterRank FightRank = UEncounterData::GetFightRank(EncounterData, Rank);
+	EEncounterRank FightRank = Rank;
 	for (const UEncounterComponent *Encounter : Caught)
 	{
 		CaughtTeams.Add(Encounter->GetOwnTeam());
 		CaughtIds.Add(Encounter->GetEncounterId());
 		FightDifficulty = FMath::Max(FightDifficulty, Encounter->Difficulty);
-		FightRank = FMath::Max(FightRank, UEncounterData::GetFightRank(Encounter->EncounterData, Encounter->Rank));
+		FightRank = FMath::Max(FightRank, Encounter->Rank);
 	}
 	const TArray<UCharacterData *> OpposingPartyData = UEncounterData::BuildCaughtRoster(CaughtTeams);
+	// B-279d: a fielded form makes the fight at least a mini-boss, and is known to the forms (so the
+	// battle dresses its character even when the asset manager didn't scan it).
+	UCharacterFormSubsystem *Forms = GetWorld()->GetGameInstance()->GetSubsystem<UCharacterFormSubsystem>();
+	for (const UEncounterComponent *Encounter : Caught)
+	{
+		FightRank = UEncounterData::GetFightRank(Encounter->EncounterData, FightRank, OpposingPartyData);
+		if (Forms && Encounter->EncounterData && Encounter->EncounterData->MiniBossForm)
+		{
+			Forms->RegisterForm(Encounter->EncounterData->MiniBossForm);
+		}
+	}
 
 	UTrialRunSubsystem *TrialRun = GetWorld()->GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
 	UTrialData *ActiveTrial = TrialRun ? TrialRun->GetActiveTrial() : nullptr;

@@ -15,7 +15,8 @@ TArray<UCharacterData *> UEncounterData::GetEnemyRoster() const
 	}
 	for (UCharacterData *Enemy : Enemies)
 	{
-		if (Enemy && Roster.Num() < EncounterConstants::ENCOUNTER_MAX_ENEMIES)
+		// The form's character takes the field once, even when it is also listed.
+		if (Enemy && !Roster.Contains(Enemy) && Roster.Num() < EncounterConstants::ENCOUNTER_MAX_ENEMIES)
 		{
 			Roster.Add(Enemy);
 		}
@@ -73,15 +74,16 @@ TArray<UCharacterData *> UEncounterData::BuildCaughtRoster(const TArray<TArray<U
 	return Roster;
 }
 
-EEncounterRank UEncounterData::GetFightRank(const UEncounterData *Encounter, EEncounterRank PlacedRank)
+EEncounterRank UEncounterData::GetFightRank(const UEncounterData *Encounter, EEncounterRank PlacedRank, const TArray<UCharacterData *> &Fielded)
 {
-	return Encounter && Encounter->MiniBossForm ? FMath::Max(PlacedRank, EEncounterRank::MiniBoss) : PlacedRank;
+	const bool bFormFights = Encounter && Encounter->MiniBossForm && Fielded.Contains(Encounter->MiniBossForm->Character);
+	return bFormFights ? FMath::Max(PlacedRank, EEncounterRank::MiniBoss) : PlacedRank;
 }
 
 FString UEncounterData::GetEncounterString() const
 {
 	const TArray<UCharacterData *> Roster = GetEnemyRoster();
-	FString Output = FString::Printf(TEXT("Encounter %s: %d of %d enemies take the field%s\n"), *GetName(), Roster.Num(), Enemies.Num(),
+	FString Output = FString::Printf(TEXT("Encounter %s: %d of %d enemies take the field%s\n"), *GetName(), Roster.Num(), Enemies.Num() + (MiniBossForm ? 1 : 0),
 									 MiniBossForm ? *FString::Printf(TEXT(", led by form %s as a mini-boss"), *MiniBossForm->GetName()) : TEXT(""));
 	for (int32 i = 0; i < Roster.Num(); ++i)
 	{
