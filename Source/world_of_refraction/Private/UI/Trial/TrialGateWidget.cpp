@@ -132,7 +132,7 @@ void UTrialGateWidget::Refresh()
 											 Variation.Name, Variation.Description));
 	}
 
-	DifficultyText->SetText(FText::Format(LOCTEXT("DifficultyRow", "Difficulty: {0} (enemies x{1}, payout x{2})"),
+	DifficultyText->SetText(FText::Format(LOCTEXT("DifficultyRow", "Difficulty: {0} (enemy damage x{1}, payout x{2})"),
 										  TrialGate::GetDifficultyName(Difficulty),
 										  FText::AsNumber(TrialGate::GetEnemyStrengthMultiplier(Difficulty)),
 										  FText::AsNumber(TrialGate::GetPayoutMultiplier(Difficulty))));

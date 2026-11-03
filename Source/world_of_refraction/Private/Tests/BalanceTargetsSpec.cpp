@@ -153,6 +153,28 @@ void FBalanceGASParitySpec::Define()
 		}
 		TestEqual(TEXT("differences"), Differences, 0);
 	});
+
+	It("breaks status bars in a parity fight, and both paths still agree (B-293b)", [this]()
+	{
+		const FBalanceMatchup Matchup = BalanceArchetypes::ParityStatusMatchup();
+		int32 Breaks = 0;
+		for (int32 Index = 0; Index < BALANCE_PARITY_SEEDS; ++Index)
+		{
+			const int32 Seed = BALANCE_PARITY_BASE_SEED + Index;
+			Runner->SetUseGAS(false);
+			const FBalanceFightRecord Enum = Runner->RunFight(Matchup, Seed);
+			Runner->SetUseGAS(true);
+			const FBalanceFightRecord GAS = Runner->RunFight(Matchup, Seed);
+			TestTrue(TEXT("the GAS record says so"), GAS.bGAS);
+			Breaks += Enum.StatusBreaks;
+			TestNotEqual(*Enum.ToString(), Enum.Outcome, EBalanceFightOutcome::Stalled);
+			if (!(Enum == GAS))
+			{
+				AddError(FString::Printf(TEXT("GAS parity broke with status on seed %d:\n  enum: %s\n  gas:  %s"), Seed, *Enum.ToString(), *GAS.ToString()));
+			}
+		}
+		TestTrue(FString::Printf(TEXT("status bars broke in the parity fights (%d)"), Breaks), Breaks > 0);
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

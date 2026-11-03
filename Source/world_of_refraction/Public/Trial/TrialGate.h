@@ -44,8 +44,12 @@ namespace TrialGate
 	constexpr int32 DIFFICULTY_COUNT = 3;
 	constexpr ETrialDifficulty DEFAULT_DIFFICULTY = ETrialDifficulty::Medium;
 
-	/** Enemies' max HP and damage, × this. */
+	/** Enemies' damage, × this (B-293c: no longer their max HP, see GetEnemyHealthMultiplier). */
 	float GetEnemyStrengthMultiplier(ETrialDifficulty Difficulty);
+
+	/** B-293c (Q-293c, Expedition 33): enemies' max HP for a difficulty. 1 at every level: the difficulty scales how
+	 *  hard enemies hit (GetEnemyStrengthMultiplier), not how long they last. */
+	float GetEnemyHealthMultiplier(ETrialDifficulty Difficulty);
 
 	/** The run's payout (D-006), × this. */
 	float GetPayoutMultiplier(ETrialDifficulty Difficulty);
@@ -59,6 +63,10 @@ namespace TrialGate
 	 *  buffs (or debuffs below 1), then a full refill to the new max. No-op at 1. Returns false when Enemy
 	 *  has no character data or the effect manager is missing. */
 	bool ApplyEnemyStrength(AActor *Enemy, float StrengthMultiplier);
+
+	/** B-293c: ApplyEnemyStrength with max HP and damage scaled apart (each a no-op at 1). The single-value form
+	 *  calls this with the same value for both. */
+	bool ApplyEnemyStrength(AActor *Enemy, float HealthMultiplier, float DamageMultiplier);
 
 	/** The rank's max HP multiplier (B-224, BaselineNumbers.md): the EnemyRankHealth tuning ladder, else
 	 *  Normal 1 / Elite 1.5 / Mini-boss 3 / Boss 6. */
