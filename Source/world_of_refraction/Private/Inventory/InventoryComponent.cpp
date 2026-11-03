@@ -1315,13 +1315,22 @@ namespace InventoryGearSync
         return Preset;
     }
 
-    /** B-321: the local party leader's character key (the first member), else Fallback. */
+    /** B-321: the local party leader's character key (the first permanent member; a run-only recruit leaves), else Fallback. */
     FName GetLocalLeaderKey(const UGameInstance *GI, FName Fallback)
     {
         const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
         const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
-        const UCharacterData *Leader = Party && Party->Members.Num() > 0 ? Party->Members[0].CharacterData.Get() : nullptr;
-        return Leader ? UPoolSubsystem::GetCharacterKey(Leader) : Fallback;
+        if (Party)
+        {
+            for (const FPartyMember &Member : Party->Members)
+            {
+                if (!Member.bRunOnly && Member.CharacterData)
+                {
+                    return UPoolSubsystem::GetCharacterKey(Member.CharacterData);
+                }
+            }
+        }
+        return Fallback;
     }
 
     const FPartyMember *FindLocalPartyMember(const UGameInstance *GI, UCharacterData *Data)
