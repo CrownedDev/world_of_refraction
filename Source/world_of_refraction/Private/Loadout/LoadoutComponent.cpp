@@ -3578,7 +3578,9 @@ FRuntimeAttachedItem *ULoadoutComponent::FindAttachedItemForSlot(const FEquipped
             return &Entry.RingEntry.AttachedItem;
         }
     }
-    return FindAttachedItemByHolder(Slot.Holder);
+    // A GUID that names nothing in the loadout: an asset match could be the other identical copy (D-111), so none.
+    UE_LOG(LogTemp, Verbose, TEXT("[ULoadoutComponent::FindAttachedItemForSlot] GUID %s not in the active loadout"), *Slot.GearID.ToString());
+    return nullptr;
 }
 
 FRuntimeAttachedItem ULoadoutComponent::GetCrystalEntryForSlot(const FEquippedCrystalSlot &Slot) const
