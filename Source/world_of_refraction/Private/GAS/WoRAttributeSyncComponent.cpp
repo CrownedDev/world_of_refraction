@@ -20,6 +20,7 @@
 #include "Tags/WoRGameplayTags.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "TimerManager.h"
 #include "WoRLog.h"
 
 namespace
@@ -242,12 +243,14 @@ TArray<FWoRAttributeSourceValue> UWoRAttributeSyncComponent::ReadSourceValues(co
 void UWoRAttributeSyncComponent::SyncAttributes()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(WoR_SyncAttributes); // B-266: Insights marker (PerfAudit_2026-10-28.md)
+	bFullSyncQueued = false;
 	// The authority owns the values; clients receive them by replication.
 	UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
 	if (!ASC || !GetOwner()->HasAuthority())
 	{
 		return;
 	}
+	++FullSyncCount;
 	const UCharacterDataComponent *Char = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
 	const UTurnManager *Turns = AttributeSyncSubsystem<UTurnManager>(this);
 	const bool bResistanceSet = ASC->GetSet<UWoRAttributeSet_Resistance>() != nullptr;
@@ -610,9 +613,50 @@ void UWoRAttributeSyncComponent::UnbindSources()
 	}
 }
 
+void UWoRAttributeSyncComponent::SyncVitals()
+{
+	UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
+	const UCharacterDataComponent *Char = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+	if (!ASC || !Char || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+	const bool bMaxChanged = ASC->GetNumericAttribute(UWoRAttributeSet_Vitals::GetMaxHealthAttribute()) != Char->MaxHP ||
+							 ASC->GetNumericAttribute(UWoRAttributeSet_Vitals::GetMaxEnergyAttribute()) != Char->MaxEP;
+	if (bMaxChanged)
+	{
+		SyncAttributes();
+		return;
+	}
+	ASC->SetNumericAttributeBase(UWoRAttributeSet_Vitals::GetHealthAttribute(), Char->CurrentHP);
+	ASC->SetNumericAttributeBase(UWoRAttributeSet_Vitals::GetEnergyAttribute(), Char->CurrentEP);
+	if (UStatusBuildupManager *Buildup = AttributeSyncSubsystem<UStatusBuildupManager>(this))
+	{
+		ASC->SetNumericAttributeBase(UWoRAttributeSet_Vitals::GetBuildupAttribute(), Buildup->GetStatusBarBuildup(GetOwner()));
+	}
+	QueueFullSync();
+}
+
+void UWoRAttributeSyncComponent::QueueFullSync()
+{
+	UWorld *World = GetWorld();
+	if (bFullSyncQueued || !World)
+	{
+		return;
+	}
+	bFullSyncQueued = true;
+	World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+	{
+		if (bFullSyncQueued)
+		{
+			SyncAttributes();
+		}
+	}));
+}
+
 void UWoRAttributeSyncComponent::HandleVitalChanged(int32 Current, int32 Max)
 {
-	SyncAttributes();
+	SyncVitals();
 }
 
 void UWoRAttributeSyncComponent::HandleEffectChanged(AActor *Target, const FActiveSkillEffect &Effect)
@@ -635,7 +679,7 @@ void UWoRAttributeSyncComponent::HandleBuildupChanged(AActor *Target, float Curr
 {
 	if (Target == GetOwner())
 	{
-		SyncAttributes();
+		SyncVitals();
 	}
 }
 
