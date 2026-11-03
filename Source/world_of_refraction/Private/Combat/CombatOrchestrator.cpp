@@ -30,6 +30,7 @@
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Character/CharacterData.h"
+#include "Pool/PoolSubsystem.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "Equipment/Rings/RingData.h"
@@ -425,21 +426,35 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 	{
 		OnWorldStatDraftReady.Broadcast(PendingWorldStatPool);
 	}
-	// B-223 (D-102): a win's dropped levels wait in the run for the player to place (wor.UI.LevelDrop).
+	// B-223 / B-223b (D-102; Q-223 changed by Crown 2026-11-03): after a win each party member rolls its own level
+	// drops from every defeated enemy, and every mini-boss or boss gives each member its levels. They wait in the run
+	// as that character's to place on its own pillars (wor.UI.LevelDrop). In co-op each player's characters get their
+	// own (B-235's personal rewards).
 	int32 LevelDrops = 0;
 	UTrialRunSubsystem *LevelDropRun = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTrialRunSubsystem>() : nullptr;
 	if (Result == ECombatState::Victory && LevelDropRun && LevelDropRun->IsRunActive())
 	{
-		for (const TPair<EItemTier, EEncounterRank> &Source : PendingLevelDropSources)
+		for (const AActor *Member : LocalPartyCombatants)
 		{
-			LevelDrops += TrialGate::RollLevelDrops(this, Source.Key, Source.Value);
+			const UCharacterDataComponent *MemberData = Member ? Member->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+			const FName MemberKey = UPoolSubsystem::GetCharacterKey(MemberData ? MemberData->CharacterData : nullptr);
+			if (MemberKey.IsNone())
+			{
+				continue;
+			}
+			int32 MemberDrops = 0;
+			for (const TPair<EItemTier, EEncounterRank> &Source : PendingLevelDropSources)
+			{
+				MemberDrops += TrialGate::RollLevelDrops(this, Source.Key, Source.Value);
+			}
+			LevelDropRun->AddUnspentLevels(MemberKey, MemberDrops);
+			LevelDrops += MemberDrops;
 		}
 	}
 	PendingLevelDropSources.Reset();
 	if (LevelDrops > 0)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] The win dropped %d pillar level(s)"), LevelDrops);
-		LevelDropRun->AddUnspentLevels(LevelDrops);
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] The win dropped %d pillar level(s) across the party"), LevelDrops);
 		OnLevelDropsReady.Broadcast(LevelDrops);
 	}
 
