@@ -1701,6 +1701,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** job B-335.
 (Audit §5: **no change** — evolutions and fusions keep their wear. §10 is Q-293d.)
 
+### Q-328 — Which enemy tier does each zone ask for?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-328, cloud) · **Blocks:** —
+**Question:** D-120: harder zones place higher-tier enemies instead of adding HP. Which Combat Tier per zone (0..4)?
+**Context:** `Public/Combat/Encounter/EnemyZone.h` (`GetEnemyTierGuide`); five zone tiers, seven item tiers.
+**Options:** **A** at least F, D, C, B, A (two letters at first, then one; S left for bosses and the last zone's best); **B** F, E, D, C, B (one letter each, S never asked for); **C** a fixed band per zone.
+**Recommendation:** A. Diablo IV's world tiers and Elden Ring's regions both jump enemy level fastest early, so the first step out of the start area is felt, then rise evenly; leaving the top tier for set pieces keeps them special.
+**Answer:** A (approved by the reference-backed default). It is an authoring guide (shown by `wor.Trial.PrintZones`), not enforced.
+**Notes for Claude:** applied in B-328.
+
 ### Q-321 — Can the shared home chest hold gear, or only items?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
 **Question:** D-097's storage holds items (crystals, stones, consumables); gear lived in the shared pool. With gear per character (D-117), can a character put an unworn weapon or adapter in the shared chest for another to take?
