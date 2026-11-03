@@ -69,7 +69,12 @@ public:
 		}
 		if (Attacker) // no attacker (damage over time, status): counted as a hit, on neither side
 		{
-			(IsParty(Attacker) ? Record.PartyDamage : Record.EnemyDamage) += Damage;
+			const bool bParty = IsParty(Attacker);
+			(bParty ? Record.PartyDamage : Record.EnemyDamage) += Damage;
+			if (bParty)
+			{
+				(bCritical ? Record.PartyCritHits : Record.PartyUncritHits).Add(Damage);
+			}
 		}
 		++Record.Hits;
 		Record.Crits += bCritical ? 1 : 0;

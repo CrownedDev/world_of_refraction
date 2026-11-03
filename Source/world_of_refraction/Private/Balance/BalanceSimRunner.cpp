@@ -10,10 +10,16 @@
 #include "Balance/BalanceSimRecorder.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Encounter/EnemyZone.h"
+#include "Equipment/Crystals/FCrystalId.h"
+#include "Equipment/FRuntimeAttachedItem.h"
+#include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "GAS/WoREffectMirrorComponent.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SkillCastEntry.h"
+#include "Skills/Definitions/SpellData.h"
 #include "Tests/WoRTestWorld.h"
 #include "Trial/TrialGate.h"
 #include "WoRLog.h"
@@ -25,6 +31,9 @@ namespace
 	const TCHAR *SIM_CVAR_BATTLE_SEED = TEXT("wor.Battle.Seed");
 
 	constexpr int32 SIM_ATTACK_HIT_COUNT = 1;
+	/** The adapter's gem (B-293): a Garnet at the weapon's tier, intact, so the Resonator's spell has an element. */
+	constexpr ECrystalType SIM_ADAPTER_GEM_TYPE = ECrystalType::Garnet;
+	constexpr int32 SIM_ADAPTER_GEM_DURABILITY = 5;
 	/** Frames to let the end-of-fight timers settle before the next fight's actors spawn. */
 	constexpr int32 SIM_SETTLE_FRAMES = 2;
 
@@ -82,6 +91,7 @@ bool FBalanceSimRunner::Begin()
 	{
 		PartySession->RestoreLocalParty(FText::FromString(TEXT("Balance sim")), /*bLetAIFinish=*/true, {FPartyMember()});
 	}
+	bSavedUseGAS = UWoREffectMirrorComponent::ReadsFromGAS();
 	Recorder.Reset(NewObject<UBalanceSimRecorder>());
 	Recorder->Listen(TestWorld->GetSubsystem<UActionExecutor>(), Orchestrator, TestWorld->GetSubsystem<UTurnManager>(),
 					 TestWorld->GetSubsystem<UStatusBuildupManager>());
@@ -136,6 +146,7 @@ void FBalanceSimRunner::End()
 	{
 		CVar->Set(SavedBattleSeed, SimPriority(CVar));
 	}
+	UWoREffectMirrorComponent::SetReadsFromGAS(bSavedUseGAS);
 	LogTemp.SetVerbosity(SavedLogTemp);
 	LogWoRCombat.SetVerbosity(SavedLogCombat);
 	LogWoREffects.SetVerbosity(SavedLogEffects);
@@ -146,11 +157,17 @@ void FBalanceSimRunner::End()
 	bRunning = false;
 }
 
+void FBalanceSimRunner::SetUseGAS(bool bEnabled)
+{
+	bUseGAS = bEnabled;
+}
+
 FBalanceFightRecord FBalanceSimRunner::RunFight(const FBalanceMatchup &Matchup, int32 Seed)
 {
 	FBalanceFightRecord Failed;
 	Failed.MatchupId = Matchup.Id;
 	Failed.Seed = Seed;
+	Failed.bGAS = bUseGAS;
 	const FBalanceArchetype *EnemyArchetype = BalanceArchetypes::Find(Matchup.Enemy);
 	if (!bRunning || !Orchestrator || !EnemyArchetype)
 	{
@@ -188,6 +205,7 @@ FBalanceFightRecord FBalanceSimRunner::RunFight(const FBalanceMatchup &Matchup, 
 	{
 		CVar->Set(Seed, SimPriority(CVar)); // StartCombat's BeginBattle seeds the stream from it
 	}
+	UWoREffectMirrorComponent::SetReadsFromGAS(bUseGAS); // B-293: the same seed on either path must give the same record
 	Recorder->Begin(Matchup.Id, Seed, Party);
 	Orchestrator->SetEncounterRank(Matchup.Rank);
 	Orchestrator->StartCombat(Party, Enemies, Matchup.Difficulty);
@@ -199,6 +217,7 @@ FBalanceFightRecord FBalanceSimRunner::RunFight(const FBalanceMatchup &Matchup, 
 		++Ticks;
 	}
 	FBalanceFightRecord Record = Recorder->Record;
+	Record.bGAS = bUseGAS;
 	Record.Ticks = Ticks;
 	Record.Outcome = OutcomeOf(Recorder->FinalState.Get(Orchestrator->GetCombatState()));
 	if (Record.Outcome == EBalanceFightOutcome::Stalled && Orchestrator->GetCombatState() == ECombatState::InProgress)
@@ -296,6 +315,42 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 		FightAssets.Emplace(Ability);
 		Inventory->LearnAbility(Ability);
 		Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryWeapon.AssignedAbilities.Add(Ability);
+		Loadout->NotifyActiveWeaponChanged();
+	}
+	if (Archetype.SpellBase > 0)
+	{
+		// B-293: one Instant spell (montage-less: B-291 dispatches CastArray[0] at release). A Caster has it innate;
+		// anyone else casts it through an adapter holding an intact gem of the spell's element.
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		Spell->Name = FString::Printf(TEXT("%s spell"), *Data->Name);
+		Spell->BaseDamage = Archetype.SpellBase;
+		Spell->Tier = Archetype.WeaponTier;
+		Spell->Element = Archetype.SpellElement;
+		Spell->DeliveryType = ESpellDeliveryType::Instant;
+		FSkillCastEntry &Cast = Spell->CastArray.AddDefaulted_GetRef();
+		Cast.DeliveryType = ESpellDeliveryType::Instant;
+		FightAssets.Emplace(Spell);
+		Inventory->LearnSpell(Spell);
+		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+		if (Archetype.Class == ECharacterClass::Caster)
+		{
+			Active.InnateSpells.Add(Spell);
+		}
+		else
+		{
+			URingData *Adapter = NewObject<URingData>(GetTransientPackage());
+			Adapter->Tier = Archetype.WeaponTier;
+			FightAssets.Emplace(Adapter);
+			FRingInventoryEntry Owned = FRingInventoryEntry::CreateFromRing(Adapter);
+			Owned.AttachedItem.Kind = EAttachedItemKind::Crystal;
+			Owned.AttachedItem.Crystal = FCrystalAttachment(FCrystalId(SIM_ADAPTER_GEM_TYPE, Archetype.WeaponTier), SIM_ADAPTER_GEM_DURABILITY);
+			Owned.AssignedSpells.Add(Spell);
+			Inventory->Rings.Add(Owned);
+			FRingLoadoutEntry Slot;
+			Slot.RingEntry = Owned;
+			Active.RingLoadout.Add(Slot);
+			Active.ActiveRingIndex = 0;
+		}
 		Loadout->NotifyActiveWeaponChanged();
 	}
 	return Actor;
