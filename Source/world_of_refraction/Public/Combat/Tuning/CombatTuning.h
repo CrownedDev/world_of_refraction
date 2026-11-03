@@ -23,7 +23,7 @@ enum class ECombatLadder : uint8
 	PillarCurve,            // key: live pillar level 0 .. 7 (the soft cap, 0 at 0, 1 at 7)
 	WeaponReferencePower,   // key: item tier index, F = 0 .. S = 6 (F 40 .. S 192)
 	WeaponRequirementByTier, // key: item tier index, F = 0 .. S = 6 (main-pillar level: F0 E1 D2 C3 B5 A6 S7)
-	EnemyRankHealth,        // key: EEncounterRank value (Normal 1, Mini-boss 3, Boss 6, Elite 1.5)
+	EnemyRankHealth,        // key: EEncounterRank value (Normal 1, Mini-boss 4, Boss 8, Elite 1.5)
 	// B-223 (D-102): pillar level drops.
 	LevelDropChance,        // key: enemy tier index, F = 0 .. S = 6 (a normal enemy's chance to drop a level)
 	MiniBossLevels,         // key: enemy tier index, F = 0 .. S = 6 (levels a mini-boss or boss always gives)
