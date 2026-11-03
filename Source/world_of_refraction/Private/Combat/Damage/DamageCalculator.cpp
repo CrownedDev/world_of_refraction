@@ -91,6 +91,13 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 		Inputs.GridDamageModifier = Grid->GetDamageModifier(Attacker);
 	}
 	Inputs.StatusEffectModifier = GetStatusEffectDamageModifier(Attacker, Defender, Input.ActionType);
+	// B-293d: the defender's Damage Taken share and Guard's, so the damage floor measures from the unreduced hit.
+	Inputs.GuardFactor = Input.GuardFactor;
+	if (const USkillEffectManager *StatusManager = Defender ? GetSkillEffectManager() : nullptr)
+	{
+		Inputs.DamageTakenFactor = GetDamageTakenFactor(StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::ReduceDamageTaken),
+														StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::IncreaseDamageTaken));
+	}
 
 	// Crit. The one battle-random roll; skipped when the crit is forced, as before.
 	Inputs.bCanCrit = Input.bCanCrit;

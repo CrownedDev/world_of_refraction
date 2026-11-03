@@ -4,6 +4,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
 #include "Skills/Effects/SkillEffectManager.h"
+#include "GAS/WoREffectMirrorComponent.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
@@ -113,6 +114,12 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 	{
 		BuildupMgr->OnStatusBuildupChanged.AddDynamic(this, &UCharacterPanelWidget::HandleStatusBuildupChanged);
 	}
+	// B-318: on a guest the list follows the server's snapshot (the effect manager's events don't fire there).
+	if (UWoREffectMirrorComponent *Mirror = InActor->FindComponentByClass<UWoREffectMirrorComponent>())
+	{
+		BoundEffectMirror = Mirror;
+		Mirror->OnHeldSnapshotChanged.AddDynamic(this, &UCharacterPanelWidget::HandleHeldSnapshotChanged);
+	}
 
 	// BD manager binding (for character-created or runtime-transformed BDs)
 	if (UBrokenDarknessManager *BDManager = InActor->FindComponentByClass<UBrokenDarknessManager>())
@@ -195,6 +202,12 @@ void UCharacterPanelWidget::TeardownPanel()
 	{
 		BuildupMgr->OnStatusBuildupChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleStatusBuildupChanged);
 	}
+
+	if (UWoREffectMirrorComponent *Mirror = BoundEffectMirror.Get())
+	{
+		Mirror->OnHeldSnapshotChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleHeldSnapshotChanged);
+	}
+	BoundEffectMirror.Reset();
 
 	if (UBrokenDarknessManager *BDManager = BoundBDManager.Get())
 	{
@@ -668,6 +681,14 @@ void UCharacterPanelWidget::HandleEffectDurationChanged(AActor *Target, const FA
 		return;
 	}
 	RefreshEffectsList();
+}
+
+void UCharacterPanelWidget::HandleHeldSnapshotChanged(AActor *Holder)
+{
+	if (Holder == BoundActor.Get())
+	{
+		RefreshEffectsList();
+	}
 }
 
 void UCharacterPanelWidget::HandleDied(AActor *DeadActor)

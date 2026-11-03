@@ -1878,6 +1878,7 @@ void UActionExecutor::EnsureResultResolved(AActor *Defender)
 
 	Ctx->ResolvedDefenseType = Result.DefenseType;
 	Ctx->ResolvedFinalDamage = Result.FinalDamage;
+	Ctx->ResolvedGuardFactor = State.BaseDamage > 0 ? static_cast<float>(Result.FinalDamage) / State.BaseDamage : 1.0f; // B-293d
 	Ctx->bResolvedSuccess = Result.bSuccess;
 	Ctx->bResultResolved = true;
 
@@ -1991,6 +1992,7 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 	// for melee the tail is empty (ImpactsLanded==HitCount) so the overwrite is harmless.
 	Ctx->ResolvedDefenseType = Result.DefenseType;
 	Ctx->ResolvedFinalDamage = Result.FinalDamage;
+	Ctx->ResolvedGuardFactor = BaseSlice > 0 ? static_cast<float>(Result.FinalDamage) / BaseSlice : 1.0f; // B-293d
 	Ctx->bResolvedSuccess = Result.bSuccess;
 	Ctx->bResolvedPerfect = Match.bPerfect;
 	Ctx->bResultResolved = true;
@@ -2125,6 +2127,7 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 	Input.Target = Target;
 	Input.ActionType = Context.ActionType;
 	Input.BaseDamage = Context.bIgnoreDamage ? 0 : ImpactDamage; // B1: per-hit no-damage moment
+	Input.GuardFactor = Context.ResolvedGuardFactor; // B-293d: the damage floor measures from the unguarded hit
 	Input.bCanCrit = Context.bCanCrit;
 	Input.Element = Context.Element;
 	Input.InfusionLevel = Context.InfusionLevel;
@@ -2181,6 +2184,7 @@ void UActionExecutor::ApplyDamageAfterDefense(
 	{
 		Ctx.ResolvedDefenseType = DefenseResult.DefenseType;
 		Ctx.ResolvedFinalDamage = DefenseResult.FinalDamage;
+		Ctx.ResolvedGuardFactor = Ctx.BaseDamage > 0 ? static_cast<float>(DefenseResult.FinalDamage) / Ctx.BaseDamage : 1.0f; // B-293d
 		Ctx.bResolvedSuccess = DefenseResult.bSuccess;
 		Ctx.bResultResolved = true;
 	}
@@ -2999,6 +3003,7 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 		{
 			FDamageCalculationInput DmgInput;
 			DmgInput.BaseDamage = Input.BaseDamage;
+			DmgInput.GuardFactor = Input.GuardFactor;
 			DmgInput.ActionType = Input.ActionType;
 			DmgInput.Element = Input.Element;
 			DmgInput.bCanCrit = Input.bCanCrit;
