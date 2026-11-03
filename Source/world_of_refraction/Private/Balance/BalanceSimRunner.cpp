@@ -350,13 +350,13 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 			URingData *Adapter = NewObject<URingData>(GetTransientPackage());
 			Adapter->Tier = Archetype.WeaponTier;
 			FightAssets.Emplace(Adapter);
-			FRingInventoryEntry Owned = FRingInventoryEntry::CreateFromRing(Adapter);
-			Owned.AttachedItem.Kind = EAttachedItemKind::Crystal;
-			Owned.AttachedItem.Crystal = FCrystalAttachment(FCrystalId(SIM_ADAPTER_GEM_TYPE, Archetype.WeaponTier), SIM_ADAPTER_GEM_DURABILITY);
-			Owned.AssignedSpells.Add(Spell);
-			Inventory->Rings.Add(Owned);
+			FRingInventoryEntry OwnedAdapter = FRingInventoryEntry::CreateFromRing(Adapter);
+			OwnedAdapter.AttachedItem.Kind = EAttachedItemKind::Crystal;
+			OwnedAdapter.AttachedItem.Crystal = FCrystalAttachment(FCrystalId(SIM_ADAPTER_GEM_TYPE, Archetype.WeaponTier), SIM_ADAPTER_GEM_DURABILITY);
+			OwnedAdapter.AssignedSpells.Add(Spell);
+			Inventory->Rings.Add(OwnedAdapter);
 			FRingLoadoutEntry Slot;
-			Slot.RingEntry = Owned;
+			Slot.RingEntry = OwnedAdapter;
 			Active.RingLoadout.Add(Slot);
 			Active.ActiveRingIndex = 0;
 		}
