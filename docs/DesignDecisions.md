@@ -2887,6 +2887,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. Q-032 defines our Reflect as a share of the HP the hit took (an overkill reflects only the HP the target had), and Q-044e B already made the absorbers a deliberate difference from the deckbuilder ("negate 5" is exactly 5 HP you would have lost). Under A a fully stopped hit reflects nothing, and it keeps one reading of "what the hit did" for every after-hit effect. Not lore.
 **Notes for Claude:** applied (feature/B-042j-absorb-family, UNBUILT). "Reflect on the same shape" (one GE by tag and element, like the absorbers) moves to B-042j2 with the rest of D-092.
 
+### Q-273 — Does the Ice damage tag sit under Water?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-273) · **Blocks:** —
+**Question:** The native tag was `DamageType.Ice`, a sibling of the elements. Should it be `DamageType.Element.Water.Ice`, so anything listening for Water damage also hears Ice?
+**Options:** **A** (as built) nest it under Water. **B** keep it on its own.
+**Recommendation:** A. The deckbuilder makes Ice "a damage type of Water" (`wor-deckbuilder/docs/reference/02-enums.md`), and D-029 / ED-04 key Ice to Water. Pokemon-style sub-types and Path of Exile's damage conversion both let a sub-type count as its parent for "on hit" effects, which players read as expected. Nesting is free now (no content uses the tag) and costly later. Resistance is unaffected: an Ice hit still reads Ice resistance alone (Q-145b). Not lore.
+**Notes for Claude:** applied in B-273 (`refactor/B-273-hit-kind`). If any asset referenced `DamageType.Ice` it needs a tag redirect; none is known (C++ and Config checked, Content not searchable).
+
 ### Q-297 — Do Emerald bonus turns wait at the 2:1 cap?
 **Status:** ANSWERED · **Raised:** 2026-11-03 (B-297) · **Blocks:** —
 **Question:** D-052 says an Emerald bonus turn still respects the 2:1 cap (D-049). ET-12 says an S Emerald grants two turns back to back at once. Used on the holder's own turn, that is 3 turns in a row before the opponent acts, past the cap. Which wins?

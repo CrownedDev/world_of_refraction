@@ -129,7 +129,12 @@ namespace WoRResistance
 
 	float GetElementDamageResistance(AActor *Target, ESpellElement Element)
 	{
-		const EWoRDamageType ElementType = WoRDamageType::ElementToDamageType(Element);
+		return GetHitDamageResistance(Target, FWoRHitKind::FromPair(Element, EPhysicalDamageType::None));
+	}
+
+	float GetHitDamageResistance(AActor *Target, const FWoRHitKind &Hit)
+	{
+		const EWoRDamageType ElementType = Hit.ElementType();
 		if (!Target || ElementType == EWoRDamageType::None)
 		{
 			return 0.0f;
@@ -139,11 +144,16 @@ namespace WoRResistance
 
 	float GetHitTypeResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType)
 	{
-		const EWoRDamageType ElementType = WoRDamageType::ElementToDamageType(Element);
+		return GetHitTypeResistance(Target, FWoRHitKind::FromPair(Element, PhysicalType));
+	}
+
+	float GetHitTypeResistance(AActor *Target, const FWoRHitKind &Hit)
+	{
+		const EWoRDamageType ElementType = Hit.ElementType();
 		float Resist = GetTypeResistance(Target, ElementType) + GetAlsoResistance(Target, ElementType);
-		if (PhysicalType != EPhysicalDamageType::None)
+		if (Hit.Physical != EPhysicalDamageType::None)
 		{
-			Resist += GetTypeResistance(Target, WoRDamageType::PhysicalToDamageType(PhysicalType));
+			Resist += GetTypeResistance(Target, WoRDamageType::PhysicalToDamageType(Hit.Physical));
 		}
 		return Resist;
 	}
@@ -216,6 +226,11 @@ namespace WoRResistance
 
 	float GetTotalStatusResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType)
 	{
+		return GetTotalStatusResistance(Target, FWoRHitKind::FromPair(Element, PhysicalType));
+	}
+
+	float GetTotalStatusResistance(AActor *Target, const FWoRHitKind &Hit)
+	{
 		const UCharacterDataComponent *TargetComp = Target ? Target->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 		if (!TargetComp || !TargetComp->CharacterData)
 		{
@@ -223,7 +238,7 @@ namespace WoRResistance
 		}
 		// Floor RESISTANCE_MIN: a net weakness amplifies buildup (up to 2x at -1). Ceiling
 		// RESISTANCE_MAX: above 1 would heal the bar.
-		const float Total = GetGeneralStatusResistance(Target) + GetHitTypeResistance(Target, Element, PhysicalType) +
+		const float Total = GetGeneralStatusResistance(Target) + GetHitTypeResistance(Target, Hit) +
 							GetStatusResistBonus(Target);
 		return FMath::Clamp(Total, CombatConstants::RESISTANCE_MIN, CombatConstants::RESISTANCE_MAX);
 	}
