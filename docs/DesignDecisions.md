@@ -1739,6 +1739,22 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** the trial difficulty sets both enemy damage and the enemy AI tier; a per-encounter AI override stays (D-044). Spell and ability AI share one path, and the AI weights move into `UCombatTuningData`.
 **Notes for Claude:** jobs B-344 (difficulty → AI tier) and B-345 (one path, weights to data).
 
+### Q-341 — Which 3 tie-break steps stay?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-341, cloud) · **Blocks:** —
+**Question:** D-133 trims ET-08's 8-step tie-break (base speed, action speed, the lower world-stat total, Body, Mind, Spirit, side, slot) to 3. Which 3?
+**Options:** **A** higher base turn speed (buffs ignored), then your party before enemies, then the lower slot. **B** base speed, action speed, slot. **C** base speed, the underdog world-stat total, slot.
+**Recommendation:** A. A tie should go to the stat players build for turn order (speed), and otherwise be readable and predictable on the timeline: Final Fantasy X's CTB, the reference D-133 keeps, is praised for a turn order you can read ahead, and Pokémon's coin-flip speed ties are a long-standing player complaint, so ties stay deterministic. Party-first gives the player the edge on a true tie and needs no hidden stat; the slot makes it total. Action speed and the world stats are hidden in a tie (nothing on the strip shows them).
+**Answer:** A (approved by the reference-backed default). The 8-step chain stays in code, unused, until PIE.
+**Notes for Claude:** applied in B-341 (`feature/B-341-turn-rules-trim`).
+
+### Q-341b — Emerald's tiers under "a bonus turn lands next"
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-341, cloud) · **Blocks:** —
+**Question:** Emerald's tiers differed by delay (F 6 turns … S 0, S granting two turns). Under D-133's one rule every bonus turn lands immediately. What separates the tiers now?
+**Options:** **A** every tier's bonus lands next; S still grants two back to back, F–A one; the delay table retires (kept unread until PIE). Tier value otherwise comes from cost and availability until a balance pass. **B** keep the delays as a "grant after N turns" variant (two bonus rules, against D-133). **C** scale the count by tier (F–B one, A–S two).
+**Recommendation:** A. The deckbuilder's rule comes first (its `AddTurn` lands right after the current turn, `WoR_TCG_Pivot_Design.md` §7c), and D-133 asks for one rule; A keeps today's S behaviour and changes nothing else about the item. C is a balance question for the nightly sim, not a rules one.
+**Answer:** A (approved by the reference-backed default). Crown may still want lower tiers to differ (count, or a cost); that's a tuning change, not a rule.
+**Notes for Claude:** applied in B-341 (`GetEmeraldBonusTurnCount`).
+
 ### Q-21-audit — Party control: the deckbuilder's seat rule (audit §21)
 **Status:** ANSWERED (Crown: follow the deckbuilder's rule) · **Raised:** 2026-11-03 (audit §21) · **Blocks:** —
 **Question:** who commands each party member, solo and in co-op?
