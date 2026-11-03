@@ -9,14 +9,11 @@
 #include "Balance/BalanceArchetypes.h"
 #include "Balance/BalanceSimRecorder.h"
 #include "Combat/CombatOrchestrator.h"
-#include "Combat/CombatConstants.h"
 #include "Combat/Encounter/EnemyZone.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
-#include "Skills/Effects/ActiveSkillEffect.h"
-#include "Skills/Effects/SkillEffectManager.h"
 #include "Tests/WoRTestWorld.h"
 #include "WoRLog.h"
 
@@ -26,11 +23,6 @@ namespace
 	const TCHAR *SIM_CVAR_THINK_DELAY = TEXT("wor.AI.ThinkDelayScale");
 	const TCHAR *SIM_CVAR_BATTLE_SEED = TEXT("wor.Battle.Seed");
 
-	/** Rank HP stand-in until B-224 puts the rank multiplier in the game (BalanceSimulator.md §2 row 6). */
-	constexpr float SIM_RANK_HP_NORMAL = 1.0f;
-	constexpr float SIM_RANK_HP_MINIBOSS = 3.0f;
-	constexpr float SIM_RANK_HP_BOSS = 6.0f;
-	constexpr int32 SIM_RANK_HP_EFFECT_ID = 292001;
 	constexpr int32 SIM_ATTACK_HIT_COUNT = 1;
 	/** Frames to let the end-of-fight timers settle before the next fight's actors spawn. */
 	constexpr int32 SIM_SETTLE_FRAMES = 2;
@@ -46,19 +38,6 @@ namespace
 	{
 		const uint32 Current = static_cast<uint32>(CVar->GetFlags()) & ECVF_SetByMask;
 		return static_cast<EConsoleVariableFlags>(FMath::Max<uint32>(Current, ECVF_SetByCode));
-	}
-
-	float RankHPMultiplier(EEncounterRank Rank)
-	{
-		switch (Rank)
-		{
-		case EEncounterRank::MiniBoss:
-			return SIM_RANK_HP_MINIBOSS;
-		case EEncounterRank::Boss:
-			return SIM_RANK_HP_BOSS;
-		default:
-			return SIM_RANK_HP_NORMAL;
-		}
 	}
 
 	EBalanceFightOutcome OutcomeOf(ECombatState State)
@@ -323,28 +302,12 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 
 void FBalanceSimRunner::ApplyEnemyStrength(AActor *Enemy, const FBalanceMatchup &Matchup)
 {
-	// Same two multipliers as BattleGameMode's trial fights.
+	// The same three multipliers as BattleGameMode's trial fights (B-224: the rank's HP is the game's own now).
+	// TODO(B-224): BalanceSimulator.md also scales by the enemy's tier power; neither the game nor the sim does yet.
 	const float Strength = TrialGate::GetEnemyStrengthMultiplier(Matchup.TrialDifficulty) *
 						   AEnemyZone::GetTierStrengthMultiplier(Matchup.ZoneTier);
 	TrialGate::ApplyEnemyStrength(Enemy, Strength);
-
-	// TODO(B-224): delete with the game's own rank HP multiplier (a spec case then guards the double apply).
-	// TODO(B-224): BalanceSimulator.md also scales by the enemy's tier power; the stand-in uses the rank alone.
-	// MaxHP percents add up, so the rank's share is Strength x (Rank - 1): total HP = Strength x Rank.
-	const float RankMultiplier = RankHPMultiplier(Matchup.Rank);
-	UCharacterDataComponent *CharComp = Enemy->FindComponentByClass<UCharacterDataComponent>();
-	USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
-	if (!CharComp || !Effects || FMath::IsNearlyEqual(RankMultiplier, SIM_RANK_HP_NORMAL))
-	{
-		return;
-	}
-	FActiveSkillEffect RankHP = FActiveSkillEffect::CreatePersistent(TEXT("Balance sim rank HP"), SIM_RANK_HP_EFFECT_ID,
-																	  ESkillEffectType::MaxHPBuff,
-																	  Strength * (RankMultiplier - 1.0f) * CombatConstants::STAT_PERCENT_DIVISOR);
-	RankHP.bFromGear = true; // part of the enemy, not a cleansable buff
-	Effects->ApplyEffect(Enemy, RankHP);
-	CharComp->RecomputeMaxPools();
-	CharComp->ServerSetHP(CharComp->MaxHP);
+	TrialGate::ApplyEnemyRankHealth(Enemy, Strength, Matchup.Rank);
 }
 
 void FBalanceSimRunner::ClearFight()
