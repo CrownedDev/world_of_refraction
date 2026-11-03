@@ -15,6 +15,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Tests/WoRTestWorld.h"
+#include "Trial/TrialGate.h"
 #include "WoRLog.h"
 
 namespace
