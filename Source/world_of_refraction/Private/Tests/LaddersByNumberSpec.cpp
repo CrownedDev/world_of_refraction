@@ -31,14 +31,12 @@ namespace
 	/** Gap -5 .. +5 (required - yours): +40% over-statted down to x0.32 five under. */
 	constexpr float REQUIREMENT_GAP_EXPECTED[] = {1.40f, 1.30f, 1.20f, 1.13f, 1.06f, 1.00f, 0.90f, 0.78f, 0.64f, 0.50f, 0.32f};
 
-	constexpr int32 TIER_COUNT = 7;
-	constexpr EItemTier TIERS[TIER_COUNT] = {EItemTier::F_Tier, EItemTier::E_Tier, EItemTier::D_Tier, EItemTier::C_Tier,
-											 EItemTier::B_Tier, EItemTier::A_Tier, EItemTier::S_Tier};
+	constexpr int32 LADDERS_TIER_COUNT = 7;
 	/** F .. S: about +30% a tier. */
-	constexpr float TIER_POWER_EXPECTED[TIER_COUNT] = {1.00f, 1.30f, 1.70f, 2.20f, 2.85f, 3.70f, 4.80f};
+	constexpr float TIER_POWER_EXPECTED[LADDERS_TIER_COUNT] = {1.00f, 1.30f, 1.70f, 2.20f, 2.85f, 3.70f, 4.80f};
 
-	constexpr float CRIT_GEAR_CEILING = 2.5f;
-	constexpr float CRIT_STAT_CAP = 1.5f;
+	constexpr float LADDERS_CRIT_GEAR_CEILING = 2.5f;
+	constexpr float LADDERS_CRIT_STAT_CAP = 1.5f;
 	constexpr float HUGE_GEAR_FACTOR = 10.0f;
 
 	constexpr float DAMAGE_TAKEN_DOWN_CAP = 90.0f;
@@ -108,7 +106,7 @@ void FLaddersByNumberSpec::Define()
 
 	It("pins tier power F..S: 1.00 1.30 1.70 2.20 2.85 3.70 4.80", [this]()
 	{
-		for (int32 Index = 0; Index < TIER_COUNT; ++Index)
+		for (int32 Index = 0; Index < LADDERS_TIER_COUNT; ++Index)
 		{
 			TestEqual(FString::Printf(TEXT("tier power of tier %d"), Index), TierPowerScaling::CodeTierPower(Index), TIER_POWER_EXPECTED[Index],
 					  LADDER_TOLERANCE);
@@ -116,18 +114,18 @@ void FLaddersByNumberSpec::Define()
 		if (!UCombatTuningData::GetActive())
 		{
 			TestEqual(TEXT("S, through the tuning path"), TierPowerScaling::GetTierPowerMultiplier(EItemTier::S_Tier),
-					  TIER_POWER_EXPECTED[TIER_COUNT - 1], LADDER_TOLERANCE);
+					  TIER_POWER_EXPECTED[LADDERS_TIER_COUNT - 1], LADDER_TOLERANCE);
 		}
 	});
 
 	It("pins the crit damage gear ceiling at x2.5 and composes to it", [this]()
 	{
-		TestEqual(TEXT("CRIT_DAMAGE_GEAR_CEILING"), CombatConstants::CRIT_DAMAGE_GEAR_CEILING, CRIT_GEAR_CEILING, LADDER_TOLERANCE);
+		TestEqual(TEXT("CRIT_DAMAGE_GEAR_CEILING"), CombatConstants::CRIT_DAMAGE_GEAR_CEILING, LADDERS_CRIT_GEAR_CEILING, LADDER_TOLERANCE);
 		FWoRStatLayers Layers = FWoRStatLayers::ForStat(ESubStat::CritDamage);
-		TestEqual(TEXT("compose clamp"), Layers.Max, CRIT_GEAR_CEILING, LADDER_TOLERANCE);
-		Layers.StatBase = CRIT_STAT_CAP;
+		TestEqual(TEXT("compose clamp"), Layers.Max, LADDERS_CRIT_GEAR_CEILING, LADDER_TOLERANCE);
+		Layers.StatBase = LADDERS_CRIT_STAT_CAP;
 		Layers.GearFactor = HUGE_GEAR_FACTOR;
-		TestEqual(TEXT("a crit never exceeds x2.5 with gear"), Layers.Compose(), CRIT_GEAR_CEILING, LADDER_TOLERANCE);
+		TestEqual(TEXT("a crit never exceeds x2.5 with gear"), Layers.Compose(), LADDERS_CRIT_GEAR_CEILING, LADDER_TOLERANCE);
 	});
 
 	It("caps Damage Taken Down at 90% and leaves Damage Taken Up uncapped", [this]()
