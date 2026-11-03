@@ -244,7 +244,7 @@ bool UBrokenDarknessManager::RollForBreak(EItemTier Tier, int32 InfusionLevel, c
 
 	if (bBreaks)
 	{
-		UE_LOG(LogWoRCombat, Verbose,
+		UE_LOG(LogWoRCombat, Log,
 			   TEXT("BrokenDarkness: %s BROKE! (Reason: %s, Tier: %s, Level: L%d, Roll: %.4f < %.4f)"),
 			   Owner ? *Owner->GetName() : TEXT("Unknown"),
 			   *TriggerReason,
@@ -371,7 +371,7 @@ void UBrokenDarknessManager::AddStrain(int32 Deficit, const FString &TriggerReas
 
 	if (AccruedStrain >= BreakThreshold)
 	{
-		UE_LOG(LogWoRCombat, Verbose,
+		UE_LOG(LogWoRCombat, Log,
 			   TEXT("BrokenDarkness: %s BROKE via strain! (%.2f >= %.2f, Reason: %s)"),
 			   Owner ? *Owner->GetName() : TEXT("Unknown"),
 			   AccruedStrain, BreakThreshold,

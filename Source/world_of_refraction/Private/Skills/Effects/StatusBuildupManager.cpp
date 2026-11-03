@@ -360,7 +360,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		// immediately empties, and nothing visible happens.
 		if (ResolvedTrigger != ESkillEffectType::None)
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status bar FULL - Triggering %s"),
+			UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s status bar FULL - Triggering %s"),
 				   *Target->GetName(), *UEnum::GetValueAsString(ResolvedTrigger));
 
 			TriggerSkillEffectFromBuildup(Source, Target, ResolvedTrigger, Element);
