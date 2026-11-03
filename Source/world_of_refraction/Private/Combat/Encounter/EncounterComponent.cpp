@@ -323,13 +323,13 @@ void UEncounterComponent::OnJoinWindowExpired()
 	TArray<TArray<UCharacterData *>> CaughtTeams;
 	TArray<FName> CaughtIds;
 	EAIDifficulty FightDifficulty = Difficulty;
-	EEncounterRank FightRank = Rank;
+	EEncounterRank FightRank = UEncounterData::GetFightRank(EncounterData, Rank);
 	for (const UEncounterComponent *Encounter : Caught)
 	{
 		CaughtTeams.Add(Encounter->GetOwnTeam());
 		CaughtIds.Add(Encounter->GetEncounterId());
 		FightDifficulty = FMath::Max(FightDifficulty, Encounter->Difficulty);
-		FightRank = FMath::Max(FightRank, Encounter->Rank);
+		FightRank = FMath::Max(FightRank, UEncounterData::GetFightRank(Encounter->EncounterData, Encounter->Rank));
 	}
 	const TArray<UCharacterData *> OpposingPartyData = UEncounterData::BuildCaughtRoster(CaughtTeams);
 
