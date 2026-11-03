@@ -292,8 +292,8 @@ void ABattleGameMode::BootstrapCombat()
                    *GetNameSafe(Enemy), *UEnum::GetValueAsString(EnemyRank));
         }
     }
-    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Trial difficulty %s, zone tier %d: enemy strength x%.2f"),
-           *TrialGate::GetDifficultyName(TrialRun->GetTrialDifficulty()).ToString(), Zone.Tier, EnemyStrength);
+    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Trial difficulty %s, zone tier %d: enemy HP x%.2f, damage x%.2f"),
+           *TrialGate::GetDifficultyName(TrialRun->GetTrialDifficulty()).ToString(), Zone.Tier, EnemyHealth, EnemyStrength);
 
     // B-191: reactions (worn items facing a character) and the bosses' own triggers change the
     // fight before it starts; B-212: those with a mid-fight When wait in FightTriggers.
