@@ -2,7 +2,6 @@
 
 #include "Trial/TrialGate.h"
 #include "Combat/Tier/CombatTier.h"
-#include "Combat/Encounter/EnemyZone.h"
 
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
@@ -96,7 +95,8 @@ float TrialGate::GetFightEnemyHealthMultiplier(ETrialDifficulty Difficulty, int3
 
 float TrialGate::GetFightEnemyDamageMultiplier(ETrialDifficulty Difficulty, int32 ZoneTier)
 {
-	return GetEnemyStrengthMultiplier(Difficulty) * AEnemyZone::GetTierStrengthMultiplier(ZoneTier);
+	(void)ZoneTier; // D-120 (widened): the zone only decides which enemies are placed
+	return GetEnemyStrengthMultiplier(Difficulty);
 }
 
 bool TrialGate::ApplyEnemyStrength(AActor *Enemy, float StrengthMultiplier)

@@ -55,7 +55,7 @@ namespace TrialGate
 	 *  adds no HP (harder zones place higher-tier enemies instead, AEnemyZone::GetEnemyTierGuide). */
 	float GetFightEnemyHealthMultiplier(ETrialDifficulty Difficulty, int32 ZoneTier);
 
-	/** B-328: a fight's enemy damage multiplier: the difficulty's x the zone's strength (B-186; D-120 leaves damage). */
+	/** B-328: a fight's enemy damage multiplier: the difficulty's only. D-120 (widened): the zone adds no damage either. */
 	float GetFightEnemyDamageMultiplier(ETrialDifficulty Difficulty, int32 ZoneTier);
 
 	/** The run's payout (D-006), × this. */

@@ -1,8 +1,8 @@
 // ZoneHealthOnceSpec.cpp
 // B-327 (simplicity audit): ApplyEnemyStrength(S) then ApplyEnemyRankHealth(S, rank) gives S x rank x tier, S once
 // (MaxHPBuff percents add, USkillEffectManager::GetTotalStatModifier). B-328 (D-120): S is the fight's HP multiplier,
-// and the zone is no longer part of it (enemy HP = own x rank x Combat Tier power); the zone scales damage and guides
-// which tier of enemy a zone places.
+// and the zone is no longer part of it (enemy HP = own x rank x Combat Tier power); the zone adds no damage either
+// and only guides which tier of enemy a zone places.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -39,14 +39,13 @@ void FZoneHealthOnceSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("B-328 (D-120): the zone adds no HP, still scales damage, and asks for stronger enemies", [this]()
+	It("B-328 (D-120): the zone adds no HP and no damage, and asks for stronger enemies", [this]()
 	{
 		const int32 TopZone = EnemyZoneConstants::MAX_ZONE_TIER;
 		TestEqual(TEXT("HP: zone 4 = zone 0"), TrialGate::GetFightEnemyHealthMultiplier(ETrialDifficulty::Medium, TopZone),
 				  TrialGate::GetFightEnemyHealthMultiplier(ETrialDifficulty::Medium, 0), KINDA_SMALL_NUMBER);
-		TestEqual(TEXT("damage: zone 4 = zone 0 x its strength"), TrialGate::GetFightEnemyDamageMultiplier(ETrialDifficulty::Medium, TopZone),
-				  TrialGate::GetFightEnemyDamageMultiplier(ETrialDifficulty::Medium, 0) * AEnemyZone::GetTierStrengthMultiplier(TopZone),
-				  KINDA_SMALL_NUMBER);
+		TestEqual(TEXT("damage: zone 4 = zone 0 (D-120 widened)"), TrialGate::GetFightEnemyDamageMultiplier(ETrialDifficulty::Medium, TopZone),
+				  TrialGate::GetFightEnemyDamageMultiplier(ETrialDifficulty::Medium, 0), KINDA_SMALL_NUMBER);
 		for (int32 Zone = 1; Zone <= TopZone; ++Zone)
 		{
 			TestTrue(FString::Printf(TEXT("zone %d asks for a higher tier than zone %d"), Zone, Zone - 1),
