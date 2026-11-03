@@ -4,6 +4,7 @@
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
 #include "Combat/Resistance/ClassInnateResistanceTable.h"
+#include "Combat/Resistance/ResistanceColumns.h"
 #include "Combat/Elements/ElementTable.h"
 #include "Combat/Boss/BossPhaseComponent.h"
 #include "Combat/CombatConstants.h"
@@ -91,11 +92,8 @@ namespace
 			return 0.0f;
 		}
 		const FResistanceBonus Gear = Loadout->GetActiveResistanceBonus(Target);
-		const ClassInnateResistanceTable::FResistanceRow GearRow{
-			Gear.Fire, Gear.Water, Gear.Earth, Gear.Wind, Gear.Light, Gear.Darkness, Gear.Lightning, Gear.Void,
-			Gear.Reality, Gear.Slash, Gear.Pierce, Gear.Impact};
-		return (ClassInnateResistanceTable::GetElementColumn(GearRow, Element) +
-				ClassInnateResistanceTable::GetPhysicalColumn(GearRow, Physical)) /
+		return (ResistanceColumns::Get(Gear, WoRDamageType::ElementToDamageType(Element)) +
+				ResistanceColumns::Get(Gear, WoRDamageType::PhysicalToDamageType(Physical))) /
 			   ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR;
 	}
 }
