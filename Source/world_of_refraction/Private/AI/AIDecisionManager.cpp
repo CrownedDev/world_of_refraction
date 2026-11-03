@@ -2383,7 +2383,8 @@ int32 UAIDecisionManager::ClampInfusionLevelForHP(AActor *Attacker, UCharacterDa
                                   : UInventoryComponent::ResolveAbilityTier(Attacker, Action.SkillData);
     const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(OwnTier);
     const float TierGapCostMult = ActionExec->GetTierGapCostMultiplier(Attacker, Action);
-    while (Level > 0)
+    // D-126 (B-334): only L2 pays HP, so the drop stops at the first level that pays none (L1).
+    while (InfusionConstants::LevelPaysHP(Level))
     {
         const int32 PreEffEP = FMath::RoundToInt(
             BaseEnergyCost * ActionExec->ComputeInfusionCostMultiplier(Level, bIsSpell, Comp) * PowerMult * TierGapCostMult);
