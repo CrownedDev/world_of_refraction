@@ -3009,3 +3009,11 @@ Moved here once applied. Newest first.
 **Recommendation:** as built. Final Fantasy X-2 / Dragon Quest guest members borrow from the party's stock and leave nothing behind; a temporary member owning gear would lose it when they leave. The leader is the player's own character, the natural default holder (Dragon Quest's bag).
 **Notes for Claude:** applied in B-321. B-323's give can move a piece to anyone; if Crown wants the recruit to own its pickups, drop the `bDrawsWholeArmoury` branch in `PushGearToPool`.
 
+### Q-279b — Skins: who wears one, and where the base body changes
+
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-279b) · **Blocks:** —
+**Question:** (1) In a party of several characters, which one wears the player's skin and gets its bound bonus? (2) Where can the player switch Manny / Quinn after the start? (3) With no skin and Manny, should the game re-dress the pawn?
+**Options / as built:** (1) **the player's own character**: the local party's first permanent member (a run-only recruit never). (2) **where skins switch**: the hub or a rest spot, never in a fight. (3) **no**: the authored pawn is left as it is; only a skin or Quinn re-dresses it. Combat actors aren't dressed yet (TODO with the HUD / co-op work).
+**Recommendation:** as built. Mortal Shell: only the player's Foundling takes a shell; companions don't. Elden Ring changes the body only at the Roundtable Hold's mirror, a safe hub spot, which matches Crown's skin rule here (2026-10-28: hub and rest spots); one rule for both is simpler to learn.
+**Notes for Claude:** applied in B-279b. A co-op host trusts a client's unlocked skin (TODO B-233+). If Crown wants the base body fixed after the start, drop the Manny / Quinn buttons from `wor.UI.Forms`.
+
