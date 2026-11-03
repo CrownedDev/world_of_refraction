@@ -1664,11 +1664,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
 
 ### Q-319b — With the shared armoury, is "one copy" per character or per party?
-**Status:** OPEN (Crown) · **Raised:** 2026-11-03 (B-319 review) · **Blocks:** — (B-319 ships counting the owned list each member sees)
+**Status:** ANSWERED by Crown 2026-11-03 (B; changes D-020 and D-111's "within your own party gear stays shared") · **Raised:** 2026-11-03 (B-319 review) · **Blocks:** — (B-319 ships counting the owned list each member sees until the rework lands)
 **Question:** D-115 says a *character* never keeps two copies. Since B-091 the party shares one armoury: every member's owned list is the same pool, so B-319 counts duplicates across the party. Two members can't each own the same sword. Also, D-115's job said the inventory "never ends with two copies", but the choice waits in a list (Q-319), so two copies exist until the player chooses (and buying two of one weapon makes a duplicate on purpose).
 **Options:** A one copy per party armoury (today's behaviour) / B one copy per member: a second copy is allowed while another member wears the first (needs a per-member owner on pool gear) / C force the choice the moment the copy arrives.
 **Recommendation:** none: this reads D-115's wording, so it is Crown's call. A is the simplest and fits a shared stash (Diablo IV's shared stash keeps per-character equipped items only); B matches the wording.
-**Answer:** —
+**Answer (Crown, 2026-11-03):** **each character has their own separate inventory**, which they can look into, and characters **give each other things** when needed. So "one copy" is per character (D-115 as worded), and two members may each own the same sword.
+**Notes for Claude:** this reverses D-020 (one shared pool per player) and D-111's solo rule "within your own party gear stays shared"; D-111's give / request (today: skills, and everything between co-op players) now covers gear between your own characters too. Affects the shared armoury (B-091, B-221 / B-221b clash and worn-by rules, `UPoolSubsystem` wearers) and the store plan (B-312 to B-316: B-315 "worn-by" and B-316 "give / request"). Needs a D-number and a rework plan from the brain session. Open detail for Crown: does "separate" also cover the carried items (D-097's 10-slot party pouch) and storage, or gear only?
 
 ### Q-320 — How far does "always one primary" reach (D-116)?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-320) · **Blocks:** —
