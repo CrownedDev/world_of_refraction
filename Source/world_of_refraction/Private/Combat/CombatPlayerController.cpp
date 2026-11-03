@@ -16,6 +16,7 @@
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "Combat/CombatControl.h"
 #include "Combat/CombatOrchestrator.h"
+#include "Player/TurnStateComponent.h"
 #include "EngineUtils.h"
 #include "GameFramework/GameStateBase.h"
 #include "WoRAuthority.h"
@@ -80,6 +81,26 @@ namespace CombatInputRouting
 			{
 				UE_LOG(LogWoR, Log, TEXT("[CombatInput] no combat player controller in this world"));
 			}
+		}));
+
+	// Until a client builds its own command menu (B-228b), this is how a client makes a pick in 2-player PIE.
+	FAutoConsoleCommandWithWorld GSendDefendPickCmd(
+		TEXT("wor.Net.SendDefendPick"),
+		TEXT("DEBUG (B-229): pick Defend for the replicated current actor through this machine's combat controller (a client sends it to the server)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+		{
+			ACombatPlayerController *Controller = ACombatPlayerController::FindLocal(World);
+			const UTurnStateComponent *TurnState = UTurnStateComponent::Find(World);
+			AActor *CurrentActor = TurnState ? TurnState->GetCurrentActor() : nullptr;
+			if (!Controller || !CurrentActor)
+			{
+				UE_LOG(LogWoR, Warning, TEXT("[CombatInput] wor.Net.SendDefendPick: needs a combat controller (%s) and a current actor in the turn state (%s)"),
+					   Controller ? TEXT("ok") : TEXT("none"), *GetNameSafe(CurrentActor));
+				return;
+			}
+			FAction Defend;
+			Defend.ActionType = EActionType::Defend;
+			Controller->RequestMenuPick(FCombatPickRequest::FromAction(CurrentActor, Defend));
 		}));
 }
 
