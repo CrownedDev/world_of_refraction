@@ -51,6 +51,13 @@ namespace TrialGate
 	 *  hard enemies hit (GetEnemyStrengthMultiplier), not how long they last. */
 	float GetEnemyHealthMultiplier(ETrialDifficulty Difficulty);
 
+	/** B-328 (D-120): a fight's enemy max-HP multiplier before rank and Combat Tier: the difficulty's only. The zone
+	 *  adds no HP (harder zones place higher-tier enemies instead, AEnemyZone::GetEnemyTierGuide). */
+	float GetFightEnemyHealthMultiplier(ETrialDifficulty Difficulty, int32 ZoneTier);
+
+	/** B-328: a fight's enemy damage multiplier: the difficulty's x the zone's strength (B-186; D-120 leaves damage). */
+	float GetFightEnemyDamageMultiplier(ETrialDifficulty Difficulty, int32 ZoneTier);
+
 	/** The run's payout (D-006), × this. */
 	float GetPayoutMultiplier(ETrialDifficulty Difficulty);
 

@@ -271,10 +271,10 @@ void ABattleGameMode::BootstrapCombat()
     // B-183 / B-186: the gate's difficulty and the zone the fight started in scale every enemy
     // before the fight (and its HUD) starts.
     const FEncounterZoneInfo Zone = TrialRun->GetPendingZone();
-    // B-293c (Q-293c): the door's difficulty scales enemy damage only; the zone scales both (B-186).
-    const float ZoneStrength = AEnemyZone::GetTierStrengthMultiplier(Zone.Tier);
-    const float EnemyStrength = TrialRun->GetEnemyStrengthMultiplier() * ZoneStrength;
-    const float EnemyHealth = TrialGate::GetEnemyHealthMultiplier(TrialRun->GetTrialDifficulty()) * ZoneStrength;
+    // B-293c (Q-293c): the door's difficulty scales enemy damage only. B-328 (D-120): the zone scales damage, not HP
+    // (enemy HP = own x rank x Combat Tier power); harder zones place higher-tier enemies.
+    const float EnemyStrength = TrialGate::GetFightEnemyDamageMultiplier(TrialRun->GetTrialDifficulty(), Zone.Tier);
+    const float EnemyHealth = TrialGate::GetFightEnemyHealthMultiplier(TrialRun->GetTrialDifficulty(), Zone.Tier);
     for (int32 EnemyIndex = 0; EnemyIndex < OpposingParty.Num(); ++EnemyIndex)
     {
         AActor *Enemy = OpposingParty[EnemyIndex];
