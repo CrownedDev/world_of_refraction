@@ -137,6 +137,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Pool|Armoury")
     void AddWeaponToPool(const FWeaponInventoryEntry &Entry);
     const TArray<FWeaponInventoryEntry> &GetOwnedWeapons() const { return OwnedWeapons; }
+    /** By ID through the GUID index (B-312); an unset ID finds nothing. Never change an entry's ID through the
+     *  writable pointers below: the index would go stale (remove and add it instead). */
     FWeaponInventoryEntry *FindWeaponInPool(const FGuid &PersistentID);
     const FWeaponInventoryEntry *FindWeaponInPool(const FGuid &PersistentID) const;
 

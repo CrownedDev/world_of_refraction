@@ -143,6 +143,35 @@ void FStoreViewsSpec::Define()
 		TestNull(TEXT("no ID finds nothing"), Pool->FindWeaponInPool(FGuid()));
 	});
 
+	It("finds adapters and evolutions by ID, an in-place update by the same ID, and the first of two sharing an ID", [this]()
+	{
+		if (!Pool) return;
+		FRingInventoryEntry Adapter;
+		Adapter.PersistentID = FGuid::NewGuid();
+		Pool->AddRingToPool(Adapter);
+		FEvolutionInventoryEntry Evolution;
+		Evolution.InstanceID = FGuid::NewGuid();
+		Pool->AddEvolutionToPool(Evolution);
+		TestNotNull(TEXT("adapter found"), Pool->FindRingInPool(Adapter.PersistentID));
+		TestNotNull(TEXT("evolution found"), Pool->FindEvolutionInPool(Evolution.InstanceID));
+
+		FWeaponInventoryEntry First = FWeaponInventoryEntry::CreateFromWeapon(Sword);
+		First.PersistentID = FGuid::NewGuid();
+		Pool->AddWeaponToPool(First);
+		FWeaponInventoryEntry Updated = First;
+		Updated.Weapon = Dagger;
+		Pool->UpdateWeapon(Updated);
+		const FWeaponInventoryEntry *Found = Pool->FindWeaponInPool(First.PersistentID);
+		TestTrue(TEXT("the update replaced it in place"), Found && Found->Weapon == Dagger);
+		TestEqual(TEXT("no second copy"), Pool->GetOwnedWeapons().Num(), 1);
+
+		FWeaponInventoryEntry Twin = FWeaponInventoryEntry::CreateFromWeapon(Sword);
+		Twin.PersistentID = First.PersistentID;
+		Pool->AddWeaponToPool(Twin);
+		Found = Pool->FindWeaponInPool(First.PersistentID);
+		TestTrue(TEXT("the first of two sharing an ID wins"), Found && Found->Weapon == Dagger);
+	});
+
 	It("gives each member a view of its own gear, and the copies agree with it after the draw", [this]()
 	{
 		if (!Pool) return;
