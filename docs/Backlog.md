@@ -251,7 +251,7 @@ After the unified loadout (B-301..B-308). Changes to that plan: B-302 treats the
 | B-331 | **One Speed** (D-123): Action Speed and Spell Speed merge into Speed (the sub-stat, the defense-window maths, `StatModifierTable`, the stone kind; D-088's Ice → Speed) | CC | M | B-330 | Specs: one Speed feeds both windows; old saves map both to Speed | TODO |
 | B-332 | **PIE sweep checklist** (D-124): `docs/PIE/Sweep.md` lists every retire-after-PIE delete (the OBSOLETE flags in code and the pending PIE rows) as one checklist per milestone | CC | S | — | The sweep lists every `OBSOLETE` flag in Source | TODO |
 | B-333 | **Seven balances** (D-125): Gold, Prisms, Diamond, Gear / Skill / Elemental / Pillar Essence; the 14 typed essences retire; spells cost Skill + Elemental, non-elemental abilities Skill, stat stones Pillar; Quartz folds into Elemental (changes D-105); save version bump, older saves wiped (D-060) | CC | M | — | Specs: the price of a spell, an ability, a stat stone and an elemental item | TODO |
-| B-334 | **Infusion costs** (D-126): the source choice stays; EP cost = base × charge level; the HP cost only at level 2 | CC | S | — | Spec: EP at levels 1 and 2; HP only at 2 | TODO |
+| B-334 | **Infusion costs** (D-126): the source choice stays; EP cost = base × charge level; the HP cost only at level 2 | CC | S | — | Spec: EP at levels 1 and 2; HP only at 2 | REVIEW (feature/B-334-infusion-costs, UNBUILT, on docs/D-120-127-simplicity-round1) |
 | B-335 | **Per-instance rolls retire** (D-127): flag the roll path OBSOLETE (delete in the D-124 sweep); nothing changes in play | CC | S | — | Specs green; no roll call left outside the obsolete path | TODO |
 
 ## Phase 2 — GAS migration (see `Design/GASMigration.md`)
