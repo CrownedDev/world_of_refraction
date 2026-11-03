@@ -209,6 +209,15 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
      *  (everyone else's adapter is the primary one), as GetActiveWeapon / GetActiveRing / GetPrimaryRing. */
     void RebuildSlotsFromLegacy(ECharacterClass CharacterClass);
 
+    /** B-304: rebuilds the mirror only if it no longer holds the old fields' items (same items by asset and GUID, in
+     *  slot order), then refreshes the two active indices (bShowPrimary / ActiveRingIndex may have moved). Cheap:
+     *  a walk of at most the primary, the secondary and the adapters, no copies when in step. */
+    void EnsureSlotsInStep(ECharacterClass CharacterClass);
+
+    /** B-304: the old entry a slot mirrors, or null (the getters that still return the old entry types). */
+    const FWeaponLoadoutEntry *GetLegacyWeaponEntry(int32 SlotIndex) const;
+    const FRingLoadoutEntry *GetLegacyRingEntry(int32 SlotIndex) const;
+
     // ==================== VALIDATION ====================
     // Live validation lives on ULoadoutComponent::GetValidationErrors —
     // comprehensive inventory ownership + class-rule + element-capability

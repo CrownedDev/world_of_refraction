@@ -15,6 +15,17 @@ class UAbilityData;
 class USkillDataBase;
 class USpellData;
 
+/** B-304: which old FCombatLoadout field a mirrored slot came from, so the getters that still return the old entry
+ *  types can hand back the real one. Goes with the old fields (B-309). */
+enum class ELegacySlotOrigin : uint8
+{
+	None,
+	PrimaryWeapon,
+	SecondaryWeapon,
+	PrimaryRing,
+	RingLoadout
+};
+
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FLoadoutSlot
 {
@@ -44,6 +55,10 @@ struct WORLD_OF_REFRACTION_API FLoadoutSlot
 	/** Weapon only: the per-loadout attack override. */
 	UPROPERTY(BlueprintReadOnly, Category = "Slot")
 	TObjectPtr<USkillDataBase> OverrideAttack = nullptr;
+
+	/** B-304: the old field this slot mirrors (RingLoadout: LegacyIndex is the ring's index). Not saved. */
+	ELegacySlotOrigin LegacyOrigin = ELegacySlotOrigin::None;
+	int32 LegacyIndex = INDEX_NONE;
 
 	EGearKind Kind() const { return Gear.Kind; }
 	bool IsEmpty() const { return !Gear.IsValid(); }
