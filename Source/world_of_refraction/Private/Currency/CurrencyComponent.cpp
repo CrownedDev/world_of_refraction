@@ -85,12 +85,16 @@ bool UCurrencyComponent::Add(ECurrencyType Currency, int32 Amount, uint8 SubKey)
         *Scalar = CurrencyComponentInternal::SaturatingAdd(*Scalar, Amount);
         NewBalance = *Scalar;
     }
-    else // OBSOLETE (B-333): the typed wallet
+    else if (Currency == ECurrencyType::EssenceTyped) // OBSOLETE (B-333): the typed wallet
     {
         FCurrencyEntry &Entry = FindOrAddEntry(EssenceWallet, SubKey);
         Entry.Amount = CurrencyComponentInternal::SaturatingAdd(Entry.Amount, Amount);
         EssenceWallet.MarkItemDirty(Entry);
         NewBalance = Entry.Amount;
+    }
+    else
+    {
+        return false; // not a currency this wallet holds
     }
 
     // Server-side broadcast (OnRep_* / FastArray callbacks fire on clients only).
@@ -117,12 +121,16 @@ bool UCurrencyComponent::Spend(ECurrencyType Currency, int32 Amount, uint8 SubKe
         *Scalar -= Amount; // CanAfford guaranteed >= Amount
         NewBalance = *Scalar;
     }
-    else // OBSOLETE (B-333): the typed wallet
+    else if (Currency == ECurrencyType::EssenceTyped) // OBSOLETE (B-333): the typed wallet
     {
         FCurrencyEntry &Entry = FindOrAddEntry(EssenceWallet, SubKey);
         Entry.Amount -= Amount; // CanAfford guaranteed >= Amount
         EssenceWallet.MarkItemDirty(Entry);
         NewBalance = Entry.Amount;
+    }
+    else
+    {
+        return false; // not a currency this wallet holds (CanAfford already refused it: balance 0)
     }
 
     NotifyChanged(Currency, SubKey, NewBalance);

@@ -196,11 +196,11 @@ protected:
     UFUNCTION()
     void OnRep_PillarEssence();
 
+private:
     /** B-333: the scalar field behind Currency; null for EssenceTyped (the obsolete keyed wallet). */
     int32 *FindScalar(ECurrencyType Currency);
     const int32 *FindScalar(ECurrencyType Currency) const;
 
-private:
     /** PIE-safe authority check: WoRAuthority::HasAuthority on the owner. */
     bool HasServerAuthority() const;
 
