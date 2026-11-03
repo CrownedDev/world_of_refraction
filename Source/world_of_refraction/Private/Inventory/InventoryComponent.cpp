@@ -1389,7 +1389,9 @@ bool UInventoryComponent::DrawSharedGear()
     // B-322 (D-117): a save from before the per-character pouch gives its party pouch to the leader.
     Pool->AdoptLegacyCarriedItems(InventoryGearSync::GetLocalLeaderKey(GI, Key));
     bDrawsWholeArmoury = bRunOnly;
-    const auto IsMine = [this, Pool, Key](const FGuid &ID) { return bDrawsWholeArmoury || Pool->GetGearOwner(ID) == Key; };
+    // B-324: the chest's gear is nobody's to wear; a recruit's whole-armoury draw leaves it in the chest.
+    const auto IsMine = [this, Pool, Key](const FGuid &ID)
+    { return bDrawsWholeArmoury ? !Pool->IsInChest(ID) : Pool->GetGearOwner(ID) == Key; };
 
     // The whole armoury: this member's pieces first so its presets link to them, then free pieces,
     // then pieces another member wears.
@@ -1820,7 +1822,8 @@ void UInventoryComponent::HandlePoolGearChanged(FGuid GearID)
     UEvolutionInventoryComponent *EvoInv = GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
     // B-321 (D-117): another member's piece is not in this armoury (dropped if it was, e.g. after a give).
     const FName GearOwner = Pool->GetGearOwner(GearID);
-    const bool bOthers = !bDrawsWholeArmoury && !GearOwner.IsNone() && GearOwner != SharedGearKey;
+    // B-324: chest gear is nobody's, not even a run-only recruit's whole-armoury draw.
+    const bool bOthers = Pool->IsInChest(GearID) || (!bDrawsWholeArmoury && !GearOwner.IsNone() && GearOwner != SharedGearKey);
     // B-323 (D-115): a piece given to this member that it already owns a copy of waits for the duplicate choice.
     // Only a piece now this member's own: a run-only recruit hears the whole armoury, and unowned gear isn't a gift.
     const bool bMineNow = !bDrawsWholeArmoury && !GearOwner.IsNone() && GearOwner == SharedGearKey;

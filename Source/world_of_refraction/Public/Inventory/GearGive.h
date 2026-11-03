@@ -28,6 +28,16 @@ namespace WoRGive
 	/** Gives Count of FromKey's carried Id to ToKey. Empty on success; else the reason, for the player. */
 	WORLD_OF_REFRACTION_API FText TryGiveCarried(UWorld *World, FName FromKey, FName ToKey, const FCrystalId &Id, int32 Count);
 
+	// ---- The shared chest (B-324, Q-321): gear the chest owns; any member (not a run-only recruit) takes from it ----
+
+	/** Puts the member's unworn weapon or adapter in the chest. Empty on success; else the reason. Gear in any of
+	 *  the spawned member's loadouts is refused (a worn piece stays worn; take it off first). */
+	WORLD_OF_REFRACTION_API FText TryPutInChest(UWorld *World, FName FromKey, const FGuid &GearID);
+
+	/** Takes a piece from the chest: it becomes ToKey's (its duplicate choice fires if it owns a copy, D-115).
+	 *  Empty on success; else the reason. */
+	WORLD_OF_REFRACTION_API FText TryTakeFromChest(UWorld *World, FName ToKey, const FGuid &GearID);
+
 	/** Debug: what FromKey could give (its weapons, adapters and pouch stacks), one line each. */
 	WORLD_OF_REFRACTION_API FString GetGiveableString(const UWorld *World, FName FromKey);
 }

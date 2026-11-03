@@ -150,6 +150,77 @@ namespace WoRGive
 		return FText::GetEmpty();
 	}
 
+	FText TryPutInChest(UWorld *World, FName FromKey, const FGuid &GearID)
+	{
+		UPoolSubsystem *Pool = PoolOf(World);
+		if (!Pool)
+		{
+			return LOCTEXT("NoChest", "No chest to put that in");
+		}
+		if (FromKey.IsNone())
+		{
+			return LOCTEXT("NoOneToPut", "Choose a character");
+		}
+		if (Pool->FindEvolutionInPool(GearID))
+		{
+			return LOCTEXT("NoEvolutionsChest", "Evolutions can't go in the chest yet");
+		}
+		if (!Pool->FindWeaponInPool(GearID) && !Pool->FindRingInPool(GearID))
+		{
+			return LOCTEXT("NotGearChest", "That isn't a weapon or adapter");
+		}
+		if (Pool->GetGearOwner(GearID) != FromKey)
+		{
+			return FText::Format(LOCTEXT("NotTheirsChest", "{0} doesn't own that"), NameOf(World, FromKey));
+		}
+		// Worn gear can't be put away (B-324): a piece anyone wears (spawned or not), or in any of the member's
+		// loadouts, stays.
+		if (!Pool->GetWearer(GearID).IsNone())
+		{
+			return LOCTEXT("PutWornByAnyone", "Someone is wearing that. Take it off before putting it in the chest");
+		}
+		if (const UInventoryComponent *Member = FindMemberInventory(World, FromKey))
+		{
+			if (!Member->GetLoadoutsUsing(GearID).IsEmpty())
+			{
+				return LOCTEXT("PutWorn", "That is in a loadout. Take it off before putting it in the chest");
+			}
+		}
+		if (!Pool->GiveGear(GearID, UPoolSubsystem::GetChestKey()))
+		{
+			return LOCTEXT("PutFailed", "Couldn't put that in the chest");
+		}
+		// An unspawned member's loadouts can't be checked; the piece leaves them at its next draw, so no wearer stays.
+		Pool->ReleaseWearer(GearID);
+		return FText::GetEmpty();
+	}
+
+	FText TryTakeFromChest(UWorld *World, FName ToKey, const FGuid &GearID)
+	{
+		UPoolSubsystem *Pool = PoolOf(World);
+		if (!Pool)
+		{
+			return LOCTEXT("NoChestTake", "No chest to take from");
+		}
+		if (ToKey.IsNone())
+		{
+			return LOCTEXT("NoOneToTake", "Choose a character");
+		}
+		if (!Pool->IsInChest(GearID))
+		{
+			return LOCTEXT("NotInChest", "That isn't in the chest");
+		}
+		if (IsRunOnlyMember(World, ToKey))
+		{
+			return FText::Format(LOCTEXT("RecruitOwnsNothingChest", "{0} is only here for the run and can't own gear"), NameOf(World, ToKey));
+		}
+		if (!Pool->GiveGear(GearID, ToKey))
+		{
+			return LOCTEXT("TakeFailed", "Couldn't take that");
+		}
+		return FText::GetEmpty();
+	}
+
 	FText TryGiveCarried(UWorld *World, FName FromKey, FName ToKey, const FCrystalId &Id, int32 Count)
 	{
 		UPoolSubsystem *Pool = PoolOf(World);
