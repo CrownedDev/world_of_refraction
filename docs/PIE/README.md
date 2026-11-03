@@ -13,6 +13,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 ## Pending
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-224](B-224.md) | `feature/B-224-combat-numbers` (UNBUILT) | Combat numbers baseline: rank HP x1.5/3/6, Defense cap 75%, crit base x1.25, requirement floor 0.5, tuning ladders | Not built |
 | [B-001](B-001.md) | `fix/combat-hang-arc-a` (in `dev`) | Combat can no longer freeze; clean end of combat | Not tested |
 | [B-007](B-007.md) | `feature/B-007-automation-tests` (in `dev`) | 26 headless tests + test.sh output; no gameplay change | Not tested |
 | [B-006](B-006.md) | `chore/B-006-log-categories` (in `dev`) | Seven `LogWoR*` log categories; no gameplay change | Not tested |
