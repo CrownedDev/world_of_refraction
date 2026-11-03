@@ -731,8 +731,7 @@ FString UPoolSubsystem::GetPoolString() const
     }
     for (const TPair<FGuid, FName> &Owned : GearOwners)
     {
-        Out += FString::Printf(TEXT("
-    %s owned by %s"), *Owned.Key.ToString(EGuidFormats::Short),
+        Out += FString::Printf(TEXT("\n    %s owned by %s"), *Owned.Key.ToString(EGuidFormats::Short),
                                *FPaths::GetBaseFilename(Owned.Value.ToString()));
     }
     for (const FPoolGearClash &Clash : Clashes)
