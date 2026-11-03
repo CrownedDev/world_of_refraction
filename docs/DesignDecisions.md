@@ -1653,7 +1653,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.
 **What it changes:** an enemy's tier-power HP (B-224b) and its level-drop tier (B-223) read its Combat Tier; `UCharacterData::EnemyTier` stays only as the fallback for an actor with no gear and no skills.
 **Defaults taken (reference-backed, Crown may change):** Q-325 (rounding).
-**Notes for Claude:** job B-325.
+**Notes for Claude:** job B-325 (built 2026-11-03). D-120 / B-327 pair with it: enemy HP = own × rank × Combat Tier, the zone adds nothing. Existing enemy assets whose seed gear has no tier read F until the gear carries one (`EnemyTier` is the fallback only).
 
 ### Q-325 — How does the average round to a letter?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-325, cloud) · **Blocks:** —
