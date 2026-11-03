@@ -16,6 +16,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Trial/LevelDropPlacement.h"
+#include "Pool/PoolSubsystem.h"
 #include "Trial/TrialRunSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "LevelDropWidget"
@@ -149,9 +150,12 @@ void ULevelDropWidget::Refresh()
 	}
 	const UGameInstance *GI = GetGameInstance();
 	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
-	WaitingText->SetText(FText::Format(LOCTEXT("Waiting", "Pillar levels to place: {0}"), FText::AsNumber(Run ? Run->GetUnspentLevels() : 0)));
-
 	const UCharacterData *Member = SelectedMember();
+	// B-223b: each character places its own levels; Next member steps through whose levels these are.
+	WaitingText->SetText(Member ? FText::Format(LOCTEXT("Waiting", "{0}'s pillar levels to place: {1}"), FText::FromString(Member->Name),
+												FText::AsNumber(Run ? Run->GetUnspentLevels(UPoolSubsystem::GetCharacterKey(Member)) : 0))
+								: LOCTEXT("WaitingNone", "No party member"));
+
 	if (!Member)
 	{
 		MemberText->SetText(LOCTEXT("NoMember", "No party member"));

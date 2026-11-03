@@ -511,6 +511,10 @@ struct WORLD_OF_REFRACTION_API FSavedForms
 	/** B-279b: EPlayerBaseForm as a byte (0 Manny, 1 Quinn). */
 	UPROPERTY()
 	uint8 BaseForm = 0;
+
+	/** B-279c (save v10): the current outfit, one soft path per EOutfitSlot (empty in an older save: no outfit). */
+	UPROPERTY()
+	TArray<FSoftObjectPath> CurrentOutfit;
 };
 
 /** Everything one save slot holds. */
