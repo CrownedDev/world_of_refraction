@@ -7,6 +7,7 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
+#include "WoRLog.h"
 
 void UCharacterFormSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -22,7 +23,7 @@ void UCharacterFormSubsystem::Initialize(FSubsystemCollectionBase &Collection)
         const FSoftObjectPath Path = UAssetManager::Get().GetPrimaryAssetPath(Id);
         RegisterForm(Cast<UCharacterFormData>(Path.TryLoad()));
     }
-    UE_LOG(LogTemp, Log, TEXT("[CharacterForms] %d form(s) known"), Forms.Num());
+    UE_LOG(LogWoR, Log, TEXT("[CharacterForms] %d form(s) known"), Forms.Num());
 }
 
 void UCharacterFormSubsystem::RegisterForm(UCharacterFormData *Form)
@@ -96,10 +97,10 @@ void UCharacterFormSubsystem::RecordFightWonWith(const TArray<TArray<FCharacterF
         }
         float &Meter = Progress.FindOrAdd(Form->GetFName());
         Meter = FMath::Min(Meter + Fill, CharacterFormMeter::FULL);
-        UE_LOG(LogTemp, Verbose, TEXT("[CharacterForms] %s +%.2f -> %.2f"), *Form->GetName(), Fill, Meter);
+        UE_LOG(LogWoR, Verbose, TEXT("[CharacterForms] %s +%.2f -> %.2f"), *Form->GetName(), Fill, Meter);
         if (Meter >= CharacterFormMeter::FULL)
         {
-            UE_LOG(LogTemp, Log, TEXT("[CharacterForms] %s unlocked"), *Form->GetName());
+            UE_LOG(LogWoR, Log, TEXT("[CharacterForms] %s unlocked"), *Form->GetName());
             OnFormUnlocked.Broadcast(Form);
         }
     }
