@@ -270,7 +270,13 @@ enum class ESkillEffectType : uint8
     // move the target one row in its column through UCombatGridSubsystem; refused, with a log,
     // when that cell is taken or the target is already in the last row.
     PushBack UMETA(DisplayName = "Push Back (one row)"),
-    PullForward UMETA(DisplayName = "Pull Forward (one row)")
+    PullForward UMETA(DisplayName = "Pull Forward (one row)"),
+
+    // B-275 (S9): element-keyed forms; the effect's Element picks the element. Appended, so saved values
+    // don't move. An authored keyed effect becomes the old per-element member where one exists
+    // (SkillEffectClassification::ResolveKeyed); new content should use these.
+    GrantElementImmunity UMETA(DisplayName = "Element Immunity (by element)"),
+    ApplyDOTOnHit UMETA(DisplayName = "Apply DoT on Hit (by element)")
 };
 
 /**
@@ -296,6 +302,29 @@ namespace SkillEffectClassification
     inline ESkillEffectType GetElementImmunityType(ESpellElement Element)
     {
         return ElementTable::ForElement(Element).Immunity;
+    }
+
+    /** B-275: a keyed member as the old per-element member it equals (Fire immunity, Burn / Chill on hit);
+     *  unchanged when there is none (an on-hit DoT of another element) or Type isn't keyed. */
+    inline ESkillEffectType ResolveKeyed(ESkillEffectType Type, ESpellElement Element)
+    {
+        if (Type == ESkillEffectType::GrantElementImmunity)
+        {
+            const ESkillEffectType Old = GetElementImmunityType(Element);
+            return Old != ESkillEffectType::None ? Old : Type;
+        }
+        if (Type == ESkillEffectType::ApplyDOTOnHit)
+        {
+            if (Element == ESpellElement::Fire)
+            {
+                return ESkillEffectType::ApplyBurnToTarget;
+            }
+            if (Element == ESpellElement::Water)
+            {
+                return ESkillEffectType::ApplyChillToTarget;
+            }
+        }
+        return Type;
     }
 
     /** B-268 / Q-268: legacy types nothing reads and nothing equals; an authored one does nothing (validation warns). */
@@ -372,6 +401,7 @@ namespace SkillEffectClassification
         case ESkillEffectType::GrantLightningImmunity:
         case ESkillEffectType::GrantVoidImmunity:
         case ESkillEffectType::GrantRealityImmunity:
+        case ESkillEffectType::GrantElementImmunity:
         case ESkillEffectType::CleanseSelf:
         case ESkillEffectType::CleanseAllies:
         case ESkillEffectType::ExtraAction:
@@ -433,6 +463,7 @@ namespace SkillEffectClassification
         case ESkillEffectType::ApplyBurnToTarget:
         case ESkillEffectType::ApplyChillToTarget:
         case ESkillEffectType::ApplyStunToTarget:
+        case ESkillEffectType::ApplyDOTOnHit:
         // sweep-4: status-bar manipulation debuff (builds target's gauge)
         case ESkillEffectType::StatusIncrease:
             return true;

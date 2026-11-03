@@ -314,7 +314,9 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		FActiveSkillEffect Effect;
 		Effect.EffectName = Name;
 		Effect.EffectID = PackedEffectID;
-		Effect.EffectType = P.EffectType;
+		// B-275: a keyed member keyed by the payload's own Element, else the caller's, becomes the old member.
+		const ESpellElement KeyElement = P.Element != ESpellElement::None ? P.Element : Element;
+		Effect.EffectType = SkillEffectClassification::ResolveKeyed(P.EffectType, KeyElement);
 		Effect.EffectValue = (P.Value != 0) ? static_cast<float>(P.Value) : (P.Magnitude * 100.0f);
 		// Permanent is an EXPLICIT authored toggle now — NOT derived from duration-0.
 		//   bPermanent    -> never expires (Persistent timing; RemainingTurns irrelevant)
@@ -326,7 +328,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		Effect.InitialDuration = Effect.RemainingTurns;
 		// Charges: SEPARATE governor from duration. 0 (default) = no charge system, untouched.
 		Effect.Charges = P.Charges;
-		Effect.Element = Element;
+		Effect.Element = Effect.EffectType == ESkillEffectType::ApplyDOTOnHit ? KeyElement : Element;
 
 		// ⚠️ Footgun guard: a charged effect that is duration-0 AND not permanent is IsInstant()
 		// → ApplyEffect runs it down the instant lane and NEVER stores it, so its charges can
