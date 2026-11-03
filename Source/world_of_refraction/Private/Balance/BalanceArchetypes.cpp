@@ -91,7 +91,7 @@ namespace
 		Mid.ScalingTier = EScalingTier::B;
 		Mid.RequiredLevel = 3;
 		Mid.AbilityBase = 30;
-		Mid.SpellBase = 30; // a C Destruction spell, Instant, Fire, through the adapter
+		Mid.SpellBase = SIM_POWER_C; // a C Destruction spell, Instant, Fire, through the adapter: hits like a C weapon (B-325 note)
 		Out.Add(Mid);
 
 		FBalanceArchetype Late = MakeSimArchetype(SimLateCasterS, ECharacterClass::Caster, EItemTier::S_Tier, SIM_POWER_S);
@@ -104,7 +104,7 @@ namespace
 		Late.ScalingTier = EScalingTier::S;
 		Late.RequiredLevel = 7;
 		Late.AbilityBase = 40;
-		Late.SpellBase = 40; // an S spell, Instant, innate
+		Late.SpellBase = SIM_POWER_S; // an S spell, Instant, innate: hits like an S weapon, or the AI never casts it (B-325 note)
 		Out.Add(Late);
 
 		FBalanceArchetype LowS = MakeSimArchetype(SimLowLevelSGear, ECharacterClass::Generic, EItemTier::S_Tier, SIM_POWER_S);
