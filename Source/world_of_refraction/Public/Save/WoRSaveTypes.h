@@ -412,6 +412,11 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	UPROPERTY()
 	TArray<FSavedWearer> Wearers;
 
+	/** B-321 (D-117, save v7): who owns each piece (GearID -> character). Empty in an older save: each piece goes
+	 *  to its wearer, else the party leader, at the next draw. */
+	UPROPERTY()
+	TArray<FSavedWearer> Owners;
+
 	/** B-091: characters whose starting gear is already in the pool (it isn't banked twice). */
 	UPROPERTY()
 	TArray<FName> BankedCharacters;

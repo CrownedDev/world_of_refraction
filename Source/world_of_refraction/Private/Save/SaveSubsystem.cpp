@@ -607,6 +607,10 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 	{
 		Saved.Wearers.Add({Worn.Key, Worn.Value});
 	}
+	for (const TPair<FGuid, FName> &Owned : Pool.GetGearOwners())
+	{
+		Saved.Owners.Add({Owned.Key, Owned.Value});
+	}
 	Saved.BankedCharacters = Pool.GetBankedCharacters().Array();
 	for (const TPair<FCrystalId, int32> &Stack : Pool.GetCarriedItems())
 	{
@@ -827,6 +831,12 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		Wearers.Add(Worn.GearID, Worn.Character);
 	}
 	Pool.RestoreSharedGear(Wearers, Saved.BankedCharacters);
+	TMap<FGuid, FName> Owners;
+	for (const FSavedWearer &Owned : Saved.Owners)
+	{
+		Owners.Add(Owned.GearID, Owned.Character);
+	}
+	Pool.RestoreGearOwners(Owners);
 	TMap<FCrystalId, int32> Carried;
 	for (const FSavedCrystalStack &In : Saved.CarriedItems)
 	{
