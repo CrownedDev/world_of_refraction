@@ -15,6 +15,11 @@ namespace
 	constexpr float PALETTE_SPEC_CLOSEST = 10.8f;
 	constexpr float PALETTE_SPEC_TOLERANCE = 0.3f;
 	constexpr int32 PALETTE_SPEC_PAIRS = 36; // 9 choose 2
+	/** Sharma, Wu & Dalal 2005, test data pair 1. */
+	const FVector SHARMA_PAIR1_A(50.0, 2.6772, -79.7751);
+	const FVector SHARMA_PAIR1_B(50.0, 0.0, -82.7485);
+	constexpr float SHARMA_PAIR1_DELTA_E = 2.0425f;
+	constexpr float SHARMA_TOLERANCE = 0.0001f;
 }
 
 BEGIN_DEFINE_SPEC(FElementPaletteSpec, "WoR.Elements.Palette",
@@ -49,6 +54,7 @@ void FElementPaletteSpec::Define()
 					 (Closest.A == ESpellElement::Void && Closest.B == ESpellElement::Water));
 		TestEqual(TEXT("under protan"), Closest.Where, EColorVision::Protan);
 		TestEqual(TEXT("at the analysis' distance"), Closest.DeltaE, PALETTE_SPEC_CLOSEST, PALETTE_SPEC_TOLERANCE);
+		TestEqual(TEXT("Sharma's reference pair 1"), DeltaE2000Lab(SHARMA_PAIR1_A, SHARMA_PAIR1_B), SHARMA_PAIR1_DELTA_E, SHARMA_TOLERANCE);
 		TestEqual(TEXT("a colour is no distance from itself"), DeltaE2000(ElementColors::Fire, ElementColors::Fire), 0.0f, KINDA_SMALL_NUMBER);
 	});
 

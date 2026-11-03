@@ -38,6 +38,9 @@ namespace ElementColorVision
 	/** CIEDE2000 between two linear colours. */
 	WORLD_OF_REFRACTION_API float DeltaE2000(const FLinearColor &A, const FLinearColor &B);
 
+	/** CIEDE2000 between two CIELAB colours (L, a, b). */
+	WORLD_OF_REFRACTION_API float DeltaE2000Lab(const FVector &LabA, const FVector &LabB);
+
 	/** Every pair of the nine element colours at its smallest distance over the four visions, closest first. */
 	WORLD_OF_REFRACTION_API TArray<FPairDistance> ElementPairsClosestFirst();
 

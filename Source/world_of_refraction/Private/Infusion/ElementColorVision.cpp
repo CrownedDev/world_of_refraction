@@ -13,7 +13,7 @@ namespace
 	constexpr FCvdMatrix MACHADO_DEUTAN = {{0.367322f, 0.860646f, -0.227968f}, {0.280085f, 0.672501f, 0.047413f}, {-0.011820f, 0.042940f, 0.968881f}};
 	constexpr FCvdMatrix MACHADO_TRITAN = {{1.255528f, -0.076749f, -0.178779f}, {-0.078411f, 0.930809f, 0.147602f}, {0.004733f, 0.691367f, 0.303900f}};
 
-	// D65 white and the sRGB -> XYZ matrix.
+	// D65 white; the sRGB -> XYZ matrix is in CvdToLab.
 	constexpr double D65_X = 0.95047;
 	constexpr double D65_Y = 1.0;
 	constexpr double D65_Z = 1.08883;
@@ -82,6 +82,12 @@ FLinearColor ElementColorVision::Simulate(const FLinearColor &Linear, EColorVisi
 float ElementColorVision::DeltaE2000(const FLinearColor &ColourA, const FLinearColor &ColourB)
 {
 	const FCvdLab P = CvdToLab(ColourA), Q = CvdToLab(ColourB);
+	return DeltaE2000Lab(FVector(P.L, P.A, P.B), FVector(Q.L, Q.A, Q.B));
+}
+
+float ElementColorVision::DeltaE2000Lab(const FVector &LabA, const FVector &LabB)
+{
+	const FCvdLab P = {LabA.X, LabA.Y, LabA.Z}, Q = {LabB.X, LabB.Y, LabB.Z};
 	const double C1 = FMath::Sqrt(P.A * P.A + P.B * P.B), C2 = FMath::Sqrt(Q.A * Q.A + Q.B * Q.B);
 	const double CBar7 = FMath::Pow((C1 + C2) / 2.0, 7.0);
 	const double G = 0.5 * (1.0 - FMath::Sqrt(CBar7 / (CBar7 + CIEDE_25_POW_7)));
