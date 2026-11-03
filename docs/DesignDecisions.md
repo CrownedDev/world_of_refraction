@@ -3080,3 +3080,11 @@ Moved here once applied. Newest first.
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-224b. Authoring `EnemyTier` on the enemy assets is editor work (CC+UE).
 
+### Q-223 — Level drops: the numbers, when you place them, and the save
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-223) · **Blocks:** —
+**Question:** D-102 sets the shape (a chance from normal enemies, guaranteed levels from a mini-boss, you choose the pillar) but not the odds, how many a mini-boss gives, when you place a drop, or whether a run's levels are saved.
+**Context:** `Public/Combat/Tuning/CombatBaselineConstants.h` (`LEVEL_DROP_CHANCE_BY_TIER`, `LEVEL_DROP_ELITE_CHANCE_FACTOR`, `MINIBOSS_LEVELS_BY_TIER`); `Private/Trial/TrialGate.cpp` (`RollLevelDrops`); `Private/Combat/CombatOrchestrator.cpp` (`FinishCombat`); `Private/Trial/LevelDropPlacement.cpp`.
+**Options / as built:** **odds** a normal enemy 10 % at F rising to 30 % at S, an elite double; **mini-boss and boss** guaranteed levels by tier: F/E/D 1, C/B 2, A/S 3 (a boss gives the same as a mini-boss of its tier); **rolled at the win** (the fight's own random draws don't shift); **placing** the drops wait in the run until you place them (`wor.UI.LevelDrop`), one press per level, any party member, refused at 7; **save** a run's levels and waiting drops are not saved yet (a reload mid-run loses them).
+**Recommendation:** as built. Hades' boons and Slay the Spire's card rewards come after the fight, chosen by the player, not mid-fight; low odds from normal enemies with guaranteed rewards from bosses is the Hades / Dead Cells pattern (elites as a better-odds middle step, as Slay the Spire's elites). Over a 3-floor run that's about 6-10 levels, under the 21 cap, with the vendor as backup. Every number is a tuning row (`LevelDropChance`, `MiniBossLevels`) for B-293c.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-223. The run's levels go into the save with the run-save work (the save version bump belongs there, not here); the placeholder prompt opens by console only (the real post-fight screen is D-024).
