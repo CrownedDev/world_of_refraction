@@ -21,7 +21,6 @@ namespace TrialDoorConstants
     // Door-shaped reach: wide/deep enough to catch an approach from the front,
     // half the merchant sphere's height (a door is walked INTO, not around).
     const FVector DEFAULT_INTERACTION_EXTENT(200.0f, 200.0f, 100.0f);
-    constexpr float HINT_DURATION = 1e9f; // effectively "until removed"
 }
 
 ATrialDoor::ATrialDoor()
@@ -47,10 +46,7 @@ ATrialDoor::ATrialDoor()
 
 void ATrialDoor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    if (GEngine)
-    {
-        GEngine->RemoveOnScreenDebugMessage(static_cast<int32>(GetUniqueID()));
-    }
+    WoRInteract::HideHint(*this);
     PawnInRange.Reset();
     Super::EndPlay(EndPlayReason);
 }
@@ -136,14 +132,7 @@ void ATrialDoor::OnTriggerBeginOverlap(UPrimitiveComponent * /*OverlappedCompone
     }
 
     PawnInRange = Pawn;
-    if (GEngine)
-    {
-        // Keyed on this actor's id so the hint updates in place and is removable.
-        // int32 cast: GetUniqueID() is uint32, ambiguous between the int32/uint64 overloads.
-        GEngine->AddOnScreenDebugMessage(static_cast<int32>(GetUniqueID()),
-                                         TrialDoorConstants::HINT_DURATION,
-                                         FColor::Cyan, GetHintText());
-    }
+    WoRInteract::ShowHint(*this, FColor::Cyan, GetHintText());
 }
 
 void ATrialDoor::OnTriggerEndOverlap(UPrimitiveComponent * /*OverlappedComponent*/, AActor *OtherActor,
@@ -155,11 +144,7 @@ void ATrialDoor::OnTriggerEndOverlap(UPrimitiveComponent * /*OverlappedComponent
     }
 
     PawnInRange = nullptr;
-    if (GEngine)
-    {
-        // Same int32 cast as the Add — both sign-extend to the identical uint64 key.
-        GEngine->RemoveOnScreenDebugMessage(static_cast<int32>(GetUniqueID()));
-    }
+    WoRInteract::HideHint(*this);
 }
 
 FString ATrialDoor::GetHintText() const
