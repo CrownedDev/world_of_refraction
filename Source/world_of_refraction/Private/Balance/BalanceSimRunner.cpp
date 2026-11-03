@@ -35,10 +35,17 @@ namespace
 	/** Frames to let the end-of-fight timers settle before the next fight's actors spawn. */
 	constexpr int32 SIM_SETTLE_FRAMES = 2;
 
-	/** Set at console priority: a value typed in the editor console would otherwise outrank the runner's. */
 	IConsoleVariable *SimCVar(const TCHAR *Name)
 	{
 		return IConsoleManager::Get().FindConsoleVariable(Name);
+	}
+
+	/** Writes at the variable's own priority (at least code): a value typed in the editor console doesn't outrank
+	 *  the runner, and the runner doesn't lift it above code, so specs that set it afterwards still can. */
+	EConsoleVariableFlags SimPriority(const IConsoleVariable *CVar)
+	{
+		const uint32 Current = static_cast<uint32>(CVar->GetFlags()) & ECVF_SetByMask;
+		return static_cast<EConsoleVariableFlags>(FMath::Max<uint32>(Current, ECVF_SetByCode));
 	}
 
 	float RankHPMultiplier(EEncounterRank Rank)
@@ -102,12 +109,12 @@ bool FBalanceSimRunner::Begin()
 	if (IConsoleVariable *CVar = SimCVar(SIM_CVAR_INSTANT_IMPACTS))
 	{
 		SavedInstantImpacts = CVar->GetInt();
-		CVar->Set(1, ECVF_SetByConsole);
+		CVar->Set(1, SimPriority(CVar));
 	}
 	if (IConsoleVariable *CVar = SimCVar(SIM_CVAR_THINK_DELAY))
 	{
 		SavedThinkDelayScale = CVar->GetFloat();
-		CVar->Set(0.0f, ECVF_SetByConsole);
+		CVar->Set(0.0f, SimPriority(CVar));
 	}
 	if (IConsoleVariable *CVar = SimCVar(SIM_CVAR_BATTLE_SEED))
 	{
@@ -139,15 +146,15 @@ void FBalanceSimRunner::End()
 	ClearFight();
 	if (IConsoleVariable *CVar = SimCVar(SIM_CVAR_INSTANT_IMPACTS))
 	{
-		CVar->Set(SavedInstantImpacts, ECVF_SetByConsole);
+		CVar->Set(SavedInstantImpacts, SimPriority(CVar));
 	}
 	if (IConsoleVariable *CVar = SimCVar(SIM_CVAR_THINK_DELAY))
 	{
-		CVar->Set(SavedThinkDelayScale, ECVF_SetByConsole);
+		CVar->Set(SavedThinkDelayScale, SimPriority(CVar));
 	}
 	if (IConsoleVariable *CVar = SimCVar(SIM_CVAR_BATTLE_SEED))
 	{
-		CVar->Set(SavedBattleSeed, ECVF_SetByConsole);
+		CVar->Set(SavedBattleSeed, SimPriority(CVar));
 	}
 	LogTemp.SetVerbosity(SavedLogTemp);
 	LogWoRCombat.SetVerbosity(SavedLogCombat);
@@ -199,7 +206,7 @@ FBalanceFightRecord FBalanceSimRunner::RunFight(const FBalanceMatchup &Matchup, 
 
 	if (IConsoleVariable *CVar = SimCVar(SIM_CVAR_BATTLE_SEED))
 	{
-		CVar->Set(Seed, ECVF_SetByConsole); // StartCombat's BeginBattle seeds the stream from it
+		CVar->Set(Seed, SimPriority(CVar)); // StartCombat's BeginBattle seeds the stream from it
 	}
 	Recorder->Begin(Matchup.Id, Seed, Party);
 	Orchestrator->SetEncounterRank(Matchup.Rank);
