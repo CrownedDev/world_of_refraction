@@ -112,6 +112,7 @@ void UWoREffectMirrorComponent::SyncMirror()
 		return;
 	}
 	TGuardValue<bool> SyncingGuard(bSyncing, true);
+	++SyncCount;
 
 	UWoRTurnEffectTracker *Tracker = OwnsLifetime(Owner) ? GetTracker() : nullptr;
 	// Holder-turn spans only: an Immediate effect's teardown stays the enum path's (bPendingRemoval).
@@ -189,6 +190,7 @@ void UWoREffectMirrorComponent::SyncMirror()
 		}
 	}
 	Mirrored = MoveTemp(Kept);
+	SyncedFingerprint = GetSyncFingerprint();
 
 	if (bResyncRequested)
 	{
@@ -196,6 +198,34 @@ void UWoREffectMirrorComponent::SyncMirror()
 		bSyncing = false;
 		SyncMirror();
 	}
+}
+
+uint32 UWoREffectMirrorComponent::GetSyncFingerprint() const
+{
+	AActor *Owner = GetOwner();
+	const UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner);
+	const USkillEffectManager *SEM = MirrorEffectManager(this);
+	uint32 Hash = HashCombineFast(GetTypeHash(ReadsFromGAS()), PointerHash(GetTracker()));
+	Hash = HashCombineFast(Hash, GetTypeHash(ASC ? ASC->GetActiveGameplayEffects().GetNumGameplayEffects() : INDEX_NONE));
+	const TArray<FActiveSkillEffect> *Stored = SEM ? SEM->FindActiveEffects(Owner) : nullptr;
+	if (!Stored)
+	{
+		return Hash;
+	}
+	for (const FActiveSkillEffect &Effect : *Stored)
+	{
+		// Every field the sync's identity, magnitude and span checks read.
+		Hash = HashCombineFast(Hash, GetTypeHash(Effect.EffectID));
+		Hash = HashCombineFast(Hash, GetTypeHash(Effect.SourceKey));
+		Hash = HashCombineFast(Hash, GetTypeHash(static_cast<uint8>(Effect.EffectType)));
+		Hash = HashCombineFast(Hash, GetTypeHash(static_cast<uint8>(Effect.Element)));
+		Hash = HashCombineFast(Hash, GetTypeHash(Effect.GetStackedValue()));
+		Hash = HashCombineFast(Hash, GetTypeHash(Effect.RemainingTurns));
+		Hash = HashCombineFast(Hash, GetTypeHash(Effect.HolderTurns.TurnsLeft));
+		const uint32 Flags = (Effect.bFromGear ? 1u : 0u) | (Effect.bPermanent ? 2u : 0u) | (Effect.bCountsHolderTurns ? 4u : 0u);
+		Hash = HashCombineFast(Hash, Flags);
+	}
+	return Hash;
 }
 
 UWoRTurnEffectTracker *UWoREffectMirrorComponent::GetTracker() const
@@ -356,8 +386,12 @@ const UAbilitySystemComponent *UWoREffectMirrorComponent::GetGASReadSource(const
 	{
 		return nullptr;
 	}
-	// The read may come between a change and its event (NotifySpeedChanged, another listener).
-	Mirror->SyncMirror();
+	// The read may come between a change and its event (NotifySpeedChanged, another listener), so it checks
+	// what the sync reads rather than waiting for an event (B-261: it skips the sync when nothing changed).
+	if (!Mirror->SyncedFingerprint.IsSet() || Mirror->GetSyncFingerprint() != Mirror->SyncedFingerprint.GetValue())
+	{
+		Mirror->SyncMirror();
+	}
 	return UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor);
 }
 
