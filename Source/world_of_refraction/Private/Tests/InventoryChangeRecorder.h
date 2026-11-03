@@ -25,3 +25,27 @@ public:
 	UFUNCTION()
 	void Record(EInventoryChangeType ChangeType) { Changes.Add(ChangeType); }
 };
+
+/** B-323: listener for UInventoryComponent::OnDuplicateGearReceived (D-115), the same way. */
+UCLASS(Transient)
+class UDuplicateGearRecorder : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	TArray<FGuid> NewIDs;
+	TArray<FGuid> OwnedIDs;
+
+	void Listen(UInventoryComponent *Inventory)
+	{
+		Inventory->OnDuplicateGearReceived.AddDynamic(this, &UDuplicateGearRecorder::Record);
+	}
+
+	UFUNCTION()
+	void Record(FGuid NewID, FGuid OwnedID)
+	{
+		NewIDs.Add(NewID);
+		OwnedIDs.Add(OwnedID);
+	}
+};
+

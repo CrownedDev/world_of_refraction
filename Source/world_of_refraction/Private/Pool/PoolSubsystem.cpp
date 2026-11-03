@@ -228,6 +228,22 @@ void UPoolSubsystem::SetGearOwner(const FGuid &GearID, FName CharacterKey)
     }
 }
 
+bool UPoolSubsystem::GiveGear(const FGuid &GearID, FName ToKey)
+{
+    // Evolutions wait for Q-323 (attached / primary-slot detach): refused here too, so no caller can leave a slot dangling.
+    const bool bInPool = FindWeaponInPool(GearID) || FindRingInPool(GearID);
+    if (!bInPool || ToKey.IsNone() || GetGearOwner(GearID) == ToKey)
+    {
+        return false;
+    }
+    const FName FromKey = GetGearOwner(GearID);
+    SetGearOwner(GearID, ToKey);
+    UE_LOG(LogTemp, Log, TEXT("[Pool] %s gave %s to %s"), *FPaths::GetBaseFilename(FromKey.ToString()), *GearID.ToString(),
+           *FPaths::GetBaseFilename(ToKey.ToString()));
+    OnPoolGearChanged.Broadcast(GearID);
+    return true;
+}
+
 int32 UPoolSubsystem::AssignUnownedGear(FName Fallback)
 {
     int32 Assigned = 0;
@@ -545,6 +561,26 @@ int32 UPoolSubsystem::AdoptLegacyCarriedItems(FName LeaderKey)
     UE_LOG(LogTemp, Log, TEXT("[Pool] An older save's party pouch (%d stack(s), %d slot(s)) is now %s's; %d item(s) went to storage"), Legacy.Num(),
            LegacySlots, *FPaths::GetBaseFilename(LeaderKey.ToString()), Stored);
     return Legacy.Num();
+}
+
+bool UPoolSubsystem::GiveCarried(FName FromKey, FName ToKey, const FCrystalId &Id, int32 Count)
+{
+    if (Count <= 0 || FromKey == ToKey || ToKey.IsNone() || GetCarriedCount(FromKey, Id) < Count || GetCarryRoom(ToKey, Id) < Count)
+    {
+        return false;
+    }
+    FPoolPouch &From = FindOrAddPouch(FromKey);
+    int32 &Stack = From.Stacks.FindChecked(Id);
+    Stack -= Count;
+    if (Stack <= 0)
+    {
+        From.Stacks.Remove(Id);
+    }
+    FindOrAddPouch(ToKey).Stacks.FindOrAdd(Id) += Count;
+    UE_LOG(LogTemp, Log, TEXT("[Pool] %s gave %d %s to %s"), *FPaths::GetBaseFilename(FromKey.ToString()), Count,
+           *ItemIdentity::GetDisplayName(Id), *FPaths::GetBaseFilename(ToKey.ToString()));
+    OnPoolItemsChanged.Broadcast();
+    return true;
 }
 
 FString UPoolSubsystem::GetItemSlotsString() const
