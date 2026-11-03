@@ -141,8 +141,11 @@ void AWoRPlayerState::ApplyFormLook()
 {
 	const ACharacter *Character = Cast<ACharacter>(GetPawn());
 	USkeletalMeshComponent *Mesh = Character ? Character->GetMesh() : nullptr;
-	// The default look leaves an authored pawn alone until this PlayerState has dressed it.
-	if (!Mesh || (!WornForm && BaseForm == EPlayerBaseForm::Manny && DressedPawn.Get() != Character))
+	// The default look leaves an authored pawn alone until this PlayerState has dressed it (unless an outfit is worn).
+	const UGameInstance *OutfitGI = GetGameInstance();
+	const UCharacterFormSubsystem *LocalForms = OutfitGI && IsLocalPlayerWallet() ? OutfitGI->GetSubsystem<UCharacterFormSubsystem>() : nullptr;
+	const bool bWearsOutfit = LocalForms && !LocalForms->GetCurrentOutfit().IsEmpty();
+	if (!Mesh || (!WornForm && BaseForm == EPlayerBaseForm::Manny && DressedPawn.Get() != Character && !bWearsOutfit))
 	{
 		return;
 	}
@@ -165,9 +168,7 @@ void AWoRPlayerState::ApplyFormLook()
 	DressedPawn = Character;
 	UE_LOG(LogWoR, Log, TEXT("[CharacterForms] %s dressed as %s"), *GetNameSafe(Character), *GetNameSafe(Mesh->GetSkeletalMeshAsset()));
 	// B-279c: the local player's current outfit over the body (Leader Pose). // TODO: co-op guests read it replicated.
-	const UGameInstance *GI = GetGameInstance();
-	const UCharacterFormSubsystem *Forms = GI && IsLocalPlayerWallet() ? GI->GetSubsystem<UCharacterFormSubsystem>() : nullptr;
-	if (Forms && !Forms->GetCurrentOutfit().IsEmpty())
+	if (bWearsOutfit)
 	{
 		AActor *Pawn = const_cast<ACharacter *>(Character);
 		UOutfitComponent *Outfit = Pawn->FindComponentByClass<UOutfitComponent>();
@@ -177,7 +178,7 @@ void AWoRPlayerState::ApplyFormLook()
 			Pawn->AddInstanceComponent(Outfit);
 			Outfit->RegisterComponent();
 		}
-		Outfit->ApplyOutfit(Forms->GetCurrentOutfit(), Mesh);
+		Outfit->ApplyOutfit(LocalForms->GetCurrentOutfit(), Mesh);
 	}
 }
 
