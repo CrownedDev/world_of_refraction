@@ -92,7 +92,9 @@ FOutfitSet FOutfitSet::FromSaved(const TArray<FSoftObjectPath> &Saved)
 		{
 			continue;
 		}
-		const UOutfitPieceData *Piece = Cast<UOutfitPieceData>(Saved[Index].TryLoad());
+		// A piece already in memory (a transient one in a spec) resolves; one on disk loads.
+		UObject *Resolved = Saved[Index].ResolveObject();
+		const UOutfitPieceData *Piece = Cast<UOutfitPieceData>(Resolved ? Resolved : Saved[Index].TryLoad());
 		if (Piece && static_cast<int32>(Piece->Slot) == Index)
 		{
 			Out.Pieces[Index] = Piece;

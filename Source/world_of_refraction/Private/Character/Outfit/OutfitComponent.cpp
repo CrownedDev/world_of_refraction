@@ -37,7 +37,9 @@ namespace
 				UE_LOG(LogWoR, Warning, TEXT("[Outfit] usage: wor.Outfit.Wear <outfit piece asset path> (piece not found)"));
 				return;
 			}
-			UE_LOG(LogWoR, Log, TEXT("[Outfit] wear %s: %s"), *Piece->GetName(), Forms->TryWearOutfitPiece(Piece) ? TEXT("worn") : TEXT("refused (in a fight, or away from the hub / a rest spot)"));
+			// Outside the log call: UE_LOG compiles out with NO_LOGGING.
+			const bool bWorn = Forms->TryWearOutfitPiece(Piece);
+			UE_LOG(LogWoR, Log, TEXT("[Outfit] wear %s: %s"), *Piece->GetName(), bWorn ? TEXT("worn") : TEXT("refused (in a fight, or away from the hub / a rest spot)"));
 		}));
 
 	FAutoConsoleCommandWithWorldAndArgs GClearOutfitCmd(
@@ -52,7 +54,8 @@ namespace
 				UE_LOG(LogWoR, Warning, TEXT("[Outfit] usage: wor.Outfit.Clear <Helmet|Jacket|Shirt|Waist|Trousers|Footwear>"));
 				return;
 			}
-			UE_LOG(LogWoR, Log, TEXT("[Outfit] clear %s: %s"), *Args[0], Forms->TryClearOutfitSlot(static_cast<EOutfitSlot>(SlotValue)) ? TEXT("cleared") : TEXT("refused"));
+			const bool bCleared = Forms->TryClearOutfitSlot(static_cast<EOutfitSlot>(SlotValue));
+			UE_LOG(LogWoR, Log, TEXT("[Outfit] clear %s: %s"), *Args[0], bCleared ? TEXT("cleared") : TEXT("refused"));
 		}));
 
 	FAutoConsoleCommandWithWorld GPrintOutfitCmd(
