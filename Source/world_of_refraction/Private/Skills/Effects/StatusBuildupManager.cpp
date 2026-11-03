@@ -88,25 +88,6 @@ USkillEffectManager *UStatusBuildupManager::GetEffectManager() const
 	return EffectManagerRef;
 }
 
-ESkillEffectType UStatusBuildupManager::GetElementImmunityType(ESpellElement Element) const
-{
-	switch (Element)
-	{
-	case ESpellElement::Fire:      return ESkillEffectType::GrantFireImmunity;
-	case ESpellElement::Water:     return ESkillEffectType::GrantWaterImmunity;
-	case ESpellElement::Earth:     return ESkillEffectType::GrantEarthImmunity;
-	case ESpellElement::Wind:      return ESkillEffectType::GrantWindImmunity;
-	case ESpellElement::Light:     return ESkillEffectType::GrantLightImmunity;
-	case ESpellElement::Darkness:  return ESkillEffectType::GrantDarknessImmunity;
-	case ESpellElement::Lightning: return ESkillEffectType::GrantLightningImmunity;
-	case ESpellElement::Void:      return ESkillEffectType::GrantVoidImmunity;
-	case ESpellElement::Reality:   return ESkillEffectType::GrantRealityImmunity;
-	case ESpellElement::Generic:
-	default:
-		return ESkillEffectType::None;
-	}
-}
-
 // ========================================
 // STATUS BAR QUERIES
 // ========================================
@@ -325,7 +306,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		// a held GrantXxxImmunity for that element. Distinct from the per-trigger
 		// gates above; an actor with GrantFireImmunity blocks Fire-buildup
 		// regardless of whether it would resolve to DOT, Stun, or anything else.
-		const ESkillEffectType ElemImmunity = GetElementImmunityType(Element);
+		const ESkillEffectType ElemImmunity = SkillEffectClassification::GetElementImmunityType(Element);
 		if (ElemImmunity != ESkillEffectType::None &&
 		    EffectMgr->HasEffectOfType(Target, ElemImmunity))
 		{

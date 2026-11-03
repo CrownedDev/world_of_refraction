@@ -1102,7 +1102,7 @@ void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, FCrys
 	{
 		if (USkillEffectManager *SEM = GetSkillEffectManager())
 		{
-			const ESkillEffectType ImmunityType = GetElementImmunityType(ResistElement);
+			const ESkillEffectType ImmunityType = SkillEffectClassification::GetElementImmunityType(ResistElement);
 			const bool bUseImmunity = (Id.Tier == EItemTier::S_Tier) && (ImmunityType != ESkillEffectType::None);
 
 			const ESkillEffectType EffectType = bUseImmunity ? ImmunityType : ESkillEffectType::ResistanceBuff;
@@ -1251,21 +1251,3 @@ bool UItemExecutor::IsAlly(AActor *User, AActor *Target) const
 	return UserTeam >= 0 && UserTeam == TargetTeam;
 }
 
-ESkillEffectType UItemExecutor::GetElementImmunityType(ESpellElement Element)
-{
-	switch (Element)
-	{
-	case ESpellElement::Fire:      return ESkillEffectType::GrantFireImmunity;
-	case ESpellElement::Water:     return ESkillEffectType::GrantWaterImmunity;
-	case ESpellElement::Earth:     return ESkillEffectType::GrantEarthImmunity;
-	case ESpellElement::Wind:      return ESkillEffectType::GrantWindImmunity;
-	case ESpellElement::Light:     return ESkillEffectType::GrantLightImmunity;
-	case ESpellElement::Darkness:  return ESkillEffectType::GrantDarknessImmunity;
-	case ESpellElement::Lightning: return ESkillEffectType::GrantLightningImmunity;
-	case ESpellElement::Void:      return ESkillEffectType::GrantVoidImmunity;
-	case ESpellElement::Reality:   return ESkillEffectType::GrantRealityImmunity;
-	case ESpellElement::Generic:
-	default:
-		return ESkillEffectType::None;
-	}
-}

@@ -290,6 +290,26 @@ namespace SkillEffectClassification
         return Type == ESkillEffectType::CritDebuff ? ESkillEffectType::CritChanceDebuff : Type;
     }
 
+    /** B-249: the one element -> elemental-immunity map (items grant it, buildup checks it; its GAS tag is the
+     *  Immunity.Element.<element> row of WoRTags::EffectTypeToTag). None for Generic / None: no element to block. */
+    inline ESkillEffectType GetElementImmunityType(ESpellElement Element)
+    {
+        switch (Element)
+        {
+        case ESpellElement::Fire:      return ESkillEffectType::GrantFireImmunity;
+        case ESpellElement::Water:     return ESkillEffectType::GrantWaterImmunity;
+        case ESpellElement::Earth:     return ESkillEffectType::GrantEarthImmunity;
+        case ESpellElement::Wind:      return ESkillEffectType::GrantWindImmunity;
+        case ESpellElement::Light:     return ESkillEffectType::GrantLightImmunity;
+        case ESpellElement::Darkness:  return ESkillEffectType::GrantDarknessImmunity;
+        case ESpellElement::Lightning: return ESkillEffectType::GrantLightningImmunity;
+        case ESpellElement::Void:      return ESkillEffectType::GrantVoidImmunity;
+        case ESpellElement::Reality:   return ESkillEffectType::GrantRealityImmunity;
+        default:
+            return ESkillEffectType::None;
+        }
+    }
+
     /** B-268 / Q-268: legacy types nothing reads and nothing equals; an authored one does nothing (validation warns). */
     inline bool HasNoReader(ESkillEffectType Type)
     {
