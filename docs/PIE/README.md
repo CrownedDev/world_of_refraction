@@ -20,6 +20,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-324](B-324.md) | `feature/B-324-shared-chest-gear` (in `dev`) | Unworn gear in the shared chest, any member takes it; `wor.UI.Storage` | Pending |
 | [B-293](B-293.md) | `feature/B-293-balance-targets` (in `dev`) | Balance targets, reports, GAS parity, `wor.Balance.Run`; no gameplay change | Pending |
 | [B-224b](B-224b.md) | `feature/B-224b-rank-hp-per-team` (in `dev`) | Rank HP per team; enemy HP by tier (F default) | Pending |
+| [B-279c](B-279c.md) | `feature/B-279c-outfits` (UNBUILT) | Outfits: six slots, piece assets, authored / current outfit (save v10), Leader Pose assembly | Not built |
 | [B-001](B-001.md) | `fix/combat-hang-arc-a` (in `dev`) | Combat can no longer freeze; clean end of combat | Not tested |
 | [B-007](B-007.md) | `feature/B-007-automation-tests` (in `dev`) | 26 headless tests + test.sh output; no gameplay change | Not tested |
 | [B-006](B-006.md) | `chore/B-006-log-categories` (in `dev`) | Seven `LogWoR*` log categories; no gameplay change | Not tested |
