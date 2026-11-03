@@ -22,7 +22,6 @@
 #include "Equipment/FResistanceBonus.h"
 #include "Skills/Effects/FSkillEffect.h"
 #include "Skills/Effects/FGatheredEffect.h"
-#include "Character/CharacterDataComponent.h"
 #include "Equipment/EAttachedItemKind.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Skills/Definitions/ESpellSource.h"
@@ -33,6 +32,8 @@
 struct FBrokenCrystalPayload;
 
 class UInventoryComponent;
+class UCharacterDataComponent;
+enum class ESubStat : uint8;
 class USpellData;
 class UAbilityData;
 class UEvolutionItemData;
