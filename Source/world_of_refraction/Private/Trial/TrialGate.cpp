@@ -4,6 +4,8 @@
 
 #include "Character/CharacterDataComponent.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/Tuning/CombatBaselineConstants.h"
+#include "Combat/Tuning/CombatTuning.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
@@ -23,6 +25,7 @@ namespace TrialGateInternal
 
 	constexpr int32 ENEMY_STRENGTH_HP_EFFECT_ID = 183001;
 	constexpr int32 ENEMY_STRENGTH_DAMAGE_EFFECT_ID = 183002;
+	constexpr int32 ENEMY_RANK_HP_EFFECT_ID = 224001;
 }
 
 float TrialGate::GetEnemyStrengthMultiplier(ETrialDifficulty Difficulty)
@@ -101,6 +104,39 @@ bool TrialGate::ApplyEnemyStrength(AActor *Enemy, float StrengthMultiplier)
 	Effects->ApplyEffect(Enemy, DamageEffect);
 	CharComp->RecomputeMaxPools();
 	CharComp->ServerSetHP(CharComp->MaxHP); // B-131: server-only, and the HP change is broadcast
+	return true;
+}
+
+float TrialGate::GetRankHealthMultiplier(EEncounterRank Rank)
+{
+	const int32 RankValue = static_cast<int32>(Rank);
+	return WoRTuning::GetLadderValue(ECombatLadder::EnemyRankHealth, RankValue, CombatBaseline::CodeEnemyRankHealth(RankValue));
+}
+
+bool TrialGate::ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EEncounterRank Rank)
+{
+	UCharacterDataComponent *CharComp = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	const UGameInstance *GI = Enemy && Enemy->GetWorld() ? Enemy->GetWorld()->GetGameInstance() : nullptr;
+	USkillEffectManager *Effects = GI ? GI->GetSubsystem<USkillEffectManager>() : nullptr;
+	if (!CharComp || !Effects)
+	{
+		return false;
+	}
+	const float RankMultiplier = GetRankHealthMultiplier(Rank);
+	if (FMath::IsNearlyEqual(RankMultiplier, CombatBaseline::ENEMY_RANK_HEALTH_NORMAL))
+	{
+		return true;
+	}
+	const float Percent = StrengthMultiplier * (RankMultiplier - 1.0f) * CombatConstants::STAT_PERCENT_DIVISOR;
+	FActiveSkillEffect HPEffect = FActiveSkillEffect::CreatePersistent(TEXT("Enemy rank (HP)"), TrialGateInternal::ENEMY_RANK_HP_EFFECT_ID,
+																	   Percent >= 0.0f ? ESkillEffectType::MaxHPBuff : ESkillEffectType::MaxHPDebuff,
+																	   FMath::Abs(Percent));
+	HPEffect.bFromGear = true; // part of the enemy, not a cleansable buff (D-015)
+	Effects->ApplyEffect(Enemy, HPEffect);
+	CharComp->RecomputeMaxPools();
+	CharComp->ServerSetHP(CharComp->MaxHP);
+	UE_LOG(LogTemp, Log, TEXT("[TrialGate] %s: rank %s HP x%.2f (strength x%.2f)"), *GetNameSafe(Enemy),
+		   *UEnum::GetValueAsString(Rank), RankMultiplier, StrengthMultiplier);
 	return true;
 }
 
