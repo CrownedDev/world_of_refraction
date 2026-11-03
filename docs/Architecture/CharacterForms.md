@@ -29,6 +29,14 @@ Progress is account state like the pool (saved), not per-fight state, so it sits
 - Skills match by asset only (no instance tier yet). Who counts and how tiers credit: Q-279.
 - No UI shows the meter yet; `wor.Forms.Print` and the `OnFormUnlocked` log are the way to see it.
 
+## Outfits (B-279c)
+
+- `Character/Outfit/OutfitPieceData.h`: `EOutfitSlot` (Helmet, Jacket, Shirt, Waist, Trousers, Footwear), `UOutfitPieceData` (primary asset type `OutfitPiece`: slot, soft mesh / material, colour keys, hides-hair), `FOutfitSet` (a soft piece per slot; `SetPiece` replaces only its slot; saved as six soft paths).
+- `UCharacterFormData::AuthoredOutfit`; `UCharacterFormSubsystem` holds the player's current outfit: a skin brings its authored outfit (announced after the skin), `TryWearOutfitPiece` / `TryClearOutfitSlot` where skins switch, `RestoreOutfit` for the save (v10), `OnOutfitChanged`.
+- `Character/Outfit/OutfitComponent.h`: `UOutfitComponent` wears a set on a pawn, one skeletal mesh component per filled slot attached to the body and following it by Leader Pose, the material's colour keys through a dynamic instance; an empty set hides every slot. `AWoRPlayerState::ApplyFormLook` adds it to the local player's pawn and re-applies on `OnOutfitChanged`.
+- Debug: `wor.Outfit.Print`, placeholders `wor.Outfit.Wear <path>` / `wor.Outfit.Clear <slot>`, `UOutfitPieceData::PrintPiece`.
+- Limits: co-op replication of the outfit (B-228+); combat actors aren't dressed; pieces load synchronously; no wardrobe screen yet.
+
 ## Changelog
 
 | Date | Change | Branch |
