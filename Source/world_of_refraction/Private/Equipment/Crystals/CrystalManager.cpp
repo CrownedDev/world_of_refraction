@@ -136,7 +136,7 @@ void UCrystalManager::ProcessPostCastWear(
         const float SkipChance = CharComp->GetLuckModifiedChance(0.0f, CombatConstants::LUCK_BREAK_SKIP_MAX);
         if (UBattleRandomSubsystem::FRand(this) < SkipChance)
         {
-            UE_LOG(LogTemp, Log,
+            UE_LOG(LogTemp, Verbose,
                    TEXT("[CrystalManager] %s LUCKY break skip on crystal '%s' (would have applied %d wear, skip chance %.2f)"),
                    *Actor->GetName(),
                    *WearDisplayName,
@@ -246,7 +246,7 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
         const float SkipChance = CasterCharComp->GetLuckModifiedChance(0.0f, CombatConstants::LUCK_BREAK_SKIP_MAX);
         if (UBattleRandomSubsystem::FRand(this) < SkipChance)
         {
-            UE_LOG(LogTemp, Log,
+            UE_LOG(LogTemp, Verbose,
                    TEXT("[CrystalManager] %s LUCKY break skip on evolution '%s' (would have applied %d wear, skip chance %.2f)"),
                    *Actor->GetName(),
                    *EvoName,
@@ -324,7 +324,7 @@ void UCrystalManager::ProcessPostCastGearEvolutionWear(
         const float SkipChance = CasterCharComp->GetLuckModifiedChance(0.0f, CombatConstants::LUCK_BREAK_SKIP_MAX);
         if (UBattleRandomSubsystem::FRand(this) < SkipChance)
         {
-            UE_LOG(LogTemp, Log,
+            UE_LOG(LogTemp, Verbose,
                    TEXT("[CrystalManager] %s LUCKY break skip on gear evolution '%s' (would have applied %d wear, skip chance %.2f)"),
                    *Actor->GetName(), *EvoName, Wear, SkipChance);
             return;

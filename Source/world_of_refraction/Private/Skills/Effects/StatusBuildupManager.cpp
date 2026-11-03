@@ -275,7 +275,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		// Global immunity — blocks any buildup.
 		if (EffectMgr->HasEffectOfType(Target, ESkillEffectType::GrantAllStatusImmunity))
 		{
-			UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s has GrantAllStatusImmunity — buildup absorbed"),
+			UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s has GrantAllStatusImmunity — buildup absorbed"),
 				   *Target->GetName());
 			return false;
 		}
@@ -297,7 +297,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 
 		if (bImmuneStun || bImmuneSilence || bImmuneDOT)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s immune to resolved trigger %s — buildup absorbed"),
+			UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s immune to resolved trigger %s — buildup absorbed"),
 				   *Target->GetName(), *UEnum::GetValueAsString(ResolvedTrigger));
 			return false;
 		}
@@ -310,7 +310,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		if (ElemImmunity != ESkillEffectType::None &&
 		    EffectMgr->HasEffectOfType(Target, ElemImmunity))
 		{
-			UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s has %s — buildup absorbed"),
+			UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s has %s — buildup absorbed"),
 				   *Target->GetName(), *UEnum::GetValueAsString(ElemImmunity));
 			return false;
 		}
@@ -345,7 +345,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	OnStatusBuildupChanged.Broadcast(Target, State.CurrentBuildup,
 		CombatConstants::STATUS_EFFECT_THRESHOLD, Element, Source);
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s status buildup: %.1f -> %.1f (+%.1f) - Element: %s, Physical: %s, Resolved trigger: %s"),
+	UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status buildup: %.1f -> %.1f (+%.1f) - Element: %s, Physical: %s, Resolved trigger: %s"),
 		   *Target->GetName(), OldBuildup, State.CurrentBuildup, Amount,
 		   *UEnum::GetValueAsString(Element),
 		   *UEnum::GetValueAsString(PhysicalType),
@@ -360,7 +360,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		// immediately empties, and nothing visible happens.
 		if (ResolvedTrigger != ESkillEffectType::None)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s status bar FULL - Triggering %s"),
+			UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status bar FULL - Triggering %s"),
 				   *Target->GetName(), *UEnum::GetValueAsString(ResolvedTrigger));
 
 			TriggerSkillEffectFromBuildup(Source, Target, ResolvedTrigger, Element);
@@ -611,7 +611,7 @@ void UStatusBuildupManager::ProcessStatusBarDecay(AActor *Target)
 	// Full reset after configured turn count
 	if (State->TurnsSinceLastHit >= CombatConstants::STATUS_DECAY_FULL_RESET_TURNS)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s status bar decayed to 0 (%d turns)"),
+		UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status bar decayed to 0 (%d turns)"),
 			   *Target->GetName(), CombatConstants::STATUS_DECAY_FULL_RESET_TURNS);
 		ResetStatusBar(Target);
 		return;
