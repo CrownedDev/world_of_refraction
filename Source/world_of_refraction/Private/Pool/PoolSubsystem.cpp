@@ -41,55 +41,170 @@ namespace
 
 // ==================== ARMOURY ====================
 
+namespace
+{
+    const FGuid &WeaponIdOf(const FWeaponInventoryEntry &Entry) { return Entry.PersistentID; }
+    const FGuid &AdapterIdOf(const FRingInventoryEntry &Entry) { return Entry.PersistentID; }
+    const FGuid &EvolutionIdOf(const FEvolutionInventoryEntry &Entry) { return Entry.InstanceID; }
+}
+
+void UPoolSubsystem::RebuildGearIndex() const
+{
+    WeaponIndex.Reset();
+    AdapterIndex.Reset();
+    EvolutionIndex.Reset();
+    for (int32 Index = 0; Index < OwnedWeapons.Num(); ++Index)
+    {
+        WeaponIndex.Add(OwnedWeapons[Index].PersistentID, Index);
+    }
+    for (int32 Index = 0; Index < OwnedRings.Num(); ++Index)
+    {
+        AdapterIndex.Add(OwnedRings[Index].PersistentID, Index);
+    }
+    for (int32 Index = 0; Index < OwnedEvolutions.Num(); ++Index)
+    {
+        EvolutionIndex.Add(OwnedEvolutions[Index].InstanceID, Index);
+    }
+    bGearIndexDirty = false;
+}
+
+template <class TEntry, class FIdOf>
+int32 UPoolSubsystem::FindIndexed(const TArray<TEntry> &Entries, const TMap<FGuid, int32> &Index, const FGuid &ID, FIdOf IdOf) const
+{
+    if (!ID.IsValid())
+    {
+        return INDEX_NONE;
+    }
+    if (bGearIndexDirty)
+    {
+        RebuildGearIndex();
+    }
+    const int32 *Found = Index.Find(ID);
+    if (Found && Entries.IsValidIndex(*Found) && IdOf(Entries[*Found]) == ID)
+    {
+        return *Found;
+    }
+    // A miss or a stale hit (an entry changed under the index): rebuild once and look again.
+    RebuildGearIndex();
+    Found = Index.Find(ID);
+    return Found && Entries.IsValidIndex(*Found) ? *Found : INDEX_NONE;
+}
+
 void UPoolSubsystem::AddWeaponToPool(const FWeaponInventoryEntry &Entry)
 {
     OwnedWeapons.Add(Entry);
+    MarkGearIndexDirty();
 }
 
 FWeaponInventoryEntry *UPoolSubsystem::FindWeaponInPool(const FGuid &PersistentID)
 {
-    return OwnedWeapons.FindByPredicate(
-        [&PersistentID](const FWeaponInventoryEntry &E) { return E.PersistentID == PersistentID; });
+    const int32 Index = FindIndexed(OwnedWeapons, WeaponIndex, PersistentID, WeaponIdOf);
+    return Index != INDEX_NONE ? &OwnedWeapons[Index] : nullptr;
 }
 
 const FWeaponInventoryEntry *UPoolSubsystem::FindWeaponInPool(const FGuid &PersistentID) const
 {
-    return OwnedWeapons.FindByPredicate(
-        [&PersistentID](const FWeaponInventoryEntry &E) { return E.PersistentID == PersistentID; });
+    return const_cast<UPoolSubsystem *>(this)->FindWeaponInPool(PersistentID);
 }
 
 void UPoolSubsystem::AddRingToPool(const FRingInventoryEntry &Entry)
 {
     OwnedRings.Add(Entry);
+    MarkGearIndexDirty();
 }
 
 FRingInventoryEntry *UPoolSubsystem::FindRingInPool(const FGuid &PersistentID)
 {
-    return OwnedRings.FindByPredicate(
-        [&PersistentID](const FRingInventoryEntry &E) { return E.PersistentID == PersistentID; });
+    const int32 Index = FindIndexed(OwnedRings, AdapterIndex, PersistentID, AdapterIdOf);
+    return Index != INDEX_NONE ? &OwnedRings[Index] : nullptr;
 }
 
 const FRingInventoryEntry *UPoolSubsystem::FindRingInPool(const FGuid &PersistentID) const
 {
-    return OwnedRings.FindByPredicate(
-        [&PersistentID](const FRingInventoryEntry &E) { return E.PersistentID == PersistentID; });
+    return const_cast<UPoolSubsystem *>(this)->FindRingInPool(PersistentID);
 }
 
 void UPoolSubsystem::AddEvolutionToPool(const FEvolutionInventoryEntry &Entry)
 {
     OwnedEvolutions.Add(Entry);
+    MarkGearIndexDirty();
 }
 
 FEvolutionInventoryEntry *UPoolSubsystem::FindEvolutionInPool(const FGuid &InstanceID)
 {
-    return OwnedEvolutions.FindByPredicate(
-        [&InstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == InstanceID; });
+    const int32 Index = FindIndexed(OwnedEvolutions, EvolutionIndex, InstanceID, EvolutionIdOf);
+    return Index != INDEX_NONE ? &OwnedEvolutions[Index] : nullptr;
 }
 
 const FEvolutionInventoryEntry *UPoolSubsystem::FindEvolutionInPool(const FGuid &InstanceID) const
 {
-    return OwnedEvolutions.FindByPredicate(
-        [&InstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == InstanceID; });
+    return const_cast<UPoolSubsystem *>(this)->FindEvolutionInPool(InstanceID);
+}
+
+FPoolGearView UPoolSubsystem::GetOwnedGearOf(FName Owner) const
+{
+    FPoolGearView View;
+    if (Owner.IsNone())
+    {
+        return View;
+    }
+    for (const FWeaponInventoryEntry &Entry : OwnedWeapons)
+    {
+        if (GetGearOwner(Entry.PersistentID) == Owner)
+        {
+            View.Weapons.Add(&Entry);
+        }
+    }
+    for (const FRingInventoryEntry &Entry : OwnedRings)
+    {
+        if (GetGearOwner(Entry.PersistentID) == Owner)
+        {
+            View.Adapters.Add(&Entry);
+        }
+    }
+    for (const FEvolutionInventoryEntry &Entry : OwnedEvolutions)
+    {
+        if (GetGearOwner(Entry.InstanceID) == Owner)
+        {
+            View.Evolutions.Add(&Entry);
+        }
+    }
+    return View;
+}
+
+FString UPoolSubsystem::GetStoreString() const
+{
+    TSet<FName> Owners;
+    for (const TPair<FGuid, FName> &Owned : GearOwners)
+    {
+        Owners.Add(Owned.Value);
+    }
+    FString Out = FString::Printf(TEXT("[Pool] Store (B-312): %d weapon(s), %d adapter(s), %d evolution(s), %d owner(s)"), OwnedWeapons.Num(),
+                                  OwnedRings.Num(), OwnedEvolutions.Num(), Owners.Num());
+    for (const FName Owner : Owners)
+    {
+        const FPoolGearView View = GetOwnedGearOf(Owner);
+        Out += FString::Printf(TEXT("\n  %s: %d weapon(s), %d adapter(s), %d evolution(s)"), *FPaths::GetBaseFilename(Owner.ToString()),
+                               View.Weapons.Num(), View.Adapters.Num(), View.Evolutions.Num());
+        for (const FWeaponInventoryEntry *Weapon : View.Weapons)
+        {
+            Out += FString::Printf(TEXT("\n    weapon %s %s"), *GetNameSafe(Weapon->Weapon), *Weapon->PersistentID.ToString());
+        }
+        for (const FRingInventoryEntry *Adapter : View.Adapters)
+        {
+            Out += FString::Printf(TEXT("\n    adapter %s %s"), *GetNameSafe(Adapter->Ring), *Adapter->PersistentID.ToString());
+        }
+        for (const FEvolutionInventoryEntry *Evolution : View.Evolutions)
+        {
+            Out += FString::Printf(TEXT("\n    evolution %s %s"), *GetNameSafe(Evolution->Item), *Evolution->InstanceID.ToString());
+        }
+    }
+    const int32 Unowned = OwnedWeapons.Num() + OwnedRings.Num() + OwnedEvolutions.Num() - GearOwners.Num();
+    if (Unowned > 0)
+    {
+        Out += FString::Printf(TEXT("\n  about %d piece(s) with no owner yet (AssignUnownedGear gives them out at the next draw)"), Unowned);
+    }
+    return Out;
 }
 
 // ==================== SHARED GEAR (B-091) ====================
@@ -187,6 +302,7 @@ void UPoolSubsystem::RemoveGear(const FGuid &GearID)
     const auto MatchesEvolution = [&GearID](const FEvolutionInventoryEntry &E) { return E.InstanceID == GearID; };
     const int32 Removed = OwnedWeapons.RemoveAll(MatchesWeapon) + OwnedRings.RemoveAll(MatchesRing) +
                           OwnedEvolutions.RemoveAll(MatchesEvolution);
+    MarkGearIndexDirty();
     Wearers.Remove(GearID);
     GearOwners.Remove(GearID);
     if (Removed > 0)
@@ -972,6 +1088,18 @@ namespace
 
                 Pool->PopulateFromInventoryAsset(Inventory, Pawn);
                 Pool->PrintPoolState();
+            }));
+
+    static FAutoConsoleCommandWithWorld GPrintStoreCmd(
+        TEXT("wor.Pool.PrintStore"),
+        TEXT("B-312: the gear store by owner (each character, the shared chest), one instance per item (PIE debug)."),
+        FConsoleCommandWithWorldDelegate::CreateLambda(
+            [](UWorld *World)
+            {
+                if (const UPoolSubsystem *Pool = ResolvePoolFromWorld(World))
+                {
+                    UE_LOG(LogTemp, Log, TEXT("%s"), *Pool->GetStoreString());
+                }
             }));
 
     static FAutoConsoleCommandWithWorld GPrintItemSlotsCmd(
