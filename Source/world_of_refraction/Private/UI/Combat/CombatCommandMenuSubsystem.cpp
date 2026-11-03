@@ -1047,7 +1047,7 @@ void UCombatCommandMenuSubsystem::ExecuteSwitchWeapon()
         return;
 
     FText RefusedReason;
-    if (!LC->TrySwitchWeaponThisTurn(RefusedReason))
+    if (!LC->TrySwitchActiveSlot(EGearKind::Weapon, RefusedReason))
     {
         return;
     }
@@ -1081,19 +1081,9 @@ void UCombatCommandMenuSubsystem::ExecuteSwitchRing()
     if (!LC)
         return;
 
-    // Advance ring index, wrap around
-    const FCombatLoadout &Loadout = LC->GetActiveLoadout();
-    int32 RingCount = 0;
-    for (const FRingLoadoutEntry &Entry : Loadout.RingLoadout)
-        if (Entry.IsValid())
-            RingCount++;
-
-    if (RingCount < 2)
-        return;
-
-    int32 NextIndex = (Loadout.ActiveRingIndex + 1) % RingCount;
+    // The next adapter, wrapping; one adapter (or a used switch) changes nothing.
     FText RefusedReason;
-    if (!LC->TrySwitchRingThisTurn(NextIndex, RefusedReason))
+    if (!LC->TrySwitchActiveSlot(EGearKind::Adapter, RefusedReason))
     {
         return;
     }

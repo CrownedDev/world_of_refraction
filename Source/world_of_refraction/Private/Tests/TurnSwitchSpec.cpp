@@ -1,6 +1,6 @@
 // TurnSwitchSpec.cpp
 // ET-19 (Crown, 2026-10-26; B-175): one free weapon or ring switch per turn. A second switch in
-// the same turn is refused with a reason; the next turn gives it back.
+// the same turn is refused with a reason; the next turn gives it back. B-305: one switch for both kinds.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -98,6 +98,34 @@ void FTurnSwitchSpec::Define()
 		FText Reason;
 		TestFalse(TEXT("no ring at that index"), Loadout->TrySwitchRingThisTurn(INDEX_NONE, Reason));
 		TestTrue(TEXT("switch still free"), Loadout->GetTurnSwitchRefusedReason().IsEmpty());
+	});
+
+	It("switches through the one switch for either kind (B-305)", [this]()
+	{
+		if (!TestNotNull(TEXT("Switcher"), SpawnWithLoadout()))
+		{
+			return;
+		}
+		FText Reason;
+		TestFalse(TEXT("one adapter or none: nothing to switch to"), Loadout->TrySwitchActiveSlot(EGearKind::Adapter, Reason));
+		TestTrue(TEXT("that keeps the switch"), Loadout->GetTurnSwitchRefusedReason().IsEmpty());
+		const bool bPrimaryBefore = Loadout->GetActiveLoadout().bShowPrimary;
+		TestTrue(TEXT("weapon switch"), Loadout->TrySwitchActiveSlot(EGearKind::Weapon, Reason));
+		TestEqual(TEXT("weapon flipped"), Loadout->GetActiveLoadout().bShowPrimary, !bPrimaryBefore);
+		TestFalse(TEXT("the turn's switch is used"), Loadout->GetTurnSwitchRefusedReason().IsEmpty());
+		TestFalse(TEXT("a second weapon switch is refused"), Loadout->TrySwitchActiveSlot(EGearKind::Weapon, Reason));
+		TestFalse(TEXT("with a reason"), Reason.IsEmpty());
+	});
+
+	It("never switches a weapon on its own (B-305)", [this]()
+	{
+		if (!TestNotNull(TEXT("Switcher"), SpawnWithLoadout()))
+		{
+			return;
+		}
+		const bool bPrimaryBefore = Loadout->GetActiveLoadout().bShowPrimary;
+		TestFalse(TEXT("no auto switch"), Loadout->SwitchToNextUsableSlot(EGearKind::Weapon));
+		TestEqual(TEXT("weapon unchanged"), Loadout->GetActiveLoadout().bShowPrimary, bPrimaryBefore);
 	});
 
 	It("allows a switch again on the next turn", [this]()
