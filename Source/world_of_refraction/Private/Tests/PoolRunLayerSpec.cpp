@@ -25,11 +25,14 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
 #include "Save/SaveSubsystem.h"
+#include "Currency/CurrencyWallet.h"
+#include "Trial/TrialRunSubsystem.h"
 
 namespace
 {
 	constexpr int32 RUN_LAYER_FULL = 10;
 	constexpr int32 RUN_LAYER_WORN = 2;
+	constexpr int32 RUN_LAYER_WALLET_PRISMS = 500;
 	constexpr EItemTier RUN_LAYER_FOUND_TIER = EItemTier::F_Tier;
 	constexpr EItemTier RUN_LAYER_UPGRADED_TIER = EItemTier::C_Tier;
 	constexpr EItemTier RUN_LAYER_LOWER_TIER = EItemTier::E_Tier;
@@ -328,8 +331,12 @@ void FPoolRunLayerSpec::Define()
 	{
 		if (!Pool) return;
 		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		UTrialRunSubsystem *TrialRun = TestWorld->GetSubsystem<UTrialRunSubsystem>();
 		UInventoryComponent *Inventory = SpawnMember();
-		if (!TestNotNull(TEXT("Save"), Save) || !TestNotNull(TEXT("Member"), Inventory)) return;
+		if (!TestNotNull(TEXT("Save"), Save) || !TestNotNull(TEXT("Trial run"), TrialRun) || !TestNotNull(TEXT("Member"), Inventory)) return;
+		UCurrencyComponent *Wallet = CurrencyWallet::FindFor(Inventory->GetOwner());
+		if (!TestNotNull(TEXT("Wallet"), Wallet)) return;
+		Wallet->Add(ECurrencyType::Prisms, RUN_LAYER_WALLET_PRISMS);
 		const FGuid SwordID = OwnedID(Inventory, Sword); // the active loadout's primary: worn since the draw
 		TestTrue(TEXT("an unworn home dagger"), Inventory->AddWeapon(Dagger));
 		const FGuid DaggerID = OwnedID(Inventory, Dagger);
@@ -337,16 +344,32 @@ void FPoolRunLayerSpec::Define()
 		TestTrue(TEXT("the dagger is worn by nobody"), Pool->GetWearer(DaggerID).IsNone());
 		const int32 WeaponsBefore = Pool->GetOwnedWeapons().Num();
 
-		// As EnterTrial does: run Gold to its start, then the layer with the party's worn loadouts.
-		Save->ClearRunGold(Inventory->GetWorld());
-		Pool->BeginRunLayer();
-		TestEqual(TEXT("exactly the worn loadout is taken"), Pool->TakeHomeGearOnRun(MemberKeys()), 1);
+		TrialRun->StartRunGearAndGold(); // what EnterTrial does, without the level travel
+		TestTrue(TEXT("the run layer is open"), Pool->IsRunLayerActive());
 		TestTrue(TEXT("the worn sword is on the run"), Pool->IsOnRun(SwordID));
 		TestFalse(TEXT("the unworn dagger stays home"), Pool->IsOnRun(DaggerID));
+		TestEqual(TEXT("exactly the worn loadout: nothing more to take"), Pool->TakeHomeGearOnRun(MemberKeys()), 0);
 		TestEqual(TEXT("nothing bought or copied"), Pool->GetOwnedWeapons().Num(), WeaponsBefore);
-		TestEqual(TEXT("the run starts with its starting Gold (none, B-178)"), Save->GetCarriedGold(), 0);
-		TestEqual(TEXT("a non-member key takes nothing more"), Pool->TakeHomeGearOnRun({FName(TEXT("NotInTheParty"))}), 0);
+		TestEqual(TEXT("free: no Prisms charged"), Wallet->GetBalance(ECurrencyType::Prisms), RUN_LAYER_WALLET_PRISMS);
+		TestEqual(TEXT("the carried run Gold is at its start (none, B-178)"), Save->GetCarriedGold(), 0);
 		Pool->EndRunLayer();
+	});
+
+	It("refuses to dismantle an unworn home piece during a run (B-347, Q-314b)", [this]()
+	{
+		if (!Pool) return;
+		UEconomyService *Economy = TestWorld->GetSubsystem<UEconomyService>();
+		UTrialRunSubsystem *TrialRun = TestWorld->GetSubsystem<UTrialRunSubsystem>();
+		UInventoryComponent *Inventory = SpawnMember();
+		if (!TestNotNull(TEXT("Economy"), Economy) || !TestNotNull(TEXT("Trial run"), TrialRun) || !TestNotNull(TEXT("Member"), Inventory)) return;
+		TestTrue(TEXT("an unworn home dagger"), Inventory->AddWeapon(Dagger));
+		const FGuid DaggerID = OwnedID(Inventory, Dagger);
+		TrialRun->StartRunGearAndGold();
+		TestFalse(TEXT("left home, not on the run"), Pool->IsOnRun(DaggerID));
+		TestFalse(TEXT("still refused during the run"), Economy->DismantleWeapon(Inventory->GetOwner(), DaggerID));
+		TestEqual(TEXT("the dagger stays"), CountInStore(*Pool, DaggerID), 1);
+		Pool->EndRunLayer();
+		TestTrue(TEXT("after the run it can go"), Economy->DismantleWeapon(Inventory->GetOwner(), DaggerID));
 	});
 }
 
