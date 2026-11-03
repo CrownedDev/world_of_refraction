@@ -3080,3 +3080,23 @@ Moved here once applied. Newest first.
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-224b. Authoring `EnemyTier` on the enemy assets is editor work (CC+UE).
 
+### Q-293c — Balance tuning: what to move first (Expedition 33)
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-293c, cloud; Crown asked that it follow Expedition 33) · **Blocks:** —
+**Question:** The first nightly balance run failed 19 targets. Which values move, and which way?
+**Context:** `docs/analysis/Expedition33Balance.md`; `Public/AI/AIDecisionConstants.h` (defence attempts, parry, aim); `Private/Trial/TrialGate.cpp` (difficulty multipliers); `Private/Balance/BalanceSimReport.cpp` (the normal-fight metric).
+**Options / as built:** (1) count normal fights in party rounds, as BaselineNumbers §2.9 defines them; (2) AI defending in even steps, and Hard no longer turns most hits away (attempts 0.30 / 0.45 / 0.60 / 0.75, parry 0.25 / 0.5, aim 2.6 / 1.9 / 1.3 / 0.8); (3) trial difficulty scales enemy damage only (0.8 / 1 / 1.2), HP x1 at every level.
+**Recommendation:** as built. Expedition 33 scales enemy damage and the defence windows with difficulty, not HP ([Sportskeeda](https://sportskeeda.com/esports/clair-obscur-expedition-33-difficulty-settings-explained-which-one-go-for)); keeps fights short with the threat in enemy hits ([MobileSyrup](https://mobilesyrup.com/2025/11/27/clair-obscur-expedition-33-devs-combat-hard-juicy/)); and drew complaints for an uneven Expert step (Sportskeeda), hence the even steps.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-293c. Re-run `WOR_BALANCE=nightly Scripts/ue/test.sh WoR.Balance.` before tuning further.
+
+### Q-293d — Balance targets that clash with the Decided numbers
+**Status:** OPEN · **Raised:** 2026-11-03 (B-293c, cloud) · **Blocks:** B-293d
+**Question:** Three targets can't be met without changing a Decided number (BaselineNumbers.md). Which gives way?
+**Context:** `docs/analysis/Expedition33Balance.md` ("Not changed"); `Public/Combat/Tuning/CombatBaselineConstants.h` (rank HP); `Private/Balance/BalanceSimReport.cpp` (bands).
+**Options:**
+- **Boss / mini-boss length at Medium** (8 / 4–6 rounds, targets 11–15.5 / 7–11): **A** raise the rank HP (e.g. Mini-boss x3 → x4.5, Boss x6 → x9); **B** keep x3 / x6 and move the round targets down; **C** give bosses more defence or phases instead of HP (E33's bosses threaten through attack patterns: [Automaton](https://automaton-media.com/en/news/clair-obscur-expedition-33s-battle-system-was-designed-around-the-premise-of-no-frustrating-deaths-and-a-game-you-can-clear-with/)).
+- **Pillar 6** (S gear under-levelled wins 92%, band 35–65%): **A** keep the floor 0.5 and move the band (e.g. 60–95%: gear leads, never certain); **B** harsher under-requirement penalty.
+- **Stacked reduction** (Defense 75% × Damage Taken Down 90% × Guard 50% lets 1.25% through): **A** an overall cap on damage taken (e.g. at most 90% off before Perfect Guard), as E33 capped stacking after Stendhal ([Destructoid](https://www.destructoid.com/expedition-33-stendhal-nerf-update-patch-notes/)); **B** leave the per-source caps.
+**Recommendation:** none taken by default: each changes a number Crown decided. C for bosses (E33's model), A for pillar 6 (BaselineNumbers §4 already expects S gear ~2.3x ahead), A for stacking.
+**Answer (Crown):** _write here_
+
