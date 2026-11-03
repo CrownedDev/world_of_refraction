@@ -7,12 +7,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Character/StatConstants.h"
 #include "Combat/Damage/TierPowerConstants.h"
 
 namespace CombatBaseline
 {
 	/** Pillar levels in a run go 0..7 (B-222: WorldStatConstants::LIVE_MAX = MAX_WORLD_STAT_LEVEL). */
-	constexpr int32 PILLAR_CURVE_MAX_LEVEL = 7;
+	constexpr int32 PILLAR_CURVE_MAX_LEVEL = StatConstants::MAX_WORLD_STAT_LEVEL;
 
 	/** The pillar soft cap (Elden Ring-like): Curve(L) = 1 - (1 - L/7)^2, so L1 0.27, L4 0.82, L7 1.0. */
 	inline float CodePillarCurve(int32 Level)

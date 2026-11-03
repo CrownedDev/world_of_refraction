@@ -107,6 +107,12 @@ bool TrialGate::ApplyEnemyStrength(AActor *Enemy, float StrengthMultiplier)
 	return true;
 }
 
+// ENEMY_RANK_HEALTH is positional on the enum: Normal, Mini-boss, Boss, then Elite (appended).
+static_assert(static_cast<int32>(EEncounterRank::Normal) == 0 && static_cast<int32>(EEncounterRank::MiniBoss) == 1 &&
+				  static_cast<int32>(EEncounterRank::Boss) == 2 && static_cast<int32>(EEncounterRank::Elite) == 3 &&
+				  CombatBaseline::ENEMY_RANK_COUNT == 4,
+			  "EEncounterRank order changed: update CombatBaseline::ENEMY_RANK_HEALTH");
+
 float TrialGate::GetRankHealthMultiplier(EEncounterRank Rank)
 {
 	const int32 RankValue = static_cast<int32>(Rank);
