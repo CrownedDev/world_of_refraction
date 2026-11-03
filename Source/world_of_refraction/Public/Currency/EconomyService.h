@@ -310,6 +310,15 @@ public:
     void PrintEconomy(AActor *Owner) const;
 
 private:
+    /** B-252b: one body each for the weapon / ring (adapter) verbs; TEntry is FWeaponInventoryEntry or
+     *  FRingInventoryEntry. Verb names the public call in the logs and the authority / component checks. */
+    template <class TEntry>
+    bool DismantleOwnedGear(AActor *Owner, FGuid PersistentID, const TCHAR *Verb);
+    template <class TEntry>
+    bool LevelUpOwnedGear(AActor *Owner, FGuid PersistentID, const TCHAR *Verb);
+    template <class TEntry>
+    bool DowngradeOwnedGear(AActor *Owner, FGuid PersistentID, const TCHAR *Verb);
+
     /** Cost-only walk of a cart — the single pricing source behind PreviewCartCost AND
      *  Purchase's validation pass. Prices skip empty/unknown entries (Purchase rejects those
      *  separately); spell/ability/evolution Count clamps to 1. */

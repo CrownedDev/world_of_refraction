@@ -244,10 +244,8 @@ void UPartyControlWidget::Refresh()
 			continue;
 		}
 		const FText Name = Member->CharacterData ? FText::FromString(Member->CharacterData->Name) : LOCTEXT("NoData", "<no data>");
-		const FWeaponInventoryEntry *Weapon = Pool->GetOwnedWeapons().FindByPredicate(
-			[Member](const FWeaponInventoryEntry &Entry) { return Entry.PersistentID == Member->RunWeapon; });
-		const FRingInventoryEntry *Ring = Pool->GetOwnedRings().FindByPredicate(
-			[Member](const FRingInventoryEntry &Entry) { return Entry.PersistentID == Member->RunRing; });
+		const FWeaponInventoryEntry *Weapon = Pool->FindWeaponInPool(Member->RunWeapon);
+		const FRingInventoryEntry *Ring = Pool->FindRingInPool(Member->RunRing);
 		RunWeaponTexts[SlotIndex]->SetText(FText::Format(LOCTEXT("RunWeaponRow", "{0}'s weapon (from the next fight): {1}"), Name,
 														 PartyControlBuild::RunGearName(Weapon ? Weapon->Weapon : nullptr)));
 		RunRingTexts[SlotIndex]->SetText(FText::Format(LOCTEXT("RunAdapterRow", "{0}'s adapter (from the next fight): {1}"), Name,

@@ -222,6 +222,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-042yd](B-042yd.md) | `refactor/B-042yd-gas-payouts` (in `dev`) | GAS: energy, drains, self-damage and percent restores pay through GAS at UseGAS 1 | Not tested |
 | [B-042ye](B-042ye.md) | `refactor/B-042ye-gas-effect-reads` (in `dev`) | GAS: the AI's burn checks, buff / debuff counts and the panel's effect list read GAS at UseGAS 1 | Not tested |
 | [B-249](B-249.md) | `refactor/B-249-element-immunity-map` (in `dev`) | One element -> immunity map (no change in play) | Not tested |
+| [B-252b](B-252b.md) | `refactor/B-252b-owned-gear-verbs` (in `dev`) | One body for weapon / ring dismantle, level up, revert (no change in play) | Not tested |
 
 Move rows to **Done** when every check passes.
 

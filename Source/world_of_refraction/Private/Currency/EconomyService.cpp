@@ -355,87 +355,152 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     return true;
 }
 
-bool UEconomyService::DismantleWeapon(AActor *Owner, FGuid PersistentID)
+// ==================== OWNED WEAPON / ADAPTER VERBS (B-252b) ====================
+// Weapons and rings (adapters) are dismantled, levelled and reverted the same way; only the owned list, the asset
+// field and the word in the log differ (OwnedGearOps).
+
+namespace
 {
-    if (!EconomyMayAct(Owner, TEXT("DismantleWeapon")))
+    template <class TEntry>
+    struct OwnedGearOps;
+
+    template <>
+    struct OwnedGearOps<FWeaponInventoryEntry>
+    {
+        static constexpr const TCHAR *Noun = TEXT("weapon");
+        static FWeaponInventoryEntry *Find(UInventoryComponent &Inv, const FGuid &ID) { return Inv.FindOwnedWeapon(ID); }
+        static bool Remove(UInventoryComponent &Inv, const FGuid &ID) { return Inv.RemoveWeaponByPersistentID(ID); }
+        static const UWeaponData *Asset(const FWeaponInventoryEntry &Entry) { return Entry.Weapon; }
+    };
+
+    template <>
+    struct OwnedGearOps<FRingInventoryEntry>
+    {
+        static constexpr const TCHAR *Noun = TEXT("ring");
+        static FRingInventoryEntry *Find(UInventoryComponent &Inv, const FGuid &ID) { return Inv.FindOwnedRing(ID); }
+        static bool Remove(UInventoryComponent &Inv, const FGuid &ID) { return Inv.RemoveRingByPersistentID(ID); }
+        static const URingData *Asset(const FRingInventoryEntry &Entry) { return Entry.Ring; }
+    };
+
+    /** The owned instance with this GUID and an asset, or null with a warning naming the verb. */
+    template <class TEntry>
+    TEntry *FindOwnedGearForVerb(AActor *Owner, UInventoryComponent &Inv, const FGuid &PersistentID, const TCHAR *Verb)
+    {
+        TEntry *Entry = OwnedGearOps<TEntry>::Find(Inv, PersistentID);
+        if (!Entry || !OwnedGearOps<TEntry>::Asset(*Entry))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s: %s has no %s instance for GUID %s (or null asset)"), Verb,
+                   *Owner->GetName(), OwnedGearOps<TEntry>::Noun, *PersistentID.ToString());
+            return nullptr;
+        }
+        return Entry;
+    }
+}
+
+template <class TEntry>
+bool UEconomyService::DismantleOwnedGear(AActor *Owner, FGuid PersistentID, const TCHAR *Verb)
+{
+    if (!EconomyMayAct(Owner, Verb))
     {
         return false;
     }
 
     UInventoryComponent *Inv = nullptr;
     UCurrencyComponent *Currency = nullptr;
-    if (!EconomyFindComponents(Owner, TEXT("DismantleWeapon"), Inv, Currency))
+    if (!EconomyFindComponents(Owner, Verb, Inv, Currency))
     {
         return false;
     }
 
-    // Find the owned instance and capture its tier BEFORE removal — the entry pointer dangles once
+    // Find the owned instance and capture its tier BEFORE removal - the entry pointer dangles once
     // the array is mutated, so nothing past the remove dereferences it. Reads the INSTANCE Tier
-    // (cluster 2b read-flip): a leveled weapon now dismantles for its CURRENT tier, not its base.
-    const FWeaponInventoryEntry *Entry = Inv->FindOwnedWeapon(PersistentID);
-    if (!Entry || !Entry->Weapon)
+    // (cluster 2b read-flip): a leveled piece dismantles for its CURRENT tier, not its base.
+    const TEntry *Entry = FindOwnedGearForVerb<TEntry>(Owner, *Inv, PersistentID, Verb);
+    if (!Entry)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleWeapon: %s has no weapon instance for GUID %s (or null asset)"),
-               *Owner->GetName(), *PersistentID.ToString());
         return false;
     }
-    const EItemTier Tier = Entry->Tier; // INSTANCE tier (leveled), not Entry->Weapon->Tier (asset/base)
+    const EItemTier Tier = Entry->Tier;
     const int32 Yield = EconomyYield::GetLevelingEssenceYieldForTier(Tier);
 
-    // D-016: no ghost copy left in a saved loadout. Doesn't touch Inv->Weapons, so Entry stays valid.
+    // D-016: no ghost copy left in a saved loadout. Doesn't touch the owned list, so Entry stays valid.
     EconomyStripFromLoadouts(Owner, Inv, PersistentID);
 
-    // REMOVE FIRST — a failed removal must never grant phantom essence.
-    if (!Inv->RemoveWeaponByPersistentID(PersistentID))
+    // REMOVE FIRST - a failed removal must never grant phantom essence.
+    if (!OwnedGearOps<TEntry>::Remove(*Inv, PersistentID))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleWeapon: removal failed for GUID %s — no grant"),
-               *PersistentID.ToString());
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s: removal failed for GUID %s - no grant"), Verb, *PersistentID.ToString());
         return false;
     }
 
-    Currency->AddGearEssence(Yield); // weapons/rings → Gear essence
-    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Dismantled weapon (GUID %s, tier %d) -> %d Gear essence"),
+    Currency->AddGearEssence(Yield); // weapons/rings -> Gear essence
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Dismantled %s (GUID %s, tier %d) -> %d Gear essence"), OwnedGearOps<TEntry>::Noun,
            *PersistentID.ToString(), static_cast<int32>(Tier), Yield);
     return true;
 }
 
-bool UEconomyService::DismantleRing(AActor *Owner, FGuid PersistentID)
+template <class TEntry>
+bool UEconomyService::LevelUpOwnedGear(AActor *Owner, FGuid PersistentID, const TCHAR *Verb)
 {
-    if (!EconomyMayAct(Owner, TEXT("DismantleRing")))
+    if (!EconomyMayAct(Owner, Verb))
     {
         return false;
     }
 
     UInventoryComponent *Inv = nullptr;
     UCurrencyComponent *Currency = nullptr;
-    if (!EconomyFindComponents(Owner, TEXT("DismantleRing"), Inv, Currency))
+    if (!EconomyFindComponents(Owner, Verb, Inv, Currency))
     {
         return false;
     }
 
-    const FRingInventoryEntry *Entry = Inv->FindOwnedRing(PersistentID);
-    if (!Entry || !Entry->Ring)
+    // MUTABLE entry - the core writes Entry.Tier in place. Nothing mutates the owned list here, so
+    // the pointer stays valid across the currency spend inside TryLevelUpEntry.
+    TEntry *Entry = FindOwnedGearForVerb<TEntry>(Owner, *Inv, PersistentID, Verb);
+    if (!Entry || !TryLevelUpEntry(Currency, Entry->Tier))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleRing: %s has no ring instance for GUID %s (or null asset)"),
-               *Owner->GetName(), *PersistentID.ToString());
         return false;
     }
-    const EItemTier Tier = Entry->Tier; // INSTANCE tier (leveled), not Entry->Ring->Tier (asset/base)
-    const int32 Yield = EconomyYield::GetLevelingEssenceYieldForTier(Tier);
-
-    EconomyStripFromLoadouts(Owner, Inv, PersistentID); // D-016: no ghost copy left in a saved loadout
-
-    if (!Inv->RemoveRingByPersistentID(PersistentID))
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleRing: removal failed for GUID %s — no grant"),
-               *PersistentID.ToString());
-        return false;
-    }
-
-    Currency->AddGearEssence(Yield); // weapons/rings → Gear essence
-    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Dismantled ring (GUID %s, tier %d) -> %d Gear essence"),
-           *PersistentID.ToString(), static_cast<int32>(Tier), Yield);
+    Inv->RefreshLoadoutsFromOwned(PersistentID); // B-085: the loadouts show the new tier
+    // B-209 (D-100): a bound piece's memories unlock bit by bit as it is levelled.
+    MemoryUnlock::UnlockBoundOnLevelUp(Owner->GetGameInstance(), OwnedGearOps<TEntry>::Asset(*Entry), Entry->Tier);
+    CheckUpgradeMemories(Owner, OwnedGearOps<TEntry>::Asset(*Entry), nullptr, Entry->Tier);
     return true;
+}
+
+template <class TEntry>
+bool UEconomyService::DowngradeOwnedGear(AActor *Owner, FGuid PersistentID, const TCHAR *Verb)
+{
+    if (!EconomyMayAct(Owner, Verb))
+    {
+        return false;
+    }
+
+    UInventoryComponent *Inv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, Verb, Inv, Currency))
+    {
+        return false;
+    }
+
+    // Floor = the asset's authored Tier (leveling only mutates the instance .Tier).
+    TEntry *Entry = FindOwnedGearForVerb<TEntry>(Owner, *Inv, PersistentID, Verb);
+    if (!Entry || !TryDowngradeEntry(Currency, Entry->Tier, OwnedGearOps<TEntry>::Asset(*Entry)->Tier, ECurrencyType::GearEssence))
+    {
+        return false;
+    }
+    Inv->RefreshLoadoutsFromOwned(PersistentID); // B-085
+    return true;
+}
+
+bool UEconomyService::DismantleWeapon(AActor *Owner, FGuid PersistentID)
+{
+    return DismantleOwnedGear<FWeaponInventoryEntry>(Owner, PersistentID, TEXT("DismantleWeapon"));
+}
+
+bool UEconomyService::DismantleRing(AActor *Owner, FGuid PersistentID)
+{
+    return DismantleOwnedGear<FRingInventoryEntry>(Owner, PersistentID, TEXT("DismantleRing"));
 }
 
 #define LOCTEXT_NAMESPACE "EconomyService"
@@ -1249,69 +1314,12 @@ bool UEconomyService::TryDowngradeEntry(UCurrencyComponent *Currency, EItemTier 
 
 bool UEconomyService::LevelUpWeapon(AActor *Owner, FGuid PersistentID)
 {
-    if (!EconomyMayAct(Owner, TEXT("LevelUpWeapon")))
-    {
-        return false;
-    }
-
-    UInventoryComponent *Inv = nullptr;
-    UCurrencyComponent *Currency = nullptr;
-    if (!EconomyFindComponents(Owner, TEXT("LevelUpWeapon"), Inv, Currency))
-    {
-        return false;
-    }
-
-    // MUTABLE entry — the core writes Entry.Tier in place. Nothing mutates Inv->Weapons here, so
-    // the pointer stays valid across the currency spend inside TryLevelUpEntry.
-    FWeaponInventoryEntry *Entry = Inv->FindOwnedWeapon(PersistentID);
-    if (!Entry || !Entry->Weapon)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpWeapon: %s has no weapon instance for GUID %s (or null asset)"),
-               *Owner->GetName(), *PersistentID.ToString());
-        return false;
-    }
-
-    if (!TryLevelUpEntry(Currency, Entry->Tier))
-    {
-        return false;
-    }
-    Inv->RefreshLoadoutsFromOwned(PersistentID); // B-085: the loadouts show the new tier
-    // B-209 (D-100): a bound weapon's memories unlock bit by bit as it is levelled.
-    MemoryUnlock::UnlockBoundOnLevelUp(Owner->GetGameInstance(), Entry->Weapon, Entry->Tier);
-    CheckUpgradeMemories(Owner, Entry->Weapon, nullptr, Entry->Tier);
-    return true;
+    return LevelUpOwnedGear<FWeaponInventoryEntry>(Owner, PersistentID, TEXT("LevelUpWeapon"));
 }
 
 bool UEconomyService::LevelUpRing(AActor *Owner, FGuid PersistentID)
 {
-    if (!EconomyMayAct(Owner, TEXT("LevelUpRing")))
-    {
-        return false;
-    }
-
-    UInventoryComponent *Inv = nullptr;
-    UCurrencyComponent *Currency = nullptr;
-    if (!EconomyFindComponents(Owner, TEXT("LevelUpRing"), Inv, Currency))
-    {
-        return false;
-    }
-
-    FRingInventoryEntry *Entry = Inv->FindOwnedRing(PersistentID);
-    if (!Entry || !Entry->Ring)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpRing: %s has no ring instance for GUID %s (or null asset)"),
-               *Owner->GetName(), *PersistentID.ToString());
-        return false;
-    }
-
-    if (!TryLevelUpEntry(Currency, Entry->Tier))
-    {
-        return false;
-    }
-    Inv->RefreshLoadoutsFromOwned(PersistentID); // B-085
-    MemoryUnlock::UnlockBoundOnLevelUp(Owner->GetGameInstance(), Entry->Ring, Entry->Tier);
-    CheckUpgradeMemories(Owner, Entry->Ring, nullptr, Entry->Tier);
-    return true;
+    return LevelUpOwnedGear<FRingInventoryEntry>(Owner, PersistentID, TEXT("LevelUpRing"));
 }
 
 bool UEconomyService::LevelUpEvolution(AActor *Owner, FGuid InstanceID)
@@ -1405,63 +1413,12 @@ bool UEconomyService::LevelUpAbility(AActor *Owner, const UAbilityData *Ability)
 
 bool UEconomyService::DowngradeWeapon(AActor *Owner, FGuid PersistentID)
 {
-    if (!EconomyMayAct(Owner, TEXT("DowngradeWeapon")))
-    {
-        return false;
-    }
-
-    UInventoryComponent *Inv = nullptr;
-    UCurrencyComponent *Currency = nullptr;
-    if (!EconomyFindComponents(Owner, TEXT("DowngradeWeapon"), Inv, Currency))
-    {
-        return false;
-    }
-
-    FWeaponInventoryEntry *Entry = Inv->FindOwnedWeapon(PersistentID);
-    if (!Entry || !Entry->Weapon)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeWeapon: %s has no weapon instance for GUID %s (or null asset)"),
-               *Owner->GetName(), *PersistentID.ToString());
-        return false;
-    }
-
-    // Floor = the weapon asset's authored Tier (leveling only mutates the instance .Tier).
-    if (!TryDowngradeEntry(Currency, Entry->Tier, Entry->Weapon->Tier, ECurrencyType::GearEssence))
-    {
-        return false;
-    }
-    Inv->RefreshLoadoutsFromOwned(PersistentID); // B-085
-    return true;
+    return DowngradeOwnedGear<FWeaponInventoryEntry>(Owner, PersistentID, TEXT("DowngradeWeapon"));
 }
 
 bool UEconomyService::DowngradeRing(AActor *Owner, FGuid PersistentID)
 {
-    if (!EconomyMayAct(Owner, TEXT("DowngradeRing")))
-    {
-        return false;
-    }
-
-    UInventoryComponent *Inv = nullptr;
-    UCurrencyComponent *Currency = nullptr;
-    if (!EconomyFindComponents(Owner, TEXT("DowngradeRing"), Inv, Currency))
-    {
-        return false;
-    }
-
-    FRingInventoryEntry *Entry = Inv->FindOwnedRing(PersistentID);
-    if (!Entry || !Entry->Ring)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeRing: %s has no ring instance for GUID %s (or null asset)"),
-               *Owner->GetName(), *PersistentID.ToString());
-        return false;
-    }
-
-    if (!TryDowngradeEntry(Currency, Entry->Tier, Entry->Ring->Tier, ECurrencyType::GearEssence))
-    {
-        return false;
-    }
-    Inv->RefreshLoadoutsFromOwned(PersistentID); // B-085
-    return true;
+    return DowngradeOwnedGear<FRingInventoryEntry>(Owner, PersistentID, TEXT("DowngradeRing"));
 }
 
 bool UEconomyService::DowngradeEvolution(AActor *Owner, FGuid InstanceID)
