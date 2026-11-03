@@ -3,6 +3,7 @@
 // hits-to-kill bands beyond the Decided list are reference-backed defaults (Q-293).
 
 #include "Balance/BalanceSimReport.h"
+#include "Balance/BalanceArchetypes.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -244,7 +245,9 @@ namespace BalanceSimReport
 		}
 		const FString Directory = GetReportDirectory();
 		IFileManager::Get().MakeDirectory(*Directory, true);
-		const FString Base = FPaths::Combine(Directory, FString::Printf(TEXT("%s_%s"), *Preset.ToString(), *Stamp()));
+		// The quick preset runs in every suite: it overwrites one report instead of piling up stamped ones.
+		const bool bEverySuite = Preset == BalanceArchetypes::PresetNames()[0];
+		const FString Base = FPaths::Combine(Directory, FString::Printf(TEXT("%s_%s"), *Preset.ToString(), bEverySuite ? TEXT("latest") : *Stamp()));
 		TArray<FString> Paths;
 		const TPair<FString, FString> Files[] = {{Base + TEXT(".csv"), ToCSV(Preset, Records)},
 												 {Base + TEXT(".json"), ToJSON(Preset, OutAggregates, OutResults)},
