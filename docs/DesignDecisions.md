@@ -291,7 +291,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** Nothing to apply beyond B-100.
 
 ### D-020 — Is the account pool shared across characters?
-**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-091
+**Status:** ANSWERED; **changed by D-117** (2026-11-03: gear is per character again, home storage shared) · **Raised:** 2026-10-25 · **Blocks:** B-091
 **Question:** Is the owned pool shared by all characters, or per character?
 **Context:** `InitializeFromPool` copies the whole pool into one pawn (`InventoryComponent.cpp:1446-1503`). With 3 party members, each would get duplicates.
 **Answer (Crown):** **A, one shared pool per player** (2026-10-26). All your characters draw from the same collection; an item you own once can be equipped by one character at a time.
@@ -1606,7 +1606,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **One active weapon at a time (A):** a Generic's two weapons switch freely; only the active one gives its abilities, stats and passives (no stacking of two evolved weapons).
 
 ### D-111 — One owned-items store per player
-**Status:** ANSWERED in part (2026-10-29; details one at a time) · **Raised:** 2026-10-29 (`analysis/InventoryArchitecture_2026-10-29.md`) · **Blocks:** —
+**Status:** ANSWERED in part (2026-10-29; details one at a time); solo gear sharing and the one party pouch **changed by D-117** (2026-11-03) · **Raised:** 2026-10-29 (`analysis/InventoryArchitecture_2026-10-29.md`) · **Blocks:** —
 **Answer (Crown):** (2026-10-29)
 - **A: one store per player** holding every owned instance by GUID (gear, evolutions, crystal and stone stacks, outfit pieces), each entry knowing where it is (stored, carried, worn by whom) and whether it is run-only. The **armoury, storage, pouch and run bag are views** of it, not containers. Loadouts and outfits **reference** items (GUIDs), never copy them. The run is a **layer** on top (run-only flag + upgrade memory per definition, D-097). Lyra (inventory + equipment managers), Monster Hunter (box / pouch / equipment box).
 - D-110 stands as step one, with three changes: the slot's GUID is the truth (B-302), the kind-agnostic owned list lands in the store (B-308), and run wear is keyed by item GUID, not asset (new job before B-304).
@@ -1634,6 +1634,32 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (B-304 review, Q-304) · **Blocks:** —
 **Answer (Crown):** a character always has one valid primary in place. The primary slot can't be emptied: selling, stripping or dismantling the primary is refused unless a replacement is swapped in. Q-304's empty-primary fallback becomes a guard only.
 **Notes for Claude:** job B-320 (enforce it in loadout validation, the sell / dismantle / strip paths and save loading; an old save with an empty primary gets the first usable owned piece, with a warning).
+
+### D-117 — Each character has their own gear and pouch; home storage is shared (changes D-020, D-111)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (Q-319b) · **Blocks:** —
+**Answer (Crown):** each character has their **own gear** and their **own item pouch**, which they can look into; characters **give** items to each other when needed. **Home storage stays shared**: one chest for the party (Baldur's Gate 3's camp chest).
+**What it changes:** D-020's "one shared pool per player" (gear is per character again); D-111's solo rule "within your own party gear stays shared" (give now covers gear and items between your own characters too, as it already did between co-op players); D-097's 10-slot **party** pouch becomes one pouch per character. D-115's "one copy per character" now reads as worded: two members may each own the same sword.
+**Defaults taken (reference-backed, Crown may change):** Q-321 (the shared chest also takes unworn gear, as BG3's camp chest does), Q-322 (each character's pouch has D-097's 10 slots).
+**Notes for Claude:** jobs B-321 (per-character gear), B-322 (per-character pouch), B-323 (give between characters), B-324 (gear in the shared chest); store jobs B-312 to B-316 re-scoped; B-221b superseded. Code that assumes a shared gear pool, to retire behind B-321 (flag obsolete; delete after PIE):
+- `UPoolSubsystem` wearers (`GetWearer` / `SetWearer` / `GetWearers` / `RestoreSharedGear`, `PoolSubsystem.h:184-215`), their save (`SaveSubsystem.cpp:456, 663-668`) and party use (`PartySessionSubsystem.cpp:416`).
+- `UInventoryComponent::DrawSharedGear` (called at `CharacterDataComponent.cpp:65`), `ClaimActiveSharedGear` (clash-on-activate), `IsWornByOtherMember` / `IsWornByOtherMemberOf`, `GetSelectableWeapons` / `GetSelectableRings` (B-221).
+- `UPartyControlWidget::CycleRunGear` (B-221b's worn-elsewhere skip).
+- B-319's `FindDuplicateGear` counts the shared list each member sees; B-320's refill draws from it; Q-320b (dismantling gear another member wears) goes away once gear is per character.
+- B-203's carried slots are one party list (`wor.Inventory.PrintSlots`).
+
+### Q-321 — Can the shared home chest hold gear, or only items?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
+**Question:** D-097's storage holds items (crystals, stones, consumables); gear lived in the shared pool. With gear per character (D-117), can a character put an unworn weapon or adapter in the shared chest for another to take?
+**Options:** A yes: the chest takes unworn gear and items, any character takes from it / B items only; gear moves only by give.
+**Recommendation:** A. Baldur's Gate 3's camp chest (the model Crown named) holds anything and is the usual way to pass gear around; Monster Hunter's equipment box is likewise one shared box. Give stays for passing a piece directly.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
+### Q-322 — How many slots in each character's pouch?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
+**Question:** D-097 gave the party one 10-slot pouch. With a pouch per character (D-117), how many slots each?
+**Options:** A 10 each (D-097's number, per character), raisable as D-097 says / B split 10 across the party.
+**Recommendation:** A. Monster Hunter's item pouch (D-097's model) is per hunter at a fixed size; BG3 gives each character their own inventory. Splitting would make a fourth member cost the others space.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
 
 ### Q-303 — A Generic's item limit: two weapons and an adapter at once?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-29 (B-303 review) · **Blocks:** —
@@ -1669,6 +1695,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A one copy per party armoury (today's behaviour) / B one copy per member: a second copy is allowed while another member wears the first (needs a per-member owner on pool gear) / C force the choice the moment the copy arrives.
 **Recommendation:** none: this reads D-115's wording, so it is Crown's call. A is the simplest and fits a shared stash (Diablo IV's shared stash keeps per-character equipped items only); B matches the wording.
 **Answer (Crown, 2026-11-03):** **each character has their own separate inventory**, which they can look into, and characters **give each other things** when needed. So "one copy" is per character (D-115 as worded), and two members may each own the same sword.
+**Decided:** D-117 (Crown, 2026-11-03): own gear and own pouch per character, give between characters, home storage shared.
 **Notes for Claude:** this reverses D-020 (one shared pool per player) and D-111's solo rule "within your own party gear stays shared"; D-111's give / request (today: skills, and everything between co-op players) now covers gear between your own characters too. Affects the shared armoury (B-091, B-221 / B-221b clash and worn-by rules, `UPoolSubsystem` wearers) and the store plan (B-312 to B-316: B-315 "worn-by" and B-316 "give / request"). Needs a D-number and a rework plan from the brain session. Open detail for Crown: does "separate" also cover the carried items (D-097's 10-slot party pouch) and storage, or gear only?
 
 ### Q-320 — How far does "always one primary" reach (D-116)?
