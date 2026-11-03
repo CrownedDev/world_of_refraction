@@ -89,12 +89,12 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 	Output += TEXT("\n");
 
 	// ==================== INITIAL STAT DISTRIBUTION ====================
-	// Sub-Stats Pool
-	Output += FString::Printf(TEXT("SUB-STATS (Pool: %d, Spent: %d, Remaining: %d) %s\n"),
-							  Character->GetTotalPool(),
+	// Authored sub-stats (D-123: pillar levels grant none) and the enemy caliber (GetTotalPool)
+	Output += FString::Printf(TEXT("SUB-STATS (Authored: %d / %d, Caliber: %d) %s\n"),
 							  Character->GetTotalSpent(),
-							  Character->GetPointsRemaining(),
-							  Character->IsValidDistribution() ? TEXT("[OK]") : TEXT("[INVALID]"));
+							  Character->GetSubStatBudget(),
+							  Character->GetTotalPool(),
+							  Character->IsWithinSubStatBudget() ? TEXT("[OK]") : TEXT("[OVER BUDGET]"));
 
 	Output += TEXT("  Mind:\n");
 	Output += FString::Printf(TEXT("    Efficiency:        %d\n"), Character->Efficiency);
