@@ -52,6 +52,19 @@ void FResistanceColumnsSpec::Define()
 		TestEqual(TEXT("Impact is last"), Bonus.Impact, 12.0f);
 	});
 
+	It("keeps the column order the gear roll's slots use (Fire..Reality, Slash, Pierce, Impact)", [this]()
+	{
+		const EWoRDamageType Expected[] = {
+			EWoRDamageType::Fire, EWoRDamageType::Water, EWoRDamageType::Earth, EWoRDamageType::Wind,
+			EWoRDamageType::Light, EWoRDamageType::Darkness, EWoRDamageType::Lightning, EWoRDamageType::Void,
+			EWoRDamageType::Reality, EWoRDamageType::Slash, EWoRDamageType::Pierce, EWoRDamageType::Impact};
+		TestEqual(TEXT("one slot per column"), ResistanceColumns::Types().Num(), static_cast<int32>(UE_ARRAY_COUNT(Expected)));
+		for (int32 Slot = 0; Slot < FMath::Min(ResistanceColumns::Types().Num(), static_cast<int32>(UE_ARRAY_COUNT(Expected))); ++Slot)
+		{
+			TestTrue(FString::Printf(TEXT("slot %d"), Slot), ResistanceColumns::Types()[Slot] == Expected[Slot]);
+		}
+	});
+
 	It("reads 0 for a type with no column (None, Ice)", [this]()
 	{
 		const FResistanceBonus Bonus = DistinctColumns();
@@ -85,6 +98,7 @@ void FResistanceColumnsSpec::Define()
 		const ClassInnateResistanceTable::FResistanceRow Row = ResistanceColumns::Convert<ClassInnateResistanceTable::FResistanceRow>(DistinctColumns());
 		TestEqual(TEXT("Lightning"), ClassInnateResistanceTable::GetElementColumn(Row, ESpellElement::Lightning), 7.0f);
 		TestEqual(TEXT("Generic adds nothing"), ClassInnateResistanceTable::GetElementColumn(Row, ESpellElement::Generic), 0.0f);
+		TestEqual(TEXT("None adds nothing"), ClassInnateResistanceTable::GetElementColumn(Row, ESpellElement::None), 0.0f);
 		TestEqual(TEXT("Pierce"), ClassInnateResistanceTable::GetPhysicalColumn(Row, EPhysicalDamageType::Pierce), 11.0f);
 		TestEqual(TEXT("no physical"), ClassInnateResistanceTable::GetPhysicalColumn(Row, EPhysicalDamageType::None), 0.0f);
 	});

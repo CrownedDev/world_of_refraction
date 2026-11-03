@@ -51,7 +51,7 @@ namespace ResistanceColumns
 	template <class TRow>
 	float Get(const TRow &Row, EWoRDamageType Type)
 	{
-		const float *Value = Field(Row, Type);
+		const float *Value = ResistanceColumns::Field(Row, Type);
 		return Value ? *Value : 0.0f;
 	}
 
@@ -62,7 +62,7 @@ namespace ResistanceColumns
 		TTo To{};
 		for (const EWoRDamageType Type : Types())
 		{
-			*Field(To, Type) = Get(From, Type);
+			*ResistanceColumns::Field(To, Type) = ResistanceColumns::Get(From, Type);
 		}
 		return To;
 	}
@@ -73,7 +73,7 @@ namespace ResistanceColumns
 	{
 		for (const EWoRDamageType Type : Types())
 		{
-			*Field(Into, Type) += Get(Other, Type);
+			*ResistanceColumns::Field(Into, Type) += ResistanceColumns::Get(Other, Type);
 		}
 	}
 
@@ -82,7 +82,7 @@ namespace ResistanceColumns
 	{
 		for (const EWoRDamageType Type : Types())
 		{
-			if (Get(A, Type) != Get(B, Type))
+			if (ResistanceColumns::Get(A, Type) != ResistanceColumns::Get(B, Type))
 			{
 				return false;
 			}

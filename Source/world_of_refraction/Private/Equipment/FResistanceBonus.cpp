@@ -70,6 +70,8 @@ int32 FResistanceBonus::RerollResistance(int32 Budget)
 	}
 
 	WipeResistance(*this);
+	ensureMsgf(ResistanceColumns::Types().Num() == RESISTANCE_SLOT_COUNT,
+			   TEXT("RESISTANCE_SLOT_COUNT is out of step with ResistanceColumns::Types(): a new column isn't rolled"));
 
 	FRandomStream RNG(FMath::Rand());
 	int32 Deltas[RESISTANCE_SLOT_COUNT] = {0};
