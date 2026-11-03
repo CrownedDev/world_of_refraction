@@ -165,6 +165,7 @@ void FBalanceGASParitySpec::Define()
 			const FBalanceFightRecord Enum = Runner->RunFight(Matchup, Seed);
 			Runner->SetUseGAS(true);
 			const FBalanceFightRecord GAS = Runner->RunFight(Matchup, Seed);
+			TestTrue(TEXT("the GAS record says so"), GAS.bGAS);
 			Breaks += Enum.StatusBreaks;
 			TestNotEqual(*Enum.ToString(), Enum.Outcome, EBalanceFightOutcome::Stalled);
 			if (!(Enum == GAS))
