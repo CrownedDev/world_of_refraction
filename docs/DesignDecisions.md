@@ -3000,3 +3000,12 @@ Moved here once applied. Newest first.
 **Options / as built:** (1) **not kept**: edits to a lore loadout last until the next spawn; copying it (Duplicate) makes a kept custom one. (2) **not remembered**: each spawn starts on the asset's default loadout. (3) **dropped** at the run's end (the run uses its own preset).
 **Recommendation:** as built. Monster Hunter's equipment sets: the gear you wear changes freely, a set is kept only when you save it; Destiny 2's loadouts likewise save on an explicit action. Remembering the active loadout is a small follow-up if PIE shows players miss it.
 **Notes for Claude:** applied in B-311. If Crown wants lore loadouts locked, gate the loadout edit calls on `bLore`.
+
+### Q-321 — Per-character gear: who owns what nobody owned
+
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-321) · **Blocks:** —
+**Question:** D-117 gives each member its own gear. Three cases have no owner: (1) a run-only recruit (B-076) brings no gear; what does it draw, and who owns what it picks up? (2) a piece in an old save that nobody wears; (3) gear banked by a debug command.
+**Options / as built:** (1) the recruit draws the **whole armoury** (it would otherwise fight empty-handed); what it gets goes to the **party leader**. (2) and (3) go to the **party leader** (the first member), logged.
+**Recommendation:** as built. Final Fantasy X-2 / Dragon Quest guest members borrow from the party's stock and leave nothing behind; a temporary member owning gear would lose it when they leave. The leader is the player's own character, the natural default holder (Dragon Quest's bag).
+**Notes for Claude:** applied in B-321. B-323's give can move a piece to anyone; if Crown wants the recruit to own its pickups, drop the `bDrawsWholeArmoury` branch in `PushGearToPool`.
+

@@ -69,7 +69,8 @@ struct WORLD_OF_REFRACTION_API FPoolCustomLoadouts
     TArray<FSavedLoadout> Loadouts;
 };
 
-/** B-091 (Q-091): a piece another member wears, taken out of a member's active loadout. */
+/** B-091 (Q-091): a piece another member wears, taken out of a member's active loadout.
+ *  OBSOLETE (B-321, D-117): members no longer share gear, so nothing clashes; delete after Crown's PIE pass. */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FPoolGearClash
 {
@@ -224,12 +225,25 @@ public:
     void ReleaseWearer(const FGuid &GearID);
     const TMap<FGuid, FName> &GetWearers() const { return Wearers; }
 
-    /** Replaces the clashes noted for LoserKey (the party panel lists them). */
+    /** Replaces the clashes noted for LoserKey (the party panel lists them).
+     *  OBSOLETE (B-321, D-117): wearers and clashes guarded the shared armoury; owners replace them. Delete after PIE. */
     void NoteClashes(FName LoserKey, const TArray<FPoolGearClash> &NewClashes);
     const TArray<FPoolGearClash> &GetClashes() const { return Clashes; }
 
     /** B-090 restore of who wears what and whose starting gear is banked. */
     void RestoreSharedGear(const TMap<FGuid, FName> &InWearers, const TArray<FName> &InBanked);
+
+    // ==================== GEAR OWNERS (B-321, D-117) ====================
+    // Each piece belongs to one character; a member draws only its own (the wearers above retire, flagged obsolete).
+
+    /** The character who owns the piece, or NAME_None (a piece from before D-117 until AssignUnownedGear). */
+    FName GetGearOwner(const FGuid &GearID) const;
+    void SetGearOwner(const FGuid &GearID, FName CharacterKey);
+    /** Gives every unowned piece an owner: whoever wears it, else Fallback (the party leader). Logs each; returns
+     *  how many it gave. */
+    int32 AssignUnownedGear(FName Fallback);
+    const TMap<FGuid, FName> &GetGearOwners() const { return GearOwners; }
+    void RestoreGearOwners(const TMap<FGuid, FName> &InOwners) { GearOwners = InOwners; }
 
     // ==================== CUSTOM LOADOUTS (B-311, D-111) ====================
     // The player's own loadouts per character (lore loadouts come from the character asset and are not kept).
@@ -380,6 +394,10 @@ private:
     /** Characters whose starting gear is already in the pool. */
     UPROPERTY()
     TSet<FName> BankedCharacters;
+
+    /** B-321: gear PersistentID / evolution InstanceID -> the owning character key. */
+    UPROPERTY()
+    TMap<FGuid, FName> GearOwners;
 
     /** B-311: character key -> its custom loadouts. */
     UPROPERTY()
