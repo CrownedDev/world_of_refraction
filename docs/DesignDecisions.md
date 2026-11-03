@@ -1662,6 +1662,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A fill the active loadout only; validation logs a warning, doesn't block; nothing usable owned = stays empty (Q-304's fallback is the guard) / B fill every saved loadout and block an empty primary.
 **Recommendation:** A. Spare loadouts in games with weapon sets (Diablo II / Path of Exile weapon swap, Elden Ring's empty hand slots) may sit empty until used. Filling every loadout would give each spare loadout the same shared piece, which stops B-221's "switch to another loadout to take the sword off". Blocking would lock out a member who owns nothing usable. Dismantling any loadout's primary is still refused.
 **Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+**Notes for Claude:** follow-up Q-320b: with shared gear, member A can still dismantle a piece member B wears as primary (B's active loadout is refilled). Guard it with `IsWornByOtherMember` when a job touches dismantle again.
 
 ### Q-304 — When the active slot is empty, which gear is in use?
 **Status:** CHANGED by Crown 2026-11-03 (D-116; the lookup / fallback stays as a safety net only) · **Raised:** 2026-11-03 (B-304 review) · **Blocks:** —
