@@ -84,6 +84,11 @@ FDamageCalculationResult WoRDamageMath::Compute(const FDamageMathInputs &Inputs)
 	}
 
 	Result.DamageBeforeDefense = FMath::RoundToInt(RunningDamage);
+	// B-293d: the hit before the defender's Damage Taken Down, Defense and Guard, for the floor. A net Damage Taken Up
+	// raises the hit, not the floor.
+	const float DamageTakenShare = FMath::Min(1.0f, Inputs.DamageTakenFactor);
+	const float UnreducedDamage = RunningDamage / FMath::Max(DamageTakenShare, KINDA_SMALL_NUMBER) /
+								  FMath::Clamp(Inputs.GuardFactor, KINDA_SMALL_NUMBER, 1.0f);
 
 	// Step 5: defense, a capped percent reduction.
 	if (Inputs.bApplyDefense)
@@ -100,8 +105,9 @@ FDamageCalculationResult WoRDamageMath::Compute(const FDamageMathInputs &Inputs)
 		RunningDamage /= Inputs.GridDefenseModifier;
 	}
 
-	// Step 7: minimum damage.
-	Result.FinalDamage = FMath::Max(DamageConstants::MIN_DAMAGE, FMath::RoundToInt(RunningDamage));
+	// Step 7: minimum damage, and the floor (B-293d): at least HIT_DAMAGE_FLOOR_SHARE of the unreduced hit.
+	const int32 DamageFloor = FMath::CeilToInt(UnreducedDamage * DamageConstants::HIT_DAMAGE_FLOOR_SHARE);
+	Result.FinalDamage = FMath::Max3(DamageConstants::MIN_DAMAGE, DamageFloor, FMath::RoundToInt(RunningDamage));
 	return Result;
 }
 
