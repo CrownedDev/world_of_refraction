@@ -12,6 +12,7 @@
 
 class UCharacterData;
 class USkeletalMesh;
+class USkeletalMeshComponent;
 class UMaterialInterface;
 
 /** One piece of a loadout: gear carries its tier; a skill matches by asset alone. */
@@ -96,6 +97,10 @@ public:
 
     /** B-279b: the full reference loadout, one line per piece; what an unlock reveals. */
     FText GetRevealedLoadoutText() const;
+
+    /** B-279d: puts the form's mesh and materials on Mesh (a skin, or the form fought as a mini-boss).
+     *  False, changing nothing, when the form has no mesh. */
+    bool DressMesh(USkeletalMeshComponent &Mesh) const;
 
     /** Debug: name, character and reference pieces. */
     FString GetFormString() const;

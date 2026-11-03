@@ -3,6 +3,9 @@
 #include "Character/Forms/CharacterFormData.h"
 
 #include "Character/CharacterData.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "Materials/MaterialInterface.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryData.h"
@@ -124,6 +127,25 @@ FText UCharacterFormData::GetRevealedLoadoutText() const
                                  : FText::Format(LOCTEXT("RevealSkillRow", "- {0}"), Name));
     }
     return FText::Join(FText::FromString(TEXT("\n")), Lines);
+}
+
+bool UCharacterFormData::DressMesh(USkeletalMeshComponent &Mesh) const
+{
+    USkeletalMesh *NewMesh = FormMesh.LoadSynchronous();
+    if (!NewMesh)
+    {
+        return false;
+    }
+    Mesh.EmptyOverrideMaterials();
+    Mesh.SetSkeletalMesh(NewMesh);
+    for (int32 Index = 0; Index < FormMaterials.Num(); ++Index)
+    {
+        if (UMaterialInterface *Material = FormMaterials[Index].LoadSynchronous())
+        {
+            Mesh.SetMaterial(Index, Material);
+        }
+    }
+    return true;
 }
 
 FString UCharacterFormData::GetFormString() const

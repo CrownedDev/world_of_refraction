@@ -141,27 +141,24 @@ void AWoRPlayerState::ApplyFormLook()
 	{
 		return;
 	}
-	USkeletalMesh *NewMesh = WornForm ? WornForm->FormMesh.LoadSynchronous()
-									  : LoadObject<USkeletalMesh>(nullptr, BaseForm == EPlayerBaseForm::Quinn ? PlayerFormLook::QUINN_MESH : PlayerFormLook::MANNY_MESH);
-	if (!NewMesh)
+	bool bDressed = false;
+	if (WornForm)
+	{
+		bDressed = WornForm->DressMesh(*Mesh);
+	}
+	else if (USkeletalMesh *BaseMesh = LoadObject<USkeletalMesh>(nullptr, BaseForm == EPlayerBaseForm::Quinn ? PlayerFormLook::QUINN_MESH : PlayerFormLook::MANNY_MESH))
+	{
+		Mesh->EmptyOverrideMaterials();
+		Mesh->SetSkeletalMesh(BaseMesh);
+		bDressed = true;
+	}
+	if (!bDressed)
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[CharacterForms] %s has no mesh to wear"), WornForm ? *WornForm->GetName() : *UEnum::GetValueAsString(BaseForm));
 		return;
 	}
-	Mesh->EmptyOverrideMaterials();
-	Mesh->SetSkeletalMesh(NewMesh);
 	DressedPawn = Character;
-	if (WornForm)
-	{
-		for (int32 Index = 0; Index < WornForm->FormMaterials.Num(); ++Index)
-		{
-			if (UMaterialInterface *Material = WornForm->FormMaterials[Index].LoadSynchronous())
-			{
-				Mesh->SetMaterial(Index, Material);
-			}
-		}
-	}
-	UE_LOG(LogWoR, Log, TEXT("[CharacterForms] %s dressed as %s"), *GetNameSafe(Character), *GetNameSafe(NewMesh));
+	UE_LOG(LogWoR, Log, TEXT("[CharacterForms] %s dressed as %s"), *GetNameSafe(Character), *GetNameSafe(Mesh->GetSkeletalMeshAsset()));
 }
 
 bool AWoRPlayerState::IsLocalPlayerWallet() const
