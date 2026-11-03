@@ -36,30 +36,38 @@ TArray<UCharacterData *> UEncounterData::BuildOpposingRoster(const UEncounterDat
 
 TArray<UCharacterData *> UEncounterData::BuildCaughtRoster(const TArray<TArray<UCharacterData *>> &CaughtTeams)
 {
-	TArray<const TArray<UCharacterData *> *> Teams;
-	for (const TArray<UCharacterData *> &Team : CaughtTeams)
+	TArray<int32> Unused;
+	return BuildCaughtRoster(CaughtTeams, Unused);
+}
+
+TArray<UCharacterData *> UEncounterData::BuildCaughtRoster(const TArray<TArray<UCharacterData *>> &CaughtTeams, TArray<int32> &OutTeamIndices)
+{
+	OutTeamIndices.Reset();
+	TArray<int32> Teams; // indices of the non-empty teams
+	for (int32 Index = 0; Index < CaughtTeams.Num(); ++Index)
 	{
-		if (Team.Num() > 0)
+		if (CaughtTeams[Index].Num() > 0)
 		{
-			Teams.Add(&Team);
+			Teams.Add(Index);
 		}
 	}
+	TArray<UCharacterData *> Roster;
 	if (Teams.Num() == 1)
 	{
-		TArray<UCharacterData *> Roster = *Teams[0];
+		Roster = CaughtTeams[Teams[0]];
 		Roster.SetNum(FMath::Min(Roster.Num(), EncounterConstants::ENCOUNTER_MAX_ENEMIES));
+		OutTeamIndices.Init(Teams[0], Roster.Num());
 		return Roster;
 	}
 
-	TArray<UCharacterData *> Roster;
-	for (const TArray<UCharacterData *> *Team : Teams)
+	for (const int32 TeamIndex : Teams)
 	{
 		if (Roster.Num() >= EncounterConstants::ENCOUNTER_MAX_ENEMIES)
 		{
 			break;
 		}
 		UCharacterData *Strongest = nullptr;
-		for (UCharacterData *Member : *Team)
+		for (UCharacterData *Member : CaughtTeams[TeamIndex])
 		{
 			if (Member && (!Strongest || Member->GetTotalPool() > Strongest->GetTotalPool()))
 			{
@@ -69,9 +77,16 @@ TArray<UCharacterData *> UEncounterData::BuildCaughtRoster(const TArray<TArray<U
 		if (Strongest)
 		{
 			Roster.Add(Strongest);
+			OutTeamIndices.Add(TeamIndex);
 		}
 	}
 	return Roster;
+}
+
+EEncounterRank UEncounterData::GetMemberRank(const UEncounterData *Encounter, EEncounterRank TeamRank, const UCharacterData *Member)
+{
+	const bool bIsForm = Encounter && Encounter->MiniBossForm && Member && Encounter->MiniBossForm->Character == Member;
+	return bIsForm ? HarderEncounterRank(TeamRank, EEncounterRank::MiniBoss) : TeamRank;
 }
 
 EEncounterRank UEncounterData::GetFightRank(const UEncounterData *Encounter, EEncounterRank PlacedRank, const TArray<UCharacterData *> &Fielded)

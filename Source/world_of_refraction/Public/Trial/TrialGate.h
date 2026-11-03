@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Combat/Encounter/EEncounterRank.h"
+#include "Inventory/ItemTier.h"
 #include "TrialGate.generated.h"
 
 class AActor;
@@ -63,8 +64,22 @@ namespace TrialGate
 	 *  Normal 1 / Elite 1.5 / Mini-boss 3 / Boss 6. */
 	float GetRankHealthMultiplier(EEncounterRank Rank);
 
-	/** Gives Enemy its rank's HP on top of ApplyEnemyStrength (HP only, no damage): a permanent, uncleansable
-	 *  max-HP buff, then a full refill. MaxHP percents add up, so the rank's share is Strength x (rank - 1),
-	 *  making the total Strength x rank. No-op for a x1 rank. False as ApplyEnemyStrength. */
+	/** B-224b: the enemy's tier power for its HP (UCharacterData::EnemyTier through the TierPower ladder; x1 at F). */
+	float GetEnemyTierHealthMultiplier(const AActor *Enemy);
+
+	/** Gives Enemy its rank's and its tier's HP on top of ApplyEnemyStrength (HP only, no damage): a permanent,
+	 *  uncleansable max-HP buff, then a full refill. MaxHP percents add up, so the share is Strength x (rank x tier
+	 *  power - 1), making the total Strength x rank x tier power. No-op when both are x1. False as ApplyEnemyStrength. */
 	bool ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EEncounterRank Rank);
+
+	/** B-223 (D-102): a normal or elite enemy's chance to drop a pillar level: the LevelDropChance ladder at its
+	 *  tier, doubled for an elite, at most 1. 0 for a mini-boss or boss (they always give, GetGuaranteedLevels). */
+	float GetLevelDropChance(EItemTier EnemyTier, EEncounterRank Rank);
+
+	/** B-223 (D-102): levels a mini-boss or boss always gives, by its tier (MiniBossLevels ladder); 0 below. */
+	int32 GetGuaranteedLevels(EItemTier EnemyTier, EEncounterRank Rank);
+
+	/** B-223: the pillar levels one defeated enemy gives: its guaranteed levels, else one on a battle-random
+	 *  roll under its drop chance. */
+	int32 RollLevelDrops(const UObject *WorldContext, EItemTier EnemyTier, EEncounterRank Rank);
 }

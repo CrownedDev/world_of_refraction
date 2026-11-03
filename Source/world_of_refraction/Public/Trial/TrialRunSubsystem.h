@@ -28,6 +28,7 @@
 #pragma once
 
 #include "AI/EAIDifficulty.h"
+#include "Character/EWorldPillar.h"
 #include "Combat/Encounter/EEncounterRank.h"
 #include "Combat/Encounter/EFirstStrike.h"
 #include "Combat/Encounter/EnemyZone.h"
@@ -119,6 +120,37 @@ public:
     /** B-184: the map encounters the pending fight came from (every team caught). Call before
      *  EnterEncounter; a win marks them all beaten. */
     void SetPendingEncounterSources(const TArray<FName> &EncounterIds) { PendingEncounterSources = EncounterIds; }
+
+    /** B-224b (Q-224c): each opposing member's own rank for its HP, parallel to the opposing party. Call before
+     *  EnterEncounter. A fight entered without it (a map feature's boss) gives every enemy the fight's rank. */
+    void SetPendingEnemyRanks(const TArray<EEncounterRank> &Ranks) { PendingEnemyRanks = Ranks; }
+
+    /** The rank whose HP the Index-th opposing member gets: its own when one was set for every member, else the
+     *  fight's rank (GetPendingRank). */
+    EEncounterRank GetPendingEnemyRank(int32 Index) const
+    {
+        return PendingEnemyRanks.Num() == PendingOpposingParty.Num() && PendingEnemyRanks.IsValidIndex(Index) ? PendingEnemyRanks[Index] : PendingRank;
+    }
+
+    // ---- B-223 (D-102): pillar levels earned this run, per character (survive the battle level's travel) ----
+
+    /** Levels Character earned (dropped or bought) this run in Pillar, on top of its asset level and head-start. */
+    int32 GetRunEarnedLevels(FName CharacterKey, EWorldPillar Pillar) const;
+    void AddRunEarnedLevels(FName CharacterKey, EWorldPillar Pillar, int32 Count);
+    /** Levels Character bought from a vendor this run (the rising price, D-102). */
+    int32 GetRunLevelPurchases(FName CharacterKey) const;
+    void AddRunLevelPurchase(FName CharacterKey);
+    /** Forgets one character's run levels and purchases (UCharacterDataComponent::ResetRunWorldStats). */
+    void ForgetRunLevels(FName CharacterKey);
+
+    /** Dropped levels not yet given to a pillar: the player picks (wor.UI.LevelDrop). */
+    int32 GetUnspentLevels() const { return UnspentLevels; }
+    void AddUnspentLevels(int32 Count);
+    /** Takes one unspent level; false when there is none. */
+    bool TakeUnspentLevel();
+
+    /** Debug: every character's run levels and the unspent count. wor.WorldStat.Print. */
+    FString GetRunLevelsString() const;
 
     /** B-184: the pending fight was won; its map encounters stay beaten for the rest of the run
      *  (a rest spot doesn't bring them back). */
@@ -233,6 +265,24 @@ private:
 
     /** B-184: map encounters of the pending fight. */
     TArray<FName> PendingEncounterSources;
+
+    /** B-224b: each opposing member's rank, carried across the OpenLevel like PendingRank (D-065); reset with the
+     *  encounter sources. */
+    TArray<EEncounterRank> PendingEnemyRanks;
+
+    /** B-223: one character's pillar levels earned this run and how many it bought. */
+    struct FRunLevels
+    {
+        int32 Mind = 0;
+        int32 Body = 0;
+        int32 Spirit = 0;
+        int32 Purchases = 0;
+        int32 &For(EWorldPillar Pillar) { return Pillar == EWorldPillar::Body ? Body : Pillar == EWorldPillar::Spirit ? Spirit : Mind; }
+        int32 Get(EWorldPillar Pillar) const { return Pillar == EWorldPillar::Body ? Body : Pillar == EWorldPillar::Spirit ? Spirit : Mind; }
+    };
+    /** B-223: run state like BeatenEncounters (cleared on trial entry and exit). TODO: not in the save yet (Q-223). */
+    TMap<FName, FRunLevels> RunLevels;
+    int32 UnspentLevels = 0;
 
     /** B-184: map encounters beaten this run. Run state like RunSeed; cleared on trial entry and exit. */
     TSet<FName> BeatenEncounters;

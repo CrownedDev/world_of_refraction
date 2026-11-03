@@ -3,7 +3,10 @@
 #include "Trial/TrialGate.h"
 
 #include "Character/CharacterDataComponent.h"
+#include "Character/CharacterData.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/Damage/TierPowerConstants.h"
+#include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Combat/Tuning/CombatBaselineConstants.h"
 #include "Combat/Tuning/CombatTuning.h"
 #include "Engine/GameInstance.h"
@@ -119,6 +122,13 @@ float TrialGate::GetRankHealthMultiplier(EEncounterRank Rank)
 	return WoRTuning::GetLadderValue(ECombatLadder::EnemyRankHealth, RankValue, CombatBaseline::CodeEnemyRankHealth(RankValue));
 }
 
+float TrialGate::GetEnemyTierHealthMultiplier(const AActor *Enemy)
+{
+	const UCharacterDataComponent *CharComp = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	const UCharacterData *Data = CharComp ? CharComp->CharacterData : nullptr;
+	return TierPowerScaling::GetTierPowerMultiplier(Data ? Data->EnemyTier : EItemTier::F_Tier);
+}
+
 bool TrialGate::ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EEncounterRank Rank)
 {
 	UCharacterDataComponent *CharComp = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
@@ -129,11 +139,13 @@ bool TrialGate::ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EE
 		return false;
 	}
 	const float RankMultiplier = GetRankHealthMultiplier(Rank);
-	if (FMath::IsNearlyEqual(RankMultiplier, CombatBaseline::ENEMY_RANK_HEALTH_NORMAL))
+	const float TierMultiplier = GetEnemyTierHealthMultiplier(Enemy);
+	const float HealthMultiplier = RankMultiplier * TierMultiplier;
+	if (FMath::IsNearlyEqual(HealthMultiplier, CombatBaseline::ENEMY_RANK_HEALTH_NORMAL))
 	{
 		return true;
 	}
-	const float Percent = StrengthMultiplier * (RankMultiplier - 1.0f) * CombatConstants::STAT_PERCENT_DIVISOR;
+	const float Percent = StrengthMultiplier * (HealthMultiplier - 1.0f) * CombatConstants::STAT_PERCENT_DIVISOR;
 	FActiveSkillEffect HPEffect = FActiveSkillEffect::CreatePersistent(TEXT("Enemy rank (HP)"), TrialGateInternal::ENEMY_RANK_HP_EFFECT_ID,
 																	   Percent >= 0.0f ? ESkillEffectType::MaxHPBuff : ESkillEffectType::MaxHPDebuff,
 																	   FMath::Abs(Percent));
@@ -141,9 +153,45 @@ bool TrialGate::ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EE
 	Effects->ApplyEffect(Enemy, HPEffect);
 	CharComp->RecomputeMaxPools();
 	CharComp->ServerSetHP(CharComp->MaxHP);
-	UE_LOG(LogTemp, Log, TEXT("[TrialGate] %s: rank %s HP x%.2f (strength x%.2f)"), *GetNameSafe(Enemy),
-		   *UEnum::GetValueAsString(Rank), RankMultiplier, StrengthMultiplier);
+	UE_LOG(LogTemp, Log, TEXT("[TrialGate] %s: rank %s HP x%.2f, tier x%.2f (strength x%.2f)"), *GetNameSafe(Enemy),
+		   *UEnum::GetValueAsString(Rank), RankMultiplier, TierMultiplier, StrengthMultiplier);
 	return true;
 }
 
 #undef LOCTEXT_NAMESPACE
+
+float TrialGate::GetLevelDropChance(EItemTier EnemyTier, EEncounterRank Rank)
+{
+	if (Rank == EEncounterRank::MiniBoss || Rank == EEncounterRank::Boss)
+	{
+		return 0.0f;
+	}
+	const int32 TierIndex = static_cast<int32>(EnemyTier);
+	const float Chance = WoRTuning::GetLadderValue(ECombatLadder::LevelDropChance, TierIndex, CombatBaseline::CodeLevelDropChance(TierIndex));
+	const float RankFactor = Rank == EEncounterRank::Elite ? CombatBaseline::LEVEL_DROP_ELITE_CHANCE_FACTOR : 1.0f;
+	return FMath::Clamp(Chance * RankFactor, 0.0f, 1.0f);
+}
+
+int32 TrialGate::GetGuaranteedLevels(EItemTier EnemyTier, EEncounterRank Rank)
+{
+	if (Rank != EEncounterRank::MiniBoss && Rank != EEncounterRank::Boss)
+	{
+		return 0;
+	}
+	const int32 TierIndex = static_cast<int32>(EnemyTier);
+	const float Levels = WoRTuning::GetLadderValue(ECombatLadder::MiniBossLevels, TierIndex,
+												   static_cast<float>(CombatBaseline::CodeMiniBossLevels(TierIndex)));
+	return FMath::Max(0, FMath::RoundToInt(Levels));
+}
+
+int32 TrialGate::RollLevelDrops(const UObject *WorldContext, EItemTier EnemyTier, EEncounterRank Rank)
+{
+	const int32 Guaranteed = GetGuaranteedLevels(EnemyTier, Rank);
+	if (Guaranteed > 0)
+	{
+		return Guaranteed;
+	}
+	const float Chance = GetLevelDropChance(EnemyTier, Rank);
+	return Chance > 0.0f && UBattleRandomSubsystem::FRand(WorldContext) < Chance ? 1 : 0;
+}
+

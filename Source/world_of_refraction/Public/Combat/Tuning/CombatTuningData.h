@@ -64,6 +64,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ladders|Baseline")
 	FScalableFloat EnemyRankHealth;
 
+	/** B-223 (D-102): a normal enemy's chance to drop a pillar level, keyed by its tier F = 0 .. S = 6 (an elite doubles it). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ladders|Level drops")
+	FScalableFloat LevelDropChance;
+
+	/** B-223 (D-102): pillar levels a mini-boss or boss always gives, keyed by its tier F = 0 .. S = 6. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ladders|Level drops")
+	FScalableFloat MiniBossLevels;
+
 	/** The curve table FillLadderTable writes into (create an empty Curve Table and pick it here). */
 	UPROPERTY(EditAnywhere, Category = "Ladders")
 	TObjectPtr<UCurveTable> LadderTable;

@@ -9,6 +9,7 @@
 #include "Character/ECharacterClass.h"
 #include "Character/ECharacterOrigin.h"
 #include "Character/StatConstants.h"
+#include "Inventory/ItemTier.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
 #include "Combat/Resistance/ClassInnateResistanceTable.h"
 #include "Combat/Actions/EActionType.h"
@@ -213,6 +214,11 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
 	int32 MaxHealth = 0;
+
+	/** B-224b (BaselineNumbers.md Decided, Q-224d): as an enemy, max HP x the tier power of this tier (F x1.0 ..
+	 *  S x4.8), on top of rank, zone and difficulty. F (the default) changes nothing until an enemy is authored. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy")
+	EItemTier EnemyTier = EItemTier::F_Tier;
 
 	/** Widens the real-time defense input window (more Reflex = more lead-in time to
 	 *  land a parry/dodge). Scales ON TOP of UDefenseSystem::DefenseInputWindow — see

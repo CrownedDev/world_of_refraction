@@ -3071,3 +3071,30 @@ Moved here once applied. Newest first.
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-312; B-312b added to the Backlog after B-312.
 
+
+### Q-293 — Balance targets the Decided list doesn't give
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-293, cloud) · **Blocks:** —
+**Question:** `docs/Design/BalanceSimulator.md` §3 lists targets beyond `BaselineNumbers.md`'s Decided list: the boss win-rate band at Medium, the hits-to-kill bands for Elite / Mini-boss / Boss, the crit bands, and the worked-example hit medians (which assume Mind 8 and 14 where the sim's archetypes clamp to 7). Which of these may fail a nightly run, and which only warn?
+**Context:** `Private/Balance/BalanceSimReport.cpp` (`EvaluateTargets`); `Private/Tests/BalanceTargetsSpec.cpp`.
+**Options / as built:** **errors** (fail nightly / full): stalls, normal-fight party turns 2.5–5.5, mini-boss rounds 7–11, boss rounds 11–15.5, win rate vs normal at Medium 85–99 %, the pillar-6 bands (35–65 %; reverse still clears). **Warn only:** p90s, the hits-to-kill bands (±20 %), the worked-example medians (±10 %), crit rate 3–8 % and crit / uncrit 1.2–1.3, boss win rate at Medium 50–80 %. `quick` (3 fights) never fails on a band.
+**Recommendation:** as built. The error set is exactly the Decided numbers; the boss band follows Expedition 33 / Hades (a first boss attempt is lost more often than a normal fight, never a coin flip at Normal), and the example medians stay warn-only until the examples are redone at the pillar cap of 7.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-293; flip `bError` per target in `EvaluateTargets` to change a band's severity. Desktop build: the sim's spell costs **0 EP** (sim-only; the AI may cast it every turn its EP allows); set `BaseEnergyCost` in `BalanceSimRunner.cpp` when B-293c tunes. The first nightly fails 19 bands (B-293c).
+
+### Q-224d — Enemy HP by tier power: where the enemy's tier comes from
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-224b, cloud) · **Blocks:** —
+**Question:** BaselineNumbers' Decided list puts enemy HP "on top of the stat formula and the enemy's tier power, zone and difficulty", but a character asset has no tier. Where does an enemy's tier come from, and does it stack with the zone tier (B-186)?
+**Context:** `Public/Character/CharacterData.h` (`EnemyTier`); `Private/Trial/TrialGate.cpp` (`GetEnemyTierHealthMultiplier`, `ApplyEnemyRankHealth`); `Private/Combat/Encounter/EnemyZone.cpp` (`TIER_STRENGTH`).
+**Options / as built:** **A** a new `EnemyTier` field on the character asset, default F (x1.0), read through the TierPower ladder and multiplied with rank, zone and difficulty (all four stack, as the Decided list says). **B** take the tier from the enemy's weapon. **C** use the zone tier instead.
+**Recommendation:** A. Elden Ring and Dark Souls author each enemy's strength on the enemy and let the area add on top; defaulting to F keeps every existing enemy as it is (the same pattern as weapon Power defaulting to 0). The zone tier stays a separate, small step (x1.0 to x1.75).
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-224b. Authoring `EnemyTier` on the enemy assets is editor work (CC+UE).
+
+### Q-223 — Level drops: the numbers, when you place them, and the save
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-223) · **Blocks:** —
+**Question:** D-102 sets the shape (a chance from normal enemies, guaranteed levels from a mini-boss, you choose the pillar) but not the odds, how many a mini-boss gives, when you place a drop, or whether a run's levels are saved.
+**Context:** `Public/Combat/Tuning/CombatBaselineConstants.h` (`LEVEL_DROP_CHANCE_BY_TIER`, `LEVEL_DROP_ELITE_CHANCE_FACTOR`, `MINIBOSS_LEVELS_BY_TIER`); `Private/Trial/TrialGate.cpp` (`RollLevelDrops`); `Private/Combat/CombatOrchestrator.cpp` (`FinishCombat`); `Private/Trial/LevelDropPlacement.cpp`.
+**Options / as built:** **odds** a normal enemy 10 % at F rising to 30 % at S, an elite double; **mini-boss and boss** guaranteed levels by tier: F/E/D 1, C/B 2, A/S 3 (a boss gives the same as a mini-boss of its tier); **rolled at the win** (the fight's own random draws don't shift); **placing** the drops wait in the run until you place them (`wor.UI.LevelDrop`), one press per level, any party member, refused at 7; **save** a run's levels and waiting drops are not saved yet (a reload mid-run loses them).
+**Recommendation:** as built. Hades' boons and Slay the Spire's card rewards come after the fight, chosen by the player, not mid-fight; low odds from normal enemies with guaranteed rewards from bosses is the Hades / Dead Cells pattern (elites as a better-odds middle step, as Slay the Spire's elites). Over a 3-floor run that's about 6-10 levels, under the 21 cap, with the vendor as backup. Every number is a tuning row (`LevelDropChance`, `MiniBossLevels`) for B-293c.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-223. The run's levels go into the save with the run-save work (the save version bump belongs there, not here); the placeholder prompt opens by console only (the real post-fight screen is D-024).

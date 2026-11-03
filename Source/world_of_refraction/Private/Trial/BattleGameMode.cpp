@@ -112,6 +112,7 @@ void ABattleGameMode::BootstrapCombat()
     // assigned asset (see SpawnCombatant).
     TArray<AActor *> LocalParty;
     TArray<AActor *> OpposingParty;
+    TArray<EEncounterRank> OpposingRanks; // B-224b: each spawned enemy's own rank for its HP, kept paired with OpposingParty
 
     // Battle Party — the Trial Party members who were present when the join window
     // closed. Enemy roster still comes from the encounter, not the party.
@@ -201,6 +202,7 @@ void ABattleGameMode::BootstrapCombat()
         if (APawn *Spawned = SpawnCombatant(EnemyPawnClass, OpposingPartyData[i], FTransform(Location)))
         {
             OpposingParty.Add(Spawned);
+            OpposingRanks.Add(TrialRun->GetPendingEnemyRank(i));
             const UCharacterFormData *Form = Forms ? Forms->FindFormForCharacter(OpposingPartyData[i]) : nullptr;
             const ACharacter *FormPawn = Cast<ACharacter>(Spawned);
             if (Form && FormPawn && FormPawn->GetMesh() && Form->DressMesh(*FormPawn->GetMesh()))
@@ -270,18 +272,21 @@ void ABattleGameMode::BootstrapCombat()
     // before the fight (and its HUD) starts.
     const FEncounterZoneInfo Zone = TrialRun->GetPendingZone();
     const float EnemyStrength = TrialRun->GetEnemyStrengthMultiplier() * AEnemyZone::GetTierStrengthMultiplier(Zone.Tier);
-    for (AActor *Enemy : OpposingParty)
+    for (int32 EnemyIndex = 0; EnemyIndex < OpposingParty.Num(); ++EnemyIndex)
     {
-        // B-224: the encounter rank multiplies max HP on top (Normal 1 / Elite 1.5 / Mini-boss 3 / Boss 6).
+        AActor *Enemy = OpposingParty[EnemyIndex];
+        // B-224 / B-224b: the enemy's own rank (its team's; Q-224c) and tier multiply max HP on top.
+        const EEncounterRank EnemyRank = OpposingRanks.IsValidIndex(EnemyIndex) ? OpposingRanks[EnemyIndex] : TrialRun->GetPendingRank();
+        SpawnedOrchestrator->SetEnemyRank(Enemy, EnemyRank); // B-223: its level drop
         if (!TrialGate::ApplyEnemyStrength(Enemy, EnemyStrength))
         {
             UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s: trial difficulty not applied (no character data or effect manager)"),
                    *GetNameSafe(Enemy));
         }
-        else if (!TrialGate::ApplyEnemyRankHealth(Enemy, EnemyStrength, TrialRun->GetPendingRank()))
+        else if (!TrialGate::ApplyEnemyRankHealth(Enemy, EnemyStrength, EnemyRank))
         {
             UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s: rank health (%s) not applied"),
-                   *GetNameSafe(Enemy), *UEnum::GetValueAsString(TrialRun->GetPendingRank()));
+                   *GetNameSafe(Enemy), *UEnum::GetValueAsString(EnemyRank));
         }
     }
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Trial difficulty %s, zone tier %d: enemy strength x%.2f"),

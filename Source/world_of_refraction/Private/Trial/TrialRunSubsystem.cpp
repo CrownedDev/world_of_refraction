@@ -11,6 +11,7 @@
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "Misc/Paths.h"
 #include "Merchant/MerchantInteractable.h"
 #include "Merchant/MerchantStockRoll.h"
 #include "Party/PartySessionSubsystem.h"
@@ -73,9 +74,12 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
 
     ActiveTrial = Trial;
     BeatenEncounters.Reset();
+    RunLevels.Reset(); // B-223: the run's pillar levels end with it (D-102)
+    UnspentLevels = 0;
     FoundFeatures.Reset();
     RunMemories.Reset();
     PendingEncounterSources.Reset();
+    PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
     const int32 ForcedSeed = CVarTrialSeed.GetValueOnGameThread();
@@ -131,9 +135,12 @@ void UTrialRunSubsystem::ExitTrial()
     VariationIndex = INDEX_NONE;
     TrialDifficulty = TrialGate::DEFAULT_DIFFICULTY;
     BeatenEncounters.Reset();
+    RunLevels.Reset(); // B-223: the run's pillar levels end with it (D-102)
+    UnspentLevels = 0;
     FoundFeatures.Reset();
     RunMemories.Reset();
     PendingEncounterSources.Reset();
+    PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
     // B-090: a trial's exit is a save point.
@@ -190,6 +197,7 @@ void UTrialRunSubsystem::ExitEncounter()
     PendingBattleParty.Reset();
     PendingOpposingParty.Reset();
     PendingEncounterSources.Reset();
+    PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
     EncounterReturnLevel = nullptr;
@@ -211,6 +219,69 @@ void UTrialRunSubsystem::ExitEncounter()
                                              GetGameInstance()->GetSubsystem<USaveSubsystem>()->SaveNow(GetGameInstance()->GetWorld(), true);
                                              TravelTo(ReturnLevel);
                                          }));
+}
+
+int32 UTrialRunSubsystem::GetRunEarnedLevels(FName CharacterKey, EWorldPillar Pillar) const
+{
+    const FRunLevels *Levels = RunLevels.Find(CharacterKey);
+    return Levels ? Levels->Get(Pillar) : 0;
+}
+
+void UTrialRunSubsystem::AddRunEarnedLevels(FName CharacterKey, EWorldPillar Pillar, int32 Count)
+{
+    if (!CharacterKey.IsNone() && Count > 0)
+    {
+        RunLevels.FindOrAdd(CharacterKey).For(Pillar) += Count;
+    }
+}
+
+int32 UTrialRunSubsystem::GetRunLevelPurchases(FName CharacterKey) const
+{
+    const FRunLevels *Levels = RunLevels.Find(CharacterKey);
+    return Levels ? Levels->Purchases : 0;
+}
+
+void UTrialRunSubsystem::AddRunLevelPurchase(FName CharacterKey)
+{
+    if (!CharacterKey.IsNone())
+    {
+        ++RunLevels.FindOrAdd(CharacterKey).Purchases;
+    }
+}
+
+void UTrialRunSubsystem::ForgetRunLevels(FName CharacterKey)
+{
+    RunLevels.Remove(CharacterKey);
+}
+
+void UTrialRunSubsystem::AddUnspentLevels(int32 Count)
+{
+    if (Count > 0)
+    {
+        UnspentLevels += Count;
+        UE_LOG(LogTemp, Log, TEXT("[TrialRun] +%d pillar level(s) to place (%d waiting): wor.UI.LevelDrop"), Count, UnspentLevels);
+    }
+}
+
+bool UTrialRunSubsystem::TakeUnspentLevel()
+{
+    if (UnspentLevels <= 0)
+    {
+        return false;
+    }
+    --UnspentLevels;
+    return true;
+}
+
+FString UTrialRunSubsystem::GetRunLevelsString() const
+{
+    FString Out = FString::Printf(TEXT("[TrialRun] Run pillar levels (B-223): %d unspent"), UnspentLevels);
+    for (const TPair<FName, FRunLevels> &Pair : RunLevels)
+    {
+        Out += FString::Printf(TEXT("\n  %s: Mind +%d, Body +%d, Spirit +%d; bought %d"), *FPaths::GetBaseFilename(Pair.Key.ToString()),
+                               Pair.Value.Mind, Pair.Value.Body, Pair.Value.Spirit, Pair.Value.Purchases);
+    }
+    return Out;
 }
 
 void UTrialRunSubsystem::MarkPendingEncounterBeaten()
@@ -320,6 +391,7 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     FoundFeatures = Found;
     RunMemories = TArray<TObjectPtr<UMemoryData>>(Memories);
     PendingEncounterSources.Reset();
+    PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Restored saved run of '%s' (seed %d, %d beaten, %d found, %d memories)"),
@@ -358,7 +430,9 @@ FString UTrialRunSubsystem::GetTrialRunString() const
     {
         Found.Add(Entry.Value.ToString());
     }
-    return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | variation=%s | difficulty=%s (enemy x%.2f, payout x%.2f) | beaten=%d | found %d [%s] | memories %d | first strike=%s | zone tier %d (%s) | hub=%s | pending %d v %d (%s) | return=%s"),
+    // B-224b: each fielded enemy's own rank (its HP), beside the fight's rank.
+    const FString EnemyRanks = FString::JoinBy(PendingEnemyRanks, TEXT(","), [](EEncounterRank Rank) { return UEnum::GetValueAsString(Rank); });
+    return FString::Printf(TEXT("TrialRun: active=%s (seed %d) | variation=%s | difficulty=%s (enemy x%.2f, payout x%.2f) | beaten=%d | found %d [%s] | memories %d | first strike=%s | zone tier %d (%s) | hub=%s | pending %d v %d (%s; per enemy [%s]) | return=%s"),
                            ActiveTrial ? *ActiveTrial->Name.ToString() : TEXT("<none>"), RunSeed,
                            Variation ? *Variation->Name.ToString() : TEXT("<none>"),
                            *TrialGate::GetDifficultyName(TrialDifficulty).ToString(), GetEnemyStrengthMultiplier(),
@@ -367,7 +441,7 @@ FString UTrialRunSubsystem::GetTrialRunString() const
                            PendingZone.LootPool.IsValid() ? *PendingZone.LootPool.ToString() : TEXT("no loot pool"),
                            HubLevel.IsNull() ? TEXT("<UNSET>") : *HubLevel.ToString(),
                            PendingBattleParty.Num(), PendingOpposingParty.Num(),
-                           *UEnum::GetValueAsString(PendingRank),
+                           *UEnum::GetValueAsString(PendingRank), *EnemyRanks,
                            EncounterReturnLevel.IsNull() ? TEXT("<none>") : *EncounterReturnLevel.ToString());
 }
 
