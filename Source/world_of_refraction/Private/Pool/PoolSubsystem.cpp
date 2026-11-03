@@ -348,53 +348,68 @@ void UPoolSubsystem::AddCrystalToPool(const FCrystalId &Id, int32 Count)
     (CrystalTypeHelpers::IsGemType(Id.Type) ? Crystals : Stones).FindOrAdd(Id) += Count;
 }
 
-// ==================== CARRIED ITEMS AND STORAGE (B-203) ====================
+// ==================== POUCHES AND STORAGE (B-203, B-322) ====================
 
-int32 UPoolSubsystem::GetCarriedCount(const FCrystalId &Id) const
+const FPoolPouch &UPoolSubsystem::GetPouch(FName CharacterKey) const
 {
-    const int32 *Found = CarriedItems.Find(Id);
+    static const FPoolPouch Empty;
+    const FPoolPouch *Found = Pouches.Find(CharacterKey);
+    return Found ? *Found : Empty;
+}
+
+FPoolPouch &UPoolSubsystem::FindOrAddPouch(FName CharacterKey)
+{
+    return Pouches.FindOrAdd(CharacterKey);
+}
+
+int32 UPoolSubsystem::GetCarriedCount(FName CharacterKey, const FCrystalId &Id) const
+{
+    const int32 *Found = GetPouch(CharacterKey).Stacks.Find(Id);
     return Found ? *Found : 0;
 }
 
-int32 UPoolSubsystem::GetCarryRoom(const FCrystalId &Id) const
+int32 UPoolSubsystem::GetCarryRoom(FName CharacterKey, const FCrystalId &Id) const
 {
-    if (Id.Type == ECrystalType::None)
+    if (Id.Type == ECrystalType::None || CharacterKey.IsNone())
     {
         return 0;
     }
-    const int32 *Stack = CarriedItems.Find(Id);
-    if (!Stack && CarriedItems.Num() >= ItemSlotCount)
+    const FPoolPouch &Pouch = GetPouch(CharacterKey);
+    const int32 *Stack = Pouch.Stacks.Find(Id);
+    if (!Stack && Pouch.Stacks.Num() >= Pouch.SlotCount)
     {
         return 0;
     }
     return FMath::Max(0, InventoryConstants::ITEM_STACK_MAX - (Stack ? *Stack : 0));
 }
 
-int32 UPoolSubsystem::CarryOrStore(const FCrystalId &Id, int32 Count)
+int32 UPoolSubsystem::CarryOrStore(FName CharacterKey, const FCrystalId &Id, int32 Count)
 {
     if (Count <= 0 || Id.Type == ECrystalType::None)
     {
         return 0;
     }
-    const int32 Carried = FMath::Min(Count, GetCarryRoom(Id));
+    // No character (an enemy, a debug add): everything goes to the shared storage.
+    const int32 Carried = FMath::Min(Count, GetCarryRoom(CharacterKey, Id));
     if (Carried > 0)
     {
-        CarriedItems.FindOrAdd(Id) += Carried;
+        FindOrAddPouch(CharacterKey).Stacks.FindOrAdd(Id) += Carried;
     }
     const int32 Stored = Count - Carried;
     if (Stored > 0)
     {
         AddCrystalToPool(Id, Stored);
-        UE_LOG(LogTemp, Log, TEXT("[Pool] %d %s didn't fit the carried slots: sent to storage"), Stored,
-               *ItemIdentity::GetDisplayName(Id));
+        UE_LOG(LogTemp, Log, TEXT("[Pool] %d %s didn't fit %s's pouch: sent to storage"), Stored, *ItemIdentity::GetDisplayName(Id),
+               *FPaths::GetBaseFilename(CharacterKey.ToString()));
     }
     OnPoolItemsChanged.Broadcast();
     return Stored;
 }
 
-int32 UPoolSubsystem::TakeCarried(const FCrystalId &Id, int32 Count)
+int32 UPoolSubsystem::TakeCarried(FName CharacterKey, const FCrystalId &Id, int32 Count)
 {
-    int32 *Stack = CarriedItems.Find(Id);
+    FPoolPouch *Pouch = Pouches.Find(CharacterKey);
+    int32 *Stack = Pouch ? Pouch->Stacks.Find(Id) : nullptr;
     if (!Stack || Count <= 0)
     {
         return 0;
@@ -403,7 +418,7 @@ int32 UPoolSubsystem::TakeCarried(const FCrystalId &Id, int32 Count)
     *Stack -= Taken;
     if (*Stack <= 0)
     {
-        CarriedItems.Remove(Id);
+        Pouch->Stacks.Remove(Id);
     }
     OnPoolItemsChanged.Broadcast();
     return Taken;
@@ -432,26 +447,26 @@ int32 UPoolSubsystem::TakeStored(const FCrystalId &Id, int32 Count)
     return Taken;
 }
 
-bool UPoolSubsystem::MoveToStorage(const FCrystalId &Id, int32 Count)
+bool UPoolSubsystem::MoveToStorage(FName CharacterKey, const FCrystalId &Id, int32 Count)
 {
-    if (Count <= 0 || GetCarriedCount(Id) < Count)
+    if (Count <= 0 || GetCarriedCount(CharacterKey, Id) < Count)
     {
         return false;
     }
     // Into storage first, so listeners to TakeCarried's broadcast find the items there.
     AddCrystalToPool(Id, Count);
-    TakeCarried(Id, Count);
+    TakeCarried(CharacterKey, Id, Count);
     return true;
 }
 
-bool UPoolSubsystem::MoveToCarried(const FCrystalId &Id, int32 Count)
+bool UPoolSubsystem::MoveToCarried(FName CharacterKey, const FCrystalId &Id, int32 Count)
 {
-    if (Count <= 0 || GetStoredCount(Id) < Count || GetCarryRoom(Id) < Count)
+    if (Count <= 0 || GetStoredCount(Id) < Count || GetCarryRoom(CharacterKey, Id) < Count)
     {
         return false;
     }
     TakeStored(Id, Count);
-    CarriedItems.FindOrAdd(Id) += Count;
+    FindOrAddPouch(CharacterKey).Stacks.FindOrAdd(Id) += Count;
     OnPoolItemsChanged.Broadcast();
     return true;
 }
@@ -465,28 +480,68 @@ bool UPoolSubsystem::BankStartingItems(FName CharacterKey, const TMap<FCrystalId
     BankedItemCharacters.Add(CharacterKey);
     for (const TPair<FCrystalId, int32> &Pair : Items)
     {
-        CarryOrStore(Pair.Key, Pair.Value);
+        CarryOrStore(CharacterKey, Pair.Key, Pair.Value);
     }
-    UE_LOG(LogTemp, Log, TEXT("[Pool] Banked %s's starting items: %d of %d slot(s) in use"),
-           *FPaths::GetBaseFilename(CharacterKey.ToString()), CarriedItems.Num(), ItemSlotCount);
+    const FPoolPouch &Pouch = GetPouch(CharacterKey);
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Banked %s's starting items: %d of %d pouch slot(s) in use"),
+           *FPaths::GetBaseFilename(CharacterKey.ToString()), Pouch.Stacks.Num(), Pouch.SlotCount);
     return true;
 }
 
-void UPoolSubsystem::RestoreCarriedItems(const TMap<FCrystalId, int32> &InCarried, int32 InSlotCount, const TArray<FName> &InBanked)
+void UPoolSubsystem::RestorePouches(const TMap<FName, FPoolPouch> &InPouches, const TArray<FName> &InBanked)
 {
-    CarriedItems = InCarried;
-    ItemSlotCount = FMath::Max(InSlotCount, InventoryConstants::ITEM_SLOTS_START);
+    Pouches = InPouches;
+    for (TPair<FName, FPoolPouch> &Pair : Pouches)
+    {
+        Pair.Value.SlotCount = FMath::Max(Pair.Value.SlotCount, InventoryConstants::ITEM_SLOTS_START);
+    }
     BankedItemCharacters = TSet<FName>(InBanked);
     OnPoolItemsChanged.Broadcast();
 }
 
+void UPoolSubsystem::RestoreLegacyCarriedItems(const TMap<FCrystalId, int32> &InCarried, int32 InSlotCount, const TArray<FName> &InBanked)
+{
+    LegacyCarriedItems.Stacks = InCarried;
+    LegacyCarriedItems.SlotCount = FMath::Max(InSlotCount, InventoryConstants::ITEM_SLOTS_START);
+    BankedItemCharacters = TSet<FName>(InBanked);
+    OnPoolItemsChanged.Broadcast();
+}
+
+int32 UPoolSubsystem::AdoptLegacyCarriedItems(FName LeaderKey)
+{
+    if (LegacyCarriedItems.Stacks.IsEmpty() || LeaderKey.IsNone())
+    {
+        return 0;
+    }
+    // The old party pouch's extra slots (if any were bought) go with it.
+    FindOrAddPouch(LeaderKey).SlotCount = FMath::Max(GetPouch(LeaderKey).SlotCount, LegacyCarriedItems.SlotCount);
+    const TMap<FCrystalId, int32> Legacy = MoveTemp(LegacyCarriedItems.Stacks);
+    LegacyCarriedItems = FPoolPouch();
+    int32 Stored = 0;
+    for (const TPair<FCrystalId, int32> &Pair : Legacy)
+    {
+        Stored += CarryOrStore(LeaderKey, Pair.Key, Pair.Value);
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] An older save's party pouch (%d stack(s)) is now %s's; %d item(s) went to storage"), Legacy.Num(),
+           *FPaths::GetBaseFilename(LeaderKey.ToString()), Stored);
+    return Legacy.Num();
+}
+
 FString UPoolSubsystem::GetItemSlotsString() const
 {
-    FString Out = FString::Printf(TEXT("[Pool] Carried items (B-203): %d of %d slot(s), %d character(s) banked"),
-                                  CarriedItems.Num(), ItemSlotCount, BankedItemCharacters.Num());
-    for (const TPair<FCrystalId, int32> &Pair : CarriedItems)
+    FString Out = FString::Printf(TEXT("[Pool] Pouches (B-322): %d character(s), %d banked"), Pouches.Num(), BankedItemCharacters.Num());
+    for (const TPair<FName, FPoolPouch> &Pouch : Pouches)
     {
-        Out += FString::Printf(TEXT("\n    slot: %s x%d"), *ItemIdentity::GetDisplayName(Pair.Key), Pair.Value);
+        Out += FString::Printf(TEXT("\n  %s: %d of %d slot(s)"), *FPaths::GetBaseFilename(Pouch.Key.ToString()), Pouch.Value.Stacks.Num(),
+                               Pouch.Value.SlotCount);
+        for (const TPair<FCrystalId, int32> &Pair : Pouch.Value.Stacks)
+        {
+            Out += FString::Printf(TEXT("\n    slot: %s x%d"), *ItemIdentity::GetDisplayName(Pair.Key), Pair.Value);
+        }
+    }
+    if (HasLegacyCarriedItems())
+    {
+        Out += FString::Printf(TEXT("\n  Older save's party pouch, not yet adopted: %d stack(s)"), LegacyCarriedItems.Stacks.Num());
     }
     Out += TEXT("\n  Storage:");
     for (const TMap<FCrystalId, int32> *Storage : {&Crystals, &Stones})
@@ -852,7 +907,7 @@ namespace
 
     static FAutoConsoleCommandWithWorld GPrintItemSlotsCmd(
         TEXT("wor.Inventory.PrintSlots"),
-        TEXT("B-203: the party's carried item slots (one item type per slot) and storage (PIE debug)."),
+        TEXT("B-322: each character's pouch (one item type per slot) and the shared storage (PIE debug)."),
         FConsoleCommandWithWorldDelegate::CreateLambda(
             [](UWorld *World)
             {

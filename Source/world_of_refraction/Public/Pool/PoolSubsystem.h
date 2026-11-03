@@ -50,7 +50,22 @@ class AActor;
 /** B-091: a piece of shared gear changed in the pool (added, updated or removed). */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPoolGearChanged, FGuid, GearID);
 
-/** B-203: the party's carried items changed. */
+/** B-322 (D-117, Q-322): one character's pouch of carried item slots: one item type per slot, stacked to
+ *  ITEM_STACK_MAX, ITEM_SLOTS_START slots to begin with. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FPoolPouch
+{
+    GENERATED_BODY()
+
+    /** Crystal and stone stacks carried; one entry per slot. */
+    UPROPERTY()
+    TMap<FCrystalId, int32> Stacks;
+
+    UPROPERTY()
+    int32 SlotCount = InventoryConstants::ITEM_SLOTS_START;
+};
+
+/** B-203: a pouch or the storage changed. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPoolItemsChanged);
 
 namespace PoolConstants
@@ -257,46 +272,59 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Pool|Armoury")
     FOnPoolGearChanged OnPoolGearChanged;
 
-    // ==================== CARRIED ITEMS AND STORAGE (B-203, D-097) ====================
-    // The party carries one inventory of item slots (one item type, a crystal type and tier, per
-    // slot, stacked to ITEM_STACK_MAX); everything else waits in storage (the Crystals / Stones
-    // above, unlimited). Each party member's UCrystalInventoryComponent mirrors the carried items.
+    // ==================== POUCHES AND STORAGE (B-203, B-322, D-097, D-117, Q-322) ====================
+    // Each character carries its own pouch of item slots (one item type, a crystal type and tier, per
+    // slot, stacked to ITEM_STACK_MAX; ITEM_SLOTS_START slots each); everything else waits in the one
+    // shared storage (the Crystals / Stones above, unlimited). A member's UCrystalInventoryComponent
+    // mirrors its own pouch. Every call takes the character key (GetCharacterKey) of the pouch it means.
 
-    const TMap<FCrystalId, int32> &GetCarriedItems() const { return CarriedItems; }
-    int32 GetCarriedCount(const FCrystalId &Id) const;
-    int32 GetItemSlotCount() const { return ItemSlotCount; }
-    int32 GetUsedItemSlots() const { return CarriedItems.Num(); }
+    /** The character's pouch (an empty default when it has none yet). */
+    const FPoolPouch &GetPouch(FName CharacterKey) const;
+    const TMap<FName, FPoolPouch> &GetPouches() const { return Pouches; }
+    const TMap<FCrystalId, int32> &GetCarriedItems(FName CharacterKey) const { return GetPouch(CharacterKey).Stacks; }
+    int32 GetCarriedCount(FName CharacterKey, const FCrystalId &Id) const;
+    int32 GetItemSlotCount(FName CharacterKey) const { return GetPouch(CharacterKey).SlotCount; }
+    int32 GetUsedItemSlots(FName CharacterKey) const { return GetPouch(CharacterKey).Stacks.Num(); }
 
-    /** How many of Count fit the carried slots (a free slot, or room in Id's stack). */
-    int32 GetCarryRoom(const FCrystalId &Id) const;
+    /** How many of Count fit the character's pouch (a free slot, or room in Id's stack). */
+    int32 GetCarryRoom(FName CharacterKey, const FCrystalId &Id) const;
 
-    /** D-097: what fits is carried, the rest goes to storage (never thrown away). Returns how many
-     *  went to storage. */
-    int32 CarryOrStore(const FCrystalId &Id, int32 Count);
+    /** D-097: what fits the character's pouch is carried, the rest goes to storage (never thrown away).
+     *  Returns how many went to storage. */
+    int32 CarryOrStore(FName CharacterKey, const FCrystalId &Id, int32 Count);
 
-    /** Takes up to Count carried items; returns how many. */
-    int32 TakeCarried(const FCrystalId &Id, int32 Count);
+    /** Takes up to Count items from the character's pouch; returns how many. */
+    int32 TakeCarried(FName CharacterKey, const FCrystalId &Id, int32 Count);
 
     /** Storage holds Id: the count waiting there. */
     int32 GetStoredCount(const FCrystalId &Id) const;
 
-    /** Moves Count carried items to storage. False (nothing moved) when fewer are carried. */
-    bool MoveToStorage(const FCrystalId &Id, int32 Count);
+    /** Moves Count of the character's carried items to storage. False (nothing moved) when fewer are carried. */
+    bool MoveToStorage(FName CharacterKey, const FCrystalId &Id, int32 Count);
 
-    /** Moves Count stored items into the carried slots. False (nothing moved) when fewer are
+    /** Moves Count stored items into the character's pouch. False (nothing moved) when fewer are
      *  stored or they don't fit (no free slot, or the stack is full). */
-    bool MoveToCarried(const FCrystalId &Id, int32 Count);
+    bool MoveToCarried(FName CharacterKey, const FCrystalId &Id, int32 Count);
 
-    /** Banks a character's starting items the first time it draws (fitted into the slots, the rest
+    /** Banks a character's starting items into its own pouch the first time it draws (the rest
      *  stored); false when banked before. */
     bool BankStartingItems(FName CharacterKey, const TMap<FCrystalId, int32> &Items);
     bool HasBankedItems(FName CharacterKey) const { return BankedItemCharacters.Contains(CharacterKey); }
     const TSet<FName> &GetBankedItemCharacters() const { return BankedItemCharacters; }
 
-    /** B-090 restore of the carried items, the slot count and whose items are banked. */
-    void RestoreCarriedItems(const TMap<FCrystalId, int32> &InCarried, int32 InSlotCount, const TArray<FName> &InBanked);
+    /** B-090 restore of every pouch and whose items are banked. */
+    void RestorePouches(const TMap<FName, FPoolPouch> &InPouches, const TArray<FName> &InBanked);
 
-    /** Debug: the slots in use, each carried stack, and storage. wor.Inventory.PrintSlots. */
+    /** A save from before B-322 (one party pouch): kept aside until AdoptLegacyCarriedItems gives it to the
+     *  party leader at the next draw. */
+    void RestoreLegacyCarriedItems(const TMap<FCrystalId, int32> &InCarried, int32 InSlotCount, const TArray<FName> &InBanked);
+
+    /** Puts the pre-B-322 party pouch into the leader's pouch (what doesn't fit goes to storage). Logs it;
+     *  returns how many stacks moved. No-op when there is none. */
+    int32 AdoptLegacyCarriedItems(FName LeaderKey);
+    bool HasLegacyCarriedItems() const { return !LegacyCarriedItems.Stacks.IsEmpty(); }
+
+    /** Debug: each character's pouch (slots in use, each stack) and storage. wor.Inventory.PrintSlots. */
     FString GetItemSlotsString() const;
 
     UPROPERTY(BlueprintAssignable, Category = "Pool|Items")
@@ -407,19 +435,22 @@ private:
     UPROPERTY(Transient)
     TArray<FPoolGearClash> Clashes;
 
-    // ==================== CARRIED ITEMS (B-203) ====================
+    // ==================== POUCHES (B-203, B-322) ====================
     // Saved by explicit structs (FSavedPool, D-059), not these tags.
 
-    /** Crystal and stone stacks the party carries; one entry per slot. */
+    /** Each character's pouch, by character key. */
     UPROPERTY()
-    TMap<FCrystalId, int32> CarriedItems;
+    TMap<FName, FPoolPouch> Pouches;
 
+    /** A pre-B-322 save's one party pouch, until a draw gives it to the leader. */
     UPROPERTY()
-    int32 ItemSlotCount = InventoryConstants::ITEM_SLOTS_START;
+    FPoolPouch LegacyCarriedItems;
 
     /** Characters whose starting items are already carried or stored. */
     UPROPERTY()
     TSet<FName> BankedItemCharacters;
+
+    FPoolPouch &FindOrAddPouch(FName CharacterKey);
 
     /** Takes up to Count stored items; returns how many. */
     int32 TakeStored(const FCrystalId &Id, int32 Count);
