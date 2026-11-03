@@ -40,7 +40,7 @@ namespace
 {
     FString EssenceName(EEssenceType Type)
     {
-        return StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(Type));
+        return WoRGameNames::GetEssenceName(Type).ToString();
     }
 
     bool CanAffordCost(const UCurrencyComponent &Currency, const FPurchaseCost &Cost)
@@ -467,9 +467,7 @@ void UShopWindowWidget::RefreshDetail()
             }
             for (const TPair<EEssenceType, int32> &Pair : Cost.Typed)
             {
-                CostLine += FString::Printf(TEXT(" | %s %d"),
-                                            *StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(Pair.Key)),
-                                            Pair.Value);
+                CostLine += FString::Printf(TEXT(" | %s %d"), *EssenceName(Pair.Key), Pair.Value);
             }
         }
         DetailCost->SetText(FText::FromString(CostLine));
@@ -535,8 +533,7 @@ void UShopWindowWidget::EnsureTotalsPool()
     TotalsRows[2].Label->SetText(NSLOCTEXT("Shop", "TotalsSkill", "Skill Essence"));
     for (int32 e = 0; e < EssenceCount; ++e)
     {
-        TotalsRows[3 + e].Label->SetText(FText::FromString(
-            FString::Printf(TEXT("%s Essence"), *EssenceEnum->GetAuthoredNameStringByValue(e))));
+        TotalsRows[3 + e].Label->SetText(WoRGameNames::GetEssenceName(static_cast<EEssenceType>(e)) /* as RefreshTotals */);
     }
 }
 

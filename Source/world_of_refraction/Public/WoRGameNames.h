@@ -19,6 +19,7 @@ enum class EDefenseType : uint8;
 enum class ECombatRow : uint8;
 enum class ESpellSchool : uint8;
 enum class EMerchantType : uint8;
+enum class EEssenceType : uint8;
 
 namespace WoRGameNames
 {
@@ -55,4 +56,7 @@ namespace WoRGameNames
     WORLD_OF_REFRACTION_API FText GetActiveAdapterWord();
     /** An adapter's form: "Ring", "Pistol", "Trainer". */
     WORLD_OF_REFRACTION_API FText GetAdapterFormName(EAdapterForm Form);
+
+    /** B-269: "Fire Essence", "Quartz Essence" (Generic, D-105), "Unknown Essence" (Reality, D-095). */
+    WORLD_OF_REFRACTION_API FText GetEssenceName(EEssenceType Essence);
 }
