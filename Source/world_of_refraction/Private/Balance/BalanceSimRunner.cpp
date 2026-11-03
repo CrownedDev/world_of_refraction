@@ -310,9 +310,13 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 	{
 		return Actor;
 	}
+	// The weapon's instance tier is its archetype's (B-293d / B-325): left at F, an S weapon's Power is rescaled to
+	// F (WoRWeaponPower::GetScaledPower, 192 -> 40), the tier gap reads F, and an enemy's Combat Tier drops.
+	Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryWeapon.WeaponEntry.Tier = Archetype.WeaponTier;
 	// Owned, or combat start clears it from the loadout.
 	FWeaponInventoryEntry Owned;
 	Owned.Weapon = Weapon;
+	Owned.Tier = Archetype.WeaponTier;
 	Inventory->Weapons.Add(Owned);
 	if (Archetype.AbilityBase > 0)
 	{
