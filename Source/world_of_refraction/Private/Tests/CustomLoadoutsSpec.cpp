@@ -18,6 +18,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
 #include "Save/SaveSubsystem.h"
+#include "Skills/Definitions/SpellData.h"
 
 namespace
 {
@@ -137,11 +138,27 @@ void FCustomLoadoutsSpec::Define()
 		TestEqual(TEXT("With the same sword"), Again->SavedLoadouts[1].PrimaryWeapon.WeaponEntry.PersistentID, SwordID);
 	});
 
+	It("keeps custom loadouts when a character with no inventory asset is seeded a default", [this]()
+	{
+		UInventoryComponent *Inventory = SpawnMember();
+		if (!TestNotNull(TEXT("Inventory"), Inventory)) return;
+		LoadoutOf(Inventory)->DuplicateLoadout(0, CUSTOM_LOADOUT_NAME);
+		LoadoutOf(Inventory)->InitializeFromCharacterData(Member, Inventory); // Member has no Inventory asset
+		if (!TestEqual(TEXT("Seed + custom"), Inventory->SavedLoadouts.Num(), 2)) return;
+		TestTrue(TEXT("The seed is not kept"), Inventory->SavedLoadouts[0].bLore);
+		TestEqual(TEXT("The custom one stays"), Inventory->SavedLoadouts[1].LoadoutName, CUSTOM_LOADOUT_NAME);
+	});
+
 	It("saves custom loadouts (v6) and loads them back", [this]()
 	{
 		UInventoryComponent *Inventory = SpawnMember();
 		if (!TestNotNull(TEXT("Inventory"), Inventory)) return;
 		LoadoutOf(Inventory)->DuplicateLoadout(0, CUSTOM_LOADOUT_NAME);
+		USpellData *PoolSpell = NewObject<USpellData>(GetTransientPackage());
+		FBDElementSpellPool BDPool;
+		BDPool.Element = ESpellElement::Fire;
+		BDPool.Spells = {PoolSpell};
+		Inventory->SavedLoadouts[1].BDSpellPools = {BDPool};
 		Inventory->PushCustomLoadoutsToPool();
 		const FSavedPool Saved = USaveSubsystem::CapturePool(*Pool);
 		if (!TestEqual(TEXT("One character's"), Saved.CustomLoadouts.Num(), 1)) return;
@@ -154,6 +171,8 @@ void FCustomLoadoutsSpec::Define()
 		if (!TestTrue(TEXT("One loadout back"), Back && Back->Num() == 1)) return;
 		TestEqual(TEXT("Its name"), (*Back)[0].LoadoutName, CUSTOM_LOADOUT_NAME);
 		TestTrue(TEXT("Its sword"), (*Back)[0].PrimaryWeapon == Sword);
+		TestTrue(TEXT("Its Broken Darkness pool"), (*Back)[0].BDSpellPools.Num() == 1 && (*Back)[0].BDSpellPools[0].Element == ESpellElement::Fire &&
+													   (*Back)[0].BDSpellPools[0].Spells.Num() == 1 && (*Back)[0].BDSpellPools[0].Spells[0].Spell == PoolSpell);
 		TestEqual(TEXT("By GUID"), (*Back)[0].PrimaryWeaponInstance, Inventory->SavedLoadouts[1].PrimaryWeapon.WeaponEntry.PersistentID);
 	});
 }
