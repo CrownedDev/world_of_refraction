@@ -218,6 +218,12 @@ public:
      *  Step 1 compares identity, tier, quality and the attachment's kind, not durability or what is attached. */
     FString CompareWithStore() const;
 
+    /** B-312b (Q-312): does this member own a weapon / adapter of this asset? Read from the store's view of its gear
+     *  (UPoolSubsystem::GetOwnedGearOf; a run-only recruit from every piece not in the chest), or from the local copy
+     *  when it draws from no pool. The loadout's "is it in the inventory" checks read these, not the copies. */
+    bool OwnsWeaponAsset(const UWeaponData *Weapon) const;
+    bool OwnsRingAsset(const URingData *Ring) const;
+
     // ==================== SPELL OPERATIONS ====================
 
     /** Learn a new spell */
