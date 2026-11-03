@@ -25,7 +25,7 @@ public:
     /** One-line wallet dump. The scalar currencies (Gold / Prisms / Diamond / GearEssence /
      *  SkillEssence) are ALWAYS shown, including zero balances; the typed Essence list shows only
      *  NON-zero entries to keep the line readable. e.g.
-     *  "Gold: 0 | Prisms: 120 | Diamond: 5 | GearEssence: 40 | SkillEssence: 25 | Essence[Fire:50, Mind:12]".
+     *  "Gold: 0 | Prisms: 120 | Diamond: 5 | GearEssence: 40 | SkillEssence: 25 | ElementalEssence: 50 | PillarEssence: 12" (B-333: the seven).
      *  Returns a "<null>" marker for a null component. */
     UFUNCTION(BlueprintPure, Category = "Currency Debug")
     static FString GetWalletString(const UCurrencyComponent *Wallet);
