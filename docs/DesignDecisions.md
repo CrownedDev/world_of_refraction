@@ -1648,6 +1648,22 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - B-319's `FindDuplicateGear` counts the shared list each member sees; B-320's refill draws from it; Q-320b (dismantling gear another member wears) goes away once gear is per character.
 - B-203's carried slots are one party list (`wor.Inventory.PrintSlots`).
 
+### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
+**Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.
+**What it changes:** an enemy's tier-power HP (B-224b) and its level-drop tier (B-223) read its Combat Tier; `UCharacterData::EnemyTier` stays only as the fallback for an actor with no gear and no skills.
+**Defaults taken (reference-backed, Crown may change):** Q-325 (rounding).
+**Notes for Claude:** job B-325.
+
+### Q-325 — How does the average round to a letter?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-325, cloud) · **Blocks:** —
+**Question:** Combat Tier averages tier steps (F 0 .. S 6). Round to nearest, or down? Which items count?
+**Context:** `Public/Combat/Tier/CombatTier.h`.
+**Options:** **A** round down (C C B is C; B A is B); **B** round to nearest, a half up (B A is A). Counted: the gear that counts (B-306's `ForEachContributingGear`: the adapter in use and the weapon in hand, at their instance tiers), the primary evolution, and every ability and spell the loadout offers, each once.
+**Recommendation:** A. Destiny 2's Power level is the plain average of the equipped items, rounded down ([Destiny wiki](https://www.destinypedia.com/Power)): the next level shows only once it's earned, and one stray high item doesn't lift the whole tier. Counting gear by B-306's rule keeps one answer for "what counts" across stats and tier.
+**Answer:** A (approved by the reference-backed default).
+**Notes for Claude:** applied in B-325 (`feature/B-325-combat-tier`).
+
 ### Q-321 — Can the shared home chest hold gear, or only items?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
 **Question:** D-097's storage holds items (crystals, stones, consumables); gear lived in the shared pool. With gear per character (D-117), can a character put an unworn weapon or adapter in the shared chest for another to take?
