@@ -1,6 +1,6 @@
 // SharedGearSpec.cpp
-// B-091 (D-020, Q-091): the party owns one armoury. Every member's inventory sees each piece once,
-// a piece is worn by one member at a time, and a change one member makes reaches the others.
+// B-091, changed by B-321 (D-117): one pool holds the party's gear, but each piece has an owner and a member's
+// armoury lists only its own; banking, saves and sold pieces still go through the pool.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -104,7 +104,7 @@ void FSharedGearSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("gives a party of three with one sword exactly one sword", [this]()
+	It("gives the sword only to the member who owns it (D-117)", [this]()
 	{
 		if (!Pool) return;
 		UInventoryComponent *First = SpawnMember(0, true, true);
@@ -114,15 +114,14 @@ void FSharedGearSpec::Define()
 
 		TestEqual(TEXT("One sword in the pool"), Pool->GetOwnedWeapons().Num(), 1);
 		const FGuid SwordID = Pool->GetOwnedWeapons()[0].PersistentID;
-		for (const UInventoryComponent *Inventory : {First, Second, Third})
-		{
-			TestTrue(TEXT("Each member sees that one sword"), Inventory->Weapons.Num() == 1 && Inventory->Weapons[0].PersistentID == SwordID);
-		}
+		TestEqual(TEXT("Owned by the first member"), Pool->GetGearOwner(SwordID), UPoolSubsystem::GetCharacterKey(Members[0]));
+		TestTrue(TEXT("In the first member's armoury"), First->Weapons.Num() == 1 && First->Weapons[0].PersistentID == SwordID);
+		TestEqual(TEXT("Not in the second's"), Second->Weapons.Num(), 0);
+		TestEqual(TEXT("Not in the third's"), Third->Weapons.Num(), 0);
 		TestEqual(TEXT("Its owner wears it"), ActiveWeaponID(First), SwordID);
-		TestEqual(TEXT("Worn by the first member"), Pool->GetWearer(SwordID), UPoolSubsystem::GetCharacterKey(Members[0]));
 	});
 
-	It("doesn't duplicate the sword when a second member's loadout names it", [this]()
+	It("doesn't give a second member the sword its loadout names but it doesn't own (D-117)", [this]()
 	{
 		if (!Pool) return;
 		UInventoryComponent *First = SpawnMember(0, true, true);
@@ -132,45 +131,50 @@ void FSharedGearSpec::Define()
 		TestEqual(TEXT("Still one sword"), Pool->GetOwnedWeapons().Num(), 1);
 		TestFalse(TEXT("Taken out of the second member's loadout"), ActiveWeaponID(Second).IsValid());
 		TestEqual(TEXT("Still worn by the first"), ActiveWeaponID(First), Pool->GetOwnedWeapons()[0].PersistentID);
-		TestTrue(TEXT("The clash is noted for the party panel"),
-				 Pool->GetClashes().Num() == 1 && Pool->GetClashes()[0].LoserKey == UPoolSubsystem::GetCharacterKey(Members[1]));
 	});
 
-	It("passes the sword on once its wearer takes it off", [this]()
+	It("keeps the sword its owner's when the owner takes it off (D-117)", [this]()
 	{
 		if (!Pool) return;
 		UInventoryComponent *First = SpawnMember(0, true, true);
-		UInventoryComponent *Second = SpawnMember(1, false, true);
+		UInventoryComponent *Second = SpawnMember(1, false, false);
 		if (!First || !Second) return;
 		const FGuid SwordID = Pool->GetOwnedWeapons()[0].PersistentID;
 
 		TestTrue(TEXT("First switches to a loadout without it"),
 				 First->GetOwner()->FindComponentByClass<ULoadoutComponent>()->SetActiveLoadoutIndex(1));
-		TestTrue(TEXT("Nobody wears it"), Pool->GetWearer(SwordID).IsNone());
-		Second->SavedLoadouts[0] = SwordPreset(Sword);
-		Second->LinkLoadoutsToOwned();
-		TestEqual(TEXT("The second claims it without a clash"), Second->ClaimActiveSharedGear().Num(), 0);
-		TestEqual(TEXT("Worn by the second"), Pool->GetWearer(SwordID), UPoolSubsystem::GetCharacterKey(Members[1]));
+		TestEqual(TEXT("Still the first member's"), Pool->GetGearOwner(SwordID), UPoolSubsystem::GetCharacterKey(Members[0]));
+		TestEqual(TEXT("Never in the second member's list"), Second->GetSelectableWeapons().Num(), 0);
+		TestTrue(TEXT("Still the first member's to pick"), First->GetSelectableWeapons().Num() == 1);
 	});
 
-	It("keeps a worn sword out of another member's list until it's taken off (B-221)", [this]()
+	It("lets two members each own the same sword (D-117)", [this]()
 	{
 		if (!Pool) return;
 		UInventoryComponent *First = SpawnMember(0, true, true);
-		UInventoryComponent *Second = SpawnMember(1, false, false);
-		if (!First || !Second || !TestEqual(TEXT("One sword"), Pool->GetOwnedWeapons().Num(), 1)) return;
-		const FGuid SwordID = Pool->GetOwnedWeapons()[0].PersistentID;
+		UInventoryComponent *Second = SpawnMember(1, true, true);
+		if (!First || !Second) return;
 
-		TestTrue(TEXT("The wearer can still pick it"), First->GetSelectableWeapons().Num() == 1);
-		TestEqual(TEXT("No rings, none to pick"), Second->GetSelectableRings().Num(), Second->Rings.Num());
-		TestTrue(TEXT("Worn by another member for the second"), Second->IsWornByOtherMember(SwordID));
-		TestEqual(TEXT("Not in the second member's list"), Second->GetSelectableWeapons().Num(), 0);
+		TestEqual(TEXT("Two swords in the pool"), Pool->GetOwnedWeapons().Num(), 2);
+		if (!TestTrue(TEXT("One each"), First->Weapons.Num() == 1 && Second->Weapons.Num() == 1)) return;
+		TestNotEqual(TEXT("Different swords"), First->Weapons[0].PersistentID, Second->Weapons[0].PersistentID);
+		TestEqual(TEXT("Each wears its own"), ActiveWeaponID(Second), Second->Weapons[0].PersistentID);
+	});
 
-		TestTrue(TEXT("First switches to a loadout without it"),
-				 First->GetOwner()->FindComponentByClass<ULoadoutComponent>()->SetActiveLoadoutIndex(1));
-		TestFalse(TEXT("Free again"), Second->IsWornByOtherMember(SwordID));
-		const TArray<FWeaponInventoryEntry> Selectable = Second->GetSelectableWeapons();
-		TestTrue(TEXT("Back in the second member's list"), Selectable.Num() == 1 && Selectable[0].PersistentID == SwordID);
+	It("gives a piece from before D-117 to whoever wears it, else the party leader", [this]()
+	{
+		if (!Pool) return;
+		FWeaponInventoryEntry Worn = FWeaponInventoryEntry::CreateFromWeapon(Sword);
+		Worn.PersistentID = FGuid::NewGuid();
+		FWeaponInventoryEntry Loose = FWeaponInventoryEntry::CreateFromWeapon(Sword);
+		Loose.PersistentID = FGuid::NewGuid();
+		Pool->AddWeaponToPool(Worn);
+		Pool->AddWeaponToPool(Loose);
+		Pool->SetWearer(Worn.PersistentID, UPoolSubsystem::GetCharacterKey(Members[1]));
+		TestEqual(TEXT("Both given an owner"), Pool->AssignUnownedGear(UPoolSubsystem::GetCharacterKey(Members[0])), 2);
+		TestEqual(TEXT("The worn one to its wearer"), Pool->GetGearOwner(Worn.PersistentID), UPoolSubsystem::GetCharacterKey(Members[1]));
+		TestEqual(TEXT("The loose one to the leader"), Pool->GetGearOwner(Loose.PersistentID), UPoolSubsystem::GetCharacterKey(Members[0]));
+		TestEqual(TEXT("Each piece owned once"), Pool->AssignUnownedGear(UPoolSubsystem::GetCharacterKey(Members[0])), 0);
 	});
 
 	It("gives a loaded member with no primary a free owned sword, never one another member wears (D-116)", [this]()
@@ -187,7 +191,7 @@ void FSharedGearSpec::Define()
 		TestFalse(TEXT("The second doesn't take the worn sword"), ActiveWeaponID(Second).IsValid());
 	});
 
-	It("shows a crystal one member attaches on everyone's copy", [this]()
+	It("keeps a crystal one member attaches on its own sword only (D-117)", [this]()
 	{
 		if (!Pool) return;
 		UInventoryComponent *First = SpawnMember(0, true, true);
@@ -198,7 +202,7 @@ void FSharedGearSpec::Define()
 		if (!TestTrue(TEXT("Attached"), First->AttachCrystalToWeapon(SwordID, SHARED_GEAR_FIRE_GEM))) return;
 
 		TestTrue(TEXT("The pool's sword holds it"), Pool->GetOwnedWeapons()[0].AttachedItem.IsCrystal());
-		TestTrue(TEXT("The second member's copy holds it"), Second->Weapons.Num() == 1 && Second->Weapons[0].AttachedItem.IsCrystal());
+		TestEqual(TEXT("The second member has no copy"), Second->Weapons.Num(), 0);
 	});
 
 	It("draws the same sword next level without banking it again", [this]()
