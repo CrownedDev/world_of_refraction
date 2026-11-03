@@ -11,6 +11,7 @@
 #include "Combat/CombatConstants.h"
 #include "Combat/Defense/DefenseSystem.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
+#include "Skills/Effects/BarCapTriggerResolver.h"
 #include "Skills/Effects/SkillEffectManager.h"
 
 namespace
@@ -23,6 +24,8 @@ namespace
 	constexpr int32 SPEED_TEST_EFFECT_ID = 9701;
 	constexpr int32 SPEED_TEST_DURATION_TURNS = 3;
 	constexpr float SPEED_TEST_TOLERANCE = 0.0001f;
+	/** SB-22: one Water break slows the window by its 30%, once (not once per old speed). */
+	constexpr float SPEED_TEST_WATER_SLOWED_FACTOR = 0.70f;
 }
 
 BEGIN_DEFINE_SPEC(FOneSpeedSpec, "WoR.Stats.OneSpeed", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -97,6 +100,22 @@ void FOneSpeedSpec::Define()
 				  Bare * SPEED_TEST_BUFFED_FACTOR, SPEED_TEST_TOLERANCE);
 		TestEqual(TEXT("a spell gains it the same"), Char->SpeedWindowGearFactor(EActionType::Spell),
 				  Bare * SPEED_TEST_BUFFED_FACTOR, SPEED_TEST_TOLERANCE);
+	});
+
+	It("slows the window by a Water break's 30% once, not once per old speed", [this]()
+	{
+		AActor *Attacker = TestWorld->SpawnCombatant(NewData());
+		UCharacterDataComponent *Char = CharOf(Attacker);
+		USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
+		if (!TestNotNull(TEXT("Attacker"), Char) || !TestNotNull(TEXT("SkillEffectManager"), Effects)) return;
+		TestNearlyEqual(TEXT("the rule's slow is 30%"), 1.0f - CombatConstants::WATER_BREAK_SPEED_SLOW_PERCENT / CombatConstants::STAT_PERCENT_DIVISOR,
+						SPEED_TEST_WATER_SLOWED_FACTOR, SPEED_TEST_TOLERANCE);
+		const float Bare = Char->SpeedWindowGearFactor(EActionType::Ability);
+
+		const ESkillEffectType WaterBreak = BarCapTriggerResolver::ResolveTrigger(ESpellElement::Water, EPhysicalDamageType::None, false);
+		Effects->ApplyTriggeredSkillEffect(TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData()), Attacker, WaterBreak, ESpellElement::Water);
+		TestEqual(TEXT("x0.70, not x0.40"), Char->SpeedWindowGearFactor(EActionType::Ability), Bare * SPEED_TEST_WATER_SLOWED_FACTOR,
+				  SPEED_TEST_TOLERANCE);
 	});
 
 	It("gives a defender the same window against a physical attack and a spell", [this]()

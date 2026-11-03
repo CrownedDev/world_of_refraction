@@ -105,7 +105,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 
 	Output += TEXT("  Body:\n");
 	Output += FString::Printf(TEXT("    Defense:        %d\n"), Character->Defense);
-	Output += FString::Printf(TEXT("    Action Speed: %d\n"), Character->ActionSpeed);
+	Output += FString::Printf(TEXT("    Action Speed:   %d\n"), Character->ActionSpeed);
 	Output += FString::Printf(TEXT("    Speed:          %d (window reads %d with the old speeds, B-331)\n"), Character->Speed, Character->GetTotalSpeed());
 	Output += FString::Printf(TEXT("    Raw Damage:     %d\n"), Character->RawDamage);
 	Output += FString::Printf(TEXT("    Max Health:     %d\n"), Character->MaxHealth);
