@@ -1625,6 +1625,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
   - **Evolutions can break from wear** in a run; a broken one can be **repaired in the run**, and it **resets outside the run** (never lost: Q-159, Q-159c, D-093).
 **Notes for Claude:** bugs found by the analysis to fix regardless: run wear keyed by asset (two identical adapters share one wear record); found gear never dropped at run end; player-edited presets not saved (PIE check). Remaining details: where it lives (pool now, PlayerState with co-op), presets as GUID lists per character, the run purchase marks pieces rather than copying, the per-preset 6 x 3 item slots retire, spells / abilities stay per character, outfits as entries, co-op visibility.
 
+### D-115 — One copy of an item per character (changes Q-310)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (B-310 review, Q-310) · **Blocks:** —
+**Answer (Crown):** a character never keeps two copies of the same item. Getting an item you already own gives a choice: **convert the weaker copy to Gold, or dismantle it**. Q-310's "the copy in use wears first" lookup stays only as a safety net for data that still holds two.
+**Notes for Claude:** job B-319 (the duplicate-received choice, with a placeholder C++ UI per Backlog rule 4). "Weaker" = lower instance tier, then quality; on a tie keep the one already owned. Gold value / dismantle yield use today's sell and dismantle rules.
+
+### D-116 — There is always one valid primary (changes Q-304)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (B-304 review, Q-304) · **Blocks:** —
+**Answer (Crown):** a character always has one valid primary in place. The primary slot can't be emptied: selling, stripping or dismantling the primary is refused unless a replacement is swapped in. Q-304's empty-primary fallback becomes a guard only.
+**Notes for Claude:** job B-320 (enforce it in loadout validation, the sell / dismantle / strip paths and save loading; an old save with an empty primary gets the first usable owned piece, with a warning).
+
 ### Q-303 — A Generic's item limit: two weapons and an adapter at once?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-29 (B-303 review) · **Blocks:** —
 **Question:** D-110 gives a Generic "up to 2 weapons, and keeps one adapter". May it carry both weapons **and** the adapter (three items), or two items in all?
@@ -1640,14 +1650,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
 
 ### Q-310 — Two identical copies: which one wears?
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-310 review) · **Blocks:** —
+**Status:** CHANGED by Crown 2026-11-03 (D-115; the lookup / fallback stays as a safety net only) · **Raised:** 2026-11-03 (B-310 review) · **Blocks:** —
 **Question:** In-fight wear and the crystal tools still find gear by its asset. With two identical copies equipped (two of one adapter, or a Generic's two of one weapon), which copy does an asset lookup land on?
 **Options:** A the one in use first (the active adapter; the weapon the Generic is showing), then slot order / B slot order only (the old rule).
 **Recommendation:** A (D-111: wear follows the item actually used). Side effect: debug and socket tools that ask for "the primary weapon" by asset get the copy in hand when both are the same weapon. B-304's `GetActiveSlot` carries the GUID and makes this exact.
 **Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
 
 ### Q-304 — When the active slot is empty, which gear is in use?
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-304 review) · **Blocks:** —
+**Status:** CHANGED by Crown 2026-11-03 (D-116; the lookup / fallback stays as a safety net only) · **Raised:** 2026-11-03 (B-304 review) · **Blocks:** —
 **Question:** D-110 says an empty or stale active slot falls back to the first usable one. Today's content reaches three cases: (1) a Generic showing an emptied primary (sold, or stripped before a fight) used to be unarmed and now fights with its secondary; (2) a Generic toggling to an empty secondary uses up the turn's switch but keeps its primary; (3) a Resonator with a stale active-adapter index used to have no adapter and now uses its first one. Also, a piece another member wears is skipped now (B-221b), not only stripped before a fight.
 **Options:** A as above (D-110) / B keep the old "unarmed / no adapter" results.
 **Recommendation:** A: D-110 removes the primary / secondary rule, and being unarmed with a weapon on the belt was a bug-shaped result. A Resonator's fallback stays inside its adapter loadout (never a stray primary ring). Case (2) is tidied by B-305's one switch (a switch that changes nothing shouldn't cost the turn's switch).
