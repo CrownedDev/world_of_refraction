@@ -604,6 +604,19 @@ namespace
     {
         return Gear.IndexOfByPredicate([&PersistentID](const TEntry &Entry) { return Entry.PersistentID == PersistentID; });
     }
+
+    template <class TEntry>
+    const UEquipmentDataBase *GearEntryAsset(const TEntry &Entry)
+    {
+        if constexpr (std::is_same_v<TEntry, FWeaponInventoryEntry>)
+        {
+            return Entry.Weapon;
+        }
+        else
+        {
+            return Entry.Ring;
+        }
+    }
 }
 
 template <class TEntry>
@@ -620,9 +633,18 @@ bool UInventoryComponent::AddGearEntry(TArray<TEntry> &Gear, TEntry Entry, const
         // (purchases, authored gear) skip this and keep the factory's C_Quality placeholder.
         Entry.Quality = EconomyYield::RollQuality(ResolveInventoryOwnerLuck(this));
     }
+    const TEntry *Owned = Gear.FindByPredicate([&Asset](const TEntry &Other) { return GearEntryAsset(Other) == &Asset; });
+    const FGuid OwnedID = Owned ? Owned->PersistentID : FGuid();
     Gear.Add(Entry);
     PushGearToPool(Entry.PersistentID);
     BroadcastInventoryChanged(EInventoryChangeType::Added);
+    if (OwnedID.IsValid())
+    {
+        // D-115: one copy per character; the choice (Gold or dismantle) is the player's.
+        UE_LOG(LogTemp, Log, TEXT("[Inventory] %s: received a second %s - choose Gold or dismantle (wor.UI.Duplicates)"),
+               *GetNameSafe(GetOwner()), *Asset.GetName());
+        OnDuplicateGearReceived.Broadcast(Entry.PersistentID, OwnedID);
+    }
     return true;
 }
 
@@ -1507,6 +1529,81 @@ bool UInventoryComponent::RefillActivePrimary(const FGuid &Excluded)
                *GetNameSafe(GetOwner()), *Loadout.LoadoutName, *Filler);
     }
     return true;
+}
+
+TArray<FDuplicateGearPair> UInventoryComponent::FindDuplicateGear() const
+{
+    TArray<FDuplicateGearPair> Pairs;
+    const auto Collect = [&Pairs](const auto &Gear, bool bRing)
+    {
+        // Stronger = higher instance tier, then quality; a tie keeps the copy owned first (lower index).
+        const auto Stronger = [](const auto &A, const auto &B) { return A.Tier != B.Tier ? A.Tier > B.Tier : A.Quality > B.Quality; };
+        TMap<const UEquipmentDataBase *, int32> KeptIndex;
+        for (int32 Index = 0; Index < Gear.Num(); ++Index)
+        {
+            const UEquipmentDataBase *Asset = GearEntryAsset(Gear[Index]);
+            if (!Asset || !Gear[Index].PersistentID.IsValid())
+            {
+                continue;
+            }
+            int32 &Kept = KeptIndex.FindOrAdd(Asset, Index);
+            if (Kept != Index && Stronger(Gear[Index], Gear[Kept]))
+            {
+                Kept = Index;
+            }
+        }
+        for (int32 Index = 0; Index < Gear.Num(); ++Index)
+        {
+            const int32 *Kept = KeptIndex.Find(GearEntryAsset(Gear[Index]));
+            if (Kept && *Kept != Index && Gear[Index].PersistentID.IsValid())
+            {
+                FDuplicateGearPair &Pair = Pairs.AddDefaulted_GetRef();
+                Pair.KeptID = Gear[*Kept].PersistentID;
+                Pair.WeakerID = Gear[Index].PersistentID;
+                Pair.bRing = bRing;
+            }
+        }
+    };
+    Collect(Weapons, false);
+    Collect(Rings, true);
+    return Pairs;
+}
+
+int32 UInventoryComponent::MoveLoadoutSlots(const FGuid &From, const FGuid &To)
+{
+    using namespace InventoryGearSync;
+    if (!From.IsValid() || !To.IsValid() || From == To)
+    {
+        return 0;
+    }
+    int32 Moved = 0;
+    for (FCombatLoadout &Loadout : SavedLoadouts)
+    {
+        bool bHoldsTo = false;
+        ForEachGearSlot(Loadout,
+                        [&To, &bHoldsTo](const FWeaponInventoryEntry &Slot) { bHoldsTo |= Slot.PersistentID == To; },
+                        [&To, &bHoldsTo](const FRingInventoryEntry &Slot) { bHoldsTo |= Slot.PersistentID == To; });
+        if (bHoldsTo)
+        {
+            continue;
+        }
+        const auto Repoint = [&From, &To, &Moved](auto &Slot)
+        {
+            if (Slot.PersistentID == From)
+            {
+                Slot.PersistentID = To;
+                ++Moved;
+            }
+        };
+        ForEachGearSlot(Loadout, [&Repoint](FWeaponInventoryEntry &Slot) { Repoint(Slot); }, [&Repoint](FRingInventoryEntry &Slot) { Repoint(Slot); });
+    }
+    if (Moved > 0)
+    {
+        RefreshLoadoutsFromOwned(To); // the moved slots take the kept copy's tier, rolls and socket
+        UE_LOG(LogTemp, Log, TEXT("[Inventory] %s: %d loadout slot(s) moved from %s to %s"), *GetNameSafe(GetOwner()), Moved,
+               *From.ToString(), *To.ToString());
+    }
+    return Moved;
 }
 
 bool UInventoryComponent::IsWornByOtherMember(const FGuid &PersistentID) const
