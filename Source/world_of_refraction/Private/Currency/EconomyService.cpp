@@ -120,18 +120,18 @@ namespace
         return true;
     }
 
-    /** B-314 (Q-314b): a home piece on the run can't be sold or dismantled until the run ends (it comes back restored,
-     *  D-111). Run-only gear can. */
+    /** B-314 (Q-314b) / B-347: while a run is open, only run-only gear can be sold or dismantled. A home piece, on the
+     *  run or left home (D-137 takes only the worn loadout), waits for the run's end (it comes back restored, D-111). */
     bool EconomyRefusesOnRun(const AActor *Owner, const FGuid &GearID, const TCHAR *Op)
     {
         const UWorld *World = Owner ? Owner->GetWorld() : nullptr;
         const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
         const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
-        if (!Pool || !Pool->IsOnRun(GearID))
+        if (!Pool || !Pool->IsRunLayerActive() || Pool->IsRunOnly(GearID))
         {
             return false;
         }
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s refused: GUID %s is a home piece on the run - it goes back home when the run ends (Q-314b)"),
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s refused: GUID %s is a home piece and a run is under way - it can go once the run ends (Q-314b)"),
                Op, *GearID.ToString());
         return true;
     }

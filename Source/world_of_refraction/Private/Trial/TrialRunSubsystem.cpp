@@ -85,19 +85,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     {
         PartySession->SetAllMembersFull();
     }
-    // B-178: Gold is the run's currency; a run starts with none.
-    if (USaveSubsystem *Save = GetGameInstance()->GetSubsystem<USaveSubsystem>())
-    {
-        Save->ClearRunGold(GetGameInstance()->GetWorld());
-    }
-    // B-314 (D-111, Q-314) / B-347 (D-137): the run layer opens. The party's worn loadouts go along as they are, free
-    // (no start-of-run purchase; Gold is run money for in-run vendors); gear found or bought in the run is run-only.
-    // A layer left open by a run that never exited is ended (applied) first: its gear is this session's, not reloaded.
-    if (UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>())
-    {
-        Pool->EndRunLayer();
-        OpenRunLayerWithWornLoadouts(GetGameInstance(), *Pool);
-    }
+    StartRunGearAndGold();
 
     ActiveTrial = Trial;
     BeatenEncounters.Reset();
@@ -114,6 +102,23 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Entering trial '%s' -> %s (run seed %d; replay with: wor.Trial.Seed %d)"),
            *Trial->Name.ToString(), *Trial->Level.ToString(), RunSeed, RunSeed);
     TravelTo(Trial->Level);
+}
+
+void UTrialRunSubsystem::StartRunGearAndGold()
+{
+    // B-178: Gold is the run's currency; a run starts with none.
+    if (USaveSubsystem *Save = GetGameInstance()->GetSubsystem<USaveSubsystem>())
+    {
+        Save->ClearRunGold(GetGameInstance()->GetWorld());
+    }
+    // B-314 (D-111, Q-314) / B-347 (D-137): the run layer opens. The party's worn loadouts go along as they are, free
+    // (no start-of-run purchase; Gold is run money for in-run vendors); gear found or bought in the run is run-only.
+    // A layer left open by a run that never exited is ended (applied) first: its gear is this session's, not reloaded.
+    if (UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>())
+    {
+        Pool->EndRunLayer();
+        OpenRunLayerWithWornLoadouts(GetGameInstance(), *Pool);
+    }
 }
 
 void UTrialRunSubsystem::SetGateChoice(int32 InVariationIndex, ETrialDifficulty InDifficulty)
