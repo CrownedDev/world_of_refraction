@@ -18,6 +18,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-322](B-322.md) | `feature/B-322-per-character-pouch` (in `dev`) | A 10-slot pouch per character; save v9; older save's pouch to the leader | Pending |
 | [B-323](B-323.md) | `feature/B-323-give-between-characters` (in `dev`) | Give a weapon, adapter or pouch stack between your characters; `wor.UI.Give` | Pending |
 | [B-324](B-324.md) | `feature/B-324-shared-chest-gear` (in `dev`) | Unworn gear in the shared chest, any member takes it; `wor.UI.Storage` | Pending |
+| [B-339](B-339.md) | `feature/B-339-inventory-screen` (UNBUILT) | One inventory screen `wor.UI.Inventory`: Give, Store, Take, Dismantle, Convert over a member and the chest | Not built |
 | [B-316](B-316.md) | `feature/B-316-give-request-buyfor` (UNBUILT) | Buy for any party member (AI included) from a shop; `wor.Shop.BuyFor` | Not built |
 | [B-347](B-347.md) | `feature/B-347-free-run-loadout` (UNBUILT) | The run loadout is free: the worn loadout goes on the run, no purchase; Gold for in-run vendors | Not built |
 | [B-314](B-314.md) | `refactor/B-314-run-layer` (UNBUILT) | The run layer: found gear dropped at run end with its tier remembered; home gear's wear and run-added attachments reset | Not built |
