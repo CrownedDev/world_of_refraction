@@ -55,14 +55,14 @@ namespace WoRResistance
 	WORLD_OF_REFRACTION_API float GetElementDamageResistance(AActor *Target, ESpellElement Element);
 
 	/** B-273: Target's resistance to the hit's damage: its element-axis type (Ice for an Ice hit) plus the
-	 *  type that also resists it (Water adds Ice, Ice adds Water). 0 for a non-elemental hit. */
+	 *  type that also resists it (Water adds Ice; an Ice hit reads Ice alone, Q-145b). 0 for a non-elemental hit. */
 	WORLD_OF_REFRACTION_API float GetHitDamageResistance(AActor *Target, const FWoRHitKind &Hit);
 
 	/** What a hit's two status axes resist: its element's type (or the non-elemental bucket; Water
 	 *  adds Ice, as Water damage does, B-226) plus its physical subtype's, when it has one. The Matched layer of buildup without #7 and #8. */
 	WORLD_OF_REFRACTION_API float GetHitTypeResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType);
 
-	/** B-273: the same by hit kind; an Ice hit's element axis is Ice (plus Water). */
+	/** B-273: the same by hit kind; an Ice hit's element axis is Ice. */
 	WORLD_OF_REFRACTION_API float GetHitTypeResistance(AActor *Target, const FWoRHitKind &Hit);
 
 	/** General buildup resistance (#1-3): the capped Spirit stat, times gear points, times attached

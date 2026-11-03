@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Class.h"
 #include "Combat/Resistance/EWoRDamageType.h"
 #include "WoRHitKind.generated.h"
 
