@@ -57,3 +57,4 @@
 | 2026-10-28 | Meter fills per fight won by matching pieces, partial credit for other tiers (Crown) | docs/character-forms-fill |
 | 2026-10-28 | The loadout-match meter unlocks the skin and reveals the loadout; bound gear works on the skin (Crown) | docs/character-forms-meter |
 | 2026-11-03 | B-279 built: form asset, meter filled per fight won (best party member counts), saved; see `Architecture/CharacterForms.md` | feature/B-279-character-forms |
+| 2026-11-03 | B-279b built: skins switch in the hub / at rest spots, bound gear works in the owner's skin, Manny / Quinn base, each player's form replicates; placeholder `wor.UI.Forms` (Q-279b) | feature/B-279b-form-skins |

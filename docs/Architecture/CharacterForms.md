@@ -34,3 +34,4 @@ Progress is account state like the pool (saved), not per-fight state, so it sits
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-03 | B-279: form asset, meter math, meter subsystem with victory hook, `wor.Forms.Print`, save (version 4); spec `WoR.Character.Forms` | feature/B-279-character-forms |
+| 2026-11-03 | B-279b: skins. `CharacterFormSwitch::CanSwitch` (unlocked, not in a fight, hub or rest spot); `UCharacterFormSubsystem::TryWearForm` / `TrySetBaseForm` (Manny / Quinn) / `SetAtRestSpot` / `GetSkinCharacterFor` / `OnWornFormChanged`; `UCharacterFormData::GetRevealedLoadoutText`. Bound gear gives its bonus in its owner's skin (`IsBoundBonusActive(Wearer, WornSkin)`, D-033). `AWoRPlayerState` replicates `WornForm` / `BaseForm` and dresses its pawn (the default leaves the authored pawn). Save v8. Placeholder `wor.UI.Forms`; `wor.Forms.Unlock`, `wor.Forms.AtRestSpot`. Spec `WoR.Character.FormSkins` | feature/B-279b-form-skins |
