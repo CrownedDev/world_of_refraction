@@ -95,7 +95,7 @@ int32 UOutfitComponent::ApplyOutfit(const FOutfitSet &Outfit, USkeletalMeshCompo
 		const UOutfitPieceData *Piece = Outfit.Get(static_cast<EOutfitSlot>(Index)).LoadSynchronous();
 		WornPieces[Index] = Piece;
 		USkeletalMesh *PieceMesh = Piece ? Piece->Mesh.LoadSynchronous() : nullptr;
-		USkeletalMeshComponent *&SlotMesh = SlotMeshes[Index];
+		TObjectPtr<USkeletalMeshComponent> &SlotMesh = SlotMeshes[Index];
 		if (!PieceMesh || !Body)
 		{
 			if (SlotMesh)
