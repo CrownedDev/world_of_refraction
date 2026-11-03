@@ -63,8 +63,11 @@ namespace TrialGate
 	 *  Normal 1 / Elite 1.5 / Mini-boss 3 / Boss 6. */
 	float GetRankHealthMultiplier(EEncounterRank Rank);
 
-	/** Gives Enemy its rank's HP on top of ApplyEnemyStrength (HP only, no damage): a permanent, uncleansable
-	 *  max-HP buff, then a full refill. MaxHP percents add up, so the rank's share is Strength x (rank - 1),
-	 *  making the total Strength x rank. No-op for a x1 rank. False as ApplyEnemyStrength. */
+	/** B-224b: the enemy's tier power for its HP (UCharacterData::EnemyTier through the TierPower ladder; x1 at F). */
+	float GetEnemyTierHealthMultiplier(const AActor *Enemy);
+
+	/** Gives Enemy its rank's and its tier's HP on top of ApplyEnemyStrength (HP only, no damage): a permanent,
+	 *  uncleansable max-HP buff, then a full refill. MaxHP percents add up, so the share is Strength x (rank x tier
+	 *  power - 1), making the total Strength x rank x tier power. No-op when both are x1. False as ApplyEnemyStrength. */
 	bool ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EEncounterRank Rank);
 }

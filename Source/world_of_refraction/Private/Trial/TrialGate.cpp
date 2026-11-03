@@ -3,7 +3,9 @@
 #include "Trial/TrialGate.h"
 
 #include "Character/CharacterDataComponent.h"
+#include "Character/CharacterData.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/Damage/TierPowerConstants.h"
 #include "Combat/Tuning/CombatBaselineConstants.h"
 #include "Combat/Tuning/CombatTuning.h"
 #include "Engine/GameInstance.h"
@@ -119,6 +121,13 @@ float TrialGate::GetRankHealthMultiplier(EEncounterRank Rank)
 	return WoRTuning::GetLadderValue(ECombatLadder::EnemyRankHealth, RankValue, CombatBaseline::CodeEnemyRankHealth(RankValue));
 }
 
+float TrialGate::GetEnemyTierHealthMultiplier(const AActor *Enemy)
+{
+	const UCharacterDataComponent *CharComp = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	const UCharacterData *Data = CharComp ? CharComp->CharacterData : nullptr;
+	return Data ? TierPowerScaling::GetTierPowerMultiplier(Data->EnemyTier) : TierPowerScaling::CodeTierPower(0);
+}
+
 bool TrialGate::ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EEncounterRank Rank)
 {
 	UCharacterDataComponent *CharComp = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
@@ -129,11 +138,13 @@ bool TrialGate::ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EE
 		return false;
 	}
 	const float RankMultiplier = GetRankHealthMultiplier(Rank);
-	if (FMath::IsNearlyEqual(RankMultiplier, CombatBaseline::ENEMY_RANK_HEALTH_NORMAL))
+	const float TierMultiplier = GetEnemyTierHealthMultiplier(Enemy);
+	const float HealthMultiplier = RankMultiplier * TierMultiplier;
+	if (FMath::IsNearlyEqual(HealthMultiplier, CombatBaseline::ENEMY_RANK_HEALTH_NORMAL))
 	{
 		return true;
 	}
-	const float Percent = StrengthMultiplier * (RankMultiplier - 1.0f) * CombatConstants::STAT_PERCENT_DIVISOR;
+	const float Percent = StrengthMultiplier * (HealthMultiplier - 1.0f) * CombatConstants::STAT_PERCENT_DIVISOR;
 	FActiveSkillEffect HPEffect = FActiveSkillEffect::CreatePersistent(TEXT("Enemy rank (HP)"), TrialGateInternal::ENEMY_RANK_HP_EFFECT_ID,
 																	   Percent >= 0.0f ? ESkillEffectType::MaxHPBuff : ESkillEffectType::MaxHPDebuff,
 																	   FMath::Abs(Percent));
@@ -141,8 +152,8 @@ bool TrialGate::ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EE
 	Effects->ApplyEffect(Enemy, HPEffect);
 	CharComp->RecomputeMaxPools();
 	CharComp->ServerSetHP(CharComp->MaxHP);
-	UE_LOG(LogTemp, Log, TEXT("[TrialGate] %s: rank %s HP x%.2f (strength x%.2f)"), *GetNameSafe(Enemy),
-		   *UEnum::GetValueAsString(Rank), RankMultiplier, StrengthMultiplier);
+	UE_LOG(LogTemp, Log, TEXT("[TrialGate] %s: rank %s HP x%.2f, tier x%.2f (strength x%.2f)"), *GetNameSafe(Enemy),
+		   *UEnum::GetValueAsString(Rank), RankMultiplier, TierMultiplier, StrengthMultiplier);
 	return true;
 }
 
