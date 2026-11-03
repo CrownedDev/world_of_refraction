@@ -2085,6 +2085,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 
 ### Q-183 — How many trial difficulty levels, and what does each change?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-183) · **Blocks:** — (B-183 shipped with A)
+**Superseded in part by Q-293c (B-293c, 2026-11-03):** the difficulty now scales enemy damage only (0.8 / 1 / 1.2), not max HP. This changes Q-183's answer, not only a tuning value; Crown may revert it.
 **Question:** RunStructure §3 says the door asks for a difficulty that scales enemy strength and the payout. How many levels, and what does "enemy strength" scale?
 **Options:**
 - **A** Three levels, Easy / Medium (default) / Hard, as in the deckbuilder. Strength scales each enemy's max HP and damage (Easy 0.8, Medium 1, Hard 1.25); payout scales by 0.75 / 1 / 1.5. Defense, speed and status are not scaled; each enemy starts the fight full at its scaled max, and the scaling can't be cleansed (it is part of the enemy, like gear, D-015). All values `// TODO: tune`. This run difficulty is separate from each encounter's AI difficulty (ER-44), which still sets how well the enemy plays.

@@ -92,6 +92,20 @@ void FTrialGateSpec::Define()
 		TestFalse(TEXT("No enemy, nothing applied"), TrialGate::ApplyEnemyStrength(nullptr, 2.0f));
 	});
 
+	It("B-293c: the difficulty scales an enemy's damage, not its max HP", [this]()
+	{
+		UCharacterDataComponent *Hard = SpawnEnemy();
+		UCharacterDataComponent *Medium = SpawnEnemy();
+		USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
+		if (!TestTrue(TEXT("Enemies and effect manager"), Hard && Medium && Effects)) return;
+		const int32 BaseMaxHP = Medium->MaxHP;
+		TestEqual(TEXT("HP is x1 at Hard"), TrialGate::GetEnemyHealthMultiplier(ETrialDifficulty::Hard), 1.0f, KINDA_SMALL_NUMBER);
+		TestTrue(TEXT("Applied"), TrialGate::ApplyEnemyStrength(Hard->GetOwner(), TrialGate::GetEnemyHealthMultiplier(ETrialDifficulty::Hard),
+																 TrialGate::GetEnemyStrengthMultiplier(ETrialDifficulty::Hard)));
+		TestEqual(TEXT("Max HP unchanged"), Hard->MaxHP, BaseMaxHP);
+		TestTrue(TEXT("Damage raised"), Effects->GetTotalStatModifier(Hard->GetOwner(), ESkillEffectType::DamageBuff) > 0.0f);
+	});
+
 	It("can't be cleansed away", [this]()
 	{
 		UCharacterDataComponent *Hard = SpawnEnemy();

@@ -79,7 +79,8 @@ namespace AIConstants
     // aims looser. AI difficulty governs aim-WITHIN-band only; the band itself comes from the
     // impact's authored difficulty so it matches what MatchAndConsumeInput judges against.
     // Placeholders — Crown tunes in PIE.
-    // B-293c: even steps (was 3.0 / 1.6 / 0.9 / 0.35); Hard sits just outside the perfect band, Expert on its edge.
+    // B-293c: closer, gently narrowing steps (was 3.0 / 1.6 / 0.9 / 0.35); Hard sits just outside the perfect band,
+    // Expert just inside its edge.
     constexpr float EASY_DELTA_BAND_MULT = 2.6f;    // well outside band → usually whiffs early
     constexpr float MEDIUM_DELTA_BAND_MULT = 1.9f;
     constexpr float HARD_DELTA_BAND_MULT = 1.3f;    // just outside the band: catches the wider window, rarely perfect
