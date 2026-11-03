@@ -412,6 +412,18 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 - `FWeaponLoadoutEntry::ValidateSpells()` validates `WeaponEntry.AssignedSpells`
   rather than the entry's own `AssignedSpells` field — a possible inconsistency
   worth confirming against intended design.
+- The B-302 slot mirror (`FCombatLoadout::Slots`) is rebuilt only for the
+  active loadout, and only when the loadout component announces a gear change.
+  `InventoryComponent` edits that don't announce (run-preset swap,
+  `LinkLoadoutsToOwned` / `StripUnownedGear`, loadout inflation) leave it stale
+  until the next announcement. Nothing reads it yet; B-304 heals it on read.
+- B-303: a Resonator with an adapter in the *primary* slot (blocked for saved
+  loadouts, not for runtime edits) has it counted in the budget finding, but
+  `ClearInvalidSlots` drops only `RingLoadout` adapters, so the finding could
+  survive the clear. Not reachable from today's screens.
+- B-310: carried run wear with a GUID is matched by GUID only. If an item is
+  relinked to a new GUID mid-run, that slot starts the next fight with fresh
+  wear (old saves without GUIDs still match by asset, in slot order).
 
 ## Changelog
 
@@ -457,3 +469,7 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-10-27 | B-091 (D-020, Q-091): one shared armoury for the party. `UInventoryComponent::DrawSharedGear` (party members, at spawn) banks starting gear into `UPoolSubsystem` once, takes the whole armoury and re-links the presets; `ClaimActiveSharedGear` / `ULoadoutComponent::ClaimSharedGear` (spawn, loadout switch, `PrepareForBattle`) keep one wearer per piece; `PushGearToPool` / `HandlePoolGearChanged` keep every member's copy in step. Spec `WoR.Pool.SharedGear`. | feature/B-091-shared-gear-pool |
 | 2026-11-02 | B-258 (P1): the read paths take `GetActiveLoadout()` by const reference (21 of 22 sites); the copies that stay are where the loadout changes while used (`CrystalManager` before-wear, `ActionExecutor`). | refactor/B-258-loadout-by-ref |
 | 2026-11-02 | B-285: spec `WoR.Loadout.Budget` pins the Resonator budget 5 and slot costs (CL-10..12) and the innate budget 24 / 48 with tier costs and pillar cuts (CL-34 / 35). No code change. | chore/B-285-loadout-budget-spec |
+| 2026-11-02 | B-301 (D-110 step 1): `FGearInstance` (+ `EGearKind` Weapon / Adapter, append-only) is one owned-gear shape for a weapon or an adapter, with converters to and from `FWeaponInventoryEntry` / `FRingInventoryEntry`. Nothing reads it yet (B-302 mirrors slots onto it). Spec `WoR.Loadout.GearInstance`. | refactor/B-301-gear-instance |
+| 2026-11-02 | B-302 (D-110 step 2, D-111): `FLoadoutSlot` (the owned item by GUID is the truth, the gear copy a derived cache) and `FCombatLoadout::Slots` / `ActiveWeaponSlot` / `ActiveAdapterSlot`, rebuilt from the old fields by `RebuildSlotsFromLegacy(Class)` after every loadout change; the mirror holds what the fight reads for the class. Nothing reads it yet (B-303 moves the rules onto it). Debug `wor.Loadout.CompareSlots` (`ULoadoutRulesDebug::GetCompareSlotsString`). Spec `WoR.Loadout.Slots`. | refactor/B-302-loadout-slots |
+| 2026-11-03 | B-303 (D-110 step 3): `LoadoutClassTable` (Refractor 3 / 1 item; Generic 6 / 2 items, 2 weapons, 1 adapter (Q-303); Resonator 5 / 1 weapon / any adapters) and one `FLoadoutRules::SlotCost` over the unified slots; `CollectClassLimitFindings` replaces the Resonator-only budget block, and `ClearInvalidSlots`' adapter drop uses the same `NonAdapterCost`. Same results, except the budget charges the gear the fight uses (Q-303b). Spec `WoR.Loadout.ClassLimits`. | refactor/B-303-class-table-cost |
+| 2026-11-03 | B-310 (D-111 bug, Q-310): carried run wear (`FCarriedGearState`, `FSavedCarriedAttachment::GearID`) and crystal break / destroy / repair (`FindAttachedItemForSlot`, `FEquippedCrystalSlot::GearID`) follow the item's GUID, so two identical adapters keep their own wear; a GUID that names nothing finds nothing. Asset lookups prefer the copy in use (Q-310). Old saves match by asset. Spec `WoR.Party.RunWearByGuid`. | fix/B-310-run-wear-by-guid |

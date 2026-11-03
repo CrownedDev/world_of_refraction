@@ -48,6 +48,10 @@ struct WORLD_OF_REFRACTION_API FSavedCarriedAttachment
 	UPROPERTY()
 	FSavedAssetRef Holder;
 
+	/** B-310: the owned item the attachment sits on; invalid in saves made before it (then matched by Holder). */
+	UPROPERTY()
+	FGuid GearID;
+
 	UPROPERTY()
 	FRuntimeAttachedItem Attached;
 

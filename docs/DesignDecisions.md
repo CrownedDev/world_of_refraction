@@ -1632,6 +1632,20 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A, the analysis's default (`UnifiedLoadout_2026-10-29.md` Q-5): two slots, at most two weapons and one adapter. It keeps every Generic build that works today and mirrors the deckbuilder's vessel rule. B would be a one-number change in `LoadoutClassTable::GENERIC`.
 **Answer:** **A**, by the reference-backed default (2026-10-29). Crown may change it.
 
+### Q-303b — The budget charges the gear the fight actually uses
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-303 review) · **Blocks:** —
+**Question:** The old budget check read the primary slot's *type*; the D-110 budget reads the gear the fight uses. They differ in two rare Resonator cases: a primary weapon whose slot type is left None (as `AutoPopulateLoadout` leaves it) was free and now costs its weapon cost; a primary slot typed Weapon whose weapon was sold cost 1 and now costs 0. Keep the new reading?
+**Options:** A charge what the fight uses (D-110, one cost for every class) / B keep the old type-based charge.
+**Recommendation:** A. The fight attacks with that weapon, so it should count; D-110 makes one cost over the slots the fight reads. Effect: such a Resonator over 5 has adapters dropped by `ClearInvalidSlots`, as any Resonator over 5 does.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
+### Q-310 — Two identical copies: which one wears?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-310 review) · **Blocks:** —
+**Question:** In-fight wear and the crystal tools still find gear by its asset. With two identical copies equipped (two of one adapter, or a Generic's two of one weapon), which copy does an asset lookup land on?
+**Options:** A the one in use first (the active adapter; the weapon the Generic is showing), then slot order / B slot order only (the old rule).
+**Recommendation:** A (D-111: wear follows the item actually used). Side effect: debug and socket tools that ask for "the primary weapon" by asset get the copy in hand when both are the same weapon. B-304's `GetActiveSlot` carries the GUID and makes this exact.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.

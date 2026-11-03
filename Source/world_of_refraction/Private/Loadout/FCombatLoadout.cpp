@@ -573,6 +573,66 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
     return Result;
 }
 
+// ==================== UNIFIED SLOTS (D-110 mirror, B-302) ====================
+
+void FCombatLoadout::RebuildSlotsFromLegacy(ECharacterClass CharacterClass)
+{
+    const bool bGenericWeaponRules = CharacterClass == ECharacterClass::Generic;
+    Slots.Reset();
+    ActiveWeaponSlot = INDEX_NONE;
+    ActiveAdapterSlot = INDEX_NONE;
+
+    int32 PrimaryWeaponSlot = INDEX_NONE;
+    int32 PrimaryAdapterSlot = INDEX_NONE;
+    // A weapon in the primary counts with a Weapon or None type (AutoPopulateLoadout leaves None), as GetActiveWeapon.
+    if ((PrimarySlotType == EPrimarySlotType::Weapon || PrimarySlotType == EPrimarySlotType::None) && PrimaryWeapon.IsValid())
+    {
+        PrimaryWeaponSlot = Slots.Add(FLoadoutSlot::FromWeaponLoadoutEntry(PrimaryWeapon));
+    }
+    else if (PrimarySlotType == EPrimarySlotType::Ring && PrimaryRing.IsValid())
+    {
+        PrimaryAdapterSlot = Slots.Add(FLoadoutSlot::FromRingLoadoutEntry(PrimaryRing));
+    }
+
+    // Only what the fight reads for this class: a secondary weapon is a Generic's, an adapter loadout a Resonator's
+    // (a loadout authored for another class may carry the other fields; the getters ignore them, so does the mirror).
+    int32 SecondaryWeaponSlot = INDEX_NONE;
+    if (bGenericWeaponRules && SecondarySlotType == ESecondarySlotType::Weapon && SecondaryWeapon.IsValid())
+    {
+        SecondaryWeaponSlot = Slots.Add(FLoadoutSlot::FromWeaponLoadoutEntry(SecondaryWeapon));
+    }
+
+    int32 ActiveRingLoadoutSlot = INDEX_NONE;
+    const int32 RingsRead = CharacterClass == ECharacterClass::Resonator ? RingLoadout.Num() : 0;
+    for (int32 RingIndex = 0; RingIndex < RingsRead; ++RingIndex)
+    {
+        if (!RingLoadout[RingIndex].IsValid())
+        {
+            continue;
+        }
+        const int32 SlotIndex = Slots.Add(FLoadoutSlot::FromRingLoadoutEntry(RingLoadout[RingIndex]));
+        ActiveRingLoadoutSlot = RingIndex == ActiveRingIndex ? SlotIndex : ActiveRingLoadoutSlot;
+    }
+
+    // The weapon in hand, as ULoadoutComponent::GetActiveWeapon picks it. An evolution or adapter primary leaves
+    // only a Generic's secondary weapon. A Generic with a weapon primary uses bShowPrimary to choose between its two
+    // weapons (none in hand when it shows the secondary and has none); other classes always use the primary.
+    // An empty primary (a sold primary weapon, StripFromLoadout) is read like a weapon primary, as GetActiveWeapon
+    // does: a Generic showing it holds nothing.
+    if (PrimarySlotType == EPrimarySlotType::Weapon || PrimarySlotType == EPrimarySlotType::None)
+    {
+        ActiveWeaponSlot = (bGenericWeaponRules && !bShowPrimary) ? SecondaryWeaponSlot : PrimaryWeaponSlot;
+    }
+    else if (bGenericWeaponRules)
+    {
+        ActiveWeaponSlot = SecondaryWeaponSlot;
+    }
+
+    // The adapter in use, as today's getters: a Resonator's active ring (none when the index is stale, GetActiveRing),
+    // anyone else's primary ring (GetPrimaryRing). B-304's GetActiveSlot falls back to the first adapter instead.
+    ActiveAdapterSlot = CharacterClass == ECharacterClass::Resonator ? ActiveRingLoadoutSlot : PrimaryAdapterSlot;
+}
+
 // ==================== AUTO-EQUIP ====================
 
 void FCombatLoadout::ApplyAutoEquip(FCombatLoadout &Loadout, AActor *OwningActor)
