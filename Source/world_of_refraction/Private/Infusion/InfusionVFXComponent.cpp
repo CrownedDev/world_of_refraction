@@ -509,7 +509,7 @@ void UInfusionVFXComponent::RestrictCachedSources(const TArray<EInfusionSourceOp
     CachedSources = MoveTemp(Filtered);
     CurrentSourceIndex = 0;
 
-    UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Restricted to %d sources"), CachedSources.Num());
+    UE_LOG(LogTemp, Verbose, TEXT("[InfusionVFX] Restricted to %d sources"), CachedSources.Num());
 }
 
 void UInfusionVFXComponent::CycleToNextSource()
@@ -528,7 +528,7 @@ void UInfusionVFXComponent::CycleToNextSource()
     CurrentSourceIndex = (CurrentSourceIndex + 1) % CachedSources.Num();
 
     EInfusionSourceOption Source = CachedSources[CurrentSourceIndex];
-    UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Cycled to: [%d/%d] %s"),
+    UE_LOG(LogTemp, Verbose, TEXT("[InfusionVFX] Cycled to: [%d/%d] %s"),
            CurrentSourceIndex + 1,
            CachedSources.Num(),
            *GetCurrentSourceName());
@@ -554,7 +554,7 @@ void UInfusionVFXComponent::ActivateCurrentSource()
     }
 
     EInfusionSourceOption Source = CachedSources[CurrentSourceIndex];
-    UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Activating: %s"), *GetCurrentSourceName());
+    UE_LOG(LogTemp, Verbose, TEXT("[InfusionVFX] Activating: %s"), *GetCurrentSourceName());
 
     ActivateInfusion(Source);
 }
@@ -574,7 +574,7 @@ void UInfusionVFXComponent::ToggleInfusion()
     if (bIsInfusionActive)
     {
         DeactivateInfusion();
-        UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Toggled OFF"));
+        UE_LOG(LogTemp, Verbose, TEXT("[InfusionVFX] Toggled OFF"));
     }
     else
     {

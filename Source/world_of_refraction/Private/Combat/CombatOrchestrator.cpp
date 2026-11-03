@@ -300,7 +300,7 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 		Grid->PlaceAllActors(ArenaCenter);
 		Grid->UpdateAllActorFacing(ArenaCenter);
 
-		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Grid positions assigned and actors placed"));
+		UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Grid positions assigned and actors placed"));
 	}
 
 	// Initialise weather leaders
@@ -520,7 +520,7 @@ void ACombatOrchestrator::ReleaseCombatResources()
 		Menu->ClearCombatOrchestrator();
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Combat resources released"));
+	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Combat resources released"));
 }
 
 // ========================================
@@ -622,7 +622,7 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 		// Use async path - turn will end when action fully completes
 		bWaitingForAsyncAction = true;
 
-		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s executing %s asynchronously..."),
+		UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] %s executing %s asynchronously..."),
 			   *CurrentActor->GetName(), *Action.GetActionName());
 
 		ActionExecutorRef->ExecuteActionAsync(CurrentActor, Action,
@@ -634,7 +634,7 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 	// Synchronous execution for instant actions
 	FActionResult Result = ActionExecutorRef->ExecuteAction(CurrentActor, Action);
 
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s executed %s: %s (Damage: %d, Healing: %d)"),
+	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] %s executed %s: %s (Damage: %d, Healing: %d)"),
 		   *CurrentActor->GetName(),
 		   *Action.GetActionName(),
 		   Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
@@ -727,7 +727,7 @@ bool ACombatOrchestrator::StartActionAsync(const FAction &Action, FString &OutIn
 
 	bWaitingForAsyncAction = true;
 
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s executing %s asynchronously..."),
+	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] %s executing %s asynchronously..."),
 		   *CurrentActor->GetName(), *Action.GetActionName());
 
 	ActionExecutorRef->ExecuteActionAsync(CurrentActor, Action,
@@ -827,7 +827,7 @@ bool ACombatOrchestrator::TryMoveRow(AActor *Actor, bool bForward, FText &OutRef
 		return false;
 	}
 	bRowMoveUsedThisTurn = true;
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s stepped to the %s row"), *Actor->GetName(),
+	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] %s stepped to the %s row"), *Actor->GetName(),
 		   *CombatRowHelpers::GetRowName(Target.Row));
 	return true;
 }
@@ -889,7 +889,7 @@ void ACombatOrchestrator::HandleAsyncActionCompleted(const FActionResult &Result
 {
 	bWaitingForAsyncAction = false;
 
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Async action completed: %s (Damage: %d, Healing: %d)"),
+	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Async action completed: %s (Damage: %d, Healing: %d)"),
 		   Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
 		   Result.TotalDamageDealt,
 		   Result.TotalHealingDone);
@@ -907,7 +907,7 @@ void ACombatOrchestrator::OnActionCompleted()
 {
 	if (bWaitingForAsyncAction)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] OnActionCompleted ignored - waiting for async action"));
+		UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] OnActionCompleted ignored - waiting for async action"));
 		return;
 	}
 
@@ -946,7 +946,7 @@ void ACombatOrchestrator::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 	CurrentActor = Actor;
 	CurrentTurnNumber = TurnNumber;
 
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Turn %d started: %s"),
+	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Turn %d started: %s"),
 		   TurnNumber, *Actor->GetName());
 
 	// W-B: an Execution turn carries a scheduled ritual fire instead of an action request.
@@ -962,7 +962,7 @@ void ACombatOrchestrator::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 		ProcessBrokenDarknessOverflow(CurrentActor);
 		if (!IsActorAlive(CurrentActor))
 		{
-			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s died at its Execution turn start, ritual dropped"),
+			UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] %s died at its Execution turn start, ritual dropped"),
 				   *CurrentActor->GetName());
 			DeferredPayloads.Remove(TurnManagerRef->GetCurrentTurnPayloadId());
 			OnActionCompleted();
@@ -993,7 +993,7 @@ void ACombatOrchestrator::ProceedWithTurnStart()
 	// Check if actor died from start-of-turn effects (or a ritual that just fired)
 	if (!IsActorAlive(CurrentActor))
 	{
-		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s died at turn start, skipping action"),
+		UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] %s died at turn start, skipping action"),
 			   *CurrentActor->GetName());
 		OnActionCompleted();
 		return;
@@ -1037,7 +1037,7 @@ void ACombatOrchestrator::HandleActionDeferredArmed(AActor *Caster, const FActio
 
 	TurnManagerRef->ScheduleExecutionTurn(Caster, DelayTurns, PayloadId, FrozenSpellSpeed);
 
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Ritual armed (payload %d, spellspeed %.2f) — Execution turn in %d normal turn(s)"),
+	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Ritual armed (payload %d, spellspeed %.2f) — Execution turn in %d normal turn(s)"),
 		   PayloadId, FrozenSpellSpeed, DelayTurns);
 }
 
@@ -1069,7 +1069,7 @@ void ACombatOrchestrator::FireScheduledExecution()
 	// turn, so this normally can't trip. Skip the fire if it somehow does.
 	if (!IsActorAlive(Caster))
 	{
-		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Execution turn caster %s dead/invalid — skipping fire"),
+		UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Execution turn caster %s dead/invalid — skipping fire"),
 			   IsValid(Caster) ? *Caster->GetName() : TEXT("<invalid>"));
 		OnActionCompleted();
 		return;
@@ -1083,7 +1083,7 @@ void ACombatOrchestrator::FireScheduledExecution()
 	// dead-target gates and zeroes cost (paid at arm); completion binds
 	// HandleAsyncActionCompleted → return → finalize → single AdvanceToNextTurn.
 	// bWaitingForAsyncAction is owned by StartActionAsync — do NOT pre-set it here.
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Execution turn: firing %s (caster %s, payload %d)"),
+	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Execution turn: firing %s (caster %s, payload %d)"),
 		   *FireAction.GetActionName(), *Caster->GetName(), PayloadId);
 
 	FString InvalidReason;
@@ -1146,7 +1146,7 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 	const int32 WSP = FMath::Max(1, Caliber / CombatConstants::WORLDSTAT_KILL_DIVISOR);
 	PendingWorldStatPool += WSP;
 
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Enemy %s down (caliber %d) -> +%d WSP (pool now %d)"),
+	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Enemy %s down (caliber %d) -> +%d WSP (pool now %d)"),
 		   *Victim->GetName(), Caliber, WSP, PendingWorldStatPool);
 }
 
@@ -1263,7 +1263,7 @@ void ACombatOrchestrator::SetCombatState(ECombatState NewState)
 		ECombatState OldState = CombatState;
 		CombatState = NewState;
 
-		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] State: %d -> %d"), (int32)OldState, (int32)NewState);
+		UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] State: %d -> %d"), (int32)OldState, (int32)NewState);
 
 		OnCombatStateChanged.Broadcast(NewState);
 	}
@@ -1304,7 +1304,7 @@ void ACombatOrchestrator::ProcessStartOfTurnEffects(AActor *Actor)
 		BuildupManager->ProcessStatusBarDecay(Actor);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Processed start-of-turn effects for %s"),
+	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Processed start-of-turn effects for %s"),
 		   *Actor->GetName());
 }
 
@@ -1319,7 +1319,7 @@ void ACombatOrchestrator::ProcessEndOfTurnEffects(AActor *Actor)
 	// Delegate to SkillEffectManager - processes DOTs, ticks durations, expires effects
 	SkillEffectManagerRef->ProcessEndOfTurnEffects(Actor);
 
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Processed end-of-turn effects for %s"),
+	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Processed end-of-turn effects for %s"),
 		   *Actor->GetName());
 }
 
@@ -1344,14 +1344,14 @@ void ACombatOrchestrator::RequestActionFromActor(AActor *Actor)
 			return;
 		}
 
-		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Routing %s to AI decision"), *Actor->GetName());
+		UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Routing %s to AI decision"), *Actor->GetName());
 		GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
 		AIDecisionManagerRef->RequestDecision(Actor);
 		return;
 	}
 
 	// === PLAYER-CONTROLLED ACTOR ===
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broadcasting OnActionRequested for player actor: %s"),
+	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Broadcasting OnActionRequested for player actor: %s"),
 		   *Actor->GetName());
 	OnActionRequested.Broadcast(Actor);
 
@@ -1366,7 +1366,7 @@ void ACombatOrchestrator::RequestActionFromActor(AActor *Actor)
 			AutoAdvanceDelay,
 			false);
 
-		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Auto-advancing in %.1fs..."), AutoAdvanceDelay);
+		UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Auto-advancing in %.1fs..."), AutoAdvanceDelay);
 	}
 }
 
@@ -1484,7 +1484,7 @@ void ACombatOrchestrator::PrepareAllLoadoutsForBattle()
 		{
 			if (Loadout->PrepareForBattle(Inventory))
 			{
-				UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Prepared loadout for %s"), *Actor->GetName());
+				UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Prepared loadout for %s"), *Actor->GetName());
 
 				// Apply STARTING effects (non-conditional gear effects, once per combat).
 				// GetActiveEffects covers all contributing gear — weapon/ring per class
@@ -1503,7 +1503,7 @@ void ACombatOrchestrator::PrepareAllLoadoutsForBattle()
 						// Def-identity packing: each gathered effect carries its def id + bundle index,
 							// so EffectIDs window per-definition (same def from any gear merges).
 						SkillEffectManagerRef->ApplyEquipmentEffects(Actor, StartingEffects);
-						UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Applied %d starting effects to %s"),
+						UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Applied %d starting effects to %s"),
 							   StartingEffects.Num(), *Actor->GetName());
 					}
 				}
@@ -1673,7 +1673,7 @@ void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
 	// in alignment element).
 	BDManager->ProcessOverloadTick(ActorsInRange, StatusMultiplierBonus, EfficiencyMult);
 
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] BD Overflow processed for %s - Range: %.1f, Targets: %d"),
+	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] BD Overflow processed for %s - Range: %.1f, Targets: %d"),
 		   *Actor->GetName(), AuraRange, ActorsInRange.Num());
 }
 
@@ -1771,7 +1771,7 @@ void ACombatOrchestrator::ConsumeAllUsedItems()
 			// inventory was debited at equip time and item-slot Quantity is the
 			// persistent source of truth. Only reset the battle-ready flag.
 			Loadout->ResetBattleState();
-			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Reset loadout battle state for %s"), *Actor->GetName());
+			UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Reset loadout battle state for %s"), *Actor->GetName());
 		}
 	};
 

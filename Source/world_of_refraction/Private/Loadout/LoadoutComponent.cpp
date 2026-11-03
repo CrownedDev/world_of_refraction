@@ -326,7 +326,7 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
 
     FCombatLoadout &Loadout = Inv->SavedLoadouts[NewIndex];
 
-    UE_LOG(LogTemp, Display, TEXT("[LoadoutComponent] Created loadout '%s' at index %d"), *LoadoutName, NewIndex);
+    UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Created loadout '%s' at index %d"), *LoadoutName, NewIndex);
 
     // Add spells (validate against inventory)
     int32 SpellsAdded = 0;
@@ -437,7 +437,7 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
         SlotIndex++;
     }
 
-    UE_LOG(LogTemp, Display, TEXT("[LoadoutComponent] Loadout '%s' configured: %d spells, %d abilities, %d items"),
+    UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Loadout '%s' configured: %d spells, %d abilities, %d items"),
            *LoadoutName, SpellsAdded, AbilitiesAdded, ItemsAdded);
 
     return NewIndex;
@@ -1679,7 +1679,7 @@ bool ULoadoutComponent::TryChangeLoadout(int32 LoadoutIndex, bool bHasPick,
     OutRefusal = CheckTarget(Inv->SavedLoadouts[LoadoutIndex], Context.CharacterClass);
     if (!OutRefusal.IsEmpty())
     {
-        UE_LOG(LogWoRLoadout, Log, TEXT("Pick refused on loadout %d: %s"), LoadoutIndex, *OutRefusal.ToString());
+        UE_LOG(LogWoRLoadout, Verbose, TEXT("Pick refused on loadout %d: %s"), LoadoutIndex, *OutRefusal.ToString());
         return false;
     }
 
@@ -1701,7 +1701,7 @@ bool ULoadoutComponent::TryChangeLoadout(int32 LoadoutIndex, bool bHasPick,
         {
             // TODO: rule reasons are built FStrings; move them to LOCTEXT tables (D-061).
             OutRefusal = FText::FromString(Reason);
-            UE_LOG(LogWoRLoadout, Log, TEXT("Pick refused on loadout %d: %s"), LoadoutIndex, *Reason);
+            UE_LOG(LogWoRLoadout, Verbose, TEXT("Pick refused on loadout %d: %s"), LoadoutIndex, *Reason);
             return false;
         }
     }
@@ -2358,7 +2358,7 @@ void ULoadoutComponent::ResetBattleState()
         }
     }
     BattleItemsTaken.Reset();
-    UE_LOG(LogWoRLoadout, Log, TEXT("%s: %d unused crystal(s) back to the party's items"), *GetNameSafe(GetOwner()), Returned);
+    UE_LOG(LogWoRLoadout, Verbose, TEXT("%s: %d unused crystal(s) back to the party's items"), *GetNameSafe(GetOwner()), Returned);
 }
 
 // ==================== QUICK SETUP ====================
@@ -2533,7 +2533,7 @@ void ULoadoutComponent::NotifyActiveWeaponChanged()
         return;
     }
     LastNotifiedWeapon = ActiveWeapon;
-    UE_LOG(LogWoRLoadout, Log, TEXT("%s: active weapon is now %s"), *GetNameSafe(GetOwner()),
+    UE_LOG(LogWoRLoadout, Verbose, TEXT("%s: active weapon is now %s"), *GetNameSafe(GetOwner()),
            ActiveWeapon ? *ActiveWeapon->Name : TEXT("none"));
     OnActiveWeaponChanged.Broadcast(ActiveWeapon);
 }
@@ -2819,7 +2819,7 @@ void ULoadoutComponent::ToggleEquipment()
     const TArray<FGatheredEffect> OldGearEffects = GetActiveEffectsGathered(GetOwner());
     Loadout.bShowPrimary = !Loadout.bShowPrimary;
 
-    UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Toggled equipment: bShowPrimary = %s"),
+    UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Toggled equipment: bShowPrimary = %s"),
            Loadout.bShowPrimary ? TEXT("true") : TEXT("false"));
 
     // Notify TurnManager so cached BonusTurnSpeed re-reads for this actor.
@@ -3306,7 +3306,7 @@ bool ULoadoutComponent::TrySwitchWeaponThisTurn(FText &OutReason)
     OutReason = GetTurnSwitchRefusedReason();
     if (!OutReason.IsEmpty())
     {
-        UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] %s: weapon switch refused - already switched this turn"), *GetNameSafe(GetOwner()));
+        UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] %s: weapon switch refused - already switched this turn"), *GetNameSafe(GetOwner()));
         return false;
     }
     // A toggle that changes nothing (no loadout) doesn't use up the turn's switch.
@@ -3321,7 +3321,7 @@ bool ULoadoutComponent::TrySwitchRingThisTurn(int32 NewRingIndex, FText &OutReas
     OutReason = GetTurnSwitchRefusedReason();
     if (!OutReason.IsEmpty())
     {
-        UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] %s: ring switch refused - already switched this turn"), *GetNameSafe(GetOwner()));
+        UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] %s: ring switch refused - already switched this turn"), *GetNameSafe(GetOwner()));
         return false;
     }
     // A ring switch that changes nothing (bad or current index) doesn't use up the turn's switch.
@@ -3743,7 +3743,7 @@ int32 ULoadoutComponent::ApplyCarriedGear(const FCarriedGearState &Carried)
     }
     Inv->WriteLoadoutToOwned(Inv->ActiveLoadoutIndex); // B-085: the owned gear starts the fight as carried
 
-    UE_LOG(LogTemp, Log, TEXT("[ULoadoutComponent] %s: carried crystal state restored (%d of %d attachments%s)"),
+    UE_LOG(LogTemp, Verbose, TEXT("[ULoadoutComponent] %s: carried crystal state restored (%d of %d attachments%s)"),
            GetOwner() ? *GetOwner()->GetName() : TEXT("<null>"), Restored, Carried.Attachments.Num(),
            Carried.bHasPrimaryEvolution ? TEXT(", primary evolution") : TEXT(""));
     return Restored;
@@ -3814,7 +3814,7 @@ void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
     const TArray<FGatheredEffect> OldGearEffects = GetActiveEffectsGathered(GetOwner());
     Loadout.ActiveRingIndex = NewIndex;
 
-    UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Set ActiveRingIndex to %d"), NewIndex);
+    UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Set ActiveRingIndex to %d"), NewIndex);
 
     // Notify TurnManager so cached BonusTurnSpeed re-reads for this actor.
     // Out-of-combat / pre-combat case: actor isn't in Combatants, the loop in

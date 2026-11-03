@@ -96,7 +96,7 @@ void UCombatCommandMenuSubsystem::SetCombatOrchestrator(ACombatOrchestrator *Orc
     Orchestrator->OnActionRequested.AddDynamic(this, &UCombatCommandMenuSubsystem::HandlePlayerActionRequested);
     Orchestrator->OnActionExecuted.AddDynamic(this, &UCombatCommandMenuSubsystem::HandleActionExecuted);
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Combat orchestrator set"));
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Combat orchestrator set"));
 }
 
 void UCombatCommandMenuSubsystem::ClearCombatOrchestrator()
@@ -128,7 +128,7 @@ void UCombatCommandMenuSubsystem::ClearCombatOrchestrator()
     DepthBeforeTargetSelection = ECombatMenuDepth::Main;
     CurrentCapabilities = FCombatCapabilities();
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Combat orchestrator cleared"));
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Combat orchestrator cleared"));
 }
 
 void UCombatCommandMenuSubsystem::HandlePlayerActionRequested(AActor *Actor)
@@ -204,7 +204,7 @@ void UCombatCommandMenuSubsystem::OpenForActor(AActor *Actor)
     TArray<FPieMenuButtonData> Buttons = BuildMainMenuButtons();
     OnCommandMenuReady.Broadcast(Buttons);
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Opened for %s — %d buttons"),
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Opened for %s — %d buttons"),
            *Actor->GetName(), Buttons.Num());
 }
 
@@ -216,7 +216,7 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         return;
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Selected: %s (ID: %s)"),
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Selected: %s (ID: %s)"),
            *ButtonData.DisplayName.ToString(),
            *ButtonData.ButtonID);
 
@@ -478,7 +478,7 @@ void UCombatCommandMenuSubsystem::Close()
     CurrentActor.Reset();
     OnCommandMenuClosed.Broadcast();
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Closed"));
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Closed"));
 }
 
 // ==================== CAPABILITIES / BD LIVE REFRESH ====================
@@ -1064,7 +1064,7 @@ void UCombatCommandMenuSubsystem::ExecuteMoveRow(bool bForward)
     FText RefusedReason;
     if (!Orchestrator || !Orchestrator->TryMoveRow(CurrentActor.Get(), bForward, RefusedReason))
     {
-        UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Row step refused: %s"),
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Row step refused: %s"),
                Orchestrator ? *RefusedReason.ToString() : TEXT("no orchestrator"));
         return;
     }
@@ -1136,7 +1136,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     FString TargetTypeName = TargetEnum
                                  ? TargetEnum->GetNameStringByValue(static_cast<int64>(TargetType))
                                  : TEXT("Unknown");
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] OpenTargetSelection: TargetType=%s"),
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] OpenTargetSelection: TargetType=%s"),
            *TargetTypeName);
 
     // Reset infusion state for this picker. Per locked design (p2),
@@ -1234,7 +1234,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     // Resolve targets
     TArray<AActor *> Targets = ResolveTargets(TargetType);
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]   Resolved %d targets:"), Targets.Num());
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu]   Resolved %d targets:"), Targets.Num());
     for (AActor *T : Targets)
     {
         if (!T)
@@ -1247,7 +1247,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
                 TName = CDC->CharacterData->Name;
             }
         }
-        UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]     - %s"), *TName);
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu]     - %s"), *TName);
     }
 
     // Empty-target safety — bail and clear pending state
@@ -1266,13 +1266,13 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     // selection. Anyone + All is a group ("Everyone") and skips the category step.
     if (TargetType == ETargetType::Anyone && TargetCount != ETargetCount::All)
     {
-        UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]   Showing Allies/Enemies category step"));
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu]   Showing Allies/Enemies category step"));
         CurrentDepth = ECombatMenuDepth::TargetCategory;
         OnCommandMenuReady.Broadcast(BuildTargetCategoryButtons());
         return;
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]   Showing target picker"));
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu]   Showing target picker"));
 
     CurrentDepth = ECombatMenuDepth::TargetSelection;
 
@@ -1721,7 +1721,7 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTarget(AActor *SelectedTarget
         }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Action confirmed: %s on %s"),
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Action confirmed: %s on %s"),
            *PendingActionID,
            *TargetName);
 
@@ -1744,7 +1744,7 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTargets(const TArray<AActor *
     ActionButton.DataIndex = PendingActionDataIndex; // restore slot index (consumables)
     ActionButton.Targets = SelectedTargets;
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Action confirmed: %s on %d targets"),
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Action confirmed: %s on %d targets"),
            *PendingActionID, SelectedTargets.Num());
 
     // Clear pending state — same pattern as ConfirmActionWithTarget
@@ -1902,7 +1902,7 @@ void UCombatCommandMenuSubsystem::SubmitConfirmedAction(
 {
     FAction Action = BuildActionFromButton(ButtonData);
 
-    UE_LOG(LogTemp, Log,
+    UE_LOG(LogTemp, Verbose,
            TEXT("[CombatCommandMenu] Submitting action: type=%d targets=%d level(spell/ab)=%d/%d source=%d spellSource=%d"),
            static_cast<int32>(Action.ActionType),
            Action.Targets.Num(),
@@ -2028,7 +2028,7 @@ bool UCombatCommandMenuSubsystem::PressMenuKey(EPieMenuCategory Category)
                                                             { return Candidate.Category == Category && Candidate.bEnabled; });
     if (!Button)
     {
-        UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Key for %s: no such button here"), *UEnum::GetValueAsString(Category));
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Key for %s: no such button here"), *UEnum::GetValueAsString(Category));
         return false;
     }
     const FPieMenuButtonData Pressed = *Button; // HandleSelection can rebuild the menu

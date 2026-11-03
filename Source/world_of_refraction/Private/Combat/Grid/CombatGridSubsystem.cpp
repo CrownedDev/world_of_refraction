@@ -55,7 +55,7 @@ bool UCombatGridSubsystem::AssignPosition(AActor *Actor, const FCombatGridPositi
     // Assign new position
     ActorPositions.Add(Actor, Position);
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatGrid] %s assigned to %s (Dmg: %.0f%%, Def: %.0f%%)"),
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatGrid] %s assigned to %s (Dmg: %.0f%%, Def: %.0f%%)"),
            *Actor->GetName(),
            *Position.ToString(),
            (Position.GetDamageModifier() - 1.0f) * 100.0f,
@@ -69,7 +69,7 @@ void UCombatGridSubsystem::RemoveFromGrid(AActor *Actor)
     if (Actor && ActorPositions.Contains(Actor))
     {
         ActorPositions.Remove(Actor);
-        UE_LOG(LogTemp, Log, TEXT("[CombatGrid] %s removed from grid"), *Actor->GetName());
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatGrid] %s removed from grid"), *Actor->GetName());
     }
 }
 
@@ -121,7 +121,7 @@ void UCombatGridSubsystem::ClearAllPositions()
 
     if (Count > 0)
     {
-        UE_LOG(LogTemp, Log, TEXT("[CombatGrid] Cleared %d positions"), Count);
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatGrid] Cleared %d positions"), Count);
     }
 }
 
@@ -258,7 +258,7 @@ bool UCombatGridSubsystem::PlaceActorAtGridPosition(AActor *Actor, const FVector
     float YawRotation = (Position.TeamIndex == 0) ? 0.0f : 180.0f;
     Actor->SetActorRotation(FRotator(0.0f, YawRotation, 0.0f));
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatGrid] Placed %s at %s (World: %s)"),
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatGrid] Placed %s at %s (World: %s)"),
            *Actor->GetName(),
            *Position.ToString(),
            *WorldPos.ToString());
@@ -315,7 +315,7 @@ void UCombatGridSubsystem::AutoAssignTeam(const TArray<AActor *> &TeamActors, in
         Index++;
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatGrid] Auto-assigned %d actors to Team %d (%s row)"),
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatGrid] Auto-assigned %d actors to Team %d (%s row)"),
            FMath::Min(TeamActors.Num(), CombatGridConstants::MAX_TEAM_SIZE),
            TeamIndex,
            *CombatRowHelpers::GetRowName(PreferredRow));
@@ -362,10 +362,10 @@ void UCombatGridSubsystem::AssignTeamWithPreferences(const TArray<AActor *> &Tea
             const FCombatGridPosition Cell(TeamIndex, Preference->Row, Preference->Column);
             if (Cell.IsValid() && !IsPositionOccupied(Cell) && AssignPosition(Actor, Cell))
             {
-                UE_LOG(LogTemp, Log, TEXT("[CombatGrid] %s starts in its chosen cell %s"), *Actor->GetName(), *Cell.ToString());
+                UE_LOG(LogTemp, Verbose, TEXT("[CombatGrid] %s starts in its chosen cell %s"), *Actor->GetName(), *Cell.ToString());
                 continue;
             }
-            UE_LOG(LogTemp, Log, TEXT("[CombatGrid] %s: chosen cell %s is taken or invalid - auto-placing"),
+            UE_LOG(LogTemp, Verbose, TEXT("[CombatGrid] %s: chosen cell %s is taken or invalid - auto-placing"),
                    *Actor->GetName(), *Cell.ToString());
         }
         UnplacedIndices.Add(Index);
@@ -380,7 +380,7 @@ void UCombatGridSubsystem::AssignTeamWithPreferences(const TArray<AActor *> &Tea
         bool bPlaced = TryRow(Actor, FirstRow);
         if (!bPlaced)
         {
-            UE_LOG(LogTemp, Log, TEXT("[CombatGrid] %s: %s row is full - trying the others"), *Actor->GetName(),
+            UE_LOG(LogTemp, Verbose, TEXT("[CombatGrid] %s: %s row is full - trying the others"), *Actor->GetName(),
                    *CombatRowHelpers::GetRowName(FirstRow));
         }
         for (int32 RowIndex = 0; !bPlaced && RowIndex < UE_ARRAY_COUNT(CombatGridStart::FALLBACK_ROWS); ++RowIndex)
@@ -603,7 +603,7 @@ void UCombatGridSubsystem::UpdateAllActorFacing(const FVector &ArenaCenter)
         UpdateActorFacing(Pair.Key, ArenaCenter);
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatGrid] Updated facing for %d actors"), ActorPositions.Num());
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatGrid] Updated facing for %d actors"), ActorPositions.Num());
 }
 
 void UCombatGridSubsystem::UpdateActorFacing(AActor *Actor, const FVector &ArenaCenter)
@@ -753,7 +753,7 @@ bool UCombatGridSubsystem::MoveActorToRow(AActor *Actor, ECombatRow NewRow, cons
     // Update facing
     UpdateActorFacing(Actor, ArenaCenter);
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatGrid] %s moved to %s (Dmg: %+.0f%%, Def: %+.0f%%)"),
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatGrid] %s moved to %s (Dmg: %+.0f%%, Def: %+.0f%%)"),
            *Actor->GetName(),
            *NewPos.ToString(),
            (NewPos.GetDamageModifier() - 1.0f) * 100.0f,
@@ -786,7 +786,7 @@ bool UCombatGridSubsystem::PushActorBack(AActor *Actor, const FVector &ArenaCent
         NewRow = ECombatRow::Back;
         break;
     case ECombatRow::Back:
-        UE_LOG(LogTemp, Log, TEXT("[CombatGrid] %s already at Back row, cannot push further"),
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatGrid] %s already at Back row, cannot push further"),
                *Actor->GetName());
         return false;
     default:
@@ -820,7 +820,7 @@ bool UCombatGridSubsystem::PullActorForward(AActor *Actor, const FVector &ArenaC
         NewRow = ECombatRow::Front;
         break;
     case ECombatRow::Front:
-        UE_LOG(LogTemp, Log, TEXT("[CombatGrid] %s already at Front row, cannot pull further"),
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatGrid] %s already at Front row, cannot pull further"),
                *Actor->GetName());
         return false;
     default:
@@ -865,7 +865,7 @@ bool UCombatGridSubsystem::SwapActorPositions(AActor *ActorA, AActor *ActorB, co
     UpdateActorFacing(ActorA, ArenaCenter);
     UpdateActorFacing(ActorB, ArenaCenter);
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatGrid] Swapped %s and %s positions"),
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatGrid] Swapped %s and %s positions"),
            *ActorA->GetName(), *ActorB->GetName());
 
     return true;
