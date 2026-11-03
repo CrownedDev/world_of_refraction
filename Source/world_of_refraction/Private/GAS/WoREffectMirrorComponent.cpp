@@ -76,6 +76,12 @@ void UWoREffectMirrorComponent::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(UWoREffectMirrorComponent, HeldSnapshot);
+	DOREPLIFETIME(UWoREffectMirrorComponent, bServerReadsFromGAS);
+}
+
+void UWoREffectMirrorComponent::OnRep_HeldSnapshot()
+{
+	OnHeldSnapshotChanged.Broadcast(GetOwner());
 }
 
 bool UWoREffectMirrorComponent::ReadsFromGAS()
@@ -200,7 +206,8 @@ void UWoREffectMirrorComponent::SyncMirror()
 	Mirrored = MoveTemp(Kept);
 	SyncedFingerprint = GetSyncFingerprint();
 	// B-318: the read a client can't make itself, kept for replication (empty while the enum path reads).
-	HeldSnapshot = ReadsFromGAS() ? BuildHeld(SEM->GetActiveEffects(Owner)) : TArray<FActiveSkillEffect>();
+	bServerReadsFromGAS = ReadsFromGAS();
+	HeldSnapshot = bServerReadsFromGAS ? BuildHeld(SEM->GetActiveEffects(Owner)) : TArray<FActiveSkillEffect>();
 
 	if (bResyncRequested)
 	{
@@ -270,7 +277,12 @@ TArray<FActiveSkillEffect> UWoREffectMirrorComponent::ReadHeldEffects(const TArr
 	// B-318 (Q-318): a client reads the server's GAS read, replicated; its own stored list isn't the truth.
 	if (GetOwner() && !GetOwner()->HasAuthority())
 	{
-		return ReadsFromGAS() ? HeldSnapshot : Stored;
+		if (ReadsFromGAS() != bServerReadsFromGAS)
+		{
+			UE_LOG(LogWoREffects, Verbose, TEXT("[EffectMirror] %s: this client's wor.Effects.UseGAS differs from the server's; following the server"),
+				   *GetNameSafe(GetOwner()));
+		}
+		return bServerReadsFromGAS ? HeldSnapshot : Stored;
 	}
 	UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
 	// Mid-sync, Mirrored is half-updated: the stored list is the safe answer.
@@ -466,6 +478,10 @@ FString UWoREffectMirrorComponent::GetDebugString() const
 									 : FString(TEXT("untracked"));
 		Lines.Add(FString::Printf(TEXT("%s magnitude=%.2f handle=%s %s%s"), *Entry.Identity.ToString(), Entry.Magnitude,
 								  *Entry.Handle.ToString(), *Lifetime, Entry.TickSpec.IsValid() ? TEXT(", pays ticks") : TEXT("")));
+	}
+	for (const FActiveSkillEffect &Held : HeldSnapshot)
+	{
+		Lines.Add(FString::Printf(TEXT("snapshot (B-318): %s id=%d, %d turn(s) left"), *Held.EffectName, Held.EffectID, Held.RemainingTurns));
 	}
 	for (const FWoREffectIdentity &Identity : EndedByGAS)
 	{
