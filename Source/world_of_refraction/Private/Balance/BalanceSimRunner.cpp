@@ -235,6 +235,7 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 	Data->MaxHealth = Archetype.MaxHealth;
 	Data->Luck = Archetype.Luck;
 	Data->SpellDamage = Archetype.SpellDamage;
+	Data->EnemyTier = Archetype.WeaponTier; // B-224b: read only for enemies (rank health), so a party member is unaffected
 
 	// Montage-less skills: with the instant-impacts seam each hit lands at once, defended.
 	UAbilityData *Attack = NewObject<UAbilityData>(GetTransientPackage());
@@ -303,8 +304,7 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 
 void FBalanceSimRunner::ApplyEnemyStrength(AActor *Enemy, const FBalanceMatchup &Matchup)
 {
-	// The same three multipliers as BattleGameMode's trial fights (B-224: the rank's HP is the game's own now).
-	// TODO(B-224): BalanceSimulator.md also scales by the enemy's tier power; neither the game nor the sim does yet.
+	// The same multipliers as BattleGameMode's trial fights: difficulty x zone, then rank x tier power (B-224 / B-224b).
 	const float Strength = TrialGate::GetEnemyStrengthMultiplier(Matchup.TrialDifficulty) *
 						   AEnemyZone::GetTierStrengthMultiplier(Matchup.ZoneTier);
 	TrialGate::ApplyEnemyStrength(Enemy, Strength);
