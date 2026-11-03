@@ -569,8 +569,8 @@ bool UEconomyService::ResolveDuplicate(AActor *Owner, FGuid WeakerID, bool bConv
     {
         return false;
     }
-    const FDuplicateGearPair *Pair = Inv->FindDuplicateGear().FindByPredicate(
-        [&WeakerID](const FDuplicateGearPair &Candidate) { return Candidate.WeakerID == WeakerID; });
+    const TArray<FDuplicateGearPair> Pairs = Inv->FindDuplicateGear();
+    const FDuplicateGearPair *Pair = Pairs.FindByPredicate([&WeakerID](const FDuplicateGearPair &Candidate) { return Candidate.WeakerID == WeakerID; });
     if (!Pair)
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s: GUID %s is no weaker duplicate"), Verb, *WeakerID.ToString());
