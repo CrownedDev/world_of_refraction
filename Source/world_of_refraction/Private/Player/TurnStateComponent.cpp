@@ -140,6 +140,19 @@ int32 UTurnStateComponent::GetActorTeam(const AActor *Actor) const
 	return Entry ? Entry->Team : INDEX_NONE;
 }
 
+TArray<AActor *> UTurnStateComponent::GetTeamMembers(int32 Team) const
+{
+	TArray<AActor *> Members;
+	for (const FTurnStateTeam &Entry : Teams)
+	{
+		if (Entry.Team == Team && Entry.Actor)
+		{
+			Members.Add(Entry.Actor);
+		}
+	}
+	return Members;
+}
+
 void UTurnStateComponent::HandleTurnStarted(AActor *Actor, int32 InTurnNumber)
 {
 	TurnNumber = InTurnNumber;

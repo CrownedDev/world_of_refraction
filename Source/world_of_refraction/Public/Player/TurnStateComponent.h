@@ -73,6 +73,8 @@ public:
 	/** Actor's team (0 = the local party side, as UTurnManager::GetActorTeam), INDEX_NONE if not in the fight. */
 	UFUNCTION(BlueprintPure, Category = "Turn State")
 	int32 GetActorTeam(const AActor *Actor) const;
+	/** Every combatant on Team, in the server's order (as UTurnManager::GetTeamMembers). */
+	TArray<AActor *> GetTeamMembers(int32 Team) const;
 
 	/** Fired on the server after a refresh and on clients when replicated state arrives. */
 	UPROPERTY(BlueprintAssignable, Category = "Turn State")
