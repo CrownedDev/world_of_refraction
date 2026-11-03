@@ -35,6 +35,9 @@
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryUnlock.h"
 #include "Pool/PoolSubsystem.h" // B-314: home pieces on the run can't be sold or dismantled
+#include "Inventory/GearGive.h"  // B-316: buy-for hands the bought gear over
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
 
 namespace
 {
@@ -968,6 +971,113 @@ FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &
         // Unknown asset types price at 0 — Purchase rejects them separately.
     }
     return Cost;
+}
+
+namespace
+{
+    /** B-316: the local party member with Key, or null. */
+    const FPartyMember *BuyForMemberOf(const AActor *Payer, FName Key)
+    {
+        const UWorld *World = Payer ? Payer->GetWorld() : nullptr;
+        const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+        const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+        const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+        return Party ? Party->Members.FindByPredicate([Key](const FPartyMember &Member)
+                                                      { return Member.CharacterData && UPoolSubsystem::GetCharacterKey(Member.CharacterData) == Key; })
+                     : nullptr;
+    }
+
+    /** B-316: every weapon and adapter ID in the store. */
+    TSet<FGuid> BuyForGearIDs(const UPoolSubsystem &Pool)
+    {
+        TSet<FGuid> IDs;
+        for (const FWeaponInventoryEntry &Entry : Pool.GetOwnedWeapons())
+        {
+            IDs.Add(Entry.PersistentID);
+        }
+        for (const FRingInventoryEntry &Entry : Pool.GetOwnedRings())
+        {
+            IDs.Add(Entry.PersistentID);
+        }
+        return IDs;
+    }
+}
+
+bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMerchantStockEntry> &Items)
+{
+    const UCharacterDataComponent *PayerChar = Payer ? Payer->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    const FName PayerKey = UPoolSubsystem::GetCharacterKey(PayerChar ? PayerChar->CharacterData : nullptr);
+    if (ForKey.IsNone() || ForKey == PayerKey)
+    {
+        return Purchase(Payer, Items);
+    }
+    UWorld *World = Payer ? Payer->GetWorld() : nullptr;
+    const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+    UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+    const FPartyMember *Receiver = BuyForMemberOf(Payer, ForKey);
+    if (!Pool || PayerKey.IsNone() || !Receiver)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s is not a party member the payer can buy for - refused"), *ForKey.ToString());
+        return false;
+    }
+    for (const FMerchantStockEntry &Entry : Items)
+    {
+        const UPrimaryDataAsset *Asset = Entry.IsAssetEntry() ? Entry.Asset.Get() : nullptr;
+        if (Cast<USpellData>(Asset) || Cast<UAbilityData>(Asset) || Cast<UEvolutionItemData>(Asset))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s can't be bought for another character yet (B-316b) - refused"),
+                   *GetNameSafe(Asset));
+            return false;
+        }
+        if (Receiver->bRunOnly && (Cast<UWeaponData>(Asset) || Cast<URingData>(Asset)))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s is only here for the run and can't own gear (Q-321) - refused"),
+                   *ForKey.ToString());
+            return false;
+        }
+    }
+
+    const TSet<FGuid> GearBefore = BuyForGearIDs(*Pool);
+    const TMap<FCrystalId, int32> CarriedBefore = Pool->GetCarriedItems(PayerKey);
+    if (!Purchase(Payer, Items))
+    {
+        return false;
+    }
+
+    // The new pieces are the payer's (PushGearToPool): each becomes the receiver's.
+    int32 GearMoved = 0;
+    for (const FGuid &ID : BuyForGearIDs(*Pool).Difference(GearBefore))
+    {
+        const FText Refusal = WoRGive::TryGiveGear(World, Pool->GetGearOwner(ID), ForKey, ID);
+        if (Refusal.IsEmpty())
+        {
+            ++GearMoved;
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s stays with the payer: %s"), *ID.ToString(), *Refusal.ToString());
+        }
+    }
+    // Crystals and stones the purchase put in the payer's pouch move to the receiver's, as many as fit.
+    int32 ItemsMoved = 0;
+    for (const TPair<FCrystalId, int32> &Stack : TMap<FCrystalId, int32>(Pool->GetCarriedItems(PayerKey)))
+    {
+        const int32 *Before = CarriedBefore.Find(Stack.Key);
+        const int32 Bought = Stack.Value - (Before ? *Before : 0);
+        const int32 Moving = FMath::Min(Bought, Pool->GetCarryRoom(ForKey, Stack.Key));
+        if (Moving > 0 && Pool->GiveCarried(PayerKey, ForKey, Stack.Key, Moving))
+        {
+            ItemsMoved += Moving;
+        }
+        if (Bought > Moving)
+        {
+            UE_LOG(LogTemp, Log, TEXT("[EconomyService] PurchaseFor: %d %s didn't fit %s's pouch - left with the payer"),
+                   Bought - Moving, *ItemIdentity::GetDisplayName(Stack.Key), *ForKey.ToString());
+        }
+    }
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] %s bought for %s: %d piece(s) of gear and %d item(s) handed over"), *PayerKey.ToString(),
+           *ForKey.ToString(), GearMoved, ItemsMoved);
+    return true;
 }
 
 FPurchaseCost UEconomyService::PreviewCartCost(const TArray<FMerchantStockEntry> &Items) const
