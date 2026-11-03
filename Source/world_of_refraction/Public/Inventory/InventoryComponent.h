@@ -123,7 +123,8 @@ public:
     // GetInventoryComponent() — see LoadoutComponent for the API.
     // ============================================================
 
-    /** Configured maximum number of saved loadouts. */
+    /** Configured maximum number of saved loadouts. OBSOLETE (B-311): creating and copying loadouts now caps custom
+     *  loadouts at PoolConstants::MAX_CUSTOM_LOADOUTS (D-111); remove after Crown's PIE. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Config")
     int32 MaxSavedLoadouts = 5;
 

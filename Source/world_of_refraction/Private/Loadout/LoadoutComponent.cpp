@@ -294,7 +294,7 @@ int32 ULoadoutComponent::CreateNewLoadout(const FString &LoadoutName)
         UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::CreateNewLoadout] No InventoryComponent found on owner"));
         return -1;
     }
-    if (Inv->SavedLoadouts.Num() >= Inv->MaxSavedLoadouts || !HasRoomForCustomLoadout(*Inv))
+    if (!HasRoomForCustomLoadout(*Inv)) // D-111: 5 custom loadouts plus the lore ones (MaxSavedLoadouts no longer caps these)
     {
         return -1;
     }
@@ -504,7 +504,7 @@ int32 ULoadoutComponent::DuplicateLoadout(int32 SourceIndex, const FString &NewN
         return -1;
     }
 
-    if (Inv->SavedLoadouts.Num() >= Inv->MaxSavedLoadouts || !HasRoomForCustomLoadout(*Inv))
+    if (!HasRoomForCustomLoadout(*Inv)) // D-111: 5 custom loadouts plus the lore ones (MaxSavedLoadouts no longer caps these)
     {
         return -1;
     }
