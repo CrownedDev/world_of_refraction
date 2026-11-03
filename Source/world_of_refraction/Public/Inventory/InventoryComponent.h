@@ -135,11 +135,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Saved")
     bool IsPrimaryInAnyLoadout(FGuid PersistentID) const;
 
-    /** D-116: each saved loadout with no primary gets the first usable owned weapon (an adapter
+    /** D-116: an active loadout with no primary gets the first usable owned weapon (an adapter
      *  when no weapon fits and the class takes one), skipping Excluded, gear worn by another member
-     *  and gear already in that loadout. A guard for old saves and strips; logs a warning per fill.
-     *  Returns loadouts filled. */
-    int32 RefillEmptyPrimaries(const FGuid &Excluded = FGuid());
+     *  and gear already in that loadout. A guard for old saves and strips; logs a warning. An
+     *  inactive loadout is left as it is (Q-320). True when it filled one. */
+    bool RefillActivePrimary(const FGuid &Excluded = FGuid());
 
     // ==================== OWNED GEAR SYNC (B-085, Q-085) ====================
     // The owned entry is the truth; a loadout slot is a cache keyed by PersistentID (weapons,

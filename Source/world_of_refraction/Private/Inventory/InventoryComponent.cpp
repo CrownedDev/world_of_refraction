@@ -782,7 +782,7 @@ int32 UInventoryComponent::RemoveFromSavedLoadouts(const FGuid &PersistentID)
     {
         UE_LOG(LogTemp, Log, TEXT("[Inventory] %s: took instance %s out of %d saved loadout(s)"),
                *GetNameSafe(GetOwner()), *PersistentID.ToString(), Changed);
-        RefillEmptyPrimaries(PersistentID);
+        RefillActivePrimary(PersistentID);
     }
     return Changed;
 }
@@ -1344,7 +1344,7 @@ bool UInventoryComponent::DrawSharedGear()
 
     LinkLoadoutsToOwned();
     const int32 Stripped = StripUnownedGear();
-    RefillEmptyPrimaries();
+    RefillActivePrimary();
     SharedPool = Pool;
     SharedGearKey = Key;
     Pool->OnPoolGearChanged.AddUniqueDynamic(this, &UInventoryComponent::HandlePoolGearChanged);
@@ -1451,19 +1451,18 @@ int32 UInventoryComponent::StripUnownedGear()
     return Stripped;
 }
 
-int32 UInventoryComponent::RefillEmptyPrimaries(const FGuid &Excluded)
+bool UInventoryComponent::RefillActivePrimary(const FGuid &Excluded)
 {
     using namespace InventoryGearSync;
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex) || LoadoutHasPrimary(SavedLoadouts[ActiveLoadoutIndex]))
+    {
+        return false;
+    }
     const UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
     const bool bTakesAdapterPrimary = !(CharComp && CharComp->CharacterData && CharComp->CharacterData->CharacterClass == ECharacterClass::Resonator);
     const TMap<FName, const UCharacterData *> Party = GetPartyMembersByKey();
-    int32 Filled = 0;
-    for (FCombatLoadout &Loadout : SavedLoadouts)
+    FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
     {
-        if (LoadoutHasPrimary(Loadout))
-        {
-            continue;
-        }
         TSet<FGuid> InLoadout;
         ForEachGearSlot(Loadout,
                         [&InLoadout](const FWeaponInventoryEntry &Slot) { InLoadout.Add(Slot.PersistentID); },
@@ -1494,13 +1493,12 @@ int32 UInventoryComponent::RefillEmptyPrimaries(const FGuid &Excluded)
         }
         else
         {
-            continue; // nothing usable owned: the empty-primary fallback (Q-304) stays the guard
+            return false; // nothing usable owned: the empty-primary fallback (Q-304) stays the guard
         }
-        ++Filled;
         UE_LOG(LogTemp, Warning, TEXT("[Inventory] %s: loadout '%s' had no primary - filled with %s (D-116)"),
                *GetNameSafe(GetOwner()), *Loadout.LoadoutName, *Filler);
     }
-    return Filled;
+    return true;
 }
 
 bool UInventoryComponent::IsWornByOtherMember(const FGuid &PersistentID) const

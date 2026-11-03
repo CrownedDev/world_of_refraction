@@ -573,6 +573,12 @@ bool ULoadoutComponent::ValidateLoadout(int32 Index, UInventoryComponent *Invent
         return false;
     }
 
+    // D-116 (Q-320): flagged, not blocking - a member owning nothing usable has no primary to give.
+    if (!UInventoryComponent::LoadoutHasPrimary(Inv->SavedLoadouts[Index]))
+    {
+        UE_LOG(LogWoRLoadout, Warning, TEXT("%s: loadout %d has no primary (D-116)"), *GetNameSafe(GetOwner()), Index);
+    }
+
     TArray<FString> Errors = GetValidationErrors(Index, Inventory);
 
     if (Errors.Num() > 0)
@@ -1645,7 +1651,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
     }
     if (!UInventoryComponent::LoadoutHasPrimary(Loadout))
     {
-        Inv->RefillEmptyPrimaries(); // D-116: a dropped primary is replaced, not left empty
+        Inv->RefillActivePrimary(); // D-116: a dropped primary is replaced, not left empty
     }
     return Dropped;
 }
