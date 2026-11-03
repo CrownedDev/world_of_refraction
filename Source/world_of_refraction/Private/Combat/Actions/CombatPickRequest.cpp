@@ -18,7 +18,8 @@ namespace CombatPickInternal
 	bool IsDefinedValue(TEnum Value)
 	{
 		const UEnum *Enum = StaticEnum<TEnum>();
-		return Enum && Enum->IsValidEnumValue(static_cast<int64>(Value));
+		// IsValidEnumValue also accepts the generated _MAX entry; refuse it.
+		return Enum && Enum->IsValidEnumValue(static_cast<int64>(Value)) && static_cast<int64>(Value) < Enum->GetMaxEnumValue();
 	}
 }
 

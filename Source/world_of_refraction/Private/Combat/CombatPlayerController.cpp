@@ -1,6 +1,9 @@
 // CombatPlayerController.cpp
 
 #include "Combat/CombatPlayerController.h"
+#include "Loadout/LoadoutComponent.h"
+#include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SpellData.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
@@ -259,6 +262,8 @@ ECombatInputVerdict ACombatPlayerController::HandleDefenseInput(EDefenseType Def
 	if (PressServerTime != CombatInputRouting::STAMP_NOW)
 	{
 		const double Now = UDefenseSystem::GetDefenseClockSeconds(this);
+		// A modified client could stamp up to the latency cap early for extra Perfect Guard time: accepted for shared
+		// co-op (TODO: B-231 judges remote presses on the server clock).
 		InputTime = FMath::Clamp(PressServerTime, Now - CombatInputRouting::MAX_DEFENSE_INPUT_LATENCY_SECONDS, Now);
 	}
 	DefenseSys->SubmitDefenseInput(Defender, DefenseType, Direction, InputTime);
@@ -271,8 +276,11 @@ bool ACombatPlayerController::Server_SubmitDefenseInput_Validate(EDefenseType De
 {
 	const UEnum *TypeEnum = StaticEnum<EDefenseType>();
 	const UEnum *DirectionEnum = StaticEnum<EDefenseDirection>();
-	return TypeEnum && TypeEnum->IsValidEnumValue(static_cast<int64>(DefenseType)) && DirectionEnum &&
-		   DirectionEnum->IsValidEnumValue(static_cast<int64>(Direction)) && FMath::IsFinite(PressServerTime);
+	// IsValidEnumValue also accepts the generated _MAX entry; refuse it.
+	return TypeEnum && TypeEnum->IsValidEnumValue(static_cast<int64>(DefenseType)) &&
+		   static_cast<int64>(DefenseType) < TypeEnum->GetMaxEnumValue() && DirectionEnum &&
+		   DirectionEnum->IsValidEnumValue(static_cast<int64>(Direction)) &&
+		   static_cast<int64>(Direction) < DirectionEnum->GetMaxEnumValue() && FMath::IsFinite(PressServerTime);
 }
 
 void ACombatPlayerController::Server_SubmitDefenseInput_Implementation(EDefenseType DefenseType,
@@ -291,6 +299,31 @@ void ACombatPlayerController::RequestMenuPick(const FCombatPickRequest &Pick)
 	}
 	UE_LOG(LogWoR, Verbose, TEXT("[CombatInput] sending pick to the server: %s"), *Pick.GetDebugString());
 	Server_SubmitMenuPick(Pick);
+}
+
+namespace
+{
+	/** A client's pick may only use a spell or ability its character's loadout offers (any loaded asset otherwise,
+	 *  boss skills included). No loadout (headless harness): nothing to check against. */
+	bool OffersPickedSkill(const FCombatPickRequest &Pick)
+	{
+		const ULoadoutComponent *Loadout = Pick.Actor ? Pick.Actor->FindComponentByClass<ULoadoutComponent>() : nullptr;
+		if (!Loadout)
+		{
+			return true;
+		}
+		if (Pick.ActionType == EActionType::Spell)
+		{
+			return Pick.SpellData && Loadout->GetAvailableSpells().Contains(Pick.SpellData.Get());
+		}
+		if (Pick.ActionType == EActionType::Ability && Pick.SkillData)
+		{
+			const USkillDataBase *Skill = Pick.SkillData.Get();
+			return Loadout->GetAvailableAbilities().ContainsByPredicate([Skill](const UAbilityData *Each) { return Each == Skill; }) ||
+				   Loadout->GetAllWeaponAttacks().Contains(const_cast<USkillDataBase *>(Skill));
+		}
+		return true; // Defend, items (the executor checks the pouch), a basic attack with no skill
+	}
 }
 
 ECombatInputVerdict ACombatPlayerController::HandleMenuPick(const FCombatPickRequest &Pick, bool bFromClient)
@@ -319,6 +352,10 @@ ECombatInputVerdict ACombatPlayerController::HandleMenuPick(const FCombatPickReq
 		else if (Orchestrator->IsWaitingForAsyncAction())
 		{
 			Verdict = ECombatInputVerdict::Busy;
+		}
+		else if (bFromClient && !OffersPickedSkill(Pick))
+		{
+			Verdict = ECombatInputVerdict::NotOffered;
 		}
 	}
 

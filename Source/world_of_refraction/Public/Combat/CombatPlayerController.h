@@ -40,7 +40,9 @@ enum class ECombatInputVerdict : uint8
 	/** The character doesn't have the turn. */
 	NotTheirTurn,
 	/** An action is still running. */
-	Busy
+	Busy,
+	/** B-229 review: a client picked a spell or ability its character's loadout doesn't offer. */
+	NotOffered
 };
 
 /** B-229: one input the server handled, for the debug log. */
