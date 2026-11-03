@@ -33,7 +33,6 @@ BEGIN_DEFINE_SPEC(FTurnCapSpec, "WoR.Turns.TurnCap",
 	AActor *Slow = nullptr;
 	AActor *Fast = nullptr;
 
-	/** The actor of each turn, the first included. */
 	/** Starts the fight with Slow slowed far below half of Fast's speed. */
 	void StartSlowedFight()
 	{
@@ -47,6 +46,7 @@ BEGIN_DEFINE_SPEC(FTurnCapSpec, "WoR.Turns.TurnCap",
 		TurnManager->OnActorSpeedChanged(Slow);
 	}
 
+	/** The actor of each turn, the first included. */
 	TArray<AActor *> RecordTurns(int32 NumTurns)
 	{
 		TArray<AActor *> Order;
@@ -109,19 +109,24 @@ void FTurnCapSpec::Define()
 	It("never gives the fast combatant more than 2 turns in a row", [this]()
 	{
 		if (!TurnManager) return;
-		const TArray<AActor *> Order = RecordTurns(TURN_CAP_SAMPLE_TURNS);
+		TArray<AActor *> Order = RecordTurns(TURN_CAP_SAMPLE_TURNS);
 		const int32 SlowSpeed = TurnManager->GetEffectiveTurnSpeed(Slow);
 		const int32 FastSpeed = TurnManager->GetEffectiveTurnSpeed(Fast);
 		TestTrue(FString::Printf(TEXT("fast is over twice as fast (%d vs %d)"), FastSpeed, SlowSpeed),
 				 FastSpeed > TURN_CAP_RULE_RATIO * SlowSpeed);
 		TestTrue(FString::Printf(TEXT("longest run %d"), LongestRun(Order, Fast)), LongestRun(Order, Fast) <= TURN_CAP_RULE_RATIO);
+		for (const FPreviewTurnEntry &Entry : TurnManager->PreviewTurnOrder(TURN_CAP_SAMPLE_TURNS))
+		{
+			Order.Add(Entry.Actor); // the belt simulation obeys the cap too
+		}
+		TestTrue(TEXT("belt keeps the cap"), LongestRun(Order, Fast) <= TURN_CAP_RULE_RATIO);
 		const int32 FastTurns = Order.FilterByPredicate([this](AActor *Actor) { return Actor == Fast; }).Num();
 		const int32 SlowTurns = Order.Num() - FastTurns;
 		TestTrue(FString::Printf(TEXT("fast %d <= 2 x slow %d + 2"), FastTurns, SlowTurns), FastTurns <= TURN_CAP_RULE_RATIO * SlowTurns + TURN_CAP_RULE_RATIO);
 		TestTrue(TEXT("fast still acts more"), FastTurns > SlowTurns);
 	});
 
-	It("lets a capped Wind delay wait instead of breaking the cap", [this]()
+	It("spends a Wind delay the cap blocks instead of breaking the cap (Q-297b)", [this]()
 	{
 		if (!TurnManager) return;
 		StartSlowedFight();

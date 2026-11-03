@@ -830,12 +830,16 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 	if (NextCombatant->PlacesToYield > 0 && !bAnyWaiting)
 	{
 		// The next in line goes even if it has used this round's turns: in a 1v1 that is the
-		// only way to move back a place. Within the 2:1 cap (D-049): a capped next in line doesn't
-		// take it, and the delayed one yields at a later pick.
+		// only way to move back a place. Within the 2:1 cap (D-049, Q-297b): when everyone else is
+		// at the cap, the place is spent without moving (the cap eats it), so no delay waits forever.
 		if (FCombatantTurnDebt *NextInLine = PickHighestDebt(NextCombatant, /*bRespectCap=*/true))
 		{
 			NextCombatant->PlacesToYield--;
 			NextCombatant = NextInLine;
+		}
+		else if (PickHighestDebt(NextCombatant, /*bRespectCap=*/false))
+		{
+			NextCombatant->PlacesToYield--;
 		}
 	}
 
