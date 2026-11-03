@@ -266,9 +266,10 @@ public:
      *  here. False when the piece isn't a weapon or adapter in the pool, ToKey is none, or it is already ToKey's. */
     bool GiveGear(const FGuid &GearID, FName ToKey);
 
-    /** B-324 (D-117, Q-321): the shared home chest holds gear nobody owns for now. It is an owner key no character
-     *  can have (character keys are asset paths), so every member's draw leaves chest gear alone and
-     *  AssignUnownedGear never hands it out. Put = GiveGear(ID, GetChestKey()); take = GiveGear(ID, member). */
+    /** B-324 (D-117, Q-321): the shared home chest owns the gear put in it. It is an owner key no character can
+     *  have (character keys are asset paths), distinct from an unowned piece (NAME_None): every member's draw
+     *  leaves chest gear alone and AssignUnownedGear never hands it out. Put = GiveGear(ID, GetChestKey()); take =
+     *  GiveGear(ID, member). */
     static FName GetChestKey();
     bool IsInChest(const FGuid &GearID) const { return GetGearOwner(GearID) == GetChestKey(); }
 

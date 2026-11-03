@@ -281,6 +281,7 @@ void UStorageWidget::MoveSelected(int32 Count)
 	const FStorageChoice Choice = Choices[SelectedIndex];
 	const FName Member = MemberKey();
 	FText Refusal;
+	FText Moved = Choice.Label; // a partial stack move names what moved, not the whole stack
 	if (Choice.IsGear())
 	{
 		Refusal = Choice.bMine ? WoRGive::TryPutInChest(GetWorld(), Member, Choice.GearID) : WoRGive::TryTakeFromChest(GetWorld(), Member, Choice.GearID);
@@ -293,8 +294,9 @@ void UStorageWidget::MoveSelected(int32 Count)
 		const int32 Moving = FMath::Min3(Count, Choice.Count, Room);
 		const bool bMoved = Choice.bMine ? Pool->MoveToStorage(Member, Choice.Item, Moving) : Pool->MoveToCarried(Member, Choice.Item, Moving);
 		Refusal = bMoved ? FText::GetEmpty() : FText::Format(LOCTEXT("NoRoom", "No room for {0}: free a slot first"), Choice.Label);
+		Moved = StorageBuild::StackLabel(Choice.Item, Moving);
 	}
-	StatusText = Refusal.IsEmpty() ? FText::Format(Choice.bMine ? LOCTEXT("Put", "Put {0} in the chest") : LOCTEXT("Took", "Took {0}"), Choice.Label)
+	StatusText = Refusal.IsEmpty() ? FText::Format(Choice.bMine ? LOCTEXT("Put", "Put {0} in the chest") : LOCTEXT("Took", "Took {0}"), Moved)
 								   : Refusal;
 	Refresh();
 	UE_LOG(LogTemp, Log, TEXT("%s"), *GetStorageString());
