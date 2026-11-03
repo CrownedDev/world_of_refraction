@@ -47,8 +47,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Form")
     FText FormName;
 
-    /** The authored character: its Inventory is the reference loadout (weapons, adapters, evolutions,
-     *  spells, abilities) the meter matches against. */
+    /** The authored character: its Inventory is the reference loadout (weapons, adapters, spells,
+     *  abilities) the meter matches against. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Form")
     TObjectPtr<UCharacterData> Character = nullptr;
 

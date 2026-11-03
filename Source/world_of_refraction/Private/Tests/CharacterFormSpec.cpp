@@ -84,15 +84,20 @@ void FCharacterFormSpec::Define()
 		TestEqual(TEXT("one weapon at another tier"), CharacterFormMeter::GetFightFill(Reference, OtherTier), Expected);
 	});
 
-	It("fills slower wearing three of six pieces than wearing them all", [this]()
+	It("fills faster wearing three of six pieces than one, and slower than all six", [this]()
 	{
-		Forms->RecordFightWonWith({FirstPieces(3)});
-		const float Partial = Forms->GetProgress(Form);
-		Forms->RestoreProgress({});
-		Forms->RecordFightWonWith({Reference});
-		const float Full = Forms->GetProgress(Form);
-		TestTrue(TEXT("partial set fills"), Partial > 0.0f);
-		TestTrue(FString::Printf(TEXT("partial %.3f < full %.3f"), Partial, Full), Partial < Full);
+		const auto FillFor = [this](const TArray<FCharacterFormPiece> &Worn)
+		{
+			Forms->RestoreProgress({});
+			Forms->RecordFightWonWith({Worn});
+			return Forms->GetProgress(Form);
+		};
+		const float One = FillFor(FirstPieces(1));
+		const float Three = FillFor(FirstPieces(3));
+		const float Full = FillFor(Reference);
+		TestTrue(TEXT("one piece fills"), One > 0.0f);
+		TestTrue(FString::Printf(TEXT("one %.3f < three %.3f"), One, Three), One < Three);
+		TestTrue(FString::Printf(TEXT("three %.3f < six %.3f"), Three, Full), Three < Full);
 	});
 
 	It("credits the best-matching fighter, not the sum", [this]()

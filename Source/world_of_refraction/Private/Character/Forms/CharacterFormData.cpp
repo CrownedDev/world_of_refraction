@@ -3,7 +3,6 @@
 #include "Character/Forms/CharacterFormData.h"
 
 #include "Character/CharacterData.h"
-#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryData.h"
@@ -71,10 +70,7 @@ TArray<FCharacterFormPiece> UCharacterFormData::GetReferencePieces() const
     {
         AddGear(Ring);
     }
-    for (const UEvolutionItemData *Evolution : Inventory->EvolutionEquipment)
-    {
-        AddByAsset(Evolution); // matched by asset: an evolution's tier lives on its instance
-    }
+    // TODO: evolutions join the reference once loadout slots carry them (the worn side can't see them yet).
     for (const USpellData *Spell : Inventory->Spells)
     {
         AddByAsset(Spell);
