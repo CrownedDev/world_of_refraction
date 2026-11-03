@@ -17,7 +17,6 @@ namespace
 	constexpr int32 GRID_TEST_PLAYER_TEAM = 0;
 	constexpr int32 GRID_TEST_ENEMY_TEAM = 1;
 	constexpr int32 GRID_TEST_COLUMN = 1;
-	constexpr int32 GRID_TEST_OTHER_COLUMN = 0;
 	constexpr int32 GRID_TEST_INVALID_TEAM = 2;
 	constexpr float GRID_TEST_TOLERANCE = 0.001f;
 	constexpr float GRID_TEST_NO_MODIFIER = 1.0f;
@@ -139,16 +138,15 @@ void FCombatGridSpec::Define()
 		TestFalse(TEXT("An actor off the grid can't move"), Grid->PushActorBack(Ally, FVector::ZeroVector));
 	});
 
-	It("blocks a move into an occupied cell and keeps the actor where it was", [this]()
+	It("moves into a row whose same slot is taken: three rows, no columns (B-342, D-134)", [this]()
 	{
 		if (!Grid) return;
 		Place(Hero, ECombatRow::Front);
 		Place(Ally, ECombatRow::Middle);
-		TestFalse(TEXT("Push blocked"), Grid->PushActorBack(Hero, FVector::ZeroVector));
-		TestEqual(TEXT("Hero stays Front"), Grid->GetActorRow(Hero), ECombatRow::Front);
 		TestTrue(TEXT("Moving to its own row is a no-op success"), Grid->MoveActorToRow(Hero, ECombatRow::Front, FVector::ZeroVector));
-		TestTrue(TEXT("Another column is free"), Place(Ally, ECombatRow::Middle, GRID_TEST_PLAYER_TEAM, GRID_TEST_OTHER_COLUMN));
-		TestTrue(TEXT("Now the push goes through"), Grid->PushActorBack(Hero, FVector::ZeroVector));
+		TestTrue(TEXT("The push goes through"), Grid->PushActorBack(Hero, FVector::ZeroVector));
+		TestEqual(TEXT("Hero now Middle"), Grid->GetActorRow(Hero), ECombatRow::Middle);
+		TestEqual(TEXT("Ally stays Middle"), Grid->GetActorRow(Ally), ECombatRow::Middle);
 	});
 
 	It("swaps two allies, never across teams", [this]()
