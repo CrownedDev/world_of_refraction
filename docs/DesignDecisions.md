@@ -1663,6 +1663,43 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. Destiny 2's Power level is the plain average of the equipped items, rounded down ([Destiny wiki](https://www.destinypedia.com/Power)): the next level shows only once it's earned, and one stray high item doesn't lift the whole tier. Counting gear by B-306's rule keeps one answer for "what counts" across stats and tier.
 **Answer:** A (approved by the reference-backed default).
 **Notes for Claude:** applied in B-325 (`feature/B-325-combat-tier`). Skills count at their asset tier (`USkillDataBase::Tier`); a levelled skill instance's tier (`FAbilityInstance` / `FSpellInstance::Tier`) is not read yet: a follow-up if skills level.
+### D-120 — Enemy HP: own HP × rank × Combat Tier power; zones place stronger enemies (audit §1)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** an enemy's max HP = its own HP × its rank × its Combat Tier power (D-118). The zone tier no longer adds HP; a harder zone places higher-tier enemies instead. Combat Tier keeps its HP boost.
+**What it changes:** B-186's zone strength on HP (`AEnemyZone::GetTierStrengthMultiplier` in `ABattleGameMode` and the balance sim); zone damage is a separate question (not ruled: keep as is). Note: B-327 found the zone was counted once, not twice (MaxHPBuff percents add); its spec is updated by the job.
+**Notes for Claude:** job B-328.
+### D-121 — Finish GAS stage 3, then delete the enum effect path; new effects GAS-only (audit §2)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** finish GAS stage 3 (B-042i, B-042j2, B-042f, B-042g), then delete the enum effect path. Until then every new effect goes in as a GAS effect only, and no feature job touches both paths.
+**What it changes:** B-042g is the deletion job (`FActiveSkillEffect` storage, the mirror, the sync and the enum branches); B-318 folds in.
+**Notes for Claude:** a standing rule for every job; the CLAUDE.md rules section should say it (Crown to approve that edit).
+### D-122 — Each character's inventory component is their store; the pool keeps only the home chest (audit §3; changes D-111's wording)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** each character's inventory component is their store; `UPoolSubsystem` keeps only the shared home chest. D-111's behaviour (GUIDs, references, the run layer) stays; its "one store per player" wording changes.
+**What it changes:** B-312b becomes "readers onto the member's component"; B-313 and B-314 stay; **B-315 is dropped** (the owner is the component); B-316 (give) is simpler; B-317 deletes the pool wearers and the copies.
+**Notes for Claude:** rows re-scoped in `Backlog.md`.
+### D-123 — The player picks pillars only; sub-stats come from the asset and gear; one Speed (audit §4)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** the player picks pillars only. Sub-stats come from the character asset and gear (WoW-like); the 3-points-per-level sub-stat pool retires. Action Speed and Spell Speed merge into one **Speed**.
+**What it changes:** the level-up sub-stat pool; D-088's Ice → Action Speed wording (now Speed); `StatModifierTable`, the defense window maths, a stone kind.
+**Notes for Claude:** jobs B-330 (pool retires) and B-331 (Speed merge).
+### D-124 — One PIE sweep checklist; deletes batched per milestone (audit §6)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** one combined checklist, `docs/PIE/Sweep.md`, covers every retire-after-PIE delete; from then on deletes are batched into one sweep per milestone. Otherwise unchanged: nothing is deleted before Crown's PIE.
+**Notes for Claude:** job B-332.
+### D-125 — Seven balances (audit §7; changes D-105)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** seven balances: **Gold, Prisms, Diamond, Gear Essence, Skill Essence, Elemental Essence, Pillar Essence**. The 14 typed essences retire. Elemental pays for anything with an element; Pillar pays for stat stones; Skill pays for spells, abilities and ability stones. A spell costs Skill + Elemental; a non-elemental ability costs Skill only. Quartz folds into Elemental (changes D-105). Pre-release saves may be wiped (D-060).
+**Notes for Claude:** job B-333.
+### D-126 — Infusion keeps the source choice; EP = base × charge level; HP cost only at level 2 (audit §8)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** keep choosing the infusion source. The EP cost is the base × the charge level; the HP cost applies only at level 2. (The audit recommended dropping the source choice; Crown kept it, so D-007 and D-035 stand.)
+**Notes for Claude:** job B-334.
+### D-127 — Per-instance random rolls retire (audit §9)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** delete per-instance random rolls: flag them OBSOLETE now, delete them in the sweep (D-124). They are already off, so nothing changes in play.
+**Notes for Claude:** job B-335.
+(Audit §5: **no change** — evolutions and fusions keep their wear. §10 is Q-293d.)
 
 ### Q-321 — Can the shared home chest hold gear, or only items?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
@@ -3107,6 +3144,15 @@ Moved here once applied. Newest first.
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-224b. Authoring `EnemyTier` on the enemy assets is editor work (CC+UE).
 
+### Q-318 — How a co-op guest reads another character's effects from GAS
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-318, cloud) · **Blocks:** —
+**Question:** B-318 asks a client to read effects "from the replicated GAS state (its ASC's active GEs with their WoR context, and the tracker's turns left)". Player characters use the Mixed replication mode, in which other players' characters (simulated proxies) receive **no** GameplayEffects, only tags and cues; and active-GE handles differ between server and client, so the tracker's turns can't be keyed by them. How does a guest get the list?
+**Context:** `Private/Character/CombatCharacter.cpp` (`SetReplicationMode(Mixed)`); `Private/GAS/WoREffectMirrorComponent.cpp` (`ReadHeldEffects`, `BuildHeld`, `HeldSnapshot`).
+**Options / as built:** **A** the server replicates its own GAS read (`ReadHeldEffects`' answer, turns included) as a snapshot on the effect mirror; a client returns it. **B** switch every character to Full replication and replicate the tracker's turns keyed by effect identity, so a client rebuilds the list itself. **C** Mixed for owners, read the owner's own ASC, and the snapshot only for others.
+**Recommendation:** A. Epic's GAS guidance keeps Mixed for player characters and Minimal for AI to save bandwidth (Full is for single-player); Lyra shows other players' state through replicated tags / attributes, not their GEs. One snapshot is the same data on every client and keeps the server's read as the single truth until the stored list retires (B-042g).
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-318. The snapshot is refreshed by each sync; a guest's view is as fresh as the server's last sync.
+
 ### Q-279c — Outfits: the details B-279c needed
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-279c, cloud) · **Blocks:** —
 **Question:** `CharacterCustomisation.md` leaves four details open for the build: (1) where outfit pieces may be swapped; (2) whether taking a skin off keeps its outfit; (3) what wearing an outfit with no skin does to the body; (4) slot names in player text.
@@ -3127,7 +3173,7 @@ Moved here once applied. Newest first.
 **Notes for Claude:** applied in B-293c. Re-run `WOR_BALANCE=nightly Scripts/ue/test.sh WoR.Balance.` before tuning further.
 
 ### Q-293d — Balance targets that clash with the Decided numbers
-**Status:** OPEN · **Raised:** 2026-11-03 (B-293c, cloud) · **Blocks:** B-293d
+**Status:** ANSWERED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (B-293c, cloud) · **Blocks:** B-293d
 **Question:** Three targets can't be met without changing a Decided number (BaselineNumbers.md). Which gives way?
 **Context:** `docs/analysis/Expedition33Balance.md` ("Not changed"); `Public/Combat/Tuning/CombatBaselineConstants.h` (rank HP); `Private/Balance/BalanceSimReport.cpp` (bands).
 **Options:**
@@ -3135,8 +3181,19 @@ Moved here once applied. Newest first.
 - **Pillar 6** (S gear under-levelled wins 92%, band 35–65%): **A** keep the floor 0.5 and move the band (e.g. 60–95%: gear leads, never certain); **B** harsher under-requirement penalty.
 - **Stacked reduction** (Defense 75% × Damage Taken Down 90% × Guard 50% lets 1.25% through): **A** an overall cap on damage taken (e.g. at most 90% off before Perfect Guard), as E33 capped stacking after Stendhal ([Destructoid](https://www.destructoid.com/expedition-33-stendhal-nerf-update-patch-notes/)); **B** leave the per-source caps.
 **Recommendation:** none taken by default: each changes a number Crown decided. C for bosses (E33's model), A for pillar 6 (BaselineNumbers §4 already expects S gear ~2.3x ahead), A for stacking.
-**Answer (Crown):** _write here_
+**Answer (Crown, 2026-11-03):** (1) rank HP: mini-boss x3 -> x4, boss x6 -> x8; (2) the requirement floor 0.5 -> 0.25 (under-levelled gear works at a quarter strength); (3) a damage floor: after Defense, Damage Taken Down and Guard a hit always deals at least 10% of itself (Elden Ring style), a named constant.
+**Notes for Claude:** applied in B-293d (`chore/B-293d-decided-balance`). The floor measures from the hit before the defender's Damage Taken Down, Defense and Guard (each impact's guarded share travels to the damage maths); a Perfect Guard or a dodge still takes the whole hit, since no damage reaches the maths. The pillar-6 band stays 35–65% (not moved by the answer); re-run the nightly. Details decided by default in the build (reviewer, 2026-11-03): the floor also undoes grid-position defense (the measurement comes before it); a net Damage Taken Up is not divided out, so it raises the floor with the hit; the floor rounds up (`CeilToInt`, less a 0.001 float slack) while normal hits round to nearest. **For Crown:** the 0.25 requirement floor doesn't bite yet: the ladder's lowest rung (gap +5) is 0.32, so under-levelled gear bottoms out at about a third, not a quarter. Add a rung (gap +6 → 0.25) if you want the quarter reached.
 
+
+### Q-293e — Mid/Late fights after B-293c: enemy HP stacking, or the sim?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-293d, cloud, from the second nightly) · **Blocks:** —
+**Question:** The second nightly lost Mid/Late normal fights at Medium (win rate 0.12 / 0.00) and ran their mini-boss and boss fights 18–21 rounds. Is that enemy HP stacking (tier power x2.2–x4.8 × rank x4/x8 × zone, about x38 for a late boss), and should it be capped?
+**Context:** `Private/Trial/TrialGate.cpp` (`ApplyEnemyRankHealth`), `Private/Balance/BalanceArchetypes.cpp`, `docs/analysis/BaselineNumbers.md` §2.9 and §3.
+**Finding:** mostly not. (1) The x38 is by design: §2.9's reference enemies (606 HP at C, 2,106 at S, boss about 12,600) already include tier power, sized against the §3 examples' 196 / 572 hits, and the sim's zone is tier 0 (x1). (2) Normal fights are rank x1, so rank stacking can't explain losing them. (3) The sim's `P-GenericC` / `P-GenericS`, two of the three Mid/Late members, were the early F build with only the weapon swapped: 7 HP points (~149 HP), 4 Defense, 6 Raw Damage, skill base 20. They dealt well under §3's numbers and an S enemy's basic hit (~265) one-shot them.
+**Options:** **A** fix the sim: those members take the same-tier enemy's HP / Defense / Body points and §3's Raw Damage and skill base; **B** cap rank × tier HP (changes a Decided number, Crown's); **C** flatten the enemy tier curve (also Decided, and B-325 would inherit it).
+**Recommendation:** A. Measure first, as B-293c did: E33's balance patches fixed outliers after measuring, not the base curve ([Destructoid](https://www.destructoid.com/expedition-33-stendhal-nerf-update-patch-notes/)).
+**Answer:** A (approved by the reference-backed default). B-325 is unaffected: an enemy's Combat Tier still feeds the same tier-power HP.
+**Notes for Claude:** applied in B-293d (`chore/B-293d-decided-balance`). **For Crown, still open after the re-run:** enemy damage rides tier power (an S weapon is Power 192) but a party member's HP doesn't (gear MaxHP per point is the same at every tier, and D-118 keeps a player's tier statless), so even tier-matched S members fall in about 2 enemy hits against about 3.5 at F. If the next nightly still loses Mid/Late normal fights, that is the lever (enemy damage tier power, or player HP growth), and it is Crown's call.
 
 ### Q-223 — Level drops: the numbers, when you place them, and the save
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-223) · **Blocks:** —
@@ -3144,5 +3201,15 @@ Moved here once applied. Newest first.
 **Context:** `Public/Combat/Tuning/CombatBaselineConstants.h` (`LEVEL_DROP_CHANCE_BY_TIER`, `LEVEL_DROP_ELITE_CHANCE_FACTOR`, `MINIBOSS_LEVELS_BY_TIER`); `Private/Trial/TrialGate.cpp` (`RollLevelDrops`); `Private/Combat/CombatOrchestrator.cpp` (`FinishCombat`); `Private/Trial/LevelDropPlacement.cpp`.
 **Options / as built:** **odds** a normal enemy 10 % at F rising to 30 % at S, an elite double; **mini-boss and boss** guaranteed levels by tier: F/E/D 1, C/B 2, A/S 3 (a boss gives the same as a mini-boss of its tier); **rolled at the win** (the fight's own random draws don't shift); **placing** the drops wait in the run until you place them (`wor.UI.LevelDrop`), one press per level, any party member, refused at 7; **save** a run's levels and waiting drops are not saved yet (a reload mid-run loses them).
 **Recommendation:** as built. Hades' boons and Slay the Spire's card rewards come after the fight, chosen by the player, not mid-fight; low odds from normal enemies with guaranteed rewards from bosses is the Hades / Dead Cells pattern (elites as a better-odds middle step, as Slay the Spire's elites). Over a 3-floor run that's about 6-10 levels, under the 21 cap, with the vendor as backup. Every number is a tuning row (`LevelDropChance`, `MiniBossLevels`) for B-293c.
-**Answer (Crown):** _write here_
+**Answer (Crown, 2026-11-03): changed.** Level-ups are per character, not a shared pile: after a win each party member rolls its own drop at these odds, a mini-boss or boss gives each member its guaranteed levels, and each character places its levels on its own pillars (cap 7). Applied in B-223b.
 **Notes for Claude:** applied in B-223. The run's levels go into the save with the run-save work (the save version bump belongs there, not here); the placeholder prompt opens by console only (the real post-fight screen is D-024).
+
+### Q-223b — Per-character level drops: keep the odds?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-223b, cloud) · **Blocks:** —
+**Question:** With Crown's change to Q-223 every party member rolls its own drop, so a party gets about three times the levels it did. Do B-223's odds (10–30% per normal enemy, elites doubled; mini-boss / boss 1–3 by tier) need lowering to keep about 6–10 levels per character per run?
+**Context:** `Public/Combat/Tuning/CombatBaselineConstants.h` (`LEVEL_DROP_CHANCE_BY_TIER`, `MINIBOSS_LEVELS_BY_TIER`); `Private/Combat/CombatOrchestrator.cpp` (`FinishCombat`); Q-223's estimate of about 6–10 levels over a 3-floor run.
+**Options / as built:** **A** keep the odds: Q-223's 6–10 was the party's whole take; one roll per member at the same odds gives each character that same 6–10, the target. **B** lower them (each character would then get fewer than 6–10). **Also as built: a member who fell in the fight still rolls** (it was in the fight; the party won). The alternative is living members only.
+**Recommendation:** A, and fallen members roll: Expedition 33 and Octopath Traveler give the whole party its rewards after a win, fallen included, and players like that a bad fight doesn't also cost growth; Persona's living-only rule mostly punishes the healer's slip. The odds were set for one stream of levels; each character now has its own stream at that rate, which is exactly about 6–10 per character, under the 21 cap, with the vendor as backup. Diablo III's and Borderlands' instanced loot keep the per-player drop rates of single player for the same reason.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-223b; the odds are tuning rows (`LevelDropChance`, `MiniBossLevels`) if the nightly sim shows otherwise. A fallen member still gets its roll after a win (it was in the fight).
+
