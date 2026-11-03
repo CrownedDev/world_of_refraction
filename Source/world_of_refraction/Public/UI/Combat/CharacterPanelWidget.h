@@ -176,6 +176,9 @@ protected:
 	void HandleEffectRemoved(AActor *Target, const FActiveSkillEffect &Effect);
 	UFUNCTION()
 	void HandleEffectDurationChanged(AActor *Target, const FActiveSkillEffect &Effect, int32 RemainingTurns);
+	/** B-318: on a co-op guest, the server's held-effects snapshot arrived for the bound actor. */
+	UFUNCTION()
+	void HandleHeldSnapshotChanged(AActor *Holder);
 	UFUNCTION()
 	void HandleDied(AActor *DeadActor);
 
@@ -229,6 +232,7 @@ private:
 
 	/** Bound BD manager for absorption-energy display (when applicable) */
 	TWeakObjectPtr<UBrokenDarknessManager> BoundBDManager;
+	TWeakObjectPtr<class UWoREffectMirrorComponent> BoundEffectMirror;
 
 	bool bBound = false;
 

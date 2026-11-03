@@ -14,17 +14,23 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
 | [B-326](B-326.md) | `chore/B-326-flat-requirement-penalty` (on B-293d) | Unmet requirement = x0.6 and no scaling for weapons, abilities and spells; still castable | Not built |
+| [B-327](B-327.md) | `fix/B-327-zone-health-once` (in `dev`) | The zone scales no stats; enemy HP = own x rank x Combat Tier (D-120) | Pending |
 | [B-224](B-224.md) | `feature/B-224-combat-numbers` (in `dev`) | Combat numbers baseline: rank HP x1.5/3/6, Defense cap 75%, crit base x1.25, requirement floor 0.5, tuning ladders | Not built |
 | [B-288](B-288.md) | `feature/B-288-ladders` (in `dev`) | Every ladder rung pinned by a spec; Damage Taken Down cap named; no gameplay change | Not built |
 | [B-322](B-322.md) | `feature/B-322-per-character-pouch` (in `dev`) | A 10-slot pouch per character; save v9; older save's pouch to the leader | Pending |
 | [B-323](B-323.md) | `feature/B-323-give-between-characters` (in `dev`) | Give a weapon, adapter or pouch stack between your characters; `wor.UI.Give` | Pending |
 | [B-324](B-324.md) | `feature/B-324-shared-chest-gear` (in `dev`) | Unworn gear in the shared chest, any member takes it; `wor.UI.Storage` | Pending |
+| [B-042i](B-042i.md) | `refactor/B-042i-trigger-gas-specs` (in `dev`) | Parity specs: a trigger's effect lands on GAS as one GE on both paths; no gameplay change | Pending |
+| [B-312b](B-312b.md) | `refactor/B-312b-loadout-owns` (in `dev`) | Store 1b step 1: the loadout's owns-checks read the store view; no gameplay change | Pending |
 | [B-312](B-312.md) | `refactor/B-312-store-views` (in `dev`) | Gear store step 1: GUID index, member views, `wor.Inventory.CompareStore`; no gameplay change | Pending |
 | [B-293](B-293.md) | `feature/B-293-balance-targets` (in `dev`) | Balance targets, reports, GAS parity, `wor.Balance.Run`; no gameplay change | Pending |
 | [B-261](B-261.md) | `refactor/B-261-mirror-dirty-check` (in `dev`) | A GAS stat read skips the mirror re-sync when nothing changed (P5) | Pending |
 | [B-223](B-223.md) | `feature/B-223-level-drops` (in `dev`) | Level drops: chance from normal enemies, guaranteed from mini-bosses; place them with `wor.UI.LevelDrop` | Pending |
 | [B-224b](B-224b.md) | `feature/B-224b-rank-hp-per-team` (in `dev`) | Rank HP per team; enemy HP by tier (F default) | Pending |
-| [B-293d](B-293d.md) | `chore/B-293d-decided-balance` (UNBUILT, on B-293c) | Crown's balance answers: rank HP x4 / x8, requirement floor 0.25, 10% damage floor | Not built |
+| [B-293d](B-293d.md) | `chore/B-293d-decided-balance` (in `dev`) | Crown's balance answers: rank HP x4 / x8, requirement floor 0.25, 10% damage floor | Not built |
+| [B-223b](B-223b.md) | `feature/B-223b-personal-level-drops` (in `dev`) | Level drops per character: each member rolls its own, places its own | Not built |
+| [B-318](B-318.md) | `feature/B-318-client-gas-reads` (in `dev`) | Co-op guests read effects from the server's GAS read (UseGAS 1) | Not built |
+| [B-279c](B-279c.md) | `feature/B-279c-outfits` (in `dev`) | Outfits: six slots, piece assets, authored / current outfit (save v10), Leader Pose assembly | Not built |
 | [B-293b](B-293b.md) | `feature/B-293b-parity-effects` (in `dev`) | GAS parity with status breaks; test code only | Not built |
 | [B-293c](B-293c.md) | `chore/B-293c-balance-tuning` (in `dev`) | Balance first pass: AI defends less in even steps; difficulty scales enemy damage, not HP; normal fights in party rounds | Not built |
 | [B-001](B-001.md) | `fix/combat-hang-arc-a` (in `dev`) | Combat can no longer freeze; clean end of combat | Not tested |

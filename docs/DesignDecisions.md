@@ -2059,7 +2059,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **C** A zone swaps in a stronger version of each enemy.
 **Recommendation:** A. Dark Souls and Elden Ring set enemy strength by area and never scale to the player, and players praise how getting stronger shows and how you can wander into a hard area early (Enemies §4 asks for exactly that). Diablo II's fixed area levels work the same way. A few named tiers keep zones comparable and easy to tune. Not lore.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
-**Notes for Claude:** applied (feature/B-186-enemy-zones): `AEnemyZone` (`FEncounterZoneInfo`), `AEnemyZone::FindZoneAt` from `UEncounterComponent`, `UTrialRunSubsystem::PendingZone` (the same transport exception to D-064 as `PendingRank` and `PendingFirstStrike`, moves with them for co-op, D-065), `ABattleGameMode` multiplies it in. The loot pool is not read yet (B-188 chests, B-073 drops).
+**Notes for Claude:** applied (feature/B-186-enemy-zones): `AEnemyZone` (`FEncounterZoneInfo`), `AEnemyZone::FindZoneAt` from `UEncounterComponent`, `UTrialRunSubsystem::PendingZone` (the same transport exception to D-064 as `PendingRank` and `PendingFirstStrike`, moves with them for co-op, D-065), `ABattleGameMode` multiplies it in. The loot pool is not read yet (B-188 chests, B-073 drops). **D-120 (2026-11-03, B-327) changes this:** the zone scales no stats; it only places enemies, whose strength is their own Combat Tier (enemy HP = own x rank x Combat Tier).
 
 ### Q-185 — Placeholder first strike: what counts as a hit, and how long is the head start?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-185) · **Blocks:** — (B-185 shipped with A)
@@ -3091,6 +3091,25 @@ Moved here once applied. Newest first.
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-224b. Authoring `EnemyTier` on the enemy assets is editor work (CC+UE).
 
+### Q-318 — How a co-op guest reads another character's effects from GAS
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-318, cloud) · **Blocks:** —
+**Question:** B-318 asks a client to read effects "from the replicated GAS state (its ASC's active GEs with their WoR context, and the tracker's turns left)". Player characters use the Mixed replication mode, in which other players' characters (simulated proxies) receive **no** GameplayEffects, only tags and cues; and active-GE handles differ between server and client, so the tracker's turns can't be keyed by them. How does a guest get the list?
+**Context:** `Private/Character/CombatCharacter.cpp` (`SetReplicationMode(Mixed)`); `Private/GAS/WoREffectMirrorComponent.cpp` (`ReadHeldEffects`, `BuildHeld`, `HeldSnapshot`).
+**Options / as built:** **A** the server replicates its own GAS read (`ReadHeldEffects`' answer, turns included) as a snapshot on the effect mirror; a client returns it. **B** switch every character to Full replication and replicate the tracker's turns keyed by effect identity, so a client rebuilds the list itself. **C** Mixed for owners, read the owner's own ASC, and the snapshot only for others.
+**Recommendation:** A. Epic's GAS guidance keeps Mixed for player characters and Minimal for AI to save bandwidth (Full is for single-player); Lyra shows other players' state through replicated tags / attributes, not their GEs. One snapshot is the same data on every client and keeps the server's read as the single truth until the stored list retires (B-042g).
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-318. The snapshot is refreshed by each sync; a guest's view is as fresh as the server's last sync.
+
+### Q-279c — Outfits: the details B-279c needed
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-279c, cloud) · **Blocks:** —
+**Question:** `CharacterCustomisation.md` leaves four details open for the build: (1) where outfit pieces may be swapped; (2) whether taking a skin off keeps its outfit; (3) what wearing an outfit with no skin does to the body; (4) slot names in player text.
+**Context:** `Private/Character/Forms/CharacterFormSubsystem.cpp` (`TryWearForm`, `TryWearOutfitPiece`); `Private/Player/WoRPlayerState.cpp` (`ApplyFormLook`); `Private/Character/Outfit/OutfitPieceData.cpp` (`GetSlotName`).
+**Options / as built:** (1) **where skins switch**: the hub or a rest spot, never in a fight; (2) **kept**: only putting a skin on replaces the outfit with its authored one; (3) the body becomes the player's base form (Manny / Quinn) under the outfit; (4) the design doc's names (Helmet, Jacket, Shirt, Waist, Trousers, Footwear) as `LOCTEXT` placeholders.
+**Recommendation:** as built. Monster Hunter changes equipment (and layered armour) only at the house or camp's box; Final Fantasy XIV's glamour plates too only work in towns / inns, so a rest-spot rule matches players' expectations. (4) is Crown's wording; the placeholders change in one table.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-279c.
+
+
 ### Q-293c — Balance tuning: what to move first (Expedition 33)
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-293c, cloud; Crown asked that it follow Expedition 33) · **Blocks:** —
 **Question:** The first nightly balance run failed 19 targets. Which values move, and which way?
@@ -3145,5 +3164,28 @@ Moved here once applied. Newest first.
 **Context:** `Public/Combat/Tuning/CombatBaselineConstants.h` (`LEVEL_DROP_CHANCE_BY_TIER`, `LEVEL_DROP_ELITE_CHANCE_FACTOR`, `MINIBOSS_LEVELS_BY_TIER`); `Private/Trial/TrialGate.cpp` (`RollLevelDrops`); `Private/Combat/CombatOrchestrator.cpp` (`FinishCombat`); `Private/Trial/LevelDropPlacement.cpp`.
 **Options / as built:** **odds** a normal enemy 10 % at F rising to 30 % at S, an elite double; **mini-boss and boss** guaranteed levels by tier: F/E/D 1, C/B 2, A/S 3 (a boss gives the same as a mini-boss of its tier); **rolled at the win** (the fight's own random draws don't shift); **placing** the drops wait in the run until you place them (`wor.UI.LevelDrop`), one press per level, any party member, refused at 7; **save** a run's levels and waiting drops are not saved yet (a reload mid-run loses them).
 **Recommendation:** as built. Hades' boons and Slay the Spire's card rewards come after the fight, chosen by the player, not mid-fight; low odds from normal enemies with guaranteed rewards from bosses is the Hades / Dead Cells pattern (elites as a better-odds middle step, as Slay the Spire's elites). Over a 3-floor run that's about 6-10 levels, under the 21 cap, with the vendor as backup. Every number is a tuning row (`LevelDropChance`, `MiniBossLevels`) for B-293c.
-**Answer (Crown):** _write here_
+**Answer (Crown, 2026-11-03): changed.** Level-ups are per character, not a shared pile: after a win each party member rolls its own drop at these odds, a mini-boss or boss gives each member its guaranteed levels, and each character places its levels on its own pillars (cap 7). Applied in B-223b.
 **Notes for Claude:** applied in B-223. The run's levels go into the save with the run-save work (the save version bump belongs there, not here); the placeholder prompt opens by console only (the real post-fight screen is D-024).
+
+### Q-223b — Per-character level drops: keep the odds?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-223b, cloud) · **Blocks:** —
+**Question:** With Crown's change to Q-223 every party member rolls its own drop, so a party gets about three times the levels it did. Do B-223's odds (10–30% per normal enemy, elites doubled; mini-boss / boss 1–3 by tier) need lowering to keep about 6–10 levels per character per run?
+**Context:** `Public/Combat/Tuning/CombatBaselineConstants.h` (`LEVEL_DROP_CHANCE_BY_TIER`, `MINIBOSS_LEVELS_BY_TIER`); `Private/Combat/CombatOrchestrator.cpp` (`FinishCombat`); Q-223's estimate of about 6–10 levels over a 3-floor run.
+**Options / as built:** **A** keep the odds: Q-223's 6–10 was the party's whole take; one roll per member at the same odds gives each character that same 6–10, the target. **B** lower them (each character would then get fewer than 6–10). **Also as built: a member who fell in the fight still rolls** (it was in the fight; the party won). The alternative is living members only.
+**Recommendation:** A, and fallen members roll: Expedition 33 and Octopath Traveler give the whole party its rewards after a win, fallen included, and players like that a bad fight doesn't also cost growth; Persona's living-only rule mostly punishes the healer's slip. The odds were set for one stream of levels; each character now has its own stream at that rate, which is exactly about 6–10 per character, under the 21 cap, with the vendor as backup. Diablo III's and Borderlands' instanced loot keep the per-player drop rates of single player for the same reason.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-223b; the odds are tuning rows (`LevelDropChance`, `MiniBossLevels`) if the nightly sim shows otherwise. A fallen member still gets its roll after a win (it was in the fight).
+
+### Q-042i-b — B-042i: what is left once the mirror builds a trigger's GE in the same call?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-042i, desktop) · **Blocks:** —
+**Question:** B-042i says a trigger's payload "fires through the spec builder onto the ASC, not into `FActiveSkillEffect`". Since B-042h the mirror binds `OnEffectApplied`, so every `ApplyEffect` (a defender trigger's payload, a starting effect, a cast) already builds its GE through `FWoREffectSpecBuilder` in the same call; the stored copy is read-only under GAS. What does B-042i still do?
+**Context:** `Private/Skills/Effects/SkillEffectManager.cpp` (`OnDefenseResolvedHandler`, `ApplyEquipmentEffects`, `ApplyEffect`); `Private/GAS/WoREffectMirrorComponent.cpp` (`BindSources`, `SyncMirror`); `Private/Tests/GASTriggerParitySpec.cpp`.
+**Options / as built:** **A** B-042i proves the path with parity specs (`WoR.GAS.TriggerParity`: a defender trigger's payload and a starting effect land as one GE of their identity on both paths, a re-fire replaces, a removal ends the GE) and changes no code; the "no stored copy" half is B-042g's, when the enum store goes. **B** write a second apply path that skips the store now (a GAS-only effect the panel, AI and payouts can't see until B-042g).
+**Recommendation:** A. Fowler's ParallelChange: readers moved (B-042ye), payouts moved (B-042yd); the writer's copy is removed last, in one step (B-042g), not kept half-alive. Tag conditions already read GAS tags (B-042x).
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-042i. B-042g deletes the stored copies and the mirror's "Missing" rebuild with them; the `TODO` at `FWoREffectSpecBuilder::Apply` is retagged to B-042g. No authorable "if the target is Burning" condition exists in `ESkillTrigger`: B-042x's tag reads are the hit-time checks (`WoR.GAS.TagReads`), so this spec has no tag-condition case.
+
+### D-120 — Enemy HP = own × rank × Combat Tier; the zone adds no HP (changes Q-186, ER-48)
+**Status:** ANSWERED (2026-11-03) · **Raised:** 2026-11-03 (Crown, simplicity audit, via the brain) · **Blocks:** —
+**Answer (Crown):** (2026-11-03) an enemy's max HP is its own HP × its rank (Normal 1, Elite 1.5, Mini-boss 4, Boss 8) × its Combat Tier power. **The zone adds no HP, and (widened the same day) no damage either**: a zone only decides which enemies are placed there; their strength is their Combat Tier. The door's damage scaling (Q-293c) stays.
+**Notes for Claude:** applied in B-327: `ABattleGameMode` and `FBalanceSimRunner` pass only the door's shares to `TrialGate::ApplyEnemyStrength`; `AEnemyZone::GetTierStrengthMultiplier` is OBSOLETE (kept for its log line until PIE); `WoR.Trial.ZoneHealthOnce` pins base × rank × tier, `WoR.Trial.EnemyZone` that two zones leave the stats alike. Q-186's "scales every enemy's max HP and damage" and ER-48 now say the zone scales nothing.

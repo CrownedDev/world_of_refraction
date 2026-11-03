@@ -85,11 +85,13 @@ FText WoRLevelDrops::TryPlaceLevel(UWorld *World, UCharacterData *Member, EWorld
 	{
 		return LOCTEXT("NoRun", "No run to place a level in");
 	}
-	if (Run->GetUnspentLevels() <= 0)
-	{
-		return LOCTEXT("NoneWaiting", "No pillar levels to place");
-	}
+	const FName MemberKey = UPoolSubsystem::GetCharacterKey(Member);
 	const FText Name = FText::FromString(Member->Name);
+	// B-223b: a character's levels go only to its own pillars.
+	if (Run->GetUnspentLevels(MemberKey) <= 0)
+	{
+		return FText::Format(LOCTEXT("NoneWaiting", "{0} has no pillar levels to place"), Name);
+	}
 	if (GetLiveLevel(World, Member, Pillar) >= WorldStatConstants::LIVE_MAX)
 	{
 		return FText::Format(LOCTEXT("AtCap", "{0}'s {1} is already at {2}"), Name, GetPillarName(Pillar),
@@ -102,11 +104,11 @@ FText WoRLevelDrops::TryPlaceLevel(UWorld *World, UCharacterData *Member, EWorld
 	}
 	else
 	{
-		Run->AddRunEarnedLevels(UPoolSubsystem::GetCharacterKey(Member), Pillar, 1);
+		Run->AddRunEarnedLevels(MemberKey, Pillar, 1);
 	}
-	Run->TakeUnspentLevel();
+	Run->TakeUnspentLevel(MemberKey);
 	UE_LOG(LogTemp, Log, TEXT("[LevelDrops] %s +1 %s (now %d; %d left to place)"), *Member->Name, *GetPillarName(Pillar).ToString(),
-		   GetLiveLevel(World, Member, Pillar), Run->GetUnspentLevels());
+		   GetLiveLevel(World, Member, Pillar), Run->GetUnspentLevels(MemberKey));
 	return FText::GetEmpty();
 }
 

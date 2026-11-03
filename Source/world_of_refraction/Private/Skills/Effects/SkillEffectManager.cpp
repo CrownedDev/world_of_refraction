@@ -2371,7 +2371,8 @@ TArray<FActiveSkillEffect> USkillEffectManager::GetActiveEffects(AActor *Actor) 
 
 TArray<FActiveSkillEffect> USkillEffectManager::GetHeldEffects(AActor *Actor) const
 {
-	UWoREffectMirrorComponent *Mirror = UWoREffectMirrorComponent::ReadsFromGAS() && Actor
+	// B-318: an actor without authority always asks the mirror, which follows the server's switch, not this client's.
+	UWoREffectMirrorComponent *Mirror = Actor && (UWoREffectMirrorComponent::ReadsFromGAS() || !Actor->HasAuthority())
 											? Actor->FindComponentByClass<UWoREffectMirrorComponent>()
 											: nullptr;
 	return Mirror ? Mirror->ReadHeldEffects(GetActiveEffects(Actor)) : GetActiveEffects(Actor);
@@ -2379,7 +2380,8 @@ TArray<FActiveSkillEffect> USkillEffectManager::GetHeldEffects(AActor *Actor) co
 
 int32 USkillEffectManager::PreviewDotTickDamage(AActor *Actor, const FActiveSkillEffect &Effect) const
 {
-	UWoREffectMirrorComponent *Mirror = UWoREffectMirrorComponent::ReadsFromGAS() && Actor
+	// B-318: an actor without authority always asks the mirror, which follows the server's switch, not this client's.
+	UWoREffectMirrorComponent *Mirror = Actor && (UWoREffectMirrorComponent::ReadsFromGAS() || !Actor->HasAuthority())
 											? Actor->FindComponentByClass<UWoREffectMirrorComponent>()
 											: nullptr;
 	const int32 FromGAS = Mirror ? Mirror->PreviewDotTick(Effect) : INDEX_NONE;

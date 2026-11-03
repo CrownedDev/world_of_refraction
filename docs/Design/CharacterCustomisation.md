@@ -50,3 +50,4 @@ Every form (the player's Manny / Quinn form and each authored character) wears *
 |---|---|---|
 | 2026-10-29 | Created from Crown's six-slot outline and authoring order | docs/character-customisation |
 | 2026-10-29 | The uniform coat splits into Jacket (upper) + Waist (lower) (Crown) | docs/coat-split |
+| 2026-11-03 | B-279c built the data side (unbuilt, cloud): slots, piece asset, set, authored outfit, current outfit with save, Leader Pose assembly; Q-279c records the defaults | feature/B-279c-outfits |
