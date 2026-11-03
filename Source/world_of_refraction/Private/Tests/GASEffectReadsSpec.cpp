@@ -173,10 +173,10 @@ void FGASEffectReadsSpec::Define()
 				const int32 Syncs = Mirror->GetSyncCount();
 				TestEqual(TEXT("Same read"), EffectManager->GetTotalStatModifier(Hero, ESkillEffectType::DefenseDebuff), Before);
 				TestEqual(TEXT("Nothing changed: no sync"), Mirror->GetSyncCount(), Syncs);
-				EffectManager->ProcessStartOfTurnEffects(Hero);
-				EffectManager->ProcessEndOfTurnEffects(Hero);
-				EffectManager->GetTotalStatModifier(Hero, ESkillEffectType::DefenseDebuff);
-				TestTrue(TEXT("A turn passed: the mirror synced"), Mirror->GetSyncCount() > Syncs);
+				// ForgetEnded changes what the sync reads with no stored change and no event: the next read must sync.
+				Mirror->ForgetEnded(Burn());
+				TestEqual(TEXT("Same read after"), EffectManager->GetTotalStatModifier(Hero, ESkillEffectType::DefenseDebuff), Before);
+				TestTrue(TEXT("The mirror synced"), Mirror->GetSyncCount() > Syncs);
 			});
 
 			It("makes the same AI choices on a lethal burn", [this]()

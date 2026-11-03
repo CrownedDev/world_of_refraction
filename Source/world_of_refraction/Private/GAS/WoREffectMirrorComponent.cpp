@@ -207,6 +207,11 @@ uint32 UWoREffectMirrorComponent::GetSyncFingerprint() const
 	const USkillEffectManager *SEM = MirrorEffectManager(this);
 	uint32 Hash = HashCombineFast(GetTypeHash(ReadsFromGAS()), PointerHash(GetTracker()));
 	Hash = HashCombineFast(Hash, GetTypeHash(ASC ? ASC->GetActiveGameplayEffects().GetNumGameplayEffects() : INDEX_NONE));
+	// Which of our GEs are still live (one ending while another GE lands keeps the count).
+	for (const FWoRMirroredEffect &Entry : Mirrored)
+	{
+		Hash = HashCombineFast(Hash, ASC && ASC->GetActiveGameplayEffect(Entry.Handle) ? 1u : 0u);
+	}
 	const TArray<FActiveSkillEffect> *Stored = SEM ? SEM->FindActiveEffects(Owner) : nullptr;
 	if (!Stored)
 	{
@@ -317,6 +322,7 @@ void UWoREffectMirrorComponent::ForgetEnded(const FActiveSkillEffect &Effect)
 {
 	const FWoREffectIdentity Identity = FWoREffectSpecBuilder::MakeIdentity(Effect);
 	EndedByGAS.RemoveAll([&Identity](const FWoREffectIdentity &Ended) { return Ended.IsSameIdentity(Identity); });
+	SyncedFingerprint.Reset(); // the sync reads EndedByGAS, which the fingerprint doesn't hash
 }
 
 bool UWoREffectMirrorComponent::PayTick(const FActiveSkillEffect &Effect)
@@ -440,7 +446,10 @@ FString UWoREffectMirrorComponent::GetDebugString() const
 	{
 		Lines.Add(FString::Printf(TEXT("%s ended by GAS, stored copy pending release"), *Identity.ToString()));
 	}
-	return Lines.Num() > 0 ? FString::Join(Lines, TEXT("\n")) : TEXT("nothing mirrored");
+	Lines.Add(FString::Printf(TEXT("%d sync(s); last fingerprint %s, now %u"), SyncCount,
+							  SyncedFingerprint.IsSet() ? *FString::Printf(TEXT("%u"), SyncedFingerprint.GetValue()) : TEXT("<none>"),
+							  GetSyncFingerprint()));
+	return FString::Join(Lines, TEXT("\n"));
 }
 
 void UWoREffectMirrorComponent::BeginPlay()
