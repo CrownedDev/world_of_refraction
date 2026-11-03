@@ -612,6 +612,14 @@ namespace EffectText
 
     FText DescribePayload(const FSkillEffectPayload &P)
     {
+        // B-275: a keyed member reads as the old member it equals (Fire Immunity, Burn on hit).
+        const ESkillEffectType Resolved = SkillEffectClassification::ResolveKeyed(P.EffectType, P.Element);
+        if (Resolved != P.EffectType)
+        {
+            FSkillEffectPayload Old = P;
+            Old.EffectType = Resolved;
+            return DescribePayload(Old);
+        }
         const FSide Side = GetSide(P.Target, P.TargetCount);
         FText Stat;
         bool bRaises = false;
@@ -704,6 +712,11 @@ namespace EffectText
             return FText::Format(LOCTEXT("Burn", "inflict Burn on {0}{1}"), Side.bSelf ? LOCTEXT("Yourself", "yourself") : Side.Noun, Span(P));
         case ESkillEffectType::ApplyChillToTarget:
             return FText::Format(LOCTEXT("Chill", "inflict Chill on {0}{1}"), Side.bSelf ? LOCTEXT("Yourself", "yourself") : Side.Noun, Span(P));
+        case ESkillEffectType::GrantElementImmunity: // unresolved: no element picked
+            return ImmunityBody(P, Side, WoRGameNames::GetElementName(P.Element));
+        case ESkillEffectType::ApplyDOTOnHit:
+            return FText::Format(LOCTEXT("DOTOnHit", "inflict {0} damage over time on {1}{2}"), WoRGameNames::GetElementName(P.Element),
+                                 Side.bSelf ? LOCTEXT("Yourself", "yourself") : Side.Noun, Span(P));
 
         // ---- immunities ----
         case ESkillEffectType::GrantDOTImmunity: return ImmunityBody(P, Side, LOCTEXT("Immune_DOT", "damage over time"));
