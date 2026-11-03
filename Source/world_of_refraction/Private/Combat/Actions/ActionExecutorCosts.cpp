@@ -135,7 +135,7 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 		// Cluster 3: covers attacks too (folded into Ability). Reads the merged pointer so a
 		// cost-bearing attack reports the same cost the merged dispatch spends; default attacks
 		// (BaseEnergyCost=0) report 0. Preview MUST match the spend (ExecuteAbilityAsync): apply
-		// the charge multiplier + RawDamage surcharge, and zero EP for crystal sources.
+		// the charge level (D-126), and zero EP for crystal sources.
 		if (USkillDataBase *Skill = ResolveActionSkill(Action))
 		{
 			// Crystal-sourced abilities are powered by the crystal's charge, not EP.
@@ -317,7 +317,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 	// D-126 (B-334): the HP-paying sources (Raw, Innate spell, Evolution) pay HP only at level 2.
 	const bool bLevelPaysHP = InfusionConstants::LevelPaysHP(Level);
 
-	// HP basis (rework 6-2-3c): the PRE-Efficiency, stat-scaled infused EP cost.
+	// HP basis (rework 6-2-3c): the PRE-Efficiency infused EP cost (base x charge level, D-126).
 	// Source-independent — it's what this infused action's EP costs before the
 	// Efficiency reduction. The HP-paying branches (Raw/Innate/Evolution) feed this
 	// to CalculateHPCost, which converts it to HP (% of MaxEP -> % of MaxHP) and

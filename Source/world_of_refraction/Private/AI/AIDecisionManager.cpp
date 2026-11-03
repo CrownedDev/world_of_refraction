@@ -2371,7 +2371,7 @@ int32 UAIDecisionManager::ClampInfusionLevelForHP(AActor *Attacker, UCharacterDa
     }
 
     // Drop the charge until the HP cost is survivable. PreEffEP matches the executor's basis exactly:
-    // BaseEnergyCost x ComputeInfusionCostMultiplier (pre-Efficiency, stat-scaled) x power x tier-gap cost -> WouldKill.
+    // BaseEnergyCost x ComputeInfusionCostMultiplier (pre-Efficiency, the charge level, D-126) x power x tier-gap cost -> WouldKill.
     // Cluster 3b: mirror ApplyCommitCosts' PreEffInfusedEP, which folds BOTH the own-tier power
     // factor and the reciprocal tier-gap cost. Both are level-independent, so resolve once before
     // the loop. Own-tier source matches the real basis: SpellData->Tier for spells, SkillData->Tier

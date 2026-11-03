@@ -53,6 +53,8 @@ namespace
 	constexpr int32 COST_TEST_HP_COST_RESISTED = 150;
 	/** An L2 innate spell's 200 EP is all of 200 max EP: all of 400 max HP. */
 	constexpr int32 COST_TEST_SPELL_L2_HP_COST = 400;
+	/** An L2 Raw ability's 300 EP is 1.5x of 200 max EP: 1.5x of 400 max HP. */
+	constexpr int32 COST_TEST_ABILITY_L2_HP_COST = 600;
 	constexpr float COST_TEST_TOLERANCE = 0.001f;
 }
 
@@ -202,7 +204,7 @@ void FInfusionCostSpec::Define()
 		TestEqual(TEXT("Innate spell L1: no HP"), CommitHPCost(SpellAction(ESpellSource::Innate, COST_TEST_L1)), 0);
 		TestEqual(TEXT("Innate spell L2: HP"), CommitHPCost(SpellAction(ESpellSource::Innate, COST_TEST_L2)), COST_TEST_SPELL_L2_HP_COST);
 		TestEqual(TEXT("Raw ability L1: no HP"), CommitHPCost(AbilityAction(EInfusionSourceOption::Raw, COST_TEST_L1)), 0);
-		TestTrue(TEXT("Raw ability L2: HP"), CommitHPCost(AbilityAction(EInfusionSourceOption::Raw, COST_TEST_L2)) > 0);
+		TestEqual(TEXT("Raw ability L2: HP"), CommitHPCost(AbilityAction(EInfusionSourceOption::Raw, COST_TEST_L2)), COST_TEST_ABILITY_L2_HP_COST);
 		TestEqual(TEXT("Innate ability L2: still no HP"), CommitHPCost(AbilityAction(EInfusionSourceOption::Innate, COST_TEST_L2)), 0);
 	});
 
