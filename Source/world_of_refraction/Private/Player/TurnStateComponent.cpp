@@ -171,8 +171,14 @@ void UTurnStateComponent::HandleSpeedChanged(AActor *Actor)
 
 void UTurnStateComponent::HandleCombatEnded(int32 FinalTurnCount)
 {
+	// UTurnManager broadcasts this before it clears its own state, so clear here instead of copying.
 	TurnNumber = FinalTurnCount;
-	RefreshFromTurnManager();
+	bCombatActive = false;
+	CurrentActor = nullptr;
+	bCurrentTurnIsBonus = false;
+	Upcoming.Reset();
+	Teams.Reset();
+	OnTurnStateChanged.Broadcast();
 }
 
 void UTurnStateComponent::OnRep_TurnState()
