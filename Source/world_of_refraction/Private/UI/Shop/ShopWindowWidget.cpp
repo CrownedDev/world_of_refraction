@@ -506,7 +506,7 @@ void UShopWindowWidget::EnsureTotalsPool()
     }
 
     // B-333: a header + one row per balance a purchase can charge (Prisms, Skill, Elemental, Pillar).
-    constexpr int32 ChargedCount = UE_ARRAY_COUNT(PurchaseCostBalances::CHARGED);
+    constexpr int32 ChargedCount = static_cast<int32>(UE_ARRAY_COUNT(PurchaseCostBalances::CHARGED));
     const int32 RowCount = 1 /*header*/ + ChargedCount;
 
     for (int32 i = 0; i < RowCount; ++i)
@@ -551,7 +551,7 @@ void UShopWindowWidget::RefreshTotals()
     if (CartTotalsPanel)
     {
         EnsureTotalsPool();
-        constexpr int32 ChargedCount = UE_ARRAY_COUNT(PurchaseCostBalances::CHARGED);
+        constexpr int32 ChargedCount = static_cast<int32>(UE_ARRAY_COUNT(PurchaseCostBalances::CHARGED));
         bool bAnyVisible = false;
 
         for (int32 i = 0; i < ChargedCount; ++i)

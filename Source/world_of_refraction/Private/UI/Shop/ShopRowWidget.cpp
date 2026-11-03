@@ -13,7 +13,6 @@
 #include "Inventory/ItemTier.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "UI/Shop/ShopWindowWidget.h" // UShopEntryObject + UShopWindowWidget
-#include "WoRGameNames.h"
 
 void UShopRowWidget::NativeConstruct()
 {
