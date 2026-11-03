@@ -1543,6 +1543,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** (2026-10-28)
 - The Generic typed essence (from dismantling Quartz crystals) is called **Quartz essence** in game (for now).
 - **A: Quartz essence buys Generic spells**, as each element's essence buys its spells (one rule). This replaces the note that Generic spells are priced like abilities with no typed essence (`Resources_Design.md` §5, `EconomySystem.md` cost table). Reality essence keeps its roles: wildcard substitute, the ½ upgrade companion cost, shop rerolls.
+**Changed by D-125 (2026-11-03, B-333):** Quartz essence folds into Elemental Essence; a Generic spell costs Skill + Elemental like any elemental spell (Q-333).
 **Notes for Claude:** `EEssenceType::Generic` stays (append-only); only its display name and the spell-cost rule change. Price Generic spells like elemental ones (same typed-essence amount at tier) in B-269's cluster or a follow-up; update `docs/Rules/05-economy-and-runs.md`.
 
 ### Q-267 — Energy Cost modifier: buff or debuff?
@@ -3206,3 +3207,12 @@ Moved here once applied. Newest first.
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-223b; the odds are tuning rows (`LevelDropChance`, `MiniBossLevels`) if the nightly sim shows otherwise. A fallen member still gets its roll after a win (it was in the fight).
 
+
+### Q-333 — Seven balances: the prices D-125 left open
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-333, cloud) · **Blocks:** —
+**Question:** D-125 names the seven balances and which essence pays for what, but not: (1) whether buying a crystal or stone now costs its essence (stones were Prisms-only, and with spells no longer charging pillar essence per scaling grade, Pillar would have no use otherwise); (2) what a spell with no element (None) costs; (3) what replaces the half "Unknown" (Reality) co-cost on every upgrade, now that Reality essence retires; (4) what an evolution's purchase co-cost becomes; (5) conversion of old typed balances.
+**Context:** `Public/Currency/EconomyYield.h` (`GetCrystalEssence`, `SpellHasElement`, `GetElementalCoCost`, `ELEMENTAL_CO_COST_DIVISOR`); `Private/Currency/EconomyService.cpp` (`BuildCartCost`, `TryLevelUpEntry`).
+**Options / as built:** (1) **yes**: a crystal costs Prisms + its essence at tier (`TYPED_ESSENCE_BUY_*`): a gem (Quartz too) Elemental, a stat stone Pillar, an ability stone Skill. (2) **Skill only**, as D-125 rules for a non-elemental ability; Generic counts as elemental (it takes the caster's element). (3) the co-cost becomes **half the step in Elemental, charged only on items with an element** (evolutions; spells with an element). Weapons, adapters and abilities level on Gear / Skill alone. Downgrades still don't refund it. (4) **Elemental at tier + half again** (the old ½ Reality folded into Elemental). (5) **none**: the same numbers carry over (the typed ladders become the Elemental / Pillar / Skill ladders) and pre-B-333 saves are wiped (save version 11, D-060), so nothing converts.
+**Recommendation:** as built. Monster Hunter crafting costs zenny plus the material of the item's kind, and Genshin Impact's talent upgrades cost Mora plus an element/region-specific book while weapon levels use generic ore: an element-tied item takes the element material, generic gear doesn't. Elden Ring's weapon upgrades need smithing stones and runes, no element material. That is D-125's "Elemental pays for anything with an element" applied to buying and upgrading.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-333. This changes D-105 (Quartz essence now Elemental) and the old "crystals are Prisms-only" note (`EconomySystem.md`). To undo (1), drop the `AddEssence` line in `BuildCartCost`'s crystal branch; to put the co-cost back on every upgrade (3), pass `true` for `bHasElement` in every `TryLevelUpEntry` call. D-094's run drops of "the upgrade co-cost essence" (B-073, not built) now mean Elemental Essence.
