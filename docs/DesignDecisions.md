@@ -2059,7 +2059,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **C** A zone swaps in a stronger version of each enemy.
 **Recommendation:** A. Dark Souls and Elden Ring set enemy strength by area and never scale to the player, and players praise how getting stronger shows and how you can wander into a hard area early (Enemies §4 asks for exactly that). Diablo II's fixed area levels work the same way. A few named tiers keep zones comparable and easy to tune. Not lore.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
-**Notes for Claude:** applied (feature/B-186-enemy-zones): `AEnemyZone` (`FEncounterZoneInfo`), `AEnemyZone::FindZoneAt` from `UEncounterComponent`, `UTrialRunSubsystem::PendingZone` (the same transport exception to D-064 as `PendingRank` and `PendingFirstStrike`, moves with them for co-op, D-065), `ABattleGameMode` multiplies it in. The loot pool is not read yet (B-188 chests, B-073 drops).
+**Notes for Claude:** applied (feature/B-186-enemy-zones): `AEnemyZone` (`FEncounterZoneInfo`), `AEnemyZone::FindZoneAt` from `UEncounterComponent`, `UTrialRunSubsystem::PendingZone` (the same transport exception to D-064 as `PendingRank` and `PendingFirstStrike`, moves with them for co-op, D-065), `ABattleGameMode` multiplies it in. The loot pool is not read yet (B-188 chests, B-073 drops). **D-120 (2026-11-03, B-327) changes this:** the zone scales enemy damage only; enemy HP = own x rank x Combat Tier.
 
 ### Q-185 — Placeholder first strike: what counts as a hit, and how long is the head start?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-185) · **Blocks:** — (B-185 shipped with A)
@@ -3168,3 +3168,8 @@ Moved here once applied. Newest first.
 **Recommendation:** A. Fowler's ParallelChange: readers moved (B-042ye), payouts moved (B-042yd); the writer's copy is removed last, in one step (B-042g), not kept half-alive. Tag conditions already read GAS tags (B-042x).
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-042i. B-042g deletes the stored copies and the mirror's "Missing" rebuild with them; the `TODO` at `FWoREffectSpecBuilder::Apply` is retagged to B-042g. No authorable "if the target is Burning" condition exists in `ESkillTrigger`: B-042x's tag reads are the hit-time checks (`WoR.GAS.TagReads`), so this spec has no tag-condition case.
+
+### D-120 — Enemy HP = own × rank × Combat Tier; the zone adds no HP (changes Q-186, ER-48)
+**Status:** ANSWERED (2026-11-03) · **Raised:** 2026-11-03 (Crown, simplicity audit, via the brain) · **Blocks:** —
+**Answer (Crown):** (2026-11-03) an enemy's max HP is its own HP × its rank (Normal 1, Elite 1.5, Mini-boss 4, Boss 8) × its Combat Tier power. **The zone adds no HP**; harder zones place higher-tier enemies instead. The zone's damage scaling and the door's damage scaling (Q-293c) are untouched (Crown ruled on health only).
+**Notes for Claude:** applied in B-327: `ABattleGameMode` and `FBalanceSimRunner` pass the difficulty's HP share (x1) to `TrialGate::ApplyEnemyStrength`, the zone only to its damage; `WoR.Trial.ZoneHealthOnce` pins base × rank × tier with the zone changing nothing; `WoR.Trial.EnemyZone` pins that a higher zone adds damage, not HP. Q-186's "scales every enemy's max HP and damage" and ER-48 now say damage only.
