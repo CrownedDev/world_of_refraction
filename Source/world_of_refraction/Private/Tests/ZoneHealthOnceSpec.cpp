@@ -39,7 +39,7 @@ void FZoneHealthOnceSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("gives a zone-4 C boss zone x rank x tier HP, the zone counted once", [this]()
+	It("gives a zone-4 C boss base x rank x tier HP: the zone adds none (D-120)", [this]()
 	{
 		UCharacterData *Data = FWoRTestWorld::NewCharacterData();
 		Data->EnemyTier = EItemTier::C_Tier;
@@ -55,13 +55,14 @@ void FZoneHealthOnceSpec::Define()
 		const float Tier = TrialGate::GetEnemyTierHealthMultiplier(Enemy);
 		TestTrue(TEXT("the zone scales"), Zone > 1.0f);
 
-		// The order BattleGameMode uses: strength first, then rank x tier on top.
-		TestTrue(TEXT("strength applied"), TrialGate::ApplyEnemyStrength(Enemy, Zone, Zone));
-		TestEqual(TEXT("after strength: x zone"), static_cast<float>(CharComp->MaxHP), BaseMaxHP * Zone, ZONE_ONCE_ROUNDING);
-		TestTrue(TEXT("rank applied"), TrialGate::ApplyEnemyRankHealth(Enemy, Zone, EEncounterRank::Boss));
-		TestEqual(TEXT("zone x rank x tier, once"), static_cast<float>(CharComp->MaxHP), BaseMaxHP * Zone * Rank * Tier,
-				  ZONE_ONCE_ROUNDING);
-		TestTrue(TEXT("not zone squared"), static_cast<float>(CharComp->MaxHP) < BaseMaxHP * Zone * Zone * Rank * Tier - ZONE_ONCE_ROUNDING);
+		// The order BattleGameMode uses: strength first (HP x1: the zone scales damage only, D-120), then rank x tier.
+		const float HealthShare = TrialGate::GetEnemyHealthMultiplier(ETrialDifficulty::Medium);
+		TestEqual(TEXT("no HP from the difficulty either"), HealthShare, 1.0f);
+		TestTrue(TEXT("strength applied (damage)"), TrialGate::ApplyEnemyStrength(Enemy, HealthShare, Zone));
+		TestEqual(TEXT("after strength: HP unchanged"), static_cast<float>(CharComp->MaxHP), BaseMaxHP, ZONE_ONCE_ROUNDING);
+		TestTrue(TEXT("rank applied"), TrialGate::ApplyEnemyRankHealth(Enemy, HealthShare, EEncounterRank::Boss));
+		TestEqual(TEXT("base x rank x tier"), static_cast<float>(CharComp->MaxHP), BaseMaxHP * Rank * Tier, ZONE_ONCE_ROUNDING);
+		TestTrue(TEXT("less than with the zone's HP"), static_cast<float>(CharComp->MaxHP) < BaseMaxHP * Zone * Rank * Tier - ZONE_ONCE_ROUNDING);
 	});
 }
 

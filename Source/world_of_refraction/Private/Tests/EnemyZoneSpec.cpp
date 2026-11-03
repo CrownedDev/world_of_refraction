@@ -81,7 +81,7 @@ void FEnemyZoneSpec::Define()
 		TestTrue(TEXT("Inside once scaled and turned"), Zone->Contains(ZONE_TEST_SCALED_POINT));
 	});
 
-	It("fights the same team at two strengths in two zones, on top of the door's difficulty", [this]()
+	It("fights the same team harder in a higher zone, with the same max HP (D-120)", [this]()
 	{
 		AEnemyZone *Low = SpawnZone(FVector::ZeroVector, ZONE_TEST_LOW_TIER);
 		AEnemyZone *High = SpawnZone(ZONE_TEST_FAR_AWAY, ZONE_TEST_HIGH_TIER);
@@ -96,10 +96,13 @@ void FEnemyZoneSpec::Define()
 		const int32 HighTier = AEnemyZone::FindZoneAt(TestWorld->GetWorld(), ZONE_TEST_FAR_AWAY).Tier;
 		TestEqual(TEXT("First zone found"), LowTier, ZONE_TEST_LOW_TIER);
 		TestEqual(TEXT("Second zone found"), HighTier, ZONE_TEST_HIGH_TIER);
-		TrialGate::ApplyEnemyStrength(InLow->GetOwner(), Hard * AEnemyZone::GetTierStrengthMultiplier(LowTier));
-		TrialGate::ApplyEnemyStrength(InHigh->GetOwner(), Hard * AEnemyZone::GetTierStrengthMultiplier(HighTier));
-		TestTrue(TEXT("The higher zone's enemy has more max HP"), InHigh->MaxHP > InLow->MaxHP);
-		TestTrue(TEXT("Both are above the unscaled enemy"), InLow->MaxHP > BaseMaxHP);
+		// As ABattleGameMode: the zone and the door scale damage; the HP share stays x1 (Q-293c, D-120).
+		const float HealthShare = TrialGate::GetEnemyHealthMultiplier(ETrialDifficulty::Hard);
+		TestTrue(TEXT("Low zone applied"), TrialGate::ApplyEnemyStrength(InLow->GetOwner(), HealthShare, Hard * AEnemyZone::GetTierStrengthMultiplier(LowTier)));
+		TestTrue(TEXT("High zone applied"), TrialGate::ApplyEnemyStrength(InHigh->GetOwner(), HealthShare, Hard * AEnemyZone::GetTierStrengthMultiplier(HighTier)));
+		TestTrue(TEXT("The higher zone hits harder"), AEnemyZone::GetTierStrengthMultiplier(HighTier) > AEnemyZone::GetTierStrengthMultiplier(LowTier));
+		TestEqual(TEXT("The higher zone's enemy has the same max HP"), InHigh->MaxHP, InLow->MaxHP);
+		TestEqual(TEXT("Neither gained HP from the zone"), InLow->MaxHP, BaseMaxHP);
 	});
 }
 
