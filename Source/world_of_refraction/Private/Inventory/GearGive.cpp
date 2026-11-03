@@ -171,7 +171,7 @@ namespace WoRGive
 		}
 		if (Pool->GetGearOwner(GearID) != FromKey)
 		{
-			return FText::Format(LOCTEXT("NotTheirsChest", "{0} doesn't own that"), NameOf(FromKey));
+			return FText::Format(LOCTEXT("NotTheirsChest", "{0} doesn't own that"), NameOf(World, FromKey));
 		}
 		// Worn gear can't be put away (B-324): a piece in any of the member's loadouts stays. Checked on the spawned
 		// member; an unspawned member's next draw strips a piece it no longer owns.
