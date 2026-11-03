@@ -109,13 +109,16 @@ private:
 	friend class FWoRAttributeSpec;
 
 	/** B-260: HP, EP and buildup only (what a hit changes), then one full sync queued for the next tick.
-	 *  A changed max HP / EP syncs everything at once (pool sources). */
+	 *  A changed max HP / EP, or entering / leaving Broken Darkness (innate resistances), syncs everything at once. */
 	void SyncVitals();
 
 	/** Queues one SyncAttributes for the next tick; any full sync before then makes it a no-op. */
 	void QueueFullSync();
 
 	bool bFullSyncQueued = false;
+
+	/** Broken Darkness as of the last full sync (its resistance rows move with it). */
+	bool bLastSyncedBD = false;
 
 	/** Debug (B-260): full syncs run since BeginPlay. */
 	int32 FullSyncCount = 0;

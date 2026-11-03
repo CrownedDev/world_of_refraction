@@ -252,6 +252,7 @@ void UWoRAttributeSyncComponent::SyncAttributes()
 	}
 	++FullSyncCount;
 	const UCharacterDataComponent *Char = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+	bLastSyncedBD = Char && Char->bIsBrokenDarkness;
 	const UTurnManager *Turns = AttributeSyncSubsystem<UTurnManager>(this);
 	const bool bResistanceSet = ASC->GetSet<UWoRAttributeSet_Resistance>() != nullptr;
 	for (const FWoRAttributeSourceValue &Source : ReadSourceValues(GetOwner()))
@@ -537,6 +538,7 @@ void UWoRAttributeSyncComponent::BeginPlay()
 
 void UWoRAttributeSyncComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	bFullSyncQueued = false; // a queued sync must not re-apply the sources removed below
 	UnbindSources();
 	if (UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner()))
 	{
@@ -623,7 +625,7 @@ void UWoRAttributeSyncComponent::SyncVitals()
 	}
 	const bool bMaxChanged = ASC->GetNumericAttribute(UWoRAttributeSet_Vitals::GetMaxHealthAttribute()) != Char->MaxHP ||
 							 ASC->GetNumericAttribute(UWoRAttributeSet_Vitals::GetMaxEnergyAttribute()) != Char->MaxEP;
-	if (bMaxChanged)
+	if (bMaxChanged || Char->bIsBrokenDarkness != bLastSyncedBD)
 	{
 		SyncAttributes();
 		return;
