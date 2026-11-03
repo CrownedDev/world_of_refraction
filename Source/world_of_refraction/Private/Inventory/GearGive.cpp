@@ -47,6 +47,22 @@ namespace
 		return FText::FromString(FPaths::GetBaseFilename(CharacterKey.ToString()));
 	}
 
+	/** Q-321: a run-only recruit owns nothing (what it has goes back when it leaves), so it can't be given gear. */
+	bool IsRunOnlyMember(const UWorld *World, FName CharacterKey)
+	{
+		if (const UParty *Party = LocalPartyOf(World))
+		{
+			for (const FPartyMember &Member : Party->Members)
+			{
+				if (Member.CharacterData && UPoolSubsystem::GetCharacterKey(Member.CharacterData) == CharacterKey)
+				{
+					return Member.bRunOnly;
+				}
+			}
+		}
+		return false;
+	}
+
 	/** wor.Give.Print: what every local party member could give. */
 	FAutoConsoleCommandWithWorld GGivePrintCmd(
 		TEXT("wor.Give.Print"),
@@ -113,6 +129,10 @@ namespace WoRGive
 		if (Pool->GetGearOwner(GearID) != FromKey)
 		{
 			return FText::Format(LOCTEXT("NotTheirs", "{0} doesn't own that"), NameOf(World, FromKey));
+		}
+		if (IsRunOnlyMember(World, ToKey))
+		{
+			return FText::Format(LOCTEXT("RecruitOwnsNothing", "{0} is only here for the run and can't own gear"), NameOf(World, ToKey));
 		}
 		// D-116: a loadout's primary stays until another primary is swapped in. Checked on the spawned giver; an
 		// unspawned giver's next draw refills its primary instead.
