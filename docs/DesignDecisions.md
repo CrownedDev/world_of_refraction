@@ -3160,3 +3160,11 @@ Moved here once applied. Newest first.
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-223b; the odds are tuning rows (`LevelDropChance`, `MiniBossLevels`) if the nightly sim shows otherwise. A fallen member still gets its roll after a win (it was in the fight).
 
+### Q-042i-b — B-042i: what is left once the mirror builds a trigger's GE in the same call?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-042i, desktop) · **Blocks:** —
+**Question:** B-042i says a trigger's payload "fires through the spec builder onto the ASC, not into `FActiveSkillEffect`". Since B-042h the mirror binds `OnEffectApplied`, so every `ApplyEffect` (a defender trigger's payload, a starting effect, a cast) already builds its GE through `FWoREffectSpecBuilder` in the same call; the stored copy is read-only under GAS. What does B-042i still do?
+**Context:** `Private/Skills/Effects/SkillEffectManager.cpp` (`OnDefenseResolvedHandler`, `ApplyEquipmentEffects`, `ApplyEffect`); `Private/GAS/WoREffectMirrorComponent.cpp` (`BindSources`, `SyncMirror`); `Private/Tests/GASTriggerParitySpec.cpp`.
+**Options / as built:** **A** B-042i proves the path with parity specs (`WoR.GAS.TriggerParity`: a defender trigger's payload and a starting effect land as one GE of their identity on both paths, a re-fire replaces, a removal ends the GE) and changes no code; the "no stored copy" half is B-042g's, when the enum store goes. **B** write a second apply path that skips the store now (a GAS-only effect the panel, AI and payouts can't see until B-042g).
+**Recommendation:** A. Fowler's ParallelChange: readers moved (B-042ye), payouts moved (B-042yd); the writer's copy is removed last, in one step (B-042g), not kept half-alive. Tag conditions already read GAS tags (B-042x).
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-042i. B-042g deletes the stored copies and the mirror's "Missing" rebuild with them.
