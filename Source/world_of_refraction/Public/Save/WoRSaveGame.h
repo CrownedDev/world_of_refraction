@@ -12,7 +12,7 @@
 namespace WoRSaveVersion
 {
 	/** Bump when a save struct changes shape. */
-	constexpr int32 LATEST = 5; // 2: B-208's run and carried state; 3: B-124's gear detail; 4: B-279's form meters (older load with defaults); 5: B-308's one gear list (v3 / v4 lists still read)
+	constexpr int32 LATEST = 6; // 2: B-208's run and carried state; 3: B-124's gear detail; 4: B-279's form meters (older load with defaults); 5: B-308's one gear list (v3 / v4 lists still read); 6: B-311's custom loadouts
 	/** Saves below this are wiped (D-060). Upgrade steps in HandlePostLoad after the first public build. */
 	constexpr int32 MIN_SUPPORTED = 1;
 }

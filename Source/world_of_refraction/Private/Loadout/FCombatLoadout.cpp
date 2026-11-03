@@ -350,6 +350,53 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
     return CreateFromSavedLoadout(SavedLoadout, nullptr, nullptr);
 }
 
+FSavedLoadout FCombatLoadout::ToSavedLoadout(ECharacterClass CharacterClass) const
+{
+    const auto Refs = [](const TArray<USpellData *> &Spells)
+    {
+        TArray<FSpellRef> Out;
+        for (USpellData *Spell : Spells)
+        {
+            Out.Emplace(Spell);
+        }
+        return Out;
+    };
+    FSavedLoadout Saved;
+    Saved.LoadoutName = LoadoutName;
+    Saved.RequiredClass = CharacterClass;
+    Saved.bShowPrimary = bShowPrimary;
+    Saved.PrimarySlotType = PrimarySlotType;
+    Saved.PrimaryWeapon = PrimaryWeapon.WeaponEntry.Weapon;
+    Saved.PrimaryWeaponInstance = PrimaryWeapon.WeaponEntry.PersistentID;
+    Saved.PrimaryWeaponAbilities = PrimaryWeapon.AssignedAbilities;
+    Saved.PrimaryAugmentStoneAbilities = PrimaryWeapon.AssignedAugmentStoneAbilities;
+    Saved.PrimaryRing = PrimaryRing.RingEntry.Ring;
+    Saved.PrimaryRingInstance = PrimaryRing.RingEntry.PersistentID;
+    Saved.PrimaryEvolution = PrimaryEvolution.Item;
+    Saved.PrimaryEvolutionInstance = PrimaryEvolutionInstance;
+    Saved.EvolutionSpells = Refs(EvolutionSpells);
+    Saved.SecondarySlotType = SecondarySlotType;
+    Saved.SecondaryWeapon = SecondaryWeapon.WeaponEntry.Weapon;
+    Saved.SecondaryWeaponInstance = SecondaryWeapon.WeaponEntry.PersistentID;
+    Saved.SecondaryWeaponAbilities = SecondaryWeapon.AssignedAbilities;
+    Saved.SecondaryAugmentStoneAbilities = SecondaryWeapon.AssignedAugmentStoneAbilities;
+    for (const FRingLoadoutEntry &Ring : RingLoadout)
+    {
+        FResonatorRingSlot &Slot = Saved.EquippedRings.AddDefaulted_GetRef();
+        Slot.Ring = Ring.RingEntry.Ring;
+        Slot.RingInstance = Ring.RingEntry.PersistentID;
+        Slot.AssignedSpells = Refs(Ring.RingEntry.AssignedSpells);
+    }
+    Saved.InnateSpells = Refs(InnateSpells);
+    for (const FBDElementSpellPool &Pool : BDSpellPools)
+    {
+        FSavedBDElementSpellPool &Out = Saved.BDSpellPools.AddDefaulted_GetRef();
+        Out.Element = Pool.Element;
+        Out.Spells = Refs(Pool.Spells);
+    }
+    return Saved;
+}
+
 FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &SavedLoadout,
                                                       const UInventoryComponent *OwnedInventory,
                                                       const UEvolutionInventoryComponent *OwnedEvolutions)

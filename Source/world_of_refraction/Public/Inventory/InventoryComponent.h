@@ -97,6 +97,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Setup")
     void InitializeFromPool(UPoolSubsystem *Pool);
 
+    /** B-311 (D-111): hands this character's custom loadouts (every loadout not from the character asset) to the
+     *  pool, which keeps and saves them. No-op off the shared armoury or in a run. Called at EndPlay and before a save. */
+    void PushCustomLoadoutsToPool();
+
     /** Learned spells (max 50) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Spells")
     FSpellCollection Spells;
@@ -119,7 +123,8 @@ public:
     // GetInventoryComponent() — see LoadoutComponent for the API.
     // ============================================================
 
-    /** Configured maximum number of saved loadouts. */
+    /** Configured maximum number of saved loadouts. OBSOLETE (B-311): creating and copying loadouts now caps custom
+     *  loadouts at PoolConstants::MAX_CUSTOM_LOADOUTS (D-111); remove after Crown's PIE. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Config")
     int32 MaxSavedLoadouts = 5;
 
@@ -543,6 +548,8 @@ private:
 
     TWeakObjectPtr<UPoolSubsystem> SharedPool;
     FName SharedGearKey;
+    /** B-311: the loadouts drew the pool's custom ones (not a run preset), so they are kept on push. */
+    bool bKeepsCustomLoadouts = false;
     /** True while this inventory pushes to, or copies from, the pool (no echo). */
     bool bSyncingWithPool = false;
 

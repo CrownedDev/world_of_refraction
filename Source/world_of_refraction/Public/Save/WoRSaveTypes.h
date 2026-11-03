@@ -309,6 +309,99 @@ struct WORLD_OF_REFRACTION_API FSavedWearer
 	FName Character;
 };
 
+/** B-311: a Broken Darkness element's spell pool in a custom loadout. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCustomBDPool
+{
+	GENERATED_BODY()
+
+	/** ESpellElement. */
+	UPROPERTY()
+	uint8 Element = 0;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> Spells;
+};
+
+/** B-311 (D-111): one custom loadout; each piece by its owned GUID and asset, the rest by asset. An adapter's spells
+ *  ride on the adapter itself (FSavedGearDetail). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCustomLoadout
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FString Name;
+
+	/** ECharacterClass. */
+	UPROPERTY()
+	uint8 RequiredClass = 0;
+
+	UPROPERTY()
+	bool bShowPrimary = true;
+
+	/** EPrimarySlotType; PrimaryAsset is the weapon, adapter or evolution it names. */
+	UPROPERTY()
+	uint8 PrimarySlotType = 0;
+
+	UPROPERTY()
+	FSavedAssetRef PrimaryAsset;
+
+	UPROPERTY()
+	FGuid PrimaryInstance;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> PrimaryAbilities;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> PrimaryStoneAbilities;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> EvolutionSpells;
+
+	/** ESecondarySlotType. */
+	UPROPERTY()
+	uint8 SecondarySlotType = 0;
+
+	UPROPERTY()
+	FSavedAssetRef SecondaryWeapon;
+
+	UPROPERTY()
+	FGuid SecondaryInstance;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> SecondaryAbilities;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> SecondaryStoneAbilities;
+
+	/** A Resonator's adapter loadout, in order; AdapterInstances matches it index for index. */
+	UPROPERTY()
+	TArray<FSavedAssetRef> Adapters;
+
+	UPROPERTY()
+	TArray<FGuid> AdapterInstances;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> InnateSpells;
+
+	UPROPERTY()
+	TArray<FSavedCustomBDPool> BDSpellPools;
+};
+
+/** B-311: one character's custom loadouts (UPoolSubsystem::GetCharacterKey). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCharacterLoadouts
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName Character;
+
+	UPROPERTY()
+	TArray<FSavedCustomLoadout> Loadouts;
+};
+
 /** UPoolSubsystem's owned items. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedPool
@@ -359,6 +452,10 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	/** B-203: characters whose starting items are already carried or stored. */
 	UPROPERTY()
 	TArray<FName> BankedItemCharacters;
+
+	/** B-311 (save v6): each character's custom loadouts. */
+	UPROPERTY()
+	TArray<FSavedCharacterLoadouts> CustomLoadouts;
 
 	int32 Num() const
 	{

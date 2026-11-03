@@ -38,6 +38,7 @@
 #include "Equipment/Crystals/FEvolutionInventoryEntry.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Currency/CurrencyTypes.h"             // ECurrencyType / EEssenceType / FCurrencyArray
+#include "Loadout/FSavedLoadout.h"
 #include "Pool/PoolQueryTypes.h"                // FPoolFilter + the per-category result views
 #include "Inventory/InventoryConstants.h"       // ITEM_SLOTS_START
 #include "PoolSubsystem.generated.h"
@@ -51,6 +52,22 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPoolGearChanged, FGuid, GearID);
 
 /** B-203: the party's carried items changed. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPoolItemsChanged);
+
+namespace PoolConstants
+{
+    /** B-311 (D-111): custom loadouts kept per character. */
+    constexpr int32 MAX_CUSTOM_LOADOUTS = 5;
+}
+
+/** B-311 (D-111): one character's custom loadouts, pieces referenced by owned GUID. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FPoolCustomLoadouts
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    TArray<FSavedLoadout> Loadouts;
+};
 
 /** B-091 (Q-091): a piece another member wears, taken out of a member's active loadout. */
 USTRUCT(BlueprintType)
@@ -214,6 +231,15 @@ public:
     /** B-090 restore of who wears what and whose starting gear is banked. */
     void RestoreSharedGear(const TMap<FGuid, FName> &InWearers, const TArray<FName> &InBanked);
 
+    // ==================== CUSTOM LOADOUTS (B-311, D-111) ====================
+    // The player's own loadouts per character (lore loadouts come from the character asset and are not kept).
+
+    /** Replaces the character's custom loadouts; keeps the first MAX_CUSTOM_LOADOUTS (warns past that). */
+    void SetCustomLoadouts(FName CharacterKey, const TArray<FSavedLoadout> &Loadouts);
+    /** The character's custom loadouts, or null when none are kept. */
+    const TArray<FSavedLoadout> *GetCustomLoadouts(FName CharacterKey) const;
+    const TMap<FName, FPoolCustomLoadouts> &GetAllCustomLoadouts() const { return CustomLoadouts; }
+
     UPROPERTY(BlueprintAssignable, Category = "Pool|Armoury")
     FOnPoolGearChanged OnPoolGearChanged;
 
@@ -354,6 +380,10 @@ private:
     /** Characters whose starting gear is already in the pool. */
     UPROPERTY()
     TSet<FName> BankedCharacters;
+
+    /** B-311: character key -> its custom loadouts. */
+    UPROPERTY()
+    TMap<FName, FPoolCustomLoadouts> CustomLoadouts;
 
     /** The latest pieces taken out of a member's loadout because another member wears them. */
     UPROPERTY(Transient)

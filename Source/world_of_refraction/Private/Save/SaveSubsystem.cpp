@@ -21,6 +21,8 @@
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
 #include "HAL/IConsoleManager.h"
+#include "Inventory/InventoryComponent.h"
+#include "UObject/UObjectIterator.h"
 #include "Memory/MemoryData.h"
 #include "TimerManager.h"
 #include "Trial/TrialData.h"
@@ -104,6 +106,143 @@ namespace
 		Entry.ResistancePool = Gear.ResistancePool;
 		Entry.ResistanceMaxPool = Gear.ResistanceMaxPool;
 	}
+}
+
+namespace
+{
+/** B-311: asset lists to refs and back (a gone asset is dropped). */
+template <typename TAsset>
+TArray<FSavedAssetRef> SaveLoadoutRefs(const TArray<TAsset *> &Assets)
+{
+	TArray<FSavedAssetRef> Refs;
+	for (const TAsset *Asset : Assets)
+	{
+		if (Asset)
+		{
+			Refs.Add(FSavedAssetRef::Make(Asset));
+		}
+	}
+	return Refs;
+}
+
+template <typename TAsset>
+TArray<TAsset *> RestoreLoadoutRefs(const TArray<FSavedAssetRef> &Refs)
+{
+	TArray<TAsset *> Assets;
+	for (const FSavedAssetRef &Ref : Refs)
+	{
+		if (TAsset *Asset = Ref.ResolveAs<TAsset>())
+		{
+			Assets.Add(Asset);
+		}
+	}
+	return Assets;
+}
+
+TArray<FSavedAssetRef> SaveLoadoutSpellRefs(const TArray<FSpellRef> &Spells)
+{
+	return SaveLoadoutRefs(FSpellRef::ExtractSpells(Spells));
+}
+
+TArray<FSpellRef> RestoreLoadoutSpellRefs(const TArray<FSavedAssetRef> &Refs)
+{
+	TArray<FSpellRef> Spells;
+	for (USpellData *Spell : RestoreLoadoutRefs<USpellData>(Refs))
+	{
+		Spells.Emplace(Spell);
+	}
+	return Spells;
+}
+
+FSavedCustomLoadout SaveCustomLoadout(const FSavedLoadout &Loadout)
+{
+	FSavedCustomLoadout Saved;
+	Saved.Name = Loadout.LoadoutName;
+	Saved.RequiredClass = static_cast<uint8>(Loadout.RequiredClass);
+	Saved.bShowPrimary = Loadout.bShowPrimary;
+	Saved.PrimarySlotType = static_cast<uint8>(Loadout.PrimarySlotType);
+	switch (Loadout.PrimarySlotType)
+	{
+	case EPrimarySlotType::Weapon:
+		Saved.PrimaryAsset = FSavedAssetRef::Make(Loadout.PrimaryWeapon);
+		Saved.PrimaryInstance = Loadout.PrimaryWeaponInstance;
+		break;
+	case EPrimarySlotType::Ring:
+		Saved.PrimaryAsset = FSavedAssetRef::Make(Loadout.PrimaryRing);
+		Saved.PrimaryInstance = Loadout.PrimaryRingInstance;
+		break;
+	case EPrimarySlotType::Evolution:
+		Saved.PrimaryAsset = FSavedAssetRef::Make(Loadout.PrimaryEvolution);
+		Saved.PrimaryInstance = Loadout.PrimaryEvolutionInstance;
+		break;
+	default:
+		break;
+	}
+	Saved.PrimaryAbilities = SaveLoadoutRefs(Loadout.PrimaryWeaponAbilities);
+	Saved.PrimaryStoneAbilities = SaveLoadoutRefs(Loadout.PrimaryAugmentStoneAbilities);
+	Saved.EvolutionSpells = SaveLoadoutSpellRefs(Loadout.EvolutionSpells);
+	Saved.SecondarySlotType = static_cast<uint8>(Loadout.SecondarySlotType);
+	Saved.SecondaryWeapon = FSavedAssetRef::Make(Loadout.SecondaryWeapon);
+	Saved.SecondaryInstance = Loadout.SecondaryWeaponInstance;
+	Saved.SecondaryAbilities = SaveLoadoutRefs(Loadout.SecondaryWeaponAbilities);
+	Saved.SecondaryStoneAbilities = SaveLoadoutRefs(Loadout.SecondaryAugmentStoneAbilities);
+	for (const FResonatorRingSlot &Slot : Loadout.EquippedRings)
+	{
+		if (Slot.Ring)
+		{
+			Saved.Adapters.Add(FSavedAssetRef::Make(Slot.Ring));
+			Saved.AdapterInstances.Add(Slot.RingInstance);
+		}
+	}
+	Saved.InnateSpells = SaveLoadoutSpellRefs(Loadout.InnateSpells);
+	for (const FSavedBDElementSpellPool &Pool : Loadout.BDSpellPools)
+	{
+		FSavedCustomBDPool &Out = Saved.BDSpellPools.AddDefaulted_GetRef();
+		Out.Element = static_cast<uint8>(Pool.Element);
+		Out.Spells = SaveLoadoutSpellRefs(Pool.Spells);
+	}
+	return Saved;
+}
+
+FSavedLoadout RestoreCustomLoadout(const FSavedCustomLoadout &Saved)
+{
+	FSavedLoadout Loadout;
+	Loadout.LoadoutName = Saved.Name;
+	Loadout.RequiredClass = static_cast<ECharacterClass>(Saved.RequiredClass);
+	Loadout.bShowPrimary = Saved.bShowPrimary;
+	Loadout.PrimarySlotType = static_cast<EPrimarySlotType>(Saved.PrimarySlotType);
+	Loadout.PrimaryWeapon = Saved.PrimaryAsset.ResolveAs<UWeaponData>();
+	Loadout.PrimaryRing = Saved.PrimaryAsset.ResolveAs<URingData>();
+	Loadout.PrimaryEvolution = Saved.PrimaryAsset.ResolveAs<UEvolutionItemData>();
+	Loadout.PrimaryWeaponInstance = Loadout.PrimaryWeapon ? Saved.PrimaryInstance : FGuid();
+	Loadout.PrimaryRingInstance = Loadout.PrimaryRing ? Saved.PrimaryInstance : FGuid();
+	Loadout.PrimaryEvolutionInstance = Loadout.PrimaryEvolution ? Saved.PrimaryInstance : FGuid();
+	Loadout.PrimaryWeaponAbilities = RestoreLoadoutRefs<UAbilityData>(Saved.PrimaryAbilities);
+	Loadout.PrimaryAugmentStoneAbilities = RestoreLoadoutRefs<UAbilityData>(Saved.PrimaryStoneAbilities);
+	Loadout.EvolutionSpells = RestoreLoadoutSpellRefs(Saved.EvolutionSpells);
+	Loadout.SecondarySlotType = static_cast<ESecondarySlotType>(Saved.SecondarySlotType);
+	Loadout.SecondaryWeapon = Saved.SecondaryWeapon.ResolveAs<UWeaponData>();
+	Loadout.SecondaryWeaponInstance = Saved.SecondaryInstance;
+	Loadout.SecondaryWeaponAbilities = RestoreLoadoutRefs<UAbilityData>(Saved.SecondaryAbilities);
+	Loadout.SecondaryAugmentStoneAbilities = RestoreLoadoutRefs<UAbilityData>(Saved.SecondaryStoneAbilities);
+	for (int32 Index = 0; Index < Saved.Adapters.Num(); ++Index)
+	{
+		if (URingData *Ring = Saved.Adapters[Index].ResolveAs<URingData>())
+		{
+			FResonatorRingSlot &Slot = Loadout.EquippedRings.AddDefaulted_GetRef();
+			Slot.Ring = Ring;
+			Slot.RingInstance = Saved.AdapterInstances.IsValidIndex(Index) ? Saved.AdapterInstances[Index] : FGuid();
+		}
+	}
+	Loadout.InnateSpells = RestoreLoadoutSpellRefs(Saved.InnateSpells);
+	for (const FSavedCustomBDPool &In : Saved.BDSpellPools)
+	{
+		FSavedBDElementSpellPool &Pool = Loadout.BDSpellPools.AddDefaulted_GetRef();
+		Pool.Element = static_cast<ESpellElement>(In.Element);
+		Pool.Spells = RestoreLoadoutSpellRefs(In.Spells);
+	}
+	return Loadout;
+}
 }
 
 namespace SaveRunResume
@@ -267,6 +406,14 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 	if (const UParty *Party = GI->GetSubsystem<UPartySessionSubsystem>()->GetLocalParty())
 	{
 		Data.Party = CaptureParty(Party, bInRun);
+	}
+	// B-311: live edits to custom loadouts reach the pool before it is captured.
+	for (TObjectIterator<UInventoryComponent> It; It; ++It)
+	{
+		if (!It->IsTemplate() && It->GetWorld() == World)
+		{
+			It->PushCustomLoadoutsToPool();
+		}
 	}
 	Data.Pool = CapturePool(*GI->GetSubsystem<UPoolSubsystem>());
 	Data.Forms.Progress = GI->GetSubsystem<UCharacterFormSubsystem>()->GetProgressByName();
@@ -470,6 +617,15 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 	}
 	Saved.ItemSlotCount = Pool.GetItemSlotCount();
 	Saved.BankedItemCharacters = Pool.GetBankedItemCharacters().Array();
+	for (const TPair<FName, FPoolCustomLoadouts> &Custom : Pool.GetAllCustomLoadouts())
+	{
+		FSavedCharacterLoadouts &Out = Saved.CustomLoadouts.AddDefaulted_GetRef();
+		Out.Character = Custom.Key;
+		for (const FSavedLoadout &Loadout : Custom.Value.Loadouts)
+		{
+			Out.Loadouts.Add(SaveCustomLoadout(Loadout));
+		}
+	}
 	return Saved;
 }
 
@@ -681,6 +837,15 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		}
 	}
 	Pool.RestoreCarriedItems(Carried, Saved.ItemSlotCount, Saved.BankedItemCharacters);
+	for (const FSavedCharacterLoadouts &Custom : Saved.CustomLoadouts)
+	{
+		TArray<FSavedLoadout> Loadouts;
+		for (const FSavedCustomLoadout &Loadout : Custom.Loadouts)
+		{
+			Loadouts.Add(RestoreCustomLoadout(Loadout));
+		}
+		Pool.SetCustomLoadouts(Custom.Character, Loadouts);
+	}
 	if (Restored > 0)
 	{
 		Pool.MarkPopulated();

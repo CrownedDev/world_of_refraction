@@ -2993,3 +2993,10 @@ Moved here once applied. Newest first.
 **Options:** **A** (as built) B-308 does save v5 (one gear list, v3 / v4 still load); B-312 builds the one in-memory store with weapon / adapter views over the pool. **B** add `OwnedGear` now with a sync to `Weapons` / `Rings`, removed again in B-312.
 **Recommendation:** A: build new alongside old without a throwaway layer (the strangler-fig pattern, Fowler; CLAUDE.md "incremental"). No player-facing difference.
 **Notes for Claude:** applied in B-308; B-312's row now carries `OwnedGear`.
+
+### Q-311 — Custom loadouts: the open details
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-311) · **Blocks:** —
+**Question:** D-111 keeps up to 5 custom loadouts per character and makes lore loadouts read-only. Three details: (1) a lore loadout can still be edited in play; are those edits blocked, or just not kept? (2) Is the active loadout remembered across spawns? (3) A loadout made during a run?
+**Options / as built:** (1) **not kept**: edits to a lore loadout last until the next spawn; copying it (Duplicate) makes a kept custom one. (2) **not remembered**: each spawn starts on the asset's default loadout. (3) **dropped** at the run's end (the run uses its own preset).
+**Recommendation:** as built. Monster Hunter's equipment sets: the gear you wear changes freely, a set is kept only when you save it; Destiny 2's loadouts likewise save on an explicit action. Remembering the active loadout is a small follow-up if PIE shows players miss it.
+**Notes for Claude:** applied in B-311. If Crown wants lore loadouts locked, gate the loadout edit calls on `bLore`.

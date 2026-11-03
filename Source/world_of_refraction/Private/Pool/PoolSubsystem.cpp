@@ -220,6 +220,31 @@ void UPoolSubsystem::RestoreSharedGear(const TMap<FGuid, FName> &InWearers, cons
     BankedCharacters = TSet<FName>(InBanked);
 }
 
+// ==================== CUSTOM LOADOUTS ====================
+
+void UPoolSubsystem::SetCustomLoadouts(FName CharacterKey, const TArray<FSavedLoadout> &Loadouts)
+{
+    if (Loadouts.IsEmpty())
+    {
+        CustomLoadouts.Remove(CharacterKey);
+        return;
+    }
+    if (Loadouts.Num() > PoolConstants::MAX_CUSTOM_LOADOUTS)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Pool] %s has %d custom loadouts; keeping the first %d (D-111)"),
+               *FPaths::GetBaseFilename(CharacterKey.ToString()), Loadouts.Num(), PoolConstants::MAX_CUSTOM_LOADOUTS);
+    }
+    TArray<FSavedLoadout> &Kept = CustomLoadouts.FindOrAdd(CharacterKey).Loadouts;
+    Kept = Loadouts;
+    Kept.SetNum(FMath::Min(Kept.Num(), PoolConstants::MAX_CUSTOM_LOADOUTS));
+}
+
+const TArray<FSavedLoadout> *UPoolSubsystem::GetCustomLoadouts(FName CharacterKey) const
+{
+    const FPoolCustomLoadouts *Found = CustomLoadouts.Find(CharacterKey);
+    return Found ? &Found->Loadouts : nullptr;
+}
+
 // ==================== KNOWLEDGE ====================
 
 void UPoolSubsystem::AddSpellToPool(const FSpellInstance &Instance)
@@ -653,6 +678,11 @@ FString UPoolSubsystem::GetPoolString() const
     {
         Out += FString::Printf(TEXT("\n    CLASH: %s worn by %s, taken out of %s's loadout"), *Clash.ItemName.ToString(),
                                *Clash.WearerName.ToString(), *Clash.LoserName.ToString());
+    }
+    for (const TPair<FName, FPoolCustomLoadouts> &Custom : CustomLoadouts)
+    {
+        Out += FString::Printf(TEXT("\n  Custom loadouts (B-311): %s has %d"), *FPaths::GetBaseFilename(Custom.Key.ToString()),
+                               Custom.Value.Loadouts.Num());
     }
     Out += FString::Printf(TEXT("\n  Knowledge: Spells=%d Abilities=%d"),
                            OwnedSpells.Num(), OwnedAbilities.Num());

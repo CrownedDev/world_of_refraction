@@ -3,6 +3,7 @@
 
 #include "Loadout/LoadoutComponent.h"
 #include "Pool/PoolSubsystem.h"
+#include "Algo/Count.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Loadout/SourceBreakRules.h"
 #include "Loadout/LoadoutConstants.h"
@@ -84,6 +85,18 @@ namespace
 
         ULoadoutComponent &Loadout;
     };
+
+    /** B-311 (D-111): room for another custom loadout (lore loadouts don't count). */
+    bool HasRoomForCustomLoadout(const UInventoryComponent &Inv)
+    {
+        const int32 Custom = Algo::CountIf(Inv.SavedLoadouts, [](const FCombatLoadout &Loadout) { return !Loadout.bLore; });
+        if (Custom >= PoolConstants::MAX_CUSTOM_LOADOUTS)
+        {
+            UE_LOG(LogTemp, Log, TEXT("[Loadout] %s already has %d custom loadouts (D-111)"), *GetNameSafe(Inv.GetOwner()), Custom);
+            return false;
+        }
+        return true;
+    }
 }
 
 ULoadoutComponent::ULoadoutComponent()
@@ -156,6 +169,7 @@ void ULoadoutComponent::EnsureDefaultLoadout()
         FCombatLoadout DefaultLoadout;
         DefaultLoadout.LoadoutName = TEXT("Default");
         DefaultLoadout.InitializeForClass(GetCharacterClass());
+        DefaultLoadout.bLore = true; // B-311: a seed, not the player's own
         Inv->SavedLoadouts.Add(DefaultLoadout);
         Inv->ActiveLoadoutIndex = 0;
     }
@@ -281,7 +295,7 @@ int32 ULoadoutComponent::CreateNewLoadout(const FString &LoadoutName)
         UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::CreateNewLoadout] No InventoryComponent found on owner"));
         return -1;
     }
-    if (Inv->SavedLoadouts.Num() >= Inv->MaxSavedLoadouts)
+    if (!HasRoomForCustomLoadout(*Inv)) // D-111: 5 custom loadouts plus the lore ones (MaxSavedLoadouts no longer caps these)
     {
         return -1;
     }
@@ -457,8 +471,8 @@ bool ULoadoutComponent::DeleteLoadout(int32 Index)
         return false;
     }
 
-    // Don't delete last loadout
-    if (Inv->SavedLoadouts.Num() <= 1)
+    // Don't delete last loadout; a lore loadout is read-only (D-111)
+    if (Inv->SavedLoadouts.Num() <= 1 || Inv->SavedLoadouts[Index].bLore)
     {
         return false;
     }
@@ -491,13 +505,15 @@ int32 ULoadoutComponent::DuplicateLoadout(int32 SourceIndex, const FString &NewN
         return -1;
     }
 
-    if (Inv->SavedLoadouts.Num() >= Inv->MaxSavedLoadouts)
+    if (!HasRoomForCustomLoadout(*Inv)) // D-111: 5 custom loadouts plus the lore ones (MaxSavedLoadouts no longer caps these)
     {
         return -1;
     }
 
+    // B-311: a copy is the player's own, even of a lore loadout (the way to keep changes to one).
     FCombatLoadout NewLoadout = Inv->SavedLoadouts[SourceIndex];
     NewLoadout.LoadoutName = NewName;
+    NewLoadout.bLore = false;
 
     int32 NewIndex = Inv->SavedLoadouts.Add(NewLoadout);
     return NewIndex;
@@ -2443,11 +2459,13 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
         UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::InitializeFromCharacterData] No InventoryComponent found on owner — cannot seed empty loadout"));
         return;
     }
-    Inv->SavedLoadouts.Empty();
+    // B-311: the seed replaces the lore loadouts only; custom ones drawn from the pool stay.
+    Inv->SavedLoadouts.RemoveAll([](const FCombatLoadout &Loadout) { return Loadout.bLore; });
     FCombatLoadout EmptyLoadout;
     EmptyLoadout.LoadoutName = TEXT("Default");
     EmptyLoadout.InitializeForClass(CharacterData->CharacterClass);
-    Inv->SavedLoadouts.Add(EmptyLoadout);
+    EmptyLoadout.bLore = true;
+    Inv->SavedLoadouts.Insert(EmptyLoadout, 0);
     Inv->ActiveLoadoutIndex = 0;
     bIsReadyForBattle = false;
 

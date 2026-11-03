@@ -102,6 +102,15 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
      *  ULoadoutComponent::PrepareForBattle. */
     static void ApplyAutoEquip(FCombatLoadout &Loadout, AActor *OwningActor);
 
+    /** B-311 (D-111): back to the authored shape, with each piece referenced by its owned GUID, so a custom loadout
+     *  can be kept and rebuilt by CreateFromSavedLoadout. Carried items are not kept (D-111: the pouch holds them). */
+    FSavedLoadout ToSavedLoadout(ECharacterClass CharacterClass) const;
+
+    /** B-311 (D-111): a lore loadout (the character asset's own) is rebuilt from the asset each spawn and never kept;
+     *  a custom one (the player's) is kept per character. */
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "1. Identity")
+    bool bLore = false;
+
     // ==================== PRIMARY EQUIPMENT ====================
     /** Does this character start combat with weapon drawn? */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Identity")
