@@ -105,7 +105,7 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 		{
 			Inputs.CritRoll = UBattleRandomSubsystem::FRand(this);
 		}
-		// GetCritDamageMultiplier is the full multiplier (x1.5 base + stat ramp, then gear/transient).
+		// GetCritDamageMultiplier is the full multiplier (CRIT_DMG_BASE + stat ramp, then gear/transient).
 		Inputs.CritDamageMultiplier = GetCritDamageMultiplier(Attacker);
 	}
 

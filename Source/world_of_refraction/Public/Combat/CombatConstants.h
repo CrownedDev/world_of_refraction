@@ -179,10 +179,8 @@ namespace CombatConstants
     constexpr float GAMBLE_BUFF_LUCK_BONUS = 0.45f;
     // (5e-C3 retired CRIT_CHANCE_PER_POINT — crit chance left the Mind stat for Luck; and the dead
     //  CRIT_DAMAGE_MULTIPLIER duplicate. Crit damage uses CRIT_DMG_BASE / CRIT_DAMAGE_PER_POINT below.)
-    // Crit DAMAGE stat scaling (cluster 5e-B-fix, Crown-locked). Un-invested crit = CRIT_DMG_BASE
-    // (x1.0 = NORMAL damage — a crit does nothing extra without crit-damage investment). The
-    // crit-damage stat ramps it to x1.5 at max (base 1.0 + 0.5), gear pushes past toward x2.5
-    // (CRIT_DAMAGE_GEAR_CEILING, D-034).
+    // Crit DAMAGE stat scaling. Un-invested crit = CRIT_DMG_BASE; the crit-damage stat ramps it to
+    // CRIT_DAMAGE_STAT_CAP at max, gear pushes past toward CRIT_DAMAGE_GEAR_CEILING (D-034).
     // B-224 (Crown, BaselineNumbers.md; Monster Hunter's 1.25): an un-invested crit does +25%.
     constexpr float CRIT_DMG_BASE = 1.25f;           // un-invested crit = x1.25
     constexpr float CRIT_DAMAGE_STAT_CAP = 1.5f;     // crit-damage stat-ALONE ceiling (1.25 base + 0.25 stat)
