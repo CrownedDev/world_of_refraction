@@ -1760,6 +1760,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** while in dev there is one save version. `MIN_SUPPORTED` rises to `LATEST`; every old-shape reader (v3 / v4 gear lists, the party pouch and the rest) is deleted; older saves are wiped with a warning (D-060). The 14 `SaveGame`-tagged fields move into `FWoRSaveData` (D-059). From now on a save-format change bumps the version and the minimum together, with no migration code until the first public build.
 **Notes for Claude:** job B-348. The CLAUDE.md Saves rule should carry the note (Crown to approve that edit).
 
+### D-139 — One console naming rule (audit §24)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §24) · **Blocks:** —
+**Answer (Crown):** every console command is `wor.<System>.<Verb>`, with one `Print` per system. Duplicates are removed outright, with no alias period. Every `docs/PIE/*.md` and Architecture doc naming an old command is updated, as is CLAUDE.md's debug-tools section (Crown to approve that edit).
+**Notes for Claude:** job B-349, split by system (≤3 files per commit).
+
 ### Q-321 — Can the shared home chest hold gear, or only items?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
 **Question:** D-097's storage holds items (crystals, stones, consumables); gear lived in the shared pool. With gear per character (D-117), can a character put an unworn weapon or adapter in the shared chest for another to take?
