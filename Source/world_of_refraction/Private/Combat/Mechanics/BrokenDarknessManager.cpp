@@ -158,7 +158,7 @@ void UBrokenDarknessManager::InitializeBornBrokenDarkness()
 	// Born-BD starts on the base Darkness pool (Model B), same as a runtime
 	// transform. Element axis only — energy is set separately by CDC init.
 	SeedBaseElement();
-	UE_LOG(LogTemp, Log, TEXT("[BrokenDarkness] %s: auto-flipped bIsFlipped for character-created BD"),
+	UE_LOG(LogTemp, Verbose, TEXT("[BrokenDarkness] %s: auto-flipped bIsFlipped for character-created BD"),
 		   *Owner->GetName());
 }
 
@@ -199,7 +199,7 @@ void UBrokenDarknessManager::ApplyCarriedAbsorption(const FCarriedAbsorptionStat
 		const int32 AbsoluteMax = CharComp->MaxEP + FMath::RoundToInt(GetOverloadCapacity());
 		CharComp->ServerGainBrokenDarknessEnergy(Carried.OverloadEP, AbsoluteMax);
 	}
-	UE_LOG(LogTemp, Log, TEXT("[BrokenDarkness] %s: carried absorption resumed (%d stacks, alignment %s, overload %d)"),
+	UE_LOG(LogTemp, Verbose, TEXT("[BrokenDarkness] %s: carried absorption resumed (%d stacks, alignment %s, overload %d)"),
 		   GetOwner() ? *GetOwner()->GetName() : TEXT("<null>"), CurrentAbsorptionStacks,
 		   *UEnum::GetValueAsString(CurrentAlignmentElement), Carried.OverloadEP);
 }
@@ -244,7 +244,7 @@ bool UBrokenDarknessManager::RollForBreak(EItemTier Tier, int32 InfusionLevel, c
 
 	if (bBreaks)
 	{
-		UE_LOG(LogWoRCombat, Log,
+		UE_LOG(LogWoRCombat, Verbose,
 			   TEXT("BrokenDarkness: %s BROKE! (Reason: %s, Tier: %s, Level: L%d, Roll: %.4f < %.4f)"),
 			   Owner ? *Owner->GetName() : TEXT("Unknown"),
 			   *TriggerReason,
@@ -354,7 +354,7 @@ void UBrokenDarknessManager::AddStrain(int32 Deficit, const FString &TriggerReas
 	const float SkipChance = CharComp->GetLuckModifiedChance(0.0f, CombatConstants::LUCK_BREAK_SKIP_MAX);
 	if (UBattleRandomSubsystem::FRand(this) < SkipChance)
 	{
-		UE_LOG(LogTemp, Log,
+		UE_LOG(LogTemp, Verbose,
 			   TEXT("BrokenDarkness: %s LUCKY strain skip (would have added %.2f, skip chance %.2f, Reason: %s)"),
 			   Owner ? *Owner->GetName() : TEXT("Unknown"),
 			   StrainAdded, SkipChance, *TriggerReason);
@@ -371,7 +371,7 @@ void UBrokenDarknessManager::AddStrain(int32 Deficit, const FString &TriggerReas
 
 	if (AccruedStrain >= BreakThreshold)
 	{
-		UE_LOG(LogWoRCombat, Log,
+		UE_LOG(LogWoRCombat, Verbose,
 			   TEXT("BrokenDarkness: %s BROKE via strain! (%.2f >= %.2f, Reason: %s)"),
 			   Owner ? *Owner->GetName() : TEXT("Unknown"),
 			   AccruedStrain, BreakThreshold,
@@ -575,7 +575,7 @@ bool UBrokenDarknessManager::ProcessForbiddenCast(ESpellElement SpellElement, fl
 		}
 	}
 
-	UE_LOG(LogWoRCombat, Log,
+	UE_LOG(LogWoRCombat, Verbose,
 		   TEXT("BrokenDarkness: Forbidden element %s self-cost on %s — damage %.1f, base buildup %.1f"),
 		   *UEnum::GetValueAsString(SpellElement),
 		   Owner ? *Owner->GetName() : TEXT("Unknown"),
@@ -758,7 +758,7 @@ void UBrokenDarknessManager::ExitOverload()
 
 	AActor *Owner = GetOwner();
 	const UCharacterDataComponent *CharComp = GetCharComp();
-	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: %s exited overload (Energy: %d/%d)"),
+	UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: %s exited overload (Energy: %d/%d)"),
 		   Owner ? *Owner->GetName() : TEXT("Unknown"),
 		   CharComp ? CharComp->CurrentEP : 0, CharComp ? CharComp->MaxEP : 0);
 
@@ -792,7 +792,7 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 			ApplyDamageToActor(Enemy, AuraDamage);
 			OnOverloadDamage.Broadcast(Owner, Enemy, AuraDamage);
 
-			UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: Overload aura dealt %.1f damage to %s"),
+			UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: Overload aura dealt %.1f damage to %s"),
 				   AuraDamage, *Enemy->GetName());
 		}
 	}
@@ -802,7 +802,7 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 	ApplyDamageToActor(Owner, SelfDamage);
 	OnOverloadDamage.Broadcast(Owner, Owner, SelfDamage);
 
-	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: Overload self-damage %.1f"), SelfDamage);
+	UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: Overload self-damage %.1f"), SelfDamage);
 
 	// 3. Coupled energy leak. ONE value drives both outflows — by design.
 	//   released  = BaseEnergyRelease × StatusMultiplier↑ × Efficiency↓
@@ -827,7 +827,7 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 		const int32 DrainAmount = FMath::RoundToInt(Released);
 		CharComp->ServerSpendEnergy(DrainAmount);
 
-		UE_LOG(LogTemp, Log,
+		UE_LOG(LogTemp, Verbose,
 			   TEXT("BrokenDarkness: Overload leak released %.1f (StatusMult=%.2f, EffMult=%.2f), absorption now %d"),
 			   Released, StatusMultiplierBonus, EfficiencyMult, CharComp->CurrentEP);
 	}
@@ -942,7 +942,7 @@ void UBrokenDarknessManager::ProcessElementAbsorption(ESpellElement Element)
 			CurrentAbsorptionStacks = NewStacks;
 			OnStacksChanged.Broadcast(Owner, Element, CurrentAbsorptionStacks);
 
-			UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: %s stacks increased to %d (x%.1f status mult)"),
+			UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: %s stacks increased to %d (x%.1f status mult)"),
 				   *UEnum::GetValueAsString(Element),
 				   CurrentAbsorptionStacks,
 				   GetStackStatusMultiplier());
@@ -960,7 +960,7 @@ void UBrokenDarknessManager::ProcessElementAbsorption(ESpellElement Element)
 		OnAlignmentChanged.Broadcast(Owner, OldAlignment, Element);
 		OnStacksChanged.Broadcast(Owner, Element, 0);
 
-		UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: Alignment changed %s -> %s (stacks reset)"),
+		UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: Alignment changed %s -> %s (stacks reset)"),
 			   *UEnum::GetValueAsString(OldAlignment),
 			   *UEnum::GetValueAsString(Element));
 	}
@@ -1069,7 +1069,7 @@ void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,
 	{
 		const float WouldBeGain = CalculateAbsorptionEnergy(DefenseType, AttackEnergyCost, bPerfect);
 		DrainAndRevertToBase(WouldBeGain); // drain that amount (clamped) + revert pool to Darkness
-		UE_LOG(LogTemp, Log,
+		UE_LOG(LogTemp, Verbose,
 			   TEXT("BrokenDarkness: Reality parry/block — drained %.1f energy + reverted to base Darkness"),
 			   WouldBeGain);
 		return; // do NOT fall through to the normal absorb
@@ -1095,7 +1095,7 @@ void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,
 	// Broadcast
 	OnEnergyAbsorbed.Broadcast(GetOwner(), EnergyGained, AttackElement);
 
-	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: %s absorbed %.1f energy from %s (Stacks: %d)"),
+	UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: %s absorbed %.1f energy from %s (Stacks: %d)"),
 		   bPerfect ? TEXT("Perfect Guard") : TEXT("Guard"),
 		   EnergyGained,
 		   *UEnum::GetValueAsString(AttackElement),
