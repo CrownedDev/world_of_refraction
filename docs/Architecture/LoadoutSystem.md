@@ -424,6 +424,12 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 - B-310: carried run wear with a GUID is matched by GUID only. If an item is
   relinked to a new GUID mid-run, that slot starts the next fight with fresh
   wear (old saves without GUIDs still match by asset, in slot order).
+- B-304: the worn-elsewhere skip reads the pool's wearer without checking the
+  wearer is in the party (TODO in `IsWornByAnother`), so a stale wearer key
+  hides a piece; and a wearer change doesn't announce a gear change, so the
+  weapon mesh can show the old pick until the next announcement.
+- B-304: the active-gear getters are `const` but bring the slot mirror in step
+  (a cache) on every read: game thread only.
 
 ## Changelog
 
@@ -473,3 +479,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-11-02 | B-302 (D-110 step 2, D-111): `FLoadoutSlot` (the owned item by GUID is the truth, the gear copy a derived cache) and `FCombatLoadout::Slots` / `ActiveWeaponSlot` / `ActiveAdapterSlot`, rebuilt from the old fields by `RebuildSlotsFromLegacy(Class)` after every loadout change; the mirror holds what the fight reads for the class. Nothing reads it yet (B-303 moves the rules onto it). Debug `wor.Loadout.CompareSlots` (`ULoadoutRulesDebug::GetCompareSlotsString`). Spec `WoR.Loadout.Slots`. | refactor/B-302-loadout-slots |
 | 2026-11-03 | B-303 (D-110 step 3): `LoadoutClassTable` (Refractor 3 / 1 item; Generic 6 / 2 items, 2 weapons, 1 adapter (Q-303); Resonator 5 / 1 weapon / any adapters) and one `FLoadoutRules::SlotCost` over the unified slots; `CollectClassLimitFindings` replaces the Resonator-only budget block, and `ClearInvalidSlots`' adapter drop uses the same `NonAdapterCost`. Same results, except the budget charges the gear the fight uses (Q-303b). Spec `WoR.Loadout.ClassLimits`. | refactor/B-303-class-table-cost |
 | 2026-11-03 | B-310 (D-111 bug, Q-310): carried run wear (`FCarriedGearState`, `FSavedCarriedAttachment::GearID`) and crystal break / destroy / repair (`FindAttachedItemForSlot`, `FEquippedCrystalSlot::GearID`) follow the item's GUID, so two identical adapters keep their own wear; a GUID that names nothing finds nothing. Asset lookups prefer the copy in use (Q-310). Old saves match by asset. Spec `WoR.Party.RunWearByGuid`. | fix/B-310-run-wear-by-guid |
+| 2026-11-03 | B-304 (D-110 step 4, Q-304): `GetActiveSlot(Kind)`; the active-weapon / adapter getters forward to it. The mirror heals itself on read (`EnsureSlotsInStep`, slots know their old entry). An empty or stale active slot falls back to the first usable slot of its kind (a Resonator's only inside its adapter loadout); a piece another member wears is skipped (B-221b). A Generic's secondary weapon gets the spell checks. Wear lands on the piece the getters call in use. Supersedes B-243. Spec `WoR.Loadout.ActiveSlot`. | refactor/B-304-active-slot |

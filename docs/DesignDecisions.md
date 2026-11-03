@@ -1646,6 +1646,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A (D-111: wear follows the item actually used). Side effect: debug and socket tools that ask for "the primary weapon" by asset get the copy in hand when both are the same weapon. B-304's `GetActiveSlot` carries the GUID and makes this exact.
 **Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
 
+### Q-304 — When the active slot is empty, which gear is in use?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-304 review) · **Blocks:** —
+**Question:** D-110 says an empty or stale active slot falls back to the first usable one. Today's content reaches three cases: (1) a Generic showing an emptied primary (sold, or stripped before a fight) used to be unarmed and now fights with its secondary; (2) a Generic toggling to an empty secondary uses up the turn's switch but keeps its primary; (3) a Resonator with a stale active-adapter index used to have no adapter and now uses its first one. Also, a piece another member wears is skipped now (B-221b), not only stripped before a fight.
+**Options:** A as above (D-110) / B keep the old "unarmed / no adapter" results.
+**Recommendation:** A: D-110 removes the primary / secondary rule, and being unarmed with a weapon on the belt was a bug-shaped result. A Resonator's fallback stays inside its adapter loadout (never a stray primary ring). Case (2) is tidied by B-305's one switch (a switch that changes nothing shouldn't cost the turn's switch).
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
 **Question:** Re-applying the same effect: strength rule or replace? See `docs/analysis/EffectsOverhaul.md`.
