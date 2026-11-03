@@ -230,7 +230,8 @@ void UPoolSubsystem::SetGearOwner(const FGuid &GearID, FName CharacterKey)
 
 bool UPoolSubsystem::GiveGear(const FGuid &GearID, FName ToKey)
 {
-    const bool bInPool = FindWeaponInPool(GearID) || FindRingInPool(GearID) || FindEvolutionInPool(GearID);
+    // Evolutions wait for Q-323 (attached / primary-slot detach): refused here too, so no caller can leave a slot dangling.
+    const bool bInPool = FindWeaponInPool(GearID) || FindRingInPool(GearID);
     if (!bInPool || ToKey.IsNone() || GetGearOwner(GearID) == ToKey)
     {
         return false;

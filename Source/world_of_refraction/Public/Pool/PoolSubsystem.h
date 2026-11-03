@@ -260,10 +260,10 @@ public:
     const TMap<FGuid, FName> &GetGearOwners() const { return GearOwners; }
     void RestoreGearOwners(const TMap<FGuid, FName> &InOwners) { GearOwners = InOwners; }
 
-    /** B-323 (D-117): the piece (a weapon, adapter or evolution in the pool) becomes ToKey's, and every member hears
-     *  it (OnPoolGearChanged): the giver's copy drops out of its armoury and loadouts, the receiver's draws it. The
-     *  rules (D-116 primary, D-115 duplicate) are checked by WoRGive (GearGive.h), not here. False when the piece
-     *  isn't in the pool, ToKey is none, or it is already ToKey's. */
+    /** B-323 (D-117): the piece (a weapon or adapter in the pool; evolutions wait for Q-323) becomes ToKey's, and
+     *  every member hears it (OnPoolGearChanged): the giver's copy drops out of its armoury and loadouts, the
+     *  receiver's draws it. The rules (D-116 primary, D-115 duplicate) are checked by WoRGive (GearGive.h), not
+     *  here. False when the piece isn't a weapon or adapter in the pool, ToKey is none, or it is already ToKey's. */
     bool GiveGear(const FGuid &GearID, FName ToKey);
 
     // ==================== CUSTOM LOADOUTS (B-311, D-111) ====================

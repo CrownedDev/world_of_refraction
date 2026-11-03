@@ -1833,14 +1833,16 @@ void UInventoryComponent::HandlePoolGearChanged(FGuid GearID)
     };
     if (const FWeaponInventoryEntry *SharedWeapon = bOthers ? nullptr : Pool->FindWeaponInPool(GearID))
     {
+        // The twin's id is read before the mirror: adding the new piece can reallocate Weapons.
         const bool bNew = FindOwned(Weapons, GearID) == nullptr;
         const FWeaponInventoryEntry *Twin = Weapons.FindByPredicate([SharedWeapon](const FWeaponInventoryEntry &Other)
             { return Other.PersistentID != SharedWeapon->PersistentID && Other.Weapon && Other.Weapon == SharedWeapon->Weapon; });
+        const FGuid TwinID = Twin ? Twin->PersistentID : FGuid();
         MirrorShared(Weapons, *SharedWeapon);
         RefreshLoadoutsFromOwned(GearID);
-        if (bNew && Twin)
+        if (bNew)
         {
-            NoteDuplicate(Twin->PersistentID, GetNameSafe(SharedWeapon->Weapon));
+            NoteDuplicate(TwinID, GetNameSafe(SharedWeapon->Weapon));
         }
     }
     else if (const FRingInventoryEntry *SharedRing = bOthers ? nullptr : Pool->FindRingInPool(GearID))
@@ -1848,11 +1850,12 @@ void UInventoryComponent::HandlePoolGearChanged(FGuid GearID)
         const bool bNew = FindOwned(Rings, GearID) == nullptr;
         const FRingInventoryEntry *Twin = Rings.FindByPredicate([SharedRing](const FRingInventoryEntry &Other)
             { return Other.PersistentID != SharedRing->PersistentID && Other.Ring && Other.Ring == SharedRing->Ring; });
+        const FGuid TwinID = Twin ? Twin->PersistentID : FGuid();
         MirrorShared(Rings, *SharedRing);
         RefreshLoadoutsFromOwned(GearID);
-        if (bNew && Twin)
+        if (bNew)
         {
-            NoteDuplicate(Twin->PersistentID, GetNameSafe(SharedRing->Ring));
+            NoteDuplicate(TwinID, GetNameSafe(SharedRing->Ring));
         }
     }
     else if (const FEvolutionInventoryEntry *SharedEvolution = bOthers ? nullptr : Pool->FindEvolutionInPool(GearID))
