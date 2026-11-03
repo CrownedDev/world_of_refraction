@@ -81,20 +81,21 @@ FString URequirementGapDebug::GetWeaponRequirementFactorString(const UWeaponData
     }
 
     const FWorldStatRequirements &Req = Weapon->Requirements;
-    const float Floor = WoRTuning::Get().WeaponReqFactorMin;
-    auto PillarLine = [Floor](const TCHAR *PillarName, int32 Required, int32 CharLevel)
+    // B-326 (D-119): each pillar is met or short; any shortfall gives the one flat penalty.
+    auto PillarLine = [](const TCHAR *PillarName, int32 Required, int32 CharLevel)
     {
-        const int32 Gap = Required - CharLevel;
-        const float Clamped = FMath::Clamp(TierGapDamage::GetRequirementGapMultiplier(Gap), Floor,
-                                           WeaponRequirement::WEAPON_REQ_FACTOR_MAX);
-        return FString::Printf(TEXT("  %-7s Req %d  Char %d  Gap %+d  ->  x%.2f\n"), PillarName, Required, CharLevel, Gap, Clamped);
+        const int32 Short = Required - CharLevel;
+        return Short > 0 ? FString::Printf(TEXT("  %-7s Req %d  Char %d  short by %d\n"), PillarName, Required, CharLevel, Short)
+                         : FString::Printf(TEXT("  %-7s Req %d  Char %d  met\n"), PillarName, Required, CharLevel);
     };
 
     FString Output = FString::Printf(TEXT("WEAPON REQUIREMENT: %s (CHARACTER: %s)\n"), *Weapon->GetName(), *Character->Name);
     Output += PillarLine(TEXT("Mind"), Req.RequiredWorldMind, Character->WorldMindLevel);
     Output += PillarLine(TEXT("Body"), Req.RequiredWorldBody, Character->WorldBodyLevel);
     Output += PillarLine(TEXT("Spirit"), Req.RequiredWorldSpirit, Character->WorldSpiritLevel);
-    Output += FString::Printf(TEXT("  Factor (worst pillar): x%.2f on the weapon part of attacks and abilities (B-220)\n"), Req.GetWeaponRequirementFactor(Character));
+    const float Factor = Req.GetWeaponRequirementFactor(Character);
+    Output += FString::Printf(TEXT("  Factor: x%.2f on the weapon part of attacks and abilities (B-220)%s\n"), Factor,
+                              WeaponRequirement::IsUnmetFactor(Factor) ? TEXT(", unmet: no pillar scaling (D-119)") : TEXT(""));
     return Output;
 }
 
