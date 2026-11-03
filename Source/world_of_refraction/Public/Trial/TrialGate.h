@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Combat/Encounter/EEncounterRank.h"
+#include "Inventory/ItemTier.h"
 #include "TrialGate.generated.h"
 
 class AActor;
@@ -70,4 +71,15 @@ namespace TrialGate
 	 *  uncleansable max-HP buff, then a full refill. MaxHP percents add up, so the share is Strength x (rank x tier
 	 *  power - 1), making the total Strength x rank x tier power. No-op when both are x1. False as ApplyEnemyStrength. */
 	bool ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EEncounterRank Rank);
+
+	/** B-223 (D-102): a normal or elite enemy's chance to drop a pillar level: the LevelDropChance ladder at its
+	 *  tier, doubled for an elite, at most 1. 0 for a mini-boss or boss (they always give, GetGuaranteedLevels). */
+	float GetLevelDropChance(EItemTier EnemyTier, EEncounterRank Rank);
+
+	/** B-223 (D-102): levels a mini-boss or boss always gives, by its tier (MiniBossLevels ladder); 0 below. */
+	int32 GetGuaranteedLevels(EItemTier EnemyTier, EEncounterRank Rank);
+
+	/** B-223: the pillar levels one defeated enemy gives: its guaranteed levels, else one on a battle-random
+	 *  roll under its drop chance. */
+	int32 RollLevelDrops(const UObject *WorldContext, EItemTier EnemyTier, EEncounterRank Rank);
 }
