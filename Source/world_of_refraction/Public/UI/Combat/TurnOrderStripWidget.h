@@ -8,6 +8,7 @@
 
 class AActor;
 class UTurnManager;
+class UTurnStateComponent;
 class UPanelWidget;
 class UTurnOrderSlotWidget;
 
@@ -54,12 +55,17 @@ protected:
 
 	UFUNCTION()
 	void HandleTurnStarted(AActor *Actor, int32 TurnNumber);
+	/** B-228: the GameState's turn state changed (server refresh or client replication). */
+	UFUNCTION()
+	void HandleTurnStateChanged();
 
 private:
 	UPROPERTY()
 	TArray<UTurnOrderSlotWidget *> Slots;
 
 	TWeakObjectPtr<UTurnManager> CachedTurnManager;
+	/** B-228: read first when the level has an AWoRGameState (every player sees the same); else CachedTurnManager. */
+	TWeakObjectPtr<UTurnStateComponent> CachedTurnState;
 
 	bool bInitialised = false;
 
