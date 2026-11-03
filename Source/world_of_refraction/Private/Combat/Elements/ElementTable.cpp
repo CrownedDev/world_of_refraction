@@ -23,6 +23,8 @@ namespace
 
 	TArray<FElementRow> BuildRows()
 	{
+		// Water's break slows Action and Spell Speed (D-090; ApplyTriggeredSkillEffect adds the Spell Speed half).
+		// Ice resists as Water damage too (B-226, Q-042o, Q-145b).
 		// Type, Element, Physical, AlsoResistedBy, Gem, Essence, BreakTrigger, Immunity, Colour, bBDAbsorbable, bBDForbidden
 		return {
 			{T::None,      E::None,      P::None,   T::None, G::Quartz,   Ess::Generic,   S::None,              S::None,                   ElementColors::Generic,  false, false},
