@@ -1,0 +1,68 @@
+// ZoneHealthOnceSpec.cpp
+// B-327 (simplicity audit): an enemy's max HP takes the zone's strength once. ABattleGameMode and the balance sim
+// call ApplyEnemyStrength(zone HP) and then ApplyEnemyRankHealth(zone HP, rank). The second effect is
+// zone x (rank x tier - 1), and MaxHPBuff percents add (USkillEffectManager::GetTotalStatModifier), so the total is
+// zone x rank x tier, not zone squared. This pins that product so a later change can't stack the zone twice.
+
+#if WITH_DEV_AUTOMATION_TESTS
+
+#include "Misc/AutomationTest.h"
+#include "WoRTestWorld.h"
+#include "Character/CharacterData.h"
+#include "Character/CharacterDataComponent.h"
+#include "Combat/Encounter/EnemyZone.h"
+#include "Trial/TrialGate.h"
+
+namespace
+{
+	/** The highest zone (x1.75) and a C enemy (x2.2), so a doubled zone would be far off. */
+	constexpr int32 ZONE_ONCE_TIER = EnemyZoneConstants::MAX_ZONE_TIER;
+	/** MaxHP is rounded once after the multiply. */
+	constexpr float ZONE_ONCE_ROUNDING = 1.0f;
+}
+
+BEGIN_DEFINE_SPEC(FZoneHealthOnceSpec, "WoR.Trial.ZoneHealthOnce",
+				  EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+	TUniquePtr<FWoRTestWorld> TestWorld;
+END_DEFINE_SPEC(FZoneHealthOnceSpec)
+
+void FZoneHealthOnceSpec::Define()
+{
+	BeforeEach([this]()
+	{
+		TestWorld = MakeUnique<FWoRTestWorld>();
+		TestTrue(TEXT("Test world created"), TestWorld->Create());
+	});
+
+	AfterEach([this]()
+	{
+		TestWorld.Reset();
+	});
+
+	It("gives a zone-4 C boss zone x rank x tier HP, the zone counted once", [this]()
+	{
+		UCharacterData *Data = FWoRTestWorld::NewCharacterData();
+		Data->EnemyTier = EItemTier::C_Tier;
+		AActor *Enemy = TestWorld->SpawnCombatant(Data, true);
+		UCharacterDataComponent *CharComp = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		if (!TestNotNull(TEXT("enemy"), CharComp))
+		{
+			return;
+		}
+		const float BaseMaxHP = static_cast<float>(CharComp->MaxHP);
+		const float Zone = AEnemyZone::GetTierStrengthMultiplier(ZONE_ONCE_TIER);
+		const float Rank = TrialGate::GetRankHealthMultiplier(EEncounterRank::Boss);
+		const float Tier = TrialGate::GetEnemyTierHealthMultiplier(Enemy);
+		TestTrue(TEXT("the zone scales"), Zone > 1.0f);
+
+		// The order BattleGameMode uses: strength first, then rank x tier on top.
+		TestTrue(TEXT("strength applied"), TrialGate::ApplyEnemyStrength(Enemy, Zone, Zone));
+		TestEqual(TEXT("after strength: x zone"), static_cast<float>(CharComp->MaxHP), BaseMaxHP * Zone, ZONE_ONCE_ROUNDING);
+		TestTrue(TEXT("rank applied"), TrialGate::ApplyEnemyRankHealth(Enemy, Zone, EEncounterRank::Boss));
+		TestEqual(TEXT("zone x rank x tier, once"), static_cast<float>(CharComp->MaxHP), BaseMaxHP * Zone * Rank * Tier,
+				  ZONE_ONCE_ROUNDING);
+		TestTrue(TEXT("not zone squared"), static_cast<float>(CharComp->MaxHP) < BaseMaxHP * Zone * Zone * Rank * Tier - ZONE_ONCE_ROUNDING);
+	});
+}
+
+#endif // WITH_DEV_AUTOMATION_TESTS
