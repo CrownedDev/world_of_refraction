@@ -132,6 +132,11 @@ protected:
 	UPROPERTY(EditInstanceOnly, Category = "Boss")
 	TObjectPtr<UCharacterData> FallbackBoss;
 
+	/** B-344 (D-136, Q-344): set to give this boss its own AI tier; otherwise the trial difficulty picks it (bosses
+	 *  still harden by phase, B-193). */
 	UPROPERTY(EditInstanceOnly, Category = "Boss")
+	bool bOverrideAIDifficulty = false;
+
+	UPROPERTY(EditInstanceOnly, Category = "Boss", meta = (EditCondition = "bOverrideAIDifficulty"))
 	EAIDifficulty Difficulty = EAIDifficulty::Hard;
 };
