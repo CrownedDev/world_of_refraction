@@ -49,3 +49,10 @@ Mini-boss x4 and boss x8 HP; the requirement floor at 0.25; a 10% damage floor a
 - **Boss and mini-boss length at Medium.** 8 boss rounds and 4–6 mini-boss rounds against 11–15.5 and 7–11. Once enemy defending is lighter they get shorter still. The lever is the rank HP (Mini-boss x3, Boss x6), which is on Crown's Decided list.
 - **Pillar 6.** Low level + S gear beats high level + F gear 92% of the time. BaselineNumbers §4 expected exactly that: with the floor at 0.5 the S weapon's part is ~2.3x the F weapon's, and "good gear gives a low level a real chance". The 35–65% band contradicts the Decided floor and requirements.
 - **Stacked damage reduction.** Defense caps at 75% and Damage Taken Down at 90% (B-288), but they multiply with each other and with Guard: 0.25 × 0.10 × 0.5 lets 1.25% of a hit through, and a Perfect Guard 0%. Each cap holds; their product has none (lesson 4). The crit cap (x2.5) holds when crit sources stack (B-288's compose spec).
+
+## Second nightly and Q-293e (2026-11-03; B-293d)
+
+17 bands fail (was 19). Hard is no longer about 2.5x Medium, and Medium normal fights are in band. But the Mid and Late parties lose normal fights (win rate 0.12 / 0.00), and their mini-boss and boss fights run 18–21 rounds (Early runs 3–7).
+
+The cause was the sim, not enemy HP stacking. Two of the three Mid/Late members were the early F build with only the weapon swapped. They now take tier-matched stat points (Q-293e). Enemy tier HP stays as decided (BaselineNumbers §2.9). Open for Crown: enemy damage scales with tier and party HP doesn't (Q-293e notes). Re-run the nightly.
+
