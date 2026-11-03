@@ -77,7 +77,7 @@ TArray<UCharacterData *> UEncounterData::BuildCaughtRoster(const TArray<TArray<U
 EEncounterRank UEncounterData::GetFightRank(const UEncounterData *Encounter, EEncounterRank PlacedRank, const TArray<UCharacterData *> &Fielded)
 {
 	const bool bFormFights = Encounter && Encounter->MiniBossForm && Fielded.Contains(Encounter->MiniBossForm->Character);
-	return bFormFights ? FMath::Max(PlacedRank, EEncounterRank::MiniBoss) : PlacedRank;
+	return bFormFights ? HarderEncounterRank(PlacedRank, EEncounterRank::MiniBoss) : PlacedRank;
 }
 
 FString UEncounterData::GetEncounterString() const
