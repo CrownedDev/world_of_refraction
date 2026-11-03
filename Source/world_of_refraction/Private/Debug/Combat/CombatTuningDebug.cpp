@@ -15,6 +15,12 @@ namespace
 		TEXT("DEBUG: print the live combat tuning values (asset or C++ defaults)."),
 		FConsoleCommandDelegate::CreateLambda([]() { UCombatTuningDebug::PrintCombatTuning(); }));
 
+	// B-224: the name the backlog asks for; same print.
+	FAutoConsoleCommand GTuningPrintCmd(
+		TEXT("wor.Tuning.Print"),
+		TEXT("DEBUG: print the live combat tuning values and the combat numbers baseline (B-224)."),
+		FConsoleCommandDelegate::CreateLambda([]() { UCombatTuningDebug::PrintCombatTuning(); }));
+
 	FAutoConsoleCommand GCompareCombatTuningCmd(
 		TEXT("wor.CompareCombatTuning"),
 		TEXT("DEBUG: list every live combat tuning value that differs from the C++ constants."),
