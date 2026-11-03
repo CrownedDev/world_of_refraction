@@ -217,6 +217,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-301](B-301.md) | `refactor/B-301-gear-instance` (in `dev`) | Unified loadout 1: one gear-instance type (not used yet) | Not tested |
 | [B-302](B-302.md) | `refactor/B-302-loadout-slots` (in `dev`) | Unified loadout 2: slot list mirrored beside the old fields; `wor.Loadout.CompareSlots` | Not tested |
 | [B-303](B-303.md) | `refactor/B-303-class-table-cost` (in `dev`) | Unified loadout 3: one class table and one slot cost (budget unchanged except Q-303b) | Not tested |
+| [B-310](B-310.md) | `fix/B-310-run-wear-by-guid` (in `dev`) | Run wear follows the item's GUID: two identical adapters keep their own wear | Not tested |
 
 Move rows to **Done** when every check passes.
 
