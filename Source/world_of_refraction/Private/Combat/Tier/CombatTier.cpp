@@ -2,6 +2,7 @@
 // B-325 (D-118). See CombatTier.h.
 
 #include "Combat/Tier/CombatTier.h"
+#include "GameFramework/Actor.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Loadout/LoadoutComponent.h"
@@ -12,12 +13,6 @@
 #include "Skills/Definitions/SpellData.h"
 
 #define LOCTEXT_NAMESPACE "CombatTier"
-
-namespace CombatTierInternal
-{
-	/** Keeps an exact average (2.0 from float noise as 1.9999999) on its own tier when rounding down. */
-	constexpr float AVERAGE_ROUNDING_SLACK = 1.0e-3f;
-}
 
 EItemTier WoRCombatTier::GetAverageTier(TConstArrayView<EItemTier> Tiers, EItemTier Fallback)
 {
@@ -30,9 +25,9 @@ EItemTier WoRCombatTier::GetAverageTier(TConstArrayView<EItemTier> Tiers, EItemT
 	{
 		Sum += TierHelpers::GetTierValue(Tier);
 	}
-	const float Average = static_cast<float>(Sum) / Tiers.Num();
-	const int32 TierIndex = FMath::Clamp(FMath::FloorToInt(Average + CombatTierInternal::AVERAGE_ROUNDING_SLACK),
-										 TierHelpers::GetTierValue(EItemTier::F_Tier), TierHelpers::GetTierValue(EItemTier::S_Tier));
+	// Integer division of non-negative values rounds down exactly (Q-325).
+	const int32 TierIndex = FMath::Clamp(Sum / Tiers.Num(), TierHelpers::GetTierValue(EItemTier::F_Tier),
+										 TierHelpers::GetTierValue(EItemTier::S_Tier));
 	return static_cast<EItemTier>(TierIndex);
 }
 

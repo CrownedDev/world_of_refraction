@@ -464,8 +464,9 @@ void UCharacterPanelWidget::ApplyStaticText_Implementation()
 	// B-325 (D-118): a live combatant's Combat Tier, party and enemy alike (shown only; no stats on players).
 	if (const AActor *LiveActor = DisplayMode == EPanelDisplayMode::Live ? BoundActor.Get() : nullptr)
 	{
-		ClassLine = FString::Printf(TEXT("%s | %s"), *ClassLine,
-									*WoRCombatTier::GetCombatTierText(WoRCombatTier::GetCombatTier(LiveActor)).ToString());
+		ClassLine = FText::Format(NSLOCTEXT("CharacterPanel", "ClassLineWithTier", "{0} | {1}"), FText::FromString(ClassLine),
+								  WoRCombatTier::GetCombatTierText(WoRCombatTier::GetCombatTier(LiveActor)))
+						.ToString();
 	}
 	SetTextSafe(ClassElementText, ClassLine);
 	if (ClassElementText)

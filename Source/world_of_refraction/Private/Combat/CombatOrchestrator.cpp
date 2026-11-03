@@ -1183,7 +1183,7 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 	{
 		Rank = *OwnRank;
 	}
-	PendingLevelDropSources.Emplace(WoRCombatTier::GetCombatTier(Victim), Rank); // B-325: its Combat Tier
+	PendingLevelDropSources.Emplace(WoRCombatTier::GetCombatTier(Victim), Rank); // B-325: its Combat Tier at death (usually the one its HP used at spawn; a loadout change mid-fight can move it)
 
 	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Enemy %s down (caliber %d) -> +%d WSP (pool now %d)"),
 		   *Victim->GetName(), Caliber, WSP, PendingWorldStatPool);
