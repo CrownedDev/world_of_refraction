@@ -1755,6 +1755,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **What it changes:** D-021 and ER-16; Q-314's "every home piece goes on the run until B-116" becomes "the worn loadout within the slot budget goes on the run".
 **Notes for Claude:** job B-347.
 
+### D-138 — One save version while in dev (audit §23)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §23) · **Blocks:** —
+**Answer (Crown):** while in dev there is one save version. `MIN_SUPPORTED` rises to `LATEST`; every old-shape reader (v3 / v4 gear lists, the party pouch and the rest) is deleted; older saves are wiped with a warning (D-060). The 14 `SaveGame`-tagged fields move into `FWoRSaveData` (D-059). From now on a save-format change bumps the version and the minimum together, with no migration code until the first public build.
+**Notes for Claude:** job B-348. The CLAUDE.md Saves rule should carry the note (Crown to approve that edit).
+
 ### Q-321 — Can the shared home chest hold gear, or only items?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
 **Question:** D-097's storage holds items (crystals, stones, consumables); gear lived in the shared pool. With gear per character (D-117), can a character put an unworn weapon or adapter in the shared chest for another to take?
