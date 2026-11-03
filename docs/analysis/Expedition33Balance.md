@@ -40,6 +40,21 @@
 
 Party allies use the Hard AI too (`ALLY_AI_DIFFICULTY`), so the allies defend less and enemy hits land more: that is the lever on the 100% win rate (lesson 2), rather than more enemy HP.
 
+## What the second nightly showed (2026-11-03, after B-293c, desktop build)
+
+17 bands fail (was 19). Hard is no longer ~2.5x Medium.
+
+| Target | Band | Measured |
+|---|---|---|
+| Normal fight at Medium, party rounds | 2.5–5.5 | in band (Early / Mid / Late) |
+| Normal fight at Hard, party rounds | 2.5–5.5 | Early 5.9; Mid / Late in band |
+| Win rate vs normal at Medium | 0.85–0.99 | Early 1.00, **Mid 0.12, Late 0.00** |
+| Mini-boss rounds, Medium / Hard | 7–11 | Early 3.4 / 5.4; Mid 13.3 / 20.8; Late 20.4 / 18.4 |
+| Boss rounds, Medium / Hard | 11–15.5 | Early 6.9 / in band; Mid 19.4 / 20.9; Late 19.3 / 18.4 |
+| Pillar-6 win rate | 0.35–0.65 | 0.92; reverse 0.00 |
+
+The new finding: at Mid and Late the party **loses** normal fights at Medium (win rate 0.12 / 0.00) while the Early party always wins; the archetypes' gear or stats don't keep pace with the enemies' tier HP (B-224b: Mid x6.6, Late boss x28.8). That and the boss / mini-boss lengths are B-293d's (Q-293d answered).
+
 ## Not changed: needs Crown (Q-293d)
 
 - **Boss and mini-boss length at Medium.** 8 boss rounds and 4–6 mini-boss rounds against 11–15.5 and 7–11. Once enemy defending is lighter they get shorter still. The lever is the rank HP (Mini-boss x3, Boss x6), which is on Crown's Decided list.

@@ -23,7 +23,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-261](B-261.md) | `refactor/B-261-mirror-dirty-check` (in `dev`) | A GAS stat read skips the mirror re-sync when nothing changed (P5) | Pending |
 | [B-223](B-223.md) | `feature/B-223-level-drops` (in `dev`) | Level drops: chance from normal enemies, guaranteed from mini-bosses; place them with `wor.UI.LevelDrop` | Pending |
 | [B-224b](B-224b.md) | `feature/B-224b-rank-hp-per-team` (in `dev`) | Rank HP per team; enemy HP by tier (F default) | Pending |
-| [B-293c](B-293c.md) | `chore/B-293c-balance-tuning` (UNBUILT) | Balance first pass: AI defends less in even steps; difficulty scales enemy damage, not HP; normal fights in party rounds | Not built |
+| [B-293c](B-293c.md) | `chore/B-293c-balance-tuning` (in `dev`) | Balance first pass: AI defends less in even steps; difficulty scales enemy damage, not HP; normal fights in party rounds | Not built |
 | [B-001](B-001.md) | `fix/combat-hang-arc-a` (in `dev`) | Combat can no longer freeze; clean end of combat | Not tested |
 | [B-007](B-007.md) | `feature/B-007-automation-tests` (in `dev`) | 26 headless tests + test.sh output; no gameplay change | Not tested |
 | [B-006](B-006.md) | `chore/B-006-log-categories` (in `dev`) | Seven `LogWoR*` log categories; no gameplay change | Not tested |
