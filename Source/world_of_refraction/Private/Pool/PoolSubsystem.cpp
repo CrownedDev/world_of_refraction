@@ -311,6 +311,8 @@ void UPoolSubsystem::UpdateEvolution(const FEvolutionInventoryEntry &Entry)
 
 void UPoolSubsystem::RemoveGear(const FGuid &GearID)
 {
+    // B-314: a run-only piece leaving mid-run keeps its tier in the upgrade memory (Q-314c).
+    NoteRunGearRemoved(GearID);
     const auto MatchesWeapon = [&GearID](const FWeaponInventoryEntry &E) { return E.PersistentID == GearID; };
     const auto MatchesRing = [&GearID](const FRingInventoryEntry &E) { return E.PersistentID == GearID; };
     const auto MatchesEvolution = [&GearID](const FEvolutionInventoryEntry &E) { return E.InstanceID == GearID; };

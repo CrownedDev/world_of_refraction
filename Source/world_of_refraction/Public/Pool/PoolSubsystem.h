@@ -425,8 +425,11 @@ public:
     // pieces go back to their home state (wear and attachments added in the run), run-only gear leaves the store, and
     // each run-only definition's tier is remembered so the next copy found arrives at that tier. PoolRunLayer.cpp.
 
-    /** A run starts (UTrialRunSubsystem::EnterTrial). Ends a layer still open first (logged). */
+    /** A run starts (UTrialRunSubsystem::EnterTrial / RestoreRun). A layer still open is discarded, not applied (the
+     *  store may have been reloaded under it); EnterTrial ends the last one itself first. */
     void BeginRunLayer();
+    /** Closes the layer without putting anything back or dropping anything (stale marks after a reload). */
+    void DiscardRunLayer();
     bool IsRunLayerActive() const { return bRunLayerActive; }
 
     /** The run purchase (D-111): the real home piece goes on the run as it is now. False when no run layer is open,
@@ -612,6 +615,10 @@ private:
 
     /** Remembers Tier for Definition (the higher of it and what is remembered). True when it changed. */
     bool RememberTier(const UObject *Definition, EItemTier Tier);
+    /** Remembers the tier of the run-only piece GearID (still in the store). True when it changed. */
+    bool RememberRunOnlyTier(const FGuid &GearID);
+    /** RemoveGear, before the piece goes: a run-only piece's tier is remembered (Q-314c) and its mark dropped. */
+    void NoteRunGearRemoved(const FGuid &GearID);
 
     /** Takes up to Count stored items; returns how many. */
     int32 TakeStored(const FCrystalId &Id, int32 Count);

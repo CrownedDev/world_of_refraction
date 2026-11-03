@@ -36,18 +36,36 @@ namespace
         Entry.Tier = Remembered;
         return true;
     }
+
+    /** True when Now isn't the home attachment: another item, or the same one worn (operator== compares identity
+     *  only, not durability). */
+    bool RunLayerAttachmentDiffers(const FRuntimeAttachedItem &Now, const FRuntimeAttachedItem &Home)
+    {
+        return !(Now == Home) || Now.GetCurrentDurability() != Home.GetCurrentDurability();
+    }
 }
 
 void UPoolSubsystem::BeginRunLayer()
 {
     if (bRunLayerActive)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Pool] Run layer: a new run starts while the last one is still open - ending it first"));
-        EndRunLayer();
+        // The store may have been reloaded under it (a resumed save), so its home states can be stale: not applied.
+        UE_LOG(LogTemp, Warning, TEXT("[Pool] Run layer: a new run starts while the last one is still open - its marks are discarded"));
+        DiscardRunLayer();
     }
     RunMarks.Reset();
     bRunLayerActive = true;
     UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer open"));
+}
+
+void UPoolSubsystem::DiscardRunLayer()
+{
+    if (bRunLayerActive)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer discarded: %d mark(s) dropped, nothing put back"), RunMarks.Num());
+    }
+    RunMarks.Reset();
+    bRunLayerActive = false;
 }
 
 bool UPoolSubsystem::TakeOnRun(const FGuid &GearID)
@@ -151,26 +169,11 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer()
         const FPoolRunMark &Mark = Pair.Value;
         if (Mark.bRunOnly)
         {
-            // A piece sold or dismantled during the run is no longer here: nothing to drop or remember.
-            bool bFound = true;
-            if (const FWeaponInventoryEntry *Weapon = FindWeaponInPool(ID))
-            {
-                Result.Remembered += RememberTier(Weapon->Weapon, Weapon->Tier) ? 1 : 0;
-            }
-            else if (const FRingInventoryEntry *Adapter = FindRingInPool(ID))
-            {
-                Result.Remembered += RememberTier(Adapter->Ring, Adapter->Tier) ? 1 : 0;
-            }
-            else if (const FEvolutionInventoryEntry *Evolution = FindEvolutionInPool(ID))
-            {
-                Result.Remembered += RememberTier(Evolution->Item, Evolution->Tier) ? 1 : 0;
-            }
-            else
-            {
-                bFound = false;
-            }
+            // A piece sold or dismantled during the run is no longer here: its tier was remembered at the removal.
+            const bool bFound = FindWeaponInPool(ID) || FindRingInPool(ID) || FindEvolutionInPool(ID);
             if (bFound)
             {
+                Result.Remembered += RememberRunOnlyTier(ID) ? 1 : 0;
                 RemoveGear(ID);
                 ++Result.Dropped;
             }
@@ -179,7 +182,7 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer()
         // A home piece: copies, since each update can move the arrays the pointers point into.
         if (const FWeaponInventoryEntry *Weapon = FindWeaponInPool(ID))
         {
-            if (!(Weapon->AttachedItem == Mark.HomeAttached) || Weapon->AssignedSpells != Mark.HomeSpells)
+            if (RunLayerAttachmentDiffers(Weapon->AttachedItem, Mark.HomeAttached) || Weapon->AssignedSpells != Mark.HomeSpells)
             {
                 FWeaponInventoryEntry Home = *Weapon;
                 Home.AttachedItem = Mark.HomeAttached;
@@ -190,7 +193,7 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer()
         }
         else if (const FRingInventoryEntry *Adapter = FindRingInPool(ID))
         {
-            if (!(Adapter->AttachedItem == Mark.HomeAttached) || Adapter->AssignedSpells != Mark.HomeSpells)
+            if (RunLayerAttachmentDiffers(Adapter->AttachedItem, Mark.HomeAttached) || Adapter->AssignedSpells != Mark.HomeSpells)
             {
                 FRingInventoryEntry Home = *Adapter;
                 Home.AttachedItem = Mark.HomeAttached;
@@ -209,7 +212,8 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer()
                 ++Result.Restored;
             }
         }
-        // A home piece sold or dismantled during the run stays gone (the player chose it).
+        // A home piece on the run can't be sold or dismantled (UEconomyService refuses, Q-314b); one removed another
+        // way stays gone.
     }
     UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer closed: %d home piece(s) back to their home state, %d run-only piece(s) dropped, %d tier(s) remembered"),
            Result.Restored, Result.Dropped, Result.Remembered);
@@ -248,6 +252,38 @@ bool UPoolSubsystem::RememberTier(const UObject *Definition, EItemTier Tier)
     UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer: %s remembered at %s for the next run (D-097)"), *GetNameSafe(Definition),
            *TierHelpers::GetTierName(Tier));
     return true;
+}
+
+bool UPoolSubsystem::RememberRunOnlyTier(const FGuid &GearID)
+{
+    if (const FWeaponInventoryEntry *Weapon = FindWeaponInPool(GearID))
+    {
+        return RememberTier(Weapon->Weapon, Weapon->Tier);
+    }
+    if (const FRingInventoryEntry *Adapter = FindRingInPool(GearID))
+    {
+        return RememberTier(Adapter->Ring, Adapter->Tier);
+    }
+    if (const FEvolutionInventoryEntry *Evolution = FindEvolutionInPool(GearID))
+    {
+        return RememberTier(Evolution->Item, Evolution->Tier);
+    }
+    return false;
+}
+
+void UPoolSubsystem::NoteRunGearRemoved(const FGuid &GearID)
+{
+    const FPoolRunMark *Mark = RunMarks.Find(GearID);
+    if (!Mark)
+    {
+        return;
+    }
+    // Q-314c: a run-only piece sold or dismantled before run end still counts as reached.
+    if (Mark->bRunOnly)
+    {
+        RememberRunOnlyTier(GearID);
+    }
+    RunMarks.Remove(GearID);
 }
 
 bool UPoolSubsystem::ApplyUpgradeMemory(FWeaponInventoryEntry &Entry) const
