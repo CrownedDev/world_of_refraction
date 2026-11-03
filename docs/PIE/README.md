@@ -224,6 +224,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-249](B-249.md) | `refactor/B-249-element-immunity-map` (in `dev`) | One element -> immunity map (no change in play) | Not tested |
 | [B-252b](B-252b.md) | `refactor/B-252b-owned-gear-verbs` (in `dev`) | One body for weapon / ring dismantle, level up, revert (no change in play) | Not tested |
 | [B-274](B-274.md) | `refactor/B-274-break-rows` (in `dev`) | Status breaks read one row each; no behaviour change | Not tested |
+| [B-275](B-275.md) | `refactor/B-275-keyed-effects` (in `dev`) | Element-keyed immunity and DoT on hit; old members unchanged | Not tested |
 | [B-273](B-273.md) | `refactor/B-273-hit-kind` (in `dev`) | Hit-kind struct and Ice tag under Water; no behaviour change | Not tested |
 | [B-272](B-272.md) | `refactor/B-272-resistance-columns` (in `dev`) | Resistance columns read by damage type; no behaviour change | Not tested |
 | [B-297b](B-297b.md) | `fix/B-297b-bonus-cap` (in `dev`) | Emerald bonus turns go past the 2:1 cap (Q-297 A); no behaviour change | Not tested |
