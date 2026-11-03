@@ -269,6 +269,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Debug")
 	void DebugPrintCalculation(const FDamageCalculationResult &Result) const;
 
+	/** The defender's share of the status-effect damage modifier from whole-number percents: (1 - Damage Taken
+	 *  Down, capped at DAMAGE_TAKEN_DOWN_CAP_PERCENT) x (1 + Damage Taken Up, uncapped). Pure, so a spec can pin
+	 *  the cap (B-288). */
+	static float GetDamageTakenFactor(float ReduceDamageTakenPercent, float IncreaseDamageTakenPercent);
+
 private:
 	/** Get CharacterData from actor */
 	UCharacterData *GetCharacterData(AActor *Actor) const;
@@ -282,10 +287,6 @@ private:
 	/** Apply status effect modifiers to damage. ActionType gates the
 	 *  physical-only RawDamageBuff/Debuff term (Spell actions skip it). */
 	float GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType) const;
-
-	/** The defender's share of that modifier from whole-number percents: (1 - Damage Taken Down, capped at
-	 *  DAMAGE_TAKEN_DOWN_CAP_PERCENT) x (1 + Damage Taken Up, uncapped). Pure, so a spec can pin the cap (B-288). */
-	static float GetDamageTakenFactor(float ReduceDamageTakenPercent, float IncreaseDamageTakenPercent);
 
 	/** Attacker's EFFECTIVE (composed, crystal-aware) value for an arbitrary substat, used by the
 	 *  per-skill scaling-tier term. RawDamage/SpellDamage map to the SAME GetEvolutionModified* getters
