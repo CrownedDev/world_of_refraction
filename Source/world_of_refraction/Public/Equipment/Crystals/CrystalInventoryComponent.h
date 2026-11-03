@@ -105,12 +105,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
     bool CanAddCount(FCrystalId Id, int32 Count = 1) const;
 
-    // ==================== SHARED CARRIED ITEMS (B-203) ====================
+    // ==================== THE CHARACTER'S POUCH (B-203, B-322) ====================
 
-    /** Mirror the party's carried items from now on; changes go to Pool. ClearAll unbinds. */
-    void BindSharedItems(UPoolSubsystem *Pool);
+    /** Mirror the character's pouch (CharacterKey, UPoolSubsystem::GetCharacterKey) from now on; changes go to
+     *  Pool. ClearAll unbinds. */
+    void BindSharedItems(UPoolSubsystem *Pool, FName CharacterKey);
 
     bool IsSharingItems() const { return SharedPool.IsValid(); }
+    FName GetPouchCharacterKey() const { return PouchKey; }
 
 protected:
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -122,6 +124,8 @@ private:
     void UnbindSharedItems();
 
     TWeakObjectPtr<UPoolSubsystem> SharedPool;
+    /** Whose pouch this mirrors while SharedPool is set. */
+    FName PouchKey;
 
     // ==================== POOL DISPATCH ====================
     // Select the pool for a Type by the gem/stone axis (IsGemType): gem → Crystals,

@@ -1386,6 +1386,8 @@ bool UInventoryComponent::DrawSharedGear()
     // B-321 (D-117): each member draws only its own gear. A piece from before D-117 goes to whoever wears it,
     // else the party leader. A run-only recruit brings no gear and draws the whole armoury (TODO: B-323's give).
     Pool->AssignUnownedGear(InventoryGearSync::GetLocalLeaderKey(GI, Key));
+    // B-322 (D-117): a save from before the per-character pouch gives its party pouch to the leader.
+    Pool->AdoptLegacyCarriedItems(InventoryGearSync::GetLocalLeaderKey(GI, Key));
     bDrawsWholeArmoury = bRunOnly;
     const auto IsMine = [this, Pool, Key](const FGuid &ID) { return bDrawsWholeArmoury || Pool->GetGearOwner(ID) == Key; };
 
@@ -1428,7 +1430,7 @@ bool UInventoryComponent::DrawSharedGear()
     SharedGearKey = Key;
     RefillActivePrimary(); // after the pool is set, so gear another member wears is skipped
     Pool->OnPoolGearChanged.AddUniqueDynamic(this, &UInventoryComponent::HandlePoolGearChanged);
-    // B-203 (D-097): the party carries one set of items; a member's starting items go in once.
+    // B-203 / B-322 (D-097, D-117): each member carries its own pouch; its starting items go in once.
     if (UCrystalInventoryComponent *CrystalInv = GetOwner()->FindComponentByClass<UCrystalInventoryComponent>())
     {
         if (!bRunOnly && !Pool->HasBankedItems(Key))
@@ -1437,7 +1439,7 @@ bool UInventoryComponent::DrawSharedGear()
             StartingItems.Append(CrystalInv->Stones);
             Pool->BankStartingItems(Key, StartingItems);
         }
-        CrystalInv->BindSharedItems(Pool);
+        CrystalInv->BindSharedItems(Pool, Key);
     }
     ClaimActiveSharedGear();
 
@@ -2453,9 +2455,18 @@ void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)
 
     if (CrystalInv)
     {
-        // B-203 (D-097): the pool's Crystals / Stones are storage now; a member carries the party's
-        // carried items instead, so the draw binds to those rather than copying storage.
-        CrystalInv->BindSharedItems(Pool);
+        // B-203 / B-322 (D-097, D-117): the pool's Crystals / Stones are storage now; a member carries its
+        // own pouch instead, so the draw binds to that rather than copying storage.
+        const UCharacterDataComponent *PouchOwner = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+        const FName PouchKey = UPoolSubsystem::GetCharacterKey(PouchOwner ? PouchOwner->CharacterData : nullptr);
+        if (PouchKey.IsNone())
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[Inventory] %s has no character data: its items stay its own, not a pouch"), *GetNameSafe(GetOwner()));
+        }
+        else
+        {
+            CrystalInv->BindSharedItems(Pool, PouchKey);
+        }
     }
     if (EvolutionInv)
     {

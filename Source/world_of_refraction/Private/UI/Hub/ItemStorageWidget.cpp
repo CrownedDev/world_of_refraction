@@ -13,6 +13,9 @@
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
+#include "Character/CharacterData.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "ItemStorage"
@@ -95,6 +98,8 @@ TSharedRef<SWidget> UItemStorageWidget::RebuildWidget()
 		Overlay->SetContent(Box);
 
 		SlotsText = ItemStorageBuild::AddText(WidgetTree, Box);
+		ItemStorageBuild::AddButton(WidgetTree, Box, LOCTEXT("NextCharacter", "Next character"))
+			->OnClicked.AddDynamic(this, &UItemStorageWidget::HandleNextCharacterClicked);
 		ItemText = ItemStorageBuild::AddText(WidgetTree, Box);
 		ItemStorageBuild::AddButton(WidgetTree, Box, LOCTEXT("Next", "Next item"))
 			->OnClicked.AddDynamic(this, &UItemStorageWidget::HandleNextClicked);
@@ -121,6 +126,32 @@ UPoolSubsystem *UItemStorageWidget::GetPool() const
 	return GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
 }
 
+TArray<UItemStorageWidget::FPouchOwner> UItemStorageWidget::GatherPouchOwners() const
+{
+	TArray<FPouchOwner> Owners;
+	const UGameInstance *GI = GetGameInstance();
+	const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+	if (!Party)
+	{
+		return Owners;
+	}
+	for (const FPartyMember &Member : Party->Members)
+	{
+		if (Member.CharacterData)
+		{
+			Owners.Add({UPoolSubsystem::GetCharacterKey(Member.CharacterData), FText::FromString(Member.CharacterData->Name)});
+		}
+	}
+	return Owners;
+}
+
+FName UItemStorageWidget::GetViewedCharacterKey() const
+{
+	const TArray<FPouchOwner> Owners = GatherPouchOwners();
+	return Owners.IsValidIndex(ViewedOwnerIndex) ? Owners[ViewedOwnerIndex].Key : NAME_None;
+}
+
 TArray<UItemStorageWidget::FStackChoice> UItemStorageWidget::GatherChoices() const
 {
 	TArray<FStackChoice> Choices;
@@ -129,7 +160,7 @@ TArray<UItemStorageWidget::FStackChoice> UItemStorageWidget::GatherChoices() con
 	{
 		return Choices;
 	}
-	for (const TPair<FCrystalId, int32> &Pair : Pool->GetCarriedItems())
+	for (const TPair<FCrystalId, int32> &Pair : Pool->GetCarriedItems(GetViewedCharacterKey()))
 	{
 		Choices.Add({Pair.Key, Pair.Value, true});
 	}
@@ -146,12 +177,26 @@ TArray<UItemStorageWidget::FStackChoice> UItemStorageWidget::GatherChoices() con
 void UItemStorageWidget::Refresh()
 {
 	const UPoolSubsystem *Pool = GetPool();
+	const TArray<FPouchOwner> Owners = GatherPouchOwners();
+	ViewedOwnerIndex = Owners.IsEmpty() ? 0 : FMath::Clamp(ViewedOwnerIndex, 0, Owners.Num() - 1);
 	const TArray<FStackChoice> Choices = GatherChoices();
 	SelectedIndex = Choices.IsEmpty() ? 0 : FMath::Clamp(SelectedIndex, 0, Choices.Num() - 1);
 
-	SlotsText->SetText(Pool ? FText::Format(LOCTEXT("SlotsRow", "Carried: {0} of {1} item slots"), Pool->GetUsedItemSlots(),
-											Pool->GetItemSlotCount())
-							: LOCTEXT("NoPool", "No item storage"));
+	const FName Viewed = GetViewedCharacterKey();
+	if (!Pool)
+	{
+		SlotsText->SetText(LOCTEXT("NoPool", "No item storage"));
+	}
+	else if (Viewed.IsNone())
+	{
+		SlotsText->SetText(LOCTEXT("NoParty", "No party member to carry items"));
+	}
+	else
+	{
+		SlotsText->SetText(FText::Format(LOCTEXT("SlotsRow", "{0}'s pouch: {1} of {2} item slots ({3} of {4} characters)"),
+										 Owners[ViewedOwnerIndex].Name, Pool->GetUsedItemSlots(Viewed), Pool->GetItemSlotCount(Viewed),
+										 ViewedOwnerIndex + 1, Owners.Num()));
+	}
 	if (Choices.IsEmpty())
 	{
 		ItemText->SetText(LOCTEXT("NoItems", "No items carried or stored"));
@@ -162,10 +207,11 @@ void UItemStorageWidget::Refresh()
 		ItemText->SetText(FText::Format(LOCTEXT("ItemRow", "{0}: {1} x{2} ({3} of {4}), moves to {5}"),
 										Choice.bCarried ? LOCTEXT("Carried", "Carried") : LOCTEXT("Stored", "In storage"),
 										ItemStorageBuild::ItemName(Choice.Id), Choice.Count, SelectedIndex + 1, Choices.Num(),
-										Choice.bCarried ? LOCTEXT("ToStorage", "storage") : LOCTEXT("ToCarried", "the carried slots")));
+										Choice.bCarried ? LOCTEXT("ToStorage", "storage") : LOCTEXT("ToCarried", "the pouch")));
 	}
-	MoveOneButton->SetIsEnabled(!Choices.IsEmpty());
-	MoveAllButton->SetIsEnabled(!Choices.IsEmpty());
+	// With no character to carry them, stored stacks have nowhere to go.
+	MoveOneButton->SetIsEnabled(!Choices.IsEmpty() && !Viewed.IsNone());
+	MoveAllButton->SetIsEnabled(!Choices.IsEmpty() && !Viewed.IsNone());
 	StatusLine->SetText(StatusText);
 }
 
@@ -188,11 +234,12 @@ void UItemStorageWidget::MoveSelected(int32 Count)
 		return;
 	}
 	const FStackChoice Choice = Choices[SelectedIndex];
-	// Into the carried slots, a whole stack moves as far as its slot has room (at least one is
-	// tried, so a full slot reports "No room").
-	const int32 Room = Choice.bCarried ? Choice.Count : FMath::Max(1, Pool->GetCarryRoom(Choice.Id));
+	const FName Viewed = GetViewedCharacterKey();
+	// Into the pouch, a whole stack moves as far as its slot has room (at least one is tried, so a
+	// full slot reports "No room").
+	const int32 Room = Choice.bCarried ? Choice.Count : FMath::Max(1, Pool->GetCarryRoom(Viewed, Choice.Id));
 	const int32 Moving = FMath::Min3(Count, Choice.Count, Room);
-	const bool bMoved = Choice.bCarried ? Pool->MoveToStorage(Choice.Id, Moving) : Pool->MoveToCarried(Choice.Id, Moving);
+	const bool bMoved = Choice.bCarried ? Pool->MoveToStorage(Viewed, Choice.Id, Moving) : Pool->MoveToCarried(Viewed, Choice.Id, Moving);
 	const FText Name = ItemStorageBuild::ItemName(Choice.Id);
 	StatusText = bMoved ? FText::Format(LOCTEXT("Moved", "Moved {0} x{1}"), Name, Moving)
 		: FText::Format(LOCTEXT("NoRoom", "No room for {0}: free a slot first"), Name);
@@ -213,6 +260,15 @@ void UItemStorageWidget::HandleNextClicked()
 	Refresh();
 }
 
+void UItemStorageWidget::HandleNextCharacterClicked()
+{
+	const int32 Count = GatherPouchOwners().Num();
+	ViewedOwnerIndex = Count > 0 ? (ViewedOwnerIndex + 1) % Count : 0;
+	SelectedIndex = 0;
+	StatusText = FText::GetEmpty();
+	Refresh();
+}
+
 void UItemStorageWidget::HandleMoveOneClicked() { MoveSelected(1); }
 
 void UItemStorageWidget::HandleMoveAllClicked() { MoveSelected(MAX_int32); }
@@ -229,7 +285,7 @@ void UItemStorageWidget::HandleCloseClicked()
 
 static FAutoConsoleCommandWithWorld GItemStorageUICommand(
 	TEXT("wor.UI.ItemStorage"),
-	TEXT("PLACEHOLDER UI: move crystals and stones between the party's carried item slots and storage (B-203)."),
+	TEXT("PLACEHOLDER UI: move crystals and stones between a character's pouch and the shared storage (B-203, B-322)."),
 	FConsoleCommandWithWorldDelegate::CreateLambda(
 		[](UWorld *World)
 		{

@@ -27,8 +27,11 @@ public:
 	/** Add a fresh one to PC's viewport (UI-only input, cursor on). Null when PC is null. */
 	static UItemStorageWidget *Open(APlayerController *PC);
 
-	/** Re-read the carried items and storage and rewrite every row. */
+	/** Re-read the viewed character's pouch and storage and rewrite every row. */
 	void Refresh();
+
+	/** B-322: whose pouch the screen shows (a character key), NAME_None with no party. */
+	FName GetViewedCharacterKey() const;
 
 	/** Debug: one line per row as shown. */
 	FString GetItemStorageString() const;
@@ -50,11 +53,24 @@ private:
 
 	UPoolSubsystem *GetPool() const;
 
+	/** One party member whose pouch can be viewed. */
+	struct FPouchOwner
+	{
+		FName Key;
+		FText Name;
+	};
+
+	/** The local party's members with their own pouch (run-only recruits too: they carry items). */
+	TArray<FPouchOwner> GatherPouchOwners() const;
+
 	/** Move Count of the selected stack to the other side. */
 	void MoveSelected(int32 Count);
 
 	UFUNCTION()
 	void HandleNextClicked();
+
+	UFUNCTION()
+	void HandleNextCharacterClicked();
 
 	UFUNCTION()
 	void HandleMoveOneClicked();
@@ -66,6 +82,9 @@ private:
 	void HandleCloseClicked();
 
 	int32 SelectedIndex = 0;
+
+	/** Index into GatherPouchOwners. */
+	int32 ViewedOwnerIndex = 0;
 
 	FText StatusText;
 
