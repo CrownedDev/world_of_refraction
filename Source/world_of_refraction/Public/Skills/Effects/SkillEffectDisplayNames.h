@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "Infusion/ElementColors.h"
 #include "WoRGameNames.h"
 #include "Skills/Effects/BarCapTriggerResolver.h"
 
@@ -215,43 +216,8 @@ namespace SkillEffectDisplayNames
         FSkillEffectDisplayInfo Info;
         Info.Name = GetDisplayName(StatusType, Element);
 
-        // Element-based coloring
-        switch (Element)
-        {
-        case ESpellElement::Fire:
-            Info.Color = FLinearColor(1.0f, 0.3f, 0.0f);
-            break;
-        case ESpellElement::Water:
-            Info.Color = FLinearColor(0.0f, 0.5f, 1.0f);
-            break;
-        case ESpellElement::Earth:
-            Info.Color = FLinearColor(0.4f, 0.6f, 0.2f);
-            break;
-        case ESpellElement::Lightning:
-            Info.Color = FLinearColor(0.9f, 0.9f, 0.3f);
-            break;
-        case ESpellElement::Light:
-            Info.Color = FLinearColor(1.0f, 1.0f, 0.8f);
-            break;
-        case ESpellElement::Darkness:
-            Info.Color = FLinearColor(0.3f, 0.0f, 0.5f);
-            break;
-        case ESpellElement::Void:
-            Info.Color = FLinearColor(0.5f, 0.0f, 0.5f);
-            break;
-        case ESpellElement::Wind:
-            Info.Color = FLinearColor(0.7f, 1.0f, 0.9f);
-            break;
-        case ESpellElement::Reality:
-            Info.Color = FLinearColor(0.8f, 0.8f, 0.8f);
-            break;
-        case ESpellElement::Generic:
-            Info.Color = FLinearColor::White;
-            break;
-        default:
-            Info.Color = FLinearColor::White;
-            break;
-        }
+        // B-294 (D-106): the one element table's colour, not a second table.
+        Info.Color = ElementColors::GetColorForElement(Element);
 
         // Generate description based on type
         switch (StatusType)

@@ -2901,6 +2901,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. Divinity: Original Sin 2 and Path of Exile let damage over time come in any element and both are praised for build variety; the deckbuilder keys its effects by `Affinity` the same way (`wor-deckbuilder/docs/reference/02-enums.md`). The authored element winning matches Generic meaning inherit (`ESpellElement.h`). The old per-element members stay usable until content moves. Not lore.
 **Notes for Claude:** applied in B-275 (`refactor/B-275-keyed-effects`). Size and length of a non-Fire/Water on-hit DoT are named constants in `SkillEffectManager.cpp` (`ON_HIT_DOT_DEFAULT_DAMAGE`, `ON_HIT_DOT_TURNS`). Retiring the old members waits for content to move.
 
+### Q-294 — One palette for HUD and VFX, or a brighter one for VFX?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-294) · **Blocks:** —
+**Question:** D-106's palette is tuned for text and bars. `ElementColors` also feeds world colour (infusion glow `InfusionVFXComponent.cpp`, trial doors `TrialDoor.cpp`, the arena tint `EncounterComponent.cpp`, hybrid blends `HybridSpellColors.cpp`). Fire drops from pure red to a deep red (L* 40), Earth from yellow to ochre, so those may look dimmer. Keep one palette, or add a separate VFX colour set?
+**Options:** **A** (as built) one palette everywhere; if a glow reads too dim, raise its emissive intensity, not its hue. **B** a second, brighter VFX palette.
+**Recommendation:** A. The analysis (§3a caveats, §3b) advises against forked palettes: every material and VFX would need both, and the hue is what players learn. Games that read well for colour-blind players (Honkai: Star Rail, Persona 5 Royal) keep one element colour and carry the rest with icons and brightness. Not lore.
+**Notes for Claude:** applied in B-294. If Crown's PIE pass finds a glow too dim, raise `EMISSIVE_INTENSITY_*` (`HybridSpellColors.cpp`) or the material's emissive multiplier for that element.
+
 ### Q-297 — Do Emerald bonus turns wait at the 2:1 cap?
 **Status:** ANSWERED · **Raised:** 2026-11-03 (B-297) · **Blocks:** —
 **Question:** D-052 says an Emerald bonus turn still respects the 2:1 cap (D-049). ET-12 says an S Emerald grants two turns back to back at once. Used on the holder's own turn, that is 3 turns in a row before the opponent acts, past the cap. Which wins?
