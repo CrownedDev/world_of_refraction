@@ -208,6 +208,21 @@ private:
      *  calculator once, crit off, then the expected crit folded in. */
     int32 EstimateActionDamage(AActor *Attacker, AActor *Target, const FAction &Action) const;
 
+    /** EstimateActionDamage's full preview, uncached. */
+    int32 ComputeActionDamageEstimate(AActor *Attacker, AActor *Target, const FAction &Action) const;
+
+    /** B-259: one decision's estimates, keyed by what EstimateActionDamage reads from the action
+     *  (attacker, target, skill, type, infusion level, infusion source, spell source). Used only
+     *  while bEstimateMemoActive (one BuildAction), emptied after, so nothing outlives a decision
+     *  (per-call scratch, not per-fight state, D-064). */
+    using FEstimateKey = TTuple<const AActor *, const AActor *, const USkillDataBase *, uint8, int32, uint8, uint8>;
+    mutable TMap<FEstimateKey, int32> EstimateMemo;
+    bool bEstimateMemoActive = false;
+
+    /** Debug (B-259): full previews run and memo hits in the current or last decision. */
+    mutable int32 EstimatePreviewCount = 0;
+    mutable int32 EstimateMemoHitCount = 0;
+
     /** Score the value of a spell's status-buildup payload against a target
      *  (pre-weight, ~0..50). Non-const — reads HasDangerousDebuff. */
     float EstimateStatusScore(AActor *Attacker, AActor *Target, USpellData *Spell);
