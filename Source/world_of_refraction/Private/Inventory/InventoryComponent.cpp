@@ -2,6 +2,7 @@
 // Character inventory storage and management implementation
 
 #include "Inventory/InventoryComponent.h"
+#include "Inventory/GearFind.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -194,7 +195,7 @@ namespace
     template <class TEntry>
     int32 FindGearIndex(const TArray<TEntry> &Gear, FGuid GearID, const TCHAR *Op)
     {
-        const int32 Index = Gear.IndexOfByPredicate([&GearID](const TEntry &E) { return E.PersistentID == GearID; });
+        const int32 Index = WoRGearFind::IndexOf(Gear, GearID);
         if (Index == INDEX_NONE)
         {
             UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: no %s for GUID %s"), Op, GearLabel<TEntry>(),
@@ -621,12 +622,6 @@ EItemTier UInventoryComponent::ResolveAbilityTier(const AActor *Caster, const US
 namespace
 {
     template <class TEntry>
-    int32 FindGearIndex(const TArray<TEntry> &Gear, const FGuid &PersistentID)
-    {
-        return Gear.IndexOfByPredicate([&PersistentID](const TEntry &Entry) { return Entry.PersistentID == PersistentID; });
-    }
-
-    template <class TEntry>
     const UEquipmentDataBase *GearEntryAsset(const TEntry &Entry)
     {
         if constexpr (std::is_same_v<TEntry, FWeaponInventoryEntry>)
@@ -702,22 +697,13 @@ bool UInventoryComponent::RemoveWeapon(int32 WeaponIndex)
 
 bool UInventoryComponent::RemoveWeaponByPersistentID(FGuid PersistentID)
 {
-    const int32 Index = FindGearIndex(Weapons, PersistentID);
+    const int32 Index = WoRGearFind::IndexOf(Weapons, PersistentID);
     return Index != INDEX_NONE && RemoveWeapon(Index);
-}
-
-namespace
-{
-    template <class TEntry>
-    TEntry *FindOwnedGear(TArray<TEntry> &Gear, const FGuid &PersistentID)
-    {
-        return Gear.FindByPredicate([&PersistentID](const TEntry &Entry) { return Entry.PersistentID == PersistentID; });
-    }
 }
 
 FWeaponInventoryEntry *UInventoryComponent::FindOwnedWeapon(const FGuid &PersistentID)
 {
-    return FindOwnedGear(Weapons, PersistentID);
+    return WoRGearFind::Find(Weapons, PersistentID);
 }
 
 const FWeaponInventoryEntry *UInventoryComponent::FindOwnedWeapon(const FGuid &PersistentID) const
@@ -727,7 +713,7 @@ const FWeaponInventoryEntry *UInventoryComponent::FindOwnedWeapon(const FGuid &P
 
 FRingInventoryEntry *UInventoryComponent::FindOwnedRing(const FGuid &PersistentID)
 {
-    return FindOwnedGear(Rings, PersistentID);
+    return WoRGearFind::Find(Rings, PersistentID);
 }
 
 const FRingInventoryEntry *UInventoryComponent::FindOwnedRing(const FGuid &PersistentID) const
@@ -796,7 +782,7 @@ bool UInventoryComponent::RemoveRing(int32 RingIndex)
 
 bool UInventoryComponent::RemoveRingByPersistentID(FGuid PersistentID)
 {
-    const int32 Index = FindGearIndex(Rings, PersistentID);
+    const int32 Index = WoRGearFind::IndexOf(Rings, PersistentID);
     return Index != INDEX_NONE && RemoveRing(Index);
 }
 
@@ -921,8 +907,7 @@ namespace InventoryGearSync
     template <typename TArrayType>
     auto FindOwned(TArrayType &Owned, const FGuid &ID)
     {
-        return ID.IsValid() ? Owned.FindByPredicate([&ID](const auto &Entry) { return Entry.PersistentID == ID; })
-                            : nullptr;
+        return ID.IsValid() ? WoRGearFind::Find(Owned, ID) : nullptr;
     }
 
     /** Calls WeaponFunc / RingFunc on each weapon and ring entry the loadout holds. */
