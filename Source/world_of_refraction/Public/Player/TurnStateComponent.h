@@ -1,7 +1,7 @@
 // TurnStateComponent.h
 // B-228 (Design/CoopStateOwnership.md): the fight's turn state on the GameState, so every player's HUD and
 // command menu read the same thing. The server copies it from UTurnManager (a per-instance subsystem that
-// clients don't share) on every turn, round and speed change; clients get it by replication and broadcast
+// clients don't share) on every turn start, speed change and combat end (a new round is followed by a turn start); clients get it by replication and broadcast
 // OnTurnStateChanged. With no GameState (headless specs), readers fall back to UTurnManager (FindTurnState).
 // Debug: GetDebugString, `wor.Turn.PrintState`.
 
@@ -91,8 +91,6 @@ protected:
 private:
 	UFUNCTION()
 	void HandleTurnStarted(AActor *Actor, int32 InTurnNumber);
-	UFUNCTION()
-	void HandleRoundAdded();
 	UFUNCTION()
 	void HandleSpeedChanged(AActor *Actor);
 	UFUNCTION()

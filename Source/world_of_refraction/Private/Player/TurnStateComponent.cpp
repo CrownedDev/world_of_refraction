@@ -83,7 +83,6 @@ void UTurnStateComponent::BindToTurnManager()
 	UnbindFromTurnManager();
 	BoundTurnManager = TurnManager;
 	TurnManager->OnTurnStarted.AddDynamic(this, &UTurnStateComponent::HandleTurnStarted);
-	TurnManager->OnRoundAdded.AddDynamic(this, &UTurnStateComponent::HandleRoundAdded);
 	TurnManager->OnSpeedChanged.AddDynamic(this, &UTurnStateComponent::HandleSpeedChanged);
 	TurnManager->OnCombatEnded.AddDynamic(this, &UTurnStateComponent::HandleCombatEnded);
 	RefreshFromTurnManager();
@@ -94,7 +93,6 @@ void UTurnStateComponent::UnbindFromTurnManager()
 	if (UTurnManager *TurnManager = BoundTurnManager.Get())
 	{
 		TurnManager->OnTurnStarted.RemoveDynamic(this, &UTurnStateComponent::HandleTurnStarted);
-		TurnManager->OnRoundAdded.RemoveDynamic(this, &UTurnStateComponent::HandleRoundAdded);
 		TurnManager->OnSpeedChanged.RemoveDynamic(this, &UTurnStateComponent::HandleSpeedChanged);
 		TurnManager->OnCombatEnded.RemoveDynamic(this, &UTurnStateComponent::HandleCombatEnded);
 	}
@@ -109,6 +107,7 @@ void UTurnStateComponent::RefreshFromTurnManager()
 		return;
 	}
 	bCombatActive = TurnManager->IsCombatActive();
+	TurnNumber = TurnManager->GetTurnCount(); // the live count, so a nested turn advance can't be overwritten
 	CurrentActor = bCombatActive ? TurnManager->GetCurrentActor() : nullptr;
 	bCurrentTurnIsBonus = bCombatActive && TurnManager->GetCurrentTurnIsBonus();
 	Upcoming.Reset();
@@ -154,12 +153,6 @@ TArray<AActor *> UTurnStateComponent::GetTeamMembers(int32 Team) const
 }
 
 void UTurnStateComponent::HandleTurnStarted(AActor *Actor, int32 InTurnNumber)
-{
-	TurnNumber = InTurnNumber;
-	RefreshFromTurnManager();
-}
-
-void UTurnStateComponent::HandleRoundAdded()
 {
 	RefreshFromTurnManager();
 }
