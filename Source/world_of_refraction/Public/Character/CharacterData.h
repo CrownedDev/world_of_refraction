@@ -519,7 +519,7 @@ public:
 
 	// Display-only crit-DAMAGE multiplier (asset-intrinsic; the live value is
 	// UDamageCalculator::GetCritDamageMultiplier). Post-5e-C the Mind crit substat drives crit DAMAGE
-	// (x1.0 base -> x1.5 at max stat); crit CHANCE is now Luck-driven (Spirit). Mirrors the other
+	// (x1.25 base -> x1.5 at max stat, B-224); crit CHANCE is now Luck-driven (Spirit). Mirrors the other
 	// Calculate* display twins (raw EffectiveMind, no crystal/gear).
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
 	float CalculateCritDamage() const

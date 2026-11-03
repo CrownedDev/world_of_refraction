@@ -10,7 +10,8 @@
 
 #include "CoreMinimal.h"
 
-/** The curve-table ladders. Each row's key is the integer the C++ ladder is keyed by. */
+/** The curve-table ladders. Each row's key is the integer the C++ ladder is keyed by. Append only:
+ *  the enum value is not serialized, but the row names (CombatTuningData.cpp) are. */
 enum class ECombatLadder : uint8
 {
 	TierPower,      // key: item tier index, F = 0 .. S = 6
@@ -18,6 +19,11 @@ enum class ECombatLadder : uint8
 	TierGapCost,    // key: tier gap, -4 .. +4
 	RequirementGap, // key: requirement gap (required - character level), -5 .. +5
 	ScalingGrade,   // key: EScalingTier value, S = 0 .. F = 6
+	// B-224 (BaselineNumbers.md "Decided"; C++ tables in CombatBaselineConstants.h):
+	PillarCurve,            // key: live pillar level 0 .. 7 (the soft cap, 0 at 0, 1 at 7)
+	WeaponReferencePower,   // key: item tier index, F = 0 .. S = 6 (F 40 .. S 192)
+	WeaponRequirementByTier, // key: item tier index, F = 0 .. S = 6 (main-pillar level: F0 E1 D2 C3 B5 A6 S7)
+	EnemyRankHealth,        // key: EEncounterRank value (Normal 1, Mini-boss 3, Boss 6, Elite 1.5)
 };
 
 namespace WoRTuning

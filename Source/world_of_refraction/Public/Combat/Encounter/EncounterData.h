@@ -7,9 +7,11 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Combat/Encounter/EEncounterRank.h"
 #include "EncounterData.generated.h"
 
 class UCharacterData;
+class UCharacterFormData;
 
 namespace EncounterConstants
 {
@@ -27,6 +29,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Encounter")
 	TArray<TObjectPtr<UCharacterData>> Enemies;
 
+	/** B-279d (CharacterForms §1b): an authored character fought as a mini-boss. Its character leads the
+	 *  team with its authored loadout (and its UBossData phases, if it has one); the fight is at least a
+	 *  mini-boss (no fleeing, D-091). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Encounter")
+	TObjectPtr<UCharacterFormData> MiniBossForm;
+
 	/** The team that takes the field: the authored enemies, empty entries skipped, at most three. */
 	UFUNCTION(BlueprintPure, Category = "Encounter")
 	TArray<UCharacterData *> GetEnemyRoster() const;
@@ -39,6 +47,10 @@ public:
 	 *  whole; several send their strongest member each (GetTotalPool, the first on a tie), in the
 	 *  order given, at most ENCOUNTER_MAX_ENEMIES. Empty teams are skipped. */
 	static TArray<UCharacterData *> BuildCaughtRoster(const TArray<TArray<UCharacterData *>> &CaughtTeams);
+
+	/** B-279d: the placed rank, raised to MiniBoss when Encounter's form is among Fielded (the fight's
+	 *  roster: several caught teams send only their strongest, which can leave the form out). */
+	static EEncounterRank GetFightRank(const UEncounterData *Encounter, EEncounterRank PlacedRank, const TArray<UCharacterData *> &Fielded);
 
 	/** One line per enemy, for logs and the Details panel. */
 	FString GetEncounterString() const;
