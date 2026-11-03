@@ -13,6 +13,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 ## Pending
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-335](B-335.md) | `chore/B-335-per-instance-rolls-obsolete` (UNBUILT) | Per-instance random rolls flagged OBSOLETE (D-127); gear keeps tier + quality; no gameplay change | Not built |
 | [B-224](B-224.md) | `feature/B-224-combat-numbers` (in `dev`) | Combat numbers baseline: rank HP x1.5/3/6, Defense cap 75%, crit base x1.25, requirement floor 0.5, tuning ladders | Not built |
 | [B-288](B-288.md) | `feature/B-288-ladders` (in `dev`) | Every ladder rung pinned by a spec; Damage Taken Down cap named; no gameplay change | Not built |
 | [B-322](B-322.md) | `feature/B-322-per-character-pouch` (in `dev`) | A 10-slot pouch per character; save v9; older save's pouch to the leader | Pending |
