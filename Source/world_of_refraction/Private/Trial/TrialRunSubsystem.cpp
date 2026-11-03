@@ -76,6 +76,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     FoundFeatures.Reset();
     RunMemories.Reset();
     PendingEncounterSources.Reset();
+    PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
     const int32 ForcedSeed = CVarTrialSeed.GetValueOnGameThread();
@@ -134,6 +135,7 @@ void UTrialRunSubsystem::ExitTrial()
     FoundFeatures.Reset();
     RunMemories.Reset();
     PendingEncounterSources.Reset();
+    PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
     // B-090: a trial's exit is a save point.
@@ -190,6 +192,7 @@ void UTrialRunSubsystem::ExitEncounter()
     PendingBattleParty.Reset();
     PendingOpposingParty.Reset();
     PendingEncounterSources.Reset();
+    PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
     EncounterReturnLevel = nullptr;
@@ -320,6 +323,7 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     FoundFeatures = Found;
     RunMemories = TArray<TObjectPtr<UMemoryData>>(Memories);
     PendingEncounterSources.Reset();
+    PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Restored saved run of '%s' (seed %d, %d beaten, %d found, %d memories)"),

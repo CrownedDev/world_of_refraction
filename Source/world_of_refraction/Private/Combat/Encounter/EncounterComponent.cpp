@@ -332,7 +332,16 @@ void UEncounterComponent::OnJoinWindowExpired()
 		FightDifficulty = FMath::Max(FightDifficulty, Encounter->Difficulty);
 		FightRank = HarderEncounterRank(FightRank, Encounter->Rank);
 	}
-	const TArray<UCharacterData *> OpposingPartyData = UEncounterData::BuildCaughtRoster(CaughtTeams);
+	TArray<int32> TeamOfMember;
+	const TArray<UCharacterData *> OpposingPartyData = UEncounterData::BuildCaughtRoster(CaughtTeams, TeamOfMember);
+	// B-224b (Q-224c): each enemy's HP follows its own team's rank (a form alone is a mini-boss); the fight's
+	// hardest rank below still rules fleeing (D-091).
+	TArray<EEncounterRank> MemberRanks;
+	for (int32 Index = 0; Index < OpposingPartyData.Num(); ++Index)
+	{
+		const UEncounterComponent *Team = Caught.IsValidIndex(TeamOfMember[Index]) ? Caught[TeamOfMember[Index]] : this;
+		MemberRanks.Add(UEncounterData::GetMemberRank(Team->EncounterData, Team->Rank, OpposingPartyData[Index]));
+	}
 	// B-279d: a fielded form makes the fight at least a mini-boss, and is known to the forms (so the
 	// battle dresses its character even when the asset manager didn't scan it).
 	UCharacterFormSubsystem *Forms = GetWorld()->GetGameInstance()->GetSubsystem<UCharacterFormSubsystem>();
@@ -373,6 +382,7 @@ void UEncounterComponent::OnJoinWindowExpired()
 	// the arena, and every trial actor die with the swap. If it rejects
 	// (no EncounterLevel authored), re-arm so the trial stays playable.
 	TrialRun->SetPendingEncounterSources(CaughtIds);
+	TrialRun->SetPendingEnemyRanks(MemberRanks);
 	TrialRun->SetPendingFirstStrike(PendingFirstStrike);
 	// B-186: the zone where the fight starts sets the enemies' strength and loot pool.
 	TrialRun->SetPendingZone(AEnemyZone::FindZoneAt(GetWorld(), ArenaCenter));
