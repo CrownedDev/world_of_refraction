@@ -37,6 +37,10 @@ Between `Begin` and `End` the runner sets `wor.Combat.InstantImpacts 1` and `wor
 - Targets (B-293): on `quick` only stalls fail; on `nightly` / `full` the error targets (party turns for a normal fight, mini-boss and boss rounds, win rates at Medium, the pillar-6 bands, stalls) fail `WoR.Balance.Sim.Targets` and the warn targets (p90s, hits-to-kill bands, the worked-example hit medians, crit rate and ratio, the boss win-rate band) are reported. The Decided numbers were never run through the sim (no Unreal in the cloud): expect the first nightly run to fail bands until the archetypes are tuned; the reports say which.
 - The worked-example hit medians (44 / 132 / 382) are warn-only: the sim's Mid and Late archetypes clamp Mind to 7 where the examples use 8 and 14 (Q-293).
 - The Defense-cap target (max observed 1 − taken/raw ≤ 0.76) isn't checked: the damage broadcast carries the final number only.
+- "Pillar 6 reverse" checks only that the party clears (win rate ≥ 1 %), not §3's "mean turns ≤ 2× the matched-gear archetype" (TODO).
+- The hit-median target uses every party hit (attacks, abilities, spells), not basic attacks alone, so it is a rough guide.
+- Elite is only in `full`; `nightly` keeps 3 ranks (§4 of the design doc lists 4: TODO, decide with the first nightly's run time).
+- GAS parity has not run yet: until B-293 the sim's actors had no ability system, so earlier "parity" was the enum path twice. Expect real differences on the first build; each names its seed.
 - Presets: `quick` 3 fights (the suite), `nightly` 50, `full` 200 with the Elite rank (`WOR_BALANCE=nightly|full Scripts/ue/test.sh WoR.Balance.` or `wor.Balance.Run`).
 - Party-side AI difficulty is fixed at Hard (`AIConstants::ALLY_AI_DIFFICULTY`).
 
