@@ -1822,7 +1822,8 @@ void UInventoryComponent::HandlePoolGearChanged(FGuid GearID)
     UEvolutionInventoryComponent *EvoInv = GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
     // B-321 (D-117): another member's piece is not in this armoury (dropped if it was, e.g. after a give).
     const FName GearOwner = Pool->GetGearOwner(GearID);
-    const bool bOthers = !bDrawsWholeArmoury && !GearOwner.IsNone() && GearOwner != SharedGearKey;
+    // B-324: chest gear is nobody's, not even a run-only recruit's whole-armoury draw.
+    const bool bOthers = Pool->IsInChest(GearID) || (!bDrawsWholeArmoury && !GearOwner.IsNone() && GearOwner != SharedGearKey);
     // B-323 (D-115): a piece given to this member that it already owns a copy of waits for the duplicate choice.
     // Only a piece now this member's own: a run-only recruit hears the whole armoury, and unowned gear isn't a gift.
     const bool bMineNow = !bDrawsWholeArmoury && !GearOwner.IsNone() && GearOwner == SharedGearKey;

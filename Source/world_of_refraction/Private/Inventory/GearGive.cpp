@@ -173,8 +173,12 @@ namespace WoRGive
 		{
 			return FText::Format(LOCTEXT("NotTheirsChest", "{0} doesn't own that"), NameOf(World, FromKey));
 		}
-		// Worn gear can't be put away (B-324): a piece in any of the member's loadouts stays. Checked on the spawned
-		// member; an unspawned member's next draw strips a piece it no longer owns.
+		// Worn gear can't be put away (B-324): a piece anyone wears (spawned or not), or in any of the member's
+		// loadouts, stays.
+		if (!Pool->GetWearer(GearID).IsNone())
+		{
+			return LOCTEXT("PutWornByAnyone", "Someone is wearing that. Take it off before putting it in the chest");
+		}
 		if (const UInventoryComponent *Member = FindMemberInventory(World, FromKey))
 		{
 			if (!Member->GetLoadoutsUsing(GearID).IsEmpty())

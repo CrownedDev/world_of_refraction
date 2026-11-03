@@ -13,6 +13,7 @@
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "InventoryChangeRecorder.h"
 #include "Inventory/GearGive.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
@@ -138,6 +139,41 @@ void FChestSpec::Define()
 		TestEqual(TEXT("It is in B's armoury, same instance"), OwnedID(B, Dagger), DaggerID);
 		TestFalse(TEXT("Not in the chest any more"), Pool->IsInChest(DaggerID));
 		TestFalse(TEXT("Taking it again is refused"), WoRGive::TryTakeFromChest(TestWorld->GetWorld(), KeyOf(0), DaggerID).IsEmpty());
+	});
+
+	It("keeps a put-away piece out of a run-only recruit's armoury", [this]()
+	{
+		if (!Pool) return;
+		TestWorld->GetSubsystem<UPartySessionSubsystem>()->GetLocalParty()->Members[1].bRunOnly = true;
+		UInventoryComponent *A = SpawnMember(0, false, false);
+		UInventoryComponent *Recruit = SpawnMember(1, false, false);
+		if (!A || !Recruit) return;
+		// A finds its spare after the recruit's draw, so the recruit hears it but doesn't wear it.
+		A->AddWeapon(Dagger);
+		const FGuid DaggerID = OwnedID(A, Dagger);
+		TestEqual(TEXT("The recruit sees A's spare"), OwnedID(Recruit, Dagger), DaggerID);
+		const FText Refusal = WoRGive::TryPutInChest(TestWorld->GetWorld(), KeyOf(0), DaggerID);
+		TestTrue(FString::Printf(TEXT("Put [%s]"), *Refusal.ToString()), Refusal.IsEmpty());
+		TestEqual(TEXT("It left the recruit too"), OwnedID(Recruit, Dagger), FGuid());
+		Recruit->DrawSharedGear();
+		TestEqual(TEXT("And a fresh draw leaves it in the chest"), OwnedID(Recruit, Dagger), FGuid());
+	});
+
+	It("wakes the taker's duplicate choice when it already owns a copy (D-115)", [this]()
+	{
+		if (!Pool) return;
+		UInventoryComponent *A = SpawnMember(0, true, false);
+		UInventoryComponent *B = SpawnMember(1, true, false);
+		if (!A || !B) return;
+		const FGuid PutID = OwnedID(A, Dagger);
+		const FGuid KeptID = OwnedID(B, Dagger);
+		TestTrue(TEXT("Put"), WoRGive::TryPutInChest(TestWorld->GetWorld(), KeyOf(0), PutID).IsEmpty());
+		UDuplicateGearRecorder *Recorder = NewObject<UDuplicateGearRecorder>(GetTransientPackage());
+		Recorder->Listen(B);
+		TestTrue(TEXT("Taken"), WoRGive::TryTakeFromChest(TestWorld->GetWorld(), KeyOf(1), PutID).IsEmpty());
+		if (!TestEqual(TEXT("One duplicate notice"), Recorder->NewIDs.Num(), 1)) return;
+		TestEqual(TEXT("The taken piece is the new one"), Recorder->NewIDs[0], PutID);
+		TestEqual(TEXT("Against B's own"), Recorder->OwnedIDs[0], KeptID);
 	});
 
 	It("refuses to put worn gear away", [this]()
