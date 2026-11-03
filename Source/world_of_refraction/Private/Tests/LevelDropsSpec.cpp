@@ -14,6 +14,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
 #include "Trial/LevelDropPlacement.h"
+#include "Trial/TrialData.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
 
@@ -21,6 +22,7 @@ namespace
 {
 	constexpr int32 LEVEL_DROPS_TEST_ASSET_MIND = 2;
 	constexpr EItemTier LEVEL_DROPS_TEST_TIER = EItemTier::C_Tier;
+	constexpr int32 LEVEL_DROPS_TEST_SEED = 7;
 }
 
 BEGIN_DEFINE_SPEC(FLevelDropsSpec, "WoR.Trial.LevelDrops", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -48,6 +50,10 @@ void FLevelDropsSpec::Define()
 		TestWorld = MakeUnique<FWoRTestWorld>();
 		TestTrue(TEXT("test world created"), TestWorld->Create());
 		Run = TestWorld->GetSubsystem<UTrialRunSubsystem>();
+		if (Run)
+		{
+			Run->RestoreRun(NewObject<UTrialData>(GetTransientPackage()), LEVEL_DROPS_TEST_SEED, 0, ETrialDifficulty::Medium, {}, {}, {});
+		}
 		UPartySessionSubsystem *PartySession = TestWorld->GetSubsystem<UPartySessionSubsystem>();
 		UParty *Party = PartySession ? PartySession->CreateSoloParty(nullptr, TSoftClassPtr<ACombatCharacter>()) : nullptr;
 		if (!TestNotNull(TEXT("Party"), Party))
@@ -136,6 +142,24 @@ void FLevelDropsSpec::Define()
 		Run->AddUnspentLevels(1);
 		TestFalse(TEXT("at the cap"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Member, EWorldPillar::Mind).IsEmpty());
 		TestEqual(TEXT("level still waits"), Run->GetUnspentLevels(), 1);
+	});
+
+	It("outside a run a drop can't be placed and a level isn't kept in the run", [this]()
+	{
+		if (!TestTrue(TEXT("setup"), Run && Member))
+		{
+			return;
+		}
+		Run->RestoreRun(nullptr, 0, 0, ETrialDifficulty::Medium, {}, {}, {});
+		Run->AddUnspentLevels(1);
+		TestFalse(TEXT("refused"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Member, EWorldPillar::Mind).IsEmpty());
+		UCharacterDataComponent *Comp = WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), Member);
+		if (!TestNotNull(TEXT("spawned"), Comp))
+		{
+			return;
+		}
+		Comp->AddEarnedWorldStat(EWorldPillar::Mind, 1);
+		TestEqual(TEXT("run store untouched"), Run->GetRunEarnedLevels(UPoolSubsystem::GetCharacterKey(Member), EWorldPillar::Mind), 0);
 	});
 
 	It("a run reset forgets the member's run levels", [this]()
