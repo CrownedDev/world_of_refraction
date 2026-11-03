@@ -3034,8 +3034,12 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			// un-authored skill) → no tier bonus → byte-identical to pre-b2.
 			if (const USkillDataBase *ChainSkillData = GetCurrentSkillData())
 			{
-				// B-326 (D-119): an unmet requirement gives no scaling.
-				if (!WeaponRequirement::IsUnmetFactor(GetSkillRequirementFactor(Input.Attacker, ChainSkillData)))
+				// B-326 (D-119): an unmet requirement gives no scaling. Judged only for the actor using the skill: a
+				// reaction or counter hit by someone else keeps the skill's scaling as before.
+				const AActor *SkillUser = CurrentExecutionContext.IsSet() ? CurrentExecutionContext->Executor.Get() : nullptr;
+				const bool bJudgeRequirement = !SkillUser || SkillUser == Input.Attacker;
+				if (!bJudgeRequirement ||
+					!WeaponRequirement::IsUnmetFactor(GetSkillRequirementFactor(Input.Attacker, ChainSkillData)))
 				{
 					DmgInput.StatScaling = ChainSkillData->StatScaling;
 				}
