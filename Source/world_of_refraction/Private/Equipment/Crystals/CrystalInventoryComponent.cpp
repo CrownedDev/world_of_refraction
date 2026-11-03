@@ -49,7 +49,7 @@ bool UCrystalInventoryComponent::AddCount(FCrystalId Id, int32 Count)
     }
     if (UPoolSubsystem *Pool = SharedPool.Get())
     {
-        Pool->CarryOrStore(Id, Count); // OnPoolItemsChanged refreshes this mirror
+        Pool->CarryOrStore(PouchKey, Id, Count); // OnPoolItemsChanged refreshes this mirror
         return true;
     }
     PoolFor(Id.Type).FindOrAdd(Id) += Count;
@@ -68,7 +68,7 @@ int32 UCrystalInventoryComponent::RemoveCount(FCrystalId Id, int32 Count)
     }
     if (UPoolSubsystem *Shared = SharedPool.Get())
     {
-        return Shared->TakeCarried(Id, Count);
+        return Shared->TakeCarried(PouchKey, Id, Count);
     }
     TMap<FCrystalId, int32> &Pool = PoolFor(Id.Type);
     int32 *Found = Pool.Find(Id);
@@ -148,15 +148,16 @@ bool UCrystalInventoryComponent::CanAddCount(FCrystalId Id, int32 Count) const
     return SumAtTier(PoolFor(Id.Type), Id.Tier) + Count <= InventoryConstants::CRYSTAL_PER_TIER_CAP;
 }
 
-// ==================== SHARED CARRIED ITEMS (B-203) ====================
+// ==================== THE CHARACTER'S POUCH (B-203, B-322) ====================
 
-void UCrystalInventoryComponent::BindSharedItems(UPoolSubsystem *Pool)
+void UCrystalInventoryComponent::BindSharedItems(UPoolSubsystem *Pool, FName CharacterKey)
 {
     if (!Pool)
     {
         return;
     }
     SharedPool = Pool;
+    PouchKey = CharacterKey;
     Pool->OnPoolItemsChanged.AddUniqueDynamic(this, &UCrystalInventoryComponent::HandlePoolItemsChanged);
     HandlePoolItemsChanged();
 }
@@ -168,6 +169,7 @@ void UCrystalInventoryComponent::UnbindSharedItems()
         Pool->OnPoolItemsChanged.RemoveDynamic(this, &UCrystalInventoryComponent::HandlePoolItemsChanged);
     }
     SharedPool.Reset();
+    PouchKey = NAME_None;
 }
 
 void UCrystalInventoryComponent::HandlePoolItemsChanged()
@@ -179,7 +181,7 @@ void UCrystalInventoryComponent::HandlePoolItemsChanged()
     }
     Crystals.Empty();
     Stones.Empty();
-    for (const TPair<FCrystalId, int32> &Pair : Pool->GetCarriedItems())
+    for (const TPair<FCrystalId, int32> &Pair : Pool->GetCarriedItems(PouchKey))
     {
         PoolFor(Pair.Key.Type).Add(Pair.Key, Pair.Value);
     }
