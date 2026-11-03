@@ -1378,6 +1378,7 @@ bool UInventoryComponent::DrawSharedGear()
     Pool->AdoptLegacyCarriedItems(InventoryGearSync::GetLocalLeaderKey(GI, Key));
     bDrawsWholeArmoury = bRunOnly;
     // B-324: the chest's gear is nobody's to wear; a recruit's whole-armoury draw leaves it in the chest.
+    // Key, not SharedGearKey: that is set below, once the draw is done (IsMineInStore is the same rule after that).
     const auto IsMine = [this, Pool, Key](const FGuid &ID)
     { return bDrawsWholeArmoury ? !Pool->IsInChest(ID) : Pool->GetGearOwner(ID) == Key; };
 
@@ -1469,6 +1470,41 @@ namespace
         Out.Quality = Entry.Quality;
         return Out;
     }
+}
+
+bool UInventoryComponent::IsMineInStore(const UPoolSubsystem &Pool, const FGuid &GearID) const
+{
+    return bDrawsWholeArmoury ? !Pool.IsInChest(GearID) : Pool.GetGearOwner(GearID) == SharedGearKey;
+}
+
+bool UInventoryComponent::OwnsWeaponAsset(const UWeaponData *Weapon) const
+{
+    if (!Weapon)
+    {
+        return false;
+    }
+    const UPoolSubsystem *Pool = SharedPool.Get();
+    if (!Pool)
+    {
+        return Weapons.ContainsByPredicate([Weapon](const FWeaponInventoryEntry &Entry) { return Entry.Weapon == Weapon; });
+    }
+    return Pool->GetOwnedWeapons().ContainsByPredicate(
+        [this, Pool, Weapon](const FWeaponInventoryEntry &Entry) { return Entry.Weapon == Weapon && IsMineInStore(*Pool, Entry.PersistentID); });
+}
+
+bool UInventoryComponent::OwnsRingAsset(const URingData *Ring) const
+{
+    if (!Ring)
+    {
+        return false;
+    }
+    const UPoolSubsystem *Pool = SharedPool.Get();
+    if (!Pool)
+    {
+        return Rings.ContainsByPredicate([Ring](const FRingInventoryEntry &Entry) { return Entry.Ring == Ring; });
+    }
+    return Pool->GetOwnedRings().ContainsByPredicate(
+        [this, Pool, Ring](const FRingInventoryEntry &Entry) { return Entry.Ring == Ring && IsMineInStore(*Pool, Entry.PersistentID); });
 }
 
 FString UInventoryComponent::CompareWithStore() const

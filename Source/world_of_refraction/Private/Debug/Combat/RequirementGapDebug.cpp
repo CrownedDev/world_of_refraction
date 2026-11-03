@@ -11,10 +11,20 @@
 
 namespace
 {
+    /** B-326 (D-119): an unmet skill ignores the percents above; combat uses the flat factor and no scaling. */
+    FString UnmetLine(const FWorldStatRequirements &Requirements, const FWorldPillarLevels &Levels)
+    {
+        return Requirements.IsMetBy(Levels)
+                   ? FString(TEXT("  Requirement met: the percents above apply\n"))
+                   : FString::Printf(TEXT("  UNMET (D-119): skill part x%.2f, no pillar scaling; the percents above don't apply\n"),
+                                     WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR);
+    }
+
     // One formatted line per pillar: name, Req, Char, Gap, ladder mult, pillar%.
     // PillarPct is passed in from the LIVE helper (GetRequirementGapPillarPercents),
     // NOT recomputed — so the displayed percent matches exactly what AddPillarPercent
     // receives. Gap and Mult are shown alongside as the breakdown that produced it.
+
     FString FormatPillarLine(const TCHAR *PillarName, int32 Required, int32 CharLevel, float PillarPct)
     {
         const int32 Gap = Required - CharLevel;
@@ -45,11 +55,12 @@ FString URequirementGapDebug::GetRequirementGapString(const USkillDataBase *Skil
     Output += FormatPillarLine(TEXT("Body"), Skill->Requirements.RequiredWorldBody, Character->WorldBodyLevel, BodyPct);
     Output += FormatPillarLine(TEXT("Spirit"), Skill->Requirements.RequiredWorldSpirit, Character->WorldSpiritLevel, SpiritPct);
     Output += TEXT("===================================\n");
+    Output += UnmetLine(Skill->Requirements, FWorldPillarLevels::FromAsset(*Character));
     // The pillar% IS the substat delta: it applies to EVERY substat in that pillar
     // (membership lives inline in FActionStatModifiers::AddPillarPercent — not cleanly
     // enumerable from code, so the names are intentionally not listed here).
     Output += TEXT("  Pillar% = delta applied to every substat in that pillar\n");
-    Output += TEXT("  (gap +ve = under-statted -> penalty; -ve = over-statted -> boost)\n");
+    Output += TEXT("  (gap -ve = over-statted -> boost; under on any pillar -> the flat D-119 penalty instead)\n");
     Output += TEXT("===================================\n");
     return Output;
 }
@@ -70,6 +81,7 @@ FString URequirementGapDebug::GetLiveRequirementGapString(const USkillDataBase *
     Output += FormatPillarLine(TEXT("Mind"), Skill->Requirements.RequiredWorldMind, Levels.Mind, MindPct);
     Output += FormatPillarLine(TEXT("Body"), Skill->Requirements.RequiredWorldBody, Levels.Body, BodyPct);
     Output += FormatPillarLine(TEXT("Spirit"), Skill->Requirements.RequiredWorldSpirit, Levels.Spirit, SpiritPct);
+    Output += UnmetLine(Skill->Requirements, Levels);
     return Output;
 }
 
@@ -81,20 +93,21 @@ FString URequirementGapDebug::GetWeaponRequirementFactorString(const UWeaponData
     }
 
     const FWorldStatRequirements &Req = Weapon->Requirements;
-    const float Floor = WoRTuning::Get().WeaponReqFactorMin;
-    auto PillarLine = [Floor](const TCHAR *PillarName, int32 Required, int32 CharLevel)
+    // B-326 (D-119): each pillar is met or short; any shortfall gives the one flat penalty.
+    auto PillarLine = [](const TCHAR *PillarName, int32 Required, int32 CharLevel)
     {
-        const int32 Gap = Required - CharLevel;
-        const float Clamped = FMath::Clamp(TierGapDamage::GetRequirementGapMultiplier(Gap), Floor,
-                                           WeaponRequirement::WEAPON_REQ_FACTOR_MAX);
-        return FString::Printf(TEXT("  %-7s Req %d  Char %d  Gap %+d  ->  x%.2f\n"), PillarName, Required, CharLevel, Gap, Clamped);
+        const int32 Short = Required - CharLevel;
+        return Short > 0 ? FString::Printf(TEXT("  %-7s Req %d  Char %d  short by %d\n"), PillarName, Required, CharLevel, Short)
+                         : FString::Printf(TEXT("  %-7s Req %d  Char %d  met\n"), PillarName, Required, CharLevel);
     };
 
     FString Output = FString::Printf(TEXT("WEAPON REQUIREMENT: %s (CHARACTER: %s)\n"), *Weapon->GetName(), *Character->Name);
     Output += PillarLine(TEXT("Mind"), Req.RequiredWorldMind, Character->WorldMindLevel);
     Output += PillarLine(TEXT("Body"), Req.RequiredWorldBody, Character->WorldBodyLevel);
     Output += PillarLine(TEXT("Spirit"), Req.RequiredWorldSpirit, Character->WorldSpiritLevel);
-    Output += FString::Printf(TEXT("  Factor (worst pillar): x%.2f on the weapon part of attacks and abilities (B-220)\n"), Req.GetWeaponRequirementFactor(Character));
+    const float Factor = Req.GetWeaponRequirementFactor(Character);
+    Output += FString::Printf(TEXT("  Factor: x%.2f on the weapon part of attacks and abilities (B-220)%s\n"), Factor,
+                              WeaponRequirement::IsUnmetFactor(Factor) ? TEXT(", unmet: no pillar scaling (D-119)") : TEXT(""));
     return Output;
 }
 
