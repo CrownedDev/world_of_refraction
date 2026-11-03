@@ -48,6 +48,13 @@ public:
 	 *  order given, at most ENCOUNTER_MAX_ENEMIES. Empty teams are skipped. */
 	static TArray<UCharacterData *> BuildCaughtRoster(const TArray<TArray<UCharacterData *>> &CaughtTeams);
 
+	/** B-224b: BuildCaughtRoster, also giving each fielded member's index into CaughtTeams (parallel to the roster). */
+	static TArray<UCharacterData *> BuildCaughtRoster(const TArray<TArray<UCharacterData *>> &CaughtTeams, TArray<int32> &OutTeamIndices);
+
+	/** B-224b (Q-224c): one fielded enemy's own rank for its HP: its team's placed rank, raised to MiniBoss when it
+	 *  is Encounter's mini-boss form (the form's teammates keep the team's rank). */
+	static EEncounterRank GetMemberRank(const UEncounterData *Encounter, EEncounterRank TeamRank, const UCharacterData *Member);
+
 	/** B-279d: the placed rank, raised to MiniBoss when Encounter's form is among Fielded (the fight's
 	 *  roster: several caught teams send only their strongest, which can leave the form out). */
 	static EEncounterRank GetFightRank(const UEncounterData *Encounter, EEncounterRank PlacedRank, const TArray<UCharacterData *> &Fielded);
