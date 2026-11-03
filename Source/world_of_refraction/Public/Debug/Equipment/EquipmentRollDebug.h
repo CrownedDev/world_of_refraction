@@ -21,6 +21,7 @@
 
 /**
  * Debug utilities for the per-instance equipment roll system.
+ * OBSOLETE (B-335, D-127; delete in the D-124 sweep): the rolls are retired, so after the sweep there is nothing to inspect.
  */
 UCLASS()
 class WORLD_OF_REFRACTION_API UEquipmentRollDebug : public UBlueprintFunctionLibrary

@@ -78,8 +78,8 @@ public:
 
 	// ---- Weapon requirement (B-224) ----
 
-	/** Floor on a weapon's requirement factor: at most this much of the weapon part is lost under the
-	 *  requirement (the skill part is never cut). */
+	/** OBSOLETE (B-326, D-119): the old requirement ladder's floor. Nothing reads it now: an unmet weapon
+	 *  requirement is WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR. Delete after Crown's PIE pass. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (ClampMin = 0, ClampMax = 1))
 	float WeaponReqFactorMin;
 

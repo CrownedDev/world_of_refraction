@@ -75,12 +75,12 @@ struct WORLD_OF_REFRACTION_API FResistanceBonus
 	 *  Per-category |delta| capped at RESISTANCE_CATEGORY_CAP; final value clamped
 	 *  to RESISTANCE_BONUS_MIN/MAX. Returns the budget redistributed (0 on no-op).
 	 *  Delegates to the explicit-budget overload with the tier's budget. */
-	int32 RerollResistance(EItemTier Tier);
+	int32 RerollResistance(EItemTier Tier); // OBSOLETE (B-335, D-127; delete in the D-124 sweep)
 
 	/** Explicit-budget reroll — same wipe + distribution, caller-supplied budget
 	 *  (the per-instance roll consumes the instance's STORED ResistanceMaxPool;
 	 *  per-asset overrides also land here). */
-	int32 RerollResistance(int32 Budget);
+	int32 RerollResistance(int32 Budget); // OBSOLETE (B-335, D-127; delete in the D-124 sweep)
 
 	/** Field-wise add Other onto this (12 categories, unclamped). Composes the
 	 *  authored Base with a fresh per-instance roll at acquisition. */

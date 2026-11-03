@@ -332,7 +332,20 @@ public:
 
 	// ==================== STAT BUDGET VALIDATION ====================
 	// ==================== STAT POOL ====================
+	// D-123 (B-330): the player picks pillars only. A pillar level grants no sub-stat points; sub-stats are
+	// authored on this asset and added by gear. GetSubStatBudget / IsWithinSubStatBudget are the authoring check.
 
+	/** The most sub-stat points this asset may be authored with; the same at every pillar level (D-123, Q-330). */
+	UFUNCTION(BlueprintPure, Category = "Stats|Pool")
+	int32 GetSubStatBudget() const { return StatConstants::MAX_AUTHORED_SUBSTAT_POINTS; }
+
+	/** True when the authored sub-stats fit GetSubStatBudget. */
+	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
+	bool IsWithinSubStatBudget() const { return GetTotalSpent() <= GetSubStatBudget(); }
+
+	/** OBSOLETE (B-330, D-123; delete in the D-124 sweep) as a sub-stat pool: the level-scaled budget
+	 *  (30 + 3 per pillar level). Still live as the enemy CALIBER (CombatOrchestrator's WSP per kill,
+	 *  UEncounterData's strongest member); the sweep gives the caliber its own read before deleting this. */
 	UFUNCTION(BlueprintPure, Category = "Stats|Pool")
 	int32 GetTotalPool() const
 	{
@@ -348,9 +361,11 @@ public:
 			   MaxEnergy + Resistance + TurnSpeed + Luck + StatusMultiplier;
 	}
 
+	/** OBSOLETE (B-330, D-123; delete in the D-124 sweep): points left in the retired level-scaled pool. */
 	UFUNCTION(BlueprintPure, Category = "Stats|Pool")
 	int32 GetPointsRemaining() const { return GetTotalPool() - GetTotalSpent(); }
 
+	/** OBSOLETE (B-330, D-123; delete in the D-124 sweep): replaced by IsWithinSubStatBudget. */
 	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
 	bool IsValidDistribution() const { return GetTotalSpent() <= GetTotalPool(); }
 
