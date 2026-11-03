@@ -7,6 +7,7 @@
 #include "WoRGameNames.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Grid/ECombatRow.h"
+#include "Currency/CurrencyTypes.h"
 #include "Merchant/MerchantData.h"
 #include "Skills/Definitions/SpellSchool.h"
 
@@ -64,6 +65,13 @@ void FGameNamesSpec::Define()
 		TestEqual(TEXT("Block reads Guard"), WoRGameNames::GetDefenseTypeName(EDefenseType::Block).ToString(), FString(TEXT("Guard")));
 		TestEqual(TEXT("Legacy Parry reads Guard"), WoRGameNames::GetDefenseTypeName(EDefenseType::Parry).ToString(),
 				  FString(TEXT("Guard")));
+	});
+
+	It("names every essence: Generic as Quartz, Reality as Unknown (B-269, D-105, D-095)", [this]()
+	{
+		ExpectEveryValueNamed<EEssenceType>(&WoRGameNames::GetEssenceName);
+		TestEqual(TEXT("Generic"), WoRGameNames::GetEssenceName(EEssenceType::Generic).ToString(), FString(TEXT("Quartz Essence")));
+		TestEqual(TEXT("Reality"), WoRGameNames::GetEssenceName(EEssenceType::Reality).ToString(), FString(TEXT("Unknown Essence")));
 	});
 
 	It("shows Reality as Unknown (D-095)", [this]()

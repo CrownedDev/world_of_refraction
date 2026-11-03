@@ -4,6 +4,7 @@
 #include "WoRGameNames.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Grid/ECombatRow.h"
+#include "Currency/CurrencyTypes.h"
 #include "Merchant/MerchantData.h"
 #include "Skills/Definitions/SpellSchool.h"
 
@@ -347,6 +348,42 @@ FText GetMerchantTypeName(EMerchantType MerchantType)
         return LOCTEXT("EMerchantType_StoneSmith", "Stone Smith (augment stones)");
     case EMerchantType::LoadoutVendor:
         return LOCTEXT("EMerchantType_LoadoutVendor", "Loadout Vendor (purchase loadout)");
+    }
+    return FText::GetEmpty();
+}
+
+FText GetEssenceName(EEssenceType Essence)
+{
+    switch (Essence)
+    {
+    case EEssenceType::Fire:
+        return LOCTEXT("EEssenceType_Fire", "Fire Essence");
+    case EEssenceType::Water:
+        return LOCTEXT("EEssenceType_Water", "Water Essence");
+    case EEssenceType::Lightning:
+        return LOCTEXT("EEssenceType_Lightning", "Lightning Essence");
+    case EEssenceType::Wind:
+        return LOCTEXT("EEssenceType_Wind", "Wind Essence");
+    case EEssenceType::Earth:
+        return LOCTEXT("EEssenceType_Earth", "Earth Essence");
+    case EEssenceType::Light:
+        return LOCTEXT("EEssenceType_Light", "Light Essence");
+    case EEssenceType::Darkness:
+        return LOCTEXT("EEssenceType_Darkness", "Darkness Essence");
+    case EEssenceType::Void:
+        return LOCTEXT("EEssenceType_Void", "Void Essence");
+    case EEssenceType::Reality:
+        return LOCTEXT("EEssenceType_Reality", "Unknown Essence"); // D-095
+    case EEssenceType::Generic:
+        return LOCTEXT("EEssenceType_Generic", "Quartz Essence"); // D-105
+    case EEssenceType::Mind:
+        return LOCTEXT("EEssenceType_Mind", "Mind Essence");
+    case EEssenceType::Body:
+        return LOCTEXT("EEssenceType_Body", "Body Essence");
+    case EEssenceType::Spirit:
+        return LOCTEXT("EEssenceType_Spirit", "Spirit Essence");
+    case EEssenceType::Ability:
+        return LOCTEXT("EEssenceType_Ability", "Ability Essence");
     }
     return FText::GetEmpty();
 }

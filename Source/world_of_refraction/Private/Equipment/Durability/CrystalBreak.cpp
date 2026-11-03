@@ -15,6 +15,7 @@
 #include "Currency/CurrencyWallet.h"
 #include "Currency/EconomyService.h"
 #include "Currency/EconomyYield.h"
+#include "WoRGameNames.h"
 
 namespace
 {
@@ -48,7 +49,7 @@ namespace
 
 	FString CrystalBreakEssenceName(EEssenceType Type)
 	{
-		return StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(Type));
+		return WoRGameNames::GetEssenceName(Type).ToString();
 	}
 
 	/** OBSOLETE (Q-159: evolutions are never lost to wear; unreachable): remove after Crown's PIE pass.

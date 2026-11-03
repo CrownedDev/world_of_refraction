@@ -13,6 +13,7 @@
 #include "Inventory/ItemTier.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "UI/Shop/ShopWindowWidget.h" // UShopEntryObject + UShopWindowWidget
+#include "WoRGameNames.h"
 
 void UShopRowWidget::NativeConstruct()
 {
@@ -159,9 +160,8 @@ FText UShopRowWidget::GetEntryCost() const
     }
     for (const TPair<EEssenceType, int32> &Pair : Cost.Typed)
     {
-        Line += FString::Printf(TEXT(" | %s %d"),
-                                *StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(Pair.Key)),
-                                Pair.Value);
+        // TODO: the cost line is a built FString; FText::Format with B-127 (D-061).
+        Line += FString::Printf(TEXT(" | %s %d"), *WoRGameNames::GetEssenceName(Pair.Key).ToString(), Pair.Value);
     }
     return FText::FromString(Line);
 }
