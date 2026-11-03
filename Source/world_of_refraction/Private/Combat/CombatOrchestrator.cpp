@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Combat/CombatOrchestrator.h"
+#include "Combat/Tier/CombatTier.h"
 #include "GameFramework/Pawn.h"
 #include "Combat/TurnManager.h"
 #include "Skills/Effects/SkillEffectManager.h"
@@ -1176,13 +1177,13 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 	const int32 WSP = FMath::Max(1, Caliber / CombatConstants::WORLDSTAT_KILL_DIVISOR);
 	PendingWorldStatPool += WSP;
 
-	// B-223 (D-102): the enemy's own rank (B-224b) and tier set its level drop.
+	// B-223 (D-102): the enemy's own rank (B-224b) and Combat Tier (B-325) set its level drop.
 	EEncounterRank Rank = EncounterRank;
 	if (const EEncounterRank *OwnRank = EnemyRanks.Find(Victim))
 	{
 		Rank = *OwnRank;
 	}
-	PendingLevelDropSources.Emplace(VictimData->EnemyTier, Rank);
+	PendingLevelDropSources.Emplace(WoRCombatTier::GetCombatTier(Victim), Rank); // B-325: its Combat Tier
 
 	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Enemy %s down (caliber %d) -> +%d WSP (pool now %d)"),
 		   *Victim->GetName(), Caliber, WSP, PendingWorldStatPool);
