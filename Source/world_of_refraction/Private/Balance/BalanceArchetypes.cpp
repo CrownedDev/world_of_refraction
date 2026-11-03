@@ -62,16 +62,22 @@ namespace
 		Early.AbilityBase = 20;
 		Out.Add(Early);
 
-		// The Mid and Late parties' Generic members: the early build at C and S gear.
-		FBalanceArchetype GenericC = Early;
-		GenericC.Id = SimGenericC;
-		GenericC.WeaponTier = EItemTier::C_Tier;
-		GenericC.WeaponPower = SIM_POWER_C;
+		// The Mid and Late parties' Generic members (Q-293e): stat points grow with the tier like the same-tier
+		// enemy's (E-C / E-S below) and the worked examples' damage points and skill base (BaselineNumbers.md §3,
+		// examples 2 and 3). Was the early build with only the weapon swapped, so two of three members had early HP.
+		FBalanceArchetype GenericC = MakeSimArchetype(SimGenericC, ECharacterClass::Generic, EItemTier::C_Tier, SIM_POWER_C);
+		GenericC.Body = 5;
+		GenericC.RawDamage = 8;
+		GenericC.Defense = 15;
+		GenericC.MaxHealth = 20;
+		GenericC.AbilityBase = 30;
 		Out.Add(GenericC);
-		FBalanceArchetype GenericS = Early;
-		GenericS.Id = SimGenericS;
-		GenericS.WeaponTier = EItemTier::S_Tier;
-		GenericS.WeaponPower = SIM_POWER_S;
+		FBalanceArchetype GenericS = MakeSimArchetype(SimGenericS, ECharacterClass::Generic, EItemTier::S_Tier, SIM_POWER_S);
+		GenericS.Body = 7; // the example's 14 is past the cap
+		GenericS.RawDamage = 20;
+		GenericS.Defense = 25;
+		GenericS.MaxHealth = 35;
+		GenericS.AbilityBase = 40;
 		Out.Add(GenericS);
 
 		FBalanceArchetype Mid = MakeSimArchetype(SimMidResonatorC, ECharacterClass::Resonator, EItemTier::C_Tier, SIM_POWER_C);

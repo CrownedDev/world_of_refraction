@@ -104,9 +104,9 @@ struct WORLD_OF_REFRACTION_API FWorldStatRequirements
 
 namespace WeaponRequirement
 {
-    /** Floor on the weapon requirement factor (Crown, BaselineNumbers.md: at most half the weapon part is lost,
-     *  like Elden Ring's flat under-requirement penalty). The ladder's lowest rung (gap +5) is 0.32, so the floor
-     *  bites from gap +4 (0.50) down. The C++ fallback of UCombatTuningData::WeaponReqFactorMin (B-224). */
-    constexpr float WEAPON_REQ_FACTOR_MIN = 0.5f;
+    /** Floor on the weapon requirement factor (Crown, Q-293d: under-levelled gear keeps at least a quarter).
+     *  The ladder's lowest rung (gap +5) is 0.32, so this floor only bites if a lower rung is added.
+     *  The C++ fallback of UCombatTuningData::WeaponReqFactorMin (B-224). */
+    constexpr float WEAPON_REQ_FACTOR_MIN = 0.25f; // B-293d (Q-293d, Crown 2026-11-03): under-levelled gear at a quarter strength (was 0.5)
     constexpr float WEAPON_REQ_FACTOR_MAX = 1.0f;
 }

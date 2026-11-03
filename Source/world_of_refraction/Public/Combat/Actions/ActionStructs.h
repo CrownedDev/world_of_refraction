@@ -335,6 +335,9 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	int32 ResolvedFinalDamage = 0;
 
+	/** B-293d: the share of the impact Guard let through (1 unguarded), for the damage floor. */
+	float ResolvedGuardFactor = 1.0f;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	bool bResolvedSuccess = false;
 
@@ -598,6 +601,9 @@ struct WORLD_OF_REFRACTION_API FActionHitInput
 	/** Pre-calculation per-hit damage value. 0 if this hit deals no damage. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit|Damage")
 	int32 BaseDamage = 0;
+
+	/** B-293d: the share of the hit Guard let through (1 unguarded); BaseDamage is already guarded. */
+	float GuardFactor = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit|Damage")
 	bool bCanCrit = true;
