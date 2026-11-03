@@ -1643,6 +1643,10 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
                Finding.SlotIndex, *DroppedFinding.Reason);
         Dropped.Add(DroppedFinding);
     }
+    if (!UInventoryComponent::LoadoutHasPrimary(Loadout))
+    {
+        Inv->RefillEmptyPrimaries(); // D-116: a dropped primary is replaced, not left empty
+    }
     return Dropped;
 }
 

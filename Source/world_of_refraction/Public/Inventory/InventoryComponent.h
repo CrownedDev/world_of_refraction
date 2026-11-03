@@ -127,6 +127,20 @@ public:
     /** Does the loadout hold any weapon, ring or evolution to fight with? */
     static bool LoadoutHasGear(const FCombatLoadout &Loadout);
 
+    /** D-116: does the loadout's primary slot hold a weapon, ring or evolution of its slot type? */
+    static bool LoadoutHasPrimary(const FCombatLoadout &Loadout);
+
+    /** D-116: is the weapon, ring or evolution instance the primary of any saved loadout? Such a
+     *  piece can't be dismantled until another primary is swapped in. */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Saved")
+    bool IsPrimaryInAnyLoadout(FGuid PersistentID) const;
+
+    /** D-116: each saved loadout with no primary gets the first usable owned weapon (an adapter
+     *  when no weapon fits and the class takes one), skipping Excluded, gear worn by another member
+     *  and gear already in that loadout. A guard for old saves and strips; logs a warning per fill.
+     *  Returns loadouts filled. */
+    int32 RefillEmptyPrimaries(const FGuid &Excluded = FGuid());
+
     // ==================== OWNED GEAR SYNC (B-085, Q-085) ====================
     // The owned entry is the truth; a loadout slot is a cache keyed by PersistentID (weapons,
     // rings) or PrimaryEvolutionInstance. Owned changes are made out of a fight; during one the
