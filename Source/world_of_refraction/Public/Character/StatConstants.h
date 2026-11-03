@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Combat/CombatConstants.h"
 
 /**
  * Stat System Constants
@@ -34,6 +35,8 @@ namespace StatConstants
     // The old pool's 7/7/7 total (30 + 63), so every existing asset stays valid and the per-point maths
     // (CombatConstants::MAX_STAT_POINTS) is unchanged. Pillar levels add nothing to it.
     constexpr int32 MAX_AUTHORED_SUBSTAT_POINTS = 93;
+    static_assert(MAX_AUTHORED_SUBSTAT_POINTS == static_cast<int32>(CombatConstants::MAX_STAT_POINTS),
+                  "The authored sub-stat ceiling must match the per-point maths' reference (Q-330)");
 
     // ==================== ACTION SPEED SCALING ====================
 

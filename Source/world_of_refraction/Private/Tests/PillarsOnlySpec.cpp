@@ -16,6 +16,9 @@ namespace
 	constexpr int32 PILLARS_TEST_ONE_LEVEL = 1;
 	constexpr int32 PILLARS_TEST_RAW_DAMAGE = 6;
 	constexpr int32 PILLARS_TEST_DEFENSE = 4;
+	/** The enemy caliber (World Stat Points per kill) is unchanged by B-330: 30 + 3 per pillar level. */
+	constexpr int32 PILLARS_TEST_CALIBER_AT_ZERO = 30;
+	constexpr int32 PILLARS_TEST_CALIBER_AT_MAX = 93;
 }
 
 BEGIN_DEFINE_SPEC(FPillarsOnlySpec, "WoR.WorldStat.PillarsOnly", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -68,6 +71,17 @@ void FPillarsOnlySpec::Define()
 		Maxed->WorldSpiritLevel = StatConstants::MAX_WORLD_STAT_LEVEL;
 		TestEqual(TEXT("budget at 0 is the authoring ceiling"), Fresh->GetSubStatBudget(), StatConstants::MAX_AUTHORED_SUBSTAT_POINTS);
 		TestEqual(TEXT("pillar levels add nothing"), Maxed->GetSubStatBudget(), Fresh->GetSubStatBudget());
+	});
+
+	It("still scales the enemy caliber (GetTotalPool, OBSOLETE as a pool) with pillar levels", [this]()
+	{
+		UCharacterData *Fresh = FWoRTestWorld::NewCharacterData();
+		UCharacterData *Maxed = FWoRTestWorld::NewCharacterData();
+		Maxed->WorldMindLevel = StatConstants::MAX_WORLD_STAT_LEVEL;
+		Maxed->WorldBodyLevel = StatConstants::MAX_WORLD_STAT_LEVEL;
+		Maxed->WorldSpiritLevel = StatConstants::MAX_WORLD_STAT_LEVEL;
+		TestEqual(TEXT("caliber at 0/0/0 is 30"), Fresh->GetTotalPool(), PILLARS_TEST_CALIBER_AT_ZERO);
+		TestEqual(TEXT("caliber at 7/7/7 is 93"), Maxed->GetTotalPool(), PILLARS_TEST_CALIBER_AT_MAX);
 	});
 
 	It("keeps an authored spread within the budget", [this]()
