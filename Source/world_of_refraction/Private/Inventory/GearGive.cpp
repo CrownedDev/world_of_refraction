@@ -186,6 +186,8 @@ namespace WoRGive
 		{
 			return LOCTEXT("PutFailed", "Couldn't put that in the chest");
 		}
+		// An unspawned member's loadouts can't be checked; the piece leaves them at its next draw, so no wearer stays.
+		Pool->ReleaseWearer(GearID);
 		return FText::GetEmpty();
 	}
 
@@ -203,6 +205,10 @@ namespace WoRGive
 		if (!Pool->IsInChest(GearID))
 		{
 			return LOCTEXT("NotInChest", "That isn't in the chest");
+		}
+		if (IsRunOnlyMember(World, ToKey))
+		{
+			return FText::Format(LOCTEXT("RecruitOwnsNothingChest", "{0} is only here for the run and can't own gear"), NameOf(World, ToKey));
 		}
 		if (!Pool->GiveGear(GearID, ToKey))
 		{

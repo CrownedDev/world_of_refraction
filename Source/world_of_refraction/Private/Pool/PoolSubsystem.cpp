@@ -586,6 +586,13 @@ FString UPoolSubsystem::GetItemSlotsString() const
     {
         Out += FString::Printf(TEXT("\n  Older save's party pouch, not yet adopted: %d stack(s)"), LegacyCarriedItems.Stacks.Num());
     }
+    // B-324: the chest's gear beside the stored items.
+    int32 ChestGear = 0;
+    for (const TPair<FGuid, FName> &Owner : GearOwners)
+    {
+        ChestGear += Owner.Value == GetChestKey() ? 1 : 0;
+    }
+    Out += FString::Printf(TEXT("\n  Chest gear: %d piece(s)"), ChestGear);
     Out += TEXT("\n  Storage:");
     for (const TMap<FCrystalId, int32> *Storage : {&Crystals, &Stones})
     {

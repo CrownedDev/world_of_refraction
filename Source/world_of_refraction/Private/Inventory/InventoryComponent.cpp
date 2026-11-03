@@ -1389,7 +1389,9 @@ bool UInventoryComponent::DrawSharedGear()
     // B-322 (D-117): a save from before the per-character pouch gives its party pouch to the leader.
     Pool->AdoptLegacyCarriedItems(InventoryGearSync::GetLocalLeaderKey(GI, Key));
     bDrawsWholeArmoury = bRunOnly;
-    const auto IsMine = [this, Pool, Key](const FGuid &ID) { return bDrawsWholeArmoury || Pool->GetGearOwner(ID) == Key; };
+    // B-324: the chest's gear is nobody's to wear; a recruit's whole-armoury draw leaves it in the chest.
+    const auto IsMine = [this, Pool, Key](const FGuid &ID)
+    { return bDrawsWholeArmoury ? !Pool->IsInChest(ID) : Pool->GetGearOwner(ID) == Key; };
 
     // The whole armoury: this member's pieces first so its presets link to them, then free pieces,
     // then pieces another member wears.
