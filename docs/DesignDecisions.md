@@ -3091,6 +3091,15 @@ Moved here once applied. Newest first.
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-224b. Authoring `EnemyTier` on the enemy assets is editor work (CC+UE).
 
+### Q-318 — How a co-op guest reads another character's effects from GAS
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-318, cloud) · **Blocks:** —
+**Question:** B-318 asks a client to read effects "from the replicated GAS state (its ASC's active GEs with their WoR context, and the tracker's turns left)". Player characters use the Mixed replication mode, in which other players' characters (simulated proxies) receive **no** GameplayEffects, only tags and cues; and active-GE handles differ between server and client, so the tracker's turns can't be keyed by them. How does a guest get the list?
+**Context:** `Private/Character/CombatCharacter.cpp` (`SetReplicationMode(Mixed)`); `Private/GAS/WoREffectMirrorComponent.cpp` (`ReadHeldEffects`, `BuildHeld`, `HeldSnapshot`).
+**Options / as built:** **A** the server replicates its own GAS read (`ReadHeldEffects`' answer, turns included) as a snapshot on the effect mirror; a client returns it. **B** switch every character to Full replication and replicate the tracker's turns keyed by effect identity, so a client rebuilds the list itself. **C** Mixed for owners, read the owner's own ASC, and the snapshot only for others.
+**Recommendation:** A. Epic's GAS guidance keeps Mixed for player characters and Minimal for AI to save bandwidth (Full is for single-player); Lyra shows other players' state through replicated tags / attributes, not their GEs. One snapshot is the same data on every client and keeps the server's read as the single truth until the stored list retires (B-042g).
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-318. The snapshot is refreshed by each sync; a guest's view is as fresh as the server's last sync.
+
 ### Q-279c — Outfits: the details B-279c needed
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-279c, cloud) · **Blocks:** —
 **Question:** `CharacterCustomisation.md` leaves four details open for the build: (1) where outfit pieces may be swapped; (2) whether taking a skin off keeps its outfit; (3) what wearing an outfit with no skin does to the body; (4) slot names in player text.
