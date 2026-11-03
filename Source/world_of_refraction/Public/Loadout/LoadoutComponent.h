@@ -539,7 +539,9 @@ public:
 
     /** B-304 (D-110): the slot in use for a kind: the active one, else the first usable slot of that kind (a Generic's
      *  two weapon slots are equal; no primary rule). A piece another member wears is skipped (B-221b). The old
-     *  active-weapon / adapter getters forward here. The pointer is valid until the loadout next changes. */
+     *  active-weapon / adapter getters forward here. The pointer is valid until the loadout next changes.
+     *  Const but not read-only: it brings the active loadout's slot mirror in step first (a cache), so call it on
+     *  the game thread only (the anim instance reads it from NativeUpdateAnimation, not the thread-safe update). */
     const FLoadoutSlot *GetActiveSlot(EGearKind Kind) const;
 
     /** D-083: why Spell can't be cast right now because the active weapon's or ring's crystal

@@ -76,8 +76,8 @@ namespace
 	 *  Assigned spells first replace the item's own (preset) slots and only the rest are appended,
 	 *  so only appended ones (the last assigned) can be cleared to get under the cap; anything
 	 *  still over is the item's own spells (one non-clearable finding). Assigned is what the merge
-	 *  reads (empty for a ring whose crystal can't provide spells). */
-	/** WeaponSub (weapon spells only): -1 primary, SECONDARY_WEAPON for a Generic's secondary (B-304). */
+	 *  reads (empty for a ring whose crystal can't provide spells). WeaponSub (weapon spells only): -1 primary,
+	 *  SECONDARY_WEAPON for a Generic's secondary (B-304). */
 	void CheckSpellCap(FFindingSink &Sink, ELoadoutSlotType Type, int32 SlotIndex, bool bSpellIsSubIndex,
 					   const TArray<USpellData *> &Assigned, int32 PresetCount, int32 UncappedCount, int32 Cap, int32 WeaponSub = -1)
 	{
@@ -409,8 +409,8 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 	if (Context.CharacterClass == ECharacterClass::Generic &&
 		Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid())
 	{
-		// B-304 (D-110): the secondary gets the primary's checks (abilities' weapon type and wield mode, spells,
-		// spell cap), not only ownership and counts.
+		// B-304 (D-110): the secondary gets the primary's spell checks (spells, spell cap), not only ownership and
+		// counts; CheckWeapon still skips the abilities' weapon type and wield mode for it.
 		CheckWeapon(Sink, Loadout.SecondaryWeapon, Context, /*bSecondary=*/true);
 	}
 

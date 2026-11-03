@@ -3254,13 +3254,19 @@ const FLoadoutSlot *ULoadoutComponent::GetActiveSlot(EGearKind Kind) const
 
 const FLoadoutSlot *ULoadoutComponent::GetActiveSlotIn(const FCombatLoadout &Loadout, EGearKind Kind) const
 {
-    const auto IsUsable = [this, &Loadout, Kind](int32 Index)
+    // A Resonator's adapters are its adapter loadout only (GetActiveRing); a stray primary ring is never one in use.
+    const bool bAdapterLoadoutOnly = Kind == EGearKind::Adapter && GetCharacterClass() == ECharacterClass::Resonator;
+    const auto IsUsable = [this, &Loadout, Kind, bAdapterLoadoutOnly](int32 Index)
     {
         if (!Loadout.Slots.IsValidIndex(Index))
         {
             return false;
         }
         const FLoadoutSlot &Slot = Loadout.Slots[Index];
+        if (bAdapterLoadoutOnly && Slot.LegacyOrigin != ELegacySlotOrigin::RingLoadout)
+        {
+            return false;
+        }
         return !Slot.IsEmpty() && Slot.Kind() == Kind && !IsWornByAnother(Slot.GearID);
     };
     const int32 Active = Kind == EGearKind::Weapon ? Loadout.ActiveWeaponSlot : Loadout.ActiveAdapterSlot;
