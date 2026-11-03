@@ -56,7 +56,7 @@ namespace WoRTags
 	UE_DEFINE_GAMEPLAY_TAG(DamageType_Element_Lightning, "DamageType.Element.Lightning");
 	UE_DEFINE_GAMEPLAY_TAG(DamageType_Element_Void, "DamageType.Element.Void");
 	UE_DEFINE_GAMEPLAY_TAG(DamageType_Element_Reality, "DamageType.Element.Reality");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(DamageType_Ice, "DamageType.Ice", "D-029: keyed Water");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(DamageType_Ice, "DamageType.Element.Water.Ice", "D-029: keyed Water; under Water so Water triggers hear it (B-273)");
 
 	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_Status, "Effect.Family.Status");
 	UE_DEFINE_GAMEPLAY_TAG(Effect_Family_Immunity, "Effect.Family.Immunity");

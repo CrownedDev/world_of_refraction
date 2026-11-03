@@ -46,12 +46,14 @@ void FElementTableSpec::Define()
 		TestEqual(TEXT("no physical"), ElementTable::ForPhysical(EPhysicalDamageType::None).Type, EWoRDamageType::None);
 	});
 
-	It("has Water also resisted by Ice and nothing else", [this]()
+	It("has Water and Ice also resisted by each other and nothing else (B-273)", [this]()
 	{
 		for (const FElementRow &Row : ElementTable::Rows())
 		{
-			TestEqual(*FString::Printf(TEXT("row %d"), static_cast<int32>(Row.Type)), Row.AlsoResistedBy,
-					  Row.Type == EWoRDamageType::Water ? EWoRDamageType::Ice : EWoRDamageType::None);
+			const EWoRDamageType Expected = Row.Type == EWoRDamageType::Water ? EWoRDamageType::Ice
+										  : Row.Type == EWoRDamageType::Ice ? EWoRDamageType::Water
+																			 : EWoRDamageType::None;
+			TestEqual(*FString::Printf(TEXT("row %d"), static_cast<int32>(Row.Type)), Row.AlsoResistedBy, Expected);
 		}
 	});
 }
