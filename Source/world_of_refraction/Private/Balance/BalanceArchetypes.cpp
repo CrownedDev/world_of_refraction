@@ -4,6 +4,8 @@
 
 #include "Balance/BalanceArchetypes.h"
 
+#if WITH_DEV_AUTOMATION_TESTS
+
 namespace
 {
 	/** BaselineNumbers.md: weapon Power by tier. */
@@ -20,6 +22,8 @@ namespace
 	const FName SimLateCasterS(TEXT("P-LateCasterS"));
 	const FName SimLowLevelSGear(TEXT("P-LowLevelSGear"));
 	const FName SimHighLevelFGear(TEXT("P-HighLevelFGear"));
+	const FName SimGenericC(TEXT("P-GenericC"));
+	const FName SimGenericS(TEXT("P-GenericS"));
 	const FName SimEnemyF(TEXT("E-F"));
 	const FName SimEnemyC(TEXT("E-C"));
 	const FName SimEnemyS(TEXT("E-S"));
@@ -45,6 +49,18 @@ namespace
 		Early.MaxHealth = 7;
 		Early.AbilityBase = 20;
 		Out.Add(Early);
+
+		// The Mid and Late parties' Generic members: the early build at C and S gear.
+		FBalanceArchetype GenericC = Early;
+		GenericC.Id = SimGenericC;
+		GenericC.WeaponTier = EItemTier::C_Tier;
+		GenericC.WeaponPower = SIM_POWER_C;
+		Out.Add(GenericC);
+		FBalanceArchetype GenericS = Early;
+		GenericS.Id = SimGenericS;
+		GenericS.WeaponTier = EItemTier::S_Tier;
+		GenericS.WeaponPower = SIM_POWER_S;
+		Out.Add(GenericS);
 
 		FBalanceArchetype Mid = MakeSimArchetype(SimMidResonatorC, ECharacterClass::Resonator, EItemTier::C_Tier, SIM_POWER_C);
 		Mid.Mind = 7; // the table's 8 is past the cap of 7 (B-222)
@@ -122,8 +138,8 @@ namespace
 	}
 
 	TArray<FName> SimEarlyParty() { return {SimEarlyGenericF, SimEarlyGenericF, SimEarlyGenericF}; }
-	TArray<FName> SimMidParty() { return {SimMidResonatorC, SimEarlyGenericF, SimEarlyGenericF}; } // TODO: the two Generics at C gear
-	TArray<FName> SimLateParty() { return {SimLateCasterS, SimEarlyGenericF, SimEarlyGenericF}; }  // TODO: the two Generics at S gear
+	TArray<FName> SimMidParty() { return {SimMidResonatorC, SimGenericC, SimGenericC}; }
+	TArray<FName> SimLateParty() { return {SimLateCasterS, SimGenericS, SimGenericS}; }
 }
 
 const TArray<FBalanceArchetype> &BalanceArchetypes::All()
@@ -168,3 +184,5 @@ TArray<FBalanceMatchup> BalanceArchetypes::Preset(FName Name)
 	}
 	return Out;
 }
+
+#endif // WITH_DEV_AUTOMATION_TESTS
