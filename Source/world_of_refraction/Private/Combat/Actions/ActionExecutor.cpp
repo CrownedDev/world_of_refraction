@@ -4176,10 +4176,6 @@ FInfusionSourceView UActionExecutor::ResolveInfusionSource(AActor *Actor, EInfus
 	FInfusionSourceView View;
 	const UCharacterData *Data = GetCharacterData(Actor);
 	ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-	if (!Data)
-	{
-		return View;
-	}
 	// CL-24 for every attached source: a missing or broken attachment pushes no element.
 	const auto ElementOf = [](const FRuntimeAttachedItem &Attached)
 	{ return !Attached.IsEmpty() && !Attached.IsBroken() ? Attached.GetElement() : ESpellElement::None; };
@@ -4187,6 +4183,10 @@ FInfusionSourceView UActionExecutor::ResolveInfusionSource(AActor *Actor, EInfus
 	switch (Option)
 	{
 	case EInfusionSourceOption::Innate:
+		if (!Data)
+		{
+			break;
+		}
 		View.Element = Data->InnateElement;
 		View.Mode = Data->InfusionMode;
 		View.bUsable = Data->IsCaster();
@@ -4243,7 +4243,7 @@ FInfusionSourceView UActionExecutor::ResolveInfusionSource(AActor *Actor, EInfus
 				// The seat is wrapped whole, so its per-instance roll travels with it.
 				View.Attached.Kind = EAttachedItemKind::Evolution;
 				View.Attached.Evolution = Loadout.PrimaryEvolution;
-				View.Element = Loadout.PrimaryEvolution.Item->GetAssociatedElement();
+				View.Element = View.Attached.IsBroken() ? ESpellElement::None : Loadout.PrimaryEvolution.Item->GetAssociatedElement();
 				View.Mode = Loadout.PrimaryEvolution.Item->InfusionMode;
 			}
 			View.bUsable = true;

@@ -92,6 +92,7 @@ void FInfusionResolverSpec::Define()
 		const FInfusionSourceView Active = Executor->ResolveInfusionSource(Actor, EInfusionSourceOption::ActiveRing);
 		const FInfusionSourceView Primary = Executor->ResolveInfusionSource(Actor, EInfusionSourceOption::PrimaryRing);
 		TestTrue(TEXT("usable"), Active.bUsable);
+		TestTrue(TEXT("the gem's element"), Active.Element == ItemIdentity::GetElement(INFUSION_RESOLVER_TEST_GEM));
 		TestTrue(TEXT("both options read the same adapter"), Active.Element == Primary.Element && Active.bUsable == Primary.bUsable);
 		TestTrue(TEXT("offered"), Executor->GetAvailableInfusionSources(Actor).Contains(EInfusionSourceOption::ActiveRing));
 
@@ -100,6 +101,28 @@ void FInfusionResolverSpec::Define()
 		TestFalse(TEXT("a broken adapter is no source"), Broken.bUsable);
 		TestTrue(TEXT("and pushes no element"), Broken.Element == ESpellElement::None);
 		TestFalse(TEXT("not offered"), Executor->GetAvailableInfusionSources(Actor).Contains(EInfusionSourceOption::ActiveRing));
+	});
+
+	It("reads a Caster's primary ring through both adapter options, with the ring's mode", [this]()
+	{
+		if (!TestNotNull(TEXT("Executor"), Executor)) return;
+		UCharacterData *Data = FWoRTestWorld::NewCharacterData();
+		Data->CharacterClass = ECharacterClass::Caster;
+		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(Data);
+		if (!TestNotNull(TEXT("Loadout"), Loadout)) return;
+		AActor *Actor = Loadout->GetOwner();
+		URingData *Ring = NewObject<URingData>(GetTransientPackage());
+		Ring->InfusionMode = EInfusionMode::Physical;
+		ActiveOf(Loadout).PrimarySlotType = EPrimarySlotType::Ring;
+		ActiveOf(Loadout).PrimaryRing.RingEntry.Ring = Ring;
+		ActiveOf(Loadout).PrimaryRing.RingEntry.AttachedItem = InfusionResolverTestGem(INFUSION_RESOLVER_TEST_INTACT);
+
+		const FInfusionSourceView Primary = Executor->ResolveInfusionSource(Actor, EInfusionSourceOption::PrimaryRing);
+		const FInfusionSourceView Active = Executor->ResolveInfusionSource(Actor, EInfusionSourceOption::ActiveRing);
+		TestTrue(TEXT("the gem's element"), Primary.Element == ItemIdentity::GetElement(INFUSION_RESOLVER_TEST_GEM));
+		TestTrue(TEXT("both options read the same ring"), Active.Element == Primary.Element && Active.bUsable == Primary.bUsable);
+		TestTrue(TEXT("the ring's mode"), Primary.Mode == EInfusionMode::Physical);
+		TestTrue(TEXT("offered as the primary ring"), Executor->GetAvailableInfusionSources(Actor).Contains(EInfusionSourceOption::PrimaryRing));
 	});
 }
 

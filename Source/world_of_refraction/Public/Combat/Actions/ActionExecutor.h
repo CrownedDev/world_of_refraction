@@ -230,7 +230,7 @@ public:
 
 	/** B-307: the one infusion-source resolver. The adapter options (ActiveRing / PrimaryRing) both mean "the adapter
 	 *  in use" (GetActiveSlot); WeaponCrystal the weapon in hand; Evolution the primary seat. The element, mode,
-	 *  attachment and availability readers all read it, so the broken rule is stated once. */
+	 *  attachment readers read it, and availability for the adapter and the weapon, so the broken rule is stated once. */
 	FInfusionSourceView ResolveInfusionSource(AActor *Actor, EInfusionSourceOption Option) const;
 
 	/**
