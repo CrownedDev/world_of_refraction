@@ -3035,3 +3035,11 @@ Moved here once applied. Newest first.
 **Recommendation:** as built. Mortal Shell: only the player's Foundling takes a shell; companions don't. Elden Ring changes the body only at the Roundtable Hold's mirror, a safe hub spot, which matches Crown's skin rule here (2026-10-28: hub and rest spots); one rule for both is simpler to learn.
 **Notes for Claude:** applied in B-279b. A co-op host trusts a client's unlocked skin (TODO B-233+). If Crown wants the base body fixed after the start, drop the Manny / Quinn buttons from `wor.UI.Forms`.
 
+### Q-224c — Rank HP: the whole fight, or each team
+
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-224 desktop build) · **Blocks:** —
+**Question:** B-224 multiplies every enemy's HP by the fight's single rank. When B-184 catches a Boss team with a normal team, the normal enemies get x6 too; a form's mini-boss teammates get x3. Should the rank's HP apply per team (or per mini-boss) instead?
+**Options:** (A) per team: each caught team's own rank sets its members' HP; (B) as built: the hardest rank for everyone.
+**Recommendation:** **A**. Final Fantasy XVI / Persona 5 boss fights with adds keep the adds at normal toughness; the boss alone carries the boss HP. BaselineNumbers' round targets (8-10 / 12-14) assume one boss, not a whole team at boss HP.
+**Notes for Claude:** queued as B-224b (with the enemy HP by tier power TODO). The fight's rank still rules fleeing (D-091).
+
