@@ -121,16 +121,18 @@ void FSharedGearSpec::Define()
 		TestEqual(TEXT("Its owner wears it"), ActiveWeaponID(First), SwordID);
 	});
 
-	It("doesn't give a second member the sword its loadout names but it doesn't own (D-117)", [this]()
+	It("gives a second member whose loadout names the sword its own copy (D-117)", [this]()
 	{
 		if (!Pool) return;
 		UInventoryComponent *First = SpawnMember(0, true, true);
 		UInventoryComponent *Second = SpawnMember(1, false, true);
 		if (!First || !Second) return;
 
-		TestEqual(TEXT("Still one sword"), Pool->GetOwnedWeapons().Num(), 1);
-		TestFalse(TEXT("Taken out of the second member's loadout"), ActiveWeaponID(Second).IsValid());
-		TestEqual(TEXT("Still worn by the first"), ActiveWeaponID(First), Pool->GetOwnedWeapons()[0].PersistentID);
+		TestEqual(TEXT("Two swords"), Pool->GetOwnedWeapons().Num(), 2);
+		if (!TestTrue(TEXT("One each"), First->Weapons.Num() == 1 && Second->Weapons.Num() == 1)) return;
+		TestEqual(TEXT("The second wears its own"), ActiveWeaponID(Second), Second->Weapons[0].PersistentID);
+		TestNotEqual(TEXT("Not the first's"), ActiveWeaponID(Second), ActiveWeaponID(First));
+		TestEqual(TEXT("Owned by the second"), Pool->GetGearOwner(Second->Weapons[0].PersistentID), UPoolSubsystem::GetCharacterKey(Members[1]));
 	});
 
 	It("keeps the sword its owner's when the owner takes it off (D-117)", [this]()

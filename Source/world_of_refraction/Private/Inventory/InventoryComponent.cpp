@@ -1315,6 +1315,15 @@ namespace InventoryGearSync
         return Preset;
     }
 
+    /** B-321: the local party leader's character key (the first member), else Fallback. */
+    FName GetLocalLeaderKey(const UGameInstance *GI, FName Fallback)
+    {
+        const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+        const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+        const UCharacterData *Leader = Party && Party->Members.Num() > 0 ? Party->Members[0].CharacterData.Get() : nullptr;
+        return Leader ? UPoolSubsystem::GetCharacterKey(Leader) : Fallback;
+    }
+
     const FPartyMember *FindLocalPartyMember(const UGameInstance *GI, UCharacterData *Data)
     {
         const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
@@ -1367,12 +1376,7 @@ bool UInventoryComponent::DrawSharedGear()
     }
     // B-321 (D-117): each member draws only its own gear. A piece from before D-117 goes to whoever wears it,
     // else the party leader. A run-only recruit brings no gear and draws the whole armoury (TODO: B-323's give).
-    {
-        const UPartySessionSubsystem *PartySession = GI->GetSubsystem<UPartySessionSubsystem>();
-        const UParty *LocalParty = PartySession ? PartySession->GetLocalParty() : nullptr;
-        const FName Leader = LocalParty && LocalParty->Members.Num() > 0 ? UPoolSubsystem::GetCharacterKey(LocalParty->Members[0].CharacterData) : Key;
-        Pool->AssignUnownedGear(Leader);
-    }
+    Pool->AssignUnownedGear(InventoryGearSync::GetLocalLeaderKey(GI, Key));
     bDrawsWholeArmoury = bRunOnly;
     const auto IsMine = [this, Pool, Key](const FGuid &ID) { return bDrawsWholeArmoury || Pool->GetGearOwner(ID) == Key; };
 
@@ -1437,18 +1441,17 @@ bool UInventoryComponent::DrawSharedGear()
 int32 UInventoryComponent::AdoptPresetOnlyGear(const UPoolSubsystem &Pool)
 {
     using namespace InventoryGearSync;
+    (void)Pool; // B-321 (D-117): another member's copy in the pool is not this member's, so it no longer blocks adoption
     int32 Adopted = 0;
     TSet<FGuid> AdoptedIDs;
     for (FCombatLoadout &Loadout : SavedLoadouts)
     {
-        // A piece the pool already holds is linked to on the draw, not adopted as a second copy;
-        // a piece adopted for an earlier preset is reused (two copies only when one preset holds two).
+        // A piece adopted for an earlier preset is reused (two copies only when one preset holds two).
         TSet<FGuid> UsedHere;
-        const auto Adopt = [&Adopted, &AdoptedIDs, &UsedHere](auto &Slot, auto &Owned, const auto &Shared)
+        const auto Adopt = [&Adopted, &AdoptedIDs, &UsedHere](auto &Slot, auto &Owned)
         {
             const UObject *Asset = GetGearAsset(Slot);
-            const bool bShared = Shared.ContainsByPredicate([Asset](const auto &Entry) { return GetGearAsset(Entry) == Asset; });
-            if (!Asset || bShared || FindOwned(Owned, Slot.PersistentID))
+            if (!Asset || FindOwned(Owned, Slot.PersistentID))
             {
                 return;
             }
@@ -1470,8 +1473,8 @@ int32 UInventoryComponent::AdoptPresetOnlyGear(const UPoolSubsystem &Pool)
             UsedHere.Add(Slot.PersistentID);
         };
         ForEachGearSlot(Loadout,
-                        [this, &Adopt, &Pool](FWeaponInventoryEntry &Slot) { Adopt(Slot, Weapons, Pool.GetOwnedWeapons()); },
-                        [this, &Adopt, &Pool](FRingInventoryEntry &Slot) { Adopt(Slot, Rings, Pool.GetOwnedRings()); });
+                        [this, &Adopt](FWeaponInventoryEntry &Slot) { Adopt(Slot, Weapons); },
+                        [this, &Adopt](FRingInventoryEntry &Slot) { Adopt(Slot, Rings); });
     }
     if (Adopted > 0)
     {
@@ -1771,9 +1774,10 @@ void UInventoryComponent::PushGearToPool(const FGuid &GearID)
     }
     TGuardValue<bool> Syncing(bSyncingWithPool, true);
     // B-321 (D-117): a new piece (loot, purchase) belongs to the member who got it; set before the update is heard.
-    if (Pool->GetGearOwner(GearID).IsNone() && !bDrawsWholeArmoury)
+    // A run-only recruit owns nothing, so what it gets goes to the party leader (B-323's give can move it).
+    if (Pool->GetGearOwner(GearID).IsNone())
     {
-        Pool->SetGearOwner(GearID, SharedGearKey);
+        Pool->SetGearOwner(GearID, bDrawsWholeArmoury ? InventoryGearSync::GetLocalLeaderKey(GetWorld() ? GetWorld()->GetGameInstance() : nullptr, SharedGearKey) : SharedGearKey);
     }
     if (const FWeaponInventoryEntry *Weapon = FindOwned(Weapons, GearID))
     {
