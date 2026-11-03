@@ -1,0 +1,281 @@
+// GearGive.cpp
+
+#include "Inventory/GearGive.h"
+#include "Character/CharacterDataComponent.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
+#include "EngineUtils.h"
+#include "Equipment/Crystals/ItemIdentity.h"
+#include "Equipment/Rings/RingData.h"
+#include "Equipment/Weapons/WeaponData.h"
+#include "HAL/IConsoleManager.h"
+#include "Inventory/InventoryComponent.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
+#include "Pool/PoolSubsystem.h"
+
+#define LOCTEXT_NAMESPACE "GearGive"
+
+namespace
+{
+	UPoolSubsystem *PoolOf(const UWorld *World)
+	{
+		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		return GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+	}
+
+	const UParty *GiveLocalPartyOf(const UWorld *World)
+	{
+		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+		return PartySession ? PartySession->GetLocalParty() : nullptr;
+	}
+
+	/** The character's name as the party shows it; the asset's base name when it isn't a party member. */
+	FText NameOf(const UWorld *World, FName CharacterKey)
+	{
+		if (const UParty *Party = GiveLocalPartyOf(World))
+		{
+			for (const FPartyMember &Member : Party->Members)
+			{
+				if (Member.CharacterData && UPoolSubsystem::GetCharacterKey(Member.CharacterData) == CharacterKey)
+				{
+					return FText::FromString(Member.CharacterData->Name);
+				}
+			}
+		}
+		return FText::FromString(FPaths::GetBaseFilename(CharacterKey.ToString()));
+	}
+
+	/** Q-321: a run-only recruit owns nothing (what it has goes back when it leaves), so it can't be given gear. */
+	bool IsRunOnlyMember(const UWorld *World, FName CharacterKey)
+	{
+		if (const UParty *Party = GiveLocalPartyOf(World))
+		{
+			for (const FPartyMember &Member : Party->Members)
+			{
+				if (Member.CharacterData && UPoolSubsystem::GetCharacterKey(Member.CharacterData) == CharacterKey)
+				{
+					return Member.bRunOnly;
+				}
+			}
+		}
+		return false;
+	}
+
+	/** wor.Give.Print: what every local party member could give. */
+	FAutoConsoleCommandWithWorld GGivePrintCmd(
+		TEXT("wor.Give.Print"),
+		TEXT("DEBUG: list what each party member could give (weapons, adapters, pouch stacks) (B-323)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+		{
+			const UParty *Party = GiveLocalPartyOf(World);
+			if (!Party)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[Give] wor.Give.Print: no local party"));
+				return;
+			}
+			for (const FPartyMember &Member : Party->Members)
+			{
+				if (Member.CharacterData)
+				{
+					UE_LOG(LogTemp, Log, TEXT("%s"), *WoRGive::GetGiveableString(World, UPoolSubsystem::GetCharacterKey(Member.CharacterData)));
+				}
+			}
+		}));
+}
+
+namespace WoRGive
+{
+	UInventoryComponent *FindMemberInventory(UWorld *World, FName Key)
+	{
+		if (!World || Key.IsNone())
+		{
+			return nullptr;
+		}
+		for (TActorIterator<AActor> It(World); It; ++It)
+		{
+			const UCharacterDataComponent *CharComp = It->FindComponentByClass<UCharacterDataComponent>();
+			if (CharComp && UPoolSubsystem::GetCharacterKey(CharComp->CharacterData) == Key)
+			{
+				if (UInventoryComponent *Inventory = It->FindComponentByClass<UInventoryComponent>())
+				{
+					return Inventory;
+				}
+			}
+		}
+		return nullptr;
+	}
+
+	FText TryGiveGear(UWorld *World, FName FromKey, FName ToKey, const FGuid &GearID)
+	{
+		UPoolSubsystem *Pool = PoolOf(World);
+		if (!Pool)
+		{
+			return LOCTEXT("NoPool", "No armoury to give from");
+		}
+		if (FromKey.IsNone() || ToKey.IsNone() || FromKey == ToKey)
+		{
+			return LOCTEXT("SameCharacter", "Choose another character to give to");
+		}
+		if (Pool->FindEvolutionInPool(GearID))
+		{
+			return LOCTEXT("NoEvolutions", "Evolutions can't be given yet");
+		}
+		if (!Pool->FindWeaponInPool(GearID) && !Pool->FindRingInPool(GearID))
+		{
+			return LOCTEXT("NotGear", "That isn't a weapon or adapter");
+		}
+		if (Pool->GetGearOwner(GearID) != FromKey)
+		{
+			return FText::Format(LOCTEXT("NotTheirs", "{0} doesn't own that"), NameOf(World, FromKey));
+		}
+		if (IsRunOnlyMember(World, ToKey))
+		{
+			return FText::Format(LOCTEXT("RecruitOwnsNothing", "{0} is only here for the run and can't own gear"), NameOf(World, ToKey));
+		}
+		// D-116: a loadout's primary stays until another primary is swapped in. Checked on the spawned giver; an
+		// unspawned giver's next draw refills its primary instead.
+		if (const UInventoryComponent *Giver = FindMemberInventory(World, FromKey))
+		{
+			if (Giver->IsPrimaryInAnyLoadout(GearID))
+			{
+				return LOCTEXT("GivePrimary", "That is a loadout's primary. Swap in another primary before giving it");
+			}
+		}
+		if (!Pool->GiveGear(GearID, ToKey))
+		{
+			return LOCTEXT("GiveFailed", "Couldn't give that");
+		}
+		return FText::GetEmpty();
+	}
+
+	FText TryPutInChest(UWorld *World, FName FromKey, const FGuid &GearID)
+	{
+		UPoolSubsystem *Pool = PoolOf(World);
+		if (!Pool)
+		{
+			return LOCTEXT("NoChest", "No chest to put that in");
+		}
+		if (FromKey.IsNone())
+		{
+			return LOCTEXT("NoOneToPut", "Choose a character");
+		}
+		if (Pool->FindEvolutionInPool(GearID))
+		{
+			return LOCTEXT("NoEvolutionsChest", "Evolutions can't go in the chest yet");
+		}
+		if (!Pool->FindWeaponInPool(GearID) && !Pool->FindRingInPool(GearID))
+		{
+			return LOCTEXT("NotGearChest", "That isn't a weapon or adapter");
+		}
+		if (Pool->GetGearOwner(GearID) != FromKey)
+		{
+			return FText::Format(LOCTEXT("NotTheirsChest", "{0} doesn't own that"), NameOf(World, FromKey));
+		}
+		// Worn gear can't be put away (B-324): a piece anyone wears (spawned or not), or in any of the member's
+		// loadouts, stays.
+		if (!Pool->GetWearer(GearID).IsNone())
+		{
+			return LOCTEXT("PutWornByAnyone", "Someone is wearing that. Take it off before putting it in the chest");
+		}
+		if (const UInventoryComponent *Member = FindMemberInventory(World, FromKey))
+		{
+			if (!Member->GetLoadoutsUsing(GearID).IsEmpty())
+			{
+				return LOCTEXT("PutWorn", "That is in a loadout. Take it off before putting it in the chest");
+			}
+		}
+		if (!Pool->GiveGear(GearID, UPoolSubsystem::GetChestKey()))
+		{
+			return LOCTEXT("PutFailed", "Couldn't put that in the chest");
+		}
+		// An unspawned member's loadouts can't be checked; the piece leaves them at its next draw, so no wearer stays.
+		Pool->ReleaseWearer(GearID);
+		return FText::GetEmpty();
+	}
+
+	FText TryTakeFromChest(UWorld *World, FName ToKey, const FGuid &GearID)
+	{
+		UPoolSubsystem *Pool = PoolOf(World);
+		if (!Pool)
+		{
+			return LOCTEXT("NoChestTake", "No chest to take from");
+		}
+		if (ToKey.IsNone())
+		{
+			return LOCTEXT("NoOneToTake", "Choose a character");
+		}
+		if (!Pool->IsInChest(GearID))
+		{
+			return LOCTEXT("NotInChest", "That isn't in the chest");
+		}
+		if (IsRunOnlyMember(World, ToKey))
+		{
+			return FText::Format(LOCTEXT("RecruitOwnsNothingChest", "{0} is only here for the run and can't own gear"), NameOf(World, ToKey));
+		}
+		if (!Pool->GiveGear(GearID, ToKey))
+		{
+			return LOCTEXT("TakeFailed", "Couldn't take that");
+		}
+		return FText::GetEmpty();
+	}
+
+	FText TryGiveCarried(UWorld *World, FName FromKey, FName ToKey, const FCrystalId &Id, int32 Count)
+	{
+		UPoolSubsystem *Pool = PoolOf(World);
+		if (!Pool)
+		{
+			return LOCTEXT("NoPouches", "No pouches to give from");
+		}
+		if (FromKey.IsNone() || ToKey.IsNone() || FromKey == ToKey)
+		{
+			return LOCTEXT("SameCharacterItems", "Choose another character to give to");
+		}
+		if (Count <= 0 || Pool->GetCarriedCount(FromKey, Id) < Count)
+		{
+			return FText::Format(LOCTEXT("NotCarried", "{0} doesn't carry that many"), NameOf(World, FromKey));
+		}
+		if (Pool->GetCarryRoom(ToKey, Id) < Count)
+		{
+			return FText::Format(LOCTEXT("PouchFull", "{0}'s pouch has no room for {1}"), NameOf(World, ToKey),
+								 FText::FromString(ItemIdentity::GetDisplayName(Id)));
+		}
+		if (!Pool->GiveCarried(FromKey, ToKey, Id, Count))
+		{
+			return LOCTEXT("GiveItemsFailed", "Couldn't give those");
+		}
+		return FText::GetEmpty();
+	}
+
+	FString GetGiveableString(const UWorld *World, FName FromKey)
+	{
+		const UPoolSubsystem *Pool = PoolOf(World);
+		if (!Pool)
+		{
+			return TEXT("[Give] no pool");
+		}
+		FString Out = FString::Printf(TEXT("[Give] %s can give:"), *FPaths::GetBaseFilename(FromKey.ToString()));
+		for (const FWeaponInventoryEntry &Weapon : Pool->GetOwnedWeapons())
+		{
+			if (Pool->GetGearOwner(Weapon.PersistentID) == FromKey)
+			{
+				Out += FString::Printf(TEXT("\n  weapon %s (%s)"), Weapon.Weapon ? *Weapon.Weapon->Name : TEXT("?"), *Weapon.PersistentID.ToString());
+			}
+		}
+		for (const FRingInventoryEntry &Ring : Pool->GetOwnedRings())
+		{
+			if (Pool->GetGearOwner(Ring.PersistentID) == FromKey)
+			{
+				Out += FString::Printf(TEXT("\n  adapter %s (%s)"), Ring.Ring ? *Ring.Ring->Name : TEXT("?"), *Ring.PersistentID.ToString());
+			}
+		}
+		for (const TPair<FCrystalId, int32> &Stack : Pool->GetCarriedItems(FromKey))
+		{
+			Out += FString::Printf(TEXT("\n  pouch %s x%d"), *ItemIdentity::GetDisplayName(Stack.Key), Stack.Value);
+		}
+		return Out;
+	}
+}
+
+#undef LOCTEXT_NAMESPACE

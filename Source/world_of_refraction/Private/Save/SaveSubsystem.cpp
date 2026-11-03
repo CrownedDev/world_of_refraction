@@ -617,14 +617,33 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 		Saved.Owners.Add({Owned.Key, Owned.Value});
 	}
 	Saved.BankedCharacters = Pool.GetBankedCharacters().Array();
-	for (const TPair<FCrystalId, int32> &Stack : Pool.GetCarriedItems())
+	// B-322 (save v9): a pouch per character. An older save's party pouch no member has drawn yet is written as it was, so the
+	// next load still gives it to the leader (a save between load and draw loses nothing).
+	if (Pool.HasLegacyCarriedItems())
 	{
-		FSavedCrystalStack &Out = Saved.CarriedItems.AddDefaulted_GetRef();
-		Out.Type = static_cast<uint8>(Stack.Key.Type);
-		Out.Tier = Stack.Key.Tier;
-		Out.Count = Stack.Value;
+		const FPoolPouch &Legacy = Pool.GetLegacyCarriedItems();
+		Saved.ItemSlotCount = Legacy.SlotCount;
+		for (const TPair<FCrystalId, int32> &Stack : Legacy.Stacks)
+		{
+			FSavedCrystalStack &Out = Saved.CarriedItems.AddDefaulted_GetRef();
+			Out.Type = static_cast<uint8>(Stack.Key.Type);
+			Out.Tier = Stack.Key.Tier;
+			Out.Count = Stack.Value;
+		}
 	}
-	Saved.ItemSlotCount = Pool.GetItemSlotCount();
+	for (const TPair<FName, FPoolPouch> &Pouch : Pool.GetPouches())
+	{
+		FSavedPouch &Out = Saved.Pouches.AddDefaulted_GetRef();
+		Out.Character = Pouch.Key;
+		Out.SlotCount = Pouch.Value.SlotCount;
+		for (const TPair<FCrystalId, int32> &Stack : Pouch.Value.Stacks)
+		{
+			FSavedCrystalStack &OutStack = Out.Stacks.AddDefaulted_GetRef();
+			OutStack.Type = static_cast<uint8>(Stack.Key.Type);
+			OutStack.Tier = Stack.Key.Tier;
+			OutStack.Count = Stack.Value;
+		}
+	}
 	Saved.BankedItemCharacters = Pool.GetBankedItemCharacters().Array();
 	for (const TPair<FName, FPoolCustomLoadouts> &Custom : Pool.GetAllCustomLoadouts())
 	{
@@ -842,16 +861,37 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		Owners.Add(Owned.GearID, Owned.Character);
 	}
 	Pool.RestoreGearOwners(Owners);
-	TMap<FCrystalId, int32> Carried;
-	for (const FSavedCrystalStack &In : Saved.CarriedItems)
+	// B-322: v9 pouches per character; an older save's one party pouch waits for the leader (AdoptLegacyCarriedItems).
+	auto ReadStacks = [&Restored](const TArray<FSavedCrystalStack> &In, TMap<FCrystalId, int32> &Out)
 	{
-		if (In.Count > 0 && StaticEnum<ECrystalType>()->IsValidEnumValue(In.Type))
+		for (const FSavedCrystalStack &Stack : In)
 		{
-			Carried.FindOrAdd(FCrystalId(static_cast<ECrystalType>(In.Type), In.Tier)) += In.Count;
-			++Restored;
+			if (Stack.Count > 0 && StaticEnum<ECrystalType>()->IsValidEnumValue(Stack.Type))
+			{
+				Out.FindOrAdd(FCrystalId(static_cast<ECrystalType>(Stack.Type), Stack.Tier)) += Stack.Count;
+				++Restored;
+			}
 		}
+	};
+	TMap<FName, FPoolPouch> Pouches;
+	for (const FSavedPouch &In : Saved.Pouches)
+	{
+		if (In.Character.IsNone())
+		{
+			continue;
+		}
+		FPoolPouch &Pouch = Pouches.FindOrAdd(In.Character);
+		Pouch.SlotCount = In.SlotCount;
+		ReadStacks(In.Stacks, Pouch.Stacks);
 	}
-	Pool.RestoreCarriedItems(Carried, Saved.ItemSlotCount, Saved.BankedItemCharacters);
+	Pool.RestorePouches(Pouches, Saved.BankedItemCharacters);
+	TMap<FCrystalId, int32> LegacyCarried;
+	ReadStacks(Saved.CarriedItems, LegacyCarried);
+	// Bought slots come along even when the old pouch was empty.
+	if (!LegacyCarried.IsEmpty() || Saved.ItemSlotCount > InventoryConstants::ITEM_SLOTS_START)
+	{
+		Pool.RestoreLegacyCarriedItems(LegacyCarried, Saved.ItemSlotCount, Saved.BankedItemCharacters);
+	}
 	for (const FSavedCharacterLoadouts &Custom : Saved.CustomLoadouts)
 	{
 		TArray<FSavedLoadout> Loadouts;

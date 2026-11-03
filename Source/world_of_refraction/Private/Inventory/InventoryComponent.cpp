@@ -1386,8 +1386,12 @@ bool UInventoryComponent::DrawSharedGear()
     // B-321 (D-117): each member draws only its own gear. A piece from before D-117 goes to whoever wears it,
     // else the party leader. A run-only recruit brings no gear and draws the whole armoury (TODO: B-323's give).
     Pool->AssignUnownedGear(InventoryGearSync::GetLocalLeaderKey(GI, Key));
+    // B-322 (D-117): a save from before the per-character pouch gives its party pouch to the leader.
+    Pool->AdoptLegacyCarriedItems(InventoryGearSync::GetLocalLeaderKey(GI, Key));
     bDrawsWholeArmoury = bRunOnly;
-    const auto IsMine = [this, Pool, Key](const FGuid &ID) { return bDrawsWholeArmoury || Pool->GetGearOwner(ID) == Key; };
+    // B-324: the chest's gear is nobody's to wear; a recruit's whole-armoury draw leaves it in the chest.
+    const auto IsMine = [this, Pool, Key](const FGuid &ID)
+    { return bDrawsWholeArmoury ? !Pool->IsInChest(ID) : Pool->GetGearOwner(ID) == Key; };
 
     // The whole armoury: this member's pieces first so its presets link to them, then free pieces,
     // then pieces another member wears.
@@ -1428,7 +1432,7 @@ bool UInventoryComponent::DrawSharedGear()
     SharedGearKey = Key;
     RefillActivePrimary(); // after the pool is set, so gear another member wears is skipped
     Pool->OnPoolGearChanged.AddUniqueDynamic(this, &UInventoryComponent::HandlePoolGearChanged);
-    // B-203 (D-097): the party carries one set of items; a member's starting items go in once.
+    // B-203 / B-322 (D-097, D-117): each member carries its own pouch; its starting items go in once.
     if (UCrystalInventoryComponent *CrystalInv = GetOwner()->FindComponentByClass<UCrystalInventoryComponent>())
     {
         if (!bRunOnly && !Pool->HasBankedItems(Key))
@@ -1437,7 +1441,7 @@ bool UInventoryComponent::DrawSharedGear()
             StartingItems.Append(CrystalInv->Stones);
             Pool->BankStartingItems(Key, StartingItems);
         }
-        CrystalInv->BindSharedItems(Pool);
+        CrystalInv->BindSharedItems(Pool, Key);
     }
     ClaimActiveSharedGear();
 
@@ -1818,16 +1822,46 @@ void UInventoryComponent::HandlePoolGearChanged(FGuid GearID)
     UEvolutionInventoryComponent *EvoInv = GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
     // B-321 (D-117): another member's piece is not in this armoury (dropped if it was, e.g. after a give).
     const FName GearOwner = Pool->GetGearOwner(GearID);
-    const bool bOthers = !bDrawsWholeArmoury && !GearOwner.IsNone() && GearOwner != SharedGearKey;
+    // B-324: chest gear is nobody's, not even a run-only recruit's whole-armoury draw.
+    const bool bOthers = Pool->IsInChest(GearID) || (!bDrawsWholeArmoury && !GearOwner.IsNone() && GearOwner != SharedGearKey);
+    // B-323 (D-115): a piece given to this member that it already owns a copy of waits for the duplicate choice.
+    // Only a piece now this member's own: a run-only recruit hears the whole armoury, and unowned gear isn't a gift.
+    const bool bMineNow = !bDrawsWholeArmoury && !GearOwner.IsNone() && GearOwner == SharedGearKey;
+    const auto NoteDuplicate = [this, &GearID, bMineNow](const FGuid &OwnedID, const FString &AssetName)
+    {
+        if (bMineNow && OwnedID.IsValid() && OwnedID != GearID)
+        {
+            UE_LOG(LogTemp, Log, TEXT("[Inventory] %s: received a second %s - choose Gold or dismantle (wor.UI.Duplicates)"),
+                   *GetNameSafe(GetOwner()), *AssetName);
+            OnDuplicateGearReceived.Broadcast(GearID, OwnedID);
+        }
+    };
     if (const FWeaponInventoryEntry *SharedWeapon = bOthers ? nullptr : Pool->FindWeaponInPool(GearID))
     {
+        // The twin's id is read before the mirror: adding the new piece can reallocate Weapons.
+        const bool bNew = FindOwned(Weapons, GearID) == nullptr;
+        const FWeaponInventoryEntry *Twin = Weapons.FindByPredicate([SharedWeapon](const FWeaponInventoryEntry &Other)
+            { return Other.PersistentID != SharedWeapon->PersistentID && Other.Weapon && Other.Weapon == SharedWeapon->Weapon; });
+        const FGuid TwinID = Twin ? Twin->PersistentID : FGuid();
         MirrorShared(Weapons, *SharedWeapon);
         RefreshLoadoutsFromOwned(GearID);
+        if (bNew)
+        {
+            NoteDuplicate(TwinID, GetNameSafe(SharedWeapon->Weapon));
+        }
     }
     else if (const FRingInventoryEntry *SharedRing = bOthers ? nullptr : Pool->FindRingInPool(GearID))
     {
+        const bool bNew = FindOwned(Rings, GearID) == nullptr;
+        const FRingInventoryEntry *Twin = Rings.FindByPredicate([SharedRing](const FRingInventoryEntry &Other)
+            { return Other.PersistentID != SharedRing->PersistentID && Other.Ring && Other.Ring == SharedRing->Ring; });
+        const FGuid TwinID = Twin ? Twin->PersistentID : FGuid();
         MirrorShared(Rings, *SharedRing);
         RefreshLoadoutsFromOwned(GearID);
+        if (bNew)
+        {
+            NoteDuplicate(TwinID, GetNameSafe(SharedRing->Ring));
+        }
     }
     else if (const FEvolutionInventoryEntry *SharedEvolution = bOthers ? nullptr : Pool->FindEvolutionInPool(GearID))
     {
@@ -2453,9 +2487,18 @@ void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)
 
     if (CrystalInv)
     {
-        // B-203 (D-097): the pool's Crystals / Stones are storage now; a member carries the party's
-        // carried items instead, so the draw binds to those rather than copying storage.
-        CrystalInv->BindSharedItems(Pool);
+        // B-203 / B-322 (D-097, D-117): the pool's Crystals / Stones are storage now; a member carries its
+        // own pouch instead, so the draw binds to that rather than copying storage.
+        const UCharacterDataComponent *PouchOwner = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+        const FName PouchKey = UPoolSubsystem::GetCharacterKey(PouchOwner ? PouchOwner->CharacterData : nullptr);
+        if (PouchKey.IsNone())
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[Inventory] %s has no character data: its items stay its own, not a pouch"), *GetNameSafe(GetOwner()));
+        }
+        else
+        {
+            CrystalInv->BindSharedItems(Pool, PouchKey);
+        }
     }
     if (EvolutionInv)
     {
