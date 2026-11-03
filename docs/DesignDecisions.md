@@ -2761,7 +2761,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **A** (as built) the yes/no checks read tags now; the numbers stay on the stored copies until B-042y moves the payouts and getters onto GAS.
 - **B** move the numbers in this job as well.
 **Recommendation:** A. One read family per step keeps each step comparable on both paths (Martin Fowler, StranglerFigApplication / ParallelChange). The numbers are exactly what B-042y moves; moving them twice would need a second parallel-run check.
-**Notes for Claude:** applied: B-042yb covers `GetDotTickDamage` / `RemainingTurns` reads in `UAIDecisionManager`, `GetDebuffCount`, and the character panel's effect list.
+**Notes for Claude:** applied: B-042ye (split from B-042yb / B-042yc) covers `GetDotTickDamage` / `RemainingTurns` reads in `UAIDecisionManager`, `GetDebuffCount`, and the character panel's effect list (Q-042ye).
 
 ### Q-042y — Burns and heals on GAS: who decides when a tick pays, and whose HP is the truth?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042y) · **Blocks:** —
@@ -2798,6 +2798,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** one-shots stay on the game's write until the stored copies retire (B-042g).
 **Recommendation:** A. An Instant GameplayEffect with an execution is GAS's own form for a one-off change (Epic's GAS docs; Lyra's damage and heal effects are Instant executions), so the number comes from one place whether the payout ticks or not, and both paths stay comparable (Martin Fowler, ParallelChange). B would leave two writers for the same type until B-042g. (1) and (2) keep the Q-042yc and Q-042y rulings. Not lore.
 **Notes for Claude:** applied (refactor/B-042yd-gas-payouts, in dev 2026-11-03). An instant DOT / HOT now also pays through GAS at UseGAS 1 (same numbers). The percent HP restore's GAS branch reports its heal (HP after - HP before), as the HOT's GAS branch does (B-247); near full HP that reports the HP gained, while the game path reports the full amplified heal (known limitation, GASSystem.md).
+
+### Q-042ye — Per-effect reads on GAS: what does the list show for an effect GAS has just ended?
+**Status:** DECIDED: A, confirmed by Crown 2026-11-02 (applied in refactor/B-042ye-gas-effect-reads, in dev 2026-11-03; the client half is B-318) · **Raised:** 2026-11-02 (B-042ye) · **Blocks:** —
+**Question:** With `wor.Effects.UseGAS 1`, the character panel's effect list, the buff / debuff counts and the enemy AI's burn checks now read what GAS holds (Q-042x): each effect's turns left come from GAS's turn tracker, and a burn's tick size from its GameplayEffect's tick calculation. Between GAS ending an effect at the holder's turn start and the game dropping its stored copy, the two can differ for a moment. What should the reads show then, and do they need anything on a client?
+**Options:**
+- **A** (as built) show what GAS holds: an effect whose GameplayEffect GAS ended is left out, even if its stored copy hasn't gone yet; a type GAS doesn't hold yet stays as stored. A client (GAS's copy is the server's) reads the stored list, as today. The buff count moves with the debuff count.
+- **B** keep showing the stored copy until the game drops it.
+**Recommendation:** A. The step is "read GAS, compare both paths" (Martin Fowler, ParallelChange: migrate the readers before removing the old store at B-042g); B would keep the stored list as the reader, so the step would move nothing. In Lyra the UI lists active GameplayEffects from the ability system component. The client rule keeps today's replicated path until the stored copies retire. Not lore.
+**Notes for Claude:** applied (refactor/B-042ye-gas-effect-reads, in dev 2026-11-03): `USkillEffectManager::GetHeldEffects`, `PreviewDotTickDamage`; `UWoREffectMirrorComponent::ReadHeldEffects`, `PreviewDotTick`. Follow-up B-318: co-op guests read effects from GAS too, before the switch goes (B-042g).
 
 ### Q-042i — Triggered effects onto GAS only: now, or after the payouts move?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042i) · **Blocks:** B-042i (now after B-042yd, B-042ye)

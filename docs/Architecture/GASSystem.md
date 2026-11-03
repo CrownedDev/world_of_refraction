@@ -145,7 +145,7 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 ## Known limitations / TODOs
 
 - B-042y (Q-042y, B-042yd): at UseGAS 1 every Health- or Energy-changing GE execution on a combatant with character data reaches the HP path, so `FWoREffectSpecBuilder::Apply` with a tick spec would pay on top of the effect manager's pass (no play caller yet; B-042i).
-- **Mirror, switching.** At UseGAS 1 the tag read sites (B-042x), the DOT / HOT payouts (B-042y) and the sub-stat and pillar getters (B-042yb, `UWoRAttributeSyncComponent::ReadComposedOnGAS`) and the other getters (B-042yc: resistances, turn speed, Defense, crit, luck, reflex, efficiency, status multiplier) read GAS; the other payouts (B-042yd: energy, drains, self-damage, percent restores; instants too) read GAS; the per-effect reads switch with B-042ye.
+- **Mirror, switching.** At UseGAS 1 the tag read sites (B-042x), the DOT / HOT payouts (B-042y) and the sub-stat and pillar getters (B-042yb, `UWoRAttributeSyncComponent::ReadComposedOnGAS`) and the other getters (B-042yc: resistances, turn speed, Defense, crit, luck, reflex, efficiency, status multiplier) read GAS; the other payouts (B-042yd: energy, drains, self-damage, percent restores; instants too) read GAS; the per-effect reads (B-042ye: the AI's DOT tick and turns, the buff / debuff counts, the character panel's list) read GAS through `USkillEffectManager::GetHeldEffects` / `PreviewDotTickDamage` (mirror: `ReadHeldEffects`, `PreviewDotTick`; Q-042ye).
 - MaxBuildup mirrors the fixed bar cap (`CombatConstants::STATUS_EFFECT_THRESHOLD`).
 - A stat change with no event (e.g. weather, a crystal breaking mid-turn) reaches the attributes at that character's next turn start. `wor.CompareAttributes` shows such drift in between.
 - Bare test actors (and anything that isn't an `ACombatCharacter`) have no ASC unless one is added, as `WoR.GAS.Attributes` does.
@@ -153,6 +153,8 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 - B-042yd: a heal paid through GAS (HOT tick, percent HP restore) reports the HP actually gained (it stops at
   MaxHP); the game path's `HealActor` reports the full amplified heal. Near full HP the two `OnHealingDone`
   amounts differ. No spec yet for a HealingReceived buff on a percent restore at UseGAS 1.
+- B-042ye: the AI resyncs the mirror per DOT preview and per `GetDebuffCount` (cheap when nothing changed,
+  but per candidate x target); `wor.CompareEffects` doesn't show the held list beside the stored one yet.
 
 ## Changelog
 
@@ -185,5 +187,6 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 | 2026-10-27 | B-226: `UWoRBuildupExecution::ReadAttributes` adds `Resist_Ice` for a Water hit (Q-042o changed). | fix/B-226-water-buildup-ice |
 | 2026-11-02 | B-042yc (stage 3, part 3d3): at UseGAS 1 resistances (per type, general status, blanket bonus), turn speed, Defense, crit chance / damage, luck, reflex, efficiency and status multiplier read their attribute (`ReadComposedOnGAS`); max pools and the wear control resistance stay game-side (Q-042yc). Turn order reads GAS TurnSpeed at UseGAS 1 and the entry's cached speed at 0. | feature/B-042yc-gas-getters |
 | 2026-11-02 | B-042yd (stage 3, part 3d4): at UseGAS 1 energy restore / drain, HP drain, self-damage and the percent restores are paid by their tick spec (`UWoRTickExecution::GetPayout`); the Vitals set hands Energy changes to the EP path; instants pay through their own tick spec (Q-042yd). | refactor/B-042yd-gas-payouts |
+| 2026-11-02 | B-042ye (stage 3, part 3d5): at UseGAS 1 the per-effect reads go through GAS: `GetHeldEffects` (live mirrored GEs, tracker turns; a client keeps the stored list) feeds the character panel, `GetBuffCount` / `GetDebuffCount` and the AI's DOT checks; `PreviewDotTickDamage` sizes a DOT from its tick spec (Q-042ye). Spec `WoR.GAS.EffectReads`. | refactor/B-042ye-gas-effect-reads |
 | 2026-11-02 | B-042z (stage 3, part 3e): fires-once records and armed conditionals are kept on each fighter's `UWoRTurnEffectTracker` (D-064, Q-042h), reset at fight start; the defend dispatcher loops over a copy of the armed list (a re-arm mid-loop could reallocate it). | feature/B-042z-fight-records-on-tracker |
 | 2026-11-02 | B-042j (stage 3, part 4d, D-092): the absorb family (Barrier / Shield / Ward, `UWoRGE_Absorb` + `WoRAbsorb`) held on `UWoRTurnEffectTracker`; `AbsorbHit` runs after Guard and Defense (Q-044e B), one charge per impact (Q-044f A), uses / pool / refill at the holder's turn start; Reflect sees only what got through (Q-042j); debug `wor.Absorb.Add`. | feature/B-042j-absorb-family |

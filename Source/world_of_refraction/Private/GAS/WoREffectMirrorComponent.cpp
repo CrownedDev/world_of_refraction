@@ -8,6 +8,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoREffectSpecBuilder.h"
+#include "GAS/WoRTickExecution.h"
 #include "GAS/WoRTurnEffectTracker.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
@@ -217,6 +218,69 @@ int32 UWoREffectMirrorComponent::GetTrackedTurnsLeft(const FActiveSkillEffect &E
 		return Mirror.bTracked && Mirror.Identity.IsSameIdentity(Identity);
 	});
 	return Entry && Tracker ? Tracker->GetTurnsLeft(Entry->Handle) : INDEX_NONE;
+}
+
+TArray<FActiveSkillEffect> UWoREffectMirrorComponent::ReadHeldEffects(const TArray<FActiveSkillEffect> &Stored)
+{
+	UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
+	// Mid-sync, Mirrored is half-updated: the stored list is the safe answer.
+	if (!ASC || !GetOwner()->HasAuthority() || bSyncing)
+	{
+		return Stored;
+	}
+	SyncMirror();
+	const UWoRTurnEffectTracker *Tracker = GetTracker();
+	TArray<FActiveSkillEffect> Held;
+	for (const FActiveSkillEffect &Effect : Stored)
+	{
+		const FWoREffectIdentity Identity = FWoREffectSpecBuilder::MakeIdentity(Effect);
+		if (EndedByGAS.ContainsByPredicate([&Identity](const FWoREffectIdentity &Ended) { return Ended.IsSameIdentity(Identity); }))
+		{
+			continue; // GAS ended it; its stored copy goes at the next release (Q-042ye)
+		}
+		FActiveSkillEffect &Read = Held.Add_GetRef(Effect);
+		if (!IsMirrored(Effect))
+		{
+			continue; // no family GE: GAS doesn't hold this type yet
+		}
+		const FWoRMirroredEffect Wanted = ToMirrored(Effect);
+		const FWoRMirroredEffect *Entry = Mirrored.FindByPredicate([&Wanted](const FWoRMirroredEffect &Mirror) { return Mirror.Matches(Wanted); });
+		// A GE that didn't build or apply keeps its stored copy as it is.
+		const bool bLive = Entry && ASC->GetActiveGameplayEffect(Entry->Handle);
+		const int32 TurnsLeft = bLive && Entry->bTracked && Tracker ? Tracker->GetTurnsLeft(Entry->Handle) : INDEX_NONE;
+		if (TurnsLeft >= 0)
+		{
+			Read.RemainingTurns = TurnsLeft;
+			Read.HolderTurns.TurnsLeft = TurnsLeft;
+		}
+	}
+	return Held;
+}
+
+int32 UWoREffectMirrorComponent::PreviewDotTick(const FActiveSkillEffect &Effect)
+{
+	UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
+	// As PayTick: where GAS wouldn't pay the tick, the enum path's number is the one paid.
+	const UCharacterDataComponent *Char = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (!ASC || !GetOwner()->HasAuthority() || bSyncing || Effect.EffectType != ESkillEffectType::DOT ||
+		!ASC->HasAttributeSetForAttribute(UWoRAttributeSet_Vitals::GetHealthAttribute()) || !Char || !Char->CharacterData)
+	{
+		return INDEX_NONE;
+	}
+	SyncMirror();
+	const FWoRMirroredEffect Wanted = ToMirrored(Effect);
+	const FWoRMirroredEffect *Entry = Mirrored.FindByPredicate([&Wanted](const FWoRMirroredEffect &Mirror) { return Mirror.Matches(Wanted); });
+	const FWoREffectContext *TickContext =
+		Entry && Entry->TickSpec.IsValid() && ASC->GetActiveGameplayEffect(Entry->Handle)
+			? FWoREffectContext::Get(Entry->TickSpec.Data->GetContext())
+			: nullptr;
+	if (!TickContext || !TickContext->TickRequest)
+	{
+		return INDEX_NONE;
+	}
+	const FWoRTickRequest &Request = *TickContext->TickRequest;
+	// The execution's Health change is -damage (a DOT only ever damages).
+	return FMath::RoundToInt(-UWoRTickExecution::GetHealthChange(Request, UWoRTickExecution::ReadAttributes(Request, ASC)));
 }
 
 void UWoREffectMirrorComponent::ForgetEnded(const FActiveSkillEffect &Effect)

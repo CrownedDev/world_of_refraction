@@ -2393,6 +2393,23 @@ TArray<FActiveSkillEffect> USkillEffectManager::GetActiveEffects(AActor *Actor) 
 	return ActiveEffects[Actor];
 }
 
+TArray<FActiveSkillEffect> USkillEffectManager::GetHeldEffects(AActor *Actor) const
+{
+	UWoREffectMirrorComponent *Mirror = UWoREffectMirrorComponent::ReadsFromGAS() && Actor
+											? Actor->FindComponentByClass<UWoREffectMirrorComponent>()
+											: nullptr;
+	return Mirror ? Mirror->ReadHeldEffects(GetActiveEffects(Actor)) : GetActiveEffects(Actor);
+}
+
+int32 USkillEffectManager::PreviewDotTickDamage(AActor *Actor, const FActiveSkillEffect &Effect) const
+{
+	UWoREffectMirrorComponent *Mirror = UWoREffectMirrorComponent::ReadsFromGAS() && Actor
+											? Actor->FindComponentByClass<UWoREffectMirrorComponent>()
+											: nullptr;
+	const int32 FromGAS = Mirror ? Mirror->PreviewDotTick(Effect) : INDEX_NONE;
+	return FromGAS != INDEX_NONE ? FromGAS : GetDotTickDamage(Actor, Effect);
+}
+
 TArray<FActiveSkillEffect> USkillEffectManager::GetEffectsByType(AActor *Actor, ESkillEffectType EffectType) const
 {
 	TArray<FActiveSkillEffect> Result;
@@ -2577,13 +2594,8 @@ int32 USkillEffectManager::GetEffectCount(AActor *Actor) const
 
 int32 USkillEffectManager::GetBuffCount(AActor *Actor) const
 {
-	if (!Actor || !ActiveEffects.Contains(Actor))
-	{
-		return 0;
-	}
-
 	int32 Count = 0;
-	for (const FActiveSkillEffect &Effect : ActiveEffects[Actor])
+	for (const FActiveSkillEffect &Effect : GetHeldEffects(Actor)) // B-042ye: GAS at UseGAS 1
 	{
 		if (Effect.IsBuff())
 		{
@@ -2596,13 +2608,8 @@ int32 USkillEffectManager::GetBuffCount(AActor *Actor) const
 
 int32 USkillEffectManager::GetDebuffCount(AActor *Actor) const
 {
-	if (!Actor || !ActiveEffects.Contains(Actor))
-	{
-		return 0;
-	}
-
 	int32 Count = 0;
-	for (const FActiveSkillEffect &Effect : ActiveEffects[Actor])
+	for (const FActiveSkillEffect &Effect : GetHeldEffects(Actor)) // B-042ye: GAS at UseGAS 1
 	{
 		if (Effect.IsDebuff())
 		{

@@ -695,7 +695,7 @@ void UCharacterPanelWidget::RefreshEffectsList()
 		return;
 	}
 
-	TArray<FActiveSkillEffect> Effects = StatusMgr->GetActiveEffects(Actor);
+	TArray<FActiveSkillEffect> Effects = StatusMgr->GetHeldEffects(Actor); // B-042ye: GAS at UseGAS 1
 
 	// BD absorption stacks function as a status-multiplier buff on
 	// matching-element spells (UBrokenDarknessManager::GetElementStackStatusMultiplier,

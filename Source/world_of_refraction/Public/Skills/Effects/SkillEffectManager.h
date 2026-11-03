@@ -335,6 +335,17 @@ public:
 	 *  The tick and the AI's lethality checks both read this. */
 	static int32 GetDotTickDamage(AActor *Actor, const FActiveSkillEffect &Effect);
 
+	/** B-042ye (Q-042x): Actor's effects as the read source holds them, for per-effect reads (the AI, the
+	 *  character panel, the buff / debuff counts): with wor.Effects.UseGAS 1 on an actor with a mirror, the
+	 *  stored effects GAS holds, with the tracker's turns left (UWoREffectMirrorComponent::ReadHeldEffects);
+	 *  otherwise GetActiveEffects. Not pure in Blueprint: the GAS read resyncs the mirror. */
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "Skill Effects|Query")
+	TArray<FActiveSkillEffect> GetHeldEffects(AActor *Actor) const;
+
+	/** B-042ye: GetDotTickDamage as the read source would pay it: from the DOT's GE tick spec at UseGAS 1
+	 *  (UWoREffectMirrorComponent::PreviewDotTick), else the enum path's number. */
+	int32 PreviewDotTickDamage(AActor *Actor, const FActiveSkillEffect &Effect) const;
+
 	/** Get all effects of a specific type on actor */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	TArray<FActiveSkillEffect> GetEffectsByType(AActor *Actor, ESkillEffectType EffectType) const;
