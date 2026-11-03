@@ -47,9 +47,9 @@ namespace
 		return FString();
 	}
 
-	FString CrystalBreakEssenceName(EEssenceType Type)
+	FString CrystalBreakEssenceName(ECurrencyType Essence)
 	{
-		return WoRGameNames::GetEssenceName(Type).ToString();
+		return WoRGameNames::GetCurrencyName(Essence).ToString();
 	}
 
 	/** OBSOLETE (Q-159: evolutions are never lost to wear; unreachable): remove after Crown's PIE pass.
@@ -69,7 +69,7 @@ namespace
 		}
 	}
 
-	/** Gem break: the crystal's TYPED essence at the crystal curve. A socketed crystal lives only in
+	/** Gem break: the crystal's essence (B-333: Elemental for a gem) at the crystal curve. A socketed crystal lives only in
 	 *  the socket (attach consumed it from the pool), so grant directly with no pool removal. */
 	void CrystalBreakYieldGem(AActor *Actor, const FCrystalId &CrystalId, const FString &CrystalName)
 	{
@@ -78,11 +78,11 @@ namespace
 		{
 			return;
 		}
-		const EEssenceType EssenceType = EconomyYield::ResolveEssenceType(CrystalId);
+		const ECurrencyType Essence = EconomyYield::GetCrystalEssence(CrystalId.Type);
 		const int32 Yield = EconomyYield::GetTypedEssenceYieldForTier(CrystalId.Tier);
-		Currency->AddEssenceType(EssenceType, Yield);
+		Currency->Add(Essence, Yield);
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broken crystal '%s' on %s dismantled -> %d %s"),
-			   *CrystalName, *Actor->GetName(), Yield, *CrystalBreakEssenceName(EssenceType));
+			   *CrystalName, *Actor->GetName(), Yield, *CrystalBreakEssenceName(Essence));
 	}
 
 	/** Fusion break, lossy: each GEM half yields half its crystal-curve essence (floored). Only an
@@ -108,10 +108,10 @@ namespace
 			{
 				continue;
 			}
-			const EEssenceType EssenceType = EconomyYield::ResolveEssenceType(Half);
-			Currency->AddEssenceType(EssenceType, HalfYield);
+			const ECurrencyType Essence = EconomyYield::GetCrystalEssence(Half.Type);
+			Currency->Add(Essence, HalfYield);
 			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broken fusion gem '%s' on %s dismantled -> %d %s (half of %d)"),
-				   *ItemIdentity::GetDisplayName(Half), *Actor->GetName(), HalfYield, *CrystalBreakEssenceName(EssenceType), FullYield);
+				   *ItemIdentity::GetDisplayName(Half), *Actor->GetName(), HalfYield, *CrystalBreakEssenceName(Essence), FullYield);
 		}
 	}
 
