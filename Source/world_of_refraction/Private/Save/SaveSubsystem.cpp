@@ -321,6 +321,7 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 	UCharacterFormSubsystem *Forms = GI->GetSubsystem<UCharacterFormSubsystem>();
 	Forms->RestoreProgress(Data.Forms.Progress);
 	Forms->RestoreWorn(Data.Forms.WornForm, Data.Forms.BaseForm == static_cast<uint8>(EPlayerBaseForm::Quinn) ? EPlayerBaseForm::Quinn : EPlayerBaseForm::Manny);
+	Forms->RestoreOutfit(FOutfitSet::FromSaved(Data.Forms.CurrentOutfit)); // B-279c: after the skin, so its authored outfit does not overwrite it
 	UE_LOG(LogWoR, Log, TEXT("[Save] Loaded slot '%s' (version %d): party %s, %d pool entries, wallet %s"),
 		   SLOT_NAME, Loaded->GetSavedDataVersion(), bParty ? TEXT("restored") : TEXT("not restored"), PoolEntries,
 		   Data.Wallet.bHasWallet ? TEXT("banked") : TEXT("empty"));
@@ -422,6 +423,7 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 	Data.Forms.Progress = Forms->GetProgressByName();
 	Data.Forms.WornForm = Forms->GetWornFormName();
 	Data.Forms.BaseForm = static_cast<uint8>(Forms->GetBaseForm());
+	Data.Forms.CurrentOutfit = Forms->GetCurrentOutfit().ToSaved();
 	if (const UCurrencyComponent *Wallet = FindLocalWallet(World))
 	{
 		BankWallet(Wallet);
