@@ -54,10 +54,13 @@ void FTurnStateSpec::Define()
 		{
 			return;
 		}
+		// The component bound at BeginPlay (AddComponent on a live actor); unbind so this binds after the fight starts.
+		TurnState->UnbindFromTurnManager();
 		TurnManager->InitializeCombat({Hero}, {Foe});
 		TurnState->BindToTurnManager();
 
 		TestTrue(TEXT("combat on"), TurnState->IsCombatActive());
+		TestEqual(TEXT("turn number"), TurnState->GetTurnNumber(), TurnManager->GetTurnCount());
 		TestEqual(TEXT("current actor"), TurnState->GetCurrentActor(), TurnManager->GetCurrentActor());
 		const TArray<FPreviewTurnEntry> Preview = TurnManager->PreviewTurnOrder(TurnState->GetUpcoming().Num());
 		if (TestEqual(TEXT("upcoming count"), TurnState->GetUpcoming().Num(), Preview.Num()))
@@ -73,6 +76,7 @@ void FTurnStateSpec::Define()
 
 		TurnManager->AdvanceToNextTurn();
 		TestEqual(TEXT("after a turn"), TurnState->GetCurrentActor(), TurnManager->GetCurrentActor());
+		TestEqual(TEXT("turn number after a turn"), TurnState->GetTurnNumber(), TurnManager->GetTurnCount());
 	});
 
 	It("clears at combat end", [this]()
