@@ -17,7 +17,7 @@ Combat tuning numbers that designers can change without a rebuild (B-218, plan `
     | `ScalingGrade` | S = 0 .. F = 6 |
     | `PillarCurve` (B-224) | live pillar level 0 .. 7 (the soft cap `1 - (1 - L/7)^2`) |
     | `WeaponReferencePower` (B-224) | tier index, F = 0 .. S = 6 (F 40, E 52, D 68, C 88, B 114, A 148, S 192) |
-    | `WeaponRequirement` (B-224) | tier index, F = 0 .. S = 6 (main pillar: F 0, E 1, D 2, C 3, B 5, A 6, S 7) |
+    | `WeaponRequirementByTier` (B-224) | tier index, F = 0 .. S = 6 (main pillar: F 0, E 1, D 2, C 3, B 5, A 6, S 7) |
     | `EnemyRankHealth` (B-224) | `EEncounterRank` value (Normal 1, Mini-boss 3, Boss 6, Elite 1.5) |
 
     Past the last key, the gap ladders hold their end value, as the C++ clamp does. Index ladders outside their keys keep the C++ value.
@@ -51,4 +51,4 @@ Combat tuning numbers that designers can change without a rebuild (B-218, plan `
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-10-27 | Created (B-218): `UCombatTuningData`, `WoRTuning` accessor, five ladders + charge bands + BD strain values, debug, spec `WoR.Tuning.CombatData`. | feature/B-218-combat-tuning-data |
-| 2026-11-03 | B-224 (BaselineNumbers.md Decided): four baseline ladders (`PillarCurve`, `WeaponReferencePower`, `WeaponRequirement`, `EnemyRankHealth`) and `WeaponReqFactorMin` 0.5; C++ tables in `CombatBaselineConstants.h`; `wor.Tuning.Print`; spec `WoR.Tuning.Baseline`. Written unbuilt in a cloud session. | feature/B-224-combat-numbers |
+| 2026-11-03 | B-224 (BaselineNumbers.md Decided): four baseline ladders (`PillarCurve`, `WeaponReferencePower`, `WeaponRequirementByTier`, `EnemyRankHealth`) and `WeaponReqFactorMin` 0.5; C++ tables in `CombatBaselineConstants.h`; `wor.Tuning.Print`; spec `WoR.Tuning.Baseline`. Written unbuilt in a cloud session. | feature/B-224-combat-numbers |

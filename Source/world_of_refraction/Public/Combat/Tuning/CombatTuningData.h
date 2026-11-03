@@ -58,7 +58,7 @@ public:
 
 	/** Main-pillar requirement of a weapon of its tier, keyed F = 0 .. S = 6 (authoring guide and debug). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ladders|Baseline")
-	FScalableFloat WeaponRequirement;
+	FScalableFloat WeaponRequirementByTier;
 
 	/** Enemy max HP multiplier by encounter rank, keyed by EEncounterRank value. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ladders|Baseline")

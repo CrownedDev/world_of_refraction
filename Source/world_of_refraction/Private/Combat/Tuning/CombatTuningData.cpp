@@ -29,7 +29,7 @@ namespace
 	const ECombatLadder TUNING_LADDERS[] = {
 		ECombatLadder::TierPower, ECombatLadder::TierGapDamage, ECombatLadder::TierGapCost,
 		ECombatLadder::RequirementGap, ECombatLadder::ScalingGrade,
-		ECombatLadder::PillarCurve, ECombatLadder::WeaponReferencePower, ECombatLadder::WeaponRequirement,
+		ECombatLadder::PillarCurve, ECombatLadder::WeaponReferencePower, ECombatLadder::WeaponRequirementByTier,
 		ECombatLadder::EnemyRankHealth};
 
 	const TCHAR *TuningLadderName(ECombatLadder Ladder)
@@ -43,7 +43,7 @@ namespace
 		case ECombatLadder::ScalingGrade:   return TEXT("ScalingGrade");
 		case ECombatLadder::PillarCurve:          return TEXT("PillarCurve");
 		case ECombatLadder::WeaponReferencePower: return TEXT("WeaponReferencePower");
-		case ECombatLadder::WeaponRequirement:    return TEXT("WeaponRequirement");
+		case ECombatLadder::WeaponRequirementByTier:    return TEXT("WeaponRequirementByTier");
 		case ECombatLadder::EnemyRankHealth:      return TEXT("EnemyRankHealth");
 		default:                            return TEXT("?");
 		}
@@ -66,7 +66,7 @@ UCombatTuningData::UCombatTuningData()
 	, ScalingGrade(LADDER_CURVE_SCALE)
 	, PillarCurve(LADDER_CURVE_SCALE)
 	, WeaponReferencePower(LADDER_CURVE_SCALE)
-	, WeaponRequirement(LADDER_CURVE_SCALE)
+	, WeaponRequirementByTier(LADDER_CURVE_SCALE)
 	, EnemyRankHealth(LADDER_CURVE_SCALE)
 	, WeaponReqFactorMin(WeaponRequirement::WEAPON_REQ_FACTOR_MIN)
 	, ChargeFocusL1(InfusionConstants::CHARGE_FOCUS_L1)
@@ -130,7 +130,7 @@ const FScalableFloat &UCombatTuningData::LadderField(ECombatLadder Ladder) const
 	case ECombatLadder::ScalingGrade:   return ScalingGrade;
 	case ECombatLadder::PillarCurve:          return PillarCurve;
 	case ECombatLadder::WeaponReferencePower: return WeaponReferencePower;
-	case ECombatLadder::WeaponRequirement:    return WeaponRequirement;
+	case ECombatLadder::WeaponRequirementByTier:    return WeaponRequirementByTier;
 	case ECombatLadder::EnemyRankHealth:      return EnemyRankHealth;
 	case ECombatLadder::TierPower:
 	default:
@@ -166,7 +166,7 @@ void UCombatTuningData::GetLadderKeyRange(ECombatLadder Ladder, int32 &OutFirst,
 	case ECombatLadder::TierPower:
 	case ECombatLadder::ScalingGrade:
 	case ECombatLadder::WeaponReferencePower:
-	case ECombatLadder::WeaponRequirement:
+	case ECombatLadder::WeaponRequirementByTier:
 	default:
 		OutFirst = 0;
 		OutLast = TIER_INDEX_LAST;
@@ -189,7 +189,7 @@ float UCombatTuningData::GetCodeLadderValue(ECombatLadder Ladder, int32 Key)
 	}
 	case ECombatLadder::PillarCurve:          return CombatBaseline::CodePillarCurve(Key);
 	case ECombatLadder::WeaponReferencePower: return CombatBaseline::CodeWeaponReferencePower(Key);
-	case ECombatLadder::WeaponRequirement:    return static_cast<float>(CombatBaseline::CodeWeaponRequirement(Key));
+	case ECombatLadder::WeaponRequirementByTier:    return static_cast<float>(CombatBaseline::CodeWeaponRequirement(Key));
 	case ECombatLadder::EnemyRankHealth:      return CombatBaseline::CodeEnemyRankHealth(Key);
 	case ECombatLadder::TierPower:
 	default:

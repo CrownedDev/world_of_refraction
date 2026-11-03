@@ -38,7 +38,7 @@ namespace WoRWeaponPower
 	int32 GetReferenceRequirement(EItemTier Tier)
 	{
 		const int32 TierIndex = TierHelpers::GetTierValue(Tier);
-		return FMath::RoundToInt(WoRTuning::GetLadderValue(ECombatLadder::WeaponRequirement, TierIndex,
+		return FMath::RoundToInt(WoRTuning::GetLadderValue(ECombatLadder::WeaponRequirementByTier, TierIndex,
 														   static_cast<float>(CombatBaseline::CodeWeaponRequirement(TierIndex))));
 	}
 

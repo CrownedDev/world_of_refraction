@@ -160,7 +160,7 @@ void FCombatNumbersBaselineSpec::Define()
 			return;
 		}
 		const ECombatLadder BaselineLadders[] = {ECombatLadder::PillarCurve, ECombatLadder::WeaponReferencePower,
-												 ECombatLadder::WeaponRequirement, ECombatLadder::EnemyRankHealth};
+												 ECombatLadder::WeaponRequirementByTier, ECombatLadder::EnemyRankHealth};
 		for (const ECombatLadder Ladder : BaselineLadders)
 		{
 			int32 First, Last;
