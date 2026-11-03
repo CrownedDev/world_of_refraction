@@ -3091,7 +3091,7 @@ Moved here once applied. Newest first.
 **Notes for Claude:** applied in B-293c. Re-run `WOR_BALANCE=nightly Scripts/ue/test.sh WoR.Balance.` before tuning further.
 
 ### Q-293d — Balance targets that clash with the Decided numbers
-**Status:** OPEN · **Raised:** 2026-11-03 (B-293c, cloud) · **Blocks:** B-293d
+**Status:** ANSWERED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (B-293c, cloud) · **Blocks:** B-293d
 **Question:** Three targets can't be met without changing a Decided number (BaselineNumbers.md). Which gives way?
 **Context:** `docs/analysis/Expedition33Balance.md` ("Not changed"); `Public/Combat/Tuning/CombatBaselineConstants.h` (rank HP); `Private/Balance/BalanceSimReport.cpp` (bands).
 **Options:**
@@ -3099,5 +3099,6 @@ Moved here once applied. Newest first.
 - **Pillar 6** (S gear under-levelled wins 92%, band 35–65%): **A** keep the floor 0.5 and move the band (e.g. 60–95%: gear leads, never certain); **B** harsher under-requirement penalty.
 - **Stacked reduction** (Defense 75% × Damage Taken Down 90% × Guard 50% lets 1.25% through): **A** an overall cap on damage taken (e.g. at most 90% off before Perfect Guard), as E33 capped stacking after Stendhal ([Destructoid](https://www.destructoid.com/expedition-33-stendhal-nerf-update-patch-notes/)); **B** leave the per-source caps.
 **Recommendation:** none taken by default: each changes a number Crown decided. C for bosses (E33's model), A for pillar 6 (BaselineNumbers §4 already expects S gear ~2.3x ahead), A for stacking.
-**Answer (Crown):** _write here_
+**Answer (Crown, 2026-11-03):** (1) rank HP: mini-boss x3 -> x4, boss x6 -> x8; (2) the requirement floor 0.5 -> 0.25 (under-levelled gear works at a quarter strength); (3) a damage floor: after Defense, Damage Taken Down and Guard a hit always deals at least 10% of itself (Elden Ring style), a named constant.
+**Notes for Claude:** applied in B-293d (`chore/B-293d-decided-balance`). The floor measures from the hit before the defender's Damage Taken Down, Defense and Guard (each impact's guarded share travels to the damage maths); a Perfect Guard or a dodge still takes the whole hit, since no damage reaches the maths. The pillar-6 band stays 35–65% (not moved by the answer); re-run the nightly.
 
