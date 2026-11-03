@@ -2886,6 +2886,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. Q-032 defines our Reflect as a share of the HP the hit took (an overkill reflects only the HP the target had), and Q-044e B already made the absorbers a deliberate difference from the deckbuilder ("negate 5" is exactly 5 HP you would have lost). Under A a fully stopped hit reflects nothing, and it keeps one reading of "what the hit did" for every after-hit effect. Not lore.
 **Notes for Claude:** applied (feature/B-042j-absorb-family, UNBUILT). "Reflect on the same shape" (one GE by tag and element, like the absorbers) moves to B-042j2 with the rest of D-092.
 
+### Q-279 — Character-form meter: who counts, and how untiered pieces credit
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-279) · **Blocks:** —
+**Question:** A won fight fills a form's meter from what the party wore. Whose pieces count, and do skills (which carry no tier yet) need a tier match?
+**Options:**
+- **A** (as built) every local party member counts, AI companions included; the fight credits the **best-matching** member (not the sum, so splitting a set across members doesn't beat wearing it). Pieces without a tier (spells, abilities) match on the asset alone.
+- **B** only the player-driven character counts.
+- **C** sum the party's matches.
+**Recommendation:** A. Final Fantasy IX teaches abilities from equipped gear to any party member after each won battle, and players liked that the whole party made progress; Mortal Shell's shells also unlock through use, not a single carrier. Best-not-sum keeps the meter about wearing one character's whole loadout. Skill tiers join when loadouts carry them. Not lore.
+**Notes for Claude:** applied in feature/B-279-character-forms (`UCharacterFormSubsystem::RecordFightWonWith`, `CharacterFormMeter::GetFightFill`).
+
 ### Q-227 — Co-op travel: can a client move the group to another level?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-227) · **Blocks:** —
 **Question:** On a listen server, level changes now take every player along (seamless server travel). What happens when a client walks into a trial door or a fight starts on their screen?

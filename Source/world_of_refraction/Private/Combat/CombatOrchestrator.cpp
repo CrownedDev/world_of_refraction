@@ -10,6 +10,7 @@
 #include "Combat/Defense/DefenseSystem.h"
 #include "Infusion/InfusionChargeManager.h"
 #include "Character/CharacterDataComponent.h"
+#include "Character/Forms/CharacterFormSubsystem.h"
 #include "Combat/CombatConstants.h"   // WORLDSTAT_KILL_DIVISOR (§7 C3 earn faucet)
 #include "EngineUtils.h"              // TActorIterator for the wor.* world-stat debug commands
 #include "Kismet/GameplayStatics.h"
@@ -395,6 +396,15 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 	}
 
 	CombatOwnedGearSync::WriteActiveLoadoutsToOwned(LocalPartyCombatants);
+
+	// B-279: a won fight fills the character-form meters from what the party wore.
+	if (Result == ECombatState::Victory)
+	{
+		if (UCharacterFormSubsystem *Forms = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCharacterFormSubsystem>() : nullptr)
+		{
+			Forms->RecordFightWon(LocalPartyCombatants);
+		}
+	}
 
 	if (!bTurnManagerEnded && TurnManagerRef)
 	{
