@@ -1765,6 +1765,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** every console command is `wor.<System>.<Verb>`, with one `Print` per system. Duplicates are removed outright, with no alias period. Every `docs/PIE/*.md` and Architecture doc naming an old command is updated, as is CLAUDE.md's debug-tools section (Crown to approve that edit).
 **Notes for Claude:** job B-349, split by system (≤3 files per commit).
 
+### D-140 — Legacy test actors go now; test-run hygiene (audit §25; changes D-067)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §25) · **Blocks:** —
+**Answer (Crown):** remove `CombatOrchestratorTestActor`, `TurnManagerTestActor`, `SkillEffectManagerTestActor`, `HUDTestActor` and `SkillProjectileTestActor` now, with no PIE gate. Where an actor covers something no spec covers, the spec comes first in the same job. Any actor placed in a map or referenced by a Blueprint is listed for an editor step instead of deleted blind. The GAS parity specs are deleted with the enum path (D-121, B-042g). `test.sh` prints the 10 slowest tests. The quick balance sim runs in the nightly preset only. CLAUDE.md's Tests rule changes (Crown to approve that edit).
+**Notes for Claude:** job B-350; the parity-spec delete rides with B-042g.
+
 ### Q-321 — Can the shared home chest hold gear, or only items?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
 **Question:** D-097's storage holds items (crystals, stones, consumables); gear lived in the shared pool. With gear per character (D-117), can a character put an unworn weapon or adapter in the shared chest for another to take?
