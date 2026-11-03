@@ -40,7 +40,11 @@
 
 Party allies use the Hard AI too (`ALLY_AI_DIFFICULTY`), so the allies defend less and enemy hits land more: that is the lever on the 100% win rate (lesson 2), rather than more enemy HP.
 
-## Not changed: needs Crown (Q-293d)
+## Crown's answers (Q-293d, 2026-11-03; B-293d)
+
+Mini-boss x4 and boss x8 HP; the requirement floor at 0.25; a 10% damage floor after Defense, Damage Taken Down and Guard (Elden Ring's chip damage). The pillar-6 band was not moved. Re-run the nightly.
+
+## Before the answers: what needed Crown (Q-293d)
 
 - **Boss and mini-boss length at Medium.** 8 boss rounds and 4–6 mini-boss rounds against 11–15.5 and 7–11. Once enemy defending is lighter they get shorter still. The lever is the rank HP (Mini-boss x3, Boss x6), which is on Crown's Decided list.
 - **Pillar 6.** Low level + S gear beats high level + F gear 92% of the time. BaselineNumbers §4 expected exactly that: with the floor at 0.5 the S weapon's part is ~2.3x the F weapon's, and "good gear gives a low level a real chance". The 35–65% band contradicts the Decided floor and requirements.
