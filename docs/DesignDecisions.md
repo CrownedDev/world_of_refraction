@@ -3069,5 +3069,5 @@ Moved here once applied. Newest first.
 **Options / as built:** **errors** (fail nightly / full): stalls, normal-fight party turns 2.5–5.5, mini-boss rounds 7–11, boss rounds 11–15.5, win rate vs normal at Medium 85–99 %, the pillar-6 bands (35–65 %; reverse still clears). **Warn only:** p90s, the hits-to-kill bands (±20 %), the worked-example medians (±10 %), crit rate 3–8 % and crit / uncrit 1.2–1.3, boss win rate at Medium 50–80 %. `quick` (3 fights) never fails on a band.
 **Recommendation:** as built. The error set is exactly the Decided numbers; the boss band follows Expedition 33 / Hades (a first boss attempt is lost more often than a normal fight, never a coin flip at Normal), and the example medians stay warn-only until the examples are redone at the pillar cap of 7.
 **Answer (Crown):** _write here_
-**Notes for Claude:** applied in B-293; flip `bError` per target in `EvaluateTargets` to change a band's severity.
+**Notes for Claude:** applied in B-293; flip `bError` per target in `EvaluateTargets` to change a band's severity. Desktop build: the sim's spell costs **0 EP** (sim-only; the AI may cast it every turn its EP allows); set `BaseEnergyCost` in `BalanceSimRunner.cpp` when B-293c tunes. The first nightly fails 19 bands (B-293c).
 
