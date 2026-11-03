@@ -3069,7 +3069,7 @@ Moved here once applied. Newest first.
 **Options / as built:** **A** B-312 builds the store side beside the copies: the GUID index, per-owner views, one finder, and `CompareWithStore` / `wor.Inventory.CompareStore` proving each member's copies equal its view. A new **B-312b** moves the readers to the views in ≤3-file steps, guided by the compare. B-317 deletes the copies. **B** switch every reader in B-312.
 **Recommendation:** A. It is the strangler-fig pattern (Fowler) already chosen for the store in Q-308, and it keeps every step buildable; the compare command makes the switch measurable in PIE.
 **Answer (Crown):** _write here_
-**Notes for Claude:** applied in B-312; B-312b added to the Backlog after B-312.
+**Notes for Claude:** applied in B-312; B-312b added to the Backlog after B-312. Two small rules the index adds (desktop build): an unset ID finds nothing (the old scan could match an entry with no ID; every pool entry has one, so no change in play), and when two entries share an ID the first wins (as before). Reviewer notes for B-312b: never change an entry's ID through a `Find*InPool` pointer.
 
 
 ### Q-293 — Balance targets the Decided list doesn't give
