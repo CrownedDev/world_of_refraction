@@ -533,7 +533,8 @@ int32 UPoolSubsystem::AdoptLegacyCarriedItems(FName LeaderKey)
         return 0;
     }
     // The old party pouch's extra slots (if any were bought) go with it.
-    FindOrAddPouch(LeaderKey).SlotCount = FMath::Max(GetPouch(LeaderKey).SlotCount, LegacyCarriedItems.SlotCount);
+    const int32 LegacySlots = LegacyCarriedItems.SlotCount;
+    FindOrAddPouch(LeaderKey).SlotCount = FMath::Max(GetPouch(LeaderKey).SlotCount, LegacySlots);
     const TMap<FCrystalId, int32> Legacy = MoveTemp(LegacyCarriedItems.Stacks);
     LegacyCarriedItems = FPoolPouch();
     int32 Stored = 0;
@@ -541,8 +542,8 @@ int32 UPoolSubsystem::AdoptLegacyCarriedItems(FName LeaderKey)
     {
         Stored += CarryOrStore(LeaderKey, Pair.Key, Pair.Value);
     }
-    UE_LOG(LogTemp, Log, TEXT("[Pool] An older save's party pouch (%d stack(s)) is now %s's; %d item(s) went to storage"), Legacy.Num(),
-           *FPaths::GetBaseFilename(LeaderKey.ToString()), Stored);
+    UE_LOG(LogTemp, Log, TEXT("[Pool] An older save's party pouch (%d stack(s), %d slot(s)) is now %s's; %d item(s) went to storage"), Legacy.Num(),
+           LegacySlots, *FPaths::GetBaseFilename(LeaderKey.ToString()), Stored);
     return Legacy.Num();
 }
 
