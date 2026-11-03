@@ -3091,6 +3091,16 @@ Moved here once applied. Newest first.
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-224b. Authoring `EnemyTier` on the enemy assets is editor work (CC+UE).
 
+### Q-279c — Outfits: the details B-279c needed
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-279c, cloud) · **Blocks:** —
+**Question:** `CharacterCustomisation.md` leaves four details open for the build: (1) where outfit pieces may be swapped; (2) whether taking a skin off keeps its outfit; (3) what wearing an outfit with no skin does to the body; (4) slot names in player text.
+**Context:** `Private/Character/Forms/CharacterFormSubsystem.cpp` (`TryWearForm`, `TryWearOutfitPiece`); `Private/Player/WoRPlayerState.cpp` (`ApplyFormLook`); `Private/Character/Outfit/OutfitPieceData.cpp` (`GetSlotName`).
+**Options / as built:** (1) **where skins switch**: the hub or a rest spot, never in a fight; (2) **kept**: only putting a skin on replaces the outfit with its authored one; (3) the body becomes the player's base form (Manny / Quinn) under the outfit; (4) the design doc's names (Helmet, Jacket, Shirt, Waist, Trousers, Footwear) as `LOCTEXT` placeholders.
+**Recommendation:** as built. Monster Hunter changes equipment (and layered armour) only at the house or camp's box; Final Fantasy XIV's glamour plates too only work in towns / inns, so a rest-spot rule matches players' expectations. (4) is Crown's wording; the placeholders change in one table.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-279c.
+
+
 ### Q-293c — Balance tuning: what to move first (Expedition 33)
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-293c, cloud; Crown asked that it follow Expedition 33) · **Blocks:** —
 **Question:** The first nightly balance run failed 19 targets. Which values move, and which way?
