@@ -2920,7 +2920,7 @@ void UActionExecutor::ProcessPostCastBySource(AActor *Caster, USpellData *Spell,
 
 	case ESpellSource::Item:
 		// TODO: Consume spell item from inventory
-		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Spell item used - consumption not yet implemented"));
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spell item used - consumption not yet implemented"));
 		break;
 
 	case ESpellSource::WeaponCrystal:

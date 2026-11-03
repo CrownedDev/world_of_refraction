@@ -537,7 +537,7 @@ void UTurnManager::OnActorSpeedChanged(AActor *Actor)
 
 void UTurnManager::OnActorDied(AActor *Actor)
 {
-	UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] %s died"), *GetNameSafe(Actor));
+	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s died"), *GetNameSafe(Actor));
 	// A Wind delay dies with its holder; a revived holder starts undelayed.
 	for (FCombatantTurnDebt &Combatant : Combatants)
 	{
@@ -552,7 +552,7 @@ void UTurnManager::OnActorDied(AActor *Actor)
 
 void UTurnManager::OnActorResurrected(AActor *Actor)
 {
-	UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] %s resurrected"), *GetNameSafe(Actor));
+	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s resurrected"), *GetNameSafe(Actor));
 	// Recalculate ratios since the slowest combatant might have changed
 	CalculateSpeedRatios();
 }
