@@ -193,12 +193,10 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
 
     // ==================== ITEMS ====================
 
-    for (const FItemLoadoutSlot &Slot : Loadout.ItemSlots)
+    // B-313: the member's pouch (or, for an actor with none, the loadout's item slots), via the one accessor.
+    for (const FItemLoadoutSlot &Slot : LC->GetUsableItems())
     {
-        if (!Slot.IsEmpty())
-        {
-            Out.AvailableItems.Add(Slot.CrystalId);
-        }
+        Out.AvailableItems.Add(Slot.CrystalId);
     }
     Out.bHasItems = Out.AvailableItems.Num() > 0;
 
