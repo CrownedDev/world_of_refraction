@@ -192,6 +192,8 @@ void ABattleGameMode::BootstrapCombat()
         }
         LocalParty.Add(Spawned);
     }
+    // B-279d: an authored character fought as a mini-boss wears its form (any enemy whose character has one, §1b).
+    const UCharacterFormSubsystem *Forms = GetGameInstance()->GetSubsystem<UCharacterFormSubsystem>();
     for (int32 i = 0; i < OpposingPartyData.Num(); ++i)
     {
         const FVector Location = Origin + FVector(BattleGameModeConstants::TEAM_X_OFFSET,
@@ -199,8 +201,6 @@ void ABattleGameMode::BootstrapCombat()
         if (APawn *Spawned = SpawnCombatant(EnemyPawnClass, OpposingPartyData[i], FTransform(Location)))
         {
             OpposingParty.Add(Spawned);
-            // B-279d: an authored character fought as a mini-boss wears its form.
-            const UCharacterFormSubsystem *Forms = GetGameInstance()->GetSubsystem<UCharacterFormSubsystem>();
             const UCharacterFormData *Form = Forms ? Forms->FindFormForCharacter(OpposingPartyData[i]) : nullptr;
             const ACharacter *FormPawn = Cast<ACharacter>(Spawned);
             if (Form && FormPawn && FormPawn->GetMesh() && Form->DressMesh(*FormPawn->GetMesh()))

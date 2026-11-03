@@ -63,13 +63,16 @@ void FFormMiniBossSpec::Define()
 
 	It("puts the form's character first, within three, and makes the fight a mini-boss", [this]()
 	{
-		TestEqual(TEXT("no form: the placed rank"), UEncounterData::GetFightRank(Encounter, EEncounterRank::Normal), EEncounterRank::Normal);
+		TestEqual(TEXT("no form: the placed rank"), UEncounterData::GetFightRank(Encounter, EEncounterRank::Normal, Encounter->GetEnemyRoster()), EEncounterRank::Normal);
 		Encounter->MiniBossForm = Form;
+		Encounter->Enemies.Add(Form->Character);
 		const TArray<UCharacterData *> Roster = Encounter->GetEnemyRoster();
 		TestEqual(TEXT("still three"), Roster.Num(), EncounterConstants::ENCOUNTER_MAX_ENEMIES);
 		TestTrue(TEXT("the form's character leads"), Roster.Num() > 0 && Roster[0] == Form->Character);
-		TestEqual(TEXT("raised to mini-boss"), UEncounterData::GetFightRank(Encounter, EEncounterRank::Normal), EEncounterRank::MiniBoss);
-		TestEqual(TEXT("a boss stays a boss"), UEncounterData::GetFightRank(Encounter, EEncounterRank::Boss), EEncounterRank::Boss);
+		TestEqual(TEXT("listed too, it still fights once"), Roster.FilterByPredicate([this](const UCharacterData *Data) { return Data == Form->Character; }).Num(), 1);
+		TestEqual(TEXT("raised to mini-boss"), UEncounterData::GetFightRank(Encounter, EEncounterRank::Normal, Roster), EEncounterRank::MiniBoss);
+		TestEqual(TEXT("a boss stays a boss"), UEncounterData::GetFightRank(Encounter, EEncounterRank::Boss, Roster), EEncounterRank::Boss);
+		TestEqual(TEXT("left out of a caught fight: not raised"), UEncounterData::GetFightRank(Encounter, EEncounterRank::Normal, {Roster.Last()}), EEncounterRank::Normal);
 	});
 
 	It("fights with its authored loadout", [this]()
