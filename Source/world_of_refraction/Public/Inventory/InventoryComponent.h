@@ -550,6 +550,8 @@ private:
     FName SharedGearKey;
     /** B-311: the loadouts drew the pool's custom ones (not a run preset), so they are kept on push. */
     bool bKeepsCustomLoadouts = false;
+    /** B-321: a run-only recruit draws the whole armoury (it brings no gear, B-076); everyone else only its own. */
+    bool bDrawsWholeArmoury = false;
     /** True while this inventory pushes to, or copies from, the pool (no echo). */
     bool bSyncingWithPool = false;
 

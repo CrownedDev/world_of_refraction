@@ -1365,6 +1365,16 @@ bool UInventoryComponent::DrawSharedGear()
     {
         Pool->BankStartingGear(Key, Weapons, Rings, EvoInv ? EvoInv->Entries : TArray<FEvolutionInventoryEntry>());
     }
+    // B-321 (D-117): each member draws only its own gear. A piece from before D-117 goes to whoever wears it,
+    // else the party leader. A run-only recruit brings no gear and draws the whole armoury (TODO: B-323's give).
+    {
+        const UPartySessionSubsystem *PartySession = GI->GetSubsystem<UPartySessionSubsystem>();
+        const UParty *LocalParty = PartySession ? PartySession->GetLocalParty() : nullptr;
+        const FName Leader = LocalParty && LocalParty->Members.Num() > 0 ? UPoolSubsystem::GetCharacterKey(LocalParty->Members[0].CharacterData) : Key;
+        Pool->AssignUnownedGear(Leader);
+    }
+    bDrawsWholeArmoury = bRunOnly;
+    const auto IsMine = [this, Pool, Key](const FGuid &ID) { return bDrawsWholeArmoury || Pool->GetGearOwner(ID) == Key; };
 
     // The whole armoury: this member's pieces first so its presets link to them, then free pieces,
     // then pieces another member wears.
@@ -1373,13 +1383,13 @@ bool UInventoryComponent::DrawSharedGear()
         const FName Wearer = Pool->GetWearer(ID);
         return Wearer == Key ? 0 : (Wearer.IsNone() || !Party.Contains(Wearer)) ? 1 : 2;
     };
-    Weapons = Pool->GetOwnedWeapons();
+    Weapons = Pool->GetOwnedWeapons().FilterByPredicate([&IsMine](const FWeaponInventoryEntry &E) { return IsMine(E.PersistentID); });
     Weapons.StableSort([&Rank](const FWeaponInventoryEntry &A, const FWeaponInventoryEntry &B) { return Rank(A.PersistentID) < Rank(B.PersistentID); });
-    Rings = Pool->GetOwnedRings();
+    Rings = Pool->GetOwnedRings().FilterByPredicate([&IsMine](const FRingInventoryEntry &E) { return IsMine(E.PersistentID); });
     Rings.StableSort([&Rank](const FRingInventoryEntry &A, const FRingInventoryEntry &B) { return Rank(A.PersistentID) < Rank(B.PersistentID); });
     if (EvoInv)
     {
-        EvoInv->Entries = Pool->GetOwnedEvolutions();
+        EvoInv->Entries = Pool->GetOwnedEvolutions().FilterByPredicate([&IsMine](const FEvolutionInventoryEntry &E) { return IsMine(E.InstanceID); });
         EvoInv->Entries.StableSort([&Rank](const FEvolutionInventoryEntry &A, const FEvolutionInventoryEntry &B) { return Rank(A.InstanceID) < Rank(B.InstanceID); });
     }
     if (bRunOnly)
@@ -1760,6 +1770,11 @@ void UInventoryComponent::PushGearToPool(const FGuid &GearID)
         return;
     }
     TGuardValue<bool> Syncing(bSyncingWithPool, true);
+    // B-321 (D-117): a new piece (loot, purchase) belongs to the member who got it; set before the update is heard.
+    if (Pool->GetGearOwner(GearID).IsNone() && !bDrawsWholeArmoury)
+    {
+        Pool->SetGearOwner(GearID, SharedGearKey);
+    }
     if (const FWeaponInventoryEntry *Weapon = FindOwned(Weapons, GearID))
     {
         Pool->UpdateWeapon(*Weapon);
@@ -1788,17 +1803,20 @@ void UInventoryComponent::HandlePoolGearChanged(FGuid GearID)
     }
     TGuardValue<bool> Syncing(bSyncingWithPool, true);
     UEvolutionInventoryComponent *EvoInv = GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
-    if (const FWeaponInventoryEntry *SharedWeapon = Pool->FindWeaponInPool(GearID))
+    // B-321 (D-117): another member's piece is not in this armoury (dropped if it was, e.g. after a give).
+    const FName GearOwner = Pool->GetGearOwner(GearID);
+    const bool bOthers = !bDrawsWholeArmoury && !GearOwner.IsNone() && GearOwner != SharedGearKey;
+    if (const FWeaponInventoryEntry *SharedWeapon = bOthers ? nullptr : Pool->FindWeaponInPool(GearID))
     {
         MirrorShared(Weapons, *SharedWeapon);
         RefreshLoadoutsFromOwned(GearID);
     }
-    else if (const FRingInventoryEntry *SharedRing = Pool->FindRingInPool(GearID))
+    else if (const FRingInventoryEntry *SharedRing = bOthers ? nullptr : Pool->FindRingInPool(GearID))
     {
         MirrorShared(Rings, *SharedRing);
         RefreshLoadoutsFromOwned(GearID);
     }
-    else if (const FEvolutionInventoryEntry *SharedEvolution = Pool->FindEvolutionInPool(GearID))
+    else if (const FEvolutionInventoryEntry *SharedEvolution = bOthers ? nullptr : Pool->FindEvolutionInPool(GearID))
     {
         if (EvoInv)
         {
