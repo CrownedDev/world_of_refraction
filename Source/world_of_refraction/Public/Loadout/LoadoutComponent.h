@@ -152,7 +152,8 @@ public:
     ESpellElement GetActiveRingElement() const;
 
     /** Make the next ring (wrapping) whose attachment is present and unbroken the active
-     *  one. False when no other ring is usable. Also runs when a ring's crystal breaks. */
+     *  one. False when no other ring is usable. Also runs when a ring's crystal breaks.
+     *  Forwards to SwitchToNextUsableSlot(Adapter). */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Combat")
     bool SwitchToNextUsableRing();
 
@@ -560,10 +561,19 @@ public:
      *  when one is allowed. */
     FText GetTurnSwitchRefusedReason() const;
 
-    /** The turn's free weapon switch (ToggleEquipment). False, with the reason, once used. */
+    /** B-305 (D-110): the one switch. The turn's free switch of the active Kind slot: a weapon goes to the other
+     *  weapon, an adapter to the next adapter (wrapping). False, with the reason, once the turn's switch is used;
+     *  false with no reason when nothing changes (that doesn't use it). */
+    bool TrySwitchActiveSlot(EGearKind Kind, FText &OutReason);
+
+    /** B-305: makes the next usable Kind slot active (wrapping). An adapter is usable with its attachment present
+     *  and unbroken. Weapons don't switch on their own: false. */
+    bool SwitchToNextUsableSlot(EGearKind Kind);
+
+    /** The turn's free weapon switch. Forwards to TrySwitchActiveSlot(Weapon). */
     bool TrySwitchWeaponThisTurn(FText &OutReason);
 
-    /** The turn's free ring switch (SetActiveRingIndex). False, with the reason, once used. */
+    /** The turn's free ring switch to NewRingIndex (the same rules as TrySwitchActiveSlot). */
     bool TrySwitchRingThisTurn(int32 NewRingIndex, FText &OutReason);
 
     /** Gives back the free switch; the orchestrator calls it at the owner's turn start. */
@@ -823,6 +833,9 @@ private:
 
     /** B-304: the old ring entry behind the active adapter slot. */
     const FRingLoadoutEntry *GetActiveAdapterLegacyEntry() const;
+
+    /** B-305: TrySwitchActiveSlot's body; AdapterIndex is the adapter to switch to (ignored for a weapon). */
+    bool TrySwitchSlotTo(EGearKind Kind, int32 AdapterIndex, FText &OutReason);
 
     /** B-304: GetActiveSlot on a loadout already brought in step (one walk for the forwards). */
     const FLoadoutSlot *GetActiveSlotIn(const FCombatLoadout &Loadout, EGearKind Kind) const;

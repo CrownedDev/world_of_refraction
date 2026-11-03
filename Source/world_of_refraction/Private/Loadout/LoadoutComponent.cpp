@@ -3301,34 +3301,54 @@ FText ULoadoutComponent::GetTurnSwitchRefusedReason() const
     return bUsedTurnSwitch ? LOCTEXT("TurnSwitchUsed", "Already switched this turn.") : FText::GetEmpty();
 }
 
-bool ULoadoutComponent::TrySwitchWeaponThisTurn(FText &OutReason)
+bool ULoadoutComponent::TrySwitchActiveSlot(EGearKind Kind, FText &OutReason)
+{
+    if (Kind == EGearKind::Weapon)
+    {
+        return TrySwitchSlotTo(Kind, INDEX_NONE, OutReason);
+    }
+    // The next ring, wrapping over the valid ones; with fewer than two it stays put (no switch used).
+    const FCombatLoadout &Loadout = GetActiveLoadout();
+    int32 RingCount = 0;
+    for (const FRingLoadoutEntry &Entry : Loadout.RingLoadout)
+    {
+        RingCount += Entry.IsValid() ? 1 : 0;
+    }
+    const int32 Next = RingCount < 2 ? Loadout.ActiveRingIndex : (Loadout.ActiveRingIndex + 1) % RingCount;
+    return TrySwitchSlotTo(Kind, Next, OutReason);
+}
+
+bool ULoadoutComponent::TrySwitchSlotTo(EGearKind Kind, int32 AdapterIndex, FText &OutReason)
 {
     OutReason = GetTurnSwitchRefusedReason();
     if (!OutReason.IsEmpty())
     {
-        UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] %s: weapon switch refused - already switched this turn"), *GetNameSafe(GetOwner()));
+        UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] %s: %s switch refused - already switched this turn"), *GetNameSafe(GetOwner()),
+               Kind == EGearKind::Weapon ? TEXT("weapon") : TEXT("adapter"));
         return false;
     }
-    // A toggle that changes nothing (no loadout) doesn't use up the turn's switch.
-    const bool bShowPrimaryBefore = GetActiveLoadout().bShowPrimary;
-    ToggleEquipment();
-    bUsedTurnSwitch = GetActiveLoadout().bShowPrimary != bShowPrimaryBefore;
+    // A switch that changes nothing (no loadout, one adapter, a bad or the current index) doesn't use up the turn's switch.
+    if (Kind == EGearKind::Weapon)
+    {
+        const bool bShowPrimaryBefore = GetActiveLoadout().bShowPrimary;
+        ToggleEquipment();
+        bUsedTurnSwitch = GetActiveLoadout().bShowPrimary != bShowPrimaryBefore;
+        return bUsedTurnSwitch;
+    }
+    const int32 RingIndexBefore = GetActiveLoadout().ActiveRingIndex;
+    SetActiveRingIndex(AdapterIndex);
+    bUsedTurnSwitch = GetActiveLoadout().ActiveRingIndex != RingIndexBefore;
     return bUsedTurnSwitch;
+}
+
+bool ULoadoutComponent::TrySwitchWeaponThisTurn(FText &OutReason)
+{
+    return TrySwitchActiveSlot(EGearKind::Weapon, OutReason);
 }
 
 bool ULoadoutComponent::TrySwitchRingThisTurn(int32 NewRingIndex, FText &OutReason)
 {
-    OutReason = GetTurnSwitchRefusedReason();
-    if (!OutReason.IsEmpty())
-    {
-        UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] %s: ring switch refused - already switched this turn"), *GetNameSafe(GetOwner()));
-        return false;
-    }
-    // A ring switch that changes nothing (bad or current index) doesn't use up the turn's switch.
-    const int32 RingIndexBefore = GetActiveLoadout().ActiveRingIndex;
-    SetActiveRingIndex(NewRingIndex);
-    bUsedTurnSwitch = GetActiveLoadout().ActiveRingIndex != RingIndexBefore;
-    return bUsedTurnSwitch;
+    return TrySwitchSlotTo(EGearKind::Adapter, NewRingIndex, OutReason);
 }
 
 void ULoadoutComponent::ResetTurnSwitch()
@@ -3864,6 +3884,15 @@ ESpellElement ULoadoutComponent::GetActiveRingElement() const
 
 bool ULoadoutComponent::SwitchToNextUsableRing()
 {
+    return SwitchToNextUsableSlot(EGearKind::Adapter);
+}
+
+bool ULoadoutComponent::SwitchToNextUsableSlot(EGearKind Kind)
+{
+    if (Kind == EGearKind::Weapon)
+    {
+        return false; // weapons only switch when the player asks
+    }
     const FCombatLoadout &Loadout = GetActiveLoadout();
     const int32 RingCount = Loadout.RingLoadout.Num();
     if (RingCount == 0)
