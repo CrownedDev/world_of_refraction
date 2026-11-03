@@ -72,6 +72,8 @@ void FFormMiniBossSpec::Define()
 		TestEqual(TEXT("listed too, it still fights once"), Roster.FilterByPredicate([this](const UCharacterData *Data) { return Data == Form->Character; }).Num(), 1);
 		TestEqual(TEXT("raised to mini-boss"), UEncounterData::GetFightRank(Encounter, EEncounterRank::Normal, Roster), EEncounterRank::MiniBoss);
 		TestEqual(TEXT("a boss stays a boss"), UEncounterData::GetFightRank(Encounter, EEncounterRank::Boss, Roster), EEncounterRank::Boss);
+		TestEqual(TEXT("an elite becomes a mini-boss (B-224's severity, not the enum order)"),
+				  UEncounterData::GetFightRank(Encounter, EEncounterRank::Elite, Roster), EEncounterRank::MiniBoss);
 		TestEqual(TEXT("left out of a caught fight: not raised"), UEncounterData::GetFightRank(Encounter, EEncounterRank::Normal, {Roster.Last()}), EEncounterRank::Normal);
 	});
 

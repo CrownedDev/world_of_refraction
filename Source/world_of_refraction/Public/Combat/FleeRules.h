@@ -1,6 +1,6 @@
 // FleeRules.h
 // D-091 (Crown, 2026-10-26): you can flee a normal fight, not a mini-boss or boss, and fleeing
-// costs a share of the party's run Gold.
+// costs a share of the party's run Gold. An Elite fight (B-224, Q-224 default) counts as normal here.
 
 #pragma once
 
@@ -14,7 +14,7 @@ namespace FleeRules
 
 	inline bool CanFleeRank(EEncounterRank Rank)
 	{
-		return Rank == EEncounterRank::Normal;
+		return Rank == EEncounterRank::Normal || Rank == EEncounterRank::Elite;
 	}
 
 	/** Gold lost from a wallet holding Gold (rounded down, so a small purse can lose nothing). */

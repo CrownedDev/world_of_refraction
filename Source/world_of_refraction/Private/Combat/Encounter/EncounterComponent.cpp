@@ -330,7 +330,7 @@ void UEncounterComponent::OnJoinWindowExpired()
 		CaughtTeams.Add(Encounter->GetOwnTeam());
 		CaughtIds.Add(Encounter->GetEncounterId());
 		FightDifficulty = FMath::Max(FightDifficulty, Encounter->Difficulty);
-		FightRank = FMath::Max(FightRank, Encounter->Rank);
+		FightRank = HarderEncounterRank(FightRank, Encounter->Rank);
 	}
 	const TArray<UCharacterData *> OpposingPartyData = UEncounterData::BuildCaughtRoster(CaughtTeams);
 	// B-279d: a fielded form makes the fight at least a mini-boss, and is known to the forms (so the

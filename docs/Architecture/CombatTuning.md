@@ -15,11 +15,15 @@ Combat tuning numbers that designers can change without a rebuild (B-218, plan `
     | `TierGapCost` | gap −4..+4 |
     | `RequirementGap` | gap −5..+5 |
     | `ScalingGrade` | S = 0 .. F = 6 |
+    | `PillarCurve` (B-224) | live pillar level 0 .. 7 (the soft cap `1 - (1 - L/7)^2`) |
+    | `WeaponReferencePower` (B-224) | tier index, F = 0 .. S = 6 (F 40, E 52, D 68, C 88, B 114, A 148, S 192) |
+    | `WeaponRequirementByTier` (B-224) | tier index, F = 0 .. S = 6 (main pillar: F 0, E 1, D 2, C 3, B 5, A 6, S 7) |
+    | `EnemyRankHealth` (B-224) | `EEncounterRank` value (Normal 1, Mini-boss 3, Boss 6, Elite 1.5) |
 
     Past the last key, the gap ladders hold their end value, as the C++ clamp does. Index ladders outside their keys keep the C++ value.
-  - Single values: the six infusion charge bands and the six Broken Darkness strain values. Their defaults are the C++ constants.
+  - Single values: `WeaponReqFactorMin` (B-224, 0.5: the floor on a weapon's requirement factor, weapon part only), the six infusion charge bands and the six Broken Darkness strain values. Their defaults are the C++ constants.
   - `LadderTable` and the `FillLadderTable` button write the C++ ladders into a curve table as constant (step) keys and point each ladder at its row.
-- The C++ tables stay as the fallback, as `Code*` functions: `CodeTierGapDamage`, `CodeTierGapCost`, `CodeRequirementGap` (`TierGapConstants.h`), `CodeTierPower` (`TierPowerConstants.h`), `CodeScalingTierCoefficient` (`EScalingTier.h`).
+- The C++ tables stay as the fallback, as `Code*` functions: `CodeTierGapDamage`, `CodeTierGapCost`, `CodeRequirementGap` (`TierGapConstants.h`), `CodeTierPower` (`TierPowerConstants.h`), `CodeScalingTierCoefficient` (`EScalingTier.h`); the B-224 baseline tables as `CombatBaseline::CodePillarCurve`, `CodeWeaponReferencePower`, `CodeWeaponRequirement`, `CodeEnemyRankHealth` (`Combat/Tuning/CombatBaselineConstants.h`, the Decided list of `docs/analysis/BaselineNumbers.md`).
 - Asset path: `/Game/Data/Combat/DA_CombatTuning_Default`.
   - A miss is remembered until the next world starts.
   - Outside the editor the asset stays loaded (rooted).
@@ -28,6 +32,8 @@ Combat tuning numbers that designers can change without a rebuild (B-218, plan `
 - The ladders are read by `GetTierGapDamageMultiplier`, `GetTierGapCostMultiplier`, `GetRequirementGapMultiplier`, `GetTierPowerMultiplier` and `GetScalingTierCoefficient`. These are unchanged signatures, so every caller reads the tuning.
 - `UActionExecutor::GetChargeDamageMultiplier` and `GetChargeStatusMultiplier` read the charge bands. The infusion strain deficit is read in `ActionExecutor`.
 - `UBrokenDarknessManager` reads the strain per cast, its floor, the break threshold and the snapshot log.
+- B-224: `WoRWeaponPower::GetPillarCurve` reads `PillarCurve`; `GetReferencePower` / `GetReferenceRequirement` read the two weapon reference tables (authoring guides shown by `wor.Weapon.Print`, not read by damage); `TrialGate::GetRankHealthMultiplier` reads `EnemyRankHealth` (applied by `ApplyEnemyRankHealth` in `ABattleGameMode` and the balance sim); `FWorldStatRequirements::GetWeaponRequirementFactor` reads `WeaponReqFactorMin`.
+- The Defense ceiling (75%) and the crit base (x1.25) are C++ constants (Q-218: caps move with B-042); `wor.Tuning.Print` lists them so one print shows the whole baseline.
 - B-042 will use the same `FScalableFloat`s as GameplayEffect magnitudes.
 
 ## Known Limitations / TODOs
@@ -37,7 +43,7 @@ Combat tuning numbers that designers can change without a rebuild (B-218, plan `
 - In a saved asset, a field you never edited keeps following the C++ default. Unreal saves only edited values.
 
 ## Debug
-- `wor.PrintCombatTuning`: which tuning is live, and every value it gives.
+- `wor.PrintCombatTuning` (alias `wor.Tuning.Print`, B-224): which tuning is live, every value it gives, and the C++ caps.
 - `wor.CompareCombatTuning`: lists every value that differs from the C++ constants.
 - Details-panel buttons: `PrintTuning`, `CompareWithCode`, `FillLadderTable`.
 
@@ -45,3 +51,4 @@ Combat tuning numbers that designers can change without a rebuild (B-218, plan `
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-10-27 | Created (B-218): `UCombatTuningData`, `WoRTuning` accessor, five ladders + charge bands + BD strain values, debug, spec `WoR.Tuning.CombatData`. | feature/B-218-combat-tuning-data |
+| 2026-11-03 | B-224 (BaselineNumbers.md Decided): four baseline ladders (`PillarCurve`, `WeaponReferencePower`, `WeaponRequirementByTier`, `EnemyRankHealth`) and `WeaponReqFactorMin` 0.5; C++ tables in `CombatBaselineConstants.h`; `wor.Tuning.Print`; spec `WoR.Tuning.Baseline`. Written unbuilt in a cloud session. | feature/B-224-combat-numbers |

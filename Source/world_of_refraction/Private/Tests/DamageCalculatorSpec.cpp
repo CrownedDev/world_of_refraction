@@ -8,6 +8,7 @@
 #include "WoRTestWorld.h"
 #include "Combat/Damage/DamageCalculator.h"
 #include "Combat/CombatConstants.h"
+#include "Skills/Definitions/EScalingTier.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 
@@ -159,12 +160,19 @@ void FDamageCalculatorSpec::Define()
 
 	Describe("Critical hits", [this]()
 	{
-		It("deal normal damage without crit-damage investment", [this]()
+		It("deal the base crit damage without crit-damage investment (B-224, Q-224b)", [this]()
 		{
 			const FDamageCalculationResult Result = Calculate(MakeInput(EActionType::Ability, ALWAYS_CRIT));
 			TestTrue(TEXT("Was critical"), Result.bWasCritical);
 			TestEqual(TEXT("CritMultiplier"), Result.CritMultiplier, CombatConstants::CRIT_DMG_BASE, KINDA_SMALL_NUMBER);
-			TestEqual(TEXT("FinalDamage"), Result.FinalDamage, TEST_BASE_DAMAGE);
+			TestEqual(TEXT("FinalDamage"), Result.FinalDamage, FMath::RoundToInt(TEST_BASE_DAMAGE * CombatConstants::CRIT_DMG_BASE));
+		});
+
+		It("give crit-damage scaling nothing without investment and 0.5 at the stat cap (B-224)", [this]()
+		{
+			TestEqual(TEXT("base: no scaling"), GetScalingFraction(ESubStat::CritDamage, CombatConstants::CRIT_DMG_BASE), 0.0f, KINDA_SMALL_NUMBER);
+			TestEqual(TEXT("stat cap: as other multipliers"), GetScalingFraction(ESubStat::CritDamage, CombatConstants::CRIT_DAMAGE_STAT_CAP),
+					  GetScalingFraction(ESubStat::RawDamage, CombatConstants::CRIT_DAMAGE_STAT_CAP), KINDA_SMALL_NUMBER);
 		});
 
 		It("cap stat crit damage at CRIT_DAMAGE_STAT_CAP", [this]()
