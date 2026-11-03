@@ -13,6 +13,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 ## Pending
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-323](B-323.md) | `feature/B-323-give-between-characters` (UNBUILT, on B-322) | Give a weapon, adapter or pouch stack between your characters; `wor.UI.Give` | Not built |
 | [B-322](B-322.md) | `feature/B-322-per-character-pouch` (UNBUILT) | A 10-slot pouch per character; save v8; older save's pouch to the leader | Not built |
 | [B-001](B-001.md) | `fix/combat-hang-arc-a` (in `dev`) | Combat can no longer freeze; clean end of combat | Not tested |
 | [B-007](B-007.md) | `feature/B-007-automation-tests` (in `dev`) | 26 headless tests + test.sh output; no gameplay change | Not tested |
