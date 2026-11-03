@@ -116,6 +116,18 @@ void FClassLimitsSpec::Define()
 																				 { return F.SlotType == ELoadoutSlotType::RingOverflow && F.bClearable; }));
 	});
 
+	It("charges a primary weapon left with a None slot type, as the fight reads it (Q-303b)", [this]()
+	{
+		FCombatLoadout Resonator;
+		Resonator.PrimarySlotType = EPrimarySlotType::None; // as AutoPopulateLoadout leaves it
+		Resonator.PrimaryWeapon = ClassLimitsTestWeapon(ClassLimitsTestGem()); // 2
+		TestEqual(TEXT("the weapon is charged"), FLoadoutRules::NonAdapterCost(Resonator, ECharacterClass::Resonator),
+				  InventoryConstants::WEAPON_CRYSTAL_SLOT_COST);
+		Resonator.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 2: 4
+		Resonator.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 2: 6
+		TestTrue(TEXT("6 is refused"), ClassLimitsHasBudgetFinding(FLoadoutRules::CollectClassLimitFindings(Resonator, ECharacterClass::Resonator)));
+	});
+
 	It("counts only the gear the fight reads for the class", [this]()
 	{
 		// A loadout authored for a Generic, worn by a Resonator: its secondary weapon isn't read, so it costs nothing.
