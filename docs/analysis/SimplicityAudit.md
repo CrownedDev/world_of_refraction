@@ -350,6 +350,392 @@ D-117 (2026-11-03) made gear per character again, which reverses D-020 and D-111
 - **Weather** (`WeatherSystem.md`) only changes the sky by the leaders' HP (pillar 1). It is low cost, so leave it.
 - **Broken Darkness** (630-line doc): this is lore. The engineering note is that its strain maths reads its own stat-only Defense (`StatMathsRedesign.md` §2.8), so it won't follow #1 or #4 automatically. Whoever builds those must check it.
 
+---
+
+# Round 2 (2026-11-03): flow, systems, tooling and docs
+
+Same rules as round 1. Read-only, on `dev` at `7c3a3774`. **Ruling** marks an option that changes a decided `D-xxx`.
+
+## Top 5 of round 2
+
+| # | Finding | Recommendation in one line | Cost |
+|---|---|---|---|
+| 12 | 253 of 339 backlog jobs sit in "REVIEW (in dev)", each with its own PIE checklist | Specs gate each job; Crown plays one checklist per milestone | S (process; `CLAUDE.md` + `work-backlog` skill) |
+| 13 | Per-fight state lives on 10+ GameInstance subsystems; replication tags were added before co-op runs | Move the fight subsystems to world subsystems in one step; co-op as one vertical slice | M, then B-228–B-232 shrink |
+| 14 | Five condition vocabularies for "when X happens, if Y" | One condition struct and one evaluator; the systems stay separate (D-100) | M |
+| 15 | Five placeholder inventory screens, all to be replaced by one | One placeholder inventory screen with verbs | S–M |
+| 16 | Two rule sources (`Rules/` and `Mechanics/`), stale dated overviews, a 3,100-line decision log | `Rules/` is the only rule source; archive the rest | S (docs only) |
+
+---
+
+## 12. One PIE checklist per job: 253 waiting
+
+### What exists
+- **The backlog:** 339 jobs in `docs/Backlog.md`. **253 are "REVIEW (in dev)"** and 7 are DONE. A job is only DONE after Crown's PIE pass.
+- **253 checklist files in `docs/PIE/`** (5,867 lines), one per job.
+- **Deletes waiting on PIE:** about 10 jobs wait only on a PIE pass before they delete old code (round 1 §6).
+
+### Why it's too much
+- **The review queue grows faster than one person can play it.** The specs already prove most of these jobs headless: 1,109 tests, with D-066 making specs the test layer until the new HUD.
+- **Paths stay alive.** Every unplayed job keeps its old path alive (§6), and every later job reads around it.
+
+### Simpler options
+- **A. Milestone playtests.**
+  - A job is DONE when its spec and the reviewer pass.
+  - Crown plays one checklist per milestone covering what changed for the player (e.g. "M3: combat loop").
+  - This is how Supergiant ran Hades' early access: one playable build per major update, with feedback on the whole build, not per change.
+- **B. PIE only for jobs that change what the player sees or does.** Refactors, specs and docs close on green tests.
+
+### Recommendation
+**B now, and A from the next milestone.**
+- Mark the refactor-, spec- and docs-only REVIEW rows DONE in one sweep (they are not counted yet; the sweep counts them).
+- Merge their PIE files into `docs/PIE/Sweep.md` (round 1 §6).
+
+**Ruling:** none (process). It changes `CLAUDE.md`'s Backlog-mode hand-off rule 6, which is Crown's call. **Cost:** S.
+
+---
+
+## 13. Per-fight state on GameInstance subsystems; replication ahead of co-op
+
+### What exists
+- **23 `UGameInstanceSubsystem`s.** At least 10 hold per-fight state, against D-064:
+  - `TurnManager`, `DefenseSystem`, `CombatGridSubsystem`, `WeatherStateManager`
+  - `SkillEffectManager`, `StatusBuildupManager`, `InfusionChargeManager`
+  - `AIDecisionManager`, `ActionExecutor`, `CombatCommandMenuSubsystem`
+- **Leftovers among them:** `RingManager` and `WeaponManager` are OBSOLETE forwarders (B-154). `CombatCommandMenuSubsystem` is UI logic (2,033 lines) living as a game service.
+- **Replication ahead of co-op.** The code has 71 `Replicated` properties and 27 authority checks, but **one** Server RPC. The co-op moves (B-228 to B-235) are all TODO.
+- **Host hand-over (D-103).** A save copy goes to every friend at each checkpoint, and a friend takes over if the host drops.
+
+### Why it's too much
+- Subsystems outlive the fight, so every one needs reset code (`ForceReset`, the orchestrator resets, `CancelPendingDecision`), and a missed reset is a carry-over bug.
+- Replication tags on state that can't replicate (a GameInstance subsystem has no network presence, `CoopStateOwnership.md`) cost review time and prove nothing.
+- Host hand-over is the hardest part of co-op, and few well-received co-op games do it.
+
+### Simpler options
+- **A. World subsystems for fight state.** A `UWorldSubsystem` lives and dies with the battle map, so the resets go away. That is the engine's intended home for level-scoped services (Lyra puts match state on world and GameState objects). Replicated pieces then move to GameState and PlayerState components (B-228, B-230) from there.
+- **B. Co-op as one vertical slice.** Build one fight end to end with two players (input, turn, effects, damage) before tagging any more state, as Elden Ring's and Monster Hunter's session co-op does: host-authoritative, and the session ends when the host leaves.
+- **C. No host migration.** When the host leaves, friends return to their own hub and keep their personal loot. This is Elden Ring's rule: guests are sent back to their own world.
+
+### Recommendation
+**A + B.** C is a ruling; offer it to Crown.
+
+**Ruling:** C changes D-103's "passing on host".
+
+**Cost:**
+- A: M (subsystem base class swap + lifetime fixes, one system per cluster).
+- B: re-scopes B-228 to B-232 into one slice job, L.
+- C: removes B-234.
+
+---
+
+## 14. Five condition vocabularies
+
+### What exists
+"When something happens, if a condition holds, do something" is written five times:
+- **Memories:** `EMemoryConditionKind` / `FMemoryConditionSet` (`Public/Memory/MemoryData.h:54-144`; 397-line evaluator, `MemoryConditions.cpp`).
+- **Boss phases:** `EBossPhaseConditionKind`.
+- **Boss triggers:** `EBossTriggerConditionKind` (`BossData.h:36, 109`; a boss has two vocabularies of its own).
+- **Gear and skill triggers:** `ESkillTrigger` plus conditional effects in the effect manager.
+- **Reactions:** `FReactionTrigger` and `FightTriggers` (worn items facing a character, B-191, B-212).
+
+### Why it's too much
+- Each new condition ("HP below 30%", "Fire hit taken") has to be added up to five times.
+- Hidden conditions (pillar 10) are supposed to work everywhere.
+
+### Simpler options
+- **A. The deckbuilder's model.** One trigger → condition → effect tree (`wor-deckbuilder/docs/reference/05-triggers-conditions.md`, already the model for D-031's text). Here that means one `FWoRCondition` + `FWoRConditionSet` with one evaluator. Memories, boss phases, boss triggers, gear triggers and reactions each hold a set.
+- **B. Gameplay tags as conditions.** GAS tag requirements (`FGameplayTagRequirements`) cover "has / lacks state". Use these for the state checks, and keep a small custom set for counts and HP thresholds.
+
+### Recommendation
+**A,** built beside the old ones, one system at a time (memories first: the biggest evaluator). D-100 keeps memories and boss triggers as separate *systems*, and they can still share the condition vocabulary.
+
+**Ruling:** none. **Cost:** M for the struct and evaluator, then S per system (5).
+
+---
+
+## 15. Placeholder screens that overlap
+
+### What exists
+**Nine C++ placeholder screens:** `wor.UI.*` Dismantle, Duplicates, Forms, Give, ItemStorage, LevelDrop, PartyControl, Storage, TestScreen. A memory journal exists too.
+
+**Five of them are inventory moves, each headed "replaced by the CommonUI inventory screen (D-024)":**
+- **Storage** (B-324): the shared chest, put and take gear and stacks.
+- **ItemStorage** (B-203): carried items to storage. This is the same move, done before D-117.
+- **Give** (B-323): between characters.
+- **Dismantle** (B-084).
+- **Duplicates** (B-319).
+
+They total about 1,500 lines in `Private/UI/Hub/`.
+
+### Why it's too much
+- Five screens list the same items with different buttons.
+- Storage and ItemStorage now both move pouch stacks to the chest.
+- Each one is extra work to delete later.
+
+### Simpler options
+- **A. One inventory screen with verbs.** Pick an item, then pick Give / Store / Take / Dismantle / Convert. This is Baldur's Gate 3's inventory (the model in D-117): the item's context menu holds every action.
+- **B. Keep the screens, but delete ItemStorage now.** Storage covers it since B-322.
+
+### Recommendation
+**B now (S), then A** as the next placeholder job, so the CommonUI screen (D-024) has one placeholder to replace.
+
+**Ruling:** none. **Cost:** S + M.
+
+---
+
+## 16. Docs: two rule sources and stale pages
+
+### What exists
+- **459 markdown docs in all.**
+- **Rules:** `docs/Rules/` (7 pages, 276 rules, the stated rule source) and `docs/Mechanics/` (56 files, 3,283 lines) cover the same rules. For example, `Mechanics/Scaling/` vs `Rules/01` CL-37 to CL-40, and `Mechanics/Status/` vs `Rules/03`. B-117 already found stale lines there.
+- **Dated May overviews** in the docs root: `Conceptual_Overview_2026-05-11.md`, `Conceptual_Overview_2026-05-14.md`, `HighLevel_Overview_2026-05-14.md`, `Architecture_2026-05-14.md`, `PastDocumentation_Audit.md`, `TODO.md`. These predate most rulings.
+- **`DesignDecisions.md`:** 3,122 lines, 285 entries, answered and open together.
+- **`Backlog.md`:** 339 rows, many with long "REVIEW" notes.
+
+### Why it's too much
+- Two places for one rule means one of them is wrong.
+- Agents and Crown read stale overviews first because they sit at the top level.
+- Finding the 3 open questions among 285 entries is slow.
+
+### Simpler options
+- **A. One source per kind.**
+  - `Rules/` holds the rules. `Mechanics/` pages either fold into it or move to `docs/archive/`.
+  - The dated overviews move to `docs/archive/`.
+  - The deckbuilder does it this way: one `docs/reference/` (the shape Crown asked for in B-046).
+- **B. Split the decision log.** Open questions go in `DesignDecisions.md`, and answered entries go in `DesignDecisions_Archive.md`.
+- **C. Trim the backlog.** DONE and REVIEW rows older than a milestone move to `Backlog_Done.md`.
+
+### Recommendation
+**A + B + C.** Moves only, no rewrites, so the links stay checkable.
+
+**Ruling:** none. **Cost:** S each (docs only, three commits).
+
+---
+
+## 17. Turn order rules waiting on D-088
+
+### What exists
+**Today's turn order:**
+- A speed-ratio scheduler (ET-04 to ET-06) with a 2:1 cap (D-049) and an 8-step tie-break (ET-08).
+- Pinned Emerald bonus turns that pass the cap (ET-12 to ET-14), the Extra Action effect (ET-15) and ritual Execution turns (ET-16).
+- A one-place push from Wind (ET-11).
+- Turn speed from Spirit with its own stat, stone and buff family (ET-04, ET-05).
+
+**The pending rework:** D-088 ("discussed, not to build yet") replaces all of it with round-robin plus action pips from Reflex. B-170 is blocked on that discussion.
+
+### Why it's too much
+Every job that touches turns (B-297's Emerald rules, Q-297b) adds rules to a scheduler that D-088 may retire.
+
+### Simpler options
+- **A. Keep a speed timeline and close D-088.** Final Fantasy X's CTB, a visible turn order driven by speed, is widely praised as one of the series' clearest systems, and Expedition 33 uses a speed-ordered timeline too. Cut the extras: one bonus-turn rule, and drop the tie-break to three steps.
+- **B. Build D-088 now** and stop adding scheduler rules until it lands.
+
+### Recommendation
+**Decide D-088 first.** A is the simpler game; B is Crown's stated direction.
+
+**Ruling:** D-088 (and D-049, D-052, Q-297). **Cost:** A is S (trim); B is L (B-170).
+
+---
+
+## 18. Grid: 3×3 cells for a ±5% row effect
+
+### What exists
+- Each side has a 3×3 grid (9 cells) for at most 3 characters (PA-29).
+- Rows give ±5% damage and defence (PA-30).
+- There are formation cells and centre-out placement (PA-31), and a free once-per-turn row step into empty cells (PA-32).
+- `CombatGridSubsystem.cpp` is 878 lines.
+
+### Why it's too much
+- Columns have no rule effect.
+- ±5% is too small to read (pillar 3 prefers readable feedback).
+- A 9-cell grid for 3 bodies needs placement and fallback rules.
+
+### Simpler options
+- **A. Two rows, a clear effect.** Classic Final Fantasy front and back row: a back-row character takes and deals half physical melee damage, one readable rule.
+- **B. Keep three rows, drop columns.** Make the row effect larger (e.g. ±20%).
+
+### Recommendation
+**B.** It keeps the D-096 row step and removes the column bookkeeping. Weigh it against A in playtest.
+
+**Ruling:** D-042 (formation cells), D-096 numbers. **Cost:** M.
+
+---
+
+## 19. Input leftovers
+
+### What exists
+- **Combat input.** D-084 rules **two** defence buttons, Guard and Dodge. The combat controller binds four: Block, Parry, DodgeLeft and DodgeRight (`CombatPlayerController.cpp:108-121`). Parry only logs "a Guard, D-084" and guards.
+- **Infusion menu keys.** These include a source-cycle key (R / LB), which goes away if round 1 §8 lands.
+- **Hub controllers.** Two exist (`ExplorationPlayerController`, `WoRHubController`), and folding them is B-158, blocked on the editor.
+
+### Why it's too much
+- Four inputs for two actions.
+- Each input needs an `InputMap.md` row and a gamepad binding (pillar 9).
+
+### Simpler options
+- **A. Two actions, as ruled.** Guard and Dodge, which is Expedition 33's scheme (D-084 cites it). Dodge direction is cosmetic or comes from the stick.
+- **B. Keep the actions, but map both dodge keys and Parry to the two real handlers.** This is what the code does today, with less code.
+
+### Recommendation
+**A.** Remove `IA_Parry` and the left/right split in the controller; the `.uasset` input actions are removed in the editor.
+
+**Ruling:** none (it applies D-084). **Cost:** S, plus an editor step.
+
+---
+
+## 20. AI: two difficulty axes and one 2,455-line class
+
+### What exists
+**The AI class.** `UAIDecisionManager` (2,455 lines, one file) holds:
+- think time, defence rolls and timing accuracy per difficulty
+- target scoring, and survival / cleanse / offence branches
+- infusion choice
+- five `Find*Item` and two `Find*Spell` helpers
+- spell and ability twins of `EstimateStatusScore`, `CanAfford*` and `Decide*Infusion*`
+
+**Two difficulty settings:**
+- AI difficulty Easy / Medium / Hard / Expert, per encounter (PA-33 to PA-36).
+- Trial difficulty Easy / Medium / Hard, per door, now scaling enemy damage (B-293c).
+
+**Allies** always play at Hard.
+
+### Why it's too much
+- The player sees one "difficulty", but two axes multiply behind it. The balance sim found Hard about 2.5× longer for this reason (B-293c).
+- The spell and ability twins repeat the same maths.
+
+### Simpler options
+- **A. One difficulty.** Expedition 33's Story / Expeditioner / Expert setting changes enemy damage and the defence timing window in one place. Here, the trial door's difficulty also picks the AI tier.
+- **B. Utility AI as data.** The scoring weights per difficulty go in a table (`UCombatTuningData`), and spell and ability share one `Skill` path, as most utility AIs do (one score function per action).
+
+### Recommendation
+**A + B.**
+
+**Ruling:** D-044 (AI difficulty per encounter) and Q-183. **Cost:** A is S; B is M (twins merged, weights to data).
+
+---
+
+## 21. Party control modes
+
+### What exists
+- Each member has a Player/AI setting (PA-11).
+- Takeover rules when your fighters fall (PA-12), a "Let AI finish" setting, and a mid-fight switch on the member's turn (PA-13).
+- Ally AI is fixed at Hard (PA-33).
+- Recruiting works in the hub and in trials, run-only (PA-15, PA-16), and recruited members are optional (D-026).
+
+### Why it's too much
+- Four control rules to test solo and co-op.
+- Most solo turn-based games let you command the whole party.
+
+### Simpler options
+- **A. Solo controls everyone.** In Expedition 33 and Octopath, the player commands every member. AI control exists only for an empty co-op seat or an opt-in "auto" toggle.
+- **B. Gambits.** Final Fantasy XII's per-character rule lists are a well-liked way to make ally AI the player's own build choice (pillar 2). This replaces the fixed Hard AI.
+
+### Recommendation
+**A** for solo; keep the AI for co-op seats.
+
+**Ruling:** pillar 7's "your party of three, ally AI" and D-026 wording; Crown decides. **Cost:** S (remove the default Player/AI per member; keep the switch command for debug).
+
+---
+
+## 22. Buying your own gear at run start
+
+### What exists
+- D-021 / ER-16: a run starts by **buying** your loadout from your own pool with a Gold budget. Prices rise with tier and level.
+- B-116 is blocked on B-073.
+- D-110's slot budget already limits what you bring.
+
+### Why it's too much
+- Two limits on the same choice: a points budget and a Gold price.
+- A shop screen for items you already own.
+
+### Simpler options
+- **A. Bring what fits the budget, free.** Hades lets you take any one keepsake and your chosen weapon. The limit is the slot, not a price.
+- **B. Keep the Gold budget, drop the slot budget for runs.**
+
+### Recommendation
+**A.** The D-110 budget is the limit, and Gold stays run money for in-run vendors.
+
+**Ruling:** D-021. **Cost:** removes B-116 (M saved).
+
+---
+
+## 23. Saves: nine versions, all still read
+
+### What exists
+- `WoRSaveVersion::LATEST` is 9 and `MIN_SUPPORTED` is 1 (`Public/Save/WoRSaveGame.h:14-17`).
+- The loader still reads v3 and v4 gear lists and the old party pouch.
+- **14 `SaveGame` property tags** remain (e.g. the currency component), beside the explicit save structs.
+
+### Why it's too much
+- D-060 allows wiping any pre-release save below the minimum, yet every old shape is still read.
+- D-059 asks for explicit structs, not `SaveGame` tags.
+
+### Simpler options
+- **A. Raise `MIN_SUPPORTED` to 9** and delete the old-shape reads (D-060 as written). Then move the 14 tagged fields into `FWoRSaveData` (D-059).
+
+### Recommendation
+**A.**
+
+**Ruling:** none (it applies D-059 and D-060). **Cost:** S + S.
+
+---
+
+## 24. Debug commands: 112 names, several per job
+
+### What exists
+**112 console commands.** Several overlap:
+- **Effects:** `wor.PrintEffects` / `wor.PrintAllEffects` / `wor.DescribeEffects` / `wor.DumpTurnEffects`.
+- **Inventory:**
+  - `wor.PrintPool` / `wor.Pool.PrintStore`
+  - `wor.PrintInventory` / `wor.Inventory.PrintSlots` / `wor.Inventory.CompareStore`
+- **World stats:** `wor.PrintWorldStats` / `wor.WorldStat.Print`.
+- **Tuning:** `wor.PrintCombatTuning` / `wor.Tuning.Print`.
+
+The naming is mixed: `WoR.` vs `wor.`, flat (`wor.BreakCrystal`) vs grouped (`wor.Economy.Merge`).
+
+### Why it's too much
+Nobody can remember which of four effect printers is current.
+
+### Simpler options
+- **A. One scheme, `wor.<System>.<Verb>`,** one `Print` per system. Unreal's own `showdebug <system>` works this way, one entry per system.
+
+### Recommendation
+**A.** Keep the old names as aliases for one milestone, then delete them in the §6 sweep.
+
+**Ruling:** none. **Cost:** S.
+
+---
+
+## 25. Tests: parity specs and legacy test actors
+
+### What exists
+- **189 test files**, about 30,000 lines (`Private/Tests/`), and 1,109 tests.
+- **GAS parity:** 22 GAS spec files, mostly proving the GAS path equals the enum path (round 1 §2).
+- **Legacy test actors:** `CombatOrchestratorTestActor`, `TurnManagerTestActor`, `SkillEffectManagerTestActor`, `HUDTestActor` and `SkillProjectileTestActor`. They are retired only after a matching spec and PIE (D-067).
+- **Balance sim:** the quick balance sim runs in every suite.
+- **No timing:** no per-spec time is recorded, so slow specs can't be found today.
+
+### Why it's too much
+- Parity specs are temporary by nature: once the enum path is gone (round 1 §2) they test nothing.
+- The test actors duplicate specs.
+
+### Simpler options
+- **A.** Delete the parity specs with the enum path.
+- **B.** Add timing: `test.sh` prints the ten slowest tests from the automation report, and the balance sim moves to the nightly preset only.
+
+### Recommendation
+**A** (with round 1 §2) and **B** now (S). Retire the test actors in the §12 sweep.
+
+**Ruling:** D-067's PIE gate for test actors; covered by §12. **Cost:** S.
+
+---
+
+## Round 2: kept, already simple
+
+- **Economy core.** One upgrade rule (tier step for essence), one merge rule and one dismantle table (ER-25 to ER-31) are simple enough. The cuts are in round 1 §7 (essences) and §22.
+- **Memories and story unlocks.** These are lore (Crown's). The only engineering note is §14's shared conditions.
+- **Encounters** (ER-45 onward): one team per encounter, up to three enemies.
+
 ## Sources
 
 - Expedition 33: [Maxroll weapons and attributes](https://maxroll.gg/clair-obscur-expedition-33/guides/weapon-attributes-upgrades-guide), [Deltia's scaling](https://deltiasgaming.com/?p=216376), [Gfinity attributes](https://www.gfinityesports.com/article/clair-obscur-expedition-33-best-attributes-for-each-character), [Steam: attribute effects](https://steamcommunity.com/app/1903340/discussions/0/592896965922002093)
@@ -364,3 +750,4 @@ D-117 (2026-11-03) made gear per character again, which reverses D-020 and D-111
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-03 | Audit written | chore/simplicity-audit |
+| 2026-11-03 | Round 2: §12–§25 (process, subsystems and co-op, conditions, screens, docs, turns, grid, input, AI, party, run buy-in, saves, debug, tests) | chore/simplicity-audit |
