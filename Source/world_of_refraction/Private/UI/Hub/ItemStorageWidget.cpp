@@ -209,8 +209,9 @@ void UItemStorageWidget::Refresh()
 										ItemStorageBuild::ItemName(Choice.Id), Choice.Count, SelectedIndex + 1, Choices.Num(),
 										Choice.bCarried ? LOCTEXT("ToStorage", "storage") : LOCTEXT("ToCarried", "the pouch")));
 	}
-	MoveOneButton->SetIsEnabled(!Choices.IsEmpty());
-	MoveAllButton->SetIsEnabled(!Choices.IsEmpty());
+	// With no character to carry them, stored stacks have nowhere to go.
+	MoveOneButton->SetIsEnabled(!Choices.IsEmpty() && !Viewed.IsNone());
+	MoveAllButton->SetIsEnabled(!Choices.IsEmpty() && !Viewed.IsNone());
 	StatusLine->SetText(StatusText);
 }
 

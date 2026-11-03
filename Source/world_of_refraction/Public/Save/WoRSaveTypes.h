@@ -468,11 +468,11 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	TArray<FSavedPouch> Pouches;
 
 	/** Before v8 (B-203): the party's one pouch, one stack per slot. Read on load (it goes to the party leader at
-	 *  the next draw), never written. */
+	 *  the next draw); written again only while no member has drawn it yet. */
 	UPROPERTY()
 	TArray<FSavedCrystalStack> CarriedItems;
 
-	/** Before v8: the party pouch's slots (0: the starting count). Read on load, never written. */
+	/** Before v8: the party pouch's slots (0: the starting count). Read on load; written only with CarriedItems. */
 	UPROPERTY()
 	int32 ItemSlotCount = 0;
 

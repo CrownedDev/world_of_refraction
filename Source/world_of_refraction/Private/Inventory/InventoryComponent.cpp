@@ -2458,7 +2458,15 @@ void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)
         // B-203 / B-322 (D-097, D-117): the pool's Crystals / Stones are storage now; a member carries its
         // own pouch instead, so the draw binds to that rather than copying storage.
         const UCharacterDataComponent *PouchOwner = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-        CrystalInv->BindSharedItems(Pool, UPoolSubsystem::GetCharacterKey(PouchOwner ? PouchOwner->CharacterData : nullptr));
+        const FName PouchKey = UPoolSubsystem::GetCharacterKey(PouchOwner ? PouchOwner->CharacterData : nullptr);
+        if (PouchKey.IsNone())
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[Inventory] %s has no character data: its items stay its own, not a pouch"), *GetNameSafe(GetOwner()));
+        }
+        else
+        {
+            CrystalInv->BindSharedItems(Pool, PouchKey);
+        }
     }
     if (EvolutionInv)
     {
