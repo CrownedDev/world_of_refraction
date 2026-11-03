@@ -14,6 +14,7 @@
 #include "Combat/Tuning/CombatBaselineConstants.h"
 #include "Combat/Tuning/CombatTuningData.h"
 #include "Engine/CurveTable.h"
+#include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Weapons/WeaponPower.h"
 #include "Skills/Definitions/WorldStatRequirements.h"
 #include "Trial/TrialGate.h"
@@ -101,9 +102,9 @@ void FCombatNumbersBaselineSpec::Define()
 
 	It("orders Elite between Normal and Mini-boss and lets a party flee it", [this]()
 	{
-		TestEqual(TEXT("Elite over Normal"), HarderEncounterRank(EEncounterRank::Normal, EEncounterRank::Elite), EEncounterRank::Elite);
-		TestEqual(TEXT("Mini-boss over Elite"), HarderEncounterRank(EEncounterRank::Elite, EEncounterRank::MiniBoss), EEncounterRank::MiniBoss);
-		TestEqual(TEXT("Boss over Elite, either order"), HarderEncounterRank(EEncounterRank::Boss, EEncounterRank::Elite), EEncounterRank::Boss);
+		TestTrue(TEXT("Elite over Normal"), HarderEncounterRank(EEncounterRank::Normal, EEncounterRank::Elite) == EEncounterRank::Elite);
+		TestTrue(TEXT("Mini-boss over Elite"), HarderEncounterRank(EEncounterRank::Elite, EEncounterRank::MiniBoss) == EEncounterRank::MiniBoss);
+		TestTrue(TEXT("Boss over Elite, either order"), HarderEncounterRank(EEncounterRank::Boss, EEncounterRank::Elite) == EEncounterRank::Boss);
 		TestTrue(TEXT("Elite can be fled"), FleeRules::CanFleeRank(EEncounterRank::Elite));
 		TestFalse(TEXT("Mini-boss still can't"), FleeRules::CanFleeRank(EEncounterRank::MiniBoss));
 	});
