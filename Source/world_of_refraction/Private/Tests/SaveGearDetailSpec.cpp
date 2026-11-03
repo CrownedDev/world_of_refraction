@@ -143,6 +143,41 @@ void FSaveGearDetailSpec::Define()
 				 Back.AssignedSpells.Num() == 2 && Back.AssignedSpells[0] == nullptr && Back.AssignedSpells[1] == Spell);
 	});
 
+	It("saves weapons and adapters in one gear list, and still loads a v4 save's two lists (B-308)", [this]()
+	{
+		FWoRTestWorld Before;
+		UPoolSubsystem *Pool = Before.Create() ? Before.GetSubsystem<UPoolSubsystem>() : nullptr;
+		if (!TestNotNull(TEXT("Pool"), Pool)) return;
+		UWeaponData *Sword = NewObject<UWeaponData>(GetTransientPackage());
+		URingData *Adapter = NewObject<URingData>(GetTransientPackage());
+		FWeaponInventoryEntry Weapon = FWeaponInventoryEntry::CreateFromWeapon(Sword);
+		Weapon.PersistentID = FGuid::NewGuid();
+		Pool->AddWeaponToPool(Weapon);
+		FRingInventoryEntry Ring = FRingInventoryEntry::CreateFromRing(Adapter);
+		Ring.PersistentID = FGuid::NewGuid();
+		Pool->AddRingToPool(Ring);
+
+		const FSavedPool Saved = USaveSubsystem::CapturePool(*Pool);
+		TestEqual(TEXT("One gear list holds both"), Saved.Gear.Num(), 2);
+		TestTrue(TEXT("The old lists are not written"), Saved.Weapons.IsEmpty() && Saved.Rings.IsEmpty());
+
+		FSavedPool Old;
+		Old.Weapons = {Saved.Gear[0]};
+		Old.Rings = {Saved.Gear[1]};
+		const FSavedPool *Shapes[] = {&Saved, &Old};
+		for (const FSavedPool *Shape : Shapes)
+		{
+			FWoRTestWorld After;
+			UPoolSubsystem *Restored = After.Create() ? After.GetSubsystem<UPoolSubsystem>() : nullptr;
+			if (!TestNotNull(TEXT("Restored pool"), Restored)) return;
+			TestEqual(TEXT("Both restored"), USaveSubsystem::RestorePool(*Shape, *Restored), 2);
+			TestTrue(TEXT("The weapon, by GUID"),
+					 Restored->GetOwnedWeapons().Num() == 1 && Restored->GetOwnedWeapons()[0].PersistentID == Weapon.PersistentID);
+			TestTrue(TEXT("The adapter, by GUID"),
+					 Restored->GetOwnedRings().Num() == 1 && Restored->GetOwnedRings()[0].PersistentID == Ring.PersistentID);
+		}
+	});
+
 	It("keeps the asset's defaults for a weapon saved before B-124", [this]()
 	{
 		FWoRTestWorld After;
