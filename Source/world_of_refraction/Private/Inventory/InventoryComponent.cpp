@@ -1375,7 +1375,9 @@ bool UInventoryComponent::DrawSharedGear()
     Pool->AdoptLegacyCarriedItems(InventoryGearSync::GetLocalLeaderKey(GI, Key));
     bDrawsWholeArmoury = bRunOnly;
     // B-324: the chest's gear is nobody's to wear; a recruit's whole-armoury draw leaves it in the chest.
-    const auto IsMine = [this, Pool](const FGuid &ID) { return IsMineInStore(*Pool, ID); };
+    // Key, not SharedGearKey: that is set below, once the draw is done (IsMineInStore is the same rule after that).
+    const auto IsMine = [this, Pool, Key](const FGuid &ID)
+    { return bDrawsWholeArmoury ? !Pool->IsInChest(ID) : Pool->GetGearOwner(ID) == Key; };
 
     // The whole armoury: this member's pieces first so its presets link to them, then free pieces,
     // then pieces another member wears.
