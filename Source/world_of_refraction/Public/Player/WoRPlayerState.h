@@ -36,6 +36,7 @@ public:
 	/** B-227: seamless travel hands the wallet to the next level's PlayerState (every player, the
 	 *  server's copy of a client's included). */
 	virtual void CopyProperties(APlayerState *PlayerState) override;
+	virtual void ClientInitialize(AController *Controller) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 
 	UCharacterFormData *GetWornForm() const { return WornForm; }
@@ -63,7 +64,13 @@ private:
 
 	/** Dresses the pawn: the skin's mesh and materials, else the base body. The default (no skin, Manny)
 	 *  leaves the authored pawn as it is. // TODO: combat actors too, and V's lighter material (B-143). */
-	void ApplyFormLook() const;
+	void ApplyFormLook();
+
+	/** Binds to the local player's form (once the owner is known) and sends it on. */
+	void FollowLocalForm();
+
+	/** The pawn this PlayerState last dressed; the default look restores only that one. */
+	TWeakObjectPtr<const ACharacter> DressedPawn;
 
 	UPROPERTY(ReplicatedUsing = OnRep_Form)
 	TObjectPtr<UCharacterFormData> WornForm;

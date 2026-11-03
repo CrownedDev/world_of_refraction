@@ -34,10 +34,23 @@ void AWoRPlayerState::BeginPlay()
 	{
 		Save->ApplyWalletTo(Wallet);
 	}
-	OnPawnSet.AddDynamic(this, &AWoRPlayerState::HandlePawnSet);
+	OnPawnSet.AddUniqueDynamic(this, &AWoRPlayerState::HandlePawnSet);
+	FollowLocalForm();
+}
+
+void AWoRPlayerState::ClientInitialize(AController *Controller)
+{
+	Super::ClientInitialize(Controller);
+	// On a client the owner may arrive after BeginPlay; follow the local form once it does.
+	FollowLocalForm();
+}
+
+void AWoRPlayerState::FollowLocalForm()
+{
+	const UGameInstance *GI = GetGameInstance();
 	if (UCharacterFormSubsystem *Forms = GI && IsLocalPlayerWallet() ? GI->GetSubsystem<UCharacterFormSubsystem>() : nullptr)
 	{
-		Forms->OnWornFormChanged.AddDynamic(this, &AWoRPlayerState::HandleLocalFormChanged);
+		Forms->OnWornFormChanged.AddUniqueDynamic(this, &AWoRPlayerState::HandleLocalFormChanged);
 		HandleLocalFormChanged(Forms->GetWornForm());
 	}
 }
@@ -119,11 +132,12 @@ void AWoRPlayerState::OnRep_Form()
 	ApplyFormLook();
 }
 
-void AWoRPlayerState::ApplyFormLook() const
+void AWoRPlayerState::ApplyFormLook()
 {
 	const ACharacter *Character = Cast<ACharacter>(GetPawn());
 	USkeletalMeshComponent *Mesh = Character ? Character->GetMesh() : nullptr;
-	if (!Mesh || (!WornForm && BaseForm == EPlayerBaseForm::Manny))
+	// The default look leaves an authored pawn alone until this PlayerState has dressed it.
+	if (!Mesh || (!WornForm && BaseForm == EPlayerBaseForm::Manny && DressedPawn.Get() != Character))
 	{
 		return;
 	}
@@ -134,7 +148,9 @@ void AWoRPlayerState::ApplyFormLook() const
 		UE_LOG(LogWoR, Warning, TEXT("[CharacterForms] %s has no mesh to wear"), WornForm ? *WornForm->GetName() : *UEnum::GetValueAsString(BaseForm));
 		return;
 	}
+	Mesh->EmptyOverrideMaterials();
 	Mesh->SetSkeletalMesh(NewMesh);
+	DressedPawn = Character;
 	if (WornForm)
 	{
 		for (int32 Index = 0; Index < WornForm->FormMaterials.Num(); ++Index)
