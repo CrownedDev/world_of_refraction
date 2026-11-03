@@ -1821,15 +1821,39 @@ void UInventoryComponent::HandlePoolGearChanged(FGuid GearID)
     // B-321 (D-117): another member's piece is not in this armoury (dropped if it was, e.g. after a give).
     const FName GearOwner = Pool->GetGearOwner(GearID);
     const bool bOthers = !bDrawsWholeArmoury && !GearOwner.IsNone() && GearOwner != SharedGearKey;
+    // B-323 (D-115): a piece given to this member that it already owns a copy of waits for the duplicate choice.
+    const auto NoteDuplicate = [this, &GearID](const FGuid &OwnedID, const FString &AssetName)
+    {
+        if (OwnedID.IsValid() && OwnedID != GearID)
+        {
+            UE_LOG(LogTemp, Log, TEXT("[Inventory] %s: received a second %s - choose Gold or dismantle (wor.UI.Duplicates)"),
+                   *GetNameSafe(GetOwner()), *AssetName);
+            OnDuplicateGearReceived.Broadcast(GearID, OwnedID);
+        }
+    };
     if (const FWeaponInventoryEntry *SharedWeapon = bOthers ? nullptr : Pool->FindWeaponInPool(GearID))
     {
+        const bool bNew = FindOwned(Weapons, GearID) == nullptr;
+        const FWeaponInventoryEntry *Twin = Weapons.FindByPredicate([SharedWeapon](const FWeaponInventoryEntry &Other)
+            { return Other.PersistentID != SharedWeapon->PersistentID && Other.Weapon && Other.Weapon == SharedWeapon->Weapon; });
         MirrorShared(Weapons, *SharedWeapon);
         RefreshLoadoutsFromOwned(GearID);
+        if (bNew && Twin)
+        {
+            NoteDuplicate(Twin->PersistentID, GetNameSafe(SharedWeapon->Weapon));
+        }
     }
     else if (const FRingInventoryEntry *SharedRing = bOthers ? nullptr : Pool->FindRingInPool(GearID))
     {
+        const bool bNew = FindOwned(Rings, GearID) == nullptr;
+        const FRingInventoryEntry *Twin = Rings.FindByPredicate([SharedRing](const FRingInventoryEntry &Other)
+            { return Other.PersistentID != SharedRing->PersistentID && Other.Ring && Other.Ring == SharedRing->Ring; });
         MirrorShared(Rings, *SharedRing);
         RefreshLoadoutsFromOwned(GearID);
+        if (bNew && Twin)
+        {
+            NoteDuplicate(Twin->PersistentID, GetNameSafe(SharedRing->Ring));
+        }
     }
     else if (const FEvolutionInventoryEntry *SharedEvolution = bOthers ? nullptr : Pool->FindEvolutionInPool(GearID))
     {
