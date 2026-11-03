@@ -114,6 +114,17 @@ public:
     UFUNCTION(BlueprintPure, Category = "Economy")
     static FText GetDismantleWarning(const AActor *Owner, FGuid PersistentID);
 
+    /** B-319 (D-115): the owner keeps one copy of a weapon or ring. WeakerID must be a weaker copy from
+     *  UInventoryComponent::FindDuplicateGear; its loadout slots move to the kept copy first, then it is
+     *  converted to Gold (half the tier's buy price, Q-319) or dismantled for Gear essence. Out of a
+     *  fight, server only; false when WeakerID is no weaker copy or the removal is refused. */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool ResolveDuplicate(AActor *Owner, FGuid WeakerID, bool bConvertToGold);
+
+    /** B-319 (Q-319): Gold for converting a duplicate of this tier (half its buy price). */
+    UFUNCTION(BlueprintPure, Category = "Economy")
+    static int32 GetDuplicateGoldForTier(EItemTier Tier);
+
     /**
      * Dismantle the owned EVOLUTION instance by InstanceID (NOT PersistentID — evolution identity).
      * HYBRID yield: the evolution's ELEMENT essence TYPE (GetAssociatedElement → ElementToEssenceType)

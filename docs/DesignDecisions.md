@@ -1656,6 +1656,20 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A (D-111: wear follows the item actually used). Side effect: debug and socket tools that ask for "the primary weapon" by asset get the copy in hand when both are the same weapon. B-304's `GetActiveSlot` carries the GUID and makes this exact.
 **Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
 
+### Q-319 — Duplicate gear: how much Gold, and when is the choice asked (D-115)?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-319) · **Blocks:** —
+**Question:** D-115 says a second copy of an owned weapon or adapter converts the weaker copy to Gold or dismantles it. Gear has no Gold price yet. Also: which copy is weaker, and is the choice forced at once?
+**Options:** A Gold = half the tier's buy price (the merge-cost half, `GetPrismsBaseForTier / 2`); weaker = lower instance tier, then quality, a tie keeps the copy owned first; the weaker copy's loadout slots move to the kept one; the choice waits in a list (`wor.UI.Duplicates` until the CommonUI screen) and both copies stay owned until chosen / B force the choice the moment it drops.
+**Recommendation:** A. Selling back for a fraction of the buy price is the genre norm (Diablo / Path of Exile vendors, Skyrim ~1/3, Elden Ring), and half matches this game's merge cost. Letting the choice wait, as Monster Hunter's and Destiny's postmaster / duplicate prompts do, avoids interrupting loot mid-trial. With the shared pool, a duplicate is counted across the party's armoury (every member sees the same owned list).
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
+### Q-319b — With the shared armoury, is "one copy" per character or per party?
+**Status:** OPEN (Crown) · **Raised:** 2026-11-03 (B-319 review) · **Blocks:** — (B-319 ships counting the owned list each member sees)
+**Question:** D-115 says a *character* never keeps two copies. Since B-091 the party shares one armoury: every member's owned list is the same pool, so B-319 counts duplicates across the party. Two members can't each own the same sword. Also, D-115's job said the inventory "never ends with two copies", but the choice waits in a list (Q-319), so two copies exist until the player chooses (and buying two of one weapon makes a duplicate on purpose).
+**Options:** A one copy per party armoury (today's behaviour) / B one copy per member: a second copy is allowed while another member wears the first (needs a per-member owner on pool gear) / C force the choice the moment the copy arrives.
+**Recommendation:** none: this reads D-115's wording, so it is Crown's call. A is the simplest and fits a shared stash (Diablo IV's shared stash keeps per-character equipped items only); B matches the wording.
+**Answer:** —
+
 ### Q-320 — How far does "always one primary" reach (D-116)?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-320) · **Blocks:** —
 **Question:** D-116 says a character always has one valid primary. Three edges: (1) which loadouts get an empty primary filled: only the active one, or every saved loadout? (2) should validation block an empty primary, or only flag it? (3) a member who owns nothing usable (a Caster or Resonator with no weapon) has no primary to give.

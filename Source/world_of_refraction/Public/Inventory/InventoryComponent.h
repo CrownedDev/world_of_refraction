@@ -44,6 +44,25 @@ class UPoolSubsystem;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInventoryChanged, EInventoryChangeType, ChangeType);
 /** B-171: an owned weapon's or ring's socket changed (attach, removal, a dismantled evolution). */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGearSocketChanged, FGuid, GearID);
+/** B-319 (D-115): a weapon or ring just received is a copy of one already owned. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDuplicateGearReceived, FGuid, NewID, FGuid, OwnedID);
+
+/** B-319 (D-115): two owned copies of one weapon or ring; the weaker goes to Gold or is dismantled. */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FDuplicateGearPair
+{
+    GENERATED_BODY()
+
+    /** The copy that stays: higher instance tier, then quality; on a tie the one owned first. */
+    UPROPERTY(BlueprintReadOnly, Category = "Inventory|Duplicates")
+    FGuid KeptID;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Inventory|Duplicates")
+    FGuid WeakerID;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Inventory|Duplicates")
+    bool bRing = false;
+};
 
 /**
  * UInventoryComponent
@@ -484,6 +503,18 @@ public:
      *  holding it were refreshed; the loadout component drops the parts the change broke. */
     UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
     FOnGearSocketChanged OnGearSocketChanged;
+
+    /** B-319 (D-115): fired when a weapon or ring added is a copy of one already owned. */
+    UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
+    FOnDuplicateGearReceived OnDuplicateGearReceived;
+
+    /** B-319 (D-115): every weaker copy of an owned weapon or ring, each paired with the copy that stays. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Duplicates")
+    TArray<FDuplicateGearPair> FindDuplicateGear() const;
+
+    /** B-319: the loadout slots holding From now hold To (the slot keeps its picks); a loadout that
+     *  already holds To is left alone. Returns slots moved. */
+    int32 MoveLoadoutSlots(const FGuid &From, const FGuid &To);
 
 private:
     /** RefreshLoadoutsFromOwned, then OnGearSocketChanged. */
