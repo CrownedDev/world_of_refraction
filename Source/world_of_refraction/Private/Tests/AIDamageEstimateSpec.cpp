@@ -127,6 +127,32 @@ void FAIDamageEstimateSpec::Define()
 		Action.Targets.Add(Target);
 		TestEqual(TEXT("estimate equals the hit"), Estimate, WithExpectedCrit(ExecutorHitDamage(Action)));
 	});
+
+	It("previews each target x skill once per decision, with the same estimate (B-259)", [this]()
+	{
+		if (!TestTrue(TEXT("setup"), AI && Attacker && Target))
+		{
+			return;
+		}
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		Spell->BaseDamage = AI_ESTIMATE_TEST_BASE_DAMAGE;
+		Spell->Tier = EItemTier::S_Tier;
+		const int32 Uncached = AI->EstimateSpellDamage(Attacker, Target, Spell);
+		const int32 UncachedInfused = AI->EstimateSpellDamage(Attacker, Target, Spell, AI_ESTIMATE_TEST_INFUSION_LEVEL, EInfusionSourceOption::Innate);
+
+		AI->EstimatePreviewCount = 0;
+		AI->EstimateMemoHitCount = 0;
+		{
+			TGuardValue<bool> MemoScope(AI->bEstimateMemoActive, true);
+			TestEqual(TEXT("first estimate unchanged"), AI->EstimateSpellDamage(Attacker, Target, Spell), Uncached);
+			TestEqual(TEXT("repeat estimate unchanged"), AI->EstimateSpellDamage(Attacker, Target, Spell), Uncached);
+			TestEqual(TEXT("another infusion level is its own entry"),
+					  AI->EstimateSpellDamage(Attacker, Target, Spell, AI_ESTIMATE_TEST_INFUSION_LEVEL, EInfusionSourceOption::Innate), UncachedInfused);
+		}
+		AI->EstimateMemo.Reset();
+		TestEqual(TEXT("two full previews"), AI->EstimatePreviewCount, 2);
+		TestEqual(TEXT("one memo hit"), AI->EstimateMemoHitCount, 1);
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

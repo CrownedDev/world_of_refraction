@@ -2,6 +2,7 @@
 
 #include "AI/AIDecisionManager.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Misc/ScopeExit.h"
 #include "Combat/Defense/GuardRules.h"
 #include "AI/AIDecisionConstants.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
@@ -339,6 +340,17 @@ EAIDifficulty UAIDecisionManager::GetDifficultyFor(const AActor *ForActor) const
 FAction UAIDecisionManager::BuildAction(AActor *AIActor)
 {
     TRACE_CPUPROFILER_EVENT_SCOPE(WoR_AIBuildAction); // B-266: Insights marker (PerfAudit_2026-10-28.md)
+    // B-259: each target x skill is previewed once per decision.
+    EstimateMemo.Reset();
+    EstimatePreviewCount = 0;
+    EstimateMemoHitCount = 0;
+    TGuardValue<bool> MemoScope(bEstimateMemoActive, true);
+    ON_SCOPE_EXIT
+    {
+        UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] %s decision: %d damage previews, %d memo hits"),
+               AIActor ? *AIActor->GetName() : TEXT("null"), EstimatePreviewCount, EstimateMemoHitCount);
+        EstimateMemo.Reset();
+    };
     FAction Action;
     Action.ActionType = EActionType::Defend; // Safe default
 
@@ -841,6 +853,26 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
 }
 
 int32 UAIDecisionManager::EstimateActionDamage(AActor *Attacker, AActor *Target, const FAction &Action) const
+{
+    if (!bEstimateMemoActive)
+    {
+        ++EstimatePreviewCount;
+        return ComputeActionDamageEstimate(Attacker, Target, Action);
+    }
+    const bool bIsSpell = Action.ActionType == EActionType::Spell;
+    const FEstimateKey Key(Attacker, Target, bIsSpell ? Action.SpellData : Action.SkillData, static_cast<uint8>(Action.ActionType),
+                           bIsSpell ? Action.SpellInfusionLevel : Action.AbilityInfusionLevel,
+                           static_cast<uint8>(Action.SelectedSource), static_cast<uint8>(Action.SpellSource));
+    if (const int32 *Memo = EstimateMemo.Find(Key))
+    {
+        ++EstimateMemoHitCount;
+        return *Memo;
+    }
+    ++EstimatePreviewCount;
+    return EstimateMemo.Add(Key, ComputeActionDamageEstimate(Attacker, Target, Action));
+}
+
+int32 UAIDecisionManager::ComputeActionDamageEstimate(AActor *Attacker, AActor *Target, const FAction &Action) const
 {
     const bool bIsSpell = Action.ActionType == EActionType::Spell;
     const USkillDataBase *Skill = bIsSpell ? Action.SpellData : Action.SkillData;
