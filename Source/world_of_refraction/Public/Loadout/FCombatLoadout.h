@@ -188,7 +188,7 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     int32 ActiveRingIndex = 0;
 
     // ==================== UNIFIED SLOTS (D-110, mirror) ====================
-    // B-302: the weapons and adapters above as one slot list, rebuilt from the old fields by RebuildSlotsFromLegacy
+    // B-302: the weapons and adapters above as one slot list (active loadout only), rebuilt by RebuildSlotsFromLegacy
     // (the loadout component calls it whenever it announces a gear change). Read-only mirror until B-304 moves the
     // getters onto it; wor.Loadout.CompareSlots prints both sides.
 

@@ -43,7 +43,7 @@ namespace CombatConstants
 
     // World-stat KILL faucet (§7 C3): WSP earned per enemy kill = max(1, victim caliber / divisor),
     // where caliber = the victim's GetTotalPool() (~30 with no world levels … ~93 at world 7/7/7).
-    // ⚠️ TUNING KNOB — divisor 30 yields ~1-3 WSP/kill against the LIVE_MAX=20/pillar cap. Tune in PIE.
+    // ⚠️ TUNING KNOB — divisor 30 yields ~1-3 WSP/kill against the LIVE_MAX=7/pillar cap (B-222). Tune in PIE.
     constexpr int32 WORLDSTAT_KILL_DIVISOR = 30;
 
     // ==================== EQUIPMENT STAT BONUS LIMITS ====================
@@ -363,6 +363,12 @@ namespace CombatConstants
     // Status breaks (a full bar's effect, D-030 / D-090): every break lasts this many of the
     // holder's own turns, counted by FTurnSpan (D-051).
     constexpr int32 STATUS_CAP_TURNS = 1;
+    // TODO: tune — Fire / Slash break (Burn / Bleed): one tick of this share of the holder's max HP (SB-19, D-090).
+    constexpr float BURN_BREAK_MAX_HP_FRACTION = 0.08f;
+    // TODO: tune — Earth / Pierce break: defence down, percent (SB-20, D-090).
+    constexpr float EARTH_BREAK_DEFENSE_DOWN_PERCENT = 30.0f;
+    // TODO: tune — Reality break: instant damage, share of the holder's max HP; it can kill (SB-28).
+    constexpr float REALITY_BREAK_MAX_HP_FRACTION = 0.25f;
     // TODO: tune — Wind break: how many places the holder's next turn moves back (D-014, D-090).
     constexpr int32 WIND_BREAK_DELAY_PLACES = 1;
     // TODO: tune — Water break: Action Speed and Spell Speed slow, percent (D-090).
@@ -384,6 +390,11 @@ namespace CombatConstants
     // Final = Base * (1 + StatValue / STAT_PERCENT_DIVISOR). Used wherever
     // a raw sub-stat point value drives a percentage-style multiplier.
     constexpr float STAT_PERCENT_DIVISOR = 100.0f;
+
+    // B-277: the skill-effect energy-cost multiplier (cost buffs / debuffs / ModifyEnergyCost) stays in this
+    // range: never free, never more than double (UActionExecutor::GetEffectiveEnergyCostEfficiencyMultiplier).
+    constexpr float SKILL_EFFECT_COST_MULT_MIN = 0.1f;
+    constexpr float SKILL_EFFECT_COST_MULT_MAX = 2.0f;
 
     // An IgnoreDefense effect valued at or below this (per application, in percent points) is a flag
     // (the "1 = on" gate convention), not an amount: it ignores all Defense (D-086, B-042m).

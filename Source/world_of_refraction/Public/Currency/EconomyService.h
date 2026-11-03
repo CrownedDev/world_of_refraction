@@ -53,6 +53,10 @@ class WORLD_OF_REFRACTION_API UEconomyService : public UGameInstanceSubsystem
     GENERATED_BODY()
 
 public:
+    /** Q-252: false (and says "Not during a fight." on screen) while a fight is on. Every economy action
+     *  checks it; paid repair (GearRepair::RepairParty) too. Op names the action in the log. */
+    static bool IsOutOfCombat(const AActor *Owner, const TCHAR *Op);
+
     /**
      * Dismantle Count crystals/stones of Id from Owner's inventory, granting typed essence per
      * EconomyYield. Server-authoritative. The pool (gem vs stone) is dispatched by Id.Type inside
@@ -173,8 +177,8 @@ public:
      *                     AbilityStone half). WeaponAttack is never priced (weapon identity).
      *                     [quality is the C placeholder until shop-roll]
      *   - Spell         : Prisms base + 50×Σ scaling-grade + element essence @ tier + Σ pillar
-     *                     essence per scaling grade. GENERIC-element spells instead price like
-     *                     abilities: Prisms base + SkillEssence @ tier (no surcharge, no typed).
+     *                     essence per scaling grade. A GENERIC spell's element essence is Quartz
+     *                     essence (EEssenceType::Generic, D-105).
      *   - Ability       : Prisms base + SkillEssence @ tier.
      *   - Evolution     : 2× Prisms base (premium item class) + element essence @ tier
      *                     + ½ Reality essence.

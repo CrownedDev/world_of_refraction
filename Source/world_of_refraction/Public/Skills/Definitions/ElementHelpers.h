@@ -7,6 +7,19 @@
 
 namespace ElementHelpers
 {
+    /** B-276: one of the nine real elements (Fire..Reality): not Generic ("inherit") and not None
+     *  (non-elemental). */
+    constexpr bool IsConcrete(ESpellElement Element)
+    {
+        return Element != ESpellElement::Generic && Element != ESpellElement::None;
+    }
+
+    /** B-276: Generic on a skill means "take the caster's element" (GenericSpellInherit). */
+    constexpr bool IsInherit(ESpellElement Element)
+    {
+        return Element == ESpellElement::Generic;
+    }
+
     /**
      * True if the element acts as an "any-element" spell source.
      * Reality slots/innates accept spells of any element; all other elements are

@@ -94,6 +94,19 @@ void FRunWearByGuidSpec::Define()
 				 Worn == &ActiveOf(Loadout).RingLoadout[RUN_WEAR_TEST_ACTIVE].RingEntry.AttachedItem);
 	});
 
+	It("finds a crystal slot's copy by its GUID, and none for a GUID it doesn't hold", [this]()
+	{
+		ULoadoutComponent *Loadout = SpawnWith(FirstID, SecondID);
+		if (!TestNotNull(TEXT("Loadout"), Loadout)) return;
+		FEquippedCrystalSlot Slot;
+		Slot.Holder = Ring;
+		Slot.GearID = FirstID; // the inactive copy
+		TestTrue(TEXT("the named copy, not the active one"),
+				 Loadout->FindAttachedItemForSlot(Slot) == &ActiveOf(Loadout).RingLoadout[0].RingEntry.AttachedItem);
+		Slot.GearID = FGuid::NewGuid();
+		TestNull(TEXT("an unknown GUID finds nothing (no asset fallback)"), Loadout->FindAttachedItemForSlot(Slot));
+	});
+
 	It("carries each copy's wear to the same item, even when the two swap places", [this]()
 	{
 		ULoadoutComponent *Before = SpawnWith(FirstID, SecondID);

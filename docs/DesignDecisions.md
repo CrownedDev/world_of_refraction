@@ -1523,6 +1523,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-28): **every economy action is refused during a fight** (dismantle, level-up, revert, merge, buy / sell, repair), with a message; they work outside fights as today. Matches party swaps being outside battle only.
 **Notes for Claude:** _optional_
 
+### Q-298 — Adapter shortcut letter and durability tag
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-02 (B-298) · **Blocks:** —
+**Question:** D-107 renames the player-facing Ring to Adapter. The command menu's Resonate shortcut said "(R)" for ring, and the durability header tagged rings "RD". What do they say now?
+**Options:** A "Resonate (A)" and the tag "AD" / B keep "(R)" and "RD" (the letter no longer matches the word).
+**Recommendation:** A. A shortcut letter or tag follows the item's name (Final Fantasy and Persona menus label by the shown word); "AD" matches the old "RD" (ring durability) form.
+**Answer:** **A**, by the reference-backed default (2026-11-02). Crown may change it: `CombatCommandMenuSubsystem.cpp` (Resonate label), `CharacterPanelWidget.cpp` / `DurabilityHeaderWidget.cpp` (tag).
+
 ### Q-248 — What Water's break is called
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-28 (B-248) · **Blocks:** —
 **Question:** D-090 says what Water's break does (an Action Speed slow), not its name. Its old name, "Frozen", was dead code; the screen showed "Action Speed Debuff". What does the player see?
@@ -1611,7 +1618,33 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Outfit pieces are store entries shared by the party (A):** an outfit set is six references; a piece unlocked once can be worn by anyone (cosmetic; Monster Hunter layered armour).
 - **Give / request (A, Crown 2026-10-29):** skills move between characters by **give** (one copy: the giver loses it) and **request** (ask a teammate for theirs). **Between co-op players** gear, items and skills all move only by give / request (each player's store stays their own, personal loot D-103). **Within your own party (solo)** gear stays shared (D-020).
 - **Co-op visibility (default, reference-backed):** what a player has **equipped** is visible to everyone (others see your gear and form); the rest of their store is owner-only until given (Diablo / Destiny: inspect equipped, private stash).
+- **Buy for an AI character (Crown, 2026-10-29):** shops and vendors have a **"buy for"** choice that includes AI party members; in co-op **any player can buy for the AI member** (e.g. the third, recruited character), paying from their own wallet; the purchase goes to that AI character to use. **The owner is whoever bought it** (Crown, 2026-10-29): it counts as part of **the buyer's run**: the instance goes at run end, and its progress is remembered for the buyer (the roguelike layer, below).
+- **The roguelike layer (Crown, 2026-10-29, corrected):** two families.
+  - **Items** (crystals, stones, potions) are **consumables**, like a health potion: a crystal **used** in a run (attached, losing durability) is **used up at run end**; unused items stay in the pouch / storage (D-097).
+  - **Gear** (weapons, adapters, evolutions): gear **found or bought during a run** is a run instance, gone at run end, but its **upgrade progress is remembered** per definition, so it **appears at that level the next run** it turns up in. Gear **brought from home** comes back restored (D-093).
+  - **Evolutions can break from wear** in a run; a broken one can be **repaired in the run**, and it **resets outside the run** (never lost: Q-159, Q-159c, D-093).
 **Notes for Claude:** bugs found by the analysis to fix regardless: run wear keyed by asset (two identical adapters share one wear record); found gear never dropped at run end; player-edited presets not saved (PIE check). Remaining details: where it lives (pool now, PlayerState with co-op), presets as GUID lists per character, the run purchase marks pieces rather than copying, the per-preset 6 x 3 item slots retire, spells / abilities stay per character, outfits as entries, co-op visibility.
+
+### Q-303 — A Generic's item limit: two weapons and an adapter at once?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-29 (B-303 review) · **Blocks:** —
+**Question:** D-110 gives a Generic "up to 2 weapons, and keeps one adapter". May it carry both weapons **and** the adapter (three items), or two items in all?
+**Options:** A two items (two weapons, or a weapon and an adapter, as today) / B three items.
+**Recommendation:** A, the analysis's default (`UnifiedLoadout_2026-10-29.md` Q-5): two slots, at most two weapons and one adapter. It keeps every Generic build that works today and mirrors the deckbuilder's vessel rule. B would be a one-number change in `LoadoutClassTable::GENERIC`.
+**Answer:** **A**, by the reference-backed default (2026-10-29). Crown may change it.
+
+### Q-303b — The budget charges the gear the fight actually uses
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-303 review) · **Blocks:** —
+**Question:** The old budget check read the primary slot's *type*; the D-110 budget reads the gear the fight uses. They differ in two rare Resonator cases: a primary weapon whose slot type is left None (as `AutoPopulateLoadout` leaves it) was free and now costs its weapon cost; a primary slot typed Weapon whose weapon was sold cost 1 and now costs 0. Keep the new reading?
+**Options:** A charge what the fight uses (D-110, one cost for every class) / B keep the old type-based charge.
+**Recommendation:** A. The fight attacks with that weapon, so it should count; D-110 makes one cost over the slots the fight reads. Effect: such a Resonator over 5 has adapters dropped by `ClearInvalidSlots`, as any Resonator over 5 does.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
+### Q-310 — Two identical copies: which one wears?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-310 review) · **Blocks:** —
+**Question:** In-fight wear and the crystal tools still find gear by its asset. With two identical copies equipped (two of one adapter, or a Generic's two of one weapon), which copy does an asset lookup land on?
+**Options:** A the one in use first (the active adapter; the weapon the Generic is showing), then slot order / B slot order only (the old rule).
+**Recommendation:** A (D-111: wear follows the item actually used). Side effect: debug and socket tools that ask for "the primary weapon" by asset get the copy in hand when both are the same weapon. B-304's `GetActiveSlot` carries the GUID and makes this exact.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
 
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
@@ -2149,6 +2182,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **C** Share skills and crystals too (every character could use every learned spell, bypassing class gating; crystals would need the D-097 inventory first).
 **Recommendation:** A. Final Fantasy IX and X share one bag for the party: a weapon on one character is shown as theirs and can't be put on another until it's taken off. Fire Emblem's convoy works the same way. Players read it as fair because nothing is ever duplicated or silently swapped. Skills that stay with their learner match Final Fantasy X and Dragon Quest, where each character keeps their own spells.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27; Claude's recommendation, reference above). Crown may change it, e.g. to B's pick-the-wearer screen. Also decided with it: the inventory caps (20 weapons, 20 rings, 5 evolutions) count the party's whole armoury until D-097's storage (B-203) replaces them; a preset piece a character's authored inventory doesn't list joins its starting gear instead of being dropped. **Changed by Crown (2026-10-27): equipping takes the piece out of the shared inventory**: it isn't listed or selectable for anyone else while worn (it's on the wearer, not in the inventory); unequipping puts it back. A saved loadout naming a piece someone else wears shows that slot empty until it's free. No clash step needed.
+**Changed by Crown:** equipping removes the piece from the shared inventory: it isn't listed or selectable for other members while worn; unequipping returns it; a saved loadout naming a piece worn by someone else shows that slot empty until it's free (no clash strip). Built in parts: B-221 (the selectable lists and the worn-elsewhere check; the loadout pickers and equip setters switch to them with B-221b) and B-221b (saved loadouts).
 **Notes for Claude:** applied (feature/B-091-shared-gear-pool): `UPoolSubsystem` wearers, banked characters and `OnPoolGearChanged`; `UInventoryComponent::DrawSharedGear` / `ClaimActiveSharedGear` / `PushGearToPool`; `ULoadoutComponent::ClaimSharedGear`; save `FSavedPool::Wearers` / `BankedCharacters`; party panel clash line. Limits: the per-inventory caps (20 weapons, 20 rings, 5 evolutions) now count the party's whole armoury; a saved weapon or ring still restores with its default crystal (B-124); the bought-loadout run start is B-116.
 
 ### Q-076 — A trial recruit: what gear it can use, and when it applies
@@ -2222,6 +2256,26 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. In Elden Ring, missing any of a weapon's stat requirements gives one flat attack penalty, not one per missed stat; being one point short on several stats isn't punished more than being short on one, which players found fair. B compounds quickly toward the floor. Not lore.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-27). Crown may pick B.
 **Notes for Claude:** `FWorldStatRequirements::GetWeaponRequirementFactor` (`Min3`); the floor `WeaponRequirement::WEAPON_REQ_FACTOR_MIN` is 0.25 (`// TODO: tune`; the ladder's lowest rung is 0.32, so it doesn't bite today). Two readings built with the plan (`StatMathsRedesign.md` 2.9, "a separate damage factor on attacks and abilities"), for Crown to change if wanted: the factor scales the whole pre-defense damage of the attack or ability (the skill's base too, not only a weapon-only share, since this game has no separate weapon damage term), and it scales **damage only**: status buildup from the hit is unchanged.
+
+### Q-220 — Weapon Power on a multi-hit skill: every hit, or once?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-02 (B-220 review) · **Blocks:** —
+**Question:** B-220 adds the weapon part (Power + scaling, times the requirement factor) to each hit's damage, so a three-hit ability gets it three times; it also sits outside the charge band and the infusion boost. Keep that, or add it once per action?
+**Options:**
+- **A** (as built) every hit gets the weapon part; charge and infusion don't scale it.
+- **B** once per action, split across the hits.
+**Recommendation:** A. In Elden Ring and Expedition 33 a weapon's attack rating applies to every hit of a combo or multi-hit skill; skill designers balance hit count through the skill's own multiplier. Power defaults to 0, so nothing changes until Crown authors Power. Not lore.
+**Answer:** **A**, by the reference-backed default (2026-11-02). Crown may pick B.
+**Notes for Claude:** `ActionExecutor.cpp` `PreviewActionDamage` / `GetWeaponPart`. Under the requirement the cut now applies to the weapon part only, so with Power 0 being under a requirement costs nothing until Power is set (PIE B-220).
+
+### Q-222 — Head-start points on a pillar already at the cap
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-02 (B-222 review) · **Blocks:** —
+**Question:** With the run cap at 7, a character authored at 7 in a pillar gains nothing from head-start points put there. Should the head-start allocation refuse those points, or accept and clamp them?
+**Options:**
+- **A** (as built) accept and clamp: the live value stops at 7; the allocation is respec-able, so the player can move the points.
+- **B** refuse the allocation that would pass the cap.
+**Recommendation:** A for now, B when the head-start screen is built: the screen greys out a maxed pillar, as Hades' Mirror and Dead Cells' stat picks never offer a level past the cap. No head-start screen exists yet (only the console / save), so A loses nothing a player can see. Not lore.
+**Answer:** **A**, by the reference-backed default (2026-11-02); the head-start screen greys out a pillar at the cap. Crown may change it.
+**Notes for Claude:** `UCharacterDataComponent::SetHeadStartAllocation`; `Resources_Design.md` World Stats 6.
 
 ### Q-218 — Which single tuning values move into the tuning data now?
 **Status:** ANSWERED · **Raised:** 2026-10-27 (B-218) · **Blocks:** — (B-218 ships with A)
