@@ -56,3 +56,4 @@
 | 2026-10-28 | Switch skins in the hub and at rest spots (Crown) | docs/character-forms-switch |
 | 2026-10-28 | Meter fills per fight won by matching pieces, partial credit for other tiers (Crown) | docs/character-forms-fill |
 | 2026-10-28 | The loadout-match meter unlocks the skin and reveals the loadout; bound gear works on the skin (Crown) | docs/character-forms-meter |
+| 2026-11-03 | B-279 built: form asset, meter filled per fight won (best party member counts), saved; see `Architecture/CharacterForms.md` | feature/B-279-character-forms |
