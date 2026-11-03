@@ -146,6 +146,7 @@ void UAIDecisionManager::RequestDecision(AActor *AIActor)
     Delay *= FMath::Max(0.0f, CVarAIThinkDelayScale.GetValueOnGameThread());
     if (UWorld *World = GetWorld())
     {
+        World->GetTimerManager().ClearTimer(ThinkingTimerHandle); // one pending decision at a time
         if (Delay > 0.0f)
         {
             World->GetTimerManager().SetTimer(

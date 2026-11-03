@@ -4864,7 +4864,13 @@ void UActionExecutor::BeginSkillExecution(AActor *Actor)
 			ResolveMontagelessAction(Action);
 			if (!CurrentExecutionContext.IsSet() || AsyncActionSerial != ActionSerial)
 			{
-				return; // it finished this action (and may have started the next): nothing left to finalize here
+				// It finished this action (and may have started the next): nothing left to finalize here.
+				if (!CurrentExecutionContext.IsSet())
+				{
+					UnbindActionAnimationEnd(Actor);
+					UnbindCombatNotify(Actor);
+				}
+				return;
 			}
 		}
 		if (CurrentExecutionContext.IsSet() && CurrentExecutionContext->AreAllDefensesResolved())
