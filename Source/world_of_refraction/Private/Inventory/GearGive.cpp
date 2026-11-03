@@ -150,6 +150,67 @@ namespace WoRGive
 		return FText::GetEmpty();
 	}
 
+	FText TryPutInChest(UWorld *World, FName FromKey, const FGuid &GearID)
+	{
+		UPoolSubsystem *Pool = PoolOf(World);
+		if (!Pool)
+		{
+			return LOCTEXT("NoChest", "No chest to put that in");
+		}
+		if (FromKey.IsNone())
+		{
+			return LOCTEXT("NoOneToPut", "Choose a character");
+		}
+		if (Pool->FindEvolutionInPool(GearID))
+		{
+			return LOCTEXT("NoEvolutionsChest", "Evolutions can't go in the chest yet");
+		}
+		if (!Pool->FindWeaponInPool(GearID) && !Pool->FindRingInPool(GearID))
+		{
+			return LOCTEXT("NotGearChest", "That isn't a weapon or adapter");
+		}
+		if (Pool->GetGearOwner(GearID) != FromKey)
+		{
+			return FText::Format(LOCTEXT("NotTheirsChest", "{0} doesn't own that"), NameOf(FromKey));
+		}
+		// Worn gear can't be put away (B-324): a piece in any of the member's loadouts stays. Checked on the spawned
+		// member; an unspawned member's next draw strips a piece it no longer owns.
+		if (const UInventoryComponent *Member = FindMemberInventory(World, FromKey))
+		{
+			if (!Member->GetLoadoutsUsing(GearID).IsEmpty())
+			{
+				return LOCTEXT("PutWorn", "That is in a loadout. Take it off before putting it in the chest");
+			}
+		}
+		if (!Pool->GiveGear(GearID, UPoolSubsystem::GetChestKey()))
+		{
+			return LOCTEXT("PutFailed", "Couldn't put that in the chest");
+		}
+		return FText::GetEmpty();
+	}
+
+	FText TryTakeFromChest(UWorld *World, FName ToKey, const FGuid &GearID)
+	{
+		UPoolSubsystem *Pool = PoolOf(World);
+		if (!Pool)
+		{
+			return LOCTEXT("NoChestTake", "No chest to take from");
+		}
+		if (ToKey.IsNone())
+		{
+			return LOCTEXT("NoOneToTake", "Choose a character");
+		}
+		if (!Pool->IsInChest(GearID))
+		{
+			return LOCTEXT("NotInChest", "That isn't in the chest");
+		}
+		if (!Pool->GiveGear(GearID, ToKey))
+		{
+			return LOCTEXT("TakeFailed", "Couldn't take that");
+		}
+		return FText::GetEmpty();
+	}
+
 	FText TryGiveCarried(UWorld *World, FName FromKey, FName ToKey, const FCrystalId &Id, int32 Count)
 	{
 		UPoolSubsystem *Pool = PoolOf(World);

@@ -228,6 +228,12 @@ void UPoolSubsystem::SetGearOwner(const FGuid &GearID, FName CharacterKey)
     }
 }
 
+FName UPoolSubsystem::GetChestKey()
+{
+    static const FName ChestKey(TEXT("SharedChest"));
+    return ChestKey;
+}
+
 bool UPoolSubsystem::GiveGear(const FGuid &GearID, FName ToKey)
 {
     // Evolutions wait for Q-323 (attached / primary-slot detach): refused here too, so no caller can leave a slot dangling.
