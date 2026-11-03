@@ -107,6 +107,18 @@ namespace
         return EconomyHasAuthority(Owner, Op) && UEconomyService::IsOutOfCombat(Owner, Op);
     }
 
+    /** D-116: a saved loadout's primary can't be dismantled until another primary is swapped in. */
+    bool EconomyRefusesPrimary(const UInventoryComponent &Inv, const FGuid &PersistentID, const TCHAR *Op)
+    {
+        if (!Inv.IsPrimaryInAnyLoadout(PersistentID))
+        {
+            return false;
+        }
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s refused: GUID %s is a loadout's primary - swap in another first (D-116)"),
+               Op, *PersistentID.ToString());
+        return true;
+    }
+
     /** D-016: take the instance out of every saved loadout; tell listeners when the active one changed. */
     void EconomyStripFromLoadouts(AActor *Owner, UInventoryComponent *Inv, const FGuid &PersistentID)
     {
@@ -420,6 +432,10 @@ bool UEconomyService::DismantleOwnedGear(AActor *Owner, FGuid PersistentID, cons
     {
         return false;
     }
+    if (EconomyRefusesPrimary(*Inv, PersistentID, Verb))
+    {
+        return false;
+    }
     const EItemTier Tier = Entry->Tier;
     const int32 Yield = EconomyYield::GetLevelingEssenceYieldForTier(Tier);
 
@@ -513,6 +529,10 @@ FText UEconomyService::GetDismantleWarning(const AActor *Owner, FGuid Persistent
     {
         return FText::GetEmpty();
     }
+    if (Inv->IsPrimaryInAnyLoadout(PersistentID))
+    {
+        return LOCTEXT("DismantlePrimary", "This is a loadout's primary. Swap in another primary before dismantling it.");
+    }
 
     TArray<FText> LoadoutNumbers;
     for (const int32 Index : Using)
@@ -568,6 +588,10 @@ bool UEconomyService::DismantleEvolution(AActor *Owner, FGuid InstanceID)
                *Owner->GetName(), *InstanceID.ToString());
         return false;
     }
+    if (EconomyRefusesPrimary(*Inv, InstanceID, TEXT("DismantleEvolution")))
+    {
+        return false;
+    }
     const EItemTier Tier = Entry->Tier; // INSTANCE tier (leveled), not Entry->Item->Tier (asset/base)
     // HYBRID yield: the evolution's ELEMENT essence TYPE at the GEAR leveling AMOUNT (§3 gear curve,
     // NOT the §4.2 crystal yield). An element-agnostic evolution (Quartz/None) maps to Generic.
@@ -611,6 +635,13 @@ bool UEconomyService::RemovePrimaryEvolution(AActor *Owner)
         UE_LOG(LogTemp, Warning,
                TEXT("[EconomyService] RemovePrimaryEvolution: %s has no instance-resolved primary evolution to remove"),
                *Owner->GetName());
+        return false;
+    }
+
+    // D-116: this always empties the primary, so it waits for another primary to be swapped in.
+    const UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
+    if (Inv && EconomyRefusesPrimary(*Inv, InstanceID, TEXT("RemovePrimaryEvolution")))
+    {
         return false;
     }
 

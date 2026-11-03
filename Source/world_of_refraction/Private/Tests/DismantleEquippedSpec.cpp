@@ -1,6 +1,6 @@
 // DismantleEquippedSpec.cpp
 // B-084 (D-016): dismantling an equipped weapon or ring warns first, then takes it out of every
-// saved loadout; a Generic left with no gear is kept out of the fight.
+// saved loadout. B-320 (D-116): a loadout's primary is refused until another is swapped in.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -66,37 +66,44 @@ void FDismantleEquippedSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("warns, then leaves no ghost copy in any loadout and keeps the gearless Generic out", [this]()
+	It("warns, then leaves no ghost copy in any loadout; the primary itself is refused (D-116)", [this]()
 	{
 		AActor *Owner = SpawnOwner(ECharacterClass::Generic);
 		UInventoryComponent *Inventory = Owner->FindComponentByClass<UInventoryComponent>();
-		if (!TestTrue(TEXT("weapon added"), Inventory->AddWeapon(NewObject<UWeaponData>(GetTransientPackage()))) ||
+		const bool bAdded = Inventory->AddWeapon(NewObject<UWeaponData>(GetTransientPackage())) &&
+							Inventory->AddWeapon(NewObject<UWeaponData>(GetTransientPackage()));
+		if (!TestTrue(TEXT("two weapons added"), bAdded) ||
 			!TestTrue(TEXT("a saved loadout"), Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex)))
 		{
 			return;
 		}
-		const FGuid WeaponId = Inventory->Weapons[0].PersistentID;
+		const FGuid PrimaryId = Inventory->Weapons[0].PersistentID;
+		const FGuid SecondaryId = Inventory->Weapons[1].PersistentID;
 		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
 		Active.PrimarySlotType = EPrimarySlotType::Weapon;
 		Active.PrimaryWeapon.WeaponEntry = Inventory->Weapons[0];
+		Active.SecondarySlotType = ESecondarySlotType::Weapon;
+		Active.SecondaryWeapon.WeaponEntry = Inventory->Weapons[1];
 		const FCombatLoadout SecondLoadout = Active; // copy first: Add may reallocate under Active
 		Inventory->SavedLoadouts.Add(SecondLoadout); // equipped in a second loadout too
-		TestTrue(TEXT("armed: may fight"), ABattleGameMode::CanEnterCombat(Owner));
 
-		const FString Warning = UEconomyService::GetDismantleWarning(Owner, WeaponId).ToString();
+		const FString Warning = UEconomyService::GetDismantleWarning(Owner, SecondaryId).ToString();
 		TestTrue(TEXT("names both loadouts"), Warning.Contains(TEXT("loadouts 1, 2")));
 		TestTrue(TEXT("says upgrades are lost"), Warning.Contains(TEXT("upgrades")));
-		TestTrue(TEXT("says Tester can't fight"), Warning.Contains(TEXT("Tester will have no gear")));
+		TestTrue(TEXT("the primary's warning says swap first"),
+				 UEconomyService::GetDismantleWarning(Owner, PrimaryId).ToString().Contains(TEXT("Swap in another primary")));
 
-		TestTrue(TEXT("dismantled"), Economy->DismantleWeapon(Owner, WeaponId));
-		TestEqual(TEXT("owned copy gone"), Inventory->Weapons.Num(), 0);
+		TestFalse(TEXT("the primary is refused"), Economy->DismantleWeapon(Owner, PrimaryId));
+		TestNotNull(TEXT("the primary is still owned"), Inventory->FindOwnedWeapon(PrimaryId));
+
+		TestTrue(TEXT("the secondary is dismantled"), Economy->DismantleWeapon(Owner, SecondaryId));
+		TestEqual(TEXT("its owned copy gone"), Inventory->Weapons.Num(), 1);
 		for (const FCombatLoadout &Saved : Inventory->SavedLoadouts)
 		{
-			TestFalse(TEXT("no ghost copy in a loadout"), Saved.PrimaryWeapon.IsValid());
-			TestTrue(TEXT("primary slot emptied"), Saved.PrimarySlotType == EPrimarySlotType::None);
+			TestFalse(TEXT("no ghost copy in a loadout"), Saved.SecondaryWeapon.IsValid());
+			TestEqual(TEXT("the primary stays"), Saved.PrimaryWeapon.WeaponEntry.PersistentID, PrimaryId);
 		}
-		TestNull(TEXT("no primary weapon"), Owner->FindComponentByClass<ULoadoutComponent>()->GetPrimaryWeapon());
-		TestFalse(TEXT("gearless Generic refused at fight start"), ABattleGameMode::CanEnterCombat(Owner));
+		TestTrue(TEXT("armed: may fight"), ABattleGameMode::CanEnterCombat(Owner));
 	});
 
 	It("has no warning for gear no loadout holds", [this]()
