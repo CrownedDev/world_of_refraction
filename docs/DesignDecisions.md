@@ -688,6 +688,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A a real extra turn / B a turn moved earlier (current), named to match.
 **Recommendation:** A, because players read "bonus turn" as an extra one, and it matches the deckbuilder.
 **Answer (Crown):** **A** (2026-10-26): Emerald's bonus turn is a **real extra turn** (no later normal turn lost), like Extra Action and the deckbuilder's Add Turn. It still respects the 2:1 cap (D-049). Change `TurnManager.cpp:563-571` (pinned turn currently costs a future slot).
+**Superseded in part** by Q-297 A (Crown, 2026-11-03): the bonus turn goes past the 2:1 cap.
 
 ### D-053 — Does the same effect from two gear pieces add up?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-062
