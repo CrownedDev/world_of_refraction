@@ -612,8 +612,20 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 		Saved.Owners.Add({Owned.Key, Owned.Value});
 	}
 	Saved.BankedCharacters = Pool.GetBankedCharacters().Array();
-	// B-322 (save v8): a pouch per character. A legacy party pouch not yet adopted is written as before, so it is
-	// still given to the leader on the next load.
+	// B-322 (save v8): a pouch per character. A v7 party pouch no member has drawn yet is written as it was, so the
+	// next load still gives it to the leader (a save between load and draw loses nothing).
+	if (Pool.HasLegacyCarriedItems())
+	{
+		const FPoolPouch &Legacy = Pool.GetLegacyCarriedItems();
+		Saved.ItemSlotCount = Legacy.SlotCount;
+		for (const TPair<FCrystalId, int32> &Stack : Legacy.Stacks)
+		{
+			FSavedCrystalStack &Out = Saved.CarriedItems.AddDefaulted_GetRef();
+			Out.Type = static_cast<uint8>(Stack.Key.Type);
+			Out.Tier = Stack.Key.Tier;
+			Out.Count = Stack.Value;
+		}
+	}
 	for (const TPair<FName, FPoolPouch> &Pouch : Pool.GetPouches())
 	{
 		FSavedPouch &Out = Saved.Pouches.AddDefaulted_GetRef();

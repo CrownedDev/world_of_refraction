@@ -323,6 +323,8 @@ public:
      *  returns how many stacks moved. No-op when there is none. */
     int32 AdoptLegacyCarriedItems(FName LeaderKey);
     bool HasLegacyCarriedItems() const { return !LegacyCarriedItems.Stacks.IsEmpty(); }
+    /** The pre-B-322 party pouch still waiting for a draw (saved again as it was until then). */
+    const FPoolPouch &GetLegacyCarriedItems() const { return LegacyCarriedItems; }
 
     /** Debug: each character's pouch (slots in use, each stack) and storage. wor.Inventory.PrintSlots. */
     FString GetItemSlotsString() const;

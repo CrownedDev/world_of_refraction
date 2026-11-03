@@ -491,6 +491,7 @@ bool UPoolSubsystem::BankStartingItems(FName CharacterKey, const TMap<FCrystalId
 void UPoolSubsystem::RestorePouches(const TMap<FName, FPoolPouch> &InPouches, const TArray<FName> &InBanked)
 {
     Pouches = InPouches;
+    LegacyCarriedItems = FPoolPouch(); // a load replaces everything; the save's own legacy pouch follows, if any
     for (TPair<FName, FPoolPouch> &Pair : Pouches)
     {
         Pair.Value.SlotCount = FMath::Max(Pair.Value.SlotCount, InventoryConstants::ITEM_SLOTS_START);
