@@ -688,6 +688,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A a real extra turn / B a turn moved earlier (current), named to match.
 **Recommendation:** A, because players read "bonus turn" as an extra one, and it matches the deckbuilder.
 **Answer (Crown):** **A** (2026-10-26): Emerald's bonus turn is a **real extra turn** (no later normal turn lost), like Extra Action and the deckbuilder's Add Turn. It still respects the 2:1 cap (D-049). Change `TurnManager.cpp:563-571` (pinned turn currently costs a future slot).
+**Superseded in part** by Q-297 A (Crown, 2026-11-03): the bonus turn goes past the 2:1 cap.
 
 ### D-053 — Does the same effect from two gear pieces add up?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-062
@@ -2887,7 +2888,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** applied (feature/B-042j-absorb-family, UNBUILT). "Reflect on the same shape" (one GE by tag and element, like the absorbers) moves to B-042j2 with the rest of D-092.
 
 ### Q-297 — Do Emerald bonus turns wait at the 2:1 cap?
-**Status:** OPEN · **Raised:** 2026-11-03 (B-297) · **Blocks:** B-297b
+**Status:** ANSWERED · **Raised:** 2026-11-03 (B-297) · **Blocks:** —
 **Question:** D-052 says an Emerald bonus turn still respects the 2:1 cap (D-049). ET-12 says an S Emerald grants two turns back to back at once. Used on the holder's own turn, that is 3 turns in a row before the opponent acts, past the cap. Which wins?
 **Options:**
 - **A** bonus turns ignore the cap (as built): an Emerald is a spent consumable, so it buys turns past the speed limit. ET-12 stays as written.
@@ -2895,6 +2896,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **C** an S Emerald grants one bonus turn plus one turn of delay removed, so it never makes 3 in a row.
 **Recommendation:** A. Items that grant extra actions beyond the speed system, such as Octopath Traveler's Boost and Final Fantasy X's Quick Hit / Haste stacking, are well received because they feel like a payoff for spending a resource. The cap's job (D-049) is to stop stacked speed stats locking enemies out, and a one-off consumable can't do that. It keeps ET-12 and the current specs unchanged. Not lore, but it changes a ruling either way (D-052 or ET-12), so it's Crown's call.
 **Notes for Claude:** B-297 caps speed picks and Wind yields; pinned turns (Bonus and Execution) already count toward the streak (`TurnsSinceOpponent`), so a ritual's Execution turn can push the caster's next normal turn after an opponent's. The cap is read per combatant: at most 2 turns in a row, restarting when anyone on the other side acts, plus ratios capped at 2 (the long-run share per turn of the slowest). For B, skip a ready Bonus entry whose holder is at the cap in `AdvanceSimState`'s winner scan.
+**Answer (Crown):** **A** (2026-11-03): bonus turns ignore the cap; ET-12 stays (an S Emerald's two turns are back to back). This changes D-052's "still respects the 2:1 cap". Applied in B-297b (`fix/B-297b-bonus-cap`): no scheduler change, the ruling replaces the TODO and `WoR.Turns.TurnCap` locks it in.
 
 ### Q-297b — A Wind delay the cap blocks: spent, or kept?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-297) · **Blocks:** —

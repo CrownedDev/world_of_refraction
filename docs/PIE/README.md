@@ -223,6 +223,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-042ye](B-042ye.md) | `refactor/B-042ye-gas-effect-reads` (in `dev`) | GAS: the AI's burn checks, buff / debuff counts and the panel's effect list read GAS at UseGAS 1 | Not tested |
 | [B-249](B-249.md) | `refactor/B-249-element-immunity-map` (in `dev`) | One element -> immunity map (no change in play) | Not tested |
 | [B-252b](B-252b.md) | `refactor/B-252b-owned-gear-verbs` (in `dev`) | One body for weapon / ring dismantle, level up, revert (no change in play) | Not tested |
+| [B-297b](B-297b.md) | `fix/B-297b-bonus-cap` (in `dev`) | Emerald bonus turns go past the 2:1 cap (Q-297 A); no behaviour change | Not tested |
 | [B-305](B-305.md) | `refactor/B-305-one-switch-v2` (in `dev`) | One weapon / adapter switch behind both menu buttons; no behaviour change | Not tested |
 | [B-297](B-297.md) | `fix/B-297-turn-cap` (in `dev`) | 2:1 turn cap: a fast combatant gets at most 2 turns per opponent turn | Not tested |
 | [B-271](B-271.md) | `refactor/B-271-element-table` (in `dev`) | One element table behind the element switches; no behaviour change | Not tested |

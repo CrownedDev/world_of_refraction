@@ -692,8 +692,9 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 		// D-052 (Crown, A): an Emerald bonus turn is a real extra turn, so it isn't counted as taken and no later
 		// normal turn is lost. Other pinned turns (Execution) still count as taken, costing one slot of future
 		// normal priority. (Winner may be gone after RemoveAt; OutEntry.Type holds its type.)
-		// TODO: whether a bonus turn waits at the 2:1 cap (D-052) or keeps ET-12's back-to-back S turns: Q-297 (B-297b).
-		// Today a pinned turn ignores the cap; it still counts toward the holder's TurnsSinceOpponent.
+		// Q-297 (Crown, A): Emerald bonus turns ignore the 2:1 cap, so an S Emerald's two turns stay back to back (ET-12).
+		// Execution turns skip the cap too (code only, no ruling). Every pinned turn still counts toward the holder's
+		// TurnsSinceOpponent, so the next normal turn waits for an opponent.
 		RecordTurnFor(PinnedActor);
 		if (OutEntry.Type != ETurnType::Bonus)
 		{

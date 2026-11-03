@@ -1,7 +1,7 @@
 // TurnCapSpec.cpp
 // B-297 (D-049): a combatant gets at most 2 turns per turn of the slowest. A far faster combatant never
-// takes more than 2 turns in a row while its opponent lives, and its speed ratio stops at 2. Bonus turns
-// and the cap are B-297b (Q-297).
+// takes more than 2 turns in a row while its opponent lives, and its speed ratio stops at 2. B-297b (Q-297 A):
+// Emerald bonus turns go past the cap.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -139,6 +139,29 @@ void FTurnCapSpec::Define()
 		}
 		TestTrue(FString::Printf(TEXT("longest fast run %d"), LongestRun(Order, Fast)), LongestRun(Order, Fast) <= TURN_CAP_RULE_RATIO);
 		TestTrue(TEXT("slow still acts"), Order.Contains(Slow));
+	});
+
+	It("lets Emerald bonus turns go past the cap (Q-297 A)", [this]()
+	{
+		if (!TurnManager) return;
+		StartSlowedFight();
+		AActor *Previous = nullptr;
+		for (int32 Turn = 0; Turn < TURN_CAP_SAMPLE_TURNS && !(Previous == Fast && TurnManager->GetCurrentActor() == Fast); ++Turn)
+		{
+			Previous = TurnManager->GetCurrentActor();
+			TurnManager->AdvanceToNextTurn();
+		}
+		if (!TestTrue(TEXT("fast reached the cap"), Previous == Fast && TurnManager->GetCurrentActor() == Fast)) return;
+
+		TurnManager->ScheduleBonusTurn(Fast, 0, TURN_CAP_RULE_RATIO); // an S Emerald: two turns back to back
+		for (int32 Bonus = 1; Bonus <= TURN_CAP_RULE_RATIO; ++Bonus)
+		{
+			TurnManager->AdvanceToNextTurn();
+			TestTrue(FString::Printf(TEXT("bonus %d is fast's, past the cap"), Bonus),
+					 TurnManager->GetCurrentActor() == Fast && TurnManager->GetCurrentTurnType() == ETurnType::Bonus);
+		}
+		TurnManager->AdvanceToNextTurn();
+		TestTrue(TEXT("then the opponent acts"), TurnManager->GetCurrentActor() == Slow);
 	});
 }
 
