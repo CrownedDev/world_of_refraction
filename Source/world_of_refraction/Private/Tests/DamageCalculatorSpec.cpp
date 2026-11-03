@@ -159,12 +159,12 @@ void FDamageCalculatorSpec::Define()
 
 	Describe("Critical hits", [this]()
 	{
-		It("deal normal damage without crit-damage investment", [this]()
+		It("deal the base crit damage without crit-damage investment (B-224, Q-224b)", [this]()
 		{
 			const FDamageCalculationResult Result = Calculate(MakeInput(EActionType::Ability, ALWAYS_CRIT));
 			TestTrue(TEXT("Was critical"), Result.bWasCritical);
 			TestEqual(TEXT("CritMultiplier"), Result.CritMultiplier, CombatConstants::CRIT_DMG_BASE, KINDA_SMALL_NUMBER);
-			TestEqual(TEXT("FinalDamage"), Result.FinalDamage, TEST_BASE_DAMAGE);
+			TestEqual(TEXT("FinalDamage"), Result.FinalDamage, FMath::RoundToInt(TEST_BASE_DAMAGE * CombatConstants::CRIT_DMG_BASE));
 		});
 
 		It("cap stat crit damage at CRIT_DAMAGE_STAT_CAP", [this]()
