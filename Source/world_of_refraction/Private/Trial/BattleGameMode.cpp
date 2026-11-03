@@ -273,11 +273,15 @@ void ABattleGameMode::BootstrapCombat()
     for (AActor *Enemy : OpposingParty)
     {
         // B-224: the encounter rank multiplies max HP on top (Normal 1 / Elite 1.5 / Mini-boss 3 / Boss 6).
-        if (!TrialGate::ApplyEnemyStrength(Enemy, EnemyStrength) ||
-            !TrialGate::ApplyEnemyRankHealth(Enemy, EnemyStrength, TrialRun->GetPendingRank()))
+        if (!TrialGate::ApplyEnemyStrength(Enemy, EnemyStrength))
         {
             UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s: trial difficulty not applied (no character data or effect manager)"),
                    *GetNameSafe(Enemy));
+        }
+        else if (!TrialGate::ApplyEnemyRankHealth(Enemy, EnemyStrength, TrialRun->GetPendingRank()))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s: rank health (%s) not applied"),
+                   *GetNameSafe(Enemy), *UEnum::GetValueAsString(TrialRun->GetPendingRank()));
         }
     }
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Trial difficulty %s, zone tier %d: enemy strength x%.2f"),
