@@ -234,6 +234,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-308](B-308.md) | `refactor/B-308-gear-save-v5` (in `dev`) | Save v5: one gear list; older saves still load | Not tested |
 | [B-311](B-311.md) | `feature/B-311-custom-loadouts-saved` (in `dev`) | Your own loadouts (up to 5 per character) are kept and saved; the character's own loadouts stay as authored | Not tested |
 | [B-321](B-321.md) | `feature/B-321-per-character-gear` (in `dev`) | Each character has its own gear; an old save gives each piece to its wearer, else the leader | Not tested |
+| [B-279b](B-279b.md) | `feature/B-279b-form-skins` (in `dev`) | Wear an unlocked character's skin (hub / rest spot); its bound gear works; Manny or Quinn | Not tested |
 | [B-297](B-297.md) | `fix/B-297-turn-cap` (in `dev`) | 2:1 turn cap: a fast combatant gets at most 2 turns per opponent turn | Not tested |
 | [B-271](B-271.md) | `refactor/B-271-element-table` (in `dev`) | One element table behind the element switches; no behaviour change | Not tested |
 | [B-279](B-279.md) | `feature/B-279-character-forms` (in `dev`) | Character-form meter fills on a won fight, unlocks at 100%, survives save | Not tested |
