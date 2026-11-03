@@ -668,7 +668,7 @@ FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FA
 	Damage += FMath::RoundToInt(WeaponPart);
 	if (bLog && WeaponPart > 0.0f)
 	{
-		UE_LOG(LogWoRCombat, Log, TEXT("[WeaponPower] %s: weapon part %.1f (requirement x%.2f)"), *Skill->Name, WeaponPart,
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[WeaponPower] %s: weapon part %.1f (requirement x%.2f)"), *Skill->Name, WeaponPart,
 			   Preview.WeaponRequirementFactor);
 	}
 
@@ -745,7 +745,7 @@ bool UActionExecutor::TryArmDeferredActivation(AActor *Actor, const FAction &Act
 
 	OnActionStarted.Broadcast(Actor, ArmedAction, EnergyCost);
 
-	UE_LOG(LogTemp, Log, TEXT("[Deferred] %s armed %s — fires in %d turn(s)"),
+	UE_LOG(LogTemp, Verbose, TEXT("[Deferred] %s armed %s — fires in %d turn(s)"),
 		   *Actor->GetName(), *ArmedAction.GetActionName(), Delay);
 
 	// The orchestrator owns the queue (NOT TurnManager — its sim is replayed
@@ -776,7 +776,7 @@ bool UActionExecutor::TryArmDeferredActivation(AActor *Actor, const FAction &Act
 		AsyncActionCallback = OnComplete;
 		bArmingRitual = true;
 		BindActionAnimationEnd(Actor); // sets bWaitingForAnimationEnd
-		UE_LOG(LogTemp, Log, TEXT("[Montage] PlayArm %s"),
+		UE_LOG(LogTemp, Verbose, TEXT("[Montage] PlayArm %s"),
 			   *ArmSkill->RitualCastMontage->GetName());
 		PlayActionMontageOnActor(Actor, ArmSkill->RitualCastMontage, 1.0f);
 		return true;
@@ -814,7 +814,7 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 	// Broadcast start
 	OnActionStarted.Broadcast(Actor, Action, Validation.EnergyCost);
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s executing %s (Cost: %d EP)"),
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] %s executing %s (Cost: %d EP)"),
 		   *Actor->GetName(), *Action.GetActionName(), Validation.EnergyCost);
 
 	// Check for Broken Darkness break triggers BEFORE executing
@@ -952,7 +952,7 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	// Broadcast start
 	OnActionStarted.Broadcast(Actor, Action, Validation.EnergyCost);
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Starting async action: %s by %s"),
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Starting async action: %s by %s"),
 		   *Action.GetActionName(), *Actor->GetName());
 
 	// Get character data for calculations
@@ -1009,7 +1009,7 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 
 	if (ActionMods.IsActive())
 	{
-		UE_LOG(LogTemp, Log,
+		UE_LOG(LogTemp, Verbose,
 			   TEXT("[ActionExecutor] %s ActionMods active — CritDmg:%.1f%% RawDmg:%.1f%% SpellDmg:%.1f%% StatusMult:%.1f%% ActSpd:%.1f%%"),
 			   *Actor->GetName(),
 			   ActionMods.CritDamage, ActionMods.RawDamage,
@@ -1150,7 +1150,7 @@ void UActionExecutor::LogActionDispatch(
 	int32 FinalDamage,
 	int32 NumTargets) const
 {
-	UE_LOG(LogTemp, Log,
+	UE_LOG(LogTemp, Verbose,
 		   TEXT("[ActionExecutor] %s async L%d - %d damage, opened %d defense windows"),
 		   *UEnum::GetValueAsString(ActionType),
 		   InfusionLevel,
@@ -1251,7 +1251,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// applied to SpellBaseBuildup below (replaces the retired inline L1 +50%).
 	float StatusMultiplier = GetChargeStatusMultiplier(Action.SpellInfusionLevel, SpellMode, CasterComp);
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spell charge L%d - Size: %.1fx, Damage: %d (%.1fx), Status: %.1fx"),
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Spell charge L%d - Size: %.1fx, Damage: %d (%.1fx), Status: %.1fx"),
 		   Action.SpellInfusionLevel,
 		   GetSpellInfusionSizeMultiplier(Action.SpellInfusionLevel),
 		   FinalDamage,
@@ -1612,7 +1612,7 @@ void UActionExecutor::ExecuteItemAsync(AActor *Actor, const FAction &Action, UCh
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Executing item async: %s by %s"),
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Executing item async: %s by %s"),
 		   *ItemIdentity::GetDisplayName(Action.ItemData), *Actor->GetName());
 
 	// Face target (if not self)
@@ -1626,7 +1626,7 @@ void UActionExecutor::ExecuteItemAsync(AActor *Actor, const FAction &Action, UCh
 		if (!Direction.IsNearlyZero())
 		{
 			Actor->SetActorRotation(Direction.GetSafeNormal().Rotation());
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Item user facing toward %s"), *Target->GetName());
+			UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Item user facing toward %s"), *Target->GetName());
 		}
 	}
 
@@ -1664,7 +1664,7 @@ void UActionExecutor::ExecuteItemAsync(AActor *Actor, const FAction &Action, UCh
 	// Items typically don't open defense windows; if none pending, mark resolved.
 	if (!bWaitingForAnimationEnd)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] No item animation"));
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] No item animation"));
 		if (CurrentExecutionContext.IsSet() && CurrentExecutionContext->AreAllDefensesResolved())
 		{
 			bAllDefensesResolved = true;
@@ -1820,7 +1820,7 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 	// Remove from pending list
 	CurrentExecutionContext->PendingDefenses.Remove(Defender);
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Defense resolved for %s - Type: %d, FinalDamage: %d, Pending: %d"),
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Defense resolved for %s - Type: %d, FinalDamage: %d, Pending: %d"),
 		   *Defender->GetName(),
 		   static_cast<int32>(DefenseResult.DefenseType),
 		   DefenseResult.FinalDamage,
@@ -1869,7 +1869,7 @@ void UActionExecutor::EnsureResultResolved(AActor *Defender)
 	Ctx->bResolvedSuccess = Result.bSuccess;
 	Ctx->bResultResolved = true;
 
-	UE_LOG(LogTemp, Log, TEXT("[Stage2] Defense result resolved for %s — Type: %d, ReducedTotal: %d, Success: %s"),
+	UE_LOG(LogTemp, Verbose, TEXT("[Stage2] Defense result resolved for %s — Type: %d, ReducedTotal: %d, Success: %s"),
 		   *Defender->GetName(), static_cast<int32>(Result.DefenseType), Result.FinalDamage,
 		   Result.bSuccess ? TEXT("yes") : TEXT("no"));
 }
@@ -2017,7 +2017,7 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 		DefenseSys->OnDefensePerfect.Broadcast(Defender, Attacker, Result.DefenseType, Match.bPerfect, ImpactIndex);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[Stage3] impact %d defense for %s — Type: %d, Slice: %d → %d, %s"),
+	UE_LOG(LogTemp, Verbose, TEXT("[Stage3] impact %d defense for %s — Type: %d, Slice: %d → %d, %s"),
 		   ImpactIndex, *Defender->GetName(), static_cast<int32>(Result.DefenseType),
 		   BaseSlice, Result.FinalDamage, Match.bPerfect ? TEXT("PERFECT") : TEXT("normal"));
 }
@@ -2038,7 +2038,7 @@ bool UActionExecutor::TryLuckDodge(AActor *Defender) const
 	// Placeholder pop-up until the combat HUD has floating text (Q-169).
 	constexpr int32 LUCK_DODGE_MESSAGE_KEY = -1;
 	constexpr float LUCK_DODGE_MESSAGE_SECONDS = 2.0f;
-	UE_LOG(LogTemp, Log, TEXT("[LuckDodge] Lucky dodge! %s (chance %.1f%%)"),
+	UE_LOG(LogTemp, Verbose, TEXT("[LuckDodge] Lucky dodge! %s (chance %.1f%%)"),
 		   *Defender->GetName(), LuckDodge::Chance(LuckNorm) * 100.0f);
 	if (GEngine)
 	{
@@ -2378,7 +2378,7 @@ void UActionExecutor::FinalizeAsyncAction()
 	// Mark complete
 	CurrentExecutionContext->bInProgress = false;
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Async action finalized - Success: %s, Damage: %d, Targets: %d"),
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Async action finalized - Success: %s, Damage: %d, Targets: %d"),
 		   FinalResult.bSuccess ? TEXT("Yes") : TEXT("No"),
 		   FinalResult.TotalDamageDealt,
 		   FinalResult.AffectedTargets.Num());
@@ -2490,7 +2490,7 @@ void UActionExecutor::CancelAsyncAction()
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Cancelling async action"));
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Cancelling async action"));
 
 	// Clear timers (failsafe + any pending burst chain + any pending telegraph cues — a cancelled
 	// action must not fire telegraphs for impacts that never land).
@@ -2546,7 +2546,7 @@ void UActionExecutor::ResetForCombat()
 	AsyncActionCallback.Unbind();
 	if (CurrentExecutionContext.IsSet())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Reset: cancelling the action in flight"));
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Reset: cancelling the action in flight"));
 		// Resolving the windows now could reflect parry damage after the fight ended. An action cut off
 		// by the fight ending pays no infusion HP cost (D-075).
 		CurrentExecutionContext->PendingDefenses.Empty();
@@ -2620,7 +2620,7 @@ void UActionExecutor::InterruptAsyncAction(AActor *Attacker, USkillDataBase *Ski
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Interrupt — all targets parried/dodged an interruptable hit; aborting the rest"));
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Interrupt — all targets parried/dodged an interruptable hit; aborting the rest"));
 
 	// 1. Stop further spawns + cue timers — no more hits/casts land.
 	if (UWorld *World = GetWorld())
@@ -2843,10 +2843,10 @@ FActionResult UActionExecutor::ExecuteItem(
 	if (Loadout && ItemSlotIndex >= 0)
 	{
 		Loadout->UseItem(ItemSlotIndex);
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Consumed 1 use from item slot %d"), ItemSlotIndex);
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Consumed 1 use from item slot %d"), ItemSlotIndex);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s used item %s - delegated to ItemExecutor"),
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] %s used item %s - delegated to ItemExecutor"),
 		   *User->GetName(), *ItemIdentity::GetDisplayName(Id));
 
 	return Result;
@@ -2888,7 +2888,7 @@ FActionResult UActionExecutor::ExecuteDefend(AActor *Defender)
 	Result.AffectedTargets.Add(Defender);
 	Result.bSuccess = true;
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s is defending"), *Defender->GetName());
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] %s is defending"), *Defender->GetName());
 
 	return Result;
 }
@@ -2920,7 +2920,7 @@ void UActionExecutor::ProcessPostCastBySource(AActor *Caster, USpellData *Spell,
 
 	case ESpellSource::Item:
 		// TODO: Consume spell item from inventory
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spell item used - consumption not yet implemented"));
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Spell item used - consumption not yet implemented"));
 		break;
 
 	case ESpellSource::WeaponCrystal:
@@ -2949,7 +2949,7 @@ namespace
 		if (Reflected > 0 && AttackerComp)
 		{
 			AttackerComp->ServerTakeDamage(Reflected);
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s reflected %d%s damage back to %s"),
+			UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] %s reflected %d%s damage back to %s"),
 				   *Target->GetName(), Reflected, KindLabel, *Attacker->GetName());
 		}
 	}
@@ -3027,7 +3027,7 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 					if (Absorbed > 0)
 					{
 						TargetComp->ServerGainEnergy(Absorbed);
-						UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s absorbed %d damage as EP"),
+						UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] %s absorbed %d damage as EP"),
 							   *Input.Target->GetName(), Absorbed);
 					}
 				}
@@ -3090,7 +3090,7 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 					FActionHitInput SecondHit = Input;
 					SecondHit.BaseDamage = FMath::Max(1, FMath::RoundToInt(Input.BaseDamage * CombatConstants::DOUBLE_HIT_DAMAGE_FRACTION));
 					SecondHit.bIsDoubleHit = true;
-					UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] DoubleHit on %s — second hit %d dmg"),
+					UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] DoubleHit on %s — second hit %d dmg"),
 						   *Input.Attacker->GetName(), SecondHit.BaseDamage);
 					// B-067: the second hit counts toward this hit's total and its kill (were dropped).
 					const FCombatHitResult SecondResult = ApplyHit(SecondHit);
@@ -3279,7 +3279,7 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 	// CastAnimation into it, so playback is byte-identical).
 	if (!Spell->SkillMontage)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] PlaySpellAnimation - No SkillMontage on %s"),
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] PlaySpellAnimation - No SkillMontage on %s"),
 			   *Spell->Name);
 		return;
 	}
@@ -3299,7 +3299,7 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 
 	BeginMontageChain(Caster, Spell, PlayRate);
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing spell animation %s at %.2fx"),
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Playing spell animation %s at %.2fx"),
 		   *Spell->SkillMontage->GetName(), PlayRate);
 }
 
@@ -3353,7 +3353,7 @@ void UActionExecutor::SpawnSpellDelivery(
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpawnSpellDelivery - Type=%d, Targets=%d, Radius=%.2f"),
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] SpawnSpellDelivery - Type=%d, Targets=%d, Radius=%.2f"),
 		   (int32)Spell->DeliveryType, Targets.Num(), FinalImpactRadius);
 	// Check if offensive or supportive spell
 	bool bIsOffensive = (Spell->TargetType == ETargetType::Enemy);
@@ -3431,7 +3431,7 @@ void UActionExecutor::SpawnSupportSpellEffect(
 		// Healing/buffs handled by existing ExecuteSpell logic
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Support spell VFX spawned for %d targets"), Targets.Num());
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Support spell VFX spawned for %d targets"), Targets.Num());
 }
 
 void UActionExecutor::SpawnProjectileActor(
@@ -3512,7 +3512,7 @@ void UActionExecutor::SpawnProjectileActor(
 		// 4. Launch (activates VFX and starts movement)
 		Projectile->Launch();
 
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spawned projectile toward %s (Type=%d, Speed=%.1f)"),
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Spawned projectile toward %s (Type=%d, Speed=%.1f)"),
 			   *Target->GetName(), (int32)(Entry ? Entry->DeliveryType : Skill->DeliveryType),
 			   Entry ? Entry->ProjectileSpeed : Skill->ProjectileSpeed);
 	}
@@ -3707,7 +3707,7 @@ void UActionExecutor::DispatchSpellCast(
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[Runner] DispatchCastEntry '%s' - Type=%d, Targets=%d, Radius=%.2f, Count=%d"),
+	UE_LOG(LogTemp, Verbose, TEXT("[Runner] DispatchCastEntry '%s' - Type=%d, Targets=%d, Radius=%.2f, Count=%d"),
 		   *Entry.Label, (int32)Entry.DeliveryType, Targets.Num(), FinalImpactRadius, Entry.Count);
 
 	// Hybrid B2 cross-target interrupt tally: a fresh all-targets round per interruptable cast entry (choke
@@ -3876,14 +3876,14 @@ bool UActionExecutor::ResolveSpellArrival(AActor *Target, int32 CastEntryIndex, 
 		DefenseSys->CloseDefenseWindow(Target); // -> OnDefenseWindowClosed: empty tail, removes the entry
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s resolved per-impact for %s (CastEntryIndex=%d, ordinal %d)"),
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] %s resolved per-impact for %s (CastEntryIndex=%d, ordinal %d)"),
 		   ArrivalLabel, *Target->GetName(), CastEntryIndex, ImpactOrdinal);
 	return true;
 }
 
 void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation, float ImpactRadius, int32 Damage, int32 CastEntryIndex)
 {
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Projectile impact on %s - Damage=%d, Radius=%.2f, CastEntryIndex=%d"),
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Projectile impact on %s - Damage=%d, Radius=%.2f, CastEntryIndex=%d"),
 		   Target ? *Target->GetName() : TEXT("None"), Damage, ImpactRadius, CastEntryIndex);
 
 	if (!Target)
@@ -3917,7 +3917,7 @@ void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation,
 
 void UActionExecutor::OnProjectileDodged(AActor *Target, FVector ImpactLocation)
 {
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Projectile dodged by %s at %s"),
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Projectile dodged by %s at %s"),
 		   Target ? *Target->GetName() : TEXT("None"), *ImpactLocation.ToString());
 
 	// No damage applied - target successfully moved out of impact zone
@@ -3963,7 +3963,7 @@ void UActionExecutor::PlaySkillAnimation(AActor *User, USkillDataBase *Ability, 
 	// ExecutionMontage into it, so playback is byte-identical).
 	if (!Ability->SkillMontage)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] PlayAbilityAnimation - No SkillMontage on %s"),
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] PlayAbilityAnimation - No SkillMontage on %s"),
 			   *Ability->Name);
 		return;
 	}
@@ -3983,7 +3983,7 @@ void UActionExecutor::PlaySkillAnimation(AActor *User, USkillDataBase *Ability, 
 
 	BeginMontageChain(User, Ability, PlayRate);
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing ability animation %s for %s at %.2fx"),
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Playing ability animation %s for %s at %.2fx"),
 		   *Ability->SkillMontage->GetName(), *Ability->Name, PlayRate);
 }
 
@@ -4777,7 +4777,7 @@ void UActionExecutor::BeginSkillExecution(AActor *Actor)
 
 				Warp->AddOrUpdateWarpTargetFromLocationAndRotation(
 					CombatConstants::WARP_TARGET_NAME, WarpLoc, WarpRot);
-				UE_LOG(LogTemp, Log, TEXT("[Warp] approach target %s (range %.0f)"),
+				UE_LOG(LogTemp, Verbose, TEXT("[Warp] approach target %s (range %.0f)"),
 					   *WarpLoc.ToCompactString(), StrikeRange);
 			}
 		}
@@ -4821,7 +4821,7 @@ void UActionExecutor::BeginSkillExecution(AActor *Actor)
 	// the next action. Either way there is nothing of this action left to time out or wait for.
 	if (!CurrentExecutionContext.IsSet() || AsyncActionSerial != ActionSerial)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Action finished during execution - no timeout needed"));
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Action finished during execution - no timeout needed"));
 		if (!CurrentExecutionContext.IsSet())
 		{
 			// FinalizeAsyncAction doesn't unbind; a newer action would own these bindings.
@@ -4846,7 +4846,7 @@ void UActionExecutor::BeginSkillExecution(AActor *Actor)
 	// If not waiting for animation (no montage), gate on defenses via TryFinalize.
 	if (!bWaitingForAnimationEnd)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] No animation to wait for"));
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] No animation to wait for"));
 		if (CurrentExecutionContext.IsSet() && CurrentExecutionContext->AreAllDefensesResolved())
 		{
 			bAllDefensesResolved = true;
@@ -4882,7 +4882,7 @@ void UActionExecutor::PlayActionMontageOnActor(AActor *Actor, UAnimMontage *Mont
 	{
 		// Fallback: Direct character montage
 		Character->PlayAnimMontage(Montage, PlayRate);
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing montage %s via fallback"), *Montage->GetName());
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Playing montage %s via fallback"), *Montage->GetName());
 	}
 
 	// Telegraph scan (purely cosmetic — opens no window, gates no input, touches no difficulty).
@@ -4936,7 +4936,7 @@ void UActionExecutor::BindActionAnimationEnd(AActor *Actor)
 		CombatAnim->OnActionMontageEnded.RemoveDynamic(this, &UActionExecutor::OnActionAnimationEnded);
 		CombatAnim->OnActionMontageEnded.AddDynamic(this, &UActionExecutor::OnActionAnimationEnded);
 		bWaitingForAnimationEnd = true;
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Bound to OnActionMontageEnded for %s"), *Actor->GetName());
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Bound to OnActionMontageEnded for %s"), *Actor->GetName());
 	}
 }
 
@@ -4952,7 +4952,7 @@ void UActionExecutor::UnbindActionAnimationEnd(AActor *Actor)
 
 void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterrupted)
 {
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] OnActionAnimationEnded - bWaitingForAnimationEnd: %s, PendingActor: %s, Phase: %d"),
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] OnActionAnimationEnded - bWaitingForAnimationEnd: %s, PendingActor: %s, Phase: %d"),
 		   bWaitingForAnimationEnd ? TEXT("TRUE") : TEXT("FALSE"),
 		   PendingExecutionActor ? *PendingExecutionActor->GetName() : TEXT("NULL"),
 		   (int32)MontagePhase);
@@ -4982,7 +4982,7 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 	// still falls through and ends the chain, as it should.
 	if (Montage != CurrentChainMontage)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Ignoring spurious montage end %s (chain leg is %s)"),
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Ignoring spurious montage end %s (chain leg is %s)"),
 			   Montage ? *Montage->GetName() : TEXT("<null>"),
 			   CurrentChainMontage ? *CurrentChainMontage->GetName() : TEXT("<null>"));
 		return;
@@ -5011,7 +5011,7 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 	{
 	case EMontagePhase::Ritual:
 	{
-		UE_LOG(LogTemp, Log, TEXT("[Montage] Ritual ended - advancing to Skill"));
+		UE_LOG(LogTemp, Verbose, TEXT("[Montage] Ritual ended - advancing to Skill"));
 		TWeakObjectPtr<AActor> WeakActor = Actor;
 		GetWorld()->GetTimerManager().SetTimerForNextTick(
 			FTimerDelegate::CreateWeakLambda(this, [this, WeakActor]()
@@ -5029,7 +5029,7 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 
 	case EMontagePhase::Skill:
 	{
-		UE_LOG(LogTemp, Log, TEXT("[Montage] Skill ended - advancing to Return"));
+		UE_LOG(LogTemp, Verbose, TEXT("[Montage] Skill ended - advancing to Return"));
 
 		// Stage 1 "later of" close: the hitting animation has ended. Reconcile/close the
 		// count-based melee windows here (the animation is normally the LATER signal, so
@@ -5133,7 +5133,7 @@ void UActionExecutor::OnSpellAnimNotify(FName NotifyName)
 				MuzzleComp->SetColorParameter(FName("CoreColor"), Colors.PrimaryColor);
 			}
 
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpellCastStart - Muzzle VFX spawned%s"),
+			UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] SpellCastStart - Muzzle VFX spawned%s"),
 				   MuzzleEntry ? TEXT(" (VFXArray)") : TEXT(" (loose)"));
 		}
 	}
@@ -5148,13 +5148,13 @@ void UActionExecutor::OnSpellAnimNotify(FName NotifyName)
 			DispatchSpellCast(PendingSpellCaster, PendingSpellData, PendingResolvedElement,
 							  PendingSpellData->CastArray[0], PendingSpellSize,
 							  PendingSpellTargets, PendingSpellDamage, 0);
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpellRelease - dispatched CastArray[0]"));
+			UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] SpellRelease - dispatched CastArray[0]"));
 		}
 		else
 		{
 			SpawnSpellVFX(PendingSpellCaster, PendingSpellData, PendingSpellSize,
 						  PendingSpellTargets, PendingSpellDamage);
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpellRelease - Main spell VFX spawned (loose path)"));
+			UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] SpellRelease - Main spell VFX spawned (loose path)"));
 		}
 	}
 }
@@ -5456,13 +5456,13 @@ void UActionExecutor::ApplySkillEffects(
 							CharComp->ServerHeal(Healed);
 							OnHealingDone.Broadcast(User, User, Healed);
 						}
-						UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain healed %s for %d HP (%.0f%% of %d damage)"),
+						UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Drain healed %s for %d HP (%.0f%% of %d damage)"),
 							   *User->GetName(), Healed, P.DrainPercent * 100.0f, Result.TotalDamageDealt);
 					}
 					else // EnergyRestore
 					{
 						CharComp->ServerGainEnergy(DrainAmount);
-						UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain restored %s for %d EP (%.0f%% of %d damage)"),
+						UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Drain restored %s for %d EP (%.0f%% of %d damage)"),
 							   *User->GetName(), DrainAmount, P.DrainPercent * 100.0f, Result.TotalDamageDealt);
 					}
 				}
@@ -5521,7 +5521,7 @@ void UActionExecutor::ApplySkillEffects(
 						StatusMgr->ApplyEffect(EffectTarget, PhysEffect, User, SourceName, UserTeam);
 					Result.StatusEffectsApplied++;
 
-					UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Applied %s (physical-type DoT) to %s"),
+					UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Applied %s (physical-type DoT) to %s"),
 						   *PhysEffect.EffectName, *EffectTarget->GetName());
 				}
 				continue;
@@ -5553,7 +5553,7 @@ void UActionExecutor::ApplySkillEffects(
 				StatusMgr->ApplyEffect(EffectTarget, StatusEffect, User, SourceName, UserTeam);
 				Result.StatusEffectsApplied++;
 
-				UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Applied %s to %s"),
+				UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Applied %s to %s"),
 					   *Effect.GetDescription(), *EffectTarget->GetName());
 			}
 		}
@@ -5672,7 +5672,7 @@ void UActionExecutor::DebugAsyncState()
 	}
 	else
 	{
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] No async action in progress"));
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] No async action in progress"));
 	}
 }
 
