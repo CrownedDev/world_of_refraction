@@ -162,7 +162,8 @@ EFormSwitchRefusal UCharacterFormSubsystem::TryWearForm(UCharacterFormData *Form
 
 bool UCharacterFormSubsystem::TrySetBaseForm(EPlayerBaseForm InBaseForm)
 {
-    if (IsInFight())
+    // Q-279b: the base body changes where skins do (Elden Ring's mirror sits in the hub).
+    if (CharacterFormSwitch::CanSwitch(true, IsInFight(), IsAtSwitchSpot()) != EFormSwitchRefusal::None)
     {
         return false;
     }

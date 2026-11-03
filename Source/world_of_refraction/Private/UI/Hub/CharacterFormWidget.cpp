@@ -177,7 +177,7 @@ bool UCharacterFormWidget::PickBaseForm(EPlayerBaseForm Base)
 {
 	UCharacterFormSubsystem *Forms = GetForms();
 	const bool bSet = Forms && Forms->TrySetBaseForm(Base);
-	ShowStatus(bSet ? LOCTEXT("BaseSet", "Base body changed.") : CharacterFormSwitch::GetRefusalText(EFormSwitchRefusal::InFight));
+	ShowStatus(bSet ? LOCTEXT("BaseSet", "Base body changed.") : LOCTEXT("BaseRefused", "Change your body in the hub or at a rest spot, outside a fight."));
 	return bSet;
 }
 

@@ -59,7 +59,7 @@ public:
 
     UCharacterFormData *GetWornForm() const { return WornForm; }
 
-    /** Manny or Quinn: the body under no skin. The player's pick; changes anywhere outside a fight. */
+    /** Manny or Quinn: the body under no skin. The player's pick; changes where skins do (Q-279b). */
     EPlayerBaseForm GetBaseForm() const { return BaseForm; }
     bool TrySetBaseForm(EPlayerBaseForm InBaseForm);
 
