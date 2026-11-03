@@ -34,7 +34,7 @@ namespace
 		FConsoleCommandDelegate::CreateLambda([]() { UElementTableDebug::PrintCompareElements(); }));
 
 	template <typename TEnum>
-	FString EnumName(TEnum Value)
+	FString ElementEnumName(TEnum Value)
 	{
 		return StaticEnum<TEnum>()->GetNameStringByValue(static_cast<int64>(Value));
 	}
@@ -55,8 +55,8 @@ FString UElementTableDebug::GetElementTableString()
 	for (const FElementRow &Row : ElementTable::Rows())
 	{
 		Out += FString::Printf(TEXT("\n  %s: element %s, physical %s, also %s, gem %s, essence %s, break %s, immunity %s, colour %s%s%s"),
-							   *EnumName(Row.Type), *EnumName(Row.Element), *EnumName(Row.Physical), *EnumName(Row.AlsoResistedBy),
-							   *EnumName(Row.Gem), *EnumName(Row.Essence), *EnumName(Row.BreakTrigger), *EnumName(Row.Immunity),
+							   *ElementEnumName(Row.Type), *ElementEnumName(Row.Element), *ElementEnumName(Row.Physical), *ElementEnumName(Row.AlsoResistedBy),
+							   *ElementEnumName(Row.Gem), *ElementEnumName(Row.Essence), *ElementEnumName(Row.BreakTrigger), *ElementEnumName(Row.Immunity),
 							   *Row.Colour.ToString(), Row.bBDAbsorbable ? TEXT(", BD absorbs") : TEXT(""),
 							   Row.bBDForbidden ? TEXT(", BD forbidden") : TEXT(""));
 	}
@@ -69,7 +69,7 @@ TArray<FString> UElementTableDebug::CompareElements()
 	const TArray<FElementRow> &Rows = ElementTable::Rows();
 	for (int32 Index = 0; Index < Rows.Num(); ++Index)
 	{
-		Expect(Mismatches, FString::Printf(TEXT("row %d is %s"), Index, *EnumName(Rows[Index].Type)), static_cast<int32>(Rows[Index].Type), Index);
+		Expect(Mismatches, FString::Printf(TEXT("row %d is %s"), Index, *ElementEnumName(Rows[Index].Type)), static_cast<int32>(Rows[Index].Type), Index);
 	}
 	Expect(Mismatches, TEXT("one row per damage type"), Rows.Num(), WoRDamageType::All().Num());
 
@@ -78,7 +78,7 @@ TArray<FString> UElementTableDebug::CompareElements()
 	{
 		const ESpellElement Element = static_cast<ESpellElement>(Elements->GetValueByIndex(Index));
 		const FElementRow &Row = ElementTable::ForElement(Element);
-		const FString Name = EnumName(Element);
+		const FString Name = ElementEnumName(Element);
 		Expect(Mismatches, Name + TEXT(" essence"), Row.Essence, EconomyYield::ElementToEssenceType(Element));
 		Expect(Mismatches, Name + TEXT(" immunity"), Row.Immunity, SkillEffectClassification::GetElementImmunityType(Element));
 		Expect(Mismatches, Name + TEXT(" colour"), Row.Colour, ElementColors::GetColorForElement(Element));
@@ -92,15 +92,15 @@ TArray<FString> UElementTableDebug::CompareElements()
 	for (const EPhysicalDamageType Physical : {EPhysicalDamageType::Slash, EPhysicalDamageType::Pierce, EPhysicalDamageType::Impact})
 	{
 		const FElementRow &Row = ElementTable::ForPhysical(Physical);
-		Expect(Mismatches, EnumName(Physical) + TEXT(" physical axis"), Row.Physical, Physical);
-		Expect(Mismatches, EnumName(Physical) + TEXT(" break trigger"), Row.BreakTrigger,
+		Expect(Mismatches, ElementEnumName(Physical) + TEXT(" physical axis"), Row.Physical, Physical);
+		Expect(Mismatches, ElementEnumName(Physical) + TEXT(" break trigger"), Row.BreakTrigger,
 			   BarCapTriggerResolver::ResolveTrigger(ESpellElement::None, Physical, false));
 	}
 
 	for (uint8 Gem = static_cast<uint8>(FIRST_GEM); Gem <= static_cast<uint8>(LAST_GEM); ++Gem)
 	{
 		const ECrystalType Crystal = static_cast<ECrystalType>(Gem);
-		Expect(Mismatches, EnumName(Crystal) + TEXT(" gem"), ElementTable::ForElement(CrystalTypeHelpers::GetElement(Crystal)).Gem, Crystal);
+		Expect(Mismatches, ElementEnumName(Crystal) + TEXT(" gem"), ElementTable::ForElement(CrystalTypeHelpers::GetElement(Crystal)).Gem, Crystal);
 	}
 	return Mismatches;
 }
