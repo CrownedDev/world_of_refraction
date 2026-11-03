@@ -24,7 +24,7 @@ namespace ElementColors
     inline const FLinearColor Light = FLinearColor(1.0f, 0.965f, 0.687f);       // #FFFBD8 warm cream
     inline const FLinearColor Darkness = FLinearColor(0.02f, 0.02f, 0.02f);     // #272727 near-black, no purple tint (D-106) — THE Darkness/BD black
     inline const FLinearColor Physical = FLinearColor::White;                   // Q-111
-    inline const FLinearColor Generic = FLinearColor(0.597f, 0.328f, 0.202f);   // #CB9B7C brown; never a damage-number colour
+    inline const FLinearColor Generic = FLinearColor(0.6f, 0.4f, 0.2f);         // #CBAA7C brown (unchanged); never a damage-number colour
     inline const FLinearColor BrokenDarkness = Darkness;                       // BD IS Darkness — one black, one source
 
     // Get color for element
