@@ -25,7 +25,10 @@ namespace
 	constexpr int32 SAVED_EP = 4;
 	constexpr int32 SAVED_COLUMN = 2;
 	constexpr int32 PRISMS = 5;
-	constexpr int32 FIRE_ESSENCE = 3;
+	constexpr int32 ELEMENTAL_ESSENCE = 3;
+	constexpr int32 PILLAR_ESSENCE = 4;
+	/** B-333: the save version that brought the seven balances; anything older is wiped (D-060). */
+	constexpr int32 SEVEN_BALANCES_SAVE_VERSION = 11;
 	constexpr int32 GOLD = 7;
 	constexpr int32 CRYSTAL_COUNT = 2;
 
@@ -122,13 +125,14 @@ void FSaveSpec::Define()
 		AActor *Holder = Before.GetWorld()->SpawnActor<AActor>();
 		UCurrencyComponent *Wallet = FWoRTestWorld::AddComponent<UCurrencyComponent>(Holder);
 		Wallet->Add(ECurrencyType::Prisms, PRISMS);
-		Wallet->AddEssenceType(EEssenceType::Fire, FIRE_ESSENCE);
+		Wallet->Add(ECurrencyType::ElementalEssence, ELEMENTAL_ESSENCE);
+		Wallet->Add(ECurrencyType::PillarEssence, PILLAR_ESSENCE);
 		Wallet->Add(ECurrencyType::Gold, GOLD);
 
 		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
 		Save->HandlePreSave();
 		Save->Data.Wallet = USaveSubsystem::CaptureWallet(Wallet);
-		TestEqual(TEXT("Two balances banked"), Save->Data.Wallet.Balances.Num(), 2);
+		TestEqual(TEXT("Three balances banked"), Save->Data.Wallet.Balances.Num(), 3);
 		UWoRSaveGame *Loaded = RoundTrip(Save);
 		if (!TestNotNull(TEXT("Loaded"), Loaded))
 		{
@@ -138,7 +142,8 @@ void FSaveSpec::Define()
 		USaveSubsystem::ApplyWallet(Loaded->Data.Wallet, Fresh);
 		USaveSubsystem::ApplyWallet(Loaded->Data.Wallet, Fresh);
 		TestEqual(TEXT("Prisms (applying twice adds nothing)"), Fresh->GetBalance(ECurrencyType::Prisms), PRISMS);
-		TestEqual(TEXT("Fire Essence"), Fresh->GetEssenceType(EEssenceType::Fire), FIRE_ESSENCE);
+		TestEqual(TEXT("Elemental Essence"), Fresh->GetElementalEssence(), ELEMENTAL_ESSENCE);
+		TestEqual(TEXT("Pillar Essence"), Fresh->GetPillarEssence(), PILLAR_ESSENCE);
 		TestEqual(TEXT("Gold"), Fresh->GetBalance(ECurrencyType::Gold), 0);
 	});
 
@@ -212,6 +217,12 @@ void FSaveSpec::Define()
 		const int32 *Count = NewPool->GetCrystals().Find(Crystal);
 		const int32 *StoneCount = NewPool->GetStones().Find(Crystal);
 		TestEqual(TEXT("Crystal stack"), Count ? *Count : StoneCount ? *StoneCount : 0, CRYSTAL_COUNT);
+	});
+
+	It("bumps the save version for the seven balances and wipes everything older (B-333, D-060)", [this]()
+	{
+		TestTrue(TEXT("Latest is at least the seven-balances version"), WoRSaveVersion::LATEST >= SEVEN_BALANCES_SAVE_VERSION);
+		TestEqual(TEXT("Minimum is the seven-balances version"), WoRSaveVersion::MIN_SUPPORTED, SEVEN_BALANCES_SAVE_VERSION);
 	});
 
 	It("wipes a save below the minimum version (D-060)", [this]()

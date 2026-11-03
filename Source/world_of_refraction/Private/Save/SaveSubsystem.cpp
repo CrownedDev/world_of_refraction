@@ -34,9 +34,11 @@ const TCHAR *USaveSubsystem::SLOT_NAME = TEXT("WoR_Main");
 
 namespace
 {
-	/** The banked scalar currencies; Gold is run-only and EssenceTyped is per key. */
+	/** The banked scalar currencies (B-333: six of the seven balances); Gold is run-only and the
+	 *  OBSOLETE EssenceTyped is per key. */
 	constexpr ECurrencyType BANKED_SCALARS[] = {ECurrencyType::Prisms, ECurrencyType::Diamond,
-												ECurrencyType::GearEssence, ECurrencyType::SkillEssence};
+												ECurrencyType::GearEssence, ECurrencyType::SkillEssence,
+												ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence};
 
 	UCurrencyComponent *FindLocalWallet(UWorld *World)
 	{
@@ -569,6 +571,7 @@ FSavedWallet USaveSubsystem::CaptureWallet(const UCurrencyComponent *Wallet)
 	{
 		Bank(Currency, 0);
 	}
+	// OBSOLETE (B-333): nothing earns typed essence now (D-125); delete in the sweep (D-124).
 	for (uint8 Key = 0; Key <= static_cast<uint8>(EEssenceType::Ability); ++Key)
 	{
 		Bank(ECurrencyType::EssenceTyped, Key);
