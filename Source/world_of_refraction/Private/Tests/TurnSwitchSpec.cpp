@@ -112,7 +112,8 @@ void FTurnSwitchSpec::Define()
 		const bool bPrimaryBefore = Loadout->GetActiveLoadout().bShowPrimary;
 		TestTrue(TEXT("weapon switch"), Loadout->TrySwitchActiveSlot(EGearKind::Weapon, Reason));
 		TestEqual(TEXT("weapon flipped"), Loadout->GetActiveLoadout().bShowPrimary, !bPrimaryBefore);
-		TestFalse(TEXT("an adapter switch shares it"), Loadout->TrySwitchActiveSlot(EGearKind::Adapter, Reason));
+		TestFalse(TEXT("the turn's switch is used"), Loadout->GetTurnSwitchRefusedReason().IsEmpty());
+		TestFalse(TEXT("a second weapon switch is refused"), Loadout->TrySwitchActiveSlot(EGearKind::Weapon, Reason));
 		TestFalse(TEXT("with a reason"), Reason.IsEmpty());
 	});
 

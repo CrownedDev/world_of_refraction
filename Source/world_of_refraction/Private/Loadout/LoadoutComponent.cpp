@@ -3307,15 +3307,19 @@ bool ULoadoutComponent::TrySwitchActiveSlot(EGearKind Kind, FText &OutReason)
     {
         return TrySwitchSlotTo(Kind, INDEX_NONE, OutReason);
     }
-    // The next ring, wrapping over the valid ones; with fewer than two it stays put (no switch used).
+    // The next ring, wrapping over the valid ones (the command menu's rule; counts valid entries, indexes RingLoadout).
     const FCombatLoadout &Loadout = GetActiveLoadout();
     int32 RingCount = 0;
     for (const FRingLoadoutEntry &Entry : Loadout.RingLoadout)
     {
         RingCount += Entry.IsValid() ? 1 : 0;
     }
-    const int32 Next = RingCount < 2 ? Loadout.ActiveRingIndex : (Loadout.ActiveRingIndex + 1) % RingCount;
-    return TrySwitchSlotTo(Kind, Next, OutReason);
+    if (RingCount < 2)
+    {
+        OutReason = FText::GetEmpty(); // nothing to switch to: no switch used, no re-equip side effects
+        return false;
+    }
+    return TrySwitchSlotTo(Kind, (Loadout.ActiveRingIndex + 1) % RingCount, OutReason);
 }
 
 bool ULoadoutComponent::TrySwitchSlotTo(EGearKind Kind, int32 AdapterIndex, FText &OutReason)
