@@ -153,17 +153,7 @@ FText UShopRowWidget::GetEntryCost() const
     // One-entry cart through the SAME builder Purchase charges with — Count included.
     const FPurchaseCost Cost = Economy->PreviewCartCost({Obj->Entry});
 
-    FString Line = FString::Printf(TEXT("%d P"), Cost.Prisms);
-    if (Cost.SkillEssence > 0)
-    {
-        Line += FString::Printf(TEXT(" | Skill %d"), Cost.SkillEssence);
-    }
-    for (const TPair<EEssenceType, int32> &Pair : Cost.Typed)
-    {
-        // TODO: the cost line is a built FString; FText::Format with B-127 (D-061).
-        Line += FString::Printf(TEXT(" | %s %d"), *WoRGameNames::GetEssenceName(Pair.Key).ToString(), Pair.Value);
-    }
-    return FText::FromString(Line);
+    return UShopWindowWidget::GetCostLineText(Cost); // B-333: the seven-balance names, as FText (D-061)
 }
 
 void UShopRowWidget::HandleAddClicked()
