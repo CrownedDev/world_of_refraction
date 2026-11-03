@@ -9,20 +9,10 @@
 #include "Character/StatLayers.h"
 #include "Character/StatConstants.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
+#include "Character/EWorldPillar.h"
 #include "CharacterDataComponent.generated.h"
 
 enum class ESubStat : uint8;
-
-/** The three world-stat pillars — the shared, BlueprintType pillar key for the world-stat
- *  earn/buy/query ops (replaces the prior file-local non-UENUM EPillar/ECrystalPillar, which
- *  weren't usable across the C-series). UEconomyService (C4) passes this to BuyWorldStat. */
-UENUM(BlueprintType)
-enum class EWorldPillar : uint8
-{
-    Mind,
-    Body,
-    Spirit
-};
 
 namespace WorldStatConstants
 {
