@@ -71,7 +71,7 @@ All tunable values are `constexpr` in this namespace:
 - **Target scoring** — `KILL_POTENTIAL_SCORE` (2000), `HP_MISSING_WEIGHT` (500), `THREAT_WEIGHT` (2.0).
 - **Status buildup** — `STATUS_SCORE_WEIGHT` (0.3), tier scores `STATUS_SCORE_TRIGGER` (50), `STATUS_SCORE_CONTRIBUTE` (12), `STATUS_SCORE_REDUNDANT` (5); threat multipliers `RAW_DAMAGE_THREAT_MULT` (2.0), `STATUS_MULTIPLIER_THREAT_MULT` (1.5), `SPELL_POWER_THREAT_MULT` (2.0).
 - **Thinking delays** — per-difficulty min/max ranges (`EASY_THINK_*` 2.0–3.5s … `EXPERT_THINK_*` 0.2–0.3s).
-- **Defense rates** — per-difficulty `*_DEFENSE_ATTEMPT` (0.40–0.95) for the per-impact attempt roll, and `*_DELTA_BAND_MULT` (Easy 3.0 → Expert 0.35) governing aim-within-the-authored-band.
+- **Defense rates** — per-difficulty `*_DEFENSE_ATTEMPT` (Easy 0.30 → Expert 0.75, B-293c) for the per-impact attempt roll, and `*_DELTA_BAND_MULT` (Easy 2.6 → Expert 0.8, B-293c) governing aim-within-the-authored-band.
 - **Survival thresholds** — `SURVIVAL_HP_THRESHOLD` (0.25), `ENERGY_CONSERVATION_THRESHOLD` (0.50), `ENERGY_ABUNDANT_THRESHOLD` (0.70).
 - **Emerald valuation** — `KILL_SECURE_FACTOR` (1.0), `FREE_ACTION_FACTOR` (1.0), `EMERALD_EXPOSURE_LOOKAHEAD` (10), `STARVE_MARGIN` (1.3), `DELAY_DECAY` (0.15), `ESTIMATED_EP_REGEN_PER_TURN` (0 — self-target dormant; no passive EP regen exists).
 
@@ -189,3 +189,4 @@ AI defense is synthesized **per impact** — there is no window-level timer or s
 | 2026-11-02 | B-241 (A4): one infusion-level helper for spells and abilities (Medium+ gate on both); `GetEnergyFraction` returns 0 at Max EP 0 instead of dividing; the survival branch skips the energy item for a pool-less fighter. | refactor/B-241-ai-infusion-level |
 | 2026-11-02 | B-042ye: `HasDangerousDebuff` / `GetLethalDoTPerTick` walk `GetHeldEffects` and size DOTs with `PreviewDotTickDamage` (GAS at `wor.Effects.UseGAS 1`, Q-042ye). | refactor/B-042ye-gas-effect-reads |
 | 2026-11-03 | B-259 (P3): `EstimateActionDamage` memoises within one decision (`EstimateMemo`, keyed by attacker, target, skill, type, infusion level and sources; on only inside `BuildAction`, emptied on exit); the preview itself is `ComputeActionDamageEstimate`. Debug: `EstimatePreviewCount` / `EstimateMemoHitCount`, Verbose log per decision. | refactor/B-259-ai-estimate-memo |
+| 2026-11-03 | B-293c (Q-293c, Expedition 33): defence attempts 0.30 / 0.45 / 0.60 / 0.75, parry 0.25 / 0.5, aim 2.6 / 1.9 / 1.3 / 0.8 band (even steps; Hard no longer turns most hits away). Values only. Unbuilt (cloud). | chore/B-293c-balance-tuning |

@@ -50,6 +50,17 @@ class AActor;
 /** B-091: a piece of shared gear changed in the pool (added, updated or removed). */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPoolGearChanged, FGuid, GearID);
 
+/** B-312 (D-117, Q-312): one owner's gear as views into the pool store: one instance per item, no copy. The pointers
+ *  are valid until the pool's armoury next changes (an add or a removal): read them now, don't keep them. */
+struct FPoolGearView
+{
+    TArray<const FWeaponInventoryEntry *> Weapons;
+    TArray<const FRingInventoryEntry *> Adapters;
+    TArray<const FEvolutionInventoryEntry *> Evolutions;
+
+    int32 Num() const { return Weapons.Num() + Adapters.Num() + Evolutions.Num(); }
+};
+
 /** B-322 (D-117, Q-322): one character's pouch of carried item slots: one item type per slot, stacked to
  *  ITEM_STACK_MAX, ITEM_SLOTS_START slots to begin with. */
 USTRUCT()
@@ -126,6 +137,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Pool|Armoury")
     void AddWeaponToPool(const FWeaponInventoryEntry &Entry);
     const TArray<FWeaponInventoryEntry> &GetOwnedWeapons() const { return OwnedWeapons; }
+    /** By ID through the GUID index (B-312); an unset ID finds nothing. Never change an entry's ID through the
+     *  writable pointers below: the index would go stale (remove and add it instead). */
     FWeaponInventoryEntry *FindWeaponInPool(const FGuid &PersistentID);
     const FWeaponInventoryEntry *FindWeaponInPool(const FGuid &PersistentID) const;
 
@@ -142,6 +155,16 @@ public:
     const TArray<FEvolutionInventoryEntry> &GetOwnedEvolutions() const { return OwnedEvolutions; }
     FEvolutionInventoryEntry *FindEvolutionInPool(const FGuid &InstanceID);
     const FEvolutionInventoryEntry *FindEvolutionInPool(const FGuid &InstanceID) const;
+
+    // ==================== THE STORE: VIEWS (B-312, D-117, Q-312) ====================
+    // The pool is the one store of owned gear; a member's gear is a view over it by owner (GetGearOwner). Lookups by
+    // ID go through a GUID index (rebuilt lazily after an add or a removal) instead of scanning the arrays.
+
+    /** The gear Owner owns (a character key, or GetChestKey()), in the pool's order. */
+    FPoolGearView GetOwnedGearOf(FName Owner) const;
+
+    /** Debug: each owner and the gear it owns, one line each (wor.Pool.PrintStore). */
+    FString GetStoreString() const;
 
     // ==================== KNOWLEDGE — spells / abilities ====================
 
@@ -390,6 +413,18 @@ private:
 
     UPROPERTY(SaveGame)
     TArray<FEvolutionInventoryEntry> OwnedEvolutions;
+
+    // B-312: GUID -> array index for each armoury array. Rebuilt on demand; a stale hit (an entry moved) rebuilds too.
+    mutable TMap<FGuid, int32> WeaponIndex;
+    mutable TMap<FGuid, int32> AdapterIndex;
+    mutable TMap<FGuid, int32> EvolutionIndex;
+    mutable bool bGearIndexDirty = true;
+
+    void MarkGearIndexDirty() { bGearIndexDirty = true; }
+    void RebuildGearIndex() const;
+    /** Index of the entry with ID in Entries through Index (rebuilding once on a miss or a stale hit), or INDEX_NONE. */
+    template <class TEntry, class FIdOf>
+    int32 FindIndexed(const TArray<TEntry> &Entries, const TMap<FGuid, int32> &Index, const FGuid &ID, FIdOf IdOf) const;
 
     // KNOWLEDGE
     UPROPERTY(SaveGame)

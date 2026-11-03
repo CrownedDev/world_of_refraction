@@ -44,6 +44,12 @@ void FTrialGateSpec::Define()
 		TestEqual(TEXT("Medium payout"), GetPayoutMultiplier(ETrialDifficulty::Medium), 1.0f);
 		TestTrue(TEXT("Easy enemies are weaker"), GetEnemyStrengthMultiplier(ETrialDifficulty::Easy) < 1.0f);
 		TestTrue(TEXT("Hard enemies are stronger"), GetEnemyStrengthMultiplier(ETrialDifficulty::Hard) > 1.0f);
+		// B-293c (Q-293c): the pinned values; the difficulty scales damage only, never HP.
+		TestEqual(TEXT("Easy damage x0.8"), GetEnemyStrengthMultiplier(ETrialDifficulty::Easy), 0.8f);
+		TestEqual(TEXT("Hard damage x1.2"), GetEnemyStrengthMultiplier(ETrialDifficulty::Hard), 1.2f);
+		TestEqual(TEXT("Easy HP x1"), GetEnemyHealthMultiplier(ETrialDifficulty::Easy), 1.0f);
+		TestEqual(TEXT("Medium HP x1"), GetEnemyHealthMultiplier(ETrialDifficulty::Medium), 1.0f);
+		TestEqual(TEXT("Hard HP x1"), GetEnemyHealthMultiplier(ETrialDifficulty::Hard), 1.0f);
 		TestTrue(TEXT("Easy pays less"), GetPayoutMultiplier(ETrialDifficulty::Easy) < 1.0f);
 		TestTrue(TEXT("Hard pays more"), GetPayoutMultiplier(ETrialDifficulty::Hard) > 1.0f);
 		TestEqual(TEXT("Cycling wraps Hard to Easy"), static_cast<int32>(NextDifficulty(ETrialDifficulty::Hard)), static_cast<int32>(ETrialDifficulty::Easy));
@@ -90,6 +96,20 @@ void FTrialGateSpec::Define()
 		TestTrue(TEXT("Easy lowers max HP"), Easy->MaxHP < BaseMaxHP);
 		TestEqual(TEXT("Easy starts full"), Easy->CurrentHP, Easy->MaxHP);
 		TestFalse(TEXT("No enemy, nothing applied"), TrialGate::ApplyEnemyStrength(nullptr, 2.0f));
+	});
+
+	It("B-293c: the difficulty scales an enemy's damage, not its max HP", [this]()
+	{
+		UCharacterDataComponent *Hard = SpawnEnemy();
+		UCharacterDataComponent *Medium = SpawnEnemy();
+		USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
+		if (!TestTrue(TEXT("Enemies and effect manager"), Hard && Medium && Effects)) return;
+		const int32 BaseMaxHP = Medium->MaxHP;
+		TestEqual(TEXT("HP is x1 at Hard"), TrialGate::GetEnemyHealthMultiplier(ETrialDifficulty::Hard), 1.0f, KINDA_SMALL_NUMBER);
+		TestTrue(TEXT("Applied"), TrialGate::ApplyEnemyStrength(Hard->GetOwner(), TrialGate::GetEnemyHealthMultiplier(ETrialDifficulty::Hard),
+																 TrialGate::GetEnemyStrengthMultiplier(ETrialDifficulty::Hard)));
+		TestEqual(TEXT("Max HP unchanged"), Hard->MaxHP, BaseMaxHP);
+		TestTrue(TEXT("Damage raised"), Effects->GetTotalStatModifier(Hard->GetOwner(), ESkillEffectType::DamageBuff) > 0.0f);
 	});
 
 	It("can't be cleansed away", [this]()

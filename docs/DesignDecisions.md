@@ -2085,6 +2085,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 
 ### Q-183 — How many trial difficulty levels, and what does each change?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-183) · **Blocks:** — (B-183 shipped with A)
+**Superseded in part by Q-293c (B-293c, 2026-11-03):** the difficulty now scales enemy damage only (0.8 / 1 / 1.2), not max HP. This changes Q-183's answer, not only a tuning value; Crown may revert it.
 **Question:** RunStructure §3 says the door asks for a difficulty that scales enemy strength and the payout. How many levels, and what does "enemy strength" scale?
 **Options:**
 - **A** Three levels, Easy / Medium (default) / Hard, as in the deckbuilder. Strength scales each enemy's max HP and damage (Easy 0.8, Medium 1, Hard 1.25); payout scales by 0.75 / 1 / 1.5. Defense, speed and status are not scaled; each enemy starts the fight full at its scaled max, and the scaling can't be cleansed (it is part of the enemy, like gear, D-015). All values `// TODO: tune`. This run difficulty is separate from each encounter's AI difficulty (ER-44), which still sets how well the enemy plays.
@@ -3062,6 +3063,16 @@ Moved here once applied. Newest first.
 **Notes for Claude:** applied in B-323. If (2) should refuse, `TryGiveGear` returns a refusal when `FindMemberInventory` is null. Desktop build added two defaults: (3) a pouch stack **can** be given to a run-only recruit (gear can't): its pouch goes to storage at run end (B-322 `ReleasePouch`), so nothing is lost; (4) a receiver that isn't in the level gets no D-115 duplicate prompt at its next draw (the piece still arrives; the prompt comes from the live give). TODO: check for duplicates at the draw if Crown wants it.
 **Added by B-324 (same defaults):** a run-only recruit can't be given gear nor take it from the chest (Q-321: it owns nothing, and `DismissRunMembers` releases wearers, not owners), and its whole-armoury draw skips chest gear; a put from an unspawned member releases any stale wearer.
 
+### Q-312 — The store's views: switch every reader in one job, or prove the views first?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-312, cloud) · **Blocks:** —
+**Question:** B-312 asks for the per-member armoury copies and ~700 lines of sync to become views over the pool store. Today 39 game-code reads in 12 files and 108 test reads use a member's `Weapons` / `Rings` copies directly, many of them writing (adds, removes, loadout links). Switching them all in one unbuilt job would touch far more than 3 files per step and could not be checked before the desktop build.
+**Context:** `Private/Inventory/InventoryComponent.cpp` (`DrawSharedGear`, `HandlePoolGearChanged`, `PushGearToPool`, `MirrorShared`); `Private/Pool/PoolSubsystem.cpp` (`GetOwnedGearOf`); CLAUDE.md "Incremental: build new alongside old … remove old code only after the new path is proven in PIE"; B-317 deletes the copies after PIE.
+**Options / as built:** **A** B-312 builds the store side beside the copies: the GUID index, per-owner views, one finder, and `CompareWithStore` / `wor.Inventory.CompareStore` proving each member's copies equal its view. A new **B-312b** moves the readers to the views in ≤3-file steps, guided by the compare. B-317 deletes the copies. **B** switch every reader in B-312.
+**Recommendation:** A. It is the strangler-fig pattern (Fowler) already chosen for the store in Q-308, and it keeps every step buildable; the compare command makes the switch measurable in PIE.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-312; B-312b added to the Backlog after B-312. Two small rules the index adds (desktop build): an unset ID finds nothing (the old scan could match an entry with no ID; every pool entry has one, so no change in play), and when two entries share an ID the first wins (as before). Reviewer notes for B-312b: never change an entry's ID through a `Find*InPool` pointer.
+
+
 ### Q-293 — Balance targets the Decided list doesn't give
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-293, cloud) · **Blocks:** —
 **Question:** `docs/Design/BalanceSimulator.md` §3 lists targets beyond `BaselineNumbers.md`'s Decided list: the boss win-rate band at Medium, the hits-to-kill bands for Elite / Mini-boss / Boss, the crit bands, and the worked-example hit medians (which assume Mind 8 and 14 where the sim's archetypes clamp to 7). Which of these may fail a nightly run, and which only warn?
@@ -3089,3 +3100,33 @@ Moved here once applied. Newest first.
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-318. The snapshot is refreshed by each sync; a guest's view is as fresh as the server's last sync.
 
+
+### Q-293c — Balance tuning: what to move first (Expedition 33)
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-293c, cloud; Crown asked that it follow Expedition 33) · **Blocks:** —
+**Question:** The first nightly balance run failed 19 targets. Which values move, and which way?
+**Context:** `docs/analysis/Expedition33Balance.md`; `Public/AI/AIDecisionConstants.h` (defence attempts, parry, aim); `Private/Trial/TrialGate.cpp` (difficulty multipliers); `Private/Balance/BalanceSimReport.cpp` (the normal-fight metric).
+**Options / as built:** (1) count normal fights in party rounds, as BaselineNumbers §2.9 defines them; (2) AI defending in even steps, and Hard no longer turns most hits away (attempts 0.30 / 0.45 / 0.60 / 0.75, parry 0.25 / 0.5, aim 2.6 / 1.9 / 1.3 / 0.8); (3) trial difficulty scales enemy damage only (0.8 / 1 / 1.2), HP x1 at every level.
+**Recommendation:** as built. Expedition 33 scales enemy damage and the defence windows with difficulty, not HP ([Sportskeeda](https://sportskeeda.com/esports/clair-obscur-expedition-33-difficulty-settings-explained-which-one-go-for)); keeps fights short with the threat in enemy hits ([MobileSyrup](https://mobilesyrup.com/2025/11/27/clair-obscur-expedition-33-devs-combat-hard-juicy/)); and drew complaints for an uneven Expert step (Sportskeeda), hence the even steps.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-293c. Re-run `WOR_BALANCE=nightly Scripts/ue/test.sh WoR.Balance.` before tuning further.
+
+### Q-293d — Balance targets that clash with the Decided numbers
+**Status:** OPEN · **Raised:** 2026-11-03 (B-293c, cloud) · **Blocks:** B-293d
+**Question:** Three targets can't be met without changing a Decided number (BaselineNumbers.md). Which gives way?
+**Context:** `docs/analysis/Expedition33Balance.md` ("Not changed"); `Public/Combat/Tuning/CombatBaselineConstants.h` (rank HP); `Private/Balance/BalanceSimReport.cpp` (bands).
+**Options:**
+- **Boss / mini-boss length at Medium** (8 / 4–6 rounds, targets 11–15.5 / 7–11): **A** raise the rank HP (e.g. Mini-boss x3 → x4.5, Boss x6 → x9); **B** keep x3 / x6 and move the round targets down; **C** give bosses more defence or phases instead of HP (E33's bosses threaten through attack patterns: [Automaton](https://automaton-media.com/en/news/clair-obscur-expedition-33s-battle-system-was-designed-around-the-premise-of-no-frustrating-deaths-and-a-game-you-can-clear-with/)).
+- **Pillar 6** (S gear under-levelled wins 92%, band 35–65%): **A** keep the floor 0.5 and move the band (e.g. 60–95%: gear leads, never certain); **B** harsher under-requirement penalty.
+- **Stacked reduction** (Defense 75% × Damage Taken Down 90% × Guard 50% lets 1.25% through): **A** an overall cap on damage taken (e.g. at most 90% off before Perfect Guard), as E33 capped stacking after Stendhal ([Destructoid](https://www.destructoid.com/expedition-33-stendhal-nerf-update-patch-notes/)); **B** leave the per-source caps.
+**Recommendation:** none taken by default: each changes a number Crown decided. C for bosses (E33's model), A for pillar 6 (BaselineNumbers §4 already expects S gear ~2.3x ahead), A for stacking.
+**Answer (Crown):** _write here_
+
+
+### Q-223 — Level drops: the numbers, when you place them, and the save
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-223) · **Blocks:** —
+**Question:** D-102 sets the shape (a chance from normal enemies, guaranteed levels from a mini-boss, you choose the pillar) but not the odds, how many a mini-boss gives, when you place a drop, or whether a run's levels are saved.
+**Context:** `Public/Combat/Tuning/CombatBaselineConstants.h` (`LEVEL_DROP_CHANCE_BY_TIER`, `LEVEL_DROP_ELITE_CHANCE_FACTOR`, `MINIBOSS_LEVELS_BY_TIER`); `Private/Trial/TrialGate.cpp` (`RollLevelDrops`); `Private/Combat/CombatOrchestrator.cpp` (`FinishCombat`); `Private/Trial/LevelDropPlacement.cpp`.
+**Options / as built:** **odds** a normal enemy 10 % at F rising to 30 % at S, an elite double; **mini-boss and boss** guaranteed levels by tier: F/E/D 1, C/B 2, A/S 3 (a boss gives the same as a mini-boss of its tier); **rolled at the win** (the fight's own random draws don't shift); **placing** the drops wait in the run until you place them (`wor.UI.LevelDrop`), one press per level, any party member, refused at 7; **save** a run's levels and waiting drops are not saved yet (a reload mid-run loses them).
+**Recommendation:** as built. Hades' boons and Slay the Spire's card rewards come after the fight, chosen by the player, not mid-fight; low odds from normal enemies with guaranteed rewards from bosses is the Hades / Dead Cells pattern (elites as a better-odds middle step, as Slay the Spire's elites). Over a 3-floor run that's about 6-10 levels, under the 21 cap, with the vendor as backup. Every number is a tuning row (`LevelDropChance`, `MiniBossLevels`) for B-293c.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-223. The run's levels go into the save with the run-save work (the save version bump belongs there, not here); the placeholder prompt opens by console only (the real post-fight screen is D-024).

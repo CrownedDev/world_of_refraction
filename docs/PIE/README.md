@@ -18,10 +18,14 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-322](B-322.md) | `feature/B-322-per-character-pouch` (in `dev`) | A 10-slot pouch per character; save v9; older save's pouch to the leader | Pending |
 | [B-323](B-323.md) | `feature/B-323-give-between-characters` (in `dev`) | Give a weapon, adapter or pouch stack between your characters; `wor.UI.Give` | Pending |
 | [B-324](B-324.md) | `feature/B-324-shared-chest-gear` (in `dev`) | Unworn gear in the shared chest, any member takes it; `wor.UI.Storage` | Pending |
+| [B-312](B-312.md) | `refactor/B-312-store-views` (in `dev`) | Gear store step 1: GUID index, member views, `wor.Inventory.CompareStore`; no gameplay change | Pending |
 | [B-293](B-293.md) | `feature/B-293-balance-targets` (in `dev`) | Balance targets, reports, GAS parity, `wor.Balance.Run`; no gameplay change | Pending |
 | [B-261](B-261.md) | `refactor/B-261-mirror-dirty-check` (in `dev`) | A GAS stat read skips the mirror re-sync when nothing changed (P5) | Pending |
+| [B-223](B-223.md) | `feature/B-223-level-drops` (in `dev`) | Level drops: chance from normal enemies, guaranteed from mini-bosses; place them with `wor.UI.LevelDrop` | Pending |
 | [B-224b](B-224b.md) | `feature/B-224b-rank-hp-per-team` (in `dev`) | Rank HP per team; enemy HP by tier (F default) | Pending |
 | [B-318](B-318.md) | `feature/B-318-client-gas-reads` (UNBUILT) | Co-op guests read effects from the server's GAS read (UseGAS 1) | Not built |
+| [B-293b](B-293b.md) | `feature/B-293b-parity-effects` (in `dev`) | GAS parity with status breaks; test code only | Not built |
+| [B-293c](B-293c.md) | `chore/B-293c-balance-tuning` (in `dev`) | Balance first pass: AI defends less in even steps; difficulty scales enemy damage, not HP; normal fights in party rounds | Not built |
 | [B-001](B-001.md) | `fix/combat-hang-arc-a` (in `dev`) | Combat can no longer freeze; clean end of combat | Not tested |
 | [B-007](B-007.md) | `feature/B-007-automation-tests` (in `dev`) | 26 headless tests + test.sh output; no gameplay change | Not tested |
 | [B-006](B-006.md) | `chore/B-006-log-categories` (in `dev`) | Seven `LogWoR*` log categories; no gameplay change | Not tested |
