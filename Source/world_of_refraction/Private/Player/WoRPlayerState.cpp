@@ -3,6 +3,7 @@
 #include "Player/WoRPlayerState.h"
 
 #include "Character/Forms/CharacterFormSubsystem.h"
+#include "Character/Outfit/OutfitComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Currency/CurrencyComponent.h"
 #include "Engine/GameInstance.h"
@@ -51,6 +52,9 @@ void AWoRPlayerState::FollowLocalForm()
 	if (UCharacterFormSubsystem *Forms = GI && IsLocalPlayerWallet() ? GI->GetSubsystem<UCharacterFormSubsystem>() : nullptr)
 	{
 		Forms->OnWornFormChanged.AddUniqueDynamic(this, &AWoRPlayerState::HandleLocalFormChanged);
+		// B-279c: the outfit follows the local player's current set. // TODO: co-op replicates it (B-228+).
+		Forms->OnOutfitChanged.RemoveAll(this);
+		Forms->OnOutfitChanged.AddUObject(this, &AWoRPlayerState::ApplyFormLook);
 		HandleLocalFormChanged(Forms->GetWornForm());
 	}
 }
@@ -65,6 +69,7 @@ void AWoRPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (UCharacterFormSubsystem *Forms = GI ? GI->GetSubsystem<UCharacterFormSubsystem>() : nullptr)
 	{
 		Forms->OnWornFormChanged.RemoveDynamic(this, &AWoRPlayerState::HandleLocalFormChanged);
+		Forms->OnOutfitChanged.RemoveAll(this);
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -159,6 +164,21 @@ void AWoRPlayerState::ApplyFormLook()
 	}
 	DressedPawn = Character;
 	UE_LOG(LogWoR, Log, TEXT("[CharacterForms] %s dressed as %s"), *GetNameSafe(Character), *GetNameSafe(Mesh->GetSkeletalMeshAsset()));
+	// B-279c: the local player's current outfit over the body (Leader Pose). // TODO: co-op guests read it replicated.
+	const UGameInstance *GI = GetGameInstance();
+	const UCharacterFormSubsystem *Forms = GI && IsLocalPlayerWallet() ? GI->GetSubsystem<UCharacterFormSubsystem>() : nullptr;
+	if (Forms && !Forms->GetCurrentOutfit().IsEmpty())
+	{
+		AActor *Pawn = const_cast<ACharacter *>(Character);
+		UOutfitComponent *Outfit = Pawn->FindComponentByClass<UOutfitComponent>();
+		if (!Outfit)
+		{
+			Outfit = NewObject<UOutfitComponent>(Pawn);
+			Pawn->AddInstanceComponent(Outfit);
+			Outfit->RegisterComponent();
+		}
+		Outfit->ApplyOutfit(Forms->GetCurrentOutfit(), Mesh);
+	}
 }
 
 bool AWoRPlayerState::IsLocalPlayerWallet() const
