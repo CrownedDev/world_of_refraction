@@ -281,7 +281,8 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	{
 		FVector ArenaCenter = GetActorLocation();
 
-		// D-042: members start in their chosen formation cell, enemies in their placeholder row.
+		// D-042 as changed by D-134 (B-342): members start in their chosen ROW (three rows, no columns),
+		// enemies in their placeholder row.
 		const UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
 		TArray<FGridStartPreference> LocalPreferences;
 		for (AActor *Member : LocalPartyCombatants)
@@ -293,7 +294,7 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 			int32 Column;
 			if (Slot != INDEX_NONE && PartySession->GetMemberFormation(Slot, Row, Column))
 			{
-				Preference = FGridStartPreference::Cell(Row, Column);
+				Preference = FGridStartPreference::RowOnly(Row); // the column is OBSOLETE (B-342)
 			}
 		}
 		TArray<FGridStartPreference> OpposingPreferences;
@@ -804,7 +805,7 @@ namespace
 	/** A free row step moves exactly one row (D-096). */
 	constexpr int32 ORCHESTRATOR_ROW_STEP = 1;
 
-	/** The cell one row forward or back, same column (Q-180: never sideways). */
+	/** The row one step forward or back (D-096). B-342 (D-134): no columns, so the slot it lands in is any free one. */
 	FCombatGridPosition OrchestratorStepTarget(const FCombatGridPosition &From, bool bForward)
 	{
 		FCombatGridPosition Target = From;
@@ -845,11 +846,12 @@ FText ACombatOrchestrator::GetRowMoveRefusedReason(AActor *Actor, bool bForward)
 	{
 		return NSLOCTEXT("CombatOrchestrator", "RowAtBack", "Already in the back row.");
 	}
-	// Q-180: in battle you step only into an empty cell, same column; swapping places with an
-	// ally is for formation outside battle (D-042). A fallen ally's cell is taken too.
-	if (Grid->GetActorAtPosition(OrchestratorStepTarget(Position, bForward)))
+	// B-342 (D-134): three rows, no columns. A row holds the whole side, so an ally there never blocks the
+	// step; only a full row would (it can't be, at MAX_TEAM_SIZE). Replaces Q-180's empty-cell rule.
+	FCombatGridPosition FreeSlot;
+	if (!Grid->FindFreeSlotInRow(Position.TeamIndex, OrchestratorStepTarget(Position, bForward).Row, FreeSlot))
 	{
-		return NSLOCTEXT("CombatOrchestrator", "RowTaken", "That cell is taken.");
+		return NSLOCTEXT("CombatOrchestrator", "RowFull", "That row is full.");
 	}
 	return FText::GetEmpty();
 }
@@ -867,7 +869,7 @@ bool ACombatOrchestrator::TryMoveRow(AActor *Actor, bool bForward, FText &OutRef
 	Grid->GetActorPosition(Actor, Position);
 	const FCombatGridPosition Target = OrchestratorStepTarget(Position, bForward);
 
-	// The target cell is empty (GetRowMoveRefusedReason), so this is a plain step (Q-180).
+	// The target row has room (GetRowMoveRefusedReason); MoveActorToRow takes a free slot there (B-342).
 	if (!Grid->MoveActorToRow(Actor, Target.Row, GetActorLocation()))
 	{
 		OutRefusedReason = NSLOCTEXT("CombatOrchestrator", "RowBlocked", "Can't move there.");

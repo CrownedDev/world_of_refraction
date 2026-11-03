@@ -25,7 +25,8 @@ struct FCombatGridPosition
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid")
     ECombatRow Row = ECombatRow::Middle;
     
-    /** Column position (0, 1, or 2) */
+    /** Slot within the row (0, 1, or 2): world placement only. B-342 (D-134): three rows, no columns;
+     *  no rule reads it (OBSOLETE as a column). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid", meta = (ClampMin = "0", ClampMax = "2"))
     int32 Column = 1;
     
