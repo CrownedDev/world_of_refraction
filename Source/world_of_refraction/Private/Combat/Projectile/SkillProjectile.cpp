@@ -243,7 +243,7 @@ void ASkillProjectile::InitializeCommon()
     ApplyElementColors();
     ApplyVisualScale();
 
-    UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Initialized: Type=%d, Target=%s, Radius=%.2f, Speed=%.1f"),
+    UE_LOG(LogTemp, Verbose, TEXT("[SkillProjectile] Initialized: Type=%d, Target=%s, Radius=%.2f, Speed=%.1f"),
            (int32)DeliveryType,
            Target ? *Target->GetName() : TEXT("None"),
            ImpactRadius,
@@ -307,7 +307,7 @@ void ASkillProjectile::Launch()
     bIsLaunched = true;
     SetActorTickEnabled(true);
 
-    UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Launched toward %s (VFX: %s)"),
+    UE_LOG(LogTemp, Verbose, TEXT("[SkillProjectile] Launched toward %s (VFX: %s)"),
            *Target->GetName(),
            (ProjectileFX && ProjectileFX->GetAsset()) ? TEXT("Active") : TEXT("None"));
 }
@@ -359,7 +359,7 @@ void ASkillProjectile::OnHitBoxOverlap(
     if (bHasImpacted)
         return;
 
-    UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Overlap with target: %s"), *OtherActor->GetName());
+    UE_LOG(LogTemp, Verbose, TEXT("[SkillProjectile] Overlap with target: %s"), *OtherActor->GetName());
 
     // Projectile uses destination check in Tick, not overlap
     // This allows the move-dodge mechanic to work
@@ -374,7 +374,7 @@ void ASkillProjectile::ResolveImpact()
     bHasImpacted = true;
     SetActorTickEnabled(false); // B-262: nothing moves after impact
 
-    UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Resolving impact at %s (CastEntryIndex=%d)"),
+    UE_LOG(LogTemp, Verbose, TEXT("[SkillProjectile] Resolving impact at %s (CastEntryIndex=%d)"),
            *GetActorLocation().ToString(), CastEntryIndex);
 
     // Deactivate projectile VFX
@@ -387,7 +387,7 @@ void ASkillProjectile::ResolveImpact()
     if (DeliveryType == ESpellDeliveryType::Projectile && CheckMoveDodge())
     {
         // Target moved out of impact zone - DODGED
-        UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Target dodged by moving!"));
+        UE_LOG(LogTemp, Verbose, TEXT("[SkillProjectile] Target dodged by moving!"));
         OnSkillDodged.Broadcast(Target, TargetLocation);
         PlayHitEffect(TargetLocation); // VFX at original location
     }
@@ -395,7 +395,7 @@ void ASkillProjectile::ResolveImpact()
     {
         // HIT - broadcast for defense window
         FVector ImpactLocation = GetActorLocation();
-        UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Impact! Damage=%d, Radius=%.2f"), Damage, ImpactRadius);
+        UE_LOG(LogTemp, Verbose, TEXT("[SkillProjectile] Impact! Damage=%d, Radius=%.2f"), Damage, ImpactRadius);
         OnSkillImpact.Broadcast(Target, ImpactLocation, ImpactRadius, Damage, CastEntryIndex);
         PlayHitEffect(ImpactLocation);
     }

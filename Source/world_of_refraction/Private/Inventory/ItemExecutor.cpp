@@ -49,7 +49,7 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 		Target = User;
 	}
 
-	UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] %s using %s on %s"),
+	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] %s using %s on %s"),
 		   *User->GetName(), *ItemIdentity::GetDisplayName(Id), *Target->GetName());
 
 	// Execute based on effect type. AbilityStone maps to EItemEffectType::None
@@ -305,10 +305,10 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, FCrystalId
 	SEM->ApplyEffect(Target, DOT, User, TEXT("Garnet"), -1);
 	OutResult.bSuccess = true;
 
-	UE_LOG(LogWoRLoadout, Log,
+	UE_LOG(LogWoRLoadout, Verbose,
 		   TEXT("[ItemExecutor] Garnet: %s took %d immediate Fire damage + %.1f buildup"),
 		   *Target->GetName(), OutResult.DamageDealt, BuildupPerEvent);
-	UE_LOG(LogWoRLoadout, Log,
+	UE_LOG(LogWoRLoadout, Verbose,
 		   TEXT("[ItemExecutor] Garnet: Applied Burn DOT tail to %s (%d dmg/turn x %d turns)"),
 		   *Target->GetName(), DamagePerTurnInt, Duration);
 }
@@ -344,7 +344,7 @@ void UItemExecutor::ExecuteDefyDeathEffect(AActor *User, AActor *Target, FCrysta
 		TargetComp->ServerResurrect(ReviveHP);
 		OutResult.HealingDone = ReviveHP;
 		OutResult.bSuccess = true;
-		UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] Sapphire: Revived dead %s at %d HP"),
+		UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Sapphire: Revived dead %s at %d HP"),
 			   *Target->GetName(), ReviveHP);
 		return;
 	}
@@ -364,7 +364,7 @@ void UItemExecutor::ExecuteDefyDeathEffect(AActor *User, AActor *Target, FCrysta
 	SEM->ApplyEffect(Target, LastStand, User, DisplayName, -1);
 
 	OutResult.bSuccess = true;
-	UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] Sapphire: Last Stand on %s (%.0f%% revive, %d-turn window)"),
+	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Sapphire: Last Stand on %s (%.0f%% revive, %d-turn window)"),
 		   *Target->GetName(), ItemConstants::LAST_STAND_HP_PERCENT, WindowTurns);
 }
 
@@ -407,7 +407,7 @@ void UItemExecutor::ExecuteHealingStoneEffect(AActor *User, AActor *Target, FCry
 	OutResult.HealingDone = TargetComp->CurrentHP - HPBefore;
 	OutResult.bSuccess = true;
 
-	UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] Healing Stone: Healed %s for %d HP (%.0f%%)"),
+	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Healing Stone: Healed %s for %d HP (%.0f%%)"),
 		   *Target->GetName(), OutResult.HealingDone, HealPercent);
 }
 
@@ -463,7 +463,7 @@ void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, FCr
 	}
 
 	OutResult.bSuccess = true;
-	UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] Citrine: Restored %d EP to %s (Lightning buildup applied)"),
+	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Citrine: Restored %d EP to %s (Lightning buildup applied)"),
 		   OutResult.EnergyRestored, *Target->GetName());
 }
 
@@ -499,7 +499,7 @@ void UItemExecutor::ApplyStoneBuffEffect(AActor *User, AActor *Target, FCrystalI
 	OutResult.BuffsApplied++;
 	OutResult.bSuccess = true;
 
-	UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] %s stone: Applied %s %.0f%% for %d turns to %s"),
+	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] %s stone: Applied %s %.0f%% for %d turns to %s"),
 		   *DisplaySuffix, bAlly ? TEXT("buff") : TEXT("debuff"), Magnitude, Duration, *Target->GetName());
 }
 
@@ -538,7 +538,7 @@ void UItemExecutor::ExecuteBonusTurnEffect(AActor *User, AActor *Target, FCrysta
 	const int32 Count = (DelayTurns == 0) ? SRankBonusCount : 1;
 
 	TurnMgr->ScheduleBonusTurn(Target, DelayTurns, Count);
-	UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] Emerald: scheduled %d pinned bonus turn(s) for %s after %d normal turn(s)"),
+	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Emerald: scheduled %d pinned bonus turn(s) for %s after %d normal turn(s)"),
 		   Count, *Target->GetName(), DelayTurns);
 
 	OutResult.bSuccess = true;
@@ -629,7 +629,7 @@ void UItemExecutor::ExecuteRawDamageBuffEffect(AActor *User, AActor *Target, FCr
 	OutResult.BuffsApplied++;
 	OutResult.bSuccess = true;
 
-	UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] Damage stone: Applied %s %.0f%% raw-damage for %d turns to %s"),
+	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Damage stone: Applied %s %.0f%% raw-damage for %d turns to %s"),
 		   bAlly ? TEXT("RawDamageBuff") : TEXT("RawDamageDebuff"), Magnitude, Duration, *Target->GetName());
 }
 
@@ -675,7 +675,7 @@ void UItemExecutor::ExecuteResistanceBuffEffect(AActor *User, AActor *Target, FC
 	OutResult.BuffsApplied++;
 	OutResult.bSuccess = true;
 
-	UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] Resistance stone: Applied ModifyStatusResist %+.0f%% for %d turns to %s (%s)"),
+	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Resistance stone: Applied ModifyStatusResist %+.0f%% for %d turns to %s (%s)"),
 		   Magnitude, Duration, *Target->GetName(), bAlly ? TEXT("ally buff") : TEXT("enemy vulnerability"));
 }
 
@@ -736,7 +736,7 @@ void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrys
 	OutResult.BuffsApplied++;
 	OutResult.bSuccess = true;
 
-	UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] Amber: Applied %s %.0f%% for %d turns to %s"),
+	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Amber: Applied %s %.0f%% for %d turns to %s"),
 		   bAlly ? TEXT("DefenseBuff") : TEXT("DefenseDebuff"), Magnitude, Duration, *Target->GetName());
 }
 
@@ -785,7 +785,7 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystal
 			OutResult.BuffsApplied++;
 
 			OutResult.bSuccess = true;
-			UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] Opal: Guaranteed-crit window on %s for %d turns (+%.0f%% crit-dmg rider)"),
+			UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Opal: Guaranteed-crit window on %s for %d turns (+%.0f%% crit-dmg rider)"),
 				   *Target->GetName(), Duration, RiderPct);
 		}
 		else
@@ -793,7 +793,7 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystal
 			// Enemy: STRIP any active guaranteed-crit window (the counter). No-op (still success) if none.
 			const int32 Removed = SEM->RemoveEffectsByType(Target, ESkillEffectType::GuaranteedCrit);
 			OutResult.bSuccess = true;
-			UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] Opal: Stripped %d guaranteed-crit window(s) from %s"),
+			UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Opal: Stripped %d guaranteed-crit window(s) from %s"),
 				   Removed, *Target->GetName());
 		}
 		return;
@@ -813,7 +813,7 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystal
 	OutResult.BuffsApplied++;
 	OutResult.bSuccess = true;
 
-	UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] CritStone: Applied %s %.0f%% for %d turns to %s"),
+	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] CritStone: Applied %s %.0f%% for %d turns to %s"),
 		   bAlly ? TEXT("CritChanceBuff") : TEXT("CritChanceDebuff"), Magnitude, Duration, *Target->GetName());
 }
 
@@ -880,7 +880,7 @@ void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, FCrystalI
 		SEM->ApplyEffect(Target, Silence, User, DisplayName, -1);
 		OutResult.BuffsApplied++;
 
-		UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] Onyx S: Silenced %s (binary gate, 1 turn)"),
+		UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Onyx S: Silenced %s (binary gate, 1 turn)"),
 			   *Target->GetName());
 	}
 	else
@@ -915,7 +915,7 @@ void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, FCrystalI
 			static_cast<float>(DrainAmount), /*Duration*/ 0);
 		SEM->ApplyEffect(Target, Drain, User, DisplayName, -1);
 
-		UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] Onyx: %s took %d EP drain (%.0f%% of MaxEP)"),
+		UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Onyx: %s took %d EP drain (%.0f%% of MaxEP)"),
 			   *Target->GetName(), EPBefore - TargetComp->CurrentEP, SilencePercent);
 	}
 
@@ -971,7 +971,7 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, FCrystalId
 		? UserComp->RollLuckChance(TierBuffChance, CombatConstants::GAMBLE_BUFF_LUCK_BONUS)
 		: (UBattleRandomSubsystem::FRand(this) < TierBuffChance);
 
-	UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] Amethyst gamble: tier base %.0f%%, luck-modified roll -> %s"),
+	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Amethyst gamble: tier base %.0f%%, luck-modified roll -> %s"),
 		   TierBuffChance * 100.f, bIsBuff ? TEXT("BUFF") : TEXT("DEBUFF"));
 
 	OutResult.bGambleWon = bIsBuff;
@@ -1033,7 +1033,7 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, FCrystalId
 											  bIsBuff ? TEXT("Buff") : TEXT("Debuff"), Magnitude, Duration);
 	OnGambleResult.Broadcast(User, bIsBuff, OutResult.GambleOutcome);
 
-	UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] Amethyst gamble on %s: %s"),
+	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Amethyst gamble on %s: %s"),
 		   *Target->GetName(), *OutResult.GambleOutcome);
 }
 
@@ -1072,7 +1072,7 @@ void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, FCrystalI
 	OutResult.DebuffsRemoved = Removed;
 	OutResult.bSuccess = true;
 
-	UE_LOG(LogWoRLoadout, Log, TEXT("[ItemExecutor] Iolite: Removed %d %s from %s"),
+	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Iolite: Removed %d %s from %s"),
 		   Removed, bRemoveDebuffs ? TEXT("debuff(s)") : TEXT("buff(s)"), *Target->GetName());
 }
 
@@ -1126,7 +1126,7 @@ void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, FCrys
 	}
 
 	OutResult.bSuccess = true;
-	UE_LOG(LogWoRLoadout, Log,
+	UE_LOG(LogWoRLoadout, Verbose,
 		   TEXT("[ItemExecutor] Quartz: Cleared %.0f%% status bar on %s, applied %s %s for %d turns"),
 		   StatusClearPercent, *Target->GetName(),
 		   *UEnum::GetValueAsString(ResistElement),
@@ -1187,7 +1187,7 @@ void UItemExecutor::ApplyBrokenDarknessBonus(AActor *Target, FCrystalId Id, FIte
 	// Honest delta: positive = granted, negative = drained (Reality), 0 = no interaction (None).
 	OutResult.BrokenDarknessEnergyGained = TargetComp->CurrentEP - EPBefore;
 
-	UE_LOG(LogWoRLoadout, Log,
+	UE_LOG(LogWoRLoadout, Verbose,
 		   TEXT("[ItemExecutor] Broken Darkness crystal (%s): %s energy delta %d (%.0f%% of MaxEP %d)"),
 		   *UEnum::GetValueAsString(Elem), *Target->GetName(), OutResult.BrokenDarknessEnergyGained,
 		   Percent * 100.0f, TargetComp->MaxEP);
