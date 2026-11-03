@@ -987,6 +987,63 @@ namespace
                      : nullptr;
     }
 
+    /** B-316: the receiver's armoury and pouch can take the whole cart (the purchase's own checks read the payer). Logs
+     *  the first shortfall. */
+    bool BuyForReceiverHasRoom(const UPoolSubsystem &Pool, FName ForKey, const TArray<FMerchantStockEntry> &Items)
+    {
+        int32 WeaponCost = 0;
+        int32 AdapterCost = 0;
+        TMap<FCrystalId, int32> ItemDemand;
+        for (const FMerchantStockEntry &Entry : Items)
+        {
+            const int32 Count = FMath::Max(1, Entry.Count);
+            if (Entry.IsCrystalEntry())
+            {
+                ItemDemand.FindOrAdd(Entry.Crystal) += Count;
+            }
+            else if (Cast<UWeaponData>(Entry.Asset.Get()))
+            {
+                WeaponCost += Count * InventoryConstants::WEAPON_BASE_SLOT_COST;
+            }
+            else if (Cast<URingData>(Entry.Asset.Get()))
+            {
+                AdapterCost += Count * InventoryConstants::RING_BASE_SLOT_COST;
+            }
+        }
+        const FPoolGearView Owned = Pool.GetOwnedGearOf(ForKey);
+        for (const FWeaponInventoryEntry *Weapon : Owned.Weapons)
+        {
+            WeaponCost += Weapon->GetSlotCost();
+        }
+        for (const FRingInventoryEntry *Adapter : Owned.Adapters)
+        {
+            AdapterCost += Adapter->GetSlotCost();
+        }
+        if (WeaponCost > InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS || AdapterCost > InventoryConstants::MAX_RING_INVENTORY_SLOTS)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s has no room for the gear - refused, nothing spent"), *ForKey.ToString());
+            return false;
+        }
+        // One item type per slot (D-097): each new type needs a free slot, and each type's stack its room.
+        int32 NewSlots = 0;
+        for (const TPair<FCrystalId, int32> &Demand : ItemDemand)
+        {
+            NewSlots += Pool.GetCarriedCount(ForKey, Demand.Key) > 0 ? 0 : 1;
+            if (Pool.GetCarryRoom(ForKey, Demand.Key) < Demand.Value)
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s's pouch can't take %d %s - refused, nothing spent"),
+                       *ForKey.ToString(), Demand.Value, *ItemIdentity::GetDisplayName(Demand.Key));
+                return false;
+            }
+        }
+        if (Pool.GetUsedItemSlots(ForKey) + NewSlots > Pool.GetItemSlotCount(ForKey))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s's pouch has too few free slots - refused, nothing spent"), *ForKey.ToString());
+            return false;
+        }
+        return true;
+    }
+
     /** B-316: every weapon and adapter ID in the store. */
     TSet<FGuid> BuyForGearIDs(const UPoolSubsystem &Pool)
     {
@@ -1015,7 +1072,13 @@ bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMer
     const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
     UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
     const FPartyMember *Receiver = BuyForMemberOf(Payer, ForKey);
-    if (!Pool || PayerKey.IsNone() || !Receiver)
+    if (PayerKey.IsNone())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s has no character (no UCharacterDataComponent), so it can't hand goods to another member - refused"),
+               *GetNameSafe(Payer));
+        return false;
+    }
+    if (!Pool || !Receiver)
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s is not a party member the payer can buy for - refused"), *ForKey.ToString());
         return false;
@@ -1037,9 +1100,26 @@ bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMer
         }
     }
 
+    if (!BuyForReceiverHasRoom(*Pool, ForKey, Items))
+    {
+        return false;
+    }
+
     const TSet<FGuid> GearBefore = BuyForGearIDs(*Pool);
     const TMap<FCrystalId, int32> CarriedBefore = Pool->GetCarriedItems(PayerKey);
-    if (!Purchase(Payer, Items))
+    // The goods pass through the payer: its own copy of one is no duplicate for it to resolve (the receiver's is).
+    UInventoryComponent *PayerInv = Payer->FindComponentByClass<UInventoryComponent>();
+    const bool bWasQuiet = PayerInv && PayerInv->bSuppressDuplicateNotice;
+    if (PayerInv)
+    {
+        PayerInv->bSuppressDuplicateNotice = true;
+    }
+    const bool bBought = Purchase(Payer, Items);
+    if (PayerInv)
+    {
+        PayerInv->bSuppressDuplicateNotice = bWasQuiet;
+    }
+    if (!bBought)
     {
         return false;
     }
