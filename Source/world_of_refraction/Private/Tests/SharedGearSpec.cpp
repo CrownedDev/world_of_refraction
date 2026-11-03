@@ -245,6 +245,7 @@ void FSharedGearSpec::Define()
 		if (!TestNotNull(TEXT("Restored pool"), Restored)) return;
 		USaveSubsystem::RestorePool(Saved, *Restored);
 		TestEqual(TEXT("Same wearer"), Restored->GetWearer(SwordID), UPoolSubsystem::GetCharacterKey(Members[0]));
+		TestEqual(TEXT("Same owner (B-321)"), Restored->GetGearOwner(SwordID), UPoolSubsystem::GetCharacterKey(Members[0]));
 		TestTrue(TEXT("Starting gear stays banked"), Restored->HasBankedGear(UPoolSubsystem::GetCharacterKey(Members[0])));
 	});
 
