@@ -528,7 +528,7 @@ void UPoolSubsystem::RestoreLegacyCarriedItems(const TMap<FCrystalId, int32> &In
 
 int32 UPoolSubsystem::AdoptLegacyCarriedItems(FName LeaderKey)
 {
-    if (LegacyCarriedItems.Stacks.IsEmpty() || LeaderKey.IsNone())
+    if (!HasLegacyCarriedItems() || LeaderKey.IsNone())
     {
         return 0;
     }

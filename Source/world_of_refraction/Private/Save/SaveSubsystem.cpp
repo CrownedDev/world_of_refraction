@@ -887,7 +887,8 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 	Pool.RestorePouches(Pouches, Saved.BankedItemCharacters);
 	TMap<FCrystalId, int32> LegacyCarried;
 	ReadStacks(Saved.CarriedItems, LegacyCarried);
-	if (!LegacyCarried.IsEmpty())
+	// Bought slots come along even when the old pouch was empty.
+	if (!LegacyCarried.IsEmpty() || Saved.ItemSlotCount > InventoryConstants::ITEM_SLOTS_START)
 	{
 		Pool.RestoreLegacyCarriedItems(LegacyCarried, Saved.ItemSlotCount, Saved.BankedItemCharacters);
 	}

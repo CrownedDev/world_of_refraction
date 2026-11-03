@@ -31,8 +31,8 @@ namespace
 
 	const FCrystalId ITEM_SLOTS_ELEVENTH(ECrystalType::DamageStone, EItemTier::F_Tier);
 	constexpr int32 ITEM_SLOTS_STARTING_COUNT = 3;
-	constexpr int32 LEGACY_STACK_COUNT = 4;
-	constexpr int32 LEGACY_BOUGHT_SLOTS = 12;
+	constexpr int32 ITEM_SLOTS_LEGACY_STACK_COUNT = 4;
+	constexpr int32 ITEM_SLOTS_LEGACY_BOUGHT_SLOTS = 12;
 }
 
 BEGIN_DEFINE_SPEC(FItemSlotsSpec, "WoR.Pool.ItemSlots",
@@ -183,16 +183,16 @@ void FItemSlotsSpec::Define()
 	{
 		if (!Pool) return;
 		const FCrystalId Garnet = ItemSlotsType(0);
-		Pool->RestoreLegacyCarriedItems({{Garnet, LEGACY_STACK_COUNT}}, LEGACY_BOUGHT_SLOTS, {});
+		Pool->RestoreLegacyCarriedItems({{Garnet, ITEM_SLOTS_LEGACY_STACK_COUNT}}, ITEM_SLOTS_LEGACY_BOUGHT_SLOTS, {});
 		TestTrue(TEXT("Waiting for a draw"), Pool->HasLegacyCarriedItems());
 		TestEqual(TEXT("Nobody carries it yet"), Pool->GetCarriedCount(KeyOf(0), Garnet), 0);
 
 		UCrystalInventoryComponent *Leader = SpawnMember(0);
 		if (!Leader) return;
 		TestFalse(TEXT("Adopted"), Pool->HasLegacyCarriedItems());
-		TestEqual(TEXT("The leader carries it"), Pool->GetCarriedCount(KeyOf(0), Garnet), LEGACY_STACK_COUNT);
-		TestEqual(TEXT("The leader sees it"), Leader->GetCount(Garnet), LEGACY_STACK_COUNT);
-		TestEqual(TEXT("The bought slots came along"), Pool->GetItemSlotCount(KeyOf(0)), LEGACY_BOUGHT_SLOTS);
+		TestEqual(TEXT("The leader carries it"), Pool->GetCarriedCount(KeyOf(0), Garnet), ITEM_SLOTS_LEGACY_STACK_COUNT);
+		TestEqual(TEXT("The leader sees it"), Leader->GetCount(Garnet), ITEM_SLOTS_LEGACY_STACK_COUNT);
+		TestEqual(TEXT("The bought slots came along"), Pool->GetItemSlotCount(KeyOf(0)), ITEM_SLOTS_LEGACY_BOUGHT_SLOTS);
 		TestEqual(TEXT("The second member's pouch is untouched"), Pool->GetUsedItemSlots(KeyOf(1)), 0);
 	});
 
@@ -287,6 +287,31 @@ void FItemSlotsSpec::Define()
 		TestFalse(TEXT("Nothing legacy"), Restored->HasLegacyCarriedItems());
 	});
 
+	It("sends a run-only member's pouch to storage when the run ends", [this]()
+	{
+		if (!Pool) return;
+		UParty *Party = TestWorld->GetSubsystem<UPartySessionSubsystem>()->GetLocalParty();
+		if (!TestNotNull(TEXT("Party"), Party)) return;
+		Party->Members[1].bRunOnly = true;
+		const FCrystalId Garnet = ItemSlotsType(0);
+		Pool->CarryOrStore(KeyOf(1), Garnet, 2);
+		TestEqual(TEXT("One run-only member leaves"), TestWorld->GetSubsystem<UPartySessionSubsystem>()->DismissRunMembers(), 1);
+		TestEqual(TEXT("Its items wait in storage"), Pool->GetStoredCount(Garnet), 2);
+		TestFalse(TEXT("Its pouch is gone"), Pool->GetPouches().Contains(KeyOf(1)));
+	});
+
+	It("keeps an older save's bought slots even when its party pouch was empty", [this]()
+	{
+		if (!Pool) return;
+		FSavedPool Saved;
+		Saved.ItemSlotCount = ITEM_SLOTS_LEGACY_BOUGHT_SLOTS;
+		USaveSubsystem::RestorePool(Saved, *Pool);
+		TestTrue(TEXT("Kept aside"), Pool->HasLegacyCarriedItems());
+		Pool->AdoptLegacyCarriedItems(KeyOf(0));
+		TestEqual(TEXT("The leader has the bought slots"), Pool->GetItemSlotCount(KeyOf(0)), ITEM_SLOTS_LEGACY_BOUGHT_SLOTS);
+		TestFalse(TEXT("Nothing legacy left"), Pool->HasLegacyCarriedItems());
+	});
+
 	It("reads a v7 save's party pouch as legacy, waiting for the leader", [this]()
 	{
 		if (!Pool) return;
@@ -294,17 +319,17 @@ void FItemSlotsSpec::Define()
 		FSavedCrystalStack &Stack = Saved.CarriedItems.AddDefaulted_GetRef();
 		Stack.Type = static_cast<uint8>(ItemSlotsType(0).Type);
 		Stack.Tier = ItemSlotsType(0).Tier;
-		Stack.Count = LEGACY_STACK_COUNT;
-		Saved.ItemSlotCount = LEGACY_BOUGHT_SLOTS;
+		Stack.Count = ITEM_SLOTS_LEGACY_STACK_COUNT;
+		Saved.ItemSlotCount = ITEM_SLOTS_LEGACY_BOUGHT_SLOTS;
 		USaveSubsystem::RestorePool(Saved, *Pool);
 		TestTrue(TEXT("Kept aside"), Pool->HasLegacyCarriedItems());
 		TestEqual(TEXT("No pouch yet"), Pool->GetPouches().Num(), 0);
 		const FSavedPool Again = USaveSubsystem::CapturePool(*Pool);
 		TestEqual(TEXT("Saved again as it was until a draw"), Again.CarriedItems.Num(), 1);
-		TestEqual(TEXT("With its slots"), Again.ItemSlotCount, LEGACY_BOUGHT_SLOTS);
+		TestEqual(TEXT("With its slots"), Again.ItemSlotCount, ITEM_SLOTS_LEGACY_BOUGHT_SLOTS);
 		TestEqual(TEXT("Adopted by the leader"), Pool->AdoptLegacyCarriedItems(KeyOf(0)), 1);
-		TestEqual(TEXT("The leader carries it"), Pool->GetCarriedCount(KeyOf(0), ItemSlotsType(0)), LEGACY_STACK_COUNT);
-		TestEqual(TEXT("With the bought slots"), Pool->GetItemSlotCount(KeyOf(0)), LEGACY_BOUGHT_SLOTS);
+		TestEqual(TEXT("The leader carries it"), Pool->GetCarriedCount(KeyOf(0), ItemSlotsType(0)), ITEM_SLOTS_LEGACY_STACK_COUNT);
+		TestEqual(TEXT("With the bought slots"), Pool->GetItemSlotCount(KeyOf(0)), ITEM_SLOTS_LEGACY_BOUGHT_SLOTS);
 		TestEqual(TEXT("Adopting twice does nothing"), Pool->AdoptLegacyCarriedItems(KeyOf(0)), 0);
 		TestEqual(TEXT("Once adopted it is no longer written"), USaveSubsystem::CapturePool(*Pool).CarriedItems.Num(), 0);
 	});

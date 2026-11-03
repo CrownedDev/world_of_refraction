@@ -326,7 +326,10 @@ public:
     /** Puts the pre-B-322 party pouch into the leader's pouch (what doesn't fit goes to storage). Logs it;
      *  returns how many stacks moved. No-op when there is none. */
     int32 AdoptLegacyCarriedItems(FName LeaderKey);
-    bool HasLegacyCarriedItems() const { return !LegacyCarriedItems.Stacks.IsEmpty(); }
+    bool HasLegacyCarriedItems() const
+    {
+        return !LegacyCarriedItems.Stacks.IsEmpty() || LegacyCarriedItems.SlotCount > InventoryConstants::ITEM_SLOTS_START;
+    }
     /** The pre-B-322 party pouch still waiting for a draw (saved again as it was until then). */
     const FPoolPouch &GetLegacyCarriedItems() const { return LegacyCarriedItems; }
 
