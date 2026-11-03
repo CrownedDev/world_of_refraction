@@ -57,3 +57,22 @@ Mini-boss x4 and boss x8 HP; the requirement floor at 0.25; a 10% damage floor a
 
 The cause was the sim, not enemy HP stacking. Two of the three Mid/Late members were the early F build with only the weapon swapped. They now take tier-matched stat points (Q-293e). Enemy tier HP stays as decided (BaselineNumbers §2.9). Open for Crown: enemy damage scales with tier and party HP doesn't (Q-293e notes). Re-run the nightly.
 
+## D-119: one flat requirement penalty (2026-11-03; B-326)
+
+Crown replaced Q-293d's 0.25 floor with Elden Ring's single penalty: under any requirement, a weapon, ability or spell works at x0.6 with no pillar scaling. For pillar 6 the low-level S weapon now deals 192 x 0.6 = 115 against the high-level F weapon's ~58, so S gear still leads about 2x. Expect the 35–65% band to keep failing until the next nightly says otherwise. The band is Crown's call and stays as set.
+
+
+## What the third nightly showed (2026-11-03, after B-293d, desktop build)
+
+21 bands fail (was 17). The x4 / x8 rank HP and the 10 % chip floor made every Mid and Late fight longer; the Mid party now wins normal fights more often but the Late party still loses most.
+
+| Target | Band | Measured |
+|---|---|---|
+| Normal fight at Medium, party rounds | 2.5–5.5 | Early in band; **Mid 7.7, Late 10.7** |
+| Normal fight at Hard, party rounds | 2.5–5.5 | Early 5.9, Mid 9.5, Late 9.3 |
+| Win rate vs normal at Medium | 0.85–0.99 | Early 1.00, Mid 0.76 (was 0.12), **Late 0.16** |
+| Mini-boss rounds, Medium / Hard | 7–11 | Early 4.6 / in band; Mid 11.9 / 24.5; Late 31.4 / 43.6 |
+| Boss rounds, Medium / Hard | 11–15.5 | Early 9.7 / 15.8; Mid 24.7 / 33.7; Late 41.3 / 38.6 |
+| Pillar-6 win rate | 0.35–0.65 | 0.92; reverse 0.00 (settled by D-119: one x0.6 penalty for any shortfall, B-326 replaces the ladder and the floor) |
+
+What it says: the Mid and Late archetypes don't scale with the enemies' tier HP (B-224b: Mid x6.6, Late boss x28.8). Either the party archetypes get their tier's gear and stats (Q-293e touched the stats only), or the tier power ladder is too steep for the Decided round counts. Crown's answer (2026-11-03): enemy HP = own x rank x Combat Tier, no zone HP, and the double-zone bug fixed (B-327). The vendor and head-start don't enter the sim.
