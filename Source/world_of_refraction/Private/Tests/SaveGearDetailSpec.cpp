@@ -161,7 +161,7 @@ void FSaveGearDetailSpec::Define()
 		TestEqual(TEXT("One gear list holds both"), Saved.Gear.Num(), 2);
 		TestTrue(TEXT("The old lists are not written"), Saved.Weapons.IsEmpty() && Saved.Rings.IsEmpty());
 
-		FSavedPool Old;
+		FSavedPool Old; // CapturePool writes weapons before adapters
 		Old.Weapons = {Saved.Gear[0]};
 		Old.Rings = {Saved.Gear[1]};
 		const FSavedPool *Shapes[] = {&Saved, &Old};

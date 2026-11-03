@@ -231,6 +231,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-305](B-305.md) | `refactor/B-305-one-switch-v2` (in `dev`) | One weapon / adapter switch behind both menu buttons; no behaviour change | Not tested |
 | [B-306](B-306.md) | `refactor/B-306-gear-visitor-v2` (in `dev`) | One gear rule for stats, resistances and effects (Q-244); two Generic fixes | Not tested |
 | [B-307](B-307.md) | `refactor/B-307-infusion-resolver-v2` (in `dev`) | One infusion-source resolver; broken gives no element everywhere (CL-24) | Not tested |
+| [B-308](B-308.md) | `refactor/B-308-gear-save-v5` (in `dev`) | Save v5: one gear list; older saves still load | Not tested |
 | [B-297](B-297.md) | `fix/B-297-turn-cap` (in `dev`) | 2:1 turn cap: a fast combatant gets at most 2 turns per opponent turn | Not tested |
 | [B-271](B-271.md) | `refactor/B-271-element-table` (in `dev`) | One element table behind the element switches; no behaviour change | Not tested |
 | [B-279](B-279.md) | `feature/B-279-character-forms` (in `dev`) | Character-form meter fills on a won fight, unlocks at 100%, survives save | Not tested |
