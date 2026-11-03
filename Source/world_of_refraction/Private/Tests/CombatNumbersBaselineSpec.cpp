@@ -1,7 +1,7 @@
 // CombatNumbersBaselineSpec.cpp
 // B-224 (Crown, analysis/BaselineNumbers.md "Decided"): every number of the combat baseline pinned: the pillar
 // soft cap 0..7, reference weapon Power and main-pillar requirement by tier, enemy HP by rank, the weapon
-// requirement floor 0.5 (weapon part only), the Defense ceiling 75% and the un-invested crit x1.25; the tuning
+// unmet-requirement factor 0.6 with no scaling (D-119), the Defense ceiling 75% and the un-invested crit x1.25; the tuning
 // data starts at these values and fills its ladder rows with them; Elite is a fleeable rank below Mini-boss.
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -128,7 +128,8 @@ void FCombatNumbersBaselineSpec::Define()
 				  BASELINE_TOLERANCE);
 		FWorldPillarLevels AtFive;
 		AtFive.Body = GAP_FIVE_UNDER;
-		TestEqual(TEXT("met"), BodyRequirementOf(GAP_FIVE_UNDER).GetWeaponRequirementFactor(AtFive), 1.0f, BASELINE_TOLERANCE);
+		TestEqual(TEXT("met"), BodyRequirementOf(GAP_FIVE_UNDER).GetWeaponRequirementFactor(AtFive), WeaponRequirement::WEAPON_REQ_FACTOR_MAX,
+				  BASELINE_TOLERANCE);
 
 		// Unmet: the weapon part is Power x 0.6 with no scaling, even at a level the grade would scale from.
 		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
@@ -144,7 +145,7 @@ void FCombatNumbersBaselineSpec::Define()
 				  WoRWeaponPower::GetWeaponPart(*Weapon, EItemTier::F_Tier, Scaled, REQUIREMENT_UNMET),
 				  CombatBaseline::WEAPON_REFERENCE_POWER_F * REQUIREMENT_UNMET, BASELINE_TOLERANCE);
 		TestTrue(TEXT("met: the grade scales"),
-				 WoRWeaponPower::GetWeaponPart(*Weapon, EItemTier::F_Tier, Scaled, 1.0f) > CombatBaseline::WEAPON_REFERENCE_POWER_F);
+				 WoRWeaponPower::GetWeaponPart(*Weapon, EItemTier::F_Tier, Scaled, WeaponRequirement::WEAPON_REQ_FACTOR_MAX) > CombatBaseline::WEAPON_REFERENCE_POWER_F);
 	});
 
 	It("B-293d: keeps at least 10% of a hit after Defense, Damage Taken Down and Guard", [this]()

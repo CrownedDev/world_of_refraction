@@ -1,7 +1,7 @@
 // WeaponRequirementSpec.cpp
-// B-162 (D-082, Q-146c, Q-162): under a weapon's requirement, attacks and abilities through it deal
-// less (the requirement-gap ladder, worst pillar, clamped to [WEAPON_REQ_FACTOR_MIN, 1]); at or over
-// the requirement nothing changes; spells ignore the weapon's requirement.
+// B-162 (D-082, Q-146c), B-326 (D-119): under a weapon's requirement, by any amount on any pillar, attacks and
+// abilities through it deal x0.6 on the weapon part with no scaling; at or over it nothing changes; spells ignore the
+// weapon's requirement. An ability or spell under its own requirement still works at x0.6 on its skill part.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -102,9 +102,9 @@ void FWeaponRequirementSpec::Define()
 			const UCharacterData *OneUnder = NewCharacterAt(0, WEAPON_REQ_TEST_REQUIRED_LEVEL - WEAPON_REQ_TEST_SMALL_GAP, 0);
 			TestEqual(TEXT("one under"), BodyRequirement(WEAPON_REQ_TEST_REQUIRED_LEVEL).GetWeaponRequirementFactor(OneUnder),
 					  WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR);
-			FWorldStatRequirements FarAbove;
-			FarAbove.RequiredWorldBody = WEAPON_REQ_TEST_FAR_UNDER_GAP;
-			TestEqual(TEXT("far under: the same"), FarAbove.GetWeaponRequirementFactor(NewCharacterAt(0, 0, 0)),
+			FWorldStatRequirements FarRequirement;
+			FarRequirement.RequiredWorldBody = WEAPON_REQ_TEST_FAR_UNDER_GAP;
+			TestEqual(TEXT("far under: the same"), FarRequirement.GetWeaponRequirementFactor(NewCharacterAt(0, 0, 0)),
 					  WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR);
 		});
 
