@@ -3059,5 +3059,5 @@ Moved here once applied. Newest first.
 **Options / as built:** (1) **weapons and adapters only**; an evolution gives "Evolutions can't be given yet" (TODO: with B-324's chest, which needs the same detach rule). (2) **let it through**: the owner changes; the giver's next draw strips the piece and refills its primary with a warning (B-320's guard), as an old save does.
 **Recommendation:** as built. (1) keeps B-323 to one instance kind moving; (2) matches how B-321 treats gear that changed hands while a member was away. BG3 only allows trades between present companions, which the CommonUI screen can enforce later.
 **Answer (Crown):** _write here_
-**Notes for Claude:** applied in B-323. If (2) should refuse, `TryGiveGear` returns a refusal when `FindMemberInventory` is null.
+**Notes for Claude:** applied in B-323. If (2) should refuse, `TryGiveGear` returns a refusal when `FindMemberInventory` is null. Desktop build added two defaults: (3) a pouch stack **can** be given to a run-only recruit (gear can't): its pouch goes to storage at run end (B-322 `ReleasePouch`), so nothing is lost; (4) a receiver that isn't in the level gets no D-115 duplicate prompt at its next draw (the piece still arrives; the prompt comes from the live give). TODO: check for duplicates at the draw if Crown wants it.
 
