@@ -250,7 +250,7 @@ void UPartyControlWidget::Refresh()
 			[Member](const FRingInventoryEntry &Entry) { return Entry.PersistentID == Member->RunRing; });
 		RunWeaponTexts[SlotIndex]->SetText(FText::Format(LOCTEXT("RunWeaponRow", "{0}'s weapon (from the next fight): {1}"), Name,
 														 PartyControlBuild::RunGearName(Weapon ? Weapon->Weapon : nullptr)));
-		RunRingTexts[SlotIndex]->SetText(FText::Format(LOCTEXT("RunRingRow", "{0}'s ring (from the next fight): {1}"), Name,
+		RunRingTexts[SlotIndex]->SetText(FText::Format(LOCTEXT("RunAdapterRow", "{0}'s adapter (from the next fight): {1}"), Name,
 													   PartyControlBuild::RunGearName(Ring ? Ring->Ring : nullptr)));
 	}
 

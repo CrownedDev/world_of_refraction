@@ -91,6 +91,23 @@ void USkillEffectManager::Deinitialize()
 // EFFECT APPLICATION
 // ========================================
 
+namespace
+{
+	/** D-054: true when the applier is on the other side from Target. SourceTeam, when given, wins over the turn
+	 *  order's record of Source (gear reactions pass only the wearer's team). Unknown sides (out of combat, no
+	 *  source and no team) and self count as the same side. */
+	bool IsOnOpposingSide(const UTurnManager *TurnManager, AActor *Target, AActor *Source, int32 SourceTeam)
+	{
+		if (!TurnManager || Source == Target)
+		{
+			return false;
+		}
+		const int32 SideOfSource = SourceTeam >= 0 ? SourceTeam : (Source ? TurnManager->GetActorTeam(Source) : -1);
+		const int32 SideOfTarget = TurnManager->GetActorTeam(Target);
+		return SideOfSource >= 0 && SideOfTarget >= 0 && SideOfSource != SideOfTarget;
+	}
+}
+
 EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiveSkillEffect Effect,
 														  AActor *Source, const FString &SourceAbility, int32 SourceTeam)
 {
@@ -99,6 +116,9 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 		UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] ApplyEffect: Target is null"));
 		return EEffectApplicationResult::Rejected;
 	}
+
+	// B-268: a legacy authored CritDebuff is stored as the type that's read (CritChanceDebuff).
+	Effect.EffectType = SkillEffectClassification::ResolveLegacyAlias(Effect.EffectType);
 
 	// Check immunity
 	if (IsImmuneToEffectType(Target, Effect.EffectType))
@@ -132,6 +152,19 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	Effect.SourceAbilityName = SourceAbility;
 	Effect.SourceTeamIndex = SourceTeam;
 	Effect.InitialDuration = Effect.RemainingTurns;
+
+	// D-054 / Q-267: Turn Speed and Energy Cost modifiers are authored as a size; the side sets the direction.
+	// On an enemy the value turns negative (slower turns, dearer skills: a debuff); on an ally or self it stays
+	// as authored (a buff, or a self-drawback a designer wrote negative). ModifyStatusResist arrives signed by
+	// its applier (the stone), so it's left as it is.
+	if (Effect.EffectType == ESkillEffectType::ModifyTurnSpeed || Effect.EffectType == ESkillEffectType::ModifyEnergyCost)
+	{
+		const UTurnManager *TurnManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+		if (IsOnOpposingSide(TurnManager, Target, Source, SourceTeam))
+		{
+			Effect.EffectValue = -FMath::Abs(Effect.EffectValue);
+		}
+	}
 
 	// INSTANT lane — a true one-shot. It has already passed the immunity + fires-once gates
 	// above (so it stays interceptable; HealBlock enforcement lands here in a later cluster).
@@ -425,6 +458,21 @@ namespace
 												: nullptr;
 		return Mirror && Mirror->PayTick(Effect);
 	}
+
+	/** B-042yd: the other payouts (energy, drains, self-damage, percent restores) as PayTickThroughGAS, logged. */
+	bool PayPayoutThroughGAS(AActor *Actor, const FActiveSkillEffect &Effect, const UCharacterDataComponent &Char)
+	{
+		const int32 HPBefore = Char.CurrentHP;
+		const int32 EPBefore = Char.CurrentEP;
+		if (!PayTickThroughGAS(Actor, Effect))
+		{
+			return false;
+		}
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: %s %s paid through GAS, HP %d -> %d, EP %d -> %d"),
+			   *Actor->GetName(), *UEnum::GetValueAsString(Effect.EffectType), *Effect.EffectName, HPBefore, Char.CurrentHP,
+			   EPBefore, Char.CurrentEP);
+		return true;
+	}
 }
 
 #if !UE_BUILD_SHIPPING
@@ -531,7 +579,7 @@ void USkillEffectManager::WOR_StartingEffects()
 	// PRE — per gear source, mirroring GetActiveEffects' per-class coverage.
 	// Debug-only re-enumeration; the TOTAL cross-check below self-reports drift.
 	int32 Labeled = 0;
-	const FCombatLoadout Loadout = LC->GetActiveLoadout();
+	const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 	switch (LC->GetCharacterClass())
 	{
 	case ECharacterClass::Generic:
@@ -1239,47 +1287,59 @@ void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 
 void USkillEffectManager::ProcessTriggerEffects(AActor *Actor, ESkillTrigger Trigger, float TriggerValue)
 {
-	if (!Actor || !ActiveEffects.Contains(Actor))
+	TArray<FActiveSkillEffect> *Effects = Actor ? ActiveEffects.Find(Actor) : nullptr;
+	if (!Effects)
 	{
 		return;
 	}
 
-	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Actor];
-
-	// Forward index loop (NOT range-based): ConsumeCharge below can RemoveAt the fired effect,
-	// which would invalidate a range-based for. Same forward order + identical body, so uncharged
-	// effects (ConsumeCharge no-ops, returns false) behave byte-identically to the prior loop.
-	for (int32 i = 0; i < Effects.Num(); ++i)
+	// Claim, then fire (as ProcessEffectsWithTiming): ApplyEffectLogic can add or remove effects on this actor, or
+	// rehash ActiveEffects, so no reference into the list is held across it. The latch is set while claiming.
+	// B-300: only a threshold (state) trigger latches, so "HP below 30%" fires once per crossing. An event trigger
+	// (On Turn Start / End) fires every time its event comes, so it never latches.
+	TArray<FActiveSkillEffect> ToFire;
+	for (FActiveSkillEffect &Effect : *Effects)
 	{
-		FActiveSkillEffect &Effect = Effects[i];
-
-		if (Effect.ProcessTiming == ESkillEffectTiming::OnTrigger &&
-			Effect.TriggerCondition == Trigger)
+		if (Effect.ProcessTiming != ESkillEffectTiming::OnTrigger || Effect.TriggerCondition != Trigger)
 		{
-			if (IsTriggerConditionMet(Actor, Effect, TriggerValue))
-			{
-				if (!Effect.bTriggerActive)
-				{
-					Effect.bTriggerActive = true;
-					ApplyEffectLogic(Actor, Effect);
+			continue;
+		}
+		if (!IsTriggerConditionMet(Actor, Effect, TriggerValue))
+		{
+			Effect.bTriggerActive = false;
+			continue;
+		}
+		if (!Effect.bTriggerActive)
+		{
+			Effect.bTriggerActive = SkillTriggerUtils::IsThresholdTrigger(Trigger);
+			ToFire.Add(Effect);
+		}
+	}
 
-					UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Trigger activated: %s on %s"),
-						   *Effect.EffectName, *Actor->GetName());
+	for (FActiveSkillEffect &Fired : ToFire)
+	{
+		const auto IsFired = [&Fired](const FActiveSkillEffect &Candidate)
+		{
+			return Candidate.EffectID == Fired.EffectID && Candidate.SourceKey == Fired.SourceKey &&
+				   Candidate.EffectType == Fired.EffectType && Candidate.EffectName == Fired.EffectName;
+		};
+		const TArray<FActiveSkillEffect> *Live = ActiveEffects.Find(Actor);
+		if (!Live || !Live->ContainsByPredicate(IsFired))
+		{
+			continue; // removed earlier in this pass (e.g. cleansed)
+		}
 
-					// A trigger FIRE consumes a charge (the primary charge consumer). Charges == 0
-					// → no-op (unlimited). If charges hit 0 the effect is removed here; compensate
-					// the index so the next slot isn't skipped. NOTE: periodic ticks
-					// (ProcessEffectsWithTiming) deliberately do NOT consume — a DOT tick is not a
-					// charge fire. Per-tick consumption is a future opt-in, not built here.
-					if (ConsumeCharge(Actor, Effect))
-					{
-						--i;
-					}
-				}
-			}
-			else
+		ApplyEffectLogic(Actor, Fired);
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Trigger activated: %s on %s"),
+			   *Fired.EffectName, *Actor->GetName());
+
+		// A trigger FIRE consumes a charge (the primary charge consumer); Charges == 0 is unlimited. Found again
+		// after the apply, which may have moved it. Periodic ticks (ProcessEffectsWithTiming) don't consume.
+		if (TArray<FActiveSkillEffect> *After = ActiveEffects.Find(Actor))
+		{
+			if (FActiveSkillEffect *LiveEffect = After->FindByPredicate(IsFired))
 			{
-				Effect.bTriggerActive = false;
+				ConsumeCharge(Actor, *LiveEffect);
 			}
 		}
 	}
@@ -1687,6 +1747,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		{
 			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: HoT %s paid through GAS, HP %d -> %d"), *Actor->GetName(),
 				   *Effect.EffectName, HPBeforeTick, CharComp->CurrentHP);
+			BroadcastHealing(Effect.SourceActor.Get(), Actor, CharComp->CurrentHP - HPBeforeTick); // B-247
 		}
 		else
 		{
@@ -1697,6 +1758,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 			Inputs.HealingReceivedPercent = GetTotalStatModifier(Actor, ESkillEffectType::HealingReceivedBuff);
 			const int32 HealAmount = WoRTickMath::GetHotTickHeal(Inputs);
 			CharComp->ServerHeal(HealAmount);
+			BroadcastHealing(Effect.SourceActor.Get(), Actor, HealAmount); // B-247: every heal is reported
 			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s healed %d from %s"),
 				   *Actor->GetName(), HealAmount, *Effect.EffectName);
 		}
@@ -1704,12 +1766,20 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 
 	// ==================== ENERGY ====================
 	case ESkillEffectType::EnergyRestore:
+		if (PayPayoutThroughGAS(Actor, Effect, *CharComp))
+		{
+			break;
+		}
 		CharComp->ServerGainEnergy(FMath::RoundToInt(Value));
 		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s gained %d energy from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
 		break;
 
 	case ESkillEffectType::EnergyDrain:
+		if (PayPayoutThroughGAS(Actor, Effect, *CharComp))
+		{
+			break;
+		}
 		CharComp->ServerSpendEnergy(FMath::RoundToInt(Value));
 		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s lost %d energy from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
@@ -1782,6 +1852,10 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// Wired Session X. Lunge's self-damage effect applied cleanly but had no
 	// handler here, so it sat on the actor without ticking (May 2026 PIE).
 	case ESkillEffectType::SelfDamage:
+		if (PayPayoutThroughGAS(Actor, Effect, *CharComp))
+		{
+			break;
+		}
 		CharComp->ServerTakeDamage(FMath::RoundToInt(Value));
 		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s took %d self-damage from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
@@ -1834,30 +1908,30 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// Resource changes — percent restore / drain. Value is the percent (0..100).
 	case ESkillEffectType::RestoreHPPercent:
 	{
-		// HealBlock re-gate (per-tick) — same as HealthRestore above: suppress the heal while the
-		// bearer (Actor) is HealBlocked; the effect persists and its duration still decrements.
-		if (IsImmuneToEffectType(Actor, ESkillEffectType::RestoreHPPercent))
+		// B-042yd: past the HealBlock gate, the restore pays through GAS at UseGAS 1, and reports its heal (B-247).
+		if (const int32 HPBefore = CharComp->CurrentHP;
+			!IsImmuneToEffectType(Actor, ESkillEffectType::RestoreHPPercent) && PayPayoutThroughGAS(Actor, Effect, *CharComp))
 		{
-			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s: HoT '%s' (%%-restore) suppressed by HealBlock (no heal this tick)"),
-				   *Actor->GetName(), *Effect.EffectName);
+			BroadcastHealing(Effect.SourceActor.Get(), Actor, CharComp->CurrentHP - HPBefore);
+			break;
 		}
-		else if (CharComp->MaxHP > 0)
+		// HealBlock re-gate (per-tick): no heal while the bearer is HealBlocked; the effect persists and its
+		// duration still decrements. Gate, amplify, heal and report through HealActor (B-247).
+		if (CharComp->MaxHP > 0)
 		{
-			int32 Amount = FMath::RoundToInt(CharComp->MaxHP * Value / CombatConstants::STAT_PERCENT_DIVISOR);
-			// +healing-received amplify (HealBlock mirror) on the BEARER (Actor). Gate-then-amplify.
-			const float HealRecvBonus = GetTotalStatModifier(Actor, ESkillEffectType::HealingReceivedBuff);
-			Amount = FMath::RoundToInt(Amount * (1.0f + HealRecvBonus / CombatConstants::STAT_PERCENT_DIVISOR));
-			if (Amount > 0)
-			{
-				CharComp->ServerHeal(Amount);
-				UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s restored %d HP (%.1f%% of MaxHP) from %s"),
-					   *Actor->GetName(), Amount, Value, *Effect.EffectName);
-			}
+			const int32 Amount = FMath::RoundToInt(CharComp->MaxHP * Value / CombatConstants::STAT_PERCENT_DIVISOR);
+			const int32 Healed = HealActor(Actor, Amount, Effect.SourceActor.Get(), ESkillEffectType::RestoreHPPercent);
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s restored %d HP (%.1f%% of MaxHP) from %s"),
+				   *Actor->GetName(), Healed, Value, *Effect.EffectName);
 		}
 		break;
 	}
 	case ESkillEffectType::RestoreEnergyPercent:
 	{
+		if (PayPayoutThroughGAS(Actor, Effect, *CharComp))
+		{
+			break;
+		}
 		if (CharComp->MaxEP > 0)
 		{
 			const int32 Amount = FMath::RoundToInt(CharComp->MaxEP * Value / CombatConstants::STAT_PERCENT_DIVISOR);
@@ -1873,6 +1947,10 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// DrainHP — distinct from DOT: flat damage, no "leave 1 HP" clamp (can be lethal).
 	case ESkillEffectType::DrainHP:
 	{
+		if (PayPayoutThroughGAS(Actor, Effect, *CharComp))
+		{
+			break;
+		}
 		const int32 Amount = FMath::RoundToInt(Value);
 		if (Amount > 0)
 		{
@@ -1885,6 +1963,10 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// DrainEnergy — distinct from the bar-cap EnergyDrain trigger above.
 	case ESkillEffectType::DrainEnergy:
 	{
+		if (PayPayoutThroughGAS(Actor, Effect, *CharComp))
+		{
+			break;
+		}
 		const int32 Amount = FMath::RoundToInt(Value);
 		if (Amount > 0)
 		{
@@ -2088,26 +2170,10 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 	{
 		const float LifestealPct = GetTotalStatModifier(Attacker, ESkillEffectType::Lifesteal) / CombatConstants::STAT_PERCENT_DIVISOR;
 		const int32 HealAmount = FMath::Max(1, FMath::RoundToInt(Damage * LifestealPct));
-		if (UCharacterDataComponent *Comp = Attacker->FindComponentByClass<UCharacterDataComponent>())
-		{
-			// HealBlock gates the RECIPIENT — lifesteal self-heals the Attacker, so the immunity
-			// check is on Attacker (NOT the Target). Mirrors the ApplyEffect HealthRestore immunity
-			// gate; a HealBlocked attacker gains no lifesteal HP.
-			if (IsImmuneToEffectType(Attacker, ESkillEffectType::HealthRestore))
-			{
-				UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Lifesteal on %s blocked by HealBlock"),
-					   *Attacker->GetName());
-			}
-			else
-			{
-				// +healing-received amplify (HealBlock mirror) on the RECIPIENT (Attacker). Gate-then-amplify.
-				const float HealRecvBonus = GetTotalStatModifier(Attacker, ESkillEffectType::HealingReceivedBuff);
-				const int32 AmplifiedHeal = FMath::RoundToInt(HealAmount * (1.0f + HealRecvBonus / CombatConstants::STAT_PERCENT_DIVISOR));
-				Comp->ServerHeal(AmplifiedHeal);
-				UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Lifesteal: %s healed %d from hit on %s"),
-					   *Attacker->GetName(), AmplifiedHeal, *Target->GetName());
-			}
-		}
+		// HealBlock gates the RECIPIENT: lifesteal self-heals the Attacker, not the Target (HealActor, B-247).
+		const int32 Healed = HealActor(Attacker, HealAmount, Attacker);
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Lifesteal: %s healed %d from hit on %s"), *Attacker->GetName(), Healed,
+			   *Target->GetName());
 	}
 
 	// ApplyBurnToTarget — DOT (Fire) on the victim. Damage-per-turn = stored
@@ -2594,6 +2660,38 @@ bool USkillEffectManager::HasActiveDOT(AActor *Actor) const
 	return HasEffectOfType(Actor, ESkillEffectType::DOT); // B-042x: the Status.DOT tag at UseGAS 1
 }
 
+int32 USkillEffectManager::HealActor(AActor *Recipient, int32 Amount, AActor *Healer, ESkillEffectType GateType)
+{
+	UCharacterDataComponent *Comp = Recipient ? Recipient->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (!Comp || Amount <= 0)
+	{
+		return 0;
+	}
+	if (IsImmuneToEffectType(Recipient, GateType))
+	{
+		UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Heal of %d on %s blocked by HealBlock"), Amount, *Recipient->GetName());
+		return 0;
+	}
+	// Gate, then amplify on the RECIPIENT (the HealBlock mirror).
+	const int32 Healed = WoRTickMath::AmplifyHeal(Amount, GetTotalStatModifier(Recipient, ESkillEffectType::HealingReceivedBuff));
+	if (Healed <= 0)
+	{
+		return 0;
+	}
+	Comp->ServerHeal(Healed);
+	BroadcastHealing(Healer, Recipient, Healed);
+	return Healed;
+}
+
+void USkillEffectManager::BroadcastHealing(AActor *Healer, AActor *Recipient, int32 Amount) const
+{
+	UActionExecutor *Executor = GetGameInstance() ? GetGameInstance()->GetSubsystem<UActionExecutor>() : nullptr;
+	if (Executor && Amount > 0)
+	{
+		Executor->OnHealingDone.Broadcast(Healer, Recipient, Amount);
+	}
+}
+
 bool USkillEffectManager::IsImmuneToEffectType(AActor *Actor, ESkillEffectType EffectType) const
 {
 	// Universal immunity short-circuits everything.
@@ -2979,13 +3077,13 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	case ESkillEffectType::DOT:
 	{
 		Effect.EffectType = ESkillEffectType::DOT;
-		// 8% MaxHP per tick - scaled at apply time via target's MaxHP.
+		// BURN_BREAK_MAX_HP_FRACTION of MaxHP per tick - scaled at apply time via target's MaxHP.
 		// TODO: long-term, change DOT processing to interpret Value as % of MaxHP
 		// directly; for now we resolve to flat damage here for compatibility with
 		// ApplyEffectLogic's int-damage handler.
 		if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
 		{
-			Effect.EffectValue = TargetComp->MaxHP * 0.08f;
+			Effect.EffectValue = TargetComp->MaxHP * CombatConstants::BURN_BREAK_MAX_HP_FRACTION;
 			Effect.bShareOfMaxHP = true; // resistance already cut the buildup that capped the bar (Q-064)
 		}
 		else
@@ -3001,7 +3099,7 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 
 	case ESkillEffectType::DefenseDebuff:
 		Effect.EffectType = ESkillEffectType::DefenseDebuff;
-		Effect.EffectValue = 30.0f; // 30% defence reduction
+		Effect.EffectValue = CombatConstants::EARTH_BREAK_DEFENSE_DOWN_PERCENT;
 		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
@@ -3011,6 +3109,9 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 		break;
 
+	// OBSOLETE (B-268): the four cases below are unreachable. BarCapTriggerResolver never returns SpeedDebuff,
+	// CritDebuff, EnergyDebuff or RandomDebuff, and StatusBuildupManager is this function's one caller. Remove
+	// after Crown's PIE pass of the status breaks (DryAudit_2026-10-28.md §E).
 	case ESkillEffectType::SpeedDebuff:
 		Effect.EffectType = ESkillEffectType::SpeedDebuff;
 		Effect.EffectValue = 50.0f; // 50%
@@ -3097,19 +3198,19 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 
 	case ESkillEffectType::BurstDamage:
 	{
-		// Design changed: 25% MaxHP target-scaled, can kill (1-HP clamp removed).
+		// Design changed: REALITY_BREAK_MAX_HP_FRACTION of MaxHP, target-scaled, can kill (1-HP clamp removed).
 		// Full damage routes through the normal death path (ServerTakeDamage ->
 		// CheckDeath -> OnDied), identical to a killing blow / the DoT change.
 		UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
 		if (TargetComp)
 		{
-			int32 BurstDamage = FMath::RoundToInt(TargetComp->MaxHP * 0.25f);
+			int32 BurstDamage = FMath::RoundToInt(TargetComp->MaxHP * CombatConstants::REALITY_BREAK_MAX_HP_FRACTION);
 
 			if (BurstDamage > 0)
 			{
 				TargetComp->ServerTakeDamage(BurstDamage);
-				UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Reality Burst dealt %d (25%% MaxHP, can be lethal) to %s"),
-					   BurstDamage, *Target->GetName());
+				UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Reality Burst dealt %d (%.2f of MaxHP, can be lethal) to %s"),
+					   BurstDamage, CombatConstants::REALITY_BREAK_MAX_HP_FRACTION, *Target->GetName());
 			}
 		}
 		return; // one-shot, no FActiveSkillEffect applied

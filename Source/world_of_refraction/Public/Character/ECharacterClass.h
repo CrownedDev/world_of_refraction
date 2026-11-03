@@ -91,11 +91,11 @@ namespace CharacterClassHelpers
 		switch (Class)
 		{
 		case ECharacterClass::Generic:
-			return TEXT("Weapon fighter with two weapon slots. Casts only through a ring or evolution it wears.");
+			return TEXT("Weapon fighter with two weapon slots. Casts only through an adapter or evolution it wears.");
 		case ECharacterClass::Caster:
 			return TEXT("Elemental caster with innate spells of its own element, plus any slotted gear.");
 		case ECharacterClass::Resonator:
-			return TEXT("Ring caster. Switches elements by switching rings, but rings can break.");
+			return TEXT("Adapter caster. Switches elements by switching adapters, but adapters can break.");
 		default:
 			return TEXT("");
 		}

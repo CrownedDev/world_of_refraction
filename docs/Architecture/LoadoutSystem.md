@@ -412,6 +412,24 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 - `FWeaponLoadoutEntry::ValidateSpells()` validates `WeaponEntry.AssignedSpells`
   rather than the entry's own `AssignedSpells` field — a possible inconsistency
   worth confirming against intended design.
+- The B-302 slot mirror (`FCombatLoadout::Slots`) is rebuilt only for the
+  active loadout, and only when the loadout component announces a gear change.
+  `InventoryComponent` edits that don't announce (run-preset swap,
+  `LinkLoadoutsToOwned` / `StripUnownedGear`, loadout inflation) leave it stale
+  until the next announcement. Nothing reads it yet; B-304 heals it on read.
+- B-303: a Resonator with an adapter in the *primary* slot (blocked for saved
+  loadouts, not for runtime edits) has it counted in the budget finding, but
+  `ClearInvalidSlots` drops only `RingLoadout` adapters, so the finding could
+  survive the clear. Not reachable from today's screens.
+- B-310: carried run wear with a GUID is matched by GUID only. If an item is
+  relinked to a new GUID mid-run, that slot starts the next fight with fresh
+  wear (old saves without GUIDs still match by asset, in slot order).
+- B-304: the worn-elsewhere skip reads the pool's wearer without checking the
+  wearer is in the party (TODO in `IsWornByAnother`), so a stale wearer key
+  hides a piece; and a wearer change doesn't announce a gear change, so the
+  weapon mesh can show the old pick until the next announcement.
+- B-304: the active-gear getters are `const` but bring the slot mirror in step
+  (a cache) on every read: game thread only.
 
 ## Changelog
 
@@ -455,3 +473,10 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-10-27 | B-085 (Q-085): the owned weapon / ring / evolution is the truth; loadout slots are caches keyed by `PersistentID` / `PrimaryEvolutionInstance`. `UInventoryComponent::LinkLoadoutsToOwned` (both init paths) links unresolved authored slots to an owned entry of the same asset; `RefreshLoadoutsFromOwned` / `RefreshEvolutionInLoadouts` after every socket op, level-up, downgrade and evolution removal; `WriteLoadoutToOwned` at every fight end (`CombatOrchestrator`), on `SetActiveLoadoutIndex` and after `ApplyCarriedGear` (the active loadout leads mid-fight); `DetachEvolutionFromOwnedGear` on evolution removal; debug `GetOwnedGearSyncString` in `wor.PrintInventory`. Spec `WoR.Inventory.OwnedGearSync`. | refactor/B-085-owned-gear-truth |
 | 2026-10-27 | B-171 (D-081, Q-171): `ULoadoutComponent::HandleGearSocketChanged` (bound to the inventory's new `OnGearSocketChanged`) drops, in each loadout using that gear, only what a socket can break (weapon / ring spells, weapon abilities, the overflows) via `DropInvalidParts(Index, OnlySlotTypes)`, announcing through `OnPartsDropped`; skipped while combat is active. Spec `WoR.Loadout.GearChangeDrops`. | feature/B-171-gear-change-drops |
 | 2026-10-27 | B-091 (D-020, Q-091): one shared armoury for the party. `UInventoryComponent::DrawSharedGear` (party members, at spawn) banks starting gear into `UPoolSubsystem` once, takes the whole armoury and re-links the presets; `ClaimActiveSharedGear` / `ULoadoutComponent::ClaimSharedGear` (spawn, loadout switch, `PrepareForBattle`) keep one wearer per piece; `PushGearToPool` / `HandlePoolGearChanged` keep every member's copy in step. Spec `WoR.Pool.SharedGear`. | feature/B-091-shared-gear-pool |
+| 2026-11-02 | B-258 (P1): the read paths take `GetActiveLoadout()` by const reference (21 of 22 sites); the copies that stay are where the loadout changes while used (`CrystalManager` before-wear, `ActionExecutor`). | refactor/B-258-loadout-by-ref |
+| 2026-11-02 | B-285: spec `WoR.Loadout.Budget` pins the Resonator budget 5 and slot costs (CL-10..12) and the innate budget 24 / 48 with tier costs and pillar cuts (CL-34 / 35). No code change. | chore/B-285-loadout-budget-spec |
+| 2026-11-02 | B-301 (D-110 step 1): `FGearInstance` (+ `EGearKind` Weapon / Adapter, append-only) is one owned-gear shape for a weapon or an adapter, with converters to and from `FWeaponInventoryEntry` / `FRingInventoryEntry`. Nothing reads it yet (B-302 mirrors slots onto it). Spec `WoR.Loadout.GearInstance`. | refactor/B-301-gear-instance |
+| 2026-11-02 | B-302 (D-110 step 2, D-111): `FLoadoutSlot` (the owned item by GUID is the truth, the gear copy a derived cache) and `FCombatLoadout::Slots` / `ActiveWeaponSlot` / `ActiveAdapterSlot`, rebuilt from the old fields by `RebuildSlotsFromLegacy(Class)` after every loadout change; the mirror holds what the fight reads for the class. Nothing reads it yet (B-303 moves the rules onto it). Debug `wor.Loadout.CompareSlots` (`ULoadoutRulesDebug::GetCompareSlotsString`). Spec `WoR.Loadout.Slots`. | refactor/B-302-loadout-slots |
+| 2026-11-03 | B-303 (D-110 step 3): `LoadoutClassTable` (Refractor 3 / 1 item; Generic 6 / 2 items, 2 weapons, 1 adapter (Q-303); Resonator 5 / 1 weapon / any adapters) and one `FLoadoutRules::SlotCost` over the unified slots; `CollectClassLimitFindings` replaces the Resonator-only budget block, and `ClearInvalidSlots`' adapter drop uses the same `NonAdapterCost`. Same results, except the budget charges the gear the fight uses (Q-303b). Spec `WoR.Loadout.ClassLimits`. | refactor/B-303-class-table-cost |
+| 2026-11-03 | B-310 (D-111 bug, Q-310): carried run wear (`FCarriedGearState`, `FSavedCarriedAttachment::GearID`) and crystal break / destroy / repair (`FindAttachedItemForSlot`, `FEquippedCrystalSlot::GearID`) follow the item's GUID, so two identical adapters keep their own wear; a GUID that names nothing finds nothing. Asset lookups prefer the copy in use (Q-310). Old saves match by asset. Spec `WoR.Party.RunWearByGuid`. | fix/B-310-run-wear-by-guid |
+| 2026-11-03 | B-304 (D-110 step 4, Q-304): `GetActiveSlot(Kind)`; the active-weapon / adapter getters forward to it. The mirror heals itself on read (`EnsureSlotsInStep`, slots know their old entry). An empty or stale active slot falls back to the first usable slot of its kind (a Resonator's only inside its adapter loadout); a piece another member wears is skipped (B-221b). A Generic's secondary weapon gets the spell checks. Wear lands on the piece the getters call in use. Supersedes B-243. Spec `WoR.Loadout.ActiveSlot`. | refactor/B-304-active-slot |

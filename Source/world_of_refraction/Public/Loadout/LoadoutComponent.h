@@ -83,6 +83,11 @@ struct WORLD_OF_REFRACTION_API FEquippedCrystalSlot
 
     UPROPERTY(BlueprintReadOnly, Category = "Crystal")
     UObject *Holder = nullptr;
+
+    /** B-310 (D-111): the owned item the attachment sits on, so two identical holders stay apart; invalid for
+     *  asset-built gear and the evolution seat (then Holder alone). */
+    UPROPERTY(BlueprintReadOnly, Category = "Crystal")
+    FGuid GearID;
 };
 
 /**
@@ -532,6 +537,13 @@ public:
     /** Get active ring loadout entry (Resonator) */
     const FRingLoadoutEntry *GetActiveRingLoadout() const;
 
+    /** B-304 (D-110): the slot in use for a kind: the active one, else the first usable slot of that kind (a Generic's
+     *  two weapon slots are equal; no primary rule). A piece another member wears is skipped (B-221b). The old
+     *  active-weapon / adapter getters forward here. The pointer is valid until the loadout next changes.
+     *  Const but not read-only: it brings the active loadout's slot mirror in step first (a cache), so call it on
+     *  the game thread only (the anim instance reads it from NativeUpdateAnimation, not the thread-safe update). */
+    const FLoadoutSlot *GetActiveSlot(EGearKind Kind) const;
+
     /** D-083: why Spell can't be cast right now because the active weapon's or ring's crystal
      *  is broken (a broken ring still casts F-tier spells). Empty when it can. */
     FText GetBrokenSourceReason(const USpellData *Spell) const;
@@ -634,6 +646,13 @@ public:
      *  the live attachment, and by the public Reset/Repair/ApplyWear wrappers
      *  which perform fetch-and-use within a single scope. */
     FRuntimeAttachedItem *FindAttachedItemByHolder(UObject *Holder);
+
+    /** B-310: the attachment a GetEquippedCrystals slot names: matched by its item's GUID when it has one (so two
+     *  identical adapters stay apart), else by holder. Crystal break / destroy / repair use these. */
+    FRuntimeAttachedItem *FindAttachedItemForSlot(const FEquippedCrystalSlot &Slot);
+    FRuntimeAttachedItem GetCrystalEntryForSlot(const FEquippedCrystalSlot &Slot) const;
+    void ResetCrystalEntryForSlot(const FEquippedCrystalSlot &Slot);
+    int32 RepairCrystalEntryForSlot(const FEquippedCrystalSlot &Slot, int32 Amount);
 
     /** Resets the attachment to its default (empty) state. Used by end-of-combat
      *  crystal destruction. No-op if no matching entry exists. */
@@ -785,10 +804,31 @@ private:
     UFUNCTION()
     void HandleGearSocketChanged(FGuid GearID);
 
-    /** Helper to get the sibling UInventoryComponent. Re-fetched per call (no
-     *  cache) — loading screens hide the FindComponentByClass cost. Returns
-     *  nullptr if the owner has no inventory component; callers must guard. */
+    /** Helper to get the sibling UInventoryComponent. Found once and cached (B-262: the anim instance and every
+     *  stat read call it per frame / per read); found again if the cached one is gone. Returns nullptr if the
+     *  owner has no inventory component; callers must guard. */
     UInventoryComponent *GetInventoryComponent() const;
+
+    /** B-304: the active loadout with its slot mirror brought in step with the old fields (null when none). */
+    FCombatLoadout *GetActiveLoadoutInStep() const;
+
+    /** B-304 / B-221b: the piece is worn by another member (UPoolSubsystem's wearers). */
+    bool IsWornByAnother(const FGuid &GearID) const;
+
+    /** B-304: this character's wearer key (UPoolSubsystem::GetCharacterKey builds it from the asset path), kept per
+     *  character data so the active-gear getters don't rebuild it on every read. */
+    mutable TWeakObjectPtr<const UCharacterData> WearerKeyData;
+    mutable FName WearerKey;
+
+    /** B-304: the old ring entry behind the active adapter slot. */
+    const FRingLoadoutEntry *GetActiveAdapterLegacyEntry() const;
+
+    /** B-304: GetActiveSlot on a loadout already brought in step (one walk for the forwards). */
+    const FLoadoutSlot *GetActiveSlotIn(const FCombatLoadout &Loadout, EGearKind Kind) const;
+    /** B-262: the sibling components, found once (GetInventoryComponent / GetOwnerCharacterData). Weak, so a
+     *  removed component is looked up again rather than read stale. */
+    mutable TWeakObjectPtr<UInventoryComponent> CachedInventory;
+    mutable TWeakObjectPtr<UCharacterDataComponent> CachedCharacterDataComponent;
 
     // FindAttachedItemByHolder is the unified mutable-lookup helper, now public above.
 

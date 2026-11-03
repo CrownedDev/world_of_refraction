@@ -86,8 +86,9 @@ public:
 	void ForgetEnded(const FActiveSkillEffect &Effect);
 
 	/** B-042y: pay one tick of Effect now through its GE's tick spec (the number from UWoRTickExecution; the
-	 *  Vitals set hands the Health change to the HP path). False when no live mirrored GE of it carries one,
-	 *  so the caller pays on the enum path. */
+	 *  Vitals set hands the Health / Energy change to the HP / EP path). B-042yd: every payout type, and an
+	 *  instant (never stored) pays through a tick spec of its own. False when no live mirrored GE of it carries
+	 *  one (or the owner has no Vitals set), so the caller pays on the enum path. */
 	bool PayTick(const FActiveSkillEffect &Effect);
 
 	/** What the owner's stored effects should look like on GAS: one entry per ported, stored effect. */

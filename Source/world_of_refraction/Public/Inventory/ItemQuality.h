@@ -16,6 +16,9 @@
  * Rolled at drop time (weighted curve, Luck/perk-biased) and stamped on the item
  * instance — distinct from EItemTier (which is authored/seeded power and the axis leveling
  * mutates). Append-only — never reorder/remove (serialization-safe), exactly like EItemTier.
+ *
+ * B-277: no gameplay number reads it yet (its readers are PoolAccessors and the save), so don't show it beside
+ * Tier until it does something. Never cast it to or from EItemTier / EScalingTier.
  */
 UENUM(BlueprintType)
 enum class EItemQuality : uint8
