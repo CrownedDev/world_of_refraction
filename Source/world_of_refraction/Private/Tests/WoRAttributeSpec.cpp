@@ -100,7 +100,27 @@ void FWoRAttributeSpec::Define()
 		}
 		Char->ServerTakeDamage(ATTRIBUTE_TEST_DAMAGE);
 		TestEqual(TEXT("Health = CurrentHP"), ASC->GetNumericAttribute(UWoRAttributeSet_Vitals::GetHealthAttribute()), static_cast<float>(Char->CurrentHP));
-		TestAttributesMatch(TEXT("after damage"));
+		TestWorld->Tick();
+		TestAttributesMatch(TEXT("after damage, next tick"));
+	});
+
+	It("syncs only the vitals on a hit, then everything once on the next tick (B-260)", [this]()
+	{
+		UWoRAttributeSyncComponent *Sync = Hero ? Hero->FindComponentByClass<UWoRAttributeSyncComponent>() : nullptr;
+		if (!ASC || !Char || !TestNotNull(TEXT("sync"), Sync))
+		{
+			return;
+		}
+		const int32 FullBefore = Sync->FullSyncCount;
+		Char->ServerTakeDamage(ATTRIBUTE_TEST_DAMAGE);
+		Char->ServerTakeDamage(ATTRIBUTE_TEST_DAMAGE);
+		TestEqual(TEXT("Health follows each hit at once"), ASC->GetNumericAttribute(UWoRAttributeSet_Vitals::GetHealthAttribute()),
+				  static_cast<float>(Char->CurrentHP));
+		TestEqual(TEXT("no full sync yet"), Sync->FullSyncCount, FullBefore);
+		TestTrue(TEXT("one full sync queued"), Sync->bFullSyncQueued);
+		TestWorld->Tick();
+		TestEqual(TEXT("one full sync for both hits"), Sync->FullSyncCount, FullBefore + 1);
+		TestAttributesMatch(TEXT("after the queued sync"));
 	});
 
 	It("follows a stat buff when it lands and when it goes", [this]()

@@ -223,6 +223,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-042ye](B-042ye.md) | `refactor/B-042ye-gas-effect-reads` (in `dev`) | GAS: the AI's burn checks, buff / debuff counts and the panel's effect list read GAS at UseGAS 1 | Not tested |
 | [B-249](B-249.md) | `refactor/B-249-element-immunity-map` (in `dev`) | One element -> immunity map (no change in play) | Not tested |
 | [B-252b](B-252b.md) | `refactor/B-252b-owned-gear-verbs` (in `dev`) | One body for weapon / ring dismantle, level up, revert (no change in play) | Not tested |
+| [B-260](B-260.md) | `refactor/B-260-light-attribute-sync` (in `dev`) | Lighter GAS attribute sync on hits; attributes still match | Not tested |
 | [B-259](B-259.md) | `refactor/B-259-ai-estimate-memo` (in `dev`) | AI damage estimates cached within one decision; same AI choices | Not tested |
 | [B-256b](B-256b.md) | `refactor/B-256b-interact-hint` (in `dev`) | One interact-hint helper; shared crystal / BD debug preambles; same hints and prints | Not tested |
 | [B-319](B-319.md) | `feature/B-319-duplicate-choice` (in `dev`) | A duplicate weapon / adapter: weaker copy to Gold or dismantled (`wor.UI.Duplicates`) | Not tested |
