@@ -94,6 +94,11 @@ void USkillEffectManager::Deinitialize()
 
 namespace
 {
+	/** An on-hit DoT (Burn, Chill, ApplyDOTOnHit) with no authored size deals this per turn. */
+	constexpr float ON_HIT_DOT_DEFAULT_DAMAGE = 10.0f;
+	/** Turns an on-hit DoT lasts. */
+	constexpr int32 ON_HIT_DOT_TURNS = 3;
+
 	/** D-054: true when the applier is on the other side from Target. SourceTeam, when given, wins over the turn
 	 *  order's record of Source (gear reactions pass only the wearer's team). Unknown sides (out of combat, no
 	 *  source and no team) and self count as the same side. */
@@ -2005,6 +2010,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::GrantLightningImmunity:
 	case ESkillEffectType::GrantVoidImmunity:
 	case ESkillEffectType::GrantRealityImmunity:
+	case ESkillEffectType::GrantElementImmunity: // only reached unresolved, with no element: blocks nothing (B-275)
 		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] Immunity %s active on %s"),
 			   *Effect.EffectName, *Actor->GetName());
 		break;
@@ -2017,6 +2023,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::ApplyBurnToTarget:
 	case ESkillEffectType::ApplyChillToTarget:
 	case ESkillEffectType::ApplyStunToTarget:
+	case ESkillEffectType::ApplyDOTOnHit:
 		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s armed on %s — fires on hit (Phase B hook pending)"),
 			   *Effect.EffectName, *Actor->GetName());
 		break;
@@ -2182,10 +2189,10 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 	if (HasEffectOfType(Attacker, ESkillEffectType::ApplyBurnToTarget))
 	{
 		const float Magnitude = GetTotalStatModifier(Attacker, ESkillEffectType::ApplyBurnToTarget);
-		const float Damage_ApplyBurn = Magnitude > 0 ? Magnitude : 10.0f;
+		const float Damage_ApplyBurn = Magnitude > 0 ? Magnitude : ON_HIT_DOT_DEFAULT_DAMAGE;
 		const int32 BurnID = GetTypeHash(Attacker) ^ static_cast<uint32>(ESkillEffectType::ApplyBurnToTarget);
 		FActiveSkillEffect Burn = FActiveSkillEffect::CreateDOT(
-			TEXT("Burn"), BurnID, Damage_ApplyBurn, 3, ESpellElement::Fire);
+			TEXT("Burn"), BurnID, Damage_ApplyBurn, ON_HIT_DOT_TURNS, ESpellElement::Fire);
 		ApplyEffect(Target, Burn, Attacker, TEXT("Burn"), -1);
 	}
 
@@ -2193,11 +2200,27 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 	if (HasEffectOfType(Attacker, ESkillEffectType::ApplyChillToTarget))
 	{
 		const float Magnitude = GetTotalStatModifier(Attacker, ESkillEffectType::ApplyChillToTarget);
-		const float Damage_ApplyChill = Magnitude > 0 ? Magnitude : 10.0f;
+		const float Damage_ApplyChill = Magnitude > 0 ? Magnitude : ON_HIT_DOT_DEFAULT_DAMAGE;
 		const int32 ChillID = GetTypeHash(Attacker) ^ static_cast<uint32>(ESkillEffectType::ApplyChillToTarget);
 		FActiveSkillEffect Chill = FActiveSkillEffect::CreateDOT(
-			TEXT("Chill"), ChillID, Damage_ApplyChill, 3, ESpellElement::Water);
+			TEXT("Chill"), ChillID, Damage_ApplyChill, ON_HIT_DOT_TURNS, ESpellElement::Water);
 		ApplyEffect(Target, Chill, Attacker, TEXT("Chill"), -1);
+	}
+
+	// B-275: ApplyDOTOnHit of an element with no old member (Fire / Water resolve to Burn / Chill at build
+	// time) - a DoT of the effect's element, one per element held, same default size and length.
+	for (const FActiveSkillEffect &OnHitDOT : GetEffectsByType(Attacker, ESkillEffectType::ApplyDOTOnHit))
+	{
+		if (OnHitDOT.Element == ESpellElement::None || OnHitDOT.Element == ESpellElement::Generic)
+		{
+			continue;
+		}
+		const float DOTDamage = OnHitDOT.EffectValue > 0 ? OnHitDOT.EffectValue : ON_HIT_DOT_DEFAULT_DAMAGE;
+		const int32 DOTID = GetTypeHash(Attacker) ^ static_cast<uint32>(ESkillEffectType::ApplyDOTOnHit) ^
+							(static_cast<uint32>(OnHitDOT.Element) << 8);
+		const FString DOTName = SkillEffectDisplayNames::GetDisplayName(ESkillEffectType::DOT, OnHitDOT.Element);
+		FActiveSkillEffect DOT = FActiveSkillEffect::CreateDOT(DOTName, DOTID, DOTDamage, ON_HIT_DOT_TURNS, OnHitDOT.Element);
+		ApplyEffect(Target, DOT, Attacker, DOTName, -1);
 	}
 
 	// ApplyStunToTarget — bar-cap-style Stun on a CRIT only. Built via CreateBuff
