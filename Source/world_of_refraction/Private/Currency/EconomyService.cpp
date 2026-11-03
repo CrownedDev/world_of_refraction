@@ -523,6 +523,70 @@ bool UEconomyService::DismantleRing(AActor *Owner, FGuid PersistentID)
     return DismantleOwnedGear<FRingInventoryEntry>(Owner, PersistentID, TEXT("DismantleRing"));
 }
 
+namespace
+{
+    /** Q-319: a duplicate converts for half its tier's buy price (the merge-cost rule's half). */
+    constexpr int32 DUPLICATE_GOLD_DIVISOR = 2;
+
+    /** B-319: the weaker copy out of the loadouts and the owned list, then Gold. */
+    template <class TEntry>
+    bool ConvertOwnedGearToGold(AActor *Owner, UInventoryComponent &Inv, UCurrencyComponent &Currency, const FGuid &PersistentID)
+    {
+        const TCHAR *Verb = TEXT("ResolveDuplicate");
+        const TEntry *Entry = FindOwnedGearForVerb<TEntry>(Owner, Inv, PersistentID, Verb);
+        if (!Entry || EconomyRefusesPrimary(Inv, PersistentID, Verb))
+        {
+            return false;
+        }
+        const int32 Gold = UEconomyService::GetDuplicateGoldForTier(Entry->Tier);
+        EconomyStripFromLoadouts(Owner, &Inv, PersistentID);
+        if (!OwnedGearOps<TEntry>::Remove(Inv, PersistentID))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s: removal failed for GUID %s - no Gold"), Verb, *PersistentID.ToString());
+            return false;
+        }
+        Currency.Add(ECurrencyType::Gold, Gold);
+        UE_LOG(LogTemp, Log, TEXT("[EconomyService] Duplicate %s (GUID %s) -> %d Gold"), OwnedGearOps<TEntry>::Noun, *PersistentID.ToString(), Gold);
+        return true;
+    }
+}
+
+int32 UEconomyService::GetDuplicateGoldForTier(EItemTier Tier)
+{
+    return EconomyYield::GetPrismsBaseForTier(Tier) / DUPLICATE_GOLD_DIVISOR;
+}
+
+bool UEconomyService::ResolveDuplicate(AActor *Owner, FGuid WeakerID, bool bConvertToGold)
+{
+    const TCHAR *Verb = TEXT("ResolveDuplicate");
+    if (!EconomyMayAct(Owner, Verb))
+    {
+        return false;
+    }
+    UInventoryComponent *Inv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, Verb, Inv, Currency))
+    {
+        return false;
+    }
+    const FDuplicateGearPair *Pair = Inv->FindDuplicateGear().FindByPredicate(
+        [&WeakerID](const FDuplicateGearPair &Candidate) { return Candidate.WeakerID == WeakerID; });
+    if (!Pair)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s: GUID %s is no weaker duplicate"), Verb, *WeakerID.ToString());
+        return false;
+    }
+    const FDuplicateGearPair Chosen = *Pair;
+    // The kept copy takes the weaker one's place, so a primary is never left empty (D-116).
+    Inv->MoveLoadoutSlots(Chosen.WeakerID, Chosen.KeptID);
+    if (bConvertToGold)
+    {
+        return Chosen.bRing ? ConvertOwnedGearToGold<FRingInventoryEntry>(Owner, *Inv, *Currency, Chosen.WeakerID)
+                            : ConvertOwnedGearToGold<FWeaponInventoryEntry>(Owner, *Inv, *Currency, Chosen.WeakerID);
+    }
+    return Chosen.bRing ? DismantleRing(Owner, Chosen.WeakerID) : DismantleWeapon(Owner, Chosen.WeakerID);
+}
+
 #define LOCTEXT_NAMESPACE "EconomyService"
 
 FText UEconomyService::GetDismantleWarning(const AActor *Owner, FGuid PersistentID)
