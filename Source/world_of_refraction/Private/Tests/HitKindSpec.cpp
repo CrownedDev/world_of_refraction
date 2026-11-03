@@ -1,6 +1,6 @@
 // HitKindSpec.cpp
 // B-273 (S6): a hit's kind in one struct. FromPair keeps today's rule; an Ice hit is Water-keyed, deals
-// Ice and reads Ice + Water resistance; its tag sits under Water so Water triggers hear it (D-029, ED-04).
+// Ice and reads Ice resistance alone (Q-145b); its tag sits under Water so Water triggers hear it (D-029, ED-04, Q-273).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -34,7 +34,7 @@ void FHitKindSpec::Define()
 		TestEqual(TEXT("keyed Water"), Ice.Element, ESpellElement::Water);
 		TestEqual(TEXT("deals Ice"), Ice.DamageType, EWoRDamageType::Ice);
 		TestEqual(TEXT("element axis is Ice"), Ice.ElementType(), EWoRDamageType::Ice);
-		TestEqual(TEXT("Ice is also resisted by Water"), ElementTable::For(EWoRDamageType::Ice).AlsoResistedBy, EWoRDamageType::Water);
+		TestEqual(TEXT("Water resistance doesn't reach Ice (Q-145b)"), ElementTable::For(EWoRDamageType::Ice).AlsoResistedBy, EWoRDamageType::None);
 		TestEqual(TEXT("Water is also resisted by Ice"), ElementTable::For(EWoRDamageType::Water).AlsoResistedBy, EWoRDamageType::Ice);
 	});
 
@@ -65,29 +65,32 @@ void FHitKindSpec::Define()
 			TestWorld.Reset();
 		});
 
-		It("reads Ice + Water resistance for an Ice hit", [this]()
+		It("reads Ice resistance alone for an Ice hit, not the Water weakness (Q-145b)", [this]()
 		{
 			const float Water = WoRResistance::GetTypeResistance(FireCaster, EWoRDamageType::Water);
 			const float Ice = WoRResistance::GetTypeResistance(FireCaster, EWoRDamageType::Ice);
 			TestTrue(TEXT("the Fire Caster is weak to Water"), Water < 0.0f);
-			TestEqual(TEXT("Ice hit"), WoRResistance::GetHitDamageResistance(FireCaster, FWoRHitKind::Ice()), Ice + Water);
-			TestEqual(TEXT("Ice hit, buildup axes"), WoRResistance::GetHitTypeResistance(FireCaster, FWoRHitKind::Ice()), Ice + Water);
+			TestEqual(TEXT("Ice hit"), WoRResistance::GetHitDamageResistance(FireCaster, FWoRHitKind::Ice()), Ice);
+			TestEqual(TEXT("Ice hit, buildup axes"), WoRResistance::GetHitTypeResistance(FireCaster, FWoRHitKind::Ice()), Ice);
+			TestEqual(TEXT("a Water hit still adds Ice"), WoRResistance::GetHitDamageResistance(FireCaster, FWoRHitKind::FromPair(ESpellElement::Water, EPhysicalDamageType::None)), Water + Ice);
 		});
 
-		It("reads the same as the pair for every element and physical type", [this]()
+		It("reads the old pair formula for every element and physical type", [this]()
 		{
 			for (const ESpellElement Element : {ESpellElement::None, ESpellElement::Generic, ESpellElement::Fire, ESpellElement::Water, ESpellElement::Void})
 			{
+				const EWoRDamageType ElementType = WoRDamageType::ElementToDamageType(Element);
+				const float ElementResist = WoRResistance::GetTypeResistance(FireCaster, ElementType) +
+											(ElementType == EWoRDamageType::Water ? WoRResistance::GetTypeResistance(FireCaster, EWoRDamageType::Ice) : 0.0f);
 				for (const EPhysicalDamageType Physical : {EPhysicalDamageType::None, EPhysicalDamageType::Slash, EPhysicalDamageType::Impact})
 				{
 					const FWoRHitKind Kind = FWoRHitKind::FromPair(Element, Physical);
-					TestEqual(Kind.ToString(), WoRResistance::GetHitTypeResistance(FireCaster, Kind),
-							  WoRResistance::GetHitTypeResistance(FireCaster, Element, Physical));
-					TestEqual(Kind.ToString(), WoRResistance::GetTotalStatusResistance(FireCaster, Kind),
-							  WoRResistance::GetTotalStatusResistance(FireCaster, Element, Physical));
+					const float PhysicalResist = Physical == EPhysicalDamageType::None ? 0.0f
+												 : WoRResistance::GetTypeResistance(FireCaster, WoRDamageType::PhysicalToDamageType(Physical));
+					TestEqual(Kind.ToString(), WoRResistance::GetHitTypeResistance(FireCaster, Kind), ElementResist + PhysicalResist);
 				}
-				TestEqual(TEXT("damage"), WoRResistance::GetHitDamageResistance(FireCaster, FWoRHitKind::FromPair(Element, EPhysicalDamageType::None)),
-						  WoRResistance::GetElementDamageResistance(FireCaster, Element));
+				const float OldDamage = ElementType == EWoRDamageType::None ? 0.0f : ElementResist;
+				TestEqual(TEXT("damage"), WoRResistance::GetHitDamageResistance(FireCaster, FWoRHitKind::FromPair(Element, EPhysicalDamageType::None)), OldDamage);
 			}
 		});
 	});
