@@ -2,6 +2,8 @@
 // B-288: every rung of the combat ladders pinned by number, so a retune is a deliberate edit here too:
 // tier-gap damage and cost (-4..+4), requirement gap (-5..+5), tier power (F..S), the crit damage gear
 // ceiling x2.5 and the Damage Taken Down cap 90%. WoR.Scaling covers the shapes; this covers the values.
+// The C++ ladders are pinned (a tuning asset may retune them on purpose); one wrapper call per ladder checks
+// that the tuning path falls through to the C++ value while no asset exists.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -11,6 +13,7 @@
 #include "Combat/Damage/DamageCalculator.h"
 #include "Combat/Damage/TierGapConstants.h"
 #include "Combat/Damage/TierPowerConstants.h"
+#include "Combat/Tuning/CombatTuningData.h"
 
 namespace
 {
@@ -68,8 +71,11 @@ void FLaddersByNumberSpec::Define()
 					  TIER_GAP_DAMAGE_EXPECTED[IndexOf(Gap, TIER_GAP_FIRST)], LADDER_TOLERANCE);
 		}
 		// Through the tier pair the game uses: an S action through an F channel is the +4 rung.
-		TestEqual(TEXT("S through F"), TierGapDamage::GetTierGapDamageMultiplier(EItemTier::S_Tier, EItemTier::F_Tier),
-				  TIER_GAP_DAMAGE_EXPECTED[IndexOf(TIER_GAP_LAST, TIER_GAP_FIRST)], LADDER_TOLERANCE);
+		if (!UCombatTuningData::GetActive())
+		{
+			TestEqual(TEXT("S through F"), TierGapDamage::GetTierGapDamageMultiplier(EItemTier::S_Tier, EItemTier::F_Tier),
+					  TIER_GAP_DAMAGE_EXPECTED[IndexOf(TIER_GAP_LAST, TIER_GAP_FIRST)], LADDER_TOLERANCE);
+		}
 	});
 
 	It("pins the tier-gap cost ladder -4..+4: 0.77 0.83 0.88 0.94 1.00 1.11 1.28 1.56 2.00", [this]()
@@ -79,16 +85,24 @@ void FLaddersByNumberSpec::Define()
 			TestEqual(FString::Printf(TEXT("cost at gap %+d"), Gap), TierGapDamage::CodeTierGapCost(Gap),
 					  TIER_GAP_COST_EXPECTED[IndexOf(Gap, TIER_GAP_FIRST)], LADDER_TOLERANCE);
 		}
-		TestEqual(TEXT("S through F"), TierGapDamage::GetTierGapCostMultiplier(EItemTier::S_Tier, EItemTier::F_Tier),
-				  TIER_GAP_COST_EXPECTED[IndexOf(TIER_GAP_LAST, TIER_GAP_FIRST)], LADDER_TOLERANCE);
+		if (!UCombatTuningData::GetActive())
+		{
+			TestEqual(TEXT("S through F"), TierGapDamage::GetTierGapCostMultiplier(EItemTier::S_Tier, EItemTier::F_Tier),
+					  TIER_GAP_COST_EXPECTED[IndexOf(TIER_GAP_LAST, TIER_GAP_FIRST)], LADDER_TOLERANCE);
+		}
 	});
 
 	It("pins the requirement-gap ladder -5..+5: 1.40 1.30 1.20 1.13 1.06 1.00 0.90 0.78 0.64 0.50 0.32", [this]()
 	{
 		for (int32 Gap = REQ_GAP_FIRST; Gap <= REQ_GAP_LAST; ++Gap)
 		{
-			TestEqual(FString::Printf(TEXT("requirement at gap %+d"), Gap), TierGapDamage::GetRequirementGapMultiplier(Gap),
+			TestEqual(FString::Printf(TEXT("requirement at gap %+d"), Gap), TierGapDamage::CodeRequirementGap(Gap),
 					  REQUIREMENT_GAP_EXPECTED[IndexOf(Gap, REQ_GAP_FIRST)], LADDER_TOLERANCE);
+		}
+		if (!UCombatTuningData::GetActive())
+		{
+			TestEqual(TEXT("five under, through the tuning path"), TierGapDamage::GetRequirementGapMultiplier(REQ_GAP_LAST),
+					  REQUIREMENT_GAP_EXPECTED[IndexOf(REQ_GAP_LAST, REQ_GAP_FIRST)], LADDER_TOLERANCE);
 		}
 	});
 
@@ -96,8 +110,13 @@ void FLaddersByNumberSpec::Define()
 	{
 		for (int32 Index = 0; Index < TIER_COUNT; ++Index)
 		{
-			TestEqual(FString::Printf(TEXT("tier power of tier %d"), Index), TierPowerScaling::GetTierPowerMultiplier(TIERS[Index]),
-					  TIER_POWER_EXPECTED[Index], LADDER_TOLERANCE);
+			TestEqual(FString::Printf(TEXT("tier power of tier %d"), Index), TierPowerScaling::CodeTierPower(Index), TIER_POWER_EXPECTED[Index],
+					  LADDER_TOLERANCE);
+		}
+		if (!UCombatTuningData::GetActive())
+		{
+			TestEqual(TEXT("S, through the tuning path"), TierPowerScaling::GetTierPowerMultiplier(EItemTier::S_Tier),
+					  TIER_POWER_EXPECTED[TIER_COUNT - 1], LADDER_TOLERANCE);
 		}
 	});
 
