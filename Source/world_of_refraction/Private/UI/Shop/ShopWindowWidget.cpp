@@ -669,6 +669,9 @@ void UShopWindowWidget::HandleCurrencyChanged(ECurrencyType /*Currency*/, uint8 
 
 namespace
 {
+    /** B-316: buying for someone else needs the purchaser and at least one other member. */
+    constexpr int32 BUY_FOR_MIN_PARTY = 2;
+
     /** B-316: the local party's members, in party order. */
     TArray<const UCharacterData *> ShopPartyMembers(const UUserWidget &Widget)
     {
@@ -705,7 +708,7 @@ void UShopWindowWidget::HandleBuyForClicked()
     {
         Keys.Add(UPoolSubsystem::GetCharacterKey(Member));
     }
-    if (Keys.Num() < 2)
+    if (Keys.Num() < BUY_FOR_MIN_PARTY)
     {
         BuyForKey = NAME_None;
     }
@@ -734,7 +737,7 @@ FText UShopWindowWidget::GetBuyForLabel() const
             }
         }
     }
-    return NSLOCTEXT("Shop", "BuyingForSelf", "Buying for: yourself");
+    return FText::Format(NSLOCTEXT("Shop", "BuyingFor", "Buying for: {0}"), WoRGameNames::GetYourselfWord());
 }
 
 void UShopWindowWidget::RefreshBuyFor()

@@ -54,6 +54,8 @@ namespace WoRGameNames
     WORLD_OF_REFRACTION_API FText GetAdapterWordPlural();
     /** "Active adapter" (the Resonator's one in use) */
     WORLD_OF_REFRACTION_API FText GetActiveAdapterWord();
+    /** B-316: "yourself", the player's own character as a receiver (the shop's buy-for). */
+    WORLD_OF_REFRACTION_API FText GetYourselfWord();
     /** An adapter's form: "Ring", "Pistol", "Trainer". */
     WORLD_OF_REFRACTION_API FText GetAdapterFormName(EAdapterForm Form);
 

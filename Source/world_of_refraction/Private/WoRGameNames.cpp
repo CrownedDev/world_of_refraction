@@ -407,6 +407,11 @@ FText GetActiveAdapterWord()
     return LOCTEXT("ActiveAdapter", "Active adapter");
 }
 
+FText GetYourselfWord()
+{
+    return LOCTEXT("Yourself", "yourself");
+}
+
 FText GetAdapterFormName(EAdapterForm Form)
 {
     switch (Form)
