@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "Combat/Elements/ElementTable.h"
 
 namespace ElementColors
 {
@@ -24,32 +25,7 @@ namespace ElementColors
     // Get color for element
     inline FLinearColor GetColorForElement(ESpellElement Element)
     {
-        switch (Element)
-        {
-        case ESpellElement::Fire:
-            return Fire;
-        case ESpellElement::Lightning:
-            return Lightning;
-        case ESpellElement::Earth:
-            return Earth;
-        case ESpellElement::Wind:
-            return Wind;
-        case ESpellElement::Water:
-            return Water;
-        case ESpellElement::Reality:
-            return Reality;
-        case ESpellElement::Void:
-            return Void;
-        case ESpellElement::Light:
-            return Light;
-        case ESpellElement::Darkness:
-            return Darkness;
-        case ESpellElement::Generic:
-        case ESpellElement::None:
-            return Generic; // None / Generic both paint the neutral (non-elemental) colour
-        default:
-            return Generic;
-        }
+        return ElementTable::ForElement(Element).Colour; // None / Generic paint the neutral colour
     }
 
 }

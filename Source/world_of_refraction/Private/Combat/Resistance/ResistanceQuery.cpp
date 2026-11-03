@@ -4,6 +4,7 @@
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
 #include "Combat/Resistance/ClassInnateResistanceTable.h"
+#include "Combat/Elements/ElementTable.h"
 #include "Combat/Boss/BossPhaseComponent.h"
 #include "Combat/CombatConstants.h"
 #include "Character/CharacterDataComponent.h"
@@ -31,27 +32,16 @@ namespace
 	/** The two status axes a damage type stands for (element or physical, never both). */
 	void ToAxes(EWoRDamageType DamageType, ESpellElement &OutElement, EPhysicalDamageType &OutPhysical)
 	{
-		OutElement = ESpellElement::None;
-		OutPhysical = EPhysicalDamageType::None;
-		switch (DamageType)
-		{
-		case EWoRDamageType::Fire:      OutElement = ESpellElement::Fire; break;
-		case EWoRDamageType::Water:     OutElement = ESpellElement::Water; break;
-		case EWoRDamageType::Earth:     OutElement = ESpellElement::Earth; break;
-		case EWoRDamageType::Wind:      OutElement = ESpellElement::Wind; break;
-		case EWoRDamageType::Light:     OutElement = ESpellElement::Light; break;
-		case EWoRDamageType::Darkness:  OutElement = ESpellElement::Darkness; break;
-		case EWoRDamageType::Lightning: OutElement = ESpellElement::Lightning; break;
-		case EWoRDamageType::Void:      OutElement = ESpellElement::Void; break;
-		case EWoRDamageType::Reality:   OutElement = ESpellElement::Reality; break;
-		case EWoRDamageType::Slash:     OutPhysical = EPhysicalDamageType::Slash; break;
-		case EWoRDamageType::Pierce:    OutPhysical = EPhysicalDamageType::Pierce; break;
-		case EWoRDamageType::Impact:    OutPhysical = EPhysicalDamageType::Impact; break;
-		case EWoRDamageType::None:
-		case EWoRDamageType::Ice:
-		default:
-			break;
-		}
+		const FElementRow &Row = ElementTable::For(DamageType);
+		OutElement = Row.Element;
+		OutPhysical = Row.Physical;
+	}
+
+	/** The resistance of the type DamageType is also resisted by (Water: Ice, B-226), 0 without one. */
+	float GetAlsoResistance(AActor *Target, EWoRDamageType DamageType)
+	{
+		const EWoRDamageType Also = ElementTable::For(DamageType).AlsoResistedBy;
+		return Also != EWoRDamageType::None ? WoRResistance::GetTypeResistance(Target, Also) : 0.0f;
 	}
 
 	/** Whether a resistance buff/debuff counts toward DamageType. A physical-keyed effect counts
@@ -146,22 +136,13 @@ namespace WoRResistance
 		{
 			return 0.0f;
 		}
-		float Resist = GetTypeResistance(Target, ElementType);
-		if (ElementType == EWoRDamageType::Water)
-		{
-			Resist += GetTypeResistance(Target, EWoRDamageType::Ice);
-		}
-		return Resist;
+		return GetTypeResistance(Target, ElementType) + GetAlsoResistance(Target, ElementType);
 	}
 
 	float GetHitTypeResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType)
 	{
 		const EWoRDamageType ElementType = WoRDamageType::ElementToDamageType(Element);
-		float Resist = GetTypeResistance(Target, ElementType);
-		if (ElementType == EWoRDamageType::Water)
-		{
-			Resist += GetTypeResistance(Target, EWoRDamageType::Ice); // B-226: as Water damage (Q-042o, Q-145b)
-		}
+		float Resist = GetTypeResistance(Target, ElementType) + GetAlsoResistance(Target, ElementType);
 		if (PhysicalType != EPhysicalDamageType::None)
 		{
 			Resist += GetTypeResistance(Target, WoRDamageType::PhysicalToDamageType(PhysicalType));

@@ -5,6 +5,7 @@
 
 #include "Skills/Effects/EffectText.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/Elements/ElementTable.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "WoRGameNames.h"
 
@@ -619,6 +620,14 @@ namespace EffectText
             return StatBody(P, Side, Stat, bRaises);
         }
 
+        for (const FElementRow &Row : ElementTable::Rows())
+        {
+            if (Row.Immunity != ESkillEffectType::None && Row.Immunity == P.EffectType)
+            {
+                return ImmunityBody(P, Side, WoRGameNames::GetElementName(Row.Element)); // an element immunity
+            }
+        }
+
         const bool bDrain = P.DrainPercent > 0.0f;
         const FText DrainShare = Percent(P.DrainPercent);
         switch (P.EffectType)
@@ -701,15 +710,6 @@ namespace EffectText
         case ESkillEffectType::GrantStunImmunity: return ImmunityBody(P, Side, LOCTEXT("Immune_Stun", "Stun"));
         case ESkillEffectType::GrantSilenceImmunity: return ImmunityBody(P, Side, LOCTEXT("Immune_Silence", "Silence"));
         case ESkillEffectType::GrantAllStatusImmunity: return ImmunityBody(P, Side, LOCTEXT("Immune_All", "every status"));
-        case ESkillEffectType::GrantFireImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Fire));
-        case ESkillEffectType::GrantWaterImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Water));
-        case ESkillEffectType::GrantEarthImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Earth));
-        case ESkillEffectType::GrantWindImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Wind));
-        case ESkillEffectType::GrantLightImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Light));
-        case ESkillEffectType::GrantDarknessImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Darkness));
-        case ESkillEffectType::GrantLightningImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Lightning));
-        case ESkillEffectType::GrantVoidImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Void));
-        case ESkillEffectType::GrantRealityImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Reality));
 
         // ---- cleansing ----
         case ESkillEffectType::CleanseSelf:

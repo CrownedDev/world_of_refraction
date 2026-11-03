@@ -223,6 +223,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-042ye](B-042ye.md) | `refactor/B-042ye-gas-effect-reads` (in `dev`) | GAS: the AI's burn checks, buff / debuff counts and the panel's effect list read GAS at UseGAS 1 | Not tested |
 | [B-249](B-249.md) | `refactor/B-249-element-immunity-map` (in `dev`) | One element -> immunity map (no change in play) | Not tested |
 | [B-252b](B-252b.md) | `refactor/B-252b-owned-gear-verbs` (in `dev`) | One body for weapon / ring dismantle, level up, revert (no change in play) | Not tested |
+| [B-271](B-271.md) | `refactor/B-271-element-table` (in `dev`) | One element table behind the element switches; no behaviour change | Not tested |
 | [B-279](B-279.md) | `feature/B-279-character-forms` (in `dev`) | Character-form meter fills on a won fight, unlocks at 100%, survives save | Not tested |
 | [B-269](B-269.md) | `fix/B-269-essence-names` (in `dev`) | Essence names in the shop: Quartz Essence, Unknown Essence | Not tested |
 | [B-265](B-265.md) | `chore/B-265-build-time` (in `dev`) | Header includes trimmed; `EWorldPillar` in its own header (Blueprint check) | Not tested |
