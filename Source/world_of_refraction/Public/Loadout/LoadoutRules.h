@@ -17,6 +17,7 @@
 #include "LoadoutRules.generated.h"
 
 struct FCombatLoadout;
+struct FCrystalId;
 struct FLoadoutSlot;
 struct FSavedLoadout;
 class UWeaponData;
@@ -184,4 +185,11 @@ struct WORLD_OF_REFRACTION_API FLoadoutRules
 	/** Drops utility crystals from the item slots until every tier band is within its cap
 	 *  (D-072, D-077): the last slots in the band lose crystals first. */
 	static void TrimUtilityCrystalsToTierCaps(FCombatLoadout &Loadout);
+
+	/** B-313 (D-072, Q-313): the utility-crystal tier band an item counts toward, or INDEX_NONE when it counts
+	 *  toward none (an augment stone, or None). Indexes GetUtilityBandCap. */
+	static int32 GetUtilityBandIndex(const FCrystalId &Id);
+
+	/** B-313 (D-072): the band's cap (S 1, A/B 2, C/D 3, E/F 4); 0 for INDEX_NONE or an unknown index. */
+	static int32 GetUtilityBandCap(int32 BandIndex);
 };

@@ -325,6 +325,7 @@ namespace
 		{TEXT("C/D"), EItemTier::D_Tier, EItemTier::C_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_C_D_TIER},
 		{TEXT("E/F"), EItemTier::F_Tier, EItemTier::E_Tier, LoadoutConstants::MAX_UTILITY_CRYSTALS_E_F_TIER},
 	};
+	constexpr int32 UTILITY_BAND_COUNT = static_cast<int32>(UE_ARRAY_COUNT(UtilityCrystalBands));
 
 	bool CountsTowardBand(const FItemLoadoutSlot &Slot, const FUtilityCrystalBand &Band)
 	{
@@ -621,4 +622,25 @@ void FLoadoutRules::TrimUtilityCrystalsToTierCaps(FCombatLoadout &Loadout)
 			}
 		}
 	}
+}
+
+int32 FLoadoutRules::GetUtilityBandIndex(const FCrystalId &Id)
+{
+	if (!CrystalTypeHelpers::IsGemType(Id.Type))
+	{
+		return INDEX_NONE;
+	}
+	for (int32 i = 0; i < UTILITY_BAND_COUNT; ++i)
+	{
+		if (Id.Tier >= UtilityCrystalBands[i].LowTier && Id.Tier <= UtilityCrystalBands[i].HighTier)
+		{
+			return i;
+		}
+	}
+	return INDEX_NONE;
+}
+
+int32 FLoadoutRules::GetUtilityBandCap(int32 BandIndex)
+{
+	return BandIndex >= 0 && BandIndex < UTILITY_BAND_COUNT ? UtilityCrystalBands[BandIndex].Cap : 0;
 }
