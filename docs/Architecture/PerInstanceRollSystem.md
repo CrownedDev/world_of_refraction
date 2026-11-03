@@ -1,6 +1,6 @@
 # Per-Instance Roll System (U0–U4)
 
-> **OBSOLETE (B-335, D-127; delete in the D-124 sweep).** Per-instance random rolls retire; gear keeps tier + quality (`TierOnInstance.md`). The roll path is already off (`bRandomGenerateOnPickup` defaults false), so nothing changes in play. Every roll call (`RerollSubstats` / `RerollPillars` / `RerollResistance`, `UEquipmentBonusGenerator`, `ApplyPickupRoll`, the evolution `AddInstance` roll, the preview roll buttons) is flagged in code and listed in `docs/PIE/Sweep.md`. After the sweep the toggle gates only the Quality roll (Q-335). The instance `StatBonus` / `ResistanceBonus` fields stay (they carry the authored Base); the `Pool` / `MaxPool` fields stay in the save until a save-format job drops them.
+> **OBSOLETE (B-335, D-127; delete in the D-124 sweep).** Per-instance random rolls retire; gear keeps tier + quality (`TierOnInstance.md`). The roll path is already off (`bRandomGenerateOnPickup` defaults false), so nothing changes in play. Every roll call (`RerollSubstats` / `RerollPillars` / `RerollResistance`, `UEquipmentBonusGenerator`, `ApplyPickupRoll`, the evolution `AddInstance` roll, the preview roll buttons) is flagged in code and listed by B-332 (`docs/PIE/Sweep.md`). After the sweep the toggle gates only the Quality roll (Q-335). The instance `StatBonus` / `ResistanceBonus` fields stay (they carry the authored Base); the `Pool` / `MaxPool` fields stay in the save until a save-format job drops them.
 
 ## Overview
 
