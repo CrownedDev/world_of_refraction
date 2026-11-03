@@ -1106,5 +1106,46 @@ namespace
 					UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] wor.PrintBelt: no subsystem (no PIE world?)."));
 				}
 			}));
+
+	/** B-341: the turn-belt rule in PIE without an Emerald or an Extra Action skill. */
+	UTurnManager *TurnManagerInCombat(UWorld *World, const TCHAR *Command)
+	{
+		UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		UTurnManager *Mgr = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+		if (!Mgr || !Mgr->IsCombatActive() || !Mgr->GetCurrentActor())
+		{
+			UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] %s: no fight running."), Command);
+			return nullptr;
+		}
+		return Mgr;
+	}
+
+	static FAutoConsoleCommandWithWorld GGrantBonusCmd(
+		TEXT("wor.Turns.GrantBonus"),
+		TEXT("B-341: give the current actor a bonus turn that lands right after this one, then log the belt (PIE debug)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				if (UTurnManager *Mgr = TurnManagerInCombat(World, TEXT("wor.Turns.GrantBonus")))
+				{
+					Mgr->GrantBonusTurn(Mgr->GetCurrentActor());
+					Mgr->DebugPrintBelt();
+				}
+			}));
+
+	static FAutoConsoleCommandWithWorld GSkipNextCmd(
+		TEXT("wor.Turns.SkipNext"),
+		TEXT("B-341: remove the next turn of whoever is next on the belt, then log the belt (PIE debug)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				UTurnManager *Mgr = TurnManagerInCombat(World, TEXT("wor.Turns.SkipNext"));
+				const TArray<FPreviewTurnEntry> Next = Mgr ? Mgr->PreviewTurnOrder(1) : TArray<FPreviewTurnEntry>();
+				if (Next.Num() > 0 && Next[0].Actor)
+				{
+					Mgr->SkipNextTurn(Next[0].Actor);
+					Mgr->DebugPrintBelt();
+				}
+			}));
 }
 #endif // !UE_BUILD_SHIPPING
