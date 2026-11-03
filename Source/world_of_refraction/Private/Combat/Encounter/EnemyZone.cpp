@@ -75,8 +75,8 @@ EItemTier AEnemyZone::GetEnemyTierGuide(int32 Tier)
 
 FString AEnemyZone::GetEnemyZoneString() const
 {
-	return FString::Printf(TEXT("[EnemyZone] %s: tier %d (enemy damage x%.2f, enemies Tier %s or higher), loot pool %s"), *GetName(),
-						   Zone.Tier, GetTierStrengthMultiplier(Zone.Tier), *TierHelpers::GetTierName(GetEnemyTierGuide(Zone.Tier)),
+	return FString::Printf(TEXT("[EnemyZone] %s: tier %d (enemies Tier %s or higher), loot pool %s"), *GetName(),
+						   Zone.Tier, *TierHelpers::GetTierName(GetEnemyTierGuide(Zone.Tier)),
 						   Zone.LootPool.IsValid() ? *Zone.LootPool.ToString() : TEXT("<none>"));
 }
 

@@ -55,7 +55,7 @@ public:
 	/** The zone a fight at Location takes: the highest-tier zone containing it, or tier 0. */
 	static FEncounterZoneInfo FindZoneAt(const UWorld *World, const FVector &Location);
 
-	/** Enemies' damage, × this, for a zone tier (clamped to 0..MAX_ZONE_TIER). Not their HP since D-120 (B-328). */
+	/** OBSOLETE (B-328, D-120 widened): zones scale neither HP nor damage now; nothing reads this. Delete in the D-124 sweep. */
 	static float GetTierStrengthMultiplier(int32 Tier);
 
 	/** B-328 (D-120, Q-328): the Combat Tier a zone's enemies should have at least: zones 0..4 → F, D, C, B, A. An
