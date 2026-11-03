@@ -41,7 +41,7 @@ void UDefenseSystem::ResetForCombat()
 
 	if (ActiveDefenseStates.Num() > 0)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Reset: dropped %d open defense window(s)"), ActiveDefenseStates.Num());
+		UE_LOG(LogTemp, Verbose, TEXT("[DefenseSystem] Reset: dropped %d open defense window(s)"), ActiveDefenseStates.Num());
 	}
 	ActiveDefenseStates.Empty();
 	WindowTimerHandles.Empty();
@@ -112,7 +112,7 @@ void UDefenseSystem::OpenDefenseWindow(
 	// Broadcast event for UI
 	OnDefenseWindowOpened.Broadcast(Defender, AttackSize, State.WindowDuration);
 
-	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Defense window opened for %s (Size: %.1f, Damage: %d, Reaction: %.2fs, Close: %s %.2fs)"),
+	UE_LOG(LogTemp, Verbose, TEXT("[DefenseSystem] Defense window opened for %s (Size: %.1f, Damage: %d, Reaction: %.2fs, Close: %s %.2fs)"),
 		   *Defender->GetName(), AttackSize, BaseDamage, State.WindowDuration,
 		   bManualClose ? TEXT("count-based, failsafe") : TEXT("timer"), CloseTimerDuration);
 
@@ -175,7 +175,7 @@ FDefenseResult UDefenseSystem::CloseDefenseWindow(AActor *Defender)
 	// Broadcast event
 	OnDefenseWindowClosed.Broadcast(Defender, Result);
 
-	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Defense window closed for %s - Type: %d, Success: %s, Damage: %d → %d"),
+	UE_LOG(LogTemp, Verbose, TEXT("[DefenseSystem] Defense window closed for %s - Type: %d, Success: %s, Damage: %d → %d"),
 		   *Defender->GetName(),
 		   static_cast<int32>(State.DefenseChosen),
 		   Result.bSuccess ? TEXT("Yes") : TEXT("No"),
@@ -246,7 +246,7 @@ void UDefenseSystem::SubmitDefenseInput(AActor *Defender, EDefenseType DefenseTy
 	// Broadcast event
 	OnDefenseInputReceived.Broadcast(Defender, DefenseType, Direction);
 
-	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Defense input buffered: %s chose %d (Direction: %d, BufferSize: %d)"),
+	UE_LOG(LogTemp, Verbose, TEXT("[DefenseSystem] Defense input buffered: %s chose %d (Direction: %d, BufferSize: %d)"),
 		   *Defender->GetName(),
 		   static_cast<int32>(DefenseType),
 		   static_cast<int32>(Direction),
@@ -395,7 +395,7 @@ FDefenseInputMatch UDefenseSystem::MatchAndConsumeInput(AActor *Defender, double
 	const float PerfectBand = PerfectThreshold * TypeMult(Hit.Type);
 	Match.bPerfect = (FMath::Abs(Delta) <= static_cast<double>(PerfectBand));
 
-	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Impact matched for %s — Type: %d, Delta: %.3fs, %s"),
+	UE_LOG(LogTemp, Verbose, TEXT("[DefenseSystem] Impact matched for %s — Type: %d, Delta: %.3fs, %s"),
 		   *Defender->GetName(), static_cast<int32>(Match.Type), Delta,
 		   Match.bPerfect ? TEXT("PERFECT") : TEXT("normal"));
 
@@ -556,7 +556,7 @@ void UDefenseSystem::PlayPerfectGuardFeedback(AActor *Defender)
 	{
 		UGameplayStatics::PlaySoundAtLocation(Defender, Sound, ImpactLocation);
 	}
-	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Perfect Guard feedback for %s"), *Defender->GetName());
+	UE_LOG(LogTemp, Verbose, TEXT("[DefenseSystem] Perfect Guard feedback for %s"), *Defender->GetName());
 }
 
 void UDefenseSystem::PlayDefenseAnimation(AActor *Defender, EDefenseType DefenseType, EDefenseDirection Direction)
@@ -620,7 +620,7 @@ void UDefenseSystem::PlayDefenseAnimation(AActor *Defender, EDefenseType Defense
 	{
 		// Use PlayRate for direction (negative = reversed)
 		CombatAnim->PlayActionMontage(MontageToPlay, PlayRate);
-		UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Playing %s for %s (Rate: %.1f)"),
+		UE_LOG(LogTemp, Verbose, TEXT("[DefenseSystem] Playing %s for %s (Rate: %.1f)"),
 			   *MontageToPlay->GetName(), *Defender->GetName(), PlayRate);
 	}
 }
@@ -636,7 +636,7 @@ void UDefenseSystem::OnWindowTimerExpired(AActor *Defender)
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Defense window timer expired for %s"),
+	UE_LOG(LogTemp, Verbose, TEXT("[DefenseSystem] Defense window timer expired for %s"),
 		   *Defender->GetName());
 
 	// Close window and apply result
@@ -654,7 +654,7 @@ void UDefenseSystem::ApplyReflectedDamage(AActor *Attacker, int32 Damage)
 	if (Comp)
 	{
 		Comp->ServerTakeDamage(Damage);
-		UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Applied %d reflected damage to %s"),
+		UE_LOG(LogTemp, Verbose, TEXT("[DefenseSystem] Applied %d reflected damage to %s"),
 			   Damage, *Attacker->GetName());
 	}
 }

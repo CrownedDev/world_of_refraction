@@ -58,14 +58,14 @@ namespace
 			if (!Ring.HasCrystal())
 			{
 				Sink.Add(ELoadoutSlotType::RingSpell, RingLoadoutIndex, true,
-						 FString::Printf(TEXT("Ring spell '%s' requires a crystal but the ring has none"), *Spell->Name), j);
+						 FString::Printf(TEXT("Adapter spell '%s' requires a crystal but the adapter has none"), *Spell->Name), j);
 				continue;
 			}
 			const ESpellElement RingElement = Ring.GetElement();
 			if (!ElementHelpers::SpellElementMatchesHost(Spell->Element, RingElement))
 			{
 				Sink.Add(ELoadoutSlotType::RingSpell, RingLoadoutIndex, true,
-						 FString::Printf(TEXT("Ring spell '%s' element %s does not match ring crystal element %s"),
+						 FString::Printf(TEXT("Adapter spell '%s' element %s does not match adapter crystal element %s"),
 										 *Spell->Name, *UEnum::GetValueAsString(Spell->Element), *UEnum::GetValueAsString(RingElement)),
 						 j);
 			}
@@ -76,9 +76,10 @@ namespace
 	 *  Assigned spells first replace the item's own (preset) slots and only the rest are appended,
 	 *  so only appended ones (the last assigned) can be cleared to get under the cap; anything
 	 *  still over is the item's own spells (one non-clearable finding). Assigned is what the merge
-	 *  reads (empty for a ring whose crystal can't provide spells). */
+	 *  reads (empty for a ring whose crystal can't provide spells). WeaponSub (weapon spells only): -1 primary,
+	 *  SECONDARY_WEAPON for a Generic's secondary (B-304). */
 	void CheckSpellCap(FFindingSink &Sink, ELoadoutSlotType Type, int32 SlotIndex, bool bSpellIsSubIndex,
-					   const TArray<USpellData *> &Assigned, int32 PresetCount, int32 UncappedCount, int32 Cap)
+					   const TArray<USpellData *> &Assigned, int32 PresetCount, int32 UncappedCount, int32 Cap, int32 WeaponSub = -1)
 	{
 		int32 OverCap = FMath::Max(0, UncappedCount - Cap);
 		int32 Clearable = FMath::Min(OverCap, FMath::Max(0, UncappedCount - PresetCount));
@@ -89,7 +90,7 @@ namespace
 				continue;
 			}
 			const FString Reason = FString::Printf(TEXT("Spell '%s' is over the holder's spell cap (%d)"), *Assigned[i]->Name, Cap);
-			Sink.Add(Type, bSpellIsSubIndex ? SlotIndex : i, true, Reason, bSpellIsSubIndex ? i : -1);
+			Sink.Add(Type, bSpellIsSubIndex ? SlotIndex : i, true, Reason, bSpellIsSubIndex ? i : WeaponSub);
 			--OverCap;
 			--Clearable;
 		}
@@ -144,16 +145,22 @@ namespace
 		}
 	}
 
-	void CheckPrimaryWeapon(FFindingSink &Sink, const FCombatLoadout &Loadout, const FLoadoutRuleContext &Context)
+	/** B-304 (D-110): one check for both of a Generic's weapon slots: ownership, spells (element and cap) and ability
+	 *  counts; the ability type / wield checks are the primary's only (see below). A secondary weapon's findings carry
+	 *  SubIndex SECONDARY_WEAPON so ClearInvalidSlots clears the right weapon. */
+	void CheckWeapon(FFindingSink &Sink, const FWeaponLoadoutEntry &Weapon, const FLoadoutRuleContext &Context, bool bSecondary)
 	{
-		const FWeaponLoadoutEntry &Weapon = Loadout.PrimaryWeapon;
+		const int32 WeaponSub = bSecondary ? LoadoutAbilityOverflowIndex::SECONDARY_WEAPON : -1;
 		if (!Passes<const UWeaponData *>(Context.OwnsWeapon, Weapon.WeaponEntry.Weapon))
 		{
-			Sink.Add(ELoadoutSlotType::PrimaryWeapon, -1, true, TEXT("Primary weapon not in inventory"));
+			Sink.Add(bSecondary ? ELoadoutSlotType::SecondaryWeapon : ELoadoutSlotType::PrimaryWeapon, -1, true,
+					 bSecondary ? TEXT("Secondary weapon not in inventory") : TEXT("Primary weapon not in inventory"));
 		}
 
+		// The ability checks stay the primary's for now: a secondary's authored abilities were never type-checked, so
+		// checking them would newly refuse authored Generic loadouts (B-304 review). The row's spell checks apply.
 		const UWeaponData *EquippedWeapon = Weapon.WeaponEntry.Weapon;
-		for (int32 i = 0; i < Weapon.AssignedAbilities.Num(); ++i)
+		for (int32 i = 0; !bSecondary && i < Weapon.AssignedAbilities.Num(); ++i)
 		{
 			const UAbilityData *Ability = Weapon.AssignedAbilities[i];
 			if (!Ability)
@@ -162,7 +169,7 @@ namespace
 			}
 			if (!Passes<const UAbilityData *>(Context.KnowsAbility, Ability))
 			{
-				Sink.Add(ELoadoutSlotType::WeaponAbility, i, true, FString::Printf(TEXT("Ability '%s' not learned"), *Ability->Name));
+				Sink.Add(ELoadoutSlotType::WeaponAbility, i, true, FString::Printf(TEXT("Ability '%s' not learned"), *Ability->Name), WeaponSub);
 				continue;
 			}
 			// Weapon-type coherence: ability must match the equipped weapon type.
@@ -171,7 +178,7 @@ namespace
 				Sink.Add(ELoadoutSlotType::WeaponAbility, i, true,
 						 FString::Printf(TEXT("Ability '%s' requires weapon type %s, equipped weapon is %s"),
 										 *Ability->Name, *UEnum::GetValueAsString(Ability->RequiredWeaponType),
-										 *UEnum::GetValueAsString(EquippedWeapon->WeaponType)));
+										 *UEnum::GetValueAsString(EquippedWeapon->WeaponType)), WeaponSub);
 				continue;
 			}
 			if (!Ability->AllowsWieldMode(EquippedWeapon->WieldMode))
@@ -179,7 +186,7 @@ namespace
 				Sink.Add(ELoadoutSlotType::WeaponAbility, i, true,
 						 FString::Printf(TEXT("Ability '%s' requires wield mode %s, equipped weapon is %s"),
 										 *Ability->Name, *UEnum::GetValueAsString(Ability->RequiredWieldMode),
-										 *UEnum::GetValueAsString(EquippedWeapon->WieldMode)));
+										 *UEnum::GetValueAsString(EquippedWeapon->WieldMode)), WeaponSub);
 			}
 		}
 
@@ -192,14 +199,14 @@ namespace
 			}
 			if (!Passes<const USpellData *>(Context.KnowsSpell, Spell))
 			{
-				Sink.Add(ELoadoutSlotType::WeaponSpell, i, true, FString::Printf(TEXT("Spell '%s' not learned"), *Spell->Name));
+				Sink.Add(ELoadoutSlotType::WeaponSpell, i, true, FString::Printf(TEXT("Spell '%s' not learned"), *Spell->Name), WeaponSub);
 				continue;
 			}
 			// Element coherence: weapon-sourced spell must match the weapon crystal.
 			if (!Weapon.WeaponEntry.HasCrystal())
 			{
 				Sink.Add(ELoadoutSlotType::WeaponSpell, i, true,
-						 FString::Printf(TEXT("Weapon spell '%s' requires a crystal but equipped weapon has none"), *Spell->Name));
+						 FString::Printf(TEXT("Weapon spell '%s' requires a crystal but equipped weapon has none"), *Spell->Name), WeaponSub);
 				continue;
 			}
 			const ESpellElement CrystalElement = Weapon.WeaponEntry.GetElement();
@@ -208,16 +215,18 @@ namespace
 				Sink.Add(ELoadoutSlotType::WeaponSpell, i, true,
 						 FString::Printf(TEXT("Weapon spell '%s' element %s does not match weapon crystal element %s"),
 										 *Spell->Name, *UEnum::GetValueAsString(Spell->Element),
-										 *UEnum::GetValueAsString(CrystalElement)));
+										 *UEnum::GetValueAsString(CrystalElement)), WeaponSub);
 			}
 		}
 
 		CheckSpellCap(Sink, ELoadoutSlotType::WeaponSpell, -1, /*bSpellIsSubIndex=*/false, Weapon.AssignedSpells,
-					  Weapon.WeaponEntry.GetSpells().Num(), Weapon.GetAllSpellsUncapped().Num(), Weapon.GetSpellSlotCap());
-		CheckAbilityCounts(Sink, Weapon, TEXT("Primary"), LoadoutAbilityOverflowIndex::PRIMARY_WEAPON);
+					  Weapon.WeaponEntry.GetSpells().Num(), Weapon.GetAllSpellsUncapped().Num(), Weapon.GetSpellSlotCap(), WeaponSub);
+		CheckAbilityCounts(Sink, Weapon, bSecondary ? TEXT("Secondary") : TEXT("Primary"),
+						   bSecondary ? LoadoutAbilityOverflowIndex::SECONDARY_WEAPON : LoadoutAbilityOverflowIndex::PRIMARY_WEAPON);
 	}
 
-	int32 PrimarySlotCost(const FCombatLoadout &Loadout)
+	// OBSOLETE (B-303): the budget now reads FLoadoutRules::SlotCost over the unified slots. Remove with B-309.
+	[[maybe_unused]] int32 PrimarySlotCost(const FCombatLoadout &Loadout)
 	{
 		switch (Loadout.PrimarySlotType)
 		{
@@ -369,14 +378,14 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 
 	if (Loadout.PrimarySlotType != EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
 	{
-		CheckPrimaryWeapon(Sink, Loadout, Context);
+		CheckWeapon(Sink, Loadout.PrimaryWeapon, Context, /*bSecondary=*/false);
 	}
 
 	if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid())
 	{
 		if (!Passes<const URingData *>(Context.OwnsRing, Loadout.PrimaryRing.RingEntry.Ring))
 		{
-			Sink.Add(ELoadoutSlotType::PrimaryRing, -1, true, TEXT("Primary ring not in inventory"));
+			Sink.Add(ELoadoutSlotType::PrimaryRing, -1, true, TEXT("Primary adapter not in inventory"));
 		}
 		CheckRingSpellCoherence(Sink, Loadout.PrimaryRing.RingEntry, -1);
 		CheckRingSpellCap(Sink, Loadout.PrimaryRing, -1);
@@ -400,16 +409,13 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 	if (Context.CharacterClass == ECharacterClass::Generic &&
 		Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid())
 	{
-		if (!Passes<const UWeaponData *>(Context.OwnsWeapon, Loadout.SecondaryWeapon.WeaponEntry.Weapon))
-		{
-			Sink.Add(ELoadoutSlotType::SecondaryWeapon, -1, true, TEXT("Secondary weapon not in inventory"));
-		}
-		CheckAbilityCounts(Sink, Loadout.SecondaryWeapon, TEXT("Secondary"), LoadoutAbilityOverflowIndex::SECONDARY_WEAPON);
+		// B-304 (D-110): the secondary gets the primary's spell checks (spells, spell cap), not only ownership and
+		// counts; CheckWeapon still skips the abilities' weapon type and wield mode for it.
+		CheckWeapon(Sink, Loadout.SecondaryWeapon, Context, /*bSecondary=*/true);
 	}
 
 	if (Context.CharacterClass == ECharacterClass::Resonator)
 	{
-		int32 RingCost = 0;
 		for (int32 i = 0; i < Loadout.RingLoadout.Num(); ++i)
 		{
 			const FRingLoadoutEntry &RingEntry = Loadout.RingLoadout[i];
@@ -419,23 +425,15 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 			}
 			if (!Passes<const URingData *>(Context.OwnsRing, RingEntry.RingEntry.Ring))
 			{
-				Sink.Add(ELoadoutSlotType::ResonatorRing, i, true, TEXT("Ring in loadout not in inventory"));
+				Sink.Add(ELoadoutSlotType::ResonatorRing, i, true, TEXT("Adapter in loadout not in inventory"));
 			}
 			CheckRingSpellCoherence(Sink, RingEntry.RingEntry, i);
 			CheckRingSpellCap(Sink, RingEntry, i);
-			RingCost += InventoryConstants::GetRingSlotCost(RingEntry.IsEvolved());
-		}
-
-		// Unified budget: primary slot cost + ring slot costs must fit one budget.
-		const int32 PrimaryCost = PrimarySlotCost(Loadout);
-		const int32 TotalCost = PrimaryCost + RingCost;
-		if (TotalCost > LoadoutConstants::LOADOUT_TOTAL_BUDGET)
-		{
-			Sink.Add(ELoadoutSlotType::RingOverflow, -1, true,
-					 FString::Printf(TEXT("Loadout exceeds budget: primary (cost %d) + rings (cost %d) = %d, max is %d"),
-									 PrimaryCost, RingCost, TotalCost, LoadoutConstants::LOADOUT_TOTAL_BUDGET));
 		}
 	}
+
+	// D-110 (B-303): every class's budget and limits, from one table over the unified slots.
+	Sink.Findings.Append(CollectClassLimitFindings(Loadout, Context.CharacterClass));
 
 	if (Context.CharacterClass == ECharacterClass::Caster)
 	{
@@ -444,6 +442,97 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 
 	CheckItems(Sink, Loadout);
 	return MoveTemp(Sink.Findings);
+}
+
+int32 FLoadoutRules::SlotCost(const FLoadoutSlot &Slot)
+{
+	if (Slot.IsEmpty())
+	{
+		return 0;
+	}
+	const bool bEvolved = Slot.Gear.AttachedItem.IsEvolution();
+	if (Slot.Kind() == EGearKind::Adapter)
+	{
+		return InventoryConstants::GetRingSlotCost(bEvolved);
+	}
+	return Slot.Gear.HasAttachment() ? InventoryConstants::GetWeaponSlotCost(true, bEvolved) : InventoryConstants::WEAPON_BASE_SLOT_COST;
+}
+
+int32 FLoadoutRules::NonAdapterCost(const FCombatLoadout &Loadout, ECharacterClass Class)
+{
+	FCombatLoadout Mirror = Loadout;
+	Mirror.RebuildSlotsFromLegacy(Class);
+	int32 Cost = Mirror.PrimarySlotType == EPrimarySlotType::Evolution ? LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST : 0;
+	for (const FLoadoutSlot &Slot : Mirror.Slots)
+	{
+		Cost += Slot.Kind() == EGearKind::Weapon ? SlotCost(Slot) : 0;
+	}
+	return Cost;
+}
+
+TArray<FInvalidSlotFinding> FLoadoutRules::CollectClassLimitFindings(const FCombatLoadout &Loadout, ECharacterClass Class)
+{
+	FCombatLoadout Mirror = Loadout;
+	Mirror.RebuildSlotsFromLegacy(Class);
+	const FLoadoutClassLimits Limits = LoadoutClassTable::Get(Class);
+
+	const bool bEvolutionSeat = Mirror.PrimarySlotType == EPrimarySlotType::Evolution;
+	int32 GearCost = bEvolutionSeat ? LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST : 0;
+	int32 AdapterCost = 0;
+	int32 Weapons = 0;
+	int32 Adapters = 0;
+	for (const FLoadoutSlot &Slot : Mirror.Slots)
+	{
+		if (Slot.IsEmpty())
+		{
+			continue;
+		}
+		if (Slot.Kind() == EGearKind::Adapter)
+		{
+			++Adapters;
+			AdapterCost += SlotCost(Slot);
+		}
+		else
+		{
+			++Weapons;
+			GearCost += SlotCost(Slot);
+		}
+	}
+
+	TArray<FInvalidSlotFinding> Findings;
+	const auto Add = [&Findings](ELoadoutSlotType Type, bool bClearable, const FString &Reason)
+	{
+		FInvalidSlotFinding &Finding = Findings.AddDefaulted_GetRef();
+		Finding.SlotType = Type;
+		Finding.SlotIndex = -1;
+		Finding.bClearable = bClearable;
+		Finding.Reason = Reason;
+	};
+
+	// The Resonator's budget finding keeps its shape and words (ClearInvalidSlots drops adapters for it). The other
+	// classes can't exceed theirs with today's slots, so theirs are diagnostics, not auto-cleared.
+	const bool bResonator = Class == ECharacterClass::Resonator;
+	const int32 TotalCost = GearCost + AdapterCost;
+	if (TotalCost > Limits.Budget)
+	{
+		Add(bResonator ? ELoadoutSlotType::RingOverflow : ELoadoutSlotType::None, bResonator,
+			FString::Printf(TEXT("Loadout exceeds budget: primary (cost %d) + adapters (cost %d) = %d, max is %d"), GearCost,
+							AdapterCost, TotalCost, Limits.Budget));
+	}
+	const int32 Items = Weapons + Adapters + (bEvolutionSeat ? 1 : 0);
+	if (Limits.MaxItems != LoadoutClassTable::NO_LIMIT && Items > Limits.MaxItems)
+	{
+		Add(ELoadoutSlotType::None, false, FString::Printf(TEXT("Too many items for the class (%d/%d)"), Items, Limits.MaxItems));
+	}
+	if (Limits.MaxWeapons != LoadoutClassTable::NO_LIMIT && Weapons > Limits.MaxWeapons)
+	{
+		Add(ELoadoutSlotType::None, false, FString::Printf(TEXT("Too many weapons for the class (%d/%d)"), Weapons, Limits.MaxWeapons));
+	}
+	if (Limits.MaxAdapters != LoadoutClassTable::NO_LIMIT && Adapters > Limits.MaxAdapters)
+	{
+		Add(ELoadoutSlotType::None, false, FString::Printf(TEXT("Too many adapters for the class (%d/%d)"), Adapters, Limits.MaxAdapters));
+	}
+	return Findings;
 }
 
 TArray<FString> FLoadoutRules::CollectAuthoredShapeErrors(const FSavedLoadout &Saved)
@@ -461,11 +550,11 @@ TArray<FString> FLoadoutRules::CollectAuthoredShapeErrors(const FSavedLoadout &S
 	case EPrimarySlotType::Ring:
 		if (Saved.RequiredClass == ECharacterClass::Resonator)
 		{
-			Errors.Add(TEXT("Resonator cannot use Ring as primary slot"));
+			Errors.Add(TEXT("Resonator cannot use an Adapter as primary slot"));
 		}
 		else if (!Saved.PrimaryRing)
 		{
-			Errors.Add(TEXT("Primary slot set to Ring but no ring assigned"));
+			Errors.Add(TEXT("Primary slot set to Adapter but no adapter assigned"));
 		}
 		break;
 	case EPrimarySlotType::Evolution:

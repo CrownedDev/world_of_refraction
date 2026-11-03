@@ -2,6 +2,7 @@
 // Implementation for Broken Darkness hybrid spell color system
 
 #include "Infusion/HybridSpellColors.h"
+#include "Combat/Elements/ElementTable.h"
 
 namespace
 {
@@ -94,7 +95,7 @@ FLinearColor UHybridSpellColors::CalculateBlendedColor(FLinearColor ElementColor
 
 bool UHybridSpellColors::IsForbiddenElement(ESpellElement Element)
 {
-	return Element == ESpellElement::Light || Element == ESpellElement::Void;
+	return ElementTable::ForElement(Element).bBDForbidden;
 }
 
 // ==================== NIAGARA HELPERS ====================

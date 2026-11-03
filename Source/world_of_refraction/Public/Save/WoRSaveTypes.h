@@ -48,6 +48,10 @@ struct WORLD_OF_REFRACTION_API FSavedCarriedAttachment
 	UPROPERTY()
 	FSavedAssetRef Holder;
 
+	/** B-310: the owned item the attachment sits on; invalid in saves made before it (then matched by Holder). */
+	UPROPERTY()
+	FGuid GearID;
+
 	UPROPERTY()
 	FRuntimeAttachedItem Attached;
 
@@ -357,6 +361,16 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	}
 };
 
+/** B-279: each character form's loadout-match meter, by form asset name (0..1; 1 = unlocked). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedForms
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TMap<FName, float> Progress;
+};
+
 /** Everything one save slot holds. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FWoRSaveData
@@ -374,4 +388,7 @@ struct WORLD_OF_REFRACTION_API FWoRSaveData
 
 	UPROPERTY()
 	FSavedRun Run;
+
+	UPROPERTY()
+	FSavedForms Forms;
 };

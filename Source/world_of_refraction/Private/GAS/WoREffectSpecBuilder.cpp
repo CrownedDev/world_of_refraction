@@ -130,6 +130,7 @@ TSubclassOf<UGameplayEffect> FWoREffectSpecBuilder::GetEffectClass(ESkillEffectT
 	case ESkillEffectType::ApplyBurnToTarget:
 	case ESkillEffectType::ApplyChillToTarget:
 	case ESkillEffectType::ApplyStunToTarget:
+	case ESkillEffectType::ApplyDOTOnHit:
 	case ESkillEffectType::RetaliationDamage:
 		return UWoRGE_OnHit::StaticClass();
 	case ESkillEffectType::GuaranteedCrit:
@@ -164,7 +165,8 @@ TSubclassOf<UGameplayEffect> FWoREffectSpecBuilder::GetEffectClass(ESkillEffectT
 	default:
 		break;
 	}
-	if (IsImmunityType(Type))
+	// B-275: an unresolved GrantElementImmunity has no element, so no tag: the immunity family, blocking nothing.
+	if (IsImmunityType(Type) || Type == ESkillEffectType::GrantElementImmunity)
 	{
 		return UWoRGE_Immunity::StaticClass();
 	}
@@ -219,13 +221,14 @@ FWoRBuiltEffect FWoREffectSpecBuilder::Build(UAbilitySystemComponent &TargetASC,
 
 	// B-042n: each payout runs UWoRTickExecution over this request (WoRTickMath, as the enum path's tick). The
 	// tick's SetByCaller magnitude isn't read by the execution; it stays for GetDebugString-style inspection.
-	if (Effect.EffectType == ESkillEffectType::DOT)
+	// B-042yd: every payout type gets one; a heal's (UWoRGE_HealTick) doesn't land while heal-blocked.
+	if (UWoRTickExecution::IsPaidByTick(Effect.EffectType))
 	{
-		Built.TickSpec = MakeSpec(TargetASC, UWoRGE_HealthTick::StaticClass(), Identity, Source, -Magnitude);
-	}
-	else if (Effect.EffectType == ESkillEffectType::HealthRestore)
-	{
-		Built.TickSpec = MakeSpec(TargetASC, UWoRGE_HealTick::StaticClass(), Identity, Source, Magnitude);
+		const bool bHealTick =
+			Effect.EffectType == ESkillEffectType::HealthRestore || Effect.EffectType == ESkillEffectType::RestoreHPPercent;
+		const TSubclassOf<UGameplayEffect> TickClass =
+			bHealTick ? UWoRGE_HealTick::StaticClass() : UWoRGE_HealthTick::StaticClass();
+		Built.TickSpec = MakeSpec(TargetASC, TickClass, Identity, Source, Effect.EffectType == ESkillEffectType::DOT ? -Magnitude : Magnitude);
 	}
 	if (Built.TickSpec.IsValid())
 	{

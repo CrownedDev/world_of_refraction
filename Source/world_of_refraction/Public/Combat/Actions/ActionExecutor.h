@@ -18,7 +18,6 @@
 #include "NiagaraComponent.h"
 #include "Infusion/EInfusionSourceOption.h"
 #include "Infusion/EInfusionMode.h"
-#include "Loadout/LoadoutComponent.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
 #include "Skills/Effects/FSkillEffect.h"
 #include "Skills/Effects/FGatheredEffect.h"
@@ -32,6 +31,8 @@
 #include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
+class ULoadoutComponent;
+class URingData;
 class UCharacterData;
 class USkillEffectManager;
 class USkillDataBase;

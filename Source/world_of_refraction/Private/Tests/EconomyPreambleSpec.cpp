@@ -134,8 +134,11 @@ void FEconomyPreambleSpec::Define()
 		UCrystalInventoryComponent *Crystals = Owner->FindComponentByClass<UCrystalInventoryComponent>();
 		if (!TestNotNull(TEXT("Orchestrator"), Orchestrator) || !TestNotNull(TEXT("Foe"), Foe)) return;
 		TestTrue(TEXT("gems added"), Inventory->AddCrystal(ECONOMY_TEST_GEM, ECONOMY_TEST_GEM_COUNT));
-		TestTrue(TEXT("weapon added"), Inventory->AddWeapon(NewObject<UWeaponData>(GetTransientPackage())));
-		const FGuid WeaponId = Inventory->Weapons.Num() > 0 ? Inventory->Weapons[0].PersistentID : FGuid();
+		TestTrue(TEXT("weapons added"), Inventory->AddWeapon(NewObject<UWeaponData>(GetTransientPackage())) &&
+										 Inventory->AddWeapon(NewObject<UWeaponData>(GetTransientPackage())));
+		if (!TestEqual(TEXT("two weapons"), Inventory->Weapons.Num(), 2)) return;
+		const FGuid WeaponId = Inventory->Weapons[0].PersistentID;
+		const FGuid SpareId = Inventory->Weapons[1].PersistentID;
 
 		Orchestrator->StartCombat({Owner}, {Foe});
 		const UTurnManager *TurnManager = TestWorld->GetSubsystem<UTurnManager>();
@@ -150,7 +153,9 @@ void FEconomyPreambleSpec::Define()
 		TestTrue(TEXT("after the fight: dismantle a crystal"), Economy->DismantleCrystal(Owner, ECONOMY_TEST_GEM, 1));
 		// Level-up and revert also need currency and a higher / lower tier; the weapon dismantle needs
 		// neither, so it proves the mid-fight refusal above came from the fight, not a missing input.
-		TestTrue(TEXT("after the fight: weapon dismantle"), Economy->DismantleWeapon(Owner, WeaponId));
+		// D-116: the fight may have made one of them the primary; dismantle the other.
+		const FGuid FreeId = Inventory->IsPrimaryInAnyLoadout(WeaponId) ? SpareId : WeaponId;
+		TestTrue(TEXT("after the fight: weapon dismantle"), Economy->DismantleWeapon(Owner, FreeId));
 	});
 
 	It("lets a well-formed owner dismantle a weapon", [this]()

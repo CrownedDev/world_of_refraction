@@ -88,25 +88,6 @@ USkillEffectManager *UStatusBuildupManager::GetEffectManager() const
 	return EffectManagerRef;
 }
 
-ESkillEffectType UStatusBuildupManager::GetElementImmunityType(ESpellElement Element) const
-{
-	switch (Element)
-	{
-	case ESpellElement::Fire:      return ESkillEffectType::GrantFireImmunity;
-	case ESpellElement::Water:     return ESkillEffectType::GrantWaterImmunity;
-	case ESpellElement::Earth:     return ESkillEffectType::GrantEarthImmunity;
-	case ESpellElement::Wind:      return ESkillEffectType::GrantWindImmunity;
-	case ESpellElement::Light:     return ESkillEffectType::GrantLightImmunity;
-	case ESpellElement::Darkness:  return ESkillEffectType::GrantDarknessImmunity;
-	case ESpellElement::Lightning: return ESkillEffectType::GrantLightningImmunity;
-	case ESpellElement::Void:      return ESkillEffectType::GrantVoidImmunity;
-	case ESpellElement::Reality:   return ESkillEffectType::GrantRealityImmunity;
-	case ESpellElement::Generic:
-	default:
-		return ESkillEffectType::None;
-	}
-}
-
 // ========================================
 // STATUS BAR QUERIES
 // ========================================
@@ -294,7 +275,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		// Global immunity — blocks any buildup.
 		if (EffectMgr->HasEffectOfType(Target, ESkillEffectType::GrantAllStatusImmunity))
 		{
-			UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s has GrantAllStatusImmunity — buildup absorbed"),
+			UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s has GrantAllStatusImmunity — buildup absorbed"),
 				   *Target->GetName());
 			return false;
 		}
@@ -316,7 +297,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 
 		if (bImmuneStun || bImmuneSilence || bImmuneDOT)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s immune to resolved trigger %s — buildup absorbed"),
+			UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s immune to resolved trigger %s — buildup absorbed"),
 				   *Target->GetName(), *UEnum::GetValueAsString(ResolvedTrigger));
 			return false;
 		}
@@ -325,11 +306,11 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		// a held GrantXxxImmunity for that element. Distinct from the per-trigger
 		// gates above; an actor with GrantFireImmunity blocks Fire-buildup
 		// regardless of whether it would resolve to DOT, Stun, or anything else.
-		const ESkillEffectType ElemImmunity = GetElementImmunityType(Element);
+		const ESkillEffectType ElemImmunity = SkillEffectClassification::GetElementImmunityType(Element);
 		if (ElemImmunity != ESkillEffectType::None &&
 		    EffectMgr->HasEffectOfType(Target, ElemImmunity))
 		{
-			UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s has %s — buildup absorbed"),
+			UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s has %s — buildup absorbed"),
 				   *Target->GetName(), *UEnum::GetValueAsString(ElemImmunity));
 			return false;
 		}
@@ -364,7 +345,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	OnStatusBuildupChanged.Broadcast(Target, State.CurrentBuildup,
 		CombatConstants::STATUS_EFFECT_THRESHOLD, Element, Source);
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s status buildup: %.1f -> %.1f (+%.1f) - Element: %s, Physical: %s, Resolved trigger: %s"),
+	UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status buildup: %.1f -> %.1f (+%.1f) - Element: %s, Physical: %s, Resolved trigger: %s"),
 		   *Target->GetName(), OldBuildup, State.CurrentBuildup, Amount,
 		   *UEnum::GetValueAsString(Element),
 		   *UEnum::GetValueAsString(PhysicalType),
@@ -630,7 +611,7 @@ void UStatusBuildupManager::ProcessStatusBarDecay(AActor *Target)
 	// Full reset after configured turn count
 	if (State->TurnsSinceLastHit >= CombatConstants::STATUS_DECAY_FULL_RESET_TURNS)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s status bar decayed to 0 (%d turns)"),
+		UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status bar decayed to 0 (%d turns)"),
 			   *Target->GetName(), CombatConstants::STATUS_DECAY_FULL_RESET_TURNS);
 		ResetStatusBar(Target);
 		return;

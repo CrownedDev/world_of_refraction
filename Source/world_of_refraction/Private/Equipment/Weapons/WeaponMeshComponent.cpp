@@ -153,7 +153,7 @@ void UWeaponMeshComponent::UpdateWeaponMesh()
 
     CachedWeapon = ActiveWeapon;
 
-    UE_LOG(LogTemp, Log, TEXT("[WeaponMeshComponent] Updated weapon mesh: %s"),
+    UE_LOG(LogTemp, Verbose, TEXT("[WeaponMeshComponent] Updated weapon mesh: %s"),
            ActiveWeapon ? *ActiveWeapon->Name : TEXT("None"));
 }
 
@@ -191,7 +191,7 @@ void UWeaponMeshComponent::SpawnWeaponMesh(UWeaponData *Weapon)
 
         PrimarySkeletalMeshComp->SetRelativeRotation(Weapon->MeshRotation);
 
-        UE_LOG(LogTemp, Log, TEXT("[WeaponMeshComponent] Spawned skeletal mesh '%s' at socket '%s'"),
+        UE_LOG(LogTemp, Verbose, TEXT("[WeaponMeshComponent] Spawned skeletal mesh '%s' at socket '%s'"),
                *Weapon->Name, *RightSocket.ToString());
     }
     else if (Weapon->WeaponStaticMesh)
@@ -211,7 +211,7 @@ void UWeaponMeshComponent::SpawnWeaponMesh(UWeaponData *Weapon)
         // Apply rotation offset
         PrimaryStaticMeshComp->SetRelativeRotation(Weapon->MeshRotation);
 
-        UE_LOG(LogTemp, Log, TEXT("[WeaponMeshComponent] Spawned static mesh '%s' at socket '%s'"),
+        UE_LOG(LogTemp, Verbose, TEXT("[WeaponMeshComponent] Spawned static mesh '%s' at socket '%s'"),
                *Weapon->Name, *RightSocket.ToString());
     }
 }
@@ -302,7 +302,7 @@ void UWeaponMeshComponent::SpawnDualWeaponMesh(UWeaponData *Weapon)
                *Weapon->Name);
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[WeaponMeshComponent] Spawned dual weapon '%s' (R socket '%s', L socket '%s')"),
+    UE_LOG(LogTemp, Verbose, TEXT("[WeaponMeshComponent] Spawned dual weapon '%s' (R socket '%s', L socket '%s')"),
            *Weapon->Name, *RightSocket.ToString(), *LeftSocket.ToString());
 }
 

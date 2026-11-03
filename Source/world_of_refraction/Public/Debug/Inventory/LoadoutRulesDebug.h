@@ -26,6 +26,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Debug|Loadout", meta = (WorldContext = "WorldContextObject"))
 	static void CompareLoadoutRules(const UObject *WorldContextObject);
 
+	/** B-302: the unified slot mirror (D-110) against the old getters for the active loadout, e.g.
+	 *  "Hero_1 slots 3: weapon Sword = Sword, adapter Ember = Ember | match". */
+	static FString GetCompareSlotsString(const ULoadoutComponent *Loadout);
+
+	/** Logs GetCompareSlotsString for every character in the world and shows it on screen (wor.Loadout.CompareSlots). */
+	UFUNCTION(BlueprintCallable, Category = "Debug|Loadout", meta = (WorldContext = "WorldContextObject"))
+	static void CompareLoadoutSlots(const UObject *WorldContextObject);
+
 	/** e.g. "Hero_1: 'Cleave' refused - Ability 'Cleave' requires weapon type Spear". */
 	static FString TryAbilityPick(ULoadoutComponent *Loadout, const FString &AbilityName);
 };

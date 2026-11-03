@@ -291,7 +291,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** Nothing to apply beyond B-100.
 
 ### D-020 — Is the account pool shared across characters?
-**Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-091
+**Status:** ANSWERED; **changed by D-117** (2026-11-03: gear is per character again, home storage shared) · **Raised:** 2026-10-25 · **Blocks:** B-091
 **Question:** Is the owned pool shared by all characters, or per character?
 **Context:** `InitializeFromPool` copies the whole pool into one pawn (`InventoryComponent.cpp:1446-1503`). With 3 party members, each would get duplicates.
 **Answer (Crown):** **A, one shared pool per player** (2026-10-26). All your characters draw from the same collection; an item you own once can be equipped by one character at a time.
@@ -688,6 +688,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A a real extra turn / B a turn moved earlier (current), named to match.
 **Recommendation:** A, because players read "bonus turn" as an extra one, and it matches the deckbuilder.
 **Answer (Crown):** **A** (2026-10-26): Emerald's bonus turn is a **real extra turn** (no later normal turn lost), like Extra Action and the deckbuilder's Add Turn. It still respects the 2:1 cap (D-049). Change `TurnManager.cpp:563-571` (pinned turn currently costs a future slot).
+**Superseded in part** by Q-297 A (Crown, 2026-11-03): the bonus turn goes past the 2:1 cap.
 
 ### D-053 — Does the same effect from two gear pieces add up?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** B-062
@@ -1523,6 +1524,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-28): **every economy action is refused during a fight** (dismantle, level-up, revert, merge, buy / sell, repair), with a message; they work outside fights as today. Matches party swaps being outside battle only.
 **Notes for Claude:** _optional_
 
+### Q-298 — Adapter shortcut letter and durability tag
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-02 (B-298) · **Blocks:** —
+**Question:** D-107 renames the player-facing Ring to Adapter. The command menu's Resonate shortcut said "(R)" for ring, and the durability header tagged rings "RD". What do they say now?
+**Options:** A "Resonate (A)" and the tag "AD" / B keep "(R)" and "RD" (the letter no longer matches the word).
+**Recommendation:** A. A shortcut letter or tag follows the item's name (Final Fantasy and Persona menus label by the shown word); "AD" matches the old "RD" (ring durability) form.
+**Answer:** **A**, by the reference-backed default (2026-11-02). Crown may change it: `CombatCommandMenuSubsystem.cpp` (Resonate label), `CharacterPanelWidget.cpp` / `DurabilityHeaderWidget.cpp` (tag).
+
 ### Q-248 — What Water's break is called
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-28 (B-248) · **Blocks:** —
 **Question:** D-090 says what Water's break does (an Action Speed slow), not its name. Its old name, "Frozen", was dead code; the screen showed "Action Speed Debuff". What does the player see?
@@ -1599,7 +1607,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **One active weapon at a time (A):** a Generic's two weapons switch freely; only the active one gives its abilities, stats and passives (no stacking of two evolved weapons).
 
 ### D-111 — One owned-items store per player
-**Status:** ANSWERED in part (2026-10-29; details one at a time) · **Raised:** 2026-10-29 (`analysis/InventoryArchitecture_2026-10-29.md`) · **Blocks:** —
+**Status:** ANSWERED in part (2026-10-29; details one at a time); solo gear sharing and the one party pouch **changed by D-117** (2026-11-03) · **Raised:** 2026-10-29 (`analysis/InventoryArchitecture_2026-10-29.md`) · **Blocks:** —
 **Answer (Crown):** (2026-10-29)
 - **A: one store per player** holding every owned instance by GUID (gear, evolutions, crystal and stone stacks, outfit pieces), each entry knowing where it is (stored, carried, worn by whom) and whether it is run-only. The **armoury, storage, pouch and run bag are views** of it, not containers. Loadouts and outfits **reference** items (GUIDs), never copy them. The run is a **layer** on top (run-only flag + upgrade memory per definition, D-097). Lyra (inventory + equipment managers), Monster Hunter (box / pouch / equipment box).
 - D-110 stands as step one, with three changes: the slot's GUID is the truth (B-302), the kind-agnostic owned list lands in the store (B-308), and run wear is keyed by item GUID, not asset (new job before B-304).
@@ -1618,12 +1626,93 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
   - **Evolutions can break from wear** in a run; a broken one can be **repaired in the run**, and it **resets outside the run** (never lost: Q-159, Q-159c, D-093).
 **Notes for Claude:** bugs found by the analysis to fix regardless: run wear keyed by asset (two identical adapters share one wear record); found gear never dropped at run end; player-edited presets not saved (PIE check). Remaining details: where it lives (pool now, PlayerState with co-op), presets as GUID lists per character, the run purchase marks pieces rather than copying, the per-preset 6 x 3 item slots retire, spells / abilities stay per character, outfits as entries, co-op visibility.
 
+### D-115 — One copy of an item per character (changes Q-310)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (B-310 review, Q-310) · **Blocks:** —
+**Answer (Crown):** a character never keeps two copies of the same item. Getting an item you already own gives a choice: **convert the weaker copy to Gold, or dismantle it**. Q-310's "the copy in use wears first" lookup stays only as a safety net for data that still holds two.
+**Notes for Claude:** job B-319 (the duplicate-received choice, with a placeholder C++ UI per Backlog rule 4). "Weaker" = lower instance tier, then quality; on a tie keep the one already owned. Gold value / dismantle yield use today's sell and dismantle rules.
+
+### D-116 — There is always one valid primary (changes Q-304)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (B-304 review, Q-304) · **Blocks:** —
+**Answer (Crown):** a character always has one valid primary in place. The primary slot can't be emptied: selling, stripping or dismantling the primary is refused unless a replacement is swapped in. Q-304's empty-primary fallback becomes a guard only.
+**Notes for Claude:** job B-320 (enforce it in loadout validation, the sell / dismantle / strip paths and save loading; an old save with an empty primary gets the first usable owned piece, with a warning).
+
+### D-117 — Each character has their own gear and pouch; home storage is shared (changes D-020, D-111)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (Q-319b) · **Blocks:** —
+**Answer (Crown):** each character has their **own gear** and their **own item pouch**, which they can look into; characters **give** items to each other when needed. **Home storage stays shared**: one chest for the party (Baldur's Gate 3's camp chest).
+**What it changes:** D-020's "one shared pool per player" (gear is per character again); D-111's solo rule "within your own party gear stays shared" (give now covers gear and items between your own characters too, as it already did between co-op players); D-097's 10-slot **party** pouch becomes one pouch per character. D-115's "one copy per character" now reads as worded: two members may each own the same sword.
+**Defaults taken (reference-backed, Crown may change):** Q-321 (the shared chest also takes unworn gear, as BG3's camp chest does), Q-322 (each character's pouch has D-097's 10 slots).
+**Notes for Claude:** jobs B-321 (per-character gear), B-322 (per-character pouch), B-323 (give between characters), B-324 (gear in the shared chest); store jobs B-312 to B-316 re-scoped; B-221b superseded. Code that assumes a shared gear pool, to retire behind B-321 (flag obsolete; delete after PIE):
+- `UPoolSubsystem` wearers (`GetWearer` / `SetWearer` / `GetWearers` / `RestoreSharedGear`, `PoolSubsystem.h:184-215`), their save (`SaveSubsystem.cpp:456, 663-668`) and party use (`PartySessionSubsystem.cpp:416`).
+- `UInventoryComponent::DrawSharedGear` (called at `CharacterDataComponent.cpp:65`), `ClaimActiveSharedGear` (clash-on-activate), `IsWornByOtherMember` / `IsWornByOtherMemberOf`, `GetSelectableWeapons` / `GetSelectableRings` (B-221).
+- `UPartyControlWidget::CycleRunGear` (B-221b's worn-elsewhere skip).
+- B-319's `FindDuplicateGear` counts the shared list each member sees; B-320's refill draws from it; Q-320b (dismantling gear another member wears) goes away once gear is per character.
+- B-203's carried slots are one party list (`wor.Inventory.PrintSlots`).
+
+### Q-321 — Can the shared home chest hold gear, or only items?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
+**Question:** D-097's storage holds items (crystals, stones, consumables); gear lived in the shared pool. With gear per character (D-117), can a character put an unworn weapon or adapter in the shared chest for another to take?
+**Options:** A yes: the chest takes unworn gear and items, any character takes from it / B items only; gear moves only by give.
+**Recommendation:** A. Baldur's Gate 3's camp chest (the model Crown named) holds anything and is the usual way to pass gear around; Monster Hunter's equipment box is likewise one shared box. Give stays for passing a piece directly.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
+### Q-322 — How many slots in each character's pouch?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
+**Question:** D-097 gave the party one 10-slot pouch. With a pouch per character (D-117), how many slots each?
+**Options:** A 10 each (D-097's number, per character), raisable as D-097 says / B split 10 across the party.
+**Recommendation:** A. Monster Hunter's item pouch (D-097's model) is per hunter at a fixed size; BG3 gives each character their own inventory. Splitting would make a fourth member cost the others space.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
 ### Q-303 — A Generic's item limit: two weapons and an adapter at once?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-29 (B-303 review) · **Blocks:** —
 **Question:** D-110 gives a Generic "up to 2 weapons, and keeps one adapter". May it carry both weapons **and** the adapter (three items), or two items in all?
 **Options:** A two items (two weapons, or a weapon and an adapter, as today) / B three items.
 **Recommendation:** A, the analysis's default (`UnifiedLoadout_2026-10-29.md` Q-5): two slots, at most two weapons and one adapter. It keeps every Generic build that works today and mirrors the deckbuilder's vessel rule. B would be a one-number change in `LoadoutClassTable::GENERIC`.
 **Answer:** **A**, by the reference-backed default (2026-10-29). Crown may change it.
+
+### Q-303b — The budget charges the gear the fight actually uses
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-303 review) · **Blocks:** —
+**Question:** The old budget check read the primary slot's *type*; the D-110 budget reads the gear the fight uses. They differ in two rare Resonator cases: a primary weapon whose slot type is left None (as `AutoPopulateLoadout` leaves it) was free and now costs its weapon cost; a primary slot typed Weapon whose weapon was sold cost 1 and now costs 0. Keep the new reading?
+**Options:** A charge what the fight uses (D-110, one cost for every class) / B keep the old type-based charge.
+**Recommendation:** A. The fight attacks with that weapon, so it should count; D-110 makes one cost over the slots the fight reads. Effect: such a Resonator over 5 has adapters dropped by `ClearInvalidSlots`, as any Resonator over 5 does.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
+### Q-310 — Two identical copies: which one wears?
+**Status:** CHANGED by Crown 2026-11-03 (D-115; the lookup / fallback stays as a safety net only) · **Raised:** 2026-11-03 (B-310 review) · **Blocks:** —
+**Question:** In-fight wear and the crystal tools still find gear by its asset. With two identical copies equipped (two of one adapter, or a Generic's two of one weapon), which copy does an asset lookup land on?
+**Options:** A the one in use first (the active adapter; the weapon the Generic is showing), then slot order / B slot order only (the old rule).
+**Recommendation:** A (D-111: wear follows the item actually used). Side effect: debug and socket tools that ask for "the primary weapon" by asset get the copy in hand when both are the same weapon. B-304's `GetActiveSlot` carries the GUID and makes this exact.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
+### Q-319 — Duplicate gear: how much Gold, and when is the choice asked (D-115)?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-319) · **Blocks:** —
+**Question:** D-115 says a second copy of an owned weapon or adapter converts the weaker copy to Gold or dismantles it. Gear has no Gold price yet. Also: which copy is weaker, and is the choice forced at once?
+**Options:** A Gold = half the tier's buy price (the merge-cost half, `GetPrismsBaseForTier / 2`); weaker = lower instance tier, then quality, a tie keeps the copy owned first; the weaker copy's loadout slots move to the kept one; the choice waits in a list (`wor.UI.Duplicates` until the CommonUI screen) and both copies stay owned until chosen / B force the choice the moment it drops.
+**Recommendation:** A. Selling back for a fraction of the buy price is the genre norm (Diablo / Path of Exile vendors, Skyrim ~1/3, Elden Ring), and half matches this game's merge cost. Letting the choice wait, as Monster Hunter's and Destiny's postmaster / duplicate prompts do, avoids interrupting loot mid-trial. With the shared pool, a duplicate is counted across the party's armoury (every member sees the same owned list).
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
+### Q-319b — With the shared armoury, is "one copy" per character or per party?
+**Status:** ANSWERED by Crown 2026-11-03 (B; changes D-020 and D-111's "within your own party gear stays shared") · **Raised:** 2026-11-03 (B-319 review) · **Blocks:** — (B-319 ships counting the owned list each member sees until the rework lands)
+**Question:** D-115 says a *character* never keeps two copies. Since B-091 the party shares one armoury: every member's owned list is the same pool, so B-319 counts duplicates across the party. Two members can't each own the same sword. Also, D-115's job said the inventory "never ends with two copies", but the choice waits in a list (Q-319), so two copies exist until the player chooses (and buying two of one weapon makes a duplicate on purpose).
+**Options:** A one copy per party armoury (today's behaviour) / B one copy per member: a second copy is allowed while another member wears the first (needs a per-member owner on pool gear) / C force the choice the moment the copy arrives.
+**Recommendation:** none: this reads D-115's wording, so it is Crown's call. A is the simplest and fits a shared stash (Diablo IV's shared stash keeps per-character equipped items only); B matches the wording.
+**Answer (Crown, 2026-11-03):** **each character has their own separate inventory**, which they can look into, and characters **give each other things** when needed. So "one copy" is per character (D-115 as worded), and two members may each own the same sword.
+**Decided:** D-117 (Crown, 2026-11-03): own gear and own pouch per character, give between characters, home storage shared.
+**Notes for Claude:** this reverses D-020 (one shared pool per player) and D-111's solo rule "within your own party gear stays shared"; D-111's give / request (today: skills, and everything between co-op players) now covers gear between your own characters too. Affects the shared armoury (B-091, B-221 / B-221b clash and worn-by rules, `UPoolSubsystem` wearers) and the store plan (B-312 to B-316: B-315 "worn-by" and B-316 "give / request"). Needs a D-number and a rework plan from the brain session. Open detail for Crown: does "separate" also cover the carried items (D-097's 10-slot party pouch) and storage, or gear only?
+
+### Q-320 — How far does "always one primary" reach (D-116)?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-320) · **Blocks:** —
+**Question:** D-116 says a character always has one valid primary. Three edges: (1) which loadouts get an empty primary filled: only the active one, or every saved loadout? (2) should validation block an empty primary, or only flag it? (3) a member who owns nothing usable (a Caster or Resonator with no weapon) has no primary to give.
+**Options:** A fill the active loadout only; validation logs a warning, doesn't block; nothing usable owned = stays empty (Q-304's fallback is the guard) / B fill every saved loadout and block an empty primary.
+**Recommendation:** A. Spare loadouts in games with weapon sets (Diablo II / Path of Exile weapon swap, Elden Ring's empty hand slots) may sit empty until used. Filling every loadout would give each spare loadout the same shared piece, which stops B-221's "switch to another loadout to take the sword off". Blocking would lock out a member who owns nothing usable. Dismantling any loadout's primary is still refused.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+**Notes for Claude:** follow-up Q-320b: with shared gear, member A can still dismantle a piece member B wears as primary (B's active loadout is refilled). Guard it with `IsWornByOtherMember` when a job touches dismantle again.
+
+### Q-304 — When the active slot is empty, which gear is in use?
+**Status:** CHANGED by Crown 2026-11-03 (D-116; the lookup / fallback stays as a safety net only) · **Raised:** 2026-11-03 (B-304 review) · **Blocks:** —
+**Question:** D-110 says an empty or stale active slot falls back to the first usable one. Today's content reaches three cases: (1) a Generic showing an emptied primary (sold, or stripped before a fight) used to be unarmed and now fights with its secondary; (2) a Generic toggling to an empty secondary uses up the turn's switch but keeps its primary; (3) a Resonator with a stale active-adapter index used to have no adapter and now uses its first one. Also, a piece another member wears is skipped now (B-221b), not only stripped before a fight.
+**Options:** A as above (D-110) / B keep the old "unarmed / no adapter" results.
+**Recommendation:** A: D-110 removes the primary / secondary rule, and being unarmed with a weapon on the belt was a bug-shaped result. A Resonator's fallback stays inside its adapter loadout (never a stray primary ring). Case (2) is tidied by B-305's one switch (a switch that changes nothing shouldn't cost the turn's switch).
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
 
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)
@@ -2733,7 +2822,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **A** (as built) the yes/no checks read tags now; the numbers stay on the stored copies until B-042y moves the payouts and getters onto GAS.
 - **B** move the numbers in this job as well.
 **Recommendation:** A. One read family per step keeps each step comparable on both paths (Martin Fowler, StranglerFigApplication / ParallelChange). The numbers are exactly what B-042y moves; moving them twice would need a second parallel-run check.
-**Notes for Claude:** applied: B-042yb covers `GetDotTickDamage` / `RemainingTurns` reads in `UAIDecisionManager`, `GetDebuffCount`, and the character panel's effect list.
+**Notes for Claude:** applied: B-042ye (split from B-042yb / B-042yc) covers `GetDotTickDamage` / `RemainingTurns` reads in `UAIDecisionManager`, `GetDebuffCount`, and the character panel's effect list (Q-042ye).
 
 ### Q-042y — Burns and heals on GAS: who decides when a tick pays, and whose HP is the truth?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042y) · **Blocks:** —
@@ -2762,6 +2851,24 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. In Lyra the health set holds both health and max health and they move together; moving the cap alone would split one pair across two owners. (2) A getter reading a copy of itself adds a path that can only go stale (the Q-041 reasoning). (3) A resistance never feeds a rounding directly; the damage it scales is rounded once, so a last-bit difference changes a number only on an exact half, and the debug compare uses a tolerance. One read family per step, comparable on both paths (Martin Fowler, ParallelChange).
 **Notes for Claude:** applied (feature/B-042yc-gas-getters, UNBUILT). The other payouts are B-042yd, the per-effect value reads B-042ye.
 
+### Q-042yd — The other payouts on GAS: do one-shots go through GAS too?
+**Status:** DECIDED: A, confirmed by Crown 2026-11-02 (applied in refactor/B-042yd-gas-payouts, built and merged into dev 2026-11-03) · **Raised:** 2026-11-02 (B-042yd) · **Blocks:** —
+**Question:** With `wor.Effects.UseGAS 1`, energy restore / drain, HP drain, self-damage and the percent restores now pay through GAS, as burns and heal-over-time did (Q-042y). Some of these land as one-shots (a zero-turn effect such as Lunge's self-damage) that are never stored, so they have no mirrored GameplayEffect to pay from. Two smaller points came with it: (1) the percent restores read the max HP / EP at the tick from the game's character data (max pools stay the game's, Q-042yc); (2) an energy change goes through the game's EP path (the Broken Darkness and Resonator gain rules), with GAS's Energy set back to the EP, as Health is. Should a one-shot pay through GAS?
+**Options:**
+- **A** (as built) yes: a one-shot builds its own tick spec and applies it once (an Instant GameplayEffect with the tick execution); a stored payout pays from its mirrored effect's tick spec. Points (1) and (2) as above.
+- **B** one-shots stay on the game's write until the stored copies retire (B-042g).
+**Recommendation:** A. An Instant GameplayEffect with an execution is GAS's own form for a one-off change (Epic's GAS docs; Lyra's damage and heal effects are Instant executions), so the number comes from one place whether the payout ticks or not, and both paths stay comparable (Martin Fowler, ParallelChange). B would leave two writers for the same type until B-042g. (1) and (2) keep the Q-042yc and Q-042y rulings. Not lore.
+**Notes for Claude:** applied (refactor/B-042yd-gas-payouts, in dev 2026-11-03). An instant DOT / HOT now also pays through GAS at UseGAS 1 (same numbers). The percent HP restore's GAS branch reports its heal (HP after - HP before), as the HOT's GAS branch does (B-247); near full HP that reports the HP gained, while the game path reports the full amplified heal (known limitation, GASSystem.md).
+
+### Q-042ye — Per-effect reads on GAS: what does the list show for an effect GAS has just ended?
+**Status:** DECIDED: A, confirmed by Crown 2026-11-02 (applied in refactor/B-042ye-gas-effect-reads, in dev 2026-11-03; the client half is B-318) · **Raised:** 2026-11-02 (B-042ye) · **Blocks:** —
+**Question:** With `wor.Effects.UseGAS 1`, the character panel's effect list, the buff / debuff counts and the enemy AI's burn checks now read what GAS holds (Q-042x): each effect's turns left come from GAS's turn tracker, and a burn's tick size from its GameplayEffect's tick calculation. Between GAS ending an effect at the holder's turn start and the game dropping its stored copy, the two can differ for a moment. What should the reads show then, and do they need anything on a client?
+**Options:**
+- **A** (as built) show what GAS holds: an effect whose GameplayEffect GAS ended is left out, even if its stored copy hasn't gone yet; a type GAS doesn't hold yet stays as stored. A client (GAS's copy is the server's) reads the stored list, as today. The buff count moves with the debuff count.
+- **B** keep showing the stored copy until the game drops it.
+**Recommendation:** A. The step is "read GAS, compare both paths" (Martin Fowler, ParallelChange: migrate the readers before removing the old store at B-042g); B would keep the stored list as the reader, so the step would move nothing. In Lyra the UI lists active GameplayEffects from the ability system component. The client rule keeps today's replicated path until the stored copies retire. Not lore.
+**Notes for Claude:** applied (refactor/B-042ye-gas-effect-reads, in dev 2026-11-03): `USkillEffectManager::GetHeldEffects`, `PreviewDotTickDamage`; `UWoREffectMirrorComponent::ReadHeldEffects`, `PreviewDotTick`. Follow-up B-318: co-op guests read effects from GAS too, before the switch goes (B-042g).
+
 ### Q-042i — Triggered effects onto GAS only: now, or after the payouts move?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-042i) · **Blocks:** B-042i (now after B-042yd, B-042ye)
 **Question:** B-042i makes a trigger's effect (a defender trigger, a starting effect) go straight onto GAS instead of the game's stored effect list. With `wor.Effects.UseGAS 1` the game's turn pass still pays from the stored list: the landing payout (Q-063), the heal-block check, a burn's buildup per tick, energy restore / drain and the "effect triggered" event (Q-042y, B-042yd). The AI and the character panel still read the stored list too (B-042ye). A triggered effect kept only on GAS would lose all of that with the switch on. Do it now or later?
@@ -2779,6 +2886,48 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **B** the deckbuilder's order: Reflect works out its share from the hit before the absorbers.
 **Recommendation:** A. Q-032 defines our Reflect as a share of the HP the hit took (an overkill reflects only the HP the target had), and Q-044e B already made the absorbers a deliberate difference from the deckbuilder ("negate 5" is exactly 5 HP you would have lost). Under A a fully stopped hit reflects nothing, and it keeps one reading of "what the hit did" for every after-hit effect. Not lore.
 **Notes for Claude:** applied (feature/B-042j-absorb-family, UNBUILT). "Reflect on the same shape" (one GE by tag and element, like the absorbers) moves to B-042j2 with the rest of D-092.
+
+### Q-273 — Does the Ice damage tag sit under Water?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-273) · **Blocks:** —
+**Question:** The native tag was `DamageType.Ice`, a sibling of the elements. Should it be `DamageType.Element.Water.Ice`, so anything listening for Water damage also hears Ice?
+**Options:** **A** (as built) nest it under Water. **B** keep it on its own.
+**Recommendation:** A. The deckbuilder makes Ice "a damage type of Water" (`wor-deckbuilder/docs/reference/02-enums.md`), and D-029 / ED-04 key Ice to Water. Pokemon-style sub-types and Path of Exile's damage conversion both let a sub-type count as its parent for "on hit" effects, which players read as expected. Nesting is free now (no content uses the tag) and costly later. Resistance is unaffected: an Ice hit still reads Ice resistance alone (Q-145b). Not lore.
+**Notes for Claude:** applied in B-273 (`refactor/B-273-hit-kind`). If any asset referenced `DamageType.Ice` it needs a tag redirect; none is known (C++ and Config checked, Content not searchable).
+
+### Q-275 — Element-keyed effects: which elements, and whose element?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-275) · **Blocks:** —
+**Question:** The new keyed members `GrantElementImmunity` and `ApplyDOTOnHit` carry an element. (1) May an on-hit DoT be of an element with no old member (Earth, Wind...), or only Fire (Burn) and Water (Chill)? (2) When the authored effect names an element and the spell has another, which wins?
+**Options:** **A** (as built) any element: Fire and Water become the old Burn / Chill members, any other stays keyed and deals a DoT of its element; the authored element wins, and None or Generic (inherit) takes the spell's element. **B** only Fire and Water; others refused by validation.
+**Recommendation:** A. Divinity: Original Sin 2 and Path of Exile let damage over time come in any element and both are praised for build variety; the deckbuilder keys its effects by `Affinity` the same way (`wor-deckbuilder/docs/reference/02-enums.md`). The authored element winning matches Generic meaning inherit (`ESpellElement.h`). The old per-element members stay usable until content moves. Not lore.
+**Notes for Claude:** applied in B-275 (`refactor/B-275-keyed-effects`). Size and length of a non-Fire/Water on-hit DoT are named constants in `SkillEffectManager.cpp` (`ON_HIT_DOT_DEFAULT_DAMAGE`, `ON_HIT_DOT_TURNS`). Retiring the old members waits for content to move.
+
+### Q-297 — Do Emerald bonus turns wait at the 2:1 cap?
+**Status:** ANSWERED · **Raised:** 2026-11-03 (B-297) · **Blocks:** —
+**Question:** D-052 says an Emerald bonus turn still respects the 2:1 cap (D-049). ET-12 says an S Emerald grants two turns back to back at once. Used on the holder's own turn, that is 3 turns in a row before the opponent acts, past the cap. Which wins?
+**Options:**
+- **A** bonus turns ignore the cap (as built): an Emerald is a spent consumable, so it buys turns past the speed limit. ET-12 stays as written.
+- **B** a bonus turn waits at the cap: it fires once an opponent has acted. An S Emerald's two turns come one before and one after the opponent's next turn (ET-12 changes).
+- **C** an S Emerald grants one bonus turn plus one turn of delay removed, so it never makes 3 in a row.
+**Recommendation:** A. Items that grant extra actions beyond the speed system, such as Octopath Traveler's Boost and Final Fantasy X's Quick Hit / Haste stacking, are well received because they feel like a payoff for spending a resource. The cap's job (D-049) is to stop stacked speed stats locking enemies out, and a one-off consumable can't do that. It keeps ET-12 and the current specs unchanged. Not lore, but it changes a ruling either way (D-052 or ET-12), so it's Crown's call.
+**Notes for Claude:** B-297 caps speed picks and Wind yields; pinned turns (Bonus and Execution) already count toward the streak (`TurnsSinceOpponent`), so a ritual's Execution turn can push the caster's next normal turn after an opponent's. The cap is read per combatant: at most 2 turns in a row, restarting when anyone on the other side acts, plus ratios capped at 2 (the long-run share per turn of the slowest). For B, skip a ready Bonus entry whose holder is at the cap in `AdvanceSimState`'s winner scan.
+**Answer (Crown):** **A** (2026-11-03): bonus turns ignore the cap; ET-12 stays (an S Emerald's two turns are back to back). This changes D-052's "still respects the 2:1 cap". Applied in B-297b (`fix/B-297b-bonus-cap`): no scheduler change, the ruling replaces the TODO and `WoR.Turns.TurnCap` locks it in.
+
+### Q-297b — A Wind delay the cap blocks: spent, or kept?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-297) · **Blocks:** —
+**Question:** In a 1v1 where the opponent is twice as fast, the delayed one's next-in-line is always at the cap when the delay would apply. Does the delay wait (and land suddenly later, e.g. when speeds change) or is it spent?
+**Options:** **A** (as built) spent: the place is used up without moving, so the cap wins and nothing lingers. **B** kept until it can apply.
+**Recommendation:** A. D-049 says Wind acts within the cap. Turn-delay effects in CTB games such as Final Fantasy X's Delay Attack and Honkai: Star Rail's action delay are read on the timeline when they land and don't bank for later; a delay that fires many turns later would read as a bug. Not lore.
+**Notes for Claude:** applied in fix/B-297-turn-cap (`AdvanceSimState`, the Wind yield block). Spec `WoR.Turns.TurnCap`.
+
+### Q-279 — Character-form meter: who counts, and how untiered pieces credit
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-279) · **Blocks:** —
+**Question:** A won fight fills a form's meter from what the party wore. Whose pieces count, and do skills (which carry no tier yet) need a tier match?
+**Options:**
+- **A** (as built) every local party member counts, AI companions included; the fight credits the **best-matching** member (not the sum, so splitting a set across members doesn't beat wearing it). Pieces without a tier (spells, abilities) match on the asset alone.
+- **B** only the player-driven character counts.
+- **C** sum the party's matches.
+**Recommendation:** A. Final Fantasy IX teaches abilities from equipped gear to any party member after each won battle, and players liked that the whole party made progress; Mortal Shell's shells also unlock through use, not a single carrier. Best-not-sum keeps the meter about wearing one character's whole loadout. Skill tiers join when loadouts carry them. Not lore.
+**Notes for Claude:** applied in feature/B-279-character-forms (`UCharacterFormSubsystem::RecordFightWonWith`, `CharacterFormMeter::GetFightFill`).
 
 ### Q-227 — Co-op travel: can a client move the group to another level?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-27 (B-227) · **Blocks:** —

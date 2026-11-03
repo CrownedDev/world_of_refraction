@@ -250,10 +250,6 @@ private:
 	/** True if User and Target are on the same team (resolved via UTurnManager). */
 	bool IsAlly(AActor *User, AActor *Target) const;
 
-	/** Map an element to its GrantXxxImmunity effect type (None for Generic/BrokenDarkness).
-	 *  Mirrors UStatusBuildupManager's private resolver, which UItemExecutor cannot reach. */
-	static ESkillEffectType GetElementImmunityType(ESpellElement Element);
-
 	// ========================================
 	// STATE
 	// ========================================

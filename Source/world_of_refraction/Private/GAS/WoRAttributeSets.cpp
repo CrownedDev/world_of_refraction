@@ -50,25 +50,43 @@ void UWoRAttributeSet_Vitals::PostGameplayEffectExecute(const FGameplayEffectMod
 	const UAbilitySystemComponent *ASC = GetOwningAbilitySystemComponent();
 	AActor *Owner = ASC ? ASC->GetOwner() : nullptr;
 	UCharacterDataComponent *Char = Owner ? Owner->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-	if (Data.EvaluatedData.Attribute != GetHealthAttribute() || !UWoREffectMirrorComponent::ReadsFromGAS() || !Char ||
-		!Char->CharacterData)
+	const bool bHealth = Data.EvaluatedData.Attribute == GetHealthAttribute();
+	const bool bEnergy = Data.EvaluatedData.Attribute == GetEnergyAttribute();
+	if ((!bHealth && !bEnergy) || !UWoREffectMirrorComponent::ReadsFromGAS() || !Char || !Char->CharacterData)
 	{
 		return;
 	}
-	// The game's HP stays the truth (Q-042y): Health goes back to it, the change goes through its path.
+	// The game's HP / EP stay the truth (Q-042y, B-042yd): the attribute goes back to them, the change goes
+	// through their path (death for HP; the Broken Darkness and Resonator gain rules for EP).
 	const int32 Change = FMath::RoundToInt(Data.EvaluatedData.Magnitude);
-	SetHealth(Char->CurrentHP);
-	if (Change < 0)
+	if (bHealth)
 	{
-		Char->ServerTakeDamage(-Change);
+		SetHealth(Char->CurrentHP);
+		if (Change < 0)
+		{
+			Char->ServerTakeDamage(-Change);
+		}
+		else if (Change > 0)
+		{
+			Char->ServerHeal(Change);
+		}
+		SetHealth(Char->CurrentHP);
 	}
-	else if (Change > 0)
+	else
 	{
-		Char->ServerHeal(Change);
+		SetEnergy(Char->CurrentEP);
+		if (Change < 0)
+		{
+			Char->ServerSpendEnergy(-Change);
+		}
+		else if (Change > 0)
+		{
+			Char->ServerGainEnergy(Change);
+		}
+		SetEnergy(Char->CurrentEP);
 	}
-	SetHealth(Char->CurrentHP);
-	UE_LOG(LogWoR, Verbose, TEXT("[Vitals] %s: GAS Health change %d through the HP path (HP %d)"), *GetNameSafe(ASC->GetOwner()),
-		   Change, Char->CurrentHP);
+	UE_LOG(LogWoR, Verbose, TEXT("[Vitals] %s: GAS %s change %d through the game's path (HP %d, EP %d)"),
+		   *GetNameSafe(Owner), bHealth ? TEXT("Health") : TEXT("Energy"), Change, Char->CurrentHP, Char->CurrentEP);
 }
 
 void UWoRAttributeSet_Stats::PreAttributeChange(const FGameplayAttribute &Attribute, float &NewValue)

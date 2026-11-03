@@ -25,6 +25,7 @@
 #include "Infusion/InfusionConstants.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Engine/GameInstance.h"
+#include "WoRGameNames.h"
 
 namespace
 {
@@ -95,7 +96,7 @@ void UCombatCommandMenuSubsystem::SetCombatOrchestrator(ACombatOrchestrator *Orc
     Orchestrator->OnActionRequested.AddDynamic(this, &UCombatCommandMenuSubsystem::HandlePlayerActionRequested);
     Orchestrator->OnActionExecuted.AddDynamic(this, &UCombatCommandMenuSubsystem::HandleActionExecuted);
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Combat orchestrator set"));
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Combat orchestrator set"));
 }
 
 void UCombatCommandMenuSubsystem::ClearCombatOrchestrator()
@@ -127,7 +128,7 @@ void UCombatCommandMenuSubsystem::ClearCombatOrchestrator()
     DepthBeforeTargetSelection = ECombatMenuDepth::Main;
     CurrentCapabilities = FCombatCapabilities();
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Combat orchestrator cleared"));
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Combat orchestrator cleared"));
 }
 
 void UCombatCommandMenuSubsystem::HandlePlayerActionRequested(AActor *Actor)
@@ -203,7 +204,7 @@ void UCombatCommandMenuSubsystem::OpenForActor(AActor *Actor)
     TArray<FPieMenuButtonData> Buttons = BuildMainMenuButtons();
     OnCommandMenuReady.Broadcast(Buttons);
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Opened for %s — %d buttons"),
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Opened for %s — %d buttons"),
            *Actor->GetName(), Buttons.Num());
 }
 
@@ -215,7 +216,7 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         return;
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Selected: %s (ID: %s)"),
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Selected: %s (ID: %s)"),
            *ButtonData.DisplayName.ToString(),
            *ButtonData.ButtonID);
 
@@ -477,7 +478,7 @@ void UCombatCommandMenuSubsystem::Close()
     CurrentActor.Reset();
     OnCommandMenuClosed.Broadcast();
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Closed"));
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Closed"));
 }
 
 // ==================== CAPABILITIES / BD LIVE REFRESH ====================
@@ -718,7 +719,7 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateResonateRingButton() const
 
     FPieMenuButtonData Button;
     Button.ButtonID = TEXT("ResonateRing");
-    Button.DisplayName = FText::FromString(TEXT("Resonate (R)"));
+    Button.DisplayName = NSLOCTEXT("CombatCommandMenu", "ResonateAdapter", "Resonate (A)"); // D-107: A for adapter
     Button.Description = FText::FromString(
         FString::Printf(TEXT("%s — %d spells%s"),
                         *CurrentCapabilities.ActiveRingName,
@@ -838,7 +839,7 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateSwitchRingButton() const
 {
     FPieMenuButtonData Button;
     Button.ButtonID = TEXT("SwitchRing");
-    Button.DisplayName = FText::FromString(TEXT("Switch Ring"));
+    Button.DisplayName = NSLOCTEXT("CombatCommandMenu", "SwitchAdapter", "Switch Adapter"); // D-107
     Button.Category = EPieMenuCategory::ChangeRing;
     Button.bEnabled = true;
     GreyIfTurnSwitchUsed(Button);
@@ -1046,7 +1047,7 @@ void UCombatCommandMenuSubsystem::ExecuteSwitchWeapon()
         return;
 
     FText RefusedReason;
-    if (!LC->TrySwitchWeaponThisTurn(RefusedReason))
+    if (!LC->TrySwitchActiveSlot(EGearKind::Weapon, RefusedReason))
     {
         return;
     }
@@ -1063,7 +1064,7 @@ void UCombatCommandMenuSubsystem::ExecuteMoveRow(bool bForward)
     FText RefusedReason;
     if (!Orchestrator || !Orchestrator->TryMoveRow(CurrentActor.Get(), bForward, RefusedReason))
     {
-        UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Row step refused: %s"),
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Row step refused: %s"),
                Orchestrator ? *RefusedReason.ToString() : TEXT("no orchestrator"));
         return;
     }
@@ -1080,19 +1081,9 @@ void UCombatCommandMenuSubsystem::ExecuteSwitchRing()
     if (!LC)
         return;
 
-    // Advance ring index, wrap around
-    const FCombatLoadout &Loadout = LC->GetActiveLoadout();
-    int32 RingCount = 0;
-    for (const FRingLoadoutEntry &Entry : Loadout.RingLoadout)
-        if (Entry.IsValid())
-            RingCount++;
-
-    if (RingCount < 2)
-        return;
-
-    int32 NextIndex = (Loadout.ActiveRingIndex + 1) % RingCount;
+    // The next adapter, wrapping; one adapter (or a used switch) changes nothing.
     FText RefusedReason;
-    if (!LC->TrySwitchRingThisTurn(NextIndex, RefusedReason))
+    if (!LC->TrySwitchActiveSlot(EGearKind::Adapter, RefusedReason))
     {
         return;
     }
@@ -1135,7 +1126,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     FString TargetTypeName = TargetEnum
                                  ? TargetEnum->GetNameStringByValue(static_cast<int64>(TargetType))
                                  : TEXT("Unknown");
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] OpenTargetSelection: TargetType=%s"),
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] OpenTargetSelection: TargetType=%s"),
            *TargetTypeName);
 
     // Reset infusion state for this picker. Per locked design (p2),
@@ -1233,7 +1224,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     // Resolve targets
     TArray<AActor *> Targets = ResolveTargets(TargetType);
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]   Resolved %d targets:"), Targets.Num());
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu]   Resolved %d targets:"), Targets.Num());
     for (AActor *T : Targets)
     {
         if (!T)
@@ -1246,7 +1237,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
                 TName = CDC->CharacterData->Name;
             }
         }
-        UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]     - %s"), *TName);
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu]     - %s"), *TName);
     }
 
     // Empty-target safety — bail and clear pending state
@@ -1265,13 +1256,13 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     // selection. Anyone + All is a group ("Everyone") and skips the category step.
     if (TargetType == ETargetType::Anyone && TargetCount != ETargetCount::All)
     {
-        UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]   Showing Allies/Enemies category step"));
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu]   Showing Allies/Enemies category step"));
         CurrentDepth = ECombatMenuDepth::TargetCategory;
         OnCommandMenuReady.Broadcast(BuildTargetCategoryButtons());
         return;
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]   Showing target picker"));
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu]   Showing target picker"));
 
     CurrentDepth = ECombatMenuDepth::TargetSelection;
 
@@ -1554,7 +1545,7 @@ void UCombatCommandMenuSubsystem::AppendInfusionControls(TArray<FPieMenuButtonDa
                 SourceLabel = LOCTEXT("InfusionSourceWeaponCrystal", "Weapon Crystal");
                 break;
             case EPieMenuCategory::ResonateRing:
-                SourceLabel = LOCTEXT("InfusionSourceRing", "Ring");
+                SourceLabel = WoRGameNames::GetAdapterWord(); // D-107
                 break;
             case EPieMenuCategory::Attack:
             case EPieMenuCategory::Ability:
@@ -1720,7 +1711,7 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTarget(AActor *SelectedTarget
         }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Action confirmed: %s on %s"),
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Action confirmed: %s on %s"),
            *PendingActionID,
            *TargetName);
 
@@ -1743,7 +1734,7 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTargets(const TArray<AActor *
     ActionButton.DataIndex = PendingActionDataIndex; // restore slot index (consumables)
     ActionButton.Targets = SelectedTargets;
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Action confirmed: %s on %d targets"),
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Action confirmed: %s on %d targets"),
            *PendingActionID, SelectedTargets.Num());
 
     // Clear pending state — same pattern as ConfirmActionWithTarget
@@ -1901,7 +1892,7 @@ void UCombatCommandMenuSubsystem::SubmitConfirmedAction(
 {
     FAction Action = BuildActionFromButton(ButtonData);
 
-    UE_LOG(LogTemp, Log,
+    UE_LOG(LogTemp, Verbose,
            TEXT("[CombatCommandMenu] Submitting action: type=%d targets=%d level(spell/ab)=%d/%d source=%d spellSource=%d"),
            static_cast<int32>(Action.ActionType),
            Action.Targets.Num(),
@@ -2027,7 +2018,7 @@ bool UCombatCommandMenuSubsystem::PressMenuKey(EPieMenuCategory Category)
                                                             { return Candidate.Category == Category && Candidate.bEnabled; });
     if (!Button)
     {
-        UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Key for %s: no such button here"), *UEnum::GetValueAsString(Category));
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Key for %s: no such button here"), *UEnum::GetValueAsString(Category));
         return false;
     }
     const FPieMenuButtonData Pressed = *Button; // HandleSelection can rebuild the menu

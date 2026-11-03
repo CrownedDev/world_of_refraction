@@ -25,7 +25,7 @@ namespace PanelLabels
 	// Bar prefix labels — change these in one place to update the whole panel
 	constexpr const TCHAR *HP = TEXT("HP");
 	constexpr const TCHAR *EP = TEXT("EP");
-	constexpr const TCHAR *RingDur = TEXT("RD");   // Ring Durability (Resonator)
+	constexpr const TCHAR *RingDur = TEXT("AD");   // Adapter durability (Resonator, D-107)
 	constexpr const TCHAR *WeaponDur = TEXT("WD"); // Weapon Durability
 	constexpr const TCHAR *Absorb = TEXT("Abs");   // BD Absorption
 	constexpr const TCHAR *Status = TEXT("SB");	   // Status Buildup
@@ -695,7 +695,7 @@ void UCharacterPanelWidget::RefreshEffectsList()
 		return;
 	}
 
-	TArray<FActiveSkillEffect> Effects = StatusMgr->GetActiveEffects(Actor);
+	TArray<FActiveSkillEffect> Effects = StatusMgr->GetHeldEffects(Actor); // B-042ye: GAS at UseGAS 1
 
 	// BD absorption stacks function as a status-multiplier buff on
 	// matching-element spells (UBrokenDarknessManager::GetElementStackStatusMultiplier,

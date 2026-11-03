@@ -77,6 +77,11 @@ struct FCombatantTurnDebt
 	UPROPERTY()
 	int32 PlacesToYield = 0;
 
+	/** Turns this combatant has taken since anyone on the other side last acted: the 2:1 cap
+	 *  (D-049, CombatConstants::MAX_TURN_RATIO) keeps it at most that many. */
+	UPROPERTY()
+	int32 TurnsSinceOpponent = 0;
+
 	/** First strike (B-185): this combatant's side was struck first, so it waits until the
 	 *  other side has taken its opening round. Cleared for everyone when that round is done. */
 	UPROPERTY()

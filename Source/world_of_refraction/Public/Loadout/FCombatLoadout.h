@@ -24,6 +24,7 @@
 #include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Loadout/Entries/FRingLoadoutEntry.h"
 #include "Loadout/Entries/FItemLoadoutSlot.h"
+#include "Loadout/FLoadoutSlot.h"
 #include "FCombatLoadout.generated.h"
 
 class USpellData;
@@ -185,6 +186,37 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     /** Active ring index for Resonator */
     UPROPERTY(BlueprintReadWrite, Category = "Runtime")
     int32 ActiveRingIndex = 0;
+
+    // ==================== UNIFIED SLOTS (D-110, mirror) ====================
+    // B-302: the weapons and adapters above as one slot list (active loadout only), rebuilt by RebuildSlotsFromLegacy
+    // (the loadout component calls it whenever it announces a gear change). Read-only mirror until B-304 moves the
+    // getters onto it; wor.Loadout.CompareSlots prints both sides.
+
+    /** Order: the primary weapon or adapter, the secondary weapon, then the Resonator's adapters. */
+    UPROPERTY(BlueprintReadOnly, Category = "Runtime|Slots")
+    TArray<FLoadoutSlot> Slots;
+
+    /** The weapon in hand, INDEX_NONE for none (mirrors ULoadoutComponent::GetActiveWeapon). */
+    UPROPERTY(BlueprintReadOnly, Category = "Runtime|Slots")
+    int32 ActiveWeaponSlot = INDEX_NONE;
+
+    /** The adapter in use, INDEX_NONE for none (the Resonator's active ring, or a primary ring). */
+    UPROPERTY(BlueprintReadOnly, Category = "Runtime|Slots")
+    int32 ActiveAdapterSlot = INDEX_NONE;
+
+    /** Rebuilds Slots and the two active indices from the old fields, by the character's class: only a Generic's
+     *  bShowPrimary picks which of two weapons is in hand, and only a Resonator's adapter loadout has an active one
+     *  (everyone else's adapter is the primary one), as GetActiveWeapon / GetActiveRing / GetPrimaryRing. */
+    void RebuildSlotsFromLegacy(ECharacterClass CharacterClass);
+
+    /** B-304: rebuilds the mirror only if it no longer holds the old fields' items (same items by asset and GUID, in
+     *  slot order), then refreshes the two active indices (bShowPrimary / ActiveRingIndex may have moved). Cheap:
+     *  a walk of at most the primary, the secondary and the adapters, no copies when in step. */
+    void EnsureSlotsInStep(ECharacterClass CharacterClass);
+
+    /** B-304: the old entry a slot mirrors, or null (the getters that still return the old entry types). */
+    const FWeaponLoadoutEntry *GetLegacyWeaponEntry(int32 SlotIndex) const;
+    const FRingLoadoutEntry *GetLegacyRingEntry(int32 SlotIndex) const;
 
     // ==================== VALIDATION ====================
     // Live validation lives on ULoadoutComponent::GetValidationErrors —

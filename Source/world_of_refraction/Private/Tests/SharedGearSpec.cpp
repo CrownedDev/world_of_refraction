@@ -173,6 +173,20 @@ void FSharedGearSpec::Define()
 		TestTrue(TEXT("Back in the second member's list"), Selectable.Num() == 1 && Selectable[0].PersistentID == SwordID);
 	});
 
+	It("gives a loaded member with no primary a free owned sword, never one another member wears (D-116)", [this]()
+	{
+		if (!Pool) return;
+		UInventoryComponent *First = SpawnMember(0, true, false);
+		if (!First || !TestEqual(TEXT("One sword"), Pool->GetOwnedWeapons().Num(), 1)) return;
+		const FGuid SwordID = Pool->GetOwnedWeapons()[0].PersistentID;
+		TestEqual(TEXT("The empty preset got the free sword"), ActiveWeaponID(First), SwordID);
+		TestEqual(TEXT("And wears it"), Pool->GetWearer(SwordID), UPoolSubsystem::GetCharacterKey(Members[0]));
+
+		UInventoryComponent *Second = SpawnMember(1, false, false);
+		if (!Second) return;
+		TestFalse(TEXT("The second doesn't take the worn sword"), ActiveWeaponID(Second).IsValid());
+	});
+
 	It("shows a crystal one member attaches on everyone's copy", [this]()
 	{
 		if (!Pool) return;

@@ -3,6 +3,7 @@
 #include "Save/SaveSubsystem.h"
 #include "Save/WoRSaveGame.h"
 #include "Character/CharacterData.h"
+#include "Character/Forms/CharacterFormSubsystem.h"
 #include "Character/CombatCharacter.h"
 #include "Currency/CurrencyComponent.h"
 #include "Engine/GameInstance.h"
@@ -178,6 +179,7 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 	UGameInstance *GI = GetGameInstance();
 	const bool bParty = Data.Party.bHasParty && RestoreParty(Data.Party, *GI->GetSubsystem<UPartySessionSubsystem>());
 	const int32 PoolEntries = RestorePool(Data.Pool, *GI->GetSubsystem<UPoolSubsystem>());
+	GI->GetSubsystem<UCharacterFormSubsystem>()->RestoreProgress(Data.Forms.Progress);
 	UE_LOG(LogWoR, Log, TEXT("[Save] Loaded slot '%s' (version %d): party %s, %d pool entries, wallet %s"),
 		   SLOT_NAME, Loaded->GetSavedDataVersion(), bParty ? TEXT("restored") : TEXT("not restored"), PoolEntries,
 		   Data.Wallet.bHasWallet ? TEXT("banked") : TEXT("empty"));
@@ -267,6 +269,7 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 		Data.Party = CaptureParty(Party, bInRun);
 	}
 	Data.Pool = CapturePool(*GI->GetSubsystem<UPoolSubsystem>());
+	Data.Forms.Progress = GI->GetSubsystem<UCharacterFormSubsystem>()->GetProgressByName();
 	if (const UCurrencyComponent *Wallet = FindLocalWallet(World))
 	{
 		BankWallet(Wallet);

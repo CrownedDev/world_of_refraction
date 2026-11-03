@@ -17,6 +17,7 @@
 #include "Character/ECharacterClass.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
+#include "Combat/Resistance/ResistanceColumns.h"
 
 class AActor;
 
@@ -132,48 +133,14 @@ namespace ClassInnateResistanceTable
 	 *  This is distinct from the BD-TARGET-row rule in ResolveRow. */
 	inline float GetElementColumn(const FResistanceRow &Row, ESpellElement IncomingElement)
 	{
-		switch (IncomingElement)
-		{
-		case ESpellElement::Fire:
-			return Row.Fire;
-		case ESpellElement::Water:
-			return Row.Water;
-		case ESpellElement::Earth:
-			return Row.Earth;
-		case ESpellElement::Wind:
-			return Row.Wind;
-		case ESpellElement::Light:
-			return Row.Light;
-		case ESpellElement::Darkness:
-			return Row.Darkness;
-		case ESpellElement::Lightning:
-			return Row.Lightning;
-		case ESpellElement::Void:
-			return Row.Void;
-		case ESpellElement::Reality:
-			return Row.Reality;
-		case ESpellElement::Generic:
-		default:
-			return 0.0f;
-		}
+		return ResistanceColumns::Get(Row, WoRDamageType::ElementToDamageType(IncomingElement));
 	}
 
 	/** Read the row's column for the incoming physical type. None -> 0 (spells /
 	 *  abilities pass None and carry no physical component). */
 	inline float GetPhysicalColumn(const FResistanceRow &Row, EPhysicalDamageType PhysicalType)
 	{
-		switch (PhysicalType)
-		{
-		case EPhysicalDamageType::Slash:
-			return Row.Slash;
-		case EPhysicalDamageType::Pierce:
-			return Row.Pierce;
-		case EPhysicalDamageType::Impact:
-			return Row.Impact;
-		case EPhysicalDamageType::None:
-		default:
-			return 0.0f;
-		}
+		return ResistanceColumns::Get(Row, WoRDamageType::PhysicalToDamageType(PhysicalType));
 	}
 
 	// ==================== ACTOR-LEVEL QUERY ====================

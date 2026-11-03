@@ -14,7 +14,7 @@
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Merchant/MerchantData.h" // FMerchantStockEntry — the Purchase cart element
 #include "Currency/CurrencyTypes.h" // ECurrencyType for the leveling-essence param on TryLevelUpEntry
-#include "Character/CharacterDataComponent.h" // EWorldPillar for BuyWorldStat (§7 C4)
+#include "Character/EWorldPillar.h" // BuyWorldStat (§7 C4)
 #include "EconomyService.generated.h"
 
 class AActor;
@@ -114,6 +114,17 @@ public:
     UFUNCTION(BlueprintPure, Category = "Economy")
     static FText GetDismantleWarning(const AActor *Owner, FGuid PersistentID);
 
+    /** B-319 (D-115): the owner keeps one copy of a weapon or ring. WeakerID must be a weaker copy from
+     *  UInventoryComponent::FindDuplicateGear; its loadout slots move to the kept copy first, then it is
+     *  converted to Gold (half the tier's buy price, Q-319) or dismantled for Gear essence. Out of a
+     *  fight, server only; false when WeakerID is no weaker copy or the removal is refused. */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool ResolveDuplicate(AActor *Owner, FGuid WeakerID, bool bConvertToGold);
+
+    /** B-319 (Q-319): Gold for converting a duplicate of this tier (half its buy price). */
+    UFUNCTION(BlueprintPure, Category = "Economy")
+    static int32 GetDuplicateGoldForTier(EItemTier Tier);
+
     /**
      * Dismantle the owned EVOLUTION instance by InstanceID (NOT PersistentID — evolution identity).
      * HYBRID yield: the evolution's ELEMENT essence TYPE (GetAssociatedElement → ElementToEssenceType)
@@ -177,8 +188,8 @@ public:
      *                     AbilityStone half). WeaponAttack is never priced (weapon identity).
      *                     [quality is the C placeholder until shop-roll]
      *   - Spell         : Prisms base + 50×Σ scaling-grade + element essence @ tier + Σ pillar
-     *                     essence per scaling grade. GENERIC-element spells instead price like
-     *                     abilities: Prisms base + SkillEssence @ tier (no surcharge, no typed).
+     *                     essence per scaling grade. A GENERIC spell's element essence is Quartz
+     *                     essence (EEssenceType::Generic, D-105).
      *   - Ability       : Prisms base + SkillEssence @ tier.
      *   - Evolution     : 2× Prisms base (premium item class) + element essence @ tier
      *                     + ½ Reality essence.
@@ -310,6 +321,15 @@ public:
     void PrintEconomy(AActor *Owner) const;
 
 private:
+    /** B-252b: one body each for the weapon / ring (adapter) verbs; TEntry is FWeaponInventoryEntry or
+     *  FRingInventoryEntry. Verb names the public call in the logs and the authority / component checks. */
+    template <class TEntry>
+    bool DismantleOwnedGear(AActor *Owner, FGuid PersistentID, const TCHAR *Verb);
+    template <class TEntry>
+    bool LevelUpOwnedGear(AActor *Owner, FGuid PersistentID, const TCHAR *Verb);
+    template <class TEntry>
+    bool DowngradeOwnedGear(AActor *Owner, FGuid PersistentID, const TCHAR *Verb);
+
     /** Cost-only walk of a cart — the single pricing source behind PreviewCartCost AND
      *  Purchase's validation pass. Prices skip empty/unknown entries (Purchase rejects those
      *  separately); spell/ability/evolution Count clamps to 1. */

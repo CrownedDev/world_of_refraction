@@ -11,12 +11,12 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Player/WoRInteract.h"
 #include "Trial/TrialRunSubsystem.h"
 
 namespace PartyInteractionConstants
 {
 	constexpr float DEFAULT_INTERACTION_RADIUS = 200.0f;
-	constexpr float HINT_DURATION = 1e9f; // effectively "until removed"
 	constexpr float DEFAULT_VIEW_CONE_THRESHOLD = 0.0f; // "anywhere in front"
 }
 
@@ -61,10 +61,7 @@ void UPartyInteractionComponent::BeginPlay()
 
 void UPartyInteractionComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (GEngine)
-	{
-		GEngine->RemoveOnScreenDebugMessage(static_cast<int32>(GetUniqueID()));
-	}
+	WoRInteract::HideHint(*this);
 
 	if (TriggerSphere)
 	{
@@ -111,11 +108,9 @@ void UPartyInteractionComponent::Interact()
 	}
 
 	// Refresh the hint in place — the membership verb just flipped.
-	if (PawnInRange.IsValid() && GEngine)
+	if (PawnInRange.IsValid())
 	{
-		GEngine->AddOnScreenDebugMessage(static_cast<int32>(GetUniqueID()),
-										 PartyInteractionConstants::HINT_DURATION,
-										 FColor::Green, GetHintText());
+		WoRInteract::ShowHint(*this, FColor::Green, GetHintText());
 	}
 }
 
@@ -184,14 +179,7 @@ void UPartyInteractionComponent::OnTriggerBeginOverlap(UPrimitiveComponent * /*O
 
 	PawnInRange = Pawn;
 	OnAvailabilityChanged.Broadcast(true);
-	if (GEngine)
-	{
-		// Keyed on this component's id so the hint updates in place and is removable.
-		// int32 cast: GetUniqueID() is uint32, ambiguous between the int32/uint64 overloads.
-		GEngine->AddOnScreenDebugMessage(static_cast<int32>(GetUniqueID()),
-										 PartyInteractionConstants::HINT_DURATION,
-										 FColor::Green, GetHintText());
-	}
+	WoRInteract::ShowHint(*this, FColor::Green, GetHintText());
 }
 
 void UPartyInteractionComponent::OnTriggerEndOverlap(UPrimitiveComponent * /*OverlappedComponent*/, AActor *OtherActor,
@@ -204,11 +192,7 @@ void UPartyInteractionComponent::OnTriggerEndOverlap(UPrimitiveComponent * /*Ove
 
 	PawnInRange = nullptr;
 	OnAvailabilityChanged.Broadcast(false);
-	if (GEngine)
-	{
-		// Same int32 cast as the Add — both sign-extend to the identical uint64 key.
-		GEngine->RemoveOnScreenDebugMessage(static_cast<int32>(GetUniqueID()));
-	}
+	WoRInteract::HideHint(*this);
 }
 
 UCharacterData *UPartyInteractionComponent::GetOwnerCharacterData() const

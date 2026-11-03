@@ -218,7 +218,7 @@ void UTurnManager::AdvanceToNextTurn()
 	CurrentTurnPayloadId = Picked.PayloadId;
 	GlobalTurnCount++;
 
-	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Turn %d: %s (Team %d)"),
+	UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] Turn %d: %s (Team %d)"),
 		   GlobalTurnCount,
 		   *CurrentActor->GetName(),
 		   GetActorTeam(CurrentActor));
@@ -270,7 +270,8 @@ void UTurnManager::CalculateSpeedRatios()
 	for (FCombatantTurnDebt &Combatant : Combatants)
 	{
 		const int32 Effective = GetEffectiveSpeed(Combatant);
-		Combatant.SpeedRatio = (Effective > 0) ? (float)Effective / (float)SlowestSpeed : 1.0f;
+		const float Ratio = (Effective > 0) ? (float)Effective / (float)SlowestSpeed : 1.0f;
+		Combatant.SpeedRatio = FMath::Min(Ratio, (float)CombatConstants::MAX_TURN_RATIO); // D-049: 2 turns per turn of the slowest
 	}
 }
 
@@ -365,7 +366,7 @@ void UTurnManager::RequestExtraTurn(AActor *Actor, bool bIsBonusTurn)
 		if (Combatant.Actor == Actor)
 		{
 			Combatant.TurnsOwed += 1.0f;
-			UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Extra turn granted to %s (TurnsOwed now %.2f)"),
+			UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] Extra turn granted to %s (TurnsOwed now %.2f)"),
 				   *Actor->GetName(), Combatant.TurnsOwed);
 			return;
 		}
@@ -386,7 +387,7 @@ void UTurnManager::DelayNextTurn(AActor *Actor, int32 Places)
 		if (Combatant.Actor == Actor)
 		{
 			Combatant.PlacesToYield += Places;
-			UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s's next turn moves back %d place(s)"), *Actor->GetName(), Places);
+			UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] %s's next turn moves back %d place(s)"), *Actor->GetName(), Places);
 			// The strip reads the belt; rebuild it so the delay shows now, not next turn.
 			RebuildBelt();
 			OnSpeedChanged.Broadcast(Actor);
@@ -409,7 +410,7 @@ void UTurnManager::ScheduleBonusTurn(AActor *Actor, int32 DelayTurns, int32 Coun
 	Entry.Count = FMath::Max(1, Count);
 	PendingTurns.Add(Entry);
 
-	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Scheduled %d pinned bonus turn(s) for %s after %d normal turn(s)"),
+	UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] Scheduled %d pinned bonus turn(s) for %s after %d normal turn(s)"),
 		   Entry.Count, *Actor->GetName(), DelayTurns);
 }
 
@@ -429,7 +430,7 @@ void UTurnManager::ScheduleExecutionTurn(AActor *Caster, int32 DelayTurns, int32
 	Entry.SortKey = SpellSpeed;        // frozen spell speed -> fire-time adjacency selection
 	PendingTurns.Add(Entry);
 
-	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Scheduled Execution Turn for %s after %d normal turn(s) (payload %d, spellspeed %.2f)"),
+	UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] Scheduled Execution Turn for %s after %d normal turn(s) (payload %d, spellspeed %.2f)"),
 		   *Caster->GetName(), DelayTurns, PayloadId, SpellSpeed);
 }
 
@@ -632,6 +633,28 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 		return Debt && Debt->bWaitsForOpening;
 	};
 
+	// D-049: counts each turn toward the 2:1 cap; the other side's counts restart when this one acts.
+	auto RecordTurnFor = [&State](const AActor *Actor)
+	{
+		const FCombatantTurnDebt *Taker = State.FindByPredicate([Actor](const FCombatantTurnDebt &C) { return C.Actor == Actor; });
+		if (!Taker)
+		{
+			return;
+		}
+		const int32 Team = Taker->TeamIndex;
+		for (FCombatantTurnDebt &Combatant : State)
+		{
+			if (Combatant.Actor == Actor)
+			{
+				Combatant.TurnsSinceOpponent++;
+			}
+			else if (Combatant.TeamIndex != Team)
+			{
+				Combatant.TurnsSinceOpponent = 0;
+			}
+		}
+	};
+
 	int32 WinnerIdx = INDEX_NONE;
 	for (int32 p = 0; p < Pending.Num(); ++p)
 	{
@@ -672,14 +695,22 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 			Pending.RemoveAt(WinnerIdx);
 		}
 
-		// Pinned turns still count as taken (matching pre-2b). NOTE: no TurnsOwed credit —
-		// the pinned turn deliberately costs one slot of future normal priority.
-		for (FCombatantTurnDebt &Combatant : State)
+		// D-052 (Crown, A): an Emerald bonus turn is a real extra turn, so it isn't counted as taken and no later
+		// normal turn is lost. Other pinned turns (Execution) still count as taken, costing one slot of future
+		// normal priority. (Winner may be gone after RemoveAt; OutEntry.Type holds its type.)
+		// Q-297 (Crown, A): Emerald bonus turns ignore the 2:1 cap, so an S Emerald's two turns stay back to back (ET-12).
+		// Execution turns skip the cap too (code only, no ruling). Every pinned turn still counts toward the holder's
+		// TurnsSinceOpponent, so the next normal turn waits for an opponent.
+		RecordTurnFor(PinnedActor);
+		if (OutEntry.Type != ETurnType::Bonus)
 		{
-			if (Combatant.Actor == PinnedActor)
+			for (FCombatantTurnDebt &Combatant : State)
 			{
-				Combatant.TurnsTaken++;
-				break;
+				if (Combatant.Actor == PinnedActor)
+				{
+					Combatant.TurnsTaken++;
+					break;
+				}
 			}
 		}
 
@@ -758,7 +789,8 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 	}
 
 	// Find highest debt (optionally skipping one combatant: the one yielding its place)
-	auto PickHighestDebt = [this, &State](const FCombatantTurnDebt *Skip) -> FCombatantTurnDebt *
+	// bRespectCap: skip combatants at the 2:1 cap (D-049); the caller falls back without it when nobody else can act.
+	auto PickHighestDebt = [this, &State](const FCombatantTurnDebt *Skip, bool bRespectCap) -> FCombatantTurnDebt *
 	{
 		FCombatantTurnDebt *Best = nullptr;
 		float HighestDebt = -FLT_MAX;
@@ -766,6 +798,8 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 		for (FCombatantTurnDebt &Combatant : State)
 		{
 			if (&Combatant == Skip || Combatant.bWaitsForOpening)
+				continue;
+			if (bRespectCap && Combatant.TurnsSinceOpponent >= CombatConstants::MAX_TURN_RATIO)
 				continue;
 
 			UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Combatant.Actor);
@@ -790,7 +824,11 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 		return Best;
 	};
 
-	FCombatantTurnDebt *NextCombatant = PickHighestDebt(nullptr);
+	FCombatantTurnDebt *NextCombatant = PickHighestDebt(nullptr, /*bRespectCap=*/true);
+	if (!NextCombatant)
+	{
+		NextCombatant = PickHighestDebt(nullptr, /*bRespectCap=*/false); // only capped combatants can act
+	}
 	if (!NextCombatant)
 	{
 		return false;
@@ -803,11 +841,16 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 	if (NextCombatant->PlacesToYield > 0 && !bAnyWaiting)
 	{
 		// The next in line goes even if it has used this round's turns: in a 1v1 that is the
-		// only way to move back a place. It can exceed a speed ratio (D-049 is still open).
-		if (FCombatantTurnDebt *NextInLine = PickHighestDebt(NextCombatant))
+		// only way to move back a place. Within the 2:1 cap (D-049, Q-297b): when everyone else is
+		// at the cap, the place is spent without moving (the cap eats it), so no delay waits forever.
+		if (FCombatantTurnDebt *NextInLine = PickHighestDebt(NextCombatant, /*bRespectCap=*/true))
 		{
 			NextCombatant->PlacesToYield--;
 			NextCombatant = NextInLine;
+		}
+		else if (PickHighestDebt(NextCombatant, /*bRespectCap=*/false))
+		{
+			NextCombatant->PlacesToYield--;
 		}
 	}
 
@@ -819,6 +862,7 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 	OutEntry.Type = ETurnType::Normal;
 	OutEntry.PayloadId = INDEX_NONE; // a debt pick carries no payload
 	NextCombatant->TurnsTaken++;
+	RecordTurnFor(NextCombatant->Actor);
 
 	// Delay countdown (all turns count): a turn was picked, so every pending entry burns one
 	// turn of delay. The pinned-fire path above now runs the same burn (skipping only its
@@ -862,13 +906,14 @@ void UTurnManager::DebugPrintTurnOrder()
 	for (const FCombatantTurnDebt &Combatant : Combatants)
 	{
 		float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
-		UE_LOG(LogWoRCombat, Display, TEXT("  %s: Speed=%d, Ratio=%.2f, Owed=%.2f, Taken=%d, Net=%.2f%s"),
+		UE_LOG(LogWoRCombat, Display, TEXT("  %s: Speed=%d, Ratio=%.2f, Owed=%.2f, Taken=%d, Net=%.2f, InARow=%d%s"),
 			   *GetNameSafe(Combatant.Actor),
 			   Combatant.CachedSpeed,
 			   Combatant.SpeedRatio,
 			   Combatant.TurnsOwed,
 			   Combatant.TurnsTaken,
 			   NetDebt,
+			   Combatant.TurnsSinceOpponent,
 			   Combatant.bWaitsForOpening ? TEXT(" [WAITS: first strike]") : TEXT(""));
 	}
 

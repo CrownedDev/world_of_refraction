@@ -9,6 +9,7 @@
 
 #include "CoreMinimal.h"
 #include "Equipment/Crystals/CrystalType.h"
+#include "Combat/Elements/ElementTable.h"
 #include "Skills/Definitions/ESpellElement.h"
 
 namespace CrystalTypeHelpers
@@ -19,31 +20,18 @@ namespace CrystalTypeHelpers
      *  of the crystal/evolution refactor sequence. */
     inline ESpellElement GetElement(ECrystalType Type)
     {
-        switch (Type)
+        if (Type == ECrystalType::None)
         {
-        case ECrystalType::Garnet:
-            return ESpellElement::Fire;
-        case ECrystalType::Sapphire:
-            return ESpellElement::Water;
-        case ECrystalType::Citrine:
-            return ESpellElement::Lightning;
-        case ECrystalType::Emerald:
-            return ESpellElement::Wind;
-        case ECrystalType::Amber:
-            return ESpellElement::Earth;
-        case ECrystalType::Opal:
-            return ESpellElement::Light;
-        case ECrystalType::Onyx:
-            return ESpellElement::Darkness;
-        case ECrystalType::Amethyst:
-            return ESpellElement::Void;
-        case ECrystalType::Iolite:
-            return ESpellElement::Reality;
-        case ECrystalType::Quartz:
-            return ESpellElement::None; // Quartz is the non-elemental gem — no element
-        default:
-            return ESpellElement::None; // Unknown crystal type — no element
+            return ESpellElement::None;
         }
+        for (const FElementRow &Row : ElementTable::Rows())
+        {
+            if (Row.Gem == Type)
+            {
+                return Row.Element; // Quartz carries None: the non-elemental gem
+            }
+        }
+        return ESpellElement::None; // a stone, or an unknown crystal type
     }
 
     /** True for augment-stone sub-types (DamageStone, AbilityStone, DefenseStone,

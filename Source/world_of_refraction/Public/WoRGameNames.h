@@ -12,12 +12,14 @@
 #include "Character/ECharacterClass.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Skills/Effects/ESkillEffectType.h"
+#include "Equipment/Rings/EAdapterForm.h"
 
 // Forward-declared so this header stays light (it is included by SkillEffectDisplayNames.h).
 enum class EDefenseType : uint8;
 enum class ECombatRow : uint8;
 enum class ESpellSchool : uint8;
 enum class EMerchantType : uint8;
+enum class EEssenceType : uint8;
 
 namespace WoRGameNames
 {
@@ -45,4 +47,16 @@ namespace WoRGameNames
 
     /** The merchant and its wares in brackets: "Blacksmith (weapons, augment stones)". */
     WORLD_OF_REFRACTION_API FText GetMerchantTypeName(EMerchantType MerchantType);
+
+    /** D-107: the spell-channelling gear is an "Adapter" to the player (the code keeps its Ring names until B-299). */
+    WORLD_OF_REFRACTION_API FText GetAdapterWord();
+    /** "Adapters" */
+    WORLD_OF_REFRACTION_API FText GetAdapterWordPlural();
+    /** "Active adapter" (the Resonator's one in use) */
+    WORLD_OF_REFRACTION_API FText GetActiveAdapterWord();
+    /** An adapter's form: "Ring", "Pistol", "Trainer". */
+    WORLD_OF_REFRACTION_API FText GetAdapterFormName(EAdapterForm Form);
+
+    /** B-269: "Fire Essence", "Quartz Essence" (Generic, D-105), "Unknown Essence" (Reality, D-095). */
+    WORLD_OF_REFRACTION_API FText GetEssenceName(EEssenceType Essence);
 }

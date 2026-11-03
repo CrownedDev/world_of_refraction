@@ -16,6 +16,7 @@
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
+#include "Combat/Elements/ElementTable.h"
 
 namespace BarCapTriggerResolver
 {
@@ -30,47 +31,12 @@ namespace BarCapTriggerResolver
     inline ESkillEffectType ResolveTrigger(ESpellElement Element, EPhysicalDamageType PhysicalType,
                                            bool bSourceIsBrokenDarkness)
     {
-        switch (Element)
+        if (Element == ESpellElement::Darkness && bSourceIsBrokenDarkness)
         {
-        case ESpellElement::Fire:
-            return ESkillEffectType::DOT;
-        case ESpellElement::Water:
-            // D-090: Water's break slows Action + Spell Speed (no longer a heal block).
-            // ApplyTriggeredSkillEffect adds the Spell Speed half.
-            return ESkillEffectType::ActionSpeedDebuff;
-        case ESpellElement::Earth:
-            return ESkillEffectType::DefenseDebuff;
-        case ESpellElement::Wind:
-            return ESkillEffectType::SkipTurn;
-        case ESpellElement::Lightning:
-            return ESkillEffectType::Stun;
-        case ESpellElement::Light:
-            return ESkillEffectType::CritChanceDebuff;
-        case ESpellElement::Darkness:
-            // BD casters emit Darkness post-collapse but apply EP-DRAIN, not
-            // Silence — branch on the source being BD. Non-BD Darkness silences.
-            return bSourceIsBrokenDarkness ? ESkillEffectType::DrainEnergy
-                                           : ESkillEffectType::Silenced;
-        case ESpellElement::Void:
-            return ESkillEffectType::RandomSkill;
-        case ESpellElement::Reality:
-            return ESkillEffectType::BurstDamage;
-        case ESpellElement::Generic:
-        default:
-            break; // Fall through to physical
+            return ESkillEffectType::DrainEnergy;
         }
-
-        switch (PhysicalType)
-        {
-        case EPhysicalDamageType::Slash:
-            return ESkillEffectType::DOT;
-        case EPhysicalDamageType::Pierce:
-            return ESkillEffectType::DefenseDebuff;
-        case EPhysicalDamageType::Impact:
-            return ESkillEffectType::Stun;
-        case EPhysicalDamageType::None:
-        default:
-            return ESkillEffectType::None;
-        }
+        const ESkillEffectType ElementTrigger = ElementTable::ForElement(Element).BreakTrigger;
+        return ElementTrigger != ESkillEffectType::None ? ElementTrigger
+                                                        : ElementTable::ForPhysical(PhysicalType).BreakTrigger;
     }
 }

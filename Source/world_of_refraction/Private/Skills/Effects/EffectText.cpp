@@ -5,6 +5,7 @@
 
 #include "Skills/Effects/EffectText.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/Elements/ElementTable.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "WoRGameNames.h"
 
@@ -611,12 +612,28 @@ namespace EffectText
 
     FText DescribePayload(const FSkillEffectPayload &P)
     {
+        // B-275: a keyed member reads as the old member it equals (Fire Immunity, Burn on hit).
+        const ESkillEffectType Resolved = SkillEffectClassification::ResolveKeyed(P.EffectType, P.Element);
+        if (Resolved != P.EffectType)
+        {
+            FSkillEffectPayload Old = P;
+            Old.EffectType = Resolved;
+            return DescribePayload(Old);
+        }
         const FSide Side = GetSide(P.Target, P.TargetCount);
         FText Stat;
         bool bRaises = false;
         if (GetStatChange(P.EffectType, P.GetClassifyingMagnitude(), Stat, bRaises))
         {
             return StatBody(P, Side, Stat, bRaises);
+        }
+
+        for (const FElementRow &Row : ElementTable::Rows())
+        {
+            if (Row.Immunity != ESkillEffectType::None && Row.Immunity == P.EffectType)
+            {
+                return ImmunityBody(P, Side, WoRGameNames::GetElementName(Row.Element)); // an element immunity
+            }
         }
 
         const bool bDrain = P.DrainPercent > 0.0f;
@@ -695,21 +712,25 @@ namespace EffectText
             return FText::Format(LOCTEXT("Burn", "inflict Burn on {0}{1}"), Side.bSelf ? LOCTEXT("Yourself", "yourself") : Side.Noun, Span(P));
         case ESkillEffectType::ApplyChillToTarget:
             return FText::Format(LOCTEXT("Chill", "inflict Chill on {0}{1}"), Side.bSelf ? LOCTEXT("Yourself", "yourself") : Side.Noun, Span(P));
+        // B-275: unresolved keyed members. No element on the payload means the cast's element at build time.
+        case ESkillEffectType::GrantElementImmunity:
+        case ESkillEffectType::ApplyDOTOnHit:
+        {
+            const bool bNamesElement = P.Element != ESpellElement::None && P.Element != ESpellElement::Generic;
+            const FText Element = bNamesElement ? WoRGameNames::GetElementName(P.Element) : LOCTEXT("CastElement", "the spell's element");
+            if (P.EffectType == ESkillEffectType::GrantElementImmunity)
+            {
+                return ImmunityBody(P, Side, Element);
+            }
+            return FText::Format(LOCTEXT("DOTOnHit", "inflict {0} damage over time on {1}{2}"), Element,
+                                 Side.bSelf ? LOCTEXT("Yourself", "yourself") : Side.Noun, Span(P));
+        }
 
         // ---- immunities ----
         case ESkillEffectType::GrantDOTImmunity: return ImmunityBody(P, Side, LOCTEXT("Immune_DOT", "damage over time"));
         case ESkillEffectType::GrantStunImmunity: return ImmunityBody(P, Side, LOCTEXT("Immune_Stun", "Stun"));
         case ESkillEffectType::GrantSilenceImmunity: return ImmunityBody(P, Side, LOCTEXT("Immune_Silence", "Silence"));
         case ESkillEffectType::GrantAllStatusImmunity: return ImmunityBody(P, Side, LOCTEXT("Immune_All", "every status"));
-        case ESkillEffectType::GrantFireImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Fire));
-        case ESkillEffectType::GrantWaterImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Water));
-        case ESkillEffectType::GrantEarthImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Earth));
-        case ESkillEffectType::GrantWindImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Wind));
-        case ESkillEffectType::GrantLightImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Light));
-        case ESkillEffectType::GrantDarknessImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Darkness));
-        case ESkillEffectType::GrantLightningImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Lightning));
-        case ESkillEffectType::GrantVoidImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Void));
-        case ESkillEffectType::GrantRealityImmunity: return ImmunityBody(P, Side, WoRGameNames::GetElementName(ESpellElement::Reality));
 
         // ---- cleansing ----
         case ESkillEffectType::CleanseSelf:

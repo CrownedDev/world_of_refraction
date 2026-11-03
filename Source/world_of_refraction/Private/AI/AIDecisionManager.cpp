@@ -2,6 +2,7 @@
 
 #include "AI/AIDecisionManager.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Misc/ScopeExit.h"
 #include "Combat/Defense/GuardRules.h"
 #include "AI/AIDecisionConstants.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
@@ -108,7 +109,7 @@ void UAIDecisionManager::Deinitialize()
 void UAIDecisionManager::SetCombatOrchestrator(ACombatOrchestrator *Orchestrator)
 {
     CurrentCombat = Orchestrator;
-    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] Combat orchestrator set"));
+    UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] Combat orchestrator set"));
 }
 
 void UAIDecisionManager::ClearCombatOrchestrator()
@@ -119,7 +120,7 @@ void UAIDecisionManager::ClearCombatOrchestrator()
     }
     CurrentCombat = nullptr;
     PendingActor = nullptr;
-    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] Combat orchestrator cleared"));
+    UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] Combat orchestrator cleared"));
 }
 
 // ==================== DECISION MAKING ====================
@@ -138,7 +139,7 @@ void UAIDecisionManager::RequestDecision(AActor *AIActor)
     EAIDifficulty Difficulty = GetDifficultyFor(AIActor);
     float Delay = CalculateThinkingDelay(Difficulty);
 
-    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s thinking for %.2fs (Difficulty: %d)"),
+    UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] %s thinking for %.2fs (Difficulty: %d)"),
            *AIActor->GetName(), Delay, static_cast<int32>(Difficulty));
 
     // Schedule decision after delay
@@ -169,7 +170,7 @@ void UAIDecisionManager::CancelPendingDecision()
     }
     if (PendingActor)
     {
-        UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s decision cancelled"), *PendingActor->GetName());
+        UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] %s decision cancelled"), *PendingActor->GetName());
     }
     PendingActor = nullptr;
 }
@@ -216,7 +217,7 @@ void UAIDecisionManager::ExecuteDecision()
         Action = BuildFallbackAction(Actor);
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s executing action type %d"),
+    UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] %s executing action type %d"),
            *Actor->GetName(), static_cast<int32>(Action.ActionType));
 
     // Submit through the orchestrator's async path — the same dispatch the player
@@ -308,7 +309,7 @@ FAction UAIDecisionManager::BuildRandomAction(AActor *Actor) const
     const FString PickedName = Picked.SpellData   ? Picked.SpellData->GetName()
                                : Picked.SkillData ? Picked.SkillData->GetName()
                                                   : FString(TEXT("Defend"));
-    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s is Void-broken - random action %s (%d choices)"),
+    UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] %s is Void-broken - random action %s (%d choices)"),
            *Actor->GetName(), *PickedName, Candidates.Num());
     return Picked;
 }
@@ -358,6 +359,17 @@ EAIDifficulty UAIDecisionManager::GetDifficultyFor(const AActor *ForActor) const
 FAction UAIDecisionManager::BuildAction(AActor *AIActor)
 {
     TRACE_CPUPROFILER_EVENT_SCOPE(WoR_AIBuildAction); // B-266: Insights marker (PerfAudit_2026-10-28.md)
+    // B-259: each target x skill is previewed once per decision.
+    EstimateMemo.Reset();
+    EstimatePreviewCount = 0;
+    EstimateMemoHitCount = 0;
+    TGuardValue<bool> MemoScope(bEstimateMemoActive, true);
+    ON_SCOPE_EXIT
+    {
+        UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] %s decision: %d damage previews, %d memo hits"),
+               AIActor ? *AIActor->GetName() : TEXT("null"), EstimatePreviewCount, EstimateMemoHitCount);
+        EstimateMemo.Reset();
+    };
     FAction Action;
     Action.ActionType = EActionType::Defend; // Safe default
 
@@ -381,7 +393,7 @@ FAction UAIDecisionManager::BuildAction(AActor *AIActor)
     TArray<AActor *> Enemies = CurrentCombat->GetLivingEnemies(AIActor);
     if (Enemies.Num() == 0)
     {
-        UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] No living enemies - defending"));
+        UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] No living enemies - defending"));
         return Action;
     }
 
@@ -689,7 +701,7 @@ void UAIDecisionManager::TrySynthesizeImpactDefense(AActor *Defender, AActor *At
 
     DefenseSystemRef->SubmitDefenseInput(Defender, Choice, Dir, InputTime);
 
-    UE_LOG(LogTemp, Log,
+    UE_LOG(LogTemp, Verbose,
            TEXT("[AIDecisionManager] %s synthesized defense type %d (tier %d, Delta %.3fs, InputTime %.3f, ImpactTime %.3f)"),
            *Defender->GetName(), static_cast<int32>(Choice), static_cast<int32>(Diff), Delta, InputTime, ImpactTime);
 }
@@ -745,7 +757,7 @@ AActor *UAIDecisionManager::SelectBestTarget(AActor *Attacker, const TArray<AAct
     if (Difficulty == EAIDifficulty::Easy)
     {
         int32 RandomIndex = UBattleRandomSubsystem::RandRange(this, 0, Enemies.Num() - 1);
-        UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] Easy difficulty - random target: %s"),
+        UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] Easy difficulty - random target: %s"),
                *Enemies[RandomIndex]->GetName());
         return Enemies[RandomIndex];
     }
@@ -768,7 +780,7 @@ AActor *UAIDecisionManager::SelectBestTarget(AActor *Attacker, const TArray<AAct
 
     if (BestTarget)
     {
-        UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] Best target: %s (Score: %d)"),
+        UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] Best target: %s (Score: %d)"),
                *BestTarget->GetName(), BestScore);
     }
 
@@ -860,6 +872,26 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
 }
 
 int32 UAIDecisionManager::EstimateActionDamage(AActor *Attacker, AActor *Target, const FAction &Action) const
+{
+    if (!bEstimateMemoActive)
+    {
+        ++EstimatePreviewCount;
+        return ComputeActionDamageEstimate(Attacker, Target, Action);
+    }
+    const bool bIsSpell = Action.ActionType == EActionType::Spell;
+    const FEstimateKey Key(Attacker, Target, bIsSpell ? Action.SpellData : Action.SkillData, static_cast<uint8>(Action.ActionType),
+                           bIsSpell ? Action.SpellInfusionLevel : Action.AbilityInfusionLevel,
+                           static_cast<uint8>(Action.SelectedSource), static_cast<uint8>(Action.SpellSource));
+    if (const int32 *Memo = EstimateMemo.Find(Key))
+    {
+        ++EstimateMemoHitCount;
+        return *Memo;
+    }
+    ++EstimatePreviewCount;
+    return EstimateMemo.Add(Key, ComputeActionDamageEstimate(Attacker, Target, Action));
+}
+
+int32 UAIDecisionManager::ComputeActionDamageEstimate(AActor *Attacker, AActor *Target, const FAction &Action) const
 {
     const bool bIsSpell = Action.ActionType == EActionType::Spell;
     const USkillDataBase *Skill = bIsSpell ? Action.SpellData : Action.SkillData;
@@ -1140,21 +1172,21 @@ FAction UAIDecisionManager::BuildAction_Smart(AActor *AIActor, ULoadoutComponent
     // Branch 1: Survival - heal or defend if low HP
     if (TrySurvivalBranch(AIActor, Loadout, Action))
     {
-        UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s chose survival action"), *AIActor->GetName());
+        UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] %s chose survival action"), *AIActor->GetName());
         return Action;
     }
 
     // Branch 2: Cleanse - remove dangerous debuffs
     if (TryCleanseBranch(AIActor, Loadout, Action))
     {
-        UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s chose cleanse action"), *AIActor->GetName());
+        UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] %s chose cleanse action"), *AIActor->GetName());
         return Action;
     }
 
     // Branch 3: Offensive - attack best target
     Action = BuildOffensiveAction(AIActor, Loadout, CharComp);
 
-    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s chose offensive action"), *AIActor->GetName());
+    UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] %s chose offensive action"), *AIActor->GetName());
     return Action;
 }
 
@@ -1214,7 +1246,7 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
                     OutAction.SpellData = HealSpell;
                     OutAction.Targets.Add(AIActor); // Self-target
                     OutAction.SpellSource = HealSource;
-                    UE_LOG(LogTemp, Log, TEXT("[AI Survival] Using healing spell"));
+                    UE_LOG(LogTemp, Verbose, TEXT("[AI Survival] Using healing spell"));
                     return true;
                 }
             }
@@ -1227,7 +1259,7 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
                 OutAction.ActionType = EActionType::Item;
                 OutAction.ItemData = HealId;
                 OutAction.Targets.Add(AIActor); // Self-target
-                UE_LOG(LogTemp, Log, TEXT("[AI Survival] Using healing item (Healing Stone)"));
+                UE_LOG(LogTemp, Verbose, TEXT("[AI Survival] Using healing item (Healing Stone)"));
                 return true;
             }
         }
@@ -1247,7 +1279,7 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
                 OutAction.ActionType = EActionType::Item;
                 OutAction.ItemData = DefyId;
                 OutAction.Targets.Add(AIActor); // Self-target
-                UE_LOG(LogTemp, Log, TEXT("[AI Survival] Warding self with Last Stand (Sapphire)"));
+                UE_LOG(LogTemp, Verbose, TEXT("[AI Survival] Warding self with Last Stand (Sapphire)"));
                 return true;
             }
         }
@@ -1257,7 +1289,7 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
         if (HPPercent <= HealThreshold)
         {
             OutAction.ActionType = EActionType::Defend;
-            UE_LOG(LogTemp, Log, TEXT("[AI Survival] No healing or ward available - defending"));
+            UE_LOG(LogTemp, Verbose, TEXT("[AI Survival] No healing or ward available - defending"));
             return true;
         }
     }
@@ -1272,7 +1304,7 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
             OutAction.ActionType = EActionType::Item;
             OutAction.ItemData = EnergyId;
             OutAction.Targets.Add(AIActor); // Self-target
-            UE_LOG(LogTemp, Log, TEXT("[AI Survival] Using energy item (Citrine)"));
+            UE_LOG(LogTemp, Verbose, TEXT("[AI Survival] Using energy item (Citrine)"));
             return true;
         }
     }
@@ -1327,7 +1359,7 @@ bool UAIDecisionManager::TryCleanseBranch(AActor *AIActor, ULoadoutComponent *Lo
             OutAction.SpellData = CleanseSpell;
             OutAction.Targets.Add(AIActor); // Self-target
             OutAction.SpellSource = CleanseSource;
-            UE_LOG(LogTemp, Log, TEXT("[AI Cleanse] Using cleanse spell"));
+            UE_LOG(LogTemp, Verbose, TEXT("[AI Cleanse] Using cleanse spell"));
             return true;
         }
     }
@@ -1340,7 +1372,7 @@ bool UAIDecisionManager::TryCleanseBranch(AActor *AIActor, ULoadoutComponent *Lo
         OutAction.ActionType = EActionType::Item;
         OutAction.ItemData = CleanseId;
         OutAction.Targets.Add(AIActor); // Self-target
-        UE_LOG(LogTemp, Log, TEXT("[AI Cleanse] Using cleanse item (Iolite)"));
+        UE_LOG(LogTemp, Verbose, TEXT("[AI Cleanse] Using cleanse item (Iolite)"));
         return true;
     }
 
@@ -1873,16 +1905,16 @@ bool UAIDecisionManager::HasDangerousDebuff(AActor *Actor)
     {
         return true;
     }
-    // B-042x: the DOT check reads the tag at UseGAS 1; tick sizes and turns stay on the stored copies (B-042y).
+    // B-042x: the DOT check reads the tag at UseGAS 1; B-042ye: so do the tick sizes and turns left.
     if (!StatusManager->HasCleansableEffectOfType(Actor, ESkillEffectType::DOT))
     {
         return false;
     }
-    for (const FActiveSkillEffect &Effect : StatusManager->GetActiveEffects(Actor))
+    for (const FActiveSkillEffect &Effect : StatusManager->GetHeldEffects(Actor))
     {
         // Check if DOT will kill us
         if (Effect.IsDOT() && Effect.IsCleansable() &&
-            USkillEffectManager::GetDotTickDamage(Actor, Effect) * Effect.RemainingTurns >= GetCurrentHP(Actor))
+            StatusManager->PreviewDotTickDamage(Actor, Effect) * Effect.RemainingTurns >= GetCurrentHP(Actor))
         {
             return true;
         }
@@ -1931,7 +1963,7 @@ float UAIDecisionManager::GetLethalDoTPerTick(AActor *Target)
     }
 
     const int32 TargetHP = GetCurrentHP(Target);
-    // B-042x: the DOT check reads the Status.DOT tag at UseGAS 1; tick sizes stay on the stored copies (B-042y).
+    // B-042x: the DOT check reads the Status.DOT tag at UseGAS 1; B-042ye: so do the tick sizes.
     if (TargetHP <= 0 || !StatusManager->HasActiveDOT(Target))
     {
         return 0.0f;
@@ -1943,13 +1975,13 @@ float UAIDecisionManager::GetLethalDoTPerTick(AActor *Target)
     // self-preservation test in HasDangerousDebuff; NOT enough here, since one bonus
     // turn triggers only ONE tick.)
     float BestPerTick = 0.0f;
-    for (const FActiveSkillEffect &Effect : StatusManager->GetActiveEffects(Target))
+    for (const FActiveSkillEffect &Effect : StatusManager->GetHeldEffects(Target))
     {
         if (Effect.EffectType != ESkillEffectType::DOT)
         {
             continue;
         }
-        const float Tick = static_cast<float>(USkillEffectManager::GetDotTickDamage(Target, Effect));
+        const float Tick = static_cast<float>(StatusManager->PreviewDotTickDamage(Target, Effect));
         if (Tick >= static_cast<float>(TargetHP) && Tick > BestPerTick)
         {
             BestPerTick = Tick;

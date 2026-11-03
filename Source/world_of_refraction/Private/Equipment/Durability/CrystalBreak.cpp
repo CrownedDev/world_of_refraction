@@ -15,6 +15,7 @@
 #include "Currency/CurrencyWallet.h"
 #include "Currency/EconomyService.h"
 #include "Currency/EconomyYield.h"
+#include "WoRGameNames.h"
 
 namespace
 {
@@ -48,7 +49,7 @@ namespace
 
 	FString CrystalBreakEssenceName(EEssenceType Type)
 	{
-		return StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(Type));
+		return WoRGameNames::GetEssenceName(Type).ToString();
 	}
 
 	/** OBSOLETE (Q-159: evolutions are never lost to wear; unreachable): remove after Crown's PIE pass.
@@ -80,7 +81,7 @@ namespace
 		const EEssenceType EssenceType = EconomyYield::ResolveEssenceType(CrystalId);
 		const int32 Yield = EconomyYield::GetTypedEssenceYieldForTier(CrystalId.Tier);
 		Currency->AddEssenceType(EssenceType, Yield);
-		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broken crystal '%s' on %s dismantled -> %d %s essence"),
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broken crystal '%s' on %s dismantled -> %d %s"),
 			   *CrystalName, *Actor->GetName(), Yield, *CrystalBreakEssenceName(EssenceType));
 	}
 
@@ -109,7 +110,7 @@ namespace
 			}
 			const EEssenceType EssenceType = EconomyYield::ResolveEssenceType(Half);
 			Currency->AddEssenceType(EssenceType, HalfYield);
-			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broken fusion gem '%s' on %s dismantled -> %d %s essence (half of %d)"),
+			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broken fusion gem '%s' on %s dismantled -> %d %s (half of %d)"),
 				   *ItemIdentity::GetDisplayName(Half), *Actor->GetName(), HalfYield, *CrystalBreakEssenceName(EssenceType), FullYield);
 		}
 	}
@@ -143,7 +144,7 @@ namespace
 		}
 		// IsBroken() filters durability <= 0 (Unbreakable evolutions never report broken). An
 		// unmatched holder returns an empty attachment whose IsBroken() is false.
-		const FRuntimeAttachedItem Attachment = Loadout->GetCrystalEntryByHolder(Slot.Holder);
+		const FRuntimeAttachedItem Attachment = Loadout->GetCrystalEntryForSlot(Slot);
 		if (!Attachment.IsBroken())
 		{
 			return false;
@@ -163,7 +164,7 @@ namespace
 		}
 
 		const FString CrystalName = CrystalBreakDisplayName(Slot);
-		Loadout->ResetCrystalEntryByHolder(Slot.Holder);
+		Loadout->ResetCrystalEntryForSlot(Slot);
 		CrystalBreakDismantle(Actor, Slot, Attachment, CrystalName);
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Destroyed broken crystal '%s' from %s on %s"),
 			   *CrystalName, *HolderDesc, *Actor->GetName());
@@ -194,13 +195,13 @@ namespace
 		{
 			return false;
 		}
-		const FRuntimeAttachedItem Before = Loadout->GetCrystalEntryByHolder(Slot.Holder);
+		const FRuntimeAttachedItem Before = Loadout->GetCrystalEntryForSlot(Slot);
 		if (Before.IsEmpty() || (Slot.Kind == EAttachedItemKind::Crystal && Before.IsBroken()))
 		{
 			return false;
 		}
 		const int32 BeforeDur = Before.GetCurrentDurability();
-		const int32 NewDur = Loadout->RepairCrystalEntryByHolder(Slot.Holder, Amount);
+		const int32 NewDur = Loadout->RepairCrystalEntryForSlot(Slot, Amount);
 		if (NewDur <= BeforeDur)
 		{
 			return false;

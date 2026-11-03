@@ -18,6 +18,8 @@
 // turn start, ReleaseEndedCopies removes the copy through the effect manager. Removing a stored
 // effect (cleanse, death, combat end) still ends its GE through the sync. Payouts stay on the enum
 // path until B-042y routes the tick's Health write through the real HP path (Q-042hb).
+// B-042ye: the per-effect reads (the AI's tick and turns, the debuff count, the character panel's list)
+// go through ReadHeldEffects / PreviewDotTick at UseGAS 1.
 // Debug: UWoREffectDebug (wor.CompareEffects).
 
 #pragma once
@@ -66,6 +68,16 @@ public:
 	/** Holder turns left on the tracked GE of Effect's identity; INDEX_NONE when it has none. */
 	int32 GetTrackedTurnsLeft(const FActiveSkillEffect &Effect) const;
 
+	/** B-042ye (Q-042x, Q-042ye): Stored as GAS holds it: an effect whose GE GAS ended is left out, a live one
+	 *  takes the tracker's turns left, the rest stay as stored. Resyncs first (Q-042yb). A client (the mirror
+	 *  is the server's) or a read mid-sync gets Stored unchanged. */
+	TArray<FActiveSkillEffect> ReadHeldEffects(const TArray<FActiveSkillEffect> &Stored);
+
+	/** B-042ye: the HP one tick of the DOT Effect takes now, from its GE's tick spec (UWoRTickExecution), or
+	 *  INDEX_NONE where PayTick wouldn't pay it through GAS (no live GE with a tick spec, no Vitals set, no
+	 *  character data), so the caller uses the enum path's number. */
+	int32 PreviewDotTick(const FActiveSkillEffect &Effect);
+
 	/** Remove, through the effect manager, the stored copies of the effects whose tracked GE GAS
 	 *  ended (the tracker at the holder's turn start). Called right after the tracker's turn start. */
 	void ReleaseEndedCopies();
@@ -74,8 +86,9 @@ public:
 	void ForgetEnded(const FActiveSkillEffect &Effect);
 
 	/** B-042y: pay one tick of Effect now through its GE's tick spec (the number from UWoRTickExecution; the
-	 *  Vitals set hands the Health change to the HP path). False when no live mirrored GE of it carries one,
-	 *  so the caller pays on the enum path. */
+	 *  Vitals set hands the Health / Energy change to the HP / EP path). B-042yd: every payout type, and an
+	 *  instant (never stored) pays through a tick spec of its own. False when no live mirrored GE of it carries
+	 *  one (or the owner has no Vitals set), so the caller pays on the enum path. */
 	bool PayTick(const FActiveSkillEffect &Effect);
 
 	/** What the owner's stored effects should look like on GAS: one entry per ported, stored effect. */

@@ -158,7 +158,7 @@ void UActionExecutor::PlayRitualStep(AActor *Actor, USkillDataBase *Skill)
 	{
 		MontagePhase = EMontagePhase::Ritual;
 		CurrentChainMontage = Skill->RitualCastMontage; // tracked-leg identity (return-skip guard)
-		UE_LOG(LogTemp, Log, TEXT("[Montage] PlayRitual %s"), *Skill->RitualCastMontage->GetName());
+		UE_LOG(LogTemp, Verbose, TEXT("[Montage] PlayRitual %s"), *Skill->RitualCastMontage->GetName());
 		PlayActionMontageOnActor(Actor, Skill->RitualCastMontage, PendingMontagePlayRate);
 		return;
 	}
@@ -177,7 +177,7 @@ void UActionExecutor::PlaySkillStep(AActor *Actor, USkillDataBase *Skill)
 	// choice; there is no ResolveActiveMontage.
 	MontagePhase = EMontagePhase::Skill;
 	CurrentChainMontage = Skill->SkillMontage; // tracked-leg identity (return-skip guard)
-	UE_LOG(LogTemp, Log, TEXT("[Montage] PlaySkill %s"),
+	UE_LOG(LogTemp, Verbose, TEXT("[Montage] PlaySkill %s"),
 		   Skill->SkillMontage ? *Skill->SkillMontage->GetName() : TEXT("None"));
 	PlayActionMontageOnActor(Actor, Skill->SkillMontage, PendingMontagePlayRate);
 }
@@ -211,13 +211,13 @@ void UActionExecutor::PlayReturnStep(AActor *Actor, USkillDataBase *Skill)
 		{
 			Warp->AddOrUpdateWarpTargetFromLocationAndRotation(
 				CombatConstants::WARP_TARGET_NAME, GridPosition, GridRotation);
-			UE_LOG(LogTemp, Log, TEXT("[Warp] return target %s"),
+			UE_LOG(LogTemp, Verbose, TEXT("[Warp] return target %s"),
 				   *GridPosition.ToCompactString());
 		}
 	}
 
 	CurrentChainMontage = Skill->ReturnMontage; // tracked-leg identity (return-skip guard)
-	UE_LOG(LogTemp, Log, TEXT("[Montage] PlayReturn %s"), *Skill->ReturnMontage->GetName());
+	UE_LOG(LogTemp, Verbose, TEXT("[Montage] PlayReturn %s"), *Skill->ReturnMontage->GetName());
 	PlayActionMontageOnActor(Actor, Skill->ReturnMontage, 1.0f);
 }
 
@@ -263,7 +263,7 @@ void UActionExecutor::FinishMontageChain(AActor *Actor)
 	ChainActor = nullptr;		   // chain over - drop the chain-owned handles
 	ChainSkill = nullptr;
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Action animation ended - finalizing"));
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Action animation ended - finalizing"));
 
 	// Stage 1 "later of" close — catch-all for the INTERRUPTED path: an interrupted Skill
 	// montage routes here (via the bInterrupted branch) WITHOUT passing the Skill-end case,
@@ -283,7 +283,7 @@ void UActionExecutor::FinishMontageChain(AActor *Actor)
 		if (Grid)
 		{
 			Grid->UpdateActorFacing(Actor, CachedArenaCenter);
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Restored facing for %s after animation"),
+			UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Restored facing for %s after animation"),
 				   *Actor->GetName());
 		}
 	}
@@ -366,7 +366,7 @@ void UActionExecutor::ResolveImpactFrame(int32 Index)
 	USkillDataBase *Skill = GetCurrentSkillData();
 	const int32 HitCount = Skill ? Skill->HitCount : 0;
 	// Fires into the void this stage — Stage 2's per-impact resolver binds OnImpactFrame.
-	UE_LOG(LogTemp, Log, TEXT("[ImpactFrame] impact %d of %d for %s"),
+	UE_LOG(LogTemp, Verbose, TEXT("[ImpactFrame] impact %d of %d for %s"),
 		   Index, HitCount, *GetNameSafe(Executor));
 	OnImpactFrame.Broadcast(Executor, Index);
 
@@ -444,7 +444,7 @@ void UActionExecutor::ResolveImpactFrame(int32 Index)
 		}
 		for (AActor *Defender : DefendersToClose)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[ImpactFrame] impacts + animation done for %s — closing window"),
+			UE_LOG(LogTemp, Verbose, TEXT("[ImpactFrame] impacts + animation done for %s — closing window"),
 				   *GetNameSafe(Defender));
 			DefenseSys->CloseDefenseWindow(Defender);
 		}
@@ -592,7 +592,7 @@ void UActionExecutor::SpawnVFXArrayEntry(const FSkillVFXEntry &Entry, int32 Inde
 		Spawned->SetColorParameter(FName("EdgeColor"), Colors.BlendedColor);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[Runner] VFX[%d] '%s' spawned (attach=%d, scale=%.2f)"),
+	UE_LOG(LogTemp, Verbose, TEXT("[Runner] VFX[%d] '%s' spawned (attach=%d, scale=%.2f)"),
 		   Index, *Entry.Label, (int32)Entry.Attach, Entry.Scale);
 }
 

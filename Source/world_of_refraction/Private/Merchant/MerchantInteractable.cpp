@@ -19,7 +19,6 @@
 namespace MerchantInteractableConstants
 {
     constexpr float DEFAULT_INTERACTION_RADIUS = 200.0f;
-    constexpr float HINT_DURATION = 1e9f;      // effectively "until removed"
     constexpr float STOCK_PRINT_DURATION = 8.0f;
 }
 
@@ -46,10 +45,7 @@ AMerchantInteractable::AMerchantInteractable()
 
 void AMerchantInteractable::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    if (GEngine)
-    {
-        GEngine->RemoveOnScreenDebugMessage(static_cast<int32>(GetUniqueID()));
-    }
+    WoRInteract::HideHint(*this);
     PawnInRange.Reset();
     Super::EndPlay(EndPlayReason);
 }
@@ -181,14 +177,7 @@ void AMerchantInteractable::OnTriggerBeginOverlap(UPrimitiveComponent * /*Overla
     }
 
     PawnInRange = Pawn;
-    if (GEngine)
-    {
-        // Keyed on this actor's id so the hint updates in place and is removable.
-        // int32 cast: GetUniqueID() is uint32, ambiguous between the int32/uint64 overloads.
-        GEngine->AddOnScreenDebugMessage(static_cast<int32>(GetUniqueID()),
-                                         MerchantInteractableConstants::HINT_DURATION,
-                                         FColor::Yellow, GetHintText());
-    }
+    WoRInteract::ShowHint(*this, FColor::Yellow, GetHintText());
 }
 
 void AMerchantInteractable::OnTriggerEndOverlap(UPrimitiveComponent * /*OverlappedComponent*/, AActor *OtherActor,
@@ -200,11 +189,7 @@ void AMerchantInteractable::OnTriggerEndOverlap(UPrimitiveComponent * /*Overlapp
     }
 
     PawnInRange = nullptr;
-    if (GEngine)
-    {
-        // Same int32 cast as the Add — both sign-extend to the identical uint64 key.
-        GEngine->RemoveOnScreenDebugMessage(static_cast<int32>(GetUniqueID()));
-    }
+    WoRInteract::HideHint(*this);
 }
 
 FString AMerchantInteractable::GetHintText() const

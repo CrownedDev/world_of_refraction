@@ -3,6 +3,7 @@
 
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "WoRLog.h"
+#include "Combat/Elements/ElementTable.h"
 #include "Combat/Defense/GuardRules.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Skills/Definitions/SpellData.h"
@@ -158,7 +159,7 @@ void UBrokenDarknessManager::InitializeBornBrokenDarkness()
 	// Born-BD starts on the base Darkness pool (Model B), same as a runtime
 	// transform. Element axis only — energy is set separately by CDC init.
 	SeedBaseElement();
-	UE_LOG(LogTemp, Log, TEXT("[BrokenDarkness] %s: auto-flipped bIsFlipped for character-created BD"),
+	UE_LOG(LogTemp, Verbose, TEXT("[BrokenDarkness] %s: auto-flipped bIsFlipped for character-created BD"),
 		   *Owner->GetName());
 }
 
@@ -199,7 +200,7 @@ void UBrokenDarknessManager::ApplyCarriedAbsorption(const FCarriedAbsorptionStat
 		const int32 AbsoluteMax = CharComp->MaxEP + FMath::RoundToInt(GetOverloadCapacity());
 		CharComp->ServerGainBrokenDarknessEnergy(Carried.OverloadEP, AbsoluteMax);
 	}
-	UE_LOG(LogTemp, Log, TEXT("[BrokenDarkness] %s: carried absorption resumed (%d stacks, alignment %s, overload %d)"),
+	UE_LOG(LogTemp, Verbose, TEXT("[BrokenDarkness] %s: carried absorption resumed (%d stacks, alignment %s, overload %d)"),
 		   GetOwner() ? *GetOwner()->GetName() : TEXT("<null>"), CurrentAbsorptionStacks,
 		   *UEnum::GetValueAsString(CurrentAlignmentElement), Carried.OverloadEP);
 }
@@ -354,7 +355,7 @@ void UBrokenDarknessManager::AddStrain(int32 Deficit, const FString &TriggerReas
 	const float SkipChance = CharComp->GetLuckModifiedChance(0.0f, CombatConstants::LUCK_BREAK_SKIP_MAX);
 	if (UBattleRandomSubsystem::FRand(this) < SkipChance)
 	{
-		UE_LOG(LogTemp, Log,
+		UE_LOG(LogTemp, Verbose,
 			   TEXT("BrokenDarkness: %s LUCKY strain skip (would have added %.2f, skip chance %.2f, Reason: %s)"),
 			   Owner ? *Owner->GetName() : TEXT("Unknown"),
 			   StrainAdded, SkipChance, *TriggerReason);
@@ -496,27 +497,14 @@ void UBrokenDarknessManager::RevertTransformation()
 
 bool UBrokenDarknessManager::IsForbiddenElement(ESpellElement Element)
 {
-	return Element == ESpellElement::Light || Element == ESpellElement::Void;
+	return ElementTable::ForElement(Element).bBDForbidden;
 }
 
 bool UBrokenDarknessManager::CanAbsorbElement(ESpellElement Element)
 {
-	// Allowlist gate — reject the non-absorbable sentinels/values; everything that
-	// passes (the 7 elements + Darkness) rotates the active pool on absorption.
-	//   Generic — polymorphic placeholder, nothing concrete to absorb
-	//   None    — non-elemental / physical attack, no element to absorb
-	//   Reality — too powerful
-	// Darkness is intentionally absorbable: it is the rotation target that points the
-	// active pool back to the innate Darkness pool (a normal rotation, NOT the
-	// out-of-combat RevertTransformation BD-exit).
-	if (Element == ESpellElement::Generic ||
-		Element == ESpellElement::None ||
-		Element == ESpellElement::Reality)
-	{
-		return false;
-	}
-
-	return true;
+	// Generic, None and Reality can't be absorbed; Darkness can (the rotation back to the innate pool,
+	// not the out-of-combat RevertTransformation).
+	return ElementTable::ForElement(Element).bBDAbsorbable;
 }
 
 float UBrokenDarknessManager::CalculateForbiddenCastDamage(float SpellBaseDamage) const
@@ -575,7 +563,7 @@ bool UBrokenDarknessManager::ProcessForbiddenCast(ESpellElement SpellElement, fl
 		}
 	}
 
-	UE_LOG(LogWoRCombat, Log,
+	UE_LOG(LogWoRCombat, Verbose,
 		   TEXT("BrokenDarkness: Forbidden element %s self-cost on %s — damage %.1f, base buildup %.1f"),
 		   *UEnum::GetValueAsString(SpellElement),
 		   Owner ? *Owner->GetName() : TEXT("Unknown"),
@@ -758,7 +746,7 @@ void UBrokenDarknessManager::ExitOverload()
 
 	AActor *Owner = GetOwner();
 	const UCharacterDataComponent *CharComp = GetCharComp();
-	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: %s exited overload (Energy: %d/%d)"),
+	UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: %s exited overload (Energy: %d/%d)"),
 		   Owner ? *Owner->GetName() : TEXT("Unknown"),
 		   CharComp ? CharComp->CurrentEP : 0, CharComp ? CharComp->MaxEP : 0);
 
@@ -792,7 +780,7 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 			ApplyDamageToActor(Enemy, AuraDamage);
 			OnOverloadDamage.Broadcast(Owner, Enemy, AuraDamage);
 
-			UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: Overload aura dealt %.1f damage to %s"),
+			UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: Overload aura dealt %.1f damage to %s"),
 				   AuraDamage, *Enemy->GetName());
 		}
 	}
@@ -802,7 +790,7 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 	ApplyDamageToActor(Owner, SelfDamage);
 	OnOverloadDamage.Broadcast(Owner, Owner, SelfDamage);
 
-	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: Overload self-damage %.1f"), SelfDamage);
+	UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: Overload self-damage %.1f"), SelfDamage);
 
 	// 3. Coupled energy leak. ONE value drives both outflows — by design.
 	//   released  = BaseEnergyRelease × StatusMultiplier↑ × Efficiency↓
@@ -827,7 +815,7 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 		const int32 DrainAmount = FMath::RoundToInt(Released);
 		CharComp->ServerSpendEnergy(DrainAmount);
 
-		UE_LOG(LogTemp, Log,
+		UE_LOG(LogTemp, Verbose,
 			   TEXT("BrokenDarkness: Overload leak released %.1f (StatusMult=%.2f, EffMult=%.2f), absorption now %d"),
 			   Released, StatusMultiplierBonus, EfficiencyMult, CharComp->CurrentEP);
 	}
@@ -942,7 +930,7 @@ void UBrokenDarknessManager::ProcessElementAbsorption(ESpellElement Element)
 			CurrentAbsorptionStacks = NewStacks;
 			OnStacksChanged.Broadcast(Owner, Element, CurrentAbsorptionStacks);
 
-			UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: %s stacks increased to %d (x%.1f status mult)"),
+			UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: %s stacks increased to %d (x%.1f status mult)"),
 				   *UEnum::GetValueAsString(Element),
 				   CurrentAbsorptionStacks,
 				   GetStackStatusMultiplier());
@@ -960,7 +948,7 @@ void UBrokenDarknessManager::ProcessElementAbsorption(ESpellElement Element)
 		OnAlignmentChanged.Broadcast(Owner, OldAlignment, Element);
 		OnStacksChanged.Broadcast(Owner, Element, 0);
 
-		UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: Alignment changed %s -> %s (stacks reset)"),
+		UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: Alignment changed %s -> %s (stacks reset)"),
 			   *UEnum::GetValueAsString(OldAlignment),
 			   *UEnum::GetValueAsString(Element));
 	}
@@ -1069,7 +1057,7 @@ void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,
 	{
 		const float WouldBeGain = CalculateAbsorptionEnergy(DefenseType, AttackEnergyCost, bPerfect);
 		DrainAndRevertToBase(WouldBeGain); // drain that amount (clamped) + revert pool to Darkness
-		UE_LOG(LogTemp, Log,
+		UE_LOG(LogTemp, Verbose,
 			   TEXT("BrokenDarkness: Reality parry/block — drained %.1f energy + reverted to base Darkness"),
 			   WouldBeGain);
 		return; // do NOT fall through to the normal absorb
@@ -1095,7 +1083,7 @@ void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,
 	// Broadcast
 	OnEnergyAbsorbed.Broadcast(GetOwner(), EnergyGained, AttackElement);
 
-	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: %s absorbed %.1f energy from %s (Stacks: %d)"),
+	UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: %s absorbed %.1f energy from %s (Stacks: %d)"),
 		   bPerfect ? TEXT("Perfect Guard") : TEXT("Guard"),
 		   EnergyGained,
 		   *UEnum::GetValueAsString(AttackElement),
@@ -1232,43 +1220,44 @@ void UBrokenDarknessManager::DebugLogStrain() const
 #if !UE_BUILD_SHIPPING
 namespace
 {
+	/** The active combat's first BD manager (only a transformed one when bTransformedOnly), or null after a
+	 *  warning tagged with the console command's name. */
+	UBrokenDarknessManager *FindCombatBDManager(UWorld *World, const TCHAR *Command, bool bTransformedOnly, const TCHAR *NoneMessage)
+	{
+		if (!World)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] %s: no world"), Command);
+			return nullptr;
+		}
+		ACombatOrchestrator *Orchestrator =
+			Cast<ACombatOrchestrator>(UGameplayStatics::GetActorOfClass(World, ACombatOrchestrator::StaticClass()));
+		if (!Orchestrator)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] %s: no CombatOrchestrator (run during a PIE combat)"), Command);
+			return nullptr;
+		}
+		TArray<AActor *> Combatants = Orchestrator->GetLocalParty();
+		Combatants.Append(Orchestrator->GetOpposingParty());
+		for (AActor *Actor : Combatants)
+		{
+			UBrokenDarknessManager *Mgr = Actor ? Actor->FindComponentByClass<UBrokenDarknessManager>() : nullptr;
+			if (Mgr && (!bTransformedOnly || Mgr->IsTransformed()))
+			{
+				return Mgr;
+			}
+		}
+		UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] %s: %s"), Command, NoneMessage);
+		return nullptr;
+	}
+
 	// Resolve the active combat's first Broken Darkness actor (transformed or not — the curve is
 	// inspectable regardless) and log its absorption breakdown across a couple of attack energy costs.
 	// No exact parry needed; run mid-PIE-combat.
 	void RunAbsorptionSnapshotCommand(UWorld *World)
 	{
-		if (!World)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.AbsorptionSnapshot: no world"));
-			return;
-		}
-
-		ACombatOrchestrator *Orchestrator =
-			Cast<ACombatOrchestrator>(UGameplayStatics::GetActorOfClass(World, ACombatOrchestrator::StaticClass()));
-		if (!Orchestrator)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.AbsorptionSnapshot: no CombatOrchestrator (run during a PIE combat)"));
-			return;
-		}
-
-		UBrokenDarknessManager *BDManager = nullptr;
-		TArray<AActor *> Combatants = Orchestrator->GetLocalParty();
-		Combatants.Append(Orchestrator->GetOpposingParty());
-		for (AActor *Actor : Combatants)
-		{
-			if (Actor)
-			{
-				if (UBrokenDarknessManager *Mgr = Actor->FindComponentByClass<UBrokenDarknessManager>())
-				{
-					BDManager = Mgr;
-					break;
-				}
-			}
-		}
-
+		UBrokenDarknessManager *BDManager = FindCombatBDManager(World, TEXT("WoR.AbsorptionSnapshot"), /*bTransformedOnly=*/false, TEXT("no BrokenDarknessManager among combatants"));
 		if (!BDManager)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.AbsorptionSnapshot: no BrokenDarknessManager among combatants"));
 			return;
 		}
 
@@ -1285,41 +1274,9 @@ namespace
 	// Retained as BD debug tooling per CLAUDE.md (every system ships debug utilities).
 	void RunBDRevertCommand(UWorld *World)
 	{
-		if (!World)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.TestBDRevert: no world"));
-			return;
-		}
-
-		ACombatOrchestrator *Orchestrator =
-			Cast<ACombatOrchestrator>(UGameplayStatics::GetActorOfClass(World, ACombatOrchestrator::StaticClass()));
-		if (!Orchestrator)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.TestBDRevert: no CombatOrchestrator (run during a PIE combat)"));
-			return;
-		}
-
-		UBrokenDarknessManager *BDManager = nullptr;
-		TArray<AActor *> Combatants = Orchestrator->GetLocalParty();
-		Combatants.Append(Orchestrator->GetOpposingParty());
-		for (AActor *Actor : Combatants)
-		{
-			if (Actor)
-			{
-				if (UBrokenDarknessManager *Mgr = Actor->FindComponentByClass<UBrokenDarknessManager>())
-				{
-					if (Mgr->IsTransformed())
-					{
-						BDManager = Mgr;
-						break;
-					}
-				}
-			}
-		}
-
+		UBrokenDarknessManager *BDManager = FindCombatBDManager(World, TEXT("WoR.TestBDRevert"), /*bTransformedOnly=*/true, TEXT("no transformed Broken Darkness actor among combatants"));
 		if (!BDManager)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.TestBDRevert: no transformed Broken Darkness actor among combatants"));
 			return;
 		}
 
@@ -1333,38 +1290,9 @@ namespace
 	// design, so this is the only way to inspect strain. Run mid-PIE-combat.
 	void RunStrainSnapshotCommand(UWorld *World)
 	{
-		if (!World)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.StrainSnapshot: no world"));
-			return;
-		}
-
-		ACombatOrchestrator *Orchestrator =
-			Cast<ACombatOrchestrator>(UGameplayStatics::GetActorOfClass(World, ACombatOrchestrator::StaticClass()));
-		if (!Orchestrator)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.StrainSnapshot: no CombatOrchestrator (run during a PIE combat)"));
-			return;
-		}
-
-		UBrokenDarknessManager *BDManager = nullptr;
-		TArray<AActor *> Combatants = Orchestrator->GetLocalParty();
-		Combatants.Append(Orchestrator->GetOpposingParty());
-		for (AActor *Actor : Combatants)
-		{
-			if (Actor)
-			{
-				if (UBrokenDarknessManager *Mgr = Actor->FindComponentByClass<UBrokenDarknessManager>())
-				{
-					BDManager = Mgr;
-					break;
-				}
-			}
-		}
-
+		UBrokenDarknessManager *BDManager = FindCombatBDManager(World, TEXT("WoR.StrainSnapshot"), /*bTransformedOnly=*/false, TEXT("no BrokenDarknessManager among combatants"));
 		if (!BDManager)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.StrainSnapshot: no BrokenDarknessManager among combatants"));
 			return;
 		}
 

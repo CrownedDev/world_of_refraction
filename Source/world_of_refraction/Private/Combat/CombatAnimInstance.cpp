@@ -25,7 +25,7 @@ void UCombatAnimInstance::NativeInitializeAnimation()
 
 void UCombatAnimInstance::HandleMontageNotify(FName NotifyName, const FBranchingPointNotifyPayload &BranchingPointPayload)
 {
-    UE_LOG(LogTemp, Log, TEXT("[CombatAnimInstance] Notify: %s"), *NotifyName.ToString());
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatAnimInstance] Notify: %s"), *NotifyName.ToString());
     OnActionNotify.Broadcast(NotifyName);
 }
 
@@ -128,7 +128,7 @@ void UCombatAnimInstance::PlayStanceMontage()
     CurrentStanceMontage = Stance->IdleAnimMontage;
     Montage_Play(CurrentStanceMontage, 1.0f);
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatAnimInstance] Playing stance montage: %s"),
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatAnimInstance] Playing stance montage: %s"),
            *CurrentStanceMontage->GetName());
 }
 
@@ -137,7 +137,7 @@ void UCombatAnimInstance::StopStanceMontage()
     if (CurrentStanceMontage)
     {
         Montage_Stop(0.2f, CurrentStanceMontage);
-        UE_LOG(LogTemp, Log, TEXT("[CombatAnimInstance] Stopped stance montage: %s"),
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatAnimInstance] Stopped stance montage: %s"),
                *CurrentStanceMontage->GetName());
         CurrentStanceMontage = nullptr;
     }
@@ -148,7 +148,7 @@ void UCombatAnimInstance::StopActionMontage()
     if (CurrentActionMontage)
     {
         Montage_Stop(0.2f, CurrentActionMontage);
-        UE_LOG(LogTemp, Log, TEXT("[CombatAnimInstance] Stopped action montage: %s"),
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatAnimInstance] Stopped action montage: %s"),
                *CurrentActionMontage->GetName());
         CurrentActionMontage = nullptr;
         bIsPlayingAction = false;
@@ -188,7 +188,7 @@ void UCombatAnimInstance::PlayActionMontage(UAnimMontage *Montage, float PlayRat
 
     if (PlayedDuration > 0.f)
     {
-        UE_LOG(LogTemp, Log, TEXT("[CombatAnimInstance] Playing action montage: %s (%.2fs at %.2fx)"),
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatAnimInstance] Playing action montage: %s (%.2fs at %.2fx)"),
                *Montage->GetName(), Duration, PlayRate);
 
         // CRITICAL: Bind end callback to reset bIsPlayingAction
@@ -209,7 +209,7 @@ void UCombatAnimInstance::OnActionMontageEndedInternal(UAnimMontage *Montage, bo
 {
     if (Montage == CurrentActionMontage)
     {
-        UE_LOG(LogTemp, Log, TEXT("[CombatAnimInstance] Action montage ended: %s (Interrupted: %s)"),
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatAnimInstance] Action montage ended: %s (Interrupted: %s)"),
                *Montage->GetName(), bInterrupted ? TEXT("Yes") : TEXT("No"));
 
         bIsPlayingAction = false;
@@ -244,7 +244,7 @@ void UCombatAnimInstance::PlayMovementMontage(UAnimMontage *MovementMontage)
     CurrentMovementMontage = MovementMontage;
 
     float Duration = Montage_Play(MovementMontage, 1.0f);
-    UE_LOG(LogTemp, Log, TEXT("[CombatAnimInstance] Playing movement montage: %s (%.2fs)"),
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatAnimInstance] Playing movement montage: %s (%.2fs)"),
            *MovementMontage->GetName(), Duration);
 }
 
@@ -253,7 +253,7 @@ void UCombatAnimInstance::StopMovementMontage()
     if (bIsPlayingMovement && CurrentMovementMontage)
     {
         Montage_Stop(0.2f, CurrentMovementMontage);
-        UE_LOG(LogTemp, Log, TEXT("[CombatAnimInstance] Stopped movement montage: %s"),
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatAnimInstance] Stopped movement montage: %s"),
                *CurrentMovementMontage->GetName());
     }
     bIsPlayingMovement = false;

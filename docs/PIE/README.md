@@ -210,6 +210,36 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-286](B-286.md) | `chore/B-286-break-size-constants` (in `dev`) | Break sizes (Burn 8%, Earth 30%, Water 30%, Reality 25%) as named constants, pinned by a test | Not tested |
 | [B-287](B-287.md) | `chore/B-287-broken-darkness-spec` (in `dev`) | Broken Darkness absorption, overload and forbidden-cast numbers pinned by a test | Not tested |
 | [B-290](B-290.md) | `chore/B-290-economy-numbers-spec` (in `dev`) | World-stat vendor price and cap, merge, spell essence and drop-quality numbers pinned by a test | Not tested |
+| [B-295](B-295.md) | `fix/B-295-emerald-real-extra-turn` (in `dev`) | An Emerald bonus turn is a real extra turn (no later turn lost, D-052) | Not tested |
+| [B-296](B-296.md) | `fix/B-296-generic-spell-quartz-price` (in `dev`) | Generic spells cost Quartz essence like elemental ones (D-105) | Not tested |
+| [B-300](B-300.md) | `fix/B-300-turn-triggers-every-turn` (in `dev`) | On Turn Start / End triggers fire every turn (not just once) | Not tested |
+| [B-298](B-298.md) | `feature/B-298-adapters` (in `dev`) | Player-facing Ring is now Adapter; adapter Form field (D-107) | Not tested |
+| [B-301](B-301.md) | `refactor/B-301-gear-instance` (in `dev`) | Unified loadout 1: one gear-instance type (not used yet) | Not tested |
+| [B-302](B-302.md) | `refactor/B-302-loadout-slots` (in `dev`) | Unified loadout 2: slot list mirrored beside the old fields; `wor.Loadout.CompareSlots` | Not tested |
+| [B-303](B-303.md) | `refactor/B-303-class-table-cost` (in `dev`) | Unified loadout 3: one class table and one slot cost (budget unchanged except Q-303b) | Not tested |
+| [B-310](B-310.md) | `fix/B-310-run-wear-by-guid` (in `dev`) | Run wear follows the item's GUID: two identical adapters keep their own wear | Not tested |
+| [B-304](B-304.md) | `refactor/B-304-active-slot` (in `dev`) | Unified loadout 4: one active-slot rule; empty slot falls back (Q-304); secondary weapon spell checks | Not tested |
+| [B-042yd](B-042yd.md) | `refactor/B-042yd-gas-payouts` (in `dev`) | GAS: energy, drains, self-damage and percent restores pay through GAS at UseGAS 1 | Not tested |
+| [B-042ye](B-042ye.md) | `refactor/B-042ye-gas-effect-reads` (in `dev`) | GAS: the AI's burn checks, buff / debuff counts and the panel's effect list read GAS at UseGAS 1 | Not tested |
+| [B-249](B-249.md) | `refactor/B-249-element-immunity-map` (in `dev`) | One element -> immunity map (no change in play) | Not tested |
+| [B-252b](B-252b.md) | `refactor/B-252b-owned-gear-verbs` (in `dev`) | One body for weapon / ring dismantle, level up, revert (no change in play) | Not tested |
+| [B-274](B-274.md) | `refactor/B-274-break-rows` (in `dev`) | Status breaks read one row each; no behaviour change | Not tested |
+| [B-275](B-275.md) | `refactor/B-275-keyed-effects` (in `dev`) | Element-keyed immunity and DoT on hit; old members unchanged | Not tested |
+| [B-273](B-273.md) | `refactor/B-273-hit-kind` (in `dev`) | Hit-kind struct and Ice tag under Water; no behaviour change | Not tested |
+| [B-272](B-272.md) | `refactor/B-272-resistance-columns` (in `dev`) | Resistance columns read by damage type; no behaviour change | Not tested |
+| [B-297b](B-297b.md) | `fix/B-297b-bonus-cap` (in `dev`) | Emerald bonus turns go past the 2:1 cap (Q-297 A); no behaviour change | Not tested |
+| [B-305](B-305.md) | `refactor/B-305-one-switch-v2` (in `dev`) | One weapon / adapter switch behind both menu buttons; no behaviour change | Not tested |
+| [B-297](B-297.md) | `fix/B-297-turn-cap` (in `dev`) | 2:1 turn cap: a fast combatant gets at most 2 turns per opponent turn | Not tested |
+| [B-271](B-271.md) | `refactor/B-271-element-table` (in `dev`) | One element table behind the element switches; no behaviour change | Not tested |
+| [B-279](B-279.md) | `feature/B-279-character-forms` (in `dev`) | Character-form meter fills on a won fight, unlocks at 100%, survives save | Not tested |
+| [B-269](B-269.md) | `fix/B-269-essence-names` (in `dev`) | Essence names in the shop: Quartz Essence, Unknown Essence | Not tested |
+| [B-265](B-265.md) | `chore/B-265-build-time` (in `dev`) | Header includes trimmed; `EWorldPillar` in its own header (Blueprint check) | Not tested |
+| [B-264](B-264.md) | `chore/B-264-log-levels` (in `dev`) | Output Log quiet during a normal fight (per-turn lines at Verbose) | Not tested |
+| [B-260](B-260.md) | `refactor/B-260-light-attribute-sync` (in `dev`) | Lighter GAS attribute sync on hits; attributes still match | Not tested |
+| [B-259](B-259.md) | `refactor/B-259-ai-estimate-memo` (in `dev`) | AI damage estimates cached within one decision; same AI choices | Not tested |
+| [B-256b](B-256b.md) | `refactor/B-256b-interact-hint` (in `dev`) | One interact-hint helper; shared crystal / BD debug preambles; same hints and prints | Not tested |
+| [B-319](B-319.md) | `feature/B-319-duplicate-choice` (in `dev`) | A duplicate weapon / adapter: weaker copy to Gold or dismantled (`wor.UI.Duplicates`) | Not tested |
+| [B-320](B-320.md) | `fix/B-320-always-a-primary` (in `dev`) | A loadout's primary can't be dismantled; an empty active primary is filled (D-116) | Not tested |
 | [B-291](B-291.md) | `feature/B-291-headless-seams` (in `dev`) | Balance-sim seams: InstantImpacts / AI think-delay console variables (off by default), round and bar-break events | Not tested |
 
 Move rows to **Done** when every check passes.

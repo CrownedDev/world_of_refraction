@@ -4,6 +4,7 @@
 #include "WoRGameNames.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Grid/ECombatRow.h"
+#include "Currency/CurrencyTypes.h"
 #include "Merchant/MerchantData.h"
 #include "Skills/Definitions/SpellSchool.h"
 
@@ -265,6 +266,10 @@ FText GetSkillEffectTypeName(ESkillEffectType EffectType)
         return LOCTEXT("ESkillEffectType_PushBack", "Push Back (one row)");
     case ESkillEffectType::PullForward:
         return LOCTEXT("ESkillEffectType_PullForward", "Pull Forward (one row)");
+    case ESkillEffectType::GrantElementImmunity:
+        return LOCTEXT("ESkillEffectType_GrantElementImmunity", "Element Immunity");
+    case ESkillEffectType::ApplyDOTOnHit:
+        return LOCTEXT("ESkillEffectType_ApplyDOTOnHit", "Apply Damage over Time");
     }
     return FText::GetEmpty();
 }
@@ -336,7 +341,7 @@ FText GetMerchantTypeName(EMerchantType MerchantType)
     case EMerchantType::Blacksmith:
         return LOCTEXT("EMerchantType_Blacksmith", "Blacksmith (weapons, augment stones)");
     case EMerchantType::Jeweler:
-        return LOCTEXT("EMerchantType_Jeweler", "Jeweler (rings)");
+        return LOCTEXT("EMerchantType_Jeweler", "Jeweler (adapters)");
     case EMerchantType::CombatMaster:
         return LOCTEXT("EMerchantType_CombatMaster", "Combat Master (abilities)");
     case EMerchantType::SpellShop:
@@ -350,7 +355,73 @@ FText GetMerchantTypeName(EMerchantType MerchantType)
     }
     return FText::GetEmpty();
 }
+
+FText GetEssenceName(EEssenceType Essence)
+{
+    switch (Essence)
+    {
+    case EEssenceType::Fire:
+        return LOCTEXT("EEssenceType_Fire", "Fire Essence");
+    case EEssenceType::Water:
+        return LOCTEXT("EEssenceType_Water", "Water Essence");
+    case EEssenceType::Lightning:
+        return LOCTEXT("EEssenceType_Lightning", "Lightning Essence");
+    case EEssenceType::Wind:
+        return LOCTEXT("EEssenceType_Wind", "Wind Essence");
+    case EEssenceType::Earth:
+        return LOCTEXT("EEssenceType_Earth", "Earth Essence");
+    case EEssenceType::Light:
+        return LOCTEXT("EEssenceType_Light", "Light Essence");
+    case EEssenceType::Darkness:
+        return LOCTEXT("EEssenceType_Darkness", "Darkness Essence");
+    case EEssenceType::Void:
+        return LOCTEXT("EEssenceType_Void", "Void Essence");
+    case EEssenceType::Reality:
+        return LOCTEXT("EEssenceType_Reality", "Unknown Essence"); // D-095
+    case EEssenceType::Generic:
+        return LOCTEXT("EEssenceType_Generic", "Quartz Essence"); // D-105
+    case EEssenceType::Mind:
+        return LOCTEXT("EEssenceType_Mind", "Mind Essence");
+    case EEssenceType::Body:
+        return LOCTEXT("EEssenceType_Body", "Body Essence");
+    case EEssenceType::Spirit:
+        return LOCTEXT("EEssenceType_Spirit", "Spirit Essence");
+    case EEssenceType::Ability:
+        return LOCTEXT("EEssenceType_Ability", "Ability Essence");
+    }
+    return FText::GetEmpty();
 }
+
+FText GetAdapterWord()
+{
+    return LOCTEXT("Adapter", "Adapter");
+}
+
+FText GetAdapterWordPlural()
+{
+    return LOCTEXT("Adapters", "Adapters");
+}
+
+FText GetActiveAdapterWord()
+{
+    return LOCTEXT("ActiveAdapter", "Active adapter");
+}
+
+FText GetAdapterFormName(EAdapterForm Form)
+{
+    switch (Form)
+    {
+    case EAdapterForm::Ring:
+        return LOCTEXT("EAdapterForm_Ring", "Ring");
+    case EAdapterForm::Pistol:
+        return LOCTEXT("EAdapterForm_Pistol", "Pistol");
+    case EAdapterForm::Trainer:
+        return LOCTEXT("EAdapterForm_Trainer", "Trainer");
+    default:
+        return GetAdapterWord();
+    }
+}
+} // namespace WoRGameNames
 
 FText WoRGameNames::GetElementBreakName(ESpellElement Element)
 {

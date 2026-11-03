@@ -1,6 +1,7 @@
 // ResistanceProfileData.cpp
 
 #include "Combat/Resistance/ResistanceProfileData.h"
+#include "Combat/Resistance/ResistanceColumns.h"
 #include "UObject/SoftObjectPath.h"
 #include "Engine/World.h"
 #include "WoRLog.h"
@@ -17,16 +18,12 @@ namespace
 
 	FString ProfileRowString(const ClassInnateResistanceTable::FResistanceRow &R)
 	{
-		return FString::Printf(TEXT("Fi %+.0f Wa %+.0f Ea %+.0f Wi %+.0f Li %+.0f Da %+.0f Lt %+.0f Vo %+.0f Re %+.0f | Sl %+.0f Pi %+.0f Im %+.0f"),
-							   R.Fire, R.Water, R.Earth, R.Wind, R.Light, R.Darkness, R.Lightning, R.Void, R.Reality,
-							   R.Slash, R.Pierce, R.Impact);
+		return ResistanceColumns::ToString(R);
 	}
 
 	bool ProfileRowsEqual(const ClassInnateResistanceTable::FResistanceRow &A, const ClassInnateResistanceTable::FResistanceRow &B)
 	{
-		return A.Fire == B.Fire && A.Water == B.Water && A.Earth == B.Earth && A.Wind == B.Wind && A.Light == B.Light &&
-			   A.Darkness == B.Darkness && A.Lightning == B.Lightning && A.Void == B.Void && A.Reality == B.Reality &&
-			   A.Slash == B.Slash && A.Pierce == B.Pierce && A.Impact == B.Impact;
+		return ResistanceColumns::Equal(A, B);
 	}
 
 	FString ProfileElementName(ESpellElement Element)
@@ -39,25 +36,12 @@ namespace
 
 ClassInnateResistanceTable::FResistanceRow FResistanceProfileRow::ToTableRow() const
 {
-	return {Fire, Water, Earth, Wind, Light, Darkness, Lightning, Void, Reality, Slash, Pierce, Impact};
+	return ResistanceColumns::Convert<ClassInnateResistanceTable::FResistanceRow>(*this);
 }
 
 FResistanceProfileRow FResistanceProfileRow::FromTableRow(const ClassInnateResistanceTable::FResistanceRow &Row)
 {
-	FResistanceProfileRow Out;
-	Out.Fire = Row.Fire;
-	Out.Water = Row.Water;
-	Out.Earth = Row.Earth;
-	Out.Wind = Row.Wind;
-	Out.Light = Row.Light;
-	Out.Darkness = Row.Darkness;
-	Out.Lightning = Row.Lightning;
-	Out.Void = Row.Void;
-	Out.Reality = Row.Reality;
-	Out.Slash = Row.Slash;
-	Out.Pierce = Row.Pierce;
-	Out.Impact = Row.Impact;
-	return Out;
+	return ResistanceColumns::Convert<FResistanceProfileRow>(Row);
 }
 
 UResistanceProfileData::UResistanceProfileData()

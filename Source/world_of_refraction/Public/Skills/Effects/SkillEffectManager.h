@@ -322,6 +322,10 @@ public:
 	// QUERIES
 	// ========================================
 
+	/** Types whose windowed logic pays something out each run (damage, heal, energy); GAS pays the same types
+	 *  through a tick spec (UWoRTickExecution, B-042yd). */
+	static bool IsPayoutType(ESkillEffectType EffectType);
+
 	/** Get all active effects on an actor */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	TArray<FActiveSkillEffect> GetActiveEffects(AActor *Actor) const;
@@ -330,6 +334,17 @@ public:
 	 *  element (B-064b, Q-064; same 1:1, +-50% step as hits). Non-elemental DOTs are unchanged.
 	 *  The tick and the AI's lethality checks both read this. */
 	static int32 GetDotTickDamage(AActor *Actor, const FActiveSkillEffect &Effect);
+
+	/** B-042ye (Q-042x): Actor's effects as the read source holds them, for per-effect reads (the AI, the
+	 *  character panel, the buff / debuff counts): with wor.Effects.UseGAS 1 on an actor with a mirror, the
+	 *  stored effects GAS holds, with the tracker's turns left (UWoREffectMirrorComponent::ReadHeldEffects);
+	 *  otherwise GetActiveEffects. Not pure in Blueprint: the GAS read resyncs the mirror. */
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "Skill Effects|Query")
+	TArray<FActiveSkillEffect> GetHeldEffects(AActor *Actor) const;
+
+	/** B-042ye: GetDotTickDamage as the read source would pay it: from the DOT's GE tick spec at UseGAS 1
+	 *  (UWoREffectMirrorComponent::PreviewDotTick), else the enum path's number. */
+	int32 PreviewDotTickDamage(AActor *Actor, const FActiveSkillEffect &Effect) const;
 
 	/** Get all effects of a specific type on actor */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
@@ -561,8 +576,6 @@ private:
 	/** A combat is running and it is Target's turn. */
 	bool IsHoldersOwnTurn(const AActor *Target) const;
 
-	/** Types whose windowed logic pays something out each run (damage, heal, energy). */
-	static bool IsPayoutType(ESkillEffectType EffectType);
 
 	/** Check if a trigger condition is met (handles compound primary + secondary).
 	 *  Target is the owner's target for target-side condition subjects (null → target-side
