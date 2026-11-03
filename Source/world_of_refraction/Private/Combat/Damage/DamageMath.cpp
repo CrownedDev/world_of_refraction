@@ -106,7 +106,9 @@ FDamageCalculationResult WoRDamageMath::Compute(const FDamageMathInputs &Inputs)
 	}
 
 	// Step 7: minimum damage, and the floor (B-293d): at least HIT_DAMAGE_FLOOR_SHARE of the unreduced hit.
-	const int32 DamageFloor = FMath::CeilToInt(UnreducedDamage * DamageConstants::HIT_DAMAGE_FLOOR_SHARE);
+	// Less a hair of float noise, so an exact 10.0000001 doesn't round up to 11.
+	constexpr float FLOOR_ROUNDING_SLACK = 1.0e-3f;
+	const int32 DamageFloor = FMath::CeilToInt(UnreducedDamage * DamageConstants::HIT_DAMAGE_FLOOR_SHARE - FLOOR_ROUNDING_SLACK);
 	Result.FinalDamage = FMath::Max3(DamageConstants::MIN_DAMAGE, DamageFloor, FMath::RoundToInt(RunningDamage));
 	return Result;
 }

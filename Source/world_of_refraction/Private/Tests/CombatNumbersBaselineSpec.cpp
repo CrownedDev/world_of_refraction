@@ -9,6 +9,8 @@
 #include "Misc/AutomationTest.h"
 #include "Character/StatLayers.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/Damage/DamageCalculator.h"
+#include "Combat/Damage/DamageMath.h"
 #include "Combat/Encounter/EEncounterRank.h"
 #include "Combat/FleeRules.h"
 #include "Combat/Tuning/CombatBaselineConstants.h"
@@ -33,15 +35,23 @@ namespace
 
 	constexpr float RANK_NORMAL = 1.0f;
 	constexpr float RANK_ELITE = 1.5f;
-	constexpr float RANK_MINIBOSS = 3.0f;
-	constexpr float RANK_BOSS = 6.0f;
+	constexpr float RANK_MINIBOSS = 4.0f; // B-293d (Q-293d)
+	constexpr float RANK_BOSS = 8.0f;
 
-	constexpr float REQUIREMENT_FLOOR = 0.5f;
-	/** The gap whose ladder rung (0.50) first meets the floor, and the one below it (0.32). */
-	constexpr int32 GAP_AT_FLOOR = 4;
-	constexpr int32 GAP_UNDER_FLOOR = 5;
-	constexpr int32 GAP_ABOVE_FLOOR = 3;
+	constexpr float REQUIREMENT_FLOOR = 0.25f; // B-293d (Q-293d)
+	/** Gaps 3 / 4 / 5 under and their ladder rungs; the lowest rung (0.32) stays above the 0.25 floor. */
+	constexpr int32 GAP_THREE_UNDER = 3;
+	constexpr int32 GAP_FOUR_UNDER = 4;
+	constexpr int32 GAP_FIVE_UNDER = 5;
 	constexpr float LADDER_AT_GAP_THREE = 0.64f;
+	constexpr float LADDER_AT_GAP_FOUR = 0.50f;
+	constexpr float LADDER_AT_GAP_FIVE = 0.32f;
+	/** B-293d damage floor: a hit of 100 through 75% Defense, 90% Damage Taken Down and a Guard (half) keeps 10. */
+	constexpr int32 FLOOR_HIT = 100;
+	constexpr float FLOOR_GUARD_SHARE = 0.5f;
+	constexpr float FLOOR_DAMAGE_TAKEN = 0.1f;
+	constexpr float FLOOR_DEFENSE = 0.75f;
+	constexpr int32 FLOOR_EXPECTED = 10;
 
 	constexpr float DEFENSE_CEILING = 0.75f;
 	constexpr float DEFENSE_STAT_ALONE = 0.5f;
@@ -109,23 +119,42 @@ void FCombatNumbersBaselineSpec::Define()
 		TestFalse(TEXT("Mini-boss still can't"), FleeRules::CanFleeRank(EEncounterRank::MiniBoss));
 	});
 
-	It("floors the weapon requirement factor at 0.5 from four levels under, and only the weapon part reads it", [this]()
+	It("floors the weapon requirement factor at 0.25 (the ladder's rungs stay above it), and only the weapon part reads it", [this]()
 	{
 		TestEqual(TEXT("C++ floor"), WeaponRequirement::WEAPON_REQ_FACTOR_MIN, REQUIREMENT_FLOOR, BASELINE_TOLERANCE);
 		TestEqual(TEXT("tuning default"), WoRTuning::Get().WeaponReqFactorMin, REQUIREMENT_FLOOR, BASELINE_TOLERANCE);
 		const FWorldPillarLevels NoLevels;
-		TestEqual(TEXT("three under: the ladder"), BodyRequirementOf(GAP_ABOVE_FLOOR).GetWeaponRequirementFactor(NoLevels), LADDER_AT_GAP_THREE,
+		TestEqual(TEXT("three under: the ladder"), BodyRequirementOf(GAP_THREE_UNDER).GetWeaponRequirementFactor(NoLevels), LADDER_AT_GAP_THREE,
 				  BASELINE_TOLERANCE);
-		TestEqual(TEXT("four under: the floor"), BodyRequirementOf(GAP_AT_FLOOR).GetWeaponRequirementFactor(NoLevels), REQUIREMENT_FLOOR,
+		TestEqual(TEXT("four under: the ladder"), BodyRequirementOf(GAP_FOUR_UNDER).GetWeaponRequirementFactor(NoLevels), LADDER_AT_GAP_FOUR,
 				  BASELINE_TOLERANCE);
-		TestEqual(TEXT("five under: still the floor"), BodyRequirementOf(GAP_UNDER_FLOOR).GetWeaponRequirementFactor(NoLevels), REQUIREMENT_FLOOR,
-				  BASELINE_TOLERANCE);
+		TestEqual(TEXT("five under: the ladder's end, above the floor"), BodyRequirementOf(GAP_FIVE_UNDER).GetWeaponRequirementFactor(NoLevels),
+				  LADDER_AT_GAP_FIVE, BASELINE_TOLERANCE);
 		// The weapon part takes the factor as its own multiplier (WoRWeaponPower::GetWeaponPart); the skill part has no such input.
 		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
 		Weapon->Power = CombatBaseline::WEAPON_REFERENCE_POWER_F;
 		Weapon->Tier = EItemTier::F_Tier;
-		TestEqual(TEXT("the weapon part halves"), WoRWeaponPower::GetWeaponPart(*Weapon, EItemTier::F_Tier, NoLevels, REQUIREMENT_FLOOR),
+		TestEqual(TEXT("at the floor the weapon part is a quarter"), WoRWeaponPower::GetWeaponPart(*Weapon, EItemTier::F_Tier, NoLevels, REQUIREMENT_FLOOR),
 				  CombatBaseline::WEAPON_REFERENCE_POWER_F * REQUIREMENT_FLOOR, BASELINE_TOLERANCE);
+	});
+
+	It("B-293d: keeps at least 10% of a hit after Defense, Damage Taken Down and Guard", [this]()
+	{
+		TestEqual(TEXT("the floor share"), DamageConstants::HIT_DAMAGE_FLOOR_SHARE, 0.1f, BASELINE_TOLERANCE);
+		FDamageMathInputs Inputs;
+		Inputs.BaseDamage = FMath::RoundToInt(FLOOR_HIT * FLOOR_GUARD_SHARE); // Guard already took half
+		Inputs.GuardFactor = FLOOR_GUARD_SHARE;
+		Inputs.StatusEffectModifier = FLOOR_DAMAGE_TAKEN;
+		Inputs.DamageTakenFactor = FLOOR_DAMAGE_TAKEN;
+		Inputs.bApplyDefense = true;
+		Inputs.DefenderDefense = FLOOR_DEFENSE;
+		Inputs.bCanCrit = false;
+		TestEqual(TEXT("1.25 would get through; the floor keeps 10"), WoRDamageMath::Compute(Inputs).FinalDamage, FLOOR_EXPECTED);
+
+		FDamageMathInputs Plain;
+		Plain.BaseDamage = FLOOR_HIT;
+		Plain.bCanCrit = false;
+		TestEqual(TEXT("an unreduced hit is untouched"), WoRDamageMath::Compute(Plain).FinalDamage, FLOOR_HIT);
 	});
 
 	It("caps composed Defense at 75%", [this]()
