@@ -35,6 +35,7 @@ namespace
 	/** Frames to let the end-of-fight timers settle before the next fight's actors spawn. */
 	constexpr int32 SIM_SETTLE_FRAMES = 2;
 
+	/** Set at console priority: a value typed in the editor console would otherwise outrank the runner's. */
 	IConsoleVariable *SimCVar(const TCHAR *Name)
 	{
 		return IConsoleManager::Get().FindConsoleVariable(Name);
@@ -101,12 +102,12 @@ bool FBalanceSimRunner::Begin()
 	if (IConsoleVariable *CVar = SimCVar(SIM_CVAR_INSTANT_IMPACTS))
 	{
 		SavedInstantImpacts = CVar->GetInt();
-		CVar->Set(1, ECVF_SetByCode);
+		CVar->Set(1, ECVF_SetByConsole);
 	}
 	if (IConsoleVariable *CVar = SimCVar(SIM_CVAR_THINK_DELAY))
 	{
 		SavedThinkDelayScale = CVar->GetFloat();
-		CVar->Set(0.0f, ECVF_SetByCode);
+		CVar->Set(0.0f, ECVF_SetByConsole);
 	}
 	if (IConsoleVariable *CVar = SimCVar(SIM_CVAR_BATTLE_SEED))
 	{
@@ -115,8 +116,12 @@ bool FBalanceSimRunner::Begin()
 	// The executor and AI log every action; thousands of fights would flood the log (BalanceSimulator.md §1).
 	SavedLogTemp = LogTemp.GetVerbosity();
 	SavedLogCombat = LogWoRCombat.GetVerbosity();
+	SavedLogEffects = LogWoREffects.GetVerbosity();
+	SavedLogAI = LogWoRAI.GetVerbosity();
 	LogTemp.SetVerbosity(ELogVerbosity::Warning);
 	LogWoRCombat.SetVerbosity(ELogVerbosity::Warning);
+	LogWoREffects.SetVerbosity(ELogVerbosity::Warning);
+	LogWoRAI.SetVerbosity(ELogVerbosity::Warning);
 	bRunning = true;
 	return true;
 }
@@ -134,18 +139,20 @@ void FBalanceSimRunner::End()
 	ClearFight();
 	if (IConsoleVariable *CVar = SimCVar(SIM_CVAR_INSTANT_IMPACTS))
 	{
-		CVar->Set(SavedInstantImpacts, ECVF_SetByCode);
+		CVar->Set(SavedInstantImpacts, ECVF_SetByConsole);
 	}
 	if (IConsoleVariable *CVar = SimCVar(SIM_CVAR_THINK_DELAY))
 	{
-		CVar->Set(SavedThinkDelayScale, ECVF_SetByCode);
+		CVar->Set(SavedThinkDelayScale, ECVF_SetByConsole);
 	}
 	if (IConsoleVariable *CVar = SimCVar(SIM_CVAR_BATTLE_SEED))
 	{
-		CVar->Set(SavedBattleSeed, ECVF_SetByCode);
+		CVar->Set(SavedBattleSeed, ECVF_SetByConsole);
 	}
 	LogTemp.SetVerbosity(SavedLogTemp);
 	LogWoRCombat.SetVerbosity(SavedLogCombat);
+	LogWoREffects.SetVerbosity(SavedLogEffects);
+	LogWoRAI.SetVerbosity(SavedLogAI);
 	Recorder.Reset();
 	Orchestrator = nullptr;
 	TestWorld.Reset();
@@ -192,7 +199,7 @@ FBalanceFightRecord FBalanceSimRunner::RunFight(const FBalanceMatchup &Matchup, 
 
 	if (IConsoleVariable *CVar = SimCVar(SIM_CVAR_BATTLE_SEED))
 	{
-		CVar->Set(Seed, ECVF_SetByCode); // StartCombat's BeginBattle seeds the stream from it
+		CVar->Set(Seed, ECVF_SetByConsole); // StartCombat's BeginBattle seeds the stream from it
 	}
 	Recorder->Begin(Matchup.Id, Seed, Party);
 	Orchestrator->SetEncounterRank(Matchup.Rank);
@@ -310,10 +317,13 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 void FBalanceSimRunner::ApplyEnemyStrength(AActor *Enemy, const FBalanceMatchup &Matchup)
 {
 	// Same two multipliers as BattleGameMode's trial fights.
-	TrialGate::ApplyEnemyStrength(Enemy, TrialGate::GetEnemyStrengthMultiplier(Matchup.TrialDifficulty) *
-											 AEnemyZone::GetTierStrengthMultiplier(Matchup.ZoneTier));
+	const float Strength = TrialGate::GetEnemyStrengthMultiplier(Matchup.TrialDifficulty) *
+						   AEnemyZone::GetTierStrengthMultiplier(Matchup.ZoneTier);
+	TrialGate::ApplyEnemyStrength(Enemy, Strength);
 
 	// TODO(B-224): delete with the game's own rank HP multiplier (a spec case then guards the double apply).
+	// TODO(B-224): BalanceSimulator.md also scales by the enemy's tier power; the stand-in uses the rank alone.
+	// MaxHP percents add up, so the rank's share is Strength x (Rank - 1): total HP = Strength x Rank.
 	const float RankMultiplier = RankHPMultiplier(Matchup.Rank);
 	UCharacterDataComponent *CharComp = Enemy->FindComponentByClass<UCharacterDataComponent>();
 	USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
@@ -323,7 +333,7 @@ void FBalanceSimRunner::ApplyEnemyStrength(AActor *Enemy, const FBalanceMatchup 
 	}
 	FActiveSkillEffect RankHP = FActiveSkillEffect::CreatePersistent(TEXT("Balance sim rank HP"), SIM_RANK_HP_EFFECT_ID,
 																	  ESkillEffectType::MaxHPBuff,
-																	  (RankMultiplier - 1.0f) * CombatConstants::STAT_PERCENT_DIVISOR);
+																	  Strength * (RankMultiplier - 1.0f) * CombatConstants::STAT_PERCENT_DIVISOR);
 	RankHP.bFromGear = true; // part of the enemy, not a cleansable buff
 	Effects->ApplyEffect(Enemy, RankHP);
 	CharComp->RecomputeMaxPools();

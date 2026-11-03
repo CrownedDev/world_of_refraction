@@ -54,6 +54,8 @@ private:
 	int32 SavedBattleSeed = 0;
 	ELogVerbosity::Type SavedLogTemp = ELogVerbosity::Log;
 	ELogVerbosity::Type SavedLogCombat = ELogVerbosity::Log;
+	ELogVerbosity::Type SavedLogEffects = ELogVerbosity::Log;
+	ELogVerbosity::Type SavedLogAI = ELogVerbosity::Log;
 	bool bRunning = false;
 };
 
