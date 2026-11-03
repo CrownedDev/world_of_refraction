@@ -1785,6 +1785,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** A (approved by the reference-backed default).
 **Notes for Claude:** applied in B-325 (`feature/B-325-combat-tier`). Skills count at their asset tier (`USkillDataBase::Tier`); a levelled skill instance's tier (`FAbilityInstance` / `FSpellInstance::Tier`) is not read yet: a follow-up if skills level.
 
+### Q-330 — With the per-level pool gone, what bounds an asset's authored sub-stats?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-330, D-123) · **Blocks:** —
+**Question:** the sub-stat pool was 30 + 3 per pillar level, and it was also the check on an authored asset's spread. With pillar levels granting no sub-stat points (D-123), what ceiling does an asset's authored spread get?
+**Options:** A one fixed ceiling at every pillar level: the old 7/7/7 total, 93 (`StatConstants::MAX_AUTHORED_SUBSTAT_POINTS`), the same number the per-point maths already derives from (`CombatConstants::MAX_STAT_POINTS`) / B the old starting 30 for every asset / C no ceiling.
+**Recommendation:** A. In WoW and Expedition 33 a character's base stats are authored per character with a fixed design ceiling and gear adds the rest; no player-spent budget. 93 keeps every existing asset valid and the per-point values unchanged, so nothing moves in play. B would flag every levelled enemy over budget; C drops the authoring check.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it. `GetTotalPool` (the old pool) stays live only as the enemy caliber (WSP per kill, a team's strongest member) until the D-124 sweep gives the caliber its own read.
+
 ### Q-321 — Can the shared home chest hold gear, or only items?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
 **Question:** D-097's storage holds items (crystals, stones, consumables); gear lived in the shared pool. With gear per character (D-117), can a character put an unworn weapon or adapter in the shared chest for another to take?
