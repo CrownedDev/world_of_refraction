@@ -117,7 +117,7 @@ FWoRTickPayout UWoRTickExecution::GetPayout(const FWoRTickRequest &Request, cons
 			return {Health, 0.0f};
 		}
 		const int32 Share = TickShareOf(Pools.MaxHP, Inputs.Value);
-		return {Health, TickGain(FMath::RoundToInt(Share * (1.0f + Inputs.HealingReceivedPercent / CombatConstants::STAT_PERCENT_DIVISOR)))};
+		return {Health, TickGain(WoRTickMath::AmplifyHeal(Share, Inputs.HealingReceivedPercent))};
 	}
 	case ESkillEffectType::EnergyRestore:
 		return {Energy, TickGain(Flat)};
