@@ -567,6 +567,9 @@ private:
     bool bKeepsCustomLoadouts = false;
     /** B-321: a run-only recruit draws the whole armoury (it brings no gear, B-076); everyone else only its own. */
     bool bDrawsWholeArmoury = false;
+    /** B-312b: is this store piece this member's to draw: its own by owner key, or (a run-only recruit) any piece
+     *  not in the chest. The one rule DrawSharedGear and the owns-checks share. */
+    bool IsMineInStore(const UPoolSubsystem &Pool, const FGuid &GearID) const;
     /** True while this inventory pushes to, or copies from, the pool (no echo). */
     bool bSyncingWithPool = false;
 
