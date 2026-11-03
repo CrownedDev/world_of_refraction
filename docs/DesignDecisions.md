@@ -3043,6 +3043,34 @@ Moved here once applied. Newest first.
 **Recommendation:** **A**. Final Fantasy XVI / Persona 5 boss fights with adds keep the adds at normal toughness; the boss alone carries the boss HP. BaselineNumbers' round targets (8-10 / 12-14) assume one boss, not a whole team at boss HP.
 **Notes for Claude:** queued as B-224b (with the enemy HP by tier power TODO). The fight's rank still rules fleeing (D-091).
 
+### Q-322b — Pouch details D-117 / Q-322 left open
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-322, cloud) · **Blocks:** —
+**Question:** Three details of the pouch per character: (1) where a save from before B-322 puts the party's one pouch and any slots bought for it; (2) where an item added with no character (an enemy's drop into the pool, a debug add) goes; (3) whether a run-only recruit has a pouch.
+**Context:** `Private/Pool/PoolSubsystem.cpp` (`AdoptLegacyCarriedItems`, `CarryOrStore` with `NAME_None`); `Private/Inventory/InventoryComponent.cpp` (`DrawSharedGear`, `InitializeFromPool`); B-321 sent an old save's unowned gear to the leader the same way (Q-321).
+**Options / as built:** (1) **the party leader's pouch**, with the bought slots (B-321's rule for gear); (2) **straight to the shared storage**; (3) **yes, 10 slots** (a run-only recruit carries items like anyone; at run end its pouch goes to the shared storage (D-097: items are never thrown away), as its gear goes back to the pool; it stays banked, so recruiting it again brings no second set of starting items).
+**Recommendation:** as built. Baldur's Gate 3 gives every companion, temporary ones too, a full inventory; what the party owned before goes to the character the player controls.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-322. If (3) should be "no pouch", bind run-only recruits to the leader's pouch instead.
+
+### Q-323 — Giving: evolutions, and a giver who isn't in the level
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-323, cloud) · **Blocks:** —
+**Question:** (1) D-117 says gear (weapons, adapters, evolutions) can be given. An evolution may be attached to a weapon or adapter, or sit in a loadout's primary evolution slot (D-116), so giving one needs a detach step. Give evolutions in B-323, or later? (2) The D-116 primary check reads the giver's spawned `UInventoryComponent`; when the giver isn't in the level (no pawn), nothing can check it. Refuse the give, or let it through and let the giver's next draw refill its primary?
+**Context:** `Private/Inventory/GearGive.cpp` (`TryGiveGear`); `Private/Inventory/InventoryComponent.cpp` (`RefillActivePrimary`, `StripUnownedGear` at the draw); `Private/Pool/PoolSubsystem.cpp` (`GiveGear`).
+**Options / as built:** (1) **weapons and adapters only**; an evolution gives "Evolutions can't be given yet" (TODO: with B-324's chest, which needs the same detach rule). (2) **let it through**: the owner changes; the giver's next draw strips the piece and refills its primary with a warning (B-320's guard), as an old save does.
+**Recommendation:** as built. (1) keeps B-323 to one instance kind moving; (2) matches how B-321 treats gear that changed hands while a member was away. BG3 only allows trades between present companions, which the CommonUI screen can enforce later.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-323. If (2) should refuse, `TryGiveGear` returns a refusal when `FindMemberInventory` is null. Desktop build added two defaults: (3) a pouch stack **can** be given to a run-only recruit (gear can't): its pouch goes to storage at run end (B-322 `ReleasePouch`), so nothing is lost; (4) a receiver that isn't in the level gets no D-115 duplicate prompt at its next draw (the piece still arrives; the prompt comes from the live give). TODO: check for duplicates at the draw if Crown wants it.
+**Added by B-324 (same defaults):** a run-only recruit can't be given gear nor take it from the chest (Q-321: it owns nothing, and `DismissRunMembers` releases wearers, not owners), and its whole-armoury draw skips chest gear; a put from an unspawned member releases any stale wearer.
+
+### Q-293 — Balance targets the Decided list doesn't give
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-293, cloud) · **Blocks:** —
+**Question:** `docs/Design/BalanceSimulator.md` §3 lists targets beyond `BaselineNumbers.md`'s Decided list: the boss win-rate band at Medium, the hits-to-kill bands for Elite / Mini-boss / Boss, the crit bands, and the worked-example hit medians (which assume Mind 8 and 14 where the sim's archetypes clamp to 7). Which of these may fail a nightly run, and which only warn?
+**Context:** `Private/Balance/BalanceSimReport.cpp` (`EvaluateTargets`); `Private/Tests/BalanceTargetsSpec.cpp`.
+**Options / as built:** **errors** (fail nightly / full): stalls, normal-fight party turns 2.5–5.5, mini-boss rounds 7–11, boss rounds 11–15.5, win rate vs normal at Medium 85–99 %, the pillar-6 bands (35–65 %; reverse still clears). **Warn only:** p90s, the hits-to-kill bands (±20 %), the worked-example medians (±10 %), crit rate 3–8 % and crit / uncrit 1.2–1.3, boss win rate at Medium 50–80 %. `quick` (3 fights) never fails on a band.
+**Recommendation:** as built. The error set is exactly the Decided numbers; the boss band follows Expedition 33 / Hades (a first boss attempt is lost more often than a normal fight, never a coin flip at Normal), and the example medians stay warn-only until the examples are redone at the pillar cap of 7.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-293; flip `bError` per target in `EvaluateTargets` to change a band's severity. Desktop build: the sim's spell costs **0 EP** (sim-only; the AI may cast it every turn its EP allows); set `BaseEnergyCost` in `BalanceSimRunner.cpp` when B-293c tunes. The first nightly fails 19 bands (B-293c).
+
 ### Q-224d — Enemy HP by tier power: where the enemy's tier comes from
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-224b, cloud) · **Blocks:** —
 **Question:** BaselineNumbers' Decided list puts enemy HP "on top of the stat formula and the enemy's tier power, zone and difficulty", but a character asset has no tier. Where does an enemy's tier come from, and does it stack with the zone tier (B-186)?

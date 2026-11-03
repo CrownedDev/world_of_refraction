@@ -402,6 +402,23 @@ struct WORLD_OF_REFRACTION_API FSavedCharacterLoadouts
 	TArray<FSavedCustomLoadout> Loadouts;
 };
 
+/** B-322 (D-117, save v9): one character's pouch. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedPouch
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName Character;
+
+	/** One stack per slot. */
+	UPROPERTY()
+	TArray<FSavedCrystalStack> Stacks;
+
+	UPROPERTY()
+	int32 SlotCount = 0;
+};
+
 /** UPoolSubsystem's owned items. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedPool
@@ -446,11 +463,16 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	UPROPERTY()
 	TArray<FSavedCrystalStack> Crystals;
 
-	/** B-203: the party's carried items, one stack per slot. */
+	/** B-322 (D-117, save v9): each character's pouch. */
+	UPROPERTY()
+	TArray<FSavedPouch> Pouches;
+
+	/** Before v9 (B-203): the party's one pouch, one stack per slot. Read on load (it goes to the party leader at
+	 *  the next draw); written again only while no member has drawn it yet. */
 	UPROPERTY()
 	TArray<FSavedCrystalStack> CarriedItems;
 
-	/** B-203: carried item slots (0 in an older save: the starting count). */
+	/** Before v9: the party pouch's slots (0: the starting count). Read on load; written only with CarriedItems. */
 	UPROPERTY()
 	int32 ItemSlotCount = 0;
 
@@ -464,8 +486,12 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 
 	int32 Num() const
 	{
-		return Gear.Num() + Weapons.Num() + Rings.Num() + Evolutions.Num() + Spells.Num() + Abilities.Num() + Crystals.Num() +
-			   CarriedItems.Num();
+		int32 Carried = CarriedItems.Num();
+		for (const FSavedPouch &Pouch : Pouches)
+		{
+			Carried += Pouch.Stacks.Num();
+		}
+		return Gear.Num() + Weapons.Num() + Rings.Num() + Evolutions.Num() + Spells.Num() + Abilities.Num() + Crystals.Num() + Carried;
 	}
 };
 
