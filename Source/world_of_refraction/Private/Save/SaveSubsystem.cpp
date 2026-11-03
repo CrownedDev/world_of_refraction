@@ -318,7 +318,9 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 	UGameInstance *GI = GetGameInstance();
 	const bool bParty = Data.Party.bHasParty && RestoreParty(Data.Party, *GI->GetSubsystem<UPartySessionSubsystem>());
 	const int32 PoolEntries = RestorePool(Data.Pool, *GI->GetSubsystem<UPoolSubsystem>());
-	GI->GetSubsystem<UCharacterFormSubsystem>()->RestoreProgress(Data.Forms.Progress);
+	UCharacterFormSubsystem *Forms = GI->GetSubsystem<UCharacterFormSubsystem>();
+	Forms->RestoreProgress(Data.Forms.Progress);
+	Forms->RestoreWorn(Data.Forms.WornForm, Data.Forms.BaseForm == static_cast<uint8>(EPlayerBaseForm::Quinn) ? EPlayerBaseForm::Quinn : EPlayerBaseForm::Manny);
 	UE_LOG(LogWoR, Log, TEXT("[Save] Loaded slot '%s' (version %d): party %s, %d pool entries, wallet %s"),
 		   SLOT_NAME, Loaded->GetSavedDataVersion(), bParty ? TEXT("restored") : TEXT("not restored"), PoolEntries,
 		   Data.Wallet.bHasWallet ? TEXT("banked") : TEXT("empty"));
@@ -416,7 +418,10 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 		}
 	}
 	Data.Pool = CapturePool(*GI->GetSubsystem<UPoolSubsystem>());
-	Data.Forms.Progress = GI->GetSubsystem<UCharacterFormSubsystem>()->GetProgressByName();
+	const UCharacterFormSubsystem *Forms = GI->GetSubsystem<UCharacterFormSubsystem>();
+	Data.Forms.Progress = Forms->GetProgressByName();
+	Data.Forms.WornForm = Forms->GetWornFormName();
+	Data.Forms.BaseForm = static_cast<uint8>(Forms->GetBaseForm());
 	if (const UCurrencyComponent *Wallet = FindLocalWallet(World))
 	{
 		BankWallet(Wallet);

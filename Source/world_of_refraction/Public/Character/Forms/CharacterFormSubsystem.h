@@ -12,6 +12,10 @@
 #include "CharacterFormSubsystem.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCharacterFormUnlocked, UCharacterFormData *, Form);
+/** B-279b: the local player's skin changed (Form null: back to the base form, or the base body changed). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWornFormChanged, UCharacterFormData *, Form);
+
+class UCharacterData;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API UCharacterFormSubsystem : public UGameInstanceSubsystem
@@ -47,12 +51,52 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Forms")
     FOnCharacterFormUnlocked OnFormUnlocked;
 
+    // ==================== SKINS (B-279b) ====================
+
+    /** Wear Form's skin (null: back to the base form). Refused when locked, in a fight, or away from the
+     *  hub / a rest spot (CharacterFormSwitch::CanSwitch); None when it was worn. */
+    EFormSwitchRefusal TryWearForm(UCharacterFormData *Form);
+
+    UCharacterFormData *GetWornForm() const { return WornForm; }
+
+    /** Manny or Quinn: the body under no skin. The player's pick; changes where skins do (Q-279b). */
+    EPlayerBaseForm GetBaseForm() const { return BaseForm; }
+    bool TrySetBaseForm(EPlayerBaseForm InBaseForm);
+
+    /** B-187's rest spot sets this while the player is at one (with the hub, a place to switch). */
+    void SetAtRestSpot(bool bInAtRestSpot) { bAtRestSpot = bInAtRestSpot; }
+
+    /** D-033 through a skin: the character whose bound gear Wearer gets the bonus of. The worn skin's
+     *  character when Wearer is the player's own character (the local party's first permanent member),
+     *  else null. // TODO: co-op reads each player's form from their PlayerState (B-228+). */
+    const UCharacterData *GetSkinCharacterFor(const UCharacterData *Wearer) const;
+
+    const TArray<TObjectPtr<UCharacterFormData>> &GetForms() const { return Forms; }
+    UCharacterFormData *FindFormByName(FName FormName) const;
+
+    /** Save / load (USaveSubsystem): the worn form by asset name (None: no skin) and the base body. A form
+     *  no longer known or unlocked loads as no skin. */
+    FName GetWornFormName() const { return WornForm ? WornForm->GetFName() : NAME_None; }
+    void RestoreWorn(FName FormName, EPlayerBaseForm InBaseForm);
+
+    UPROPERTY(BlueprintAssignable, Category = "Forms")
+    FOnWornFormChanged OnWornFormChanged;
+
     /** Debug: every known form with its meter. */
     FString GetFormsString() const;
 
 private:
+    bool IsInFight() const;
+    bool IsAtSwitchSpot() const;
+
     UPROPERTY()
     TArray<TObjectPtr<UCharacterFormData>> Forms;
 
     TMap<FName, float> Progress;
+
+    UPROPERTY()
+    TObjectPtr<UCharacterFormData> WornForm;
+
+    EPlayerBaseForm BaseForm = EPlayerBaseForm::Manny;
+    bool bAtRestSpot = false;
 };

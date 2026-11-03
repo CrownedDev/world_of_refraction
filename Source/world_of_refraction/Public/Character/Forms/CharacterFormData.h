@@ -35,6 +35,33 @@ namespace CharacterFormMeter
     WORLD_OF_REFRACTION_API float GetFightFill(const TArray<FCharacterFormPiece> &Reference, const TArray<FCharacterFormPiece> &Equipped);
 }
 
+/** B-279b: the player's own body when no skin is worn (Design/CharacterForms.md §1: Manny or Quinn). */
+UENUM(BlueprintType)
+enum class EPlayerBaseForm : uint8
+{
+    Manny,
+    Quinn
+};
+
+/** B-279b: why a skin switch was refused (None: it was allowed). */
+UENUM(BlueprintType)
+enum class EFormSwitchRefusal : uint8
+{
+    None,
+    Locked,
+    InFight,
+    NotAtSwitchSpot
+};
+
+namespace CharacterFormSwitch
+{
+    /** Skins switch in the hub and at rest spots, never in a fight (Crown, 2026-10-28), and only to an
+     *  unlocked form. Taking a skin off passes bUnlocked = true. */
+    WORLD_OF_REFRACTION_API EFormSwitchRefusal CanSwitch(bool bUnlocked, bool bInFight, bool bAtSwitchSpot);
+
+    WORLD_OF_REFRACTION_API FText GetRefusalText(EFormSwitchRefusal Refusal);
+}
+
 UCLASS(BlueprintType)
 class WORLD_OF_REFRACTION_API UCharacterFormData : public UPrimaryDataAsset
 {
@@ -66,6 +93,9 @@ public:
 
     /** The reference pieces from Character's inventory asset; empty without one. */
     TArray<FCharacterFormPiece> GetReferencePieces() const;
+
+    /** B-279b: the full reference loadout, one line per piece; what an unlock reveals. */
+    FText GetRevealedLoadoutText() const;
 
     /** Debug: name, character and reference pieces. */
     FString GetFormString() const;
