@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "Combat/Elements/ElementTable.h"
 #include "ESkillEffectType.generated.h"
 
 /**
@@ -294,20 +295,7 @@ namespace SkillEffectClassification
      *  Immunity.Element.<element> row of WoRTags::EffectTypeToTag). None for Generic / None: no element to block. */
     inline ESkillEffectType GetElementImmunityType(ESpellElement Element)
     {
-        switch (Element)
-        {
-        case ESpellElement::Fire:      return ESkillEffectType::GrantFireImmunity;
-        case ESpellElement::Water:     return ESkillEffectType::GrantWaterImmunity;
-        case ESpellElement::Earth:     return ESkillEffectType::GrantEarthImmunity;
-        case ESpellElement::Wind:      return ESkillEffectType::GrantWindImmunity;
-        case ESpellElement::Light:     return ESkillEffectType::GrantLightImmunity;
-        case ESpellElement::Darkness:  return ESkillEffectType::GrantDarknessImmunity;
-        case ESpellElement::Lightning: return ESkillEffectType::GrantLightningImmunity;
-        case ESpellElement::Void:      return ESkillEffectType::GrantVoidImmunity;
-        case ESpellElement::Reality:   return ESkillEffectType::GrantRealityImmunity;
-        default:
-            return ESkillEffectType::None;
-        }
+        return ElementTable::ForElement(Element).Immunity;
     }
 
     /** B-268 / Q-268: legacy types nothing reads and nothing equals; an authored one does nothing (validation warns). */

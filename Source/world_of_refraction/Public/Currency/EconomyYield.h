@@ -16,6 +16,7 @@
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Combat/Actions/ActionStatModifiers.h"
+#include "Combat/Elements/ElementTable.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Skills/Definitions/EScalingTier.h"
 
@@ -355,21 +356,7 @@ namespace EconomyYield
      *  Generic (Quartz's element is None; EEssenceType::Generic == "Quartz's element"). */
     inline EEssenceType ElementToEssenceType(ESpellElement Element)
     {
-        switch (Element)
-        {
-        case ESpellElement::Fire:      return EEssenceType::Fire;
-        case ESpellElement::Water:     return EEssenceType::Water;
-        case ESpellElement::Lightning: return EEssenceType::Lightning;
-        case ESpellElement::Wind:      return EEssenceType::Wind;
-        case ESpellElement::Earth:     return EEssenceType::Earth;
-        case ESpellElement::Light:     return EEssenceType::Light;
-        case ESpellElement::Darkness:  return EEssenceType::Darkness;
-        case ESpellElement::Void:      return EEssenceType::Void;
-        case ESpellElement::Reality:   return EEssenceType::Reality;
-        case ESpellElement::Generic:
-        case ESpellElement::None:
-        default:                       return EEssenceType::Generic;
-        }
+        return ElementTable::ForElement(Element).Essence;
     }
 
     /** Which typed essence a crystal/stone yields when dismantled. Gems → element essence;
