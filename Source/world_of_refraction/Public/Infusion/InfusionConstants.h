@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 namespace InfusionConstants
 {
 
@@ -70,10 +72,9 @@ namespace InfusionConstants
 	constexpr float SPELL_L2_SIZE_MULT = 2.00f;
 
 	// ==================== ENERGY COST MULTIPLIERS ====================
-	// Ability and spell now share the same charge tax: L1 = half-again (x1.5,
-	// +50%), L2 = double (x2.0, +100%). Kept as separate named constants —
-	// ability-energy and spell-energy are conceptually distinct cost axes even
-	// at equal values; do not merge.
+	// OBSOLETE (B-334, D-126; delete in the D-124 sweep): the x1.5 / x2.0 charge tax. Infusion EP is now
+	// the base x the charge level (ChargeLevelCostMultiplier below). Read only by the obsolete
+	// UActionExecutor::GetSpellInfusionCostMultiplier / GetAbilityChargeCostMultiplier.
 
 	/** L1: Energy cost multiplier (1.5x, +50%) */
 	constexpr float L1_ENERGY_MULT = 1.5f;
@@ -86,4 +87,26 @@ namespace InfusionConstants
 
 	/** L2 Spell: Energy cost multiplier (2.0x, +100%) */
 	constexpr float SPELL_L2_ENERGY_MULT = 2.0f;
+
+	// ==================== CHARGE COSTS (D-126) ====================
+	// B-334 (D-126, Q-334): the infusion source choice stays; the EP cost is the base x the charge level
+	// (L0 and L1 x1, L2 x2), and the HP cost (Raw, Innate spell, Evolution sources) applies only at L2.
+
+	/** The cost multiplier with no charge: the action pays its base EP. */
+	constexpr float UNCHARGED_COST_MULTIPLIER = 1.0f;
+
+	/** The lowest charge level that pays the HP cost. */
+	constexpr int32 HP_COST_MIN_LEVEL = 2;
+
+	/** EP multiplier for a charge level: the level itself (clamped to MAX_INFUSION_LEVEL), x1 with no charge. */
+	inline float ChargeLevelCostMultiplier(int32 Level)
+	{
+		return Level <= 0 ? UNCHARGED_COST_MULTIPLIER : static_cast<float>(FMath::Min(Level, MAX_INFUSION_LEVEL));
+	}
+
+	/** True when an infusion at this level pays the HP cost (D-126: level 2 only). */
+	inline bool LevelPaysHP(int32 Level)
+	{
+		return Level >= HP_COST_MIN_LEVEL;
+	}
 }
