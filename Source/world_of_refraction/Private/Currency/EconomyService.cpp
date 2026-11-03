@@ -671,9 +671,12 @@ bool UEconomyService::DismantleEvolution(AActor *Owner, FGuid InstanceID)
         return false;
     }
     const EItemTier Tier = Entry->Tier; // INSTANCE tier (leveled), not Entry->Item->Tier (asset/base)
-    // HYBRID yield: Elemental Essence (B-333, D-125; any evolution, Quartz folded in) at the GEAR
-    // leveling AMOUNT (§3 gear curve, NOT the §4.2 crystal yield).
+    // HYBRID yield at the GEAR leveling AMOUNT (§3 gear curve, NOT the §4.2 crystal yield): Elemental
+    // Essence for an evolution with an element (B-333, Q-333), Gear Essence for an element-agnostic one.
     const int32 Yield = EconomyYield::GetLevelingEssenceYieldForTier(Tier);
+    const ECurrencyType Essence = EconomyYield::HasElement(Entry->Item->GetAssociatedElement())
+                                      ? ECurrencyType::ElementalEssence
+                                      : ECurrencyType::GearEssence;
 
     // REMOVE FIRST — a failed removal must never grant phantom essence.
     if (!Inv->RemoveEvolutionInstance(InstanceID))
@@ -683,9 +686,10 @@ bool UEconomyService::DismantleEvolution(AActor *Owner, FGuid InstanceID)
         return false;
     }
 
-    Currency->Add(ECurrencyType::ElementalEssence, Yield); // hybrid: Elemental, gear amount
-    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Dismantled evolution (GUID %s, tier %d) -> %d Elemental essence"),
-           *InstanceID.ToString(), static_cast<int32>(Tier), Yield);
+    Currency->Add(Essence, Yield); // hybrid: Elemental (or Gear), gear amount
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Dismantled evolution (GUID %s, tier %d) -> %d %s"),
+           *InstanceID.ToString(), static_cast<int32>(Tier), Yield,
+           *StaticEnum<ECurrencyType>()->GetAuthoredNameStringByValue(static_cast<int64>(Essence)));
     return true;
 }
 
@@ -949,9 +953,13 @@ FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &
             // HERE, not in a shared helper, so a future merge-cost reuse of the tier
             // base can't accidentally double it.
             Cost.Prisms += 2 * EconomyYield::GetPrismsBaseForTier(Ev->Tier);
-            // B-333 (Q-333): Elemental at tier + the ½ co-cost (was ½ Reality), mirroring leveling.
-            const int32 ElementAmount = EconomyYield::GetTypedEssencePurchaseCostForTier(Ev->Tier);
-            Cost.ElementalEssence += ElementAmount + EconomyYield::GetElementalCoCost(ElementAmount);
+            // B-333 (Q-333): an evolution with an element adds Elemental at tier + the ½ co-cost (was
+            // ½ Reality), mirroring leveling; an element-agnostic one is Prisms only.
+            if (EconomyYield::HasElement(Ev->GetAssociatedElement()))
+            {
+                const int32 ElementAmount = EconomyYield::GetTypedEssencePurchaseCostForTier(Ev->Tier);
+                Cost.ElementalEssence += ElementAmount + EconomyYield::GetElementalCoCost(ElementAmount);
+            }
         }
         // Unknown asset types price at 0 — Purchase rejects them separately.
     }
@@ -1446,8 +1454,9 @@ bool UEconomyService::LevelUpEvolution(AActor *Owner, FGuid InstanceID)
         return false;
     }
 
-    // B-333 (Q-333): an evolution has an element, so it also pays the ½ Elemental co-cost.
-    if (!TryLevelUpEntry(Currency, Entry->Tier, ECurrencyType::GearEssence, true))
+    // B-333 (Q-333): an evolution with an element also pays the ½ Elemental co-cost.
+    if (!TryLevelUpEntry(Currency, Entry->Tier, ECurrencyType::GearEssence,
+                         EconomyYield::HasElement(Entry->Item->GetAssociatedElement())))
     {
         return false;
     }

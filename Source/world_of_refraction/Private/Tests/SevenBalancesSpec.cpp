@@ -152,6 +152,17 @@ void FSevenBalancesSpec::Define()
 		TestEqual(TEXT("Evolution: no typed essence (obsolete)"), Cost.Typed.Num(), 0);
 	});
 
+	It("prices an element-agnostic (Quartz) evolution in Prisms only (Q-333)", [this]()
+	{
+		if (!Economy) return;
+		UEvolutionItemData *Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+		Evolution->Tier = SEVEN_BALANCES_TIER;
+		Evolution->CrystalType = ECrystalType::Quartz; // Quartz carries no element
+		const FPurchaseCost Cost = CostOfAsset(Evolution);
+		TestEqual(TEXT("No Elemental"), Cost.ElementalEssence, 0);
+		TestTrue(TEXT("Still costs Prisms"), Cost.Prisms > 0);
+	});
+
 	It("pays a dismantled stat stone in Pillar essence", [this]()
 	{
 		if (!Economy) return;

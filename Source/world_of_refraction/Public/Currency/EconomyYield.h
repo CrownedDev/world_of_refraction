@@ -393,7 +393,8 @@ namespace EconomyYield
     // ── B-333 (D-125): the seven balances ──────────────────────────────────────────────
 
     /** The essence a crystal or stone is bought with and dismantles into: a gem (Quartz too — it
-     *  folds into Elemental) Elemental, an ability stone Skill, any other (stat) stone Pillar. */
+     *  folds into Elemental) Elemental, an ability stone Skill, any other (stat) stone Pillar.
+     *  None / an unclassified type → Elemental + a warning (a real crystal always classifies). */
     inline ECurrencyType GetCrystalEssence(ECrystalType Type)
     {
         if (Type == ECrystalType::AbilityStone)
@@ -404,13 +405,25 @@ namespace EconomyYield
         {
             return ECurrencyType::PillarEssence;
         }
+        if (!CrystalTypeHelpers::IsGemType(Type))
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("[EconomyYield] GetCrystalEssence: unclassified crystal type %d — defaulting to Elemental essence"),
+                   static_cast<int32>(Type));
+        }
         return ECurrencyType::ElementalEssence;
     }
 
-    /** A spell has an element unless it is None. Generic takes the caster's element, so it counts. */
-    inline bool SpellHasElement(ESpellElement Element)
+    /** An item has an element unless it is None. Generic takes the caster's element, so it counts. */
+    inline bool HasElement(ESpellElement Element)
     {
         return Element != ESpellElement::None;
+    }
+
+    /** A spell has an element unless it is None (see HasElement). */
+    inline bool SpellHasElement(ESpellElement Element)
+    {
+        return HasElement(Element);
     }
 
     /** The Elemental co-cost on upgrading an item with an element, from the step's Gear / Skill cost. */
