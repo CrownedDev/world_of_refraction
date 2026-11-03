@@ -245,35 +245,35 @@ TArray<FSkillEffect> UEquipmentDataBase::GetConditionalEffects() const
     return EffectBundles::Flatten(ReferencedEffects, /*bConditional=*/true);
 }
 
-TArray<FGatheredEffect> UEquipmentDataBase::GetStartingEffectsGathered(const UCharacterData *Wearer) const
+TArray<FGatheredEffect> UEquipmentDataBase::GetStartingEffectsGathered(const UCharacterData *Wearer, const UCharacterData *WornSkin) const
 {
     // The item is the source of its effects (D-053): another item with the same definition adds its own.
     const int32 ItemSourceKey = EffectIdentity::MakeSourceKey(GetUniqueID(), GetName());
     // B-192: the bound bonus joins the item's own effects only on its owner (D-033).
     TArray<TObjectPtr<UEffectDefinition>> Defs = ReferencedEffects;
-    if (IsBoundBonusActive(Wearer))
+    if (IsBoundBonusActive(Wearer, WornSkin))
     {
         Defs.Append(BoundEffects);
     }
     return EffectBundles::GatherWithIds(Defs, /*bConditional=*/false, ItemSourceKey);
 }
 
-TArray<FGatheredEffect> UEquipmentDataBase::GetConditionalEffectsGathered(const UCharacterData *Wearer) const
+TArray<FGatheredEffect> UEquipmentDataBase::GetConditionalEffectsGathered(const UCharacterData *Wearer, const UCharacterData *WornSkin) const
 {
     // The item is the source of its effects (D-053): another item with the same definition adds its own.
     const int32 ItemSourceKey = EffectIdentity::MakeSourceKey(GetUniqueID(), GetName());
     // B-192: the bound bonus joins the item's own effects only on its owner (D-033).
     TArray<TObjectPtr<UEffectDefinition>> Defs = ReferencedEffects;
-    if (IsBoundBonusActive(Wearer))
+    if (IsBoundBonusActive(Wearer, WornSkin))
     {
         Defs.Append(BoundEffects);
     }
     return EffectBundles::GatherWithIds(Defs, /*bConditional=*/true, ItemSourceKey);
 }
 
-bool UEquipmentDataBase::IsBoundBonusActive(const UCharacterData *Wearer) const
+bool UEquipmentDataBase::IsBoundBonusActive(const UCharacterData *Wearer, const UCharacterData *WornSkin) const
 {
-    return BoundOwner && Wearer == BoundOwner;
+    return BoundOwner && (Wearer == BoundOwner || WornSkin == BoundOwner);
 }
 
 FText UEquipmentDataBase::GetBoundBonusText(const UCharacterData *Wearer) const
