@@ -577,8 +577,17 @@ bool UEconomyService::ResolveDuplicate(AActor *Owner, FGuid WeakerID, bool bConv
         return false;
     }
     const FDuplicateGearPair Chosen = *Pair;
-    // The kept copy takes the weaker one's place, so a primary is never left empty (D-116).
-    Inv->MoveLoadoutSlots(Chosen.WeakerID, Chosen.KeptID);
+    // The kept copy takes the weaker one's place, so a primary is never left empty (D-116). The move
+    // stands even if the removal below fails: the kept copy is a valid piece.
+    const bool bActiveHeldWeaker = Inv->GetLoadoutsUsing(Chosen.WeakerID).Contains(Inv->ActiveLoadoutIndex);
+    if (Inv->MoveLoadoutSlots(Chosen.WeakerID, Chosen.KeptID) > 0 && bActiveHeldWeaker)
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            Loadout->OnLoadoutChanged.Broadcast(Inv->ActiveLoadoutIndex);
+            Loadout->NotifyActiveWeaponChanged(); // the move edits SavedLoadouts directly (B-138)
+        }
+    }
     if (bConvertToGold)
     {
         return Chosen.bRing ? ConvertOwnedGearToGold<FRingInventoryEntry>(Owner, *Inv, *Currency, Chosen.WeakerID)
@@ -1179,7 +1188,9 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
             {
                 if (Inv->AddWeapon(W))
                 {
-                    Undo.Add([Inv]() { Inv->RemoveWeapon(Inv->GetWeaponCount() - 1); });
+                    // By instance, not last index: a duplicate listener may have reordered the list (B-319).
+                    const FGuid AddedID = Inv->Weapons.Last().PersistentID;
+                    Undo.Add([Inv, AddedID]() { Inv->RemoveWeaponByPersistentID(AddedID); });
                 }
                 else
                 {
@@ -1195,7 +1206,8 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
             {
                 if (Inv->AddRing(R))
                 {
-                    Undo.Add([Inv]() { Inv->RemoveRing(Inv->GetRingCount() - 1); });
+                    const FGuid AddedID = Inv->Rings.Last().PersistentID;
+                    Undo.Add([Inv, AddedID]() { Inv->RemoveRingByPersistentID(AddedID); });
                 }
                 else
                 {

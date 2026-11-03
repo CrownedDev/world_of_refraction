@@ -1583,7 +1583,9 @@ int32 UInventoryComponent::MoveLoadoutSlots(const FGuid &From, const FGuid &To)
         ForEachGearSlot(Loadout,
                         [&To, &bHoldsTo](const FWeaponInventoryEntry &Slot) { bHoldsTo |= Slot.PersistentID == To; },
                         [&To, &bHoldsTo](const FRingInventoryEntry &Slot) { bHoldsTo |= Slot.PersistentID == To; });
-        const bool bFromIsPrimary = Loadout.PrimaryWeapon.WeaponEntry.PersistentID == From || Loadout.PrimaryRing.RingEntry.PersistentID == From;
+        const bool bWeaponPrimary = Loadout.PrimarySlotType == EPrimarySlotType::Weapon || Loadout.PrimarySlotType == EPrimarySlotType::None;
+        const bool bFromIsPrimary = (bWeaponPrimary && Loadout.PrimaryWeapon.WeaponEntry.PersistentID == From) ||
+                                    (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.RingEntry.PersistentID == From);
         if (bHoldsTo && !bFromIsPrimary)
         {
             continue; // the kept copy is already in this loadout; From's slot empties when it goes

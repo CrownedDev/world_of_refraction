@@ -77,7 +77,7 @@ namespace DuplicateGearBuild
 	/** "Name (C-Tier, B-Quality)" for an owned weapon or ring, or empty when it is gone. */
 	FText DescribeCopy(const UInventoryComponent &Inv, const FGuid &ID, bool bRing)
 	{
-		// TODO: gear names are FString assets; FText with B-127 (D-061).
+		// TODO: gear and tier names are FStrings; FText with B-127 (D-061).
 		const auto Describe = [](const FString &Name, EItemTier Tier, EItemQuality Quality)
 		{
 			return FText::Format(LOCTEXT("Copy", "{0} ({1}, {2})"), FText::FromString(Name), FText::FromString(TierHelpers::GetTierName(Tier)),
@@ -147,6 +147,10 @@ void UDuplicateGearWidget::NativeConstruct()
 
 void UDuplicateGearWidget::Refresh()
 {
+	if (!PairText || !StatusLine || !GoldButton || !DismantleButton)
+	{
+		return; // not built yet: NativeConstruct refreshes
+	}
 	const UInventoryComponent *Inv = DuplicateGearBuild::InventoryOf(this);
 	const TArray<FDuplicateGearPair> Pairs = Inv ? Inv->FindDuplicateGear() : TArray<FDuplicateGearPair>();
 	SelectedIndex = Pairs.IsEmpty() ? 0 : FMath::Clamp(SelectedIndex, 0, Pairs.Num() - 1);
@@ -170,7 +174,7 @@ void UDuplicateGearWidget::Refresh()
 
 FString UDuplicateGearWidget::GetDuplicateString() const
 {
-	FString Out = TEXT("[Duplicates] ") + PairText->GetText().ToString();
+	FString Out = TEXT("[Duplicates] ") + (PairText ? PairText->GetText().ToString() : FString(TEXT("<not built>")));
 	if (!StatusText.IsEmpty())
 	{
 		Out += TEXT("\n  ") + StatusText.ToString();
