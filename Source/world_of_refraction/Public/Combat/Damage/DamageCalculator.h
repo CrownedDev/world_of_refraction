@@ -283,6 +283,10 @@ private:
 	 *  physical-only RawDamageBuff/Debuff term (Spell actions skip it). */
 	float GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType) const;
 
+	/** The defender's share of that modifier from whole-number percents: (1 - Damage Taken Down, capped at
+	 *  DAMAGE_TAKEN_DOWN_CAP_PERCENT) x (1 + Damage Taken Up, uncapped). Pure, so a spec can pin the cap (B-288). */
+	static float GetDamageTakenFactor(float ReduceDamageTakenPercent, float IncreaseDamageTakenPercent);
+
 	/** Attacker's EFFECTIVE (composed, crystal-aware) value for an arbitrary substat, used by the
 	 *  per-skill scaling-tier term. RawDamage/SpellDamage map to the SAME GetEvolutionModified* getters
 	 *  the baseline AttackerMult uses (so the tier term is consistent with the baseline). Returns 0 for

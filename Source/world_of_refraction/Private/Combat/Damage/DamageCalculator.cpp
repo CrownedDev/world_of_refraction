@@ -516,15 +516,19 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 		// ModifyDamageTaken magnitude redirects to ReduceDamageTaken by name but
 		// keeps the old sign — a negative reduction reads as zero/negative here.
 		// Re-author those magnitudes as positive percent values.
-		float Reduction = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::ReduceDamageTaken);
-		float Increase = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::IncreaseDamageTaken);
-		// Reduction capped at 90%, increase uncapped
-		Reduction = FMath::Min(Reduction, 90.0f);
-		Modifier *= (1.0f - Reduction / CombatConstants::STAT_PERCENT_DIVISOR);
-		Modifier *= (1.0f + Increase / CombatConstants::STAT_PERCENT_DIVISOR);
+		const float Reduction = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::ReduceDamageTaken);
+		const float Increase = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::IncreaseDamageTaken);
+		Modifier *= GetDamageTakenFactor(Reduction, Increase);
 	}
 
 	return FMath::Max(0.0f, Modifier);
+}
+
+float UDamageCalculator::GetDamageTakenFactor(float ReduceDamageTakenPercent, float IncreaseDamageTakenPercent)
+{
+	// Damage Taken Down is capped (ED-17); Damage Taken Up is not.
+	const float Reduction = FMath::Min(ReduceDamageTakenPercent, CombatConstants::DAMAGE_TAKEN_DOWN_CAP_PERCENT);
+	return (1.0f - Reduction / CombatConstants::STAT_PERCENT_DIVISOR) * (1.0f + IncreaseDamageTakenPercent / CombatConstants::STAT_PERCENT_DIVISOR);
 }
 
 UCombatGridSubsystem *UDamageCalculator::GetCombatGridSubsystem() const
