@@ -472,8 +472,29 @@ void UInventoryComponent::BeginPlay()
     Super::BeginPlay();
 }
 
+void UInventoryComponent::PushCustomLoadoutsToPool()
+{
+    UPoolSubsystem *Pool = SharedPool.Get();
+    if (!Pool || !bKeepsCustomLoadouts)
+    {
+        return;
+    }
+    const UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    const ECharacterClass Class = CharComp && CharComp->CharacterData ? CharComp->CharacterData->CharacterClass : ECharacterClass::Generic;
+    TArray<FSavedLoadout> Custom;
+    for (const FCombatLoadout &Loadout : SavedLoadouts)
+    {
+        if (!Loadout.bLore)
+        {
+            Custom.Add(Loadout.ToSavedLoadout(Class));
+        }
+    }
+    Pool->SetCustomLoadouts(SharedGearKey, Custom);
+}
+
 void UInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    PushCustomLoadoutsToPool();
     if (UPoolSubsystem *Pool = SharedPool.Get())
     {
         Pool->OnPoolGearChanged.RemoveDynamic(this, &UInventoryComponent::HandlePoolGearChanged);
@@ -1367,6 +1388,16 @@ bool UInventoryComponent::DrawSharedGear()
         SavedLoadouts = {InventoryGearSync::MakeRunPreset(*RunMember, CharComp->CharacterData->CharacterClass, Authored, Weapons, Rings)};
         ActiveLoadoutIndex = 0;
     }
+    else if (const TArray<FSavedLoadout> *Custom = bKeepsCustomLoadouts ? nullptr : Pool->GetCustomLoadouts(Key))
+    {
+        // B-311 (D-111): the player's own loadouts after the lore ones; a piece that's gone leaves its slot empty
+        // (StripUnownedGear below).
+        for (const FSavedLoadout &Saved : *Custom)
+        {
+            SavedLoadouts.Add(FCombatLoadout::CreateFromSavedLoadout(Saved, this, EvoInv));
+        }
+    }
+    bKeepsCustomLoadouts = !bRunOnly;
 
     LinkLoadoutsToOwned();
     const int32 Stripped = StripUnownedGear();
@@ -2303,7 +2334,7 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
         GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
     for (const FSavedLoadout &SavedLoadout : InventoryAsset->SavedLoadouts)
     {
-        SavedLoadouts.Add(FCombatLoadout::CreateFromSavedLoadout(SavedLoadout, this, OwnedEvolutions));
+        SavedLoadouts.Add_GetRef(FCombatLoadout::CreateFromSavedLoadout(SavedLoadout, this, OwnedEvolutions)).bLore = true;
     }
 
     // Active index — clamp to valid range. Empty SavedLoadouts is soft-fail
@@ -2417,7 +2448,7 @@ void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)
     {
         for (const FSavedLoadout &SavedLoadout : InventoryAsset->SavedLoadouts)
         {
-            SavedLoadouts.Add(FCombatLoadout::CreateFromSavedLoadout(SavedLoadout, this, EvolutionInv));
+            SavedLoadouts.Add_GetRef(FCombatLoadout::CreateFromSavedLoadout(SavedLoadout, this, EvolutionInv)).bLore = true;
         }
         ActiveLoadoutIndex = SavedLoadouts.Num() > 0
             ? FMath::Clamp(InventoryAsset->DefaultActiveLoadoutIndex, 0, SavedLoadouts.Num() - 1)
