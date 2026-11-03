@@ -12,10 +12,9 @@ namespace
 	TArray<FElementRow> BuildRows()
 	{
 		// Built on first use, so every colour below is already initialised.
-		/** Physical damage reads white (B-105). */
-		const FLinearColor PHYSICAL_COLOUR = FLinearColor::White;
-		/** Ice has no colour of its own yet; it is keyed Water (D-029). // TODO: an Ice colour (palette follow-up) */
-		const FLinearColor ICE_COLOUR = ElementColors::Water;
+		/** Physical damage reads white (Q-111); Ice has its own pale colour (D-106). */
+		const FLinearColor PHYSICAL_COLOUR = ElementColors::Physical;
+		const FLinearColor ICE_COLOUR = ElementColors::Ice;
 
 		using T = EWoRDamageType;
 		using E = ESpellElement;
