@@ -11,6 +11,7 @@
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "Misc/Paths.h"
 #include "Merchant/MerchantInteractable.h"
 #include "Merchant/MerchantStockRoll.h"
 #include "Party/PartySessionSubsystem.h"

@@ -51,8 +51,15 @@ UTrialRunSubsystem *UCharacterDataComponent::FindRunLevelStore(FName &OutKey) co
     {
         return nullptr;
     }
+    // Outside a run (the hub, a debug fight) levels stay on the component only; EnterTrial would wipe them anyway.
+    // TODO: co-op (D-103): a client has no run state here, so its seed leaves out the run's levels.
+    UTrialRunSubsystem *Run = GI->GetSubsystem<UTrialRunSubsystem>();
+    if (!Run || !Run->IsRunActive())
+    {
+        return nullptr;
+    }
     OutKey = UPoolSubsystem::GetCharacterKey(CharacterData);
-    return GI->GetSubsystem<UTrialRunSubsystem>();
+    return Run;
 }
 
 void UCharacterDataComponent::BeginPlay()

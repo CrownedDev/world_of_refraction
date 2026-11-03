@@ -81,7 +81,7 @@ int32 WoRLevelDrops::GetLiveLevel(const UWorld *World, const UCharacterData *Mem
 FText WoRLevelDrops::TryPlaceLevel(UWorld *World, UCharacterData *Member, EWorldPillar Pillar)
 {
 	UTrialRunSubsystem *Run = LevelDropRun(World);
-	if (!Run || !Member)
+	if (!Run || !Run->IsRunActive() || !Member)
 	{
 		return LOCTEXT("NoRun", "No run to place a level in");
 	}
