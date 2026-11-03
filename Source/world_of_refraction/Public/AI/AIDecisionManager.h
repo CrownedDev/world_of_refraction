@@ -213,7 +213,8 @@ private:
 
     /** B-259: one decision's estimates, keyed by what EstimateActionDamage reads from the action
      *  (attacker, target, skill, type, infusion level, infusion source, spell source). Used only
-     *  while bEstimateMemoActive (one BuildAction), emptied after, so nothing outlives a decision. */
+     *  while bEstimateMemoActive (one BuildAction), emptied after, so nothing outlives a decision
+     *  (per-call scratch, not per-fight state, D-064). */
     using FEstimateKey = TTuple<const AActor *, const AActor *, const USkillDataBase *, uint8, int32, uint8, uint8>;
     mutable TMap<FEstimateKey, int32> EstimateMemo;
     bool bEstimateMemoActive = false;
