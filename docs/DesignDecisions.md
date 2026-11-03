@@ -3009,3 +3009,12 @@ Moved here once applied. Newest first.
 **Recommendation:** as built. Final Fantasy X-2 / Dragon Quest guest members borrow from the party's stock and leave nothing behind; a temporary member owning gear would lose it when they leave. The leader is the player's own character, the natural default holder (Dragon Quest's bag).
 **Notes for Claude:** applied in B-321. B-323's give can move a piece to anyone; if Crown wants the recruit to own its pickups, drop the `bDrawsWholeArmoury` branch in `PushGearToPool`.
 
+### Q-322b — Pouch details D-117 / Q-322 left open
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-322, cloud) · **Blocks:** —
+**Question:** Three details of the pouch per character: (1) where a save from before B-322 puts the party's one pouch and any slots bought for it; (2) where an item added with no character (an enemy's drop into the pool, a debug add) goes; (3) whether a run-only recruit has a pouch.
+**Context:** `Private/Pool/PoolSubsystem.cpp` (`AdoptLegacyCarriedItems`, `CarryOrStore` with `NAME_None`); `Private/Inventory/InventoryComponent.cpp` (`DrawSharedGear`, `InitializeFromPool`); B-321 sent an old save's unowned gear to the leader the same way (Q-321).
+**Options / as built:** (1) **the party leader's pouch**, with the bought slots (B-321's rule for gear); (2) **straight to the shared storage**; (3) **yes, 10 slots** (a run-only recruit carries items like anyone; its pouch is lost with it at run end, as its gear is).
+**Recommendation:** as built. Baldur's Gate 3 gives every companion, temporary ones too, a full inventory; what the party owned before goes to the character the player controls.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-322. If (3) should be "no pouch", bind run-only recruits to the leader's pouch instead.
+

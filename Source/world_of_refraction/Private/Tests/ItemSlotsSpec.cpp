@@ -299,10 +299,14 @@ void FItemSlotsSpec::Define()
 		USaveSubsystem::RestorePool(Saved, *Pool);
 		TestTrue(TEXT("Kept aside"), Pool->HasLegacyCarriedItems());
 		TestEqual(TEXT("No pouch yet"), Pool->GetPouches().Num(), 0);
+		const FSavedPool Again = USaveSubsystem::CapturePool(*Pool);
+		TestEqual(TEXT("Saved again as it was until a draw"), Again.CarriedItems.Num(), 1);
+		TestEqual(TEXT("With its slots"), Again.ItemSlotCount, LEGACY_BOUGHT_SLOTS);
 		TestEqual(TEXT("Adopted by the leader"), Pool->AdoptLegacyCarriedItems(KeyOf(0)), 1);
 		TestEqual(TEXT("The leader carries it"), Pool->GetCarriedCount(KeyOf(0), ItemSlotsType(0)), LEGACY_STACK_COUNT);
 		TestEqual(TEXT("With the bought slots"), Pool->GetItemSlotCount(KeyOf(0)), LEGACY_BOUGHT_SLOTS);
 		TestEqual(TEXT("Adopting twice does nothing"), Pool->AdoptLegacyCarriedItems(KeyOf(0)), 0);
+		TestEqual(TEXT("Once adopted it is no longer written"), USaveSubsystem::CapturePool(*Pool).CarriedItems.Num(), 0);
 	});
 }
 
