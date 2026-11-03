@@ -25,7 +25,7 @@ struct FBalanceTargetResult
 	FString ToString() const
 	{
 		return FString::Printf(TEXT("%s %s: %.2f in [%.2f, %.2f] %s%s"), *MatchupId.ToString(), *Target, Value, Min, Max,
-							   Passed() ? TEXT("ok") : (bError ? TEXT("FAIL") : TEXT("warn")), bError ? TEXT("") : TEXT(" (warn only)"));
+							   Passed() ? TEXT("ok") : (bError ? TEXT("FAIL") : TEXT("warn")), TEXT(""));
 	}
 };
 

@@ -254,6 +254,12 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 	Data->MaxHealth = Archetype.MaxHealth;
 	Data->Luck = Archetype.Luck;
 	Data->SpellDamage = Archetype.SpellDamage;
+	// A Caster casts its own element (BalanceSimulator.md §4: "Caster (Fire)"); left Generic, combat start clears
+	// its innate spell as not castable.
+	if (Archetype.Class == ECharacterClass::Caster)
+	{
+		Data->InnateElement = Archetype.SpellElement;
+	}
 
 	// Montage-less skills: with the instant-impacts seam each hit lands at once, defended.
 	UAbilityData *Attack = NewObject<UAbilityData>(GetTransientPackage());
@@ -293,6 +299,9 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 	if (Actor)
 	{
 		FightActors.Add(Actor);
+		// B-293: the ability system, turn tracker and effect mirror an ACombatCharacter has; without them every GAS
+		// read falls back to the enum path and the parity check would compare the enum path with itself.
+		FWoRTestWorld::AddEffectMirror(Actor);
 	}
 	UInventoryComponent *Inventory = Actor ? Actor->FindComponentByClass<UInventoryComponent>() : nullptr;
 	if (!Inventory || !Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))

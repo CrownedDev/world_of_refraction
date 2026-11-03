@@ -114,7 +114,8 @@ namespace BalanceSimReport
 			{
 				Out.Add(Target(Id, TEXT("win rate vs normal at Medium"), A.PartyWinRate, NORMAL_WIN_MIN, NORMAL_WIN_MAX, true));
 				const float Example = StartsWith(Id, TEXT("Early-")) ? EXAMPLE_HIT_EARLY : StartsWith(Id, TEXT("Mid-")) ? EXAMPLE_HIT_MID : EXAMPLE_HIT_LATE;
-				Out.Add(Target(Id, TEXT("uncrit party hit median vs the worked example"), A.MedianUncritHit,
+				// Every party hit (attacks, abilities, spells), not basic attacks alone: a rough guide only.
+				Out.Add(Target(Id, TEXT("uncrit party hit median (all skills) vs the worked example's basic attack"), A.MedianUncritHit,
 							   Example * (1.0f - EXAMPLE_HIT_TOLERANCE), Example * (1.0f + EXAMPLE_HIT_TOLERANCE), false));
 			}
 			break;

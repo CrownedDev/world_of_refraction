@@ -23,6 +23,8 @@ namespace
 	constexpr int32 BALANCE_PARITY_BASE_SEED = 29350;
 	/** Seeds per matchup the parity check replays on both paths. */
 	constexpr int32 BALANCE_PARITY_SEEDS = 2;
+	/** A run writes a .csv, a .json and a .md. */
+	constexpr int32 BALANCE_REPORT_FILES = 3;
 
 	/** The preset named on the command line, else quick. */
 	FName BalancePresetFromCommandLine()
@@ -70,7 +72,7 @@ void FBalanceTargetsSpec::Define()
 		TArray<FBalanceAggregate> Aggregates;
 		TArray<FBalanceTargetResult> Results;
 		const TArray<FString> Paths = BalanceSimReport::WriteReport(Preset, Matchups, Records, Aggregates, Results);
-		TestEqual(TEXT("three report files written"), Paths.Num(), 3);
+		TestEqual(TEXT("three report files written"), Paths.Num(), BALANCE_REPORT_FILES);
 		for (const FString &Path : Paths)
 		{
 			AddInfo(TEXT("wrote ") + Path);
@@ -131,7 +133,7 @@ void FBalanceGASParitySpec::Define()
 				Runner->SetUseGAS(true);
 				const FBalanceFightRecord GAS = Runner->RunFight(Matchup, Seed);
 				TestTrue(TEXT("the GAS record says so"), GAS.bGAS);
-				TestNotEqual(Enum.ToString(), Enum.Outcome, EBalanceFightOutcome::Stalled);
+				TestNotEqual(*Enum.ToString(), Enum.Outcome, EBalanceFightOutcome::Stalled);
 				if (!(Enum == GAS))
 				{
 					++Differences;
