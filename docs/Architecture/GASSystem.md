@@ -156,6 +156,8 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 - B-042ye: the AI resyncs the mirror per DOT preview and per `GetDebuffCount` (cheap when nothing changed,
   but per candidate x target); `wor.CompareEffects` doesn't show the held list beside the stored one yet.
 
+- B-318: the held-effects snapshot (`UWoREffectMirrorComponent::HeldSnapshot`) is refreshed by the mirror's syncs; a GE that GAS ends without an effect-manager event (outside the holder-turn start, which `ReleaseEndedCopies` covers) shows on guests only from the next sync. Each entry sends the whole `FActiveSkillEffect` (names, conditions); a slim replicated struct can come later if bandwidth asks.
+
 ## Changelog
 
 | Date | Change | Branch |
@@ -193,3 +195,5 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 | 2026-11-03 | B-260 (P2): `UWoRAttributeSyncComponent` HP / EP / buildup events set only Health, Energy and Buildup (`SyncVitals`) and queue one full sync for the next tick (`QueueFullSync`); a max HP / EP change or a Broken Darkness flip syncs in full at once; EndPlay drops a queued sync. Debug: `FullSyncCount`. | refactor/B-260-light-attribute-sync |
 | 2026-11-03 | B-293: `WoR.Balance.Sim.GASParity` plays each balance matchup on two seeds with `wor.Effects.UseGAS` 0 then 1 (`FBalanceSimRunner::SetUseGAS`) and expects identical fight records; `wor.Balance.Run ... 1` runs a preset on GAS. Unbuilt (cloud). | feature/B-293-balance-targets |
 | 2026-11-03 | B-261 (PerfAudit P5): `GetGASReadSource` syncs the mirror only when `GetSyncFingerprint()` (stored effects via `USkillEffectManager::FindActiveEffects`, live GE count, our GEs' liveness, tracker, `ReadsFromGAS`) differs from the last finished sync's; `ForgetEnded` clears it; `GetSyncCount` and a debug line. Fingerprint over a dirty flag: a read can come between a change and its event. Not caught: a stored change mid-sync with no event | refactor/B-261-mirror-dirty-check |
+| 2026-11-03 | B-318 (Q-042ye, Q-318): `UWoREffectMirrorComponent` replicates (`SetIsReplicatedByDefault`); every sync at UseGAS 1 refreshes `HeldSnapshot` (`BuildHeld`: the stored effects as GAS holds them, turns left from the tracker), a replicated property; on a client `ReadHeldEffects` returns it, so the character panel's list, turns left and buff / debuff counts match the server. Spec `WoR.GAS.ClientReads`. Unbuilt (cloud). | feature/B-318-client-gas-reads |
+| 2026-11-03 | B-042i (Q-042i-b): no code change; `WoR.GAS.TriggerParity` (`GASTriggerParitySpec.cpp`) pins that a defender trigger's payload (`OnDefenseResolvedHandler`) and a starting effect (`ApplyEquipmentEffects`) reach GAS through `FWoREffectSpecBuilder` in the same `ApplyEffect` call (the mirror's `OnEffectApplied` sync), as one GE of their identity on both paths; a re-fire replaces, a removal ends the GE. The stored copies go with B-042g. | refactor/B-042i-trigger-gas-specs |

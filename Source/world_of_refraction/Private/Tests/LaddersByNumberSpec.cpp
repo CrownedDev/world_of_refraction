@@ -90,6 +90,8 @@ void FLaddersByNumberSpec::Define()
 		}
 	});
 
+	// B-326 (D-119): rungs +1..+5 are unread now (any shortfall is the flat REQUIREMENT_UNMET_DAMAGE_FACTOR); a met
+	// skill still reads 0 and below (the over-requirement boost). Retire the +rungs after Crown's PIE pass.
 	It("pins the requirement-gap ladder -5..+5: 1.40 1.30 1.20 1.13 1.06 1.00 0.90 0.78 0.64 0.50 0.32", [this]()
 	{
 		for (int32 Gap = REQ_GAP_FIRST; Gap <= REQ_GAP_LAST; ++Gap)

@@ -8,9 +8,11 @@
 - **Weapon Power by tier: F 40, E 52, D 68, C 88, B 114, A 148, S 192** (Crown, 2026-10-27; the tier-power steps; tunable in data).
 - **Pillar cap in a run: 7 per pillar, 21 total** (Crown, 2026-10-27), matching `MAX_WORLD_STAT_LEVEL`. `WorldStatConstants::LIVE_MAX` (20, a placeholder) drops to 7; every curve and range in this doc keyed 0..20 is re-keyed to 0..7 (early 2-3, mid 4-5, late 6-7).
 - **Pillar curve: soft cap** (Crown, 2026-10-27; Elden Ring / Dark Souls): `Curve(L) = 1 - (1 - L/7)^2` over levels 0..7 (L1 0.27, L2 0.49, L3 0.67, L4 0.82, L5 0.92, L6 0.98, L7 1.0).
-- **Requirement penalty: at most -50%, on the weapon's part only** (Crown, 2026-10-27; Elden Ring's flat under-requirement penalty): the requirement factor floors at 0.5 (`WEAPON_REQ_FACTOR_MIN` 0.25 -> 0.5, into data) and scales the weapon part, not the skill part. Worst pillar decides (Q-162).
+- **Requirement penalty: one flat -40%, no scaling** (Crown, 2026-11-03, D-119; replaced Q-293d's 0.25 floor and the requirement-gap ladder): any shortfall below a weapon's, ability's or spell's requirement, 1 level or 5, gives that part x0.6 (`REQUIREMENT_UNMET_DAMAGE_FACTOR`) and no pillar scaling, Elden Ring style; met is full power. The weapon's requirement cuts the weapon part, the skill's own requirement cuts the skill part; nothing becomes uncastable.
 - **Weapon requirements by tier (main pillar): F 0, E 1, D 2, C 3, B 5, A 6, S 7** (Crown, 2026-10-27, steeper: an S weapon's full power needs a maxed pillar). A second pillar asks a level or two less. No bonus over a requirement (Q-146c).
-- **Enemy HP by rank: Normal x1, Elite x1.5, Mini-boss x3, Boss x6** (Crown, 2026-10-27), on top of the stat formula and the enemy's tier power and zone (the trial difficulty scales enemy damage only, Q-293c / B-293c). Targets: normal 3-5 player turns, mini-boss 8-10 rounds, boss 12-14 rounds (~8-10 min).
+- **Enemy HP by rank: Normal x1, Elite x1.5, Mini-boss x4, Boss x8** (Crown, 2026-10-27; mini-boss x3 -> x4 and boss x6 -> x8 on 2026-11-03, Q-293d), on top of the stat formula and the enemy's tier power (the zone scales nothing, D-120 / B-327; the trial difficulty scales enemy damage only, Q-293c / B-293c). Targets: normal 3-5 player turns, mini-boss 8-10 rounds, boss 12-14 rounds (~8-10 min).
+- **Damage floor: 10% of the hit** (Crown, 2026-11-03, Q-293d; Elden Ring's chip damage): after Defense, Damage Taken Down and Guard a hit always deals at least 10% of itself (`HIT_DAMAGE_FLOOR_SHARE`). A Perfect Guard or a dodge still takes the whole hit.
+
 - **Defense reduction cap: 75%** with all gear and buffs (Crown, 2026-10-27; was 85%): a tank takes a quarter of a hit (~4x effective HP). Stat-only cap stays 50%.
 - **Base crit damage x1.25** with no investment (Crown, 2026-10-27; Monster Hunter's 1.25); stats and gear raise it to the existing caps (x1.5 stats, x2.5 gear).
 - **Body counting twice is kept** (Crown, 2026-10-27): a Body level boosts the weapon through its grade, and its sub-stat points may also go into Raw Damage, a build choice, not automatic.
@@ -41,8 +43,8 @@ Two stages:
 | Tier power F..S | 1.00, 1.30, 1.70, 2.20, 2.85, 3.70, 4.80 (about +30% per tier) | `Public/Combat/Damage/TierPowerConstants.h:18` |
 | Upgrading | An upgrade raises the item's **instance tier** one step (F to S, so 7 levels) | `docs/Architecture/TierOnInstance.md` |
 | Tier gap (damage) | gap -4: 1.30 … 0: 1.00 … +1: 0.90, +2: 0.78, +3: 0.64, +4: 0.50 | `Public/Combat/Damage/TierGapConstants.h:19-27` |
-| Requirement-gap ladder | per pillar level, ±5: 1.40 / 1.30 / 1.20 / 1.13 / 1.06 / **1.00** / 0.90 / 0.78 / 0.64 / 0.50 / 0.32 | `TierGapConstants.h:143-185` |
-| Weapon requirement factor | ladder clamped to [0.25, 1]; the worst pillar decides; no bonus for being over | `Public/Skills/Definitions/WorldStatRequirements.h:88-109` (Q-162, Q-146c) |
+| Requirement-gap ladder | per pillar level, ±5: 1.40 / 1.30 / 1.20 / 1.13 / 1.06 / **1.00** / 0.90 / 0.78 / 0.64 / 0.50 / 0.32 | D-119: only the met side (1.00 .. 1.40, a met skill's boost) is read now; `TierGapConstants.h:143-185` |
+| Weapon requirement factor | 1 when met, else **0.6** flat with no pillar scaling (D-119); no bonus for being over | `Public/Skills/Definitions/WorldStatRequirements.h` (`REQUIREMENT_UNMET_DAMAGE_FACTOR`) |
 | Scaling grades | S 1.0, A 0.8, B 0.65, C 0.5, D 0.35, E 0.2, F 0.05 (marked "PLACEHOLDER") | `Public/Skills/Definitions/EScalingTier.h:32-45` |
 | Scaling fraction | Multiplier stats: `max(0, stat - 1)`, so 0..0.5 from stats alone and up to about 1.0 with gear. Percent stats: value / 0.5. Linear, with no soft cap. | `EScalingTier.h:84-123` |
 | Charge bands | focus 1.15 / 1.30, off-focus 1.10 / 1.20, balanced 1.125 / 1.25 | `Public/Infusion/InfusionConstants.h:20-35` |

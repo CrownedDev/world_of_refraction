@@ -34,6 +34,8 @@ namespace
         Input.HitCount = Skill->HitCount;
         // Stage b2: feed the skill's authored scaling tiers so the snapshot reflects the tier term
         // (empty array → no change → matches the pre-b2 baseline; the byte-identical regression proof).
+        // TODO: B-326 (D-119) — no attacker levels here, so this assumes the skill's requirement is met; an unmet
+        // skill gets no StatScaling in ApplyHit and the snapshot overstates it.
         Input.StatScaling = Skill->StatScaling;
         return Input;
     }
