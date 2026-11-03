@@ -1,8 +1,9 @@
 // WeaponPower.cpp
 
 #include "Equipment/Weapons/WeaponPower.h"
-#include "Character/StatConstants.h"
 #include "Combat/Damage/TierPowerConstants.h"
+#include "Combat/Tuning/CombatBaselineConstants.h"
+#include "Combat/Tuning/CombatTuning.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Skills/Definitions/WorldStatRequirements.h"
 
@@ -24,9 +25,21 @@ namespace WoRWeaponPower
 {
 	float GetPillarCurve(int32 Level)
 	{
-		const float Max = static_cast<float>(StatConstants::MAX_WORLD_STAT_LEVEL);
-		const float Short = 1.0f - FMath::Clamp(static_cast<float>(Level), 0.0f, Max) / Max;
-		return 1.0f - Short * Short;
+		// Past the cap the ladder is indexed, so the C++ curve (which clamps to 1) answers.
+		return WoRTuning::GetLadderValue(ECombatLadder::PillarCurve, Level, CombatBaseline::CodePillarCurve(Level));
+	}
+
+	float GetReferencePower(EItemTier Tier)
+	{
+		const int32 TierIndex = TierHelpers::GetTierValue(Tier);
+		return WoRTuning::GetLadderValue(ECombatLadder::WeaponReferencePower, TierIndex, CombatBaseline::CodeWeaponReferencePower(TierIndex));
+	}
+
+	int32 GetReferenceRequirement(EItemTier Tier)
+	{
+		const int32 TierIndex = TierHelpers::GetTierValue(Tier);
+		return FMath::RoundToInt(WoRTuning::GetLadderValue(ECombatLadder::WeaponRequirement, TierIndex,
+														   static_cast<float>(CombatBaseline::CodeWeaponRequirement(TierIndex))));
 	}
 
 	float GetScaledPower(const UWeaponData &Weapon, EItemTier InstanceTier)
@@ -58,7 +71,8 @@ namespace WoRWeaponPower
 	FString GetWeaponPartString(const UWeaponData &Weapon, EItemTier InstanceTier, const FWorldPillarLevels &Levels,
 								float RequirementFactor)
 	{
-		FString Out = FString::Printf(TEXT("Power %d at %s -> %.2f at %s\n"), Weapon.Power, *UEnum::GetValueAsString(Weapon.Tier),
+		FString Out = FString::Printf(TEXT("Power %d at %s (reference %.0f, requirement %d) -> %.2f at %s\n"), Weapon.Power,
+									  *UEnum::GetValueAsString(Weapon.Tier), GetReferencePower(Weapon.Tier), GetReferenceRequirement(Weapon.Tier),
 									  GetScaledPower(Weapon, InstanceTier), *UEnum::GetValueAsString(InstanceTier));
 		for (const FPillarScaling &Grade : Weapon.StatScaling)
 		{
