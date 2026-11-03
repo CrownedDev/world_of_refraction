@@ -13,6 +13,7 @@
 #include "Loadout/SpellPoolConstants.h"
 #include "Inventory/InventoryData.h"
 #include "Combat/Resistance/ClassInnateResistanceTable.h"
+#include "Combat/Resistance/ResistanceColumns.h"
 #include "UObject/UnrealType.h"
 
 // Implementation is mostly in header (inline functions)
@@ -26,18 +27,7 @@ void UCharacterData::RefreshResistanceProfileDisplay()
 	const ClassInnateResistanceTable::FResistanceRow Row =
 		ClassInnateResistanceTable::ResolveRow(CharacterClass, GetElement(), bAssetBrokenDarkness);
 
-	ResistanceProfile.Fire = Row.Fire;
-	ResistanceProfile.Water = Row.Water;
-	ResistanceProfile.Earth = Row.Earth;
-	ResistanceProfile.Wind = Row.Wind;
-	ResistanceProfile.Light = Row.Light;
-	ResistanceProfile.Darkness = Row.Darkness;
-	ResistanceProfile.Lightning = Row.Lightning;
-	ResistanceProfile.Void = Row.Void;
-	ResistanceProfile.Reality = Row.Reality;
-	ResistanceProfile.Slash = Row.Slash;
-	ResistanceProfile.Pierce = Row.Pierce;
-	ResistanceProfile.Impact = Row.Impact;
+	ResistanceProfile = ResistanceColumns::Convert<FResistanceProfileDisplay>(Row);
 }
 
 void UCharacterData::PostInitProperties()

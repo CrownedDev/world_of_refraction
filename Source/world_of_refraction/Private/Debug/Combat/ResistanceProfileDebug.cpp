@@ -186,10 +186,8 @@ FString UResistanceProfileDebug::GetCombinedResistanceString(AActor *Actor, ESpe
 		StonePct = Loadout->GetAttachedStonePercent(ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR;
 
 		const FResistanceBonus GearBonus = Loadout->GetActiveResistanceBonus(Actor);
-		const ClassInnateResistanceTable::FResistanceRow GearRow{
-			GearBonus.Fire, GearBonus.Water, GearBonus.Earth, GearBonus.Wind,
-			GearBonus.Light, GearBonus.Darkness, GearBonus.Lightning, GearBonus.Void,
-			GearBonus.Reality, GearBonus.Slash, GearBonus.Pierce, GearBonus.Impact};
+		const ClassInnateResistanceTable::FResistanceRow GearRow =
+			ResistanceColumns::Convert<ClassInnateResistanceTable::FResistanceRow>(GearBonus);
 		GearResist = (ClassInnateResistanceTable::GetElementColumn(GearRow, Element) +
 		              ClassInnateResistanceTable::GetPhysicalColumn(GearRow, PhysicalType)) /
 		             ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR;

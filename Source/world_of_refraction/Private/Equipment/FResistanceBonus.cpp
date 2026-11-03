@@ -5,6 +5,7 @@
 
 #include "Equipment/FResistanceBonus.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/Resistance/ResistanceColumns.h"
 #include "Equipment/ZeroSumBrokenStick.h"
 #include "Math/RandomStream.h"
 
@@ -16,9 +17,10 @@ namespace
 
 	void WipeResistance(FResistanceBonus &B)
 	{
-		B.Fire = 0.0f;  B.Water = 0.0f;     B.Earth = 0.0f;   B.Wind = 0.0f;
-		B.Light = 0.0f; B.Darkness = 0.0f;  B.Lightning = 0.0f;
-		B.Void = 0.0f;  B.Reality = 0.0f;   B.Slash = 0.0f;   B.Pierce = 0.0f;  B.Impact = 0.0f;
+		for (const EWoRDamageType Type : ResistanceColumns::Types())
+		{
+			*ResistanceColumns::Field(B, Type) = 0.0f;
+		}
 	}
 
 	/** Apply an integer percent-point delta to category Slot (0..11), written as a
@@ -31,22 +33,12 @@ namespace
 		}
 		const float Lo = CombatConstants::RESISTANCE_BONUS_MIN;
 		const float Hi = CombatConstants::RESISTANCE_BONUS_MAX;
-		const float D  = static_cast<float>(Delta);
-		switch (Slot)
+		if (!ResistanceColumns::Types().IsValidIndex(Slot))
 		{
-		case 0:  B.Fire      = FMath::Clamp(B.Fire      + D, Lo, Hi); return;
-		case 1:  B.Water     = FMath::Clamp(B.Water     + D, Lo, Hi); return;
-		case 2:  B.Earth     = FMath::Clamp(B.Earth     + D, Lo, Hi); return;
-		case 3:  B.Wind      = FMath::Clamp(B.Wind      + D, Lo, Hi); return;
-		case 4:  B.Light     = FMath::Clamp(B.Light     + D, Lo, Hi); return;
-		case 5:  B.Darkness  = FMath::Clamp(B.Darkness  + D, Lo, Hi); return;
-		case 6:  B.Lightning = FMath::Clamp(B.Lightning + D, Lo, Hi); return;
-		case 7:  B.Void      = FMath::Clamp(B.Void      + D, Lo, Hi); return;
-		case 8:  B.Reality   = FMath::Clamp(B.Reality   + D, Lo, Hi); return;
-		case 9:  B.Slash     = FMath::Clamp(B.Slash     + D, Lo, Hi); return;
-		case 10: B.Pierce    = FMath::Clamp(B.Pierce    + D, Lo, Hi); return;
-		case 11: B.Impact    = FMath::Clamp(B.Impact    + D, Lo, Hi); return;
+			return;
 		}
+		float &Column = *ResistanceColumns::Field(B, ResistanceColumns::Types()[Slot]);
+		Column = FMath::Clamp(Column + static_cast<float>(Delta), Lo, Hi);
 	}
 }
 
@@ -78,6 +70,8 @@ int32 FResistanceBonus::RerollResistance(int32 Budget)
 	}
 
 	WipeResistance(*this);
+	ensureMsgf(ResistanceColumns::Types().Num() == RESISTANCE_SLOT_COUNT,
+			   TEXT("RESISTANCE_SLOT_COUNT is out of step with ResistanceColumns::Types(): a new column isn't rolled"));
 
 	FRandomStream RNG(FMath::Rand());
 	int32 Deltas[RESISTANCE_SLOT_COUNT] = {0};
@@ -93,16 +87,5 @@ int32 FResistanceBonus::RerollResistance(int32 Budget)
 
 void FResistanceBonus::Accumulate(const FResistanceBonus &Other)
 {
-	Fire      += Other.Fire;
-	Water     += Other.Water;
-	Earth     += Other.Earth;
-	Wind      += Other.Wind;
-	Light     += Other.Light;
-	Darkness  += Other.Darkness;
-	Lightning += Other.Lightning;
-	Void      += Other.Void;
-	Reality   += Other.Reality;
-	Slash     += Other.Slash;
-	Pierce    += Other.Pierce;
-	Impact    += Other.Impact;
+	ResistanceColumns::Add(*this, Other);
 }

@@ -340,19 +340,8 @@ FEquipmentStatBonus UEquipmentDataBase::GetCombinedStatBonus() const
 
 FResistanceBonus UEquipmentDataBase::GetCombinedResistance() const
 {
-    FResistanceBonus Combined;
-    Combined.Fire      = BaseResistance.Fire      + GeneratedResistance.Fire;
-    Combined.Water     = BaseResistance.Water     + GeneratedResistance.Water;
-    Combined.Earth     = BaseResistance.Earth     + GeneratedResistance.Earth;
-    Combined.Wind      = BaseResistance.Wind      + GeneratedResistance.Wind;
-    Combined.Light     = BaseResistance.Light     + GeneratedResistance.Light;
-    Combined.Darkness  = BaseResistance.Darkness  + GeneratedResistance.Darkness;
-    Combined.Lightning = BaseResistance.Lightning + GeneratedResistance.Lightning;
-    Combined.Void      = BaseResistance.Void      + GeneratedResistance.Void;
-    Combined.Reality   = BaseResistance.Reality   + GeneratedResistance.Reality;
-    Combined.Slash     = BaseResistance.Slash     + GeneratedResistance.Slash;
-    Combined.Pierce    = BaseResistance.Pierce    + GeneratedResistance.Pierce;
-    Combined.Impact    = BaseResistance.Impact    + GeneratedResistance.Impact;
+    FResistanceBonus Combined = BaseResistance;
+    Combined.Accumulate(GeneratedResistance);
     return Combined;
 }
 
