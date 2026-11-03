@@ -12,6 +12,7 @@
 
 class UCharacterData;
 class USkeletalMesh;
+class USkeletalMeshComponent;
 class UMaterialInterface;
 
 /** One piece of a loadout: gear carries its tier; a skill matches by asset alone. */
@@ -33,6 +34,33 @@ namespace CharacterFormMeter
     /** What one fight won adds: FULL_SET_FILL_PER_FIGHT x the matched share of Reference (each reference
      *  piece counted once). 0 for an empty reference. */
     WORLD_OF_REFRACTION_API float GetFightFill(const TArray<FCharacterFormPiece> &Reference, const TArray<FCharacterFormPiece> &Equipped);
+}
+
+/** B-279b: the player's own body when no skin is worn (Design/CharacterForms.md §1: Manny or Quinn). */
+UENUM(BlueprintType)
+enum class EPlayerBaseForm : uint8
+{
+    Manny,
+    Quinn
+};
+
+/** B-279b: why a skin switch was refused (None: it was allowed). */
+UENUM(BlueprintType)
+enum class EFormSwitchRefusal : uint8
+{
+    None,
+    Locked,
+    InFight,
+    NotAtSwitchSpot
+};
+
+namespace CharacterFormSwitch
+{
+    /** Skins switch in the hub and at rest spots, never in a fight (Crown, 2026-10-28), and only to an
+     *  unlocked form. Taking a skin off passes bUnlocked = true. */
+    WORLD_OF_REFRACTION_API EFormSwitchRefusal CanSwitch(bool bUnlocked, bool bInFight, bool bAtSwitchSpot);
+
+    WORLD_OF_REFRACTION_API FText GetRefusalText(EFormSwitchRefusal Refusal);
 }
 
 UCLASS(BlueprintType)
@@ -66,6 +94,13 @@ public:
 
     /** The reference pieces from Character's inventory asset; empty without one. */
     TArray<FCharacterFormPiece> GetReferencePieces() const;
+
+    /** B-279b: the full reference loadout, one line per piece; what an unlock reveals. */
+    FText GetRevealedLoadoutText() const;
+
+    /** B-279d: puts the form's mesh and materials on Mesh (a skin, or the form fought as a mini-boss).
+     *  False, changing nothing, when the form has no mesh. */
+    bool DressMesh(USkeletalMeshComponent &Mesh) const;
 
     /** Debug: name, character and reference pieces. */
     FString GetFormString() const;

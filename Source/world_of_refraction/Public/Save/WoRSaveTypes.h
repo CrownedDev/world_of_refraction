@@ -412,6 +412,11 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	UPROPERTY()
 	TArray<FSavedWearer> Wearers;
 
+	/** B-321 (D-117, save v7): who owns each piece (GearID -> character). Empty in an older save: each piece goes
+	 *  to its wearer, else the party leader, at the next draw. */
+	UPROPERTY()
+	TArray<FSavedWearer> Owners;
+
 	/** B-091: characters whose starting gear is already in the pool (it isn't banked twice). */
 	UPROPERTY()
 	TArray<FName> BankedCharacters;
@@ -472,6 +477,14 @@ struct WORLD_OF_REFRACTION_API FSavedForms
 
 	UPROPERTY()
 	TMap<FName, float> Progress;
+
+	/** B-279b (save v8): the worn skin's form asset name (None: no skin). */
+	UPROPERTY()
+	FName WornForm;
+
+	/** B-279b: EPlayerBaseForm as a byte (0 Manny, 1 Quinn). */
+	UPROPERTY()
+	uint8 BaseForm = 0;
 };
 
 /** Everything one save slot holds. */
