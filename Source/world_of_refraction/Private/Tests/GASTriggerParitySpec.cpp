@@ -24,6 +24,7 @@ namespace
 	constexpr int32 TRIGGER_PARITY_DEF_ID = 95;
 	constexpr int32 TRIGGER_PARITY_ITEM = 7201;
 	constexpr float TRIGGER_PARITY_HEAL = 12.0f;
+	constexpr int32 TRIGGER_PARITY_TURNS = 2;
 	constexpr float TRIGGER_PARITY_ATTACK_COST = 20.0f;
 
 	FSkillEffectPayload SelfHeal()
@@ -31,6 +32,7 @@ namespace
 		FSkillEffectPayload Payload;
 		Payload.EffectType = ESkillEffectType::HealthRestore;
 		Payload.Magnitude = TRIGGER_PARITY_HEAL;
+		Payload.Duration = TRIGGER_PARITY_TURNS; // turn-counted: a duration-0 heal is instant and never stored
 		Payload.Target = ETargetType::Self;
 		Payload.TargetCount = ETargetCount::Single;
 		return Payload;
