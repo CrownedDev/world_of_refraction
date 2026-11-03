@@ -401,6 +401,10 @@ public:
 	 *  1.0 for spells and unarmed. See FWorldStatRequirements::GetWeaponRequirementFactor. */
 	float GetWeaponRequirementFactor(AActor *Actor, const FAction &Action) const;
 
+	/** B-326 (D-119): the skill's own requirement factor (1.0 met, else the flat unmet factor; still castable).
+	 *  1.0 with no skill or no character. An unmet skill also loses its pillar and stat scaling. */
+	float GetSkillRequirementFactor(AActor *Actor, const USkillDataBase *Skill) const;
+
 	/** B-220 (D-101): the active weapon's part of an attack or ability (WoRWeaponPower::GetWeaponPart at the copy's
 	 *  tier, the live pillar levels and the requirement factor); 0 for spells, unarmed and a weapon with Power 0. */
 	float GetWeaponPart(AActor *Actor, const FAction &Action) const;
