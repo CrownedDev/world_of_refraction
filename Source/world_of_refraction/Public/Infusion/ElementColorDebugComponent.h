@@ -68,6 +68,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Debug|Element Color")
     FLinearColor GetCurrentColor() const { return CurrentColor; }
 
+    /** B-294: every element's hex as seen in normal, protan, deutan and tritan vision, and the closest pairs.
+     *  Console: wor.Elements.Palette. */
+    UFUNCTION(BlueprintPure, Category = "Debug|Element Color")
+    static FString GetElementPaletteString();
+
 protected:
     virtual void BeginPlay() override;
 

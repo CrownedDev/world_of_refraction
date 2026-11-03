@@ -6,12 +6,28 @@
 #include "Character/CharacterData.h"
 #include "Infusion/ClassColors.h"
 #include "Infusion/ElementColors.h"
+#include "Infusion/ElementColorVision.h"
 #include "Infusion/HybridSpellColors.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/Class.h"
+#include "HAL/IConsoleManager.h"
+#include "WoRLog.h"
+
+namespace
+{
+    FAutoConsoleCommand GPrintElementPaletteCmd(
+        TEXT("wor.Elements.Palette"),
+        TEXT("DEBUG: print the element palette as seen in normal, protan, deutan and tritan vision."),
+        FConsoleCommandDelegate::CreateLambda([]() { UE_LOG(LogWoR, Display, TEXT("%s"), *UElementColorDebugComponent::GetElementPaletteString()); }));
+}
+
+FString UElementColorDebugComponent::GetElementPaletteString()
+{
+    return ElementColorVision::GetElementPaletteString();
+}
 
 UElementColorDebugComponent::UElementColorDebugComponent()
 {
