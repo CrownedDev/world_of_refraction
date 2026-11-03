@@ -1,7 +1,7 @@
 // CombatNumbersBaselineSpec.cpp
 // B-224 (Crown, analysis/BaselineNumbers.md "Decided"): every number of the combat baseline pinned: the pillar
 // soft cap 0..7, reference weapon Power and main-pillar requirement by tier, enemy HP by rank, the weapon
-// requirement floor 0.5 (weapon part only), the Defense ceiling 75% and the un-invested crit x1.25; the tuning
+// unmet-requirement factor 0.6 with no scaling (D-119), the Defense ceiling 75% and the un-invested crit x1.25; the tuning
 // data starts at these values and fills its ladder rows with them; Elite is a fleeable rank below Mini-boss.
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -38,14 +38,12 @@ namespace
 	constexpr float RANK_MINIBOSS = 4.0f; // B-293d (Q-293d)
 	constexpr float RANK_BOSS = 8.0f;
 
-	constexpr float REQUIREMENT_FLOOR = 0.25f; // B-293d (Q-293d)
-	/** Gaps 3 / 4 / 5 under and their ladder rungs; the lowest rung (0.32) stays above the 0.25 floor. */
-	constexpr int32 GAP_THREE_UNDER = 3;
-	constexpr int32 GAP_FOUR_UNDER = 4;
+	/** B-326 (D-119): one flat penalty for any shortfall, 1 level or 5. */
+	constexpr float REQUIREMENT_UNMET = 0.6f;
+	constexpr int32 GAP_ONE_UNDER = 1;
 	constexpr int32 GAP_FIVE_UNDER = 5;
-	constexpr float LADDER_AT_GAP_THREE = 0.64f;
-	constexpr float LADDER_AT_GAP_FOUR = 0.50f;
-	constexpr float LADDER_AT_GAP_FIVE = 0.32f;
+	/** A Body-graded weapon, for the scaling the unmet requirement removes. */
+	constexpr int32 SCALED_BODY_LEVEL = 4;
 	/** B-293d damage floor: a hit of 100 through 75% Defense, 90% Damage Taken Down and a Guard (half) keeps 10. */
 	constexpr float FLOOR_SHARE = 0.1f; // B-293d (Q-293d, Crown): a hit keeps at least a tenth
 	constexpr int32 FLOOR_HIT = 100;
@@ -120,23 +118,34 @@ void FCombatNumbersBaselineSpec::Define()
 		TestFalse(TEXT("Mini-boss still can't"), FleeRules::CanFleeRank(EEncounterRank::MiniBoss));
 	});
 
-	It("floors the weapon requirement factor at 0.25 (the ladder's rungs stay above it), and only the weapon part reads it", [this]()
+	It("B-326 (D-119): any unmet requirement is the same x0.6 with no pillar scaling; met is full power", [this]()
 	{
-		TestEqual(TEXT("C++ floor"), WeaponRequirement::WEAPON_REQ_FACTOR_MIN, REQUIREMENT_FLOOR, BASELINE_TOLERANCE);
-		TestEqual(TEXT("tuning default"), WoRTuning::Get().WeaponReqFactorMin, REQUIREMENT_FLOOR, BASELINE_TOLERANCE);
+		TestEqual(TEXT("the constant"), WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR, REQUIREMENT_UNMET, BASELINE_TOLERANCE);
 		const FWorldPillarLevels NoLevels;
-		TestEqual(TEXT("three under: the ladder"), BodyRequirementOf(GAP_THREE_UNDER).GetWeaponRequirementFactor(NoLevels), LADDER_AT_GAP_THREE,
+		TestEqual(TEXT("one under"), BodyRequirementOf(GAP_ONE_UNDER).GetWeaponRequirementFactor(NoLevels), REQUIREMENT_UNMET,
 				  BASELINE_TOLERANCE);
-		TestEqual(TEXT("four under: the ladder"), BodyRequirementOf(GAP_FOUR_UNDER).GetWeaponRequirementFactor(NoLevels), LADDER_AT_GAP_FOUR,
+		TestEqual(TEXT("five under: the same"), BodyRequirementOf(GAP_FIVE_UNDER).GetWeaponRequirementFactor(NoLevels), REQUIREMENT_UNMET,
 				  BASELINE_TOLERANCE);
-		TestEqual(TEXT("five under: the ladder's end, above the floor"), BodyRequirementOf(GAP_FIVE_UNDER).GetWeaponRequirementFactor(NoLevels),
-				  LADDER_AT_GAP_FIVE, BASELINE_TOLERANCE);
-		// The weapon part takes the factor as its own multiplier (WoRWeaponPower::GetWeaponPart); the skill part has no such input.
+		FWorldPillarLevels AtFive;
+		AtFive.Body = GAP_FIVE_UNDER;
+		TestEqual(TEXT("met"), BodyRequirementOf(GAP_FIVE_UNDER).GetWeaponRequirementFactor(AtFive), WeaponRequirement::WEAPON_REQ_FACTOR_MAX,
+				  BASELINE_TOLERANCE);
+
+		// Unmet: the weapon part is Power x 0.6 with no scaling, even at a level the grade would scale from.
 		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
 		Weapon->Power = CombatBaseline::WEAPON_REFERENCE_POWER_F;
 		Weapon->Tier = EItemTier::F_Tier;
-		TestEqual(TEXT("at the floor the weapon part is a quarter"), WoRWeaponPower::GetWeaponPart(*Weapon, EItemTier::F_Tier, NoLevels, REQUIREMENT_FLOOR),
-				  CombatBaseline::WEAPON_REFERENCE_POWER_F * REQUIREMENT_FLOOR, BASELINE_TOLERANCE);
+		FPillarScaling BodyGrade;
+		BodyGrade.Pillar = EWorldPillar::Body;
+		BodyGrade.Tier = EScalingTier::C;
+		Weapon->StatScaling.Add(BodyGrade);
+		FWorldPillarLevels Scaled;
+		Scaled.Body = SCALED_BODY_LEVEL;
+		TestEqual(TEXT("unmet: Power x 0.6, no scaling"),
+				  WoRWeaponPower::GetWeaponPart(*Weapon, EItemTier::F_Tier, Scaled, REQUIREMENT_UNMET),
+				  CombatBaseline::WEAPON_REFERENCE_POWER_F * REQUIREMENT_UNMET, BASELINE_TOLERANCE);
+		TestTrue(TEXT("met: the grade scales"),
+				 WoRWeaponPower::GetWeaponPart(*Weapon, EItemTier::F_Tier, Scaled, WeaponRequirement::WEAPON_REQ_FACTOR_MAX) > CombatBaseline::WEAPON_REFERENCE_POWER_F);
 	});
 
 	It("B-293d: keeps at least 10% of a hit after Defense, Damage Taken Down and Guard", [this]()
@@ -214,7 +223,7 @@ void FCombatNumbersBaselineSpec::Define()
 		const FString Text = WoRTuning::Get().GetCombatTuningString();
 		TestTrue(TEXT("pillar curve"), Text.Contains(TEXT("PillarCurve")));
 		TestTrue(TEXT("rank HP"), Text.Contains(TEXT("EnemyRankHealth")));
-		TestTrue(TEXT("requirement floor"), Text.Contains(TEXT("Weapon req floor")));
+		TestTrue(TEXT("requirement penalty (D-119)"), Text.Contains(TEXT("Weapon req unmet")));
 		TestTrue(TEXT("C++ caps"), Text.Contains(TEXT("defense ceiling")));
 	});
 }
