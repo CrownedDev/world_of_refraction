@@ -23,7 +23,7 @@ Each page ends with **Open questions** (unanswered `D-xxx`; the D-entry holds th
 
 | # | Page | Prefix | What it covers |
 |---|---|---|---|
-| 01 | [Classes and loadouts](01-classes-and-loadouts.md) | CL | Generic, Refractor (`Caster`) and Resonator; slots and caps; weapons, rings, crystals, stones, fusions, evolutions; Refractor innate spells; pillars and requirements |
+| 01 | [Classes and loadouts](01-classes-and-loadouts.md) | CL | Generic, Refractor (`Caster`) and Resonator; slots and caps; weapons, adapters, crystals, stones, fusions, evolutions; Refractor innate spells; pillars and requirements |
 | 02 | [Elements and damage](02-elements-and-damage.md) | ED | The nine elements, Generic and None; how a skill's element is chosen; every damage step with its constants; resistance; infusion L0–L2; real-time defense; Broken Darkness and Reality on the damage side |
 | 03 | [Status bars](03-status-bars.md) | SB | What fills each bar and how fast; resistance; draining; what each full bar does and for how long; the stun rules |
 | 04 | [Effects and turns](04-effects-and-turns.md) | ET | Turn order and bonus/Execution turns; what a turn allows and costs; effect durations, ticking, stacking, identity, cleanse, gear effects and auras; how a fight starts and ends |
@@ -32,7 +32,7 @@ Each page ends with **Open questions** (unanswered `D-xxx`; the D-entry holds th
 
 ## Status at a glance (2026-10-29)
 
-276 rules across the six pages: 01 has 41, 02 has 44, 03 has 36, 04 has 55, 05 has 61, 06 has 39. The written-but-not-built rulings are mostly in economy (run rewards B-073, the loss route B-072, the bought run start B-116, level drops B-223), plus weapon Power (B-220) and Ice (B-064a). Five rows are still a **Conflict** (ET-07, ET-14, ER-12, ER-21, ER-26).
+276 rules across the six pages: 01 has 41, 02 has 44, 03 has 36, 04 has 55, 05 has 61, 06 has 39. The written-but-not-built rulings are mostly in economy (run rewards B-073, the loss route B-072, the bought run start B-116, level drops B-223), plus weapon Power (B-220) and Ice (B-064a). Four rows are still a **Conflict** (ET-07, ER-12, ER-21, ER-26).
 
 Writing the pages turned up 23 new questions for Crown, **D-034 to D-056**, and six fix jobs, **B-112 to B-117**:
 - B-112: a full Light bar does nothing.

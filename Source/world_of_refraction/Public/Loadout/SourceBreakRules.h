@@ -29,6 +29,6 @@ namespace SourceBreakRules
 
 	inline FText BrokenRingCrystalReason()
 	{
-		return NSLOCTEXT("SourceBreak", "BrokenRingCrystal", "Source broken: this ring casts F-tier spells only.");
+		return NSLOCTEXT("SourceBreak", "BrokenAdapterCrystal", "Source broken: this adapter casts F-tier spells only.");
 	}
 }

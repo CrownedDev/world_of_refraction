@@ -57,6 +57,11 @@ public:
         int32 InfusionLevel,
         bool bIsSpell);
 
+    /** B-242: the durability wear one cast costs a crystal, primary-slot evolution or gear evolution of WearTier:
+     *  the caster's composed spell damage / status multiplier / efficiency / resistance feed
+     *  UBreakCalculator::CalculateDurabilityWearWithSubstats; without character data, the base formula. */
+    static int32 ComputeCastWear(const AActor *Actor, EItemTier WearTier, EItemTier ActionTier, int32 InfusionLevel, bool bIsSpell);
+
     /** Apply post-cast wear to the active loadout's standalone primary-slot
      *  evolution (PrimarySlotType==Evolution, e.g. Broken Darkness). Reads
      *  the crystal-modified substat fractions off the caster's

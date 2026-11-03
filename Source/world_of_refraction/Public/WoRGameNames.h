@@ -12,6 +12,7 @@
 #include "Character/ECharacterClass.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Skills/Effects/ESkillEffectType.h"
+#include "Equipment/Rings/EAdapterForm.h"
 
 // Forward-declared so this header stays light (it is included by SkillEffectDisplayNames.h).
 enum class EDefenseType : uint8;
@@ -27,6 +28,10 @@ namespace WoRGameNames
     /** "Damage Over Time", "Skip Turn", ... Element-specific names ("Burn") stay in SkillEffectDisplayNames. */
     WORLD_OF_REFRACTION_API FText GetSkillEffectTypeName(ESkillEffectType EffectType);
 
+    /** B-248 (DRY audit A8): an element's status-break name (its bar-cap trigger, BarCapTriggerResolver), e.g.
+     *  Fire "Burn", Water "Frozen" (D-090). Empty for an element with no flavour name (the trigger's name shows). */
+    WORLD_OF_REFRACTION_API FText GetElementBreakName(ESpellElement Element);
+
     /** "Generic", "Refractor" (code: Caster), "Resonator". */
     WORLD_OF_REFRACTION_API FText GetCharacterClassName(ECharacterClass CharacterClass);
 
@@ -41,4 +46,13 @@ namespace WoRGameNames
 
     /** The merchant and its wares in brackets: "Blacksmith (weapons, augment stones)". */
     WORLD_OF_REFRACTION_API FText GetMerchantTypeName(EMerchantType MerchantType);
+
+    /** D-107: the spell-channelling gear is an "Adapter" to the player (the code keeps its Ring names until B-299). */
+    WORLD_OF_REFRACTION_API FText GetAdapterWord();
+    /** "Adapters" */
+    WORLD_OF_REFRACTION_API FText GetAdapterWordPlural();
+    /** "Active adapter" (the Resonator's one in use) */
+    WORLD_OF_REFRACTION_API FText GetActiveAdapterWord();
+    /** An adapter's form: "Ring", "Pistol", "Trainer". */
+    WORLD_OF_REFRACTION_API FText GetAdapterFormName(EAdapterForm Form);
 }

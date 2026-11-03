@@ -7,6 +7,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Boss/BossPhaseComponent.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/TurnManager.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/EquipmentDataBase.h"
@@ -154,6 +155,8 @@ int32 ReactionTriggers::ApplyFired(const TArray<FFiredReaction> &Fired)
 		}
 		const FReactionTrigger &Trigger = *Reaction.Trigger;
 		const int32 SourceId = ReactionTriggerConstants::REACTION_EFFECT_SOURCE_ID_BASE + Reaction.TriggerIndex;
+		const UTurnManager *TurnManager = Effects->GetGameInstance() ? Effects->GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+		const int32 WearerTeam = TurnManager ? TurnManager->GetActorTeam(Reaction.Wearer) : INDEX_NONE;
 		for (int32 EffectIndex = 0; EffectIndex < Trigger.Effects.Num(); ++EffectIndex)
 		{
 			const FSkillEffect &Effect = Trigger.Effects[EffectIndex];
@@ -178,7 +181,9 @@ int32 ReactionTriggers::ApplyFired(const TArray<FFiredReaction> &Fired)
 					Effect.bStackable, Effect.MaxStacks, Effect.bFiresOncePerMatch, Payload.Element);
 				// Comes from worn gear: no cleanse strips it (D-015).
 				Runtime.bFromGear = true;
-				Effects->ApplyEffect(Target, Runtime);
+				// The wearer's side sets a side-signed modifier's direction (D-054): slowing the faced enemy is a
+				// debuff on them. Only the team is passed, so the effect's identity (no source) is unchanged.
+				Effects->ApplyEffect(Target, Runtime, nullptr, FString(), WearerTeam);
 				RecomputeReactionPools(Target);
 				++Applied;
 			}

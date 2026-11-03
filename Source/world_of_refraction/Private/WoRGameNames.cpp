@@ -170,7 +170,7 @@ FText GetSkillEffectTypeName(ESkillEffectType EffectType)
     case ESkillEffectType::ModifyCritDamage:
         return LOCTEXT("ESkillEffectType_ModifyCritDamage", "Crit Damage Up");
     case ESkillEffectType::ModifyEnergyCost:
-        return LOCTEXT("ESkillEffectType_ModifyEnergyCost", "Energy Cost Up");
+        return LOCTEXT("ESkillEffectType_ModifyEnergyCost", "Energy Cost Down");
     case ESkillEffectType::ModifyTurnSpeed:
         return LOCTEXT("ESkillEffectType_ModifyTurnSpeed", "Turn Speed Up");
     case ESkillEffectType::ModifyStatusResist:
@@ -336,7 +336,7 @@ FText GetMerchantTypeName(EMerchantType MerchantType)
     case EMerchantType::Blacksmith:
         return LOCTEXT("EMerchantType_Blacksmith", "Blacksmith (weapons, augment stones)");
     case EMerchantType::Jeweler:
-        return LOCTEXT("EMerchantType_Jeweler", "Jeweler (rings)");
+        return LOCTEXT("EMerchantType_Jeweler", "Jeweler (adapters)");
     case EMerchantType::CombatMaster:
         return LOCTEXT("EMerchantType_CombatMaster", "Combat Master (abilities)");
     case EMerchantType::SpellShop:
@@ -350,6 +350,62 @@ FText GetMerchantTypeName(EMerchantType MerchantType)
     }
     return FText::GetEmpty();
 }
+
+FText GetAdapterWord()
+{
+    return LOCTEXT("Adapter", "Adapter");
+}
+
+FText GetAdapterWordPlural()
+{
+    return LOCTEXT("Adapters", "Adapters");
+}
+
+FText GetActiveAdapterWord()
+{
+    return LOCTEXT("ActiveAdapter", "Active adapter");
+}
+
+FText GetAdapterFormName(EAdapterForm Form)
+{
+    switch (Form)
+    {
+    case EAdapterForm::Ring:
+        return LOCTEXT("EAdapterForm_Ring", "Ring");
+    case EAdapterForm::Pistol:
+        return LOCTEXT("EAdapterForm_Pistol", "Pistol");
+    case EAdapterForm::Trainer:
+        return LOCTEXT("EAdapterForm_Trainer", "Trainer");
+    default:
+        return GetAdapterWord();
+    }
+}
+} // namespace WoRGameNames
+
+FText WoRGameNames::GetElementBreakName(ESpellElement Element)
+{
+    // Today's flavour words, each on the trigger that fires for its element (B-248).
+    switch (Element)
+    {
+    case ESpellElement::Fire:
+        return LOCTEXT("ElementBreak_Fire", "Burn");
+    case ESpellElement::Water:
+        return LOCTEXT("ElementBreak_Water", "Frozen");
+    case ESpellElement::Earth:
+        return LOCTEXT("ElementBreak_Earth", "Softened");
+    case ESpellElement::Wind:
+        return LOCTEXT("ElementBreak_Wind", "Tripped");
+    case ESpellElement::Lightning:
+        return LOCTEXT("ElementBreak_Lightning", "Stunned");
+    case ESpellElement::Light:
+        return LOCTEXT("ElementBreak_Light", "Dimmed");
+    case ESpellElement::Darkness:
+        return LOCTEXT("ElementBreak_Darkness", "Silenced");
+    case ESpellElement::Void:
+        return LOCTEXT("ElementBreak_Void", "Voided");
+    default:
+        return FText::GetEmpty();
+    }
 }
 
 #undef LOCTEXT_NAMESPACE

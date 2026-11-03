@@ -1,6 +1,7 @@
 // TrialMapFeature.cpp
 
 #include "Trial/TrialMapFeature.h"
+#include "Player/WoRInteract.h"
 
 #include "Character/CharacterData.h"
 #include "Combat/Encounter/EEncounterRank.h"
@@ -81,25 +82,7 @@ void ATrialMapFeature::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 ATrialMapFeature *ATrialMapFeature::FindNearestInRange(APawn *Pawn)
 {
-	if (!Pawn)
-	{
-		return nullptr;
-	}
-	TArray<AActor *> Overlapping;
-	Pawn->GetOverlappingActors(Overlapping, ATrialMapFeature::StaticClass());
-
-	ATrialMapFeature *Nearest = nullptr;
-	float NearestDistSquared = TNumericLimits<float>::Max();
-	for (AActor *Actor : Overlapping)
-	{
-		const float DistSquared = FVector::DistSquared(Pawn->GetActorLocation(), Actor->GetActorLocation());
-		if (DistSquared < NearestDistSquared)
-		{
-			NearestDistSquared = DistSquared;
-			Nearest = Cast<ATrialMapFeature>(Actor);
-		}
-	}
-	return Nearest;
+	return WoRInteract::FindNearestOverlapping<ATrialMapFeature>(Pawn); // B-256
 }
 
 FName ATrialMapFeature::GetFeatureId() const

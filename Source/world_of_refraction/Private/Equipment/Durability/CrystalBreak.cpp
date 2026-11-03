@@ -143,7 +143,7 @@ namespace
 		}
 		// IsBroken() filters durability <= 0 (Unbreakable evolutions never report broken). An
 		// unmatched holder returns an empty attachment whose IsBroken() is false.
-		const FRuntimeAttachedItem Attachment = Loadout->GetCrystalEntryByHolder(Slot.Holder);
+		const FRuntimeAttachedItem Attachment = Loadout->GetCrystalEntryForSlot(Slot);
 		if (!Attachment.IsBroken())
 		{
 			return false;
@@ -163,7 +163,7 @@ namespace
 		}
 
 		const FString CrystalName = CrystalBreakDisplayName(Slot);
-		Loadout->ResetCrystalEntryByHolder(Slot.Holder);
+		Loadout->ResetCrystalEntryForSlot(Slot);
 		CrystalBreakDismantle(Actor, Slot, Attachment, CrystalName);
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Destroyed broken crystal '%s' from %s on %s"),
 			   *CrystalName, *HolderDesc, *Actor->GetName());
@@ -194,13 +194,13 @@ namespace
 		{
 			return false;
 		}
-		const FRuntimeAttachedItem Before = Loadout->GetCrystalEntryByHolder(Slot.Holder);
+		const FRuntimeAttachedItem Before = Loadout->GetCrystalEntryForSlot(Slot);
 		if (Before.IsEmpty() || (Slot.Kind == EAttachedItemKind::Crystal && Before.IsBroken()))
 		{
 			return false;
 		}
 		const int32 BeforeDur = Before.GetCurrentDurability();
-		const int32 NewDur = Loadout->RepairCrystalEntryByHolder(Slot.Holder, Amount);
+		const int32 NewDur = Loadout->RepairCrystalEntryForSlot(Slot, Amount);
 		if (NewDur <= BeforeDur)
 		{
 			return false;

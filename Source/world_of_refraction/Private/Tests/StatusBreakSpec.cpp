@@ -4,6 +4,8 @@
 // and the break ends as the holder's turn after those starts, before its payouts.
 // Also: Burn pays out exactly once per counted turn; Water slows Action + Spell Speed;
 // Broken Darkness drains EP; Wind pushes the holder's next turn back one place.
+// Break sizes (B-286): SB-19 Burn 8% of max HP, SB-20 Earth defence down 30%, SB-22 Water slows
+// both speeds 30%, SB-28 Reality deals 25% of max HP at once and can kill.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -21,6 +23,14 @@ namespace
 {
 	constexpr int32 BREAK_TEST_TWO_TURNS = 2;
 	constexpr int32 BREAK_TEST_TURNS_RECORDED = 2;
+
+	// The rules' numbers (docs/Rules/03-status-bars.md), written out so a changed constant fails here.
+	constexpr float B286_SB19_BURN_MAX_HP_FRACTION = 0.08f;
+	constexpr float B286_SB20_EARTH_DEFENSE_DOWN_PERCENT = 30.0f;
+	constexpr float B286_SB22_WATER_SPEED_SLOW_PERCENT = 30.0f;
+	constexpr float B286_SB28_REALITY_MAX_HP_FRACTION = 0.25f;
+	/** HP left on the holder so the Reality break is a killing blow. */
+	constexpr int32 B286_REALITY_LETHAL_HP = 1;
 }
 
 BEGIN_DEFINE_SPEC(FStatusBreakSpec, "WoR.Effects.StatusBreaks",
@@ -267,6 +277,72 @@ void FStatusBreakSpec::Define()
 			TestTrue(TEXT("Local goes again before the gusted Opposing"), Order[0] == Local);
 			// A second push from the same attacker would hand this turn to Local too.
 			TestTrue(TEXT("Opposing acts one place later, pushed only once"), Order[1] == Opposing);
+		});
+
+		It("of Fire Burns for 8% of max HP (SB-19, B-286)", [this]()
+		{
+			if (!EffectManager) return;
+			TestEqual(TEXT("Burn share is the rule's 8%"), CombatConstants::BURN_BREAK_MAX_HP_FRACTION, B286_SB19_BURN_MAX_HP_FRACTION);
+			AActor *Holder = Spawn();
+			UCharacterDataComponent *Char = CharOf(Holder);
+			if (!TestNotNull(TEXT("Holder"), Char)) return;
+
+			EffectManager->ApplyTriggeredSkillEffect(Spawn(), Holder, ESkillEffectType::DOT, ESpellElement::Fire);
+			EffectManager->ProcessStartOfTurnEffects(Holder);
+			const int32 ExpectedBurn = FMath::RoundToInt(Char->MaxHP * B286_SB19_BURN_MAX_HP_FRACTION);
+			TestEqual(TEXT("One tick of 8% of max HP"), Char->MaxHP - Char->CurrentHP, ExpectedBurn);
+		});
+
+		It("of Earth lowers defence by 30% (SB-20, B-286)", [this]()
+		{
+			if (!EffectManager) return;
+			TestEqual(TEXT("Defence down is the rule's 30%"), CombatConstants::EARTH_BREAK_DEFENSE_DOWN_PERCENT, B286_SB20_EARTH_DEFENSE_DOWN_PERCENT);
+			AActor *Holder = Spawn();
+			const ESkillEffectType EarthBreak = BarCapTriggerResolver::ResolveTrigger(ESpellElement::Earth, EPhysicalDamageType::None, false);
+			EffectManager->ApplyTriggeredSkillEffect(Spawn(), Holder, EarthBreak, ESpellElement::Earth);
+			TestEqual(TEXT("Defence down 30%"), EffectManager->GetTotalStatModifier(Holder, ESkillEffectType::DefenseDebuff),
+					  B286_SB20_EARTH_DEFENSE_DOWN_PERCENT);
+		});
+
+		It("of Water slows Action Speed and Spell Speed by 30% (SB-22, B-286)", [this]()
+		{
+			if (!EffectManager) return;
+			TestEqual(TEXT("Slow is the rule's 30%"), CombatConstants::WATER_BREAK_SPEED_SLOW_PERCENT, B286_SB22_WATER_SPEED_SLOW_PERCENT);
+			AActor *Holder = Spawn();
+			const ESkillEffectType WaterBreak = BarCapTriggerResolver::ResolveTrigger(ESpellElement::Water, EPhysicalDamageType::None, false);
+			EffectManager->ApplyTriggeredSkillEffect(Spawn(), Holder, WaterBreak, ESpellElement::Water);
+			TestEqual(TEXT("Action Speed slowed 30%"), EffectManager->GetTotalStatModifier(Holder, ESkillEffectType::ActionSpeedDebuff),
+					  B286_SB22_WATER_SPEED_SLOW_PERCENT);
+			TestEqual(TEXT("Spell Speed slowed 30%"), EffectManager->GetTotalStatModifier(Holder, ESkillEffectType::SpellSpeedDebuff),
+					  B286_SB22_WATER_SPEED_SLOW_PERCENT);
+		});
+
+		It("of Reality deals 25% of max HP at once (SB-28, B-286)", [this]()
+		{
+			if (!EffectManager) return;
+			TestEqual(TEXT("Reality share is the rule's 25%"), CombatConstants::REALITY_BREAK_MAX_HP_FRACTION, B286_SB28_REALITY_MAX_HP_FRACTION);
+			AActor *Holder = Spawn();
+			UCharacterDataComponent *Char = CharOf(Holder);
+			if (!TestNotNull(TEXT("Holder"), Char)) return;
+
+			const ESkillEffectType RealityBreak = BarCapTriggerResolver::ResolveTrigger(ESpellElement::Reality, EPhysicalDamageType::None, false);
+			EffectManager->ApplyTriggeredSkillEffect(Spawn(), Holder, RealityBreak, ESpellElement::Reality);
+			const int32 ExpectedDamage = FMath::RoundToInt(Char->MaxHP * B286_SB28_REALITY_MAX_HP_FRACTION);
+			TestEqual(TEXT("25% of max HP taken on landing"), Char->MaxHP - Char->CurrentHP, ExpectedDamage);
+			TestFalse(TEXT("No lasting effect"), Has(Holder, ESkillEffectType::BurstDamage));
+		});
+
+		It("of Reality can kill (SB-28, B-286)", [this]()
+		{
+			if (!EffectManager) return;
+			AActor *Holder = Spawn();
+			UCharacterDataComponent *Char = CharOf(Holder);
+			if (!TestNotNull(TEXT("Holder"), Char)) return;
+			Char->ServerSetHP(B286_REALITY_LETHAL_HP);
+
+			EffectManager->ApplyTriggeredSkillEffect(Spawn(), Holder, ESkillEffectType::BurstDamage, ESpellElement::Reality);
+			TestEqual(TEXT("HP reaches 0"), Char->CurrentHP, 0);
+			TestFalse(TEXT("The holder dies"), Char->bIsAlive);
 		});
 	});
 }

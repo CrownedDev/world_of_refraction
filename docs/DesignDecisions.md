@@ -1523,6 +1523,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** **A** (2026-10-28): **every economy action is refused during a fight** (dismantle, level-up, revert, merge, buy / sell, repair), with a message; they work outside fights as today. Matches party swaps being outside battle only.
 **Notes for Claude:** _optional_
 
+### Q-298 — Adapter shortcut letter and durability tag
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-02 (B-298) · **Blocks:** —
+**Question:** D-107 renames the player-facing Ring to Adapter. The command menu's Resonate shortcut said "(R)" for ring, and the durability header tagged rings "RD". What do they say now?
+**Options:** A "Resonate (A)" and the tag "AD" / B keep "(R)" and "RD" (the letter no longer matches the word).
+**Recommendation:** A. A shortcut letter or tag follows the item's name (Final Fantasy and Persona menus label by the shown word); "AD" matches the old "RD" (ring durability) form.
+**Answer:** **A**, by the reference-backed default (2026-11-02). Crown may change it: `CombatCommandMenuSubsystem.cpp` (Resonate label), `CharacterPanelWidget.cpp` / `DurabilityHeaderWidget.cpp` (tag).
+
 ### Q-248 — What Water's break is called
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-28 (B-248) · **Blocks:** —
 **Question:** D-090 says what Water's break does (an Action Speed slow), not its name. Its old name, "Frozen", was dead code; the screen showed "Action Speed Debuff". What does the player see?
@@ -1624,6 +1631,27 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A two items (two weapons, or a weapon and an adapter, as today) / B three items.
 **Recommendation:** A, the analysis's default (`UnifiedLoadout_2026-10-29.md` Q-5): two slots, at most two weapons and one adapter. It keeps every Generic build that works today and mirrors the deckbuilder's vessel rule. B would be a one-number change in `LoadoutClassTable::GENERIC`.
 **Answer:** **A**, by the reference-backed default (2026-10-29). Crown may change it.
+
+### Q-303b — The budget charges the gear the fight actually uses
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-303 review) · **Blocks:** —
+**Question:** The old budget check read the primary slot's *type*; the D-110 budget reads the gear the fight uses. They differ in two rare Resonator cases: a primary weapon whose slot type is left None (as `AutoPopulateLoadout` leaves it) was free and now costs its weapon cost; a primary slot typed Weapon whose weapon was sold cost 1 and now costs 0. Keep the new reading?
+**Options:** A charge what the fight uses (D-110, one cost for every class) / B keep the old type-based charge.
+**Recommendation:** A. The fight attacks with that weapon, so it should count; D-110 makes one cost over the slots the fight reads. Effect: such a Resonator over 5 has adapters dropped by `ClearInvalidSlots`, as any Resonator over 5 does.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
+### Q-310 — Two identical copies: which one wears?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-310 review) · **Blocks:** —
+**Question:** In-fight wear and the crystal tools still find gear by its asset. With two identical copies equipped (two of one adapter, or a Generic's two of one weapon), which copy does an asset lookup land on?
+**Options:** A the one in use first (the active adapter; the weapon the Generic is showing), then slot order / B slot order only (the old rule).
+**Recommendation:** A (D-111: wear follows the item actually used). Side effect: debug and socket tools that ask for "the primary weapon" by asset get the copy in hand when both are the same weapon. B-304's `GetActiveSlot` carries the GUID and makes this exact.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
+### Q-304 — When the active slot is empty, which gear is in use?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-304 review) · **Blocks:** —
+**Question:** D-110 says an empty or stale active slot falls back to the first usable one. Today's content reaches three cases: (1) a Generic showing an emptied primary (sold, or stripped before a fight) used to be unarmed and now fights with its secondary; (2) a Generic toggling to an empty secondary uses up the turn's switch but keeps its primary; (3) a Resonator with a stale active-adapter index used to have no adapter and now uses its first one. Also, a piece another member wears is skipped now (B-221b), not only stripped before a fight.
+**Options:** A as above (D-110) / B keep the old "unarmed / no adapter" results.
+**Recommendation:** A: D-110 removes the primary / secondary rule, and being unarmed with a weapon on the belt was a bug-shaped result. A Resonator's fallback stays inside its adapter loadout (never a stray primary ring). Case (2) is tidied by B-305's one switch (a switch that changes nothing shouldn't cost the turn's switch).
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
 
 ### Q-044 — Re-applying the same effect: strength rule or replace?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-044, effects overhaul review) · **Blocks:** — (shapes B-062, B-042)

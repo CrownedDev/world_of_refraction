@@ -16,7 +16,7 @@ Turn order is **not** fixed or round-robin: **faster combatants act more often.*
 ## Player levers
 
 - Raise **TurnSpeed** (Spirit / gear / buffs) → act sooner/more often.
-- Land **Slow** (`SpeedDebuff`/`TurnSpeedDebuff`) on enemies → push their turns back (see [Status effects](../Status/StatusEffects.md)).
+- Land **Slow** (`TurnSpeedDebuff`, or `ModifyTurnSpeed` on an enemy, D-054) on enemies → push their turns back. The generic `SpeedDebuff` is retired and moves nothing (D-056) (see [Status effects](../Status/StatusEffects.md)).
 
 ## Entry points
 

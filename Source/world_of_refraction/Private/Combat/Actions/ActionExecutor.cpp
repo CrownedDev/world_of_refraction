@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Combat/Actions/ActionExecutor.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "GAS/WoRTurnEffectTracker.h"
 #include "ActionExecutorInternal.h"
 #include "MotionWarpingComponent.h"
@@ -356,9 +357,8 @@ bool UActionExecutor::CanActorCastSpells(AActor *Actor) const
 
 EItemTier UActionExecutor::ResolveActionTier(AActor *Actor, const FAction &Action) const
 {
-	// Spell: the spell's own tier. Ability/attack: tier inherits from the active
-	// weapon. Same dispatch as the ApplyCommitCosts wear blocks (which keep
-	// their inline copies until the swap is approved separately).
+	// Spell: the spell's own tier. Ability/attack: its own authored tier. The one action tier for
+	// tier-gap damage and crystal wear alike (B-245, Q-245).
 	if (Action.ActionType == EActionType::Spell && Action.SpellData)
 	{
 		return UInventoryComponent::ResolveSpellTier(Actor, Action.SpellData);
@@ -601,6 +601,7 @@ FString UActionExecutor::GetWeaponPartString(AActor *Actor) const
 FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FAction &Action,
 														   const FActionStatModifiers &ActionMods, bool bLog) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(WoR_PreviewActionDamage); // B-266: Insights marker (PerfAudit_2026-10-28.md)
 	FActionDamagePreview Preview;
 	const bool bIsSpell = Action.ActionType == EActionType::Spell;
 	const USkillDataBase *Skill = bIsSpell ? Action.SpellData : ResolveActionSkill(Action);
@@ -1289,8 +1290,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	PendingSpellSize = FinalSpellSize;
 	PendingSpellDamage = FinalDamage;
 
-	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
-	bPendingSpellIsBrokenDarkness = BDManager && BDManager->IsTransformed();
+	bPendingSpellIsBrokenDarkness = UBrokenDarknessManager::IsInBDForm(Caster);
 	// Mirror bPendingSpellIsBrokenDarkness: cache the resolved element for the deferred
 	// notify-triggered VFX (muzzle + delivery colours). Set here, reset in ClearPendingSpellData.
 	PendingResolvedElement = ResolvedElement;
@@ -1788,9 +1788,9 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 		DefenseResult);
 
 	// Broken Darkness absorption from defense
-	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Defender);
-	if (BDManager && BDManager->IsTransformed())
+	if (UBrokenDarknessManager::IsInBDForm(Defender))
 	{
+		UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Defender);
 		// Get attack info from pending context
 		if (CurrentExecutionContext.IsSet())
 		{
@@ -3311,8 +3311,7 @@ void UActionExecutor::SpawnSpellVFX(AActor *Caster, USpellData *Spell, float Spe
 		return;
 	}
 
-	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
-	bool bIsBD = BDManager && BDManager->IsTransformed();
+	bool bIsBD = UBrokenDarknessManager::IsInBDForm(Caster);
 
 	float FinalImpactRadius = Spell->BaseSize * Spell->HitboxRatio * SpellSize;
 	float FinalVisualScale = Spell->BaseSize * SpellSize;
@@ -3673,8 +3672,7 @@ void UActionExecutor::DispatchSpellCast(
 		return;
 	}
 
-	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
-	const bool bIsBD = BDManager && BDManager->IsTransformed();
+	const bool bIsBD = UBrokenDarknessManager::IsInBDForm(Caster);
 
 	// Entry-sourced sizing. Migrated entries carry Size = BaseSize×HitboxRatio
 	// and VisualScale = BaseSize, so these reproduce the legacy
@@ -4159,7 +4157,7 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAllowedInfusionSourcesForSpell
 		// Exception: BD / Reality casters may ALSO route an evolution spell through Innate.
 		const UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
 		const UCharacterData *Data = GetCharacterData(Actor);
-		const bool bReality = Data && Data->InnateElement == ESpellElement::Reality;
+		const bool bReality = Data && Data->IsRealityRefractor();
 		const bool bBD = Comp && Comp->IsBrokenDarkness();
 		if (bReality || bBD)
 		{
@@ -4234,7 +4232,7 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 		ULoadoutComponent *Loadout = GetLoadoutComponent(Actor);
 		if (Loadout && Loadout->IsEvolved())
 		{
-			FCombatLoadout ActiveLoadout = Loadout->GetActiveLoadout();
+			const FCombatLoadout &ActiveLoadout = Loadout->GetActiveLoadout();
 			if (ActiveLoadout.PrimaryEvolution.Item)
 			{
 				return ActiveLoadout.PrimaryEvolution.Item->GetAssociatedElement();
@@ -4277,7 +4275,7 @@ ESpellElement UActionExecutor::ResolveSpellCastElement(AActor *Caster, const USp
 		{
 			if (ULoadoutComponent *LC = GetLoadoutComponent(Caster))
 			{
-				const FCombatLoadout Loadout = LC->GetActiveLoadout();
+				const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 				if (Loadout.InnateSpells.Contains(MutableSpell))
 				{
 					return ESpellElement::Darkness;
@@ -4366,8 +4364,8 @@ float UActionExecutor::GetEffectiveEnergyCostEfficiencyMultiplier(AActor *Actor)
 		const float CostDebuff = SEM->GetTotalStatModifier(Actor, ESkillEffectType::SpellCostDebuff);
 		const float ModifyEnergy = SEM->GetTotalStatModifier(Actor, ESkillEffectType::ModifyEnergyCost);
 		SkillEffectMult = FMath::Clamp(
-			1.0f - (CostBuff - CostDebuff + ModifyEnergy) / 100.0f,
-			0.1f, 2.0f);
+			1.0f - (CostBuff - CostDebuff + ModifyEnergy) / CombatConstants::STAT_PERCENT_DIVISOR,
+			CombatConstants::SKILL_EFFECT_COST_MULT_MIN, CombatConstants::SKILL_EFFECT_COST_MULT_MAX);
 	}
 
 	return CharMult * SkillEffectMult;
@@ -4428,7 +4426,7 @@ FRuntimeAttachedItem UActionExecutor::ResolveInfusionAttachment(AActor *Actor, c
 		{
 			return FRuntimeAttachedItem();
 		}
-		const FCombatLoadout Loadout = LC->GetActiveLoadout();
+		const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 		// Evolution primary slot is its own thing — wrap it as an evolution attachment.
 		// Whole-struct copy: the per-instance rolled state (GeneratedStatBonus/
 		// GeneratedResistance + pools) must travel with the attachment so the
@@ -5450,29 +5448,16 @@ void UActionExecutor::ApplySkillEffects(
 				{
 					if (P.EffectType == ESkillEffectType::HealthRestore)
 					{
-						// HealBlock gates the RECIPIENT — drain self-heals the User, so the immunity
-						// check is on User (NOT the cast target). Mirrors the ApplyEffect HealthRestore
-						// immunity gate; a HealBlocked attacker drains no HP. (StatusMgr null → no
-						// HealBlock can exist, so heal as before.)
-						if (StatusMgr && StatusMgr->IsImmuneToEffectType(User, ESkillEffectType::HealthRestore))
+						// The recipient's HealBlock, its healing-received boost and OnHealingDone (HealActor, B-247).
+						// StatusMgr null: no HealBlock or boost can exist, so heal as before.
+						const int32 Healed = StatusMgr ? StatusMgr->HealActor(User, DrainAmount, User) : DrainAmount;
+						if (!StatusMgr)
 						{
-							UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain heal on %s blocked by HealBlock"),
-								   *User->GetName());
+							CharComp->ServerHeal(Healed);
+							OnHealingDone.Broadcast(User, User, Healed);
 						}
-						else
-						{
-							// +healing-received amplify (HealBlock mirror) on the RECIPIENT (User).
-							// Gate-then-amplify. StatusMgr may be null here (the gate short-circuits on
-							// null), in which case no HealingReceivedBuff can exist → no amplification.
-							const float HealRecvBonus = StatusMgr
-								? StatusMgr->GetTotalStatModifier(User, ESkillEffectType::HealingReceivedBuff)
-								: 0.0f;
-							const int32 AmplifiedDrain = FMath::RoundToInt(DrainAmount * (1.0f + HealRecvBonus / CombatConstants::STAT_PERCENT_DIVISOR));
-							CharComp->ServerHeal(AmplifiedDrain);
-							OnHealingDone.Broadcast(User, User, AmplifiedDrain);
-							UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain healed %s for %d HP (%.0f%% of %d damage)"),
-								   *User->GetName(), AmplifiedDrain, P.DrainPercent * 100.0f, Result.TotalDamageDealt);
-						}
+						UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain healed %s for %d HP (%.0f%% of %d damage)"),
+							   *User->GetName(), Healed, P.DrainPercent * 100.0f, Result.TotalDamageDealt);
 					}
 					else // EnergyRestore
 					{
@@ -5587,8 +5572,7 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 		return Result;
 
 	// 1. Reality innate — Refractor (Caster + InnateElement = Reality)
-	if (CharComp->CharacterData->CharacterClass == ECharacterClass::Caster &&
-		CharComp->CharacterData->InnateElement == ESpellElement::Reality)
+	if (CharComp->CharacterData->IsRealityRefractor())
 	{
 		Result.AddFlatPercent(RealityBoost::INNATE_PERCENT);
 	}
@@ -5597,7 +5581,7 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 	UEvolutionItemData *PrimaryEvolutionCrystal = nullptr;
 	if (ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>())
 	{
-		const FCombatLoadout Loadout = LC->GetActiveLoadout();
+		const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 		if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
 		{
 			PrimaryEvolutionCrystal = Loadout.PrimaryEvolution.Item;

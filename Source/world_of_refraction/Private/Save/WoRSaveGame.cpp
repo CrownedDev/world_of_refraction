@@ -43,6 +43,7 @@ FSavedCarriedGear FSavedCarriedGear::Make(const FCarriedGearState &Carried)
 	{
 		FSavedCarriedAttachment &Out = Saved.Attachments.AddDefaulted_GetRef();
 		Out.Holder = FSavedAssetRef::Make(Attachment.Holder);
+		Out.GearID = Attachment.GearID;
 		Out.Attached = Attachment.Attached;
 		Out.EvolutionItem = FSavedAssetRef::Make(Attachment.Attached.Evolution.Item);
 		Out.Attached.Evolution.Item = nullptr;
@@ -68,6 +69,7 @@ FCarriedGearState FSavedCarriedGear::Restore() const
 		}
 		FCarriedAttachment &Out = Carried.Attachments.AddDefaulted_GetRef();
 		Out.Holder = Holder;
+		Out.GearID = In.GearID;
 		Out.Attached = In.Attached;
 		Out.Attached.Evolution.Item = In.EvolutionItem.IsSet() ? In.EvolutionItem.ResolveAs<UEvolutionItemData>() : nullptr;
 	}

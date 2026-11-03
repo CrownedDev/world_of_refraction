@@ -27,6 +27,7 @@ class USpellData;
 class UAbilityData;
 class USkillDataBase;
 class UWeaponData;
+class UEquipmentDataBase;
 class URingData;
 class UEvolutionItemData;
 class UInventoryData;
@@ -243,6 +244,13 @@ public:
     /** Get weapon at index */
     UFUNCTION(BlueprintPure, Category = "Inventory|Weapons")
     FWeaponInventoryEntry GetWeaponAt(int32 Index) const;
+
+    /** B-252 (DRY audit A12): the owned weapon / ring with this PersistentID, or null. The pointer is into the
+     *  inventory: it dangles once the array changes. */
+    FWeaponInventoryEntry *FindOwnedWeapon(const FGuid &PersistentID);
+    const FWeaponInventoryEntry *FindOwnedWeapon(const FGuid &PersistentID) const;
+    FRingInventoryEntry *FindOwnedRing(const FGuid &PersistentID);
+    const FRingInventoryEntry *FindOwnedRing(const FGuid &PersistentID) const;
 
     /** B-221 (Q-091, Crown): a piece another party member wears is on them, not in the shared inventory. */
     UFUNCTION(BlueprintPure, Category = "Inventory|Shared")
@@ -526,6 +534,12 @@ private:
     bool RemoveEvolutionFromGear(TArray<TEntry> &Gear, FGuid GearID, const TCHAR *Op);
     template <class TEntry>
     bool RemoveCrystalFromGear(TArray<TEntry> &Gear, int32 Index);
+    /** B-251 (DRY audit A13): the weapon / ring acquisition (mint the owned ID, the pickup roll, pool push,
+     *  broadcast) and removal, once for both entry types. */
+    template <class TEntry>
+    bool AddGearEntry(TArray<TEntry> &Gear, TEntry Entry, const UEquipmentDataBase &Asset);
+    template <class TEntry>
+    bool RemoveGearAt(TArray<TEntry> &Gear, int32 Index);
 
     /** Populates ownership lists + SavedLoadouts + ActiveLoadoutIndex from
      *  CharacterData->Inventory (a UInventoryData asset). Sole loadout-init
