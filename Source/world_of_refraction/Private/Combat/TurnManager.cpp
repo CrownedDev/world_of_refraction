@@ -213,7 +213,7 @@ void UTurnManager::AdvanceToNextTurn()
 	CurrentTurnPayloadId = Picked.PayloadId;
 	GlobalTurnCount++;
 
-	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Turn %d: %s (Team %d)"),
+	UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] Turn %d: %s (Team %d)"),
 		   GlobalTurnCount,
 		   *CurrentActor->GetName(),
 		   GetActorTeam(CurrentActor));
@@ -360,7 +360,7 @@ void UTurnManager::RequestExtraTurn(AActor *Actor, bool bIsBonusTurn)
 		if (Combatant.Actor == Actor)
 		{
 			Combatant.TurnsOwed += 1.0f;
-			UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Extra turn granted to %s (TurnsOwed now %.2f)"),
+			UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] Extra turn granted to %s (TurnsOwed now %.2f)"),
 				   *Actor->GetName(), Combatant.TurnsOwed);
 			return;
 		}
@@ -381,7 +381,7 @@ void UTurnManager::DelayNextTurn(AActor *Actor, int32 Places)
 		if (Combatant.Actor == Actor)
 		{
 			Combatant.PlacesToYield += Places;
-			UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s's next turn moves back %d place(s)"), *Actor->GetName(), Places);
+			UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] %s's next turn moves back %d place(s)"), *Actor->GetName(), Places);
 			// The strip reads the belt; rebuild it so the delay shows now, not next turn.
 			RebuildBelt();
 			OnSpeedChanged.Broadcast(Actor);
@@ -404,7 +404,7 @@ void UTurnManager::ScheduleBonusTurn(AActor *Actor, int32 DelayTurns, int32 Coun
 	Entry.Count = FMath::Max(1, Count);
 	PendingTurns.Add(Entry);
 
-	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Scheduled %d pinned bonus turn(s) for %s after %d normal turn(s)"),
+	UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] Scheduled %d pinned bonus turn(s) for %s after %d normal turn(s)"),
 		   Entry.Count, *Actor->GetName(), DelayTurns);
 }
 
@@ -424,7 +424,7 @@ void UTurnManager::ScheduleExecutionTurn(AActor *Caster, int32 DelayTurns, int32
 	Entry.SortKey = SpellSpeed;        // frozen spell speed -> fire-time adjacency selection
 	PendingTurns.Add(Entry);
 
-	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Scheduled Execution Turn for %s after %d normal turn(s) (payload %d, spellspeed %.2f)"),
+	UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] Scheduled Execution Turn for %s after %d normal turn(s) (payload %d, spellspeed %.2f)"),
 		   *Caster->GetName(), DelayTurns, PayloadId, SpellSpeed);
 }
 
@@ -537,7 +537,7 @@ void UTurnManager::OnActorSpeedChanged(AActor *Actor)
 
 void UTurnManager::OnActorDied(AActor *Actor)
 {
-	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s died"), *GetNameSafe(Actor));
+	UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] %s died"), *GetNameSafe(Actor));
 	// A Wind delay dies with its holder; a revived holder starts undelayed.
 	for (FCombatantTurnDebt &Combatant : Combatants)
 	{
@@ -552,7 +552,7 @@ void UTurnManager::OnActorDied(AActor *Actor)
 
 void UTurnManager::OnActorResurrected(AActor *Actor)
 {
-	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s resurrected"), *GetNameSafe(Actor));
+	UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] %s resurrected"), *GetNameSafe(Actor));
 	// Recalculate ratios since the slowest combatant might have changed
 	CalculateSpeedRatios();
 }
