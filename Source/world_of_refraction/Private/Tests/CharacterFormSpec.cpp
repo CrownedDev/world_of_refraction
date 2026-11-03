@@ -1,6 +1,6 @@
 // CharacterFormSpec.cpp
 // B-279: the loadout-match meter. Wearing part of a form's reference loadout fills it slower than the
-// full set; 100% unlocks the form; restored progress reads back.
+// full set; 100% unlocks the form; the meter survives save bytes and a load.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -12,6 +12,8 @@
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryData.h"
+#include "Kismet/GameplayStatics.h"
+#include "Save/WoRSaveGame.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
 
@@ -113,14 +115,27 @@ void FCharacterFormSpec::Define()
 		TestEqual(TEXT("capped"), Forms->GetProgress(Form), CharacterFormMeter::FULL);
 	});
 
-	It("reads back restored progress", [this]()
+	It("keeps the meter through save bytes and a load", [this]()
 	{
 		Forms->RecordFightWonWith({FirstPieces(3)});
-		const TMap<FName, float> Saved = Forms->GetProgressByName();
-		UCharacterFormSubsystem *Loaded = NewObject<UCharacterFormSubsystem>(GameInstance);
-		Loaded->RegisterForm(Form);
-		Loaded->RestoreProgress(Saved);
-		TestEqual(TEXT("progress"), Loaded->GetProgress(Form), Forms->GetProgress(Form));
+		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
+		Save->HandlePreSave();
+		Save->Data.Forms.Progress = Forms->GetProgressByName();
+		TArray<uint8> Bytes;
+		if (!TestTrue(TEXT("saved to bytes"), UGameplayStatics::SaveGameToMemory(Save, Bytes)))
+		{
+			return;
+		}
+		const UWoRSaveGame *Loaded = Cast<UWoRSaveGame>(UGameplayStatics::LoadGameFromMemory(Bytes));
+		if (!TestNotNull(TEXT("loaded"), Loaded))
+		{
+			return;
+		}
+		UCharacterFormSubsystem *NewForms = NewObject<UCharacterFormSubsystem>(GameInstance);
+		NewForms->RegisterForm(Form);
+		NewForms->RestoreProgress(Loaded->Data.Forms.Progress);
+		TestTrue(TEXT("partial progress"), NewForms->GetProgress(Form) > 0.0f);
+		TestEqual(TEXT("progress"), NewForms->GetProgress(Form), Forms->GetProgress(Form));
 	});
 
 	AfterEach([this]()
