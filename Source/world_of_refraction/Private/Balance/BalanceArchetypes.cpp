@@ -1,6 +1,6 @@
 // BalanceArchetypes.cpp
-// B-292: archetypes and presets. Spells are not modelled yet: the Resonator and Caster archetypes fight with their
-// weapon and one ability (BalanceSimulator.md §6, fidelity gaps). TODO(B-293): spells through an adapter.
+// B-292 / B-293: archetypes and presets. The Resonator casts one Instant spell through an adapter, the Caster an
+// innate one (B-293); everyone fights with weapon and one ability.
 
 #include "Balance/BalanceArchetypes.h"
 
@@ -14,8 +14,17 @@ namespace
 	constexpr int32 SIM_POWER_S = 192;
 	/** Normal fights are 3 v 2-3 (BalanceSimulator.md §3); the sim uses the upper end. */
 	constexpr int32 SIM_NORMAL_ENEMY_COUNT = 3;
+	/** An Elite fight is 3 v 2 (BalanceSimulator.md §4). */
+	constexpr int32 SIM_ELITE_ENEMY_COUNT = 2;
 	constexpr int32 SIM_PILLAR6_SIDE_SIZE = 3;
 	constexpr int32 SIM_ZONE_TIER = 0;
+	/** Fights per matchup: quick runs in the suite, nightly and full are reports (BalanceSimulator.md §3). */
+	constexpr int32 SIM_QUICK_FIGHTS = 3;
+	constexpr int32 SIM_NIGHTLY_FIGHTS = 50;
+	constexpr int32 SIM_FULL_FIGHTS = 200;
+	const FName SimPresetQuick(TEXT("quick"));
+	const FName SimPresetNightly(TEXT("nightly"));
+	const FName SimPresetFull(TEXT("full"));
 
 	const FName SimEarlyGenericF(TEXT("P-EarlyGenericF"));
 	const FName SimMidResonatorC(TEXT("P-MidResonatorC"));
@@ -73,6 +82,7 @@ namespace
 		Mid.ScalingTier = EScalingTier::B;
 		Mid.RequiredLevel = 3;
 		Mid.AbilityBase = 30;
+		Mid.SpellBase = 30; // a C Destruction spell, Instant, Fire, through the adapter
 		Out.Add(Mid);
 
 		FBalanceArchetype Late = MakeSimArchetype(SimLateCasterS, ECharacterClass::Caster, EItemTier::S_Tier, SIM_POWER_S);
@@ -85,6 +95,7 @@ namespace
 		Late.ScalingTier = EScalingTier::S;
 		Late.RequiredLevel = 7;
 		Late.AbilityBase = 40;
+		Late.SpellBase = 40; // an S spell, Instant, innate
 		Out.Add(Late);
 
 		FBalanceArchetype LowS = MakeSimArchetype(SimLowLevelSGear, ECharacterClass::Generic, EItemTier::S_Tier, SIM_POWER_S);
@@ -128,7 +139,7 @@ namespace
 		M.Party = MoveTemp(Members);
 		M.Enemy = Enemy;
 		M.Rank = Rank;
-		M.EnemyCount = Rank == EEncounterRank::Normal ? SIM_NORMAL_ENEMY_COUNT : 1;
+		M.EnemyCount = Rank == EEncounterRank::Normal ? SIM_NORMAL_ENEMY_COUNT : Rank == EEncounterRank::Elite ? SIM_ELITE_ENEMY_COUNT : 1;
 		M.Difficulty = Difficulty;
 		M.ZoneTier = SIM_ZONE_TIER;
 		M.Id = FName(FString::Printf(TEXT("%s-v-%s-%s-%s"), Party, *Enemy.ToString(),
@@ -156,17 +167,21 @@ const FBalanceArchetype *BalanceArchetypes::Find(FName Id)
 TArray<FBalanceMatchup> BalanceArchetypes::Preset(FName Name)
 {
 	TArray<FBalanceMatchup> Out;
-	if (Name == TEXT("quick"))
+	if (Name == SimPresetQuick)
 	{
 		Out.Add(MakeSimMatchup(TEXT("Early"), SimEarlyParty(), SimEnemyF, EEncounterRank::Normal, EAIDifficulty::Medium));
 		Out.Add(MakeSimMatchup(TEXT("Mid"), SimMidParty(), SimEnemyC, EEncounterRank::MiniBoss, EAIDifficulty::Medium));
 		Out.Add(MakeSimMatchup(TEXT("Late"), SimLateParty(), SimEnemyS, EEncounterRank::Boss, EAIDifficulty::Medium));
 	}
-	else if (Name == TEXT("nightly"))
+	else if (Name == SimPresetNightly || Name == SimPresetFull)
 	{
+		// full adds the Elite rank (B-224) to the grid.
+		const TArray<EEncounterRank> Ranks = Name == SimPresetFull
+												 ? TArray<EEncounterRank>{EEncounterRank::Normal, EEncounterRank::Elite, EEncounterRank::MiniBoss, EEncounterRank::Boss}
+												 : TArray<EEncounterRank>{EEncounterRank::Normal, EEncounterRank::MiniBoss, EEncounterRank::Boss};
 		for (const EAIDifficulty Difficulty : {EAIDifficulty::Medium, EAIDifficulty::Hard})
 		{
-			for (const EEncounterRank Rank : {EEncounterRank::Normal, EEncounterRank::MiniBoss, EEncounterRank::Boss})
+			for (const EEncounterRank Rank : Ranks)
 			{
 				Out.Add(MakeSimMatchup(TEXT("Early"), SimEarlyParty(), SimEnemyF, Rank, Difficulty));
 				Out.Add(MakeSimMatchup(TEXT("Mid"), SimMidParty(), SimEnemyC, Rank, Difficulty));
@@ -183,6 +198,29 @@ TArray<FBalanceMatchup> BalanceArchetypes::Preset(FName Name)
 						EEncounterRank::Normal, EAIDifficulty::Medium));
 	}
 	return Out;
+}
+
+int32 BalanceArchetypes::PresetFights(FName Name)
+{
+	if (Name == SimPresetQuick)
+	{
+		return SIM_QUICK_FIGHTS;
+	}
+	if (Name == SimPresetNightly)
+	{
+		return SIM_NIGHTLY_FIGHTS;
+	}
+	if (Name == SimPresetFull)
+	{
+		return SIM_FULL_FIGHTS;
+	}
+	return 0;
+}
+
+const TArray<FName> &BalanceArchetypes::PresetNames()
+{
+	static const TArray<FName> Names = {SimPresetQuick, SimPresetNightly, SimPresetFull};
+	return Names;
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
