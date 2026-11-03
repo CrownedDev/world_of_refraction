@@ -223,7 +223,7 @@ void FCombatNumbersBaselineSpec::Define()
 		const FString Text = WoRTuning::Get().GetCombatTuningString();
 		TestTrue(TEXT("pillar curve"), Text.Contains(TEXT("PillarCurve")));
 		TestTrue(TEXT("rank HP"), Text.Contains(TEXT("EnemyRankHealth")));
-		TestTrue(TEXT("requirement floor"), Text.Contains(TEXT("Weapon req floor")));
+		TestTrue(TEXT("requirement penalty (D-119)"), Text.Contains(TEXT("Weapon req unmet")));
 		TestTrue(TEXT("C++ caps"), Text.Contains(TEXT("defense ceiling")));
 	});
 }
