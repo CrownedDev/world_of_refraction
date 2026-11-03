@@ -150,6 +150,9 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 - A stat change with no event (e.g. weather, a crystal breaking mid-turn) reaches the attributes at that character's next turn start. `wor.CompareAttributes` shows such drift in between.
 - Bare test actors (and anything that isn't an `ACombatCharacter`) have no ASC unless one is added, as `WoR.GAS.Attributes` does.
 - Per-AI Minimal replication mode waits for co-op.
+- B-042yd: a heal paid through GAS (HOT tick, percent HP restore) reports the HP actually gained (it stops at
+  MaxHP); the game path's `HealActor` reports the full amplified heal. Near full HP the two `OnHealingDone`
+  amounts differ. No spec yet for a HealingReceived buff on a percent restore at UseGAS 1.
 
 ## Changelog
 
