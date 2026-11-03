@@ -269,6 +269,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Debug")
 	void DebugPrintCalculation(const FDamageCalculationResult &Result) const;
 
+	/** The defender's share of the status-effect damage modifier from whole-number percents: (1 - Damage Taken
+	 *  Down, capped at DAMAGE_TAKEN_DOWN_CAP_PERCENT) x (1 + Damage Taken Up, uncapped). Pure, so a spec can pin
+	 *  the cap (B-288). */
+	static float GetDamageTakenFactor(float ReduceDamageTakenPercent, float IncreaseDamageTakenPercent);
+
 private:
 	/** Get CharacterData from actor */
 	UCharacterData *GetCharacterData(AActor *Actor) const;

@@ -75,7 +75,7 @@ Status buildup is **not** computed inside `CalculateDamage` — the comment note
 
 ### Private helpers
 
-- `GetStatusEffectDamageModifier` — attacker side: `(DamageBuff − DamageDebuff)/100` and `ModifyDamageDealt`. Defender side: `ModifyDamageTaken`, clamped at `-90` so reduction never exceeds 90% (positive increase uncapped). Result floored at `0`.
+- `GetStatusEffectDamageModifier` — attacker side: `(DamageBuff − DamageDebuff)/100` and `ModifyDamageDealt`. Defender side: `GetDamageTakenFactor(ReduceDamageTaken%, IncreaseDamageTaken%)` (static, pure): Damage Taken Down capped at `DAMAGE_TAKEN_DOWN_CAP_PERCENT` (90), Damage Taken Up uncapped (B-288). Result floored at `0`.
 - `GetCritDamageMultiplier` (`DamageCalculator.cpp:578`) — returns the **full** crit-damage multiplier, not just the skill-effect term. `CRIT_DMG_BASE` ×1.0 + the CritDamage-stat ramp (`GetEvolutionModifiedMind × CritDamage points × CRIT_DAMAGE_PER_POINT`, capped ALONE at `CRIT_DAMAGE_STAT_CAP` ×1.5), then gear (`BonusCritDamage`) + attached `CritStone` (`GetAttachedStonePercent(.., CritDamage)`) + transient `(ModifyCritDamage − CritDamageDebuff)` all **multiply** past, final `Clamp(.., CRIT_DMG_BASE 1.0, CRIT_DAMAGE_GEAR_CEILING 2.5)`. An un-invested crit with no gear is exactly ×1.0. See `StatComposition.md` §6/§8.
 - *`GetInfusionDamageMultiplier` — **removed** (tier-power arc): orphaned dead code (zero callers); live infusion damage rides `ActionExecutor::GetChargeDamageMultiplier` (1.15/1.30).*
 
@@ -141,3 +141,4 @@ Any combat caller invoking `CalculateDamage` / `CalculateAttackDamage` (e.g. act
 | 2026-10-27 | B-042s: `GetCriticalChance` multiplies in `GetCritChanceTransientFactor` (buff x debuff x Modify) once; the GAS crit-chance effect uses the same factor. | feature/B-042s-gas-derived-stats |
 | 2026-11-03 | B-224 (Crown, BaselineNumbers.md): `DEFENSE_REDUCTION_CEILING` 0.85 -> 0.75 (a full tank takes a quarter of a hit); `CRIT_DMG_BASE` 1.0 -> 1.25 (an un-invested crit does +25%, Monster Hunter), `CRIT_DAMAGE_PER_POINT` now `(stat cap - base) / DENOM` so full investment still lands on x1.5 (Q-224b); gear ceiling x2.5 unchanged. Spec `WoR.Tuning.Baseline`. Unbuilt (cloud). | feature/B-224-combat-numbers |
 | 2026-11-03 | B-224 desktop build: `GetScalingFraction(CritDamage)` has its own case, 0 at `CRIT_DMG_BASE` and 0.5 at `CRIT_DAMAGE_STAT_CAP` (it was v - 1, a free 0.25 from the new base); spec case in `WoR.Damage` |
+| 2026-11-03 | B-288: the Damage Taken Down cap is `CombatConstants::DAMAGE_TAKEN_DOWN_CAP_PERCENT` (90) behind the pure `UDamageCalculator::GetDamageTakenFactor`; spec `WoR.Scaling.Ladders` pins it with every tier-gap, cost, requirement-gap and tier-power rung and the crit gear ceiling x2.5. Unbuilt (cloud). | feature/B-288-ladders |

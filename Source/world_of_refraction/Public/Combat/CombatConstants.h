@@ -191,6 +191,10 @@ namespace CombatConstants
     // post-5e-C3) MULTIPLY the capped stat past 1.5 toward this.
     constexpr float CRIT_DAMAGE_GEAR_CEILING = 2.5f; // max crit damage WITH gear (>= CRIT_DAMAGE_STAT_CAP)
 
+    // Damage Taken Down (ReduceDamageTaken, a defender buff, whole-number percent) never cuts more than
+    // this; Damage Taken Up has no cap (ED-17). B-288 named it; the number is the one the code had.
+    constexpr float DAMAGE_TAKEN_DOWN_CAP_PERCENT = 90.0f;
+
     // Spell Speed - Projectile travel speed (affects defender reaction time)
     constexpr float SPELL_SPEED_BASE = 1.0f;       // Base multiplier
     constexpr float SPELL_SPEED_PER_POINT = STAT_MULT_PER_POINT; // -> x1.5 cast speed at max
