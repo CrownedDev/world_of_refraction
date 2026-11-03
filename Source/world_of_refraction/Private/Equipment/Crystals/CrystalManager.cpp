@@ -367,50 +367,62 @@ ULoadoutComponent *UCrystalManager::GetLoadoutComponent(AActor *Actor) const
     return Actor->FindComponentByClass<ULoadoutComponent>();
 }
 
+namespace CrystalManagerDebug
+{
+    /** The acting character's primary weapon and its non-empty attachment; nulls after a warning tagged Tag. */
+    struct FDebugCrystalTarget
+    {
+        AActor *Actor = nullptr;
+        ULoadoutComponent *LC = nullptr;
+        UWeaponData *Weapon = nullptr;
+        FRuntimeAttachedItem *Attachment = nullptr;
+    };
+
+    FDebugCrystalTarget FindDebugCrystal(const UCrystalManager &Manager, const TCHAR *Tag)
+    {
+        FDebugCrystalTarget Target;
+        UTurnManager *TurnMgr = Manager.GetGameInstance() ? Manager.GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+        AActor *Actor = TurnMgr ? TurnMgr->GetCurrentActor() : nullptr;
+        ULoadoutComponent *LC = Actor ? Actor->FindComponentByClass<ULoadoutComponent>() : nullptr;
+        UWeaponData *Weapon = LC ? LC->GetPrimaryWeapon() : nullptr;
+        FRuntimeAttachedItem *Attachment = Weapon ? LC->FindAttachedItemByHolder(Weapon) : nullptr;
+        if (!TurnMgr)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("%s No TurnManager subsystem."), Tag);
+        }
+        else if (!Actor)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("%s No active character (combat not active?)."), Tag);
+        }
+        else if (!LC)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("%s No LoadoutComponent on %s."), Tag, *Actor->GetName());
+        }
+        else if (!Weapon)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("%s %s has no primary weapon equipped."), Tag, *Actor->GetName());
+        }
+        else if (!Attachment || Attachment->IsEmpty())
+        {
+            UE_LOG(LogTemp, Warning, TEXT("%s %s's primary weapon has no attached crystal."), Tag, *Actor->GetName());
+        }
+        else
+        {
+            Target = {Actor, LC, Weapon, Attachment};
+        }
+        return Target;
+    }
+}
+
 // ========================================
 // DEBUG
 // ========================================
 
 void UCrystalManager::DebugBreakActiveCrystal()
 {
-    UTurnManager *TurnMgr = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
-    if (!TurnMgr)
+    [[maybe_unused]] const auto [Actor, LC, Weapon, Attachment] = CrystalManagerDebug::FindDebugCrystal(*this, TEXT("[Debug.BreakActiveCrystal]"));
+    if (!Attachment)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Debug.BreakActiveCrystal] No TurnManager subsystem."));
-        return;
-    }
-
-    AActor *Actor = TurnMgr->GetCurrentActor();
-    if (!Actor)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[Debug.BreakActiveCrystal] No active character (combat not active?)."));
-        return;
-    }
-
-    ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-    if (!LC)
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[Debug.BreakActiveCrystal] No LoadoutComponent on %s."),
-               *Actor->GetName());
-        return;
-    }
-
-    UWeaponData *Weapon = LC->GetPrimaryWeapon();
-    if (!Weapon)
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[Debug.BreakActiveCrystal] %s has no primary weapon equipped."),
-               *Actor->GetName());
-        return;
-    }
-
-    FRuntimeAttachedItem *Attachment = LC->FindAttachedItemByHolder(Weapon);
-    if (!Attachment || Attachment->IsEmpty())
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[Debug.BreakActiveCrystal] %s's primary weapon has no attached crystal."),
-               *Actor->GetName());
         return;
     }
 
@@ -485,44 +497,9 @@ void UCrystalManager::DebugBreakActiveCrystal()
 
 void UCrystalManager::DebugForceWearActiveCrystal(int32 Amount)
 {
-    UTurnManager *TurnMgr = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
-    if (!TurnMgr)
+    [[maybe_unused]] const auto [Actor, LC, Weapon, Attachment] = CrystalManagerDebug::FindDebugCrystal(*this, TEXT("[Debug.ForceWearActiveCrystal]"));
+    if (!Attachment)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Debug.ForceWearActiveCrystal] No TurnManager subsystem."));
-        return;
-    }
-
-    AActor *Actor = TurnMgr->GetCurrentActor();
-    if (!Actor)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[Debug.ForceWearActiveCrystal] No active character (combat not active?)."));
-        return;
-    }
-
-    ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-    if (!LC)
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[Debug.ForceWearActiveCrystal] No LoadoutComponent on %s."),
-               *Actor->GetName());
-        return;
-    }
-
-    UWeaponData *Weapon = LC->GetPrimaryWeapon();
-    if (!Weapon)
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[Debug.ForceWearActiveCrystal] %s has no primary weapon equipped."),
-               *Actor->GetName());
-        return;
-    }
-
-    FRuntimeAttachedItem *Attachment = LC->FindAttachedItemByHolder(Weapon);
-    if (!Attachment || Attachment->IsEmpty())
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[Debug.ForceWearActiveCrystal] %s's primary weapon has no attached crystal."),
-               *Actor->GetName());
         return;
     }
 
@@ -679,42 +656,9 @@ void UCrystalManager::WOR_WearTable()
 
 void UCrystalManager::WOR_SimCast(int32 ActionTier, int32 InfusionLevel)
 {
-    UTurnManager *TurnMgr = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
-    if (!TurnMgr)
+    [[maybe_unused]] const auto [Actor, LC, Weapon, Attachment] = CrystalManagerDebug::FindDebugCrystal(*this, TEXT("[WOR_SimCast]"));
+    if (!Attachment)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[WOR_SimCast] No TurnManager subsystem."));
-        return;
-    }
-
-    AActor *Actor = TurnMgr->GetCurrentActor();
-    if (!Actor)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[WOR_SimCast] No active character (combat not active?)."));
-        return;
-    }
-
-    ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-    if (!LC)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[WOR_SimCast] No LoadoutComponent on %s."), *Actor->GetName());
-        return;
-    }
-
-    UWeaponData *Weapon = LC->GetPrimaryWeapon();
-    if (!Weapon)
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[WOR_SimCast] %s has no primary weapon equipped."),
-               *Actor->GetName());
-        return;
-    }
-
-    FRuntimeAttachedItem *Attachment = LC->FindAttachedItemByHolder(Weapon);
-    if (!Attachment || Attachment->IsEmpty())
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[WOR_SimCast] %s's primary weapon has no attached crystal."),
-               *Actor->GetName());
         return;
     }
     if (!Attachment->IsCrystal())
@@ -794,42 +738,9 @@ void UCrystalManager::WOR_SimCast(int32 ActionTier, int32 InfusionLevel)
 
 void UCrystalManager::WOR_CrystalState()
 {
-    UTurnManager *TurnMgr = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
-    if (!TurnMgr)
+    [[maybe_unused]] const auto [Actor, LC, Weapon, Attachment] = CrystalManagerDebug::FindDebugCrystal(*this, TEXT("[WOR_CrystalState]"));
+    if (!Attachment)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[WOR_CrystalState] No TurnManager subsystem."));
-        return;
-    }
-
-    AActor *Actor = TurnMgr->GetCurrentActor();
-    if (!Actor)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[WOR_CrystalState] No active character (combat not active?)."));
-        return;
-    }
-
-    ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-    if (!LC)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[WOR_CrystalState] No LoadoutComponent on %s."), *Actor->GetName());
-        return;
-    }
-
-    UWeaponData *Weapon = LC->GetPrimaryWeapon();
-    if (!Weapon)
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[WOR_CrystalState] %s has no primary weapon equipped."),
-               *Actor->GetName());
-        return;
-    }
-
-    FRuntimeAttachedItem *Attachment = LC->FindAttachedItemByHolder(Weapon);
-    if (!Attachment || Attachment->IsEmpty())
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[WOR_CrystalState] %s's primary weapon has no attached crystal."),
-               *Actor->GetName());
         return;
     }
 
