@@ -37,6 +37,7 @@
 #include "Inventory/ItemEffectType.h"
 #include "Combat/TurnManager.h"
 #include "Skills/Definitions/SupportSkillRules.h"
+#include "Skills/Definitions/WorldStatRequirements.h"
 #include "HAL/IConsoleManager.h"
 
 namespace
@@ -935,7 +936,10 @@ int32 UAIDecisionManager::ComputeActionDamageEstimate(AActor *Attacker, AActor *
     Input.bCanCrit = false;
     Input.bWasInfused = InfusionLevel > 0;
     Input.InfusionLevel = InfusionLevel;
-    Input.StatScaling = Skill->StatScaling;
+    if (!WeaponRequirement::IsUnmetFactor(ActionExec->GetSkillRequirementFactor(Attacker, Skill))) // B-326: as ApplyHit
+    {
+        Input.StatScaling = Skill->StatScaling;
+    }
     Input.IgnoreDefensePercent = Skill->IgnoreDefensePercent;
     const FDamageCalculationResult Result = DamageCalc->CalculateDamage(Attacker, Target, Input);
 

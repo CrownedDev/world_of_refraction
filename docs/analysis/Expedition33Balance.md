@@ -57,6 +57,11 @@ Mini-boss x4 and boss x8 HP; the requirement floor at 0.25; a 10% damage floor a
 
 The cause was the sim, not enemy HP stacking. Two of the three Mid/Late members were the early F build with only the weapon swapped. They now take tier-matched stat points (Q-293e). Enemy tier HP stays as decided (BaselineNumbers §2.9). Open for Crown: enemy damage scales with tier and party HP doesn't (Q-293e notes). Re-run the nightly.
 
+## D-119: one flat requirement penalty (2026-11-03; B-326)
+
+Crown replaced Q-293d's 0.25 floor with Elden Ring's single penalty: under any requirement, a weapon, ability or spell works at x0.6 with no pillar scaling. For pillar 6 the low-level S weapon now deals 192 x 0.6 = 115 against the high-level F weapon's ~58, so S gear still leads about 2x. Expect the 35–65% band to keep failing until the next nightly says otherwise. The band is Crown's call and stays as set.
+
+
 ## What the third nightly showed (2026-11-03, after B-293d, desktop build)
 
 21 bands fail (was 17). The x4 / x8 rank HP and the 10 % chip floor made every Mid and Late fight longer; the Mid party now wins normal fights more often but the Late party still loses most.

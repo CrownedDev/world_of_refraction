@@ -3142,6 +3142,22 @@ Moved here once applied. Newest first.
 **Answer:** A (approved by the reference-backed default). B-325 is unaffected: an enemy's Combat Tier still feeds the same tier-power HP.
 **Notes for Claude:** applied in B-293d (`chore/B-293d-decided-balance`). **For Crown, still open after the re-run:** enemy damage rides tier power (an S weapon is Power 192) but a party member's HP doesn't (gear MaxHP per point is the same at every tier, and D-118 keeps a player's tier statless), so even tier-matched S members fall in about 2 enemy hits against about 3.5 at F. If the next nightly still loses Mid/Late normal fights, that is the lever (enemy damage tier power, or player HP growth), and it is Crown's call.
 
+### D-119 — One flat penalty for an unmet requirement (changes Q-293d (2))
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
+**Answer (Crown):** the requirement penalty is a single penalty, Elden Ring style, not the gradual requirement-gap ladder. Any shortfall below a weapon's requirement, 1 level or 5, gives the weapon part x`REQUIREMENT_UNMET_DAMAGE_FACTOR` = **0.6** and **no pillar scaling** from that weapon; meeting it gives full power, as today. The 0.25 floor and the requirement-gap rungs retire. **Added the same day:** abilities and spells with an unmet requirement **still work** but take the same single penalty (x0.6, no pillar scaling); nothing becomes uncastable.
+**What it changes:** Q-293d (2) (the 0.25 floor), CL-39 / CL-40 / ED-14 / ED-43, BaselineNumbers' requirement lines.
+**Defaults taken (reference-backed, Crown may change):** Q-326.
+**Notes for Claude:** job B-326 (on `chore/B-293d-decided-balance`). The pillar-6 band (35–65%) is not moved.
+
+### Q-326 — D-119's details: what "met" keeps, and what "no pillar scaling" removes from a skill
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-326, cloud) · **Blocks:** —
+**Question:** (1) A met skill used to get the requirement-gap boost for being over (up to x1.40 at −5); does that stay? (2) For a skill, which scaling does "no pillar scaling" remove? (3) Do two unmet pillars stack?
+**Context:** `Private/Combat/Actions/ActionExecutor.cpp` (`GetSkillRequirementFactor`, `ComputeActionStatModifiers` step 4, `ApplyHit`); `Public/Skills/Definitions/WorldStatRequirements.h`.
+**Options / as built:** (1) **kept**: "met gives full power, as today", so a met skill still reads the ladder's met side (1.00 .. 1.40); weapons still get no bonus for being over (Q-146c). (2) **both** of a skill's scalings: its requirement-gap pillar percents and its authored `StatScaling` terms; the skill part is then x0.6. (3) **no**: one unmet pillar is enough, more don't stack.
+**Recommendation:** as built. Elden Ring: under any requirement the weapon or spell still works, its attack drops by a flat 40% and its attribute scaling is lost; one stat short is enough and more stats short don't add to it; over the requirement, scaling is what grows ([Fextralife](https://eldenring.wiki.fextralife.com/Attributes)).
+**Answer:** as built (approved by the reference-backed default).
+**Notes for Claude:** applied in B-326 (`chore/B-326-flat-requirement-penalty`). The ladder's under rungs (+1..+5) stay in code, unread, until Crown's PIE pass. `WEAPON_REQ_FACTOR_MIN` / `WeaponReqFactorMin` likewise.
+
 ### Q-223 — Level drops: the numbers, when you place them, and the save
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-223) · **Blocks:** —
 **Question:** D-102 sets the shape (a chance from normal enemies, guaranteed levels from a mini-boss, you choose the pillar) but not the odds, how many a mini-boss gives, when you place a drop, or whether a run's levels are saved.

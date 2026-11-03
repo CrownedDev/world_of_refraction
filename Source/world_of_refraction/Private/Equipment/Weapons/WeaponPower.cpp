@@ -9,6 +9,9 @@
 
 namespace
 {
+	/** The scaling factor with no pillar bonus (B-326: an unmet requirement). */
+	constexpr float NO_PILLAR_SCALING = 1.0f;
+
 	int32 LevelOf(const FWorldPillarLevels &Levels, EWorldPillar Pillar)
 	{
 		switch (Pillar)
@@ -65,7 +68,10 @@ namespace WoRWeaponPower
 		{
 			return 0.0f;
 		}
-		return GetScaledPower(Weapon, InstanceTier) * GetScalingFactor(Weapon.StatScaling, Levels) * RequirementFactor;
+		// B-326 (D-119): an unmet requirement also drops the weapon's pillar scaling.
+		const float Scaling = WeaponRequirement::IsUnmetFactor(RequirementFactor) ? NO_PILLAR_SCALING
+																				   : GetScalingFactor(Weapon.StatScaling, Levels);
+		return GetScaledPower(Weapon, InstanceTier) * Scaling * RequirementFactor;
 	}
 
 	FString GetWeaponPartString(const UWeaponData &Weapon, EItemTier InstanceTier, const FWorldPillarLevels &Levels,
@@ -80,7 +86,8 @@ namespace WoRWeaponPower
 			Out += FString::Printf(TEXT("  %s %s: x%.2f x curve(%d) %.2f\n"), *UEnum::GetDisplayValueAsText(Grade.Pillar).ToString(),
 								   *GetScalingTierString(Grade.Tier), GetScalingTierCoefficient(Grade.Tier), Level, GetPillarCurve(Level));
 		}
-		Out += FString::Printf(TEXT("Scaling x%.3f  requirement x%.2f  weapon part %.2f"), GetScalingFactor(Weapon.StatScaling, Levels),
+		Out += FString::Printf(TEXT("Scaling x%.3f%s  requirement x%.2f  weapon part %.2f"), GetScalingFactor(Weapon.StatScaling, Levels),
+							   WeaponRequirement::IsUnmetFactor(RequirementFactor) ? TEXT(" (off: requirement unmet)") : TEXT(""),
 							   RequirementFactor, GetWeaponPart(Weapon, InstanceTier, Levels, RequirementFactor));
 		return Out;
 	}
