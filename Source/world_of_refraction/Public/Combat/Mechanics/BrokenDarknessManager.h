@@ -89,6 +89,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness")
 	bool IsTransformed() const { return bIsFlipped; }
 
+	/** B-255 (DRY audit A15): the one "is Actor in Broken Darkness form" check: it has a BD manager that has
+	 *  transformed (the transformation and its revert move the character's BD flag with it). */
+	static bool IsInBDForm(const AActor *Actor);
+
 	// ==================== BREAK SYSTEM ====================
 
 	/**

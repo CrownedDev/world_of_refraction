@@ -297,6 +297,52 @@ void FCombatLoadout::InitializeForClass(ECharacterClass CharClass)
 
 // ==================== FACTORY ====================
 
+namespace
+{
+    const UObject *OwnedGearAsset(const FWeaponInventoryEntry &Entry) { return Entry.Weapon; }
+    const UObject *OwnedGearAsset(const FRingInventoryEntry &Entry) { return Entry.Ring; }
+
+    /** Shape-B resolver (B-251: one copy for weapon and ring slots). A slot resolves to its OWNED entry (wholesale
+     *  copy: roll, pools, PersistentID and the instance's crystal / spell state) only when the ref is valid, the
+     *  context exists, the guid is found AND the found entry's asset matches the slot's. Anything else builds
+     *  from the asset. Logging: Verbose for an unset ref / no context (the normal cases), Warning only for a
+     *  SET ref that fails to resolve (a real dangling or mismatched reference). */
+    template <class TEntry, class TAsset>
+    TEntry ResolveOwnedGearEntry(const TArray<TEntry> *Owned, TAsset *Asset, const FGuid &Ref, const TCHAR *SlotName,
+                                 const TCHAR *Kind, TEntry (*CreateFromAsset)(TAsset *))
+    {
+        if (Ref.IsValid())
+        {
+            if (Owned)
+            {
+                for (const TEntry &Entry : *Owned)
+                {
+                    if (Entry.PersistentID != Ref)
+                    {
+                        continue;
+                    }
+                    if (OwnedGearAsset(Entry) != Asset)
+                    {
+                        UE_LOG(LogTemp, Warning,
+                               TEXT("[FCombatLoadout] %s instance ref %s resolves to a DIFFERENT asset ('%s' != slot '%s') — falling back to asset build"),
+                               SlotName, *Ref.ToString(), *GetNameSafe(OwnedGearAsset(Entry)), *GetNameSafe(Asset));
+                        break;
+                    }
+                    UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] %s resolved owned %s instance %s"), SlotName, Kind, *Ref.ToString());
+                    return Entry;
+                }
+                UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] %s instance ref %s set but NOT FOUND in owned %ss — falling back to asset build"),
+                       SlotName, *Ref.ToString(), Kind);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] %s instance ref set but no inventory context — asset build"), SlotName);
+            }
+        }
+        return CreateFromAsset(Asset);
+    }
+}
+
 FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &SavedLoadout)
 {
     // Zero-context form — null inventories mean every instance ref takes the
@@ -315,66 +361,16 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
     // back to the asset build — today's path exactly. Logging: Verbose for
     // unset refs / no-context (the normal cases), Warning only for a SET ref
     // that fails to resolve (a real dangling or mismatched reference).
-    const auto ResolveWeaponEntry = [OwnedInventory](UWeaponData *Asset, const FGuid &Ref, const TCHAR *SlotName) -> FWeaponInventoryEntry
+    // B-251 (DRY audit A13): one resolver for weapon and ring slots (ResolveOwnedGearEntry).
+    const auto ResolveWeaponEntry = [OwnedInventory](UWeaponData *Asset, const FGuid &Ref, const TCHAR *SlotName)
     {
-        if (Ref.IsValid())
-        {
-            if (OwnedInventory)
-            {
-                for (const FWeaponInventoryEntry &Owned : OwnedInventory->Weapons)
-                {
-                    if (Owned.PersistentID == Ref)
-                    {
-                        if (Owned.Weapon != Asset)
-                        {
-                            UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] %s instance ref %s resolves to a DIFFERENT asset ('%s' != slot '%s') — falling back to asset build"),
-                                   SlotName, *Ref.ToString(), Owned.Weapon ? *Owned.Weapon->Name : TEXT("null"), Asset ? *Asset->Name : TEXT("null"));
-                            break;
-                        }
-                        UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] %s resolved owned weapon instance %s"), SlotName, *Ref.ToString());
-                        return Owned;
-                    }
-                }
-                UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] %s instance ref %s set but NOT FOUND in owned weapons — falling back to asset build"),
-                       SlotName, *Ref.ToString());
-            }
-            else
-            {
-                UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] %s instance ref set but no inventory context — asset build"), SlotName);
-            }
-        }
-        return FWeaponInventoryEntry::CreateFromWeapon(Asset);
+        return ResolveOwnedGearEntry(OwnedInventory ? &OwnedInventory->Weapons : nullptr, Asset, Ref, SlotName, TEXT("weapon"),
+                                     &FWeaponInventoryEntry::CreateFromWeapon);
     };
-
-    const auto ResolveRingEntry = [OwnedInventory](URingData *Asset, const FGuid &Ref, const TCHAR *SlotName) -> FRingInventoryEntry
+    const auto ResolveRingEntry = [OwnedInventory](URingData *Asset, const FGuid &Ref, const TCHAR *SlotName)
     {
-        if (Ref.IsValid())
-        {
-            if (OwnedInventory)
-            {
-                for (const FRingInventoryEntry &Owned : OwnedInventory->Rings)
-                {
-                    if (Owned.PersistentID == Ref)
-                    {
-                        if (Owned.Ring != Asset)
-                        {
-                            UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] %s instance ref %s resolves to a DIFFERENT asset ('%s' != slot '%s') — falling back to asset build"),
-                                   SlotName, *Ref.ToString(), Owned.Ring ? *Owned.Ring->Name : TEXT("null"), Asset ? *Asset->Name : TEXT("null"));
-                            break;
-                        }
-                        UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] %s resolved owned ring instance %s"), SlotName, *Ref.ToString());
-                        return Owned;
-                    }
-                }
-                UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] %s instance ref %s set but NOT FOUND in owned rings — falling back to asset build"),
-                       SlotName, *Ref.ToString());
-            }
-            else
-            {
-                UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] %s instance ref set but no inventory context — asset build"), SlotName);
-            }
-        }
-        return FRingInventoryEntry::CreateFromRing(Asset);
+        return ResolveOwnedGearEntry(OwnedInventory ? &OwnedInventory->Rings : nullptr, Asset, Ref, SlotName, TEXT("ring"),
+                                     &FRingInventoryEntry::CreateFromRing);
     };
 
     FCombatLoadout Result;
@@ -575,6 +571,66 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
     UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] Created from SavedLoadout '%s' (PrimarySlotType: %d)"),
            *SavedLoadout.LoadoutName, static_cast<int32>(SavedLoadout.PrimarySlotType));
     return Result;
+}
+
+// ==================== UNIFIED SLOTS (D-110 mirror, B-302) ====================
+
+void FCombatLoadout::RebuildSlotsFromLegacy(ECharacterClass CharacterClass)
+{
+    const bool bGenericWeaponRules = CharacterClass == ECharacterClass::Generic;
+    Slots.Reset();
+    ActiveWeaponSlot = INDEX_NONE;
+    ActiveAdapterSlot = INDEX_NONE;
+
+    int32 PrimaryWeaponSlot = INDEX_NONE;
+    int32 PrimaryAdapterSlot = INDEX_NONE;
+    // A weapon in the primary counts with a Weapon or None type (AutoPopulateLoadout leaves None), as GetActiveWeapon.
+    if ((PrimarySlotType == EPrimarySlotType::Weapon || PrimarySlotType == EPrimarySlotType::None) && PrimaryWeapon.IsValid())
+    {
+        PrimaryWeaponSlot = Slots.Add(FLoadoutSlot::FromWeaponLoadoutEntry(PrimaryWeapon));
+    }
+    else if (PrimarySlotType == EPrimarySlotType::Ring && PrimaryRing.IsValid())
+    {
+        PrimaryAdapterSlot = Slots.Add(FLoadoutSlot::FromRingLoadoutEntry(PrimaryRing));
+    }
+
+    // Only what the fight reads for this class: a secondary weapon is a Generic's, an adapter loadout a Resonator's
+    // (a loadout authored for another class may carry the other fields; the getters ignore them, so does the mirror).
+    int32 SecondaryWeaponSlot = INDEX_NONE;
+    if (bGenericWeaponRules && SecondarySlotType == ESecondarySlotType::Weapon && SecondaryWeapon.IsValid())
+    {
+        SecondaryWeaponSlot = Slots.Add(FLoadoutSlot::FromWeaponLoadoutEntry(SecondaryWeapon));
+    }
+
+    int32 ActiveRingLoadoutSlot = INDEX_NONE;
+    const int32 RingsRead = CharacterClass == ECharacterClass::Resonator ? RingLoadout.Num() : 0;
+    for (int32 RingIndex = 0; RingIndex < RingsRead; ++RingIndex)
+    {
+        if (!RingLoadout[RingIndex].IsValid())
+        {
+            continue;
+        }
+        const int32 SlotIndex = Slots.Add(FLoadoutSlot::FromRingLoadoutEntry(RingLoadout[RingIndex]));
+        ActiveRingLoadoutSlot = RingIndex == ActiveRingIndex ? SlotIndex : ActiveRingLoadoutSlot;
+    }
+
+    // The weapon in hand, as ULoadoutComponent::GetActiveWeapon picks it. An evolution or adapter primary leaves
+    // only a Generic's secondary weapon. A Generic with a weapon primary uses bShowPrimary to choose between its two
+    // weapons (none in hand when it shows the secondary and has none); other classes always use the primary.
+    // An empty primary (a sold primary weapon, StripFromLoadout) is read like a weapon primary, as GetActiveWeapon
+    // does: a Generic showing it holds nothing.
+    if (PrimarySlotType == EPrimarySlotType::Weapon || PrimarySlotType == EPrimarySlotType::None)
+    {
+        ActiveWeaponSlot = (bGenericWeaponRules && !bShowPrimary) ? SecondaryWeaponSlot : PrimaryWeaponSlot;
+    }
+    else if (bGenericWeaponRules)
+    {
+        ActiveWeaponSlot = SecondaryWeaponSlot;
+    }
+
+    // The adapter in use, as today's getters: a Resonator's active ring (none when the index is stale, GetActiveRing),
+    // anyone else's primary ring (GetPrimaryRing). B-304's GetActiveSlot falls back to the first adapter instead.
+    ActiveAdapterSlot = CharacterClass == ECharacterClass::Resonator ? ActiveRingLoadoutSlot : PrimaryAdapterSlot;
 }
 
 // ==================== AUTO-EQUIP ====================

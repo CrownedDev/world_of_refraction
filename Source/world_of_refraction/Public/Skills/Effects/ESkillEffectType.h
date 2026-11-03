@@ -25,23 +25,25 @@ enum class ESkillEffectType : uint8
     /** Damage over time - display varies by element */
     DOT UMETA(DisplayName = "Damage Over Time"),
 
-    /** Speed reduction - display varies by element */
-    SpeedDebuff UMETA(DisplayName = "Speed Debuff"),
+    /** RETIRED (D-056): reads nothing; turn order reads the Turn Speed family. Kept (append-only), hidden,
+     *  and refused by EffectDefinition validation. */
+    SpeedDebuff UMETA(Hidden, DisplayName = "Speed Debuff"),
 
     /** Defense reduction - display varies by element */
     DefenseDebuff UMETA(DisplayName = "Defense Debuff"),
 
-    /** Crit chance reduction - display varies by element */
-    CritDebuff UMETA(DisplayName = "Crit Chance Debuff"),
+    /** LEGACY (B-268): stored as CritChanceDebuff (ResolveLegacyAlias). Hidden; author CritChanceDebuff. */
+    CritDebuff UMETA(Hidden, DisplayName = "Crit Chance Debuff"),
 
-    /** Energy manipulation - display varies by element */
-    EnergyDebuff UMETA(DisplayName = "Energy Debuff"),
+    /** LEGACY (B-268): read by nothing. Not aliased: EnergyDrain is a per-turn payout, a different effect
+     *  (Q-268). Hidden; validation warns. */
+    EnergyDebuff UMETA(Hidden, DisplayName = "Energy Debuff"),
 
     /** Skip turn / stun - display varies by element */
     SkipTurn UMETA(DisplayName = "Skip Turn"),
 
-    /** Random stat debuff - display varies by element */
-    RandomDebuff UMETA(DisplayName = "Random Stat Debuff"),
+    /** LEGACY bar-cap trigger (superseded by RandomSkill); read by nothing when authored. Hidden; validation warns. */
+    RandomDebuff UMETA(Hidden, DisplayName = "Random Stat Debuff"),
 
     /** Burst damage (Reality/Raw mode) */
     BurstDamage UMETA(DisplayName = "Burst Damage"),
@@ -95,7 +97,8 @@ enum class ESkillEffectType : uint8
 
     DamageBuff UMETA(DisplayName = "Damage Buff (Generic)"),
     DamageDebuff UMETA(DisplayName = "Damage Debuff (Generic)"),
-    SpeedBuff UMETA(DisplayName = "Speed Buff (Generic)"),
+    /** RETIRED (D-056): reads nothing, like SpeedDebuff. Hidden and refused by validation. */
+    SpeedBuff UMETA(Hidden, DisplayName = "Speed Buff (Generic)"),
 
     // ==================== UTILITY ====================
 
@@ -148,7 +151,7 @@ enum class ESkillEffectType : uint8
     ModifyHealing UMETA(Hidden, DisplayName = "Healing Up"),
     ModifyCritChance UMETA(DisplayName = "Crit Chance Up"),
     ModifyCritDamage UMETA(DisplayName = "Crit Damage Up"),
-    ModifyEnergyCost UMETA(DisplayName = "Energy Cost Up"),
+    ModifyEnergyCost UMETA(DisplayName = "Energy Cost Down"),
     ModifyTurnSpeed UMETA(DisplayName = "Turn Speed Up"),
     ModifyStatusResist UMETA(DisplayName = "Status Resist Up"),
 
@@ -274,13 +277,40 @@ enum class ESkillEffectType : uint8
  * FActiveSkillEffect (both delegate their IsBuff/IsDebuff here, passing their own
  * magnitude field). Reads the enum only — does NOT affect enum order/serialization.
  *
- * `Magnitude` is consulted ONLY for sign-aware types (currently just ModifyStatusResist:
- * >0 = buff, <0 = debuff, exactly 0 = neither). Every other type is pure type->bool and
+ * `Magnitude` is consulted ONLY for sign-aware types (IsSignAware: >0 = buff, <0 = debuff, exactly 0 =
+ * neither). Every other type is pure type->bool and
  * ignores Magnitude. Callers pass the SIGN-PRESERVING field for their struct
  * (FSkillEffect::Magnitude, FActiveSkillEffect::EffectValue = Value!=0 ? Value : Magnitude*100).
  */
 namespace SkillEffectClassification
 {
+    /** B-268: a legacy type with the same meaning as today's is stored as today's type, once, when applied. */
+    inline ESkillEffectType ResolveLegacyAlias(ESkillEffectType Type)
+    {
+        return Type == ESkillEffectType::CritDebuff ? ESkillEffectType::CritChanceDebuff : Type;
+    }
+
+    /** B-268 / Q-268: legacy types nothing reads and nothing equals; an authored one does nothing (validation warns). */
+    inline bool HasNoReader(ESkillEffectType Type)
+    {
+        return Type == ESkillEffectType::EnergyDebuff || Type == ESkillEffectType::RandomDebuff;
+    }
+
+    /** D-056: the generic Speed Buff / Debuff are retired; nothing reads them and validation refuses them. */
+    inline bool IsRetired(ESkillEffectType Type)
+    {
+        return Type == ESkillEffectType::SpeedBuff || Type == ESkillEffectType::SpeedDebuff;
+    }
+
+    /** D-054 (and Q-267 for the cost): the sign says the direction. On an ally it's a buff (faster turns, a
+     *  cheaper cost, more status resistance); on an enemy it's a debuff. ModifyEnergyCost counts "cheaper" as
+     *  positive (ActionExecutor's cost multiplier). The applier's side sets the sign (SkillEffectManager). */
+    inline bool IsSignAware(ESkillEffectType Type)
+    {
+        return Type == ESkillEffectType::ModifyStatusResist || Type == ESkillEffectType::ModifyTurnSpeed
+               || Type == ESkillEffectType::ModifyEnergyCost;
+    }
+
     inline bool IsBuff(ESkillEffectType Type, float Magnitude)
     {
         switch (Type)
@@ -346,12 +376,9 @@ namespace SkillEffectClassification
         // recipient-side healing amplifier (HealBlock mirror)
         case ESkillEffectType::HealingReceivedBuff:
             return true;
-        // ModifyStatusResist is sign-aware: +magnitude raises status resistance (a buff),
-        // -magnitude lowers it (a debuff), exactly 0 is neither.
-        case ESkillEffectType::ModifyStatusResist:
-            return Magnitude > 0.0f;
         default:
-            return false;
+            // Sign-aware types (see IsSignAware): +magnitude is a buff, exactly 0 is neither.
+            return IsSignAware(Type) && Magnitude > 0.0f;
         }
     }
 
@@ -393,8 +420,6 @@ namespace SkillEffectClassification
         case ESkillEffectType::SelfDamage:
         // Phase 2 passive-layer debuffs
         case ESkillEffectType::IncreaseDamageTaken:
-        case ESkillEffectType::ModifyEnergyCost:
-        case ESkillEffectType::ModifyTurnSpeed:
         case ESkillEffectType::DrainHP:
         case ESkillEffectType::DrainEnergy:
         case ESkillEffectType::ApplyBurnToTarget:
@@ -403,11 +428,9 @@ namespace SkillEffectClassification
         // sweep-4: status-bar manipulation debuff (builds target's gauge)
         case ESkillEffectType::StatusIncrease:
             return true;
-        // ModifyStatusResist sign-aware (see IsBuff): -magnitude = a resistance debuff.
-        case ESkillEffectType::ModifyStatusResist:
-            return Magnitude < 0.0f;
         default:
-            return false;
+            // Sign-aware types (see IsSignAware): -magnitude is a debuff.
+            return IsSignAware(Type) && Magnitude < 0.0f;
         }
     }
 }

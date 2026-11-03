@@ -25,7 +25,7 @@ namespace PanelLabels
 	// Bar prefix labels — change these in one place to update the whole panel
 	constexpr const TCHAR *HP = TEXT("HP");
 	constexpr const TCHAR *EP = TEXT("EP");
-	constexpr const TCHAR *RingDur = TEXT("RD");   // Ring Durability (Resonator)
+	constexpr const TCHAR *RingDur = TEXT("AD");   // Adapter durability (Resonator, D-107)
 	constexpr const TCHAR *WeaponDur = TEXT("WD"); // Weapon Durability
 	constexpr const TCHAR *Absorb = TEXT("Abs");   // BD Absorption
 	constexpr const TCHAR *Status = TEXT("SB");	   // Status Buildup
@@ -630,9 +630,7 @@ void UCharacterPanelWidget::ApplyStatusBarTint(ESpellElement PendingElement, AAc
 	// BD attacker — darkened element colour.
 	if (Source)
 	{
-		UBrokenDarknessManager *BDManager = Source->FindComponentByClass<UBrokenDarknessManager>();
-		UCharacterDataComponent *SourceChar = Source->FindComponentByClass<UCharacterDataComponent>();
-		if (BDManager && BDManager->IsTransformed() && SourceChar && SourceChar->IsBrokenDarkness())
+		if (UBrokenDarknessManager::IsInBDForm(Source)) // B-255: the one BD-form check
 		{
 			StatusBar->SetFillColorAndOpacity(
 				UHybridSpellColors::GetHybridSpellColors(PendingElement).BlendedColor);
@@ -709,7 +707,7 @@ void UCharacterPanelWidget::RefreshEffectsList()
 	// character is no longer BD, the next refresh just doesn't append it.
 	UCharacterDataComponent *CharComp = BoundCharData.Get();
 	UBrokenDarknessManager *BDManager = BoundBDManager.Get();
-	if (CharComp && CharComp->IsBrokenDarkness() && BDManager && BDManager->IsTransformed())
+	if (CharComp && BDManager && BDManager->IsTransformed()) // B-255: the manager's flag is the one BD-form check
 	{
 		const int32 StackCount = BDManager->GetCurrentStackCount();
 		if (StackCount > 0)
@@ -860,7 +858,7 @@ void UCharacterPanelWidget::ApplyEnergyBarTint()
 	}
 
 	// --- Default: character's innate element ---
-	const ESpellElement Element = CharComp->CharacterData->InnateElement;
+	const ESpellElement Element = CharComp->CharacterData->GetElement(); // B-276: class-gated
 	BarColour = ElementColors::GetColorForElement(Element);
 	EPBar->SetFillColorAndOpacity(BarColour);
 }

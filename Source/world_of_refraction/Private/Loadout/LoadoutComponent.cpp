@@ -2,6 +2,7 @@
 // Active combat loadout and runtime battle state implementation
 
 #include "Loadout/LoadoutComponent.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Loadout/SourceBreakRules.h"
 #include "Loadout/LoadoutConstants.h"
 #include "Inventory/InventoryConstants.h"
@@ -673,7 +674,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrorsLegacy(int32 Index, UInven
         }
         if (!bFound)
         {
-            Errors.Add(TEXT("Primary ring not in inventory"));
+            Errors.Add(TEXT("Primary adapter not in inventory"));
         }
     }
 
@@ -751,7 +752,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrorsLegacy(int32 Index, UInven
                 }
                 if (!bFound)
                 {
-                    Errors.Add(TEXT("Ring in loadout not in inventory"));
+                    Errors.Add(TEXT("Adapter in loadout not in inventory"));
                 }
 
                 // Add slot cost (1 for normal, 2 for evolved)
@@ -779,7 +780,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrorsLegacy(int32 Index, UInven
         if (TotalCost > LoadoutConstants::LOADOUT_TOTAL_BUDGET)
         {
             Errors.Add(FString::Printf(
-                TEXT("Loadout exceeds budget: primary (cost %d) + rings (cost %d) = %d, max is %d"),
+                TEXT("Loadout exceeds budget: primary (cost %d) + adapters (cost %d) = %d, max is %d"),
                 PrimaryCost, TotalSlotCost, TotalCost, LoadoutConstants::LOADOUT_TOTAL_BUDGET));
         }
     }
@@ -1020,7 +1021,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindingsLegacy(
             if (!Ring.HasCrystal())
             {
                 AddRingSpellFinding(RingLoadoutIndex, j,
-                                    FString::Printf(TEXT("Ring spell '%s' requires a crystal but the ring has none"),
+                                    FString::Printf(TEXT("Adapter spell '%s' requires a crystal but the adapter has none"),
                                                     *Spell->Name));
                 continue;
             }
@@ -1028,7 +1029,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindingsLegacy(
             if (!ElementHelpers::SpellElementMatchesHost(Spell->Element, RingElement))
             {
                 AddRingSpellFinding(RingLoadoutIndex, j,
-                                    FString::Printf(TEXT("Ring spell '%s' element %s does not match ring crystal element %s"),
+                                    FString::Printf(TEXT("Adapter spell '%s' element %s does not match adapter crystal element %s"),
                                                     *Spell->Name,
                                                     *UEnum::GetValueAsString(Spell->Element),
                                                     *UEnum::GetValueAsString(RingElement)));
@@ -1157,7 +1158,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindingsLegacy(
         }
         if (!bFound)
         {
-            AddFinding(ELoadoutSlotType::PrimaryRing, -1, true, TEXT("Primary ring not in inventory"));
+            AddFinding(ELoadoutSlotType::PrimaryRing, -1, true, TEXT("Primary adapter not in inventory"));
         }
 
         // Element coherence for the primary ring's customisable spells (SlotIndex -1 = primary ring).
@@ -1228,7 +1229,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindingsLegacy(
                 }
                 if (!bFound)
                 {
-                    AddFinding(ELoadoutSlotType::ResonatorRing, i, true, TEXT("Ring in loadout not in inventory"));
+                    AddFinding(ELoadoutSlotType::ResonatorRing, i, true, TEXT("Adapter in loadout not in inventory"));
                 }
 
                 // Element coherence for this ring's customisable spells (SlotIndex = ring-loadout index).
@@ -1259,7 +1260,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindingsLegacy(
         {
             AddFinding(ELoadoutSlotType::RingOverflow, -1, true,
                        FString::Printf(
-                           TEXT("Loadout exceeds budget: primary (cost %d) + rings (cost %d) = %d, max is %d"),
+                           TEXT("Loadout exceeds budget: primary (cost %d) + adapters (cost %d) = %d, max is %d"),
                            PrimaryCost, TotalSlotCost, TotalCost, LoadoutConstants::LOADOUT_TOTAL_BUDGET));
         }
     }
@@ -1520,20 +1521,9 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
         {
             // Walk rings accumulating cost from the primary slot's cost; truncate
             // from the first index where adding the next ring would exceed budget.
-            int32 PrimaryCost = 0;
-            switch (Loadout.PrimarySlotType)
-            {
-            case EPrimarySlotType::Weapon:
-                PrimaryCost = Loadout.PrimaryWeapon.WeaponEntry.GetSlotCost();
-                break;
-            case EPrimarySlotType::Evolution:
-                PrimaryCost = LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST;
-                break;
-            case EPrimarySlotType::None:
-            case EPrimarySlotType::Ring:
-                PrimaryCost = 0;
-                break;
-            }
+            // B-303: the same cost and budget the finding used (FLoadoutRules over the slots the fight reads).
+            const int32 PrimaryCost = FLoadoutRules::NonAdapterCost(Loadout, GetCharacterClass());
+            const int32 Budget = LoadoutClassTable::Get(GetCharacterClass()).Budget;
 
             int32 RunningTotal = PrimaryCost;
             int32 TruncateFromIndex = INDEX_NONE;
@@ -1544,7 +1534,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
                     continue;
                 }
                 const int32 NextCost = InventoryConstants::GetRingSlotCost(Loadout.RingLoadout[i].IsEvolved());
-                if (RunningTotal + NextCost > LoadoutConstants::LOADOUT_TOTAL_BUDGET)
+                if (RunningTotal + NextCost > Budget)
                 {
                     TruncateFromIndex = i;
                     break;
@@ -1779,7 +1769,7 @@ bool ULoadoutComponent::TryAssignRingSpell(int32 LoadoutIndex, USpellData *Spell
     return TryChangeLoadout(LoadoutIndex, Spell != nullptr,
                             [Spell](const FCombatLoadout &Loadout, ECharacterClass CharacterClass)
                             {
-                                return RefuseUnlessFree(UsesPrimaryRing(Loadout, CharacterClass), LOCTEXT("PickNoRing", "No primary ring is equipped."),
+                                return RefuseUnlessFree(UsesPrimaryRing(Loadout, CharacterClass), LOCTEXT("PickNoAdapter", "No primary adapter is equipped."),
                                                         Loadout.PrimaryRing.RingEntry.AssignedSpells, Spell);
                             },
                             [Spell](FCombatLoadout &Loadout) { AddToFirstGap(Loadout.PrimaryRing.RingEntry.AssignedSpells, Spell); }, OutRefusal);
@@ -2513,6 +2503,14 @@ void ULoadoutComponent::ApplyBDPoolsIfBroken()
 
 void ULoadoutComponent::NotifyActiveWeaponChanged()
 {
+    // B-302: every gear change announces here, so the unified slot mirror (D-110) is rebuilt first.
+    if (UInventoryComponent *Inv = GetInventoryComponent())
+    {
+        if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+        {
+            Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].RebuildSlotsFromLegacy(GetCharacterClass());
+        }
+    }
     // GetActiveWeapon warns when there is no inventory; with none there is no weapon to announce.
     UWeaponData *ActiveWeapon = GetInventoryComponent() ? GetActiveWeapon() : nullptr;
     if (ActiveWeapon == LastNotifiedWeapon)
@@ -2771,7 +2769,7 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
     }
 
     // Resonator ring loadout — every ring in the array, runtime entry
-    const FCombatLoadout ActiveLoadout = GetActiveLoadout();
+    const FCombatLoadout &ActiveLoadout = GetActiveLoadout();
     for (const FRingLoadoutEntry &Entry : ActiveLoadout.RingLoadout)
     {
         AddAttachment(Entry.RingEntry.AttachedItem, Entry.RingEntry.Ring, Entry.RingEntry.PersistentID);
@@ -3835,6 +3833,8 @@ bool ULoadoutComponent::ClearPrimaryEvolution()
 
 void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
 {
+    // B-302: an adapter switch announces too, so the slot mirror's active adapter follows it.
+    const FActiveWeaponChangeScope ActiveWeaponScope(*this);
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
     {
@@ -4163,7 +4163,11 @@ UCharacterData *ULoadoutComponent::GetOwnerCharacterData() const
         return nullptr;
     }
 
-    if (UCharacterDataComponent *CharComp = GetOwner()->FindComponentByClass<UCharacterDataComponent>())
+    if (!CachedCharacterDataComponent.IsValid())
+    {
+        CachedCharacterDataComponent = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+    }
+    if (UCharacterDataComponent *CharComp = CachedCharacterDataComponent.Get())
     {
         return CharComp->CharacterData;
     }
@@ -4176,13 +4180,18 @@ UInventoryComponent *ULoadoutComponent::GetInventoryComponent() const
     {
         return nullptr;
     }
-    return GetOwner()->FindComponentByClass<UInventoryComponent>();
+    if (!CachedInventory.IsValid())
+    {
+        CachedInventory = GetOwner()->FindComponentByClass<UInventoryComponent>();
+    }
+    return CachedInventory.Get();
 }
 
 // ==================== EQUIPMENT STAT QUERIES ====================
 
 FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE(WoR_GetActiveStatBonus); // B-266: Insights marker (PerfAudit_2026-10-28.md)
     (void)Actor; // Always == GetOwner(); parameter kept for caller clarity.
 
     FEquipmentStatBonus Combined;
@@ -4228,7 +4237,7 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
     auto WeaponTier = [](const FWeaponInventoryEntry &E) { return E.Weapon ? E.Tier : EItemTier::F_Tier; }; // instance Tier (was E.Weapon->Tier)
     auto RingTier   = [](const FRingInventoryEntry &E)   { return E.Ring   ? E.Tier : EItemTier::F_Tier; };  // instance Tier (was E.Ring->Tier)
 
-    const FCombatLoadout Loadout = GetActiveLoadout();
+    const FCombatLoadout &Loadout = GetActiveLoadout();
 
     switch (GetCharacterClass())
     {
@@ -4346,7 +4355,7 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
 
     FResistanceBonus Combined;
 
-    const FCombatLoadout Loadout = GetActiveLoadout();
+    const FCombatLoadout &Loadout = GetActiveLoadout();
 
     // Mirrors GetActiveStatBonus's per-class slot resolution exactly, summing
     // each contributing entry's ResistanceBonus instead of StatBonus.
@@ -4454,7 +4463,7 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
     // evolution does (the deliberate exception).
     TArray<FSkillEffect> Result;
 
-    const FCombatLoadout Loadout = GetActiveLoadout();
+    const FCombatLoadout &Loadout = GetActiveLoadout();
 
     switch (GetCharacterClass())
     {
@@ -4541,7 +4550,7 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
     // calls the ...Gathered() accessors so each effect carries its def id + bundle index.
     TArray<FGatheredEffect> Result;
 
-    const FCombatLoadout Loadout = GetActiveLoadout();
+    const FCombatLoadout &Loadout = GetActiveLoadout();
     // B-192: bound gear adds its bonus only on its owner.
     const UCharacterData *Wearer = GetOwnerCharacterData();
 
@@ -4623,7 +4632,7 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
     // subset (effects gated by a trigger, fired on impact rather than at combat start).
     TArray<FGatheredEffect> Result;
 
-    const FCombatLoadout Loadout = GetActiveLoadout();
+    const FCombatLoadout &Loadout = GetActiveLoadout();
     // B-192: bound gear adds its bonus only on its owner.
     const UCharacterData *Wearer = GetOwnerCharacterData();
 
@@ -4701,7 +4710,7 @@ UEvolutionItemData *ULoadoutComponent::GetActivePrimaryEvolutionCrystal(AActor *
 {
     (void)Actor;
 
-    const FCombatLoadout Loadout = GetActiveLoadout();
+    const FCombatLoadout &Loadout = GetActiveLoadout();
     if (Loadout.PrimarySlotType != EPrimarySlotType::Weapon)
     {
         return nullptr;
@@ -4720,8 +4729,8 @@ FEvolutionAttachment ULoadoutComponent::GetActivePrimaryEvolutionAttachment(AAct
     (void)Actor;
 
     // Same resolution as GetActivePrimaryEvolutionCrystal, returning the whole
-    // attachment (by value — GetActiveLoadout copies, so no stable pointer exists).
-    const FCombatLoadout Loadout = GetActiveLoadout();
+    // attachment by value, so the result outlives a later loadout change.
+    const FCombatLoadout &Loadout = GetActiveLoadout();
     if (Loadout.PrimarySlotType != EPrimarySlotType::Weapon || !Loadout.PrimaryWeapon.IsValid())
     {
         return FEvolutionAttachment();

@@ -173,6 +173,50 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-035](B-035.md) | `refactor/B-035-flatten-crystal-destruction` (in `dev`) | Combat-end crystal destruction split out (no behaviour change) | Not tested |
 | [B-117](B-117.md) | `chore/B-117-stale-text-sweep` (in `dev`) | Stale comments and docs fixed; unread constants removed (no behaviour change) | Not tested |
 | [B-147](B-147.md) | `fix/B-147-rulings-in-code` (in `dev`) | D-034 / D-035 / D-039 / D-041 in comments, docs and a test (no behaviour change) | Not tested |
+| [B-042yc](B-042yc.md) | `feature/B-042yc-gas-getters` (in `dev`) | GAS stage 3 part 3d3: resistances, turn speed, Defense, crit, luck, reflex, efficiency and status multiplier read GAS at UseGAS 1; no change at UseGAS 0 | Not tested |
+| [B-042z](B-042z.md) | `feature/B-042z-fight-records-on-tracker` (in `dev`) | GAS stage 3 part 3e: fires-once records and armed conditionals live on each fighter's turn tracker (per-fight state on the battle's actors, D-064) | Not tested |
+| [B-042j](B-042j.md) | `feature/B-042j-absorb-family` (in `dev`) | Barrier / Shield / Ward absorbers (D-092): spent after Guard and Defense, one charge per impact; `wor.Absorb.Add` to try them | Not tested |
+| [B-220](B-220.md) | `feature/B-220-weapon-power` (in `dev`) | Weapons get Power and Mind / Body / Spirit scaling grades (D-101); Power 0 by default, so no damage changes until set; `wor.Weapon.Print` | Not tested |
+| [B-221](B-221.md) | `feature/B-221-worn-gear-leaves-inventory` (in `dev`) | Shared pool: lists of gear selectable by a member (worn-by-others filtered out) and the inventory debug tag; the pickers switch with B-221b | Not tested |
+| [B-222](B-222.md) | `feature/B-222-pillar-cap-7` (in `dev`) | Mind / Body / Spirit can't pass 7 in a run (was 20): head-start, earned and bought levels clamp at 7; the vendor refuses at 7 | Not tested |
+| [B-227](B-227.md) | `feature/B-227-seamless-travel` (in `dev`) | Co-op travel: hub / trial / battle changes use seamless ServerTravel so clients come along; `AWoRGameState`; PlayerState carries currencies over | Not tested |
+| [B-131](B-131.md) | `feature/B-131-chardata-replicates` (in `dev`) | Co-op: the character data component replicates (HP / EP and their max, alive, Broken Darkness, the template); only the server derives the max pools | Not tested |
+| [B-241](B-241.md) | `refactor/B-241-ai-infusion-level` (in `dev`) | AI picks its infusion level with one helper for spells and abilities; energy-percent reads safe at Max EP 0 | Not tested |
+| [B-242](B-242.md) | `refactor/B-242-crystal-wear-formula` (in `dev`) | One crystal / evolution cast-wear formula (`ComputeCastWear`); same wear numbers | Not tested |
+| [B-245](B-245.md) | `refactor/B-245-one-action-tier` (in `dev`) | Wear and the tier gap use the same action tier (`ResolveActionTier`); ability and basic-attack wear numbers change (Q-245) | Not tested |
+| [B-246](B-246.md) | `refactor/B-246-combat-finish` (in `dev`) | Every way a fight ends runs one finish tail (crystal destruction, repair, resets); a TurnManager-ended fight now runs destruction and repair (Q-246) | Not tested |
+| [B-247](B-247.md) | `refactor/B-247-one-heal-path` (in `dev`) | One heal amplify + HealBlock gate for every heal kind; every heal broadcasts `OnHealingDone` | Not tested |
+| [B-248](B-248.md) | `refactor/B-248-status-per-element` (in `dev`) | Each element's break name comes from one table (D-061 / D-062); Water's break shows Frozen (D-090); Heal Block shows Heal Blocked | Not tested |
+| [B-250](B-250.md) | `refactor/B-250-bundle-flatten` (in `dev`) | One effect-bundle flatten for equipment and evolutions (8 copies before); same effects listed | Not tested |
+| [B-251](B-251.md) | `refactor/B-251-gear-templates` (in `dev`) | Inventory add / remove and the owned-gear resolvers for weapons and rings share one template each; same behaviour | Not tested |
+| [B-252](B-252.md) | `refactor/B-252-economy-pairs` (in `dev`) | Economy actions (dismantle, level-up, revert, repair) are refused during a fight; one owned-gear lookup by PersistentID | Not tested |
+| [B-253](B-253.md) | `refactor/B-253-name-tables` (in `dev`) | Crystal names and tier letters come from the cooked-safe name table (B-126); stones now named properly | Not tested |
+| [B-254](B-254.md) | `refactor/B-254-infusion-controls` (in `dev`) | The command menu's infusion level / source controls are one helper for the single and group pickers; same behaviour | Not tested |
+| [B-255](B-255.md) | `refactor/B-255-bd-form-check` (in `dev`) | One "is in Broken Darkness form" check (two definitions before); same behaviour | Not tested |
+| [B-256](B-256.md) | `refactor/B-256-interact-debug-repeats` (in `dev`) | Shared nearest-interactable search (`WoRInteract`) and debug-opponent helper; same hints and prints | Not tested |
+| [B-258](B-258.md) | `refactor/B-258-loadout-by-ref` (in `dev`) | Stat reads stop copying the loadout (const reference); no behaviour change | Not tested |
+| [B-262](B-262.md) | `refactor/B-262-per-frame-fixes` (in `dev`) | Per-frame fixes: projectiles move in one call and tick only in flight; the loadout caches its sibling components | Not tested |
+| [B-266](B-266.md) | `chore/B-266-profiling-markers` (in `dev`) | CPU profiler markers on the five suspect functions; Crown's profiling run (D-068) | Not tested |
+| [B-263](B-263.md) | `refactor/B-263-boss-lookup` (in `dev`) | Boss data found by an asset-registry tag instead of loading every BossData; resave the BossData assets once | Not tested |
+| [B-267](B-267.md) | `fix/B-267-sign-aware-cost-speed` (in `dev`) | Energy Cost and Turn Speed modifiers follow D-054: a buff on an ally, a debuff on an enemy; an ally's cost cut makes skills cheaper and survives cleanse | Not tested |
+| [B-268](B-268.md) | `fix/B-268-dead-effect-types` (in `dev`) | Dead effect types: Speed Buff / Debuff refused by validation (D-056), Crit Debuff stored as Crit Chance Debuff, Energy / Random Debuff warn and are hidden in the editor | Not tested |
+| [B-276](B-276.md) | `refactor/B-276-element-helpers` (in `dev`) | Element helpers (`IsConcrete` / `IsInherit`, one Reality Refractor check); innate element read only for Casters | Not tested |
+| [B-277](B-277.md) | `chore/B-277-small-tidy-ups` (in `dev`) | Small tidy-ups: cost-clamp constants named, unused hit-result flags and `EItemQuality` flagged, tier order notes | Not tested |
+| [B-282](B-282.md) | `chore/B-282-last-stand-spec` (in `dev`) | Last Stand / Sapphire numbers pinned by a test (50%, the 30% fallback, the 2..5 turn window, the revive) | Not tested |
+| [B-283](B-283.md) | `chore/B-283-bonus-turn-spec` (in `dev`) | Emerald bonus-turn delays 6..0 and S giving two turns, and Extra Action, pinned by a test | Not tested |
+| [B-284](B-284.md) | `chore/B-284-turn-start-order` (in `dev`) | The order of the turn-start steps and the ritual fire order pinned step by step (swapping two steps fails a test); slow, ~1100 frames per ritual step | Not tested |
+| [B-289](B-289.md) | `chore/B-289-turn-speed-tiebreak` (in `dev`) | Turn speed 10 / 15 / 20 and every tie-break step pinned by a test | Not tested |
+| [B-285](B-285.md) | `chore/B-285-loadout-budget-spec` (in `dev`) | Loadout budgets (Resonator 5, innate 24 / 48) pinned by a test | Not tested |
+| [B-286](B-286.md) | `chore/B-286-break-size-constants` (in `dev`) | Break sizes (Burn 8%, Earth 30%, Water 30%, Reality 25%) as named constants, pinned by a test | Not tested |
+| [B-287](B-287.md) | `chore/B-287-broken-darkness-spec` (in `dev`) | Broken Darkness absorption, overload and forbidden-cast numbers pinned by a test | Not tested |
+| [B-290](B-290.md) | `chore/B-290-economy-numbers-spec` (in `dev`) | World-stat vendor price and cap, merge, spell essence and drop-quality numbers pinned by a test | Not tested |
+| [B-295](B-295.md) | `fix/B-295-emerald-real-extra-turn` (in `dev`) | An Emerald bonus turn is a real extra turn (no later turn lost, D-052) | Not tested |
+| [B-296](B-296.md) | `fix/B-296-generic-spell-quartz-price` (in `dev`) | Generic spells cost Quartz essence like elemental ones (D-105) | Not tested |
+| [B-300](B-300.md) | `fix/B-300-turn-triggers-every-turn` (in `dev`) | On Turn Start / End triggers fire every turn (not just once) | Not tested |
+| [B-298](B-298.md) | `feature/B-298-adapters` (in `dev`) | Player-facing Ring is now Adapter; adapter Form field (D-107) | Not tested |
+| [B-301](B-301.md) | `refactor/B-301-gear-instance` (in `dev`) | Unified loadout 1: one gear-instance type (not used yet) | Not tested |
+| [B-302](B-302.md) | `refactor/B-302-loadout-slots` (in `dev`) | Unified loadout 2: slot list mirrored beside the old fields; `wor.Loadout.CompareSlots` | Not tested |
+| [B-303](B-303.md) | `refactor/B-303-class-table-cost` (in `dev`) | Unified loadout 3: one class table and one slot cost (budget unchanged except Q-303b) | Not tested |
 
 Move rows to **Done** when every check passes.
 

@@ -4,6 +4,8 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Inventory/InventoryComponent.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "Equipment/Rings/RingData.h"
+#include "Equipment/Weapons/WeaponData.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -21,6 +23,15 @@ namespace
 			[](UWorld *World)
 			{
 				ULoadoutRulesDebug::CompareLoadoutRules(World);
+			}));
+
+	FAutoConsoleCommandWithWorld GCompareLoadoutSlotsCmd(
+		TEXT("wor.Loadout.CompareSlots"),
+		TEXT("DEBUG: per character, the unified slot mirror (B-302, D-110) against the old active weapon / adapter getters."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				ULoadoutRulesDebug::CompareLoadoutSlots(World);
 			}));
 
 	FAutoConsoleCommandWithWorldAndArgs GTryAbilityPickCmd(
@@ -109,6 +120,47 @@ void ULoadoutRulesDebug::CompareLoadoutRules(const UObject *WorldContextObject)
 		}
 	}
 	UE_LOG(LogWoRLoadout, Display, TEXT("[LoadoutRules] Compared %d characters"), Count);
+}
+
+FString ULoadoutRulesDebug::GetCompareSlotsString(const ULoadoutComponent *Loadout)
+{
+	const AActor *Owner = Loadout ? Loadout->GetOwner() : nullptr;
+	UInventoryComponent *Inventory = Owner ? Owner->FindComponentByClass<UInventoryComponent>() : nullptr;
+	if (!Inventory || !Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))
+	{
+		return FString::Printf(TEXT("%s: no active loadout"), *GetNameSafe(Owner));
+	}
+	const FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+	const UWeaponData *OldWeapon = Loadout->GetActiveWeapon();
+	const URingData *OldAdapter = Loadout->GetCharacterClass() == ECharacterClass::Resonator ? Loadout->GetActiveRing()
+																							 : Loadout->GetPrimaryRing();
+	const UWeaponData *NewWeapon = Active.Slots.IsValidIndex(Active.ActiveWeaponSlot) ? Active.Slots[Active.ActiveWeaponSlot].Gear.GetWeapon() : nullptr;
+	const URingData *NewAdapter = Active.Slots.IsValidIndex(Active.ActiveAdapterSlot) ? Active.Slots[Active.ActiveAdapterSlot].Gear.GetAdapter() : nullptr;
+	const bool bMatch = OldWeapon == NewWeapon && OldAdapter == NewAdapter;
+	return FString::Printf(TEXT("%s slots %d: weapon %s = %s, adapter %s = %s | %s"), *GetNameSafe(Owner), Active.Slots.Num(),
+						   *GetNameSafe(OldWeapon), *GetNameSafe(NewWeapon), *GetNameSafe(OldAdapter), *GetNameSafe(NewAdapter),
+						   bMatch ? TEXT("match") : TEXT("DIFF"));
+}
+
+void ULoadoutRulesDebug::CompareLoadoutSlots(const UObject *WorldContextObject)
+{
+	UWorld *World = GEngine ? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull) : nullptr;
+	if (!World)
+	{
+		return;
+	}
+	for (TActorIterator<AActor> It(World); It; ++It)
+	{
+		if (const ULoadoutComponent *Loadout = It->FindComponentByClass<ULoadoutComponent>())
+		{
+			const FString Line = GetCompareSlotsString(Loadout);
+			UE_LOG(LogWoRLoadout, Display, TEXT("[LoadoutSlots] %s"), *Line);
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(INDEX_NONE, LOADOUT_RULES_SCREEN_SECONDS, FColor::Cyan, Line);
+			}
+		}
+	}
 }
 
 FString ULoadoutRulesDebug::TryAbilityPick(ULoadoutComponent *Loadout, const FString &AbilityName)

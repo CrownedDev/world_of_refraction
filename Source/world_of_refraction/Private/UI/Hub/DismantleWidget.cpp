@@ -17,6 +17,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryComponent.h"
+#include "WoRGameNames.h"
 
 #define LOCTEXT_NAMESPACE "Dismantle"
 
@@ -149,7 +150,7 @@ TArray<UDismantleWidget::FDismantleChoice> UDismantleWidget::GatherChoices() con
 	{
 		if (Entry.Ring)
 		{
-			Choices.Add({Entry.PersistentID, FText::Format(LOCTEXT("RingRow", "Ring: {0}"), FText::FromString(Entry.Ring->Name)), true});
+			Choices.Add({Entry.PersistentID, FText::Format(LOCTEXT("AdapterRow", "{0}: {1}"), WoRGameNames::GetAdapterWord(), FText::FromString(Entry.Ring->Name)), true});
 		}
 	}
 	return Choices;
@@ -168,7 +169,7 @@ void UDismantleWidget::Refresh()
 		SelectedIndex = FMath::Clamp(SelectedIndex, 0, Choices.Num() - 1);
 	}
 
-	ItemText->SetText(Choices.IsEmpty() ? LOCTEXT("NoItems", "No weapons or rings to dismantle")
+	ItemText->SetText(Choices.IsEmpty() ? LOCTEXT("NoItems", "No weapons or adapters to dismantle")
 										: FText::Format(LOCTEXT("ItemRow", "{0} ({1} of {2})"), Choices[SelectedIndex].Label,
 														SelectedIndex + 1, Choices.Num()));
 	DismantleButton->SetIsEnabled(!Choices.IsEmpty() && !bConfirming);
@@ -265,7 +266,7 @@ void UDismantleWidget::HandleCloseClicked()
 
 static FAutoConsoleCommandWithWorld GDismantleUICommand(
 	TEXT("wor.UI.Dismantle"),
-	TEXT("PLACEHOLDER UI: dismantle one of your weapons or rings (warns when it is equipped in a loadout)."),
+	TEXT("PLACEHOLDER UI: dismantle one of your weapons or adapters (warns when it is equipped in a loadout)."),
 	FConsoleCommandWithWorldDelegate::CreateLambda(
 		[](UWorld *World)
 		{

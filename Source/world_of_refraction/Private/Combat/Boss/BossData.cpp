@@ -5,6 +5,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Character/CharacterData.h"
 #include "Equipment/EquipmentDataBase.h"
+#include "Misc/PackageName.h"
 #include "WoRLog.h"
 
 namespace BossPresetConstants
@@ -77,11 +78,43 @@ UBossData *UBossData::FindFor(const UCharacterData *Character)
 	const IAssetRegistry &Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 	TArray<FAssetData> Assets;
 	Registry.GetAssetsByClass(UBossData::StaticClass()->GetClassPathName(), Assets, /*bSearchSubClasses=*/true);
-	for (const FAssetData &Asset : Assets)
+	const FSoftObjectPath CharacterPath(Character);
+	const auto LoadIfFor = [Character](const FAssetData &Asset)
 	{
 		UBossData *Data = Cast<UBossData>(Asset.GetAsset());
-		if (Data && Data->Boss == Character)
+		return Data && Data->Boss == Character ? Data : nullptr;
+	};
+	// B-263: an asset saved since Boss became searchable carries its boss as a tag, so a non-match is skipped
+	// without loading it (and the montages and VFX it references). An older asset has no tag and is loaded.
+	TArray<const FAssetData *> SkippedByTag;
+	for (const FAssetData &Asset : Assets)
+	{
+		FString BossTag;
+		if (Asset.GetTagValue(GET_MEMBER_NAME_CHECKED(UBossData, Boss), BossTag))
 		{
+			const FSoftObjectPath TagPath(FPackageName::ExportTextPathToObjectPath(BossTag));
+			if (TagPath != CharacterPath)
+			{
+				// Only a tag naming no asset any more (a renamed character) is worth loading the slow way.
+				const FAssetData Target = TagPath.IsNull() ? FAssetData() : Registry.GetAssetByObjectPath(TagPath);
+				if (!TagPath.IsNull() && (!Target.IsValid() || Target.IsRedirector())) // a rename leaves a redirector
+				{
+					SkippedByTag.Add(&Asset);
+				}
+				continue;
+			}
+		}
+		if (UBossData *Data = LoadIfFor(Asset))
+		{
+			return Data;
+		}
+	}
+	// A tag can hold the character's old path if it was renamed since the boss was saved; check those the slow way.
+	for (const FAssetData *Asset : SkippedByTag)
+	{
+		if (UBossData *Data = LoadIfFor(*Asset))
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[BossData] %s's Boss tag is stale (renamed character?); resave it"), *Asset->AssetName.ToString());
 			return Data;
 		}
 	}
