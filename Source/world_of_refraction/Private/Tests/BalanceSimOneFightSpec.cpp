@@ -13,6 +13,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Definitions/AbilityData.h"
 
@@ -50,13 +51,21 @@ BEGIN_DEFINE_SPEC(FBalanceSimOneFightSpec, "WoR.Balance.Sim.OneFight",
 	UAbilityData *Strike = nullptr;
 
 	/** A combatant whose weapon attack is the montage-less Strike, so the AI has an attack to choose (the AI reads
-	 *  the weapon attack and the loadout's slotted abilities, not PresetAbilities). */
+	 *  the weapon attack and the loadout's slotted abilities, not PresetAbilities). The weapon is also owned: combat
+	 *  start clears a primary weapon that is not in the inventory, which left the AI only Defend. */
 	AActor *SpawnArmed(bool bAIControlled)
 	{
 		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
 		Weapon->WeaponAttack = Strike;
 		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(FWoRTestWorld::NewCharacterData(), Weapon, bAIControlled);
-		return Loadout ? Loadout->GetOwner() : nullptr;
+		AActor *Actor = Loadout ? Loadout->GetOwner() : nullptr;
+		if (UInventoryComponent *Inventory = Actor ? Actor->FindComponentByClass<UInventoryComponent>() : nullptr)
+		{
+			FWeaponInventoryEntry Owned;
+			Owned.Weapon = Weapon;
+			Inventory->Weapons.Add(Owned);
+		}
+		return Actor;
 	}
 
 	static int32 CurrentHPOf(const AActor *Actor)
