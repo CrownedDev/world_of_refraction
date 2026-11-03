@@ -69,7 +69,8 @@ struct WORLD_OF_REFRACTION_API FPoolCustomLoadouts
     TArray<FSavedLoadout> Loadouts;
 };
 
-/** B-091 (Q-091): a piece another member wears, taken out of a member's active loadout. */
+/** B-091 (Q-091): a piece another member wears, taken out of a member's active loadout.
+ *  OBSOLETE (B-321, D-117): members no longer share gear, so nothing clashes; delete after Crown's PIE pass. */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FPoolGearClash
 {
@@ -224,7 +225,8 @@ public:
     void ReleaseWearer(const FGuid &GearID);
     const TMap<FGuid, FName> &GetWearers() const { return Wearers; }
 
-    /** Replaces the clashes noted for LoserKey (the party panel lists them). */
+    /** Replaces the clashes noted for LoserKey (the party panel lists them).
+     *  OBSOLETE (B-321, D-117): wearers and clashes guarded the shared armoury; owners replace them. Delete after PIE. */
     void NoteClashes(FName LoserKey, const TArray<FPoolGearClash> &NewClashes);
     const TArray<FPoolGearClash> &GetClashes() const { return Clashes; }
 

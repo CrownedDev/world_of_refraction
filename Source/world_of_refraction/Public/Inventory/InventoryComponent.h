@@ -205,7 +205,8 @@ public:
     bool DrawSharedGear();
 
     /** Claims the active loadout's gear for this member. A piece another party member wears is taken
-     *  out of this loadout; returns a line per piece taken ("Fire Sword (worn by Ayla)"). */
+     *  out of this loadout; returns a line per piece taken ("Fire Sword (worn by Ayla)").
+     *  OBSOLETE (B-321, D-117): a member draws only its own gear, so nothing is claimed away; delete after PIE. */
     TArray<FText> ClaimActiveSharedGear();
 
     bool DrawsSharedGear() const { return SharedPool.IsValid(); }
@@ -290,7 +291,8 @@ public:
     FRingInventoryEntry *FindOwnedRing(const FGuid &PersistentID);
     const FRingInventoryEntry *FindOwnedRing(const FGuid &PersistentID) const;
 
-    /** B-221 (Q-091, Crown): a piece another party member wears is on them, not in the shared inventory. */
+    /** B-221 (Q-091, Crown): a piece another party member wears is on them, not in the shared inventory.
+     *  OBSOLETE (B-321, D-117), with GetSelectableWeapons/Rings and IsWornByOtherMemberOf: delete after PIE. */
     UFUNCTION(BlueprintPure, Category = "Inventory|Shared")
     bool IsWornByOtherMember(const FGuid &PersistentID) const;
 

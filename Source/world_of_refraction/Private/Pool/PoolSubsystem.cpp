@@ -729,6 +729,12 @@ FString UPoolSubsystem::GetPoolString() const
         Out += FString::Printf(TEXT("\n    %s worn by %s"), *Worn.Key.ToString(EGuidFormats::Short),
                                *FPaths::GetBaseFilename(Worn.Value.ToString()));
     }
+    for (const TPair<FGuid, FName> &Owned : GearOwners)
+    {
+        Out += FString::Printf(TEXT("
+    %s owned by %s"), *Owned.Key.ToString(EGuidFormats::Short),
+                               *FPaths::GetBaseFilename(Owned.Value.ToString()));
+    }
     for (const FPoolGearClash &Clash : Clashes)
     {
         Out += FString::Printf(TEXT("\n    CLASH: %s worn by %s, taken out of %s's loadout"), *Clash.ItemName.ToString(),
