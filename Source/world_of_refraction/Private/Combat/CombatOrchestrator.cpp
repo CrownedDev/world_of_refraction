@@ -428,8 +428,8 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 	}
 	// B-223 / B-223b (D-102; Q-223 changed by Crown 2026-11-03): after a win each party member rolls its own level
 	// drops from every defeated enemy, and every mini-boss or boss gives each member its levels. They wait in the run
-	// as that character's to place on its own pillars (wor.UI.LevelDrop). In co-op each player's characters get their
-	// own (B-235's personal rewards).
+	// as that character's to place on its own pillars (wor.UI.LevelDrop). A fallen member rolls too (Q-223b). Only the
+	// host's party rolls here; a guest's characters get theirs with B-235's personal rewards (co-op, not built).
 	int32 LevelDrops = 0;
 	UTrialRunSubsystem *LevelDropRun = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTrialRunSubsystem>() : nullptr;
 	if (Result == ECombatState::Victory && LevelDropRun && LevelDropRun->IsRunActive())
