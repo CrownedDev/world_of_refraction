@@ -157,13 +157,19 @@ public:
     /** B-319 (D-115): the owner keeps one copy of a weapon or ring. WeakerID must be a weaker copy from
      *  UInventoryComponent::FindDuplicateGear; its loadout slots move to the kept copy first, then it is
      *  converted to Gold (half the tier's buy price, Q-319) or dismantled for Gear essence. Out of a
-     *  fight, server only; false when WeakerID is no weaker copy or the removal is refused. */
+     *  fight, server only; false when WeakerID is no weaker copy or the removal is refused.
+     *  B-366b (Q-366): the convert pays the currency of the place (GetPlaceCurrency). */
     UFUNCTION(BlueprintCallable, Category = "Economy")
     bool ResolveDuplicate(AActor *Owner, FGuid WeakerID, bool bConvertToGold);
 
     /** B-319 (Q-319): Gold for converting a duplicate of this tier (half its buy price). */
     UFUNCTION(BlueprintPure, Category = "Economy")
     static int32 GetDuplicateGoldForTier(EItemTier Tier);
+
+    /** B-366b (Q-366, as shops do, ER-21): the currency money earned here pays in: the run currency
+     *  (ECurrencyType::Gold, shown as Prisms, D-159) while a trial run is under way, else the hub currency
+     *  (ECurrencyType::Prisms, shown as Gold). Name it with WoRGameNames::GetCurrencyName. */
+    static ECurrencyType GetPlaceCurrency(const UObject *WorldContext);
 
     /**
      * Dismantle the owned EVOLUTION instance by InstanceID (NOT PersistentID — evolution identity).
