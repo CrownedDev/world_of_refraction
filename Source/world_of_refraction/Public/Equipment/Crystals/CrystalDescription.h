@@ -25,6 +25,7 @@
 
 #include "CoreMinimal.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Equipment/Crystals/StatStone.h" // B-353
 #include "Inventory/ItemTier.h"
 #include "Equipment/Crystals/CrystalType.h"
 #include "Equipment/Crystals/ItemIdentity.h"
