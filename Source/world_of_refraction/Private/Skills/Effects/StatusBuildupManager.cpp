@@ -33,7 +33,7 @@ namespace
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 		{
 			const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-			const UStatusBuildupManager *Buildup = GI ? GI->GetSubsystem<UStatusBuildupManager>() : nullptr;
+			const UStatusBuildupManager *Buildup = WoRFight::Get<UStatusBuildupManager>(GI);
 			if (!Buildup)
 			{
 				return;
@@ -82,7 +82,7 @@ USkillEffectManager *UStatusBuildupManager::GetEffectManager() const
 		if (UGameInstance *GI = GetGameInstance())
 		{
 			const_cast<UStatusBuildupManager *>(this)->EffectManagerRef =
-				GI->GetSubsystem<USkillEffectManager>();
+				WoRFight::Get<USkillEffectManager>(GI);
 		}
 	}
 	return EffectManagerRef;
