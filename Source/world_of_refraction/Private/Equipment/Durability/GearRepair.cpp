@@ -173,12 +173,12 @@ FString GearRepair::GetRepairQuoteString(const UParty &Party)
 		}
 		if (const int32 Gold = Gear.bHasPrimaryEvolution ? GetRepairCost(Gear.PrimaryEvolution) : 0)
 		{
-			Out += FString::Printf(TEXT("\n  [%d] primary evolution %s, tier %s, %d/%d: %d Gold"), MemberIndex,
+			Out += FString::Printf(TEXT("\n  [%d] primary evolution %s, tier %s, %d/%d: costs %d"), MemberIndex,
 								   *GetNameSafe(Gear.PrimaryEvolution.Item), *ItemIdentity::GetTierLetter(Gear.PrimaryEvolution.Tier),
 								   Gear.PrimaryEvolution.CurrentDurability, EvolutionMax(Gear.PrimaryEvolution), Gold);
 		}
 	}
-	Out += FString::Printf(TEXT("\n  Total: %d Gold"), GetPartyRepairCost(Party));
+	Out += FString::Printf(TEXT("\n  Total: %d (in the currency of the place, B-366e)"), GetPartyRepairCost(Party));
 	return Out;
 }
 
