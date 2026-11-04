@@ -112,6 +112,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = "Character")
     UCharacterData *CharacterData;
 
+    /** B-360b: the party member this pawn plays (FPartyMember::MemberId), stamped by ABattleGameMode before spawn
+     *  finishes so two copies of one character each find their own slot (vitals, formation, pool key, commander).
+     *  Invalid: not spawned from the party (a hub pawn, an enemy); the first member with CharacterData stands in. */
+    UPROPERTY(BlueprintReadOnly, Replicated, Category = "Character")
+    FGuid PartyMemberId;
+
     // ========================================
     // RUNTIME STATE (REPLICATED)
     // ========================================

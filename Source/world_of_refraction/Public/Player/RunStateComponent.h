@@ -55,6 +55,11 @@ struct WORLD_OF_REFRACTION_API FRunRosterEntry
 	/** Set before the fight by the party leader, fixed during it (Q-21-audit): B-346's AI seat (FPartyMember::bAISeat). */
 	UPROPERTY(BlueprintReadOnly, Category = "Run State")
 	bool bAISeat = false;
+
+	/** B-360b: the party member (FPartyMember::MemberId), so two copies of one character are two entries with their
+	 *  own commanders. Invalid on a roster set from characters alone (SetRoster): the character stands for it. */
+	UPROPERTY(BlueprintReadOnly, Category = "Run State")
+	FGuid MemberId;
 };
 
 UCLASS(ClassGroup = (Trial), meta = (BlueprintSpawnableComponent))
@@ -135,8 +140,9 @@ private:
 	UFUNCTION()
 	void HandlePartyChanged(UParty *Party);
 
-	/** The player id that claims Character, or SeatRules::UNCLAIMED (none, or a player no longer here). */
-	int32 GetClaimingPlayerId(const UCharacterData *Character) const;
+	/** The player id that claims the entry (B-360b: its member; by character when the roster was set from characters),
+	 *  or SeatRules::UNCLAIMED (none, or a player no longer here). */
+	int32 GetClaimingPlayerId(const FRunRosterEntry &Entry) const;
 
 	const AGameStateBase *GetOwningGameState() const;
 

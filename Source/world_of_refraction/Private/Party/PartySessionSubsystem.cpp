@@ -211,9 +211,24 @@ UParty *UPartySessionSubsystem::RestoreLocalParty(const FText &DisplayName, bool
 	// D-004: the leader is always Player-controlled. B-346: an AI seat is the mirrored flag's opposite
 	// (the save stores bPlayerControlled and, since B-348, the seat's difficulty).
 	Restored->Members[0].bPlayerControlled = true;
+	// B-360b: every member has an id; a second plain-keyed copy of one character (a party built before B-360b, or a
+	// test's) takes its own key, so no two members share the pool's key.
+	TArray<const UCharacterData *> PlainKeyed;
 	for (FPartyMember &Member : Restored->Members)
 	{
 		Member.bAISeat = !Member.bPlayerControlled;
+		if (!Member.MemberId.IsValid())
+		{
+			Member.MemberId = FGuid::NewGuid();
+		}
+		if (!Member.bKeyedByMember)
+		{
+			Member.bKeyedByMember = PlainKeyed.Contains(Member.CharacterData.Get());
+			if (!Member.bKeyedByMember)
+			{
+				PlainKeyed.Add(Member.CharacterData.Get());
+			}
+		}
 	}
 	Parties.Add(Restored);
 
@@ -279,6 +294,11 @@ bool UPartySessionSubsystem::IsTrialPartyMember(const AActor *Actor) const
 
 int32 UPartySessionSubsystem::GetMemberSlotByData(UCharacterData *CharacterData) const
 {
+	return GetNthMemberSlotByData(CharacterData, 0);
+}
+
+int32 UPartySessionSubsystem::GetNthMemberSlotByData(const UCharacterData *CharacterData, int32 Occurrence, bool bLivingOnly) const
+{
 	const UParty *Party = GetLocalParty();
 	if (!CharacterData || !Party)
 	{
@@ -287,14 +307,36 @@ int32 UPartySessionSubsystem::GetMemberSlotByData(UCharacterData *CharacterData)
 
 	// Pointer equality is correct: the same asset path resolves to one UObject
 	// in memory, and FPartyMember pins it with a hard ref.
+	int32 Seen = 0;
 	for (int32 SlotIndex = 0; SlotIndex < Party->Members.Num(); ++SlotIndex)
 	{
-		if (Party->Members[SlotIndex].CharacterData == CharacterData)
+		const FPartyMember &Member = Party->Members[SlotIndex];
+		if (Member.CharacterData == CharacterData && !(bLivingOnly && Member.IsFallen()) && Seen++ == Occurrence)
 		{
 			return SlotIndex;
 		}
 	}
 	return INDEX_NONE;
+}
+
+int32 UPartySessionSubsystem::GetMemberSlotById(const FGuid &MemberId) const
+{
+	const UParty *Party = GetLocalParty();
+	if (!MemberId.IsValid() || !Party)
+	{
+		return INDEX_NONE;
+	}
+	return Party->Members.IndexOfByPredicate([&MemberId](const FPartyMember &Member) { return Member.MemberId == MemberId; });
+}
+
+int32 UPartySessionSubsystem::GetMemberSlotOf(const UCharacterDataComponent *Comp) const
+{
+	if (!Comp)
+	{
+		return INDEX_NONE;
+	}
+	// A stamped pawn whose member left (dismissed, replaced) is nobody's: never another copy's slot.
+	return Comp->PartyMemberId.IsValid() ? GetMemberSlotById(Comp->PartyMemberId) : GetMemberSlotByData(Comp->CharacterData);
 }
 
 bool UPartySessionSubsystem::InviteMember(TSoftClassPtr<ACombatCharacter> PawnClass)
@@ -352,34 +394,20 @@ bool UPartySessionSubsystem::InviteMemberInternal(TSoftClassPtr<ACombatCharacter
 		return false;
 	}
 
-	// UNIQUENESS: CharacterData IS the identity, so two members sharing one asset
-	// collapse to a single slot in GetMemberSlotByData — which returns the FIRST
-	// match. Downstream that breaks two things at once: the vitals carry (both
-	// pawns read slot N's HP/EP in UCharacterDataComponent::BeginPlay) and the
-	// formation stamp (both pawns resolve to one PreferredRow/Column and spawn in
-	// the same cell). Rejecting the duplicate here makes the "first match"
-	// contract sound for every downstream consumer, rather than each one needing
-	// its own guard.
-	//
-	// This deliberately forecloses a duplicate-lord party. Per-instance identity
-	// — the banked PvP arc — is where this guard gets lifted; until then, slot
-	// identity and asset identity are the same thing by construction.
-	const int32 ExistingSlot = GetMemberSlotByData(Data);
-	if (ExistingSlot != INDEX_NONE)
-	{
-		UE_LOG(LogTemp, Warning,
-			   TEXT("[PartySession] %s is already in the party at slot %d - duplicate invite rejected"),
-			   *Data->Name, ExistingSlot);
-		return false;
-	}
-
+	// B-360b (D-150 point 2): a character already in the party joins again as a separate copy (two players bring the
+	// same lord). The copy is its own member (MemberId): a battle pawn finds its slot by the id stamped on it, and the
+	// pool keys the copy's gear and pouch by that id, so the first copy's state (keyed by the asset path, as every
+	// save before B-360b) stays its own.
 	FPartyMember Member;
 	Member.PawnClass = PawnClass;
 	Member.CharacterData = Data;
+	Member.MemberId = FGuid::NewGuid();
+	Member.bKeyedByMember = GetMemberSlotByData(Data) != INDEX_NONE;
 	Party->Members.Add(Member);
 
-	UE_LOG(LogTemp, Log, TEXT("[PartySession] Invited %s (%d/%d)"),
-		   *Data->Name, Party->GetMemberCount(), PartyConstants::MAX_PARTY_MEMBERS);
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] Invited %s (%d/%d)%s"),
+		   *Data->Name, Party->GetMemberCount(), PartyConstants::MAX_PARTY_MEMBERS,
+		   Member.bKeyedByMember ? TEXT(" as a separate copy of a character already here (B-360b)") : TEXT(""));
 	return true;
 }
 
@@ -437,7 +465,7 @@ int32 UPartySessionSubsystem::DismissRunMembers()
 			{
 				continue;
 			}
-			const FName Key = UPoolSubsystem::GetCharacterKey(Member.CharacterData);
+			const FName Key = UPoolSubsystem::GetCharacterKey(Member);
 			TArray<FGuid> Worn;
 			for (const TPair<FGuid, FName> &Pair : Pool->GetWearers())
 			{
@@ -591,17 +619,18 @@ bool UPartySessionSubsystem::ReplaceAISeatWithPlayer(int32 SlotIndex, TSoftClass
 		UE_LOG(LogTemp, Warning, TEXT("[PartySession] Refused: seats are fixed during a fight (Q-21-audit)"));
 		return false;
 	}
-	if (GetMemberSlotByData(Character) != INDEX_NONE)
+	// B-360b: a character another member already is joins as a separate copy, keyed by its own id in the pool.
+	bool bCopyOfAnother = false;
+	for (int32 Other = 0; Other < Party->Members.Num(); ++Other)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[PartySession] Refused: %s is already in the party (separate copies: B-360b)"), *Character->Name);
-		return false;
+		bCopyOfAnother |= Other != SlotIndex && Party->Members[Other].CharacterData == Character;
 	}
 
 	// The seat's gear and pouch go to the host (D-150 point 4): every piece the leaving member owns, worn or not,
 	// and every stack it carries.
 	FPartyMember &Member = Party->Members[SlotIndex];
-	const FName FromKey = UPoolSubsystem::GetCharacterKey(Member.CharacterData);
-	const FName ToKey = UPoolSubsystem::GetCharacterKey(Party->Members[PartyConstants::LEADER_SLOT].CharacterData);
+	const FName FromKey = UPoolSubsystem::GetCharacterKey(Member);
+	const FName ToKey = UPoolSubsystem::GetCharacterKey(Party->Members[PartyConstants::LEADER_SLOT]);
 	int32 GearMoved = 0;
 	int32 StacksMoved = 0;
 	if (UPoolSubsystem *Pool = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr)
@@ -650,6 +679,8 @@ bool UPartySessionSubsystem::ReplaceAISeatWithPlayer(int32 SlotIndex, TSoftClass
 	Member = FPartyMember();
 	Member.PawnClass = PawnClass.IsNull() ? Party->Members[PartyConstants::LEADER_SLOT].PawnClass : PawnClass;
 	Member.CharacterData = Character;
+	Member.MemberId = FGuid::NewGuid();
+	Member.bKeyedByMember = bCopyOfAnother;
 	Member.bAISeat = false;
 	Member.bPlayerControlled = true; // OBSOLETE mirror, kept for the save
 	// The joiner takes the seat as it stood: its place in the formation and whether it was a run-only seat (Q-360b).
@@ -929,6 +960,9 @@ FString UPartySessionSubsystem::GetPartyStateString() const
 		{
 			ControlLabel += TEXT(", run only");
 		}
+		// B-360b: the member's id and, for a later copy of a character already here, its own pool key.
+		ControlLabel += FString::Printf(TEXT(" - member %s%s"), *Member.MemberId.ToString(EGuidFormats::Short),
+										Member.bKeyedByMember ? TEXT(" (a copy: keyed by member)") : TEXT(""));
 		const TCHAR *Control = *ControlLabel;
 
 		if (!Member.HasCarriedVitals())

@@ -41,7 +41,7 @@ const FPartyMember *UCharacterDataComponent::FindCarriedPartyMember() const
 {
     const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
     const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
-    return PartySession && CharacterData ? PartySession->GetMemberCarriedState(PartySession->GetMemberSlotByData(CharacterData)) : nullptr;
+    return PartySession && CharacterData ? PartySession->GetMemberCarriedState(PartySession->GetMemberSlotOf(this)) : nullptr;
 }
 
 UTrialRunSubsystem *UCharacterDataComponent::FindRunLevelStore(FName &OutKey) const
@@ -58,7 +58,7 @@ UTrialRunSubsystem *UCharacterDataComponent::FindRunLevelStore(FName &OutKey) co
     {
         return nullptr;
     }
-    OutKey = UPoolSubsystem::GetCharacterKey(CharacterData);
+    OutKey = UPoolSubsystem::GetCharacterKey(this); // B-360b: a copy's own key
     return Run;
 }
 
@@ -114,8 +114,9 @@ void UCharacterDataComponent::BeginPlay()
 
         // Trial carry-over: a rostered party member re-spawning into a battle
         // resumes the HP/EP it left the last one with, rather than arriving
-        // topped up. Enemies are never rostered, so GetMemberSlotByData returns
+        // topped up. Enemies are never rostered, so GetMemberSlotOf returns
         // INDEX_NONE and they fall through to the max path — no origin check.
+        // B-360b: by the member id the battle stamped, so a copy reads its own slot.
         constexpr int32 MIN_POOL_VALUE = 0;
         bool bAppliedCarriedVitals = false;
 
@@ -123,7 +124,7 @@ void UCharacterDataComponent::BeginPlay()
         {
             if (const UPartySessionSubsystem *PartySession = GI->GetSubsystem<UPartySessionSubsystem>())
             {
-                const int32 SlotIndex = PartySession->GetMemberSlotByData(CharacterData);
+                const int32 SlotIndex = PartySession->GetMemberSlotOf(this);
                 int32 CarriedHP = 0;
                 int32 CarriedEP = 0;
                 if (SlotIndex != INDEX_NONE && PartySession->GetMemberVitals(SlotIndex, CarriedHP, CarriedEP))
@@ -247,6 +248,7 @@ void UCharacterDataComponent::GetLifetimeReplicatedProps(TArray<FLifetimePropert
     DOREPLIFETIME(UCharacterDataComponent, MaxEP);
     // B-131: the server picks the template when it spawns the pawn; a client needs it for names and panels.
     DOREPLIFETIME(UCharacterDataComponent, CharacterData); // also a template set after spawn (recruit, swap)
+    DOREPLIFETIME(UCharacterDataComponent, PartyMemberId); // B-360b: a client tells two copies apart by it
     DOREPLIFETIME(UCharacterDataComponent, bIsAlive);
     DOREPLIFETIME(UCharacterDataComponent, bIsBrokenDarkness);
 }

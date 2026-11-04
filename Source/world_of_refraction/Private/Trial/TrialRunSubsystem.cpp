@@ -42,7 +42,7 @@ namespace
         {
             for (const FPartyMember &Member : Party->Members)
             {
-                MemberKeys.Add(UPoolSubsystem::GetCharacterKey(Member.CharacterData));
+                MemberKeys.Add(UPoolSubsystem::GetCharacterKey(Member));
             }
         }
         MemberKeys.Remove(NAME_None);

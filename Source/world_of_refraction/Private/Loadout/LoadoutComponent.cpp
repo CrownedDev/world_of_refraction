@@ -3318,7 +3318,8 @@ bool ULoadoutComponent::IsWornByAnother(const FGuid &GearID) const
     if (WearerKeyData.Get() != Data)
     {
         WearerKeyData = Data;
-        WearerKey = UPoolSubsystem::GetCharacterKey(Data);
+        // B-360b: the pawn's member key (a copy of a shared character wears under its own key).
+        WearerKey = UPoolSubsystem::GetCharacterKey(GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr);
     }
     return Wearer != WearerKey;
 }

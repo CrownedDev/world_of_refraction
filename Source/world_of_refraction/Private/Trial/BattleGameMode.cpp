@@ -163,13 +163,20 @@ void ABattleGameMode::BootstrapCombat()
     APawn *FirstPlayerMemberPawn = nullptr;
     for (int32 i = 0; i < BattlePartyData.Num(); ++i)
     {
-        const int32 Slot = PartySession ? PartySession->GetMemberSlotByData(BattlePartyData[i]) : INDEX_NONE;
+        // B-360b: two copies of one character come as two equal entries; the n-th entry is the n-th member with that asset.
+        int32 Occurrence = 0;
+        for (int32 Earlier = 0; Earlier < i; ++Earlier)
+        {
+            Occurrence += BattlePartyData[Earlier] == BattlePartyData[i] ? 1 : 0;
+        }
+        const int32 Slot = PartySession ? PartySession->GetNthMemberSlotByData(BattlePartyData[i], Occurrence, /*bLivingOnly=*/true) : INDEX_NONE;
         const FPartyMember *Member = TrialParty && TrialParty->Members.IsValidIndex(Slot) ? &TrialParty->Members[Slot] : nullptr;
         UClass *MemberPawnClass = Member ? Member->PawnClass.LoadSynchronous() : nullptr;
 
         const FVector Location = Origin + FVector(-BattleGameModeConstants::TEAM_X_OFFSET,
                                                   i * BattleGameModeConstants::COMBATANT_Y_SPACING, 0.0f);
-        APawn *Spawned = SpawnCombatant(MemberPawnClass ? MemberPawnClass : PlayerPawnClass, BattlePartyData[i], FTransform(Location));
+        APawn *Spawned = SpawnCombatant(MemberPawnClass ? MemberPawnClass : PlayerPawnClass, BattlePartyData[i], FTransform(Location),
+                                        Member ? Member->MemberId : FGuid());
         if (!Spawned)
         {
             continue;
@@ -347,7 +354,7 @@ void ABattleGameMode::BootstrapCombat()
     SpawnedOrchestrator->StartCombat(LocalParty, OpposingParty, TrialRun->GetPendingDifficulty());
 }
 
-APawn *ABattleGameMode::SpawnCombatant(UClass *PawnClass, UCharacterData *Data, const FTransform &SpawnTransform)
+APawn *ABattleGameMode::SpawnCombatant(UClass *PawnClass, UCharacterData *Data, const FTransform &SpawnTransform, const FGuid &MemberId)
 {
     if (!Data)
     {
@@ -370,6 +377,7 @@ APawn *ABattleGameMode::SpawnCombatant(UClass *PawnClass, UCharacterData *Data, 
     if (UCharacterDataComponent *CharComp = Pawn->FindComponentByClass<UCharacterDataComponent>())
     {
         CharComp->CharacterData = Data;
+        CharComp->PartyMemberId = MemberId; // B-360b: before BeginPlay, which reads the member's slot
     }
     else
     {
@@ -472,10 +480,8 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
                     continue;
                 }
 
-                // Pointer-identity match, same limit as elsewhere: two pawns
-                // sharing one CharacterData asset resolve to the same slot and
-                // the later walked one wins. Not reachable with distinct lords.
-                const int32 SlotIndex = PartySession->GetMemberSlotByData(CharComp->CharacterData);
+                // B-360b: by the member id stamped at spawn, so two copies of one character each bank their own.
+                const int32 SlotIndex = PartySession->GetMemberSlotOf(CharComp);
                 if (SlotIndex != INDEX_NONE)
                 {
                     PartySession->SetMemberVitals(SlotIndex, CharComp->CurrentHP, CharComp->CurrentEP);

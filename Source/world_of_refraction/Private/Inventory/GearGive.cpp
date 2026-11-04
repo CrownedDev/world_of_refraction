@@ -38,7 +38,7 @@ namespace
 		{
 			for (const FPartyMember &Member : Party->Members)
 			{
-				if (Member.CharacterData && UPoolSubsystem::GetCharacterKey(Member.CharacterData) == CharacterKey)
+				if (Member.CharacterData && UPoolSubsystem::GetCharacterKey(Member) == CharacterKey)
 				{
 					return FText::FromString(Member.CharacterData->Name);
 				}
@@ -54,7 +54,7 @@ namespace
 		{
 			for (const FPartyMember &Member : Party->Members)
 			{
-				if (Member.CharacterData && UPoolSubsystem::GetCharacterKey(Member.CharacterData) == CharacterKey)
+				if (Member.CharacterData && UPoolSubsystem::GetCharacterKey(Member) == CharacterKey)
 				{
 					return Member.bRunOnly;
 				}
@@ -79,7 +79,7 @@ namespace
 			{
 				if (Member.CharacterData)
 				{
-					UE_LOG(LogTemp, Log, TEXT("%s"), *WoRGive::GetGiveableString(World, UPoolSubsystem::GetCharacterKey(Member.CharacterData)));
+					UE_LOG(LogTemp, Log, TEXT("%s"), *WoRGive::GetGiveableString(World, UPoolSubsystem::GetCharacterKey(Member)));
 				}
 			}
 		}));
@@ -96,7 +96,7 @@ namespace WoRGive
 		for (TActorIterator<AActor> It(World); It; ++It)
 		{
 			const UCharacterDataComponent *CharComp = It->FindComponentByClass<UCharacterDataComponent>();
-			if (CharComp && UPoolSubsystem::GetCharacterKey(CharComp->CharacterData) == Key)
+			if (CharComp && UPoolSubsystem::GetCharacterKey(CharComp) == Key)
 			{
 				if (UInventoryComponent *Inventory = It->FindComponentByClass<UInventoryComponent>())
 				{

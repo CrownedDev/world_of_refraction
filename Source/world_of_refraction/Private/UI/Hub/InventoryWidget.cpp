@@ -155,7 +155,7 @@ TArray<TPair<FName, FText>> UInventoryWidget::GatherMembers() const
 			if (Member.CharacterData)
 			{
 				// TODO: character names are FString assets; FText with B-127 (D-061).
-				Members.Emplace(UPoolSubsystem::GetCharacterKey(Member.CharacterData), FText::FromString(Member.CharacterData->Name));
+				Members.Emplace(UPoolSubsystem::GetCharacterKey(Member), FText::FromString(Member.CharacterData->Name));
 			}
 		}
 	}
@@ -353,7 +353,7 @@ static FAutoConsoleCommandWithWorld GInventoryPrintCommand(
 			{
 				if (Member.CharacterData)
 				{
-					Keys.Add(UPoolSubsystem::GetCharacterKey(Member.CharacterData));
+					Keys.Add(UPoolSubsystem::GetCharacterKey(Member));
 				}
 			}
 			// Give is listed against the next member in the party.

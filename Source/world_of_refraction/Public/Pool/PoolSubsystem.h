@@ -45,6 +45,8 @@
 
 class UInventoryData;
 class UCharacterData;
+class UCharacterDataComponent;
+struct FPartyMember;
 class AActor;
 
 /** B-091: a piece of shared gear changed in the pool (added, updated or removed). */
@@ -280,8 +282,17 @@ public:
     // (UInventoryComponent::DrawSharedGear); a piece is worn by one member at a time, the one whose
     // active loadout holds it. A member that changes a piece pushes it here, and the others copy it.
 
-    /** The key the pool knows a character by (its asset path). */
+    /** The key the pool knows a character by (its asset path). B-360b: when two party members are copies of one
+     *  character, this is the first copy's key; a caller that has the member or its pawn uses the overloads below. */
     static FName GetCharacterKey(const UCharacterData *CharacterData);
+
+    /** B-360b: a party member's key: its asset path, or <path>#<MemberId> for a later copy of a character already in the
+     *  party (FPartyMember::bKeyedByMember), so each copy's gear and pouch are its own. */
+    static FName GetCharacterKey(const FPartyMember &Member);
+
+    /** B-360b: a pawn's key: its party member's (by the PartyMemberId stamped at battle spawn, else the first member
+     *  with its CharacterData), or the asset path when it is no party member (an enemy, a guest). */
+    static FName GetCharacterKey(const UCharacterDataComponent *Comp);
 
     /** Banks a character's starting gear the first time it draws; false when it was banked before. */
     bool BankStartingGear(FName CharacterKey, const TArray<FWeaponInventoryEntry> &Weapons,

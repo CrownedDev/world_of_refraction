@@ -41,7 +41,7 @@ namespace
 		const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
 		const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
 		const FPartyMember *Member = Party ? Party->Members.FindByPredicate([Key](const FPartyMember &M)
-															  { return M.CharacterData && UPoolSubsystem::GetCharacterKey(M.CharacterData) == Key; })
+															  { return UPoolSubsystem::GetCharacterKey(M) == Key; })
 										   : nullptr;
 		return Member && Member->bRunOnly;
 	}
