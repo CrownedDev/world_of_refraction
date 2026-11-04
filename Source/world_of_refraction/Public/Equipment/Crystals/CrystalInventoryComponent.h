@@ -32,6 +32,8 @@
 // carried-items list. Fight item lists and item use read the pouch directly (ULoadoutComponent::GetUsableItems
 // / UseCarriedItem); the Crystals / Stones mirror stays for the readers not yet moved (B-313b) and is deleted
 // after Crown's PIE pass. Enemies keep their own counts here.
+// B-313b: every read (GetCount, GetCountForTier, GetTotalCount, GetStackCount, GetHeldStacks) goes to the pouch while
+// bound; nothing in C++ reads the mirror. It is still filled for Blueprint readers until Crown's PIE pass (OBSOLETE).
 
 #pragma once
 
@@ -104,6 +106,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
     void ClearAll();
 
+    /** B-313b: every stack held, gems and stones together: the member's pouch while bound, else this component's own
+     *  counts (an enemy, a test, a member before its first draw). */
+    TMap<FCrystalId, int32> GetHeldStacks() const;
+
     // ==================== CAPS ====================
 
     /** True iff AddCount(Id, Count) would not exceed Id's pool's per-tier cap. */
@@ -130,6 +136,9 @@ private:
     void HandlePoolItemsChanged();
 
     void UnbindSharedItems();
+
+    /** B-313b: the bound pouch's stacks (UPoolSubsystem::GetCarriedItems); null when unbound. */
+    const TMap<FCrystalId, int32> *GetPouchStacks() const;
 
     TWeakObjectPtr<UPoolSubsystem> SharedPool;
     /** Whose pouch this mirrors while SharedPool is set. */

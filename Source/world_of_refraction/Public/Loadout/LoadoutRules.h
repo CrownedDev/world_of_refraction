@@ -116,6 +116,10 @@ struct WORLD_OF_REFRACTION_API FLoadoutRuleContext
 	/** False skips the spell weight budgets (Q-161: an inventory asset on its own reports them as warnings). */
 	bool bCheckSpellBudget = true;
 
+	/** B-313b (D-111, Q-313b): the member fights with its pouch, so the loadout's item slots hold no supply (an authored
+	 *  pick is an identity only): the item-slot rules skip them. False for an actor with no pouch (enemies, unbound tests). */
+	bool bItemsInPouch = false;
+
 	TFunction<bool(const UWeaponData *)> OwnsWeapon;
 	TFunction<bool(const URingData *)> OwnsRing;
 	TFunction<bool(const UEvolutionItemData *)> OwnsEvolution;
@@ -187,8 +191,9 @@ struct WORLD_OF_REFRACTION_API FLoadoutRules
 
 	/** B-354 (D-143, Q-354): S-tier crystals equipped in the loadout: each attachment on the gear the class fights with
 	 *  (a crystal, an augment stone, a fusion with an S half, an evolution; the secondary for a Generic, the ring loadout
-	 *  for a Resonator, as CollectFindings gates them) and the primary evolution, plus each S gem in its item slots. */
-	static int32 CountEquippedSTierCrystals(const FCombatLoadout &Loadout, ECharacterClass Class);
+	 *  for a Resonator, as CollectFindings gates them) and the primary evolution, plus each S gem in its item slots
+	 *  (bCountItemSlots false: a pouch member's, which hold none, B-313b). */
+	static int32 CountEquippedSTierCrystals(const FCombatLoadout &Loadout, ECharacterClass Class, bool bCountItemSlots = true);
 
 	/** B-354: drops the S gems in the item slots that the attached S crystals leave no room for, last slots first. */
 	static void TrimSTierItemCrystals(FCombatLoadout &Loadout, ECharacterClass Class);

@@ -409,13 +409,13 @@ namespace
 	}
 
 	/** B-354 (D-143): one S-tier crystal equipped per battle loadout. */
-	void CheckEquippedSTierCrystals(FFindingSink &Sink, const FCombatLoadout &Loadout, ECharacterClass Class)
+	void CheckEquippedSTierCrystals(FFindingSink &Sink, const FCombatLoadout &Loadout, ECharacterClass Class, bool bCountItemSlots)
 	{
-		const int32 Count = FLoadoutRules::CountEquippedSTierCrystals(Loadout, Class);
+		const int32 Count = FLoadoutRules::CountEquippedSTierCrystals(Loadout, Class, bCountItemSlots);
 		if (Count > LoadoutConstants::MAX_EQUIPPED_S_TIER_CRYSTALS)
 		{
 			// Only the item slots' gems can be cleared; an S attachment too many stays reported for the player to change.
-			const bool bItemGems = Loadout.ItemSlots.ContainsByPredicate([](const FItemLoadoutSlot &Slot) { return IsSTierItemGem(Slot); });
+			const bool bItemGems = bCountItemSlots && Loadout.ItemSlots.ContainsByPredicate([](const FItemLoadoutSlot &Slot) { return IsSTierItemGem(Slot); });
 			Sink.Add(ELoadoutSlotType::EquippedSTierCrystal, INDEX_NONE, bItemGems,
 					 FString::Printf(TEXT("Too many S-tier crystals equipped: %d (max %d)"), Count, LoadoutConstants::MAX_EQUIPPED_S_TIER_CRYSTALS));
 		}
@@ -439,8 +439,14 @@ namespace
 		}
 	}
 
-	void CheckItems(FFindingSink &Sink, const FCombatLoadout &Loadout, ECharacterClass Class)
+	void CheckItems(FFindingSink &Sink, const FCombatLoadout &Loadout, const FLoadoutRuleContext &Context)
 	{
+		if (Context.bItemsInPouch)
+		{
+			// B-313b (D-111): a pouch member's item slots hold no items; only its attached S crystals count.
+			CheckEquippedSTierCrystals(Sink, Loadout, Context.CharacterClass, /*bCountItemSlots=*/false);
+			return;
+		}
 		// Quantity range (previously checked in the editor only).
 		for (int32 i = 0; i < Loadout.ItemSlots.Num(); ++i)
 		{
@@ -457,7 +463,7 @@ namespace
 		{
 			Sink.Add(ELoadoutSlotType::DuplicateItems, -1, true, TEXT("Duplicate item types in loadout"));
 		}
-		CheckEquippedSTierCrystals(Sink, Loadout, Class); // B-354: replaces CheckUtilityCrystalTierCaps (D-143)
+		CheckEquippedSTierCrystals(Sink, Loadout, Context.CharacterClass, /*bCountItemSlots=*/true); // B-354 (D-143)
 	}
 }
 
@@ -529,7 +535,7 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 		CheckCasterSpells(Sink, Loadout, Context);
 	}
 
-	CheckItems(Sink, Loadout, Context.CharacterClass);
+	CheckItems(Sink, Loadout, Context);
 	return MoveTemp(Sink.Findings);
 }
 
@@ -690,12 +696,12 @@ TArray<FString> FLoadoutRules::ToReasons(const TArray<FInvalidSlotFinding> &Find
 	return Reasons;
 }
 
-int32 FLoadoutRules::CountEquippedSTierCrystals(const FCombatLoadout &Loadout, ECharacterClass Class)
+int32 FLoadoutRules::CountEquippedSTierCrystals(const FCombatLoadout &Loadout, ECharacterClass Class, bool bCountItemSlots)
 {
 	int32 Count = CountAttachedSTier(Loadout, Class);
 	for (const FItemLoadoutSlot &Slot : Loadout.ItemSlots)
 	{
-		Count += IsSTierItemGem(Slot) ? Slot.Quantity : 0;
+		Count += bCountItemSlots && IsSTierItemGem(Slot) ? Slot.Quantity : 0;
 	}
 	return Count;
 }
