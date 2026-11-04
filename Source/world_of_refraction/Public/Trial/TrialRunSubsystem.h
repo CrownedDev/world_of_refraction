@@ -173,6 +173,29 @@ public:
     void MarkRunBossBeaten() { bRunBossBeaten = true; }
     bool IsRunBossBeaten() const { return bRunBossBeaten; }
 
+    // ==================== LOSING A FIGHT (B-362, D-155, Q-155) ====================
+
+    /** Wipes this run (every party wipe counts, a main-boss loss too) and losses to the main boss. Saved with the run. */
+    int32 GetRunWipes() const { return RunWipes; }
+    int32 GetRunMainBossLosses() const { return RunMainBossLosses; }
+
+    /** The party was wiped by an enemy of Rank: counts the wipe (and the main-boss loss). Returns true when the run is
+     *  now over (DefeatRules::RunEnds). */
+    bool RecordWipe(EEncounterRank Rank);
+
+    /** Takes up to MaxPoints of CharacterKey's run pillar points (earned or bought this run), one at a time from the
+     *  pillar with the most (DefeatRules::PickPillarToLose). Returns how many it took; the asset's levels and the head
+     *  start are never touched. */
+    int32 LoseRunPoints(FName CharacterKey, int32 MaxPoints);
+
+    /** The last rest spot the party used this run (NAME_None = the trial's start). TODO: B-187 calls NoteRestSpotUsed
+     *  from the rest spot and the trial level places the returning party there. */
+    FName GetLastRestSpot() const { return LastRestSpot; }
+    void NoteRestSpotUsed(FName RestSpotId) { LastRestSpot = RestSpotId; }
+
+    /** Save restore: puts the run's loss counters back (RestoreRun does not take them). */
+    void RestoreRunLosses(int32 Wipes, int32 MainBossLosses, FName RestSpotId);
+
     /** B-188: a map feature was used this run (a chest opened, lore read); What says what it gave. */
     void RecordFound(FName FeatureId, const FText &What);
 
@@ -303,6 +326,11 @@ private:
     /** B-361b: run state like BeatenEncounters (cleared on trial entry and exit; moves with it for co-op, D-065).
      *  TODO: not in the save yet (a resumed run forgets it, as Q-223's run levels). */
     bool bRunBossBeaten = false;
+
+    /** B-362: run state like BeatenEncounters (cleared on trial entry and exit; saved with the run in FSavedRun). */
+    int32 RunWipes = 0;
+    int32 RunMainBossLosses = 0;
+    FName LastRestSpot;
 
     /** B-188: map features used this run (never removed from, so it keeps the order found). Run state
      *  like BeatenEncounters; cleared on trial entry and exit; moves with it for co-op (D-065). */
