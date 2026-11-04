@@ -54,6 +54,10 @@ public:
 	void ClaimCharacter(UCharacterData *Character);
 	/** Server: Character is no longer this player's (a pawn swap released it). */
 	void ReleaseCharacter(UCharacterData *Character);
+
+	/** D-150 (B-360): ask the host for a seat in its run with Character (your own, picked before joining). On the
+	 *  server it goes straight to the run state; a client sends ServerRequestJoin. Console: `wor.Party.RequestJoin`. */
+	void RequestJoin(UCharacterData *Character);
 	const TArray<TObjectPtr<UCharacterData>> &GetClaimedCharacters() const { return ClaimedCharacters; }
 
 private:
@@ -62,6 +66,9 @@ private:
 
 	UFUNCTION(Server, Reliable)
 	void ServerSetForm(UCharacterFormData *InWornForm, EPlayerBaseForm InBaseForm);
+
+	UFUNCTION(Server, Reliable)
+	void ServerRequestJoin(UCharacterData *Character);
 
 	/** The local player's form changed in UCharacterFormSubsystem: send it on. */
 	UFUNCTION()

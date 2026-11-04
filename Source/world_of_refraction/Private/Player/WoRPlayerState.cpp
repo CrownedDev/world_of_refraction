@@ -15,8 +15,37 @@
 #include "GameFramework/PlayerController.h"
 #include "Materials/MaterialInterface.h"
 #include "Net/UnrealNetwork.h"
+#include "Player/RunStateComponent.h"
 #include "Save/SaveSubsystem.h"
+#include "HAL/IConsoleManager.h"
+#include "Engine/World.h"
 #include "WoRLog.h"
+
+namespace
+{
+	/** D-150: a player asks the host for a seat with the character asset named (its path). */
+	FAutoConsoleCommandWithWorldAndArgs GRequestJoinCmd(
+		TEXT("wor.Party.RequestJoin"),
+		TEXT("D-150: wor.Party.RequestJoin <CharacterData asset path> - ask the host for a seat in its run with that character (your own)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
+				AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr;
+				if (!Player || Args.Num() < 1)
+				{
+					UE_LOG(LogWoR, Display, TEXT("[PlayerState] usage: wor.Party.RequestJoin <CharacterData asset path>"));
+					return;
+				}
+				UCharacterData *Character = LoadObject<UCharacterData>(nullptr, *Args[0]);
+				if (!Character)
+				{
+					UE_LOG(LogWoR, Display, TEXT("[PlayerState] no CharacterData at '%s'"), *Args[0]);
+					return;
+				}
+				Player->RequestJoin(Character);
+			}));
+}
 
 namespace PlayerFormLook
 {
@@ -141,6 +170,35 @@ void AWoRPlayerState::ReleaseCharacter(UCharacterData *Character)
 		return;
 	}
 	UE_LOG(LogWoR, Log, TEXT("[PlayerState] %s releases %s (B-232)"), *GetPlayerName(), *GetNameSafe(Character));
+}
+
+void AWoRPlayerState::RequestJoin(UCharacterData *Character)
+{
+	if (!Character)
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[PlayerState] RequestJoin with no character (D-150: pick your own character first)"));
+		return;
+	}
+	if (HasAuthority())
+	{
+		ServerRequestJoin_Implementation(Character);
+	}
+	else
+	{
+		ServerRequestJoin(Character);
+	}
+}
+
+void AWoRPlayerState::ServerRequestJoin_Implementation(UCharacterData *Character)
+{
+	if (URunStateComponent *Run = URunStateComponent::Find(this))
+	{
+		Run->RequestJoin(this, Character, TSoftClassPtr<ACombatCharacter>());
+	}
+	else
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[PlayerState] %s asked to join but there is no run state here"), *GetPlayerName());
+	}
 }
 
 void AWoRPlayerState::SetForm(UCharacterFormData *InWornForm, EPlayerBaseForm InBaseForm)
