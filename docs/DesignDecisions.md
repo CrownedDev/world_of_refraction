@@ -3332,7 +3332,7 @@ Moved here once applied. Newest first.
 **Options:** **A** every S attachment on the loadout's gear (crystal, augment stone, fusion with an S half, evolution, the evolution seat) plus S gems in its item slots; a second is a validation finding, and only the item slots' gems are trimmed automatically (an attachment lives on the item, so the player changes it). Pouch items are carried, not equipped: uncapped. **B** count gems only.
 **Recommendation:** A. World of Warcraft's "unique-equipped" gems and Diablo III's one-of-each legendary gem cap what is socketed in your gear, not what sits in your bags; counting every socketed S piece keeps the rule one line.
 **Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
-**Notes for Claude:** built in B-354 (unbuilt). `InventoryConstants::CRYSTAL_PER_TIER_CAP` (an actor without a pouch, e.g. an enemy) is D-097's older per-tier stack cap, not D-072, and stays.
+**Notes for Claude:** built in B-354 (desktop build 2026-11-04). `InventoryConstants::CRYSTAL_PER_TIER_CAP` (an actor without a pouch, e.g. an enemy) is D-097's older per-tier stack cap, not D-072, and stays. Reviewer notes applied: the count is gated by class as `CollectFindings` is (a Caster's secondary and a non-Resonator's ring loadout are stale slots and don't count). The finding's reason is an `FString` like every other finding in `LoadoutRules.cpp` (log / debug text, not shown to the player); the whole file moves to `FText` together when a screen shows findings (D-061).
 
 ### Q-313 — The pouch in a fight: how far B-313 goes, the tier caps, and a recruit's items
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-313, cloud) · **Blocks:** —
