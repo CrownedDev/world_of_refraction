@@ -52,6 +52,14 @@ The cloud writer pre-writes backlog jobs as **UNBUILT** branches (no Unreal in t
 
 **Save version order:** B-348 (11), then B-333 (12), then B-351 (next free). Each bumps LATEST = MIN (D-138).
 
+## Round from dev 2026-11-04 (pre-written ahead of the local writer, each cut from dev)
+| Job | Branch | State |
+|---|---|---|
+| B-361b | `feature/B-361b-mentor-tokens-cloud` | **SUPERSEDED**: the local writer built B-361b on `feature/B-361b-mentor-tokens` and dev has it (save v17). Drop this branch; at most cherry-pick `CopySpell` / `CopyAbility`, `TeachSkillPaying`, `MentorTokensSpec` if dev lacks them. `wor.Currency.Print` is absent (tokens show in `wor.Wallet.Print`). |
+| B-360c | `feature/B-360c-copy-levels-and-buyfor` @ 198c2adf | reviewed, fixed; level banking and the shop buy-for cycle are PIE-only |
+| B-362 | `feature/B-362-losing-a-fight` @ 67abba39 | reviewed, must-fix done (`ExitTrialNextTick`); save v18; open: over-cap-first points (B-364), rest-spot placement (B-187), player-facing loss text (FeelGuide row 7), no `RestoreRun` wiring spec |
+Merge notes: B-362 bumps the save to v18; B-360c is cut from older dev; docs tables (Backlog, PIE README, session file) need a manual merge.
+
 ## Queue still to pre-write (not started)
 B-357 (evolution placement, D-147 incl. the L2 correction), B-336 (world subsystems, D-129), B-349 (console names, D-139), B-340 (docs moves, D-132; do last), B-042i / B-042j2 (GAS; skip if the Unreal writer started them), and the follow-up rows (B-228b, B-313b, B-314b, B-316b, B-331b, B-333b, B-337b, B-347b, B-348b, B-351b, B-355b to be written).
 
