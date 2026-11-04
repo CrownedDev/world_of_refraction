@@ -20,6 +20,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-361c](B-361c.md) | `test/B-361c-recruit-inventory-specs` (in `dev`) | Tests only: a recruit through a mid-run save, the one-pouch give refusal, buying for a recruit, a full or missing host ledger at hand-over | Pending |
 | [B-337b](B-337b.md) | `feature/B-337b-conditions-part2` (in `dev`) | Reactions match through the shared conditions (no gameplay change); `wor.Reaction.Print` shows the condition list | Pending |
 | [B-337c](B-337c.md) | `feature/B-337c-bound-memory-conditions` (in `dev`) | Bound-item memories check through the shared conditions; skill trigger On Flawless Parry | Pending |
+| [B-337d](B-337d.md) | `refactor/B-337d-skill-conditions` (in `dev`) | Skill-effect conditions check through the shared conditions (HP / EP percent) | Pending |
 | [B-362b](B-362b.md) | `feature/B-362b-wipe-drops-prisms` (in `dev`) | A wipe drops the run's Prisms at the fight instead of taking pillar points; beating that team gets them back; a second wipe loses the first drop | Pending |
 | [B-362c](B-362c.md) | `feature/B-362c-prism-pickup` (in `dev`) | The Prism drop lies as a pickup where the party stood when the fight started; walking into it gives it back; a win no longer does | Pending |
 | [B-365](B-365.md) | `feature/B-365-flawless-parry` (in `dev`) | Flawless Parry: every hit of one attack perfectly guarded or dodged logs one line at the last hit; a condition only | Pending |
