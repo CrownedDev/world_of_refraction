@@ -34,11 +34,13 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     FWeaponInventoryEntry WeaponEntry;
 
-    /** Assigned abilities (max 6, first N may be locked) */
+    /** OBSOLETE (B-351, D-145; delete in the D-124 sweep): the position-merge override list. Read only while the
+     *  weapon's one skill-slot list is not active (WeaponEntry.bSkillSlotsActive). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abilities")
     TArray<UAbilityData *> AssignedAbilities;
 
-    /** Assigned augment-stone abilities (max 6). Separate channel from
+    /** OBSOLETE (B-351, D-145; delete in the D-124 sweep): an Ability Stone adds slots to the one list instead.
+     *  Assigned augment-stone abilities (max 6). Separate channel from
      *  AssignedAbilities — surfaced under the Resonate Weapon menu, valid only
      *  while a augment stone is attached. Does not touch the main Abilities grid. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abilities")
@@ -74,8 +76,26 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
         return WeaponEntry.CanCastSpells();
     }
 
-    /** Get number of locked ability slots (from weapon's preset) */
+    /** OBSOLETE (B-351, D-145; delete in the D-124 sweep): built-ins are never locked; the player can replace any.
+     *  Get number of locked ability slots (from weapon's preset) */
     int32 GetLockedAbilityCount() const;
+
+    // ==================== ONE SKILL-SLOT LIST (B-351, D-145) ====================
+
+    /** Slots on this weapon: its tier's count (F 1 .. S 6) plus an Ability Stone's slots. */
+    int32 GetSkillSlotCount() const;
+
+    /** The list slot by slot (null = an empty slot): the pick, else the built-in at that position. */
+    TArray<UAbilityData *> GetSkillSlots() const;
+
+    /** The abilities the weapon offers: the list's filled slots while it is active, else the pre-D-145 merge. */
+    TArray<UAbilityData *> GetSkillSlotAbilities() const;
+
+    /** Replace what Slot holds (a built-in or an empty slot) with Ability; activates the list. False past the count. */
+    bool ReplaceSkill(int32 Slot, UAbilityData *Ability);
+
+    /** Bring back the built-in (or empty) Slot held before a replace; activates the list. False if nothing was replaced. */
+    bool RestoreSkill(int32 Slot);
 
     /** Get number of customizable ability slots. The cap keys on the weapon's own
      *  tier (CrystalEffectTable::SlotsForContainerTier); MAX_WEAPON_ABILITIES is the
@@ -85,10 +105,11 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
 
     // ==================== ABILITY ACCESS ====================
 
-    /** Get all abilities (locked + customizable) */
+    /** OBSOLETE (B-351, D-145; delete in the D-124 sweep): the position merge. Get all abilities (locked + customizable) */
     TArray<UAbilityData *> GetAllAbilities() const;
 
-    /** Get assigned augment-stone abilities (Resonate Weapon menu). Empty unless a
+    /** OBSOLETE (B-351, D-145; delete in the D-124 sweep): the separate stone list.
+     *  Get assigned augment-stone abilities (Resonate Weapon menu). Empty unless a
      *  augment stone is attached. No preset merge — augment stones are asset-less. */
     TArray<UAbilityData *> GetAugmentStoneAbilities() const;
 

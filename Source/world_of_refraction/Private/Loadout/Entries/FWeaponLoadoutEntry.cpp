@@ -9,6 +9,7 @@
 #include "Loadout/Entries/FSpellCollection.h"
 #include "Skills/Definitions/ElementHelpers.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
+#include "Loadout/SkillSlotList.h"
 
 int32 FWeaponLoadoutEntry::GetLockedAbilityCount() const
 {
@@ -35,6 +36,48 @@ int32 FWeaponLoadoutEntry::GetCustomizableAbilityCount() const
                           ? CrystalEffectTable::SlotsForContainerTier(WeaponEntry.Tier)
                           : LoadoutConstants::MAX_WEAPON_ABILITIES;
     return Cap - GetLockedAbilityCount();
+}
+
+int32 FWeaponLoadoutEntry::GetSkillSlotCount() const
+{
+    return SkillSlotList::SlotCount(WeaponEntry.Tier, WeaponEntry.StoneSocket);
+}
+
+TArray<UAbilityData *> FWeaponLoadoutEntry::GetSkillSlots() const
+{
+    const TArray<UAbilityData *> BuiltIns = WeaponEntry.Weapon ? WeaponEntry.Weapon->PresetAbilities : TArray<UAbilityData *>();
+    return SkillSlotList::Resolve(BuiltIns, WeaponEntry.SkillPicks, GetSkillSlotCount());
+}
+
+TArray<UAbilityData *> FWeaponLoadoutEntry::GetSkillSlotAbilities() const
+{
+    if (!WeaponEntry.bSkillSlotsActive)
+    {
+        return GetAllAbilities(); // pre-D-145 lists until the player edits this weapon's one list (OBSOLETE path)
+    }
+    TArray<UAbilityData *> Abilities = GetSkillSlots();
+    Abilities.RemoveAll([](const UAbilityData *Ability) { return Ability == nullptr; });
+    return Abilities;
+}
+
+bool FWeaponLoadoutEntry::ReplaceSkill(int32 Slot, UAbilityData *Ability)
+{
+    if (Slot >= GetSkillSlotCount() || !SkillSlotList::Replace(WeaponEntry.SkillPicks, Slot, Ability))
+    {
+        return false;
+    }
+    WeaponEntry.bSkillSlotsActive = true;
+    return true;
+}
+
+bool FWeaponLoadoutEntry::RestoreSkill(int32 Slot)
+{
+    if (!SkillSlotList::Restore(WeaponEntry.SkillPicks, Slot))
+    {
+        return false;
+    }
+    WeaponEntry.bSkillSlotsActive = true;
+    return true;
 }
 
 TArray<UAbilityData *> FWeaponLoadoutEntry::GetAllAbilities() const
