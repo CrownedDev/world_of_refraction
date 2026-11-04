@@ -1764,11 +1764,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** applied in B-341 (`feature/B-341-turn-rules-trim`).
 
 ### Q-341b — Emerald's tiers under "a bonus turn lands next"
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-341, cloud) · **Blocks:** —
+**Status:** ANSWERED (Crown confirmed A, 2026-11-04) · **Raised:** 2026-11-03 (B-341, cloud) · **Blocks:** —
 **Question:** Emerald's tiers differed by delay (F 6 turns … S 0, S granting two turns). Under D-133's one rule every bonus turn lands immediately. What separates the tiers now?
 **Options:** **A** every tier's bonus lands next; S still grants two back to back, F–A one; the delay table retires (kept unread until PIE). Tier value otherwise comes from cost and availability until a balance pass. **B** keep the delays as a "grant after N turns" variant (two bonus rules, against D-133). **C** scale the count by tier (F–B one, A–S two).
 **Recommendation:** A. The deckbuilder's rule comes first (its `AddTurn` lands right after the current turn, `WoR_TCG_Pivot_Design.md` §7c), and D-133 asks for one rule; A keeps today's S behaviour and changes nothing else about the item. C is a balance question for the nightly sim, not a rules one.
-**Answer:** A (approved by the reference-backed default). Crown may still want lower tiers to differ (count, or a cost); that's a tuning change, not a rule.
+**Answer:** A. Crown confirmed A (2026-11-04): Emerald stays as built, S gives two bonus turns and F to A one, all landing straight away; no code change. Crown may still want lower tiers to differ (count, or a cost); that's a tuning change, not a rule.
 **Notes for Claude:** applied in B-341 (`GetEmeraldBonusTurnCount`).
 
 ### Q-341c — Does every bonus turn pass the 2:1 cap?
@@ -1818,6 +1818,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** as above. The Elder Scrolls folded a utility school into its nearest neighbour (Mysticism into Alteration and Conjuration, Oblivion → Skyrim) instead of keeping a thin school, and players took to the leaner list. The only rule that reads the school, "Enhancement and Restoration are support" (no status buildup), fits a summon.
 **Answer:** as above (approved by the reference-backed default). `ESpellSchool::Conjuration` stays (append-only) and reads as Enhancement; re-tag the assets in the editor.
 **Notes for Claude:** applied in B-356 (`SpellSchools::ToCurrent`).
+
+### Q-356b — Seven caster loadouts hold 7 Enhancement innate spells once Conjuration counts as Enhancement
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-356, desktop build) · **Blocks:** —
+**Question:** the per-school innate cap is 6 (`SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL`). With Conjuration reading as Enhancement (Q-356), data validation flags `DA_Inventory_Darkness / Earth / Light / Lightning / Reality / Void / Wind` at 7 of 6 Enhancement innate spells. Does the cap rise with three schools, or do the loadouts shrink?
+**Options:** **A** the cap stays 6 per school (18 innate spells at most, down from 24); each of the seven loadouts drops or re-schools one spell in the editor (the Conjuration one, most likely). **B** the cap rises to 8 per school so the authored loadouts still fit (24 total as before).
+**Recommendation:** A. D-146 changed the labels, not the budget; D-110's slot budget already bounds a loadout, and fewer, clearer picks is the simplicity round's direction (Expedition 33 fixes six skill slots and is praised for the choice it forces). B would widen a cap to fit test content.
+**Answer:** A (approved by the reference-backed default). The seven lines sit in `Scripts/ue/validation_baseline.txt` until the editor step in `docs/PIE/B-356.md` is done; delete them then.
+**Notes for Claude:** the cap check itself moved to the shown school in B-356 (`USpellData::GetSchool`).
 
 ### Q-21-audit — Party control: the deckbuilder's seat rule (audit §21)
 **Status:** ANSWERED (Crown: follow the deckbuilder's rule) · **Raised:** 2026-11-03 (audit §21) · **Blocks:** —

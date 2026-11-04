@@ -13,3 +13,11 @@ Testing/Characters/DA_Test_Generic: UCharacterData 'Generic' has no Cosmetics as
 Testing/Characters/DA_Test_Resonator: UCharacterData 'Resonator Lord' has no Cosmetics asset assigned. Assign a UCosmeticsData asset before using this character in combat.
 Testing/Weapons/Abilities/DA_Test_Ability2: PhysicalDamageType must be set (not None) for a basic attack or damage-dealing ability.
 Testing/Weapons/Abilities/DA_Test_Ability: PhysicalDamageType must be set (not None) for a basic attack or damage-dealing ability.
+# B-356 (Q-356b): a Conjuration-tagged innate spell counts as Enhancement; each of these caster loadouts carries 7 of 6 -> editor step in docs/PIE/B-356.md
+Data/Characters/Data/Caster/Darkness/Inventory/DA_Inventory_Darkness: Loadout[0] 'Loadout0': Too many ESpellSchool::Enhancement innate spells (7/6)
+Data/Characters/Data/Caster/Earth/Inventory/DA_Inventory_Earth: Loadout[0] 'Loadout0': Too many ESpellSchool::Enhancement innate spells (7/6)
+Data/Characters/Data/Caster/Light/Inventory/DA_Inventory_Light: Loadout[0] 'Loadout0': Too many ESpellSchool::Enhancement innate spells (7/6)
+Data/Characters/Data/Caster/Lightning/Inventory/DA_Inventory_Lightning: Loadout[0] 'Loadout0': Too many ESpellSchool::Enhancement innate spells (7/6)
+Data/Characters/Data/Caster/Reality/Inventory/DA_Inventory_Reality: Loadout[0] 'Loadout0': Too many ESpellSchool::Enhancement innate spells (7/6)
+Data/Characters/Data/Caster/Void/Inventory/DA_Inventory_Void: Loadout[0] 'Loadout0': Too many ESpellSchool::Enhancement innate spells (7/6)
+Data/Characters/Data/Caster/Wind/Inventory/DA_Inventory_Wind: Loadout[0] 'Loadout0': Too many ESpellSchool::Enhancement innate spells (7/6)
