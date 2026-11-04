@@ -113,6 +113,7 @@ private:
     friend class FAIInfusionLevelSpec;
     friend class FGASEffectReadsSpec;
     friend class FAIOneSkillPathSpec;
+    friend class FSpellSchoolSpec;
 
     // ==================== INTERNAL ====================
 

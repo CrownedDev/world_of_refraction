@@ -12,6 +12,8 @@
 #include "Skills/Definitions/SpellSchool.h"
 #include "Skills/Effects/EffectDefinition.h"
 #include "WoRGameNames.h"
+#include "Loadout/FSavedLoadout.h"
+#include "Loadout/SpellPoolConstants.h"
 
 namespace
 {
@@ -87,6 +89,23 @@ void FSpellSchoolSpec::Define()
 				 UAIDecisionManager::IsHealingSpell(*SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Ally, 0, true)));
 		TestFalse(TEXT("a Restoration-tagged spell without a heal is not"),
 				  UAIDecisionManager::IsHealingSpell(*SchoolTestSpell(ESpellSchool::Restoration, ETargetType::Ally, 0, false)));
+	});
+
+	It("counts a retired spell under its mapped school's innate cap", [this]()
+	{
+		FSavedLoadout Saved;
+		Saved.RequiredClass = ECharacterClass::Caster;
+		for (int32 i = 0; i < SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL; ++i)
+		{
+			Saved.InnateSpells.Add(FSpellRef(SchoolTestSpell(ESpellSchool::Enhancement, ETargetType::Ally, 0, false)));
+		}
+		const TCHAR *TooMany = TEXT("Too many ESpellSchool::Enhancement innate spells");
+		auto Flagged = [&]() {
+			return Saved.GetValidationErrors().ContainsByPredicate([&](const FString &R) { return R.Contains(TooMany); });
+		};
+		TestFalse(TEXT("a full Enhancement pool passes"), Flagged());
+		Saved.InnateSpells.Add(FSpellRef(SchoolTestSpell(ESpellSchool::Conjuration, ETargetType::Ally, 0, false)));
+		TestTrue(TEXT("one Conjuration-tagged spell more is one Enhancement spell too many"), Flagged());
 	});
 }
 
