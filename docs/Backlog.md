@@ -274,6 +274,7 @@ After the unified loadout (B-301..B-308). Changes to that plan: B-302 treats the
 | B-351 | **Two sockets** (D-141): every weapon and adapter has an element socket (gem or evolution) and a stone socket (stone): the slot struct on the gear entries, loadout costs, validation, the HUD readers; save version bump with wipe (D-138) | CC | L | — | Specs: a gem and a stone together on one weapon; a second gem refused; old saves wiped | TODO |
 | B-352 | **Fusions retire** (D-141): fusion items, their bonus formula, `FFusionId`, fusion wear and pricing, and D-077's counting rule go (flag OBSOLETE; enum values marked retired, append-only); evolution wear stays | CC | M | B-351 | Specs green; no fusion can be made, bought or attached | TODO |
 | B-353 | **One stat stone** (D-142): one `StatStone` crystal kind with a sub-stat field; the old single-stat stone kinds map to it on load (old values retired, append-only); Damage, Ability and Healing stones stay | CC | M | B-352 | Specs: an old stat stone loads as `StatStone` with its sub-stat; its bonus is unchanged | TODO |
+| B-354 | **Tier caps retire** (D-143, changes D-072): loadout validation keeps only one equipped S-tier crystal per battle loadout; the D-072 band caps and constants go (flag OBSOLETE), including B-313's per-fight band counts; Rules 01 updated | CC | S | B-353 | Specs: a second S crystal is refused; several A crystals are allowed; owned crystals have no cap | TODO |
 
 ## Phase 2 — GAS migration (see `Design/GASMigration.md`)
 

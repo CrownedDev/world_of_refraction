@@ -1780,6 +1780,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** one `StatStone` kind with a sub-stat field. The old single-stat stone members map to it on load (append-only: old values marked retired). Damage, Ability and Healing stones stay.
 **Notes for Claude:** job B-353, after B-351 / B-352.
 
+### D-143 — Crystal tier caps retire, except one S crystal per battle loadout (audit round 3 §28; changes D-072)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §28) · **Blocks:** —
+**Answer (Crown):** D-072's crystal tier caps retire. The only cap left: at most one S-tier crystal equipped in a battle loadout. Inventory, pouch, storage and owned crystals have no tier caps. Other limits stay: the D-110 point budget and item limit, skill slots by tier, the 10-slot pouch, D-115, D-116 and presets. Skills stay attached to gear; gear with built-in skills can be overridden (under review as audit §37).
+**Notes for Claude:** job B-354 (loadout validation, constants, Rules 01). B-313's per-fight band counts (Q-313(2)) follow it.
+
 ### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
 **Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.
