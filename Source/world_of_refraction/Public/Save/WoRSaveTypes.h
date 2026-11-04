@@ -222,8 +222,16 @@ struct WORLD_OF_REFRACTION_API FSavedRun
 	UPROPERTY()
 	int32 DroppedPrisms = 0;
 
+	/** OBSOLETE (B-362c): no longer written; delete with the next save bump after PIE. */
 	UPROPERTY()
 	TArray<FName> DropEncounters;
+
+	/** B-362c (D-160 changed, save v20): where the drop's pickup lies on the trial map; false = the trial's start. */
+	UPROPERTY()
+	bool bDropHasSpot = false;
+
+	UPROPERTY()
+	FVector DropSpot = FVector::ZeroVector;
 
 	/** B-314b (save v15): the run layer was open; its marks follow, so a resumed run keeps its found gear run-only and
 	 *  puts home gear back as it left home. */
