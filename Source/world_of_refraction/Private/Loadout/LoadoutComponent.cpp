@@ -939,6 +939,7 @@ FLoadoutRuleContext ULoadoutComponent::BuildRuleContext(const UInventoryComponen
     Context.SpellDiscount = (CharComp && CharComp->CharacterData)
         ? SpellPoolConstants::SpellSlotDiscount(CharComp->GetWorldMind(), CharComp->GetWorldBody(), CharComp->GetWorldSpirit())
         : 0;
+    Context.bItemsInPouch = UsesPouchItems(); // B-313b: a pouch member's item slots are inert; the rules skip them
 
     if (Inventory)
     {
