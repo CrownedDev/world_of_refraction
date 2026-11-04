@@ -1950,6 +1950,23 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 
 (Audit round 3 closing notes, Crown 2026-11-04: **§36** — the item-strengthening routes are upgrade, attach and merge (crystals only), which follows from D-141 and D-147, so nothing new to build; **downgrade stays** (ER-27) for essence back and respeccing. **§35** (skins / outfits) is **parked**, not to be built. **§30** no change. Round 3 = D-141 to D-149.)
 
+### D-150 — Co-op party: three at most, your own character, no empty seats, a joiner takes an AI seat the host picks (amends B-232 / Q-232)
+**Status:** DECIDED (Crown, 2026-11-04, via the brain; point 4's host choice added the same day) · **Raised:** 2026-11-04 · **Blocks:** —
+**Answer (Crown):**
+1. A party is **at most 3** characters (the code's cap matches: `PartyConstants::MAX_PARTY_MEMBERS` = 3).
+2. Each player **picks their own character before joining**. Two players may bring the **same character**: separate copies with their own gear, not one shared instance. B-232's "two players can't claim one character" stays only as **one party member, one controller**.
+3. **No unclaimed members in multiplayer**: every slot is a player's character or an AI seat. The unclaimed-member rotation (B-232, the Q-21-audit reading of the deckbuilder's item 29) is dropped.
+4. A player **joining mid-run takes an AI seat's place; the host chooses which AI seat** (not automatic). That AI member's gear and inventory go to the **host's inventory** (it is the host's run; the host can hand gear to friends). If no AI seat is free, the party is full and the join is refused. Until the real screen exists, a plain C++ placeholder for the host's choice (the PIE sheet says how to open it).
+**Reference check:** Q-360 (the deckbuilder keeps and rotates empty seats; this game does not: Crown's rule stands).
+**Notes for Claude:** job B-360 (after B-328). Solo play is unchanged (one player commands every member; AI seats as B-346).
+
+### Q-360 — D-150 against the deckbuilder's co-op rules
+**Status:** ANSWERED (Crown's rule, D-150; the deckbuilder differs on one point) · **Raised:** 2026-11-04 (D-150 reference check) · **Blocks:** —
+**Context:** `CrownedDev/wor-deckbuilder` `docs/design/WoR_TCG_Pivot_Design.md` §8: item 23 (the table's owner adds AI players and chooses or moves their seats; empty seats stay empty until a player sits or the owner adds an AI, nothing is auto-filled; a table can start with empty seats), items 29 and 53 (the side's players take an empty seat's turns, rotating in seat order; the rotation carries on across rounds), items 77 and 80 (AI seat settings are the owner's, fixed during a match).
+**Comparison:** (1) a party of three: the deckbuilder has sides, no party cap of this kind; no conflict. (2) the same character twice: each deckbuilder player brings their own deck, nothing forbids two alike; no conflict. (3) **conflict**: the deckbuilder keeps empty seats and rotates their turns (items 29, 53); D-150 has no empty seat in multiplayer (every slot a player's character or an AI seat) and drops the rotation. (4) the host picks the AI seat a joiner replaces: the owner controls the seats there too (item 23); the deckbuilder has no mid-match join (rooms form before a match), so "gear to the host" has no counterpart; no conflict.
+**Answer:** build D-150 as Crown ruled. The two games differ on empty seats and stay different: the deckbuilder keeps its rotation; here the rotation code (`SeatRules::UsesRotation`, `URunStateComponent::RotationIndex` / `NoteTurnTaken` / `ResetRotation`) is flagged OBSOLETE in B-360 and deleted after PIE.
+**Notes for Claude:** B-360.
+
 ### Q-358 — Folding the old Slash / Pierce / Impact values into one Physical column
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-358, cloud) · **Blocks:** —
 **Question:** D-148 makes one Physical resistance column; saves and assets keep their three old fields (append-only). How do three different old values become one?
