@@ -12,7 +12,7 @@
  * Place in level and click "Run All Tests" in Details panel during PIE
  *
  * OBSOLETE (B-350, D-140): a legacy test actor; delete in the editor step of docs/PIE/B-350.md, not blind.
- *  Content/Blueprints/BP_CombatOrchestratorTestActor and Content/Testing/BP_Test_CombatOrchestrator may subclass it or place it; specs cover combat flow (CombatFinish, ForceEndCombat users). */
+ *  Content/Blueprints/BP_CombatOrchestratorTestActor and Content/Testing/BP_Test_CombatOrchestrator may subclass it or place it; specs cover combat flow (CombatFinish, ForceEndCombat users). Before the delete, confirm Test_EnergyCost, Test_MultiTargetAction, Test_SpellExecution and Test_StatusEffectFromAction each have a named spec (WoR.Combat.*, WoR.Skills.*); the PIE sheet lists this check. */
 UCLASS()
 class WORLD_OF_REFRACTION_API ACombatOrchestratorTestActor : public AActor
 {

@@ -6,6 +6,8 @@
 //   stalls are errors (3 fights can't carry a band); on nightly / full the error targets fail the test and the warn
 //   targets are reported.
 // - WoR.Balance.Sim.GASParity plays the same seed on the enum effect path and on GAS and expects the same record.
+//   It stays in the default run (Q-350: two seeds of the quick matchups, cheap; it guards the GAS migration until
+//   B-042g deletes the enum path, D-121); -WoRBalance=<preset> widens it to that preset's matchups.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -146,10 +148,7 @@ void FBalanceGASParitySpec::Define()
 {
 	BeforeEach([this]()
 	{
-		if (!BalancePresetRequested())
-		{
-			return; // B-350 (D-140): no sim world in the default run
-		}
+		// Q-350: the parity check runs in the default suite too (quick matchups when no preset is named).
 		Runner = MakeUnique<FBalanceSimRunner>();
 		TestTrue(TEXT("runner started"), Runner->Begin());
 	});
@@ -161,11 +160,6 @@ void FBalanceGASParitySpec::Define()
 
 	It("plays the same seed on the enum path and on GAS and gets the same record", [this]()
 	{
-		if (!BalancePresetRequested())
-		{
-			AddWarning(BALANCE_SKIP_MESSAGE);
-			return;
-		}
 		FString UnknownPreset;
 		const FName Preset = BalancePresetFromCommandLine(UnknownPreset);
 		if (!UnknownPreset.IsEmpty())
