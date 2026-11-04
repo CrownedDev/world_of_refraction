@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-328b](B-328b.md) | `feature/B-328b-zone-guide-enforced` (in `dev`) | `wor.Trial.PrintZones` lists every encounter placed below its zone's guide tier | Pending |
 | [B-042j2](B-042j2.md) | `feature/B-042j2-absorb-part2` (in `dev`) | Absorbers on DoT ticks; a stopped hit counts as On Guard and as a hit, not damage; Ward scopes; skills and items can give an absorber (Negate … effect types) | Pending |
 | [B-360](B-360.md) | `feature/B-360-coop-party` (in `dev`) | Co-op party (D-150): no rotation; a joiner takes the AI seat the host picks (`wor.UI.JoinSeat`), its gear goes to the host; full = refused; 2-player PIE | Pending |
 | B-331 (reverted) | `feature/B-331-one-speed` → `fix/B-331r-revert-one-speed` (in `dev`) | One Speed, part 1 — **reverted by B-331r (D-151)**: Action Speed and Spell Speed stay separate; the PIE sheet is gone, nothing to check | Reverted |

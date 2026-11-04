@@ -12,6 +12,7 @@
 #include "EnemyZone.generated.h"
 
 class UBoxComponent;
+class UCharacterData;
 
 /** What a zone hands to a fight started inside it. */
 USTRUCT(BlueprintType)
@@ -62,6 +63,18 @@ public:
 	/** B-328 (D-120, Q-328): the Combat Tier a zone's enemies should have at least: zones 0..4 → F, D, C, B, A. An
 	 *  authoring guide for placing encounters; wor.Trial.PrintZones lists it. */
 	static EItemTier GetEnemyTierGuide(int32 Tier);
+
+	/** B-328b (D-120, Q-328): the guide enforced as a report. One line when any of Roster sits below the guide tier of
+	 *  Zone ("<Label>: zone tier N asks for Tier X or higher; <enemy> is Tier Y, ..."), else empty. An enemy's tier here
+	 *  is its asset's EnemyTier: the static proxy for a placement check. The fielded Combat Tier (WoRCombatTier) is the
+	 *  average of the enemy's gear and skills and reads EnemyTier only when it has none, so the two agree for a gearless
+	 *  enemy and can differ either way for one with seed gear. */
+	static FString DescribePlacementBelowGuide(const FString &Label, const FEncounterZoneInfo &Zone, TConstArrayView<UCharacterData *> Roster);
+
+	/** B-328b: every encounter on the map (an actor with a UEncounterComponent) placed below its zone's guide, one line
+	 *  each (DescribePlacementBelowGuide); the pawn's own CharacterData stands for an encounter with no EncounterData.
+	 *  Empty when every placement fits. Shown by wor.Trial.PrintZones. */
+	static TArray<FString> FindEncountersBelowGuide(const UWorld *World);
 
 	FString GetEnemyZoneString() const;
 };

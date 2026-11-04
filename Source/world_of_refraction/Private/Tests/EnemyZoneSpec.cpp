@@ -9,6 +9,7 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Encounter/EnemyZone.h"
+#include "Combat/Encounter/EncounterComponent.h"
 #include "Trial/TrialGate.h"
 
 namespace
@@ -79,6 +80,43 @@ void FEnemyZoneSpec::Define()
 		Zone->SetActorScale3D(FVector(ZONE_TEST_SCALE));
 		Zone->SetActorRotation(FRotator(0.0f, ZONE_TEST_YAW, 0.0f));
 		TestTrue(TEXT("Inside once scaled and turned"), Zone->Contains(ZONE_TEST_SCALED_POINT));
+	});
+
+	It("reports an encounter whose enemies sit below its zone's guide tier, not one at or above (B-328b, Q-328)", [this]()
+	{
+		AEnemyZone *Deep = SpawnZone(FVector::ZeroVector, EnemyZoneConstants::MAX_ZONE_TIER);
+		if (!TestNotNull(TEXT("zone"), Deep)) return;
+		const FEncounterZoneInfo Inside = AEnemyZone::FindZoneAt(TestWorld->GetWorld(), FVector::ZeroVector);
+		const FEncounterZoneInfo Outside = AEnemyZone::FindZoneAt(TestWorld->GetWorld(), ZONE_TEST_FAR_AWAY);
+		TestEqual(TEXT("inside the top zone"), Inside.Tier, EnemyZoneConstants::MAX_ZONE_TIER);
+		TestEqual(TEXT("outside: tier 0"), Outside.Tier, 0);
+
+		UCharacterData *Weak = FWoRTestWorld::NewCharacterData();
+		Weak->Name = TEXT("Weak");
+		Weak->EnemyTier = EItemTier::F_Tier;
+		UCharacterData *Strong = FWoRTestWorld::NewCharacterData();
+		Strong->Name = TEXT("Strong");
+		Strong->EnemyTier = EItemTier::S_Tier;
+
+		const FString WeakDeep = AEnemyZone::DescribePlacementBelowGuide(TEXT("Camp"), Inside, {Weak, Strong});
+		TestTrue(TEXT("a weak enemy deep in: reported, naming it"), WeakDeep.Contains(TEXT("Weak is Tier F")) && WeakDeep.Contains(TEXT("asks for Tier A")));
+		TestFalse(TEXT("the strong one is not named"), WeakDeep.Contains(TEXT("Strong is")));
+		TestTrue(TEXT("a strong team deep in: fits"), AEnemyZone::DescribePlacementBelowGuide(TEXT("Camp"), Inside, {Strong}).IsEmpty());
+		TestTrue(TEXT("a weak enemy outside every zone (guide F): fits"), AEnemyZone::DescribePlacementBelowGuide(TEXT("Camp"), Outside, {Weak}).IsEmpty());
+		TestTrue(TEXT("no encounters on this map: nothing reported"), AEnemyZone::FindEncountersBelowGuide(TestWorld->GetWorld()).IsEmpty());
+
+		// The map walk: an encounter actor (a pawn standing for its team, no EncounterData) inside the zone.
+		UCharacterData *Placed = FWoRTestWorld::NewCharacterData();
+		Placed->Name = TEXT("Placed");
+		Placed->EnemyTier = EItemTier::F_Tier;
+		AActor *Camp = TestWorld->SpawnCombatant(Placed, true);
+		if (!TestNotNull(TEXT("encounter actor"), Camp)) return;
+		Camp->SetActorLocation(FVector::ZeroVector);
+		FWoRTestWorld::AddComponent<UEncounterComponent>(Camp);
+		TArray<FString> Lines = AEnemyZone::FindEncountersBelowGuide(TestWorld->GetWorld());
+		TestTrue(TEXT("the weak placed team is reported"), Lines.Num() == 1 && Lines[0].Contains(TEXT("Placed is Tier F")));
+		Placed->EnemyTier = EItemTier::S_Tier;
+		TestTrue(TEXT("a strong placed team fits"), AEnemyZone::FindEncountersBelowGuide(TestWorld->GetWorld()).IsEmpty());
 	});
 
 	It("finds both zones and lets neither change a stat: the door alone scales (D-120)", [this]()
