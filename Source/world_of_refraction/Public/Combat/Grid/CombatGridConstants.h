@@ -10,9 +10,10 @@ namespace CombatGridConstants
     /** Number of rows per team (Back, Middle, Front) */
     constexpr int32 GRID_ROWS = 3;
     
-    /** Slots per row. B-342 (D-134): three rows, no columns. A slot only places a character in the world;
-     *  it is not a rule: a row holds the whole side (MAX_TEAM_SIZE), and nothing reads which slot.
-     *  OBSOLETE as a column (B-342, D-134). */
+    /** Slots per row: still the slot count (3), the room a row has. B-342 (D-134): three rows, no columns. A slot
+     *  only places a character in the world and is not a rule; a row holds the whole side (MAX_TEAM_SIZE).
+     *  OBSOLETE as a column (B-342, D-134). D-124 sweep: GetFacingTarget's same-column priority and its
+     *  closest-enemy fallback still read Column, and the PartyControl placeholder still sets a 3x3 cell. */
     constexpr int32 GRID_COLUMNS = 3;
 
     /** OBSOLETE (B-342, D-134; delete in the D-124 sweep): positions per team (3x3 cells). */
