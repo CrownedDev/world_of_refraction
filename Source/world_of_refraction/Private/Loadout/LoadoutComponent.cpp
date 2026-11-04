@@ -1587,7 +1587,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
             // B-354 (D-143): only the item slots' S gems can be cleared (the attachments keep their S crystal).
             if (Finding.SlotType == ELoadoutSlotType::EquippedSTierCrystal)
             {
-                FLoadoutRules::TrimSTierItemCrystals(Loadout);
+                FLoadoutRules::TrimSTierItemCrystals(Loadout, GetCharacterClass());
             }
             else
             {
@@ -1898,9 +1898,11 @@ bool ULoadoutComponent::UsesPouchItems() const
     return LoadoutFindPouch(GetOwner(), Key) != nullptr;
 }
 
+// OBSOLETE (B-354, D-143): Q-313's per-fight tier bands retired, so this only tells a gem (whole stack usable) from a
+// stone or None (slot-only, 0). Fold that check into CanUseCarriedItem / GetUsableItems and delete it with
+// BattleBandUses after Crown's PIE.
 int32 ULoadoutComponent::GetCarriedBandRoom(const FCrystalId &Id) const
 {
-    // B-354 (D-143): Q-313's per-fight tier bands retired; a gem's whole stack is usable. Stones stay slot-only.
     return FLoadoutRules::GetUtilityBandIndex(Id) != INDEX_NONE ? MAX_int32 : 0;
 }
 

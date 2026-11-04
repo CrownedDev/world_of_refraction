@@ -897,8 +897,8 @@ protected:
      *  PrepareForBattle and ResetBattleState. Delete after Crown's PIE. */
     TMap<int32, int32> BattleBandUses;
 
-    /** How many of Id this fight still allows from the pouch: no cap for a gem since B-354 (D-143); 0 for a stone or
-     *  None (slot-only). */
+    /** OBSOLETE (B-354, D-143): how many of Id this fight still allows from the pouch. No cap for a gem since the bands
+     *  retired (MAX_int32); 0 for a stone or None (slot-only). Delete with BattleBandUses after Crown's PIE. */
     int32 GetCarriedBandRoom(const FCrystalId &Id) const;
 
     /** Ensure at least one loadout exists */
