@@ -3,6 +3,8 @@
 #include "Player/WoRPlayerState.h"
 
 #include "Character/Forms/CharacterFormSubsystem.h"
+#include "Character/CharacterData.h"
+#include "Character/CharacterDataComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Currency/CurrencyComponent.h"
 #include "Engine/GameInstance.h"
@@ -80,6 +82,11 @@ void AWoRPlayerState::CopyProperties(APlayerState *PlayerState)
 	if (Next)
 	{
 		Next->SetForm(WornForm, BaseForm);
+		// B-232: the player keeps commanding its characters in the next level.
+		for (UCharacterData *Character : ClaimedCharacters)
+		{
+			Next->ClaimCharacter(Character);
+		}
 	}
 }
 
@@ -88,6 +95,22 @@ void AWoRPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutL
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AWoRPlayerState, WornForm);
 	DOREPLIFETIME(AWoRPlayerState, BaseForm);
+	DOREPLIFETIME(AWoRPlayerState, ClaimedCharacters);
+}
+
+bool AWoRPlayerState::ClaimsCharacter(const UCharacterData *Character) const
+{
+	return Character && ClaimedCharacters.Contains(Character);
+}
+
+void AWoRPlayerState::ClaimCharacter(UCharacterData *Character)
+{
+	if (!HasAuthority() || !Character || ClaimedCharacters.Contains(Character))
+	{
+		return;
+	}
+	ClaimedCharacters.Add(Character);
+	UE_LOG(LogWoR, Log, TEXT("[PlayerState] %s claims %s (B-232)"), *GetPlayerName(), *GetNameSafe(Character));
 }
 
 void AWoRPlayerState::SetForm(UCharacterFormData *InWornForm, EPlayerBaseForm InBaseForm)
@@ -125,6 +148,12 @@ void AWoRPlayerState::HandleLocalFormChanged(UCharacterFormData *Form)
 void AWoRPlayerState::HandlePawnSet(APlayerState *Player, APawn *NewPawn, APawn *OldPawn)
 {
 	ApplyFormLook();
+	// B-232 (Q-21-audit): the player's own character is the one its pawn plays.
+	const UCharacterDataComponent *CharComp = NewPawn ? NewPawn->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (CharComp && CharComp->CharacterData)
+	{
+		ClaimCharacter(CharComp->CharacterData);
+	}
 }
 
 void AWoRPlayerState::OnRep_Form()
