@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-348](B-348.md) | `chore/B-348-one-save-version` (in `dev`) | One save version (D-138): older saves wiped; SaveGame tags gone | Pending |
 | [B-346](B-346.md) | `feature/B-346-party-seats` (in `dev`) | Seats: you command everyone; AI seats set before the fight stay AI (own difficulty, Medium); no takeover or Let AI Play; co-op rotation with B-232 | Pending |
 | [B-342](B-342.md) | `feature/B-342-three-rows` (in `dev`) | Three rows, no columns: front ±20% dealt and taken, back −20%; an ally never blocks a row step | Pending |
 | [B-341](B-341.md) | `feature/B-341-turn-rules-trim` (in `dev`) | 3-step tie-break; one bonus-turn rule (lands next; skip removes one; death purges, revive next round); Emerald and Extra Action follow; `wor.Turns.GrantBonus`, `wor.Turns.SkipNext` | Pending |

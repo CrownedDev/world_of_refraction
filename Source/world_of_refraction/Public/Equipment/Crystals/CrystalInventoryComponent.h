@@ -59,12 +59,12 @@ public:
     /** DUAL-PURPOSE gem-family crystals (throwable AND slottable), counted per (Type, Tier).
      *  The gem-merge (§13.5) collapsed the former GemItem + GemRefined into this one
      *  bucket — slotting and throwing both debit it. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Inventory|Crystals")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Crystals")
     TMap<FCrystalId, int32> Crystals;
 
     /** AUGMENT STONES (slot-only; attach directly, no refined form), counted per
      *  (Type, Tier). Renamed from StoneItem in the gem-merge; behaviour unchanged. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Inventory|Crystals")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Crystals")
     TMap<FCrystalId, int32> Stones;
 
     // ==================== WRITE ====================

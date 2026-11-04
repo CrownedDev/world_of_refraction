@@ -670,42 +670,12 @@ bool UPoolSubsystem::BankStartingItems(FName CharacterKey, const TMap<FCrystalId
 void UPoolSubsystem::RestorePouches(const TMap<FName, FPoolPouch> &InPouches, const TArray<FName> &InBanked)
 {
     Pouches = InPouches;
-    LegacyCarriedItems = FPoolPouch(); // a load replaces everything; the save's own legacy pouch follows, if any
     for (TPair<FName, FPoolPouch> &Pair : Pouches)
     {
         Pair.Value.SlotCount = FMath::Max(Pair.Value.SlotCount, InventoryConstants::ITEM_SLOTS_START);
     }
     BankedItemCharacters = TSet<FName>(InBanked);
     OnPoolItemsChanged.Broadcast();
-}
-
-void UPoolSubsystem::RestoreLegacyCarriedItems(const TMap<FCrystalId, int32> &InCarried, int32 InSlotCount, const TArray<FName> &InBanked)
-{
-    LegacyCarriedItems.Stacks = InCarried;
-    LegacyCarriedItems.SlotCount = FMath::Max(InSlotCount, InventoryConstants::ITEM_SLOTS_START);
-    BankedItemCharacters = TSet<FName>(InBanked);
-    OnPoolItemsChanged.Broadcast();
-}
-
-int32 UPoolSubsystem::AdoptLegacyCarriedItems(FName LeaderKey)
-{
-    if (!HasLegacyCarriedItems() || LeaderKey.IsNone())
-    {
-        return 0;
-    }
-    // The old party pouch's extra slots (if any were bought) go with it.
-    const int32 LegacySlots = LegacyCarriedItems.SlotCount;
-    FindOrAddPouch(LeaderKey).SlotCount = FMath::Max(GetPouch(LeaderKey).SlotCount, LegacySlots);
-    const TMap<FCrystalId, int32> Legacy = MoveTemp(LegacyCarriedItems.Stacks);
-    LegacyCarriedItems = FPoolPouch();
-    int32 Stored = 0;
-    for (const TPair<FCrystalId, int32> &Pair : Legacy)
-    {
-        Stored += CarryOrStore(LeaderKey, Pair.Key, Pair.Value);
-    }
-    UE_LOG(LogTemp, Log, TEXT("[Pool] An older save's party pouch (%d stack(s), %d slot(s)) is now %s's; %d item(s) went to storage"), Legacy.Num(),
-           LegacySlots, *FPaths::GetBaseFilename(LeaderKey.ToString()), Stored);
-    return Legacy.Num();
 }
 
 bool UPoolSubsystem::GiveCarried(FName FromKey, FName ToKey, const FCrystalId &Id, int32 Count)
@@ -739,10 +709,6 @@ FString UPoolSubsystem::GetItemSlotsString() const
         {
             Out += FString::Printf(TEXT("\n    slot: %s x%d"), *ItemIdentity::GetDisplayName(Pair.Key), Pair.Value);
         }
-    }
-    if (HasLegacyCarriedItems())
-    {
-        Out += FString::Printf(TEXT("\n  Older save's party pouch, not yet adopted: %d stack(s)"), LegacyCarriedItems.Stacks.Num());
     }
     // B-324: the chest's gear beside the stored items.
     int32 ChestGear = 0;

@@ -100,7 +100,7 @@ struct FPartyMember
 	int32 PreferredColumn = PartyConstants::UNSET_FORMATION;
 
 	/** OBSOLETE (B-346): the per-member Player / AI default (D-004, PA-11) gave way to the AI seat
-	 *  below (Q-21-audit). Kept mirrored (= !bAISeat) so the save keeps working until B-348.
+	 *  below (Q-21-audit). Kept mirrored (= !bAISeat): it is what the save stores (the restore derives bAISeat from it).
 	 *  D-004: who plays this member in battle — you (the command menu) or the AI. */
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	bool bPlayerControlled = true;
@@ -112,7 +112,7 @@ struct FPartyMember
 	bool bAISeat = false;
 
 	/** B-346: the AI seat's difficulty (the deckbuilder's AI seat setting, default Medium, §8 item 80).
-	 *  TODO(B-348): not saved yet; a loaded party's AI seats start at the default. */
+	 *  Saved since B-348 (`FSavedPartyMember::AISeatDifficulty`). */
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	EAIDifficulty AISeatDifficulty = EAIDifficulty::Medium;
 
