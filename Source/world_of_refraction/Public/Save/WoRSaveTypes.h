@@ -143,6 +143,36 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	FCarriedAbsorptionState CarriedAbsorption;
 };
 
+/** B-314b (Q-314, save v15): one piece's run mark (UPoolSubsystem's FPoolRunMark) and its home state, pointers as refs. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedRunMark
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FGuid GearID;
+
+	UPROPERTY()
+	bool bRunOnly = false;
+
+	UPROPERTY()
+	bool bOnRun = false;
+
+	/** The home attachment with its evolution pointer cleared (HomeEvolution holds it), as FSavedGearDetail does. */
+	UPROPERTY()
+	FRuntimeAttachedItem HomeAttached;
+
+	UPROPERTY()
+	FSavedAssetRef HomeEvolution;
+
+	/** One ref per spell slot, an empty slot as an unset ref. */
+	UPROPERTY()
+	TArray<FSavedAssetRef> HomeSpells;
+
+	UPROPERTY()
+	int32 HomeDurability = 0;
+};
+
 /** B-208 (Q-090, Q-208): the trial run as the last fight's exit left it; reloading resumes it. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedRun
@@ -177,6 +207,14 @@ struct WORLD_OF_REFRACTION_API FSavedRun
 	/** Q-208: the run's Gold rides with the run (never banked into the wallet). */
 	UPROPERTY()
 	int32 RunGold = 0;
+
+	/** B-314b (save v15): the run layer was open; its marks follow, so a resumed run keeps its found gear run-only and
+	 *  puts home gear back as it left home. */
+	UPROPERTY()
+	bool bHasRunLayer = false;
+
+	UPROPERTY()
+	TArray<FSavedRunMark> RunMarks;
 };
 
 USTRUCT()
@@ -492,6 +530,10 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	/** B-311 (save v6): each character's custom loadouts. */
 	UPROPERTY()
 	TArray<FSavedCharacterLoadouts> CustomLoadouts;
+
+	/** B-314b (D-097, save v15): gear definition key -> the highest tier a run-only copy of it reached. */
+	UPROPERTY()
+	TMap<FName, EItemTier> UpgradeMemory;
 
 	int32 Num() const
 	{

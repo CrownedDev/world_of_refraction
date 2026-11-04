@@ -61,6 +61,40 @@ namespace
 		return Item;
 	}
 
+	/** B-314b: a run mark with its pointers as refs (the evolution as SaveGearDetail keeps it). */
+	FSavedRunMark SaveRunMark(const FGuid &GearID, const FPoolRunMark &Mark)
+	{
+		FSavedRunMark Out;
+		Out.GearID = GearID;
+		Out.bRunOnly = Mark.bRunOnly;
+		Out.bOnRun = Mark.bOnRun;
+		Out.HomeAttached = Mark.HomeAttached;
+		Out.HomeEvolution = FSavedAssetRef::Make(Mark.HomeAttached.Evolution.Item);
+		Out.HomeAttached.Evolution.Item = nullptr;
+		for (const USpellData *Spell : Mark.HomeSpells)
+		{
+			Out.HomeSpells.Add(FSavedAssetRef::Make(Spell));
+		}
+		Out.HomeDurability = Mark.HomeDurability;
+		return Out;
+	}
+
+	FPoolRunMark RestoreRunMark(const FSavedRunMark &In)
+	{
+		FPoolRunMark Mark;
+		Mark.bRunOnly = In.bRunOnly;
+		Mark.bOnRun = In.bOnRun;
+		Mark.HomeAttached = In.HomeAttached;
+		Mark.HomeAttached.Evolution.Item = In.HomeEvolution.IsSet() ? In.HomeEvolution.ResolveAs<UEvolutionItemData>() : nullptr;
+		Mark.HomeAttached.Crystal.Id = StatStone::Normalize(Mark.HomeAttached.Crystal.Id); // B-353 (D-142)
+		for (const FSavedAssetRef &Ref : In.HomeSpells)
+		{
+			Mark.HomeSpells.Add(Ref.IsSet() ? Ref.ResolveAs<USpellData>() : nullptr);
+		}
+		Mark.HomeDurability = In.HomeDurability;
+		return Mark;
+	}
+
 	/** B-124: a weapon or ring entry's attachment, spells and rolls. */
 	template <typename TGearEntry>
 	FSavedGearDetail SaveGearDetail(const TGearEntry &Entry)
@@ -674,6 +708,7 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 			Out.Loadouts.Add(SaveCustomLoadout(Loadout));
 		}
 	}
+	Saved.UpgradeMemory = Pool.GetUpgradeMemory(); // B-314b (D-097)
 	return Saved;
 }
 
@@ -696,6 +731,17 @@ FSavedRun USaveSubsystem::CaptureRun(const UTrialRunSubsystem &TrialRun, int32 R
 		Saved.RunMemories.Add(FSavedAssetRef::Make(Memory));
 	}
 	Saved.RunGold = RunGold;
+	// B-314b (Q-314): the open run layer, so a resumed run keeps its found gear run-only and its home gear's home state.
+	const UGameInstance *GI = TrialRun.GetGameInstance();
+	const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+	if (Pool && Pool->IsRunLayerActive())
+	{
+		Saved.bHasRunLayer = true;
+		for (const TPair<FGuid, FPoolRunMark> &Mark : Pool->GetRunMarks())
+		{
+			Saved.RunMarks.Add(SaveRunMark(Mark.Key, Mark.Value));
+		}
+	}
 	return Saved;
 }
 
@@ -735,6 +781,18 @@ bool USaveSubsystem::RestoreRun(const FSavedRun &Saved, UTrialRunSubsystem &Tria
 		: TrialGate::DEFAULT_DIFFICULTY;
 	TrialRun.RestoreRun(Trial, Saved.RunSeed, Saved.VariationIndex, Difficulty, Saved.BeatenEncounters,
 						Saved.FoundFeatures, Memories);
+	// B-314b: the saved layer replaces the fresh one RestoreRun opened (the store was loaded from this same save).
+	UGameInstance *GI = TrialRun.GetGameInstance();
+	UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+	if (Pool && Saved.bHasRunLayer)
+	{
+		TMap<FGuid, FPoolRunMark> Marks;
+		for (const FSavedRunMark &In : Saved.RunMarks)
+		{
+			Marks.Add(In.GearID, RestoreRunMark(In));
+		}
+		Pool->RestoreRunLayer(Marks);
+	}
 	return true;
 }
 
@@ -914,6 +972,7 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		}
 		Pool.SetCustomLoadouts(Custom.Character, Loadouts);
 	}
+	Pool.RestoreUpgradeMemory(Saved.UpgradeMemory); // B-314b (D-097)
 	if (Restored > 0)
 	{
 		Pool.MarkPopulated();
