@@ -21,6 +21,7 @@
 class ACombatCharacter;
 class APlayerController;
 class UCharacterData;
+class UCharacterDataComponent;
 class UParty;
 struct FPartyMember;
 struct FCarriedGearState;
