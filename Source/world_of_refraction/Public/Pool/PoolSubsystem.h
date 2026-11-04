@@ -436,9 +436,12 @@ public:
      *  the piece isn't in the store, or it is already on the run or run-only. */
     bool TakeOnRun(const FGuid &GearID);
 
-    /** Every home piece in the store goes on the run (rest spots reach everything you own, D-097) until B-116's run
-     *  purchase picks pieces. Returns how many were taken. */
-    int32 TakeHomeGearOnRun();
+    /** B-347 (D-137): the run loadout is free: the pieces the given party members wear (their active loadouts, already
+     *  within the D-110 slot budget), and an evolution attached to one of them, go on the run as they are. Unworn
+     *  home pieces stay home (one touched during the run is taken then, UInventoryComponent::PushGearToPool). Reads
+     *  the wearers record until D-122 moves the worn loadout onto each member's component. Returns how many were
+     *  taken. */
+    int32 TakeHomeGearOnRun(const TSet<FName> &WearerKeys);
 
     /** Gear found or bought in the run. False when no run layer is open, the ID is unset, or it is a home piece. */
     bool MarkRunOnly(const FGuid &GearID);

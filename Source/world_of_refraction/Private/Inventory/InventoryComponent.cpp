@@ -1959,6 +1959,12 @@ void UInventoryComponent::PushGearToPool(const FGuid &GearID)
     {
         Pool->SetGearOwner(GearID, bDrawsWholeArmoury ? InventoryGearSync::GetLocalLeaderKey(GetWorld() ? GetWorld()->GetGameInstance() : nullptr, SharedGearKey) : SharedGearKey);
     }
+    // B-347 (D-137): a home piece left out of the worn loadout but changed during the run joins the run now, with the
+    // store's (still unchanged) entry as its home state, so run end puts it back too. No-op off a run or when marked.
+    if (!bFoundOnRun && Pool->IsRunLayerActive())
+    {
+        Pool->TakeOnRun(GearID);
+    }
     if (FWeaponInventoryEntry *Weapon = FindOwned(Weapons, GearID))
     {
         if (bFoundOnRun && Pool->MarkRunOnly(GearID))

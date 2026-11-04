@@ -98,27 +98,44 @@ bool UPoolSubsystem::TakeOnRun(const FGuid &GearID)
     return true;
 }
 
-int32 UPoolSubsystem::TakeHomeGearOnRun()
+int32 UPoolSubsystem::TakeHomeGearOnRun(const TSet<FName> &WearerKeys)
 {
-    TArray<FGuid> HomeIDs;
+    TArray<FGuid> WornIDs;
+    const auto IsWorn = [this, &WearerKeys](const FGuid &ID) { return WearerKeys.Contains(GetWearer(ID)); };
+    const auto AddWorn = [&WornIDs, &IsWorn](const FGuid &ID, const FRuntimeAttachedItem &Attached)
+    {
+        if (!IsWorn(ID))
+        {
+            return;
+        }
+        WornIDs.Add(ID);
+        // The evolution on a worn piece goes along with it (its owned entry keeps the durability).
+        if (Attached.IsEvolution() && Attached.Evolution.InstanceID.IsValid())
+        {
+            WornIDs.Add(Attached.Evolution.InstanceID);
+        }
+    };
     for (const FWeaponInventoryEntry &Entry : OwnedWeapons)
     {
-        HomeIDs.Add(Entry.PersistentID);
+        AddWorn(Entry.PersistentID, Entry.AttachedItem);
     }
     for (const FRingInventoryEntry &Entry : OwnedRings)
     {
-        HomeIDs.Add(Entry.PersistentID);
+        AddWorn(Entry.PersistentID, Entry.AttachedItem);
     }
     for (const FEvolutionInventoryEntry &Entry : OwnedEvolutions)
     {
-        HomeIDs.Add(Entry.InstanceID);
+        if (IsWorn(Entry.InstanceID)) // an evolution worn in a primary slot
+        {
+            WornIDs.Add(Entry.InstanceID);
+        }
     }
     int32 Taken = 0;
-    for (const FGuid &ID : HomeIDs)
+    for (const FGuid &ID : WornIDs)
     {
         Taken += TakeOnRun(ID) ? 1 : 0;
     }
-    UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer: %d home piece(s) go on the run as they are"), Taken);
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer: the worn loadout goes on the run, free (D-137): %d piece(s)"), Taken);
     return Taken;
 }
 
