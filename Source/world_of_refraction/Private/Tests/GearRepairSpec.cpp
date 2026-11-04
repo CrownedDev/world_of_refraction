@@ -1,5 +1,5 @@
 // GearRepairSpec.cpp
-// B-178 (D-093): a rest-spot repair pays Gold by each worn item's tier and brings the party's
+// B-178 (D-093): a rest-spot repair pays by each worn item's tier (B-366e: in the currency of the place) and brings the party's
 // carried gear back to full. The run-end reset of wear is WoR.Party.CarriedState ("starts fresh
 // after the run ends").
 
@@ -12,6 +12,8 @@
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Durability/GearRepair.h"
 #include "Party/Party.h"
+#include "Trial/TrialData.h"
+#include "Trial/TrialRunSubsystem.h"
 
 namespace
 {
@@ -19,6 +21,7 @@ namespace
 	constexpr int32 REPAIR_TEST_EVOLUTION_WORN = 5;
 	constexpr int32 REPAIR_TEST_GEM_WORN = 1;
 	constexpr int32 REPAIR_TEST_SHARE_MAX = 30;
+	constexpr int32 REPAIR_TEST_RUN_SEED = 7;
 	const FCrystalId REPAIR_TEST_F_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
 	const FCrystalId REPAIR_TEST_C_GEM(ECrystalType::Garnet, EItemTier::C_Tier);
 
@@ -75,7 +78,7 @@ void FGearRepairSpec::Define()
 		TestEqual(TEXT("Party repair cost"), GearRepair::GetPartyRepairCost(*Party), ExpectedCost);
 	});
 
-	It("pays the Gold and repairs everything to full", [this]()
+	It("pays the hub money at home and repairs everything to full, the run money untouched", [this]()
 	{
 		FWoRTestWorld World;
 		if (!TestTrue(TEXT("World"), World.Create()))
@@ -83,12 +86,14 @@ void FGearRepairSpec::Define()
 			return;
 		}
 		UCurrencyComponent *Wallet = FWoRTestWorld::AddComponent<UCurrencyComponent>(World.GetWorld()->SpawnActor<AActor>());
-		Wallet->Add(ECurrencyType::Gold, ExpectedCost + 1);
+		Wallet->Add(ECurrencyType::Prisms, ExpectedCost + 1); // hub money (shown as Gold, D-159)
+		Wallet->Add(ECurrencyType::Gold, ExpectedCost);		  // run money (shown as Prisms)
 
 		int32 Spent = 0;
 		TestTrue(TEXT("Repaired"), GearRepair::RepairParty(*Party, *Wallet, Spent));
-		TestEqual(TEXT("Gold spent"), Spent, ExpectedCost);
-		TestEqual(TEXT("Gold left"), Wallet->GetBalance(ECurrencyType::Gold), 1);
+		TestEqual(TEXT("Spent"), Spent, ExpectedCost);
+		TestEqual(TEXT("Hub money left"), Wallet->GetBalance(ECurrencyType::Prisms), 1);
+		TestEqual(TEXT("Run money untouched"), Wallet->GetBalance(ECurrencyType::Gold), ExpectedCost);
 		const FCarriedGearState &Gear = Party->Members[0].CarriedGear;
 		TestEqual(TEXT("Broken C gem at full"), Gear.Attachments[1].Attached.GetCurrentDurability(),
 				  ItemIdentity::GetMaxDurability(REPAIR_TEST_C_GEM));
@@ -104,12 +109,39 @@ void FGearRepairSpec::Define()
 			return;
 		}
 		UCurrencyComponent *Wallet = FWoRTestWorld::AddComponent<UCurrencyComponent>(World.GetWorld()->SpawnActor<AActor>());
-		Wallet->Add(ECurrencyType::Gold, ExpectedCost - 1);
+		Wallet->Add(ECurrencyType::Prisms, ExpectedCost - 1);
 
 		int32 Spent = 0;
 		TestFalse(TEXT("Not repaired"), GearRepair::RepairParty(*Party, *Wallet, Spent));
-		TestEqual(TEXT("No Gold spent"), Wallet->GetBalance(ECurrencyType::Gold), ExpectedCost - 1);
+		TestEqual(TEXT("Nothing spent"), Wallet->GetBalance(ECurrencyType::Prisms), ExpectedCost - 1);
 		TestEqual(TEXT("Still worn"), GearRepair::GetPartyRepairCost(*Party), ExpectedCost);
+	});
+
+	It("pays the run money in a run, and is refused with only hub money (B-366e)", [this]()
+	{
+		FWoRTestWorld World;
+		if (!TestTrue(TEXT("World"), World.Create()))
+		{
+			return;
+		}
+		UTrialRunSubsystem *Run = World.GetSubsystem<UTrialRunSubsystem>();
+		if (!TestNotNull(TEXT("Run"), Run))
+		{
+			return;
+		}
+		Run->RestoreRun(NewObject<UTrialData>(GetTransientPackage()), REPAIR_TEST_RUN_SEED, 0, ETrialDifficulty::Medium, {}, {}, {});
+		UCurrencyComponent *Wallet = FWoRTestWorld::AddComponent<UCurrencyComponent>(World.GetWorld()->SpawnActor<AActor>());
+		Wallet->Add(ECurrencyType::Prisms, ExpectedCost); // hub money can't pay in a run
+
+		int32 Spent = 0;
+		TestFalse(TEXT("Not repaired with hub money"), GearRepair::RepairParty(*Party, *Wallet, Spent));
+		TestEqual(TEXT("Still worn"), GearRepair::GetPartyRepairCost(*Party), ExpectedCost);
+
+		Wallet->Add(ECurrencyType::Gold, ExpectedCost);
+		TestTrue(TEXT("Repaired with run money"), GearRepair::RepairParty(*Party, *Wallet, Spent));
+		TestEqual(TEXT("Run money spent"), Wallet->GetBalance(ECurrencyType::Gold), 0);
+		TestEqual(TEXT("Hub money untouched"), Wallet->GetBalance(ECurrencyType::Prisms), ExpectedCost);
+		TestEqual(TEXT("Nothing left to repair"), GearRepair::GetPartyRepairCost(*Party), 0);
 	});
 
 	It("charges nothing for an unbreakable evolution", [this]()
