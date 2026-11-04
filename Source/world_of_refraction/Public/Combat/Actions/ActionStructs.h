@@ -512,6 +512,9 @@ struct WORLD_OF_REFRACTION_API FActionExecutionContext
 	TMap<TWeakObjectPtr<AActor>, bool> ChokeOutcomes;	// target → parried/dodged
 	int32 ChokeExpectedCount = 0;						// # targets for this choke (0 = no active choke)
 	int32 ChokeCastEntryIndex = INDEX_NONE;				// which cast entry is the active choke
+	/** B-367 (D-161): targets that perfectly defended a choke point with every hit so far perfect, kept past their
+	 *  window's close so the interrupt can report each one's Flawless Parry. */
+	TSet<TWeakObjectPtr<AActor>> ChokeFlawless;
 
 	FActionExecutionContext()
 	{

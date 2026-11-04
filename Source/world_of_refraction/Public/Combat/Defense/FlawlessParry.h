@@ -44,9 +44,15 @@ namespace FlawlessParry
 		 *  other way reports nothing. */
 		bool EndAtInterrupt()
 		{
-			const bool bFlawless = !bReported && Judged > 0 && Perfect == Judged;
+			const bool bFlawless = IsFlawlessSoFar();
 			bReported |= bFlawless;
 			return bFlawless;
+		}
+
+		/** Every hit judged so far was perfect and nothing was reported yet (does not report). */
+		bool IsFlawlessSoFar() const
+		{
+			return !bReported && Judged > 0 && Perfect == Judged;
 		}
 	};
 

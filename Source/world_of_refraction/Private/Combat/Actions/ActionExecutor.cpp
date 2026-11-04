@@ -2698,7 +2698,7 @@ void UActionExecutor::InterruptAsyncAction(AActor *Attacker, USkillDataBase *Ski
 		return;
 	}
 
-	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Interrupt — all targets parried/dodged an interruptable hit; aborting the rest"));
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Interrupt — every target perfectly defended an interrupt point; aborting the rest"));
 
 	// 1. Stop further spawns + cue timers — no more hits/casts land.
 	if (UWorld *World = GetWorld())
@@ -2718,6 +2718,8 @@ void UActionExecutor::InterruptAsyncAction(AActor *Attacker, USkillDataBase *Ski
 	//    (parried) damage already applied at the resolve site before this call.
 	TArray<AActor *> Defenders;
 	TArray<TPair<AActor *, AActor *>> Flawless; // B-367 (D-161): defender, attacker
+	TSet<TWeakObjectPtr<AActor>> ChokeFlawless = MoveTemp(CurrentExecutionContext->ChokeFlawless);
+	CurrentExecutionContext->ChokeFlawless.Reset();
 	for (auto &Pair : CurrentExecutionContext->PendingDefenses)
 	{
 		if (Pair.Key.IsValid())
@@ -2728,6 +2730,15 @@ void UActionExecutor::InterruptAsyncAction(AActor *Attacker, USkillDataBase *Ski
 			{
 				Flawless.Emplace(Pair.Key.Get(), Pair.Value.Attacker.Get());
 			}
+		}
+		ChokeFlawless.Remove(Pair.Key); // a live context answered for itself
+	}
+	// A spell target whose window already closed after its choke arrival (ResolveSpellArrival recorded it).
+	for (const TWeakObjectPtr<AActor> &Closed : ChokeFlawless)
+	{
+		if (Closed.IsValid())
+		{
+			Flawless.Emplace(Closed.Get(), Attacker);
 		}
 	}
 	CurrentExecutionContext->PendingDefenses.Empty();
@@ -3860,6 +3871,7 @@ void UActionExecutor::DispatchSpellCast(
 		CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable)
 	{
 		CurrentExecutionContext->ChokeOutcomes.Empty();
+		CurrentExecutionContext->ChokeFlawless.Empty(); // B-367: per choke point, as the outcomes
 		CurrentExecutionContext->ChokeExpectedCount = Targets.Num();
 		CurrentExecutionContext->ChokeCastEntryIndex = CastEntryIndex;
 	}
@@ -4002,9 +4014,14 @@ bool UActionExecutor::ResolveSpellArrival(AActor *Target, int32 CastEntryIndex, 
 								 CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable;
 		const bool bDefended = GuardRules::StopsInterruptableHit(Ctx->ResolvedDefenseType, Ctx->bResolvedSuccess,
 																 Ctx->bResolvedPerfect && !Ctx->bResolvedLuckDodge);
+		// B-367: this target's Flawless Parry if the choke ends the spell; kept past its window's close.
+		if (bChokeEntry && bDefended && Ctx->FlawlessTally.IsFlawlessSoFar())
+		{
+			CurrentExecutionContext->ChokeFlawless.Add(Target);
+		}
 		ApplyOneImpact(Attacker, Target, *Ctx, ImpactOrdinal, /*bDamageIsPerImpact=*/true);
 		// Cross-target interrupt tally: record this target's outcome; abort once ALL targets have
-		// resolved AND all parried/dodged this choke point.
+		// resolved AND all perfectly defended this choke point (D-161).
 		if (bChokeEntry && RecordChokeAndShouldAbort(Target, bDefended))
 		{
 			InterruptAsyncAction(InterruptCaster ? InterruptCaster : Attacker,
