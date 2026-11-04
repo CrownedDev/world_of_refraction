@@ -11,6 +11,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Reaction/FightMoment.h"
+#include "Combat/Boss/BossRules.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "BossData.generated.h"
 
@@ -31,7 +32,9 @@ enum class EBossStyle : uint8
 	Both
 };
 
-/** Append new values at the end (saved in assets). */
+/** OBSOLETE (B-355, D-144): phases change through the rule list's EWoRConditionSubject boss subjects;
+ *  read across by BossRules::MakePhaseRule. Kept: assets store it.
+ *  Append new values at the end (saved in assets). */
 UENUM(BlueprintType)
 enum class EBossPhaseConditionKind : uint8
 {
@@ -49,6 +52,7 @@ enum class EBossPhaseConditionKind : uint8
 	InfusionHits
 };
 
+/** OBSOLETE (B-355): an FWoRCondition in a FBossRule; read across on load. */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FBossPhaseCondition
 {
@@ -70,7 +74,8 @@ struct WORLD_OF_REFRACTION_API FBossPhase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Phase")
 	FName PhaseId;
 
-	/** All must hold. Empty: never reached by itself. */
+	/** OBSOLETE (B-355): when a phase is reached is a "next phase" rule now (UBossData::Rules); these
+	 *  map across on read (BossRules::MakePhaseRule). All must hold. Empty: never reached by itself. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Phase")
 	TArray<FBossPhaseCondition> Conditions;
 
@@ -103,7 +108,8 @@ struct WORLD_OF_REFRACTION_API FBossPhase
 	TArray<TObjectPtr<USkillDataBase>> AddedSkills;
 };
 
-/** B-211 (D-100 part 1, Q-211): what must be true in the fight for a boss trigger. Append new
+/** OBSOLETE (B-355): FWoRCondition (CharacterInParty / GearEquipped / Hidden); read across on load.
+ *  B-211 (D-100 part 1, Q-211): what must be true in the fight for a boss trigger. Append new
  *  values at the end (saved in assets). */
 UENUM(BlueprintType)
 enum class EBossTriggerConditionKind : uint8
@@ -117,6 +123,7 @@ enum class EBossTriggerConditionKind : uint8
 	Hidden
 };
 
+/** OBSOLETE (B-355): an FWoRCondition in a FBossRule; read across on load. */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FBossTriggerCondition
 {
@@ -136,7 +143,7 @@ struct WORLD_OF_REFRACTION_API FBossTriggerCondition
 	int32 UpgradeLevel = 0;
 };
 
-/** What a fired boss trigger does. Append new values at the end (saved in assets). */
+/** OBSOLETE (B-355): EBossRuleResult. What a fired boss trigger does. Append new values at the end (saved in assets). */
 UENUM(BlueprintType)
 enum class EBossTriggerResult : uint8
 {
@@ -148,7 +155,8 @@ enum class EBossTriggerResult : uint8
 	Dialogue
 };
 
-/** B-211: "if these conditions, then this", owned by the boss. Its conditions are checked at fight
+/** OBSOLETE (B-355): a FBossRule (BossRules::MakeTriggerRule reads it across).
+ *  B-211: "if these conditions, then this", owned by the boss. Its conditions are checked at fight
  *  start; it fires then or at its When (B-212). */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FBossTrigger
@@ -195,9 +203,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss")
 	TArray<FBossPhase> Phases;
 
-	/** B-211 (D-100 part 1): what changes this boss, from who is in the fight and what they wear. */
+	/** OBSOLETE (B-355): author Rules; these map across on read.
+	 *  B-211 (D-100 part 1): what changes this boss, from who is in the fight and what they wear. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss")
 	TArray<FBossTrigger> Triggers;
+
+	/** B-355 (D-144): the boss's one rule list: when -> condition -> result ("next phase" is a result).
+	 *  Phases above keep only what changes when reached. BossRules::GetRules adds the old phase
+	 *  conditions and triggers after these. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss")
+	TArray<FBossRule> Rules;
 
 	/** The authored phases, else the style's preset. */
 	TArray<FBossPhase> GetPhasesToUse() const;

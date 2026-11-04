@@ -27,7 +27,9 @@ class UCharacterPanelWidget;
  *   5. Click "Spawn Character Panel" button
  *   6. Damage/heal the target via console or other debug tools, watch panel update
  *   7. Click "Clear All Panels" to reset
- */
+ *
+ * OBSOLETE (B-350, D-140): a legacy test actor; delete in the editor step of docs/PIE/B-350.md, not blind.
+ *  Content/UI/UMG/WBP_HUDTestActor may pair with it; a PIE visual tool with no assertions (the new HUD, B-105, replaces it). */
 UCLASS()
 class WORLD_OF_REFRACTION_API AHUDTestActor : public AActor
 {

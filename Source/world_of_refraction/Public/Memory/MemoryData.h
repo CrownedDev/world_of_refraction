@@ -48,7 +48,9 @@ struct WORLD_OF_REFRACTION_API FMemoryBossModifier
 	EMemoryBossModifierKind Kind = EMemoryBossModifierKind::Weaken;
 };
 
-/** B-209 (D-100 part 2, Q-209b): one thing that must be true for a memory to unlock. Append new
+/** OBSOLETE (B-337, D-130): new conditions use EWoRConditionSubject (Conditions/WoRCondition.h);
+ *  authored memory conditions convert on read (WoRConditions::FromMemory). Kept: assets store it.
+ *  B-209 (D-100 part 2, Q-209b): one thing that must be true for a memory to unlock. Append new
  *  values at the end (saved in assets). */
 UENUM(BlueprintType)
 enum class EMemoryConditionKind : uint8
@@ -81,7 +83,8 @@ enum class EMemoryConditionKind : uint8
 	FinishingBlow
 };
 
-/** Q-209e: the wearer against what an equipped item or skill requires, per pillar. */
+/** OBSOLETE (B-337): EWoRRequirementFit. Kept: assets store it.
+ *  Q-209e: the wearer against what an equipped item or skill requires, per pillar. */
 UENUM(BlueprintType)
 enum class EMemoryRequirementFit : uint8
 {
@@ -95,6 +98,7 @@ enum class EMemoryRequirementFit : uint8
 	Under
 };
 
+/** OBSOLETE (B-337): FWoRCondition; read through WoRConditions::FromMemory. Kept: assets store it. */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FMemoryCondition
 {
@@ -139,7 +143,8 @@ struct WORLD_OF_REFRACTION_API FMemoryCondition
 	TObjectPtr<UMemoryData> PriorMemory = nullptr;
 };
 
-/** Q-209c (D-100 alternative routes): another way to open a memory; all its conditions needed. */
+/** OBSOLETE (B-337): FWoRConditionSet. Kept: assets store it.
+ *  Q-209c (D-100 alternative routes): another way to open a memory; all its conditions needed. */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FMemoryConditionSet
 {

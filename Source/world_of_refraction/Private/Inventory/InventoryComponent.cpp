@@ -37,7 +37,9 @@
 
 namespace
 {
-    /** U2 pickup roll — when the asset opts in (bRandomGenerateOnPickup), a fresh
+    /** OBSOLETE (B-335, D-127; delete in the D-124 sweep): per-instance random rolls retire;
+     *  gear keeps tier + quality. Reached only when an asset opts in (default off).
+     *  U2 pickup roll — when the asset opts in (bRandomGenerateOnPickup), a fresh
      *  instance ROLLS its stat/resistance layers at acquisition:
      *    - MaxPools seed from the per-asset override (when set) or the tier budget
      *      (POOL_OVERRIDE_USE_TIER sentinel); the roll then consumes the STORED
@@ -644,6 +646,7 @@ bool UInventoryComponent::AddGearEntry(TArray<TEntry> &Gear, TEntry Entry, const
     Entry.PersistentID = FGuid::NewGuid();
     if (Asset.bRandomGenerateOnPickup)
     {
+        // OBSOLETE (B-335, D-127; delete in the D-124 sweep): the stat / resistance roll. The Quality roll below stays (Q-335).
         ApplyPickupRoll(&Asset, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
         // Fresh pickup → roll a per-instance Quality (§11), Luck-biased. Toggle-OFF acquisitions
         // (purchases, authored gear) skip this and keep the factory's C_Quality placeholder.
@@ -654,7 +657,7 @@ bool UInventoryComponent::AddGearEntry(TArray<TEntry> &Gear, TEntry Entry, const
     Gear.Add(Entry);
     PushGearToPool(Entry.PersistentID);
     BroadcastInventoryChanged(EInventoryChangeType::Added);
-    if (OwnedID.IsValid())
+    if (OwnedID.IsValid() && !bSuppressDuplicateNotice)
     {
         // D-115: one copy per character; the choice (Gold or dismantle) is the player's.
         UE_LOG(LogTemp, Log, TEXT("[Inventory] %s: received a second %s - choose Gold or dismantle (wor.UI.Duplicates)"),
@@ -1371,8 +1374,6 @@ bool UInventoryComponent::DrawSharedGear()
     // B-321 (D-117): each member draws only its own gear. A piece from before D-117 goes to whoever wears it,
     // else the party leader. A run-only recruit brings no gear and draws the whole armoury (TODO: B-323's give).
     Pool->AssignUnownedGear(InventoryGearSync::GetLocalLeaderKey(GI, Key));
-    // B-322 (D-117): a save from before the per-character pouch gives its party pouch to the leader.
-    Pool->AdoptLegacyCarriedItems(InventoryGearSync::GetLocalLeaderKey(GI, Key));
     bDrawsWholeArmoury = bRunOnly;
     // B-324: the chest's gear is nobody's to wear; a recruit's whole-armoury draw leaves it in the chest.
     // Key, not SharedGearKey: that is set below, once the draw is done (IsMineInStore is the same rule after that).
@@ -1426,6 +1427,20 @@ bool UInventoryComponent::DrawSharedGear()
             TMap<FCrystalId, int32> StartingItems = CrystalInv->Crystals;
             StartingItems.Append(CrystalInv->Stones);
             Pool->BankStartingItems(Key, StartingItems);
+        }
+        else if (bRunOnly && !Pool->HasBankedItems(Key))
+        {
+            // B-313 (Q-313): a recruit's fight items are its pouch now, so its authored preset items go in once
+            // (they used to be a free supply in the preset's item slots, OBSOLETE).
+            TMap<FCrystalId, int32> RecruitItems;
+            for (const FItemLoadoutSlot &Slot : SavedLoadouts[ActiveLoadoutIndex].ItemSlots)
+            {
+                if (!Slot.IsEmpty())
+                {
+                    RecruitItems.FindOrAdd(Slot.CrystalId) += Slot.Quantity;
+                }
+            }
+            Pool->BankStartingItems(Key, RecruitItems);
         }
         CrystalInv->BindSharedItems(Pool, Key);
     }
@@ -1933,22 +1948,43 @@ void UInventoryComponent::PushGearToPool(const FGuid &GearID)
         return;
     }
     TGuardValue<bool> Syncing(bSyncingWithPool, true);
+    // B-314 (D-111, D-097): a new piece heard of while a run is open was found or bought in it: run-only, arriving at
+    // the tier its definition reached in an earlier run (raised here first, so this copy and the store agree).
+    const bool bFoundOnRun = Pool->IsRunLayerActive() && Pool->GetGearOwner(GearID).IsNone();
     // B-321 (D-117): a new piece (loot, purchase) belongs to the member who got it; set before the update is heard.
     // A run-only recruit owns nothing, so what it gets goes to the party leader (B-323's give can move it).
     if (Pool->GetGearOwner(GearID).IsNone())
     {
         Pool->SetGearOwner(GearID, bDrawsWholeArmoury ? InventoryGearSync::GetLocalLeaderKey(GetWorld() ? GetWorld()->GetGameInstance() : nullptr, SharedGearKey) : SharedGearKey);
     }
-    if (const FWeaponInventoryEntry *Weapon = FindOwned(Weapons, GearID))
+    // B-347 (D-137): a home piece left out of the worn loadout but changed during the run joins the run now, with the
+    // store's (still unchanged) entry as its home state, so run end puts it back too. No-op off a run or when marked.
+    if (!bFoundOnRun && Pool->IsRunLayerActive())
     {
+        Pool->TakeOnRun(GearID);
+    }
+    if (FWeaponInventoryEntry *Weapon = FindOwned(Weapons, GearID))
+    {
+        if (bFoundOnRun && Pool->MarkRunOnly(GearID))
+        {
+            Pool->ApplyUpgradeMemory(*Weapon);
+        }
         Pool->UpdateWeapon(*Weapon);
     }
-    else if (const FRingInventoryEntry *Ring = FindOwned(Rings, GearID))
+    else if (FRingInventoryEntry *Ring = FindOwned(Rings, GearID))
     {
+        if (bFoundOnRun && Pool->MarkRunOnly(GearID))
+        {
+            Pool->ApplyUpgradeMemory(*Ring);
+        }
         Pool->UpdateRing(*Ring);
     }
-    else if (const FEvolutionInventoryEntry *Evolution = FindOwnedEvolution(GetOwner(), GearID))
+    else if (FEvolutionInventoryEntry *Evolution = FindOwnedEvolution(GetOwner(), GearID))
     {
+        if (bFoundOnRun && Pool->MarkRunOnly(GearID))
+        {
+            Pool->ApplyUpgradeMemory(*Evolution);
+        }
         Pool->UpdateEvolution(*Evolution);
     }
     else

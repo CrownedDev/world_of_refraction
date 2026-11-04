@@ -19,6 +19,11 @@
 
 namespace TrialGateInternal
 {
+	// B-344 (D-136): the trial difficulty's enemy AI tier.
+	constexpr EAIDifficulty ENEMY_AI_EASY = EAIDifficulty::Easy;
+	constexpr EAIDifficulty ENEMY_AI_MEDIUM = EAIDifficulty::Medium;
+	constexpr EAIDifficulty ENEMY_AI_HARD = EAIDifficulty::Hard;
+
 	// Enemy damage by difficulty (Q-183; B-293c: even steps, was 0.8 / 1 / 1.25). TODO: tune.
 	constexpr float EASY_ENEMY_STRENGTH = 0.8f;
 	constexpr float MEDIUM_ENEMY_STRENGTH = 1.0f;
@@ -85,6 +90,22 @@ ETrialDifficulty TrialGate::NextDifficulty(ETrialDifficulty Difficulty)
 float TrialGate::GetEnemyHealthMultiplier(ETrialDifficulty Difficulty)
 {
 	return TrialGateInternal::ENEMY_HEALTH_BY_DIFFICULTY;
+}
+
+EAIDifficulty TrialGate::GetEnemyAIDifficulty(ETrialDifficulty Difficulty)
+{
+	switch (Difficulty)
+	{
+	case ETrialDifficulty::Easy: return TrialGateInternal::ENEMY_AI_EASY;
+	case ETrialDifficulty::Hard: return TrialGateInternal::ENEMY_AI_HARD;
+	case ETrialDifficulty::Medium:
+	default: return TrialGateInternal::ENEMY_AI_MEDIUM;
+	}
+}
+
+EAIDifficulty TrialGate::ResolveEncounterAIDifficulty(ETrialDifficulty TrialDifficulty, bool bOverride, EAIDifficulty Override)
+{
+	return bOverride ? Override : GetEnemyAIDifficulty(TrialDifficulty);
 }
 
 bool TrialGate::ApplyEnemyStrength(AActor *Enemy, float StrengthMultiplier)

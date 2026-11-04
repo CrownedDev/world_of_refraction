@@ -41,8 +41,8 @@ Between `Begin` and `End` the runner sets `wor.Combat.InstantImpacts 1` and `wor
 - The hit-median target uses every party hit (attacks, abilities, spells), not basic attacks alone, so it is a rough guide.
 - Elite is only in `full`; `nightly` keeps 3 ranks (§4 of the design doc lists 4: TODO, decide with the first nightly's run time).
 - GAS parity has not run yet: until B-293 the sim's actors had no ability system, so earlier "parity" was the enum path twice. Expect real differences on the first build; each names its seed.
-- Presets: `quick` 3 fights (the suite), `nightly` 50, `full` 200 with the Elite rank (`WOR_BALANCE=nightly|full Scripts/ue/test.sh WoR.Balance.` or `wor.Balance.Run`).
-- Party-side AI difficulty is fixed at Hard (`AIConstants::ALLY_AI_DIFFICULTY`).
+- Presets: `quick` 3 fights, `nightly` 50, `full` 200 with the Elite rank. B-350 (D-140): `WoR.Balance.Sim.Targets` runs only with a named preset (`WOR_BALANCE=`); the default suite skips it with a warning. `GASParity` stays in the default suite on the quick matchups (Q-350). Run with (`WOR_BALANCE=nightly|full Scripts/ue/test.sh WoR.Balance.` or `wor.Balance.Run`).
+- Party-side AI difficulty is fixed at Hard: since B-346 the runner sets every party member's AI seat to `SIM_PARTY_AI_DIFFICULTY` (Hard, the level `AIConstants::ALLY_AI_DIFFICULTY` gave before), so the baselines stay comparable.
 
 ## Changelog
 
@@ -57,3 +57,4 @@ Between `Begin` and `End` the runner sets `wor.Combat.InstantImpacts 1` and `wor
 | 2026-11-03 | B-293c (Q-293c): the normal-fight target counts party rounds (member turns / party size, BaselineNumbers §2.9); the runner passes zone HP and difficulty-x-zone damage separately. Tuning values in `AIDecisionConstants.h` and `TrialGate.cpp`; findings in `docs/analysis/Expedition33Balance.md`. Unbuilt (cloud). | chore/B-293c-balance-tuning |
 | 2026-11-03 | B-327 (D-120): the sim's `ApplyEnemyStrength` passes only the door's shares: the zone scales nothing (its `ZoneTier` stays in the matchup as a placement input); enemy HP = own × rank × Combat Tier. The audit's "zone counted twice" was checked and isn't (`MaxHPBuff` percents add). The nightly grid's zone tier is 0, so its numbers don't move. | fix/B-327-zone-health-once |
 | 2026-11-03 | B-293d (Q-293e): `P-GenericC` / `P-GenericS` get their own stat points (Body 5/7, Raw Damage 8/20, Defense 15/25, Max Health 20/35, skill base 30/40), the same-tier enemy's sheet and the §3 examples; they were the early build with only the weapon swapped, so Mid/Late parties fought C/S enemies on early HP. Unbuilt (cloud). | chore/B-293d-decided-balance |
+| 2026-11-04 | B-344 (D-136): a matchup's AI tier and door difficulty are one knob (`MakeSimMatchup` sets `TrialDifficulty` from the AI tier), so the nightly's Hard rows now mean a Hard door: enemy damage x1.2 and Hard AI. The Medium bands don't move. | feature/B-344-difficulty-sets-ai |

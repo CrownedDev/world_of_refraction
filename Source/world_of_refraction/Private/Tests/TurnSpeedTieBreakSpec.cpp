@@ -1,10 +1,11 @@
 // TurnSpeedTieBreakSpec.cpp
 // B-289: the turn-speed numbers (ET-04: base 10, stat cap 15, gear ceiling 20) and the turn-order
 // tie-break chain (ET-08), one case per step. Each tie-break case sets two combatants level on
-// every earlier step and makes every later step (and the party-first fallback) favour the loser,
-// so the case fails if its step is missing, inverted or moved below a later one.
-// ET-08 step 6 (higher Spirit) is not tested: with Mind+Body+Spirit, Body and Mind all equal,
-// Spirit is equal too, so that step can never decide (see TurnManager.cpp ShouldBreakTieInFavor).
+// every earlier step and makes every later step favour the loser, so the case fails if its step is
+// missing, inverted or moved below a later one.
+// B-341 (D-133, Q-341): the chain is 3 steps: higher base turn speed, your party before enemies,
+// the lower slot. The retired steps (action speed, the underdog world-stat total, Body, Mind,
+// Spirit) have one case showing they no longer decide.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -99,15 +100,6 @@ BEGIN_DEFINE_SPEC(FTurnSpeedTieBreakSpec, "WoR.TurnManager.SpeedAndTies",
 			Order.Add(TurnManager->GetCurrentActor());
 		}
 		return Order;
-	}
-
-	/** One-on-one: the opposing combatant must take the first turn, beating the party-first fallback. */
-	void ExpectOpposingFirst(UCharacterData *LocalData, UCharacterData *OpposingData, const TCHAR *Step)
-	{
-		AActor *Local = TestWorld->SpawnCombatant(LocalData);
-		AActor *Opposing = TestWorld->SpawnCombatant(OpposingData);
-		const TArray<AActor *> Order = RecordTurns({Local}, {Opposing}, 1);
-		TestTrue(FString::Printf(TEXT("%s: the enemy acts first"), Step), Order.Num() == 1 && Order[0] == Opposing);
 	}
 END_DEFINE_SPEC(FTurnSpeedTieBreakSpec)
 
@@ -211,40 +203,22 @@ void FTurnSpeedTieBreakSpec::Define()
 			TestTrue(TEXT("Higher base: the enemy acts first"), Order.Num() == 1 && Order[0] == Opposing);
 		});
 
-		It("step 2: higher action speed wins", [this]()
+		It("retired steps (B-341): action speed and world stats no longer decide", [this]()
 		{
-			UCharacterData *EnemyData = FWoRTestWorld::NewCharacterData();
-			EnemyData->ActionSpeed = SPEED_TIES_ONE_ABOVE;
-			ExpectOpposingFirst(FWoRTestWorld::NewCharacterData(), EnemyData, TEXT("Higher action speed"));
-		});
-
-		It("step 3: lower Mind+Body+Spirit world-stat total wins", [this]()
-		{
-			// The local side's extra Mind would also win step 5, so only step 3 can hand the enemy the turn.
+			// Under the old chain the enemy won on action speed (old step 2) and on the lower world-stat
+			// total (old step 3). Now base speed is level, so your party goes first.
 			UCharacterData *LocalData = FWoRTestWorld::NewCharacterData();
 			LocalData->WorldMindLevel = SPEED_TIES_ONE_ABOVE;
-			ExpectOpposingFirst(LocalData, FWoRTestWorld::NewCharacterData(), TEXT("Lower world-stat total"));
-		});
-
-		It("step 4: equal totals, higher Body wins", [this]()
-		{
-			UCharacterData *LocalData = FWoRTestWorld::NewCharacterData();
-			LocalData->WorldMindLevel = SPEED_TIES_ONE_ABOVE; // wins step 5 if step 4 is skipped
 			UCharacterData *EnemyData = FWoRTestWorld::NewCharacterData();
+			EnemyData->ActionSpeed = SPEED_TIES_ONE_ABOVE;
 			EnemyData->WorldBodyLevel = SPEED_TIES_ONE_ABOVE;
-			ExpectOpposingFirst(LocalData, EnemyData, TEXT("Higher Body"));
+			AActor *Local = TestWorld->SpawnCombatant(LocalData);
+			AActor *Opposing = TestWorld->SpawnCombatant(EnemyData);
+			const TArray<AActor *> Order = RecordTurns({Local}, {Opposing}, 1);
+			TestTrue(TEXT("Your party acts first"), Order.Num() == 1 && Order[0] == Local);
 		});
 
-		It("step 5: equal totals and Body, higher Mind wins", [this]()
-		{
-			UCharacterData *LocalData = FWoRTestWorld::NewCharacterData();
-			LocalData->WorldSpiritLevel = SPEED_TIES_ONE_ABOVE; // wins step 6 if step 5 is skipped
-			UCharacterData *EnemyData = FWoRTestWorld::NewCharacterData();
-			EnemyData->WorldMindLevel = SPEED_TIES_ONE_ABOVE;
-			ExpectOpposingFirst(LocalData, EnemyData, TEXT("Higher Mind"));
-		});
-
-		It("step 7: your party before enemies, ahead of slot order", [this]()
+		It("step 2: your party before enemies, ahead of slot order", [this]()
 		{
 			// Party slot 1 against enemy slot 0 after party slot 0 has acted: team decides before slot.
 			AActor *LocalFirst = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
@@ -255,7 +229,7 @@ void FTurnSpeedTieBreakSpec::Define()
 					 Order.Num() == SPEED_TIES_ROUND_TURNS && Order[1] == LocalSecond && Order[2] == Opposing);
 		});
 
-		It("step 8: lower slot wins within a side", [this]()
+		It("step 3: lower slot wins within a side", [this]()
 		{
 			AActor *Local = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
 			AActor *OpposingFirst = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
