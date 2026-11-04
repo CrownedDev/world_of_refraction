@@ -215,7 +215,14 @@ void UTrialRunSubsystem::ExitTrialNextTick()
         ExitEncounter();
         return;
     }
-    World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]() { ExitTrial(); }));
+    // Once only: a second call queued in the same frame finds the run already over.
+    World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+    {
+        if (IsRunActive())
+        {
+            ExitTrial();
+        }
+    }));
 }
 
 // ==================== ENCOUNTER (T-C1) ====================

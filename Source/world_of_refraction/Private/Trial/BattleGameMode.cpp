@@ -31,6 +31,7 @@
 #include "Trial/DefeatRules.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Save/SaveSubsystem.h"
 #include "Currency/MentorTokens.h"
 #include "UI/Combat/CombatResultsWidget.h"
 #include "GameFramework/PlayerController.h"
@@ -551,7 +552,13 @@ void ABattleGameMode::ApplyWipe()
             MemberKeys.Add(UPoolSubsystem::GetCharacterKey(MemberData));
         }
     }
+    // TODO(D-103 co-op): GetLocalParty is the server's side; every player's members should pay once co-op fights land.
     bWipeEndsRun = WoRDefeat::ApplyWipe(GetWorld(), TrialRun->GetPendingRank(), MemberKeys).bRunEnds;
+    // Save the loss now: the next save point is leaving the results screen, and quitting there would undo the wipe.
+    if (USaveSubsystem *Save = GetGameInstance()->GetSubsystem<USaveSubsystem>())
+    {
+        Save->SaveNow(GetWorld(), true);
+    }
 }
 
 void ABattleGameMode::CheckFightWonMemories()
