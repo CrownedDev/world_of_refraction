@@ -1706,7 +1706,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 ### D-130 — One condition vocabulary (audit §14)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
 **Answer (Crown):** one shared `FWoRCondition` / `FWoRConditionSet` and one evaluator, on the deckbuilder's trigger → condition → effect model (`CrownedDev/wor-deckbuilder` `docs/design/WoR_TCG_Pivot_Design.md` and its `docs/reference/05-triggers-conditions.md`). Built beside the old ones, memories first. D-100 still holds (memories and boss triggers stay separate systems).
-**Notes for Claude:** job B-337.
+**Notes for Claude:** job B-337 (memories, on `feature/B-337-conditions`, UNBUILT); the rest is B-337b.
 
 ### D-131 — One placeholder inventory screen (audit §15)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
