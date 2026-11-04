@@ -3725,6 +3725,18 @@ Moved here once applied. Newest first.
 **Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
 **Notes for Claude:** built in B-337 (desktop build, in dev). B-337b widens the trigger list with fight events; B-355 adds the boss subjects.
 
+### Q-337b — One condition vocabulary, part 2: what moved, and the fight subjects
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-337b, desktop) · **Blocks:** —
+**Question:** B-337b moves "reactions and equip conditions" onto the shared conditions and adds the fight subjects they need. Four things the rulings leave open: (1) what "equip conditions" covers; (2) how HP is read; (3) whose HP; (4) how old reaction data reads across.
+**Options / as built:**
+- (1) **A** the equip conditions (a character equipping a skill, spell, ring, weapon or evolution, against its requirements: D-100, Q-209e) are memory conditions and moved with memories in B-337 (`GearEquipped` / `EvolutionEquipped` / `SkillSlotted` + `RequirementFit`); B-337b moves reactions. A bound item's own memory conditions (`FBoundMemory`) and the skill-effect triggers (`ESkillTrigger`, conditional effects) are their own job, **B-337c**. **B** move all of it in one job.
+- (2) **A** `Hp` is an absolute amount, never a percent (the deckbuilder: "HP checks are absolute", Crown 2026-10-12). **B** a percent.
+- (3) **A** `Who` = `Self` (a reaction's wearer, a boss rule's boss) or `Target` (the faced character); the deckbuilder's group values (Ally / Enemy, with counts) wait until a rule needs them. **B** all of them now.
+- (4) **A** `RequiredItems` / `FacingCharacter` read across on load (one `GearEquipped` per item, worn by the wearer, plus `FacingEnemy`); facing alone with no items never fires, as before; the old check stays as `MatchesOld` until the PIE pass. **B** convert the assets in the editor now.
+**Recommendation:** A throughout. The deckbuilder (`docs/reference/05-triggers-conditions.md`: absolute HP; `Who` Self / Target) is the first reference; Slay the Spire's relics (fire on an event, check a state) are the well-liked example of the shape; reading old data across keeps every authored reaction working (as B-337 did for memories and B-355 for bosses).
+**Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
+**Notes for Claude:** built in B-337b. Boss rules do not fill `Self` yet (their HP subject stays `BossHPAtMostPercent`); B-337c, or the first boss rule that needs it, sets it.
+
 ### Q-313 — The pouch in a fight: how far B-313 goes, the tier caps, and a recruit's items
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-313, cloud) · **Blocks:** —
 **Question:** B-313 makes each member's pouch its only carried-items list (D-111 "per-loadout item lists retire", D-117). Three things the rulings don't say: (1) switch every reader of the per-member mirror and the per-preset item slots in one unbuilt job, or the combat side first? (2) D-072 caps how many utility crystals of each tier band a character has "equipped" in its item slots (S 1, A/B 2, C/D 3, E/F 4); with no item slots, what does the cap count? (3) a trial recruit (run-only, D-026) brings no pouch of its own; its authored preset's items were a free supply in the preset's slots. Where do they go?
