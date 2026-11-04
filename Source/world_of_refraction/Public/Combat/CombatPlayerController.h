@@ -82,7 +82,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Defense")
 	TObjectPtr<UInputAction> ParryAction;
 
-	/** The Dodge input (D-135: one Dodge; the property keeps its old name so the Blueprint default stays). */
+	/** The Dodge input (D-135: one Dodge; the property keeps its old name so the Blueprint default stays).
+	 *  TODO: rename DodgeLeftAction to DodgeAction in the D-124 sweep (an editor step: the Blueprint default moves with it). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Defense")
 	TObjectPtr<UInputAction> DodgeLeftAction;
 
