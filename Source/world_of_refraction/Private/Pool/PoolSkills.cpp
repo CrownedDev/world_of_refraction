@@ -128,6 +128,51 @@ bool UPoolSubsystem::MoveAbility(FName FromKey, FName ToKey, const UAbilityData 
     return true;
 }
 
+int32 UPoolSubsystem::HandOverSkills(FName FromKey, FName ToKey)
+{
+    FPoolSkills Leaving;
+    if (FromKey == ToKey || !CharacterSkills.Contains(ToKey) || !CharacterSkills.RemoveAndCopyValue(FromKey, Leaving))
+    {
+        return 0;
+    }
+    FPoolSkills &To = CharacterSkills[ToKey];
+    int32 Moved = 0;
+    int32 Dropped = 0;
+    for (const FSpellInstance &Spell : Leaving.Spells)
+    {
+        const bool bFits = Spell.Spell && To.Spells.Num() < InventoryConstants::MAX_LEARNED_SPELLS &&
+                           !To.Spells.ContainsByPredicate([&Spell](const FSpellInstance &I) { return I.Spell == Spell.Spell; });
+        if (bFits)
+        {
+            To.Spells.Add(Spell);
+            ++Moved;
+        }
+        else
+        {
+            ++Dropped;
+        }
+    }
+    for (const FAbilityInstance &Ability : Leaving.Abilities)
+    {
+        const bool bFits = Ability.Ability && To.Abilities.Num() < InventoryConstants::MAX_LEARNED_ABILITIES &&
+                           !To.Abilities.ContainsByPredicate([&Ability](const FAbilityInstance &I) { return I.Ability == Ability.Ability; });
+        if (bFits)
+        {
+            To.Abilities.Add(Ability);
+            ++Moved;
+        }
+        else
+        {
+            ++Dropped;
+        }
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] %s's skills go to %s: %d moved, %d already known or no room (one copy kept, Q-361c)"),
+           *FromKey.ToString(), *ToKey.ToString(), Moved, Dropped);
+    OnPoolSkillsChanged.Broadcast(FromKey);
+    OnPoolSkillsChanged.Broadcast(ToKey);
+    return Moved;
+}
+
 FString UPoolSubsystem::GetCharacterSkillsString() const
 {
     FString Out = FString::Printf(TEXT("=== Skills per character (%d) ==="), CharacterSkills.Num());
