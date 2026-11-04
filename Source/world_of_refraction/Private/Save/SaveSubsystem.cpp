@@ -19,7 +19,6 @@
 #include "Player/WoRPlayerState.h"
 #include "Pool/PoolSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
-#include <type_traits>
 #include "Skills/Definitions/SpellData.h"
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryComponent.h"
@@ -67,7 +66,7 @@ namespace
 		Gear.EvolutionItem = FSavedAssetRef::Make(Entry.AttachedItem.Evolution.Item);
 		Gear.Attached.Evolution.Item = nullptr;
 		Gear.StoneSocket = Entry.StoneSocket; // B-351
-		if constexpr (std::is_same_v<TGearEntry, FWeaponInventoryEntry>)
+		if constexpr (TIsSame<TGearEntry, FWeaponInventoryEntry>::Value)
 		{
 			for (const UAbilityData *Pick : Entry.SkillPicks) // B-351 (D-145), one ref per slot
 			{
@@ -100,7 +99,7 @@ namespace
 		Entry.AttachedItem = Gear.Attached;
 		Entry.AttachedItem.Evolution.Item = Gear.EvolutionItem.IsSet() ? Gear.EvolutionItem.ResolveAs<UEvolutionItemData>() : nullptr;
 		Entry.StoneSocket = Gear.StoneSocket; // B-351
-		if constexpr (std::is_same_v<TGearEntry, FWeaponInventoryEntry>)
+		if constexpr (TIsSame<TGearEntry, FWeaponInventoryEntry>::Value)
 		{
 			Entry.SkillPicks.Reset();
 			for (const FSavedAssetRef &Ref : Gear.SkillPicks) // B-351 (D-145); a gone ability leaves its slot to the built-in
