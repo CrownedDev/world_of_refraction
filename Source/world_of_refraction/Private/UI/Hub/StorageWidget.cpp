@@ -204,7 +204,7 @@ TArray<UStorageWidget::FStorageChoice> UStorageWidget::GatherChoices() const
 		}
 		if (bMine)
 		{
-			for (const TPair<FCrystalId, int32> &Stack : Pool->GetCarriedItems(Member))
+			for (const TPair<FCrystalId, int32> &Stack : Pool->GetCarriedItems(WoRGive::GetPouchKey(GetWorld(), Member)))
 			{
 				FStorageChoice Choice;
 				Choice.Item = Stack.Key;
@@ -290,9 +290,10 @@ void UStorageWidget::MoveSelected(int32 Count)
 	{
 		// Into the pouch, a whole stack moves as far as its slot has room (at least one is tried, so a
 		// full slot reports "No room").
-		const int32 Room = Choice.bMine ? Choice.Count : FMath::Max(1, Pool->GetCarryRoom(Member, Choice.Item));
+		const FName PouchKey = WoRGive::GetPouchKey(GetWorld(), Member); // B-361: a recruit carries the host's
+		const int32 Room = Choice.bMine ? Choice.Count : FMath::Max(1, Pool->GetCarryRoom(PouchKey, Choice.Item));
 		const int32 Moving = FMath::Min3(Count, Choice.Count, Room);
-		const bool bMoved = Choice.bMine ? Pool->MoveToStorage(Member, Choice.Item, Moving) : Pool->MoveToCarried(Member, Choice.Item, Moving);
+		const bool bMoved = Choice.bMine ? Pool->MoveToStorage(PouchKey, Choice.Item, Moving) : Pool->MoveToCarried(PouchKey, Choice.Item, Moving);
 		Refusal = bMoved ? FText::GetEmpty() : FText::Format(LOCTEXT("NoRoom", "No room for {0}: free a slot first"), Choice.Label);
 		Moved = StorageBuild::StackLabel(Choice.Item, Moving);
 	}

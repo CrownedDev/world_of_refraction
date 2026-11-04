@@ -135,7 +135,7 @@ namespace WoRInventoryVerbs
 			}
 			else
 			{
-				AddStacks(Pool->GetCarriedItems(Member));
+				AddStacks(Pool->GetCarriedItems(WoRGive::GetPouchKey(World, Member))); // B-361: a recruit shows the host's
 			}
 		}
 		return Rows;
@@ -248,13 +248,13 @@ namespace WoRInventoryVerbs
 			{
 				return WoRGive::TryPutInChest(World, Member, Row.GearID);
 			}
-			return Pool->MoveToStorage(Member, Row.Item, Moving) ? FText::GetEmpty() : LOCTEXT("StoreFailed", "Couldn't store that");
+			return Pool->MoveToStorage(WoRGive::GetPouchKey(World, Member), Row.Item, Moving) ? FText::GetEmpty() : LOCTEXT("StoreFailed", "Couldn't store that");
 		case EInventoryVerb::Take:
 			if (Row.IsGear())
 			{
 				return WoRGive::TryTakeFromChest(World, Member, Row.GearID);
 			}
-			return Pool->MoveToCarried(Member, Row.Item, Moving) ? FText::GetEmpty() : LOCTEXT("PouchFull", "No room in the pouch");
+			return Pool->MoveToCarried(WoRGive::GetPouchKey(World, Member), Row.Item, Moving) ? FText::GetEmpty() : LOCTEXT("PouchFull", "No room in the pouch");
 		case EInventoryVerb::Dismantle:
 		case EInventoryVerb::Convert:
 			break;

@@ -198,7 +198,7 @@ TArray<UGiveWidget::FGiveChoice> UGiveWidget::GatherChoices() const
 			Choices.Add(Choice);
 		}
 	}
-	for (const TPair<FCrystalId, int32> &Stack : Pool->GetCarriedItems(Giver))
+	for (const TPair<FCrystalId, int32> &Stack : Pool->GetCarriedItems(WoRGive::GetPouchKey(GetWorld(), Giver)))
 	{
 		FGiveChoice Choice;
 		Choice.Item = Stack.Key;
