@@ -24,7 +24,6 @@ namespace
 	constexpr int32 OWNED_SYNC_EVO_MAX_DURABILITY = 100;
 	constexpr EItemTier OWNED_SYNC_LEVELLED_TIER = EItemTier::E_Tier;
 	constexpr int32 OWNED_SYNC_STEP_GEAR = 10;   // F to E, as WoR.Economy.RoundTrip
-	constexpr int32 OWNED_SYNC_STEP_REALITY = 5;
 }
 
 BEGIN_DEFINE_SPEC(FOwnedGearSyncSpec, "WoR.Inventory.OwnedGearSync",
@@ -156,8 +155,7 @@ void FOwnedGearSyncSpec::Define()
 		UCurrencyComponent *Wallet = Owner->FindComponentByClass<UCurrencyComponent>();
 		if (!TestNotNull(TEXT("EconomyService"), Economy) || !TestNotNull(TEXT("Wallet"), Wallet)) return;
 		Inventory->LinkLoadoutsToOwned();
-		Wallet->AddGearEssence(OWNED_SYNC_STEP_GEAR);
-		Wallet->AddEssenceType(EEssenceType::Reality, OWNED_SYNC_STEP_REALITY);
+		Wallet->AddGearEssence(OWNED_SYNC_STEP_GEAR); // B-333b: a sword without an element levels on Gear Essence alone
 
 		TestTrue(TEXT("Levelled"), Economy->LevelUpWeapon(Owner, SwordId));
 		TestEqual(TEXT("Loadout 0 shows the new tier"), SlotIn(0).Tier, OWNED_SYNC_LEVELLED_TIER);

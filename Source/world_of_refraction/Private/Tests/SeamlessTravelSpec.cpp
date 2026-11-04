@@ -19,7 +19,6 @@ namespace
 	constexpr int32 TRAVEL_TEST_GOLD = 37;
 	constexpr int32 TRAVEL_TEST_PRISMS = 120;
 	constexpr int32 TRAVEL_TEST_ESSENCE = 9;
-	constexpr EEssenceType TRAVEL_TEST_ESSENCE_TYPE = EEssenceType(0);
 }
 
 BEGIN_DEFINE_SPEC(FSeamlessTravelSpec, "WoR.Coop.SeamlessTravel", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -52,13 +51,13 @@ void FSeamlessTravelSpec::Define()
 		UCurrencyComponent *Wallet = Old->GetWallet();
 		Wallet->Add(ECurrencyType::Gold, TRAVEL_TEST_GOLD);
 		Wallet->Add(ECurrencyType::Prisms, TRAVEL_TEST_PRISMS);
-		Wallet->AddEssenceType(TRAVEL_TEST_ESSENCE_TYPE, TRAVEL_TEST_ESSENCE);
+		Wallet->Add(ECurrencyType::ElementalEssence, TRAVEL_TEST_ESSENCE); // B-333b: the seven balances
 
 		Old->CopyProperties(Next);
 		const UCurrencyComponent *Carried = Next->GetWallet();
 		TestEqual(TEXT("Gold"), Carried->GetBalance(ECurrencyType::Gold), TRAVEL_TEST_GOLD);
 		TestEqual(TEXT("Prisms"), Carried->GetBalance(ECurrencyType::Prisms), TRAVEL_TEST_PRISMS);
-		TestEqual(TEXT("Essence"), Carried->GetEssenceType(TRAVEL_TEST_ESSENCE_TYPE), TRAVEL_TEST_ESSENCE);
+		TestEqual(TEXT("Essence"), Carried->GetBalance(ECurrencyType::ElementalEssence), TRAVEL_TEST_ESSENCE);
 		TestWorld.Reset();
 	});
 }
