@@ -1755,6 +1755,22 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** A (approved by the reference-backed default). Folding the categories (B) is a later step once the balance sim shows no change.
 **Notes for Claude:** applied in B-345 (`feature/B-345-one-ai-path`).
 
+### Q-356 — Which of the three does each old school map to?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-356, cloud; D-146 is on `docs/D-128-136-simplicity-round2`) · **Blocks:** —
+**Question:** D-146 keeps three schools. `ESpellSchool` has one more, Conjuration. Where does it go?
+**Mapping (as built):**
+
+| Old school | Maps to | Why |
+|---|---|---|
+| Destruction | Destruction | kept |
+| Enhancement | Enhancement | kept |
+| Restoration | Restoration | kept |
+| Conjuration | **Enhancement** | summons and created things help your side without dealing damage or healing themselves; Enhancement is the utility school |
+
+**Recommendation:** as above. The Elder Scrolls folded a utility school into its nearest neighbour (Mysticism into Alteration and Conjuration, Oblivion → Skyrim) instead of keeping a thin school, and players took to the leaner list. The only rule that reads the school, "Enhancement and Restoration are support" (no status buildup), fits a summon.
+**Answer:** as above (approved by the reference-backed default). `ESpellSchool::Conjuration` stays (append-only) and reads as Enhancement; re-tag the assets in the editor.
+**Notes for Claude:** applied in B-356 (`SpellSchools::ToCurrent`).
+
 ### Q-21-audit — Party control: the deckbuilder's seat rule (audit §21)
 **Status:** ANSWERED (Crown: follow the deckbuilder's rule) · **Raised:** 2026-11-03 (audit §21) · **Blocks:** —
 **Question:** who commands each party member, solo and in co-op?
