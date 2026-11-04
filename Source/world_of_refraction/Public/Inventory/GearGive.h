@@ -4,6 +4,8 @@
 // GiveCarried). Worn gear comes off the giver's loadouts as it leaves; a loadout's primary is refused (D-116);
 // the receiver's duplicate choice fires when it already owns one (D-115, UInventoryComponent::OnDuplicateGearReceived);
 // a full pouch refuses. Evolutions are not given yet (Q-323).
+// B-316b (Q-316, Q-316b): a learned spell or ability is given the same way (one copy moves) or requested from a
+// teammate (an AI member, or one of the requesting player's own, says yes at once).
 // Placeholder screen: wor.UI.Give (UGiveWidget). Debug: WoRGive::GetGiveableString.
 
 #pragma once
@@ -38,6 +40,18 @@ namespace WoRGive
 	 *  Empty on success; else the reason. */
 	WORLD_OF_REFRACTION_API FText TryTakeFromChest(UWorld *World, FName ToKey, const FGuid &GearID);
 
-	/** Debug: what FromKey could give (its weapons, adapters and pouch stacks), one line each. */
+	// ---- Skills (B-316b, Q-316, Q-316b): each character's learned spells and abilities (UPoolSubsystem::FindSkills) ----
+	/** Gives FromKey's learned spell or ability (Skill) to ToKey: one copy moves, the giver loses it (D-111). Empty on
+	 *  success; else the reason. A skill in the giver's loadouts leaves them at their next check (the loadout rules clear
+	 *  a skill the character doesn't know). A run-only recruit neither gives nor receives skills (Q-321). */
+	WORLD_OF_REFRACTION_API FText TryGiveSkill(UWorld *World, FName FromKey, FName ToKey, const UObject *Skill);
+	/** RequesterKey asks HolderKey for its skill. An AI member, or a member of the requesting (local) player's own, says
+	 *  yes at once (TryGiveSkill); a member another player has claimed needs that player's answer, which comes with the
+	 *  co-op screens (B-233+): refused until then, with the reason. */
+	WORLD_OF_REFRACTION_API FText TryRequestSkill(UWorld *World, FName RequesterKey, FName HolderKey, const UObject *Skill);
+	/** FromKey's learned skills a give could move: its spells, then its abilities. Empty when its skills aren't kept. */
+	WORLD_OF_REFRACTION_API TArray<const UObject *> GetGiveableSkills(const UWorld *World, FName FromKey);
+
+	/** Debug: what FromKey could give (its weapons, adapters, pouch stacks and skills), one line each. */
 	WORLD_OF_REFRACTION_API FString GetGiveableString(const UWorld *World, FName FromKey);
 }
