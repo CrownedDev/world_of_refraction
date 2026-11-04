@@ -1807,6 +1807,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **The deckbuilder's rule (cited):** `CrownedDev/wor-deckbuilder` `docs/reference/02-enums.md:65` (an Evolution "attaching it to the Character costs 1 Action + its EN"), `:447` (`WhenAttached`: "an Evolution to a vessel or the Character … even on an Evolution on a vessel, whose other triggered rows stay off"), `:63` (an Evolution on the Character licenses spells of its element). The deckbuilder allows all three placements, which the audit missed.
 **Notes for Claude:** job B-357, after B-351 (sockets) and B-356.
 
+### D-148 — One Physical resistance column (audit round 3 §33)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §33) · **Blocks:** —
+**Answer (Crown):** one Physical resistance column. Slash, Pierce and Impact stay as subtypes (D-037); each subtype only picks its break (SB-19 to SB-21). Saves stay append-only.
+**Notes for Claude:** job B-358.
+
+### D-149 — Weather: one baseline (audit round 3 §34)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §34) · **Blocks:** —
+**Answer (Crown):** the trial's element sets the weather on the map and in battle (B-189); in combat a boss phase change steps it (D-098). The leader-HP tug-of-war in `UWeatherStateManager` retires (flag OBSOLETE).
+**Notes for Claude:** job B-359.
+
 ### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
 **Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.
