@@ -42,5 +42,9 @@ FString AWoRGameState::GetDebugString() const
 	{
 		Out += FString::Printf(TEXT("\nTurn state: %s"), *TurnState->GetDebugString());
 	}
+	if (RunState)
+	{
+		Out += FString::Printf(TEXT("\nRun state: %s"), *RunState->GetDebugString()); // B-232
+	}
 	return Out;
 }

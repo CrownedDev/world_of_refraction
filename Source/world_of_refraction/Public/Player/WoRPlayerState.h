@@ -49,8 +49,11 @@ public:
 	/** B-232 (Q-21-audit): this player's own characters; it commands them (URunStateComponent seats). The server
 	 *  claims the player's pawn's character when the pawn is set; seamless travel carries the claims. */
 	bool ClaimsCharacter(const UCharacterData *Character) const;
-	/** Server: Character becomes this player's (no-op for null or one it already claims). */
+	/** Server: Character becomes this player's (no-op for null or one it already claims; refused, with a warning, when
+	 *  another player here already claims it). */
 	void ClaimCharacter(UCharacterData *Character);
+	/** Server: Character is no longer this player's (a pawn swap released it). */
+	void ReleaseCharacter(UCharacterData *Character);
 	const TArray<TObjectPtr<UCharacterData>> &GetClaimedCharacters() const { return ClaimedCharacters; }
 
 private:
