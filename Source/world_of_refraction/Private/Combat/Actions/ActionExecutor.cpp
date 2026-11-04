@@ -3111,7 +3111,7 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 				// impact itself, its outcome already fired (ResolveImpactDefense); otherwise the absorbers' stop is the guard.
 				const bool bGuardedItself = Input.GuardFactor < 1.0f;
 				UDefenseSystem *DefenseSys = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDefenseSystem>() : nullptr;
-				if (!bGuardedItself && DefenseSys)
+				if (!bGuardedItself && DefenseSys && TargetComp->bIsAlive) // no On Guard on a corpse
 				{
 					DefenseSys->OnDefenseResolved.Broadcast(Input.Target, Input.Attacker, EDefenseType::Block, false, 0, 0.0f);
 				}
@@ -5535,10 +5535,15 @@ void UActionExecutor::ApplySkillEffects(
 
 			// Per-payload element: StatusIncrease/Decrease + spell DOT use the resolved cast
 			// element (a Fire spell's authored burn is Fire); every other type stays non-elemental (None).
+			// B-042j2: a Negate keeps its authored element (a Ward's); authored Generic or None takes the cast element,
+			// so a Fire spell's "Negate Element" wards Fire.
+			const bool bNegateUsesCastElement = P.Element == ESpellElement::Generic || P.Element == ESpellElement::None;
 			const ESpellElement EffectElement =
-				(P.EffectType == ESkillEffectType::StatusIncrease ||
-				 P.EffectType == ESkillEffectType::StatusDecrease ||
-				 (ActionKind == EActionType::Spell && P.EffectType == ESkillEffectType::DOT))
+				SkillEffectClassification::IsNegate(P.EffectType)
+					? (bNegateUsesCastElement ? ResolvedCastElement : P.Element)
+				: (P.EffectType == ESkillEffectType::StatusIncrease ||
+				   P.EffectType == ESkillEffectType::StatusDecrease ||
+				   (ActionKind == EActionType::Spell && P.EffectType == ESkillEffectType::DOT))
 					? ResolvedCastElement
 					: ESpellElement::None;
 

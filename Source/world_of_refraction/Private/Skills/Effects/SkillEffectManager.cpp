@@ -135,7 +135,27 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 		return EEffectApplicationResult::Rejected;
 	}
 
-	// B-042j2 (D-092): a Negate payload is an absorber charge on the holder's tracker, not a lasting effect.
+	// Identity = (holder, EffectID, source) (D-012, D-053). Gear arrives stamped with its item;
+	// anything else is keyed on the applying actor + the skill or reason it applied with.
+	if (Effect.SourceKey == 0)
+	{
+		Effect.SourceKey = EffectIdentity::MakeSourceKey(Source ? Source->GetUniqueID() : 0, SourceAbility);
+	}
+
+	// D2: fires-once gate — reject re-application this match BEFORE any stacking/refresh,
+	// so a fires-once effect can never stack or refresh either. One use per holder and
+	// source (D-011): two wearers of the same gear each get theirs. A doesn't-stack effect
+	// (D-053) has one use per holder whichever source brings it ("revive once per fight").
+	const FWoRFiredOnceKey FiredOnceKey{Target, Effect.EffectID, Effect.bDoesNotStack ? 0 : Effect.SourceKey};
+	if (Effect.bFiresOncePerMatch && HasFiredOnce(Target, FiredOnceKey))
+	{
+		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s rejected on %s — already fired once this match (ID=%d)"),
+			   *Effect.EffectName, *Target->GetName(), Effect.EffectID);
+		return EEffectApplicationResult::Rejected;
+	}
+
+	// B-042j2 (D-092): a Negate payload is an absorber charge on the holder's tracker, not a lasting effect. It has
+	// passed immunity and the fires-once gate; a re-cast from the same source replaces its earlier charges (Q-044 A).
 	if (SkillEffectClassification::IsNegate(Effect.EffectType))
 	{
 		UWoRTurnEffectTracker *Absorbers = Target->FindComponentByClass<UWoRTurnEffectTracker>();
@@ -170,27 +190,19 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 		Charge.Mode = SkillEffectClassification::IsNegatePool(Effect.EffectType) ? EWoRChargeMode::Pool : EWoRChargeMode::Uses;
 		Charge.Magnitude = FMath::RoundToInt(Effect.EffectValue);
 		Charge.MaxUses = Effect.Charges;
+		Charge.EffectID = Effect.EffectID;
+		Charge.SourceKey = Effect.SourceKey;
 		const int32 Turns = Effect.bPermanent ? 0 : Effect.RemainingTurns; // 0: until spent (D-092 rule 3)
-		return Absorbers->ApplyAbsorb(Charge, Turns, Source).IsValid() ? EEffectApplicationResult::Applied : EEffectApplicationResult::Rejected;
-	}
-
-	// Identity = (holder, EffectID, source) (D-012, D-053). Gear arrives stamped with its item;
-	// anything else is keyed on the applying actor + the skill or reason it applied with.
-	if (Effect.SourceKey == 0)
-	{
-		Effect.SourceKey = EffectIdentity::MakeSourceKey(Source ? Source->GetUniqueID() : 0, SourceAbility);
-	}
-
-	// D2: fires-once gate — reject re-application this match BEFORE any stacking/refresh,
-	// so a fires-once effect can never stack or refresh either. One use per holder and
-	// source (D-011): two wearers of the same gear each get theirs. A doesn't-stack effect
-	// (D-053) has one use per holder whichever source brings it ("revive once per fight").
-	const FWoRFiredOnceKey FiredOnceKey{Target, Effect.EffectID, Effect.bDoesNotStack ? 0 : Effect.SourceKey};
-	if (Effect.bFiresOncePerMatch && HasFiredOnce(Target, FiredOnceKey))
-	{
-		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s rejected on %s — already fired once this match (ID=%d)"),
-			   *Effect.EffectName, *Target->GetName(), Effect.EffectID);
-		return EEffectApplicationResult::Rejected;
+		Absorbers->RemoveAbsorbsFrom(Effect.EffectID, Effect.SourceKey);
+		if (!Absorbers->ApplyAbsorb(Charge, Turns, Source).IsValid())
+		{
+			return EEffectApplicationResult::Rejected;
+		}
+		if (Effect.bFiresOncePerMatch)
+		{
+			RecordFiredOnce(Target, FiredOnceKey);
+		}
+		return EEffectApplicationResult::Applied;
 	}
 
 	// Set source info
