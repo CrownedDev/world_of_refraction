@@ -199,6 +199,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))
 	int32 CritDamage = 0;
 
+	/** OBSOLETE (B-331, D-123; folds into Speed in B-331b, delete in the D-124 sweep): read as part of Speed
+	 *  (GetTotalSpeed) for the defense window; still drives cast play-rate until B-331b. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))
 	int32 SpellSpeed = 0;
 
@@ -206,8 +208,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
 	int32 Defense = 0;
 
+	/** OBSOLETE (B-331, D-123; folds into Speed in B-331b, delete in the D-124 sweep): read as part of Speed
+	 *  (GetTotalSpeed) for the defense window; still drives animation play-rate until B-331b. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
 	int32 ActionSpeed = 0;
+
+	/** B-331 (D-123, Q-331): the one Speed, a Body sub-stat. Narrows a defender's window on every attack,
+	 *  physical or spell (CalculateSpeedWindowPenalty), the mirror of Reflex. Old assets' Action Speed and
+	 *  Spell Speed points count toward it (GetTotalSpeed). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
+	int32 Speed = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
 	int32 RawDamage = 0;
@@ -357,7 +367,7 @@ public:
 	int32 GetTotalSpent() const
 	{
 		return Efficiency + SpellDamage + CritDamage + SpellSpeed +
-			   Defense + ActionSpeed + RawDamage + MaxHealth + Reflex +
+			   Defense + ActionSpeed + Speed + RawDamage + MaxHealth + Reflex +
 			   MaxEnergy + Resistance + TurnSpeed + Luck + StatusMultiplier;
 	}
 
@@ -391,6 +401,11 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Body|Total")
 	int32 GetTotalActionSpeed() const { return ActionSpeed; }
+
+	/** B-331 (D-123, Q-331): the one Speed's points: Speed plus the old Action Speed and Spell Speed points,
+	 *  so an asset authored with both speeds keeps every point. */
+	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Body|Total")
+	int32 GetTotalSpeed() const { return Speed + ActionSpeed + SpellSpeed; }
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Body|Total")
 	int32 GetTotalRawDamage() const { return RawDamage; }
@@ -430,8 +445,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
 	int32 GetBaseBody() const
 	{
-		// Body (5): Defense, ActionSpeed, RawDamage, MaxHealth, Reflex
-		return GetTotalDefense() + GetTotalActionSpeed() + GetTotalRawDamage() + GetTotalMaxHealth() + GetTotalReflex();
+		// Body (5): Defense, ActionSpeed, RawDamage, MaxHealth, Reflex; plus the one Speed's own points (B-331)
+		return GetTotalDefense() + GetTotalActionSpeed() + Speed + GetTotalRawDamage() + GetTotalMaxHealth() + GetTotalReflex();
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
@@ -602,18 +617,26 @@ public:
 		return FMath::Min(EffectiveBody * TotalPoints * CombatConstants::REFLEX_WINDOW_PER_POINT, CombatConstants::WINDOW_CAP_SECONDS);
 	}
 
-	/** ATTACKER side of the defense-window duel: how many SECONDS this character's speed
-	 *  shaves off a defender's input window. Exact mirror of CalculateReflexWindowBonus's
-	 *  shape (EffectivePillar × RAW speed points × weight) so equal points + equal world
-	 *  level cancel to the base window. Reads the RAW speed substat point getters — NOT the
-	 *  play-rate getters (CalculateAnimationSpeed / CalculateSpellSpeed carry bases + caps that
-	 *  would distort the seconds math). Type-aware: physical (Attack/Ability) narrows via
-	 *  ActionSpeed/Body; Spell narrows via SpellSpeed/Mind (cross-pillar by design — clean
-	 *  cancel for physical, well-defined for spell). NOTE: the spell branch is DORMANT until
-	 *  Stage 6 — per-impact resolution is melee-only today, so only the physical branch is
-	 *  exercised. Consumed by UDefenseSystem::GetEffectiveDefenseInputWindow. */
+	/** ATTACKER side of the defense-window duel: how many SECONDS this character's one Speed
+	 *  shaves off a defender's input window (B-331, D-123, Q-331): Body × GetTotalSpeed ×
+	 *  WINDOW_PER_SPEED_POINT, capped at WINDOW_CAP_SECONDS, the same for every attack type.
+	 *  Exact mirror of CalculateReflexWindowBonus (Body × Reflex points × the same weight), so equal
+	 *  points + equal Body world level cancel to the base window. Reads raw points, not the play-rate
+	 *  getters (their bases and caps would distort the seconds maths). AttackType no longer picks a
+	 *  stat; it stays for the Blueprint signature. Consumed by UDefenseSystem::GetEffectiveDefenseInputWindow. */
 	UFUNCTION(BlueprintPure, Category = "Combat|Body")
 	float CalculateSpeedWindowPenalty(EActionType AttackType) const
+	{
+		// B-331 (D-123, Q-331): one Speed narrows every window, physical or spell, on Body (Reflex's mirror).
+		// AttackType is kept for the Blueprint signature; it no longer picks a stat.
+		const float Penalty = GetEffectiveBody() * GetTotalSpeed() * CombatConstants::WINDOW_PER_SPEED_POINT;
+		return FMath::Min(Penalty, CombatConstants::WINDOW_CAP_SECONDS);
+	}
+
+	/** OBSOLETE (B-331, D-123; folds into Speed in B-331b, delete in the D-124 sweep): the type-aware
+	 *  window before the merge (Action Speed / Body for physical, Spell Speed / Mind for spells). No caller;
+	 *  kept for comparison until the sweep. */
+	float CalculateSpeedWindowPenaltyByType(EActionType AttackType) const
 	{
 		const bool bSpell = (AttackType == EActionType::Spell);
 		const float EffectivePillar = bSpell ? GetEffectiveMind() : GetEffectiveBody();

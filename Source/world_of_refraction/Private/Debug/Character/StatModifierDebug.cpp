@@ -112,8 +112,7 @@ FString UStatModifierDebug::GetStatsSnapshotString(AActor *Actor)
 	Add(TEXT("StatusMultiplier"), Char->GetEffectiveStatusMultiplier());
 	Add(TEXT("Resistance"), Char->GetEffectiveResistance());
 	Add(TEXT("ReflexWindowFactor"), Char->ReflexWindowGearFactor());
-	Add(TEXT("SpellWindowFactor"), Char->SpeedWindowGearFactor(EActionType::Spell));
-	Add(TEXT("AbilityWindowFactor"), Char->SpeedWindowGearFactor(EActionType::Ability));
+	Add(TEXT("SpeedWindowFactor"), Char->SpeedWindowGearFactor(EActionType::Ability)); // one Speed, every attack type (B-331)
 	if (const UDamageCalculator *Calc = StatDebugSubsystem<UDamageCalculator>(Actor))
 	{
 		Add(TEXT("Defense"), Calc->GetDefenderFlatDefense(Actor));

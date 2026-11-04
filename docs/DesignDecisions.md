@@ -1065,7 +1065,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** (2026-10-26)
 - **Action pips:** each turn you get **action pips** set by your **Reflex** stat; each action (attack, skill, item, …) costs a pip, so a high-Reflex character can act **more than once per turn**.
 - **No Turn Speed:** turn order becomes **fixed (round-robin)**, as the deckbuilder's turn belt. A faster-paced game; Reflex is what makes a character "fast".
-- **Ice slows Action Speed** (the attack/spell animation speed stat): a full Ice bar is an Action Speed debuff for 2 holder turns.
+- **Ice slows Action Speed** (the attack/spell animation speed stat): a full Ice bar is an Action Speed debuff for 2 holder turns. *(D-123: Action Speed is now the one **Speed**; read this as "Ice slows Speed".)*
 - **Wind affects action pips:** a full Wind bar costs the target action pips (placeholder: −1 pip on their next turn, D-090).
 **Supersedes / changes:**
 - D-014/D-030 Wind push-back → pip loss. D-029 Ice → Action Speed slow (Crown's original wording, "slows action speed"; it had been mapped to turn speed).
@@ -1699,6 +1699,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** delete per-instance random rolls: flag them OBSOLETE now, delete them in the sweep (D-124). They are already off, so nothing changes in play.
 **Notes for Claude:** job B-335.
 (Audit §5: **no change** — evolutions and fusions keep their wear. §10 is Q-293d.)
+
+### Q-331 — One Speed: how do the two old speeds map, which pillar, and how is the merge sliced?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-331, D-123) · **Blocks:** —
+**Question:** D-123 merges Action Speed and Spell Speed into one Speed. (a) An asset with points in both: how do they map? (b) Action Speed was Body, Spell Speed Mind: which pillar is Speed? (c) The merge touches about 60 files (sub-stat, window maths, play-rate, `StatModifierTable`, the stone kind, the effect pair, GAS attributes, gear bonus fields, `AddPillarPercent`, Ice, UI names): one job or two?
+**Options:** (a) A add them (every authored point kept) / B take the larger / C average. (b) A Body / B Mind. (c) A two slices: B-331 the stat and every defense window, B-331b the authoring surface / B one job.
+**Recommendation:** (a) A: when WoW's Warlords of Draenor stat squish folded hit and expertise into other stats, it carried the points over rather than dropping them, and players kept their gear's value; adding keeps `GetTotalSpent` and the authored budget (Q-330) unchanged. (b) A: the defender's Reflex is Body, and the window maths was built so equal Body points cancel (`WINDOW_PER_SPEED_POINT` = `REFLEX_WINDOW_PER_POINT`), as in Expedition 33 where one Speed stat against the enemy's sets the timing pressure. (c) A, by the 3-files rule and so each slice can be PIE-checked alone.
+**Answer:** **A / A / A**, by the reference-backed default (2026-11-03). Crown may change any. B-331 ships: `UCharacterData::Speed` (Body), `GetTotalSpeed` = Speed + the old Action and Spell Speed points, one window penalty for every attack type, `SpeedWindowGearFactor` adding both old gear bonuses and stones and taking the **stronger** of the two old buff/debuff nets (one Water break debuffs both by 30%; adding them would slow the window 60%, against SB-22's 30%), clamped at 0. B-331b ships the rest: play-rate on Speed, `ESubStat::Speed` (appended), one stone kind, one effect pair (Ice and Water slow it), one gear bonus field, `StatModifierTable`, GAS attributes, `AddPillarPercent`, the tie-break's "action speed", UI names; assets and gear fold their old points into Speed with a save version bump (D-138).
+**Notes for Claude (desktop review, 2026-11-04):** an old asset's Spell Speed points still count toward the Mind base (`GetBaseBody` adds Action Speed and Speed to Body) until B-331b moves everything onto the one `ESubStat::Speed`; `CalculateSpeedWindowPenaltyByType` is OBSOLETE with no caller (Sweep row 32).
 
 ### Q-328 — Which enemy tier does each zone ask for?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-328, cloud) · **Blocks:** —
