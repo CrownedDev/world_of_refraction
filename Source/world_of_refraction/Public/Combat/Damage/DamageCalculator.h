@@ -303,11 +303,4 @@ private:
 
 	/** Get CombatGridSubsystem */
 	UCombatGridSubsystem *GetCombatGridSubsystem() const;
-
-	/** Cached references */
-	UPROPERTY()
-	mutable USkillEffectManager *CachedSkillEffectManager = nullptr;
-
-	UPROPERTY()
-	mutable UCombatGridSubsystem *CachedCombatGridSubsystem = nullptr;
 };

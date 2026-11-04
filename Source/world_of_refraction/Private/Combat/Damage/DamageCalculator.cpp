@@ -412,15 +412,9 @@ UCharacterData *UDamageCalculator::GetCharacterData(AActor *Actor) const
 
 USkillEffectManager *UDamageCalculator::GetSkillEffectManager() const
 {
-	if (!CachedSkillEffectManager)
-	{
-		// SkillEffectManager is a GameInstanceSubsystem like DamageCalculator
-		if (UGameInstance *GI = GetGameInstance())
-		{
-			CachedSkillEffectManager = WoRFight::Get<USkillEffectManager>(GI);
-		}
-	}
-	return CachedSkillEffectManager;
+	// Looked up each time, not cached: it lives on the current world and this calculator outlives
+	// a level change (B-336).
+	return WoRFight::Get<USkillEffectManager>(this);
 }
 
 UBrokenDarknessManager *UDamageCalculator::GetBrokenDarknessManager(AActor *Actor) const
@@ -539,12 +533,5 @@ float UDamageCalculator::GetDamageTakenFactor(float ReduceDamageTakenPercent, fl
 
 UCombatGridSubsystem *UDamageCalculator::GetCombatGridSubsystem() const
 {
-	if (!CachedCombatGridSubsystem)
-	{
-		if (UGameInstance *GI = GetGameInstance())
-		{
-			CachedCombatGridSubsystem = WoRFight::Get<UCombatGridSubsystem>(GI);
-		}
-	}
-	return CachedCombatGridSubsystem;
+	return WoRFight::Get<UCombatGridSubsystem>(this); // per world, not cached (B-336)
 }
