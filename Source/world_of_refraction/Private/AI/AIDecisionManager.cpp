@@ -37,6 +37,7 @@
 #include "Inventory/ItemEffectType.h"
 #include "Combat/TurnManager.h"
 #include "Skills/Definitions/SupportSkillRules.h"
+#include "Skills/Definitions/WorldStatRequirements.h"
 #include "HAL/IConsoleManager.h"
 
 namespace
@@ -935,7 +936,10 @@ int32 UAIDecisionManager::ComputeActionDamageEstimate(AActor *Attacker, AActor *
     Input.bCanCrit = false;
     Input.bWasInfused = InfusionLevel > 0;
     Input.InfusionLevel = InfusionLevel;
-    Input.StatScaling = Skill->StatScaling;
+    if (!WeaponRequirement::IsUnmetFactor(ActionExec->GetSkillRequirementFactor(Attacker, Skill))) // B-326: as ApplyHit
+    {
+        Input.StatScaling = Skill->StatScaling;
+    }
     Input.IgnoreDefensePercent = Skill->IgnoreDefensePercent;
     const FDamageCalculationResult Result = DamageCalc->CalculateDamage(Attacker, Target, Input);
 
@@ -2371,7 +2375,7 @@ int32 UAIDecisionManager::ClampInfusionLevelForHP(AActor *Attacker, UCharacterDa
     }
 
     // Drop the charge until the HP cost is survivable. PreEffEP matches the executor's basis exactly:
-    // BaseEnergyCost x ComputeInfusionCostMultiplier (pre-Efficiency, stat-scaled) x power x tier-gap cost -> WouldKill.
+    // BaseEnergyCost x ComputeInfusionCostMultiplier (pre-Efficiency, the charge level, D-126) x power x tier-gap cost -> WouldKill.
     // Cluster 3b: mirror ApplyCommitCosts' PreEffInfusedEP, which folds BOTH the own-tier power
     // factor and the reciprocal tier-gap cost. Both are level-independent, so resolve once before
     // the loop. Own-tier source matches the real basis: SpellData->Tier for spells, SkillData->Tier
@@ -2383,7 +2387,8 @@ int32 UAIDecisionManager::ClampInfusionLevelForHP(AActor *Attacker, UCharacterDa
                                   : UInventoryComponent::ResolveAbilityTier(Attacker, Action.SkillData);
     const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(OwnTier);
     const float TierGapCostMult = ActionExec->GetTierGapCostMultiplier(Attacker, Action);
-    while (Level > 0)
+    // D-126 (B-334): only L2 pays HP, so the drop stops at the first level that pays none (L1).
+    while (InfusionConstants::LevelPaysHP(Level))
     {
         const int32 PreEffEP = FMath::RoundToInt(
             BaseEnergyCost * ActionExec->ComputeInfusionCostMultiplier(Level, bIsSpell, Comp) * PowerMult * TierGapCostMult);

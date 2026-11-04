@@ -651,15 +651,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrorsLegacy(int32 Index, UInven
     if (Loadout.PrimarySlotType != EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
     {
         // Check weapon is owned
-        bool bFound = false;
-        for (const FWeaponInventoryEntry &Entry : Inventory->Weapons)
-        {
-            if (Entry.Weapon == Loadout.PrimaryWeapon.WeaponEntry.Weapon)
-            {
-                bFound = true;
-                break;
-            }
-        }
+        const bool bFound = Inventory->OwnsWeaponAsset(Loadout.PrimaryWeapon.WeaponEntry.Weapon);
         if (!bFound)
         {
             Errors.Add(TEXT("Primary weapon not in inventory"));
@@ -687,15 +679,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrorsLegacy(int32 Index, UInven
     // Validate primary ring (Generic/Caster)
     if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid())
     {
-        bool bFound = false;
-        for (const FRingInventoryEntry &Entry : Inventory->Rings)
-        {
-            if (Entry.Ring == Loadout.PrimaryRing.RingEntry.Ring)
-            {
-                bFound = true;
-                break;
-            }
-        }
+        const bool bFound = Inventory->OwnsRingAsset(Loadout.PrimaryRing.RingEntry.Ring);
         if (!bFound)
         {
             Errors.Add(TEXT("Primary adapter not in inventory"));
@@ -741,15 +725,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrorsLegacy(int32 Index, UInven
     {
         if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid())
         {
-            bool bFound = false;
-            for (const FWeaponInventoryEntry &Entry : Inventory->Weapons)
-            {
-                if (Entry.Weapon == Loadout.SecondaryWeapon.WeaponEntry.Weapon)
-                {
-                    bFound = true;
-                    break;
-                }
-            }
+            const bool bFound = Inventory->OwnsWeaponAsset(Loadout.SecondaryWeapon.WeaponEntry.Weapon);
             if (!bFound)
             {
                 Errors.Add(TEXT("Secondary weapon not in inventory"));
@@ -765,15 +741,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrorsLegacy(int32 Index, UInven
         {
             if (RingEntry.IsValid())
             {
-                bool bFound = false;
-                for (const FRingInventoryEntry &Entry : Inventory->Rings)
-                {
-                    if (Entry.Ring == RingEntry.RingEntry.Ring)
-                    {
-                        bFound = true;
-                        break;
-                    }
-                }
+                const bool bFound = Inventory->OwnsRingAsset(RingEntry.RingEntry.Ring);
                 if (!bFound)
                 {
                     Errors.Add(TEXT("Adapter in loadout not in inventory"));
@@ -962,13 +930,14 @@ FLoadoutRuleContext ULoadoutComponent::BuildRuleContext(const UInventoryComponen
 
     if (Inventory)
     {
+        // B-312b: owned means in the store's view of this member (OwnsWeaponAsset / OwnsRingAsset), not in its copy.
         Context.OwnsWeapon = [Inventory](const UWeaponData *Weapon)
         {
-            return Inventory->Weapons.ContainsByPredicate([Weapon](const FWeaponInventoryEntry &Entry) { return Entry.Weapon == Weapon; });
+            return Inventory->OwnsWeaponAsset(Weapon);
         };
         Context.OwnsRing = [Inventory](const URingData *Ring)
         {
-            return Inventory->Rings.ContainsByPredicate([Ring](const FRingInventoryEntry &Entry) { return Entry.Ring == Ring; });
+            return Inventory->OwnsRingAsset(Ring);
         };
         Context.KnowsAbility = [Inventory](const UAbilityData *Ability)
         {
@@ -1085,15 +1054,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindingsLegacy(
     // Primary weapon
     if (Loadout.PrimarySlotType != EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
     {
-        bool bFound = false;
-        for (const FWeaponInventoryEntry &Entry : Inventory->Weapons)
-        {
-            if (Entry.Weapon == Loadout.PrimaryWeapon.WeaponEntry.Weapon)
-            {
-                bFound = true;
-                break;
-            }
-        }
+        const bool bFound = Inventory->OwnsWeaponAsset(Loadout.PrimaryWeapon.WeaponEntry.Weapon);
         if (!bFound)
         {
             AddFinding(ELoadoutSlotType::PrimaryWeapon, -1, true, TEXT("Primary weapon not in inventory"));
@@ -1171,15 +1132,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindingsLegacy(
     // Primary ring (Generic/Caster)
     if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid())
     {
-        bool bFound = false;
-        for (const FRingInventoryEntry &Entry : Inventory->Rings)
-        {
-            if (Entry.Ring == Loadout.PrimaryRing.RingEntry.Ring)
-            {
-                bFound = true;
-                break;
-            }
-        }
+        const bool bFound = Inventory->OwnsRingAsset(Loadout.PrimaryRing.RingEntry.Ring);
         if (!bFound)
         {
             AddFinding(ELoadoutSlotType::PrimaryRing, -1, true, TEXT("Primary adapter not in inventory"));
@@ -1217,15 +1170,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindingsLegacy(
     {
         if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid())
         {
-            bool bFound = false;
-            for (const FWeaponInventoryEntry &Entry : Inventory->Weapons)
-            {
-                if (Entry.Weapon == Loadout.SecondaryWeapon.WeaponEntry.Weapon)
-                {
-                    bFound = true;
-                    break;
-                }
-            }
+            const bool bFound = Inventory->OwnsWeaponAsset(Loadout.SecondaryWeapon.WeaponEntry.Weapon);
             if (!bFound)
             {
                 AddFinding(ELoadoutSlotType::SecondaryWeapon, -1, true, TEXT("Secondary weapon not in inventory"));
@@ -1242,15 +1187,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindingsLegacy(
             const FRingLoadoutEntry &RingEntry = Loadout.RingLoadout[i];
             if (RingEntry.IsValid())
             {
-                bool bFound = false;
-                for (const FRingInventoryEntry &Entry : Inventory->Rings)
-                {
-                    if (Entry.Ring == RingEntry.RingEntry.Ring)
-                    {
-                        bFound = true;
-                        break;
-                    }
-                }
+                const bool bFound = Inventory->OwnsRingAsset(RingEntry.RingEntry.Ring);
                 if (!bFound)
                 {
                     AddFinding(ELoadoutSlotType::ResonatorRing, i, true, TEXT("Adapter in loadout not in inventory"));

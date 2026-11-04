@@ -1543,6 +1543,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** (2026-10-28)
 - The Generic typed essence (from dismantling Quartz crystals) is called **Quartz essence** in game (for now).
 - **A: Quartz essence buys Generic spells**, as each element's essence buys its spells (one rule). This replaces the note that Generic spells are priced like abilities with no typed essence (`Resources_Design.md` §5, `EconomySystem.md` cost table). Reality essence keeps its roles: wildcard substitute, the ½ upgrade companion cost, shop rerolls.
+**Changed by D-125 (2026-11-03, B-333):** Quartz essence folds into Elemental Essence; a Generic spell costs Skill + Elemental like any elemental spell (Q-333).
 **Notes for Claude:** `EEssenceType::Generic` stays (append-only); only its display name and the spell-cost rule change. Price Generic spells like elemental ones (same typed-essence amount at tier) in B-269's cluster or a follow-up; update `docs/Rules/05-economy-and-runs.md`.
 
 ### Q-267 — Energy Cost modifier: buff or debuff?
@@ -1652,7 +1653,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
 **Answer (Crown):** an enemy's max HP = its own HP × its rank × its Combat Tier power (D-118). The zone tier no longer adds HP; a harder zone places higher-tier enemies instead. Combat Tier keeps its HP boost.
 **What it changes:** B-186's zone strength on HP (`AEnemyZone::GetTierStrengthMultiplier` in `ABattleGameMode` and the balance sim); zone damage is a separate question (not ruled: keep as is). Note: B-327 found the zone was counted once, not twice (MaxHPBuff percents add); its spec is updated by the job.
-**Notes for Claude:** job B-328.
+**Notes for Claude:** **widened the same day (Crown, via the brain): the zone adds no damage either**; a zone only decides which enemies are placed there, their strength is their Combat Tier. Applied in B-327 (desktop, 2026-11-03): `ABattleGameMode` and `FBalanceSimRunner` pass only the door's shares to `TrialGate::ApplyEnemyStrength`; `AEnemyZone::GetTierStrengthMultiplier` is OBSOLETE (kept for its log line until PIE); `WoR.Trial.ZoneHealthOnce` and `WoR.Trial.EnemyZone` pin it; Q-186 and ER-48 updated. What is left for B-328 is the placement half: harder zones place higher-tier enemies.
 
 ### D-121 — Finish GAS stage 3, then delete the enum effect path; new effects GAS-only (audit §2)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
@@ -1738,6 +1739,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** the trial difficulty sets both enemy damage and the enemy AI tier; a per-encounter AI override stays (D-044). Spell and ability AI share one path, and the AI weights move into `UCombatTuningData`.
 **Notes for Claude:** jobs B-344 (difficulty → AI tier) and B-345 (one path, weights to data).
 
+### Q-344 — Do boss arenas follow the trial difficulty too?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-344, cloud) · **Blocks:** —
+**Question:** boss arenas (`ATrialMapFeature`) were authored Hard by default. Under D-136, do they follow the trial difficulty, or keep their own tier?
+**Options:** **A** follow the trial unless overridden (bosses still harden by phase, B-193); **B** keep each arena's own tier.
+**Recommendation:** A. Hades' Heat and Diablo's difficulty tiers change bosses with everything else, so one setting means one thing; set pieces stay special through their phases.
+**Answer:** A (approved by the reference-backed default). An arena that should stay Hard sets `bOverrideAIDifficulty`.
+**Notes for Claude:** applied in B-344.
+
 ### Q-21-audit — Party control: the deckbuilder's seat rule (audit §21)
 **Status:** ANSWERED (Crown: follow the deckbuilder's rule) · **Raised:** 2026-11-03 (audit §21) · **Blocks:** —
 **Question:** who commands each party member, solo and in co-op?
@@ -1747,6 +1756,64 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** as read above (Crown, 2026-11-03: follow the deckbuilder). Touches pillar 7's "ally AI" and D-026's wording.
 **Notes for Claude:** job B-346.
 
+
+### D-137 — A run loadout is free (audit §22; changes D-021)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §22) · **Blocks:** —
+**Answer (Crown):** you bring whatever fits the D-110 slot budget, free, as Hades does. Players already pay to upgrade gear. Gold is run money for in-run vendors only. B-116 (buying the loadout at run start) is dropped.
+**What it changes:** D-021 and ER-16; Q-314's "every home piece goes on the run until B-116" becomes "the worn loadout within the slot budget goes on the run".
+**Notes for Claude:** job B-347.
+
+### D-138 — One save version while in dev (audit §23)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §23) · **Blocks:** —
+**Answer (Crown):** while in dev there is one save version. `MIN_SUPPORTED` rises to `LATEST`; every old-shape reader (v3 / v4 gear lists, the party pouch and the rest) is deleted; older saves are wiped with a warning (D-060). The 14 `SaveGame`-tagged fields move into `FWoRSaveData` (D-059). From now on a save-format change bumps the version and the minimum together, with no migration code until the first public build.
+**Notes for Claude:** job B-348. The CLAUDE.md Saves rule should carry the note (Crown to approve that edit).
+
+### D-139 — One console naming rule (audit §24)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §24) · **Blocks:** —
+**Answer (Crown):** every console command is `wor.<System>.<Verb>`, with one `Print` per system. Duplicates are removed outright, with no alias period. Every `docs/PIE/*.md` and Architecture doc naming an old command is updated, as is CLAUDE.md's debug-tools section (Crown to approve that edit).
+**Notes for Claude:** job B-349, split by system (≤3 files per commit).
+
+### D-140 — Legacy test actors go now; test-run hygiene (audit §25; changes D-067)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §25) · **Blocks:** —
+**Answer (Crown):** remove `CombatOrchestratorTestActor`, `TurnManagerTestActor`, `SkillEffectManagerTestActor`, `HUDTestActor` and `SkillProjectileTestActor` now, with no PIE gate. Where an actor covers something no spec covers, the spec comes first in the same job. Any actor placed in a map or referenced by a Blueprint is listed for an editor step instead of deleted blind. The GAS parity specs are deleted with the enum path (D-121, B-042g). `test.sh` prints the 10 slowest tests. The quick balance sim runs in the nightly preset only. CLAUDE.md's Tests rule changes (Crown to approve that edit).
+**Notes for Claude:** job B-350; the parity-spec delete rides with B-042g.
+
+### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
+**Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.
+**What it changes:** an enemy's tier-power HP (B-224b) and its level-drop tier (B-223) read its Combat Tier; `UCharacterData::EnemyTier` stays only as the fallback for an actor with no gear and no skills.
+**Defaults taken (reference-backed, Crown may change):** Q-325 (rounding).
+**Notes for Claude:** job B-325 (built 2026-11-03). D-120 / B-327 pair with it: enemy HP = own × rank × Combat Tier, the zone adds nothing. Existing enemy assets whose seed gear has no tier read F until the gear carries one (`EnemyTier` is the fallback only).
+
+### Q-325 — How does the average round to a letter?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-325, cloud) · **Blocks:** —
+**Question:** Combat Tier averages tier steps (F 0 .. S 6). Round to nearest, or down? Which items count?
+**Context:** `Public/Combat/Tier/CombatTier.h`.
+**Options:** **A** round down (C C B is C; B A is B); **B** round to nearest, a half up (B A is A). Counted: the gear that counts (B-306's `ForEachContributingGear`: the adapter in use and the weapon in hand, at their instance tiers), the primary evolution, and every ability and spell the loadout offers, each once.
+**Recommendation:** A. Destiny 2's Power level is the plain average of the equipped items, rounded down ([Destiny wiki](https://www.destinypedia.com/Power)): the next level shows only once it's earned, and one stray high item doesn't lift the whole tier. Counting gear by B-306's rule keeps one answer for "what counts" across stats and tier.
+**Answer:** A (approved by the reference-backed default).
+**Notes for Claude:** applied in B-325 (`feature/B-325-combat-tier`). Skills count at their asset tier (`USkillDataBase::Tier`); a levelled skill instance's tier (`FAbilityInstance` / `FSpellInstance::Tier`) is not read yet: a follow-up if skills level.
+
+### Q-330 — With the per-level pool gone, what bounds an asset's authored sub-stats?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-330, D-123) · **Blocks:** —
+**Question:** the sub-stat pool was 30 + 3 per pillar level, and it was also the check on an authored asset's spread. With pillar levels granting no sub-stat points (D-123), what ceiling does an asset's authored spread get?
+**Options:** A one fixed ceiling at every pillar level: the old 7/7/7 total, 93 (`StatConstants::MAX_AUTHORED_SUBSTAT_POINTS`), the same number the per-point maths already derives from (`CombatConstants::MAX_STAT_POINTS`) / B the old starting 30 for every asset / C no ceiling.
+**Recommendation:** A. In WoW and Expedition 33 a character's base stats are authored per character with a fixed design ceiling and gear adds the rest; no player-spent budget. 93 keeps every existing asset valid and the per-point values unchanged, so nothing moves in play. B would flag every levelled enemy over budget; C drops the authoring check.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it. `GetTotalPool` (the old pool) stays live only as the enemy caliber (WSP per kill, a team's strongest member) until the D-124 sweep gives the caliber its own read.
+
+### Q-334 — What is "the base" in D-126's infusion EP cost, and what does L1 cost?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-334, D-126) · **Blocks:** —
+**Question:** D-126 says the EP cost is the base × the charge level. Today it is base × charge tax (x1.5 / x2.0) × (1 + Raw / Spell Damage above x1.0) × Efficiency × own-tier power × tier-gap cost, and an infused ability's base is x1.5 (D-035). Which factors are "the base", and is L1 x1?
+**Options:** A "the base" is the action's own EP cost, the factors every action pays infused or not (base EP, D-035's x1.5 for an infused ability since D-035 stands, Efficiency, own-tier power, tier gap); the charge level replaces the x1.5 / x2.0 tax and the infusion-only stat surcharge retires; L1 x1, L2 x2 / B as A, but L1 x2 and L2 x3 (each level adds one base on top) / C keep x1.5 / x2.0, drop only the surcharge.
+**Recommendation:** A, Crown's words read literally. Octopath Traveler's Boost (the audit's reference) prices each boost level as one flat step that players read at a glance, and the factors that apply to every action stay where every action has them. Consequence for Crown to check in PIE: an L1 infusion now costs the same EP as no infusion for a spell (and pays no HP, D-126); its price is the source's wear or the ability's D-035 x1.5. If L1 should cost more, B is the change.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
+### Q-335 — When the rolls are deleted, what happens to `bRandomGenerateOnPickup`, which also gates the Quality roll?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-335, D-127) · **Blocks:** —
+**Question:** the same toggle that turns on the per-instance stat / resistance roll also turns on the per-instance Quality roll (`EconomyYield::RollQuality`, `InventoryComponent.cpp` `AddGearEntry`, `EvolutionInventoryComponent.cpp` `AddInstance`). D-127 deletes the rolls and keeps tier + quality.
+**Options:** A keep the toggle; after the sweep it gates only the Quality roll (rename it then, e.g. `bRollQualityOnPickup`, with a redirect) / B delete it with the rolls and always roll Quality on a fresh pickup / C delete it and never roll Quality (always the C placeholder).
+**Recommendation:** A. It keeps D-127 to "nothing changes in play" (assets that opt in keep their Quality roll; the rest keep C), and the change is a delete, not a new rule. Expedition 33 and Hades ship gear with fixed stats per item; how often quality varies is a separate tuning call for the drop tables (TierOnInstance.md).
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
 
 ### Q-321 — Can the shared home chest hold gear, or only items?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
@@ -2159,7 +2226,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **C** A zone swaps in a stronger version of each enemy.
 **Recommendation:** A. Dark Souls and Elden Ring set enemy strength by area and never scale to the player, and players praise how getting stronger shows and how you can wander into a hard area early (Enemies §4 asks for exactly that). Diablo II's fixed area levels work the same way. A few named tiers keep zones comparable and easy to tune. Not lore.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
-**Notes for Claude:** applied (feature/B-186-enemy-zones): `AEnemyZone` (`FEncounterZoneInfo`), `AEnemyZone::FindZoneAt` from `UEncounterComponent`, `UTrialRunSubsystem::PendingZone` (the same transport exception to D-064 as `PendingRank` and `PendingFirstStrike`, moves with them for co-op, D-065), `ABattleGameMode` multiplies it in. The loot pool is not read yet (B-188 chests, B-073 drops).
+**Notes for Claude:** applied (feature/B-186-enemy-zones): `AEnemyZone` (`FEncounterZoneInfo`), `AEnemyZone::FindZoneAt` from `UEncounterComponent`, `UTrialRunSubsystem::PendingZone` (the same transport exception to D-064 as `PendingRank` and `PendingFirstStrike`, moves with them for co-op, D-065), `ABattleGameMode` multiplies it in. The loot pool is not read yet (B-188 chests, B-073 drops). **D-120 (2026-11-03, B-327) changes this:** the zone scales no stats; it only places enemies, whose strength is their own Combat Tier (enemy HP = own x rank x Combat Tier).
 
 ### Q-185 — Placeholder first strike: what counts as a hit, and how long is the head start?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-185) · **Blocks:** — (B-185 shipped with A)
@@ -3099,6 +3166,16 @@ Moved here once applied. Newest first.
 | — | All gameplay logic in C++; BP for layout/visuals only | 2026-10-25 | `analysis/CodebaseReview_2026-10.md` §8 |
 | — | UI: Expedition 33 combat layout; deckbuilder art direction + layouts; gamepad yes; flat panels for now | 2026-10-25 | `Design/UI_ScreenInventory.md`, `Design/UI_DeckbuilderReuse.md` |
 | — | Source art: save what we use (LFS) | 2026-10-25 | `.gitattributes`, `UI_DeckbuilderReuse.md` §4 |
+### Q-333 — Seven balances: the prices D-125 left open
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-333, cloud) · **Blocks:** —
+**Question:** D-125 names the seven balances and which essence pays for what, but not: (1) whether buying a crystal or stone now costs its essence (stones were Prisms-only, and with spells no longer charging pillar essence per scaling grade, Pillar would have no use otherwise); (2) what a spell with no element (None) costs; (3) what replaces the half "Unknown" (Reality) co-cost on every upgrade, now that Reality essence retires; (4) what an evolution's purchase co-cost becomes; (5) conversion of old typed balances.
+**Context:** `Public/Currency/EconomyYield.h` (`GetCrystalEssence`, `SpellHasElement`, `GetElementalCoCost`, `ELEMENTAL_CO_COST_DIVISOR`); `Private/Currency/EconomyService.cpp` (`BuildCartCost`, `TryLevelUpEntry`).
+**Options / as built:** (1) **yes**: a crystal costs Prisms + its essence at tier (`TYPED_ESSENCE_BUY_*`): a gem (Quartz too) Elemental, a stat stone Pillar, an ability stone Skill. (2) **Skill only**, as D-125 rules for a non-elemental ability; Generic counts as elemental (it takes the caster's element). (3) the co-cost becomes **half the step in Elemental, charged only on items with an element** (evolutions; spells with an element). Weapons, adapters and abilities level on Gear / Skill alone. Downgrades still don't refund it. (4) **Elemental at tier + half again** (the old ½ Reality folded into Elemental). An element-agnostic evolution (None, e.g. Quartz) has no element: Prisms only to buy, Gear only to upgrade, and it dismantles into Gear essence (review fix). (5) **none**: the same numbers carry over (the typed ladders become the Elemental / Pillar / Skill ladders) and pre-B-333 saves are wiped (save version 11, D-060), so nothing converts.
+**Recommendation:** as built. Monster Hunter crafting costs zenny plus the material of the item's kind, and Genshin Impact's talent upgrades cost Mora plus an element/region-specific book while weapon levels use generic ore: an element-tied item takes the element material, generic gear doesn't. Elden Ring's weapon upgrades need smithing stones and runes, no element material. That is D-125's "Elemental pays for anything with an element" applied to buying and upgrading.
+**Answer (Crown, 2026-11-03, via the brain):** accept it until B-073 (approved by the reference-backed default): a pre-release build, `wor.Wallet.Add` covers testing, and run drops (B-073) become the essence source. **No starting grant.**
+**Note for Crown:** with (1), gems cost Elemental, and a fresh v11 save starts every balance at 0, so the first gem can only be bought after dismantling something (or with `wor.Wallet.Add` in testing). Say if a starting grant or Prisms-only gems are wanted.
+**Notes for Claude:** applied in B-333. This changes D-105 (Quartz essence now Elemental) and the old "crystals are Prisms-only" note (`EconomySystem.md`). To undo (1), drop the `AddEssence` line in `BuildCartCost`'s crystal branch; to put the co-cost back on every upgrade (3), pass `true` for `bHasElement` in every `TryLevelUpEntry` call. D-094's run drops of "the upgrade co-cost essence" (B-073, not built) now mean Elemental Essence.
+
 ### Q-307 — A broken evolution seat: still an infusion source?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-307) · **Blocks:** —
 **Question:** B-307 makes a broken crystal or evolution push no element (CL-24). A broken adapter crystal is also not offered as a source (Q-163 = B). Should a broken primary evolution likewise stop being offered, or stay offered as an elementless infusion?
@@ -3260,6 +3337,22 @@ Moved here once applied. Newest first.
 **Answer:** A (approved by the reference-backed default). B-325 is unaffected: an enemy's Combat Tier still feeds the same tier-power HP.
 **Notes for Claude:** applied in B-293d (`chore/B-293d-decided-balance`). **For Crown, still open after the re-run:** enemy damage rides tier power (an S weapon is Power 192) but a party member's HP doesn't (gear MaxHP per point is the same at every tier, and D-118 keeps a player's tier statless), so even tier-matched S members fall in about 2 enemy hits against about 3.5 at F. If the next nightly still loses Mid/Late normal fights, that is the lever (enemy damage tier power, or player HP growth), and it is Crown's call.
 
+### D-119 — One flat penalty for an unmet requirement (changes Q-293d (2))
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
+**Answer (Crown):** the requirement penalty is a single penalty, Elden Ring style, not the gradual requirement-gap ladder. Any shortfall below a weapon's requirement, 1 level or 5, gives the weapon part x`REQUIREMENT_UNMET_DAMAGE_FACTOR` = **0.6** and **no pillar scaling** from that weapon; meeting it gives full power, as today. The 0.25 floor and the requirement-gap rungs retire. **Added the same day:** abilities and spells with an unmet requirement **still work** but take the same single penalty (x0.6, no pillar scaling); nothing becomes uncastable.
+**What it changes:** Q-293d (2) (the 0.25 floor), CL-39 / CL-40 / ED-14 / ED-43, BaselineNumbers' requirement lines.
+**Defaults taken (reference-backed, Crown may change):** Q-326.
+**Notes for Claude:** job B-326 (on `chore/B-293d-decided-balance`). The pillar-6 band (35–65%) is not moved.
+
+### Q-326 — D-119's details: what "met" keeps, and what "no pillar scaling" removes from a skill
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-326, cloud) · **Blocks:** —
+**Question:** (1) A met skill used to get the requirement-gap boost for being over (up to x1.40 at −5); does that stay? (2) For a skill, which scaling does "no pillar scaling" remove? (3) Do two unmet pillars stack?
+**Context:** `Private/Combat/Actions/ActionExecutor.cpp` (`GetSkillRequirementFactor`, `ComputeActionStatModifiers` step 4, `ApplyHit`); `Public/Skills/Definitions/WorldStatRequirements.h`.
+**Options / as built:** (1) **kept**: "met gives full power, as today", so a met skill still reads the ladder's met side (1.00 .. 1.40); weapons still get no bonus for being over (Q-146c). (2) **both** of a skill's scalings: its requirement-gap pillar percents and its authored `StatScaling` terms; the skill part is then x0.6. (3) **no**: one unmet pillar is enough, more don't stack.
+**Recommendation:** as built. Elden Ring: under any requirement the weapon or spell still works, its attack drops by a flat 40% and its attribute scaling is lost; one stat short is enough and more stats short don't add to it; over the requirement, scaling is what grows ([Fextralife](https://eldenring.wiki.fextralife.com/Attributes)).
+**Answer:** as built (approved by the reference-backed default).
+**Notes for Claude:** applied in B-326 (`chore/B-326-flat-requirement-penalty`). The ladder's under rungs (+1..+5) stay in code, unread, until Crown's PIE pass. `WEAPON_REQ_FACTOR_MIN` / `WeaponReqFactorMin` likewise.
+
 ### Q-223 — Level drops: the numbers, when you place them, and the save
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-223) · **Blocks:** —
 **Question:** D-102 sets the shape (a chance from normal enemies, guaranteed levels from a mini-boss, you choose the pillar) but not the odds, how many a mini-boss gives, when you place a drop, or whether a run's levels are saved.
@@ -3278,3 +3371,11 @@ Moved here once applied. Newest first.
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-223b; the odds are tuning rows (`LevelDropChance`, `MiniBossLevels`) if the nightly sim shows otherwise. A fallen member still gets its roll after a win (it was in the fight).
 
+### Q-042i-b — B-042i: what is left once the mirror builds a trigger's GE in the same call?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-042i, desktop) · **Blocks:** —
+**Question:** B-042i says a trigger's payload "fires through the spec builder onto the ASC, not into `FActiveSkillEffect`". Since B-042h the mirror binds `OnEffectApplied`, so every `ApplyEffect` (a defender trigger's payload, a starting effect, a cast) already builds its GE through `FWoREffectSpecBuilder` in the same call; the stored copy is read-only under GAS. What does B-042i still do?
+**Context:** `Private/Skills/Effects/SkillEffectManager.cpp` (`OnDefenseResolvedHandler`, `ApplyEquipmentEffects`, `ApplyEffect`); `Private/GAS/WoREffectMirrorComponent.cpp` (`BindSources`, `SyncMirror`); `Private/Tests/GASTriggerParitySpec.cpp`.
+**Options / as built:** **A** B-042i proves the path with parity specs (`WoR.GAS.TriggerParity`: a defender trigger's payload and a starting effect land as one GE of their identity on both paths, a re-fire replaces, a removal ends the GE) and changes no code; the "no stored copy" half is B-042g's, when the enum store goes. **B** write a second apply path that skips the store now (a GAS-only effect the panel, AI and payouts can't see until B-042g).
+**Recommendation:** A. Fowler's ParallelChange: readers moved (B-042ye), payouts moved (B-042yd); the writer's copy is removed last, in one step (B-042g), not kept half-alive. Tag conditions already read GAS tags (B-042x).
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-042i. B-042g deletes the stored copies and the mirror's "Missing" rebuild with them; the `TODO` at `FWoREffectSpecBuilder::Apply` is retagged to B-042g. No authorable "if the target is Burning" condition exists in `ESkillTrigger`: B-042x's tag reads are the hit-time checks (`WoR.GAS.TagReads`), so this spec has no tag-condition case.
