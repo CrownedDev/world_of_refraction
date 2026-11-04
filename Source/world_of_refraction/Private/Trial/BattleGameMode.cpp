@@ -723,7 +723,7 @@ void ABattleGameMode::ReturnToTrial()
         if (bWipeEndsRun)
         {
             UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] The run is over (D-155): back to the hub"));
-            TrialRun->ExitTrial(); // B-362: 3 main-boss losses or 5 wipes
+            TrialRun->ExitTrialNextTick(); // B-362: 3 main-boss losses or 5 wipes; deferred like ExitEncounter (mid-teardown)
         }
         else
         {

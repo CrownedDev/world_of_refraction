@@ -206,6 +206,18 @@ void UTrialRunSubsystem::ExitTrial()
     TravelTo(HubLevel);
 }
 
+void UTrialRunSubsystem::ExitTrialNextTick()
+{
+    UWorld *World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+    if (HubLevel.IsNull() || !World)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[TrialRun] ExitTrialNextTick: no HubLevel (DefaultGame.ini) or world - the run cannot end; returning to the trial instead."));
+        ExitEncounter();
+        return;
+    }
+    World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]() { ExitTrial(); }));
+}
+
 // ==================== ENCOUNTER (T-C1) ====================
 
 void UTrialRunSubsystem::EnterEncounter(UTrialData *Trial, const TArray<UCharacterData *> &BattleParty,

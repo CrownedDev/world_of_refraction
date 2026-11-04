@@ -89,6 +89,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Trial")
     void ExitTrial();
 
+    /** B-362: ExitTrial for a call made mid-teardown (from the combat result broadcast): runs it one tick later, as
+     *  ExitEncounter defers its OpenLevel. With no HubLevel configured it logs an error and falls back to ExitEncounter
+     *  (the trial), so the player is never stranded in the battle level. */
+    void ExitTrialNextTick();
+
     // ==================== ENCOUNTER (T-C1) ====================
 
     /** Stash the encounter roster and swap to Trial's EncounterLevel.
