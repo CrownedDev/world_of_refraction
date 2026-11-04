@@ -3,6 +3,7 @@
 // PLACEHOLDER UI (B-323, D-117): give a weapon, adapter or pouch stack from one of your characters to
 // another. Plain buttons built in C++, opened with the console command wor.UI.Give (Backlog rule 4).
 // Replaced by the CommonUI inventory screen (D-024). Rules and refusals: WoRGive (Inventory/GearGive.h).
+// B-316b: the giver's learned skills are choices too; "Ask for it" has the receiver request the chosen skill.
 
 #pragma once
 
@@ -42,14 +43,16 @@ private:
 		FText Name;
 	};
 
-	/** One thing the giver could give: a piece of gear (GearID) or a pouch stack (Item, Count). */
+	/** One thing the giver could give: a piece of gear (GearID), a pouch stack (Item, Count) or a skill (B-316b). */
 	struct FGiveChoice
 	{
 		FGuid GearID;
 		FCrystalId Item;
 		int32 Count = 0;
+		TWeakObjectPtr<const UObject> Skill;
 		FText Label;
 		bool IsGear() const { return GearID.IsValid(); }
+		bool IsSkill() const { return Skill.IsValid(); }
 	};
 
 	TArray<FMember> GatherMembers() const;
@@ -77,6 +80,10 @@ private:
 	UFUNCTION()
 	void HandleGiveStackClicked();
 
+	/** B-316b: the receiver asks the giver for the chosen skill (WoRGive::TryRequestSkill). */
+	UFUNCTION()
+	void HandleRequestClicked();
+
 	UFUNCTION()
 	void HandleCloseClicked();
 
@@ -103,4 +110,7 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UButton> GiveStackButton;
+
+	UPROPERTY()
+	TObjectPtr<UButton> RequestButton;
 };
