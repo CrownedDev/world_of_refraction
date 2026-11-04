@@ -3869,6 +3869,7 @@ Moved here once applied. Newest first.
 **Options:** **A** only the brought loadout + run finds (a draw filter during a run; a run-only recruit is given brought or found gear). **B** keep today's whole armoury; a home piece changed during the run joins the run then and resets at run end.
 **Recommendation:** A, as Hades does (D-137's own model: you pick your weapon before the run and can't change to an unbrought one mid-run; Dead Cells likewise only offers what you find). B-347 ships B's safety net now (a touched home piece joins the run and resets), so nothing leaks either way; the draw filter and the recruit's gear rule are a new job, **B-347b**, since they change `DrawSharedGear` and the recruit path (Q-076).
 **Answer:** **A**, by the reference-backed default (2026-11-03); built in B-347b. Crown may change it.
+**Notes for Claude (B-347b, desktop 2026-11-04):** `UPoolSubsystem::IsInRunView` filters the draw and the owns-checks (so loadout validation refuses a loadout using a piece left home). Defaults taken with it, for Crown to change: (1) a custom loadout naming a piece left home stays as it was stored, and edits to it during the run are not kept (it can't be equipped in the run anyway); (2) the home chest can't be used while a run is open (Hades' House storage is only at the House). Rule ER-64.
 
 ### Q-314b — Selling or dismantling a home piece during a run
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-314 review) · **Blocks:** —
