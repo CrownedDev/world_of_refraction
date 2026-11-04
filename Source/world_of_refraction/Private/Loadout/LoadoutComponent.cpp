@@ -1908,7 +1908,7 @@ bool ULoadoutComponent::CanUseCarriedItem(const FCrystalId &Id) const
 
 bool ULoadoutComponent::UseCarriedItem(const FCrystalId &Id)
 {
-    if (!bIsReadyForBattle || !CanUseCarriedItem(Id))
+    if (!CanUseCarriedItem(Id))
     {
         return false;
     }

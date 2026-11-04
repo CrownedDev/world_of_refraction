@@ -2805,8 +2805,9 @@ FActionResult UActionExecutor::ExecuteItem(
 	// === Find and use item slot in LoadoutComponent ===
 	ULoadoutComponent *Loadout = GetLoadoutComponent(User);
 	int32 ItemSlotIndex = -1;
-	// B-313 (D-111, D-117): a party member's item comes from its own pouch.
-	const bool bFromPouch = Loadout && Loadout->IsReadyForBattle() && Loadout->UsesPouchItems();
+	// B-313 (D-111, D-117): a party member's item comes from its own pouch, ready for battle or not:
+	// the pouch is the only ledger, so an unready member must not use an item for free.
+	const bool bFromPouch = Loadout && Loadout->UsesPouchItems();
 
 	if (bFromPouch)
 	{
