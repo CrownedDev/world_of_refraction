@@ -752,9 +752,12 @@ namespace EffectText
         }
 
         // ---- defence ----
-        case ESkillEffectType::DamageReflect: return ReflectBody(P, Side, FText::GetEmpty());
+        // B-042j3: a reflect's authored element scopes it ("reflect 50% of the Fire damage you take").
+        case ESkillEffectType::DamageReflect: return ReflectBody(P, Side, ElementPrefix(P.Element));
         case ESkillEffectType::ReflectPhysicalDamage: return ReflectBody(P, Side, LOCTEXT("Kind_Physical", "Physical "));
-        case ESkillEffectType::ReflectSpellDamage: return ReflectBody(P, Side, LOCTEXT("Kind_Refraction", "Refraction "));
+        case ESkillEffectType::ReflectSpellDamage:
+            return ReflectBody(P, Side, P.Element != ESpellElement::None && P.Element != ESpellElement::Generic
+                                            ? ElementPrefix(P.Element) : LOCTEXT("Kind_Refraction", "Refraction "));
         case ESkillEffectType::AbsorbDamage:
             return Side.bSelf ? FText::Format(LOCTEXT("Absorb_Self", "negate the next {0} damage you take{1}"), Amount(P), Span(P))
                               : FText::Format(LOCTEXT("Absorb_Other", "negate the next {0} damage {1} {2}{3}"), Amount(P), Side.Noun,

@@ -303,6 +303,14 @@ enum class ESkillEffectType : uint8
  */
 namespace SkillEffectClassification
 {
+    /** B-042j3 (D-092): the reflect family, one GE (UWoRGE_Reflect) in three kinds; a reflect's authored Element scopes it
+     *  to hits of that element (none: every hit of its kind), the way a Ward's does. */
+    inline bool IsReflect(ESkillEffectType Type)
+    {
+        return Type == ESkillEffectType::DamageReflect || Type == ESkillEffectType::ReflectPhysicalDamage
+               || Type == ESkillEffectType::ReflectSpellDamage;
+    }
+
     /** B-042j2: an absorber payload (Barrier / Shield / Ward), applied as a charge, never as a lasting effect. */
     inline bool IsNegate(ESkillEffectType Type)
     {
