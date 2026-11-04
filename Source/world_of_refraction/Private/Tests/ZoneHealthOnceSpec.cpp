@@ -42,11 +42,17 @@ void FZoneHealthOnceSpec::Define()
 	It("asks each zone for a higher enemy tier than the one before (B-328, D-120, Q-328)", [this]()
 	{
 		const int32 TopZone = EnemyZoneConstants::MAX_ZONE_TIER;
-		for (int32 Zone = 1; Zone <= TopZone; ++Zone)
+		const EItemTier Guide[] = {EItemTier::F_Tier, EItemTier::D_Tier, EItemTier::C_Tier, EItemTier::B_Tier, EItemTier::A_Tier}; // Q-328 A
+		for (int32 Zone = 0; Zone <= TopZone; ++Zone)
 		{
-			TestTrue(FString::Printf(TEXT("zone %d asks for a higher tier than zone %d"), Zone, Zone - 1),
-					 AEnemyZone::GetEnemyTierGuide(Zone) > AEnemyZone::GetEnemyTierGuide(Zone - 1));
+			TestEqual(FString::Printf(TEXT("zone %d's guide tier"), Zone), AEnemyZone::GetEnemyTierGuide(Zone), Guide[Zone]);
+			if (Zone > 0)
+			{
+				TestTrue(FString::Printf(TEXT("zone %d asks for a higher tier than zone %d"), Zone, Zone - 1),
+						 AEnemyZone::GetEnemyTierGuide(Zone) > AEnemyZone::GetEnemyTierGuide(Zone - 1));
+			}
 		}
+		TestEqual(TEXT("past the top zone: clamped"), AEnemyZone::GetEnemyTierGuide(TopZone + 1), Guide[TopZone]);
 	});
 
 	It("gives a zone-4 C boss base x rank x tier HP: the zone changes no stats (D-120)", [this]()
