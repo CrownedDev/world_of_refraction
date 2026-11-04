@@ -147,15 +147,18 @@ float FWorldStatRequirements::GetWeaponRequirementFactor(const UCharacterData *C
 
 float FWorldStatRequirements::GetWeaponRequirementFactor(const FWorldPillarLevels &Levels) const
 {
-    // B-224: the floor is tuning data (C++ fallback WEAPON_REQ_FACTOR_MIN).
-    const float Floor = WoRTuning::Get().WeaponReqFactorMin;
-    auto PillarFactor = [Floor](int32 Required, int32 CharLevel)
-    {
-        return FMath::Clamp(TierGapDamage::GetRequirementGapMultiplier(Required - CharLevel), Floor,
-                            WeaponRequirement::WEAPON_REQ_FACTOR_MAX);
-    };
-    return FMath::Min3(PillarFactor(RequiredWorldMind, Levels.Mind), PillarFactor(RequiredWorldBody, Levels.Body),
-                       PillarFactor(RequiredWorldSpirit, Levels.Spirit));
+    // B-326 (D-119): one penalty for any shortfall (was the requirement-gap ladder with a floor, B-224 / Q-293d).
+    return GetRequirementFactor(Levels);
+}
+
+float FWorldStatRequirements::GetRequirementFactor(const FWorldPillarLevels &Levels) const
+{
+    return IsMetBy(Levels) ? WeaponRequirement::WEAPON_REQ_FACTOR_MAX : WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR;
+}
+
+bool FWorldStatRequirements::IsMetBy(const FWorldPillarLevels &Levels) const
+{
+    return Levels.Mind >= RequiredWorldMind && Levels.Body >= RequiredWorldBody && Levels.Spirit >= RequiredWorldSpirit;
 }
 
 void FWorldStatRequirements::GetRequirementGapPillarPercents(const FWorldPillarLevels &Levels, float &OutMindPct,

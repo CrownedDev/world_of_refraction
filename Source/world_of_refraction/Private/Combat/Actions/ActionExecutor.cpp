@@ -559,6 +559,16 @@ namespace
 		}));
 }
 
+float UActionExecutor::GetSkillRequirementFactor(AActor *Actor, const USkillDataBase *Skill) const
+{
+	const UCharacterData *UserData = GetCharacterData(Actor);
+	if (!Skill || !UserData)
+	{
+		return WeaponRequirement::WEAPON_REQ_FACTOR_MAX;
+	}
+	return Skill->Requirements.GetRequirementFactor(GetLiveWorldLevels(Actor, *UserData));
+}
+
 float UActionExecutor::GetWeaponRequirementFactor(AActor *Actor, const FAction &Action) const
 {
 	if (Action.ActionType == EActionType::Spell)
@@ -672,6 +682,14 @@ FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FA
 	const float TierGap = bLog ? ResolveTierGapMultiplier(User, Action, Skill->Name) : GetTierGapDamageMultiplier(User, Action);
 	Damage = FMath::RoundToInt(Damage * TierGap);
 	Damage = FMath::RoundToInt(Damage * TierPowerScaling::GetTierPowerMultiplier(Skill->Tier));
+	// B-326 (D-119): an unmet skill requirement cuts the skill part by the one flat factor (the skill still works).
+	const float SkillRequirementFactor = GetSkillRequirementFactor(User, Skill);
+	Damage = FMath::RoundToInt(Damage * SkillRequirementFactor);
+	if (bLog && WeaponRequirement::IsUnmetFactor(SkillRequirementFactor))
+	{
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[Requirement] %s: requirement unmet, skill part x%.2f, no scaling"), *Skill->Name,
+			   SkillRequirementFactor);
+	}
 
 	// B-220 (D-101, BaselineNumbers.md "Decided"): the weapon part adds to the skill part; the requirement factor
 	// (D-082) cuts the weapon part only. A weapon with Power 0 adds nothing and its requirement cuts nothing.
@@ -1878,6 +1896,7 @@ void UActionExecutor::EnsureResultResolved(AActor *Defender)
 
 	Ctx->ResolvedDefenseType = Result.DefenseType;
 	Ctx->ResolvedFinalDamage = Result.FinalDamage;
+	Ctx->ResolvedGuardFactor = State.BaseDamage > 0 ? static_cast<float>(Result.FinalDamage) / State.BaseDamage : 1.0f; // B-293d
 	Ctx->bResolvedSuccess = Result.bSuccess;
 	Ctx->bResultResolved = true;
 
@@ -1991,6 +2010,7 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 	// for melee the tail is empty (ImpactsLanded==HitCount) so the overwrite is harmless.
 	Ctx->ResolvedDefenseType = Result.DefenseType;
 	Ctx->ResolvedFinalDamage = Result.FinalDamage;
+	Ctx->ResolvedGuardFactor = BaseSlice > 0 ? static_cast<float>(Result.FinalDamage) / BaseSlice : 1.0f; // B-293d
 	Ctx->bResolvedSuccess = Result.bSuccess;
 	Ctx->bResolvedPerfect = Match.bPerfect;
 	Ctx->bResultResolved = true;
@@ -2125,6 +2145,7 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 	Input.Target = Target;
 	Input.ActionType = Context.ActionType;
 	Input.BaseDamage = Context.bIgnoreDamage ? 0 : ImpactDamage; // B1: per-hit no-damage moment
+	Input.GuardFactor = Context.ResolvedGuardFactor; // B-293d: the damage floor measures from the unguarded hit
 	Input.bCanCrit = Context.bCanCrit;
 	Input.Element = Context.Element;
 	Input.InfusionLevel = Context.InfusionLevel;
@@ -2181,6 +2202,7 @@ void UActionExecutor::ApplyDamageAfterDefense(
 	{
 		Ctx.ResolvedDefenseType = DefenseResult.DefenseType;
 		Ctx.ResolvedFinalDamage = DefenseResult.FinalDamage;
+		Ctx.ResolvedGuardFactor = Ctx.BaseDamage > 0 ? static_cast<float>(DefenseResult.FinalDamage) / Ctx.BaseDamage : 1.0f; // B-293d
 		Ctx.bResolvedSuccess = DefenseResult.bSuccess;
 		Ctx.bResultResolved = true;
 	}
@@ -2999,6 +3021,7 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 		{
 			FDamageCalculationInput DmgInput;
 			DmgInput.BaseDamage = Input.BaseDamage;
+			DmgInput.GuardFactor = Input.GuardFactor;
 			DmgInput.ActionType = Input.ActionType;
 			DmgInput.Element = Input.Element;
 			DmgInput.bCanCrit = Input.bCanCrit;
@@ -3011,7 +3034,15 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			// un-authored skill) → no tier bonus → byte-identical to pre-b2.
 			if (const USkillDataBase *ChainSkillData = GetCurrentSkillData())
 			{
-				DmgInput.StatScaling = ChainSkillData->StatScaling;
+				// B-326 (D-119): an unmet requirement gives no scaling. Judged only for the actor using the skill: a
+				// reaction or counter hit by someone else keeps the skill's scaling as before.
+				const AActor *SkillUser = CurrentExecutionContext.IsSet() ? CurrentExecutionContext->Executor.Get() : nullptr;
+				const bool bJudgeRequirement = !SkillUser || SkillUser == Input.Attacker;
+				if (!bJudgeRequirement ||
+					!WeaponRequirement::IsUnmetFactor(GetSkillRequirementFactor(Input.Attacker, ChainSkillData)))
+				{
+					DmgInput.StatScaling = ChainSkillData->StatScaling;
+				}
 				DmgInput.IgnoreDefensePercent = ChainSkillData->IgnoreDefensePercent;
 			}
 
@@ -5642,7 +5673,9 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 	const USkillDataBase *ReqSkill = (Action.ActionType == EActionType::Spell)
 										 ? Action.SpellData
 										 : ResolveActionSkill(Action);
-	if (ReqSkill && CharComp->CharacterData)
+	// B-326 (D-119): an unmet requirement gives no pillar scaling (the flat factor cuts the skill part instead);
+	// a met one keeps today's over-requirement boost.
+	if (ReqSkill && CharComp->CharacterData && ReqSkill->Requirements.IsMetBy(FWorldPillarLevels::FromComponent(*CharComp)))
 	{
 		float MindPct = 0.0f, BodyPct = 0.0f, SpiritPct = 0.0f;
 		ReqSkill->Requirements.GetRequirementGapPillarPercents(FWorldPillarLevels::FromComponent(*CharComp), MindPct, BodyPct,

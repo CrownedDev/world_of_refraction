@@ -3,6 +3,7 @@
 #include "Player/WoRPlayerState.h"
 
 #include "Character/Forms/CharacterFormSubsystem.h"
+#include "Character/Outfit/OutfitComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Currency/CurrencyComponent.h"
 #include "Engine/GameInstance.h"
@@ -51,6 +52,9 @@ void AWoRPlayerState::FollowLocalForm()
 	if (UCharacterFormSubsystem *Forms = GI && IsLocalPlayerWallet() ? GI->GetSubsystem<UCharacterFormSubsystem>() : nullptr)
 	{
 		Forms->OnWornFormChanged.AddUniqueDynamic(this, &AWoRPlayerState::HandleLocalFormChanged);
+		// B-279c: the outfit follows the local player's current set. // TODO: co-op replicates it (B-228+).
+		Forms->OnOutfitChanged.RemoveAll(this);
+		Forms->OnOutfitChanged.AddUObject(this, &AWoRPlayerState::ApplyFormLook);
 		HandleLocalFormChanged(Forms->GetWornForm());
 	}
 }
@@ -65,6 +69,7 @@ void AWoRPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (UCharacterFormSubsystem *Forms = GI ? GI->GetSubsystem<UCharacterFormSubsystem>() : nullptr)
 	{
 		Forms->OnWornFormChanged.RemoveDynamic(this, &AWoRPlayerState::HandleLocalFormChanged);
+		Forms->OnOutfitChanged.RemoveAll(this);
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -136,8 +141,17 @@ void AWoRPlayerState::ApplyFormLook()
 {
 	const ACharacter *Character = Cast<ACharacter>(GetPawn());
 	USkeletalMeshComponent *Mesh = Character ? Character->GetMesh() : nullptr;
-	// The default look leaves an authored pawn alone until this PlayerState has dressed it.
-	if (!Mesh || (!WornForm && BaseForm == EPlayerBaseForm::Manny && DressedPawn.Get() != Character))
+	// The default look leaves an authored pawn alone until this PlayerState has dressed it (unless an outfit is worn).
+	const UGameInstance *OutfitGI = GetGameInstance();
+	const UCharacterFormSubsystem *LocalForms = OutfitGI && IsLocalPlayerWallet() ? OutfitGI->GetSubsystem<UCharacterFormSubsystem>() : nullptr;
+	// TODO: co-op (D-103): a remote player's outfit isn't known here, so its pawn is stripped; replicate the set.
+	const bool bWearsOutfit = LocalForms && !LocalForms->GetCurrentOutfit().IsEmpty();
+	// An outfit emptied (the last piece cleared, a save without one) takes its meshes off, even on the default look.
+	if (UOutfitComponent *Worn = Mesh && !bWearsOutfit && Character ? Character->FindComponentByClass<UOutfitComponent>() : nullptr)
+	{
+		Worn->ApplyOutfit(FOutfitSet(), Mesh);
+	}
+	if (!Mesh || (!WornForm && BaseForm == EPlayerBaseForm::Manny && DressedPawn.Get() != Character && !bWearsOutfit))
 	{
 		return;
 	}
@@ -159,6 +173,19 @@ void AWoRPlayerState::ApplyFormLook()
 	}
 	DressedPawn = Character;
 	UE_LOG(LogWoR, Log, TEXT("[CharacterForms] %s dressed as %s"), *GetNameSafe(Character), *GetNameSafe(Mesh->GetSkeletalMeshAsset()));
+	// B-279c: the local player's current outfit over the body (Leader Pose). // TODO: co-op guests read it replicated.
+	if (bWearsOutfit)
+	{
+		AActor *Pawn = const_cast<ACharacter *>(Character);
+		UOutfitComponent *Outfit = Pawn->FindComponentByClass<UOutfitComponent>();
+		if (!Outfit)
+		{
+			Outfit = NewObject<UOutfitComponent>(Pawn);
+			Pawn->AddInstanceComponent(Outfit);
+			Outfit->RegisterComponent();
+		}
+		Outfit->ApplyOutfit(LocalForms->GetCurrentOutfit(), Mesh);
+	}
 }
 
 bool AWoRPlayerState::IsLocalPlayerWallet() const
