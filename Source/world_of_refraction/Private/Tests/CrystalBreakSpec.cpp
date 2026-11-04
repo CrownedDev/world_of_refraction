@@ -105,7 +105,7 @@ BEGIN_DEFINE_SPEC(FCrystalBreakSpec, "WoR.Durability.CrystalBreak",
 
 	int32 GemEssence() const
 	{
-		return Currency->GetEssenceType(EconomyYield::ResolveEssenceType(CRYSTAL_BREAK_GEM));
+		return Currency->GetBalance(EconomyYield::GetCrystalEssence(CRYSTAL_BREAK_GEM.Type)); // B-333: Elemental
 	}
 END_DEFINE_SPEC(FCrystalBreakSpec)
 
@@ -134,7 +134,7 @@ void FCrystalBreakSpec::Define()
 		TestEqual(TEXT("one broke"), CrystalBreak::DestroyBrokenOn(Actor), 1);
 		TestTrue(TEXT("weapon socket empty"), Loadout->GetCrystalEntryByHolder(Weapon).IsEmpty());
 		TestFalse(TEXT("ring crystal kept"), Loadout->GetCrystalEntryByHolder(Ring).IsEmpty());
-		TestEqual(TEXT("typed essence at the crystal curve"), GemEssence(),
+		TestEqual(TEXT("Elemental essence at the crystal curve"), GemEssence(),
 				  EconomyYield::GetTypedEssenceYieldForTier(CRYSTAL_BREAK_GEM.Tier));
 	});
 
@@ -143,7 +143,7 @@ void FCrystalBreakSpec::Define()
 		Spawn(CRYSTAL_BREAK_INTACT_DURABILITY, CRYSTAL_BREAK_BROKEN_DURABILITY);
 		TestEqual(TEXT("one broke"), CrystalBreak::DestroyBrokenOn(Actor), 1);
 		TestTrue(TEXT("ring socket empty"), Loadout->GetCrystalEntryByHolder(Ring).IsEmpty());
-		TestEqual(TEXT("typed essence at the crystal curve"), GemEssence(),
+		TestEqual(TEXT("Elemental essence at the crystal curve"), GemEssence(),
 				  EconomyYield::GetTypedEssenceYieldForTier(CRYSTAL_BREAK_GEM.Tier));
 		TestFalse(TEXT("weapon crystal kept"), Loadout->GetCrystalEntryByHolder(Weapon).IsEmpty());
 	});
@@ -160,14 +160,14 @@ void FCrystalBreakSpec::Define()
 	{
 		Spawn(CRYSTAL_BREAK_INTACT_DURABILITY, CRYSTAL_BREAK_INTACT_DURABILITY);
 		Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryWeapon.WeaponEntry.AttachedItem = CrystalBreakBrokenFusion();
-		const int32 StoneEssenceBefore = Currency->GetEssenceType(EconomyYield::ResolveEssenceType(CRYSTAL_BREAK_FUSION_STONE));
+		const int32 StoneEssenceBefore = Currency->GetBalance(EconomyYield::GetCrystalEssence(CRYSTAL_BREAK_FUSION_STONE.Type));
 		TestEqual(TEXT("one broke"), CrystalBreak::DestroyBrokenOn(Actor), 1);
 		TestTrue(TEXT("weapon socket empty"), Loadout->GetCrystalEntryByHolder(Weapon).IsEmpty());
 		const int32 HalfYield = FMath::FloorToInt(EconomyYield::GetTypedEssenceYieldForTier(CRYSTAL_BREAK_FUSION_GEM.Tier)
 												 * EconomyYield::Constants::FUSION_BREAK_ESSENCE_FRACTION);
 		TestTrue(TEXT("the gem half is worth something"), HalfYield > 0);
-		TestEqual(TEXT("gem half pays half"), Currency->GetEssenceType(EconomyYield::ResolveEssenceType(CRYSTAL_BREAK_FUSION_GEM)), HalfYield);
-		TestEqual(TEXT("stone half pays nothing"), Currency->GetEssenceType(EconomyYield::ResolveEssenceType(CRYSTAL_BREAK_FUSION_STONE)), StoneEssenceBefore);
+		TestEqual(TEXT("gem half pays half"), Currency->GetBalance(EconomyYield::GetCrystalEssence(CRYSTAL_BREAK_FUSION_GEM.Type)), HalfYield);
+		TestEqual(TEXT("stone half pays nothing"), Currency->GetBalance(EconomyYield::GetCrystalEssence(CRYSTAL_BREAK_FUSION_STONE.Type)), StoneEssenceBefore);
 	});
 
 	It("keeps a broken evolution: equipment is never lost to wear (Q-159)", [this]()

@@ -20,6 +20,8 @@ class UEquipmentGenerator : public UInterface
     GENERATED_BODY()
 };
 
+/** OBSOLETE (B-335, D-127; delete in the D-124 sweep): the preview-roll interface
+ *  (per-instance random rolls retire; gear keeps tier + quality). Only UEquipmentDataBase implements it. */
 class IEquipmentGenerator
 {
     GENERATED_BODY()

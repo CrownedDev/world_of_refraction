@@ -241,7 +241,8 @@ void ABossArenaTrigger::Interact(APawn * /*Pawn*/)
 	TrialRun->SetPendingEnemyRanks({}); // B-224b: no stale list from an earlier fight; the boss takes the fight's rank
 	TrialRun->SetPendingFirstStrike(EFirstStrike::None);
 	TrialRun->SetPendingZone(AEnemyZone::FindZoneAt(GetWorld(), GetActorLocation()));
-	TrialRun->EnterEncounter(TrialRun->GetActiveTrial(), BattleParty, {Boss}, Difficulty, EEncounterRank::Boss);
+	const EAIDifficulty BossAI = TrialGate::ResolveEncounterAIDifficulty(TrialRun->GetTrialDifficulty(), bOverrideAIDifficulty, Difficulty);
+	TrialRun->EnterEncounter(TrialRun->GetActiveTrial(), BattleParty, {Boss}, BossAI, EEncounterRank::Boss);
 	if (!TrialRun->HasPendingEncounter())
 	{
 		TrialRun->SetPendingEncounterSources({});

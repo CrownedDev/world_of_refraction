@@ -16,6 +16,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "Net/UnrealNetwork.h"
 #include "WoRLog.h"
 
 namespace
@@ -68,6 +69,19 @@ bool FWoRMirroredEffect::Matches(const FWoRMirroredEffect &Other) const
 UWoREffectMirrorComponent::UWoREffectMirrorComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	SetIsReplicatedByDefault(true); // B-318: the held-effects snapshot reaches co-op guests
+}
+
+void UWoREffectMirrorComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(UWoREffectMirrorComponent, HeldSnapshot);
+	DOREPLIFETIME(UWoREffectMirrorComponent, bServerReadsFromGAS);
+}
+
+void UWoREffectMirrorComponent::OnRep_HeldSnapshot()
+{
+	OnHeldSnapshotChanged.Broadcast(GetOwner());
 }
 
 bool UWoREffectMirrorComponent::ReadsFromGAS()
@@ -191,6 +205,9 @@ void UWoREffectMirrorComponent::SyncMirror()
 	}
 	Mirrored = MoveTemp(Kept);
 	SyncedFingerprint = GetSyncFingerprint();
+	// B-318: the read a client can't make itself, kept for replication (empty while the enum path reads).
+	bServerReadsFromGAS = ReadsFromGAS();
+	HeldSnapshot = bServerReadsFromGAS ? BuildHeld(SEM->GetActiveEffects(Owner)) : TArray<FActiveSkillEffect>();
 
 	if (bResyncRequested)
 	{
@@ -257,13 +274,33 @@ int32 UWoREffectMirrorComponent::GetTrackedTurnsLeft(const FActiveSkillEffect &E
 
 TArray<FActiveSkillEffect> UWoREffectMirrorComponent::ReadHeldEffects(const TArray<FActiveSkillEffect> &Stored)
 {
+	// B-318 (Q-318): a client reads the server's GAS read, replicated; its own stored list isn't the truth.
+	if (GetOwner() && !GetOwner()->HasAuthority())
+	{
+		if (ReadsFromGAS() != bServerReadsFromGAS)
+		{
+			UE_LOG(LogWoREffects, Verbose, TEXT("[EffectMirror] %s: this client's wor.Effects.UseGAS differs from the server's; following the server"),
+				   *GetNameSafe(GetOwner()));
+		}
+		return bServerReadsFromGAS ? HeldSnapshot : Stored;
+	}
 	UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
 	// Mid-sync, Mirrored is half-updated: the stored list is the safe answer.
-	if (!ASC || !GetOwner()->HasAuthority() || bSyncing)
+	if (!ASC || bSyncing)
 	{
 		return Stored;
 	}
 	SyncMirror();
+	return BuildHeld(Stored);
+}
+
+TArray<FActiveSkillEffect> UWoREffectMirrorComponent::BuildHeld(const TArray<FActiveSkillEffect> &Stored)
+{
+	UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
+	if (!ASC)
+	{
+		return Stored;
+	}
 	const UWoRTurnEffectTracker *Tracker = GetTracker();
 	TArray<FActiveSkillEffect> Held;
 	for (const FActiveSkillEffect &Effect : Stored)
@@ -441,6 +478,10 @@ FString UWoREffectMirrorComponent::GetDebugString() const
 									 : FString(TEXT("untracked"));
 		Lines.Add(FString::Printf(TEXT("%s magnitude=%.2f handle=%s %s%s"), *Entry.Identity.ToString(), Entry.Magnitude,
 								  *Entry.Handle.ToString(), *Lifetime, Entry.TickSpec.IsValid() ? TEXT(", pays ticks") : TEXT("")));
+	}
+	for (const FActiveSkillEffect &Held : HeldSnapshot)
+	{
+		Lines.Add(FString::Printf(TEXT("snapshot (B-318): %s id=%d, %d turn(s) left"), *Held.EffectName, Held.EffectID, Held.RemainingTurns));
 	}
 	for (const FWoREffectIdentity &Identity : EndedByGAS)
 	{

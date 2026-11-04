@@ -11,6 +11,8 @@
 class AActor;
 class UCharacterData;
 class UCharacterDataComponent;
+class ULoadoutComponent;
+class UWeaponData;
 class UImage;
 class USkillEffectManager;
 class UStatusBuildupManager;
@@ -166,6 +168,11 @@ protected:
 
 	UFUNCTION()
 	void HandleHPChanged(int32 CurrentHP, int32 MaxHP);
+	/** B-325: the Combat Tier on the class line follows gear and skill changes. */
+	UFUNCTION()
+	void HandleLoadoutChanged(int32 NewLoadoutIndex);
+	UFUNCTION()
+	void HandleActiveWeaponChanged(UWeaponData *NewWeapon);
 	UFUNCTION()
 	void HandleEPChanged(int32 CurrentEP, int32 MaxEP);
 	UFUNCTION()
@@ -176,6 +183,9 @@ protected:
 	void HandleEffectRemoved(AActor *Target, const FActiveSkillEffect &Effect);
 	UFUNCTION()
 	void HandleEffectDurationChanged(AActor *Target, const FActiveSkillEffect &Effect, int32 RemainingTurns);
+	/** B-318: on a co-op guest, the server's held-effects snapshot arrived for the bound actor. */
+	UFUNCTION()
+	void HandleHeldSnapshotChanged(AActor *Holder);
 	UFUNCTION()
 	void HandleDied(AActor *DeadActor);
 
@@ -221,6 +231,7 @@ private:
 	TWeakObjectPtr<AActor> BoundActor;
 
 	TWeakObjectPtr<UCharacterDataComponent> BoundCharData;
+	TWeakObjectPtr<ULoadoutComponent> BoundLoadout; // B-325
 
 	TWeakObjectPtr<USkillEffectManager> BoundStatusManager;
 
@@ -229,6 +240,7 @@ private:
 
 	/** Bound BD manager for absorption-energy display (when applicable) */
 	TWeakObjectPtr<UBrokenDarknessManager> BoundBDManager;
+	TWeakObjectPtr<class UWoREffectMirrorComponent> BoundEffectMirror;
 
 	bool bBound = false;
 
