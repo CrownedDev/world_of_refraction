@@ -1328,7 +1328,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A, except the animation: a Perfect Guard should probably play the parry animation (needs the press to know it is perfect, a small follow-up).
 **Answer (Crown):** (2026-10-26, detail by detail)
 - **Perfect Guard takes 0%** (B, like Expedition 33's parry); normal Guard stays 50%. Change `PerfectGuardReduction` to 1.0.
-- **Interruptible (choke) hits:** stopped by a Perfect Guard or a Dodge, not a normal Guard (A, as built).
+- **Interruptible (choke) hits:** stopped by a Perfect Guard or a Dodge, not a normal Guard (A, as built). **Changed by D-161 (Crown, 2026-11-04):** a Perfect Guard or a **Perfect** Dodge only; built in B-367.
 - **Approved by the reference-backed default (Crown, 2026-10-26: 'just go with them'):** Broken Darkness absorbs 5% on Guard / 20% on Perfect Guard (Expedition 33: +1 AP per parry); reflect effects send back their % of damage actually taken, as pure damage, as a timed buff (FF/Persona style); **Perfect Guard plays the parry animation**, normal Guard the block animation (Expedition 33 / Sekiro; small follow-up); the old Parry key works as Guard until removed in the editor.
 
 **Notes for Claude:** Applied in fix/Q-168-perfect-guard-zero: `PerfectGuardReduction` 1.0. The parry animation on a Perfect Guard is B-182 (the animation plays at the press, before Perfect is known). The rest was as built. An "On Perfect Guard: reflect" is a timed buff, so it pays out on later hits that land.
@@ -2149,7 +2149,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **What exists (code):** the marks are already there, several per skill: each hit entry's `bInterruptable` (`Skills/Definitions/SkillDataBase.h:72`, the per-hit list) and each spell cast entry's `bInterruptable` (`Skills/Definitions/SkillCastEntry.h:89`), resolved per impact into `FResolvedHitFlags` (`Combat/Actions/ActionStructs.h:275-281`). An interruptable hit stops the rest of the attack when **every** target stopped it (`UActionExecutor::AllInterruptSucceeded`, `ActionExecutor.cpp:2644`; the abort at `ActionExecutorMontage.cpp:436-442`; the return montage plays if authored). What stops it is `GuardRules::StopsInterruptableHit` (`Combat/Defense/GuardRules.h:48`): a **Perfect Guard or any successful Dodge** (Q-168).
 **Differences to build (B-367):** (1) D-161 says a **Perfect** Dodge; today any successful Dodge stops an interrupt point (Q-168). Built as D-161 reads (Perfect Dodge only); **flag for Crown**. (2) The Flawless Parry is reported when the attack ends through an interrupt point with every judged hit perfect (Q-365 (3)). (3) "Every target" stays: with several targets, the skill ends only when each of them stopped the point (Q-168, unchanged).
 **Reference check:** *deckbuilder*: no real-time defense. *Games*: Sekiro's deflects and Expedition 33's parries (a full perfect counter ends the enemy's combo with a counterattack) are the well-liked examples of a perfect defense cutting an attack short.
-**Notes for Claude:** job B-367. The player-facing word for an interrupt point, if one is shown, goes in the `WoRGameNames` table.
+**Notes for Claude:** job B-367. The player-facing word for an interrupt point, if one is shown, goes in the `WoRGameNames` table. Crown confirmed (2026-11-04, via the brain): Perfect Dodge only. Built in B-367 (`GuardRules::StopsInterruptableHit`; the Flawless Parry at an interrupt in `UActionExecutor::InterruptAsyncAction`; Q-367).
+
+### Q-367 — Interrupt points: a luck dodge, and one report per attack
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-367, desktop) · **Blocks:** —
+**Question:** (1) A luck dodge (D-085) makes a hit miss with no player timing; it can follow a Perfect-timed press that failed. Does it stop an interrupt point? (2) If the interrupt point is the attack's last hit, the Flawless Parry is already reported there; does the interrupt report it again?
+**Options / as built:** (1) **A** no: only the player's own perfect timing stops one (as B-365 already keeps luck dodges out of the Flawless Parry). **B** yes. (2) **A** one report per defender per attack. **B** two.
+**Recommendation:** A / A. D-161 says a *Perfect* Dodge, which a lucky miss is not; Sekiro's deflects and Expedition 33's parries reward timing only. One report per attack keeps D-158's "a condition, reported once".
+**Answer:** **A / A**, by the reference-backed default (2026-11-04). Crown may change either.
+**Notes for Claude:** built in B-367 (`FPendingDefenseContext::bResolvedLuckDodge`; `FlawlessParry::FTally::bReported`).
 
 ### Q-360 — D-150 against the deckbuilder's co-op rules
 **Status:** ANSWERED (Crown's rule, D-150; the deckbuilder differs on one point) · **Raised:** 2026-11-04 (D-150 reference check) · **Blocks:** —
