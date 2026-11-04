@@ -57,8 +57,9 @@ class WORLD_OF_REFRACTION_API UShopWindowWidget : public UUserWidget
 
 public:
     /** B-333: "Prisms 25 | Skill Essence 10 | Elemental Essence 10" — every balance Cost charges
-     *  (Prisms always). Shared by the detail pane and the stock rows. */
-    static FText GetCostLineText(const FPurchaseCost &Cost);
+     *  (the money line always). Shared by the detail pane and the stock rows.
+     *  B-366c: the money line names Place, the currency of the place (UEconomyService::GetPlaceCurrency). */
+    static FText GetCostLineText(const FPurchaseCost &Cost, ECurrencyType Place);
 
     // ==================== DATA SOURCE ====================
 

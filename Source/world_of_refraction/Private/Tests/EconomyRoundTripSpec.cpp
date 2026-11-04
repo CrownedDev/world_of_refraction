@@ -6,6 +6,8 @@
 // the step refunds half the Gear essence only, and never below the weapon's authored tier.
 // Dismantling pays by the instance tier. Every entry point's owner checks are WoR.Economy.Preamble;
 // dismantling equipped gear is WoR.Economy.DismantleEquipped.
+// B-366c: a shop charges the currency of the place: the hub currency (ECurrencyType::Prisms, shown as Gold) at home,
+// the run currency (ECurrencyType::Gold, shown as Prisms) during a run; the other balance is untouched.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -19,6 +21,9 @@
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Merchant/MerchantData.h"
+#include "Trial/TrialData.h"
+#include "Trial/TrialGate.h"
+#include "Trial/TrialRunSubsystem.h"
 
 namespace
 {
@@ -34,6 +39,9 @@ namespace
 	constexpr int32 ECONOMY_TRIP_REVERT_REFUND = 5;  // half the step, Gear only
 	constexpr int32 ECONOMY_TRIP_E_WEAPON_YIELD = 15; // dismantling an E weapon
 	constexpr int32 ECONOMY_TRIP_GEMS_YIELD = 15;    // 3 F gems x 5
+	constexpr int32 ECONOMY_TRIP_GEMS_PRISMS = 75;   // B-366c: 3 F gems x 25, the money line
+	constexpr int32 ECONOMY_TRIP_OTHER_BALANCE = 500; // B-366c: the balance the place does not use
+	constexpr int32 ECONOMY_TRIP_RUN_SEED = 7;
 }
 
 BEGIN_DEFINE_SPEC(FEconomyRoundTripSpec, "WoR.Economy.RoundTrip",
@@ -69,6 +77,14 @@ BEGIN_DEFINE_SPEC(FEconomyRoundTripSpec, "WoR.Economy.RoundTrip",
 		FMerchantStockEntry Weapon;
 		Weapon.Asset = NewWeapon();
 		return {Gems, Weapon};
+	}
+
+	static TArray<FMerchantStockEntry> GemsCart()
+	{
+		FMerchantStockEntry Gems;
+		Gems.Crystal = ECONOMY_TRIP_GEM;
+		Gems.Count = ECONOMY_TRIP_GEM_COUNT;
+		return {Gems};
 	}
 END_DEFINE_SPEC(FEconomyRoundTripSpec)
 
@@ -133,6 +149,38 @@ void FEconomyRoundTripSpec::Define()
 		TestEqual(TEXT("The weapon arrived"), Inventory->Weapons.Num(), 1);
 		const UCrystalInventoryComponent *Crystals = Owner->FindComponentByClass<UCrystalInventoryComponent>();
 		TestEqual(TEXT("The gems arrived"), Crystals->GetCount(ECONOMY_TRIP_GEM), ECONOMY_TRIP_GEM_COUNT);
+	});
+
+	It("charges a hub purchase to the hub balance, the run balance untouched (B-366c)", [this]()
+	{
+		if (!Economy) return;
+		TestEqual(TEXT("at home the place is the hub"), UEconomyService::GetPlaceCurrency(Owner), ECurrencyType::Prisms);
+		Wallet->Add(ECurrencyType::ElementalEssence, ECONOMY_TRIP_CART_ELEMENTAL);
+		Wallet->Add(ECurrencyType::Gold, ECONOMY_TRIP_OTHER_BALANCE);
+		TestFalse(TEXT("the run balance can't pay at home"), Economy->Purchase(Owner, GemsCart()));
+		Wallet->Add(ECurrencyType::Prisms, ECONOMY_TRIP_GEMS_PRISMS);
+		TestTrue(TEXT("bought"), Economy->Purchase(Owner, GemsCart()));
+		TestEqual(TEXT("the hub balance paid"), Wallet->GetBalance(ECurrencyType::Prisms), 0);
+		TestEqual(TEXT("the run balance untouched"), Wallet->GetBalance(ECurrencyType::Gold), ECONOMY_TRIP_OTHER_BALANCE);
+	});
+
+	It("charges a run purchase to the run balance, the hub balance untouched (B-366c)", [this]()
+	{
+		if (!Economy) return;
+		UTrialRunSubsystem *Run = TestWorld->GetSubsystem<UTrialRunSubsystem>();
+		if (!TestNotNull(TEXT("Run"), Run)) return;
+		Run->RestoreRun(NewObject<UTrialData>(GetTransientPackage()), ECONOMY_TRIP_RUN_SEED, 0, ETrialDifficulty::Medium, {}, {}, {});
+		TestEqual(TEXT("in a run the place is the run"), UEconomyService::GetPlaceCurrency(Owner), ECurrencyType::Gold);
+		Wallet->Add(ECurrencyType::ElementalEssence, ECONOMY_TRIP_CART_ELEMENTAL);
+		Wallet->Add(ECurrencyType::Prisms, ECONOMY_TRIP_OTHER_BALANCE);
+		Wallet->Add(ECurrencyType::Gold, ECONOMY_TRIP_GEMS_PRISMS - ECONOMY_TRIP_SHORT);
+		TestFalse(TEXT("the run balance short by one: refused"), Economy->Purchase(Owner, GemsCart()));
+		TestEqual(TEXT("nothing spent"), Wallet->GetBalance(ECurrencyType::Gold), ECONOMY_TRIP_GEMS_PRISMS - ECONOMY_TRIP_SHORT);
+		Wallet->Add(ECurrencyType::Gold, ECONOMY_TRIP_SHORT);
+		TestTrue(TEXT("bought"), Economy->Purchase(Owner, GemsCart()));
+		TestEqual(TEXT("the run balance paid"), Wallet->GetBalance(ECurrencyType::Gold), 0);
+		TestEqual(TEXT("the hub balance untouched"), Wallet->GetBalance(ECurrencyType::Prisms), ECONOMY_TRIP_OTHER_BALANCE);
+		TestEqual(TEXT("the essence paid as listed"), Wallet->GetElementalEssence(), 0);
 	});
 
 	It("levels a weapon for Gear only (B-333), and refunds half the Gear on the way back", [this]()

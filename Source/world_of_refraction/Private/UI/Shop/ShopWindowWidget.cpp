@@ -45,13 +45,15 @@ namespace ShopWindowConstants
 
 namespace
 {
-    /** B-333: same rule as Purchase — Prisms always, each essence only when the cost needs it. */
-    bool CanAffordCost(const UCurrencyComponent &Currency, const FPurchaseCost &Cost)
+    /** B-333: same rule as Purchase — the money line always, each essence only when the cost needs it.
+     *  B-366c: the money line is paid in the place's currency (Place). */
+    bool CanAffordCost(const UCurrencyComponent &Currency, const FPurchaseCost &Cost, ECurrencyType Place)
     {
         for (const ECurrencyType Balance : PurchaseCostBalances::CHARGED)
         {
             const int32 Amount = Cost.Get(Balance);
-            if ((Balance == ECurrencyType::Prisms || Amount > 0) && !Currency.CanAfford(Balance, Amount))
+            if ((Balance == ECurrencyType::Prisms || Amount > 0) &&
+                !Currency.CanAfford(PurchaseCostBalances::PaidFrom(Balance, Place), Amount))
             {
                 return false;
             }
@@ -183,7 +185,7 @@ namespace
     }
 }
 
-FText UShopWindowWidget::GetCostLineText(const FPurchaseCost &Cost)
+FText UShopWindowWidget::GetCostLineText(const FPurchaseCost &Cost, ECurrencyType Place)
 {
     TArray<FText> Parts;
     for (const ECurrencyType Balance : PurchaseCostBalances::CHARGED)
@@ -191,7 +193,8 @@ FText UShopWindowWidget::GetCostLineText(const FPurchaseCost &Cost)
         const int32 Amount = Cost.Get(Balance);
         if (Balance == ECurrencyType::Prisms || Amount > 0)
         {
-            Parts.Add(FText::Format(NSLOCTEXT("Shop", "CostPart", "{0} {1}"), WoRGameNames::GetCurrencyName(Balance),
+            Parts.Add(FText::Format(NSLOCTEXT("Shop", "CostPart", "{0} {1}"),
+                                    WoRGameNames::GetCurrencyName(PurchaseCostBalances::PaidFrom(Balance, Place)),
                                     FText::AsNumber(Amount)));
         }
     }
@@ -477,7 +480,8 @@ void UShopWindowWidget::RefreshDetail()
         {
             // Same builder Purchase charges with — one-entry cart, Count included.
             const FPurchaseCost Cost = Economy->PreviewCartCost({Obj->Entry});
-            CostLine = FText::Format(NSLOCTEXT("Shop", "DetailCost", "Cost: {0}"), GetCostLineText(Cost));
+            CostLine = FText::Format(NSLOCTEXT("Shop", "DetailCost", "Cost: {0}"),
+                                     GetCostLineText(Cost, UEconomyService::GetPlaceCurrency(this)));
         }
         DetailCost->SetText(CostLine);
     }
@@ -538,10 +542,7 @@ void UShopWindowWidget::EnsureTotalsPool()
     TotalsRows[0].Label->SetText(NSLOCTEXT("Shop", "TotalsCurrency", "Currency"));
     TotalsRows[0].CostCell->SetText(NSLOCTEXT("Shop", "TotalsCost", "Cost"));
     TotalsRows[0].WalletCell->SetText(NSLOCTEXT("Shop", "TotalsWallet", "Wallet"));
-    for (int32 i = 0; i < ChargedCount; ++i)
-    {
-        TotalsRows[1 + i].Label->SetText(WoRGameNames::GetCurrencyName(PurchaseCostBalances::CHARGED[i]));
-    }
+    // B-366c: the currency labels are set in RefreshTotals (the money line names the place's currency).
 }
 
 UTextBlock *UShopWindowWidget::MakeTotalsCell(UHorizontalBox *Row, float FillFraction)
@@ -560,6 +561,7 @@ void UShopWindowWidget::RefreshTotals()
     UEconomyService *Economy = GetEconomyService();
     const FPurchaseCost Cost = Economy ? Economy->PreviewCartCost(Cart) : FPurchaseCost();
     UCurrencyComponent *Currency = PurchaserCurrency.Get();
+    const ECurrencyType Place = UEconomyService::GetPlaceCurrency(this); // B-366c
 
     if (CartTotalsPanel)
     {
@@ -571,8 +573,10 @@ void UShopWindowWidget::RefreshTotals()
         {
             const FTotalsRow &Row = TotalsRows[1 + i];
             const ECurrencyType Balance = PurchaseCostBalances::CHARGED[i];
+            const ECurrencyType Paid = PurchaseCostBalances::PaidFrom(Balance, Place);
             const int32 CostAmount = Cost.Get(Balance);
-            const int32 WalletAmount = Currency ? Currency->GetBalance(Balance) : 0;
+            const int32 WalletAmount = Currency ? Currency->GetBalance(Paid) : 0;
+            Row.Label->SetText(WoRGameNames::GetCurrencyName(Paid));
 
             // The Prisms row anchors the table whenever the cart has anything; other
             // currencies appear only when the cart actually needs them.
@@ -598,7 +602,7 @@ void UShopWindowWidget::RefreshTotals()
     if (ConfirmButton)
     {
         // All-green requirement — identical math to the row coloring above.
-        ConfirmButton->SetIsEnabled(Currency && Cart.Num() > 0 && CanAffordCost(*Currency, Cost));
+        ConfirmButton->SetIsEnabled(Currency && Cart.Num() > 0 && CanAffordCost(*Currency, Cost, Place));
     }
 }
 
@@ -734,11 +738,13 @@ FString UShopWindowWidget::GetShopString() const
 
     UEconomyService *Economy = GetEconomyService();
     const FPurchaseCost Cost = Economy ? Economy->PreviewCartCost(Cart) : FPurchaseCost();
-    Result += FString::Printf(TEXT("\n  Cart (%d lines): %s"), Cart.Num(), *GetCostLineText(Cost).ToString());
+    const ECurrencyType Place = UEconomyService::GetPlaceCurrency(this); // B-366c
+    Result += FString::Printf(TEXT("\n  Cart (%d lines): %s"), Cart.Num(), *GetCostLineText(Cost, Place).ToString());
 
     const UCurrencyComponent *Currency = PurchaserCurrency.Get();
-    Result += FString::Printf(TEXT("\n  Affordable: %s"),
-                              Currency && CanAffordCost(*Currency, Cost) ? TEXT("yes") : TEXT("no"));
+    Result += FString::Printf(TEXT("\n  Affordable: %s (pays in %s)"),
+                              Currency && CanAffordCost(*Currency, Cost, Place) ? TEXT("yes") : TEXT("no"),
+                              *WoRGameNames::GetCurrencyName(Place).ToString());
     return Result;
 }
 

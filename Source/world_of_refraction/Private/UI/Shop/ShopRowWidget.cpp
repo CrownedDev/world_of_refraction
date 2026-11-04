@@ -152,7 +152,8 @@ FText UShopRowWidget::GetEntryCost() const
     // One-entry cart through the SAME builder Purchase charges with — Count included.
     const FPurchaseCost Cost = Economy->PreviewCartCost({Obj->Entry});
 
-    return UShopWindowWidget::GetCostLineText(Cost); // B-333: the seven-balance names, as FText (D-061)
+    // B-333: the balance names, as FText (D-061); B-366c: the money line in the place's currency.
+    return UShopWindowWidget::GetCostLineText(Cost, UEconomyService::GetPlaceCurrency(this));
 }
 
 void UShopRowWidget::HandleAddClicked()
