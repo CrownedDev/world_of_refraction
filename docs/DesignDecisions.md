@@ -1828,7 +1828,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. D-146 changed the labels, not the budget; D-110's slot budget already bounds a loadout, and fewer, clearer picks is the simplicity round's direction (Expedition 33 fixes six skill slots and is praised for the choice it forces). B would widen a cap to fit test content.
 **Answer:** A (approved by the reference-backed default). The seven lines sit in `Scripts/ue/validation_baseline.txt` until the editor step in `docs/PIE/B-356.md` is done; delete them then.
 **Notes for Claude:** the cap check itself moved to the shown school in B-356 (`USpellData::GetSchool`).
-**After the D-146 correction (2026-11-04, to check in B-356c):** with Conjuration mapping to itself, the 7-of-6 Enhancement overflow in these seven loadouts probably goes away (the Conjuration spell no longer counts as Enhancement). But old Destruction now maps to Conjuration, so a loadout holding six Destruction spells plus a Conjuration one would overflow Conjuration instead. B-356c re-runs data validation, rewrites the baseline lines to whatever still overflows, and updates the editor step; the cap stays 6 either way.
+**After the D-146 correction (checked in B-356c, 2026-11-04):** with Conjuration mapping to itself the seven Enhancement overflows are gone, and no loadout overflows Conjuration (data validation: 0 new errors, the seven lines reported FIXED and deleted from `Scripts/ue/validation_baseline.txt`). The editor step is gone; the cap stays 6. Nothing left for Crown here.
 
 ### Q-21-audit — Party control: the deckbuilder's seat rule (audit §21)
 **Status:** ANSWERED (Crown: follow the deckbuilder's rule) · **Raised:** 2026-11-03 (audit §21) · **Blocks:** —
