@@ -1,12 +1,16 @@
 // FlawlessParrySpec.cpp
 // B-365 (D-158): an attack whose every hit is perfectly guarded or dodged is a Flawless Parry, reported once at its
 // last hit; one hit not perfect and it is not; a one-hit attack counts; the condition reads true through WoRConditions.
+// B-367 (D-161): a perfect defense that ends the attack at an interrupt point, every hit so far perfect, reports one;
+// the debug print lists a skill's interrupt points.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
 #include "Combat/Defense/FlawlessParry.h"
 #include "Conditions/WoRConditions.h"
+#include "Debug/Skills/SkillCastDebug.h"
+#include "Skills/Definitions/SpellData.h"
 #include "WoRGameNames.h"
 
 namespace
@@ -53,6 +57,39 @@ void FFlawlessParrySpec::Define()
 		TestFalse(TEXT("still not"), Tally.AddHit(true, FLAWLESS_TEST_HITS));
 		TestTrue(TEXT("at the last hit"), Tally.AddHit(true, FLAWLESS_TEST_HITS));
 		TestTrue(TEXT("the debug line counts the hits"), FlawlessParry::GetTallyString(Tally, FLAWLESS_TEST_HITS).Contains(TEXT("3 perfect")));
+	});
+
+	It("fires once when a perfect defense ends the attack at an interrupt point, every hit so far perfect (B-367)", [this]()
+	{
+		FlawlessParry::FTally Ended;
+		Ended.AddHit(true, FLAWLESS_TEST_HITS);
+		Ended.AddHit(true, FLAWLESS_TEST_HITS); // the interrupt point: perfect, the attack ends here
+		TestTrue(TEXT("ended at the interrupt point: flawless"), Ended.EndAtInterrupt());
+		TestFalse(TEXT("only once"), Ended.EndAtInterrupt());
+
+		FlawlessParry::FTally Missed;
+		Missed.AddHit(false, FLAWLESS_TEST_HITS);
+		Missed.AddHit(true, FLAWLESS_TEST_HITS);
+		TestFalse(TEXT("an earlier hit not perfect: none"), Missed.EndAtInterrupt());
+
+		FlawlessParry::FTally Last;
+		Last.AddHit(true, 1); // the interrupt point was the last hit: already reported there
+		TestFalse(TEXT("no second report"), Last.EndAtInterrupt());
+
+		FlawlessParry::FTally Unjudged;
+		TestFalse(TEXT("nothing judged: none"), Unjudged.EndAtInterrupt());
+	});
+
+	It("lists a skill's interrupt points (B-367 debug)", [this]()
+	{
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		TestTrue(TEXT("none authored"), USkillCastDebug::GetInterruptPointsString(Spell).EndsWith(TEXT("none")));
+		FDamageSplitEntry &Hit = Spell->DamageSplit.AddDefaulted_GetRef();
+		Hit.HitNumber = 2;
+		Hit.bInterruptable = true;
+		Spell->CastArray.AddDefaulted();
+		Spell->CastArray.AddDefaulted_GetRef().bInterruptable = true;
+		TestTrue(TEXT("hit and cast points"), USkillCastDebug::GetInterruptPointsString(Spell).EndsWith(TEXT("hit 2, cast [1]")));
 	});
 
 	It("reads true through the shared conditions on a Flawless Parry, false elsewhere", [this]()

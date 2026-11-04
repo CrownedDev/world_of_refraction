@@ -16,7 +16,7 @@ void USkillCastDebug::PrintCastArray(const USkillDataBase *Skill, float Duration
         return;
     }
 
-    const FString CastString = GetCastArrayString(Skill);
+    const FString CastString = GetCastArrayString(Skill) + GetInterruptPointsString(Skill);
     UE_LOG(LogTemp, Display, TEXT("\n%s"), *CastString);
 
     if (GEngine)
@@ -64,4 +64,29 @@ FString USkillCastDebug::GetCastArrayString(const USkillDataBase *Skill)
     }
 
     return Output;
+}
+
+FString USkillCastDebug::GetInterruptPointsString(const USkillDataBase *Skill)
+{
+    if (!Skill)
+    {
+        return TEXT("ERROR: Invalid Skill Data");
+    }
+    TArray<FString> Points;
+    for (const FDamageSplitEntry &Hit : Skill->DamageSplit)
+    {
+        if (Hit.bInterruptable)
+        {
+            Points.Add(FString::Printf(TEXT("hit %d"), Hit.HitNumber));
+        }
+    }
+    for (int32 i = 0; i < Skill->CastArray.Num(); ++i)
+    {
+        if (Skill->CastArray[i].bInterruptable)
+        {
+            Points.Add(FString::Printf(TEXT("cast [%d]"), i));
+        }
+    }
+    return FString::Printf(TEXT("Interrupt points (%s): %s"), *Skill->GetName(),
+                           Points.IsEmpty() ? TEXT("none") : *FString::Join(Points, TEXT(", ")));
 }
