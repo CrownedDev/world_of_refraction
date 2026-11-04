@@ -16,6 +16,7 @@
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "FFusionId.generated.h"
 
+/** OBSOLETE (B-352, D-141; delete in the D-124 sweep): fusions retire (with their bonus formula and wear); nothing makes, buys or attaches one. */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FFusionId
 {
