@@ -18,6 +18,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-322](B-322.md) | `feature/B-322-per-character-pouch` (in `dev`) | A 10-slot pouch per character; save v9; older save's pouch to the leader | Pending |
 | [B-323](B-323.md) | `feature/B-323-give-between-characters` (in `dev`) | Give a weapon, adapter or pouch stack between your characters; `wor.UI.Give` | Pending |
 | [B-324](B-324.md) | `feature/B-324-shared-chest-gear` (in `dev`) | Unworn gear in the shared chest, any member takes it; `wor.UI.Storage` | Pending |
+| [B-354](B-354.md) | `feature/B-354-tier-caps-retire` (UNBUILT) | One S crystal per battle loadout; D-072 bands and per-fight pouch caps gone | Not built |
 | [B-313](B-313.md) | `refactor/B-313-pouch-per-member` (UNBUILT) | Each member fights with its own pouch; item use spends the pouch only; D-072 caps per fight | Not built |
 | [B-312](B-312.md) | `refactor/B-312-store-views` (in `dev`) | Gear store step 1: GUID index, member views, `wor.Inventory.CompareStore`; no gameplay change | Pending |
 | [B-293](B-293.md) | `feature/B-293-balance-targets` (in `dev`) | Balance targets, reports, GAS parity, `wor.Balance.Run`; no gameplay change | Pending |
