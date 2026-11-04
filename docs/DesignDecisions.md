@@ -1780,6 +1780,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** one `StatStone` kind with a sub-stat field. The old single-stat stone members map to it on load (append-only: old values marked retired). Damage, Ability and Healing stones stay.
 **Notes for Claude:** job B-353, after B-351 / B-352.
 
+### Q-351 — Two sockets and one skill-slot list: how is B-351 sliced, and what does a stone socket cost?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-351, D-141, D-145) · **Blocks:** —
+**Question:** (a) does the stone socket cost loadout slots (D-110 budget)? (b) D-141 and D-145 touch the socket struct, attach, stone readers, saves, the ability list, the spell list, the HUD, debug and the carried run state: one job or slices? (c) when does an item switch to the one skill-slot list?
+**Options:** (a) A free / B one slot. (b) A slices / B one job. (c) A per weapon, the first time the player edits its list (old lists read until then) / B every weapon at once.
+**Recommendation:** (a) A: Diablo II and Path of Exile sockets cost nothing beyond the item, and D-110's numbers stay as Crown set them. (b) A, by the 3-files rule. (c) A, build beside old: unedited gear plays exactly as before until Crown's PIE; B-351b switches every item and deletes the old paths after it.
+**Answer:** **A / A / A**, by the reference-backed default (2026-11-04). Crown may change any. B-351 ships the two sockets (attach, stone readers, save v12 with wipe) and the weapon's one skill-slot list (picks, replace / restore, Ability Stone slots, the combat menu). B-351b: crystals' (spell) slot lists on the same rule, every item switched and the old lists deleted, stone removal, the carried run state's stone socket, authored stones on assets, HUD / debug readers.
+
 ### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
 **Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.
