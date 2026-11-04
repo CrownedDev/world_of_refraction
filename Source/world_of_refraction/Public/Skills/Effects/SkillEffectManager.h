@@ -16,6 +16,7 @@
 
 class UCharacterDataComponent;
 class URingData;
+enum class ESkillCheck : uint8;
 
 /** One fires-once use (D-011): per holder and per source of the effect, so two wearers
  *  of the same once-per-match gear each get theirs. */
@@ -596,7 +597,14 @@ private:
 	 *  subjects are skipped, the pre-C2a behaviour). */
 	bool IsTriggerConditionMet(AActor *Actor, const FActiveSkillEffect &Effect, float TriggerValue = 0.0f, AActor *Target = nullptr) const;
 
-	/** Evaluate a single (Trigger, Threshold) pair against Actor's state. */
+	/** B-337d: Conditions through the one evaluator (SkillConditions), Owner / Target and their teams as the
+	 *  fighters (an actor with no character data is none); the impact path passes Defender and its Fired outcomes. */
+	bool IsSkillGroupMet(const TArray<FSkillCondition> &Conditions, ESkillCheck Check, AActor *Owner, AActor *Target,
+						 AActor *Defender = nullptr, const TArray<ESkillTrigger> &Fired = {}) const;
+
+	/** Evaluate a single (Trigger, Threshold) pair against Actor's state.
+	 *  OBSOLETE (B-337d): no caller since the checks go through IsSkillGroupMet; SkillConditionParitySpec keeps a
+	 *  copy as its parity reference. Remove after Crown's PIE of B-337d. */
 	bool IsSingleTriggerMet(AActor *Actor, ESkillTrigger Trigger, float Threshold) const;
 
 	/** Resolve a condition Subject to the actor(s) it evaluates against: Self → {Owner},

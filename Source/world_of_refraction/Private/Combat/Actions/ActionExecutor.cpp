@@ -13,6 +13,7 @@
 #include "AI/AIDecisionManager.h"
 #include "Skills/Definitions/ElementHelpers.h"
 #include "Skills/Effects/SkillEffectManager.h"
+#include "Skills/Effects/SkillConditions.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/EffectIdentity.h"
@@ -5461,19 +5462,24 @@ void UActionExecutor::ApplySkillEffects(
 	// Offensive-only event gate, shared by an effect's whole payload bundle. Only
 	// action-RESULT triggers gate apply-now here. Defensive (OnParry/OnDodge/OnBlock/
 	// OnDefend), threshold (OnHP*/OnEnergy*), and turn (OnTurnStart/End/OnBattleStart)
-	// triggers are NOT resolvable against this action's Result — they fall to else->false
+	// triggers are NOT resolvable against this action's Result — they never hold here
 	// and gate via the defense system / per-turn SkillEffectManager, not this site.
-	auto EventMet = [&](ESkillTrigger Trigger) -> bool
+	// B-337d: the action's own events through SkillConditions (ESkillCheck::ActionResult).
+	TArray<ESkillTrigger> ActionEvents;
+	if (Result.TotalDamageDealt > 0)
 	{
-		switch (Trigger)
-		{
-		case ESkillTrigger::Always: return true;
-		case ESkillTrigger::OnHit:  return Result.TotalDamageDealt > 0;
-		case ESkillTrigger::OnCrit: return Result.bWasCritical;
-		case ESkillTrigger::OnKill: return bCausedDeath;
-		default:                    return false;
-		}
-	};
+		ActionEvents.Add(ESkillTrigger::OnHit);
+	}
+	if (Result.bWasCritical)
+	{
+		ActionEvents.Add(ESkillTrigger::OnCrit);
+	}
+	if (bCausedDeath)
+	{
+		ActionEvents.Add(ESkillTrigger::OnKill);
+	}
+	FWoRConditionContext ActionContext;
+	SkillConditions::PrepareContext(ActionContext, ESkillCheck::ActionResult, ActionEvents);
 
 	for (int32 EffectIndex = 0; EffectIndex < Effects.Num(); ++EffectIndex)
 	{
@@ -5483,18 +5489,10 @@ void UActionExecutor::ApplySkillEffects(
 			continue;
 		}
 
-		// Event gate — once per effect (the condition group gates the whole bundle).
-		// Always the AND/OR partition fold over source-side conditions (same shape as
-		// SkillEffectManager::IsTriggerConditionMet), with EventMet (action-result) instead
-		// of IsSingleTriggerMet (actor-state). Empty Conditions[] == Always (unconditional)
-		// -> the fold yields true (bAllAndMet stays true, no OR group), matching the old
-		// EventMet(Always). Target-side conditions ride the runtime effect, not gated here.
-		// Source-side AND/OR partition (shared fold). Target-side conditions are skipped
-		// (Participates = IsOwnerSide) — they ride the runtime effect, not gated here.
-		const bool bConditionMet = EvaluateConditionGroup(
-			Effect.Conditions,
-			[](const FSkillCondition &C) { return IsOwnerSide(C.Subject); },
-			[&](const FSkillCondition &C) { return EventMet(C.Trigger); });
+		// Event gate — once per effect (the condition group gates the whole bundle): the
+		// source-side AND/OR group against the action's events. Empty Conditions[] == Always
+		// (unconditional). Target-side conditions are skipped — they ride the runtime effect.
+		const bool bConditionMet = SkillConditions::IsGroupMet(Effect.Conditions, ESkillCheck::ActionResult, ActionContext);
 
 		if (!bConditionMet)
 		{
