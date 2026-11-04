@@ -13,6 +13,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 ## Pending
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-232](B-232.md) | `feature/B-232-run-state-party` (UNBUILT) | Run state and roster on the GameState; each player commands its own character; an unclaimed member rotates (2-player PIE) | Not built |
 | [B-229](B-229.md) | `feature/B-229-input-rpcs` (on B-228) | Co-op: a client's Guard / Dodge and menu pick (with its infusion) reach the server; `wor.Net.SendDefendPick`, `wor.Net.PrintInputs` | Not built |
 | [B-228](B-228.md) | `feature/B-228-turn-state-gamestate` | Turn order on the GameState; client HUD and command menu read it | Not built |
 | [B-224](B-224.md) | `feature/B-224-combat-numbers` (in `dev`) | Combat numbers baseline: rank HP x1.5/3/6, Defense cap 75%, crit base x1.25, requirement floor 0.5, tuning ladders | Not built |
