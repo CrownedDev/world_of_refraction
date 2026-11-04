@@ -113,6 +113,7 @@ private:
     friend class FAIInfusionLevelSpec;
     friend class FGASEffectReadsSpec;
     friend class FAIOneSkillPathSpec;
+    friend class FSpellSchoolSpec;
 
     // ==================== INTERNAL ====================
 
@@ -281,6 +282,13 @@ private:
 
     /** The candidates of one offensive category: usable Destruction spells, or available abilities. */
     static TArray<USkillDataBase *> GetOffensiveSkills(ULoadoutComponent *Loadout, EAIActionChoice Category);
+
+    /** B-356 (D-146): the AI reads a spell's effects, never its school. Offensive: aimed at enemies
+     *  (Enemy / Anyone) and it deals damage or applies a debuff. */
+    static bool IsOffensiveSpell(const USpellData &Spell);
+
+    /** B-356: a spell with a Heal / HealthRestore payload (whatever its school). */
+    static bool IsHealingSpell(const USpellData &Spell);
 
     /** Calculate threat level of an actor */
     int32 CalculateThreatLevel(AActor *Actor);

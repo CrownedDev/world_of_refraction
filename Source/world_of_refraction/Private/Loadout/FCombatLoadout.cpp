@@ -119,7 +119,7 @@ int32 FCombatLoadout::GetInnateSpellCountForSchool(ESpellSchool School) const
     int32 Count = 0;
     for (const USpellData *Spell : InnateSpells)
     {
-        if (Spell && Spell->School == School)
+        if (Spell && Spell->GetSchool() == School)
         {
             Count++;
         }

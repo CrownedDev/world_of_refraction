@@ -38,7 +38,7 @@ TArray<USpellData*> FSpellCollection::GetSpellsBySchool(ESpellSchool School) con
     TArray<USpellData*> Result;
     for (const FSpellInstance& Instance : LearnedSpells)
     {
-        if (Instance.Spell && Instance.Spell->School == School)
+        if (Instance.Spell && Instance.Spell->GetSchool() == School)
         {
             Result.Add(Instance.Spell);
         }
@@ -51,7 +51,7 @@ TArray<USpellData*> FSpellCollection::GetSpellsByElementAndSchool(ESpellElement 
     TArray<USpellData*> Result;
     for (const FSpellInstance& Instance : LearnedSpells)
     {
-        if (Instance.Spell && Instance.Spell->Element == Element && Instance.Spell->School == School)
+        if (Instance.Spell && Instance.Spell->Element == Element && Instance.Spell->GetSchool() == School)
         {
             Result.Add(Instance.Spell);
         }

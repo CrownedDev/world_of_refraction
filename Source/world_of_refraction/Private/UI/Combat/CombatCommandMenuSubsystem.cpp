@@ -958,6 +958,40 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildItemsSubmenu() cons
     return Buttons;
 }
 
+namespace
+{
+    /** B-356 (D-146): a spell's menu school from its shown school. The two enums' orders differ
+     *  (the old int cast put Enhancement spells under Conjuration). */
+    EPieMenuSpellSchool ToPieMenuSchool(const USpellData &Spell)
+    {
+        switch (Spell.GetSchool())
+        {
+        case ESpellSchool::Enhancement:
+            return EPieMenuSpellSchool::Enhancement;
+        case ESpellSchool::Restoration:
+            return EPieMenuSpellSchool::Restoration;
+        case ESpellSchool::Destruction:
+        default:
+            return EPieMenuSpellSchool::Destruction;
+        }
+    }
+
+    ESpellSchool ToSpellSchool(EPieMenuSpellSchool School)
+    {
+        switch (School)
+        {
+        case EPieMenuSpellSchool::Enhancement:
+        case EPieMenuSpellSchool::Conjuration:
+            return ESpellSchool::Enhancement;
+        case EPieMenuSpellSchool::Restoration:
+            return ESpellSchool::Restoration;
+        case EPieMenuSpellSchool::Destruction:
+        default:
+            return ESpellSchool::Destruction;
+        }
+    }
+}
+
 TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSchoolButtons(
     const TArray<USpellData *> &Spells) const
 {
@@ -969,15 +1003,17 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSchoolButtons(
     {
         if (!Spell)
             continue;
-        EPieMenuSpellSchool School = static_cast<EPieMenuSpellSchool>(
-            static_cast<int32>(Spell->School));
-        SchoolCounts.FindOrAdd(School)++;
+        SchoolCounts.FindOrAdd(ToPieMenuSchool(*Spell))++;
     }
 
     // Add a button for each school that has spells
     for (auto &Pair : SchoolCounts)
     {
-        Buttons.Add(FPieMenuButtonData::MakeSchoolButton(Pair.Key, Pair.Value));
+        FPieMenuButtonData Button = FPieMenuButtonData::MakeSchoolButton(Pair.Key, Pair.Value);
+        // B-356: the school's name from the LOCTEXT name table (D-061 / D-062).
+        Button.DisplayName = WoRGameNames::GetSpellSchoolName(ToSpellSchool(Pair.Key));
+        Button.Description = FText::Format(NSLOCTEXT("CombatCommandMenu", "SchoolSpellCount", "{0} {0}|plural(one=spell,other=spells)"), Pair.Value);
+        Buttons.Add(Button);
     }
 
     Buttons.Add(FPieMenuButtonData::MakeBackButton());
@@ -995,8 +1031,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSpellButtons(
         if (!Spell)
             continue;
 
-        EPieMenuSpellSchool SpellSchool = static_cast<EPieMenuSpellSchool>(
-            static_cast<int32>(Spell->School));
+        const EPieMenuSpellSchool SpellSchool = ToPieMenuSchool(*Spell);
 
         if (SpellSchool != School)
             continue;

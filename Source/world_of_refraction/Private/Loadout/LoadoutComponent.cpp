@@ -846,7 +846,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrorsLegacy(int32 Index, UInven
             {
                 if (Spell)
                 {
-                    PerSchoolCount.FindOrAdd(Spell->School)++;
+                    PerSchoolCount.FindOrAdd(Spell->GetSchool())++; // B-356: a retired school counts as its mapped one
                 }
             }
             for (const TPair<ESpellSchool, int32> &Pair : PerSchoolCount)
@@ -1298,7 +1298,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindingsLegacy(
             {
                 if (Spell)
                 {
-                    PerSchoolCount.FindOrAdd(Spell->School)++;
+                    PerSchoolCount.FindOrAdd(Spell->GetSchool())++; // B-356: a retired school counts as its mapped one
                 }
             }
             for (const TPair<ESpellSchool, int32> &Pair : PerSchoolCount)
