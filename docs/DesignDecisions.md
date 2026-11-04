@@ -2043,6 +2043,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Superseded in part (D-160, 2026-11-04):** (2) and (3) set the pillar-point cost by rank, which is gone (a wipe drops the run's Prisms whatever the rank); (4)'s over-cap half goes with it. (1) and the rest-spot half of (4) stand.
 **Notes for Claude:** B-362. Left for B-364: over-cap points first (`DefeatRules::PickPillarToLose` has the TODO); for B-187: call `UTrialRunSubsystem::NoteRestSpotUsed` and place the returning party at `GetLastRestSpot()`. Levels dropped but not yet placed (`UnspentLevels`) are not taken by a wipe: only placed run points are (as built).
 
+### Q-362b — The Prism drop (D-160): where it lies, whose wallet, and a fight with no map team
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-362b, desktop) · **Blocks:** —
+**Question:** D-160 says the run's Prisms drop "where the party fell" and beating "that enemy" recovers them. Three small things are left: (1) what marks the place; (2) whose balance drops in co-op; (3) a fight that came from no map team (a debug or scripted fight).
+**Options / as built:**
+- (1) **A** the drop is keyed to the fight's map teams (`PendingEncounterSources`); winning any later fight that includes one of them recovers all of it (the enemies come back whole after a wipe, D-155). **B** a spot on the map the party must walk to.
+- (2) **A** the local player's wallet for now (the run balance lives there); every player's wallet once co-op fights land (TODO(D-103)). **B** wait for co-op.
+- (3) **A** it still drops (D-160 has no exception), with a warning in the log that it cannot be recovered. **B** nothing drops.
+**Recommendation:** A throughout. Dark Souls' bloodstain and Elden Ring's runes (widely praised) tie the loss to where you died, which here is the fight; Hollow Knight's Shade does the same by making you beat the thing that holds your money. (3) only happens outside the real trial flow.
+**Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
+**Notes for Claude:** built in B-362b. The pillar-point rules (`DefeatRules::GetPointsLost`, `PickPillarToLose`, `UTrialRunSubsystem::LoseRunPoints`) are OBSOLETE with no game caller; delete in the sweep after PIE.
+
 ### D-156 — Levelling in a run: points drop from enemies and are bought with Prisms at rest spots (Nightreign's runes and sites of grace)
 **Status:** DECIDED (Crown, 2026-11-04, the feel interview, via the brain) · **Raised:** 2026-11-04 · **Blocks:** —
 **Answer (Crown):** in-run levelling follows Elden Ring Nightreign's runes and sites of grace: **enemies have a chance to drop pillar points**, and **Prisms** (the run currency; called Gold before D-159) **buy extra pillar points at rest spots**. This changes today's "after a fight, choose where each level goes" flow.
