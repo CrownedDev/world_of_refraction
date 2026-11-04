@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "UI/Combat/FCombatCapabilities.h"
 #include "UI/Combat/PieMenuButtonData.h"
 #include "Character/ECharacterClass.h"
