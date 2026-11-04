@@ -128,6 +128,20 @@ struct FPartyMember
 	UPROPERTY()
 	FGuid RunRing;
 
+	/** B-360b (D-150 point 2): this member apart from every other copy of the same character in the party (two
+	 *  players may bring the same lord). Minted when the member joins, saved, and stamped on the battle pawn's
+	 *  UCharacterDataComponent::PartyMemberId so the pawn finds its own slot. Invalid only on a member built outside
+	 *  UPartySessionSubsystem (RestoreLocalParty mints one). */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	FGuid MemberId;
+
+	/** B-360b: the pool knows this member by its own key (<asset path>#<MemberId>, UPoolSubsystem::GetCharacterKey)
+	 *  because another copy of its character was already in the party when it joined. False: the asset path, as
+	 *  before (the first copy, and every member of a save made before B-360b). Fixed for the member's life, so its
+	 *  gear and pouch never change key when another copy leaves. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	bool bKeyedByMember = false;
+
 	bool IsValidMember() const { return !PawnClass.IsNull() && CharacterData != nullptr; }
 
 	bool HasCarriedVitals() const { return CurrentHP != PartyConstants::NO_CARRIED_VITALS; }

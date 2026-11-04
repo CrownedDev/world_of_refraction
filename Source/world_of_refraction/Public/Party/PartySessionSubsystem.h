@@ -85,6 +85,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Party")
 	int32 GetMemberSlotByData(UCharacterData *CharacterData) const;
 
+	/** B-360b: the slot of the Occurrence-th member (0 = first) with that asset, or INDEX_NONE: two copies of one
+	 *  character stand in the battle party as two equal entries, and the n-th entry is the n-th copy. */
+	int32 GetNthMemberSlotByData(const UCharacterData *CharacterData, int32 Occurrence) const;
+
+	/** B-360b: the slot of the member with MemberId, or INDEX_NONE. */
+	UFUNCTION(BlueprintPure, Category = "Party")
+	int32 GetMemberSlotById(const FGuid &MemberId) const;
+
+	/** B-360b: the slot a pawn stands for: its component's PartyMemberId when set (a battle pawn; a copy of a character
+	 *  shared with another member resolves to its own slot), else the first member with its CharacterData (a hub pawn). */
+	int32 GetMemberSlotOf(const UCharacterDataComponent *Comp) const;
+
 	/** Create (or reset) the local party with Leader as its owner, seeded with
 	 *  LeaderPawnClass as member 0. Idempotent per level: calling it again on an
 	 *  existing party rebinds the leader and leaves membership intact, so a hub
@@ -170,8 +182,8 @@ public:
 	bool IsMemberAISeat(int32 SlotIndex) const;
 
 	/** D-150 (B-360): a joining player's Character takes the AI seat in SlotIndex. That member's gear and pouch go
-	 *  to the leader (the host's run). Refused (false, logged): not an AI seat, the leader's slot, during a fight,
-	 *  or a character already in the party (separate copies: B-360b). PawnClass empty = the leader's. */
+	 *  to the leader (the host's run). Refused (false, logged): not an AI seat, the leader's slot, or during a fight.
+	 *  A character already in the party joins as a separate copy (B-360b). PawnClass empty = the leader's. */
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	bool ReplaceAISeatWithPlayer(int32 SlotIndex, TSoftClassPtr<ACombatCharacter> PawnClass, UCharacterData *Character);
 
