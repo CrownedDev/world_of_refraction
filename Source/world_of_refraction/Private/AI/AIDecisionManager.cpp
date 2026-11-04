@@ -79,23 +79,19 @@ TArray<USpellData *> UAIDecisionManager::GetUsableSpells(const ULoadoutComponent
 USkillEffectManager *
 UAIDecisionManager::GetSkillEffectManager() const
 {
-    UGameInstance *GameInstance = GetGameInstance();
-    return WoRFight::Get<USkillEffectManager>(GameInstance);
+    return WoRFight::Get<USkillEffectManager>(this);
 }
 
 UActionExecutor *
 UAIDecisionManager::GetActionExecutor() const
 {
-    UGameInstance *GameInstance = GetGameInstance();
-    return WoRFight::Get<UActionExecutor>(GameInstance);
+    return WoRFight::Get<UActionExecutor>(this);
 }
 
 void UAIDecisionManager::Initialize(FSubsystemCollectionBase &Collection)
 {
     Super::Initialize(Collection);
-
-    // Note: DefenseSystem may not be ready yet - will lazy-load when needed
-    DefenseSystemRef = WoRFight::Get<UDefenseSystem>(this);
+    // DefenseSystemRef is read lazily on first use (B-336: no other subsystem is looked up here).
 
     UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] Initialized"));
 }

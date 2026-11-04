@@ -118,6 +118,8 @@ static bool ActionPlaysMontage(const FAction &Action)
 
 void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
 {
+	// B-336: DefenseSystem first, so the bind below finds it whatever the creation order.
+	Collection.InitializeDependency(UDefenseSystem::StaticClass());
 	Super::Initialize(Collection);
 	BindDefenseSystemEvents();
 

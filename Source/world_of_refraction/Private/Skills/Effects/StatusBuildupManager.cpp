@@ -79,11 +79,8 @@ USkillEffectManager *UStatusBuildupManager::GetEffectManager() const
 {
 	if (!EffectManagerRef)
 	{
-		if (UGameInstance *GI = GetGameInstance())
-		{
-			const_cast<UStatusBuildupManager *>(this)->EffectManagerRef =
-				WoRFight::Get<USkillEffectManager>(GI);
-		}
+		// Same world, so the cache lives exactly as long as this subsystem (B-336).
+		const_cast<UStatusBuildupManager *>(this)->EffectManagerRef = WoRFight::Get<USkillEffectManager>(this);
 	}
 	return EffectManagerRef;
 }
