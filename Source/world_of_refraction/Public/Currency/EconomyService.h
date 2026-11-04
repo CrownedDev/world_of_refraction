@@ -166,7 +166,8 @@ public:
     UFUNCTION(BlueprintPure, Category = "Economy")
     static int32 GetDuplicateGoldForTier(EItemTier Tier);
 
-    /** B-366b (Q-366, as shops do, ER-21): the currency money earned here pays in: the run currency
+    /** B-366b (Q-366, the shop rule ER-21; shops still charge the hub currency everywhere, ER-21's Conflict): the
+     *  currency money earned here pays in: the run currency
      *  (ECurrencyType::Gold, shown as Prisms, D-159) while a trial run is under way, else the hub currency
      *  (ECurrencyType::Prisms, shown as Gold). Name it with WoRGameNames::GetCurrencyName. */
     static ECurrencyType GetPlaceCurrency(const UObject *WorldContext);

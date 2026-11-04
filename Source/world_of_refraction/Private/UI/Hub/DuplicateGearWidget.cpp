@@ -238,7 +238,7 @@ void UDuplicateGearWidget::HandleCloseClicked()
 
 static FAutoConsoleCommandWithWorld GDuplicateGearUICommand(
 	TEXT("wor.UI.Duplicates"),
-	TEXT("PLACEHOLDER UI: convert the weaker copy of a duplicate weapon or adapter to Prisms (the run currency), or dismantle it (D-115)."),
+	TEXT("PLACEHOLDER UI: convert the weaker copy of a duplicate weapon or adapter to the currency of the place (hub Gold, run Prisms; B-366b), or dismantle it (D-115)."),
 	FConsoleCommandWithWorldDelegate::CreateLambda(
 		[](UWorld *World)
 		{
