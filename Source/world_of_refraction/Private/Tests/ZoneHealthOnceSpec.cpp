@@ -1,8 +1,8 @@
 // ZoneHealthOnceSpec.cpp
-// B-327 (simplicity audit): an enemy's max HP takes the zone's strength once. ABattleGameMode and the balance sim
-// call ApplyEnemyStrength(zone HP) and then ApplyEnemyRankHealth(zone HP, rank). The second effect is
-// zone x (rank x tier - 1), and MaxHPBuff percents add (USkillEffectManager::GetTotalStatModifier), so the total is
-// zone x rank x tier, not zone squared. This pins that product so a later change can't stack the zone twice.
+// B-327 (simplicity audit): ApplyEnemyStrength(S) then ApplyEnemyRankHealth(S, rank) gives S x rank x tier, S once
+// (MaxHPBuff percents add, USkillEffectManager::GetTotalStatModifier). B-328 (D-120): S is the fight's HP multiplier,
+// and the zone is no longer part of it (enemy HP = own x rank x Combat Tier power); the zone adds no damage either
+// and only guides which tier of enemy a zone places.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -39,6 +39,22 @@ void FZoneHealthOnceSpec::Define()
 		TestWorld.Reset();
 	});
 
+	It("asks each zone for a higher enemy tier than the one before (B-328, D-120, Q-328)", [this]()
+	{
+		const int32 TopZone = EnemyZoneConstants::MAX_ZONE_TIER;
+		const EItemTier Guide[] = {EItemTier::F_Tier, EItemTier::D_Tier, EItemTier::C_Tier, EItemTier::B_Tier, EItemTier::A_Tier}; // Q-328 A
+		for (int32 Zone = 0; Zone <= TopZone; ++Zone)
+		{
+			TestEqual(FString::Printf(TEXT("zone %d's guide tier"), Zone), AEnemyZone::GetEnemyTierGuide(Zone), Guide[Zone]);
+			if (Zone > 0)
+			{
+				TestTrue(FString::Printf(TEXT("zone %d asks for a higher tier than zone %d"), Zone, Zone - 1),
+						 AEnemyZone::GetEnemyTierGuide(Zone) > AEnemyZone::GetEnemyTierGuide(Zone - 1));
+			}
+		}
+		TestEqual(TEXT("past the top zone: clamped"), AEnemyZone::GetEnemyTierGuide(TopZone + 1), Guide[TopZone]);
+	});
+
 	It("gives a zone-4 C boss base x rank x tier HP: the zone changes no stats (D-120)", [this]()
 	{
 		UCharacterData *Data = FWoRTestWorld::NewCharacterData();
@@ -50,10 +66,9 @@ void FZoneHealthOnceSpec::Define()
 			return;
 		}
 		const float BaseMaxHP = static_cast<float>(CharComp->MaxHP);
-		const float Zone = AEnemyZone::GetTierStrengthMultiplier(ZONE_ONCE_TIER);
+		const float Zone = AEnemyZone::GetTierStrengthMultiplier(ZONE_ONCE_TIER); // OBSOLETE ladder (D-120): only what the HP would have been
 		const float Rank = TrialGate::GetRankHealthMultiplier(EEncounterRank::Boss);
 		const float Tier = TrialGate::GetEnemyTierHealthMultiplier(Enemy);
-		TestTrue(TEXT("the zone scales"), Zone > 1.0f);
 
 		// The order BattleGameMode uses: the door's strength first (Medium: x1 HP and x1 damage; the zone enters
 		// nowhere, D-120), then rank x tier on top.

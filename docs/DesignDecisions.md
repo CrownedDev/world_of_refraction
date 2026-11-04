@@ -30,6 +30,7 @@ The queue of questions only Crown can answer.
 
 **Entry format** (keep each short; one decision per entry):
 ```
+
 ### D-NNN — Title   (or Q-<job> — Title)
 **Status:** OPEN · **Raised:** YYYY-MM-DD · **Blocks:** B-xxx, B-yyy
 **Question:** one line.
@@ -146,6 +147,7 @@ The queue of questions only Crown can answer.
 - Results screen shows "+N Gold" per fight; the run-end screen shows the Prism/material payout.
 - Passive payout boosts are a later job (B-096): a hook where the payout total is computed (one multiplier, default 1.0) so passives can add to it.
 - Not decided here: a starting Prism grant for a new save.
+
 ### D-007 — Can Generic cast weapon-crystal spells?
 **Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-080
 **Question:** Is it intended that Generic can cast spells from a crystal on its weapon?
@@ -856,6 +858,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A a new `Resurrect` skill effect: brings a dead ally back at the effect's value as % of max HP, reusing Sapphire's revive path / B revive stays item-only (Sapphire) / C revive spells only out of combat.
 **Recommendation:** A, because D-043 asks for revive spells and Sapphire's path already does the hard part (turn order, death state); the HP % is a per-spell value.
 **Answer (Crown):** **A** (2026-10-26): a new **Resurrect** skill effect brings a fallen ally back at the effect's value as a % of max HP, reusing Sapphire's revive path.
+
 ### D-072 — Crystal tier limits per character
 **Status:** ANSWERED · **Raised:** 2026-10-26 (Crown) · **Blocks:** — · **Changed by D-143 / B-354** (2026-11-04: the bands retire; one S-tier crystal per battle loadout is the only cap. D-143 is recorded on `docs/D-128-136-simplicity-round2`; this branch merges after it)
 **Answer (Crown):** (2026-10-26) **Per character**, a cap on how many crystals of each tier band can be equipped at once:
@@ -1125,6 +1128,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A, and let the between-fight repair (+10) cover evolutions too, so a broken one comes back (otherwise it waits for B-178). Gear doesn't vanish and the player gets it working again.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
 **Notes for Claude:** applied (fix/Q-159c-repair-evolutions): A, plus the between-fight +10 repair covers evolutions, attached and primary slot, broken included (`CrystalBreak::RepairOn`, `ULoadoutComponent::RepairActivePrimaryEvolution`). Paid repair stays B-178.
+
 ### Q-159b — Which parts go when a loadout is over a cap?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-159) · **Blocks:** — (B-159 shipped with A)
 **Question:** when a loadout has too many abilities, or too many utility crystals of a tier band, which ones are dropped?
@@ -1694,8 +1698,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
 **Answer (Crown):** delete per-instance random rolls: flag them OBSOLETE now, delete them in the sweep (D-124). They are already off, so nothing changes in play.
 **Notes for Claude:** job B-335.
-
 (Audit §5: **no change** — evolutions and fusions keep their wear. §10 is Q-293d.)
+
+### Q-328 — Which enemy tier does each zone ask for?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-328, cloud) · **Blocks:** —
+**Question:** D-120: harder zones place higher-tier enemies instead of adding HP. Which Combat Tier per zone (0..4)?
+**Context:** `Public/Combat/Encounter/EnemyZone.h` (`GetEnemyTierGuide`); five zone tiers, seven item tiers.
+**Options:** **A** at least F, D, C, B, A (two letters at first, then one; S left for bosses and the last zone's best); **B** F, E, D, C, B (one letter each, S never asked for); **C** a fixed band per zone.
+**Recommendation:** A. Diablo IV's world tiers and Elden Ring's regions both jump enemy level fastest early, so the first step out of the start area is felt, then rise evenly; leaving the top tier for set pieces keeps them special.
+**Answer:** A (approved by the reference-backed default). It is an authoring guide (shown by `wor.Trial.PrintZones`), not enforced.
+**Notes for Claude:** applied in B-328.
+
 ### D-128 — Nothing is DONE without Crown's PIE; one running list (audit §12)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
 **Answer (Crown):** no job is marked DONE without Crown's PIE pass. `docs/PIE/Sweep.md` keeps a running list of every job waiting on PIE, and Crown plans one sweep when ready. CLAUDE.md's Backlog-mode rule 6 is unchanged.
@@ -1952,6 +1965,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. One stat, one slot: Path of Exile and Diablo IV roll one physical / armour line beside the elemental ones with equal weight, and players read it as one stat among the resistances. The largest budget (S: 36, plus a negative pool up to 18) still fits ten slots of ±10. Tune with the other numbers in PIE (D-068).
 **Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
 **Notes for Claude:** nothing to build; `CombatConstants.h` names it next to the budgets. The nightly balance numbers may move a little (more elemental resistance on rolled gear).
+
 ### Q-359 — How a boss phase steps the weather baseline
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-359, cloud) · **Blocks:** —
 **Question:** D-149 makes the trial's element the weather; D-098 says each boss phase pushes the weather toward the boss's element and raises its intensity. What exactly changes at a phase?
@@ -3389,6 +3403,7 @@ Moved here once applied. Newest first.
 | — | All gameplay logic in C++; BP for layout/visuals only | 2026-10-25 | `analysis/CodebaseReview_2026-10.md` §8 |
 | — | UI: Expedition 33 combat layout; deckbuilder art direction + layouts; gamepad yes; flat panels for now | 2026-10-25 | `Design/UI_ScreenInventory.md`, `Design/UI_DeckbuilderReuse.md` |
 | — | Source art: save what we use (LFS) | 2026-10-25 | `.gitattributes`, `UI_DeckbuilderReuse.md` §4 |
+
 ### Q-333 — Seven balances: the prices D-125 left open
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-333, cloud) · **Blocks:** —
 **Question:** D-125 names the seven balances and which essence pays for what, but not: (1) whether buying a crystal or stone now costs its essence (stones were Prisms-only, and with spells no longer charging pillar essence per scaling grade, Pillar would have no use otherwise); (2) what a spell with no element (None) costs; (3) what replaces the half "Unknown" (Reality) co-cost on every upgrade, now that Reality essence retires; (4) what an evolution's purchase co-cost becomes; (5) conversion of old typed balances.

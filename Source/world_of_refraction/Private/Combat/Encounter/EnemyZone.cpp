@@ -11,6 +11,10 @@ namespace EnemyZoneInternal
 {
 	// Q-186: one named multiplier per tier. TODO: tune (Q-186).
 	constexpr float TIER_STRENGTH[EnemyZoneConstants::MAX_ZONE_TIER + 1] = {1.0f, 1.15f, 1.3f, 1.5f, 1.75f};
+	/** Q-328: the lowest Combat Tier for a zone's enemies, two letters a zone at first, then one. */
+	constexpr EItemTier ENEMY_TIER_GUIDE[EnemyZoneConstants::MAX_ZONE_TIER + 1] = {EItemTier::F_Tier, EItemTier::D_Tier,
+																				 EItemTier::C_Tier, EItemTier::B_Tier,
+																				 EItemTier::A_Tier};
 
 	const FVector DEFAULT_ZONE_EXTENT(1000.0f, 1000.0f, 500.0f);
 }
@@ -64,10 +68,16 @@ float AEnemyZone::GetTierStrengthMultiplier(int32 Tier)
 	return EnemyZoneInternal::TIER_STRENGTH[FMath::Clamp(Tier, 0, EnemyZoneConstants::MAX_ZONE_TIER)];
 }
 
+EItemTier AEnemyZone::GetEnemyTierGuide(int32 Tier)
+{
+	return EnemyZoneInternal::ENEMY_TIER_GUIDE[FMath::Clamp(Tier, 0, EnemyZoneConstants::MAX_ZONE_TIER)];
+}
+
 FString AEnemyZone::GetEnemyZoneString() const
 {
-	return FString::Printf(TEXT("[EnemyZone] %s: tier %d (enemies x%.2f), loot pool %s"), *GetName(), Zone.Tier,
-						   GetTierStrengthMultiplier(Zone.Tier), Zone.LootPool.IsValid() ? *Zone.LootPool.ToString() : TEXT("<none>"));
+	return FString::Printf(TEXT("[EnemyZone] %s: tier %d (enemies Tier %s or higher), loot pool %s"), *GetName(),
+						   Zone.Tier, *TierHelpers::GetTierName(GetEnemyTierGuide(Zone.Tier)),
+						   Zone.LootPool.IsValid() ? *Zone.LootPool.ToString() : TEXT("<none>"));
 }
 
 #if !UE_BUILD_SHIPPING
