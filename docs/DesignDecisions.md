@@ -3800,8 +3800,8 @@ Moved here once applied. Newest first.
 - (bound memories, as built) an old item's trigger fields (owner wearing, a facing enemy) read across as conditions checked at the new trigger **FightStart** only, so, as before, they never hold on a level-up; the upgrade level alone holds at either.
 - (3) **A** On Flawless Parry is its own trigger: the last hit still fires its own On Perfect Guard / Dodge, and a Flawless Parry fires only On Flawless Parry effects (an attack-scaled payload grants 0 on it, there being no one impact's cost). **B** it also fires the perfect-defense triggers again.
 **Recommendation:** A throughout. Slicing as B-337 / B-337b did keeps each step provable by a parity spec. Percent thresholds are how the best-liked RPG passives read (Expedition 33's Pictos "below 50% HP", Dark Souls' Red Tearstone Ring "HP below 20%"); a flat number stops meaning anything as HP grows. (3) avoids double rewards for one defense (Sekiro's deflect and its counter are separate events).
-**Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it; (2) is the deckbuilder difference to confirm.
-**Notes for Claude:** B-337c built (1)'s first half and (3); B-337d does the rest.
+**Answer:** **A**, by the reference-backed default (2026-11-04). (2) confirmed by the brain as the default (2026-11-04): the shared conditions get an **`HpPercent`** subject (Who Self / Target) beside the absolute `Hp`, so skill conditions keep their percent thresholds (most games write HP conditions as percent, "below 50% HP"); an EP percent subject alongside. Crown may change it.
+**Notes for Claude:** B-337c built (1)'s first half and (3); B-337d builds the rest, with `HpPercent`.
 
 ### Q-313 — The pouch in a fight: how far B-313 goes, the tier caps, and a recruit's items
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-313, cloud) · **Blocks:** —
