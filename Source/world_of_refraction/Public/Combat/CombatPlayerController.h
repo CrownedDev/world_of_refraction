@@ -73,17 +73,21 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputMappingContext> CombatMappingContext;
 
-	/** The Guard input (D-084: Block and Parry are one defense). */
+	/** The Guard input (D-084, D-135). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Defense")
 	TObjectPtr<UInputAction> BlockAction;
 
-	/** Legacy: also a Guard press until its key is unbound in the mapping context (Q-168). */
+	/** OBSOLETE (B-343, D-135): no longer bound; kept so the Blueprint default isn't lost before the editor step
+	 *  removes IA_Parry. Delete in the D-124 sweep. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Defense")
 	TObjectPtr<UInputAction> ParryAction;
 
+	/** The Dodge input (D-135: one Dodge; the property keeps its old name so the Blueprint default stays).
+	 *  TODO: rename DodgeLeftAction to DodgeAction in the D-124 sweep (an editor step: the Blueprint default moves with it). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Defense")
 	TObjectPtr<UInputAction> DodgeLeftAction;
 
+	/** OBSOLETE (B-343, D-135): no longer bound (no left / right split). Delete in the D-124 sweep. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Defense")
 	TObjectPtr<UInputAction> DodgeRightAction;
 
@@ -113,9 +117,7 @@ protected:
 	// ========================================
 
 	void OnBlock(const FInputActionValue &Value);
-	void OnParry(const FInputActionValue &Value);
-	void OnDodgeLeft(const FInputActionValue &Value);
-	void OnDodgeRight(const FInputActionValue &Value);
+	void OnDodge(const FInputActionValue &Value);
 
 	void OnDefend(const FInputActionValue &Value);
 	void OnInfusion(const FInputActionValue &Value);

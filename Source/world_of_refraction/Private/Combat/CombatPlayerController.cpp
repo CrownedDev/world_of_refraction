@@ -62,6 +62,8 @@ namespace CombatInputRouting
 	/** How far before the server's "now" a client's press may be stamped: covers the trip to the server.
 	 *  An older stamp is clamped to it, so a client can't claim an arbitrarily early press. */
 	constexpr double MAX_DEFENSE_INPUT_LATENCY_SECONDS = 0.5; // TODO: tune in 2-player PIE over a real connection
+	/** B-343 (D-135): one Dodge button; the direction only picks the dodge montage. */
+	constexpr EDefenseDirection DODGE_MONTAGE_DIRECTION = EDefenseDirection::Left;
 
 	/** Inputs kept per controller for `wor.Net.PrintInputs`. */
 	constexpr int32 MAX_RECENT_INPUTS = 8;
@@ -160,24 +162,16 @@ void ACombatPlayerController::SetupInputComponent()
 		return;
 	}
 
-	// Defense input — block / parry / dodge, each on press (Started). Routes straight
-	// to DefenseSystem::SubmitDefenseInput; no gating here — the subsystem ignores
-	// input when no defense window is open, so out-of-window presses are harmless.
+	// Defense input — B-343 (D-135): two buttons, Guard and Dodge, each on press (Started). No gating here: the
+	// DefenseSystem ignores input when no defense window is open. Parry and the right dodge are no longer bound
+	// (their .uasset actions are removed in the editor later).
 	if (BlockAction)
 	{
 		EnhancedInput->BindAction(BlockAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnBlock);
 	}
-	if (ParryAction)
-	{
-		EnhancedInput->BindAction(ParryAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnParry);
-	}
 	if (DodgeLeftAction)
 	{
-		EnhancedInput->BindAction(DodgeLeftAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnDodgeLeft);
-	}
-	if (DodgeRightAction)
-	{
-		EnhancedInput->BindAction(DodgeRightAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnDodgeRight);
+		EnhancedInput->BindAction(DodgeLeftAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnDodge);
 	}
 
 	BuildMenuKeys();
@@ -202,22 +196,11 @@ void ACombatPlayerController::OnBlock(const FInputActionValue &Value)
 	RequestDefenseInput(EDefenseType::Block, EDefenseDirection::None);
 }
 
-void ACombatPlayerController::OnParry(const FInputActionValue &Value)
+void ACombatPlayerController::OnDodge(const FInputActionValue &Value)
 {
-	UE_LOG(LogTemp, Log, TEXT("[CombatPC] Parry key pressed (a Guard, D-084)"));
-	RequestDefenseInput(EDefenseType::Parry, EDefenseDirection::None);
-}
-
-void ACombatPlayerController::OnDodgeLeft(const FInputActionValue &Value)
-{
-	UE_LOG(LogTemp, Log, TEXT("[CombatPC] DodgeLeft pressed"));
-	RequestDefenseInput(EDefenseType::Dodge, EDefenseDirection::Left);
-}
-
-void ACombatPlayerController::OnDodgeRight(const FInputActionValue &Value)
-{
-	UE_LOG(LogTemp, Log, TEXT("[CombatPC] DodgeRight pressed"));
-	RequestDefenseInput(EDefenseType::Dodge, EDefenseDirection::Right);
+	UE_LOG(LogTemp, Log, TEXT("[CombatPC] Dodge pressed"));
+	// D-135: one Dodge. The direction only picks the dodge montage (DefenseSystem::PlayDefenseMontage).
+	RequestDefenseInput(EDefenseType::Dodge, CombatInputRouting::DODGE_MONTAGE_DIRECTION);
 }
 
 // ========================================

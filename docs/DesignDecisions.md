@@ -1734,6 +1734,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** only Guard and Dodge (D-084). Remove Parry and the left / right dodge split from the combat controller; removing the `.uasset` input actions is a later editor step. `docs/Design/InputMap.md` follows.
 **Notes for Claude:** job B-343.
 
+### Q-343 — Which dodge animation does the single Dodge play?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-343, desktop build) · **Blocks:** —
+**Question:** D-135 keeps one Dodge key. The loadout still has a left and a right dodge montage; which one does the player's press play?
+**Options:** **A** always the left dodge montage (the old Dodge Left key's); **B** alternate or pick at random; **C** a new single dodge montage per loadout.
+**Recommendation:** A. One button, one readable animation: Expedition 33 and Sekiro play a fixed dodge for a plain press (direction comes only from a held stick), so the player learns one timing cue. B hides the timing under animation variety; C is an asset job for no rule gain.
+**Answer:** A (approved by the reference-backed default). `CombatInputRouting::DODGE_MONTAGE_DIRECTION` = Left. The AI still rolls left or right for its own dodges (`AIDecisionManager.cpp`); B-345's one AI path drops the roll so AI dodges match. Renaming `DodgeLeftAction` is a D-124 sweep item (editor step).
+**Notes for Claude:** applied in B-343.
+
 ### D-136 — Trial difficulty sets enemy damage and the AI tier; one AI path (audit §20)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
 **Answer (Crown):** the trial difficulty sets both enemy damage and the enemy AI tier; a per-encounter AI override stays (D-044). Spell and ability AI share one path, and the AI weights move into `UCombatTuningData`.

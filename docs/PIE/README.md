@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-343](B-343.md) | `chore/B-343-guard-dodge-only` (in `dev`) | Guard and Dodge only; Parry and Dodge Right unbound; the one Dodge plays the left montage (Q-343) | Pending |
 | [B-229](B-229.md) | `feature/B-229-input-rpcs` (in `dev`) | Co-op: a client's Guard / Dodge and menu pick (with its infusion) reach the server; `wor.Net.SendDefendPick`, `wor.Net.PrintInputs` | Not built |
 | [B-228](B-228.md) | `feature/B-228-turn-state-gamestate` | Turn order on the GameState; client HUD and command menu read it | Not built |
 | [B-228](B-228.md) | `feature/B-228-turn-state-gamestate` (in `dev`) | Turn order on the GameState; client HUD and command menu read it | Not built |
