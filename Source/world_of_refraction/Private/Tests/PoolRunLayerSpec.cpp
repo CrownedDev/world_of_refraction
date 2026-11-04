@@ -463,6 +463,12 @@ void FPoolRunLayerSpec::Define()
 			TestEqual(TEXT("it still names the dagger"), (*Stored)[0].PrimaryWeaponInstance, DaggerID);
 		}
 		Pool->EndRunLayer();
+		OnRun->PushCustomLoadoutsToPool(); // ExitTrial's save, after the layer closed, with the member still there
+		Stored = Pool->GetCustomLoadouts(Key);
+		if (TestTrue(TEXT("still one custom loadout after the run"), Stored && Stored->Num() == 1))
+		{
+			TestEqual(TEXT("it still names the dagger after the run"), (*Stored)[0].PrimaryWeaponInstance, DaggerID);
+		}
 	});
 }
 

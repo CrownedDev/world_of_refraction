@@ -508,9 +508,9 @@ void UInventoryComponent::PushCustomLoadoutsToPool()
     }
     const UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
     const ECharacterClass Class = CharComp && CharComp->CharacterData ? CharComp->CharacterData->CharacterClass : ECharacterClass::Generic;
-    // B-347b (Q-347): during a run a stored loadout naming a piece left at home is kept as stored: the member's copy
-    // had that slot emptied (the piece isn't in its run armoury), and writing it back would lose it at home.
-    const TArray<FSavedLoadout> *Stored = Pool->IsRunLayerActive() ? Pool->GetCustomLoadouts(SharedGearKey) : nullptr;
+    // B-347b (Q-347): a loadout drawn during a run naming a piece left at home is written back as stored (the copy had
+    // that slot emptied); also after the layer closes, as ExitTrial's save and EndPlay push after EndRunLayer.
+    // Edits to such a loadout during the run are not kept (it can't be equipped there anyway).
     TArray<FSavedLoadout> Custom;
     int32 Kept = 0;
     for (const FCombatLoadout &Loadout : SavedLoadouts)
@@ -519,11 +519,9 @@ void UInventoryComponent::PushCustomLoadoutsToPool()
         {
             continue;
         }
-        const int32 CustomIndex = Custom.Num();
-        const FSavedLoadout *Home = Stored && Stored->IsValidIndex(CustomIndex) ? &(*Stored)[CustomIndex] : nullptr;
-        if (Home && HoldsPieceLeftHome(*Pool, *Home))
+        if (Loadout.HeldHomeLoadout.IsValid())
         {
-            Custom.Add(*Home);
+            Custom.Add(*Loadout.HeldHomeLoadout);
             ++Kept;
         }
         else
@@ -1517,7 +1515,11 @@ bool UInventoryComponent::DrawSharedGear()
         // (StripUnownedGear below).
         for (const FSavedLoadout &Saved : *Custom)
         {
-            SavedLoadouts.Add(FCombatLoadout::CreateFromSavedLoadout(Saved, this, EvoInv));
+            FCombatLoadout &Added = SavedLoadouts.Add_GetRef(FCombatLoadout::CreateFromSavedLoadout(Saved, this, EvoInv));
+            if (HoldsPieceLeftHome(*Pool, Saved)) // B-347b: StripUnownedGear empties its left-home slot in this copy
+            {
+                Added.HeldHomeLoadout = MakeShared<const FSavedLoadout>(Saved);
+            }
         }
     }
     bKeepsCustomLoadouts = !bRunOnly;
