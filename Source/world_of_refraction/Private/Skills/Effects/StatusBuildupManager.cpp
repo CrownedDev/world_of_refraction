@@ -195,13 +195,14 @@ float UStatusBuildupManager::GetTotalElementResistance(AActor *Target, ESpellEle
 	const TArray<FActiveSkillEffect> Debuffs = EffectMgr->GetEffectsByType(Target, ESkillEffectType::ResistanceDebuff);
 
 	// Match per effect on EITHER axis: a physical-keyed effect (PhysicalType != None)
-	// matches the incoming physical type; otherwise the effect is element-keyed and
-	// matches the incoming element. With no physical-keyed effects in play every
-	// effect has PhysicalType == None, so this reduces to the original element match.
+	// matches any physical hit (B-358, D-148: one Physical resistance, the subtype only
+	// picks the break); otherwise the effect is element-keyed and matches the incoming
+	// element. With no physical-keyed effects in play every effect has PhysicalType ==
+	// None, so this reduces to the original element match.
 	const auto MatchesAxis = [Element, PhysicalType](const FActiveSkillEffect &Effect) -> bool
 	{
 		return (Effect.PhysicalType != EPhysicalDamageType::None)
-				   ? (Effect.PhysicalType == PhysicalType)
+				   ? (PhysicalType != EPhysicalDamageType::None)
 				   : (Effect.Element == Element);
 	};
 

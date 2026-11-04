@@ -90,8 +90,8 @@ namespace CombatConstants
 
     // ==================== GEAR RESISTANCE ROLL (own pool) ====================
     // Per-tier net point budget for the gear resistance roll (FResistanceBonus),
-    // distributed zero-sum across the 12 resistance categories (9 elements + 3
-    // physical types). SEPARATE pool from SUBSTAT_BUDGET — rolling resistance does
+    // distributed zero-sum across the 10 resistance categories (9 elements + one
+    // Physical, B-358 / Q-358b). SEPARATE pool from SUBSTAT_BUDGET — rolling resistance does
     // NOT compete with stat substats. Values are percent points (the class table's
     // 15/10/5 scale). Conservative first pass — tune in PIE.
     constexpr int32 RESISTANCE_BUDGET_F = 8;
