@@ -1,4 +1,5 @@
 // StorageWidget.h
+// OBSOLETE (B-339, D-131): wor.UI.Inventory (UInventoryWidget) does this as one of its verbs; delete after Crown's PIE.
 // PLACEHOLDER UI (B-324, D-117, Q-321): the shared home chest. One member at a time: its own weapons, adapters
 // and pouch stacks (Put), and the chest's gear and stored item stacks (Take). Plain buttons built in C++,
 // opened with the console command wor.UI.Storage (Backlog rule 4). Gear rules: WoRGive (Inventory/GearGive.h);

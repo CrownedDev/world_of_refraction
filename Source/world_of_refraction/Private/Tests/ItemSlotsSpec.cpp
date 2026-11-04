@@ -3,6 +3,7 @@
 // crystal type and tier per slot, stacked to ITEM_STACK_MAX, 10 slots each); what doesn't fit goes to
 // the one unlimited storage, and moving it back fails until that pouch has room. A member's crystal
 // inventory mirrors its own pouch; a save from before B-322 gives its party pouch to the leader.
+// B-313 (D-111): a fight uses the pouch as it is (no auto-equip into the preset's item slots).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -198,7 +199,7 @@ void FItemSlotsSpec::Define()
 		TestEqual(TEXT("The pouch is untouched"), Pool->GetCarriedCount(KeyOf(0), Garnet), ITEM_SLOTS_STARTING_COUNT);
 	});
 
-	It("gives back what a fight's auto-equip took and didn't use, and makes none up", [this]()
+	It("fights with the pouch as it is: no auto-equip, and the preset's item slots are not its items (B-313)", [this]()
 	{
 		if (!Pool) return;
 		UCrystalInventoryComponent *Crystals = SpawnMember(0);
@@ -223,15 +224,18 @@ void FItemSlotsSpec::Define()
 		Inventory->ActiveLoadoutIndex = 0;
 		if (!TestTrue(TEXT("Ready"), Loadout->PrepareForBattle(Inventory))) return;
 
-		const int32 Equipped = InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT;
-		TestEqual(TEXT("Auto-equip took from its pouch"), Pool->GetCarriedCount(KeyOf(0), Garnet), InventoryConstants::ITEM_STACK_MAX - Equipped);
+		TestTrue(TEXT("It carries a pouch"), Loadout->UsesPouchItems());
+		TestEqual(TEXT("Nothing left its pouch"), Pool->GetCarriedCount(KeyOf(0), Garnet), InventoryConstants::ITEM_STACK_MAX);
+		TestEqual(TEXT("The preset's Garnet slot stays empty"), Inventory->SavedLoadouts[0].ItemSlots[0].Quantity, 0);
 		TestEqual(TEXT("The dropped duplicate made no Sapphire"), Pool->GetCarriedCount(KeyOf(0), Sapphire) + Pool->GetStoredCount(Sapphire), 0);
+		const TArray<FItemLoadoutSlot> Usable = Loadout->GetUsableItems();
+		if (!TestEqual(TEXT("The fight lists the pouch only"), Usable.Num(), 1)) return;
+		TestTrue(TEXT("Its Garnet"), Usable[0].CrystalId == Garnet);
+		TestEqual(TEXT("The whole stack: no tier cap (B-354)"), Usable[0].Quantity, InventoryConstants::ITEM_STACK_MAX);
 
-		Inventory->SavedLoadouts[0].ItemSlots[0].Quantity -= 1; // one thrown in the fight
 		Loadout->ResetBattleState();
-		TestEqual(TEXT("The unused ones are back"), Pool->GetCarriedCount(KeyOf(0), Garnet), InventoryConstants::ITEM_STACK_MAX - 1);
-		TestEqual(TEXT("They left the slot"), Inventory->SavedLoadouts[0].ItemSlots[0].Quantity, 0);
-		TestTrue(TEXT("Nothing still owed"), Loadout->GetBattleItemsTaken().IsEmpty());
+		TestEqual(TEXT("Still all carried"), Pool->GetCarriedCount(KeyOf(0), Garnet), InventoryConstants::ITEM_STACK_MAX);
+		TestTrue(TEXT("Nothing owed"), Loadout->GetBattleItemsTaken().IsEmpty());
 	});
 
 	It("keeps an enemy's crystals its own", [this]()

@@ -505,13 +505,12 @@ void UItemExecutor::ApplyStoneBuffEffect(AActor *User, AActor *Target, FCrystalI
 
 void UItemExecutor::ExecuteBonusTurnEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
-	// Emerald: grant the TARGET a PINNED bonus turn after a tier-scaled delay in normal
-	// turns (F=6 … S=0). Self-target = tempo; enemy-target = force their turn (their DoTs
-	// tick + they act — the gamble). Emerald itself applies NOTHING else: the DoT is
-	// whatever the player already stacked. The user forfeits the current turn for free —
-	// using the item IS the turn-ending action (OnActionCompleted → AdvanceToNextTurn).
-	// All tiers route through ScheduleBonusTurn; S (delay 0) fires on the very next
-	// scheduler step and grants TWO back-to-back turns.
+	// Emerald: grant the TARGET a bonus turn that lands immediately after this one (B-341, D-133:
+	// the one bonus-turn rule, TurnManager::GrantBonusTurn). Self-target = tempo; enemy-target =
+	// force their turn (their DoTs tick + they act — the gamble). Emerald itself applies NOTHING
+	// else: the DoT is whatever the player already stacked. The user forfeits the current turn for
+	// free — using the item IS the turn-ending action (OnActionCompleted → AdvanceToNextTurn).
+	// S grants TWO back-to-back turns, every other tier one (Q-341b).
 	if (!Target)
 	{
 		OutResult.ErrorMessage = TEXT("Emerald: no target");
@@ -529,17 +528,10 @@ void UItemExecutor::ExecuteBonusTurnEffect(AActor *User, AActor *Target, FCrysta
 		return;
 	}
 
-	// S is the delay-0 entry of EMERALD_BONUS_TURN_DELAY (the existing tier identification
-	// in this handler) and is the only tier granting more than one turn. NOTE: delay==0 is
-	// the trigger for count 2 — if a future tier were ever given delay 0, it would also
-	// grant two back-to-back turns.
-	constexpr int32 SRankBonusCount = 2;
-	const int32 DelayTurns = CrystalEffectTable::GetEmeraldBonusTurnDelay(Id);
-	const int32 Count = (DelayTurns == 0) ? SRankBonusCount : 1;
-
-	TurnMgr->ScheduleBonusTurn(Target, DelayTurns, Count);
-	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Emerald: scheduled %d pinned bonus turn(s) for %s after %d normal turn(s)"),
-		   Count, *Target->GetName(), DelayTurns);
+	// OBSOLETE (B-341): the delayed path (ScheduleBonusTurn after EMERALD_BONUS_TURN_DELAY turns) retired.
+	const int32 Count = CrystalEffectTable::GetEmeraldBonusTurnCount(Id);
+	TurnMgr->GrantBonusTurn(Target, Count);
+	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Emerald: %d bonus turn(s) for %s, landing next"), Count, *Target->GetName());
 
 	OutResult.bSuccess = true;
 }

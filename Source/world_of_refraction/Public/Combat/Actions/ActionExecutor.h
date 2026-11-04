@@ -209,7 +209,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Infusion")
 	static float GetSpellInfusionSizeMultiplier(int32 InfusionLevel);
 
-	/** Spell infusion energy-cost multiplier — 1.0 / 1.5 / 2.0 for infusion L0 / L1 / L2 (WoR.Infusion.Cost). */
+	/** OBSOLETE (B-334, D-126; delete in the D-124 sweep): the old spell charge tax, 1.0 / 1.5 / 2.0 for L0 / L1 / L2.
+	 *  No C++ caller; the cost reads InfusionConstants::ChargeLevelCostMultiplier (Blueprint check before deleting). */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Infusion")
 	static float GetSpellInfusionCostMultiplier(int32 InfusionLevel);
 
@@ -507,6 +508,7 @@ private:
 	 *  (B-245, Q-245; basic attacks included). */
 	EItemTier ResolveActionTier(AActor *Actor, const FAction &Action) const;
 	friend class FActionTierSpec;
+	friend class FInfusionCostSpec; // B-334: reads PendingInfusionHPCost after ApplyCommitCosts
 
 	/** The tier of the channel the action is used THROUGH: attack/ability →
 	 *  active weapon; spell → the catalyst crystal per Action.SpellSource
@@ -849,14 +851,13 @@ public:
 	 *  Raw/WeaponCrystal → weapon, Innate → character data, ActiveRing/PrimaryRing → ring,
 	 *  Evolution → primary-slot evolution. Null-safe → Balanced. */
 	EInfusionMode ResolveInfusionMode(EInfusionSourceOption Source, AActor *Actor) const;
-	/** Ability charge energy-cost multiplier (L1 = 1.5, L2 = 2.0); the infused ability's base cost
-	 *  already carries INFUSION_ENERGY_MULTIPLIER, so the total is x2.25 / x3.0 (D-035). */
+	/** OBSOLETE (B-334, D-126; delete in the D-124 sweep): the old ability charge tax (L1 = 1.5, L2 = 2.0). */
 	float GetAbilityChargeCostMultiplier(int32 Level) const;
 
-	/** Infused energy-cost multiplier package: the charge multiplier (x1.5/x2.0 at
-	 *  L1/L2, 1.0 at L0) times an upside-only stat surcharge (1 + max(0, stat-1)).
-	 *  Ability scales with RawDamage, spell with SpellDamage. Shared by the spell
-	 *  cost, ability spend, and ability preview so all three agree. */
+	/** Infused energy-cost multiplier: the charge level (x1 at L0 / L1, x2 at L2; D-126, B-334). An infused
+	 *  ability's base already carries INFUSION_ENERGY_MULTIPLIER (D-035). bIsSpell and Comp are unused since
+	 *  the stat surcharge retired (Q-334). Shared by the spell cost, ability spend and preview, the commit-time
+	 *  HP basis and the AI's lethal check, so all agree. */
 	float ComputeInfusionCostMultiplier(int32 Level, bool bIsSpell, const UCharacterDataComponent *Comp) const;
 
 	/** The fight is over (B-030): drop the completion callback so nothing advances a turn, cancel any

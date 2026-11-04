@@ -154,6 +154,7 @@ Maintain living system documents in `docs/Architecture/`. Each document covers o
 - `docs/Architecture/CombatCharacter.md`
 - `docs/Architecture/CombatOrchestrator.md`
 - `docs/Architecture/CombatTier.md`
+- `docs/Architecture/ConditionSystem.md`
 - `docs/Architecture/CrystalWear.md`
 - `docs/Architecture/CurrencySystem.md`
 - `docs/Architecture/DamageCalculator.md`
@@ -175,6 +176,7 @@ Maintain living system documents in `docs/Architecture/`. Each document covers o
 - `docs/Architecture/StatusBuildupSystem.md`
 - `docs/Architecture/TierOnInstance.md`
 - `docs/Architecture/TurnManager.md`
+- `docs/Architecture/TurnState.md`
 - `docs/Architecture/UISystem.md`
 - `docs/Architecture/WeaponSystem.md`
 - `docs/Architecture/WeatherSystem.md`

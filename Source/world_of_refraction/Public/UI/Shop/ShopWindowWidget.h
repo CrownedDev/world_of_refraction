@@ -30,6 +30,7 @@ class UListView;
 class UMerchantShopSubsystem;
 class UTextBlock;
 class UVerticalBox;
+struct FPurchaseCost;
 
 /** UObject carrier for one shop line — UListView items must be UObjects and
  *  FMerchantStockEntry is a struct. Stock and cart lists both hold these; the
@@ -55,6 +56,10 @@ class WORLD_OF_REFRACTION_API UShopWindowWidget : public UUserWidget
     GENERATED_BODY()
 
 public:
+    /** B-333: "Prisms 25 | Skill Essence 10 | Elemental Essence 10" — every balance Cost charges
+     *  (Prisms always). Shared by the detail pane and the stock rows. */
+    static FText GetCostLineText(const FPurchaseCost &Cost);
+
     // ==================== DATA SOURCE ====================
 
     /** Point the window at a merchant + purchaser and rebuild every pane. NativeConstruct
@@ -97,6 +102,15 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Shop")
     void HandleDetailAddClicked();
 
+    /** B-316 (D-111 buy-for) placeholder verb: who the cart is bought for, cycling the purchaser, then each other party
+     *  member (AI-controlled ones included). Bound to BuyForButton when the WBP has one; wor.Shop.BuyFor otherwise.
+     *  Confirm goes through UEconomyService::PurchaseFor. */
+    UFUNCTION(BlueprintCallable, Category = "Shop")
+    void HandleBuyForClicked();
+
+    /** The character key the cart is bought for; none = the purchaser. */
+    FName GetBuyForKey() const { return BuyForKey; }
+
     // ==================== DEBUG ====================
 
     /** Formatted snapshot: merchant, purchaser, cart lines, per-currency totals,
@@ -133,6 +147,14 @@ protected:
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
     TObjectPtr<UButton> CloseButton;
+
+    /** B-316: optional in the WBP; HandleBuyForClicked / wor.Shop.BuyFor cycle the receiver either way. */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
+    TObjectPtr<UButton> BuyForButton;
+
+    /** B-316: "Buying for: <name>". */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
+    TObjectPtr<UTextBlock> BuyForText;
 
     /** Hidden by default; shown for TOAST_DURATION_SECONDS after Confirm. */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Shop|Widgets")
@@ -174,6 +196,13 @@ private:
     TWeakObjectPtr<APawn> Purchaser;
     TWeakObjectPtr<UCurrencyComponent> PurchaserCurrency;
 
+    /** B-316: the party member the cart is bought for (none = the purchaser). Reset with each SetMerchant. */
+    FName BuyForKey;
+
+    /** B-316: BuyForText from BuyForKey; also toasted when the receiver changes. */
+    FText GetBuyForLabel() const;
+    void RefreshBuyFor();
+
     /** ListView item objects — owned here so GC keeps them alive for the lists. */
     UPROPERTY()
     TArray<TObjectPtr<UShopEntryObject>> StockObjects;
@@ -212,7 +241,7 @@ private:
         UTextBlock *WalletCell = nullptr;
     };
 
-    /** [0] header + one row per currency (Prisms, Skill, every EEssenceType). Built
+    /** [0] header + one row per balance a purchase charges (B-333: Prisms, Skill, Elemental, Pillar). Built
      *  ONCE (TransBuffer gotcha: never recreate widgets inside a designer-placed
      *  widget); refresh only updates texts / colors / visibility. */
     TArray<FTotalsRow> TotalsRows;

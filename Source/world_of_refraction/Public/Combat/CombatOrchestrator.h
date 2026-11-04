@@ -231,7 +231,8 @@ public:
 	 *  party, not its turn, an action running, the leader); empty when it can. */
 	FText GetControlSwitchRefusedReason(AActor *Actor) const;
 
-	/** D-026 (B-071): switch a party member between you and the AI on its turn, and hand the
+	/** Debug only since B-346 (Q-21-audit: seats are fixed for the fight; `wor.Combat.SwitchControl`).
+	 *  D-026 (B-071): switch a party member between you and the AI on its turn, and hand the
 	 *  turn to the new driver (the AI decides, or the command menu opens). False when refused. */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	bool SwitchMemberControl(AActor *Actor);
@@ -272,8 +273,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat|Row")
 	FText GetRowMoveRefusedReason(AActor *Actor, bool bForward) const;
 
-	/** D-096: free, once per turn: step one row in the same column, swapping with an ally standing
-	 *  there. Row bonuses apply from the new row at once (the grid is read per hit). */
+	/** D-096: free, once per turn: step one row, into any free slot of that row (B-342, D-134: an ally
+	 *  never blocks; only a full row refuses). Row bonuses apply from the new row at once (the grid is
+	 *  read per hit). */
 	bool TryMoveRow(AActor *Actor, bool bForward, FText &OutRefusedReason);
 
 	// ========================================
@@ -549,7 +551,8 @@ private:
 	UFUNCTION()
 	void OnCombatantDied(AActor *Victim);
 
-	/** D-045: once no living local member is player-driven, you take over the AI members
+	/** OBSOLETE (B-346): not called; an AI seat stays AI all fight (Q-21-audit).
+	 *  D-045: once no living local member is player-driven, you take over the AI members
 	 *  still standing (from their next turn), unless the party's "Let AI finish" is set. */
 	void TakeOverIfNoPlayerMemberLeft();
 

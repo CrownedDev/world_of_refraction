@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UI/Combat/TurnOrderStripWidget.h"
+#include "Player/TurnStateComponent.h"
 #include "UI/Combat/TurnOrderSlotWidget.h"
 #include "Combat/TurnManager.h"
 #include "Components/PanelWidget.h"
@@ -44,12 +45,22 @@ void UTurnOrderStripWidget::InitialiseForCombat()
 	// Pre-spawn slots once
 	SpawnSlots();
 
-	// Bind to turn changes
-	CachedTurnManager->OnTurnStarted.AddDynamic(this, &UTurnOrderStripWidget::HandleTurnStarted);
+	// Bind to turn changes: the GameState's turn state when there is one (B-228, works on clients), else the
+	// server-only TurnManager (standalone, headless).
+	CachedTurnState = UTurnStateComponent::Find(this);
+	if (UTurnStateComponent *TurnState = CachedTurnState.Get())
+	{
+		TurnState->OnTurnStateChanged.AddDynamic(this, &UTurnOrderStripWidget::HandleTurnStateChanged);
+	}
+	else
+	{
+		CachedTurnManager->OnTurnStarted.AddDynamic(this, &UTurnOrderStripWidget::HandleTurnStarted);
+	}
 
-	// Seed turn number before first RefreshSlots — combat always starts on turn 1.
-	// HandleTurnStarted will overwrite this on every subsequent turn.
-	CurrentTurnNumber = 1;
+	// Seed the turn number before the first RefreshSlots: from the mirror when there is one (a HUD built mid-fight or
+	// a late join reads the real number), else turn 1. The turn handlers overwrite it on every turn after.
+	const UTurnStateComponent *SeedState = CachedTurnState.Get();
+	CurrentTurnNumber = SeedState ? FMath::Max(1, SeedState->GetTurnNumber()) : 1;
 
 	// Initial population — handles "spawned mid-combat" case
 	RefreshSlots();
@@ -70,6 +81,11 @@ void UTurnOrderStripWidget::TeardownStrip()
 	{
 		TurnMgr->OnTurnStarted.RemoveDynamic(this, &UTurnOrderStripWidget::HandleTurnStarted);
 	}
+	if (UTurnStateComponent *TurnState = CachedTurnState.Get())
+	{
+		TurnState->OnTurnStateChanged.RemoveDynamic(this, &UTurnOrderStripWidget::HandleTurnStateChanged);
+	}
+	CachedTurnState.Reset();
 
 	if (SlotContainer)
 	{
@@ -104,6 +120,15 @@ void UTurnOrderStripWidget::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 	RefreshSlots();
 }
 
+void UTurnOrderStripWidget::HandleTurnStateChanged()
+{
+	if (const UTurnStateComponent *TurnState = CachedTurnState.Get())
+	{
+		CurrentTurnNumber = TurnState->GetTurnNumber();
+	}
+	RefreshSlots();
+}
+
 void UTurnOrderStripWidget::SpawnSlots()
 {
 	const int32 TotalSlots = PreviewCount + 1; // +1 for current actor
@@ -120,8 +145,35 @@ void UTurnOrderStripWidget::SpawnSlots()
 }
 void UTurnOrderStripWidget::RefreshSlots()
 {
+	if (Slots.Num() == 0)
+	{
+		return;
+	}
+	// B-228: the replicated turn state, the same on every player's screen.
+	if (const UTurnStateComponent *TurnState = CachedTurnState.Get())
+	{
+		if (Slots[0])
+		{
+			Slots[0]->InitialiseSlot(TurnState->GetCurrentActor(), CurrentTurnNumber, /*bIsActive=*/true,
+									 /*bIsBonus=*/TurnState->GetCurrentTurnIsBonus());
+		}
+		const TArray<FTurnStateSlot> &Upcoming = TurnState->GetUpcoming();
+		for (int32 i = 0; i < PreviewCount; ++i)
+		{
+			const int32 SlotIndex = i + 1;
+			if (!Slots.IsValidIndex(SlotIndex) || !Slots[SlotIndex])
+			{
+				continue;
+			}
+			const bool bIsBonus = Upcoming.IsValidIndex(i) && Upcoming[i].bIsBonusTurn;
+			AActor *PreviewActor = Upcoming.IsValidIndex(i) ? Upcoming[i].Actor.Get() : nullptr;
+			Slots[SlotIndex]->InitialiseSlot(PreviewActor, CurrentTurnNumber + i + 1, /*bIsActive=*/false, bIsBonus);
+		}
+		return;
+	}
+
 	UTurnManager *TurnMgr = CachedTurnManager.Get();
-	if (!TurnMgr || Slots.Num() == 0)
+	if (!TurnMgr)
 	{
 		return;
 	}

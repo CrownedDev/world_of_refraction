@@ -2805,9 +2805,22 @@ FActionResult UActionExecutor::ExecuteItem(
 	// === Find and use item slot in LoadoutComponent ===
 	ULoadoutComponent *Loadout = GetLoadoutComponent(User);
 	int32 ItemSlotIndex = -1;
+	// B-313 (D-111, D-117): a party member's item comes from its own pouch, ready for battle or not:
+	// the pouch is the only ledger, so an unready member must not use an item for free.
+	const bool bFromPouch = Loadout && Loadout->UsesPouchItems();
 
-	if (Loadout && Loadout->IsReadyForBattle())
+	if (bFromPouch)
 	{
+		if (!Loadout->CanUseCarriedItem(Id))
+		{
+			Result.bSuccess = false;
+			Result.ErrorMessage = TEXT("Item not in the pouch, or its tier band is used up this fight");
+			return Result;
+		}
+	}
+	else if (Loadout && Loadout->IsReadyForBattle())
+	{
+		// OBSOLETE (B-313): the loadout's item slots, for an actor with no pouch (enemies).
 		// The raw slot index (ULoadoutComponent::UseItem takes it), not an index into the
 		// usable-items list, which skips empty slots.
 		const TArray<FItemLoadoutSlot> &ItemSlots = Loadout->GetActiveLoadout().ItemSlots;
@@ -2874,7 +2887,11 @@ FActionResult UActionExecutor::ExecuteItem(
 	// === Consume item use from loadout ===
 	// Q-060 (B-201): a use that failed to land still spends its charge, like a missed
 	// throw; the result keeps reporting the failure (B-060).
-	if (Loadout && ItemSlotIndex >= 0)
+	if (bFromPouch)
+	{
+		Loadout->UseCarriedItem(Id);
+	}
+	else if (Loadout && ItemSlotIndex >= 0)
 	{
 		Loadout->UseItem(ItemSlotIndex);
 		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Consumed 1 use from item slot %d"), ItemSlotIndex);
