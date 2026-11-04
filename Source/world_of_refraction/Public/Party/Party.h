@@ -15,6 +15,7 @@
 
 #include "Combat/Grid/ECombatRow.h"
 #include "Loadout/CarriedGearState.h"
+#include "AI/EAIDifficulty.h"
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "Party.generated.h"
@@ -96,11 +97,22 @@ struct FPartyMember
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	int32 PreferredColumn = PartyConstants::UNSET_FORMATION;
 
-	/** D-004: who plays this member in battle — you (the command menu) or the AI.
-	 *  The leader (slot 0) is always Player; written by
-	 *  UPartySessionSubsystem::SetMemberPlayerControlled, which enforces that. */
+	/** OBSOLETE (B-346): the per-member Player / AI default (D-004, PA-11) gave way to the AI seat
+	 *  below (Q-21-audit). Kept mirrored (= !bAISeat) so the save keeps working until B-348.
+	 *  D-004: who plays this member in battle — you (the command menu) or the AI. */
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	bool bPlayerControlled = true;
+
+	/** B-346 (Q-21-audit, the deckbuilder's seat rule): the leader made this member an AI seat before
+	 *  the fight; it stays AI for the whole fight. False (default): a player commands it (solo: you).
+	 *  The leader slot is never an AI seat. Written by UPartySessionSubsystem::SetMemberAISeat. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	bool bAISeat = false;
+
+	/** B-346: the AI seat's difficulty (the deckbuilder's AI seat setting, default Medium, §8 item 80).
+	 *  TODO(B-348): not saved yet; a loaded party's AI seats start at the default. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	EAIDifficulty AISeatDifficulty = EAIDifficulty::Medium;
 
 	/** B-076 (D-026): found during a trial. Joins for that run only and leaves when it ends. */
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
@@ -158,7 +170,8 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	TArray<FPartyMember> Members;
 
-	/** D-045 Gameplay setting. False (default, "Take over"): when every Player
+	/** OBSOLETE (B-346): an AI seat stays AI all fight (Q-21-audit); nothing reads this any more.
+	 *  D-045 Gameplay setting. False (default, "Take over"): when every Player
 	 *  member has fallen you take over the AI members still standing. True ("Let AI
 	 *  finish"): the AI plays the fight out. Not saved yet.
 	 *  TODO(D-024): moves to the CommonUI Settings screen and the settings save. */
