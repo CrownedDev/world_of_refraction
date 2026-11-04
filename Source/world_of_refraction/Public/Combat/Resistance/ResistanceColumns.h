@@ -1,5 +1,5 @@
 // ResistanceColumns.h
-// B-272 (S7): the 12 resistance columns, read and written by damage type. Four structs carry the same
+// B-272 (S7): the resistance columns (ten since B-358), read and written by damage type. Four structs carry the same
 // named columns: ClassInnateResistanceTable::FResistanceRow, FResistanceProfileRow, FResistanceBonus and
 // FResistanceProfileDisplay. Their fields stay as they are (authored and saved); copies, sums, compares
 // and column reads go through here. Adding Ice = one field per struct and one case in Field.

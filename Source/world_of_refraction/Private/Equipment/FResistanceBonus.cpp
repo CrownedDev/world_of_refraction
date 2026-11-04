@@ -23,7 +23,7 @@ namespace
 		}
 	}
 
-	/** Apply an integer percent-point delta to category Slot (0..11), written as a
+	/** Apply an integer percent-point delta to category Slot (0..RESISTANCE_SLOT_COUNT-1), written as a
 	 *  float and clamped to RESISTANCE_BONUS_MIN/MAX. Slot order mirrors the struct. */
 	void ApplyResistanceDelta(FResistanceBonus &B, int32 Slot, int32 Delta)
 	{
