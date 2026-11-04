@@ -6,6 +6,7 @@
 #include "Algo/AnyOf.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Character/CharacterData.h"
+#include "Conditions/WoRConditions.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Actions/ActionStructs.h"
 #include "Engine/GameInstance.h"
@@ -216,6 +217,8 @@ void MemoryConditions::RecordKill(FMemoryFightUsage &Usage, const AActor *Killer
 
 bool MemoryConditions::IsMet(const FMemoryCondition &Condition, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal)
 {
+	// OBSOLETE (B-337): memories evaluate through WoRConditions (AreMet); kept as the parity reference
+	// (WoR.Conditions.MemoryParity) until PIE.
 	switch (Condition.Kind)
 	{
 	case EMemoryConditionKind::Character:
@@ -295,11 +298,13 @@ bool MemoryConditions::FitsRequirements(const FMemoryCondition &Condition, const
 bool MemoryConditions::AreMet(const UMemoryData &Memory, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal)
 {
 	// Q-209c: any one route opens it; none authored: only the source's naming it counts.
-	const TArray<TArray<FMemoryCondition>> Sets = Memory.GetConditionSets();
-	return Sets.IsEmpty() || Sets.ContainsByPredicate([&](const TArray<FMemoryCondition> &Set)
+	// B-337 (D-130): through the one condition evaluator; the authored conditions convert on read.
+	TArray<FWoRConditionSet> Routes;
+	for (const TArray<FMemoryCondition> &Set : Memory.GetConditionSets())
 	{
-		return Algo::AllOf(Set, [&](const FMemoryCondition &Condition) { return IsMet(Condition, Event, Journal); });
-	});
+		Routes.Add(WoRConditions::FromMemory(Set));
+	}
+	return WoRConditions::IsAnyMet(Routes, WoRConditions::MakeContext(Event, Journal));
 }
 
 TArray<UMemoryData *> MemoryConditions::GatherConditional()
@@ -365,13 +370,10 @@ int32 MemoryConditions::CheckEvent(UGameInstance *GameInstance, const FMemoryEve
 FString MemoryConditions::GetConditionsString(const UMemoryData &Memory, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal)
 {
 	TArray<FString> Routes;
+	const FWoRConditionContext Context = WoRConditions::MakeContext(Event, Journal);
 	for (const TArray<FMemoryCondition> &Set : Memory.GetConditionSets())
 	{
-		Routes.Add(FString::JoinBy(Set, TEXT(" + "), [&](const FMemoryCondition &Condition)
-		{
-			return FString::Printf(TEXT("%s [%s]"), *UMemoryData::GetConditionString(Condition),
-								   IsMet(Condition, Event, Journal) ? TEXT("met") : TEXT("not yet"));
-		}));
+		Routes.Add(WoRConditions::GetConditionSetString(WoRConditions::FromMemory(Set), Context)); // B-337
 	}
 	const bool bCollected = Journal && Journal->HasMemory(&Memory);
 	return FString::Printf(TEXT("%s%s: %s"), *Memory.GetMemoryId().ToString(), bCollected ? TEXT(" (collected)") : TEXT(""),

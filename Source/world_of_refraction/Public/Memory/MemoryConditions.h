@@ -86,15 +86,18 @@ namespace MemoryConditions
 	/** Q-209d: Killer made a kill: the weapon it held. */
 	WORLD_OF_REFRACTION_API void RecordKill(FMemoryFightUsage &Usage, const AActor *Killer);
 
+	/** OBSOLETE (B-337): memories evaluate through WoRConditions::IsMet (AreMet converts with
+	 *  WoRConditions::FromMemory); kept as the parity reference until PIE. */
 	WORLD_OF_REFRACTION_API bool IsMet(const FMemoryCondition &Condition, const FMemoryEvent &Event,
 									   const UMemoryJournalSubsystem *Journal);
 
-	/** Q-209e: Wearer fits Condition's RequirementFit against Requirements (null: none, which is
+	/** OBSOLETE (B-337): WoRConditions::FitsRequirements.
+	 *  Q-209e: Wearer fits Condition's RequirementFit against Requirements (null: none, which is
 	 *  always Met). An unknown wearer fits only Any. */
 	WORLD_OF_REFRACTION_API bool FitsRequirements(const FMemoryCondition &Condition, const FWorldStatRequirements *Requirements,
 												  const UCharacterData *Wearer);
 
-	/** Every unlock condition of Memory holds (none: true). */
+	/** Any one of Memory's condition sets holds (none: true), through WoRConditions (B-337). */
 	WORLD_OF_REFRACTION_API bool AreMet(const UMemoryData &Memory, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal);
 
 	/** Every authored memory with unlock conditions (the asset registry, sorted by path). TODO: loads
