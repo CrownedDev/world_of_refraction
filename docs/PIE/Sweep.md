@@ -117,6 +117,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-001](B-001.md) | Combat can no longer freeze; clean end of combat | Not tested | REVIEW (in dev) | [ ] |
 | [B-002](B-002.md) | `dev` merged into the native-UI refactor; HUD + results + vitals banking | Not tested | REVIEW (branch `refactor/B-002-merge-dev`; B-003 merges it) | [ ] |
 | [B-003](B-003.md) | Combat HUD, panel effects list and turn slots run on C++ (BP overrides deleted); hub unchanged (D-076) | Not tested | REVIEW (in dev; hub controller part is B-158) | [ ] |
+| [B-158](B-158.md) | One hub controller: E interact + EnsureLocalParty on `AWoRHubController`; `AExplorationPlayerController` (+ its `DefaultGame.ini` section and `WoR.Config.AssetPaths` case) OBSOLETE, delete after this pass. Blueprint check: `BP_HubPlayerController` has no IA_Interact / EnsureLocalParty nodes | Not tested | REVIEW (in dev) | [ ] |
 | [B-004](B-004.md) | GameplayAbilities plugin enabled (CommonUI already on) | Not tested | REVIEW (in dev) | [ ] |
 | [B-006](B-006.md) | Seven `LogWoR*` log categories; no gameplay change | Not tested | REVIEW (in dev) | [ ] |
 | [B-007](B-007.md) | 26 headless tests + test.sh output; no gameplay change | Not tested | REVIEW (in dev) | [ ] |
