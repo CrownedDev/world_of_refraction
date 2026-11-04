@@ -821,9 +821,12 @@ namespace
             {
                 return 0; // B-352 (D-141): an authored fusion no longer attaches, so it adds nothing to the price
             }
-            // OBSOLETE (B-352, D-141; delete in the D-124 sweep): fusion pricing.
-            return FMath::RoundToInt(1.5f * (EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfATier) +
-                                             EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfBTier)));
+            else
+            {
+                // OBSOLETE (B-352, D-141; delete in the D-124 sweep): fusion pricing.
+                return FMath::RoundToInt(1.5f * (EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfATier) +
+                                                 EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfBTier)));
+            }
         default:
             return 0;
         }
@@ -866,8 +869,11 @@ namespace
             {
                 return false; // B-352 (D-141): no fusion attaches
             }
-            return Attached.FusionHalfAType == ECrystalType::AbilityStone || // OBSOLETE (B-352)
-                   (!Attached.bFusionHalfBIsCrystal && Attached.FusionHalfBType == ECrystalType::AbilityStone);
+            else
+            {
+                return Attached.FusionHalfAType == ECrystalType::AbilityStone || // OBSOLETE (B-352)
+                       (!Attached.bFusionHalfBIsCrystal && Attached.FusionHalfBType == ECrystalType::AbilityStone);
+            }
         default:
             return false;
         }

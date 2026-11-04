@@ -324,47 +324,51 @@ bool UInventoryComponent::AttachFusionToGear(TArray<TEntry> &Gear, FGuid GearID,
         UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: fusions are retired (D-141) - refused, nothing debited"), Op);
         return false;
     }
-
-    // Validate the pair before touching anything (stat-stone + one contributor; evolution can't be a half).
-    if (!CrystalTypeHelpers::IsValidFusionPair(FusionId.HalfA.Type, FusionId.HalfB.Type))
+    else
     {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: invalid fusion pair — rejected"), Op);
-        return false;
-    }
+        // OBSOLETE (B-352, D-141; delete in the D-124 sweep): the fuse. Discarded while FusionRules::RETIRED.
 
-    if constexpr (IsRingGear<TEntry>)
-    {
-        // Inline ring-guard (mirrors URingData::IsDataValid:40-44): rings accept only ELEMENTAL fusions
-        // (one gem half); augmented fusions (two stones) are weapon-only.
-        if (!CrystalTypeHelpers::IsElementalFusion(FusionId.HalfA.Type, FusionId.HalfB.Type))
+        // Validate the pair before touching anything (stat-stone + one contributor; evolution can't be a half).
+        if (!CrystalTypeHelpers::IsValidFusionPair(FusionId.HalfA.Type, FusionId.HalfB.Type))
         {
-            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: augmented fusions are weapon-only — rejected on ring"), Op);
+            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: invalid fusion pair — rejected"), Op);
             return false;
         }
-    }
 
-    const int32 Index = FindEmptyGearSlot(Gear, GearID, Op);
-    if (Index == INDEX_NONE)
-    {
-        return false;
-    }
+        if constexpr (IsRingGear<TEntry>)
+        {
+            // Inline ring-guard (mirrors URingData::IsDataValid:40-44): rings accept only ELEMENTAL fusions
+            // (one gem half); augmented fusions (two stones) are weapon-only.
+            if (!CrystalTypeHelpers::IsElementalFusion(FusionId.HalfA.Type, FusionId.HalfB.Type))
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: augmented fusions are weapon-only — rejected on ring"), Op);
+                return false;
+            }
+        }
 
-    // Consume both halves atomically (the fuse) via the SILENT core — the component dispatches each
-    // half to Crystals or Stones internally. The core does the verify-then-commit and the identical-halves
-    // count (HalfA == HalfB → needs 2) for free, and stays silent so the fuse fires one signal
-    // (Equipped) below.
-    if (!CommitRemoveCrystals({FusionId.HalfA, FusionId.HalfB}))
-    {
-        return false;
-    }
+        const int32 Index = FindEmptyGearSlot(Gear, GearID, Op);
+        if (Index == INDEX_NONE)
+        {
+            return false;
+        }
 
-    Gear[Index].AttachedItem = MakeFusionAttachment(FusionId);
-    HandleGearSocketChanged(GearID);
-    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Fused %s + %s onto %s %s"),
-           *ItemIdentity::GetDisplayName(FusionId.HalfA), *ItemIdentity::GetDisplayName(FusionId.HalfB),
-           GearLabel<TEntry>(), *GearID.ToString());
-    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
-    return true;
+        // Consume both halves atomically (the fuse) via the SILENT core — the component dispatches each
+        // half to Crystals or Stones internally. The core does the verify-then-commit and the identical-halves
+        // count (HalfA == HalfB → needs 2) for free, and stays silent so the fuse fires one signal
+        // (Equipped) below.
+        if (!CommitRemoveCrystals({FusionId.HalfA, FusionId.HalfB}))
+        {
+            return false;
+        }
+
+        Gear[Index].AttachedItem = MakeFusionAttachment(FusionId);
+        HandleGearSocketChanged(GearID);
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Fused %s + %s onto %s %s"),
+               *ItemIdentity::GetDisplayName(FusionId.HalfA), *ItemIdentity::GetDisplayName(FusionId.HalfB),
+               GearLabel<TEntry>(), *GearID.ToString());
+        BroadcastInventoryChanged(EInventoryChangeType::Equipped);
+        return true;
+    }
 }
 
 template <class TEntry>
