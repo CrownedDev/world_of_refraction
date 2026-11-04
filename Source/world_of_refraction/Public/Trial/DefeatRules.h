@@ -4,6 +4,9 @@
 // mini-boss, 0 for the main boss. The party comes back at the last rest spot used (the trial's start until B-187)
 // with the enemy team whole; the run ends, back to the hub, after 3 losses to the main boss or 5 wipes in all.
 // The counters live on the run (UTrialRunSubsystem, saved with it). Replaces B-072. Debug: wor.Trial.PrintLosses.
+// B-362b (D-160, amends D-155): a wipe no longer costs pillar points. The run's whole Prism balance (the run
+// currency, ECurrencyType::Gold, D-159) drops at the map fight the party fell to; beating that fight's team recovers
+// it; wiping again first loses the earlier drop for good (the Souls bloodstain). A main-boss loss drops the same way.
 
 #pragma once
 
@@ -11,11 +14,14 @@
 #include "Character/EWorldPillar.h"
 #include "Combat/Encounter/EEncounterRank.h"
 
+class UCurrencyComponent;
+class UTrialRunSubsystem;
 class UWorld;
 
 namespace DefeatRules
 {
-	/** Run pillar points each member loses at most, by the rank of the enemy that beat the party. */
+	/** OBSOLETE (B-362b, D-160): a wipe takes no pillar points; these and GetPointsLost / PickPillarToLose have no
+	 *  game caller; delete after PIE. Run pillar points each member loses at most, by the rank of the enemy. */
 	inline constexpr int32 POINTS_LOST_NORMAL = 1;
 	inline constexpr int32 POINTS_LOST_MINI_BOSS = 2;
 	inline constexpr int32 POINTS_LOST_MAIN_BOSS = 0;
@@ -74,19 +80,35 @@ namespace WoRDefeat
 	/** What a wipe did. */
 	struct WORLD_OF_REFRACTION_API FWipeResult
 	{
+		/** OBSOLETE (B-362b): always 0. */
 		int32 PointsTaken = 0;
+		/** B-362b: the run Prisms dropped at this fight, and the earlier drop's, lost for good. */
+		int32 PrismsDropped = 0;
+		int32 PrismsLostForGood = 0;
 		int32 Wipes = 0;
 		int32 MainBossLosses = 0;
 		int32 Revived = 0;
 		bool bRunEnds = false;
 	};
 
-	/** The party was wiped by an enemy of Rank: counts it on the run, takes each member's run pillar points (MemberKeys:
-	 *  the keys of the party members that fought), and, if the run continues, brings the fallen back at full (the rest
-	 *  spot's revive, D-043). The caller sends the party back to the trial (the last rest spot used) or, when
-	 *  bRunEnds, to the hub. Server side. */
+	/** The party was wiped by an enemy of Rank: counts it on the run, drops the local wallet's run Prisms at this fight
+	 *  (DropPrisms), and, if the run continues, brings the fallen back at full (the rest spot's revive, D-043). The
+	 *  caller sends the party back to the trial (the last rest spot used) or, when bRunEnds, to the hub. Server side.
+	 *  MemberKeys: the members that fought (logged; they no longer pay points, D-160). TODO(D-103 co-op): every
+	 *  player's wallet drops once co-op fights land. */
 	WORLD_OF_REFRACTION_API FWipeResult ApplyWipe(UWorld *World, EEncounterRank Rank, const TArray<FName> &MemberKeys);
 
-	/** Debug: the run's wipe and main-boss-loss counts against their limits, and the last rest spot used. */
+	/** B-362b: Wallet's whole run balance leaves it and becomes Run's drop at the pending fight. Returns the amount
+	 *  dropped; OutLostForGood gets the earlier drop's amount. */
+	WORLD_OF_REFRACTION_API int32 DropPrisms(UTrialRunSubsystem &Run, UCurrencyComponent *Wallet, int32 &OutLostForGood);
+
+	/** B-362b: the pending fight was won; if it came from the drop's map team, the drop goes back into Wallet. Returns
+	 *  the amount recovered. */
+	WORLD_OF_REFRACTION_API int32 RecoverPrisms(UTrialRunSubsystem &Run, UCurrencyComponent *Wallet);
+
+	/** RecoverPrisms into the local player's wallet (the battle's victory). */
+	WORLD_OF_REFRACTION_API int32 RecoverPrisms(UWorld *World);
+
+	/** Debug: the run's wipe and main-boss-loss counts against their limits, the dropped Prisms, and the last rest spot. */
 	WORLD_OF_REFRACTION_API FString GetDefeatString(const UWorld *World);
 }

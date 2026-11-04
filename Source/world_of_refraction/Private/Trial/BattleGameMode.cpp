@@ -510,6 +510,8 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
         if (UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>())
         {
             TrialRun->MarkPendingEncounterBeaten();
+            // B-362b (D-160): beating the team the party fell to gives the dropped Prisms back.
+            WoRDefeat::RecoverPrisms(GetWorld());
             // B-361b (D-154, Q-361b): a boss beaten with another player pays every player a Mentor Token.
             if (TrialRun->GetPendingRank() == EEncounterRank::Boss)
             {
@@ -522,7 +524,7 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
         }
     }
 
-    // B-362 (D-155): a wipe costs run pillar points and a second chance; the run may be over.
+    // B-362 (D-155, D-160): a wipe drops the run's Prisms here and costs a second chance; the run may be over.
     if (Result.FinalState == ECombatState::Defeat)
     {
         ApplyWipe();
@@ -546,7 +548,7 @@ void ABattleGameMode::ApplyWipe()
     for (const AActor *Member : Orchestrator->GetLocalParty())
     {
         const UCharacterDataComponent *MemberData = Member ? Member->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-        // Only rostered members hold run points (a guest or summon has none), keyed as their levels are (B-360c).
+        // Rostered members only (a guest or summon is not the party), keyed as their levels are (B-360c); logged by the wipe.
         if (MemberData && MemberData->FindCarriedPartyMember())
         {
             MemberKeys.Add(UPoolSubsystem::GetCharacterKey(MemberData));
