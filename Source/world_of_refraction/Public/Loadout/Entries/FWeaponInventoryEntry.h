@@ -23,6 +23,7 @@
 
 class UWeaponData;
 class USpellData;
+class UAbilityData;
 
 /**
  * FWeaponInventoryEntry
@@ -83,6 +84,16 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     /** Spells assigned to this weapon's crystal slots (lost when crystal removed) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     TArray<USpellData *> AssignedSpells;
+
+    /** B-351 (D-145): the player's pick per skill slot (null = the built-in there). SkillSlotList.h. The replaced
+     *  built-ins stay on the weapon asset (PresetAbilities), so a cleared pick restores them. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+    TArray<UAbilityData *> SkillPicks;
+
+    /** B-351 (D-145): true once the player has edited this weapon's one skill-slot list; until then the loadout reads
+     *  the pre-D-145 lists (AssignedAbilities and the stone list, OBSOLETE). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+    bool bSkillSlotsActive = false;
 
     /** Per-instance stat bonus state. Seeded from the asset's authored
      *  BaseStatBonus at CreateFromWeapon time (the asset's Generated layer is
