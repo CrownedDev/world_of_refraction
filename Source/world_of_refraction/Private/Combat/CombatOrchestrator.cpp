@@ -165,7 +165,9 @@ void ACombatOrchestrator::OnCombatStartedUI_Implementation(const TArray<AActor *
 {
 	UWorld *World = GetWorld();
 	APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
-	if (!PC)
+	// B-229: only a controller with a local player can own widgets. A headless world's controller (a spec) and a
+	// remote client's controller on the server have none, and building the HUD for them crashed the test editor.
+	if (!PC || !PC->GetLocalPlayer())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] No local player controller - native combat HUD skipped"));
 		return;

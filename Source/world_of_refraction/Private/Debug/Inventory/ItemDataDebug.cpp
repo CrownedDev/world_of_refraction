@@ -121,8 +121,8 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
         break;
 
     case ECrystalType::Emerald:
-        // Emerald (reworked) grants a bonus turn after EMERALD_BONUS_TURN_DELAY turns; S=0 is a
-        // valid (immediate) delay, so there is no "zero is invalid" stat to validate here.
+        // Emerald grants bonus turns that land right after the current turn (B-341, D-133): one, two
+        // at S. No per-tier stat to validate here.
         break;
 
     case ECrystalType::Amber:
@@ -225,7 +225,7 @@ void UItemDataDebug::LogItemValues(const UEvolutionItemData *Item)
     UE_LOG(LogTemp, Display, TEXT("Heal %%: %.1f"), CrystalEffectTable::GetHealPercent(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("EP Restore %%: %.1f"), CrystalEffectTable::GetEPRestorePercent(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("Speed Buff %%: %.1f"), CrystalEffectTable::GetSpeedBuffPercent(FCrystalId{Item->CrystalType, Item->Tier}));
-    UE_LOG(LogTemp, Display, TEXT("Emerald Bonus-Turn Delay: %d turns (0=immediate; 0 also for non-Emerald)"), CrystalEffectTable::GetEmeraldBonusTurnDelay(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("Emerald Bonus Turns: %d, landing next (0 for non-Emerald)"), CrystalEffectTable::GetEmeraldBonusTurnCount(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("Buff %%: %.1f"), CrystalEffectTable::GetAmberDefensePercent(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("Crit Buff %%: %.1f"), CrystalEffectTable::GetCritBuffPercent(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("Crystal Buff Duration: %d turns"), CrystalEffectTable::GetCrystalDuration(FCrystalId{Item->CrystalType, Item->Tier}));
@@ -277,10 +277,8 @@ void UItemDataDebug::LogCrystalTierProgression(ECrystalType CrystalType)
 
             case ECrystalType::Emerald:
             {
-                const int32 BonusTurnDelay = CrystalEffectTable::GetEmeraldBonusTurnDelay(FCrystalId{TestItem->CrystalType, TestItem->Tier});
-                ValueStr = (BonusTurnDelay == 0)
-                               ? FString(TEXT("bonus turn (immediate)"))
-                               : FString::Printf(TEXT("bonus turn after %d turns"), BonusTurnDelay);
+                const int32 BonusTurns = CrystalEffectTable::GetEmeraldBonusTurnCount(FCrystalId{TestItem->CrystalType, TestItem->Tier});
+                ValueStr = FString::Printf(TEXT("%d bonus turn(s), landing next"), BonusTurns);
                 break;
             }
 
@@ -539,8 +537,8 @@ float UItemDataDebug::GetPrimaryValue(const UEvolutionItemData *Item)
         return CrystalEffectTable::GetEPRestorePercent(FCrystalId{Item->CrystalType, Item->Tier});
 
     case ECrystalType::Emerald:
-        // Primary "effect value" is now the bonus-turn delay N (turns), not a speed %.
-        return static_cast<float>(CrystalEffectTable::GetEmeraldBonusTurnDelay(FCrystalId{Item->CrystalType, Item->Tier}));
+        // Primary "effect value" is the bonus turns granted (B-341: they land next; no delay).
+        return static_cast<float>(CrystalEffectTable::GetEmeraldBonusTurnCount(FCrystalId{Item->CrystalType, Item->Tier}));
 
     case ECrystalType::Amber:
         return CrystalEffectTable::GetAmberDefensePercent(FCrystalId{Item->CrystalType, Item->Tier});
