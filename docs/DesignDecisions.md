@@ -1819,6 +1819,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 
 (Audit round 3 closing notes, Crown 2026-11-04: **§36** — the item-strengthening routes are upgrade, attach and merge (crystals only), which follows from D-141 and D-147, so nothing new to build; **downgrade stays** (ER-27) for essence back and respeccing. **§35** (skins / outfits) is **parked**, not to be built. **§30** no change. Round 3 = D-141 to D-149.)
 
+### Q-358 — Folding the old Slash / Pierce / Impact values into one Physical column
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-358, cloud) · **Blocks:** —
+**Question:** D-148 makes one Physical resistance column; saves and assets keep their three old fields (append-only). How do three different old values become one?
+**Options:** **A** their average, read live (no save or asset change; a new write sets all three to the one value). **B** the highest of the three. **C** add a new Physical field and migrate on load.
+**Recommendation:** A. A rolled gear piece's resistance is a zero-sum pool (`FResistanceBonus`), and the average keeps its total; the highest would inflate every old piece and hide its weaknesses. Path of Exile and Diablo IV use one physical mitigation stat for every physical hit, which is the model D-148 picks. C would change save shapes for no player gain.
+**Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
+**Notes for Claude:** built in B-358 (unbuilt). Authored class rows and profile assets with different physical values now read their average; re-authoring them to one value is editor work (CC+UE). The GAS mirror's `Resist_Slash` / `Pierce` / `Impact` attributes all carry the one value.
+
 ### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
 **Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.
