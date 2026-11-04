@@ -152,6 +152,24 @@ void FBossRulesSpec::Define()
 		SetBossHPPercent(BOSS_RULES_TEST_HP_LINE - BOSS_RULES_TEST_MARGIN - BOSS_RULES_TEST_MARGIN);
 		TestEqual(TEXT("one phase, not two"), Boss->GetReachedPhaseCount(), 1);
 	});
+
+	It("nets a fight-start Strengthen and a later Weaken through the boss's one fight state (Q-211)", [this]()
+	{
+		FWoRCondition InParty = Condition(EWoRConditionSubject::CharacterInParty);
+		InParty.Character = Lord;
+		Data->Rules.Add(Rule(EBossRuleWhen::FightStart, InParty, EBossRuleResult::Strengthen));
+		Data->Rules.Add(Rule(EBossRuleWhen::StateChange, Condition(EWoRConditionSubject::BossHPAtMostPercent, BOSS_RULES_TEST_HP_LINE),
+							 EBossRuleResult::Weaken));
+		UBossPhaseComponent *Boss = SpawnBoss();
+		const int32 BaseMaxHP = BossHP->MaxHP;
+		AActor *LordActor = TestWorld->SpawnCombatant(Lord);
+		BossTriggers::ApplyTo(BossActor, *Data, {LordActor});
+		TestTrue(TEXT("stronger at fight start"), BossHP->MaxHP > BaseMaxHP);
+		TestEqual(TEXT("one step up, on the component's state"), Boss->GetFightState().NetSteps, 1);
+		SetBossHPPercent(BOSS_RULES_TEST_HP_LINE - BOSS_RULES_TEST_MARGIN);
+		TestEqual(TEXT("the Weaken nets it to nothing"), Boss->GetFightState().NetSteps, 0);
+		TestEqual(TEXT("back to the base HP"), BossHP->MaxHP, BaseMaxHP);
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
