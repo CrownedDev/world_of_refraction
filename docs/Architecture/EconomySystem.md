@@ -151,7 +151,7 @@ All inline; named PIE-tunable constants in `EconomyYield::Constants`.
 ### The wallet (`UCurrencyComponent`) — summary
 The owner's currencies, behind a unified `Add`/`Spend`/`CanAfford`/`GetBalance(ECurrencyType, SubKey)`
 API: **Gold** (run-volatile), **Prisms**, **Diamond**, **GearEssence**, **SkillEssence** (scalars),
-and the 14-key **typed Essence** (`EssenceTyped`, FastArray). Server-gated, replication-aware,
+and the two essence scalars `ElementalEssence` / `PillarEssence` (B-333, D-125; the 14-key typed Essence is OBSOLETE until the sweep). Server-gated, replication-aware,
 `SaveGame`-tagged (no save system yet). Full detail in [`CurrencySystem.md`](./CurrencySystem.md).
 
 ## Integration Points

@@ -33,8 +33,8 @@ component (a separate build).
 | `PillarEssence` (B-333) | `int32` | `SaveGame` + `Replicated` (`OnRep_PillarEssence`) | per-character (stat stones, D-125) |
 | `EssenceTyped` (14 keys) — **OBSOLETE (B-333)** | `FCurrencyArray` (FastArray) | `SaveGame` + `Replicated` | per-character; nothing earns or spends it; delete in the D-124 sweep |
 
-- **Typed Essence keys** (`EEssenceType`, 14): 10 element (`Fire`…`Generic`), 3 pillar (`Mind`/`Body`/`Spirit`), 1 `Ability`.
-- The scalar currencies (`Gold`/`Prisms`/`Diamond`/`GearEssence`/`SkillEssence`) are plain `int32` with `ReplicatedUsing = OnRep_*`.
+- **Typed Essence keys** (`EEssenceType`, 14) — **OBSOLETE (B-333, D-125)**: nothing earns or spends them; deleted in the D-124 sweep.
+- The scalar currencies (`Gold`/`Prisms`/`Diamond`/`GearEssence`/`SkillEssence`/`ElementalEssence`/`PillarEssence`) are plain `int32` with `ReplicatedUsing = OnRep_*`.
   The typed Essence uses a FastArray (`TMap<Enum,int32>` is not natively replicable — see `Resources_Design.md` §16.2).
 - **`GearEssence` vs `SkillEssence`** is the §3 category split: the gear faucet (weapon/ring/evolution dismantle) feeds Gear and the gear leveling sink spends it; the skill faucet (spell/ability dismantle) feeds Skill. The two never merge. (Note: `EEssenceType::Reality`, in the typed wallet, is the shared ½-cost co-currency for leveling — see `EconomySystem.md`.)
 
