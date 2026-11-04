@@ -78,6 +78,15 @@ namespace
         }
     }
 
+    /** B-313: the pool and key of the owner's pouch; null when the owner carries none (enemies, unbound tests). */
+    UPoolSubsystem *LoadoutFindPouch(const AActor *Owner, FName &OutKey)
+    {
+        const UCrystalInventoryComponent *CrystalInv = Owner ? Owner->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+        UPoolSubsystem *Pool = CrystalInv ? CrystalInv->GetPouchPool() : nullptr;
+        OutKey = Pool ? CrystalInv->GetPouchCharacterKey() : FName(NAME_None);
+        return Pool;
+    }
+
     /** B-138: announces an active-weapon change when the mutator it guards returns, on every path. */
     struct FActiveWeaponChangeScope
     {
@@ -421,6 +430,9 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
                TEXT("[LoadoutComponent] CreateAndConfigureLoadout: no UCrystalInventoryComponent on inventory owner — items not debited/equipped"));
     }
 
+    // B-313 (D-111): a member with a pouch fights with the pouch; a preset holds no items of its own, so the
+    // pick keeps only the identity (Quantity 0) and nothing leaves the pouch.
+    const bool bPouchCarries = CrystalInv && CrystalInv->IsSharingItems();
     int32 ItemsAdded = 0;
     int32 SlotIndex = 0;
     for (const FEquippedItemSlot &Entry : ItemsToAdd)
@@ -440,7 +452,7 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
         // Route through the inventory facade so the equip-debit emits OnInventoryChanged.
         // Behaviour-identical to the old CrystalInv-guarded debit: the facade returns 0
         // when the owner has no crystal pool (same as the prior `CrystalInv ? ... : 0`).
-        const int32 Debited = Inventory->RemoveCrystal(Entry.CrystalId, Entry.Quantity);
+        const int32 Debited = bPouchCarries ? 0 : Inventory->RemoveCrystal(Entry.CrystalId, Entry.Quantity);
         Loadout.ItemSlots[SlotIndex].CrystalId = Entry.CrystalId;
         Loadout.ItemSlots[SlotIndex].Quantity = Debited;
         if (Debited > 0)
@@ -1784,8 +1796,17 @@ bool ULoadoutComponent::PrepareForBattle(UInventoryComponent *Inventory)
     // item-slot refill operates on the already-cleaned loadout.
     ClearInvalidSlots();
 
-    if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    BattleBandUses.Reset();
+    if (UsesPouchItems())
     {
+        // B-313 (D-111, Q-155): a member's fight items are its pouch as it is; refills happen at rest spots.
+        // The preset's item slots are neither filled nor read (OBSOLETE (B-313)).
+        UE_LOG(LogWoRLoadout, Verbose, TEXT("%s fights with its pouch: %d usable item stack(s)"), *GetNameSafe(GetOwner()),
+               GetUsableItems().Num());
+    }
+    else if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        // OBSOLETE (B-313) for party members: only an actor with no pouch still auto-equips its item slots.
         // Auto-equip refills item slots from the crystal inventory at combat
         // start when the loadout's flag is set. Pass the LIVE loadout element
         // (not a by-value accessor) so the Quantity writes persist.
@@ -1859,6 +1880,52 @@ bool ULoadoutComponent::UseItem(int32 SlotIndex)
     // Combat use depletes the slot only — inventory is NOT touched (it was
     // already debited at equip/auto-equip time under the transfer model).
     OnItemUsed.Broadcast(SlotIndex, Slot.CrystalId, Slot.Quantity);
+    return true;
+}
+
+bool ULoadoutComponent::UsesPouchItems() const
+{
+    FName Key;
+    return LoadoutFindPouch(GetOwner(), Key) != nullptr;
+}
+
+int32 ULoadoutComponent::GetCarriedBandRoom(const FCrystalId &Id) const
+{
+    const int32 Band = FLoadoutRules::GetUtilityBandIndex(Id);
+    if (Band == INDEX_NONE)
+    {
+        return 0;
+    }
+    return FMath::Max(FLoadoutRules::GetUtilityBandCap(Band) - BattleBandUses.FindRef(Band), 0);
+}
+
+bool ULoadoutComponent::CanUseCarriedItem(const FCrystalId &Id) const
+{
+    FName Key;
+    const UPoolSubsystem *Pool = LoadoutFindPouch(GetOwner(), Key);
+    return Pool && Pool->GetCarriedCount(Key, Id) > 0 && GetCarriedBandRoom(Id) > 0;
+}
+
+bool ULoadoutComponent::UseCarriedItem(const FCrystalId &Id)
+{
+    if (!CanUseCarriedItem(Id))
+    {
+        return false;
+    }
+    UInventoryComponent *Inv = GetInventoryComponent();
+    // The facade takes from the bound pouch only (UCrystalInventoryComponent::RemoveCount -> TakeCarried).
+    if (!Inv || Inv->RemoveCrystal(Id, 1) <= 0)
+    {
+        return false;
+    }
+    BattleBandUses.FindOrAdd(FLoadoutRules::GetUtilityBandIndex(Id)) += 1;
+
+    FName Key;
+    const UPoolSubsystem *Pool = LoadoutFindPouch(GetOwner(), Key);
+    const int32 Left = Pool ? Pool->GetCarriedCount(Key, Id) : 0;
+    UE_LOG(LogWoRLoadout, Verbose, TEXT("%s used %s from its pouch: %d left, %d more of its tier band this fight"),
+           *GetNameSafe(GetOwner()), *ItemIdentity::GetDisplayName(Id), Left, GetCarriedBandRoom(Id));
+    OnItemUsed.Broadcast(INDEX_NONE, Id, Left);
     return true;
 }
 
@@ -2268,6 +2335,27 @@ TArray<USpellData *> ULoadoutComponent::GetActiveSlotSpells() const
 
 TArray<FItemLoadoutSlot> ULoadoutComponent::GetUsableItems() const
 {
+    FName PouchKey;
+    if (const UPoolSubsystem *Pool = LoadoutFindPouch(GetOwner(), PouchKey))
+    {
+        // B-313 (D-111, D-117): the member's pouch is its only item list.
+        TArray<FItemLoadoutSlot> Carried;
+        for (const TPair<FCrystalId, int32> &Stack : Pool->GetCarriedItems(PouchKey))
+        {
+            const int32 Usable = FMath::Min(Stack.Value, GetCarriedBandRoom(Stack.Key));
+            if (Usable > 0)
+            {
+                FItemLoadoutSlot &Item = Carried.AddDefaulted_GetRef();
+                Item.CrystalId = Stack.Key;
+                Item.Quantity = Usable;
+            }
+        }
+        // A stable order for menus that index this list (the pouch is a map).
+        Carried.Sort([](const FItemLoadoutSlot &A, const FItemLoadoutSlot &B)
+                     { return A.CrystalId.Type != B.CrystalId.Type ? A.CrystalId.Type < B.CrystalId.Type : A.CrystalId.Tier > B.CrystalId.Tier; });
+        return Carried;
+    }
+
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
     {
@@ -2292,6 +2380,7 @@ int32 ULoadoutComponent::GetUsableItemCount() const
 void ULoadoutComponent::ResetBattleState()
 {
     bIsReadyForBattle = false;
+    BattleBandUses.Reset();
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv || BattleItemsTaken.IsEmpty() || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {

@@ -1430,6 +1430,20 @@ bool UInventoryComponent::DrawSharedGear()
             StartingItems.Append(CrystalInv->Stones);
             Pool->BankStartingItems(Key, StartingItems);
         }
+        else if (bRunOnly && !Pool->HasBankedItems(Key))
+        {
+            // B-313 (Q-313): a recruit's fight items are its pouch now, so its authored preset items go in once
+            // (they used to be a free supply in the preset's item slots, OBSOLETE).
+            TMap<FCrystalId, int32> RecruitItems;
+            for (const FItemLoadoutSlot &Slot : SavedLoadouts[ActiveLoadoutIndex].ItemSlots)
+            {
+                if (!Slot.IsEmpty())
+                {
+                    RecruitItems.FindOrAdd(Slot.CrystalId) += Slot.Quantity;
+                }
+            }
+            Pool->BankStartingItems(Key, RecruitItems);
+        }
         CrystalInv->BindSharedItems(Pool, Key);
     }
     ClaimActiveSharedGear();

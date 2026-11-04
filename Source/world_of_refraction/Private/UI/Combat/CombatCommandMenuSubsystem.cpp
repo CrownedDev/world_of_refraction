@@ -926,31 +926,28 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildItemsSubmenu() cons
 {
     TArray<FPieMenuButtonData> Buttons;
 
-    // Walk loadout slots so we can display remaining uses alongside the item
+    // B-313 (D-111, D-117): the member's usable items (its pouch; an actor with no pouch, its loadout's
+    // item slots), with how many this fight can still use.
     ULoadoutComponent *LC = GetLoadoutComponent();
     if (LC)
     {
-        const FCombatLoadout &Loadout = LC->GetActiveLoadout();
+        const TArray<FItemLoadoutSlot> Items = LC->GetUsableItems();
 
-        for (int32 SlotIndex = 0; SlotIndex < Loadout.ItemSlots.Num(); ++SlotIndex)
+        for (int32 ItemIndex = 0; ItemIndex < Items.Num(); ++ItemIndex)
         {
-            const FItemLoadoutSlot &Slot = Loadout.ItemSlots[SlotIndex];
-            if (Slot.IsEmpty())
-                continue;
+            const FItemLoadoutSlot &Item = Items[ItemIndex];
+            const FText DisplayName = FText::Format(NSLOCTEXT("CombatCommandMenu", "ItemButton", "{0}x {1}"),
+                                                    FText::AsNumber(Item.Quantity),
+                                                    FText::FromString(ItemIdentity::GetDisplayName(Item.CrystalId)));
 
-            const FString DisplayName = FString::Printf(TEXT("%dx %s"),
-                                                        Slot.Quantity,
-                                                        *ItemIdentity::GetDisplayName(Slot.CrystalId));
-
-            // Carry the slot index (DataIndex), not a UObject* — consumables have
-            // no asset identity now; the click handler reads the live CrystalId
-            // from Loadout.ItemSlots[DataIndex].
+            // Carry the index into GetUsableItems (DataIndex), not a UObject* — consumables have
+            // no asset identity; the click handler reads the live CrystalId from that list.
             FPieMenuButtonData Button = FPieMenuButtonData::MakeDataButton(
-                FString::Printf(TEXT("Item_%d"), SlotIndex),
-                FText::FromString(DisplayName),
+                FString::Printf(TEXT("Item_%d"), ItemIndex),
+                DisplayName,
                 EPieMenuCategory::Item,
                 nullptr,
-                SlotIndex);
+                ItemIndex);
 
             Button.bEnabled = true;
             Buttons.Add(Button);
@@ -1828,21 +1825,21 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
     case EPieMenuCategory::Item:
     {
         Action.ActionType = EActionType::Item;
-        // Consumable identity comes from the live loadout slot the button points
-        // at (DataIndex), not a UObject* payload.
+        // Consumable identity comes from the live usable-items entry the button points
+        // at (DataIndex, B-313), not a UObject* payload.
         if (ULoadoutComponent *LC = GetLoadoutComponent())
         {
-            const FCombatLoadout &Loadout = LC->GetActiveLoadout();
-            if (Loadout.ItemSlots.IsValidIndex(ButtonData.DataIndex))
+            const TArray<FItemLoadoutSlot> Items = LC->GetUsableItems();
+            if (Items.IsValidIndex(ButtonData.DataIndex))
             {
-                Action.ItemData = Loadout.ItemSlots[ButtonData.DataIndex].CrystalId;
+                Action.ItemData = Items[ButtonData.DataIndex].CrystalId;
             }
             else
             {
-                // Surface a dropped slot index instead of a silent empty action.
+                // Surface a dropped index instead of a silent empty action.
                 UE_LOG(LogTemp, Warning,
-                       TEXT("[CombatCommandMenu] Item action has invalid slot DataIndex=%d (ItemSlots.Num=%d) — ItemData left empty"),
-                       ButtonData.DataIndex, Loadout.ItemSlots.Num());
+                       TEXT("[CombatCommandMenu] Item action has invalid DataIndex=%d (usable items=%d) — ItemData left empty"),
+                       ButtonData.DataIndex, Items.Num());
             }
         }
         break;

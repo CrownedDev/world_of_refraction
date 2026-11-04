@@ -99,7 +99,9 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
      *  the owner is null, or the owner has no UCrystalInventoryComponent.
      *  Fills each non-full slot up to MAX_QUANTITY_PER_ITEM_SLOT (3),
      *  debiting the inventory via RemoveCrystal. Called from
-     *  ULoadoutComponent::PrepareForBattle. */
+     *  ULoadoutComponent::PrepareForBattle.
+     *  OBSOLETE (B-313, Q-155): no longer called for a member with a pouch (fights use the pouch as it is); a
+     *  rest-spot refill of the pouch replaces it. */
     static void ApplyAutoEquip(FCombatLoadout &Loadout, AActor *OwningActor);
 
     /** B-311 (D-111): back to the authored shape, with each piece referenced by its owned GUID, so a custom loadout
@@ -180,7 +182,10 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
 
     // ==================== ITEMS ====================
 
-    /** Item slots (max 6, max 3 Quantity per slot, unique by ECrystalType) */
+    /** Item slots (max 6, max 3 Quantity per slot, unique by ECrystalType)
+     *  OBSOLETE (B-313, D-111, D-117): a party member's fight items are its own pouch (ULoadoutComponent::
+     *  GetUsableItems / UseCarriedItem); these slots are read only for an actor with no pouch (enemies) and for
+     *  the preset rules / picks still on them (B-313b). Delete after Crown's PIE pass. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items")
     TArray<FItemLoadoutSlot> ItemSlots;
 

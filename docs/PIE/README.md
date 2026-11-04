@@ -31,6 +31,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-322](B-322.md) | `feature/B-322-per-character-pouch` (in `dev`) | A 10-slot pouch per character; save v9; older save's pouch to the leader | Pending |
 | [B-323](B-323.md) | `feature/B-323-give-between-characters` (in `dev`) | Give a weapon, adapter or pouch stack between your characters; `wor.UI.Give` | Pending |
 | [B-324](B-324.md) | `feature/B-324-shared-chest-gear` (in `dev`) | Unworn gear in the shared chest, any member takes it; `wor.UI.Storage` | Pending |
+| [B-313](B-313.md) | `refactor/B-313-pouch-per-member` (in `dev`) | Each member fights with its own pouch; item use spends the pouch only; D-072 caps per fight | Pending |
 | [B-325](B-325.md) | `feature/B-325-combat-tier` (in `dev`) | Combat Tier on panels, enemies' HP and level drops from it; `wor.Combat.PrintTiers` | Not built |
 | [B-042i](B-042i.md) | `refactor/B-042i-trigger-gas-specs` (in `dev`) | Parity specs: a trigger's effect lands on GAS as one GE on both paths; no gameplay change | Pending |
 | [B-312b](B-312b.md) | `refactor/B-312b-loadout-owns` (in `dev`) | Store 1b step 1: the loadout's owns-checks read the store view; no gameplay change | Pending |
