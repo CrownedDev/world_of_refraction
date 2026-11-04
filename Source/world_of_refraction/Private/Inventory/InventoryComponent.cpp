@@ -1343,18 +1343,19 @@ namespace InventoryGearSync
             {
                 if (!Member.bRunOnly && Member.CharacterData)
                 {
-                    return UPoolSubsystem::GetCharacterKey(Member.CharacterData);
+                    return UPoolSubsystem::GetCharacterKey(Member);
                 }
             }
         }
         return Fallback;
     }
 
-    const FPartyMember *FindLocalPartyMember(const UGameInstance *GI, UCharacterData *Data)
+    /** The party member a pawn plays (B-360b: by the member id the battle stamped, so a copy is its own member). */
+    const FPartyMember *FindLocalPartyMember(const UGameInstance *GI, const UCharacterDataComponent *Comp)
     {
         const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
         const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
-        const int32 Slot = Party && Data ? PartySession->GetMemberSlotByData(Data) : INDEX_NONE;
+        const int32 Slot = Party && Comp ? PartySession->GetMemberSlotOf(Comp) : INDEX_NONE;
         return Party && Party->Members.IsValidIndex(Slot) ? &Party->Members[Slot] : nullptr;
     }
 }
@@ -1370,7 +1371,7 @@ TMap<FName, const UCharacterData *> UInventoryComponent::GetPartyMembersByKey() 
         {
             if (Member.CharacterData)
             {
-                Members.Add(UPoolSubsystem::GetCharacterKey(Member.CharacterData), Member.CharacterData);
+                Members.Add(UPoolSubsystem::GetCharacterKey(Member), Member.CharacterData);
             }
         }
     }
@@ -1382,7 +1383,7 @@ bool UInventoryComponent::DrawSharedGear()
     const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
     UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
     const UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-    const FName Key = UPoolSubsystem::GetCharacterKey(CharComp ? CharComp->CharacterData : nullptr);
+    const FName Key = UPoolSubsystem::GetCharacterKey(CharComp);
     const TMap<FName, const UCharacterData *> Party = GetPartyMembersByKey();
     if (!Pool || !Party.Contains(Key))
     {
@@ -1390,7 +1391,7 @@ bool UInventoryComponent::DrawSharedGear()
     }
     UEvolutionInventoryComponent *EvoInv = GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>();
     // B-076 (D-026): a character found in a trial brings no gear; it uses what the party gives it.
-    const FPartyMember *RunMember = InventoryGearSync::FindLocalPartyMember(GI, CharComp->CharacterData);
+    const FPartyMember *RunMember = InventoryGearSync::FindLocalPartyMember(GI, CharComp);
     const bool bRunOnly = RunMember && RunMember->bRunOnly;
     if (!bRunOnly && !Pool->HasBankedGear(Key))
     {
@@ -2702,7 +2703,7 @@ void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)
         // B-203 / B-322 (D-097, D-117): the pool's Crystals / Stones are storage now; a member carries its
         // own pouch instead, so the draw binds to that rather than copying storage.
         const UCharacterDataComponent *PouchOwner = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-        const FName PouchKey = UPoolSubsystem::GetCharacterKey(PouchOwner ? PouchOwner->CharacterData : nullptr);
+        const FName PouchKey = UPoolSubsystem::GetCharacterKey(PouchOwner);
         if (PouchKey.IsNone())
         {
             UE_LOG(LogTemp, Warning, TEXT("[Inventory] %s has no character data: its items stay its own, not a pouch"), *GetNameSafe(GetOwner()));

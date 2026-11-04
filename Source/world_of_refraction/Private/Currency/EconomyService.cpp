@@ -1014,7 +1014,7 @@ namespace
         const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
         const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
         return Party ? Party->Members.FindByPredicate([Key](const FPartyMember &Member)
-                                                      { return Member.CharacterData && UPoolSubsystem::GetCharacterKey(Member.CharacterData) == Key; })
+                                                      { return UPoolSubsystem::GetCharacterKey(Member) == Key; })
                      : nullptr;
     }
 
@@ -1094,7 +1094,7 @@ namespace
 bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMerchantStockEntry> &Items)
 {
     const UCharacterDataComponent *PayerChar = Payer ? Payer->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-    const FName PayerKey = UPoolSubsystem::GetCharacterKey(PayerChar ? PayerChar->CharacterData : nullptr);
+    const FName PayerKey = UPoolSubsystem::GetCharacterKey(PayerChar);
     if (ForKey.IsNone() || ForKey == PayerKey)
     {
         return Purchase(Payer, Items);
