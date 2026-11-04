@@ -1,7 +1,8 @@
 // BalanceTargetsSpec.cpp
 // B-293 (docs/Design/BalanceSimulator.md §3): the balance targets and the GAS parity check.
-// - WoR.Balance.Sim.Targets runs a preset (quick by default; -WoRBalance=nightly or full on the command line, see
-//   Scripts/ue/test.sh), writes Saved/Balance/<preset>_<stamp>.{csv,json,md} and checks every target: on quick only
+// - WoR.Balance.Sim.Targets runs a preset named on the command line (-WoRBalance=nightly, full or quick, see
+//   Scripts/ue/test.sh). B-350 (D-140): with no preset named it is skipped, so the default test run carries no
+//   balance sim; the nightly preset runs it, writes Saved/Balance/<preset>_<stamp>.{csv,json,md} and checks every target: on quick only
 //   stalls are errors (3 fights can't carry a band); on nightly / full the error targets fail the test and the warn
 //   targets are reported.
 // - WoR.Balance.Sim.GASParity plays the same seed on the enum effect path and on GAS and expects the same record.
@@ -26,6 +27,13 @@ namespace
 	/** A run writes a .csv, a .json and a .md. */
 	constexpr int32 BALANCE_REPORT_FILES = 3;
 
+	/** B-350 (D-140): true when the command line names a balance preset; the default run skips the sim. */
+	bool BalancePresetRequested()
+	{
+		FString Named;
+		return FParse::Value(FCommandLine::Get(), BALANCE_PRESET_SWITCH, Named);
+	}
+
 	/** The preset named on the command line, else quick. */
 	FName BalancePresetFromCommandLine()
 	{
@@ -47,6 +55,10 @@ void FBalanceTargetsSpec::Define()
 {
 	BeforeEach([this]()
 	{
+		if (!BalancePresetRequested())
+		{
+			return; // B-350 (D-140): no sim world in the default run
+		}
 		Runner = MakeUnique<FBalanceSimRunner>();
 		TestTrue(TEXT("runner started"), Runner->Begin());
 	});
@@ -58,6 +70,11 @@ void FBalanceTargetsSpec::Define()
 
 	It("runs the preset, writes the report and checks every target", [this]()
 	{
+		if (!BalancePresetRequested())
+		{
+			AddInfo(TEXT("skipped: the balance sim runs only with -WoRBalance=<preset> (nightly; D-140)"));
+			return;
+		}
 		const FName Preset = BalancePresetFromCommandLine();
 		const TArray<FBalanceMatchup> Matchups = BalanceArchetypes::Preset(Preset);
 		const int32 Fights = BalanceArchetypes::PresetFights(Preset);
@@ -117,6 +134,10 @@ void FBalanceGASParitySpec::Define()
 {
 	BeforeEach([this]()
 	{
+		if (!BalancePresetRequested())
+		{
+			return; // B-350 (D-140): no sim world in the default run
+		}
 		Runner = MakeUnique<FBalanceSimRunner>();
 		TestTrue(TEXT("runner started"), Runner->Begin());
 	});
@@ -128,6 +149,11 @@ void FBalanceGASParitySpec::Define()
 
 	It("plays the same seed on the enum path and on GAS and gets the same record", [this]()
 	{
+		if (!BalancePresetRequested())
+		{
+			AddInfo(TEXT("skipped: the balance sim runs only with -WoRBalance=<preset> (nightly; D-140)"));
+			return;
+		}
 		const FName Preset = BalancePresetFromCommandLine();
 		const TArray<FBalanceMatchup> Matchups = BalanceArchetypes::Preset(Preset);
 		if (!TestTrue(Preset.ToString() + TEXT(" has matchups"), Matchups.Num() > 0)) return;
