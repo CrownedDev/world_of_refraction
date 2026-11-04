@@ -323,14 +323,14 @@ FText GetSpellSchoolName(ESpellSchool School)
 {
     switch (School)
     {
-    case ESpellSchool::Destruction:
-        return LOCTEXT("ESpellSchool_Destruction", "Destruction");
+    case ESpellSchool::Conjuration:
+        return LOCTEXT("ESpellSchool_Conjuration", "Conjuration");
     case ESpellSchool::Enhancement:
         return LOCTEXT("ESpellSchool_Enhancement", "Enhancement");
     case ESpellSchool::Restoration:
         return LOCTEXT("ESpellSchool_Restoration", "Restoration");
-    case ESpellSchool::Conjuration:
-        // OBSOLETE (B-356): a retired school shows as the one it maps onto (Q-356).
+    case ESpellSchool::Destruction:
+        // OBSOLETE (B-356c): a retired school shows as the one it maps onto (Q-356).
         return GetSpellSchoolName(SpellSchools::ToCurrent(School));
     }
     return FText::GetEmpty();

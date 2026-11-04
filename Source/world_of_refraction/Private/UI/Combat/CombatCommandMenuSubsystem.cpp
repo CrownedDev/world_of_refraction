@@ -961,7 +961,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildItemsSubmenu() cons
 namespace
 {
     /** B-356 (D-146): a spell's menu school from its shown school. The two enums' orders differ
-     *  (the old int cast put Enhancement spells under Conjuration). */
+     *  (the old int cast put Enhancement spells under Conjuration). B-356c: Conjuration is the damage school. */
     EPieMenuSpellSchool ToPieMenuSchool(const USpellData &Spell)
     {
         switch (Spell.GetSchool())
@@ -970,9 +970,9 @@ namespace
             return EPieMenuSpellSchool::Enhancement;
         case ESpellSchool::Restoration:
             return EPieMenuSpellSchool::Restoration;
-        case ESpellSchool::Destruction:
+        case ESpellSchool::Conjuration:
         default:
-            return EPieMenuSpellSchool::Destruction;
+            return EPieMenuSpellSchool::Conjuration;
         }
     }
 
@@ -981,13 +981,13 @@ namespace
         switch (School)
         {
         case EPieMenuSpellSchool::Enhancement:
-        case EPieMenuSpellSchool::Conjuration:
             return ESpellSchool::Enhancement;
         case EPieMenuSpellSchool::Restoration:
             return ESpellSchool::Restoration;
-        case EPieMenuSpellSchool::Destruction:
+        case EPieMenuSpellSchool::Destruction: // OBSOLETE (B-356c): retired, reads as Conjuration
+        case EPieMenuSpellSchool::Conjuration:
         default:
-            return ESpellSchool::Destruction;
+            return ESpellSchool::Conjuration;
         }
     }
 }

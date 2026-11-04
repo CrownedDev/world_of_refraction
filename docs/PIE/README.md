@@ -15,7 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
-| [B-356](B-356.md) | `feature/B-356-three-schools` (in `dev`) | Three spell schools (Conjuration → Enhancement); names on spells; AI reads effects; loadout caps and filters on the shown school; re-tag assets in the editor | Pending |
+| [B-356](B-356.md) | `feature/B-356-three-schools` + `feature/B-356c-conjuration-damage-school` (in `dev`) | Three spell schools: Conjuration (damage, Destruction retired onto it; D-146 corrected), Enhancement, Restoration; names on spells; AI reads effects; loadout caps and filters on the shown school; re-tag Destruction assets in the editor | Pending |
 | [B-345](B-345.md) | `feature/B-345-one-ai-path` (in `dev`) | One AI scoring path for spells and abilities; AI weights in the combat tuning data; no change at default weights | Pending |
 | [B-359](B-359.md) | `feature/B-359-weather-baseline` (in `dev`) | Weather = the trial's element; a boss phase steps it to the boss's element; leader HP no longer moves it | Pending |
 | [B-358](B-358.md) | `feature/B-358-one-physical-resistance` (in `dev`) | One Physical resistance column (buildup only, ED-27); each physical subtype still picks its break | Pending |

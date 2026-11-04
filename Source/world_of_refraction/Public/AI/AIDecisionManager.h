@@ -280,7 +280,7 @@ private:
      *  legal source, then ClampInfusionLevelForHP. */
     void ApplySkillChoice(AActor *AIActor, UCharacterDataComponent *CharComp, USkillDataBase *Skill, FAction &Action) const;
 
-    /** The candidates of one offensive category: usable Destruction spells, or available abilities. */
+    /** The candidates of one offensive category: usable offensive spells (IsOffensiveSpell), or available abilities. */
     static TArray<USkillDataBase *> GetOffensiveSkills(ULoadoutComponent *Loadout, EAIActionChoice Category);
 
     /** B-356 (D-146): the AI reads a spell's effects, never its school. Offensive: aimed at enemies

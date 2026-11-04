@@ -40,7 +40,7 @@ BEGIN_DEFINE_SPEC(FAIOneSkillPathSpec, "WoR.AI.OneSkillPath",
 	{
 		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
 		Spell->BaseDamage = BaseDamage;
-		Spell->School = ESpellSchool::Destruction;
+		Spell->School = ESpellSchool::Conjuration;
 		return Spell;
 	}
 
