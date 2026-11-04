@@ -1,6 +1,7 @@
 // SaveSubsystem.cpp
 
 #include "Save/SaveSubsystem.h"
+#include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Save/WoRSaveGame.h"
 #include "Character/CharacterData.h"
 #include "Character/Forms/CharacterFormSubsystem.h"
@@ -95,6 +96,10 @@ namespace
 	void RestoreGearDetail(const FSavedGearDetail &Gear, TGearEntry &Entry)
 	{
 		Entry.AttachedItem = Gear.Attached;
+		if (FusionRules::RETIRED && Entry.AttachedItem.Kind == EAttachedItemKind::Fusion)
+		{
+			Entry.AttachedItem = FRuntimeAttachedItem(); // B-352 (D-141): a fusion saved by an earlier dev build reads as an empty socket
+		}
 		Entry.AttachedItem.Evolution.Item = Gear.EvolutionItem.IsSet() ? Gear.EvolutionItem.ResolveAs<UEvolutionItemData>() : nullptr;
 		Entry.StoneSocket = Gear.StoneSocket; // B-351
 		if constexpr (std::is_same_v<TGearEntry, FWeaponInventoryEntry>)

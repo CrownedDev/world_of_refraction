@@ -906,6 +906,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### D-077 — Crystal tier caps: what counts as "a crystal"?
+**Changed by D-141 (B-352):** fusions retire, so the fusion part of this counting rule no longer applies (OBSOLETE); crystals and evolutions are what can sit in an element socket.
 **Status:** DECIDED (applied in B-155) · **Raised:** 2026-10-26 (B-155) · **Blocks:** — · **Changed by D-143 / B-354** (2026-11-04: the bands retire; one S-tier crystal per battle loadout is the only cap. D-143 is recorded on `docs/D-128-136-simplicity-round2`; this branch merges after it)
 **Question:** D-072 caps how many crystals of each tier band a character can have equipped (S 1, A+B 2, C+D 3, E+F 4). A weapon or ring slot can hold more than a plain crystal (CL-30), so which of these count toward the caps, and at what tier?
 **Context:** a slot holds one of: a **crystal**; an **augment stone** (stat stone or Ability Stone, weapons only, it has a tier); a **fusion** (two halves with at least one stat stone: stone + crystal, stone + stone, or stone + Ability Stone, CL-32); or an **evolution** (its own tier; the primary-slot evolution gives spells, CL-33). Plain crystals clearly count. The others aren't settled.

@@ -67,8 +67,8 @@ namespace CrystalTypeHelpers
         return IsAugmentStoneType(Type) && Type != ECrystalType::AbilityStone;
     }
 
-    // Fusion-pair predicates — keyed on the two half TYPES, kept struct-free so this
-    // header stays a pure ECrystalType helper (callers pass F.HalfA.Type / F.HalfB.Type).
+    // OBSOLETE (B-352, D-141; delete in the D-124 sweep): the fusion-pair predicates below — keyed on the two half
+    // TYPES, kept struct-free so this header stays a pure ECrystalType helper (callers pass F.HalfA.Type / F.HalfB.Type).
 
     /** Elemental fusion = exactly one crystal (gem) half — its element drives the fusion.
      *  Allowed on weapon OR ring. */
@@ -84,10 +84,10 @@ namespace CrystalTypeHelpers
         return !IsGemType(HalfAType) && !IsGemType(HalfBType);
     }
 
-    /** A fusion pair is valid iff each half is a stat-stone, AbilityStone, or gem (never
-     *  None — and evolution is unrepresentable as a half) AND at least one half is a
-     *  stat-stone. That single rule rejects every banned pair: crystal+crystal,
-     *  AbilityStone+AbilityStone, and AbilityStone+crystal all have zero stat-stones. */
+    /** OBSOLETE (B-352, D-141; delete in the D-124 sweep): fusions retire, nothing calls this in play.
+     *  The old rule: a fusion pair was valid iff each half was a stat-stone, AbilityStone, or gem (never
+     *  None — and evolution is unrepresentable as a half) AND at least one half was a stat-stone, which
+     *  rejected every banned pair (crystal+crystal, AbilityStone+AbilityStone, AbilityStone+crystal). */
     inline bool IsValidFusionPair(ECrystalType HalfAType, ECrystalType HalfBType)
     {
         auto IsAllowedHalf = [](ECrystalType T)

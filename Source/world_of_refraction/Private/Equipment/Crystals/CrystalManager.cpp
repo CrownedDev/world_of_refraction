@@ -82,6 +82,7 @@ void UCrystalManager::ProcessPostCastWear(
     // (stone+stone) fusions never wear — excluded here, preserving the
     // augment-stone no-wear semantics. Evolution items have their own path
     // (ProcessPostCastEvolutionWear).
+    // OBSOLETE (B-352, D-141; delete in the D-124 sweep): fusion wear; no fusion attaches any more. Evolution wear stays.
     if (!Attachment.IsCrystal() &&
         !(Attachment.IsFusion() && Attachment.Fusion.HasGemHalf()))
     {
