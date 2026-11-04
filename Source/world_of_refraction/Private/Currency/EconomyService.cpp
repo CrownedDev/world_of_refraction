@@ -1395,14 +1395,17 @@ bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEnt
     }
 
     // ============ AFFORDABILITY — every currency once, spend nothing if any is short ============
-    // B-333: Prisms always (a zero-Prisms cart is refused, as before); each essence only when charged.
+    // B-333: the money line always (a zero-money cart is refused, as before); each essence only when charged.
+    // B-366c: the money line is paid in the currency of the place (hub or run).
+    const ECurrencyType Place = GetPlaceCurrency(Owner);
     for (const ECurrencyType Balance : PurchaseCostBalances::CHARGED)
     {
         const int32 Amount = Cost.Get(Balance);
-        if ((Balance == ECurrencyType::Prisms || Amount > 0) && !Currency->CanAfford(Balance, Amount))
+        const ECurrencyType Paid = PurchaseCostBalances::PaidFrom(Balance, Place);
+        if ((Balance == ECurrencyType::Prisms || Amount > 0) && !Currency->CanAfford(Paid, Amount))
         {
             UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s cannot afford %d %s — aborting."), *Owner->GetName(),
-                   Amount, *StaticEnum<ECurrencyType>()->GetAuthoredNameStringByValue(static_cast<int64>(Balance)));
+                   Amount, *StaticEnum<ECurrencyType>()->GetAuthoredNameStringByValue(static_cast<int64>(Paid)));
             return false;
         }
     }
@@ -1410,14 +1413,14 @@ bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEnt
     // ============ SPEND — every currency once (all pre-cleared above) ============
     for (const ECurrencyType Balance : PurchaseCostBalances::CHARGED)
     {
-        Currency->Spend(Balance, Cost.Get(Balance)); // a zero amount is a no-op
+        Currency->Spend(PurchaseCostBalances::PaidFrom(Balance, Place), Cost.Get(Balance)); // a zero amount is a no-op
     }
 
     auto RefundAll = [&]()
     {
         for (const ECurrencyType Balance : PurchaseCostBalances::CHARGED)
         {
-            Currency->Add(Balance, Cost.Get(Balance)); // a zero amount is a no-op
+            Currency->Add(PurchaseCostBalances::PaidFrom(Balance, Place), Cost.Get(Balance)); // a zero amount is a no-op
         }
     };
 
@@ -1571,8 +1574,9 @@ bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEnt
         // Fires OnPoolSkillsChanged: the receiver's spawned member reloads its skills.
         ReceiverPool->SetSkills(SkillReceiver, ReceiverSpells.LearnedSpells, ReceiverAbilities.LearnedAbilities);
     }
-    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Purchase: granted %d cart entries to %s for %d Prisms (+ essence)."),
-           Items.Num(), *Owner->GetName(), Cost.Prisms);
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Purchase: granted %d cart entries to %s for %d %s (+ essence)."),
+           Items.Num(), *Owner->GetName(), Cost.Prisms,
+           *StaticEnum<ECurrencyType>()->GetAuthoredNameStringByValue(static_cast<int64>(Place)));
     return true;
 }
 

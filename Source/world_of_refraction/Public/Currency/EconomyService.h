@@ -32,6 +32,13 @@ namespace PurchaseCostBalances
     /** B-333: the balances a purchase can charge, in display order. */
     inline constexpr ECurrencyType CHARGED[] = {ECurrencyType::Prisms, ECurrencyType::SkillEssence,
                                                 ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence};
+
+    /** B-366c: the balance a cost line is paid from. The money line (listed as Prisms) is paid in the currency
+     *  of the place (UEconomyService::GetPlaceCurrency); the essences are paid as listed. */
+    inline ECurrencyType PaidFrom(ECurrencyType Listed, ECurrencyType Place)
+    {
+        return Listed == ECurrencyType::Prisms ? Place : Listed;
+    }
 }
 
 /** Per-currency cost of a Purchase cart. B-333 (D-125): Prisms + Skill / Elemental / Pillar Essence,
