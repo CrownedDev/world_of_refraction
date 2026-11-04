@@ -163,6 +163,24 @@ void FRunStateSpec::Define()
 
 		TestFalse(TEXT("an AI seat: not the first player"), ACombatPlayerController::ControlsActor(FirstPC, AISeat));
 		TestFalse(TEXT("an AI seat: not the second player"), ACombatPlayerController::ControlsActor(SecondPC, AISeat));
+
+		Run->ResetRotation();
+		TestEqual(TEXT("a new fight starts the rotation over (review)"), Run->GetRotationIndex(), 0);
+	});
+
+	It("refuses a second claim on a character and releases one (review)", [this]()
+	{
+		if (!Run || !FirstPlayer || !SecondPlayer) return;
+		UCharacterData *Data = FWoRTestWorld::NewCharacterData();
+		FirstPlayer->ClaimCharacter(Data);
+		SecondPlayer->ClaimCharacter(Data);
+		TestTrue(TEXT("the first keeps it"), FirstPlayer->ClaimsCharacter(Data));
+		TestFalse(TEXT("the second is refused"), SecondPlayer->ClaimsCharacter(Data));
+		FirstPlayer->ReleaseCharacter(Data);
+		TestFalse(TEXT("released"), FirstPlayer->ClaimsCharacter(Data));
+		SecondPlayer->ClaimCharacter(Data);
+		TestTrue(TEXT("free to claim now"), SecondPlayer->ClaimsCharacter(Data));
+		TestTrue(TEXT("seats are in ascending player id"), Run->GetSidePlayerIds() == TArray<int32>({RUN_STATE_FIRST_PLAYER_ID, RUN_STATE_SECOND_PLAYER_ID}));
 	});
 }
 
