@@ -3,6 +3,7 @@
 #include "Trial/BattleGameMode.h"
 
 #include "Character/CharacterData.h"
+#include "Currency/MentorTokenRules.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CombatCharacter.h"
 #include "Character/Forms/CharacterFormSubsystem.h"
@@ -506,6 +507,10 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
         if (UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>())
         {
             TrialRun->MarkPendingEncounterBeaten();
+            if (TrialRun->GetPendingRank() == EEncounterRank::Boss)
+            {
+                WoRMentor::PayBossBeaten(GetWorld()); // B-361b (D-154): a main boss beaten with other players
+            }
             // B-209: a beaten boss or mini-boss unlocks its memory, and memories whose unlock
             // conditions the win meets.
             CheckFightWonMemories();

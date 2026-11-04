@@ -5,6 +5,7 @@
 #include "WoRLog.h"
 
 #include "Character/CharacterData.h"
+#include "Currency/MentorTokenRules.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -150,6 +151,8 @@ void UTrialRunSubsystem::ExitTrial()
     {
         Pool->EndRunLayer();
     }
+    // B-361b (D-154): a run finished with other players pays each player Mentor Tokens; solo pays none.
+    WoRMentor::PayRunEnd(GetGameInstance()->GetWorld());
 
     // Hub return is the factory reset: drop every slot back to the sentinel so
     // the next EnterTrial seeds fresh rather than inheriting the last run's
