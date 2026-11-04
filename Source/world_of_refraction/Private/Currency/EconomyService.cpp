@@ -1124,9 +1124,9 @@ bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMer
             return false;
         }
         const bool bSkill = Cast<USpellData>(Asset) || Cast<UAbilityData>(Asset);
-        if (bSkill && (Receiver->bRunOnly || !Pool->HasBankedSkills(ForKey)))
+        if (bSkill && !Pool->HasBankedSkills(ForKey))
         {
-            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s can't learn %s for keeps (a run-only recruit, or not drawn yet, Q-316b) - refused"),
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s can't learn %s for keeps (not drawn yet, Q-316b) - refused"),
                    *ForKey.ToString(), *GetNameSafe(Asset));
             return false;
         }
@@ -1138,13 +1138,17 @@ bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMer
         }
     }
 
-    if (!BuyForReceiverHasRoom(*Pool, ForKey, Items))
+    // B-361 (D-152): a run-only recruit carries the host's pouch; its skills are its own (banked like anyone's).
+    const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+    const FName ForPouch = PartySession ? PartySession->GetPouchKey(ForKey) : ForKey;
+    const FName PayerPouch = PartySession ? PartySession->GetPouchKey(PayerKey) : PayerKey;
+    if (!BuyForReceiverHasRoom(*Pool, ForPouch, Items))
     {
         return false;
     }
 
     const TSet<FGuid> GearBefore = BuyForGearIDs(*Pool);
-    const TMap<FCrystalId, int32> CarriedBefore = Pool->GetCarriedItems(PayerKey);
+    const TMap<FCrystalId, int32> CarriedBefore = Pool->GetCarriedItems(PayerPouch);
     // The goods pass through the payer: its own copy of one is no duplicate for it to resolve (the receiver's is).
     UInventoryComponent *PayerInv = Payer->FindComponentByClass<UInventoryComponent>();
     const bool bWasQuiet = PayerInv && PayerInv->bSuppressDuplicateNotice;
@@ -1178,12 +1182,18 @@ bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMer
     }
     // Crystals and stones the purchase put in the payer's pouch move to the receiver's, as many as fit.
     int32 ItemsMoved = 0;
-    for (const TPair<FCrystalId, int32> &Stack : TMap<FCrystalId, int32>(Pool->GetCarriedItems(PayerKey)))
+    // A host buying for its recruit (or the other way round): the items are already in the pouch they share.
+    const bool bSharedPouch = ForPouch == PayerPouch;
+    for (const TPair<FCrystalId, int32> &Stack : TMap<FCrystalId, int32>(Pool->GetCarriedItems(PayerPouch)))
     {
+        if (bSharedPouch)
+        {
+            break;
+        }
         const int32 *Before = CarriedBefore.Find(Stack.Key);
         const int32 Bought = Stack.Value - (Before ? *Before : 0);
-        const int32 Moving = FMath::Min(Bought, Pool->GetCarryRoom(ForKey, Stack.Key));
-        if (Moving > 0 && Pool->GiveCarried(PayerKey, ForKey, Stack.Key, Moving))
+        const int32 Moving = FMath::Min(Bought, Pool->GetCarryRoom(ForPouch, Stack.Key));
+        if (Moving > 0 && Pool->GiveCarried(PayerPouch, ForPouch, Stack.Key, Moving))
         {
             ItemsMoved += Moving;
         }

@@ -1995,6 +1995,20 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **What it changes:** an eighth balance next to D-125's seven (Gold, Prisms, Diamond, Gear / Skill / Elemental / Pillar Essence), so a save version bump (D-138). Exact earn and teach amounts: **Q-361b** (reference-backed default). Built in **B-361b** (after B-361: it needs D-153's player check).
 **Notes for Claude:** B-361b. Teaching makes a new skill instance for the learner (a learn, not a move), so "one copy per character" still holds; it never moves the teacher's.
 
+### Q-361 — A leaving recruit's own skills, and who "the host" is
+**Status:** ANSWERED (Crown's ruling D-152 applied by the brain, 2026-11-04) · **Raised:** 2026-11-04 (B-361) · **Blocks:** —
+**Question:** D-152 sends everything a recruit held to the host at run end. (1) Do the skills its asset started with count, or only skills it learned in the run? (2) Who is "the host"?
+**Answer:** (1) **All of them**: its asset's starting skills stay with the host too (under D-152 everything a recruit had was always the host's). (2) The host's own character in the party: the party leader in solo play, the hosting player's character in co-op.
+**Notes for Claude:** B-361.
+
+### Q-361c — A recruit's skill the host already knows, and the items a recruit's preset carried
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-361) · **Blocks:** —
+**Question:** (1) At run end a recruit's skill goes to the host, but the host may already know it (one copy per character, D-111) or have no room. (2) A recruit's authored preset listed fight items (B-313 put them in its own pouch); it has no pouch now. Do they join the host's?
+**Options / as built:** (1) **A** the host keeps its own copy and the recruit's goes (logged); a full host loses the overflow the same way. **B** the copy passes to another of the host player's members. (2) **A** no: a recruit brings no items, as it brings no gear (D-026, "ungeared"); it fights with the host's pouch. **B** they join the host's pouch once.
+**Recommendation:** (1) A: Final Fantasy XIII's party shares one inventory and a guest's departure never duplicates anything; the host still knows the skill, so nothing is lost to the player, and the 50-skill cap is not reached in a run. (2) A: Final Fantasy XIII and Persona 5 guests use the party's items and bring none of their own; it matches D-026's ungeared recruit.
+**Answer:** **A, A**, by the reference-backed default (2026-11-04). Crown may change either.
+**Notes for Claude:** B-361.
+
 ### Q-361b — Mentor Tokens: how many a co-op run or boss pays, and what teaching costs
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (D-154) · **Blocks:** —
 **Question:** D-154 leaves the amounts open. (1) What earns tokens, and how many? (2) What does teaching cost? (3) Whose wallet holds them?

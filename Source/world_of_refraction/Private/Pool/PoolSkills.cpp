@@ -128,6 +128,58 @@ bool UPoolSubsystem::MoveAbility(FName FromKey, FName ToKey, const UAbilityData 
     return true;
 }
 
+int32 UPoolSubsystem::HandOverSkills(FName FromKey, FName ToKey)
+{
+    FPoolSkills Leaving;
+    if (FromKey == ToKey || !CharacterSkills.Contains(FromKey))
+    {
+        return 0;
+    }
+    if (!CharacterSkills.Contains(ToKey))
+    {
+        // The host always draws before a recruit can join; kept (not lost) if it somehow hasn't.
+        UE_LOG(LogTemp, Warning, TEXT("[Pool] HandOverSkills: %s has no skills kept yet; %s keeps its own"), *ToKey.ToString(), *FromKey.ToString());
+        return 0;
+    }
+    CharacterSkills.RemoveAndCopyValue(FromKey, Leaving);
+    FPoolSkills &To = CharacterSkills[ToKey];
+    int32 Moved = 0;
+    TArray<FString> Dropped;
+    for (const FSpellInstance &Spell : Leaving.Spells)
+    {
+        const bool bFits = Spell.Spell && To.Spells.Num() < InventoryConstants::MAX_LEARNED_SPELLS &&
+                           !To.Spells.ContainsByPredicate([&Spell](const FSpellInstance &I) { return I.Spell == Spell.Spell; });
+        if (bFits)
+        {
+            To.Spells.Add(Spell);
+            ++Moved;
+        }
+        else
+        {
+            Dropped.Add(GetNameSafe(Spell.Spell));
+        }
+    }
+    for (const FAbilityInstance &Ability : Leaving.Abilities)
+    {
+        const bool bFits = Ability.Ability && To.Abilities.Num() < InventoryConstants::MAX_LEARNED_ABILITIES &&
+                           !To.Abilities.ContainsByPredicate([&Ability](const FAbilityInstance &I) { return I.Ability == Ability.Ability; });
+        if (bFits)
+        {
+            To.Abilities.Add(Ability);
+            ++Moved;
+        }
+        else
+        {
+            Dropped.Add(GetNameSafe(Ability.Ability));
+        }
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] %s's skills go to %s: %d moved; already known or no room (one copy kept, Q-361c): %s"),
+           *FromKey.ToString(), *ToKey.ToString(), Moved, Dropped.IsEmpty() ? TEXT("none") : *FString::Join(Dropped, TEXT(", ")));
+    OnPoolSkillsChanged.Broadcast(FromKey);
+    OnPoolSkillsChanged.Broadcast(ToKey);
+    return Moved;
+}
+
 FString UPoolSubsystem::GetCharacterSkillsString() const
 {
     FString Out = FString::Printf(TEXT("=== Skills per character (%d) ==="), CharacterSkills.Num());

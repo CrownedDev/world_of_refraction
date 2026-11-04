@@ -452,6 +452,10 @@ public:
      *  for both. False when FromKey doesn't know it, ToKey already does or has no room, or either was never banked. */
     bool MoveSpell(FName FromKey, FName ToKey, const USpellData *Spell);
     bool MoveAbility(FName FromKey, FName ToKey, const UAbilityData *Ability);
+    /** B-361 (D-152, Q-361c): a leaving recruit's skills go to ToKey (the host's character): every instance FromKey
+     *  knows moves; one ToKey already knows, or has no room for, stays one copy (the recruit's is dropped, logged).
+     *  FromKey's ledger goes. Fires OnPoolSkillsChanged for both. Returns how many moved. */
+    int32 HandOverSkills(FName FromKey, FName ToKey);
     const TMap<FName, FPoolSkills> &GetCharacterSkills() const { return CharacterSkills; }
     /** Save restore: replaces every character's skills; fires OnPoolSkillsChanged for each, so a member already
      *  spawned reloads. */

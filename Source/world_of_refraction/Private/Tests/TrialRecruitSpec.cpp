@@ -2,6 +2,8 @@
 // B-076 (D-026, Q-076): a character found during a trial joins for that run only. It arrives
 // ungeared (nothing of its own goes into the shared armoury), uses the armoury pieces it's given,
 // leaves when the run ends, and a saved run keeps it.
+// B-361 (D-152, D-153, Q-361, Q-361c): a recruit carries the host's pouch, banks and trades its skills like any
+// member, and leaves its skills with the host (one copy); skills never change hands between two players' members.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -14,6 +16,10 @@
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "GameFramework/PlayerController.h"
+#include "Inventory/GearGive.h"
+#include "Player/WoRGameState.h"
+#include "Player/WoRPlayerState.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
@@ -25,6 +31,20 @@
 namespace
 {
 	constexpr int32 TRIAL_RECRUIT_SLOT = 1;
+	constexpr int32 TRIAL_RECRUIT_PICKUP_COUNT = 2;
+	constexpr int32 TRIAL_RECRUIT_HOST_ID = 1;
+	constexpr int32 TRIAL_RECRUIT_JOINER_ID = 2;
+	const FCrystalId TRIAL_RECRUIT_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
+
+	int32 TrialRecruitSpellCopies(const UPoolSubsystem &Pool, const USpellData *Spell)
+	{
+		int32 Copies = 0;
+		for (const TPair<FName, FPoolSkills> &Pair : Pool.GetCharacterSkills())
+		{
+			Copies += Pair.Value.Spells.FilterByPredicate([Spell](const FSpellInstance &I) { return I.Spell == Spell; }).Num();
+		}
+		return Copies;
+	}
 }
 
 BEGIN_DEFINE_SPEC(FTrialRecruitSpec, "WoR.Party.TrialRecruit",
@@ -66,6 +86,27 @@ BEGIN_DEFINE_SPEC(FTrialRecruitSpec, "WoR.Party.TrialRecruit",
 		Inventory->LinkLoadoutsToOwned();
 		Inventory->DrawSharedGear();
 		return Inventory;
+	}
+
+	/** B-361: a player in this world, as the co-op spec spawns one (its own controller; the first is the host). */
+	AWoRPlayerState *SpawnPlayer(AWoRGameState *GameState, int32 PlayerId)
+	{
+		UWorld *World = TestWorld->GetWorld();
+		AWoRPlayerState *Player = World->SpawnActor<AWoRPlayerState>();
+		APlayerController *PC = World->SpawnActor<APlayerController>();
+		if (!Player || !PC)
+		{
+			return nullptr;
+		}
+		if (APlayerState *AutoState = PC->PlayerState; AutoState && AutoState != Player)
+		{
+			GameState->RemovePlayerState(AutoState);
+			AutoState->Destroy();
+		}
+		Player->SetPlayerId(PlayerId);
+		PC->PlayerState = Player;
+		GameState->AddPlayerState(Player);
+		return Player;
 	}
 
 	static FGuid ActiveWeaponID(const UInventoryComponent *Inventory)
@@ -245,6 +286,101 @@ void FTrialRecruitSpec::Define()
 		const FPartyMember &Back = Restored->Members[TRIAL_RECRUIT_SLOT];
 		TestTrue(TEXT("Still run-only"), Back.bRunOnly);
 		TestEqual(TEXT("Same weapon"), Back.RunWeapon, SwordID);
+	});
+
+	It("puts a recruit's pickup in the host's pouch, and the recruit brings no items (B-361, Q-361c)", [this]()
+	{
+		if (!Pool || !Spawn(Leader, false)) return;
+		PartySession->InviteRunMember(ACombatCharacter::StaticClass(), Recruit);
+		UInventoryComponent *Inventory = Spawn(Recruit, false);
+		UCrystalInventoryComponent *Pouch = Inventory ? Inventory->GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+		if (!TestNotNull(TEXT("The recruit's crystal inventory"), Pouch)) return;
+		const FName LeaderKey = UPoolSubsystem::GetCharacterKey(Leader);
+		const FName RecruitKey = UPoolSubsystem::GetCharacterKey(Recruit);
+		TestEqual(TEXT("Its pouch is the host's"), PartySession->GetPouchKey(RecruitKey), LeaderKey);
+		TestTrue(TEXT("Picked up"), Pouch->AddCount(TRIAL_RECRUIT_GEM, TRIAL_RECRUIT_PICKUP_COUNT));
+		TestEqual(TEXT("The host carries it"), Pool->GetCarriedCount(LeaderKey, TRIAL_RECRUIT_GEM), TRIAL_RECRUIT_PICKUP_COUNT);
+		TestFalse(TEXT("No pouch of the recruit's own"), Pool->GetPouches().Contains(RecruitKey));
+		TestEqual(TEXT("The recruit sees the same count"), Pouch->GetCount(TRIAL_RECRUIT_GEM), TRIAL_RECRUIT_PICKUP_COUNT);
+	});
+
+	It("lets a recruit learn a skill and give it to the host (B-361)", [this]()
+	{
+		if (!Pool || !Spawn(Leader, false)) return;
+		PartySession->InviteRunMember(ACombatCharacter::StaticClass(), Recruit);
+		UInventoryComponent *Inventory = Spawn(Recruit, false);
+		if (!Inventory) return;
+		const FName LeaderKey = UPoolSubsystem::GetCharacterKey(Leader);
+		const FName RecruitKey = UPoolSubsystem::GetCharacterKey(Recruit);
+		TestTrue(TEXT("The recruit's skills are kept"), Pool->HasBankedSkills(RecruitKey));
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		TestTrue(TEXT("The recruit learned it"), Inventory->LearnSpell(Spell) && Pool->KnowsSpell(RecruitKey, Spell));
+		const FText Refusal = WoRGive::TryGiveSkill(TestWorld->GetWorld(), RecruitKey, LeaderKey, Spell);
+		TestTrue(FString::Printf(TEXT("Given (%s)"), *Refusal.ToString()), Refusal.IsEmpty());
+		TestTrue(TEXT("The host knows it"), Pool->KnowsSpell(LeaderKey, Spell));
+		TestFalse(TEXT("The recruit doesn't"), Pool->KnowsSpell(RecruitKey, Spell));
+	});
+
+	It("leaves a recruit's skills with the host at run end, one copy each (B-361, Q-361, Q-361c)", [this]()
+	{
+		if (!Pool) return;
+		UInventoryComponent *LeaderInventory = Spawn(Leader, false);
+		if (!LeaderInventory) return;
+		PartySession->InviteRunMember(ACombatCharacter::StaticClass(), Recruit);
+		UInventoryComponent *Inventory = Spawn(Recruit, false);
+		if (!Inventory) return;
+		USpellData *Own = NewObject<USpellData>(GetTransientPackage());
+		USpellData *Shared = NewObject<USpellData>(GetTransientPackage());
+		TestTrue(TEXT("The recruit knows both"), Inventory->LearnSpell(Own) && Inventory->LearnSpell(Shared));
+		TestTrue(TEXT("The host knows one of them"), LeaderInventory->LearnSpell(Shared));
+		const FName LeaderKey = UPoolSubsystem::GetCharacterKey(Leader);
+		const FName RecruitKey = UPoolSubsystem::GetCharacterKey(Recruit);
+
+		TestEqual(TEXT("The recruit leaves"), PartySession->DismissRunMembers(), 1);
+		TestTrue(TEXT("The host has the recruit's own spell"), Pool->KnowsSpell(LeaderKey, Own));
+		TestEqual(TEXT("One copy of it"), TrialRecruitSpellCopies(*Pool, Own), 1);
+		TestEqual(TEXT("Still one copy of the shared one"), TrialRecruitSpellCopies(*Pool, Shared), 1);
+		TestFalse(TEXT("The recruit's skills are gone from the store"), Pool->HasBankedSkills(RecruitKey));
+		TestTrue(TEXT("The host's member loaded it"), LeaderInventory->Spells.HasSpell(Own));
+	});
+
+	It("refuses a skill give between two players' members, but not a gear give (B-361, D-153)", [this]()
+	{
+		if (!Pool) return;
+		UWorld *World = TestWorld->GetWorld();
+		AWoRGameState *GameState = World->SpawnActor<AWoRGameState>();
+		if (!TestNotNull(TEXT("GameState"), GameState)) return;
+		World->SetGameState(GameState);
+		AWoRPlayerState *Host = SpawnPlayer(GameState, TRIAL_RECRUIT_HOST_ID);
+		AWoRPlayerState *Joiner = SpawnPlayer(GameState, TRIAL_RECRUIT_JOINER_ID);
+		if (!TestNotNull(TEXT("Host"), Host) || !TestNotNull(TEXT("Joiner"), Joiner)) return;
+		UCharacterData *Guest = FWoRTestWorld::NewCharacterData();
+		Guest->Name = TEXT("Guest");
+		FPartyMember &GuestMember = PartySession->GetLocalParty()->Members.AddDefaulted_GetRef();
+		GuestMember.PawnClass = ACombatCharacter::StaticClass();
+		GuestMember.CharacterData = Guest;
+		GuestMember.bPlayerControlled = true;
+		GuestMember.MemberId = FGuid::NewGuid();
+		Joiner->ClaimMember(GuestMember.MemberId);
+		const FName GuestKey = UPoolSubsystem::GetCharacterKey(GuestMember);
+		UInventoryComponent *LeaderInventory = Spawn(Leader, false);
+		UInventoryComponent *GuestInventory = Spawn(Guest, false);
+		if (!LeaderInventory || !GuestInventory) return;
+		const FName LeaderKey = UPoolSubsystem::GetCharacterKey(Leader);
+
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		TestTrue(TEXT("The guest learned it"), GuestInventory->LearnSpell(Spell));
+		TestFalse(TEXT("No give to the host's character"), WoRGive::TryGiveSkill(World, GuestKey, LeaderKey, Spell).IsEmpty());
+		TestFalse(TEXT("No ask from it either"), WoRGive::TryRequestSkill(World, LeaderKey, GuestKey, Spell).IsEmpty());
+		TestTrue(TEXT("The guest keeps it"), Pool->KnowsSpell(GuestKey, Spell) && !Pool->KnowsSpell(LeaderKey, Spell));
+
+		GuestInventory->AddRing(NewObject<URingData>(GetTransientPackage()));
+		if (!TestEqual(TEXT("One ring in the armoury"), Pool->GetOwnedRings().Num(), 1)) return;
+		const FGuid RingID = Pool->GetOwnedRings()[0].PersistentID;
+		if (!TestEqual(TEXT("The guest owns it"), Pool->GetGearOwner(RingID), GuestKey)) return;
+		const FText Refusal = WoRGive::TryGiveGear(World, GuestKey, LeaderKey, RingID);
+		TestTrue(FString::Printf(TEXT("Gear still goes (%s)"), *Refusal.ToString()), Refusal.IsEmpty());
+		TestEqual(TEXT("The host's now, for good"), Pool->GetGearOwner(RingID), LeaderKey);
 	});
 }
 

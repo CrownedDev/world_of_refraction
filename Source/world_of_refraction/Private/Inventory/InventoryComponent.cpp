@@ -1493,38 +1493,23 @@ bool UInventoryComponent::DrawSharedGear()
     RefillActivePrimary(); // after the pool is set, so gear another member wears is skipped
     Pool->OnPoolGearChanged.AddUniqueDynamic(this, &UInventoryComponent::HandlePoolGearChanged);
     // B-316b (Q-316, Q-316b): learned skills are the member's own and kept: its asset's go in once, the store's are
-    // loaded after. A run-only recruit keeps its asset's skills (it owns nothing, Q-321).
-    bSkillsInStore = !bRunOnly;
-    if (bSkillsInStore)
+    // loaded after. B-361 (D-152): a run-only recruit's too; they go to the host when it leaves (DismissRunMembers).
+    bSkillsInStore = true;
+    if (!Pool->BankSkills(Key, Spells.LearnedSpells, Abilities.LearnedAbilities))
     {
-        if (!Pool->BankSkills(Key, Spells.LearnedSpells, Abilities.LearnedAbilities))
-        {
-            PullSkillsFromPool();
-        }
-        Pool->OnPoolSkillsChanged.AddUniqueDynamic(this, &UInventoryComponent::HandlePoolSkillsChanged);
+        PullSkillsFromPool();
     }
+    Pool->OnPoolSkillsChanged.AddUniqueDynamic(this, &UInventoryComponent::HandlePoolSkillsChanged);
     // B-203 / B-322 (D-097, D-117): each member carries its own pouch; its starting items go in once.
+    // B-361 (D-152, Q-361c): a run-only recruit carries the host's pouch and brings no items of its own.
     if (UCrystalInventoryComponent *CrystalInv = GetOwner()->FindComponentByClass<UCrystalInventoryComponent>())
     {
         if (!bRunOnly && !Pool->HasBankedItems(Key))
         {
             Pool->BankStartingItems(Key, CrystalInv->GetHeldStacks()); // its authored counts: not bound yet
         }
-        else if (bRunOnly && !Pool->HasBankedItems(Key))
-        {
-            // B-313 (Q-313): a recruit's fight items are its pouch now, so its authored preset items go in once
-            // (they used to be a free supply in the preset's item slots, OBSOLETE).
-            TMap<FCrystalId, int32> RecruitItems;
-            for (const FItemLoadoutSlot &Slot : SavedLoadouts[ActiveLoadoutIndex].ItemSlots)
-            {
-                if (!Slot.IsEmpty())
-                {
-                    RecruitItems.FindOrAdd(Slot.CrystalId) += Slot.Quantity;
-                }
-            }
-            Pool->BankStartingItems(Key, RecruitItems);
-        }
-        CrystalInv->BindSharedItems(Pool, Key);
+        const UPartySessionSubsystem *PartySession = GI->GetSubsystem<UPartySessionSubsystem>();
+        CrystalInv->BindSharedItems(Pool, PartySession ? PartySession->GetPouchKey(Key) : Key);
     }
     ClaimActiveSharedGear();
 
@@ -2756,7 +2741,10 @@ void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)
         // B-203 / B-322 (D-097, D-117): the pool's Crystals / Stones are storage now; a member carries its
         // own pouch instead, so the draw binds to that rather than copying storage.
         const UCharacterDataComponent *PouchOwner = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-        const FName PouchKey = UPoolSubsystem::GetCharacterKey(PouchOwner);
+        const UGameInstance *PouchGI = Pool->GetGameInstance();
+        const UPartySessionSubsystem *PartySession = PouchGI ? PouchGI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+        const FName OwnKey = UPoolSubsystem::GetCharacterKey(PouchOwner);
+        const FName PouchKey = PartySession ? PartySession->GetPouchKey(OwnKey) : OwnKey; // B-361: a recruit carries the host's
         if (PouchKey.IsNone())
         {
             UE_LOG(LogTemp, Warning, TEXT("[Inventory] %s has no character data: its items stay its own, not a pouch"), *GetNameSafe(GetOwner()));

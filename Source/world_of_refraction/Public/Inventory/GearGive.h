@@ -6,6 +6,8 @@
 // a full pouch refuses. Evolutions are not given yet (Q-323).
 // B-316b (Q-316, Q-316b): a learned spell or ability is given the same way (one copy moves) or requested from a
 // teammate (an AI member, or one of the requesting player's own, says yes at once).
+// B-361 (D-152, D-153): a run-only recruit trades skills like any member and carries the host's pouch; skills never
+// change hands between two players' members (gear still does, for good).
 // Placeholder screen: wor.UI.Give (UGiveWidget). Debug: WoRGive::GetGiveableString.
 
 #pragma once
@@ -27,7 +29,12 @@ namespace WoRGive
 	 *  draw refills its primary (RefillActivePrimary, with a warning). */
 	WORLD_OF_REFRACTION_API FText TryGiveGear(UWorld *World, FName FromKey, FName ToKey, const FGuid &GearID);
 
-	/** Gives Count of FromKey's carried Id to ToKey. Empty on success; else the reason, for the player. */
+	/** B-361 (D-152): whose pouch the member MemberKey carries: a run-only recruit's is the host's, anyone else's its
+	 *  own (UPartySessionSubsystem::GetPouchKey). Pouch views and moves resolve through it. */
+	WORLD_OF_REFRACTION_API FName GetPouchKey(const UWorld *World, FName MemberKey);
+
+	/** Gives Count of FromKey's carried Id to ToKey. Empty on success; else the reason, for the player. A run-only
+	 *  recruit's pouch is the host's (B-361): a give between the two is refused as the same pouch. */
 	WORLD_OF_REFRACTION_API FText TryGiveCarried(UWorld *World, FName FromKey, FName ToKey, const FCrystalId &Id, int32 Count);
 
 	// ---- The shared chest (B-324, Q-321): gear the chest owns; any member (not a run-only recruit) takes from it ----
@@ -43,11 +50,11 @@ namespace WoRGive
 	// ---- Skills (B-316b, Q-316, Q-316b): each character's learned spells and abilities (UPoolSubsystem::FindSkills) ----
 	/** Gives FromKey's learned spell or ability (Skill) to ToKey: one copy moves, the giver loses it (D-111). Empty on
 	 *  success; else the reason. A skill in the giver's loadouts leaves them at their next check (the loadout rules clear
-	 *  a skill the character doesn't know). A run-only recruit neither gives nor receives skills (Q-321). */
+	 *  a skill the character doesn't know). Refused between two different players' members (D-153); a run-only
+	 *  recruit or an AI member nobody claims is the host's (D-152). */
 	WORLD_OF_REFRACTION_API FText TryGiveSkill(UWorld *World, FName FromKey, FName ToKey, const UObject *Skill);
-	/** RequesterKey asks HolderKey for its skill. An AI member, or a member of the requesting (local) player's own, says
-	 *  yes at once (TryGiveSkill); a member another player has claimed needs that player's answer, which comes with the
-	 *  co-op screens (B-233+): refused until then, with the reason. */
+	/** RequesterKey asks HolderKey for its skill: the same player's member (or an AI one) says yes at once
+	 *  (TryGiveSkill); another player's member is refused (D-153). */
 	WORLD_OF_REFRACTION_API FText TryRequestSkill(UWorld *World, FName RequesterKey, FName HolderKey, const UObject *Skill);
 	/** FromKey's learned skills a give could move: its spells, then its abilities. Empty when its skills aren't kept. */
 	WORLD_OF_REFRACTION_API TArray<const UObject *> GetGiveableSkills(const UWorld *World, FName FromKey);
