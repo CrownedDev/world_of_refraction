@@ -240,7 +240,7 @@ public:
     // ==================== POSITION MOVEMENT ====================
 
     /**
-     * Move actor to a specific row (keeps same column)
+     * Move actor to a specific row, into its free slot nearest the centre (B-342: columns are bookkeeping only)
      * @param Actor The actor to move
      * @param NewRow The target row
      * @param ArenaCenter Arena center for world position update
