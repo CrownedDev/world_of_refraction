@@ -510,8 +510,10 @@ void UInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
     if (UPoolSubsystem *Pool = SharedPool.Get())
     {
         Pool->OnPoolGearChanged.RemoveDynamic(this, &UInventoryComponent::HandlePoolGearChanged);
+        Pool->OnPoolSkillsChanged.RemoveDynamic(this, &UInventoryComponent::HandlePoolSkillsChanged);
     }
     SharedPool.Reset();
+    bSkillsInStore = false;
     Super::EndPlay(EndPlayReason);
 }
 
@@ -527,6 +529,7 @@ bool UInventoryComponent::LearnSpell(USpellData *Spell)
     const bool bLearned = Spells.LearnSpell(Spell);
     if (bLearned)
     {
+        PushSkillsToPool(); // B-316b: a learned skill is the member's, kept
         BroadcastInventoryChanged(EInventoryChangeType::Added);
     }
     return bLearned;
@@ -537,6 +540,7 @@ bool UInventoryComponent::UnlearnSpell(USpellData *Spell)
     const bool bUnlearned = Spells.UnlearnSpell(Spell);
     if (bUnlearned)
     {
+        PushSkillsToPool();
         BroadcastInventoryChanged(EInventoryChangeType::Removed);
     }
     return bUnlearned;
@@ -559,6 +563,7 @@ bool UInventoryComponent::LearnAbility(UAbilityData *Ability)
     const bool bLearned = Abilities.LearnAbility(Ability);
     if (bLearned)
     {
+        PushSkillsToPool(); // B-316b
         BroadcastInventoryChanged(EInventoryChangeType::Added);
     }
     return bLearned;
@@ -569,9 +574,47 @@ bool UInventoryComponent::UnlearnAbility(UAbilityData *Ability)
     const bool bUnlearned = Abilities.UnlearnAbility(Ability);
     if (bUnlearned)
     {
+        PushSkillsToPool();
         BroadcastInventoryChanged(EInventoryChangeType::Removed);
     }
     return bUnlearned;
+}
+
+// ==================== THE MEMBER'S SKILLS IN THE STORE (B-316b, Q-316) ====================
+
+void UInventoryComponent::PullSkillsFromPool()
+{
+    const UPoolSubsystem *Pool = SharedPool.Get();
+    const FPoolSkills *Skills = Pool && bSkillsInStore ? Pool->FindSkills(SharedGearKey) : nullptr;
+    if (!Skills)
+    {
+        return;
+    }
+    Spells.LearnedSpells = Skills->Spells;
+    Abilities.LearnedAbilities = Skills->Abilities;
+}
+
+void UInventoryComponent::PushSkillsToPool()
+{
+    UPoolSubsystem *Pool = SharedPool.Get();
+    if (!Pool || !bSkillsInStore)
+    {
+        return;
+    }
+    TGuardValue<bool> Pushing(bPushingSkills, true);
+    Pool->SetSkills(SharedGearKey, Spells.LearnedSpells, Abilities.LearnedAbilities);
+}
+
+void UInventoryComponent::HandlePoolSkillsChanged(FName CharacterKey)
+{
+    if (CharacterKey != SharedGearKey || !bSkillsInStore || bPushingSkills)
+    {
+        return;
+    }
+    PullSkillsFromPool();
+    UE_LOG(LogTemp, Log, TEXT("[Inventory] %s's skills reloaded from the store: %d spell(s), %d ability(ies)"),
+           *GetNameSafe(GetOwner()), Spells.LearnedSpells.Num(), Abilities.LearnedAbilities.Num());
+    BroadcastInventoryChanged(EInventoryChangeType::Loaded);
 }
 
 bool UInventoryComponent::HasAbility(UAbilityData *Ability) const
@@ -1449,6 +1492,17 @@ bool UInventoryComponent::DrawSharedGear()
     SharedGearKey = Key;
     RefillActivePrimary(); // after the pool is set, so gear another member wears is skipped
     Pool->OnPoolGearChanged.AddUniqueDynamic(this, &UInventoryComponent::HandlePoolGearChanged);
+    // B-316b (Q-316, Q-316b): learned skills are the member's own and kept: its asset's go in once, the store's are
+    // loaded after. A run-only recruit keeps its asset's skills (it owns nothing, Q-321).
+    bSkillsInStore = !bRunOnly;
+    if (bSkillsInStore)
+    {
+        if (!Pool->BankSkills(Key, Spells.LearnedSpells, Abilities.LearnedAbilities))
+        {
+            PullSkillsFromPool();
+        }
+        Pool->OnPoolSkillsChanged.AddUniqueDynamic(this, &UInventoryComponent::HandlePoolSkillsChanged);
+    }
     // B-203 / B-322 (D-097, D-117): each member carries its own pouch; its starting items go in once.
     if (UCrystalInventoryComponent *CrystalInv = GetOwner()->FindComponentByClass<UCrystalInventoryComponent>())
     {
@@ -2449,6 +2503,7 @@ void UInventoryComponent::InitializeFromCharacterData(UCharacterData *CharacterD
 
 void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *CharacterData)
 {
+    bSkillsInStore = false; // B-316b: the asset's skills seed this component; the next draw decides what is kept
     UInventoryData *InventoryAsset = CharacterData ? CharacterData->Inventory : nullptr;
     if (!InventoryAsset)
     {

@@ -552,6 +552,14 @@ private:
     UFUNCTION()
     void HandlePoolGearChanged(FGuid GearID);
 
+    /** B-316b: this member's skills changed in the store (a give); reload them. */
+    UFUNCTION()
+    void HandlePoolSkillsChanged(FName CharacterKey);
+
+    /** B-316b: this member's skills from the store / a learn or a forget to the store (while bSkillsInStore). */
+    void PullSkillsFromPool();
+    void PushSkillsToPool();
+
     /** B-091: before the first banking, a preset piece the authored inventory doesn't list (an
      *  asset-built copy) the pool holds none of becomes owned starting gear, so it isn't lost.
      *  Returns pieces adopted. */
@@ -568,6 +576,11 @@ private:
 
     TWeakObjectPtr<UPoolSubsystem> SharedPool;
     FName SharedGearKey;
+    /** B-316b (Q-316): the learned skills are this member's in the store (set by the draw; a run-only recruit keeps
+     *  its asset's, Q-316b). Until then a learn (the asset seeding at spawn) stays on this component. */
+    bool bSkillsInStore = false;
+    /** B-316b: inside PushSkillsToPool, so the store's echo isn't announced twice. */
+    bool bPushingSkills = false;
     /** B-311: the loadouts drew the pool's custom ones (not a run preset), so they are kept on push. */
     bool bKeepsCustomLoadouts = false;
     /** B-321: a run-only recruit draws the whole armoury (it brings no gear, B-076); everyone else only its own. */
