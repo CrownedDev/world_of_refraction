@@ -95,6 +95,8 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     RunWipes = 0; // B-362
     RunMainBossLosses = 0;
     LastRestSpot = NAME_None;
+    DroppedPrisms = 0; // B-362b
+    DropEncounters.Reset();
     RunLevels.Reset(); // B-223: the run's pillar levels end with it (D-102)
     UnspentLevels.Reset();
     FoundFeatures.Reset();
@@ -189,6 +191,8 @@ void UTrialRunSubsystem::ExitTrial()
     RunWipes = 0; // B-362
     RunMainBossLosses = 0;
     LastRestSpot = NAME_None;
+    DroppedPrisms = 0; // B-362b
+    DropEncounters.Reset();
     RunLevels.Reset(); // B-223: the run's pillar levels end with it (D-102)
     UnspentLevels.Reset();
     FoundFeatures.Reset();
@@ -395,6 +399,40 @@ int32 UTrialRunSubsystem::LoseRunPoints(FName CharacterKey, int32 MaxPoints)
         ++Taken;
     }
     return Taken;
+}
+
+int32 UTrialRunSubsystem::DropPrisms(int32 Amount)
+{
+    const int32 LostForGood = DroppedPrisms;
+    DroppedPrisms = FMath::Max(Amount, 0);
+    DropEncounters = PendingEncounterSources;
+    UE_LOG(LogTemp, Log, TEXT("[TrialRun] %d Prism(s) dropped at %d map team(s)%s"), DroppedPrisms, DropEncounters.Num(),
+           LostForGood > 0 ? *FString::Printf(TEXT("; the earlier drop of %d is lost for good"), LostForGood) : TEXT(""));
+    if (DroppedPrisms > 0 && DropEncounters.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[TrialRun] The fight came from no map team: its dropped Prisms cannot be recovered"));
+    }
+    return LostForGood;
+}
+
+int32 UTrialRunSubsystem::TakeDropIfPendingFight()
+{
+    const bool bFromDropFight = PendingEncounterSources.ContainsByPredicate([this](FName Id) { return DropEncounters.Contains(Id); });
+    if (!bFromDropFight || DroppedPrisms <= 0)
+    {
+        return 0;
+    }
+    const int32 Recovered = DroppedPrisms;
+    DroppedPrisms = 0;
+    DropEncounters.Reset();
+    UE_LOG(LogTemp, Log, TEXT("[TrialRun] %d dropped Prism(s) recovered"), Recovered);
+    return Recovered;
+}
+
+void UTrialRunSubsystem::RestoreDrop(int32 Amount, const TArray<FName> &Encounters)
+{
+    DroppedPrisms = FMath::Max(Amount, 0);
+    DropEncounters = Encounters;
 }
 
 void UTrialRunSubsystem::RestoreRunLosses(int32 Wipes, int32 MainBossLosses, FName RestSpotId)
