@@ -1041,6 +1041,47 @@ Fuse and evolve-a-weapon are attach-with-extra-rules. Downgrade exists to undo a
 
 ---
 
+## 37. Skills on gear: preset skills that the player can override
+
+### What exists
+- **Slots by tier.** A weapon holds abilities by its tier, F 1 to S 6 (`ATTACHMENT_SLOTS`, CL-20). A gem crystal or evolution sets the spell slots by its own tier (D-039, `ResolveSpellSlotCap`).
+- **Authored skills.** A weapon asset lists `PresetAbilities` and a single `bAbilitiesLocked` flag (`WeaponData.h:62`). An adapter asset lists `PresetSpells` and a `bSpellsLocked` flag (`RingData.h:46`).
+  - Flag true: the presets are locked ("conjured" gear) and fill slots.
+  - Flag false: the presets are only defaults.
+- **Overrides.** The loadout entry holds `AssignedAbilities` and `AssignedSpells`. `GetAllAbilities()` (`FWeaponLoadoutEntry.cpp:44-85`) merges them with the presets **by position**:
+  - A non-null assigned entry replaces the preset at the same index.
+  - Extra assigned entries are appended.
+  - The result is cut to 6.
+  - Nothing records that a preset was replaced. The asset keeps it, and clearing the assigned list brings it back.
+- **Separate channels.** Ability Stone abilities (`AssignedAugmentStoneAbilities`) and a per-loadout `OverrideAttack` are further lists beside these.
+- **Save.** Per slot, ability and spell lists as asset refs (`PrimaryAbilities`, `PrimaryStoneAbilities`, `EvolutionSpells`, `Secondary*`, `WoRSaveTypes.h:354-376`). The learned skills are separate owned entries (D-111).
+
+### Why it's too much
+- **The position merge is fragile.** A null in the assigned list does not advance the index, so a hole at index 0 keeps every remaining preset and pushes later entries to the end, not to their slot.
+- **Three rules for one slot:** locked, replaceable default, and appended extra.
+- **Two lists for abilities** (main and stone), and the stone list's validity depends on a stone being attached.
+- **D-141 doubles the places** where slot counts come from: the weapon's tier, the element socket's gem or evolution, and now the stone socket's Ability Stone.
+
+### Fix (keeps: skills live on gear, and some gear has its own)
+- **A. Built-in skills sit outside the slots.**
+  - A preset is an always-on built-in of the gear. It cannot be replaced and takes no slot.
+  - The tier slots hold only what the player chooses, as one ordered list. An Ability Stone adds slots to that list.
+  - Expedition 33 does this: each weapon has fixed passives, and the player's own choices go in Pictos slots.
+- **B. FF7-style empty slots.** Gear has slots and no built-ins. The player fills every slot, and a "starter" is just the first item in the shop. Simplest data, but it drops "some gear has its own".
+- **C. FFIX-style learning.** Gear teaches its skill after use, and the player then equips it. Closest to the owned-skill list (D-111), but it adds a progress meter per skill.
+
+### Recommendation
+**A.**
+- **Removed:** `bAbilitiesLocked` and `bSpellsLocked`, the position merge and the stone ability channel.
+- **Kept:** conjured gear is simply gear with built-ins and no free slots.
+- **Save:** one chosen list per item and the built-ins read from the asset. This rides the D-138 wipe (`SAVE_VERSION` bump from B-351).
+
+**Ruling:** CL-20's "locked presets fill slots" and D-039's slot wording change. D-108 and D-141 are untouched.
+
+**Cost:** M, in the same job as B-351 (the two sockets), since both change the slot struct and the loadout validation.
+
+---
+
 ## Round 3: kept, already simple
 
 - **One status bar** with one break per damage type (SB-01, B-274).
@@ -1064,5 +1105,6 @@ Fuse and evolve-a-weapon are attach-with-extra-rules. Downgrade exists to undo a
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-03 | Audit written | chore/simplicity-audit |
+| 2026-11-04 | §37: skills on gear (preset skills, overrides) | chore/simplicity-audit |
 | 2026-11-03 | Round 3: §26–§36 (attachments and stones, carry limits, boss rules, class passives, spell school, evolution placement, physical resistance, weather, cosmetics, upgrade routes) | chore/simplicity-audit |
 | 2026-11-03 | Round 2: §12–§25 (process, subsystems and co-op, conditions, screens, docs, turns, grid, input, AI, party, run buy-in, saves, debug, tests) | chore/simplicity-audit |
