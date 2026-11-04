@@ -77,7 +77,7 @@ void UCombatAnimInstance::UpdateCombatState()
     // active combat, so stop any lingering stance and let the locomotion state
     // machine drive the pose.
     UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-    UTurnManager *TurnMgr = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+    UTurnManager *TurnMgr = WoRFight::Get<UTurnManager>(GI);
     if (!TurnMgr || !TurnMgr->IsCombatActive())
     {
         StopStanceMontage();
