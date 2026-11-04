@@ -1454,9 +1454,7 @@ bool UInventoryComponent::DrawSharedGear()
     {
         if (!bRunOnly && !Pool->HasBankedItems(Key))
         {
-            TMap<FCrystalId, int32> StartingItems = CrystalInv->Crystals;
-            StartingItems.Append(CrystalInv->Stones);
-            Pool->BankStartingItems(Key, StartingItems);
+            Pool->BankStartingItems(Key, CrystalInv->GetHeldStacks()); // its authored counts: not bound yet
         }
         else if (bRunOnly && !Pool->HasBankedItems(Key))
         {
@@ -2908,18 +2906,15 @@ FString UInventoryComponent::GetInventoryInstanceString() const
     // ---------- Crystals (stacks — same shape as PrintPoolState for direct diff) ----------
     if (CrystalInv)
     {
-        Out += TEXT("\n  Crystals:");
-        auto EmitPool = [&](const TMap<FCrystalId, int32> &Pool, const TCHAR *Tag)
+        // B-313b: a member's pouch while bound (not the mirror), else the component's own counts.
+        Out += CrystalInv->IsSharingItems() ? TEXT("\n  Crystals (pouch):") : TEXT("\n  Crystals:");
+        for (const TPair<FCrystalId, int32> &Pair : CrystalInv->GetHeldStacks())
         {
-            for (const TPair<FCrystalId, int32> &Pair : Pool)
-            {
-                Out += FString::Printf(TEXT("\n      [%s] %s %s x%d"), Tag,
-                                       *CrystalEnum->GetAuthoredNameStringByValue(static_cast<int64>(Pair.Key.Type)),
-                                       *TierHelpers::GetTierName(Pair.Key.Tier), Pair.Value);
-            }
-        };
-        EmitPool(CrystalInv->Crystals, TEXT("crystal"));
-        EmitPool(CrystalInv->Stones, TEXT("stone"));
+            Out += FString::Printf(TEXT("\n      [%s] %s %s x%d"),
+                                   CrystalTypeHelpers::IsGemType(Pair.Key.Type) ? TEXT("crystal") : TEXT("stone"),
+                                   *CrystalEnum->GetAuthoredNameStringByValue(static_cast<int64>(Pair.Key.Type)),
+                                   *TierHelpers::GetTierName(Pair.Key.Tier), Pair.Value);
+        }
     }
     else
     {

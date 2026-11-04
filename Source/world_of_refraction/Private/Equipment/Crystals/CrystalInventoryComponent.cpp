@@ -97,7 +97,8 @@ int32 UCrystalInventoryComponent::GetCount(FCrystalId Id) const
     {
         return 0;
     }
-    const int32 *Found = PoolFor(Id.Type).Find(Id);
+    const TMap<FCrystalId, int32> *Pouch = GetPouchStacks();
+    const int32 *Found = (Pouch ? *Pouch : PoolFor(Id.Type)).Find(Id);
     return Found ? *Found : 0;
 }
 
@@ -105,25 +106,44 @@ int32 UCrystalInventoryComponent::GetCountForTier(EItemTier Tier) const
 {
     // Combined gem + stone count at Tier — the aggregate display total. Per-pool cap
     // checks use SumAtTier on a single pool, not this sum.
+    if (const TMap<FCrystalId, int32> *Pouch = GetPouchStacks())
+    {
+        return SumAtTier(*Pouch, Tier); // the pouch holds gems and stones in one map
+    }
     return SumAtTier(Crystals, Tier) + SumAtTier(Stones, Tier);
 }
 
 int32 UCrystalInventoryComponent::GetTotalCount() const
 {
     int32 Total = 0;
-    for (const TMap<FCrystalId, int32> *Pool : {&Crystals, &Stones})
+    for (const TPair<FCrystalId, int32> &Pair : GetHeldStacks())
     {
-        for (const TPair<FCrystalId, int32> &Pair : *Pool)
-        {
-            Total += Pair.Value;
-        }
+        Total += Pair.Value;
     }
     return Total;
 }
 
 int32 UCrystalInventoryComponent::GetStackCount() const
 {
-    return Crystals.Num() + Stones.Num();
+    const TMap<FCrystalId, int32> *Pouch = GetPouchStacks();
+    return Pouch ? Pouch->Num() : Crystals.Num() + Stones.Num();
+}
+
+TMap<FCrystalId, int32> UCrystalInventoryComponent::GetHeldStacks() const
+{
+    if (const TMap<FCrystalId, int32> *Pouch = GetPouchStacks())
+    {
+        return *Pouch;
+    }
+    TMap<FCrystalId, int32> Held = Crystals;
+    Held.Append(Stones);
+    return Held;
+}
+
+const TMap<FCrystalId, int32> *UCrystalInventoryComponent::GetPouchStacks() const
+{
+    const UPoolSubsystem *Pool = SharedPool.Get();
+    return Pool ? &Pool->GetCarriedItems(PouchKey) : nullptr;
 }
 
 void UCrystalInventoryComponent::ClearAll()
