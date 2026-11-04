@@ -15,7 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
-| [B-352](B-352.md) | `feature/B-352-fusions-retire` (UNBUILT) | Fusions retire: nothing makes, buys or attaches one; evolution wear stays | Not built |
+| [B-352](B-352.md) | `feature/B-352-fusions-retire` (in `dev`) | Fusions retire: nothing makes, buys or attaches one; an authored fusion reads as an empty socket; evolution wear stays | Pending |
 | [B-351](B-351.md) | `feature/B-351-two-sockets` (in `dev`) | Two sockets per weapon / adapter; one skill-slot list per weapon (`wor.Loadout.ReplaceSkill` / `RestoreSkill` until the gear screen); save v13 wipes older saves | Pending |
 | [B-158](B-158.md) | `feature/B-158-one-hub-controller` (in `dev`) | One hub controller: E interact and EnsureLocalParty on `AWoRHubController`; editor step deletes the Blueprint's IA_Interact / EnsureLocalParty nodes first | Pending |
 | [B-356](B-356.md) | `feature/B-356-three-schools` + `feature/B-356c-conjuration-damage-school` (in `dev`) | Three spell schools: Conjuration (damage, Destruction retired onto it; D-146 corrected), Enhancement, Restoration; names on spells; AI reads effects; loadout caps and filters on the shown school; re-tag Destruction assets in the editor | Pending |
