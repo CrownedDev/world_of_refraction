@@ -28,6 +28,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Character/CharacterData.h"            // UCharacterData::Inventory
 #include "Character/CharacterDataComponent.h"   // UCharacterDataComponent::CharacterData
+#include "Party/Party.h"                        // FPartyMember (B-360b: the member's key)
+#include "Party/PartySessionSubsystem.h"        // the pawn's member (B-360b)
 #include "Inventory/InventoryComponent.h"       // wor.DrawFromPool target (step 2)
 
 namespace
@@ -227,6 +229,33 @@ FString UPoolSubsystem::GetStoreString() const
 FName UPoolSubsystem::GetCharacterKey(const UCharacterData *CharacterData)
 {
     return CharacterData ? FName(*CharacterData->GetPathName()) : NAME_None;
+}
+
+FName UPoolSubsystem::GetCharacterKey(const FPartyMember &Member)
+{
+    if (!Member.CharacterData)
+    {
+        return NAME_None;
+    }
+    if (!Member.bKeyedByMember)
+    {
+        return GetCharacterKey(Member.CharacterData.Get());
+    }
+    return FName(*FString::Printf(TEXT("%s#%s"), *Member.CharacterData->GetPathName(), *Member.MemberId.ToString(EGuidFormats::Digits)));
+}
+
+FName UPoolSubsystem::GetCharacterKey(const UCharacterDataComponent *Comp)
+{
+    if (!Comp)
+    {
+        return NAME_None;
+    }
+    const UWorld *World = Comp->GetWorld();
+    const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+    const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+    const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+    const int32 Slot = Party ? PartySession->GetMemberSlotOf(Comp) : INDEX_NONE;
+    return Party && Party->Members.IsValidIndex(Slot) ? GetCharacterKey(Party->Members[Slot]) : GetCharacterKey(Comp->CharacterData);
 }
 
 bool UPoolSubsystem::BankStartingGear(FName CharacterKey, const TArray<FWeaponInventoryEntry> &Weapons,
