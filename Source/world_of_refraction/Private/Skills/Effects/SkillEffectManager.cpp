@@ -2598,7 +2598,7 @@ bool USkillEffectManager::IsSkillGroupMet(const TArray<FSkillCondition> &Conditi
 	Context.Target = Target && ReadFighter(Target, TargetState) ? &TargetState : nullptr;
 	ReadTeam(ECondSubject::SelfTeam, Context.SelfTeam);
 	ReadTeam(ECondSubject::TargetTeam, Context.TargetTeam);
-	return SkillConditions::IsGroupMet(Conditions, Check, Context);
+	return SkillConditions::IsGroupMet(Conditions, Check, Context, Target != nullptr);
 }
 
 FGameplayTagContainer USkillEffectManager::GetEffectTags(AActor *Actor) const
