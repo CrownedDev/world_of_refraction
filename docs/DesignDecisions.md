@@ -1759,6 +1759,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** while in dev there is one save version. `MIN_SUPPORTED` rises to `LATEST`; every old-shape reader (v3 / v4 gear lists, the party pouch and the rest) is deleted; older saves are wiped with a warning (D-060). The 14 `SaveGame`-tagged fields move into `FWoRSaveData` (D-059). From now on a save-format change bumps the version and the minimum together, with no migration code until the first public build.
 **Notes for Claude:** job B-348. The CLAUDE.md Saves rule should carry the note (Crown to approve that edit).
 
+### Q-348 — Which SaveGame tags move, and what happens to values that were tagged but never saved
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-348, cloud) · **Blocks:** —
+**Question:** D-138 says "the 14 SaveGame-tagged fields move into FWoRSaveData". The code has 24 tagged class properties (pool 12, wallet 5, character 4, crystal inventory 2, evolution inventory 1), plus inert tags on struct fields. Most values already travel in `FSavedPool` / `FSavedWallet`; the head-starts and the Broken Darkness flag were tagged but never saved.
+**Options:** **A** remove every class-property tag; values already in the explicit structs stay as they are; the never-saved head-starts get a save home in a new **B-348b** (they have no persistent runtime holder today, so moving them needs one). Struct-field tags stay (inert: the save archive doesn't filter on them). **B** add the head-starts to `FWoRSaveData` now without a holder.
+**Recommendation:** A. Unreal's own guidance (and D-059) is one explicit save path; Lyra and the Action RPG sample keep save data in explicit structs. Saving a field that nothing restores into would be a dead path.
+**Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
+
 ### D-139 — One console naming rule (audit §24)
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §24) · **Blocks:** —
 **Answer (Crown):** every console command is `wor.<System>.<Verb>`, with one `Print` per system. Duplicates are removed outright, with no alias period. Every `docs/PIE/*.md` and Architecture doc naming an old command is updated, as is CLAUDE.md's debug-tools section (Crown to approve that edit).
