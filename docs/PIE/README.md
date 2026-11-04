@@ -15,7 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
-| [B-353](B-353.md) | `feature/B-353-stat-stone` (UNBUILT) | One StatStone kind with a sub-stat; old single-stat stones map to it, same bonus | Not built |
+| [B-353](B-353.md) | `feature/B-353-stat-stone` (in `dev`) | One StatStone kind with a sub-stat; old single-stat stones map to it, same bonus and name | Pending |
 | [B-352](B-352.md) | `feature/B-352-fusions-retire` (in `dev`) | Fusions retire: nothing makes, buys or attaches one; an authored fusion reads as an empty socket; evolution wear stays | Pending |
 | [B-351](B-351.md) | `feature/B-351-two-sockets` (in `dev`) | Two sockets per weapon / adapter; one skill-slot list per weapon (`wor.Loadout.ReplaceSkill` / `RestoreSkill` until the gear screen); save v13 wipes older saves | Pending |
 | [B-158](B-158.md) | `feature/B-158-one-hub-controller` (in `dev`) | One hub controller: E interact and EnsureLocalParty on `AWoRHubController`; editor step deletes the Blueprint's IA_Interact / EnsureLocalParty nodes first | Pending |
