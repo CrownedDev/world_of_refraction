@@ -3647,6 +3647,19 @@ Moved here once applied. Newest first.
 **Answer:** **A, A, A**, by the reference-backed default (2026-11-03). Crown may change any of them.
 **Notes for Claude:** applied in B-316; B-316b added. As built (desktop review, 2026-11-04): the purchase itself still checks the payer's armoury room, so a payer with a full armoury can't buy gear for a roomy receiver (the gear only passes through); and gems the purchase sent to the shared storage (payer's pouch full) stay there, with a warning in the log. Both are B-316b's to lift if Crown wants. The shop WBP can add a `BuyForButton` and a `BuyForText` (BindWidgetOptional) in the editor; until then `wor.Shop.BuyFor` cycles the receiver. Under D-122 the moves become "between two members' components" when the store moves; the call sites stay the same.
 
+### Q-316b — Skills per character: where they live, who can trade them, and how a request is answered
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-316b, desktop) · **Blocks:** —
+**Question:** B-316b gives learned skills an owner. (1) Where do they live until D-122's per-member components? (2) Can a run-only recruit trade skills? (3) How is a request answered before the co-op screens exist? (4) What happens to a given skill the giver had equipped? (5) What can be bought for another member?
+**Options / as built:**
+- (1) **A** in the pool, keyed by character (as gear and pouches are, B-308 / B-322), banked once from the asset at the first draw, saved. **B** on the character asset (shared by every copy).
+- (2) **A** no: a recruit owns nothing (Q-321), so it keeps its asset's skills and trades none. **B** it trades, its skills lost at run end.
+- (3) **A** granted at once unless the holder is another player's member (that waits for the co-op request screen). **B** always granted.
+- (4) **A** skills change hands between fights only, and a given equipped skill leaves the giver's loadouts in the pre-fight clean (`ClearInvalidSlots`). **B** a give of an equipped skill is refused.
+- (5) **A** spells and abilities are learned straight into the receiver's store (the payer may know it already); evolutions stay refused until an evolution give exists (Q-323). **B** skills only for a payer who doesn't know them.
+**Recommendation:** (1) A: one store for everything a character owns, as the store jobs before it. (2) A: Q-321's rule, unchanged. (3) A: an AI companion simply hands over, as in Divinity: Original Sin 2's party trade (no prompt for your own companions); a co-op friend must agree, as in its multiplayer trade. (4) A: the same as a given worn gear piece comes off (B-323); a refusal would make the player unequip first for no gain. (5) A: buying for someone is buying for them, as in Baldur's Gate 3's buy-to-companion; the payer's own copy has nothing to do with it.
+**Answer:** **A, A, A, A, A**, by the reference-backed default (2026-11-04). Crown may change any of them.
+**Notes for Claude:** applied in B-316b. Under D-122 the store's skills move onto each member's component. The request's "another player's member" check reads `AWoRPlayerState::ClaimsMember` and is a TODO for the co-op request screen (B-233+). As with the rest of the pool, nothing clears the skills for a new game in the same session (the save wipe and a restart do). The skill names on the give placeholder are built strings (TODO with B-127, D-061).
+
 ### Q-347 — With a free run loadout, what can a member equip during the run?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-347, cloud) · **Blocks:** —
 **Question:** D-137 makes the run loadout the worn loadout, free. Today a member's armoury in a run still shows every home piece it owns, so it can swap to gear it didn't bring. Should the run armoury hold only the brought loadout and what the run finds?
