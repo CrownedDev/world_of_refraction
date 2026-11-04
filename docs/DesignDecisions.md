@@ -1785,6 +1785,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** D-072's crystal tier caps retire. The only cap left: at most one S-tier crystal equipped in a battle loadout. Inventory, pouch, storage and owned crystals have no tier caps. Other limits stay: the D-110 point budget and item limit, skill slots by tier, the 10-slot pouch, D-115, D-116 and presets. Skills stay attached to gear; gear with built-in skills can be overridden (under review as audit §37).
 **Notes for Claude:** job B-354 (loadout validation, constants, Rules 01). B-313's per-fight band counts (Q-313(2)) follow it.
 
+### D-144 — Bosses: one rule list (audit round 3 §29)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §29) · **Blocks:** —
+**Answer (Crown):** a boss has one rule list instead of separate phases and triggers. Each rule is when → condition → result; "go to the next phase" is one of the results. It uses D-130's shared condition set, on the deckbuilder's model.
+**Notes for Claude:** job B-355, after B-337.
+
+### D-145 — One skill-slot list per weapon or crystal; built-ins replaceable (audit round 3 §37; changes CL-20)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §37) · **Blocks:** —
+**Answer (Crown):** each weapon or crystal has one skill-slot list (F 1 to S 6). Built-in skills pre-fill it and the player can replace any of them; a replaced built-in is remembered on the item and can be restored. An Ability Stone adds slots to the same list. The locked flags, the position merge and the separate stone list retire. Not the audit's "built-ins can't be replaced" version.
+**Notes for Claude:** combined with B-351 (the two sockets).
+
 ### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
 **Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.
