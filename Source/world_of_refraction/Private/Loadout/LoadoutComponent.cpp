@@ -3076,10 +3076,25 @@ const FRuntimeAttachedItem *ULoadoutComponent::GetStoneRingAttachment() const
     return Ring ? &Ring->RingEntry.AttachedItem : nullptr;
 }
 
+const FRuntimeAttachedItem *ULoadoutComponent::GetActiveWeaponStoneSocket() const
+{
+    const FWeaponLoadoutEntry *ActiveWeapon = GetActiveWeaponLoadout();
+    return ActiveWeapon ? &ActiveWeapon->WeaponEntry.StoneSocket : nullptr;
+}
+
+const FRuntimeAttachedItem *ULoadoutComponent::GetStoneRingStoneSocket() const
+{
+    const FRingLoadoutEntry *Ring = GetActiveRingLoadout();
+    Ring = Ring ? Ring : GetPrimaryRingLoadout();
+    return Ring ? &Ring->RingEntry.StoneSocket : nullptr;
+}
+
 float ULoadoutComponent::GetAttachedStonePercent(ESubStat Stat) const
 {
+    // B-351 (D-141): the stone sockets of the weapon and adapter in use, plus a pre-B-351 stone in an element socket.
     float Total = 0.0f;
-    for (const FRuntimeAttachedItem *Attachment : {GetActiveWeaponAttachment(), GetStoneRingAttachment()})
+    for (const FRuntimeAttachedItem *Attachment : {GetActiveWeaponAttachment(), GetStoneRingAttachment(),
+                                                   GetActiveWeaponStoneSocket(), GetStoneRingStoneSocket()})
     {
         Total += Attachment ? CrystalEffectTable::GetAttachedStonePercent(*Attachment, Stat) : 0.0f;
     }
@@ -3089,7 +3104,8 @@ float ULoadoutComponent::GetAttachedStonePercent(ESubStat Stat) const
 float ULoadoutComponent::GetAttachedStonePercentForType(ECrystalType StoneType) const
 {
     float Total = 0.0f;
-    for (const FRuntimeAttachedItem *Attachment : {GetActiveWeaponAttachment(), GetStoneRingAttachment()})
+    for (const FRuntimeAttachedItem *Attachment : {GetActiveWeaponAttachment(), GetStoneRingAttachment(),
+                                                   GetActiveWeaponStoneSocket(), GetStoneRingStoneSocket()})
     {
         Total += Attachment ? CrystalEffectTable::GetAttachedStonePercentForType(*Attachment, StoneType) : 0.0f;
     }
