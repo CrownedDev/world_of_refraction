@@ -2,8 +2,8 @@
 // B-337 (D-130): the one condition evaluator. A condition holds when the context's trigger matches
 // its Trigger (Any matches every event) and its Subject is true in the context.
 // Memories evaluate through it (B-337); the old memory condition types convert on read (FromMemory)
-// until they are retired. B-337b moves boss phases, boss triggers and reactions here and widens
-// the context with fight state.
+// until they are retired. Boss rules (B-355) and reactions (B-337b) evaluate here too; the context
+// carries the fight state they read.
 // Debug: GetConditionString / GetConditionSetString; wor.Memory.Conditions prints through them.
 
 #pragma once
@@ -30,9 +30,16 @@ struct FWoRBossState
 	bool bCrystalBroken = false;
 };
 
+/** B-337b: one fighter's state, for the Hp subject. */
+struct FWoRFighterState
+{
+	int32 CurrentHP = 0;
+	int32 MaxHP = 0;
+};
+
 /** What is true when conditions are checked. Memories fill Event (party, worn gear, slotted and used
- *  skills, locations, enemies beaten, level-ups) and Journal. TODO(B-337b): fight state for boss phases
- *  and reactions. */
+ *  skills, locations, enemies beaten, level-ups) and Journal; a boss rule adds Boss; a reaction (B-337b)
+ *  fills Event with its wearer alone, Opposing with the faced character, Self and Target. */
 struct FWoRConditionContext
 {
 	EWoRConditionTrigger Trigger = EWoRConditionTrigger::Any;
@@ -40,6 +47,11 @@ struct FWoRConditionContext
 	const UMemoryJournalSubsystem *Journal = nullptr;
 	/** B-355: set when a boss's rules are checked (null: every Boss* subject fails). */
 	const FWoRBossState *Boss = nullptr;
+	/** B-337b: the opposing team's characters (FacingEnemy). */
+	TArray<const UCharacterData *> Opposing;
+	/** B-337b: Who's fighters for the Hp subject (null: it fails). */
+	const FWoRFighterState *Self = nullptr;
+	const FWoRFighterState *Target = nullptr;
 };
 
 namespace WoRConditions

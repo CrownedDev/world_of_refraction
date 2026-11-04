@@ -145,6 +145,15 @@ namespace
 		{
 			return Condition.PriorMemory && Context.Journal && Context.Journal->HasMemory(Condition.PriorMemory);
 		}
+		if (Condition.Subject == EWoRConditionSubject::FacingEnemy)
+		{
+			return Condition.Enemy && Context.Opposing.Contains(Condition.Enemy.Get());
+		}
+		if (Condition.Subject == EWoRConditionSubject::Hp)
+		{
+			const FWoRFighterState *Fighter = Condition.Who == EWoRConditionWho::Target ? Context.Target : Context.Self;
+			return Fighter && WoRConditions::Compare(Fighter->CurrentHP, Condition.Operator, Condition.Value);
+		}
 		if (!Context.Event)
 		{
 			return false; // every other subject reads the event
@@ -359,7 +368,12 @@ FString WoRConditions::GetConditionString(const FWoRCondition &Condition)
 	{
 		Out += TEXT(" ") + Condition.LocationId.ToString();
 	}
-	if (Condition.Subject == EWoRConditionSubject::GearEquipped || Condition.Subject == EWoRConditionSubject::EvolutionEquipped)
+	if (Condition.Subject == EWoRConditionSubject::Hp)
+	{
+		Out += TEXT(" ") + ConditionEnumName(Condition.Who);
+	}
+	if (Condition.Subject == EWoRConditionSubject::GearEquipped || Condition.Subject == EWoRConditionSubject::EvolutionEquipped ||
+		Condition.Subject == EWoRConditionSubject::Hp)
 	{
 		Out += FString::Printf(TEXT(" %s %d"), *ConditionEnumName(Condition.Operator), Condition.Value);
 	}
