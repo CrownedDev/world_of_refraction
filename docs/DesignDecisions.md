@@ -30,6 +30,7 @@ The queue of questions only Crown can answer.
 
 **Entry format** (keep each short; one decision per entry):
 ```
+
 ### D-NNN — Title   (or Q-<job> — Title)
 **Status:** OPEN · **Raised:** YYYY-MM-DD · **Blocks:** B-xxx, B-yyy
 **Question:** one line.
@@ -146,6 +147,7 @@ The queue of questions only Crown can answer.
 - Results screen shows "+N Gold" per fight; the run-end screen shows the Prism/material payout.
 - Passive payout boosts are a later job (B-096): a hook where the payout total is computed (one multiplier, default 1.0) so passives can add to it.
 - Not decided here: a starting Prism grant for a new save.
+
 ### D-007 — Can Generic cast weapon-crystal spells?
 **Status:** ANSWERED · **Raised:** 2026-10-25 · **Blocks:** B-080
 **Question:** Is it intended that Generic can cast spells from a crystal on its weapon?
@@ -856,6 +858,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A a new `Resurrect` skill effect: brings a dead ally back at the effect's value as % of max HP, reusing Sapphire's revive path / B revive stays item-only (Sapphire) / C revive spells only out of combat.
 **Recommendation:** A, because D-043 asks for revive spells and Sapphire's path already does the hard part (turn order, death state); the HP % is a per-spell value.
 **Answer (Crown):** **A** (2026-10-26): a new **Resurrect** skill effect brings a fallen ally back at the effect's value as a % of max HP, reusing Sapphire's revive path.
+
 ### D-072 — Crystal tier limits per character
 **Status:** ANSWERED · **Raised:** 2026-10-26 (Crown) · **Blocks:** — · **Changed by D-143 / B-354** (2026-11-04: the bands retire; one S-tier crystal per battle loadout is the only cap. D-143 is recorded on `docs/D-128-136-simplicity-round2`; this branch merges after it)
 **Answer (Crown):** (2026-10-26) **Per character**, a cap on how many crystals of each tier band can be equipped at once:
@@ -1125,6 +1128,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A, and let the between-fight repair (+10) cover evolutions too, so a broken one comes back (otherwise it waits for B-178). Gear doesn't vanish and the player gets it working again.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, deckbuilder rule or pillar fit as given above). Crown may change it.
 **Notes for Claude:** applied (fix/Q-159c-repair-evolutions): A, plus the between-fight +10 repair covers evolutions, attached and primary slot, broken included (`CrystalBreak::RepairOn`, `ULoadoutComponent::RepairActivePrimaryEvolution`). Paid repair stays B-178.
+
 ### Q-159b — Which parts go when a loadout is over a cap?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-159) · **Blocks:** — (B-159 shipped with A)
 **Question:** when a loadout has too many abilities, or too many utility crystals of a tier band, which ones are dropped?
@@ -1655,35 +1659,41 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
 **Answer (Crown):** an enemy's max HP = its own HP × its rank × its Combat Tier power (D-118). The zone tier no longer adds HP; a harder zone places higher-tier enemies instead. Combat Tier keeps its HP boost.
 **What it changes:** B-186's zone strength on HP (`AEnemyZone::GetTierStrengthMultiplier` in `ABattleGameMode` and the balance sim); zone damage is a separate question (not ruled: keep as is). Note: B-327 found the zone was counted once, not twice (MaxHPBuff percents add); its spec is updated by the job.
-**Notes for Claude:** **widened the same day (Crown, via the brain): the zone adds no damage either**; a zone only decides which enemies are placed there, their strength is their Combat Tier. Applied in B-327 (desktop, 2026-11-03): `ABattleGameMode` and `FBalanceSimRunner` pass only the door's shares to `TrialGate::ApplyEnemyStrength`; `AEnemyZone::GetTierStrengthMultiplier` is OBSOLETE (kept for its log line until PIE); `WoR.Trial.ZoneHealthOnce` and `WoR.Trial.EnemyZone` pin it; Q-186 and ER-48 updated. What is left for B-328 is the placement half: harder zones place higher-tier enemies. The placement half (which Combat Tier a zone asks for, an authoring guide: Q-328, `wor.Trial.PrintZones`) is B-328.
+**Notes for Claude:** **widened the same day (Crown, via the brain): the zone adds no damage either**; a zone only decides which enemies are placed there, their strength is their Combat Tier. Applied in B-327 (desktop, 2026-11-03): `ABattleGameMode` and `FBalanceSimRunner` pass only the door's shares to `TrialGate::ApplyEnemyStrength`; `AEnemyZone::GetTierStrengthMultiplier` is OBSOLETE (kept for its log line until PIE); `WoR.Trial.ZoneHealthOnce` and `WoR.Trial.EnemyZone` pin it; Q-186 and ER-48 updated. What is left for B-328 is the placement half: harder zones place higher-tier enemies.
 
 ### D-121 — Finish GAS stage 3, then delete the enum effect path; new effects GAS-only (audit §2)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
 **Answer (Crown):** finish GAS stage 3 (B-042i, B-042j2, B-042f, B-042g), then delete the enum effect path. Until then every new effect goes in as a GAS effect only, and no feature job touches both paths.
 **What it changes:** B-042g is the deletion job (`FActiveSkillEffect` storage, the mirror, the sync and the enum branches); B-318 folds in.
 **Notes for Claude:** a standing rule for every job; the CLAUDE.md rules section should say it (Crown to approve that edit).
+
 ### D-122 — Each character's inventory component is their store; the pool keeps only the home chest (audit §3; changes D-111's wording)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
 **Answer (Crown):** each character's inventory component is their store; `UPoolSubsystem` keeps only the shared home chest. D-111's behaviour (GUIDs, references, the run layer) stays; its "one store per player" wording changes.
 **What it changes:** B-312b becomes "readers onto the member's component"; B-313 and B-314 stay; **B-315 is dropped** (the owner is the component); B-316 (give) is simpler; B-317 deletes the pool wearers and the copies.
 **Notes for Claude:** rows re-scoped in `Backlog.md`.
+
 ### D-123 — The player picks pillars only; sub-stats come from the asset and gear; one Speed (audit §4)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
 **Answer (Crown):** the player picks pillars only. Sub-stats come from the character asset and gear (WoW-like); the 3-points-per-level sub-stat pool retires. Action Speed and Spell Speed merge into one **Speed**.
 **What it changes:** the level-up sub-stat pool; D-088's Ice → Action Speed wording (now Speed); `StatModifierTable`, the defense window maths, a stone kind.
 **Notes for Claude:** jobs B-330 (pool retires) and B-331 (Speed merge).
+
 ### D-124 — One PIE sweep checklist; deletes batched per milestone (audit §6)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
 **Answer (Crown):** one combined checklist, `docs/PIE/Sweep.md`, covers every retire-after-PIE delete; from then on deletes are batched into one sweep per milestone. Otherwise unchanged: nothing is deleted before Crown's PIE.
 **Notes for Claude:** job B-332.
+
 ### D-125 — Seven balances (audit §7; changes D-105)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
 **Answer (Crown):** seven balances: **Gold, Prisms, Diamond, Gear Essence, Skill Essence, Elemental Essence, Pillar Essence**. The 14 typed essences retire. Elemental pays for anything with an element; Pillar pays for stat stones; Skill pays for spells, abilities and ability stones. A spell costs Skill + Elemental; a non-elemental ability costs Skill only. Quartz folds into Elemental (changes D-105). Pre-release saves may be wiped (D-060).
 **Notes for Claude:** job B-333.
+
 ### D-126 — Infusion keeps the source choice; EP = base × charge level; HP cost only at level 2 (audit §8)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
 **Answer (Crown):** keep choosing the infusion source. The EP cost is the base × the charge level; the HP cost applies only at level 2. (The audit recommended dropping the source choice; Crown kept it, so D-007 and D-035 stand.)
 **Notes for Claude:** job B-334.
+
 ### D-127 — Per-instance random rolls retire (audit §9)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
 **Answer (Crown):** delete per-instance random rolls: flag them OBSOLETE now, delete them in the sweep (D-124). They are already off, so nothing changes in play.
@@ -1955,6 +1965,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. One stat, one slot: Path of Exile and Diablo IV roll one physical / armour line beside the elemental ones with equal weight, and players read it as one stat among the resistances. The largest budget (S: 36, plus a negative pool up to 18) still fits ten slots of ±10. Tune with the other numbers in PIE (D-068).
 **Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
 **Notes for Claude:** nothing to build; `CombatConstants.h` names it next to the budgets. The nightly balance numbers may move a little (more elemental resistance on rolled gear).
+
 ### Q-359 — How a boss phase steps the weather baseline
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-359, cloud) · **Blocks:** —
 **Question:** D-149 makes the trial's element the weather; D-098 says each boss phase pushes the weather toward the boss's element and raises its intensity. What exactly changes at a phase?
@@ -3392,6 +3403,7 @@ Moved here once applied. Newest first.
 | — | All gameplay logic in C++; BP for layout/visuals only | 2026-10-25 | `analysis/CodebaseReview_2026-10.md` §8 |
 | — | UI: Expedition 33 combat layout; deckbuilder art direction + layouts; gamepad yes; flat panels for now | 2026-10-25 | `Design/UI_ScreenInventory.md`, `Design/UI_DeckbuilderReuse.md` |
 | — | Source art: save what we use (LFS) | 2026-10-25 | `.gitattributes`, `UI_DeckbuilderReuse.md` §4 |
+
 ### Q-333 — Seven balances: the prices D-125 left open
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-333, cloud) · **Blocks:** —
 **Question:** D-125 names the seven balances and which essence pays for what, but not: (1) whether buying a crystal or stone now costs its essence (stones were Prisms-only, and with spells no longer charging pillar essence per scaling grade, Pillar would have no use otherwise); (2) what a spell with no element (None) costs; (3) what replaces the half "Unknown" (Reality) co-cost on every upgrade, now that Reality essence retires; (4) what an evolution's purchase co-cost becomes; (5) conversion of old typed balances.
