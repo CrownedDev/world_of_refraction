@@ -4,6 +4,8 @@
 
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
+#include "Conditions/WoRConditions.h"
+#include "Reaction/ReactionTrigger.h"
 #include "Combat/Mechanics/WeatherStateManager.h"
 #include "Combat/TurnManager.h"
 #include "Engine/GameInstance.h"
@@ -26,6 +28,8 @@ namespace BossPhaseConstants
 	constexpr float PERCENT_SCALE = 100.0f;
 	/** Phase effect ids: base + the phase's index (packed like gear ids). */
 	constexpr int32 PHASE_EFFECT_SOURCE_ID_BASE = 193000;
+	/** B-355: a guard on one evaluation's rule firings (each fires once, so a list never needs more). */
+	constexpr int32 MAX_RULE_FIRINGS_PER_EVALUATION = 64;
 }
 
 UBossPhaseComponent::UBossPhaseComponent()
@@ -40,6 +44,18 @@ void UBossPhaseComponent::Setup(UBossData *Data)
 	ReachedPhaseCount = 0;
 	OwnTurnsTaken = 0;
 	StatusBreakCount = 0;
+	RuleState = FBossFightState();
+	// B-355: the authored state-change rules; fight-start rules fire from BossTriggers, moments from UFightTriggers.
+	AuthoredRules.Reset();
+	for (const FBossRule &Rule : Data ? Data->Rules : TArray<FBossRule>())
+	{
+		if (Rule.When == EBossRuleWhen::StateChange)
+		{
+			AuthoredRules.Add(Rule);
+		}
+	}
+	AuthoredRuleFired.Init(false, AuthoredRules.Num());
+	RebuildPhaseRules();
 	UnbindAll();
 
 	if (UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr)
@@ -164,22 +180,82 @@ void UBossPhaseComponent::EvaluatePhases()
 	{
 		return;
 	}
-	// Damage carries past a phase point (D-098): one hit can pass several phases.
-	while (Phases.IsValidIndex(ReachedPhaseCount))
+	// Damage carries past a phase point (D-098): one hit can pass several phases. B-355: through the
+	// rule list: authored rules first (each once per fight), then the phases' rules, until none fires.
+	for (int32 Firing = 0; Firing < BossPhaseConstants::MAX_RULE_FIRINGS_PER_EVALUATION; ++Firing)
 	{
-		const FBossPhase &Next = Phases[ReachedPhaseCount];
-		if (Next.Conditions.IsEmpty())
+		const FWoRBossState BossState = MakeBossState();
+		FWoRConditionContext Context;
+		Context.Boss = &BossState;
+		const FBossRule *Fired = nullptr;
+		for (int32 Index = 0; Index < AuthoredRules.Num() && !Fired; ++Index)
+		{
+			if (!AuthoredRuleFired[Index] && BossRules::Fires(AuthoredRules[Index], Context))
+			{
+				AuthoredRuleFired[Index] = true;
+				Fired = &AuthoredRules[Index];
+			}
+		}
+		for (int32 Index = 0; Index < PhaseRules.Num() && !Fired; ++Index)
+		{
+			if (BossRules::Fires(PhaseRules[Index], Context))
+			{
+				Fired = &PhaseRules[Index];
+			}
+		}
+		if (!Fired)
 		{
 			return;
 		}
-		for (const FBossPhaseCondition &Condition : Next.Conditions)
+		// A copy: its results may rebuild PhaseRules (skip / add phase).
+		const FBossRule Rule = *Fired;
+		if (BossRules::ApplyResults(GetOwner(), Rule, RuleState))
 		{
-			if (!IsConditionMet(Condition))
-			{
-				return;
-			}
+			ReactionTriggers::ApplyBossSteps(GetOwner(), RuleState.NetSteps, /*bBeforeFight=*/false);
 		}
+	}
+	UE_LOG(LogWoR, Warning, TEXT("[BossPhase] %s: rule firings stopped at %d in one check"), *GetNameSafe(GetOwner()),
+		   BossPhaseConstants::MAX_RULE_FIRINGS_PER_EVALUATION);
+}
+
+void UBossPhaseComponent::EnterNextPhase()
+{
+	if (Phases.IsValidIndex(ReachedPhaseCount))
+	{
 		EnterPhase(ReachedPhaseCount);
+	}
+}
+
+FWoRBossState UBossPhaseComponent::MakeBossState() const
+{
+	FWoRBossState State;
+	const AActor *Owner = GetOwner();
+	if (const UCharacterDataComponent *CharComp = Owner ? Owner->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+	{
+		State.CurrentHP = CharComp->CurrentHP;
+		State.MaxHP = CharComp->MaxHP;
+	}
+	State.TurnsTaken = OwnTurnsTaken;
+	State.StatusBreaks = StatusBreakCount;
+	State.PhasesReached = ReachedPhaseCount;
+	const UBrokenDarknessManager *BrokenDarkness = Owner ? Owner->FindComponentByClass<UBrokenDarknessManager>() : nullptr;
+	State.bAbsorptionMaxed = BrokenDarkness && BrokenDarkness->IsAtMaxStacks();
+	const ULoadoutComponent *Loadout = Owner ? Owner->FindComponentByClass<ULoadoutComponent>() : nullptr;
+	const FRuntimeAttachedItem *Attachment = Loadout ? Loadout->GetActiveWeaponAttachment() : nullptr;
+	State.bCrystalBroken = Attachment && Attachment->IsBroken();
+	return State;
+}
+
+void UBossPhaseComponent::RebuildPhaseRules()
+{
+	PhaseRules.Reset();
+	for (int32 Index = 0; Index < Phases.Num(); ++Index)
+	{
+		FBossRule Rule;
+		if (BossRules::MakePhaseRule(Phases[Index], Index, Rule))
+		{
+			PhaseRules.Add(Rule);
+		}
 	}
 }
 
@@ -251,12 +327,14 @@ void UBossPhaseComponent::SkipNextPhase()
 	{
 		UE_LOG(LogWoR, Log, TEXT("[BossPhase] %s: phase %s skipped"), *GetNameSafe(GetOwner()), *Phases[ReachedPhaseCount].PhaseId.ToString());
 		Phases.RemoveAt(ReachedPhaseCount);
+		RebuildPhaseRules(); // later phases moved down one index
 	}
 }
 
 void UBossPhaseComponent::AddPhase(const FBossPhase &Phase)
 {
 	Phases.Add(Phase);
+	RebuildPhaseRules();
 	UE_LOG(LogWoR, Log, TEXT("[BossPhase] %s: phase %s added"), *GetNameSafe(GetOwner()), *Phase.PhaseId.ToString());
 }
 
@@ -267,10 +345,20 @@ FString UBossPhaseComponent::GetBossPhaseString() const
 	{
 		Names.Add(FString::Printf(TEXT("%s%s"), *Phases[Index].PhaseId.ToString(), Index < ReachedPhaseCount ? TEXT(" (reached)") : TEXT("")));
 	}
-	return FString::Printf(TEXT("Boss %s: phase %d/%d [%s] | own turns %d | status breaks %d (resist +%.0f%%) | AI +%d | weather %.2f"),
-						   *GetNameSafe(GetOwner()), ReachedPhaseCount, Phases.Num(), *FString::Join(Names, TEXT(", ")),
-						   OwnTurnsTaken, StatusBreakCount, GetStatusResistanceBonus() * BossPhaseConstants::PERCENT_SCALE,
-						   GetAggressionSteps(), GetWeatherIntensity());
+	FString Out = FString::Printf(TEXT("Boss %s: phase %d/%d [%s] | own turns %d | status breaks %d (resist +%.0f%%) | AI +%d | weather %.2f"),
+								  *GetNameSafe(GetOwner()), ReachedPhaseCount, Phases.Num(), *FString::Join(Names, TEXT(", ")),
+								  OwnTurnsTaken, StatusBreakCount, GetStatusResistanceBonus() * BossPhaseConstants::PERCENT_SCALE,
+								  GetAggressionSteps(), GetWeatherIntensity());
+	// B-355: the state-change rules (authored, then the phases').
+	for (int32 Index = 0; Index < AuthoredRules.Num(); ++Index)
+	{
+		Out += FString::Printf(TEXT("\n  rule %s%s"), *BossRules::GetRuleString(AuthoredRules[Index]), AuthoredRuleFired[Index] ? TEXT(" (fired)") : TEXT(""));
+	}
+	for (const FBossRule &Rule : PhaseRules)
+	{
+		Out += FString::Printf(TEXT("\n  rule %s"), *BossRules::GetRuleString(Rule));
+	}
+	return Out;
 }
 
 #if !UE_BUILD_SHIPPING
