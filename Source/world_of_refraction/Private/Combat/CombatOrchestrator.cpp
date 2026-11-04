@@ -1173,10 +1173,7 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 	{
 		return;
 	}
-	if (LocalPartyCombatants.Contains(Victim))
-	{
-		TakeOverIfNoPlayerMemberLeft();
-	}
+	// OBSOLETE (B-346): no takeover when your fighters fall; AI seats play on (Q-21-audit, PA-12).
 	// Only ENEMY (OpposingParty) deaths feed the pool — a player-side (LocalParty) death grants nothing.
 	if (!OpposingPartyCombatants.Contains(Victim))
 	{

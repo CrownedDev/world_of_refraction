@@ -631,8 +631,8 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
     Buttons.Add(CreateMoveRowButton(/*bForward*/ false));
     Buttons.Add(CreateDefendButton());
     Buttons.Add(CreateFleeButton());
-    if (CanHandToAI())
-        Buttons.Add(CreateHandToAIButton());
+    // OBSOLETE (B-346): no "Let AI Play" button; seats are fixed for the fight (Q-21-audit, PA-13).
+    // The switch stays for debug (wor.Combat.SwitchControl).
 
     return Buttons;
 }
