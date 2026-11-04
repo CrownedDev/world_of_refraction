@@ -40,6 +40,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Trial/TrialRunSubsystem.h" // B-366b: the place's currency
+#include "WoRGameNames.h"                // B-366c/d: log the place currency by its player-facing name
 
 namespace
 {
@@ -277,10 +278,10 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     }
 
     const int32 TargetValue = EconomyYield::GetCrystalValue(TargetTier);
-    const int32 PrismsCost = EconomyYield::GetMergeCostForTier(TargetTier);
+    const int32 MoneyCost = EconomyYield::GetMergeCostForTier(TargetTier);
     // B-366d (Q-366 extended): the money cost is paid in the currency of the place (hub or run).
     const ECurrencyType Pays = GetPlaceCurrency(Owner);
-    const FString PaysName = StaticEnum<ECurrencyType>()->GetAuthoredNameStringByValue(static_cast<int64>(Pays));
+    const FString PaysName = WoRGameNames::GetCurrencyName(Pays).ToString(); // the player-facing name (D-159)
     const int32 TargetTierIndex = TierHelpers::GetTierValue(TargetTier); // tiers [0, TargetTierIndex) are mergeable
     const FCrystalId OutputId(Type, TargetTier);
 
@@ -307,10 +308,10 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
                *TierHelpers::GetTierName(TargetTier));
         return false;
     }
-    if (!Currency->CanAfford(Pays, PrismsCost))
+    if (!Currency->CanAfford(Pays, MoneyCost))
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: %s cannot afford %d %s for %s %s"),
-               *Owner->GetName(), PrismsCost, *PaysName,
+               *Owner->GetName(), MoneyCost, *PaysName,
                *TierHelpers::GetTierName(TargetTier), *ItemIdentity::GetDisplayName(OutputId));
         return false;
     }
@@ -354,7 +355,7 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     }
 
     // ---- Spend + REMOVE FIRST (a failed produce refunds below; never leave a phantom output) ----
-    Currency->Spend(Pays, PrismsCost);
+    Currency->Spend(Pays, MoneyCost);
     Inv->RemoveCrystals(Inputs); // ONE Removed (inputs are guaranteed present — counted above)
 
     // ER-28: the overshoot comes back as the fewest same-Type crystals below the target. Added with
@@ -370,10 +371,10 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     if (!bAdded)
     {
         Inv->AddCrystals(Inputs); // ONE Added — re-add the exact consumed set (atomic; space just freed)
-        Currency->Add(Pays, PrismsCost);
+        Currency->Add(Pays, MoneyCost);
         UE_LOG(LogTemp, Warning,
                TEXT("[EconomyService] MergeCrystals: add of %s + %d change crystal(s) failed (output or change tier at cap, Q-177) — refunded inputs + %d %s"),
-               *ItemIdentity::GetDisplayName(OutputId), Outputs.Num() - 1, PrismsCost, *PaysName);
+               *ItemIdentity::GetDisplayName(OutputId), Outputs.Num() - 1, MoneyCost, *PaysName);
         return false;
     }
 
@@ -393,7 +394,7 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     }
 
     UE_LOG(LogTemp, Log, TEXT("[EconomyService] Merged %s -> 1x %s (+%d change crystal(s), %d value back) for %d %s"),
-           *ConsumedStr, *ItemIdentity::GetDisplayName(OutputId), Outputs.Num() - 1, Accumulated - TargetValue, PrismsCost,
+           *ConsumedStr, *ItemIdentity::GetDisplayName(OutputId), Outputs.Num() - 1, Accumulated - TargetValue, MoneyCost,
            *PaysName);
     return true;
 }
@@ -1409,7 +1410,7 @@ bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEnt
         if ((Balance == ECurrencyType::Prisms || Amount > 0) && !Currency->CanAfford(Paid, Amount))
         {
             UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s cannot afford %d %s — aborting."), *Owner->GetName(),
-                   Amount, *StaticEnum<ECurrencyType>()->GetAuthoredNameStringByValue(static_cast<int64>(Paid)));
+                   Amount, *WoRGameNames::GetCurrencyName(Paid).ToString());
             return false;
         }
     }
@@ -1580,7 +1581,7 @@ bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEnt
     }
     UE_LOG(LogTemp, Log, TEXT("[EconomyService] Purchase: granted %d cart entries to %s for %d %s (+ essence)."),
            Items.Num(), *Owner->GetName(), Cost.Prisms,
-           *StaticEnum<ECurrencyType>()->GetAuthoredNameStringByValue(static_cast<int64>(Place)));
+           *WoRGameNames::GetCurrencyName(Place).ToString());
     return true;
 }
 
