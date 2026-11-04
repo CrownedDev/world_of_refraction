@@ -131,6 +131,44 @@ namespace
 		return Subject >= EWoRConditionSubject::BossHPAtMostPercent && Subject <= EWoRConditionSubject::BossPhasesReached;
 	}
 
+	/** B-337b / B-337d: the subjects that read a fighter's state (FWoRConditionContext's Self / Target / teams). */
+	bool IsFighterSubject(EWoRConditionSubject Subject)
+	{
+		return Subject == EWoRConditionSubject::Hp || Subject == EWoRConditionSubject::HpPercent ||
+			   Subject == EWoRConditionSubject::EpPercent || Subject == EWoRConditionSubject::Defender;
+	}
+
+	bool IsFighterSubjectMet(const FWoRCondition &Condition, const FWoRFighterState &Fighter)
+	{
+		switch (Condition.Subject)
+		{
+		case EWoRConditionSubject::Hp:
+			return WoRConditions::Compare(Fighter.CurrentHP, Condition.Operator, Condition.Value);
+		case EWoRConditionSubject::HpPercent:
+			return WoRConditions::ComparePercent(Fighter.CurrentHP, Fighter.MaxHP, Condition.Operator, Condition.Value);
+		case EWoRConditionSubject::EpPercent:
+			return WoRConditions::ComparePercent(Fighter.CurrentEP, Fighter.MaxEP, Condition.Operator, Condition.Value);
+		case EWoRConditionSubject::Defender:
+			return Fighter.bDefender;
+		default:
+			return false;
+		}
+	}
+
+	/** Some fighter Who names holds (none in the context: false). */
+	template <class TPredicate>
+	bool AnyFighter(EWoRConditionWho Who, const FWoRConditionContext &Context, TPredicate Holds)
+	{
+		switch (Who)
+		{
+		case EWoRConditionWho::Target:     return Context.Target && Holds(*Context.Target);
+		case EWoRConditionWho::SelfTeam:   return Context.SelfTeam.ContainsByPredicate(Holds);
+		case EWoRConditionWho::TargetTeam: return Context.TargetTeam.ContainsByPredicate(Holds);
+		case EWoRConditionWho::Self:
+		default:                           return Context.Self && Holds(*Context.Self);
+		}
+	}
+
 	bool IsSubjectMet(const FWoRCondition &Condition, const FWoRConditionContext &Context)
 	{
 		if (Condition.Subject == EWoRConditionSubject::None)
@@ -153,10 +191,16 @@ namespace
 		{
 			return Condition.Enemy && Context.Opposing.Contains(Condition.Enemy.Get());
 		}
-		if (Condition.Subject == EWoRConditionSubject::Hp)
+		if (IsFighterSubject(Condition.Subject))
 		{
-			const FWoRFighterState *Fighter = Condition.Who == EWoRConditionWho::Target ? Context.Target : Context.Self;
-			return Fighter && WoRConditions::Compare(Fighter->CurrentHP, Condition.Operator, Condition.Value);
+			return AnyFighter(Condition.Who, Context, [&Condition](const FWoRFighterState &Fighter)
+			{
+				return IsFighterSubjectMet(Condition, Fighter);
+			});
+		}
+		if (Condition.Subject == EWoRConditionSubject::Disabled)
+		{
+			return false;
 		}
 		if (!Context.Event)
 		{
@@ -237,14 +281,38 @@ bool WoRConditions::Compare(int32 Actual, EWoRConditionOperator Operator, int32 
 	{
 	case EWoRConditionOperator::AtMost: return Actual <= Value;
 	case EWoRConditionOperator::Equal:  return Actual == Value;
+	case EWoRConditionOperator::Below:  return Actual < Value;
+	case EWoRConditionOperator::Above:  return Actual > Value;
 	case EWoRConditionOperator::AtLeast:
 	default:                            return Actual >= Value;
 	}
 }
 
+bool WoRConditions::ComparePercent(int32 Current, int32 Max, EWoRConditionOperator Operator, int32 Percent)
+{
+	constexpr int64 PERCENT_SCALE = 100;
+	if (Max <= 0)
+	{
+		return Compare(0, Operator, Percent);
+	}
+	// Current / Max * 100 against Percent, cross-multiplied so no fraction rounds.
+	const int64 Scaled = static_cast<int64>(Current) * PERCENT_SCALE;
+	const int64 Bound = static_cast<int64>(Percent) * Max;
+	switch (Operator)
+	{
+	case EWoRConditionOperator::AtMost: return Scaled <= Bound;
+	case EWoRConditionOperator::Equal:  return Scaled == Bound;
+	case EWoRConditionOperator::Below:  return Scaled < Bound;
+	case EWoRConditionOperator::Above:  return Scaled > Bound;
+	case EWoRConditionOperator::AtLeast:
+	default:                            return Scaled >= Bound;
+	}
+}
+
 bool WoRConditions::IsMet(const FWoRCondition &Condition, const FWoRConditionContext &Context)
 {
-	if (Condition.Trigger != EWoRConditionTrigger::Any && Condition.Trigger != Context.Trigger)
+	if (Condition.Trigger != EWoRConditionTrigger::Any && Condition.Trigger != Context.Trigger &&
+		!Context.AlsoFiring.Contains(Condition.Trigger))
 	{
 		return false;
 	}
@@ -382,12 +450,13 @@ FString WoRConditions::GetConditionString(const FWoRCondition &Condition)
 	{
 		Out += TEXT(" ") + Condition.LocationId.ToString();
 	}
-	if (Condition.Subject == EWoRConditionSubject::Hp)
+	if (IsFighterSubject(Condition.Subject))
 	{
 		Out += TEXT(" ") + ConditionEnumName(Condition.Who);
 	}
 	if (Condition.Subject == EWoRConditionSubject::GearEquipped || Condition.Subject == EWoRConditionSubject::EvolutionEquipped ||
-		Condition.Subject == EWoRConditionSubject::Hp)
+		Condition.Subject == EWoRConditionSubject::Hp || Condition.Subject == EWoRConditionSubject::HpPercent ||
+		Condition.Subject == EWoRConditionSubject::EpPercent)
 	{
 		Out += FString::Printf(TEXT(" %s %d"), *ConditionEnumName(Condition.Operator), Condition.Value);
 	}

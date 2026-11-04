@@ -11,6 +11,7 @@
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "Combat/Defense/DefenseSystem.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
+#include "Skills/Effects/SkillConditions.h"
 #include "Skills/Effects/EffectIdentity.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Combat/CombatConstants.h"
@@ -2334,20 +2335,9 @@ void USkillEffectManager::FireDefenseTriggerEffects(AActor *Defender, AActor *At
 				continue;
 			}
 
-			const bool bFires = EvaluateConditionGroup(
-				E.Conditions,
-				[&](const FSkillCondition &C) { return IsOwnerSide(C.Subject) || Target != nullptr; }, // Participates
-				[&](const FSkillCondition &C) {													  // IsMet — dispatch
-					if (SkillTriggerUtils::IsDefenseOutcomeTrigger(C.Trigger))
-					{
-						// Outcome perspective: the subject's actor(s) must include the actor who
-						// actually defended (the Defender), so the outcome resolves per owner.
-						return OutcomeTriggers.Contains(C.Trigger)
-							   && ResolveSubjectActors(C.Subject, Owner, Target).Contains(Defender);
-					}
-					return ResolveSubjectActors(C.Subject, Owner, Target)
-						.ContainsByPredicate([&](AActor *A) { return IsSingleTriggerMet(A, C.Trigger, C.Threshold); });
-				});
+			// B-337d: a defense trigger holds when its outcome fired and its side includes the Defender, so the
+			// outcome resolves per owner; the rest read the fighters' state.
+			const bool bFires = IsSkillGroupMet(E.Conditions, ESkillCheck::Defense, Owner, Target, Defender, OutcomeTriggers);
 
 			if (bFires && AE)
 			{
@@ -2564,14 +2554,51 @@ bool USkillEffectManager::HasCleansableEffectOfType(AActor *Actor, ESkillEffectT
 bool USkillEffectManager::IsConditionHeld(const FSkillCondition &Condition, AActor *Owner, AActor *Target) const
 {
 	// The runtime skips a target-side check when there is no target, so it never blocks.
-	if (!IsOwnerSide(Condition.Subject) && !Target)
+	return IsSkillGroupMet(TArray<FSkillCondition>{Condition}, ESkillCheck::State, Owner, Target);
+}
+
+bool USkillEffectManager::IsSkillGroupMet(const TArray<FSkillCondition> &Conditions, ESkillCheck Check, AActor *Owner, AActor *Target,
+										  AActor *Defender, const TArray<ESkillTrigger> &Fired) const
+{
+	const auto ReadFighter = [this, Defender](AActor *Actor, FWoRFighterState &Out)
 	{
+		const UCharacterDataComponent *CharComp = GetCharacterDataComponent(Actor);
+		if (!CharComp)
+		{
+			return false;
+		}
+		Out.CurrentHP = CharComp->CurrentHP;
+		Out.MaxHP = CharComp->MaxHP;
+		Out.CurrentEP = CharComp->CurrentEP;
+		Out.MaxEP = CharComp->MaxEP;
+		Out.bDefender = Actor == Defender;
 		return true;
-	}
-	const TArray<AActor *> Subjects = ResolveSubjectActors(Condition.Subject, Owner, Target);
-	return Subjects.ContainsByPredicate([&](AActor *A) {
-		return IsSingleTriggerMet(A, Condition.Trigger, Condition.Threshold);
-	});
+	};
+	const auto ReadTeam = [&](ECondSubject Team, TArray<FWoRFighterState> &Out)
+	{
+		if (!Conditions.ContainsByPredicate([Team](const FSkillCondition &C) { return C.Subject == Team; }))
+		{
+			return; // only a team condition reads the team
+		}
+		for (AActor *Member : ResolveSubjectActors(Team, Owner, Target))
+		{
+			FWoRFighterState State;
+			if (ReadFighter(Member, State))
+			{
+				Out.Add(State);
+			}
+		}
+	};
+
+	FWoRFighterState SelfState;
+	FWoRFighterState TargetState;
+	FWoRConditionContext Context;
+	SkillConditions::PrepareContext(Context, Check, Fired);
+	Context.Self = Owner && ReadFighter(Owner, SelfState) ? &SelfState : nullptr;
+	Context.Target = Target && ReadFighter(Target, TargetState) ? &TargetState : nullptr;
+	ReadTeam(ECondSubject::SelfTeam, Context.SelfTeam);
+	ReadTeam(ECondSubject::TargetTeam, Context.TargetTeam);
+	return SkillConditions::IsGroupMet(Conditions, Check, Context, Target != nullptr);
 }
 
 FGameplayTagContainer USkillEffectManager::GetEffectTags(AActor *Actor) const
@@ -2909,31 +2936,14 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkil
 	{
 		// Subject-aware: owner-side subjects (Self/SelfTeam) always participate; target-side
 		// (Target/TargetTeam) participate only when a Target was passed (null → skipped, the
-		// pre-C2a behaviour). IsMet resolves the subject's actor(s) and ANY-folds the single-
-		// actor state check over them (a one-element set reduces to the prior single check).
-		return EvaluateConditionGroup(
-			Effect.Conditions,
-			[&](const FSkillCondition &C) { return IsOwnerSide(C.Subject) || Target != nullptr; },
-			[&](const FSkillCondition &C) {
-				const TArray<AActor *> Subjects = ResolveSubjectActors(C.Subject, Actor, Target);
-				return Subjects.ContainsByPredicate([&](AActor *A) {
-					return IsSingleTriggerMet(A, C.Trigger, C.Threshold);
-				});
-			});
+		// pre-C2a behaviour). A team subject holds when any member does. B-337d: through WoRConditions.
+		return IsSkillGroupMet(Effect.Conditions, ESkillCheck::State, Actor, Target);
 	}
 
-	const bool bPrimaryMet = IsSingleTriggerMet(Actor, Effect.TriggerCondition, Effect.TriggerThreshold);
-
-	if (Effect.SecondaryTriggerCondition == ESkillTrigger::None)
-	{
-		return bPrimaryMet;
-	}
-
-	const bool bSecondaryMet = IsSingleTriggerMet(Actor, Effect.SecondaryTriggerCondition, Effect.SecondaryTriggerThreshold);
-
-	return Effect.bRequireBothTriggers
-			   ? (bPrimaryMet && bSecondaryMet)
-			   : (bPrimaryMet || bSecondaryMet);
+	// The legacy two fields read across as a Self group (both ANDed, or either ORed).
+	return IsSkillGroupMet(SkillConditions::FromLegacy(Effect.TriggerCondition, Effect.TriggerThreshold, Effect.SecondaryTriggerCondition,
+														Effect.SecondaryTriggerThreshold, Effect.bRequireBothTriggers),
+						   ESkillCheck::State, Actor, nullptr);
 }
 
 bool USkillEffectManager::IsSingleTriggerMet(AActor *Actor, ESkillTrigger Trigger, float Threshold) const

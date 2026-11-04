@@ -20,12 +20,13 @@ One condition vocabulary for the game (D-130), on the deckbuilder's trigger → 
 ## Known Limitations / TODOs
 - The context carries memory events and, since B-355, the boss's fight state (`FWoRBossState`: HP, own turns, status breaks, phases reached, absorption, crystal) for the `Boss*` subjects. Since B-337b: `Opposing` (the opposing team's characters, `FacingEnemy`) and `Self` / `Target` (`FWoRFighterState`, current / max HP, the `Hp` subject by `Who`). Reactions fill all three; boss rules do not fill `Self` yet (B-337c).
 - A reaction's context trigger is `Any`: a condition authored with a named `Trigger` never holds in a reaction (reactions say when through their `When` moment).
-- Not moved yet: a bound item's memory conditions (`FBoundMemory`) and the skill-effect triggers (`ESkillTrigger`): B-337c.
+- Skill effects (B-337d): their authored `FSkillCondition` groups read across at check time (`Skills/Effects/SkillConditions.h`; `ESkillCheck` State / Defense / ActionResult; `AlsoFiring` lists the events a call site counts); the authored `FWoRConditionSet` field and the re-authoring are B-337e. An actor with no character data is no fighter. Percent subjects compare exactly in whole percents (Q-337d).
 - No condition editor or validation yet; the deckbuilder's rules (a row must say when it fires; nested conditions are state-checks only) come with B-337b's authoring.
 
 ## Changelog
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-11-04 | B-337d (D-130, Q-337c, Q-337d): skill triggers 9-26 (`Hit` ... `PerfectBlock`; On Battle Start = `FightStart`), subjects `HpPercent` (23) / `EpPercent` (24) / `Defender` (25) / `Disabled` (26), Who `SelfTeam` / `TargetTeam`, operators `Below` / `Above`, `ComparePercent`, context `SelfTeam` / `TargetTeam` / `AlsoFiring`; `SkillConditions` reads `FSkillCondition` across; `USkillEffectManager::IsSkillGroupMet` and `UActionExecutor`'s gate check here; `IsSingleTriggerMet` OBSOLETE. Spec `WoR.Conditions.SkillParity`. | refactor/B-337d-skill-conditions |
 | 2026-11-04 | B-337 (D-130): `FWoRCondition` / `FWoRConditionSet`, the `WoRConditions` evaluator; memories evaluate through it; the old memory condition types OBSOLETE. Spec `WoR.Conditions`. Unbuilt (cloud). | feature/B-337-conditions |
 | 2026-11-04 | B-337 built and tested on the desktop (`WoR.Conditions` (4) and `WoR.Memory` (28)); no must-fix; should-fixes applied (helpers renamed `IsMemberInParty` / `ConditionEnumName` so a unity build can't collide with `MemoryConditions.cpp` / `SkillEffectDebug.cpp`; Q-337 records the evaluator's four defaults). Merged into dev. | feature/B-337-conditions |
 | 2026-11-04 | B-365 (D-158, Q-365): trigger and subject `FlawlessParry` (7 / 22) read `FWoRConditionContext::bFlawlessParry`; `WoRConditions::MakeFlawlessParryContext`; the defense system reports it (`UDefenseSystem::OnFlawlessParry`). | feature/B-365-flawless-parry |
