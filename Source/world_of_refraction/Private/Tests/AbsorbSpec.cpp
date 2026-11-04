@@ -299,6 +299,22 @@ void FAbsorbSpec::Define()
 		TestEqual(TEXT("three absorbers in all"), Tracker->GetAbsorbs().Num(), 3);
 	});
 
+	It("previews a DoT tick after the holder's absorbers without spending them (B-042j3)", [this]()
+	{
+		USkillEffectManager *SEM = TestWorld->GetSubsystem<USkillEffectManager>();
+		if (!TestNotNull(TEXT("SkillEffectManager"), SEM)) return;
+		TestTrue(TEXT("a Fire Ward given"), Give(MakeCharge(EWoRAbsorbVerb::Ward, EWoRChargeMode::Uses, ABSORB_ONE_USE, ESpellElement::Fire)).IsValid());
+		const FActiveSkillEffect Burn = FActiveSkillEffect::CreateDOT(TEXT("Spec burn"), DOT_TEST_ID, DOT_TEST_DAMAGE, DOT_TEST_TURNS, ESpellElement::Fire);
+		const FActiveSkillEffect Chill = FActiveSkillEffect::CreateDOT(TEXT("Spec chill"), DOT_TEST_ID + 1, DOT_TEST_DAMAGE, DOT_TEST_TURNS, ESpellElement::Water);
+		const int32 RawBurn = USkillEffectManager::GetDotTickDamage(Hero, Burn);
+		TestTrue(TEXT("a tick to measure"), RawBurn > 0);
+		TestEqual(TEXT("the Fire tick previews after the Ward"), SEM->PreviewDotTickDamage(Hero, Burn), FMath::Max(0, RawBurn - ABSORB_MAGNITUDE));
+		TestEqual(TEXT("the Water tick previews whole"), SEM->PreviewDotTickDamage(Hero, Chill), USkillEffectManager::GetDotTickDamage(Hero, Chill));
+		TestEqual(TEXT("the preview spent nothing"), Tracker->GetAbsorbs().Num(), 1);
+		TestEqual(TEXT("PreviewAbsorb says the same"), Tracker->PreviewAbsorb(RawBurn, ESpellElement::Fire, EPhysicalDamageType::None), FMath::Min(RawBurn, ABSORB_MAGNITUDE));
+		TestEqual(TEXT("and still spent nothing"), Tracker->GetAbsorbs()[0].UsesLeft, ABSORB_ONE_USE);
+	});
+
 	It("a DoT tick spends the holder's absorbers like any damage instance (D-092 rule 1, B-042j2)", [this]()
 	{
 		USkillEffectManager *SEM = TestWorld->GetSubsystem<USkillEffectManager>();

@@ -350,6 +350,15 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	bool bResultResolved = false;
 
+	/** B-042j3 (D-092 rule 8): this impact went unguarded, so its outcome (On Take Damage) is broadcast after the
+	 *  hit, and only when the hit did damage (an impact the absorbers stopped fires none). Per-impact transient. */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	bool bTakeDamageOutcomePending = false;
+
+	/** The attack's base energy cost for that deferred broadcast (OnDefenseResolved's AttackEnergyCost). */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	float PendingAttackEnergyCost = 0.0f;
+
 	/** Can this attack crit? */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	bool bCanCrit = true;

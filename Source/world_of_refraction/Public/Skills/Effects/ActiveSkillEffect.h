@@ -329,7 +329,10 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		Effect.InitialDuration = Effect.RemainingTurns;
 		// Charges: SEPARATE governor from duration. 0 (default) = no charge system, untouched.
 		Effect.Charges = P.Charges;
-		Effect.Element = Effect.EffectType == ESkillEffectType::ApplyDOTOnHit ? KeyElement : Element;
+		// B-042j3: a reflect's element is its scope (the payload's own, authored one); the cast element never scopes it.
+		Effect.Element = Effect.EffectType == ESkillEffectType::ApplyDOTOnHit ? KeyElement
+						 : SkillEffectClassification::IsReflect(Effect.EffectType) ? (bPayloadKeysElement ? P.Element : ESpellElement::None)
+						 : Element;
 
 		// ⚠️ Footgun guard: a charged effect that is duration-0 AND not permanent is IsInstant()
 		// → ApplyEffect runs it down the instant lane and NEVER stores it, so its charges can
