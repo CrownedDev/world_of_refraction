@@ -318,6 +318,12 @@ bool UInventoryComponent::AttachFusionToGear(TArray<TEntry> &Gear, FGuid GearID,
     {
         return false;
     }
+    if constexpr (FusionRules::RETIRED)
+    {
+        // B-352 (D-141): fusions retire; nothing is fused or debited. OBSOLETE body below, deleted in the D-124 sweep.
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: fusions are retired (D-141) - refused, nothing debited"), Op);
+        return false;
+    }
 
     // Validate the pair before touching anything (stat-stone + one contributor; evolution can't be a half).
     if (!CrystalTypeHelpers::IsValidFusionPair(FusionId.HalfA.Type, FusionId.HalfB.Type))

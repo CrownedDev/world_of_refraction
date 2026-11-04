@@ -268,6 +268,12 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem 
         break;
 
     case EAttachedItemKind::Fusion:
+        if constexpr (FusionRules::RETIRED)
+        {
+            // B-352 (D-141): an authored fusion no longer attaches; the socket reads empty.
+            UE_LOG(LogTemp, Warning, TEXT("[FRuntimeAttachedItem] an authored fusion is retired (D-141): the socket stays empty"));
+            break;
+        }
         Result.Kind = EAttachedItemKind::Fusion;
         // Map the six flat authored fields into the runtime fusion identity. The
         // authoring-only bFusionHalfBIsCrystal is NOT stored — gem/stone nature is
