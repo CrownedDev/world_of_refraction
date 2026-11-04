@@ -1675,7 +1675,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 
 ### D-123 — The player picks pillars only; sub-stats come from the asset and gear; one Speed (audit §4)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
-**Answer (Crown):** the player picks pillars only. Sub-stats come from the character asset and gear (WoW-like); the 3-points-per-level sub-stat pool retires. Action Speed and Spell Speed merge into one **Speed**.
+**Answer (Crown):** the player picks pillars only. Sub-stats come from the character asset and gear (WoW-like); the 3-points-per-level sub-stat pool retires. ~~Action Speed and Spell Speed merge into one **Speed**.~~ **Changed by D-151 (Crown, 2026-11-04):** Action Speed and Spell Speed stay separate; the rest of this ruling stands.
 **What it changes:** the level-up sub-stat pool; D-088's Ice → Action Speed wording (now Speed); `StatModifierTable`, the defense window maths, a stone kind.
 **Notes for Claude:** jobs B-330 (pool retires) and B-331 (Speed merge).
 
@@ -1701,7 +1701,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 (Audit §5: **no change** — evolutions and fusions keep their wear. §10 is Q-293d.)
 
 ### Q-331 — One Speed: how do the two old speeds map, which pillar, and how is the merge sliced?
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-331, D-123) · **Blocks:** —
+**Status:** SUPERSEDED by D-151 (Crown, 2026-11-04: the two speeds stay separate; B-331r reverts B-331's merge) · was ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-331, D-123) · **Blocks:** —
 **Question:** D-123 merges Action Speed and Spell Speed into one Speed. (a) An asset with points in both: how do they map? (b) Action Speed was Body, Spell Speed Mind: which pillar is Speed? (c) The merge touches about 60 files (sub-stat, window maths, play-rate, `StatModifierTable`, the stone kind, the effect pair, GAS attributes, gear bonus fields, `AddPillarPercent`, Ice, UI names): one job or two?
 **Options:** (a) A add them (every authored point kept) / B take the larger / C average. (b) A Body / B Mind. (c) A two slices: B-331 the stat and every defense window, B-331b the authoring surface / B one job.
 **Recommendation:** (a) A: when WoW's Warlords of Draenor stat squish folded hit and expertise into other stats, it carried the points over rather than dropping them, and players kept their gear's value; adding keeps `GetTotalSpent` and the authored budget (Q-330) unchanged. (b) A: the defender's Reflex is Body, and the window maths was built so equal Body points cancel (`WINDOW_PER_SPEED_POINT` = `REFLEX_WINDOW_PER_POINT`), as in Expedition 33 where one Speed stat against the enemy's sets the timing pressure. (c) A, by the 3-files rule and so each slice can be PIE-checked alone.
@@ -1967,6 +1967,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 4. A player **joining mid-run takes an AI seat's place; the host chooses which AI seat** (not automatic). That AI member's gear and inventory go to the **host's inventory** (it is the host's run; the host can hand gear to friends). If no AI seat is free, the party is full and the join is refused. Until the real screen exists, a plain C++ placeholder for the host's choice (the PIE sheet says how to open it).
 **Reference check:** Q-360 (the deckbuilder keeps and rotates empty seats; this game does not: Crown's rule stands).
 **Notes for Claude:** job B-360 (after B-328). Solo play is unchanged (one player commands every member; AI seats as B-346).
+
+### D-151 — Action Speed and Spell Speed stay separate (reverses the "one Speed" part of D-123)
+**Status:** DECIDED (Crown, 2026-11-04, via the brain) · **Raised:** 2026-11-04 · **Blocks:** —
+**Answer (Crown):** Action Speed (Body) and Spell Speed (Mind) stay two sub-stats. A mage with fast spells should not get fast physical attacks: the two specialisations differ. The rest of D-123 (pillars only; sub-stats from the asset and gear) stands.
+**What it changes:** B-331 (one Speed, slice 1, merged into dev 2026-11-04 as 61e8a26d) is undone by **B-331r**: a proper revert of the merge's effect (no history rewriting), so Action Speed narrows the attack defense windows and Spell Speed the spell windows, as before B-331; the Water break and the Ice wording (D-088) are re-checked against both. B-331b (one Speed, part 2) is dropped: every item of it was the speed merge. Q-331 is superseded.
+**Notes for Claude:** B-331r after B-360.
 
 ### Q-360 — D-150 against the deckbuilder's co-op rules
 **Status:** ANSWERED (Crown's rule, D-150; the deckbuilder differs on one point) · **Raised:** 2026-11-04 (D-150 reference check) · **Blocks:** —
