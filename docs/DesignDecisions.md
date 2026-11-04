@@ -1805,7 +1805,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 ### D-144 — Bosses: one rule list (audit round 3 §29)
 **Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §29) · **Blocks:** —
 **Answer (Crown):** a boss has one rule list instead of separate phases and triggers. Each rule is when → condition → result; "go to the next phase" is one of the results. It uses D-130's shared condition set, on the deckbuilder's model.
-**Notes for Claude:** job B-355, after B-337.
+**Notes for Claude:** job B-355 (built on the desktop 2026-11-04, in dev; Q-355 has the as-built choices); moments and the retirement in B-355b.
 
 ### D-145 — One skill-slot list per weapon or crystal; built-ins replaceable (audit round 3 §37; changes CL-20)
 **Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §37) · **Blocks:** —
@@ -3333,6 +3333,19 @@ Moved here once applied. Newest first.
 **Recommendation:** A. World of Warcraft's "unique-equipped" gems and Diablo III's one-of-each legendary gem cap what is socketed in your gear, not what sits in your bags; counting every socketed S piece keeps the rule one line.
 **Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
 **Notes for Claude:** built in B-354 (desktop build 2026-11-04). `InventoryConstants::CRYSTAL_PER_TIER_CAP` (an actor without a pouch, e.g. an enemy) is D-097's older per-tier stack cap, not D-072, and stays. Reviewer notes applied: the count is gated by class as `CollectFindings` is (a Caster's secondary and a non-Resonator's ring loadout are stale slots and don't count). The finding's reason is an `FString` like every other finding in `LoadoutRules.cpp` (log / debug text, not shown to the player); the whole file moves to `FText` together when a screen shows findings (D-061).
+
+### Q-355 — The boss rule list: what D-144 left open
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-355, cloud; recorded on the desktop) · **Blocks:** —
+**Question:** D-144 says one rule list, when → condition → result, "next phase" a result. Five things it doesn't say: (1) when a rule may fire again; (2) a rule with no conditions; (3) how old phases and triggers read across; (4) the order rules are checked in and how far one check goes; (5) where the three kinds of "when" fire.
+**Options / as built:**
+- (1) **A** an authored rule fires at most once per fight; a phase's "next phase" rule holds only while the boss is at that phase, so it fires once too. **B** fire every time the condition holds.
+- (2) **A** no conditions: never fires (as phases and triggers were). **B** no conditions: always fires.
+- (3) **A** each phase with conditions becomes a "next phase" rule that also asks "phases reached = my index" (phases go in order, D-098); each trigger becomes a rule at fight start or its moment; an HP percent rounds, a turn or break count rounds up. Assets unchanged. **B** re-author every boss asset.
+- (4) **A** authored rules first, then the phases' rules, one firing per pass, repeating while any fires (one big hit can pass several phases, D-098), with a fixed guard on passes. **B** one pass.
+- (5) **A** fight-start rules fire from `BossTriggers::ApplyTo` (as the fight-start triggers did), state-change rules from `UBossPhaseComponent` (HP, own turn, status break), moment rules still from the old trigger list in `UFightTriggers` until B-355b.
+**Recommendation:** A throughout. The deckbuilder's boss rows work this way (each row says when it fires and runs once unless it says otherwise, `docs/reference/05-triggers-conditions.md`); Slay the Spire's boss phase scripts fire once at a threshold and never re-check, which players find predictable.
+**Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
+**Notes for Claude:** built in B-355 (desktop build, in dev). B-355b moves the moment rules and retires the old types after PIE.
 
 ### Q-337 — The one condition evaluator: the defaults D-130 left open
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-337, desktop review) · **Blocks:** —
