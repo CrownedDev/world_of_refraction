@@ -115,12 +115,14 @@ void FGuardSpec::Define()
 
 	Describe("what a Guard stops and lets through", [this]()
 	{
-		It("only a Perfect Guard or a Dodge stops an interruptable hit", [this]()
+		It("only a Perfect Guard or a Perfect Dodge stops an interruptable hit (D-161)", [this]()
 		{
 			TestTrue(TEXT("Perfect Guard"), GuardRules::StopsInterruptableHit(EDefenseType::Block, true, GUARD_TEST_PERFECT));
 			TestFalse(TEXT("Guard"), GuardRules::StopsInterruptableHit(EDefenseType::Block, true, GUARD_TEST_NORMAL));
-			TestTrue(TEXT("Dodge"), GuardRules::StopsInterruptableHit(EDefenseType::Dodge, true, GUARD_TEST_NORMAL));
+			TestTrue(TEXT("Perfect Dodge"), GuardRules::StopsInterruptableHit(EDefenseType::Dodge, true, GUARD_TEST_PERFECT));
+			TestFalse(TEXT("a normal Dodge no longer"), GuardRules::StopsInterruptableHit(EDefenseType::Dodge, true, GUARD_TEST_NORMAL));
 			TestFalse(TEXT("a failed Perfect Guard"), GuardRules::StopsInterruptableHit(EDefenseType::Block, false, GUARD_TEST_PERFECT));
+			TestFalse(TEXT("no defense"), GuardRules::StopsInterruptableHit(EDefenseType::None, true, GUARD_TEST_PERFECT));
 		});
 
 		It("switches only a Perfect Guard to the parry animation (B-182)", [this]()
