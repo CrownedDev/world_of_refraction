@@ -461,12 +461,12 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
-    // B-314: the run layer isn't saved yet (B-314b, Q-314), so a resumed run opens a fresh one: gear found before the
-    // quit stays, and the home state is the gear as it was saved.
+    // B-314: a resumed run opens a fresh layer; B-314b: USaveSubsystem::RestoreRun then replaces it with the save's own
+    // layer when the save has one (the run-only marks and home states as saved).
     UPoolSubsystem *Pool = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr;
     if (Pool && IsRunActive())
     {
-        UE_LOG(LogTemp, Log, TEXT("[TrialRun] Resumed run: the run layer starts afresh from the saved gear (TODO: B-314b saves it)"));
+        UE_LOG(LogTemp, Log, TEXT("[TrialRun] Resumed run: a fresh run layer (the save's own layer replaces it when it has one, B-314b)"));
         Pool->DiscardRunLayer(); // the store was reloaded: an open layer's home states are stale
         OpenRunLayerWithWornLoadouts(GetGameInstance(), *Pool);
     }

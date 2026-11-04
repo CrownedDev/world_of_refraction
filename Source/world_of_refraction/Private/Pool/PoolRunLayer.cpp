@@ -68,6 +68,31 @@ void UPoolSubsystem::DiscardRunLayer()
     bRunLayerActive = false;
 }
 
+int32 UPoolSubsystem::RestoreRunLayer(const TMap<FGuid, FPoolRunMark> &SavedMarks)
+{
+    RunMarks.Reset();
+    bRunLayerActive = true;
+    int32 Dropped = 0;
+    for (const TPair<FGuid, FPoolRunMark> &Saved : SavedMarks)
+    {
+        if (FindWeaponInPool(Saved.Key) || FindRingInPool(Saved.Key) || FindEvolutionInPool(Saved.Key))
+        {
+            RunMarks.Add(Saved.Key, Saved.Value);
+        }
+        else
+        {
+            ++Dropped;
+        }
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer restored from the save: %d mark(s) kept"), RunMarks.Num());
+    if (Dropped > 0)
+    {
+        // A dropped home mark's piece won't be put back to its home state at run end.
+        UE_LOG(LogTemp, Warning, TEXT("[Pool] Run layer restore: %d saved mark(s) dropped (their gear is no longer in the store)"), Dropped);
+    }
+    return RunMarks.Num();
+}
+
 bool UPoolSubsystem::TakeOnRun(const FGuid &GearID)
 {
     if (!bRunLayerActive || !GearID.IsValid() || RunMarks.Contains(GearID))

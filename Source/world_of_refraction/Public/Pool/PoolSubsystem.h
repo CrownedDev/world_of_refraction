@@ -427,6 +427,9 @@ public:
     void BeginRunLayer();
     /** Closes the layer without putting anything back or dropping anything (stale marks after a reload). */
     void DiscardRunLayer();
+    /** B-314b: a resumed run reopens its saved layer (the store was loaded from the same save): replaces any open
+     *  layer; a mark whose gear is no longer in the store is dropped. Returns how many marks were kept. */
+    int32 RestoreRunLayer(const TMap<FGuid, FPoolRunMark> &SavedMarks);
     bool IsRunLayerActive() const { return bRunLayerActive; }
 
     /** The run purchase (D-111): the real home piece goes on the run as it is now. False when no run layer is open,
@@ -459,7 +462,7 @@ public:
     bool ApplyUpgradeMemory(FRingInventoryEntry &Entry) const;
     bool ApplyUpgradeMemory(FEvolutionInventoryEntry &Entry) const;
     const TMap<FName, EItemTier> &GetUpgradeMemory() const { return UpgradeMemory; }
-    /** TODO: B-314b saves the memory and the open layer (save v10); until then both are in-session only. */
+    /** B-314b: the memory as saved (FSavedPool::UpgradeMemory); the open layer is saved with the run (FSavedRun). */
     void RestoreUpgradeMemory(const TMap<FName, EItemTier> &InMemory) { UpgradeMemory = InMemory; }
 
     /** Debug: the open layer (each marked piece) and the upgrade memory. wor.Run.PrintKept. */
@@ -597,7 +600,7 @@ private:
     FPoolPouch &FindOrAddPouch(FName CharacterKey);
 
     // ==================== THE RUN LAYER (B-314) ====================
-    // In-session until B-314b's save (Q-314).
+    // Saved since B-314b: the open layer with the run (FSavedRun), the upgrade memory with the pool (FSavedPool).
 
     /** A run is open (between BeginRunLayer and EndRunLayer). */
     bool bRunLayerActive = false;
