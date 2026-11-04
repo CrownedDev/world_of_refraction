@@ -160,7 +160,7 @@ void FDefeatSpec::Define()
 		if (!TestNotNull(TEXT("Loaded"), Loaded)) return;
 		TestEqual(TEXT("wipes saved"), Loaded->Data.Run.Wipes, 2);
 		TestEqual(TEXT("boss losses saved"), Loaded->Data.Run.MainBossLosses, 1);
-		TestEqual(TEXT("rest spot saved"), Loaded->Data.Run.LastRestSpot, DEFEAT_TEST_REST_SPOT);
+		TestTrue(TEXT("rest spot saved"), Loaded->Data.Run.LastRestSpot == DEFEAT_TEST_REST_SPOT);
 
 		FWoRTestWorld After;
 		if (!TestTrue(TEXT("second world"), After.Create())) return;
@@ -169,7 +169,7 @@ void FDefeatSpec::Define()
 		RunAfter->RestoreRunLosses(Loaded->Data.Run.Wipes, Loaded->Data.Run.MainBossLosses, Loaded->Data.Run.LastRestSpot);
 		TestEqual(TEXT("wipes back"), RunAfter->GetRunWipes(), 2);
 		TestEqual(TEXT("boss losses back"), RunAfter->GetRunMainBossLosses(), 1);
-		TestEqual(TEXT("rest spot back"), RunAfter->GetLastRestSpot(), DEFEAT_TEST_REST_SPOT);
+		TestTrue(TEXT("rest spot back"), RunAfter->GetLastRestSpot() == DEFEAT_TEST_REST_SPOT);
 	});
 }
 
