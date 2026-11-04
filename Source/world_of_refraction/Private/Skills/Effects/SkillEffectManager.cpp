@@ -52,10 +52,11 @@ void USkillEffectManager::Initialize(FSubsystemCollectionBase &Collection)
 	ActiveEffects.Empty();
 	NextInstanceID = 1;
 
-	// Bind OnDamageDealt listener — drives Lifesteal + ApplyBurn/Chill/StunToTarget.
-	if (UGameInstance *GI = GetGameInstance())
+	// Bind OnDamageDealt listener — drives Lifesteal + ApplyBurn/Chill/StunToTarget. Read straight from the
+	// world: its game instance may not be set yet while the world initialises (B-336).
+	if (UWorld *World = GetWorld())
 	{
-		if (UActionExecutor *AE = WoRFight::Get<UActionExecutor>(GI))
+		if (UActionExecutor *AE = World->GetSubsystem<UActionExecutor>())
 		{
 			AE->OnDamageDealt.AddDynamic(this, &USkillEffectManager::OnDamageDealtHandler);
 			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Bound to ActionExecutor::OnDamageDealt"));
@@ -66,7 +67,7 @@ void USkillEffectManager::Initialize(FSubsystemCollectionBase &Collection)
 		}
 
 		// Bind OnDefenseResolved listener — drives defense-outcome conditional effects (C3b).
-		if (UDefenseSystem *DS = WoRFight::Get<UDefenseSystem>(GI))
+		if (UDefenseSystem *DS = World->GetSubsystem<UDefenseSystem>())
 		{
 			DS->OnDefenseResolved.AddDynamic(this, &USkillEffectManager::OnDefenseResolvedHandler);
 			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Bound to DefenseSystem::OnDefenseResolved"));

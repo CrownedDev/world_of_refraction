@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Subsystems/GameInstanceSubsystem.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "UObject/ObjectKey.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
@@ -73,7 +72,7 @@ enum class EEffectApplicationResult : uint8
 /**
  * USkillEffectManager
  *
- * GameInstanceSubsystem that manages all skill effects on all actors.
+ * Per-fight world subsystem (B-336) that manages all skill effects on all actors.
  * Central authority for buff/debuff/DOT tracking during combat.
  *
  * Design Principles:
@@ -88,7 +87,7 @@ enum class EEffectApplicationResult : uint8
  * - UI binds to events for visual feedback
  */
 UCLASS()
-class WORLD_OF_REFRACTION_API USkillEffectManager : public UGameInstanceSubsystem
+class WORLD_OF_REFRACTION_API USkillEffectManager : public UWoRFightSubsystem
 {
 	GENERATED_BODY()
 
@@ -315,7 +314,7 @@ public:
 	 *  cross-check so coverage drift in this tool is self-reporting. POST: effects
 	 *  currently present in the actor's equipment SourceID window
 	 *  (Actor->GetUniqueID()*100 + i). Console: "wor.StartingEffects" in PIE.
-	 *  Trigger is a wor.* console command in the .cpp — a UGameInstanceSubsystem
+	 *  Trigger is a wor.* console command in the .cpp — a subsystem
 	 *  is not on the engine's Exec dispatch chain. */
 	void WOR_StartingEffects();
 
@@ -485,12 +484,12 @@ public:
 
 	/** Print all active effects for an actor to log. Console trigger: wor.PrintEffects
 	 *  (in the .cpp; targets the active combatant). No CallInEditor — a
-	 *  UGameInstanceSubsystem has no Details panel to host a button. */
+	 *  a subsystem has no Details panel to host a button. */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Debug")
 	void DebugPrintEffects(AActor *Actor) const;
 
 	/** Print all effects for all tracked actors. Console trigger: wor.PrintAllEffects
-	 *  (in the .cpp). No CallInEditor — a UGameInstanceSubsystem has no Details panel
+	 *  (in the .cpp). No CallInEditor — a subsystem has no Details panel
 	 *  to host a button. */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Debug")
 	void DebugPrintAllEffects() const;

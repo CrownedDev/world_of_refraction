@@ -4,7 +4,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Subsystems/GameInstanceSubsystem.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Defense/EDefenseDirection.h"
@@ -217,7 +216,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnDefensePerfect, AActor *, Defen
 /**
  * UDefenseSystem
  *
- * GameInstanceSubsystem that handles real-time defense mechanics.
+ * Per-fight world subsystem (B-336) that handles real-time defense mechanics.
  * Players can Guard or Dodge incoming attacks during defense windows (D-084, B-168).
  *
  * Defense Types:
@@ -233,7 +232,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnDefensePerfect, AActor *, Defen
  *   // Window closes, damage applied
  */
 UCLASS()
-class WORLD_OF_REFRACTION_API UDefenseSystem : public UGameInstanceSubsystem
+class WORLD_OF_REFRACTION_API UDefenseSystem : public UWoRFightSubsystem
 {
 	GENERATED_BODY()
 

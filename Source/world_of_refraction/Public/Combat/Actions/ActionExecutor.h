@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Subsystems/GameInstanceSubsystem.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "Combat/Actions/ActionStructs.h"
 #include "Combat/Actions/EActionType.h"
@@ -140,7 +139,7 @@ struct FActionDamagePreview
 /**
  * UActionExecutor
  *
- * GameInstanceSubsystem that handles all combat action execution.
+ * Per-fight world subsystem (B-336) that handles all combat action execution.
  * Validates actions, calculates damage/effects, applies results.
  *
  * Usage:
@@ -155,7 +154,7 @@ struct FActionDamagePreview
  *   - Data Assets: SpellData, AbilityData, etc.
  */
 UCLASS()
-class WORLD_OF_REFRACTION_API UActionExecutor : public UGameInstanceSubsystem
+class WORLD_OF_REFRACTION_API UActionExecutor : public UWoRFightSubsystem
 {
 	GENERATED_BODY()
 
@@ -487,7 +486,7 @@ public:
 	// DEBUG
 	// ========================================
 
-	// No CallInEditor — a UGameInstanceSubsystem has no Details panel, AND this takes a Result
+	// No CallInEditor — a subsystem has no Details panel, AND this takes a Result
 	// argument (it formats a result the caller already holds; it is not a zero-arg snapshot), so
 	// there is no live state to expose as a wor.* console command. Kept BlueprintCallable for
 	// callers that already hold an FActionResult.
@@ -497,7 +496,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Debug")
 	void DebugAsyncState();
 
-	// Console trigger is wor.ForceReset (in the .cpp) — a UGameInstanceSubsystem
+	// Console trigger is wor.ForceReset (in the .cpp) — a subsystem
 	// is not on the engine's Exec dispatch chain.
 	void DebugForceResetAsync();
 

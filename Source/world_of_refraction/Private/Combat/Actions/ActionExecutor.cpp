@@ -2765,15 +2765,9 @@ UDefenseSystem *UActionExecutor::GetDefenseSystem() const
 		return DefenseSystemRef;
 	}
 
-	UGameInstance *GI = GetGameInstance();
-	if (GI)
-	{
-		UDefenseSystem *DefenseSys = WoRFight::Get<UDefenseSystem>(GI);
-		const_cast<UActionExecutor *>(this)->DefenseSystemRef = DefenseSys;
-		return DefenseSys;
-	}
-
-	return nullptr;
+	UDefenseSystem *DefenseSys = WoRFight::Get<UDefenseSystem>(this);
+	const_cast<UActionExecutor *>(this)->DefenseSystemRef = DefenseSys;
+	return DefenseSys;
 }
 
 void UActionExecutor::BindDefenseSystemEvents()
