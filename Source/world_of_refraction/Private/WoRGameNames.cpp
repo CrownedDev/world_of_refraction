@@ -318,6 +318,11 @@ FText GetDefenseTypeName(EDefenseType DefenseType)
     return FText::GetEmpty();
 }
 
+FText GetFlawlessParryName()
+{
+    return LOCTEXT("FlawlessParry", "Flawless Parry");
+}
+
 FText GetCombatRowName(ECombatRow Row)
 {
     switch (Row)
