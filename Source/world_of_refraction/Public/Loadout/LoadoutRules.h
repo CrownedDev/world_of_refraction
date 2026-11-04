@@ -53,10 +53,13 @@ enum class ELoadoutSlotType : uint8
 	DuplicateItems,
 	// B-159: dropped like the category findings above. AbilityOverflow: SlotIndex 0 primary /
 	// 1 secondary weapon, SubIndex 0 abilities / 1 augment stone abilities. ItemSlot: a quantity
-	// out of range (clamped). UtilityCrystalTierCap: too many utility crystals in a tier band.
+	// out of range (clamped). UtilityCrystalTierCap: too many utility crystals in a tier band (OBSOLETE (B-354):
+	// D-143 retired the bands; nothing reports it). EquippedSTierCrystal (B-354, D-143): more than one S-tier crystal
+	// equipped; clearable only through the item slots (the gems there are trimmed; attachments stay and keep it reported).
 	AbilityOverflow,
 	ItemSlot,
-	UtilityCrystalTierCap
+	UtilityCrystalTierCap,
+	EquippedSTierCrystal
 };
 
 /** One actionable validation finding, produced by FLoadoutRules — the structured
@@ -182,14 +185,19 @@ struct WORLD_OF_REFRACTION_API FLoadoutRules
 
 	static TArray<FString> ToReasons(const TArray<FInvalidSlotFinding> &Findings);
 
-	/** Drops utility crystals from the item slots until every tier band is within its cap
-	 *  (D-072, D-077): the last slots in the band lose crystals first. */
+	/** B-354 (D-143, Q-354): S-tier crystals equipped in the loadout: each attachment on its gear (a crystal, an augment
+	 *  stone, a fusion with an S half, an evolution) and the primary evolution, plus each S gem in its item slots. */
+	static int32 CountEquippedSTierCrystals(const FCombatLoadout &Loadout);
+
+	/** B-354: the S gems in the item slots that the attached S crystals leave no room for, last slots first. */
+	static void TrimSTierItemCrystals(FCombatLoadout &Loadout);
+
+	/** OBSOLETE (B-354, D-143): drops utility crystals from the item slots until every D-072 band is within its cap. */
 	static void TrimUtilityCrystalsToTierCaps(FCombatLoadout &Loadout);
 
-	/** B-313 (D-072, Q-313): the utility-crystal tier band an item counts toward, or INDEX_NONE when it counts
-	 *  toward none (an augment stone, or None). Indexes GetUtilityBandCap. */
+	/** OBSOLETE (B-354, D-143): the D-072 utility-crystal tier band an item counts toward, or INDEX_NONE. */
 	static int32 GetUtilityBandIndex(const FCrystalId &Id);
 
-	/** B-313 (D-072): the band's cap (S 1, A/B 2, C/D 3, E/F 4); 0 for INDEX_NONE or an unknown index. */
+	/** OBSOLETE (B-354, D-143): the D-072 band's cap; 0 for INDEX_NONE or an unknown index. */
 	static int32 GetUtilityBandCap(int32 BandIndex);
 };

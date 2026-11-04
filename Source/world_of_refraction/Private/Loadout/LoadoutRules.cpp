@@ -333,8 +333,58 @@ namespace
 			   Slot.CrystalId.Tier >= Band.LowTier && Slot.CrystalId.Tier <= Band.HighTier;
 	}
 
-	/** D-072/D-077: utility crystals in item slots, per crystal, by combined tier band. */
-	void CheckUtilityCrystalTierCaps(FFindingSink &Sink, const FCombatLoadout &Loadout)
+	bool IsSTierAttachment(const FRuntimeAttachedItem &Attached)
+	{
+		switch (Attached.Kind)
+		{
+		case EAttachedItemKind::Crystal:
+		case EAttachedItemKind::AugmentStone:
+			return Attached.Crystal.Id.Tier == EItemTier::S_Tier;
+		case EAttachedItemKind::Fusion:
+			return Attached.Fusion.Id.HalfA.Tier == EItemTier::S_Tier || Attached.Fusion.Id.HalfB.Tier == EItemTier::S_Tier;
+		case EAttachedItemKind::Evolution:
+			return Attached.Evolution.Tier == EItemTier::S_Tier;
+		default:
+			return false;
+		}
+	}
+
+	bool IsSTierItemGem(const FItemLoadoutSlot &Slot)
+	{
+		return Slot.Quantity > 0 && CrystalTypeHelpers::IsGemType(Slot.CrystalId.Type) && Slot.CrystalId.Tier == EItemTier::S_Tier;
+	}
+
+	int32 CountAttachedSTier(const FCombatLoadout &Loadout)
+	{
+		int32 Count = 0;
+		const auto Visit = [&Count](const auto &Entry, bool bHasAsset) { Count += bHasAsset && IsSTierAttachment(Entry.AttachedItem) ? 1 : 0; };
+		Visit(Loadout.PrimaryWeapon.WeaponEntry, Loadout.PrimaryWeapon.WeaponEntry.Weapon != nullptr);
+		Visit(Loadout.SecondaryWeapon.WeaponEntry, Loadout.SecondaryWeapon.WeaponEntry.Weapon != nullptr);
+		Visit(Loadout.PrimaryRing.RingEntry, Loadout.PrimaryRing.RingEntry.Ring != nullptr);
+		for (const FRingLoadoutEntry &Ring : Loadout.RingLoadout)
+		{
+			Visit(Ring.RingEntry, Ring.RingEntry.Ring != nullptr);
+		}
+		const bool bEvolutionSeat = Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item;
+		Count += bEvolutionSeat && Loadout.PrimaryEvolution.Tier == EItemTier::S_Tier ? 1 : 0;
+		return Count;
+	}
+
+	/** B-354 (D-143): one S-tier crystal equipped per battle loadout. */
+	void CheckEquippedSTierCrystals(FFindingSink &Sink, const FCombatLoadout &Loadout)
+	{
+		const int32 Count = FLoadoutRules::CountEquippedSTierCrystals(Loadout);
+		if (Count > LoadoutConstants::MAX_EQUIPPED_S_TIER_CRYSTALS)
+		{
+			// Only the item slots' gems can be cleared; an S attachment too many stays reported for the player to change.
+			const bool bItemGems = Loadout.ItemSlots.ContainsByPredicate([](const FItemLoadoutSlot &Slot) { return IsSTierItemGem(Slot); });
+			Sink.Add(ELoadoutSlotType::EquippedSTierCrystal, INDEX_NONE, bItemGems,
+					 FString::Printf(TEXT("Too many S-tier crystals equipped: %d (max %d)"), Count, LoadoutConstants::MAX_EQUIPPED_S_TIER_CRYSTALS));
+		}
+	}
+
+	/** OBSOLETE (B-354, D-143): D-072/D-077 utility crystals in item slots, per crystal, by combined tier band. */
+	[[maybe_unused]] void CheckUtilityCrystalTierCaps(FFindingSink &Sink, const FCombatLoadout &Loadout)
 	{
 		for (const FUtilityCrystalBand &Band : UtilityCrystalBands)
 		{
@@ -369,7 +419,7 @@ namespace
 		{
 			Sink.Add(ELoadoutSlotType::DuplicateItems, -1, true, TEXT("Duplicate item types in loadout"));
 		}
-		CheckUtilityCrystalTierCaps(Sink, Loadout);
+		CheckEquippedSTierCrystals(Sink, Loadout); // B-354: replaces CheckUtilityCrystalTierCaps (D-143)
 	}
 }
 
@@ -600,6 +650,35 @@ TArray<FString> FLoadoutRules::ToReasons(const TArray<FInvalidSlotFinding> &Find
 		Reasons.Add(Finding.Reason);
 	}
 	return Reasons;
+}
+
+int32 FLoadoutRules::CountEquippedSTierCrystals(const FCombatLoadout &Loadout)
+{
+	int32 Count = CountAttachedSTier(Loadout);
+	for (const FItemLoadoutSlot &Slot : Loadout.ItemSlots)
+	{
+		Count += IsSTierItemGem(Slot) ? Slot.Quantity : 0;
+	}
+	return Count;
+}
+
+void FLoadoutRules::TrimSTierItemCrystals(FCombatLoadout &Loadout)
+{
+	int32 Remaining = FMath::Max(0, LoadoutConstants::MAX_EQUIPPED_S_TIER_CRYSTALS - CountAttachedSTier(Loadout));
+	for (FItemLoadoutSlot &Slot : Loadout.ItemSlots)
+	{
+		if (!IsSTierItemGem(Slot))
+		{
+			continue;
+		}
+		const int32 Kept = FMath::Min(Slot.Quantity, Remaining);
+		Remaining -= Kept;
+		Slot.Quantity = Kept;
+		if (Kept == 0)
+		{
+			Slot = FItemLoadoutSlot();
+		}
+	}
 }
 
 void FLoadoutRules::TrimUtilityCrystalsToTierCaps(FCombatLoadout &Loadout)
