@@ -2167,16 +2167,20 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 	Input.PhysicalDamageType = Context.PhysicalDamageType;
 	Input.ActionMods = CurrentExecutionContext->ActionMods;
 
+	// Read before the hit: Context may be the PendingDefenses entry, which a death inside ApplyHit can remove.
+	const bool bTakeDamageOutcomePending = Context.bTakeDamageOutcomePending;
+	const float PendingAttackEnergyCost = Context.PendingAttackEnergyCost;
 	const FCombatHitResult HitResult = ApplyHit(Input);
 
 	// B-042j3 (D-092 rule 8): the unguarded outcome fires once the hit is known: a hit the absorbers stopped
-	// entirely is a hit, not damage, so its On Take Damage conditionals stay quiet.
-	if (Context.bTakeDamageOutcomePending)
+	// entirely is a hit, not damage, so its On Take Damage conditionals stay quiet. Not on a corpse either (as On Guard).
+	if (bTakeDamageOutcomePending)
 	{
 		UDefenseSystem *DefenseSys = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDefenseSystem>() : nullptr;
-		if (HitResult.DamageDealt > 0 && DefenseSys && IsValid(Target))
+		const UCharacterDataComponent *TargetComp = IsValid(Target) ? Target->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		if (HitResult.DamageDealt > 0 && DefenseSys && TargetComp && TargetComp->bIsAlive)
 		{
-			DefenseSys->OnDefenseResolved.Broadcast(Target, Attacker, EDefenseType::None, false, ImpactIndex, Context.PendingAttackEnergyCost);
+			DefenseSys->OnDefenseResolved.Broadcast(Target, Attacker, EDefenseType::None, false, ImpactIndex, PendingAttackEnergyCost);
 		}
 		else if (HitResult.DamageDealt <= 0)
 		{
@@ -2219,6 +2223,7 @@ void UActionExecutor::ApplyDamageAfterDefense(
 
 	// Local mutable copy — callers pass a const-ref snapshot.
 	FPendingDefenseContext Ctx = Context;
+	Ctx.bTakeDamageOutcomePending = false; // B-042j3: the tail resolves no defense of its own; no stale deferred outcome
 
 	// CONSISTENCY: melee resolved + drained every impact per-frame (ResolveImpactDefense) →
 	// ImpactsLanded==HitCount → the tail loop below is empty, so this stash is never read for
