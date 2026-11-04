@@ -119,6 +119,8 @@ TSharedRef<SWidget> UGiveWidget::RebuildWidget()
 		GiveStackButton->OnClicked.AddDynamic(this, &UGiveWidget::HandleGiveStackClicked);
 		RequestButton = GiveBuild::AddButton(WidgetTree, Box, LOCTEXT("Request", "Ask for it (the receiver asks the giver)"));
 		RequestButton->OnClicked.AddDynamic(this, &UGiveWidget::HandleRequestClicked);
+		TeachButton = GiveBuild::AddButton(WidgetTree, Box, LOCTEXT("Teach", "Teach it (another player's character, for Mentor Tokens)"));
+		TeachButton->OnClicked.AddDynamic(this, &UGiveWidget::HandleTeachClicked);
 		StatusLine = GiveBuild::AddText(WidgetTree, Box);
 		GiveBuild::AddButton(WidgetTree, Box, LOCTEXT("Close", "Close"))->OnClicked.AddDynamic(this, &UGiveWidget::HandleCloseClicked);
 	}
@@ -253,6 +255,7 @@ void UGiveWidget::Refresh()
 	GiveOneButton->SetIsEnabled(bCanGive);
 	GiveStackButton->SetIsEnabled(bCanGive && !Choices[SelectedIndex].IsGear() && !Choices[SelectedIndex].IsSkill());
 	RequestButton->SetIsEnabled(bCanGive && Choices[SelectedIndex].IsSkill());
+	TeachButton->SetIsEnabled(bCanGive && Choices[SelectedIndex].IsSkill());
 	StatusLine->SetText(StatusText);
 }
 
@@ -293,6 +296,20 @@ void UGiveWidget::HandleRequestClicked()
 	const FGiveChoice Choice = Choices[SelectedIndex];
 	const FText Refusal = WoRGive::TryRequestSkill(GetWorld(), ReceiverKey(), GiverKey(), Choice.Skill.Get());
 	StatusText = Refusal.IsEmpty() ? FText::Format(LOCTEXT("Requested", "Asked for {0}: given"), Choice.Label) : Refusal;
+	Refresh();
+	UE_LOG(LogTemp, Log, TEXT("%s"), *GetGiveString());
+}
+
+void UGiveWidget::HandleTeachClicked()
+{
+	const TArray<FGiveChoice> Choices = GatherChoices();
+	if (!Choices.IsValidIndex(SelectedIndex) || !Choices[SelectedIndex].IsSkill())
+	{
+		return;
+	}
+	const FGiveChoice Choice = Choices[SelectedIndex];
+	const FText Refusal = WoRGive::TryTeachSkill(GetWorld(), GiverKey(), ReceiverKey(), Choice.Skill.Get());
+	StatusText = Refusal.IsEmpty() ? FText::Format(LOCTEXT("Taught", "Taught {0}"), Choice.Label) : Refusal;
 	Refresh();
 	UE_LOG(LogTemp, Log, TEXT("%s"), *GetGiveString());
 }
