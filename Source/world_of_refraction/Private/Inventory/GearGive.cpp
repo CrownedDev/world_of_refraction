@@ -78,25 +78,34 @@ namespace
 					 : nullptr;
 	}
 
-	/** B-316b: another player than the local one has claimed the member (co-op, D-150): its yes is theirs to give. */
-	bool IsClaimedByAnotherPlayer(const UWorld *World, const FGuid &MemberId)
+	/** B-361 (D-153): the player a member belongs to: the one who claims it (co-op, D-150), else the host (the first
+	 *  local player: on the server, the host). An AI member and a run-only recruit nobody claims are the host's (D-152).
+	 *  Null with no players (a headless test, solo without a game state): every member is then the same player's. */
+	const APlayerState *PlayerOfMember(const UWorld *World, FName CharacterKey)
 	{
+		const FPartyMember *Member = GiveMemberOf(World, CharacterKey);
 		const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
-		const APlayerController *LocalPC = World ? World->GetFirstPlayerController() : nullptr;
-		const APlayerState *LocalPS = LocalPC ? LocalPC->PlayerState : nullptr;
-		if (!GameState || !MemberId.IsValid())
+		if (GameState && Member && Member->MemberId.IsValid())
 		{
-			return false;
-		}
-		for (const APlayerState *PS : GameState->PlayerArray)
-		{
-			const AWoRPlayerState *WoRPS = Cast<AWoRPlayerState>(PS);
-			if (WoRPS && PS != LocalPS && WoRPS->ClaimsMember(MemberId))
+			for (const APlayerState *PS : GameState->PlayerArray)
 			{
-				return true;
+				const AWoRPlayerState *WoRPS = Cast<AWoRPlayerState>(PS);
+				if (WoRPS && WoRPS->ClaimsMember(Member->MemberId))
+				{
+					return PS;
+				}
 			}
 		}
-		return false;
+		const APlayerController *HostPC = World ? World->GetFirstPlayerController() : nullptr;
+		return HostPC ? HostPC->PlayerState.Get() : nullptr;
+	}
+
+	/** B-361 (D-152): whose pouch the member carries (a run-only recruit carries the host's). */
+	FName GivePouchKeyOf(const UWorld *World, FName CharacterKey)
+	{
+		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+		return PartySession ? PartySession->GetPouchKey(CharacterKey) : CharacterKey;
 	}
 
 	/** B-316b: a skill's name for the player. TODO: FText names with B-127 (D-061). */
@@ -268,16 +277,22 @@ namespace WoRGive
 		return FText::GetEmpty();
 	}
 
-	FText TryGiveCarried(UWorld *World, FName FromKey, FName ToKey, const FCrystalId &Id, int32 Count)
+	FText TryGiveCarried(UWorld *World, FName FromMember, FName ToMember, const FCrystalId &Id, int32 Count)
 	{
 		UPoolSubsystem *Pool = PoolOf(World);
 		if (!Pool)
 		{
 			return LOCTEXT("NoPouches", "No pouches to give from");
 		}
-		if (FromKey.IsNone() || ToKey.IsNone() || FromKey == ToKey)
+		if (FromMember.IsNone() || ToMember.IsNone() || FromMember == ToMember)
 		{
 			return LOCTEXT("SameCharacterItems", "Choose another character to give to");
+		}
+		const FName FromKey = GivePouchKeyOf(World, FromMember);
+		const FName ToKey = GivePouchKeyOf(World, ToMember);
+		if (FromKey == ToKey)
+		{
+			return LOCTEXT("SharedPouch", "They carry the same pouch: a recruit uses the host's");
 		}
 		if (Count <= 0 || Pool->GetCarriedCount(FromKey, Id) < Count)
 		{
@@ -319,12 +334,12 @@ namespace WoRGive
 		{
 			return LOCTEXT("SkillsInFight", "Skills can't change hands during a fight");
 		}
+		if (PlayerOfMember(World, FromKey) != PlayerOfMember(World, ToKey))
+		{
+			return LOCTEXT("SkillsBetweenPlayers", "Skills can't be traded between players");
+		}
 		for (const FName Key : {FromKey, ToKey})
 		{
-			if (IsRunOnlyMember(World, Key))
-			{
-				return FText::Format(LOCTEXT("RecruitSkills", "{0} is only here for the run and can't trade skills"), NameOf(World, Key));
-			}
 			if (!Pool->HasBankedSkills(Key))
 			{
 				return FText::Format(LOCTEXT("SkillsNotKept", "{0}'s skills aren't kept yet (they join at the next level)"), NameOf(World, Key));
@@ -347,14 +362,7 @@ namespace WoRGive
 
 	FText TryRequestSkill(UWorld *World, FName RequesterKey, FName HolderKey, const UObject *Skill)
 	{
-		const FPartyMember *Holder = GiveMemberOf(World, HolderKey);
-		if (Holder && Holder->bPlayerControlled && IsClaimedByAnotherPlayer(World, Holder->MemberId))
-		{
-			// TODO: B-233+: send the request to that player's screen and give on their yes.
-			return FText::Format(LOCTEXT("AskTheirPlayer", "{0} is another player's: they have to say yes (co-op requests come with the co-op screens)"),
-								 NameOf(World, HolderKey));
-		}
-		return TryGiveSkill(World, HolderKey, RequesterKey, Skill);
+		return TryGiveSkill(World, HolderKey, RequesterKey, Skill); // D-153: another player's member refuses there
 	}
 
 	TArray<const UObject *> GetGiveableSkills(const UWorld *World, FName FromKey)
