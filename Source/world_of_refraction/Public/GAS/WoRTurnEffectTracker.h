@@ -77,6 +77,9 @@ public:
 	/** B-042j: the holder's absorbers as they stand (copies, in no order). */
 	TArray<FWoRAbsorbCharge> GetAbsorbs() const;
 
+	/** B-042j2: remove the absorbers EffectID / SourceKey gave (a same-source re-cast replaces, Q-044 A). How many went. */
+	int32 RemoveAbsorbsFrom(int32 EffectID, int32 SourceKey);
+
 	int32 NumTracked() const { return Tracked.Num(); }
 
 	/** B-042z: a fires-once use (EffectID + source key, D-011) spent this fight on this holder. */

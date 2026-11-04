@@ -80,6 +80,11 @@ struct WORLD_OF_REFRACTION_API FWoRAbsorbCharge
 	/** Runtime: when it was gained, for the oldest-first order. */
 	int32 Arrival = 0;
 
+	/** Runtime (B-042j2): the authored effect and source it came from, so a re-cast from the same source replaces it
+	 *  (Q-044 A) instead of piling up. 0 / 0 for a charge given by hand (wor.Absorb.Add, specs). */
+	int32 EffectID = 0;
+	int32 SourceKey = 0;
+
 	/** Fills the runtime counts from the authored ones. */
 	void Fill();
 
