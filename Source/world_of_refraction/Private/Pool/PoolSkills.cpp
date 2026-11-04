@@ -73,6 +73,17 @@ void UPoolSubsystem::SetSkills(FName CharacterKey, const TArray<FSpellInstance> 
     OnPoolSkillsChanged.Broadcast(CharacterKey);
 }
 
+void UPoolSubsystem::RestoreCharacterSkills(const TMap<FName, FPoolSkills> &Skills)
+{
+    CharacterSkills = Skills;
+    TArray<FName> Keys;
+    CharacterSkills.GetKeys(Keys); // a listener may bank a new character: don't broadcast while iterating the map
+    for (const FName Key : Keys)
+    {
+        OnPoolSkillsChanged.Broadcast(Key);
+    }
+}
+
 bool UPoolSubsystem::KnowsSpell(FName CharacterKey, const USpellData *Spell) const
 {
     const FPoolSkills *Skills = CharacterSkills.Find(CharacterKey);

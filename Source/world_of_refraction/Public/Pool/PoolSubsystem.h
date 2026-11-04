@@ -453,8 +453,9 @@ public:
     bool MoveSpell(FName FromKey, FName ToKey, const USpellData *Spell);
     bool MoveAbility(FName FromKey, FName ToKey, const UAbilityData *Ability);
     const TMap<FName, FPoolSkills> &GetCharacterSkills() const { return CharacterSkills; }
-    /** Save restore: replaces every character's skills. */
-    void RestoreCharacterSkills(const TMap<FName, FPoolSkills> &Skills) { CharacterSkills = Skills; }
+    /** Save restore: replaces every character's skills; fires OnPoolSkillsChanged for each, so a member already
+     *  spawned reloads. */
+    void RestoreCharacterSkills(const TMap<FName, FPoolSkills> &Skills);
     /** Debug: each character's skills, one line per character. */
     FString GetCharacterSkillsString() const;
 
