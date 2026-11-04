@@ -147,7 +147,7 @@ TArray<UGiveWidget::FMember> UGiveWidget::GatherMembers() const
 	{
 		if (Member.CharacterData)
 		{
-			Members.Add({UPoolSubsystem::GetCharacterKey(Member.CharacterData), FText::FromString(Member.CharacterData->Name)});
+			Members.Add({UPoolSubsystem::GetCharacterKey(Member), FText::FromString(Member.CharacterData->Name)});
 		}
 	}
 	return Members;

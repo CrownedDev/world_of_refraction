@@ -673,7 +673,7 @@ namespace
     FName ShopPurchaserKey(const APawn *Pawn)
     {
         const UCharacterDataComponent *CharComp = Pawn ? Pawn->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-        return UPoolSubsystem::GetCharacterKey(CharComp ? CharComp->CharacterData : nullptr);
+        return UPoolSubsystem::GetCharacterKey(CharComp); // B-360b: the pawn's member key
     }
 }
 
