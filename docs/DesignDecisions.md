@@ -2017,6 +2017,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** **A, A, A**, by the reference-backed default (2026-11-04). Crown may change any of them; the numbers sit in named constants for tuning.
 **Notes for Claude:** B-361b.
 
+### Q-361d — Mentor Tokens: what "finishing a run" and "a boss" mean, and where teaching lives
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-361b) · **Blocks:** —
+**Question:** Q-361b pays on "finishing a co-op run" and "a boss beaten with another player". (1) Which moment is the run's end? (2) Do mini-bosses count as bosses? (3) Which screen gets the Teach verb?
+**Options / as built:** (1) **A** leaving the trial by its exit (`UTrialRunSubsystem::ExitTrial`); a flee, wipe-out or abort pays nothing. **B** also pay when the run ends from losses (D-155). (2) **A** only the main boss (rank Boss); **B** mini-bosses too. (3) **A** the give placeholder `wor.UI.Give` (the inventory screen `wor.UI.Inventory` lists gear and pouch stacks, no skills). **B** add skill rows to the inventory screen.
+**Recommendation:** (1) A: Monster Hunter World pays the group's rewards when the quest is completed, not when a hunter carts out; (2) A: the payout is meant to be small and rare (Q-361b); (3) A: smallest change; B belongs with the real inventory screen.
+**Answer:** **A, A, A**, by the reference-backed default (2026-11-04). Crown may change any of them.
+**Notes for Claude:** B-361b.
+
 ### D-155 — Losing a fight: a wipe costs run pillar points; the run ends after 3 boss losses or 5 wipes (replaces D-002's "lose = back to the hub")
 **Status:** DECIDED (Crown, 2026-11-04, the feel interview, `Design/FeelGuide.md` row 7, via the brain) · **Raised:** 2026-11-04 · **Blocks:** —
 **Answer (Crown):** a party wipe costs **run pillar points only** (points gained in this run; never the asset's levels, the head start or anything kept): **up to 1** for a loss to a normal enemy, **up to 2** to a mini-boss, **0** to the main boss. You come back at the **last rest spot used**, with the enemy **still there**. The run ends, back to the hub, after **3 losses to the main boss or 5 wipes in all** (Hades' Death Defiance style: a few second chances per run, then the run is over).
