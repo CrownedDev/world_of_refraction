@@ -188,10 +188,26 @@ public:
      *  now over (DefeatRules::RunEnds). */
     bool RecordWipe(EEncounterRank Rank);
 
-    /** Takes up to MaxPoints of CharacterKey's run pillar points (earned or bought this run), one at a time from the
+    /** OBSOLETE (B-362b, D-160: a wipe drops the run's Prisms instead; no game caller; delete after PIE).
+     *  Takes up to MaxPoints of CharacterKey's run pillar points (earned or bought this run), one at a time from the
      *  pillar with the most (DefeatRules::PickPillarToLose). Returns how many it took; the asset's levels and the head
      *  start are never touched. */
     int32 LoseRunPoints(FName CharacterKey, int32 MaxPoints);
+
+    /** B-362b (D-160): the run's Prisms dropped at the map fight the party last fell to (the Souls bloodstain: only
+     *  the newest drop exists). Amount is the run balance (ECurrencyType::Gold, shown as Prisms, D-159); Encounters
+     *  are that fight's map teams (beating any of them recovers it). Returns the previous drop's amount, now lost for
+     *  good. */
+    int32 DropPrisms(int32 Amount);
+
+    /** The drop when the pending fight came from one of its map teams: returns its amount and clears it; else 0. */
+    int32 TakeDropIfPendingFight();
+
+    int32 GetDroppedPrisms() const { return DroppedPrisms; }
+    const TArray<FName> &GetDropEncounters() const { return DropEncounters; }
+
+    /** Save restore: puts the run's drop back. */
+    void RestoreDrop(int32 Amount, const TArray<FName> &Encounters);
 
     /** The last rest spot the party used this run (NAME_None = the trial's start). TODO: B-187 calls NoteRestSpotUsed
      *  from the rest spot and the trial level places the returning party there. */
@@ -336,6 +352,10 @@ private:
     int32 RunWipes = 0;
     int32 RunMainBossLosses = 0;
     FName LastRestSpot;
+
+    /** B-362b: run state like RunWipes (cleared on trial entry and exit; saved with the run). */
+    int32 DroppedPrisms = 0;
+    TArray<FName> DropEncounters;
 
     /** B-188: map features used this run (never removed from, so it keeps the order found). Run state
      *  like BeatenEncounters; cleared on trial entry and exit; moves with it for co-op (D-065). */

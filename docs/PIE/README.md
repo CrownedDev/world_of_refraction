@@ -19,6 +19,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-336](B-336.md) | `refactor/B-336-world-subsystems` (in `dev`) | The ten fight systems live on the level's world (one per PIE window and per level); `wor.Fight.Subsystems` lists them | Pending |
 | [B-361c](B-361c.md) | `test/B-361c-recruit-inventory-specs` (in `dev`) | Tests only: a recruit through a mid-run save, the one-pouch give refusal, buying for a recruit, a full or missing host ledger at hand-over | Pending |
 | [B-337b](B-337b.md) | `feature/B-337b-conditions-part2` (in `dev`) | Reactions match through the shared conditions (no gameplay change); `wor.Reaction.Print` shows the condition list | Pending |
+| [B-362b](B-362b.md) | `feature/B-362b-wipe-drops-prisms` (in `dev`) | A wipe drops the run's Prisms at the fight instead of taking pillar points; beating that team gets them back; a second wipe loses the first drop | Pending |
 | [B-362](B-362.md) | `feature/B-362-losing-a-fight` (in `dev`) | A party wipe costs run pillar points, revives the party at the trial; the run ends after 3 main-boss losses or 5 wipes; save v18 | Pending |
 | [B-361b](B-361b.md) | `feature/B-361b-mentor-tokens` (in `dev`) | Mentor Tokens: earned playing together (a boss, a finished co-op run), spent teaching a skill to another player's character; save v17 | Pending |
 | [B-361](B-361.md) | `feature/B-361-recruits-host-inventory` (in `dev`) | A trial recruit carries the host's pouch and trades skills; its skills stay with the host at run end; no skill trading between players | Pending |
