@@ -1,6 +1,7 @@
 // StatModifierDebug.cpp
 
 #include "Debug/Character/StatModifierDebug.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Combat/Damage/DamageCalculator.h"
@@ -46,9 +47,7 @@ namespace
 	template <typename TSubsystem>
 	TSubsystem *StatDebugSubsystem(const AActor *Actor)
 	{
-		const UWorld *World = Actor ? Actor->GetWorld() : nullptr;
-		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-		return GI ? GI->GetSubsystem<TSubsystem>() : nullptr;
+		return WoRFight::Get<TSubsystem>(Actor); // world or game-instance subsystem (B-336)
 	}
 
 	FString StatDebugName(ESubStat Stat)
