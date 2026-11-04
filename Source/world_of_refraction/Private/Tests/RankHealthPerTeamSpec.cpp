@@ -1,7 +1,7 @@
 // RankHealthPerTeamSpec.cpp
 // B-224b (Q-224c, Q-224d): the rank's HP is each team's own. A caught fight of a Boss team and a Normal team fields
 // the boss's strongest at boss HP (x8) and the normal team's at x1; a mini-boss form alone is a mini-boss, its teammates keep
-// their team's rank; an enemy's tier power (UCharacterData::EnemyTier) multiplies its HP, F changing nothing.
+// their team's rank; an enemy's tier power (its Combat Tier, B-325; here the EnemyTier fallback, no loadout) multiplies its HP, F changing nothing.
 
 #if WITH_DEV_AUTOMATION_TESTS
 

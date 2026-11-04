@@ -74,8 +74,8 @@ public:
     /** Drop a decision still thinking (B-071: the player took that member over on its turn). */
     void CancelPendingDecision();
 
-    /** The level ForActor plays at: AIConstants::ALLY_AI_DIFFICULTY for a local-party
-     *  member (D-044), else the encounter's difficulty. */
+    /** The level ForActor plays at: a local-party member's AI seat setting (B-346, default Medium),
+     *  else the encounter's difficulty. */
     UFUNCTION(BlueprintPure, Category = "AI")
     EAIDifficulty GetDifficultyFor(const AActor *ForActor) const;
 

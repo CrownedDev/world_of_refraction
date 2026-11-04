@@ -734,12 +734,11 @@ bool UCombatGridSubsystem::MoveActorToRow(AActor *Actor, ECombatRow NewRow, cons
     FCombatGridPosition NewPos = CurrentPos;
     NewPos.Row = NewRow;
 
-    // Check if new position is occupied
-    if (IsPositionOccupied(NewPos))
+    // B-342 (D-134): three rows, no columns. The slot only places the character in the world, so a taken
+    // slot just means another free slot in the same row; a row holds the whole side (MAX_TEAM_SIZE).
+    if (IsPositionOccupied(NewPos) && !FindFreeSlotInRow(CurrentPos.TeamIndex, NewRow, NewPos))
     {
-        AActor *Occupant = GetActorAtPosition(NewPos);
-        UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] MoveActorToRow: Position %s occupied by %s"),
-               *NewPos.ToString(), *Occupant->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] MoveActorToRow: the %s row is full"), *CombatRowHelpers::GetRowName(NewRow));
         return false;
     }
 
@@ -760,6 +759,20 @@ bool UCombatGridSubsystem::MoveActorToRow(AActor *Actor, ECombatRow NewRow, cons
            (NewPos.GetDefenseModifier() - 1.0f) * 100.0f);
 
     return true;
+}
+
+bool UCombatGridSubsystem::FindFreeSlotInRow(int32 TeamIndex, ECombatRow Row, FCombatGridPosition &OutPosition) const
+{
+    for (const int32 Column : CombatGridStart::CENTRE_OUT_COLUMNS)
+    {
+        const FCombatGridPosition Slot(TeamIndex, Row, Column);
+        if (!IsPositionOccupied(Slot))
+        {
+            OutPosition = Slot;
+            return true;
+        }
+    }
+    return false;
 }
 
 bool UCombatGridSubsystem::PushActorBack(AActor *Actor, const FVector &ArenaCenter)

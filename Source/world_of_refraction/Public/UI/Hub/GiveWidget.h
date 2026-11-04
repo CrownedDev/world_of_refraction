@@ -1,4 +1,5 @@
 // GiveWidget.h
+// OBSOLETE (B-339, D-131): wor.UI.Inventory (UInventoryWidget) does this as one of its verbs; delete after Crown's PIE.
 // PLACEHOLDER UI (B-323, D-117): give a weapon, adapter or pouch stack from one of your characters to
 // another. Plain buttons built in C++, opened with the console command wor.UI.Give (Backlog rule 4).
 // Replaced by the CommonUI inventory screen (D-024). Rules and refusals: WoRGive (Inventory/GearGive.h).

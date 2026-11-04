@@ -13,8 +13,8 @@ namespace AIConstants
 {
     // ==================== ALLIES ====================
 
-    // D-044: AI-controlled party members play at this fixed level whatever the
-    // encounter's difficulty (that drives the enemies only). Q-071. TODO: tune.
+    // OBSOLETE (B-346): an AI-played party member plays at its AI seat's setting (default Medium,
+    // Q-21-audit); nothing reads this. Was D-044 / Q-071: AI party members at a fixed level.
     constexpr EAIDifficulty ALLY_AI_DIFFICULTY = EAIDifficulty::Hard;
 
     // ==================== TARGET SCORING ====================

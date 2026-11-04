@@ -1,8 +1,10 @@
 // BonusTurnSpec.cpp
-// B-283: Emerald's pinned bonus turn and the Extra Action effect (ET-12, ET-13, ET-15).
-// Emerald schedules a pinned turn after a delay by tier, F..S: 6,5,4,3,2,1,0 turns; S grants two
-// turns back to back; the pinned turn beats the speed pick; delays count every turn taken, pinned
-// ones included; a dead holder's pinned turn is dropped. Extra Action adds a real owed turn.
+// B-283: Emerald's bonus turn and the Extra Action effect (ET-12, ET-13, ET-15).
+// B-341 (D-133): both now grant through the one bonus-turn rule (UTurnManager::GrantBonusTurn): the
+// bonus turn lands right after the current turn at every Emerald tier; S grants two back to back.
+// The old F..S delay table stays in its constants (OBSOLETE (B-341)) but is no longer read. The
+// delayed ScheduleBonusTurn path (OBSOLETE) still holds ET-13's counting: delays count every turn
+// taken, pinned ones included; a dead holder's pinned turn is dropped.
 // ET-14 is left out here: D-052 answered A (a real extra turn), built by B-295, whose
 // WoR.Turns.EmeraldExtraTurn pins it. Every case here passes with and without B-295.
 
@@ -25,9 +27,11 @@ namespace
 											   EItemTier::C_Tier, EItemTier::B_Tier, EItemTier::A_Tier,
 											   EItemTier::S_Tier};
 
-	/** Rules page values (ET-12), as literals so a changed constant fails here. */
+	/** The retired delay table (OBSOLETE (B-341)), as literals: kept, no longer read. */
 	const int32 BONUS_TURN_TEST_RULE_DELAYS[] = {6, 5, 4, 3, 2, 1, 0};
+	/** ET-12 since B-341: S grants two bonus turns, every other tier one. */
 	constexpr int32 BONUS_TURN_TEST_RULE_S_COUNT = 2;
+	constexpr int32 BONUS_TURN_TEST_RULE_COUNT = 1;
 
 	/** Turns recorded after the Extra Action lands; equal speed alternates, so the holder gets 1 of 3
 	 *  without it and 2 of 3 with it. */
@@ -101,20 +105,21 @@ void FBonusTurnSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("keeps Emerald's delays 6,5,4,3,2,1,0 F..S in its constants (ET-12)", [this]()
+	It("keeps the old delay table but lands every Emerald's bonus next; S grants two (ET-12, B-341)", [this]()
 	{
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(BONUS_TURN_TEST_TIERS); ++Index)
 		{
 			const FCrystalId Emerald(ECrystalType::Emerald, BONUS_TURN_TEST_TIERS[Index]);
 			const FString Tier = FString::Printf(TEXT(" at tier index %d"), Index);
-			TestEqual(TEXT("EMERALD_BONUS_TURN_DELAY") + Tier, AugmentStoneConstants::EMERALD_BONUS_TURN_DELAY[Index],
+			TestEqual(TEXT("EMERALD_BONUS_TURN_DELAY (kept, unread)") + Tier, AugmentStoneConstants::EMERALD_BONUS_TURN_DELAY[Index],
 					  BONUS_TURN_TEST_RULE_DELAYS[Index]);
-			TestEqual(TEXT("GetEmeraldBonusTurnDelay") + Tier, CrystalEffectTable::GetEmeraldBonusTurnDelay(Emerald),
-					  BONUS_TURN_TEST_RULE_DELAYS[Index]);
+			TestEqual(TEXT("GetEmeraldBonusTurnDelay: lands next") + Tier, CrystalEffectTable::GetEmeraldBonusTurnDelay(Emerald), 0);
+			TestEqual(TEXT("GetEmeraldBonusTurnCount") + Tier, CrystalEffectTable::GetEmeraldBonusTurnCount(Emerald),
+					  BONUS_TURN_TEST_TIERS[Index] == EItemTier::S_Tier ? BONUS_TURN_TEST_RULE_S_COUNT : BONUS_TURN_TEST_RULE_COUNT);
 		}
 	});
 
-	It("an Emerald's pinned turn comes after its tier's delay, before the speed pick (ET-12)", [this]()
+	It("an Emerald's bonus turn lands right after the current turn at every tier (ET-12, B-341)", [this]()
 	{
 		if (!TurnManager || !Items) return;
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(BONUS_TURN_TEST_TIERS); ++Index)
@@ -123,7 +128,6 @@ void FBonusTurnSpec::Define()
 			{
 				continue; // S grants two turns: its own It below
 			}
-			const int32 Delay = BONUS_TURN_TEST_RULE_DELAYS[Index];
 			const FString Tier = FString::Printf(TEXT(" at tier index %d"), Index);
 			TurnManager->InitializeCombat({Hero}, {Foe});
 			if (!TestTrue(TEXT("Hero takes turn 1") + Tier, TurnManager->GetCurrentActor() == Hero))
@@ -133,14 +137,9 @@ void FBonusTurnSpec::Define()
 			TestTrue(TEXT("Emerald used") + Tier,
 					 Items->UseItem(Hero, FCrystalId(ECrystalType::Emerald, BONUS_TURN_TEST_TIERS[Index]), Hero).bSuccess);
 
-			const TArray<FPreviewTurnEntry> Turns = RecordNextTurns(Delay + 1);
-			for (int32 Turn = 0; Turn < Delay; ++Turn)
-			{
-				TestTrue(FString::Printf(TEXT("turn %d after use is a speed pick%s"), Turn + 1, *Tier),
-						 Turns[Turn].Type == ETurnType::Normal);
-			}
-			TestTrue(FString::Printf(TEXT("turn %d after use is Hero's bonus turn%s"), Delay + 1, *Tier),
-					 IsBonusFor(Turns[Delay], Hero));
+			const TArray<FPreviewTurnEntry> Turns = RecordNextTurns(BONUS_TURN_TEST_RULE_COUNT + 1);
+			TestTrue(TEXT("the next turn is Hero's bonus turn") + Tier, IsBonusFor(Turns[0], Hero));
+			TestTrue(TEXT("then the speed pick resumes") + Tier, Turns[BONUS_TURN_TEST_RULE_COUNT].Type == ETurnType::Normal);
 			TurnManager->EndCombat();
 		}
 	});
@@ -189,7 +188,7 @@ void FBonusTurnSpec::Define()
 		}
 	});
 
-	It("Extra Action adds a real owed turn in the speed schedule (ET-15)", [this]()
+	It("Extra Action grants a bonus turn that lands next (ET-15, B-341)", [this]()
 	{
 		if (!TurnManager || !Effects) return;
 		TurnManager->InitializeCombat({Hero}, {Foe});
@@ -201,11 +200,10 @@ void FBonusTurnSpec::Define()
 		Effects->ApplyEffect(Hero, FActiveSkillEffect::CreateBuff(TEXT("Test extra action"), 0, ESkillEffectType::ExtraAction, 0.0f, 0),
 							 Hero);
 		const TArray<FPreviewTurnEntry> Turns = RecordNextTurns(BONUS_TURN_TEST_EXTRA_WINDOW);
-		TestTrue(TEXT("Hero acts again next, as a speed pick"), Turns[0].Actor == Hero && Turns[0].Type == ETurnType::Normal);
+		TestTrue(TEXT("Hero acts again next, as a bonus turn"), IsBonusFor(Turns[0], Hero));
 		int32 HeroTurns = 0;
 		for (const FPreviewTurnEntry &Turn : Turns)
 		{
-			TestTrue(TEXT("no pinned turn involved"), Turn.Type == ETurnType::Normal);
 			HeroTurns += Turn.Actor == Hero ? 1 : 0;
 		}
 		TestEqual(TEXT("Hero takes one turn more than alternation gives"), HeroTurns, BONUS_TURN_TEST_EXTRA_HOLDER_TURNS);

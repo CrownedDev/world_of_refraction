@@ -32,7 +32,7 @@ docs/Architecture/BalanceSimulator.md
 
 **One fight** (`FBalanceSimRunner::RunFight`): build actors from the matchup in a reused `FWoRTestWorld` (one world per matchup, respawned actors per fight, the orchestrator reused: `StartCombat` force-ends a previous fight and `ForceEndCombat` resets bars, effects, grid); `BattleRandom->SeedStream(BaseSeed + FightIndex)`; apply rank HP multiplier and `TrialGate::ApplyEnemyStrength`; `Orchestrator->StartCombat(Party, Enemies, Difficulty)`; then `while (InProgress && Ticks < TICK_CAP) TestWorld->Tick()`. With the seams in §2 a turn costs about 3 ticks (next-tick timers only). Hitting `TICK_CAP` records the fight as `Stalled` (a bug, fails the spec, never silently a Draw).
 
-**Matchup grid** (data, not code paths): `Party archetypes x Enemy archetype x EEncounterRank x EAIDifficulty x ZoneTier x TrialDifficulty`. Presets: `quick` (3 matchups x 3 fights, runs inside the normal `WoR.` suite in < 10 s), `nightly` (24 matchups x 50), `full` (x 1000). Preset and N come from `-WoRBalance=<preset>` / `-WoRBalanceN=<n>` on the command line (test.sh passes them through) or the console command's arguments.
+**Matchup grid** (data, not code paths): `Party archetypes x Enemy archetype x EEncounterRank x EAIDifficulty x ZoneTier x TrialDifficulty`. Presets: `quick` (3 matchups x 3 fights; since B-350 / D-140 the targets run only when a preset is named, `WOR_BALANCE=quick` included; the GAS parity check still runs on the quick matchups inside the normal `WoR.` suite, Q-350), `nightly` (24 matchups x 50), `full` (x 1000). Preset and N come from `-WoRBalance=<preset>` / `-WoRBalanceN=<n>` on the command line (test.sh passes them through) or the console command's arguments.
 
 **GAS diff mode**: every matchup runs twice per seed, `SetReadsFromGAS(false)` then `(true)`, with `AddEffectMirror` on every combatant both times. Per seed the two fight records must be identical (damage sequence, turns, winner); differences are listed in the report and fail `WoR.Balance.Sim.GASParity`. Aggregates are reported per path.
 
@@ -69,7 +69,7 @@ Per fight (CSV row): preset, matchup id, seed, gas path, winner, turns, rounds, 
 | Basic attack vs the §3 worked examples (F/C/S) | 44 / 132 / 382 (no crit, Medium) | +-10 % on the uncrit median |
 | Crit rate, un-invested Luck | 5 % base chance; crit = x1.25 | rate in [3, 8] %; crit/uncrit median in [1.2, 1.3] |
 | Defense reduction cap | <= 75 % with gear + buffs | max observed (1 - taken/raw) <= 0.76 |
-| Pillar 6: low level + S gear vs the high-level F-gear party | both sides win sometimes | win rate in [35, 65] % (Medium, Normal) |
+| Pillar 6: low level + S gear vs the high-level F-gear party | both sides win sometimes | win rate in [35, 65] % (Medium, Normal). Since D-119 the S weapon under its requirement is x0.6 with no scaling: Power 192 x 0.6 = 115 against the F weapon's scaled ~58, so S gear still leads ~2x; the band stays as Crown set it |
 | Pillar 6 reverse: high level + F gear vs same-tier enemies | still viable, slower | clears, mean turns <= 2 x the matched-gear archetype |
 | Win rate, party vs Normal at Medium | high but not certain | [85, 99] % |
 | Win rate, party vs Boss at Medium | "challenging but fair" (pillar 3) | [50, 80] % |
@@ -88,7 +88,7 @@ Player archetypes (`FBalanceArchetype`: class, pillar levels, sub-stat points, w
 | P-EarlyGenericF | Generic | Body 2 | RawDamage 6, Defense 4, MaxHealth 7 | F sword, Power 40, Body C, req 0 | attack (SkillBase 0), F ability SkillBase 20, Slash |
 | P-MidResonatorC | Resonator | Mind 8, Spirit 5, Body 3 | RawDamage 8, MaxHealth 15, Defense 10 | C staff, Power 88, Mind B / Spirit D, req Mind 3 | C ability SkillBase 30; C Destruction spell SkillBase 30, Instant, Fire |
 | P-LateCasterS | Caster (Fire) | Mind 14, Spirit 6 | SpellDamage 20, MaxHealth 20, Luck 10 | S staff, Power 192, Mind S / Spirit E, req Mind 7 | S spell SkillBase 40, Instant; S ability SkillBase 40 |
-| P-LowLevelSGear (pillar 6) | Generic | Body 4, Spirit 2 | RawDamage 6 | S greatsword, req Body 7 (factor floors at 0.5) | attack, F ability |
+| P-LowLevelSGear (pillar 6) | Generic | Body 4, Spirit 2 | RawDamage 6 | S greatsword, req Body 7 (unmet: weapon part x0.6, no scaling, D-119) | attack, F ability |
 | P-HighLevelFGear (reverse) | Generic | Body 14 | RawDamage 20 | F sword, Body C | attack, F ability |
 
 Parties: `Early` = 3 x P-EarlyGenericF; `Mid` = P-MidResonatorC + 2 x P-EarlyGenericF at C gear; `Late` = P-LateCasterS + 2 Generic at S gear; `Pillar6` = 3 x P-LowLevelSGear vs 3 x P-HighLevelFGear (party vs party, both AI).

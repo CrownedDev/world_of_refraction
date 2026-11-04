@@ -13,7 +13,9 @@ class USpellData;
 /**
  * Test actor for verifying SkillProjectile functionality
  * Place in level, assign Target, use context menu to spawn projectiles
- */
+ *
+ * OBSOLETE (B-350, D-140): a legacy test actor; delete in the editor step of docs/PIE/B-350.md, not blind.
+ *  DefaultEngine.ini redirects SpellProjectileTestActor here, so a map may place it; WoR.Combat.SkillProjectile covers its cases. */
 UCLASS()
 class WORLD_OF_REFRACTION_API ASkillProjectileTestActor : public AActor
 {

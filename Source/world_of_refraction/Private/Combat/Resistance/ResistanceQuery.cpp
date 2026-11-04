@@ -52,7 +52,8 @@ namespace
 	{
 		if (Effect.PhysicalType != EPhysicalDamageType::None)
 		{
-			return WoRDamageType::PhysicalToDamageType(Effect.PhysicalType) == DamageType;
+			// B-358 (D-148): one Physical resistance: a physical buff or debuff of any subtype covers every physical hit.
+			return WoRDamageType::IsPhysical(DamageType);
 		}
 		return WoRDamageType::ElementToDamageType(Effect.Element) == DamageType;
 	}

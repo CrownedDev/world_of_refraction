@@ -14,7 +14,9 @@
 #include "Misc/Paths.h"
 #include "Merchant/MerchantInteractable.h"
 #include "Merchant/MerchantStockRoll.h"
+#include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Pool/PoolSubsystem.h"
 #include "Save/SaveSubsystem.h"
 #include "Shop/MerchantShopSubsystem.h"
 #include "TimerManager.h"
@@ -30,6 +32,23 @@ namespace
 
     /** 0 means "no run", so a generated seed of 0 is bumped to this. */
     constexpr int32 TRIAL_NONZERO_SEED_FALLBACK = 1;
+
+    /** B-347 (D-137): opens the run layer and takes the local party's worn loadouts on the run, free. */
+    void OpenRunLayerWithWornLoadouts(UGameInstance *GI, UPoolSubsystem &Pool)
+    {
+        TSet<FName> MemberKeys;
+        const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+        if (const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr)
+        {
+            for (const FPartyMember &Member : Party->Members)
+            {
+                MemberKeys.Add(UPoolSubsystem::GetCharacterKey(Member.CharacterData));
+            }
+        }
+        MemberKeys.Remove(NAME_None);
+        Pool.BeginRunLayer();
+        Pool.TakeHomeGearOnRun(MemberKeys);
+    }
 
     int32 MakeFreshRunSeed()
     {
@@ -66,11 +85,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     {
         PartySession->SetAllMembersFull();
     }
-    // B-178: Gold is the run's currency; a run starts with none.
-    if (USaveSubsystem *Save = GetGameInstance()->GetSubsystem<USaveSubsystem>())
-    {
-        Save->ClearRunGold(GetGameInstance()->GetWorld());
-    }
+    StartRunGearAndGold();
 
     ActiveTrial = Trial;
     BeatenEncounters.Reset();
@@ -87,6 +102,23 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Entering trial '%s' -> %s (run seed %d; replay with: wor.Trial.Seed %d)"),
            *Trial->Name.ToString(), *Trial->Level.ToString(), RunSeed, RunSeed);
     TravelTo(Trial->Level);
+}
+
+void UTrialRunSubsystem::StartRunGearAndGold()
+{
+    // B-178: Gold is the run's currency; a run starts with none.
+    if (USaveSubsystem *Save = GetGameInstance()->GetSubsystem<USaveSubsystem>())
+    {
+        Save->ClearRunGold(GetGameInstance()->GetWorld());
+    }
+    // B-314 (D-111, Q-314) / B-347 (D-137): the run layer opens. The party's worn loadouts go along as they are, free
+    // (no start-of-run purchase; Gold is run money for in-run vendors); gear found or bought in the run is run-only.
+    // A layer left open by a run that never exited is ended (applied) first: its gear is this session's, not reloaded.
+    if (UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>())
+    {
+        Pool->EndRunLayer();
+        OpenRunLayerWithWornLoadouts(GetGameInstance(), *Pool);
+    }
 }
 
 void UTrialRunSubsystem::SetGateChoice(int32 InVariationIndex, ETrialDifficulty InDifficulty)
@@ -110,6 +142,13 @@ void UTrialRunSubsystem::ExitTrial()
         UE_LOG(LogTemp, Warning,
                TEXT("[TrialRun] ExitTrial: HubLevel not configured (DefaultGame.ini) — ignored."));
         return;
+    }
+
+    // B-314 (D-111, D-097): the run layer closes while the members are still here to hear it: home pieces go back to
+    // their home state, run-only gear leaves with its tier remembered. Before the exit save below.
+    if (UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>())
+    {
+        Pool->EndRunLayer();
     }
 
     // Hub return is the factory reset: drop every slot back to the sentinel so
@@ -422,6 +461,15 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
+    // B-314: the run layer isn't saved yet (B-314b, Q-314), so a resumed run opens a fresh one: gear found before the
+    // quit stays, and the home state is the gear as it was saved.
+    UPoolSubsystem *Pool = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr;
+    if (Pool && IsRunActive())
+    {
+        UE_LOG(LogTemp, Log, TEXT("[TrialRun] Resumed run: the run layer starts afresh from the saved gear (TODO: B-314b saves it)"));
+        Pool->DiscardRunLayer(); // the store was reloaded: an open layer's home states are stale
+        OpenRunLayerWithWornLoadouts(GetGameInstance(), *Pool);
+    }
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Restored saved run of '%s' (seed %d, %d beaten, %d found, %d memories)"),
            Trial ? *Trial->Name.ToString() : TEXT("<none>"), RunSeed, BeatenEncounters.Num(), FoundFeatures.Num(),
            RunMemories.Num());
