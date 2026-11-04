@@ -64,7 +64,10 @@ void FFlawlessParrySpec::Define()
 		FlawlessParry::FTally Ended;
 		Ended.AddHit(true, FLAWLESS_TEST_HITS);
 		Ended.AddHit(true, FLAWLESS_TEST_HITS); // the interrupt point: perfect, the attack ends here
+		TestTrue(TEXT("a closed spell target is kept as flawless so far"), Ended.IsFlawlessSoFar());
+		TestTrue(TEXT("and asking does not report"), Ended.IsFlawlessSoFar());
 		TestTrue(TEXT("ended at the interrupt point: flawless"), Ended.EndAtInterrupt());
+		TestFalse(TEXT("reported: no longer pending"), Ended.IsFlawlessSoFar());
 		TestFalse(TEXT("only once"), Ended.EndAtInterrupt());
 
 		FlawlessParry::FTally Missed;
