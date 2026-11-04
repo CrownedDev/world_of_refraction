@@ -71,6 +71,25 @@ void FStatStoneSpec::Define()
 				  CrystalEffectTable::GetBrokenDarknessEnergyPercent(StatStone::Make(ESubStat::Defense, EItemTier::S_Tier)), 0.0f, STAT_STONE_TEST_TOLERANCE);
 	});
 
+	It("grants a Broken Darkness character energy for a gem only, never for any stone (B-353b)", [this]()
+	{
+		const UEnum *Kinds = StaticEnum<ECrystalType>();
+		if (!TestNotNull(TEXT("ECrystalType"), Kinds)) return;
+		for (int32 Index = 0; Index < Kinds->NumEnums() - 1; ++Index)
+		{
+			const ECrystalType Type = static_cast<ECrystalType>(Kinds->GetValueByIndex(Index));
+			const float Percent = CrystalEffectTable::GetBrokenDarknessEnergyPercent(FCrystalId(Type, EItemTier::S_Tier));
+			if (Type == ECrystalType::None || CrystalTypeHelpers::IsAugmentStoneType(Type))
+			{
+				TestEqual(Kinds->GetNameStringByIndex(Index) + TEXT(": no energy"), Percent, 0.0f, STAT_STONE_TEST_TOLERANCE);
+			}
+			else
+			{
+				TestTrue(Kinds->GetNameStringByIndex(Index) + TEXT(": a gem grants energy"), Percent > 0.0f);
+			}
+		}
+	});
+
 	It("keeps the Damage, Ability, Healing and pool stones as they are", [this]()
 	{
 		for (const ECrystalType Kept : STONE_TEST_KEPT)
