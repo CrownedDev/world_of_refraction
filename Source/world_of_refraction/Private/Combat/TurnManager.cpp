@@ -465,8 +465,10 @@ void UTurnManager::GrantBonusTurn(AActor *Actor, int32 Count)
 
 void UTurnManager::SkipNextTurn(AActor *Actor, int32 Count)
 {
-	if (!bCombatActive || Count <= 0)
+	const UCombatCharacterComponent *CharComp = Actor ? Actor->FindComponentByClass<UCombatCharacterComponent>() : nullptr;
+	if (!bCombatActive || Count <= 0 || !CharComp || !CharComp->bIsAlive)
 	{
+		UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] SkipNextTurn: %s is not a living combatant in this fight"), *GetNameSafe(Actor));
 		return;
 	}
 	for (FCombatantTurnDebt &Combatant : Combatants)
@@ -631,7 +633,7 @@ void UTurnManager::OnActorDied(AActor *Actor)
 void UTurnManager::OnActorResurrected(AActor *Actor)
 {
 	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s resurrected"), *GetNameSafe(Actor));
-	// B-341 (D-133, the turn belt): a revive re-enters the holder from the next round: nothing owed
+	// B-341 (D-133, Q-341d): a revive re-enters the holder from the next round: nothing owed
 	// now (no catch-up turn), no streak toward the 2:1 cap, no leftover delay or skip.
 	for (FCombatantTurnDebt &Combatant : Combatants)
 	{

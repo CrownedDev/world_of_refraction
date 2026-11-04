@@ -113,6 +113,7 @@ namespace CrystalDescription
         case ECrystalType::Emerald:
         {
             // B-341 (D-133): the bonus lands right after this turn at every tier; S grants two.
+            // TODO: FText (D-061): this whole description table is FString; convert with the real CommonUI inventory screen (D-024).
             if (CrystalEffectTable::GetEmeraldBonusTurnCount(Id) > 1)
             {
                 return TEXT("Sacrifice your turn to grant the target two bonus turns immediately.");

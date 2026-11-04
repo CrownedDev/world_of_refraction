@@ -1700,6 +1700,9 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             }
 
             // --- SELF-TARGET: EP-starved — hold a stronger action for the bonus turn. ---
+            // OBSOLETE (B-341): under the one bonus-turn rule EmeraldDelay is 0, so no EP regens before the
+            // bonus turn and ProjectedEP never reaches an unaffordable cost: this branch cannot fire. Kept
+            // until PIE; the D-124 sweep deletes it (an EP-starved AI has no reason to self-Emerald now).
             if (UnaffordableBest > BestScore * AIConstants::STARVE_MARGIN)
             {
                 const int32 ProjectedEP =

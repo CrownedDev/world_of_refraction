@@ -1770,6 +1770,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. The deckbuilder's rule comes first: a bonus turn inserts right after the current turn (`WoR_TCG_Pivot_Design.md` §7c), with no exception. D-133 asks for one bonus-turn rule, and B would add a second.
 **Answer:** A (approved by the reference-backed default). Extra Action now gives its turn straight away, even to a holder on a streak.
 **Notes for Claude:** applied in B-341 (ET-15; `WoR.Turns.Belt` "passes the 2:1 cap").
+
+### Q-341d — What does a revived fighter owe on the belt?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-341 review, desktop) · **Blocks:** —
+**Question:** D-133 says "death purges, revive re-enters". Re-enters with what? Before B-341 a revived fighter kept its net turn debt from the moment it died (it could owe a catch-up turn, or still be yielding places).
+**Options:** **A** a clean slate: nothing owed now (it acts from the next round), no streak toward the 2:1 cap, no leftover delay or skip. **B** keep the debt from death (a revive can mean an immediate catch-up turn, or a still-pending skip).
+**Recommendation:** A. The deckbuilder's belt removes a fallen fighter's turns and re-adds it at the end of the belt (`WoR_TCG_Pivot_Design.md` §7c); Final Fantasy X's CTB does the same (a revived character is placed at the end of the timeline), and players read it as fair: a revive is a second chance, not a refund of lost turns.
+**Answer:** A (approved by the reference-backed default).
+**Notes for Claude:** built in B-341 (`UTurnManager::OnActorResurrected`; `WoR.Turns.Belt` "revive next round").
+
 ### Q-344 — Do boss arenas follow the trial difficulty too?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-344, cloud) · **Blocks:** —
 **Question:** boss arenas (`ATrialMapFeature`) were authored Hard by default. Under D-136, do they follow the trial difficulty, or keep their own tier?
