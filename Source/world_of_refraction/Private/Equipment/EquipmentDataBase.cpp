@@ -402,6 +402,11 @@ EDataValidationResult UEquipmentDataBase::IsDataValid(FDataValidationContext &Co
     // placement rule (augmented = weapon-only) is enforced in URingData::IsDataValid.
     if (AttachedItem.Kind == EAttachedItemKind::Fusion)
     {
+        // B-352 (D-141): fusions retire; an authored fusion leaves the socket empty in play.
+        Context.AddError(FText::FromString(TEXT(
+            "Fusions are retired (D-141): this attachment is ignored in play. Pick a crystal, an evolution or a stone")));
+        Result = EDataValidationResult::Invalid;
+        // OBSOLETE (B-352, D-141; delete in the D-124 sweep): the fusion well-formedness checks below.
         if (!CrystalTypeHelpers::IsValidFusionPair(AttachedItem.FusionHalfAType, AttachedItem.FusionHalfBType))
         {
             Context.AddError(FText::FromString(TEXT(
