@@ -405,7 +405,7 @@ namespace
     UCombatGridSubsystem *ResolveGridFromWorld(UWorld *World)
     {
         UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-        return GI ? GI->GetSubsystem<UCombatGridSubsystem>() : nullptr;
+        return WoRFight::Get<UCombatGridSubsystem>(GI);
     }
 
     static FAutoConsoleCommandWithWorld GGridPositionsCmd(

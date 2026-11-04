@@ -417,7 +417,7 @@ USkillEffectManager *UDamageCalculator::GetSkillEffectManager() const
 		// SkillEffectManager is a GameInstanceSubsystem like DamageCalculator
 		if (UGameInstance *GI = GetGameInstance())
 		{
-			CachedSkillEffectManager = GI->GetSubsystem<USkillEffectManager>();
+			CachedSkillEffectManager = WoRFight::Get<USkillEffectManager>(GI);
 		}
 	}
 	return CachedSkillEffectManager;
@@ -543,7 +543,7 @@ UCombatGridSubsystem *UDamageCalculator::GetCombatGridSubsystem() const
 	{
 		if (UGameInstance *GI = GetGameInstance())
 		{
-			CachedCombatGridSubsystem = GI->GetSubsystem<UCombatGridSubsystem>();
+			CachedCombatGridSubsystem = WoRFight::Get<UCombatGridSubsystem>(GI);
 		}
 	}
 	return CachedCombatGridSubsystem;

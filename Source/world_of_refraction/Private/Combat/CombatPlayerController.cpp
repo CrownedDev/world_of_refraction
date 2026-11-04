@@ -482,7 +482,7 @@ void ACombatPlayerController::PressMenuKey(EPieMenuCategory Category)
 		return;
 	}
 	UGameInstance *GI = GetGameInstance();
-	if (UCombatCommandMenuSubsystem *Menu = GI ? GI->GetSubsystem<UCombatCommandMenuSubsystem>() : nullptr)
+	if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(GI))
 	{
 		Menu->PressMenuKey(Category);
 	}
@@ -508,7 +508,7 @@ UDefenseSystem *ACombatPlayerController::GetDefenseSystem() const
 {
 	if (UGameInstance *GI = GetGameInstance())
 	{
-		return GI->GetSubsystem<UDefenseSystem>();
+		return WoRFight::Get<UDefenseSystem>(GI);
 	}
 	return nullptr;
 }
