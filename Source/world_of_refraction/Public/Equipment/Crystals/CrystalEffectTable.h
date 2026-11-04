@@ -574,7 +574,8 @@ namespace CrystalEffectTable
      *  Tier-only — Id.Type is ignored (other than the None early-out). */
     inline float GetBrokenDarknessEnergyPercent(const FCrystalId &Id)
     {
-        if (Id.Type == ECrystalType::None || Id.Type == ECrystalType::DamageStone ||
+        // B-353: StatStone stands for the retired single-stat kinds listed below.
+        if (Id.Type == ECrystalType::None || Id.Type == ECrystalType::DamageStone || Id.Type == ECrystalType::StatStone ||
             Id.Type == ECrystalType::AbilityStone || Id.Type == ECrystalType::DefenseStone ||
             Id.Type == ECrystalType::CritStone || Id.Type == ECrystalType::TurnSpeedStone ||
             Id.Type == ECrystalType::StatusStone || Id.Type == ECrystalType::EfficiencyStone ||

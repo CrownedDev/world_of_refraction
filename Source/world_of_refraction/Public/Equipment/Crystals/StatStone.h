@@ -24,14 +24,19 @@ namespace StatStone
 		return FCrystalId(ECrystalType::StatStone, Tier, Stat);
 	}
 
-	/** An old single-stat stone as the StatStone it now is; anything else unchanged. */
+	/** An old single-stat stone as the StatStone it now is. Anything else keeps its kind, and a non-StatStone loses a
+	 *  stray sub-stat (only a StatStone carries one; a stray value would break stack equality). */
 	inline FCrystalId Normalize(const FCrystalId &Id)
 	{
-		if (!IsRetiredKind(Id.Type))
+		if (IsRetiredKind(Id.Type))
 		{
-			return Id;
+			return Make(StoneRowTable::Find(Id.Type)->Stat, Id.Tier);
 		}
-		return Make(StoneRowTable::Find(Id.Type)->Stat, Id.Tier);
+		if (Id.Type != ECrystalType::StatStone && Id.StoneStat != ESubStat::None)
+		{
+			return FCrystalId(Id.Type, Id.Tier);
+		}
+		return Id;
 	}
 
 	/** The kind whose stone row a crystal reads: a StatStone's row is the old kind for its sub-stat; else its own kind. */

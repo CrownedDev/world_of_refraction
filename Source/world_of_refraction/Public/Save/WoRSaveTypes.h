@@ -15,6 +15,7 @@
 #include "Loadout/CarriedGearState.h"
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Equipment/FResistanceBonus.h"
+#include "Combat/Actions/ActionStatModifiers.h" // ESubStat::None (B-353)
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "WoRSaveTypes.generated.h"
 
@@ -308,9 +309,10 @@ struct WORLD_OF_REFRACTION_API FSavedCrystalStack
 	UPROPERTY()
 	int32 Count = 0;
 
-	/** B-353 (D-142): a StatStone's sub-stat (ESubStat), 0 otherwise. */
+	/** B-353 (D-142): a StatStone's sub-stat (ESubStat); ESubStat::None otherwise (and for a stack saved before the
+	 *  field existed, so a gem never reads back with a sub-stat). */
 	UPROPERTY()
-	uint8 StoneStat = 0;
+	uint8 StoneStat = static_cast<uint8>(ESubStat::None);
 };
 
 /** B-091: a piece of shared gear and the character wearing it (UPoolSubsystem::GetCharacterKey). */
