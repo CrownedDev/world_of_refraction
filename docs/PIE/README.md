@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-333](B-333.md) | `feature/B-333-seven-balances` (in `dev`) | Seven balances: Elemental / Pillar Essence, typed essences retire, prices and yields rerouted, save v11 wipes older saves | Not built |
 | [B-335](B-335.md) | `chore/B-335-per-instance-rolls-obsolete` (in `dev`) | Per-instance random rolls flagged OBSOLETE (D-127); gear keeps tier + quality; no gameplay change | Not built |
 | [B-334](B-334.md) | `feature/B-334-infusion-costs` (in `dev`) | Infusion EP = base × charge level (L1 ×1, L2 ×2); HP cost only at L2; source choice stays | Not built |
 | [B-330](B-330.md) | `feature/B-330-pillars-only` (in `dev`) | Pillars only: a level-up grants no sub-stat points; the authored budget is 93 at every level | Not built |
