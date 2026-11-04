@@ -78,34 +78,44 @@ namespace
 					 : nullptr;
 	}
 
-	/** B-361 (D-153): the player a member belongs to: the one who claims it (co-op, D-150), else the host (the first
-	 *  local player: on the server, the host). An AI member and a run-only recruit nobody claims are the host's (D-152).
-	 *  Null with no players (a headless test, solo without a game state): every member is then the same player's. */
-	const APlayerState *PlayerOfMember(const UWorld *World, FName CharacterKey)
+	/** B-361 (D-153): the player who claims the member (co-op, D-150), or null when nobody does. */
+	const APlayerState *ClaimantOf(const UWorld *World, FName CharacterKey)
 	{
 		const FPartyMember *Member = GiveMemberOf(World, CharacterKey);
 		const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
-		if (GameState && Member && Member->MemberId.IsValid())
+		if (!GameState || !Member || !Member->MemberId.IsValid())
 		{
-			for (const APlayerState *PS : GameState->PlayerArray)
+			return nullptr;
+		}
+		for (const APlayerState *PS : GameState->PlayerArray)
+		{
+			const AWoRPlayerState *WoRPS = Cast<AWoRPlayerState>(PS);
+			if (WoRPS && WoRPS->ClaimsMember(Member->MemberId))
 			{
-				const AWoRPlayerState *WoRPS = Cast<AWoRPlayerState>(PS);
-				if (WoRPS && WoRPS->ClaimsMember(Member->MemberId))
-				{
-					return PS;
-				}
+				return PS;
 			}
 		}
-		const APlayerController *HostPC = World ? World->GetFirstPlayerController() : nullptr;
-		return HostPC ? HostPC->PlayerState.Get() : nullptr;
+		return nullptr;
 	}
 
-	/** B-361 (D-152): whose pouch the member carries (a run-only recruit carries the host's). */
-	FName GivePouchKeyOf(const UWorld *World, FName CharacterKey)
+	/** B-361 (D-153, D-152): the player a member belongs to: its claimant, else the host (an AI member or a run-only
+	 *  recruit nobody claims is the host's). The host is whoever claims the host's own character (the claims
+	 *  replicate, so a client reads the same answer); before anyone claims it, the server's first player. Null with no
+	 *  players (a headless test, solo without claims): every member is then the same player's. */
+	const APlayerState *PlayerOfMember(const UWorld *World, FName CharacterKey)
 	{
+		if (const APlayerState *Claimant = ClaimantOf(World, CharacterKey))
+		{
+			return Claimant;
+		}
 		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 		const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
-		return PartySession ? PartySession->GetPouchKey(CharacterKey) : CharacterKey;
+		if (const APlayerState *Host = PartySession ? ClaimantOf(World, PartySession->GetHostKey()) : nullptr)
+		{
+			return Host;
+		}
+		const APlayerController *ServerPC = World && World->GetNetMode() != NM_Client ? World->GetFirstPlayerController() : nullptr;
+		return ServerPC ? ServerPC->PlayerState.Get() : nullptr;
 	}
 
 	/** B-316b: a skill's name for the player. TODO: FText names with B-127 (D-061). */
@@ -143,6 +153,13 @@ namespace
 
 namespace WoRGive
 {
+	FName GetPouchKey(const UWorld *World, FName MemberKey)
+	{
+		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+		return PartySession ? PartySession->GetPouchKey(MemberKey) : MemberKey;
+	}
+
 	UInventoryComponent *FindMemberInventory(UWorld *World, FName Key)
 	{
 		if (!World || Key.IsNone())
@@ -288,8 +305,8 @@ namespace WoRGive
 		{
 			return LOCTEXT("SameCharacterItems", "Choose another character to give to");
 		}
-		const FName FromKey = GivePouchKeyOf(World, FromMember);
-		const FName ToKey = GivePouchKeyOf(World, ToMember);
+		const FName FromKey = GetPouchKey(World, FromMember);
+		const FName ToKey = GetPouchKey(World, ToMember);
 		if (FromKey == ToKey)
 		{
 			return LOCTEXT("SharedPouch", "They carry the same pouch: a recruit uses the host's");
@@ -413,7 +430,7 @@ namespace WoRGive
 				Out += FString::Printf(TEXT("\n  adapter %s (%s)"), Ring.Ring ? *Ring.Ring->Name : TEXT("?"), *Ring.PersistentID.ToString());
 			}
 		}
-		for (const TPair<FCrystalId, int32> &Stack : Pool->GetCarriedItems(FromKey))
+		for (const TPair<FCrystalId, int32> &Stack : Pool->GetCarriedItems(GetPouchKey(World, FromKey)))
 		{
 			Out += FString::Printf(TEXT("\n  pouch %s x%d"), *ItemIdentity::GetDisplayName(Stack.Key), Stack.Value);
 		}

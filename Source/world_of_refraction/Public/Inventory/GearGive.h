@@ -29,6 +29,10 @@ namespace WoRGive
 	 *  draw refills its primary (RefillActivePrimary, with a warning). */
 	WORLD_OF_REFRACTION_API FText TryGiveGear(UWorld *World, FName FromKey, FName ToKey, const FGuid &GearID);
 
+	/** B-361 (D-152): whose pouch the member MemberKey carries: a run-only recruit's is the host's, anyone else's its
+	 *  own (UPartySessionSubsystem::GetPouchKey). Pouch views and moves resolve through it. */
+	WORLD_OF_REFRACTION_API FName GetPouchKey(const UWorld *World, FName MemberKey);
+
 	/** Gives Count of FromKey's carried Id to ToKey. Empty on success; else the reason, for the player. A run-only
 	 *  recruit's pouch is the host's (B-361): a give between the two is refused as the same pouch. */
 	WORLD_OF_REFRACTION_API FText TryGiveCarried(UWorld *World, FName FromKey, FName ToKey, const FCrystalId &Id, int32 Count);
