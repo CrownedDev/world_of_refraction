@@ -218,6 +218,13 @@ struct WORLD_OF_REFRACTION_API FSavedRun
 	UPROPERTY()
 	FName LastRestSpot;
 
+	/** B-362b (D-160, save v19): the run's Prisms dropped at a fight, and that fight's map teams. */
+	UPROPERTY()
+	int32 DroppedPrisms = 0;
+
+	UPROPERTY()
+	TArray<FName> DropEncounters;
+
 	/** B-314b (save v15): the run layer was open; its marks follow, so a resumed run keeps its found gear run-only and
 	 *  puts home gear back as it left home. */
 	UPROPERTY()
