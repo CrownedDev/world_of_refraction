@@ -19,7 +19,7 @@
 namespace PrismDropPickupConstants
 {
 	/** Placeholder look: a small cube (the base feature's mesh scaled down). */
-	const FVector MESH_SCALE(0.3f);
+	const FVector MESH_SCALE(0.3);
 	/** Overlaps this soon after placing come from a pawn spawned on top of it (the level's start). */
 	constexpr double ARRIVAL_GRACE_SECONDS = 1.0;
 }
@@ -47,6 +47,10 @@ void APrismDropPickup::Interact(APawn * /*Pawn*/)
 
 bool APrismDropPickup::PickUp()
 {
+	if (!HasAuthority() || IsActorBeingDestroyed())
+	{
+		return false; // the server's pickup gives it back; a second overlap of the same pawn finds it gone
+	}
 	const int32 Taken = WoRDefeat::PickUpDrop(GetWorld());
 	if (Taken <= 0)
 	{
@@ -119,7 +123,7 @@ void APrismDropPickup::OnPickupBeginOverlap(UPrimitiveComponent * /*OverlappedCo
 											bool /*bFromSweep*/, const FHitResult & /*SweepResult*/)
 {
 	APawn *Pawn = Cast<APawn>(OtherActor);
-	if (!Pawn || !Pawn->IsPlayerControlled() || ArrivedInside.Contains(Pawn))
+	if (!HasAuthority() || IsActorBeingDestroyed() || !Pawn || !Pawn->IsPlayerControlled() || ArrivedInside.Contains(Pawn))
 	{
 		return;
 	}
