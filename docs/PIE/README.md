@@ -15,7 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
-| [B-345](B-345.md) | `feature/B-345-one-ai-path` | One AI scoring path for spells and abilities; AI weights in the combat tuning data; no change at default weights | Not built |
+| [B-345](B-345.md) | `feature/B-345-one-ai-path` (in `dev`) | One AI scoring path for spells and abilities; AI weights in the combat tuning data; no change at default weights | Pending |
 | [B-359](B-359.md) | `feature/B-359-weather-baseline` (in `dev`) | Weather = the trial's element; a boss phase steps it to the boss's element; leader HP no longer moves it | Pending |
 | [B-358](B-358.md) | `feature/B-358-one-physical-resistance` (in `dev`) | One Physical resistance column (buildup only, ED-27); each physical subtype still picks its break | Pending |
 | [B-350](B-350.md) | `chore/B-350-test-actors-out` (in `dev`) | Gap specs for the five legacy test actors (listed for an editor delete); test.sh slowest 10; balance sim nightly only | Pending |
