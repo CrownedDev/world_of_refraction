@@ -250,7 +250,7 @@ void FItemSlotsSpec::Define()
 		const TArray<FItemLoadoutSlot> Usable = Loadout->GetUsableItems();
 		if (!TestEqual(TEXT("The fight lists the pouch only"), Usable.Num(), 1)) return;
 		TestTrue(TEXT("Its Garnet"), Usable[0].CrystalId == Garnet);
-		TestEqual(TEXT("As many as its tier band allows a fight (D-072)"), Usable[0].Quantity, LoadoutConstants::MAX_UTILITY_CRYSTALS_E_F_TIER);
+		TestEqual(TEXT("The whole stack: no tier cap (B-354)"), Usable[0].Quantity, InventoryConstants::ITEM_STACK_MAX);
 
 		Loadout->ResetBattleState();
 		TestEqual(TEXT("Still all carried"), Pool->GetCarriedCount(KeyOf(0), Garnet), InventoryConstants::ITEM_STACK_MAX);
