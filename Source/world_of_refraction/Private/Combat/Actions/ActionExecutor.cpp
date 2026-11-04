@@ -2045,7 +2045,15 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 			AttackEnergyCost = CurrentExecutionContext->Action.SkillData->BaseEnergyCost;
 		}
 	}
-	DefenseSys->OnDefenseResolved.Broadcast(Defender, Attacker, Result.DefenseType, Match.bPerfect, ImpactIndex, AttackEnergyCost);
+	// B-042j3 (D-092 rule 8): an unguarded impact's outcome (None: On Take Damage) waits for the hit itself, so an
+	// impact the absorbers stop entirely fires no On Take Damage conditional (ApplyOneImpact broadcasts it after
+	// the damage). A guard's outcome is known here and fires now.
+	Ctx->bTakeDamageOutcomePending = Result.DefenseType == EDefenseType::None;
+	Ctx->PendingAttackEnergyCost = AttackEnergyCost;
+	if (!Ctx->bTakeDamageOutcomePending)
+	{
+		DefenseSys->OnDefenseResolved.Broadcast(Defender, Attacker, Result.DefenseType, Match.bPerfect, ImpactIndex, AttackEnergyCost);
+	}
 	if (Match.bPerfect)
 	{
 		DefenseSys->OnDefensePerfect.Broadcast(Defender, Attacker, Result.DefenseType, Match.bPerfect, ImpactIndex);
@@ -2160,6 +2168,22 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 	Input.ActionMods = CurrentExecutionContext->ActionMods;
 
 	const FCombatHitResult HitResult = ApplyHit(Input);
+
+	// B-042j3 (D-092 rule 8): the unguarded outcome fires once the hit is known: a hit the absorbers stopped
+	// entirely is a hit, not damage, so its On Take Damage conditionals stay quiet.
+	if (Context.bTakeDamageOutcomePending)
+	{
+		UDefenseSystem *DefenseSys = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDefenseSystem>() : nullptr;
+		if (HitResult.DamageDealt > 0 && DefenseSys && IsValid(Target))
+		{
+			DefenseSys->OnDefenseResolved.Broadcast(Target, Attacker, EDefenseType::None, false, ImpactIndex, Context.PendingAttackEnergyCost);
+		}
+		else if (HitResult.DamageDealt <= 0)
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] %s took no damage from impact %d (stopped): no On Take Damage (B-042j3)"),
+				   *GetNameSafe(Target), ImpactIndex);
+		}
+	}
 
 	// Incremental aggregation into the running PartialResult — spread across impact frames +
 	// the close-time tail, instead of one synchronous loop.
@@ -2988,15 +3012,26 @@ void UActionExecutor::ProcessPostCastBySource(AActor *Caster, USpellData *Spell,
 
 namespace
 {
-	/** Deals the Target's ReflectType share (percent, summed over its effects) of a hit's Damage back to the Attacker. */
+	/** Deals the Target's ReflectType share (percent, summed over its effects) of a hit's Damage back to the Attacker.
+	 *  B-042j3 (D-092): a reflect with an element reflects hits of that element only; one without reflects every hit
+	 *  of its kind (the three kinds are one GE, UWoRGE_Reflect, told apart by type tag and element like a Ward). */
 	void ReflectShareOfHit(USkillEffectManager *SEM, AActor *Attacker, AActor *Target, ESkillEffectType ReflectType,
-						   int32 Damage, const TCHAR *KindLabel)
+						   int32 Damage, ESpellElement HitElement, const TCHAR *KindLabel)
 	{
 		if (!Attacker || !SEM->HasEffectOfType(Target, ReflectType))
 		{
 			return;
 		}
-		const float ReflectPct = SEM->GetTotalStatModifier(Target, ReflectType) / CombatConstants::STAT_PERCENT_DIVISOR;
+		float ReflectPercentSum = 0.0f;
+		for (const FActiveSkillEffect &Reflect : SEM->GetEffectsByType(Target, ReflectType))
+		{
+			const bool bScoped = Reflect.Element != ESpellElement::None && Reflect.Element != ESpellElement::Generic;
+			if (!bScoped || Reflect.Element == HitElement)
+			{
+				ReflectPercentSum += Reflect.GetStackedValue();
+			}
+		}
+		const float ReflectPct = ReflectPercentSum / CombatConstants::STAT_PERCENT_DIVISOR;
 		const int32 Reflected = FMath::RoundToInt(Damage * ReflectPct);
 		UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
 		if (Reflected > 0 && AttackerComp)
@@ -3130,14 +3165,14 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			const int32 ReflectBase = FMath::Min(FinalDamage, HPBefore);
 			if (USkillEffectManager *SEM = GetSkillEffectManager())
 			{
-				ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::DamageReflect, ReflectBase, TEXT(""));
+				ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::DamageReflect, ReflectBase, Input.Element, TEXT(""));
 				if (Input.ActionType == EActionType::Ability)
 				{
-					ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::ReflectPhysicalDamage, ReflectBase, TEXT(" physical"));
+					ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::ReflectPhysicalDamage, ReflectBase, Input.Element, TEXT(" physical"));
 				}
 				else if (Input.ActionType == EActionType::Spell)
 				{
-					ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::ReflectSpellDamage, ReflectBase, TEXT(" spell"));
+					ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::ReflectSpellDamage, ReflectBase, Input.Element, TEXT(" spell"));
 				}
 			}
 		}
