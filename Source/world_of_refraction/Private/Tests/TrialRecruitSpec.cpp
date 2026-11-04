@@ -41,6 +41,10 @@ namespace
 	constexpr int32 TRIAL_RECRUIT_HOST_ID = 1;
 	constexpr int32 TRIAL_RECRUIT_JOINER_ID = 2;
 	constexpr int32 TRIAL_RECRUIT_WALLET = 100000; // B-361c: enough Prisms and essence for any gem
+	constexpr int32 TRIAL_RECRUIT_LEADER_SLOT = 0;
+	constexpr int32 TRIAL_RECRUIT_PARTY_SIZE = 2;
+	/** WoRGive::TryGiveCarried's refusal when both carry one pouch (GearGive.cpp, SharedPouch). */
+	const TCHAR *const TRIAL_RECRUIT_SHARED_POUCH = TEXT("They carry the same pouch: a recruit uses the host's");
 	const FCrystalId TRIAL_RECRUIT_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
 
 	int32 TrialRecruitSpellCopies(const UPoolSubsystem &Pool, const USpellData *Spell)
@@ -391,7 +395,7 @@ void FTrialRecruitSpec::Define()
 	});
 	// ---- B-361c (B-361 review): the gaps its specs left ----
 
-	It("keeps a recruit and its skills through a mid-run save (B-361c)", [this]()
+	It("keeps a recruit and its skills through a mid-run save capture and restore (B-361c; the byte round trip of skills is WoR.Pool.Skills)", [this]()
 	{
 		if (!Pool || !Spawn(Leader, false)) return;
 		PartySession->InviteRunMember(ACombatCharacter::StaticClass(), Recruit);
@@ -410,7 +414,7 @@ void FTrialRecruitSpec::Define()
 		TestTrue(TEXT("Party restored"), USaveSubsystem::RestoreParty(SavedParty, *PartyAfter));
 		USaveSubsystem::RestorePool(SavedPool, *PoolAfter);
 		const UParty *Restored = PartyAfter->GetLocalParty();
-		if (!TestNotNull(TEXT("Restored party"), Restored) || !TestEqual(TEXT("Two members back"), Restored->Members.Num(), 2)) return;
+		if (!TestNotNull(TEXT("Restored party"), Restored) || !TestEqual(TEXT("Two members back"), Restored->Members.Num(), TRIAL_RECRUIT_PARTY_SIZE)) return;
 		TestTrue(TEXT("The recruit is back, run-only"), Restored->Members[TRIAL_RECRUIT_SLOT].bRunOnly);
 		TestTrue(TEXT("Its skills are still kept"), PoolAfter->HasBankedSkills(RecruitKey));
 		TestTrue(TEXT("And it still knows its spell"), PoolAfter->KnowsSpell(RecruitKey, Spell));
@@ -427,8 +431,10 @@ void FTrialRecruitSpec::Define()
 		const FName RecruitKey = UPoolSubsystem::GetCharacterKey(Recruit);
 		TestTrue(TEXT("Picked up"), Pouch->AddCount(TRIAL_RECRUIT_GEM, TRIAL_RECRUIT_PICKUP_COUNT));
 		UWorld *World = TestWorld->GetWorld();
-		TestFalse(TEXT("Recruit to host refused"), WoRGive::TryGiveCarried(World, RecruitKey, LeaderKey, TRIAL_RECRUIT_GEM, 1).IsEmpty());
-		TestFalse(TEXT("Host to recruit refused"), WoRGive::TryGiveCarried(World, LeaderKey, RecruitKey, TRIAL_RECRUIT_GEM, 1).IsEmpty());
+		TestEqual(TEXT("Recruit to host refused: one pouch"),
+				  WoRGive::TryGiveCarried(World, RecruitKey, LeaderKey, TRIAL_RECRUIT_GEM, 1).ToString(), FString(TRIAL_RECRUIT_SHARED_POUCH));
+		TestEqual(TEXT("Host to recruit refused: one pouch"),
+				  WoRGive::TryGiveCarried(World, LeaderKey, RecruitKey, TRIAL_RECRUIT_GEM, 1).ToString(), FString(TRIAL_RECRUIT_SHARED_POUCH));
 		TestEqual(TEXT("The host still carries them all"), Pool->GetCarriedCount(LeaderKey, TRIAL_RECRUIT_GEM), TRIAL_RECRUIT_PICKUP_COUNT);
 		TestFalse(TEXT("No pouch of the recruit's own"), Pool->GetPouches().Contains(RecruitKey));
 	});
@@ -437,9 +443,10 @@ void FTrialRecruitSpec::Define()
 	{
 		UInventoryComponent *LeaderInventory = Pool ? Spawn(Leader, false) : nullptr;
 		if (!LeaderInventory) return;
-		PartySession->GetLocalParty()->Members[0].bPlayerControlled = true;
+		PartySession->GetLocalParty()->Members[TRIAL_RECRUIT_LEADER_SLOT].bPlayerControlled = true;
 		PartySession->InviteRunMember(ACombatCharacter::StaticClass(), Recruit);
-		if (!Spawn(Recruit, false)) return;
+		UInventoryComponent *RecruitInventory = Spawn(Recruit, false);
+		if (!RecruitInventory) return;
 		UEconomyService *Economy = TestWorld->GetSubsystem<UEconomyService>();
 		AActor *Host = LeaderInventory->GetOwner();
 		UCurrencyComponent *Wallet = CurrencyWallet::FindFor(Host);
@@ -456,6 +463,9 @@ void FTrialRecruitSpec::Define()
 		TestTrue(TEXT("Paid from the host's wallet"), Wallet->GetBalance(ECurrencyType::Prisms) < TRIAL_RECRUIT_WALLET);
 		TestEqual(TEXT("The gems are in the host's pouch, once"), Pool->GetCarriedCount(LeaderKey, TRIAL_RECRUIT_GEM), TRIAL_RECRUIT_PICKUP_COUNT);
 		TestFalse(TEXT("No pouch of the recruit's own"), Pool->GetPouches().Contains(RecruitKey));
+		const UCurrencyComponent *RecruitWallet = CurrencyWallet::FindFor(RecruitInventory->GetOwner());
+		TestTrue(TEXT("The recruit has a wallet of its own"), RecruitWallet && RecruitWallet != Wallet);
+		TestEqual(TEXT("And paid nothing"), RecruitWallet ? RecruitWallet->GetBalance(ECurrencyType::Prisms) : INDEX_NONE, 0);
 	});
 
 	It("drops a recruit's skill the host has no room for, and keeps its skills when the host has none kept (B-361c)", [this]()
