@@ -36,9 +36,10 @@ TArray<USpellData*> FSpellCollection::GetSpellsByElement(ESpellElement Element) 
 TArray<USpellData*> FSpellCollection::GetSpellsBySchool(ESpellSchool School) const
 {
     TArray<USpellData*> Result;
+    const ESpellSchool Wanted = SpellSchools::ToCurrent(School); // B-356b: a retired argument finds its mapped school
     for (const FSpellInstance& Instance : LearnedSpells)
     {
-        if (Instance.Spell && Instance.Spell->School == School)
+        if (Instance.Spell && Instance.Spell->GetSchool() == Wanted)
         {
             Result.Add(Instance.Spell);
         }
@@ -49,9 +50,10 @@ TArray<USpellData*> FSpellCollection::GetSpellsBySchool(ESpellSchool School) con
 TArray<USpellData*> FSpellCollection::GetSpellsByElementAndSchool(ESpellElement Element, ESpellSchool School) const
 {
     TArray<USpellData*> Result;
+    const ESpellSchool Wanted = SpellSchools::ToCurrent(School); // B-356b
     for (const FSpellInstance& Instance : LearnedSpells)
     {
-        if (Instance.Spell && Instance.Spell->Element == Element && Instance.Spell->School == School)
+        if (Instance.Spell && Instance.Spell->Element == Element && Instance.Spell->GetSchool() == Wanted)
         {
             Result.Add(Instance.Spell);
         }

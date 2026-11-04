@@ -19,6 +19,7 @@
 #include "WoRPlayerState.generated.h"
 
 class UCurrencyComponent;
+class UCharacterData;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API AWoRPlayerState : public APlayerState
@@ -44,6 +45,16 @@ public:
 
 	/** B-279b: the server sets the form every player sees; a client asks through ServerSetForm. */
 	void SetForm(UCharacterFormData *InWornForm, EPlayerBaseForm InBaseForm);
+
+	/** B-232 (Q-21-audit): this player's own characters; it commands them (URunStateComponent seats). The server
+	 *  claims the player's pawn's character when the pawn is set; seamless travel carries the claims. */
+	bool ClaimsCharacter(const UCharacterData *Character) const;
+	/** Server: Character becomes this player's (no-op for null or one it already claims; refused, with a warning, when
+	 *  another player here already claims it). */
+	void ClaimCharacter(UCharacterData *Character);
+	/** Server: Character is no longer this player's (a pawn swap released it). */
+	void ReleaseCharacter(UCharacterData *Character);
+	const TArray<TObjectPtr<UCharacterData>> &GetClaimedCharacters() const { return ClaimedCharacters; }
 
 private:
 	/** Only the local player's wallet is banked (an AI or remote PlayerState has none to keep). */
@@ -77,6 +88,10 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_Form)
 	EPlayerBaseForm BaseForm = EPlayerBaseForm::Manny;
+
+	/** B-232: the characters this player commands. */
+	UPROPERTY(Replicated)
+	TArray<TObjectPtr<UCharacterData>> ClaimedCharacters;
 
 	UPROPERTY(VisibleAnywhere, Category = "Economy")
 	TObjectPtr<UCurrencyComponent> Wallet;

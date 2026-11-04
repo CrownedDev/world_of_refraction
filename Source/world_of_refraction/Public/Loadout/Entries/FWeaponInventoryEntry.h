@@ -23,6 +23,7 @@
 
 class UWeaponData;
 class USpellData;
+class UAbilityData;
 
 /**
  * FWeaponInventoryEntry
@@ -71,13 +72,28 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     UPROPERTY(BlueprintReadOnly, Category = "Identity")
     EItemQuality Quality = EItemQuality::F_Quality;
 
-    /** Attached refined crystal or evolution item, discriminated by Kind. */
+    /** The ELEMENT socket (B-351, D-141): a refined crystal (gem) or an evolution, discriminated by Kind. An augment
+     *  stone here is the pre-B-351 shape (still read by the stone getters); new stones go in StoneSocket. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     FRuntimeAttachedItem AttachedItem;
+
+    /** The STONE socket (B-351, D-141): an augment stone (Kind AugmentStone) or empty. GearSockets.h. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+    FRuntimeAttachedItem StoneSocket;
 
     /** Spells assigned to this weapon's crystal slots (lost when crystal removed) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     TArray<USpellData *> AssignedSpells;
+
+    /** B-351 (D-145): the player's pick per skill slot (null = the built-in there). SkillSlotList.h. The replaced
+     *  built-ins stay on the weapon asset (PresetAbilities), so a cleared pick restores them. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+    TArray<UAbilityData *> SkillPicks;
+
+    /** B-351 (D-145): true once the player has edited this weapon's one skill-slot list; until then the loadout reads
+     *  the pre-D-145 lists (AssignedAbilities and the stone list, OBSOLETE). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+    bool bSkillSlotsActive = false;
 
     /** Per-instance stat bonus state. Seeded from the asset's authored
      *  BaseStatBonus at CreateFromWeapon time (the asset's Generated layer is
@@ -194,6 +210,12 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
         return AttachedItem;
     }
 
+    /** B-351 (D-141): the stone this weapon carries: the stone socket, or a pre-B-351 stone in the element socket. */
+    const FRuntimeAttachedItem &GetStoneAttachment() const
+    {
+        return StoneSocket.IsEmpty() ? AttachedItem : StoneSocket;
+    }
+
     // ==================== STAT MODIFIERS (Evolution only) ====================
 
     /** Check if weapon has stat modifiers (from evolution crystal) */
@@ -212,7 +234,7 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
 
     bool operator==(const FWeaponInventoryEntry &Other) const
     {
-        return Weapon == Other.Weapon && AttachedItem == Other.AttachedItem;
+        return Weapon == Other.Weapon && AttachedItem == Other.AttachedItem && StoneSocket == Other.StoneSocket;
     }
 
     bool operator!=(const FWeaponInventoryEntry &Other) const

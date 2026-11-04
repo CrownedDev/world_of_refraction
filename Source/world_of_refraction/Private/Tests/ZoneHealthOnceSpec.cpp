@@ -39,13 +39,9 @@ void FZoneHealthOnceSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("B-328 (D-120): the zone adds no HP and no damage, and asks for stronger enemies", [this]()
+	It("asks each zone for a higher enemy tier than the one before (B-328, D-120, Q-328)", [this]()
 	{
 		const int32 TopZone = EnemyZoneConstants::MAX_ZONE_TIER;
-		TestEqual(TEXT("HP: zone 4 = zone 0"), TrialGate::GetFightEnemyHealthMultiplier(ETrialDifficulty::Medium, TopZone),
-				  TrialGate::GetFightEnemyHealthMultiplier(ETrialDifficulty::Medium, 0), KINDA_SMALL_NUMBER);
-		TestEqual(TEXT("damage: zone 4 = zone 0 (D-120 widened)"), TrialGate::GetFightEnemyDamageMultiplier(ETrialDifficulty::Medium, TopZone),
-				  TrialGate::GetFightEnemyDamageMultiplier(ETrialDifficulty::Medium, 0), KINDA_SMALL_NUMBER);
 		for (int32 Zone = 1; Zone <= TopZone; ++Zone)
 		{
 			TestTrue(FString::Printf(TEXT("zone %d asks for a higher tier than zone %d"), Zone, Zone - 1),
@@ -53,7 +49,7 @@ void FZoneHealthOnceSpec::Define()
 		}
 	});
 
-	It("a zone-4 C boss fight: own x rank x tier HP (no zone), each multiplier once", [this]()
+	It("gives a zone-4 C boss base x rank x tier HP: the zone changes no stats (D-120)", [this]()
 	{
 		UCharacterData *Data = FWoRTestWorld::NewCharacterData();
 		Data->EnemyTier = EItemTier::C_Tier;
@@ -68,14 +64,16 @@ void FZoneHealthOnceSpec::Define()
 		const float Rank = TrialGate::GetRankHealthMultiplier(EEncounterRank::Boss);
 		const float Tier = TrialGate::GetEnemyTierHealthMultiplier(Enemy);
 
-		// The order BattleGameMode uses: strength first, then rank x tier on top.
-		TestTrue(TEXT("strength applied"), TrialGate::ApplyEnemyStrength(Enemy, Zone, Zone));
-		TestEqual(TEXT("after strength: x the fight HP"), static_cast<float>(CharComp->MaxHP), BaseMaxHP * Zone, ZONE_ONCE_ROUNDING);
-		TestTrue(TEXT("rank applied"), TrialGate::ApplyEnemyRankHealth(Enemy, Zone, EEncounterRank::Boss));
-		TestEqual(TEXT("fight HP x rank x tier, once"), static_cast<float>(CharComp->MaxHP), BaseMaxHP * Zone * Rank * Tier,
-				  ZONE_ONCE_ROUNDING);
-		TestEqual(TEXT("no zone HP"), static_cast<float>(CharComp->MaxHP), BaseMaxHP * Rank * Tier * TrialGate::GetEnemyHealthMultiplier(ETrialDifficulty::Medium),
-				  ZONE_ONCE_ROUNDING);
+		// The order BattleGameMode uses: the door's strength first (Medium: x1 HP and x1 damage; the zone enters
+		// nowhere, D-120), then rank x tier on top.
+		const float HealthShare = TrialGate::GetEnemyHealthMultiplier(ETrialDifficulty::Medium);
+		const float DamageShare = TrialGate::GetEnemyStrengthMultiplier(ETrialDifficulty::Medium);
+		TestEqual(TEXT("no HP from the difficulty"), HealthShare, 1.0f);
+		TrialGate::ApplyEnemyStrength(Enemy, HealthShare, DamageShare); // a no-op at Medium
+		TestEqual(TEXT("after strength: HP unchanged"), static_cast<float>(CharComp->MaxHP), BaseMaxHP, ZONE_ONCE_ROUNDING);
+		TestTrue(TEXT("rank applied"), TrialGate::ApplyEnemyRankHealth(Enemy, HealthShare, EEncounterRank::Boss));
+		TestEqual(TEXT("base x rank x tier"), static_cast<float>(CharComp->MaxHP), BaseMaxHP * Rank * Tier, ZONE_ONCE_ROUNDING);
+		TestTrue(TEXT("less than with the zone's HP"), static_cast<float>(CharComp->MaxHP) < BaseMaxHP * Zone * Rank * Tier - ZONE_ONCE_ROUNDING);
 	});
 }
 

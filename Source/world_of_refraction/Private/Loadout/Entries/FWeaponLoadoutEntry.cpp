@@ -9,6 +9,7 @@
 #include "Loadout/Entries/FSpellCollection.h"
 #include "Skills/Definitions/ElementHelpers.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
+#include "Loadout/SkillSlotList.h"
 
 int32 FWeaponLoadoutEntry::GetLockedAbilityCount() const
 {
@@ -35,6 +36,66 @@ int32 FWeaponLoadoutEntry::GetCustomizableAbilityCount() const
                           ? CrystalEffectTable::SlotsForContainerTier(WeaponEntry.Tier)
                           : LoadoutConstants::MAX_WEAPON_ABILITIES;
     return Cap - GetLockedAbilityCount();
+}
+
+int32 FWeaponLoadoutEntry::GetSkillSlotCount() const
+{
+    // The stone socket, else an authored stone still sitting in the element socket (pre-B-351 shape).
+    return SkillSlotList::SlotCount(WeaponEntry.Tier, WeaponEntry.GetStoneAttachment());
+}
+
+FString FWeaponLoadoutEntry::GetSkillSlotString() const
+{
+    const TArray<UAbilityData *> BuiltIns = WeaponEntry.Weapon ? WeaponEntry.Weapon->PresetAbilities : TArray<UAbilityData *>();
+    const TArray<UAbilityData *> Slots = GetSkillSlots();
+    FString Out = FString::Printf(TEXT("%s skill slots: %d (%s)"), *GetNameSafe(WeaponEntry.Weapon), Slots.Num(),
+                                  WeaponEntry.bSkillSlotsActive ? TEXT("one list, active") : TEXT("one list not edited yet: the old lists play"));
+    for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
+    {
+        const bool bReplaced = SkillSlotList::IsReplaced(WeaponEntry.SkillPicks, Slot);
+        const UAbilityData *BuiltIn = BuiltIns.IsValidIndex(Slot) ? BuiltIns[Slot] : nullptr;
+        Out += FString::Printf(TEXT("\n  [%d] %s%s"), Slot, Slots[Slot] ? *Slots[Slot]->Name : TEXT("-"),
+                               bReplaced ? (BuiltIn ? *FString::Printf(TEXT(" (pick; built-in %s restorable)"), *BuiltIn->Name) : TEXT(" (pick)"))
+                                         : (BuiltIn ? TEXT(" (built-in)") : TEXT("")));
+    }
+    return Out;
+}
+
+TArray<UAbilityData *> FWeaponLoadoutEntry::GetSkillSlots() const
+{
+    const TArray<UAbilityData *> BuiltIns = WeaponEntry.Weapon ? WeaponEntry.Weapon->PresetAbilities : TArray<UAbilityData *>();
+    return SkillSlotList::Resolve(BuiltIns, WeaponEntry.SkillPicks, GetSkillSlotCount());
+}
+
+TArray<UAbilityData *> FWeaponLoadoutEntry::GetSkillSlotAbilities() const
+{
+    if (!WeaponEntry.bSkillSlotsActive)
+    {
+        return GetAllAbilities(); // pre-D-145 lists until the player edits this weapon's one list (OBSOLETE path)
+    }
+    TArray<UAbilityData *> Abilities = GetSkillSlots();
+    Abilities.RemoveAll([](const UAbilityData *Ability) { return Ability == nullptr; });
+    return Abilities;
+}
+
+bool FWeaponLoadoutEntry::ReplaceSkill(int32 Slot, UAbilityData *Ability)
+{
+    if (Slot >= GetSkillSlotCount() || !SkillSlotList::Replace(WeaponEntry.SkillPicks, Slot, Ability))
+    {
+        return false;
+    }
+    WeaponEntry.bSkillSlotsActive = true;
+    return true;
+}
+
+bool FWeaponLoadoutEntry::RestoreSkill(int32 Slot)
+{
+    if (!SkillSlotList::Restore(WeaponEntry.SkillPicks, Slot))
+    {
+        return false;
+    }
+    WeaponEntry.bSkillSlotsActive = true;
+    return true;
 }
 
 TArray<UAbilityData *> FWeaponLoadoutEntry::GetAllAbilities() const
@@ -173,7 +234,7 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetAugmentStoneAbilities() const
 {
     // Augment-stone abilities exist only while a augment stone is attached — gate the
     // way GetAllSpells gates spells on a spell-capable attachment.
-    const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
+    const FRuntimeAttachedItem &Attachment = WeaponEntry.GetStoneAttachment(); // B-351: the stone socket
     // A direct augment stone, OR a fusion carrying an AbilityStone half, can grant
     // augment-stone abilities. The slot cap (below) resolves to 0 when there is no
     // AbilityStone identity, so a non-AbilityStone attachment still yields nothing.
@@ -297,7 +358,7 @@ bool FWeaponLoadoutEntry::ValidateAugmentStoneAbilities(const FAbilityCollection
     // fusion (which may carry an AbilityStone half) — valid only when none are
     // assigned. The slot cap below rejects any beyond the AbilityStone identity's
     // tier (0 when there is no AbilityStone half).
-    const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
+    const FRuntimeAttachedItem &Attachment = WeaponEntry.GetStoneAttachment(); // B-351: the stone socket
     if (!Attachment.IsAugmentStone() && !Attachment.IsFusion())
     {
         return AssignedAugmentStoneAbilities.Num() == 0;

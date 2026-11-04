@@ -22,6 +22,10 @@ Every combatant has a Combat Tier, F to S (D-118). It is the average tier of the
 - The roster view (out of a fight) shows no tier, because it has no actor.
 - An enemy whose gear is given after `ApplyEnemyRankHealth` keeps the HP of its earlier tier.
 
+- **Enemy content (D-118, desktop note):** an enemy asset with seeded gear or skills reads its Combat Tier from them; a seed instance's `Tier` defaults to F, so a tiered enemy asset loses the HP its `EnemyTier` used to give until its seed gear carries a tier. `EnemyTier` is the fallback only (no gear, no skills).
+- **D-120 / B-327:** enemy HP = own × rank × Combat Tier; the zone scales nothing. The Combat Tier is the only tier in that product.
+- **Panel label:** refreshes on `OnActiveWeaponChanged` / `OnLoadoutChanged`; an in-place tier upgrade of the worn weapon (same asset) does not redraw it until the next loadout change.
+
 ## Changelog
 | Date | Change | Branch |
 |---|---|---|

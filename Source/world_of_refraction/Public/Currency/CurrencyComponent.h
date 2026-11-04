@@ -1,6 +1,7 @@
 // CurrencyComponent.h
 // Per-character wallet for the resource economy (Resources_Design.md §1, §15,
-// §16). Holds six currencies (ECurrencyType selectors: Gold, Prisms, Diamond,
+// §16). B-333 (D-125): seven scalar balances (Gold, Prisms, Diamond, Gear / Skill / Elemental /
+// Pillar Essence) plus the OBSOLETE typed wallet. Was: six currencies (ECurrencyType selectors: Gold, Prisms, Diamond,
 // GearEssence, SkillEssence scalars + the typed EssenceTyped FastArray); World
 // Stat Points are NOT here (they live on the
 // character component — separate build).
@@ -10,7 +11,7 @@
 // is set so the component is genuinely network-ready, not just PIE-correct).
 // Every Add/Spend is gated by HasServerAuthority() (no-op-safe in PIE-standalone);
 // reads are const and ungated. Persistent balances are dual-tagged
-// SaveGame + Replicated; Gold is Replicated only (run-volatile, never banked).
+// banked by FSavedWallet (D-059) + Replicated; Gold is Replicated only (run-volatile, never banked).
 //
 // SCOPE SEAM (account-vs-character routing is a LATER step): this component is
 // deliberately NOT hard-bound to the pawn. It is a BlueprintSpawnableComponent
@@ -68,6 +69,8 @@ public:
     int32 GetBalance(ECurrencyType Currency, uint8 SubKey = 0) const;
 
     // ==================== TYPED CONVENIENCE ====================
+    // OBSOLETE (B-333): the typed-essence helpers below retire with EEssenceType (D-125); nothing in the
+    // economy calls them now. Delete in the sweep (D-124).
 
     UFUNCTION(BlueprintCallable, Category = "Economy|Currency")
     bool AddEssenceType(EEssenceType Type, int32 Amount) { return Add(ECurrencyType::EssenceTyped, Amount, static_cast<uint8>(Type)); }
@@ -101,6 +104,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "Economy|Currency")
     int32 GetSkillEssence() const { return GetBalance(ECurrencyType::SkillEssence); }
 
+    /** B-333 (D-125): pays for anything with an element (gems, evolutions, elemental spells). */
+    UFUNCTION(BlueprintPure, Category = "Economy|Currency")
+    int32 GetElementalEssence() const { return GetBalance(ECurrencyType::ElementalEssence); }
+
+    /** B-333 (D-125): pays for stat stones. */
+    UFUNCTION(BlueprintPure, Category = "Economy|Currency")
+    int32 GetPillarEssence() const { return GetBalance(ECurrencyType::PillarEssence); }
+
     // ==================== EVENTS ====================
 
     UPROPERTY(BlueprintAssignable, Category = "Economy|Currency")
@@ -125,7 +136,7 @@ public:
 
 protected:
     // ==================== STORAGE ====================
-    // Persistent balances: SaveGame + Replicated. Gold: Replicated ONLY
+    // Persistent balances: saved by FSavedWallet (D-059) + Replicated. Gold: Replicated ONLY
     // (run-volatile — never banked, lost at run end). FastArrays notify via
     // their item callbacks, so they use plain Replicated (no ReplicatedUsing).
 
@@ -134,24 +145,32 @@ protected:
     int32 Gold = 0;
 
     /** Hub spend-currency (spells/equipment floors). Account-shareable (TODO routing). */
-    UPROPERTY(SaveGame, ReplicatedUsing = OnRep_Prisms, BlueprintReadOnly, Category = "Economy|Currency")
+    UPROPERTY(ReplicatedUsing = OnRep_Prisms, BlueprintReadOnly, Category = "Economy|Currency")
     int32 Prisms = 0;
 
     /** Account-wide premium currency (TODO routing). */
-    UPROPERTY(SaveGame, ReplicatedUsing = OnRep_Diamond, BlueprintReadOnly, Category = "Economy|Currency")
+    UPROPERTY(ReplicatedUsing = OnRep_Diamond, BlueprintReadOnly, Category = "Economy|Currency")
     int32 Diamond = 0;
 
     /** Single gear-leveling essence (per-character) — scalar, like Prisms/Diamond. Levels weapons + rings. */
-    UPROPERTY(SaveGame, ReplicatedUsing = OnRep_GearEssence, BlueprintReadOnly, Category = "Economy|Currency")
+    UPROPERTY(ReplicatedUsing = OnRep_GearEssence, BlueprintReadOnly, Category = "Economy|Currency")
     int32 GearEssence = 0;
 
     /** Single skill-leveling essence (per-character) — scalar, mirrors GearEssence. Levels abilities + spells. */
-    UPROPERTY(SaveGame, ReplicatedUsing = OnRep_SkillEssence, BlueprintReadOnly, Category = "Economy|Currency")
+    UPROPERTY(ReplicatedUsing = OnRep_SkillEssence, BlueprintReadOnly, Category = "Economy|Currency")
     int32 SkillEssence = 0;
 
-    /** 14 typed-essence wallets (per-character). Not BlueprintReadOnly — FCurrencyArray
+    /** B-333 (D-125): Elemental Essence (per-character scalar). */
+    UPROPERTY(ReplicatedUsing = OnRep_ElementalEssence, BlueprintReadOnly, Category = "Economy|Currency")
+    int32 ElementalEssence = 0;
+
+    /** B-333 (D-125): Pillar Essence (per-character scalar). */
+    UPROPERTY(ReplicatedUsing = OnRep_PillarEssence, BlueprintReadOnly, Category = "Economy|Currency")
+    int32 PillarEssence = 0;
+
+    /** OBSOLETE (B-333). 14 typed-essence wallets (per-character). Not BlueprintReadOnly — FCurrencyArray
      *  is not a BlueprintType; BP access is via GetEssenceType/AddEssenceType/SpendEssenceType. */
-    UPROPERTY(SaveGame, Replicated)
+    UPROPERTY(Replicated)
     FCurrencyArray EssenceWallet;
 
     // ==================== REP CALLBACKS ====================
@@ -171,7 +190,17 @@ protected:
     UFUNCTION()
     void OnRep_SkillEssence();
 
+    UFUNCTION()
+    void OnRep_ElementalEssence();
+
+    UFUNCTION()
+    void OnRep_PillarEssence();
+
 private:
+    /** B-333: the scalar field behind Currency; null for EssenceTyped (the obsolete keyed wallet). */
+    int32 *FindScalar(ECurrencyType Currency);
+    const int32 *FindScalar(ECurrencyType Currency) const;
+
     /** PIE-safe authority check: WoRAuthority::HasAuthority on the owner. */
     bool HasServerAuthority() const;
 

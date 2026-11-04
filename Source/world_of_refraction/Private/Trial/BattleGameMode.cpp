@@ -181,8 +181,13 @@ void ABattleGameMode::BootstrapCombat()
             Spawned->Destroy();
             continue;
         }
-        const bool bPlayerControlled = !Member || Member->bPlayerControlled;
+        // B-346 (Q-21-audit): you command every member but the AI seats the leader set before the fight.
+        const bool bPlayerControlled = !Member || !Member->bAISeat;
         CombatControl::SetPlayerDriven(Spawned, bPlayerControlled);
+        if (Member && Member->bAISeat)
+        {
+            CombatControl::SetAISeatDifficulty(Spawned, Member->AISeatDifficulty);
+        }
         if (Slot == PartyConstants::LEADER_SLOT)
         {
             LeaderPawn = Spawned;
@@ -271,10 +276,10 @@ void ABattleGameMode::BootstrapCombat()
     // B-183 / B-186: the gate's difficulty and the zone the fight started in scale every enemy
     // before the fight (and its HUD) starts.
     const FEncounterZoneInfo Zone = TrialRun->GetPendingZone();
-    // B-293c (Q-293c): the door's difficulty scales enemy damage only. B-328 (D-120): the zone scales damage, not HP
-    // (enemy HP = own x rank x Combat Tier power); harder zones place higher-tier enemies.
-    const float EnemyStrength = TrialGate::GetFightEnemyDamageMultiplier(TrialRun->GetTrialDifficulty(), Zone.Tier);
-    const float EnemyHealth = TrialGate::GetFightEnemyHealthMultiplier(TrialRun->GetTrialDifficulty(), Zone.Tier);
+    // B-293c (Q-293c): the door's difficulty scales enemy damage only. D-120 (B-327): the zone scales nothing; it
+    // only decides which enemies are placed there, and their strength is their own Combat Tier (rank x tier below).
+    const float EnemyStrength = TrialRun->GetEnemyStrengthMultiplier();
+    const float EnemyHealth = TrialGate::GetEnemyHealthMultiplier(TrialRun->GetTrialDifficulty());
     for (int32 EnemyIndex = 0; EnemyIndex < OpposingParty.Num(); ++EnemyIndex)
     {
         AActor *Enemy = OpposingParty[EnemyIndex];

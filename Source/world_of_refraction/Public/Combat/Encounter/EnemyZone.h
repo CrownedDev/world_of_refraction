@@ -55,7 +55,8 @@ public:
 	/** The zone a fight at Location takes: the highest-tier zone containing it, or tier 0. */
 	static FEncounterZoneInfo FindZoneAt(const UWorld *World, const FVector &Location);
 
-	/** OBSOLETE (B-328, D-120 widened): zones scale neither HP nor damage now; nothing reads this. Delete in the D-124 sweep. */
+	/** OBSOLETE (D-120, B-327): a zone scales no stats any more; its tier only says which enemies are placed there.
+	 *  Kept for the zone's own log line until Crown's PIE pass, then deleted with the ladder behind it. */
 	static float GetTierStrengthMultiplier(int32 Tier);
 
 	/** B-328 (D-120, Q-328): the Combat Tier a zone's enemies should have at least: zones 0..4 → F, D, C, B, A. An

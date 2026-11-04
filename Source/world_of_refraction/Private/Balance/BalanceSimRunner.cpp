@@ -8,6 +8,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Balance/BalanceArchetypes.h"
 #include "Balance/BalanceSimRecorder.h"
+#include "Combat/CombatControl.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Encounter/EnemyZone.h"
 #include "Equipment/Crystals/FCrystalId.h"
@@ -31,6 +32,8 @@ namespace
 	const TCHAR *SIM_CVAR_BATTLE_SEED = TEXT("wor.Battle.Seed");
 
 	constexpr int32 SIM_ATTACK_HIT_COUNT = 1;
+	/** B-346: the sim party's AI seat setting; Hard = the fixed level the party played at before B-346. */
+	constexpr EAIDifficulty SIM_PARTY_AI_DIFFICULTY = EAIDifficulty::Hard;
 	/** The adapter's gem (B-293): a Garnet at the weapon's tier, intact, so the Resonator's spell has an element. */
 	constexpr ECrystalType SIM_ADAPTER_GEM_TYPE = ECrystalType::Garnet;
 	constexpr int32 SIM_ADAPTER_GEM_DURABILITY = 5;
@@ -208,6 +211,12 @@ FBalanceFightRecord FBalanceSimRunner::RunFight(const FBalanceMatchup &Matchup, 
 	UWoREffectMirrorComponent::SetReadsFromGAS(bUseGAS); // B-293: the same seed on either path must give the same record
 	Recorder->Begin(Matchup.Id, Seed, Party);
 	Orchestrator->SetEncounterRank(Matchup.Rank);
+	// B-346: the sim's party plays at the AI seat setting; Hard keeps the pre-B-346 numbers
+	// (the old fixed ALLY_AI_DIFFICULTY), so the baselines stay comparable.
+	for (AActor *Member : Party)
+	{
+		CombatControl::SetAISeatDifficulty(Member, SIM_PARTY_AI_DIFFICULTY);
+	}
 	Orchestrator->StartCombat(Party, Enemies, Matchup.Difficulty);
 
 	int32 Ticks = 0;
@@ -375,9 +384,10 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 
 void FBalanceSimRunner::ApplyEnemyStrength(AActor *Enemy, const FBalanceMatchup &Matchup)
 {
-	// The same multipliers as BattleGameMode's trial fights (TrialGate::GetFight*), then rank x tier power (B-224 / B-224b).
-	const float Strength = TrialGate::GetFightEnemyDamageMultiplier(Matchup.TrialDifficulty, Matchup.ZoneTier);
-	const float Health = TrialGate::GetFightEnemyHealthMultiplier(Matchup.TrialDifficulty, Matchup.ZoneTier); // D-120: no zone HP
+	// The same multipliers as BattleGameMode's trial fights: the door's difficulty (damage only, B-293c), then rank x
+	// tier power (B-224 / B-224b). D-120: the zone scales nothing (ZoneTier stays in the matchup for its placement role).
+	const float Strength = TrialGate::GetEnemyStrengthMultiplier(Matchup.TrialDifficulty);
+	const float Health = TrialGate::GetEnemyHealthMultiplier(Matchup.TrialDifficulty);
 	TrialGate::ApplyEnemyStrength(Enemy, Health, Strength);
 	TrialGate::ApplyEnemyRankHealth(Enemy, Health, Matchup.Rank);
 }

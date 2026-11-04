@@ -83,6 +83,8 @@ void FCombatTierSpec::Define()
 			Active.PrimaryWeapon.WeaponEntry.Tier = EItemTier::S_Tier;
 			Loadout->NotifyActiveWeaponChanged();
 			TestEqual(TEXT("upgraded to S"), WoRCombatTier::GetCombatTier(Loadout->GetOwner()), EItemTier::S_Tier);
+			TestEqual(TEXT("the HP tier follows the weapon in hand"), TrialGate::GetEnemyTierHealthMultiplier(Loadout->GetOwner()),
+					  TierPowerScaling::GetTierPowerMultiplier(EItemTier::S_Tier), COMBAT_TIER_TOLERANCE);
 		});
 	});
 }

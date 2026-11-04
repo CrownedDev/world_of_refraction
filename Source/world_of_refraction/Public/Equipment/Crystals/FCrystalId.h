@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "Equipment/Crystals/CrystalType.h"
 #include "Inventory/ItemTier.h"
+#include "Combat/Actions/ActionStatModifiers.h"
 #include "FCrystalId.generated.h"
 
 USTRUCT(BlueprintType)
@@ -27,9 +28,17 @@ struct WORLD_OF_REFRACTION_API FCrystalId
     FCrystalId(ECrystalType InType, EItemTier InTier)
         : Type(InType), Tier(InTier) {}
 
+    /** B-353 (D-142): the sub-stat a StatStone amplifies; None for every other kind. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal",
+              meta = (EditCondition = "Type == ECrystalType::StatStone", EditConditionHides))
+    ESubStat StoneStat = ESubStat::None;
+
+    FCrystalId(ECrystalType InType, EItemTier InTier, ESubStat InStoneStat)
+        : Type(InType), Tier(InTier), StoneStat(InStoneStat) {}
+
     bool operator==(const FCrystalId &Other) const
     {
-        return Type == Other.Type && Tier == Other.Tier;
+        return Type == Other.Type && Tier == Other.Tier && StoneStat == Other.StoneStat;
     }
 
     bool operator!=(const FCrystalId &Other) const
@@ -40,7 +49,8 @@ struct WORLD_OF_REFRACTION_API FCrystalId
 
 FORCEINLINE uint32 GetTypeHash(const FCrystalId &Id)
 {
-    return HashCombine(
+    return HashCombine(HashCombine(
         ::GetTypeHash(static_cast<uint8>(Id.Type)),
-        ::GetTypeHash(static_cast<uint8>(Id.Tier)));
+        ::GetTypeHash(static_cast<uint8>(Id.Tier))),
+        ::GetTypeHash(static_cast<uint8>(Id.StoneStat)));
 }

@@ -218,6 +218,12 @@ public:
      *  Step 1 compares identity, tier, quality and the attachment's kind, not durability or what is attached. */
     FString CompareWithStore() const;
 
+    /** B-312b (Q-312): does this member own a weapon / adapter of this asset? Read from the store's view of its gear
+     *  (UPoolSubsystem::GetOwnedGearOf; a run-only recruit from every piece not in the chest), or from the local copy
+     *  when it draws from no pool. The loadout's "is it in the inventory" checks read these, not the copies. */
+    bool OwnsWeaponAsset(const UWeaponData *Weapon) const;
+    bool OwnsRingAsset(const URingData *Ring) const;
+
     // ==================== SPELL OPERATIONS ====================
 
     /** Learn a new spell */
@@ -342,6 +348,8 @@ public:
      *  crystal becomes fungible slot state (destroyed on detach, no return). Debit happens BEFORE
      *  the write; a 0-debit (not owned) rejects with no phantom socket. Mirrors AttachEvolution's
      *  guard structure: no-authority / no-weapon / occupied-slot all return false (no replace).
+     *  B-351 (D-141): a gem goes in the element socket (AttachedItem), a stone in the stone socket (StoneSocket);
+     *  each holds one, so a second gem (or a second stone) is refused.
      *  The debit goes through the SILENT atomic core, so a successful socket fires ONE signal: Equipped. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
     bool AttachCrystalToWeapon(FGuid WeaponPersistentID, FCrystalId Id);
@@ -385,10 +393,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
     bool AttachEvolutionToRing(FGuid RingPersistentID, FGuid EvoInstanceID);
 
-    /** Socket a refined gem onto the owned ring (by PersistentID). Ring counterpart of
-     *  AttachCrystalToWeapon — same DEBIT model, but with the inline ring-guard
-     *  (URingData::IsDataValid:29-33): augment stones are weapon-only, so a non-gem Id is rejected.
-     *  Refined gems are allowed (rings use crystals for their spell source). Fires ONE signal: Equipped. */
+    /** Socket a refined gem or an augment stone onto the owned ring (by PersistentID). Ring counterpart of
+     *  AttachCrystalToWeapon — same DEBIT model. B-351 (D-141): an adapter has an element socket (gem) and a stone
+     *  socket (stone) like a weapon; the weapon-only stone guard retired. Fires ONE signal: Equipped. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
     bool AttachCrystalToRing(FGuid RingPersistentID, FCrystalId Id);
 
@@ -522,6 +529,10 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
     FOnDuplicateGearReceived OnDuplicateGearReceived;
 
+    /** B-316: set while this member buys for another (UEconomyService::PurchaseFor): the piece passes through and is
+     *  handed on, so no duplicate notice fires here (the receiver's own fires when it already owns one). */
+    bool bSuppressDuplicateNotice = false;
+
     /** B-319 (D-115): every weaker copy of an owned weapon or ring, each paired with the copy that stays. */
     UFUNCTION(BlueprintPure, Category = "Inventory|Duplicates")
     TArray<FDuplicateGearPair> FindDuplicateGear() const;
@@ -561,6 +572,9 @@ private:
     bool bKeepsCustomLoadouts = false;
     /** B-321: a run-only recruit draws the whole armoury (it brings no gear, B-076); everyone else only its own. */
     bool bDrawsWholeArmoury = false;
+    /** B-312b: is this store piece this member's to draw: its own by owner key, or (a run-only recruit) any piece
+     *  not in the chest. The one rule DrawSharedGear and the owns-checks share. */
+    bool IsMineInStore(const UPoolSubsystem &Pool, const FGuid &GearID) const;
     /** True while this inventory pushes to, or copies from, the pool (no echo). */
     bool bSyncingWithPool = false;
 

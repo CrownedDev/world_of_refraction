@@ -3,6 +3,9 @@
 #include "Player/WoRPlayerState.h"
 
 #include "Character/Forms/CharacterFormSubsystem.h"
+#include "Character/CharacterData.h"
+#include "Character/CharacterDataComponent.h"
+#include "GameFramework/GameStateBase.h"
 #include "Character/Outfit/OutfitComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Currency/CurrencyComponent.h"
@@ -36,6 +39,7 @@ void AWoRPlayerState::BeginPlay()
 		Save->ApplyWalletTo(Wallet);
 	}
 	OnPawnSet.AddUniqueDynamic(this, &AWoRPlayerState::HandlePawnSet);
+	HandlePawnSet(this, GetPawn(), nullptr); // a pawn set before BeginPlay is claimed too (B-232)
 	FollowLocalForm();
 }
 
@@ -85,6 +89,11 @@ void AWoRPlayerState::CopyProperties(APlayerState *PlayerState)
 	if (Next)
 	{
 		Next->SetForm(WornForm, BaseForm);
+		// B-232: the player keeps commanding its characters in the next level.
+		for (UCharacterData *Character : ClaimedCharacters)
+		{
+			Next->ClaimCharacter(Character);
+		}
 	}
 }
 
@@ -93,6 +102,45 @@ void AWoRPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutL
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AWoRPlayerState, WornForm);
 	DOREPLIFETIME(AWoRPlayerState, BaseForm);
+	DOREPLIFETIME(AWoRPlayerState, ClaimedCharacters);
+}
+
+bool AWoRPlayerState::ClaimsCharacter(const UCharacterData *Character) const
+{
+	return Character && ClaimedCharacters.Contains(Character);
+}
+
+void AWoRPlayerState::ClaimCharacter(UCharacterData *Character)
+{
+	if (!HasAuthority() || !Character || ClaimedCharacters.Contains(Character))
+	{
+		return;
+	}
+	const UWorld *World = GetWorld();
+	if (const AGameStateBase *GameState = World ? World->GetGameState() : nullptr)
+	{
+		for (const APlayerState *Other : GameState->PlayerArray)
+		{
+			const AWoRPlayerState *OtherPlayer = Cast<AWoRPlayerState>(Other);
+			if (OtherPlayer && OtherPlayer != this && OtherPlayer->ClaimsCharacter(Character))
+			{
+				UE_LOG(LogWoR, Warning, TEXT("[PlayerState] %s cannot claim %s: %s already commands it (B-232)"), *GetPlayerName(),
+					   *GetNameSafe(Character), *OtherPlayer->GetPlayerName());
+				return;
+			}
+		}
+	}
+	ClaimedCharacters.Add(Character);
+	UE_LOG(LogWoR, Log, TEXT("[PlayerState] %s claims %s (B-232)"), *GetPlayerName(), *GetNameSafe(Character));
+}
+
+void AWoRPlayerState::ReleaseCharacter(UCharacterData *Character)
+{
+	if (!HasAuthority() || !Character || ClaimedCharacters.Remove(Character) == 0)
+	{
+		return;
+	}
+	UE_LOG(LogWoR, Log, TEXT("[PlayerState] %s releases %s (B-232)"), *GetPlayerName(), *GetNameSafe(Character));
 }
 
 void AWoRPlayerState::SetForm(UCharacterFormData *InWornForm, EPlayerBaseForm InBaseForm)
@@ -130,6 +178,19 @@ void AWoRPlayerState::HandleLocalFormChanged(UCharacterFormData *Form)
 void AWoRPlayerState::HandlePawnSet(APlayerState *Player, APawn *NewPawn, APawn *OldPawn)
 {
 	ApplyFormLook();
+	// B-232 (Q-21-audit): the player's own character is the one its pawn plays; a pawn swap releases the old one.
+	const UCharacterDataComponent *NewComp = NewPawn ? NewPawn->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	const UCharacterDataComponent *OldComp = OldPawn ? OldPawn->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	UCharacterData *NewData = NewComp ? NewComp->CharacterData : nullptr;
+	UCharacterData *OldData = OldComp ? OldComp->CharacterData : nullptr;
+	if (OldData && OldData != NewData)
+	{
+		ReleaseCharacter(OldData);
+	}
+	if (NewData)
+	{
+		ClaimCharacter(NewData);
+	}
 }
 
 void AWoRPlayerState::OnRep_Form()

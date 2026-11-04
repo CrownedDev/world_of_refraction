@@ -559,6 +559,16 @@ namespace
 		}));
 }
 
+float UActionExecutor::GetSkillRequirementFactor(AActor *Actor, const USkillDataBase *Skill) const
+{
+	const UCharacterData *UserData = GetCharacterData(Actor);
+	if (!Skill || !UserData)
+	{
+		return WeaponRequirement::WEAPON_REQ_FACTOR_MAX;
+	}
+	return Skill->Requirements.GetRequirementFactor(GetLiveWorldLevels(Actor, *UserData));
+}
+
 float UActionExecutor::GetWeaponRequirementFactor(AActor *Actor, const FAction &Action) const
 {
 	if (Action.ActionType == EActionType::Spell)
@@ -672,6 +682,14 @@ FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FA
 	const float TierGap = bLog ? ResolveTierGapMultiplier(User, Action, Skill->Name) : GetTierGapDamageMultiplier(User, Action);
 	Damage = FMath::RoundToInt(Damage * TierGap);
 	Damage = FMath::RoundToInt(Damage * TierPowerScaling::GetTierPowerMultiplier(Skill->Tier));
+	// B-326 (D-119): an unmet skill requirement cuts the skill part by the one flat factor (the skill still works).
+	const float SkillRequirementFactor = GetSkillRequirementFactor(User, Skill);
+	Damage = FMath::RoundToInt(Damage * SkillRequirementFactor);
+	if (bLog && WeaponRequirement::IsUnmetFactor(SkillRequirementFactor))
+	{
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[Requirement] %s: requirement unmet, skill part x%.2f, no scaling"), *Skill->Name,
+			   SkillRequirementFactor);
+	}
 
 	// B-220 (D-101, BaselineNumbers.md "Decided"): the weapon part adds to the skill part; the requirement factor
 	// (D-082) cuts the weapon part only. A weapon with Power 0 adds nothing and its requirement cuts nothing.
@@ -2787,9 +2805,22 @@ FActionResult UActionExecutor::ExecuteItem(
 	// === Find and use item slot in LoadoutComponent ===
 	ULoadoutComponent *Loadout = GetLoadoutComponent(User);
 	int32 ItemSlotIndex = -1;
+	// B-313 (D-111, D-117): a party member's item comes from its own pouch, ready for battle or not:
+	// the pouch is the only ledger, so an unready member must not use an item for free.
+	const bool bFromPouch = Loadout && Loadout->UsesPouchItems();
 
-	if (Loadout && Loadout->IsReadyForBattle())
+	if (bFromPouch)
 	{
+		if (!Loadout->CanUseCarriedItem(Id))
+		{
+			Result.bSuccess = false;
+			Result.ErrorMessage = TEXT("Item not in the pouch, or its tier band is used up this fight");
+			return Result;
+		}
+	}
+	else if (Loadout && Loadout->IsReadyForBattle())
+	{
+		// OBSOLETE (B-313): the loadout's item slots, for an actor with no pouch (enemies).
 		// The raw slot index (ULoadoutComponent::UseItem takes it), not an index into the
 		// usable-items list, which skips empty slots.
 		const TArray<FItemLoadoutSlot> &ItemSlots = Loadout->GetActiveLoadout().ItemSlots;
@@ -2856,7 +2887,11 @@ FActionResult UActionExecutor::ExecuteItem(
 	// === Consume item use from loadout ===
 	// Q-060 (B-201): a use that failed to land still spends its charge, like a missed
 	// throw; the result keeps reporting the failure (B-060).
-	if (Loadout && ItemSlotIndex >= 0)
+	if (bFromPouch)
+	{
+		Loadout->UseCarriedItem(Id);
+	}
+	else if (Loadout && ItemSlotIndex >= 0)
 	{
 		Loadout->UseItem(ItemSlotIndex);
 		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Consumed 1 use from item slot %d"), ItemSlotIndex);
@@ -3016,7 +3051,15 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			// un-authored skill) → no tier bonus → byte-identical to pre-b2.
 			if (const USkillDataBase *ChainSkillData = GetCurrentSkillData())
 			{
-				DmgInput.StatScaling = ChainSkillData->StatScaling;
+				// B-326 (D-119): an unmet requirement gives no scaling. Judged only for the actor using the skill: a
+				// reaction or counter hit by someone else keeps the skill's scaling as before.
+				const AActor *SkillUser = CurrentExecutionContext.IsSet() ? CurrentExecutionContext->Executor.Get() : nullptr;
+				const bool bJudgeRequirement = !SkillUser || SkillUser == Input.Attacker;
+				if (!bJudgeRequirement ||
+					!WeaponRequirement::IsUnmetFactor(GetSkillRequirementFactor(Input.Attacker, ChainSkillData)))
+				{
+					DmgInput.StatScaling = ChainSkillData->StatScaling;
+				}
 				DmgInput.IgnoreDefensePercent = ChainSkillData->IgnoreDefensePercent;
 			}
 
@@ -5647,7 +5690,9 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 	const USkillDataBase *ReqSkill = (Action.ActionType == EActionType::Spell)
 										 ? Action.SpellData
 										 : ResolveActionSkill(Action);
-	if (ReqSkill && CharComp->CharacterData)
+	// B-326 (D-119): an unmet requirement gives no pillar scaling (the flat factor cuts the skill part instead);
+	// a met one keeps today's over-requirement boost.
+	if (ReqSkill && CharComp->CharacterData && ReqSkill->Requirements.IsMetBy(FWorldPillarLevels::FromComponent(*CharComp)))
 	{
 		float MindPct = 0.0f, BodyPct = 0.0f, SpiritPct = 0.0f;
 		ReqSkill->Requirements.GetRequirementGapPillarPercents(FWorldPillarLevels::FromComponent(*CharComp), MindPct, BodyPct,

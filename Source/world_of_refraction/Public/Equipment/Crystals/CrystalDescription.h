@@ -25,6 +25,7 @@
 
 #include "CoreMinimal.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Equipment/Crystals/StatStone.h" // B-353
 #include "Inventory/ItemTier.h"
 #include "Equipment/Crystals/CrystalType.h"
 #include "Equipment/Crystals/ItemIdentity.h"
@@ -62,8 +63,9 @@ namespace CrystalDescription
      *  crystal kind. Gems: "A {tier-descriptor} {name-lowercase} crystal."
      *  Stones: "A {tier-descriptor} {Spaced Name}." — a stone is not a crystal,
      *  and its spaced display name (via GetTypeName) keeps its capitalization. */
-    inline FString GetCrystalText(const FCrystalId &Id)
+    inline FString GetCrystalText(const FCrystalId &InId)
     {
+        const FCrystalId Id = StatStone::AsRowId(InId); // B-353: a StatStone reads as its sub-stat's stone
         if (CrystalTypeHelpers::IsAugmentStoneType(Id.Type))
         {
             return FString::Printf(
@@ -82,8 +84,9 @@ namespace CrystalDescription
      *  and effect-count branches (Iolite). Reads CrystalEffectTable for
      *  numerics. Pluralises turn counts ("1 turn" vs "N turns") and returns
      *  a self-contained sentence ending in ".". */
-    inline FString GetItemEffectText(const FCrystalId &Id)
+    inline FString GetItemEffectText(const FCrystalId &InId)
     {
+        const FCrystalId Id = StatStone::AsRowId(InId); // B-353: a StatStone reads as its sub-stat's stone
         auto FormatTurns = [](int32 Count) -> FString
         {
             return FString::Printf(TEXT("%d %s"),
@@ -112,14 +115,13 @@ namespace CrystalDescription
 
         case ECrystalType::Emerald:
         {
-            const int32 BonusTurnDelay = CrystalEffectTable::GetEmeraldBonusTurnDelay(Id);
-            if (BonusTurnDelay == 0)
+            // B-341 (D-133): the bonus lands right after this turn at every tier; S grants two.
+            // TODO: FText (D-061): this whole description table is FString; convert with the real CommonUI inventory screen (D-024).
+            if (CrystalEffectTable::GetEmeraldBonusTurnCount(Id) > 1)
             {
-                return TEXT("Sacrifice your turn to grant the target a bonus turn immediately.");
+                return TEXT("Sacrifice your turn to grant the target two bonus turns immediately.");
             }
-            return FString::Printf(
-                TEXT("Sacrifice your turn to grant the target a bonus turn after %d turns."),
-                BonusTurnDelay);
+            return TEXT("Sacrifice your turn to grant the target a bonus turn immediately.");
         }
 
         case ECrystalType::Amber:

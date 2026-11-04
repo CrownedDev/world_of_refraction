@@ -6,6 +6,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AI/EAIDifficulty.h"
 #include "Combat/Encounter/EEncounterRank.h"
 #include "Inventory/ItemTier.h"
 #include "TrialGate.generated.h"
@@ -51,12 +52,12 @@ namespace TrialGate
 	 *  hard enemies hit (GetEnemyStrengthMultiplier), not how long they last. */
 	float GetEnemyHealthMultiplier(ETrialDifficulty Difficulty);
 
-	/** B-328 (D-120): a fight's enemy max-HP multiplier before rank and Combat Tier: the difficulty's only. The zone
-	 *  adds no HP (harder zones place higher-tier enemies instead, AEnemyZone::GetEnemyTierGuide). */
-	float GetFightEnemyHealthMultiplier(ETrialDifficulty Difficulty, int32 ZoneTier);
+	/** B-344 (D-136): the enemy AI tier a trial difficulty sets: Easy, Medium, Hard (Expert stays for bosses' later
+	 *  phases, B-193). */
+	EAIDifficulty GetEnemyAIDifficulty(ETrialDifficulty Difficulty);
 
-	/** B-328: a fight's enemy damage multiplier: the difficulty's only. D-120 (widened): the zone adds no damage either. */
-	float GetFightEnemyDamageMultiplier(ETrialDifficulty Difficulty, int32 ZoneTier);
+	/** B-344 (D-136, D-044): a fight's enemy AI tier: the trial's, unless the encounter overrides it. */
+	EAIDifficulty ResolveEncounterAIDifficulty(ETrialDifficulty TrialDifficulty, bool bOverride, EAIDifficulty Override);
 
 	/** The run's payout (D-006), × this. */
 	float GetPayoutMultiplier(ETrialDifficulty Difficulty);

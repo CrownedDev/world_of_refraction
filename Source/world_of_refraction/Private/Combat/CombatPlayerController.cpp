@@ -1,6 +1,10 @@
 // CombatPlayerController.cpp
 
 #include "Combat/CombatPlayerController.h"
+#include "Player/RunStateComponent.h"
+#include "Loadout/LoadoutComponent.h"
+#include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SpellData.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
@@ -14,6 +18,13 @@
 #include "HAL/IConsoleManager.h"
 #include "InputCoreTypes.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
+#include "Combat/CombatControl.h"
+#include "Combat/CombatOrchestrator.h"
+#include "Player/TurnStateComponent.h"
+#include "EngineUtils.h"
+#include "GameFramework/GameStateBase.h"
+#include "WoRAuthority.h"
+#include "WoRLog.h"
 
 namespace CombatMenuKeys
 {
@@ -44,6 +55,58 @@ namespace CombatMenuKeys
 		FConsoleCommandDelegate::CreateLambda([]()
 		{
 			UE_LOG(LogTemp, Display, TEXT("%s"), *ACombatPlayerController::GetMenuKeysString());
+		}));
+}
+
+namespace CombatInputRouting
+{
+	/** How far before the server's "now" a client's press may be stamped: covers the trip to the server.
+	 *  An older stamp is clamped to it, so a client can't claim an arbitrarily early press. */
+	constexpr double MAX_DEFENSE_INPUT_LATENCY_SECONDS = 0.5; // TODO: tune in 2-player PIE over a real connection
+	/** B-343 (D-135): one Dodge button; the direction only picks the dodge montage. */
+	constexpr EDefenseDirection DODGE_MONTAGE_DIRECTION = EDefenseDirection::Left;
+
+	/** Inputs kept per controller for `wor.Net.PrintInputs`. */
+	constexpr int32 MAX_RECENT_INPUTS = 8;
+
+	/** A press stamped 0 is "now" to UDefenseSystem::SubmitDefenseInput. */
+	constexpr double STAMP_NOW = 0.0;
+
+	FAutoConsoleCommandWithWorld GPrintInputsCmd(
+		TEXT("wor.Net.PrintInputs"),
+		TEXT("DEBUG (B-229): each combat player controller's last inputs handled on this machine (menu picks, defense presses), with verdict and origin. Run on the host to see a client's."),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+		{
+			int32 Count = 0;
+			for (TActorIterator<ACombatPlayerController> It(World); It; ++It)
+			{
+				UE_LOG(LogWoR, Log, TEXT("%s"), *It->GetInputDebugString());
+				++Count;
+			}
+			if (Count == 0)
+			{
+				UE_LOG(LogWoR, Log, TEXT("[CombatInput] no combat player controller in this world"));
+			}
+		}));
+
+	// Until a client builds its own command menu (B-228b), this is how a client makes a pick in 2-player PIE.
+	FAutoConsoleCommandWithWorld GSendDefendPickCmd(
+		TEXT("wor.Net.SendDefendPick"),
+		TEXT("DEBUG (B-229): pick Defend for the replicated current actor through this machine's combat controller (a client sends it to the server)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+		{
+			ACombatPlayerController *Controller = ACombatPlayerController::FindLocal(World);
+			const UTurnStateComponent *TurnState = UTurnStateComponent::Find(World);
+			AActor *CurrentActor = TurnState ? TurnState->GetCurrentActor() : nullptr;
+			if (!Controller || !CurrentActor)
+			{
+				UE_LOG(LogWoR, Warning, TEXT("[CombatInput] wor.Net.SendDefendPick: needs a combat controller (%s) and a current actor in the turn state (%s)"),
+					   Controller ? TEXT("ok") : TEXT("none"), *GetNameSafe(CurrentActor));
+				return;
+			}
+			FAction Defend;
+			Defend.ActionType = EActionType::Defend;
+			Controller->RequestMenuPick(FCombatPickRequest::FromAction(CurrentActor, Defend));
 		}));
 }
 
@@ -100,24 +163,16 @@ void ACombatPlayerController::SetupInputComponent()
 		return;
 	}
 
-	// Defense input — block / parry / dodge, each on press (Started). Routes straight
-	// to DefenseSystem::SubmitDefenseInput; no gating here — the subsystem ignores
-	// input when no defense window is open, so out-of-window presses are harmless.
+	// Defense input — B-343 (D-135): two buttons, Guard and Dodge, each on press (Started). No gating here: the
+	// DefenseSystem ignores input when no defense window is open. Parry and the right dodge are no longer bound
+	// (their .uasset actions are removed in the editor later).
 	if (BlockAction)
 	{
 		EnhancedInput->BindAction(BlockAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnBlock);
 	}
-	if (ParryAction)
-	{
-		EnhancedInput->BindAction(ParryAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnParry);
-	}
 	if (DodgeLeftAction)
 	{
-		EnhancedInput->BindAction(DodgeLeftAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnDodgeLeft);
-	}
-	if (DodgeRightAction)
-	{
-		EnhancedInput->BindAction(DodgeRightAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnDodgeRight);
+		EnhancedInput->BindAction(DodgeLeftAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnDodge);
 	}
 
 	BuildMenuKeys();
@@ -135,56 +190,245 @@ void ACombatPlayerController::SetupInputComponent()
 // Defense input resolves the defender from the DefenseSystem (the player's open-window
 // character), NOT GetPawn() — the PC possesses nothing in this combat model. Null defender
 // (no window open) is a harmless no-op. SINGLE-TARGET seed; multi-target is Stage 6 (§13).
+// B-229: each press goes through RequestDefenseInput, so a client's press reaches the server.
 void ACombatPlayerController::OnBlock(const FInputActionValue &Value)
 {
-	if (UDefenseSystem *DefenseSys = GetDefenseSystem())
+	UE_LOG(LogTemp, Log, TEXT("[CombatPC] Guard pressed"));
+	RequestDefenseInput(EDefenseType::Block, EDefenseDirection::None);
+}
+
+void ACombatPlayerController::OnDodge(const FInputActionValue &Value)
+{
+	UE_LOG(LogTemp, Log, TEXT("[CombatPC] Dodge pressed"));
+	// D-135: one Dodge. The direction only picks the dodge montage (DefenseSystem::PlayDefenseMontage).
+	RequestDefenseInput(EDefenseType::Dodge, CombatInputRouting::DODGE_MONTAGE_DIRECTION);
+}
+
+// ========================================
+// CO-OP INPUT ROUTING (B-229)
+// ========================================
+
+void ACombatPlayerController::RequestDefenseInput(EDefenseType DefenseType, EDefenseDirection Direction)
+{
+	if (WoRAuthority::HasAuthority(this))
 	{
-		AActor *Defender = DefenseSys->GetActiveDefenderForLocalPlayer();
-		UE_LOG(LogTemp, Log, TEXT("[CombatPC] Guard pressed — defender: %s"), *GetNameSafe(Defender));
-		if (Defender)
+		HandleDefenseInput(DefenseType, Direction, CombatInputRouting::STAMP_NOW);
+		return;
+	}
+	// The client's own DefenseSystem has no windows (the server opens them), so the server picks the defender.
+	const UWorld *World = GetWorld();
+	const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
+	const double PressServerTime = GameState ? GameState->GetServerWorldTimeSeconds() : CombatInputRouting::STAMP_NOW;
+	Server_SubmitDefenseInput(DefenseType, Direction, PressServerTime);
+}
+
+ECombatInputVerdict ACombatPlayerController::HandleDefenseInput(EDefenseType DefenseType, EDefenseDirection Direction,
+																double PressServerTime, bool bFromClient)
+{
+	const FString Description = FString::Printf(TEXT("Defense %s %s"), *UEnum::GetValueAsString(DefenseType),
+												*UEnum::GetValueAsString(Direction));
+	UDefenseSystem *DefenseSys = GetDefenseSystem();
+	// TODO(B-232): the defender this sender controls, not the first open-window player defender.
+	AActor *Defender = DefenseSys ? DefenseSys->GetActiveDefenderForLocalPlayer() : nullptr;
+	if (!Defender)
+	{
+		RecordInput(Description, ECombatInputVerdict::NoActor, bFromClient);
+		return ECombatInputVerdict::NoActor;
+	}
+	const FString ForDefender = FString::Printf(TEXT("%s for %s"), *Description, *Defender->GetName());
+	if (!ControlsActor(this, Defender))
+	{
+		RecordInput(ForDefender, ECombatInputVerdict::NotControlled, bFromClient);
+		return ECombatInputVerdict::NotControlled;
+	}
+
+	double InputTime = CombatInputRouting::STAMP_NOW;
+	if (PressServerTime != CombatInputRouting::STAMP_NOW)
+	{
+		const double Now = UDefenseSystem::GetDefenseClockSeconds(this);
+		// A modified client could stamp up to the latency cap early for extra Perfect Guard time: accepted for shared
+		// co-op (TODO: B-231 judges remote presses on the server clock).
+		InputTime = FMath::Clamp(PressServerTime, Now - CombatInputRouting::MAX_DEFENSE_INPUT_LATENCY_SECONDS, Now);
+	}
+	DefenseSys->SubmitDefenseInput(Defender, DefenseType, Direction, InputTime);
+	RecordInput(ForDefender, ECombatInputVerdict::Accepted, bFromClient);
+	return ECombatInputVerdict::Accepted;
+}
+
+bool ACombatPlayerController::Server_SubmitDefenseInput_Validate(EDefenseType DefenseType, EDefenseDirection Direction,
+																 double PressServerTime)
+{
+	const UEnum *TypeEnum = StaticEnum<EDefenseType>();
+	const UEnum *DirectionEnum = StaticEnum<EDefenseDirection>();
+	// IsValidEnumValue also accepts the generated _MAX entry; refuse it.
+	return TypeEnum && TypeEnum->IsValidEnumValue(static_cast<int64>(DefenseType)) &&
+		   static_cast<int64>(DefenseType) < TypeEnum->GetMaxEnumValue() && DirectionEnum &&
+		   DirectionEnum->IsValidEnumValue(static_cast<int64>(Direction)) &&
+		   static_cast<int64>(Direction) < DirectionEnum->GetMaxEnumValue() && FMath::IsFinite(PressServerTime);
+}
+
+void ACombatPlayerController::Server_SubmitDefenseInput_Implementation(EDefenseType DefenseType,
+																	   EDefenseDirection Direction,
+																	   double PressServerTime)
+{
+	HandleDefenseInput(DefenseType, Direction, PressServerTime, true);
+}
+
+void ACombatPlayerController::RequestMenuPick(const FCombatPickRequest &Pick)
+{
+	if (WoRAuthority::HasAuthority(this))
+	{
+		HandleMenuPick(Pick);
+		return;
+	}
+	UE_LOG(LogWoR, Verbose, TEXT("[CombatInput] sending pick to the server: %s"), *Pick.GetDebugString());
+	Server_SubmitMenuPick(Pick);
+}
+
+namespace
+{
+	/** A client's pick may only use a spell or ability its character's loadout offers (any loaded asset otherwise,
+	 *  boss skills included). No loadout (headless harness): nothing to check against. */
+	bool OffersPickedSkill(const FCombatPickRequest &Pick)
+	{
+		const ULoadoutComponent *Loadout = Pick.Actor ? Pick.Actor->FindComponentByClass<ULoadoutComponent>() : nullptr;
+		if (!Loadout)
 		{
-			DefenseSys->SubmitDefenseInput(Defender, EDefenseType::Block, EDefenseDirection::None);
+			return true;
 		}
+		if (Pick.ActionType == EActionType::Spell)
+		{
+			return Pick.SpellData && Loadout->GetAvailableSpells().Contains(Pick.SpellData.Get());
+		}
+		if (Pick.ActionType == EActionType::Ability && Pick.SkillData)
+		{
+			const USkillDataBase *Skill = Pick.SkillData.Get();
+			return Loadout->GetAvailableAbilities().ContainsByPredicate([Skill](const UAbilityData *Each) { return Each == Skill; }) ||
+				   Loadout->GetAllWeaponAttacks().Contains(const_cast<USkillDataBase *>(Skill));
+		}
+		return true; // Defend, items (the executor checks the pouch), a basic attack with no skill
 	}
 }
 
-void ACombatPlayerController::OnParry(const FInputActionValue &Value)
+ECombatInputVerdict ACombatPlayerController::HandleMenuPick(const FCombatPickRequest &Pick, bool bFromClient)
 {
-	if (UDefenseSystem *DefenseSys = GetDefenseSystem())
+	ECombatInputVerdict Verdict = ECombatInputVerdict::Accepted;
+	ACombatOrchestrator *Orchestrator = nullptr;
+	if (!Pick.Actor)
 	{
-		AActor *Defender = DefenseSys->GetActiveDefenderForLocalPlayer();
-		UE_LOG(LogTemp, Log, TEXT("[CombatPC] Parry key pressed (a Guard, D-084) — defender: %s"), *GetNameSafe(Defender));
-		if (Defender)
+		Verdict = ECombatInputVerdict::NoActor;
+	}
+	else if (!ControlsActor(this, Pick.Actor, bFromClient))
+	{
+		Verdict = ECombatInputVerdict::NotControlled;
+	}
+	else
+	{
+		Orchestrator = FindActiveOrchestrator();
+		if (!Orchestrator)
 		{
-			DefenseSys->SubmitDefenseInput(Defender, EDefenseType::Parry, EDefenseDirection::None);
+			Verdict = ECombatInputVerdict::NoCombat;
+		}
+		else if (!Orchestrator->IsActorsTurn(Pick.Actor))
+		{
+			Verdict = ECombatInputVerdict::NotTheirTurn;
+		}
+		else if (Orchestrator->IsWaitingForAsyncAction())
+		{
+			Verdict = ECombatInputVerdict::Busy;
+		}
+		else if (bFromClient && !OffersPickedSkill(Pick))
+		{
+			Verdict = ECombatInputVerdict::NotOffered;
 		}
 	}
+
+	RecordInput(TEXT("Pick ") + Pick.GetDebugString(), Verdict, bFromClient);
+	if (Verdict == ECombatInputVerdict::Accepted)
+	{
+		Orchestrator->SubmitActionAsync(Pick.ToAction());
+	}
+	return Verdict;
 }
 
-void ACombatPlayerController::OnDodgeLeft(const FInputActionValue &Value)
+bool ACombatPlayerController::Server_SubmitMenuPick_Validate(const FCombatPickRequest &Pick)
 {
-	if (UDefenseSystem *DefenseSys = GetDefenseSystem())
-	{
-		AActor *Defender = DefenseSys->GetActiveDefenderForLocalPlayer();
-		UE_LOG(LogTemp, Log, TEXT("[CombatPC] DodgeLeft pressed — defender: %s"), *GetNameSafe(Defender));
-		if (Defender)
-		{
-			DefenseSys->SubmitDefenseInput(Defender, EDefenseType::Dodge, EDefenseDirection::Left);
-		}
-	}
+	return Pick.HasValidEnums();
 }
 
-void ACombatPlayerController::OnDodgeRight(const FInputActionValue &Value)
+void ACombatPlayerController::Server_SubmitMenuPick_Implementation(const FCombatPickRequest &Pick)
 {
-	if (UDefenseSystem *DefenseSys = GetDefenseSystem())
+	HandleMenuPick(Pick, true);
+}
+
+bool ACombatPlayerController::ControlsActor(const AController *Sender, const AActor *Actor, bool bFromClient)
+{
+	if (!Sender || !Actor)
 	{
-		AActor *Defender = DefenseSys->GetActiveDefenderForLocalPlayer();
-		UE_LOG(LogTemp, Log, TEXT("[CombatPC] DodgeRight pressed — defender: %s"), *GetNameSafe(Defender));
-		if (Defender)
+		return false;
+	}
+	if (Sender->GetPawn() == Actor || Actor->GetOwner() == Sender)
+	{
+		return true;
+	}
+	// B-232 (Q-21-audit): a roster member follows the seat rule; Q-229b's shared control ends for the roster.
+	if (const URunStateComponent *Run = URunStateComponent::Find(Sender); Run && Run->FindRosterEntry(Actor))
+	{
+		return Run->IsCommandedBy(Actor, Sender);
+	}
+	// Off the roster (no GameState run state, a test actor): any player-driven combatant. A non-pawn combatant (the test
+	// harness's) counts as player-driven, as in the orchestrator, but only for a pick made here: a remote client may
+	// only name a pawn (B-229).
+	const APawn *Pawn = Cast<APawn>(Actor);
+	return Pawn ? CombatControl::IsPlayerDriven(Pawn) : !bFromClient;
+}
+
+ACombatPlayerController *ACombatPlayerController::FindLocal(const UObject *WorldContext)
+{
+	UWorld *World = WorldContext ? WorldContext->GetWorld() : nullptr;
+	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	return GI ? Cast<ACombatPlayerController>(GI->GetFirstLocalPlayerController(World)) : nullptr;
+}
+
+ACombatOrchestrator *ACombatPlayerController::FindActiveOrchestrator() const
+{
+	for (TActorIterator<ACombatOrchestrator> It(GetWorld()); It; ++It)
+	{
+		if (It->GetCombatState() == ECombatState::InProgress)
 		{
-			DefenseSys->SubmitDefenseInput(Defender, EDefenseType::Dodge, EDefenseDirection::Right);
+			return *It;
 		}
 	}
+	return nullptr;
+}
+
+void ACombatPlayerController::RecordInput(const FString &Description, ECombatInputVerdict Verdict, bool bFromClient)
+{
+	FCombatInputRecord Record;
+	Record.Description = Description;
+	Record.Verdict = Verdict;
+	Record.bFromClient = bFromClient;
+	Record.ServerTime = UDefenseSystem::GetDefenseClockSeconds(this);
+	if (RecentInputs.Num() >= CombatInputRouting::MAX_RECENT_INPUTS)
+	{
+		RecentInputs.RemoveAt(0);
+	}
+	RecentInputs.Add(Record);
+	UE_LOG(LogWoR, Log, TEXT("[CombatInput] %s %s %s: %s"), *GetName(),
+		   bFromClient ? TEXT("client RPC") : TEXT("local"), *Description, *UEnum::GetValueAsString(Verdict));
+}
+
+FString ACombatPlayerController::GetInputDebugString() const
+{
+	FString Out = FString::Printf(TEXT("[CombatInput] %s (%s), %d recent input(s)"), *GetName(),
+								  IsLocalController() ? TEXT("local") : TEXT("remote"), RecentInputs.Num());
+	for (const FCombatInputRecord &Record : RecentInputs)
+	{
+		Out += FString::Printf(TEXT("\n  %.2fs %s %s -> %s"), Record.ServerTime,
+							   Record.bFromClient ? TEXT("[client]") : TEXT("[local]"), *Record.Description,
+							   *UEnum::GetValueAsString(Record.Verdict));
+	}
+	return Out;
 }
 
 // ========================================

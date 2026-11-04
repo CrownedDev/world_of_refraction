@@ -1,6 +1,7 @@
 // EconomyService.cpp
 
 #include "Currency/EconomyService.h"
+#include "Equipment/Crystals/FFusionId.h" // FusionRules (B-352)
 #include "Currency/EconomyYield.h"
 #include "Currency/CurrencyComponent.h"
 #include "Currency/CurrencyWallet.h"
@@ -34,6 +35,10 @@
 #include "HAL/IConsoleManager.h"
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryUnlock.h"
+#include "Pool/PoolSubsystem.h" // B-314: home pieces on the run can't be sold or dismantled
+#include "Inventory/GearGive.h"  // B-316: buy-for hands the bought gear over
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
 
 namespace
 {
@@ -119,6 +124,22 @@ namespace
         return true;
     }
 
+    /** B-314 (Q-314b) / B-347: while a run is open, only run-only gear can be sold or dismantled. A home piece, on the
+     *  run or left home (D-137 takes only the worn loadout), waits for the run's end (it comes back restored, D-111). */
+    bool EconomyRefusesOnRun(const AActor *Owner, const FGuid &GearID, const TCHAR *Op)
+    {
+        const UWorld *World = Owner ? Owner->GetWorld() : nullptr;
+        const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+        const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+        if (!Pool || !Pool->IsRunLayerActive() || Pool->IsRunOnly(GearID))
+        {
+            return false;
+        }
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s refused: GUID %s is a home piece and a run is under way - it can go once the run ends (Q-314b)"),
+               Op, *GearID.ToString());
+        return true;
+    }
+
     /** D-016: take the instance out of every saved loadout; tell listeners when the active one changed. */
     void EconomyStripFromLoadouts(AActor *Owner, UInventoryComponent *Inv, const FGuid &PersistentID)
     {
@@ -198,7 +219,8 @@ bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int3
         return false;
     }
 
-    const EEssenceType EssenceType = EconomyYield::ResolveEssenceType(Id);
+    // B-333 (D-125): a gem pays Elemental, a stat stone Pillar, an ability stone Skill.
+    const ECurrencyType Essence = EconomyYield::GetCrystalEssence(Id.Type);
 
     // REMOVE FIRST — a failed/partial removal must never grant phantom essence.
     const int32 Removed = Inv->RemoveCrystal(Id, Count);
@@ -212,11 +234,11 @@ bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int3
     // Grant essence sized to what was ACTUALLY removed (== Count after the availability check;
     // using Removed keeps the grant honest if removal ever clamps below Count).
     const int32 Yield = EconomyYield::GetTypedEssenceYieldForTier(Id.Tier) * Removed;
-    Currency->AddEssenceType(EssenceType, Yield);
+    Currency->Add(Essence, Yield);
 
-    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Dismantled %dx %s -> %d essence (type %s)"),
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Dismantled %dx %s -> %d %s"),
            Removed, *ItemIdentity::GetDisplayName(Id), Yield,
-           *StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(EssenceType)));
+           *StaticEnum<ECurrencyType>()->GetAuthoredNameStringByValue(static_cast<int64>(Essence)));
     return true;
 }
 
@@ -436,7 +458,7 @@ bool UEconomyService::DismantleOwnedGear(AActor *Owner, FGuid PersistentID, cons
     {
         return false;
     }
-    if (EconomyRefusesPrimary(*Inv, PersistentID, Verb))
+    if (EconomyRefusesPrimary(*Inv, PersistentID, Verb) || EconomyRefusesOnRun(Owner, PersistentID, Verb))
     {
         return false;
     }
@@ -534,7 +556,7 @@ namespace
     {
         const TCHAR *Verb = TEXT("ResolveDuplicate");
         const TEntry *Entry = FindOwnedGearForVerb<TEntry>(Owner, Inv, PersistentID, Verb);
-        if (!Entry || EconomyRefusesPrimary(Inv, PersistentID, Verb))
+        if (!Entry || EconomyRefusesPrimary(Inv, PersistentID, Verb) || EconomyRefusesOnRun(Owner, PersistentID, Verb))
         {
             return false;
         }
@@ -665,15 +687,17 @@ bool UEconomyService::DismantleEvolution(AActor *Owner, FGuid InstanceID)
                *Owner->GetName(), *InstanceID.ToString());
         return false;
     }
-    if (EconomyRefusesPrimary(*Inv, InstanceID, TEXT("DismantleEvolution")))
+    if (EconomyRefusesPrimary(*Inv, InstanceID, TEXT("DismantleEvolution")) || EconomyRefusesOnRun(Owner, InstanceID, TEXT("DismantleEvolution")))
     {
         return false;
     }
     const EItemTier Tier = Entry->Tier; // INSTANCE tier (leveled), not Entry->Item->Tier (asset/base)
-    // HYBRID yield: the evolution's ELEMENT essence TYPE at the GEAR leveling AMOUNT (§3 gear curve,
-    // NOT the §4.2 crystal yield). An element-agnostic evolution (Quartz/None) maps to Generic.
-    const EEssenceType EssenceType = EconomyYield::ElementToEssenceType(Entry->Item->GetAssociatedElement());
+    // HYBRID yield at the GEAR leveling AMOUNT (§3 gear curve, NOT the §4.2 crystal yield): Elemental
+    // Essence for an evolution with an element (B-333, Q-333), Gear Essence for an element-agnostic one.
     const int32 Yield = EconomyYield::GetLevelingEssenceYieldForTier(Tier);
+    const ECurrencyType Essence = EconomyYield::HasElement(Entry->Item->GetAssociatedElement())
+                                      ? ECurrencyType::ElementalEssence
+                                      : ECurrencyType::GearEssence;
 
     // REMOVE FIRST — a failed removal must never grant phantom essence.
     if (!Inv->RemoveEvolutionInstance(InstanceID))
@@ -683,10 +707,10 @@ bool UEconomyService::DismantleEvolution(AActor *Owner, FGuid InstanceID)
         return false;
     }
 
-    Currency->AddEssenceType(EssenceType, Yield); // hybrid: element type, gear amount
-    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Dismantled evolution (GUID %s, tier %d) -> %d %s essence"),
+    Currency->Add(Essence, Yield); // hybrid: Elemental (or Gear), gear amount
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Dismantled evolution (GUID %s, tier %d) -> %d %s"),
            *InstanceID.ToString(), static_cast<int32>(Tier), Yield,
-           *StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(EssenceType)));
+           *StaticEnum<ECurrencyType>()->GetAuthoredNameStringByValue(static_cast<int64>(Essence)));
     return true;
 }
 
@@ -716,8 +740,10 @@ bool UEconomyService::RemovePrimaryEvolution(AActor *Owner)
     }
 
     // D-116: this always empties the primary, so it waits for another primary to be swapped in.
+    // B-314: refuse a home piece on the run here, before the slot is cleared, so the refusal is whole.
     const UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    if (Inv && EconomyRefusesPrimary(*Inv, InstanceID, TEXT("RemovePrimaryEvolution")))
+    if ((Inv && EconomyRefusesPrimary(*Inv, InstanceID, TEXT("RemovePrimaryEvolution"))) ||
+        EconomyRefusesOnRun(Owner, InstanceID, TEXT("RemovePrimaryEvolution")))
     {
         return false;
     }
@@ -816,8 +842,16 @@ namespace
             // (IsDataValid flags it upstream).
             return Attached.Evolution ? 2 * EconomyYield::GetPrismsBaseForTier(Attached.Evolution->Tier) : 0;
         case EAttachedItemKind::Fusion:
-            return FMath::RoundToInt(1.5f * (EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfATier) +
-                                             EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfBTier)));
+            if constexpr (FusionRules::RETIRED)
+            {
+                return 0; // B-352 (D-141): an authored fusion no longer attaches, so it adds nothing to the price
+            }
+            else
+            {
+                // OBSOLETE (B-352, D-141; delete in the D-124 sweep): fusion pricing.
+                return FMath::RoundToInt(1.5f * (EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfATier) +
+                                                 EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfBTier)));
+            }
         default:
             return 0;
         }
@@ -856,8 +890,15 @@ namespace
         case EAttachedItemKind::AugmentStone:
             return true;
         case EAttachedItemKind::Fusion:
-            return Attached.FusionHalfAType == ECrystalType::AbilityStone ||
-                   (!Attached.bFusionHalfBIsCrystal && Attached.FusionHalfBType == ECrystalType::AbilityStone);
+            if constexpr (FusionRules::RETIRED)
+            {
+                return false; // B-352 (D-141): no fusion attaches
+            }
+            else
+            {
+                return Attached.FusionHalfAType == ECrystalType::AbilityStone || // OBSOLETE (B-352)
+                       (!Attached.bFusionHalfBIsCrystal && Attached.FusionHalfBType == ECrystalType::AbilityStone);
+            }
         default:
             return false;
         }
@@ -871,9 +912,12 @@ FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &
     {
         if (E.IsCrystalEntry())
         {
-            // Crystals are Prisms-only (Crown): no typed-essence charge for gems,
-            // augment stones, or Quartz — essence stays a dismantle-side currency here.
-            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(E.Crystal.Tier) * FMath::Max(1, E.Count);
+            // B-333 (D-125, Q-333): Prisms + its own essence at tier, per unit — a gem (Quartz too)
+            // Elemental, a stat stone Pillar, an ability stone Skill.
+            const int32 Units = FMath::Max(1, E.Count);
+            Cost.Prisms += EconomyYield::GetPrismsBaseForTier(E.Crystal.Tier) * Units;
+            Cost.AddEssence(EconomyYield::GetCrystalEssence(E.Crystal.Type),
+                            EconomyYield::GetTypedEssencePurchaseCostForTier(E.Crystal.Tier) * Units);
             continue;
         }
         if (!E.IsAssetEntry())
@@ -917,18 +961,21 @@ FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &
         {
             // Count clamps to 1 for all spells (a spell can't be owned twice).
             Cost.Prisms += EconomyYield::GetPrismsBaseForTier(S->Tier);
-            // One rule for every spell (§4.4 + §5, D-105): base + surcharge + the element's essence + pillar
-            // essence per scaling grade. A Generic spell's essence is Quartz (EEssenceType::Generic).
-            Cost.AddTyped(EconomyYield::ElementToEssenceType(S->Element),
-                          EconomyYield::GetTypedEssencePurchaseCostForTier(S->Tier));
+            // B-333 (D-125): a spell costs Skill + Elemental at its tier; a None (non-elemental) spell
+            // Skill only (Q-333). Generic counts as elemental (Quartz folded into Elemental, changes D-105).
+            // The +50 Prisms per scaling grade stays; the pillar essence per grade retired.
+            const int32 EssenceAtTier = EconomyYield::GetTypedEssencePurchaseCostForTier(S->Tier);
+            Cost.SkillEssence += EssenceAtTier;
+            if (EconomyYield::SpellHasElement(S->Element))
+            {
+                Cost.ElementalEssence += EssenceAtTier;
+            }
             for (const FStatScaling &Sc : S->StatScaling)
             {
                 if (Sc.Stat == ESubStat::None)
                 {
                     continue;
                 }
-                Cost.AddTyped(EconomyYield::SubStatToPillarEssence(Sc.Stat),
-                              EconomyYield::GetTypedEssencePurchaseCostForTier(EconomyYield::ScalingGradeToItemTier(Sc.Tier)));
                 Cost.Prisms += EconomyYield::Constants::PRISMS_SCALING_SURCHARGE_PER_GRADE *
                                EconomyYield::GetScalingGradeNumber(Sc.Tier);
             }
@@ -944,13 +991,204 @@ FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &
             // HERE, not in a shared helper, so a future merge-cost reuse of the tier
             // base can't accidentally double it.
             Cost.Prisms += 2 * EconomyYield::GetPrismsBaseForTier(Ev->Tier);
-            const int32 ElementAmount = EconomyYield::GetTypedEssencePurchaseCostForTier(Ev->Tier);
-            Cost.AddTyped(EconomyYield::ElementToEssenceType(Ev->GetAssociatedElement()), ElementAmount);
-            Cost.AddTyped(EEssenceType::Reality, ElementAmount / 2); // ½ Reality co-cost (mirrors leveling)
+            // B-333 (Q-333): an evolution with an element adds Elemental at tier + the ½ co-cost (was
+            // ½ Reality), mirroring leveling; an element-agnostic one is Prisms only.
+            if (EconomyYield::HasElement(Ev->GetAssociatedElement()))
+            {
+                const int32 ElementAmount = EconomyYield::GetTypedEssencePurchaseCostForTier(Ev->Tier);
+                Cost.ElementalEssence += ElementAmount + EconomyYield::GetElementalCoCost(ElementAmount);
+            }
         }
         // Unknown asset types price at 0 — Purchase rejects them separately.
     }
     return Cost;
+}
+
+namespace
+{
+    /** B-316: the local party member with Key, or null. */
+    const FPartyMember *BuyForMemberOf(const AActor *Payer, FName Key)
+    {
+        const UWorld *World = Payer ? Payer->GetWorld() : nullptr;
+        const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+        const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+        const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+        return Party ? Party->Members.FindByPredicate([Key](const FPartyMember &Member)
+                                                      { return Member.CharacterData && UPoolSubsystem::GetCharacterKey(Member.CharacterData) == Key; })
+                     : nullptr;
+    }
+
+    /** B-316: the receiver's armoury and pouch can take the whole cart (the purchase's own checks read the payer). Logs
+     *  the first shortfall. */
+    bool BuyForReceiverHasRoom(const UPoolSubsystem &Pool, FName ForKey, const TArray<FMerchantStockEntry> &Items)
+    {
+        int32 WeaponCost = 0;
+        int32 AdapterCost = 0;
+        TMap<FCrystalId, int32> ItemDemand;
+        for (const FMerchantStockEntry &Entry : Items)
+        {
+            const int32 Count = FMath::Max(1, Entry.Count);
+            if (Entry.IsCrystalEntry())
+            {
+                ItemDemand.FindOrAdd(Entry.Crystal) += Count;
+            }
+            else if (Cast<UWeaponData>(Entry.Asset.Get()))
+            {
+                WeaponCost += Count * InventoryConstants::WEAPON_BASE_SLOT_COST;
+            }
+            else if (Cast<URingData>(Entry.Asset.Get()))
+            {
+                AdapterCost += Count * InventoryConstants::RING_BASE_SLOT_COST;
+            }
+        }
+        const FPoolGearView Owned = Pool.GetOwnedGearOf(ForKey);
+        for (const FWeaponInventoryEntry *Weapon : Owned.Weapons)
+        {
+            WeaponCost += Weapon->GetSlotCost();
+        }
+        for (const FRingInventoryEntry *Adapter : Owned.Adapters)
+        {
+            AdapterCost += Adapter->GetSlotCost();
+        }
+        if (WeaponCost > InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS || AdapterCost > InventoryConstants::MAX_RING_INVENTORY_SLOTS)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s has no room for the gear - refused, nothing spent"), *ForKey.ToString());
+            return false;
+        }
+        // One item type per slot (D-097): each new type needs a free slot, and each type's stack its room.
+        int32 NewSlots = 0;
+        for (const TPair<FCrystalId, int32> &Demand : ItemDemand)
+        {
+            NewSlots += Pool.GetCarriedCount(ForKey, Demand.Key) > 0 ? 0 : 1;
+            if (Pool.GetCarryRoom(ForKey, Demand.Key) < Demand.Value)
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s's pouch can't take %d %s - refused, nothing spent"),
+                       *ForKey.ToString(), Demand.Value, *ItemIdentity::GetDisplayName(Demand.Key));
+                return false;
+            }
+        }
+        if (Pool.GetUsedItemSlots(ForKey) + NewSlots > Pool.GetItemSlotCount(ForKey))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s's pouch has too few free slots - refused, nothing spent"), *ForKey.ToString());
+            return false;
+        }
+        return true;
+    }
+
+    /** B-316: every weapon and adapter ID in the store. */
+    TSet<FGuid> BuyForGearIDs(const UPoolSubsystem &Pool)
+    {
+        TSet<FGuid> IDs;
+        for (const FWeaponInventoryEntry &Entry : Pool.GetOwnedWeapons())
+        {
+            IDs.Add(Entry.PersistentID);
+        }
+        for (const FRingInventoryEntry &Entry : Pool.GetOwnedRings())
+        {
+            IDs.Add(Entry.PersistentID);
+        }
+        return IDs;
+    }
+}
+
+bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMerchantStockEntry> &Items)
+{
+    const UCharacterDataComponent *PayerChar = Payer ? Payer->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    const FName PayerKey = UPoolSubsystem::GetCharacterKey(PayerChar ? PayerChar->CharacterData : nullptr);
+    if (ForKey.IsNone() || ForKey == PayerKey)
+    {
+        return Purchase(Payer, Items);
+    }
+    UWorld *World = Payer ? Payer->GetWorld() : nullptr;
+    const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+    UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+    const FPartyMember *Receiver = BuyForMemberOf(Payer, ForKey);
+    if (PayerKey.IsNone())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s has no character (no UCharacterDataComponent), so it can't hand goods to another member - refused"),
+               *GetNameSafe(Payer));
+        return false;
+    }
+    if (!Pool || !Receiver)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s is not a party member the payer can buy for - refused"), *ForKey.ToString());
+        return false;
+    }
+    for (const FMerchantStockEntry &Entry : Items)
+    {
+        const UPrimaryDataAsset *Asset = Entry.IsAssetEntry() ? Entry.Asset.Get() : nullptr;
+        if (Cast<USpellData>(Asset) || Cast<UAbilityData>(Asset) || Cast<UEvolutionItemData>(Asset))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s can't be bought for another character yet (B-316b) - refused"),
+                   *GetNameSafe(Asset));
+            return false;
+        }
+        if (Receiver->bRunOnly && (Cast<UWeaponData>(Asset) || Cast<URingData>(Asset)))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s is only here for the run and can't own gear (Q-321) - refused"),
+                   *ForKey.ToString());
+            return false;
+        }
+    }
+
+    if (!BuyForReceiverHasRoom(*Pool, ForKey, Items))
+    {
+        return false;
+    }
+
+    const TSet<FGuid> GearBefore = BuyForGearIDs(*Pool);
+    const TMap<FCrystalId, int32> CarriedBefore = Pool->GetCarriedItems(PayerKey);
+    // The goods pass through the payer: its own copy of one is no duplicate for it to resolve (the receiver's is).
+    UInventoryComponent *PayerInv = Payer->FindComponentByClass<UInventoryComponent>();
+    const bool bWasQuiet = PayerInv && PayerInv->bSuppressDuplicateNotice;
+    if (PayerInv)
+    {
+        PayerInv->bSuppressDuplicateNotice = true;
+    }
+    const bool bBought = Purchase(Payer, Items);
+    if (PayerInv)
+    {
+        PayerInv->bSuppressDuplicateNotice = bWasQuiet;
+    }
+    if (!bBought)
+    {
+        return false;
+    }
+
+    // The new pieces are the payer's (PushGearToPool): each becomes the receiver's.
+    int32 GearMoved = 0;
+    for (const FGuid &ID : BuyForGearIDs(*Pool).Difference(GearBefore))
+    {
+        const FText Refusal = WoRGive::TryGiveGear(World, Pool->GetGearOwner(ID), ForKey, ID);
+        if (Refusal.IsEmpty())
+        {
+            ++GearMoved;
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s stays with the payer: %s"), *ID.ToString(), *Refusal.ToString());
+        }
+    }
+    // Crystals and stones the purchase put in the payer's pouch move to the receiver's, as many as fit.
+    int32 ItemsMoved = 0;
+    for (const TPair<FCrystalId, int32> &Stack : TMap<FCrystalId, int32>(Pool->GetCarriedItems(PayerKey)))
+    {
+        const int32 *Before = CarriedBefore.Find(Stack.Key);
+        const int32 Bought = Stack.Value - (Before ? *Before : 0);
+        const int32 Moving = FMath::Min(Bought, Pool->GetCarryRoom(ForKey, Stack.Key));
+        if (Moving > 0 && Pool->GiveCarried(PayerKey, ForKey, Stack.Key, Moving))
+        {
+            ItemsMoved += Moving;
+        }
+        if (Bought > Moving)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %d %s didn't fit %s's pouch (or went to storage) - left with the payer"),
+                   Bought - Moving, *ItemIdentity::GetDisplayName(Stack.Key), *ForKey.ToString());
+        }
+    }
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] %s bought for %s: %d piece(s) of gear and %d item(s) handed over"), *PayerKey.ToString(),
+           *ForKey.ToString(), GearMoved, ItemsMoved);
+    return true;
 }
 
 FPurchaseCost UEconomyService::PreviewCartCost(const TArray<FMerchantStockEntry> &Items) const
@@ -1095,48 +1333,29 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
     }
 
     // ============ AFFORDABILITY — every currency once, spend nothing if any is short ============
-    if (!Currency->CanAfford(ECurrencyType::Prisms, Cost.Prisms))
+    // B-333: Prisms always (a zero-Prisms cart is refused, as before); each essence only when charged.
+    for (const ECurrencyType Balance : PurchaseCostBalances::CHARGED)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s cannot afford %d Prisms — aborting."), *Owner->GetName(), Cost.Prisms);
-        return false;
-    }
-    if (Cost.SkillEssence > 0 && !Currency->CanAfford(ECurrencyType::SkillEssence, Cost.SkillEssence))
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s cannot afford %d SkillEssence — aborting."), *Owner->GetName(), Cost.SkillEssence);
-        return false;
-    }
-    for (const TPair<EEssenceType, int32> &Pair : Cost.Typed)
-    {
-        if (!Currency->CanAfford(ECurrencyType::EssenceTyped, Pair.Value, static_cast<uint8>(Pair.Key)))
+        const int32 Amount = Cost.Get(Balance);
+        if ((Balance == ECurrencyType::Prisms || Amount > 0) && !Currency->CanAfford(Balance, Amount))
         {
-            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s cannot afford %d %s essence — aborting."),
-                   *Owner->GetName(), Pair.Value,
-                   *StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(Pair.Key)));
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s cannot afford %d %s — aborting."), *Owner->GetName(),
+                   Amount, *StaticEnum<ECurrencyType>()->GetAuthoredNameStringByValue(static_cast<int64>(Balance)));
             return false;
         }
     }
 
     // ============ SPEND — every currency once (all pre-cleared above) ============
-    Currency->Spend(ECurrencyType::Prisms, Cost.Prisms);
-    if (Cost.SkillEssence > 0)
+    for (const ECurrencyType Balance : PurchaseCostBalances::CHARGED)
     {
-        Currency->Spend(ECurrencyType::SkillEssence, Cost.SkillEssence);
-    }
-    for (const TPair<EEssenceType, int32> &Pair : Cost.Typed)
-    {
-        Currency->SpendEssenceType(Pair.Key, Pair.Value);
+        Currency->Spend(Balance, Cost.Get(Balance)); // a zero amount is a no-op
     }
 
     auto RefundAll = [&]()
     {
-        Currency->Add(ECurrencyType::Prisms, Cost.Prisms);
-        if (Cost.SkillEssence > 0)
+        for (const ECurrencyType Balance : PurchaseCostBalances::CHARGED)
         {
-            Currency->Add(ECurrencyType::SkillEssence, Cost.SkillEssence);
-        }
-        for (const TPair<EEssenceType, int32> &Pair : Cost.Typed)
-        {
-            Currency->AddEssenceType(Pair.Key, Pair.Value);
+            Currency->Add(Balance, Cost.Get(Balance)); // a zero amount is a no-op
         }
     };
 
@@ -1336,7 +1555,7 @@ bool UEconomyService::BuyWorldStat(AActor *Owner, EWorldPillar Pillar)
 // ==================== LEVELING (instance tier-up, spend-side) ====================
 
 bool UEconomyService::TryLevelUpEntry(UCurrencyComponent *Currency, EItemTier &InOutTier,
-                                      ECurrencyType LevelingEssence) const
+                                      ECurrencyType LevelingEssence, bool bHasElement) const
 {
     if (!Currency)
     {
@@ -1352,11 +1571,11 @@ bool UEconomyService::TryLevelUpEntry(UCurrencyComponent *Currency, EItemTier &I
         return false;
     }
 
-    // Cost (§5.3): full leveling essence to reach the next tier + HALF that in Reality. No Gold.
-    // LevelingEssence is the §3 category currency — Gear (weapons/rings/evolution) or Skill
-    // (spells/abilities); the cost ladder + the ½-Reality co-cost are shared across both.
+    // Cost (§5.3): full leveling essence to reach the next tier. No Gold. LevelingEssence is the §3
+    // category currency — Gear (weapons/rings/evolution) or Skill (spells/abilities). B-333 (Q-333):
+    // an item with an element also pays HALF that in Elemental (was ½ Reality for everything).
     const int32 LevelingCost = EconomyYield::GetTierUpCostForTier(CurrentTier);
-    const int32 RealityCost = LevelingCost / 2;
+    const int32 ElementalCost = bHasElement ? EconomyYield::GetElementalCoCost(LevelingCost) : 0;
 
     // CanAfford BOTH before spending anything — if either is short, spend nothing and bail.
     if (!Currency->CanAfford(LevelingEssence, LevelingCost))
@@ -1365,16 +1584,16 @@ bool UEconomyService::TryLevelUpEntry(UCurrencyComponent *Currency, EItemTier &I
                LevelingCost, *TierHelpers::GetTierName(CurrentTier));
         return false;
     }
-    if (!Currency->CanAfford(ECurrencyType::EssenceTyped, RealityCost, static_cast<uint8>(EEssenceType::Reality)))
+    if (ElementalCost > 0 && !Currency->CanAfford(ECurrencyType::ElementalEssence, ElementalCost))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] TryLevelUpEntry: cannot afford %d Reality essence (from %s)"),
-               RealityCost, *TierHelpers::GetTierName(CurrentTier));
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] TryLevelUpEntry: cannot afford %d Elemental essence (from %s)"),
+               ElementalCost, *TierHelpers::GetTierName(CurrentTier));
         return false;
     }
 
-    // Spend BOTH (the afford-checks above already cleared each component).
+    // Spend BOTH (the afford-checks above already cleared each component; a zero co-cost is a no-op).
     Currency->Spend(LevelingEssence, LevelingCost);
-    Currency->SpendEssenceType(EEssenceType::Reality, RealityCost);
+    Currency->Spend(ECurrencyType::ElementalEssence, ElementalCost);
 
     // WRITE the instance tier one step UP. EItemTier is forward-ordered (F_Tier=0 .. S_Tier=6),
     // so the next-stronger tier is value+1; GetTierFromValue clamps 0..6 so this never overruns S
@@ -1383,8 +1602,8 @@ bool UEconomyService::TryLevelUpEntry(UCurrencyComponent *Currency, EItemTier &I
     const EItemTier NextTier = TierHelpers::GetTierFromValue(TierHelpers::GetTierValue(CurrentTier) + 1);
     InOutTier = NextTier;
 
-    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Tier-up: %s -> %s (spent %d leveling + %d Reality essence)"),
-           *TierHelpers::GetTierName(CurrentTier), *TierHelpers::GetTierName(NextTier), LevelingCost, RealityCost);
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Tier-up: %s -> %s (spent %d leveling + %d Elemental essence)"),
+           *TierHelpers::GetTierName(CurrentTier), *TierHelpers::GetTierName(NextTier), LevelingCost, ElementalCost);
     return true;
 }
 
@@ -1409,7 +1628,7 @@ bool UEconomyService::TryDowngradeEntry(UCurrencyComponent *Currency, EItemTier 
 
     // The step being reverted is DownTier -> CurrentTier; its level-up cost is
     // GetTierUpCostForTier(DownTier) (exact mirror of TryLevelUpEntry). Refund HALF in the leveling
-    // essence ONLY — the ½-Reality co-cost paid at level-up is gone (reverting costs the reshape
+    // essence ONLY — the ½-Elemental co-cost paid at level-up is gone (reverting costs the reshape
     // currency). Write the lowered tier in place; neither the write nor the Add can fail.
     const EItemTier DownTier = TierHelpers::GetTierFromValue(TierHelpers::GetTierValue(CurrentTier) - 1);
     const int32 StepCost = EconomyYield::GetTierUpCostForTier(DownTier);
@@ -1418,7 +1637,7 @@ bool UEconomyService::TryDowngradeEntry(UCurrencyComponent *Currency, EItemTier 
     InOutTier = DownTier;
     Currency->Add(LevelingEssence, Refund);
 
-    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Tier-down: %s -> %s (refunded %d leveling essence; Reality co-cost not refunded)"),
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Tier-down: %s -> %s (refunded %d leveling essence; Elemental co-cost not refunded)"),
            *TierHelpers::GetTierName(CurrentTier), *TierHelpers::GetTierName(DownTier), Refund);
     return true;
 }
@@ -1460,7 +1679,9 @@ bool UEconomyService::LevelUpEvolution(AActor *Owner, FGuid InstanceID)
         return false;
     }
 
-    if (!TryLevelUpEntry(Currency, Entry->Tier))
+    // B-333 (Q-333): an evolution with an element also pays the ½ Elemental co-cost.
+    if (!TryLevelUpEntry(Currency, Entry->Tier, ECurrencyType::GearEssence,
+                         EconomyYield::HasElement(Entry->Item->GetAssociatedElement())))
     {
         return false;
     }
@@ -1493,8 +1714,9 @@ bool UEconomyService::LevelUpSpell(AActor *Owner, const USpellData *Spell)
         return false;
     }
 
-    // Spells level on SKILL essence (+ ½ Reality), §3 category split.
-    return TryLevelUpEntry(Currency, Instance->Tier, ECurrencyType::SkillEssence);
+    // Spells level on SKILL essence, §3 category split; + ½ Elemental when the spell has an element (Q-333).
+    return TryLevelUpEntry(Currency, Instance->Tier, ECurrencyType::SkillEssence,
+                           Spell && EconomyYield::SpellHasElement(Spell->Element));
 }
 
 bool UEconomyService::LevelUpAbility(AActor *Owner, const UAbilityData *Ability)

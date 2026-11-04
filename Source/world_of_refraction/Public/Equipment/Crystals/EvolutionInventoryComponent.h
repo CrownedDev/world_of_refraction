@@ -29,7 +29,7 @@ public:
     UEvolutionInventoryComponent();
 
     /** Owned, unslotted evolution items. Order is insertion order. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Inventory|Evolution")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Evolution")
     TArray<FEvolutionInventoryEntry> Entries;
 
     /** Append Item as a new entry with a freshly-generated InstanceID.

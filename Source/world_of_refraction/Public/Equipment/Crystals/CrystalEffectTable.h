@@ -19,6 +19,7 @@
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Equipment/Crystals/StoneRowTable.h"
+#include "Equipment/Crystals/StatStone.h"
 
 namespace CrystalEffectTable
 {
@@ -197,21 +198,24 @@ namespace CrystalEffectTable
         return AugmentStoneConstants::STAT_CRYSTAL_BUFF_PERCENT[i];
     }
 
-    /** Emerald (reworked): delay in turns before the target receives a full bonus turn.
-     *  0 for non-Emerald and for S-tier (S=0 = immediate); lower tiers wait longer. Indexed
-     *  by tier — mirrors GetSpeedBuffPercent's gate + bounds shape. */
-    inline int32 GetEmeraldBonusTurnDelay(const FCrystalId &Id)
+    /** Emerald: turns before the target's bonus turn. B-341 (D-133, the one bonus-turn rule): a
+     *  bonus turn lands immediately after the current turn, so 0 for every tier (the description,
+     *  the AI's valuation and the debug readers follow). OBSOLETE (B-341): the old F..S table
+     *  EMERALD_BONUS_TURN_DELAY is no longer read. */
+    inline int32 GetEmeraldBonusTurnDelay(const FCrystalId & /*Id*/)
+    {
+        return 0;
+    }
+
+    /** B-341 (Q-341b): bonus turns an Emerald grants: two at S, one below; 0 for a non-Emerald. */
+    inline int32 GetEmeraldBonusTurnCount(const FCrystalId &Id)
     {
         if (Id.Type != ECrystalType::Emerald)
         {
             return 0;
         }
-        const int32 i = TierHelpers::GetTierValue(Id.Tier);
-        if (i < 0 || i >= 7)
-        {
-            return 0;
-        }
-        return AugmentStoneConstants::EMERALD_BONUS_TURN_DELAY[i];
+        return Id.Tier == EItemTier::S_Tier ? AugmentStoneConstants::EMERALD_S_BONUS_TURNS
+                                            : AugmentStoneConstants::EMERALD_BONUS_TURNS;
     }
 
     // ==================== SHARED BUFF DURATION ====================
@@ -565,19 +569,12 @@ namespace CrystalEffectTable
 
     // ==================== BROKEN DARKNESS ENERGY BONUS (Tier-only) ====================
 
-    /** Fraction of the target BD's MaxEP granted as absorption energy when
-     *  this crystal is used on them. Tier-scaled (F=0.10 .. S=0.70).
-     *  Tier-only — Id.Type is ignored (other than the None early-out). */
+    /** Fraction of the target BD's MaxEP granted as absorption energy when a GEM is used on them.
+     *  Tier-scaled (F=0.10 .. S=0.70). A stone of any kind grants none (B-353b: the old list missed
+     *  Luck, Reflex and Healing; one predicate now). */
     inline float GetBrokenDarknessEnergyPercent(const FCrystalId &Id)
     {
-        if (Id.Type == ECrystalType::None || Id.Type == ECrystalType::DamageStone ||
-            Id.Type == ECrystalType::AbilityStone || Id.Type == ECrystalType::DefenseStone ||
-            Id.Type == ECrystalType::CritStone || Id.Type == ECrystalType::TurnSpeedStone ||
-            Id.Type == ECrystalType::StatusStone || Id.Type == ECrystalType::EfficiencyStone ||
-            Id.Type == ECrystalType::MaxHPStone || Id.Type == ECrystalType::MaxEPStone ||
-            Id.Type == ECrystalType::SpellDamageStone || Id.Type == ECrystalType::ResistanceStone ||
-            Id.Type == ECrystalType::SpellSpeedStone || Id.Type == ECrystalType::ActionSpeedStone ||
-            Id.Type == ECrystalType::DurabilityStone)
+        if (Id.Type == ECrystalType::None || CrystalTypeHelpers::IsAugmentStoneType(Id.Type))
         {
             return 0.0f;
         }
@@ -660,7 +657,7 @@ namespace CrystalEffectTable
             {
                 Total += GetStoneBasePercent(B.Type, B.Tier);
             }
-            if (Att.Fusion.Id.BonusStat == Stat)
+            if (Att.Fusion.Id.BonusStat == Stat) // OBSOLETE (B-352, D-141; D-124 sweep): the fusion bonus formula
             {
                 Total += (TierHelpers::GetTierValue(A.Tier) + TierHelpers::GetTierValue(B.Tier)) / 2.0f;
             }
@@ -670,11 +667,11 @@ namespace CrystalEffectTable
         {
             return 0.0f;
         }
-        if (StoneTargetStat(Att.Crystal.Id.Type) != Stat)
+        if (StoneTargetStat(StatStone::RowType(Att.Crystal.Id)) != Stat) // B-353: a StatStone reads its row
         {
             return 0.0f;
         }
-        return GetStoneBasePercent(Att.Crystal.Id.Type, Att.Crystal.Id.Tier);
+        return GetStoneBasePercent(StatStone::RowType(Att.Crystal.Id), Att.Crystal.Id.Tier);
     }
 
     /** Percent a stone ATTACHMENT grants, keyed by the stone's TYPE rather than an
@@ -710,7 +707,7 @@ namespace CrystalEffectTable
             return Total;
         }
         return (Att.IsAugmentStone() && Att.Crystal.Id.Type == StoneType)
-                   ? GetStoneBasePercent(Att.Crystal.Id.Type, Att.Crystal.Id.Tier)
+                   ? GetStoneBasePercent(StatStone::RowType(Att.Crystal.Id), Att.Crystal.Id.Tier)
                    : 0.0f;
     }
 
