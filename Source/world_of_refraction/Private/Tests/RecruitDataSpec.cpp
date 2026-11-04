@@ -33,7 +33,7 @@ void FRecruitDataSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("joins as the pawn's own CharacterData, once", [this]()
+	It("joins as the pawn's own CharacterData; a second invite is a separate copy (B-360b)", [this]()
 	{
 		if (!PartySession) return;
 		const TSoftClassPtr<ACombatCharacter> PawnClass(ACombatCharacter::StaticClass());
@@ -41,7 +41,8 @@ void FRecruitDataSpec::Define()
 
 		TestTrue(TEXT("Invited"), PartySession->InviteMemberWithData(PawnClass, Placed));
 		TestNotEqual(TEXT("Found by the pawn's own data"), PartySession->GetMemberSlotByData(Placed), static_cast<int32>(INDEX_NONE));
-		TestFalse(TEXT("A second invite is refused"), PartySession->InviteMemberWithData(PawnClass, Placed));
+		TestTrue(TEXT("A second invite joins as a separate copy (B-360b, D-150 point 2)"), PartySession->InviteMemberWithData(PawnClass, Placed));
+		TestEqual(TEXT("the copy is its own member"), PartySession->GetNthMemberSlotByData(Placed, 1), 2);
 		TestFalse(TEXT("No data, no invite"), PartySession->InviteMemberWithData(PawnClass, nullptr));
 	});
 }

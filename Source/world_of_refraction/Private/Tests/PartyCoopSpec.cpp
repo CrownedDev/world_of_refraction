@@ -35,6 +35,7 @@ namespace
 	FPartyMember CoopMember(UCharacterData *Character, bool bAISeat)
 	{
 		FPartyMember Member;
+		Member.PawnClass = ACombatCharacter::StaticClass(); // a save round trip keeps only a member with a pawn class
 		Member.CharacterData = Character;
 		Member.bAISeat = bAISeat;
 		Member.bPlayerControlled = !bAISeat;
