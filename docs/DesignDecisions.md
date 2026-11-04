@@ -1715,7 +1715,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** **A** at least F, D, C, B, A (two letters at first, then one; S left for bosses and the last zone's best); **B** F, E, D, C, B (one letter each, S never asked for); **C** a fixed band per zone.
 **Recommendation:** A. Diablo IV's world tiers and Elden Ring's regions both jump enemy level fastest early, so the first step out of the start area is felt, then rise evenly; leaving the top tier for set pieces keeps them special.
 **Answer:** A (approved by the reference-backed default). It is an authoring guide (shown by `wor.Trial.PrintZones`), not enforced.
-**Notes for Claude:** applied in B-328.
+**Notes for Claude:** applied in B-328. **B-328b (2026-11-04, reference-backed default):** enforced as a *report*, not a block or a per-tier encounter table: `wor.Trial.PrintZones` lists every encounter placed below its zone's guide, judging each enemy by its asset's `EnemyTier` (the static proxy; a geared enemy's fielded Combat Tier can differ). A load-time warning waits until enemy tiers are authored (most assets still sit at the F default).
 
 ### D-128 — Nothing is DONE without Crown's PIE; one running list (audit §12)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
