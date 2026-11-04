@@ -1,6 +1,7 @@
 // TrialGate.cpp
 
 #include "Trial/TrialGate.h"
+#include "Combat/Tier/CombatTier.h"
 
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
@@ -18,6 +19,11 @@
 
 namespace TrialGateInternal
 {
+	// B-344 (D-136): the trial difficulty's enemy AI tier.
+	constexpr EAIDifficulty ENEMY_AI_EASY = EAIDifficulty::Easy;
+	constexpr EAIDifficulty ENEMY_AI_MEDIUM = EAIDifficulty::Medium;
+	constexpr EAIDifficulty ENEMY_AI_HARD = EAIDifficulty::Hard;
+
 	// Enemy damage by difficulty (Q-183; B-293c: even steps, was 0.8 / 1 / 1.25). TODO: tune.
 	constexpr float EASY_ENEMY_STRENGTH = 0.8f;
 	constexpr float MEDIUM_ENEMY_STRENGTH = 1.0f;
@@ -86,6 +92,22 @@ float TrialGate::GetEnemyHealthMultiplier(ETrialDifficulty Difficulty)
 	return TrialGateInternal::ENEMY_HEALTH_BY_DIFFICULTY;
 }
 
+EAIDifficulty TrialGate::GetEnemyAIDifficulty(ETrialDifficulty Difficulty)
+{
+	switch (Difficulty)
+	{
+	case ETrialDifficulty::Easy: return TrialGateInternal::ENEMY_AI_EASY;
+	case ETrialDifficulty::Hard: return TrialGateInternal::ENEMY_AI_HARD;
+	case ETrialDifficulty::Medium:
+	default: return TrialGateInternal::ENEMY_AI_MEDIUM;
+	}
+}
+
+EAIDifficulty TrialGate::ResolveEncounterAIDifficulty(ETrialDifficulty TrialDifficulty, bool bOverride, EAIDifficulty Override)
+{
+	return bOverride ? Override : GetEnemyAIDifficulty(TrialDifficulty);
+}
+
 bool TrialGate::ApplyEnemyStrength(AActor *Enemy, float StrengthMultiplier)
 {
 	return ApplyEnemyStrength(Enemy, StrengthMultiplier, StrengthMultiplier);
@@ -145,9 +167,8 @@ float TrialGate::GetRankHealthMultiplier(EEncounterRank Rank)
 
 float TrialGate::GetEnemyTierHealthMultiplier(const AActor *Enemy)
 {
-	const UCharacterDataComponent *CharComp = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-	const UCharacterData *Data = CharComp ? CharComp->CharacterData : nullptr;
-	return TierPowerScaling::GetTierPowerMultiplier(Data ? Data->EnemyTier : EItemTier::F_Tier);
+	// B-325 (D-118): the enemy's Combat Tier (its gear and skills; EnemyTier only as the fallback).
+	return TierPowerScaling::GetTierPowerMultiplier(WoRCombatTier::GetCombatTier(Enemy));
 }
 
 bool TrialGate::ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EEncounterRank Rank)
@@ -166,6 +187,9 @@ bool TrialGate::ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EE
 	{
 		return true;
 	}
+	// Strength (the difficulty's HP share, x1 since B-293c; D-120: no zone HP) is already a +(S - 1) MaxHPBuff from
+	// ApplyEnemyStrength. MaxHPBuff percents add, so S x (rank x tier - 1) on top makes S x rank x tier (B-327,
+	// WoR.Trial.ZoneHealthOnce).
 	const float Percent = StrengthMultiplier * (HealthMultiplier - 1.0f) * CombatConstants::STAT_PERCENT_DIVISOR;
 	FActiveSkillEffect HPEffect = FActiveSkillEffect::CreatePersistent(TEXT("Enemy rank (HP)"), TrialGateInternal::ENEMY_RANK_HP_EFFECT_ID,
 																	   Percent >= 0.0f ? ESkillEffectType::MaxHPBuff : ESkillEffectType::MaxHPDebuff,

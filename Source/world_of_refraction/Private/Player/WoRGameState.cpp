@@ -1,6 +1,7 @@
 // WoRGameState.cpp
 
 #include "Player/WoRGameState.h"
+#include "Player/TurnStateComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerState.h"
 #include "HAL/IConsoleManager.h"
@@ -20,6 +21,11 @@ namespace
 		}));
 }
 
+AWoRGameState::AWoRGameState()
+{
+	TurnState = CreateDefaultSubobject<UTurnStateComponent>(TEXT("TurnState"));
+}
+
 FString AWoRGameState::GetDebugString() const
 {
 	const UWorld *World = GetWorld();
@@ -29,6 +35,10 @@ FString AWoRGameState::GetDebugString() const
 	for (const APlayerState *Player : PlayerArray)
 	{
 		Out += FString::Printf(TEXT("\n  %s (%s)"), Player ? *Player->GetPlayerName() : TEXT("null"), *GetNameSafe(Player));
+	}
+	if (TurnState)
+	{
+		Out += FString::Printf(TEXT("\nTurn state: %s"), *TurnState->GetDebugString());
 	}
 	return Out;
 }

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AI/EAIDifficulty.h"
 #include "Combat/Encounter/EEncounterRank.h"
 #include "Inventory/ItemTier.h"
 #include "TrialGate.generated.h"
@@ -51,6 +52,13 @@ namespace TrialGate
 	 *  hard enemies hit (GetEnemyStrengthMultiplier), not how long they last. */
 	float GetEnemyHealthMultiplier(ETrialDifficulty Difficulty);
 
+	/** B-344 (D-136): the enemy AI tier a trial difficulty sets: Easy, Medium, Hard (Expert stays for bosses' later
+	 *  phases, B-193). */
+	EAIDifficulty GetEnemyAIDifficulty(ETrialDifficulty Difficulty);
+
+	/** B-344 (D-136, D-044): a fight's enemy AI tier: the trial's, unless the encounter overrides it. */
+	EAIDifficulty ResolveEncounterAIDifficulty(ETrialDifficulty TrialDifficulty, bool bOverride, EAIDifficulty Override);
+
 	/** The run's payout (D-006), × this. */
 	float GetPayoutMultiplier(ETrialDifficulty Difficulty);
 
@@ -72,7 +80,7 @@ namespace TrialGate
 	 *  Normal 1 / Elite 1.5 / Mini-boss 3 / Boss 6. */
 	float GetRankHealthMultiplier(EEncounterRank Rank);
 
-	/** B-224b: the enemy's tier power for its HP (UCharacterData::EnemyTier through the TierPower ladder; x1 at F). */
+	/** B-224b: the enemy's tier power for its HP: its Combat Tier (B-325, WoRCombatTier) through the TierPower ladder; x1 at F. */
 	float GetEnemyTierHealthMultiplier(const AActor *Enemy);
 
 	/** Gives Enemy its rank's and its tier's HP on top of ApplyEnemyStrength (HP only, no damage): a permanent,

@@ -41,6 +41,7 @@ UCharacterData *AddMember(UParty *Party, const TCHAR *Name)
 	PartyMember.CharacterData = Data;
 	return Data;
 }
+static FName KeyOf(const UCharacterData *Character) { return UPoolSubsystem::GetCharacterKey(Character); }
 END_DEFINE_SPEC(FLevelDropsSpec)
 
 void FLevelDropsSpec::Define()
@@ -99,7 +100,7 @@ void FLevelDropsSpec::Define()
 		{
 			return;
 		}
-		Run->AddUnspentLevels(1);
+		Run->AddUnspentLevels(KeyOf(Member), 1);
 		TestTrue(TEXT("placed"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Member, EWorldPillar::Mind).IsEmpty());
 		UCharacterDataComponent *Comp = WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), Member);
 		if (!TestNotNull(TEXT("spawned"), Comp))
@@ -108,7 +109,7 @@ void FLevelDropsSpec::Define()
 		}
 		TestEqual(TEXT("live mind +1"), Comp->GetWorldStat(EWorldPillar::Mind), LEVEL_DROPS_TEST_ASSET_MIND + 1);
 		TestEqual(TEXT("body untouched"), Comp->GetWorldStat(EWorldPillar::Body), 0);
-		TestEqual(TEXT("none left"), Run->GetUnspentLevels(), 0);
+		TestEqual(TEXT("none left"), Run->GetUnspentLevels(KeyOf(Member)), 0);
 		Comp->SeedWorldStats();
 		TestEqual(TEXT("re-seed keeps the run's level"), Comp->GetWorldStat(EWorldPillar::Mind), LEVEL_DROPS_TEST_ASSET_MIND + 1);
 	});
@@ -119,7 +120,7 @@ void FLevelDropsSpec::Define()
 		{
 			return;
 		}
-		Run->AddUnspentLevels(1);
+		Run->AddUnspentLevels(KeyOf(Absent), 1);
 		TestTrue(TEXT("placed"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Absent, EWorldPillar::Spirit).IsEmpty());
 		TestNull(TEXT("not spawned"), WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), Absent));
 		TestEqual(TEXT("run holds it"), Run->GetRunEarnedLevels(UPoolSubsystem::GetCharacterKey(Absent), EWorldPillar::Spirit), 1);
@@ -139,9 +140,9 @@ void FLevelDropsSpec::Define()
 			return;
 		}
 		Comp->AddEarnedWorldStat(EWorldPillar::Mind, WorldStatConstants::LIVE_MAX);
-		Run->AddUnspentLevels(1);
+		Run->AddUnspentLevels(KeyOf(Member), 1);
 		TestFalse(TEXT("at the cap"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Member, EWorldPillar::Mind).IsEmpty());
-		TestEqual(TEXT("level still waits"), Run->GetUnspentLevels(), 1);
+		TestEqual(TEXT("level still waits"), Run->GetUnspentLevels(KeyOf(Member)), 1);
 	});
 
 	It("outside a run a drop can't be placed and a level isn't kept in the run", [this]()
@@ -151,7 +152,7 @@ void FLevelDropsSpec::Define()
 			return;
 		}
 		Run->RestoreRun(nullptr, 0, 0, ETrialDifficulty::Medium, {}, {}, {});
-		Run->AddUnspentLevels(1);
+		Run->AddUnspentLevels(KeyOf(Member), 1);
 		TestFalse(TEXT("refused"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Member, EWorldPillar::Mind).IsEmpty());
 		UCharacterDataComponent *Comp = WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), Member);
 		if (!TestNotNull(TEXT("spawned"), Comp))
@@ -168,7 +169,7 @@ void FLevelDropsSpec::Define()
 		{
 			return;
 		}
-		Run->AddUnspentLevels(1);
+		Run->AddUnspentLevels(KeyOf(Member), 1);
 		WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Member, EWorldPillar::Body);
 		UCharacterDataComponent *Comp = WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), Member);
 		if (!TestNotNull(TEXT("spawned"), Comp))
@@ -180,13 +181,25 @@ void FLevelDropsSpec::Define()
 		TestEqual(TEXT("run forgot it"), Run->GetRunEarnedLevels(UPoolSubsystem::GetCharacterKey(Member), EWorldPillar::Body), 0);
 	});
 
+	It("B-223b: a character's levels go only to its own pillars", [this]()
+	{
+		if (!TestTrue(TEXT("setup"), Run && Member && Absent)) return;
+		Run->AddUnspentLevels(KeyOf(Member), 1);
+		TestEqual(TEXT("the member has one"), Run->GetUnspentLevels(KeyOf(Member)), 1);
+		TestEqual(TEXT("the other has none"), Run->GetUnspentLevels(KeyOf(Absent)), 0);
+		TestFalse(TEXT("the other can't place it"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Absent, EWorldPillar::Mind).IsEmpty());
+		TestEqual(TEXT("still the member's"), Run->GetUnspentLevels(KeyOf(Member)), 1);
+		TestTrue(TEXT("the member places it"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Member, EWorldPillar::Mind).IsEmpty());
+		TestEqual(TEXT("nothing waits in all"), Run->GetTotalUnspentLevels(), 0);
+	});
+
 	It("the debug readout lists the waiting levels and the members", [this]()
 	{
 		if (!TestNotNull(TEXT("Run"), Run))
 		{
 			return;
 		}
-		Run->AddUnspentLevels(2);
+		Run->AddUnspentLevels(KeyOf(Member), 2);
 		const FString Readout = WoRLevelDrops::GetLevelDropString(TestWorld->GetWorld());
 		TestTrue(TEXT("member listed"), Readout.Contains(TEXT("live Spawned")));
 		TestTrue(TEXT("absent flagged"), Readout.Contains(TEXT("not spawned")));

@@ -253,6 +253,13 @@ bool UPoolSubsystem::BankStartingGear(FName CharacterKey, const TArray<FWeaponIn
         SetGearOwner(Entry.InstanceID, CharacterKey);
         UpdateEvolution(Entry);
     }
+    // B-314: a first draw while a run is open banks home gear, so it joins the layer like the rest of home gear.
+    if (bRunLayerActive)
+    {
+        for (const FWeaponInventoryEntry &Entry : Weapons) { TakeOnRun(Entry.PersistentID); }
+        for (const FRingInventoryEntry &Entry : Rings) { TakeOnRun(Entry.PersistentID); }
+        for (const FEvolutionInventoryEntry &Entry : Evolutions) { TakeOnRun(Entry.InstanceID); }
+    }
     UE_LOG(LogTemp, Log, TEXT("[Pool] Banked %s's starting gear: %d weapon(s), %d ring(s), %d evolution(s)"),
            *CharacterKey.ToString(), Weapons.Num(), Rings.Num(), Evolutions.Num());
     return true;
@@ -311,6 +318,8 @@ void UPoolSubsystem::UpdateEvolution(const FEvolutionInventoryEntry &Entry)
 
 void UPoolSubsystem::RemoveGear(const FGuid &GearID)
 {
+    // B-314: a run-only piece leaving mid-run keeps its tier in the upgrade memory (Q-314c).
+    NoteRunGearRemoved(GearID);
     const auto MatchesWeapon = [&GearID](const FWeaponInventoryEntry &E) { return E.PersistentID == GearID; };
     const auto MatchesRing = [&GearID](const FRingInventoryEntry &E) { return E.PersistentID == GearID; };
     const auto MatchesEvolution = [&GearID](const FEvolutionInventoryEntry &E) { return E.InstanceID == GearID; };

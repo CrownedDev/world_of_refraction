@@ -2,6 +2,7 @@
 // One case per enum value; see WoRGameNames.h.
 
 #include "WoRGameNames.h"
+#include "Inventory/InventoryVerbs.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Grid/ECombatRow.h"
 #include "Currency/CurrencyTypes.h"
@@ -356,6 +357,7 @@ FText GetMerchantTypeName(EMerchantType MerchantType)
     return FText::GetEmpty();
 }
 
+// OBSOLETE (B-333): typed essences retire (D-125).
 FText GetEssenceName(EEssenceType Essence)
 {
     switch (Essence)
@@ -392,6 +394,30 @@ FText GetEssenceName(EEssenceType Essence)
     return FText::GetEmpty();
 }
 
+FText GetCurrencyName(ECurrencyType Currency)
+{
+    switch (Currency)
+    {
+    case ECurrencyType::Gold:
+        return LOCTEXT("ECurrencyType_Gold", "Gold");
+    case ECurrencyType::Prisms:
+        return LOCTEXT("ECurrencyType_Prisms", "Prisms");
+    case ECurrencyType::Diamond:
+        return LOCTEXT("ECurrencyType_Diamond", "Diamond");
+    case ECurrencyType::EssenceTyped: // OBSOLETE (B-333)
+        return LOCTEXT("ECurrencyType_EssenceTyped", "Typed Essence");
+    case ECurrencyType::GearEssence:
+        return LOCTEXT("ECurrencyType_GearEssence", "Gear Essence");
+    case ECurrencyType::SkillEssence:
+        return LOCTEXT("ECurrencyType_SkillEssence", "Skill Essence");
+    case ECurrencyType::ElementalEssence:
+        return LOCTEXT("ECurrencyType_ElementalEssence", "Elemental Essence");
+    case ECurrencyType::PillarEssence:
+        return LOCTEXT("ECurrencyType_PillarEssence", "Pillar Essence");
+    }
+    return FText::GetEmpty();
+}
+
 FText GetAdapterWord()
 {
     return LOCTEXT("Adapter", "Adapter");
@@ -405,6 +431,29 @@ FText GetAdapterWordPlural()
 FText GetActiveAdapterWord()
 {
     return LOCTEXT("ActiveAdapter", "Active adapter");
+}
+
+FText GetYourselfWord()
+{
+    return LOCTEXT("Yourself", "yourself");
+}
+
+FText GetInventoryVerbName(EInventoryVerb Verb)
+{
+    switch (Verb)
+    {
+    case EInventoryVerb::Give:
+        return LOCTEXT("VerbGive", "Give");
+    case EInventoryVerb::Store:
+        return LOCTEXT("VerbStore", "Store");
+    case EInventoryVerb::Take:
+        return LOCTEXT("VerbTake", "Take");
+    case EInventoryVerb::Dismantle:
+        return LOCTEXT("VerbDismantle", "Dismantle");
+    case EInventoryVerb::Convert:
+        return LOCTEXT("VerbConvert", "Convert to Gold");
+    }
+    return FText::GetEmpty();
 }
 
 FText GetAdapterFormName(EAdapterForm Form)

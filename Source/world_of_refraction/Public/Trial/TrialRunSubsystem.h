@@ -78,6 +78,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Trial|Gate")
     float GetPayoutMultiplier() const { return TrialGate::GetPayoutMultiplier(TrialDifficulty); }
 
+    /** B-347 (D-137): what a run's start does to the party's gear and Gold, without the level travel: run Gold to its
+     *  start (none, B-178), a layer left open ended, and the run layer opened with the party's worn loadouts, free.
+     *  EnterTrial calls it; specs call it directly. */
+    void StartRunGearAndGold();
+
     /** Return to the config-authored HubLevel and clear the active trial. Safe
      *  to call when no trial is active (it is just "go to the hub"). Ignored
      *  (with a log) when HubLevel is unset. */
@@ -140,14 +145,16 @@ public:
     /** Levels Character bought from a vendor this run (the rising price, D-102). */
     int32 GetRunLevelPurchases(FName CharacterKey) const;
     void AddRunLevelPurchase(FName CharacterKey);
-    /** Forgets one character's run levels and purchases (UCharacterDataComponent::ResetRunWorldStats). */
+    /** Forgets one character's run levels, purchases and waiting dropped levels (UCharacterDataComponent::ResetRunWorldStats). */
     void ForgetRunLevels(FName CharacterKey);
 
-    /** Dropped levels not yet given to a pillar: the player picks (wor.UI.LevelDrop). */
-    int32 GetUnspentLevels() const { return UnspentLevels; }
-    void AddUnspentLevels(int32 Count);
-    /** Takes one unspent level; false when there is none. */
-    bool TakeUnspentLevel();
+    /** B-223b (Q-223 changed by Crown, 2026-11-03): each character's own dropped levels, not yet given to one of its
+     *  pillars (wor.UI.LevelDrop). A character's levels go only to its own pillars. */
+    int32 GetUnspentLevels(FName CharacterKey) const;
+    int32 GetTotalUnspentLevels() const;
+    void AddUnspentLevels(FName CharacterKey, int32 Count);
+    /** Takes one of the character's unspent levels; false when it has none. */
+    bool TakeUnspentLevel(FName CharacterKey);
 
     /** Debug: every character's run levels and the unspent count. wor.WorldStat.Print. */
     FString GetRunLevelsString() const;
@@ -282,7 +289,8 @@ private:
     };
     /** B-223: run state like BeatenEncounters (cleared on trial entry and exit). TODO: not in the save yet (Q-223). */
     TMap<FName, FRunLevels> RunLevels;
-    int32 UnspentLevels = 0;
+    /** B-223b: per character key. */
+    TMap<FName, int32> UnspentLevels;
 
     /** B-184: map encounters beaten this run. Run state like RunSeed; cleared on trial entry and exit. */
     TSet<FName> BeatenEncounters;
