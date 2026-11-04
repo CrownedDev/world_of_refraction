@@ -4,6 +4,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
 #include "Skills/Effects/SkillEffectManager.h"
+#include "GAS/WoREffectMirrorComponent.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
@@ -19,6 +20,8 @@
 #include "Blueprint/WidgetTree.h"
 #include "Engine/GameInstance.h"
 #include "WoRGameNames.h"
+#include "Combat/Tier/CombatTier.h"
+#include "Loadout/LoadoutComponent.h"
 
 namespace PanelLabels
 {
@@ -101,6 +104,12 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 	CharComp->OnHPChanged.AddDynamic(this, &UCharacterPanelWidget::HandleHPChanged);
 	CharComp->OnEPChanged.AddDynamic(this, &UCharacterPanelWidget::HandleEPChanged);
 	CharComp->OnDied.AddDynamic(this, &UCharacterPanelWidget::HandleDied);
+	if (ULoadoutComponent *Loadout = InActor->FindComponentByClass<ULoadoutComponent>())
+	{
+		BoundLoadout = Loadout;
+		Loadout->OnLoadoutChanged.AddDynamic(this, &UCharacterPanelWidget::HandleLoadoutChanged);
+		Loadout->OnActiveWeaponChanged.AddDynamic(this, &UCharacterPanelWidget::HandleActiveWeaponChanged);
+	}
 
 	// Bind global subsystem delegates (filtered per-actor inside the handlers)
 	if (StatusMgr)
@@ -112,6 +121,12 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 	if (BuildupMgr)
 	{
 		BuildupMgr->OnStatusBuildupChanged.AddDynamic(this, &UCharacterPanelWidget::HandleStatusBuildupChanged);
+	}
+	// B-318: on a guest the list follows the server's snapshot (the effect manager's events don't fire there).
+	if (UWoREffectMirrorComponent *Mirror = InActor->FindComponentByClass<UWoREffectMirrorComponent>())
+	{
+		BoundEffectMirror = Mirror;
+		Mirror->OnHeldSnapshotChanged.AddDynamic(this, &UCharacterPanelWidget::HandleHeldSnapshotChanged);
 	}
 
 	// BD manager binding (for character-created or runtime-transformed BDs)
@@ -184,6 +199,12 @@ void UCharacterPanelWidget::TeardownPanel()
 		CharComp->OnEPChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleEPChanged);
 		CharComp->OnDied.RemoveDynamic(this, &UCharacterPanelWidget::HandleDied);
 	}
+	if (ULoadoutComponent *Loadout = BoundLoadout.Get())
+	{
+		Loadout->OnLoadoutChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleLoadoutChanged);
+		Loadout->OnActiveWeaponChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleActiveWeaponChanged);
+	}
+	BoundLoadout.Reset();
 
 	if (USkillEffectManager *StatusMgr = BoundStatusManager.Get())
 	{
@@ -195,6 +216,12 @@ void UCharacterPanelWidget::TeardownPanel()
 	{
 		BuildupMgr->OnStatusBuildupChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleStatusBuildupChanged);
 	}
+
+	if (UWoREffectMirrorComponent *Mirror = BoundEffectMirror.Get())
+	{
+		Mirror->OnHeldSnapshotChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleHeldSnapshotChanged);
+	}
+	BoundEffectMirror.Reset();
 
 	if (UBrokenDarknessManager *BDManager = BoundBDManager.Get())
 	{
@@ -443,11 +470,18 @@ void UCharacterPanelWidget::ApplyStaticText_Implementation()
 	// (Darkness + bBrokenDarknessInnate) and keeps its element token; BD-specific
 	// display is banked with the wider BD arc.
 	const FString ClassLabel = WoRGameNames::GetCharacterClassName(Data->CharacterClass).ToString();
-	SetTextSafe(ClassElementText,
-				Data->CharacterClass == ECharacterClass::Caster
-					? FString::Printf(TEXT("%s | %s"), *ClassLabel,
-									  *WoRGameNames::GetElementName(Data->InnateElement).ToString())
-					: ClassLabel);
+	FString ClassLine = Data->CharacterClass == ECharacterClass::Caster
+							? FString::Printf(TEXT("%s | %s"), *ClassLabel,
+											  *WoRGameNames::GetElementName(Data->InnateElement).ToString())
+							: ClassLabel;
+	// B-325 (D-118): a live combatant's Combat Tier, party and enemy alike (shown only; no stats on players).
+	if (const AActor *LiveActor = DisplayMode == EPanelDisplayMode::Live ? BoundActor.Get() : nullptr)
+	{
+		ClassLine = FText::Format(NSLOCTEXT("CharacterPanel", "ClassLineWithTier", "{0} | {1}"), FText::FromString(ClassLine),
+								  WoRCombatTier::GetCombatTierText(WoRCombatTier::GetCombatTier(LiveActor)))
+						.ToString();
+	}
+	SetTextSafe(ClassElementText, ClassLine);
 	if (ClassElementText)
 	{
 		// Class-identity tint: Casters via their innate element, Generic brown,
@@ -542,6 +576,16 @@ void UCharacterPanelWidget::HandleHPChanged(int32 CurrentHP, int32 MaxHP)
 	const float Percent = (MaxHP > 0) ? (static_cast<float>(CurrentHP) / static_cast<float>(MaxHP)) : 0.0f;
 	SetBarSafe(HPBar, Percent);
 	SetTextSafe(HPText, FString::Printf(TEXT("%s:%d/%d"), PanelLabels::HP, CurrentHP, MaxHP));
+}
+
+void UCharacterPanelWidget::HandleLoadoutChanged(int32 NewLoadoutIndex)
+{
+	ApplyStaticText();
+}
+
+void UCharacterPanelWidget::HandleActiveWeaponChanged(UWeaponData *NewWeapon)
+{
+	ApplyStaticText();
 }
 
 void UCharacterPanelWidget::HandleEPChanged(int32 CurrentEP, int32 MaxEP)
@@ -668,6 +712,14 @@ void UCharacterPanelWidget::HandleEffectDurationChanged(AActor *Target, const FA
 		return;
 	}
 	RefreshEffectsList();
+}
+
+void UCharacterPanelWidget::HandleHeldSnapshotChanged(AActor *Holder)
+{
+	if (Holder == BoundActor.Get())
+	{
+		RefreshEffectsList();
+	}
 }
 
 void UCharacterPanelWidget::HandleDied(AActor *DeadActor)

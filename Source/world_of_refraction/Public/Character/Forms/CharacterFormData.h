@@ -8,6 +8,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Inventory/ItemTier.h"
+#include "Character/Outfit/OutfitPieceData.h"
 #include "CharacterFormData.generated.h"
 
 class UCharacterData;
@@ -85,6 +86,10 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Form|Look")
     TArray<TSoftObjectPtr<UMaterialInterface>> FormMaterials;
+
+    /** B-279c: the character's authored outfit (CharacterCustomisation.md §2): worn when the skin is put on. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Form|Look")
+    FOutfitSet AuthoredOutfit;
 
     /** Memory / lore ids tied to the character (D-100). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Form|Lore")

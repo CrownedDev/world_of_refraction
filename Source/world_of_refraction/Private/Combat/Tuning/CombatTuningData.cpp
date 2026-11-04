@@ -274,7 +274,8 @@ FString UCombatTuningData::GetCombatTuningString() const
 		}
 		Out += TEXT("\n");
 	}
-	Out += FString::Printf(TEXT("  Weapon req floor %.3f (weapon part only)\n"), WeaponReqFactorMin);
+	Out += FString::Printf(TEXT("  Weapon req unmet x%.2f, no scaling (D-119; the old floor %.3f is obsolete)\n"),
+						   WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR, WeaponReqFactorMin);
 	Out += FString::Printf(TEXT("  Charge bands    focus %.3f/%.3f  off-focus %.3f/%.3f  balanced %.3f/%.3f\n"),
 						   ChargeFocusL1, ChargeFocusL2, ChargeOffFocusL1, ChargeOffFocusL2, ChargeBalancedL1, ChargeBalancedL2);
 	Out += FString::Printf(TEXT("  BD strain       per deficit %.3f  threshold/EP %.3f  infusion deficit %d/%d  power max %.3f  control min %.3f"),

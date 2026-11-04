@@ -84,16 +84,21 @@ struct WORLD_OF_REFRACTION_API FWorldStatRequirements
     // USkillDataBase::CalculateRequirementPenalty. The BD strain reads GetTotalDeficit.
     float CalculatePenalty(const UCharacterData *Character) const;
 
-    /** A weapon's damage factor from its requirement (D-082, Q-146c, Q-162): each pillar's
-     *  requirement-gap ladder value clamped to [the tuning floor (WEAPON_REQ_FACTOR_MIN), 1]; the worst pillar decides.
-     *  It scales the weapon part only (B-220), never the skill part.
-     *  1.0 when every pillar is met (being over gives nothing extra) or there is no character. */
+    /** A weapon's damage factor from its requirement (D-119, Elden Ring's single penalty): 1.0 when every pillar
+     *  is met (being over gives nothing extra) or there is no character; any shortfall, of 1 level or 5, is
+     *  REQUIREMENT_UNMET_DAMAGE_FACTOR, and that weapon gives no pillar scaling (WoRWeaponPower::GetWeaponPart).
+     *  It scales the weapon part only (B-220); a skill's own requirement cuts the skill part (GetRequirementFactor). */
     float GetWeaponRequirementFactor(const UCharacterData *Character) const;
 
     // ==================== BY LEVELS (B-217: combat passes the live levels) ====================
     // The UCharacterData versions above read the asset's levels (FWorldPillarLevels::FromAsset).
 
     bool ExactlyMatchedBy(const FWorldPillarLevels &Levels) const;
+    /** B-326 (D-119): every pillar at or over its requirement. */
+    bool IsMetBy(const FWorldPillarLevels &Levels) const;
+    /** B-326 (D-119): 1.0 when met, else WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR. The one penalty for
+     *  weapons, abilities and spells alike; an unmet skill still works (nothing becomes uncastable). */
+    float GetRequirementFactor(const FWorldPillarLevels &Levels) const;
     int32 GetTotalDeficit(const FWorldPillarLevels &Levels) const;
     float GetWeaponRequirementFactor(const FWorldPillarLevels &Levels) const;
 
@@ -104,9 +109,14 @@ struct WORLD_OF_REFRACTION_API FWorldStatRequirements
 
 namespace WeaponRequirement
 {
-    /** Floor on the weapon requirement factor (Crown, BaselineNumbers.md: at most half the weapon part is lost,
-     *  like Elden Ring's flat under-requirement penalty). The ladder's lowest rung (gap +5) is 0.32, so the floor
-     *  bites from gap +4 (0.50) down. The C++ fallback of UCombatTuningData::WeaponReqFactorMin (B-224). */
-    constexpr float WEAPON_REQ_FACTOR_MIN = 0.5f;
+    /** B-326 (D-119, Crown 2026-11-03; replaces Q-293d (2)): a weapon, ability or spell whose requirement isn't met
+     *  deals this share of its part, however far short, and gives no pillar scaling. Elden Ring's penalty. */
+    constexpr float REQUIREMENT_UNMET_DAMAGE_FACTOR = 0.6f;
+    /** OBSOLETE (B-326, D-119): the old ladder's floor; nothing reads it but UCombatTuningData::WeaponReqFactorMin's
+     *  default. Delete with that field after Crown's PIE pass. */
+    constexpr float WEAPON_REQ_FACTOR_MIN = 0.25f;
     constexpr float WEAPON_REQ_FACTOR_MAX = 1.0f;
+
+    /** True for a factor GetWeaponRequirementFactor gives an unmet requirement (anything under full power). */
+    inline bool IsUnmetFactor(float RequirementFactor) { return RequirementFactor < WEAPON_REQ_FACTOR_MAX; }
 }

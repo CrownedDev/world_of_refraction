@@ -1,7 +1,7 @@
 // LiveWorldLevelsSpec.cpp
 // B-217 (Q-217): combat reads the live run world levels (asset + head start + earned/bought), not the
-// character asset's authored levels, for the requirement gap, the weapon requirement factor and the
-// Broken Darkness strain deficit.
+// character asset's authored levels, for the requirement gap, the weapon and skill requirement factors (D-119) and
+// the Broken Darkness strain deficit.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -83,7 +83,10 @@ void FLiveWorldLevelsSpec::Define()
 		}
 		TestEqual(TEXT("live body seeded from the asset"), User->FindComponentByClass<UCharacterDataComponent>()->GetWorldBody(),
 				  LIVE_LEVELS_TEST_ASSET_LEVEL);
-		TestTrue(TEXT("under the skill's requirement: penalty"), RawDamageGapFactor() < 1.0f);
+		// B-326 (D-119): an unmet skill has no pillar scaling (no gap percents); its skill part takes the flat factor.
+		TestEqual(TEXT("under the skill's requirement: no pillar scaling"), RawDamageGapFactor(), 1.0f);
+		TestEqual(TEXT("under the skill's requirement: the flat factor"), Executor->GetSkillRequirementFactor(User, Ability),
+				  WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR);
 		TestTrue(TEXT("under the weapon's requirement: penalty"),
 				 Executor->GetWeaponRequirementFactor(User, AbilityAction()) < 1.0f);
 	});

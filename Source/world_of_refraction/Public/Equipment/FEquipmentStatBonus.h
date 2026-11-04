@@ -27,7 +27,8 @@
  * Substat budgets (capacity points): F=6, E=10, D=15, C=21, B=28, A=36, S=45.
  * Pillar budgets (percent magnitude): F=3, E=5, D=8, C=12, B=18, A=25, S=33.
  *
- * Roll model:
+ * Roll model (OBSOLETE (B-335, D-127; delete in the D-124 sweep): per-instance random rolls retire; gear keeps
+ * tier + quality. The fields stay: BaseStatBonus and the instance StatBonus are real stats):
  *  - RerollSubstats wipes the 13 substat fields and redistributes one full
  *    tier budget using zero-sum broken-stick: net signed sum of changes
  *    equals the budget; some fields land negative.
@@ -129,13 +130,13 @@ struct WORLD_OF_REFRACTION_API FEquipmentStatBonus
      *
      *  Returns the budget redistributed (0 on no-op). Delegates to the
      *  explicit-budget overload below with the tier's SUBSTAT_BUDGET. */
-    int32 RerollSubstats(EItemTier Tier, const struct FPillarWeights &Weights);
+    int32 RerollSubstats(EItemTier Tier, const struct FPillarWeights &Weights); // OBSOLETE (B-335, D-127; delete in the D-124 sweep)
 
     /** Explicit-budget reroll — same wipe + zero-sum distribution, but the point
      *  budget is supplied by the caller (the per-instance roll consumes the
      *  instance's STORED MaxPool, so a future add/subtract lever just mutates
      *  the pool and re-rolls; per-asset overrides also land here). */
-    int32 RerollSubstats(int32 Budget, const struct FPillarWeights &Weights);
+    int32 RerollSubstats(int32 Budget, const struct FPillarWeights &Weights); // OBSOLETE (B-335, D-127; delete in the D-124 sweep)
 
     /** Field-wise add Other onto this (all 16 fields, unclamped). Composes the
      *  authored Base with a fresh per-instance roll at acquisition. */
@@ -149,5 +150,5 @@ struct WORLD_OF_REFRACTION_API FEquipmentStatBonus
      *    - Resulting field clamped to PILLAR_MODIFIER_MIN/MAX (±15%).
      *
      *  Returns the budget redistributed (0.0f on no-op). */
-    float RerollPillars(EItemTier Tier);
+    float RerollPillars(EItemTier Tier); // OBSOLETE (B-335, D-127; delete in the D-124 sweep)
 };
