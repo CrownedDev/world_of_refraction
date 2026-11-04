@@ -346,11 +346,24 @@ bool URunStateComponent::RequestJoin(APlayerState *Joiner, UCharacterData *Chara
 		UE_LOG(LogWoR, Warning, TEXT("[RunState] Join refused for player %d: no party here"), Joiner->GetPlayerId());
 		return false;
 	}
+	if (PartySession->IsFightRunning())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[RunState] Join refused for player %d: seats are fixed during a fight (Q-21-audit)"), Joiner->GetPlayerId());
+		return false;
+	}
+	const AWoRPlayerState *WoRJoiner = Cast<AWoRPlayerState>(Joiner);
+	if (WoRJoiner && WoRJoiner->GetClaimedCharacters().Num() > 0)
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[RunState] Join refused for player %d: it already has a seat (%s)"), Joiner->GetPlayerId(),
+			   *GetNameSafe(WoRJoiner->GetClaimedCharacters()[0]));
+		return false;
+	}
 	if (GetFreeAISeats().IsEmpty())
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[RunState] Join refused for player %d: the party is full (no AI seat to take, D-150)"), Joiner->GetPlayerId());
 		return false;
 	}
+	// TODO: co-op trust (B-233+): the client says this is its own character; the host does not check it against the client's save.
 	if (PartySession->GetMemberSlotByData(Character) != INDEX_NONE)
 	{
 		// TODO: B-360b (D-150 point 2): two players may bring the same character as separate copies.
@@ -381,24 +394,34 @@ bool URunStateComponent::AcceptJoin(int32 PlayerId, int32 ReplaceSlot)
 		return false;
 	}
 	const FRunJoinRequest Request = JoinRequests[Index];
-	const UWorld *World = GetWorld();
-	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-	UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
-	if (!PartySession || !PartySession->ReplaceAISeatWithPlayer(ReplaceSlot, Request.PawnClass, Request.Character))
-	{
-		return false;
-	}
+	// The joiner first: a player who left after asking takes no seat (its request is dropped, nothing moves).
+	AWoRPlayerState *JoinerState = nullptr;
 	if (const AGameStateBase *GameState = GetOwningGameState())
 	{
 		for (APlayerState *Player : GameState->PlayerArray)
 		{
 			if (AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player); WoRPlayer && WoRPlayer->GetPlayerId() == PlayerId)
 			{
-				WoRPlayer->ClaimCharacter(Request.Character);
+				JoinerState = WoRPlayer;
 			}
 		}
 	}
-	JoinRequests.RemoveAt(Index);
+	if (!JoinerState)
+	{
+		JoinRequests.RemoveAt(Index);
+		UE_LOG(LogWoR, Warning, TEXT("[RunState] AcceptJoin: player %d has left; its request is dropped"), PlayerId);
+		return false;
+	}
+	JoinRequests.RemoveAt(Index); // before the party broadcast, so the placeholder's refresh shows no stale line
+	const UWorld *World = GetWorld();
+	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	if (!PartySession || !PartySession->ReplaceAISeatWithPlayer(ReplaceSlot, Request.PawnClass, Request.Character))
+	{
+		JoinRequests.Add(Request); // still waiting: the host may pick another seat
+		return false;
+	}
+	JoinerState->ClaimCharacter(Request.Character);
 	RefreshRoster();
 	UE_LOG(LogWoR, Log, TEXT("[RunState] Player %d joined: %s took slot %d"), PlayerId, *GetNameSafe(Request.Character), ReplaceSlot);
 	return true;
@@ -406,6 +429,10 @@ bool URunStateComponent::AcceptJoin(int32 PlayerId, int32 ReplaceSlot)
 
 bool URunStateComponent::RefuseJoin(int32 PlayerId)
 {
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return false;
+	}
 	const int32 Removed = JoinRequests.RemoveAll([PlayerId](const FRunJoinRequest &R) { return R.PlayerId == PlayerId; });
 	if (Removed > 0)
 	{

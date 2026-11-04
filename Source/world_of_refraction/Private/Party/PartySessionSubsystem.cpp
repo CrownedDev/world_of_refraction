@@ -617,7 +617,17 @@ bool UPartySessionSubsystem::ReplaceAISeatWithPlayer(int32 SlotIndex, TSoftClass
 		for (const FGuid &GearID : Owned)
 		{
 			Pool->ReleaseWearer(GearID);
-			GearMoved += Pool->GiveGear(GearID, ToKey) ? 1 : 0;
+			if (Pool->GiveGear(GearID, ToKey))
+			{
+				++GearMoved;
+			}
+			else
+			{
+				// A piece GiveGear does not hand over (an evolution, Q-323) still changes hands: nothing stays with a seat
+				// that is gone. D-150: the host's run, so the give rules (D-115 / D-116) do not apply here.
+				Pool->SetGearOwner(GearID, ToKey);
+				++GearMoved;
+			}
 		}
 		TArray<TPair<FCrystalId, int32>> Stacks;
 		for (const TPair<FCrystalId, int32> &Stack : Pool->GetPouch(FromKey).Stacks)
@@ -636,11 +646,17 @@ bool UPartySessionSubsystem::ReplaceAISeatWithPlayer(int32 SlotIndex, TSoftClass
 	}
 
 	const FString Left = Member.CharacterData ? Member.CharacterData->Name : TEXT("?");
+	const FPartyMember Seat = Member;
 	Member = FPartyMember();
 	Member.PawnClass = PawnClass.IsNull() ? Party->Members[PartyConstants::LEADER_SLOT].PawnClass : PawnClass;
 	Member.CharacterData = Character;
 	Member.bAISeat = false;
 	Member.bPlayerControlled = true; // OBSOLETE mirror, kept for the save
+	// The joiner takes the seat as it stood: its place in the formation and whether it was a run-only seat (Q-360b).
+	// Vitals start fresh; the seat's run gear went to the host with the rest.
+	Member.PreferredRow = Seat.PreferredRow;
+	Member.PreferredColumn = Seat.PreferredColumn;
+	Member.bRunOnly = Seat.bRunOnly;
 	UE_LOG(LogTemp, Log, TEXT("[PartySession] Slot %d: %s (AI seat) leaves, %s joins as a player's; %d gear piece(s) and %d stack(s) went to the host (D-150)"),
 		   SlotIndex, *Left, *Character->Name, GearMoved, StacksMoved);
 	OnPartyChanged.Broadcast(Party);

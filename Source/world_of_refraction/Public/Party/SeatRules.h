@@ -8,6 +8,9 @@
 //   its side's players in seat order (item 29), one player per turn.
 // Pure functions so the rule is testable headless; the rotation counter is per-fight state and lives
 // with the co-op seats (B-232, on the GameState), not here.
+// OBSOLETE in part (B-360, D-150): this game has no unclaimed member in multiplayer, so UsesRotation and the
+// rotation branch of GetCommander are no longer read (URunStateComponent::GetCommander applies D-150); they stay as
+// the deckbuilder's rule (Q-360) until the D-124 sweep.
 
 #pragma once
 
