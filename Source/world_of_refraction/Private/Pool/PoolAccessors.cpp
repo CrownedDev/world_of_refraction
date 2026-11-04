@@ -74,7 +74,7 @@ namespace PoolAccessors
 
     ESpellSchool GetSchool(const FSpellInstance &Instance)
     {
-        return Instance.Spell ? Instance.Spell->School : ESpellSchool::Destruction;
+        return Instance.Spell ? Instance.Spell->GetSchool() : ESpellSchool::Destruction; // B-356: one of the three
     }
 
     EItemBucket GetBucket(const FCrystalId &Id)

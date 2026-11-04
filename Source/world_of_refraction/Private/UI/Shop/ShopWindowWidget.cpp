@@ -144,7 +144,7 @@ namespace
         {
             if (const USpellData *S = Cast<USpellData>(Skill))
             {
-                Lines.Add(FString::Printf(TEXT("School: %s"), *WoRGameNames::GetSpellSchoolName(S->School).ToString()));
+                Lines.Add(FString::Printf(TEXT("School: %s"), *WoRGameNames::GetSpellSchoolName(S->GetSchool()).ToString()));
                 Lines.Add(FString::Printf(TEXT("Element: %s"), *WoRGameNames::GetElementName(S->Element).ToString()));
             }
             Lines.Add(FString::Printf(TEXT("Damage: %d"), Skill->BaseDamage));
