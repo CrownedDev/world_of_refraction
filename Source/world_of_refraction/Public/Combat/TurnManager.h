@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "TurnManager.generated.h"
 
 namespace TurnManagerTeams

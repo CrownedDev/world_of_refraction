@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "WeatherStateManager.generated.h"
 

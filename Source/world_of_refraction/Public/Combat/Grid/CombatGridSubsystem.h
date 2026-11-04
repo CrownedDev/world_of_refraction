@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "Combat/Grid/FCombatGridPosition.h"
 #include "CombatGridSubsystem.generated.h"
 
