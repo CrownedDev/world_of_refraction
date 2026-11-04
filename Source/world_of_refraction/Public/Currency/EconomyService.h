@@ -133,8 +133,9 @@ public:
      * Server-authoritative; spend+remove-first then add, with full refund if the add fails. Returns
      * false if: Owner null / no authority; CrystalInventory or Currency missing; Type is None;
      * TargetTier is F (the floor — not a merge target); total available value below the target is
-     * insufficient; Prisms unaffordable; the target tier is at cap; or the change doesn't fit (a
-     * change tier at cap — the whole merge is refunded, Q-177).
+     * insufficient; the money cost unaffordable; the target tier is at cap; or the change doesn't fit (a
+     * change tier at cap — the whole merge is refunded, Q-177). B-366d: the money cost (GetMergeCostForTier) is paid
+     * in the currency of the place (GetPlaceCurrency).
      */
     UFUNCTION(BlueprintCallable, Category = "Economy")
     bool MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier TargetTier);
