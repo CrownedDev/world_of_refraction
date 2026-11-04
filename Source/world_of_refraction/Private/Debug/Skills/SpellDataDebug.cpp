@@ -217,11 +217,15 @@ FString USpellDataDebug::GetSchoolString(const USpellData *Spell)
 
 FString USpellDataDebug::GetSchoolEffectMismatchString()
 {
-    const IAssetRegistry &Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+#if !WITH_EDITOR
+    return TEXT("(editor only)");
+#else
+    IAssetRegistry &Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+    Registry.WaitForCompletion(); // a half-scanned registry would read as "all agree"
     TArray<FAssetData> Assets;
     Registry.GetAssetsByClass(USpellData::StaticClass()->GetClassPathName(), Assets, /*bSearchSubClasses=*/true);
 
-    FString Out;
+    FString Out = FString::Printf(TEXT("%d spell assets scanned\n"), Assets.Num());
     for (const FAssetData &Asset : Assets)
     {
         const USpellData *Spell = Cast<USpellData>(Asset.GetAsset());
@@ -242,5 +246,6 @@ FString USpellDataDebug::GetSchoolEffectMismatchString()
                                UAIDecisionManager::IsHealingSpell(*Spell) ? TEXT("yes") : TEXT("no"));
     }
     return Out;
+#endif
 }
 
