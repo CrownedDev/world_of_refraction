@@ -54,7 +54,7 @@ awk -F'"' '
 SLOWEST_COUNT=10
 SLOWEST="$(awk -F'"' '
     /"fullTestPath"/ { path = $4 }
-    /"duration"/     { if (match($0, /[0-9.]+/)) { printf "%10.2f  %s\n", substr($0, RSTART, RLENGTH), path } }
+    /"duration"/     { if (match($0, /[0-9.]+([eE][-+]?[0-9]+)?/)) { printf "%10.2f  %s\n", substr($0, RSTART, RLENGTH) + 0, path } }
 ' "$INDEX" | sort -rn | head -n "$SLOWEST_COUNT")"
 if [ -n "$SLOWEST" ]; then
     echo "Slowest $SLOWEST_COUNT tests (seconds):"
