@@ -161,11 +161,11 @@ protected:
     int32 SkillEssence = 0;
 
     /** B-333 (D-125): Elemental Essence (per-character scalar). */
-    UPROPERTY(SaveGame, ReplicatedUsing = OnRep_ElementalEssence, BlueprintReadOnly, Category = "Economy|Currency")
+    UPROPERTY(ReplicatedUsing = OnRep_ElementalEssence, BlueprintReadOnly, Category = "Economy|Currency")
     int32 ElementalEssence = 0;
 
     /** B-333 (D-125): Pillar Essence (per-character scalar). */
-    UPROPERTY(SaveGame, ReplicatedUsing = OnRep_PillarEssence, BlueprintReadOnly, Category = "Economy|Currency")
+    UPROPERTY(ReplicatedUsing = OnRep_PillarEssence, BlueprintReadOnly, Category = "Economy|Currency")
     int32 PillarEssence = 0;
 
     /** OBSOLETE (B-333). 14 typed-essence wallets (per-character). Not BlueprintReadOnly — FCurrencyArray

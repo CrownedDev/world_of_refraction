@@ -92,6 +92,8 @@ void FSaveSpec::Define()
 		Party->Members[1].PreferredRow = ECombatRow::Back;
 		Party->Members[1].PreferredColumn = SAVED_COLUMN;
 		Party->Members[1].bPlayerControlled = false;
+		Party->Members[1].bAISeat = true; // B-346: the saved mirror of bPlayerControlled
+		Party->Members[1].AISeatDifficulty = EAIDifficulty::Hard;
 
 		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
 		Save->HandlePreSave();
@@ -119,6 +121,7 @@ void FSaveSpec::Define()
 		TestEqual(TEXT("EP"), Back.CurrentEP, SAVED_EP);
 		TestTrue(TEXT("Cell"), Back.PreferredRow == ECombatRow::Back && Back.PreferredColumn == SAVED_COLUMN);
 		TestFalse(TEXT("AI-controlled"), Back.bPlayerControlled);
+		TestTrue(TEXT("AI seat, Hard (B-346 / B-348)"), Back.bAISeat && Back.AISeatDifficulty == EAIDifficulty::Hard);
 		TestFalse(TEXT("A party that already exists is left alone"),
 				  USaveSubsystem::RestoreParty(Loaded->Data.Party, *PartySession));
 	});
@@ -231,7 +234,8 @@ void FSaveSpec::Define()
 	It("bumps the save version for the seven balances and wipes everything older (B-333, D-060)", [this]()
 	{
 		TestTrue(TEXT("Latest is at least the seven-balances version"), WoRSaveVersion::LATEST >= SEVEN_BALANCES_SAVE_VERSION);
-		TestEqual(TEXT("Minimum is the seven-balances version"), WoRSaveVersion::MIN_SUPPORTED, SEVEN_BALANCES_SAVE_VERSION);
+		// B-348 (D-138): the minimum is LATEST, so it is at least the seven-balances version.
+		TestTrue(TEXT("Minimum is at least the seven-balances version"), WoRSaveVersion::MIN_SUPPORTED >= SEVEN_BALANCES_SAVE_VERSION);
 	});
 
 	It("wipes a save below the minimum version (D-060)", [this]()
