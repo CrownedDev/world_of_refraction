@@ -323,13 +323,16 @@ void UEncounterComponent::OnJoinWindowExpired()
 	const TArray<UEncounterComponent *> Caught = GatherCaughtEncounters();
 	TArray<TArray<UCharacterData *>> CaughtTeams;
 	TArray<FName> CaughtIds;
-	EAIDifficulty FightDifficulty = Difficulty;
+	const UGameInstance *DifficultyGI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	const UTrialRunSubsystem *DifficultyRun = DifficultyGI ? DifficultyGI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	const ETrialDifficulty TrialDifficulty = DifficultyRun ? DifficultyRun->GetTrialDifficulty() : TrialGate::DEFAULT_DIFFICULTY;
+	EAIDifficulty FightDifficulty = GetFightAIDifficulty(TrialDifficulty);
 	EEncounterRank FightRank = Rank;
 	for (const UEncounterComponent *Encounter : Caught)
 	{
 		CaughtTeams.Add(Encounter->GetOwnTeam());
 		CaughtIds.Add(Encounter->GetEncounterId());
-		FightDifficulty = FMath::Max(FightDifficulty, Encounter->Difficulty);
+		FightDifficulty = FMath::Max(FightDifficulty, Encounter->GetFightAIDifficulty(TrialDifficulty));
 		FightRank = HarderEncounterRank(FightRank, Encounter->Rank);
 	}
 	TArray<int32> TeamOfMember;
@@ -406,4 +409,9 @@ void UEncounterComponent::RearmEncounter()
 	PendingBattleParty.Reset();
 	PendingFirstStrike = EFirstStrike::None;
 	bTriggered = false;
+}
+
+EAIDifficulty UEncounterComponent::GetFightAIDifficulty(ETrialDifficulty TrialDifficulty) const
+{
+	return TrialGate::ResolveEncounterAIDifficulty(TrialDifficulty, bOverrideAIDifficulty, Difficulty);
 }

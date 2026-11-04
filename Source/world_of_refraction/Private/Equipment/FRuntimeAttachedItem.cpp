@@ -4,6 +4,7 @@
 // transitive consumer.
 
 #include "Equipment/FRuntimeAttachedItem.h"
+#include "Equipment/Crystals/FFusionId.h" // FusionRules (B-352)
 #include "Equipment/FAttachedItem.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
@@ -271,21 +272,17 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem 
         if constexpr (FusionRules::RETIRED)
         {
             // B-352 (D-141): an authored fusion no longer attaches; the socket reads empty.
-            UE_LOG(LogTemp, Warning, TEXT("[FRuntimeAttachedItem] an authored fusion is retired (D-141): the socket stays empty"));
-            break;
+            UE_LOG(LogTemp, Verbose, TEXT("[FRuntimeAttachedItem] an authored fusion is retired (D-141): the socket stays empty (IsDataValid flags the asset)"));
         }
-        Result.Kind = EAttachedItemKind::Fusion;
-        // Map the six flat authored fields into the runtime fusion identity. The
-        // authoring-only bFusionHalfBIsCrystal is NOT stored — gem/stone nature is
-        // recovered at runtime via CrystalTypeHelpers::IsGemType on each half.
-        Result.Fusion.Id.HalfA     = FCrystalId(Source.FusionHalfAType, Source.FusionHalfATier);
-        Result.Fusion.Id.HalfB     = FCrystalId(Source.FusionHalfBType, Source.FusionHalfBTier);
-        Result.Fusion.Id.BonusStat = Source.FusionBonusStat;
-        // Seed whole-fusion durability: an elemental fusion (gem half present)
-        // starts at its gem-seeded max (incl. the two-tier bonus); an augmented
-        // fusion seeds 0 and never wears. GetMaxDurability() returns 0 when there
-        // is no gem half, so this single call covers both cases.
-        Result.Fusion.CurrentDurability = Result.Fusion.GetMaxDurability();
+        else
+        {
+            // OBSOLETE (B-352, D-141; delete in the D-124 sweep): the authored fusion's runtime identity.
+            Result.Kind = EAttachedItemKind::Fusion;
+            Result.Fusion.Id.HalfA     = FCrystalId(Source.FusionHalfAType, Source.FusionHalfATier);
+            Result.Fusion.Id.HalfB     = FCrystalId(Source.FusionHalfBType, Source.FusionHalfBTier);
+            Result.Fusion.Id.BonusStat = Source.FusionBonusStat;
+            Result.Fusion.CurrentDurability = Result.Fusion.GetMaxDurability();
+        }
         break;
 
     case EAttachedItemKind::None:

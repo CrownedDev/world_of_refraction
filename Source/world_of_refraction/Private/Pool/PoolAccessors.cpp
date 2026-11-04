@@ -74,7 +74,7 @@ namespace PoolAccessors
 
     ESpellSchool GetSchool(const FSpellInstance &Instance)
     {
-        return Instance.Spell ? Instance.Spell->School : ESpellSchool::Destruction;
+        return Instance.Spell ? Instance.Spell->GetSchool() : ESpellSchool::Conjuration; // B-356: one of the three
     }
 
     EItemBucket GetBucket(const FCrystalId &Id)
@@ -122,7 +122,7 @@ namespace PoolAccessors
     {
         if (F.bUseWeaponType) return false; // spells have no weapon-type
         if (F.bUseElement && (!Instance.Spell || Instance.Spell->Element != F.Element)) return false;
-        if (F.bUseSchool && (!Instance.Spell || Instance.Spell->School != F.School)) return false;
+        if (F.bUseSchool && (!Instance.Spell || Instance.Spell->GetSchool() != SpellSchools::ToCurrent(F.School))) return false; // B-356b
         if (F.bUseTier && Instance.Tier != F.Tier) return false;
         if (F.bUseQuality && Instance.Quality != F.Quality) return false;
         return true;

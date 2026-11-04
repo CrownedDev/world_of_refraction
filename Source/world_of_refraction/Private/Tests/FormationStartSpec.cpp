@@ -103,8 +103,9 @@ void FFormationStartSpec::Define()
 		if (!TestTrue(TEXT("Spawned"), Leader && Member && RefractorFoe && FighterFoe)) return;
 
 		Orchestrator->StartCombat({Leader, Member}, {RefractorFoe, FighterFoe});
-		TestTrue(TEXT("Member starts in its chosen cell"), HasCell(Member, ECombatRow::Back, FORMATION_LEFT_COLUMN));
-		TestTrue(TEXT("Unplaced leader starts Middle/Centre"), HasCell(Leader, ECombatRow::Middle, FORMATION_CENTRE_COLUMN));
+		// B-342 (D-134): three rows, no columns: a member starts in its chosen ROW.
+		TestTrue(TEXT("Member starts in its chosen row"), Grid->GetActorRow(Member) == ECombatRow::Back);
+		TestTrue(TEXT("Unplaced leader starts Middle"), Grid->GetActorRow(Leader) == ECombatRow::Middle);
 		TestTrue(TEXT("Refractor enemy starts in the Back row"), Grid->GetActorRow(RefractorFoe) == ECombatRow::Back);
 		TestTrue(TEXT("Other enemy starts in the Front row"), Grid->GetActorRow(FighterFoe) == ECombatRow::Front);
 		Orchestrator->ForceEndCombat();

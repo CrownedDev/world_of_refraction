@@ -6,6 +6,7 @@
 #include "Loadout/Entries/FRingInventoryEntry.h"
 #include "Loadout/Entries/FWeaponInventoryEntry.h"
 #include "Skills/Definitions/SpellData.h"
+#include "Skills/Definitions/AbilityData.h"
 
 namespace
 {
@@ -18,6 +19,7 @@ namespace
 		To.Tier = From.Tier;
 		To.Quality = From.Quality;
 		To.AttachedItem = From.AttachedItem;
+		To.StoneSocket = From.StoneSocket; // B-351
 		To.AssignedSpells.Reset(From.AssignedSpells.Num());
 		for (USpellData *Spell : From.AssignedSpells)
 		{
@@ -53,6 +55,12 @@ FGearInstance FGearInstance::FromWeaponEntry(const FWeaponInventoryEntry &Entry)
 	Gear.Asset = Entry.Weapon;
 	Gear.Kind = EGearKind::Weapon;
 	CopySharedGearFields(Entry, Gear);
+	Gear.SkillPicks.Reset(Entry.SkillPicks.Num()); // B-351 (D-145)
+	for (UAbilityData *Pick : Entry.SkillPicks)
+	{
+		Gear.SkillPicks.Add(Pick);
+	}
+	Gear.bSkillSlotsActive = Entry.bSkillSlotsActive;
 	return Gear;
 }
 
@@ -72,6 +80,12 @@ FWeaponInventoryEntry FGearInstance::ToWeaponEntry() const
 	{
 		Entry.Weapon = Weapon;
 		CopySharedGearFields(*this, Entry);
+		Entry.SkillPicks.Reset(SkillPicks.Num()); // B-351 (D-145)
+		for (UAbilityData *Pick : SkillPicks)
+		{
+			Entry.SkillPicks.Add(Pick);
+		}
+		Entry.bSkillSlotsActive = bSkillSlotsActive;
 	}
 	return Entry;
 }

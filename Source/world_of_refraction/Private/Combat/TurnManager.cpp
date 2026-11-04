@@ -434,38 +434,99 @@ void UTurnManager::ScheduleExecutionTurn(AActor *Caster, int32 DelayTurns, int32
 		   *Caster->GetName(), DelayTurns, PayloadId, SpellSpeed);
 }
 
+void UTurnManager::GrantBonusTurn(AActor *Actor, int32 Count)
+{
+	UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Actor);
+	if (!bCombatActive || !CharComp || !CharComp->bIsAlive || !FindCombatantEntry(Actor))
+	{
+		UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] GrantBonusTurn: %s is not a living combatant in this fight"), *GetNameSafe(Actor));
+		return;
+	}
+
+	FScheduledTurn Entry;
+	Entry.Actor = Actor;
+	Entry.TurnsRemaining = 0; // ready: the pinned-fire step takes it before the speed pick
+	Entry.Count = FMath::Max(1, Count);
+	Entry.Type = ETurnType::Bonus;
+	Entry.bLandsNext = true;
+
+	// Immediately after the current turn: ahead of every other pinned turn, behind earlier land-next grants.
+	int32 InsertAt = 0;
+	while (InsertAt < PendingTurns.Num() && PendingTurns[InsertAt].bLandsNext)
+	{
+		++InsertAt;
+	}
+	PendingTurns.Insert(Entry, InsertAt);
+
+	UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] %s gets %d bonus turn(s), landing next"), *Actor->GetName(), Entry.Count);
+	RebuildBelt(); // the strip shows it now, not next turn
+	OnSpeedChanged.Broadcast(Actor);
+}
+
+void UTurnManager::SkipNextTurn(AActor *Actor, int32 Count)
+{
+	const UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Actor);
+	if (!bCombatActive || Count <= 0 || !CharComp || !CharComp->bIsAlive)
+	{
+		UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] SkipNextTurn: %s is not a living combatant in this fight"), *GetNameSafe(Actor));
+		return;
+	}
+	for (FCombatantTurnDebt &Combatant : Combatants)
+	{
+		if (Combatant.Actor == Actor)
+		{
+			Combatant.TurnsToSkip += Count;
+			UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] %s's next %d turn(s) are removed"), *Actor->GetName(), Count);
+			RebuildBelt();
+			OnSpeedChanged.Broadcast(Actor);
+			return;
+		}
+	}
+	UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] SkipNextTurn: %s not in current combat"), *GetNameSafe(Actor));
+}
+
+int32 UTurnManager::GetTurnsToSkip(const AActor *Actor) const
+{
+	const FCombatantTurnDebt *Entry = FindCombatantEntry(Actor);
+	return Entry ? Entry->TurnsToSkip : 0;
+}
+
 bool UTurnManager::ShouldBreakTieInFavor(const FCombatantTurnDebt &A, const FCombatantTurnDebt &B) const
 {
-	// Level 1: Speed (higher wins)
+	// B-341 (D-133, Q-341): three steps. The old action speed / underdog total / Body / Mind / Spirit
+	// steps are retired (their cached fields stay, OBSOLETE (B-341), until PIE).
+
+	// Step 1: higher base turn speed (buffs ignored).
 	if (A.CachedSpeed != B.CachedSpeed)
 		return A.CachedSpeed > B.CachedSpeed;
 
-	// Level 2: Action speed (higher wins)
-	if (A.CachedActionSpeed != B.CachedActionSpeed)
-		return A.CachedActionSpeed > B.CachedActionSpeed;
-
-	// Level 3: Underdog (LOWER total stats wins - rewards glass cannon builds)
-	int32 TotalA = A.CachedMind + A.CachedBody + A.CachedSpirit;
-	int32 TotalB = B.CachedMind + B.CachedBody + B.CachedSpirit;
-	if (TotalA != TotalB)
-		return TotalA < TotalB;
-
-	// Level 4: Body (higher wins)
-	if (A.CachedBody != B.CachedBody)
-		return A.CachedBody > B.CachedBody;
-
-	// Level 5: Mind (higher wins)
-	if (A.CachedMind != B.CachedMind)
-		return A.CachedMind > B.CachedMind;
-
-	// Level 6: Spirit (higher wins)
-	if (A.CachedSpirit != B.CachedSpirit)
-		return A.CachedSpirit > B.CachedSpirit;
-
-	// Level 7: Team + Position (deterministic fallback)
+	// Step 2: your party before enemies.
 	if (A.TeamIndex != B.TeamIndex)
 		return A.TeamIndex < B.TeamIndex;
 
+	// Step 3: the lower slot.
+	return A.PositionInTeam < B.PositionInTeam;
+}
+
+bool UTurnManager::ShouldBreakTieInFavorEightStep(const FCombatantTurnDebt &A, const FCombatantTurnDebt &B) const
+{
+	// OBSOLETE (B-341): the 8-step chain ShouldBreakTieInFavor used before D-133. Unused; remove after PIE.
+	if (A.CachedSpeed != B.CachedSpeed)
+		return A.CachedSpeed > B.CachedSpeed;
+	if (A.CachedActionSpeed != B.CachedActionSpeed)
+		return A.CachedActionSpeed > B.CachedActionSpeed;
+	const int32 TotalA = A.CachedMind + A.CachedBody + A.CachedSpirit;
+	const int32 TotalB = B.CachedMind + B.CachedBody + B.CachedSpirit;
+	if (TotalA != TotalB)
+		return TotalA < TotalB; // the underdog
+	if (A.CachedBody != B.CachedBody)
+		return A.CachedBody > B.CachedBody;
+	if (A.CachedMind != B.CachedMind)
+		return A.CachedMind > B.CachedMind;
+	if (A.CachedSpirit != B.CachedSpirit)
+		return A.CachedSpirit > B.CachedSpirit;
+	if (A.TeamIndex != B.TeamIndex)
+		return A.TeamIndex < B.TeamIndex;
 	return A.PositionInTeam < B.PositionInTeam;
 }
 
@@ -545,22 +606,51 @@ void UTurnManager::OnActorDied(AActor *Actor)
 {
 	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s died"), *GetNameSafe(Actor));
 	// A Wind delay dies with its holder; a revived holder starts undelayed.
+	// B-341 (D-133, the turn belt): death purges the holder's turns: its skips and its bonus turns
+	// (a ritual's Execution turn keeps its own fire-time check, ET-16).
 	for (FCombatantTurnDebt &Combatant : Combatants)
 	{
 		if (Combatant.Actor == Actor)
 		{
 			Combatant.PlacesToYield = 0;
+			Combatant.TurnsToSkip = 0;
 		}
+	}
+	const int32 Purged = PendingTurns.RemoveAll([Actor](const FScheduledTurn &Entry)
+												{ return Entry.Actor == Actor && Entry.Type == ETurnType::Bonus; });
+	if (Purged > 0)
+	{
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] %s's %d bonus turn(s) purged by death"), *GetNameSafe(Actor), Purged);
 	}
 	// Recalculate ratios since the slowest combatant might have changed
 	CalculateSpeedRatios();
+	if (bCombatActive)
+	{
+		RebuildBelt();
+	}
 }
 
 void UTurnManager::OnActorResurrected(AActor *Actor)
 {
 	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s resurrected"), *GetNameSafe(Actor));
+	// B-341 (D-133, Q-341d): a revive re-enters the holder from the next round: nothing owed
+	// now (no catch-up turn), no streak toward the 2:1 cap, no leftover delay or skip.
+	for (FCombatantTurnDebt &Combatant : Combatants)
+	{
+		if (Combatant.Actor == Actor)
+		{
+			Combatant.TurnsOwed = static_cast<float>(Combatant.TurnsTaken);
+			Combatant.TurnsSinceOpponent = 0;
+			Combatant.PlacesToYield = 0;
+			Combatant.TurnsToSkip = 0;
+		}
+	}
 	// Recalculate ratios since the slowest combatant might have changed
 	CalculateSpeedRatios();
+	if (bCombatActive)
+	{
+		RebuildBelt();
+	}
 }
 
 AActor *UTurnManager::GetCurrentActor() const
@@ -682,6 +772,22 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 	{
 		FScheduledTurn &Winner = Pending[WinnerIdx];
 		AActor *PinnedActor = Winner.Actor;
+
+		// B-341: a skip removes the holder's next turn, a bonus one included (not a ritual's
+		// Execution turn). The removed turn never happens: no cap count, no delay burn; pick again.
+		if (Winner.Type == ETurnType::Bonus)
+		{
+			FCombatantTurnDebt *Holder = State.FindByPredicate([PinnedActor](const FCombatantTurnDebt &C) { return C.Actor == PinnedActor; });
+			if (Holder && Holder->TurnsToSkip > 0)
+			{
+				Holder->TurnsToSkip--;
+				if (--Winner.Count <= 0)
+				{
+					Pending.RemoveAt(WinnerIdx);
+				}
+				return AdvanceSimState(State, Pending, OutEntry, bOutRoundAdded);
+			}
+		}
 
 		OutEntry.Actor = PinnedActor;
 		OutEntry.Type = Winner.Type;
@@ -854,6 +960,15 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 		}
 	}
 
+	// B-341: a skip removes this pick. The turn is used up (taken) without happening: no cap
+	// count, no delay burn; pick again.
+	if (NextCombatant->TurnsToSkip > 0)
+	{
+		NextCombatant->TurnsToSkip--;
+		NextCombatant->TurnsTaken++;
+		return AdvanceSimState(State, Pending, OutEntry, bOutRoundAdded);
+	}
+
 	// Record the slot — a NORMAL turn. Bonus identity now comes solely from the
 	// pinned-fire step above; the debt pick never flags.
 	OutEntry.Actor = NextCombatant->Actor;
@@ -906,7 +1021,7 @@ void UTurnManager::DebugPrintTurnOrder()
 	for (const FCombatantTurnDebt &Combatant : Combatants)
 	{
 		float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
-		UE_LOG(LogWoRCombat, Display, TEXT("  %s: Speed=%d, Ratio=%.2f, Owed=%.2f, Taken=%d, Net=%.2f, InARow=%d%s"),
+		UE_LOG(LogWoRCombat, Display, TEXT("  %s: Speed=%d, Ratio=%.2f, Owed=%.2f, Taken=%d, Net=%.2f, InARow=%d, Skips=%d%s"),
 			   *GetNameSafe(Combatant.Actor),
 			   Combatant.CachedSpeed,
 			   Combatant.SpeedRatio,
@@ -914,6 +1029,7 @@ void UTurnManager::DebugPrintTurnOrder()
 			   Combatant.TurnsTaken,
 			   NetDebt,
 			   Combatant.TurnsSinceOpponent,
+			   Combatant.TurnsToSkip,
 			   Combatant.bWaitsForOpening ? TEXT(" [WAITS: first strike]") : TEXT(""));
 	}
 
@@ -940,8 +1056,10 @@ FString UTurnManager::GetPendingTurnsString() const
 	for (const FScheduledTurn &Entry : PendingTurns)
 	{
 		const FString Name = Entry.Actor ? Entry.Actor->GetName() : TEXT("<invalid>");
-		Out += FString::Printf(TEXT("\n  %s [%s] - fires after %d normal turn(s), count %d, sortkey %.2f"),
-							   *Name, TurnTypeToString(Entry.Type), Entry.TurnsRemaining, Entry.Count, Entry.SortKey);
+		Out += FString::Printf(TEXT("\n  %s [%s] - %s, count %d, sortkey %.2f"),
+							   *Name, TurnTypeToString(Entry.Type),
+							   *(Entry.bLandsNext ? FString(TEXT("lands next")) : FString::Printf(TEXT("fires after %d turn(s)"), Entry.TurnsRemaining)),
+							   Entry.Count, Entry.SortKey);
 	}
 	return Out;
 }
@@ -989,6 +1107,47 @@ namespace
 				else
 				{
 					UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] wor.PrintBelt: no subsystem (no PIE world?)."));
+				}
+			}));
+
+	/** B-341: the turn-belt rule in PIE without an Emerald or an Extra Action skill. */
+	UTurnManager *TurnManagerInCombat(UWorld *World, const TCHAR *Command)
+	{
+		UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		UTurnManager *Mgr = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+		if (!Mgr || !Mgr->IsCombatActive() || !Mgr->GetCurrentActor())
+		{
+			UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] %s: no fight running."), Command);
+			return nullptr;
+		}
+		return Mgr;
+	}
+
+	static FAutoConsoleCommandWithWorld GGrantBonusCmd(
+		TEXT("wor.Turns.GrantBonus"),
+		TEXT("B-341: give the current actor a bonus turn that lands right after this one, then log the belt (PIE debug)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				if (UTurnManager *Mgr = TurnManagerInCombat(World, TEXT("wor.Turns.GrantBonus")))
+				{
+					Mgr->GrantBonusTurn(Mgr->GetCurrentActor());
+					Mgr->DebugPrintBelt();
+				}
+			}));
+
+	static FAutoConsoleCommandWithWorld GSkipNextCmd(
+		TEXT("wor.Turns.SkipNext"),
+		TEXT("B-341: remove the next turn of whoever is next on the belt, then log the belt (PIE debug)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				UTurnManager *Mgr = TurnManagerInCombat(World, TEXT("wor.Turns.SkipNext"));
+				const TArray<FPreviewTurnEntry> Next = Mgr ? Mgr->PreviewTurnOrder(1) : TArray<FPreviewTurnEntry>();
+				if (Next.Num() > 0 && Next[0].Actor)
+				{
+					Mgr->SkipNextTurn(Next[0].Actor);
+					Mgr->DebugPrintBelt();
 				}
 			}));
 }

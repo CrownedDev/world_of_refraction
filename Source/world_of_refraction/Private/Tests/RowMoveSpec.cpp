@@ -1,7 +1,7 @@
 // RowMoveSpec.cpp
 // D-096 (Crown, 2026-10-26; B-180): a character can step one row forward or back on their turn,
-// free and once per turn, swapping with an ally in that cell; skills can push or pull a target
-// one row. Row bonuses (PA-30) apply from the new row at once.
+// free and once per turn; skills can push or pull a target one row. Row bonuses (PA-30) apply from
+// the new row at once. B-342 (D-134): three rows, no columns, so an ally in the row never blocks.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -131,18 +131,17 @@ void FRowMoveSpec::Define()
 			TestTrue(TEXT("now at the back"), RowOf(Hero) == ECombatRow::Back);
 		});
 
-		It("is refused into an ally's cell: no swapping in battle (Q-180)", [this]()
+		It("steps into a row an ally stands in: three rows, no columns (B-342, D-134)", [this]()
 		{
 			if (!StartFight())
 			{
 				return;
 			}
 			Place(Ally, ECombatRow::Front, PositionOf(Hero).Column);
-			const ECombatRow HeroRow = RowOf(Hero);
-			TestFalse(TEXT("refused before trying"), Orchestrator->GetRowMoveRefusedReason(Hero, ROW_MOVE_FORWARD).IsEmpty());
+			TestTrue(TEXT("not refused"), Orchestrator->GetRowMoveRefusedReason(Hero, ROW_MOVE_FORWARD).IsEmpty());
 			FText Reason;
-			TestFalse(TEXT("not moved"), Orchestrator->TryMoveRow(Hero, ROW_MOVE_FORWARD, Reason));
-			TestTrue(TEXT("hero stays"), RowOf(Hero) == HeroRow);
+			TestTrue(TEXT("moved"), Orchestrator->TryMoveRow(Hero, ROW_MOVE_FORWARD, Reason));
+			TestTrue(TEXT("hero in front"), RowOf(Hero) == ECombatRow::Front);
 			TestTrue(TEXT("ally stays in front"), RowOf(Ally) == ECombatRow::Front);
 		});
 
@@ -214,15 +213,16 @@ void FRowMoveSpec::Define()
 			TestTrue(TEXT("pulled to the front"), RowOf(Foe) == ECombatRow::Front);
 		});
 
-		It("does nothing when the cell behind is taken", [this]()
+		It("pushes into a row an ally stands in (B-342, D-134)", [this]()
 		{
 			if (!StartFight())
 			{
 				return;
 			}
+			Place(Hero, ECombatRow::Middle, PositionOf(Hero).Column);
 			Place(Ally, ECombatRow::Back, PositionOf(Hero).Column);
 			ApplyRowEffect(Hero, ESkillEffectType::PushBack);
-			TestTrue(TEXT("hero stays in the middle"), RowOf(Hero) == ECombatRow::Middle);
+			TestTrue(TEXT("hero pushed to the back"), RowOf(Hero) == ECombatRow::Back);
 			TestTrue(TEXT("ally stays at the back"), RowOf(Ally) == ECombatRow::Back);
 		});
 	});

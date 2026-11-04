@@ -2,6 +2,7 @@
 
 #include "Debug/Equipment/EquipmentRollDebug.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Combat/Resistance/ResistanceColumns.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -43,7 +44,7 @@ namespace
 		Add(TEXT("Fire"), R.Fire);       Add(TEXT("Water"), R.Water);   Add(TEXT("Earth"), R.Earth);
 		Add(TEXT("Wind"), R.Wind);       Add(TEXT("Light"), R.Light);   Add(TEXT("Dark"), R.Darkness);
 		Add(TEXT("Ltng"), R.Lightning);  Add(TEXT("Void"), R.Void);     Add(TEXT("Reality"), R.Reality);
-		Add(TEXT("Slash"), R.Slash);     Add(TEXT("Pierce"), R.Pierce); Add(TEXT("Impact"), R.Impact);
+		Add(TEXT("Physical"), ResistanceColumns::Get(R, ResistanceColumns::PHYSICAL_COLUMN)); // B-358: one Physical column
 		return T.Num() ? FString::Join(T, TEXT(", ")) : TEXT("(none)");
 	}
 

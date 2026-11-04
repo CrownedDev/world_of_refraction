@@ -29,6 +29,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnWeatherChanged,
                                                UPrimaryDataAsset *, OpposingPartyWeatherDA,
                                                float, BlendValue);
 
+/** B-359 (D-149): the battle's weather: the trial's element, stepped by a boss's reached phases (D-098). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBattleWeatherChanged, ESpellElement, Element, float, Intensity);
+
 UCLASS()
 class WORLD_OF_REFRACTION_API UWeatherStateManager : public UGameInstanceSubsystem
 {
@@ -55,8 +58,33 @@ public:
     // EVENTS
     // ========================================
 
+    /** Still broadcast for its Blueprint listeners: the leaders' weather assets and a blend that only a boss's
+     *  phases move now (B-359; the leader-HP tug-of-war is OBSOLETE). */
     UPROPERTY(BlueprintAssignable, Category = "Weather")
     FOnWeatherChanged OnWeatherChanged;
+
+    /** B-359 (D-149): the one weather baseline changed: at a fight's start, and at each boss phase. */
+    UPROPERTY(BlueprintAssignable, Category = "Weather")
+    FOnBattleWeatherChanged OnBattleWeatherChanged;
+
+    // ========================================
+    // BASELINE (B-359, D-149)
+    // ========================================
+
+    /** The weather baseline on the map and in battle: the active trial's element (B-189); Generic outside a trial. */
+    UFUNCTION(BlueprintPure, Category = "Weather")
+    ESpellElement GetBaselineElement() const;
+
+    /** This fight's weather: the baseline, or a phased boss's element (D-098). */
+    UFUNCTION(BlueprintPure, Category = "Weather")
+    ESpellElement GetBattleWeatherElement() const { return BattleElement; }
+
+    /** 0 at a fight's start; a phased boss's weather intensity after (BossPhaseComponent::GetWeatherIntensity). */
+    UFUNCTION(BlueprintPure, Category = "Weather")
+    float GetBattleWeatherIntensity() const { return BattleIntensity; }
+
+    /** The last blend OnWeatherChanged carried (debug and specs). */
+    float GetLastBlendValue() const { return LastBroadcastBlendValue; }
 
     // ========================================
     // DEBUG
@@ -93,6 +121,10 @@ private:
      *  are emptied inside EndCombat, so a count-derived answer lags the flag. */
     bool bCombatActive = false;
 
+    /** B-359: this fight's weather element and intensity (set by RecalculateWeather). */
+    ESpellElement BattleElement = ESpellElement::Generic;
+    float BattleIntensity = 0.0f;
+
     // ========================================
     // INTERNAL
     // ========================================
@@ -103,7 +135,7 @@ private:
      *  team-HP signal needs damage on any member to trigger a recompute, so
      *  the binding is whole-team rather than leader-only. EndCombat mirrors
      *  this with a matching iterate-and-unbind. */
-    void BindToTeam(const TArray<FLeadershipEntry> &Hierarchy, bool bIsLocalParty);
+    void BindToTeam(const TArray<FLeadershipEntry> &Hierarchy, bool bIsLocalParty); // OBSOLETE (B-359): no longer called
 
     void RecalculateWeather();
 
@@ -111,13 +143,14 @@ private:
      *  filter). Returns 0.0f if no member is alive. Reused by both
      *  RecalculateWeather (broadcast path) and GetWeatherStateString
      *  (diagnostic snapshot) so they cannot diverge. */
-    float ComputeTeamHPPercent(const TArray<FLeadershipEntry> &Hierarchy) const;
+    float ComputeTeamHPPercent(const TArray<FLeadershipEntry> &Hierarchy) const; // debug only since B-359
 
     /** Map two team-HP percents to the broadcast BlendValue: signed gap →
      *  deadzone → linear ramp → ±1.0 clamp. See WEATHER_DEADZONE_GAP /
      *  WEATHER_RAMP_END_GAP in WeatherStateManager.cpp for the tuning. */
-    float ComputeBlendValue(float LocalPartyPercent, float OpposingPartyPercent) const;
+    float ComputeBlendValue(float LocalPartyPercent, float OpposingPartyPercent) const; // OBSOLETE (B-359, D-149)
 
+    // OBSOLETE (B-359, D-149): the leader-HP tug-of-war's handlers; nothing binds them now. Delete after Crown's PIE.
     UFUNCTION()
     void OnLocalPartyMemberDied(AActor *DeadActor);
 
