@@ -2,6 +2,7 @@
 // B-032 (Q-031): one hit path. ApplyDamage is a damage-only ApplyHit, so it deals the same damage and
 // gets the same reflect; the typed reflects (physical / spell) follow the hit's action type.
 // B-032c (Q-032): reflect returns a share of the HP actually lost; DoubleHit skips a killed target.
+// B-042j3 (D-092): a reflect with an element reflects hits of that element only.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -56,15 +57,21 @@ AActor *SpawnTough()
 	return SpawnWithHP(HIT_PATH_TEST_TOUGH_HP);
 }
 
-AActor *SpawnWithReflect(ESkillEffectType ReflectType, int32 HP = HIT_PATH_TEST_TOUGH_HP)
+AActor *SpawnWithReflect(ESkillEffectType ReflectType, int32 HP = HIT_PATH_TEST_TOUGH_HP, ESpellElement Scope = ESpellElement::None)
 {
 	AActor *Target = SpawnWithHP(HP);
-	TestWorld->GetSubsystem<USkillEffectManager>()->ApplyEffect(
-		Target,
-		FActiveSkillEffect::CreateBuff(TEXT("Test reflect"), 0, ReflectType, HIT_PATH_TEST_REFLECT_PERCENT,
-									   HIT_PATH_TEST_EFFECT_TURNS),
-		Target);
+	FActiveSkillEffect Reflect = FActiveSkillEffect::CreateBuff(TEXT("Test reflect"), 0, ReflectType, HIT_PATH_TEST_REFLECT_PERCENT,
+																HIT_PATH_TEST_EFFECT_TURNS);
+	Reflect.Element = Scope; // B-042j3: a reflect's element is its scope
+	TestWorld->GetSubsystem<USkillEffectManager>()->ApplyEffect(Target, Reflect, Target);
 	return Target;
+}
+
+FActionHitInput ElementHit(AActor *Target, ESpellElement Element) const
+{
+	FActionHitInput Hit = DamageOnlyHit(Target, EActionType::Spell);
+	Hit.Element = Element;
+	return Hit;
 }
 
 int32 AttackerHP() const
@@ -146,6 +153,28 @@ void FHitPathSpec::Define()
 		const int32 AbilityDealt =
 			Executor->ApplyHit(DamageOnlyHit(SpawnWithReflect(ESkillEffectType::ReflectPhysicalDamage), EActionType::Ability)).DamageDealt;
 		TestEqual(TEXT("an ability is"), HPBefore - AttackerHP(), ReflectedShare(AbilityDealt));
+	});
+
+	It("a Fire-scoped reflect bounces Fire hits only; an unscoped one every hit (B-042j3, D-092)", [this]()
+	{
+		if (!TestTrue(TEXT("setup"), Executor && Attacker))
+		{
+			return;
+		}
+		AActor *FireWarded = SpawnWithReflect(ESkillEffectType::DamageReflect, HIT_PATH_TEST_TOUGH_HP, ESpellElement::Fire);
+		int32 HPBefore = AttackerHP();
+		const int32 FireDealt = Executor->ApplyHit(ElementHit(FireWarded, ESpellElement::Fire)).DamageDealt;
+		TestTrue(TEXT("a Fire hit to measure"), FireDealt > 0);
+		TestEqual(TEXT("a Fire hit is reflected"), HPBefore - AttackerHP(), ReflectedShare(FireDealt));
+		HPBefore = AttackerHP();
+		const int32 WaterDealt = Executor->ApplyHit(ElementHit(FireWarded, ESpellElement::Water)).DamageDealt;
+		TestTrue(TEXT("a Water hit lands"), WaterDealt > 0);
+		TestEqual(TEXT("a Water hit is not"), HPBefore - AttackerHP(), 0);
+
+		AActor *Unscoped = SpawnWithReflect(ESkillEffectType::DamageReflect);
+		HPBefore = AttackerHP();
+		const int32 Dealt = Executor->ApplyHit(ElementHit(Unscoped, ESpellElement::Water)).DamageDealt;
+		TestEqual(TEXT("an unscoped reflect bounces a Water hit"), HPBefore - AttackerHP(), ReflectedShare(Dealt));
 	});
 
 	It("an overkilling hit reflects a share of the HP the target lost (Q-032)", [this]()
