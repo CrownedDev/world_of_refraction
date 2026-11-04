@@ -60,7 +60,7 @@ void FZoneHealthOnceSpec::Define()
 			return;
 		}
 		const float BaseMaxHP = static_cast<float>(CharComp->MaxHP);
-		const float Zone = TrialGate::GetFightEnemyHealthMultiplier(ETrialDifficulty::Medium, ZONE_ONCE_TIER); // x1 since D-120
+		const float Zone = AEnemyZone::GetTierStrengthMultiplier(ZONE_ONCE_TIER); // OBSOLETE ladder (D-120): only what the HP would have been
 		const float Rank = TrialGate::GetRankHealthMultiplier(EEncounterRank::Boss);
 		const float Tier = TrialGate::GetEnemyTierHealthMultiplier(Enemy);
 
