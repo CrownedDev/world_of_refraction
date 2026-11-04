@@ -221,7 +221,10 @@ namespace WoRInventoryVerbs
 		}
 		if (Verb == EInventoryVerb::Convert)
 		{
-			return FText::Format(LOCTEXT("ConfirmConvert", "Convert {0} to {1} Gold?"), Row.Label, InventoryVerbsConvertGold(*Pool, Row.GearID));
+			// Converting strips the copy from every loadout too, so a worn copy gets D-016's warning first.
+			const FText Convert = FText::Format(LOCTEXT("ConfirmConvert", "Convert {0} to {1} Gold?"), Row.Label, InventoryVerbsConvertGold(*Pool, Row.GearID));
+			const FText Worn = UEconomyService::GetDismantleWarning(Inventory->GetOwner(), Row.GearID);
+			return Worn.IsEmpty() ? Convert : FText::Format(LOCTEXT("ConfirmConvertWorn", "{0} {1}"), Worn, Convert);
 		}
 		return FText::GetEmpty();
 	}

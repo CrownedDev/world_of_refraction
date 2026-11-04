@@ -154,7 +154,7 @@ void FInventoryVerbsSpec::Define()
 
 	It("lists the verbs each row allows", [this]()
 	{
-		if (!Pool || Inventories.Contains(nullptr)) return;
+		if (!Pool || Inventories.Num() < VERBS_PARTY_SIZE || Inventories.Contains(nullptr)) return;
 		const FGuid DaggerID = AddDagger();
 		const TOptional<WoRInventoryVerbs::FInventoryRow> Own = GearRow(DaggerID);
 		if (!TestTrue(TEXT("the dagger is listed as the member's"), Own.IsSet())) return;
@@ -169,7 +169,7 @@ void FInventoryVerbsSpec::Define()
 
 	It("Give moves the piece to the receiver", [this]()
 	{
-		if (!Pool || Inventories.Contains(nullptr)) return;
+		if (!Pool || Inventories.Num() < VERBS_PARTY_SIZE || Inventories.Contains(nullptr)) return;
 		const FGuid DaggerID = AddDagger();
 		const TOptional<WoRInventoryVerbs::FInventoryRow> Own = GearRow(DaggerID);
 		if (!TestTrue(TEXT("listed"), Own.IsSet())) return;
@@ -180,7 +180,7 @@ void FInventoryVerbsSpec::Define()
 
 	It("Store puts gear in the chest and Take brings it back", [this]()
 	{
-		if (!Pool || Inventories.Contains(nullptr)) return;
+		if (!Pool || Inventories.Num() < VERBS_PARTY_SIZE || Inventories.Contains(nullptr)) return;
 		const FGuid DaggerID = AddDagger();
 		const TOptional<WoRInventoryVerbs::FInventoryRow> Own = GearRow(DaggerID);
 		if (!TestTrue(TEXT("listed"), Own.IsSet())) return;
@@ -196,7 +196,7 @@ void FInventoryVerbsSpec::Define()
 
 	It("Store and Take move a pouch stack to and from storage", [this]()
 	{
-		if (!Pool || Inventories.Contains(nullptr)) return;
+		if (!Pool || Inventories.Num() < VERBS_PARTY_SIZE || Inventories.Contains(nullptr)) return;
 		Pool->CarryOrStore(KeyOf(VERBS_MEMBER), VERBS_GEM, VERBS_GEM_COUNT);
 		const int32 StoredBefore = Pool->GetStoredCount(VERBS_GEM);
 		const TOptional<WoRInventoryVerbs::FInventoryRow> Stack = FindRow(FGuid(), VERBS_GEM, false);
@@ -212,7 +212,7 @@ void FInventoryVerbsSpec::Define()
 
 	It("Dismantle takes a weapon apart", [this]()
 	{
-		if (!Pool || Inventories.Contains(nullptr)) return;
+		if (!Pool || Inventories.Num() < VERBS_PARTY_SIZE || Inventories.Contains(nullptr)) return;
 		const FGuid DaggerID = AddDagger();
 		const TOptional<WoRInventoryVerbs::FInventoryRow> Own = GearRow(DaggerID);
 		if (!TestTrue(TEXT("listed"), Own.IsSet())) return;
@@ -222,7 +222,7 @@ void FInventoryVerbsSpec::Define()
 
 	It("Convert turns a duplicate's weaker copy into Gold", [this]()
 	{
-		if (!Pool || Inventories.Contains(nullptr)) return;
+		if (!Pool || Inventories.Num() < VERBS_PARTY_SIZE || Inventories.Contains(nullptr)) return;
 		UInventoryComponent *Inventory = Inventories[VERBS_MEMBER];
 		Inventory->AddWeapon(Sword); // a second sword: the newer copy is the weaker on a tie (D-115)
 		const TArray<FDuplicateGearPair> Pairs = Inventory->FindDuplicateGear();
@@ -238,7 +238,7 @@ void FInventoryVerbsSpec::Define()
 
 	It("refuses Store and Give on the worn primary, with the reason", [this]()
 	{
-		if (!Pool || Inventories.Contains(nullptr)) return;
+		if (!Pool || Inventories.Num() < VERBS_PARTY_SIZE || Inventories.Contains(nullptr)) return;
 		const TOptional<WoRInventoryVerbs::FInventoryRow> Primary = GearRow(SwordID());
 		if (!TestTrue(TEXT("the worn sword is listed"), Primary.IsSet())) return;
 		const TArray<EInventoryVerb> Verbs = VerbsOf(Primary.GetValue());
@@ -253,7 +253,7 @@ void FInventoryVerbsSpec::Define()
 
 	It("refuses to give gear to a run-only member", [this]()
 	{
-		if (!Pool || Inventories.Contains(nullptr)) return;
+		if (!Pool || Inventories.Num() < VERBS_PARTY_SIZE || Inventories.Contains(nullptr)) return;
 		UParty *Party = TestWorld->GetSubsystem<UPartySessionSubsystem>()->GetLocalParty();
 		if (!TestNotNull(TEXT("Party"), Party)) return;
 		Party->Members[VERBS_RECEIVER].bRunOnly = true;
@@ -267,7 +267,7 @@ void FInventoryVerbsSpec::Define()
 
 	It("hides and refuses Dismantle on a home piece during a run", [this]()
 	{
-		if (!Pool || Inventories.Contains(nullptr)) return;
+		if (!Pool || Inventories.Num() < VERBS_PARTY_SIZE || Inventories.Contains(nullptr)) return;
 		const FGuid DaggerID = AddDagger();
 		Pool->BeginRunLayer();
 		const TOptional<WoRInventoryVerbs::FInventoryRow> Own = GearRow(DaggerID);
