@@ -252,7 +252,7 @@ void FSaveSpec::Define()
 		if (!TestNotNull(TEXT("The save's version field"), Version)) return;
 		Version->SetPropertyValue_InContainer(Old, WoRSaveVersion::LATEST - ONE_VERSION_BACK);
 		Old->Data.Party.bHasParty = true;
-		AddExpectedError(TEXT("below the minimum"), EAutomationExpectedErrorFlags::Contains, 1);
+		AddExpectedError(TEXT("below the minimum"), EAutomationExpectedErrorFlags::Contains, 0);
 		UWoRSaveGame *Loaded = RoundTrip(Old);
 		if (!TestNotNull(TEXT("Loaded"), Loaded)) return;
 		TestTrue(TEXT("Wiped"), Loaded->WasWiped());

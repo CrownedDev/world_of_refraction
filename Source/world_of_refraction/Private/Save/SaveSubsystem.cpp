@@ -756,30 +756,28 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 {
 	int32 Restored = 0;
 	// B-308: one gear list; the kind follows from the asset.
+	for (const FSavedOwnedItem &In : Saved.Gear)
 	{
-		for (const FSavedOwnedItem &In : Saved.Gear)
+		UObject *Asset = In.Def.Resolve();
+		if (UWeaponData *Weapon = Cast<UWeaponData>(Asset))
 		{
-			UObject *Asset = In.Def.Resolve();
-			if (UWeaponData *Weapon = Cast<UWeaponData>(Asset))
-			{
-				FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon);
-				Entry.PersistentID = In.InstanceID;
-				Entry.Tier = In.Tier;
-				Entry.Quality = In.Quality;
-				RestoreGearDetail(In.Gear, Entry);
-				Pool.AddWeaponToPool(Entry);
-				++Restored;
-			}
-			else if (URingData *Ring = Cast<URingData>(Asset))
-			{
-				FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring);
-				Entry.PersistentID = In.InstanceID;
-				Entry.Tier = In.Tier;
-				Entry.Quality = In.Quality;
-				RestoreGearDetail(In.Gear, Entry);
-				Pool.AddRingToPool(Entry);
-				++Restored;
-			}
+			FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon);
+			Entry.PersistentID = In.InstanceID;
+			Entry.Tier = In.Tier;
+			Entry.Quality = In.Quality;
+			RestoreGearDetail(In.Gear, Entry);
+			Pool.AddWeaponToPool(Entry);
+			++Restored;
+		}
+		else if (URingData *Ring = Cast<URingData>(Asset))
+		{
+			FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring);
+			Entry.PersistentID = In.InstanceID;
+			Entry.Tier = In.Tier;
+			Entry.Quality = In.Quality;
+			RestoreGearDetail(In.Gear, Entry);
+			Pool.AddRingToPool(Entry);
+			++Restored;
 		}
 	}
 	for (const FSavedOwnedItem &In : Saved.Evolutions)
