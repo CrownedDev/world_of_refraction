@@ -5,7 +5,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Subsystems/GameInstanceSubsystem.h"
 #include "Combat/WoRFightSubsystem.h"
 
 #include "Infusion/EChargeInfusionType.h"
@@ -91,7 +90,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnChargeCancelled, AActor *, Actor
  * InfusionVFXComponent only shows it. Deleted by B-034b once the editor confirms no Blueprint
  * calls it. Until then only ResetForCombat (orchestrator) and the VFX binding touch it.
  *
- * GameInstanceSubsystem that tracks hold-to-charge timing for the infusion system.
+ * Per-fight world subsystem (B-336) that tracks hold-to-charge timing for the infusion system.
  * Converts button hold duration into discrete charge levels (0, 1, 2).
  *
  * Usage:
@@ -114,7 +113,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnChargeCancelled, AActor *, Actor
  * - Query GetChargeStatus() each frame for smooth progress bar
  */
 UCLASS()
-class WORLD_OF_REFRACTION_API UInfusionChargeManager : public UGameInstanceSubsystem
+class WORLD_OF_REFRACTION_API UInfusionChargeManager : public UWoRFightSubsystem
 {
 	GENERATED_BODY()
 
