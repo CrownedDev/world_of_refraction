@@ -19,6 +19,7 @@
 #include "Player/WoRPlayerState.h"
 #include "Pool/PoolSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "Equipment/Crystals/StatStone.h"
 #include <type_traits>
 #include "Skills/Definitions/SpellData.h"
 #include "HAL/IConsoleManager.h"
@@ -100,6 +101,8 @@ namespace
 		Entry.AttachedItem = Gear.Attached;
 		Entry.AttachedItem.Evolution.Item = Gear.EvolutionItem.IsSet() ? Gear.EvolutionItem.ResolveAs<UEvolutionItemData>() : nullptr;
 		Entry.StoneSocket = Gear.StoneSocket; // B-351
+		Entry.StoneSocket.Crystal.Id = StatStone::Normalize(Entry.StoneSocket.Crystal.Id);   // B-353 (D-142)
+		Entry.AttachedItem.Crystal.Id = StatStone::Normalize(Entry.AttachedItem.Crystal.Id); // B-353: a pre-B-351 stone
 		if constexpr (std::is_same_v<TGearEntry, FWeaponInventoryEntry>)
 		{
 			Entry.SkillPicks.Reset();
@@ -627,6 +630,7 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 			FSavedCrystalStack &Out = Saved.Crystals.AddDefaulted_GetRef();
 			Out.Type = static_cast<uint8>(Stack.Key.Type);
 			Out.Tier = Stack.Key.Tier;
+			Out.StoneStat = static_cast<uint8>(Stack.Key.StoneStat); // B-353
 			Out.Count = Stack.Value;
 		}
 	}
@@ -650,6 +654,7 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 			FSavedCrystalStack &Out = Saved.CarriedItems.AddDefaulted_GetRef();
 			Out.Type = static_cast<uint8>(Stack.Key.Type);
 			Out.Tier = Stack.Key.Tier;
+			Out.StoneStat = static_cast<uint8>(Stack.Key.StoneStat); // B-353
 			Out.Count = Stack.Value;
 		}
 	}
@@ -663,6 +668,7 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 			FSavedCrystalStack &OutStack = Out.Stacks.AddDefaulted_GetRef();
 			OutStack.Type = static_cast<uint8>(Stack.Key.Type);
 			OutStack.Tier = Stack.Key.Tier;
+			OutStack.StoneStat = static_cast<uint8>(Stack.Key.StoneStat); // B-353
 			OutStack.Count = Stack.Value;
 		}
 	}
@@ -865,9 +871,8 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		{
 			continue;
 		}
-		FCrystalId Id;
-		Id.Type = static_cast<ECrystalType>(In.Type);
-		Id.Tier = In.Tier;
+		// B-353 (D-142): a StatStone keeps its sub-stat; an old single-stat stone loads as the StatStone it now is.
+		const FCrystalId Id = StatStone::Normalize(FCrystalId(static_cast<ECrystalType>(In.Type), In.Tier, static_cast<ESubStat>(In.StoneStat)));
 		Pool.AddCrystalToPool(Id, In.Count);
 		++Restored;
 	}
@@ -890,7 +895,8 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		{
 			if (Stack.Count > 0 && StaticEnum<ECrystalType>()->IsValidEnumValue(Stack.Type))
 			{
-				Out.FindOrAdd(FCrystalId(static_cast<ECrystalType>(Stack.Type), Stack.Tier)) += Stack.Count;
+				Out.FindOrAdd(StatStone::Normalize(FCrystalId(static_cast<ECrystalType>(Stack.Type), Stack.Tier,
+															  static_cast<ESubStat>(Stack.StoneStat)))) += Stack.Count; // B-353
 				++Restored;
 			}
 		}

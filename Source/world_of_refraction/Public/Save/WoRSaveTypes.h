@@ -306,6 +306,10 @@ struct WORLD_OF_REFRACTION_API FSavedCrystalStack
 
 	UPROPERTY()
 	int32 Count = 0;
+
+	/** B-353 (D-142): a StatStone's sub-stat (ESubStat), 0 otherwise. */
+	UPROPERTY()
+	uint8 StoneStat = 0;
 };
 
 /** B-091: a piece of shared gear and the character wearing it (UPoolSubsystem::GetCharacterKey). */
