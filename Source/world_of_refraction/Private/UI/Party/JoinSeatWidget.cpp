@@ -156,11 +156,12 @@ void UJoinSeatWidget::Refresh()
 		return;
 	}
 	FText Requests = LOCTEXT("NoRequests", "Nobody is waiting to join");
-	for (const FRunJoinRequest &Request : Run->GetJoinRequests())
+	const TArray<FRunJoinRequest> &Waiting = Run->GetJoinRequests();
+	for (int32 Index = 0; Index < Waiting.Num(); ++Index)
 	{
-		const FText Line = FText::Format(LOCTEXT("RequestLine", "Player {0} wants to join with {1}"), Request.PlayerId,
-										 FText::FromString(Request.Character ? Request.Character->Name : TEXT("?")));
-		Requests = Run->GetJoinRequests()[0].PlayerId == Request.PlayerId ? Line : FText::Format(LOCTEXT("TwoLines", "{0}\n{1}"), Requests, Line);
+		const FText Line = FText::Format(LOCTEXT("RequestLine", "Player {0} wants to join with {1}"), Waiting[Index].PlayerId,
+										 FText::FromString(Waiting[Index].Character ? Waiting[Index].Character->Name : TEXT("?")));
+		Requests = Index == 0 ? Line : FText::Format(LOCTEXT("TwoLines", "{0}\n{1}"), Requests, Line);
 	}
 	RequestsText->SetText(Requests);
 

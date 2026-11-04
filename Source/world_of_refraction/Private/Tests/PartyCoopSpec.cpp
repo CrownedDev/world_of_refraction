@@ -9,6 +9,8 @@
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Equipment/Weapons/WeaponData.h"
+#include "Loadout/Entries/FWeaponInventoryEntry.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Party/Party.h"
@@ -122,6 +124,13 @@ void FPartyCoopSpec::Define()
 		Pool->CarryOrStore(AIKey, COOP_TEST_GEM, COOP_TEST_STACK);
 		const int32 HostHad = Pool->GetCarriedCount(HostKey, COOP_TEST_GEM) + Pool->GetStoredCount(COOP_TEST_GEM);
 		TestEqual(TEXT("the AI seat carries the gems"), Pool->GetCarriedCount(AIKey, COOP_TEST_GEM), COOP_TEST_STACK);
+		FWeaponInventoryEntry Sword;
+		Sword.Weapon = NewObject<UWeaponData>(GetTransientPackage());
+		Sword.PersistentID = FGuid::NewGuid();
+		Pool->AddWeaponToPool(Sword);
+		Pool->SetGearOwner(Sword.PersistentID, AIKey);
+		Pool->SetWearer(Sword.PersistentID, AIKey);
+		TestEqual(TEXT("the AI seat owns the sword"), Pool->GetGearOwner(Sword.PersistentID), AIKey);
 
 		TestTrue(TEXT("the join request is taken"), Run->RequestJoin(Joiner, Guest, TSoftClassPtr<ACombatCharacter>()));
 		TestEqual(TEXT("one request waits"), Run->GetJoinRequests().Num(), 1);
@@ -135,15 +144,21 @@ void FPartyCoopSpec::Define()
 		TestEqual(TEXT("no request left"), Run->GetJoinRequests().Num(), 0);
 		TestEqual(TEXT("the AI seat's pouch is empty"), Pool->GetCarriedCount(AIKey, COOP_TEST_GEM), 0);
 		TestEqual(TEXT("the host holds the gems (pouch or storage)"), Pool->GetCarriedCount(HostKey, COOP_TEST_GEM) + Pool->GetStoredCount(COOP_TEST_GEM), HostHad + COOP_TEST_STACK);
+		TestEqual(TEXT("the host owns the sword now"), Pool->GetGearOwner(Sword.PersistentID), HostKey);
 		TestTrue(TEXT("the joiner claims the guest"), Joiner->ClaimsCharacter(Guest));
 		TestFalse(TEXT("the host does not"), Host->ClaimsCharacter(Guest));
 		TestTrue(TEXT("the roster followed"), Run->GetRoster().Num() == 2 && Run->GetRoster()[1].Character == Guest && !Run->GetRoster()[1].bAISeat);
 	});
 
-	It("refuses a join with no AI seat free (the party is full) and a character already in the party", [this]()
+	It("refuses a join with no AI seat free (the party is full), a character already in the party, or a player with a seat; the host can refuse", [this]()
 	{
-		if (!Run || !PartySession) return;
+		if (!Run || !PartySession || !Host || !Joiner) return;
 		TestFalse(TEXT("the leader's own character is refused (separate copies: B-360b)"), Run->RequestJoin(Joiner, Leader, TSoftClassPtr<ACombatCharacter>()));
+		Host->ClaimCharacter(Leader);
+		TestFalse(TEXT("a player with a seat already (the host) is refused"), Run->RequestJoin(Host, Guest, TSoftClassPtr<ACombatCharacter>()));
+		TestTrue(TEXT("the guest asks"), Run->RequestJoin(Joiner, Guest, TSoftClassPtr<ACombatCharacter>()));
+		TestTrue(TEXT("the host refuses"), Run->RefuseJoin(COOP_TEST_JOINER_ID));
+		TestEqual(TEXT("nothing waits after the refusal"), Run->GetJoinRequests().Num(), 0);
 		PartySession->SetMemberAISeat(1, false);
 		TestTrue(TEXT("no AI seat left"), Run->GetFreeAISeats().IsEmpty());
 		TestFalse(TEXT("full: refused"), Run->RequestJoin(Joiner, Guest, TSoftClassPtr<ACombatCharacter>()));
