@@ -310,9 +310,13 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 	{
 		return Actor;
 	}
+	// The weapon's instance tier is its archetype's (B-293d / B-325): left at F, an S weapon's Power is rescaled to
+	// F (WoRWeaponPower::GetScaledPower, 192 -> 40), the tier gap reads F, and an enemy's Combat Tier drops.
+	Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryWeapon.WeaponEntry.Tier = Archetype.WeaponTier;
 	// Owned, or combat start clears it from the loadout.
 	FWeaponInventoryEntry Owned;
 	Owned.Weapon = Weapon;
+	Owned.Tier = Archetype.WeaponTier;
 	Inventory->Weapons.Add(Owned);
 	if (Archetype.AbilityBase > 0)
 	{
@@ -371,10 +375,10 @@ AActor *FBalanceSimRunner::SpawnArchetype(const FBalanceArchetype &Archetype)
 
 void FBalanceSimRunner::ApplyEnemyStrength(AActor *Enemy, const FBalanceMatchup &Matchup)
 {
-	// The same multipliers as BattleGameMode's trial fights: difficulty x zone, then rank x tier power (B-224 / B-224b).
-	const float ZoneStrength = AEnemyZone::GetTierStrengthMultiplier(Matchup.ZoneTier);
-	const float Strength = TrialGate::GetEnemyStrengthMultiplier(Matchup.TrialDifficulty) * ZoneStrength;
-	const float Health = TrialGate::GetEnemyHealthMultiplier(Matchup.TrialDifficulty) * ZoneStrength; // B-293c: difficulty is damage only
+	// The same multipliers as BattleGameMode's trial fights: the door's difficulty (damage only, B-293c), then rank x
+	// tier power (B-224 / B-224b). D-120: the zone scales nothing (ZoneTier stays in the matchup for its placement role).
+	const float Strength = TrialGate::GetEnemyStrengthMultiplier(Matchup.TrialDifficulty);
+	const float Health = TrialGate::GetEnemyHealthMultiplier(Matchup.TrialDifficulty);
 	TrialGate::ApplyEnemyStrength(Enemy, Health, Strength);
 	TrialGate::ApplyEnemyRankHealth(Enemy, Health, Matchup.Rank);
 }

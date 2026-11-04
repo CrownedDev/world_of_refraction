@@ -23,7 +23,7 @@ Owner key: **GS** = a GameState component; **Actor** = a component on the combat
 
 | System | State today | Co-op owner | Notes |
 |---|---|---|---|
-| `UTurnManager` (`Combat/TurnManager.h:349-394`) | `Combatants`, `PendingTurns`, `TurnBelt`, `CurrentActor`, bonus/turn type/payload, `GlobalTurnCount`, `bCombatActive` | **GS** (`UTurnStateComponent`): `TurnBelt`, `CurrentActor`, turn type, turn count, active flag replicated; `Combatants` debt and `PendingTurns` **Server** | Clients only need the belt and whose turn it is to draw the HUD. |
+| `UTurnManager` (`Combat/TurnManager.h:349-394`) | `Combatants`, `PendingTurns`, `TurnBelt`, `CurrentActor`, bonus/turn type/payload, `GlobalTurnCount`, `bCombatActive` | **GS** (`UTurnStateComponent`, B-228 as shipped): `Upcoming` (8 slots), `CurrentActor`, the bonus flag, `Teams`, turn number, active flag replicated; `Combatants` debt and `PendingTurns` **Server** | Clients only need the belt and whose turn it is to draw the HUD. |
 | `UActionExecutor` (`Combat/Actions/ActionExecutor.h:503-1217`) | Pending spell (caster, data, targets, size, damage, element), montage chain, async action context and callbacks, burst queue, telegraph timers, grid cache | **Server** (the action in flight); results reach clients through replicated actor state (HP, effects) plus a multicast for the cosmetic part (montage, VFX) | The biggest one. `EffectIDCounter` (:677) never resets: make it server-only and per-fight. |
 | `UDefenseSystem` (`Combat/Defense/DefenseSystem.h:480-483`) | `ActiveDefenseStates` (incl. the input buffer), `WindowTimerHandles` | **Server**; window open/close sent to the defender's owning client (Client RPC) | See "what breaks first" #3. The tuning values (:434-474) are config and stay. |
 | `USkillEffectManager` (`Skills/Effects/SkillEffectManager.h:480-494`) | `ActiveEffects` per actor, `FiredOnceThisMatch`, `ArmedConditionals`, `NextInstanceID` | **Actor** (`ActiveEffects` on each combatant, replicated for the HUD); fired-once set and armed conditionals **Server** | The B-042/B-062 effect rework is the natural moment to move it. |
@@ -62,7 +62,7 @@ Owner key: **GS** = a GameState component; **Actor** = a component on the combat
 
 1. `ServerTravel` + seamless travel + `AWoRGameState` + `CopyProperties` (#1, #5).
 2. B-131 (character data replicates) and B-132 (no player-0 lookups).
-3. Turn state to a GameState component; the HUD reads it.
+3. Turn state to a GameState component; the HUD reads it. **Done (B-228, 2026-11-04).**
 4. Server RPCs for the three inputs: defense, infusion commit, command-menu pick (#3).
 5. Effects, buildup and grid onto the combatants' components.
 6. Action executor: the action in flight stays on the server, cosmetics by multicast.
@@ -74,3 +74,4 @@ Owner key: **GS** = a GameState component; **Actor** = a component on the combat
 |---|---|---|
 | 2026-10-27 | B-130: first survey of all 21 GameInstance subsystems, owners and the first breakages. | chore/B-130-coop-state-doc |
 | 2026-10-27 | B-227: #1 built (UNBUILT, cloud): `UTrialRunSubsystem::TravelTo` (listen server: `World->ServerTravel`, clients follow; standalone: OpenLevel as before), `bUseSeamlessTravel` + `AWoRGameState` on the trial and battle game modes, `AWoRPlayerState::CopyProperties` carries the wallet. A Blueprint hub game mode must pick `AWoRGameState` and seamless travel too. Spec `WoR.Coop.SeamlessTravel`; debug `wor.GameState.Print`. | feature/B-227-seamless-travel |
+| 2026-11-03 | B-229: #3 built (UNBUILT, cloud): `ACombatPlayerController` `Server_SubmitDefenseInput` (the server picks the defender; a client's press is stamped with the replicated server clock and clamped to a latency allowance) and `Server_SubmitMenuPick` (`FCombatPickRequest`, which also carries the infusion commit, Q-229); the server checks the sender controls the character (shared party control until B-232, Q-229b) and that it has the turn. The menu no longer executes on a client: it requests. Spec `WoR.Coop.InputRouting`; debug `wor.Net.PrintInputs`. | feature/B-229-input-rpcs |

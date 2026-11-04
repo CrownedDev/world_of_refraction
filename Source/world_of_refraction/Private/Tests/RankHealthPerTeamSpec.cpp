@@ -1,7 +1,7 @@
 // RankHealthPerTeamSpec.cpp
 // B-224b (Q-224c, Q-224d): the rank's HP is each team's own. A caught fight of a Boss team and a Normal team fields
-// the boss's strongest at x6 and the normal team's at x1; a mini-boss form alone is a mini-boss, its teammates keep
-// their team's rank; an enemy's tier power (UCharacterData::EnemyTier) multiplies its HP, F changing nothing.
+// the boss's strongest at boss HP (x8) and the normal team's at x1; a mini-boss form alone is a mini-boss, its teammates keep
+// their team's rank; an enemy's tier power (its Combat Tier, B-325; here the EnemyTier fallback, no loadout) multiplies its HP, F changing nothing.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -19,7 +19,7 @@ namespace
 	constexpr int32 RANK_HP_BOSS_TEAM = 0;
 	constexpr int32 RANK_HP_NORMAL_TEAM = 1;
 	constexpr int32 RANK_HP_NORMAL_TEAM_SIZE = 2;
-	constexpr float RANK_HP_BOSS = 6.0f;
+	constexpr float RANK_HP_BOSS = 8.0f; // B-293d (Q-293d)
 	constexpr float RANK_HP_TIER_C = 2.2f;
 	/** MaxHP is rounded once after the multiply. */
 	constexpr float RANK_HP_ROUNDING = 1.0f;
@@ -87,7 +87,7 @@ void FRankHealthPerTeamSpec::Define()
 		TestTrue(TEXT("a boss team's form stays Boss"), UEncounterData::GetMemberRank(Encounter, EEncounterRank::Boss, Form->Character) == EEncounterRank::Boss);
 	});
 
-	It("gives only the boss-ranked enemy x6 HP", [this]()
+	It("gives only the boss-ranked enemy the boss HP (x8)", [this]()
 	{
 		UCharacterDataComponent *Boss = SpawnEnemy();
 		UCharacterDataComponent *Normal = SpawnEnemy();
@@ -95,7 +95,7 @@ void FRankHealthPerTeamSpec::Define()
 		const int32 BaseMaxHP = Normal->MaxHP;
 		TestTrue(TEXT("boss applied"), TrialGate::ApplyEnemyRankHealth(Boss->GetOwner(), NO_STRENGTH_CHANGE, EEncounterRank::Boss));
 		TestTrue(TEXT("normal applied"), TrialGate::ApplyEnemyRankHealth(Normal->GetOwner(), NO_STRENGTH_CHANGE, EEncounterRank::Normal));
-		TestEqual(TEXT("the boss has x6"), static_cast<float>(Boss->MaxHP), BaseMaxHP * RANK_HP_BOSS, RANK_HP_ROUNDING);
+		TestEqual(TEXT("the boss has x8"), static_cast<float>(Boss->MaxHP), BaseMaxHP * RANK_HP_BOSS, RANK_HP_ROUNDING);
 		TestEqual(TEXT("the boss starts full"), Boss->CurrentHP, Boss->MaxHP);
 		TestEqual(TEXT("the normal enemy keeps its HP"), Normal->MaxHP, BaseMaxHP);
 	});

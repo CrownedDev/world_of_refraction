@@ -38,18 +38,22 @@ FString UCurrencyComponentDebug::GetWalletString(const UCurrencyComponent *Walle
         return TEXT("Wallet: <null>");
     }
 
-    // Scalar currencies — ALWAYS shown, including zero balances.
-    FString Out = FString::Printf(TEXT("Gold: %d | Prisms: %d | Diamond: %d | GearEssence: %d | SkillEssence: %d"),
-                                  Wallet->GetBalance(ECurrencyType::Gold),
-                                  Wallet->GetBalance(ECurrencyType::Prisms),
-                                  Wallet->GetBalance(ECurrencyType::Diamond),
-                                  Wallet->GetBalance(ECurrencyType::GearEssence),
-                                  Wallet->GetBalance(ECurrencyType::SkillEssence));
+    // B-333 (D-125): the seven balances — ALWAYS shown, including zero balances.
+    TArray<FString> Parts;
+    for (const ECurrencyType Currency : CurrencyBalances::SEVEN)
+    {
+        Parts.Add(FString::Printf(TEXT("%s: %d"),
+                                  *StaticEnum<ECurrencyType>()->GetAuthoredNameStringByValue(static_cast<int64>(Currency)),
+                                  Wallet->GetBalance(Currency)));
+    }
+    FString Out = FString::Join(Parts, TEXT(" | "));
 
-    // Typed Essence (14 keys) — only NON-zero entries.
+    // OBSOLETE (B-333): leftover typed essence (14 keys) — only NON-zero entries, and only when any.
     const FString EssenceStr = JoinNonZeroEntries<EEssenceType>(
         [Wallet](EEssenceType Type) { return Wallet->GetEssenceType(Type); });
-
-    Out += FString::Printf(TEXT(" | Essence[%s]"), *EssenceStr);
+    if (!EssenceStr.IsEmpty())
+    {
+        Out += FString::Printf(TEXT(" | Obsolete typed essence[%s]"), *EssenceStr);
+    }
     return Out;
 }
