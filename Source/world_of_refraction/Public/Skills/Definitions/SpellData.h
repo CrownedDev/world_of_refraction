@@ -47,8 +47,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     ESpellElement Element = ESpellElement::Fire;
 
+    /** Authored school. Read GetSchool(): a retired school (B-356) maps onto one of the three. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     ESpellSchool School = ESpellSchool::Destruction;
+
+    /** B-356 (D-146): the school shown and grouped by: Destruction, Enhancement or Restoration. */
+    ESpellSchool GetSchool() const { return SpellSchools::ToCurrent(School); }
 
     /** Required evolution crystal to use this spell (nullptr = no requirement, only for evolution spells) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
