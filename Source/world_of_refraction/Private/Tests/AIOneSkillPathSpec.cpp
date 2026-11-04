@@ -119,11 +119,31 @@ void FAIOneSkillPathSpec::Define()
 
 	It("starts with the AI weights equal to the C++ constants", [this]()
 	{
-		const UCombatTuningData *Defaults = GetDefault<UCombatTuningData>();
-		TestEqual(TEXT("status weight"), Defaults->AIStatusScoreWeight, AIConstants::STATUS_SCORE_WEIGHT);
-		TestEqual(TEXT("kill score"), Defaults->AIKillPotentialScore, AIConstants::KILL_POTENTIAL_SCORE);
-		TestEqual(TEXT("heal threshold (Hard)"), Defaults->AIHealHPThresholdHard, AIConstants::HARDEXPERT_HEAL_HP_THRESHOLD);
-		TestEqual(TEXT("defence attempt (Hard)"), Defaults->AIDefenseAttemptHard, AIConstants::HARD_DEFENSE_ATTEMPT);
+		const UCombatTuningData *D = GetDefault<UCombatTuningData>();
+		TestEqual(TEXT("AIKillPotentialScore"), D->AIKillPotentialScore, AIConstants::KILL_POTENTIAL_SCORE);
+		TestEqual(TEXT("AIHPMissingWeight"), D->AIHPMissingWeight, AIConstants::HP_MISSING_WEIGHT);
+		TestEqual(TEXT("AIThreatWeight"), D->AIThreatWeight, AIConstants::THREAT_WEIGHT);
+		TestEqual(TEXT("AIRawDamageThreatMult"), D->AIRawDamageThreatMult, AIConstants::RAW_DAMAGE_THREAT_MULT);
+		TestEqual(TEXT("AIStatusMultiplierThreatMult"), D->AIStatusMultiplierThreatMult, AIConstants::STATUS_MULTIPLIER_THREAT_MULT);
+		TestEqual(TEXT("AISpellPowerThreatMult"), D->AISpellPowerThreatMult, AIConstants::SPELL_POWER_THREAT_MULT);
+		TestEqual(TEXT("AIStatusScoreWeight"), D->AIStatusScoreWeight, AIConstants::STATUS_SCORE_WEIGHT);
+		TestEqual(TEXT("AIStatusScoreTrigger"), D->AIStatusScoreTrigger, AIConstants::STATUS_SCORE_TRIGGER);
+		TestEqual(TEXT("AIStatusScoreContribute"), D->AIStatusScoreContribute, AIConstants::STATUS_SCORE_CONTRIBUTE);
+		TestEqual(TEXT("AIStatusScoreRedundant"), D->AIStatusScoreRedundant, AIConstants::STATUS_SCORE_REDUNDANT);
+		TestEqual(TEXT("AIStatusBarNearTrigger"), D->AIStatusBarNearTrigger, AIConstants::STATUS_BAR_NEAR_TRIGGER_THRESHOLD);
+		TestEqual(TEXT("AIEnergyConservationThreshold"), D->AIEnergyConservationThreshold, AIConstants::ENERGY_CONSERVATION_THRESHOLD);
+		TestEqual(TEXT("AIEnergyAbundantThreshold"), D->AIEnergyAbundantThreshold, AIConstants::ENERGY_ABUNDANT_THRESHOLD);
+		TestEqual(TEXT("AIHealHPThresholdHard"), D->AIHealHPThresholdHard, AIConstants::HARDEXPERT_HEAL_HP_THRESHOLD);
+		TestEqual(TEXT("AIHealHPThresholdEasy"), D->AIHealHPThresholdEasy, AIConstants::EASYMED_HEAL_HP_THRESHOLD);
+		TestEqual(TEXT("AILastStandHPThreshold"), D->AILastStandHPThreshold, AIConstants::LAST_STAND_HP_THRESHOLD);
+		TestEqual(TEXT("AIKillSecureFactor"), D->AIKillSecureFactor, AIConstants::KILL_SECURE_FACTOR);
+		TestEqual(TEXT("AIFreeActionFactor"), D->AIFreeActionFactor, AIConstants::FREE_ACTION_FACTOR);
+		TestEqual(TEXT("AIStarveMargin"), D->AIStarveMargin, AIConstants::STARVE_MARGIN);
+		TestEqual(TEXT("AIDelayDecay"), D->AIDelayDecay, AIConstants::DELAY_DECAY);
+		TestEqual(TEXT("AIDefenseAttemptEasy"), D->AIDefenseAttemptEasy, AIConstants::EASY_DEFENSE_ATTEMPT);
+		TestEqual(TEXT("AIDefenseAttemptMedium"), D->AIDefenseAttemptMedium, AIConstants::MEDIUM_DEFENSE_ATTEMPT);
+		TestEqual(TEXT("AIDefenseAttemptHard"), D->AIDefenseAttemptHard, AIConstants::HARD_DEFENSE_ATTEMPT);
+		TestEqual(TEXT("AIDefenseAttemptExpert"), D->AIDefenseAttemptExpert, AIConstants::EXPERT_DEFENSE_ATTEMPT);
 	});
 
 	It("builds the same probe actions the spell and ability twins built", [this]()
