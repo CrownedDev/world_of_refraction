@@ -21,6 +21,7 @@
 #include "Equipment/Weapons/WeaponData.h"
 #include "Player/WoRPlayerState.h"
 #include "Pool/PoolSubsystem.h"
+#include "Currency/CurrencyTypes.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
 

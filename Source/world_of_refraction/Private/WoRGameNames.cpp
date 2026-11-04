@@ -473,7 +473,8 @@ FText GetInventoryVerbName(EInventoryVerb Verb)
     case EInventoryVerb::Dismantle:
         return LOCTEXT("VerbDismantle", "Dismantle");
     case EInventoryVerb::Convert:
-        return LOCTEXT("VerbConvert", "Convert to Prisms"); // B-366: pays the run currency (ECurrencyType::Gold, D-159)
+        // B-366: pays the run currency (ECurrencyType::Gold, D-159), named from the table.
+        return FText::Format(LOCTEXT("VerbConvert", "Convert to {0}"), GetCurrencyName(ECurrencyType::Gold));
     }
     return FText::GetEmpty();
 }

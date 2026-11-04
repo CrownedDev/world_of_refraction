@@ -131,7 +131,8 @@ TSharedRef<SWidget> UDuplicateGearWidget::RebuildWidget()
 		PairText = DuplicateGearBuild::AddText(WidgetTree, Box);
 		DuplicateGearBuild::AddButton(WidgetTree, Box, LOCTEXT("Next", "Next duplicate"))
 			->OnClicked.AddDynamic(this, &UDuplicateGearWidget::HandleNextClicked);
-		GoldButton = DuplicateGearBuild::AddButton(WidgetTree, Box, FText::Format(LOCTEXT("Gold", "Convert the weaker copy to {0}"), WoRGameNames::GetCurrencyName(ECurrencyType::Gold)));
+		const FText ConvertLabel = FText::Format(LOCTEXT("Gold", "Convert the weaker copy to {0}"), WoRGameNames::GetCurrencyName(ECurrencyType::Gold));
+		GoldButton = DuplicateGearBuild::AddButton(WidgetTree, Box, ConvertLabel);
 		GoldButton->OnClicked.AddDynamic(this, &UDuplicateGearWidget::HandleGoldClicked);
 		DismantleButton = DuplicateGearBuild::AddButton(WidgetTree, Box, LOCTEXT("Dismantle", "Dismantle the weaker copy"));
 		DismantleButton->OnClicked.AddDynamic(this, &UDuplicateGearWidget::HandleDismantleClicked);
