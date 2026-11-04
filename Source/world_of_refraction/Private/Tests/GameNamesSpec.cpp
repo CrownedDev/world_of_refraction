@@ -8,6 +8,7 @@
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Grid/ECombatRow.h"
 #include "Currency/CurrencyTypes.h"
+#include "Inventory/InventoryVerbs.h"
 #include "Merchant/MerchantData.h"
 #include "Skills/Definitions/SpellSchool.h"
 
@@ -65,6 +66,14 @@ void FGameNamesSpec::Define()
 		TestEqual(TEXT("Block reads Guard"), WoRGameNames::GetDefenseTypeName(EDefenseType::Block).ToString(), FString(TEXT("Guard")));
 		TestEqual(TEXT("Legacy Parry reads Guard"), WoRGameNames::GetDefenseTypeName(EDefenseType::Parry).ToString(),
 				  FString(TEXT("Guard")));
+	});
+
+	It("shows the run currency as Prisms and the hub currency as Gold (B-366, D-159)", [this]()
+	{
+		TestEqual(TEXT("run (ECurrencyType::Gold)"), WoRGameNames::GetCurrencyName(ECurrencyType::Gold).ToString(), FString(TEXT("Prisms")));
+		TestEqual(TEXT("hub (ECurrencyType::Prisms)"), WoRGameNames::GetCurrencyName(ECurrencyType::Prisms).ToString(), FString(TEXT("Gold")));
+		TestEqual(TEXT("the convert verb pays the run currency"), WoRGameNames::GetInventoryVerbName(EInventoryVerb::Convert).ToString(),
+				  FString(TEXT("Convert to Prisms")));
 	});
 
 	It("names every essence: Generic as Quartz, Reality as Unknown (B-269, D-105, D-095)", [this]()

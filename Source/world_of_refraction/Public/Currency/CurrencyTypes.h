@@ -21,7 +21,10 @@
 
 class UCurrencyComponent;
 
-/** Top-level currency selector for the unified Add/Spend/CanAfford/GetBalance API. */
+/** Top-level currency selector for the unified Add/Spend/CanAfford/GetBalance API.
+ *  B-366 (D-159): the player-facing names are swapped, the code names are not (D-058; saves and old comments keep
+ *  reading right): Gold is the RUN currency, shown as "Prisms"; Prisms is the HUB currency, shown as "Gold". Show a
+ *  currency only through WoRGameNames::GetCurrencyName. */
 UENUM(BlueprintType)
 enum class ECurrencyType : uint8
 {
