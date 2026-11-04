@@ -1817,6 +1817,8 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** the trial's element sets the weather on the map and in battle (B-189); in combat a boss phase change steps it (D-098). The leader-HP tug-of-war in `UWeatherStateManager` retires (flag OBSOLETE).
 **Notes for Claude:** job B-359.
 
+(Audit round 3 closing notes, Crown 2026-11-04: **§36** — the item-strengthening routes are upgrade, attach and merge (crystals only), which follows from D-141 and D-147, so nothing new to build; **downgrade stays** (ER-27) for essence back and respeccing. **§35** (skins / outfits) is **parked**, not to be built. **§30** no change. Round 3 = D-141 to D-149.)
+
 ### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
 **Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.
