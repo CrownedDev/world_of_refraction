@@ -1166,7 +1166,7 @@ bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMer
         }
         if (Bought > Moving)
         {
-            UE_LOG(LogTemp, Log, TEXT("[EconomyService] PurchaseFor: %d %s didn't fit %s's pouch - left with the payer"),
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %d %s didn't fit %s's pouch (or went to storage) - left with the payer"),
                    Bought - Moving, *ItemIdentity::GetDisplayName(Stack.Key), *ForKey.ToString());
         }
     }
