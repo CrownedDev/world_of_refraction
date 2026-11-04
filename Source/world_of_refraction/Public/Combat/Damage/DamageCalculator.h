@@ -31,6 +31,9 @@ namespace DamageConstants
 	// Defense
 	constexpr float MAX_RESISTANCE = 0.50f; // 50% cap
 	constexpr int32 MIN_DAMAGE = 1;			// Always deal at least 1 damage
+	/** B-293d (Q-293d, Crown 2026-11-03; Elden Ring's chip damage): after Defense, Damage Taken Down and Guard a hit
+	 *  still deals at least this share of itself. A Perfect Guard or a dodge takes it all (no damage reaches the maths). */
+	constexpr float HIT_DAMAGE_FLOOR_SHARE = 0.1f;
 
 	// Infusion
 	// ELEMENT_INFUSION_PENALTY removed per locked cost matrix — see commit message.
@@ -89,6 +92,10 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationInput
 	/** Skip defense calculation? The same as IgnoreDefensePercent 100 (D-086). */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	bool bIgnoreDefense = false;
+
+	/** B-293d: the share of the hit Guard let through (1 unguarded); BaseDamage is already guarded. The damage floor
+	 *  measures from the hit before Guard. */
+	float GuardFactor = 1.0f;
 
 	/** The skill's Ignore Defense amount, 0-100 (D-086): Defense and positive element resistance are
 	 *  cut by this share (Q-146b A). Adds to the attacker's IgnoreDefense effects, capped at 100. */

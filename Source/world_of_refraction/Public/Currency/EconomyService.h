@@ -27,9 +27,16 @@ class USpellData;
 class UAbilityData;
 class UWeaponData;
 
-/** Per-currency cost of a Purchase cart. Prisms + SkillEssence are scalar wallets; Typed is
- *  EssenceTyped sub-keyed by EEssenceType (element / pillar / Reality / Ability). Returned by
- *  PreviewCartCost so the shop UI displays exactly what Purchase will charge — one cost source. */
+namespace PurchaseCostBalances
+{
+    /** B-333: the balances a purchase can charge, in display order. */
+    inline constexpr ECurrencyType CHARGED[] = {ECurrencyType::Prisms, ECurrencyType::SkillEssence,
+                                                ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence};
+}
+
+/** Per-currency cost of a Purchase cart. B-333 (D-125): Prisms + Skill / Elemental / Pillar Essence,
+ *  all scalar balances; Typed is OBSOLETE (B-333) and stays empty. Returned by PreviewCartCost so the
+ *  shop UI displays exactly what Purchase will charge — one cost source. */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FPurchaseCost
 {
@@ -42,9 +49,42 @@ struct WORLD_OF_REFRACTION_API FPurchaseCost
     int32 SkillEssence = 0;
 
     UPROPERTY(BlueprintReadOnly, Category = "Economy")
+    int32 ElementalEssence = 0;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Economy")
+    int32 PillarEssence = 0;
+
+    /** OBSOLETE (B-333): nothing fills it now (D-125). Delete in the sweep (D-124). */
+    UPROPERTY(BlueprintReadOnly, Category = "Economy")
     TMap<EEssenceType, int32> Typed;
 
+    /** OBSOLETE (B-333). */
     void AddTyped(EEssenceType Type, int32 Amount) { Typed.FindOrAdd(Type) += Amount; }
+
+    /** B-333: this cost in Currency; 0 for a balance a purchase never charges. */
+    int32 Get(ECurrencyType Currency) const
+    {
+        switch (Currency)
+        {
+        case ECurrencyType::Prisms: return Prisms;
+        case ECurrencyType::SkillEssence: return SkillEssence;
+        case ECurrencyType::ElementalEssence: return ElementalEssence;
+        case ECurrencyType::PillarEssence: return PillarEssence;
+        default: return 0;
+        }
+    }
+
+    /** B-333: add Amount of an essence (Skill / Elemental / Pillar) to this cost. */
+    void AddEssence(ECurrencyType Currency, int32 Amount)
+    {
+        switch (Currency)
+        {
+        case ECurrencyType::SkillEssence: SkillEssence += Amount; break;
+        case ECurrencyType::ElementalEssence: ElementalEssence += Amount; break;
+        case ECurrencyType::PillarEssence: PillarEssence += Amount; break;
+        default: break;
+        }
+    }
 };
 
 UCLASS()
@@ -58,7 +98,7 @@ public:
     static bool IsOutOfCombat(const AActor *Owner, const TCHAR *Op);
 
     /**
-     * Dismantle Count crystals/stones of Id from Owner's inventory, granting typed essence per
+     * Dismantle Count crystals/stones of Id from Owner's inventory, granting its essence (B-333: gem Elemental, stat stone Pillar, ability stone Skill) per
      * EconomyYield. Server-authoritative. The pool (gem vs stone) is dispatched by Id.Type inside
      * the component — there is no item/refined axis anymore (the gem-merge collapsed it).
      *
@@ -127,7 +167,7 @@ public:
 
     /**
      * Dismantle the owned EVOLUTION instance by InstanceID (NOT PersistentID — evolution identity).
-     * HYBRID yield: the evolution's ELEMENT essence TYPE (GetAssociatedElement → ElementToEssenceType)
+     * HYBRID yield: Elemental Essence (B-333, D-125)
      * at the GEAR leveling AMOUNT (GetLevelingEssenceYieldForTier on the INSTANCE tier — the §3 gear
      * curve F5..S145, NOT the §4.2 crystal yield). Server-authoritative; remove-then-grant via
      * UEvolutionInventoryComponent::RemoveInstance. Also the destroy path reused by primary-removal
@@ -187,14 +227,13 @@ public:
      *                     can grant stone abilities (augment stone, or fusion with an
      *                     AbilityStone half). WeaponAttack is never priced (weapon identity).
      *                     [quality is the C placeholder until shop-roll]
-     *   - Spell         : Prisms base + 50×Σ scaling-grade + element essence @ tier + Σ pillar
-     *                     essence per scaling grade. A GENERIC spell's element essence is Quartz
-     *                     essence (EEssenceType::Generic, D-105).
-     *   - Ability       : Prisms base + SkillEssence @ tier.
-     *   - Evolution     : 2× Prisms base (premium item class) + element essence @ tier
-     *                     + ½ Reality essence.
-     *   - Crystal       : Prisms base only (× Count) — no typed essence; essence stays a
-     *                     dismantle-side currency for crystal stock.
+     *   B-333 (D-125, Q-333): essence @ tier is the TYPED_ESSENCE_BUY row.
+     *   - Spell         : Prisms base + 50×Σ scaling-grade + Skill @ tier + Elemental @ tier (any
+     *                     element but None; Generic counts — Quartz folded into Elemental).
+     *   - Ability       : Prisms base + Skill @ tier (abilities carry no element).
+     *   - Evolution     : 2× Prisms base (premium item class) + Elemental @ tier + ½ that again.
+     *   - Crystal       : (Prisms base + its essence @ tier) × Count — a gem Elemental, a stat
+     *                     stone Pillar, an ability stone Skill (EconomyYield::GetCrystalEssence).
      *
      * Count is honoured for weapons / rings / crystals; clamped to 1 for spells / abilities /
      * evolutions (spells/abilities can't be owned twice; evolution is per-instance). Buying a
@@ -242,7 +281,7 @@ public:
      * leveled weapon immediately dismantles for more, gets bigger loadout budgets, and hits
      * harder / wears differently in combat (all downstream reads already use instance tier).
      *
-     * Cost (§5.3): Gear essence = GetTierUpCostForTier(currentTier); Reality essence = half that.
+     * Cost (§5.3): Gear essence = GetTierUpCostForTier(currentTier). B-333 (Q-333): no co-cost (a weapon has no element).
      * NO Gold. Canonical spend shape: CanAfford BOTH → Spend BOTH → write next tier → refund both
      * if the write cannot land. Server-authoritative.
      *
@@ -263,7 +302,7 @@ public:
      * in INVENTORY or in the PRIMARY slot — the inventory entry persists when primary-slotted (the
      * slot is re-inflated from it by PrimaryEvolutionInstance), so leveling the entry propagates to
      * the slotted attachment on the next inflation. Gear-attached evolution is NOT covered (no owned
-     * instance source yet). Same Gear + ½ Reality cost as weapons/rings via the shared core; see
+     * instance source yet). Gear + ½ Elemental (an evolution has an element, Q-333) via the shared core; see
      * LevelUpWeapon for the full contract. False if no owned evolution carries that InstanceID.
      */
     UFUNCTION(BlueprintCallable, Category = "Economy")
@@ -272,7 +311,7 @@ public:
     /**
      * Tier-up an owned SPELL by one step → writes the caster's FSpellInstance.Tier. Identified by
      * ASSET (owners hold ≤1 instance per asset — duplicates rejected at learn time), consistent with
-     * the cast-tier resolver. Pays SKILL essence + ½ Reality (§3 — spells/abilities level on Skill,
+     * the cast-tier resolver. Pays SKILL essence, + ½ Elemental when the spell has an element (Q-333) (§3 — spells/abilities level on Skill,
      * not Gear) via the shared TryLevelUpEntry core. S-capped. False if Owner null / no authority;
      * components missing; or the spell isn't owned (can't level what you don't have).
      */
@@ -288,7 +327,7 @@ public:
 
     /**
      * Tier-DOWN the owned WEAPON instance by ONE step (the inverse of LevelUpWeapon — Face C respec).
-     * Refunds HALF the reverted step's leveling cost in Gear essence ONLY; the ½-Reality co-cost paid
+     * Refunds HALF the reverted step's leveling cost in Gear essence ONLY; the ½-Elemental co-cost paid
      * at level-up is NOT refunded (reverting always costs the reshape currency). Floored at the item's
      * AUTHORED base tier (you can only revert tiers you leveled UP to, never below what it shipped at).
      * Server-authoritative. False if: Owner null / no authority; components missing; no owned weapon
@@ -351,20 +390,21 @@ private:
      * and pass &Entry.Tier here.
      *
      * Reads InOutTier; if already S_Tier, returns false (S is max — can't level past S). Else
-     * computes the leveling-essence cost (GetTierUpCostForTier) + half-cost Reality, requires BOTH
+     * computes the leveling-essence cost (GetTierUpCostForTier) + the ½ Elemental co-cost when bHasElement, requires BOTH
      * affordable (spends nothing if either short), spends both, then writes the next tier up into
      * InOutTier. Returns true only when the spend+write happened.
      *
      * LevelingEssence selects the primary essence: GearEssence (default — weapons/rings/evolution)
-     * or SkillEssence (spells/abilities), per §3's category split. Reality (the ½ co-cost) is shared.
+     * or SkillEssence (spells/abilities), per §3's category split. B-333 (Q-333): the ½ co-cost is
+     * Elemental Essence and is charged only when bHasElement (evolutions, spells with an element).
      */
     bool TryLevelUpEntry(UCurrencyComponent *Currency, EItemTier &InOutTier,
-                         ECurrencyType LevelingEssence = ECurrencyType::GearEssence) const;
+                         ECurrencyType LevelingEssence = ECurrencyType::GearEssence, bool bHasElement = false) const;
 
     /**
      * Shared tier-DOWN core — the inverse of TryLevelUpEntry. Lowers InOutTier one step (toward
      * FloorTier, the item's authored base) and refunds HALF the reverted step's cost
-     * (GetTierUpCostForTier(downTier)) in LevelingEssence ONLY — the ½-Reality co-cost is NOT
+     * (GetTierUpCostForTier(downTier)) in LevelingEssence ONLY — the ½-Elemental co-cost is NOT
      * refunded. Returns false (no change) when already at/below FloorTier. The write + refund cannot
      * fail, so no rollback path. Type-agnostic: any per-instance EItemTier reuses it.
      */

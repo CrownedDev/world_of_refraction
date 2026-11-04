@@ -5,6 +5,9 @@
 // Resources_Design.md §16.2). Gold/Prisms/Diamond/GearEssence are plain int32s
 // on the component.
 //
+// B-333 (D-125): seven balances, all plain scalars: Gold, Prisms, Diamond, Gear / Skill /
+// Elemental / Pillar Essence. The typed wallet below is OBSOLETE (B-333), kept until the sweep.
+//
 // The reusable FCurrencyEntry / FCurrencyArray pair backs the single typed Essence
 // wallet (14 keys, interpreting Key via EEssenceType, stored as uint8). The owning
 // component stamps the wallet's WalletType + OwnerComponent once at construction so
@@ -25,12 +28,23 @@ enum class ECurrencyType : uint8
     Gold,      // run-volatile, never banked (Replicated, NOT SaveGame)
     Prisms,       // persistent; account-shareable (routing wired later)
     Diamond,      // persistent; account-wide premium (routing wired later)
-    EssenceTyped, // persistent; per-character; sub-keyed by EEssenceType (14 keys) — FastArray
+    EssenceTyped, // OBSOLETE (B-333): the 14 typed essences retire (D-125). Nothing earns or spends it now; delete in the sweep (D-124).
     GearEssence,  // persistent; per-character; single scalar (levels weapons + rings)
-    SkillEssence  // persistent; per-character; single scalar (levels abilities + spells) — appended
+    SkillEssence, // persistent; per-character; single scalar (spells, abilities, ability stones) — appended
+    ElementalEssence, // B-333 (D-125): persistent scalar; pays for anything with an element (Quartz folds in) — appended
+    PillarEssence     // B-333 (D-125): persistent scalar; pays for stat stones — appended
 };
 
-/** 14 typed-essence keys: 10 element (Generic = Quartz's element), 3 pillar, 1 ability. */
+namespace CurrencyBalances
+{
+    /** B-333 (D-125): the seven balances, in display order. Gold is run money; the rest are banked. */
+    inline constexpr ECurrencyType SEVEN[] = {
+        ECurrencyType::Gold, ECurrencyType::Prisms, ECurrencyType::Diamond, ECurrencyType::GearEssence,
+        ECurrencyType::SkillEssence, ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence};
+}
+
+/** OBSOLETE (B-333): the 14 typed-essence keys (10 element, 3 pillar, 1 ability) retire (D-125);
+ *  Elemental / Pillar / Skill Essence replace them. Kept, unrenumbered, until the sweep (D-124). */
 UENUM(BlueprintType)
 enum class EEssenceType : uint8
 {

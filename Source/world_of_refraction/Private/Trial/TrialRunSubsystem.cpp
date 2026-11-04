@@ -90,7 +90,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     ActiveTrial = Trial;
     BeatenEncounters.Reset();
     RunLevels.Reset(); // B-223: the run's pillar levels end with it (D-102)
-    UnspentLevels = 0;
+    UnspentLevels.Reset();
     FoundFeatures.Reset();
     RunMemories.Reset();
     PendingEncounterSources.Reset();
@@ -175,7 +175,7 @@ void UTrialRunSubsystem::ExitTrial()
     TrialDifficulty = TrialGate::DEFAULT_DIFFICULTY;
     BeatenEncounters.Reset();
     RunLevels.Reset(); // B-223: the run's pillar levels end with it (D-102)
-    UnspentLevels = 0;
+    UnspentLevels.Reset();
     FoundFeatures.Reset();
     RunMemories.Reset();
     PendingEncounterSources.Reset();
@@ -291,34 +291,62 @@ void UTrialRunSubsystem::AddRunLevelPurchase(FName CharacterKey)
 void UTrialRunSubsystem::ForgetRunLevels(FName CharacterKey)
 {
     RunLevels.Remove(CharacterKey);
+    UnspentLevels.Remove(CharacterKey); // B-223b: its waiting levels go with its run
 }
 
-void UTrialRunSubsystem::AddUnspentLevels(int32 Count)
+int32 UTrialRunSubsystem::GetUnspentLevels(FName CharacterKey) const
 {
-    if (Count > 0)
+    return UnspentLevels.FindRef(CharacterKey);
+}
+
+int32 UTrialRunSubsystem::GetTotalUnspentLevels() const
+{
+    int32 Total = 0;
+    for (const TPair<FName, int32> &Pair : UnspentLevels)
     {
-        UnspentLevels += Count;
-        UE_LOG(LogTemp, Log, TEXT("[TrialRun] +%d pillar level(s) to place (%d waiting): wor.UI.LevelDrop"), Count, UnspentLevels);
+        Total += Pair.Value;
+    }
+    return Total;
+}
+
+void UTrialRunSubsystem::AddUnspentLevels(FName CharacterKey, int32 Count)
+{
+    if (Count > 0 && !CharacterKey.IsNone())
+    {
+        const int32 Waiting = UnspentLevels.FindOrAdd(CharacterKey) += Count;
+        UE_LOG(LogTemp, Log, TEXT("[TrialRun] %s: +%d pillar level(s) to place (%d waiting): wor.UI.LevelDrop"),
+               *FPaths::GetBaseFilename(CharacterKey.ToString()), Count, Waiting);
     }
 }
 
-bool UTrialRunSubsystem::TakeUnspentLevel()
+bool UTrialRunSubsystem::TakeUnspentLevel(FName CharacterKey)
 {
-    if (UnspentLevels <= 0)
+    int32 *Waiting = UnspentLevels.Find(CharacterKey);
+    if (!Waiting || *Waiting <= 0)
     {
         return false;
     }
-    --UnspentLevels;
+    if (--*Waiting <= 0)
+    {
+        UnspentLevels.Remove(CharacterKey);
+    }
     return true;
 }
 
 FString UTrialRunSubsystem::GetRunLevelsString() const
 {
-    FString Out = FString::Printf(TEXT("[TrialRun] Run pillar levels (B-223): %d unspent"), UnspentLevels);
+    FString Out = FString::Printf(TEXT("[TrialRun] Run pillar levels (B-223b, per character): %d unspent in all"), GetTotalUnspentLevels());
     for (const TPair<FName, FRunLevels> &Pair : RunLevels)
     {
-        Out += FString::Printf(TEXT("\n  %s: Mind +%d, Body +%d, Spirit +%d; bought %d"), *FPaths::GetBaseFilename(Pair.Key.ToString()),
-                               Pair.Value.Mind, Pair.Value.Body, Pair.Value.Spirit, Pair.Value.Purchases);
+        Out += FString::Printf(TEXT("\n  %s: Mind +%d, Body +%d, Spirit +%d; bought %d; %d to place"), *FPaths::GetBaseFilename(Pair.Key.ToString()),
+                               Pair.Value.Mind, Pair.Value.Body, Pair.Value.Spirit, Pair.Value.Purchases, GetUnspentLevels(Pair.Key));
+    }
+    for (const TPair<FName, int32> &Pair : UnspentLevels)
+    {
+        if (!RunLevels.Contains(Pair.Key))
+        {
+            Out += FString::Printf(TEXT("\n  %s: %d to place"), *FPaths::GetBaseFilename(Pair.Key.ToString()), Pair.Value);
+        }
     }
     return Out;
 }

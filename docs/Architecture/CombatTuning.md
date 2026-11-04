@@ -52,3 +52,4 @@ Combat tuning numbers that designers can change without a rebuild (B-218, plan `
 |------|--------|--------|
 | 2026-10-27 | Created (B-218): `UCombatTuningData`, `WoRTuning` accessor, five ladders + charge bands + BD strain values, debug, spec `WoR.Tuning.CombatData`. | feature/B-218-combat-tuning-data |
 | 2026-11-03 | B-224 (BaselineNumbers.md Decided): four baseline ladders (`PillarCurve`, `WeaponReferencePower`, `WeaponRequirementByTier`, `EnemyRankHealth`) and `WeaponReqFactorMin` 0.5; C++ tables in `CombatBaselineConstants.h`; `wor.Tuning.Print`; spec `WoR.Tuning.Baseline`. Written unbuilt in a cloud session. | feature/B-224-combat-numbers |
+| 2026-11-03 | B-293d (Q-293d, Crown): rank HP Mini-boss x4 / Boss x8 (`ENEMY_RANK_HEALTH_*`); the requirement floor `WEAPON_REQ_FACTOR_MIN` 0.25. Specs `WoR.Tuning.Baseline`, `WoR.Trial.RankHealthPerTeam`. Unbuilt (cloud). | chore/B-293d-decided-balance |

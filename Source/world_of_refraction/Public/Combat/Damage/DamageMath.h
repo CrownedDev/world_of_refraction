@@ -68,6 +68,11 @@ struct WORLD_OF_REFRACTION_API FDamageMathInputs
 	float DefenderDefense = 0.0f;
 	/** Grid defense modifier; applied when above 0. */
 	float GridDefenseModifier = 0.0f;
+	/** B-293d: the defender's Damage Taken factor (UDamageCalculator::GetDamageTakenFactor), already inside
+	 *  StatusEffectModifier; read only to measure the damage floor. */
+	float DamageTakenFactor = 1.0f;
+	/** B-293d: the share Guard let through (1 unguarded); BaseDamage is already guarded. */
+	float GuardFactor = 1.0f;
 };
 
 namespace WoRDamageMath
