@@ -38,6 +38,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-314](B-314.md) | `refactor/B-314-run-layer` (in `dev`) | The run layer: found gear dropped at run end with its tier remembered; home gear's wear and run-added attachments reset | Pending |
 | [B-347](B-347.md) | `feature/B-347-free-run-loadout` (in `dev`) | The run loadout is free: the worn loadout goes on the run, no purchase; Gold for in-run vendors | Pending |
 | [B-316](B-316.md) | `feature/B-316-give-request-buyfor` (in `dev`) | Buy for any party member (AI included) from a shop; `wor.Shop.BuyFor` | Not built |
+| [B-339](B-339.md) | `feature/B-339-inventory-screen` (in `dev`) | One inventory screen `wor.UI.Inventory`: Give, Store, Take, Dismantle, Convert over a member and the chest | Not built |
 | [B-312](B-312.md) | `refactor/B-312-store-views` (in `dev`) | Gear store step 1: GUID index, member views, `wor.Inventory.CompareStore`; no gameplay change | Pending |
 | [B-293](B-293.md) | `feature/B-293-balance-targets` (in `dev`) | Balance targets, reports, GAS parity, `wor.Balance.Run`; no gameplay change | Pending |
 | [B-261](B-261.md) | `refactor/B-261-mirror-dirty-check` (in `dev`) | A GAS stat read skips the mirror re-sync when nothing changed (P5) | Pending |

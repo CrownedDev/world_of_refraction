@@ -20,6 +20,7 @@ enum class ECombatRow : uint8;
 enum class ESpellSchool : uint8;
 enum class EMerchantType : uint8;
 enum class EEssenceType : uint8;
+enum class EInventoryVerb : uint8;
 enum class ECurrencyType : uint8;
 
 namespace WoRGameNames
@@ -57,6 +58,8 @@ namespace WoRGameNames
     WORLD_OF_REFRACTION_API FText GetActiveAdapterWord();
     /** B-316: "yourself", the player's own character as a receiver (the shop's buy-for). */
     WORLD_OF_REFRACTION_API FText GetYourselfWord();
+    /** B-339: the inventory screen's button verbs: "Give", "Store", "Take", "Dismantle", "Convert to Gold". */
+    WORLD_OF_REFRACTION_API FText GetInventoryVerbName(EInventoryVerb Verb);
     /** An adapter's form: "Ring", "Pistol", "Trainer". */
     WORLD_OF_REFRACTION_API FText GetAdapterFormName(EAdapterForm Form);
 
