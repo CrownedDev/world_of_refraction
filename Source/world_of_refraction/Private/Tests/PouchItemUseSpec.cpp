@@ -1,8 +1,8 @@
 // PouchItemUseSpec.cpp
 // B-313 (D-111, D-117, Q-313): a party member's fight items are its own pouch, one instance per item. Using an
 // item in a fight spends it from the user's pouch and nothing else (not another member's pouch, not the shared
-// storage, not the preset's item slots). D-072's tier bands cap how many of a band a member uses per fight;
-// stones are slot-only and never listed.
+// storage, not the preset's item slots). No tier cap on what a member carries or uses (B-354, D-143 retired the
+// D-072 bands); stones are slot-only and never listed.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -155,27 +155,21 @@ void FPouchItemUseSpec::Define()
 		const TArray<FItemLoadoutSlot> Usable = Loadout->GetUsableItems();
 		if (!TestEqual(TEXT("One usable stack"), Usable.Num(), 1)) return;
 		TestTrue(TEXT("The Garnet"), Usable[0].CrystalId == POUCH_USE_GARNET);
-		TestEqual(TEXT("All of it: its band allows more"), Usable[0].Quantity,
-				  FMath::Min(POUCH_USE_A_STACK, LoadoutConstants::MAX_UTILITY_CRYSTALS_E_F_TIER));
+		TestEqual(TEXT("All of it: no tier cap"), Usable[0].Quantity, POUCH_USE_A_STACK);
 	});
 
-	It("caps a fight's uses by the D-072 tier band, and the next fight starts afresh", [this]()
+	It("has no tier cap on owned S crystals: all are carried and each can be used in one fight (B-354)", [this]()
 	{
 		if (!Pool) return;
 		Pool->CarryOrStore(KeyOf(0), POUCH_USE_S_GARNET, POUCH_USE_S_STACK);
-		for (int32 Use = 0; Use < LoadoutConstants::MAX_UTILITY_CRYSTALS_S_TIER; ++Use)
+		TestEqual(TEXT("Every S crystal kept"), Pool->GetCarriedCount(KeyOf(0), POUCH_USE_S_GARNET) + Pool->GetStoredCount(POUCH_USE_S_GARNET),
+				  POUCH_USE_S_STACK);
+		const int32 Carried = Pool->GetCarriedCount(KeyOf(0), POUCH_USE_S_GARNET);
+		for (int32 Use = 0; Use < Carried; ++Use)
 		{
-			TestTrue(TEXT("Within the S cap"), Loadout->UseCarriedItem(POUCH_USE_S_GARNET));
+			TestTrue(TEXT("Each carried S crystal is usable"), Loadout->UseCarriedItem(POUCH_USE_S_GARNET));
 		}
-		TestFalse(TEXT("Past the S cap"), Loadout->UseCarriedItem(POUCH_USE_S_GARNET));
-		TestEqual(TEXT("Only the capped uses left the pouch"), Pool->GetCarriedCount(KeyOf(0), POUCH_USE_S_GARNET),
-				  POUCH_USE_S_STACK - LoadoutConstants::MAX_UTILITY_CRYSTALS_S_TIER);
-		TestFalse(TEXT("The menu no longer offers it"),
-				  Loadout->GetUsableItems().ContainsByPredicate([](const FItemLoadoutSlot &Item) { return Item.CrystalId == POUCH_USE_S_GARNET; }));
-
-		Loadout->ResetBattleState();
-		if (!TestTrue(TEXT("Next fight"), Loadout->PrepareForBattle(Inventory))) return;
-		TestTrue(TEXT("Usable again"), Loadout->UseCarriedItem(POUCH_USE_S_GARNET));
+		TestEqual(TEXT("All the carried ones used in one fight"), Pool->GetCarriedCount(KeyOf(0), POUCH_USE_S_GARNET), 0);
 	});
 }
 
