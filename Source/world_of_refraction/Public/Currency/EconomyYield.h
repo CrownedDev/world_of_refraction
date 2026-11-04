@@ -374,7 +374,7 @@ namespace EconomyYield
         }
         if (CrystalTypeHelpers::IsStatStone(Id.Type))
         {
-            return SubStatToPillarEssence(CrystalEffectTable::StoneTargetStat(Id.Type));
+            return SubStatToPillarEssence(CrystalEffectTable::StoneTargetStat(StatStone::RowType(Id))); // B-353
         }
 
         UE_LOG(LogTemp, Warning,

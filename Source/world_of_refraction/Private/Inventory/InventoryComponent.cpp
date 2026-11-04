@@ -15,6 +15,7 @@
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Equipment/Crystals/StatStone.h"
 #include "Equipment/Crystals/FFusionId.h"            // fusion attach identity
 #include "Equipment/Crystals/CrystalTypeHelpers.h"   // IsGemType / IsValidFusionPair / IsElementalFusion
 #include "Equipment/Crystals/ItemIdentity.h"         // GetMaxDurability + GetDisplayName for attach
@@ -117,6 +118,7 @@ namespace
      *  an augment stone writes Kind=AugmentStone with 0 durability (stones never wear). */
     FRuntimeAttachedItem MakeCrystalAttachment(FCrystalId Id, bool bIsStone)
     {
+        Id = StatStone::Normalize(Id); // B-353 (D-142): an old single-stat stone attaches as a StatStone
         FRuntimeAttachedItem Runtime;
         Runtime.Kind = bIsStone ? EAttachedItemKind::AugmentStone : EAttachedItemKind::Crystal;
         Runtime.Crystal.Id = Id;
