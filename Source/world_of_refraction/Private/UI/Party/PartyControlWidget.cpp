@@ -16,6 +16,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Currency/CurrencyComponent.h"
+#include "Currency/EconomyService.h"
 #include "Equipment/Durability/GearRepair.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -264,7 +265,7 @@ void UPartyControlWidget::Refresh()
 	{
 		const int32 RepairGold = Party ? GearRepair::GetPartyRepairCost(*Party) : 0;
 		RepairGearText->SetText(RepairGold > 0
-									? FText::Format(LOCTEXT("RepairGear", "Rest: repair gear ({0} {1})"), RepairGold, WoRGameNames::GetCurrencyName(ECurrencyType::Gold))
+									? FText::Format(LOCTEXT("RepairGear", "Rest: repair gear ({0} {1})"), RepairGold, WoRGameNames::GetCurrencyName(UEconomyService::GetPlaceCurrency(this)))
 									: LOCTEXT("NothingToRepair", "Rest: no gear to repair"));
 	}
 
@@ -411,7 +412,7 @@ void UPartyControlWidget::HandleRepairGearClicked()
 	int32 Spent = 0;
 	if (!Party || !Wallet || !GearRepair::RepairParty(*Party, *Wallet, Spent))
 	{
-		UE_LOG(LogWoR, Display, TEXT("[PartyControl] Repair: nothing repaired (nothing worn, or not enough Gold)"));
+		UE_LOG(LogWoR, Display, TEXT("[PartyControl] Repair: nothing repaired (nothing worn, or not enough money)"));
 	}
 	Refresh(); // a repair changes no party membership, so OnPartyChanged doesn't fire
 }
