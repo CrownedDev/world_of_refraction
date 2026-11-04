@@ -1747,6 +1747,38 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** the trial difficulty sets both enemy damage and the enemy AI tier; a per-encounter AI override stays (D-044). Spell and ability AI share one path, and the AI weights move into `UCombatTuningData`.
 **Notes for Claude:** jobs B-344 (difficulty → AI tier) and B-345 (one path, weights to data).
 
+### Q-341 — Which 3 tie-break steps stay?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-341, cloud) · **Blocks:** —
+**Question:** D-133 trims ET-08's 8-step tie-break (base speed, action speed, the lower world-stat total, Body, Mind, Spirit, side, slot) to 3. Which 3?
+**Options:** **A** higher base turn speed (buffs ignored), then your party before enemies, then the lower slot. **B** base speed, action speed, slot. **C** base speed, the underdog world-stat total, slot.
+**Recommendation:** A. A tie should go to the stat players build for turn order (speed), and otherwise be readable and predictable on the timeline: Final Fantasy X's CTB, the reference D-133 keeps, is praised for a turn order you can read ahead, and Pokémon's coin-flip speed ties are a long-standing player complaint, so ties stay deterministic. Party-first gives the player the edge on a true tie and needs no hidden stat; the slot makes it total. Action speed and the world stats are hidden in a tie (nothing on the strip shows them).
+**Answer:** A (approved by the reference-backed default). The 8-step chain stays in code, unused, until PIE.
+**Notes for Claude:** applied in B-341 (`feature/B-341-turn-rules-trim`).
+
+### Q-341b — Emerald's tiers under "a bonus turn lands next"
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-341, cloud) · **Blocks:** —
+**Question:** Emerald's tiers differed by delay (F 6 turns … S 0, S granting two turns). Under D-133's one rule every bonus turn lands immediately. What separates the tiers now?
+**Options:** **A** every tier's bonus lands next; S still grants two back to back, F–A one; the delay table retires (kept unread until PIE). Tier value otherwise comes from cost and availability until a balance pass. **B** keep the delays as a "grant after N turns" variant (two bonus rules, against D-133). **C** scale the count by tier (F–B one, A–S two).
+**Recommendation:** A. The deckbuilder's rule comes first (its `AddTurn` lands right after the current turn, `WoR_TCG_Pivot_Design.md` §7c), and D-133 asks for one rule; A keeps today's S behaviour and changes nothing else about the item. C is a balance question for the nightly sim, not a rules one.
+**Answer:** A (approved by the reference-backed default). Crown may still want lower tiers to differ (count, or a cost); that's a tuning change, not a rule.
+**Notes for Claude:** applied in B-341 (`GetEmeraldBonusTurnCount`).
+
+### Q-341c — Does every bonus turn pass the 2:1 cap?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-341 review, cloud) · **Blocks:** —
+**Question:** Q-297 let Emerald bonus turns pass the 2:1 cap (D-049). Extra Action used to be a normal owed turn, so it was capped. Now it grants a bonus turn under the one rule. Does it pass the cap too?
+**Options:** **A** every bonus turn passes the cap, whatever grants it. **B** only Emerald's; other bonus turns wait for an opponent.
+**Recommendation:** A. The deckbuilder's rule comes first: a bonus turn inserts right after the current turn (`WoR_TCG_Pivot_Design.md` §7c), with no exception. D-133 asks for one bonus-turn rule, and B would add a second.
+**Answer:** A (approved by the reference-backed default). Extra Action now gives its turn straight away, even to a holder on a streak.
+**Notes for Claude:** applied in B-341 (ET-15; `WoR.Turns.Belt` "passes the 2:1 cap").
+
+### Q-341d — What does a revived fighter owe on the belt?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-341 review, desktop) · **Blocks:** —
+**Question:** D-133 says "death purges, revive re-enters". Re-enters with what? Before B-341 a revived fighter kept its net turn debt from the moment it died (it could owe a catch-up turn, or still be yielding places).
+**Options:** **A** a clean slate: nothing owed now (it acts from the next round), no streak toward the 2:1 cap, no leftover delay or skip. **B** keep the debt from death (a revive can mean an immediate catch-up turn, or a still-pending skip).
+**Recommendation:** A. The deckbuilder's belt removes a fallen fighter's turns and re-adds it at the end of the belt (`WoR_TCG_Pivot_Design.md` §7c); Final Fantasy X's CTB does the same (a revived character is placed at the end of the timeline), and players read it as fair: a revive is a second chance, not a refund of lost turns.
+**Answer:** A (approved by the reference-backed default).
+**Notes for Claude:** built in B-341 (`UTurnManager::OnActorResurrected`; `WoR.Turns.Belt` "revive next round").
+
 ### Q-344 — Do boss arenas follow the trial difficulty too?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-344, cloud) · **Blocks:** —
 **Question:** boss arenas (`ATrialMapFeature`) were authored Hard by default. Under D-136, do they follow the trial difficulty, or keep their own tier?
