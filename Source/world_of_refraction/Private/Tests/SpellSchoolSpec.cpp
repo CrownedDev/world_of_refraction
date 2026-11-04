@@ -1,6 +1,6 @@
 // SpellSchoolSpec.cpp
-// B-356 (D-146, Q-356): three spell schools. Every ESpellSchool value maps onto Destruction,
-// Enhancement or Restoration (a retired one is flagged and shows its mapped name), and the AI's
+// B-356 / B-356c (D-146 as corrected, Q-356): three spell schools. Every ESpellSchool value maps onto
+// Conjuration, Enhancement or Restoration (a retired one is flagged and shows its mapped name), and the AI's
 // spell picks read a spell's effects, never its school: a spell tagged against its effects is judged
 // by the effects.
 
@@ -51,7 +51,7 @@ void FSpellSchoolSpec::Define()
 	{
 		const UEnum *SchoolEnum = StaticEnum<ESpellSchool>();
 		if (!TestNotNull(TEXT("ESpellSchool"), SchoolEnum)) return;
-		const TSet<ESpellSchool> Three = {ESpellSchool::Destruction, ESpellSchool::Enhancement, ESpellSchool::Restoration};
+		const TSet<ESpellSchool> Three = {ESpellSchool::Conjuration, ESpellSchool::Enhancement, ESpellSchool::Restoration};
 		for (int32 Index = 0; Index < SchoolEnum->NumEnums() - 1; ++Index) // minus the generated _MAX
 		{
 			const ESpellSchool School = static_cast<ESpellSchool>(SchoolEnum->GetValueByIndex(Index));
@@ -67,26 +67,28 @@ void FSpellSchoolSpec::Define()
 		{
 			TestFalse(TEXT("the three stay"), SpellSchools::IsRetired(School));
 		}
-		TestTrue(TEXT("Conjuration reads as Enhancement (Q-356)"),
-				 SpellSchools::ToCurrent(ESpellSchool::Conjuration) == ESpellSchool::Enhancement);
-		USpellData *Retired = SchoolTestSpell(ESpellSchool::Conjuration, ETargetType::Ally, 0, false);
-		TestTrue(TEXT("a retired spell shows as Enhancement"), Retired->GetSchool() == ESpellSchool::Enhancement);
+		TestTrue(TEXT("Destruction reads as Conjuration (Q-356, D-146 corrected)"),
+				 SpellSchools::ToCurrent(ESpellSchool::Destruction) == ESpellSchool::Conjuration);
+		TestTrue(TEXT("Conjuration maps to itself"),
+				 SpellSchools::ToCurrent(ESpellSchool::Conjuration) == ESpellSchool::Conjuration);
+		USpellData *Retired = SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false);
+		TestTrue(TEXT("a retired spell shows as Conjuration"), Retired->GetSchool() == ESpellSchool::Conjuration);
 	});
 
 	It("judges a spell's offence by its effects, not its school", [this]()
 	{
 		TestTrue(TEXT("Restoration-tagged damage at an enemy is offensive"),
 				 UAIDecisionManager::IsOffensiveSpell(*SchoolTestSpell(ESpellSchool::Restoration, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false)));
-		TestFalse(TEXT("a Destruction-tagged spell aimed at an ally is not"),
-				  UAIDecisionManager::IsOffensiveSpell(*SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Ally, SCHOOL_TEST_DAMAGE, false)));
-		TestFalse(TEXT("a Destruction-tagged spell with no damage or debuff is not"),
-				  UAIDecisionManager::IsOffensiveSpell(*SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Enemy, 0, false)));
+		TestFalse(TEXT("a Conjuration-tagged spell aimed at an ally is not"),
+				  UAIDecisionManager::IsOffensiveSpell(*SchoolTestSpell(ESpellSchool::Conjuration, ETargetType::Ally, SCHOOL_TEST_DAMAGE, false)));
+		TestFalse(TEXT("a Conjuration-tagged spell with no damage or debuff is not"),
+				  UAIDecisionManager::IsOffensiveSpell(*SchoolTestSpell(ESpellSchool::Conjuration, ETargetType::Enemy, 0, false)));
 	});
 
 	It("finds a heal by its effects, not its school", [this]()
 	{
-		TestTrue(TEXT("a Destruction-tagged heal is a heal"),
-				 UAIDecisionManager::IsHealingSpell(*SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Ally, 0, true)));
+		TestTrue(TEXT("a Conjuration-tagged heal is a heal"),
+				 UAIDecisionManager::IsHealingSpell(*SchoolTestSpell(ESpellSchool::Conjuration, ETargetType::Ally, 0, true)));
 		TestFalse(TEXT("a Restoration-tagged spell without a heal is not"),
 				  UAIDecisionManager::IsHealingSpell(*SchoolTestSpell(ESpellSchool::Restoration, ETargetType::Ally, 0, false)));
 	});
@@ -97,15 +99,15 @@ void FSpellSchoolSpec::Define()
 		Saved.RequiredClass = ECharacterClass::Caster;
 		for (int32 i = 0; i < SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL; ++i)
 		{
-			Saved.InnateSpells.Add(FSpellRef(SchoolTestSpell(ESpellSchool::Enhancement, ETargetType::Ally, 0, false)));
+			Saved.InnateSpells.Add(FSpellRef(SchoolTestSpell(ESpellSchool::Conjuration, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false)));
 		}
-		const TCHAR *TooMany = TEXT("Too many ESpellSchool::Enhancement innate spells");
+		const TCHAR *TooMany = TEXT("Too many ESpellSchool::Conjuration innate spells");
 		auto Flagged = [&]() {
 			return Saved.GetValidationErrors().ContainsByPredicate([&](const FString &R) { return R.Contains(TooMany); });
 		};
-		TestFalse(TEXT("a full Enhancement pool passes"), Flagged());
-		Saved.InnateSpells.Add(FSpellRef(SchoolTestSpell(ESpellSchool::Conjuration, ETargetType::Ally, 0, false)));
-		TestTrue(TEXT("one Conjuration-tagged spell more is one Enhancement spell too many"), Flagged());
+		TestFalse(TEXT("a full Conjuration pool passes"), Flagged());
+		Saved.InnateSpells.Add(FSpellRef(SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false)));
+		TestTrue(TEXT("one Destruction-tagged spell more is one Conjuration spell too many"), Flagged());
 	});
 }
 

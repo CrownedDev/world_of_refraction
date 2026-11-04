@@ -128,9 +128,9 @@ void FSupportNoBuildupSpec::Define()
 			TestEqual(TEXT("no buildup"), SupportSkillRules::GetAuthoredStatusBuildup(SupportTestSpell(ESpellSchool::Restoration)), 0);
 		});
 
-		It("leaves a Destruction spell's buildup alone", [this]()
+		It("leaves a Conjuration spell's buildup alone", [this]()
 		{
-			USpellData *Spell = SupportTestSpell(ESpellSchool::Destruction);
+			USpellData *Spell = SupportTestSpell(ESpellSchool::Conjuration);
 			TestFalse(TEXT("not support"), SupportSkillRules::IsSupportSkill(Spell));
 			TestEqual(TEXT("authored buildup"), SupportSkillRules::GetAuthoredStatusBuildup(Spell), SUPPORT_TEST_BUILDUP);
 		});
