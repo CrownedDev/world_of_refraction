@@ -1643,10 +1643,19 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
                 Slot.Quantity = FMath::Clamp(Slot.Quantity, 0, InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT);
             }
             break;
-        case ELoadoutSlotType::UtilityCrystalTierCap:
+        case ELoadoutSlotType::UtilityCrystalTierCap: // OBSOLETE (B-354): no longer reported
+        case ELoadoutSlotType::EquippedSTierCrystal:
         {
             const TArray<FItemLoadoutSlot> Untrimmed = Loadout.ItemSlots;
-            FLoadoutRules::TrimUtilityCrystalsToTierCaps(Loadout);
+            // B-354 (D-143): only the item slots' S gems can be cleared (the attachments keep their S crystal).
+            if (Finding.SlotType == ELoadoutSlotType::EquippedSTierCrystal)
+            {
+                FLoadoutRules::TrimSTierItemCrystals(Loadout);
+            }
+            else
+            {
+                FLoadoutRules::TrimUtilityCrystalsToTierCaps(Loadout);
+            }
             TArray<FString> Removed;
             for (int32 i = 0; i < Untrimmed.Num(); ++i)
             {
@@ -1954,12 +1963,8 @@ bool ULoadoutComponent::UsesPouchItems() const
 
 int32 ULoadoutComponent::GetCarriedBandRoom(const FCrystalId &Id) const
 {
-    const int32 Band = FLoadoutRules::GetUtilityBandIndex(Id);
-    if (Band == INDEX_NONE)
-    {
-        return 0;
-    }
-    return FMath::Max(FLoadoutRules::GetUtilityBandCap(Band) - BattleBandUses.FindRef(Band), 0);
+    // B-354 (D-143): Q-313's per-fight tier bands retired; a gem's whole stack is usable. Stones stay slot-only.
+    return FLoadoutRules::GetUtilityBandIndex(Id) != INDEX_NONE ? MAX_int32 : 0;
 }
 
 bool ULoadoutComponent::CanUseCarriedItem(const FCrystalId &Id) const
@@ -1981,13 +1986,12 @@ bool ULoadoutComponent::UseCarriedItem(const FCrystalId &Id)
     {
         return false;
     }
-    BattleBandUses.FindOrAdd(FLoadoutRules::GetUtilityBandIndex(Id)) += 1;
 
     FName Key;
     const UPoolSubsystem *Pool = LoadoutFindPouch(GetOwner(), Key);
     const int32 Left = Pool ? Pool->GetCarriedCount(Key, Id) : 0;
-    UE_LOG(LogWoRLoadout, Verbose, TEXT("%s used %s from its pouch: %d left, %d more of its tier band this fight"),
-           *GetNameSafe(GetOwner()), *ItemIdentity::GetDisplayName(Id), Left, GetCarriedBandRoom(Id));
+    UE_LOG(LogWoRLoadout, Verbose, TEXT("%s used %s from its pouch: %d left"), *GetNameSafe(GetOwner()),
+           *ItemIdentity::GetDisplayName(Id), Left);
     OnItemUsed.Broadcast(INDEX_NONE, Id, Left);
     return true;
 }
