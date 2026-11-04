@@ -471,7 +471,8 @@ float UDefenseSystem::GetEffectiveDefenseInputWindow(AActor *Defender, AActor *A
 		Window += FMath::Min(ReflexTerm, CombatConstants::WINDOW_GEAR_CEILING_SECONDS);
 	}
 
-	// Attacker side — the one Speed narrows (B-331, D-123: Body × Speed on every attack type).
+	// Attacker side — speed narrows (type-aware: physical → ActionSpeed/Body, spell → SpellSpeed/Mind).
+	// NOTE: the spell branch is DORMANT until Stage 6 — per-impact resolution is melee-only today.
 	// Pattern P (cluster A1): the STAT penalty (raw, ±0.25-capped) is MULTIPLIED by the attacker's
 	// speed-gear factor (pillar + Bonus{Action,Spell}Speed + stone + transient), so matched gear narrows
 	// the window past the stat cap, bounded by WINDOW_GEAR_CEILING_SECONDS. Inert (×1) with no gear.
@@ -480,8 +481,7 @@ float UDefenseSystem::GetEffectiveDefenseInputWindow(AActor *Defender, AActor *A
 	{
 		float SpeedTerm = AtkComp->CharacterData->CalculateSpeedWindowPenalty(AttackType);
 		SpeedTerm *= AtkComp->SpeedWindowGearFactor(AttackType);
-		// Never negative: a slowed attacker narrows the window less, it never widens it (B-331).
-		Window -= FMath::Clamp(SpeedTerm, 0.0f, CombatConstants::WINDOW_GEAR_CEILING_SECONDS);
+		Window -= FMath::Min(SpeedTerm, CombatConstants::WINDOW_GEAR_CEILING_SECONDS);
 	}
 
 	return FMath::Max(CombatConstants::MINIMUM_DEFENSE_WINDOW, Window);

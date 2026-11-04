@@ -1381,28 +1381,22 @@ bool UCharacterDataComponent::GetStatLayers(ESubStat Stat, FWoRStatLayers &OutLa
     }
 }
 
-// B-331 (D-123, Q-331): one Speed. The window term no longer depends on the attack type: the Body pillar
-// ratio, both old gear speed bonuses and both old speed stones (added), and the stronger of the two old speed
-// buff/debuff nets (one Water break debuffs both by 30%: the window slows by 30%, not 60%, SB-22). A character
-// with only one of the two old speeds reads as before. Never below 0, so a deep slow can't widen the window.
-static_assert(CombatConstants::SPELL_SPEED_PER_POINT == CombatConstants::ANIMATION_SPEED_PER_POINT,
-              "One Speed reads both old gear speed bonuses at one per-point value");
-
-float UCharacterDataComponent::SpeedWindowGearFactor(EActionType /*AttackType*/) const
+float UCharacterDataComponent::SpeedWindowGearFactor(EActionType AttackType) const
 {
     if (!CharacterData)
     {
         return 1.0f;
     }
-    // AttackType is kept for the signature; one Speed reads the same factor for every attack (B-331).
+    const bool bSpell = (AttackType == EActionType::Spell);
 
     // Evolution-pillar modifier as a ratio over the RAW pillar (CalculateSpeedWindowPenalty uses the
     // RAW GetEffectiveBody/Mind, so this ratio is the crystal/equipment-pillar/pillar-buff lift). 1.0
     // when no pillar gear. ApplyEvolutionPillarModifier already clamps the pillar modifier to [0,2].
     // RawPillar uses the LIVE world base too (matching ModPillar's GetEvolutionModified* base, §7 C2),
     // so the ratio cancels the world-stat term cleanly to the pure crystal/equipment/buff lift.
-    const float RawPillar = CharacterData->GetEffectiveBodyForLevel(GetWorldBody());
-    const float ModPillar = GetEvolutionModifiedBody();
+    const float RawPillar = bSpell ? CharacterData->GetEffectiveMindForLevel(GetWorldMind())
+                                   : CharacterData->GetEffectiveBodyForLevel(GetWorldBody());
+    const float ModPillar = bSpell ? GetEvolutionModifiedMind() : GetEvolutionModifiedBody();
     float Factor = (RawPillar > KINDA_SMALL_NUMBER) ? (ModPillar / RawPillar) : 1.0f;
 
     if (AActor *Owner = GetOwner())
@@ -1412,13 +1406,13 @@ float UCharacterDataComponent::SpeedWindowGearFactor(EActionType /*AttackType*/)
             const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Owner);
             // Equipment Bonus{Action,Spell}Speed — per-point read as a fraction (option-ii), same as
             // GetEffectiveActionSpeed/SpellSpeed. ×1 (inert) when absent.
-            const float BonusPts = static_cast<float>(Bonus.BonusSpellSpeed + Bonus.BonusActionSpeed);
-            Factor *= (1.0f + BonusPts * CombatConstants::ANIMATION_SPEED_PER_POINT);
+            const float BonusPts = bSpell ? static_cast<float>(Bonus.BonusSpellSpeed) : static_cast<float>(Bonus.BonusActionSpeed);
+            const float PerPoint = bSpell ? CombatConstants::SPELL_SPEED_PER_POINT : CombatConstants::ANIMATION_SPEED_PER_POINT;
+            Factor *= (1.0f + BonusPts * PerPoint);
 
-            // Attached Action / Spell Speed stones — % multiplier, added. 0 (×1) unless one is attached.
-            const float StonePercent = Loadout->GetAttachedStonePercent(ESubStat::SpellSpeed) +
-                                       Loadout->GetAttachedStonePercent(ESubStat::ActionSpeed);
-            Factor *= (1.0f + StonePercent / CombatConstants::STAT_PERCENT_DIVISOR);
+            // Attached {Action,Spell}SpeedStone — % multiplier. 0 (×1) unless that stone is attached.
+            const ESubStat StoneStat = bSpell ? ESubStat::SpellSpeed : ESubStat::ActionSpeed;
+            Factor *= (1.0f + Loadout->GetAttachedStonePercent(StoneStat) / CombatConstants::STAT_PERCENT_DIVISOR);
         }
 
         // Transient {Action,Spell}SpeedBuff/Debuff — mirrors GetEffectiveActionSpeed's transient layer.
@@ -1430,15 +1424,12 @@ float UCharacterDataComponent::SpeedWindowGearFactor(EActionType /*AttackType*/)
         // transients; see the transient-additive conversion.)
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
-            // The stronger of the two old speed nets until B-331b gives Speed one effect pair (Q-331).
-            const float SpellNet = SEM->GetNetStatModifier(Owner, ESubStat::SpellSpeed);
-            const float ActionNet = SEM->GetNetStatModifier(Owner, ESubStat::ActionSpeed);
-            const float NetPercent = FMath::Abs(SpellNet) >= FMath::Abs(ActionNet) ? SpellNet : ActionNet;
-            Factor *= (1.0f + NetPercent / CombatConstants::STAT_PERCENT_DIVISOR);
+            const ESubStat SpeedStat = bSpell ? ESubStat::SpellSpeed : ESubStat::ActionSpeed;
+            Factor *= (1.0f + SEM->GetNetStatModifier(Owner, SpeedStat) / CombatConstants::STAT_PERCENT_DIVISOR);
         }
     }
 
-    return FMath::Max(0.0f, Factor);
+    return Factor;
 }
 
 float UCharacterDataComponent::ReflexWindowGearFactor() const

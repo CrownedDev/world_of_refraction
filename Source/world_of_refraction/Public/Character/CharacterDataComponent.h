@@ -419,8 +419,7 @@ public:
      *  {Action,Spell}SpeedStone × transient {Action,Spell}SpeedBuff/Debuff — but as a bare multiplier
      *  on the RAW ±0.25-capped CalculateSpeedWindowPenalty term, NOT the play-rate getter (its ×1.5
      *  cap + ×400 movement lineage would distort the seconds math — see CharacterData.h :537).
-     *  B-331 (D-123): one Speed, the same for every attack type: the Body ratio × both old gear speed bonuses
-     *  × both old speed stones × both old speed buff/debuff pairs (each pair added). 1.0 at zero gear. */
+     *  Type-aware: physical → ActionSpeed/Body, spell → SpellSpeed/Mind. 1.0 at zero gear. */
     float SpeedWindowGearFactor(EActionType AttackType) const;
 
     /** Gear-beyond MULTIPLIER for the DEFENDER's defense-window Reflex term (cluster B-5) — the Body
