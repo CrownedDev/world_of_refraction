@@ -199,6 +199,12 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
         return AttachedItem;
     }
 
+    /** B-351 (D-141): the stone this weapon carries: the stone socket, or a pre-B-351 stone in the element socket. */
+    const FRuntimeAttachedItem &GetStoneAttachment() const
+    {
+        return StoneSocket.IsEmpty() ? AttachedItem : StoneSocket;
+    }
+
     // ==================== STAT MODIFIERS (Evolution only) ====================
 
     /** Check if weapon has stat modifiers (from evolution crystal) */

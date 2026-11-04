@@ -173,7 +173,7 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetAugmentStoneAbilities() const
 {
     // Augment-stone abilities exist only while a augment stone is attached — gate the
     // way GetAllSpells gates spells on a spell-capable attachment.
-    const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
+    const FRuntimeAttachedItem &Attachment = WeaponEntry.GetStoneAttachment(); // B-351: the stone socket
     // A direct augment stone, OR a fusion carrying an AbilityStone half, can grant
     // augment-stone abilities. The slot cap (below) resolves to 0 when there is no
     // AbilityStone identity, so a non-AbilityStone attachment still yields nothing.
@@ -297,7 +297,7 @@ bool FWeaponLoadoutEntry::ValidateAugmentStoneAbilities(const FAbilityCollection
     // fusion (which may carry an AbilityStone half) — valid only when none are
     // assigned. The slot cap below rejects any beyond the AbilityStone identity's
     // tier (0 when there is no AbilityStone half).
-    const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
+    const FRuntimeAttachedItem &Attachment = WeaponEntry.GetStoneAttachment(); // B-351: the stone socket
     if (!Attachment.IsAugmentStone() && !Attachment.IsFusion())
     {
         return AssignedAugmentStoneAbilities.Num() == 0;
