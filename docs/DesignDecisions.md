@@ -2003,6 +2003,52 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** **A, A, A**, by the reference-backed default (2026-11-04). Crown may change any of them; the numbers sit in named constants for tuning.
 **Notes for Claude:** B-361b.
 
+### D-155 — Losing a fight: a wipe costs run pillar points; the run ends after 3 boss losses or 5 wipes (replaces D-002's "lose = back to the hub")
+**Status:** DECIDED (Crown, 2026-11-04, the feel interview, `Design/FeelGuide.md` row 7, via the brain) · **Raised:** 2026-11-04 · **Blocks:** —
+**Answer (Crown):** a party wipe costs **run pillar points only** (points gained in this run; never the asset's levels, the head start or anything kept): **up to 1** for a loss to a normal enemy, **up to 2** to a mini-boss, **0** to the main boss. You come back at the **last rest spot used**, with the enemy **still there**. The run ends, back to the hub, after **3 losses to the main boss or 5 wipes in all** (Hades' Death Defiance style: a few second chances per run, then the run is over).
+**Reference check:** *deckbuilder*: no runs or wipes; its loss rule is "losing is discouraging, never punishing" (a defeat pays reduced gold, `wor-deckbuilder/docs/design/WoR_TCG_Pivot_Design.md` PvE section). D-155 fits that spirit (a small, run-only cost); no conflict. *Rulings*: replaces D-002's lose half (ER-12, Cx-2; B-072 never built it, BLOCKED on B-003). D-043 stands (a rest spot revives fallen members). *Code*: a loss returns to the trial like a win (`Trial/BattleGameMode.cpp` `HandleCombatEnd` -> `ReturnToTrial`); run pillar points live on `UCharacterDataComponent` (earned + bought on top of asset + head start, reset by `ResetRunWorldStats`); the rest spot is not built yet (B-187), so until it is the respawn point is the trial's start.
+**Defaults taken (reference-backed, Crown may change):** Q-155.
+**Notes for Claude:** job B-362.
+
+### Q-155 — A wipe: whose points, which pillar, which enemy state, which wipes count
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (D-155) · **Blocks:** —
+**Question:** D-155 sets the costs and limits. (1) Is "up to 1 / 2" per character or for the party? (2) Which pillar loses the point? (3) Is the enemy back at full health? (4) Does a main-boss loss count toward the 5 wipes? (5) Where do you come back before any rest spot is used?
+**Options / as built:** (1) **A** per character: each member loses up to that many of **its own** run points (a member with none loses nothing). **B** the party loses that many in all. (2) **A** the pillar with the most run points (over-cap points first, D-157; a tie goes Mind, Body, Spirit). **B** random. (3) **A** the enemy team is back whole, at full health (the fight starts over). **B** it keeps its damage. (4) **A** yes: every wipe counts toward 5; a main-boss loss also counts toward its own 3. **B** separate counters. (5) **A** the trial's start. **B** the hub.
+**Recommendation:** (1) A: Elden Ring Nightreign takes a level from each player who dies, each their own, not a shared pool; it matches B-223b's per-character levels. (2) A: taking from the highest pillar never empties a small one first and is predictable, which Nightreign's one-level loss is too. (3) A: Dark Souls' bonfire rule (the enemies are back whole when you return), widely understood. (4) A: Hades counts every death against one run; one counter is the clearest. (5) A: the trial's entrance is where a Nightreign expedition starts; the hub would end the run.
+**Answer:** **A, A, A, A, A**, by the reference-backed default (2026-11-04). Crown may change any of them; the costs and limits are named constants.
+**Notes for Claude:** B-362.
+
+### D-156 — Levelling in a run: points drop from enemies and are bought with Gold at rest spots (Nightreign's runes and sites of grace)
+**Status:** DECIDED (Crown, 2026-11-04, the feel interview, via the brain) · **Raised:** 2026-11-04 · **Blocks:** —
+**Answer (Crown):** in-run levelling follows Elden Ring Nightreign's runes and sites of grace: **enemies have a chance to drop pillar points**, and **Gold** (the run currency) **buys extra pillar points at rest spots**. This changes today's "after a fight, choose where each level goes" flow.
+**Reference check:** *deckbuilder*: no pillar levelling; nothing to compare. *Rulings*: amends D-102 / Q-223 / B-223b (drop odds and per-character drops stay; the after-fight prompt goes; the run vendor's level sale, ER-24, moves to the rest spot). *Code*: drops are rolled at the win (`Trial/TrialGate.cpp` `RollLevelDrops`), wait in the run and are placed by `wor.UI.LevelDrop` (`Trial/LevelDropPlacement.cpp` `TryPlaceLevel`); the vendor sale is `UEconomyService::BuyWorldStat` (50 Gold, +25 each); the rest spot is B-187.
+**Assumption (flag for Crown):** as at a Nightreign site of grace, a character's dropped points are **placed at a rest spot** (that is where you choose the pillar), not after each fight.
+**Defaults taken (reference-backed, Crown may change):** Q-156.
+**Notes for Claude:** job B-363.
+
+### Q-156 — Drop rates and rest-spot prices for pillar points
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (D-156) · **Blocks:** —
+**Question:** D-156 asks for drop rates and prices. (1) What drops, how often? (2) What does a point cost in Gold at a rest spot? (3) Does the run vendor still sell them?
+**Options / as built:** (1) **A** Q-223's odds, per character (B-223b): a normal enemy 10 % at F rising to 30 % at S, an elite double; a mini-boss or boss 1 (F to D), 2 (C, B) or 3 (A, S). **B** new odds. (2) **A** ER-24's ladder at the rest spot: 50 Gold for a character's first bought point this run, +25 for each one after, per character. **B** a flat price. (3) **A** no: points are bought only at rest spots (one place, as Nightreign levels only at a site of grace); the vendor's sale is flagged OBSOLETE. **B** both.
+**Recommendation:** (1) A: the numbers are already tuned against the cap of 7 per pillar (about 6 to 10 levels over a 3-floor run, Q-223), the Hades / Dead Cells pattern (rare from normal enemies, guaranteed from bosses). (2) A: a rising price per level is Nightreign's (and Elden Ring's) rune cost curve, and the ladder already exists. (3) A: Nightreign's one levelling place makes rest spots matter.
+**Answer:** **A, A, A**, by the reference-backed default (2026-11-04). Crown may change any of them; every number stays a tuning row.
+**Notes for Claude:** B-363.
+
+### D-157 — Over the pillar cap: more points still go into Mind, Body or Spirit and lift that pillar's sub-stats
+**Status:** DECIDED (Crown, 2026-11-04, the feel interview, via the brain) · **Raised:** 2026-11-04 · **Blocks:** —
+**Answer (Crown):** a character at the pillar cap who gets more pillar points can still put them into Mind, Body or Spirit. Each **over-cap point raises the value of every sub-stat point under that pillar**.
+**Reference check:** *deckbuilder*: no pillars; nothing to compare. *D-118 (Combat Tier)*: no conflict: Combat Tier is the average tier of gear and skills and "changes nothing about Mind, Body and Spirit"; over-cap points don't enter it. *Pillar 6 (no level wall, `Design/DesignPillars.md`)*: unlimited over-cap points would widen the gap between a maxed and a low character with nothing gear can answer, so a **limit is needed** (Q-157). *Code*: the cap is 7 per pillar (`WorldStatConstants::LIVE_MAX` = `StatConstants::MAX_WORLD_STAT_LEVEL`, B-222), every add clamps at it; a pillar level gives no sub-stat points (D-123), sub-stats come from the asset and gear, so "the value of a sub-stat point" is a new multiplier on a pillar's sub-stats. Over-cap points are run points and reset at run end like the rest.
+**Defaults taken (reference-backed, Crown may change):** Q-157.
+**Notes for Claude:** job B-364.
+
+### Q-157 — How far over the cap, and how much each point lifts
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (D-157) · **Blocks:** —
+**Question:** (1) How many over-cap points can a pillar take? (2) How much does each raise the pillar's sub-stat points? (3) Do over-cap points count toward the 21 total?
+**Options / as built:** (1) **A** at most 3 per pillar (a pillar reads 7 + 3). **B** no limit. (2) **A** +5 % to every sub-stat point under that pillar per over-cap point (at most +15 %). **B** +10 %. (3) **A** no: they sit on top of the 21 (the cap stays the 21 a normal run can reach).
+**Recommendation:** (1) A: pillar 6 needs a ceiling; Diablo III's Paragon points past the level cap were liked for keeping every kill worth something, and its later caps on most Paragon categories kept the gap from running away. (2) A: small steps keep gear and build (pillar 6) the bigger lever: +15 % at most is less than one tier step of gear. (3) A: the cap of 7 per pillar and 21 in all stays the baseline (`analysis/BaselineNumbers.md`); over-cap is the reward past it.
+**Answer:** **A, A, A**, by the reference-backed default (2026-11-04). Crown may change any of them; the limit and the step are named constants.
+**Notes for Claude:** B-364. A wipe takes over-cap points first (Q-155).
+
 ### Q-360 — D-150 against the deckbuilder's co-op rules
 **Status:** ANSWERED (Crown's rule, D-150; the deckbuilder differs on one point) · **Raised:** 2026-11-04 (D-150 reference check) · **Blocks:** —
 **Context:** `CrownedDev/wor-deckbuilder` `docs/design/WoR_TCG_Pivot_Design.md` §8: item 23 (the table's owner adds AI players and chooses or moves their seats; empty seats stay empty until a player sits or the owner adds an AI, nothing is auto-filled; a table can start with empty seats), items 29 and 53 (the side's players take an empty seat's turns, rotating in seat order; the rotation carries on across rounds), items 77 and 80 (AI seat settings are the owner's, fixed during a match).
