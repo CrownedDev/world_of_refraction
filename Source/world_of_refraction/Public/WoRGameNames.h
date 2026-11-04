@@ -63,6 +63,9 @@ namespace WoRGameNames
     WORLD_OF_REFRACTION_API FText GetYourselfWord();
     /** B-339: the inventory screen's button verbs: "Give", "Store", "Take", "Dismantle", "Convert to Gold". */
     WORLD_OF_REFRACTION_API FText GetInventoryVerbName(EInventoryVerb Verb);
+    /** B-366b: the same, Convert naming the currency it pays (UEconomyService::GetPlaceCurrency). The one-argument
+     *  form names the run currency. */
+    WORLD_OF_REFRACTION_API FText GetInventoryVerbName(EInventoryVerb Verb, ECurrencyType ConvertPays);
     /** An adapter's form: "Ring", "Pistol", "Trainer". */
     WORLD_OF_REFRACTION_API FText GetAdapterFormName(EAdapterForm Form);
 
