@@ -1907,6 +1907,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. One stat, one slot: Path of Exile and Diablo IV roll one physical / armour line beside the elemental ones with equal weight, and players read it as one stat among the resistances. The largest budget (S: 36, plus a negative pool up to 18) still fits ten slots of ±10. Tune with the other numbers in PIE (D-068).
 **Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
 **Notes for Claude:** nothing to build; `CombatConstants.h` names it next to the budgets. The nightly balance numbers may move a little (more elemental resistance on rolled gear).
+### Q-359 — How a boss phase steps the weather baseline
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-359, cloud) · **Blocks:** —
+**Question:** D-149 makes the trial's element the weather; D-098 says each boss phase pushes the weather toward the boss's element and raises its intensity. What exactly changes at a phase?
+**Options:** **A** the element becomes the boss's own innate element (unchanged when the boss has none) and the intensity is the strongest phased boss's `GetWeatherIntensity`. **B** keep the trial's element and raise only the intensity.
+**Recommendation:** A. It is D-098 as worded; Final Fantasy XVI's and Elden Ring's phase changes swap the arena's sky to the boss's theme, a widely liked cue that the fight escalated.
+**Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
+**Notes for Claude:** built in B-359 (desktop build 2026-11-04). As built: the boss's element is the class-gated one (B-276); the stepped weather holds until the fight ends, a dead boss included (nothing recalculates on a death now; a fight with minions after the boss keeps its sky); outside a fight `GetBattleWeatherElement` is Generic and only `GetBaselineElement` carries the map's element (its consumer is B-189); the old blend is now 0 or negative, so a local leader's weather asset never shows a positive blend. The per-element weather look (sky, fog, light) is B-189's table (CC+UE); until then the battle reads the element through `GetBattleWeatherElement` / `OnBattleWeatherChanged`, and the old `OnWeatherChanged` keeps firing for its Blueprint listeners.
 
 ### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
