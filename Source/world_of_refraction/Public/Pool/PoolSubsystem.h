@@ -452,6 +452,11 @@ public:
      *  for both. False when FromKey doesn't know it, ToKey already does or has no room, or either was never banked. */
     bool MoveSpell(FName FromKey, FName ToKey, const USpellData *Spell);
     bool MoveAbility(FName FromKey, FName ToKey, const UAbilityData *Ability);
+    /** B-361b (D-154): teaching. ToKey learns a NEW instance of the skill (tier seeded from the asset, a fresh
+     *  InstanceID); FromKey keeps its own. False when FromKey doesn't know it, ToKey already does or has no room, or
+     *  either was never banked. Fires OnPoolSkillsChanged for ToKey only. */
+    bool CopySpell(FName FromKey, FName ToKey, const USpellData *Spell);
+    bool CopyAbility(FName FromKey, FName ToKey, const UAbilityData *Ability);
     /** B-361 (D-152, Q-361c): a leaving recruit's skills go to ToKey (the host's character): every instance FromKey
      *  knows moves; one ToKey already knows, or has no room for, stays one copy (the recruit's is dropped, logged).
      *  FromKey's ledger goes. Fires OnPoolSkillsChanged for both. Returns how many moved. */

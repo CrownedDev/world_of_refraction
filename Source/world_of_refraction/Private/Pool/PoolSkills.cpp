@@ -128,6 +128,42 @@ bool UPoolSubsystem::MoveAbility(FName FromKey, FName ToKey, const UAbilityData 
     return true;
 }
 
+bool UPoolSubsystem::CopySpell(FName FromKey, FName ToKey, const USpellData *Spell)
+{
+    const FPoolSkills *From = CharacterSkills.Find(FromKey);
+    FPoolSkills *To = CharacterSkills.Find(ToKey);
+    const FSpellInstance *Source = From && Spell ? From->Spells.FindByPredicate([Spell](const FSpellInstance &I) { return I.Spell == Spell; }) : nullptr;
+    if (!Source || !To || FromKey == ToKey || KnowsSpell(ToKey, Spell) || To->Spells.Num() >= InventoryConstants::MAX_LEARNED_SPELLS)
+    {
+        return false;
+    }
+    FSpellInstance Learned(Source->Spell); // a fresh InstanceID: the teacher keeps its own instance
+    Learned.Tier = Spell->Tier;
+    Learned.Quality = EItemQuality::C_Quality;
+    To->Spells.Add(Learned);
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Spell %s taught from %s to %s"), *GetNameSafe(Spell), *FromKey.ToString(), *ToKey.ToString());
+    OnPoolSkillsChanged.Broadcast(ToKey);
+    return true;
+}
+
+bool UPoolSubsystem::CopyAbility(FName FromKey, FName ToKey, const UAbilityData *Ability)
+{
+    const FPoolSkills *From = CharacterSkills.Find(FromKey);
+    FPoolSkills *To = CharacterSkills.Find(ToKey);
+    const FAbilityInstance *Source = From && Ability ? From->Abilities.FindByPredicate([Ability](const FAbilityInstance &I) { return I.Ability == Ability; }) : nullptr;
+    if (!Source || !To || FromKey == ToKey || KnowsAbility(ToKey, Ability) || To->Abilities.Num() >= InventoryConstants::MAX_LEARNED_ABILITIES)
+    {
+        return false;
+    }
+    FAbilityInstance Learned(Source->Ability);
+    Learned.Tier = Ability->Tier;
+    Learned.Quality = EItemQuality::C_Quality;
+    To->Abilities.Add(Learned);
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Ability %s taught from %s to %s"), *GetNameSafe(Ability), *FromKey.ToString(), *ToKey.ToString());
+    OnPoolSkillsChanged.Broadcast(ToKey);
+    return true;
+}
+
 int32 UPoolSubsystem::HandOverSkills(FName FromKey, FName ToKey)
 {
     FPoolSkills Leaving;
