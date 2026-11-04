@@ -42,7 +42,7 @@ void FRecruitDataSpec::Define()
 		TestTrue(TEXT("Invited"), PartySession->InviteMemberWithData(PawnClass, Placed));
 		TestNotEqual(TEXT("Found by the pawn's own data"), PartySession->GetMemberSlotByData(Placed), static_cast<int32>(INDEX_NONE));
 		TestTrue(TEXT("A second invite joins as a separate copy (B-360b, D-150 point 2)"), PartySession->InviteMemberWithData(PawnClass, Placed));
-		TestEqual(TEXT("the copy is its own member"), PartySession->GetNthMemberSlotByData(Placed, 1), 2);
+		TestEqual(TEXT("the copy is its own member"), PartySession->GetNthMemberSlotByData(Placed, 1), 1); // the party had no leader member: slot 0 is the first copy
 		TestFalse(TEXT("No data, no invite"), PartySession->InviteMemberWithData(PawnClass, nullptr));
 	});
 }
