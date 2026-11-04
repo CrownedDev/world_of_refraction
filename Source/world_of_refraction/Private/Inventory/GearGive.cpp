@@ -2,6 +2,7 @@
 
 #include "Inventory/GearGive.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/TurnManager.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -310,6 +311,13 @@ namespace WoRGive
 		if (!Spell && !Ability)
 		{
 			return LOCTEXT("NotASkill", "That isn't a spell or an ability");
+		}
+		// Between fights only: the giver's loadouts drop the skill in the pre-fight clean (ClearInvalidSlots).
+		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		const UTurnManager *TurnManager = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+		if (TurnManager && TurnManager->IsCombatActive())
+		{
+			return LOCTEXT("SkillsInFight", "Skills can't change hands during a fight");
 		}
 		for (const FName Key : {FromKey, ToKey})
 		{

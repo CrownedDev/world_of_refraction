@@ -1314,6 +1314,13 @@ bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEnt
         }
     }
 
+    if (!SkillReceiver.IsNone() && !ReceiverPool && SpellDemand + AbilityDemand > 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s's skills aren't in the store, so the cart's skills can't be learned by it - aborting."),
+               *SkillReceiver.ToString());
+        return false;
+    }
+
     // ---- Cumulative capacity: fresh purchases are bare, so each costs its BASE slot ----
     if (WeaponDemand > 0 && Inv->GetRemainingWeaponCapacity() < WeaponDemand * InventoryConstants::WEAPON_BASE_SLOT_COST)
     {
