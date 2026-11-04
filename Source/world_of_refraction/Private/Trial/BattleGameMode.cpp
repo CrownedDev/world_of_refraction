@@ -181,8 +181,13 @@ void ABattleGameMode::BootstrapCombat()
             Spawned->Destroy();
             continue;
         }
-        const bool bPlayerControlled = !Member || Member->bPlayerControlled;
+        // B-346 (Q-21-audit): you command every member but the AI seats the leader set before the fight.
+        const bool bPlayerControlled = !Member || !Member->bAISeat;
         CombatControl::SetPlayerDriven(Spawned, bPlayerControlled);
+        if (Member && Member->bAISeat)
+        {
+            CombatControl::SetAISeatDifficulty(Spawned, Member->AISeatDifficulty);
+        }
         if (Slot == PartyConstants::LEADER_SLOT)
         {
             LeaderPawn = Spawned;

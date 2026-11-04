@@ -190,7 +190,9 @@ private:
     FPieMenuButtonData CreateSwitchWeaponButton() const;
     /** D-091: Flee, greyed with the reason when the fight can't be fled. */
     FPieMenuButtonData CreateFleeButton() const;
-    /** D-026: "Let AI Play" for a non-leader party member on its turn. */
+    /** OBSOLETE (B-346): the main menu no longer adds this button; seats are fixed for the fight
+     *  (Q-21-audit, PA-13). Kept until PIE; the switch stays for debug (wor.Combat.SwitchControl).
+     *  D-026: "Let AI Play" for a non-leader party member on its turn. */
     FPieMenuButtonData CreateHandToAIButton() const;
     bool CanHandToAI() const;
     /** D-096 placeholder: "Step Forward" / "Step Back", greyed with the reason. */

@@ -1802,7 +1802,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **The deckbuilder's rule:** each seat is a player or an AI. An AI seat exists only when the table's owner adds it, its settings are fixed for the match (item 23, 80), and nothing is auto-filled. An empty seat's turns are taken by its side's players, rotating in seat order (item 29).
 **This game's reading (as built):** a party member is commanded by its player. Solo, the player commands every member (Expedition 33 and Octopath do the same). In co-op, a member with no player of its own is commanded by its side's players in rotation. A member is AI only if the party leader sets it to AI before the fight; that setting is fixed during the fight. The per-member default Player / AI setting, the takeover rules and "Let AI finish" retire (flag obsolete); the switch command stays for debug. Ally AI difficulty becomes the AI seat's setting (default Medium, the deckbuilder's default).
 **Answer:** as read above (Crown, 2026-11-03: follow the deckbuilder). Touches pillar 7's "ally AI" and D-026's wording.
-**Notes for Claude:** job B-346.
+**Notes for Claude:** job B-346 (built on the desktop 2026-11-04, in dev). Small choices made while building, all the deckbuilder's or the simplest reading (Crown may change any): an AI seat's *difficulty* is also fixed while a fight runs; seat settings persist across fights until the leader changes them; a claim by a player who has left the side falls back to the rotation. The co-op rotation is a headless rule (`SeatRules`) until B-232 brings the seats; an AI seat's difficulty isn't saved yet (B-348).
 
 
 ### D-137 — A run loadout is free (audit §22; changes D-021)

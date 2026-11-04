@@ -7,6 +7,7 @@
 #include "AI/AIDecisionConstants.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Combat/CombatOrchestrator.h"
+#include "Combat/CombatControl.h"
 #include "Combat/Boss/BossPhaseComponent.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
@@ -343,7 +344,8 @@ EAIDifficulty UAIDecisionManager::GetDifficultyFor(const AActor *ForActor) const
     if (CurrentCombat && ForActor &&
         CurrentCombat->GetLocalParty().ContainsByPredicate([ForActor](const AActor *Member) { return Member == ForActor; }))
     {
-        return AIConstants::ALLY_AI_DIFFICULTY;
+        // B-346 (Q-21-audit): an AI-played party member plays at its AI seat's setting (default Medium).
+        return CombatControl::GetAISeatDifficulty(ForActor);
     }
     // B-193: a boss plays harder with each phase it has reached (Expert at most).
     const UBossPhaseComponent *Boss = ForActor ? ForActor->FindComponentByClass<UBossPhaseComponent>() : nullptr;

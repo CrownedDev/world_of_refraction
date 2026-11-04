@@ -146,9 +146,8 @@ TSharedRef<SWidget> UPartyControlWidget::RebuildWidget()
 		RunRingButtons[1]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot1RunRingClicked);
 		RunRingButtons[2]->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleSlot2RunRingClicked);
 
-		UButton *FallButton = nullptr;
-		FallSettingText = PartyControlBuild::AddButton(WidgetTree, Box, FallButton);
-		FallButton->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleFallSettingClicked);
+		// OBSOLETE (B-346): no "When your fighters fall" row; an AI seat plays on and nothing is handed
+		// over (Q-21-audit, PA-12). FallSettingText stays null; HandleFallSettingClicked is unbound.
 
 		UButton *ReviveButton = nullptr;
 		PartyControlBuild::AddButton(WidgetTree, Box, ReviveButton)->SetText(LOCTEXT("ReviveFallen", "Rest: revive the fallen"));
@@ -208,9 +207,10 @@ void UPartyControlWidget::Refresh()
 			continue;
 		}
 		const FText Name = Member->CharacterData ? FText::FromString(Member->CharacterData->Name) : LOCTEXT("NoData", "<no data>");
+		// B-346 (Q-21-audit): the row reads the AI seat; a click toggles it (refused while a fight runs).
 		const FText Control = SlotIndex == PartyConstants::LEADER_SLOT ? LOCTEXT("Leader", "You (leader)")
-							  : Member->bPlayerControlled       ? LOCTEXT("Player", "You")
-																: LOCTEXT("AI", "AI");
+							  : Member->bAISeat                 ? LOCTEXT("AISeat", "AI seat")
+																: LOCTEXT("Player", "You");
 		const FText Fallen = Member->IsFallen() ? LOCTEXT("FallenTag", " (fallen)") : FText::GetEmpty();
 		SlotTexts[SlotIndex]->SetText(FText::Format(LOCTEXT("SlotRow", "{0}{2}: played by {1}"), Name, Control, Fallen));
 	}
@@ -325,7 +325,11 @@ void UPartyControlWidget::ToggleSlot(int32 SlotIndex)
 {
 	if (UPartySessionSubsystem *PartySession = PartyControlBuild::PartySessionOf(this))
 	{
-		PartySession->SetMemberPlayerControlled(SlotIndex, !PartySession->IsMemberPlayerControlled(SlotIndex));
+		// B-346: refused (false) while a fight runs; the subsystem logs why, so the row simply doesn't change.
+		if (!PartySession->SetMemberAISeat(SlotIndex, !PartySession->IsMemberAISeat(SlotIndex)))
+		{
+			UE_LOG(LogWoR, Display, TEXT("[PartyControl] Slot %d's seat unchanged (seats are fixed while a fight runs)"), SlotIndex);
+		}
 	}
 }
 
@@ -385,10 +389,8 @@ void UPartyControlWidget::HandleSlot2Clicked() { ToggleSlot(2); }
 
 void UPartyControlWidget::HandleFallSettingClicked()
 {
-	if (UPartySessionSubsystem *PartySession = PartyControlBuild::PartySessionOf(this))
-	{
-		PartySession->SetLetAIFinish(!PartySession->GetLetAIFinish());
-	}
+	// OBSOLETE (B-346): the row is no longer built; "Let AI finish" has no effect (Q-21-audit).
+	UE_LOG(LogWoR, Display, TEXT("[PartyControl] The fall setting is retired (B-346): an AI seat plays on, nothing is handed over"));
 }
 
 void UPartyControlWidget::HandleReviveFallenClicked()
