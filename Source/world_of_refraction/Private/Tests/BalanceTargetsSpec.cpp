@@ -34,16 +34,23 @@ namespace
 		return FParse::Value(FCommandLine::Get(), BALANCE_PRESET_SWITCH, Named);
 	}
 
-	/** The preset named on the command line, else quick. */
-	FName BalancePresetFromCommandLine()
+	/** The preset named on the command line, else quick. OutUnknown holds a named preset that doesn't exist. */
+	FName BalancePresetFromCommandLine(FString &OutUnknown)
 	{
 		FString Named;
-		if (FParse::Value(FCommandLine::Get(), BALANCE_PRESET_SWITCH, Named) && BalanceArchetypes::PresetNames().Contains(FName(*Named)))
+		OutUnknown.Reset();
+		if (FParse::Value(FCommandLine::Get(), BALANCE_PRESET_SWITCH, Named))
 		{
-			return FName(*Named);
+			if (BalanceArchetypes::PresetNames().Contains(FName(*Named)))
+			{
+				return FName(*Named);
+			}
+			OutUnknown = Named;
 		}
 		return BALANCE_PRESET_QUICK;
 	}
+
+	const TCHAR *BALANCE_SKIP_MESSAGE = TEXT("SKIPPED: the balance sim runs only with -WoRBalance=<preset> (WOR_BALANCE=nightly; D-140)");
 }
 
 BEGIN_DEFINE_SPEC(FBalanceTargetsSpec, "WoR.Balance.Sim.Targets",
@@ -72,10 +79,15 @@ void FBalanceTargetsSpec::Define()
 	{
 		if (!BalancePresetRequested())
 		{
-			AddInfo(TEXT("skipped: the balance sim runs only with -WoRBalance=<preset> (nightly; D-140)"));
+			AddWarning(BALANCE_SKIP_MESSAGE);
 			return;
 		}
-		const FName Preset = BalancePresetFromCommandLine();
+		FString UnknownPreset;
+		const FName Preset = BalancePresetFromCommandLine(UnknownPreset);
+		if (!UnknownPreset.IsEmpty())
+		{
+			AddWarning(FString::Printf(TEXT("unknown balance preset '%s': running quick"), *UnknownPreset));
+		}
 		const TArray<FBalanceMatchup> Matchups = BalanceArchetypes::Preset(Preset);
 		const int32 Fights = BalanceArchetypes::PresetFights(Preset);
 		if (!TestTrue(Preset.ToString() + TEXT(" has matchups"), Matchups.Num() > 0 && Fights > 0)) return;
@@ -151,10 +163,15 @@ void FBalanceGASParitySpec::Define()
 	{
 		if (!BalancePresetRequested())
 		{
-			AddInfo(TEXT("skipped: the balance sim runs only with -WoRBalance=<preset> (nightly; D-140)"));
+			AddWarning(BALANCE_SKIP_MESSAGE);
 			return;
 		}
-		const FName Preset = BalancePresetFromCommandLine();
+		FString UnknownPreset;
+		const FName Preset = BalancePresetFromCommandLine(UnknownPreset);
+		if (!UnknownPreset.IsEmpty())
+		{
+			AddWarning(FString::Printf(TEXT("unknown balance preset '%s': running quick"), *UnknownPreset));
+		}
 		const TArray<FBalanceMatchup> Matchups = BalanceArchetypes::Preset(Preset);
 		if (!TestTrue(Preset.ToString() + TEXT(" has matchups"), Matchups.Num() > 0)) return;
 		int32 Differences = 0;

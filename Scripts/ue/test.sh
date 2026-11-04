@@ -44,11 +44,18 @@ awk -F'"' '
 
 # B-350 (D-140): the 10 slowest tests, from each test's "duration" (seconds) in the report.
 SLOWEST_COUNT=10
-echo "Slowest $SLOWEST_COUNT tests (seconds):"
-awk -F'"' '
+SLOWEST="$(awk -F'"' '
     /"fullTestPath"/ { path = $4 }
     /"duration"/     { if (match($0, /[0-9.]+/)) { printf "%10.2f  %s\n", substr($0, RSTART, RLENGTH), path } }
-' "$INDEX" | sort -rn | head -n "$SLOWEST_COUNT"
+' "$INDEX" | sort -rn | head -n "$SLOWEST_COUNT")"
+if [ -n "$SLOWEST" ]; then
+    echo "Slowest $SLOWEST_COUNT tests (seconds):"
+    echo "$SLOWEST"
+fi
+# B-350: say so when the balance sim was skipped (no WOR_BALANCE), so a default run never reads as a balance pass.
+if [ -z "${WOR_BALANCE:-}" ] && grep -q '"fullTestPath"[[:space:]]*:[[:space:]]*"WoR.Balance.Sim.Targets' "$INDEX"; then
+    echo "Balance sim SKIPPED (set WOR_BALANCE=nightly to run it)"
+fi
 
 if [ "${SUCCEEDED}" = "0" ] && [ "${FAILED:-0}" = "0" ]; then
     echo "No tests matched '$FILTER'." >&2

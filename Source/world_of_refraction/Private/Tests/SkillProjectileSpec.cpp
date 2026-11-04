@@ -18,9 +18,11 @@ namespace
 	constexpr float PROJECTILE_TEST_IMPACT_RADIUS = 1.0f; // x100 units in the dodge check
 	constexpr float PROJECTILE_TEST_VISUAL_SCALE = 1.0f;
 	constexpr int32 PROJECTILE_TEST_DAMAGE = 50;
-	constexpr float PROJECTILE_TEST_FRAME_SECONDS = 0.05f;
-	/** Default speed is 1500 units/s, so 1000 units take well under this many frames. */
-	constexpr int32 PROJECTILE_TEST_MAX_FRAMES = 200;
+	/** Test-world frames are 0.01 s. 1000 units at the default 1500 units/s (arrival within 50 units) take about
+	 *  64 frames; this budget is several times that. */
+	constexpr int32 PROJECTILE_TEST_MAX_FRAMES = 300;
+	/** A few frames: enough to see that an unlaunched projectile stays put. */
+	constexpr int32 PROJECTILE_TEST_IDLE_FRAMES = 5;
 }
 
 BEGIN_DEFINE_SPEC(FSkillProjectileSpec, "WoR.Combat.SkillProjectile", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -44,12 +46,12 @@ BEGIN_DEFINE_SPEC(FSkillProjectileSpec, "WoR.Combat.SkillProjectile", EAutomatio
 		return Actor;
 	}
 
-	/** Ticks the projectile until it resolves (impact or dodge) or the frame budget runs out. */
+	/** Ticks the world until the projectile resolves (impact or dodge) or the frame budget runs out. */
 	void FlyToTarget()
 	{
 		for (int32 Frame = 0; Frame < PROJECTILE_TEST_MAX_FRAMES && !Projectile->HasImpacted(); ++Frame)
 		{
-			Projectile->Tick(PROJECTILE_TEST_FRAME_SECONDS);
+			TestWorld->Tick();
 		}
 	}
 END_DEFINE_SPEC(FSkillProjectileSpec)
@@ -65,7 +67,11 @@ void FSkillProjectileSpec::Define()
 		Caster = SpawnAt(FVector::ZeroVector);
 		Target = SpawnAt(FVector(PROJECTILE_TEST_RANGE, 0.0f, 0.0f));
 		Projectile = World->SpawnActor<ASkillProjectile>();
-		Recorder = NewObject<UProjectileEventRecorder>();
+		Recorder = NewObject<UProjectileEventRecorder>(GetTransientPackage());
+		if (Recorder)
+		{
+			Recorder->AddToRoot(); // kept alive across the world ticks; released in AfterEach
+		}
 		if (!TestTrue(TEXT("Spawned"), Caster && Target && Projectile && Recorder)) return;
 		Projectile->InitializeProjectile(nullptr, Caster, Target, PROJECTILE_TEST_IMPACT_RADIUS, PROJECTILE_TEST_VISUAL_SCALE,
 										 PROJECTILE_TEST_DAMAGE, ESpellElement::None);
@@ -74,6 +80,10 @@ void FSkillProjectileSpec::Define()
 
 	AfterEach([this]()
 	{
+		if (Recorder)
+		{
+			Recorder->RemoveFromRoot();
+		}
 		Caster = Target = nullptr;
 		Projectile = nullptr;
 		Recorder = nullptr;
@@ -92,7 +102,7 @@ void FSkillProjectileSpec::Define()
 	It("does not move before Launch", [this]()
 	{
 		if (!Projectile) return;
-		Projectile->Tick(PROJECTILE_TEST_FRAME_SECONDS);
+		TestWorld->Tick(PROJECTILE_TEST_IDLE_FRAMES);
 		TestFalse(TEXT("no impact"), Projectile->HasImpacted());
 		TestTrue(TEXT("still at the caster"), Projectile->GetActorLocation().Equals(Caster->GetActorLocation()));
 	});
