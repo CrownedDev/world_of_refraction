@@ -22,8 +22,8 @@ class UCharacterDataComponent;
  * - Conditional triggers (HP threshold, events)
  * - Stacking rules (max stacks, refresh behavior)
  * - Query functions (counts, has effect, stat totals)
- */
-/** OBSOLETE (B-350, D-140): a legacy test actor; delete in the editor step of docs/PIE/B-350.md, not blind.
+ *
+ * OBSOLETE (B-350, D-140): a legacy test actor; delete in the editor step of docs/PIE/B-350.md, not blind.
  *  Content/Testing/BP_Test_StatusEffectManager may subclass it (DefaultEngine.ini redirects StatusEffectManagerTestActor here); WoR.Effects.* specs plus WoR.Effects.Removal cover its cases. */
 UCLASS()
 class WORLD_OF_REFRACTION_API ASkillEffectManagerTestActor : public AActor

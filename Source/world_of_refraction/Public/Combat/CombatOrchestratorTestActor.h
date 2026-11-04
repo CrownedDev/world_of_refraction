@@ -10,8 +10,8 @@
 /**
  * Test actor for CombatOrchestrator
  * Place in level and click "Run All Tests" in Details panel during PIE
- */
-/** OBSOLETE (B-350, D-140): a legacy test actor; delete in the editor step of docs/PIE/B-350.md, not blind.
+ *
+ * OBSOLETE (B-350, D-140): a legacy test actor; delete in the editor step of docs/PIE/B-350.md, not blind.
  *  Content/Blueprints/BP_CombatOrchestratorTestActor and Content/Testing/BP_Test_CombatOrchestrator may subclass it or place it; specs cover combat flow (CombatFinish, ForceEndCombat users). */
 UCLASS()
 class WORLD_OF_REFRACTION_API ACombatOrchestratorTestActor : public AActor
