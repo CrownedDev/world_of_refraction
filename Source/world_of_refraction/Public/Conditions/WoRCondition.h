@@ -3,7 +3,8 @@
 // effect model (wor-deckbuilder docs/reference/05-triggers-conditions.md): a condition says WHEN it is
 // checked (Trigger) and WHAT must be true then (Subject, with its operands, Operator / Value and whose
 // it is). A FWoRConditionSet holds when every condition in it holds (the deckbuilder's Nested list).
-// Memories read it first (B-337, with their equip conditions); boss rules (B-355); reactions (B-337b).
+// Memories read it first (B-337, with their equip conditions); boss rules (B-355); reactions (B-337b); a bound
+// item's memories (B-337c).
 // The evaluator is WoRConditions (WoRConditions.h). Enums are append-only (saved in assets).
 
 #pragma once
@@ -30,6 +31,8 @@ enum class EWoRConditionTrigger : uint8
 	FightWon = 6,
 	/** B-365 (D-158): a defender perfectly guarded or dodged every hit of one attack or spell. */
 	FlawlessParry = 7,
+	/** B-337c: the party goes into a fight wearing what it wears (a bound item's memory triggers). */
+	FightStart = 8,
 };
 
 /** What must be true (the deckbuilder's Subject). Append only. */
