@@ -125,6 +125,10 @@ int32 BossTriggers::ApplyTo(AActor *Boss, const UBossData &Data, const TArray<AA
 	const FWoRBossState BossState = Phases ? Phases->MakeBossState() : FWoRBossState();
 	FWoRConditionContext Context = WoRConditions::MakeContext(FightStart, nullptr);
 	Context.Boss = Phases ? &BossState : nullptr;
+	// B-337c (Q-337b): the boss is the rules' Self (the shared Hp subject), phases or not.
+	const UCharacterDataComponent *BossData = Boss->FindComponentByClass<UCharacterDataComponent>();
+	const FWoRFighterState BossSelf{BossData ? BossData->CurrentHP : 0, BossData ? BossData->MaxHP : 0};
+	Context.Self = &BossSelf;
 	for (const FBossRule &Rule : BossRules::GetRules(Data))
 	{
 		if (Rule.When == EBossRuleWhen::FightStart && BossRules::Fires(Rule, Context))
