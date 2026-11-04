@@ -19,6 +19,7 @@
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Equipment/Crystals/StoneRowTable.h"
+#include "Equipment/Crystals/StatStone.h"
 
 namespace CrystalEffectTable
 {
@@ -670,11 +671,11 @@ namespace CrystalEffectTable
         {
             return 0.0f;
         }
-        if (StoneTargetStat(Att.Crystal.Id.Type) != Stat)
+        if (StoneTargetStat(StatStone::RowType(Att.Crystal.Id)) != Stat) // B-353: a StatStone reads its row
         {
             return 0.0f;
         }
-        return GetStoneBasePercent(Att.Crystal.Id.Type, Att.Crystal.Id.Tier);
+        return GetStoneBasePercent(StatStone::RowType(Att.Crystal.Id), Att.Crystal.Id.Tier);
     }
 
     /** Percent a stone ATTACHMENT grants, keyed by the stone's TYPE rather than an
@@ -710,7 +711,7 @@ namespace CrystalEffectTable
             return Total;
         }
         return (Att.IsAugmentStone() && Att.Crystal.Id.Type == StoneType)
-                   ? GetStoneBasePercent(Att.Crystal.Id.Type, Att.Crystal.Id.Tier)
+                   ? GetStoneBasePercent(StatStone::RowType(Att.Crystal.Id), Att.Crystal.Id.Tier)
                    : 0.0f;
     }
 
