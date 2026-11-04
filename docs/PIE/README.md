@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-314b](B-314b.md) | `feature/B-314b-run-layer-save` (in `dev`) | A run saved mid-way keeps its run finds run-only and its home gear's home state; the upgrade memory is saved; save v15 | Pending |
 | [B-313b](B-313b.md) | `feature/B-313b-pouch-rest` (in `dev`) | A member's crystal counts come from its pouch; the item-slot rules skip a member's inert preset picks | Pending |
 | [B-042j3](B-042j3.md) | `feature/B-042j3-absorb-part3` (in `dev`) | Reflect by element; a fully absorbed hit fires no On Take Damage conditional; DoT previews count the absorbers | Pending |
 | [B-360b](B-360b.md) | `feature/B-360b-member-identity` (in `dev`) | Two players may bring the same character: each copy has its own id, gear, pouch, cell and commander; save v14 | Pending |
