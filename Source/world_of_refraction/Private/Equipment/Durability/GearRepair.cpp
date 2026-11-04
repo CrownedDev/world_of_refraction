@@ -165,7 +165,7 @@ FString GearRepair::GetRepairQuoteString(const UParty &Party)
 		{
 			if (const int32 Gold = GetRepairCost(Carried.Attached))
 			{
-				Out += FString::Printf(TEXT("\n  [%d] %s on %s, tier %s, %d/%d: %d Gold"), MemberIndex,
+				Out += FString::Printf(TEXT("\n  [%d] %s on %s, tier %s, %d/%d: costs %d"), MemberIndex,
 									   *UEnum::GetValueAsString(Carried.Attached.Kind), *GetNameSafe(Carried.Holder),
 									   *ItemIdentity::GetTierLetter(AttachmentTier(Carried.Attached)),
 									   Carried.Attached.GetCurrentDurability(), Carried.Attached.GetMaxDurability(), Gold);
