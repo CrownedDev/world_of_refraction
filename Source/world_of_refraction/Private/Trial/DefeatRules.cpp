@@ -60,12 +60,10 @@ namespace WoRDefeat
 	int32 DropPrisms(UTrialRunSubsystem &Run, UCurrencyComponent *Wallet, int32 &OutLostForGood)
 	{
 		const int32 Balance = Wallet ? Wallet->GetBalance(ECurrencyType::Gold) : 0;
-		if (Balance > 0)
-		{
-			Wallet->Spend(ECurrencyType::Gold, Balance);
-		}
-		OutLostForGood = Run.DropPrisms(Balance);
-		return Balance;
+		// Only what really left the wallet drops (Spend refuses without authority): nothing is doubled.
+		const int32 Dropped = Balance > 0 && Wallet->Spend(ECurrencyType::Gold, Balance) ? Balance : 0;
+		OutLostForGood = Run.DropPrisms(Dropped);
+		return Dropped;
 	}
 
 	int32 RecoverPrisms(UTrialRunSubsystem &Run, UCurrencyComponent *Wallet)

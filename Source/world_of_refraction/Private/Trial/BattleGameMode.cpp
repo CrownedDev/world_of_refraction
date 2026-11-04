@@ -511,7 +511,14 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
         {
             TrialRun->MarkPendingEncounterBeaten();
             // B-362b (D-160): beating the team the party fell to gives the dropped Prisms back.
-            WoRDefeat::RecoverPrisms(GetWorld());
+            if (WoRDefeat::RecoverPrisms(GetWorld()) > 0)
+            {
+                // Saved at once, as a wipe is: quitting on the results screen must not undo the recovery.
+                if (USaveSubsystem *Save = GetGameInstance()->GetSubsystem<USaveSubsystem>())
+                {
+                    Save->SaveNow(GetWorld(), true);
+                }
+            }
             // B-361b (D-154, Q-361b): a boss beaten with another player pays every player a Mentor Token.
             if (TrialRun->GetPendingRank() == EEncounterRank::Boss)
             {

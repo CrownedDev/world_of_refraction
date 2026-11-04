@@ -2045,11 +2045,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 
 ### Q-362b — The Prism drop (D-160): where it lies, whose wallet, and a fight with no map team
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-362b, desktop) · **Blocks:** —
-**Question:** D-160 says the run's Prisms drop "where the party fell" and beating "that enemy" recovers them. Three small things are left: (1) what marks the place; (2) whose balance drops in co-op; (3) a fight that came from no map team (a debug or scripted fight).
+**Question:** D-160 says the run's Prisms drop "where the party fell" and beating "that enemy" recovers them. Four small things are left: (1) what marks the place; (2) whose balance drops in co-op; (3) a fight that came from no map team (a debug or scripted fight); (4) a wipe with nothing in hand.
 **Options / as built:**
 - (1) **A** the drop is keyed to the fight's map teams (`PendingEncounterSources`); winning any later fight that includes one of them recovers all of it (the enemies come back whole after a wipe, D-155). **B** a spot on the map the party must walk to.
 - (2) **A** the local player's wallet for now (the run balance lives there); every player's wallet once co-op fights land (TODO(D-103)). **B** wait for co-op.
 - (3) **A** it still drops (D-160 has no exception), with a warning in the log that it cannot be recovered. **B** nothing drops.
+- (4) **A** a wipe with no Prisms in hand still replaces the earlier drop, which is lost (the Souls rule: dying again before reaching the bloodstain loses it, whatever you carry now). **B** an empty wipe keeps the earlier drop.
 **Recommendation:** A throughout. Dark Souls' bloodstain and Elden Ring's runes (widely praised) tie the loss to where you died, which here is the fight; Hollow Knight's Shade does the same by making you beat the thing that holds your money. (3) only happens outside the real trial flow.
 **Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
 **Notes for Claude:** built in B-362b. The pillar-point rules (`DefeatRules::GetPointsLost`, `PickPillarToLose`, `UTrialRunSubsystem::LoseRunPoints`) are OBSOLETE with no game caller; delete in the sweep after PIE.
