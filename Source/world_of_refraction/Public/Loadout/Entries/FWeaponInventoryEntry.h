@@ -71,9 +71,14 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     UPROPERTY(BlueprintReadOnly, Category = "Identity")
     EItemQuality Quality = EItemQuality::F_Quality;
 
-    /** Attached refined crystal or evolution item, discriminated by Kind. */
+    /** The ELEMENT socket (B-351, D-141): a refined crystal (gem) or an evolution, discriminated by Kind. An augment
+     *  stone here is the pre-B-351 shape (still read by the stone getters); new stones go in StoneSocket. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     FRuntimeAttachedItem AttachedItem;
+
+    /** The STONE socket (B-351, D-141): an augment stone (Kind AugmentStone) or empty. GearSockets.h. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+    FRuntimeAttachedItem StoneSocket;
 
     /** Spells assigned to this weapon's crystal slots (lost when crystal removed) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
@@ -212,7 +217,7 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
 
     bool operator==(const FWeaponInventoryEntry &Other) const
     {
-        return Weapon == Other.Weapon && AttachedItem == Other.AttachedItem;
+        return Weapon == Other.Weapon && AttachedItem == Other.AttachedItem && StoneSocket == Other.StoneSocket;
     }
 
     bool operator!=(const FWeaponInventoryEntry &Other) const
