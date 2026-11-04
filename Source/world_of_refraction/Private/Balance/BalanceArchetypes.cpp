@@ -91,7 +91,7 @@ namespace
 		Mid.ScalingTier = EScalingTier::B;
 		Mid.RequiredLevel = 3;
 		Mid.AbilityBase = 30;
-		Mid.SpellBase = 30; // a C Destruction spell, Instant, Fire, through the adapter
+		Mid.SpellBase = SIM_POWER_C; // a C Destruction spell, Instant, Fire, through the adapter: hits like a C weapon (B-325 note)
 		Out.Add(Mid);
 
 		FBalanceArchetype Late = MakeSimArchetype(SimLateCasterS, ECharacterClass::Caster, EItemTier::S_Tier, SIM_POWER_S);
@@ -104,7 +104,7 @@ namespace
 		Late.ScalingTier = EScalingTier::S;
 		Late.RequiredLevel = 7;
 		Late.AbilityBase = 40;
-		Late.SpellBase = 40; // an S spell, Instant, innate
+		Late.SpellBase = SIM_POWER_S; // an S spell, Instant, innate: hits like an S weapon, or the AI never casts it (B-325 note)
 		Out.Add(Late);
 
 		FBalanceArchetype LowS = MakeSimArchetype(SimLowLevelSGear, ECharacterClass::Generic, EItemTier::S_Tier, SIM_POWER_S);
@@ -156,6 +156,10 @@ namespace
 		M.Rank = Rank;
 		M.EnemyCount = Rank == EEncounterRank::Normal ? SIM_NORMAL_ENEMY_COUNT : Rank == EEncounterRank::Elite ? SIM_ELITE_ENEMY_COUNT : 1;
 		M.Difficulty = Difficulty;
+		// D-136 (B-344): the door's difficulty and the AI tier are one knob, so a Hard row is a Hard door (damage x1.2, Hard AI).
+		M.TrialDifficulty = Difficulty == EAIDifficulty::Hard ? ETrialDifficulty::Hard
+						  : Difficulty == EAIDifficulty::Easy ? ETrialDifficulty::Easy
+															  : ETrialDifficulty::Medium;
 		M.ZoneTier = SIM_ZONE_TIER;
 		M.Id = FName(FString::Printf(TEXT("%s-v-%s-%s-%s"), Party, *Enemy.ToString(),
 									 *StaticEnum<EEncounterRank>()->GetNameStringByValue(static_cast<int64>(Rank)),

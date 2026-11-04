@@ -10,8 +10,8 @@ axes, and applies a charge **effect**.
 
 There are **four axes**:
 
-- **Cost — EP** (energy reservoir): the action's base EP × a charge multiplier × a stat surcharge.
-- **Cost — HP** (life reservoir): for HP-paying sources, an EP-derived bite out of health.
+- **Cost — EP** (energy reservoir): the action's base EP × the charge level (D-126, B-334: x1 at L0 / L1, x2 at L2; the stat surcharge below is retired, Q-334).
+- **Cost — HP** (life reservoir): for HP-paying sources, an EP-derived bite out of health, at L2 only (D-126).
 - **Cost — durability** (crystal reservoir): crystal-backed sources pay wear instead of EP. See `CrystalWear.md` / `DurabilityWear.md`.
 - **Effect**: a per-mode, stat-scaled damage **and** status-buildup bonus.
 
@@ -111,6 +111,8 @@ See `docs/Design/Completed/GenericSpellInherit.md` (full arc) and `docs/Mechanic
 ```
 multiplier = ChargeMult(Level) × (1 + StatFraction(stat))
 ```
+
+> **Superseded by B-334 (D-126, Q-334):** `multiplier = InfusionConstants::ChargeLevelCostMultiplier(Level)` (x1 at L0 / L1, x2 at L2). The x1.5 / x2.0 constants and getters are OBSOLETE (D-124 sweep); the stat surcharge no longer applies to cost (it still scales the charge damage / status bands). The HP backlash applies only at L2 (`LevelPaysHP`); the AI's lethal check drops L2 to L1 and stops there.
 
 - **Charge multiplier** — L1 = ×1.5 (+50%), L2 = ×2.0 (+100%). Identical for spells
   (`SPELL_L1/L2_ENERGY_MULT`) and abilities (`L1/L2_ENERGY_MULT`); kept as separate named
@@ -251,3 +253,4 @@ See `AISystem.md`.
 | 2026-10-27 | B-080 (D-007, Q-080): an infused ability's element is the selected source's (`GetElementForSourceOption` in `PreviewActionDamage`), not the user's innate; unbound (Generic) becomes None with a warning; `ExecuteSkillAsync`'s buildup element is the same value. `UDamageCalculator::CalculateAttackDamage` (Blueprint-only) still uses innate (TODO). | fix/B-080-skill-damage-type |
 | 2026-10-27 | B-034: the pending infusion level lives on `UCombatCommandMenuSubsystem` (`PendingInfusionLevel`, `SetPendingInfusionLevel`: 0 when locked, clamped to `InfusionConstants::MAX_INFUSION_LEVEL`) and is mirrored to `UInfusionVFXComponent::SetInfusionLevel`; the VFX is display only. `UInfusionChargeManager` marked OBSOLETE (deletion B-034b, after an editor Blueprint-reference check). TODO: the VFX `% 3` / `2` literals go with B-034b. | refactor/B-034-infusion-level-on-pending-action |
 | 2026-11-03 | B-307 (D-110 step 7, SimplifyAudit S4, CL-24): `UActionExecutor::ResolveInfusionSource` returns `FInfusionSourceView` (attachment, element, mode, usable); `GetElementForSourceOption`, `ResolveInfusionAttachment`, `ResolveInfusionMode` and the adapter / weapon availability read it. ActiveRing and PrimaryRing both mean the adapter in use. A missing or broken crystal or evolution pushes no element on every path (so a Caster's broken Reality weapon crystal no longer unlocks any-element casting, a broken weapon crystal's Generic-inherit spell resolves to None, and the infusion tint goes neutral). Also: a non-Resonator's ActiveRing reads its adapter; the evolution attachment needs `IsEvolved()`; a ring entry with no asset gives no attachment. Q-307: a broken evolution is still offered (default). Spec `WoR.Infusion.SourceResolver`. Supersedes B-270. | refactor/B-307-infusion-resolver-v2 |
+| 2026-11-03 | B-334 (D-126, Q-334): the source choice stays; infusion EP = the base × the charge level (`ChargeLevelCostMultiplier`: x1 / x1 / x2), the stat surcharge on cost retires; the HP cost (Raw, Innate spell, Evolution) only at L2 (`LevelPaysHP`); the AI's lethal drop stops at L1; the x1.5 / x2.0 constants, `GetSpellInfusionCostMultiplier` and `GetAbilityChargeCostMultiplier` flagged OBSOLETE. Spec `WoR.Infusion.Cost` updated. UNBUILT (cloud). | feature/B-334-infusion-costs |

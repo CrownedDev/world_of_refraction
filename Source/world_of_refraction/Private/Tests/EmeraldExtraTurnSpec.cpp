@@ -2,6 +2,8 @@
 // B-295 (D-052, Crown A): an Emerald bonus turn is a real extra turn. It isn't counted as a turn taken, so the
 // holder loses no later normal turn. Before this, equal-speed Hero / Foe went Hero, Hero-bonus, Foe, Foe, Hero (the
 // bonus was borrowed from Hero's next turn); now they go Hero, Hero-bonus, Foe, Hero, Foe.
+// B-341: drives the OBSOLETE ScheduleBonusTurn path (Emerald now grants through GrantBonusTurn); the same
+// real-extra-turn rule is pinned on GrantBonusTurn in WoR.Turns.Belt.
 
 #if WITH_DEV_AUTOMATION_TESTS
 

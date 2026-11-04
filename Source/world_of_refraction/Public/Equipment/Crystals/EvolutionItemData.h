@@ -145,7 +145,8 @@ public:
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution")
         FResistanceBonus BaseResistance;
 
-        /** DESIGNER PREVIEW (simulated sample) — written by the Roll Resistance button
+        /** OBSOLETE (B-335, D-127; delete in the D-124 sweep): the preview roll layer.
+         *  DESIGNER PREVIEW (simulated sample) — written by the Roll Resistance button
          *  so designers can eyeball a roll. From U3 on, the REAL roll is per-instance
          *  (on FEvolutionInventoryEntry/FEvolutionAttachment) at acquisition; this asset
          *  layer is NOT the gameplay source for rolled instances. */
@@ -157,12 +158,15 @@ public:
          *  zero-sum pool). Standalone CallInEditor button — UEvolutionItemData does
          *  NOT implement IEquipmentGenerator (it has no stat roll), so this avoids
          *  the full interface burden while giving the same one-click roll.
-         *  PREVIEW only (writes the preview layer above), per U0's reframe. */
+         *  PREVIEW only (writes the preview layer above), per U0's reframe.
+         *  OBSOLETE (B-335, D-127; delete in the D-124 sweep). */
         UFUNCTION(CallInEditor, Category = "Preview Roll")
         void RollResistance();
 
         // ==================== GENERATION (per-instance roll) ====================
-        // Controls the per-instance roll at acquisition (U3). Inert in U0.
+        // OBSOLETE (B-335, D-127; delete in the D-124 sweep): the per-instance stat /
+        // resistance roll at acquisition (U3). Already off (default false); nothing changes in play.
+        // Q-335: after the sweep bRandomGenerateOnPickup gates only the Quality roll (D-127 keeps quality).
 
         /** When true, a fresh owned instance ROLLS its Generated stat/resistance at
          *  acquisition (AddInstance). When false, the instance ships authored Base
