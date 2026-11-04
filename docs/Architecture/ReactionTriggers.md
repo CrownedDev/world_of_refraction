@@ -22,6 +22,7 @@ One structure for every hidden link between gear and characters (RunStructure §
 ## Changelog
 | Date | Change | Branch |
 |---|---|---|
+| 2026-11-04 | B-337b (D-130, Q-337b): `FReactionTrigger::Conditions` (`FWoRConditionSet`); `Matches` asks `WoRConditions` (the wearer as the only party member, the faced character as `Opposing` / `Target`); `RequiredItems` / `FacingCharacter` OBSOLETE, read across by `GetConditions`; the old check is `MatchesOld` (parity reference until PIE); `wor.Reaction.Print` lists the conditions. | feature/B-337b-conditions-part2 |
 | 2026-10-27 | B-212 (Q-212): `FReactionTrigger::When` (`FFightMoment`, `Reaction/FightMoment.h`); new per-fight `UFightTriggers` (owned by `ABattleGameMode`) keeps mid-fight reactions and boss triggers and fires each once on its moment (turn start, hit, damage taken, HP line crossed, boss phase); `ApplyBossSteps(..., bBeforeFight)` keeps the HP share mid-fight, a net of 0 removes the change. | feature/B-212-mid-fight-triggers |
 | 2026-10-27 | B-211: the weaken / strengthen effect moved into `ReactionTriggers::ApplyBossSteps` (shared with boss triggers, once per boss per fight); `ApplyMemoryBossModifiers` obsolete (no game caller; memories no longer change bosses, D-100). | feature/B-211-boss-triggers |
 | 2026-10-26 | B-191 (Q-191): `FReactionTrigger`, `UReactionTriggerData`, the start-of-fight hook, memory boss weaken / strengthen; spec `WoR.Reaction.Trigger`. | feature/B-191-reaction-triggers |
