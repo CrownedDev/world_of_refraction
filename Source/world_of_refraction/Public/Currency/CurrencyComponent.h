@@ -168,6 +168,10 @@ protected:
     UPROPERTY(ReplicatedUsing = OnRep_PillarEssence, BlueprintReadOnly, Category = "Economy|Currency")
     int32 PillarEssence = 0;
 
+    /** B-361b (D-154, Q-361b): Mentor Tokens (the player's own scalar; on the player's wallet). */
+    UPROPERTY(ReplicatedUsing = OnRep_MentorTokens, BlueprintReadOnly, Category = "Economy|Currency")
+    int32 MentorTokens = 0;
+
     /** OBSOLETE (B-333). 14 typed-essence wallets (per-character). Not BlueprintReadOnly — FCurrencyArray
      *  is not a BlueprintType; BP access is via GetEssenceType/AddEssenceType/SpendEssenceType. */
     UPROPERTY(Replicated)
@@ -195,6 +199,9 @@ protected:
 
     UFUNCTION()
     void OnRep_PillarEssence();
+
+    UFUNCTION()
+    void OnRep_MentorTokens();
 
 private:
     /** B-333: the scalar field behind Currency; null for EssenceTyped (the obsolete keyed wallet). */

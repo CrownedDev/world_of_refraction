@@ -58,6 +58,7 @@ void UCurrencyComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &O
     DOREPLIFETIME(UCurrencyComponent, SkillEssence);
     DOREPLIFETIME(UCurrencyComponent, ElementalEssence);
     DOREPLIFETIME(UCurrencyComponent, PillarEssence);
+    DOREPLIFETIME(UCurrencyComponent, MentorTokens);
     DOREPLIFETIME(UCurrencyComponent, EssenceWallet);
 }
 
@@ -174,6 +175,8 @@ const int32 *UCurrencyComponent::FindScalar(ECurrencyType Currency) const
         return &ElementalEssence;
     case ECurrencyType::PillarEssence:
         return &PillarEssence;
+    case ECurrencyType::MentorTokens:
+        return &MentorTokens;
     case ECurrencyType::EssenceTyped: // OBSOLETE (B-333): keyed, not a scalar
         return nullptr;
     }
@@ -236,6 +239,11 @@ void UCurrencyComponent::OnRep_PillarEssence()
     NotifyChanged(ECurrencyType::PillarEssence, 0, PillarEssence);
 }
 
+void UCurrencyComponent::OnRep_MentorTokens()
+{
+    NotifyChanged(ECurrencyType::MentorTokens, 0, MentorTokens);
+}
+
 // ==================== INTERNAL ====================
 
 bool UCurrencyComponent::HasServerAuthority() const
@@ -290,6 +298,7 @@ void UCurrencyComponent::CopyBalancesFrom(const UCurrencyComponent &Other)
     CopyScalar(SkillEssence, Other.SkillEssence, ECurrencyType::SkillEssence);
     CopyScalar(ElementalEssence, Other.ElementalEssence, ECurrencyType::ElementalEssence);
     CopyScalar(PillarEssence, Other.PillarEssence, ECurrencyType::PillarEssence);
+    CopyScalar(MentorTokens, Other.MentorTokens, ECurrencyType::MentorTokens);
     // Entry by entry, so each gets this array's own replication ID (a copied ID could clash).
     for (const FCurrencyEntry &Entry : Other.EssenceWallet.Items)
     {
