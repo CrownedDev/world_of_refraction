@@ -1077,6 +1077,27 @@ void UAIDecisionManager::ApplySkillChoice(AActor *AIActor, UCharacterDataCompone
     }
 }
 
+bool UAIDecisionManager::IsOffensiveSpell(const USpellData &Spell)
+{
+    const bool bAimsAtEnemies = Spell.TargetType == ETargetType::Enemy || Spell.TargetType == ETargetType::Anyone;
+    return bAimsAtEnemies && (Spell.BaseDamage > 0 || Spell.HasDebuffEffects());
+}
+
+bool UAIDecisionManager::IsHealingSpell(const USpellData &Spell)
+{
+    for (const FSkillEffect &Effect : Spell.GetAllEffects())
+    {
+        for (const FSkillEffectPayload &P : Effect.Payloads)
+        {
+            if (P.EffectType == ESkillEffectType::Heal || P.EffectType == ESkillEffectType::HealthRestore)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 TArray<USkillDataBase *> UAIDecisionManager::GetOffensiveSkills(ULoadoutComponent *Loadout, EAIActionChoice Category)
 {
     TArray<USkillDataBase *> Skills;
@@ -1088,8 +1109,8 @@ TArray<USkillDataBase *> UAIDecisionManager::GetOffensiveSkills(ULoadoutComponen
     {
         for (USpellData *Spell : GetUsableSpells(Loadout))
         {
-            // Only Destruction spells are offensive; healing / cleanse spells belong to the other branches.
-            if (Spell && Spell->School == ESpellSchool::Destruction)
+            // B-356 (D-146): offensive by its effects, not its school; heals / cleanses belong to the other branches.
+            if (Spell && IsOffensiveSpell(*Spell))
             {
                 Skills.Add(Spell);
             }
@@ -1977,21 +1998,10 @@ USpellData *UAIDecisionManager::FindHealingSpell(ULoadoutComponent *Loadout)
     TArray<USpellData *> Spells = GetUsableSpells(Loadout);
     for (USpellData *Spell : Spells)
     {
-        if (!Spell || Spell->School != ESpellSchool::Restoration)
+        // B-356 (D-146): by its effects, not its school.
+        if (Spell && IsHealingSpell(*Spell))
         {
-            continue;
-        }
-
-        for (const FSkillEffect &Effect : Spell->GetAllEffects())
-        {
-            for (const FSkillEffectPayload &P : Effect.Payloads)
-            {
-                if (P.EffectType == ESkillEffectType::Heal ||
-                    P.EffectType == ESkillEffectType::HealthRestore)
-                {
-                    return Spell;
-                }
-            }
+            return Spell;
         }
     }
 
