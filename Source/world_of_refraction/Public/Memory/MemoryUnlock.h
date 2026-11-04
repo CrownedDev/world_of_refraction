@@ -4,6 +4,9 @@
 // mini-boss beaten (UBossData::MemoryOnDefeat), a reaction that fired (FReactionTrigger::
 // UnlockMemory), a special spot on the map (AMemorySpot) and a bound item's memories
 // (UEquipmentDataBase::BoundMemories: by upgrade level and/or trigger conditions).
+// B-337c (D-130): a bound memory's conditions are one FWoRConditionSet checked by WoRConditions
+// (GetBoundConditions reads old items across: the upgrade level as GearEquipped "at least", the
+// old triggers as FightStart conditions).
 // wor.Memory.Print shows each memory's source.
 
 #pragma once
@@ -18,6 +21,8 @@ class UCharacterData;
 class UEquipmentDataBase;
 class UGameInstance;
 class UMemoryData;
+struct FWoRConditionContext;
+struct FWoRConditionSet;
 struct FBoundMemory;
 struct FFiredReaction;
 
@@ -44,9 +49,20 @@ namespace MemoryUnlock
 	/** How many tiers InstanceTier is above Item's authored tier. */
 	WORLD_OF_REFRACTION_API int32 GetUpgradeSteps(const UEquipmentDataBase &Item, EItemTier InstanceTier);
 
-	/** Every condition set on Bound holds. Wearer null = out of a fight (no trigger can hold). */
+	/** OBSOLETE (B-337c: IsBoundMet through the one evaluator; kept as the parity reference until PIE).
+	 *  Every condition set on Bound holds. Wearer null = out of a fight (no trigger can hold). */
 	WORLD_OF_REFRACTION_API bool AreConditionsMet(const FBoundMemory &Bound, const UEquipmentDataBase &Item, int32 UpgradeSteps,
 												  const UCharacterData *Wearer, const TArray<AActor *> &Opposing);
+
+	/** B-337c: Bound's conditions in the one vocabulary: its Conditions when authored, else the old fields read
+	 *  across (GearEquipped Item "at least" UpgradeLevel, worn by Item's BoundOwner when bNeedsOwnerWearing, plus
+	 *  FacingEnemy FacingCharacter; with either old trigger these check at FightStart only; owner wearing with no
+	 *  BoundOwner never holds, as before). */
+	WORLD_OF_REFRACTION_API FWoRConditionSet GetBoundConditions(const FBoundMemory &Bound, const UEquipmentDataBase &Item);
+
+	/** B-337c: Bound has a memory and its conditions hold in Context (a level-up: trigger BoundGearUsed and the
+	 *  event's upgraded item; a fight start: trigger FightStart, the party's worn gear and the opposing team). */
+	WORLD_OF_REFRACTION_API bool IsBoundMet(const FBoundMemory &Bound, const UEquipmentDataBase &Item, const FWoRConditionContext &Context);
 
 	/** Item levelled up to InstanceTier: its bound memories with no trigger whose upgrade level is
 	 *  reached. Returns how many were new. */
