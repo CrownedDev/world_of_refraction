@@ -1371,8 +1371,6 @@ bool UInventoryComponent::DrawSharedGear()
     // B-321 (D-117): each member draws only its own gear. A piece from before D-117 goes to whoever wears it,
     // else the party leader. A run-only recruit brings no gear and draws the whole armoury (TODO: B-323's give).
     Pool->AssignUnownedGear(InventoryGearSync::GetLocalLeaderKey(GI, Key));
-    // B-322 (D-117): a save from before the per-character pouch gives its party pouch to the leader.
-    Pool->AdoptLegacyCarriedItems(InventoryGearSync::GetLocalLeaderKey(GI, Key));
     bDrawsWholeArmoury = bRunOnly;
     // B-324: the chest's gear is nobody's to wear; a recruit's whole-armoury draw leaves it in the chest.
     // Key, not SharedGearKey: that is set below, once the draw is done (IsMineInStore is the same rule after that).

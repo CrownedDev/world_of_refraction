@@ -20,7 +20,7 @@
 // UEvolutionInventoryComponent) are UNCHANGED and still own all live state. Pure additive
 // foundation.
 //
-// Disk-save is a LATER phase. SaveGame tags here are DORMANT. In-session GI persistence
+// Saved by explicit structs (FSavedPool, D-059; B-348 removed the SaveGame tags). In-session GI persistence
 // works as-is because every UObject ref is a DATA ASSET (always-loaded); cross-session
 // disk save will need soft-reference handling for those raw pointers (flagged for that
 // phase). Currency is POD — it has no such caveat.
@@ -355,20 +355,6 @@ public:
     /** B-090 restore of every pouch and whose items are banked. */
     void RestorePouches(const TMap<FName, FPoolPouch> &InPouches, const TArray<FName> &InBanked);
 
-    /** A save from before B-322 (one party pouch): kept aside until AdoptLegacyCarriedItems gives it to the
-     *  party leader at the next draw. */
-    void RestoreLegacyCarriedItems(const TMap<FCrystalId, int32> &InCarried, int32 InSlotCount, const TArray<FName> &InBanked);
-
-    /** Puts the pre-B-322 party pouch into the leader's pouch (what doesn't fit goes to storage). Logs it;
-     *  returns how many stacks moved. No-op when there is none. */
-    int32 AdoptLegacyCarriedItems(FName LeaderKey);
-    bool HasLegacyCarriedItems() const
-    {
-        return !LegacyCarriedItems.Stacks.IsEmpty() || LegacyCarriedItems.SlotCount > InventoryConstants::ITEM_SLOTS_START;
-    }
-    /** The pre-B-322 party pouch still waiting for a draw (saved again as it was until then). */
-    const FPoolPouch &GetLegacyCarriedItems() const { return LegacyCarriedItems; }
-
     /** B-323 (D-117): moves Count of FromKey's carried Id into ToKey's pouch. False (nothing moved) when FromKey
      *  carries fewer, or ToKey's pouch has no room for all of them (a full pouch refuses). */
     bool GiveCarried(FName FromKey, FName ToKey, const FCrystalId &Id, int32 Count);
@@ -400,18 +386,18 @@ private:
     bool bPopulated = false;
 
     // ==================== STORAGE ====================
-    // SaveGame-tagged (DORMANT — honoured at the disk-save phase). UPROPERTY so the nested
+    // Saved by FSavedPool (D-059), not property tags. UPROPERTY so the nested
     // data-asset UObject refs stay GC-reachable at subsystem scope. Each mirrors the run
     // component's storage type exactly.
 
     // ARMOURY
-    UPROPERTY(SaveGame)
+    UPROPERTY()
     TArray<FWeaponInventoryEntry> OwnedWeapons;
 
-    UPROPERTY(SaveGame)
+    UPROPERTY()
     TArray<FRingInventoryEntry> OwnedRings;
 
-    UPROPERTY(SaveGame)
+    UPROPERTY()
     TArray<FEvolutionInventoryEntry> OwnedEvolutions;
 
     // B-312: GUID -> array index for each armoury array. Rebuilt on demand; a stale hit (an entry moved) rebuilds too.
@@ -427,20 +413,20 @@ private:
     int32 FindIndexed(const TArray<TEntry> &Entries, const TMap<FGuid, int32> &Index, const FGuid &ID, FIdOf IdOf) const;
 
     // KNOWLEDGE
-    UPROPERTY(SaveGame)
+    UPROPERTY()
     TArray<FSpellInstance> OwnedSpells;
 
-    UPROPERTY(SaveGame)
+    UPROPERTY()
     TArray<FAbilityInstance> OwnedAbilities;
 
     // ITEMS — counted stacks keyed by (Type, Tier); fungible, no per-instance identity.
     // Mirrors the run UCrystalInventoryComponent's 2-pool gem/stone split EXACTLY (so draw/
     // return is a direct structural copy, not a translation). Crystals are dual-purpose (one bucket,
     // no item/refined split); Stones are slot-only.
-    UPROPERTY(SaveGame)
+    UPROPERTY()
     TMap<FCrystalId, int32> Crystals;
 
-    UPROPERTY(SaveGame)
+    UPROPERTY()
     TMap<FCrystalId, int32> Stones;
 
     // ==================== WALLET (currency value-block) ====================
@@ -455,22 +441,22 @@ private:
     UPROPERTY()
     int32 PoolGold = 0;
 
-    UPROPERTY(SaveGame)
+    UPROPERTY()
     int32 PoolPrisms = 0;
 
-    UPROPERTY(SaveGame)
+    UPROPERTY()
     int32 PoolDiamond = 0;
 
-    UPROPERTY(SaveGame)
+    UPROPERTY()
     int32 PoolGearEssence = 0;
 
-    UPROPERTY(SaveGame)
+    UPROPERTY()
     int32 PoolSkillEssence = 0;
 
     // 14 typed-essence balances. FCurrencyArray reused for structural parity; at pool scope
     // its OwnerComponent back-ref stays null (its only job is client replication callbacks,
     // dormant here) and it functions as a pure serializable balance store.
-    UPROPERTY(SaveGame)
+    UPROPERTY()
     FCurrencyArray PoolEssence;
 
     // ==================== SHARED GEAR (B-091) ====================
@@ -502,10 +488,6 @@ private:
     /** Each character's pouch, by character key. */
     UPROPERTY()
     TMap<FName, FPoolPouch> Pouches;
-
-    /** A pre-B-322 save's one party pouch, until a draw gives it to the leader. */
-    UPROPERTY()
-    FPoolPouch LegacyCarriedItems;
 
     /** Characters whose starting items are already carried or stored. */
     UPROPERTY()
