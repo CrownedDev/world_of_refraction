@@ -10,9 +10,9 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Character/EWorldPillar.h"
-#include "Party/Party.h"
 #include "LevelDropWidget.generated.h"
 
+struct FPartyMember;
 class UTextBlock;
 
 UCLASS()

@@ -26,11 +26,13 @@ namespace WoRLevelDrops
 	 *  Member's spawned character component in World, if any. */
 	WORLD_OF_REFRACTION_API UCharacterDataComponent *FindSpawnedMember(const UWorld *World, const UCharacterData *Member);
 
-	/** Member's live level in Pillar: its spawned component's, else its asset level plus the run's earned levels
+	/** OBSOLETE (B-360c): the first copy of Member's character; use the FPartyMember overload.
+	 *  Member's live level in Pillar: its spawned component's, else its asset level plus the run's earned levels
 	 *  (head-start lives on the spawned component). */
 	WORLD_OF_REFRACTION_API int32 GetLiveLevel(const UWorld *World, const UCharacterData *Member, EWorldPillar Pillar);
 
-	/** Places one unspent level on Member's Pillar. Empty on success, else why not (none waiting, at the cap). */
+	/** OBSOLETE (B-360c): the first copy of Member's character; use the FPartyMember overload.
+	 *  Places one unspent level on Member's Pillar. Empty on success, else why not (none waiting, at the cap). */
 	WORLD_OF_REFRACTION_API FText TryPlaceLevel(UWorld *World, UCharacterData *Member, EWorldPillar Pillar);
 
 	/** B-360c: the spawned pawn's component for this party member: the pawn stamped with its MemberId, or (an unstamped
