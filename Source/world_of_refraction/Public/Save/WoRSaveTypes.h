@@ -122,6 +122,13 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	FGuid RunRing;
 
+	/** B-360b (save v14): the member apart from other copies of its character, and whether the pool keys it by that id. */
+	UPROPERTY()
+	FGuid MemberId;
+
+	UPROPERTY()
+	bool bKeyedByMember = false;
+
 	UPROPERTY()
 	int32 CurrentHP = PartyConstants::NO_CARRIED_VITALS;
 
