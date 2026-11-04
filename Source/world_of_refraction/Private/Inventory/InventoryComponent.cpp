@@ -1155,6 +1155,8 @@ int32 UInventoryComponent::WriteLoadoutToOwned(int32 LoadoutIndex)
                         {
                             Owned->AttachedItem = Slot.AttachedItem;
                             Owned->StoneSocket = Slot.StoneSocket; // B-351
+                            Owned->SkillPicks = Slot.SkillPicks;   // B-351 (D-145): the picks live on the item
+                            Owned->bSkillSlotsActive = Slot.bSkillSlotsActive;
                             Written.Add(Slot.PersistentID);
                         }
                     },
