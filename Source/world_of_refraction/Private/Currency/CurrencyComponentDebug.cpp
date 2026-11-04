@@ -38,9 +38,9 @@ FString UCurrencyComponentDebug::GetWalletString(const UCurrencyComponent *Walle
         return TEXT("Wallet: <null>");
     }
 
-    // B-333 (D-125): the seven balances — ALWAYS shown, including zero balances.
+    // B-333 (D-125): the seven balances — ALWAYS shown, including zero balances; B-361b: and Mentor Tokens.
     TArray<FString> Parts;
-    for (const ECurrencyType Currency : CurrencyBalances::SEVEN)
+    for (const ECurrencyType Currency : CurrencyBalances::ALL)
     {
         Parts.Add(FString::Printf(TEXT("%s: %d"),
                                   *StaticEnum<ECurrencyType>()->GetAuthoredNameStringByValue(static_cast<int64>(Currency)),

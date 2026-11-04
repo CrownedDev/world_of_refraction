@@ -168,6 +168,11 @@ public:
 
     int32 GetBeatenEncounterCount() const { return BeatenEncounters.Num(); }
 
+    /** B-361b (D-154): the trial's boss fell this run, so the run counts as finished: a co-op run that ends after it
+     *  pays every player Mentor Tokens (ExitTrial). */
+    void MarkRunBossBeaten() { bRunBossBeaten = true; }
+    bool IsRunBossBeaten() const { return bRunBossBeaten; }
+
     /** B-188: a map feature was used this run (a chest opened, lore read); What says what it gave. */
     void RecordFound(FName FeatureId, const FText &What);
 
@@ -294,6 +299,10 @@ private:
 
     /** B-184: map encounters beaten this run. Run state like RunSeed; cleared on trial entry and exit. */
     TSet<FName> BeatenEncounters;
+
+    /** B-361b: run state like BeatenEncounters (cleared on trial entry and exit; moves with it for co-op, D-065).
+     *  TODO: not in the save yet (a resumed run forgets it, as Q-223's run levels). */
+    bool bRunBossBeaten = false;
 
     /** B-188: map features used this run (never removed from, so it keeps the order found). Run state
      *  like BeatenEncounters; cleared on trial entry and exit; moves with it for co-op (D-065). */

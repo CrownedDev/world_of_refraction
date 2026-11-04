@@ -21,6 +21,7 @@
 #include "Shop/MerchantShopSubsystem.h"
 #include "TimerManager.h"
 #include "Trial/TrialData.h"
+#include "Currency/MentorTokens.h"
 
 namespace
 {
@@ -89,6 +90,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
 
     ActiveTrial = Trial;
     BeatenEncounters.Reset();
+    bRunBossBeaten = false;
     RunLevels.Reset(); // B-223: the run's pillar levels end with it (D-102)
     UnspentLevels.Reset();
     FoundFeatures.Reset();
@@ -166,6 +168,11 @@ void UTrialRunSubsystem::ExitTrial()
         Save->ClearRunGold(GetGameInstance()->GetWorld());
     }
 
+    // B-361b (D-154, Q-361b): a finished co-op run (its boss beaten) pays every player; leaving early pays nothing.
+    if (bRunBossBeaten)
+    {
+        WoRMentorTokens::PayPlayersTogether(GetGameInstance()->GetWorld(), MentorTokenRules::PER_COOP_RUN, TEXT("a co-op run finished"));
+    }
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Exiting trial '%s' -> hub %s"),
            ActiveTrial ? *ActiveTrial->Name.ToString() : TEXT("<none>"),
            *HubLevel.ToString());
@@ -174,6 +181,7 @@ void UTrialRunSubsystem::ExitTrial()
     VariationIndex = INDEX_NONE;
     TrialDifficulty = TrialGate::DEFAULT_DIFFICULTY;
     BeatenEncounters.Reset();
+    bRunBossBeaten = false;
     RunLevels.Reset(); // B-223: the run's pillar levels end with it (D-102)
     UnspentLevels.Reset();
     FoundFeatures.Reset();

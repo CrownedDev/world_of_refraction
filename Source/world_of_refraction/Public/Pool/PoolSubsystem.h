@@ -456,6 +456,10 @@ public:
      *  knows moves; one ToKey already knows, or has no room for, stays one copy (the recruit's is dropped, logged).
      *  FromKey's ledger goes. Fires OnPoolSkillsChanged for both. Returns how many moved. */
     int32 HandOverSkills(FName FromKey, FName ToKey);
+    /** B-361b (D-154): ToKey learns a fresh instance of Skill (a USpellData or UAbilityData; its tier from the asset):
+     *  a teach is a learn, not a move, so no one loses theirs. Fires OnPoolSkillsChanged. False when ToKey was never
+     *  banked, already knows it or has no room. */
+    bool LearnSkillCopy(FName ToKey, const UObject *Skill);
     const TMap<FName, FPoolSkills> &GetCharacterSkills() const { return CharacterSkills; }
     /** Save restore: replaces every character's skills; fires OnPoolSkillsChanged for each, so a member already
      *  spawned reloads. */

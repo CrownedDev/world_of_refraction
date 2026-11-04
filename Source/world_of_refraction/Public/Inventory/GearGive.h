@@ -56,6 +56,11 @@ namespace WoRGive
 	/** RequesterKey asks HolderKey for its skill: the same player's member (or an AI one) says yes at once
 	 *  (TryGiveSkill); another player's member is refused (D-153). */
 	WORLD_OF_REFRACTION_API FText TryRequestSkill(UWorld *World, FName RequesterKey, FName HolderKey, const UObject *Skill);
+	/** B-361b (D-154, Q-361b): TeacherKey's player teaches its learned skill to LearnerKey, another player's member,
+	 *  for Mentor Tokens from the teacher's player's wallet (MentorTokenRules, by the skill's tier). The learner gets
+	 *  its own new copy; the teacher keeps its own. Empty on success; else the reason (the same player's members give
+	 *  instead; too few tokens spends nothing). */
+	WORLD_OF_REFRACTION_API FText TryTeachSkill(UWorld *World, FName TeacherKey, FName LearnerKey, const UObject *Skill);
 	/** FromKey's learned skills a give could move: its spells, then its abilities. Empty when its skills aren't kept. */
 	WORLD_OF_REFRACTION_API TArray<const UObject *> GetGiveableSkills(const UWorld *World, FName FromKey);
 
