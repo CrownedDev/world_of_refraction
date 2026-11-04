@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-042j2](B-042j2.md) | `feature/B-042j2-absorb-part2` (in `dev`) | Absorbers on DoT ticks; a stopped hit counts as On Guard and as a hit, not damage; Ward scopes; skills and items can give an absorber (Negate … effect types) | Pending |
 | [B-360](B-360.md) | `feature/B-360-coop-party` (in `dev`) | Co-op party (D-150): no rotation; a joiner takes the AI seat the host picks (`wor.UI.JoinSeat`), its gear goes to the host; full = refused; 2-player PIE | Pending |
 | [B-331](B-331.md) | `feature/B-331-one-speed` (in `dev`) | One Speed, part 1: Body × Speed narrows every defense window; old Action + Spell Speed points add into Speed | Pending |
 | [B-328](B-328.md) | `feature/B-328-enemy-hp-no-zone` (in `dev`) | Each zone tier names the enemy Combat Tier that belongs there (`wor.Trial.PrintZones`); an authoring guide, the zone itself scales nothing (B-327) | Pending |

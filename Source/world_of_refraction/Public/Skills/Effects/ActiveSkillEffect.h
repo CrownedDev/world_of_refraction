@@ -334,7 +334,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		// ⚠️ Footgun guard: a charged effect that is duration-0 AND not permanent is IsInstant()
 		// → ApplyEffect runs it down the instant lane and NEVER stores it, so its charges can
 		// never fire. Warn at this single conversion choke point. Fix: set bPermanent OR Duration > 0.
-		if (P.Charges > 0 && P.Duration == 0 && !P.bPermanent)
+		if (P.Charges > 0 && P.Duration == 0 && !P.bPermanent && !SkillEffectClassification::IsNegate(P.EffectType)) // a Negate: until spent
 		{
 			UE_LOG(LogTemp, Warning,
 				   TEXT("[FActiveSkillEffect] '%s' has Charges=%d but Duration=0 and not permanent — "

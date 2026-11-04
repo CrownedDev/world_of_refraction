@@ -29,6 +29,7 @@
 #include "HAL/IConsoleManager.h"
 #include "AbilitySystemComponent.h"
 #include "GAS/WoRTurnEffectTracker.h"
+#include "GAS/WoRAbsorb.h"
 #include "GAS/WoREffectMirrorComponent.h"
 #include "GAS/WoREffectSpecBuilder.h"
 #include "GAS/WoRCombatEvents.h"
@@ -151,6 +152,57 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s rejected on %s — already fired once this match (ID=%d)"),
 			   *Effect.EffectName, *Target->GetName(), Effect.EffectID);
 		return EEffectApplicationResult::Rejected;
+	}
+
+	// B-042j2 (D-092): a Negate payload is an absorber charge on the holder's tracker, not a lasting effect. It has
+	// passed immunity and the fires-once gate; a re-cast from the same source replaces its earlier charges (Q-044 A).
+	if (SkillEffectClassification::IsNegate(Effect.EffectType))
+	{
+		UWoRTurnEffectTracker *Absorbers = Target->FindComponentByClass<UWoRTurnEffectTracker>();
+		if (!Absorbers)
+		{
+			UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] %s has no UWoRTurnEffectTracker: %s (an absorber) not applied"),
+				   *Target->GetName(), *Effect.EffectName);
+			return EEffectApplicationResult::Rejected;
+		}
+		FWoRAbsorbCharge Charge;
+		switch (Effect.EffectType)
+		{
+		case ESkillEffectType::NegatePhysical:
+			Charge.Verb = EWoRAbsorbVerb::Shield;
+			break;
+		case ESkillEffectType::NegateElement:
+		case ESkillEffectType::NegateElementTotal:
+			Charge.Verb = EWoRAbsorbVerb::Ward;
+			Charge.Scope = EWoRWardScope::Element;
+			Charge.Element = Effect.Element;
+			break;
+		case ESkillEffectType::NegateElemental:
+			Charge.Verb = EWoRAbsorbVerb::Ward;
+			Charge.Scope = EWoRWardScope::Elemental;
+			break;
+		case ESkillEffectType::NegateDamage:
+		case ESkillEffectType::NegateDamageTotal:
+		default:
+			Charge.Verb = EWoRAbsorbVerb::Barrier;
+			break;
+		}
+		Charge.Mode = SkillEffectClassification::IsNegatePool(Effect.EffectType) ? EWoRChargeMode::Pool : EWoRChargeMode::Uses;
+		Charge.Magnitude = FMath::RoundToInt(Effect.EffectValue);
+		Charge.MaxUses = Effect.Charges;
+		Charge.EffectID = Effect.EffectID;
+		Charge.SourceKey = Effect.SourceKey;
+		const int32 Turns = Effect.bPermanent ? 0 : Effect.RemainingTurns; // 0: until spent (D-092 rule 3)
+		Absorbers->RemoveAbsorbsFrom(Effect.EffectID, Effect.SourceKey);
+		if (!Absorbers->ApplyAbsorb(Charge, Turns, Source).IsValid())
+		{
+			return EEffectApplicationResult::Rejected;
+		}
+		if (Effect.bFiresOncePerMatch)
+		{
+			RecordFiredOnce(Target, FiredOnceKey);
+		}
+		return EEffectApplicationResult::Applied;
 	}
 
 	// Set source info
@@ -1652,10 +1704,18 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		// DOTs can kill — design changed (1-HP clamp removed). Full tick damage
 		// applies; CurrentHP can reach 0 and route through the normal death path
 		// (ServerTakeDamage -> CheckDeath -> OnDied), identical to a killing blow.
-		const int32 DamageToApply = GetDotTickDamage(Actor, Effect);
+		int32 DamageToApply = GetDotTickDamage(Actor, Effect);
+		// B-042j2 (D-092 rule 1): the holder's absorbers spend on a DoT tick as on any damage instance. A tick they
+		// touch is paid here, not through the GAS tick spec (which knows nothing of the negated share).
+		int32 Negated = 0;
+		if (UWoRTurnEffectTracker *Absorbers = Actor->FindComponentByClass<UWoRTurnEffectTracker>())
+		{
+			Negated = Absorbers->AbsorbHit(DamageToApply, Effect.Element, EPhysicalDamageType::None);
+			DamageToApply -= Negated;
+		}
 
 		const int32 HPBeforeTick = CharComp->CurrentHP;
-		if (PayTickThroughGAS(Actor, Effect))
+		if (Negated == 0 && PayTickThroughGAS(Actor, Effect))
 		{
 			UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s: DOT %s paid through GAS, HP %d -> %d"), *Actor->GetName(),
 				   *Effect.EffectName, HPBeforeTick, CharComp->CurrentHP);
@@ -1663,8 +1723,13 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		else if (DamageToApply > 0)
 		{
 			CharComp->ServerTakeDamage(DamageToApply);
-			UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s took %d DOT damage from %s (value %.1f, %s; can be lethal)"),
-				   *Actor->GetName(), DamageToApply, *Effect.EffectName, Effect.GetStackedValue(), *UEnum::GetValueAsString(Effect.Element));
+			UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s took %d DOT damage from %s (value %.1f, %s; %d negated; can be lethal)"),
+				   *Actor->GetName(), DamageToApply, *Effect.EffectName, Effect.GetStackedValue(), *UEnum::GetValueAsString(Effect.Element), Negated);
+		}
+		else if (Negated > 0)
+		{
+			UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s's absorbers stopped the whole %s tick (%d)"), *Actor->GetName(),
+				   *Effect.EffectName, Negated);
 		}
 
 		// Per-tick status buildup — mirrors the per-event amount the effect's
@@ -2298,7 +2363,8 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 					const int32 RuntimeValue =
 						(Payload.EffectType == ESkillEffectType::StatusIncrease ||
 						 Payload.EffectType == ESkillEffectType::StatusDecrease ||
-						 Payload.EffectType == ESkillEffectType::DOT)
+						 Payload.EffectType == ESkillEffectType::DOT ||
+						 SkillEffectClassification::IsNegate(Payload.EffectType)) // B-042j2: Value = the damage negated
 							? Payload.Value
 							: FMath::RoundToInt(Payload.Magnitude * 100.0f);
 

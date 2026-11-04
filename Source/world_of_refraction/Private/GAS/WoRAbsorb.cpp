@@ -24,7 +24,16 @@ bool FWoRAbsorbCharge::Catches(ESpellElement HitElement, EPhysicalDamageType Hit
 		// Physical = no element + a physical type (EffectsOverhaul.md §2.5, until D-037's damage type).
 		return HitElement == ESpellElement::None && HitPhysical != EPhysicalDamageType::None;
 	case EWoRAbsorbVerb::Ward:
-		return HitElement == Element && Element != ESpellElement::None;
+		switch (Scope)
+		{
+		case EWoRWardScope::All:
+			return true; // B-042j2: an "All" Ward blocks physical too (deckbuilder rule 52)
+		case EWoRWardScope::Elemental:
+			return HitElement != ESpellElement::None;
+		case EWoRWardScope::Element:
+		default:
+			return HitElement == Element && Element != ESpellElement::None;
+		}
 	default:
 		return false;
 	}
@@ -51,13 +60,15 @@ bool FWoRAbsorbCharge::IsUsedUp() const
 
 FString FWoRAbsorbCharge::ToString() const
 {
-	const FString Scope = Verb == EWoRAbsorbVerb::Ward ? FString::Printf(TEXT(" %s"), *UEnum::GetDisplayValueAsText(Element).ToString())
-													   : FString();
+	const FString ScopeText = Verb != EWoRAbsorbVerb::Ward ? FString()
+							  : Scope == EWoRWardScope::Element ? FString::Printf(TEXT(" %s"), *UEnum::GetDisplayValueAsText(Element).ToString())
+							  : Scope == EWoRWardScope::Elemental ? FString(TEXT(" (every element)"))
+																  : FString(TEXT(" (all)"));
 	const FString Spend = Mode == EWoRChargeMode::Pool
 							  ? FString::Printf(TEXT("pool %d/%d"), PoolLeft, Magnitude)
 							  : (MaxUses == UNLIMITED_USES ? FString::Printf(TEXT("up to %d, unlimited"), Magnitude)
 														   : FString::Printf(TEXT("up to %d, %d/%d use(s)"), Magnitude, UsesLeft, MaxUses));
-	return FString::Printf(TEXT("%s%s: %s%s (#%d)"), *UEnum::GetDisplayValueAsText(Verb).ToString(), *Scope, *Spend,
+	return FString::Printf(TEXT("%s%s: %s%s (#%d)"), *UEnum::GetDisplayValueAsText(Verb).ToString(), *ScopeText, *Spend,
 						   bTimed ? TEXT(", timed") : TEXT(""), Arrival);
 }
 
@@ -101,8 +112,10 @@ namespace WoRAbsorb
 
 	bool IsValidCharge(const FWoRAbsorbCharge &Charge)
 	{
-		// Hits arrive with their element resolved, so a Generic ("inherit") Ward would never catch one.
+		// Hits arrive with their element resolved, so a Generic ("inherit") Ward would never catch one. An Elemental
+		// or All Ward (B-042j2) names no element.
 		const bool bWardElement = Charge.Element != ESpellElement::None && Charge.Element != ESpellElement::Generic;
-		return Charge.Magnitude > 0 && Charge.MaxUses >= 0 && (Charge.Verb != EWoRAbsorbVerb::Ward || bWardElement);
+		const bool bNeedsElement = Charge.Verb == EWoRAbsorbVerb::Ward && Charge.Scope == EWoRWardScope::Element;
+		return Charge.Magnitude > 0 && Charge.MaxUses >= 0 && (!bNeedsElement || bWardElement);
 	}
 }

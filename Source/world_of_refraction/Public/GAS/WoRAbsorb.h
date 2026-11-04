@@ -25,6 +25,16 @@ enum class EWoRAbsorbVerb : uint8
 	Barrier
 };
 
+/** B-042j2 (D-092): what a Ward covers. Element: the one element in FWoRAbsorbCharge::Element. Elemental: every
+ *  element, not physical. All: every element and physical too (a Barrier that spends in Ward order). */
+UENUM(BlueprintType)
+enum class EWoRWardScope : uint8
+{
+	Element,
+	Elemental,
+	All
+};
+
 /** How an absorber's number is spent (the deckbuilder's ChargeMode). */
 UENUM(BlueprintType)
 enum class EWoRChargeMode : uint8
@@ -46,10 +56,13 @@ struct WORLD_OF_REFRACTION_API FWoRAbsorbCharge
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Absorb")
 	EWoRChargeMode Mode = EWoRChargeMode::Uses;
 
-	/** Ward only: the element it catches. TODO: B-042j2 - the deckbuilder's "All" (every element and physical)
-	 *  and "Elemental" (every element) Wards. */
+	/** Ward only: the element it catches (Scope Element). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Absorb")
 	ESpellElement Element = ESpellElement::None;
+
+	/** Ward only (B-042j2): one element, every element, or everything. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Absorb")
+	EWoRWardScope Scope = EWoRWardScope::Element;
 
 	/** Uses: the most one instance negates. Pool: the whole budget. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Absorb", meta = (ClampMin = 0))
@@ -66,6 +79,11 @@ struct WORLD_OF_REFRACTION_API FWoRAbsorbCharge
 	bool bTimed = false;
 	/** Runtime: when it was gained, for the oldest-first order. */
 	int32 Arrival = 0;
+
+	/** Runtime (B-042j2): the authored effect and source it came from, so a re-cast from the same source replaces it
+	 *  (Q-044 A) instead of piling up. 0 / 0 for a charge given by hand (wor.Absorb.Add, specs). */
+	int32 EffectID = 0;
+	int32 SourceKey = 0;
 
 	/** Fills the runtime counts from the authored ones. */
 	void Fill();

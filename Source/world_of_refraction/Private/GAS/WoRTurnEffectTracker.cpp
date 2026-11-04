@@ -416,6 +416,28 @@ int32 UWoRTurnEffectTracker::AbsorbHit(int32 Damage, ESpellElement HitElement, E
 	return Negated;
 }
 
+int32 UWoRTurnEffectTracker::RemoveAbsorbsFrom(int32 EffectID, int32 SourceKey)
+{
+	TArray<FActiveGameplayEffectHandle> Gone;
+	for (const TPair<FActiveGameplayEffectHandle, FWoRAbsorbCharge> &Absorb : Absorbs)
+	{
+		if (Absorb.Value.EffectID == EffectID && Absorb.Value.SourceKey == SourceKey)
+		{
+			Gone.Add(Absorb.Key);
+		}
+	}
+	UAbilitySystemComponent *ASC = GetOwnerASC();
+	for (const FActiveGameplayEffectHandle &Handle : Gone)
+	{
+		Absorbs.Remove(Handle);
+		if (!RemoveTracked(Handle) && ASC)
+		{
+			ASC->RemoveActiveGameplayEffect(Handle);
+		}
+	}
+	return Gone.Num();
+}
+
 TArray<FWoRAbsorbCharge> UWoRTurnEffectTracker::GetAbsorbs() const
 {
 	TArray<FWoRAbsorbCharge> Out;

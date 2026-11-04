@@ -759,6 +759,31 @@ namespace EffectText
             return Side.bSelf ? FText::Format(LOCTEXT("Absorb_Self", "negate the next {0} damage you take{1}"), Amount(P), Span(P))
                               : FText::Format(LOCTEXT("Absorb_Other", "negate the next {0} damage {1} {2}{3}"), Amount(P), Side.Noun,
                                               Side.bPlural ? LOCTEXT("Take_Pl", "take") : LOCTEXT("Take_Sg", "takes"), Span(P));
+        // B-042j2 (D-092): the absorbing family. Value = the damage negated; Charges = uses; Duration = turns.
+        case ESkillEffectType::NegateDamage:
+        case ESkillEffectType::NegatePhysical:
+        case ESkillEffectType::NegateElement:
+        case ESkillEffectType::NegateElemental:
+        case ESkillEffectType::NegateDamageTotal:
+        case ESkillEffectType::NegateElementTotal:
+        {
+            const FText Kind = P.EffectType == ESkillEffectType::NegatePhysical ? LOCTEXT("Negate_Physical", "physical ")
+                               : P.EffectType == ESkillEffectType::NegateElemental ? LOCTEXT("Negate_Elemental", "elemental ")
+                               : (P.EffectType == ESkillEffectType::NegateElement || P.EffectType == ESkillEffectType::NegateElementTotal)
+                                   ? FText::Format(LOCTEXT("Negate_Element", "{0} "), WoRGameNames::GetElementName(P.Element))
+                                   : FText::GetEmpty();
+            const FText N = FText::AsNumber(P.Value);
+            const FText Uses = P.Charges > 1 ? FText::Format(LOCTEXT("Negate_Uses", ", {0} times"), FText::AsNumber(P.Charges)) : FText::GetEmpty();
+            if (SkillEffectClassification::IsNegatePool(P.EffectType))
+            {
+                return Side.bSelf ? FText::Format(LOCTEXT("NegateTotal_Self", "negate {0} {1}damage you take in total{2}"), N, Kind, Span(P))
+                                  : Fronted(Side, LOCTEXT("Negates_Sg", "negates"), LOCTEXT("Negates_Pl", "negate"),
+                                            FText::Format(LOCTEXT("NegateTotal_Rest", " {0} {1}damage in total{2}"), N, Kind, Span(P)));
+            }
+            return Side.bSelf ? FText::Format(LOCTEXT("Negate_Self", "negate the next {0} {1}damage you take{2}{3}"), N, Kind, Uses, Span(P))
+                              : Fronted(Side, LOCTEXT("Negates_Sg", "negates"), LOCTEXT("Negates_Pl", "negate"),
+                                        FText::Format(LOCTEXT("Negate_Rest", " the next {0} {1}damage{2}{3}"), N, Kind, Uses, Span(P)));
+        }
         case ESkillEffectType::ReduceDamageTaken:
             return Side.bSelf ? FText::Format(LOCTEXT("LessDamage_Self", "take {0} less damage{1}"), Amount(P), Span(P))
                               : Fronted(Side, LOCTEXT("Take_Sg", "takes"), LOCTEXT("Take_Pl", "take"),
