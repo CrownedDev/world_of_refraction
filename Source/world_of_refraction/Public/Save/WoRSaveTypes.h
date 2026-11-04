@@ -107,6 +107,10 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	bool bPlayerControlled = true;
 
+	/** B-346 / B-348: the AI seat's difficulty (restored only when the member is an AI seat). */
+	UPROPERTY()
+	EAIDifficulty AISeatDifficulty = EAIDifficulty::Medium;
+
 	/** B-076: a character found in the trial; written only with a saved run. */
 	UPROPERTY()
 	bool bRunOnly = false;

@@ -529,6 +529,7 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 		Out.PreferredRow = Member.PreferredRow;
 		Out.PreferredColumn = Member.PreferredColumn;
 		Out.bPlayerControlled = Member.bPlayerControlled;
+		Out.AISeatDifficulty = Member.AISeatDifficulty;
 		Out.bRunOnly = Member.bRunOnly;
 		Out.RunWeapon = Member.RunWeapon;
 		Out.RunRing = Member.RunRing;
@@ -722,6 +723,7 @@ bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsyst
 		Member.PreferredRow = In.PreferredRow;
 		Member.PreferredColumn = In.PreferredColumn;
 		Member.bPlayerControlled = In.bPlayerControlled;
+		Member.AISeatDifficulty = In.AISeatDifficulty;
 		Member.bRunOnly = In.bRunOnly;
 		Member.RunWeapon = In.RunWeapon;
 		Member.RunRing = In.RunRing;

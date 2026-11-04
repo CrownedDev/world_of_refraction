@@ -209,7 +209,7 @@ UParty *UPartySessionSubsystem::RestoreLocalParty(const FText &DisplayName, bool
 		Restored->Members.SetNum(PartyConstants::MAX_PARTY_MEMBERS);
 	}
 	// D-004: the leader is always Player-controlled. B-346: an AI seat is the mirrored flag's opposite
-	// (the save stores only bPlayerControlled until B-348).
+	// (the save stores bPlayerControlled and, since B-348, the seat's difficulty).
 	Restored->Members[0].bPlayerControlled = true;
 	for (FPartyMember &Member : Restored->Members)
 	{
