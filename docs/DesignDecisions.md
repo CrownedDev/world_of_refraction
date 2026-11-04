@@ -2125,6 +2125,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. It matches the shop rule already in the game (ER-21), and the run currency is meant to be spent in the run (Hades' Charon's Obols vs Darkness: run money never leaks to the hub). The amounts stay the per-tier table (`GetDuplicateGoldForTier`) until tuning.
 **Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
 **Notes for Claude:** built in B-366b (`UEconomyService::GetPlaceCurrency`: a trial run under way = the run currency; rule ER-63). The brain's message cited "D-005" for the place rule; D-005 is about elements, so this cites ER-21 / D-002's notes instead.
+**Extended (brain, 2026-11-04):** shops follow the same rule (B-366c, ER-21), and so does **merging crystals**: its money cost (half the produced tier's buy price, ER-29) is paid in the currency of the place, hub Gold at home, run Prisms in a run. Merging is not essence-only (D-002's notes keep only *upgrading* on essence, never money), so the rule applies. Built in **B-366d**.
 
 ### D-159 — The currency names swap: the run currency is Prisms, the hub currency is Gold
 **Status:** DECIDED (Crown, 2026-11-04, via the brain) · **Raised:** 2026-11-04 · **Blocks:** —

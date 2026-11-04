@@ -58,7 +58,7 @@ This page covers the currencies, what a fight and a run pay out, what carries ov
 | # | Rule | Status | Source |
 |---|---|---|---|
 | ER-28 | Crystals and stones don't upgrade; they **merge**. Ask for one crystal of a type at a higher tier: same-type crystals below it are spent cheapest first until their value reaches the target's. Values: F 1, E 2, D 4, C 8, B 16, A 32, S 96 (`CRYSTAL_VALUE_*`). Any overshoot **comes back** as the fewest same-type crystals below the target (e.g. E + D + D for a C gives back one E). If the change doesn't fit (a tier at its cap), the whole merge is refused and refunded (**Q-177**). F can't be a target. | In game (Crown 2026-10-26, B-177) | `Currency/EconomyYield.h` (`GetCrystalValue`, `GetMergeChange`); `Currency/EconomyService.cpp` (`MergeCrystals`) |
-| ER-29 | A merge also costs Prisms: half the produced tier's buy price (E 25 ... S 800). It is refused if you hold the max of the target crystal. | Kept by Crown (2026-10-26, rules review) | `Currency/EconomyYield.h:228-231`; `Currency/EconomyService.cpp:169-185` |
+| ER-29 | A merge also costs Prisms: half the produced tier's buy price (E 25 ... S 800). (Q-366 extended: paid in the currency of the place, as shops are; built in B-366d, today always the hub currency.) It is refused if you hold the max of the target crystal. | Kept by Crown (2026-10-26, rules review) | `Currency/EconomyYield.h:228-231`; `Currency/EconomyService.cpp:169-185` |
 
 ## Dismantling
 | # | Rule | Status | Source |
