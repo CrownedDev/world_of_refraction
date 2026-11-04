@@ -63,53 +63,99 @@ UCharacterDataComponent *WoRLevelDrops::FindSpawnedMember(const UWorld *World, c
 	return nullptr;
 }
 
+UCharacterDataComponent *WoRLevelDrops::FindSpawnedMember(const UWorld *World, const FPartyMember &Member)
+{
+	if (!World || !Member.CharacterData)
+	{
+		return nullptr;
+	}
+	for (TActorIterator<AActor> It(const_cast<UWorld *>(World)); It; ++It)
+	{
+		UCharacterDataComponent *Comp = It->FindComponentByClass<UCharacterDataComponent>();
+		if (!Comp || Comp->CharacterData != Member.CharacterData)
+		{
+			continue;
+		}
+		const bool bStampedWithThisMember = Comp->PartyMemberId.IsValid() && Comp->PartyMemberId == Member.MemberId;
+		const bool bUnstampedFirstCopy = !Comp->PartyMemberId.IsValid() && !Member.bKeyedByMember;
+		if (bStampedWithThisMember || bUnstampedFirstCopy)
+		{
+			return Comp;
+		}
+	}
+	return nullptr;
+}
+
+namespace
+{
+	/** One member's live level in Pillar: the spawned component's, else its asset level plus the run's earned levels
+	 *  under Key (head-start lives on the spawned component). */
+	int32 LiveLevelOf(const UWorld *World, const UCharacterData &Data, FName Key, const UCharacterDataComponent *Spawned, EWorldPillar Pillar)
+	{
+		if (Spawned)
+		{
+			return Spawned->GetWorldStat(Pillar);
+		}
+		const UTrialRunSubsystem *Run = LevelDropRun(World);
+		const int32 Earned = Run ? Run->GetRunEarnedLevels(Key, Pillar) : 0;
+		return FMath::Min(AssetLevel(Data, Pillar) + Earned, WorldStatConstants::LIVE_MAX);
+	}
+
+	/** Places one unspent level banked under Key on Data's Pillar. Spawned is the member's pawn component, if any. */
+	FText PlaceLevelOf(UWorld *World, UCharacterData *Data, FName Key, UCharacterDataComponent *Spawned, EWorldPillar Pillar)
+	{
+		UTrialRunSubsystem *Run = LevelDropRun(World);
+		if (!Run || !Run->IsRunActive() || !Data)
+		{
+			return LOCTEXT("NoRun", "No run to place a level in");
+		}
+		const FText Name = FText::FromString(Data->Name);
+		// B-223b: a character's levels go only to its own pillars.
+		if (Run->GetUnspentLevels(Key) <= 0)
+		{
+			return FText::Format(LOCTEXT("NoneWaiting", "{0} has no pillar levels to place"), Name);
+		}
+		if (LiveLevelOf(World, *Data, Key, Spawned, Pillar) >= WorldStatConstants::LIVE_MAX)
+		{
+			return FText::Format(LOCTEXT("AtCap", "{0}'s {1} is already at {2}"), Name, WoRLevelDrops::GetPillarName(Pillar),
+								 FText::AsNumber(WorldStatConstants::LIVE_MAX));
+		}
+		// A spawned member records into the run itself (AddEarnedWorldStat); one not in the level reads it at its next spawn.
+		if (Spawned)
+		{
+			Spawned->AddEarnedWorldStat(Pillar, 1);
+		}
+		else
+		{
+			Run->AddRunEarnedLevels(Key, Pillar, 1);
+		}
+		Run->TakeUnspentLevel(Key);
+		UE_LOG(LogTemp, Log, TEXT("[LevelDrops] %s +1 %s (now %d; %d left to place)"), *Data->Name, *WoRLevelDrops::GetPillarName(Pillar).ToString(),
+			   LiveLevelOf(World, *Data, Key, Spawned, Pillar), Run->GetUnspentLevels(Key));
+		return FText::GetEmpty();
+	}
+}
+
 int32 WoRLevelDrops::GetLiveLevel(const UWorld *World, const UCharacterData *Member, EWorldPillar Pillar)
 {
-	if (!Member)
-	{
-		return 0;
-	}
-	if (const UCharacterDataComponent *Comp = FindSpawnedMember(World, Member))
-	{
-		return Comp->GetWorldStat(Pillar);
-	}
-	const UTrialRunSubsystem *Run = LevelDropRun(World);
-	const int32 Earned = Run ? Run->GetRunEarnedLevels(UPoolSubsystem::GetCharacterKey(Member), Pillar) : 0;
-	return FMath::Min(AssetLevel(*Member, Pillar) + Earned, WorldStatConstants::LIVE_MAX);
+	return Member ? LiveLevelOf(World, *Member, UPoolSubsystem::GetCharacterKey(Member), FindSpawnedMember(World, Member), Pillar) : 0;
+}
+
+int32 WoRLevelDrops::GetLiveLevel(const UWorld *World, const FPartyMember &Member, EWorldPillar Pillar)
+{
+	return Member.CharacterData
+			   ? LiveLevelOf(World, *Member.CharacterData, UPoolSubsystem::GetCharacterKey(Member), FindSpawnedMember(World, Member), Pillar)
+			   : 0;
 }
 
 FText WoRLevelDrops::TryPlaceLevel(UWorld *World, UCharacterData *Member, EWorldPillar Pillar)
 {
-	UTrialRunSubsystem *Run = LevelDropRun(World);
-	if (!Run || !Run->IsRunActive() || !Member)
-	{
-		return LOCTEXT("NoRun", "No run to place a level in");
-	}
-	const FName MemberKey = UPoolSubsystem::GetCharacterKey(Member);
-	const FText Name = FText::FromString(Member->Name);
-	// B-223b: a character's levels go only to its own pillars.
-	if (Run->GetUnspentLevels(MemberKey) <= 0)
-	{
-		return FText::Format(LOCTEXT("NoneWaiting", "{0} has no pillar levels to place"), Name);
-	}
-	if (GetLiveLevel(World, Member, Pillar) >= WorldStatConstants::LIVE_MAX)
-	{
-		return FText::Format(LOCTEXT("AtCap", "{0}'s {1} is already at {2}"), Name, GetPillarName(Pillar),
-							 FText::AsNumber(WorldStatConstants::LIVE_MAX));
-	}
-	// A spawned member records into the run itself (AddEarnedWorldStat); one not in the level reads it at its next spawn.
-	if (UCharacterDataComponent *Comp = FindSpawnedMember(World, Member))
-	{
-		Comp->AddEarnedWorldStat(Pillar, 1);
-	}
-	else
-	{
-		Run->AddRunEarnedLevels(MemberKey, Pillar, 1);
-	}
-	Run->TakeUnspentLevel(MemberKey);
-	UE_LOG(LogTemp, Log, TEXT("[LevelDrops] %s +1 %s (now %d; %d left to place)"), *Member->Name, *GetPillarName(Pillar).ToString(),
-		   GetLiveLevel(World, Member, Pillar), Run->GetUnspentLevels(MemberKey));
-	return FText::GetEmpty();
+	return PlaceLevelOf(World, Member, UPoolSubsystem::GetCharacterKey(Member), FindSpawnedMember(World, Member), Pillar);
+}
+
+FText WoRLevelDrops::TryPlaceLevel(UWorld *World, const FPartyMember &Member, EWorldPillar Pillar)
+{
+	return PlaceLevelOf(World, Member.CharacterData, UPoolSubsystem::GetCharacterKey(Member), FindSpawnedMember(World, Member), Pillar);
 }
 
 FString WoRLevelDrops::GetLevelDropString(const UWorld *World)
@@ -127,11 +173,11 @@ FString WoRLevelDrops::GetLevelDropString(const UWorld *World)
 	{
 		if (Member.CharacterData)
 		{
-			Out += FString::Printf(TEXT("\n  live %s: Mind %d, Body %d, Spirit %d%s"), *Member.CharacterData->Name,
-								   GetLiveLevel(World, Member.CharacterData, EWorldPillar::Mind),
-								   GetLiveLevel(World, Member.CharacterData, EWorldPillar::Body),
-								   GetLiveLevel(World, Member.CharacterData, EWorldPillar::Spirit),
-								   FindSpawnedMember(World, Member.CharacterData) ? TEXT("") : TEXT(" (not spawned: no head-start)"));
+			Out += FString::Printf(TEXT("\n  live %s [%s]: Mind %d, Body %d, Spirit %d%s"), *Member.CharacterData->Name,
+								   *UPoolSubsystem::GetCharacterKey(Member).ToString(), // B-360c: a copy shows its own key
+								   GetLiveLevel(World, Member, EWorldPillar::Mind), GetLiveLevel(World, Member, EWorldPillar::Body),
+								   GetLiveLevel(World, Member, EWorldPillar::Spirit),
+								   FindSpawnedMember(World, Member) ? TEXT("") : TEXT(" (not spawned: no head-start)"));
 		}
 	}
 	return Out;
