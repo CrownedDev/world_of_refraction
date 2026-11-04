@@ -29,6 +29,7 @@
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "WoRLog.h"
+#include <type_traits> // std::is_same_v (B-351), as InventoryComponent.cpp does
 
 const TCHAR *USaveSubsystem::SLOT_NAME = TEXT("WoR_Main");
 
@@ -66,7 +67,7 @@ namespace
 		Gear.EvolutionItem = FSavedAssetRef::Make(Entry.AttachedItem.Evolution.Item);
 		Gear.Attached.Evolution.Item = nullptr;
 		Gear.StoneSocket = Entry.StoneSocket; // B-351
-		if constexpr (TIsSame<TGearEntry, FWeaponInventoryEntry>::Value)
+		if constexpr (std::is_same_v<TGearEntry, FWeaponInventoryEntry>)
 		{
 			for (const UAbilityData *Pick : Entry.SkillPicks) // B-351 (D-145), one ref per slot
 			{
@@ -99,7 +100,7 @@ namespace
 		Entry.AttachedItem = Gear.Attached;
 		Entry.AttachedItem.Evolution.Item = Gear.EvolutionItem.IsSet() ? Gear.EvolutionItem.ResolveAs<UEvolutionItemData>() : nullptr;
 		Entry.StoneSocket = Gear.StoneSocket; // B-351
-		if constexpr (TIsSame<TGearEntry, FWeaponInventoryEntry>::Value)
+		if constexpr (std::is_same_v<TGearEntry, FWeaponInventoryEntry>)
 		{
 			Entry.SkillPicks.Reset();
 			for (const FSavedAssetRef &Ref : Gear.SkillPicks) // B-351 (D-145); a gone ability leaves its slot to the built-in
