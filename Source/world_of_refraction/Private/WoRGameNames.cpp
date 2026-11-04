@@ -2,6 +2,7 @@
 // One case per enum value; see WoRGameNames.h.
 
 #include "WoRGameNames.h"
+#include "Inventory/InventoryVerbs.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Grid/ECombatRow.h"
 #include "Currency/CurrencyTypes.h"
@@ -410,6 +411,24 @@ FText GetActiveAdapterWord()
 FText GetYourselfWord()
 {
     return LOCTEXT("Yourself", "yourself");
+}
+
+FText GetInventoryVerbName(EInventoryVerb Verb)
+{
+    switch (Verb)
+    {
+    case EInventoryVerb::Give:
+        return LOCTEXT("VerbGive", "Give");
+    case EInventoryVerb::Store:
+        return LOCTEXT("VerbStore", "Store");
+    case EInventoryVerb::Take:
+        return LOCTEXT("VerbTake", "Take");
+    case EInventoryVerb::Dismantle:
+        return LOCTEXT("VerbDismantle", "Dismantle");
+    case EInventoryVerb::Convert:
+        return LOCTEXT("VerbConvert", "Convert to Gold");
+    }
+    return FText::GetEmpty();
 }
 
 FText GetAdapterFormName(EAdapterForm Form)
