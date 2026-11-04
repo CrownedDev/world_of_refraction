@@ -68,6 +68,27 @@ void UPoolSubsystem::DiscardRunLayer()
     bRunLayerActive = false;
 }
 
+int32 UPoolSubsystem::RestoreRunLayer(const TMap<FGuid, FPoolRunMark> &SavedMarks)
+{
+    RunMarks.Reset();
+    bRunLayerActive = true;
+    int32 Dropped = 0;
+    for (const TPair<FGuid, FPoolRunMark> &Saved : SavedMarks)
+    {
+        if (FindWeaponInPool(Saved.Key) || FindRingInPool(Saved.Key) || FindEvolutionInPool(Saved.Key))
+        {
+            RunMarks.Add(Saved.Key, Saved.Value);
+        }
+        else
+        {
+            ++Dropped;
+        }
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer restored from the save: %d mark(s) kept, %d dropped (their gear is gone)"),
+           RunMarks.Num(), Dropped);
+    return RunMarks.Num();
+}
+
 bool UPoolSubsystem::TakeOnRun(const FGuid &GearID)
 {
     if (!bRunLayerActive || !GearID.IsValid() || RunMarks.Contains(GearID))
