@@ -10,6 +10,7 @@
 #include "Character/CharacterData.h"
 #include "Combat/CombatPlayerController.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
 #include "Player/RunStateComponent.h"
 #include "Player/WoRGameState.h"
 #include "Player/WoRPlayerState.h"
@@ -49,6 +50,12 @@ BEGIN_DEFINE_SPEC(FRunStateSpec, "WoR.Net.RunState", EAutomationTestFlags_Applic
 		if (!OutPlayer || !PC)
 		{
 			return nullptr;
+		}
+		// The controller spawned a plain PlayerState of its own and registered it with the GameState; it is not a seat.
+		if (APlayerState *AutoState = PC->PlayerState; AutoState && AutoState != OutPlayer)
+		{
+			GameState->RemovePlayerState(AutoState);
+			AutoState->Destroy();
 		}
 		OutPlayer->SetPlayerId(PlayerId);
 		PC->PlayerState = OutPlayer;
@@ -141,6 +148,7 @@ void FRunStateSpec::Define()
 		Run->SetRoster({RunStateMember(ClaimedData, false), RunStateMember(RecruitData, false), RunStateMember(AIData, true)});
 		FirstPlayer->ClaimCharacter(ClaimedData);
 
+		TestEqual(TEXT("two seats on the side"), Run->GetSidePlayerIds().Num(), 2);
 		APlayerController *SeatZero = SeatOrderPC(0);
 		APlayerController *SeatOne = SeatOrderPC(1);
 		if (!TestNotNull(TEXT("seat 0"), SeatZero) || !TestNotNull(TEXT("seat 1"), SeatOne)) return;
