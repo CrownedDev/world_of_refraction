@@ -278,6 +278,9 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
 
     const int32 TargetValue = EconomyYield::GetCrystalValue(TargetTier);
     const int32 PrismsCost = EconomyYield::GetMergeCostForTier(TargetTier);
+    // B-366d (Q-366 extended): the money cost is paid in the currency of the place (hub or run).
+    const ECurrencyType Pays = GetPlaceCurrency(Owner);
+    const FString PaysName = StaticEnum<ECurrencyType>()->GetAuthoredNameStringByValue(static_cast<int64>(Pays));
     const int32 TargetTierIndex = TierHelpers::GetTierValue(TargetTier); // tiers [0, TargetTierIndex) are mergeable
     const FCrystalId OutputId(Type, TargetTier);
 
@@ -304,10 +307,10 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
                *TierHelpers::GetTierName(TargetTier));
         return false;
     }
-    if (!Currency->CanAfford(ECurrencyType::Prisms, PrismsCost))
+    if (!Currency->CanAfford(Pays, PrismsCost))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: %s cannot afford %d Prisms for %s %s"),
-               *Owner->GetName(), PrismsCost,
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: %s cannot afford %d %s for %s %s"),
+               *Owner->GetName(), PrismsCost, *PaysName,
                *TierHelpers::GetTierName(TargetTier), *ItemIdentity::GetDisplayName(OutputId));
         return false;
     }
@@ -351,7 +354,7 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     }
 
     // ---- Spend + REMOVE FIRST (a failed produce refunds below; never leave a phantom output) ----
-    Currency->Spend(ECurrencyType::Prisms, PrismsCost);
+    Currency->Spend(Pays, PrismsCost);
     Inv->RemoveCrystals(Inputs); // ONE Removed (inputs are guaranteed present — counted above)
 
     // ER-28: the overshoot comes back as the fewest same-Type crystals below the target. Added with
@@ -367,10 +370,10 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     if (!bAdded)
     {
         Inv->AddCrystals(Inputs); // ONE Added — re-add the exact consumed set (atomic; space just freed)
-        Currency->Add(ECurrencyType::Prisms, PrismsCost);
+        Currency->Add(Pays, PrismsCost);
         UE_LOG(LogTemp, Warning,
-               TEXT("[EconomyService] MergeCrystals: add of %s + %d change crystal(s) failed (output or change tier at cap, Q-177) — refunded inputs + %d Prisms"),
-               *ItemIdentity::GetDisplayName(OutputId), Outputs.Num() - 1, PrismsCost);
+               TEXT("[EconomyService] MergeCrystals: add of %s + %d change crystal(s) failed (output or change tier at cap, Q-177) — refunded inputs + %d %s"),
+               *ItemIdentity::GetDisplayName(OutputId), Outputs.Num() - 1, PrismsCost, *PaysName);
         return false;
     }
 
@@ -389,8 +392,9 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
         }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Merged %s -> 1x %s (+%d change crystal(s), %d value back) for %d Prisms"),
-           *ConsumedStr, *ItemIdentity::GetDisplayName(OutputId), Outputs.Num() - 1, Accumulated - TargetValue, PrismsCost);
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Merged %s -> 1x %s (+%d change crystal(s), %d value back) for %d %s"),
+           *ConsumedStr, *ItemIdentity::GetDisplayName(OutputId), Outputs.Num() - 1, Accumulated - TargetValue, PrismsCost,
+           *PaysName);
     return true;
 }
 

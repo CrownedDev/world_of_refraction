@@ -1,6 +1,8 @@
 // CrystalMergeSpec.cpp
 // ER-28 (Crown, 2026-10-26; B-177): a crystal merge gives back its overshoot as the fewest
 // lower-tier crystals of the same type; an exact merge is unchanged.
+// B-366d (Q-366 extended): the money cost is paid in the currency of the place: the hub currency
+// (ECurrencyType::Prisms, shown as Gold) at home, the run currency (ECurrencyType::Gold, shown as Prisms) in a run.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -12,12 +14,16 @@
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Inventory/InventoryComponent.h"
 #include "Inventory/InventoryConstants.h"
+#include "Trial/TrialData.h"
+#include "Trial/TrialGate.h"
+#include "Trial/TrialRunSubsystem.h"
 
 namespace
 {
 	/** Plenty for any merge's Prism cost. */
 	constexpr int32 MERGE_TEST_PRISMS = 10000;
 	constexpr ECrystalType MERGE_TEST_TYPE = ECrystalType::Garnet;
+	constexpr int32 MERGE_TEST_RUN_SEED = 7;
 
 	template <class TComponent>
 	TComponent *MergeTestAddComponent(AActor *Actor)
@@ -149,6 +155,39 @@ void FCrystalMergeSpec::Define()
 			TestEqual(TEXT("D refunded"), Count(EItemTier::D_Tier), 2);
 			TestEqual(TEXT("F refunded"), Count(EItemTier::F_Tier), 3);
 			TestEqual(TEXT("Prisms refunded"), Currency->GetBalance(ECurrencyType::Prisms), MERGE_TEST_PRISMS);
+		});
+	});
+
+	Describe("the money cost (B-366d)", [this]()
+	{
+		It("is paid from the hub balance at home, the run balance untouched", [this]()
+		{
+			SpawnOwner(); // MERGE_TEST_PRISMS of the hub currency
+			UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+			Currency->Add(ECurrencyType::Gold, MERGE_TEST_PRISMS);
+			Give(EItemTier::D_Tier, 2);
+			TestTrue(TEXT("merged"), Economy->MergeCrystals(Owner, MERGE_TEST_TYPE, EItemTier::C_Tier));
+			TestEqual(TEXT("the hub balance paid"), Currency->GetBalance(ECurrencyType::Prisms),
+					  MERGE_TEST_PRISMS - EconomyYield::GetMergeCostForTier(EItemTier::C_Tier));
+			TestEqual(TEXT("the run balance untouched"), Currency->GetBalance(ECurrencyType::Gold), MERGE_TEST_PRISMS);
+		});
+
+		It("is paid from the run balance in a run, and refused with only hub money", [this]()
+		{
+			UTrialRunSubsystem *Run = TestWorld->GetSubsystem<UTrialRunSubsystem>();
+			if (!TestNotNull(TEXT("Run"), Run)) return;
+			SpawnOwner(); // hub money only
+			UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+			Run->RestoreRun(NewObject<UTrialData>(GetTransientPackage()), MERGE_TEST_RUN_SEED, 0, ETrialDifficulty::Medium, {}, {}, {});
+			Give(EItemTier::D_Tier, 2);
+			TestFalse(TEXT("the hub balance can't pay in a run"), Economy->MergeCrystals(Owner, MERGE_TEST_TYPE, EItemTier::C_Tier));
+			TestEqual(TEXT("nothing consumed"), Count(EItemTier::D_Tier), 2);
+
+			const int32 Cost = EconomyYield::GetMergeCostForTier(EItemTier::C_Tier);
+			Currency->Add(ECurrencyType::Gold, Cost);
+			TestTrue(TEXT("merged"), Economy->MergeCrystals(Owner, MERGE_TEST_TYPE, EItemTier::C_Tier));
+			TestEqual(TEXT("the run balance paid"), Currency->GetBalance(ECurrencyType::Gold), 0);
+			TestEqual(TEXT("the hub balance untouched"), Currency->GetBalance(ECurrencyType::Prisms), MERGE_TEST_PRISMS);
 		});
 	});
 }
