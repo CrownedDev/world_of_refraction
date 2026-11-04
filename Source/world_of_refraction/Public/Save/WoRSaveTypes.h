@@ -208,6 +208,16 @@ struct WORLD_OF_REFRACTION_API FSavedRun
 	UPROPERTY()
 	int32 RunGold = 0;
 
+	/** B-362 (D-155, save v18): the run's party wipes and losses to the main boss, and the last rest spot used. */
+	UPROPERTY()
+	int32 Wipes = 0;
+
+	UPROPERTY()
+	int32 MainBossLosses = 0;
+
+	UPROPERTY()
+	FName LastRestSpot;
+
 	/** B-314b (save v15): the run layer was open; its marks follow, so a resumed run keeps its found gear run-only and
 	 *  puts home gear back as it left home. */
 	UPROPERTY()

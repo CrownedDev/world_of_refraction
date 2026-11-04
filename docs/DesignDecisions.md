@@ -2032,6 +2032,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** **A, A, A, A, A**, by the reference-backed default (2026-11-04). Crown may change any of them; the costs and limits are named constants.
 **Notes for Claude:** B-362.
 
+### Q-155b — Losing a fight: the revive, the fight's rank, and the parts waiting on other jobs
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-362) · **Blocks:** —
+**Question:** D-155 leaves four small things open. (1) The whole party is down after a wipe, and D-043 keeps a fallen member out until a rest spot revives it: who is up when it comes back? (2) A fight with a mini-boss and normal enemies: which rank sets the cost? (3) Is an Elite a normal enemy for the cost? (4) Over-cap points (D-157, B-364) and rest spots (B-187) do not exist yet: what does B-362 do meanwhile?
+**Options / as built:** (1) **A** everyone, at full HP and EP (the rest spot's revive, D-043, applied to the whole party); **B** one member. (2) **A** the fight's hardest rank (`GetPendingRank`, as the fight's flee rule); **B** each enemy's own rank. (3) **A** yes, 1; **B** between normal and mini-boss. (4) **A** take run points only from what exists (earned and bought levels); the run remembers a last rest spot id (empty = the trial's start) for B-187 to set and place the party at; **B** wait for both.
+**Recommendation:** (1) A: Hades and Dark Souls both bring you back whole after a death; a wipe that leaves the party unable to fight would end the run by softlock, not by D-155's limits. (2) A: it is already how the flee rule reads the fight (D-091). (3) A: an Elite is "a beefier normal fight" (Q-224). (4) A: both gaps are small hooks and each later job fills its half.
+**Answer:** **A, A, A, A**, by the reference-backed default (2026-11-04). Crown may change any of them.
+**Notes for Claude:** B-362. Left for B-364: over-cap points first (`DefeatRules::PickPillarToLose` has the TODO); for B-187: call `UTrialRunSubsystem::NoteRestSpotUsed` and place the returning party at `GetLastRestSpot()`. Levels dropped but not yet placed (`UnspentLevels`) are not taken by a wipe: only placed run points are (as built).
+
 ### D-156 — Levelling in a run: points drop from enemies and are bought with Gold at rest spots (Nightreign's runes and sites of grace)
 **Status:** DECIDED (Crown, 2026-11-04, the feel interview, via the brain) · **Raised:** 2026-11-04 · **Blocks:** —
 **Answer (Crown):** in-run levelling follows Elden Ring Nightreign's runes and sites of grace: **enemies have a chance to drop pillar points**, and **Gold** (the run currency) **buys extra pillar points at rest spots**. This changes today's "after a fight, choose where each level goes" flow.

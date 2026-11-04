@@ -9,9 +9,8 @@
 // the trial via UTrialRunSubsystem::ExitEncounter — after a results screen
 // (UCombatResultsWidget) is acknowledged or times out.
 //
-// Victory and Defeat currently produce the SAME trial-side outcome (the trial
-// level reloads whole from the map asset — defeated enemies included). Banked
-// for the persistence keystone arc.
+// A win returns to the trial with that enemy beaten (B-184). A wipe (B-362, D-155) costs run pillar points and returns
+// to the trial with the enemy still there, or to the hub when the run is over (DefeatRules).
 
 #pragma once
 
@@ -89,6 +88,11 @@ private:
 
     void ReturnToTrial();
 
+    /** B-362 (D-155, Q-155): the party was wiped. Counts it on the run, takes each member's run pillar points
+     *  (DefeatRules) and revives the party for the trip back; ReturnToTrial then goes to the hub instead when the
+     *  run is over. Replaces B-072's "lose = hub". */
+    void ApplyWipe();
+
     /** B-209 (D-100 part 2): a fight won is an event that checks memory unlock conditions; a
      *  beaten boss's MemoryOnDefeat is the memory it names. */
     void CheckFightWonMemories();
@@ -99,6 +103,10 @@ private:
 
     /** Per fight (D-064): each player-side combatant's HP when the fight started. */
     TMap<TWeakObjectPtr<const AActor>, int32> PartyStartHP;
+
+    /** B-362 (per fight, D-064): this fight's wipe ended the run (3 main-boss losses or 5 wipes), so ReturnToTrial
+     *  leaves for the hub, not the trial. */
+    bool bWipeEndsRun = false;
 
     /** B-209 (Q-209d): a party member's skill and Breakthrough use count toward memory conditions. */
     UFUNCTION()

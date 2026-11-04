@@ -27,8 +27,11 @@
 #include "Memory/MemoryUnlock.h"
 #include "Reaction/FightTriggers.h"
 #include "Reaction/ReactionTrigger.h"
+#include "Pool/PoolSubsystem.h"
+#include "Trial/DefeatRules.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Save/SaveSubsystem.h"
 #include "Currency/MentorTokens.h"
 #include "UI/Combat/CombatResultsWidget.h"
 #include "GameFramework/PlayerController.h"
@@ -519,9 +522,42 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
         }
     }
 
+    // B-362 (D-155): a wipe costs run pillar points and a second chance; the run may be over.
+    if (Result.FinalState == ECombatState::Defeat)
+    {
+        ApplyWipe();
+    }
+
     if (!ShowResults(Result))
     {
         ReturnToTrial();
+    }
+}
+
+void ABattleGameMode::ApplyWipe()
+{
+    const UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
+    if (!TrialRun || !Orchestrator.IsValid())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] Wipe: no trial run or orchestrator - nothing taken"));
+        return;
+    }
+    TArray<FName> MemberKeys;
+    for (const AActor *Member : Orchestrator->GetLocalParty())
+    {
+        const UCharacterDataComponent *MemberData = Member ? Member->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+        // Only rostered members hold run points (a guest or summon has none), keyed as their levels are (B-360c).
+        if (MemberData && MemberData->FindCarriedPartyMember())
+        {
+            MemberKeys.Add(UPoolSubsystem::GetCharacterKey(MemberData));
+        }
+    }
+    // TODO(D-103 co-op): GetLocalParty is the server's side; every player's members should pay once co-op fights land.
+    bWipeEndsRun = WoRDefeat::ApplyWipe(GetWorld(), TrialRun->GetPendingRank(), MemberKeys).bRunEnds;
+    // Save the loss now: the next save point is leaving the results screen, and quitting there would undo the wipe.
+    if (USaveSubsystem *Save = GetGameInstance()->GetSubsystem<USaveSubsystem>())
+    {
+        Save->SaveNow(GetWorld(), true);
     }
 }
 
@@ -691,6 +727,14 @@ void ABattleGameMode::ReturnToTrial()
     // from inside the result broadcast.
     if (UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>())
     {
-        TrialRun->ExitEncounter();
+        if (bWipeEndsRun)
+        {
+            UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] The run is over (D-155): back to the hub"));
+            TrialRun->ExitTrialNextTick(); // B-362: 3 main-boss losses or 5 wipes; deferred like ExitEncounter (mid-teardown)
+        }
+        else
+        {
+            TrialRun->ExitEncounter();
+        }
     }
 }

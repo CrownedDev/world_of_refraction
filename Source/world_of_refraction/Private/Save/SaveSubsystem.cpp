@@ -749,6 +749,9 @@ FSavedRun USaveSubsystem::CaptureRun(const UTrialRunSubsystem &TrialRun, int32 R
 		Saved.RunMemories.Add(FSavedAssetRef::Make(Memory));
 	}
 	Saved.RunGold = RunGold;
+	Saved.Wipes = TrialRun.GetRunWipes(); // B-362
+	Saved.MainBossLosses = TrialRun.GetRunMainBossLosses();
+	Saved.LastRestSpot = TrialRun.GetLastRestSpot();
 	// B-314b (Q-314): the open run layer, so a resumed run keeps its found gear run-only and its home gear's home state.
 	const UGameInstance *GI = TrialRun.GetGameInstance();
 	const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
@@ -799,6 +802,7 @@ bool USaveSubsystem::RestoreRun(const FSavedRun &Saved, UTrialRunSubsystem &Tria
 		: TrialGate::DEFAULT_DIFFICULTY;
 	TrialRun.RestoreRun(Trial, Saved.RunSeed, Saved.VariationIndex, Difficulty, Saved.BeatenEncounters,
 						Saved.FoundFeatures, Memories);
+	TrialRun.RestoreRunLosses(Saved.Wipes, Saved.MainBossLosses, Saved.LastRestSpot); // B-362
 	// B-314b: the saved layer replaces the fresh one RestoreRun opened (the store was loaded from this same save).
 	UGameInstance *GI = TrialRun.GetGameInstance();
 	UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;

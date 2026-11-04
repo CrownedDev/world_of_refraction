@@ -2,6 +2,7 @@
 
 #include "Trial/TrialRunSubsystem.h"
 #include "Memory/MemoryData.h"
+#include "Trial/DefeatRules.h"
 #include "WoRLog.h"
 
 #include "Character/CharacterData.h"
@@ -91,6 +92,9 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     ActiveTrial = Trial;
     BeatenEncounters.Reset();
     bRunBossBeaten = false;
+    RunWipes = 0; // B-362
+    RunMainBossLosses = 0;
+    LastRestSpot = NAME_None;
     RunLevels.Reset(); // B-223: the run's pillar levels end with it (D-102)
     UnspentLevels.Reset();
     FoundFeatures.Reset();
@@ -182,6 +186,9 @@ void UTrialRunSubsystem::ExitTrial()
     TrialDifficulty = TrialGate::DEFAULT_DIFFICULTY;
     BeatenEncounters.Reset();
     bRunBossBeaten = false;
+    RunWipes = 0; // B-362
+    RunMainBossLosses = 0;
+    LastRestSpot = NAME_None;
     RunLevels.Reset(); // B-223: the run's pillar levels end with it (D-102)
     UnspentLevels.Reset();
     FoundFeatures.Reset();
@@ -190,9 +197,32 @@ void UTrialRunSubsystem::ExitTrial()
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
+    // B-362: a run ended by losses leaves from the battle level, with its fight's stash still set; the hub has no fight.
+    PendingBattleParty.Reset();
+    PendingOpposingParty.Reset();
+    EncounterReturnLevel = nullptr;
     // B-090: a trial's exit is a save point.
     GetGameInstance()->GetSubsystem<USaveSubsystem>()->SaveNow(GetGameInstance()->GetWorld(), true);
     TravelTo(HubLevel);
+}
+
+void UTrialRunSubsystem::ExitTrialNextTick()
+{
+    UWorld *World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+    if (HubLevel.IsNull() || !World)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[TrialRun] ExitTrialNextTick: no HubLevel (DefaultGame.ini) or world - the run cannot end; returning to the trial instead."));
+        ExitEncounter();
+        return;
+    }
+    // Once only: a second call queued in the same frame finds the run already over.
+    World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+    {
+        if (IsRunActive())
+        {
+            ExitTrial();
+        }
+    }));
 }
 
 // ==================== ENCOUNTER (T-C1) ====================
@@ -339,6 +369,39 @@ bool UTrialRunSubsystem::TakeUnspentLevel(FName CharacterKey)
         UnspentLevels.Remove(CharacterKey);
     }
     return true;
+}
+
+bool UTrialRunSubsystem::RecordWipe(EEncounterRank Rank)
+{
+    ++RunWipes;
+    if (DefeatRules::IsMainBoss(Rank))
+    {
+        ++RunMainBossLosses;
+    }
+    const bool bRunOver = DefeatRules::RunEnds(RunWipes, RunMainBossLosses);
+    UE_LOG(LogTemp, Log, TEXT("[TrialRun] Wipe %d of %d (main-boss losses %d of %d)%s"), RunWipes, DefeatRules::MAX_WIPES_PER_RUN,
+           RunMainBossLosses, DefeatRules::MAX_MAIN_BOSS_LOSSES_PER_RUN, bRunOver ? TEXT(": the run is over") : TEXT(""));
+    return bRunOver;
+}
+
+int32 UTrialRunSubsystem::LoseRunPoints(FName CharacterKey, int32 MaxPoints)
+{
+    FRunLevels *Levels = RunLevels.Find(CharacterKey);
+    int32 Taken = 0;
+    EWorldPillar Pillar = EWorldPillar::Mind;
+    while (Levels && Taken < MaxPoints && DefeatRules::PickPillarToLose(Levels->Mind, Levels->Body, Levels->Spirit, Pillar))
+    {
+        --Levels->For(Pillar);
+        ++Taken;
+    }
+    return Taken;
+}
+
+void UTrialRunSubsystem::RestoreRunLosses(int32 Wipes, int32 MainBossLosses, FName RestSpotId)
+{
+    RunWipes = FMath::Max(Wipes, 0);
+    RunMainBossLosses = FMath::Max(MainBossLosses, 0);
+    LastRestSpot = RestSpotId;
 }
 
 FString UTrialRunSubsystem::GetRunLevelsString() const
