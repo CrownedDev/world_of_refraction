@@ -7,6 +7,7 @@
 #include "Pool/PoolAccessors.h"             // the filter/translation layer
 #include "Equipment/Crystals/CrystalType.h" // StaticEnum<ECrystalType> for the debug dump
 #include "Equipment/Crystals/CrystalTypeHelpers.h" // IsGemType — item/refined gem/stone dispatch
+#include "Equipment/Crystals/StatStone.h"          // StatStone::Normalize (B-353)
 #include "Inventory/ItemTier.h"             // TierHelpers::GetTierName
 #include "Engine/Engine.h"                  // GEngine on-screen debug
 #include "Misc/Paths.h"                     // FPaths::GetBaseFilename for the wearer dump
@@ -499,8 +500,9 @@ const FAbilityInstance *UPoolSubsystem::FindAbilityInPool(const FGuid &InstanceI
 
 // ==================== ITEMS ====================
 
-void UPoolSubsystem::AddCrystalToPool(const FCrystalId &Id, int32 Count)
+void UPoolSubsystem::AddCrystalToPool(const FCrystalId &InId, int32 Count)
 {
+    const FCrystalId Id = StatStone::Normalize(InId); // B-353: an old single-stat stone is its StatStone here too
     if (Count <= 0)
     {
         return;
@@ -523,14 +525,16 @@ FPoolPouch &UPoolSubsystem::FindOrAddPouch(FName CharacterKey)
     return Pouches.FindOrAdd(CharacterKey);
 }
 
-int32 UPoolSubsystem::GetCarriedCount(FName CharacterKey, const FCrystalId &Id) const
+int32 UPoolSubsystem::GetCarriedCount(FName CharacterKey, const FCrystalId &InId) const
 {
+    const FCrystalId Id = StatStone::Normalize(InId); // B-353
     const int32 *Found = GetPouch(CharacterKey).Stacks.Find(Id);
     return Found ? *Found : 0;
 }
 
-int32 UPoolSubsystem::GetCarryRoom(FName CharacterKey, const FCrystalId &Id) const
+int32 UPoolSubsystem::GetCarryRoom(FName CharacterKey, const FCrystalId &InId) const
 {
+    const FCrystalId Id = StatStone::Normalize(InId); // B-353
     if (Id.Type == ECrystalType::None || CharacterKey.IsNone())
     {
         return 0;
@@ -544,8 +548,9 @@ int32 UPoolSubsystem::GetCarryRoom(FName CharacterKey, const FCrystalId &Id) con
     return FMath::Max(0, InventoryConstants::ITEM_STACK_MAX - (Stack ? *Stack : 0));
 }
 
-int32 UPoolSubsystem::CarryOrStore(FName CharacterKey, const FCrystalId &Id, int32 Count)
+int32 UPoolSubsystem::CarryOrStore(FName CharacterKey, const FCrystalId &InId, int32 Count)
 {
+    const FCrystalId Id = StatStone::Normalize(InId); // B-353
     if (Count <= 0 || Id.Type == ECrystalType::None)
     {
         return 0;
@@ -567,8 +572,9 @@ int32 UPoolSubsystem::CarryOrStore(FName CharacterKey, const FCrystalId &Id, int
     return Stored;
 }
 
-int32 UPoolSubsystem::TakeCarried(FName CharacterKey, const FCrystalId &Id, int32 Count)
+int32 UPoolSubsystem::TakeCarried(FName CharacterKey, const FCrystalId &InId, int32 Count)
 {
+    const FCrystalId Id = StatStone::Normalize(InId); // B-353
     FPoolPouch *Pouch = Pouches.Find(CharacterKey);
     int32 *Stack = Pouch ? Pouch->Stacks.Find(Id) : nullptr;
     if (!Stack || Count <= 0)
@@ -585,14 +591,16 @@ int32 UPoolSubsystem::TakeCarried(FName CharacterKey, const FCrystalId &Id, int3
     return Taken;
 }
 
-int32 UPoolSubsystem::GetStoredCount(const FCrystalId &Id) const
+int32 UPoolSubsystem::GetStoredCount(const FCrystalId &InId) const
 {
+    const FCrystalId Id = StatStone::Normalize(InId); // B-353
     const int32 *Found = (CrystalTypeHelpers::IsGemType(Id.Type) ? Crystals : Stones).Find(Id);
     return Found ? *Found : 0;
 }
 
-int32 UPoolSubsystem::TakeStored(const FCrystalId &Id, int32 Count)
+int32 UPoolSubsystem::TakeStored(const FCrystalId &InId, int32 Count)
 {
+    const FCrystalId Id = StatStone::Normalize(InId); // B-353
     TMap<FCrystalId, int32> &Storage = CrystalTypeHelpers::IsGemType(Id.Type) ? Crystals : Stones;
     int32 *Stack = Storage.Find(Id);
     if (!Stack || Count <= 0)

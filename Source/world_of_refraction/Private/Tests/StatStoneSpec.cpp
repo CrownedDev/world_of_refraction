@@ -62,6 +62,15 @@ void FStatStoneSpec::Define()
 		TestTrue(TEXT("the eleven single-stat kinds are retired"), Retired == STONE_TEST_RETIRED_KINDS);
 	});
 
+	It("clears a stray sub-stat on a non-StatStone and leaves an inert StatStone without a row (review)", [this]()
+	{
+		const FCrystalId Stray(ECrystalType::Garnet, EItemTier::C_Tier, ESubStat::Defense);
+		TestTrue(TEXT("a gem never carries a sub-stat"), StatStone::Normalize(Stray) == FCrystalId(ECrystalType::Garnet, EItemTier::C_Tier));
+		TestEqual(TEXT("a StatStone with no sub-stat reads no row"), StatStone::RowType(FCrystalId(ECrystalType::StatStone, EItemTier::F_Tier)), ECrystalType::StatStone);
+		TestEqual(TEXT("a stat stone grants a Broken Darkness character no energy, like the kinds it replaces"),
+				  CrystalEffectTable::GetBrokenDarknessEnergyPercent(StatStone::Make(ESubStat::Defense, EItemTier::S_Tier)), 0.0f, STAT_STONE_TEST_TOLERANCE);
+	});
+
 	It("keeps the Damage, Ability, Healing and pool stones as they are", [this]()
 	{
 		for (const ECrystalType Kept : STONE_TEST_KEPT)
