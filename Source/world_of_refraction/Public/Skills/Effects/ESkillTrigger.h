@@ -39,5 +39,9 @@ enum class ESkillTrigger : uint8
     OnPerfectDodge UMETA(DisplayName = "On Perfect Dodge"),
     // Guard (D-084): On Guard fires on every successful Guard, On Perfect Guard also on a Perfect one.
     OnGuard UMETA(DisplayName = "On Guard"),
-    OnPerfectGuard UMETA(DisplayName = "On Perfect Guard")
+    OnPerfectGuard UMETA(DisplayName = "On Perfect Guard"),
+    // B-337c (D-158, Q-365): every hit of one enemy attack or spell perfectly guarded or dodged, reported once
+    // at its last hit (UDefenseSystem::OnFlawlessParry). Its own trigger: a Flawless Parry also fires the
+    // last hit's On Perfect Guard / Dodge as usual.
+    OnFlawlessParry UMETA(DisplayName = "On Flawless Parry")
 };

@@ -18,6 +18,7 @@
 #include "Equipment/FAttachedItem.h"
 #include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Equipment/IEquipmentGenerator.h"
+#include "Conditions/WoRCondition.h" // FBoundMemory::Conditions (B-337c)
 #include "GameplayTagContainer.h" // SourceTags — loot/draft source-tag layer (§7.9 C1)
 
 #if WITH_EDITOR
@@ -36,7 +37,9 @@ class UTexture2D;
 
 /** B-209 (D-100, Crown 2026-10-27): a memory a bound item carries. It unlocks when every condition
  *  set on it holds: the item upgraded far enough, and/or its trigger conditions. Checked when the
- *  item is levelled up (the upgrade level alone) and when it is worn into a fight (all of them). */
+ *  item is levelled up (the upgrade level alone) and when it is worn into a fight (all of them).
+ *  B-337c (D-130): the conditions are one FWoRConditionSet (Conditions); an item authored with the
+ *  old fields reads across (MemoryUnlock::GetBoundConditions) until they are converted. */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FBoundMemory
 {
@@ -45,19 +48,26 @@ struct WORLD_OF_REFRACTION_API FBoundMemory
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
     TObjectPtr<UMemoryData> Memory = nullptr;
 
-    /** Tiers above the item's authored tier it must be levelled to (0: no upgrade needed). */
+    /** B-337c: when set, these are the memory's conditions and the old fields below are ignored. The
+     *  item's level-up checks them with the BoundGearUsed trigger, a fight start with FightStart. A level-up
+     *  event carries no party: a condition naming a Character holds only at a fight start. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
+    FWoRConditionSet Conditions;
+
+    /** OBSOLETE (B-337c: author Conditions; read across while Conditions is empty). Tiers above the item's authored tier it must be levelled to (0: no upgrade needed). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound", meta = (ClampMin = 0))
     int32 UpgradeLevel = 0;
 
-    /** Trigger: its owner (BoundOwner) wears it into a fight. */
+    /** OBSOLETE (B-337c). Trigger: its owner (BoundOwner) wears it into a fight. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
     bool bNeedsOwnerWearing = false;
 
-    /** Trigger: worn into a fight against this character. TODO: hidden conditions (pillar 10). */
+    /** OBSOLETE (B-337c). Trigger: worn into a fight against this character. TODO: hidden conditions (pillar 10). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
     TObjectPtr<UCharacterData> FacingCharacter = nullptr;
 
-    /** A trigger can only hold in a fight, so a memory with one never unlocks on a level-up. */
+    /** OBSOLETE (B-337c: the read-across gives these GearEquipped a FightStart trigger instead).
+     *  A trigger can only hold in a fight, so a memory with one never unlocks on a level-up. */
     bool HasTrigger() const { return bNeedsOwnerWearing || FacingCharacter != nullptr; }
 };
 

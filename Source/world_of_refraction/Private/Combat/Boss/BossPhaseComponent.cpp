@@ -191,8 +191,11 @@ void UBossPhaseComponent::EvaluatePhases()
 	for (int32 Firing = 0; Firing < BossPhaseConstants::MAX_RULE_FIRINGS_PER_EVALUATION; ++Firing)
 	{
 		const FWoRBossState BossState = MakeBossState();
+		// B-337c (Q-337b): the boss is the rules' Self, so the shared Hp subject reads it too.
+		const FWoRFighterState BossSelf{BossState.CurrentHP, BossState.MaxHP};
 		FWoRConditionContext Context;
 		Context.Boss = &BossState;
+		Context.Self = &BossSelf;
 		const FBossRule *Fired = nullptr;
 		for (int32 Index = 0; Index < AuthoredRules.Num() && !Fired; ++Index)
 		{

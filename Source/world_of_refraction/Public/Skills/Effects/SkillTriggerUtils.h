@@ -27,7 +27,8 @@ namespace SkillTriggerUtils
             || T == ESkillTrigger::OnBlock || T == ESkillTrigger::OnPerfectBlock
             || T == ESkillTrigger::OnDodge || T == ESkillTrigger::OnPerfectDodge
             || T == ESkillTrigger::OnGuard || T == ESkillTrigger::OnPerfectGuard
-            || T == ESkillTrigger::OnTakeDamage;
+            || T == ESkillTrigger::OnTakeDamage
+            || T == ESkillTrigger::OnFlawlessParry; // B-337c: fired by its own event, not by one outcome
     }
 
     /** Maps a resolved defense outcome to the trigger(s) it fires.

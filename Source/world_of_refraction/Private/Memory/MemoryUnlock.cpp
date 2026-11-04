@@ -3,6 +3,8 @@
 #include "Memory/MemoryUnlock.h"
 
 #include "Character/CharacterDataComponent.h"
+#include "Conditions/WoRConditions.h"
+#include "Memory/MemoryConditions.h"
 #include "Combat/Boss/BossData.h"
 #include "Engine/GameInstance.h"
 #include "Equipment/EquipmentDataBase.h"
@@ -133,6 +135,46 @@ bool MemoryUnlock::AreConditionsMet(const FBoundMemory &Bound, const UEquipmentD
 		   (!Bound.FacingCharacter || IsFacing(Bound.FacingCharacter, Opposing));
 }
 
+FWoRConditionSet MemoryUnlock::GetBoundConditions(const FBoundMemory &Bound, const UEquipmentDataBase &Item)
+{
+	if (!Bound.Conditions.Conditions.IsEmpty())
+	{
+		return Bound.Conditions;
+	}
+	// The old fields: an old trigger can only hold in a fight, so its conditions check at FightStart.
+	const EWoRConditionTrigger When = Bound.HasTrigger() ? EWoRConditionTrigger::FightStart : EWoRConditionTrigger::Any;
+	FWoRConditionSet Set;
+	FWoRCondition &Worn = Set.Conditions.AddDefaulted_GetRef();
+	Worn.Trigger = When;
+	Worn.Subject = EWoRConditionSubject::GearEquipped;
+	Worn.Item = const_cast<UEquipmentDataBase *>(&Item);
+	Worn.Operator = EWoRConditionOperator::AtLeast;
+	Worn.Value = Bound.UpgradeLevel;
+	if (Bound.bNeedsOwnerWearing)
+	{
+		Worn.Character = Item.BoundOwner;
+		if (!Item.BoundOwner)
+		{
+			// Owner wearing with no owner never held: keep it that way.
+			FWoRCondition &Never = Set.Conditions.AddDefaulted_GetRef();
+			Never.Subject = EWoRConditionSubject::Hidden;
+		}
+	}
+	if (Bound.FacingCharacter)
+	{
+		FWoRCondition &Facing = Set.Conditions.AddDefaulted_GetRef();
+		Facing.Trigger = When;
+		Facing.Subject = EWoRConditionSubject::FacingEnemy;
+		Facing.Enemy = Bound.FacingCharacter;
+	}
+	return Set;
+}
+
+bool MemoryUnlock::IsBoundMet(const FBoundMemory &Bound, const UEquipmentDataBase &Item, const FWoRConditionContext &Context)
+{
+	return Bound.Memory && WoRConditions::IsMet(GetBoundConditions(Bound, Item), Context);
+}
+
 int32 MemoryUnlock::UnlockBoundOnLevelUp(UGameInstance *GameInstance, const UEquipmentDataBase *Item, EItemTier InstanceTier)
 {
 	if (!Item)
@@ -140,10 +182,16 @@ int32 MemoryUnlock::UnlockBoundOnLevelUp(UGameInstance *GameInstance, const UEqu
 		return 0;
 	}
 	int32 Unlocked = 0;
-	const int32 Steps = GetUpgradeSteps(*Item, InstanceTier);
+	// B-337c: the level-up as an event of its own (no party: a trigger needing one cannot hold).
+	FMemoryEvent LevelUp;
+	LevelUp.Source = EMemorySource::BoundGear;
+	LevelUp.UpgradedItem = Item;
+	LevelUp.UpgradedTier = InstanceTier;
+	const FWoRConditionContext Context =
+		WoRConditions::MakeContext(LevelUp, GameInstance ? GameInstance->GetSubsystem<UMemoryJournalSubsystem>() : nullptr);
 	for (const FBoundMemory &Bound : Item->BoundMemories)
 	{
-		if (AreConditionsMet(Bound, *Item, Steps, nullptr, {}) && Unlock(GameInstance, Bound.Memory, EMemorySource::BoundGear))
+		if (IsBoundMet(Bound, *Item, Context) && Unlock(GameInstance, Bound.Memory, EMemorySource::BoundGear))
 		{
 			++Unlocked;
 		}
@@ -162,16 +210,27 @@ int32 MemoryUnlock::UnlockAtFightStart(UGameInstance *GameInstance, const TArray
 			++Unlocked;
 		}
 	}
+	// B-337c: the fight start as one event: the party's worn gear and the opposing team.
+	FMemoryEvent FightStart;
+	FightStart.Source = EMemorySource::BoundGear;
 	for (const AActor *Member : Party)
 	{
-		const UCharacterData *Wearer = CharacterOf(Member);
-		for (const TPair<const UEquipmentDataBase *, EItemTier> &Worn : GetWornWithTiers(Member))
+		FightStart.Party.Add(MemoryConditions::MakeMember(Member));
+	}
+	FWoRConditionContext Context =
+		WoRConditions::MakeContext(FightStart, GameInstance ? GameInstance->GetSubsystem<UMemoryJournalSubsystem>() : nullptr);
+	Context.Trigger = EWoRConditionTrigger::FightStart;
+	for (const AActor *Foe : Opposing)
+	{
+		Context.Opposing.Add(CharacterOf(Foe));
+	}
+	for (const FMemoryEventMember &Member : FightStart.Party)
+	{
+		for (const TPair<const UEquipmentDataBase *, EItemTier> &Worn : Member.Worn)
 		{
-			const int32 Steps = GetUpgradeSteps(*Worn.Key, Worn.Value);
 			for (const FBoundMemory &Bound : Worn.Key->BoundMemories)
 			{
-				if (AreConditionsMet(Bound, *Worn.Key, Steps, Wearer, Opposing) &&
-					Unlock(GameInstance, Bound.Memory, EMemorySource::BoundGear))
+				if (IsBoundMet(Bound, *Worn.Key, Context) && Unlock(GameInstance, Bound.Memory, EMemorySource::BoundGear))
 				{
 					++Unlocked;
 				}

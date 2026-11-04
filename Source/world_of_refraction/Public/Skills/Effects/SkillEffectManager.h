@@ -114,6 +114,17 @@ public:
 								  EDefenseType DefenseType, bool bPerfect, int32 ImpactIndex,
 								  float AttackEnergyCost);
 
+	/** B-337c: listener bound to UDefenseSystem::OnFlawlessParry (B-365): fires the armed On Flawless Parry
+	 *  effects, from the defender's side and the attacker's, as a defense outcome does. An attack-scaled
+	 *  payload grants 0 here (no single impact's cost). */
+	UFUNCTION()
+	void OnFlawlessParryHandler(AActor *Defender, AActor *Attacker);
+
+	/** The defense-trigger pass both listeners share: every armed conditional of the defender and the attacker
+	 *  whose defense-outcome conditions are among OutcomeTriggers fires its payloads. */
+	void FireDefenseTriggerEffects(AActor *Defender, AActor *Attacker, const TArray<ESkillTrigger> &OutcomeTriggers,
+								   EDefenseType DefenseType, bool bPerfect, float AttackEnergyCost);
+
 	// ========================================
 	// EFFECT APPLICATION
 	// ========================================

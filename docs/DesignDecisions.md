@@ -3789,7 +3789,19 @@ Moved here once applied. Newest first.
 - (4) **A** `RequiredItems` / `FacingCharacter` read across on load (one `GearEquipped` per item, worn by the wearer, plus `FacingEnemy`); facing alone with no items never fires, as before; the old check stays as `MatchesOld` until the PIE pass. **B** convert the assets in the editor now.
 **Recommendation:** A throughout. The deckbuilder (`docs/reference/05-triggers-conditions.md`: absolute HP; `Who` Self / Target) is the first reference; Slay the Spire's relics (fire on an event, check a state) are the well-liked example of the shape; reading old data across keeps every authored reaction working (as B-337 did for memories and B-355 for bosses).
 **Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
-**Notes for Claude:** built in B-337b. Boss rules do not fill `Self` yet (their HP subject stays `BossHPAtMostPercent`); B-337c, or the first boss rule that needs it, sets it.
+**Notes for Claude:** built in B-337b. Boss rules do not fill `Self` yet (their HP subject stays `BossHPAtMostPercent`); B-337c, or the first boss rule that needs it, sets it. B-337c sets it.
+
+### Q-337c — One condition vocabulary, part 3: the job in two, and percent thresholds on skills
+**Status:** ANSWERED (approved by the reference-backed default; (2) flagged for Crown) · **Raised:** 2026-11-04 (B-337c, desktop) · **Blocks:** —
+**Question:** B-337c's row moves a bound item's memory conditions and the skill-effect triggers onto the shared conditions. (1) The skill side is the whole skill-effect condition system (`FSkillCondition`: about 25 triggers, AND/OR groups, owner / target sides, thresholds), far more than an M job. (2) Its HP and EP thresholds are **percent** ("When HP below 30%"), while the shared `Hp` subject is an absolute amount (Q-337b, the deckbuilder's rule).
+**Options / as built:**
+- (1) **A** two jobs: B-337c moves the bound memories, has boss rules fill `Self`, and adds the skill trigger **On Flawless Parry** (B-365's first reader); **B-337d** (new row, L) moves `FSkillCondition`. **B** all in one job.
+- (2) **A** keep skill thresholds in percent as authored and give the vocabulary percent subjects for them (the two games already differ here: flagged, not "fixed"). **B** convert them to absolute amounts.
+- (bound memories, as built) an old item's trigger fields (owner wearing, a facing enemy) read across as conditions checked at the new trigger **FightStart** only, so, as before, they never hold on a level-up; the upgrade level alone holds at either.
+- (3) **A** On Flawless Parry is its own trigger: the last hit still fires its own On Perfect Guard / Dodge, and a Flawless Parry fires only On Flawless Parry effects (an attack-scaled payload grants 0 on it, there being no one impact's cost). **B** it also fires the perfect-defense triggers again.
+**Recommendation:** A throughout. Slicing as B-337 / B-337b did keeps each step provable by a parity spec. Percent thresholds are how the best-liked RPG passives read (Expedition 33's Pictos "below 50% HP", Dark Souls' Red Tearstone Ring "HP below 20%"); a flat number stops meaning anything as HP grows. (3) avoids double rewards for one defense (Sekiro's deflect and its counter are separate events).
+**Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it; (2) is the deckbuilder difference to confirm.
+**Notes for Claude:** B-337c built (1)'s first half and (3); B-337d does the rest.
 
 ### Q-313 — The pouch in a fight: how far B-313 goes, the tier caps, and a recruit's items
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-313, cloud) · **Blocks:** —
