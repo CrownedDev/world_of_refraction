@@ -36,6 +36,21 @@ namespace CombatControl
 		return IsPlayerDriven(Cast<APawn>(Actor));
 	}
 
+	/** B-346: an AI seat's difficulty for this fight (Medium when none was set, or no character data). */
+	inline EAIDifficulty GetAISeatDifficulty(const AActor *Actor)
+	{
+		const UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		return CharComp ? CharComp->AISeatDifficulty : EAIDifficulty::Medium;
+	}
+
+	inline void SetAISeatDifficulty(AActor *Actor, EAIDifficulty Difficulty)
+	{
+		if (UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+		{
+			CharComp->AISeatDifficulty = Difficulty;
+		}
+	}
+
 	/** Set or clear the per-fight Player flag. No effect on possession: a possessed pawn stays player-driven. */
 	inline void SetPlayerDriven(AActor *Actor, bool bPlayerDriven)
 	{

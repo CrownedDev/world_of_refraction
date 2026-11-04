@@ -10,6 +10,7 @@
 #include "Character/StatConstants.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Character/EWorldPillar.h"
+#include "AI/EAIDifficulty.h"
 #include "CharacterDataComponent.generated.h"
 
 enum class ESubStat : uint8;
@@ -137,6 +138,11 @@ public:
      *  party member, D-004). Read through CombatControl::IsPlayerDriven, never directly. */
     UPROPERTY(Transient, BlueprintReadOnly, Category = "Combat")
     bool bPlayerDriven = false;
+
+    /** Per-fight (B-346): the AI seat's difficulty when this party member is an AI seat (set at spawn
+     *  from FPartyMember::AISeatDifficulty, default Medium). Read through CombatControl::GetAISeatDifficulty. */
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "Combat")
+    EAIDifficulty AISeatDifficulty = EAIDifficulty::Medium;
 
     /**
      * Runtime "is currently BD" state — the SOLE authority for BD-ness (direct
