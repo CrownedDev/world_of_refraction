@@ -1834,6 +1834,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** remove `CombatOrchestratorTestActor`, `TurnManagerTestActor`, `SkillEffectManagerTestActor`, `HUDTestActor` and `SkillProjectileTestActor` now, with no PIE gate. Where an actor covers something no spec covers, the spec comes first in the same job. Any actor placed in a map or referenced by a Blueprint is listed for an editor step instead of deleted blind. The GAS parity specs are deleted with the enum path (D-121, B-042g). `test.sh` prints the 10 slowest tests. The quick balance sim runs in the nightly preset only. CLAUDE.md's Tests rule changes (Crown to approve that edit).
 **Notes for Claude:** job B-350; the parity-spec delete rides with B-042g.
 
+### Q-350 — Does the GAS parity check stay in the default test run?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-350 review, desktop) · **Blocks:** —
+**Question:** D-140 moves the quick balance sim to the nightly preset. The cloud branch also gated `WoR.Balance.Sim.GASParity` (two seeds of the quick matchups on the enum path and on GAS) behind a preset, which D-140 doesn't ask for; the gating also crashed the default run (the status-break case used the runner the skip never built).
+**Options:** **A** GASParity stays in the default run on the quick matchups (a preset widens it); only the targets sim is nightly. **B** gate both behind a preset.
+**Recommendation:** A. D-140's reason is run time; the parity check is two short fights, and it is the one guard on the GAS migration until B-042g deletes the enum path (D-121). Lyra and the engine's own GAS test suites keep their parity / regression specs in the default run for the same reason.
+**Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
+**Notes for Claude:** applied in B-350 on the desktop (the skip removed from `FBalanceGASParitySpec`).
+
 ### D-141 — Two sockets per weapon and adapter; fusions retire (audit round 3 §26; changes D-009, D-077)
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §26, `chore/simplicity-audit` eb478300) · **Blocks:** —
 **Answer (Crown):** every weapon and adapter has two sockets: an **element socket** (a gem or an evolution) and a **stone socket** (a stone). Fusions retire: the fusion items, their bonus formula, `FFusionId`, fusion wear and pricing, and D-077's counting rule. Enums are append-only, so their values are marked retired. Fusion wear goes with fusions; evolution wear stays (this narrows round 1's "§5 no change" note).
