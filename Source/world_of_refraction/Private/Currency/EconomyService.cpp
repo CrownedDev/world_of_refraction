@@ -736,8 +736,10 @@ bool UEconomyService::RemovePrimaryEvolution(AActor *Owner)
     }
 
     // D-116: this always empties the primary, so it waits for another primary to be swapped in.
+    // B-314: refuse a home piece on the run here, before the slot is cleared, so the refusal is whole.
     const UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    if (Inv && EconomyRefusesPrimary(*Inv, InstanceID, TEXT("RemovePrimaryEvolution")))
+    if ((Inv && EconomyRefusesPrimary(*Inv, InstanceID, TEXT("RemovePrimaryEvolution"))) ||
+        EconomyRefusesOnRun(Owner, InstanceID, TEXT("RemovePrimaryEvolution")))
     {
         return false;
     }
