@@ -169,6 +169,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Party")
 	bool IsMemberAISeat(int32 SlotIndex) const;
 
+	/** D-150 (B-360): a joining player's Character takes the AI seat in SlotIndex. That member's gear and pouch go
+	 *  to the leader (the host's run). Refused (false, logged): not an AI seat, the leader's slot, during a fight,
+	 *  or a character already in the party (separate copies: B-360b). PawnClass empty = the leader's. */
+	UFUNCTION(BlueprintCallable, Category = "Party")
+	bool ReplaceAISeatWithPlayer(int32 SlotIndex, TSoftClassPtr<ACombatCharacter> PawnClass, UCharacterData *Character);
+
+	/** A fight is running in this world (seats are fixed during one, Q-21-audit). Public since B-360: the run state's join request reads it. */
+	bool IsFightRunning() const;
+
 	/** OBSOLETE (B-346): forwards to SetMemberAISeat(SlotIndex, !bPlayerControlled).
 	 *  Player or AI for one member in battle. The leader (slot 0) is always Player,
 	 *  so a request to hand it to the AI is refused (false). Broadcasts OnPartyChanged
@@ -245,8 +254,6 @@ public:
 	void LogPartyState() const;
 
 private:
-	/** B-346: true while a fight runs (seats are fixed for it). */
-	bool IsFightRunning() const;
 
 	/** A member's carried vitals at its computed maxima (Broken Darkness innate: empty EP). */
 	static void SetMemberVitalsFull(FPartyMember &Member);

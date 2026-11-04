@@ -4,9 +4,12 @@
 // run across level travel; a GameState lives for one level) when the level starts; clients get them by replication.
 // Reads go through the static Get* helpers: the GameState's copy when there is one, else the subsystem (standalone,
 // headless specs), so every caller has one path.
-// Seats (Q-21-audit, SeatRules): a member a player claimed (AWoRPlayerState::ClaimCharacter) is that player's; an
-// unclaimed member's turns rotate through the side's players; an AI seat is AI. The rotation counter lives here.
-// Debug: GetDebugString, `wor.Run.PrintState`.
+// Seats (Q-21-audit, D-150): a member a player claimed (AWoRPlayerState::ClaimCharacter) is that player's; an AI seat
+// is AI; in multiplayer every slot is one or the other (no unclaimed members, D-150: an unclaimed one falls to the host).
+// The B-232 rotation (RotationIndex, NoteTurnTaken, ResetRotation) is OBSOLETE (B-360): kept until Crown's PIE.
+// Joining mid-run (D-150): a player asks for a seat (RequestJoin); the host picks the AI seat it replaces (AcceptJoin:
+// `wor.Party.AcceptJoin`, or the placeholder `wor.UI.JoinSeat`); that member's gear and pouch go to the host.
+// Debug: GetDebugString, `wor.Run.PrintState`, `wor.Party.PrintJoinRequests`.
 
 #pragma once
 
@@ -15,11 +18,30 @@
 #include "Trial/TrialGate.h"
 #include "RunStateComponent.generated.h"
 
+class ACombatCharacter;
 class AController;
 class AGameStateBase;
+class APlayerState;
 class UCharacterData;
 class UParty;
 class UTrialData;
+
+/** D-150: a player waiting to join the run with its own character; the host picks the AI seat it takes. */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FRunJoinRequest
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Run State")
+	int32 PlayerId = INDEX_NONE;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Run State")
+	TObjectPtr<UCharacterData> Character = nullptr;
+
+	/** Empty: the leader's pawn class. */
+	UPROPERTY(BlueprintReadOnly, Category = "Run State")
+	TSoftClassPtr<ACombatCharacter> PawnClass;
+};
 
 /** One member of the side's roster. Who claims it is read from the players' PlayerStates. */
 USTRUCT(BlueprintType)
@@ -54,7 +76,7 @@ public:
 	 *  UPartySessionSubsystem::OnPartyChanged on authority. */
 	void RefreshRoster();
 
-	/** Server: the seat rotation starts over (each fight, from the orchestrator's StartCombat). */
+	/** OBSOLETE (B-360, D-150: no rotation; delete after PIE). Server: the seat rotation started over each fight. */
 	void ResetRotation();
 
 	// ---- Reads: the GameState's copy, else the subsystem ----
@@ -76,13 +98,28 @@ public:
 	TArray<int32> GetSidePlayerIds() const;
 
 	/** The player id that commands Member's turn now, or SeatRules::AI_COMMANDER (an AI seat, a side with no
-	 *  players, or Member not on the roster). */
+	 *  players, or Member not on the roster). D-150: a claimed member is its player's; an unclaimed one is the host's
+	 *  (solo: the one player) — nothing rotates. */
 	int32 GetCommander(const AActor *Member) const;
+
+	// ---- Joining mid-run (D-150) ----
+	/** Server: Joiner asks for a seat with Character. Refused (false, logged) with no free AI seat (the party is full),
+	 *  a character already in the party (B-360b lifts this), or during a fight. One request per player. */
+	bool RequestJoin(APlayerState *Joiner, UCharacterData *Character, TSoftClassPtr<ACombatCharacter> PawnClass);
+	/** Server, the host's choice: the request of PlayerId takes AI seat ReplaceSlot (its member's gear and pouch go to
+	 *  the host), the joiner claims its character, the roster follows. False (logged) when refused. */
+	bool AcceptJoin(int32 PlayerId, int32 ReplaceSlot);
+	/** Server: drop PlayerId's request. */
+	bool RefuseJoin(int32 PlayerId);
+	const TArray<FRunJoinRequest> &GetJoinRequests() const { return JoinRequests; }
+	/** The party slots an AI seat holds (never the leader's). */
+	TArray<int32> GetFreeAISeats() const;
 
 	/** Does Sender (its PlayerState's id) command Member now? False off the roster. */
 	bool IsCommandedBy(const AActor *Member, const AController *Sender) const;
 
-	/** Server: Member's turn ended; a turn taken by the rotation moves it to the side's next player. */
+	/** OBSOLETE (B-360, D-150: no rotation; delete after PIE). Server: Member's turn ended; a turn the rotation
+	 *  took moved it to the side's next player. Does nothing now. */
 	void NoteTurnTaken(const AActor *Member);
 
 	int32 GetRotationIndex() const { return RotationIndex; }
@@ -124,8 +161,11 @@ private:
 	UPROPERTY(Replicated)
 	TArray<FRunRosterEntry> Roster;
 
-	/** How many rotated turns the side has taken this fight (SeatRules::GetCommander); ResetRotation at each
-	 *  StartCombat, and at the pull. */
+	/** Server only: who is waiting to join (D-150). */
+	UPROPERTY()
+	TArray<FRunJoinRequest> JoinRequests;
+
+	/** OBSOLETE (B-360, D-150): the B-232 rotation counter, no longer read. */
 	UPROPERTY(Replicated)
 	int32 RotationIndex = 0;
 };

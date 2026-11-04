@@ -136,7 +136,7 @@ void FRunStateSpec::Define()
 		TestFalse(TEXT("second doesn't command the first's"), ACombatPlayerController::ControlsActor(SecondPC, FirstHero));
 	});
 
-	It("rotates an unclaimed member's turns through the side's players; an AI seat is nobody's", [this]()
+	It("gives an unclaimed member to the host, nothing rotates (D-150); an AI seat is nobody's", [this]()
 	{
 		if (!Run || !FirstPC || !SecondPC) return;
 		UCharacterData *ClaimedData = FWoRTestWorld::NewCharacterData();
@@ -152,14 +152,14 @@ void FRunStateSpec::Define()
 		APlayerController *SeatZero = SeatOrderPC(0);
 		APlayerController *SeatOne = SeatOrderPC(1);
 		if (!TestNotNull(TEXT("seat 0"), SeatZero) || !TestNotNull(TEXT("seat 1"), SeatOne)) return;
-		TestTrue(TEXT("turn 1: the first seat commands the unclaimed member"), ACombatPlayerController::ControlsActor(SeatZero, Recruit));
-		TestFalse(TEXT("turn 1: not the second seat"), ACombatPlayerController::ControlsActor(SeatOne, Recruit));
+		TestTrue(TEXT("the host (first seat) commands the unclaimed member"), ACombatPlayerController::ControlsActor(SeatZero, Recruit));
+		TestFalse(TEXT("not the second seat"), ACombatPlayerController::ControlsActor(SeatOne, Recruit));
 
 		Run->NoteTurnTaken(Claimed);
-		TestEqual(TEXT("a claimed member's turn doesn't move the rotation"), Run->GetRotationIndex(), 0);
 		Run->NoteTurnTaken(Recruit);
-		TestTrue(TEXT("turn 2: the second seat commands it"), ACombatPlayerController::ControlsActor(SeatOne, Recruit));
-		TestFalse(TEXT("turn 2: not the first seat"), ACombatPlayerController::ControlsActor(SeatZero, Recruit));
+		TestTrue(TEXT("after turns, still the host (no rotation, D-150)"), ACombatPlayerController::ControlsActor(SeatZero, Recruit));
+		TestFalse(TEXT("still not the second seat"), ACombatPlayerController::ControlsActor(SeatOne, Recruit));
+		TestEqual(TEXT("the OBSOLETE rotation counter stays 0"), Run->GetRotationIndex(), 0);
 
 		TestFalse(TEXT("an AI seat: not the first player"), ACombatPlayerController::ControlsActor(FirstPC, AISeat));
 		TestFalse(TEXT("an AI seat: not the second player"), ACombatPlayerController::ControlsActor(SecondPC, AISeat));

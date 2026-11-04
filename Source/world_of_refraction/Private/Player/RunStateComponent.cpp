@@ -37,6 +37,60 @@ namespace
 			const URunStateComponent *Run = URunStateComponent::Find(World);
 			UE_LOG(LogWoR, Log, TEXT("%s"), Run ? *Run->GetDebugString() : TEXT("[RunState] no AWoRGameState run state in this world"));
 		}));
+
+	FAutoConsoleCommandWithWorld GPrintJoinRequestsCmd(
+		TEXT("wor.Party.PrintJoinRequests"),
+		TEXT("D-150: the players waiting to join this run and the AI seats they could take."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				const URunStateComponent *Run = URunStateComponent::Find(World);
+				if (!Run)
+				{
+					UE_LOG(LogWoR, Display, TEXT("[RunState] no GameState run state here"));
+					return;
+				}
+				FString Seats;
+				for (const int32 Slot : Run->GetFreeAISeats())
+				{
+					Seats += FString::Printf(TEXT(" %d"), Slot);
+				}
+				UE_LOG(LogWoR, Display, TEXT("[RunState] %d join request(s); AI seats:%s"), Run->GetJoinRequests().Num(), Seats.IsEmpty() ? TEXT(" none") : *Seats);
+				for (const FRunJoinRequest &Request : Run->GetJoinRequests())
+				{
+					UE_LOG(LogWoR, Display, TEXT("  player %d with %s"), Request.PlayerId, *GetNameSafe(Request.Character));
+				}
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GAcceptJoinCmd(
+		TEXT("wor.Party.AcceptJoin"),
+		TEXT("D-150, host only: wor.Party.AcceptJoin <player id> <slot> - that player's character takes the AI seat in <slot>; the seat's gear and pouch go to the host."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				URunStateComponent *Run = URunStateComponent::Find(World);
+				if (!Run || Args.Num() < 2 || !Args[0].IsNumeric() || !Args[1].IsNumeric())
+				{
+					UE_LOG(LogWoR, Display, TEXT("[RunState] usage: wor.Party.AcceptJoin <player id> <slot> (on the host)"));
+					return;
+				}
+				Run->AcceptJoin(FCString::Atoi(*Args[0]), FCString::Atoi(*Args[1]));
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GRefuseJoinCmd(
+		TEXT("wor.Party.RefuseJoin"),
+		TEXT("D-150, host only: wor.Party.RefuseJoin <player id> - drop that player's join request."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				URunStateComponent *Run = URunStateComponent::Find(World);
+				if (!Run || Args.Num() < 1 || !Args[0].IsNumeric())
+				{
+					UE_LOG(LogWoR, Display, TEXT("[RunState] usage: wor.Party.RefuseJoin <player id> (on the host)"));
+					return;
+				}
+				Run->RefuseJoin(FCString::Atoi(*Args[0]));
+			}));
 }
 
 URunStateComponent::URunStateComponent()
@@ -224,11 +278,23 @@ int32 URunStateComponent::GetClaimingPlayerId(const UCharacterData *Character) c
 int32 URunStateComponent::GetCommander(const AActor *Member) const
 {
 	const FRunRosterEntry *Entry = FindRosterEntry(Member);
-	if (!Entry)
+	if (!Entry || Entry->bAISeat)
 	{
 		return SeatRules::AI_COMMANDER;
 	}
-	return SeatRules::GetCommander(Entry->bAISeat, GetClaimingPlayerId(Entry->Character), GetSidePlayerIds(), RotationIndex);
+	const TArray<int32> Side = GetSidePlayerIds();
+	if (Side.IsEmpty())
+	{
+		return SeatRules::AI_COMMANDER;
+	}
+	const int32 Claimed = GetClaimingPlayerId(Entry->Character);
+	if (Claimed != SeatRules::UNCLAIMED && Side.Contains(Claimed))
+	{
+		return Claimed;
+	}
+	// D-150: no unclaimed members in multiplayer (every slot is a player's character or an AI seat), so an unclaimed
+	// member is the host's: solo, that is the one player; in co-op the lowest id (the listen server's). No rotation.
+	return Side[0];
 }
 
 bool URunStateComponent::IsCommandedBy(const AActor *Member, const AController *Sender) const
@@ -242,34 +308,155 @@ bool URunStateComponent::IsCommandedBy(const AActor *Member, const AController *
 	return Commander != SeatRules::AI_COMMANDER && Commander == Player->GetPlayerId();
 }
 
-void URunStateComponent::NoteTurnTaken(const AActor *Member)
+void URunStateComponent::NoteTurnTaken(const AActor * /*Member*/)
 {
-	const FRunRosterEntry *Entry = FindRosterEntry(Member);
-	if (!Entry || GetSidePlayerIds().IsEmpty())
+	// OBSOLETE (B-360, D-150): nothing rotates any more.
+}
+
+TArray<int32> URunStateComponent::GetFreeAISeats() const
+{
+	TArray<int32> Seats;
+	const UWorld *World = GetWorld();
+	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	if (const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr)
 	{
-		return;
+		for (int32 Slot = 0; Slot < Party->Members.Num(); ++Slot)
+		{
+			if (Slot != PartyConstants::LEADER_SLOT && Party->Members[Slot].bAISeat)
+			{
+				Seats.Add(Slot);
+			}
+		}
 	}
-	// A claim by a player who left falls back to the rotation (SeatRules::GetCommander), so it advances it too.
-	const int32 Claimed = GetClaimingPlayerId(Entry->Character);
-	const bool bClaimHere = Claimed != SeatRules::UNCLAIMED && GetSidePlayerIds().Contains(Claimed);
-	if (SeatRules::UsesRotation(Entry->bAISeat, bClaimHere ? Claimed : SeatRules::UNCLAIMED))
+	return Seats;
+}
+
+bool URunStateComponent::RequestJoin(APlayerState *Joiner, UCharacterData *Character, TSoftClassPtr<ACombatCharacter> PawnClass)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || !Joiner || !Character)
 	{
-		++RotationIndex;
+		return false;
 	}
+	const UWorld *World = GetWorld();
+	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	if (!PartySession || !PartySession->GetLocalParty())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[RunState] Join refused for player %d: no party here"), Joiner->GetPlayerId());
+		return false;
+	}
+	if (PartySession->IsFightRunning())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[RunState] Join refused for player %d: seats are fixed during a fight (Q-21-audit)"), Joiner->GetPlayerId());
+		return false;
+	}
+	const AWoRPlayerState *WoRJoiner = Cast<AWoRPlayerState>(Joiner);
+	if (WoRJoiner && WoRJoiner->GetClaimedCharacters().Num() > 0)
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[RunState] Join refused for player %d: it already has a seat (%s)"), Joiner->GetPlayerId(),
+			   *GetNameSafe(WoRJoiner->GetClaimedCharacters()[0]));
+		return false;
+	}
+	if (GetFreeAISeats().IsEmpty())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[RunState] Join refused for player %d: the party is full (no AI seat to take, D-150)"), Joiner->GetPlayerId());
+		return false;
+	}
+	// TODO: co-op trust (B-233+): the client says this is its own character; the host does not check it against the client's save.
+	if (PartySession->GetMemberSlotByData(Character) != INDEX_NONE)
+	{
+		// TODO: B-360b (D-150 point 2): two players may bring the same character as separate copies.
+		UE_LOG(LogWoR, Warning, TEXT("[RunState] Join refused for player %d: %s is already in the party (separate copies: B-360b)"),
+			   Joiner->GetPlayerId(), *GetNameSafe(Character));
+		return false;
+	}
+	FRunJoinRequest *Existing = JoinRequests.FindByPredicate([Joiner](const FRunJoinRequest &R) { return R.PlayerId == Joiner->GetPlayerId(); });
+	FRunJoinRequest &Request = Existing ? *Existing : JoinRequests.AddDefaulted_GetRef();
+	Request.PlayerId = Joiner->GetPlayerId();
+	Request.Character = Character;
+	Request.PawnClass = PawnClass;
+	UE_LOG(LogWoR, Log, TEXT("[RunState] Player %d (%s) asks to join with %s; free AI seats: %d. Host: wor.Party.AcceptJoin %d <slot> (or wor.UI.JoinSeat)"),
+		   Request.PlayerId, *Joiner->GetPlayerName(), *GetNameSafe(Character), GetFreeAISeats().Num(), Request.PlayerId);
+	return true;
+}
+
+bool URunStateComponent::AcceptJoin(int32 PlayerId, int32 ReplaceSlot)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return false;
+	}
+	const int32 Index = JoinRequests.IndexOfByPredicate([PlayerId](const FRunJoinRequest &R) { return R.PlayerId == PlayerId; });
+	if (Index == INDEX_NONE)
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[RunState] AcceptJoin: player %d has no request"), PlayerId);
+		return false;
+	}
+	const FRunJoinRequest Request = JoinRequests[Index];
+	// The joiner first: a player who left after asking takes no seat (its request is dropped, nothing moves).
+	AWoRPlayerState *JoinerState = nullptr;
+	if (const AGameStateBase *GameState = GetOwningGameState())
+	{
+		for (APlayerState *Player : GameState->PlayerArray)
+		{
+			if (AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player); WoRPlayer && WoRPlayer->GetPlayerId() == PlayerId)
+			{
+				JoinerState = WoRPlayer;
+			}
+		}
+	}
+	if (!JoinerState)
+	{
+		JoinRequests.RemoveAt(Index);
+		UE_LOG(LogWoR, Warning, TEXT("[RunState] AcceptJoin: player %d has left; its request is dropped"), PlayerId);
+		return false;
+	}
+	JoinRequests.RemoveAt(Index); // before the party broadcast, so the placeholder's refresh shows no stale line
+	const UWorld *World = GetWorld();
+	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	if (!PartySession || !PartySession->ReplaceAISeatWithPlayer(ReplaceSlot, Request.PawnClass, Request.Character))
+	{
+		JoinRequests.Add(Request); // still waiting: the host may pick another seat
+		return false;
+	}
+	JoinerState->ClaimCharacter(Request.Character);
+	RefreshRoster();
+	UE_LOG(LogWoR, Log, TEXT("[RunState] Player %d joined: %s took slot %d"), PlayerId, *GetNameSafe(Request.Character), ReplaceSlot);
+	return true;
+}
+
+bool URunStateComponent::RefuseJoin(int32 PlayerId)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return false;
+	}
+	const int32 Removed = JoinRequests.RemoveAll([PlayerId](const FRunJoinRequest &R) { return R.PlayerId == PlayerId; });
+	if (Removed > 0)
+	{
+		UE_LOG(LogWoR, Log, TEXT("[RunState] Player %d's join request refused by the host"), PlayerId);
+	}
+	return Removed > 0;
 }
 
 FString URunStateComponent::GetDebugString() const
 {
-	FString Out = FString::Printf(TEXT("[RunState] run %s: trial %s, seed %d, variation %d, %d beaten; rotation %d"),
+	FString Out = FString::Printf(TEXT("[RunState] run %s: trial %s, seed %d, variation %d, %d beaten; %d player(s)"),
 								  bHasRun ? TEXT("on") : TEXT("off"), *GetNameSafe(ActiveTrial), RunSeed, VariationIndex,
-								  BeatenEncounters.Num(), RotationIndex);
+								  BeatenEncounters.Num(), GetSidePlayerIds().Num());
 	for (const FRunRosterEntry &Entry : Roster)
 	{
 		const int32 Claimed = GetClaimingPlayerId(Entry.Character);
 		Out += FString::Printf(TEXT("\n  %s: %s"), *GetNameSafe(Entry.Character),
 							   Entry.bAISeat ? TEXT("AI seat")
 							   : Claimed != SeatRules::UNCLAIMED ? *FString::Printf(TEXT("player %d's"), Claimed)
-																 : TEXT("unclaimed (rotates)"));
+																 : TEXT("unclaimed (the host's, D-150)"));
+	}
+	for (const FRunJoinRequest &Request : JoinRequests)
+	{
+		Out += FString::Printf(TEXT("\n  join request: player %d with %s"), Request.PlayerId, *GetNameSafe(Request.Character));
 	}
 	return Out;
 }

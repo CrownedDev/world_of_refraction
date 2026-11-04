@@ -1975,6 +1975,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** build D-150 as Crown ruled. The two games differ on empty seats and stay different: the deckbuilder keeps its rotation; here the rotation code (`SeatRules::UsesRotation`, `URunStateComponent::RotationIndex` / `NoteTurnTaken` / `ResetRotation`) is flagged OBSOLETE in B-360 and deleted after PIE.
 **Notes for Claude:** B-360.
 
+### Q-360b — D-150 in two slices: separate copies of one character come second
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-360, desktop) · **Blocks:** —
+**Question:** D-150 point 2 lets two players bring the same character as separate copies with their own gear. Today a member's identity is its `UCharacterData` everywhere: the party refuses a duplicate (`InviteMemberInternal`, so that vitals carry and the formation stamp resolve one slot), and the pool keys pouches, owners, wearers and banked gear by `GetCharacterKey(CharacterData)` (its asset path). Build it with the rest of D-150, or slice?
+**Options:** **A** slice: B-360 ships points 1, 3 and 4 (the cap check, no rotation, the host-picked join with gear to the host) and refuses a character already in the party; B-360b gives members their own id (`FPartyMember::MemberId`), moves every pool key and the claims onto it (save v14) and lifts the duplicate guards. **B** one job.
+**Recommendation:** A, by the 3-files rule: the member-id change touches the party, the pool's five key maps, the save and every reader of `GetMemberSlotByData`; the join flow does not need it to be useful. Divinity: Original Sin 2 and Baldur's Gate 3 shipped co-op with one copy per origin character first and loosened later.
+**Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
+**Notes for Claude:** B-360 (slice 1, built on the desktop); B-360b queued after it. As built (desktop review): the joiner's member keeps the seat's formation cell and run-only flag, its vitals start fresh; the seat's gear and pouch move to the host outside the give rules (D-115 / D-116: it is the host's run, D-150); a requester who already has a seat, or who asks during a fight, is refused; a joiner who left before the host chose takes no seat.
+
 ### Q-358 — Folding the old Slash / Pierce / Impact values into one Physical column
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-358, cloud) · **Blocks:** —
 **Question:** D-148 makes one Physical resistance column; saves and assets keep their three old fields (append-only). How do three different old values become one?
