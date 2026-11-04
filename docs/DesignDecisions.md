@@ -2056,6 +2056,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** built in B-362b. The pillar-point rules (`DefeatRules::GetPointsLost`, `PickPillarToLose`, `UTrialRunSubsystem::LoseRunPoints`) are OBSOLETE with no game caller; delete in the sweep after PIE.
 **Superseded by Crown (2026-11-04, D-160 change):** (1) the drop is a pickup at the spot where the party fell, not keyed to the fight's map teams; (2) in co-op every player drops their own Prisms and has their own pickup there (B-235), not only the local wallet; (3) a fight with no map team drops at the spot like any other and is recoverable. (4) stands (a wipe before the pickup loses the earlier drop). Job B-362c.
 
+### Q-362c — The Prism pickup as built: whose spot, a fight off the map, and standing on it
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-362c, desktop) · **Blocks:** —
+**Question:** three small things D-160's pickup leaves open: (1) which spot is "where the party fell"; (2) a fight started off the trial map (debug, scripted) has no spot; (3) the party can come back standing on the pickup (the fall spot at the trial's start).
+**Options / as built:**
+- (1) **A** the leader's pawn (the first local player's) on the trial map at the moment the fight starts (`UTrialRunSubsystem::EnterEncounter`). **B** the enemy team's spot.
+- (2) **A** the pickup lies at the trial's start (the first PlayerStart). **B** it lies nowhere and is lost.
+- (3) **A** a pawn that arrives on it takes it only after stepping out and back in, or with the interact key. **B** it is taken at once.
+**Recommendation:** A throughout. Dark Souls and Elden Ring put the bloodstain where you stood, not on the enemy; Hollow Knight's Shade waits at the spot even if it is the bench room. Arriving on it and grabbing it unseen would hide the pickup the player is meant to walk to.
+**Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
+**Notes for Claude:** built in B-362c. Co-op: one pickup per player in B-235.
+
 ### D-156 — Levelling in a run: points drop from enemies and are bought with Prisms at rest spots (Nightreign's runes and sites of grace)
 **Status:** DECIDED (Crown, 2026-11-04, the feel interview, via the brain) · **Raised:** 2026-11-04 · **Blocks:** —
 **Answer (Crown):** in-run levelling follows Elden Ring Nightreign's runes and sites of grace: **enemies have a chance to drop pillar points**, and **Prisms** (the run currency; called Gold before D-159) **buy extra pillar points at rest spots**. This changes today's "after a fight, choose where each level goes" flow.
