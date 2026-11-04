@@ -13,6 +13,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 ## Pending
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-356](B-356.md) | `feature/B-356-three-schools` | Three spell schools (Conjuration → Enhancement); names on spells; AI reads effects; re-tag assets in the editor | Not built |
 | [B-345](B-345.md) | `feature/B-345-one-ai-path` | One AI scoring path for spells and abilities; AI weights in the combat tuning data; no change at default weights | Not built |
 | [B-344](B-344.md) | `feature/B-344-difficulty-sets-ai` | Trial difficulty sets the enemy AI tier; per-encounter override | Not built |
 | [B-224](B-224.md) | `feature/B-224-combat-numbers` (in `dev`) | Combat numbers baseline: rank HP x1.5/3/6, Defense cap 75%, crit base x1.25, requirement floor 0.5, tuning ladders | Not built |
