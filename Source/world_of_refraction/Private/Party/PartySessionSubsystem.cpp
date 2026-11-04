@@ -1,6 +1,7 @@
 // PartySessionSubsystem.cpp
 
 #include "Party/PartySessionSubsystem.h"
+#include "Party/SeatRules.h"
 
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
@@ -11,6 +12,7 @@
 #include "GameFramework/PlayerState.h"
 #include "Party/Party.h"
 #include "Pool/PoolSubsystem.h"
+#include "Combat/TurnManager.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 
@@ -31,6 +33,20 @@ namespace PartySessionDebug
 			return;
 		}
 		PartySession->SetMemberPlayerControlled(FCString::Atoi(*Args[0]), !Args[1].Equals(TEXT("AI"), ESearchCase::IgnoreCase));
+		PartySession->LogPartyState();
+	}
+
+	void SetAIDifficulty(const TArray<FString> &Args, UWorld *World)
+	{
+		UPartySessionSubsystem *PartySession = FindPartySession(World);
+		const UEnum *DifficultyEnum = StaticEnum<EAIDifficulty>();
+		const int64 Value = Args.Num() >= 2 && DifficultyEnum ? DifficultyEnum->GetValueByNameString(Args[1]) : INDEX_NONE;
+		if (!PartySession || Value == INDEX_NONE)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[PartySession] Usage: wor.Party.SetAIDifficulty <slot> <Easy|Medium|Hard|Expert>"));
+			return;
+		}
+		PartySession->SetMemberAISeatDifficulty(FCString::Atoi(*Args[0]), static_cast<EAIDifficulty>(Value));
 		PartySession->LogPartyState();
 	}
 
@@ -94,8 +110,13 @@ namespace PartySessionDebug
 
 static FAutoConsoleCommandWithWorldAndArgs GPartySetControlCommand(
 	TEXT("wor.Party.SetControl"),
-	TEXT("wor.Party.SetControl <slot> <Player|AI> - who plays a party member in battle (D-004; the leader is always Player)."),
+	TEXT("wor.Party.SetControl <slot> <Player|AI> - make a member an AI seat before a fight (B-346; the leader is always yours)."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&PartySessionDebug::SetControl));
+
+static FAutoConsoleCommandWithWorldAndArgs GPartySetAIDifficultyCommand(
+	TEXT("wor.Party.SetAIDifficulty"),
+	TEXT("wor.Party.SetAIDifficulty <slot> <Easy|Medium|Hard|Expert> - an AI seat's difficulty, set before a fight (B-346, default Medium)."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&PartySessionDebug::SetAIDifficulty));
 
 static FAutoConsoleCommandWithWorldAndArgs GPartyLetAIFinishCommand(
 	TEXT("wor.Party.LetAIFinish"),
@@ -104,7 +125,7 @@ static FAutoConsoleCommandWithWorldAndArgs GPartyLetAIFinishCommand(
 
 static FAutoConsoleCommandWithWorldAndArgs GPartySetFormationCommand(
 	TEXT("wor.Party.SetFormation"),
-	TEXT("wor.Party.SetFormation <slot> <Back|Middle|Front> <column 0-2> - the member's start cell (D-042); a taken cell swaps the two."),
+	TEXT("wor.Party.SetFormation <slot> <Back|Middle|Front> <column 0-2> - the member's start row (B-342, D-134); the column is kept only as a tie-break for the start slot."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&PartySessionDebug::SetFormation));
 
 static FAutoConsoleCommandWithWorld GPartyReviveFallenCommand(
@@ -187,8 +208,13 @@ UParty *UPartySessionSubsystem::RestoreLocalParty(const FText &DisplayName, bool
 	{
 		Restored->Members.SetNum(PartyConstants::MAX_PARTY_MEMBERS);
 	}
-	// D-004: the leader is always Player-controlled.
+	// D-004: the leader is always Player-controlled. B-346: an AI seat is the mirrored flag's opposite
+	// (the save stores bPlayerControlled and, since B-348, the seat's difficulty).
 	Restored->Members[0].bPlayerControlled = true;
+	for (FPartyMember &Member : Restored->Members)
+	{
+		Member.bAISeat = !Member.bPlayerControlled;
+	}
 	Parties.Add(Restored);
 
 	UE_LOG(LogTemp, Log, TEXT("[PartySession] Restored saved party '%s' (%d members)"),
@@ -540,35 +566,76 @@ bool UPartySessionSubsystem::GetMemberFormation(int32 SlotIndex, ECombatRow &Out
 	return true;
 }
 
-bool UPartySessionSubsystem::SetMemberPlayerControlled(int32 SlotIndex, bool bPlayerControlled)
+bool UPartySessionSubsystem::IsFightRunning() const
+{
+	const UGameInstance *GI = GetGameInstance();
+	const UTurnManager *Turns = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+	return Turns && Turns->IsCombatActive();
+}
+
+bool UPartySessionSubsystem::SetMemberAISeat(int32 SlotIndex, bool bAISeat)
 {
 	UParty *Party = GetLocalParty();
 	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[PartySession] SetMemberPlayerControlled: invalid slot %d"), SlotIndex);
+		UE_LOG(LogTemp, Warning, TEXT("[PartySession] SetMemberAISeat: invalid slot %d"), SlotIndex);
 		return false;
 	}
-	if (SlotIndex == PartyConstants::LEADER_SLOT && !bPlayerControlled)
+	if (SlotIndex == PartyConstants::LEADER_SLOT && bAISeat)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[PartySession] Refused to hand the leader to the AI - the leader is always Player (D-004)"));
+		UE_LOG(LogTemp, Warning, TEXT("[PartySession] Refused: the leader is never an AI seat (Q-21-audit)"));
+		return false;
+	}
+	if (IsFightRunning())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PartySession] Refused: seats are fixed during a fight (Q-21-audit)"));
 		return false;
 	}
 
 	FPartyMember &Member = Party->Members[SlotIndex];
-	if (Member.bPlayerControlled != bPlayerControlled)
+	if (Member.bAISeat != bAISeat)
 	{
-		Member.bPlayerControlled = bPlayerControlled;
-		UE_LOG(LogTemp, Log, TEXT("[PartySession] Slot %d now %s-controlled"), SlotIndex,
-			   bPlayerControlled ? TEXT("Player") : TEXT("AI"));
+		Member.bAISeat = bAISeat;
+		Member.bPlayerControlled = !bAISeat; // OBSOLETE mirror, kept for the save
+		UE_LOG(LogTemp, Log, TEXT("[PartySession] Slot %d is now %s"), SlotIndex, bAISeat ? TEXT("an AI seat") : TEXT("yours"));
 		OnPartyChanged.Broadcast(Party);
 	}
 	return true;
 }
 
-bool UPartySessionSubsystem::IsMemberPlayerControlled(int32 SlotIndex) const
+bool UPartySessionSubsystem::SetMemberAISeatDifficulty(int32 SlotIndex, EAIDifficulty Difficulty)
+{
+	UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex) || IsFightRunning())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PartySession] SetMemberAISeatDifficulty refused for slot %d (invalid, or a fight is running)"), SlotIndex);
+		return false;
+	}
+	FPartyMember &Member = Party->Members[SlotIndex];
+	if (Member.AISeatDifficulty != Difficulty)
+	{
+		Member.AISeatDifficulty = Difficulty;
+		OnPartyChanged.Broadcast(Party);
+	}
+	return true;
+}
+
+bool UPartySessionSubsystem::IsMemberAISeat(int32 SlotIndex) const
 {
 	const UParty *Party = GetLocalParty();
-	return !Party || !Party->Members.IsValidIndex(SlotIndex) || Party->Members[SlotIndex].bPlayerControlled;
+	return Party && Party->Members.IsValidIndex(SlotIndex) && Party->Members[SlotIndex].bAISeat;
+}
+
+bool UPartySessionSubsystem::SetMemberPlayerControlled(int32 SlotIndex, bool bPlayerControlled)
+{
+	// OBSOLETE (B-346): the AI seat is the one setting now.
+	return SetMemberAISeat(SlotIndex, !bPlayerControlled);
+}
+
+bool UPartySessionSubsystem::IsMemberPlayerControlled(int32 SlotIndex) const
+{
+	// OBSOLETE (B-346).
+	return !IsMemberAISeat(SlotIndex);
 }
 
 void UPartySessionSubsystem::SetLetAIFinish(bool bLetAIFinish)
@@ -767,7 +834,7 @@ FString UPartySessionSubsystem::GetPartyStateString() const
 				? FString::Printf(TEXT("%s/%d"), *CombatRowHelpers::GetRowName(Member.PreferredRow),
 								  Member.PreferredColumn)
 				: FString(TEXT("unplaced"));
-		FString ControlLabel = Member.bPlayerControlled ? TEXT("Player") : TEXT("AI");
+		FString ControlLabel = SeatRules::GetSeatString(Member.bAISeat, Member.AISeatDifficulty);
 		if (Member.bRunOnly)
 		{
 			ControlLabel += TEXT(", run only");

@@ -528,6 +528,10 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
     FOnDuplicateGearReceived OnDuplicateGearReceived;
 
+    /** B-316: set while this member buys for another (UEconomyService::PurchaseFor): the piece passes through and is
+     *  handed on, so no duplicate notice fires here (the receiver's own fires when it already owns one). */
+    bool bSuppressDuplicateNotice = false;
+
     /** B-319 (D-115): every weaker copy of an owned weapon or ring, each paired with the copy that stays. */
     UFUNCTION(BlueprintPure, Category = "Inventory|Duplicates")
     TArray<FDuplicateGearPair> FindDuplicateGear() const;

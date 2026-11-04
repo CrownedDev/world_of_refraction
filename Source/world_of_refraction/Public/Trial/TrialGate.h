@@ -6,6 +6,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AI/EAIDifficulty.h"
 #include "Combat/Encounter/EEncounterRank.h"
 #include "Inventory/ItemTier.h"
 #include "TrialGate.generated.h"
@@ -50,6 +51,13 @@ namespace TrialGate
 	/** B-293c (Q-293c, Expedition 33): enemies' max HP for a difficulty. 1 at every level: the difficulty scales how
 	 *  hard enemies hit (GetEnemyStrengthMultiplier), not how long they last. */
 	float GetEnemyHealthMultiplier(ETrialDifficulty Difficulty);
+
+	/** B-344 (D-136): the enemy AI tier a trial difficulty sets: Easy, Medium, Hard (Expert stays for bosses' later
+	 *  phases, B-193). */
+	EAIDifficulty GetEnemyAIDifficulty(ETrialDifficulty Difficulty);
+
+	/** B-344 (D-136, D-044): a fight's enemy AI tier: the trial's, unless the encounter overrides it. */
+	EAIDifficulty ResolveEncounterAIDifficulty(ETrialDifficulty TrialDifficulty, bool bOverride, EAIDifficulty Override);
 
 	/** The run's payout (D-006), × this. */
 	float GetPayoutMultiplier(ETrialDifficulty Difficulty);

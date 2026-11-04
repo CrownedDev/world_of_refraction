@@ -112,14 +112,13 @@ namespace CrystalDescription
 
         case ECrystalType::Emerald:
         {
-            const int32 BonusTurnDelay = CrystalEffectTable::GetEmeraldBonusTurnDelay(Id);
-            if (BonusTurnDelay == 0)
+            // B-341 (D-133): the bonus lands right after this turn at every tier; S grants two.
+            // TODO: FText (D-061): this whole description table is FString; convert with the real CommonUI inventory screen (D-024).
+            if (CrystalEffectTable::GetEmeraldBonusTurnCount(Id) > 1)
             {
-                return TEXT("Sacrifice your turn to grant the target a bonus turn immediately.");
+                return TEXT("Sacrifice your turn to grant the target two bonus turns immediately.");
             }
-            return FString::Printf(
-                TEXT("Sacrifice your turn to grant the target a bonus turn after %d turns."),
-                BonusTurnDelay);
+            return TEXT("Sacrifice your turn to grant the target a bonus turn immediately.");
         }
 
         case ECrystalType::Amber:

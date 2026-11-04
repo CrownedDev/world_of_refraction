@@ -36,9 +36,12 @@ namespace LoadoutConstants
     // Evolution
     constexpr int32 MAX_EVOLUTION_SPELLS = 6;
 
-    // Utility crystal tier caps per character (D-072, D-077): crystals carried in item slots,
-    // counted per crystal (a stack counts each one). Bands combine (A or B together, etc.).
-    // Attached crystals don't count; utility stones aren't capped.
+    // B-354 (D-143, Q-354): the one crystal tier cap left: at most this many S-tier crystals equipped in a battle
+    // loadout (attached to its gear, or a gem in its item slots). Owned, carried and stored crystals have no cap.
+    constexpr int32 MAX_EQUIPPED_S_TIER_CRYSTALS = 1;
+
+    // OBSOLETE (B-354, D-143 retires D-072's bands): utility crystal tier caps per character, crystals carried in
+    // item slots, counted per crystal, bands combined. Nothing enforces them; delete after Crown's PIE.
     constexpr int32 MAX_UTILITY_CRYSTALS_S_TIER = 1;
     constexpr int32 MAX_UTILITY_CRYSTALS_A_B_TIER = 2;
     constexpr int32 MAX_UTILITY_CRYSTALS_C_D_TIER = 3;
