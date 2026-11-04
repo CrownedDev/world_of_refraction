@@ -53,8 +53,10 @@ namespace SkillConditions
 	/** Sets Context's trigger (Any) and AlsoFiring for Check. Its fighters are the caller's. */
 	WORLD_OF_REFRACTION_API void PrepareContext(FWoRConditionContext &Context, ESkillCheck Check, const TArray<ESkillTrigger> &Fired);
 
-	/** The group holds in Context (prepared for Check): empty or nothing participating holds. */
-	WORLD_OF_REFRACTION_API bool IsGroupMet(const TArray<FSkillCondition> &Conditions, ESkillCheck Check, const FWoRConditionContext &Context);
+	/** The group holds in Context (prepared for Check): empty or nothing participating holds. bHasTarget: the check has a
+	 *  target actor (its Target-side conditions take part even when it has no fighter state, and then fail). */
+	WORLD_OF_REFRACTION_API bool IsGroupMet(const TArray<FSkillCondition> &Conditions, ESkillCheck Check, const FWoRConditionContext &Context,
+											bool bHasTarget);
 
 	/** Debug: the group's sets as "a + b | c" in the one vocabulary. */
 	WORLD_OF_REFRACTION_API FString GetGroupString(const TArray<FSkillCondition> &Conditions, ESkillCheck Check, bool bHasTarget);

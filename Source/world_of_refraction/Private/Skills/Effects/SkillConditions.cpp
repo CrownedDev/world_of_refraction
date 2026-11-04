@@ -196,9 +196,10 @@ void SkillConditions::PrepareContext(FWoRConditionContext &Context, ESkillCheck 
 	Context.AlsoFiring = GetFiring(Check, Fired);
 }
 
-bool SkillConditions::IsGroupMet(const TArray<FSkillCondition> &Conditions, ESkillCheck Check, const FWoRConditionContext &Context)
+bool SkillConditions::IsGroupMet(const TArray<FSkillCondition> &Conditions, ESkillCheck Check, const FWoRConditionContext &Context,
+								  bool bHasTarget)
 {
-	return WoRConditions::IsAnyMet(ToSets(Conditions, Check, Context.Target != nullptr), Context);
+	return WoRConditions::IsAnyMet(ToSets(Conditions, Check, bHasTarget), Context);
 }
 
 FString SkillConditions::GetGroupString(const TArray<FSkillCondition> &Conditions, ESkillCheck Check, bool bHasTarget)

@@ -137,11 +137,7 @@ namespace
 				Context.TargetTeam = {States[PF_Target], States[PF_Foe]};
 			}
 		}
-		else if (Scene.bHasTarget)
-		{
-			Context.Target = &States[PF_Target]; // only says there is one; nothing target-side takes part
-		}
-		return SkillConditions::IsGroupMet(Conditions, Check, Context);
+		return SkillConditions::IsGroupMet(Conditions, Check, Context, Scene.bHasTarget);
 	}
 
 	FSkillCondition ParityCondition(ESkillTrigger Trigger, ECondSubject Subject, ECondCombine Combine, float Threshold)
@@ -356,6 +352,16 @@ void FSkillConditionParitySpec::Define()
 			TestFalse(TEXT("7 of 10 is not above 70%"), WoRConditions::ComparePercent(SEVEN, TEN, EWoRConditionOperator::Above, SEVENTY));
 			TestTrue(TEXT("7 of 10 is at most 70%"), WoRConditions::ComparePercent(SEVEN, TEN, EWoRConditionOperator::AtMost, SEVENTY));
 			TestTrue(TEXT("no max reads 0%: below 70%"), WoRConditions::ComparePercent(SEVEN, 0, EWoRConditionOperator::Below, SEVENTY));
+		});
+
+		It("blocks on a target with no fighter state, as the old check did", [this]()
+		{
+			const TArray<FSkillCondition> Group = {
+				ParityCondition(ESkillTrigger::OnHPBelowThreshold, ECondSubject::Target, ECondCombine::And, PARITY_HIGH_THRESHOLD)};
+			FWoRConditionContext Context;
+			SkillConditions::PrepareContext(Context, ESkillCheck::State, {});
+			TestFalse(TEXT("a target without state fails its HP check"), SkillConditions::IsGroupMet(Group, ESkillCheck::State, Context, true));
+			TestTrue(TEXT("no target: the target-side check is skipped"), SkillConditions::IsGroupMet(Group, ESkillCheck::State, Context, false));
 		});
 
 		It("reads a skill threshold as HpPercent on its side", [this]()
