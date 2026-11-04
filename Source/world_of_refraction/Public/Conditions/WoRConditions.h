@@ -18,6 +18,18 @@ struct FMemoryCondition;
 struct FMemoryEvent;
 struct FWorldStatRequirements;
 
+/** B-355 (D-144): the boss's state in its fight, for the Boss* subjects. */
+struct FWoRBossState
+{
+	int32 CurrentHP = 0;
+	int32 MaxHP = 0;
+	int32 TurnsTaken = 0;
+	int32 StatusBreaks = 0;
+	int32 PhasesReached = 0;
+	bool bAbsorptionMaxed = false;
+	bool bCrystalBroken = false;
+};
+
 /** What is true when conditions are checked. Memories fill Event (party, worn gear, slotted and used
  *  skills, locations, enemies beaten, level-ups) and Journal. TODO(B-337b): fight state for boss phases
  *  and reactions. */
@@ -26,6 +38,8 @@ struct FWoRConditionContext
 	EWoRConditionTrigger Trigger = EWoRConditionTrigger::Any;
 	const FMemoryEvent *Event = nullptr;
 	const UMemoryJournalSubsystem *Journal = nullptr;
+	/** B-355: set when a boss's rules are checked (null: every Boss* subject fails). */
+	const FWoRBossState *Boss = nullptr;
 };
 
 namespace WoRConditions

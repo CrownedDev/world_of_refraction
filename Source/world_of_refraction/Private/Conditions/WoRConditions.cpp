@@ -98,11 +98,48 @@ namespace
 			   WoRConditions::FitsRequirements(Condition, nullptr, GetUpgrader(Condition, Event));
 	}
 
+	/** B-355: the boss subjects; false without a boss state. */
+	bool IsBossSubjectMet(const FWoRCondition &Condition, const FWoRBossState *Boss)
+	{
+		constexpr int32 PERCENT_SCALE = 100;
+		if (!Boss)
+		{
+			return false;
+		}
+		switch (Condition.Subject)
+		{
+		case EWoRConditionSubject::BossHPAtMostPercent:
+			return Boss->MaxHP > 0 && static_cast<int64>(Boss->CurrentHP) * PERCENT_SCALE <= static_cast<int64>(Condition.Value) * Boss->MaxHP;
+		case EWoRConditionSubject::BossTurnsTaken:
+			return WoRConditions::Compare(Boss->TurnsTaken, Condition.Operator, Condition.Value);
+		case EWoRConditionSubject::BossAbsorptionMaxed:
+			return Boss->bAbsorptionMaxed;
+		case EWoRConditionSubject::BossCrystalBroken:
+			return Boss->bCrystalBroken;
+		case EWoRConditionSubject::BossStatusBreaks:
+			return WoRConditions::Compare(Boss->StatusBreaks, Condition.Operator, Condition.Value);
+		case EWoRConditionSubject::BossPhasesReached:
+			return WoRConditions::Compare(Boss->PhasesReached, Condition.Operator, Condition.Value);
+		case EWoRConditionSubject::BossInfusionHits:
+		default:
+			return false;
+		}
+	}
+
+	bool IsBossSubject(EWoRConditionSubject Subject)
+	{
+		return Subject >= EWoRConditionSubject::BossHPAtMostPercent && Subject <= EWoRConditionSubject::BossPhasesReached;
+	}
+
 	bool IsSubjectMet(const FWoRCondition &Condition, const FWoRConditionContext &Context)
 	{
 		if (Condition.Subject == EWoRConditionSubject::None)
 		{
 			return true;
+		}
+		if (IsBossSubject(Condition.Subject))
+		{
+			return IsBossSubjectMet(Condition, Context.Boss);
 		}
 		if (Condition.Subject == EWoRConditionSubject::MemoryCollected)
 		{

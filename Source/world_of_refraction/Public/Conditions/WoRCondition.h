@@ -62,6 +62,21 @@ enum class EWoRConditionSubject : uint8
 	BreakthroughUsed = 11,
 	/** Whoever held the weapon Item made a kill in the fight just won. */
 	FinishingBlow = 12,
+	// ---- The boss (B-355, D-144): read from FWoRConditionContext::Boss ----
+	/** The boss's HP is at most Value percent of its max. */
+	BossHPAtMostPercent = 13,
+	/** The boss's own turns this fight compare to Value. */
+	BossTurnsTaken = 14,
+	/** The boss's Broken Darkness absorption is at its maximum. */
+	BossAbsorptionMaxed = 15,
+	/** The crystal on the boss's active weapon is broken. */
+	BossCrystalBroken = 16,
+	/** The boss's status-bar breaks this fight compare to Value. */
+	BossStatusBreaks = 17,
+	/** TODO: counted once infusion hits report per target; never holds for now. */
+	BossInfusionHits = 18,
+	/** How many phases the boss has reached compare to Value (a phase rule reads "Equal" its index). */
+	BossPhasesReached = 19,
 };
 
 /** How a number compares to Value. */
