@@ -180,6 +180,43 @@ int32 UPoolSubsystem::HandOverSkills(FName FromKey, FName ToKey)
     return Moved;
 }
 
+bool UPoolSubsystem::LearnSkillCopy(FName ToKey, const UObject *Skill)
+{
+    FPoolSkills *To = CharacterSkills.Find(ToKey);
+    if (!To)
+    {
+        return false;
+    }
+    // The collections' learn mints the instance and seeds its tier; the stored skill pointers are mutable.
+    bool bLearned = false;
+    if (USpellData *Spell = const_cast<USpellData *>(Cast<USpellData>(Skill)))
+    {
+        FSpellCollection Learner;
+        Learner.LearnedSpells = To->Spells;
+        bLearned = To->Spells.Num() < InventoryConstants::MAX_LEARNED_SPELLS && Learner.LearnSpell(Spell);
+        if (bLearned)
+        {
+            To->Spells = Learner.LearnedSpells;
+        }
+    }
+    else if (UAbilityData *Ability = const_cast<UAbilityData *>(Cast<UAbilityData>(Skill)))
+    {
+        FAbilityCollection Learner;
+        Learner.LearnedAbilities = To->Abilities;
+        bLearned = To->Abilities.Num() < InventoryConstants::MAX_LEARNED_ABILITIES && Learner.LearnAbility(Ability);
+        if (bLearned)
+        {
+            To->Abilities = Learner.LearnedAbilities;
+        }
+    }
+    if (bLearned)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Pool] %s learns its own copy of %s"), *ToKey.ToString(), *GetNameSafe(Skill));
+        OnPoolSkillsChanged.Broadcast(ToKey);
+    }
+    return bLearned;
+}
+
 FString UPoolSubsystem::GetCharacterSkillsString() const
 {
     FString Out = FString::Printf(TEXT("=== Skills per character (%d) ==="), CharacterSkills.Num());
