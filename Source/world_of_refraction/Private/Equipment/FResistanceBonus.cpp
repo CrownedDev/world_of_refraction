@@ -1,5 +1,5 @@
 // FResistanceBonus.cpp
-// Gear resistance roll — a flat 12-slot zero-sum broken-stick over the shared
+// Gear resistance roll — a flat 10-slot (B-358: nine elements + one Physical) zero-sum broken-stick over the shared
 // ZeroSumRoll core (the same algorithm the substat roll uses, minus the pillar
 // split). Own per-tier budget; results written as percent-point floats.
 
@@ -11,15 +11,15 @@
 
 namespace
 {
-	// 12 categories: Fire Water Earth Wind Light Darkness Lightning Void Reality
-	// | Slash Pierce Impact (mirrors FResistanceRow / FResistanceBonus field order).
-	constexpr int32 RESISTANCE_SLOT_COUNT = 12;
+	// 10 categories: Fire Water Earth Wind Light Darkness Lightning Void Reality | Physical (B-358, D-148: the
+	// Slash / Pierce / Impact fields hold one Physical value, ResistanceColumns::Set).
+	constexpr int32 RESISTANCE_SLOT_COUNT = 10;
 
 	void WipeResistance(FResistanceBonus &B)
 	{
 		for (const EWoRDamageType Type : ResistanceColumns::Types())
 		{
-			*ResistanceColumns::Field(B, Type) = 0.0f;
+			ResistanceColumns::Set(B, Type, 0.0f);
 		}
 	}
 
@@ -37,8 +37,8 @@ namespace
 		{
 			return;
 		}
-		float &Column = *ResistanceColumns::Field(B, ResistanceColumns::Types()[Slot]);
-		Column = FMath::Clamp(Column + static_cast<float>(Delta), Lo, Hi);
+		const EWoRDamageType Type = ResistanceColumns::Types()[Slot];
+		ResistanceColumns::Set(B, Type, FMath::Clamp(ResistanceColumns::Get(B, Type) + static_cast<float>(Delta), Lo, Hi));
 	}
 }
 

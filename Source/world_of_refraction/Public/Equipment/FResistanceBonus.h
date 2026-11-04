@@ -1,6 +1,7 @@
 // FResistanceBonus.h
 // Per-instance gear status-buildup resistance roll: a zero-sum pool across the
-// 12 resistance categories (9 elements + 3 physical types), percent
+// 10 resistance categories (9 elements + one Physical, B-358: the Slash / Pierce / Impact fields hold its one
+// value, read and written through ResistanceColumns), percent
 // (+resist / -weak). Distinct from FEquipmentStatBonus (the stat substat pool) —
 // resistance has its OWN per-tier budget and does not compete with stats.
 //
@@ -70,8 +71,8 @@ struct WORLD_OF_REFRACTION_API FResistanceBonus
 	/** Tier -> resistance point budget (own pool). Returns 0 for an unmapped tier. */
 	static int32 GetResistanceBudget(EItemTier Tier);
 
-	/** Wipe the 12 fields and redistribute one full tier resistance budget using
-	 *  the shared zero-sum broken-stick (flat 12-slot pool, no pillar split).
+	/** Wipe the columns and redistribute one full tier resistance budget using
+	 *  the shared zero-sum broken-stick (flat 10-slot pool, no pillar split).
 	 *  Per-category |delta| capped at RESISTANCE_CATEGORY_CAP; final value clamped
 	 *  to RESISTANCE_BONUS_MIN/MAX. Returns the budget redistributed (0 on no-op).
 	 *  Delegates to the explicit-budget overload with the tier's budget. */
@@ -82,7 +83,7 @@ struct WORLD_OF_REFRACTION_API FResistanceBonus
 	 *  per-asset overrides also land here). */
 	int32 RerollResistance(int32 Budget);
 
-	/** Field-wise add Other onto this (12 categories, unclamped). Composes the
+	/** Field-wise add Other onto this (every column, unclamped). Composes the
 	 *  authored Base with a fresh per-instance roll at acquisition. */
 	void Accumulate(const FResistanceBonus &Other);
 };
