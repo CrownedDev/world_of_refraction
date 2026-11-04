@@ -62,6 +62,7 @@ void FDefeatSpec::Define()
 
 	It("sets the points a wipe costs by the enemy's rank: 1 normal, 2 mini-boss, 0 main boss", [this]()
 	{
+		// The literals pin D-155's ruling: changing a DefeatRules constant must fail here until Crown rules it.
 		TestEqual(TEXT("normal"), DefeatRules::GetPointsLost(EEncounterRank::Normal), 1);
 		TestEqual(TEXT("elite counts as normal"), DefeatRules::GetPointsLost(EEncounterRank::Elite), 1);
 		TestEqual(TEXT("mini-boss"), DefeatRules::GetPointsLost(EEncounterRank::MiniBoss), 2);
