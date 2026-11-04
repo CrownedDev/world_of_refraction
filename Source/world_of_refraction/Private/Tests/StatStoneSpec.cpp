@@ -14,13 +14,13 @@
 
 namespace
 {
-	const EItemTier STONE_TEST_TIERS[] = {EItemTier::F_Tier, EItemTier::C_Tier, EItemTier::S_Tier};
+	const EItemTier STAT_STONE_TEST_TIERS[] = {EItemTier::F_Tier, EItemTier::C_Tier, EItemTier::S_Tier};
 	const ECrystalType STONE_TEST_KEPT[] = {ECrystalType::DamageStone, ECrystalType::AbilityStone, ECrystalType::HealingStone,
 											ECrystalType::MaxHPStone, ECrystalType::MaxEPStone};
 	constexpr int32 STONE_TEST_STACK = 2;
 	/** D-142: Defense, Crit, Turn Speed, Status, Efficiency, Spell Damage, Resistance, Spell / Action Speed, Luck, Reflex. */
 	constexpr int32 STONE_TEST_RETIRED_KINDS = 11;
-	constexpr float STONE_TEST_TOLERANCE = 0.0001f;
+	constexpr float STAT_STONE_TEST_TOLERANCE = 0.0001f;
 }
 
 BEGIN_DEFINE_SPEC(FStatStoneSpec, "WoR.Crystals.StatStone", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -45,7 +45,7 @@ void FStatStoneSpec::Define()
 				continue;
 			}
 			++Retired;
-			for (const EItemTier Tier : STONE_TEST_TIERS)
+			for (const EItemTier Tier : STAT_STONE_TEST_TIERS)
 			{
 				const FCrystalId Old(Row.Type, Tier);
 				const FCrystalId New = StatStone::Normalize(Old);
@@ -55,7 +55,7 @@ void FStatStoneSpec::Define()
 				TestEqual(What + TEXT(": tier"), New.Tier, Tier);
 				TestNearlyEqual(What + TEXT(": attached bonus"),
 								CrystalEffectTable::GetAttachedStonePercent(StoneOn(New), Row.Stat),
-								CrystalEffectTable::GetAttachedStonePercent(StoneOn(Old), Row.Stat), STONE_TEST_TOLERANCE);
+								CrystalEffectTable::GetAttachedStonePercent(StoneOn(Old), Row.Stat), STAT_STONE_TEST_TOLERANCE);
 				TestEqual(What + TEXT(": name"), ItemIdentity::GetDisplayName(New), ItemIdentity::GetDisplayName(Old));
 			}
 		}
