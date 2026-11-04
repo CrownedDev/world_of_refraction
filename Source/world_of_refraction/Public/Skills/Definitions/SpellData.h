@@ -49,9 +49,9 @@ public:
 
     /** Authored school. Read GetSchool(): a retired school (B-356) maps onto one of the three. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-    ESpellSchool School = ESpellSchool::Destruction;
+    ESpellSchool School = ESpellSchool::Conjuration;
 
-    /** B-356 (D-146): the school shown and grouped by: Destruction, Enhancement or Restoration. */
+    /** B-356 / B-356c (D-146 corrected): the school shown and grouped by: Conjuration, Enhancement or Restoration. */
     ESpellSchool GetSchool() const { return SpellSchools::ToCurrent(School); }
 
     /** Required evolution crystal to use this spell (nullptr = no requirement, only for evolution spells) */

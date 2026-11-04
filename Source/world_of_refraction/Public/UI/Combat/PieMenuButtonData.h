@@ -13,13 +13,13 @@ class AActor;
 
 /**
  * Spell schools for the Schools sub-menu
- * 4 schools total
+ * Three shown since D-146 (Conjuration, Enhancement, Restoration); the enum is append-only
  */
 UENUM(BlueprintType)
 enum class EPieMenuSpellSchool : uint8
 {
+	/** OBSOLETE (B-356c): no spell groups here since D-146 as corrected (Destruction reads as Conjuration). */
 	Destruction UMETA(DisplayName = "Destruction"),
-	/** OBSOLETE (B-356): no spell groups here since D-146 (Conjuration reads as Enhancement). */
 	Conjuration UMETA(DisplayName = "Conjuration"),
 	Enhancement UMETA(DisplayName = "Enhancement"),
 	Restoration UMETA(DisplayName = "Restoration")
@@ -184,7 +184,7 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 			Button.ButtonID = TEXT("School_Conjuration");
 			Button.DisplayName = FText::FromString(TEXT("Conjuration"));
 			Button.Description = FText::FromString(FString::Printf(TEXT("%d spells"), SpellCount));
-			Button.ButtonTint = FLinearColor(0.5f, 0.2f, 0.8f, 1.0f); // Purple
+			Button.ButtonTint = FLinearColor(1.0f, 0.3f, 0.1f, 1.0f); // Orange-red: the damage school (B-356c)
 			break;
 		case EPieMenuSpellSchool::Enhancement:
 			Button.ButtonID = TEXT("School_Enhancement");
