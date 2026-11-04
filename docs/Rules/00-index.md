@@ -32,7 +32,7 @@ Each page ends with **Open questions** (unanswered `D-xxx`; the D-entry holds th
 
 ## Status at a glance (2026-10-29)
 
-276 rules across the six pages: 01 has 41, 02 has 44, 03 has 36, 04 has 55, 05 has 61, 06 has 39. The written-but-not-built rulings are mostly in economy (run rewards B-073, the loss route B-072, the bought run start B-116, level drops B-223), plus weapon Power (B-220) and Ice (B-064a). Four rows are still a **Conflict** (ET-07, ER-12, ER-21, ER-26).
+276 rules across the six pages: 01 has 41, 02 has 44, 03 has 36, 04 has 55, 05 has 61, 06 has 39. The written-but-not-built rulings are mostly in economy (run rewards B-073, the loss route B-072, the bought run start B-116, level drops B-223), plus weapon Power (B-220) and Ice (B-064a). Three rows are still a **Conflict** (ET-07, ER-12, ER-26); ER-21's is decided (B-366c builds it).
 
 Writing the pages turned up 23 new questions for Crown, **D-034 to D-056**, and six fix jobs, **B-112 to B-117**:
 - B-112: a full Light bar does nothing.
