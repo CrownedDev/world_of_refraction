@@ -1,6 +1,7 @@
 // LevelDropsSpec.cpp
 // B-223 (D-102, Q-223): defeated enemies drop pillar levels into the run; the player places each on a party
 // member's chosen pillar (WoRLevelDrops::TryPlaceLevel), capped at 7, and a re-seed keeps it.
+// B-360c (Q-360c): a later copy of a character places its own levels, under its own member key.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -42,6 +43,15 @@ UCharacterData *AddMember(UParty *Party, const TCHAR *Name)
 	return Data;
 }
 static FName KeyOf(const UCharacterData *Character) { return UPoolSubsystem::GetCharacterKey(Character); }
+/** B-360c: the party member playing Character (the first copy). */
+const FPartyMember &PartyOf(const UCharacterData *Character) const
+{
+	static const FPartyMember NoMember;
+	const UPartySessionSubsystem *Session = TestWorld->GetSubsystem<UPartySessionSubsystem>();
+	const UParty *Party = Session ? Session->GetLocalParty() : nullptr;
+	const FPartyMember *Found = Party ? Party->Members.FindByPredicate([Character](const FPartyMember &M) { return M.CharacterData == Character; }) : nullptr;
+	return Found ? *Found : NoMember;
+}
 END_DEFINE_SPEC(FLevelDropsSpec)
 
 void FLevelDropsSpec::Define()
@@ -101,8 +111,8 @@ void FLevelDropsSpec::Define()
 			return;
 		}
 		Run->AddUnspentLevels(KeyOf(Member), 1);
-		TestTrue(TEXT("placed"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Member, EWorldPillar::Mind).IsEmpty());
-		UCharacterDataComponent *Comp = WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), Member);
+		TestTrue(TEXT("placed"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Mind).IsEmpty());
+		UCharacterDataComponent *Comp = WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), PartyOf(Member));
 		if (!TestNotNull(TEXT("spawned"), Comp))
 		{
 			return;
@@ -121,10 +131,10 @@ void FLevelDropsSpec::Define()
 			return;
 		}
 		Run->AddUnspentLevels(KeyOf(Absent), 1);
-		TestTrue(TEXT("placed"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Absent, EWorldPillar::Spirit).IsEmpty());
-		TestNull(TEXT("not spawned"), WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), Absent));
+		TestTrue(TEXT("placed"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), PartyOf(Absent), EWorldPillar::Spirit).IsEmpty());
+		TestNull(TEXT("not spawned"), WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), PartyOf(Absent)));
 		TestEqual(TEXT("run holds it"), Run->GetRunEarnedLevels(UPoolSubsystem::GetCharacterKey(Absent), EWorldPillar::Spirit), 1);
-		TestEqual(TEXT("live reads it"), WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), Absent, EWorldPillar::Spirit), 1);
+		TestEqual(TEXT("live reads it"), WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), PartyOf(Absent), EWorldPillar::Spirit), 1);
 	});
 
 	It("refuses with nothing waiting or the pillar at the cap", [this]()
@@ -133,15 +143,15 @@ void FLevelDropsSpec::Define()
 		{
 			return;
 		}
-		TestFalse(TEXT("nothing waiting"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Member, EWorldPillar::Mind).IsEmpty());
-		UCharacterDataComponent *Comp = WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), Member);
+		TestFalse(TEXT("nothing waiting"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Mind).IsEmpty());
+		UCharacterDataComponent *Comp = WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), PartyOf(Member));
 		if (!TestNotNull(TEXT("spawned"), Comp))
 		{
 			return;
 		}
 		Comp->AddEarnedWorldStat(EWorldPillar::Mind, WorldStatConstants::LIVE_MAX);
 		Run->AddUnspentLevels(KeyOf(Member), 1);
-		TestFalse(TEXT("at the cap"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Member, EWorldPillar::Mind).IsEmpty());
+		TestFalse(TEXT("at the cap"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Mind).IsEmpty());
 		TestEqual(TEXT("level still waits"), Run->GetUnspentLevels(KeyOf(Member)), 1);
 	});
 
@@ -153,8 +163,8 @@ void FLevelDropsSpec::Define()
 		}
 		Run->RestoreRun(nullptr, 0, 0, ETrialDifficulty::Medium, {}, {}, {});
 		Run->AddUnspentLevels(KeyOf(Member), 1);
-		TestFalse(TEXT("refused"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Member, EWorldPillar::Mind).IsEmpty());
-		UCharacterDataComponent *Comp = WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), Member);
+		TestFalse(TEXT("refused"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Mind).IsEmpty());
+		UCharacterDataComponent *Comp = WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), PartyOf(Member));
 		if (!TestNotNull(TEXT("spawned"), Comp))
 		{
 			return;
@@ -170,8 +180,8 @@ void FLevelDropsSpec::Define()
 			return;
 		}
 		Run->AddUnspentLevels(KeyOf(Member), 1);
-		WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Member, EWorldPillar::Body);
-		UCharacterDataComponent *Comp = WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), Member);
+		WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Body);
+		UCharacterDataComponent *Comp = WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), PartyOf(Member));
 		if (!TestNotNull(TEXT("spawned"), Comp))
 		{
 			return;
@@ -187,9 +197,9 @@ void FLevelDropsSpec::Define()
 		Run->AddUnspentLevels(KeyOf(Member), 1);
 		TestEqual(TEXT("the member has one"), Run->GetUnspentLevels(KeyOf(Member)), 1);
 		TestEqual(TEXT("the other has none"), Run->GetUnspentLevels(KeyOf(Absent)), 0);
-		TestFalse(TEXT("the other can't place it"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Absent, EWorldPillar::Mind).IsEmpty());
+		TestFalse(TEXT("the other can't place it"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), PartyOf(Absent), EWorldPillar::Mind).IsEmpty());
 		TestEqual(TEXT("still the member's"), Run->GetUnspentLevels(KeyOf(Member)), 1);
-		TestTrue(TEXT("the member places it"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Member, EWorldPillar::Mind).IsEmpty());
+		TestTrue(TEXT("the member places it"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Mind).IsEmpty());
 		TestEqual(TEXT("nothing waits in all"), Run->GetTotalUnspentLevels(), 0);
 	});
 
@@ -203,6 +213,26 @@ void FLevelDropsSpec::Define()
 		const FString Readout = WoRLevelDrops::GetLevelDropString(TestWorld->GetWorld());
 		TestTrue(TEXT("member listed"), Readout.Contains(TEXT("live Spawned")));
 		TestTrue(TEXT("absent flagged"), Readout.Contains(TEXT("not spawned")));
+	});
+
+	It("lets a later copy of a character place its own levels, not the first copy's (B-360c)", [this]()
+	{
+		UParty *Party = TestWorld->GetSubsystem<UPartySessionSubsystem>()->GetLocalParty();
+		if (!TestTrue(TEXT("setup"), Run && Absent && Party)) return;
+		const FPartyMember First = PartyOf(Absent); // a copy: never add an element of the array to itself
+		FPartyMember &Copy = Party->Members.Add_GetRef(First);
+		Copy.MemberId = FGuid::NewGuid();
+		Copy.bKeyedByMember = true;
+		const FPartyMember CopyMember = Copy;
+		const FName CopyKey = UPoolSubsystem::GetCharacterKey(CopyMember);
+		if (!TestNotEqual(TEXT("the copy has its own key"), CopyKey, KeyOf(Absent))) return;
+		Run->AddUnspentLevels(CopyKey, 1);
+		TestFalse(TEXT("the first copy has none to place"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), PartyOf(Absent), EWorldPillar::Body).IsEmpty());
+		TestTrue(TEXT("the copy places its own"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), CopyMember, EWorldPillar::Body).IsEmpty());
+		TestEqual(TEXT("under the copy's key"), Run->GetRunEarnedLevels(CopyKey, EWorldPillar::Body), 1);
+		TestEqual(TEXT("not the first copy's"), Run->GetRunEarnedLevels(KeyOf(Absent), EWorldPillar::Body), 0);
+		TestEqual(TEXT("the copy's live level"), WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), CopyMember, EWorldPillar::Body),
+				  WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), PartyOf(Absent), EWorldPillar::Body) + 1);
 	});
 }
 
