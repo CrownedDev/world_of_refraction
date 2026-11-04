@@ -144,8 +144,8 @@ void FPlayerWalletSpec::Define()
 	It("shares the essences too", [this]()
 	{
 		if (!PlayerWallet) return;
-		CurrencyWallet::FindFor(Ally)->AddEssenceType(EEssenceType::Fire, WALLET_TEST_ESSENCE);
-		TestEqual(TEXT("seen by the hero"), CurrencyWallet::FindFor(Hero)->GetEssenceType(EEssenceType::Fire), WALLET_TEST_ESSENCE);
+		CurrencyWallet::FindFor(Ally)->Add(ECurrencyType::ElementalEssence, WALLET_TEST_ESSENCE); // B-333b: the seven balances
+		TestEqual(TEXT("seen by the hero"), CurrencyWallet::FindFor(Hero)->GetBalance(ECurrencyType::ElementalEssence), WALLET_TEST_ESSENCE);
 	});
 
 	It("keeps an actor with no player behind it on its own wallet", [this]()

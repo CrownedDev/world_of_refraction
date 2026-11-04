@@ -24,6 +24,7 @@ struct FElementRow
 	EWoRDamageType AlsoResistedBy;
 	/** The gem of this element (Quartz for None); ECrystalType::None when no gem carries it. */
 	ECrystalType Gem;
+	/** OBSOLETE (B-333b): the typed essences retire (D-125); goes with them in the sweep (D-124). */
 	EEssenceType Essence;
 	/** What a capped status bar fires (BarCapTriggerResolver). A Broken Darkness source's Darkness
 	 *  drains energy instead (the resolver's branch, a property of the caster). */
