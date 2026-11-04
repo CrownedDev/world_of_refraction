@@ -19,6 +19,7 @@
 | 11 | **Hub** | A walkable home base: talk, shop, prepare; it changes as the story moves on. It has **its own secrets** to explore and find. | Hades' House of Hades | — |
 | 12 | **Music** | **Parked** (Crown, return later). Idea: music as a cosmetic, tied to the combat weather, shifting when you're winning or losing. | — | — |
 | 13 | **Battle menu** | Face-button shortcuts: each button is a category (attack, skills, items); two presses to act. | Expedition 33's button menu | Gamepad first (pillar 9). |
+| 14 | **Telegraphs** | Learnable, and they belong to the **skill, ability or spell**, not to the enemy: no one is unique in what they can use, so every user of a skill, ability or spell winds it up with the same readable animation, sound and cast marks. Players learn the move, and that knowledge carries to every enemy and ally who uses it. A death should teach you something. | Souls games and Expedition 33's readable wind-ups | Never an unreadable or silent wind-up on a defendable hit. |
 
 ## How it's used
 
