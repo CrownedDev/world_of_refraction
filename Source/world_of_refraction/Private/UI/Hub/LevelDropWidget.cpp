@@ -117,9 +117,9 @@ void ULevelDropWidget::NativeConstruct()
 	Refresh();
 }
 
-TArray<UCharacterData *> ULevelDropWidget::GatherMembers() const
+TArray<FPartyMember> ULevelDropWidget::GatherMembers() const
 {
-	TArray<UCharacterData *> Members;
+	TArray<FPartyMember> Members;
 	const UGameInstance *GI = GetGameInstance();
 	const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
 	const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
@@ -129,17 +129,22 @@ TArray<UCharacterData *> ULevelDropWidget::GatherMembers() const
 		{
 			if (Member.CharacterData)
 			{
-				Members.Add(Member.CharacterData);
+				Members.Add(Member);
 			}
 		}
 	}
 	return Members;
 }
 
-UCharacterData *ULevelDropWidget::SelectedMember() const
+bool ULevelDropWidget::GetSelectedMember(FPartyMember &OutMember) const
 {
-	const TArray<UCharacterData *> Members = GatherMembers();
-	return Members.IsValidIndex(MemberIndex) ? Members[MemberIndex] : nullptr;
+	const TArray<FPartyMember> Members = GatherMembers();
+	if (!Members.IsValidIndex(MemberIndex))
+	{
+		return false;
+	}
+	OutMember = Members[MemberIndex];
+	return true;
 }
 
 void ULevelDropWidget::Refresh()
@@ -150,20 +155,22 @@ void ULevelDropWidget::Refresh()
 	}
 	const UGameInstance *GI = GetGameInstance();
 	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
-	const UCharacterData *Member = SelectedMember();
+	FPartyMember Member;
+	const bool bHasMember = GetSelectedMember(Member);
 	// B-223b: each character places its own levels; Next member steps through whose levels these are.
-	WaitingText->SetText(Member ? FText::Format(LOCTEXT("Waiting", "{0}'s pillar levels to place: {1}"), FText::FromString(Member->Name),
-												FText::AsNumber(Run ? Run->GetUnspentLevels(UPoolSubsystem::GetCharacterKey(Member)) : 0))
-								: LOCTEXT("WaitingNone", "No party member"));
+	// B-360c: by member, so a second copy of a character shows (and spends) its own.
+	WaitingText->SetText(bHasMember ? FText::Format(LOCTEXT("Waiting", "{0}'s pillar levels to place: {1}"), FText::FromString(Member.CharacterData->Name),
+													FText::AsNumber(Run ? Run->GetUnspentLevels(UPoolSubsystem::GetCharacterKey(Member)) : 0))
+									: LOCTEXT("WaitingNone", "No party member"));
 
-	if (!Member)
+	if (!bHasMember)
 	{
 		MemberText->SetText(LOCTEXT("NoMember", "No party member"));
 	}
 	else
 	{
 		const UWorld *World = GetWorld();
-		MemberText->SetText(FText::Format(LOCTEXT("MemberRow", "{0}: {1} {2}, {3} {4}, {5} {6}"), FText::FromString(Member->Name),
+		MemberText->SetText(FText::Format(LOCTEXT("MemberRow", "{0}: {1} {2}, {3} {4}, {5} {6}"), FText::FromString(Member.CharacterData->Name),
 										  WoRLevelDrops::GetPillarName(EWorldPillar::Mind),
 										  FText::AsNumber(WoRLevelDrops::GetLiveLevel(World, Member, EWorldPillar::Mind)),
 										  WoRLevelDrops::GetPillarName(EWorldPillar::Body),
@@ -187,14 +194,14 @@ FString ULevelDropWidget::GetLevelDropWidgetString() const
 
 void ULevelDropWidget::Place(EWorldPillar Pillar)
 {
-	UCharacterData *Member = SelectedMember();
-	if (!Member)
+	FPartyMember Member;
+	if (!GetSelectedMember(Member))
 	{
 		return;
 	}
 	const FText Refusal = WoRLevelDrops::TryPlaceLevel(GetWorld(), Member, Pillar);
 	StatusText = Refusal.IsEmpty()
-					 ? FText::Format(LOCTEXT("Placed", "{0} +1 {1}"), FText::FromString(Member->Name), WoRLevelDrops::GetPillarName(Pillar))
+					 ? FText::Format(LOCTEXT("Placed", "{0} +1 {1}"), FText::FromString(Member.CharacterData->Name), WoRLevelDrops::GetPillarName(Pillar))
 					 : Refusal;
 	Refresh();
 	UE_LOG(LogTemp, Log, TEXT("%s"), *GetLevelDropWidgetString());

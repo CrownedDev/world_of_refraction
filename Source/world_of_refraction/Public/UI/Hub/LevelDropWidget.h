@@ -3,15 +3,16 @@
 // Body or Spirit; each press places one waiting level. Plain buttons built in C++, opened with the console
 // command wor.UI.LevelDrop (Backlog rule 4). Replaced by the CommonUI screen (D-024). Rules: WoRLevelDrops
 // (Trial/LevelDropPlacement.h).
+// B-360c (D-150 point 2): the rows are party MEMBERS, so a later copy of a character places its own levels.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Character/EWorldPillar.h"
+#include "Party/Party.h"
 #include "LevelDropWidget.generated.h"
 
-class UCharacterData;
 class UTextBlock;
 
 UCLASS()
@@ -34,8 +35,9 @@ protected:
 	virtual void NativeConstruct() override;
 
 private:
-	TArray<UCharacterData *> GatherMembers() const;
-	UCharacterData *SelectedMember() const;
+	TArray<FPartyMember> GatherMembers() const;
+	/** The member the screen is on; false when the party is empty. */
+	bool GetSelectedMember(FPartyMember &OutMember) const;
 
 	void Place(EWorldPillar Pillar);
 
