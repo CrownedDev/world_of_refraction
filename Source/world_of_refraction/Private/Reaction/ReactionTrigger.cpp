@@ -8,6 +8,7 @@
 #include "Combat/Boss/BossPhaseComponent.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/TurnManager.h"
+#include "Conditions/WoRConditions.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/EquipmentDataBase.h"
@@ -15,7 +16,9 @@
 #include "Equipment/Weapons/WeaponData.h"
 #include "HAL/IConsoleManager.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
+#include "Memory/MemoryUnlock.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/EffectIdentity.h"
 #include "Skills/Effects/SkillEffectManager.h"
@@ -45,6 +48,33 @@ namespace
 	{
 		const UGameInstance *GameInstance = Actor && Actor->GetWorld() ? Actor->GetWorld()->GetGameInstance() : nullptr;
 		return WoRFight::Get<USkillEffectManager>(GameInstance);
+	}
+
+	/** The wearer as the condition event's only party member: the memory view of them (evolution,
+	 *  slotted skills, worn gear with its tiers), plus any worn item that view misses (no inventory
+	 *  loadout behind it) at its authored tier. */
+	FMemoryEventMember MakeReactionMember(const AActor *Wearer)
+	{
+		FMemoryEventMember Member = MemoryConditions::MakeMember(Wearer);
+		for (const UEquipmentDataBase *Item : ReactionTriggers::GetWornItems(Wearer))
+		{
+			if (!Member.Worn.ContainsByPredicate([Item](const TPair<const UEquipmentDataBase *, EItemTier> &Worn) { return Worn.Key == Item; }))
+			{
+				Member.Worn.Emplace(Item, Item->Tier);
+			}
+		}
+		return Member;
+	}
+
+	FWoRFighterState MakeFighterState(const AActor *Actor)
+	{
+		FWoRFighterState State;
+		if (const UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+		{
+			State.CurrentHP = CharComp->CurrentHP;
+			State.MaxHP = CharComp->MaxHP;
+		}
+		return State;
 	}
 
 	/** Max HP may have changed: refresh the pools (current HP is left as it is). */
@@ -103,7 +133,48 @@ TArray<const UEquipmentDataBase *> ReactionTriggers::GetWornItems(const AActor *
 	return Worn;
 }
 
+FWoRConditionSet ReactionTriggers::GetConditions(const FReactionTrigger &Trigger)
+{
+	FWoRConditionSet Set = Trigger.Conditions;
+	if (Trigger.RequiredItems.IsEmpty())
+	{
+		return Set; // the old fields need items: alone, FacingCharacter never fired
+	}
+	for (const UEquipmentDataBase *Required : Trigger.RequiredItems)
+	{
+		FWoRCondition &Worn = Set.Conditions.AddDefaulted_GetRef();
+		Worn.Subject = EWoRConditionSubject::GearEquipped;
+		Worn.Item = const_cast<UEquipmentDataBase *>(Required); // a null item never holds, as before
+	}
+	FWoRCondition &Facing = Set.Conditions.AddDefaulted_GetRef();
+	Facing.Subject = EWoRConditionSubject::FacingEnemy;
+	Facing.Enemy = Trigger.FacingCharacter; // unset: never holds, as before
+	return Set;
+}
+
 bool ReactionTriggers::Matches(const FReactionTrigger &Trigger, const AActor *Wearer, const AActor *Faced)
+{
+	const FWoRConditionSet Conditions = GetConditions(Trigger);
+	if (Conditions.Conditions.IsEmpty())
+	{
+		return false;
+	}
+	FMemoryEvent Event;
+	Event.Party.Add(MakeReactionMember(Wearer));
+	const FWoRFighterState Self = MakeFighterState(Wearer);
+	const FWoRFighterState Target = MakeFighterState(Faced);
+	FWoRConditionContext Context;
+	Context.Event = &Event;
+	Context.Self = Wearer ? &Self : nullptr;
+	Context.Target = Faced ? &Target : nullptr;
+	if (const UCharacterData *FacedCharacter = GetReactionCharacter(Faced))
+	{
+		Context.Opposing.Add(FacedCharacter);
+	}
+	return WoRConditions::IsMet(Conditions, Context);
+}
+
+bool ReactionTriggers::MatchesOld(const FReactionTrigger &Trigger, const AActor *Wearer, const AActor *Faced)
 {
 	if (Trigger.RequiredItems.IsEmpty() || !Trigger.FacingCharacter || GetReactionCharacter(Faced) != Trigger.FacingCharacter)
 	{
@@ -305,14 +376,12 @@ bool ReactionTriggers::ApplyBossSteps(AActor *Boss, int32 NetSteps, bool bBefore
 
 FString ReactionTriggers::GetTriggerString(const FReactionTrigger &Trigger)
 {
-	TArray<FString> Items;
-	for (const UEquipmentDataBase *Item : Trigger.RequiredItems)
-	{
-		Items.Add(Item ? Item->GetDisplayName() : TEXT("<none>"));
-	}
-	return FString::Printf(TEXT("Reaction %s: wearing [%s] facing %s, at %s -> %d effect(s), quest %s, dialogue %s"),
-						   *Trigger.TriggerId.ToString(), *FString::Join(Items, TEXT(", ")),
-						   Trigger.FacingCharacter ? *Trigger.FacingCharacter->Name : TEXT("<none>"), *Trigger.When.ToString(),
+	const FWoRConditionSet Conditions = GetConditions(Trigger);
+	const FString When = Conditions.Conditions.IsEmpty()
+							 ? FString(TEXT("<nothing authored: never>"))
+							 : FString::JoinBy(Conditions.Conditions, TEXT(" + "), [](const FWoRCondition &Condition) { return WoRConditions::GetConditionString(Condition); });
+	return FString::Printf(TEXT("Reaction %s: if %s, at %s -> %d effect(s), quest %s, dialogue %s"),
+						   *Trigger.TriggerId.ToString(), *When, *Trigger.When.ToString(),
 						   Trigger.Effects.Num(),
 						   *Trigger.QuestId.ToString(), *Trigger.DialogueId.ToString());
 }
