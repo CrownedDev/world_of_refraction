@@ -1669,7 +1669,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
             }
             if (Removed.IsEmpty())
             {
-                continue; // the trim for an earlier band's finding covered every band
+                continue; // an earlier finding's trim already removed them (one trim covers every band, and the S rule)
             }
             DroppedFinding.Reason += FString::Printf(TEXT(": %s"), *FString::Join(Removed, TEXT(", ")));
             break;

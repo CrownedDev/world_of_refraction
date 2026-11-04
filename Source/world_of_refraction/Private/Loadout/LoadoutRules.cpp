@@ -354,19 +354,48 @@ namespace
 		return Slot.Quantity > 0 && CrystalTypeHelpers::IsGemType(Slot.CrystalId.Type) && Slot.CrystalId.Tier == EItemTier::S_Tier;
 	}
 
+	/** The same adapter in the primary ring slot and the ring loadout (by owned ID, else by asset for unlinked copies). */
+	bool IsSameAdapter(const FRingInventoryEntry &A, const FRingInventoryEntry &B)
+	{
+		return A.PersistentID.IsValid() || B.PersistentID.IsValid() ? A.PersistentID == B.PersistentID : A.Ring == B.Ring;
+	}
+
+	/** S attachments on the slots the fight reads: the primary by its slot type (a weapon with a Weapon or None type, as
+	 *  UInventoryComponent::LoadoutHasPrimary reads it; the ring; the evolution seat), the secondary weapon with a Weapon
+	 *  type, and each adapter in the ring loadout (the primary ring counted once when it is also there). A stale entry in
+	 *  an inactive slot doesn't count. */
 	int32 CountAttachedSTier(const FCombatLoadout &Loadout)
 	{
 		int32 Count = 0;
-		const auto Visit = [&Count](const auto &Entry, bool bHasAsset) { Count += bHasAsset && IsSTierAttachment(Entry.AttachedItem) ? 1 : 0; };
-		Visit(Loadout.PrimaryWeapon.WeaponEntry, Loadout.PrimaryWeapon.WeaponEntry.Weapon != nullptr);
-		Visit(Loadout.SecondaryWeapon.WeaponEntry, Loadout.SecondaryWeapon.WeaponEntry.Weapon != nullptr);
-		Visit(Loadout.PrimaryRing.RingEntry, Loadout.PrimaryRing.RingEntry.Ring != nullptr);
+		const auto CountEntry = [&Count](const FRuntimeAttachedItem &Attached) { Count += IsSTierAttachment(Attached) ? 1 : 0; };
+		const FWeaponInventoryEntry &Primary = Loadout.PrimaryWeapon.WeaponEntry;
+		const FRingInventoryEntry &PrimaryRing = Loadout.PrimaryRing.RingEntry;
+		const bool bWeaponPrimary = Loadout.PrimarySlotType == EPrimarySlotType::Weapon || Loadout.PrimarySlotType == EPrimarySlotType::None;
+		const bool bRingPrimary = Loadout.PrimarySlotType == EPrimarySlotType::Ring && PrimaryRing.Ring;
+		if (bWeaponPrimary && Primary.Weapon)
+		{
+			CountEntry(Primary.AttachedItem);
+		}
+		if (bRingPrimary)
+		{
+			CountEntry(PrimaryRing.AttachedItem);
+		}
+		if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+		{
+			Count += Loadout.PrimaryEvolution.Tier == EItemTier::S_Tier ? 1 : 0;
+		}
+		const FWeaponInventoryEntry &Secondary = Loadout.SecondaryWeapon.WeaponEntry;
+		if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Secondary.Weapon)
+		{
+			CountEntry(Secondary.AttachedItem);
+		}
 		for (const FRingLoadoutEntry &Ring : Loadout.RingLoadout)
 		{
-			Visit(Ring.RingEntry, Ring.RingEntry.Ring != nullptr);
+			if (Ring.RingEntry.Ring && !(bRingPrimary && IsSameAdapter(Ring.RingEntry, PrimaryRing)))
+			{
+				CountEntry(Ring.RingEntry.AttachedItem);
+			}
 		}
-		const bool bEvolutionSeat = Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item;
-		Count += bEvolutionSeat && Loadout.PrimaryEvolution.Tier == EItemTier::S_Tier ? 1 : 0;
 		return Count;
 	}
 
