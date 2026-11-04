@@ -78,6 +78,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Trial|Gate")
     float GetPayoutMultiplier() const { return TrialGate::GetPayoutMultiplier(TrialDifficulty); }
 
+    /** B-347 (D-137): what a run's start does to the party's gear and Gold, without the level travel: run Gold to its
+     *  start (none, B-178), a layer left open ended, and the run layer opened with the party's worn loadouts, free.
+     *  EnterTrial calls it; specs call it directly. */
+    void StartRunGearAndGold();
+
     /** Return to the config-authored HubLevel and clear the active trial. Safe
      *  to call when no trial is active (it is just "go to the hub"). Ignored
      *  (with a log) when HubLevel is unset. */

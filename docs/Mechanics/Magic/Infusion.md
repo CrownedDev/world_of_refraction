@@ -21,13 +21,13 @@ Higher charge raises **all four** of these together:
 - **Size** — the spell's visual/hit scale grows (`GetSpellInfusionSizeMultiplier`; L1 ×1.5, L2 ×2.0).
 - **Damage** — per-mode, stat-scaled charge bonus (`UActionExecutor::GetChargeDamageMultiplier`). The exact bonus depends on the infusion *mode* (which source you charge through) and your stats.
 - **Status buildup** — scales by the per-mode charge status multiplier (`GetChargeStatusMultiplier`).
-- **Cost** — EP cost rises with the charge multiplier (`ComputeInfusionCostMultiplier`; L1 ×1.5, L2 ×2.0), on top of efficiency and own-tier power.
+- **Cost** — EP cost = the base × the charge level (`ComputeInfusionCostMultiplier`; L1 ×1, L2 ×2; D-126, B-334, Q-334), on top of efficiency, own-tier power and tier gap. No stat surcharge.
 
 Exact per-mode multipliers live in code / `InfusionSystem.md` — they are stat- and source-dependent, not flat.
 
 ## The HP cost (can be lethal)
 
-HP-paying infusion sources (**Raw**, **Innate-on-spell**, **Evolution**) charge **health** on top of (or instead of) EP. This HP cost is **deferred to finalize**: it lands *after* the infused effect resolves (`PendingInfusionHPCost` → `FinalizeAsyncAction`). So a greedy charge **can kill you** — the damage/heal goes out first, then the backlash is paid. (Crystal sources — ring / weapon crystal — pay durability wear instead of HP; see [`DurabilityWear.md`](../Gear/DurabilityWear.md).)
+HP-paying infusion sources (**Raw**, **Innate-on-spell**, **Evolution**) charge **health** on top of (or instead of) EP, **at L2 only** (D-126, B-334; L1 pays no HP). This HP cost is **deferred to finalize**: it lands *after* the infused effect resolves (`PendingInfusionHPCost` → `FinalizeAsyncAction`). So a greedy charge **can kill you** — the damage/heal goes out first, then the backlash is paid. (Crystal sources — ring / weapon crystal — pay durability wear instead of HP; see [`DurabilityWear.md`](../Gear/DurabilityWear.md).)
 
 ## Source binding — spells vs abilities
 

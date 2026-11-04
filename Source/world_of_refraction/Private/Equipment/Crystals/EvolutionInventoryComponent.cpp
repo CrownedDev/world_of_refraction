@@ -51,6 +51,8 @@ bool UEvolutionInventoryComponent::AddInstance(UEvolutionItemData *Item)
     Entry.Quality = EItemQuality::C_Quality;
     Entry.CurrentDurability = Item->MaxDurability; // fresh evo starts at full durability (gear-durability)
 
+    // OBSOLETE (B-335, D-127; delete in the D-124 sweep): the stat / resistance roll
+    // below (from the MaxPool seed to RerollResistance). The Quality roll at the end stays (Q-335).
     // U3a pickup roll — mirrors UInventoryComponent::ApplyPickupRoll for evolution:
     // when the asset opts in, the fresh OWNED instance rolls its Generated layers
     // from its own stored MaxPools (per-asset override or tier budget); pillar

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Combat/CombatOrchestrator.h"
+#include "Combat/Tier/CombatTier.h"
 #include "GameFramework/Pawn.h"
 #include "Combat/TurnManager.h"
 #include "Skills/Effects/SkillEffectManager.h"
@@ -164,7 +165,9 @@ void ACombatOrchestrator::OnCombatStartedUI_Implementation(const TArray<AActor *
 {
 	UWorld *World = GetWorld();
 	APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
-	if (!PC)
+	// B-229: only a controller with a local player can own widgets. A headless world's controller (a spec) and a
+	// remote client's controller on the server have none, and building the HUD for them crashed the test editor.
+	if (!PC || !PC->GetLocalPlayer())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] No local player controller - native combat HUD skipped"));
 		return;
@@ -1192,13 +1195,13 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 	const int32 WSP = FMath::Max(1, Caliber / CombatConstants::WORLDSTAT_KILL_DIVISOR);
 	PendingWorldStatPool += WSP;
 
-	// B-223 (D-102): the enemy's own rank (B-224b) and tier set its level drop.
+	// B-223 (D-102): the enemy's own rank (B-224b) and Combat Tier (B-325) set its level drop.
 	EEncounterRank Rank = EncounterRank;
 	if (const EEncounterRank *OwnRank = EnemyRanks.Find(Victim))
 	{
 		Rank = *OwnRank;
 	}
-	PendingLevelDropSources.Emplace(VictimData->EnemyTier, Rank);
+	PendingLevelDropSources.Emplace(WoRCombatTier::GetCombatTier(Victim), Rank); // B-325: its Combat Tier at death (usually the one its HP used at spawn; a loadout change mid-fight can move it)
 
 	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Enemy %s down (caliber %d) -> +%d WSP (pool now %d)"),
 		   *Victim->GetName(), Caliber, WSP, PendingWorldStatPool);

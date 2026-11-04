@@ -274,6 +274,8 @@ public:
 	/** Is combat active */
 	UFUNCTION(BlueprintPure, Category = "Turn Manager")
 	bool IsCombatActive() const { return bCombatActive; }
+	/** B-228: the global turn count (the number OnTurnStarted carries). */
+	int32 GetTurnCount() const { return GlobalTurnCount; }
 
 	// ========================================
 	// SPEED CHANGES

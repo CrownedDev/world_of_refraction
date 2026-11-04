@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Combat/CombatConstants.h"
 
 /**
  * Stat System Constants
@@ -15,14 +16,27 @@ namespace StatConstants
 
     constexpr int32 MIN_WORLD_STAT_LEVEL = 0;
     constexpr int32 MAX_WORLD_STAT_LEVEL = 7;
+
+    // OBSOLETE (B-330, D-123; delete in the D-124 sweep): the 3-points-per-level sub-stat pool. A pillar level
+    // grants no sub-stat points; sub-stats come from the character asset and gear. Still read by
+    // UCharacterData::GetTotalPool (now only the enemy caliber) and BrokenDarknessManager's EP aura range
+    // (via MAX_SUBSTAT_POINTS_PER_PILLAR); both need their own constant before the sweep deletes these.
     constexpr int32 POINTS_PER_WORLD_STAT_LEVEL = 3;
 
-    // Derived: Max substat points per pillar (7 × 3 = 21)
+    // OBSOLETE (B-330, D-123; delete in the D-124 sweep): max substat points per pillar from the pool (7 × 3 = 21)
     constexpr int32 MAX_SUBSTAT_POINTS_PER_PILLAR = MAX_WORLD_STAT_LEVEL * POINTS_PER_WORLD_STAT_LEVEL;
 
     // ==================== BASE STAT BUDGET ====================
 
+    // OBSOLETE (B-330, D-123; delete in the D-124 sweep): the pool's starting points (GetTotalPool / caliber).
     constexpr int32 INITIAL_STAT_BUDGET = 30;
+
+    // D-123 (B-330, Q-330): the most sub-stat points a character asset is authored with, at any pillar level.
+    // The old pool's 7/7/7 total (30 + 63), so every existing asset stays valid and the per-point maths
+    // (CombatConstants::MAX_STAT_POINTS) is unchanged. Pillar levels add nothing to it.
+    constexpr int32 MAX_AUTHORED_SUBSTAT_POINTS = 93;
+    static_assert(MAX_AUTHORED_SUBSTAT_POINTS == static_cast<int32>(CombatConstants::MAX_STAT_POINTS),
+                  "The authored sub-stat ceiling must match the per-point maths' reference (Q-330)");
 
     // ==================== ACTION SPEED SCALING ====================
 
