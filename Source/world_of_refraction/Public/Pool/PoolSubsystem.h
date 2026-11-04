@@ -127,6 +127,23 @@ namespace PoolConstants
     constexpr int32 MAX_CUSTOM_LOADOUTS = 5;
 }
 
+/** B-316b (Q-316, Q-316b): one character's learned skills, its own and kept (they used to come from its asset at
+ *  every spawn). One instance per skill: a give moves it. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FPoolSkills
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    TArray<FSpellInstance> Spells;
+
+    UPROPERTY()
+    TArray<FAbilityInstance> Abilities;
+};
+
+/** B-316b: a character's skills changed in the store (a give, a learn). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPoolSkillsChanged, FName, CharacterKey);
+
 /** B-311 (D-111): one character's custom loadouts, pieces referenced by owned GUID. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FPoolCustomLoadouts
@@ -416,6 +433,34 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Pool|Items")
     FOnPoolItemsChanged OnPoolItemsChanged;
 
+    // ==================== EACH CHARACTER'S SKILLS (B-316b, D-111, Q-316, Q-316b) ====================
+    // Learned spells and abilities belong to one character (its pool key, GetCharacterKey) and persist. A member
+    // banks its asset's skills on its first draw; every later draw loads them from here, and a learn or a give
+    // changes them here. PoolSkills.cpp. Debug: wor.Pool.PrintSkills.
+
+    /** Banks a character's skills once (its first draw). False when already banked (the store wins). */
+    bool BankSkills(FName CharacterKey, const TArray<FSpellInstance> &Spells, const TArray<FAbilityInstance> &Abilities);
+    bool HasBankedSkills(FName CharacterKey) const { return CharacterSkills.Contains(CharacterKey); }
+    /** The character's skills; null when never banked. */
+    const FPoolSkills *FindSkills(FName CharacterKey) const { return CharacterSkills.Find(CharacterKey); }
+    /** Replaces a banked character's skills (its component learned or forgot one); fires OnPoolSkillsChanged.
+     *  No-op when the character was never banked. */
+    void SetSkills(FName CharacterKey, const TArray<FSpellInstance> &Spells, const TArray<FAbilityInstance> &Abilities);
+    bool KnowsSpell(FName CharacterKey, const USpellData *Spell) const;
+    bool KnowsAbility(FName CharacterKey, const UAbilityData *Ability) const;
+    /** Moves FromKey's instance of the skill to ToKey (one copy: the giver loses it, D-111); fires OnPoolSkillsChanged
+     *  for both. False when FromKey doesn't know it, ToKey already does or has no room, or either was never banked. */
+    bool MoveSpell(FName FromKey, FName ToKey, const USpellData *Spell);
+    bool MoveAbility(FName FromKey, FName ToKey, const UAbilityData *Ability);
+    const TMap<FName, FPoolSkills> &GetCharacterSkills() const { return CharacterSkills; }
+    /** Save restore: replaces every character's skills. */
+    void RestoreCharacterSkills(const TMap<FName, FPoolSkills> &Skills) { CharacterSkills = Skills; }
+    /** Debug: each character's skills, one line per character. */
+    FString GetCharacterSkillsString() const;
+
+    UPROPERTY(BlueprintAssignable, Category = "Pool|Skills")
+    FOnPoolSkillsChanged OnPoolSkillsChanged;
+
     // ==================== THE RUN LAYER (B-314, D-111, D-097, Q-314) ====================
     // A run is a layer over the store, one instance per item: a home piece taken on the run is the real piece, marked
     // "on the run" with its home state kept; gear found or bought in the run is marked run-only. At run end the home
@@ -581,6 +626,10 @@ private:
     /** B-311: character key -> its custom loadouts. */
     UPROPERTY()
     TMap<FName, FPoolCustomLoadouts> CustomLoadouts;
+
+    /** B-316b: character key -> its learned skills (present once banked, even when empty). */
+    UPROPERTY()
+    TMap<FName, FPoolSkills> CharacterSkills;
 
     /** The latest pieces taken out of a member's loadout because another member wears them. */
     UPROPERTY(Transient)
