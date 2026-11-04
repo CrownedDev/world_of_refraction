@@ -49,7 +49,8 @@ struct WORLD_OF_REFRACTION_API FBoundMemory
     TObjectPtr<UMemoryData> Memory = nullptr;
 
     /** B-337c: when set, these are the memory's conditions and the old fields below are ignored. The
-     *  item's level-up checks them with the BoundGearUsed trigger, a fight start with FightStart. */
+     *  item's level-up checks them with the BoundGearUsed trigger, a fight start with FightStart. A level-up
+     *  event carries no party: a condition naming a Character holds only at a fight start. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
     FWoRConditionSet Conditions;
 

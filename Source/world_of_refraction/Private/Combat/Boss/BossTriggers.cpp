@@ -128,7 +128,7 @@ int32 BossTriggers::ApplyTo(AActor *Boss, const UBossData &Data, const TArray<AA
 	// B-337c (Q-337b): the boss is the rules' Self (the shared Hp subject), phases or not.
 	const UCharacterDataComponent *BossData = Boss->FindComponentByClass<UCharacterDataComponent>();
 	const FWoRFighterState BossSelf{BossData ? BossData->CurrentHP : 0, BossData ? BossData->MaxHP : 0};
-	Context.Self = &BossSelf;
+	Context.Self = BossData ? &BossSelf : nullptr; // no HP to read: an Hp rule fails rather than reading 0
 	for (const FBossRule &Rule : BossRules::GetRules(Data))
 	{
 		if (Rule.When == EBossRuleWhen::FightStart && BossRules::Fires(Rule, Context))
