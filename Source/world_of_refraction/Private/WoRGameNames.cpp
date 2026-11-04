@@ -357,6 +357,7 @@ FText GetMerchantTypeName(EMerchantType MerchantType)
     return FText::GetEmpty();
 }
 
+// OBSOLETE (B-333): typed essences retire (D-125).
 FText GetEssenceName(EEssenceType Essence)
 {
     switch (Essence)
@@ -389,6 +390,30 @@ FText GetEssenceName(EEssenceType Essence)
         return LOCTEXT("EEssenceType_Spirit", "Spirit Essence");
     case EEssenceType::Ability:
         return LOCTEXT("EEssenceType_Ability", "Ability Essence");
+    }
+    return FText::GetEmpty();
+}
+
+FText GetCurrencyName(ECurrencyType Currency)
+{
+    switch (Currency)
+    {
+    case ECurrencyType::Gold:
+        return LOCTEXT("ECurrencyType_Gold", "Gold");
+    case ECurrencyType::Prisms:
+        return LOCTEXT("ECurrencyType_Prisms", "Prisms");
+    case ECurrencyType::Diamond:
+        return LOCTEXT("ECurrencyType_Diamond", "Diamond");
+    case ECurrencyType::EssenceTyped: // OBSOLETE (B-333)
+        return LOCTEXT("ECurrencyType_EssenceTyped", "Typed Essence");
+    case ECurrencyType::GearEssence:
+        return LOCTEXT("ECurrencyType_GearEssence", "Gear Essence");
+    case ECurrencyType::SkillEssence:
+        return LOCTEXT("ECurrencyType_SkillEssence", "Skill Essence");
+    case ECurrencyType::ElementalEssence:
+        return LOCTEXT("ECurrencyType_ElementalEssence", "Elemental Essence");
+    case ECurrencyType::PillarEssence:
+        return LOCTEXT("ECurrencyType_PillarEssence", "Pillar Essence");
     }
     return FText::GetEmpty();
 }

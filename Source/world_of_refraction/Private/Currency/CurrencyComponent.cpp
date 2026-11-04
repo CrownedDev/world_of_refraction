@@ -56,6 +56,8 @@ void UCurrencyComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &O
     DOREPLIFETIME(UCurrencyComponent, Diamond);
     DOREPLIFETIME(UCurrencyComponent, GearEssence);
     DOREPLIFETIME(UCurrencyComponent, SkillEssence);
+    DOREPLIFETIME(UCurrencyComponent, ElementalEssence);
+    DOREPLIFETIME(UCurrencyComponent, PillarEssence);
     DOREPLIFETIME(UCurrencyComponent, EssenceWallet);
 }
 
@@ -78,36 +80,21 @@ bool UCurrencyComponent::Add(ECurrencyType Currency, int32 Amount, uint8 SubKey)
     }
 
     int32 NewBalance = 0;
-    switch (Currency)
+    if (int32 *Scalar = FindScalar(Currency))
     {
-    case ECurrencyType::Gold:
-        Gold = CurrencyComponentInternal::SaturatingAdd(Gold, Amount);
-        NewBalance = Gold;
-        break;
-    case ECurrencyType::Prisms:
-        Prisms = CurrencyComponentInternal::SaturatingAdd(Prisms, Amount);
-        NewBalance = Prisms;
-        break;
-    case ECurrencyType::Diamond:
-        Diamond = CurrencyComponentInternal::SaturatingAdd(Diamond, Amount);
-        NewBalance = Diamond;
-        break;
-    case ECurrencyType::EssenceTyped:
+        *Scalar = CurrencyComponentInternal::SaturatingAdd(*Scalar, Amount);
+        NewBalance = *Scalar;
+    }
+    else if (Currency == ECurrencyType::EssenceTyped) // OBSOLETE (B-333): the typed wallet
     {
         FCurrencyEntry &Entry = FindOrAddEntry(EssenceWallet, SubKey);
         Entry.Amount = CurrencyComponentInternal::SaturatingAdd(Entry.Amount, Amount);
         EssenceWallet.MarkItemDirty(Entry);
         NewBalance = Entry.Amount;
-        break;
     }
-    case ECurrencyType::GearEssence:
-        GearEssence = CurrencyComponentInternal::SaturatingAdd(GearEssence, Amount);
-        NewBalance = GearEssence;
-        break;
-    case ECurrencyType::SkillEssence:
-        SkillEssence = CurrencyComponentInternal::SaturatingAdd(SkillEssence, Amount);
-        NewBalance = SkillEssence;
-        break;
+    else
+    {
+        return false; // not a currency this wallet holds
     }
 
     // Server-side broadcast (OnRep_* / FastArray callbacks fire on clients only).
@@ -129,36 +116,21 @@ bool UCurrencyComponent::Spend(ECurrencyType Currency, int32 Amount, uint8 SubKe
     }
 
     int32 NewBalance = 0;
-    switch (Currency)
+    if (int32 *Scalar = FindScalar(Currency))
     {
-    case ECurrencyType::Gold:
-        Gold -= Amount;
-        NewBalance = Gold;
-        break;
-    case ECurrencyType::Prisms:
-        Prisms -= Amount;
-        NewBalance = Prisms;
-        break;
-    case ECurrencyType::Diamond:
-        Diamond -= Amount;
-        NewBalance = Diamond;
-        break;
-    case ECurrencyType::EssenceTyped:
+        *Scalar -= Amount; // CanAfford guaranteed >= Amount
+        NewBalance = *Scalar;
+    }
+    else if (Currency == ECurrencyType::EssenceTyped) // OBSOLETE (B-333): the typed wallet
     {
         FCurrencyEntry &Entry = FindOrAddEntry(EssenceWallet, SubKey);
         Entry.Amount -= Amount; // CanAfford guaranteed >= Amount
         EssenceWallet.MarkItemDirty(Entry);
         NewBalance = Entry.Amount;
-        break;
     }
-    case ECurrencyType::GearEssence:
-        GearEssence -= Amount; // CanAfford guaranteed >= Amount
-        NewBalance = GearEssence;
-        break;
-    case ECurrencyType::SkillEssence:
-        SkillEssence -= Amount; // CanAfford guaranteed >= Amount
-        NewBalance = SkillEssence;
-        break;
+    else
+    {
+        return false; // not a currency this wallet holds (CanAfford already refused it: balance 0)
     }
 
     NotifyChanged(Currency, SubKey, NewBalance);
@@ -172,22 +144,40 @@ bool UCurrencyComponent::CanAfford(ECurrencyType Currency, int32 Amount, uint8 S
 
 int32 UCurrencyComponent::GetBalance(ECurrencyType Currency, uint8 SubKey) const
 {
+    if (const int32 *Scalar = FindScalar(Currency))
+    {
+        return *Scalar;
+    }
+    return Currency == ECurrencyType::EssenceTyped ? GetWalletAmount(EssenceWallet, SubKey) : 0;
+}
+
+int32 *UCurrencyComponent::FindScalar(ECurrencyType Currency)
+{
+    return const_cast<int32 *>(static_cast<const UCurrencyComponent *>(this)->FindScalar(Currency));
+}
+
+const int32 *UCurrencyComponent::FindScalar(ECurrencyType Currency) const
+{
     switch (Currency)
     {
     case ECurrencyType::Gold:
-        return Gold;
+        return &Gold;
     case ECurrencyType::Prisms:
-        return Prisms;
+        return &Prisms;
     case ECurrencyType::Diamond:
-        return Diamond;
-    case ECurrencyType::EssenceTyped:
-        return GetWalletAmount(EssenceWallet, SubKey);
+        return &Diamond;
     case ECurrencyType::GearEssence:
-        return GearEssence;
+        return &GearEssence;
     case ECurrencyType::SkillEssence:
-        return SkillEssence;
+        return &SkillEssence;
+    case ECurrencyType::ElementalEssence:
+        return &ElementalEssence;
+    case ECurrencyType::PillarEssence:
+        return &PillarEssence;
+    case ECurrencyType::EssenceTyped: // OBSOLETE (B-333): keyed, not a scalar
+        return nullptr;
     }
-    return 0;
+    return nullptr;
 }
 
 // ==================== EVENTS ====================
@@ -234,6 +224,16 @@ void UCurrencyComponent::OnRep_GearEssence()
 void UCurrencyComponent::OnRep_SkillEssence()
 {
     NotifyChanged(ECurrencyType::SkillEssence, 0, SkillEssence);
+}
+
+void UCurrencyComponent::OnRep_ElementalEssence()
+{
+    NotifyChanged(ECurrencyType::ElementalEssence, 0, ElementalEssence);
+}
+
+void UCurrencyComponent::OnRep_PillarEssence()
+{
+    NotifyChanged(ECurrencyType::PillarEssence, 0, PillarEssence);
 }
 
 // ==================== INTERNAL ====================
@@ -288,6 +288,8 @@ void UCurrencyComponent::CopyBalancesFrom(const UCurrencyComponent &Other)
     CopyScalar(Diamond, Other.Diamond, ECurrencyType::Diamond);
     CopyScalar(GearEssence, Other.GearEssence, ECurrencyType::GearEssence);
     CopyScalar(SkillEssence, Other.SkillEssence, ECurrencyType::SkillEssence);
+    CopyScalar(ElementalEssence, Other.ElementalEssence, ECurrencyType::ElementalEssence);
+    CopyScalar(PillarEssence, Other.PillarEssence, ECurrencyType::PillarEssence);
     // Entry by entry, so each gets this array's own replication ID (a copied ID could clash).
     for (const FCurrencyEntry &Entry : Other.EssenceWallet.Items)
     {

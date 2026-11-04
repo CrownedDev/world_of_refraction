@@ -21,6 +21,7 @@ enum class ESpellSchool : uint8;
 enum class EMerchantType : uint8;
 enum class EEssenceType : uint8;
 enum class EInventoryVerb : uint8;
+enum class ECurrencyType : uint8;
 
 namespace WoRGameNames
 {
@@ -62,6 +63,11 @@ namespace WoRGameNames
     /** An adapter's form: "Ring", "Pistol", "Trainer". */
     WORLD_OF_REFRACTION_API FText GetAdapterFormName(EAdapterForm Form);
 
-    /** B-269: "Fire Essence", "Quartz Essence" (Generic, D-105), "Unknown Essence" (Reality, D-095). */
+    /** OBSOLETE (B-333): typed essences retire (D-125); use GetCurrencyName.
+     *  B-269: "Fire Essence", "Quartz Essence" (Generic, D-105), "Unknown Essence" (Reality, D-095). */
     WORLD_OF_REFRACTION_API FText GetEssenceName(EEssenceType Essence);
+
+    /** B-333 (D-125): the seven balances' names: "Gold", "Prisms", "Diamond", "Gear Essence",
+     *  "Skill Essence", "Elemental Essence", "Pillar Essence". */
+    WORLD_OF_REFRACTION_API FText GetCurrencyName(ECurrencyType Currency);
 }

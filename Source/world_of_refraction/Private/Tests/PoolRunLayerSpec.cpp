@@ -371,6 +371,31 @@ void FPoolRunLayerSpec::Define()
 		Pool->EndRunLayer();
 		TestTrue(TEXT("after the run it can go"), Economy->DismantleWeapon(Inventory->GetOwner(), DaggerID));
 	});
+
+	It("takes an unworn home piece onto the run the first time it changes mid-run, and puts it back (B-347)", [this]()
+	{
+		if (!Pool) return;
+		UTrialRunSubsystem *TrialRun = TestWorld->GetSubsystem<UTrialRunSubsystem>();
+		UInventoryComponent *Inventory = SpawnMember();
+		if (!TestNotNull(TEXT("Trial run"), TrialRun) || !TestNotNull(TEXT("Member"), Inventory)) return;
+		TestTrue(TEXT("an unworn home dagger"), Inventory->AddWeapon(Dagger));
+		const FGuid DaggerID = OwnedID(Inventory, Dagger);
+		TrialRun->StartRunGearAndGold();
+		TestFalse(TEXT("left home at the start"), Pool->IsOnRun(DaggerID));
+
+		FWeaponInventoryEntry *Owned = Inventory->Weapons.FindByPredicate([&DaggerID](const FWeaponInventoryEntry &E) { return E.PersistentID == DaggerID; });
+		if (!TestNotNull(TEXT("the member's own dagger entry"), Owned)) { Pool->EndRunLayer(); return; }
+		Owned->AttachedItem = RunLayerGem(RUN_LAYER_WORN); // a gem socketed at a rest spot
+		Inventory->RefreshLoadoutsFromOwned(DaggerID);       // the member's change reaches the store (PushGearToPool)
+		TestTrue(TEXT("it joins the run the first time it changes"), Pool->IsOnRun(DaggerID));
+		const FWeaponInventoryEntry *InStore = Pool->FindWeaponInPool(DaggerID);
+		TestTrue(TEXT("the store carries the run's gem"), InStore && !InStore->AttachedItem.IsEmpty());
+
+		Pool->EndRunLayer();
+		const FWeaponInventoryEntry *Home = Pool->FindWeaponInPool(DaggerID);
+		TestTrue(TEXT("back to its home state: no gem"), Home && Home->AttachedItem.IsEmpty());
+		TestEqual(TEXT("one dagger"), CountInStore(*Pool, DaggerID), 1);
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

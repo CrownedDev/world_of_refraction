@@ -293,7 +293,8 @@ public:
 	FOnWorldStatDraftReady OnWorldStatDraftReady;
 
 	/** B-223 (D-102): fired at combat end on a player win that dropped pillar levels (already added to the
-	 *  trial run's unspent levels). */
+	 *  trial run's unspent levels). B-223b: Levels is the whole party's total; each member's share is
+	 *  UTrialRunSubsystem::GetUnspentLevels. */
 	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
 	FOnLevelDropsReady OnLevelDropsReady;
 

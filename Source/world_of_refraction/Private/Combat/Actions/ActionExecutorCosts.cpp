@@ -117,8 +117,7 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 			}
 
 			int32 BaseCost = Action.SpellData->CalculateEnergyCost(CharData);
-			// Spell infusion: charge multiplier (x1.5/x2.0 at L1/L2) x upside-only
-			// SpellDamage surcharge. This function is BOTH the spell preview AND the
+			// Spell infusion: the base x the charge level (D-126). This function is BOTH the spell preview AND the
 			// spell spend (ExecuteSpellAsync calls it), so preview == spend.
 			const UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
 			const float CostMultiplier = ComputeInfusionCostMultiplier(Action.SpellInfusionLevel, /*bIsSpell*/ true, Comp);
@@ -136,7 +135,7 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 		// Cluster 3: covers attacks too (folded into Ability). Reads the merged pointer so a
 		// cost-bearing attack reports the same cost the merged dispatch spends; default attacks
 		// (BaseEnergyCost=0) report 0. Preview MUST match the spend (ExecuteAbilityAsync): apply
-		// the charge multiplier + RawDamage surcharge, and zero EP for crystal sources.
+		// the charge level (D-126), and zero EP for crystal sources.
 		if (USkillDataBase *Skill = ResolveActionSkill(Action))
 		{
 			// Crystal-sourced abilities are powered by the crystal's charge, not EP.
@@ -254,6 +253,8 @@ EInfusionMode UActionExecutor::ResolveInfusionMode(EInfusionSourceOption Source,
 	return ResolveInfusionSource(Actor, Source).Mode;
 }
 
+// OBSOLETE (B-334, D-126; delete in the D-124 sweep): the x1.5 / x2.0 ability charge tax; no caller since
+// ComputeInfusionCostMultiplier reads InfusionConstants::ChargeLevelCostMultiplier.
 float UActionExecutor::GetAbilityChargeCostMultiplier(int32 Level) const
 {
 	// Energy cost scales with charge level for abilities. Uses the generic
@@ -271,28 +272,10 @@ float UActionExecutor::GetAbilityChargeCostMultiplier(int32 Level) const
 
 float UActionExecutor::ComputeInfusionCostMultiplier(int32 Level, bool bIsSpell, const UCharacterDataComponent *Comp) const
 {
-	if (Level <= 0)
-	{
-		// Uninfused: no charge multiplier, no surcharge — caller pays BaseCost * Efficiency.
-		return 1.0f;
-	}
-
-	const float ChargeMult = bIsSpell
-								  ? GetSpellInfusionCostMultiplier(Level)
-								  : GetAbilityChargeCostMultiplier(Level);
-
-	// Stat surcharge — UPSIDE-ONLY (a below-neutral stat never reduces the cost).
-	// Ability scales with RawDamage, spell with SpellDamage. Stacking the stat makes
-	// infusion cost MORE in BOTH directions (damage AND cost) — self-balancing.
-	float Frac = 0.0f;
-	if (Comp)
-	{
-		const float Stat = bIsSpell ? Comp->GetEffectiveStats().SpellDamage
-									 : Comp->GetEffectiveRawDamage();
-		Frac = StatFraction(Stat);
-	}
-
-	return ChargeMult * (1.0f + Frac);
+	// D-126 (B-334): the base x the charge level, the same for spells and abilities. The upside-only
+	// Raw / Spell Damage surcharge retired with the x1.5 / x2.0 tax (Q-334); bIsSpell and Comp are kept
+	// so the callers (spell and ability cost, the commit-time HP basis, the AI's lethal check) stay unchanged.
+	return InfusionConstants::ChargeLevelCostMultiplier(Level);
 }
 
 // ============================================================
@@ -331,7 +314,10 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		return;
 	}
 
-	// HP basis (rework 6-2-3c): the PRE-Efficiency, stat-scaled infused EP cost.
+	// D-126 (B-334): the HP-paying sources (Raw, Innate spell, Evolution) pay HP only at level 2.
+	const bool bLevelPaysHP = InfusionConstants::LevelPaysHP(Level);
+
+	// HP basis (rework 6-2-3c): the PRE-Efficiency infused EP cost (base x charge level, D-126).
 	// Source-independent — it's what this infused action's EP costs before the
 	// Efficiency reduction. The HP-paying branches (Raw/Innate/Evolution) feed this
 	// to CalculateHPCost, which converts it to HP (% of MaxEP -> % of MaxHP) and
@@ -377,7 +363,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 
 	case EInfusionSourceOption::Raw:
 	case EInfusionSourceOption::Innate:
-		// Raw ALWAYS pays HP. Innate pays HP only on a SPELL — an innate-element
+		// At L2 (D-126): Raw always pays HP. Innate pays HP only on a SPELL — an innate-element
 		// ABILITY is "oiling the sword" (EP only, no self-strain); only its HP is
 		// dropped, the EP surcharge (6-2-2) still applies. Cost is DEFERRED to
 		// FinalizeAsyncAction via PendingInfusionHPCost so a lethal cost lands after
@@ -386,7 +372,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		{
 			const bool bInnateAbilityNoHP =
 				(Action.SelectedSource == EInfusionSourceOption::Innate) && !bIsSpellAction;
-			if (!bInnateAbilityNoHP)
+			if (!bInnateAbilityNoHP && bLevelPaysHP)
 			{
 				CurrentExecutionContext->PendingInfusionHPCost = UInfusionCostHelper::CalculateHPCost(Actor, PreEffInfusedEP);
 			}
@@ -508,7 +494,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		// 2. HP cost — same EP-based formula as Innate/Raw. Computed now
 		//    (commit-time HP) but DEFERRED to FinalizeAsyncAction via
 		//    PendingInfusionHPCost so a lethal backlash lands after the action.
-		if (CurrentExecutionContext.IsSet())
+		if (CurrentExecutionContext.IsSet() && bLevelPaysHP)
 		{
 			CurrentExecutionContext->PendingInfusionHPCost = UInfusionCostHelper::CalculateHPCost(Actor, PreEffInfusedEP);
 		}
@@ -518,7 +504,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 										   ? InfusionConstants::EVOLUTION_L1_SELF_STATUS_BUILD
 										   : InfusionConstants::EVOLUTION_L2_SELF_STATUS_BUILD;
 		UE_LOG(LogTemp, Log,
-			   TEXT("[ActionExecutor] %s Evolution L%d backlash: HP cost applied. Would apply %.0f %s self-status build (pending mapping system)"),
+			   TEXT("[ActionExecutor] %s Evolution L%d backlash: HP cost from L2 only. Would apply %.0f %s self-status build (pending mapping system)"),
 			   *Actor->GetName(), Level, SelfStatusAmount,
 			   *UEnum::GetValueAsString(EvolutionElement));
 

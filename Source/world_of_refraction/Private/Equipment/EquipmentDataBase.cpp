@@ -172,6 +172,8 @@ TArray<FString> UEquipmentDataBase::GetRestrictedFusionBonusStats() const
     return Restricted;
 }
 
+// OBSOLETE (B-335, D-127; delete in the D-124 sweep): the preview roll buttons
+// (RollSubstatPoints, RollPillarPoints, ClearAllBonuses, RollResistance).
 void UEquipmentDataBase::RollSubstatPoints()
 {
     const int32 Budget = EquipmentBonusGen::GetSubstatBudget(Tier);

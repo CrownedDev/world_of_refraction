@@ -31,6 +31,7 @@ namespace
 	constexpr int32 BUY_FOR_PAYER = 0;
 	constexpr int32 BUY_FOR_RECEIVER = 1;
 	constexpr int32 BUY_FOR_WALLET_PRISMS = 100000;
+	constexpr int32 BUY_FOR_WALLET_ESSENCE = 100000; // B-333: a gem costs Elemental essence on top of Prisms
 	constexpr int32 BUY_FOR_GEM_COUNT = 3;
 	const FCrystalId BUY_FOR_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
 
@@ -137,6 +138,7 @@ void FBuyForSpec::Define()
 		if (UCurrencyComponent *PayerWallet = Inventories[BUY_FOR_PAYER] ? Wallet() : nullptr)
 		{
 			PayerWallet->Add(ECurrencyType::Prisms, BUY_FOR_WALLET_PRISMS);
+			PayerWallet->Add(ECurrencyType::ElementalEssence, BUY_FOR_WALLET_ESSENCE);
 		}
 	});
 
