@@ -4,7 +4,7 @@
 // checked (Trigger) and WHAT must be true then (Subject, with its operands, Operator / Value and whose
 // it is). A FWoRConditionSet holds when every condition in it holds (the deckbuilder's Nested list).
 // Memories read it first (B-337, with their equip conditions); boss rules (B-355); reactions (B-337b); a bound
-// item's memories (B-337c).
+// item's memories (B-337c); skill effects, their FSkillCondition read across (B-337d, SkillConditions.h).
 // The evaluator is WoRConditions (WoRConditions.h). Enums are append-only (saved in assets).
 
 #pragma once
@@ -31,8 +31,29 @@ enum class EWoRConditionTrigger : uint8
 	FightWon = 6,
 	/** B-365 (D-158): a defender perfectly guarded or dodged every hit of one attack or spell. */
 	FlawlessParry = 7,
-	/** B-337c: the party goes into a fight wearing what it wears (a bound item's memory triggers). */
+	/** B-337c: the party goes into a fight wearing what it wears (a bound item's memory triggers). A skill
+	 *  effect's On Battle Start (B-337d). */
 	FightStart = 8,
+	// ---- A skill effect's events (B-337d, ESkillTrigger): fired by USkillEffectManager / UActionExecutor ----
+	Hit = 9,
+	Crit = 10,
+	TakeDamage = 11,
+	TurnStart = 12,
+	TurnEnd = 13,
+	Kill = 14,
+	StatusApplied = 15,
+	StatusReceived = 16,
+	SpellCast = 17,
+	AbilityUsed = 18,
+	Dodge = 19,
+	Block = 20,
+	Guard = 21,
+	PerfectGuard = 22,
+	PerfectDodge = 23,
+	/** Retired by Guard (D-084): still fired with a Perfect Guard. */
+	Parry = 24,
+	PerfectParry = 25,
+	PerfectBlock = 26,
 };
 
 /** What must be true (the deckbuilder's Subject). Append only. */
@@ -90,6 +111,15 @@ enum class EWoRConditionSubject : uint8
 	Hp = 21,
 	/** B-365 (D-158): Self (the defender) has just made a Flawless Parry (FWoRConditionContext::bFlawlessParry). */
 	FlawlessParry = 22,
+	/** B-337d (Q-337c): Who's current HP as a percent of its max compares to Value (a whole percent); a fighter
+	 *  with no max reads 0%. A team Who holds when any member does. */
+	HpPercent = 23,
+	/** B-337d: as HpPercent, for EP. */
+	EpPercent = 24,
+	/** B-337d: Who is (a team Who: includes) the defender of the defense event being checked. */
+	Defender = 25,
+	/** B-337d: never holds (a skill condition authored None, "Disabled"). */
+	Disabled = 26,
 };
 
 /** Whose state a fight subject reads (the deckbuilder's Who). Append only. */
@@ -100,6 +130,10 @@ enum class EWoRConditionWho : uint8
 	Self = 0,
 	/** The one Self faces or attacked: a reaction's faced character. */
 	Target = 1,
+	/** B-337d: anyone on Self's team (Self too); holds when any member does. */
+	SelfTeam = 2,
+	/** B-337d: anyone on Target's team (Target too); holds when any member does. */
+	TargetTeam = 3,
 };
 
 /** How a number compares to Value. */
@@ -109,6 +143,10 @@ enum class EWoRConditionOperator : uint8
 	AtLeast = 0,
 	AtMost = 1,
 	Equal = 2,
+	/** B-337d: strictly less (a skill's "HP below 30%"). */
+	Below = 3,
+	/** B-337d: strictly more (a skill's "HP above 30%"). */
+	Above = 4,
 };
 
 /** The wearer against what an equipped item or skill requires, per pillar (was EMemoryRequirementFit). */
@@ -159,11 +197,12 @@ struct WORLD_OF_REFRACTION_API FWoRCondition
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
 	FName LocationId;
 
-	/** Hp: whose. */
+	/** Hp / HpPercent / EpPercent / Defender: whose. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
 	EWoRConditionWho Who = EWoRConditionWho::Self;
 
-	/** Numeric subjects (GearEquipped / EvolutionEquipped: tiers above the authored tier; Hp: HP). */
+	/** Numeric subjects (GearEquipped / EvolutionEquipped: tiers above the authored tier; Hp: HP; HpPercent /
+	 *  EpPercent: a whole percent). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
 	EWoRConditionOperator Operator = EWoRConditionOperator::AtLeast;
 
