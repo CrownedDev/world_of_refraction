@@ -13,6 +13,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 ## Pending
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-352](B-352.md) | `feature/B-352-fusions-retire` (UNBUILT) | Fusions retire: nothing makes, buys or attaches one; evolution wear stays | Not built |
 | [B-351](B-351.md) | `feature/B-351-two-sockets` (UNBUILT) | Two sockets per weapon / adapter; one skill-slot list per weapon; save v12 wipes older saves | Not built |
 | [B-326](B-326.md) | `chore/B-326-flat-requirement-penalty` (in `dev`) | Unmet requirement = x0.6 and no scaling for weapons, abilities and spells; still castable | Not built |
 | [B-327](B-327.md) | `fix/B-327-zone-health-once` (in `dev`) | The zone scales no stats; enemy HP = own x rank x Combat Tier (D-120) | Pending |
