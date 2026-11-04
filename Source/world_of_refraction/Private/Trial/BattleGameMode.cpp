@@ -29,6 +29,7 @@
 #include "Reaction/ReactionTrigger.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Currency/MentorTokens.h"
 #include "UI/Combat/CombatResultsWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "Player/WoRGameState.h"
@@ -506,6 +507,12 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
         if (UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>())
         {
             TrialRun->MarkPendingEncounterBeaten();
+            // B-361b (D-154, Q-361b): a boss beaten with another player pays every player a Mentor Token.
+            if (TrialRun->GetPendingRank() == EEncounterRank::Boss)
+            {
+                TrialRun->MarkRunBossBeaten();
+                WoRMentorTokens::PayPlayersTogether(GetWorld(), MentorTokenRules::PER_BOSS_TOGETHER, TEXT("a boss beaten together"));
+            }
             // B-209: a beaten boss or mini-boss unlocks its memory, and memories whose unlock
             // conditions the win meets.
             CheckFightWonMemories();
