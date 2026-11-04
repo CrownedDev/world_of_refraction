@@ -28,6 +28,8 @@ enum class EWoRConditionTrigger : uint8
 	MapSpotReached = 4,
 	BoundGearUsed = 5,
 	FightWon = 6,
+	/** B-365 (D-158): a defender perfectly guarded or dodged every hit of one attack or spell. */
+	FlawlessParry = 7,
 };
 
 /** What must be true (the deckbuilder's Subject). Append only. */
@@ -83,6 +85,8 @@ enum class EWoRConditionSubject : uint8
 	/** Who's current HP compares to Value: an absolute amount, never a percent (the deckbuilder's
 	 *  rule, Crown 2026-10-12). False when the context has no such fighter. */
 	Hp = 21,
+	/** B-365 (D-158): Self (the defender) has just made a Flawless Parry (FWoRConditionContext::bFlawlessParry). */
+	FlawlessParry = 22,
 };
 
 /** Whose state a fight subject reads (the deckbuilder's Who). Append only. */

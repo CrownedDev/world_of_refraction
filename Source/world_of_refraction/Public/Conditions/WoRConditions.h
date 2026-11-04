@@ -52,6 +52,8 @@ struct FWoRConditionContext
 	/** B-337b: Who's fighters for the Hp subject (null: it fails). */
 	const FWoRFighterState *Self = nullptr;
 	const FWoRFighterState *Target = nullptr;
+	/** B-365: set when the event is Self's Flawless Parry (UDefenseSystem::OnFlawlessParry; Target = the attacker). */
+	bool bFlawlessParry = false;
 };
 
 namespace WoRConditions
@@ -74,6 +76,9 @@ namespace WoRConditions
 
 	/** A memory event's source as a trigger. */
 	WORLD_OF_REFRACTION_API EWoRConditionTrigger TriggerFor(EMemorySource Source);
+
+	/** B-365: a context for Self's Flawless Parry: trigger FlawlessParry, the subject true. */
+	WORLD_OF_REFRACTION_API FWoRConditionContext MakeFlawlessParryContext(const FWoRFighterState *Self, const FWoRFighterState *Target);
 
 	/** A context for a memory event. */
 	WORLD_OF_REFRACTION_API FWoRConditionContext MakeContext(const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal);

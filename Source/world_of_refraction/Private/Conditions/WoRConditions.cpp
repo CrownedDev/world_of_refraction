@@ -145,6 +145,10 @@ namespace
 		{
 			return Condition.PriorMemory && Context.Journal && Context.Journal->HasMemory(Condition.PriorMemory);
 		}
+		if (Condition.Subject == EWoRConditionSubject::FlawlessParry)
+		{
+			return Context.bFlawlessParry;
+		}
 		if (Condition.Subject == EWoRConditionSubject::FacingEnemy)
 		{
 			return Condition.Enemy && Context.Opposing.Contains(Condition.Enemy.Get());
@@ -309,6 +313,16 @@ EWoRConditionTrigger WoRConditions::TriggerFor(EMemorySource Source)
 	case EMemorySource::FightWon:  return EWoRConditionTrigger::FightWon;
 	}
 	return EWoRConditionTrigger::Any;
+}
+
+FWoRConditionContext WoRConditions::MakeFlawlessParryContext(const FWoRFighterState *Self, const FWoRFighterState *Target)
+{
+	FWoRConditionContext Context;
+	Context.Trigger = EWoRConditionTrigger::FlawlessParry;
+	Context.bFlawlessParry = true;
+	Context.Self = Self;
+	Context.Target = Target;
+	return Context;
 }
 
 FWoRConditionContext WoRConditions::MakeContext(const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal)
