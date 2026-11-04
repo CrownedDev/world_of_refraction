@@ -1891,9 +1891,12 @@ bool UAIDecisionManager::HasDangerousDebuff(AActor *Actor)
     }
     for (const FActiveSkillEffect &Effect : StatusManager->GetHeldEffects(Actor))
     {
-        // Check if DOT will kill us
+        // Check if DOT will kill us. B-042j3: the next tick is read after the holder's absorbers, the later ticks bare
+        // (an absorber may be spent by then).
         if (Effect.IsDOT() && Effect.IsCleansable() &&
-            StatusManager->PreviewDotTickDamage(Actor, Effect) * Effect.RemainingTurns >= GetCurrentHP(Actor))
+            StatusManager->PreviewDotTickDamage(Actor, Effect) +
+                    StatusManager->PreviewDotTickDamage(Actor, Effect, /*bAfterAbsorbers=*/false) * FMath::Max(0, Effect.RemainingTurns - 1) >=
+                GetCurrentHP(Actor))
         {
             return true;
         }

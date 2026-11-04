@@ -2447,7 +2447,7 @@ TArray<FActiveSkillEffect> USkillEffectManager::GetHeldEffects(AActor *Actor) co
 	return Mirror ? Mirror->ReadHeldEffects(GetActiveEffects(Actor)) : GetActiveEffects(Actor);
 }
 
-int32 USkillEffectManager::PreviewDotTickDamage(AActor *Actor, const FActiveSkillEffect &Effect) const
+int32 USkillEffectManager::PreviewDotTickDamage(AActor *Actor, const FActiveSkillEffect &Effect, bool bAfterAbsorbers) const
 {
 	// B-318: an actor without authority always asks the mirror, which follows the server's switch, not this client's.
 	UWoREffectMirrorComponent *Mirror = Actor && (UWoREffectMirrorComponent::ReadsFromGAS() || !Actor->HasAuthority())
@@ -2456,7 +2456,8 @@ int32 USkillEffectManager::PreviewDotTickDamage(AActor *Actor, const FActiveSkil
 	const int32 FromGAS = Mirror ? Mirror->PreviewDotTick(Effect) : INDEX_NONE;
 	const int32 Tick = FromGAS != INDEX_NONE ? FromGAS : GetDotTickDamage(Actor, Effect);
 	// B-042j3 (D-092 rule 1): the next tick as the holder would pay it, after its absorbers (nothing spent here).
-	const UWoRTurnEffectTracker *Absorbers = Actor ? Actor->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr;
+	// bAfterAbsorbers false: the bare tick, for the ticks after the next (the absorbers may be gone by then).
+	const UWoRTurnEffectTracker *Absorbers = Actor && bAfterAbsorbers ? Actor->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr;
 	return FMath::Max(0, Tick - (Absorbers ? Absorbers->PreviewAbsorb(Tick, Effect.Element, EPhysicalDamageType::None) : 0));
 }
 

@@ -347,7 +347,7 @@ public:
 
 	/** B-042ye: GetDotTickDamage as the read source would pay it: from the DOT's GE tick spec at UseGAS 1
 	 *  (UWoREffectMirrorComponent::PreviewDotTick), else the enum path's number. */
-	int32 PreviewDotTickDamage(AActor *Actor, const FActiveSkillEffect &Effect) const;
+	int32 PreviewDotTickDamage(AActor *Actor, const FActiveSkillEffect &Effect, bool bAfterAbsorbers = true) const;
 
 	/** Get all effects of a specific type on actor */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
