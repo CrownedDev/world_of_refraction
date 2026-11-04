@@ -29,6 +29,7 @@
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "WoRLog.h"
+#include <type_traits> // std::is_same_v (B-351), as InventoryComponent.cpp does
 
 const TCHAR *USaveSubsystem::SLOT_NAME = TEXT("WoR_Main");
 
@@ -66,6 +67,15 @@ namespace
 		Gear.Attached = Entry.AttachedItem;
 		Gear.EvolutionItem = FSavedAssetRef::Make(Entry.AttachedItem.Evolution.Item);
 		Gear.Attached.Evolution.Item = nullptr;
+		Gear.StoneSocket = Entry.StoneSocket; // B-351
+		if constexpr (std::is_same_v<TGearEntry, FWeaponInventoryEntry>)
+		{
+			for (const UAbilityData *Pick : Entry.SkillPicks) // B-351 (D-145), one ref per slot
+			{
+				Gear.SkillPicks.Add(FSavedAssetRef::Make(Pick));
+			}
+			Gear.bSkillSlotsActive = Entry.bSkillSlotsActive;
+		}
 		// One ref per spell slot, an empty slot as an unset ref, so slot positions survive.
 		for (const USpellData *Spell : Entry.AssignedSpells)
 		{
@@ -86,6 +96,16 @@ namespace
 	{
 		Entry.AttachedItem = Gear.Attached;
 		Entry.AttachedItem.Evolution.Item = Gear.EvolutionItem.IsSet() ? Gear.EvolutionItem.ResolveAs<UEvolutionItemData>() : nullptr;
+		Entry.StoneSocket = Gear.StoneSocket; // B-351
+		if constexpr (std::is_same_v<TGearEntry, FWeaponInventoryEntry>)
+		{
+			Entry.SkillPicks.Reset();
+			for (const FSavedAssetRef &Ref : Gear.SkillPicks) // B-351 (D-145); a gone ability leaves its slot to the built-in
+			{
+				Entry.SkillPicks.Add(Ref.IsSet() ? Ref.ResolveAs<UAbilityData>() : nullptr);
+			}
+			Entry.bSkillSlotsActive = Gear.bSkillSlotsActive;
+		}
 		Entry.AssignedSpells.Reset();
 		for (const FSavedAssetRef &Ref : Gear.AssignedSpells)
 		{

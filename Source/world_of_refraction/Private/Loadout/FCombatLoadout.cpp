@@ -168,13 +168,15 @@ TArray<UAbilityData *> FCombatLoadout::GetAllAbilities() const
     // Primary weapon abilities (only if primary is weapon)
     if (PrimarySlotType == EPrimarySlotType::Weapon && PrimaryWeapon.IsValid())
     {
-        Result.Append(PrimaryWeapon.GetAllAbilities());
+        // B-351 (D-145): the weapon's one skill-slot list once active (else the old merge), so every reader of
+        // the loadout's abilities (CanUseAbility, the AI, combat tier, memory conditions) sees the same list.
+        Result.Append(PrimaryWeapon.GetSkillSlotAbilities());
     }
 
     // Secondary weapon abilities (Generic only)
     if (SecondarySlotType == ESecondarySlotType::Weapon && SecondaryWeapon.IsValid())
     {
-        Result.Append(SecondaryWeapon.GetAllAbilities());
+        Result.Append(SecondaryWeapon.GetSkillSlotAbilities());
     }
 
     // Note: Evolution abilities would come from PrimaryEvolution

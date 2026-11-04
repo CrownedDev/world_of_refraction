@@ -541,6 +541,10 @@ public:
      *  else a primary ring (the rings gear effects read). Null when there is none. */
     const FRuntimeAttachedItem *GetStoneRingAttachment() const;
 
+    /** B-351 (D-141): the stone socket of the weapon in use / of the adapter the stone getters read; null when none. */
+    const FRuntimeAttachedItem *GetActiveWeaponStoneSocket() const;
+    const FRuntimeAttachedItem *GetStoneRingStoneSocket() const;
+
     /** Every stat-stone read: the active weapon's attachment plus the counting ring's
      *  (CrystalEffectTable::GetAttachedStonePercent on each, added). 0 when neither has one. */
     float GetAttachedStonePercent(ESubStat Stat) const;

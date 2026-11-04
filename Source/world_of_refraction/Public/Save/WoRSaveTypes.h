@@ -229,6 +229,18 @@ struct WORLD_OF_REFRACTION_API FSavedGearDetail
 	UPROPERTY()
 	FRuntimeAttachedItem Attached;
 
+	/** B-351 (D-141): the stone socket (an augment stone carries only its FCrystalId, no asset pointer). */
+	UPROPERTY()
+	FRuntimeAttachedItem StoneSocket;
+
+	/** B-351 (D-145): a weapon's skill-slot picks, one ref per slot (an unset ref = the built-in), and whether its
+	 *  one list is active. Empty for an adapter. */
+	UPROPERTY()
+	TArray<FSavedAssetRef> SkillPicks;
+
+	UPROPERTY()
+	bool bSkillSlotsActive = false;
+
 	UPROPERTY()
 	FSavedAssetRef EvolutionItem;
 

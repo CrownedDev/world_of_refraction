@@ -114,19 +114,20 @@ void FGearAttachSpec::Define()
 			TestEqual(TEXT("two gems debited"), Crystals->GetCount(GEAR_TEST_GEM), GEAR_TEST_STACK - 2);
 		});
 
-		It("sockets a stone on a weapon as an augment stone", [this]()
+		It("sockets a stone on a weapon as an augment stone, in the stone socket (B-351)", [this]()
 		{
 			TestTrue(TEXT("weapon attach"), Inventory->AttachCrystalToWeapon(WeaponId, GEAR_TEST_STAT_STONE));
-			TestTrue(TEXT("augment stone"), Inventory->Weapons[0].AttachedItem.IsAugmentStone());
-			TestEqual(TEXT("stone never wears"), Inventory->Weapons[0].AttachedItem.Crystal.CurrentDurability, 0);
+			TestTrue(TEXT("augment stone"), Inventory->Weapons[0].StoneSocket.IsAugmentStone());
+			TestTrue(TEXT("element socket left empty"), Inventory->Weapons[0].AttachedItem.IsEmpty());
+			TestEqual(TEXT("stone never wears"), Inventory->Weapons[0].StoneSocket.Crystal.CurrentDurability, 0);
 			TestEqual(TEXT("stone debited"), Crystals->GetCount(GEAR_TEST_STAT_STONE), GEAR_TEST_STACK - 1);
 		});
 
-		It("refuses a stone on a ring without debiting it", [this]()
+		It("sockets a stone on a ring too: D-141 gives every adapter a stone socket (B-351)", [this]()
 		{
-			TestFalse(TEXT("ring attach refused"), Inventory->AttachCrystalToRing(RingId, GEAR_TEST_STAT_STONE));
-			TestTrue(TEXT("ring still empty"), Inventory->Rings[0].AttachedItem.IsEmpty());
-			TestEqual(TEXT("nothing debited"), Crystals->GetCount(GEAR_TEST_STAT_STONE), GEAR_TEST_STACK);
+			TestTrue(TEXT("ring attach"), Inventory->AttachCrystalToRing(RingId, GEAR_TEST_STAT_STONE));
+			TestTrue(TEXT("in the ring's stone socket"), Inventory->Rings[0].StoneSocket.IsAugmentStone());
+			TestEqual(TEXT("stone debited"), Crystals->GetCount(GEAR_TEST_STAT_STONE), GEAR_TEST_STACK - 1);
 		});
 
 		It("refuses an occupied slot, an unknown gear id and an unowned crystal", [this]()
@@ -282,7 +283,7 @@ void FGearAttachSpec::Define()
 			const FGuid Evo = AddEvolution();
 			Recorder->Changes.Reset();
 
-			Inventory->AttachCrystalToRing(RingId, GEAR_TEST_STAT_STONE); // refused
+			Inventory->AttachCrystalToWeapon(FGuid::NewGuid(), GEAR_TEST_GEM); // refused: unknown weapon (a ring takes stones since B-351)
 			Inventory->AttachCrystalToWeapon(WeaponId, GEAR_TEST_GEM);
 			Inventory->AttachCrystalToWeapon(WeaponId, GEAR_TEST_GEM); // refused: occupied
 			Inventory->RemoveCrystalFromWeapon(0);

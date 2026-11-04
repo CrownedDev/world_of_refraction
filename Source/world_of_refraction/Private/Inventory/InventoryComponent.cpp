@@ -279,21 +279,17 @@ bool UInventoryComponent::AttachCrystalToGear(TArray<TEntry> &Gear, FGuid GearID
         return false;
     }
 
+    // B-351 (D-141): a gem goes in the element socket, a stone in the stone socket, on a weapon or an adapter alike
+    // (the weapon-only stone guard of D-009 retires). Each socket holds one: a second gem or a second stone is refused.
     const bool bIsStone = !CrystalTypeHelpers::IsGemType(Id.Type);
-    if constexpr (IsRingGear<TEntry>)
-    {
-        // Inline ring-guard (mirrors URingData::IsDataValid:29-33): augment stones are weapon-only.
-        // Rings carry only refined gems (their spell source).
-        if (bIsStone)
-        {
-            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: augment stones are weapon-only — rejected on ring"), Op);
-            return false;
-        }
-    }
-
-    const int32 Index = FindEmptyGearSlot(Gear, GearID, Op);
+    const int32 Index = bIsStone ? FindGearIndex(Gear, GearID, Op) : FindEmptyGearSlot(Gear, GearID, Op);
     if (Index == INDEX_NONE)
     {
+        return false;
+    }
+    if (bIsStone && !Gear[Index].StoneSocket.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: %s stone socket already occupied"), Op, GearLabel<TEntry>());
         return false;
     }
 
@@ -307,7 +303,8 @@ bool UInventoryComponent::AttachCrystalToGear(TArray<TEntry> &Gear, FGuid GearID
         return false;
     }
 
-    Gear[Index].AttachedItem = MakeCrystalAttachment(Id, bIsStone);
+    FRuntimeAttachedItem &Socket = bIsStone ? Gear[Index].StoneSocket : Gear[Index].AttachedItem;
+    Socket = MakeCrystalAttachment(Id, bIsStone);
     HandleGearSocketChanged(GearID);
     UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached %s %s to %s %s"),
            bIsStone ? TEXT("augment stone") : TEXT("refined crystal"),
@@ -931,6 +928,20 @@ namespace InventoryGearSync
     void CopyOwned(TEntry &Slot, const TEntry &Owned)
     {
         TArray<USpellData *> Picks = MoveTemp(Slot.AssignedSpells);
+        if constexpr (std::is_same_v<TEntry, FWeaponInventoryEntry>)
+        {
+            // B-351 (D-145): the loadout copy's skill picks lead until WriteLoadoutToOwned, like its spells;
+            // an unedited copy takes the owned item's (saved) list.
+            if (Slot.bSkillSlotsActive)
+            {
+                TArray<UAbilityData *> SkillPicks = MoveTemp(Slot.SkillPicks);
+                Slot = Owned;
+                Slot.AssignedSpells = MoveTemp(Picks);
+                Slot.SkillPicks = MoveTemp(SkillPicks);
+                Slot.bSkillSlotsActive = true;
+                return;
+            }
+        }
         Slot = Owned;
         Slot.AssignedSpells = MoveTemp(Picks);
     }
@@ -983,9 +994,11 @@ namespace InventoryGearSync
         }
         const int32 SlotDurability = Slot.AttachedItem.GetCurrentDurability();
         const int32 OwnedDurability = Match->AttachedItem.GetCurrentDurability();
+        // B-351: the stone socket must match too.
         const bool bInSync = Match->Tier == Slot.Tier && Match->AttachedItem.Kind == Slot.AttachedItem.Kind &&
-                             OwnedDurability == SlotDurability;
-        return FString::Printf(TEXT("\n    %s %s -> owned %s: %s"), Label, *GetNameSafe(GetGearAsset(Slot)),
+                             OwnedDurability == SlotDurability && Match->StoneSocket == Slot.StoneSocket;
+        return FString::Printf(TEXT("\n    %s %s (stone socket %s) -> owned %s: %s"), Label, *GetNameSafe(GetGearAsset(Slot)),
+                               Slot.StoneSocket.IsEmpty() ? TEXT("empty") : *ItemIdentity::GetDisplayName(Slot.StoneSocket.Crystal.Id),
                                *Slot.PersistentID.ToString(EGuidFormats::Short),
                                bInSync ? TEXT("in sync")
                                        : *FString::Printf(TEXT("DIFFERS (tier %d / owned %d, durability %d / owned %d)"),
@@ -1160,6 +1173,9 @@ int32 UInventoryComponent::WriteLoadoutToOwned(int32 LoadoutIndex)
                         if (FWeaponInventoryEntry *Owned = FindOwned(Weapons, Slot.PersistentID))
                         {
                             Owned->AttachedItem = Slot.AttachedItem;
+                            Owned->StoneSocket = Slot.StoneSocket; // B-351
+                            Owned->SkillPicks = Slot.SkillPicks;   // B-351 (D-145): the picks live on the item
+                            Owned->bSkillSlotsActive = Slot.bSkillSlotsActive;
                             Written.Add(Slot.PersistentID);
                         }
                     },
@@ -1168,6 +1184,7 @@ int32 UInventoryComponent::WriteLoadoutToOwned(int32 LoadoutIndex)
                         if (FRingInventoryEntry *Owned = FindOwned(Rings, Slot.PersistentID))
                         {
                             Owned->AttachedItem = Slot.AttachedItem;
+                            Owned->StoneSocket = Slot.StoneSocket; // B-351
                             Written.Add(Slot.PersistentID);
                         }
                     });
@@ -2795,24 +2812,34 @@ FString UInventoryComponent::GetInventoryInstanceString() const
     Out += FString::Printf(TEXT("\n  Weapons (%d):"), Weapons.Num());
     for (const FWeaponInventoryEntry &W : Weapons)
     {
-        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s"),
+        // B-351: the stone socket (D-141) and the one skill-slot list's picks (D-145; '-' = the built-in).
+        FString Picks;
+        for (const UAbilityData *Pick : W.SkillPicks)
+        {
+            Picks += Pick ? Pick->GetName() + TEXT(" ") : FString(TEXT("- "));
+        }
+        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s  stone=%s  skills=%s%s"),
                                W.Weapon ? *W.Weapon->Name : TEXT("(null)"),
                                *ShortGuid(W.PersistentID),
                                *TierHelpers::GetTierName(W.Tier),
                                QualityName(W.Quality),
-                               *DescribeAttachment(W.AttachedItem));
+                               *DescribeAttachment(W.AttachedItem),
+                               *DescribeAttachment(W.StoneSocket),
+                               W.bSkillSlotsActive ? TEXT("one list ") : TEXT("old lists "),
+                               *Picks);
     }
 
     // ---------- Rings ----------
     Out += FString::Printf(TEXT("\n  Rings (%d):"), Rings.Num());
     for (const FRingInventoryEntry &R : Rings)
     {
-        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s"),
+        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s  stone=%s"),
                                R.Ring ? *R.Ring->Name : TEXT("(null)"),
                                *ShortGuid(R.PersistentID),
                                *TierHelpers::GetTierName(R.Tier),
                                QualityName(R.Quality),
-                               *DescribeAttachment(R.AttachedItem));
+                               *DescribeAttachment(R.AttachedItem),
+                               *DescribeAttachment(R.StoneSocket));
     }
 
     // ---------- Spells ----------

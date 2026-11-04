@@ -440,6 +440,19 @@ void FLoadoutRulesSpec::Define()
 			TestFalse(TEXT("not clearable: no S gem in the item slots"), Found->bClearable);
 		});
 
+		It("counts an S stone in the stone socket beside an S gem (B-351, D-141)", [this]()
+		{
+			FCombatLoadout Loadout = SwordLoadoutWithAbility(EWeaponType::Sword);
+			Loadout.PrimaryWeapon.WeaponEntry.AttachedItem.Kind = EAttachedItemKind::Crystal;
+			Loadout.PrimaryWeapon.WeaponEntry.AttachedItem.Crystal.Id = FCrystalId(ECrystalType::Garnet, EItemTier::S_Tier);
+			Loadout.PrimaryWeapon.WeaponEntry.StoneSocket.Kind = EAttachedItemKind::AugmentStone;
+			Loadout.PrimaryWeapon.WeaponEntry.StoneSocket.Crystal.Id = FCrystalId(ECrystalType::DamageStone, EItemTier::S_Tier);
+			TestEqual(TEXT("an S gem and an S stone on one weapon are two"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Generic), 2);
+			TestEqual(TEXT("two S: reported"), CountSTierFindings(Loadout), 1);
+			Loadout.PrimaryWeapon.WeaponEntry.StoneSocket.Crystal.Id = FCrystalId(ECrystalType::DamageStone, EItemTier::A_Tier);
+			TestEqual(TEXT("an A stone doesn't count"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Generic), 1);
+		});
+
 		It("counts the evolution seat and an evolution on the secondary weapon", [this]()
 		{
 			FCombatLoadout Loadout = SwordLoadoutWithAbility(EWeaponType::Sword);

@@ -56,7 +56,9 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
                ActiveWeapon->WeaponEntry.HasCrystal());
         Out.bCanAttack = true;
         Out.ActiveWeaponName = ActiveWeapon->WeaponEntry.Weapon->Name;
-        Out.WeaponAbilities = ActiveWeapon->GetAllAbilities();
+        // B-351 (D-145): the weapon's one skill-slot list (built-ins, picks and Ability Stone slots), or the pre-D-145
+        // lists until the player first edits it.
+        Out.WeaponAbilities = ActiveWeapon->GetSkillSlotAbilities();
         Out.bCanUseAbilities = Out.WeaponAbilities.Num() > 0;
 
         // Crystal spells on active weapon. D-083: a broken crystal's spells stay listed,
@@ -72,7 +74,8 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         // Augment-stone abilities — parallel to the crystal-spell branch above and
         // mutually exclusive with it (one attachment slot). GetAugmentStoneAbilities
         // returns empty unless a augment stone is attached, so no extra guard.
-        Out.AugmentStoneAbilities = ActiveWeapon->GetAugmentStoneAbilities();
+        Out.AugmentStoneAbilities = ActiveWeapon->WeaponEntry.bSkillSlotsActive ? TArray<UAbilityData *>()
+                                                                                : ActiveWeapon->GetAugmentStoneAbilities();
         Out.bHasAugmentStoneAbilities = Out.AugmentStoneAbilities.Num() > 0;
     }
 

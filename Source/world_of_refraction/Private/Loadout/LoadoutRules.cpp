@@ -368,18 +368,23 @@ namespace
 	int32 CountAttachedSTier(const FCombatLoadout &Loadout, ECharacterClass Class)
 	{
 		int32 Count = 0;
-		const auto CountEntry = [&Count](const FRuntimeAttachedItem &Attached) { Count += IsSTierAttachment(Attached) ? 1 : 0; };
+		// B-351 (D-141): both sockets count, the element socket and the stone socket.
+		const auto CountEntry = [&Count](const FRuntimeAttachedItem &Attached, const FRuntimeAttachedItem &Stone)
+		{
+			Count += IsSTierAttachment(Attached) ? 1 : 0;
+			Count += IsSTierAttachment(Stone) ? 1 : 0;
+		};
 		const FWeaponInventoryEntry &Primary = Loadout.PrimaryWeapon.WeaponEntry;
 		const FRingInventoryEntry &PrimaryRing = Loadout.PrimaryRing.RingEntry;
 		const bool bWeaponPrimary = Loadout.PrimarySlotType == EPrimarySlotType::Weapon || Loadout.PrimarySlotType == EPrimarySlotType::None;
 		const bool bRingPrimary = Loadout.PrimarySlotType == EPrimarySlotType::Ring && PrimaryRing.Ring;
 		if (bWeaponPrimary && Primary.Weapon)
 		{
-			CountEntry(Primary.AttachedItem);
+			CountEntry(Primary.AttachedItem, Primary.StoneSocket);
 		}
 		if (bRingPrimary)
 		{
-			CountEntry(PrimaryRing.AttachedItem);
+			CountEntry(PrimaryRing.AttachedItem, PrimaryRing.StoneSocket);
 		}
 		if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
 		{
@@ -388,7 +393,7 @@ namespace
 		const FWeaponInventoryEntry &Secondary = Loadout.SecondaryWeapon.WeaponEntry;
 		if (Class == ECharacterClass::Generic && Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Secondary.Weapon)
 		{
-			CountEntry(Secondary.AttachedItem);
+			CountEntry(Secondary.AttachedItem, Secondary.StoneSocket);
 		}
 		if (Class == ECharacterClass::Resonator)
 		{
@@ -396,7 +401,7 @@ namespace
 			{
 				if (Ring.RingEntry.Ring && !(bRingPrimary && IsSameAdapter(Ring.RingEntry, PrimaryRing)))
 				{
-					CountEntry(Ring.RingEntry.AttachedItem);
+					CountEntry(Ring.RingEntry.AttachedItem, Ring.RingEntry.StoneSocket);
 				}
 			}
 		}
