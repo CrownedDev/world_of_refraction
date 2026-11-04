@@ -417,10 +417,11 @@ FText GetCurrencyName(ECurrencyType Currency)
 {
     switch (Currency)
     {
+    // B-366 (D-159): the names swap; the enum values keep theirs (see ECurrencyType).
     case ECurrencyType::Gold:
-        return LOCTEXT("ECurrencyType_Gold", "Gold");
+        return LOCTEXT("ECurrencyType_Gold", "Prisms");
     case ECurrencyType::Prisms:
-        return LOCTEXT("ECurrencyType_Prisms", "Prisms");
+        return LOCTEXT("ECurrencyType_Prisms", "Gold");
     case ECurrencyType::Diamond:
         return LOCTEXT("ECurrencyType_Diamond", "Diamond");
     case ECurrencyType::EssenceTyped: // OBSOLETE (B-333)
@@ -472,7 +473,7 @@ FText GetInventoryVerbName(EInventoryVerb Verb)
     case EInventoryVerb::Dismantle:
         return LOCTEXT("VerbDismantle", "Dismantle");
     case EInventoryVerb::Convert:
-        return LOCTEXT("VerbConvert", "Convert to Gold");
+        return LOCTEXT("VerbConvert", "Convert to Prisms"); // B-366: pays the run currency (ECurrencyType::Gold, D-159)
     }
     return FText::GetEmpty();
 }
