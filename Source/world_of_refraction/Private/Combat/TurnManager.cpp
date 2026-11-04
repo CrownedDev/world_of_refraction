@@ -465,7 +465,7 @@ void UTurnManager::GrantBonusTurn(AActor *Actor, int32 Count)
 
 void UTurnManager::SkipNextTurn(AActor *Actor, int32 Count)
 {
-	const UCombatCharacterComponent *CharComp = Actor ? Actor->FindComponentByClass<UCombatCharacterComponent>() : nullptr;
+	const UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Actor);
 	if (!bCombatActive || Count <= 0 || !CharComp || !CharComp->bIsAlive)
 	{
 		UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] SkipNextTurn: %s is not a living combatant in this fight"), *GetNameSafe(Actor));
