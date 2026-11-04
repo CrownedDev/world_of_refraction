@@ -21,6 +21,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
+#include "WoRGameNames.h"
 
 namespace
 {
@@ -231,6 +232,12 @@ void FInventoryVerbsSpec::Define()
 		if (!TestTrue(TEXT("the weaker copy is listed"), Weaker.IsSet())) return;
 		TestTrue(TEXT("Convert applies to it"),
 				 VerbsOf(Weaker.GetValue()).Contains(EInventoryVerb::Convert));
+		// B-366b (Q-366): at home it pays the hub currency, and the texts say so.
+		const FString HubName = WoRGameNames::GetCurrencyName(ECurrencyType::Prisms).ToString();
+		TestTrue(TEXT("the confirm text names the hub currency"),
+				 WoRInventoryVerbs::GetConfirmText(World(), EInventoryVerb::Convert, KeyOf(VERBS_MEMBER), Weaker.GetValue()).ToString().Contains(HubName));
+		TestEqual(TEXT("the button names the hub currency"), WoRInventoryVerbs::GetVerbName(World(), EInventoryVerb::Convert).ToString(),
+				  FString::Printf(TEXT("Convert to %s"), *HubName));
 		TestTrue(TEXT("converted"), RunOn(EInventoryVerb::Convert, Weaker.GetValue()).IsEmpty());
 		TestNull(TEXT("the weaker copy is gone"), Pool->FindWeaponInPool(Pairs[0].WeakerID));
 		TestNotNull(TEXT("the kept copy stays"), Pool->FindWeaponInPool(Pairs[0].KeptID));
