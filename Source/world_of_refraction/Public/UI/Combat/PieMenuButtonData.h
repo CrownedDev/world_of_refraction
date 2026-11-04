@@ -126,7 +126,7 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 
 	/** Spell school (when Category == School) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
-	EPieMenuSpellSchool School = EPieMenuSpellSchool::Destruction;
+	EPieMenuSpellSchool School = EPieMenuSpellSchool::Conjuration;
 
 	/** Reference to underlying data asset (spell, ability, item, ring, weapon) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
@@ -174,12 +174,7 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 
 		switch (InSchool)
 		{
-		case EPieMenuSpellSchool::Destruction:
-			Button.ButtonID = TEXT("School_Destruction");
-			Button.DisplayName = FText::FromString(TEXT("Destruction"));
-			Button.Description = FText::FromString(FString::Printf(TEXT("%d spells"), SpellCount));
-			Button.ButtonTint = FLinearColor(1.0f, 0.3f, 0.1f, 1.0f); // Orange-red
-			break;
+		case EPieMenuSpellSchool::Destruction: // OBSOLETE (B-356c): retired, builds the Conjuration button
 		case EPieMenuSpellSchool::Conjuration:
 			Button.ButtonID = TEXT("School_Conjuration");
 			Button.DisplayName = FText::FromString(TEXT("Conjuration"));
