@@ -2060,6 +2060,13 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 	{
 		DefenseSys->OnDefensePerfect.Broadcast(Defender, Attacker, Result.DefenseType, Match.bPerfect, ImpactIndex);
 	}
+	// B-365 (D-158): every hit of this attack perfectly guarded or dodged is a Flawless Parry, reported at the last hit.
+	if (Ctx->FlawlessTally.AddHit(FlawlessParry::IsPerfectHit(Result.DefenseType, Result.bSuccess, Match.bPerfect), HitCount))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Defense] Flawless Parry: %s against %s (%s)"), *GetNameSafe(Defender), *GetNameSafe(Attacker),
+			   *FlawlessParry::GetTallyString(Ctx->FlawlessTally, HitCount));
+		DefenseSys->OnFlawlessParry.Broadcast(Defender, Attacker);
+	}
 
 	UE_LOG(LogTemp, Verbose, TEXT("[Stage3] impact %d defense for %s — Type: %d, Slice: %d → %d, %s"),
 		   ImpactIndex, *Defender->GetName(), static_cast<int32>(Result.DefenseType),
