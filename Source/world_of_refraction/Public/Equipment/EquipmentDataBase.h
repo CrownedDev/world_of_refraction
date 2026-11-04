@@ -16,6 +16,7 @@
 #include "Skills/Effects/FSkillEffect.h"
 #include "Skills/Effects/FGatheredEffect.h"
 #include "Equipment/FAttachedItem.h"
+#include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Equipment/IEquipmentGenerator.h"
 #include "GameplayTagContainer.h" // SourceTags — loot/draft source-tag layer (§7.9 C1)
 
@@ -294,8 +295,12 @@ public:
 
     // ==================== CRYSTAL HELPERS ====================
 
+    /** Something sits in the authored element socket. B-352 (D-141): a retired fusion counts as nothing. */
     UFUNCTION(BlueprintPure, Category = "Equipment|Crystal")
-    bool HasCrystal() const { return AttachedItem.Kind != EAttachedItemKind::None; }
+    bool HasCrystal() const
+    {
+        return AttachedItem.Kind != EAttachedItemKind::None && !(FusionRules::RETIRED && AttachedItem.Kind == EAttachedItemKind::Fusion);
+    }
 
     /** Editor-only discriminator for the contextual EditConditions on
      *  DefaultSpells / DefaultAbilities. EditCondition cannot reach the nested

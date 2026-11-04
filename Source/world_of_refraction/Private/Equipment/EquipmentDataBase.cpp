@@ -8,6 +8,7 @@
 #include "Character/FPillarWeights.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
+#include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Skills/Effects/EffectIdentity.h"
 #include "Character/CharacterData.h"
 #include "Debug/Skills/SkillEffectDebug.h"
@@ -32,8 +33,12 @@ ESpellElement UEquipmentDataBase::GetCrystalElement() const
         return AttachedItem.Evolution ? AttachedItem.Evolution->GetAssociatedElement()
                                       : ESpellElement::None;
     case EAttachedItemKind::Fusion:
-        // Mirror the runtime GetElement gem-half logic on the flat authored fields,
-        // for design-time/preview parity. The gem half drives the element; an
+        if (FusionRules::RETIRED)
+        {
+            return ESpellElement::None; // B-352 (D-141): the socket reads empty in play, so no element here either
+        }
+        // OBSOLETE (B-352; delete in the D-124 sweep). Mirror the runtime GetElement gem-half logic on the flat authored
+        // fields, for design-time/preview parity. The gem half drives the element; an
         // augmented fusion (two stones, no gem) is non-elemental (None). Check both halves.
         if (CrystalTypeHelpers::IsGemType(AttachedItem.FusionHalfAType))
         {
