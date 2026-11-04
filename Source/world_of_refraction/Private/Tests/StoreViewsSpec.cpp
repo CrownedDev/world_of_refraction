@@ -172,6 +172,38 @@ void FStoreViewsSpec::Define()
 		TestTrue(TEXT("the first of two sharing an ID wins"), Found && Found->Weapon == Dagger);
 	});
 
+	It("answers the loadout's owns-check from the store view, not the member's copy (B-312b)", [this]()
+	{
+		UInventoryComponent *First = SpawnMember(0, false, false);
+		UInventoryComponent *Second = SpawnMember(1, false, false);
+		if (!TestNotNull(TEXT("first"), First) || !TestNotNull(TEXT("second"), Second)) return;
+		// The dagger goes straight into the store as the first member's; no copy is told.
+		FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Dagger);
+		Entry.PersistentID = FGuid::NewGuid();
+		Pool->AddWeaponToPool(Entry);
+		Pool->SetGearOwner(Entry.PersistentID, KeyOf(0));
+		TestTrue(TEXT("the owner has it"), First->OwnsWeaponAsset(Dagger));
+		TestFalse(TEXT("the other member doesn't"), Second->OwnsWeaponAsset(Dagger));
+		TestTrue(TEXT("its own sword still owned"), First->OwnsWeaponAsset(Sword));
+		TestFalse(TEXT("no asset: not owned"), First->OwnsWeaponAsset(nullptr));
+		// In the chest it is nobody's (B-324).
+		Pool->SetGearOwner(Entry.PersistentID, UPoolSubsystem::GetChestKey());
+		TestFalse(TEXT("a chest piece isn't owned"), First->OwnsWeaponAsset(Dagger));
+	});
+
+	It("a run-only recruit owns every store piece but the chest's (B-312b)", [this]()
+	{
+		UParty *Party = TestWorld->GetSubsystem<UPartySessionSubsystem>()->GetLocalParty();
+		if (!TestNotNull(TEXT("party"), Party)) return;
+		Party->Members[1].bRunOnly = true;
+		UInventoryComponent *First = SpawnMember(0, true, false);
+		UInventoryComponent *Recruit = SpawnMember(1, false, false);
+		if (!TestNotNull(TEXT("first"), First) || !TestNotNull(TEXT("recruit"), Recruit)) return;
+		TestTrue(TEXT("the recruit draws the first member's dagger"), Recruit->OwnsWeaponAsset(Dagger));
+		Pool->SetGearOwner(OwnedID(First, Dagger), UPoolSubsystem::GetChestKey());
+		TestFalse(TEXT("not once it is in the chest"), Recruit->OwnsWeaponAsset(Dagger));
+	});
+
 	It("gives each member a view of its own gear, and the copies agree with it after the draw", [this]()
 	{
 		if (!Pool) return;

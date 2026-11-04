@@ -121,8 +121,9 @@ whoever-walked-in property.
 
 ### Party creation ordering
 
-Creation moved from lazy encounter-sphere creation to **hub `BeginPlay`**
-(`BP_HubPlayerController` calls `EnsureLocalParty` — now `BlueprintCallable`).
+Creation moved from lazy encounter-sphere creation to **hub possession**
+(`AWoRHubController::OnPossess` calls `EnsureLocalParty` since B-158; before that the
+`BP_HubPlayerController` graph called it in BeginPlay — that node is deleted in the B-158 editor step).
 Recruiting happens in the hub, before any encounter fires, so the party must exist
 first; a recruitable's `InviteMember` with no party would warn and drop the invite.
 
@@ -274,6 +275,8 @@ stats are still two characters. Concrete consequences (Cluster 3 survey):
 - `CharacterData`-keyed membership (see Identity Model) — per-instance identity with
   the Arc 2 grid; per-user identity with PvP.
 - Multiplayer invite (second `PlayerController` joins the local party) is a stub.
+- B-346: an AI seat's difficulty is not saved yet (`FPartyMember::AISeatDifficulty`, TODO B-348); after a load every AI seat is back at Medium. The seat flag itself survives through the mirrored `bPlayerControlled`.
+- B-346: `SeatRules` (co-op rotation) is covered headless only (`WoR.Party.Seats`) until B-232 brings co-op seats and their per-fight rotation counter.
 - Invite/hint asymmetry on per-instance `CharacterData` overrides (see Identity
   Model).
 
@@ -316,4 +319,7 @@ stats are still two characters. Concrete consequences (Cluster 3 survey):
 | 2026-11-02 | B-221 (Q-091 changed by Crown): `UInventoryComponent::GetSelectableWeapons` / `GetSelectableRings` leave out gear another member wears (`IsWornByOtherMember`); the inventory debug print tags it. The pickers and equip setters move onto them with B-221b. | feature/B-221-worn-gear-leaves-inventory |
 | 2026-11-02 | B-227 (co-op): `UTrialRunSubsystem` moves levels with `World->ServerTravel` (seamless; only the host travels, Q-227) instead of `OpenLevelBySoftObjectPtr`; new `AWoRGameState`; `net.AllowPIESeamlessTravel=1`. The hub Blueprint game mode still needs seamless travel + `AWoRGameState` in the editor (B-240). | feature/B-227-seamless-travel |
 | 2026-11-03 | B-321 (D-117, Q-321): per-character gear. `UPoolSubsystem::GearOwners` (GUID -> character key; `GetGearOwner` / `SetGearOwner` / `AssignUnownedGear`) says who owns each piece; `BankStartingGear` sets the owner. `UInventoryComponent::DrawSharedGear` draws only the member's own pieces (a run-only recruit draws the whole armoury, `bDrawsWholeArmoury`); a piece from before D-117 goes to its wearer, else the party leader (logged). New pieces go to the member who got them (a run-only recruit's to the leader). `AdoptPresetOnlyGear` adopts the member's own copy even when another member has one. OBSOLETE, delete after PIE: wearers / `FPoolGearClash` / `NoteClashes`, `ClaimActiveSharedGear`, B-221's `IsWornByOtherMember(Of)` / `GetSelectable*`, `LoadoutComponent::IsWornByAnother`, the party panel's clash lines. `wor pool` dump lists owners. Spec `WoR.Pool.SharedGear` rewritten |
+| 2026-11-03 | B-346 (Q-21-audit): seats. `SeatRules` (who commands a turn: AI seat → AI; claimed → its player; unclaimed → the side's players in rotation, headless until B-232). `FPartyMember::bAISeat` / `AISeatDifficulty` (default Medium); `UPartySessionSubsystem::SetMemberAISeat` / `SetMemberAISeatDifficulty` refuse the leader and any change while a fight runs. `bPlayerControlled`, `bLetAIFinish`, `SetMemberPlayerControlled`, `SetLetAIFinish` OBSOLETE (the setter forwards; the flag stays mirrored for the save). Battle: no takeover, no Let AI Play button; an AI seat plays at its own difficulty. Debug: `wor.Party.SetAIDifficulty`. Specs `WoR.Party.Seats`, `WoR.Party.IntoBattle`. Unbuilt (cloud). | feature/B-346-party-seats |
+| 2026-11-04 | B-346 built and tested on the desktop; merged into dev. | feature/B-346-party-seats |
+| 2026-11-04 | B-158 (D-076 = A): `AWoRHubController::OnPossess` calls `EnsureLocalParty` (`LocalPartyPawnClass`, `bEnsureLocalPartyOnPossess`); `AExplorationPlayerController` retired (OBSOLETE). The Blueprint's own `EnsureLocalParty` call is the editor step (`docs/PIE/B-158.md`); until then the get-or-create runs twice, harmlessly. | feature/B-158-one-hub-controller |
 | 2026-11-04 | B-232 (D-129, Q-21-audit, Q-232): `URunStateComponent` on `AWoRGameState` replicates the run and the side's roster (copied from the subsystems at level start; `Get*` reads fall back to them offline); `AWoRPlayerState::ClaimCharacter` (its pawn's character; replicated, kept over seamless travel); `ControlsActor` follows the seat rule for roster members; `ProcessEndOfTurnEffects` moves the rotation. Spec `WoR.Net.RunState`. Written unbuilt in a cloud session. | feature/B-232-run-state-party |

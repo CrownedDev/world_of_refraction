@@ -70,20 +70,16 @@ FString USaveDebug::GetSaveString(const FWoRSaveData &Data)
 		Out.Add(FString::Printf(TEXT("  currency %d key %d: %d"), B.Currency, B.SubKey, B.Amount));
 	}
 	const FSavedPool &P = Data.Pool;
-	Out.Add(FString::Printf(TEXT("Pool: %d gear (v5), %d weapon(s) + %d ring(s) (before v5), %d evolution(s), %d spell(s), %d ability(ies), %d crystal stack(s)"),
-							P.Gear.Num(), P.Weapons.Num(), P.Rings.Num(), P.Evolutions.Num(), P.Spells.Num(), P.Abilities.Num(), P.Crystals.Num()));
-	// B-124: each saved weapon's and ring's attachment, spells and rolls (B-308: the v5 gear list, then the older lists).
-	for (const TArray<FSavedOwnedItem> *Gear : {&P.Gear, &P.Weapons, &P.Rings})
+	Out.Add(FString::Printf(TEXT("Pool: %d gear, %d evolution(s), %d spell(s), %d ability(ies), %d crystal stack(s)"),
+							P.Gear.Num(), P.Evolutions.Num(), P.Spells.Num(), P.Abilities.Num(), P.Crystals.Num()));
+	// B-124: each saved weapon's and ring's attachment, spells and rolls.
+	for (const FSavedOwnedItem &Item : P.Gear)
 	{
-		for (const FSavedOwnedItem &Item : *Gear)
-		{
-			const FSavedGearDetail &G = Item.Gear;
-			Out.Add(G.bSaved ? FString::Printf(TEXT("  %s  attached kind %d (wear %d)  %d spell slot(s)  raw +%d  pools %d/%d, %d/%d"),
-											   *Item.Def.Id.ToString(), static_cast<int32>(G.Attached.Kind),
-											   G.Attached.GetCurrentDurability(), G.AssignedSpells.Num(), G.StatBonus.BonusRawDamage,
-											   G.StatPool, G.StatMaxPool, G.ResistancePool, G.ResistanceMaxPool)
-							 : FString::Printf(TEXT("  %s  no gear detail (saved before B-124)"), *Item.Def.Id.ToString()));
-		}
+		const FSavedGearDetail &G = Item.Gear;
+		Out.Add(FString::Printf(TEXT("  %s  attached kind %d (wear %d)  %d spell slot(s)  raw +%d  pools %d/%d, %d/%d"),
+								*Item.Def.Id.ToString(), static_cast<int32>(G.Attached.Kind), G.Attached.GetCurrentDurability(),
+								G.AssignedSpells.Num(), G.StatBonus.BonusRawDamage, G.StatPool, G.StatMaxPool, G.ResistancePool,
+								G.ResistanceMaxPool));
 	}
 	const FSavedRun &R = Data.Run;
 	Out.Add(R.bHasRun

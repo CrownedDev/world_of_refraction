@@ -647,8 +647,8 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
     Buttons.Add(CreateMoveRowButton(/*bForward*/ false));
     Buttons.Add(CreateDefendButton());
     Buttons.Add(CreateFleeButton());
-    if (CanHandToAI())
-        Buttons.Add(CreateHandToAIButton());
+    // OBSOLETE (B-346): no "Let AI Play" button; seats are fixed for the fight (Q-21-audit, PA-13).
+    // The switch stays for debug (wor.Combat.SwitchControl).
 
     return Buttons;
 }
@@ -926,31 +926,28 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildItemsSubmenu() cons
 {
     TArray<FPieMenuButtonData> Buttons;
 
-    // Walk loadout slots so we can display remaining uses alongside the item
+    // B-313 (D-111, D-117): the member's usable items (its pouch; an actor with no pouch, its loadout's
+    // item slots), with how many this fight can still use.
     ULoadoutComponent *LC = GetLoadoutComponent();
     if (LC)
     {
-        const FCombatLoadout &Loadout = LC->GetActiveLoadout();
+        const TArray<FItemLoadoutSlot> Items = LC->GetUsableItems();
 
-        for (int32 SlotIndex = 0; SlotIndex < Loadout.ItemSlots.Num(); ++SlotIndex)
+        for (int32 ItemIndex = 0; ItemIndex < Items.Num(); ++ItemIndex)
         {
-            const FItemLoadoutSlot &Slot = Loadout.ItemSlots[SlotIndex];
-            if (Slot.IsEmpty())
-                continue;
+            const FItemLoadoutSlot &Item = Items[ItemIndex];
+            const FText DisplayName = FText::Format(NSLOCTEXT("CombatCommandMenu", "ItemButton", "{0}x {1}"),
+                                                    FText::AsNumber(Item.Quantity),
+                                                    FText::FromString(ItemIdentity::GetDisplayName(Item.CrystalId)));
 
-            const FString DisplayName = FString::Printf(TEXT("%dx %s"),
-                                                        Slot.Quantity,
-                                                        *ItemIdentity::GetDisplayName(Slot.CrystalId));
-
-            // Carry the slot index (DataIndex), not a UObject* — consumables have
-            // no asset identity now; the click handler reads the live CrystalId
-            // from Loadout.ItemSlots[DataIndex].
+            // Carry the index into GetUsableItems (DataIndex), not a UObject* — consumables have
+            // no asset identity; the click handler reads the live CrystalId from that list.
             FPieMenuButtonData Button = FPieMenuButtonData::MakeDataButton(
-                FString::Printf(TEXT("Item_%d"), SlotIndex),
-                FText::FromString(DisplayName),
+                FString::Printf(TEXT("Item_%d"), ItemIndex),
+                DisplayName,
                 EPieMenuCategory::Item,
                 nullptr,
-                SlotIndex);
+                ItemIndex);
 
             Button.bEnabled = true;
             Buttons.Add(Button);
@@ -959,6 +956,40 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildItemsSubmenu() cons
 
     Buttons.Add(FPieMenuButtonData::MakeBackButton());
     return Buttons;
+}
+
+namespace
+{
+    /** B-356 (D-146): a spell's menu school from its shown school. The two enums' orders differ
+     *  (the old int cast put Enhancement spells under Conjuration). B-356c: Conjuration is the damage school. */
+    EPieMenuSpellSchool ToPieMenuSchool(const USpellData &Spell)
+    {
+        switch (Spell.GetSchool())
+        {
+        case ESpellSchool::Enhancement:
+            return EPieMenuSpellSchool::Enhancement;
+        case ESpellSchool::Restoration:
+            return EPieMenuSpellSchool::Restoration;
+        case ESpellSchool::Conjuration:
+        default:
+            return EPieMenuSpellSchool::Conjuration;
+        }
+    }
+
+    ESpellSchool ToSpellSchool(EPieMenuSpellSchool School)
+    {
+        switch (School)
+        {
+        case EPieMenuSpellSchool::Enhancement:
+            return ESpellSchool::Enhancement;
+        case EPieMenuSpellSchool::Restoration:
+            return ESpellSchool::Restoration;
+        case EPieMenuSpellSchool::Destruction: // OBSOLETE (B-356c): retired, reads as Conjuration
+        case EPieMenuSpellSchool::Conjuration:
+        default:
+            return ESpellSchool::Conjuration;
+        }
+    }
 }
 
 TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSchoolButtons(
@@ -972,15 +1003,17 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSchoolButtons(
     {
         if (!Spell)
             continue;
-        EPieMenuSpellSchool School = static_cast<EPieMenuSpellSchool>(
-            static_cast<int32>(Spell->School));
-        SchoolCounts.FindOrAdd(School)++;
+        SchoolCounts.FindOrAdd(ToPieMenuSchool(*Spell))++;
     }
 
     // Add a button for each school that has spells
     for (auto &Pair : SchoolCounts)
     {
-        Buttons.Add(FPieMenuButtonData::MakeSchoolButton(Pair.Key, Pair.Value));
+        FPieMenuButtonData Button = FPieMenuButtonData::MakeSchoolButton(Pair.Key, Pair.Value);
+        // B-356: the school's name from the LOCTEXT name table (D-061 / D-062).
+        Button.DisplayName = WoRGameNames::GetSpellSchoolName(ToSpellSchool(Pair.Key));
+        Button.Description = FText::Format(NSLOCTEXT("CombatCommandMenu", "SchoolSpellCount", "{0} {0}|plural(one=spell,other=spells)"), Pair.Value);
+        Buttons.Add(Button);
     }
 
     Buttons.Add(FPieMenuButtonData::MakeBackButton());
@@ -998,8 +1031,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSpellButtons(
         if (!Spell)
             continue;
 
-        EPieMenuSpellSchool SpellSchool = static_cast<EPieMenuSpellSchool>(
-            static_cast<int32>(Spell->School));
+        const EPieMenuSpellSchool SpellSchool = ToPieMenuSchool(*Spell);
 
         if (SpellSchool != School)
             continue;
@@ -1828,21 +1860,21 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
     case EPieMenuCategory::Item:
     {
         Action.ActionType = EActionType::Item;
-        // Consumable identity comes from the live loadout slot the button points
-        // at (DataIndex), not a UObject* payload.
+        // Consumable identity comes from the live usable-items entry the button points
+        // at (DataIndex, B-313), not a UObject* payload.
         if (ULoadoutComponent *LC = GetLoadoutComponent())
         {
-            const FCombatLoadout &Loadout = LC->GetActiveLoadout();
-            if (Loadout.ItemSlots.IsValidIndex(ButtonData.DataIndex))
+            const TArray<FItemLoadoutSlot> Items = LC->GetUsableItems();
+            if (Items.IsValidIndex(ButtonData.DataIndex))
             {
-                Action.ItemData = Loadout.ItemSlots[ButtonData.DataIndex].CrystalId;
+                Action.ItemData = Items[ButtonData.DataIndex].CrystalId;
             }
             else
             {
-                // Surface a dropped slot index instead of a silent empty action.
+                // Surface a dropped index instead of a silent empty action.
                 UE_LOG(LogTemp, Warning,
-                       TEXT("[CombatCommandMenu] Item action has invalid slot DataIndex=%d (ItemSlots.Num=%d) — ItemData left empty"),
-                       ButtonData.DataIndex, Loadout.ItemSlots.Num());
+                       TEXT("[CombatCommandMenu] Item action has invalid DataIndex=%d (usable items=%d) — ItemData left empty"),
+                       ButtonData.DataIndex, Items.Num());
             }
         }
         break;

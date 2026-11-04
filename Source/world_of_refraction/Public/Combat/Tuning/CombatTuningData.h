@@ -78,8 +78,8 @@ public:
 
 	// ---- Weapon requirement (B-224) ----
 
-	/** Floor on a weapon's requirement factor: at most this much of the weapon part is lost under the
-	 *  requirement (the skill part is never cut). */
+	/** OBSOLETE (B-326, D-119): the old requirement ladder's floor. Nothing reads it now: an unmet weapon
+	 *  requirement is WeaponRequirement::REQUIREMENT_UNMET_DAMAGE_FACTOR. Delete after Crown's PIE pass. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (ClampMin = 0, ClampMax = 1))
 	float WeaponReqFactorMin;
 
@@ -117,6 +117,80 @@ public:
 	/** Floor on (1 - defence fraction). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Broken Darkness")
 	float StrainControlFactorMin;
+
+	// ---- AI (B-345, D-136): the enemy / ally AI's scoring weights and thresholds (AIDecisionConstants.h) ----
+
+	/** Target score added when the best action can kill the target. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Target")
+	int32 AIKillPotentialScore;
+	/** Target score per missing HP fraction (a target at 0% HP adds the whole weight). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Target")
+	float AIHPMissingWeight;
+	/** Target score per point of the target's threat. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Target")
+	float AIThreatWeight;
+	/** Threat per point of Raw Damage, of Status Multiplier and of Spell Damage. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Target")
+	float AIRawDamageThreatMult;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Target")
+	float AIStatusMultiplierThreatMult;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Target")
+	float AISpellPowerThreatMult;
+
+	/** A skill's score = its damage estimate + its status score x this. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Skill score")
+	float AIStatusScoreWeight;
+	/** Status score when the hit tips the bar or the bar is near its trigger. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Skill score")
+	float AIStatusScoreTrigger;
+	/** Status score for buildup that doesn't tip the bar. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Skill score")
+	float AIStatusScoreContribute;
+	/** Status score when the target already carries a dangerous status. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Skill score")
+	float AIStatusScoreRedundant;
+	/** Status bar fill at or above which the AI reads the bar as near its trigger. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Skill score", meta = (ClampMin = 0, ClampMax = 1))
+	float AIStatusBarNearTrigger;
+
+	/** EP fraction below which the AI saves energy (no level 2 infusion; reaches for an EP item). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Thresholds", meta = (ClampMin = 0, ClampMax = 1))
+	float AIEnergyConservationThreshold;
+	/** EP fraction above which Hard and Expert infuse to push a near-full status bar. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Thresholds", meta = (ClampMin = 0, ClampMax = 1))
+	float AIEnergyAbundantThreshold;
+	/** HP fraction at or below which Hard and Expert heal. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Thresholds", meta = (ClampMin = 0, ClampMax = 1))
+	float AIHealHPThresholdHard;
+	/** HP fraction at or below which Easy and Medium heal. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Thresholds", meta = (ClampMin = 0, ClampMax = 1))
+	float AIHealHPThresholdEasy;
+	/** HP fraction at or below which the AI wards itself with a Last Stand item. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Thresholds", meta = (ClampMin = 0, ClampMax = 1))
+	float AILastStandHPThreshold;
+
+	/** Emerald, enemy target: the DoT-secured kill is worth the target's HP x this. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Emerald")
+	float AIKillSecureFactor;
+	/** Emerald, enemy target: turns of the target's threat subtracted for its one free action. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Emerald")
+	float AIFreeActionFactor;
+	/** Emerald, self target: a held action must outscore the best affordable one by this factor. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Emerald")
+	float AIStarveMargin;
+	/** Emerald, self target: a held action's value x 1 / (1 + this x delay turns). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Emerald")
+	float AIDelayDecay;
+
+	/** Chance the AI tries to defend when a defence window opens, per AI tier. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Defence", meta = (ClampMin = 0, ClampMax = 1))
+	float AIDefenseAttemptEasy;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Defence", meta = (ClampMin = 0, ClampMax = 1))
+	float AIDefenseAttemptMedium;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Defence", meta = (ClampMin = 0, ClampMax = 1))
+	float AIDefenseAttemptHard;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Defence", meta = (ClampMin = 0, ClampMax = 1))
+	float AIDefenseAttemptExpert;
 
 	/** The asset at COMBAT_TUNING_ASSET_PATH, or null while none exists. */
 	static const UCombatTuningData *GetActive();

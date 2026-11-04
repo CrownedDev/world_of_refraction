@@ -53,6 +53,8 @@ namespace EquipmentBonusGen
     }
 }
 
+/** OBSOLETE (B-335, D-127; delete in the D-124 sweep): the random stat-bonus generator (per-instance
+ *  rolls retire; gear keeps tier + quality). No gameplay caller; Blueprint check before deleting. */
 UCLASS()
 class WORLD_OF_REFRACTION_API UEquipmentBonusGenerator : public UObject
 {

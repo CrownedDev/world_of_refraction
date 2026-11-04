@@ -17,7 +17,6 @@
 
 namespace
 {
-	constexpr int32 INPUT_ROUTING_SETTLE_FRAMES = 3;
 	constexpr int32 INPUT_ROUTING_SPELL_LEVEL = 2;
 	constexpr int32 INPUT_ROUTING_ABILITY_LEVEL = 1;
 	/** Above InfusionConstants::MAX_INFUSION_LEVEL: unpacking clamps it. */
@@ -40,24 +39,6 @@ BEGIN_DEFINE_SPEC(FCombatInputRoutingSpec, "WoR.Coop.InputRouting",
 	ACombatPlayerController *Controller = nullptr;
 	AActor *Hero = nullptr;
 	AActor *Foe = nullptr;
-
-	/** Two player-path combatants (plain actors), Hero first. False if setup failed. */
-	bool StartDuel()
-	{
-		if (!Orchestrator || !Controller)
-		{
-			return false;
-		}
-		Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
-		Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
-		if (!TestTrue(TEXT("Combatants spawned"), Hero && Foe))
-		{
-			return false;
-		}
-		Orchestrator->StartCombat({Hero}, {Foe});
-		TestWorld->Tick(INPUT_ROUTING_SETTLE_FRAMES);
-		return TestTrue(TEXT("Hero has turn 1"), Orchestrator->IsActorsTurn(Hero));
-	}
 
 	ECombatInputVerdict LastVerdict() const
 	{
@@ -91,30 +72,14 @@ void FCombatInputRoutingSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("on authority, runs a pick straight through the server-side handler", [this]()
-	{
-		if (!StartDuel())
-		{
-			return;
-		}
-		Controller->RequestMenuPick(FCombatPickRequest::FromAction(Hero, InputRoutingAbilityOn(Foe)));
-
-		if (TestEqual(TEXT("one input handled"), Controller->GetRecentInputs().Num(), 1))
-		{
-			TestFalse(TEXT("handled here, not by RPC"), Controller->GetRecentInputs().Last().bFromClient);
-		}
-		TestTrue(TEXT("accepted"), LastVerdict() == ECombatInputVerdict::Accepted);
-		TestTrue(TEXT("the orchestrator runs it (async ability)"), Orchestrator->IsWaitingForAsyncAction());
-	});
-
+	// A fight with a player controller in this headless world overflows the stack at combat start (engine frames only,
+	// 2026-11-04), so the accepted pick and the not-their-turn refusal are PIE checks (docs/PIE/B-229.md); the
+	// verdicts that come before the orchestrator is asked are pinned here.
 	It("refuses a pick for a character the sender doesn't control", [this]()
 	{
-		if (!StartDuel())
-		{
-			return;
-		}
+		Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
 		AActor *Bot = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), true);
-		if (!TestNotNull(TEXT("bot-driven pawn"), Bot))
+		if (!TestTrue(TEXT("combatants spawned"), Hero && Bot && Controller))
 		{
 			return;
 		}
@@ -124,19 +89,20 @@ void FCombatInputRoutingSpec::Define()
 			Controller->HandleMenuPick(FCombatPickRequest::FromAction(Bot, InputRoutingAbilityOn(Hero)), true);
 		TestTrue(TEXT("not controlled"), Verdict == ECombatInputVerdict::NotControlled);
 		TestTrue(TEXT("recorded as a client's input"), Controller->GetRecentInputs().Num() > 0 && Controller->GetRecentInputs().Last().bFromClient);
-		TestFalse(TEXT("nothing runs"), Orchestrator->IsWaitingForAsyncAction());
-		TestTrue(TEXT("still Hero's turn"), Orchestrator->IsActorsTurn(Hero));
 	});
 
-	It("refuses a pick for a character whose turn it isn't", [this]()
+	It("refuses a pick while no fight is running", [this]()
 	{
-		if (!StartDuel())
+		Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("combatants spawned"), Hero && Foe && Controller))
 		{
 			return;
 		}
+		// An authority pick: a client's pick may not name a plain actor (ControlsActor), which these harness actors are.
 		const ECombatInputVerdict Verdict =
-			Controller->HandleMenuPick(FCombatPickRequest::FromAction(Foe, InputRoutingAbilityOn(Hero)), true);
-		TestTrue(TEXT("not their turn"), Verdict == ECombatInputVerdict::NotTheirTurn);
+			Controller->HandleMenuPick(FCombatPickRequest::FromAction(Hero, InputRoutingAbilityOn(Foe)), false);
+		TestTrue(TEXT("no combat"), Verdict == ECombatInputVerdict::NoCombat);
 		TestFalse(TEXT("nothing runs"), Orchestrator->IsWaitingForAsyncAction());
 	});
 

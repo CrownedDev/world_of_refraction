@@ -13,6 +13,8 @@
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/FAttachedItem.h"
+#include "Misc/DataValidation.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
@@ -114,19 +116,20 @@ void FGearAttachSpec::Define()
 			TestEqual(TEXT("two gems debited"), Crystals->GetCount(GEAR_TEST_GEM), GEAR_TEST_STACK - 2);
 		});
 
-		It("sockets a stone on a weapon as an augment stone", [this]()
+		It("sockets a stone on a weapon as an augment stone, in the stone socket (B-351)", [this]()
 		{
 			TestTrue(TEXT("weapon attach"), Inventory->AttachCrystalToWeapon(WeaponId, GEAR_TEST_STAT_STONE));
-			TestTrue(TEXT("augment stone"), Inventory->Weapons[0].AttachedItem.IsAugmentStone());
-			TestEqual(TEXT("stone never wears"), Inventory->Weapons[0].AttachedItem.Crystal.CurrentDurability, 0);
+			TestTrue(TEXT("augment stone"), Inventory->Weapons[0].StoneSocket.IsAugmentStone());
+			TestTrue(TEXT("element socket left empty"), Inventory->Weapons[0].AttachedItem.IsEmpty());
+			TestEqual(TEXT("stone never wears"), Inventory->Weapons[0].StoneSocket.Crystal.CurrentDurability, 0);
 			TestEqual(TEXT("stone debited"), Crystals->GetCount(GEAR_TEST_STAT_STONE), GEAR_TEST_STACK - 1);
 		});
 
-		It("refuses a stone on a ring without debiting it", [this]()
+		It("sockets a stone on a ring too: D-141 gives every adapter a stone socket (B-351)", [this]()
 		{
-			TestFalse(TEXT("ring attach refused"), Inventory->AttachCrystalToRing(RingId, GEAR_TEST_STAT_STONE));
-			TestTrue(TEXT("ring still empty"), Inventory->Rings[0].AttachedItem.IsEmpty());
-			TestEqual(TEXT("nothing debited"), Crystals->GetCount(GEAR_TEST_STAT_STONE), GEAR_TEST_STACK);
+			TestTrue(TEXT("ring attach"), Inventory->AttachCrystalToRing(RingId, GEAR_TEST_STAT_STONE));
+			TestTrue(TEXT("in the ring's stone socket"), Inventory->Rings[0].StoneSocket.IsAugmentStone());
+			TestEqual(TEXT("stone debited"), Crystals->GetCount(GEAR_TEST_STAT_STONE), GEAR_TEST_STACK - 1);
 		});
 
 		It("refuses an occupied slot, an unknown gear id and an unowned crystal", [this]()
@@ -149,42 +152,38 @@ void FGearAttachSpec::Define()
 		});
 	});
 
-	Describe("fusion attach", [this]()
+	Describe("fusion attach (retired, B-352 / D-141)", [this]()
 	{
-		It("fuses an elemental pair on a weapon and a ring, debiting both halves", [this]()
+		It("fuses nothing on a weapon or a ring and debits no half", [this]()
 		{
 			const FFusionId Elemental = GearTestFusion(GEAR_TEST_STAT_STONE, GEAR_TEST_GEM);
-			TestTrue(TEXT("weapon fuse"), Inventory->AttachFusionToWeapon(WeaponId, Elemental));
-			TestTrue(TEXT("ring fuse"), Inventory->AttachFusionToRing(RingId, Elemental));
-			TestTrue(TEXT("weapon holds a fusion"), Inventory->Weapons[0].AttachedItem.IsFusion());
-			TestTrue(TEXT("ring holds a fusion"), Inventory->Rings[0].AttachedItem.IsFusion());
-			TestEqual(TEXT("stones debited"), Crystals->GetCount(GEAR_TEST_STAT_STONE), GEAR_TEST_STACK - 2);
-			TestEqual(TEXT("gems debited"), Crystals->GetCount(GEAR_TEST_GEM), GEAR_TEST_STACK - 2);
-		});
-
-		It("fuses an augmented pair on a weapon but refuses it on a ring", [this]()
-		{
 			const FFusionId Augmented = GearTestFusion(GEAR_TEST_STAT_STONE, GEAR_TEST_ABILITY_STONE);
-			TestFalse(TEXT("ring refuses"), Inventory->AttachFusionToRing(RingId, Augmented));
+			TestFalse(TEXT("weapon refuses an elemental fusion"), Inventory->AttachFusionToWeapon(WeaponId, Elemental));
+			TestFalse(TEXT("ring refuses an elemental fusion"), Inventory->AttachFusionToRing(RingId, Elemental));
+			TestFalse(TEXT("weapon refuses an augmented fusion"), Inventory->AttachFusionToWeapon(WeaponId, Augmented));
+			TestTrue(TEXT("weapon still empty"), Inventory->Weapons[0].AttachedItem.IsEmpty());
 			TestTrue(TEXT("ring still empty"), Inventory->Rings[0].AttachedItem.IsEmpty());
-			TestEqual(TEXT("nothing debited by the ring"), Crystals->GetCount(GEAR_TEST_ABILITY_STONE), GEAR_TEST_STACK);
-			TestTrue(TEXT("weapon accepts"), Inventory->AttachFusionToWeapon(WeaponId, Augmented));
-			TestEqual(TEXT("ability stone debited"), Crystals->GetCount(GEAR_TEST_ABILITY_STONE), GEAR_TEST_STACK - 1);
+			TestEqual(TEXT("no stone debited"), Crystals->GetCount(GEAR_TEST_STAT_STONE), GEAR_TEST_STACK);
+			TestEqual(TEXT("no gem debited"), Crystals->GetCount(GEAR_TEST_GEM), GEAR_TEST_STACK);
+			TestEqual(TEXT("no ability stone debited"), Crystals->GetCount(GEAR_TEST_ABILITY_STONE), GEAR_TEST_STACK);
 		});
 
-		It("refuses an invalid pair and an occupied slot", [this]()
+		It("leaves the socket empty for an authored fusion (nothing bought with one)", [this]()
 		{
-			const FFusionId TwoGems = GearTestFusion(GEAR_TEST_GEM, GEAR_TEST_OTHER_GEM);
-			TestFalse(TEXT("weapon invalid pair"), Inventory->AttachFusionToWeapon(WeaponId, TwoGems));
-			TestFalse(TEXT("ring invalid pair"), Inventory->AttachFusionToRing(RingId, TwoGems));
-			TestEqual(TEXT("nothing debited"), Crystals->GetCount(GEAR_TEST_GEM), GEAR_TEST_STACK);
+			FAttachedItem Authored;
+			Authored.Kind = EAttachedItemKind::Fusion;
+			Authored.FusionHalfAType = GEAR_TEST_STAT_STONE.Type;
+			Authored.FusionHalfBType = GEAR_TEST_GEM.Type;
+			TestTrue(TEXT("empty socket"), FRuntimeAttachedItem::FromAttachedItem(Authored).IsEmpty());
 
-			const FFusionId Elemental = GearTestFusion(GEAR_TEST_STAT_STONE, GEAR_TEST_GEM);
-			TestTrue(TEXT("weapon gem"), Inventory->AttachCrystalToWeapon(WeaponId, GEAR_TEST_OTHER_GEM));
-			TestTrue(TEXT("ring gem"), Inventory->AttachCrystalToRing(RingId, GEAR_TEST_OTHER_GEM));
-			TestFalse(TEXT("occupied weapon"), Inventory->AttachFusionToWeapon(WeaponId, Elemental));
-			TestFalse(TEXT("occupied ring"), Inventory->AttachFusionToRing(RingId, Elemental));
-			TestEqual(TEXT("halves kept"), Crystals->GetCount(GEAR_TEST_STAT_STONE), GEAR_TEST_STACK);
+			UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
+			Weapon->AttachedItem = Authored;
+			TestFalse(TEXT("an authored fusion is no crystal"), Weapon->HasCrystal());
+			TestTrue(TEXT("and has no element"), Weapon->GetCrystalElement() == ESpellElement::None);
+#if WITH_EDITOR
+			FDataValidationContext Context;
+			TestTrue(TEXT("data validation flags it"), Weapon->IsDataValid(Context) == EDataValidationResult::Invalid);
+#endif
 		});
 	});
 
@@ -282,18 +281,17 @@ void FGearAttachSpec::Define()
 			const FGuid Evo = AddEvolution();
 			Recorder->Changes.Reset();
 
-			Inventory->AttachCrystalToRing(RingId, GEAR_TEST_STAT_STONE); // refused
+			Inventory->AttachCrystalToWeapon(FGuid::NewGuid(), GEAR_TEST_GEM); // refused: unknown weapon (a ring takes stones since B-351)
 			Inventory->AttachCrystalToWeapon(WeaponId, GEAR_TEST_GEM);
 			Inventory->AttachCrystalToWeapon(WeaponId, GEAR_TEST_GEM); // refused: occupied
 			Inventory->RemoveCrystalFromWeapon(0);
 			Inventory->RemoveCrystalFromWeapon(0); // nothing to remove
-			Inventory->AttachFusionToRing(RingId, GearTestFusion(GEAR_TEST_STAT_STONE, GEAR_TEST_GEM));
-			Inventory->RemoveCrystalFromRing(0);
+			Inventory->AttachFusionToRing(RingId, GearTestFusion(GEAR_TEST_STAT_STONE, GEAR_TEST_GEM)); // refused: retired (B-352)
+			Inventory->RemoveCrystalFromRing(0); // nothing to remove
 			Inventory->AttachEvolutionToWeapon(WeaponId, Evo);
 			Inventory->RemoveEvolutionFromWeapon(WeaponId);
 
 			const TArray<EInventoryChangeType> Expected = {
-				EInventoryChangeType::Equipped, EInventoryChangeType::Removed,
 				EInventoryChangeType::Equipped, EInventoryChangeType::Removed,
 				EInventoryChangeType::Equipped, EInventoryChangeType::Removed};
 			TestTrue(TEXT("change sequence"), Recorder->Changes == Expected);
@@ -310,7 +308,7 @@ void FGearAttachSpec::Define()
 			TestFalse(TEXT("bad weapon index"), Inventory->RemoveCrystalFromWeapon(1));
 			TestFalse(TEXT("bad ring index"), Inventory->RemoveCrystalFromRing(-1));
 
-			Inventory->AttachFusionToWeapon(WeaponId, GearTestFusion(GEAR_TEST_STAT_STONE, GEAR_TEST_GEM));
+			Inventory->AttachCrystalToWeapon(WeaponId, GEAR_TEST_GEM); // B-352: a gem, not a fusion (fusions are refused)
 			Inventory->AttachCrystalToRing(RingId, GEAR_TEST_GEM);
 			TestTrue(TEXT("weapon removed"), Inventory->RemoveCrystalFromWeapon(0));
 			TestTrue(TEXT("ring removed"), Inventory->RemoveCrystalFromRing(0));

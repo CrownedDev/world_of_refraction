@@ -1,6 +1,7 @@
 // SaveSubsystem.cpp
 
 #include "Save/SaveSubsystem.h"
+#include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Save/WoRSaveGame.h"
 #include "Character/CharacterData.h"
 #include "Character/Forms/CharacterFormSubsystem.h"
@@ -19,6 +20,7 @@
 #include "Player/WoRPlayerState.h"
 #include "Pool/PoolSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "Equipment/Crystals/StatStone.h"
 #include "Skills/Definitions/SpellData.h"
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryComponent.h"
@@ -29,14 +31,17 @@
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "WoRLog.h"
+#include <type_traits> // std::is_same_v (B-351), as InventoryComponent.cpp does
 
 const TCHAR *USaveSubsystem::SLOT_NAME = TEXT("WoR_Main");
 
 namespace
 {
-	/** The banked scalar currencies; Gold is run-only and EssenceTyped is per key. */
+	/** The banked scalar currencies (B-333: six of the seven balances); Gold is run-only and the
+	 *  OBSOLETE EssenceTyped is per key. */
 	constexpr ECurrencyType BANKED_SCALARS[] = {ECurrencyType::Prisms, ECurrencyType::Diamond,
-												ECurrencyType::GearEssence, ECurrencyType::SkillEssence};
+												ECurrencyType::GearEssence, ECurrencyType::SkillEssence,
+												ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence};
 
 	UCurrencyComponent *FindLocalWallet(UWorld *World)
 	{
@@ -61,10 +66,18 @@ namespace
 	FSavedGearDetail SaveGearDetail(const TGearEntry &Entry)
 	{
 		FSavedGearDetail Gear;
-		Gear.bSaved = true;
 		Gear.Attached = Entry.AttachedItem;
 		Gear.EvolutionItem = FSavedAssetRef::Make(Entry.AttachedItem.Evolution.Item);
 		Gear.Attached.Evolution.Item = nullptr;
+		Gear.StoneSocket = Entry.StoneSocket; // B-351
+		if constexpr (std::is_same_v<TGearEntry, FWeaponInventoryEntry>)
+		{
+			for (const UAbilityData *Pick : Entry.SkillPicks) // B-351 (D-145), one ref per slot
+			{
+				Gear.SkillPicks.Add(FSavedAssetRef::Make(Pick));
+			}
+			Gear.bSkillSlotsActive = Entry.bSkillSlotsActive;
+		}
 		// One ref per spell slot, an empty slot as an unset ref, so slot positions survive.
 		for (const USpellData *Spell : Entry.AssignedSpells)
 		{
@@ -79,16 +92,28 @@ namespace
 		return Gear;
 	}
 
-	/** B-124: puts the saved detail on a freshly made entry; an older save keeps the asset's defaults. */
+	/** B-124: puts the saved detail on a freshly made entry. */
 	template <typename TGearEntry>
 	void RestoreGearDetail(const FSavedGearDetail &Gear, TGearEntry &Entry)
 	{
-		if (!Gear.bSaved)
-		{
-			return;
-		}
 		Entry.AttachedItem = Gear.Attached;
+		if (FusionRules::RETIRED && Entry.AttachedItem.Kind == EAttachedItemKind::Fusion)
+		{
+			Entry.AttachedItem = FRuntimeAttachedItem(); // B-352 (D-141): a fusion saved by an earlier dev build reads as an empty socket
+		}
 		Entry.AttachedItem.Evolution.Item = Gear.EvolutionItem.IsSet() ? Gear.EvolutionItem.ResolveAs<UEvolutionItemData>() : nullptr;
+		Entry.StoneSocket = Gear.StoneSocket; // B-351
+		Entry.StoneSocket.Crystal.Id = StatStone::Normalize(Entry.StoneSocket.Crystal.Id);   // B-353 (D-142)
+		Entry.AttachedItem.Crystal.Id = StatStone::Normalize(Entry.AttachedItem.Crystal.Id); // B-353: a pre-B-351 stone
+		if constexpr (std::is_same_v<TGearEntry, FWeaponInventoryEntry>)
+		{
+			Entry.SkillPicks.Reset();
+			for (const FSavedAssetRef &Ref : Gear.SkillPicks) // B-351 (D-145); a gone ability leaves its slot to the built-in
+			{
+				Entry.SkillPicks.Add(Ref.IsSet() ? Ref.ResolveAs<UAbilityData>() : nullptr);
+			}
+			Entry.bSkillSlotsActive = Gear.bSkillSlotsActive;
+		}
 		Entry.AssignedSpells.Reset();
 		for (const FSavedAssetRef &Ref : Gear.AssignedSpells)
 		{
@@ -321,6 +346,7 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 	UCharacterFormSubsystem *Forms = GI->GetSubsystem<UCharacterFormSubsystem>();
 	Forms->RestoreProgress(Data.Forms.Progress);
 	Forms->RestoreWorn(Data.Forms.WornForm, Data.Forms.BaseForm == static_cast<uint8>(EPlayerBaseForm::Quinn) ? EPlayerBaseForm::Quinn : EPlayerBaseForm::Manny);
+	Forms->RestoreOutfit(FOutfitSet::FromSaved(Data.Forms.CurrentOutfit)); // B-279c: after the skin, so its authored outfit does not overwrite it
 	UE_LOG(LogWoR, Log, TEXT("[Save] Loaded slot '%s' (version %d): party %s, %d pool entries, wallet %s"),
 		   SLOT_NAME, Loaded->GetSavedDataVersion(), bParty ? TEXT("restored") : TEXT("not restored"), PoolEntries,
 		   Data.Wallet.bHasWallet ? TEXT("banked") : TEXT("empty"));
@@ -422,6 +448,7 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 	Data.Forms.Progress = Forms->GetProgressByName();
 	Data.Forms.WornForm = Forms->GetWornFormName();
 	Data.Forms.BaseForm = static_cast<uint8>(Forms->GetBaseForm());
+	Data.Forms.CurrentOutfit = Forms->GetCurrentOutfit().ToSaved();
 	if (const UCurrencyComponent *Wallet = FindLocalWallet(World))
 	{
 		BankWallet(Wallet);
@@ -530,6 +557,7 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 		Out.PreferredRow = Member.PreferredRow;
 		Out.PreferredColumn = Member.PreferredColumn;
 		Out.bPlayerControlled = Member.bPlayerControlled;
+		Out.AISeatDifficulty = Member.AISeatDifficulty;
 		Out.bRunOnly = Member.bRunOnly;
 		Out.RunWeapon = Member.RunWeapon;
 		Out.RunRing = Member.RunRing;
@@ -567,6 +595,7 @@ FSavedWallet USaveSubsystem::CaptureWallet(const UCurrencyComponent *Wallet)
 	{
 		Bank(Currency, 0);
 	}
+	// OBSOLETE (B-333): nothing earns typed essence now (D-125); delete in the sweep (D-124).
 	for (uint8 Key = 0; Key <= static_cast<uint8>(EEssenceType::Ability); ++Key)
 	{
 		Bank(ECurrencyType::EssenceTyped, Key);
@@ -605,6 +634,7 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 			FSavedCrystalStack &Out = Saved.Crystals.AddDefaulted_GetRef();
 			Out.Type = static_cast<uint8>(Stack.Key.Type);
 			Out.Tier = Stack.Key.Tier;
+			Out.StoneStat = static_cast<uint8>(Stack.Key.StoneStat); // B-353
 			Out.Count = Stack.Value;
 		}
 	}
@@ -617,20 +647,7 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 		Saved.Owners.Add({Owned.Key, Owned.Value});
 	}
 	Saved.BankedCharacters = Pool.GetBankedCharacters().Array();
-	// B-322 (save v9): a pouch per character. An older save's party pouch no member has drawn yet is written as it was, so the
-	// next load still gives it to the leader (a save between load and draw loses nothing).
-	if (Pool.HasLegacyCarriedItems())
-	{
-		const FPoolPouch &Legacy = Pool.GetLegacyCarriedItems();
-		Saved.ItemSlotCount = Legacy.SlotCount;
-		for (const TPair<FCrystalId, int32> &Stack : Legacy.Stacks)
-		{
-			FSavedCrystalStack &Out = Saved.CarriedItems.AddDefaulted_GetRef();
-			Out.Type = static_cast<uint8>(Stack.Key.Type);
-			Out.Tier = Stack.Key.Tier;
-			Out.Count = Stack.Value;
-		}
-	}
+	// B-322: a pouch per character.
 	for (const TPair<FName, FPoolPouch> &Pouch : Pool.GetPouches())
 	{
 		FSavedPouch &Out = Saved.Pouches.AddDefaulted_GetRef();
@@ -641,6 +658,7 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 			FSavedCrystalStack &OutStack = Out.Stacks.AddDefaulted_GetRef();
 			OutStack.Type = static_cast<uint8>(Stack.Key.Type);
 			OutStack.Tier = Stack.Key.Tier;
+			OutStack.StoneStat = static_cast<uint8>(Stack.Key.StoneStat); // B-353
 			OutStack.Count = Stack.Value;
 		}
 	}
@@ -735,6 +753,7 @@ bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsyst
 		Member.PreferredRow = In.PreferredRow;
 		Member.PreferredColumn = In.PreferredColumn;
 		Member.bPlayerControlled = In.bPlayerControlled;
+		Member.AISeatDifficulty = In.AISeatDifficulty;
 		Member.bRunOnly = In.bRunOnly;
 		Member.RunWeapon = In.RunWeapon;
 		Member.RunRing = In.RunRing;
@@ -771,32 +790,29 @@ void USaveSubsystem::ApplyWallet(const FSavedWallet &Saved, UCurrencyComponent *
 int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 {
 	int32 Restored = 0;
-	// B-308: v5 saves one gear list; v3 / v4 saves the weapon and adapter lists. The kind follows from the asset.
-	for (const TArray<FSavedOwnedItem> *List : {&Saved.Gear, &Saved.Weapons, &Saved.Rings})
+	// B-308: one gear list; the kind follows from the asset.
+	for (const FSavedOwnedItem &In : Saved.Gear)
 	{
-		for (const FSavedOwnedItem &In : *List)
+		UObject *Asset = In.Def.Resolve();
+		if (UWeaponData *Weapon = Cast<UWeaponData>(Asset))
 		{
-			UObject *Asset = In.Def.Resolve();
-			if (UWeaponData *Weapon = Cast<UWeaponData>(Asset))
-			{
-				FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon);
-				Entry.PersistentID = In.InstanceID;
-				Entry.Tier = In.Tier;
-				Entry.Quality = In.Quality;
-				RestoreGearDetail(In.Gear, Entry);
-				Pool.AddWeaponToPool(Entry);
-				++Restored;
-			}
-			else if (URingData *Ring = Cast<URingData>(Asset))
-			{
-				FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring);
-				Entry.PersistentID = In.InstanceID;
-				Entry.Tier = In.Tier;
-				Entry.Quality = In.Quality;
-				RestoreGearDetail(In.Gear, Entry);
-				Pool.AddRingToPool(Entry);
-				++Restored;
-			}
+			FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon);
+			Entry.PersistentID = In.InstanceID;
+			Entry.Tier = In.Tier;
+			Entry.Quality = In.Quality;
+			RestoreGearDetail(In.Gear, Entry);
+			Pool.AddWeaponToPool(Entry);
+			++Restored;
+		}
+		else if (URingData *Ring = Cast<URingData>(Asset))
+		{
+			FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring);
+			Entry.PersistentID = In.InstanceID;
+			Entry.Tier = In.Tier;
+			Entry.Quality = In.Quality;
+			RestoreGearDetail(In.Gear, Entry);
+			Pool.AddRingToPool(Entry);
+			++Restored;
 		}
 	}
 	for (const FSavedOwnedItem &In : Saved.Evolutions)
@@ -843,9 +859,8 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		{
 			continue;
 		}
-		FCrystalId Id;
-		Id.Type = static_cast<ECrystalType>(In.Type);
-		Id.Tier = In.Tier;
+		// B-353 (D-142): a StatStone keeps its sub-stat; an old single-stat stone loads as the StatStone it now is.
+		const FCrystalId Id = StatStone::Normalize(FCrystalId(static_cast<ECrystalType>(In.Type), In.Tier, static_cast<ESubStat>(In.StoneStat)));
 		Pool.AddCrystalToPool(Id, In.Count);
 		++Restored;
 	}
@@ -861,14 +876,15 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		Owners.Add(Owned.GearID, Owned.Character);
 	}
 	Pool.RestoreGearOwners(Owners);
-	// B-322: v9 pouches per character; an older save's one party pouch waits for the leader (AdoptLegacyCarriedItems).
+	// B-322: a pouch per character.
 	auto ReadStacks = [&Restored](const TArray<FSavedCrystalStack> &In, TMap<FCrystalId, int32> &Out)
 	{
 		for (const FSavedCrystalStack &Stack : In)
 		{
 			if (Stack.Count > 0 && StaticEnum<ECrystalType>()->IsValidEnumValue(Stack.Type))
 			{
-				Out.FindOrAdd(FCrystalId(static_cast<ECrystalType>(Stack.Type), Stack.Tier)) += Stack.Count;
+				Out.FindOrAdd(StatStone::Normalize(FCrystalId(static_cast<ECrystalType>(Stack.Type), Stack.Tier,
+															  static_cast<ESubStat>(Stack.StoneStat)))) += Stack.Count; // B-353
 				++Restored;
 			}
 		}
@@ -885,13 +901,6 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		ReadStacks(In.Stacks, Pouch.Stacks);
 	}
 	Pool.RestorePouches(Pouches, Saved.BankedItemCharacters);
-	TMap<FCrystalId, int32> LegacyCarried;
-	ReadStacks(Saved.CarriedItems, LegacyCarried);
-	// Bought slots come along even when the old pouch was empty.
-	if (!LegacyCarried.IsEmpty() || Saved.ItemSlotCount > InventoryConstants::ITEM_SLOTS_START)
-	{
-		Pool.RestoreLegacyCarriedItems(LegacyCarried, Saved.ItemSlotCount, Saved.BankedItemCharacters);
-	}
 	for (const FSavedCharacterLoadouts &Custom : Saved.CustomLoadouts)
 	{
 		TArray<FSavedLoadout> Loadouts;

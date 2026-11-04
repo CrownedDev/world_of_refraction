@@ -1,6 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Debug/Skills/SpellDataDebug.h"
+#include "AI/AIDecisionManager.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Engine.h"
 #include "Skills/Definitions/SupportSkillRules.h"
 
@@ -59,12 +61,9 @@ FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *
     FString ElementName = UEnum::GetValueAsString(Spell->Element);
     ElementName.RemoveFromStart(TEXT("ESpellElement::"));
 
-    FString SchoolName = UEnum::GetValueAsString(Spell->School);
-    SchoolName.RemoveFromStart(TEXT("ESpellSchool::"));
-
     Output += TEXT("SPELL TYPE:\n");
     Output += FString::Printf(TEXT("  Element: %s\n"), *ElementName);
-    Output += FString::Printf(TEXT("  School:  %s\n"), *SchoolName);
+    Output += FString::Printf(TEXT("  School:  %s\n"), *GetSchoolString(Spell)); // B-356b: the shown school
 
     // Check if character can cast
     // NOTE: As of Reality element unlock, CanCharacterCast always returns
@@ -191,3 +190,62 @@ void USpellDataDebug::CompareSpellEffectiveness(USpellData *Spell, UCharacterDat
         }
     }
 }
+
+namespace
+{
+    FString SchoolShortName(ESpellSchool School)
+    {
+        FString Name = UEnum::GetValueAsString(School);
+        Name.RemoveFromStart(TEXT("ESpellSchool::"));
+        return Name;
+    }
+}
+
+FString USpellDataDebug::GetSchoolString(const USpellData *Spell)
+{
+    if (!Spell)
+    {
+        return TEXT("<null spell>");
+    }
+    const FString Shown = SchoolShortName(Spell->GetSchool());
+    if (SpellSchools::IsRetired(Spell->School))
+    {
+        return FString::Printf(TEXT("%s (authored %s, retired)"), *Shown, *SchoolShortName(Spell->School));
+    }
+    return Shown;
+}
+
+FString USpellDataDebug::GetSchoolEffectMismatchString()
+{
+#if !WITH_EDITOR
+    return TEXT("(editor only)");
+#else
+    IAssetRegistry &Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+    Registry.WaitForCompletion(); // a half-scanned registry would read as "all agree"
+    TArray<FAssetData> Assets;
+    Registry.GetAssetsByClass(USpellData::StaticClass()->GetClassPathName(), Assets, /*bSearchSubClasses=*/true);
+
+    FString Out = FString::Printf(TEXT("%d spell assets scanned\n"), Assets.Num());
+    for (const FAssetData &Asset : Assets)
+    {
+        const USpellData *Spell = Cast<USpellData>(Asset.GetAsset());
+        if (!Spell)
+        {
+            continue;
+        }
+        const bool bDamageSchool = Spell->GetSchool() == ESpellSchool::Conjuration;
+        const bool bOffensive = UAIDecisionManager::IsOffensiveSpell(*Spell);
+        if (bDamageSchool == bOffensive)
+        {
+            continue;
+        }
+        Out += FString::Printf(TEXT("%s: %s, %s (target %s, damage %d, buildup %d, debuff %s, heal %s)\n"), *Asset.GetObjectPathString(),
+                               *GetSchoolString(Spell), bOffensive ? TEXT("offensive by effects") : TEXT("NOT offensive by effects"),
+                               *UEnum::GetValueAsString(Spell->TargetType), Spell->BaseDamage, Spell->StatusBuildup,
+                               Spell->HasDebuffEffects() ? TEXT("yes") : TEXT("no"),
+                               UAIDecisionManager::IsHealingSpell(*Spell) ? TEXT("yes") : TEXT("no"));
+    }
+    return Out;
+#endif
+}
+

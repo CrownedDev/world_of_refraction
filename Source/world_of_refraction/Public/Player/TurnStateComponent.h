@@ -101,7 +101,8 @@ private:
 
 	UTurnManager *GetTurnManager() const;
 
-	// One OnRep for the whole state: each field arrives in the same bunch, and the readers redraw from all of it.
+	// One OnRep function for the whole state. Each replicated field that changed calls it, so a client may redraw up to
+	// six times per turn; folding the fields into one snapshot struct (one OnRep) is B-228b's. The readers redraw from all of it.
 	UPROPERTY(ReplicatedUsing = OnRep_TurnState)
 	bool bCombatActive = false;
 	UPROPERTY(ReplicatedUsing = OnRep_TurnState)

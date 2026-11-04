@@ -11,10 +11,11 @@
 
 namespace WoRSaveVersion
 {
-	/** Bump when a save struct changes shape. */
-	constexpr int32 LATEST = 9; // 2: B-208's run and carried state; 3: B-124's gear detail; 4: B-279's form meters (older load with defaults); 5: B-308's one gear list (v3 / v4 lists still read); 6: B-311's custom loadouts; 7: B-321's gear owners; 8: B-279b's worn skin; 9: B-322's pouch per character (the party pouch of older saves still read)
-	/** Saves below this are wiped (D-060). Upgrade steps in HandlePostLoad after the first public build. */
-	constexpr int32 MIN_SUPPORTED = 1;
+	/** Bump when a save struct changes shape, and MIN_SUPPORTED with it (D-138: one save version while in dev). */
+	constexpr int32 LATEST = 13; // 2: B-208's run and carried state; 3: B-124's gear detail; 4: B-279's form meters (older load with defaults); 5: B-308's one gear list; 6: B-311's custom loadouts; 7: B-321's gear owners; 8: B-279b's worn skin; 9: B-322's pouch per character; 10: B-279c's current outfit (older load with none); 11: B-333's seven balances; 12: B-348 drops every old-shape list; 13: B-351's two sockets per weapon / adapter (D-141) and one skill-slot list (D-145); from here MIN_SUPPORTED rises with it (D-138)
+	/** Saves below this are wiped with a warning (D-060). D-138: equal to LATEST while in dev, with no upgrade steps until
+	 *  the first public build. */
+	constexpr int32 MIN_SUPPORTED = LATEST;
 }
 
 UCLASS()

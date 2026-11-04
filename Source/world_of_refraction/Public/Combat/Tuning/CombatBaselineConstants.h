@@ -46,11 +46,12 @@ namespace CombatBaseline
 	}
 
 	/** Enemy max HP by encounter rank, on top of the stat formula, zone tier and difficulty. Keyed by the
-	 *  EEncounterRank value: Normal 1, Mini-boss 3, Boss 6, Elite 1.5 (appended to the enum, so key 3).
+	 *  EEncounterRank value: Normal 1, Mini-boss 4, Boss 8, Elite 1.5 (appended to the enum, so key 3).
 	 *  Targets: normal 3-5 player turns, mini-boss 8-10 rounds, boss 12-14 rounds. */
 	constexpr float ENEMY_RANK_HEALTH_NORMAL = 1.0f;
-	constexpr float ENEMY_RANK_HEALTH_MINIBOSS = 3.0f;
-	constexpr float ENEMY_RANK_HEALTH_BOSS = 6.0f;
+	// B-293d (Q-293d, Crown 2026-11-03): mini-boss and boss fights ran short at Medium (was x3 / x6).
+	constexpr float ENEMY_RANK_HEALTH_MINIBOSS = 4.0f;
+	constexpr float ENEMY_RANK_HEALTH_BOSS = 8.0f;
 	constexpr float ENEMY_RANK_HEALTH_ELITE = 1.5f;
 	constexpr int32 ENEMY_RANK_COUNT = 4;
 	constexpr float ENEMY_RANK_HEALTH[ENEMY_RANK_COUNT] = {ENEMY_RANK_HEALTH_NORMAL, ENEMY_RANK_HEALTH_MINIBOSS,

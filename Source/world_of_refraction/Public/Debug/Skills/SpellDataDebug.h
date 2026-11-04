@@ -32,4 +32,14 @@ public:
     // Compare spell effectiveness between two characters
     UFUNCTION(BlueprintCallable, Category = "Spell Debug")
     static void CompareSpellEffectiveness(USpellData *Spell, UCharacterData *Character1, UCharacterData *Character2);
+
+    /** B-356b: the school a spell shows, flagging a retired authored one: "Conjuration (authored Destruction, retired)". */
+    UFUNCTION(BlueprintPure, Category = "Spell Debug")
+    static FString GetSchoolString(const USpellData *Spell);
+
+    /** B-356b: every spell asset whose school disagrees with what the AI reads from its effects: a damage-school
+     *  (Conjuration) spell IsOffensiveSpell rejects, or a support-school spell it accepts. First line: how many
+     *  assets were scanned; then one line per disagreement. Loads every USpellData asset: editor / test only. */
+    UFUNCTION(BlueprintCallable, Category = "Spell Debug")
+    static FString GetSchoolEffectMismatchString();
 };

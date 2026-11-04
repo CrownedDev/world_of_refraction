@@ -9,6 +9,9 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/Pawn.h"
+#include "Loadout/FCombatLoadout.h"
 #include "HAL/IConsoleManager.h"
 #include "WoRLog.h"
 
@@ -85,6 +88,153 @@ namespace
 						}
 					}
 				}
+			}));
+
+	// ==================== B-351 (D-145): the one skill-slot list, from the console until the gear screen has it ====================
+
+	/** The first player's inventory (its pawn's, else the first actor's with one). */
+	UInventoryComponent *PlayerInventory(UWorld *World)
+	{
+		if (const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr)
+		{
+			if (UInventoryComponent *Inventory = PC->GetPawn() ? PC->GetPawn()->FindComponentByClass<UInventoryComponent>() : nullptr)
+			{
+				return Inventory;
+			}
+		}
+		for (TActorIterator<AActor> It(World); It; ++It)
+		{
+			if (UInventoryComponent *Inventory = It->FindComponentByClass<UInventoryComponent>())
+			{
+				return Inventory;
+			}
+		}
+		return nullptr;
+	}
+
+	/** The active loadout's primary weapon entry, or null (with a log line) when there is none. */
+	FWeaponLoadoutEntry *ActivePrimaryWeapon(UInventoryComponent *Inventory, const TCHAR *Command)
+	{
+		if (!Inventory || !Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))
+		{
+			UE_LOG(LogWoRLoadout, Display, TEXT("[%s] no inventory with an active loadout"), Command);
+			return nullptr;
+		}
+		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+		if (!Active.PrimaryWeapon.WeaponEntry.Weapon)
+		{
+			UE_LOG(LogWoRLoadout, Display, TEXT("[%s] the active loadout has no primary weapon"), Command);
+			return nullptr;
+		}
+		return &Active.PrimaryWeapon;
+	}
+
+	/** A learned ability, or one of the weapon's built-ins, by its Name (case-insensitive). */
+	UAbilityData *FindAbilityByName(const UInventoryComponent &Inventory, const FWeaponLoadoutEntry &Weapon, const FString &Name)
+	{
+		for (const FAbilityInstance &Instance : Inventory.Abilities.LearnedAbilities)
+		{
+			if (Instance.Ability && Instance.Ability->Name.Equals(Name, ESearchCase::IgnoreCase))
+			{
+				return Instance.Ability;
+			}
+		}
+		if (Weapon.WeaponEntry.Weapon)
+		{
+			for (UAbilityData *Ability : Weapon.WeaponEntry.Weapon->PresetAbilities)
+			{
+				if (Ability && Ability->Name.Equals(Name, ESearchCase::IgnoreCase))
+				{
+					return Ability;
+				}
+			}
+		}
+		return nullptr;
+	}
+
+	void ShowSkillSlots(const FWeaponLoadoutEntry &Weapon)
+	{
+		const FString Line = Weapon.GetSkillSlotString();
+		UE_LOG(LogWoRLoadout, Display, TEXT("[SkillSlots] %s"), *Line);
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(INDEX_NONE, LOADOUT_RULES_SCREEN_SECONDS, FColor::Cyan, Line);
+		}
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs GPrintSkillSlotsCmd(
+		TEXT("wor.Loadout.PrintSkillSlots"),
+		TEXT("DEBUG: wor.Loadout.PrintSkillSlots - the player's primary weapon's one skill-slot list (B-351, D-145)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &, UWorld *World)
+			{
+				if (const FWeaponLoadoutEntry *Weapon = ActivePrimaryWeapon(PlayerInventory(World), TEXT("PrintSkillSlots")))
+				{
+					ShowSkillSlots(*Weapon);
+				}
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GReplaceSkillCmd(
+		TEXT("wor.Loadout.ReplaceSkill"),
+		TEXT("DEBUG: wor.Loadout.ReplaceSkill <slot> <ability name> - put a learned ability (or one of the weapon's built-ins) in that slot of the player's primary weapon; the list goes live (B-351, D-145)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				if (Args.Num() < 2 || !Args[0].IsNumeric())
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[ReplaceSkill] usage: wor.Loadout.ReplaceSkill <slot> <ability name>"));
+					return;
+				}
+				UInventoryComponent *Inventory = PlayerInventory(World);
+				FWeaponLoadoutEntry *Weapon = ActivePrimaryWeapon(Inventory, TEXT("ReplaceSkill"));
+				if (!Weapon)
+				{
+					return;
+				}
+				const int32 Slot = FCString::Atoi(*Args[0]);
+				TArray<FString> NameParts(Args);
+				NameParts.RemoveAt(0);
+				const FString Name = FString::Join(NameParts, TEXT(" "));
+				UAbilityData *Ability = FindAbilityByName(*Inventory, *Weapon, Name);
+				if (!Ability)
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[ReplaceSkill] no learned or built-in ability named '%s'"), *Name);
+					return;
+				}
+				if (!Weapon->ReplaceSkill(Slot, Ability))
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[ReplaceSkill] slot %d is not one of this weapon's %d"), Slot, Weapon->GetSkillSlotCount());
+					return;
+				}
+				Inventory->WriteLoadoutToOwned(Inventory->ActiveLoadoutIndex);
+				ShowSkillSlots(*Weapon);
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GRestoreSkillCmd(
+		TEXT("wor.Loadout.RestoreSkill"),
+		TEXT("DEBUG: wor.Loadout.RestoreSkill <slot> - bring back what that slot of the player's primary weapon held before the pick (B-351, D-145)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				if (Args.Num() < 1 || !Args[0].IsNumeric())
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[RestoreSkill] usage: wor.Loadout.RestoreSkill <slot>"));
+					return;
+				}
+				UInventoryComponent *Inventory = PlayerInventory(World);
+				FWeaponLoadoutEntry *Weapon = ActivePrimaryWeapon(Inventory, TEXT("RestoreSkill"));
+				if (!Weapon)
+				{
+					return;
+				}
+				const int32 Slot = FCString::Atoi(*Args[0]);
+				if (!Weapon->RestoreSkill(Slot))
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[RestoreSkill] slot %d holds no pick"), Slot);
+					return;
+				}
+				Inventory->WriteLoadoutToOwned(Inventory->ActiveLoadoutIndex);
+				ShowSkillSlots(*Weapon);
 			}));
 
 	FString JoinOrNone(const TArray<FString> &Lines)

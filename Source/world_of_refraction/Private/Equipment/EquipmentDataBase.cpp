@@ -8,6 +8,7 @@
 #include "Character/FPillarWeights.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
+#include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Skills/Effects/EffectIdentity.h"
 #include "Character/CharacterData.h"
 #include "Debug/Skills/SkillEffectDebug.h"
@@ -32,8 +33,12 @@ ESpellElement UEquipmentDataBase::GetCrystalElement() const
         return AttachedItem.Evolution ? AttachedItem.Evolution->GetAssociatedElement()
                                       : ESpellElement::None;
     case EAttachedItemKind::Fusion:
-        // Mirror the runtime GetElement gem-half logic on the flat authored fields,
-        // for design-time/preview parity. The gem half drives the element; an
+        if (FusionRules::RETIRED)
+        {
+            return ESpellElement::None; // B-352 (D-141): the socket reads empty in play, so no element here either
+        }
+        // OBSOLETE (B-352; delete in the D-124 sweep). Mirror the runtime GetElement gem-half logic on the flat authored
+        // fields, for design-time/preview parity. The gem half drives the element; an
         // augmented fusion (two stones, no gem) is non-elemental (None). Check both halves.
         if (CrystalTypeHelpers::IsGemType(AttachedItem.FusionHalfAType))
         {
@@ -172,6 +177,8 @@ TArray<FString> UEquipmentDataBase::GetRestrictedFusionBonusStats() const
     return Restricted;
 }
 
+// OBSOLETE (B-335, D-127; delete in the D-124 sweep): the preview roll buttons
+// (RollSubstatPoints, RollPillarPoints, ClearAllBonuses, RollResistance).
 void UEquipmentDataBase::RollSubstatPoints()
 {
     const int32 Budget = EquipmentBonusGen::GetSubstatBudget(Tier);
@@ -402,6 +409,11 @@ EDataValidationResult UEquipmentDataBase::IsDataValid(FDataValidationContext &Co
     // placement rule (augmented = weapon-only) is enforced in URingData::IsDataValid.
     if (AttachedItem.Kind == EAttachedItemKind::Fusion)
     {
+        // B-352 (D-141): fusions retire; an authored fusion leaves the socket empty in play.
+        Context.AddError(FText::FromString(TEXT(
+            "Fusions are retired (D-141): this attachment is ignored in play. Pick a crystal, an evolution or a stone")));
+        Result = EDataValidationResult::Invalid;
+        // OBSOLETE (B-352, D-141; delete in the D-124 sweep): the fusion well-formedness checks below.
         if (!CrystalTypeHelpers::IsValidFusionPair(AttachedItem.FusionHalfAType, AttachedItem.FusionHalfBType))
         {
             Context.AddError(FText::FromString(TEXT(

@@ -153,6 +153,8 @@ Maintain living system documents in `docs/Architecture/`. Each document covers o
 - `docs/Architecture/CombatCamera.md`
 - `docs/Architecture/CombatCharacter.md`
 - `docs/Architecture/CombatOrchestrator.md`
+- `docs/Architecture/CombatTier.md`
+- `docs/Architecture/ConditionSystem.md`
 - `docs/Architecture/CrystalWear.md`
 - `docs/Architecture/CurrencySystem.md`
 - `docs/Architecture/DamageCalculator.md`

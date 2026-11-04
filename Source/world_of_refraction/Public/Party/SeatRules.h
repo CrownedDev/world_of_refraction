@@ -12,6 +12,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AI/EAIDifficulty.h"
 
 namespace SeatRules
 {
@@ -42,5 +43,22 @@ namespace SeatRules
 			return ClaimedBy;
 		}
 		return SidePlayers[FMath::Abs(RotationIndex) % SidePlayers.Num()];
+	}
+
+	/** Debug: a commander as text ("AI", "player 2"). */
+	inline FString GetCommanderString(int32 Commander)
+	{
+		return Commander == AI_COMMANDER ? FString(TEXT("AI")) : FString::Printf(TEXT("player %d"), Commander);
+	}
+
+	/** Debug: a seat as text for the party print ("AI seat, Hard" / "Player"). */
+	inline FString GetSeatString(bool bAISeat, EAIDifficulty Difficulty)
+	{
+		if (!bAISeat)
+		{
+			return TEXT("Player");
+		}
+		const UEnum *DifficultyEnum = StaticEnum<EAIDifficulty>();
+		return FString::Printf(TEXT("AI seat, %s"), DifficultyEnum ? *DifficultyEnum->GetNameStringByValue(static_cast<int64>(Difficulty)) : TEXT("?"));
 	}
 }

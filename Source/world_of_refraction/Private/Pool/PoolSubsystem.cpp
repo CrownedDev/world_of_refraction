@@ -7,6 +7,7 @@
 #include "Pool/PoolAccessors.h"             // the filter/translation layer
 #include "Equipment/Crystals/CrystalType.h" // StaticEnum<ECrystalType> for the debug dump
 #include "Equipment/Crystals/CrystalTypeHelpers.h" // IsGemType — item/refined gem/stone dispatch
+#include "Equipment/Crystals/StatStone.h"          // StatStone::Normalize (B-353)
 #include "Inventory/ItemTier.h"             // TierHelpers::GetTierName
 #include "Engine/Engine.h"                  // GEngine on-screen debug
 #include "Misc/Paths.h"                     // FPaths::GetBaseFilename for the wearer dump
@@ -253,6 +254,13 @@ bool UPoolSubsystem::BankStartingGear(FName CharacterKey, const TArray<FWeaponIn
         SetGearOwner(Entry.InstanceID, CharacterKey);
         UpdateEvolution(Entry);
     }
+    // B-314: a first draw while a run is open banks home gear, so it joins the layer like the rest of home gear.
+    if (bRunLayerActive)
+    {
+        for (const FWeaponInventoryEntry &Entry : Weapons) { TakeOnRun(Entry.PersistentID); }
+        for (const FRingInventoryEntry &Entry : Rings) { TakeOnRun(Entry.PersistentID); }
+        for (const FEvolutionInventoryEntry &Entry : Evolutions) { TakeOnRun(Entry.InstanceID); }
+    }
     UE_LOG(LogTemp, Log, TEXT("[Pool] Banked %s's starting gear: %d weapon(s), %d ring(s), %d evolution(s)"),
            *CharacterKey.ToString(), Weapons.Num(), Rings.Num(), Evolutions.Num());
     return true;
@@ -311,6 +319,8 @@ void UPoolSubsystem::UpdateEvolution(const FEvolutionInventoryEntry &Entry)
 
 void UPoolSubsystem::RemoveGear(const FGuid &GearID)
 {
+    // B-314: a run-only piece leaving mid-run keeps its tier in the upgrade memory (Q-314c).
+    NoteRunGearRemoved(GearID);
     const auto MatchesWeapon = [&GearID](const FWeaponInventoryEntry &E) { return E.PersistentID == GearID; };
     const auto MatchesRing = [&GearID](const FRingInventoryEntry &E) { return E.PersistentID == GearID; };
     const auto MatchesEvolution = [&GearID](const FEvolutionInventoryEntry &E) { return E.InstanceID == GearID; };
@@ -490,8 +500,9 @@ const FAbilityInstance *UPoolSubsystem::FindAbilityInPool(const FGuid &InstanceI
 
 // ==================== ITEMS ====================
 
-void UPoolSubsystem::AddCrystalToPool(const FCrystalId &Id, int32 Count)
+void UPoolSubsystem::AddCrystalToPool(const FCrystalId &InId, int32 Count)
 {
+    const FCrystalId Id = StatStone::Normalize(InId); // B-353: an old single-stat stone is its StatStone here too
     if (Count <= 0)
     {
         return;
@@ -514,14 +525,16 @@ FPoolPouch &UPoolSubsystem::FindOrAddPouch(FName CharacterKey)
     return Pouches.FindOrAdd(CharacterKey);
 }
 
-int32 UPoolSubsystem::GetCarriedCount(FName CharacterKey, const FCrystalId &Id) const
+int32 UPoolSubsystem::GetCarriedCount(FName CharacterKey, const FCrystalId &InId) const
 {
+    const FCrystalId Id = StatStone::Normalize(InId); // B-353
     const int32 *Found = GetPouch(CharacterKey).Stacks.Find(Id);
     return Found ? *Found : 0;
 }
 
-int32 UPoolSubsystem::GetCarryRoom(FName CharacterKey, const FCrystalId &Id) const
+int32 UPoolSubsystem::GetCarryRoom(FName CharacterKey, const FCrystalId &InId) const
 {
+    const FCrystalId Id = StatStone::Normalize(InId); // B-353
     if (Id.Type == ECrystalType::None || CharacterKey.IsNone())
     {
         return 0;
@@ -535,8 +548,9 @@ int32 UPoolSubsystem::GetCarryRoom(FName CharacterKey, const FCrystalId &Id) con
     return FMath::Max(0, InventoryConstants::ITEM_STACK_MAX - (Stack ? *Stack : 0));
 }
 
-int32 UPoolSubsystem::CarryOrStore(FName CharacterKey, const FCrystalId &Id, int32 Count)
+int32 UPoolSubsystem::CarryOrStore(FName CharacterKey, const FCrystalId &InId, int32 Count)
 {
+    const FCrystalId Id = StatStone::Normalize(InId); // B-353
     if (Count <= 0 || Id.Type == ECrystalType::None)
     {
         return 0;
@@ -558,8 +572,9 @@ int32 UPoolSubsystem::CarryOrStore(FName CharacterKey, const FCrystalId &Id, int
     return Stored;
 }
 
-int32 UPoolSubsystem::TakeCarried(FName CharacterKey, const FCrystalId &Id, int32 Count)
+int32 UPoolSubsystem::TakeCarried(FName CharacterKey, const FCrystalId &InId, int32 Count)
 {
+    const FCrystalId Id = StatStone::Normalize(InId); // B-353
     FPoolPouch *Pouch = Pouches.Find(CharacterKey);
     int32 *Stack = Pouch ? Pouch->Stacks.Find(Id) : nullptr;
     if (!Stack || Count <= 0)
@@ -576,14 +591,16 @@ int32 UPoolSubsystem::TakeCarried(FName CharacterKey, const FCrystalId &Id, int3
     return Taken;
 }
 
-int32 UPoolSubsystem::GetStoredCount(const FCrystalId &Id) const
+int32 UPoolSubsystem::GetStoredCount(const FCrystalId &InId) const
 {
+    const FCrystalId Id = StatStone::Normalize(InId); // B-353
     const int32 *Found = (CrystalTypeHelpers::IsGemType(Id.Type) ? Crystals : Stones).Find(Id);
     return Found ? *Found : 0;
 }
 
-int32 UPoolSubsystem::TakeStored(const FCrystalId &Id, int32 Count)
+int32 UPoolSubsystem::TakeStored(const FCrystalId &InId, int32 Count)
 {
+    const FCrystalId Id = StatStone::Normalize(InId); // B-353
     TMap<FCrystalId, int32> &Storage = CrystalTypeHelpers::IsGemType(Id.Type) ? Crystals : Stones;
     int32 *Stack = Storage.Find(Id);
     if (!Stack || Count <= 0)
@@ -661,42 +678,12 @@ bool UPoolSubsystem::BankStartingItems(FName CharacterKey, const TMap<FCrystalId
 void UPoolSubsystem::RestorePouches(const TMap<FName, FPoolPouch> &InPouches, const TArray<FName> &InBanked)
 {
     Pouches = InPouches;
-    LegacyCarriedItems = FPoolPouch(); // a load replaces everything; the save's own legacy pouch follows, if any
     for (TPair<FName, FPoolPouch> &Pair : Pouches)
     {
         Pair.Value.SlotCount = FMath::Max(Pair.Value.SlotCount, InventoryConstants::ITEM_SLOTS_START);
     }
     BankedItemCharacters = TSet<FName>(InBanked);
     OnPoolItemsChanged.Broadcast();
-}
-
-void UPoolSubsystem::RestoreLegacyCarriedItems(const TMap<FCrystalId, int32> &InCarried, int32 InSlotCount, const TArray<FName> &InBanked)
-{
-    LegacyCarriedItems.Stacks = InCarried;
-    LegacyCarriedItems.SlotCount = FMath::Max(InSlotCount, InventoryConstants::ITEM_SLOTS_START);
-    BankedItemCharacters = TSet<FName>(InBanked);
-    OnPoolItemsChanged.Broadcast();
-}
-
-int32 UPoolSubsystem::AdoptLegacyCarriedItems(FName LeaderKey)
-{
-    if (!HasLegacyCarriedItems() || LeaderKey.IsNone())
-    {
-        return 0;
-    }
-    // The old party pouch's extra slots (if any were bought) go with it.
-    const int32 LegacySlots = LegacyCarriedItems.SlotCount;
-    FindOrAddPouch(LeaderKey).SlotCount = FMath::Max(GetPouch(LeaderKey).SlotCount, LegacySlots);
-    const TMap<FCrystalId, int32> Legacy = MoveTemp(LegacyCarriedItems.Stacks);
-    LegacyCarriedItems = FPoolPouch();
-    int32 Stored = 0;
-    for (const TPair<FCrystalId, int32> &Pair : Legacy)
-    {
-        Stored += CarryOrStore(LeaderKey, Pair.Key, Pair.Value);
-    }
-    UE_LOG(LogTemp, Log, TEXT("[Pool] An older save's party pouch (%d stack(s), %d slot(s)) is now %s's; %d item(s) went to storage"), Legacy.Num(),
-           LegacySlots, *FPaths::GetBaseFilename(LeaderKey.ToString()), Stored);
-    return Legacy.Num();
 }
 
 bool UPoolSubsystem::GiveCarried(FName FromKey, FName ToKey, const FCrystalId &Id, int32 Count)
@@ -730,10 +717,6 @@ FString UPoolSubsystem::GetItemSlotsString() const
         {
             Out += FString::Printf(TEXT("\n    slot: %s x%d"), *ItemIdentity::GetDisplayName(Pair.Key), Pair.Value);
         }
-    }
-    if (HasLegacyCarriedItems())
-    {
-        Out += FString::Printf(TEXT("\n  Older save's party pouch, not yet adopted: %d stack(s)"), LegacyCarriedItems.Stacks.Num());
     }
     // B-324: the chest's gear beside the stored items.
     int32 ChestGear = 0;

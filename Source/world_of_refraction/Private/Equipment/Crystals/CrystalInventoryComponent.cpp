@@ -1,4 +1,5 @@
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
+#include "Equipment/Crystals/StatStone.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Inventory/InventoryConstants.h"
 #include "Pool/PoolSubsystem.h"
@@ -39,6 +40,7 @@ int32 UCrystalInventoryComponent::SumAtTier(const TMap<FCrystalId, int32> &Pool,
 
 bool UCrystalInventoryComponent::AddCount(FCrystalId Id, int32 Count)
 {
+    Id = StatStone::Normalize(Id); // B-353 (D-142): an old single-stat stone is a StatStone
     if (Id.Type == ECrystalType::None)
     {
         return false;
@@ -58,6 +60,7 @@ bool UCrystalInventoryComponent::AddCount(FCrystalId Id, int32 Count)
 
 int32 UCrystalInventoryComponent::RemoveCount(FCrystalId Id, int32 Count)
 {
+    Id = StatStone::Normalize(Id); // B-353 (D-142): an old single-stat stone is a StatStone
     if (Id.Type == ECrystalType::None)
     {
         return 0;
@@ -89,6 +92,7 @@ int32 UCrystalInventoryComponent::RemoveCount(FCrystalId Id, int32 Count)
 
 int32 UCrystalInventoryComponent::GetCount(FCrystalId Id) const
 {
+    Id = StatStone::Normalize(Id); // B-353 (D-142): an old single-stat stone is a StatStone
     if (Id.Type == ECrystalType::None)
     {
         return 0;
@@ -136,6 +140,7 @@ void UCrystalInventoryComponent::ClearAll()
 
 bool UCrystalInventoryComponent::CanAddCount(FCrystalId Id, int32 Count) const
 {
+    Id = StatStone::Normalize(Id); // B-353 (D-142): an old single-stat stone is a StatStone
     if (Count <= 0)
     {
         return false;

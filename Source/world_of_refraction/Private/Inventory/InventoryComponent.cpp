@@ -15,6 +15,7 @@
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Equipment/Crystals/StatStone.h"
 #include "Equipment/Crystals/FFusionId.h"            // fusion attach identity
 #include "Equipment/Crystals/CrystalTypeHelpers.h"   // IsGemType / IsValidFusionPair / IsElementalFusion
 #include "Equipment/Crystals/ItemIdentity.h"         // GetMaxDurability + GetDisplayName for attach
@@ -37,7 +38,9 @@
 
 namespace
 {
-    /** U2 pickup roll — when the asset opts in (bRandomGenerateOnPickup), a fresh
+    /** OBSOLETE (B-335, D-127; delete in the D-124 sweep): per-instance random rolls retire;
+     *  gear keeps tier + quality. Reached only when an asset opts in (default off).
+     *  U2 pickup roll — when the asset opts in (bRandomGenerateOnPickup), a fresh
      *  instance ROLLS its stat/resistance layers at acquisition:
      *    - MaxPools seed from the per-asset override (when set) or the tier budget
      *      (POOL_OVERRIDE_USE_TIER sentinel); the roll then consumes the STORED
@@ -117,6 +120,7 @@ namespace
      *  an augment stone writes Kind=AugmentStone with 0 durability (stones never wear). */
     FRuntimeAttachedItem MakeCrystalAttachment(FCrystalId Id, bool bIsStone)
     {
+        Id = StatStone::Normalize(Id); // B-353 (D-142): an old single-stat stone attaches as a StatStone
         FRuntimeAttachedItem Runtime;
         Runtime.Kind = bIsStone ? EAttachedItemKind::AugmentStone : EAttachedItemKind::Crystal;
         Runtime.Crystal.Id = Id;
@@ -127,7 +131,7 @@ namespace
     /** Build a runtime fusion attachment from the two-half identity (fuse-and-socket — fusions have
      *  no loose-inventory home; the caller consumes the two halves from the crystal stacks). Seeds
      *  whole-fusion durability via GetMaxDurability (gem-seeded; 0 for an augmented fusion). */
-    FRuntimeAttachedItem MakeFusionAttachment(const FFusionId &FusionId)
+    [[maybe_unused]] FRuntimeAttachedItem MakeFusionAttachment(const FFusionId &FusionId) // OBSOLETE (B-352): only the discarded branch calls it
     {
         FRuntimeAttachedItem Runtime;
         Runtime.Kind = EAttachedItemKind::Fusion;
@@ -277,21 +281,17 @@ bool UInventoryComponent::AttachCrystalToGear(TArray<TEntry> &Gear, FGuid GearID
         return false;
     }
 
+    // B-351 (D-141): a gem goes in the element socket, a stone in the stone socket, on a weapon or an adapter alike
+    // (the weapon-only stone guard of D-009 retires). Each socket holds one: a second gem or a second stone is refused.
     const bool bIsStone = !CrystalTypeHelpers::IsGemType(Id.Type);
-    if constexpr (IsRingGear<TEntry>)
-    {
-        // Inline ring-guard (mirrors URingData::IsDataValid:29-33): augment stones are weapon-only.
-        // Rings carry only refined gems (their spell source).
-        if (bIsStone)
-        {
-            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: augment stones are weapon-only — rejected on ring"), Op);
-            return false;
-        }
-    }
-
-    const int32 Index = FindEmptyGearSlot(Gear, GearID, Op);
+    const int32 Index = bIsStone ? FindGearIndex(Gear, GearID, Op) : FindEmptyGearSlot(Gear, GearID, Op);
     if (Index == INDEX_NONE)
     {
+        return false;
+    }
+    if (bIsStone && !Gear[Index].StoneSocket.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: %s stone socket already occupied"), Op, GearLabel<TEntry>());
         return false;
     }
 
@@ -305,7 +305,8 @@ bool UInventoryComponent::AttachCrystalToGear(TArray<TEntry> &Gear, FGuid GearID
         return false;
     }
 
-    Gear[Index].AttachedItem = MakeCrystalAttachment(Id, bIsStone);
+    FRuntimeAttachedItem &Socket = bIsStone ? Gear[Index].StoneSocket : Gear[Index].AttachedItem;
+    Socket = MakeCrystalAttachment(Id, bIsStone);
     HandleGearSocketChanged(GearID);
     UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached %s %s to %s %s"),
            bIsStone ? TEXT("augment stone") : TEXT("refined crystal"),
@@ -321,47 +322,57 @@ bool UInventoryComponent::AttachFusionToGear(TArray<TEntry> &Gear, FGuid GearID,
     {
         return false;
     }
-
-    // Validate the pair before touching anything (stat-stone + one contributor; evolution can't be a half).
-    if (!CrystalTypeHelpers::IsValidFusionPair(FusionId.HalfA.Type, FusionId.HalfB.Type))
+    if constexpr (FusionRules::RETIRED)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: invalid fusion pair — rejected"), Op);
+        // B-352 (D-141): fusions retire; nothing is fused or debited. OBSOLETE body below, deleted in the D-124 sweep.
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: fusions are retired (D-141) - refused, nothing debited"), Op);
         return false;
     }
-
-    if constexpr (IsRingGear<TEntry>)
+    else
     {
-        // Inline ring-guard (mirrors URingData::IsDataValid:40-44): rings accept only ELEMENTAL fusions
-        // (one gem half); augmented fusions (two stones) are weapon-only.
-        if (!CrystalTypeHelpers::IsElementalFusion(FusionId.HalfA.Type, FusionId.HalfB.Type))
+        // OBSOLETE (B-352, D-141; delete in the D-124 sweep): the fuse. Discarded while FusionRules::RETIRED.
+
+        // Validate the pair before touching anything (stat-stone + one contributor; evolution can't be a half).
+        if (!CrystalTypeHelpers::IsValidFusionPair(FusionId.HalfA.Type, FusionId.HalfB.Type))
         {
-            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: augmented fusions are weapon-only — rejected on ring"), Op);
+            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: invalid fusion pair — rejected"), Op);
             return false;
         }
-    }
 
-    const int32 Index = FindEmptyGearSlot(Gear, GearID, Op);
-    if (Index == INDEX_NONE)
-    {
-        return false;
-    }
+        if constexpr (IsRingGear<TEntry>)
+        {
+            // Inline ring-guard (mirrors URingData::IsDataValid:40-44): rings accept only ELEMENTAL fusions
+            // (one gem half); augmented fusions (two stones) are weapon-only.
+            if (!CrystalTypeHelpers::IsElementalFusion(FusionId.HalfA.Type, FusionId.HalfB.Type))
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: augmented fusions are weapon-only — rejected on ring"), Op);
+                return false;
+            }
+        }
 
-    // Consume both halves atomically (the fuse) via the SILENT core — the component dispatches each
-    // half to Crystals or Stones internally. The core does the verify-then-commit and the identical-halves
-    // count (HalfA == HalfB → needs 2) for free, and stays silent so the fuse fires one signal
-    // (Equipped) below.
-    if (!CommitRemoveCrystals({FusionId.HalfA, FusionId.HalfB}))
-    {
-        return false;
-    }
+        const int32 Index = FindEmptyGearSlot(Gear, GearID, Op);
+        if (Index == INDEX_NONE)
+        {
+            return false;
+        }
 
-    Gear[Index].AttachedItem = MakeFusionAttachment(FusionId);
-    HandleGearSocketChanged(GearID);
-    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Fused %s + %s onto %s %s"),
-           *ItemIdentity::GetDisplayName(FusionId.HalfA), *ItemIdentity::GetDisplayName(FusionId.HalfB),
-           GearLabel<TEntry>(), *GearID.ToString());
-    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
-    return true;
+        // Consume both halves atomically (the fuse) via the SILENT core — the component dispatches each
+        // half to Crystals or Stones internally. The core does the verify-then-commit and the identical-halves
+        // count (HalfA == HalfB → needs 2) for free, and stays silent so the fuse fires one signal
+        // (Equipped) below.
+        if (!CommitRemoveCrystals({FusionId.HalfA, FusionId.HalfB}))
+        {
+            return false;
+        }
+
+        Gear[Index].AttachedItem = MakeFusionAttachment(FusionId);
+        HandleGearSocketChanged(GearID);
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Fused %s + %s onto %s %s"),
+               *ItemIdentity::GetDisplayName(FusionId.HalfA), *ItemIdentity::GetDisplayName(FusionId.HalfB),
+               GearLabel<TEntry>(), *GearID.ToString());
+        BroadcastInventoryChanged(EInventoryChangeType::Equipped);
+        return true;
+    }
 }
 
 template <class TEntry>
@@ -644,6 +655,7 @@ bool UInventoryComponent::AddGearEntry(TArray<TEntry> &Gear, TEntry Entry, const
     Entry.PersistentID = FGuid::NewGuid();
     if (Asset.bRandomGenerateOnPickup)
     {
+        // OBSOLETE (B-335, D-127; delete in the D-124 sweep): the stat / resistance roll. The Quality roll below stays (Q-335).
         ApplyPickupRoll(&Asset, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
         // Fresh pickup → roll a per-instance Quality (§11), Luck-biased. Toggle-OFF acquisitions
         // (purchases, authored gear) skip this and keep the factory's C_Quality placeholder.
@@ -654,7 +666,7 @@ bool UInventoryComponent::AddGearEntry(TArray<TEntry> &Gear, TEntry Entry, const
     Gear.Add(Entry);
     PushGearToPool(Entry.PersistentID);
     BroadcastInventoryChanged(EInventoryChangeType::Added);
-    if (OwnedID.IsValid())
+    if (OwnedID.IsValid() && !bSuppressDuplicateNotice)
     {
         // D-115: one copy per character; the choice (Gold or dismantle) is the player's.
         UE_LOG(LogTemp, Log, TEXT("[Inventory] %s: received a second %s - choose Gold or dismantle (wor.UI.Duplicates)"),
@@ -928,6 +940,20 @@ namespace InventoryGearSync
     void CopyOwned(TEntry &Slot, const TEntry &Owned)
     {
         TArray<USpellData *> Picks = MoveTemp(Slot.AssignedSpells);
+        if constexpr (std::is_same_v<TEntry, FWeaponInventoryEntry>)
+        {
+            // B-351 (D-145): the loadout copy's skill picks lead until WriteLoadoutToOwned, like its spells;
+            // an unedited copy takes the owned item's (saved) list.
+            if (Slot.bSkillSlotsActive)
+            {
+                TArray<UAbilityData *> SkillPicks = MoveTemp(Slot.SkillPicks);
+                Slot = Owned;
+                Slot.AssignedSpells = MoveTemp(Picks);
+                Slot.SkillPicks = MoveTemp(SkillPicks);
+                Slot.bSkillSlotsActive = true;
+                return;
+            }
+        }
         Slot = Owned;
         Slot.AssignedSpells = MoveTemp(Picks);
     }
@@ -980,9 +1006,11 @@ namespace InventoryGearSync
         }
         const int32 SlotDurability = Slot.AttachedItem.GetCurrentDurability();
         const int32 OwnedDurability = Match->AttachedItem.GetCurrentDurability();
+        // B-351: the stone socket must match too.
         const bool bInSync = Match->Tier == Slot.Tier && Match->AttachedItem.Kind == Slot.AttachedItem.Kind &&
-                             OwnedDurability == SlotDurability;
-        return FString::Printf(TEXT("\n    %s %s -> owned %s: %s"), Label, *GetNameSafe(GetGearAsset(Slot)),
+                             OwnedDurability == SlotDurability && Match->StoneSocket == Slot.StoneSocket;
+        return FString::Printf(TEXT("\n    %s %s (stone socket %s) -> owned %s: %s"), Label, *GetNameSafe(GetGearAsset(Slot)),
+                               Slot.StoneSocket.IsEmpty() ? TEXT("empty") : *ItemIdentity::GetDisplayName(Slot.StoneSocket.Crystal.Id),
                                *Slot.PersistentID.ToString(EGuidFormats::Short),
                                bInSync ? TEXT("in sync")
                                        : *FString::Printf(TEXT("DIFFERS (tier %d / owned %d, durability %d / owned %d)"),
@@ -1157,6 +1185,9 @@ int32 UInventoryComponent::WriteLoadoutToOwned(int32 LoadoutIndex)
                         if (FWeaponInventoryEntry *Owned = FindOwned(Weapons, Slot.PersistentID))
                         {
                             Owned->AttachedItem = Slot.AttachedItem;
+                            Owned->StoneSocket = Slot.StoneSocket; // B-351
+                            Owned->SkillPicks = Slot.SkillPicks;   // B-351 (D-145): the picks live on the item
+                            Owned->bSkillSlotsActive = Slot.bSkillSlotsActive;
                             Written.Add(Slot.PersistentID);
                         }
                     },
@@ -1165,6 +1196,7 @@ int32 UInventoryComponent::WriteLoadoutToOwned(int32 LoadoutIndex)
                         if (FRingInventoryEntry *Owned = FindOwned(Rings, Slot.PersistentID))
                         {
                             Owned->AttachedItem = Slot.AttachedItem;
+                            Owned->StoneSocket = Slot.StoneSocket; // B-351
                             Written.Add(Slot.PersistentID);
                         }
                     });
@@ -1371,10 +1403,9 @@ bool UInventoryComponent::DrawSharedGear()
     // B-321 (D-117): each member draws only its own gear. A piece from before D-117 goes to whoever wears it,
     // else the party leader. A run-only recruit brings no gear and draws the whole armoury (TODO: B-323's give).
     Pool->AssignUnownedGear(InventoryGearSync::GetLocalLeaderKey(GI, Key));
-    // B-322 (D-117): a save from before the per-character pouch gives its party pouch to the leader.
-    Pool->AdoptLegacyCarriedItems(InventoryGearSync::GetLocalLeaderKey(GI, Key));
     bDrawsWholeArmoury = bRunOnly;
     // B-324: the chest's gear is nobody's to wear; a recruit's whole-armoury draw leaves it in the chest.
+    // Key, not SharedGearKey: that is set below, once the draw is done (IsMineInStore is the same rule after that).
     const auto IsMine = [this, Pool, Key](const FGuid &ID)
     { return bDrawsWholeArmoury ? !Pool->IsInChest(ID) : Pool->GetGearOwner(ID) == Key; };
 
@@ -1426,6 +1457,20 @@ bool UInventoryComponent::DrawSharedGear()
             StartingItems.Append(CrystalInv->Stones);
             Pool->BankStartingItems(Key, StartingItems);
         }
+        else if (bRunOnly && !Pool->HasBankedItems(Key))
+        {
+            // B-313 (Q-313): a recruit's fight items are its pouch now, so its authored preset items go in once
+            // (they used to be a free supply in the preset's item slots, OBSOLETE).
+            TMap<FCrystalId, int32> RecruitItems;
+            for (const FItemLoadoutSlot &Slot : SavedLoadouts[ActiveLoadoutIndex].ItemSlots)
+            {
+                if (!Slot.IsEmpty())
+                {
+                    RecruitItems.FindOrAdd(Slot.CrystalId) += Slot.Quantity;
+                }
+            }
+            Pool->BankStartingItems(Key, RecruitItems);
+        }
         CrystalInv->BindSharedItems(Pool, Key);
     }
     ClaimActiveSharedGear();
@@ -1466,6 +1511,41 @@ namespace
         Out.Quality = Entry.Quality;
         return Out;
     }
+}
+
+bool UInventoryComponent::IsMineInStore(const UPoolSubsystem &Pool, const FGuid &GearID) const
+{
+    return bDrawsWholeArmoury ? !Pool.IsInChest(GearID) : Pool.GetGearOwner(GearID) == SharedGearKey;
+}
+
+bool UInventoryComponent::OwnsWeaponAsset(const UWeaponData *Weapon) const
+{
+    if (!Weapon)
+    {
+        return false;
+    }
+    const UPoolSubsystem *Pool = SharedPool.Get();
+    if (!Pool)
+    {
+        return Weapons.ContainsByPredicate([Weapon](const FWeaponInventoryEntry &Entry) { return Entry.Weapon == Weapon; });
+    }
+    return Pool->GetOwnedWeapons().ContainsByPredicate(
+        [this, Pool, Weapon](const FWeaponInventoryEntry &Entry) { return Entry.Weapon == Weapon && IsMineInStore(*Pool, Entry.PersistentID); });
+}
+
+bool UInventoryComponent::OwnsRingAsset(const URingData *Ring) const
+{
+    if (!Ring)
+    {
+        return false;
+    }
+    const UPoolSubsystem *Pool = SharedPool.Get();
+    if (!Pool)
+    {
+        return Rings.ContainsByPredicate([Ring](const FRingInventoryEntry &Entry) { return Entry.Ring == Ring; });
+    }
+    return Pool->GetOwnedRings().ContainsByPredicate(
+        [this, Pool, Ring](const FRingInventoryEntry &Entry) { return Entry.Ring == Ring && IsMineInStore(*Pool, Entry.PersistentID); });
 }
 
 FString UInventoryComponent::CompareWithStore() const
@@ -1897,22 +1977,43 @@ void UInventoryComponent::PushGearToPool(const FGuid &GearID)
         return;
     }
     TGuardValue<bool> Syncing(bSyncingWithPool, true);
+    // B-314 (D-111, D-097): a new piece heard of while a run is open was found or bought in it: run-only, arriving at
+    // the tier its definition reached in an earlier run (raised here first, so this copy and the store agree).
+    const bool bFoundOnRun = Pool->IsRunLayerActive() && Pool->GetGearOwner(GearID).IsNone();
     // B-321 (D-117): a new piece (loot, purchase) belongs to the member who got it; set before the update is heard.
     // A run-only recruit owns nothing, so what it gets goes to the party leader (B-323's give can move it).
     if (Pool->GetGearOwner(GearID).IsNone())
     {
         Pool->SetGearOwner(GearID, bDrawsWholeArmoury ? InventoryGearSync::GetLocalLeaderKey(GetWorld() ? GetWorld()->GetGameInstance() : nullptr, SharedGearKey) : SharedGearKey);
     }
-    if (const FWeaponInventoryEntry *Weapon = FindOwned(Weapons, GearID))
+    // B-347 (D-137): a home piece left out of the worn loadout but changed during the run joins the run now, with the
+    // store's (still unchanged) entry as its home state, so run end puts it back too. No-op off a run or when marked.
+    if (!bFoundOnRun && Pool->IsRunLayerActive())
     {
+        Pool->TakeOnRun(GearID);
+    }
+    if (FWeaponInventoryEntry *Weapon = FindOwned(Weapons, GearID))
+    {
+        if (bFoundOnRun && Pool->MarkRunOnly(GearID))
+        {
+            Pool->ApplyUpgradeMemory(*Weapon);
+        }
         Pool->UpdateWeapon(*Weapon);
     }
-    else if (const FRingInventoryEntry *Ring = FindOwned(Rings, GearID))
+    else if (FRingInventoryEntry *Ring = FindOwned(Rings, GearID))
     {
+        if (bFoundOnRun && Pool->MarkRunOnly(GearID))
+        {
+            Pool->ApplyUpgradeMemory(*Ring);
+        }
         Pool->UpdateRing(*Ring);
     }
-    else if (const FEvolutionInventoryEntry *Evolution = FindOwnedEvolution(GetOwner(), GearID))
+    else if (FEvolutionInventoryEntry *Evolution = FindOwnedEvolution(GetOwner(), GearID))
     {
+        if (bFoundOnRun && Pool->MarkRunOnly(GearID))
+        {
+            Pool->ApplyUpgradeMemory(*Evolution);
+        }
         Pool->UpdateEvolution(*Evolution);
     }
     else
@@ -2723,24 +2824,34 @@ FString UInventoryComponent::GetInventoryInstanceString() const
     Out += FString::Printf(TEXT("\n  Weapons (%d):"), Weapons.Num());
     for (const FWeaponInventoryEntry &W : Weapons)
     {
-        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s"),
+        // B-351: the stone socket (D-141) and the one skill-slot list's picks (D-145; '-' = the built-in).
+        FString Picks;
+        for (const UAbilityData *Pick : W.SkillPicks)
+        {
+            Picks += Pick ? Pick->GetName() + TEXT(" ") : FString(TEXT("- "));
+        }
+        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s  stone=%s  skills=%s%s"),
                                W.Weapon ? *W.Weapon->Name : TEXT("(null)"),
                                *ShortGuid(W.PersistentID),
                                *TierHelpers::GetTierName(W.Tier),
                                QualityName(W.Quality),
-                               *DescribeAttachment(W.AttachedItem));
+                               *DescribeAttachment(W.AttachedItem),
+                               *DescribeAttachment(W.StoneSocket),
+                               W.bSkillSlotsActive ? TEXT("one list ") : TEXT("old lists "),
+                               *Picks);
     }
 
     // ---------- Rings ----------
     Out += FString::Printf(TEXT("\n  Rings (%d):"), Rings.Num());
     for (const FRingInventoryEntry &R : Rings)
     {
-        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s"),
+        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s  stone=%s"),
                                R.Ring ? *R.Ring->Name : TEXT("(null)"),
                                *ShortGuid(R.PersistentID),
                                *TierHelpers::GetTierName(R.Tier),
                                QualityName(R.Quality),
-                               *DescribeAttachment(R.AttachedItem));
+                               *DescribeAttachment(R.AttachedItem),
+                               *DescribeAttachment(R.StoneSocket));
     }
 
     // ---------- Spells ----------
