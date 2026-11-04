@@ -15,6 +15,7 @@
 #include "Merchant/MerchantInteractable.h"
 #include "Merchant/MerchantStockRoll.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Pool/PoolSubsystem.h"
 #include "Save/SaveSubsystem.h"
 #include "Shop/MerchantShopSubsystem.h"
 #include "TimerManager.h"
@@ -71,6 +72,15 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     {
         Save->ClearRunGold(GetGameInstance()->GetWorld());
     }
+    // B-314 (D-111, Q-314): the run layer opens. Every home piece goes along as it is now (rest spots reach everything
+    // you own, D-097) until B-116's run purchase picks pieces with TakeOnRun; gear found or bought in the run is run-only.
+    // A layer left open by a run that never exited is ended (applied) first: its gear is this session's, not reloaded.
+    if (UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>())
+    {
+        Pool->EndRunLayer();
+        Pool->BeginRunLayer();
+        Pool->TakeHomeGearOnRun();
+    }
 
     ActiveTrial = Trial;
     BeatenEncounters.Reset();
@@ -110,6 +120,13 @@ void UTrialRunSubsystem::ExitTrial()
         UE_LOG(LogTemp, Warning,
                TEXT("[TrialRun] ExitTrial: HubLevel not configured (DefaultGame.ini) — ignored."));
         return;
+    }
+
+    // B-314 (D-111, D-097): the run layer closes while the members are still here to hear it: home pieces go back to
+    // their home state, run-only gear leaves with its tier remembered. Before the exit save below.
+    if (UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>())
+    {
+        Pool->EndRunLayer();
     }
 
     // Hub return is the factory reset: drop every slot back to the sentinel so
@@ -422,6 +439,16 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
+    // B-314: the run layer isn't saved yet (B-314b, Q-314), so a resumed run opens a fresh one: gear found before the
+    // quit stays, and the home state is the gear as it was saved.
+    UPoolSubsystem *Pool = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr;
+    if (Pool && IsRunActive())
+    {
+        UE_LOG(LogTemp, Log, TEXT("[TrialRun] Resumed run: the run layer starts afresh from the saved gear (TODO: B-314b saves it)"));
+        Pool->DiscardRunLayer(); // the store was reloaded: an open layer's home states are stale
+        Pool->BeginRunLayer();
+        Pool->TakeHomeGearOnRun();
+    }
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Restored saved run of '%s' (seed %d, %d beaten, %d found, %d memories)"),
            Trial ? *Trial->Name.ToString() : TEXT("<none>"), RunSeed, BeatenEncounters.Num(), FoundFeatures.Num(),
            RunMemories.Num());

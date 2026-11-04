@@ -34,6 +34,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryUnlock.h"
+#include "Pool/PoolSubsystem.h" // B-314: home pieces on the run can't be sold or dismantled
 
 namespace
 {
@@ -116,6 +117,22 @@ namespace
         }
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s refused: GUID %s is a loadout's primary - swap in another first (D-116)"),
                Op, *PersistentID.ToString());
+        return true;
+    }
+
+    /** B-314 (Q-314b): a home piece on the run can't be sold or dismantled until the run ends (it comes back restored,
+     *  D-111). Run-only gear can. */
+    bool EconomyRefusesOnRun(const AActor *Owner, const FGuid &GearID, const TCHAR *Op)
+    {
+        const UWorld *World = Owner ? Owner->GetWorld() : nullptr;
+        const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+        const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+        if (!Pool || !Pool->IsOnRun(GearID))
+        {
+            return false;
+        }
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s refused: GUID %s is a home piece on the run - it goes back home when the run ends (Q-314b)"),
+               Op, *GearID.ToString());
         return true;
     }
 
@@ -437,7 +454,7 @@ bool UEconomyService::DismantleOwnedGear(AActor *Owner, FGuid PersistentID, cons
     {
         return false;
     }
-    if (EconomyRefusesPrimary(*Inv, PersistentID, Verb))
+    if (EconomyRefusesPrimary(*Inv, PersistentID, Verb) || EconomyRefusesOnRun(Owner, PersistentID, Verb))
     {
         return false;
     }
@@ -535,7 +552,7 @@ namespace
     {
         const TCHAR *Verb = TEXT("ResolveDuplicate");
         const TEntry *Entry = FindOwnedGearForVerb<TEntry>(Owner, Inv, PersistentID, Verb);
-        if (!Entry || EconomyRefusesPrimary(Inv, PersistentID, Verb))
+        if (!Entry || EconomyRefusesPrimary(Inv, PersistentID, Verb) || EconomyRefusesOnRun(Owner, PersistentID, Verb))
         {
             return false;
         }
@@ -666,7 +683,7 @@ bool UEconomyService::DismantleEvolution(AActor *Owner, FGuid InstanceID)
                *Owner->GetName(), *InstanceID.ToString());
         return false;
     }
-    if (EconomyRefusesPrimary(*Inv, InstanceID, TEXT("DismantleEvolution")))
+    if (EconomyRefusesPrimary(*Inv, InstanceID, TEXT("DismantleEvolution")) || EconomyRefusesOnRun(Owner, InstanceID, TEXT("DismantleEvolution")))
     {
         return false;
     }
@@ -719,8 +736,10 @@ bool UEconomyService::RemovePrimaryEvolution(AActor *Owner)
     }
 
     // D-116: this always empties the primary, so it waits for another primary to be swapped in.
+    // B-314: refuse a home piece on the run here, before the slot is cleared, so the refusal is whole.
     const UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
-    if (Inv && EconomyRefusesPrimary(*Inv, InstanceID, TEXT("RemovePrimaryEvolution")))
+    if ((Inv && EconomyRefusesPrimary(*Inv, InstanceID, TEXT("RemovePrimaryEvolution"))) ||
+        EconomyRefusesOnRun(Owner, InstanceID, TEXT("RemovePrimaryEvolution")))
     {
         return false;
     }

@@ -1950,22 +1950,37 @@ void UInventoryComponent::PushGearToPool(const FGuid &GearID)
         return;
     }
     TGuardValue<bool> Syncing(bSyncingWithPool, true);
+    // B-314 (D-111, D-097): a new piece heard of while a run is open was found or bought in it: run-only, arriving at
+    // the tier its definition reached in an earlier run (raised here first, so this copy and the store agree).
+    const bool bFoundOnRun = Pool->IsRunLayerActive() && Pool->GetGearOwner(GearID).IsNone();
     // B-321 (D-117): a new piece (loot, purchase) belongs to the member who got it; set before the update is heard.
     // A run-only recruit owns nothing, so what it gets goes to the party leader (B-323's give can move it).
     if (Pool->GetGearOwner(GearID).IsNone())
     {
         Pool->SetGearOwner(GearID, bDrawsWholeArmoury ? InventoryGearSync::GetLocalLeaderKey(GetWorld() ? GetWorld()->GetGameInstance() : nullptr, SharedGearKey) : SharedGearKey);
     }
-    if (const FWeaponInventoryEntry *Weapon = FindOwned(Weapons, GearID))
+    if (FWeaponInventoryEntry *Weapon = FindOwned(Weapons, GearID))
     {
+        if (bFoundOnRun && Pool->MarkRunOnly(GearID))
+        {
+            Pool->ApplyUpgradeMemory(*Weapon);
+        }
         Pool->UpdateWeapon(*Weapon);
     }
-    else if (const FRingInventoryEntry *Ring = FindOwned(Rings, GearID))
+    else if (FRingInventoryEntry *Ring = FindOwned(Rings, GearID))
     {
+        if (bFoundOnRun && Pool->MarkRunOnly(GearID))
+        {
+            Pool->ApplyUpgradeMemory(*Ring);
+        }
         Pool->UpdateRing(*Ring);
     }
-    else if (const FEvolutionInventoryEntry *Evolution = FindOwnedEvolution(GetOwner(), GearID))
+    else if (FEvolutionInventoryEntry *Evolution = FindOwnedEvolution(GetOwner(), GearID))
     {
+        if (bFoundOnRun && Pool->MarkRunOnly(GearID))
+        {
+            Pool->ApplyUpgradeMemory(*Evolution);
+        }
         Pool->UpdateEvolution(*Evolution);
     }
     else
