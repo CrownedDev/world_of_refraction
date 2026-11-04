@@ -21,6 +21,8 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
+#include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SpellData.h"
 
 #define LOCTEXT_NAMESPACE "Give"
 
@@ -115,6 +117,8 @@ TSharedRef<SWidget> UGiveWidget::RebuildWidget()
 		GiveOneButton->OnClicked.AddDynamic(this, &UGiveWidget::HandleGiveOneClicked);
 		GiveStackButton = GiveBuild::AddButton(WidgetTree, Box, LOCTEXT("GiveStack", "Give the stack"));
 		GiveStackButton->OnClicked.AddDynamic(this, &UGiveWidget::HandleGiveStackClicked);
+		RequestButton = GiveBuild::AddButton(WidgetTree, Box, LOCTEXT("Request", "Ask for it (the receiver asks the giver)"));
+		RequestButton->OnClicked.AddDynamic(this, &UGiveWidget::HandleRequestClicked);
 		StatusLine = GiveBuild::AddText(WidgetTree, Box);
 		GiveBuild::AddButton(WidgetTree, Box, LOCTEXT("Close", "Close"))->OnClicked.AddDynamic(this, &UGiveWidget::HandleCloseClicked);
 	}
@@ -202,6 +206,16 @@ TArray<UGiveWidget::FGiveChoice> UGiveWidget::GatherChoices() const
 		Choice.Label = FText::Format(LOCTEXT("StackLabel", "{0} x{1}"), FText::FromString(ItemIdentity::GetDisplayName(Stack.Key)), Stack.Value);
 		Choices.Add(Choice);
 	}
+	for (const UObject *Skill : WoRGive::GetGiveableSkills(GetWorld(), Giver)) // B-316b
+	{
+		FGiveChoice Choice;
+		Choice.Skill = Skill;
+		// TODO: FText skill names with B-127 (D-061).
+		const USpellData *Spell = Cast<USpellData>(Skill);
+		const UAbilityData *Ability = Cast<UAbilityData>(Skill);
+		Choice.Label = FText::FromString(Spell ? Spell->Name : Ability ? Ability->Name : FString());
+		Choices.Add(Choice);
+	}
 	return Choices;
 }
 
@@ -231,12 +245,14 @@ void UGiveWidget::Refresh()
 	{
 		const FGiveChoice &Choice = Choices[SelectedIndex];
 		ItemText->SetText(FText::Format(LOCTEXT("ItemRow", "{0}: {1} ({2} of {3})"),
-										Choice.IsGear() ? LOCTEXT("Gear", "Gear") : LOCTEXT("Pouch", "Pouch"), Choice.Label, SelectedIndex + 1,
+										Choice.IsGear() ? LOCTEXT("Gear", "Gear") : Choice.IsSkill() ? LOCTEXT("Skill", "Skill") : LOCTEXT("Pouch", "Pouch"),
+										Choice.Label, SelectedIndex + 1,
 										Choices.Num()));
 	}
 	const bool bCanGive = Members.Num() >= 2 && !Choices.IsEmpty() && GiverIndex != ReceiverIndex;
 	GiveOneButton->SetIsEnabled(bCanGive);
-	GiveStackButton->SetIsEnabled(bCanGive && !Choices[SelectedIndex].IsGear());
+	GiveStackButton->SetIsEnabled(bCanGive && !Choices[SelectedIndex].IsGear() && !Choices[SelectedIndex].IsSkill());
+	RequestButton->SetIsEnabled(bCanGive && Choices[SelectedIndex].IsSkill());
 	StatusLine->SetText(StatusText);
 }
 
@@ -259,9 +275,24 @@ void UGiveWidget::GiveSelected(int32 Count)
 		return;
 	}
 	const FGiveChoice Choice = Choices[SelectedIndex];
-	const FText Refusal = Choice.IsGear() ? WoRGive::TryGiveGear(GetWorld(), GiverKey(), ReceiverKey(), Choice.GearID)
-										  : WoRGive::TryGiveCarried(GetWorld(), GiverKey(), ReceiverKey(), Choice.Item, FMath::Min(Count, Choice.Count));
+	const FText Refusal = Choice.IsGear()	 ? WoRGive::TryGiveGear(GetWorld(), GiverKey(), ReceiverKey(), Choice.GearID)
+						  : Choice.IsSkill() ? WoRGive::TryGiveSkill(GetWorld(), GiverKey(), ReceiverKey(), Choice.Skill.Get())
+											 : WoRGive::TryGiveCarried(GetWorld(), GiverKey(), ReceiverKey(), Choice.Item, FMath::Min(Count, Choice.Count));
 	StatusText = Refusal.IsEmpty() ? FText::Format(LOCTEXT("Given", "Gave {0}"), Choice.Label) : Refusal;
+	Refresh();
+	UE_LOG(LogTemp, Log, TEXT("%s"), *GetGiveString());
+}
+
+void UGiveWidget::HandleRequestClicked()
+{
+	const TArray<FGiveChoice> Choices = GatherChoices();
+	if (!Choices.IsValidIndex(SelectedIndex) || !Choices[SelectedIndex].IsSkill())
+	{
+		return;
+	}
+	const FGiveChoice Choice = Choices[SelectedIndex];
+	const FText Refusal = WoRGive::TryRequestSkill(GetWorld(), ReceiverKey(), GiverKey(), Choice.Skill.Get());
+	StatusText = Refusal.IsEmpty() ? FText::Format(LOCTEXT("Requested", "Asked for {0}: given"), Choice.Label) : Refusal;
 	Refresh();
 	UE_LOG(LogTemp, Log, TEXT("%s"), *GetGiveString());
 }

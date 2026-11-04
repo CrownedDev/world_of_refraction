@@ -250,9 +250,11 @@ public:
      *  UPoolSubsystem::GetCharacterKey; AI-controlled members included). The goods arrive with ForKey: weapons and
      *  adapters become its own (WoRGive::TryGiveGear, so its duplicate choice fires, D-115); crystals and stones go to
      *  its pouch (what doesn't fit stays where the purchase put it: the payer's pouch or the shared storage, D-097).
-     *  ForKey none or the payer's own key = Purchase. Refused up front (nothing spent) when ForKey isn't in the local
-     *  party, or the cart holds a spell, ability or evolution (those wait for B-316b), or gear for a run-only recruit
-     *  (it owns nothing, Q-321). */
+     *  B-316b: spells and abilities are learned into ForKey's own skills in the store (the payer's are untouched, so
+     *  the payer may already know one). ForKey none or the payer's own key = Purchase. Refused up front (nothing
+     *  spent) when ForKey isn't in the local party, or the cart holds an evolution (no evolution give yet, Q-323), or
+     *  gear or a skill for a run-only recruit (it owns nothing, Q-321, Q-316b), or a skill for a member whose skills
+     *  aren't in the store yet (never drawn). */
     bool PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMerchantStockEntry> &Items);
 
     /** Price a cart WITHOUT purchasing — the exact per-currency totals Purchase would charge
@@ -369,6 +371,10 @@ public:
     void PrintEconomy(AActor *Owner) const;
 
 private:
+    /** Purchase's body. B-316b: SkillReceiver (a character key, none = Owner) is who learns the cart's spells and
+     *  abilities: its skills in the store are checked and changed instead of Owner's. */
+    bool PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEntry> &Items, FName SkillReceiver);
+
     /** B-252b: one body each for the weapon / ring (adapter) verbs; TEntry is FWeaponInventoryEntry or
      *  FRingInventoryEntry. Verb names the public call in the logs and the authority / component checks. */
     template <class TEntry>

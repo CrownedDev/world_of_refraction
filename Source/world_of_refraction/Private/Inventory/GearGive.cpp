@@ -2,9 +2,12 @@
 
 #include "Inventory/GearGive.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/TurnManager.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "GameFramework/GameStateBase.h"
+#include "GameFramework/PlayerController.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -12,7 +15,10 @@
 #include "Inventory/InventoryComponent.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Player/WoRPlayerState.h"
 #include "Pool/PoolSubsystem.h"
+#include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SpellData.h"
 
 #define LOCTEXT_NAMESPACE "GearGive"
 
@@ -61,6 +67,47 @@ namespace
 			}
 		}
 		return false;
+	}
+
+	/** B-316b: the local party member whose character key is Key, or null. */
+	const FPartyMember *GiveMemberOf(const UWorld *World, FName CharacterKey)
+	{
+		const UParty *Party = GiveLocalPartyOf(World);
+		return Party ? Party->Members.FindByPredicate([CharacterKey](const FPartyMember &Member)
+													  { return Member.CharacterData && UPoolSubsystem::GetCharacterKey(Member) == CharacterKey; })
+					 : nullptr;
+	}
+
+	/** B-316b: another player than the local one has claimed the member (co-op, D-150): its yes is theirs to give. */
+	bool IsClaimedByAnotherPlayer(const UWorld *World, const FGuid &MemberId)
+	{
+		const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
+		const APlayerController *LocalPC = World ? World->GetFirstPlayerController() : nullptr;
+		const APlayerState *LocalPS = LocalPC ? LocalPC->PlayerState : nullptr;
+		if (!GameState || !MemberId.IsValid())
+		{
+			return false;
+		}
+		for (const APlayerState *PS : GameState->PlayerArray)
+		{
+			const AWoRPlayerState *WoRPS = Cast<AWoRPlayerState>(PS);
+			if (WoRPS && PS != LocalPS && WoRPS->ClaimsMember(MemberId))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** B-316b: a skill's name for the player. TODO: FText names with B-127 (D-061). */
+	FText SkillNameOf(const UObject *Skill)
+	{
+		if (const USpellData *Spell = Cast<USpellData>(Skill))
+		{
+			return FText::FromString(Spell->Name);
+		}
+		const UAbilityData *Ability = Cast<UAbilityData>(Skill);
+		return Ability ? FText::FromString(Ability->Name) : FText::GetEmpty();
 	}
 
 	/** wor.Give.Print: what every local party member could give. */
@@ -248,6 +295,94 @@ namespace WoRGive
 		return FText::GetEmpty();
 	}
 
+	FText TryGiveSkill(UWorld *World, FName FromKey, FName ToKey, const UObject *Skill)
+	{
+		UPoolSubsystem *Pool = PoolOf(World);
+		if (!Pool)
+		{
+			return LOCTEXT("NoSkillStore", "No skills to give from");
+		}
+		if (FromKey.IsNone() || ToKey.IsNone() || FromKey == ToKey)
+		{
+			return LOCTEXT("SameCharacterSkills", "Choose another character to give to");
+		}
+		const USpellData *Spell = Cast<USpellData>(Skill);
+		const UAbilityData *Ability = Cast<UAbilityData>(Skill);
+		if (!Spell && !Ability)
+		{
+			return LOCTEXT("NotASkill", "That isn't a spell or an ability");
+		}
+		// Between fights only: the giver's loadouts drop the skill in the pre-fight clean (ClearInvalidSlots).
+		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		const UTurnManager *TurnManager = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+		if (TurnManager && TurnManager->IsCombatActive())
+		{
+			return LOCTEXT("SkillsInFight", "Skills can't change hands during a fight");
+		}
+		for (const FName Key : {FromKey, ToKey})
+		{
+			if (IsRunOnlyMember(World, Key))
+			{
+				return FText::Format(LOCTEXT("RecruitSkills", "{0} is only here for the run and can't trade skills"), NameOf(World, Key));
+			}
+			if (!Pool->HasBankedSkills(Key))
+			{
+				return FText::Format(LOCTEXT("SkillsNotKept", "{0}'s skills aren't kept yet (they join at the next level)"), NameOf(World, Key));
+			}
+		}
+		if (!(Spell ? Pool->KnowsSpell(FromKey, Spell) : Pool->KnowsAbility(FromKey, Ability)))
+		{
+			return FText::Format(LOCTEXT("DoesntKnow", "{0} doesn't know {1}"), NameOf(World, FromKey), SkillNameOf(Skill));
+		}
+		if (Spell ? Pool->KnowsSpell(ToKey, Spell) : Pool->KnowsAbility(ToKey, Ability))
+		{
+			return FText::Format(LOCTEXT("AlreadyKnows", "{0} already knows {1}"), NameOf(World, ToKey), SkillNameOf(Skill));
+		}
+		if (!(Spell ? Pool->MoveSpell(FromKey, ToKey, Spell) : Pool->MoveAbility(FromKey, ToKey, Ability)))
+		{
+			return FText::Format(LOCTEXT("SkillsFull", "{0} can't learn any more"), NameOf(World, ToKey));
+		}
+		return FText::GetEmpty();
+	}
+
+	FText TryRequestSkill(UWorld *World, FName RequesterKey, FName HolderKey, const UObject *Skill)
+	{
+		const FPartyMember *Holder = GiveMemberOf(World, HolderKey);
+		if (Holder && Holder->bPlayerControlled && IsClaimedByAnotherPlayer(World, Holder->MemberId))
+		{
+			// TODO: B-233+: send the request to that player's screen and give on their yes.
+			return FText::Format(LOCTEXT("AskTheirPlayer", "{0} is another player's: they have to say yes (co-op requests come with the co-op screens)"),
+								 NameOf(World, HolderKey));
+		}
+		return TryGiveSkill(World, HolderKey, RequesterKey, Skill);
+	}
+
+	TArray<const UObject *> GetGiveableSkills(const UWorld *World, FName FromKey)
+	{
+		TArray<const UObject *> Skills;
+		const UPoolSubsystem *Pool = PoolOf(World);
+		const FPoolSkills *Known = Pool ? Pool->FindSkills(FromKey) : nullptr;
+		if (!Known)
+		{
+			return Skills;
+		}
+		for (const FSpellInstance &Spell : Known->Spells)
+		{
+			if (Spell.Spell)
+			{
+				Skills.Add(Spell.Spell);
+			}
+		}
+		for (const FAbilityInstance &Ability : Known->Abilities)
+		{
+			if (Ability.Ability)
+			{
+				Skills.Add(Ability.Ability);
+			}
+		}
+		return Skills;
+	}
+
 	FString GetGiveableString(const UWorld *World, FName FromKey)
 	{
 		const UPoolSubsystem *Pool = PoolOf(World);
@@ -273,6 +408,10 @@ namespace WoRGive
 		for (const TPair<FCrystalId, int32> &Stack : Pool->GetCarriedItems(FromKey))
 		{
 			Out += FString::Printf(TEXT("\n  pouch %s x%d"), *ItemIdentity::GetDisplayName(Stack.Key), Stack.Value);
+		}
+		for (const UObject *Skill : GetGiveableSkills(World, FromKey)) // B-316b
+		{
+			Out += FString::Printf(TEXT("\n  %s %s"), Skill->IsA<USpellData>() ? TEXT("spell") : TEXT("ability"), *SkillNameOf(Skill).ToString());
 		}
 		return Out;
 	}

@@ -466,6 +466,22 @@ struct WORLD_OF_REFRACTION_API FSavedCharacterLoadouts
 	TArray<FSavedCustomLoadout> Loadouts;
 };
 
+/** B-316b (Q-316b, save v16): one character's learned skills (present once banked, even when empty). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCharacterSkills
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName Character;
+
+	UPROPERTY()
+	TArray<FSavedOwnedItem> Spells;
+
+	UPROPERTY()
+	TArray<FSavedOwnedItem> Abilities;
+};
+
 /** B-322 (D-117, save v9): one character's pouch. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedPouch
@@ -534,6 +550,10 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	/** B-314b (D-097, save v15): gear definition key -> the highest tier a run-only copy of it reached. */
 	UPROPERTY()
 	TMap<FName, EItemTier> UpgradeMemory;
+
+	/** B-316b (save v16): each character's learned skills. */
+	UPROPERTY()
+	TArray<FSavedCharacterSkills> CharacterSkills;
 
 	int32 Num() const
 	{
