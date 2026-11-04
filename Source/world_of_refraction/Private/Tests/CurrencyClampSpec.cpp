@@ -38,7 +38,7 @@ void FCurrencyClampSpec::Define()
 		Holder->AddInstanceComponent(Wallet);
 		Wallet->RegisterComponent();
 
-		for (const ECurrencyType Currency : CurrencyBalances::SEVEN) // B-333b: every live balance, no typed essence
+		for (const ECurrencyType Currency : CurrencyBalances::EIGHT) // B-333b: every live balance, no typed essence
 		{
 			TestTrue(TEXT("Add to near the limit"), Wallet->Add(Currency, TNumericLimits<int32>::Max() - CURRENCY_CLAMP_TEST_AMOUNT));
 			Wallet->Add(Currency, CURRENCY_CLAMP_TEST_AMOUNT * 2);

@@ -37,11 +37,12 @@ const TCHAR *USaveSubsystem::SLOT_NAME = TEXT("WoR_Main");
 
 namespace
 {
-	/** The banked scalar currencies (B-333: six of the seven balances); Gold is run-only and the
+	/** The banked scalar currencies (B-333 / B-361b: seven of the eight balances); Gold is run-only and the
 	 *  OBSOLETE EssenceTyped is per key. */
 	constexpr ECurrencyType BANKED_SCALARS[] = {ECurrencyType::Prisms, ECurrencyType::Diamond,
 												ECurrencyType::GearEssence, ECurrencyType::SkillEssence,
-												ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence};
+												ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence,
+												ECurrencyType::MentorTokens};
 
 	UCurrencyComponent *FindLocalWallet(UWorld *World)
 	{
