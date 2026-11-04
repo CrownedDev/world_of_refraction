@@ -15,7 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
-| [B-331](B-331.md) | `feature/B-331-one-speed` (UNBUILT) | One Speed, part 1: Body × Speed narrows every defense window; old Action + Spell Speed points add into Speed | Not built |
+| [B-331](B-331.md) | `feature/B-331-one-speed` (in `dev`) | One Speed, part 1: Body × Speed narrows every defense window; old Action + Spell Speed points add into Speed | Pending |
 | [B-328](B-328.md) | `feature/B-328-enemy-hp-no-zone` (in `dev`) | Each zone tier names the enemy Combat Tier that belongs there (`wor.Trial.PrintZones`); an authoring guide, the zone itself scales nothing (B-327) | Pending |
 | [B-353b](B-353b.md) | `fix/B-353b-bd-stone-energy` (in `dev`) | No stone (Luck, Reflex, Healing included) gives a Broken Darkness character energy; gems still do | Pending |
 | [B-232](B-232.md) | `feature/B-232-run-state-party` (in `dev`) | Run state and roster on the GameState; each player commands its own character; an unclaimed member rotates (2-player PIE) | Pending |
