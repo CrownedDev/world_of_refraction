@@ -13,6 +13,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 ## Pending
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-359](B-359.md) | `feature/B-359-weather-baseline` (UNBUILT) | Weather = the trial's element; a boss phase steps it; leader HP no longer moves it | Not built |
 | [B-326](B-326.md) | `chore/B-326-flat-requirement-penalty` (in `dev`) | Unmet requirement = x0.6 and no scaling for weapons, abilities and spells; still castable | Not built |
 | [B-327](B-327.md) | `fix/B-327-zone-health-once` (in `dev`) | The zone scales no stats; enemy HP = own x rank x Combat Tier (D-120) | Pending |
 | [B-224](B-224.md) | `feature/B-224-combat-numbers` (in `dev`) | Combat numbers baseline: rank HP x1.5/3/6, Defense cap 75%, crit base x1.25, requirement floor 0.5, tuning ladders | Not built |
