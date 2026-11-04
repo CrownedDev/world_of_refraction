@@ -598,6 +598,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A, because the row bonus and the stored formation exist for it.
 **Answer (Crown):** **A** (2026-10-26): members start in their **chosen formation cell**, so row bonuses apply. Replace the Middle-row auto-assign (`CombatOrchestrator.cpp:222-223`) with each member's `PreferredRow/PreferredColumn`, falling back to auto-assign when unset or clashing. Enemies use their own preferred cells (tanks front, casters back, per `AIArchitecture.md`'s placeholder heuristic) until authored. **Formation can be changed at rest spots** during a run (Crown, 2026-10-26), alongside inventory and loadout (D-032 part 7).
 **Queued:** B-149 (start in the chosen cell); formation at rest spots comes with the rest-spot work.
+**Changed by D-134 (B-342):** three rows, no columns: a member starts in its chosen **row**; the stored column is obsolete.
 
 ### D-043 — How does a fallen party member come back during a run?
 **Status:** ANSWERED · **Raised:** 2026-10-26 (B-046) · **Blocks:** —
@@ -1728,6 +1729,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
 **Answer (Crown):** three rows, no columns. Placeholder effect: the front row deals and takes +20%, the back row −20% (`// TODO: tune`). The D-096 row step stays. Changes D-042 (formation cells).
 **Notes for Claude:** job B-342.
+
+### Q-342 — Three rows, no columns: what stops a row step, and how is "takes +20%" applied?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-342, D-134) · **Blocks:** —
+**Question:** with columns gone, Q-180's "only into an empty cell" rule has nothing to check. And the damage maths divides by a row's defence modifier.
+**Options:** A an ally in a row never blocks a step or push (a row holds the whole side, at most 3); only the edge refuses. "Takes +20%" = the defence modifier is 1 / 1.20 / B keep a per-row cap of one character.
+**Recommendation:** A. Final Fantasy's front / back row (FF I–VI, and FF IV's Row command) is exactly this: any number of characters per row, a row change is never blocked, and the back row deals and takes less physical damage; players read it at a glance. The defence modifier as 1 / the taken multiplier keeps `WoRDamageMath` unchanged and makes "takes +20%" exact.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it. The column (`FPartyMember::PreferredColumn`, `FGridStartPreference::Cell`, `POSITIONS_PER_TEAM`) is flagged OBSOLETE; the slot stays only to place characters in the world.
 
 ### D-135 — Guard and Dodge only (audit §19)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —

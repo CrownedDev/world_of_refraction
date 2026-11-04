@@ -2034,8 +2034,9 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		break;
 
 	// ==================== ROW MOVES (D-096, B-180) ====================
-	// Instant: one row in the target's column. The grid refuses (and logs) a taken cell or the
-	// last row; row bonuses read the grid per hit, so they change at once.
+	// Instant: one row toward the back or front, into any free slot of that row (B-342, D-134: an ally
+	// never blocks). The grid refuses (and logs) only a full row or the last row; row bonuses read the
+	// grid per hit, so they change at once.
 	case ESkillEffectType::PushBack:
 	case ESkillEffectType::PullForward:
 	{

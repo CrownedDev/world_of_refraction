@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-342](B-342.md) | `feature/B-342-three-rows` (in `dev`) | Three rows, no columns: front ±20% dealt and taken, back −20%; an ally never blocks a row step | Pending |
 | [B-341](B-341.md) | `feature/B-341-turn-rules-trim` (in `dev`) | 3-step tie-break; one bonus-turn rule (lands next; skip removes one; death purges, revive next round); Emerald and Extra Action follow; `wor.Turns.GrantBonus`, `wor.Turns.SkipNext` | Pending |
 | [B-355](B-355.md) | `feature/B-355-boss-rules` (in `dev`) | A boss's phases and triggers are one rule list (when → condition → result); old data reads across; `wor.Boss.Print` lists the rules | Pending |
 | [B-337](B-337.md) | `feature/B-337-conditions` (in `dev`) | One condition vocabulary (`FWoRCondition`, `WoRConditions`); memories evaluate through it; no gameplay change | Pending |

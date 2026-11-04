@@ -93,6 +93,8 @@ struct FPartyMember
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	ECombatRow PreferredRow = ECombatRow::Middle;
 
+	/** OBSOLETE (B-342, D-134; delete in the D-124 sweep) as a column: fights start by PreferredRow only.
+	 *  Still the "has a formation" marker (HasFormation) and saved; the sweep replaces it with a flag. */
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	int32 PreferredColumn = PartyConstants::UNSET_FORMATION;
 
