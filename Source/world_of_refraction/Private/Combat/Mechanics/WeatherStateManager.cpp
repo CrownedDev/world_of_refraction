@@ -75,6 +75,7 @@ void UWeatherStateManager::EndCombat()
     bCombatActive = false;
     LastBroadcastBlendValue = 0.0f; // B-030: back to the header default for the next fight
     BattleIntensity = 0.0f;         // B-359: the next fight starts at the baseline
+    BattleElement = ESpellElement::Generic;
 
     // Iterate every entry on both teams and remove the OnHPChanged + OnDied
     // subscriptions added by BindToTeam. Entry.Actor is weak: an actor destroyed
@@ -184,7 +185,8 @@ void UWeatherStateManager::RecalculateWeather()
     if (AActor *Boss = FindPhasedBoss(BossIntensity))
     {
         const UCharacterDataComponent *BossData = Boss->FindComponentByClass<UCharacterDataComponent>();
-        const ESpellElement BossElement = BossData && BossData->CharacterData ? BossData->CharacterData->InnateElement : ESpellElement::Generic;
+        // B-276: class-gated, like the leaders' entries in BuildHierarchy. Holds until the fight ends, a dead boss included (Q-359).
+        const ESpellElement BossElement = BossData && BossData->CharacterData ? BossData->CharacterData->GetElement() : ESpellElement::Generic;
         if (BossElement != ESpellElement::Generic && BossElement != ESpellElement::None)
         {
             Element = BossElement;
@@ -467,14 +469,13 @@ FString UWeatherStateManager::GetWeatherStateString() const
     DescribeTeam(TEXT("LocalParty"), LocalPartyHierarchy);
     DescribeTeam(TEXT("OpposingParty"), OpposingPartyHierarchy);
 
-    // Recompute the broadcast inputs via the same helpers RecalculateWeather
-    // uses, so the snapshot can never disagree with what listeners last saw.
+    // OBSOLETE (B-359, D-149): the leader-HP blend, shown for comparison only; it is no longer broadcast.
     const float LocalPartyPercent = ComputeTeamHPPercent(LocalPartyHierarchy);
     const float OpposingPartyPercent = ComputeTeamHPPercent(OpposingPartyHierarchy);
     const float CurrentBlend = ComputeBlendValue(LocalPartyPercent, OpposingPartyPercent);
     const float SignedGap = LocalPartyPercent - OpposingPartyPercent;
 
-    Output += FString::Printf(TEXT("Gap: %+.2f -> BlendValue (recomputed now): %+.2f\n"),
+    Output += FString::Printf(TEXT("OBSOLETE leader-HP blend (B-359, not broadcast): gap %+.2f -> %+.2f\n"),
                               SignedGap, CurrentBlend);
     Output += FString::Printf(TEXT("Last broadcast BlendValue:                 %+.2f\n"),
                               LastBroadcastBlendValue);
