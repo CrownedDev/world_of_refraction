@@ -1804,20 +1804,22 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** applied in B-345 (`feature/B-345-one-ai-path`).
 
 ### Q-356 — Which of the three does each old school map to?
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-356, cloud; D-146 is on `docs/D-128-136-simplicity-round2`) · **Blocks:** —
-**Question:** D-146 keeps three schools. `ESpellSchool` has one more, Conjuration. Where does it go?
-**Mapping (as built):**
+**Status:** ANSWERED (Crown's D-146 correction, 2026-11-04, replaces the reference-backed default) · **Raised:** 2026-11-04 (B-356, cloud; D-146 is on `docs/D-128-136-simplicity-round2`) · **Blocks:** —
+**Question:** D-146 keeps three schools. `ESpellSchool` has one more. Where does each old school go?
+**Mapping (D-146 as corrected by Crown, 2026-11-04; built by B-356c):**
 
 | Old school | Maps to | Why |
 |---|---|---|
-| Destruction | Destruction | kept |
+| Destruction | **Conjuration** | retired; Conjuration is the damage school now |
+| Conjuration | Conjuration | kept (maps to itself) |
 | Enhancement | Enhancement | kept |
 | Restoration | Restoration | kept |
-| Conjuration | **Enhancement** | summons and created things help your side without dealing damage or healing themselves; Enhancement is the utility school |
 
-**Recommendation:** as above. The Elder Scrolls folded a utility school into its nearest neighbour (Mysticism into Alteration and Conjuration, Oblivion → Skyrim) instead of keeping a thin school, and players took to the leaner list. The only rule that reads the school, "Enhancement and Restoration are support" (no status buildup), fits a summon.
-**Answer:** as above (approved by the reference-backed default). `ESpellSchool::Conjuration` stays (append-only) and reads as Enhancement; re-tag the assets in the editor.
-**Notes for Claude:** applied in B-356 (`SpellSchools::ToCurrent`).
+**Mapping as first built (B-356, superseded):** Destruction, Enhancement, Restoration kept; Conjuration retired onto Enhancement.
+
+**Recommendation (superseded by the correction):** the first mapping. The Elder Scrolls folded a utility school into its nearest neighbour (Mysticism into Alteration and Conjuration, Oblivion → Skyrim) instead of keeping a thin school, and players took to the leaner list. The only rule that reads the school, "Enhancement and Restoration are support" (no status buildup), fits a summon.
+**Answer:** the corrected mapping above (Crown, 2026-11-04). `ESpellSchool::Destruction` stays (append-only) and reads as Conjuration; Enhancement and Restoration are the two support schools; re-tag the Destruction-tagged assets in the editor once B-356c is in.
+**Notes for Claude:** first mapping applied in B-356 (`SpellSchools::ToCurrent`); B-356c flips `ToCurrent`, the LOCTEXT name, the support-school rule (Enhancement and Restoration), the AI readers' comments, the validation baseline and `docs/PIE/B-356.md`. Do not re-tag assets on the first mapping.
 
 ### Q-356b — Seven caster loadouts hold 7 Enhancement innate spells once Conjuration counts as Enhancement
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-356, desktop build) · **Blocks:** —
@@ -1826,6 +1828,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. D-146 changed the labels, not the budget; D-110's slot budget already bounds a loadout, and fewer, clearer picks is the simplicity round's direction (Expedition 33 fixes six skill slots and is praised for the choice it forces). B would widen a cap to fit test content.
 **Answer:** A (approved by the reference-backed default). The seven lines sit in `Scripts/ue/validation_baseline.txt` until the editor step in `docs/PIE/B-356.md` is done; delete them then.
 **Notes for Claude:** the cap check itself moved to the shown school in B-356 (`USpellData::GetSchool`).
+**After the D-146 correction (2026-11-04, to check in B-356c):** with Conjuration mapping to itself, the 7-of-6 Enhancement overflow in these seven loadouts probably goes away (the Conjuration spell no longer counts as Enhancement). But old Destruction now maps to Conjuration, so a loadout holding six Destruction spells plus a Conjuration one would overflow Conjuration instead. B-356c re-runs data validation, rewrites the baseline lines to whatever still overflows, and updates the editor step; the cap stays 6 either way.
 
 ### Q-21-audit — Party control: the deckbuilder's seat rule (audit §21)
 **Status:** ANSWERED (Crown: follow the deckbuilder's rule) · **Raised:** 2026-11-03 (audit §21) · **Blocks:** —
@@ -1900,11 +1903,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** each weapon or crystal has one skill-slot list (F 1 to S 6). Built-in skills pre-fill it and the player can replace any of them; a replaced built-in is remembered on the item and can be restored. An Ability Stone adds slots to the same list. The locked flags, the position merge and the separate stone list retire. Not the audit's "built-ins can't be replaced" version.
 **Notes for Claude:** combined with B-351 (the two sockets).
 
-### D-146 — Three spell schools: Destruction, Enhancement, Restoration (audit round 3 §31)
-**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §31) · **Blocks:** —
-**Answer (Crown):** spell schools stay as exactly three: **Destruction**, **Enhancement**, **Restoration**. Existing schools map onto them (enum append-only: the others marked retired). Schools are player-facing labels shown on spells (LOCTEXT name table). The AI decides from a spell's actual effects, not its school (folded into B-345). Re-tagging the spell assets is an editor step.
+### D-146 — Three spell schools: Conjuration, Enhancement, Restoration (audit round 3 §31; corrected by Crown, 2026-11-04)
+**Status:** DECIDED (Crown, 2026-11-04; corrected by Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §31) · **Blocks:** —
+**Answer (Crown, corrected 2026-11-04):** spell schools stay as exactly three: **Conjuration** (the damage school, in Destruction's place), **Enhancement**, **Restoration**. Existing schools map onto them (enum append-only: the others marked retired): old Destruction and old Conjuration both map to Conjuration; Enhancement and Restoration stay. Schools are player-facing labels shown on spells (LOCTEXT name table). The AI decides from a spell's actual effects, not its school (folded into B-345). Re-tagging the spell assets is an editor step.
+**Before the correction:** the three were Destruction, Enhancement, Restoration, and Conjuration was retired onto Enhancement (Q-356 as first built in B-356). B-356c applies the correction.
 (Audit §30: **no change** — the class innate resistance table stays as class identity, D-005; the Resonator is the utility class with lower resistance; no class passives.)
-**Notes for Claude:** job B-356; the AI part rides with B-345.
+**Notes for Claude:** job B-356 (built on the first wording); B-356c applies the correction; the AI part rides with B-345.
 
 ### D-147 — An evolution attaches to the character, a weapon or an adapter; one cost; one resolve path (audit round 3 §32; corrects the audit)
 **Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §32) · **Blocks:** —
