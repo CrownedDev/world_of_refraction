@@ -17,7 +17,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 |---|---|---|---|
 | [B-042j2](B-042j2.md) | `feature/B-042j2-absorb-part2` (in `dev`) | Absorbers on DoT ticks; a stopped hit counts as On Guard and as a hit, not damage; Ward scopes; skills and items can give an absorber (Negate … effect types) | Pending |
 | [B-360](B-360.md) | `feature/B-360-coop-party` (in `dev`) | Co-op party (D-150): no rotation; a joiner takes the AI seat the host picks (`wor.UI.JoinSeat`), its gear goes to the host; full = refused; 2-player PIE | Pending |
-| [B-331](B-331.md) | `feature/B-331-one-speed` (in `dev`) | One Speed, part 1: Body × Speed narrows every defense window; old Action + Spell Speed points add into Speed | Pending |
+| B-331 (reverted) | `feature/B-331-one-speed` → `fix/B-331r-revert-one-speed` (in `dev`) | One Speed, part 1 — **reverted by B-331r (D-151)**: Action Speed and Spell Speed stay separate; the PIE sheet is gone, nothing to check | Reverted |
 | [B-328](B-328.md) | `feature/B-328-enemy-hp-no-zone` (in `dev`) | Each zone tier names the enemy Combat Tier that belongs there (`wor.Trial.PrintZones`); an authoring guide, the zone itself scales nothing (B-327) | Pending |
 | [B-353b](B-353b.md) | `fix/B-353b-bd-stone-energy` (in `dev`) | No stone (Luck, Reflex, Healing included) gives a Broken Darkness character energy; gems still do | Pending |
 | [B-232](B-232.md) | `feature/B-232-run-state-party` (in `dev`) | Run state and roster on the GameState; each player commands its own character; an unclaimed member rotates (2-player PIE) | Pending |
