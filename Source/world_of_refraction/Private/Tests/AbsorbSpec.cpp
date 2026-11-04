@@ -274,6 +274,31 @@ void FAbsorbSpec::Define()
 		TestEqual(TEXT("one use: spent"), Tracker->GetAbsorbs().Num(), 0);
 	});
 
+	It("a re-cast from the same source replaces its absorber; a fires-once one is given once (B-042j2, Q-044 A)", [this]()
+	{
+		USkillEffectManager *SEM = TestWorld->GetSubsystem<USkillEffectManager>();
+		if (!TestNotNull(TEXT("SkillEffectManager"), SEM)) return;
+		FActiveSkillEffect Barrier;
+		Barrier.EffectName = TEXT("Barrier");
+		Barrier.EffectID = DOT_TEST_ID;
+		Barrier.EffectType = ESkillEffectType::NegateDamage;
+		Barrier.EffectValue = ABSORB_MAGNITUDE;
+		Barrier.Charges = ABSORB_TWO_USES;
+		Barrier.bPermanent = true;
+		SEM->ApplyEffect(Hero, Barrier, Hero, TEXT("spec"));
+		SEM->ApplyEffect(Hero, Barrier, Hero, TEXT("spec"));
+		TestEqual(TEXT("one absorber, not two"), Tracker->GetAbsorbs().Num(), 1);
+		SEM->ApplyEffect(Hero, Barrier, Hero, TEXT("another source"));
+		TestEqual(TEXT("another source adds its own"), Tracker->GetAbsorbs().Num(), 2);
+
+		FActiveSkillEffect Once = Barrier;
+		Once.EffectID = DOT_TEST_ID + 1;
+		Once.bFiresOncePerMatch = true;
+		TestEqual(TEXT("fires once: given"), SEM->ApplyEffect(Hero, Once, Hero, TEXT("gear")), EEffectApplicationResult::Applied);
+		TestEqual(TEXT("fires once: not again"), SEM->ApplyEffect(Hero, Once, Hero, TEXT("gear")), EEffectApplicationResult::Rejected);
+		TestEqual(TEXT("three absorbers in all"), Tracker->GetAbsorbs().Num(), 3);
+	});
+
 	It("a DoT tick spends the holder's absorbers like any damage instance (D-092 rule 1, B-042j2)", [this]()
 	{
 		USkillEffectManager *SEM = TestWorld->GetSubsystem<USkillEffectManager>();
