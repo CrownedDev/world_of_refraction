@@ -210,6 +210,12 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	// Store difficulty
 	CombatDifficulty = Difficulty;
 
+	// B-232 (Q-21-audit): the seat rotation starts over each fight.
+	if (URunStateComponent *Run = URunStateComponent::Find(this); Run && HasAuthority())
+	{
+		Run->ResetRotation();
+	}
+
 	// Register with AI manager
 	if (AIDecisionManagerRef)
 	{

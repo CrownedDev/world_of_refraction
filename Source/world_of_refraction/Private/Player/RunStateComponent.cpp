@@ -71,7 +71,56 @@ void URunStateComponent::BeginPlay()
 	if (GetOwner() && GetOwner()->HasAuthority())
 	{
 		PullFromSubsystems();
+		const UWorld *World = GetWorld();
+		UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		if (UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr)
+		{
+			PartySession->OnPartyChanged.AddUniqueDynamic(this, &URunStateComponent::HandlePartyChanged);
+		}
 	}
+}
+
+void URunStateComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	const UWorld *World = GetWorld();
+	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	if (UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr)
+	{
+		PartySession->OnPartyChanged.RemoveDynamic(this, &URunStateComponent::HandlePartyChanged);
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
+void URunStateComponent::HandlePartyChanged(UParty * /*Party*/)
+{
+	RefreshRoster();
+}
+
+void URunStateComponent::RefreshRoster()
+{
+	const UWorld *World = GetWorld();
+	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	TArray<FRunRosterEntry> NewRoster;
+	if (const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr)
+	{
+		for (const FPartyMember &Member : Party->Members)
+		{
+			if (Member.CharacterData)
+			{
+				FRunRosterEntry &Entry = NewRoster.AddDefaulted_GetRef();
+				Entry.Character = Member.CharacterData;
+				Entry.bAISeat = Member.bAISeat; // B-346's AI seat (Q-21-audit)
+			}
+		}
+	}
+	Roster = MoveTemp(NewRoster);
+	UE_LOG(LogWoR, Log, TEXT("[RunState] Roster: %d member(s)"), Roster.Num());
+}
+
+void URunStateComponent::ResetRotation()
+{
+	RotationIndex = 0;
 }
 
 void URunStateComponent::PullFromSubsystems()
@@ -85,24 +134,8 @@ void URunStateComponent::PullFromSubsystems()
 		Difficulty = TrialRun->GetTrialDifficulty();
 		BeatenEncounters = TrialRun->GetBeatenEncounters().Array();
 	}
-	const UWorld *World = GetWorld();
-	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-	const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
-	TArray<FRunRosterEntry> NewRoster;
-	if (const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr)
-	{
-		for (const FPartyMember &Member : Party->Members)
-		{
-			if (Member.CharacterData)
-			{
-				FRunRosterEntry &Entry = NewRoster.AddDefaulted_GetRef();
-				Entry.Character = Member.CharacterData;
-				Entry.bAISeat = !Member.bPlayerControlled; // TODO: B-346's AI seat when merged
-			}
-		}
-	}
-	Roster = MoveTemp(NewRoster);
-	RotationIndex = 0;
+	RefreshRoster();
+	ResetRotation();
 	UE_LOG(LogWoR, Log, TEXT("[RunState] Pulled: run %s (seed %d), %d beaten, %d roster member(s)"), bHasRun ? TEXT("on") : TEXT("off"), RunSeed,
 		   BeatenEncounters.Num(), Roster.Num());
 }
@@ -168,6 +201,7 @@ TArray<int32> URunStateComponent::GetSidePlayerIds() const
 			}
 		}
 	}
+	Ids.Sort(); // seat order every machine agrees on (PlayerArray order can differ between server and client)
 	return Ids;
 }
 
