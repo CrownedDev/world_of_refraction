@@ -80,14 +80,14 @@ USkillEffectManager *
 UAIDecisionManager::GetSkillEffectManager() const
 {
     UGameInstance *GameInstance = GetGameInstance();
-    return GameInstance ? GameInstance->GetSubsystem<USkillEffectManager>() : nullptr;
+    return WoRFight::Get<USkillEffectManager>(GameInstance);
 }
 
 UActionExecutor *
 UAIDecisionManager::GetActionExecutor() const
 {
     UGameInstance *GameInstance = GetGameInstance();
-    return GameInstance ? GameInstance->GetSubsystem<UActionExecutor>() : nullptr;
+    return WoRFight::Get<UActionExecutor>(GameInstance);
 }
 
 void UAIDecisionManager::Initialize(FSubsystemCollectionBase &Collection)
@@ -95,7 +95,7 @@ void UAIDecisionManager::Initialize(FSubsystemCollectionBase &Collection)
     Super::Initialize(Collection);
 
     // Note: DefenseSystem may not be ready yet - will lazy-load when needed
-    DefenseSystemRef = GetGameInstance()->GetSubsystem<UDefenseSystem>();
+    DefenseSystemRef = WoRFight::Get<UDefenseSystem>(this);
 
     UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] Initialized"));
 }
@@ -669,7 +669,7 @@ void UAIDecisionManager::TrySynthesizeImpactDefense(AActor *Defender, AActor *At
     // Lazy-load DefenseSystem (may not be ready at Initialize time).
     if (!DefenseSystemRef)
     {
-        DefenseSystemRef = GetGameInstance()->GetSubsystem<UDefenseSystem>();
+        DefenseSystemRef = WoRFight::Get<UDefenseSystem>(this);
     }
     if (!DefenseSystemRef)
     {
@@ -1980,7 +1980,7 @@ int32 UAIDecisionManager::GetRescueExposureTurns(AActor *AIActor, AActor *Target
         return 0;
     }
 
-    UTurnManager *TurnMgr = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+    UTurnManager *TurnMgr = WoRFight::Get<UTurnManager>(this);
     if (!TurnMgr)
     {
         return 0;
@@ -2069,7 +2069,7 @@ bool UAIDecisionManager::IsStatusBarNearTrigger(AActor *Target, float Threshold)
         return false;
     }
 
-    UStatusBuildupManager *BuildupManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr;
+    UStatusBuildupManager *BuildupManager = WoRFight::Get<UStatusBuildupManager>(this);
     if (!BuildupManager)
     {
         return false;
@@ -2094,7 +2094,7 @@ bool UAIDecisionManager::WouldTriggerStatusBar(AActor *Attacker, AActor *Target,
         return false;
     }
 
-    UStatusBuildupManager *BuildupManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr;
+    UStatusBuildupManager *BuildupManager = WoRFight::Get<UStatusBuildupManager>(this);
     if (!BuildupManager)
     {
         return false;
@@ -2121,7 +2121,7 @@ bool UAIDecisionManager::IsValuableStatus(ESkillEffectType StatusType, AActor *T
         return true;
     }
 
-    USkillEffectManager *StatusManager = GetGameInstance()->GetSubsystem<USkillEffectManager>();
+    USkillEffectManager *StatusManager = WoRFight::Get<USkillEffectManager>(this);
     if (!StatusManager)
     {
         return true; // Assume valuable if we can't check
@@ -2193,7 +2193,7 @@ int32 UAIDecisionManager::DecideInfusionLevel(AActor *Attacker, AActor *Target, 
     }
 
     // Priority 3: Status bar considerations (Medium+)
-    UStatusBuildupManager *BuildupManager = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
+    UStatusBuildupManager *BuildupManager = WoRFight::Get<UStatusBuildupManager>(this);
     if (BuildupManager && Difficulty >= EAIDifficulty::Medium)
     {
         // Calculate L1 buildup — per-mode, stat-scaled status (matches execution's GetChargeStatusMultiplier).
@@ -2379,7 +2379,7 @@ int32 UAIDecisionManager::GetCurrentEP(AActor *Actor) const
 
     // Spendable EP: CurrentEP (Broken Darkness and regenerating EP alike) minus what Silenced
     // seals (D-038), the same number the executor validates against.
-    if (USkillEffectManager *StatusManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<USkillEffectManager>() : nullptr)
+    if (USkillEffectManager *StatusManager = WoRFight::Get<USkillEffectManager>(this))
     {
         return StatusManager->GetSpendableEP(Actor);
     }
