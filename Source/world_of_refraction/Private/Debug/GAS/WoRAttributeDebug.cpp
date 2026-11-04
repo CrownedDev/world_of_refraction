@@ -213,7 +213,7 @@ void UWoRAttributeDebug::AddComposedMismatches(const AActor *Actor, const UAbili
 	else if (Attribute == UWoRAttributeSet_Stats::GetTurnSpeedAttribute())
 	{
 		const UGameInstance *GI = Actor->GetWorld() ? Actor->GetWorld()->GetGameInstance() : nullptr;
-		const UTurnManager *Turns = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+		const UTurnManager *Turns = WoRFight::Get<UTurnManager>(GI);
 		if (!Turns || !Turns->GetTurnSpeedLayers(Actor, Layers))
 		{
 			return;
