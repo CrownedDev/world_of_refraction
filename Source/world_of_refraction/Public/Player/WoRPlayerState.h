@@ -55,6 +55,18 @@ public:
 	/** Server: Character is no longer this player's (a pawn swap released it). */
 	void ReleaseCharacter(UCharacterData *Character);
 
+	/** B-360b (D-150 point 2): the same by party member (FPartyMember::MemberId), so two players holding copies of one
+	 *  character each command their own. A battle pawn's member is the id stamped on it; the claims by character above
+	 *  stay for a member the party does not know (OBSOLETE once every seat is a party member; delete in the D-124 sweep). */
+	bool ClaimsMember(const FGuid &MemberId) const;
+	/** Server: the member becomes this player's (no-op for an invalid id or one it already claims; refused, with a
+	 *  warning, when another player here already claims it). */
+	void ClaimMember(const FGuid &MemberId);
+	void ReleaseMember(const FGuid &MemberId);
+	const TArray<FGuid> &GetClaimedMembers() const { return ClaimedMembers; }
+	/** True when this player commands any member or character (it has a seat). */
+	bool HasAnyClaim() const { return ClaimedMembers.Num() > 0 || ClaimedCharacters.Num() > 0; }
+
 	/** D-150 (B-360): ask the host for a seat in its run with Character (your own, picked before joining). On the
 	 *  server it goes straight to the run state; a client sends ServerRequestJoin. Console: `wor.Party.RequestJoin`. */
 	void RequestJoin(UCharacterData *Character);
@@ -99,6 +111,10 @@ private:
 	/** B-232: the characters this player commands. */
 	UPROPERTY(Replicated)
 	TArray<TObjectPtr<UCharacterData>> ClaimedCharacters;
+
+	/** B-360b: the party members this player commands, by FPartyMember::MemberId. */
+	UPROPERTY(Replicated)
+	TArray<FGuid> ClaimedMembers;
 
 	UPROPERTY(VisibleAnywhere, Category = "Economy")
 	TObjectPtr<UCurrencyComponent> Wallet;

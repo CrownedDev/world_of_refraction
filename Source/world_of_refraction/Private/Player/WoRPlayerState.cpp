@@ -15,6 +15,8 @@
 #include "GameFramework/PlayerController.h"
 #include "Materials/MaterialInterface.h"
 #include "Net/UnrealNetwork.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
 #include "Player/RunStateComponent.h"
 #include "Save/SaveSubsystem.h"
 #include "HAL/IConsoleManager.h"
@@ -123,6 +125,10 @@ void AWoRPlayerState::CopyProperties(APlayerState *PlayerState)
 		{
 			Next->ClaimCharacter(Character);
 		}
+		for (const FGuid &MemberId : ClaimedMembers)
+		{
+			Next->ClaimMember(MemberId); // B-360b
+		}
 	}
 }
 
@@ -132,6 +138,45 @@ void AWoRPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutL
 	DOREPLIFETIME(AWoRPlayerState, WornForm);
 	DOREPLIFETIME(AWoRPlayerState, BaseForm);
 	DOREPLIFETIME(AWoRPlayerState, ClaimedCharacters);
+	DOREPLIFETIME(AWoRPlayerState, ClaimedMembers);
+}
+
+bool AWoRPlayerState::ClaimsMember(const FGuid &MemberId) const
+{
+	return MemberId.IsValid() && ClaimedMembers.Contains(MemberId);
+}
+
+void AWoRPlayerState::ClaimMember(const FGuid &MemberId)
+{
+	if (!HasAuthority() || !MemberId.IsValid() || ClaimedMembers.Contains(MemberId))
+	{
+		return;
+	}
+	const UWorld *World = GetWorld();
+	if (const AGameStateBase *GameState = World ? World->GetGameState() : nullptr)
+	{
+		for (const APlayerState *Other : GameState->PlayerArray)
+		{
+			const AWoRPlayerState *OtherPlayer = Cast<AWoRPlayerState>(Other);
+			if (OtherPlayer && OtherPlayer != this && OtherPlayer->ClaimsMember(MemberId))
+			{
+				UE_LOG(LogWoR, Warning, TEXT("[PlayerState] %s cannot claim member %s: %s already commands it (B-360b)"), *GetPlayerName(),
+					   *MemberId.ToString(EGuidFormats::Short), *OtherPlayer->GetPlayerName());
+				return;
+			}
+		}
+	}
+	ClaimedMembers.Add(MemberId);
+	UE_LOG(LogWoR, Log, TEXT("[PlayerState] %s claims member %s (B-360b)"), *GetPlayerName(), *MemberId.ToString(EGuidFormats::Short));
+}
+
+void AWoRPlayerState::ReleaseMember(const FGuid &MemberId)
+{
+	if (!HasAuthority() || ClaimedMembers.Remove(MemberId) == 0)
+	{
+		return;
+	}
+	UE_LOG(LogWoR, Log, TEXT("[PlayerState] %s releases member %s (B-360b)"), *GetPlayerName(), *MemberId.ToString(EGuidFormats::Short));
 }
 
 bool AWoRPlayerState::ClaimsCharacter(const UCharacterData *Character) const
@@ -237,15 +282,35 @@ void AWoRPlayerState::HandlePawnSet(APlayerState *Player, APawn *NewPawn, APawn 
 {
 	ApplyFormLook();
 	// B-232 (Q-21-audit): the player's own character is the one its pawn plays; a pawn swap releases the old one.
+	// B-360b: by party member when the party knows the pawn (a battle pawn's stamped id, a hub pawn's first copy), so
+	// two copies of one character are two claims; by character otherwise.
 	const UCharacterDataComponent *NewComp = NewPawn ? NewPawn->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	const UCharacterDataComponent *OldComp = OldPawn ? OldPawn->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+	auto MemberOf = [&](const UCharacterDataComponent *Comp)
+	{
+		const int32 Slot = Party ? PartySession->GetMemberSlotOf(Comp) : INDEX_NONE;
+		return Party && Party->Members.IsValidIndex(Slot) ? Party->Members[Slot].MemberId : FGuid();
+	};
+	const FGuid NewMember = MemberOf(NewComp);
+	const FGuid OldMember = MemberOf(OldComp);
 	UCharacterData *NewData = NewComp ? NewComp->CharacterData : nullptr;
 	UCharacterData *OldData = OldComp ? OldComp->CharacterData : nullptr;
-	if (OldData && OldData != NewData)
+	if (OldMember.IsValid() && OldMember != NewMember)
+	{
+		ReleaseMember(OldMember);
+	}
+	else if (!OldMember.IsValid() && OldData && OldData != NewData)
 	{
 		ReleaseCharacter(OldData);
 	}
-	if (NewData)
+	if (NewMember.IsValid())
+	{
+		ClaimMember(NewMember);
+	}
+	else if (NewData)
 	{
 		ClaimCharacter(NewData);
 	}

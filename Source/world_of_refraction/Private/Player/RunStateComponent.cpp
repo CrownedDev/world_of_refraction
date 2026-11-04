@@ -165,6 +165,7 @@ void URunStateComponent::RefreshRoster()
 				FRunRosterEntry &Entry = NewRoster.AddDefaulted_GetRef();
 				Entry.Character = Member.CharacterData;
 				Entry.bAISeat = Member.bAISeat; // B-346's AI seat (Q-21-audit)
+				Entry.MemberId = Member.MemberId; // B-360b
 			}
 		}
 	}
@@ -239,6 +240,15 @@ const FRunRosterEntry *URunStateComponent::FindRosterEntry(const AActor *Member)
 {
 	const UCharacterDataComponent *CharComp = Member ? Member->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	const UCharacterData *Character = CharComp ? CharComp->CharacterData : nullptr;
+	// B-360b: a battle pawn carries its member's id; two copies of one character are two entries.
+	if (CharComp && CharComp->PartyMemberId.IsValid())
+	{
+		const FGuid MemberId = CharComp->PartyMemberId;
+		if (const FRunRosterEntry *ById = Roster.FindByPredicate([&MemberId](const FRunRosterEntry &Entry) { return Entry.MemberId == MemberId; }))
+		{
+			return ById;
+		}
+	}
 	return Character ? Roster.FindByPredicate([Character](const FRunRosterEntry &Entry) { return Entry.Character == Character; }) : nullptr;
 }
 
@@ -259,14 +269,15 @@ TArray<int32> URunStateComponent::GetSidePlayerIds() const
 	return Ids;
 }
 
-int32 URunStateComponent::GetClaimingPlayerId(const UCharacterData *Character) const
+int32 URunStateComponent::GetClaimingPlayerId(const FRunRosterEntry &Entry) const
 {
 	if (const AGameStateBase *GameState = GetOwningGameState())
 	{
 		for (const APlayerState *Player : GameState->PlayerArray)
 		{
 			const AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player);
-			if (WoRPlayer && WoRPlayer->ClaimsCharacter(Character))
+			// B-360b: a member claim first (a copy's own); the claim by character stands for a roster the party did not build.
+			if (WoRPlayer && (WoRPlayer->ClaimsMember(Entry.MemberId) || (!Entry.MemberId.IsValid() && WoRPlayer->ClaimsCharacter(Entry.Character))))
 			{
 				return WoRPlayer->GetPlayerId();
 			}
@@ -287,7 +298,7 @@ int32 URunStateComponent::GetCommander(const AActor *Member) const
 	{
 		return SeatRules::AI_COMMANDER;
 	}
-	const int32 Claimed = GetClaimingPlayerId(Entry->Character);
+	const int32 Claimed = GetClaimingPlayerId(*Entry);
 	if (Claimed != SeatRules::UNCLAIMED && Side.Contains(Claimed))
 	{
 		return Claimed;
@@ -352,10 +363,9 @@ bool URunStateComponent::RequestJoin(APlayerState *Joiner, UCharacterData *Chara
 		return false;
 	}
 	const AWoRPlayerState *WoRJoiner = Cast<AWoRPlayerState>(Joiner);
-	if (WoRJoiner && WoRJoiner->GetClaimedCharacters().Num() > 0)
+	if (WoRJoiner && WoRJoiner->HasAnyClaim())
 	{
-		UE_LOG(LogWoR, Warning, TEXT("[RunState] Join refused for player %d: it already has a seat (%s)"), Joiner->GetPlayerId(),
-			   *GetNameSafe(WoRJoiner->GetClaimedCharacters()[0]));
+		UE_LOG(LogWoR, Warning, TEXT("[RunState] Join refused for player %d: it already has a seat"), Joiner->GetPlayerId());
 		return false;
 	}
 	if (GetFreeAISeats().IsEmpty())
@@ -364,13 +374,7 @@ bool URunStateComponent::RequestJoin(APlayerState *Joiner, UCharacterData *Chara
 		return false;
 	}
 	// TODO: co-op trust (B-233+): the client says this is its own character; the host does not check it against the client's save.
-	if (PartySession->GetMemberSlotByData(Character) != INDEX_NONE)
-	{
-		// TODO: B-360b (D-150 point 2): two players may bring the same character as separate copies.
-		UE_LOG(LogWoR, Warning, TEXT("[RunState] Join refused for player %d: %s is already in the party (separate copies: B-360b)"),
-			   Joiner->GetPlayerId(), *GetNameSafe(Character));
-		return false;
-	}
+	// B-360b (D-150 point 2): a character already in the party is fine; the joiner's is a separate copy with its own slot and key.
 	FRunJoinRequest *Existing = JoinRequests.FindByPredicate([Joiner](const FRunJoinRequest &R) { return R.PlayerId == Joiner->GetPlayerId(); });
 	FRunJoinRequest &Request = Existing ? *Existing : JoinRequests.AddDefaulted_GetRef();
 	Request.PlayerId = Joiner->GetPlayerId();
@@ -421,7 +425,12 @@ bool URunStateComponent::AcceptJoin(int32 PlayerId, int32 ReplaceSlot)
 		JoinRequests.Add(Request); // still waiting: the host may pick another seat
 		return false;
 	}
-	JoinerState->ClaimCharacter(Request.Character);
+	// B-360b: the joiner commands the member it became (its copy), not every copy of that character.
+	const UParty *Party = PartySession->GetLocalParty();
+	if (Party && Party->Members.IsValidIndex(ReplaceSlot))
+	{
+		JoinerState->ClaimMember(Party->Members[ReplaceSlot].MemberId);
+	}
 	RefreshRoster();
 	UE_LOG(LogWoR, Log, TEXT("[RunState] Player %d joined: %s took slot %d"), PlayerId, *GetNameSafe(Request.Character), ReplaceSlot);
 	return true;
@@ -448,7 +457,7 @@ FString URunStateComponent::GetDebugString() const
 								  BeatenEncounters.Num(), GetSidePlayerIds().Num());
 	for (const FRunRosterEntry &Entry : Roster)
 	{
-		const int32 Claimed = GetClaimingPlayerId(Entry.Character);
+		const int32 Claimed = GetClaimingPlayerId(Entry);
 		Out += FString::Printf(TEXT("\n  %s: %s"), *GetNameSafe(Entry.Character),
 							   Entry.bAISeat ? TEXT("AI seat")
 							   : Claimed != SeatRules::UNCLAIMED ? *FString::Printf(TEXT("player %d's"), Claimed)
