@@ -4,6 +4,7 @@
 // another. Plain buttons built in C++, opened with the console command wor.UI.Give (Backlog rule 4).
 // Replaced by the CommonUI inventory screen (D-024). Rules and refusals: WoRGive (Inventory/GearGive.h).
 // B-316b: the giver's learned skills are choices too; "Ask for it" has the receiver request the chosen skill.
+// B-361b (D-154): "Teach" has the giver teach the chosen skill to another player's member for Mentor Tokens.
 
 #pragma once
 
@@ -84,6 +85,10 @@ private:
 	UFUNCTION()
 	void HandleRequestClicked();
 
+	/** B-361b: the giver teaches the chosen skill to the receiver (WoRGive::TryTeachSkill). */
+	UFUNCTION()
+	void HandleTeachClicked();
+
 	UFUNCTION()
 	void HandleCloseClicked();
 
@@ -113,4 +118,7 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UButton> RequestButton;
+
+	UPROPERTY()
+	TObjectPtr<UButton> TeachButton;
 };
