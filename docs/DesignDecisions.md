@@ -1801,6 +1801,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 (Audit §30: **no change** — the class innate resistance table stays as class identity, D-005; the Resonator is the utility class with lower resistance; no class passives.)
 **Notes for Claude:** job B-356; the AI part rides with B-345.
 
+### D-147 — An evolution attaches to the character, a weapon or an adapter; one cost; one resolve path (audit round 3 §32; corrects the audit)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §32) · **Blocks:** —
+**Answer (Crown):** an evolution can attach to the **character**, a **weapon** or an **adapter**. It has one D-110 cost wherever it goes (the separate cost rows retire). In code, "standalone" becomes "attached to the character's own slot", so every reader resolves one thing: an evolution attached to X. On a weapon or adapter it gives only its passive skills, and only while that item is infused; on a weapon it sits in the element socket (D-141).
+**The deckbuilder's rule (cited):** `CrownedDev/wor-deckbuilder` `docs/reference/02-enums.md:65` (an Evolution "attaching it to the Character costs 1 Action + its EN"), `:447` (`WhenAttached`: "an Evolution to a vessel or the Character … even on an Evolution on a vessel, whose other triggered rows stay off"), `:63` (an Evolution on the Character licenses spells of its element). The deckbuilder allows all three placements, which the audit missed.
+**Notes for Claude:** job B-357, after B-351 (sockets) and B-356.
+
 ### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
 **Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.
