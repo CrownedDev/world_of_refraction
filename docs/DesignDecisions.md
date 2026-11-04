@@ -1986,7 +1986,22 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** players may trade **gear**: a traded piece is no longer yours (ownership moves to the receiver for good). **Skills cannot be traded between players.**
 **What it changes:** B-316b's give / ask for a skill between two players' members goes (Q-316b point 3: "another player's member waits for the co-op screen" becomes "refused"). Recruits share the host's inventory (D-152), so they count as the host's.
 **Assumption (flag for Crown):** moving skills between characters **one player** owns is unchanged (give and ask stay for them).
+**Amended by D-154 (2026-11-04):** a player may still **teach** a learned skill to another player for Mentor Tokens (the learner gets its own copy, the teacher keeps theirs).
 **Notes for Claude:** the code change is folded into B-361.
+
+### D-154 — Teaching a skill to another player with Mentor Tokens (amends D-153)
+**Status:** DECIDED (Crown, 2026-11-04, via the brain) · **Raised:** 2026-11-04 · **Blocks:** —
+**Answer (Crown):** skills still can't be **given** between players (D-153), but a player can **teach** a skill they have learned to another player by spending **Mentor Tokens**, a new currency. The learner gets **its own copy**; the teacher **keeps theirs**. Mentor Tokens are earned **only by playing together**: finishing co-op runs and boss fights with other players. References: Monster Hunter's co-op rewards, Destiny's mentoring.
+**What it changes:** an eighth balance next to D-125's seven (Gold, Prisms, Diamond, Gear / Skill / Elemental / Pillar Essence), so a save version bump (D-138). Exact earn and teach amounts: **Q-361b** (reference-backed default). Built in **B-361b** (after B-361: it needs D-153's player check).
+**Notes for Claude:** B-361b. Teaching makes a new skill instance for the learner (a learn, not a move), so "one copy per character" still holds; it never moves the teacher's.
+
+### Q-361b — Mentor Tokens: how many a co-op run or boss pays, and what teaching costs
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (D-154) · **Blocks:** —
+**Question:** D-154 leaves the amounts open. (1) What earns tokens, and how many? (2) What does teaching cost? (3) Whose wallet holds them?
+**Options / as built:** (1) **A** each player who finishes a co-op run (two or more players to the end) gets 1 token, and 1 more for each boss beaten with another player in the party; nothing in solo play. **B** tokens scaled by trial difficulty. (2) **A** a skill costs tokens by its tier: 1 at F, one more per tier above (S the most). **B** one flat price. (3) **A** the player's own wallet (`AWoRPlayerState`, banked like Prisms), never shared with the party. **B** per character.
+**Recommendation:** (1) A: small fixed payouts for finishing together, as Final Fantasy XIV's roulette bonus pays extra when a first-timer is in the party, and Monster Hunter World's co-op hunts pay the same rewards to every hunter who carts home with the group; a run, not a single fight, so leaving early earns nothing. (2) A: the tier is already this game's price ladder for skills (B-333 prices a spell by its tier), so a stronger skill costs more to teach. (3) A: the tokens reward the player, as D-154 says ("playing together"), and D-153 treats skills between players as the player's business.
+**Answer:** **A, A, A**, by the reference-backed default (2026-11-04). Crown may change any of them; the numbers sit in named constants for tuning.
+**Notes for Claude:** B-361b.
 
 ### Q-360 — D-150 against the deckbuilder's co-op rules
 **Status:** ANSWERED (Crown's rule, D-150; the deckbuilder differs on one point) · **Raised:** 2026-11-04 (D-150 reference check) · **Blocks:** —
