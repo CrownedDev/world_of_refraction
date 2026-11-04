@@ -107,7 +107,7 @@ TSharedRef<SWidget> UInventoryWidget::RebuildWidget()
 		VerbButtons.Reset();
 		for (const EInventoryVerb Verb : WoRInventoryVerbs::GetAllVerbs())
 		{
-			UButton *Button = AddButton(WidgetTree, Box, WoRInventoryVerbs::GetVerbName(Verb));
+			UButton *Button = AddButton(WidgetTree, Box, WoRInventoryVerbs::GetVerbName(this, Verb));
 			switch (Verb)
 			{
 			case EInventoryVerb::Give:
@@ -222,7 +222,7 @@ void UInventoryWidget::Refresh()
 		WholeStackText->SetText(bWholeStack ? LOCTEXT("WholeStackOn", "Whole stack: on") : LOCTEXT("WholeStackOff", "Whole stack: off"));
 	}
 	StatusLine->SetText(bConfirming ? FText::Format(LOCTEXT("ConfirmRow", "{0} Press {1} again to confirm."), ConfirmText,
-													WoRInventoryVerbs::GetVerbName(PendingVerb))
+													WoRInventoryVerbs::GetVerbName(this, PendingVerb))
 									: StatusText);
 }
 
@@ -249,7 +249,7 @@ void UInventoryWidget::RunVerb(EInventoryVerb Verb)
 	bConfirming = false;
 	const int32 Count = bWholeStack ? Row.Count : InventoryScreenStyle::SingleItem;
 	const FText Refusal = WoRInventoryVerbs::Run(GetWorld(), Verb, MemberKey(), ReceiverKey(), Row, Count);
-	StatusText = Refusal.IsEmpty() ? FText::Format(LOCTEXT("Done", "{0}: {1}"), WoRInventoryVerbs::GetVerbName(Verb), Row.Label) : Refusal;
+	StatusText = Refusal.IsEmpty() ? FText::Format(LOCTEXT("Done", "{0}: {1}"), WoRInventoryVerbs::GetVerbName(this, Verb), Row.Label) : Refusal;
 	Refresh();
 	UE_LOG(LogTemp, Log, TEXT("%s"), *GetInventoryString());
 }

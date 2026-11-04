@@ -31,8 +31,9 @@ namespace WoRInventoryVerbs
 	/** Every verb, in the screen's button order. */
 	WORLD_OF_REFRACTION_API const TArray<EInventoryVerb> &GetAllVerbs();
 
-	/** The verb as the player reads it ("Give", "Store", ...): WoRGameNames::GetInventoryVerbName. */
-	WORLD_OF_REFRACTION_API FText GetVerbName(EInventoryVerb Verb);
+	/** The verb as the player reads it ("Give", "Store", ...): WoRGameNames::GetInventoryVerbName. B-366b: Convert names
+	 *  the currency of the place WorldContext is in (UEconomyService::GetPlaceCurrency). */
+	WORLD_OF_REFRACTION_API FText GetVerbName(const UObject *WorldContext, EInventoryVerb Verb);
 
 	/** One thing the screen lists: a weapon / adapter (GearID) or an item stack (Item, Count); the member's own
 	 *  (bInChest false: its gear and pouch) or the shared chest's (bInChest true: chest gear and stored stacks). */

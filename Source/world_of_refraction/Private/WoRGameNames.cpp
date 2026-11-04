@@ -462,6 +462,11 @@ FText GetYourselfWord()
 
 FText GetInventoryVerbName(EInventoryVerb Verb)
 {
+    return GetInventoryVerbName(Verb, ECurrencyType::Gold);
+}
+
+FText GetInventoryVerbName(EInventoryVerb Verb, ECurrencyType ConvertPays)
+{
     switch (Verb)
     {
     case EInventoryVerb::Give:
@@ -473,8 +478,8 @@ FText GetInventoryVerbName(EInventoryVerb Verb)
     case EInventoryVerb::Dismantle:
         return LOCTEXT("VerbDismantle", "Dismantle");
     case EInventoryVerb::Convert:
-        // B-366: pays the run currency (ECurrencyType::Gold, D-159), named from the table.
-        return FText::Format(LOCTEXT("VerbConvert", "Convert to {0}"), GetCurrencyName(ECurrencyType::Gold));
+        // B-366b: pays the currency of the place (Q-366), named from the table (D-159).
+        return FText::Format(LOCTEXT("VerbConvert", "Convert to {0}"), GetCurrencyName(ConvertPays));
     }
     return FText::GetEmpty();
 }

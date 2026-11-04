@@ -82,9 +82,9 @@ namespace WoRInventoryVerbs
 		return Verbs;
 	}
 
-	FText GetVerbName(EInventoryVerb Verb)
+	FText GetVerbName(const UObject *WorldContext, EInventoryVerb Verb)
 	{
-		return WoRGameNames::GetInventoryVerbName(Verb);
+		return WoRGameNames::GetInventoryVerbName(Verb, UEconomyService::GetPlaceCurrency(WorldContext));
 	}
 
 	TArray<FInventoryRow> GatherRows(const UWorld *World, FName Member)
@@ -189,7 +189,8 @@ namespace WoRInventoryVerbs
 		}
 		if (Verb == EInventoryVerb::Convert && (!Row.IsGear() || !InventoryVerbsIsWeakerCopy(Inventory, Row.GearID)))
 		{
-			return FText::Format(LOCTEXT("NotWeaker", "Only the weaker copy of a duplicate converts to {0}"), WoRGameNames::GetCurrencyName(ECurrencyType::Gold));
+			return FText::Format(LOCTEXT("NotWeaker", "Only the weaker copy of a duplicate converts to {0}"),
+								 WoRGameNames::GetCurrencyName(UEconomyService::GetPlaceCurrency(World)));
 		}
 		if (Row.IsGear() && Pool->IsRunLayerActive() && !Pool->IsRunOnly(Row.GearID))
 		{
@@ -224,7 +225,7 @@ namespace WoRInventoryVerbs
 		{
 			// Converting strips the copy from every loadout too, so a worn copy gets D-016's warning first.
 			const FText Convert = FText::Format(LOCTEXT("ConfirmConvert", "Convert {0} to {1} {2}?"), Row.Label, InventoryVerbsConvertGold(*Pool, Row.GearID),
-												WoRGameNames::GetCurrencyName(ECurrencyType::Gold));
+												WoRGameNames::GetCurrencyName(UEconomyService::GetPlaceCurrency(World)));
 			const FText Worn = UEconomyService::GetDismantleWarning(Inventory->GetOwner(), Row.GearID);
 			return Worn.IsEmpty() ? Convert : FText::Format(LOCTEXT("ConfirmConvertWorn", "{0} {1}"), Worn, Convert);
 		}
@@ -284,7 +285,7 @@ namespace WoRInventoryVerbs
 			bDone = Pool->FindRingInPool(Row.GearID) ? Economy->DismantleRing(Owner, Row.GearID) : Economy->DismantleWeapon(Owner, Row.GearID);
 		}
 		// A refusal the checks above don't foresee (e.g. during a fight) is logged by the economy with its reason.
-		return bDone ? FText::GetEmpty() : FText::Format(LOCTEXT("VerbFailed", "Couldn't {0} {1} (see the log)"), GetVerbName(Verb), Row.Label);
+		return bDone ? FText::GetEmpty() : FText::Format(LOCTEXT("VerbFailed", "Couldn't {0} {1} (see the log)"), GetVerbName(World, Verb), Row.Label);
 	}
 
 	FString GetRowsString(UWorld *World, FName Member, FName Receiver)
@@ -295,7 +296,7 @@ namespace WoRInventoryVerbs
 			TArray<FString> Names;
 			for (const EInventoryVerb Verb : GetVerbsFor(World, Member, Receiver, Row))
 			{
-				Names.Add(GetVerbName(Verb).ToString());
+				Names.Add(GetVerbName(World, Verb).ToString());
 			}
 			Out += FString::Printf(TEXT("\n  %s%s: %s"), Row.bInChest ? TEXT("chest ") : TEXT(""), *Row.Label.ToString(),
 								   *FString::Join(Names, TEXT(", ")));

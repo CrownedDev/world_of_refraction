@@ -39,6 +39,7 @@
 #include "Inventory/GearGive.h"  // B-316: buy-for hands the bought gear over
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Trial/TrialRunSubsystem.h" // B-366b: the place's currency
 
 namespace
 {
@@ -561,14 +562,16 @@ namespace
             return false;
         }
         const int32 Gold = UEconomyService::GetDuplicateGoldForTier(Entry->Tier);
+        const ECurrencyType Pays = UEconomyService::GetPlaceCurrency(Owner); // B-366b
         EconomyStripFromLoadouts(Owner, &Inv, PersistentID);
         if (!OwnedGearOps<TEntry>::Remove(Inv, PersistentID))
         {
             UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s: removal failed for GUID %s - no Gold"), Verb, *PersistentID.ToString());
             return false;
         }
-        Currency.Add(ECurrencyType::Gold, Gold);
-        UE_LOG(LogTemp, Log, TEXT("[EconomyService] Duplicate %s (GUID %s) -> %d Gold"), OwnedGearOps<TEntry>::Noun, *PersistentID.ToString(), Gold);
+        Currency.Add(Pays, Gold);
+        UE_LOG(LogTemp, Log, TEXT("[EconomyService] Duplicate %s (GUID %s) -> %d %s"), OwnedGearOps<TEntry>::Noun, *PersistentID.ToString(), Gold,
+               *UEnum::GetValueAsString(Pays));
         return true;
     }
 }
@@ -576,6 +579,14 @@ namespace
 int32 UEconomyService::GetDuplicateGoldForTier(EItemTier Tier)
 {
     return EconomyYield::GetPrismsBaseForTier(Tier) / DUPLICATE_GOLD_DIVISOR;
+}
+
+ECurrencyType UEconomyService::GetPlaceCurrency(const UObject *WorldContext)
+{
+    const UWorld *World = WorldContext ? WorldContext->GetWorld() : nullptr;
+    const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+    const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+    return Run && Run->IsRunActive() ? ECurrencyType::Gold : ECurrencyType::Prisms;
 }
 
 bool UEconomyService::ResolveDuplicate(AActor *Owner, FGuid WeakerID, bool bConvertToGold)
