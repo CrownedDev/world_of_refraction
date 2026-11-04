@@ -1795,6 +1795,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** each weapon or crystal has one skill-slot list (F 1 to S 6). Built-in skills pre-fill it and the player can replace any of them; a replaced built-in is remembered on the item and can be restored. An Ability Stone adds slots to the same list. The locked flags, the position merge and the separate stone list retire. Not the audit's "built-ins can't be replaced" version.
 **Notes for Claude:** combined with B-351 (the two sockets).
 
+### D-146 — Three spell schools: Destruction, Enhancement, Restoration (audit round 3 §31)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §31) · **Blocks:** —
+**Answer (Crown):** spell schools stay as exactly three: **Destruction**, **Enhancement**, **Restoration**. Existing schools map onto them (enum append-only: the others marked retired). Schools are player-facing labels shown on spells (LOCTEXT name table). The AI decides from a spell's actual effects, not its school (folded into B-345). Re-tagging the spell assets is an editor step.
+(Audit §30: **no change** — the class innate resistance table stays as class identity, D-005; the Resonator is the utility class with lower resistance; no class passives.)
+**Notes for Claude:** job B-356; the AI part rides with B-345.
+
 ### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
 **Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.
