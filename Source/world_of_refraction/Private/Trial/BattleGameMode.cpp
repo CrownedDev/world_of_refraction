@@ -169,7 +169,7 @@ void ABattleGameMode::BootstrapCombat()
         {
             Occurrence += BattlePartyData[Earlier] == BattlePartyData[i] ? 1 : 0;
         }
-        const int32 Slot = PartySession ? PartySession->GetNthMemberSlotByData(BattlePartyData[i], Occurrence) : INDEX_NONE;
+        const int32 Slot = PartySession ? PartySession->GetNthMemberSlotByData(BattlePartyData[i], Occurrence, /*bLivingOnly=*/true) : INDEX_NONE;
         const FPartyMember *Member = TrialParty && TrialParty->Members.IsValidIndex(Slot) ? &TrialParty->Members[Slot] : nullptr;
         UClass *MemberPawnClass = Member ? Member->PawnClass.LoadSynchronous() : nullptr;
 

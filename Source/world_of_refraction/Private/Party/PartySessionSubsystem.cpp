@@ -297,7 +297,7 @@ int32 UPartySessionSubsystem::GetMemberSlotByData(UCharacterData *CharacterData)
 	return GetNthMemberSlotByData(CharacterData, 0);
 }
 
-int32 UPartySessionSubsystem::GetNthMemberSlotByData(const UCharacterData *CharacterData, int32 Occurrence) const
+int32 UPartySessionSubsystem::GetNthMemberSlotByData(const UCharacterData *CharacterData, int32 Occurrence, bool bLivingOnly) const
 {
 	const UParty *Party = GetLocalParty();
 	if (!CharacterData || !Party)
@@ -310,7 +310,8 @@ int32 UPartySessionSubsystem::GetNthMemberSlotByData(const UCharacterData *Chara
 	int32 Seen = 0;
 	for (int32 SlotIndex = 0; SlotIndex < Party->Members.Num(); ++SlotIndex)
 	{
-		if (Party->Members[SlotIndex].CharacterData == CharacterData && Seen++ == Occurrence)
+		const FPartyMember &Member = Party->Members[SlotIndex];
+		if (Member.CharacterData == CharacterData && !(bLivingOnly && Member.IsFallen()) && Seen++ == Occurrence)
 		{
 			return SlotIndex;
 		}
@@ -334,8 +335,8 @@ int32 UPartySessionSubsystem::GetMemberSlotOf(const UCharacterDataComponent *Com
 	{
 		return INDEX_NONE;
 	}
-	const int32 ById = GetMemberSlotById(Comp->PartyMemberId);
-	return ById != INDEX_NONE ? ById : GetMemberSlotByData(Comp->CharacterData);
+	// A stamped pawn whose member left (dismissed, replaced) is nobody's: never another copy's slot.
+	return Comp->PartyMemberId.IsValid() ? GetMemberSlotById(Comp->PartyMemberId) : GetMemberSlotByData(Comp->CharacterData);
 }
 
 bool UPartySessionSubsystem::InviteMember(TSoftClassPtr<ACombatCharacter> PawnClass)
@@ -959,6 +960,9 @@ FString UPartySessionSubsystem::GetPartyStateString() const
 		{
 			ControlLabel += TEXT(", run only");
 		}
+		// B-360b: the member's id and, for a later copy of a character already here, its own pool key.
+		ControlLabel += FString::Printf(TEXT(" - member %s%s"), *Member.MemberId.ToString(EGuidFormats::Short),
+										Member.bKeyedByMember ? TEXT(" (a copy: keyed by member)") : TEXT(""));
 		const TCHAR *Control = *ControlLabel;
 
 		if (!Member.HasCarriedVitals())
