@@ -17,6 +17,8 @@ class UTurnManager;
  * - CallInEditor button will show error message with instructions
  * - Wire BeginPlay -> RunTest in Blueprint for automatic testing
  */
+/** OBSOLETE (B-350, D-140): a legacy test actor; delete in the editor step of docs/PIE/B-350.md, not blind.
+ *  Content/Testing/BP_Test_TurnManager may subclass it; WoR.Combat.TurnManager / TurnSpeed / TieBreak / FallenMembers specs cover its cases. */
 UCLASS()
 class WORLD_OF_REFRACTION_API ATurnManagerTestActor : public AActor
 {
