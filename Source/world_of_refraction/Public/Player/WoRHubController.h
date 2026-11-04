@@ -1,14 +1,14 @@
 // WoRHubController.h
-// C++ base for BP_HubPlayerController (F2a). Introduced so the hub/trial
-// controller has a typed home for the CommonUI root layout and the mode enum —
-// both of which several C++ systems will need to query, and neither of which is
-// readable from a Blueprint-only controller.
+// The one hub / trial controller (D-076 = A, B-158): C++ base for BP_HubPlayerController.
+//   - CommonUI root layout and the hub mode enum (F2a).
+//   - IA_Interact -> the nearest in-range interactable (trial door, merchant, recruit, map
+//     feature) -> Interact() (HubInteract; moved here from AExplorationPlayerController).
+//   - OnPossess -> UPartySessionSubsystem::EnsureLocalParty (creates the solo Trial Party on
+//     first possession, rebinds the leader after every level change).
 //
-// ADDITIVE BY DESIGN. The Blueprint keeps its own BeginPlay, its IA_Interact
-// arbitration, and its variables; this base only creates the root layout. The
-// BP's BeginPlay runs AFTER this one (Super-first ordering), so nothing here
-// duplicates or pre-empts the mapping context, EnsureLocalParty, or the party
-// strip creation that already live in the graph.
+// The Blueprint still owns its BeginPlay: the input mapping context and the party display.
+// Editor step (docs/PIE/B-158.md): delete the BP's IA_Interact and EnsureLocalParty nodes,
+// else E fires twice (EnsureLocalParty twice is harmless: it is a get-or-create).
 
 #pragma once
 
@@ -17,8 +17,11 @@
 #include "Templates/SubclassOf.h"
 #include "WoRHubController.generated.h"
 
+class ACombatCharacter;
 class UCommonActivatableWidget;
+class UInputAction;
 class UWoRRootLayout;
+struct FInputActionValue;
 
 /** Which non-combat context this controller is driving.
  *
@@ -58,8 +61,35 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Hub|UI")
 	UWoRRootLayout *GetRootLayout() const { return RootLayout; }
 
+	/** B-158: interact with the nearest in-range door / merchant / recruit / map feature.
+	 *  Also callable from BP / console. */
+	UFUNCTION(BlueprintCallable, Category = "Hub|Interaction")
+	void InteractWithNearest();
+
+	/** Debug: what E would hit right now, with distances. */
+	UFUNCTION(BlueprintCallable, Category = "Hub|Interaction|Debug")
+	FString GetInteractionStateString() const;
+
 protected:
 	virtual void BeginPlay() override;
+	virtual void OnPossess(APawn *InPawn) override;
+	virtual void SetupInputComponent() override;
+
+	/** Leave empty to use DefaultInteractAction. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub|Input")
+	TObjectPtr<UInputAction> InteractAction;
+
+	/** IA_Interact, set in Config/DefaultGame.ini; loaded when InteractAction is empty (B-205). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Hub|Input")
+	TSoftObjectPtr<UInputAction> DefaultInteractAction;
+
+	/** Leader pawn class for the lazily created Trial Party. Null = the possessed pawn's class,
+	 *  then PartySessionSubsystem's DefaultSoloPawnClass. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub|Party")
+	TSoftClassPtr<ACombatCharacter> LocalPartyPawnClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub|Party")
+	bool bEnsureLocalPartyOnPossess = true;
 
 	/** WBP deriving from UWoRRootLayout. Unset is a graceful skip, not a crash —
 	 *  the same tolerance UMerchantShopSubsystem applies to its window class, so
@@ -74,4 +104,6 @@ private:
 	TObjectPtr<UWoRRootLayout> RootLayout;
 
 	EHubMode CurrentMode = EHubMode::Hub;
+
+	void HandleInteractPressed(const FInputActionValue &Value);
 };

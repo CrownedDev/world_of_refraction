@@ -56,13 +56,15 @@ struct FCombatantTurnDebt
 	UPROPERTY()
 	float SpeedRatio = 1.0f;
 
-	// Cached stats for tie-breaking
+	// Cached stats for tie-breaking. B-341 (D-133): the tie-break reads only CachedSpeed (then side, then slot).
 	UPROPERTY()
 	int32 CachedSpeed = 0;
 
+	/** OBSOLETE (B-341): no longer read by the tie-break (ET-08 trimmed to 3 steps); kept until PIE. */
 	UPROPERTY()
 	int32 CachedActionSpeed = 0;
 
+	/** OBSOLETE (B-341): the world stats no longer break ties (ET-08 trimmed); kept until PIE. */
 	UPROPERTY()
 	int32 CachedMind = 0;
 
@@ -86,6 +88,12 @@ struct FCombatantTurnDebt
 	 *  other side has taken its opening round. Cleared for everyone when that round is done. */
 	UPROPERTY()
 	bool bWaitsForOpening = false;
+
+	/** B-341 (D-133, the turn belt): this combatant's next turns removed by SkipNextTurn. Each
+	 *  skip removes the next Normal or Bonus turn it would take (not a ritual's Execution turn);
+	 *  a removed turn is used up without happening. Cleared on death. */
+	UPROPERTY()
+	int32 TurnsToSkip = 0;
 };
 
 /**
@@ -128,6 +136,11 @@ struct FScheduledTurn
 	 *  Unused by Bonus (0). TurnManager does NO CharacterData lookup; the caller supplies it. */
 	UPROPERTY()
 	float SortKey = 0.0f;
+
+	/** B-341 (D-133): granted by GrantBonusTurn. Lands immediately after the current turn: it sits at
+	 *  the front of the queue, behind only earlier land-next grants. */
+	UPROPERTY()
+	bool bLandsNext = false;
 };
 
 /**
@@ -261,6 +274,8 @@ public:
 	/** Is combat active */
 	UFUNCTION(BlueprintPure, Category = "Turn Manager")
 	bool IsCombatActive() const { return bCombatActive; }
+	/** B-228: the global turn count (the number OnTurnStarted carries). */
+	int32 GetTurnCount() const { return GlobalTurnCount; }
 
 	// ========================================
 	// SPEED CHANGES
@@ -278,7 +293,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void OnActorResurrected(AActor *Actor);
 
-	/** Grant an additional NON-bonus turn by crediting one unit of TurnsOwed (debt-soft) —
+	/** OBSOLETE (B-341): Extra Action now grants a bonus turn through GrantBonusTurn (D-133).
+	 *  Grant an additional NON-bonus turn by crediting one unit of TurnsOwed (debt-soft) —
 	 *  the ExtraAction skill effect path. Cluster 2b: the bonus path is RETIRED — Emerald
 	 *  bonuses are pinned entries via ScheduleBonusTurn. bIsBonusTurn is kept only so
 	 *  existing call sites compile; passing true is a warn-and-ignore no-op. */
@@ -291,7 +307,30 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void DelayNextTurn(AActor *Actor, int32 Places);
 
-	/** Schedule Count pinned bonus turn(s) for Actor, firing after DelayTurns turns
+	// ---- The turn belt (B-341, D-133; the deckbuilder's §7c rule) ----
+	// One bonus-turn rule: a bonus turn lands immediately after the current turn; a skip removes
+	// the holder's next turn; death purges the holder's bonus turns and skips, and a revive
+	// re-enters the holder from the next round. Emerald and Extra Action both grant through here.
+
+	/** Count bonus turns for Actor, landing immediately after the current turn (ahead of the speed
+	 *  pick and of ready pinned turns; behind earlier land-next grants). A bonus turn is a real extra
+	 *  turn (D-052) and passes the 2:1 cap (Q-297). No-op outside combat or for a dead Actor. */
+	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
+	void GrantBonusTurn(AActor *Actor, int32 Count = 1);
+
+	/** Remove Actor's next Count turns (Normal or Bonus; a ritual's Execution turn still fires).
+	 *  A removed turn is used up without happening: it doesn't count toward the 2:1 cap or burn
+	 *  pinned delays. No-op outside combat. */
+	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
+	void SkipNextTurn(AActor *Actor, int32 Count = 1);
+
+	/** Skips Actor still has waiting (0 when not in the fight). Debug and specs. */
+	UFUNCTION(BlueprintPure, Category = "Turn Manager")
+	int32 GetTurnsToSkip(const AActor *Actor) const;
+
+	/** OBSOLETE (B-341): Emerald grants through GrantBonusTurn (lands next) since D-133; kept for
+	 *  the specs that pin the delayed path until PIE.
+	 *  Schedule Count pinned bonus turn(s) for Actor, firing after DelayTurns turns
 	 *  (Emerald). DelayTurns >= 0 is valid: 0 fires on the very next scheduler step (the
 	 *  S-rank immediate case, Count=2 → two back-to-back). Pinned: the fire preempts the
 	 *  debt pick at its slot; every turn taken burns the delay. A dead/invalid grantee's
@@ -435,8 +474,13 @@ private:
 	/** Refill TurnBelt (up to TURN_BELT_HORIZON) from a scratch copy of live state. */
 	void RebuildBelt();
 
-	/** Determine tie-breaker winner between two combatants */
+	/** B-341 (D-133, Q-341): the 3-step tie-break: higher base turn speed (buffs ignored), then your
+	 *  party before enemies, then the lower slot. */
 	bool ShouldBreakTieInFavor(const FCombatantTurnDebt &A, const FCombatantTurnDebt &B) const;
+
+	/** OBSOLETE (B-341): the 8-step tie-break before D-133 (speed, action speed, the underdog total,
+	 *  Body, Mind, Spirit, side, slot). Not called; kept until the 3-step chain is proven in PIE. */
+	bool ShouldBreakTieInFavorEightStep(const FCombatantTurnDebt &A, const FCombatantTurnDebt &B) const;
 
 	/** Cache actor stats from CharacterDataComponent */
 	void CacheActorStats(FCombatantTurnDebt &Combatant);

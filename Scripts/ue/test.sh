@@ -2,7 +2,8 @@
 # Run WoR automation tests headless, then validate data assets (B-119). Exit 0 = all passed, 1 = failures, 3 = UE_ROOT missing.
 # Usage: Scripts/ue/test.sh [filter]   (default filter "WoR."; e.g. "WoR.Damage")
 # B-293: WOR_BALANCE=nightly|full Scripts/ue/test.sh WoR.Balance.  runs that balance preset in WoR.Balance.Sim.Targets
-# (and the parity check over its matchups) and writes Saved/Balance/<preset>_<stamp>.{csv,json,md}; unset = quick.
+# (and the parity check over its matchups) and writes Saved/Balance/<preset>_<stamp>.{csv,json,md}.
+# B-350 (D-140): unset = the balance sim is skipped (it runs in the nightly preset only; WOR_BALANCE=quick still works).
 set -uo pipefail
 source "$(dirname "$0")/common.sh"
 wor_require_ue || exit $?
@@ -21,8 +22,16 @@ echo "Running automation tests '$FILTER' ${WOR_BALANCE:+(balance preset $WOR_BAL
 
 INDEX="$REPORT/index.json"
 if [ ! -f "$INDEX" ]; then
-    echo "TESTS DID NOT RUN (no report). Last log lines:" >&2
-    tail -30 "$LOG" >&2
+    echo "TESTS DID NOT RUN (no report). First error lines:" >&2
+    awk '/Fatal error|Assertion failed|Ensure condition failed|Critical error|Unhandled Exception/ {f=1} f && n<16 && !/Callstack/ {print; n++}' "$LOG" >&2
+    echo "Our module's frames in the callstack (first and last few):" >&2
+    grep "Callstack.*world_of_refraction" "$LOG" | head -8 | sed -E 's/.*!//' >&2
+    echo "..." >&2
+    grep "Callstack.*world_of_refraction" "$LOG" | tail -6 | sed -E 's/.*!//' >&2
+    echo "Last test lines before the crash:" >&2
+    grep -E "LogAutomationController: Display: Test (Started|Completed)|Running test" "$LOG" | tail -3 >&2
+    echo "Last log lines:" >&2
+    tail -8 "$LOG" >&2
     exit 1
 fi
 
@@ -40,6 +49,21 @@ awk -F'"' '
     /"type"/         { is_error = ($4 == "Error") }
     /"message"/      { if (is_error) { printf "             ERROR: %s\n", $4 }; is_error = 0 }
 ' "$INDEX"
+
+# B-350 (D-140): the 10 slowest tests, from each test's "duration" (seconds) in the report.
+SLOWEST_COUNT=10
+SLOWEST="$(awk -F'"' '
+    /"fullTestPath"/ { path = $4 }
+    /"duration"/     { if (match($0, /[0-9.]+([eE][-+]?[0-9]+)?/)) { printf "%10.2f  %s\n", substr($0, RSTART, RLENGTH) + 0, path } }
+' "$INDEX" | sort -rn | head -n "$SLOWEST_COUNT")"
+if [ -n "$SLOWEST" ]; then
+    echo "Slowest $SLOWEST_COUNT tests (seconds):"
+    echo "$SLOWEST"
+fi
+# B-350: say so when the balance sim was skipped (no WOR_BALANCE), so a default run never reads as a balance pass.
+if [ -z "${WOR_BALANCE:-}" ] && grep -q '"fullTestPath"[[:space:]]*:[[:space:]]*"WoR.Balance.Sim.Targets' "$INDEX"; then
+    echo "Balance sim SKIPPED (set WOR_BALANCE=nightly to run it)"
+fi
 
 if [ "${SUCCEEDED}" = "0" ] && [ "${FAILED:-0}" = "0" ]; then
     echo "No tests matched '$FILTER'." >&2

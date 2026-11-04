@@ -57,7 +57,7 @@ struct WORLD_OF_REFRACTION_API FPoolFilter
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Filter")
     bool bUseSchool = false;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Filter", meta = (EditCondition = "bUseSchool"))
-    ESpellSchool School = ESpellSchool::Destruction;
+    ESpellSchool School = ESpellSchool::Conjuration;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Filter")
     bool bUseTier = false;

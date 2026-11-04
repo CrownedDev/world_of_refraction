@@ -2,6 +2,7 @@
 // Debug utilities implementation
 
 #include "Debug/Inventory/InventoryDebug.h"
+#include "Debug/Skills/SpellDataDebug.h"
 #include "Inventory/InventoryComponent.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
@@ -56,10 +57,10 @@ void UInventoryDebug::LogSpells(UInventoryComponent *Inventory)
     {
         if (USpellData *Spell = Instance.Spell)
         {
-            UE_LOG(LogTemp, Display, TEXT("  - %s [%s] (School: %d, Tier: %d)"),
+            UE_LOG(LogTemp, Display, TEXT("  - %s [%s] (School: %s, Tier: %d)"),
                    *Spell->Name,
                    *UEnum::GetValueAsString(Spell->Element),
-                   static_cast<int32>(Spell->School),
+                   *USpellDataDebug::GetSchoolString(Spell), // B-356b: the shown school, retired flagged
                    static_cast<int32>(Spell->Tier));
         }
     }
@@ -386,7 +387,7 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
             TMap<ESpellSchool, int32> PerSchool;
             for (const USpellData *S : Active.InnateSpells)
             {
-                if (S) PerSchool.FindOrAdd(S->School)++;
+                if (S) PerSchool.FindOrAdd(S->GetSchool())++; // B-356b: the cap counts the shown school
             }
             for (const TPair<ESpellSchool, int32> &P : PerSchool)
             {
@@ -403,18 +404,16 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
         }
     }
 
-    // Items
+    // Items: B-313, what the fight can use (a member's pouch, else the loadout's item slots).
     int32 UsableItems = 0;
     int32 TotalUses = 0;
-    for (const FItemLoadoutSlot &Slot : Active.ItemSlots)
+    for (const FItemLoadoutSlot &Slot : Loadout->GetUsableItems())
     {
-        if (!Slot.IsEmpty())
-        {
-            UsableItems++;
-            TotalUses += Slot.Quantity;
-        }
+        UsableItems++;
+        TotalUses += Slot.Quantity;
     }
-    UE_LOG(LogTemp, Display, TEXT("Items: %d slots, %d uses remaining"), UsableItems, TotalUses);
+    UE_LOG(LogTemp, Display, TEXT("Items (%s): %d stack(s), %d use(s) this fight"),
+           Loadout->UsesPouchItems() ? TEXT("pouch") : TEXT("loadout slots"), UsableItems, TotalUses);
 
     // Totals
     UE_LOG(LogTemp, Display, TEXT("---"));

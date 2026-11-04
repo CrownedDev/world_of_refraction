@@ -156,6 +156,10 @@ namespace
 		M.Rank = Rank;
 		M.EnemyCount = Rank == EEncounterRank::Normal ? SIM_NORMAL_ENEMY_COUNT : Rank == EEncounterRank::Elite ? SIM_ELITE_ENEMY_COUNT : 1;
 		M.Difficulty = Difficulty;
+		// D-136 (B-344): the door's difficulty and the AI tier are one knob, so a Hard row is a Hard door (damage x1.2, Hard AI).
+		M.TrialDifficulty = Difficulty == EAIDifficulty::Hard ? ETrialDifficulty::Hard
+						  : Difficulty == EAIDifficulty::Easy ? ETrialDifficulty::Easy
+															  : ETrialDifficulty::Medium;
 		M.ZoneTier = SIM_ZONE_TIER;
 		M.Id = FName(FString::Printf(TEXT("%s-v-%s-%s-%s"), Party, *Enemy.ToString(),
 									 *StaticEnum<EEncounterRank>()->GetNameStringByValue(static_cast<int64>(Rank)),

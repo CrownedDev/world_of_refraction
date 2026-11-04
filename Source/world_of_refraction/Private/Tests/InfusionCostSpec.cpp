@@ -1,12 +1,11 @@
 // InfusionCostSpec.cpp
-// B-136: what an infused action costs today (UActionExecutor::CalculateActionEnergyCost, the preview
-// that is also the EP spend, and UInfusionCostHelper's HP cost). A spell pays its charge multiplier
-// (L1 x1.5, L2 x2.0); an infused ability pays INFUSION_ENERGY_MULTIPLIER on top (D-035: x2.25 / x3.0);
-// both also pay an upside-only stat surcharge (RawDamage / SpellDamage above 1.0). Crystal-powered
-// casts and a deferred fire cost no EP. The HP cost is the infused EP as a share of max EP, applied to
-// max HP, less Resistance. Expectations are literals, so a changed number fails here on purpose.
-// Not covered: ApplyCommitCosts' source routing (which sources pay HP) needs a running action; and the
-// ability's x1.5 is rounded before the charge level, so x2.25 is exact only for bases like 100.
+// B-136: what an infused action costs (UActionExecutor::CalculateActionEnergyCost, the preview that is
+// also the EP spend, and UInfusionCostHelper's HP cost). B-334 (D-126): the EP cost is the base x the
+// charge level (L0 / L1 x1, L2 x2), for spells and abilities alike; an infused ability's base carries
+// INFUSION_ENERGY_MULTIPLIER (D-035 stands: x1.5 at L1, x3.0 at L2); the stat surcharge is gone (Q-334).
+// Crystal-powered casts and a deferred fire cost no EP. The HP cost is the infused EP as a share of max
+// EP, applied to max HP, less Resistance, and only at L2 (ApplyCommitCosts, checked through the friend
+// access). Expectations are literals, so a changed number fails here on purpose.
 // Damage and status charge bands are WoR.Status.InfusedBuildup; wear is WoR.Durability.CrystalBreak.
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -29,19 +28,21 @@ namespace
 	constexpr int32 COST_TEST_UNINFUSED = 0;
 	constexpr int32 COST_TEST_L1 = 1;
 	constexpr int32 COST_TEST_L2 = 2;
-	/** D-035's numbers: the ability surcharge times each charge level. */
-	constexpr float COST_TEST_D035_L1 = 2.25f;
-	constexpr float COST_TEST_D035_L2 = 3.0f;
-	/** Today's costs of a 100-EP action on a neutral caster. */
-	constexpr int32 COST_TEST_ABILITY_L1_EP = 225;
+	constexpr int32 COST_TEST_PAST_MAX_LEVEL = 3;
+	/** D-126: the charge level is the multiplier (x1 with no charge). */
+	constexpr float COST_TEST_LEVEL_MULT_L0 = 1.0f;
+	constexpr float COST_TEST_LEVEL_MULT_L1 = 1.0f;
+	constexpr float COST_TEST_LEVEL_MULT_L2 = 2.0f;
+	/** D-035 stands: an infused ability's base is x1.5. */
+	constexpr float COST_TEST_D035_SURCHARGE = 1.5f;
+	/** Costs of a 100-EP action on a neutral caster (D-126). */
+	constexpr int32 COST_TEST_ABILITY_L1_EP = 150;
 	constexpr int32 COST_TEST_ABILITY_L2_EP = 300;
 	constexpr int32 COST_TEST_ABILITY_SOURCE_ONLY_EP = 150;
-	constexpr int32 COST_TEST_SPELL_L1_EP = 150;
+	constexpr int32 COST_TEST_SPELL_L1_EP = 100;
 	constexpr int32 COST_TEST_SPELL_L2_EP = 200;
-	/** A +20% stat buff: surcharge x1.2 (ability L1 270, spell L1 180); a −20% debuff adds nothing. */
+	/** A +20% stat buff no longer adds a surcharge (Q-334). */
 	constexpr float COST_TEST_STAT_SWING_PERCENT = 20.0f;
-	constexpr int32 COST_TEST_ABILITY_L1_BUFFED_EP = 270;
-	constexpr int32 COST_TEST_SPELL_L1_BUFFED_EP = 180;
 	constexpr int32 COST_TEST_STAT_EFFECT_ID = 9601;
 	constexpr int32 COST_TEST_DURATION_TURNS = 3;
 	/** 100 EP of 200 is half: half of 400 HP is 200, less 25% Resistance is 150. */
@@ -50,6 +51,10 @@ namespace
 	constexpr int32 COST_TEST_HP_COST = 200;
 	constexpr float COST_TEST_RESIST_PERCENT = 25.0f;
 	constexpr int32 COST_TEST_HP_COST_RESISTED = 150;
+	/** An L2 innate spell's 200 EP is all of 200 max EP: all of 400 max HP. */
+	constexpr int32 COST_TEST_SPELL_L2_HP_COST = 400;
+	/** An L2 Raw ability's 300 EP is 1.5x of 200 max EP: 1.5x of 400 max HP. */
+	constexpr int32 COST_TEST_ABILITY_L2_HP_COST = 600;
 	constexpr float COST_TEST_TOLERANCE = 0.001f;
 }
 
@@ -79,7 +84,7 @@ BEGIN_DEFINE_SPEC(FInfusionCostSpec, "WoR.Infusion.Cost",
 		return Executor->CalculateActionEnergyCost(Caster, AbilityAction(Source, Level));
 	}
 
-	int32 SpellCost(ESpellSource Source, int32 Level)
+	FAction SpellAction(ESpellSource Source, int32 Level) const
 	{
 		FAction Action;
 		Action.ActionType = EActionType::Spell;
@@ -88,7 +93,22 @@ BEGIN_DEFINE_SPEC(FInfusionCostSpec, "WoR.Infusion.Cost",
 		Action.SelectedSource = (Level > COST_TEST_UNINFUSED) ? EInfusionSourceOption::Innate : EInfusionSourceOption::None;
 		Action.SpellInfusionLevel = Level;
 		Action.Targets.Add(Caster);
-		return Executor->CalculateActionEnergyCost(Caster, Action);
+		return Action;
+	}
+
+	int32 SpellCost(ESpellSource Source, int32 Level)
+	{
+		return Executor->CalculateActionEnergyCost(Caster, SpellAction(Source, Level));
+	}
+
+	/** The HP cost ApplyCommitCosts stashes for Action (paid at finalize), read through the friend access. */
+	int32 CommitHPCost(const FAction &Action)
+	{
+		Executor->CurrentExecutionContext.Emplace();
+		Executor->ApplyCommitCosts(Caster, Action);
+		const int32 Cost = Executor->CurrentExecutionContext->PendingInfusionHPCost;
+		Executor->CurrentExecutionContext.Reset();
+		return Cost;
 	}
 
 	void GiveStatEffect(ESkillEffectType Type, float Percent)
@@ -132,15 +152,19 @@ void FInfusionCostSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("pins D-035's numbers: an infused ability pays x2.25 at L1 and x3.0 at L2", [this]()
+	It("pins D-126: the EP multiplier is the charge level, and only L2 pays HP", [this]()
 	{
-		TestNearlyEqual(TEXT("L1"), CombatConstants::INFUSION_ENERGY_MULTIPLIER * InfusionConstants::L1_ENERGY_MULT,
-						COST_TEST_D035_L1, COST_TEST_TOLERANCE);
-		TestNearlyEqual(TEXT("L2"), CombatConstants::INFUSION_ENERGY_MULTIPLIER * InfusionConstants::L2_ENERGY_MULT,
-						COST_TEST_D035_L2, COST_TEST_TOLERANCE);
+		TestNearlyEqual(TEXT("L0"), InfusionConstants::ChargeLevelCostMultiplier(COST_TEST_UNINFUSED), COST_TEST_LEVEL_MULT_L0, COST_TEST_TOLERANCE);
+		TestNearlyEqual(TEXT("L1"), InfusionConstants::ChargeLevelCostMultiplier(COST_TEST_L1), COST_TEST_LEVEL_MULT_L1, COST_TEST_TOLERANCE);
+		TestNearlyEqual(TEXT("L2"), InfusionConstants::ChargeLevelCostMultiplier(COST_TEST_L2), COST_TEST_LEVEL_MULT_L2, COST_TEST_TOLERANCE);
+		TestNearlyEqual(TEXT("Past the max clamps to L2"), InfusionConstants::ChargeLevelCostMultiplier(COST_TEST_PAST_MAX_LEVEL),
+						COST_TEST_LEVEL_MULT_L2, COST_TEST_TOLERANCE);
+		TestNearlyEqual(TEXT("D-035 stands"), CombatConstants::INFUSION_ENERGY_MULTIPLIER, COST_TEST_D035_SURCHARGE, COST_TEST_TOLERANCE);
+		TestFalse(TEXT("L1 pays no HP"), InfusionConstants::LevelPaysHP(COST_TEST_L1));
+		TestTrue(TEXT("L2 pays HP"), InfusionConstants::LevelPaysHP(COST_TEST_L2));
 	});
 
-	It("charges an ability its base cost uninfused, then the surcharge and charge level", [this]()
+	It("charges an ability its base cost uninfused, then D-035's surcharge times the charge level", [this]()
 	{
 		if (!Executor) return;
 		TestEqual(TEXT("Uninfused"), AbilityCost(EInfusionSourceOption::None, COST_TEST_UNINFUSED), COST_TEST_BASE_EP);
@@ -151,7 +175,7 @@ void FInfusionCostSpec::Define()
 				  AbilityCost(EInfusionSourceOption::Raw, COST_TEST_UNINFUSED), COST_TEST_ABILITY_SOURCE_ONLY_EP);
 	});
 
-	It("charges an innate spell only its charge level", [this]()
+	It("charges an innate spell its base times the charge level", [this]()
 	{
 		if (!Executor) return;
 		TestEqual(TEXT("Uninfused"), SpellCost(ESpellSource::Innate, COST_TEST_UNINFUSED), COST_TEST_BASE_EP);
@@ -159,21 +183,29 @@ void FInfusionCostSpec::Define()
 		TestEqual(TEXT("L2"), SpellCost(ESpellSource::Innate, COST_TEST_L2), COST_TEST_SPELL_L2_EP);
 	});
 
-	It("adds a surcharge for a stat above 1.0, and nothing for one below", [this]()
+	It("adds no stat surcharge any more (Q-334)", [this]()
 	{
 		if (!Executor) return;
 		GiveStatEffect(ESkillEffectType::RawDamageBuff, COST_TEST_STAT_SWING_PERCENT);
-		TestEqual(TEXT("Ability L1 with RawDamage x1.2"), AbilityCost(EInfusionSourceOption::Raw, COST_TEST_L1), COST_TEST_ABILITY_L1_BUFFED_EP);
-		TestEqual(TEXT("Uninfused: no surcharge"), AbilityCost(EInfusionSourceOption::None, COST_TEST_UNINFUSED), COST_TEST_BASE_EP);
+		TestEqual(TEXT("Ability L1 with RawDamage x1.2"), AbilityCost(EInfusionSourceOption::Raw, COST_TEST_L1), COST_TEST_ABILITY_L1_EP);
 		Effects->RemoveAllEffects(Caster);
 
 		GiveStatEffect(ESkillEffectType::SpellDamageBuff, COST_TEST_STAT_SWING_PERCENT);
-		TestEqual(TEXT("Spell L1 with SpellDamage x1.2"), SpellCost(ESpellSource::Innate, COST_TEST_L1), COST_TEST_SPELL_L1_BUFFED_EP);
+		TestEqual(TEXT("Spell L2 with SpellDamage x1.2"), SpellCost(ESpellSource::Innate, COST_TEST_L2), COST_TEST_SPELL_L2_EP);
 		Effects->RemoveAllEffects(Caster);
+	});
 
-		GiveStatEffect(ESkillEffectType::RawDamageDebuff, COST_TEST_STAT_SWING_PERCENT);
-		TestTrue(TEXT("The debuff landed"), Stats->GetEffectiveRawDamage() < 1.0f);
-		TestEqual(TEXT("A low stat never makes it cheaper"), AbilityCost(EInfusionSourceOption::Raw, COST_TEST_L1), COST_TEST_ABILITY_L1_EP);
+	It("charges the HP cost only at L2", [this]()
+	{
+		if (!Executor) return;
+		Stats->MaxEP = COST_TEST_MAX_EP;
+		Stats->MaxHP = COST_TEST_MAX_HP;
+		if (!TestNearlyEqual(TEXT("No Resistance to start"), Stats->GetEffectiveStats().Resistance, 0.0f, COST_TEST_TOLERANCE)) return;
+		TestEqual(TEXT("Innate spell L1: no HP"), CommitHPCost(SpellAction(ESpellSource::Innate, COST_TEST_L1)), 0);
+		TestEqual(TEXT("Innate spell L2: HP"), CommitHPCost(SpellAction(ESpellSource::Innate, COST_TEST_L2)), COST_TEST_SPELL_L2_HP_COST);
+		TestEqual(TEXT("Raw ability L1: no HP"), CommitHPCost(AbilityAction(EInfusionSourceOption::Raw, COST_TEST_L1)), 0);
+		TestEqual(TEXT("Raw ability L2: HP"), CommitHPCost(AbilityAction(EInfusionSourceOption::Raw, COST_TEST_L2)), COST_TEST_ABILITY_L2_HP_COST);
+		TestEqual(TEXT("Innate ability L2: still no HP"), CommitHPCost(AbilityAction(EInfusionSourceOption::Innate, COST_TEST_L2)), 0);
 	});
 
 	It("charges no EP when a crystal powers the cast, or for a deferred fire", [this]()

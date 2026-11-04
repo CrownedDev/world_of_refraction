@@ -1,6 +1,7 @@
 // ResistanceColumnsSpec.cpp
 // B-272 (S7): the four resistance column structs read, copy, add and compare by damage type, and every
-// column lands in the field of the same name.
+// column lands in the field of the same name. B-358: ten columns, the one Physical column held in the three
+// physical fields.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -13,7 +14,8 @@
 
 namespace
 {
-	constexpr int32 RESISTANCE_COLUMN_COUNT = 12;
+	constexpr int32 RESISTANCE_COLUMN_COUNT = 10;
+	constexpr float PHYSICAL_COLUMN_VALUE = 10.0f; // the last column's distinct value
 
 	/** Each column a different value (its position + 1) so a crossed field shows. */
 	FResistanceBonus DistinctColumns()
@@ -22,7 +24,7 @@ namespace
 		float Value = 1.0f;
 		for (const EWoRDamageType Type : ResistanceColumns::Types())
 		{
-			*ResistanceColumns::Field(Bonus, Type) = Value;
+			ResistanceColumns::Set(Bonus, Type, Value);
 			Value += 1.0f;
 		}
 		return Bonus;
@@ -43,21 +45,22 @@ END_DEFINE_SPEC(FResistanceColumnsSpec)
 
 void FResistanceColumnsSpec::Define()
 {
-	It("has 12 columns, each its own field", [this]()
+	It("has 10 columns: the nine elements and one Physical", [this]()
 	{
 		TestEqual(TEXT("column count"), ResistanceColumns::Types().Num(), RESISTANCE_COLUMN_COUNT);
 		const FResistanceBonus Bonus = DistinctColumns();
 		TestEqual(TEXT("Fire is first"), Bonus.Fire, 1.0f);
 		TestEqual(TEXT("Reality is ninth"), Bonus.Reality, 9.0f);
-		TestEqual(TEXT("Impact is last"), Bonus.Impact, 12.0f);
+		TestTrue(TEXT("Physical is last, held in all three physical fields"),
+				 Bonus.Slash == PHYSICAL_COLUMN_VALUE && Bonus.Pierce == PHYSICAL_COLUMN_VALUE && Bonus.Impact == PHYSICAL_COLUMN_VALUE);
 	});
 
-	It("keeps the column order the gear roll's slots use (Fire..Reality, Slash, Pierce, Impact)", [this]()
+	It("keeps the column order the gear roll's slots use (Fire..Reality, Physical)", [this]()
 	{
 		const EWoRDamageType Expected[] = {
 			EWoRDamageType::Fire, EWoRDamageType::Water, EWoRDamageType::Earth, EWoRDamageType::Wind,
 			EWoRDamageType::Light, EWoRDamageType::Darkness, EWoRDamageType::Lightning, EWoRDamageType::Void,
-			EWoRDamageType::Reality, EWoRDamageType::Slash, EWoRDamageType::Pierce, EWoRDamageType::Impact};
+			EWoRDamageType::Reality, ResistanceColumns::PHYSICAL_COLUMN};
 		TestEqual(TEXT("one slot per column"), ResistanceColumns::Types().Num(), static_cast<int32>(UE_ARRAY_COUNT(Expected)));
 		for (int32 Slot = 0; Slot < FMath::Min(ResistanceColumns::Types().Num(), static_cast<int32>(UE_ARRAY_COUNT(Expected))); ++Slot)
 		{
@@ -88,7 +91,7 @@ void FResistanceColumnsSpec::Define()
 		FResistanceBonus Sum = Bonus;
 		Sum.Accumulate(Bonus);
 		TestEqual(TEXT("Fire doubled"), Sum.Fire, 2.0f);
-		TestEqual(TEXT("Impact doubled"), Sum.Impact, 24.0f);
+		TestEqual(TEXT("Physical doubled"), ResistanceColumns::Get(Sum, EWoRDamageType::Impact), PHYSICAL_COLUMN_VALUE * 2.0f);
 		TestTrue(TEXT("equal to itself across structs"), ResistanceColumns::Equal(Bonus, ResistanceColumns::Convert<ClassInnateResistanceTable::FResistanceRow>(Bonus)));
 		TestFalse(TEXT("a doubled one differs"), ResistanceColumns::Equal(Bonus, Sum));
 	});
@@ -99,7 +102,7 @@ void FResistanceColumnsSpec::Define()
 		TestEqual(TEXT("Lightning"), ClassInnateResistanceTable::GetElementColumn(Row, ESpellElement::Lightning), 7.0f);
 		TestEqual(TEXT("Generic adds nothing"), ClassInnateResistanceTable::GetElementColumn(Row, ESpellElement::Generic), 0.0f);
 		TestEqual(TEXT("None adds nothing"), ClassInnateResistanceTable::GetElementColumn(Row, ESpellElement::None), 0.0f);
-		TestEqual(TEXT("Pierce"), ClassInnateResistanceTable::GetPhysicalColumn(Row, EPhysicalDamageType::Pierce), 11.0f);
+		TestEqual(TEXT("Pierce reads the Physical column"), ClassInnateResistanceTable::GetPhysicalColumn(Row, EPhysicalDamageType::Pierce), PHYSICAL_COLUMN_VALUE);
 		TestEqual(TEXT("no physical"), ClassInnateResistanceTable::GetPhysicalColumn(Row, EPhysicalDamageType::None), 0.0f);
 	});
 }
