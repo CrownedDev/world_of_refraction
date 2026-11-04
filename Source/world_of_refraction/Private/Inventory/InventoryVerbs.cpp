@@ -2,6 +2,7 @@
 
 #include "Inventory/InventoryVerbs.h"
 
+#include "Character/CharacterData.h"
 #include "Currency/EconomyService.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -12,7 +13,10 @@
 #include "Inventory/GearGive.h"
 #include "Inventory/InventoryComponent.h"
 #include "Inventory/ItemTier.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
+#include "WoRGameNames.h"
 
 #define LOCTEXT_NAMESPACE "InventoryVerbs"
 
@@ -28,6 +32,18 @@ namespace
 	{
 		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 		return GI ? GI->GetSubsystem<UEconomyService>() : nullptr;
+	}
+
+	/** Q-321: a run-only member owns nothing, so it isn't given gear. */
+	bool InventoryVerbsIsRunOnly(const UWorld *World, FName Key)
+	{
+		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+		const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+		const FPartyMember *Member = Party ? Party->Members.FindByPredicate([Key](const FPartyMember &M)
+															  { return M.CharacterData && UPoolSubsystem::GetCharacterKey(M.CharacterData) == Key; })
+										   : nullptr;
+		return Member && Member->bRunOnly;
 	}
 
 	// TODO: gear names are FString assets; FText with B-127 (D-061).
@@ -46,6 +62,14 @@ namespace
 	{
 		return Inventory && Inventory->FindDuplicateGear().ContainsByPredicate([&GearID](const FDuplicateGearPair &Pair) { return Pair.WeakerID == GearID; });
 	}
+
+	/** The Gold a convert of GearID gives (UEconomyService::GetDuplicateGoldForTier of its tier). */
+	int32 InventoryVerbsConvertGold(const UPoolSubsystem &Pool, const FGuid &GearID)
+	{
+		const FWeaponInventoryEntry *Weapon = Pool.FindWeaponInPool(GearID);
+		const FRingInventoryEntry *Adapter = Weapon ? nullptr : Pool.FindRingInPool(GearID);
+		return UEconomyService::GetDuplicateGoldForTier(Weapon ? Weapon->Tier : Adapter ? Adapter->Tier : EItemTier::F_Tier);
+	}
 }
 
 namespace WoRInventoryVerbs
@@ -59,20 +83,7 @@ namespace WoRInventoryVerbs
 
 	FText GetVerbName(EInventoryVerb Verb)
 	{
-		switch (Verb)
-		{
-		case EInventoryVerb::Give:
-			return LOCTEXT("VerbGive", "Give");
-		case EInventoryVerb::Store:
-			return LOCTEXT("VerbStore", "Store");
-		case EInventoryVerb::Take:
-			return LOCTEXT("VerbTake", "Take");
-		case EInventoryVerb::Dismantle:
-			return LOCTEXT("VerbDismantle", "Dismantle");
-		case EInventoryVerb::Convert:
-			return LOCTEXT("VerbConvert", "Convert to Gold");
-		}
-		return FText::GetEmpty();
+		return WoRGameNames::GetInventoryVerbName(Verb);
 	}
 
 	TArray<FInventoryRow> GatherRows(const UWorld *World, FName Member)
@@ -130,31 +141,99 @@ namespace WoRInventoryVerbs
 		return Rows;
 	}
 
-	TArray<EInventoryVerb> GetVerbsFor(UWorld *World, FName Member, const FInventoryRow &Row)
+	FText GetRefusal(UWorld *World, EInventoryVerb Verb, FName Member, FName Receiver, const FInventoryRow &Row)
 	{
-		if (Row.bInChest)
-		{
-			return {EInventoryVerb::Take};
-		}
-		TArray<EInventoryVerb> Verbs = {EInventoryVerb::Give, EInventoryVerb::Store, EInventoryVerb::Dismantle};
-		if (Row.IsGear() && InventoryVerbsIsWeakerCopy(WoRGive::FindMemberInventory(World, Member), Row.GearID))
-		{
-			Verbs.Add(EInventoryVerb::Convert);
-		}
-		return Verbs;
-	}
-
-	FText Run(UWorld *World, EInventoryVerb Verb, FName Member, FName Receiver, const FInventoryRow &Row, int32 Count)
-	{
-		UPoolSubsystem *Pool = InventoryVerbsPoolOf(World);
+		const UPoolSubsystem *Pool = InventoryVerbsPoolOf(World);
 		if (!Pool || Member.IsNone())
 		{
 			return LOCTEXT("NoStore", "No character's store to act on");
 		}
-		if (!GetVerbsFor(World, Member, Row).Contains(Verb))
+		if (Row.bInChest != (Verb == EInventoryVerb::Take))
 		{
-			return FText::Format(LOCTEXT("VerbNotHere", "{0} doesn't apply to {1}"), GetVerbName(Verb), Row.Label);
+			return Row.bInChest ? LOCTEXT("TakeFirst", "Take it from the chest first") : LOCTEXT("TakeIsForChest", "Only things in the chest can be taken");
 		}
+		const UInventoryComponent *Inventory = WoRGive::FindMemberInventory(World, Member);
+		const bool bPrimary = Row.IsGear() && Inventory && Inventory->IsPrimaryInAnyLoadout(Row.GearID);
+		switch (Verb)
+		{
+		case EInventoryVerb::Give:
+			if (Receiver.IsNone() || Receiver == Member)
+			{
+				return LOCTEXT("GiveSelf", "Choose another character to give to");
+			}
+			if (Row.IsGear() && InventoryVerbsIsRunOnly(World, Receiver))
+			{
+				return LOCTEXT("GiveRecruit", "That character is only here for the run and can't own gear");
+			}
+			if (bPrimary)
+			{
+				return LOCTEXT("GivePrimary", "This is a loadout's primary. Swap in another primary first");
+			}
+			return FText::GetEmpty();
+		case EInventoryVerb::Store:
+			if (Row.IsGear() && Inventory && !Inventory->GetLoadoutsUsing(Row.GearID).IsEmpty())
+			{
+				return LOCTEXT("StoreWorn", "It's in a loadout. Take it off first");
+			}
+			return FText::GetEmpty();
+		case EInventoryVerb::Take:
+			return FText::GetEmpty();
+		case EInventoryVerb::Dismantle:
+		case EInventoryVerb::Convert:
+			break;
+		}
+		if (!Inventory)
+		{
+			return LOCTEXT("NotHere", "That character isn't here to do it");
+		}
+		if (Verb == EInventoryVerb::Convert && (!Row.IsGear() || !InventoryVerbsIsWeakerCopy(Inventory, Row.GearID)))
+		{
+			return LOCTEXT("NotWeaker", "Only the weaker copy of a duplicate converts to Gold");
+		}
+		if (Row.IsGear() && Pool->IsRunLayerActive() && !Pool->IsRunOnly(Row.GearID))
+		{
+			return LOCTEXT("HomeOnRun", "Gear from home can't go during a run; it comes back when the run ends");
+		}
+		if (bPrimary)
+		{
+			return LOCTEXT("PrimaryStays", "This is a loadout's primary. Swap in another primary first");
+		}
+		return FText::GetEmpty();
+	}
+
+	TArray<EInventoryVerb> GetVerbsFor(UWorld *World, FName Member, FName Receiver, const FInventoryRow &Row)
+	{
+		return GetAllVerbs().FilterByPredicate([&](EInventoryVerb Verb) { return GetRefusal(World, Verb, Member, Receiver, Row).IsEmpty(); });
+	}
+
+	FText GetConfirmText(UWorld *World, EInventoryVerb Verb, FName Member, const FInventoryRow &Row)
+	{
+		const UInventoryComponent *Inventory = WoRGive::FindMemberInventory(World, Member);
+		const UPoolSubsystem *Pool = InventoryVerbsPoolOf(World);
+		if (!Inventory || !Pool || !Row.IsGear())
+		{
+			return FText::GetEmpty();
+		}
+		if (Verb == EInventoryVerb::Dismantle)
+		{
+			// D-016: an equipped piece asks first; anything else goes at once.
+			return UEconomyService::GetDismantleWarning(Inventory->GetOwner(), Row.GearID);
+		}
+		if (Verb == EInventoryVerb::Convert)
+		{
+			return FText::Format(LOCTEXT("ConfirmConvert", "Convert {0} to {1} Gold?"), Row.Label, InventoryVerbsConvertGold(*Pool, Row.GearID));
+		}
+		return FText::GetEmpty();
+	}
+
+	FText Run(UWorld *World, EInventoryVerb Verb, FName Member, FName Receiver, const FInventoryRow &Row, int32 Count)
+	{
+		const FText Refusal = GetRefusal(World, Verb, Member, Receiver, Row);
+		if (!Refusal.IsEmpty())
+		{
+			return Refusal;
+		}
+		UPoolSubsystem *Pool = InventoryVerbsPoolOf(World);
 		const int32 Moving = FMath::Clamp(Count, 1, FMath::Max(1, Row.Count));
 		switch (Verb)
 		{
@@ -178,7 +257,7 @@ namespace WoRInventoryVerbs
 			break;
 		}
 
-		// Dismantle and Convert go through the economy, which acts on the member's spawned actor.
+		// Dismantle and Convert go through the economy, which acts on the member's spawned actor (GetRefusal checked it).
 		UInventoryComponent *Inventory = WoRGive::FindMemberInventory(World, Member);
 		UEconomyService *Economy = InventoryVerbsEconomyOf(World);
 		AActor *Owner = Inventory ? Inventory->GetOwner() : nullptr;
@@ -199,16 +278,17 @@ namespace WoRInventoryVerbs
 		{
 			bDone = Pool->FindRingInPool(Row.GearID) ? Economy->DismantleRing(Owner, Row.GearID) : Economy->DismantleWeapon(Owner, Row.GearID);
 		}
-		return bDone ? FText::GetEmpty() : FText::Format(LOCTEXT("VerbFailed", "Couldn't {0} {1}"), GetVerbName(Verb), Row.Label);
+		// A refusal the checks above don't foresee (e.g. during a fight) is logged by the economy with its reason.
+		return bDone ? FText::GetEmpty() : FText::Format(LOCTEXT("VerbFailed", "Couldn't {0} {1} (see the log)"), GetVerbName(Verb), Row.Label);
 	}
 
-	FString GetRowsString(UWorld *World, FName Member)
+	FString GetRowsString(UWorld *World, FName Member, FName Receiver)
 	{
 		FString Out = FString::Printf(TEXT("[Inventory] %s's store and the chest:"), *Member.ToString());
 		for (const FInventoryRow &Row : GatherRows(World, Member))
 		{
 			TArray<FString> Names;
-			for (const EInventoryVerb Verb : GetVerbsFor(World, Member, Row))
+			for (const EInventoryVerb Verb : GetVerbsFor(World, Member, Receiver, Row))
 			{
 				Names.Add(GetVerbName(Verb).ToString());
 			}

@@ -29,7 +29,9 @@ public:
 	/** Re-read the member's store and the chest and rewrite every row. */
 	void Refresh();
 
-	/** Runs Verb on the selected row (for a stack: one, or the whole stack while the whole-stack toggle is on). */
+	/** Runs Verb on the selected row (for a stack: one, or the whole stack while the whole-stack toggle is on). A verb
+	 *  with something to confirm (D-016's dismantle warning, a convert's Gold) shows it first and runs on a second
+	 *  press of the same verb on the same row. */
 	void RunVerb(EInventoryVerb Verb);
 
 	/** Debug: one line per row as shown. */
@@ -81,6 +83,15 @@ private:
 	/** Stack verbs move the whole stack instead of one (toggled by the whole-stack button). */
 	bool bWholeStack = false;
 
+	/** A verb waiting for its second press (D-016), on the row it was pressed on; any other choice cancels it. */
+	bool bConfirming = false;
+	EInventoryVerb PendingVerb = EInventoryVerb::Dismantle;
+	FGuid PendingGearID;
+	FText ConfirmText;
+
+	/** Forgets a waiting confirmation and the last status. */
+	void ClearPending();
+
 	FText StatusText;
 
 	UPROPERTY()
@@ -101,4 +112,8 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UButton> WholeStackButton;
+
+	/** The whole-stack button's label, showing its state. */
+	UPROPERTY()
+	TObjectPtr<UTextBlock> WholeStackText;
 };

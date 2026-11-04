@@ -128,8 +128,9 @@ TSharedRef<SWidget> UInventoryWidget::RebuildWidget()
 			}
 			VerbButtons.Add(Button);
 		}
-		WholeStackButton = AddButton(WidgetTree, Box, LOCTEXT("WholeStack", "Whole stack: on / off"));
+		WholeStackButton = AddButton(WidgetTree, Box, FText::GetEmpty());
 		WholeStackButton->OnClicked.AddDynamic(this, &UInventoryWidget::HandleWholeStackClicked);
+		WholeStackText = Cast<UTextBlock>(WholeStackButton->GetChildAt(0));
 		StatusLine = AddText(WidgetTree, Box);
 		AddButton(WidgetTree, Box, LOCTEXT("Close", "Close"))->OnClicked.AddDynamic(this, &UInventoryWidget::HandleCloseClicked);
 	}
@@ -173,8 +174,20 @@ FName UInventoryWidget::ReceiverKey() const
 	return Members.IsValidIndex(ReceiverIndex) ? Members[ReceiverIndex].Key : NAME_None;
 }
 
+void UInventoryWidget::ClearPending()
+{
+	bConfirming = false;
+	PendingGearID.Invalidate();
+	ConfirmText = FText::GetEmpty();
+	StatusText = FText::GetEmpty();
+}
+
 void UInventoryWidget::Refresh()
 {
+	if (!MemberText || !RowText || !ReceiverText || !StatusLine || !WholeStackButton)
+	{
+		return; // not built yet
+	}
 	const TArray<TPair<FName, FText>> Members = GatherMembers();
 	MemberIndex = Members.IsEmpty() ? 0 : FMath::Clamp(MemberIndex, 0, Members.Num() - 1);
 	ReceiverIndex = Members.IsEmpty() ? 0 : FMath::Clamp(ReceiverIndex, 0, Members.Num() - 1);
@@ -196,7 +209,7 @@ void UInventoryWidget::Refresh()
 									   Row.bInChest ? LOCTEXT("Chest", "Chest") : LOCTEXT("Own", "Own"), Row.Label, RowIndex + 1, Rows.Num()));
 	}
 	const TArray<EInventoryVerb> Applicable = Rows.IsValidIndex(RowIndex)
-												  ? WoRInventoryVerbs::GetVerbsFor(GetWorld(), MemberKey(), Rows[RowIndex])
+												  ? WoRInventoryVerbs::GetVerbsFor(GetWorld(), MemberKey(), ReceiverKey(), Rows[RowIndex])
 												  : TArray<EInventoryVerb>();
 	const TArray<EInventoryVerb> &AllVerbs = WoRInventoryVerbs::GetAllVerbs();
 	for (int32 Index = 0; Index < VerbButtons.Num() && Index < AllVerbs.Num(); ++Index)
@@ -204,7 +217,13 @@ void UInventoryWidget::Refresh()
 		VerbButtons[Index]->SetIsEnabled(Applicable.Contains(AllVerbs[Index]));
 	}
 	WholeStackButton->SetIsEnabled(Rows.IsValidIndex(RowIndex) && !Rows[RowIndex].IsGear());
-	StatusLine->SetText(FText::Format(LOCTEXT("StatusRow", "{0}{1}"), bWholeStack ? LOCTEXT("WholeOn", "[whole stack] ") : FText::GetEmpty(), StatusText));
+	if (WholeStackText)
+	{
+		WholeStackText->SetText(bWholeStack ? LOCTEXT("WholeStackOn", "Whole stack: on") : LOCTEXT("WholeStackOff", "Whole stack: off"));
+	}
+	StatusLine->SetText(bConfirming ? FText::Format(LOCTEXT("ConfirmRow", "{0} Press {1} again to confirm."), ConfirmText,
+													WoRInventoryVerbs::GetVerbName(PendingVerb))
+									: StatusText);
 }
 
 void UInventoryWidget::RunVerb(EInventoryVerb Verb)
@@ -215,6 +234,19 @@ void UInventoryWidget::RunVerb(EInventoryVerb Verb)
 		return;
 	}
 	const WoRInventoryVerbs::FInventoryRow Row = Rows[RowIndex];
+	// D-016: something to confirm is shown first; the same verb on the same row again runs it.
+	const bool bSecondPress = bConfirming && PendingVerb == Verb && PendingGearID == Row.GearID;
+	const FText Confirm = WoRInventoryVerbs::GetConfirmText(GetWorld(), Verb, MemberKey(), Row);
+	if (!Confirm.IsEmpty() && !bSecondPress)
+	{
+		bConfirming = true;
+		PendingVerb = Verb;
+		PendingGearID = Row.GearID;
+		ConfirmText = Confirm;
+		Refresh();
+		return;
+	}
+	bConfirming = false;
 	const int32 Count = bWholeStack ? Row.Count : InventoryScreenStyle::SingleItem;
 	const FText Refusal = WoRInventoryVerbs::Run(GetWorld(), Verb, MemberKey(), ReceiverKey(), Row, Count);
 	StatusText = Refusal.IsEmpty() ? FText::Format(LOCTEXT("Done", "{0}: {1}"), WoRInventoryVerbs::GetVerbName(Verb), Row.Label) : Refusal;
@@ -224,6 +256,10 @@ void UInventoryWidget::RunVerb(EInventoryVerb Verb)
 
 FString UInventoryWidget::GetInventoryString() const
 {
+	if (!MemberText || !RowText || !ReceiverText)
+	{
+		return TEXT("[Inventory] not built");
+	}
 	FString Out = TEXT("[Inventory] ") + MemberText->GetText().ToString() + TEXT(" | ") + RowText->GetText().ToString() + TEXT(" | ") +
 				  ReceiverText->GetText().ToString();
 	if (!StatusText.IsEmpty())
@@ -238,7 +274,7 @@ void UInventoryWidget::HandleNextMemberClicked()
 	const int32 Count = GatherMembers().Num();
 	MemberIndex = Count > 0 ? (MemberIndex + 1) % Count : 0;
 	RowIndex = 0;
-	StatusText = FText::GetEmpty();
+	ClearPending();
 	Refresh();
 }
 
@@ -246,7 +282,7 @@ void UInventoryWidget::HandleNextRowClicked()
 {
 	const int32 Count = WoRInventoryVerbs::GatherRows(GetWorld(), MemberKey()).Num();
 	RowIndex = Count > 0 ? (RowIndex + 1) % Count : 0;
-	StatusText = FText::GetEmpty();
+	ClearPending();
 	Refresh();
 }
 
@@ -254,7 +290,7 @@ void UInventoryWidget::HandleNextReceiverClicked()
 {
 	const int32 Count = GatherMembers().Num();
 	ReceiverIndex = Count > 0 ? (ReceiverIndex + 1) % Count : 0;
-	StatusText = FText::GetEmpty();
+	ClearPending();
 	Refresh();
 }
 
@@ -271,6 +307,7 @@ void UInventoryWidget::HandleConvertClicked() { RunVerb(EInventoryVerb::Convert)
 void UInventoryWidget::HandleWholeStackClicked()
 {
 	bWholeStack = !bWholeStack;
+	ClearPending();
 	Refresh();
 }
 
@@ -311,12 +348,19 @@ static FAutoConsoleCommandWithWorld GInventoryPrintCommand(
 				UE_LOG(LogTemp, Warning, TEXT("[Inventory] wor.Inventory.PrintVerbs: no local party"));
 				return;
 			}
+			TArray<FName> Keys;
 			for (const FPartyMember &Member : Party->Members)
 			{
 				if (Member.CharacterData)
 				{
-					UE_LOG(LogTemp, Log, TEXT("%s"), *WoRInventoryVerbs::GetRowsString(World, UPoolSubsystem::GetCharacterKey(Member.CharacterData)));
+					Keys.Add(UPoolSubsystem::GetCharacterKey(Member.CharacterData));
 				}
+			}
+			// Give is listed against the next member in the party.
+			for (int32 Index = 0; Index < Keys.Num(); ++Index)
+			{
+				const FName Receiver = Keys.Num() > 1 ? Keys[(Index + 1) % Keys.Num()] : NAME_None;
+				UE_LOG(LogTemp, Log, TEXT("%s"), *WoRInventoryVerbs::GetRowsString(World, Keys[Index], Receiver));
 			}
 		}));
 #endif // !UE_BUILD_SHIPPING
