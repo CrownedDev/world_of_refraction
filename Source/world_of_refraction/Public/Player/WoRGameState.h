@@ -11,6 +11,7 @@
 #include "WoRGameState.generated.h"
 
 class UTurnStateComponent;
+class URunStateComponent;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API AWoRGameState : public AGameStateBase
@@ -23,10 +24,16 @@ public:
 	/** B-228: the fight's replicated turn state (current actor, turn order, teams). */
 	UTurnStateComponent *GetTurnState() const { return TurnState; }
 
+	/** B-232: the run every player shares and the side's roster with its seats (Q-21-audit). */
+	URunStateComponent *GetRunState() const { return RunState; }
+
 	/** The players this level holds (PlayerArray), one per line with its net role, then the turn state. */
 	FString GetDebugString() const;
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Turn State")
 	TObjectPtr<UTurnStateComponent> TurnState;
+
+	UPROPERTY(VisibleAnywhere, Category = "Run State")
+	TObjectPtr<URunStateComponent> RunState;
 };
