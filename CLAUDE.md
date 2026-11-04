@@ -48,7 +48,7 @@
 ## Cross-system communication
 
 - Prefer dynamic multicast delegates (`DECLARE_DYNAMIC_MULTICAST_DELEGATE_*`) over polling or hard references.
-- Subsystems: `GetGameInstance()->GetSubsystem<UYourSubsystem>()`. **Never cache subsystem pointers across PIE sessions.**
+- Subsystems: `GetGameInstance()->GetSubsystem<UYourSubsystem>()` for cross-run services. **Per-fight systems are world subsystems** (`UWoRFightSubsystem`, B-336): look them up with `WoRFight::Get<T>(Context)` (`Combat/WoRFightSubsystem.h`). **Never cache subsystem pointers across PIE sessions.**
 - Components: `GetOwner()->FindComponentByClass<>()` once, cache, not per-tick.
 - **Avoid `Tick`.** Turn-based combat is event-driven.
 
