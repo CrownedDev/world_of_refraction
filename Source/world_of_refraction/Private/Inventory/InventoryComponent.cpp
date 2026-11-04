@@ -484,6 +484,21 @@ void UInventoryComponent::BeginPlay()
     Super::BeginPlay();
 }
 
+namespace
+{
+    /** B-347b (Q-347): Saved names a home piece the open run left at home (so the member's copy can't hold it). */
+    bool HoldsPieceLeftHome(const UPoolSubsystem &Pool, const FSavedLoadout &Saved)
+    {
+        const auto LeftHome = [&Pool](const FGuid &ID) { return ID.IsValid() && !Pool.IsInRunView(ID); };
+        if (LeftHome(Saved.PrimaryWeaponInstance) || LeftHome(Saved.PrimaryRingInstance) ||
+            LeftHome(Saved.PrimaryEvolutionInstance) || LeftHome(Saved.SecondaryWeaponInstance))
+        {
+            return true;
+        }
+        return Saved.EquippedRings.ContainsByPredicate([&LeftHome](const FResonatorRingSlot &Slot) { return LeftHome(Slot.RingInstance); });
+    }
+}
+
 void UInventoryComponent::PushCustomLoadoutsToPool()
 {
     UPoolSubsystem *Pool = SharedPool.Get();
@@ -493,13 +508,33 @@ void UInventoryComponent::PushCustomLoadoutsToPool()
     }
     const UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
     const ECharacterClass Class = CharComp && CharComp->CharacterData ? CharComp->CharacterData->CharacterClass : ECharacterClass::Generic;
+    // B-347b (Q-347): during a run a stored loadout naming a piece left at home is kept as stored: the member's copy
+    // had that slot emptied (the piece isn't in its run armoury), and writing it back would lose it at home.
+    const TArray<FSavedLoadout> *Stored = Pool->IsRunLayerActive() ? Pool->GetCustomLoadouts(SharedGearKey) : nullptr;
     TArray<FSavedLoadout> Custom;
+    int32 Kept = 0;
     for (const FCombatLoadout &Loadout : SavedLoadouts)
     {
-        if (!Loadout.bLore)
+        if (Loadout.bLore)
+        {
+            continue;
+        }
+        const int32 CustomIndex = Custom.Num();
+        const FSavedLoadout *Home = Stored && Stored->IsValidIndex(CustomIndex) ? &(*Stored)[CustomIndex] : nullptr;
+        if (Home && HoldsPieceLeftHome(*Pool, *Home))
+        {
+            Custom.Add(*Home);
+            ++Kept;
+        }
+        else
         {
             Custom.Add(Loadout.ToSavedLoadout(Class));
         }
+    }
+    if (Kept > 0)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Inventory] %s: %d loadout(s) name gear left at home - kept as stored until the run ends"),
+               *GetNameSafe(GetOwner()), Kept);
     }
     Pool->SetCustomLoadouts(SharedGearKey, Custom);
 }
@@ -1450,8 +1485,9 @@ bool UInventoryComponent::DrawSharedGear()
     bDrawsWholeArmoury = bRunOnly;
     // B-324: the chest's gear is nobody's to wear; a recruit's whole-armoury draw leaves it in the chest.
     // Key, not SharedGearKey: that is set below, once the draw is done (IsMineInStore is the same rule after that).
+    // B-347b (Q-347): during a run only what the run brought or found (IsMineInStore is the same rule).
     const auto IsMine = [this, Pool, Key](const FGuid &ID)
-    { return bDrawsWholeArmoury ? !Pool->IsInChest(ID) : Pool->GetGearOwner(ID) == Key; };
+    { return (bDrawsWholeArmoury ? !Pool->IsInChest(ID) : Pool->GetGearOwner(ID) == Key) && Pool->IsInRunView(ID); };
 
     // The whole armoury: this member's pieces first so its presets link to them, then free pieces,
     // then pieces another member wears.
@@ -1553,7 +1589,9 @@ namespace
 
 bool UInventoryComponent::IsMineInStore(const UPoolSubsystem &Pool, const FGuid &GearID) const
 {
-    return bDrawsWholeArmoury ? !Pool.IsInChest(GearID) : Pool.GetGearOwner(GearID) == SharedGearKey;
+    // B-347b (Q-347): during a run a home piece left at home isn't this member's to equip.
+    return (bDrawsWholeArmoury ? !Pool.IsInChest(GearID) : Pool.GetGearOwner(GearID) == SharedGearKey) &&
+           Pool.IsInRunView(GearID);
 }
 
 bool UInventoryComponent::OwnsWeaponAsset(const UWeaponData *Weapon) const
@@ -1650,6 +1688,14 @@ FString UInventoryComponent::CompareWithStore() const
         for (const FEvolutionInventoryEntry *Entry : View.Evolutions)
         {
             Store.Add(Entry->InstanceID, StoreCompareEntryOf(*Entry));
+        }
+    }
+    // B-347b: during a run the member's view is what the run brought and found.
+    for (auto It = Store.CreateIterator(); It; ++It)
+    {
+        if (!Pool->IsInRunView(It->Key))
+        {
+            It.RemoveCurrent();
         }
     }
     FString Out;
@@ -2018,6 +2064,15 @@ void UInventoryComponent::PushGearToPool(const FGuid &GearID)
     // B-314 (D-111, D-097): a new piece heard of while a run is open was found or bought in it: run-only, arriving at
     // the tier its definition reached in an earlier run (raised here first, so this copy and the store agree).
     const bool bFoundOnRun = Pool->IsRunLayerActive() && Pool->GetGearOwner(GearID).IsNone();
+    // B-347b (Q-347): a home piece left out of the run isn't in this copy; hearing of it is not its removal (the
+    // store keeps it), and it doesn't join the run.
+    const bool bInCopy = FindOwned(Weapons, GearID) || FindOwned(Rings, GearID) || FindOwnedEvolution(GetOwner(), GearID);
+    if (!bInCopy && !bFoundOnRun && !Pool->IsInRunView(GearID))
+    {
+        UE_LOG(LogTemp, Verbose, TEXT("[Inventory] %s: %s is a home piece left out of the run - store unchanged"),
+               *GetNameSafe(GetOwner()), *GearID.ToString());
+        return;
+    }
     // B-321 (D-117): a new piece (loot, purchase) belongs to the member who got it; set before the update is heard.
     // A run-only recruit owns nothing, so what it gets goes to the party leader (B-323's give can move it).
     if (Pool->GetGearOwner(GearID).IsNone())
@@ -2073,7 +2128,9 @@ void UInventoryComponent::HandlePoolGearChanged(FGuid GearID)
     // B-321 (D-117): another member's piece is not in this armoury (dropped if it was, e.g. after a give).
     const FName GearOwner = Pool->GetGearOwner(GearID);
     // B-324: chest gear is nobody's, not even a run-only recruit's whole-armoury draw.
-    const bool bOthers = Pool->IsInChest(GearID) || (!bDrawsWholeArmoury && !GearOwner.IsNone() && GearOwner != SharedGearKey);
+    // B-347b (Q-347): a home piece left out of the run isn't in a member's view until the run ends.
+    const bool bOthers = Pool->IsInChest(GearID) || !Pool->IsInRunView(GearID) ||
+                         (!bDrawsWholeArmoury && !GearOwner.IsNone() && GearOwner != SharedGearKey);
     // B-323 (D-115): a piece given to this member that it already owns a copy of waits for the duplicate choice.
     // Only a piece now this member's own: a run-only recruit hears the whole armoury, and unowned gear isn't a gift.
     const bool bMineNow = !bDrawsWholeArmoury && !GearOwner.IsNone() && GearOwner == SharedGearKey;
