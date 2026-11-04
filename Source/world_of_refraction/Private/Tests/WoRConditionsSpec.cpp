@@ -24,6 +24,10 @@ namespace
 	const FName WOR_CONDITIONS_TEST_ELSEWHERE(TEXT("Elsewhere_WoRConditionsSpec"));
 	constexpr int32 WOR_CONDITIONS_TEST_LEVEL = 2;
 	constexpr int32 WOR_CONDITIONS_TEST_TOO_HIGH = WOR_CONDITIONS_TEST_LEVEL + 1;
+	/** ER-59: Lord's Mind; one item asks for less (Lord is over by the gap), one for more (short by it). */
+	constexpr int32 WOR_CONDITIONS_TEST_LORD_MIND = 4;
+	constexpr int32 WOR_CONDITIONS_TEST_PILLAR_GAP = 2;
+	const int32 WOR_CONDITIONS_TEST_MARGINS[] = {0, WOR_CONDITIONS_TEST_PILLAR_GAP, WOR_CONDITIONS_TEST_PILLAR_GAP + 1};
 
 	EItemTier WoRConditionsTestTier(int32 StepsAboveF)
 	{
@@ -39,6 +43,10 @@ BEGIN_DEFINE_SPEC(FWoRConditionsSpec, "WoR.Conditions",
 	UCharacterData *Lord = nullptr;
 	UCharacterData *Other = nullptr;
 	UWeaponData *Sword = nullptr;
+	/** Asks for Mind below Lord's: Lord meets it, over by the gap. */
+	UWeaponData *Demanding = nullptr;
+	/** Asks for Mind above Lord's: Lord is short by the gap. */
+	UWeaponData *OutOfReach = nullptr;
 	UEvolutionItemData *Evolution = nullptr;
 	USpellData *Spell = nullptr;
 	UMemoryData *Collected = nullptr;
@@ -68,6 +76,8 @@ BEGIN_DEFINE_SPEC(FWoRConditionsSpec, "WoR.Conditions",
 		FMemoryEventMember Member;
 		Member.Character = Lord;
 		Member.Worn.Add({Sword, WoRConditionsTestTier(WOR_CONDITIONS_TEST_LEVEL)});
+		Member.Worn.Add({Demanding, EItemTier::F_Tier});
+		Member.Worn.Add({OutOfReach, EItemTier::F_Tier});
 		Member.Evolution = Evolution;
 		Member.EvolutionTier = WoRConditionsTestTier(WOR_CONDITIONS_TEST_LEVEL);
 		Member.Slotted.Add(Spell);
@@ -147,6 +157,24 @@ BEGIN_DEFINE_SPEC(FWoRConditionsSpec, "WoR.Conditions",
 			Add(*(TEXT("Skill slotted") + Suffix), Slotted);
 		}
 
+		// ER-59: the pillar maths, every fit and margin, on items with requirements.
+		for (const EMemoryRequirementFit Fit :
+			 {EMemoryRequirementFit::Any, EMemoryRequirementFit::Met, EMemoryRequirementFit::Above, EMemoryRequirementFit::Under})
+		{
+			for (const int32 Margin : WOR_CONDITIONS_TEST_MARGINS)
+			{
+				for (UWeaponData *Item : {Demanding, OutOfReach})
+				{
+					FMemoryCondition Gear = Make(EMemoryConditionKind::GearEquipped);
+					Gear.Item = Item;
+					Gear.RequirementFit = Fit;
+					Gear.RequirementMargin = Margin;
+					Add(*FString::Printf(TEXT("%s fit %d margin %d"), Item == Demanding ? TEXT("Demanding") : TEXT("Out of reach"),
+										 static_cast<int32>(Fit), Margin), Gear);
+				}
+			}
+		}
+
 		FMemoryCondition Location = Make(EMemoryConditionKind::Location);
 		Location.LocationId = WOR_CONDITIONS_TEST_LOCATION;
 		Add(TEXT("Location here"), Location);
@@ -192,8 +220,13 @@ void FWoRConditionsSpec::Define()
 		GameInstance = TestWorld->GetWorld() ? TestWorld->GetWorld()->GetGameInstance() : nullptr;
 		Journal = TestWorld->GetSubsystem<UMemoryJournalSubsystem>();
 		Lord = FWoRTestWorld::NewCharacterData();
+		Lord->WorldMindLevel = WOR_CONDITIONS_TEST_LORD_MIND;
 		Other = FWoRTestWorld::NewCharacterData();
 		Sword = NewObject<UWeaponData>(GetTransientPackage());
+		Demanding = NewObject<UWeaponData>(GetTransientPackage());
+		Demanding->Requirements.RequiredWorldMind = WOR_CONDITIONS_TEST_LORD_MIND - WOR_CONDITIONS_TEST_PILLAR_GAP;
+		OutOfReach = NewObject<UWeaponData>(GetTransientPackage());
+		OutOfReach->Requirements.RequiredWorldMind = WOR_CONDITIONS_TEST_LORD_MIND + WOR_CONDITIONS_TEST_PILLAR_GAP;
 		Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
 		Spell = NewObject<USpellData>(GetTransientPackage());
 		Collected = NewObject<UMemoryData>(GetTransientPackage(), MakeUniqueObjectName(GetTransientPackage(), UMemoryData::StaticClass()));
@@ -228,6 +261,28 @@ void FWoRConditionsSpec::Define()
 		const UEnum *KindEnum = StaticEnum<EMemoryConditionKind>();
 		TestEqual(TEXT("every kind covered"), Kinds.Num(), static_cast<int32>(KindEnum->NumEnums() - 1)); // minus the generated _MAX
 		TestTrue(TEXT("some cases met, some not"), MetCount > 0 && MetCount < Cases.Num());
+	});
+
+	It("measures the wearer against requirements: over and short by a margin (ER-59)", [this]()
+	{
+		const FMemoryEvent Full = FullEvent();
+		const FWoRConditionContext Context = WoRConditions::MakeContext(Full, Journal);
+		auto Fits = [&](UWeaponData *Item, EWoRRequirementFit Fit, int32 Margin)
+		{
+			FWoRCondition Gear;
+			Gear.Subject = EWoRConditionSubject::GearEquipped;
+			Gear.Item = Item;
+			Gear.RequirementFit = Fit;
+			Gear.RequirementMargin = Margin;
+			return WoRConditions::IsMet(Gear, Context);
+		};
+		TestTrue(TEXT("Met: Lord meets the lower ask"), Fits(Demanding, EWoRRequirementFit::Met, 0));
+		TestFalse(TEXT("Met: not the higher one"), Fits(OutOfReach, EWoRRequirementFit::Met, 0));
+		TestTrue(TEXT("Above by the gap"), Fits(Demanding, EWoRRequirementFit::Above, WOR_CONDITIONS_TEST_PILLAR_GAP));
+		TestFalse(TEXT("Not above by more than the gap"), Fits(Demanding, EWoRRequirementFit::Above, WOR_CONDITIONS_TEST_PILLAR_GAP + 1));
+		TestTrue(TEXT("Under by the gap"), Fits(OutOfReach, EWoRRequirementFit::Under, WOR_CONDITIONS_TEST_PILLAR_GAP));
+		TestFalse(TEXT("Not under by more than the gap"), Fits(OutOfReach, EWoRRequirementFit::Under, WOR_CONDITIONS_TEST_PILLAR_GAP + 1));
+		TestFalse(TEXT("Under: not when it meets them"), Fits(Demanding, EWoRRequirementFit::Under, 0));
 	});
 
 	It("needs the event's trigger when a condition names one", [this]()
