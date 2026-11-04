@@ -660,7 +660,7 @@ namespace CrystalEffectTable
             {
                 Total += GetStoneBasePercent(B.Type, B.Tier);
             }
-            if (Att.Fusion.Id.BonusStat == Stat)
+            if (Att.Fusion.Id.BonusStat == Stat) // OBSOLETE (B-352, D-141; D-124 sweep): the fusion bonus formula
             {
                 Total += (TierHelpers::GetTierValue(A.Tier) + TierHelpers::GetTierValue(B.Tier)) / 2.0f;
             }
