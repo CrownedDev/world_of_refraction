@@ -1817,6 +1817,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** the trial's element sets the weather on the map and in battle (B-189); in combat a boss phase change steps it (D-098). The leader-HP tug-of-war in `UWeatherStateManager` retires (flag OBSOLETE).
 **Notes for Claude:** job B-359.
 
+### Q-359 — How a boss phase steps the weather baseline
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-359, cloud) · **Blocks:** —
+**Question:** D-149 makes the trial's element the weather; D-098 says each boss phase pushes the weather toward the boss's element and raises its intensity. What exactly changes at a phase?
+**Options:** **A** the element becomes the boss's own innate element (unchanged when the boss has none) and the intensity is the strongest phased boss's `GetWeatherIntensity`. **B** keep the trial's element and raise only the intensity.
+**Recommendation:** A. It is D-098 as worded; Final Fantasy XVI's and Elden Ring's phase changes swap the arena's sky to the boss's theme, a widely liked cue that the fight escalated.
+**Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
+**Notes for Claude:** built in B-359 (unbuilt). The per-element weather look (sky, fog, light) is B-189's table (CC+UE); until then the battle reads the element through `GetBattleWeatherElement` / `OnBattleWeatherChanged`, and the old `OnWeatherChanged` keeps firing for its Blueprint listeners.
+
 ### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
 **Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.

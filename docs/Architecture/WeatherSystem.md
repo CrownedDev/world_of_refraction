@@ -385,3 +385,4 @@ before touching any code.
   `CharacterData::EquippedWeatherVariant` as referenced by the older long-form
   architecture doc). Catalogues the seven downstream problems found while reading
   the code (G1-G9) and the debug-tool gap.
+| 2026-11-04 | B-359 (D-149, Q-359): one baseline. `GetBaselineElement` (the active trial's element, Generic outside a trial) is the battle's weather; a phased boss steps it to its element and phase intensity (`GetBattleWeatherElement` / `Intensity`, `OnBattleWeatherChanged`). Team HP is no longer bound: `BindToTeam`, `ComputeBlendValue` and the HP / death handlers flagged OBSOLETE; `OnWeatherChanged` still fires, its blend moved only by a boss. Spec `WoR.Weather.Baseline`. Written unbuilt in a cloud session. | feature/B-359-weather-baseline |
