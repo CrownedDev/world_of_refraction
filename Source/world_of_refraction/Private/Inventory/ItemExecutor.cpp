@@ -25,7 +25,6 @@ void UItemExecutor::Initialize(FSubsystemCollectionBase &Collection)
 
 void UItemExecutor::Deinitialize()
 {
-	SkillEffectManagerRef = nullptr;
 	Super::Deinitialize();
 }
 
@@ -1199,15 +1198,9 @@ UCharacterDataComponent *UItemExecutor::GetCharacterDataComponent(AActor *Actor)
 
 USkillEffectManager *UItemExecutor::GetSkillEffectManager() const
 {
-	if (!SkillEffectManagerRef)
-	{
-		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
-		{
-			const_cast<UItemExecutor *>(this)->SkillEffectManagerRef =
-				WoRFight::Get<USkillEffectManager>(GI);
-		}
-	}
-	return SkillEffectManagerRef;
+	// Looked up each time, not cached: it lives on the current world and this executor outlives
+	// a level change (B-336).
+	return WoRFight::Get<USkillEffectManager>(this);
 }
 
 bool UItemExecutor::IsBrokenDarknessCharacter(AActor *Actor) const
