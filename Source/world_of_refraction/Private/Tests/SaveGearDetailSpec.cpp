@@ -6,6 +6,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
+#include "Skills/Definitions/AbilityData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -17,6 +18,7 @@
 
 namespace
 {
+	const FCrystalId GEAR_DETAIL_STONE(ECrystalType::DamageStone, EItemTier::C_Tier);
 	const FCrystalId GEAR_DETAIL_CRYSTAL(ECrystalType::Sapphire, EItemTier::E_Tier);
 	constexpr int32 GEAR_DETAIL_WEAR = 7;
 	constexpr int32 GEAR_DETAIL_RAW_DAMAGE = 12;
@@ -70,6 +72,12 @@ void FSaveGearDetailSpec::Define()
 		Entry.AttachedItem.Crystal.Id = GEAR_DETAIL_CRYSTAL;
 		Entry.AttachedItem.Crystal.CurrentDurability = GEAR_DETAIL_WEAR;
 		Entry.AssignedSpells = {Spell};
+		// B-351: a stone in the stone socket, and a skill pick in slot 2 (slot 1 keeps its built-in).
+		UAbilityData *Picked = NewObject<UAbilityData>(GetTransientPackage());
+		Entry.StoneSocket.Kind = EAttachedItemKind::AugmentStone;
+		Entry.StoneSocket.Crystal.Id = GEAR_DETAIL_STONE;
+		Entry.SkillPicks = {nullptr, Picked};
+		Entry.bSkillSlotsActive = true;
 		Entry.StatBonus.BonusRawDamage = GEAR_DETAIL_RAW_DAMAGE;
 		Entry.ResistanceBonus.Fire = GEAR_DETAIL_FIRE_RESIST;
 		Entry.StatPool = GEAR_DETAIL_STAT_POOL;
@@ -86,6 +94,10 @@ void FSaveGearDetailSpec::Define()
 		TestTrue(TEXT("The same crystal"), Back.AttachedItem.Crystal.Id == GEAR_DETAIL_CRYSTAL);
 		TestEqual(TEXT("With its wear"), Back.AttachedItem.Crystal.CurrentDurability, GEAR_DETAIL_WEAR);
 		TestTrue(TEXT("The same spell on it"), Back.AssignedSpells.Num() == 1 && Back.AssignedSpells[0] == Spell);
+		TestTrue(TEXT("The same stone in the stone socket"), Back.StoneSocket.IsAugmentStone() && Back.StoneSocket.Crystal.Id == GEAR_DETAIL_STONE);
+		TestTrue(TEXT("The same skill picks, slot 1 left to the built-in"),
+				 Back.SkillPicks.Num() == 2 && Back.SkillPicks[0] == nullptr && Back.SkillPicks[1] == Picked);
+		TestTrue(TEXT("The list still active"), Back.bSkillSlotsActive);
 		TestEqual(TEXT("The same stat roll"), Back.StatBonus.BonusRawDamage, GEAR_DETAIL_RAW_DAMAGE);
 		TestEqual(TEXT("The same resistance roll"), Back.ResistanceBonus.Fire, GEAR_DETAIL_FIRE_RESIST);
 		TestTrue(TEXT("The same roll pools"), Back.StatPool == GEAR_DETAIL_STAT_POOL && Back.StatMaxPool == GEAR_DETAIL_STAT_MAX_POOL);
