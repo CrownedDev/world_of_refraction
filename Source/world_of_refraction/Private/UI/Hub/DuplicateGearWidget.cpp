@@ -19,6 +19,9 @@
 #include "Inventory/InventoryComponent.h"
 #include "Inventory/ItemTier.h"
 
+#include "Currency/CurrencyTypes.h"
+#include "WoRGameNames.h"
+
 #define LOCTEXT_NAMESPACE "DuplicateGear"
 
 namespace DuplicateGearStyle
@@ -128,7 +131,7 @@ TSharedRef<SWidget> UDuplicateGearWidget::RebuildWidget()
 		PairText = DuplicateGearBuild::AddText(WidgetTree, Box);
 		DuplicateGearBuild::AddButton(WidgetTree, Box, LOCTEXT("Next", "Next duplicate"))
 			->OnClicked.AddDynamic(this, &UDuplicateGearWidget::HandleNextClicked);
-		GoldButton = DuplicateGearBuild::AddButton(WidgetTree, Box, LOCTEXT("Gold", "Convert the weaker copy to Gold"));
+		GoldButton = DuplicateGearBuild::AddButton(WidgetTree, Box, FText::Format(LOCTEXT("Gold", "Convert the weaker copy to {0}"), WoRGameNames::GetCurrencyName(ECurrencyType::Gold)));
 		GoldButton->OnClicked.AddDynamic(this, &UDuplicateGearWidget::HandleGoldClicked);
 		DismantleButton = DuplicateGearBuild::AddButton(WidgetTree, Box, LOCTEXT("Dismantle", "Dismantle the weaker copy"));
 		DismantleButton->OnClicked.AddDynamic(this, &UDuplicateGearWidget::HandleDismantleClicked);
@@ -162,9 +165,10 @@ void UDuplicateGearWidget::Refresh()
 		const FWeaponInventoryEntry *Weapon = Pair.bRing ? nullptr : Inv->FindOwnedWeapon(Pair.WeakerID);
 		const FRingInventoryEntry *Ring = Pair.bRing ? Inv->FindOwnedRing(Pair.WeakerID) : nullptr;
 		const int32 Gold = UEconomyService::GetDuplicateGoldForTier(Weapon ? Weapon->Tier : Ring ? Ring->Tier : EItemTier::F_Tier);
-		Row = FText::Format(LOCTEXT("PairRow", "Keep: {0}\nWeaker: {1} ({2} Gold)\n{3} of {4}"),
+		Row = FText::Format(LOCTEXT("PairRow", "Keep: {0}\nWeaker: {1} ({2} {5})\n{3} of {4}"),
 							DuplicateGearBuild::DescribeCopy(*Inv, Pair.KeptID, Pair.bRing),
-							DuplicateGearBuild::DescribeCopy(*Inv, Pair.WeakerID, Pair.bRing), Gold, SelectedIndex + 1, Pairs.Num());
+							DuplicateGearBuild::DescribeCopy(*Inv, Pair.WeakerID, Pair.bRing), Gold, SelectedIndex + 1, Pairs.Num(),
+							WoRGameNames::GetCurrencyName(ECurrencyType::Gold));
 	}
 	PairText->SetText(Row);
 	GoldButton->SetIsEnabled(!Pairs.IsEmpty());
@@ -196,7 +200,7 @@ void UDuplicateGearWidget::Resolve(bool bConvertToGold)
 	const FText Name = DuplicateGearBuild::DescribeCopy(*Inv, Pair.WeakerID, Pair.bRing);
 	const bool bDone = Economy->ResolveDuplicate(DuplicateGearBuild::OwnerOf(this), Pair.WeakerID, bConvertToGold);
 	StatusText = !bDone ? FText::Format(LOCTEXT("Failed", "Couldn't resolve {0}"), Name)
-			   : bConvertToGold ? FText::Format(LOCTEXT("ToGold", "{0} converted to Gold"), Name)
+			   : bConvertToGold ? FText::Format(LOCTEXT("ToGold", "{0} converted to {1}"), Name, WoRGameNames::GetCurrencyName(ECurrencyType::Gold))
 								: FText::Format(LOCTEXT("Dismantled", "{0} dismantled"), Name);
 	Refresh();
 	UE_LOG(LogTemp, Log, TEXT("%s"), *GetDuplicateString());
@@ -233,7 +237,7 @@ void UDuplicateGearWidget::HandleCloseClicked()
 
 static FAutoConsoleCommandWithWorld GDuplicateGearUICommand(
 	TEXT("wor.UI.Duplicates"),
-	TEXT("PLACEHOLDER UI: convert the weaker copy of a duplicate weapon or adapter to Gold, or dismantle it (D-115)."),
+	TEXT("PLACEHOLDER UI: convert the weaker copy of a duplicate weapon or adapter to Prisms (the run currency), or dismantle it (D-115)."),
 	FConsoleCommandWithWorldDelegate::CreateLambda(
 		[](UWorld *World)
 		{

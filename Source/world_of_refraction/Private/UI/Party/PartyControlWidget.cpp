@@ -263,7 +263,7 @@ void UPartyControlWidget::Refresh()
 	{
 		const int32 RepairGold = Party ? GearRepair::GetPartyRepairCost(*Party) : 0;
 		RepairGearText->SetText(RepairGold > 0
-									? FText::Format(LOCTEXT("RepairGear", "Rest: repair gear ({0} Gold)"), RepairGold)
+									? FText::Format(LOCTEXT("RepairGear", "Rest: repair gear ({0} {1})"), RepairGold, WoRGameNames::GetCurrencyName(ECurrencyType::Gold))
 									: LOCTEXT("NothingToRepair", "Rest: no gear to repair"));
 	}
 

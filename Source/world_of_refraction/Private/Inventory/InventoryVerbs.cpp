@@ -16,6 +16,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
+#include "Currency/CurrencyTypes.h"
 #include "WoRGameNames.h"
 
 #define LOCTEXT_NAMESPACE "InventoryVerbs"
@@ -188,7 +189,7 @@ namespace WoRInventoryVerbs
 		}
 		if (Verb == EInventoryVerb::Convert && (!Row.IsGear() || !InventoryVerbsIsWeakerCopy(Inventory, Row.GearID)))
 		{
-			return LOCTEXT("NotWeaker", "Only the weaker copy of a duplicate converts to Gold");
+			return FText::Format(LOCTEXT("NotWeaker", "Only the weaker copy of a duplicate converts to {0}"), WoRGameNames::GetCurrencyName(ECurrencyType::Gold));
 		}
 		if (Row.IsGear() && Pool->IsRunLayerActive() && !Pool->IsRunOnly(Row.GearID))
 		{
@@ -222,7 +223,8 @@ namespace WoRInventoryVerbs
 		if (Verb == EInventoryVerb::Convert)
 		{
 			// Converting strips the copy from every loadout too, so a worn copy gets D-016's warning first.
-			const FText Convert = FText::Format(LOCTEXT("ConfirmConvert", "Convert {0} to {1} Gold?"), Row.Label, InventoryVerbsConvertGold(*Pool, Row.GearID));
+			const FText Convert = FText::Format(LOCTEXT("ConfirmConvert", "Convert {0} to {1} {2}?"), Row.Label, InventoryVerbsConvertGold(*Pool, Row.GearID),
+												WoRGameNames::GetCurrencyName(ECurrencyType::Gold));
 			const FText Worn = UEconomyService::GetDismantleWarning(Inventory->GetOwner(), Row.GearID);
 			return Worn.IsEmpty() ? Convert : FText::Format(LOCTEXT("ConfirmConvertWorn", "{0} {1}"), Worn, Convert);
 		}
