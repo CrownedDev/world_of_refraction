@@ -73,6 +73,7 @@
 | 32 | The four unreachable status-break cases (`SpeedDebuff`, `CritDebuff`, `EnergyDebuff`, `RandomDebuff`) — `SkillEffectManager.cpp:3106` (B-268) | `BarCapTriggerResolver`'s real outcomes | [B-268](B-268.md) (each element's status break) | sweep | [ ] |
 | 33 | `SkillEffectDisplayNames::GetDisplayInfo` — `Public/Skills/Effects/SkillEffectDisplayNames.h:212` (B-248) | The one status-per-element table, `FText` names (D-061) | [B-248](B-248.md) + Blueprint check: no caller | sweep | [ ] |
 | 34 | `UStatusBuildupManager` legacy resistance query — `Public/Skills/Effects/StatusBuildupManager.h:177` (B-216) | `WoRResistance::GetTypeResistance` | [B-216](B-216.md) (`UResistanceQueryDebug` comparison matches) | sweep | [ ] |
+| 46 | The old skill-effect conditions: `FSkillEffect::Conditions` / `FActiveSkillEffect::Conditions` (`FSkillCondition`), the legacy trigger fields (`TriggerCondition`, `SecondaryTriggerCondition`, thresholds, `bRequireBothTriggers`), `EvaluateConditionGroup`, `ECondSubject`, `IsOwnerSide` / `IsTargetSide`, the read-across (`SkillConditions::ToSets` / `FromLegacy`) and `USkillEffectManager::IsSingleTriggerMet` (B-337d, Crown 2026-11-04) | The authored `FWoRConditionSet` field (B-337e: filled on load, every effect asset resaved in the editor) | [B-337d](B-337d.md) + [B-337e](B-337e.md) (after the editor resave; the list command shows no asset on old conditions) + Blueprint check: no reads of `Conditions` / `TriggerCondition` | sweep (after B-337e) | [ ] |
 
 ## Infusion
 
@@ -377,6 +378,9 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-322](B-322.md) | A 10-slot pouch per character; save v9; older save's pouch to the leader | Pending | REVIEW (in dev) | [ ] |
 | [B-323](B-323.md) | Give a weapon, adapter or pouch stack between your characters; `wor.UI.Give` | Pending | REVIEW (in dev) | [ ] |
 | [B-324](B-324.md) | Unworn gear in the shared chest, any member takes it; `wor.UI.Storage` | Pending | REVIEW (in dev) | [ ] |
+| [B-337d](B-337d.md) | Skill-effect conditions check through the shared conditions (HP / EP percent) | Pending | REVIEW (in dev) | [ ] |
+| [B-366e](B-366e.md) | Gear repair costs the currency of the place | Pending | REVIEW (in dev) | [ ] |
+| [B-367](B-367.md) | Only a Perfect Guard / Perfect Dodge stops an interrupt point; Flawless Parry at an interrupt | Pending | REVIEW (in dev) | [ ] |
 
 ---
 
