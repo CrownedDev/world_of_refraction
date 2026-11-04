@@ -3,6 +3,8 @@
 #include "Combat/Actions/ActionExecutor.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "GAS/WoRTurnEffectTracker.h"
+#include "GAS/WoRCombatEvents.h"
+#include "Tags/WoRGameplayTags.h"
 #include "ActionExecutorInternal.h"
 #include "MotionWarpingComponent.h"
 #include "WoRLog.h"
@@ -3072,9 +3074,11 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			int32 FinalDamage = CalcResult.FinalDamage;
 			// B-042j (D-092): Ward, Shield and Barrier negate from what Guard and Defense left (Q-044e B), this
 			// impact being one damage instance (Q-044f A). Before Absorb: negated damage isn't damage.
+			int32 Negated = 0;
 			if (UWoRTurnEffectTracker *Absorbers = Input.Target->FindComponentByClass<UWoRTurnEffectTracker>())
 			{
-				FinalDamage -= Absorbers->AbsorbHit(FinalDamage, Input.Element, Input.PhysicalDamageType);
+				Negated = Absorbers->AbsorbHit(FinalDamage, Input.Element, Input.PhysicalDamageType);
+				FinalDamage -= Negated;
 			}
 			if (USkillEffectManager *SEM = GetSkillEffectManager())
 			{
@@ -3100,6 +3104,24 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			// TODO: B-032c review — a Last Stand save inside ServerTakeDamage (CheckDeath raises HP)
 			// makes this negative; OnDamageDealt / PartialResult then see it. Clamp once decided.
 			Result.DamageDealt = HPBefore - TargetComp->CurrentHP;
+
+			if (Negated > 0)
+			{
+				// B-042j2 (D-092 rule 7): what the absorbers stop is reported as On Guard. When the defender guarded the
+				// impact itself, its outcome already fired (ResolveImpactDefense); otherwise the absorbers' stop is the guard.
+				const bool bGuardedItself = Input.GuardFactor < 1.0f;
+				UDefenseSystem *DefenseSys = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDefenseSystem>() : nullptr;
+				if (!bGuardedItself && DefenseSys)
+				{
+					DefenseSys->OnDefenseResolved.Broadcast(Input.Target, Input.Attacker, EDefenseType::Block, false, 0, 0.0f);
+				}
+				// Rule 8: a hit the absorbers stopped entirely is still a hit (the Hit event fires), not damage
+				// (OnDamageDealt's damage reactions skip a 0).
+				if (Result.DamageDealt <= 0)
+				{
+					WoRCombatEvents::Send(Input.Target, WoRTags::Event_Combat_Hit, Input.Attacker, 0.0f);
+				}
+			}
 
 			// Reflect — bounce a percent of the HP the hit took back to the attacker, after the hit
 			// lands (Q-032: an overkill reflects only the HP the target had; read before the hit so
@@ -5526,7 +5548,8 @@ void UActionExecutor::ApplySkillEffects(
 			const int32 RuntimeValue =
 				(P.EffectType == ESkillEffectType::StatusIncrease ||
 				 P.EffectType == ESkillEffectType::StatusDecrease ||
-				 P.EffectType == ESkillEffectType::DOT)
+				 P.EffectType == ESkillEffectType::DOT ||
+				 SkillEffectClassification::IsNegate(P.EffectType)) // B-042j2: Value = the damage negated
 					? FMath::RoundToInt(P.Value * EffMagMult)
 					: FMath::RoundToInt(P.Magnitude * 100.0f * EffMagMult);
 
