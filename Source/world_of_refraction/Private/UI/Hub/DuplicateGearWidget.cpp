@@ -131,7 +131,7 @@ TSharedRef<SWidget> UDuplicateGearWidget::RebuildWidget()
 		PairText = DuplicateGearBuild::AddText(WidgetTree, Box);
 		DuplicateGearBuild::AddButton(WidgetTree, Box, LOCTEXT("Next", "Next duplicate"))
 			->OnClicked.AddDynamic(this, &UDuplicateGearWidget::HandleNextClicked);
-		const FText ConvertLabel = FText::Format(LOCTEXT("Gold", "Convert the weaker copy to {0}"), WoRGameNames::GetCurrencyName(ECurrencyType::Gold));
+		const FText ConvertLabel = FText::Format(LOCTEXT("Gold", "Convert the weaker copy to {0}"), WoRGameNames::GetCurrencyName(UEconomyService::GetPlaceCurrency(this)));
 		GoldButton = DuplicateGearBuild::AddButton(WidgetTree, Box, ConvertLabel);
 		GoldButton->OnClicked.AddDynamic(this, &UDuplicateGearWidget::HandleGoldClicked);
 		DismantleButton = DuplicateGearBuild::AddButton(WidgetTree, Box, LOCTEXT("Dismantle", "Dismantle the weaker copy"));
@@ -169,7 +169,7 @@ void UDuplicateGearWidget::Refresh()
 		Row = FText::Format(LOCTEXT("PairRow", "Keep: {0}\nWeaker: {1} ({2} {5})\n{3} of {4}"),
 							DuplicateGearBuild::DescribeCopy(*Inv, Pair.KeptID, Pair.bRing),
 							DuplicateGearBuild::DescribeCopy(*Inv, Pair.WeakerID, Pair.bRing), Gold, SelectedIndex + 1, Pairs.Num(),
-							WoRGameNames::GetCurrencyName(ECurrencyType::Gold));
+							WoRGameNames::GetCurrencyName(UEconomyService::GetPlaceCurrency(this)));
 	}
 	PairText->SetText(Row);
 	GoldButton->SetIsEnabled(!Pairs.IsEmpty());
@@ -201,7 +201,7 @@ void UDuplicateGearWidget::Resolve(bool bConvertToGold)
 	const FText Name = DuplicateGearBuild::DescribeCopy(*Inv, Pair.WeakerID, Pair.bRing);
 	const bool bDone = Economy->ResolveDuplicate(DuplicateGearBuild::OwnerOf(this), Pair.WeakerID, bConvertToGold);
 	StatusText = !bDone ? FText::Format(LOCTEXT("Failed", "Couldn't resolve {0}"), Name)
-			   : bConvertToGold ? FText::Format(LOCTEXT("ToGold", "{0} converted to {1}"), Name, WoRGameNames::GetCurrencyName(ECurrencyType::Gold))
+			   : bConvertToGold ? FText::Format(LOCTEXT("ToGold", "{0} converted to {1}"), Name, WoRGameNames::GetCurrencyName(UEconomyService::GetPlaceCurrency(this)))
 								: FText::Format(LOCTEXT("Dismantled", "{0} dismantled"), Name);
 	Refresh();
 	UE_LOG(LogTemp, Log, TEXT("%s"), *GetDuplicateString());
