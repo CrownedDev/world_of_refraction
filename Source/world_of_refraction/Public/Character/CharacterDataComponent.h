@@ -150,10 +150,10 @@ public:
      * read it raw. Born-nature is a separate axis — query
      * UCharacterData::bBrokenDarknessInnate, not this flag.
      *
-     * SaveGame-tagged for future persistence wiring; no save system exists yet,
+     * Not saved (B-348 removed its SaveGame tag, D-059; persisting it is B-348b),
      * so the flag is session-only as of this commit.
      */
-    UPROPERTY(SaveGame, ReplicatedUsing = OnRep_bIsBrokenDarkness, VisibleAnywhere, BlueprintReadOnly, Category = "Combat|BrokenDarkness")
+    UPROPERTY(ReplicatedUsing = OnRep_bIsBrokenDarkness, VisibleAnywhere, BlueprintReadOnly, Category = "Combat|BrokenDarkness")
     bool bIsBrokenDarkness = false;
 
     // ========================================
@@ -524,7 +524,7 @@ public:
     // Layering (Option A — one live value per pillar):
     //   live = asset baseline (UCharacterData::WorldXLevel) + head-start (persistent) + earned/bought (run).
     // Live is the combat value (C2 repoints readers here, off the asset). Run reset re-seeds (asset +
-    // head-start), wiping earned. Head-start is the per-character persistent floor (SaveGame, dormant
+    // head-start), wiping earned. Head-start is the per-character persistent floor (not saved yet: B-348b, dormant
     // until a save system exists — mirrors bIsBrokenDarkness above).
 
     /** Live combat world-stat value (per pillar). Run-scoped — NOT SaveGame; re-seeded each run.
@@ -539,15 +539,15 @@ public:
     int32 LiveWorldSpirit = 0;
 
     /** Persistent head-start allocation (per pillar) — the starting floor raised by §8 perks.
-     *  SaveGame-tagged (persists per-character once a save system exists; dormant/session-only
+     *  Not saved yet (B-348 removed the SaveGame tags, D-059; B-348b gives it a home in FWoRSaveData; session-only
      *  until then, like bIsBrokenDarkness). Capped at HEAD_START_BUDGET total across pillars. */
-    UPROPERTY(SaveGame, BlueprintReadOnly, Category = "Stats|World")
+    UPROPERTY(BlueprintReadOnly, Category = "Stats|World")
     int32 HeadStartMind = 0;
 
-    UPROPERTY(SaveGame, BlueprintReadOnly, Category = "Stats|World")
+    UPROPERTY(BlueprintReadOnly, Category = "Stats|World")
     int32 HeadStartBody = 0;
 
-    UPROPERTY(SaveGame, BlueprintReadOnly, Category = "Stats|World")
+    UPROPERTY(BlueprintReadOnly, Category = "Stats|World")
     int32 HeadStartSpirit = 0;
 
     /** How many world-stat points were BOUGHT this run — drives the escalating vendor price (C4).
