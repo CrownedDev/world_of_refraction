@@ -1,6 +1,7 @@
 // LevelDropsSpec.cpp
 // B-223 (D-102, Q-223): defeated enemies drop pillar levels into the run; the player places each on a party
 // member's chosen pillar (WoRLevelDrops::TryPlaceLevel), capped at 7, and a re-seed keeps it.
+// B-360c (D-150 point 2, Q-360c): a second copy of one character places and reads its own levels.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -191,6 +192,46 @@ void FLevelDropsSpec::Define()
 		TestEqual(TEXT("still the member's"), Run->GetUnspentLevels(KeyOf(Member)), 1);
 		TestTrue(TEXT("the member places it"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Member, EWorldPillar::Mind).IsEmpty());
 		TestEqual(TEXT("nothing waits in all"), Run->GetTotalUnspentLevels(), 0);
+	});
+
+	It("B-360c: a second copy of a character spends and reads its own levels, not the first copy's", [this]()
+	{
+		UPartySessionSubsystem *PartySession = TestWorld->GetSubsystem<UPartySessionSubsystem>();
+		UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+		if (!TestTrue(TEXT("setup"), Run && Member && Party && Party->Members.Num() >= 1)) return;
+		FPartyMember &FirstCopy = Party->Members[0];
+		TestTrue(TEXT("the first member is the spawned character"), FirstCopy.CharacterData == Member);
+		FPartyMember &SecondCopy = Party->Members.AddDefaulted_GetRef();
+		SecondCopy.PawnClass = ACombatCharacter::StaticClass();
+		SecondCopy.CharacterData = Member;
+		SecondCopy.MemberId = FGuid::NewGuid();
+		SecondCopy.bKeyedByMember = true;
+		const FName FirstKey = UPoolSubsystem::GetCharacterKey(Party->Members[0]);
+		const FName SecondKey = UPoolSubsystem::GetCharacterKey(Party->Members.Last());
+		if (!TestTrue(TEXT("two keys"), FirstKey != SecondKey)) return;
+
+		Run->AddUnspentLevels(SecondKey, 1);
+		TestFalse(TEXT("the first copy can't spend the second's levels"),
+				  WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Party->Members[0], EWorldPillar::Mind).IsEmpty());
+		TestEqual(TEXT("still the second copy's"), Run->GetUnspentLevels(SecondKey), 1);
+		TestTrue(TEXT("the second copy places it"),
+				 WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), Party->Members.Last(), EWorldPillar::Mind).IsEmpty());
+		TestEqual(TEXT("none left"), Run->GetUnspentLevels(SecondKey), 0);
+		TestEqual(TEXT("the level is the second copy's"), Run->GetRunEarnedLevels(SecondKey, EWorldPillar::Mind), 1);
+		TestEqual(TEXT("the first copy's run levels are untouched"), Run->GetRunEarnedLevels(FirstKey, EWorldPillar::Mind), 0);
+		TestEqual(TEXT("the second copy reads the asset level plus its level"),
+				  WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), Party->Members.Last(), EWorldPillar::Mind), LEVEL_DROPS_TEST_ASSET_MIND + 1);
+		TestEqual(TEXT("the first copy (spawned) reads the asset level"),
+				  WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), Party->Members[0], EWorldPillar::Mind), LEVEL_DROPS_TEST_ASSET_MIND);
+
+		// A pawn stamped with the second copy's id is the second copy's pawn; the unstamped pawn stays the first's.
+		AActor *CopyPawn = TestWorld->SpawnCombatant(Member);
+		UCharacterDataComponent *CopyComp = CopyPawn ? CopyPawn->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		if (!TestNotNull(TEXT("copy pawn"), CopyComp)) return;
+		CopyComp->PartyMemberId = Party->Members.Last().MemberId;
+		TestTrue(TEXT("the stamped pawn is the second copy's"),
+				 WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), Party->Members.Last()) == CopyComp);
+		TestTrue(TEXT("and not the first copy's"), WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), Party->Members[0]) != CopyComp);
 	});
 
 	It("the debug readout lists the waiting levels and the members", [this]()
