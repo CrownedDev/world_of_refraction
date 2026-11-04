@@ -287,6 +287,7 @@ namespace
         case ESkillTrigger::OnPerfectParry:
         case ESkillTrigger::OnPerfectBlock:
         case ESkillTrigger::OnPerfectGuard: return LOCTEXT("Trig_OnPerfectGuard", "On Perfect Guard");
+        case ESkillTrigger::OnFlawlessParry: return FText::Format(LOCTEXT("Trig_OnFlawlessParry", "On {0}"), WoRGameNames::GetFlawlessParryName());
         default: return FText::GetEmpty();
         }
     }
@@ -314,6 +315,7 @@ namespace
         case ESkillTrigger::OnPerfectParry:
         case ESkillTrigger::OnPerfectBlock:
         case ESkillTrigger::OnPerfectGuard: return LOCTEXT("TrigV_OnPerfectGuard", "lands a Perfect Guard");
+        case ESkillTrigger::OnFlawlessParry: return FText::Format(LOCTEXT("TrigV_OnFlawlessParry", "makes a {0}"), WoRGameNames::GetFlawlessParryName());
         default: return FText::GetEmpty();
         }
     }
