@@ -17,7 +17,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 |---|---|---|---|
 | [B-360c](B-360c.md) | `feature/B-360c-copies-by-member` (in `dev`) | A later copy of a character places its own victory levels and is bought for under its own key | Pending |
 | [B-336](B-336.md) | `refactor/B-336-world-subsystems` (in `dev`) | The ten fight systems live on the level's world (one per PIE window and per level); `wor.Fight.Subsystems` lists them | Pending |
-| [B-362](B-362.md) | `feature/B-362-losing-a-fight` (UNBUILT, not in `dev`) | A party wipe costs run pillar points, revives the party at the trial; the run ends after 3 main-boss losses or 5 wipes; save v18 | Pending |
+| [B-362](B-362.md) | `feature/B-362-losing-a-fight` (in `dev`) | A party wipe costs run pillar points, revives the party at the trial; the run ends after 3 main-boss losses or 5 wipes; save v18 | Pending |
 | [B-361b](B-361b.md) | `feature/B-361b-mentor-tokens` (in `dev`) | Mentor Tokens: earned playing together (a boss, a finished co-op run), spent teaching a skill to another player's character; save v17 | Pending |
 | [B-361](B-361.md) | `feature/B-361-recruits-host-inventory` (in `dev`) | A trial recruit carries the host's pouch and trades skills; its skills stay with the host at run end; no skill trading between players | Pending |
 | [B-333b](B-333b.md) | `chore/B-333b-seven-balances-specs` (in `dev`) | Tests only: four specs moved off the retired typed essences | Pending |
