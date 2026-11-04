@@ -3,6 +3,7 @@
 #include "Debug/UI/NativeUIDebug.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Hub/ExplorationPlayerController.h"
+#include "Player/WoRHubController.h"
 #include "UI/Combat/CombatHUD.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -35,9 +36,19 @@ FString NativeUIDebug::GetNativeUIStateString(UWorld *World)
         Out += TEXT("[CombatHUD] no orchestrator in world\n");
     }
 
-    const AExplorationPlayerController *ExplorationPC = Cast<AExplorationPlayerController>(World->GetFirstPlayerController());
-    Out += ExplorationPC ? ExplorationPC->GetInteractionStateString()
-                         : FString(TEXT("[ExplorationPC] PC0 is not an AExplorationPlayerController"));
+    APlayerController *PC0 = World->GetFirstPlayerController();
+    if (const AWoRHubController *Hub = Cast<AWoRHubController>(PC0))
+    {
+        Out += Hub->GetInteractionStateString();
+    }
+    else if (const AExplorationPlayerController *ExplorationPC = Cast<AExplorationPlayerController>(PC0))
+    {
+        Out += ExplorationPC->GetInteractionStateString(); // OBSOLETE (B-158): retired controller
+    }
+    else
+    {
+        Out += TEXT("[WoRHubController] PC0 is not an AWoRHubController");
+    }
     return Out;
 }
 
