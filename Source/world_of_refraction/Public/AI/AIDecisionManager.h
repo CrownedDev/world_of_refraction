@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "AI/EAIDifficulty.h"
 #include "AI/AIDecisionConstants.h"
 #include "Combat/Actions/ActionStructs.h"

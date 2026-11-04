@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Defense/EDefenseDirection.h"
 #include "Combat/Defense/DefenseDifficulty.h"
@@ -225,7 +226,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnDefensePerfect, AActor *, Defen
  * - Dodge: 100% avoidance on timing alone (left/right only)
  *
  * Usage:
- *   UDefenseSystem* Defense = GetGameInstance()->GetSubsystem<UDefenseSystem>();
+ *   UDefenseSystem* Defense = WoRFight::Get<UDefenseSystem>(this);
  *   Defense->OpenDefenseWindow(Attacker, Defender, AttackSize, BaseDamage, WindowDuration);
  *   // Player presses button
  *   Defense->SubmitDefenseInput(Defender, EDefenseType::Block);

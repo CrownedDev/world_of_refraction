@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "Combat/Actions/ActionStructs.h"
 #include "Combat/Actions/EActionType.h"
 #include "Skills/Effects/ESkillEffectType.h"
@@ -143,7 +144,7 @@ struct FActionDamagePreview
  * Validates actions, calculates damage/effects, applies results.
  *
  * Usage:
- *   UActionExecutor* Executor = GetGameInstance()->GetSubsystem<UActionExecutor>();
+ *   UActionExecutor* Executor = WoRFight::Get<UActionExecutor>(this);
  *   FActionValidationResult Validation = Executor->ValidateAction(Actor, Action);
  *   if (Validation.bIsValid)
  *       FActionResult Result = Executor->ExecuteAction(Actor, Action);
