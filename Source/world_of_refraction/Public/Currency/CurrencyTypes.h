@@ -32,7 +32,8 @@ enum class ECurrencyType : uint8
     GearEssence,  // persistent; per-character; single scalar (levels weapons + rings)
     SkillEssence, // persistent; per-character; single scalar (spells, abilities, ability stones) — appended
     ElementalEssence, // B-333 (D-125): persistent scalar; pays for anything with an element (Quartz folds in) — appended
-    PillarEssence     // B-333 (D-125): persistent scalar; pays for stat stones — appended
+    PillarEssence,    // B-333 (D-125): persistent scalar; pays for stat stones — appended
+    MentorTokens      // B-361b (D-154): persistent scalar; earned by playing together, spent to teach a skill — appended
 };
 
 namespace CurrencyBalances
@@ -41,6 +42,12 @@ namespace CurrencyBalances
     inline constexpr ECurrencyType SEVEN[] = {
         ECurrencyType::Gold, ECurrencyType::Prisms, ECurrencyType::Diamond, ECurrencyType::GearEssence,
         ECurrencyType::SkillEssence, ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence};
+
+    /** B-361b (D-154): the eighth balance, Mentor Tokens, joins the seven. SEVEN stays as it was. */
+    inline constexpr ECurrencyType EIGHT[] = {
+        ECurrencyType::Gold, ECurrencyType::Prisms, ECurrencyType::Diamond, ECurrencyType::GearEssence,
+        ECurrencyType::SkillEssence, ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence,
+        ECurrencyType::MentorTokens};
 }
 
 /** OBSOLETE (B-333): the 14 typed-essence keys (10 element, 3 pillar, 1 ability) retire (D-125);

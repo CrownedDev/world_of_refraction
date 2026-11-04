@@ -112,6 +112,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "Economy|Currency")
     int32 GetPillarEssence() const { return GetBalance(ECurrencyType::PillarEssence); }
 
+    /** B-361b (D-154): earned by playing together, spent to teach a skill to another player's member. */
+    UFUNCTION(BlueprintPure, Category = "Economy|Currency")
+    int32 GetMentorTokens() const { return GetBalance(ECurrencyType::MentorTokens); }
+
     // ==================== EVENTS ====================
 
     UPROPERTY(BlueprintAssignable, Category = "Economy|Currency")
@@ -168,6 +172,10 @@ protected:
     UPROPERTY(ReplicatedUsing = OnRep_PillarEssence, BlueprintReadOnly, Category = "Economy|Currency")
     int32 PillarEssence = 0;
 
+    /** B-361b (D-154): Mentor Tokens (per-player scalar, banked like Prisms). */
+    UPROPERTY(ReplicatedUsing = OnRep_MentorTokens, BlueprintReadOnly, Category = "Economy|Currency")
+    int32 MentorTokens = 0;
+
     /** OBSOLETE (B-333). 14 typed-essence wallets (per-character). Not BlueprintReadOnly — FCurrencyArray
      *  is not a BlueprintType; BP access is via GetEssenceType/AddEssenceType/SpendEssenceType. */
     UPROPERTY(Replicated)
@@ -195,6 +203,9 @@ protected:
 
     UFUNCTION()
     void OnRep_PillarEssence();
+
+    UFUNCTION()
+    void OnRep_MentorTokens();
 
 private:
     /** B-333: the scalar field behind Currency; null for EssenceTyped (the obsolete keyed wallet). */
