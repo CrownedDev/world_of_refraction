@@ -198,7 +198,7 @@ void AHUDTestActor::AddTestStatusBuildup()
 	UStatusBuildupManager *BuildupMgr = nullptr;
 	if (UGameInstance *GI = World->GetGameInstance())
 	{
-		BuildupMgr = GI->GetSubsystem<UStatusBuildupManager>();
+		BuildupMgr = WoRFight::Get<UStatusBuildupManager>(GI);
 	}
 
 	if (!BuildupMgr)

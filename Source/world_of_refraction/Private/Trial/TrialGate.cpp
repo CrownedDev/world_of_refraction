@@ -117,7 +117,7 @@ bool TrialGate::ApplyEnemyStrength(AActor *Enemy, float HealthMultiplier, float 
 {
 	UCharacterDataComponent *CharComp = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	const UGameInstance *GI = Enemy && Enemy->GetWorld() ? Enemy->GetWorld()->GetGameInstance() : nullptr;
-	USkillEffectManager *Effects = GI ? GI->GetSubsystem<USkillEffectManager>() : nullptr;
+	USkillEffectManager *Effects = WoRFight::Get<USkillEffectManager>(GI);
 	if (!CharComp || !Effects)
 	{
 		return false;
@@ -175,7 +175,7 @@ bool TrialGate::ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EE
 {
 	UCharacterDataComponent *CharComp = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	const UGameInstance *GI = Enemy && Enemy->GetWorld() ? Enemy->GetWorld()->GetGameInstance() : nullptr;
-	USkillEffectManager *Effects = GI ? GI->GetSubsystem<USkillEffectManager>() : nullptr;
+	USkillEffectManager *Effects = WoRFight::Get<USkillEffectManager>(GI);
 	if (!CharComp || !Effects)
 	{
 		return false;
