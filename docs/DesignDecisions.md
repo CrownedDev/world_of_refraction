@@ -3364,7 +3364,7 @@ Moved here once applied. Newest first.
 **Options:** **A** refuse it during the run: a home piece on the run can't be dismantled or converted to Gold until the run ends (run-only gear can). **B** allow it; the piece is gone for good.
 **Recommendation:** A. It keeps D-111's promise that home gear comes back, and roguelites keep the run and the meta inventory apart: Hades' and Dead Cells' runs never touch what you own outside them; Monster Hunter's equipment box is only changed at camp / in the hub. B would let a run quietly cost the player a home piece.
 **Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
-**Notes for Claude:** applied in B-314 (`EconomyRefusesOnRun` in `UEconomyService::DismantleOwnedGear`, `DismantleEvolution`, the duplicate's convert-to-Gold). If the weaker copy of a D-115 duplicate is the home piece, the choice is refused until the run ends; the found copy can still be converted or dismantled.
+**Notes for Claude:** applied in B-314 (`EconomyRefusesOnRun` in `UEconomyService::DismantleOwnedGear`, `DismantleEvolution`, the duplicate's convert-to-Gold). If the weaker copy of a D-115 duplicate is the home piece, the choice is refused until the run ends; the found copy can still be converted or dismantled. **Widened by B-347 (desktop review, 2026-11-04):** while a run is open *every* home piece is held, worn or not (nothing at home can be dismantled, converted or have its primary evolution removed until run end); only run finds can go. A design choice open to Crown until the real hub screens.
 
 ### Q-314c — A run-only piece sold or dismantled before the run ends
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-314 review) · **Blocks:** —
