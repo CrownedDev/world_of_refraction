@@ -12,6 +12,7 @@
 #include "Inventory/ItemQuality.h"
 #include "Currency/CurrencyTypes.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Equipment/Crystals/StatStone.h" // B-353
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
@@ -382,7 +383,7 @@ namespace EconomyYield
         }
         if (CrystalTypeHelpers::IsStatStone(Id.Type))
         {
-            return SubStatToPillarEssence(CrystalEffectTable::StoneTargetStat(Id.Type));
+            return SubStatToPillarEssence(CrystalEffectTable::StoneTargetStat(StatStone::RowType(Id))); // B-353
         }
 
         UE_LOG(LogTemp, Warning,

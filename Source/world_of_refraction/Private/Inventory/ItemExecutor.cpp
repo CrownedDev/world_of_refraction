@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Inventory/ItemExecutor.h"
+#include "Equipment/Crystals/StatStone.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Character/CharacterData.h"
@@ -58,7 +59,7 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 
 	// Standard stat-stone consumables (B-021): ally gets the row's Buff, enemy its Debuff.
 	// ResistanceStone (signed) and the gems (Amber, Opal...) still go through the switch.
-	const FStoneRow *StoneRow = StoneRowTable::Find(Id.Type);
+	const FStoneRow *StoneRow = StoneRowTable::Find(StatStone::RowType(Id)) /* B-353 */;
 	if (StoneRow && StoneRow->bStandardConsumable)
 	{
 		ApplyStoneBuffEffect(User, Target, Id, StoneRow->Buff, StoneRow->Debuff, StoneRow->Label, Result);
@@ -486,7 +487,7 @@ void UItemExecutor::ApplyStoneBuffEffect(AActor *User, AActor *Target, FCrystalI
 
 	const bool bAlly = IsAlly(User, Target);
 	const ESkillEffectType EffectType = bAlly ? BuffType : DebuffType;
-	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
+	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(StatStone::RowType(Id), Id.Tier);
 	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
 
 	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
@@ -653,7 +654,7 @@ void UItemExecutor::ExecuteResistanceBuffEffect(AActor *User, AActor *Target, FC
 	}
 
 	const bool bAlly = IsAlly(User, Target);
-	const float StonePct = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
+	const float StonePct = CrystalEffectTable::GetStoneBasePercent(StatStone::RowType(Id), Id.Tier);
 	const float Magnitude = bAlly ? StonePct : -StonePct;
 	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
 
@@ -712,7 +713,7 @@ void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrys
 	// its own GetAmberDefensePercent + GetCrystalDuration. Direction (IsAlly) is identical.
 	const bool bIsStone = CrystalTypeHelpers::IsAugmentStoneType(Id.Type);
 	const float Magnitude = bIsStone
-		? CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier)
+		? CrystalEffectTable::GetStoneBasePercent(StatStone::RowType(Id), Id.Tier)
 		: CrystalEffectTable::GetAmberDefensePercent(Id);
 	const int32 Duration = bIsStone
 		? CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION
@@ -793,7 +794,7 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystal
 
 	// ---- CritStone consumable: original crit-CHANCE buff/debuff (UNCHANGED) ----
 	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::CritChanceBuff : ESkillEffectType::CritChanceDebuff;
-	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
+	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(StatStone::RowType(Id), Id.Tier);
 	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
 
 	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(

@@ -82,5 +82,11 @@ enum class ECrystalType : uint8
     // form: StoneTargetStat/GetStoneBasePercent deliberately omit it, so an attached HealingStone
     // is inert (contributes 0 to every stat). Same append-only serialized-identity rule — do NOT
     // reorder/insert above.
-    HealingStone UMETA(DisplayName = "Healing Stone")
+    HealingStone UMETA(DisplayName = "Healing Stone"),
+    // B-353 (D-142): the one stat stone; FCrystalId::StoneStat says which sub-stat it amplifies. Appended (append-only).
+    // RETIRED (B-353, D-142): the single-stat kinds DefenseStone, CritStone, TurnSpeedStone, StatusStone,
+    // EfficiencyStone, SpellDamageStone, ResistanceStone, SpellSpeedStone, ActionSpeedStone, LuckStone and ReflexStone.
+    // Their values stay (saves and assets store them); StatStone::Normalize maps them to StatStone on load.
+    // Damage, Ability and Healing stones stay, and so do the pool stones (Max HP / Max EP, no sub-stat; Q-353).
+    StatStone UMETA(DisplayName = "Stat Stone")
 };

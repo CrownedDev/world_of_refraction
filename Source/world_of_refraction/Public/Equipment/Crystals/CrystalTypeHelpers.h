@@ -49,7 +49,7 @@ namespace CrystalTypeHelpers
                Type == ECrystalType::ResistanceStone || Type == ECrystalType::SpellSpeedStone ||
                Type == ECrystalType::ActionSpeedStone || Type == ECrystalType::DurabilityStone ||
                Type == ECrystalType::LuckStone || Type == ECrystalType::ReflexStone ||
-               Type == ECrystalType::HealingStone;
+               Type == ECrystalType::HealingStone || Type == ECrystalType::StatStone; // StatStone: B-353 (D-142)
     }
 
     /** True for gem sub-types (Garnet..Quartz). None is neither gem nor stone,

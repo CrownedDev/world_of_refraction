@@ -19,6 +19,7 @@
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Equipment/Crystals/StoneRowTable.h"
+#include "Equipment/Crystals/StatStone.h"
 
 namespace CrystalEffectTable
 {
@@ -573,7 +574,8 @@ namespace CrystalEffectTable
      *  Tier-only — Id.Type is ignored (other than the None early-out). */
     inline float GetBrokenDarknessEnergyPercent(const FCrystalId &Id)
     {
-        if (Id.Type == ECrystalType::None || Id.Type == ECrystalType::DamageStone ||
+        // B-353: StatStone stands for the retired single-stat kinds listed below.
+        if (Id.Type == ECrystalType::None || Id.Type == ECrystalType::DamageStone || Id.Type == ECrystalType::StatStone ||
             Id.Type == ECrystalType::AbilityStone || Id.Type == ECrystalType::DefenseStone ||
             Id.Type == ECrystalType::CritStone || Id.Type == ECrystalType::TurnSpeedStone ||
             Id.Type == ECrystalType::StatusStone || Id.Type == ECrystalType::EfficiencyStone ||
@@ -673,11 +675,11 @@ namespace CrystalEffectTable
         {
             return 0.0f;
         }
-        if (StoneTargetStat(Att.Crystal.Id.Type) != Stat)
+        if (StoneTargetStat(StatStone::RowType(Att.Crystal.Id)) != Stat) // B-353: a StatStone reads its row
         {
             return 0.0f;
         }
-        return GetStoneBasePercent(Att.Crystal.Id.Type, Att.Crystal.Id.Tier);
+        return GetStoneBasePercent(StatStone::RowType(Att.Crystal.Id), Att.Crystal.Id.Tier);
     }
 
     /** Percent a stone ATTACHMENT grants, keyed by the stone's TYPE rather than an
@@ -713,7 +715,7 @@ namespace CrystalEffectTable
             return Total;
         }
         return (Att.IsAugmentStone() && Att.Crystal.Id.Type == StoneType)
-                   ? GetStoneBasePercent(Att.Crystal.Id.Type, Att.Crystal.Id.Tier)
+                   ? GetStoneBasePercent(StatStone::RowType(Att.Crystal.Id), Att.Crystal.Id.Tier)
                    : 0.0f;
     }
 

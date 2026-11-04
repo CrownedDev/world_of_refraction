@@ -3,6 +3,7 @@
 // FSavedLoadout against the asset's ownership lists.
 
 #include "Inventory/InventoryData.h"
+#include "Equipment/Crystals/StatStone.h" // StatStone::RowType (B-353)
 #include "WoRLog.h"
 
 #include "Skills/Definitions/AbilityData.h"
@@ -42,10 +43,19 @@ TArray<FString> UInventoryData::GetValidationErrors(TOptional<bool> bCharacterIs
             if (Pair.Value < 0)
             {
                 Errors.Add(FString::Printf(
-                    TEXT("CrystalStock entry (Type=%d, Tier=%d) has negative count %d"),
+                    TEXT("CrystalStock entry (Type=%d, Tier=%d, StoneStat=%d) has negative count %d"),
                     static_cast<int32>(Pair.Key.Type),
                     static_cast<int32>(Pair.Key.Tier),
+                    static_cast<int32>(Pair.Key.StoneStat),
                     Pair.Value));
+            }
+            // B-353 (D-142): a StatStone needs a sub-stat with a stone row, else it is inert (no bonus, no name).
+            if (Pair.Key.Type == ECrystalType::StatStone && StatStone::RowType(Pair.Key) == ECrystalType::StatStone)
+            {
+                Errors.Add(FString::Printf(
+                    TEXT("CrystalStock StatStone (Tier=%d) has no sub-stat with a stone row (StoneStat=%d): pick one, or use the Damage Stone kind for Raw Damage"),
+                    static_cast<int32>(Pair.Key.Tier),
+                    static_cast<int32>(Pair.Key.StoneStat)));
             }
             const int32 Clamped = FMath::Max(0, Pair.Value);
             (CrystalTypeHelpers::IsGemType(Pair.Key.Type) ? GemByTier : StoneByTier)
