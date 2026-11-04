@@ -4,12 +4,15 @@
 // at encounter start (ABattleGameMode); since B-212 it fires then or at its When (UFightTriggers). Effects are ordinary FSkillEffects (the effects condition
 // model, B-044 / D-031): a payload aimed at Enemy lands on the faced character, any other on the
 // wearer. Boss changes come from each boss's own triggers since B-211 (BossTriggers).
+// B-337b (D-130): who matches is a FWoRConditionSet on the shared evaluator (WoRConditions); the old
+// RequiredItems / FacingCharacter map across on read (ReactionTriggers::GetConditions).
 // Debug: wor.Reaction.Print.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Conditions/WoRCondition.h"
 #include "Reaction/FightMoment.h"
 #include "Skills/Effects/FSkillEffect.h"
 #include "ReactionTrigger.generated.h"
@@ -26,11 +29,17 @@ struct WORLD_OF_REFRACTION_API FReactionTrigger
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reaction")
 	FName TriggerId;
 
-	/** All worn by the same party member (a weapon or ring slot). Empty: never fires. */
+	/** B-337b: all must hold for one party member (the wearer: the gear subjects read only theirs) and one
+	 *  opposing combatant (Target; FacingEnemy). Added to the old fields below. Nothing authored: never fires. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reaction")
+	FWoRConditionSet Conditions;
+
+	/** OBSOLETE (B-337b): GearEquipped conditions in Conditions; read across. All worn by the same
+	 *  party member (a weapon or ring slot). Empty: these two fields add nothing. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reaction")
 	TArray<TObjectPtr<UEquipmentDataBase>> RequiredItems;
 
-	/** In the opposing team. */
+	/** OBSOLETE (B-337b): a FacingEnemy condition; read across with RequiredItems (unset: never fires). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reaction")
 	TObjectPtr<UCharacterData> FacingCharacter = nullptr;
 
@@ -87,8 +96,16 @@ namespace ReactionTriggers
 	/** The gear Actor wears now: its weapons and rings. */
 	TArray<const UEquipmentDataBase *> GetWornItems(const AActor *Actor);
 
-	/** True when Wearer wears every RequiredItem and Faced is the FacingCharacter. */
+	/** B-337b: Trigger's authored conditions, then RequiredItems / FacingCharacter read across (when
+	 *  RequiredItems is set: one GearEquipped per item, worn by the wearer, and FacingEnemy). */
+	FWoRConditionSet GetConditions(const FReactionTrigger &Trigger);
+
+	/** True when Trigger's conditions are authored and all hold for Wearer facing Faced (WoRConditions). */
 	bool Matches(const FReactionTrigger &Trigger, const AActor *Wearer, const AActor *Faced);
+
+	/** OBSOLETE (B-337b): the old check (Wearer wears every RequiredItem, Faced is the FacingCharacter),
+	 *  kept as the parity reference for Matches until Crown's PIE pass. */
+	bool MatchesOld(const FReactionTrigger &Trigger, const AActor *Wearer, const AActor *Faced);
 
 	/** Each trigger fires at most once per fight: the first party member and opposing combatant
 	 *  that match. */

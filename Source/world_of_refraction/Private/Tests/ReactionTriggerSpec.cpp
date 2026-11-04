@@ -2,6 +2,7 @@
 // B-191 (RunStructure §5, D-032, Q-191): a reaction fires when one party member wears every listed
 // item while facing the listed character, not when one item is missing; its effects land on the
 // wearer or the faced character; a run memory weakens the boss it names.
+// B-337b (D-130): matching goes through WoRConditions and gives the old check's answer.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -112,6 +113,75 @@ void FReactionTriggerSpec::Define()
 		const TArray<FReactionTrigger> Triggers = {Trigger};
 		TestEqual(TEXT("Fires once for the fight"), ReactionTriggers::FindFired(Triggers, {SwordOnly, Both}, {Stranger, Boss}).Num(), 1);
 		TestEqual(TEXT("Nobody wears both: nothing"), ReactionTriggers::FindFired(Triggers, {SwordOnly}, {Boss}).Num(), 0);
+	});
+
+	It("gives the old check's answer through the condition evaluator (B-337b)", [this]()
+	{
+		AActor *Both = SpawnWearer(Sword, Dagger);
+		AActor *SwordOnly = SpawnWearer(Sword, nullptr);
+		AActor *Boss = TestWorld->SpawnCombatant(Lord, true);
+		AActor *Stranger = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), true);
+		FReactionTrigger NoItems = SwordAndDaggerFacingLord();
+		NoItems.RequiredItems.Reset();
+		FReactionTrigger NoFacing = SwordAndDaggerFacingLord();
+		NoFacing.FacingCharacter = nullptr;
+		FReactionTrigger NullItem = SwordAndDaggerFacingLord();
+		NullItem.RequiredItems.Add(nullptr);
+		FReactionTrigger SwordOnlyTrigger = SwordAndDaggerFacingLord();
+		SwordOnlyTrigger.RequiredItems = {Sword};
+		const FReactionTrigger Triggers[] = {SwordAndDaggerFacingLord(), NoItems, NoFacing, NullItem, SwordOnlyTrigger};
+		const AActor *Wearers[] = {Both, SwordOnly, Stranger, nullptr};
+		const AActor *Faced[] = {Boss, Stranger, nullptr};
+		int32 Cases = 0;
+		int32 Fired = 0;
+		for (const FReactionTrigger &Trigger : Triggers)
+		{
+			for (const AActor *Wearer : Wearers)
+			{
+				for (const AActor *Facing : Faced)
+				{
+					const bool bOld = ReactionTriggers::MatchesOld(Trigger, Wearer, Facing);
+					TestEqual(FString::Printf(TEXT("Case %d answers as before"), Cases), ReactionTriggers::Matches(Trigger, Wearer, Facing), bOld);
+					Fired += bOld ? 1 : 0;
+					++Cases;
+				}
+			}
+		}
+		// Both wearers fire the sword-only trigger facing the lord; only Both fires the full one.
+		TestEqual(TEXT("The grid has firing cases too"), Fired, 3);
+	});
+
+	It("reads authored conditions: FacingEnemy and absolute HP of Self or Target (B-337b)", [this]()
+	{
+		AActor *Wearer = SpawnWearer(Sword, nullptr);
+		AActor *Boss = TestWorld->SpawnCombatant(Lord, true);
+		const int32 BossHP = Boss->FindComponentByClass<UCharacterDataComponent>()->CurrentHP;
+		TestTrue(TEXT("The boss has HP"), BossHP > 0);
+
+		FReactionTrigger Trigger;
+		Trigger.TriggerId = TEXT("SpecAuthored");
+		TestFalse(TEXT("Nothing authored: never fires"), ReactionTriggers::Matches(Trigger, Wearer, Boss));
+
+		FWoRCondition &Facing = Trigger.Conditions.Conditions.AddDefaulted_GetRef();
+		Facing.Subject = EWoRConditionSubject::FacingEnemy;
+		Facing.Enemy = Lord;
+		TestTrue(TEXT("Facing the lord: fires"), ReactionTriggers::Matches(Trigger, Wearer, Boss));
+		TestFalse(TEXT("Facing nobody: doesn't"), ReactionTriggers::Matches(Trigger, Wearer, nullptr));
+
+		FWoRCondition &TargetHP = Trigger.Conditions.Conditions.AddDefaulted_GetRef();
+		TargetHP.Subject = EWoRConditionSubject::Hp;
+		TargetHP.Who = EWoRConditionWho::Target;
+		TargetHP.Operator = EWoRConditionOperator::AtMost;
+		TargetHP.Value = BossHP;
+		TestTrue(TEXT("The faced HP at most its own HP: fires"), ReactionTriggers::Matches(Trigger, Wearer, Boss));
+		TargetHP.Value = BossHP - 1;
+		TestFalse(TEXT("An absolute line under it: doesn't"), ReactionTriggers::Matches(Trigger, Wearer, Boss));
+
+		TargetHP.Who = EWoRConditionWho::Self;
+		TargetHP.Operator = EWoRConditionOperator::AtLeast;
+		TargetHP.Value = 1;
+		TestTrue(TEXT("Self reads the wearer's HP"), ReactionTriggers::Matches(Trigger, Wearer, Boss));
+		TestTrue(TEXT("The debug line names the subjects"), ReactionTriggers::GetTriggerString(Trigger).Contains(TEXT("FacingEnemy")));
 	});
 
 	It("puts an Enemy effect on the faced character and a Self effect on the wearer", [this]()

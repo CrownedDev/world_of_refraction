@@ -3,7 +3,7 @@
 // effect model (wor-deckbuilder docs/reference/05-triggers-conditions.md): a condition says WHEN it is
 // checked (Trigger) and WHAT must be true then (Subject, with its operands, Operator / Value and whose
 // it is). A FWoRConditionSet holds when every condition in it holds (the deckbuilder's Nested list).
-// Memories read it first (B-337); boss phases, boss triggers and reactions move onto it in B-337b.
+// Memories read it first (B-337, with their equip conditions); boss rules (B-355); reactions (B-337b).
 // The evaluator is WoRConditions (WoRConditions.h). Enums are append-only (saved in assets).
 
 #pragma once
@@ -77,6 +77,22 @@ enum class EWoRConditionSubject : uint8
 	BossInfusionHits = 18,
 	/** How many phases the boss has reached compare to Value (a phase rule reads "Equal" its index). */
 	BossPhasesReached = 19,
+	// ---- The fight (B-337b): read from FWoRConditionContext's fight fields ----
+	/** Enemy is in the opposing team (a reaction: the faced character). */
+	FacingEnemy = 20,
+	/** Who's current HP compares to Value: an absolute amount, never a percent (the deckbuilder's
+	 *  rule, Crown 2026-10-12). False when the context has no such fighter. */
+	Hp = 21,
+};
+
+/** Whose state a fight subject reads (the deckbuilder's Who). Append only. */
+UENUM(BlueprintType)
+enum class EWoRConditionWho : uint8
+{
+	/** The side the condition belongs to: a reaction's wearer, a boss rule's boss. */
+	Self = 0,
+	/** The one Self faces or attacked: a reaction's faced character. */
+	Target = 1,
 };
 
 /** How a number compares to Value. */
@@ -136,7 +152,11 @@ struct WORLD_OF_REFRACTION_API FWoRCondition
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
 	FName LocationId;
 
-	/** Numeric subjects (GearEquipped / EvolutionEquipped: tiers above the authored tier). */
+	/** Hp: whose. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
+	EWoRConditionWho Who = EWoRConditionWho::Self;
+
+	/** Numeric subjects (GearEquipped / EvolutionEquipped: tiers above the authored tier; Hp: HP). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
 	EWoRConditionOperator Operator = EWoRConditionOperator::AtLeast;
 
