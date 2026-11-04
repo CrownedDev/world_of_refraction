@@ -30,6 +30,8 @@ enum class EGearKind : uint8
 	Adapter = 1
 };
 
+class UAbilityData;
+
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FGearInstance
 {
@@ -60,6 +62,17 @@ struct WORLD_OF_REFRACTION_API FGearInstance
 	/** D-110 (A): the attachment lives on the item and travels with it; the slot only references the item. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gear")
 	FRuntimeAttachedItem AttachedItem;
+
+	/** B-351 (D-141): the stone socket, mirrored from the entry. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gear")
+	FRuntimeAttachedItem StoneSocket;
+
+	/** B-351 (D-145): a weapon's skill-slot picks and whether its one list is active (empty / false for an adapter). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gear")
+	TArray<TObjectPtr<UAbilityData>> SkillPicks;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gear")
+	bool bSkillSlotsActive = false;
 
 	/** An adapter's spells (a weapon's go when B-098 lands, D-027). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gear")

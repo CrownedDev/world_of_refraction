@@ -23,14 +23,12 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
     }
     else
     {
-        // Augment stones are weapon-only attachments — a ring must never carry one.
-        // The attachment struct is shared with weapons, so this is reachable by
-        // mis-authoring; flag it as a hard error.
+        // B-351 (D-141): adapters take stones now, in their stone socket. The authored attachment is still one field
+        // (the element socket) until B-351b moves authored stones into the stone socket, so warn rather than refuse.
         if (AttachedItem.Kind == EAttachedItemKind::AugmentStone)
         {
-            Context.AddError(FText::FromString(TEXT(
-                "Augment stones cannot be attached to a ring — augment stones are weapon-only attachments")));
-            Result = EDataValidationResult::Invalid;
+            Context.AddWarning(FText::FromString(TEXT(
+                "An authored stone on an adapter sits in its element socket until B-351b; it still gives its bonus")));
         }
 
         // Fusion placement guard: augmented fusions (two stones) are weapon-only; a ring

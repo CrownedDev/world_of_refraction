@@ -19,7 +19,6 @@
 #include "Player/WoRPlayerState.h"
 #include "Pool/PoolSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
-#include <type_traits>
 #include "Skills/Definitions/SpellData.h"
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryComponent.h"
@@ -30,6 +29,7 @@
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "WoRLog.h"
+#include <type_traits> // std::is_same_v (B-351), as InventoryComponent.cpp does
 
 const TCHAR *USaveSubsystem::SLOT_NAME = TEXT("WoR_Main");
 

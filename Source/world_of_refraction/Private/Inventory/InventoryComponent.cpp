@@ -983,9 +983,11 @@ namespace InventoryGearSync
         }
         const int32 SlotDurability = Slot.AttachedItem.GetCurrentDurability();
         const int32 OwnedDurability = Match->AttachedItem.GetCurrentDurability();
+        // B-351: the stone socket must match too.
         const bool bInSync = Match->Tier == Slot.Tier && Match->AttachedItem.Kind == Slot.AttachedItem.Kind &&
-                             OwnedDurability == SlotDurability;
-        return FString::Printf(TEXT("\n    %s %s -> owned %s: %s"), Label, *GetNameSafe(GetGearAsset(Slot)),
+                             OwnedDurability == SlotDurability && Match->StoneSocket == Slot.StoneSocket;
+        return FString::Printf(TEXT("\n    %s %s (stone socket %s) -> owned %s: %s"), Label, *GetNameSafe(GetGearAsset(Slot)),
+                               Slot.StoneSocket.IsEmpty() ? TEXT("empty") : *ItemIdentity::GetDisplayName(Slot.StoneSocket.Crystal.Id),
                                *Slot.PersistentID.ToString(EGuidFormats::Short),
                                bInSync ? TEXT("in sync")
                                        : *FString::Printf(TEXT("DIFFERS (tier %d / owned %d, durability %d / owned %d)"),
@@ -1161,6 +1163,8 @@ int32 UInventoryComponent::WriteLoadoutToOwned(int32 LoadoutIndex)
                         {
                             Owned->AttachedItem = Slot.AttachedItem;
                             Owned->StoneSocket = Slot.StoneSocket; // B-351
+                            Owned->SkillPicks = Slot.SkillPicks;   // B-351 (D-145): the picks live on the item
+                            Owned->bSkillSlotsActive = Slot.bSkillSlotsActive;
                             Written.Add(Slot.PersistentID);
                         }
                     },
@@ -2764,24 +2768,34 @@ FString UInventoryComponent::GetInventoryInstanceString() const
     Out += FString::Printf(TEXT("\n  Weapons (%d):"), Weapons.Num());
     for (const FWeaponInventoryEntry &W : Weapons)
     {
-        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s"),
+        // B-351: the stone socket (D-141) and the one skill-slot list's picks (D-145; '-' = the built-in).
+        FString Picks;
+        for (const UAbilityData *Pick : W.SkillPicks)
+        {
+            Picks += Pick ? Pick->GetName() + TEXT(" ") : FString(TEXT("- "));
+        }
+        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s  stone=%s  skills=%s%s"),
                                W.Weapon ? *W.Weapon->Name : TEXT("(null)"),
                                *ShortGuid(W.PersistentID),
                                *TierHelpers::GetTierName(W.Tier),
                                QualityName(W.Quality),
-                               *DescribeAttachment(W.AttachedItem));
+                               *DescribeAttachment(W.AttachedItem),
+                               *DescribeAttachment(W.StoneSocket),
+                               W.bSkillSlotsActive ? TEXT("one list ") : TEXT("old lists "),
+                               *Picks);
     }
 
     // ---------- Rings ----------
     Out += FString::Printf(TEXT("\n  Rings (%d):"), Rings.Num());
     for (const FRingInventoryEntry &R : Rings)
     {
-        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s"),
+        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s  stone=%s"),
                                R.Ring ? *R.Ring->Name : TEXT("(null)"),
                                *ShortGuid(R.PersistentID),
                                *TierHelpers::GetTierName(R.Tier),
                                QualityName(R.Quality),
-                               *DescribeAttachment(R.AttachedItem));
+                               *DescribeAttachment(R.AttachedItem),
+                               *DescribeAttachment(R.StoneSocket));
     }
 
     // ---------- Spells ----------

@@ -15,7 +15,7 @@ namespace WoRSaveVersion
 	// 12: B-351's two sockets per weapon and adapter (D-141) and one skill-slot list (D-145); older saves wiped (D-138).
 	// 11 is taken by B-348 (one save version) and B-333 (seven balances), both unmerged: merge B-348, then B-333 (it
 	// moves to 12 on merge), then this branch moves to the next free number with MIN_SUPPORTED = LATEST (D-138).
-	constexpr int32 LATEST = 12; // 2: B-208's run and carried state; 3: B-124's gear detail; 4: B-279's form meters (older load with defaults); 5: B-308's one gear list (v3 / v4 lists still read); 6: B-311's custom loadouts; 7: B-321's gear owners; 8: B-279b's worn skin; 9: B-322's pouch per character (the party pouch of older saves still read); 10: B-279c's current outfit (older load with none); 12: B-351's two sockets
+	constexpr int32 LATEST = 12;
 	/** Saves below this are wiped with a warning (D-060). D-138: equal to LATEST while in dev. */
 	constexpr int32 MIN_SUPPORTED = LATEST;
 }
