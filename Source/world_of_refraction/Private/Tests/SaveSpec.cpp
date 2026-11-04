@@ -280,7 +280,7 @@ void FSaveSpec::Define()
 		Wallet->Add(ECurrencyType::Diamond, DIAMONDS);
 		Wallet->AddGearEssence(GEAR_ESSENCE);
 		Wallet->AddSkillEssence(SKILL_ESSENCE);
-		Wallet->AddEssenceType(EEssenceType::Fire, FIRE_ESSENCE);
+		Wallet->Add(ECurrencyType::ElementalEssence, ELEMENTAL_ESSENCE); // B-333: the typed essences are gone
 		UPoolSubsystem *Pool = Before.GetSubsystem<UPoolSubsystem>();
 		if (!TestNotNull(TEXT("Pool"), Pool)) return;
 		UEvolutionItemData *EvolutionItem = NewObject<UEvolutionItemData>(GetTransientPackage());
@@ -308,7 +308,7 @@ void FSaveSpec::Define()
 		TestEqual(TEXT("Diamonds"), Fresh->GetBalance(ECurrencyType::Diamond), DIAMONDS);
 		TestEqual(TEXT("Gear essence"), Fresh->GetGearEssence(), GEAR_ESSENCE);
 		TestEqual(TEXT("Skill essence"), Fresh->GetSkillEssence(), SKILL_ESSENCE);
-		TestEqual(TEXT("Typed essence"), Fresh->GetEssenceType(EEssenceType::Fire), FIRE_ESSENCE);
+		TestEqual(TEXT("Elemental essence"), Fresh->GetElementalEssence(), ELEMENTAL_ESSENCE);
 
 		UPoolSubsystem *NewPool = After.GetSubsystem<UPoolSubsystem>();
 		if (!TestNotNull(TEXT("Pool after"), NewPool)) return;
