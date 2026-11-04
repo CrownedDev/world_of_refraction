@@ -81,6 +81,8 @@ void FGameNamesSpec::Define()
 				  FString(TEXT("Elemental Essence")));
 		TestEqual(TEXT("Pillar"), WoRGameNames::GetCurrencyName(ECurrencyType::PillarEssence).ToString(),
 				  FString(TEXT("Pillar Essence")));
+		TestEqual(TEXT("Mentor (B-361b)"), WoRGameNames::GetCurrencyName(ECurrencyType::MentorTokens).ToString(),
+				  FString(TEXT("Mentor Tokens")));
 	});
 
 	It("shows Reality as Unknown (D-095)", [this]()

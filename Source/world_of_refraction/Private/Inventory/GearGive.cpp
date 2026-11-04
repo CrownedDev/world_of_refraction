@@ -412,6 +412,12 @@ namespace WoRGive
 		{
 			return LOCTEXT("TeachInFight", "Skills can't be taught during a fight");
 		}
+		// The wallet and the skill store change on the host; a client's teach waits for the co-op screens' request.
+		// TODO: B-233+: a client asks the server to teach (the pool is per game instance, D-065 / D-103).
+		if (World->GetNetMode() == NM_Client)
+		{
+			return LOCTEXT("TeachOnHost", "Only the host can teach for now (co-op requests come with the co-op screens)");
+		}
 		const APlayerState *Teacher = PlayerOfMember(World, TeacherKey);
 		if (!Teacher || Teacher == PlayerOfMember(World, LearnerKey))
 		{
