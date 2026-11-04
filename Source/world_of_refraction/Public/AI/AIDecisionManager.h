@@ -114,6 +114,7 @@ private:
     friend class FGASEffectReadsSpec;
     friend class FAIOneSkillPathSpec;
     friend class FSpellSchoolSpec;
+    friend class USpellDataDebug; // B-356b: the school-vs-effects audit reads IsOffensiveSpell / IsHealingSpell
 
     // ==================== INTERNAL ====================
 
