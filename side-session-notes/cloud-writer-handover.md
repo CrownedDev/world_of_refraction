@@ -46,15 +46,16 @@ The cloud writer pre-writes backlog jobs as **UNBUILT** branches (no Unreal in t
 | B-355 | `feature/B-355-boss-rules` @ 7f3531e8 | B-337 | code + spec done, not reviewed; left: Backlog row, PIE sheet, changelog, session entry, B-355b row (moment triggers still on the old list) |
 | B-337 | `feature/B-337-conditions` @ a5f1304e | round-2 docs | review fixes done; B-337b queued |
 | B-346 | `feature/B-346-party-seats` @ 96679a3d | round-2 docs | review fixes NOT started (PartyControl widget "Let AI finish" row, move to `SetMemberAISeat`, PIE console note, OBSOLETE flags on `CanHandToAI` / `CreateHandToAIButton`, nits) |
+| B-232 | `feature/B-232-run-state-party` | B-229 | slice done, not reviewed; B-232b queued (menu on the commanding machine, other run readers, recruit fills a spot); `SeatRules.h` copied from B-346 |
 
-**Not reviewed at all:** B-343, B-344, B-353, B-355, B-356, B-358, B-359.
+**Not reviewed at all:** B-232, B-343, B-344, B-353, B-355, B-356, B-358, B-359.
 
 **Save version order:** B-348 (11), then B-333 (12), then B-351 (next free). Each bumps LATEST = MIN (D-138).
 
 ## Queue still to pre-write (not started)
-B-357 (evolution placement, D-147 incl. the L2 correction), B-232 (run state / party, D-129 slice; not started), B-336 (world subsystems, D-129), B-349 (console names, D-139), B-340 (docs moves, D-132; do last), B-042i / B-042j2 (GAS; skip if the Unreal writer started them), and the follow-up rows (B-228b, B-313b, B-314b, B-316b, B-331b, B-333b, B-337b, B-347b, B-348b, B-351b, B-355b to be written).
+B-357 (evolution placement, D-147 incl. the L2 correction), B-336 (world subsystems, D-129), B-349 (console names, D-139), B-340 (docs moves, D-132; do last), B-042i / B-042j2 (GAS; skip if the Unreal writer started them), and the follow-up rows (B-228b, B-313b, B-314b, B-316b, B-331b, B-333b, B-337b, B-347b, B-348b, B-351b, B-355b to be written).
 
 ## Open items for Crown
 - CLAUDE.md edits waiting on the user's go-ahead (not made on a peer's request): D-121 (GAS-only rule), D-138 (Saves note), D-139 (debug-tools / console naming), D-140 (Tests rule), plus `ConditionSystem.md` in the doc list.
-- Defaults to confirm (Q- entries answered by the reference-backed default): Q-313, Q-314/b/c, Q-316, Q-325, Q-326, Q-328, Q-330, Q-331, Q-333, Q-334 (L1 infusion EP equals L0, no HP), Q-341/b/c, Q-342, Q-344, Q-345, Q-347, Q-348, Q-351 (stone socket costs no slot), Q-354, Q-356 (Conjuration → Enhancement), Q-358 (physical columns fold by average), Q-359 (a phase switches to the boss's element).
+- Defaults to confirm (Q- entries answered by the reference-backed default): Q-313, Q-314/b/c, Q-316, Q-325, Q-326, Q-328, Q-330, Q-331, Q-333, Q-334 (L1 infusion EP equals L0, no HP), Q-341/b/c, Q-342, Q-344, Q-345, Q-347, Q-348, Q-351 (stone socket costs no slot), Q-354, Q-356 (Conjuration → Enhancement), Q-358 (physical columns fold by average), Q-359 (a phase switches to the boss's element), Q-232 (B-232 slice; a player's own character is its pawn's).
 - B-350: no nightly balance runner exists (nothing sets `WOR_BALANCE`); GASParity left the default run.
