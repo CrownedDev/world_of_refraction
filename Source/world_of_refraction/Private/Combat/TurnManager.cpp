@@ -460,6 +460,7 @@ void UTurnManager::GrantBonusTurn(AActor *Actor, int32 Count)
 
 	UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] %s gets %d bonus turn(s), landing next"), *Actor->GetName(), Entry.Count);
 	RebuildBelt(); // the strip shows it now, not next turn
+	OnSpeedChanged.Broadcast(Actor);
 }
 
 void UTurnManager::SkipNextTurn(AActor *Actor, int32 Count)

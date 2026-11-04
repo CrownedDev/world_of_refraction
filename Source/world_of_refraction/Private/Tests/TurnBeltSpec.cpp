@@ -10,6 +10,7 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/CombatConstants.h"
 #include "Combat/TurnManager.h"
 
 namespace
@@ -104,6 +105,19 @@ void FTurnBeltSpec::Define()
 			TestTrue(TEXT("then Hero's ready pinned turn"), Is(Turns[1], Hero, ETurnType::Bonus));
 		});
 
+		It("passes the 2:1 cap, whatever granted it (Q-341c)", [this]()
+		{
+			if (!StartFight()) return;
+			// Hero already took turn 1; its bonuses take it past MAX_TURN_RATIO turns in a row.
+			TurnManager->GrantBonusTurn(Hero, CombatConstants::MAX_TURN_RATIO);
+			const TArray<FPreviewTurnEntry> Turns = RecordNextTurns(CombatConstants::MAX_TURN_RATIO + 1);
+			for (int32 Turn = 0; Turn < CombatConstants::MAX_TURN_RATIO; ++Turn)
+			{
+				TestTrue(FString::Printf(TEXT("turn %d is Hero's bonus, past the cap"), Turn + 2), Is(Turns[Turn], Hero, ETurnType::Bonus));
+			}
+			TestTrue(TEXT("then Foe"), Is(Turns[CombatConstants::MAX_TURN_RATIO], Foe, ETurnType::Normal));
+		});
+
 		It("keeps the order two grants were made in", [this]()
 		{
 			if (!StartFight()) return;
@@ -157,6 +171,23 @@ void FTurnBeltSpec::Define()
 			const TArray<FPreviewTurnEntry> Turns = RecordNextTurns(2);
 			TestTrue(TEXT("no bonus survived death; the next round starts with Hero"), Is(Turns[0], Hero, ETurnType::Normal));
 			TestTrue(TEXT("then the revived Foe"), Is(Turns[1], Foe, ETurnType::Normal));
+		});
+
+		It("death clears a skip: the revived holder's turn isn't removed", [this]()
+		{
+			if (!StartFight()) return;
+			UCharacterDataComponent *FoeData = Foe->FindComponentByClass<UCharacterDataComponent>();
+			if (!TestNotNull(TEXT("Foe character data"), FoeData)) return;
+			TurnManager->SkipNextTurn(Foe);
+			FoeData->ServerTakeDamage(FoeData->MaxHP);
+			if (!TestFalse(TEXT("Foe is dead"), FoeData->bIsAlive)) return;
+			FoeData->ServerResurrect(TURN_BELT_TEST_REVIVE_HP);
+			if (!TestTrue(TEXT("Foe is back"), FoeData->bIsAlive)) return;
+			TestEqual(TEXT("no skip waiting"), TurnManager->GetTurnsToSkip(Foe), 0);
+
+			const TArray<FPreviewTurnEntry> Turns = RecordNextTurns(2);
+			TestTrue(TEXT("the next round starts with Hero"), Is(Turns[0], Hero, ETurnType::Normal));
+			TestTrue(TEXT("the revived Foe plays its turn"), Is(Turns[1], Foe, ETurnType::Normal));
 		});
 	});
 }
