@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Combat/Damage/EPhysicalDamageType.h"

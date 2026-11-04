@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
 
 #include "Infusion/EChargeInfusionType.h"
 #include "Infusion/EInfusionSourceOption.h"

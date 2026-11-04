@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "UObject/ObjectKey.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/ESkillEffectType.h"
