@@ -1786,6 +1786,56 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** remove `CombatOrchestratorTestActor`, `TurnManagerTestActor`, `SkillEffectManagerTestActor`, `HUDTestActor` and `SkillProjectileTestActor` now, with no PIE gate. Where an actor covers something no spec covers, the spec comes first in the same job. Any actor placed in a map or referenced by a Blueprint is listed for an editor step instead of deleted blind. The GAS parity specs are deleted with the enum path (D-121, B-042g). `test.sh` prints the 10 slowest tests. The quick balance sim runs in the nightly preset only. CLAUDE.md's Tests rule changes (Crown to approve that edit).
 **Notes for Claude:** job B-350; the parity-spec delete rides with B-042g.
 
+### D-141 — Two sockets per weapon and adapter; fusions retire (audit round 3 §26; changes D-009, D-077)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §26, `chore/simplicity-audit` eb478300) · **Blocks:** —
+**Answer (Crown):** every weapon and adapter has two sockets: an **element socket** (a gem or an evolution) and a **stone socket** (a stone). Fusions retire: the fusion items, their bonus formula, `FFusionId`, fusion wear and pricing, and D-077's counting rule. Enums are append-only, so their values are marked retired. Fusion wear goes with fusions; evolution wear stays (this narrows round 1's "§5 no change" note).
+**What it changes:** D-009 (stones and fusions on rings), D-077 (what counts as "a crystal" for tier caps), the round-1 §5 note.
+**Notes for Claude:** jobs B-351 (the two sockets: slot struct, loadout costs, validation, save bump with wipe per D-138) and B-352 (fusions retire); B-299's rename follows D-138 (no migration: a pre-rename save is wiped).
+
+### D-142 — One stat stone kind (audit round 3 §27)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §27) · **Blocks:** —
+**Answer (Crown):** one `StatStone` kind with a sub-stat field. The old single-stat stone members map to it on load (append-only: old values marked retired). Damage, Ability and Healing stones stay.
+**Notes for Claude:** job B-353, after B-351 / B-352.
+
+### D-143 — Crystal tier caps retire, except one S crystal per battle loadout (audit round 3 §28; changes D-072)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §28) · **Blocks:** —
+**Answer (Crown):** D-072's crystal tier caps retire. The only cap left: at most one S-tier crystal equipped in a battle loadout. Inventory, pouch, storage and owned crystals have no tier caps. Other limits stay: the D-110 point budget and item limit, skill slots by tier, the 10-slot pouch, D-115, D-116 and presets. Skills stay attached to gear; gear with built-in skills can be overridden (under review as audit §37).
+**Notes for Claude:** job B-354 (loadout validation, constants, Rules 01). B-313's per-fight band counts (Q-313(2)) follow it.
+
+### D-144 — Bosses: one rule list (audit round 3 §29)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §29) · **Blocks:** —
+**Answer (Crown):** a boss has one rule list instead of separate phases and triggers. Each rule is when → condition → result; "go to the next phase" is one of the results. It uses D-130's shared condition set, on the deckbuilder's model.
+**Notes for Claude:** job B-355, after B-337.
+
+### D-145 — One skill-slot list per weapon or crystal; built-ins replaceable (audit round 3 §37; changes CL-20)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §37) · **Blocks:** —
+**Answer (Crown):** each weapon or crystal has one skill-slot list (F 1 to S 6). Built-in skills pre-fill it and the player can replace any of them; a replaced built-in is remembered on the item and can be restored. An Ability Stone adds slots to the same list. The locked flags, the position merge and the separate stone list retire. Not the audit's "built-ins can't be replaced" version.
+**Notes for Claude:** combined with B-351 (the two sockets).
+
+### D-146 — Three spell schools: Destruction, Enhancement, Restoration (audit round 3 §31)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §31) · **Blocks:** —
+**Answer (Crown):** spell schools stay as exactly three: **Destruction**, **Enhancement**, **Restoration**. Existing schools map onto them (enum append-only: the others marked retired). Schools are player-facing labels shown on spells (LOCTEXT name table). The AI decides from a spell's actual effects, not its school (folded into B-345). Re-tagging the spell assets is an editor step.
+(Audit §30: **no change** — the class innate resistance table stays as class identity, D-005; the Resonator is the utility class with lower resistance; no class passives.)
+**Notes for Claude:** job B-356; the AI part rides with B-345.
+
+### D-147 — An evolution attaches to the character, a weapon or an adapter; one cost; one resolve path (audit round 3 §32; corrects the audit)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §32) · **Blocks:** —
+**Answer (Crown):** an evolution can attach to the **character**, a **weapon** or an **adapter**. It has one D-110 cost wherever it goes (the separate cost rows retire). In code, "standalone" becomes "attached to the character's own slot", so every reader resolves one thing: an evolution attached to X. On a weapon or adapter it gives only its passive skills, and only while that item is infused at **level 2** (corrected by Crown, 2026-11-04; nothing at L0 or L1); on a weapon it sits in the element socket (D-141).
+**The deckbuilder's rule (cited):** `CrownedDev/wor-deckbuilder` `docs/reference/02-enums.md:65` (an Evolution "attaching it to the Character costs 1 Action + its EN"), `:447` (`WhenAttached`: "an Evolution to a vessel or the Character … even on an Evolution on a vessel, whose other triggered rows stay off"), `:63` (an Evolution on the Character licenses spells of its element). The deckbuilder allows all three placements, which the audit missed.
+**Notes for Claude:** job B-357, after B-351 (sockets) and B-356.
+
+### D-148 — One Physical resistance column (audit round 3 §33)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §33) · **Blocks:** —
+**Answer (Crown):** one Physical resistance column. Slash, Pierce and Impact stay as subtypes (D-037); each subtype only picks its break (SB-19 to SB-21). Saves stay append-only.
+**Notes for Claude:** job B-358.
+
+### D-149 — Weather: one baseline (audit round 3 §34)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §34) · **Blocks:** —
+**Answer (Crown):** the trial's element sets the weather on the map and in battle (B-189); in combat a boss phase change steps it (D-098). The leader-HP tug-of-war in `UWeatherStateManager` retires (flag OBSOLETE).
+**Notes for Claude:** job B-359.
+
+(Audit round 3 closing notes, Crown 2026-11-04: **§36** — the item-strengthening routes are upgrade, attach and merge (crystals only), which follows from D-141 and D-147, so nothing new to build; **downgrade stays** (ER-27) for essence back and respeccing. **§35** (skins / outfits) is **parked**, not to be built. **§30** no change. Round 3 = D-141 to D-149.)
+
 ### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
 **Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.
