@@ -21,6 +21,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-337b](B-337b.md) | `feature/B-337b-conditions-part2` (in `dev`) | Reactions match through the shared conditions (no gameplay change); `wor.Reaction.Print` shows the condition list | Pending |
 | [B-362b](B-362b.md) | `feature/B-362b-wipe-drops-prisms` (in `dev`) | A wipe drops the run's Prisms at the fight instead of taking pillar points; beating that team gets them back; a second wipe loses the first drop | Pending |
 | [B-365](B-365.md) | `feature/B-365-flawless-parry` (in `dev`) | Flawless Parry: every hit of one attack perfectly guarded or dodged logs one line at the last hit; a condition only | Pending |
+| [B-366](B-366.md) | `feature/B-366-currency-names` (in `dev`) | Currency names: the run currency reads Prisms, the hub currency Gold (names only) | Pending |
 | [B-362](B-362.md) | `feature/B-362-losing-a-fight` (in `dev`) | A party wipe costs run pillar points, revives the party at the trial; the run ends after 3 main-boss losses or 5 wipes; save v18 | Pending |
 | [B-361b](B-361b.md) | `feature/B-361b-mentor-tokens` (in `dev`) | Mentor Tokens: earned playing together (a boss, a finished co-op run), spent teaching a skill to another player's character; save v17 | Pending |
 | [B-361](B-361.md) | `feature/B-361-recruits-host-inventory` (in `dev`) | A trial recruit carries the host's pouch and trades skills; its skills stay with the host at run end; no skill trading between players | Pending |
