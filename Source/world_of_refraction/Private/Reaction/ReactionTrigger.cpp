@@ -44,7 +44,7 @@ namespace
 	USkillEffectManager *GetReactionEffectManager(const AActor *Actor)
 	{
 		const UGameInstance *GameInstance = Actor && Actor->GetWorld() ? Actor->GetWorld()->GetGameInstance() : nullptr;
-		return GameInstance ? GameInstance->GetSubsystem<USkillEffectManager>() : nullptr;
+		return WoRFight::Get<USkillEffectManager>(GameInstance);
 	}
 
 	/** Max HP may have changed: refresh the pools (current HP is left as it is). */
@@ -155,7 +155,7 @@ int32 ReactionTriggers::ApplyFired(const TArray<FFiredReaction> &Fired)
 		}
 		const FReactionTrigger &Trigger = *Reaction.Trigger;
 		const int32 SourceId = ReactionTriggerConstants::REACTION_EFFECT_SOURCE_ID_BASE + Reaction.TriggerIndex;
-		const UTurnManager *TurnManager = Effects->GetGameInstance() ? Effects->GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+		const UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(Effects);
 		const int32 WearerTeam = TurnManager ? TurnManager->GetActorTeam(Reaction.Wearer) : INDEX_NONE;
 		for (int32 EffectIndex = 0; EffectIndex < Trigger.Effects.Num(); ++EffectIndex)
 		{

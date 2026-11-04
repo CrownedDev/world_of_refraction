@@ -355,7 +355,7 @@ namespace WoRGive
 		}
 		// Between fights only: the giver's loadouts drop the skill in the pre-fight clean (ClearInvalidSlots).
 		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-		const UTurnManager *TurnManager = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+		const UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(GI);
 		if (TurnManager && TurnManager->IsCombatActive())
 		{
 			return LOCTEXT("SkillsInFight", "Skills can't change hands during a fight");
@@ -407,7 +407,7 @@ namespace WoRGive
 			return LOCTEXT("NotASkillTeach", "That isn't a spell or an ability");
 		}
 		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-		const UTurnManager *TurnManager = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+		const UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(GI);
 		if (TurnManager && TurnManager->IsCombatActive())
 		{
 			return LOCTEXT("TeachInFight", "Skills can't be taught during a fight");

@@ -1,6 +1,7 @@
 // WoRAttributeSyncComponent.cpp
 
 #include "GAS/WoRAttributeSyncComponent.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "GAS/WoRAttributeSets.h"
 #include "AbilitySystemComponent.h"
@@ -28,9 +29,7 @@ namespace
 	template <typename TSubsystem>
 	TSubsystem *AttributeSyncSubsystem(const UObject *WorldContext)
 	{
-		const UWorld *World = WorldContext ? WorldContext->GetWorld() : nullptr;
-		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-		return GI ? GI->GetSubsystem<TSubsystem>() : nullptr;
+		return WoRFight::Get<TSubsystem>(WorldContext); // world or game-instance subsystem (B-336)
 	}
 
 	constexpr float STAT_SOURCES_EFFECT_LEVEL = 1.0f;

@@ -279,7 +279,7 @@ void UActionExecutor::FinishMontageChain(AActor *Actor)
 	if (Actor && (!FacingComp || FacingComp->bIsAlive))
 	{
 		const UGameInstance *GI = GetWorld()->GetGameInstance();
-		UCombatGridSubsystem *Grid = GI ? GI->GetSubsystem<UCombatGridSubsystem>() : nullptr;
+		UCombatGridSubsystem *Grid = WoRFight::Get<UCombatGridSubsystem>(GI);
 		if (Grid)
 		{
 			Grid->UpdateActorFacing(Actor, CachedArenaCenter);

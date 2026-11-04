@@ -33,7 +33,7 @@ namespace
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 		{
 			const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-			const UStatusBuildupManager *Buildup = GI ? GI->GetSubsystem<UStatusBuildupManager>() : nullptr;
+			const UStatusBuildupManager *Buildup = WoRFight::Get<UStatusBuildupManager>(GI);
 			if (!Buildup)
 			{
 				return;
@@ -79,11 +79,8 @@ USkillEffectManager *UStatusBuildupManager::GetEffectManager() const
 {
 	if (!EffectManagerRef)
 	{
-		if (UGameInstance *GI = GetGameInstance())
-		{
-			const_cast<UStatusBuildupManager *>(this)->EffectManagerRef =
-				GI->GetSubsystem<USkillEffectManager>();
-		}
+		// Same world, so the cache lives exactly as long as this subsystem (B-336).
+		const_cast<UStatusBuildupManager *>(this)->EffectManagerRef = WoRFight::Get<USkillEffectManager>(this);
 	}
 	return EffectManagerRef;
 }

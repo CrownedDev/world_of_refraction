@@ -25,7 +25,6 @@ void UItemExecutor::Initialize(FSubsystemCollectionBase &Collection)
 
 void UItemExecutor::Deinitialize()
 {
-	SkillEffectManagerRef = nullptr;
 	Super::Deinitialize();
 }
 
@@ -268,7 +267,7 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, FCrystalId
 	// The same amount accompanies the immediate hit and every DOT tick — it is
 	// carried on the DOT via BuildupPerTick (see below).
 	float BuildupPerEvent = 0.0f;
-	UStatusBuildupManager *SBM = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
+	UStatusBuildupManager *SBM = WoRFight::Get<UStatusBuildupManager>(this);
 	if (SBM)
 	{
 		const float BarMax = SBM->GetStatusBarBuildup(Target) + SBM->GetBuildupToTrigger(Target);
@@ -450,7 +449,7 @@ void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, FCr
 	OutResult.EnergyRestored = TargetComp->CurrentEP - EPBefore;
 
 	// Lightning buildup is applied to the TARGET; the user remains the source.
-	UStatusBuildupManager *SBM = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
+	UStatusBuildupManager *SBM = WoRFight::Get<UStatusBuildupManager>(this);
 	if (SBM)
 	{
 		const float BuildupPercent = CrystalEffectTable::GetElementalBuildupPercent(Id);
@@ -521,7 +520,7 @@ void UItemExecutor::ExecuteBonusTurnEffect(AActor *User, AActor *Target, FCrysta
 	UTurnManager *TurnMgr = nullptr;
 	if (UGameInstance *GI = GetGameInstance())
 	{
-		TurnMgr = GI->GetSubsystem<UTurnManager>();
+		TurnMgr = WoRFight::Get<UTurnManager>(GI);
 	}
 	if (!TurnMgr)
 	{
@@ -915,7 +914,7 @@ void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, FCrystalI
 	OutResult.bSuccess = true;
 
 	// All tiers build the Darkness status bar on the target.
-	UStatusBuildupManager *SBM = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
+	UStatusBuildupManager *SBM = WoRFight::Get<UStatusBuildupManager>(this);
 	if (SBM)
 	{
 		const float BarMax = SBM->GetStatusBarBuildup(Target) + SBM->GetBuildupToTrigger(Target);
@@ -1010,7 +1009,7 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, FCrystalId
 	OutResult.bSuccess = true;
 
 	// Amethyst also builds the Void status bar on the target.
-	UStatusBuildupManager *SBM = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
+	UStatusBuildupManager *SBM = WoRFight::Get<UStatusBuildupManager>(this);
 	if (SBM)
 	{
 		const float BarMax = SBM->GetStatusBarBuildup(Target) + SBM->GetBuildupToTrigger(Target);
@@ -1075,7 +1074,7 @@ void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, FCrys
 	// element-specific protection for the bar's pending (last-hit) element:
 	//   F-A : ResistanceBuff   — reduces further buildup of that element
 	//   S   : GrantXxxImmunity — fully absorbs further buildup of that element
-	UStatusBuildupManager *SBM = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
+	UStatusBuildupManager *SBM = WoRFight::Get<UStatusBuildupManager>(this);
 	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
 	if (!SBM || !TargetComp)
 	{
@@ -1199,15 +1198,9 @@ UCharacterDataComponent *UItemExecutor::GetCharacterDataComponent(AActor *Actor)
 
 USkillEffectManager *UItemExecutor::GetSkillEffectManager() const
 {
-	if (!SkillEffectManagerRef)
-	{
-		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
-		{
-			const_cast<UItemExecutor *>(this)->SkillEffectManagerRef =
-				GI->GetSubsystem<USkillEffectManager>();
-		}
-	}
-	return SkillEffectManagerRef;
+	// Looked up each time, not cached: it lives on the current world and this executor outlives
+	// a level change (B-336).
+	return WoRFight::Get<USkillEffectManager>(this);
 }
 
 bool UItemExecutor::IsBrokenDarknessCharacter(AActor *Actor) const
@@ -1232,7 +1225,7 @@ bool UItemExecutor::IsAlly(AActor *User, AActor *Target) const
 	UTurnManager *TurnMgr = nullptr;
 	if (UGameInstance *GI = GetGameInstance())
 	{
-		TurnMgr = GI->GetSubsystem<UTurnManager>();
+		TurnMgr = WoRFight::Get<UTurnManager>(GI);
 	}
 	if (!TurnMgr)
 	{

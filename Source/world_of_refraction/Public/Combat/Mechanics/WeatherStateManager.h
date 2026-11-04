@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Subsystems/GameInstanceSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "WeatherStateManager.generated.h"
 
@@ -33,7 +33,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnWeatherChanged,
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBattleWeatherChanged, ESpellElement, Element, float, Intensity);
 
 UCLASS()
-class WORLD_OF_REFRACTION_API UWeatherStateManager : public UGameInstanceSubsystem
+class WORLD_OF_REFRACTION_API UWeatherStateManager : public UWoRFightSubsystem
 {
     GENERATED_BODY()
 
@@ -95,8 +95,8 @@ public:
      *  listener count on OnWeatherChanged. The listener count is the critical
      *  diagnostic: if it reports 0 during combat, no consumer is bound and the
      *  broadcast goes nowhere. */
-    /** Console trigger: wor.PrintWeather (in the .cpp). No CallInEditor — a
-     *  UGameInstanceSubsystem has no Details panel to host a button. */
+    /** Console trigger: wor.PrintWeather (in the .cpp). No CallInEditor —
+     *  a subsystem has no Details panel to host a button. */
     UFUNCTION(BlueprintCallable, Category = "Weather|Debug")
     void PrintWeatherState() const;
 

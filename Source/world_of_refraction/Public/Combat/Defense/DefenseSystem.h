@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Subsystems/GameInstanceSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Defense/EDefenseDirection.h"
 #include "Combat/Defense/DefenseDifficulty.h"
@@ -216,7 +216,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnDefensePerfect, AActor *, Defen
 /**
  * UDefenseSystem
  *
- * GameInstanceSubsystem that handles real-time defense mechanics.
+ * Per-fight world subsystem (B-336) that handles real-time defense mechanics.
  * Players can Guard or Dodge incoming attacks during defense windows (D-084, B-168).
  *
  * Defense Types:
@@ -225,14 +225,14 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnDefensePerfect, AActor *, Defen
  * - Dodge: 100% avoidance on timing alone (left/right only)
  *
  * Usage:
- *   UDefenseSystem* Defense = GetGameInstance()->GetSubsystem<UDefenseSystem>();
+ *   UDefenseSystem* Defense = WoRFight::Get<UDefenseSystem>(this);
  *   Defense->OpenDefenseWindow(Attacker, Defender, AttackSize, BaseDamage, WindowDuration);
  *   // Player presses button
  *   Defense->SubmitDefenseInput(Defender, EDefenseType::Block);
  *   // Window closes, damage applied
  */
 UCLASS()
-class WORLD_OF_REFRACTION_API UDefenseSystem : public UGameInstanceSubsystem
+class WORLD_OF_REFRACTION_API UDefenseSystem : public UWoRFightSubsystem
 {
 	GENERATED_BODY()
 

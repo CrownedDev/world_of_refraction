@@ -782,7 +782,7 @@ namespace
         {
             if (UGameInstance *GI = World->GetGameInstance())
             {
-                if (USkillEffectManager *SEM = GI->GetSubsystem<USkillEffectManager>())
+                if (USkillEffectManager *SEM = WoRFight::Get<USkillEffectManager>(GI))
                 {
                     ESkillEffectType BuffType = ESkillEffectType::MindBuff;
                     ESkillEffectType DebuffType = ESkillEffectType::MindDebuff;
@@ -1469,14 +1469,14 @@ USkillEffectManager *UCharacterDataComponent::GetSkillEffectManager() const
 {
     // Lazy re-resolve: re-fetch whenever the cache is null, so a fresh component in a
     // new PIE session starts clean. Returns the same subsystem pointer the prior inline
-    // GetWorld()->GetGameInstance()->GetSubsystem<USkillEffectManager>() reads did.
+    // WoRFight::Get<USkillEffectManager>(GetWorld()) reads did.
     if (!CachedSkillEffectManager)
     {
         if (UWorld *World = GetWorld())
         {
             if (UGameInstance *GI = World->GetGameInstance())
             {
-                CachedSkillEffectManager = GI->GetSubsystem<USkillEffectManager>();
+                CachedSkillEffectManager = WoRFight::Get<USkillEffectManager>(GI);
             }
         }
     }

@@ -34,7 +34,7 @@ namespace
 	{
 		const UWorld *World = WorldContext ? WorldContext->GetWorld() : nullptr;
 		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-		return GI ? GI->GetSubsystem<USkillEffectManager>() : nullptr;
+		return WoRFight::Get<USkillEffectManager>(GI);
 	}
 
 	/** Every stored effect of a ported type. Not IsInstant: a stored holder-turn span that counted

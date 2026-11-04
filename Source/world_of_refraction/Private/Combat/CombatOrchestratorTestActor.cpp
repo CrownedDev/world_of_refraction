@@ -934,7 +934,7 @@ void ACombatOrchestratorTestActor::Test_StatusEffectFromAction()
 
 	// Get SkillEffectManager
 	UGameInstance *GameInstance = GetWorld()->GetGameInstance();
-	USkillEffectManager *StatusManager = GameInstance ? GameInstance->GetSubsystem<USkillEffectManager>() : nullptr;
+	USkillEffectManager *StatusManager = WoRFight::Get<USkillEffectManager>(GameInstance);
 
 	if (!StatusManager)
 	{

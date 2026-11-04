@@ -51,7 +51,7 @@ namespace
 	{
 		const UWorld *World = Actor ? Actor->GetWorld() : nullptr;
 		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-		return GI ? GI->GetSubsystem<USkillEffectManager>() : nullptr;
+		return WoRFight::Get<USkillEffectManager>(GI);
 	}
 
 	FString TagDebugEnumName(const UEnum *Enum, int64 Value)

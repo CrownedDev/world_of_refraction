@@ -93,9 +93,9 @@ void ACombatOrchestrator::BeginPlay()
 	UGameInstance *GI = GetGameInstance();
 	if (GI)
 	{
-		TurnManagerRef = GI->GetSubsystem<UTurnManager>();
-		SkillEffectManagerRef = GI->GetSubsystem<USkillEffectManager>();
-		ActionExecutorRef = GI->GetSubsystem<UActionExecutor>();
+		TurnManagerRef = WoRFight::Get<UTurnManager>(GI);
+		SkillEffectManagerRef = WoRFight::Get<USkillEffectManager>(GI);
+		ActionExecutorRef = WoRFight::Get<UActionExecutor>(GI);
 	}
 
 	if (!TurnManagerRef)
@@ -119,7 +119,7 @@ void ACombatOrchestrator::BeginPlay()
 		ActionExecutorRef->OnActionDeferredArmed.AddDynamic(this, &ACombatOrchestrator::HandleActionDeferredArmed);
 	}
 
-	AIDecisionManagerRef = GI ? GI->GetSubsystem<UAIDecisionManager>() : nullptr; // B-067: GI may be null
+	AIDecisionManagerRef = WoRFight::Get<UAIDecisionManager>(GI); // B-067: GI may be null
 
 	if (!AIDecisionManagerRef)
 	{
@@ -144,7 +144,7 @@ void ACombatOrchestrator::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	if (UGameInstance *GI = GetGameInstance())
 	{
-		if (UCombatCommandMenuSubsystem *Menu = GI->GetSubsystem<UCombatCommandMenuSubsystem>())
+		if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(GI))
 		{
 			Menu->ClearCombatOrchestrator();
 		}
@@ -225,7 +225,7 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	// Register with combat command menu
 	if (UGameInstance *GI = GetGameInstance())
 	{
-		if (UCombatCommandMenuSubsystem *Menu = GI->GetSubsystem<UCombatCommandMenuSubsystem>())
+		if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(GI))
 		{
 			Menu->SetCombatOrchestrator(this);
 		}
@@ -286,7 +286,7 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	PrepareAllLoadoutsForBattle();
 
 	// Assign grid positions and place actors
-	if (UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>())
+	if (UCombatGridSubsystem *Grid = WoRFight::Get<UCombatGridSubsystem>(this))
 	{
 		FVector ArenaCenter = GetActorLocation();
 
@@ -320,13 +320,13 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	}
 
 	// Initialise weather leaders
-	if (UWeatherStateManager *WeatherManager = GetGameInstance()->GetSubsystem<UWeatherStateManager>())
+	if (UWeatherStateManager *WeatherManager = WoRFight::Get<UWeatherStateManager>(this))
 	{
 		WeatherManager->InitialiseLeaders(LocalPartyCombatants, OpposingPartyCombatants);
 	}
 
 	// Set arena center for ActionExecutor movement calculations
-	if (UActionExecutor *Executor = GetGameInstance()->GetSubsystem<UActionExecutor>())
+	if (UActionExecutor *Executor = WoRFight::Get<UActionExecutor>(this))
 	{
 		Executor->SetArenaCenter(GetActorLocation());
 	}
@@ -448,9 +448,8 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 		for (const AActor *Member : LocalPartyCombatants)
 		{
 			const UCharacterDataComponent *MemberData = Member ? Member->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-			// TODO: B-360c: the level-drop screen and placement read by character (the first copy, Q-360c), so a copy's
-			// levels are banked there until they take the member; with GetCharacterKey(MemberData) they could not be spent.
-			const FName MemberKey = UPoolSubsystem::GetCharacterKey(MemberData ? MemberData->CharacterData : nullptr);
+			// B-360c (Q-360c): by the member's own key, so a later copy of a character banks and places its own levels.
+			const FName MemberKey = UPoolSubsystem::GetCharacterKey(MemberData);
 			// Only rostered members: a guest or summon has no level-drop screen row to spend them from.
 			if (MemberKey.IsNone() || !MemberData->FindCarriedPartyMember())
 			{
@@ -515,16 +514,16 @@ void ACombatOrchestrator::ReleaseCombatResources()
 	{
 		ActionExecutorRef->ResetForCombat();
 	}
-	if (UDefenseSystem *Defense = GI ? GI->GetSubsystem<UDefenseSystem>() : nullptr)
+	if (UDefenseSystem *Defense = WoRFight::Get<UDefenseSystem>(GI))
 	{
 		Defense->ResetForCombat();
 	}
-	if (UInfusionChargeManager *Infusion = GI ? GI->GetSubsystem<UInfusionChargeManager>() : nullptr)
+	if (UInfusionChargeManager *Infusion = WoRFight::Get<UInfusionChargeManager>(GI))
 	{
 		Infusion->ResetForCombat();
 	}
 
-	if (UWeatherStateManager *WeatherManager = GI ? GI->GetSubsystem<UWeatherStateManager>() : nullptr)
+	if (UWeatherStateManager *WeatherManager = WoRFight::Get<UWeatherStateManager>(GI))
 	{
 		WeatherManager->EndCombat();
 	}
@@ -535,7 +534,7 @@ void ACombatOrchestrator::ReleaseCombatResources()
 		SkillEffectManagerRef->ResetForNewCombat();
 	}
 
-	UStatusBuildupManager *BuildupManager = GI ? GI->GetSubsystem<UStatusBuildupManager>() : nullptr;
+	UStatusBuildupManager *BuildupManager = WoRFight::Get<UStatusBuildupManager>(GI);
 	for (const TArray<AActor *> *Team : {&LocalPartyCombatants, &OpposingPartyCombatants})
 	{
 		for (AActor *Actor : *Team)
@@ -565,7 +564,7 @@ void ACombatOrchestrator::ReleaseCombatResources()
 	// Loadout battle-ready flags (transfer model: no item debit here).
 	ConsumeAllUsedItems();
 
-	if (UCombatGridSubsystem *Grid = GI ? GI->GetSubsystem<UCombatGridSubsystem>() : nullptr)
+	if (UCombatGridSubsystem *Grid = WoRFight::Get<UCombatGridSubsystem>(GI))
 	{
 		Grid->ClearAllPositions();
 	}
@@ -574,7 +573,7 @@ void ACombatOrchestrator::ReleaseCombatResources()
 	{
 		AIDecisionManagerRef->ClearCombatOrchestrator();
 	}
-	if (UCombatCommandMenuSubsystem *Menu = GI ? GI->GetSubsystem<UCombatCommandMenuSubsystem>() : nullptr)
+	if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(GI))
 	{
 		Menu->ClearCombatOrchestrator();
 	}
@@ -843,7 +842,7 @@ FText ACombatOrchestrator::GetRowMoveRefusedReason(AActor *Actor, bool bForward)
 	{
 		return NSLOCTEXT("CombatOrchestrator", "RowUsed", "Already moved this turn.");
 	}
-	const UCombatGridSubsystem *Grid = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCombatGridSubsystem>() : nullptr;
+	const UCombatGridSubsystem *Grid = WoRFight::Get<UCombatGridSubsystem>(this);
 	FCombatGridPosition Position;
 	if (!Grid || !Grid->GetActorPosition(Actor, Position))
 	{
@@ -875,7 +874,7 @@ bool ACombatOrchestrator::TryMoveRow(AActor *Actor, bool bForward, FText &OutRef
 		return false;
 	}
 
-	UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
+	UCombatGridSubsystem *Grid = WoRFight::Get<UCombatGridSubsystem>(this);
 	FCombatGridPosition Position;
 	Grid->GetActorPosition(Actor, Position);
 	const FCombatGridPosition Target = OrchestratorStepTarget(Position, bForward);
@@ -1301,7 +1300,7 @@ bool ACombatOrchestrator::SwitchMemberControl(AActor *Actor)
 	{
 		// The AI takes this turn: the player's open menu must not submit a second action.
 		const UGameInstance *GI = GetGameInstance();
-		if (UCombatCommandMenuSubsystem *Menu = GI ? GI->GetSubsystem<UCombatCommandMenuSubsystem>() : nullptr)
+		if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(GI))
 		{
 			if (Menu->IsOpen())
 			{
@@ -1364,7 +1363,7 @@ void ACombatOrchestrator::ProcessStartOfTurnEffects(AActor *Actor)
 	SkillEffectManagerRef->ProcessStartOfTurnEffects(Actor);
 
 	// Process status bar decay (buildup lives in its own subsystem post-split).
-	if (UStatusBuildupManager *BuildupManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr)
+	if (UStatusBuildupManager *BuildupManager = WoRFight::Get<UStatusBuildupManager>(this))
 	{
 		BuildupManager->ProcessStatusBarDecay(Actor);
 	}

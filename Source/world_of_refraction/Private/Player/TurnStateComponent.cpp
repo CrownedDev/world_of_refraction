@@ -70,7 +70,7 @@ UTurnManager *UTurnStateComponent::GetTurnManager() const
 {
 	const UWorld *World = GetWorld();
 	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-	return GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+	return WoRFight::Get<UTurnManager>(GI);
 }
 
 void UTurnStateComponent::BindToTurnManager()

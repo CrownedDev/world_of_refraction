@@ -780,7 +780,7 @@ void ASkillEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 	UTurnManager *TurnManager = nullptr;
 	if (UGameInstance *GI = GetGameInstance())
 	{
-		TurnManager = GI->GetSubsystem<UTurnManager>();
+		TurnManager = WoRFight::Get<UTurnManager>(GI);
 	}
 
 	if (!TurnManager)
@@ -887,7 +887,7 @@ USkillEffectManager *ASkillEffectManagerTestActor::GetSkillEffectManager()
 		return nullptr;
 	}
 
-	return GI->GetSubsystem<USkillEffectManager>();
+	return WoRFight::Get<USkillEffectManager>(GI);
 }
 
 AActor *ASkillEffectManagerTestActor::CreateTestActor(const FString &Name, int32 HP, int32 EP)

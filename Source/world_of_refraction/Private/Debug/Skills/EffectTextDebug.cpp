@@ -63,7 +63,7 @@ FString UEffectTextDebug::GetActorEffectTextString(AActor *Actor)
 	TArray<FEffectTextLine> Lines = EffectText::BuildTree(Effects, EEffectTextSource::Gear);
 	const UWorld *World = Actor->GetWorld();
 	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-	if (const USkillEffectManager *Manager = GI ? GI->GetSubsystem<USkillEffectManager>() : nullptr)
+	if (const USkillEffectManager *Manager = WoRFight::Get<USkillEffectManager>(GI))
 	{
 		EffectText::LightTree(Lines, Effects, [Manager, Actor](const FSkillCondition &C)
 		{

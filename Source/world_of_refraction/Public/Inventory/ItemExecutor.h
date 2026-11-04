@@ -249,12 +249,4 @@ private:
 
 	/** True if User and Target are on the same team (resolved via UTurnManager). */
 	bool IsAlly(AActor *User, AActor *Target) const;
-
-	// ========================================
-	// STATE
-	// ========================================
-
-	/** Cached SkillEffectManager */
-	UPROPERTY()
-	USkillEffectManager *SkillEffectManagerRef = nullptr;
 };

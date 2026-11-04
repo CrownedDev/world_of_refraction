@@ -34,7 +34,7 @@ namespace
         }
         if (UGameInstance *GI = UGameplayStatics::GetGameInstance(Caster))
         {
-            return GI->GetSubsystem<UActionExecutor>();
+            return WoRFight::Get<UActionExecutor>(GI);
         }
         return nullptr;
     }

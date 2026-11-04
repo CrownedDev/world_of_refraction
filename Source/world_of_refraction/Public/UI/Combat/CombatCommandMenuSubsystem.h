@@ -6,7 +6,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Subsystems/GameInstanceSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "UI/Combat/FCombatCapabilities.h"
 #include "UI/Combat/PieMenuButtonData.h"
 #include "Character/ECharacterClass.h"
@@ -44,7 +44,7 @@ enum class ECombatMenuDepth : uint8
 // ==================== SUBSYSTEM ====================
 
 UCLASS()
-class WORLD_OF_REFRACTION_API UCombatCommandMenuSubsystem : public UGameInstanceSubsystem
+class WORLD_OF_REFRACTION_API UCombatCommandMenuSubsystem : public UWoRFightSubsystem
 {
     GENERATED_BODY()
 

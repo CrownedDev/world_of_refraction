@@ -178,7 +178,7 @@ bool UEconomyService::IsOutOfCombat(const AActor *Owner, const TCHAR *Op)
 {
     const UWorld *World = Owner ? Owner->GetWorld() : nullptr;
     const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-    const UTurnManager *TurnManager = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+    const UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(GI);
     if (TurnManager && TurnManager->IsCombatActive())
     {
         const FText Refusal = NSLOCTEXT("EconomyService", "RefusedInCombat", "Not during a fight.");

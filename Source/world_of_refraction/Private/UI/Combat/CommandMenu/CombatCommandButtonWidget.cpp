@@ -91,7 +91,7 @@ void UCombatCommandButtonWidget::HandleClicked()
         return;
     }
 
-    UCombatCommandMenuSubsystem *Subsystem = GI->GetSubsystem<UCombatCommandMenuSubsystem>();
+    UCombatCommandMenuSubsystem *Subsystem = WoRFight::Get<UCombatCommandMenuSubsystem>(GI);
     if (!Subsystem)
     {
         UE_LOG(LogTemp, Warning, TEXT("[CombatCommandButton] HandleClicked: subsystem not found"));

@@ -55,7 +55,7 @@ void UInfusionVFXComponent::BeginPlay()
 
     if (UGameInstance *GI = Cast<UGameInstance>(UGameplayStatics::GetGameInstance(this)))
     {
-        if (UInfusionChargeManager *ChargeMgr = GI->GetSubsystem<UInfusionChargeManager>())
+        if (UInfusionChargeManager *ChargeMgr = WoRFight::Get<UInfusionChargeManager>(GI))
         {
             ChargeMgr->OnChargeLevelChanged.AddDynamic(this, &UInfusionVFXComponent::OnChargeLevelChanged);
             ChargeMgr->OnChargeComplete.AddDynamic(this, &UInfusionVFXComponent::OnChargeComplete);
@@ -390,7 +390,7 @@ ESpellElement UInfusionVFXComponent::GetElementForSource(EInfusionSourceOption S
     UGameInstance *GI = Cast<UGameInstance>(UGameplayStatics::GetGameInstance(this));
     if (GI)
     {
-        UActionExecutor *Executor = GI->GetSubsystem<UActionExecutor>();
+        UActionExecutor *Executor = WoRFight::Get<UActionExecutor>(GI);
         if (Executor)
         {
             return Executor->GetElementForSourceOption(GetOwner(), Source);
@@ -483,7 +483,7 @@ void UInfusionVFXComponent::CacheAvailableSources()
         return;
     }
 
-    UActionExecutor *Executor = GI->GetSubsystem<UActionExecutor>();
+    UActionExecutor *Executor = WoRFight::Get<UActionExecutor>(GI);
     if (!Executor)
     {
         UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No ActionExecutor"));

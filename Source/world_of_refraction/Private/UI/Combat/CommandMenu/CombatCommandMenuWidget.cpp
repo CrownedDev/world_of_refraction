@@ -68,7 +68,7 @@ void UCombatCommandMenuWidget::InitialiseForCombat()
         return;
     }
 
-    UCombatCommandMenuSubsystem *Subsystem = GI->GetSubsystem<UCombatCommandMenuSubsystem>();
+    UCombatCommandMenuSubsystem *Subsystem = WoRFight::Get<UCombatCommandMenuSubsystem>(GI);
     if (!Subsystem)
     {
         UE_LOG(LogTemp, Warning, TEXT("[CombatCommandMenu] InitialiseForCombat: subsystem not found"));

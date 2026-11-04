@@ -91,8 +91,8 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 	UStatusBuildupManager *BuildupMgr = nullptr;
 	if (UGameInstance *GI = GetGameInstance())
 	{
-		StatusMgr = GI->GetSubsystem<USkillEffectManager>();
-		BuildupMgr = GI->GetSubsystem<UStatusBuildupManager>();
+		StatusMgr = WoRFight::Get<USkillEffectManager>(GI);
+		BuildupMgr = WoRFight::Get<UStatusBuildupManager>(GI);
 	}
 
 	BoundActor = InActor;

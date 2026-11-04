@@ -1045,7 +1045,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSpellButtons(
         bool bIsBD = false;
         if (CurrentActor.IsValid())
         {
-            if (UActionExecutor *Exec = GetGameInstance() ? GetGameInstance()->GetSubsystem<UActionExecutor>() : nullptr)
+            if (UActionExecutor *Exec = WoRFight::Get<UActionExecutor>(this))
             {
                 ResolvedElement = Exec->ResolveSpellCastElement(CurrentActor.Get(), Spell);
             }
@@ -1203,7 +1203,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
                 ActiveSubmenuSource == EPieMenuCategory::Breakthrough)
             {
                 USpellData *BreakthroughSpell = Cast<USpellData>(PendingActionData.Get());
-                UActionExecutor *Exec = GetGameInstance() ? GetGameInstance()->GetSubsystem<UActionExecutor>() : nullptr;
+                UActionExecutor *Exec = WoRFight::Get<UActionExecutor>(this);
                 if (Exec && BreakthroughSpell && CurrentActor.IsValid())
                 {
                     VFX->RestrictCachedSources(
@@ -1432,7 +1432,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
     UTurnManager *TM = nullptr;
     if (UGameInstance *GI = GetGameInstance())
     {
-        TM = GI->GetSubsystem<UTurnManager>();
+        TM = WoRFight::Get<UTurnManager>(GI);
     }
     const UTurnStateComponent *TurnState = UTurnStateComponent::Find(GetGameInstance());
     if (TM || TurnState)
@@ -1665,7 +1665,7 @@ TArray<AActor *> UCombatCommandMenuSubsystem::ResolveTargets(ETargetType TargetT
     if (!GI)
         return Result;
 
-    UTurnManager *TM = GI->GetSubsystem<UTurnManager>();
+    UTurnManager *TM = WoRFight::Get<UTurnManager>(GI);
     const UTurnStateComponent *TurnState = UTurnStateComponent::Find(GI);
     if (!TM && !TurnState)
         return Result;
@@ -2018,7 +2018,7 @@ UInfusionVFXComponent *UCombatCommandMenuSubsystem::GetInfusionVFXComponent() co
 bool UCombatCommandMenuSubsystem::IsCurrentActorStunned() const
 {
     const USkillEffectManager *EffectManager =
-        GetGameInstance() ? GetGameInstance()->GetSubsystem<USkillEffectManager>() : nullptr;
+        WoRFight::Get<USkillEffectManager>(this);
     return EffectManager && CurrentActor.IsValid() && EffectManager->IsStunned(CurrentActor.Get());
 }
 

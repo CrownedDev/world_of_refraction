@@ -128,7 +128,7 @@ void UCharacterFormSubsystem::RestoreProgress(const TMap<FName, float> &InProgre
 
 bool UCharacterFormSubsystem::IsInFight() const
 {
-    const UTurnManager *TurnManager = GetGameInstance()->GetSubsystem<UTurnManager>();
+    const UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(this);
     return TurnManager && TurnManager->IsCombatActive();
 }
 
