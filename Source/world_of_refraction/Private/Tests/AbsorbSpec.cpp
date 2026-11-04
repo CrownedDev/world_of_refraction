@@ -11,6 +11,9 @@
 #include "GAS/WoRAbsorb.h"
 #include "GAS/WoRTurnEffectTracker.h"
 #include "Tags/WoRGameplayTags.h"
+#include "Character/CharacterDataComponent.h"
+#include "Skills/Effects/ActiveSkillEffect.h"
+#include "Skills/Effects/SkillEffectManager.h"
 
 namespace
 {
@@ -23,6 +26,10 @@ namespace
 	constexpr int32 HIT_SMALL = 3;
 	constexpr int32 HIT_BIG = 8;
 	constexpr int32 WARD_COUNT = 2;
+	constexpr int32 ABSORB_BIG_POOL = 50;
+	constexpr int32 DOT_TEST_ID = 4242;
+	constexpr float DOT_TEST_DAMAGE = 4.0f;
+	constexpr int32 DOT_TEST_TURNS = 2;
 
 	FWoRAbsorbCharge MakeCharge(EWoRAbsorbVerb Verb, EWoRChargeMode Mode, int32 MaxUses, ESpellElement Element = ESpellElement::None)
 	{
@@ -230,6 +237,57 @@ void FAbsorbSpec::Define()
 		TestEqual(TEXT("Negates 3"), WoRAbsorb::Spend(Charges, HIT_SMALL, ESpellElement::None, EPhysicalDamageType::Slash), HIT_SMALL);
 		TestEqual(TEXT("The older one paid"), Older.PoolLeft, ABSORB_MAGNITUDE - HIT_SMALL);
 		TestEqual(TEXT("The newer one is whole"), Newer.PoolLeft, ABSORB_MAGNITUDE);
+	});
+
+	It("Ward scopes (B-042j2): Elemental catches every element but not physical; All catches physical too", [this]()
+	{
+		FWoRAbsorbCharge Elemental = MakeCharge(EWoRAbsorbVerb::Ward, EWoRChargeMode::Uses, ABSORB_UNLIMITED);
+		Elemental.Scope = EWoRWardScope::Elemental;
+		TestTrue(TEXT("an Elemental Ward needs no element"), WoRAbsorb::IsValidCharge(Elemental));
+		TestTrue(TEXT("given"), Give(Elemental).IsValid());
+		TestEqual(TEXT("Fire caught"), HitFire(HIT_SMALL), HIT_SMALL);
+		TestEqual(TEXT("Water caught"), HitWater(HIT_SMALL), HIT_SMALL);
+		TestEqual(TEXT("physical not caught"), HitPhysical(HIT_SMALL), 0);
+
+		FWoRAbsorbCharge All = MakeCharge(EWoRAbsorbVerb::Ward, EWoRChargeMode::Uses, ABSORB_UNLIMITED);
+		All.Scope = EWoRWardScope::All;
+		TestTrue(TEXT("given"), Give(All).IsValid());
+		TestEqual(TEXT("an All Ward catches physical too"), HitPhysical(HIT_SMALL), HIT_SMALL);
+	});
+
+	It("an authored Negate payload becomes an absorber on the holder (B-042j2)", [this]()
+	{
+		USkillEffectManager *SEM = TestWorld->GetSubsystem<USkillEffectManager>();
+		if (!TestNotNull(TEXT("SkillEffectManager"), SEM)) return;
+		FActiveSkillEffect Negate;
+		Negate.EffectName = TEXT("Fire Ward");
+		Negate.EffectID = DOT_TEST_ID;
+		Negate.EffectType = ESkillEffectType::NegateElement;
+		Negate.EffectValue = ABSORB_MAGNITUDE; // the payload's Value, passed through
+		Negate.Charges = ABSORB_ONE_USE;
+		Negate.Element = ESpellElement::Fire;
+		Negate.bPermanent = true; // until spent
+		TestEqual(TEXT("applied as a charge"), SEM->ApplyEffect(Hero, Negate, Hero, TEXT("spec")), EEffectApplicationResult::Applied);
+		TestEqual(TEXT("one absorber on the holder"), Tracker->GetAbsorbs().Num(), 1);
+		TestFalse(TEXT("no lasting effect of that type"), SEM->HasEffectOfType(Hero, ESkillEffectType::NegateElement));
+		TestEqual(TEXT("it catches Fire"), HitFire(HIT_SMALL), HIT_SMALL);
+		TestEqual(TEXT("one use: spent"), Tracker->GetAbsorbs().Num(), 0);
+	});
+
+	It("a DoT tick spends the holder's absorbers like any damage instance (D-092 rule 1, B-042j2)", [this]()
+	{
+		USkillEffectManager *SEM = TestWorld->GetSubsystem<USkillEffectManager>();
+		UCharacterDataComponent *Stats = Hero ? Hero->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		if (!TestNotNull(TEXT("SkillEffectManager"), SEM) || !TestNotNull(TEXT("Hero stats"), Stats)) return;
+		FWoRAbsorbCharge Pool = MakeCharge(EWoRAbsorbVerb::Barrier, EWoRChargeMode::Pool, ABSORB_UNLIMITED);
+		Pool.Magnitude = ABSORB_BIG_POOL;
+		TestTrue(TEXT("pool given"), Give(Pool).IsValid());
+		SEM->ApplyEffect(Hero, FActiveSkillEffect::CreateDOT(TEXT("Spec burn"), DOT_TEST_ID, DOT_TEST_DAMAGE, DOT_TEST_TURNS, ESpellElement::Fire), Hero, TEXT("spec"));
+		const int32 HPBefore = Stats->CurrentHP;
+		SEM->ProcessEndOfTurnEffects(Hero);
+		TestEqual(TEXT("the tick left HP alone"), Stats->CurrentHP, HPBefore);
+		const TArray<FWoRAbsorbCharge> Left = Tracker->GetAbsorbs();
+		TestTrue(TEXT("the pool paid for it"), Left.Num() == 1 && Left[0].PoolLeft < ABSORB_BIG_POOL);
 	});
 }
 
