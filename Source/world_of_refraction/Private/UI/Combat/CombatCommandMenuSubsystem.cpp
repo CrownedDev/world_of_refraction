@@ -21,7 +21,10 @@
 #include "Equipment/Crystals/CrystalType.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Combat/CombatOrchestrator.h"
+#include "Combat/CombatPlayerController.h"
 #include "Combat/Actions/ActionStructs.h"
+#include "Combat/Actions/CombatPickRequest.h"
+#include "WoRAuthority.h"
 #include "Infusion/InfusionVFXComponent.h"
 #include "Infusion/InfusionConstants.h"
 #include "Skills/Effects/SkillEffectManager.h"
@@ -1916,6 +1919,21 @@ void UCombatCommandMenuSubsystem::SubmitConfirmedAction(
            static_cast<int32>(Action.SelectedSource),
            static_cast<int32>(Action.SpellSource));
 
+    // B-229: the pick goes through this machine's combat player controller. On a client it is sent to the
+    // server (the client's orchestrator runs no fight), and the menu closes: the server's turn state says what
+    // happens next (the client HUD is B-228b).
+    ACombatPlayerController *LocalController = ACombatPlayerController::FindLocal(GetGameInstance());
+    if (LocalController && !WoRAuthority::HasAuthority(LocalController))
+    {
+        if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
+        {
+            VFX->SetImmuneToInfusion(false);
+        }
+        LocalController->RequestMenuPick(FCombatPickRequest::FromAction(CurrentActor.Get(), Action));
+        Close();
+        return;
+    }
+
     ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get();
     if (!Orchestrator)
     {
@@ -1928,7 +1946,16 @@ void UCombatCommandMenuSubsystem::SubmitConfirmedAction(
         VFX->SetImmuneToInfusion(false);
     }
 
-    Orchestrator->SubmitActionAsync(Action);
+    if (LocalController)
+    {
+        // Authority (host, standalone): the same server-side check a client's pick gets, then the orchestrator.
+        LocalController->RequestMenuPick(FCombatPickRequest::FromAction(CurrentActor.Get(), Action));
+    }
+    else
+    {
+        // No combat player controller (headless specs, another controller class): straight to the orchestrator.
+        Orchestrator->SubmitActionAsync(Action);
+    }
 
     // B-110: a finished (sync) action was closed by HandleActionExecuted, and a refused one
     // re-requested this actor's turn, which reopened the menu; closing after either would shut a

@@ -3113,6 +3113,24 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. Unreal's server-authoritative model only lets the server travel (`ServerTravel`). Co-op games with a host such as Deep Rock Galactic and Divinity: Original Sin 2 let clients vote or ready up, and the host's game moves the group. That keeps one source of truth for the run state. Not lore.
 **Notes for Claude:** applied (feature/B-227-seamless-travel, UNBUILT). The hub's Blueprint game mode still needs "Use Seamless Travel" and `AWoRGameState` set in the editor before hub <-> trial keeps clients.
 
+### Q-229 — Co-op: is the infusion commit its own server message, or part of the menu pick?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-229) · **Blocks:** —
+**Question:** B-229 sends defense presses, the infusion commit and the menu pick to the server. Today the infusion source and level are chosen in the target picker and stamped on the action at confirm (B-034); the hold-to-charge `UInfusionChargeManager` is not on any live path (`InfusionConstants.h:44`). Does the infusion commit need its own Server RPC?
+**Options:**
+- **A** (as built) the infusion commit rides inside the pick (`FCombatPickRequest::InfusionSource` / `InfusionLevel`); the server clamps the level to 0..2 and keeps it only on spells and abilities. One reliable message per command.
+- **B** a separate `Server_CommitInfusion` before the pick.
+**Recommendation:** A. The project's co-op network defaults (perf audit, Backlog co-op section) are "reliable server RPCs only for commands", and the usual Unreal shape is one validated server RPC per player order: the command carries everything needed to run it, so the server never holds half an order. Two messages could arrive with a stale level between them. If hold-to-charge comes back, its release becomes the level in the same pick. Not lore.
+**Notes for Claude:** applied in feature/B-229-input-rpcs (UNBUILT): `FCombatPickRequest`, `ACombatPlayerController::Server_SubmitMenuPick`.
+
+### Q-229b — Co-op before B-232: which characters may a player command?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-229) · **Blocks:** —
+**Question:** The server must check that a pick or a Guard comes from a player who controls that character. Characters aren't assigned to players until B-232. What does the check accept until then?
+**Options:**
+- **A** (as built) the player's own pawn, an actor it owns, or any player-driven combatant (shared party control). Enemies and AI allies (bot-driven pawns) are always refused, and the character must have the turn.
+- **B** only the player's possessed pawn (a client possesses nothing in battle, so a client could never act before B-232).
+**Recommendation:** A, as a stopgap. B-229's done-when needs a client's pick and Guard to work, and B would block both. Baldur's Gate 3 and Divinity: Original Sin 2 assign each party member to one player, which is what B-232 builds (`ControlsActor` then drops the shared rule). Not lore.
+**Notes for Claude:** `ACombatPlayerController::ControlsActor` (`TODO(B-232)`); the defense press uses the first open-window player defender (`UDefenseSystem::GetActiveDefenderForLocalPlayer`) until B-232 picks the sender's own.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

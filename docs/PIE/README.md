@@ -15,6 +15,8 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-229](B-229.md) | `feature/B-229-input-rpcs` (in `dev`) | Co-op: a client's Guard / Dodge and menu pick (with its infusion) reach the server; `wor.Net.SendDefendPick`, `wor.Net.PrintInputs` | Not built |
+| [B-228](B-228.md) | `feature/B-228-turn-state-gamestate` | Turn order on the GameState; client HUD and command menu read it | Not built |
 | [B-228](B-228.md) | `feature/B-228-turn-state-gamestate` (in `dev`) | Turn order on the GameState; client HUD and command menu read it | Not built |
 | [B-344](B-344.md) | `feature/B-344-difficulty-sets-ai` (in `dev`) | Trial difficulty sets the enemy AI tier; per-encounter override | Not built |
 | [B-338](B-338.md) | `chore/B-338-delete-item-storage` (in `dev`) | `wor.UI.ItemStorage` deleted (D-131); `wor.UI.Storage` covers pouch and storage moves | Pending |

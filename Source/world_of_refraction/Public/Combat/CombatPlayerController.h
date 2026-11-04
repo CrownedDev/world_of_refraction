@@ -1,8 +1,14 @@
 // CombatPlayerController.h
 // Player controller for turn-based combat. Owns the REAL-TIME defense input
 // (block / parry / dodge) via Enhanced Input. Turn-based action selection is
-// handled independently by UCombatCommandMenuSubsystem + the orchestrator — this
-// controller is not in that loop; it only routes defense presses into DefenseSystem.
+// handled by UCombatCommandMenuSubsystem + the orchestrator.
+//
+// B-229 (co-op): the controller is where a player's inputs reach the server. A defense press
+// and a confirmed menu pick (with its infusion commit) go through RequestDefenseInput /
+// RequestMenuPick: on authority (host, standalone) they run HandleDefenseInput / HandleMenuPick
+// directly, as before; on a client they are sent by Server RPC and the server runs the same
+// Handle function, which checks the sender controls the character (ControlsActor).
+// Debug: GetInputDebugString, `wor.Net.PrintInputs`.
 
 #pragma once
 
@@ -10,11 +16,44 @@
 #include "GameFramework/PlayerController.h"
 #include "InputActionValue.h"
 #include "UI/Combat/PieMenuButtonData.h"
+#include "Combat/Actions/CombatPickRequest.h"
+#include "Combat/Defense/EDefenseType.h"
+#include "Combat/Defense/EDefenseDirection.h"
 #include "CombatPlayerController.generated.h"
 
 class UInputMappingContext;
 class UInputAction;
 class UDefenseSystem;
+class ACombatOrchestrator;
+
+/** B-229: what the server did with one player input. */
+UENUM()
+enum class ECombatInputVerdict : uint8
+{
+	Accepted,
+	/** The pick names no character, or no defense window is open for a player-driven character. */
+	NoActor,
+	/** The sender doesn't control that character (ACombatPlayerController::ControlsActor). */
+	NotControlled,
+	/** No fight in progress. */
+	NoCombat,
+	/** The character doesn't have the turn. */
+	NotTheirTurn,
+	/** An action is still running. */
+	Busy,
+	/** B-229 review: a client picked a spell or ability its character's loadout doesn't offer. */
+	NotOffered
+};
+
+/** B-229: one input the server handled, for the debug log. */
+struct FCombatInputRecord
+{
+	FString Description;
+	ECombatInputVerdict Verdict = ECombatInputVerdict::Accepted;
+	/** Arrived by Server RPC (a client's input), not from this machine. */
+	bool bFromClient = false;
+	double ServerTime = 0.0;
+};
 
 UCLASS()
 class WORLD_OF_REFRACTION_API ACombatPlayerController : public APlayerController
@@ -89,6 +128,39 @@ public:
 	/** Debug: each menu key's action, keyboard key and gamepad button. */
 	static FString GetMenuKeysString();
 
+	// ========================================
+	// CO-OP INPUT ROUTING (B-229)
+	// ========================================
+
+	/** The one entry for a confirmed command-menu pick. Authority: HandleMenuPick here; client: Server_SubmitMenuPick. */
+	void RequestMenuPick(const FCombatPickRequest &Pick);
+
+	/** The one entry for a Guard / Dodge press. Authority: HandleDefenseInput here (stamped now); client:
+	 *  Server_SubmitDefenseInput, stamped with the replicated server clock so the server judges the real press time. */
+	void RequestDefenseInput(EDefenseType DefenseType, EDefenseDirection Direction);
+
+	/** Server side of a pick (also the authority path): the sender must control Pick.Actor and it must have the
+	 *  turn, then the orchestrator runs it. */
+	ECombatInputVerdict HandleMenuPick(const FCombatPickRequest &Pick, bool bFromClient = false);
+
+	/** Server side of a defense press: the open-window player defender, if the sender controls it. PressServerTime
+	 *  0 stamps now (the local path); a client's time is clamped to [now - MAX latency, now]. */
+	ECombatInputVerdict HandleDefenseInput(EDefenseType DefenseType, EDefenseDirection Direction, double PressServerTime,
+										   bool bFromClient = false);
+
+	/** Does Sender command Actor? Its own pawn, an actor it owns, or (until B-232 assigns characters to players)
+	 *  any player-driven combatant: shared party control. A bot-driven pawn (enemy, AI ally) is never controlled. */
+	static bool ControlsActor(const AController *Sender, const AActor *Actor, bool bFromClient = false);
+
+	/** This machine's combat player controller (the first local player's), or null (headless, other PC class). */
+	static ACombatPlayerController *FindLocal(const UObject *WorldContext);
+
+	/** The last inputs this controller handled on the server, oldest first (up to MAX_RECENT_INPUTS). */
+	const TArray<FCombatInputRecord> &GetRecentInputs() const { return RecentInputs; }
+
+	/** Debug: the recent inputs, one per line with verdict and origin. */
+	FString GetInputDebugString() const;
+
 protected:
 
 	// ========================================
@@ -97,4 +169,22 @@ protected:
 
 	/** DefenseSystem subsystem (GameInstance). Mirrors the GI-subsystem getter pattern. */
 	UDefenseSystem *GetDefenseSystem() const;
+
+	// ========================================
+	// SERVER RPCS (B-229)
+	// ========================================
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_SubmitMenuPick(const FCombatPickRequest &Pick);
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_SubmitDefenseInput(EDefenseType DefenseType, EDefenseDirection Direction, double PressServerTime);
+
+private:
+	/** The fight in progress in this world, or null. */
+	ACombatOrchestrator *FindActiveOrchestrator() const;
+
+	void RecordInput(const FString &Description, ECombatInputVerdict Verdict, bool bFromClient);
+
+	TArray<FCombatInputRecord> RecentInputs;
 };
