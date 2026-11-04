@@ -31,19 +31,13 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-322](B-322.md) | `feature/B-322-per-character-pouch` (in `dev`) | A 10-slot pouch per character; save v9; older save's pouch to the leader | Pending |
 | [B-323](B-323.md) | `feature/B-323-give-between-characters` (in `dev`) | Give a weapon, adapter or pouch stack between your characters; `wor.UI.Give` | Pending |
 | [B-324](B-324.md) | `feature/B-324-shared-chest-gear` (in `dev`) | Unworn gear in the shared chest, any member takes it; `wor.UI.Storage` | Pending |
-<<<<<<< HEAD
-| [B-316](B-316.md) | `feature/B-316-give-request-buyfor` (UNBUILT) | Buy for any party member (AI included) from a shop; `wor.Shop.BuyFor` | Not built |
-| [B-347](B-347.md) | `feature/B-347-free-run-loadout` (UNBUILT) | The run loadout is free: the worn loadout goes on the run, no purchase; Gold for in-run vendors | Not built |
-| [B-314](B-314.md) | `refactor/B-314-run-layer` (UNBUILT) | The run layer: found gear dropped at run end with its tier remembered; home gear's wear and run-added attachments reset | Not built |
-| [B-313](B-313.md) | `refactor/B-313-pouch-per-member` (UNBUILT) | Each member fights with its own pouch; item use spends the pouch only; D-072 caps per fight | Not built |
-=======
 | [B-313](B-313.md) | `refactor/B-313-pouch-per-member` (in `dev`) | Each member fights with its own pouch; item use spends the pouch only; D-072 caps per fight | Pending |
 | [B-325](B-325.md) | `feature/B-325-combat-tier` (in `dev`) | Combat Tier on panels, enemies' HP and level drops from it; `wor.Combat.PrintTiers` | Not built |
 | [B-042i](B-042i.md) | `refactor/B-042i-trigger-gas-specs` (in `dev`) | Parity specs: a trigger's effect lands on GAS as one GE on both paths; no gameplay change | Pending |
 | [B-312b](B-312b.md) | `refactor/B-312b-loadout-owns` (in `dev`) | Store 1b step 1: the loadout's owns-checks read the store view; no gameplay change | Pending |
 | [B-314](B-314.md) | `refactor/B-314-run-layer` (in `dev`) | The run layer: found gear dropped at run end with its tier remembered; home gear's wear and run-added attachments reset | Pending |
 | [B-347](B-347.md) | `feature/B-347-free-run-loadout` (in `dev`) | The run loadout is free: the worn loadout goes on the run, no purchase; Gold for in-run vendors | Pending |
->>>>>>> dev
+| [B-316](B-316.md) | `feature/B-316-give-request-buyfor` (UNBUILT) | Buy for any party member (AI included) from a shop; `wor.Shop.BuyFor` | Not built |
 | [B-312](B-312.md) | `refactor/B-312-store-views` (in `dev`) | Gear store step 1: GUID index, member views, `wor.Inventory.CompareStore`; no gameplay change | Pending |
 | [B-293](B-293.md) | `feature/B-293-balance-targets` (in `dev`) | Balance targets, reports, GAS parity, `wor.Balance.Run`; no gameplay change | Pending |
 | [B-261](B-261.md) | `refactor/B-261-mirror-dirty-check` (in `dev`) | A GAS stat read skips the mirror re-sync when nothing changed (P5) | Pending |
