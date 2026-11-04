@@ -18,13 +18,13 @@ namespace
 {
 	/** An enum value's name without its type prefix ("GearEquipped"). */
 	template <class TEnum>
-	FString EnumName(TEnum Value)
+	FString ConditionEnumName(TEnum Value)
 	{
 		const UEnum *Enum = StaticEnum<TEnum>();
 		return Enum ? Enum->GetNameStringByValue(static_cast<int64>(Value)) : FString::FromInt(static_cast<int32>(Value));
 	}
 
-	bool IsInParty(const UCharacterData *Character, const FMemoryEvent &Event)
+	bool IsMemberInParty(const UCharacterData *Character, const FMemoryEvent &Event)
 	{
 		return Event.Party.ContainsByPredicate([Character](const FMemoryEventMember &Member) { return Member.Character == Character; });
 	}
@@ -42,7 +42,7 @@ namespace
 	/** A level-up's wearer can be Condition.Character: whoever levelled it, or (unknown) anyone in the party. */
 	bool IsUpgradedBy(const FWoRCondition &Condition, const FMemoryEvent &Event)
 	{
-		return !Condition.Character || (Event.UpgradedBy ? Event.UpgradedBy == Condition.Character : IsInParty(Condition.Character, Event));
+		return !Condition.Character || (Event.UpgradedBy ? Event.UpgradedBy == Condition.Character : IsMemberInParty(Condition.Character, Event));
 	}
 
 	/** Who levelled it, as far as requirements go (unknown and no character named: null). */
@@ -116,7 +116,7 @@ namespace
 		switch (Condition.Subject)
 		{
 		case EWoRConditionSubject::CharacterInParty:
-			return Condition.Character && IsInParty(Condition.Character, Event);
+			return Condition.Character && IsMemberInParty(Condition.Character, Event);
 		case EWoRConditionSubject::GearEquipped:
 			return IsGearMet(Condition, Event);
 		case EWoRConditionSubject::AtLocation:
@@ -305,10 +305,10 @@ FWoRConditionSet WoRConditions::FromMemory(const TArray<FMemoryCondition> &Condi
 
 FString WoRConditions::GetConditionString(const FWoRCondition &Condition)
 {
-	FString Out = EnumName(Condition.Subject);
+	FString Out = ConditionEnumName(Condition.Subject);
 	if (Condition.Trigger != EWoRConditionTrigger::Any)
 	{
-		Out = FString::Printf(TEXT("on %s: %s"), *EnumName(Condition.Trigger), *Out);
+		Out = FString::Printf(TEXT("on %s: %s"), *ConditionEnumName(Condition.Trigger), *Out);
 	}
 	const UObject *Operands[] = {Condition.Item.Get(), Condition.Evolution.Get(), Condition.Skill.Get(), Condition.Enemy.Get(), Condition.PriorMemory.Get()};
 	for (const UObject *Operand : Operands)
@@ -324,11 +324,11 @@ FString WoRConditions::GetConditionString(const FWoRCondition &Condition)
 	}
 	if (Condition.Subject == EWoRConditionSubject::GearEquipped || Condition.Subject == EWoRConditionSubject::EvolutionEquipped)
 	{
-		Out += FString::Printf(TEXT(" %s %d"), *EnumName(Condition.Operator), Condition.Value);
+		Out += FString::Printf(TEXT(" %s %d"), *ConditionEnumName(Condition.Operator), Condition.Value);
 	}
 	if (Condition.RequirementFit != EWoRRequirementFit::Any)
 	{
-		Out += FString::Printf(TEXT(" (requirements %s %d)"), *EnumName(Condition.RequirementFit), Condition.RequirementMargin);
+		Out += FString::Printf(TEXT(" (requirements %s %d)"), *ConditionEnumName(Condition.RequirementFit), Condition.RequirementMargin);
 	}
 	if (Condition.Character)
 	{

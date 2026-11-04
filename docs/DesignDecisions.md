@@ -1707,7 +1707,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 ### D-130 — One condition vocabulary (audit §14)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
 **Answer (Crown):** one shared `FWoRCondition` / `FWoRConditionSet` and one evaluator, on the deckbuilder's trigger → condition → effect model (`CrownedDev/wor-deckbuilder` `docs/design/WoR_TCG_Pivot_Design.md` and its `docs/reference/05-triggers-conditions.md`). Built beside the old ones, memories first. D-100 still holds (memories and boss triggers stay separate systems).
-**Notes for Claude:** job B-337 (memories, on `feature/B-337-conditions`, UNBUILT); the rest is B-337b.
+**Notes for Claude:** job B-337 (memories; built on the desktop 2026-11-04, in dev); the rest is B-337b.
 
 ### D-131 — One placeholder inventory screen (audit §15)
 **Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
@@ -3333,6 +3333,18 @@ Moved here once applied. Newest first.
 **Recommendation:** A. World of Warcraft's "unique-equipped" gems and Diablo III's one-of-each legendary gem cap what is socketed in your gear, not what sits in your bags; counting every socketed S piece keeps the rule one line.
 **Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
 **Notes for Claude:** built in B-354 (desktop build 2026-11-04). `InventoryConstants::CRYSTAL_PER_TIER_CAP` (an actor without a pouch, e.g. an enemy) is D-097's older per-tier stack cap, not D-072, and stays. Reviewer notes applied: the count is gated by class as `CollectFindings` is (a Caster's secondary and a non-Resonator's ring loadout are stale slots and don't count). The finding's reason is an `FString` like every other finding in `LoadoutRules.cpp` (log / debug text, not shown to the player); the whole file moves to `FText` together when a screen shows findings (D-061).
+
+### Q-337 — The one condition evaluator: the defaults D-130 left open
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-337, desktop review) · **Blocks:** —
+**Question:** D-130 says one vocabulary, memories first. Four small rules are in the code and not in a ruling: (1) how a condition's trigger matches the event; (2) what an empty route list means; (3) how an authored memory condition converts; (4) the first trigger list and the operators.
+**Options / as built:**
+- (1) **A** `Any` matches every event; a named trigger must equal the event's trigger (`WoRConditions::IsMet`). **B** a named trigger also matches `Any` events.
+- (2) **A** no routes: the condition holds (nothing to meet; a memory with no conditions opens when its source names it, Q-209c). **B** no routes: never holds.
+- (3) **A** `FromMemory` pins `Trigger` to `Any` (memories were checked at every event before; no gameplay change) and reads `UpgradeLevel` as "at least Value". **B** derive a trigger from the condition kind.
+- (4) **A** triggers: `Any`, `FragmentFound`, `BossBeaten`, `ReactionFired`, `MapSpotReached`, `BoundGearUsed`, `FightWon` (the memory sources); operators `AtLeast` / `AtMost` / `Equal`. Append-only.
+**Recommendation:** A throughout. The deckbuilder's trigger → condition model (`docs/reference/05-triggers-conditions.md`) works the same way: a row says when it fires, nested conditions are state checks, an empty list is "always", and conversions keep the old behaviour. Slay the Spire's relic triggers (fire on an event, check a state) are the well-liked example of the same shape.
+**Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
+**Notes for Claude:** built in B-337 (desktop build, in dev). B-337b widens the trigger list with fight events; B-355 adds the boss subjects.
 
 ### Q-313 — The pouch in a fight: how far B-313 goes, the tier caps, and a recruit's items
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-313, cloud) · **Blocks:** —
