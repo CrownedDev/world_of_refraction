@@ -228,6 +228,10 @@ struct WORLD_OF_REFRACTION_API FSavedGearDetail
 	UPROPERTY()
 	FRuntimeAttachedItem Attached;
 
+	/** B-351 (D-141): the stone socket (an augment stone carries only its FCrystalId, no asset pointer). */
+	UPROPERTY()
+	FRuntimeAttachedItem StoneSocket;
+
 	UPROPERTY()
 	FSavedAssetRef EvolutionItem;
 

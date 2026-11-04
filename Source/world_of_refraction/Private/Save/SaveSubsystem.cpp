@@ -65,6 +65,7 @@ namespace
 		Gear.Attached = Entry.AttachedItem;
 		Gear.EvolutionItem = FSavedAssetRef::Make(Entry.AttachedItem.Evolution.Item);
 		Gear.Attached.Evolution.Item = nullptr;
+		Gear.StoneSocket = Entry.StoneSocket; // B-351
 		// One ref per spell slot, an empty slot as an unset ref, so slot positions survive.
 		for (const USpellData *Spell : Entry.AssignedSpells)
 		{
@@ -89,6 +90,7 @@ namespace
 		}
 		Entry.AttachedItem = Gear.Attached;
 		Entry.AttachedItem.Evolution.Item = Gear.EvolutionItem.IsSet() ? Gear.EvolutionItem.ResolveAs<UEvolutionItemData>() : nullptr;
+		Entry.StoneSocket = Gear.StoneSocket; // B-351
 		Entry.AssignedSpells.Reset();
 		for (const FSavedAssetRef &Ref : Gear.AssignedSpells)
 		{
