@@ -29,10 +29,12 @@ component (a separate build).
 | `Diamond` | `int32` | `SaveGame` + `Replicated` (`OnRep_Diamond`) | account-wide premium (routing TODO) |
 | `GearEssence` | `int32` | `SaveGame` + `Replicated` (`OnRep_GearEssence`) | per-character (levels **weapons + rings**, and the evolution gear type) |
 | `SkillEssence` | `int32` | `SaveGame` + `Replicated` (`OnRep_SkillEssence`) | per-character (levels **abilities + spells**) |
-| `EssenceTyped` (14 keys) | `FCurrencyArray` (FastArray) | `SaveGame` + `Replicated` | per-character |
+| `ElementalEssence` (B-333) | `int32` | `SaveGame` + `Replicated` (`OnRep_ElementalEssence`) | per-character (anything with an element, D-125) |
+| `PillarEssence` (B-333) | `int32` | `SaveGame` + `Replicated` (`OnRep_PillarEssence`) | per-character (stat stones, D-125) |
+| `EssenceTyped` (14 keys) — **OBSOLETE (B-333)** | `FCurrencyArray` (FastArray) | `SaveGame` + `Replicated` | per-character; nothing earns or spends it; delete in the D-124 sweep |
 
-- **Typed Essence keys** (`EEssenceType`, 14): 10 element (`Fire`…`Generic`), 3 pillar (`Mind`/`Body`/`Spirit`), 1 `Ability`.
-- The scalar currencies (`Gold`/`Prisms`/`Diamond`/`GearEssence`/`SkillEssence`) are plain `int32` with `ReplicatedUsing = OnRep_*`.
+- **Typed Essence keys** (`EEssenceType`, 14) — **OBSOLETE (B-333, D-125)**: nothing earns or spends them; deleted in the D-124 sweep.
+- The scalar currencies (`Gold`/`Prisms`/`Diamond`/`GearEssence`/`SkillEssence`/`ElementalEssence`/`PillarEssence`) are plain `int32` with `ReplicatedUsing = OnRep_*`.
   The typed Essence uses a FastArray (`TMap<Enum,int32>` is not natively replicable — see `Resources_Design.md` §16.2).
 - **`GearEssence` vs `SkillEssence`** is the §3 category split: the gear faucet (weapon/ring/evolution dismantle) feeds Gear and the gear leveling sink spends it; the skill faucet (spell/ability dismantle) feeds Skill. The two never merge. (Note: `EEssenceType::Reality`, in the typed wallet, is the shared ½-cost co-currency for leveling — see `EconomySystem.md`.)
 
@@ -113,3 +115,4 @@ FastArray item callbacks → `NotifyEntryChanged` → `NotifyChanged`) broadcast
 | 2026-10-26 | **B-151 (D-046, Q-151): one wallet per player.** `AWoRPlayerState` holds the wallet (a `UCurrencyComponent`); `ATrialGameMode` / `ABattleGameMode` pick it. `CurrencyWallet::FindFor(actor)` is the one lookup: the pawn's player wallet, else (a party member with no PlayerState, e.g. an AI ally) the party leader's, else the actor's own component. Routed: `UEconomyService` (all ops), crystal-break yields, the shop, flee (Gold loss once per wallet). `ACombatCharacter::CurrencyComponent` OBSOLETE for the party. Debug: `wor.Wallet.Print`. Not carried across OpenLevel or saved yet (Pool arc, D-059). Spec `WoR.Economy.PlayerWallet`. | feature/B-151-player-wallet |
 | 2026-10-26 | B-075: `UCurrencyComponent::Add` saturates each balance at the int32 limit (`CurrencyComponentInternal::SaturatingAdd`) instead of wrapping negative; not a design cap. Spec `WoR.Economy.CurrencyClamp`. | fix/B-075-small-fixes |
 | 2026-11-02 | B-227: `AWoRPlayerState::CopyProperties` carries the currency balances across seamless travel (`UCurrencyComponent` copy). | feature/B-227-seamless-travel |
+| 2026-11-03 | B-333 (D-125): seven balances. `ECurrencyType` appends `ElementalEssence`, `PillarEssence` (no renumbering); `CurrencyBalances::SEVEN` lists them; scalars route through `FindScalar`; `CopyBalancesFrom` / save banking carry them; save version 11 wipes older saves (D-060). `WoRGameNames::GetCurrencyName` names all seven; `GetWalletString` / `wor.Wallet.Print` show the seven; `wor.Wallet.Add` accepts the new two. `EssenceTyped`, `EEssenceType` and the typed helpers are OBSOLETE (B-333). | feature/B-333-seven-balances (UNBUILT) |

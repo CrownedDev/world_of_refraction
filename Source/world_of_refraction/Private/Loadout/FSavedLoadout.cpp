@@ -125,13 +125,13 @@ TArray<FString> FSavedLoadout::GetValidationErrorsLegacy() const
         {
             // Per-school count cap (tier-blind, character-independent authoring guard):
             // each school's innate spell count must fit one pool. (Replaces the flat
-            // MAX_INNATE_SPELLS_TOTAL=24 check; per-school 6 x 4 schools implies the same total.)
+            // MAX_INNATE_SPELLS_TOTAL=24 check; three schools since B-356, so 6 x 3 at most.)
             TMap<ESpellSchool, int32> PerSchoolCount;
             for (const FSpellRef &Ref : InnateSpells)
             {
                 if (Ref.Spell)
                 {
-                    PerSchoolCount.FindOrAdd(Ref.Spell->School)++;
+                    PerSchoolCount.FindOrAdd(Ref.Spell->GetSchool())++; // B-356: a retired school counts as its mapped one
                 }
             }
             for (const TPair<ESpellSchool, int32> &Pair : PerSchoolCount)

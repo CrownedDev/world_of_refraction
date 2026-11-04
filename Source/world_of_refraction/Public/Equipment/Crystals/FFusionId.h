@@ -16,6 +16,14 @@
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "FFusionId.generated.h"
 
+namespace FusionRules
+{
+    /** B-352 (D-141): fusions retire. While true, nothing makes, buys or attaches a fusion; the old code stays
+     *  behind it until the D-124 sweep deletes it. */
+    constexpr bool RETIRED = true;
+}
+
+/** OBSOLETE (B-352, D-141; delete in the D-124 sweep): fusions retire (with their bonus formula and wear); nothing makes, buys or attaches one. */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FFusionId
 {

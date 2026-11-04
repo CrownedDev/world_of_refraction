@@ -7,6 +7,7 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/PackageName.h"
 #include "Hub/ExplorationPlayerController.h"
+#include "Player/WoRHubController.h"
 #include "UI/Combat/CombatHUD.h"
 
 namespace
@@ -39,9 +40,14 @@ void FConfigAssetPathsSpec::ExpectAssetExists(const UClass *Class, const FName P
 
 void FConfigAssetPathsSpec::Define()
 {
-	It("sets the exploration controller's interact action", [this]()
+	It("sets the hub controller's interact action (B-158)", [this]()
 	{
-		ExpectAssetExists(AExplorationPlayerController::StaticClass(), TEXT("DefaultInteractAction"));
+		ExpectAssetExists(AWoRHubController::StaticClass(), TEXT("DefaultInteractAction"));
+	});
+
+	It("sets the retired exploration controller's interact action", [this]()
+	{
+		ExpectAssetExists(AExplorationPlayerController::StaticClass(), TEXT("DefaultInteractAction")); // OBSOLETE (B-158)
 	});
 
 	// The optional ones (FallbackCharacterPanelClass, DefensePromptClass) may stay empty.

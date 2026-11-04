@@ -16,6 +16,7 @@
 #include "Skills/Effects/FSkillEffect.h"
 #include "Skills/Effects/FGatheredEffect.h"
 #include "Equipment/FAttachedItem.h"
+#include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Equipment/IEquipmentGenerator.h"
 #include "GameplayTagContainer.h" // SourceTags — loot/draft source-tag layer (§7.9 C1)
 
@@ -162,7 +163,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bonuses")
     FEquipmentStatBonus BaseStatBonus;
 
-    /** DESIGNER PREVIEW (simulated sample) — a rollable example so designers can
+    /** OBSOLETE (B-335, D-127; delete in the D-124 sweep): the preview roll layer.
+     *  DESIGNER PREVIEW (simulated sample) — a rollable example so designers can
      *  eyeball the spread. From U2 on, the REAL roll happens per-instance at
      *  acquisition (into the inventory entry); this asset layer is NOT the gameplay
      *  source for rolled instances. Read-only in editor (Roll/Reroll buttons). */
@@ -186,7 +188,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Resistance")
     FResistanceBonus BaseResistance;
 
-    /** DESIGNER PREVIEW (simulated sample) — written by the Roll Resistance button
+    /** OBSOLETE (B-335, D-127; delete in the D-124 sweep): the preview roll layer.
+     *  DESIGNER PREVIEW (simulated sample) — written by the Roll Resistance button
      *  so designers can eyeball a roll. From U2 on, the REAL roll is per-instance at
      *  acquisition; this asset layer is NOT the gameplay source for rolled instances. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Preview Roll",
@@ -199,13 +202,16 @@ public:
     FResistanceBonus GetCombinedResistance() const;
 
     // ==================== GENERATION (per-instance roll) ====================
-    // Controls the per-instance roll at acquisition (U2). Inert in U0 — no
-    // acquisition path reads these yet.
+    // OBSOLETE (B-335, D-127; delete in the D-124 sweep): the per-instance stat / resistance
+    // roll at acquisition (U2). Already off (bRandomGenerateOnPickup defaults false); nothing changes in play.
 
     /** When true, a fresh instance of this item ROLLS its StatBonus/ResistanceBonus
      *  at acquisition (from the tier budget or the overrides below). When false, the
      *  instance ships authored Base only (fixed/designed item). Default false =
-     *  migration-safe; designers opt in. */
+     *  migration-safe; designers opt in.
+     *  Q-335: after the sweep the toggle gates only the per-instance
+     *  Quality roll (EconomyYield::RollQuality), which D-127 keeps; the stat / resistance roll and the
+     *  MaxPool overrides go. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation")
     bool bRandomGenerateOnPickup = false;
 
@@ -289,8 +295,12 @@ public:
 
     // ==================== CRYSTAL HELPERS ====================
 
+    /** Something sits in the authored element socket. B-352 (D-141): a retired fusion counts as nothing. */
     UFUNCTION(BlueprintPure, Category = "Equipment|Crystal")
-    bool HasCrystal() const { return AttachedItem.Kind != EAttachedItemKind::None; }
+    bool HasCrystal() const
+    {
+        return AttachedItem.Kind != EAttachedItemKind::None && !(FusionRules::RETIRED && AttachedItem.Kind == EAttachedItemKind::Fusion);
+    }
 
     /** Editor-only discriminator for the contextual EditConditions on
      *  DefaultSpells / DefaultAbilities. EditCondition cannot reach the nested
@@ -358,6 +368,8 @@ public:
     virtual int32 GetMaxSpells() const { return TNumericLimits<int32>::Max(); }
 
     // ==================== GENERATOR (CallInEditor) ====================
+    // OBSOLETE (B-335, D-127; delete in the D-124 sweep): the preview roll buttons, their
+    // pending points and the IEquipmentGenerator overrides below.
     // Editor-side roll buttons. SubstatPoints and PillarPoints act as the
     // pending pool — fill to the tier budget, then hit Roll to consume them
     // into GeneratedStatBonus (BaseStatBonus is never touched). Modify()

@@ -20,5 +20,7 @@ enum class EAttachedItemKind : uint8
     // Appended after AugmentStone (=4); same serialized-position rule. A Fusion slot
     // exposes FFusionId (two FCrystalId halves + a bonus stat) instead of a single
     // crystal. New appended value — no EnumRedirect needed.
-    Fusion UMETA(DisplayName = "Fusion")
+    // RETIRED (B-352, D-141): fusions retire; nothing makes, buys or attaches one. The value stays (append-only,
+    // the on-disk Kind must stay stable); hidden in the editor.
+    Fusion UMETA(DisplayName = "Fusion (retired)", Hidden)
 };

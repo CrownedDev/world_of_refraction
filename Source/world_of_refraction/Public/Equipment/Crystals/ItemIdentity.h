@@ -18,6 +18,7 @@
 #include "Equipment/Durability/DurabilityConstants.h"
 #include "Equipment/Crystals/AugmentStoneConstants.h"
 #include "Equipment/Crystals/StoneRowTable.h"
+#include "Equipment/Crystals/StatStone.h"
 
 namespace ItemIdentity
 {
@@ -45,7 +46,7 @@ namespace ItemIdentity
             return EItemEffectType::Damage;
         }
         // Stat stones: their consumable's effect is in the stone row table (B-021).
-        if (const FStoneRow *StoneRow = StoneRowTable::Find(Id.Type))
+        if (const FStoneRow *StoneRow = StoneRowTable::Find(StatStone::RowType(Id))) // B-353: a StatStone reads its row
         {
             return StoneRow->ItemEffect;
         }
@@ -206,8 +207,9 @@ namespace ItemIdentity
 
     /** Returns formatted display name "Type (Tier)", e.g. "Garnet (F)",
      *  "Sapphire (S)". Built from GetTypeName + GetTierLetter. */
-    inline FString GetDisplayName(const FCrystalId &Id)
+    inline FString GetDisplayName(const FCrystalId &InId)
     {
+        const FCrystalId Id = StatStone::AsRowId(InId); // B-353: a StatStone shows as its sub-stat's stone
         if (Id.Type == ECrystalType::None)
         {
             return TEXT("(empty)");

@@ -8,6 +8,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "GameplayTagContainer.h"
+#include "Inventory/ItemTier.h"
 #include "EnemyZone.generated.h"
 
 class UBoxComponent;
@@ -54,8 +55,13 @@ public:
 	/** The zone a fight at Location takes: the highest-tier zone containing it, or tier 0. */
 	static FEncounterZoneInfo FindZoneAt(const UWorld *World, const FVector &Location);
 
-	/** Enemies' max HP and damage, × this, for a zone tier (clamped to 0..MAX_ZONE_TIER). */
+	/** OBSOLETE (D-120, B-327): a zone scales no stats any more; its tier only says which enemies are placed there.
+	 *  Kept for the zone's own log line until Crown's PIE pass, then deleted with the ladder behind it. */
 	static float GetTierStrengthMultiplier(int32 Tier);
+
+	/** B-328 (D-120, Q-328): the Combat Tier a zone's enemies should have at least: zones 0..4 → F, D, C, B, A. An
+	 *  authoring guide for placing encounters; wor.Trial.PrintZones lists it. */
+	static EItemTier GetEnemyTierGuide(int32 Tier);
 
 	FString GetEnemyZoneString() const;
 };
