@@ -856,7 +856,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A, because D-043 asks for revive spells and Sapphire's path already does the hard part (turn order, death state); the HP % is a per-spell value.
 **Answer (Crown):** **A** (2026-10-26): a new **Resurrect** skill effect brings a fallen ally back at the effect's value as a % of max HP, reusing Sapphire's revive path.
 ### D-072 — Crystal tier limits per character
-**Status:** ANSWERED · **Raised:** 2026-10-26 (Crown) · **Blocks:** —
+**Status:** ANSWERED · **Raised:** 2026-10-26 (Crown) · **Blocks:** — · **Changed by D-143 / B-354** (2026-11-04: the bands retire; one S-tier crystal per battle loadout is the only cap. D-143 is recorded on `docs/D-128-136-simplicity-round2`; this branch merges after it)
 **Answer (Crown):** (2026-10-26) **Per character**, a cap on how many crystals of each tier band can be equipped at once:
 | Tier band | Max equipped per character |
 |---|---|
@@ -905,7 +905,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** _optional_
 
 ### D-077 — Crystal tier caps: what counts as "a crystal"?
-**Status:** DECIDED (applied in B-155) · **Raised:** 2026-10-26 (B-155) · **Blocks:** —
+**Status:** DECIDED (applied in B-155) · **Raised:** 2026-10-26 (B-155) · **Blocks:** — · **Changed by D-143 / B-354** (2026-11-04: the bands retire; one S-tier crystal per battle loadout is the only cap. D-143 is recorded on `docs/D-128-136-simplicity-round2`; this branch merges after it)
 **Question:** D-072 caps how many crystals of each tier band a character can have equipped (S 1, A+B 2, C+D 3, E+F 4). A weapon or ring slot can hold more than a plain crystal (CL-30), so which of these count toward the caps, and at what tier?
 **Context:** a slot holds one of: a **crystal**; an **augment stone** (stat stone or Ability Stone, weapons only, it has a tier); a **fusion** (two halves with at least one stat stone: stone + crystal, stone + stone, or stone + Ability Stone, CL-32); or an **evolution** (its own tier; the primary-slot evolution gives spells, CL-33). Plain crystals clearly count. The others aren't settled.
 **Options:**
@@ -3079,7 +3079,7 @@ Moved here once applied. Newest first.
 **Options:** **A** every S attachment on the loadout's gear (crystal, augment stone, fusion with an S half, evolution, the evolution seat) plus S gems in its item slots; a second is a validation finding, and only the item slots' gems are trimmed automatically (an attachment lives on the item, so the player changes it). Pouch items are carried, not equipped: uncapped. **B** count gems only.
 **Recommendation:** A. World of Warcraft's "unique-equipped" gems and Diablo III's one-of-each legendary gem cap what is socketed in your gear, not what sits in your bags; counting every socketed S piece keeps the rule one line.
 **Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
-**Notes for Claude:** applied in B-354. `InventoryConstants::CRYSTAL_PER_TIER_CAP` (an actor without a pouch, e.g. an enemy) is D-097's older per-tier stack cap, not D-072, and stays.
+**Notes for Claude:** built in B-354 (unbuilt). `InventoryConstants::CRYSTAL_PER_TIER_CAP` (an actor without a pouch, e.g. an enemy) is D-097's older per-tier stack cap, not D-072, and stays.
 
 ### Q-313 — The pouch in a fight: how far B-313 goes, the tier caps, and a recruit's items
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-313, cloud) · **Blocks:** —
