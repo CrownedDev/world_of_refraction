@@ -4,6 +4,9 @@
 // the run ends after 3 main-boss losses or 5 wipes in all; the counters are saved with the run.
 // B-362b (D-160): a wipe takes no points; the run's Prisms drop at the fight, beating that team recovers them, a
 // second wipe first loses the earlier drop for good, a boss loss drops too, and the drop is saved with the run.
+// B-362c (D-160 changed): one path. The drop lies as a pickup where the party stood when the fight started; taking
+// it puts the whole drop back once; a second wipe first removes the earlier pickup; a fight with no map spot drops
+// too (at the trial's start); the spot is saved with the run.
 // The rank-point cases below pin the OBSOLETE rules until they are deleted after PIE.
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -19,6 +22,7 @@
 #include "Save/SaveSubsystem.h"
 #include "Save/WoRSaveGame.h"
 #include "Trial/DefeatRules.h"
+#include "Trial/PrismDropPickup.h"
 #include "Trial/TrialData.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
@@ -36,8 +40,9 @@ namespace
 	constexpr int32 DEFEAT_RUN_PRISMS = 40;
 	constexpr int32 DEFEAT_LATER_PRISMS = 15;
 	const FName DEFEAT_TEAM_A(TEXT("DefeatTeamA"));
-	const FName DEFEAT_TEAM_B(TEXT("DefeatTeamB"));
-	const FName DEFEAT_BOSS_TEAM(TEXT("DefeatBossTeam"));
+	const FVector DEFEAT_FALL_SPOT(1200.0f, -300.0f, 90.0f);
+	const FVector DEFEAT_LATER_FALL_SPOT(-800.0f, 450.0f, 90.0f);
+	constexpr float DEFEAT_SPOT_TOLERANCE = 1.0f;
 }
 
 BEGIN_DEFINE_SPEC(FDefeatSpec, "WoR.Trial.Defeat", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -126,47 +131,78 @@ void FDefeatSpec::Define()
 		TestEqual(TEXT("one boss loss"), Run->GetRunMainBossLosses(), 1);
 	});
 
-	It("drops the whole run balance at the fight and gives it back for beating that team (B-362b)", [this]()
+	It("places one pickup at the fall spot holding the whole balance (B-362c)", [this]()
 	{
 		if (!TestNotNull(TEXT("Run"), Run)) return;
 		UCurrencyComponent *Wallet = MakeWallet(DEFEAT_RUN_PRISMS);
 		if (!TestNotNull(TEXT("Wallet"), Wallet)) return;
 		Run->SetPendingEncounterSources({DEFEAT_TEAM_A});
+		Run->SetPendingFightSpot(DEFEAT_FALL_SPOT);
 		int32 LostForGood = INDEX_NONE;
 		TestEqual(TEXT("all of it dropped"), WoRDefeat::DropPrisms(*Run, Wallet, LostForGood), DEFEAT_RUN_PRISMS);
 		TestEqual(TEXT("nothing earlier lost"), LostForGood, 0);
 		TestEqual(TEXT("the wallet is empty"), Wallet->GetBalance(ECurrencyType::Gold), 0);
-		TestEqual(TEXT("the run holds the drop"), Run->GetDroppedPrisms(), DEFEAT_RUN_PRISMS);
-
-		Run->SetPendingEncounterSources({DEFEAT_TEAM_B});
-		TestEqual(TEXT("beating another team recovers nothing"), WoRDefeat::RecoverPrisms(*Run, Wallet), 0);
-		TestEqual(TEXT("the drop waits"), Run->GetDroppedPrisms(), DEFEAT_RUN_PRISMS);
-
-		Run->SetPendingEncounterSources({DEFEAT_TEAM_B, DEFEAT_TEAM_A});
-		TestEqual(TEXT("beating that team recovers all of it"), WoRDefeat::RecoverPrisms(*Run, Wallet), DEFEAT_RUN_PRISMS);
-		TestEqual(TEXT("back in the wallet"), Wallet->GetBalance(ECurrencyType::Gold), DEFEAT_RUN_PRISMS);
-		TestEqual(TEXT("the drop is gone"), Run->GetDroppedPrisms(), 0);
-		TestEqual(TEXT("only once"), WoRDefeat::RecoverPrisms(*Run, Wallet), 0);
+		FVector Spot;
+		TestTrue(TEXT("the drop has a spot"), Run->GetDropSpot(Spot));
+		TestTrue(TEXT("where the party stood"), Spot.Equals(DEFEAT_FALL_SPOT, DEFEAT_SPOT_TOLERANCE));
+		const APrismDropPickup *Pickup = APrismDropPickup::PlaceForRun(TestWorld->GetWorld(), *Run);
+		if (!TestNotNull(TEXT("a pickup placed"), Pickup)) return;
+		TestTrue(TEXT("at the fall spot"), Pickup->GetActorLocation().Equals(DEFEAT_FALL_SPOT, DEFEAT_SPOT_TOLERANCE));
+		TestEqual(TEXT("one pickup"), APrismDropPickup::CountIn(TestWorld->GetWorld()), 1);
+		TestEqual(TEXT("a win recovers nothing now"), Run->GetDroppedPrisms(), DEFEAT_RUN_PRISMS);
 	});
 
-	It("loses the first drop for good on a second wipe, and a boss loss drops the same way (B-362b)", [this]()
+	It("gives the drop back once when the pickup is taken (B-362c)", [this]()
 	{
 		if (!TestNotNull(TEXT("Run"), Run)) return;
 		UCurrencyComponent *Wallet = MakeWallet(DEFEAT_RUN_PRISMS);
 		if (!TestNotNull(TEXT("Wallet"), Wallet)) return;
-		Run->SetPendingEncounterSources({DEFEAT_TEAM_A});
+		Run->SetPendingFightSpot(DEFEAT_FALL_SPOT);
 		int32 LostForGood = 0;
 		WoRDefeat::DropPrisms(*Run, Wallet, LostForGood);
+		TestEqual(TEXT("no wallet, nothing taken"), WoRDefeat::PickUpDrop(*Run, nullptr), 0);
+		TestEqual(TEXT("the drop waits"), Run->GetDroppedPrisms(), DEFEAT_RUN_PRISMS);
+		TestEqual(TEXT("picked up whole"), WoRDefeat::PickUpDrop(*Run, Wallet), DEFEAT_RUN_PRISMS);
+		TestEqual(TEXT("back in the wallet"), Wallet->GetBalance(ECurrencyType::Gold), DEFEAT_RUN_PRISMS);
+		TestEqual(TEXT("the drop is gone"), Run->GetDroppedPrisms(), 0);
+		TestEqual(TEXT("only once"), WoRDefeat::PickUpDrop(*Run, Wallet), 0);
+		TestNull(TEXT("no pickup placed for an empty drop"), APrismDropPickup::PlaceForRun(TestWorld->GetWorld(), *Run));
+	});
+
+	It("removes the earlier pickup on a second wipe, a boss loss dropping the same way (B-362c)", [this]()
+	{
+		if (!TestNotNull(TEXT("Run"), Run)) return;
+		UCurrencyComponent *Wallet = MakeWallet(DEFEAT_RUN_PRISMS);
+		if (!TestNotNull(TEXT("Wallet"), Wallet)) return;
+		Run->SetPendingFightSpot(DEFEAT_FALL_SPOT);
+		int32 LostForGood = 0;
+		WoRDefeat::DropPrisms(*Run, Wallet, LostForGood);
+		APrismDropPickup::PlaceForRun(TestWorld->GetWorld(), *Run);
 		Wallet->Add(ECurrencyType::Gold, DEFEAT_LATER_PRISMS);
-		Run->SetPendingEncounterSources({DEFEAT_BOSS_TEAM});
+		Run->SetPendingFightSpot(DEFEAT_LATER_FALL_SPOT);
 		Run->RecordWipe(EEncounterRank::Boss);
 		TestEqual(TEXT("the boss fight takes the new balance"), WoRDefeat::DropPrisms(*Run, Wallet, LostForGood), DEFEAT_LATER_PRISMS);
 		TestEqual(TEXT("the first drop is lost for good"), LostForGood, DEFEAT_RUN_PRISMS);
+		const APrismDropPickup *Pickup = APrismDropPickup::PlaceForRun(TestWorld->GetWorld(), *Run);
+		if (!TestNotNull(TEXT("a pickup placed"), Pickup)) return;
+		TestEqual(TEXT("only the newest pickup"), APrismDropPickup::CountIn(TestWorld->GetWorld()), 1);
+		TestTrue(TEXT("at the newer spot"), Pickup->GetActorLocation().Equals(DEFEAT_LATER_FALL_SPOT, DEFEAT_SPOT_TOLERANCE));
+		TestEqual(TEXT("holding the newer balance"), WoRDefeat::PickUpDrop(*Run, Wallet), DEFEAT_LATER_PRISMS);
+	});
 
-		Run->SetPendingEncounterSources({DEFEAT_TEAM_A});
-		TestEqual(TEXT("the first team gives nothing back now"), WoRDefeat::RecoverPrisms(*Run, Wallet), 0);
-		Run->SetPendingEncounterSources({DEFEAT_BOSS_TEAM});
-		TestEqual(TEXT("beating the boss recovers the newest drop"), WoRDefeat::RecoverPrisms(*Run, Wallet), DEFEAT_LATER_PRISMS);
+	It("drops and gives back a fight with no map team and no map spot (B-362c)", [this]()
+	{
+		if (!TestNotNull(TEXT("Run"), Run)) return;
+		UCurrencyComponent *Wallet = MakeWallet(DEFEAT_RUN_PRISMS);
+		if (!TestNotNull(TEXT("Wallet"), Wallet)) return;
+		Run->SetPendingEncounterSources({});
+		FVector Spot;
+		TestFalse(TEXT("no fight spot recorded"), Run->GetPendingFightSpot(Spot));
+		int32 LostForGood = 0;
+		TestEqual(TEXT("dropped"), WoRDefeat::DropPrisms(*Run, Wallet, LostForGood), DEFEAT_RUN_PRISMS);
+		TestFalse(TEXT("the drop lies at the trial's start"), Run->GetDropSpot(Spot));
+		TestNotNull(TEXT("a pickup placed anyway"), APrismDropPickup::PlaceForRun(TestWorld->GetWorld(), *Run));
+		TestEqual(TEXT("recoverable"), WoRDefeat::PickUpDrop(*Run, Wallet), DEFEAT_RUN_PRISMS);
 	});
 
 	It("ends the run on the 5th wipe", [this]()
@@ -204,7 +240,7 @@ void FDefeatSpec::Define()
 		WoRDefeat::ApplyWipe(TestWorld->GetWorld(), EEncounterRank::Boss, {});
 		WoRDefeat::ApplyWipe(TestWorld->GetWorld(), EEncounterRank::Normal, {});
 		Run->NoteRestSpotUsed(DEFEAT_TEST_REST_SPOT);
-		Run->SetPendingEncounterSources({DEFEAT_TEAM_A});
+		Run->SetPendingFightSpot(DEFEAT_FALL_SPOT);
 		Run->DropPrisms(DEFEAT_RUN_PRISMS);
 		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
 		Save->HandlePreSave();
@@ -217,6 +253,7 @@ void FDefeatSpec::Define()
 		TestEqual(TEXT("boss losses saved"), Loaded->Data.Run.MainBossLosses, 1);
 		TestTrue(TEXT("rest spot saved"), Loaded->Data.Run.LastRestSpot == DEFEAT_TEST_REST_SPOT);
 		TestEqual(TEXT("drop saved"), Loaded->Data.Run.DroppedPrisms, DEFEAT_RUN_PRISMS);
+		TestTrue(TEXT("its spot saved"), Loaded->Data.Run.bDropHasSpot && Loaded->Data.Run.DropSpot.Equals(DEFEAT_FALL_SPOT, DEFEAT_SPOT_TOLERANCE));
 
 		FWoRTestWorld After;
 		if (!TestTrue(TEXT("second world"), After.Create())) return;
@@ -226,9 +263,10 @@ void FDefeatSpec::Define()
 		TestEqual(TEXT("wipes back"), RunAfter->GetRunWipes(), 2);
 		TestEqual(TEXT("boss losses back"), RunAfter->GetRunMainBossLosses(), 1);
 		TestTrue(TEXT("rest spot back"), RunAfter->GetLastRestSpot() == DEFEAT_TEST_REST_SPOT);
-		RunAfter->RestoreDrop(Loaded->Data.Run.DroppedPrisms, Loaded->Data.Run.DropEncounters);
+		RunAfter->RestoreDrop(Loaded->Data.Run.DroppedPrisms, Loaded->Data.Run.bDropHasSpot, Loaded->Data.Run.DropSpot);
 		TestEqual(TEXT("drop back"), RunAfter->GetDroppedPrisms(), DEFEAT_RUN_PRISMS);
-		TestTrue(TEXT("its team back"), RunAfter->GetDropEncounters().Contains(DEFEAT_TEAM_A));
+		FVector Spot;
+		TestTrue(TEXT("its spot back"), RunAfter->GetDropSpot(Spot) && Spot.Equals(DEFEAT_FALL_SPOT, DEFEAT_SPOT_TOLERANCE));
 	});
 }
 
