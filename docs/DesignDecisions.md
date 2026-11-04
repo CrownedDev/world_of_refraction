@@ -1788,6 +1788,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** (a) A: Diablo II and Path of Exile sockets cost nothing beyond the item, and D-110's numbers stay as Crown set them. (b) A, by the 3-files rule. (c) A, build beside old: unedited gear plays exactly as before until Crown's PIE; B-351b switches every item and deletes the old paths after it.
 **Answer:** **A / A / A**, by the reference-backed default (2026-11-04). Crown may change any. B-351 ships the two sockets (attach, stone readers, save v12 with wipe) and the weapon's one skill-slot list (picks, replace / restore, Ability Stone slots, the combat menu). B-351b: crystals' (spell) slot lists on the same rule, every item switched and the old lists deleted, stone removal, the carried run state's stone socket, authored stones on assets, HUD / debug readers.
 
+### Q-353 — One stat stone: do the Max HP / Max EP stones fold in, and how is it shown?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-353, D-142) · **Blocks:** —
+**Question:** the sub-stat field is an `ESubStat`, and Max HP / Max EP are pools with no `ESubStat` (D-123 keeps pools separate). Fold them in anyway, and what does a StatStone show as?
+**Options:** A keep the two pool stones as their own kinds; a StatStone shows as its sub-stat's stone ("Defense Stone (F)") / B add a pool option to the field.
+**Recommendation:** A. Path of Exile and Diablo name a socketed bonus by what it raises ("Defense"), so the player-facing name and the bonus stay exactly as before; the pools keep their own formula (D-123).
+**Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
+
 ### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
 **Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.
