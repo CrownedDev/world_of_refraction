@@ -209,6 +209,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_SixParams(FOnDefenseResolved, AActor *, Defen
 /** Broadcast when an impact's defense lands inside the perfect-timing window (Stage 3). */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnDefensePerfect, AActor *, Defender, AActor *, Attacker, EDefenseType, DefenseType, bool, bPerfect, int32, ImpactIndex);
 
+/** B-365 (D-158): Defender perfectly guarded or dodged every hit of Attacker's attack or spell; once, at its last hit. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnFlawlessParry, AActor *, Defender, AActor *, Attacker);
+
 // ========================================
 // DEFENSE SYSTEM
 // ========================================
@@ -426,6 +429,10 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Defense System|Events")
 	FOnDefensePerfect OnDefensePerfect;
+
+	/** B-365: a Flawless Parry (FlawlessParry.h). A condition only, no built-in reward (D-158). */
+	UPROPERTY(BlueprintAssignable, Category = "Defense System|Events")
+	FOnFlawlessParry OnFlawlessParry;
 
 	// ========================================
 	// CONFIGURATION

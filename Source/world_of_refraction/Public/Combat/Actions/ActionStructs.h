@@ -9,6 +9,7 @@
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
 #include "Combat/Defense/EDefenseType.h"
+#include "Combat/Defense/FlawlessParry.h"
 #include "Infusion/EInfusionSourceOption.h"
 #include "Infusion/EChargeInfusionType.h"
 #include "Combat/Actions/ActionStatModifiers.h"
@@ -358,6 +359,9 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	/** The attack's base energy cost for that deferred broadcast (OnDefenseResolved's AttackEnergyCost). */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	float PendingAttackEnergyCost = 0.0f;
+
+	/** B-365 (D-158): this defender's judged and perfect hits of the attack, for the Flawless Parry. */
+	FlawlessParry::FTally FlawlessTally;
 
 	/** Can this attack crit? */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
