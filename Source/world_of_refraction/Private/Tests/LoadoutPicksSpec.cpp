@@ -179,12 +179,12 @@ void FLoadoutPicksSpec::Define()
 			TestTrue(TEXT("is the primary weapon"), Dropped.Num() == 1 && Dropped[0].SlotType == ELoadoutSlotType::PrimaryWeapon);
 		});
 
-		It("trims utility crystals over a tier band's cap, in every loadout", [this]()
+		It("trims a second S crystal from the item slots, in every loadout (B-354)", [this]()
 		{
 			AddSwordLoadout();
 			FItemLoadoutSlot Stack;
 			Stack.CrystalId = FCrystalId(ECrystalType::Garnet, EItemTier::S_Tier);
-			Stack.Quantity = LoadoutConstants::MAX_UTILITY_CRYSTALS_S_TIER + 1;
+			Stack.Quantity = LoadoutConstants::MAX_EQUIPPED_S_TIER_CRYSTALS + 1;
 			Inventory->SavedLoadouts[1].ItemSlots.Add(Stack);
 			UCrystalInventoryComponent *Crystals = PicksTestAddComponent<UCrystalInventoryComponent>(Inventory->GetOwner());
 
@@ -196,7 +196,7 @@ void FLoadoutPicksSpec::Define()
 			TestEqual(TEXT("one announcement"), Recorder->LoadoutIndices.Num(), 1);
 			TestTrue(TEXT("for the second loadout"), Recorder->LoadoutIndices.Num() == 1 && Recorder->LoadoutIndices[0] == 1);
 			TestTrue(TEXT("naming the crystal"), Recorder->Messages.Num() == 1 && Recorder->Messages[0].ToString().Contains(TEXT("x1")));
-			TestEqual(TEXT("second loadout trimmed to the S cap"), Inventory->SavedLoadouts[1].ItemSlots[0].Quantity, LoadoutConstants::MAX_UTILITY_CRYSTALS_S_TIER);
+			TestEqual(TEXT("second loadout trimmed to one S"), Inventory->SavedLoadouts[1].ItemSlots[0].Quantity, LoadoutConstants::MAX_EQUIPPED_S_TIER_CRYSTALS);
 			TestEqual(TEXT("nothing left to drop"), Loadouts->DropInvalidParts(1).Num(), 0);
 			TestEqual(TEXT("the dropped crystal is back in the inventory (Q-159)"), Crystals->GetCount(Stack.CrystalId), 1);
 		});

@@ -12,6 +12,9 @@
 #include "Character/CombatCharacter.h"
 #include "Currency/CurrencyComponent.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
+#include "Skills/Definitions/SpellData.h"
+#include "UObject/UnrealType.h"
 #include "Kismet/GameplayStatics.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
@@ -25,9 +28,18 @@ namespace
 	constexpr int32 SAVED_EP = 4;
 	constexpr int32 SAVED_COLUMN = 2;
 	constexpr int32 PRISMS = 5;
-	constexpr int32 FIRE_ESSENCE = 3;
+	constexpr int32 ELEMENTAL_ESSENCE = 3;
+	constexpr int32 PILLAR_ESSENCE = 4;
+	/** B-333: the save version that brought the seven balances; anything older is wiped (D-060). */
+	constexpr int32 SEVEN_BALANCES_SAVE_VERSION = 11;
 	constexpr int32 GOLD = 7;
 	constexpr int32 CRYSTAL_COUNT = 2;
+	constexpr int32 DIAMONDS = 6;
+	constexpr int32 GEAR_ESSENCE = 8;
+	constexpr int32 SKILL_ESSENCE = 9;
+	constexpr int32 EVOLUTION_DURABILITY = 11;
+	/** B-348 (D-138): one below the current version is already too old. */
+	constexpr int32 ONE_VERSION_BACK = 1;
 
 	/** Save bytes and load them back, as the slot on disk would. */
 	UWoRSaveGame *RoundTrip(UWoRSaveGame *Save)
@@ -80,6 +92,8 @@ void FSaveSpec::Define()
 		Party->Members[1].PreferredRow = ECombatRow::Back;
 		Party->Members[1].PreferredColumn = SAVED_COLUMN;
 		Party->Members[1].bPlayerControlled = false;
+		Party->Members[1].bAISeat = true; // B-346: the saved mirror of bPlayerControlled
+		Party->Members[1].AISeatDifficulty = EAIDifficulty::Hard;
 
 		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
 		Save->HandlePreSave();
@@ -107,6 +121,7 @@ void FSaveSpec::Define()
 		TestEqual(TEXT("EP"), Back.CurrentEP, SAVED_EP);
 		TestTrue(TEXT("Cell"), Back.PreferredRow == ECombatRow::Back && Back.PreferredColumn == SAVED_COLUMN);
 		TestFalse(TEXT("AI-controlled"), Back.bPlayerControlled);
+		TestTrue(TEXT("AI seat, Hard (B-346 / B-348)"), Back.bAISeat && Back.AISeatDifficulty == EAIDifficulty::Hard);
 		TestFalse(TEXT("A party that already exists is left alone"),
 				  USaveSubsystem::RestoreParty(Loaded->Data.Party, *PartySession));
 	});
@@ -122,13 +137,14 @@ void FSaveSpec::Define()
 		AActor *Holder = Before.GetWorld()->SpawnActor<AActor>();
 		UCurrencyComponent *Wallet = FWoRTestWorld::AddComponent<UCurrencyComponent>(Holder);
 		Wallet->Add(ECurrencyType::Prisms, PRISMS);
-		Wallet->AddEssenceType(EEssenceType::Fire, FIRE_ESSENCE);
+		Wallet->Add(ECurrencyType::ElementalEssence, ELEMENTAL_ESSENCE);
+		Wallet->Add(ECurrencyType::PillarEssence, PILLAR_ESSENCE);
 		Wallet->Add(ECurrencyType::Gold, GOLD);
 
 		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
 		Save->HandlePreSave();
 		Save->Data.Wallet = USaveSubsystem::CaptureWallet(Wallet);
-		TestEqual(TEXT("Two balances banked"), Save->Data.Wallet.Balances.Num(), 2);
+		TestEqual(TEXT("Three balances banked"), Save->Data.Wallet.Balances.Num(), 3);
 		UWoRSaveGame *Loaded = RoundTrip(Save);
 		if (!TestNotNull(TEXT("Loaded"), Loaded))
 		{
@@ -138,7 +154,8 @@ void FSaveSpec::Define()
 		USaveSubsystem::ApplyWallet(Loaded->Data.Wallet, Fresh);
 		USaveSubsystem::ApplyWallet(Loaded->Data.Wallet, Fresh);
 		TestEqual(TEXT("Prisms (applying twice adds nothing)"), Fresh->GetBalance(ECurrencyType::Prisms), PRISMS);
-		TestEqual(TEXT("Fire Essence"), Fresh->GetEssenceType(EEssenceType::Fire), FIRE_ESSENCE);
+		TestEqual(TEXT("Elemental Essence"), Fresh->GetElementalEssence(), ELEMENTAL_ESSENCE);
+		TestEqual(TEXT("Pillar Essence"), Fresh->GetPillarEssence(), PILLAR_ESSENCE);
 		TestEqual(TEXT("Gold"), Fresh->GetBalance(ECurrencyType::Gold), 0);
 	});
 
@@ -214,6 +231,13 @@ void FSaveSpec::Define()
 		TestEqual(TEXT("Crystal stack"), Count ? *Count : StoneCount ? *StoneCount : 0, CRYSTAL_COUNT);
 	});
 
+	It("bumps the save version for the seven balances and wipes everything older (B-333, D-060)", [this]()
+	{
+		TestTrue(TEXT("Latest is at least the seven-balances version"), WoRSaveVersion::LATEST >= SEVEN_BALANCES_SAVE_VERSION);
+		// B-348 (D-138): the minimum is LATEST, so it is at least the seven-balances version.
+		TestTrue(TEXT("Minimum is at least the seven-balances version"), WoRSaveVersion::MIN_SUPPORTED >= SEVEN_BALANCES_SAVE_VERSION);
+	});
+
 	It("wipes a save below the minimum version (D-060)", [this]()
 	{
 		UWoRSaveGame *Old = NewObject<UWoRSaveGame>();
@@ -232,6 +256,72 @@ void FSaveSpec::Define()
 		Current->Data.Party.bHasParty = true;
 		UWoRSaveGame *Kept = RoundTrip(Current);
 		TestTrue(TEXT("A current save is kept"), Kept && !Kept->WasWiped() && Kept->Data.Party.bHasParty);
+	});
+
+	It("wipes a save one version below LATEST, with a warning (D-138, D-060)", [this]()
+	{
+		TestEqual(TEXT("One save version while in dev"), WoRSaveVersion::MIN_SUPPORTED, WoRSaveVersion::LATEST);
+		UWoRSaveGame *Old = NewObject<UWoRSaveGame>();
+		Old->HandlePreSave();
+		FIntProperty *Version = FindFProperty<FIntProperty>(ULocalPlayerSaveGame::StaticClass(), TEXT("SavedDataVersion"));
+		if (!TestNotNull(TEXT("The save's version field"), Version)) return;
+		Version->SetPropertyValue_InContainer(Old, WoRSaveVersion::LATEST - ONE_VERSION_BACK);
+		Old->Data.Party.bHasParty = true;
+		AddExpectedError(TEXT("below the minimum"), EAutomationExpectedErrorFlags::Contains, 0);
+		UWoRSaveGame *Loaded = RoundTrip(Old);
+		if (!TestNotNull(TEXT("Loaded"), Loaded)) return;
+		TestTrue(TEXT("Wiped"), Loaded->WasWiped());
+		TestFalse(TEXT("Data gone"), Loaded->Data.Party.bHasParty);
+	});
+
+	It("keeps every value whose SaveGame tag went, through the explicit save structs (D-059)", [this]()
+	{
+		FWoRTestWorld Before;
+		FWoRTestWorld After;
+		if (!CreateWorlds(Before, After)) return;
+		UCurrencyComponent *Wallet = FWoRTestWorld::AddComponent<UCurrencyComponent>(Before.GetWorld()->SpawnActor<AActor>());
+		Wallet->Add(ECurrencyType::Prisms, PRISMS);
+		Wallet->Add(ECurrencyType::Diamond, DIAMONDS);
+		Wallet->AddGearEssence(GEAR_ESSENCE);
+		Wallet->AddSkillEssence(SKILL_ESSENCE);
+		Wallet->Add(ECurrencyType::ElementalEssence, ELEMENTAL_ESSENCE); // B-333: the typed essences are gone
+		UPoolSubsystem *Pool = Before.GetSubsystem<UPoolSubsystem>();
+		if (!TestNotNull(TEXT("Pool"), Pool)) return;
+		UEvolutionItemData *EvolutionItem = NewObject<UEvolutionItemData>(GetTransientPackage());
+		FEvolutionInventoryEntry Evolution;
+		Evolution.Item = EvolutionItem;
+		Evolution.InstanceID = FGuid::NewGuid();
+		Evolution.CurrentDurability = EVOLUTION_DURABILITY;
+		Pool->AddEvolutionToPool(Evolution);
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		FSpellInstance Learned(Spell);
+		Pool->AddSpellToPool(Learned);
+		const FCrystalId Stone(ECrystalType::DurabilityStone, EItemTier::F_Tier);
+		Pool->AddCrystalToPool(Stone, CRYSTAL_COUNT);
+
+		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
+		Save->HandlePreSave();
+		Save->Data.Wallet = USaveSubsystem::CaptureWallet(Wallet);
+		Save->Data.Pool = USaveSubsystem::CapturePool(*Pool);
+		UWoRSaveGame *Loaded = RoundTrip(Save);
+		if (!TestNotNull(TEXT("Loaded"), Loaded)) return;
+
+		UCurrencyComponent *Fresh = FWoRTestWorld::AddComponent<UCurrencyComponent>(After.GetWorld()->SpawnActor<AActor>());
+		USaveSubsystem::ApplyWallet(Loaded->Data.Wallet, Fresh);
+		TestEqual(TEXT("Prisms"), Fresh->GetBalance(ECurrencyType::Prisms), PRISMS);
+		TestEqual(TEXT("Diamonds"), Fresh->GetBalance(ECurrencyType::Diamond), DIAMONDS);
+		TestEqual(TEXT("Gear essence"), Fresh->GetGearEssence(), GEAR_ESSENCE);
+		TestEqual(TEXT("Skill essence"), Fresh->GetSkillEssence(), SKILL_ESSENCE);
+		TestEqual(TEXT("Elemental essence"), Fresh->GetElementalEssence(), ELEMENTAL_ESSENCE);
+
+		UPoolSubsystem *NewPool = After.GetSubsystem<UPoolSubsystem>();
+		if (!TestNotNull(TEXT("Pool after"), NewPool)) return;
+		USaveSubsystem::RestorePool(Loaded->Data.Pool, *NewPool);
+		const FEvolutionInventoryEntry *Back = NewPool->FindEvolutionInPool(Evolution.InstanceID);
+		TestTrue(TEXT("The evolution, with its durability"), Back && Back->Item == EvolutionItem && Back->CurrentDurability == EVOLUTION_DURABILITY);
+		TestTrue(TEXT("The learned spell"), NewPool->FindSpellInPool(Learned.InstanceID) != nullptr);
+		const int32 *Stones = NewPool->GetStones().Find(Stone);
+		TestEqual(TEXT("The stored stones"), Stones ? *Stones : 0, CRYSTAL_COUNT);
 	});
 }
 

@@ -7,6 +7,7 @@
 #include "AI/AIDecisionConstants.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Combat/CombatOrchestrator.h"
+#include "Combat/CombatControl.h"
 #include "Combat/Boss/BossPhaseComponent.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
@@ -343,7 +344,8 @@ EAIDifficulty UAIDecisionManager::GetDifficultyFor(const AActor *ForActor) const
     if (CurrentCombat && ForActor &&
         CurrentCombat->GetLocalParty().ContainsByPredicate([ForActor](const AActor *Member) { return Member == ForActor; }))
     {
-        return AIConstants::ALLY_AI_DIFFICULTY;
+        // B-346 (Q-21-audit): an AI-played party member plays at its AI seat's setting (default Medium).
+        return CombatControl::GetAISeatDifficulty(ForActor);
     }
     // B-193: a boss plays harder with each phase it has reached (Expert at most).
     const UBossPhaseComponent *Boss = ForActor ? ForActor->FindComponentByClass<UBossPhaseComponent>() : nullptr;
@@ -1700,6 +1702,9 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             }
 
             // --- SELF-TARGET: EP-starved — hold a stronger action for the bonus turn. ---
+            // OBSOLETE (B-341): under the one bonus-turn rule EmeraldDelay is 0, so no EP regens before the
+            // bonus turn and ProjectedEP never reaches an unaffordable cost: this branch cannot fire. Kept
+            // until PIE; the D-124 sweep deletes it (an EP-starved AI has no reason to self-Emerald now).
             if (UnaffordableBest > BestScore * AIConstants::STARVE_MARGIN)
             {
                 const int32 ProjectedEP =
@@ -2375,7 +2380,7 @@ int32 UAIDecisionManager::ClampInfusionLevelForHP(AActor *Attacker, UCharacterDa
     }
 
     // Drop the charge until the HP cost is survivable. PreEffEP matches the executor's basis exactly:
-    // BaseEnergyCost x ComputeInfusionCostMultiplier (pre-Efficiency, stat-scaled) x power x tier-gap cost -> WouldKill.
+    // BaseEnergyCost x ComputeInfusionCostMultiplier (pre-Efficiency, the charge level, D-126) x power x tier-gap cost -> WouldKill.
     // Cluster 3b: mirror ApplyCommitCosts' PreEffInfusedEP, which folds BOTH the own-tier power
     // factor and the reciprocal tier-gap cost. Both are level-independent, so resolve once before
     // the loop. Own-tier source matches the real basis: SpellData->Tier for spells, SkillData->Tier
@@ -2387,7 +2392,8 @@ int32 UAIDecisionManager::ClampInfusionLevelForHP(AActor *Attacker, UCharacterDa
                                   : UInventoryComponent::ResolveAbilityTier(Attacker, Action.SkillData);
     const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(OwnTier);
     const float TierGapCostMult = ActionExec->GetTierGapCostMultiplier(Attacker, Action);
-    while (Level > 0)
+    // D-126 (B-334): only L2 pays HP, so the drop stops at the first level that pays none (L1).
+    while (InfusionConstants::LevelPaysHP(Level))
     {
         const int32 PreEffEP = FMath::RoundToInt(
             BaseEnergyCost * ActionExec->ComputeInfusionCostMultiplier(Level, bIsSpell, Comp) * PowerMult * TierGapCostMult);

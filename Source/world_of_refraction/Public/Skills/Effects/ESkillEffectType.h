@@ -267,8 +267,9 @@ enum class ESkillEffectType : uint8
 
     // ==================== ROW MOVES (D-096, B-180) ====================
     // Appended (not mid-inserted) to preserve enum-by-value stamping. Instant (author Duration 0):
-    // move the target one row in its column through UCombatGridSubsystem; refused, with a log,
-    // when that cell is taken or the target is already in the last row.
+    // move the target one row through UCombatGridSubsystem into any free slot of that row (B-342:
+    // an ally never blocks); refused, with a log, when the row is full or the target is already in
+    // the last row.
     PushBack UMETA(DisplayName = "Push Back (one row)"),
     PullForward UMETA(DisplayName = "Pull Forward (one row)"),
 

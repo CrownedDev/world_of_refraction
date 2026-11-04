@@ -1,4 +1,5 @@
 // DuplicateGearWidget.h
+// OBSOLETE (B-339, D-131): wor.UI.Inventory (UInventoryWidget) does this as one of its verbs; delete after Crown's PIE.
 // PLACEHOLDER UI (B-319, D-115): a character keeps one copy of a weapon or adapter. Lists each
 // weaker copy with the copy that stays, and converts it to Gold or dismantles it. Plain buttons
 // built in C++, opened with the console command wor.UI.Duplicates. Replaced by the CommonUI

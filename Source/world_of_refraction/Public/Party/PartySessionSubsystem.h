@@ -13,6 +13,7 @@
 #pragma once
 
 #include "Combat/Grid/ECombatRow.h"
+#include "AI/EAIDifficulty.h"
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "PartySessionSubsystem.generated.h"
@@ -152,17 +153,35 @@ public:
 
 	// ==================== CONTROL (D-004 / D-045) ====================
 
-	/** Player or AI for one member in battle. The leader (slot 0) is always Player,
+	// ==================== SEATS (B-346, Q-21-audit) ====================
+
+	/** Make a member an AI seat (or a player's again) before a fight. Refused (false) for the leader,
+	 *  an invalid slot, or while a fight runs: the setting is fixed for the fight. Mirrors the
+	 *  OBSOLETE bPlayerControlled. Broadcasts OnPartyChanged on a real change. */
+	UFUNCTION(BlueprintCallable, Category = "Party")
+	bool SetMemberAISeat(int32 SlotIndex, bool bAISeat);
+
+	/** The AI seat's difficulty (default Medium). Refused while a fight runs or for an invalid slot. */
+	UFUNCTION(BlueprintCallable, Category = "Party")
+	bool SetMemberAISeatDifficulty(int32 SlotIndex, EAIDifficulty Difficulty);
+
+	/** True when the member is an AI seat; false for an invalid slot. */
+	UFUNCTION(BlueprintPure, Category = "Party")
+	bool IsMemberAISeat(int32 SlotIndex) const;
+
+	/** OBSOLETE (B-346): forwards to SetMemberAISeat(SlotIndex, !bPlayerControlled).
+	 *  Player or AI for one member in battle. The leader (slot 0) is always Player,
 	 *  so a request to hand it to the AI is refused (false). Broadcasts OnPartyChanged
 	 *  on a real change. */
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	bool SetMemberPlayerControlled(int32 SlotIndex, bool bPlayerControlled);
 
-	/** The member's battle control setting; Player for an invalid slot. */
+	/** OBSOLETE (B-346): !IsMemberAISeat. The member's battle control setting; Player for an invalid slot. */
 	UFUNCTION(BlueprintPure, Category = "Party")
 	bool IsMemberPlayerControlled(int32 SlotIndex) const;
 
-	/** D-045 setting: true lets the AI finish a fight once every Player member is down. */
+	/** OBSOLETE (B-346): nothing reads it; an AI seat stays AI all fight (Q-21-audit).
+	 *  D-045 setting: true lets the AI finish a fight once every Player member is down. */
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	void SetLetAIFinish(bool bLetAIFinish);
 
@@ -226,6 +245,9 @@ public:
 	void LogPartyState() const;
 
 private:
+	/** B-346: true while a fight runs (seats are fixed for it). */
+	bool IsFightRunning() const;
+
 	/** A member's carried vitals at its computed maxima (Broken Darkness innate: empty EP). */
 	static void SetMemberVitalsFull(FPartyMember &Member);
 

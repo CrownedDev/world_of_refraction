@@ -4,11 +4,11 @@
 //                (base + N x bought), and the ramp restarts with the run; a buy is refused at the
 //                pillar cap of 7 (B-222).
 // ER-29: a merge costs half the produced tier's Prism price (E 25 ... S 800).
-// ER-23: a spell costs element essence at its tier (F 10 ... S 48), pillar essence per scaling
-//        grade and +50 Prisms per grade (F=1 ... S=7). D-105: Quartz's essence is the Generic one.
+// ER-23 (B-333, D-125): a spell costs Skill + Elemental essence at its tier (F 10 ... S 48) and
+//        +50 Prisms per scaling grade (F=1 ... S=7); no pillar essence. Quartz pays Elemental.
 // ER-38: fresh-pickup quality weights F 26 / E 22 / D 18 / C 14 / B 10 / A 6 / S 4; at maxed Luck
 //        S goes to about 7% (tilt 0.5). Rolled on a fixed seed.
-// Not pinned here: D-105's Quartz-essence price for Generic spells (B-296 pins it).
+// Not pinned here: a Generic spell's Elemental price (GenericSpellPriceSpec pins it).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -238,9 +238,9 @@ void FEconomyNumbersSpec::Define()
 		});
 	});
 
-	Describe("a spell's price (ER-23, D-105)", [this]()
+	Describe("a spell's price (ER-23, D-125)", [this]()
 	{
-		It("charges element essence at its tier: F 10, D 17, S 48", [this]()
+		It("charges Elemental essence at its tier: F 10, D 17, S 48", [this]()
 		{
 			TestEqual(TEXT("TYPED_ESSENCE_BUY_F"), EconomyYield::Constants::TYPED_ESSENCE_BUY_F, ECONOMY_NUMBERS_ESSENCE_F);
 			TestEqual(TEXT("TYPED_ESSENCE_BUY_D"), EconomyYield::Constants::TYPED_ESSENCE_BUY_D, ECONOMY_NUMBERS_ESSENCE_D);
@@ -249,15 +249,15 @@ void FEconomyNumbersSpec::Define()
 			{
 				return;
 			}
-			TestEqual(TEXT("F Fire spell: Fire essence"),
-					  SpellCost(EconomyNumbersFireSpell(EItemTier::F_Tier)).Typed.FindRef(EEssenceType::Fire), ECONOMY_NUMBERS_ESSENCE_F);
-			TestEqual(TEXT("D Fire spell: Fire essence"),
-					  SpellCost(EconomyNumbersFireSpell(EItemTier::D_Tier)).Typed.FindRef(EEssenceType::Fire), ECONOMY_NUMBERS_ESSENCE_D);
-			TestEqual(TEXT("S Fire spell: Fire essence"),
-					  SpellCost(EconomyNumbersFireSpell(EItemTier::S_Tier)).Typed.FindRef(EEssenceType::Fire), ECONOMY_NUMBERS_ESSENCE_S);
+			TestEqual(TEXT("F Fire spell: Elemental essence"),
+					  SpellCost(EconomyNumbersFireSpell(EItemTier::F_Tier)).ElementalEssence, ECONOMY_NUMBERS_ESSENCE_F);
+			TestEqual(TEXT("D Fire spell: Elemental essence"),
+					  SpellCost(EconomyNumbersFireSpell(EItemTier::D_Tier)).ElementalEssence, ECONOMY_NUMBERS_ESSENCE_D);
+			TestEqual(TEXT("S Fire spell: Elemental essence"),
+					  SpellCost(EconomyNumbersFireSpell(EItemTier::S_Tier)).ElementalEssence, ECONOMY_NUMBERS_ESSENCE_S);
 		});
 
-		It("adds pillar essence and 50 Prisms per scaling grade number", [this]()
+		It("adds 50 Prisms per scaling grade number and no pillar essence (B-333)", [this]()
 		{
 			TestEqual(TEXT("PRISMS_SCALING_SURCHARGE_PER_GRADE"), EconomyYield::Constants::PRISMS_SCALING_SURCHARGE_PER_GRADE,
 					  ECONOMY_NUMBERS_SURCHARGE_PER_GRADE);
@@ -277,15 +277,14 @@ void FEconomyNumbersSpec::Define()
 			const FPurchaseCost Cost = SpellCost(Spell);
 			TestEqual(TEXT("Prisms: D base 100 + 50 x 4"), Cost.Prisms,
 					  ECONOMY_NUMBERS_PRISMS_D + ECONOMY_NUMBERS_SURCHARGE_PER_GRADE * ECONOMY_NUMBERS_GRADE_C_NUMBER);
-			TestEqual(TEXT("Fire essence at D"), Cost.Typed.FindRef(EEssenceType::Fire), ECONOMY_NUMBERS_ESSENCE_D);
-			TestEqual(TEXT("Mind essence at grade C"), Cost.Typed.FindRef(EEssenceType::Mind),
-					  EconomyYield::GetTypedEssencePurchaseCostForTier(EItemTier::C_Tier));
+			TestEqual(TEXT("Elemental essence at D"), Cost.ElementalEssence, ECONOMY_NUMBERS_ESSENCE_D);
+			TestEqual(TEXT("Skill essence at D"), Cost.SkillEssence, ECONOMY_NUMBERS_ESSENCE_D);
+			TestEqual(TEXT("No pillar essence for a scaling grade"), Cost.PillarEssence, 0);
 		});
 
-		It("gives Quartz's essence as the Generic (Quartz) essence (D-105)", [this]()
+		It("folds Quartz into Elemental essence (D-125, changes D-105)", [this]()
 		{
-			TestEqual(TEXT("dismantled Quartz"), EconomyYield::ResolveEssenceType(FCrystalId(ECrystalType::Quartz, EItemTier::F_Tier)),
-					  EEssenceType::Generic);
+			TestEqual(TEXT("Quartz"), EconomyYield::GetCrystalEssence(ECrystalType::Quartz), ECurrencyType::ElementalEssence);
 		});
 	});
 

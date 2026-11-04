@@ -22,8 +22,16 @@ echo "Running automation tests '$FILTER' ${WOR_BALANCE:+(balance preset $WOR_BAL
 
 INDEX="$REPORT/index.json"
 if [ ! -f "$INDEX" ]; then
-    echo "TESTS DID NOT RUN (no report). Last log lines:" >&2
-    tail -30 "$LOG" >&2
+    echo "TESTS DID NOT RUN (no report). First error lines:" >&2
+    awk '/Fatal error|Assertion failed|Ensure condition failed|Critical error|Unhandled Exception/ {f=1} f && n<16 && !/Callstack/ {print; n++}' "$LOG" >&2
+    echo "Our module's frames in the callstack (first and last few):" >&2
+    grep "Callstack.*world_of_refraction" "$LOG" | head -8 | sed -E 's/.*!//' >&2
+    echo "..." >&2
+    grep "Callstack.*world_of_refraction" "$LOG" | tail -6 | sed -E 's/.*!//' >&2
+    echo "Last test lines before the crash:" >&2
+    grep -E "LogAutomationController: Display: Test (Started|Completed)|Running test" "$LOG" | tail -3 >&2
+    echo "Last log lines:" >&2
+    tail -8 "$LOG" >&2
     exit 1
 fi
 

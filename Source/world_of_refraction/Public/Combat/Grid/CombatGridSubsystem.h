@@ -16,6 +16,7 @@ struct FGridStartPreference
     ECombatRow Row = ECombatRow::Middle;
     int32 Column = INDEX_NONE;
 
+    /** OBSOLETE (B-342, D-134; delete in the D-124 sweep): a formation cell. Fights start by row only (RowOnly). */
     static FGridStartPreference Cell(ECombatRow InRow, int32 InColumn) { return {true, InRow, InColumn}; }
     static FGridStartPreference RowOnly(ECombatRow InRow) { return {true, InRow, INDEX_NONE}; }
 };
@@ -239,7 +240,7 @@ public:
     // ==================== POSITION MOVEMENT ====================
 
     /**
-     * Move actor to a specific row (keeps same column)
+     * Move actor to a specific row, into its free slot nearest the centre (B-342: columns are bookkeeping only)
      * @param Actor The actor to move
      * @param NewRow The target row
      * @param ArenaCenter Arena center for world position update
@@ -247,6 +248,10 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid|Movement")
     bool MoveActorToRow(AActor *Actor, ECombatRow NewRow, const FVector &ArenaCenter);
+
+    /** B-342 (D-134): a free slot in Row for TeamIndex, centre-out. Slots only place characters in the world;
+     *  three rows, no columns. False only when the row is full. */
+    bool FindFreeSlotInRow(int32 TeamIndex, ECombatRow Row, FCombatGridPosition &OutPosition) const;
 
     /**
      * Push actor one row toward Back (Front→Middle→Back)

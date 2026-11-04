@@ -1,14 +1,14 @@
 // PartyIntoBattleSpec.cpp
-// B-071: party members in battle. The Player/AI setting per member (D-004, the leader
-// always Player), the per-fight player flag routing turns, the switch on a member's turn
-// (D-026), the fixed ally AI level (D-044), taking over when your fighters fall (D-045)
-// and the gear gate for entering a fight (D-016).
+// B-071: party members in battle. B-346 (Q-21-audit): you command every member but the AI seats
+// the leader set before the fight (never the leader); a seat is fixed during the fight and an AI
+// seat plays at its own difficulty (default Medium); nothing hands members over when your fighters
+// fall (PA-12 retired). Also: the per-fight player flag routing turns, the debug switch on a
+// member's turn (D-026) and the gear gate for entering a fight (D-016).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
-#include "AI/AIDecisionConstants.h"
 #include "AI/AIDecisionManager.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
@@ -79,18 +79,33 @@ void FPartyIntoBattleSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("keeps the leader on Player and lets other members go to the AI", [this]()
+	It("commands every member by default; only the leader's AI seats go to the AI (B-346)", [this]()
 	{
-		if (!TestNotNull(TEXT("Party"), MakeParty())) return;
-		TestTrue(TEXT("Members default to Player"), PartySession->IsMemberPlayerControlled(PARTY_TEST_ALLY_SLOT));
-		TestFalse(TEXT("The leader can't go to the AI"), PartySession->SetMemberPlayerControlled(PartyConstants::LEADER_SLOT, false));
-		TestTrue(TEXT("The leader stays Player"), PartySession->IsMemberPlayerControlled(PartyConstants::LEADER_SLOT));
-		TestTrue(TEXT("A member can go to the AI"), PartySession->SetMemberPlayerControlled(PARTY_TEST_ALLY_SLOT, false));
-		TestFalse(TEXT("That member is AI"), PartySession->IsMemberPlayerControlled(PARTY_TEST_ALLY_SLOT));
+		UParty *Party = MakeParty();
+		if (!TestNotNull(TEXT("Party"), Party)) return;
+		for (int32 Slot = 0; Slot < PARTY_TEST_MEMBERS; ++Slot)
+		{
+			TestFalse(FString::Printf(TEXT("slot %d is yours by default"), Slot), PartySession->IsMemberAISeat(Slot));
+		}
+		TestFalse(TEXT("The leader is never an AI seat"), PartySession->SetMemberAISeat(PartyConstants::LEADER_SLOT, true));
+		TestTrue(TEXT("A member can be an AI seat"), PartySession->SetMemberAISeat(PARTY_TEST_ALLY_SLOT, true));
+		TestTrue(TEXT("That member is an AI seat"), PartySession->IsMemberAISeat(PARTY_TEST_ALLY_SLOT));
+		TestTrue(TEXT("The old flag mirrors it (OBSOLETE)"), !Party->Members[PARTY_TEST_ALLY_SLOT].bPlayerControlled);
+		TestTrue(TEXT("An AI seat defaults to Medium"), Party->Members[PARTY_TEST_ALLY_SLOT].AISeatDifficulty == EAIDifficulty::Medium);
+	});
 
-		TestFalse(TEXT("Fall setting defaults to Take over"), PartySession->GetLetAIFinish());
-		PartySession->SetLetAIFinish(true);
-		TestTrue(TEXT("Let AI finish set"), PartySession->GetLetAIFinish());
+	It("keeps a seat fixed while a fight runs (B-346)", [this]()
+	{
+		if (!TestNotNull(TEXT("Party"), MakeParty()) || !Orchestrator) return;
+		TestTrue(TEXT("AI seat set before the fight"), PartySession->SetMemberAISeat(PARTY_TEST_ALLY_SLOT, true));
+		AActor *Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), /*bAIControlled=*/true);
+		AActor *Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), /*bAIControlled=*/true);
+		if (!TestTrue(TEXT("Spawned"), Hero && Foe)) return;
+		Orchestrator->StartCombat({Hero}, {Foe});
+		TestFalse(TEXT("Can't hand the seat back mid-fight"), PartySession->SetMemberAISeat(PARTY_TEST_ALLY_SLOT, false));
+		TestFalse(TEXT("Can't change its difficulty mid-fight"),
+				  PartySession->SetMemberAISeatDifficulty(PARTY_TEST_ALLY_SLOT, EAIDifficulty::Hard));
+		TestTrue(TEXT("Still an AI seat"), PartySession->IsMemberAISeat(PARTY_TEST_ALLY_SLOT));
 	});
 
 	It("routes an unpossessed member with the Player flag to the player", [this]()
@@ -118,18 +133,20 @@ void FPartyIntoBattleSpec::Define()
 		TestTrue(TEXT("The AI plays it again"), Orchestrator->IsActorAIControlled(Ally));
 	});
 
-	It("plays AI allies at the fixed ally level and enemies at the encounter's", [this]()
+	It("plays an AI seat at its own difficulty and enemies at the encounter's (B-346)", [this]()
 	{
 		UAIDecisionManager *AI = TestWorld->GetSubsystem<UAIDecisionManager>();
 		AActor *Ally = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), /*bAIControlled=*/true);
 		AActor *Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), /*bAIControlled=*/true);
 		if (!TestNotNull(TEXT("AIDecisionManager"), AI) || !TestTrue(TEXT("Spawned"), Ally && Foe) || !Orchestrator) return;
 		Orchestrator->StartCombat({Ally}, {Foe}, EAIDifficulty::Easy);
-		TestTrue(TEXT("Ally plays at the ally level"), AI->GetDifficultyFor(Ally) == AIConstants::ALLY_AI_DIFFICULTY);
+		TestTrue(TEXT("An AI seat defaults to Medium"), AI->GetDifficultyFor(Ally) == EAIDifficulty::Medium);
+		CombatControl::SetAISeatDifficulty(Ally, EAIDifficulty::Hard);
+		TestTrue(TEXT("It plays at its seat's setting"), AI->GetDifficultyFor(Ally) == EAIDifficulty::Hard);
 		TestTrue(TEXT("Enemy plays at the encounter's"), AI->GetDifficultyFor(Foe) == EAIDifficulty::Easy);
 	});
 
-	It("hands you the AI members when your fighters fall, unless Let AI finish", [this]()
+	It("keeps an AI seat AI when your fighters fall (B-346: no takeover)", [this]()
 	{
 		if (!TestNotNull(TEXT("Party"), MakeParty()) || !Orchestrator) return;
 		AActor *Yours = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), /*bAIControlled=*/true);
@@ -140,19 +157,12 @@ void FPartyIntoBattleSpec::Define()
 		CombatControl::SetPlayerDriven(Yours, true);
 		Orchestrator->StartCombat({Yours, AIAlly, SecondAIAlly}, {Foe});
 
-		// Let AI finish: the AI keeps the first ally after your fighter falls.
-		PartySession->SetLetAIFinish(true);
 		UCharacterDataComponent *YoursComp = Yours->FindComponentByClass<UCharacterDataComponent>();
 		YoursComp->ServerTakeDamage(YoursComp->MaxHP);
 		TestFalse(TEXT("Your fighter is down"), IsAlive(Yours));
-		TestTrue(TEXT("Let AI finish: still AI"), Orchestrator->IsActorAIControlled(AIAlly));
-
-		// Take over: the next local death with no Player member standing hands you the rest.
-		PartySession->SetLetAIFinish(false);
-		UCharacterDataComponent *AIAllyComp = AIAlly->FindComponentByClass<UCharacterDataComponent>();
-		AIAllyComp->ServerTakeDamage(AIAllyComp->MaxHP);
 		TestTrue(TEXT("Combat still on"), Orchestrator->GetCombatState() == ECombatState::InProgress);
-		TestFalse(TEXT("Take over: you play the last ally"), Orchestrator->IsActorAIControlled(SecondAIAlly));
+		TestTrue(TEXT("The AI seat stays AI"), Orchestrator->IsActorAIControlled(AIAlly));
+		TestTrue(TEXT("So does the other"), Orchestrator->IsActorAIControlled(SecondAIAlly));
 	});
 
 	It("keeps a gearless Generic out of a fight but lets a Refractor in", [this]()

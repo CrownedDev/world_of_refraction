@@ -28,6 +28,7 @@
 #pragma once
 
 #include "AI/EAIDifficulty.h"
+#include "Trial/TrialGate.h"
 #include "Combat/Encounter/EEncounterRank.h"
 #include "Combat/Encounter/EFirstStrike.h"
 #include "Components/ActorComponent.h"
@@ -75,9 +76,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Encounter|Arena")
 	TSoftObjectPtr<UMaterialInterface> ArenaSphereMaterial;
 
-	/** AI difficulty carried to the battle stage — per-encounter, not per-CharacterData. */
+	/** B-344 (D-136, D-044): set to give this encounter its own AI tier; otherwise the trial difficulty picks it. */
 	UPROPERTY(EditAnywhere, Category = "Encounter")
+	bool bOverrideAIDifficulty = false;
+
+	/** The AI tier when bOverrideAIDifficulty is set (D-044). Per-encounter, not per-CharacterData. */
+	UPROPERTY(EditAnywhere, Category = "Encounter", meta = (EditCondition = "bOverrideAIDifficulty"))
 	EAIDifficulty Difficulty = EAIDifficulty::Medium;
+
+	/** B-344: this encounter's AI tier for a fight in a trial of TrialDifficulty. */
+	EAIDifficulty GetFightAIDifficulty(ETrialDifficulty TrialDifficulty) const;
 
 	/** D-091: a normal fight can be fled; a mini-boss or boss can't. */
 	UPROPERTY(EditAnywhere, Category = "Encounter")
