@@ -77,6 +77,10 @@ public:
 	/** B-042j: the holder's absorbers as they stand (copies, in no order). */
 	TArray<FWoRAbsorbCharge> GetAbsorbs() const;
 
+	/** B-042j3: what AbsorbHit would negate of this damage instance, spending nothing (a DoT tick preview, the AI's
+	 *  lethal check). */
+	int32 PreviewAbsorb(int32 Damage, ESpellElement HitElement, EPhysicalDamageType HitPhysical) const;
+
 	/** B-042j2: remove the absorbers EffectID / SourceKey gave (a same-source re-cast replaces, Q-044 A). How many went. */
 	int32 RemoveAbsorbsFrom(int32 EffectID, int32 SourceKey);
 

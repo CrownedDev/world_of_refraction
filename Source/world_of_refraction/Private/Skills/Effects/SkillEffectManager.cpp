@@ -2454,7 +2454,10 @@ int32 USkillEffectManager::PreviewDotTickDamage(AActor *Actor, const FActiveSkil
 											? Actor->FindComponentByClass<UWoREffectMirrorComponent>()
 											: nullptr;
 	const int32 FromGAS = Mirror ? Mirror->PreviewDotTick(Effect) : INDEX_NONE;
-	return FromGAS != INDEX_NONE ? FromGAS : GetDotTickDamage(Actor, Effect);
+	const int32 Tick = FromGAS != INDEX_NONE ? FromGAS : GetDotTickDamage(Actor, Effect);
+	// B-042j3 (D-092 rule 1): the next tick as the holder would pay it, after its absorbers (nothing spent here).
+	const UWoRTurnEffectTracker *Absorbers = Actor ? Actor->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr;
+	return FMath::Max(0, Tick - (Absorbers ? Absorbers->PreviewAbsorb(Tick, Effect.Element, EPhysicalDamageType::None) : 0));
 }
 
 TArray<FActiveSkillEffect> USkillEffectManager::GetEffectsByType(AActor *Actor, ESkillEffectType EffectType) const

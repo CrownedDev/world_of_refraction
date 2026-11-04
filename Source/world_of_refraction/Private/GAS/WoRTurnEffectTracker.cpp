@@ -445,6 +445,22 @@ TArray<FWoRAbsorbCharge> UWoRTurnEffectTracker::GetAbsorbs() const
 	return Out;
 }
 
+int32 UWoRTurnEffectTracker::PreviewAbsorb(int32 Damage, ESpellElement HitElement, EPhysicalDamageType HitPhysical) const
+{
+	if (Damage <= 0 || Absorbs.Num() == 0)
+	{
+		return 0;
+	}
+	// Spend on copies: the same order and rules as AbsorbHit, nothing kept.
+	TArray<FWoRAbsorbCharge> Copies = GetAbsorbs();
+	TArray<FWoRAbsorbCharge *> Charges;
+	for (FWoRAbsorbCharge &Copy : Copies)
+	{
+		Charges.Add(&Copy);
+	}
+	return WoRAbsorb::Spend(Charges, Damage, HitElement, HitPhysical);
+}
+
 FString UWoRTurnEffectTracker::GetDebugString() const
 {
 	const UAbilitySystemComponent *ASC = GetOwnerASC();
