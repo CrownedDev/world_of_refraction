@@ -1795,6 +1795,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** A (approved by the reference-backed default). An arena that should stay Hard sets `bOverrideAIDifficulty`.
 **Notes for Claude:** applied in B-344.
 
+### Q-345 — What "one AI path" merges, and which AI numbers move to data
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-345, cloud) · **Blocks:** —
+**Question:** D-136 says spell and ability AI share one path and the AI weights move into `UCombatTuningData`. Should the Attack / Spell / Ability choice also fold into one "skill" list, and which numbers count as "weights"?
+**Options:** **A** one scoring path for spells and abilities (one estimator, one status score, one affordability check, one infusion decision, one picker), keeping the Attack / Spell / Ability categories so the argmax and its ties are unchanged; the scoring weights, status tiers, thresholds, Emerald factors and the per-tier defence attempt chances go to data; think times, parry chance, the defence aim and the Emerald lookahead stay C++. **B** one candidate list for spells and abilities together (one category), every AI number in data. **C** A, plus think times and defence aim in data.
+**Recommendation:** A. Utility AI as most games ship it (Dave Mark's *Behavioral Mathematics for Game AI*; his Infinite Axis Utility System, used for Guild Wars 2: Heart of Thorns, GDC 2015 "Building a Better Centaur") has one score function per action and its weights in data; the scored "considerations" are what designers tune, pacing knobs are not. Keeping the categories means "the AI picks the same action as before" holds exactly (B only differs in a corner: no affordable spell but an affordable ability with a zero score).
+**Answer:** A (approved by the reference-backed default). Folding the categories (B) is a later step once the balance sim shows no change.
+**Notes for Claude:** applied in B-345 (`feature/B-345-one-ai-path`).
+
 ### Q-21-audit — Party control: the deckbuilder's seat rule (audit §21)
 **Status:** ANSWERED (Crown: follow the deckbuilder's rule) · **Raised:** 2026-11-03 (audit §21) · **Blocks:** —
 **Question:** who commands each party member, solo and in co-op?

@@ -1,6 +1,7 @@
 // CombatTuningData.cpp
 
 #include "Combat/Tuning/CombatTuningData.h"
+#include "AI/AIDecisionConstants.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/Damage/TierGapConstants.h"
 #include "Combat/Damage/TierPowerConstants.h"
@@ -85,6 +86,30 @@ UCombatTuningData::UCombatTuningData()
 	, StrainInfusionDeficitL2(BrokenDarknessConstants::STRAIN_INFUSION_DEFICIT_L2)
 	, StrainPowerFactorMax(BrokenDarknessConstants::STRAIN_POWER_FACTOR_MAX)
 	, StrainControlFactorMin(BrokenDarknessConstants::STRAIN_CONTROL_FACTOR_MIN)
+	, AIKillPotentialScore(AIConstants::KILL_POTENTIAL_SCORE)
+	, AIHPMissingWeight(AIConstants::HP_MISSING_WEIGHT)
+	, AIThreatWeight(AIConstants::THREAT_WEIGHT)
+	, AIRawDamageThreatMult(AIConstants::RAW_DAMAGE_THREAT_MULT)
+	, AIStatusMultiplierThreatMult(AIConstants::STATUS_MULTIPLIER_THREAT_MULT)
+	, AISpellPowerThreatMult(AIConstants::SPELL_POWER_THREAT_MULT)
+	, AIStatusScoreWeight(AIConstants::STATUS_SCORE_WEIGHT)
+	, AIStatusScoreTrigger(AIConstants::STATUS_SCORE_TRIGGER)
+	, AIStatusScoreContribute(AIConstants::STATUS_SCORE_CONTRIBUTE)
+	, AIStatusScoreRedundant(AIConstants::STATUS_SCORE_REDUNDANT)
+	, AIStatusBarNearTrigger(AIConstants::STATUS_BAR_NEAR_TRIGGER_THRESHOLD)
+	, AIEnergyConservationThreshold(AIConstants::ENERGY_CONSERVATION_THRESHOLD)
+	, AIEnergyAbundantThreshold(AIConstants::ENERGY_ABUNDANT_THRESHOLD)
+	, AIHealHPThresholdHard(AIConstants::HARDEXPERT_HEAL_HP_THRESHOLD)
+	, AIHealHPThresholdEasy(AIConstants::EASYMED_HEAL_HP_THRESHOLD)
+	, AILastStandHPThreshold(AIConstants::LAST_STAND_HP_THRESHOLD)
+	, AIKillSecureFactor(AIConstants::KILL_SECURE_FACTOR)
+	, AIFreeActionFactor(AIConstants::FREE_ACTION_FACTOR)
+	, AIStarveMargin(AIConstants::STARVE_MARGIN)
+	, AIDelayDecay(AIConstants::DELAY_DECAY)
+	, AIDefenseAttemptEasy(AIConstants::EASY_DEFENSE_ATTEMPT)
+	, AIDefenseAttemptMedium(AIConstants::MEDIUM_DEFENSE_ATTEMPT)
+	, AIDefenseAttemptHard(AIConstants::HARD_DEFENSE_ATTEMPT)
+	, AIDefenseAttemptExpert(AIConstants::EXPERT_DEFENSE_ATTEMPT)
 {
 }
 
@@ -281,6 +306,18 @@ FString UCombatTuningData::GetCombatTuningString() const
 	Out += FString::Printf(TEXT("  BD strain       per deficit %.3f  threshold/EP %.3f  infusion deficit %d/%d  power max %.3f  control min %.3f"),
 						   StrainPerDeficitPoint, StrainThresholdPerEP, StrainInfusionDeficitL1, StrainInfusionDeficitL2,
 						   StrainPowerFactorMax, StrainControlFactorMin);
+	Out += FString::Printf(TEXT("\n  AI target       kill %d  HP missing %.2f  threat %.2f (raw %.2f, status %.2f, spell %.2f)"),
+						   AIKillPotentialScore, AIHPMissingWeight, AIThreatWeight,
+						   AIRawDamageThreatMult, AIStatusMultiplierThreatMult, AISpellPowerThreatMult);
+	Out += FString::Printf(TEXT("\n  AI skill score  status x%.2f  trigger %.1f  contribute %.1f  redundant %.1f  bar near %.2f"),
+						   AIStatusScoreWeight, AIStatusScoreTrigger, AIStatusScoreContribute, AIStatusScoreRedundant, AIStatusBarNearTrigger);
+	Out += FString::Printf(TEXT("\n  AI thresholds   EP save %.2f  EP abundant %.2f  heal Hard+ %.2f  heal Easy/Med %.2f  last stand %.2f"),
+						   AIEnergyConservationThreshold, AIEnergyAbundantThreshold, AIHealHPThresholdHard,
+						   AIHealHPThresholdEasy, AILastStandHPThreshold);
+	Out += FString::Printf(TEXT("\n  AI Emerald      kill secure %.2f  free action %.2f  starve %.2f  delay decay %.2f"),
+						   AIKillSecureFactor, AIFreeActionFactor, AIStarveMargin, AIDelayDecay);
+	Out += FString::Printf(TEXT("\n  AI defend try   Easy %.2f  Medium %.2f  Hard %.2f  Expert %.2f"),
+						   AIDefenseAttemptEasy, AIDefenseAttemptMedium, AIDefenseAttemptHard, AIDefenseAttemptExpert);
 	// C++ only until B-042 moves the caps into data (Q-218); listed so one print shows the whole baseline.
 	Out += FString::Printf(TEXT("\n  C++ caps        defense ceiling %.2f  crit base x%.2f  crit stat cap x%.2f  crit gear ceiling x%.2f"),
 						   CombatConstants::DEFENSE_REDUCTION_CEILING, CombatConstants::CRIT_DMG_BASE,
@@ -332,6 +369,31 @@ FString UCombatTuningData::GetDifferencesFromCode() const
 	Single(TEXT("StrainInfusionDeficitL2"), StrainInfusionDeficitL2, BrokenDarknessConstants::STRAIN_INFUSION_DEFICIT_L2);
 	Single(TEXT("StrainPowerFactorMax"), StrainPowerFactorMax, BrokenDarknessConstants::STRAIN_POWER_FACTOR_MAX);
 	Single(TEXT("StrainControlFactorMin"), StrainControlFactorMin, BrokenDarknessConstants::STRAIN_CONTROL_FACTOR_MIN);
+	// B-345: the AI weights and thresholds.
+	Single(TEXT("AIKillPotentialScore"), static_cast<float>(AIKillPotentialScore), static_cast<float>(AIConstants::KILL_POTENTIAL_SCORE));
+	Single(TEXT("AIHPMissingWeight"), AIHPMissingWeight, AIConstants::HP_MISSING_WEIGHT);
+	Single(TEXT("AIThreatWeight"), AIThreatWeight, AIConstants::THREAT_WEIGHT);
+	Single(TEXT("AIRawDamageThreatMult"), AIRawDamageThreatMult, AIConstants::RAW_DAMAGE_THREAT_MULT);
+	Single(TEXT("AIStatusMultiplierThreatMult"), AIStatusMultiplierThreatMult, AIConstants::STATUS_MULTIPLIER_THREAT_MULT);
+	Single(TEXT("AISpellPowerThreatMult"), AISpellPowerThreatMult, AIConstants::SPELL_POWER_THREAT_MULT);
+	Single(TEXT("AIStatusScoreWeight"), AIStatusScoreWeight, AIConstants::STATUS_SCORE_WEIGHT);
+	Single(TEXT("AIStatusScoreTrigger"), AIStatusScoreTrigger, AIConstants::STATUS_SCORE_TRIGGER);
+	Single(TEXT("AIStatusScoreContribute"), AIStatusScoreContribute, AIConstants::STATUS_SCORE_CONTRIBUTE);
+	Single(TEXT("AIStatusScoreRedundant"), AIStatusScoreRedundant, AIConstants::STATUS_SCORE_REDUNDANT);
+	Single(TEXT("AIStatusBarNearTrigger"), AIStatusBarNearTrigger, AIConstants::STATUS_BAR_NEAR_TRIGGER_THRESHOLD);
+	Single(TEXT("AIEnergyConservationThreshold"), AIEnergyConservationThreshold, AIConstants::ENERGY_CONSERVATION_THRESHOLD);
+	Single(TEXT("AIEnergyAbundantThreshold"), AIEnergyAbundantThreshold, AIConstants::ENERGY_ABUNDANT_THRESHOLD);
+	Single(TEXT("AIHealHPThresholdHard"), AIHealHPThresholdHard, AIConstants::HARDEXPERT_HEAL_HP_THRESHOLD);
+	Single(TEXT("AIHealHPThresholdEasy"), AIHealHPThresholdEasy, AIConstants::EASYMED_HEAL_HP_THRESHOLD);
+	Single(TEXT("AILastStandHPThreshold"), AILastStandHPThreshold, AIConstants::LAST_STAND_HP_THRESHOLD);
+	Single(TEXT("AIKillSecureFactor"), AIKillSecureFactor, AIConstants::KILL_SECURE_FACTOR);
+	Single(TEXT("AIFreeActionFactor"), AIFreeActionFactor, AIConstants::FREE_ACTION_FACTOR);
+	Single(TEXT("AIStarveMargin"), AIStarveMargin, AIConstants::STARVE_MARGIN);
+	Single(TEXT("AIDelayDecay"), AIDelayDecay, AIConstants::DELAY_DECAY);
+	Single(TEXT("AIDefenseAttemptEasy"), AIDefenseAttemptEasy, AIConstants::EASY_DEFENSE_ATTEMPT);
+	Single(TEXT("AIDefenseAttemptMedium"), AIDefenseAttemptMedium, AIConstants::MEDIUM_DEFENSE_ATTEMPT);
+	Single(TEXT("AIDefenseAttemptHard"), AIDefenseAttemptHard, AIConstants::HARD_DEFENSE_ATTEMPT);
+	Single(TEXT("AIDefenseAttemptExpert"), AIDefenseAttemptExpert, AIConstants::EXPERT_DEFENSE_ATTEMPT);
 	return Out;
 }
 
