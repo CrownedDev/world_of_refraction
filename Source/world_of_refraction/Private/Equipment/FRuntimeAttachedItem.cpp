@@ -272,7 +272,7 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem 
         if constexpr (FusionRules::RETIRED)
         {
             // B-352 (D-141): an authored fusion no longer attaches; the socket reads empty.
-            UE_LOG(LogTemp, Warning, TEXT("[FRuntimeAttachedItem] an authored fusion is retired (D-141): the socket stays empty"));
+            UE_LOG(LogTemp, Verbose, TEXT("[FRuntimeAttachedItem] an authored fusion is retired (D-141): the socket stays empty (IsDataValid flags the asset)"));
         }
         else
         {

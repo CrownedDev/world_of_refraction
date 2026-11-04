@@ -129,7 +129,7 @@ namespace
     /** Build a runtime fusion attachment from the two-half identity (fuse-and-socket — fusions have
      *  no loose-inventory home; the caller consumes the two halves from the crystal stacks). Seeds
      *  whole-fusion durability via GetMaxDurability (gem-seeded; 0 for an augmented fusion). */
-    FRuntimeAttachedItem MakeFusionAttachment(const FFusionId &FusionId)
+    [[maybe_unused]] FRuntimeAttachedItem MakeFusionAttachment(const FFusionId &FusionId) // OBSOLETE (B-352): only the discarded branch calls it
     {
         FRuntimeAttachedItem Runtime;
         Runtime.Kind = EAttachedItemKind::Fusion;

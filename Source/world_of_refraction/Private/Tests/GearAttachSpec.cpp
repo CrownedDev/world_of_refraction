@@ -14,6 +14,7 @@
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/FAttachedItem.h"
+#include "Misc/DataValidation.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
@@ -174,6 +175,15 @@ void FGearAttachSpec::Define()
 			Authored.FusionHalfAType = GEAR_TEST_STAT_STONE.Type;
 			Authored.FusionHalfBType = GEAR_TEST_GEM.Type;
 			TestTrue(TEXT("empty socket"), FRuntimeAttachedItem::FromAttachedItem(Authored).IsEmpty());
+
+			UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
+			Weapon->AttachedItem = Authored;
+			TestFalse(TEXT("an authored fusion is no crystal"), Weapon->HasCrystal());
+			TestTrue(TEXT("and has no element"), Weapon->GetCrystalElement() == ESpellElement::None);
+#if WITH_EDITOR
+			FDataValidationContext Context;
+			TestTrue(TEXT("data validation flags it"), Weapon->IsDataValid(Context) == EDataValidationResult::Invalid);
+#endif
 		});
 	});
 
