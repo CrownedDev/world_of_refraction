@@ -114,11 +114,14 @@ int32 BossTriggers::ApplyTo(AActor *Boss, const UBossData &Data, const TArray<AA
 	{
 		FightStart.Party.Add(MemoryConditions::MakeMember(Member));
 	}
-	FBossFightState State;
 	int32 Fired = 0;
 	// B-355 (D-144): the fight-start rules of the boss's one list (authored, then old triggers read
 	// across). State-change rules fire in UBossPhaseComponent; moments still wait in UFightTriggers.
+	// One per-fight state per boss (Q-211): the phase component's when it has one, so the fight-start
+	// results and the state-change results net out and a skip or an added phase happens once.
 	UBossPhaseComponent *Phases = Boss->FindComponentByClass<UBossPhaseComponent>();
+	FBossFightState StateWithoutPhases;
+	FBossFightState &State = Phases ? Phases->GetFightState() : StateWithoutPhases;
 	const FWoRBossState BossState = Phases ? Phases->MakeBossState() : FWoRBossState();
 	FWoRConditionContext Context = WoRConditions::MakeContext(FightStart, nullptr);
 	Context.Boss = Phases ? &BossState : nullptr;

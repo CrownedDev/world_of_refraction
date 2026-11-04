@@ -53,6 +53,12 @@ void UBossPhaseComponent::Setup(UBossData *Data)
 		{
 			AuthoredRules.Add(Rule);
 		}
+		else if (Rule.When == EBossRuleWhen::AtMoment)
+		{
+			// TODO(B-355b): UFightTriggers still fires moments from the old trigger list only.
+			UE_LOG(LogWoR, Warning, TEXT("[BossPhase] %s: rule %s is AtMoment, which nothing fires yet (B-355b); author it as a Trigger for now"),
+				   *GetNameSafe(Data), *Rule.RuleId.ToString());
+		}
 	}
 	AuthoredRuleFired.Init(false, AuthoredRules.Num());
 	RebuildPhaseRules();

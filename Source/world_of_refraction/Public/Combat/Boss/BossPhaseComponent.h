@@ -15,6 +15,8 @@
 #include "Components/ActorComponent.h"
 #include "BossPhaseComponent.generated.h"
 
+struct FWoRBossState;
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBossPhaseReached, AActor *, Boss, int32, PhaseIndex);
 
 UCLASS(ClassGroup = (Combat))
@@ -38,6 +40,11 @@ public:
 
 	/** B-355: the state the rules' boss subjects read (HP, own turns, breaks, phases reached, ...). */
 	FWoRBossState MakeBossState() const;
+
+	/** B-355: the boss's one per-fight rule state (net steps; skip / add once each, Q-211), shared by the
+	 *  fight-start rules (BossTriggers::ApplyTo) and the state-change rules here, so a fight-start Strengthen
+	 *  and a later Weaken net out and a skip happens once. Reset by Setup. */
+	FBossFightState &GetFightState() { return RuleState; }
 
 	/** A memory skips the next phase not reached yet (Q-191 SkipPhase). */
 	void SkipNextPhase();
@@ -97,7 +104,7 @@ private:
 	/** B-355: the phases' "next phase" rules (rebuilt from Phases). */
 	TArray<FBossRule> PhaseRules;
 
-	/** B-355: what the state-change rules did this fight (net steps; skip / add once, Q-211). */
+	/** B-355: what the rules did this fight (net steps; skip / add once, Q-211); see GetFightState. */
 	FBossFightState RuleState;
 
 	int32 ReachedPhaseCount = 0;
