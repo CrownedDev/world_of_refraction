@@ -9,12 +9,21 @@
 #include "Equipment/EquipmentDataBase.h"
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
+#include "Memory/MemoryJournalSubsystem.h"
 #include "Memory/MemoryUnlock.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/WorldStatRequirements.h"
 
 namespace
 {
+	/** An enum value's name without its type prefix ("GearEquipped"). */
+	template <class TEnum>
+	FString EnumName(TEnum Value)
+	{
+		const UEnum *Enum = StaticEnum<TEnum>();
+		return Enum ? Enum->GetNameStringByValue(static_cast<int64>(Value)) : FString::FromInt(static_cast<int32>(Value));
+	}
+
 	bool IsInParty(const UCharacterData *Character, const FMemoryEvent &Event)
 	{
 		return Event.Party.ContainsByPredicate([Character](const FMemoryEventMember &Member) { return Member.Character == Character; });
@@ -296,13 +305,10 @@ FWoRConditionSet WoRConditions::FromMemory(const TArray<FMemoryCondition> &Condi
 
 FString WoRConditions::GetConditionString(const FWoRCondition &Condition)
 {
-	FString Out = UEnum::GetValueAsString(Condition.Subject);
-	Out.RemoveFromStart(TEXT("EWoRConditionSubject::"));
+	FString Out = EnumName(Condition.Subject);
 	if (Condition.Trigger != EWoRConditionTrigger::Any)
 	{
-		FString Trigger = UEnum::GetValueAsString(Condition.Trigger);
-		Trigger.RemoveFromStart(TEXT("EWoRConditionTrigger::"));
-		Out = FString::Printf(TEXT("on %s: %s"), *Trigger, *Out);
+		Out = FString::Printf(TEXT("on %s: %s"), *EnumName(Condition.Trigger), *Out);
 	}
 	const UObject *Operands[] = {Condition.Item.Get(), Condition.Evolution.Get(), Condition.Skill.Get(), Condition.Enemy.Get(), Condition.PriorMemory.Get()};
 	for (const UObject *Operand : Operands)
@@ -318,15 +324,11 @@ FString WoRConditions::GetConditionString(const FWoRCondition &Condition)
 	}
 	if (Condition.Subject == EWoRConditionSubject::GearEquipped || Condition.Subject == EWoRConditionSubject::EvolutionEquipped)
 	{
-		FString Operator = UEnum::GetValueAsString(Condition.Operator);
-		Operator.RemoveFromStart(TEXT("EWoRConditionOperator::"));
-		Out += FString::Printf(TEXT(" %s %d"), *Operator, Condition.Value);
+		Out += FString::Printf(TEXT(" %s %d"), *EnumName(Condition.Operator), Condition.Value);
 	}
 	if (Condition.RequirementFit != EWoRRequirementFit::Any)
 	{
-		FString Fit = UEnum::GetValueAsString(Condition.RequirementFit);
-		Fit.RemoveFromStart(TEXT("EWoRRequirementFit::"));
-		Out += FString::Printf(TEXT(" (requirements %s %d)"), *Fit, Condition.RequirementMargin);
+		Out += FString::Printf(TEXT(" (requirements %s %d)"), *EnumName(Condition.RequirementFit), Condition.RequirementMargin);
 	}
 	if (Condition.Character)
 	{

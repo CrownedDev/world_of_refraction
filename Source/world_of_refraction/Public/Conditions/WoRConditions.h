@@ -10,9 +10,10 @@
 
 #include "CoreMinimal.h"
 #include "Conditions/WoRCondition.h"
-#include "Memory/MemoryJournalSubsystem.h"
 
 class UCharacterData;
+class UMemoryJournalSubsystem;
+enum class EMemorySource : uint8;
 struct FMemoryCondition;
 struct FMemoryEvent;
 struct FWorldStatRequirements;

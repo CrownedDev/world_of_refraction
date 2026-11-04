@@ -21,13 +21,13 @@ class USkillDataBase;
 UENUM(BlueprintType)
 enum class EWoRConditionTrigger : uint8
 {
-	Any,
-	FragmentFound,
-	BossBeaten,
-	ReactionFired,
-	MapSpotReached,
-	BoundGearUsed,
-	FightWon
+	Any = 0,
+	FragmentFound = 1,
+	BossBeaten = 2,
+	ReactionFired = 3,
+	MapSpotReached = 4,
+	BoundGearUsed = 5,
+	FightWon = 6,
 };
 
 /** What must be true (the deckbuilder's Subject). Append only. */
@@ -35,42 +35,42 @@ UENUM(BlueprintType)
 enum class EWoRConditionSubject : uint8
 {
 	/** Nothing to check: holds whenever the trigger does. */
-	None,
+	None = 0,
 	/** Character is in the party. */
-	CharacterInParty,
+	CharacterInParty = 1,
 	/** Item is worn (by Character when set, else anyone); its tiers above its authored tier compare
 	 *  to Value by Operator. A gear upgrade counts the levelled item as worn. */
-	GearEquipped,
+	GearEquipped = 2,
 	/** LocationId is where the event happens. */
-	AtLocation,
+	AtLocation = 3,
 	/** Enemy was beaten in the fight just won. */
-	EnemyBeaten,
+	EnemyBeaten = 4,
 	/** The fight was won with no party member below their HP at its start. */
-	NoDamageTaken,
+	NoDamageTaken = 5,
 	/** PriorMemory is in the journal. */
-	MemoryCollected,
+	MemoryCollected = 6,
 	/** TODO: hidden conditions (pillar 10) are not built; never holds. */
-	Hidden,
+	Hidden = 7,
 	/** Evolution is in the primary slot (of Character / anyone); its tiers above its authored tier
 	 *  compare to Value. A level-up counts the levelled evolution as equipped. */
-	EvolutionEquipped,
+	EvolutionEquipped = 8,
 	/** Skill is in the loadout (of Character / anyone). */
-	SkillSlotted,
+	SkillSlotted = 9,
 	/** Skill was used in the fight just won. */
-	SkillUsed,
+	SkillUsed = 10,
 	/** A Breakthrough spell was cast from Evolution in the fight just won. */
-	BreakthroughUsed,
+	BreakthroughUsed = 11,
 	/** Whoever held the weapon Item made a kill in the fight just won. */
-	FinishingBlow
+	FinishingBlow = 12,
 };
 
 /** How a number compares to Value. */
 UENUM(BlueprintType)
 enum class EWoRConditionOperator : uint8
 {
-	AtLeast,
-	AtMost,
-	Equal
+	AtLeast = 0,
+	AtMost = 1,
+	Equal = 2,
 };
 
 /** The wearer against what an equipped item or skill requires, per pillar (was EMemoryRequirementFit). */
@@ -78,13 +78,13 @@ UENUM(BlueprintType)
 enum class EWoRRequirementFit : uint8
 {
 	/** Requirements don't matter. */
-	Any,
+	Any = 0,
 	/** Every pillar meets them. */
-	Met,
+	Met = 1,
 	/** Met, and every pillar asked for is RequirementMargin or more over. */
-	Above,
+	Above = 2,
 	/** Some pillar is RequirementMargin (at least 1) or more short. */
-	Under
+	Under = 3,
 };
 
 USTRUCT(BlueprintType)
