@@ -334,7 +334,7 @@ ECombatInputVerdict ACombatPlayerController::HandleMenuPick(const FCombatPickReq
 	{
 		Verdict = ECombatInputVerdict::NoActor;
 	}
-	else if (!ControlsActor(this, Pick.Actor))
+	else if (!ControlsActor(this, Pick.Actor, bFromClient))
 	{
 		Verdict = ECombatInputVerdict::NotControlled;
 	}
@@ -377,7 +377,7 @@ void ACombatPlayerController::Server_SubmitMenuPick_Implementation(const FCombat
 	HandleMenuPick(Pick, true);
 }
 
-bool ACombatPlayerController::ControlsActor(const AController *Sender, const AActor *Actor)
+bool ACombatPlayerController::ControlsActor(const AController *Sender, const AActor *Actor, bool bFromClient)
 {
 	if (!Sender || !Actor)
 	{
@@ -388,10 +388,10 @@ bool ACombatPlayerController::ControlsActor(const AController *Sender, const AAc
 		return true;
 	}
 	// TODO(B-232): each player commands only their own characters. Until then the party is shared (Q-229b): any
-	// player-driven combatant. A non-pawn combatant (the test harness's) counts as player-driven only for the local
-	// (host) controller, as in the orchestrator; a remote client may only name a pawn.
+	// player-driven combatant. A non-pawn combatant (the test harness's) counts as player-driven, as in the orchestrator,
+	// but only for a pick made here: a remote client may only name a pawn.
 	const APawn *Pawn = Cast<APawn>(Actor);
-	return Pawn ? CombatControl::IsPlayerDriven(Pawn) : Sender->IsLocalController();
+	return Pawn ? CombatControl::IsPlayerDriven(Pawn) : !bFromClient;
 }
 
 ACombatPlayerController *ACombatPlayerController::FindLocal(const UObject *WorldContext)

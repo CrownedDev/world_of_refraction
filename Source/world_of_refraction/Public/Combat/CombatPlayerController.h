@@ -150,7 +150,7 @@ public:
 
 	/** Does Sender command Actor? Its own pawn, an actor it owns, or (until B-232 assigns characters to players)
 	 *  any player-driven combatant: shared party control. A bot-driven pawn (enemy, AI ally) is never controlled. */
-	static bool ControlsActor(const AController *Sender, const AActor *Actor);
+	static bool ControlsActor(const AController *Sender, const AActor *Actor, bool bFromClient = false);
 
 	/** This machine's combat player controller (the first local player's), or null (headless, other PC class). */
 	static ACombatPlayerController *FindLocal(const UObject *WorldContext);

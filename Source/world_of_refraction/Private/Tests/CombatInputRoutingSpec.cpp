@@ -99,8 +99,9 @@ void FCombatInputRoutingSpec::Define()
 		{
 			return;
 		}
+		// An authority pick: a client's pick may not name a plain actor (ControlsActor), which these harness actors are.
 		const ECombatInputVerdict Verdict =
-			Controller->HandleMenuPick(FCombatPickRequest::FromAction(Hero, InputRoutingAbilityOn(Foe)), true);
+			Controller->HandleMenuPick(FCombatPickRequest::FromAction(Hero, InputRoutingAbilityOn(Foe)), false);
 		TestTrue(TEXT("no combat"), Verdict == ECombatInputVerdict::NoCombat);
 		TestFalse(TEXT("nothing runs"), Orchestrator->IsWaitingForAsyncAction());
 	});
