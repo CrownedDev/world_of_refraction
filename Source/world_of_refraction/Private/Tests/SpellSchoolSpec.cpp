@@ -13,12 +13,15 @@
 #include "Skills/Effects/EffectDefinition.h"
 #include "WoRGameNames.h"
 #include "Loadout/FSavedLoadout.h"
+#include "Loadout/Entries/FSpellCollection.h"
 #include "Loadout/SpellPoolConstants.h"
+#include "Debug/Skills/SpellDataDebug.h"
 
 namespace
 {
 	constexpr int32 SCHOOL_TEST_DAMAGE = 10;
 	constexpr float SCHOOL_TEST_HEAL = 20.0f;
+	constexpr int32 SCHOOL_TEST_BUILDUP = 15;
 
 	USpellData *SchoolTestSpell(ESpellSchool School, ETargetType Target, int32 BaseDamage, bool bWithHeal)
 	{
@@ -83,6 +86,9 @@ void FSpellSchoolSpec::Define()
 				  UAIDecisionManager::IsOffensiveSpell(*SchoolTestSpell(ESpellSchool::Conjuration, ETargetType::Ally, SCHOOL_TEST_DAMAGE, false)));
 		TestFalse(TEXT("a Conjuration-tagged spell with no damage or debuff is not"),
 				  UAIDecisionManager::IsOffensiveSpell(*SchoolTestSpell(ESpellSchool::Conjuration, ETargetType::Enemy, 0, false)));
+		USpellData *StatusAttack = SchoolTestSpell(ESpellSchool::Conjuration, ETargetType::Enemy, 0, false);
+		StatusAttack->StatusBuildup = SCHOOL_TEST_BUILDUP;
+		TestTrue(TEXT("a 0-damage status attack at an enemy is offensive (B-356b)"), UAIDecisionManager::IsOffensiveSpell(*StatusAttack));
 	});
 
 	It("finds a heal by its effects, not its school", [this]()
@@ -93,6 +99,43 @@ void FSpellSchoolSpec::Define()
 				  UAIDecisionManager::IsHealingSpell(*SchoolTestSpell(ESpellSchool::Restoration, ETargetType::Ally, 0, false)));
 	});
 
+	It("never picks a drain as the heal (B-356b)", [this]()
+	{
+		const USpellData *Drain = SchoolTestSpell(ESpellSchool::Conjuration, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, true);
+		TestTrue(TEXT("a drain restores health"), UAIDecisionManager::IsHealingSpell(*Drain));
+		TestTrue(TEXT("a drain is offensive"), UAIDecisionManager::IsOffensiveSpell(*Drain));
+		TestFalse(TEXT("so it is not the heal pick"), UAIDecisionManager::IsHealPick(*Drain));
+		TestTrue(TEXT("a plain heal is the heal pick"),
+				 UAIDecisionManager::IsHealPick(*SchoolTestSpell(ESpellSchool::Restoration, ETargetType::Ally, 0, true)));
+	});
+
+	It("finds a school's spells whichever name the filter uses (B-356b)", [this]()
+	{
+		FSpellCollection Spells;
+		Spells.LearnedSpells.Add(FSpellInstance(SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false)));
+		Spells.LearnedSpells.Add(FSpellInstance(SchoolTestSpell(ESpellSchool::Conjuration, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false)));
+		Spells.LearnedSpells.Add(FSpellInstance(SchoolTestSpell(ESpellSchool::Restoration, ETargetType::Ally, 0, true)));
+		TestEqual(TEXT("asking for Conjuration finds both damage spells"), Spells.GetSpellsBySchool(ESpellSchool::Conjuration).Num(), 2);
+		TestEqual(TEXT("asking with the retired name finds the same two"), Spells.GetSpellsBySchool(ESpellSchool::Destruction).Num(), 2);
+		TestEqual(TEXT("by element and school too"),
+				  Spells.GetSpellsByElementAndSchool(ESpellElement::Fire, ESpellSchool::Destruction).Num(), 2);
+	});
+
+	It("prints the shown school and flags a retired one (B-356b)", [this]()
+	{
+		TestEqual(TEXT("retired"), USpellDataDebug::GetSchoolString(SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false)),
+				  FString(TEXT("Conjuration (authored Destruction, retired)")));
+		TestEqual(TEXT("current"), USpellDataDebug::GetSchoolString(SchoolTestSpell(ESpellSchool::Enhancement, ETargetType::Ally, 0, false)),
+				  FString(TEXT("Enhancement")));
+	});
+
+	It("reports the authored spells whose school disagrees with their effects (B-356b, informational)", [this]()
+	{
+		const FString Mismatches = USpellDataDebug::GetSchoolEffectMismatchString();
+		AddInfo(Mismatches.IsEmpty() ? TEXT("every authored spell's school agrees with the AI's effect reading")
+									 : FString::Printf(TEXT("school vs effects:\n%s"), *Mismatches));
+	});
+
 	It("counts a retired spell under its mapped school's innate cap", [this]()
 	{
 		FSavedLoadout Saved;
@@ -101,7 +144,7 @@ void FSpellSchoolSpec::Define()
 		{
 			Saved.InnateSpells.Add(FSpellRef(SchoolTestSpell(ESpellSchool::Conjuration, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false)));
 		}
-		const TCHAR *TooMany = TEXT("Too many ESpellSchool::Conjuration innate spells");
+		const FString TooMany = FString::Printf(TEXT("Too many %s innate spells"), *UEnum::GetValueAsString(ESpellSchool::Conjuration)); // B-356b: the enum's own string
 		auto Flagged = [&]() {
 			return Saved.GetValidationErrors().ContainsByPredicate([&](const FString &R) { return R.Contains(TooMany); });
 		};
