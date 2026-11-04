@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-333b](B-333b.md) | `chore/B-333b-seven-balances-specs` (in `dev`) | Tests only: four specs moved off the retired typed essences | Pending |
 | [B-316b](B-316b.md) | `feature/B-316b-skills-per-character` (in `dev`) | Learned skills are each character's own and kept; give / ask for a skill on the give placeholder; buy a spell or ability for another member; save v16 | Pending |
 | [B-314b](B-314b.md) | `feature/B-314b-run-layer-save` (in `dev`) | A run saved mid-way keeps its run finds run-only and its home gear's home state; the upgrade memory is saved; save v15 | Pending |
 | [B-313b](B-313b.md) | `feature/B-313b-pouch-rest` (in `dev`) | A member's crystal counts come from its pouch; the item-slot rules skip a member's inert preset picks | Pending |
