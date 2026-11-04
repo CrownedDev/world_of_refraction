@@ -66,7 +66,9 @@ public:
 
 	/** B-328b (D-120, Q-328): the guide enforced as a report. One line when any of Roster sits below the guide tier of
 	 *  Zone ("<Label>: zone tier N asks for Tier X or higher; <enemy> is Tier Y, ..."), else empty. An enemy's tier here
-	 *  is its asset's EnemyTier (the fallback its Combat Tier starts from; gear can only raise it in the fight). */
+	 *  is its asset's EnemyTier: the static proxy for a placement check. The fielded Combat Tier (WoRCombatTier) is the
+	 *  average of the enemy's gear and skills and reads EnemyTier only when it has none, so the two agree for a gearless
+	 *  enemy and can differ either way for one with seed gear. */
 	static FString DescribePlacementBelowGuide(const FString &Label, const FEncounterZoneInfo &Zone, TConstArrayView<UCharacterData *> Roster);
 
 	/** B-328b: every encounter on the map (an actor with a UEncounterComponent) placed below its zone's guide, one line
