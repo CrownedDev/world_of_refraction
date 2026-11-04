@@ -154,7 +154,7 @@ void ULoadoutComponent::HandleGearSocketChanged(FGuid GearID)
     }
     // Mid-fight the loadout is in use; PrepareForBattle's ClearInvalidSlots cleans it before the next fight.
     const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-    const UTurnManager *TurnManager = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+    const UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(GI);
     if (TurnManager && TurnManager->IsCombatActive())
     {
         return;
@@ -256,7 +256,7 @@ bool ULoadoutComponent::SetActiveLoadoutIndex(int32 Index)
     {
         if (UGameInstance *GI = World->GetGameInstance())
         {
-            if (UTurnManager *TurnManager = GI->GetSubsystem<UTurnManager>())
+            if (UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(GI))
             {
                 TurnManager->OnActorSpeedChanged(GetOwner());
             }
@@ -2881,7 +2881,7 @@ void ULoadoutComponent::ToggleEquipment()
     {
         if (UGameInstance *GI = World->GetGameInstance())
         {
-            if (UTurnManager *TurnManager = GI->GetSubsystem<UTurnManager>())
+            if (UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(GI))
             {
                 TurnManager->OnActorSpeedChanged(GetOwner());
             }
@@ -3932,7 +3932,7 @@ void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
     {
         if (UGameInstance *GI = World->GetGameInstance())
         {
-            if (UTurnManager *TurnManager = GI->GetSubsystem<UTurnManager>())
+            if (UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(GI))
             {
                 TurnManager->OnActorSpeedChanged(GetOwner());
             }
@@ -3955,7 +3955,7 @@ void ULoadoutComponent::SwapGearEffects(const TArray<FGatheredEffect> &OldGearEf
     AActor *Owner = GetOwner();
     UWorld *World = GetWorld();
     UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-    USkillEffectManager *Effects = GI ? GI->GetSubsystem<USkillEffectManager>() : nullptr;
+    USkillEffectManager *Effects = WoRFight::Get<USkillEffectManager>(GI);
     // Out of a fight, battle prep gathers the gear when the next one starts.
     if (!Owner || !Effects || !Effects->IsGearArmed(Owner))
     {

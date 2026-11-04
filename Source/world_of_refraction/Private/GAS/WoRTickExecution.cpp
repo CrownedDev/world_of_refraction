@@ -22,7 +22,7 @@ namespace
 	{
 		const UWorld *World = Holder ? Holder->GetWorld() : nullptr;
 		const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
-		const USkillEffectManager *Effects = GameInstance ? GameInstance->GetSubsystem<USkillEffectManager>() : nullptr;
+		const USkillEffectManager *Effects = WoRFight::Get<USkillEffectManager>(GameInstance);
 		if (!Effects)
 		{
 			return false;

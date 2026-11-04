@@ -1,6 +1,6 @@
 // WoRTestWorld.h
 // Headless game world for automation specs: a real UGameInstance (so every WoR
-// GameInstanceSubsystem exists) and a manually ticked world with BeginPlay run.
+// GameInstanceSubsystem exists, and the world's fight subsystems, B-336) and a manually ticked world with BeginPlay run.
 
 #pragma once
 
@@ -21,6 +21,7 @@
 #include "GAS/WoREffectMirrorComponent.h"
 #include "GAS/WoRTurnEffectTracker.h"
 #include "WoRLog.h"
+#include "Combat/WoRFightSubsystem.h"
 
 class UWeaponData;
 
@@ -48,9 +49,7 @@ public:
 	template <class TSubsystem>
 	TSubsystem *GetSubsystem() const
 	{
-		UWorld *World = GetWorld();
-		UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-		return GI ? GI->GetSubsystem<TSubsystem>() : nullptr;
+		return WoRFight::Get<TSubsystem>(GetWorld()); // world or game-instance subsystem (B-336)
 	}
 
 	/** Runs world ticks — timers (including SetTimerForNextTick) fire here. */

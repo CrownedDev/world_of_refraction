@@ -41,7 +41,7 @@ UTurnManager *ATurnManagerTestActor::GetTurnManagerSafe()
 		return nullptr;
 	}
 
-	UTurnManager *TurnManager = GameInst->GetSubsystem<UTurnManager>();
+	UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(GameInst);
 	if (!TurnManager)
 	{
 		UE_LOG(LogTemp, Error, TEXT(""));

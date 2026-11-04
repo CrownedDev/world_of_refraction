@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Subsystems/GameInstanceSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
@@ -42,7 +42,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
 /**
  * UStatusBuildupManager
  *
- * GameInstanceSubsystem that owns the per-actor status-buildup bar.
+ * Per-fight world subsystem (B-336) that owns the per-actor status-buildup bar.
  * Buildup accumulates from attacks (spell + ability + weapon); when the bar
  * caps, the appropriate skill effect fires via USkillEffectManager.
  *
@@ -70,7 +70,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
  * Debug: GetBarDebugString, `wor.DumpStatusBars`.
  */
 UCLASS()
-class WORLD_OF_REFRACTION_API UStatusBuildupManager : public UGameInstanceSubsystem
+class WORLD_OF_REFRACTION_API UStatusBuildupManager : public UWoRFightSubsystem
 {
 	GENERATED_BODY()
 

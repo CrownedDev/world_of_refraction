@@ -340,7 +340,7 @@ USkillEffectManager *UTurnManager::GetSkillEffectManager() const
 		if (UGameInstance *GI = GetGameInstance())
 		{
 			const_cast<UTurnManager *>(this)->SkillEffectManagerRef =
-				GI->GetSubsystem<USkillEffectManager>();
+				WoRFight::Get<USkillEffectManager>(GI);
 		}
 	}
 	return SkillEffectManagerRef;
@@ -1099,7 +1099,7 @@ namespace
 			[](UWorld *World)
 			{
 				UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-				UTurnManager *Mgr = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+				UTurnManager *Mgr = WoRFight::Get<UTurnManager>(GI);
 				if (Mgr)
 				{
 					Mgr->DebugPrintBelt();
@@ -1114,7 +1114,7 @@ namespace
 	UTurnManager *TurnManagerInCombat(UWorld *World, const TCHAR *Command)
 	{
 		UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-		UTurnManager *Mgr = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+		UTurnManager *Mgr = WoRFight::Get<UTurnManager>(GI);
 		if (!Mgr || !Mgr->IsCombatActive() || !Mgr->GetCurrentActor())
 		{
 			UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] %s: no fight running."), Command);

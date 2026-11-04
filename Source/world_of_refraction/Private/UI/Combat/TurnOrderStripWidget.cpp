@@ -33,7 +33,7 @@ void UTurnOrderStripWidget::InitialiseForCombat()
 
 	if (UGameInstance *GI = GetGameInstance())
 	{
-		CachedTurnManager = GI->GetSubsystem<UTurnManager>();
+		CachedTurnManager = WoRFight::Get<UTurnManager>(GI);
 	}
 
 	if (!CachedTurnManager.IsValid())

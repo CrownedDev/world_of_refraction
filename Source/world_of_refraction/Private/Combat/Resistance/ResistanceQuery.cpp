@@ -27,7 +27,7 @@ namespace
 	{
 		const UWorld *World = Target ? Target->GetWorld() : nullptr;
 		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-		return GI ? GI->GetSubsystem<USkillEffectManager>() : nullptr;
+		return WoRFight::Get<USkillEffectManager>(GI);
 	}
 
 	/** The two status axes a damage type stands for (element or physical, never both). */

@@ -192,7 +192,7 @@ void UCrystalManager::ProcessPostCastWear(
         // Plain crystals (gems) carry no stat percents — no hook on their break.
         if (Attachment.IsFusion())
         {
-            if (UTurnManager *TurnMgr = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr)
+            if (UTurnManager *TurnMgr = WoRFight::Get<UTurnManager>(this))
             {
                 TurnMgr->OnActorSpeedChanged(Actor);
             }
@@ -382,7 +382,7 @@ namespace CrystalManagerDebug
     FDebugCrystalTarget FindDebugCrystal(const UCrystalManager &Manager, const TCHAR *Tag)
     {
         FDebugCrystalTarget Target;
-        UTurnManager *TurnMgr = Manager.GetGameInstance() ? Manager.GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+        UTurnManager *TurnMgr = WoRFight::Get<UTurnManager>(&Manager);
         AActor *Actor = TurnMgr ? TurnMgr->GetCurrentActor() : nullptr;
         ULoadoutComponent *LC = Actor ? Actor->FindComponentByClass<ULoadoutComponent>() : nullptr;
         UWeaponData *Weapon = LC ? LC->GetPrimaryWeapon() : nullptr;
@@ -615,7 +615,7 @@ namespace
 
 void UCrystalManager::WOR_WearTable()
 {
-    UTurnManager *TurnMgr = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+    UTurnManager *TurnMgr = WoRFight::Get<UTurnManager>(this);
     if (!TurnMgr)
     {
         UE_LOG(LogTemp, Warning, TEXT("[WOR_WearTable] No TurnManager subsystem."));

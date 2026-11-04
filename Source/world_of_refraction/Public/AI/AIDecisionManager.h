@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Subsystems/GameInstanceSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "AI/EAIDifficulty.h"
 #include "AI/AIDecisionConstants.h"
 #include "Combat/Actions/ActionStructs.h"
@@ -44,7 +44,7 @@ enum class EAIActionChoice : uint8
  * Routes turn decisions through standard action pipeline
  */
 UCLASS()
-class WORLD_OF_REFRACTION_API UAIDecisionManager : public UGameInstanceSubsystem
+class WORLD_OF_REFRACTION_API UAIDecisionManager : public UWoRFightSubsystem
 {
     GENERATED_BODY()
 

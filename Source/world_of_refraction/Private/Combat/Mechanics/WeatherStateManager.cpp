@@ -497,7 +497,7 @@ namespace
             [](UWorld *World)
             {
                 UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-                UWeatherStateManager *Mgr = GI ? GI->GetSubsystem<UWeatherStateManager>() : nullptr;
+                UWeatherStateManager *Mgr = WoRFight::Get<UWeatherStateManager>(GI);
                 if (Mgr)
                 {
                     Mgr->PrintWeatherState();

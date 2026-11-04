@@ -49,7 +49,7 @@ void UDefensePromptWidget::InitialiseForCombat()
 	UDefenseSystem *DefenseSystem = nullptr;
 	if (UGameInstance *GI = GetGameInstance())
 	{
-		DefenseSystem = GI->GetSubsystem<UDefenseSystem>();
+		DefenseSystem = WoRFight::Get<UDefenseSystem>(GI);
 	}
 	if (!DefenseSystem)
 	{

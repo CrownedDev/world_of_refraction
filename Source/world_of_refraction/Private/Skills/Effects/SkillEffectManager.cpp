@@ -52,10 +52,11 @@ void USkillEffectManager::Initialize(FSubsystemCollectionBase &Collection)
 	ActiveEffects.Empty();
 	NextInstanceID = 1;
 
-	// Bind OnDamageDealt listener — drives Lifesteal + ApplyBurn/Chill/StunToTarget.
-	if (UGameInstance *GI = GetGameInstance())
+	// Bind OnDamageDealt listener — drives Lifesteal + ApplyBurn/Chill/StunToTarget. Read straight from the
+	// world: its game instance may not be set yet while the world initialises (B-336).
+	if (UWorld *World = GetWorld())
 	{
-		if (UActionExecutor *AE = GI->GetSubsystem<UActionExecutor>())
+		if (UActionExecutor *AE = World->GetSubsystem<UActionExecutor>())
 		{
 			AE->OnDamageDealt.AddDynamic(this, &USkillEffectManager::OnDamageDealtHandler);
 			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Bound to ActionExecutor::OnDamageDealt"));
@@ -66,7 +67,7 @@ void USkillEffectManager::Initialize(FSubsystemCollectionBase &Collection)
 		}
 
 		// Bind OnDefenseResolved listener — drives defense-outcome conditional effects (C3b).
-		if (UDefenseSystem *DS = GI->GetSubsystem<UDefenseSystem>())
+		if (UDefenseSystem *DS = World->GetSubsystem<UDefenseSystem>())
 		{
 			DS->OnDefenseResolved.AddDynamic(this, &USkillEffectManager::OnDefenseResolvedHandler);
 			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Bound to DefenseSystem::OnDefenseResolved"));
@@ -217,7 +218,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	// its applier (the stone), so it's left as it is.
 	if (Effect.EffectType == ESkillEffectType::ModifyTurnSpeed || Effect.EffectType == ESkillEffectType::ModifyEnergyCost)
 	{
-		const UTurnManager *TurnManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+		const UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(this);
 		if (IsOnOpposingSide(TurnManager, Target, Source, SourceTeam))
 		{
 			Effect.EffectValue = -FMath::Abs(Effect.EffectValue);
@@ -543,7 +544,7 @@ namespace
 			[](UWorld *World)
 			{
 				UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-				USkillEffectManager *Mgr = GI ? GI->GetSubsystem<USkillEffectManager>() : nullptr;
+				USkillEffectManager *Mgr = WoRFight::Get<USkillEffectManager>(GI);
 				if (Mgr)
 				{
 					Mgr->WOR_StartingEffects();
@@ -561,7 +562,7 @@ namespace
 			[](UWorld *World)
 			{
 				UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-				USkillEffectManager *Mgr = GI ? GI->GetSubsystem<USkillEffectManager>() : nullptr;
+				USkillEffectManager *Mgr = WoRFight::Get<USkillEffectManager>(GI);
 				if (Mgr)
 				{
 					Mgr->DebugPrintAllEffects();
@@ -579,13 +580,13 @@ namespace
 			[](UWorld *World)
 			{
 				UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-				USkillEffectManager *Mgr = GI ? GI->GetSubsystem<USkillEffectManager>() : nullptr;
+				USkillEffectManager *Mgr = WoRFight::Get<USkillEffectManager>(GI);
 				if (!Mgr)
 				{
 					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.PrintEffects: no subsystem (no PIE world?)."));
 					return;
 				}
-				UTurnManager *TurnMgr = GI->GetSubsystem<UTurnManager>();
+				UTurnManager *TurnMgr = WoRFight::Get<UTurnManager>(GI);
 				AActor *Actor = TurnMgr ? TurnMgr->GetCurrentActor() : nullptr;
 				if (!Actor)
 				{
@@ -599,7 +600,7 @@ namespace
 
 void USkillEffectManager::WOR_StartingEffects()
 {
-	UTurnManager *TurnMgr = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+	UTurnManager *TurnMgr = WoRFight::Get<UTurnManager>(this);
 	if (!TurnMgr)
 	{
 		UE_LOG(LogWoREffects, Warning, TEXT("[WOR_StartingEffects] No TurnManager subsystem."));
@@ -1642,7 +1643,7 @@ bool USkillEffectManager::IsPayoutType(ESkillEffectType EffectType)
 
 bool USkillEffectManager::IsHoldersOwnTurn(const AActor *Target) const
 {
-	const UTurnManager *TurnManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+	const UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(this);
 	return Target && TurnManager && TurnManager->IsCombatActive() && TurnManager->GetCurrentActor() == Target;
 }
 
@@ -1739,7 +1740,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		{
 			if (UGameInstance *GI = GetGameInstance())
 			{
-				if (UStatusBuildupManager *SBM = GI->GetSubsystem<UStatusBuildupManager>())
+				if (UStatusBuildupManager *SBM = WoRFight::Get<UStatusBuildupManager>(GI))
 				{
 					AActor *BuildupSource = Effect.SourceActor.IsValid() ? Effect.SourceActor.Get() : Actor;
 					const int32 BuildupAmount = FMath::RoundToInt(Effect.BuildupPerTick);
@@ -2053,7 +2054,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	}
 	case ESkillEffectType::CleanseAllies:
 	{
-		UTurnManager *TM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+		UTurnManager *TM = WoRFight::Get<UTurnManager>(this);
 		if (TM)
 		{
 			const int32 TeamIndex = TM->GetActorTeam(Actor);
@@ -2076,7 +2077,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// Special mechanics — bespoke handlers in different subsystems.
 	case ESkillEffectType::ExtraAction:
 	{
-		UTurnManager *TM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+		UTurnManager *TM = WoRFight::Get<UTurnManager>(this);
 		if (TM)
 		{
 			// B-341 (D-133): Extra Action is a bonus turn under the one rule: it lands right after the
@@ -2113,8 +2114,8 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 			break;
 		}
 		UGameInstance *GI = GetGameInstance();
-		UCombatGridSubsystem *Grid = GI ? GI->GetSubsystem<UCombatGridSubsystem>() : nullptr;
-		const UActionExecutor *AE = GI ? GI->GetSubsystem<UActionExecutor>() : nullptr;
+		UCombatGridSubsystem *Grid = WoRFight::Get<UCombatGridSubsystem>(GI);
+		const UActionExecutor *AE = WoRFight::Get<UActionExecutor>(GI);
 		if (Grid && AE)
 		{
 			const bool bPush = Effect.EffectType == ESkillEffectType::PushBack;
@@ -2139,7 +2140,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		{
 			if (UGameInstance *GI = GetGameInstance())
 			{
-				if (UStatusBuildupManager *SBM = GI->GetSubsystem<UStatusBuildupManager>())
+				if (UStatusBuildupManager *SBM = WoRFight::Get<UStatusBuildupManager>(GI))
 				{
 					AActor *BuildupSource = Effect.SourceActor.IsValid() ? Effect.SourceActor.Get() : Actor;
 					SBM->AddStatusBuildup(BuildupSource, Actor, Value,
@@ -2160,7 +2161,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		{
 			if (UGameInstance *GI = GetGameInstance())
 			{
-				if (UStatusBuildupManager *SBM = GI->GetSubsystem<UStatusBuildupManager>())
+				if (UStatusBuildupManager *SBM = WoRFight::Get<UStatusBuildupManager>(GI))
 				{
 					SBM->ReduceStatusBuildupByAmount(Actor, Value);
 					UE_LOG(LogWoREffects, Verbose,
@@ -2277,8 +2278,8 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 
 	// Reuse ActionExecutor's per-payload target resolver (Decision B); TurnManager supplies
 	// the owner's team for Enemy/Ally resolution. Fetched once for both perspectives.
-	UActionExecutor *AE = GetGameInstance() ? GetGameInstance()->GetSubsystem<UActionExecutor>() : nullptr;
-	UTurnManager *TM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+	UActionExecutor *AE = WoRFight::Get<UActionExecutor>(this);
+	UTurnManager *TM = WoRFight::Get<UTurnManager>(this);
 
 	// Evaluate from BOTH perspectives: the defender ("I parried") and the attacker ("my target
 	// dodged me"). For each pass, Owner is that actor's armed set, Target is the OTHER actor.
@@ -2736,7 +2737,7 @@ int32 USkillEffectManager::HealActor(AActor *Recipient, int32 Amount, AActor *He
 
 void USkillEffectManager::BroadcastHealing(AActor *Healer, AActor *Recipient, int32 Amount) const
 {
-	UActionExecutor *Executor = GetGameInstance() ? GetGameInstance()->GetSubsystem<UActionExecutor>() : nullptr;
+	UActionExecutor *Executor = WoRFight::Get<UActionExecutor>(this);
 	if (Executor && Amount > 0)
 	{
 		Executor->OnHealingDone.Broadcast(Healer, Recipient, Amount);
@@ -2983,7 +2984,7 @@ bool USkillEffectManager::IsSingleTriggerMet(AActor *Actor, ESkillTrigger Trigge
 TArray<AActor *> USkillEffectManager::ResolveSubjectActors(ECondSubject Subject, AActor *Owner, AActor *Target) const
 {
 	TArray<AActor *> Out;
-	UTurnManager *TM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+	UTurnManager *TM = WoRFight::Get<UTurnManager>(this);
 
 	switch (Subject)
 	{
@@ -3094,7 +3095,7 @@ void USkillEffectManager::NotifySpeedChanged(AActor *Actor)
 		return;
 	}
 
-	UTurnManager *TurnManager = GI->GetSubsystem<UTurnManager>();
+	UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(GI);
 	if (TurnManager)
 	{
 		TurnManager->OnActorSpeedChanged(Actor);
@@ -3221,7 +3222,7 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	// by the one rule (FTurnSpan, D-051): it ends as the holder's turn after those starts.
 	// ApplyEffect's timing rule then times a payout break (Burn, EP drain) as Q-063 says.
 	Effect.StartHolderTurnSpan(CombatConstants::STATUS_CAP_TURNS);
-	UTurnManager *TurnManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+	UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(this);
 	Effect.EffectID = EffectIdentity::MakeStatusCapEffectID(static_cast<uint8>(Effect.EffectType), static_cast<uint8>(Element));
 	const EEffectApplicationResult Result = ApplyEffect(Target, Effect, Source, TEXT("Status Bar Trigger"), -1);
 

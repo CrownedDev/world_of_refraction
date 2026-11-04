@@ -459,7 +459,7 @@ bool UInventoryComponent::RemoveCrystalFromGear(TArray<TEntry> &Gear, int32 Inde
         {
             if (UGameInstance *GI = World->GetGameInstance())
             {
-                if (UTurnManager *TurnManager = GI->GetSubsystem<UTurnManager>())
+                if (UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(GI))
                 {
                     TurnManager->OnActorSpeedChanged(GetOwner());
                 }

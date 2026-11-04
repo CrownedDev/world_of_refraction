@@ -118,6 +118,8 @@ static bool ActionPlaysMontage(const FAction &Action)
 
 void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
 {
+	// B-336: DefenseSystem first, so the bind below finds it whatever the creation order.
+	Collection.InitializeDependency(UDefenseSystem::StaticClass());
 	Super::Initialize(Collection);
 	BindDefenseSystemEvents();
 
@@ -546,7 +548,7 @@ namespace
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 		{
 			const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-			const UActionExecutor *Executor = GI ? GI->GetSubsystem<UActionExecutor>() : nullptr;
+			const UActionExecutor *Executor = WoRFight::Get<UActionExecutor>(GI);
 			if (!Executor)
 			{
 				return;
@@ -1964,7 +1966,7 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 	const APawn *DefenderPawn = Cast<APawn>(Defender);
 	if (DefenderPawn && !CombatControl::IsPlayerDriven(DefenderPawn))
 	{
-		if (UAIDecisionManager *AIMgr = GetGameInstance()->GetSubsystem<UAIDecisionManager>())
+		if (UAIDecisionManager *AIMgr = WoRFight::Get<UAIDecisionManager>(this))
 		{
 			AIMgr->TrySynthesizeImpactDefense(
 				Defender, Ctx->Attacker.Get(), Ctx->ActionType,
@@ -2176,7 +2178,7 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 	// entirely is a hit, not damage, so its On Take Damage conditionals stay quiet. Not on a corpse either (as On Guard).
 	if (bTakeDamageOutcomePending)
 	{
-		UDefenseSystem *DefenseSys = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDefenseSystem>() : nullptr;
+		UDefenseSystem *DefenseSys = WoRFight::Get<UDefenseSystem>(this);
 		const UCharacterDataComponent *TargetComp = IsValid(Target) ? Target->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 		if (HitResult.DamageDealt > 0 && DefenseSys && TargetComp && TargetComp->bIsAlive)
 		{
@@ -2470,7 +2472,7 @@ void UActionExecutor::CompleteAsyncActionFinal(AActor *Executor)
 	// facing the nearest living enemy (arena center when none alive).
 	if (Executor)
 	{
-		if (UCombatGridSubsystem *Grid = GetWorld()->GetGameInstance()->GetSubsystem<UCombatGridSubsystem>())
+		if (UCombatGridSubsystem *Grid = WoRFight::Get<UCombatGridSubsystem>(GetWorld()))
 		{
 			Grid->UpdateActorFacing(Executor, CachedArenaCenter);
 		}
@@ -2765,15 +2767,9 @@ UDefenseSystem *UActionExecutor::GetDefenseSystem() const
 		return DefenseSystemRef;
 	}
 
-	UGameInstance *GI = GetGameInstance();
-	if (GI)
-	{
-		UDefenseSystem *DefenseSys = GI->GetSubsystem<UDefenseSystem>();
-		const_cast<UActionExecutor *>(this)->DefenseSystemRef = DefenseSys;
-		return DefenseSys;
-	}
-
-	return nullptr;
+	UDefenseSystem *DefenseSys = WoRFight::Get<UDefenseSystem>(this);
+	const_cast<UActionExecutor *>(this)->DefenseSystemRef = DefenseSys;
+	return DefenseSys;
 }
 
 void UActionExecutor::BindDefenseSystemEvents()
@@ -3150,7 +3146,7 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 				// B-042j2 (D-092 rule 7): what the absorbers stop is reported as On Guard. When the defender guarded the
 				// impact itself, its outcome already fired (ResolveImpactDefense); otherwise the absorbers' stop is the guard.
 				const bool bGuardedItself = Input.GuardFactor < 1.0f;
-				UDefenseSystem *DefenseSys = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDefenseSystem>() : nullptr;
+				UDefenseSystem *DefenseSys = WoRFight::Get<UDefenseSystem>(this);
 				if (!bGuardedItself && DefenseSys && TargetComp->bIsAlive) // no On Guard on a corpse
 				{
 					DefenseSys->OnDefenseResolved.Broadcast(Input.Target, Input.Attacker, EDefenseType::Block, false, 0, 0.0f);
@@ -3229,7 +3225,7 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 	// CalculateStatusMultiplier) and the per-element resistance reduction.
 	if (Input.BaseStatusBuildup > 0)
 	{
-		UStatusBuildupManager *BuildupManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr;
+		UStatusBuildupManager *BuildupManager = WoRFight::Get<UStatusBuildupManager>(this);
 		if (BuildupManager)
 		{
 			BuildupManager->AddStatusBuildup(
@@ -3279,7 +3275,7 @@ USkillEffectManager *UActionExecutor::GetSkillEffectManager() const
 		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
 		{
 			const_cast<UActionExecutor *>(this)->SkillEffectManagerRef =
-				GI->GetSubsystem<USkillEffectManager>();
+				WoRFight::Get<USkillEffectManager>(GI);
 		}
 	}
 	return SkillEffectManagerRef;
@@ -4786,7 +4782,7 @@ void UActionExecutor::BeginSkillExecution(AActor *Actor)
 
 	// Execution-start facing — ONE rule: nearest living enemy (same-column
 	// first, else closest alive; arena center when none). Movement-independent.
-	if (UCombatGridSubsystem *Grid = GetWorld()->GetGameInstance()->GetSubsystem<UCombatGridSubsystem>())
+	if (UCombatGridSubsystem *Grid = WoRFight::Get<UCombatGridSubsystem>(GetWorld()))
 	{
 		Grid->UpdateActorFacing(Actor, CachedArenaCenter);
 	}
@@ -5278,7 +5274,7 @@ TArray<AActor *> UActionExecutor::GetAllEnemies(AActor *User, int32 UserTeam)
 	if (!GI)
 		return Enemies;
 
-	UTurnManager *TurnMgr = GI->GetSubsystem<UTurnManager>();
+	UTurnManager *TurnMgr = WoRFight::Get<UTurnManager>(GI);
 	if (!TurnMgr)
 		return Enemies;
 
@@ -5303,7 +5299,7 @@ TArray<AActor *> UActionExecutor::GetAllAllies(AActor *User, int32 UserTeam)
 	if (!GI)
 		return Allies;
 
-	UTurnManager *TurnMgr = GI->GetSubsystem<UTurnManager>();
+	UTurnManager *TurnMgr = WoRFight::Get<UTurnManager>(GI);
 	if (!TurnMgr)
 		return Allies;
 
@@ -5320,7 +5316,7 @@ TArray<AActor *> UActionExecutor::GetAllCombatants()
 	if (!GI)
 		return All;
 
-	UTurnManager *TurnMgr = GI->GetSubsystem<UTurnManager>();
+	UTurnManager *TurnMgr = WoRFight::Get<UTurnManager>(GI);
 	if (!TurnMgr)
 		return All;
 
@@ -5442,7 +5438,7 @@ void UActionExecutor::ApplySkillEffects(
 
 	// Get user's team for targeting
 	UGameInstance *GI = GetGameInstance();
-	UTurnManager *TurnMgr = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+	UTurnManager *TurnMgr = WoRFight::Get<UTurnManager>(GI);
 	int32 UserTeam = TurnMgr ? TurnMgr->GetActorTeam(User) : 0;
 
 	// Effect magnitude tier-gap (Cluster 4): scale authored effect magnitude/value on the
@@ -5813,7 +5809,7 @@ namespace
 			[](UWorld *World)
 			{
 				UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-				UActionExecutor *Mgr = GI ? GI->GetSubsystem<UActionExecutor>() : nullptr;
+				UActionExecutor *Mgr = WoRFight::Get<UActionExecutor>(GI);
 				if (Mgr)
 				{
 					Mgr->DebugForceResetAsync();

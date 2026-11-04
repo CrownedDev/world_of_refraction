@@ -133,12 +133,12 @@ void UFightTriggers::Watch(bool bWatch)
 	}
 	bWatching = bWatch;
 	UGameInstance *GI = GameInstance.Get();
-	if (UTurnManager *TurnManager = GI ? GI->GetSubsystem<UTurnManager>() : nullptr)
+	if (UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(GI))
 	{
 		bWatch ? TurnManager->OnTurnStarted.AddUniqueDynamic(this, &UFightTriggers::HandleTurnStarted)
 			   : TurnManager->OnTurnStarted.RemoveDynamic(this, &UFightTriggers::HandleTurnStarted);
 	}
-	if (UActionExecutor *Executor = GI ? GI->GetSubsystem<UActionExecutor>() : nullptr)
+	if (UActionExecutor *Executor = WoRFight::Get<UActionExecutor>(GI))
 	{
 		bWatch ? Executor->OnDamageDealt.AddUniqueDynamic(this, &UFightTriggers::HandleDamageDealt)
 			   : Executor->OnDamageDealt.RemoveDynamic(this, &UFightTriggers::HandleDamageDealt);

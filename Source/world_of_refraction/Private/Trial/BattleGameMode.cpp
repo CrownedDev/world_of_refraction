@@ -263,7 +263,7 @@ void ABattleGameMode::BootstrapCombat()
 
     // Stale grid entries from the trial level survive the swap on the
     // GameInstance-scoped subsystem and can block slot assignment.
-    if (UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>())
+    if (UCombatGridSubsystem *Grid = WoRFight::Get<UCombatGridSubsystem>(this))
     {
         Grid->ClearAllPositions();
     }
@@ -583,7 +583,7 @@ void ABattleGameMode::HandleTargetKilled(AActor *Killer, AActor *Victim)
 
 void ABattleGameMode::WatchFightUsage(bool bWatch)
 {
-    UActionExecutor *Executor = GetGameInstance() ? GetGameInstance()->GetSubsystem<UActionExecutor>() : nullptr;
+    UActionExecutor *Executor = WoRFight::Get<UActionExecutor>(this);
     if (!Executor)
     {
         UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] No action executor - skill and weapon use won't count for memories"));

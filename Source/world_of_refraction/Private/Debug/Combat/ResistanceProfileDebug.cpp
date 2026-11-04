@@ -154,7 +154,7 @@ FString UResistanceProfileDebug::GetCombinedResistanceString(AActor *Actor, ESpe
 
 	UWorld *World = Actor->GetWorld();
 	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-	UStatusBuildupManager *SBM = GI ? GI->GetSubsystem<UStatusBuildupManager>() : nullptr;
+	UStatusBuildupManager *SBM = WoRFight::Get<UStatusBuildupManager>(GI);
 	if (!SBM)
 	{
 		return TEXT("ERROR: StatusBuildupManager unavailable");
@@ -195,7 +195,7 @@ FString UResistanceProfileDebug::GetCombinedResistanceString(AActor *Actor, ESpe
 	const float EffectResist = SBM->GetTotalElementResistance(Actor, Element, PhysicalType);
 	const float ClassResist = ClassInnateResistanceTable::GetClassInnateResistance(Actor, Element, PhysicalType);
 	float ModifyResist = 0.0f;
-	if (USkillEffectManager *SEM = GI->GetSubsystem<USkillEffectManager>())
+	if (USkillEffectManager *SEM = WoRFight::Get<USkillEffectManager>(GI))
 	{
 		ModifyResist = SEM->GetNetStatModifier(Actor, ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR;
 	}

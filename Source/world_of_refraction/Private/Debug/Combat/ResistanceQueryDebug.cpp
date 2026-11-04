@@ -1,6 +1,7 @@
 // ResistanceQueryDebug.cpp
 
 #include "Debug/Combat/ResistanceQueryDebug.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "Combat/Resistance/ResistanceQuery.h"
 #include "Combat/Resistance/ClassInnateResistanceTable.h"
 #include "Combat/Boss/BossPhaseComponent.h"
@@ -49,9 +50,7 @@ namespace
 	template <typename TSubsystem>
 	TSubsystem *ResistDebugSubsystem(const AActor *Actor)
 	{
-		const UWorld *World = Actor ? Actor->GetWorld() : nullptr;
-		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-		return GI ? GI->GetSubsystem<TSubsystem>() : nullptr;
+		return WoRFight::Get<TSubsystem>(Actor); // world or game-instance subsystem (B-336)
 	}
 
 	template <typename TEnum>

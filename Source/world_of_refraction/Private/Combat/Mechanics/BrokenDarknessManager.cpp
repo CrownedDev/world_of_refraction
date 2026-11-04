@@ -555,7 +555,7 @@ bool UBrokenDarknessManager::ProcessForbiddenCast(ESpellElement SpellElement, fl
 		{
 			if (UGameInstance *GI = World->GetGameInstance())
 			{
-				if (UStatusBuildupManager *SBM = GI->GetSubsystem<UStatusBuildupManager>())
+				if (UStatusBuildupManager *SBM = WoRFight::Get<UStatusBuildupManager>(GI))
 				{
 					SBM->AddStatusBuildup(Owner, Owner, SelfBuildup, SpellElement, EPhysicalDamageType::None);
 				}
@@ -830,7 +830,7 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 		{
 			if (UGameInstance *GI = World->GetGameInstance())
 			{
-				if (UStatusBuildupManager *SBM = GI->GetSubsystem<UStatusBuildupManager>())
+				if (UStatusBuildupManager *SBM = WoRFight::Get<UStatusBuildupManager>(GI))
 				{
 					// bSkipBaseStatAmp=true: `Released` is ALREADY StatusMultiplier-amplified (pre-baked in
 					// ProcessOverloadTick so the energy DRAIN sees the amplified value too — "one value, two

@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Subsystems/GameInstanceSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "Combat/Grid/FCombatGridPosition.h"
 #include "CombatGridSubsystem.generated.h"
 
@@ -31,7 +31,7 @@ struct FGridStartPreference
  *   [2,0] [2,1] [2,2]  ← Front Row  (+5% dmg, -5% def)
  */
 UCLASS()
-class WORLD_OF_REFRACTION_API UCombatGridSubsystem : public UGameInstanceSubsystem
+class WORLD_OF_REFRACTION_API UCombatGridSubsystem : public UWoRFightSubsystem
 {
     GENERATED_BODY()
 
@@ -194,12 +194,12 @@ public:
     // ==================== DEBUG ====================
 
     /** Log all current positions. Console trigger: wor.GridPositions (in the .cpp).
-     *  No CallInEditor — a UGameInstanceSubsystem has no Details panel to host a button. */
+     *  No CallInEditor — a subsystem has no Details panel to host a button. */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid|Debug")
     void DebugLogAllPositions() const;
 
     /** Log modifiers for all actors. Console trigger: wor.GridModifiers (in the .cpp).
-     *  No CallInEditor — a UGameInstanceSubsystem has no Details panel to host a button. */
+     *  No CallInEditor — a subsystem has no Details panel to host a button. */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid|Debug")
     void DebugLogModifiers() const;
 

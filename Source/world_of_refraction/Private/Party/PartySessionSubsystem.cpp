@@ -618,7 +618,7 @@ bool UPartySessionSubsystem::GetMemberFormation(int32 SlotIndex, ECombatRow &Out
 bool UPartySessionSubsystem::IsFightRunning() const
 {
 	const UGameInstance *GI = GetGameInstance();
-	const UTurnManager *Turns = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+	const UTurnManager *Turns = WoRFight::Get<UTurnManager>(GI);
 	return Turns && Turns->IsCombatActive();
 }
 

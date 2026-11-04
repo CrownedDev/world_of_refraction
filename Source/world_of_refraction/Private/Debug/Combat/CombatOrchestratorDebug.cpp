@@ -294,7 +294,7 @@ void ACombatOrchestrator::DebugSpendEPOpposingParty()
 
 void ACombatOrchestrator::DebugApplyStatusBuildup()
 {
-	UStatusBuildupManager *BuildupManager = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
+	UStatusBuildupManager *BuildupManager = WoRFight::Get<UStatusBuildupManager>(this);
 	if (!BuildupManager)
 		return;
 
@@ -324,7 +324,7 @@ void ACombatOrchestrator::DebugKillActor(AActor *Actor)
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] DEBUG: Killed %s"), *Actor->GetName());
 
 		// Update facing for remaining actors
-		UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
+		UCombatGridSubsystem *Grid = WoRFight::Get<UCombatGridSubsystem>(this);
 		if (Grid)
 		{
 			Grid->UpdateAllActorFacing(GetActorLocation());
@@ -1053,7 +1053,7 @@ void ACombatOrchestrator::DebugExecuteAsyncAbility()
 
 void ACombatOrchestrator::DebugDrawCombatGrid(float Duration)
 {
-	UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
+	UCombatGridSubsystem *Grid = WoRFight::Get<UCombatGridSubsystem>(this);
 	if (!Grid)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] CombatGridSubsystem not available"));

@@ -69,7 +69,7 @@ void UBossPhaseComponent::Setup(UBossData *Data)
 		CharComp->OnHPChanged.AddDynamic(this, &UBossPhaseComponent::HandleHPChanged);
 	}
 	const UGameInstance *GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-	if (UTurnManager *TurnManager = GameInstance ? GameInstance->GetSubsystem<UTurnManager>() : nullptr)
+	if (UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(GameInstance))
 	{
 		TurnManager->OnTurnStarted.AddDynamic(this, &UBossPhaseComponent::HandleTurnStarted);
 	}
@@ -89,7 +89,7 @@ void UBossPhaseComponent::UnbindAll()
 		CharComp->OnHPChanged.RemoveDynamic(this, &UBossPhaseComponent::HandleHPChanged);
 	}
 	const UGameInstance *GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-	if (UTurnManager *TurnManager = GameInstance ? GameInstance->GetSubsystem<UTurnManager>() : nullptr)
+	if (UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(GameInstance))
 	{
 		TurnManager->OnTurnStarted.RemoveDynamic(this, &UBossPhaseComponent::HandleTurnStarted);
 	}
@@ -273,7 +273,7 @@ void UBossPhaseComponent::EnterPhase(int32 PhaseIndex)
 	AActor *Owner = GetOwner();
 
 	const UGameInstance *GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-	if (USkillEffectManager *Effects = GameInstance ? GameInstance->GetSubsystem<USkillEffectManager>() : nullptr)
+	if (USkillEffectManager *Effects = WoRFight::Get<USkillEffectManager>(GameInstance))
 	{
 		const int32 SourceId = BossPhaseConstants::PHASE_EFFECT_SOURCE_ID_BASE + PhaseIndex;
 		int32 EffectIndex = 0;
@@ -320,7 +320,7 @@ void UBossPhaseComponent::EnterPhase(int32 PhaseIndex)
 		   ReachedPhaseCount, Phases.Num(), *Phase.PhaseId.ToString(), GetAggressionSteps(), GetWeatherIntensity(),
 		   *Phase.DialogueId.ToString());
 
-	if (UWeatherStateManager *Weather = GameInstance ? GameInstance->GetSubsystem<UWeatherStateManager>() : nullptr)
+	if (UWeatherStateManager *Weather = WoRFight::Get<UWeatherStateManager>(GameInstance))
 	{
 		Weather->RefreshWeather();
 	}

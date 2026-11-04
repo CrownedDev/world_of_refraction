@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Subsystems/GameInstanceSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "TurnManager.generated.h"
 
 namespace TurnManagerTeams
@@ -192,7 +192,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpeedChanged, AActor *, Actor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRoundAdded);
 
 /**
- * TurnManager - GameInstanceSubsystem
+ * TurnManager - per-fight world subsystem (B-336)
  * Manages turn order using debt-based system with speed ratios
  *
  * Algorithm: Debt accumulates per ROUND, not per turn.
@@ -202,7 +202,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRoundAdded);
  * - New round starts when no combatant has positive net debt
  */
 UCLASS()
-class WORLD_OF_REFRACTION_API UTurnManager : public UGameInstanceSubsystem
+class WORLD_OF_REFRACTION_API UTurnManager : public UWoRFightSubsystem
 {
 	GENERATED_BODY()
 
@@ -395,7 +395,7 @@ public:
 	void DebugPrintPendingTurns();
 
 	/** Log TurnBelt in DebugPrintTurnOrder's slot format so output diffs by eye.
-	 *  Console trigger is wor.PrintBelt (in the .cpp) — a UGameInstanceSubsystem
+	 *  Console trigger is wor.PrintBelt (in the .cpp) — a subsystem
 	 *  is not on the engine's Exec dispatch chain. */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager|Debug")
 	void DebugPrintBelt();
