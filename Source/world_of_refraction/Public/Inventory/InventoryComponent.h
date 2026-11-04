@@ -348,6 +348,8 @@ public:
      *  crystal becomes fungible slot state (destroyed on detach, no return). Debit happens BEFORE
      *  the write; a 0-debit (not owned) rejects with no phantom socket. Mirrors AttachEvolution's
      *  guard structure: no-authority / no-weapon / occupied-slot all return false (no replace).
+     *  B-351 (D-141): a gem goes in the element socket (AttachedItem), a stone in the stone socket (StoneSocket);
+     *  each holds one, so a second gem (or a second stone) is refused.
      *  The debit goes through the SILENT atomic core, so a successful socket fires ONE signal: Equipped. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
     bool AttachCrystalToWeapon(FGuid WeaponPersistentID, FCrystalId Id);
@@ -391,10 +393,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
     bool AttachEvolutionToRing(FGuid RingPersistentID, FGuid EvoInstanceID);
 
-    /** Socket a refined gem onto the owned ring (by PersistentID). Ring counterpart of
-     *  AttachCrystalToWeapon — same DEBIT model, but with the inline ring-guard
-     *  (URingData::IsDataValid:29-33): augment stones are weapon-only, so a non-gem Id is rejected.
-     *  Refined gems are allowed (rings use crystals for their spell source). Fires ONE signal: Equipped. */
+    /** Socket a refined gem or an augment stone onto the owned ring (by PersistentID). Ring counterpart of
+     *  AttachCrystalToWeapon — same DEBIT model. B-351 (D-141): an adapter has an element socket (gem) and a stone
+     *  socket (stone) like a weapon; the weapon-only stone guard retired. Fires ONE signal: Equipped. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
     bool AttachCrystalToRing(FGuid RingPersistentID, FCrystalId Id);
 

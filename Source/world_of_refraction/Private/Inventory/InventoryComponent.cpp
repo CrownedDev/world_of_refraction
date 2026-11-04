@@ -277,21 +277,17 @@ bool UInventoryComponent::AttachCrystalToGear(TArray<TEntry> &Gear, FGuid GearID
         return false;
     }
 
+    // B-351 (D-141): a gem goes in the element socket, a stone in the stone socket, on a weapon or an adapter alike
+    // (the weapon-only stone guard of D-009 retires). Each socket holds one: a second gem or a second stone is refused.
     const bool bIsStone = !CrystalTypeHelpers::IsGemType(Id.Type);
-    if constexpr (IsRingGear<TEntry>)
-    {
-        // Inline ring-guard (mirrors URingData::IsDataValid:29-33): augment stones are weapon-only.
-        // Rings carry only refined gems (their spell source).
-        if (bIsStone)
-        {
-            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: augment stones are weapon-only — rejected on ring"), Op);
-            return false;
-        }
-    }
-
-    const int32 Index = FindEmptyGearSlot(Gear, GearID, Op);
+    const int32 Index = bIsStone ? FindGearIndex(Gear, GearID, Op) : FindEmptyGearSlot(Gear, GearID, Op);
     if (Index == INDEX_NONE)
     {
+        return false;
+    }
+    if (bIsStone && !Gear[Index].StoneSocket.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: %s stone socket already occupied"), Op, GearLabel<TEntry>());
         return false;
     }
 
@@ -305,7 +301,8 @@ bool UInventoryComponent::AttachCrystalToGear(TArray<TEntry> &Gear, FGuid GearID
         return false;
     }
 
-    Gear[Index].AttachedItem = MakeCrystalAttachment(Id, bIsStone);
+    FRuntimeAttachedItem &Socket = bIsStone ? Gear[Index].StoneSocket : Gear[Index].AttachedItem;
+    Socket = MakeCrystalAttachment(Id, bIsStone);
     HandleGearSocketChanged(GearID);
     UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached %s %s to %s %s"),
            bIsStone ? TEXT("augment stone") : TEXT("refined crystal"),
@@ -1157,6 +1154,7 @@ int32 UInventoryComponent::WriteLoadoutToOwned(int32 LoadoutIndex)
                         if (FWeaponInventoryEntry *Owned = FindOwned(Weapons, Slot.PersistentID))
                         {
                             Owned->AttachedItem = Slot.AttachedItem;
+                            Owned->StoneSocket = Slot.StoneSocket; // B-351
                             Written.Add(Slot.PersistentID);
                         }
                     },
@@ -1165,6 +1163,7 @@ int32 UInventoryComponent::WriteLoadoutToOwned(int32 LoadoutIndex)
                         if (FRingInventoryEntry *Owned = FindOwned(Rings, Slot.PersistentID))
                         {
                             Owned->AttachedItem = Slot.AttachedItem;
+                            Owned->StoneSocket = Slot.StoneSocket; // B-351
                             Written.Add(Slot.PersistentID);
                         }
                     });
