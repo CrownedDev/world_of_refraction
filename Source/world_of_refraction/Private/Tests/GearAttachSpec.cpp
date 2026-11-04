@@ -298,7 +298,7 @@ void FGearAttachSpec::Define()
 			TestFalse(TEXT("bad weapon index"), Inventory->RemoveCrystalFromWeapon(1));
 			TestFalse(TEXT("bad ring index"), Inventory->RemoveCrystalFromRing(-1));
 
-			Inventory->AttachFusionToWeapon(WeaponId, GearTestFusion(GEAR_TEST_STAT_STONE, GEAR_TEST_GEM));
+			Inventory->AttachCrystalToWeapon(WeaponId, GEAR_TEST_GEM); // B-352: a gem, not a fusion (fusions are refused)
 			Inventory->AttachCrystalToRing(RingId, GEAR_TEST_GEM);
 			TestTrue(TEXT("weapon removed"), Inventory->RemoveCrystalFromWeapon(0));
 			TestTrue(TEXT("ring removed"), Inventory->RemoveCrystalFromRing(0));
