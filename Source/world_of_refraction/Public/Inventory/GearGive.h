@@ -15,6 +15,7 @@
 #include "CoreMinimal.h"
 #include "Equipment/Crystals/FCrystalId.h"
 
+class UCurrencyComponent;
 class UInventoryComponent;
 class UPoolSubsystem;
 class UWorld;
@@ -56,6 +57,15 @@ namespace WoRGive
 	/** RequesterKey asks HolderKey for its skill: the same player's member (or an AI one) says yes at once
 	 *  (TryGiveSkill); another player's member is refused (D-153). */
 	WORLD_OF_REFRACTION_API FText TryRequestSkill(UWorld *World, FName RequesterKey, FName HolderKey, const UObject *Skill);
+	/** B-361b (D-154, Q-361b): FromKey's player teaches its learned skill to ToKey, another player's member, for
+	 *  Mentor Tokens: the price is MentorTokenRules::GetTeachPrice of the skill's tier, spent from the teacher's wallet.
+	 *  ToKey gets a new instance; FromKey keeps its own (UPoolSubsystem::CopySpell). Empty on success; else the reason.
+	 *  Refused too few tokens (nothing spent), in a fight, and between two members of one player (give it instead). */
+	WORLD_OF_REFRACTION_API FText TryTeachSkill(UWorld *World, FName FromKey, FName ToKey, const UObject *Skill);
+	/** TryTeachSkill's rules with the paying wallet given (the two members' players are not looked up): for specs
+	 *  and for a caller that already knows the teacher. */
+	WORLD_OF_REFRACTION_API FText TeachSkillPaying(UWorld *World, UCurrencyComponent *TeacherWallet, FName FromKey, FName ToKey,
+												   const UObject *Skill);
 	/** FromKey's learned skills a give could move: its spells, then its abilities. Empty when its skills aren't kept. */
 	WORLD_OF_REFRACTION_API TArray<const UObject *> GetGiveableSkills(const UWorld *World, FName FromKey);
 

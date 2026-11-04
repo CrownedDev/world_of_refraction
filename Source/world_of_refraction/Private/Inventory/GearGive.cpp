@@ -3,6 +3,8 @@
 #include "Inventory/GearGive.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/TurnManager.h"
+#include "Currency/CurrencyComponent.h"
+#include "Currency/MentorTokenRules.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -380,6 +382,72 @@ namespace WoRGive
 	FText TryRequestSkill(UWorld *World, FName RequesterKey, FName HolderKey, const UObject *Skill)
 	{
 		return TryGiveSkill(World, HolderKey, RequesterKey, Skill); // D-153: another player's member refuses there
+	}
+
+	FText TeachSkillPaying(UWorld *World, UCurrencyComponent *TeacherWallet, FName FromKey, FName ToKey, const UObject *Skill)
+	{
+		UPoolSubsystem *Pool = PoolOf(World);
+		if (!Pool || !TeacherWallet)
+		{
+			return LOCTEXT("NoTeaching", "No one to teach from");
+		}
+		if (FromKey.IsNone() || ToKey.IsNone() || FromKey == ToKey)
+		{
+			return LOCTEXT("SameCharacterTeach", "Choose another character to teach");
+		}
+		const USpellData *Spell = Cast<USpellData>(Skill);
+		const UAbilityData *Ability = Cast<UAbilityData>(Skill);
+		if (!Spell && !Ability)
+		{
+			return LOCTEXT("NotATeachableSkill", "That isn't a spell or an ability");
+		}
+		const UGameInstance *GI = World->GetGameInstance();
+		const UTurnManager *TurnManager = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+		if (TurnManager && TurnManager->IsCombatActive())
+		{
+			return LOCTEXT("TeachInFight", "Skills can't be taught during a fight");
+		}
+		for (const FName Key : {FromKey, ToKey})
+		{
+			if (!Pool->HasBankedSkills(Key))
+			{
+				return FText::Format(LOCTEXT("TeachNotKept", "{0}'s skills aren't kept yet (they join at the next level)"), NameOf(World, Key));
+			}
+		}
+		if (!(Spell ? Pool->KnowsSpell(FromKey, Spell) : Pool->KnowsAbility(FromKey, Ability)))
+		{
+			return FText::Format(LOCTEXT("TeacherDoesntKnow", "{0} doesn't know {1}"), NameOf(World, FromKey), SkillNameOf(Skill));
+		}
+		if (Spell ? Pool->KnowsSpell(ToKey, Spell) : Pool->KnowsAbility(ToKey, Ability))
+		{
+			return FText::Format(LOCTEXT("LearnerAlreadyKnows", "{0} already knows {1}"), NameOf(World, ToKey), SkillNameOf(Skill));
+		}
+		const int32 Price = MentorTokenRules::GetTeachPrice(Spell ? Spell->Tier : Ability->Tier);
+		if (!TeacherWallet->CanAfford(ECurrencyType::MentorTokens, Price))
+		{
+			return FText::Format(LOCTEXT("TooFewTokens", "Teaching {0} costs {1} Mentor Tokens; you have {2}"), SkillNameOf(Skill), Price,
+								 TeacherWallet->GetMentorTokens());
+		}
+		TeacherWallet->Spend(ECurrencyType::MentorTokens, Price);
+		if (!(Spell ? Pool->CopySpell(FromKey, ToKey, Spell) : Pool->CopyAbility(FromKey, ToKey, Ability)))
+		{
+			TeacherWallet->Add(ECurrencyType::MentorTokens, Price); // the learner is full: nothing is spent
+			return FText::Format(LOCTEXT("TeachFull", "{0} can't learn any more"), NameOf(World, ToKey));
+		}
+		UE_LOG(LogTemp, Log, TEXT("[Give] %s taught %s to %s for %d Mentor Tokens"), *FromKey.ToString(), *SkillNameOf(Skill).ToString(),
+			   *ToKey.ToString(), Price);
+		return FText::GetEmpty();
+	}
+
+	FText TryTeachSkill(UWorld *World, FName FromKey, FName ToKey, const UObject *Skill)
+	{
+		const APlayerState *Teacher = PlayerOfMember(World, FromKey);
+		if (!Teacher || Teacher == PlayerOfMember(World, ToKey))
+		{
+			return LOCTEXT("TeachSamePlayer", "Teaching is between two players: give the skill instead");
+		}
+		const AWoRPlayerState *TeacherState = Cast<AWoRPlayerState>(Teacher);
+		return TeachSkillPaying(World, TeacherState ? TeacherState->GetWallet() : nullptr, FromKey, ToKey, Skill);
 	}
 
 	TArray<const UObject *> GetGiveableSkills(const UWorld *World, FName FromKey)
