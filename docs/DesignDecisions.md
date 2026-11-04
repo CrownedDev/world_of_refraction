@@ -1755,6 +1755,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** A (approved by the reference-backed default). Crown may still want lower tiers to differ (count, or a cost); that's a tuning change, not a rule.
 **Notes for Claude:** applied in B-341 (`GetEmeraldBonusTurnCount`).
 
+### Q-341c — Does every bonus turn pass the 2:1 cap?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-341 review, cloud) · **Blocks:** —
+**Question:** Q-297 let Emerald bonus turns pass the 2:1 cap (D-049). Extra Action used to be a normal owed turn, so it was capped. Now it grants a bonus turn under the one rule. Does it pass the cap too?
+**Options:** **A** every bonus turn passes the cap, whatever grants it. **B** only Emerald's; other bonus turns wait for an opponent.
+**Recommendation:** A. The deckbuilder's rule comes first: a bonus turn inserts right after the current turn (`WoR_TCG_Pivot_Design.md` §7c), with no exception. D-133 asks for one bonus-turn rule, and B would add a second.
+**Answer:** A (approved by the reference-backed default). Extra Action now gives its turn straight away, even to a holder on a streak.
+**Notes for Claude:** applied in B-341 (ET-15; `WoR.Turns.Belt` "passes the 2:1 cap").
+
 ### Q-21-audit — Party control: the deckbuilder's seat rule (audit §21)
 **Status:** ANSWERED (Crown: follow the deckbuilder's rule) · **Raised:** 2026-11-03 (audit §21) · **Blocks:** —
 **Question:** who commands each party member, solo and in co-op?
