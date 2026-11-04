@@ -62,8 +62,9 @@ namespace CrystalDescription
      *  crystal kind. Gems: "A {tier-descriptor} {name-lowercase} crystal."
      *  Stones: "A {tier-descriptor} {Spaced Name}." — a stone is not a crystal,
      *  and its spaced display name (via GetTypeName) keeps its capitalization. */
-    inline FString GetCrystalText(const FCrystalId &Id)
+    inline FString GetCrystalText(const FCrystalId &InId)
     {
+        const FCrystalId Id = StatStone::AsRowId(InId); // B-353: a StatStone reads as its sub-stat's stone
         if (CrystalTypeHelpers::IsAugmentStoneType(Id.Type))
         {
             return FString::Printf(
@@ -82,8 +83,9 @@ namespace CrystalDescription
      *  and effect-count branches (Iolite). Reads CrystalEffectTable for
      *  numerics. Pluralises turn counts ("1 turn" vs "N turns") and returns
      *  a self-contained sentence ending in ".". */
-    inline FString GetItemEffectText(const FCrystalId &Id)
+    inline FString GetItemEffectText(const FCrystalId &InId)
     {
+        const FCrystalId Id = StatStone::AsRowId(InId); // B-353: a StatStone reads as its sub-stat's stone
         auto FormatTurns = [](int32 Count) -> FString
         {
             return FString::Printf(TEXT("%d %s"),
