@@ -285,7 +285,7 @@ private:
     static TArray<USkillDataBase *> GetOffensiveSkills(ULoadoutComponent *Loadout, EAIActionChoice Category);
 
     /** B-356 (D-146): the AI reads a spell's effects, never its school. Offensive: aimed at enemies
-     *  (Enemy / Anyone) and it deals damage or applies a debuff. */
+     *  (Enemy / Anyone) and it deals damage, builds status (B-356b) or applies a debuff. */
     static bool IsOffensiveSpell(const USpellData &Spell);
 
     /** B-356: a spell with a Heal / HealthRestore payload (whatever its school). */

@@ -1083,7 +1083,8 @@ void UAIDecisionManager::ApplySkillChoice(AActor *AIActor, UCharacterDataCompone
 bool UAIDecisionManager::IsOffensiveSpell(const USpellData &Spell)
 {
     const bool bAimsAtEnemies = Spell.TargetType == ETargetType::Enemy || Spell.TargetType == ETargetType::Anyone;
-    return bAimsAtEnemies && (Spell.BaseDamage > 0 || Spell.HasDebuffEffects());
+    // B-356b: a status attack (buildup, no base damage) is an attack too.
+    return bAimsAtEnemies && (Spell.BaseDamage > 0 || Spell.StatusBuildup > 0 || Spell.HasDebuffEffects());
 }
 
 bool UAIDecisionManager::IsHealingSpell(const USpellData &Spell)

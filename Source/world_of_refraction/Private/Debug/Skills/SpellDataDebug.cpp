@@ -235,9 +235,9 @@ FString USpellDataDebug::GetSchoolEffectMismatchString()
         {
             continue;
         }
-        Out += FString::Printf(TEXT("%s: %s, %s (target %s, damage %d, debuff %s, heal %s)\n"), *Asset.GetObjectPathString(),
+        Out += FString::Printf(TEXT("%s: %s, %s (target %s, damage %d, buildup %d, debuff %s, heal %s)\n"), *Asset.GetObjectPathString(),
                                *GetSchoolString(Spell), bOffensive ? TEXT("offensive by effects") : TEXT("NOT offensive by effects"),
-                               *UEnum::GetValueAsString(Spell->TargetType), Spell->BaseDamage,
+                               *UEnum::GetValueAsString(Spell->TargetType), Spell->BaseDamage, Spell->StatusBuildup,
                                Spell->HasDebuffEffects() ? TEXT("yes") : TEXT("no"),
                                UAIDecisionManager::IsHealingSpell(*Spell) ? TEXT("yes") : TEXT("no"));
     }
