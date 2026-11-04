@@ -22,9 +22,9 @@ These are **live inputs**, not cosmetic — they already feed combat:
 - **Pillar scaling (+7% / level)** — `GetMindScaling`/`BodyScaling`/`SpiritScaling` return
   `1 + WorldXxxLevel × 0.07` (`WORLD_MIND/BODY/SPIRIT_SCALING_BONUS = 0.07`). At the **L7 cap** that's
   **+49%** to the pillar (`WORLD_MAX_MULT = 1.49`).
-- **Stat-point budget** — each level grants **3 points** (`POINTS_PER_WORLD_STAT_LEVEL = 3`), so a
-  maxed pillar adds 21 points (`MAX_SUBSTAT_POINTS_PER_PILLAR = 7 × 3`). The intended ceiling is
-  **93 total** (`MAX_STAT_POINTS = 30 base + 7 levels × 3 points × 3 pillars`).
+- **No sub-stat points (D-123, B-330).** A pillar level grants pillar levels only; sub-stats are authored
+  on the character asset (up to 93, `MAX_AUTHORED_SUBSTAT_POINTS`, Q-330) and added by gear. The old
+  3-points-per-level pool (`POINTS_PER_WORLD_STAT_LEVEL`) is OBSOLETE, kept only as the enemy caliber.
 - **Skill gating** — spells/abilities require minimum world levels (`WorldStatRequirements`:
   `RequiredWorldMind/Body/Spirit`); falling short triggers the **requirement-gap** penalty
   ([`Scaling/RequirementGap.md`](../Scaling/RequirementGap.md)).
