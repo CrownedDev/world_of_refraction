@@ -7,6 +7,9 @@
 // B-362b (D-160, amends D-155): a wipe no longer costs pillar points. The run's whole Prism balance (the run
 // currency, ECurrencyType::Gold, D-159) drops at the map fight the party fell to; beating that fight's team recovers
 // it; wiping again first loses the earlier drop for good (the Souls bloodstain). A main-boss loss drops the same way.
+// B-362c (D-160 as changed): one path. The drop lies as a pickup (APrismDropPickup) where the party stood on the
+// trial map when the fight started; walking into it (or interact) puts it back in the wallet. Any fight drops it, map
+// team or not. Beating the fight no longer recovers it.
 
 #pragma once
 
@@ -102,13 +105,23 @@ namespace WoRDefeat
 	 *  dropped; OutLostForGood gets the earlier drop's amount. */
 	WORLD_OF_REFRACTION_API int32 DropPrisms(UTrialRunSubsystem &Run, UCurrencyComponent *Wallet, int32 &OutLostForGood);
 
-	/** B-362b: the pending fight was won; if it came from the drop's map team, the drop goes back into Wallet. Returns
+	/** OBSOLETE (B-362c, D-160 changed: the pickup is the one path; no game caller; delete after PIE).
+	 *  B-362b: the pending fight was won; if it came from the drop's map team, the drop goes back into Wallet. Returns
 	 *  the amount recovered. */
 	WORLD_OF_REFRACTION_API int32 RecoverPrisms(UTrialRunSubsystem &Run, UCurrencyComponent *Wallet);
 
-	/** RecoverPrisms into the local player's wallet (the battle's victory). */
+	/** OBSOLETE (B-362c): RecoverPrisms into the local player's wallet (the battle's victory). */
 	WORLD_OF_REFRACTION_API int32 RecoverPrisms(UWorld *World);
 
-	/** Debug: the run's wipe and main-boss-loss counts against their limits, the dropped Prisms, and the last rest spot. */
+	/** B-362c: the drop's pickup was taken: the whole drop goes back into Wallet, once. Returns the amount. With no
+	 *  wallet the drop stays. */
+	WORLD_OF_REFRACTION_API int32 PickUpDrop(UTrialRunSubsystem &Run, UCurrencyComponent *Wallet);
+
+	/** PickUpDrop into the local player's wallet, saved at once (quitting must not undo it). TODO(B-235 co-op): each
+	 *  player's own pickup and wallet. */
+	WORLD_OF_REFRACTION_API int32 PickUpDrop(UWorld *World);
+
+	/** Debug: the run's wipe and main-boss-loss counts against their limits, the dropped Prisms and their spot, and
+	 *  the last rest spot. */
 	WORLD_OF_REFRACTION_API FString GetDefeatString(const UWorld *World);
 }

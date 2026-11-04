@@ -22,6 +22,9 @@
 #include "Shop/MerchantShopSubsystem.h"
 #include "TimerManager.h"
 #include "Trial/TrialData.h"
+#include "Trial/PrismDropPickup.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "Currency/MentorTokens.h"
 
 namespace
@@ -97,6 +100,8 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     LastRestSpot = NAME_None;
     DroppedPrisms = 0; // B-362b
     DropEncounters.Reset();
+    DropSpot = FVector::ZeroVector; // B-362c
+    bDropHasSpot = false;
     RunLevels.Reset(); // B-223: the run's pillar levels end with it (D-102)
     UnspentLevels.Reset();
     FoundFeatures.Reset();
@@ -193,6 +198,8 @@ void UTrialRunSubsystem::ExitTrial()
     LastRestSpot = NAME_None;
     DroppedPrisms = 0; // B-362b
     DropEncounters.Reset();
+    DropSpot = FVector::ZeroVector; // B-362c
+    bDropHasSpot = false;
     RunLevels.Reset(); // B-223: the run's pillar levels end with it (D-102)
     UnspentLevels.Reset();
     FoundFeatures.Reset();
@@ -259,6 +266,14 @@ void UTrialRunSubsystem::EnterEncounter(UTrialData *Trial, const TArray<UCharact
     PendingDifficulty = Difficulty;
     PendingRank = Rank;
     EncounterReturnLevel = Trial->Level;
+    // B-362c (D-160): where the party stands on the trial map now is where a wipe's Prisms drop.
+    UWorld *MapWorld = GetGameInstance()->GetWorld();
+    const APlayerController *Leader = MapWorld && IsActiveTrialWorld(MapWorld) ? MapWorld->GetFirstPlayerController() : nullptr;
+    const APawn *LeaderPawn = Leader ? Leader->GetPawn() : nullptr;
+    if (LeaderPawn)
+    {
+        SetPendingFightSpot(LeaderPawn->GetActorLocation());
+    }
 
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Entering encounter %d v %d -> %s (return %s)"),
            BattleParty.Num(), OpposingParty.Num(), *Trial->EncounterLevel.ToString(), *EncounterReturnLevel.ToString());
@@ -281,6 +296,8 @@ void UTrialRunSubsystem::ExitEncounter()
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
+    PendingFightSpot = FVector::ZeroVector; // B-362c
+    bHasPendingFightSpot = false;
     EncounterReturnLevel = nullptr;
 
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Exiting encounter -> %s (deferred one tick)"), *ReturnLevel.ToString());
@@ -406,13 +423,84 @@ int32 UTrialRunSubsystem::DropPrisms(int32 Amount)
     const int32 LostForGood = DroppedPrisms;
     DroppedPrisms = FMath::Max(Amount, 0);
     DropEncounters = PendingEncounterSources;
-    UE_LOG(LogTemp, Log, TEXT("[TrialRun] %d Prism(s) dropped at %d map team(s)%s"), DroppedPrisms, DropEncounters.Num(),
-           LostForGood > 0 ? *FString::Printf(TEXT("; the earlier drop of %d is lost for good"), LostForGood) : TEXT(""));
-    if (DroppedPrisms > 0 && DropEncounters.IsEmpty())
+    bDropHasSpot = GetPendingFightSpot(DropSpot);
+    if (!bDropHasSpot)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[TrialRun] The fight came from no map team: its dropped Prisms cannot be recovered"));
+        DropSpot = FVector::ZeroVector;
     }
+    UE_LOG(LogTemp, Log, TEXT("[TrialRun] %d Prism(s) dropped at %s%s"), DroppedPrisms,
+           bDropHasSpot ? *DropSpot.ToCompactString() : TEXT("the trial's start (the fight had no map spot)"),
+           LostForGood > 0 ? *FString::Printf(TEXT("; the earlier drop of %d is lost for good"), LostForGood) : TEXT(""));
     return LostForGood;
+}
+
+int32 UTrialRunSubsystem::TakeDrop()
+{
+    const int32 Taken = DroppedPrisms;
+    DroppedPrisms = 0;
+    DropEncounters.Reset();
+    DropSpot = FVector::ZeroVector;
+    bDropHasSpot = false;
+    if (Taken > 0)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[TrialRun] %d dropped Prism(s) picked up"), Taken);
+    }
+    return Taken;
+}
+
+bool UTrialRunSubsystem::GetDropSpot(FVector &OutSpot) const
+{
+    OutSpot = DropSpot;
+    return bDropHasSpot;
+}
+
+bool UTrialRunSubsystem::GetPendingFightSpot(FVector &OutSpot) const
+{
+    OutSpot = PendingFightSpot;
+    return bHasPendingFightSpot;
+}
+
+void UTrialRunSubsystem::SetPendingFightSpot(const FVector &Spot)
+{
+    PendingFightSpot = Spot;
+    bHasPendingFightSpot = true;
+}
+
+bool UTrialRunSubsystem::IsActiveTrialWorld(const UWorld *World) const
+{
+    if (!World || !ActiveTrial || ActiveTrial->Level.IsNull())
+    {
+        return false;
+    }
+    return UWorld::RemovePIEPrefix(World->GetOutermost()->GetName()) == ActiveTrial->Level.GetLongPackageName();
+}
+
+void UTrialRunSubsystem::Initialize(FSubsystemCollectionBase &Collection)
+{
+    Super::Initialize(Collection);
+    WorldActorsInitializedHandle =
+        FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &UTrialRunSubsystem::HandleWorldActorsInitialized);
+}
+
+void UTrialRunSubsystem::Deinitialize()
+{
+    FWorldDelegates::OnWorldInitializedActors.Remove(WorldActorsInitializedHandle);
+    WorldActorsInitializedHandle.Reset();
+    Super::Deinitialize();
+}
+
+void UTrialRunSubsystem::HandleWorldActorsInitialized(const FActorsInitializedParams &Params)
+{
+    UWorld *World = Params.World;
+    // The server places it (a client's map follows the server's; co-op per-player pickups are B-235).
+    if (!World || !World->IsGameWorld() || World->GetGameInstance() != GetGameInstance() || World->GetNetMode() == NM_Client)
+    {
+        return;
+    }
+    if (IsRunActive() && DroppedPrisms > 0 && IsActiveTrialWorld(World))
+    {
+        APrismDropPickup::PlaceForRun(World, *this);
+    }
 }
 
 int32 UTrialRunSubsystem::TakeDropIfPendingFight()
@@ -429,10 +517,12 @@ int32 UTrialRunSubsystem::TakeDropIfPendingFight()
     return Recovered;
 }
 
-void UTrialRunSubsystem::RestoreDrop(int32 Amount, const TArray<FName> &Encounters)
+void UTrialRunSubsystem::RestoreDrop(int32 Amount, bool bHasSpot, const FVector &Spot)
 {
     DroppedPrisms = FMath::Max(Amount, 0);
-    DropEncounters = Encounters;
+    DropEncounters.Reset();
+    bDropHasSpot = bHasSpot && DroppedPrisms > 0;
+    DropSpot = bDropHasSpot ? Spot : FVector::ZeroVector;
 }
 
 void UTrialRunSubsystem::RestoreRunLosses(int32 Wipes, int32 MainBossLosses, FName RestSpotId)

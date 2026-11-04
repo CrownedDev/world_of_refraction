@@ -43,6 +43,7 @@ class UMerchantData;
 struct FMerchantStockEntry;
 class UTrialData;
 class UWorld;
+struct FActorsInitializedParams;
 
 UCLASS(Config = Game)
 class WORLD_OF_REFRACTION_API UTrialRunSubsystem : public UGameInstanceSubsystem
@@ -50,6 +51,10 @@ class WORLD_OF_REFRACTION_API UTrialRunSubsystem : public UGameInstanceSubsystem
     GENERATED_BODY()
 
 public:
+    /** B-362c: listens for each loaded world, to place the run's Prism drop pickup on the trial map. */
+    virtual void Initialize(FSubsystemCollectionBase &Collection) override;
+    virtual void Deinitialize() override;
+
     /** Load Trial's level and mark it active. Defensively closes an open shop
      *  window first (the modal bracket must not straddle a level transition).
      *  Ignored (with a log) when Trial or Trial->Level is null/unset. */
@@ -194,20 +199,39 @@ public:
      *  start are never touched. */
     int32 LoseRunPoints(FName CharacterKey, int32 MaxPoints);
 
-    /** B-362b (D-160): the run's Prisms dropped at the map fight the party last fell to (the Souls bloodstain: only
-     *  the newest drop exists). Amount is the run balance (ECurrencyType::Gold, shown as Prisms, D-159); Encounters
-     *  are that fight's map teams (beating any of them recovers it). Returns the previous drop's amount, now lost for
-     *  good. */
+    /** B-362b (D-160): the run's Prisms dropped where the party last fell (the Souls bloodstain: only the newest drop
+     *  exists). Amount is the run balance (ECurrencyType::Gold, shown as Prisms, D-159). B-362c (D-160 as changed):
+     *  the drop lies at the pending fight's map spot (GetPendingFightSpot), a pickup there gives it back
+     *  (APrismDropPickup, TakeDrop). Returns the previous drop's amount, now lost for good. */
     int32 DropPrisms(int32 Amount);
 
-    /** The drop when the pending fight came from one of its map teams: returns its amount and clears it; else 0. */
+    /** B-362c: the drop's amount, cleared (the pickup was taken). 0 when there is none. */
+    int32 TakeDrop();
+
+    /** OBSOLETE (B-362c, D-160 changed: one path, the pickup; no game caller; delete after PIE). The drop when the
+     *  pending fight came from one of its map teams: returns its amount and clears it; else 0. */
     int32 TakeDropIfPendingFight();
 
     int32 GetDroppedPrisms() const { return DroppedPrisms; }
+    /** OBSOLETE (B-362c): the drop fight's map teams; logged only. */
     const TArray<FName> &GetDropEncounters() const { return DropEncounters; }
 
-    /** Save restore: puts the run's drop back. */
-    void RestoreDrop(int32 Amount, const TArray<FName> &Encounters);
+    /** B-362c: where the drop lies on the trial map. False when the fight had no map spot (a debug or scripted fight
+     *  started off the trial map): the pickup then lies at the trial's start. */
+    bool GetDropSpot(FVector &OutSpot) const;
+
+    /** Save restore: puts the run's drop back (B-362c: with its spot). */
+    void RestoreDrop(int32 Amount, bool bHasSpot, const FVector &Spot);
+
+    /** B-362c: where the party stood on the trial map when the pending fight started (EnterEncounter records the
+     *  local pawn's spot while the active trial's level is the world). False for a fight entered from elsewhere. */
+    bool GetPendingFightSpot(FVector &OutSpot) const;
+
+    /** B-362c: tests and debug fights set the spot by hand. Call before EnterEncounter (it overwrites it on the map). */
+    void SetPendingFightSpot(const FVector &Spot);
+
+    /** Is World the active trial's level (where the drop's pickup is placed)? */
+    bool IsActiveTrialWorld(const UWorld *World) const;
 
     /** The last rest spot the party used this run (NAME_None = the trial's start). TODO: B-187 calls NoteRestSpotUsed
      *  from the rest spot and the trial level places the returning party there. */
@@ -356,6 +380,17 @@ private:
     /** B-362b: run state like RunWipes (cleared on trial entry and exit; saved with the run). */
     int32 DroppedPrisms = 0;
     TArray<FName> DropEncounters;
+    /** B-362c: the drop's spot, run state like DroppedPrisms (saved with the run). */
+    FVector DropSpot = FVector::ZeroVector;
+    bool bDropHasSpot = false;
+
+    /** B-362c: carried across the OpenLevel like PendingRank; reset with the encounter sources. */
+    FVector PendingFightSpot = FVector::ZeroVector;
+    bool bHasPendingFightSpot = false;
+
+    /** B-362c: places the run's drop pickup when the active trial's level is ready. */
+    void HandleWorldActorsInitialized(const FActorsInitializedParams &Params);
+    FDelegateHandle WorldActorsInitializedHandle;
 
     /** B-188: map features used this run (never removed from, so it keeps the order found). Run state
      *  like BeatenEncounters; cleared on trial entry and exit; moves with it for co-op (D-065). */

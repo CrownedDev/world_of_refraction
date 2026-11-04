@@ -9,6 +9,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Player/WoRPlayerState.h"
+#include "Save/SaveSubsystem.h"
 #include "Trial/TrialRunSubsystem.h"
 
 namespace
@@ -86,6 +87,30 @@ namespace WoRDefeat
 		return Run && Run->IsRunActive() ? RecoverPrisms(*Run, DefeatLocalWallet(World)) : 0;
 	}
 
+	int32 PickUpDrop(UTrialRunSubsystem &Run, UCurrencyComponent *Wallet)
+	{
+		if (!Wallet || Run.GetDroppedPrisms() <= 0)
+		{
+			return 0; // nowhere to put it, or nothing there: the drop stays as it is
+		}
+		const int32 Taken = Run.TakeDrop();
+		Wallet->Add(ECurrencyType::Gold, Taken);
+		return Taken;
+	}
+
+	int32 PickUpDrop(UWorld *World)
+	{
+		UTrialRunSubsystem *Run = DefeatRun(World);
+		const int32 Taken = Run && Run->IsRunActive() ? PickUpDrop(*Run, DefeatLocalWallet(World)) : 0;
+		UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		USaveSubsystem *Save = GI ? GI->GetSubsystem<USaveSubsystem>() : nullptr;
+		if (Taken > 0 && Save)
+		{
+			Save->SaveNow(World, true);
+		}
+		return Taken;
+	}
+
 	FString GetDefeatString(const UWorld *World)
 	{
 		const UTrialRunSubsystem *Run = DefeatRun(World);
@@ -93,10 +118,12 @@ namespace WoRDefeat
 		{
 			return TEXT("[Defeat] no trial run subsystem");
 		}
-		return FString::Printf(TEXT("[Defeat] wipes %d of %d, main-boss losses %d of %d, %d Prism(s) dropped at [%s], last rest spot '%s' (None = the trial's start)"),
+		FVector DropSpot;
+		const bool bHasSpot = Run->GetDropSpot(DropSpot);
+		return FString::Printf(TEXT("[Defeat] wipes %d of %d, main-boss losses %d of %d, %d Prism(s) dropped at %s, last rest spot '%s' (None = the trial's start)"),
 							   Run->GetRunWipes(), DefeatRules::MAX_WIPES_PER_RUN, Run->GetRunMainBossLosses(),
 							   DefeatRules::MAX_MAIN_BOSS_LOSSES_PER_RUN, Run->GetDroppedPrisms(),
-							   *FString::JoinBy(Run->GetDropEncounters(), TEXT(", "), [](FName Id) { return Id.ToString(); }),
+							   bHasSpot ? *DropSpot.ToCompactString() : TEXT("the trial's start"),
 							   *Run->GetLastRestSpot().ToString());
 	}
 }
