@@ -5,6 +5,8 @@
 // Review fixes: a reloaded layer is discarded, not applied; a home piece on the run can't be dismantled (Q-314b); a
 // run-only piece dismantled before run end is still remembered (Q-314c).
 // B-347 (D-137): the run takes the worn loadout, free; unworn home pieces stay home.
+// B-347b (Q-347): a member drawn during a run sees only what the run brought and found; a piece left home is not its
+// to equip, hearing of it doesn't remove it from the store, and a home loadout naming it is kept as stored.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -20,6 +22,7 @@
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
+#include "Loadout/FSavedLoadout.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
@@ -87,8 +90,9 @@ BEGIN_DEFINE_SPEC(FPoolRunLayerSpec, "WoR.Pool.RunLayer", EAutomationTestFlags_A
 		return Entry.PersistentID;
 	}
 
-	/** The party member as each level spawns it: the sword, then the draw. */
-	UInventoryComponent *SpawnMember()
+	/** The party member as each level spawns it: the sword, then the draw. bLore: its sword loadout is a lore one, so
+	 *  the drawn custom loadouts line up with the store's (B-347b). */
+	UInventoryComponent *SpawnMember(bool bLore = false)
 	{
 		AActor *Actor = TestWorld->SpawnCombatant(Member);
 		if (!Actor)
@@ -104,6 +108,7 @@ BEGIN_DEFINE_SPEC(FPoolRunLayerSpec, "WoR.Pool.RunLayer", EAutomationTestFlags_A
 		FCombatLoadout Loadout;
 		Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
 		Loadout.PrimaryWeapon.WeaponEntry = FWeaponInventoryEntry::CreateFromWeapon(Sword);
+		Loadout.bLore = bLore;
 		Inventory->SavedLoadouts = {Loadout};
 		Inventory->ActiveLoadoutIndex = 0;
 		Inventory->LinkLoadoutsToOwned();
@@ -395,6 +400,75 @@ void FPoolRunLayerSpec::Define()
 		const FWeaponInventoryEntry *Home = Pool->FindWeaponInPool(DaggerID);
 		TestTrue(TEXT("back to its home state: no gem"), Home && Home->AttachedItem.IsEmpty());
 		TestEqual(TEXT("one dagger"), CountInStore(*Pool, DaggerID), 1);
+	});
+
+	It("draws only what the run brought, and the home piece left home again after it (B-347b)", [this]()
+	{
+		if (!Pool) return;
+		UTrialRunSubsystem *TrialRun = TestWorld->GetSubsystem<UTrialRunSubsystem>();
+		UInventoryComponent *Home = SpawnMember();
+		if (!TestNotNull(TEXT("Trial run"), TrialRun) || !TestNotNull(TEXT("Member"), Home)) return;
+		const FGuid SwordID = OwnedID(Home, Sword);
+		TestTrue(TEXT("an unworn home dagger"), Home->AddWeapon(Dagger));
+		const FGuid DaggerID = OwnedID(Home, Dagger);
+		TrialRun->StartRunGearAndGold();
+		Home->GetOwner()->Destroy(); // the trial level: the member is spawned and draws again
+
+		UInventoryComponent *OnRun = SpawnMember();
+		if (!TestNotNull(TEXT("Member on the run"), OnRun)) { Pool->EndRunLayer(); return; }
+		TestEqual(TEXT("the worn sword is in the run armoury"), OwnedID(OnRun, Sword), SwordID);
+		TestFalse(TEXT("the dagger left home is not"), OwnedID(OnRun, Dagger).IsValid());
+		TestFalse(TEXT("nor the member's to equip"), OnRun->OwnsWeaponAsset(Dagger));
+		OnRun->RefreshLoadoutsFromOwned(DaggerID); // hearing of a piece it doesn't hold
+		TestEqual(TEXT("the store keeps the dagger"), CountInStore(*Pool, DaggerID), 1);
+		TestFalse(TEXT("and it doesn't join the run"), Pool->IsOnRun(DaggerID));
+
+		Pool->EndRunLayer();
+		OnRun->GetOwner()->Destroy(); // back in the hub
+		UInventoryComponent *Back = SpawnMember();
+		if (!TestNotNull(TEXT("Member back home"), Back)) return;
+		TestEqual(TEXT("the dagger is in the armoury again"), OwnedID(Back, Dagger), DaggerID);
+		TestTrue(TEXT("and the member's to equip"), Back->OwnsWeaponAsset(Dagger));
+	});
+
+	It("keeps a home loadout naming a piece left home as stored through the run (B-347b)", [this]()
+	{
+		if (!Pool) return;
+		UTrialRunSubsystem *TrialRun = TestWorld->GetSubsystem<UTrialRunSubsystem>();
+		if (!TestNotNull(TEXT("Trial run"), TrialRun)) return;
+		const FName Key = UPoolSubsystem::GetCharacterKey(Member);
+		FWeaponInventoryEntry HomeDagger = FWeaponInventoryEntry::CreateFromWeapon(Dagger);
+		HomeDagger.PersistentID = FGuid::NewGuid();
+		const FGuid DaggerID = HomeDagger.PersistentID;
+		Pool->SetGearOwner(DaggerID, Key); // an unworn home dagger
+		Pool->UpdateWeapon(HomeDagger);
+		FSavedLoadout DaggerLoadout;
+		DaggerLoadout.LoadoutName = TEXT("Dagger loadout");
+		DaggerLoadout.PrimarySlotType = EPrimarySlotType::Weapon;
+		DaggerLoadout.PrimaryWeapon = Dagger;
+		DaggerLoadout.PrimaryWeaponInstance = DaggerID;
+		Pool->SetCustomLoadouts(Key, {DaggerLoadout}); // the player's own loadout, made at home
+		UInventoryComponent *Home = SpawnMember(/*bLore=*/true);
+		if (!TestNotNull(TEXT("Member"), Home)) return;
+		TrialRun->StartRunGearAndGold();
+		TestFalse(TEXT("the dagger stays home"), Pool->IsOnRun(DaggerID));
+		Home->GetOwner()->Destroy();
+
+		UInventoryComponent *OnRun = SpawnMember(/*bLore=*/true);
+		if (!TestNotNull(TEXT("Member on the run"), OnRun)) { Pool->EndRunLayer(); return; }
+		OnRun->PushCustomLoadoutsToPool(); // what a mid-run save does
+		const TArray<FSavedLoadout> *Stored = Pool->GetCustomLoadouts(Key);
+		if (TestTrue(TEXT("one custom loadout stored"), Stored && Stored->Num() == 1))
+		{
+			TestEqual(TEXT("it still names the dagger"), (*Stored)[0].PrimaryWeaponInstance, DaggerID);
+		}
+		Pool->EndRunLayer();
+		OnRun->PushCustomLoadoutsToPool(); // ExitTrial's save, after the layer closed, with the member still there
+		Stored = Pool->GetCustomLoadouts(Key);
+		if (TestTrue(TEXT("still one custom loadout after the run"), Stored && Stored->Num() == 1))
+		{
+			TestEqual(TEXT("it still names the dagger after the run"), (*Stored)[0].PrimaryWeaponInstance, DaggerID);
+		}
 	});
 }
 

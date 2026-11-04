@@ -501,6 +501,9 @@ public:
     bool MarkRunOnly(const FGuid &GearID);
     bool IsRunOnly(const FGuid &GearID) const;
     bool IsOnRun(const FGuid &GearID) const;
+    /** B-347b (Q-347): a member's armoury during a run is what the run brought and found. Off a run every piece is in
+     *  view; during one only a piece on the run or found in it. Home pieces left out stay in the store, unseen. */
+    bool IsInRunView(const FGuid &GearID) const { return !bRunLayerActive || RunMarks.Contains(GearID); }
     const TMap<FGuid, FPoolRunMark> &GetRunMarks() const { return RunMarks; }
 
     /** The run ends (UTrialRunSubsystem::ExitTrial): home pieces back to their home state, run-only gear dropped

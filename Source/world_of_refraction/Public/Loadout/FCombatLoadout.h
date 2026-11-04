@@ -113,6 +113,10 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     UPROPERTY(Transient, BlueprintReadOnly, Category = "1. Identity")
     bool bLore = false;
 
+    /** B-347b (Q-347): a custom loadout drawn during a run that names a home piece the run left at home: the stored
+     *  version, written back as it was (this copy had that slot emptied). Moves with the loadout; not saved. */
+    TSharedPtr<const FSavedLoadout> HeldHomeLoadout;
+
     // ==================== PRIMARY EQUIPMENT ====================
     /** Does this character start combat with weapon drawn? */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Identity")

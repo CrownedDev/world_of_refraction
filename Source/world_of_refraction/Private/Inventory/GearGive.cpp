@@ -239,6 +239,10 @@ namespace WoRGive
 		{
 			return LOCTEXT("NoChest", "No chest to put that in");
 		}
+		if (Pool->IsRunLayerActive()) // B-347b (Q-347): the chest is home storage; a run has only what it brought
+		{
+			return LOCTEXT("ChestHomePut", "The chest stays at home until the run ends");
+		}
 		if (FromKey.IsNone())
 		{
 			return LOCTEXT("NoOneToPut", "Choose a character");
@@ -283,6 +287,10 @@ namespace WoRGive
 		if (!Pool)
 		{
 			return LOCTEXT("NoChestTake", "No chest to take from");
+		}
+		if (Pool->IsRunLayerActive()) // B-347b (Q-347): taking would bring a home piece the run left behind
+		{
+			return LOCTEXT("ChestHomeTake", "The chest stays at home until the run ends");
 		}
 		if (ToKey.IsNone())
 		{
