@@ -70,7 +70,8 @@ void USkillEffectManager::Initialize(FSubsystemCollectionBase &Collection)
 		if (UDefenseSystem *DS = World->GetSubsystem<UDefenseSystem>())
 		{
 			DS->OnDefenseResolved.AddDynamic(this, &USkillEffectManager::OnDefenseResolvedHandler);
-			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Bound to DefenseSystem::OnDefenseResolved"));
+			DS->OnFlawlessParry.AddDynamic(this, &USkillEffectManager::OnFlawlessParryHandler); // B-337c
+			UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] Bound to DefenseSystem::OnDefenseResolved and OnFlawlessParry"));
 		}
 		else
 		{
@@ -2275,6 +2276,27 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 	// The outcome maps to its trigger set (perfect outcomes fire both perfect + base).
 	TArray<ESkillTrigger> OutcomeTriggers;
 	SkillTriggerUtils::DefenseOutcomeToTriggers(DefenseType, bPerfect, OutcomeTriggers);
+	FireDefenseTriggerEffects(Defender, Attacker, OutcomeTriggers, DefenseType, bPerfect, AttackEnergyCost);
+}
+
+void USkillEffectManager::OnFlawlessParryHandler(AActor *Defender, AActor *Attacker)
+{
+	if (!Defender || !Attacker)
+	{
+		return;
+	}
+	// Every hit was a Perfect Guard or Perfect Dodge; the last one's outcome already fired on its own.
+	FireDefenseTriggerEffects(Defender, Attacker, {ESkillTrigger::OnFlawlessParry}, EDefenseType::None, /*bPerfect=*/true,
+							  /*AttackEnergyCost=*/0.0f);
+}
+
+void USkillEffectManager::FireDefenseTriggerEffects(AActor *Defender, AActor *Attacker, const TArray<ESkillTrigger> &OutcomeTriggers,
+													EDefenseType DefenseType, bool bPerfect, float AttackEnergyCost)
+{
+	if (!Defender || !Attacker)
+	{
+		return;
+	}
 
 	// Reuse ActionExecutor's per-payload target resolver (Decision B); TurnManager supplies
 	// the owner's team for Enemy/Ally resolution. Fetched once for both perspectives.
