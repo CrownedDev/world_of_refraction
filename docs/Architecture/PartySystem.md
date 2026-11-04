@@ -274,6 +274,8 @@ stats are still two characters. Concrete consequences (Cluster 3 survey):
 - `CharacterData`-keyed membership (see Identity Model) — per-instance identity with
   the Arc 2 grid; per-user identity with PvP.
 - Multiplayer invite (second `PlayerController` joins the local party) is a stub.
+- B-346: an AI seat's difficulty is not saved yet (`FPartyMember::AISeatDifficulty`, TODO B-348); after a load every AI seat is back at Medium. The seat flag itself survives through the mirrored `bPlayerControlled`.
+- B-346: `SeatRules` (co-op rotation) is covered headless only (`WoR.Party.Seats`) until B-232 brings co-op seats and their per-fight rotation counter.
 - Invite/hint asymmetry on per-instance `CharacterData` overrides (see Identity
   Model).
 

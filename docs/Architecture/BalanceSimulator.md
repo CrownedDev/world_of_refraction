@@ -42,7 +42,7 @@ Between `Begin` and `End` the runner sets `wor.Combat.InstantImpacts 1` and `wor
 - Elite is only in `full`; `nightly` keeps 3 ranks (§4 of the design doc lists 4: TODO, decide with the first nightly's run time).
 - GAS parity has not run yet: until B-293 the sim's actors had no ability system, so earlier "parity" was the enum path twice. Expect real differences on the first build; each names its seed.
 - Presets: `quick` 3 fights (the suite), `nightly` 50, `full` 200 with the Elite rank (`WOR_BALANCE=nightly|full Scripts/ue/test.sh WoR.Balance.` or `wor.Balance.Run`).
-- Party-side AI difficulty is fixed at Hard (`AIConstants::ALLY_AI_DIFFICULTY`).
+- Party-side AI difficulty is fixed at Hard: since B-346 the runner sets every party member's AI seat to `SIM_PARTY_AI_DIFFICULTY` (Hard, the level `AIConstants::ALLY_AI_DIFFICULTY` gave before), so the baselines stay comparable.
 
 ## Changelog
 
