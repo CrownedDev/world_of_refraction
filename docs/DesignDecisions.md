@@ -1830,6 +1830,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** the cap check itself moved to the shown school in B-356 (`USpellData::GetSchool`).
 **After the D-146 correction (checked in B-356c, 2026-11-04):** with Conjuration mapping to itself the seven Enhancement overflows are gone, and no loadout overflows Conjuration (data validation: 0 new errors, the seven lines reported FIXED and deleted from `Scripts/ue/validation_baseline.txt`). The editor step is gone; the cap stays 6. Nothing left for Crown here.
 
+### Q-356c — The AI's effect reading: a drain is an attack, a status attack is an attack
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-356b, desktop) · **Blocks:** —
+**Question:** D-146 says the AI reads a spell's effects, not its school. Two edge cases: a **drain** (damage at an enemy plus a HealthRestore payload) is both offensive and healing: may the AI pick it as its heal? And a **status attack** (no base damage, status buildup at an enemy, e.g. a burst-only spell): is it offensive?
+**Options:** **A** a drain is an attack only (the heal pick skips any spell the offensive pick accepts); a status attack is offensive. **B** a drain may also serve as the heal (cast at an enemy when the caster is low); status attacks are offensive only if they also carry a debuff.
+**Recommendation:** A. Final Fantasy's Drain / Osmose and Dragon Quest's drain spells are attack-menu spells in every entry; no mainline AI casts them "as a heal" at an ally (it would heal the enemy). Pokémon's Toxic / Will-O-Wisp are status moves the AI uses offensively; a 0-damage status attack is still an attack.
+**Answer:** A (approved by the reference-backed default). A support-school spell's leftover buildup does not make it offensive (`SupportSkillRules` already reads it as 0).
+**Notes for Claude:** applied in B-356b (`UAIDecisionManager::IsHealPick`, `IsOffensiveSpell`). Content found by the audit (empty damage spells, Enhancement-tagged attacks) is in `docs/PIE/B-356.md`.
+
 ### Q-21-audit — Party control: the deckbuilder's seat rule (audit §21)
 **Status:** ANSWERED (Crown: follow the deckbuilder's rule) · **Raised:** 2026-11-03 (audit §21) · **Blocks:** —
 **Question:** who commands each party member, solo and in co-op?

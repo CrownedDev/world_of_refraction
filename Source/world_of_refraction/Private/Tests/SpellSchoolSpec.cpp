@@ -131,9 +131,8 @@ void FSpellSchoolSpec::Define()
 
 	It("reports the authored spells whose school disagrees with their effects (B-356b, informational)", [this]()
 	{
-		const FString Mismatches = USpellDataDebug::GetSchoolEffectMismatchString();
-		AddInfo(Mismatches.IsEmpty() ? TEXT("every authored spell's school agrees with the AI's effect reading")
-									 : FString::Printf(TEXT("school vs effects:\n%s"), *Mismatches));
+		// Informational, never fails: the content findings are recorded in docs/PIE/B-356.md (editor step 2).
+		AddInfo(FString::Printf(TEXT("school vs effects (B-356b audit):\n%s"), *USpellDataDebug::GetSchoolEffectMismatchString()));
 	});
 
 	It("counts a retired spell under its mapped school's innate cap", [this]()
