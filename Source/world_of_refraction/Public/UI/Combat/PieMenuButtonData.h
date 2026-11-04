@@ -164,7 +164,8 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 
 	// ==================== STATIC BUILDERS ====================
 
-	/** Create a school button */
+	/** Create a school button. ID and tint only: the caller (UCombatCommandMenuSubsystem::BuildSchoolButtons)
+	 *  sets DisplayName and Description from the LOCTEXT name table (D-061 / D-062, B-356b). */
 	static FPieMenuButtonData MakeSchoolButton(EPieMenuSpellSchool InSchool, int32 SpellCount)
 	{
 		FPieMenuButtonData Button;
@@ -177,20 +178,14 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 		case EPieMenuSpellSchool::Destruction: // OBSOLETE (B-356c): retired, builds the Conjuration button
 		case EPieMenuSpellSchool::Conjuration:
 			Button.ButtonID = TEXT("School_Conjuration");
-			Button.DisplayName = FText::FromString(TEXT("Conjuration"));
-			Button.Description = FText::FromString(FString::Printf(TEXT("%d spells"), SpellCount));
 			Button.ButtonTint = FLinearColor(1.0f, 0.3f, 0.1f, 1.0f); // Orange-red: the damage school (B-356c)
 			break;
 		case EPieMenuSpellSchool::Enhancement:
 			Button.ButtonID = TEXT("School_Enhancement");
-			Button.DisplayName = FText::FromString(TEXT("Enhancement"));
-			Button.Description = FText::FromString(FString::Printf(TEXT("%d spells"), SpellCount));
 			Button.ButtonTint = FLinearColor(0.2f, 0.8f, 0.3f, 1.0f); // Green
 			break;
 		case EPieMenuSpellSchool::Restoration:
 			Button.ButtonID = TEXT("School_Restoration");
-			Button.DisplayName = FText::FromString(TEXT("Restoration"));
-			Button.Description = FText::FromString(FString::Printf(TEXT("%d spells"), SpellCount));
 			Button.ButtonTint = FLinearColor(0.9f, 0.9f, 0.5f, 1.0f); // Yellow
 			break;
 		}

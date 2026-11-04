@@ -114,6 +114,7 @@ private:
     friend class FGASEffectReadsSpec;
     friend class FAIOneSkillPathSpec;
     friend class FSpellSchoolSpec;
+    friend class USpellDataDebug; // B-356b: the school-vs-effects audit reads IsOffensiveSpell / IsHealingSpell
 
     // ==================== INTERNAL ====================
 
@@ -284,11 +285,15 @@ private:
     static TArray<USkillDataBase *> GetOffensiveSkills(ULoadoutComponent *Loadout, EAIActionChoice Category);
 
     /** B-356 (D-146): the AI reads a spell's effects, never its school. Offensive: aimed at enemies
-     *  (Enemy / Anyone) and it deals damage or applies a debuff. */
+     *  (Enemy / Anyone) and it deals damage, builds status (B-356b) or applies a debuff. */
     static bool IsOffensiveSpell(const USpellData &Spell);
 
     /** B-356: a spell with a Heal / HealthRestore payload (whatever its school). */
     static bool IsHealingSpell(const USpellData &Spell);
+
+    /** B-356b: what the heal pick takes: a healing spell that is not also offensive, so a drain
+     *  (damage at an enemy plus a HealthRestore payload) is never cast at an ally as a heal. */
+    static bool IsHealPick(const USpellData &Spell);
 
     /** Calculate threat level of an actor */
     int32 CalculateThreatLevel(AActor *Actor);

@@ -1083,7 +1083,10 @@ void UAIDecisionManager::ApplySkillChoice(AActor *AIActor, UCharacterDataCompone
 bool UAIDecisionManager::IsOffensiveSpell(const USpellData &Spell)
 {
     const bool bAimsAtEnemies = Spell.TargetType == ETargetType::Enemy || Spell.TargetType == ETargetType::Anyone;
-    return bAimsAtEnemies && (Spell.BaseDamage > 0 || Spell.HasDebuffEffects());
+    // B-356b (Q-356c): a status attack (buildup, no base damage) is an attack too; a support spell's leftover
+    // buildup is not (SupportSkillRules reads it as 0).
+    return bAimsAtEnemies
+           && (Spell.BaseDamage > 0 || SupportSkillRules::GetAuthoredStatusBuildup(&Spell) > 0 || Spell.HasDebuffEffects());
 }
 
 bool UAIDecisionManager::IsHealingSpell(const USpellData &Spell)
@@ -1099,6 +1102,11 @@ bool UAIDecisionManager::IsHealingSpell(const USpellData &Spell)
         }
     }
     return false;
+}
+
+bool UAIDecisionManager::IsHealPick(const USpellData &Spell)
+{
+    return IsHealingSpell(Spell) && !IsOffensiveSpell(Spell);
 }
 
 TArray<USkillDataBase *> UAIDecisionManager::GetOffensiveSkills(ULoadoutComponent *Loadout, EAIActionChoice Category)
@@ -2007,8 +2015,8 @@ USpellData *UAIDecisionManager::FindHealingSpell(ULoadoutComponent *Loadout)
     TArray<USpellData *> Spells = GetUsableSpells(Loadout);
     for (USpellData *Spell : Spells)
     {
-        // B-356 (D-146): by its effects, not its school.
-        if (Spell && IsHealingSpell(*Spell))
+        // B-356 (D-146): by its effects, not its school. B-356b: a drain is an attack, not a heal.
+        if (Spell && IsHealPick(*Spell))
         {
             return Spell;
         }
