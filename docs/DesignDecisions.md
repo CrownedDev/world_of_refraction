@@ -1775,6 +1775,11 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **What it changes:** D-009 (stones and fusions on rings), D-077 (what counts as "a crystal" for tier caps), the round-1 §5 note.
 **Notes for Claude:** jobs B-351 (the two sockets: slot struct, loadout costs, validation, save bump with wipe per D-138) and B-352 (fusions retire); B-299's rename follows D-138 (no migration: a pre-rename save is wiped).
 
+### D-142 — One stat stone kind (audit round 3 §27)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §27) · **Blocks:** —
+**Answer (Crown):** one `StatStone` kind with a sub-stat field. The old single-stat stone members map to it on load (append-only: old values marked retired). Damage, Ability and Healing stones stay.
+**Notes for Claude:** job B-353, after B-351 / B-352.
+
 ### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
 **Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.
