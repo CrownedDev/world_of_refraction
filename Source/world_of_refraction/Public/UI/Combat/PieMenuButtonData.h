@@ -19,6 +19,7 @@ UENUM(BlueprintType)
 enum class EPieMenuSpellSchool : uint8
 {
 	Destruction UMETA(DisplayName = "Destruction"),
+	/** OBSOLETE (B-356): no spell groups here since D-146 (Conjuration reads as Enhancement). */
 	Conjuration UMETA(DisplayName = "Conjuration"),
 	Enhancement UMETA(DisplayName = "Enhancement"),
 	Restoration UMETA(DisplayName = "Restoration")
