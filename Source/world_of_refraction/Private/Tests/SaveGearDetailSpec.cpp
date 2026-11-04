@@ -168,7 +168,6 @@ void FSaveGearDetailSpec::Define()
 		TestTrue(TEXT("The adapter, by GUID"),
 				 Restored->GetOwnedRings().Num() == 1 && Restored->GetOwnedRings()[0].PersistentID == Ring.PersistentID);
 	});
-
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

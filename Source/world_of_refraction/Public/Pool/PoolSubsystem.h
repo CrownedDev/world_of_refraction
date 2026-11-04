@@ -436,8 +436,9 @@ private:
     //
     // Gold is RUN-VOLATILE (never banked) — the run component tags it Replicated-only, NOT
     // SaveGame; mirrored faithfully here (NO SaveGame tag), so it will not persist into the
-    // pool. (Flagged: if the pool should bank Gold, add the tag — but that contradicts the
-    // "Gold is never banked" rule.) The other four scalars + the typed Essence persist.
+    // pool.
+    // OBSOLETE (B-348): PoolGold .. PoolEssence are dead scaffolding: nothing writes them and nothing saves them
+    // (the wallet is banked from the player's UCurrencyComponent by FSavedWallet, D-059). Delete with B-317.
     UPROPERTY()
     int32 PoolGold = 0;
 
