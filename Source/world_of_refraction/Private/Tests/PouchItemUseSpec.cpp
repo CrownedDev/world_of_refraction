@@ -3,6 +3,8 @@
 // item in a fight spends it from the user's pouch and nothing else (not another member's pouch, not the shared
 // storage, not the preset's item slots). No tier cap on what a member carries or uses (B-354, D-143 retired the
 // D-072 bands); stones are slot-only and never listed.
+// B-313b: a member's crystal inventory reads its pouch (never the old mirror); the item-slot rules skip a pouch
+// member's preset picks, which hold no supply.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -18,6 +20,7 @@
 #include "Inventory/InventoryConstants.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/LoadoutConstants.h"
+#include "Loadout/LoadoutRules.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
@@ -170,6 +173,52 @@ void FPouchItemUseSpec::Define()
 			TestTrue(TEXT("Each carried S crystal is usable"), Loadout->UseCarriedItem(POUCH_USE_S_GARNET));
 		}
 		TestEqual(TEXT("All the carried ones used in one fight"), Pool->GetCarriedCount(KeyOf(0), POUCH_USE_S_GARNET), 0);
+	});
+
+	It("reads a member's crystal counts from its pouch, not the old mirror (B-313b)", [this]()
+	{
+		if (!Pool) return;
+		UCrystalInventoryComponent *CrystalInv = User->FindComponentByClass<UCrystalInventoryComponent>();
+		if (!TestNotNull(TEXT("Crystal inventory"), CrystalInv)) return;
+		Pool->CarryOrStore(KeyOf(0), POUCH_USE_STONE, 1);
+		const TMap<FCrystalId, int32> Pouch = Pool->GetCarriedItems(KeyOf(0));
+		int32 PouchTotal = 0;
+		for (const TPair<FCrystalId, int32> &Pair : Pouch)
+		{
+			PouchTotal += Pair.Value;
+		}
+		CrystalInv->Crystals.Empty(); // a stale mirror must not matter
+		CrystalInv->Stones.Empty();
+		TestEqual(TEXT("The Garnets, from the pouch"), CrystalInv->GetCount(POUCH_USE_GARNET), POUCH_USE_A_STACK);
+		TestEqual(TEXT("The stone, from the pouch"), CrystalInv->GetCount(POUCH_USE_STONE), Pool->GetCarriedCount(KeyOf(0), POUCH_USE_STONE));
+		TestEqual(TEXT("The total"), CrystalInv->GetTotalCount(), PouchTotal);
+		TestEqual(TEXT("The F-tier total"), CrystalInv->GetCountForTier(EItemTier::F_Tier), PouchTotal);
+		TestEqual(TEXT("The stacks"), CrystalInv->GetStackCount(), Pouch.Num());
+		TestEqual(TEXT("The held stacks are the pouch's"), CrystalInv->GetHeldStacks().Num(), Pouch.Num());
+	});
+
+	It("skips the item-slot rules for a pouch member's preset picks, which hold no supply (B-313b)", [this]()
+	{
+		if (!Pool) return;
+		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+		FItemLoadoutSlot Pick;
+		Pick.CrystalId = POUCH_USE_S_GARNET;
+		Pick.Quantity = POUCH_USE_S_STACK;
+		Active.ItemSlots = {Pick, Pick}; // over the one-S rule, and a duplicate type
+		auto HasItemFinding = [](const TArray<FInvalidSlotFinding> &Findings)
+		{
+			return Findings.ContainsByPredicate([](const FInvalidSlotFinding &Finding)
+			{
+				return Finding.SlotType == ELoadoutSlotType::ItemSlot || Finding.SlotType == ELoadoutSlotType::DuplicateItems ||
+					   Finding.SlotType == ELoadoutSlotType::EquippedSTierCrystal;
+			});
+		};
+		TestFalse(TEXT("No item-slot finding for a pouch member"), HasItemFinding(Loadout->CollectInvalidSlotFindings()));
+		FLoadoutRuleContext NoPouch;
+		TestTrue(TEXT("The same picks are findings for an actor with no pouch"), HasItemFinding(FLoadoutRules::CollectFindings(Active, NoPouch)));
+		Loadout->ClearInvalidSlots();
+		TestEqual(TEXT("The picks are left as they are"), Active.ItemSlots.Num() == 2 ? Active.ItemSlots[1].Quantity : INDEX_NONE, POUCH_USE_S_STACK);
+		TestEqual(TEXT("The pouch is untouched"), Pool->GetCarriedCount(KeyOf(0), POUCH_USE_GARNET), POUCH_USE_A_STACK);
 	});
 }
 
