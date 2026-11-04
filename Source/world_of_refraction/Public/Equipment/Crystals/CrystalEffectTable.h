@@ -569,20 +569,12 @@ namespace CrystalEffectTable
 
     // ==================== BROKEN DARKNESS ENERGY BONUS (Tier-only) ====================
 
-    /** Fraction of the target BD's MaxEP granted as absorption energy when
-     *  this crystal is used on them. Tier-scaled (F=0.10 .. S=0.70).
-     *  Tier-only — Id.Type is ignored (other than the None early-out). */
+    /** Fraction of the target BD's MaxEP granted as absorption energy when a GEM is used on them.
+     *  Tier-scaled (F=0.10 .. S=0.70). A stone of any kind grants none (B-353b: the old list missed
+     *  Luck, Reflex and Healing; one predicate now). */
     inline float GetBrokenDarknessEnergyPercent(const FCrystalId &Id)
     {
-        // B-353: StatStone stands for the retired single-stat kinds listed below.
-        if (Id.Type == ECrystalType::None || Id.Type == ECrystalType::DamageStone || Id.Type == ECrystalType::StatStone ||
-            Id.Type == ECrystalType::AbilityStone || Id.Type == ECrystalType::DefenseStone ||
-            Id.Type == ECrystalType::CritStone || Id.Type == ECrystalType::TurnSpeedStone ||
-            Id.Type == ECrystalType::StatusStone || Id.Type == ECrystalType::EfficiencyStone ||
-            Id.Type == ECrystalType::MaxHPStone || Id.Type == ECrystalType::MaxEPStone ||
-            Id.Type == ECrystalType::SpellDamageStone || Id.Type == ECrystalType::ResistanceStone ||
-            Id.Type == ECrystalType::SpellSpeedStone || Id.Type == ECrystalType::ActionSpeedStone ||
-            Id.Type == ECrystalType::DurabilityStone)
+        if (Id.Type == ECrystalType::None || CrystalTypeHelpers::IsAugmentStoneType(Id.Type))
         {
             return 0.0f;
         }

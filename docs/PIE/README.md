@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-353b](B-353b.md) | `fix/B-353b-bd-stone-energy` (in `dev`) | No stone (Luck, Reflex, Healing included) gives a Broken Darkness character energy; gems still do | Pending |
 | [B-232](B-232.md) | `feature/B-232-run-state-party` (in `dev`) | Run state and roster on the GameState; each player commands its own character; an unclaimed member rotates (2-player PIE) | Pending |
 | [B-353](B-353.md) | `feature/B-353-stat-stone` (in `dev`) | One StatStone kind with a sub-stat; old single-stat stones map to it, same bonus and name | Pending |
 | [B-352](B-352.md) | `feature/B-352-fusions-retire` (in `dev`) | Fusions retire: nothing makes, buys or attaches one; an authored fusion reads as an empty socket; evolution wear stays | Pending |
