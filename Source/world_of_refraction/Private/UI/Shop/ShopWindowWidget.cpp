@@ -651,8 +651,7 @@ namespace
     /** B-316: buying for someone else needs the purchaser and at least one other member. */
     constexpr int32 BUY_FOR_MIN_PARTY = 2;
 
-    /** B-316: the local party's members, in party order. */
-    /** B-360c (Q-360c): each party member's own key (a later copy of a character is its own) and its name. */
+    /** B-316 / B-360c (Q-360c): each party member's own key (a later copy of a character is its own) and its name. */
     TArray<TPair<FName, FString>> ShopPartyMembers(const UUserWidget &Widget)
     {
         TArray<TPair<FName, FString>> Members;

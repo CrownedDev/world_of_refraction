@@ -46,8 +46,11 @@ static FName KeyOf(const UCharacterData *Character) { return UPoolSubsystem::Get
 /** B-360c: the party member playing Character (the first copy). */
 const FPartyMember &PartyOf(const UCharacterData *Character) const
 {
-	const UParty *Party = TestWorld->GetSubsystem<UPartySessionSubsystem>()->GetLocalParty();
-	return *Party->Members.FindByPredicate([Character](const FPartyMember &M) { return M.CharacterData == Character; });
+	static const FPartyMember NoMember;
+	const UPartySessionSubsystem *Session = TestWorld->GetSubsystem<UPartySessionSubsystem>();
+	const UParty *Party = Session ? Session->GetLocalParty() : nullptr;
+	const FPartyMember *Found = Party ? Party->Members.FindByPredicate([Character](const FPartyMember &M) { return M.CharacterData == Character; }) : nullptr;
+	return Found ? *Found : NoMember;
 }
 END_DEFINE_SPEC(FLevelDropsSpec)
 
