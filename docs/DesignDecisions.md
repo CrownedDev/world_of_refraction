@@ -1974,6 +1974,20 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **What it changes:** B-331 (one Speed, slice 1, merged into dev 2026-11-04 as 61e8a26d) is undone by **B-331r**: a proper revert of the merge's effect (no history rewriting), so Action Speed narrows the attack defense windows and Spell Speed the spell windows, as before B-331; the Water break and the Ice wording (D-088) are re-checked against both. B-331b (one Speed, part 2) is dropped: every item of it was the speed merge. Q-331 is superseded.
 **Notes for Claude:** B-331r after B-360.
 
+### D-152 — A run-only recruit shares the host's inventory (amends Q-316b, Q-322, B-076)
+**Status:** DECIDED (Crown, 2026-11-04, via the brain; the co-op holder corrected to the host the same day) · **Raised:** 2026-11-04 · **Blocks:** —
+**Answer (Crown):** a recruit found in a run (D-026, B-076) joins the party and is looked after by it, as in Final Fantasy XIII: **its inventory is the host's and the host's is its**. It has no pouch, gear or skills of its own: whatever it holds was always the host's. When it leaves at run end, everything it had **stays with the host**, nothing lost and nothing duplicated. It **can trade skills** like any member. In co-op, recruited AI teammates are handled by the **host** (their inventory is the host's; at run end everything stays with the host).
+**What it changes:** Q-316b point 2 (recruits traded no skills: now they do); Q-322 (a recruit gets no 10-slot pouch of its own: it uses the host's); B-076's run-end handling (nothing a recruit held is dropped). Q-321 point 1 (a recruit draws the whole armoury, its pickups go to the party leader) already fits solo play. Built in **B-361**.
+**Assumption (flag for Crown):** "the host's" inventory means the host's own character in the party (the party leader in solo play): its pouch is the one a recruit uses, and gear or skills a recruit holds at run end go to it.
+**Notes for Claude:** B-361, at the top of the queue.
+
+### D-153 — Trading between players: gear yes and for good, skills no (amends B-316b, Q-316b)
+**Status:** DECIDED (Crown, 2026-11-04, via the brain) · **Raised:** 2026-11-04 · **Blocks:** —
+**Answer (Crown):** players may trade **gear**: a traded piece is no longer yours (ownership moves to the receiver for good). **Skills cannot be traded between players.**
+**What it changes:** B-316b's give / ask for a skill between two players' members goes (Q-316b point 3: "another player's member waits for the co-op screen" becomes "refused"). Recruits share the host's inventory (D-152), so they count as the host's.
+**Assumption (flag for Crown):** moving skills between characters **one player** owns is unchanged (give and ask stay for them).
+**Notes for Claude:** the code change is folded into B-361.
+
 ### Q-360 — D-150 against the deckbuilder's co-op rules
 **Status:** ANSWERED (Crown's rule, D-150; the deckbuilder differs on one point) · **Raised:** 2026-11-04 (D-150 reference check) · **Blocks:** —
 **Context:** `CrownedDev/wor-deckbuilder` `docs/design/WoR_TCG_Pivot_Design.md` §8: item 23 (the table's owner adds AI players and chooses or moves their seats; empty seats stay empty until a player sits or the owner adds an AI, nothing is auto-filled; a table can start with empty seats), items 29 and 53 (the side's players take an empty seat's turns, rotating in seat order; the rotation carries on across rounds), items 77 and 80 (AI seat settings are the owner's, fixed during a match).
@@ -2093,6 +2107,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** A 10 each (D-097's number, per character), raisable as D-097 says / B split 10 across the party.
 **Recommendation:** A. Monster Hunter's item pouch (D-097's model) is per hunter at a fixed size; BG3 gives each character their own inventory. Splitting would make a fourth member cost the others space.
 **Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+**Amended (D-152, 2026-11-04):** a run-only recruit has no pouch of its own: it uses the host's (the host's own character, D-152's assumption). Built in B-361.
 
 ### Q-303 — A Generic's item limit: two weapons and an adapter at once?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-10-29 (B-303 review) · **Blocks:** —
@@ -3658,6 +3673,7 @@ Moved here once applied. Newest first.
 - (5) **A** spells and abilities are learned straight into the receiver's store (the payer may know it already); evolutions stay refused until an evolution give exists (Q-323). **B** skills only for a payer who doesn't know them.
 **Recommendation:** (1) A: one store for everything a character owns, as the store jobs before it. (2) A: Q-321's rule, unchanged. (3) A: an AI companion simply hands over, as in Divinity: Original Sin 2's party trade (no prompt for your own companions); a co-op friend must agree, as in its multiplayer trade. (4) A: the same as a given worn gear piece comes off (B-323); a refusal would make the player unequip first for no gain. (5) A: buying for someone is buying for them, as in Baldur's Gate 3's buy-to-companion; the payer's own copy has nothing to do with it.
 **Answer:** **A, A, A, A, A**, by the reference-backed default (2026-11-04). Crown may change any of them.
+**Amended (2026-11-04):** point 2 is replaced by **D-152** (a recruit shares the host's inventory and trades skills like any member); point 3 by **D-153** (no skill trading between players: a request to another player's member is refused, not held for a screen). Both built in B-361.
 **Notes for Claude:** applied in B-316b. Under D-122 the store's skills move onto each member's component. The request's "another player's member" check reads `AWoRPlayerState::ClaimsMember` and is a TODO for the co-op request screen (B-233+). As with the rest of the pool, nothing clears the skills for a new game in the same session (the save wipe and a restart do). The skill names on the give placeholder are built strings (TODO with B-127, D-061).
 
 ### Q-347 — With a free run loadout, what can a member equip during the run?
