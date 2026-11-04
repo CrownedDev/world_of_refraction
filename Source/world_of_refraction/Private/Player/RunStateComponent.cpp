@@ -171,6 +171,31 @@ void URunStateComponent::RefreshRoster()
 	}
 	Roster = MoveTemp(NewRoster);
 	UE_LOG(LogWoR, Log, TEXT("[RunState] Roster: %d member(s)"), Roster.Num());
+
+	// B-360b: a claim on a member that left the party (dismissed, replaced) is released, so that player can take a seat again.
+	if (const AGameStateBase *GameState = GetOwner() && GetOwner()->HasAuthority() ? GetOwningGameState() : nullptr)
+	{
+		for (APlayerState *Player : GameState->PlayerArray)
+		{
+			AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player);
+			if (!WoRPlayer)
+			{
+				continue;
+			}
+			TArray<FGuid> Stale;
+			for (const FGuid &Claimed : WoRPlayer->GetClaimedMembers())
+			{
+				if (!Roster.ContainsByPredicate([&Claimed](const FRunRosterEntry &Entry) { return Entry.MemberId == Claimed; }))
+				{
+					Stale.Add(Claimed);
+				}
+			}
+			for (const FGuid &Gone : Stale)
+			{
+				WoRPlayer->ReleaseMember(Gone);
+			}
+		}
+	}
 }
 
 void URunStateComponent::ResetRotation()
@@ -458,7 +483,7 @@ FString URunStateComponent::GetDebugString() const
 	for (const FRunRosterEntry &Entry : Roster)
 	{
 		const int32 Claimed = GetClaimingPlayerId(Entry);
-		Out += FString::Printf(TEXT("\n  %s: %s"), *GetNameSafe(Entry.Character),
+		Out += FString::Printf(TEXT("\n  %s (member %s): %s"), *GetNameSafe(Entry.Character), *Entry.MemberId.ToString(EGuidFormats::Short),
 							   Entry.bAISeat ? TEXT("AI seat")
 							   : Claimed != SeatRules::UNCLAIMED ? *FString::Printf(TEXT("player %d's"), Claimed)
 																 : TEXT("unclaimed (the host's, D-150)"));

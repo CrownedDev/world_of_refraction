@@ -448,7 +448,9 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 		for (const AActor *Member : LocalPartyCombatants)
 		{
 			const UCharacterDataComponent *MemberData = Member ? Member->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-			const FName MemberKey = UPoolSubsystem::GetCharacterKey(MemberData); // B-360b: a copy's own key
+			// TODO: B-360c: the level-drop screen and placement read by character (the first copy, Q-360c), so a copy's
+			// levels are banked there until they take the member; with GetCharacterKey(MemberData) they could not be spent.
+			const FName MemberKey = UPoolSubsystem::GetCharacterKey(MemberData ? MemberData->CharacterData : nullptr);
 			// Only rostered members: a guest or summon has no level-drop screen row to spend them from.
 			if (MemberKey.IsNone() || !MemberData->FindCarriedPartyMember())
 			{

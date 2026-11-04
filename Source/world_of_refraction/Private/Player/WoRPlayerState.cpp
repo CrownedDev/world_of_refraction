@@ -306,11 +306,13 @@ void AWoRPlayerState::HandlePawnSet(APlayerState *Player, APawn *NewPawn, APawn 
 	{
 		ReleaseCharacter(OldData);
 	}
-	if (NewMember.IsValid())
+	// An unstamped pawn (the hub) means the first copy; a player that already holds a seat (a joiner whose copy is a
+	// later one) does not reach for it.
+	if (NewMember.IsValid() && (NewComp->PartyMemberId.IsValid() || !HasAnyClaim()))
 	{
 		ClaimMember(NewMember);
 	}
-	else if (NewData)
+	else if (!NewMember.IsValid() && NewData)
 	{
 		ClaimCharacter(NewData);
 	}
