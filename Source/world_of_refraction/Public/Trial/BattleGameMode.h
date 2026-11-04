@@ -89,9 +89,18 @@ private:
 
     void ReturnToTrial();
 
+    /** B-362 (D-155, Q-155): the party was wiped. Counts it on the run, takes each member's run pillar points
+     *  (DefeatRules) and revives the party for the trip back; ReturnToTrial then goes to the hub instead when the
+     *  run is over. Replaces B-072's "lose = hub". */
+    void ApplyWipe();
+
     /** B-209 (D-100 part 2): a fight won is an event that checks memory unlock conditions; a
      *  beaten boss's MemoryOnDefeat is the memory it names. */
     void CheckFightWonMemories();
+
+    /** B-362 (per fight, D-064): this fight's wipe ended the run (3 main-boss losses or 5 wipes), so ReturnToTrial
+     *  leaves for the hub, not the trial. */
+    bool bWipeEndsRun = false;
 
     /** No player-side combatant is below the HP it started the fight with. TODO: a heal hides a
      *  hit; count damage taken once a per-fight damage record exists. */

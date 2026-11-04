@@ -197,6 +197,10 @@ void UTrialRunSubsystem::ExitTrial()
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
+    // B-362: a run ended by losses leaves from the battle level, with its fight's stash still set; the hub has no fight.
+    PendingBattleParty.Reset();
+    PendingOpposingParty.Reset();
+    EncounterReturnLevel = nullptr;
     // B-090: a trial's exit is a save point.
     GetGameInstance()->GetSubsystem<USaveSubsystem>()->SaveNow(GetGameInstance()->GetWorld(), true);
     TravelTo(HubLevel);
