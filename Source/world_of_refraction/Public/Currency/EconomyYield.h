@@ -112,6 +112,11 @@ namespace EconomyYield
         constexpr int32 CRYSTAL_VALUE_B = 16;
         constexpr int32 CRYSTAL_VALUE_A = 32;
         constexpr int32 CRYSTAL_VALUE_S = 96;
+
+        // B-333 (Q-333): an upgrade of an item with an element also costs Elemental Essence, this
+        // fraction (1/DIVISOR) of the step's Gear / Skill cost — the old half-cost "Unknown"
+        // (Reality) co-cost folded into Elemental. Buying an evolution adds the same half.
+        constexpr int32 ELEMENTAL_CO_COST_DIVISOR = 2;
     }
 
     /** Typed acquisition essence yielded by dismantling a crystal/stone of this tier (§4.2). */
@@ -316,7 +321,8 @@ namespace EconomyYield
         }
     }
 
-    /** Fold a sub-stat onto its pillar typed-essence (Mind / Body / Spirit). Reusable — spell
+    /** OBSOLETE (B-333): typed essences retire (D-125); use GetCrystalEssence. Delete in the sweep (D-124).
+     *  Fold a sub-stat onto its pillar typed-essence (Mind / Body / Spirit). Reusable — spell
      *  pricing reuses this. NOTE: StatusMultiplier is a SPIRIT sub-stat (see ActionStatModifiers.h
      *  — kept in its Mind-block enum position for serialization safety, the pillar lives here).
      *  None (no sub-stat) → Generic + a warning: a stat-stone always resolves to a real sub-stat,
@@ -351,7 +357,8 @@ namespace EconomyYield
         }
     }
 
-    /** Map a resolved spell element to its typed essence — 1:1 by NAME for the 10 elements
+    /** OBSOLETE (B-333): typed essences retire (D-125). Delete in the sweep (D-124).
+     *  Map a resolved spell element to its typed essence — 1:1 by NAME for the 10 elements
      *  (the two enums differ in order, so this is a switch, not a cast). Generic / None →
      *  Generic (Quartz's element is None; EEssenceType::Generic == "Quartz's element"). */
     inline EEssenceType ElementToEssenceType(ESpellElement Element)
@@ -359,7 +366,8 @@ namespace EconomyYield
         return ElementTable::ForElement(Element).Essence;
     }
 
-    /** Which typed essence a crystal/stone yields when dismantled. Gems → element essence;
+    /** OBSOLETE (B-333): typed essences retire (D-125); use GetCrystalEssence. Delete in the sweep (D-124).
+     *  Which typed essence a crystal/stone yields when dismantled. Gems → element essence;
      *  AbilityStone → Ability; other (stat) stones → pillar essence via the sub-stat fold.
      *  Variant does NOT affect type or amount. */
     inline EEssenceType ResolveEssenceType(const FCrystalId &Id)
@@ -380,5 +388,47 @@ namespace EconomyYield
         UE_LOG(LogTemp, Warning,
                TEXT("[EconomyYield] ResolveEssenceType: unclassified crystal type — defaulting to Generic essence"));
         return EEssenceType::Generic;
+    }
+
+    // ── B-333 (D-125): the seven balances ──────────────────────────────────────────────
+
+    /** The essence a crystal or stone is bought with and dismantles into: a gem (Quartz too — it
+     *  folds into Elemental) Elemental, an ability stone Skill, any other (stat) stone Pillar.
+     *  None / an unclassified type → Elemental + a warning (a real crystal always classifies). */
+    inline ECurrencyType GetCrystalEssence(ECrystalType Type)
+    {
+        if (Type == ECrystalType::AbilityStone)
+        {
+            return ECurrencyType::SkillEssence;
+        }
+        if (CrystalTypeHelpers::IsStatStone(Type))
+        {
+            return ECurrencyType::PillarEssence;
+        }
+        if (!CrystalTypeHelpers::IsGemType(Type))
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("[EconomyYield] GetCrystalEssence: unclassified crystal type %d — defaulting to Elemental essence"),
+                   static_cast<int32>(Type));
+        }
+        return ECurrencyType::ElementalEssence;
+    }
+
+    /** An item has an element unless it is None. Generic takes the caster's element, so it counts. */
+    inline bool HasElement(ESpellElement Element)
+    {
+        return Element != ESpellElement::None;
+    }
+
+    /** A spell has an element unless it is None (see HasElement). */
+    inline bool SpellHasElement(ESpellElement Element)
+    {
+        return HasElement(Element);
+    }
+
+    /** The Elemental co-cost on upgrading an item with an element, from the step's Gear / Skill cost. */
+    inline int32 GetElementalCoCost(int32 LevelingCost)
+    {
+        return LevelingCost / Constants::ELEMENTAL_CO_COST_DIVISOR;
     }
 }
