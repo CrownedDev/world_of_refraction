@@ -348,6 +348,10 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	bool bResolvedPerfect = false;
 
+	/** B-367: THIS impact's success was a luck dodge (D-085), not the player's timing: it stops no interrupt point. */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	bool bResolvedLuckDodge = false;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	bool bResultResolved = false;
 

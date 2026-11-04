@@ -2019,6 +2019,7 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 	Ctx->ResolvedGuardFactor = BaseSlice > 0 ? static_cast<float>(Result.FinalDamage) / BaseSlice : 1.0f; // B-293d
 	Ctx->bResolvedSuccess = Result.bSuccess;
 	Ctx->bResolvedPerfect = Match.bPerfect;
+	Ctx->bResolvedLuckDodge = bLuckDodged;
 	Ctx->bResultResolved = true;
 
 	AActor *Attacker = Ctx->Attacker.Get();
@@ -2660,12 +2661,12 @@ bool UActionExecutor::AllInterruptSucceeded() const
 		{
 			return false; // not every defender has resolved this hit yet → don't abort
 		}
-		if (!GuardRules::StopsInterruptableHit(Ctx.ResolvedDefenseType, Ctx.bResolvedSuccess, Ctx.bResolvedPerfect))
+		if (!GuardRules::StopsInterruptableHit(Ctx.ResolvedDefenseType, Ctx.bResolvedSuccess, Ctx.bResolvedPerfect && !Ctx.bResolvedLuckDodge))
 		{
-			return false; // any defender failed to parry/dodge → no abort, the attack continues
+			return false; // any defender without a perfect defense → no abort, the attack continues
 		}
 	}
-	return true; // every defender resolved AND parried/dodged the interruptable hit
+	return true; // every defender resolved AND perfectly guarded / dodged the interrupt point (D-161)
 }
 
 bool UActionExecutor::RecordChokeAndShouldAbort(AActor *Target, bool bDefended)
@@ -2716,16 +2717,28 @@ void UActionExecutor::InterruptAsyncAction(AActor *Attacker, USkillDataBase *Ski
 	//    context and apply no tail (the aborted remainder must NOT land). The interruptable hit's own
 	//    (parried) damage already applied at the resolve site before this call.
 	TArray<AActor *> Defenders;
+	TArray<TPair<AActor *, AActor *>> Flawless; // B-367 (D-161): defender, attacker
 	for (auto &Pair : CurrentExecutionContext->PendingDefenses)
 	{
 		if (Pair.Key.IsValid())
 		{
 			Defenders.Add(Pair.Key.Get());
+			// Ended through an interrupt point with every hit so far perfectly defended: a Flawless Parry.
+			if (Pair.Value.FlawlessTally.EndAtInterrupt())
+			{
+				Flawless.Emplace(Pair.Key.Get(), Pair.Value.Attacker.Get());
+			}
 		}
 	}
 	CurrentExecutionContext->PendingDefenses.Empty();
 	if (UDefenseSystem *DefenseSys = GetDefenseSystem())
 	{
+		for (const TPair<AActor *, AActor *> &Parry : Flawless)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[Defense] Flawless Parry at an interrupt point: %s against %s"), *GetNameSafe(Parry.Key),
+				   *GetNameSafe(Parry.Value));
+			DefenseSys->OnFlawlessParry.Broadcast(Parry.Key, Parry.Value);
+		}
 		for (AActor *D : Defenders)
 		{
 			DefenseSys->CloseDefenseWindow(D);
@@ -3988,7 +4001,7 @@ bool UActionExecutor::ResolveSpellArrival(AActor *Target, int32 CastEntryIndex, 
 								 CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
 								 CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable;
 		const bool bDefended = GuardRules::StopsInterruptableHit(Ctx->ResolvedDefenseType, Ctx->bResolvedSuccess,
-																 Ctx->bResolvedPerfect);
+																 Ctx->bResolvedPerfect && !Ctx->bResolvedLuckDodge);
 		ApplyOneImpact(Attacker, Target, *Ctx, ImpactOrdinal, /*bDamageIsPerImpact=*/true);
 		// Cross-target interrupt tally: record this target's outcome; abort once ALL targets have
 		// resolved AND all parried/dodged this choke point.
