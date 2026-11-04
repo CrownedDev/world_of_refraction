@@ -1,6 +1,7 @@
 // PartySessionSubsystem.cpp
 
 #include "Party/PartySessionSubsystem.h"
+#include "Party/SeatRules.h"
 
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
@@ -833,9 +834,7 @@ FString UPartySessionSubsystem::GetPartyStateString() const
 				? FString::Printf(TEXT("%s/%d"), *CombatRowHelpers::GetRowName(Member.PreferredRow),
 								  Member.PreferredColumn)
 				: FString(TEXT("unplaced"));
-		FString ControlLabel = Member.bAISeat
-								   ? FString::Printf(TEXT("AI seat, %s"), *StaticEnum<EAIDifficulty>()->GetNameStringByValue(static_cast<int64>(Member.AISeatDifficulty)))
-								   : FString(TEXT("Player"));
+		FString ControlLabel = SeatRules::GetSeatString(Member.bAISeat, Member.AISeatDifficulty);
 		if (Member.bRunOnly)
 		{
 			ControlLabel += TEXT(", run only");
