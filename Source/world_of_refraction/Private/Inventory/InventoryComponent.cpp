@@ -2741,7 +2741,10 @@ void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)
         // B-203 / B-322 (D-097, D-117): the pool's Crystals / Stones are storage now; a member carries its
         // own pouch instead, so the draw binds to that rather than copying storage.
         const UCharacterDataComponent *PouchOwner = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-        const FName PouchKey = UPoolSubsystem::GetCharacterKey(PouchOwner);
+        const UGameInstance *PouchGI = Pool->GetGameInstance();
+        const UPartySessionSubsystem *PartySession = PouchGI ? PouchGI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+        const FName OwnKey = UPoolSubsystem::GetCharacterKey(PouchOwner);
+        const FName PouchKey = PartySession ? PartySession->GetPouchKey(OwnKey) : OwnKey; // B-361: a recruit carries the host's
         if (PouchKey.IsNone())
         {
             UE_LOG(LogTemp, Warning, TEXT("[Inventory] %s has no character data: its items stay its own, not a pouch"), *GetNameSafe(GetOwner()));

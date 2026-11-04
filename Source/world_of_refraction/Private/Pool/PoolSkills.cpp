@@ -131,13 +131,20 @@ bool UPoolSubsystem::MoveAbility(FName FromKey, FName ToKey, const UAbilityData 
 int32 UPoolSubsystem::HandOverSkills(FName FromKey, FName ToKey)
 {
     FPoolSkills Leaving;
-    if (FromKey == ToKey || !CharacterSkills.Contains(ToKey) || !CharacterSkills.RemoveAndCopyValue(FromKey, Leaving))
+    if (FromKey == ToKey || !CharacterSkills.Contains(FromKey))
     {
         return 0;
     }
+    if (!CharacterSkills.Contains(ToKey))
+    {
+        // The host always draws before a recruit can join; kept (not lost) if it somehow hasn't.
+        UE_LOG(LogTemp, Warning, TEXT("[Pool] HandOverSkills: %s has no skills kept yet; %s keeps its own"), *ToKey.ToString(), *FromKey.ToString());
+        return 0;
+    }
+    CharacterSkills.RemoveAndCopyValue(FromKey, Leaving);
     FPoolSkills &To = CharacterSkills[ToKey];
     int32 Moved = 0;
-    int32 Dropped = 0;
+    TArray<FString> Dropped;
     for (const FSpellInstance &Spell : Leaving.Spells)
     {
         const bool bFits = Spell.Spell && To.Spells.Num() < InventoryConstants::MAX_LEARNED_SPELLS &&
@@ -149,7 +156,7 @@ int32 UPoolSubsystem::HandOverSkills(FName FromKey, FName ToKey)
         }
         else
         {
-            ++Dropped;
+            Dropped.Add(GetNameSafe(Spell.Spell));
         }
     }
     for (const FAbilityInstance &Ability : Leaving.Abilities)
@@ -163,11 +170,11 @@ int32 UPoolSubsystem::HandOverSkills(FName FromKey, FName ToKey)
         }
         else
         {
-            ++Dropped;
+            Dropped.Add(GetNameSafe(Ability.Ability));
         }
     }
-    UE_LOG(LogTemp, Log, TEXT("[Pool] %s's skills go to %s: %d moved, %d already known or no room (one copy kept, Q-361c)"),
-           *FromKey.ToString(), *ToKey.ToString(), Moved, Dropped);
+    UE_LOG(LogTemp, Log, TEXT("[Pool] %s's skills go to %s: %d moved; already known or no room (one copy kept, Q-361c): %s"),
+           *FromKey.ToString(), *ToKey.ToString(), Moved, Dropped.IsEmpty() ? TEXT("none") : *FString::Join(Dropped, TEXT(", ")));
     OnPoolSkillsChanged.Broadcast(FromKey);
     OnPoolSkillsChanged.Broadcast(ToKey);
     return Moved;

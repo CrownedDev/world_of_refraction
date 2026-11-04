@@ -1183,9 +1183,13 @@ bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMer
     // Crystals and stones the purchase put in the payer's pouch move to the receiver's, as many as fit.
     int32 ItemsMoved = 0;
     // A host buying for its recruit (or the other way round): the items are already in the pouch they share.
-    const TMap<FCrystalId, int32> CarriedAfter = ForPouch == PayerPouch ? TMap<FCrystalId, int32>() : Pool->GetCarriedItems(PayerPouch);
-    for (const TPair<FCrystalId, int32> &Stack : CarriedAfter)
+    const bool bSharedPouch = ForPouch == PayerPouch;
+    for (const TPair<FCrystalId, int32> &Stack : TMap<FCrystalId, int32>(Pool->GetCarriedItems(PayerPouch)))
     {
+        if (bSharedPouch)
+        {
+            break;
+        }
         const int32 *Before = CarriedBefore.Find(Stack.Key);
         const int32 Bought = Stack.Value - (Before ? *Before : 0);
         const int32 Moving = FMath::Min(Bought, Pool->GetCarryRoom(ForPouch, Stack.Key));
