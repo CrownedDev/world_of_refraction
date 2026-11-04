@@ -49,6 +49,7 @@
 #include "Equipment/Crystals/CrystalManager.h"
 #include "TimerManager.h"
 #include "Combat/CombatControl.h"
+#include "Player/RunStateComponent.h" // B-232: the seat rotation
 #include "Party/PartySessionSubsystem.h"
 #include "HAL/IConsoleManager.h"
 #include "WoRLog.h"
@@ -208,6 +209,12 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 
 	// Store difficulty
 	CombatDifficulty = Difficulty;
+
+	// B-232 (Q-21-audit): the seat rotation starts over each fight.
+	if (URunStateComponent *Run = URunStateComponent::Find(this); Run && HasAuthority())
+	{
+		Run->ResetRotation();
+	}
 
 	// Register with AI manager
 	if (AIDecisionManagerRef)
@@ -1366,6 +1373,12 @@ void ACombatOrchestrator::ProcessStartOfTurnEffects(AActor *Actor)
 
 void ACombatOrchestrator::ProcessEndOfTurnEffects(AActor *Actor)
 {
+	// B-232 (Q-21-audit): a turn the side's rotation took moves the rotation to the side's next player.
+	if (URunStateComponent *Run = URunStateComponent::Find(this); Run && HasAuthority())
+	{
+		Run->NoteTurnTaken(Actor);
+	}
+
 	if (!SkillEffectManagerRef)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] SkillEffectManager not available for end-of-turn processing"));

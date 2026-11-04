@@ -150,8 +150,11 @@ public:
 	ECombatInputVerdict HandleDefenseInput(EDefenseType DefenseType, EDefenseDirection Direction, double PressServerTime,
 										   bool bFromClient = false);
 
-	/** Does Sender command Actor? Its own pawn, an actor it owns, or (until B-232 assigns characters to players)
-	 *  any player-driven combatant: shared party control. A bot-driven pawn (enemy, AI ally) is never controlled. */
+	/** Does Sender command Actor? Its own pawn, an actor it owns, or, for a member of the side's roster, the seat rule
+	 *  (B-232, Q-21-audit, URunStateComponent::IsCommandedBy): its own characters, an unclaimed member when the
+	 *  rotation is on Sender, never an AI seat. Off the roster (no GameState run state, a test actor) the old rule
+	 *  stays: any player-driven combatant, and a non-pawn combatant only for a pick made on this machine (bFromClient
+	 *  false, B-229). A bot-driven pawn (enemy) is never controlled. */
 	static bool ControlsActor(const AController *Sender, const AActor *Actor, bool bFromClient = false);
 
 	/** This machine's combat player controller (the first local player's), or null (headless, other PC class). */

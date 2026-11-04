@@ -3326,7 +3326,26 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. The project's co-op network defaults (perf audit, Backlog co-op section) are "reliable server RPCs only for commands", and the usual Unreal shape is one validated server RPC per player order: the command carries everything needed to run it, so the server never holds half an order. Two messages could arrive with a stale level between them. If hold-to-charge comes back, its release becomes the level in the same pick. Not lore.
 **Notes for Claude:** applied in feature/B-229-input-rpcs (UNBUILT): `FCombatPickRequest`, `ACombatPlayerController::Server_SubmitMenuPick`.
 
+### Q-232 — Run state and party on the GameState / PlayerState: what this slice does
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-232, cloud) · **Blocks:** —
+**Question:** B-232 moves the run state to the GameState and the party to PlayerState + GameState, with Q-21-audit's seats. The run lives across level travel and a GameState lives for one level; the host's HUD opens the command menu for every player-driven member. How far does this unbuilt slice go, and which character is "a player's own"?
+**Options / as built:**
+- (1) **A** the subsystems stay the run's owner across travel; the GameState's `URunStateComponent` copies the run and the side's roster when each level starts (server) and replicates them; reads go through its `Get*` helpers, which answer from the subsystem when there is no GameState (standalone, specs). The command menu's routing to the commanding machine, the other run readers, found features / memories / run levels / Gold and the recruit filling a spot move to **B-232b**. **B** everything now.
+- (2) **A** a player's own character is the one its pawn plays (claimed when the pawn is set, carried by seamless travel); every other non-AI member is unclaimed and rotates. Solo: one player, so it commands every member, as before. **B** each player picks characters in a lobby.
+**Recommendation:** (1) A: Unreal's own split (Lyra, the ShooterGame sample): GameInstance subsystems survive travel, the GameState replicates what the current level's players share. (2) A: it is the deckbuilder's seat rule as Q-21-audit reads it (a player's own seat, empty seats rotate in seat order) with no new screen; a lobby can come with B-233's invites.
+**Answer:** **A, A**, by the reference-backed default (2026-11-04). Crown may change it.
+**Notes for Claude:** built in B-232 (unbuilt); B-232b added. Until B-232b, a 2-player host still sees the menu for a client's member; its pick is refused (`NotControlled`) and the client answers with `wor.Net.SendDefendPick`. The roster's AI seat is B-346's `FPartyMember::bAISeat` (dev merged in on the desktop); the roster follows the party through `OnPartyChanged`.
+
+### Q-232b — Seats in practice: a fight restarts the rotation; a character has one claimant; a pawn swap moves the claim
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-232, desktop review) · **Blocks:** —
+**Question:** B-232 left three edges open: when does the side's rotation counter reset (the header said per fight, the code reset it per level); can two players claim one character (identical pawn classes share a `CharacterData`); does a player keep a character after its pawn changes?
+**Options:** (a) **A** the rotation restarts at every `StartCombat` / **B** it runs on across a level's fights. (b) **A** a claim another player already holds is refused (first come, logged) / **B** the newest claim wins. (c) **A** a pawn swap releases the old pawn's character and claims the new one / **B** claims are sticky until travel.
+**Recommendation:** A / A / A. Board games restart seat order each round of play (Gloomhaven, Spirit Island: the turn marker resets per scenario / round), so a fight starting fresh is what players expect; one owner per piece is every tabletop's rule; and a swap of character means the old one is back on the table for the rotation.
+**Answer:** **A / A / A**, by the reference-backed default (2026-11-04). Crown may change any. Seat order is ascending player id (the same on every machine).
+**Notes for Claude:** built in B-232's desktop review (`URunStateComponent::ResetRotation` from `StartCombat`, `AWoRPlayerState::ClaimCharacter` / `ReleaseCharacter`, `HandlePawnSet`).
+
 ### Q-229b — Co-op before B-232: which characters may a player command?
+**Ended for the roster by B-232** (2026-11-04): a roster member follows the seat rule (Q-232); off the roster the interim rule stays.
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-229) · **Blocks:** —
 **Question:** The server must check that a pick or a Guard comes from a player who controls that character. Characters aren't assigned to players until B-232. What does the check accept until then?
 **Options:**

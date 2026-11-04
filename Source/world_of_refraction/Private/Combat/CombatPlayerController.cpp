@@ -1,6 +1,7 @@
 // CombatPlayerController.cpp
 
 #include "Combat/CombatPlayerController.h"
+#include "Player/RunStateComponent.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
@@ -370,9 +371,14 @@ bool ACombatPlayerController::ControlsActor(const AController *Sender, const AAc
 	{
 		return true;
 	}
-	// TODO(B-232): each player commands only their own characters. Until then the party is shared (Q-229b): any
-	// player-driven combatant. A non-pawn combatant (the test harness's) counts as player-driven, as in the orchestrator,
-	// but only for a pick made here: a remote client may only name a pawn.
+	// B-232 (Q-21-audit): a roster member follows the seat rule; Q-229b's shared control ends for the roster.
+	if (const URunStateComponent *Run = URunStateComponent::Find(Sender); Run && Run->FindRosterEntry(Actor))
+	{
+		return Run->IsCommandedBy(Actor, Sender);
+	}
+	// Off the roster (no GameState run state, a test actor): any player-driven combatant. A non-pawn combatant (the test
+	// harness's) counts as player-driven, as in the orchestrator, but only for a pick made here: a remote client may
+	// only name a pawn (B-229).
 	const APawn *Pawn = Cast<APawn>(Actor);
 	return Pawn ? CombatControl::IsPlayerDriven(Pawn) : !bFromClient;
 }
