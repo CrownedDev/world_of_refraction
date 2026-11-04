@@ -124,7 +124,7 @@ static FAutoConsoleCommandWithWorldAndArgs GPartyLetAIFinishCommand(
 
 static FAutoConsoleCommandWithWorldAndArgs GPartySetFormationCommand(
 	TEXT("wor.Party.SetFormation"),
-	TEXT("wor.Party.SetFormation <slot> <Back|Middle|Front> <column 0-2> - the member's start cell (D-042); a taken cell swaps the two."),
+	TEXT("wor.Party.SetFormation <slot> <Back|Middle|Front> <column 0-2> - the member's start row (B-342, D-134); the column is kept only as a tie-break for the start slot."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&PartySessionDebug::SetFormation));
 
 static FAutoConsoleCommandWithWorld GPartyReviveFallenCommand(

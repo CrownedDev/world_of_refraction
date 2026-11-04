@@ -403,18 +403,16 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
         }
     }
 
-    // Items
+    // Items: B-313, what the fight can use (a member's pouch, else the loadout's item slots).
     int32 UsableItems = 0;
     int32 TotalUses = 0;
-    for (const FItemLoadoutSlot &Slot : Active.ItemSlots)
+    for (const FItemLoadoutSlot &Slot : Loadout->GetUsableItems())
     {
-        if (!Slot.IsEmpty())
-        {
-            UsableItems++;
-            TotalUses += Slot.Quantity;
-        }
+        UsableItems++;
+        TotalUses += Slot.Quantity;
     }
-    UE_LOG(LogTemp, Display, TEXT("Items: %d slots, %d uses remaining"), UsableItems, TotalUses);
+    UE_LOG(LogTemp, Display, TEXT("Items (%s): %d stack(s), %d use(s) this fight"),
+           Loadout->UsesPouchItems() ? TEXT("pouch") : TEXT("loadout slots"), UsableItems, TotalUses);
 
     // Totals
     UE_LOG(LogTemp, Display, TEXT("---"));

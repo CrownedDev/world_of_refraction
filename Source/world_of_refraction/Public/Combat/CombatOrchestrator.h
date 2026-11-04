@@ -273,8 +273,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat|Row")
 	FText GetRowMoveRefusedReason(AActor *Actor, bool bForward) const;
 
-	/** D-096: free, once per turn: step one row in the same column, swapping with an ally standing
-	 *  there. Row bonuses apply from the new row at once (the grid is read per hit). */
+	/** D-096: free, once per turn: step one row, into any free slot of that row (B-342, D-134: an ally
+	 *  never blocks; only a full row refuses). Row bonuses apply from the new row at once (the grid is
+	 *  read per hit). */
 	bool TryMoveRow(AActor *Actor, bool bForward, FText &OutRefusedReason);
 
 	// ========================================
