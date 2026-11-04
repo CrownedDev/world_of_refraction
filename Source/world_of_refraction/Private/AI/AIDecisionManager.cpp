@@ -1101,6 +1101,11 @@ bool UAIDecisionManager::IsHealingSpell(const USpellData &Spell)
     return false;
 }
 
+bool UAIDecisionManager::IsHealPick(const USpellData &Spell)
+{
+    return IsHealingSpell(Spell) && !IsOffensiveSpell(Spell);
+}
+
 TArray<USkillDataBase *> UAIDecisionManager::GetOffensiveSkills(ULoadoutComponent *Loadout, EAIActionChoice Category)
 {
     TArray<USkillDataBase *> Skills;
@@ -2007,8 +2012,8 @@ USpellData *UAIDecisionManager::FindHealingSpell(ULoadoutComponent *Loadout)
     TArray<USpellData *> Spells = GetUsableSpells(Loadout);
     for (USpellData *Spell : Spells)
     {
-        // B-356 (D-146): by its effects, not its school.
-        if (Spell && IsHealingSpell(*Spell))
+        // B-356 (D-146): by its effects, not its school. B-356b: a drain is an attack, not a heal.
+        if (Spell && IsHealPick(*Spell))
         {
             return Spell;
         }

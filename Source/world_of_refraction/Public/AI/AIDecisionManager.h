@@ -290,6 +290,10 @@ private:
     /** B-356: a spell with a Heal / HealthRestore payload (whatever its school). */
     static bool IsHealingSpell(const USpellData &Spell);
 
+    /** B-356b: what the heal pick takes: a healing spell that is not also offensive, so a drain
+     *  (damage at an enemy plus a HealthRestore payload) is never cast at an ally as a heal. */
+    static bool IsHealPick(const USpellData &Spell);
+
     /** Calculate threat level of an actor */
     int32 CalculateThreatLevel(AActor *Actor);
 
