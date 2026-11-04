@@ -76,10 +76,8 @@ namespace
 		Out += FString::Printf(TEXT("  Lightning: %+5.0f\n"), Row.Lightning);
 		Out += FString::Printf(TEXT("  Void:      %+5.0f\n"), Row.Void);
 		Out += FString::Printf(TEXT("  Reality:   %+5.0f\n"), Row.Reality);
-		Out += TEXT("--- Physical (percent, +resist / -weak) ---\n");
-		Out += FString::Printf(TEXT("  Slash:     %+5.0f\n"), Row.Slash);
-		Out += FString::Printf(TEXT("  Pierce:    %+5.0f\n"), Row.Pierce);
-		Out += FString::Printf(TEXT("  Impact:    %+5.0f\n"), Row.Impact);
+		Out += TEXT("--- Physical (percent, +resist / -weak; B-358: one value for Slash, Pierce and Impact) ---\n");
+		Out += FString::Printf(TEXT("  Physical:  %+5.0f\n"), ResistanceColumns::Get(Row, ResistanceColumns::PHYSICAL_COLUMN));
 		Out += FString::Printf(TEXT("(combined term per hit = (element + physical) / %.0f, clamped [-1,+1] at the buildup site)\n"),
 							   RESISTANCE_PERCENT_DIVISOR);
 		if (bDesignTime)
