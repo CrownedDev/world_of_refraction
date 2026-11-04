@@ -1,6 +1,7 @@
 // EconomyService.cpp
 
 #include "Currency/EconomyService.h"
+#include "Equipment/Crystals/FFusionId.h" // FusionRules (B-352)
 #include "Currency/EconomyYield.h"
 #include "Currency/CurrencyComponent.h"
 #include "Currency/CurrencyWallet.h"
@@ -816,6 +817,11 @@ namespace
             // (IsDataValid flags it upstream).
             return Attached.Evolution ? 2 * EconomyYield::GetPrismsBaseForTier(Attached.Evolution->Tier) : 0;
         case EAttachedItemKind::Fusion:
+            if constexpr (FusionRules::RETIRED)
+            {
+                return 0; // B-352 (D-141): an authored fusion no longer attaches, so it adds nothing to the price
+            }
+            // OBSOLETE (B-352, D-141; delete in the D-124 sweep): fusion pricing.
             return FMath::RoundToInt(1.5f * (EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfATier) +
                                              EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfBTier)));
         default:
@@ -856,7 +862,11 @@ namespace
         case EAttachedItemKind::AugmentStone:
             return true;
         case EAttachedItemKind::Fusion:
-            return Attached.FusionHalfAType == ECrystalType::AbilityStone ||
+            if constexpr (FusionRules::RETIRED)
+            {
+                return false; // B-352 (D-141): no fusion attaches
+            }
+            return Attached.FusionHalfAType == ECrystalType::AbilityStone || // OBSOLETE (B-352)
                    (!Attached.bFusionHalfBIsCrystal && Attached.FusionHalfBType == ECrystalType::AbilityStone);
         default:
             return false;

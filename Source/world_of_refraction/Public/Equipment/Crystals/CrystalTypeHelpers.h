@@ -88,6 +88,7 @@ namespace CrystalTypeHelpers
      *  None — and evolution is unrepresentable as a half) AND at least one half is a
      *  stat-stone. That single rule rejects every banned pair: crystal+crystal,
      *  AbilityStone+AbilityStone, and AbilityStone+crystal all have zero stat-stones. */
+    /** OBSOLETE (B-352, D-141; delete in the D-124 sweep): fusions retire. */
     inline bool IsValidFusionPair(ECrystalType HalfAType, ECrystalType HalfBType)
     {
         auto IsAllowedHalf = [](ECrystalType T)
