@@ -3073,6 +3073,14 @@ Moved here once applied. Newest first.
 **Notes for Claude:** applied in B-312; B-312b added to the Backlog after B-312. Two small rules the index adds (desktop build): an unset ID finds nothing (the old scan could match an entry with no ID; every pool entry has one, so no change in play), and when two entries share an ID the first wins (as before). Reviewer notes for B-312b: never change an entry's ID through a `Find*InPool` pointer.
 
 
+### Q-354 — One S crystal per battle loadout: what counts as equipped
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-354, cloud) · **Blocks:** —
+**Question:** D-143 keeps one cap: at most one S-tier crystal equipped in a battle loadout. What counts, and what happens to a second?
+**Options:** **A** every S attachment on the loadout's gear (crystal, augment stone, fusion with an S half, evolution, the evolution seat) plus S gems in its item slots; a second is a validation finding, and only the item slots' gems are trimmed automatically (an attachment lives on the item, so the player changes it). Pouch items are carried, not equipped: uncapped. **B** count gems only.
+**Recommendation:** A. World of Warcraft's "unique-equipped" gems and Diablo III's one-of-each legendary gem cap what is socketed in your gear, not what sits in your bags; counting every socketed S piece keeps the rule one line.
+**Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
+**Notes for Claude:** applied in B-354. `InventoryConstants::CRYSTAL_PER_TIER_CAP` (an actor without a pouch, e.g. an enemy) is D-097's older per-tier stack cap, not D-072, and stays.
+
 ### Q-313 — The pouch in a fight: how far B-313 goes, the tier caps, and a recruit's items
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-313, cloud) · **Blocks:** —
 **Question:** B-313 makes each member's pouch its only carried-items list (D-111 "per-loadout item lists retire", D-117). Three things the rulings don't say: (1) switch every reader of the per-member mirror and the per-preset item slots in one unbuilt job, or the combat side first? (2) D-072 caps how many utility crystals of each tier band a character has "equipped" in its item slots (S 1, A/B 2, C/D 3, E/F 4); with no item slots, what does the cap count? (3) a trial recruit (run-only, D-026) brings no pouch of its own; its authored preset's items were a free supply in the preset's slots. Where do they go?
