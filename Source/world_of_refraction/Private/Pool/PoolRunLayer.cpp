@@ -84,8 +84,12 @@ int32 UPoolSubsystem::RestoreRunLayer(const TMap<FGuid, FPoolRunMark> &SavedMark
             ++Dropped;
         }
     }
-    UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer restored from the save: %d mark(s) kept, %d dropped (their gear is gone)"),
-           RunMarks.Num(), Dropped);
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer restored from the save: %d mark(s) kept"), RunMarks.Num());
+    if (Dropped > 0)
+    {
+        // A dropped home mark's piece won't be put back to its home state at run end.
+        UE_LOG(LogTemp, Warning, TEXT("[Pool] Run layer restore: %d saved mark(s) dropped (their gear is no longer in the store)"), Dropped);
+    }
     return RunMarks.Num();
 }
 

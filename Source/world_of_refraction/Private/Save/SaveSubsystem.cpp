@@ -85,6 +85,10 @@ namespace
 		Mark.bRunOnly = In.bRunOnly;
 		Mark.bOnRun = In.bOnRun;
 		Mark.HomeAttached = In.HomeAttached;
+		if (FusionRules::RETIRED && Mark.HomeAttached.Kind == EAttachedItemKind::Fusion)
+		{
+			Mark.HomeAttached = FRuntimeAttachedItem(); // B-352 (D-141): as RestoreGearDetail, a retired fusion is an empty socket
+		}
 		Mark.HomeAttached.Evolution.Item = In.HomeEvolution.IsSet() ? In.HomeEvolution.ResolveAs<UEvolutionItemData>() : nullptr;
 		Mark.HomeAttached.Crystal.Id = StatStone::Normalize(Mark.HomeAttached.Crystal.Id); // B-353 (D-142)
 		for (const FSavedAssetRef &Ref : In.HomeSpells)
@@ -784,7 +788,11 @@ bool USaveSubsystem::RestoreRun(const FSavedRun &Saved, UTrialRunSubsystem &Tria
 	// B-314b: the saved layer replaces the fresh one RestoreRun opened (the store was loaded from this same save).
 	UGameInstance *GI = TrialRun.GetGameInstance();
 	UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
-	if (Pool && Saved.bHasRunLayer)
+	if (Pool && !Saved.bHasRunLayer)
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Save] The saved run has no run layer: the resumed run takes the gear as saved as its home state"));
+	}
+	else if (Pool)
 	{
 		TMap<FGuid, FPoolRunMark> Marks;
 		for (const FSavedRunMark &In : Saved.RunMarks)
