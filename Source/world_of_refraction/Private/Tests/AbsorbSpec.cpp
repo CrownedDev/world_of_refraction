@@ -282,7 +282,9 @@ void FAbsorbSpec::Define()
 		FWoRAbsorbCharge Pool = MakeCharge(EWoRAbsorbVerb::Barrier, EWoRChargeMode::Pool, ABSORB_UNLIMITED);
 		Pool.Magnitude = ABSORB_BIG_POOL;
 		TestTrue(TEXT("pool given"), Give(Pool).IsValid());
-		SEM->ApplyEffect(Hero, FActiveSkillEffect::CreateDOT(TEXT("Spec burn"), DOT_TEST_ID, DOT_TEST_DAMAGE, DOT_TEST_TURNS, ESpellElement::Fire), Hero, TEXT("spec"));
+		FActiveSkillEffect Burn = FActiveSkillEffect::CreateDOT(TEXT("Spec burn"), DOT_TEST_ID, DOT_TEST_DAMAGE, DOT_TEST_TURNS, ESpellElement::Fire);
+		Burn.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn; // ticks when the holder's own turn ends (as EffectsBaselineSpec)
+		SEM->ApplyEffect(Hero, Burn, Hero, TEXT("spec"));
 		const int32 HPBefore = Stats->CurrentHP;
 		SEM->ProcessEndOfTurnEffects(Hero);
 		TestEqual(TEXT("the tick left HP alone"), Stats->CurrentHP, HPBefore);

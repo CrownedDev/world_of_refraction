@@ -125,6 +125,14 @@ TSubclassOf<UGameplayEffect> FWoREffectSpecBuilder::GetEffectClass(ESkillEffectT
 		return UWoRGE_Reflect::StaticClass();
 	case ESkillEffectType::LastStand:
 		return UWoRGE_LastStand::StaticClass();
+	// B-042j2 (D-092): the authored absorbers; applied as charges by USkillEffectManager::ApplyEffect, the family is the absorb GE.
+	case ESkillEffectType::NegateDamage:
+	case ESkillEffectType::NegatePhysical:
+	case ESkillEffectType::NegateElement:
+	case ESkillEffectType::NegateElemental:
+	case ESkillEffectType::NegateDamageTotal:
+	case ESkillEffectType::NegateElementTotal:
+		return UWoRGE_Absorb::StaticClass();
 	case ESkillEffectType::Lifesteal:
 	case ESkillEffectType::AbsorbDamage:
 	case ESkillEffectType::ApplyBurnToTarget:

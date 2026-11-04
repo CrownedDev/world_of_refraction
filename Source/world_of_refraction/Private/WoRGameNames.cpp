@@ -271,6 +271,19 @@ FText GetSkillEffectTypeName(ESkillEffectType EffectType)
         return LOCTEXT("ESkillEffectType_GrantElementImmunity", "Element Immunity");
     case ESkillEffectType::ApplyDOTOnHit:
         return LOCTEXT("ESkillEffectType_ApplyDOTOnHit", "Apply Damage over Time");
+    // B-042j2 (D-092): the absorbing family.
+    case ESkillEffectType::NegateDamage:
+        return LOCTEXT("ESkillEffectType_NegateDamage", "Barrier");
+    case ESkillEffectType::NegatePhysical:
+        return LOCTEXT("ESkillEffectType_NegatePhysical", "Shield");
+    case ESkillEffectType::NegateElement:
+        return LOCTEXT("ESkillEffectType_NegateElement", "Ward");
+    case ESkillEffectType::NegateElemental:
+        return LOCTEXT("ESkillEffectType_NegateElemental", "Elemental Ward");
+    case ESkillEffectType::NegateDamageTotal:
+        return LOCTEXT("ESkillEffectType_NegateDamageTotal", "Barrier (in total)");
+    case ESkillEffectType::NegateElementTotal:
+        return LOCTEXT("ESkillEffectType_NegateElementTotal", "Ward (in total)");
     }
     return FText::GetEmpty();
 }
