@@ -360,11 +360,12 @@ namespace
 		return A.PersistentID.IsValid() || B.PersistentID.IsValid() ? A.PersistentID == B.PersistentID : A.Ring == B.Ring;
 	}
 
-	/** S attachments on the slots the fight reads: the primary by its slot type (a weapon with a Weapon or None type, as
-	 *  UInventoryComponent::LoadoutHasPrimary reads it; the ring; the evolution seat), the secondary weapon with a Weapon
-	 *  type, and each adapter in the ring loadout (the primary ring counted once when it is also there). A stale entry in
-	 *  an inactive slot doesn't count. */
-	int32 CountAttachedSTier(const FCombatLoadout &Loadout)
+	/** S attachments on the slots the fight reads, gated as CollectFindings gates them: the primary by its slot type (a
+	 *  weapon with a Weapon or None type, as UInventoryComponent::LoadoutHasPrimary reads it; the ring; the evolution
+	 *  seat), a Generic's secondary weapon with a Weapon type, and each adapter in a Resonator's ring loadout (the primary
+	 *  ring counted once when it is also there). A stale entry in an inactive slot, or in a slot the class doesn't
+	 *  fight with, doesn't count. */
+	int32 CountAttachedSTier(const FCombatLoadout &Loadout, ECharacterClass Class)
 	{
 		int32 Count = 0;
 		const auto CountEntry = [&Count](const FRuntimeAttachedItem &Attached) { Count += IsSTierAttachment(Attached) ? 1 : 0; };
@@ -385,24 +386,27 @@ namespace
 			Count += Loadout.PrimaryEvolution.Tier == EItemTier::S_Tier ? 1 : 0;
 		}
 		const FWeaponInventoryEntry &Secondary = Loadout.SecondaryWeapon.WeaponEntry;
-		if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Secondary.Weapon)
+		if (Class == ECharacterClass::Generic && Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Secondary.Weapon)
 		{
 			CountEntry(Secondary.AttachedItem);
 		}
-		for (const FRingLoadoutEntry &Ring : Loadout.RingLoadout)
+		if (Class == ECharacterClass::Resonator)
 		{
-			if (Ring.RingEntry.Ring && !(bRingPrimary && IsSameAdapter(Ring.RingEntry, PrimaryRing)))
+			for (const FRingLoadoutEntry &Ring : Loadout.RingLoadout)
 			{
-				CountEntry(Ring.RingEntry.AttachedItem);
+				if (Ring.RingEntry.Ring && !(bRingPrimary && IsSameAdapter(Ring.RingEntry, PrimaryRing)))
+				{
+					CountEntry(Ring.RingEntry.AttachedItem);
+				}
 			}
 		}
 		return Count;
 	}
 
 	/** B-354 (D-143): one S-tier crystal equipped per battle loadout. */
-	void CheckEquippedSTierCrystals(FFindingSink &Sink, const FCombatLoadout &Loadout)
+	void CheckEquippedSTierCrystals(FFindingSink &Sink, const FCombatLoadout &Loadout, ECharacterClass Class)
 	{
-		const int32 Count = FLoadoutRules::CountEquippedSTierCrystals(Loadout);
+		const int32 Count = FLoadoutRules::CountEquippedSTierCrystals(Loadout, Class);
 		if (Count > LoadoutConstants::MAX_EQUIPPED_S_TIER_CRYSTALS)
 		{
 			// Only the item slots' gems can be cleared; an S attachment too many stays reported for the player to change.
@@ -430,7 +434,7 @@ namespace
 		}
 	}
 
-	void CheckItems(FFindingSink &Sink, const FCombatLoadout &Loadout)
+	void CheckItems(FFindingSink &Sink, const FCombatLoadout &Loadout, ECharacterClass Class)
 	{
 		// Quantity range (previously checked in the editor only).
 		for (int32 i = 0; i < Loadout.ItemSlots.Num(); ++i)
@@ -448,7 +452,7 @@ namespace
 		{
 			Sink.Add(ELoadoutSlotType::DuplicateItems, -1, true, TEXT("Duplicate item types in loadout"));
 		}
-		CheckEquippedSTierCrystals(Sink, Loadout); // B-354: replaces CheckUtilityCrystalTierCaps (D-143)
+		CheckEquippedSTierCrystals(Sink, Loadout, Class); // B-354: replaces CheckUtilityCrystalTierCaps (D-143)
 	}
 }
 
@@ -520,7 +524,7 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 		CheckCasterSpells(Sink, Loadout, Context);
 	}
 
-	CheckItems(Sink, Loadout);
+	CheckItems(Sink, Loadout, Context.CharacterClass);
 	return MoveTemp(Sink.Findings);
 }
 
@@ -681,9 +685,9 @@ TArray<FString> FLoadoutRules::ToReasons(const TArray<FInvalidSlotFinding> &Find
 	return Reasons;
 }
 
-int32 FLoadoutRules::CountEquippedSTierCrystals(const FCombatLoadout &Loadout)
+int32 FLoadoutRules::CountEquippedSTierCrystals(const FCombatLoadout &Loadout, ECharacterClass Class)
 {
-	int32 Count = CountAttachedSTier(Loadout);
+	int32 Count = CountAttachedSTier(Loadout, Class);
 	for (const FItemLoadoutSlot &Slot : Loadout.ItemSlots)
 	{
 		Count += IsSTierItemGem(Slot) ? Slot.Quantity : 0;
@@ -691,9 +695,9 @@ int32 FLoadoutRules::CountEquippedSTierCrystals(const FCombatLoadout &Loadout)
 	return Count;
 }
 
-void FLoadoutRules::TrimSTierItemCrystals(FCombatLoadout &Loadout)
+void FLoadoutRules::TrimSTierItemCrystals(FCombatLoadout &Loadout, ECharacterClass Class)
 {
-	int32 Remaining = FMath::Max(0, LoadoutConstants::MAX_EQUIPPED_S_TIER_CRYSTALS - CountAttachedSTier(Loadout));
+	int32 Remaining = FMath::Max(0, LoadoutConstants::MAX_EQUIPPED_S_TIER_CRYSTALS - CountAttachedSTier(Loadout, Class));
 	for (FItemLoadoutSlot &Slot : Loadout.ItemSlots)
 	{
 		if (!IsSTierItemGem(Slot))

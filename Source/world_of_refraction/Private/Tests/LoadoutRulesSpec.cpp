@@ -63,10 +63,17 @@ namespace
 	/** B-354: an equipped stack big enough to have been over D-072's A/B band (2). */
 	constexpr int32 SEVERAL_A_CRYSTALS = 3;
 
-	int32 CountSTierFindings(const FCombatLoadout &Loadout)
+	FLoadoutRuleContext ContextFor(ECharacterClass Class)
+	{
+		FLoadoutRuleContext Context;
+		Context.CharacterClass = Class;
+		return Context;
+	}
+
+	int32 CountSTierFindings(const FCombatLoadout &Loadout, ECharacterClass Class = ECharacterClass::Generic)
 	{
 		int32 Count = 0;
-		for (const FInvalidSlotFinding &Finding : FLoadoutRules::CollectFindings(Loadout, FLoadoutRuleContext()))
+		for (const FInvalidSlotFinding &Finding : FLoadoutRules::CollectFindings(Loadout, ContextFor(Class)))
 		{
 			Count += Finding.SlotType == ELoadoutSlotType::EquippedSTierCrystal ? 1 : 0;
 		}
@@ -395,7 +402,7 @@ void FLoadoutRulesSpec::Define()
 			Loadout.PrimaryWeapon.WeaponEntry.AttachedItem.Crystal.Id = FCrystalId(ECrystalType::Garnet, EItemTier::S_Tier);
 			Loadout.ItemSlots.Add(ItemSlot(ECrystalType::Sapphire, EItemTier::A_Tier, SEVERAL_A_CRYSTALS));
 			Loadout.ItemSlots.Add(ItemSlot(ECrystalType::Citrine, EItemTier::A_Tier, SEVERAL_A_CRYSTALS));
-			TestEqual(TEXT("one S equipped"), FLoadoutRules::CountEquippedSTierCrystals(Loadout), LoadoutConstants::MAX_EQUIPPED_S_TIER_CRYSTALS);
+			TestEqual(TEXT("one S equipped"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Generic), LoadoutConstants::MAX_EQUIPPED_S_TIER_CRYSTALS);
 			TestEqual(TEXT("no S finding"), CountSTierFindings(Loadout), 0);
 			TestEqual(TEXT("the D-072 bands are gone"), CountTierCapFindings(Loadout), 0);
 		});
@@ -407,7 +414,7 @@ void FLoadoutRulesSpec::Define()
 			Loadout.PrimaryWeapon.WeaponEntry.AttachedItem.Crystal.Id = FCrystalId(ECrystalType::Garnet, EItemTier::S_Tier);
 			Loadout.ItemSlots.Add(ItemSlot(ECrystalType::Sapphire, EItemTier::S_Tier, 1));
 			TestEqual(TEXT("a second S is reported"), CountSTierFindings(Loadout), 1);
-			FLoadoutRules::TrimSTierItemCrystals(Loadout);
+			FLoadoutRules::TrimSTierItemCrystals(Loadout, ECharacterClass::Generic);
 			TestEqual(TEXT("the item slot's S gem is cleared"), CountSTierFindings(Loadout), 0);
 			TestTrue(TEXT("the attached S crystal stays"),
 					 Loadout.PrimaryWeapon.WeaponEntry.AttachedItem.Crystal.Id.Tier == EItemTier::S_Tier);
@@ -419,14 +426,14 @@ void FLoadoutRulesSpec::Define()
 			Loadout.PrimaryWeapon.WeaponEntry.AttachedItem.Kind = EAttachedItemKind::AugmentStone;
 			Loadout.PrimaryWeapon.WeaponEntry.AttachedItem.Crystal.Id = FCrystalId(ECrystalType::DamageStone, EItemTier::S_Tier);
 			Loadout.ItemSlots.Add(ItemSlot(ECrystalType::DamageStone, EItemTier::S_Tier, SEVERAL_A_CRYSTALS));
-			TestEqual(TEXT("an attached S stone counts; S stones in item slots don't"), FLoadoutRules::CountEquippedSTierCrystals(Loadout), 1);
+			TestEqual(TEXT("an attached S stone counts; S stones in item slots don't"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Generic), 1);
 
 			Loadout.SecondarySlotType = ESecondarySlotType::Weapon;
 			Loadout.SecondaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
 			Loadout.SecondaryWeapon.WeaponEntry.AttachedItem.Kind = EAttachedItemKind::Fusion;
 			Loadout.SecondaryWeapon.WeaponEntry.AttachedItem.Fusion.Id.HalfA = FCrystalId(ECrystalType::Garnet, EItemTier::A_Tier);
 			Loadout.SecondaryWeapon.WeaponEntry.AttachedItem.Fusion.Id.HalfB = FCrystalId(ECrystalType::Sapphire, EItemTier::S_Tier);
-			TestEqual(TEXT("a fusion with an S half counts"), FLoadoutRules::CountEquippedSTierCrystals(Loadout), 2);
+			TestEqual(TEXT("a fusion with an S half counts"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Generic), 2);
 			const TArray<FInvalidSlotFinding> Findings = FLoadoutRules::CollectFindings(Loadout, FLoadoutRuleContext());
 			const FInvalidSlotFinding *Found = Findings.FindByPredicate([](const FInvalidSlotFinding &F) { return F.SlotType == ELoadoutSlotType::EquippedSTierCrystal; });
 			if (!TestNotNull(TEXT("two S attachments are reported"), Found)) return;
@@ -439,12 +446,12 @@ void FLoadoutRulesSpec::Define()
 			Loadout.PrimarySlotType = EPrimarySlotType::Evolution;
 			Loadout.PrimaryEvolution.Item = NewObject<UEvolutionItemData>(GetTransientPackage());
 			Loadout.PrimaryEvolution.Tier = EItemTier::S_Tier;
-			TestEqual(TEXT("the S evolution seat counts (the stale primary weapon doesn't)"), FLoadoutRules::CountEquippedSTierCrystals(Loadout), 1);
+			TestEqual(TEXT("the S evolution seat counts (the stale primary weapon doesn't)"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Generic), 1);
 			Loadout.SecondarySlotType = ESecondarySlotType::Weapon;
 			Loadout.SecondaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
 			Loadout.SecondaryWeapon.WeaponEntry.AttachedItem.Kind = EAttachedItemKind::Evolution;
 			Loadout.SecondaryWeapon.WeaponEntry.AttachedItem.Evolution.Tier = EItemTier::S_Tier;
-			TestEqual(TEXT("an S evolution on gear counts too"), FLoadoutRules::CountEquippedSTierCrystals(Loadout), 2);
+			TestEqual(TEXT("an S evolution on gear counts too"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Generic), 2);
 			TestEqual(TEXT("two S: reported"), CountSTierFindings(Loadout), 1);
 		});
 
@@ -455,7 +462,7 @@ void FLoadoutRulesSpec::Define()
 			Loadout.SecondaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
 			Loadout.SecondaryWeapon.WeaponEntry.AttachedItem.Kind = EAttachedItemKind::Crystal;
 			Loadout.SecondaryWeapon.WeaponEntry.AttachedItem.Crystal.Id = FCrystalId(ECrystalType::Garnet, EItemTier::S_Tier);
-			TestEqual(TEXT("an inactive secondary doesn't count"), FLoadoutRules::CountEquippedSTierCrystals(Loadout), 0);
+			TestEqual(TEXT("an inactive secondary doesn't count"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Generic), 0);
 
 			FRingLoadoutEntry Adapter;
 			Adapter.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
@@ -465,7 +472,34 @@ void FLoadoutRulesSpec::Define()
 			Loadout.PrimarySlotType = EPrimarySlotType::Ring;
 			Loadout.PrimaryRing = Adapter;
 			Loadout.RingLoadout = {Adapter};
-			TestEqual(TEXT("the primary ring in the ring loadout counts once"), FLoadoutRules::CountEquippedSTierCrystals(Loadout), 1);
+			TestEqual(TEXT("the primary ring in the ring loadout counts once"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Resonator), 1);
+		});
+
+		It("ignores a stale S on a slot the class doesn't fight with (a Caster's secondary, a Generic's ring loadout)", [this]()
+		{
+			FCombatLoadout Loadout = SwordLoadoutWithAbility(EWeaponType::Sword);
+			Loadout.SecondarySlotType = ESecondarySlotType::Weapon;
+			Loadout.SecondaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
+			Loadout.SecondaryWeapon.WeaponEntry.AttachedItem.Kind = EAttachedItemKind::Crystal;
+			Loadout.SecondaryWeapon.WeaponEntry.AttachedItem.Crystal.Id = FCrystalId(ECrystalType::Garnet, EItemTier::S_Tier);
+			TestEqual(TEXT("a Generic fights with its secondary"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Generic), 1);
+			TestEqual(TEXT("a Caster doesn't"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Caster), 0);
+
+			FRingLoadoutEntry Adapter;
+			Adapter.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
+			Adapter.RingEntry.AttachedItem.Kind = EAttachedItemKind::Crystal;
+			Adapter.RingEntry.AttachedItem.Crystal.Id = FCrystalId(ECrystalType::Sapphire, EItemTier::S_Tier);
+			Loadout.RingLoadout = {Adapter};
+			Loadout.ItemSlots.Add(ItemSlot(ECrystalType::Citrine, EItemTier::S_Tier, 1));
+			TestEqual(TEXT("a Generic: the secondary and the gem, not the ring loadout"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Generic), 2);
+			TestEqual(TEXT("a Resonator: the ring loadout and the gem, not the secondary"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Resonator), 2);
+			TestEqual(TEXT("a Caster: the gem alone, no finding"), CountSTierFindings(Loadout, ECharacterClass::Caster), 0);
+			TestEqual(TEXT("a Generic: two S, reported"), CountSTierFindings(Loadout, ECharacterClass::Generic), 1);
+
+			FLoadoutRules::TrimSTierItemCrystals(Loadout, ECharacterClass::Caster);
+			TestEqual(TEXT("a Caster's stale secondary leaves the gem its room"), Loadout.ItemSlots[0].Quantity, 1);
+			FLoadoutRules::TrimSTierItemCrystals(Loadout, ECharacterClass::Generic);
+			TestEqual(TEXT("a Generic's secondary takes it"), Loadout.ItemSlots[0].Quantity, 0);
 		});
 
 		It("trims every S gem from the item slots when attachments already use the cap", [this]()
@@ -474,9 +508,9 @@ void FLoadoutRulesSpec::Define()
 			Loadout.PrimaryWeapon.WeaponEntry.AttachedItem.Kind = EAttachedItemKind::Crystal;
 			Loadout.PrimaryWeapon.WeaponEntry.AttachedItem.Crystal.Id = FCrystalId(ECrystalType::Garnet, EItemTier::S_Tier);
 			Loadout.ItemSlots.Add(ItemSlot(ECrystalType::Sapphire, EItemTier::S_Tier, SEVERAL_A_CRYSTALS));
-			FLoadoutRules::TrimSTierItemCrystals(Loadout);
+			FLoadoutRules::TrimSTierItemCrystals(Loadout, ECharacterClass::Generic);
 			TestEqual(TEXT("no S gem left in the item slots"), Loadout.ItemSlots[0].Quantity, 0);
-			TestEqual(TEXT("within the cap"), FLoadoutRules::CountEquippedSTierCrystals(Loadout), LoadoutConstants::MAX_EQUIPPED_S_TIER_CRYSTALS);
+			TestEqual(TEXT("within the cap"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Generic), LoadoutConstants::MAX_EQUIPPED_S_TIER_CRYSTALS);
 		});
 	});
 }

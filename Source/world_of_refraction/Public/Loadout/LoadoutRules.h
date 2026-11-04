@@ -185,12 +185,13 @@ struct WORLD_OF_REFRACTION_API FLoadoutRules
 
 	static TArray<FString> ToReasons(const TArray<FInvalidSlotFinding> &Findings);
 
-	/** B-354 (D-143, Q-354): S-tier crystals equipped in the loadout: each attachment on its gear (a crystal, an augment
-	 *  stone, a fusion with an S half, an evolution) and the primary evolution, plus each S gem in its item slots. */
-	static int32 CountEquippedSTierCrystals(const FCombatLoadout &Loadout);
+	/** B-354 (D-143, Q-354): S-tier crystals equipped in the loadout: each attachment on the gear the class fights with
+	 *  (a crystal, an augment stone, a fusion with an S half, an evolution; the secondary for a Generic, the ring loadout
+	 *  for a Resonator, as CollectFindings gates them) and the primary evolution, plus each S gem in its item slots. */
+	static int32 CountEquippedSTierCrystals(const FCombatLoadout &Loadout, ECharacterClass Class);
 
-	/** B-354: the S gems in the item slots that the attached S crystals leave no room for, last slots first. */
-	static void TrimSTierItemCrystals(FCombatLoadout &Loadout);
+	/** B-354: drops the S gems in the item slots that the attached S crystals leave no room for, last slots first. */
+	static void TrimSTierItemCrystals(FCombatLoadout &Loadout, ECharacterClass Class);
 
 	/** OBSOLETE (B-354, D-143): drops utility crystals from the item slots until every D-072 band is within its cap. */
 	static void TrimUtilityCrystalsToTierCaps(FCombatLoadout &Loadout);
