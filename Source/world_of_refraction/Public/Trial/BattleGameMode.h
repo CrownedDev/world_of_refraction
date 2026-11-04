@@ -65,8 +65,9 @@ private:
     void BootstrapCombat();
 
     /** Deferred-spawn a pawn and assign Data BEFORE FinishSpawning, so
-     *  UCharacterDataComponent::BeginPlay initializes from the right asset. */
-    APawn *SpawnCombatant(UClass *PawnClass, UCharacterData *Data, const FTransform &SpawnTransform);
+     *  UCharacterDataComponent::BeginPlay initializes from the right asset. B-360b: MemberId (a party member's) is
+     *  stamped the same way, so the pawn reads its own slot; invalid for an enemy. */
+    APawn *SpawnCombatant(UClass *PawnClass, UCharacterData *Data, const FTransform &SpawnTransform, const FGuid &MemberId = FGuid());
 
     /** Abort helper: log Reason and send the player back through ExitEncounter. */
     void AbortToTrial(const FString &Reason);
