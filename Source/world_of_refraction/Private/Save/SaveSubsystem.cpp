@@ -61,7 +61,6 @@ namespace
 	FSavedGearDetail SaveGearDetail(const TGearEntry &Entry)
 	{
 		FSavedGearDetail Gear;
-		Gear.bSaved = true;
 		Gear.Attached = Entry.AttachedItem;
 		Gear.EvolutionItem = FSavedAssetRef::Make(Entry.AttachedItem.Evolution.Item);
 		Gear.Attached.Evolution.Item = nullptr;
@@ -79,14 +78,10 @@ namespace
 		return Gear;
 	}
 
-	/** B-124: puts the saved detail on a freshly made entry; an older save keeps the asset's defaults. */
+	/** B-124: puts the saved detail on a freshly made entry. */
 	template <typename TGearEntry>
 	void RestoreGearDetail(const FSavedGearDetail &Gear, TGearEntry &Entry)
 	{
-		if (!Gear.bSaved)
-		{
-			return;
-		}
 		Entry.AttachedItem = Gear.Attached;
 		Entry.AttachedItem.Evolution.Item = Gear.EvolutionItem.IsSet() ? Gear.EvolutionItem.ResolveAs<UEvolutionItemData>() : nullptr;
 		Entry.AssignedSpells.Reset();
@@ -619,20 +614,7 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 		Saved.Owners.Add({Owned.Key, Owned.Value});
 	}
 	Saved.BankedCharacters = Pool.GetBankedCharacters().Array();
-	// B-322 (save v9): a pouch per character. An older save's party pouch no member has drawn yet is written as it was, so the
-	// next load still gives it to the leader (a save between load and draw loses nothing).
-	if (Pool.HasLegacyCarriedItems())
-	{
-		const FPoolPouch &Legacy = Pool.GetLegacyCarriedItems();
-		Saved.ItemSlotCount = Legacy.SlotCount;
-		for (const TPair<FCrystalId, int32> &Stack : Legacy.Stacks)
-		{
-			FSavedCrystalStack &Out = Saved.CarriedItems.AddDefaulted_GetRef();
-			Out.Type = static_cast<uint8>(Stack.Key.Type);
-			Out.Tier = Stack.Key.Tier;
-			Out.Count = Stack.Value;
-		}
-	}
+	// B-322: a pouch per character.
 	for (const TPair<FName, FPoolPouch> &Pouch : Pool.GetPouches())
 	{
 		FSavedPouch &Out = Saved.Pouches.AddDefaulted_GetRef();
@@ -773,10 +755,9 @@ void USaveSubsystem::ApplyWallet(const FSavedWallet &Saved, UCurrencyComponent *
 int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 {
 	int32 Restored = 0;
-	// B-308: v5 saves one gear list; v3 / v4 saves the weapon and adapter lists. The kind follows from the asset.
-	for (const TArray<FSavedOwnedItem> *List : {&Saved.Gear, &Saved.Weapons, &Saved.Rings})
+	// B-308: one gear list; the kind follows from the asset.
 	{
-		for (const FSavedOwnedItem &In : *List)
+		for (const FSavedOwnedItem &In : Saved.Gear)
 		{
 			UObject *Asset = In.Def.Resolve();
 			if (UWeaponData *Weapon = Cast<UWeaponData>(Asset))
@@ -863,7 +844,7 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		Owners.Add(Owned.GearID, Owned.Character);
 	}
 	Pool.RestoreGearOwners(Owners);
-	// B-322: v9 pouches per character; an older save's one party pouch waits for the leader (AdoptLegacyCarriedItems).
+	// B-322: a pouch per character.
 	auto ReadStacks = [&Restored](const TArray<FSavedCrystalStack> &In, TMap<FCrystalId, int32> &Out)
 	{
 		for (const FSavedCrystalStack &Stack : In)
@@ -887,13 +868,6 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		ReadStacks(In.Stacks, Pouch.Stacks);
 	}
 	Pool.RestorePouches(Pouches, Saved.BankedItemCharacters);
-	TMap<FCrystalId, int32> LegacyCarried;
-	ReadStacks(Saved.CarriedItems, LegacyCarried);
-	// Bought slots come along even when the old pouch was empty.
-	if (!LegacyCarried.IsEmpty() || Saved.ItemSlotCount > InventoryConstants::ITEM_SLOTS_START)
-	{
-		Pool.RestoreLegacyCarriedItems(LegacyCarried, Saved.ItemSlotCount, Saved.BankedItemCharacters);
-	}
 	for (const FSavedCharacterLoadouts &Custom : Saved.CustomLoadouts)
 	{
 		TArray<FSavedLoadout> Loadouts;

@@ -216,14 +216,11 @@ struct WORLD_OF_REFRACTION_API FSavedWallet
 
 /** B-124 (D-059): the rest of an owned weapon or ring: its attached crystal or evolution, the
  *  spells on it and its rolls. Pointers are saved as refs; the saved Attached has its evolution
- *  pointer cleared. bSaved is false in a save from before B-124 (the asset's defaults stay). */
+ *  pointer cleared. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedGearDetail
 {
 	GENERATED_BODY()
-
-	UPROPERTY()
-	bool bSaved = false;
 
 	UPROPERTY()
 	FRuntimeAttachedItem Attached;
@@ -442,14 +439,6 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	UPROPERTY()
 	TArray<FSavedOwnedItem> Gear;
 
-	/** Before v5: weapons. Read on load (B-308), never written. */
-	UPROPERTY()
-	TArray<FSavedOwnedItem> Weapons;
-
-	/** Before v5: adapters. Read on load (B-308), never written. */
-	UPROPERTY()
-	TArray<FSavedOwnedItem> Rings;
-
 	UPROPERTY()
 	TArray<FSavedOwnedItem> Evolutions;
 
@@ -467,15 +456,6 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	UPROPERTY()
 	TArray<FSavedPouch> Pouches;
 
-	/** Before v9 (B-203): the party's one pouch, one stack per slot. Read on load (it goes to the party leader at
-	 *  the next draw); written again only while no member has drawn it yet. */
-	UPROPERTY()
-	TArray<FSavedCrystalStack> CarriedItems;
-
-	/** Before v9: the party pouch's slots (0: the starting count). Read on load; written only with CarriedItems. */
-	UPROPERTY()
-	int32 ItemSlotCount = 0;
-
 	/** B-203: characters whose starting items are already carried or stored. */
 	UPROPERTY()
 	TArray<FName> BankedItemCharacters;
@@ -486,12 +466,12 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 
 	int32 Num() const
 	{
-		int32 Carried = CarriedItems.Num();
+		int32 Carried = 0;
 		for (const FSavedPouch &Pouch : Pouches)
 		{
 			Carried += Pouch.Stacks.Num();
 		}
-		return Gear.Num() + Weapons.Num() + Rings.Num() + Evolutions.Num() + Spells.Num() + Abilities.Num() + Crystals.Num() + Carried;
+		return Gear.Num() + Evolutions.Num() + Spells.Num() + Abilities.Num() + Crystals.Num() + Carried;
 	}
 };
 
