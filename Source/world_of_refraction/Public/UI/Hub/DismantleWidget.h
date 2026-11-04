@@ -1,4 +1,5 @@
 // DismantleWidget.h
+// OBSOLETE (B-339, D-131): wor.UI.Inventory (UInventoryWidget) does this as one of its verbs; delete after Crown's PIE.
 // PLACEHOLDER UI (B-084): dismantle one of your weapons or rings, with the D-016 warning when it
 // is equipped in a saved loadout. Plain buttons built in C++, opened with the console command
 // wor.UI.Dismantle. Replaced by the CommonUI inventory screen (D-024).

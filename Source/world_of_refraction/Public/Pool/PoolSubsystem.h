@@ -76,6 +76,46 @@ struct WORLD_OF_REFRACTION_API FPoolPouch
     int32 SlotCount = InventoryConstants::ITEM_SLOTS_START;
 };
 
+/** B-314 (D-111, D-097, Q-314): where one piece of gear stands in the run layer, by its ID. Kept in the store beside
+ *  the entry (as owners are until B-315), not on the entry struct, so a member's copy pushed back to the store can't
+ *  wipe it. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FPoolRunMark
+{
+    GENERATED_BODY()
+
+    /** Found or bought in this run: dropped at run end, its tier remembered for its definition. */
+    UPROPERTY()
+    bool bRunOnly = false;
+
+    /** A home piece taken on the run: at run end it goes back to the home state below (D-093 wear, D-111 attachments). */
+    UPROPERTY()
+    bool bOnRun = false;
+
+    /** A weapon's or adapter's attachment (with its wear) as it left home. */
+    UPROPERTY()
+    FRuntimeAttachedItem HomeAttached;
+
+    /** The spells on that attachment as it left home. */
+    UPROPERTY()
+    TArray<USpellData *> HomeSpells;
+
+    /** An evolution's durability as it left home. */
+    UPROPERTY()
+    int32 HomeDurability = 0;
+};
+
+/** B-314: what a run's end did to the store. */
+struct FPoolRunEndResult
+{
+    /** Home pieces put back to their home state (only those the run changed). */
+    int32 Restored = 0;
+    /** Run-only pieces taken out of the store. */
+    int32 Dropped = 0;
+    /** Definitions whose remembered tier was written. */
+    int32 Remembered = 0;
+};
+
 /** B-203: a pouch or the storage changed. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPoolItemsChanged);
 
@@ -379,6 +419,55 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Pool|Items")
     FOnPoolItemsChanged OnPoolItemsChanged;
 
+    // ==================== THE RUN LAYER (B-314, D-111, D-097, Q-314) ====================
+    // A run is a layer over the store, one instance per item: a home piece taken on the run is the real piece, marked
+    // "on the run" with its home state kept; gear found or bought in the run is marked run-only. At run end the home
+    // pieces go back to their home state (wear and attachments added in the run), run-only gear leaves the store, and
+    // each run-only definition's tier is remembered so the next copy found arrives at that tier. PoolRunLayer.cpp.
+
+    /** A run starts (UTrialRunSubsystem::EnterTrial / RestoreRun). A layer still open is discarded, not applied (the
+     *  store may have been reloaded under it); EnterTrial ends the last one itself first. */
+    void BeginRunLayer();
+    /** Closes the layer without putting anything back or dropping anything (stale marks after a reload). */
+    void DiscardRunLayer();
+    bool IsRunLayerActive() const { return bRunLayerActive; }
+
+    /** The run purchase (D-111): the real home piece goes on the run as it is now. False when no run layer is open,
+     *  the piece isn't in the store, or it is already on the run or run-only. */
+    bool TakeOnRun(const FGuid &GearID);
+
+    /** B-347 (D-137): the run loadout is free: the pieces the given party members wear (their active loadouts, already
+     *  within the D-110 slot budget), and an evolution attached to one of them, go on the run as they are. Unworn
+     *  home pieces stay home (one touched during the run is taken then, UInventoryComponent::PushGearToPool). Reads
+     *  the wearers record until D-122 moves the worn loadout onto each member's component. Returns how many were
+     *  taken. */
+    int32 TakeHomeGearOnRun(const TSet<FName> &WearerKeys);
+
+    /** Gear found or bought in the run. False when no run layer is open, the ID is unset, or it is a home piece. */
+    bool MarkRunOnly(const FGuid &GearID);
+    bool IsRunOnly(const FGuid &GearID) const;
+    bool IsOnRun(const FGuid &GearID) const;
+    const TMap<FGuid, FPoolRunMark> &GetRunMarks() const { return RunMarks; }
+
+    /** The run ends (UTrialRunSubsystem::ExitTrial): home pieces back to their home state, run-only gear dropped
+     *  with its tier remembered per definition. Every change fires OnPoolGearChanged. No-op when no layer is open. */
+    FPoolRunEndResult EndRunLayer();
+
+    /** The key upgrade memory knows a gear definition by (its asset path), as GetCharacterKey does for characters. */
+    static FName GetDefinitionKey(const UObject *Definition);
+    /** The tier Definition reached in an earlier run; false when none is remembered. */
+    bool FindRememberedTier(const UObject *Definition, EItemTier &OutTier) const;
+    /** Raises a newly found piece to its definition's remembered tier. True when it changed. */
+    bool ApplyUpgradeMemory(FWeaponInventoryEntry &Entry) const;
+    bool ApplyUpgradeMemory(FRingInventoryEntry &Entry) const;
+    bool ApplyUpgradeMemory(FEvolutionInventoryEntry &Entry) const;
+    const TMap<FName, EItemTier> &GetUpgradeMemory() const { return UpgradeMemory; }
+    /** TODO: B-314b saves the memory and the open layer (save v10); until then both are in-session only. */
+    void RestoreUpgradeMemory(const TMap<FName, EItemTier> &InMemory) { UpgradeMemory = InMemory; }
+
+    /** Debug: the open layer (each marked piece) and the upgrade memory. wor.Run.PrintKept. */
+    FString GetRunLayerString() const;
+
     // ==================== DEBUG ====================
 
     /** Dump the whole pool to log + screen: per-category counts, crystal stacks, and the
@@ -512,6 +601,27 @@ private:
     TSet<FName> BankedItemCharacters;
 
     FPoolPouch &FindOrAddPouch(FName CharacterKey);
+
+    // ==================== THE RUN LAYER (B-314) ====================
+    // In-session until B-314b's save (Q-314).
+
+    /** A run is open (between BeginRunLayer and EndRunLayer). */
+    bool bRunLayerActive = false;
+
+    /** Gear ID -> its run mark, while a run is open. */
+    UPROPERTY()
+    TMap<FGuid, FPoolRunMark> RunMarks;
+
+    /** Gear definition key (GetDefinitionKey) -> the highest tier a run-only copy of it reached (D-097). */
+    UPROPERTY()
+    TMap<FName, EItemTier> UpgradeMemory;
+
+    /** Remembers Tier for Definition (the higher of it and what is remembered). True when it changed. */
+    bool RememberTier(const UObject *Definition, EItemTier Tier);
+    /** Remembers the tier of the run-only piece GearID (still in the store). True when it changed. */
+    bool RememberRunOnlyTier(const FGuid &GearID);
+    /** RemoveGear, before the piece goes: a run-only piece's tier is remembered (Q-314c) and its mark dropped. */
+    void NoteRunGearRemoved(const FGuid &GearID);
 
     /** Takes up to Count stored items; returns how many. */
     int32 TakeStored(const FCrystalId &Id, int32 Count);

@@ -84,10 +84,10 @@ price at 0 (Purchase itself rejects them).
 | Type | Prisms | Essence | Count |
 |---|---|---|---|
 | Weapon / Ring | (base by tier + attached-item surcharge **+ bundled-skill surcharge**) × Count | — | honoured |
-| Spell (any element) | base + `50 × Σ scaling-grade` surcharge | element @ tier (a **Generic** spell's is **Quartz essence**, D-105 / B-296) + Σ pillar @ each scaling grade | clamped 1 |
-| Ability | base | SkillEssence @ tier | clamped 1 |
-| Evolution | **2× base** (premium item class; multiplier lives in `BuildCartCost`, not the shared tier-base helper, so a future merge-cost reuse can't double it) | element @ tier + ½ Reality | clamped 1 |
-| Crystal / stone | base by `Crystal.Tier` × Count — **Prisms-only** | none — essence stays a dismantle-side currency for crystal stock | honoured |
+| Spell (any element) | base + `50 × Σ scaling-grade` surcharge | **B-333:** Skill @ tier + Elemental @ tier (Generic counts; a None spell Skill only, Q-333); no pillar | clamped 1 |
+| Ability | base | Skill @ tier (abilities carry no element) | clamped 1 |
+| Evolution | **2× base** (premium item class; multiplier lives in `BuildCartCost`, not the shared tier-base helper, so a future merge-cost reuse can't double it) | **B-333:** Elemental @ tier + ½ that again | clamped 1 |
+| Crystal / stone | base by `Crystal.Tier` × Count | **B-333 (Q-333):** its essence @ tier × Count — gem / Quartz Elemental, stat stone Pillar, ability stone Skill (`EconomyYield::GetCrystalEssence`) | honoured |
 
 **Attached-item surcharge** (anonymous-namespace `AttachmentPrisms`, keyed on
 `FAttachedItem::Kind`): crystal/stone → its tier base; evolution → **2×** the evolution's tier
@@ -116,12 +116,13 @@ The level up/down pair across all five instance types — see [`TierOnInstance.m
 and the player-facing [`../Mechanics/Economy/Upgrading.md`](../Mechanics/Economy/Upgrading.md). Both route through
 two shared, type-agnostic private cores:
 
-- **`TryLevelUpEntry(Currency, EItemTier& InOutTier, ECurrencyType LevelingEssence = GearEssence)`**
-  — S-cap; cost `GetTierUpCostForTier(CurrentTier)` in `LevelingEssence` + half that in **Reality**
-  (`EEssenceType::Reality`); CanAfford BOTH → Spend BOTH → write `InOutTier = next tier`.
+- **`TryLevelUpEntry(Currency, EItemTier& InOutTier, ECurrencyType LevelingEssence = GearEssence, bool bHasElement = false)`**
+  — S-cap; cost `GetTierUpCostForTier(CurrentTier)` in `LevelingEssence`, plus (B-333, Q-333) half that in
+  **Elemental** when `bHasElement` (evolutions; spells with an element); CanAfford BOTH → Spend BOTH →
+  write `InOutTier = next tier`.
 - **`TryDowngradeEntry(Currency, EItemTier& InOutTier, EItemTier FloorTier, ECurrencyType LevelingEssence = GearEssence)`**
   — floor guard (can't revert below `FloorTier` = the authored base); lower one step; refund **half**
-  `GetTierUpCostForTier(downTier)` in `LevelingEssence` **only** (the ½-Reality co-cost is **not**
+  `GetTierUpCostForTier(downTier)` in `LevelingEssence` **only** (the ½-Elemental co-cost is **not**
   refunded).
 
 Public wrappers resolve the mutable instance tier + pass the right essence type:
@@ -150,7 +151,7 @@ All inline; named PIE-tunable constants in `EconomyYield::Constants`.
 ### The wallet (`UCurrencyComponent`) — summary
 The owner's currencies, behind a unified `Add`/`Spend`/`CanAfford`/`GetBalance(ECurrencyType, SubKey)`
 API: **Gold** (run-volatile), **Prisms**, **Diamond**, **GearEssence**, **SkillEssence** (scalars),
-and the 14-key **typed Essence** (`EssenceTyped`, FastArray). Server-gated, replication-aware,
+and the two essence scalars `ElementalEssence` / `PillarEssence` (B-333, D-125; the 14-key typed Essence is OBSOLETE until the sweep). Server-gated, replication-aware,
 `SaveGame`-tagged (no save system yet). Full detail in [`CurrencySystem.md`](./CurrencySystem.md).
 
 ## Integration Points
@@ -214,3 +215,5 @@ and the 14-key **typed Essence** (`EssenceTyped`, FastArray). Server-gated, repl
 | 2026-11-02 | B-296 (D-105, ER-23): a Generic spell is priced like an elemental one; its essence is Quartz essence (`EEssenceType::Generic`), no Skill essence. `WoR.Economy.GenericSpellPrice`. | `fix/B-296-generic-spell-quartz-price` |
 | 2026-11-03 | B-252b (A12 rest): `UEconomyService` dismantle / level up / revert of a weapon or ring share one private member template each (`DismantleOwnedGear` / `LevelUpOwnedGear` / `DowngradeOwnedGear<TEntry>`, `OwnedGearOps` traits); the six public verbs forward with their own names. `MemoryUnlock`'s owned-tier read and the party screen's run-gear names use `FindOwnedWeapon` / `FindOwnedRing` / `FindWeaponInPool` / `FindRingInPool`. Same results. | refactor/B-252b-owned-gear-verbs |
 | 2026-11-03 | B-319 (D-115, Q-319): `UEconomyService::ResolveDuplicate(Owner, WeakerID, bConvertToGold)` converts the weaker copy of an owned weapon or adapter to Gold (`GetDuplicateGoldForTier` = half the Prisms buy price) or dismantles it; its loadout slots move to the kept copy first (`UInventoryComponent::MoveLoadoutSlots`, D-116). `FindDuplicateGear` / `FDuplicateGearPair` / `OnDuplicateGearReceived` (from `AddGearEntry`). Purchase undo removes by instance, not last index. Placeholder UI `wor.UI.Duplicates` (`UDuplicateGearWidget`). Q-319b (per character vs party armoury) open for Crown. | feature/B-319-duplicate-choice |
+| 2026-11-03 | B-333 (D-125, Q-333): seven balances. `FPurchaseCost` gains `ElementalEssence` / `PillarEssence` (+ `Get` / `AddEssence`; `Typed` OBSOLETE, empty); `PurchaseCostBalances::CHARGED` drives Purchase's afford / spend / refund. Spells cost Skill + Elemental at tier (no pillar per grade); crystals add their essence (`EconomyYield::GetCrystalEssence`); evolutions Elemental ×1.5; dismantles pay Elemental / Pillar / Skill; the upgrade co-cost is ½ Elemental on items with an element only. Typed-essence mappers OBSOLETE. Specs: `WoR.Economy.SevenBalances`; RoundTrip / Numbers / GenericSpellPrice updated. | feature/B-333-seven-balances (UNBUILT) |
+| 2026-11-03 | B-316 (D-111 buy-for, D-117, Q-316): `UEconomyService::PurchaseFor(Payer, ForKey, Items)`: the payer's wallet buys; new weapons / adapters become ForKey's through `WoRGive::TryGiveGear` (duplicate choice, D-115), bought crystals / stones move to ForKey's pouch as far as they fit; ForKey none or the payer = `Purchase`; refused before paying for a non-member, a spell / ability / evolution (B-316b) or gear for a run-only recruit. `UShopWindowWidget::HandleBuyForClicked` (optional `BuyForButton` / `BuyForText`, `wor.Shop.BuyFor`) picks the receiver; Confirm calls `PurchaseFor`. Spec `WoR.Economy.BuyFor`. Written in a cloud session; built and tested on the desktop 2026-11-04 (the spec's payer also holds Elemental essence, B-333). | feature/B-316-give-request-buyfor |

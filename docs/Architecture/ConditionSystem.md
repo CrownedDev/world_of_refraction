@@ -25,3 +25,4 @@ One condition vocabulary for the game (D-130), on the deckbuilder's trigger → 
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-11-04 | B-337 (D-130): `FWoRCondition` / `FWoRConditionSet`, the `WoRConditions` evaluator; memories evaluate through it; the old memory condition types OBSOLETE. Spec `WoR.Conditions`. Unbuilt (cloud). | feature/B-337-conditions |
+| 2026-11-04 | B-337 built and tested on the desktop (`WoR.Conditions` (4) and `WoR.Memory` (28)); no must-fix; should-fixes applied (helpers renamed `IsMemberInParty` / `ConditionEnumName` so a unity build can't collide with `MemoryConditions.cpp` / `SkillEffectDebug.cpp`; Q-337 records the evaluator's four defaults). Merged into dev. | feature/B-337-conditions |

@@ -287,9 +287,27 @@ public:
 
     // ==================== RUNTIME COMBAT STATE ====================
 
-    /** Use an item from loadout (decrements uses) */
+    /** Use an item from loadout (decrements uses).
+     *  OBSOLETE (B-313) for a member with a pouch: its fight items are the pouch (UseCarriedItem). Kept for actors
+     *  with no pouch (enemies, unbound test actors); delete with FCombatLoadout::ItemSlots after Crown's PIE pass. */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Combat")
     bool UseItem(int32 SlotIndex);
+
+    // ==================== THE MEMBER'S POUCH IN A FIGHT (B-313, D-111, D-117, Q-313) ====================
+    // A party member's fight items are its own pouch (UPoolSubsystem::GetPouch), nothing else: GetUsableItems
+    // lists it and UseCarriedItem spends from it. No tier cap on what it uses (B-354, D-143 retired Q-313's per-fight
+    // bands). Stones are slot-only, so they never show. Actors with no pouch keep the loadout's item slots.
+
+    /** True when the owner carries a pouch (its crystal inventory is bound to the pool). */
+    bool UsesPouchItems() const;
+
+    /** Id is carried in the member's pouch and is a gem. */
+    bool CanUseCarriedItem(const FCrystalId &Id) const;
+
+    /** Spends one Id from the member's pouch (storage, other pouches and the loadout's item slots are
+     *  untouched). False when not ready for battle or
+     *  CanUseCarriedItem refuses. OnItemUsed fires with SlotIndex INDEX_NONE and the pouch's count left. */
+    bool UseCarriedItem(const FCrystalId &Id);
 
     /** Get remaining uses for item slot */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
@@ -341,7 +359,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     TArray<USpellData *> GetActiveSlotSpells() const;
 
-    /** Get usable item slots (C++ only - use GetUsableItemCount for Blueprint) */
+    /** Get usable item slots (C++ only - use GetUsableItemCount for Blueprint).
+     *  B-313: for a member with a pouch, the pouch's gems (one entry per stack, Quantity = what this fight can
+     *  still use: the whole stack, B-354), sorted by type then highest tier. Otherwise the
+     *  active loadout's non-empty item slots (OBSOLETE (B-313) path, kept for enemies). */
     TArray<FItemLoadoutSlot> GetUsableItems() const;
 
     UFUNCTION(BlueprintPure, Category = "Loadout|Cosmetics")
@@ -868,8 +889,17 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Loadout|Runtime")
     bool bIsReadyForBattle = false;
 
-    /** B-203: see GetBattleItemsTaken. Per-fight state on the actor (D-064). */
+    /** B-203: see GetBattleItemsTaken. Per-fight state on the actor (D-064).
+     *  OBSOLETE (B-313): a member with a pouch no longer auto-equips, so this stays empty for it. */
     TMap<FCrystalId, int32> BattleItemsTaken;
+
+    /** OBSOLETE (B-354, D-143): B-313's pouch uses this fight per D-072 tier band. No longer counted; still cleared by
+     *  PrepareForBattle and ResetBattleState. Delete after Crown's PIE. */
+    TMap<int32, int32> BattleBandUses;
+
+    /** OBSOLETE (B-354, D-143): how many of Id this fight still allows from the pouch. No cap for a gem since the bands
+     *  retired (MAX_int32); 0 for a stone or None (slot-only). Delete with BattleBandUses after Crown's PIE. */
+    int32 GetCarriedBandRoom(const FCrystalId &Id) const;
 
     /** Ensure at least one loadout exists */
     void EnsureDefaultLoadout();
