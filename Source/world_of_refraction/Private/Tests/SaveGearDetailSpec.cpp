@@ -171,39 +171,14 @@ void FSaveGearDetailSpec::Define()
 
 		const FSavedPool Saved = USaveSubsystem::CapturePool(*Pool);
 		TestEqual(TEXT("One gear list holds both"), Saved.Gear.Num(), 2);
-		TestTrue(TEXT("The old lists are not written"), Saved.Weapons.IsEmpty() && Saved.Rings.IsEmpty());
-
-		FSavedPool Old; // CapturePool writes weapons before adapters
-		Old.Weapons = {Saved.Gear[0]};
-		Old.Rings = {Saved.Gear[1]};
-		const FSavedPool *Shapes[] = {&Saved, &Old};
-		for (const FSavedPool *Shape : Shapes)
-		{
-			FWoRTestWorld After;
-			UPoolSubsystem *Restored = After.Create() ? After.GetSubsystem<UPoolSubsystem>() : nullptr;
-			if (!TestNotNull(TEXT("Restored pool"), Restored)) return;
-			TestEqual(TEXT("Both restored"), USaveSubsystem::RestorePool(*Shape, *Restored), 2);
-			TestTrue(TEXT("The weapon, by GUID"),
-					 Restored->GetOwnedWeapons().Num() == 1 && Restored->GetOwnedWeapons()[0].PersistentID == Weapon.PersistentID);
-			TestTrue(TEXT("The adapter, by GUID"),
-					 Restored->GetOwnedRings().Num() == 1 && Restored->GetOwnedRings()[0].PersistentID == Ring.PersistentID);
-		}
-	});
-
-	It("keeps the asset's defaults for a weapon saved before B-124", [this]()
-	{
 		FWoRTestWorld After;
 		UPoolSubsystem *Restored = After.Create() ? After.GetSubsystem<UPoolSubsystem>() : nullptr;
-		if (!TestNotNull(TEXT("Pool"), Restored)) return;
-		UWeaponData *Sword = NewObject<UWeaponData>(GetTransientPackage());
-		FSavedPool Old;
-		FSavedOwnedItem &Item = Old.Weapons.AddDefaulted_GetRef();
-		Item.Def = FSavedAssetRef::Make(Sword);
-		Item.InstanceID = FGuid::NewGuid();
-		USaveSubsystem::RestorePool(Old, *Restored);
-		if (!TestEqual(TEXT("One weapon"), Restored->GetOwnedWeapons().Num(), 1)) return;
-		const FWeaponInventoryEntry Fresh = FWeaponInventoryEntry::CreateFromWeapon(Sword);
-		TestTrue(TEXT("The asset's default attachment"), Restored->GetOwnedWeapons()[0].AttachedItem == Fresh.AttachedItem);
+		if (!TestNotNull(TEXT("Restored pool"), Restored)) return;
+		TestEqual(TEXT("Both restored"), USaveSubsystem::RestorePool(Saved, *Restored), 2);
+		TestTrue(TEXT("The weapon, by GUID"),
+				 Restored->GetOwnedWeapons().Num() == 1 && Restored->GetOwnedWeapons()[0].PersistentID == Weapon.PersistentID);
+		TestTrue(TEXT("The adapter, by GUID"),
+				 Restored->GetOwnedRings().Num() == 1 && Restored->GetOwnedRings()[0].PersistentID == Ring.PersistentID);
 	});
 }
 

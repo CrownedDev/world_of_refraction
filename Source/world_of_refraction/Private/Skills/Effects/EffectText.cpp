@@ -774,7 +774,7 @@ namespace EffectText
 
         // ---- attacks ----
         case ESkillEffectType::ExtraAction:
-            // The runtime grants one turn per apply (TurnManager::RequestExtraTurn).
+            // The runtime grants one bonus turn per apply, landing next (TurnManager::GrantBonusTurn, B-341).
             return Side.bSelf ? LOCTEXT("Extra_Self", "take an extra turn")
                               : FText::Format(LOCTEXT("Extra_Other", "give {0} an extra turn"), Side.Noun);
         case ESkillEffectType::GuaranteedCrit:

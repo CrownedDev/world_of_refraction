@@ -1,5 +1,9 @@
 // ExplorationPlayerController.h
-// Native player controller for the out-of-combat levels (hub + trial). Replaces
+// OBSOLETE (B-158, D-076 = A): one hub controller. AWoRHubController (BP_HubPlayerController's
+// parent) owns interact and EnsureLocalParty now; nothing derives from this class. It stays until
+// Crown's PIE pass proves the hub controller path, then it is deleted (docs/PIE/Sweep.md).
+//
+// Original intent: native player controller for the out-of-combat levels (hub + trial). Replaces
 // the BP_HubPlayerController interact graph:
 //   - IA_Interact -> the nearest in-range interactable (trial door, merchant,
 //     party recruitable) -> Interact().

@@ -28,7 +28,8 @@ struct FBossFightState
 
 namespace BossTriggers
 {
-	/** Condition holds for the party in Event (its members and their worn gear). */
+	/** OBSOLETE (B-355): ApplyTo reads the rule list (BossRules); these stay for UFightTriggers' moments (B-355b).
+	 *  Condition holds for the party in Event (its members and their worn gear). */
 	WORLD_OF_REFRACTION_API bool IsMet(const FBossTriggerCondition &Condition, const FMemoryEvent &Event);
 
 	/** Every condition holds (none: never fires). */
@@ -38,7 +39,8 @@ namespace BossTriggers
 	 *  applies the net). True when it has a weaken or strengthen. */
 	WORLD_OF_REFRACTION_API bool ApplyResults(AActor *Boss, const FBossTrigger &Trigger, FBossFightState &State);
 
-	/** Apply every fight-start trigger of Data that fires for Party to Boss (the steps as one net).
+	/** B-355: every fight-start rule of Data's one list (BossRules::GetRules) that fires for Party,
+	 *  on Boss (the steps as one net).
 	 *  Returns how many fired; OutState gets what they did. */
 	WORLD_OF_REFRACTION_API int32 ApplyTo(AActor *Boss, const UBossData &Data, const TArray<AActor *> &Party,
 										  FBossFightState *OutState = nullptr);

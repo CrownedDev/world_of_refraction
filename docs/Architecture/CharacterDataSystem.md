@@ -64,9 +64,11 @@ prefer this — gameplay-internal element reads (ActionExecutor element resoluti
 BD validation) continue to use existing paths because they reason about the
 underlying `CharacterData`, not the display identity.
 
-Stat-budget helpers: `GetTotalPool()` (`StatConstants::INITIAL_STAT_BUDGET` plus
-world-level points), `GetTotalSpent()`, `GetPointsRemaining()`,
-`IsValidDistribution()`.
+Stat-budget helpers (D-123, B-330: pillar levels grant no sub-stat points):
+`GetSubStatBudget()` (`StatConstants::MAX_AUTHORED_SUBSTAT_POINTS`, 93 at every level, Q-330),
+`IsWithinSubStatBudget()`, `GetTotalSpent()`. OBSOLETE (D-124 sweep): `GetPointsRemaining()`,
+`IsValidDistribution()`, and `GetTotalPool()` as a pool; `GetTotalPool()` stays live as the enemy
+caliber (WSP per kill, a team's strongest member) until the caliber gets its own read.
 
 Stat formula layers (all inline `BlueprintPure`):
 
@@ -363,3 +365,4 @@ bar repaints (no client-side state mutation — the server already cleared
 | 2026-11-02 | B-131 (co-op): `UCharacterDataComponent` replicates by default; `MaxHP` / `MaxEP` replicate with the CurrentHP / EP OnReps (a max-only change re-broadcasts); `CharacterData` replicates on change; `RecomputeMaxPools` and the pool seed run on the server only; the `Server*` functions are noted as not RPCs. | feature/B-131-chardata-replicates |
 | 2026-11-02 | B-276 (S10): `ElementHelpers` `IsConcrete` / `IsInherit` and one Reality Refractor check (5+ copies before); the direct `InnateElement` reads go through the Caster check (class gates magic), so a non-Caster's authored innate element no longer drives Broken Darkness casts, weather or the EP tint. | refactor/B-276-element-helpers |
 | 2026-11-03 | B-265: `EWorldPillar` moved to `Character/EWorldPillar.h` (same UENUM, same path `/Script/world_of_refraction.EWorldPillar`, no redirect); `CharacterDataComponent.h` includes it. Headers including `CharacterDataComponent.h`: 6 before, 3 after (`CombatControl.h` and two test headers); `LoadoutComponent.h` (90 includers) no longer brings it, nor `LoadoutComponent.h` via `ActionExecutor.h`. | chore/B-265-build-time |
+| 2026-11-03 | B-330 (D-123): pillars only. A pillar level grants no sub-stat points; `GetSubStatBudget` / `IsWithinSubStatBudget` (93 at every level, Q-330); the pool constants and `GetTotalPool` / `GetPointsRemaining` / `IsValidDistribution` flagged OBSOLETE (`GetTotalPool` stays the enemy caliber). Spec `WoR.WorldStat.PillarsOnly`. UNBUILT (cloud). | feature/B-330-pillars-only |

@@ -6,6 +6,8 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "HAL/IConsoleManager.h"
+#include "Trial/TrialData.h"
+#include "Trial/TrialRunSubsystem.h"
 
 namespace
 {
@@ -44,8 +46,8 @@ void UWeatherStateManager::InitialiseLeaders(const TArray<AActor *> &LocalParty,
     LocalPartyHierarchy = BuildHierarchy(LocalParty);
     OpposingPartyHierarchy = BuildHierarchy(OpposingParty);
 
-    BindToTeam(LocalPartyHierarchy, true);
-    BindToTeam(OpposingPartyHierarchy, false);
+    // B-359 (D-149): the teams' HP no longer moves the weather, so nothing is bound (BindToTeam is OBSOLETE). The
+    // hierarchies stay for the leaders' weather assets and the phased-boss lookup.
 
     RecalculateWeather();
 
@@ -72,6 +74,8 @@ void UWeatherStateManager::EndCombat()
     }
     bCombatActive = false;
     LastBroadcastBlendValue = 0.0f; // B-030: back to the header default for the next fight
+    BattleIntensity = 0.0f;         // B-359: the next fight starts at the baseline
+    BattleElement = ESpellElement::Generic;
 
     // Iterate every entry on both teams and remove the OnHPChanged + OnDied
     // subscriptions added by BindToTeam. Entry.Actor is weak: an actor destroyed
@@ -170,35 +174,48 @@ void UWeatherStateManager::BindToTeam(const TArray<FLeadershipEntry> &Hierarchy,
 
 void UWeatherStateManager::RecalculateWeather()
 {
-    const float LocalPartyPercent = ComputeTeamHPPercent(LocalPartyHierarchy);
-    const float OpposingPartyPercent = ComputeTeamHPPercent(OpposingPartyHierarchy);
-    float BlendValue = ComputeBlendValue(LocalPartyPercent, OpposingPartyPercent);
-
+    // B-359 (D-149): one baseline, the trial's element; leader HP no longer moves it.
+    ESpellElement Element = GetBaselineElement();
     UPrimaryDataAsset *LocalPartyDA = ResolveWeatherDA(LocalPartyHierarchy);
     UPrimaryDataAsset *OpposingPartyDA = ResolveWeatherDA(OpposingPartyHierarchy);
 
-    // B-193: a boss's reached phases pull the weather its way (negative = opposing side) at least
-    // as far as its phase intensity, and its own weather wins over the opposing leader's.
+    // D-098 / B-193: a boss's reached phases step the weather toward its element and raise the intensity, and its
+    // own weather asset wins over the opposing leader's.
     float BossIntensity = 0.0f;
     if (AActor *Boss = FindPhasedBoss(BossIntensity))
     {
-        BlendValue = FMath::Min(BlendValue, -BossIntensity);
+        const UCharacterDataComponent *BossData = Boss->FindComponentByClass<UCharacterDataComponent>();
+        // B-276: class-gated, like the leaders' entries in BuildHierarchy. Holds until the fight ends, a dead boss included (Q-359).
+        const ESpellElement BossElement = BossData && BossData->CharacterData ? BossData->CharacterData->GetElement() : ESpellElement::Generic;
+        if (BossElement != ESpellElement::Generic && BossElement != ESpellElement::None)
+        {
+            Element = BossElement;
+        }
         if (UPrimaryDataAsset *BossDA = ResolveWeatherDAFor(Boss))
         {
             OpposingPartyDA = BossDA;
         }
     }
+    BattleElement = Element;
+    BattleIntensity = BossIntensity;
 
+    // The old delegate's blend leans to the opposing side only as far as a boss's phases pull (negative = opposing).
+    const float BlendValue = -BossIntensity;
     LastBroadcastBlendValue = BlendValue;
     OnWeatherChanged.Broadcast(LocalPartyDA, OpposingPartyDA, BlendValue);
+    OnBattleWeatherChanged.Broadcast(BattleElement, BattleIntensity);
 
-    UE_LOG(LogTemp, Log,
-           TEXT("[WeatherStateManager] Weather updated - T0: %s (%.0f%%), T1: %s (%.0f%%), Blend: %.2f"),
-           LocalPartyDA ? *LocalPartyDA->GetName() : TEXT("None"),
-           LocalPartyPercent * 100.0f,
-           OpposingPartyDA ? *OpposingPartyDA->GetName() : TEXT("None"),
-           OpposingPartyPercent * 100.0f,
-           BlendValue);
+    UE_LOG(LogTemp, Log, TEXT("[WeatherStateManager] Weather: %s, intensity %.2f (T0 %s, T1 %s, blend %.2f)"),
+           *UEnum::GetValueAsString(BattleElement), BattleIntensity, LocalPartyDA ? *LocalPartyDA->GetName() : TEXT("None"),
+           OpposingPartyDA ? *OpposingPartyDA->GetName() : TEXT("None"), BlendValue);
+}
+
+ESpellElement UWeatherStateManager::GetBaselineElement() const
+{
+    const UGameInstance *GI = GetGameInstance();
+    const UTrialRunSubsystem *TrialRun = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+    const UTrialData *Trial = TrialRun ? TrialRun->GetActiveTrial() : nullptr;
+    return Trial ? Trial->Element : ESpellElement::Generic;
 }
 
 void UWeatherStateManager::OnTeamMemberHPChanged(int32 NewHP, int32 MaxHP)
@@ -370,6 +387,8 @@ FString UWeatherStateManager::GetWeatherStateString() const
 
     FString Output;
     Output += TEXT("=== [WeatherStateManager] STATE SNAPSHOT ===\n");
+    Output += FString::Printf(TEXT("Baseline (B-359): %s; battle weather %s, intensity %.2f\n"),
+                              *UEnum::GetValueAsString(GetBaselineElement()), *UEnum::GetValueAsString(BattleElement), BattleIntensity);
     Output += FString::Printf(TEXT("Combat active: %s\n"), bCombatActive ? TEXT("yes") : TEXT("no"));
 
     // Listener count is the critical diagnostic — flag it loudly when zero
@@ -450,14 +469,13 @@ FString UWeatherStateManager::GetWeatherStateString() const
     DescribeTeam(TEXT("LocalParty"), LocalPartyHierarchy);
     DescribeTeam(TEXT("OpposingParty"), OpposingPartyHierarchy);
 
-    // Recompute the broadcast inputs via the same helpers RecalculateWeather
-    // uses, so the snapshot can never disagree with what listeners last saw.
+    // OBSOLETE (B-359, D-149): the leader-HP blend, shown for comparison only; it is no longer broadcast.
     const float LocalPartyPercent = ComputeTeamHPPercent(LocalPartyHierarchy);
     const float OpposingPartyPercent = ComputeTeamHPPercent(OpposingPartyHierarchy);
     const float CurrentBlend = ComputeBlendValue(LocalPartyPercent, OpposingPartyPercent);
     const float SignedGap = LocalPartyPercent - OpposingPartyPercent;
 
-    Output += FString::Printf(TEXT("Gap: %+.2f -> BlendValue (recomputed now): %+.2f\n"),
+    Output += FString::Printf(TEXT("OBSOLETE leader-HP blend (B-359, not broadcast): gap %+.2f -> %+.2f\n"),
                               SignedGap, CurrentBlend);
     Output += FString::Printf(TEXT("Last broadcast BlendValue:                 %+.2f\n"),
                               LastBroadcastBlendValue);

@@ -27,6 +27,11 @@
 // (BindSharedItems, at spawn). Its two pools then mirror UPoolSubsystem's carried slots;
 // AddCount carries what fits and stores the rest (so it never fails for space), RemoveCount
 // takes from the carried slots. Unbound components (enemies, tests) keep their own counts.
+//
+// OBSOLETE (B-313, D-111, D-117) as a party member's copy: the member's pouch in UPoolSubsystem is its only
+// carried-items list. Fight item lists and item use read the pouch directly (ULoadoutComponent::GetUsableItems
+// / UseCarriedItem); the Crystals / Stones mirror stays for the readers not yet moved (B-313b) and is deleted
+// after Crown's PIE pass. Enemies keep their own counts here.
 
 #pragma once
 
@@ -54,12 +59,12 @@ public:
     /** DUAL-PURPOSE gem-family crystals (throwable AND slottable), counted per (Type, Tier).
      *  The gem-merge (§13.5) collapsed the former GemItem + GemRefined into this one
      *  bucket — slotting and throwing both debit it. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Inventory|Crystals")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Crystals")
     TMap<FCrystalId, int32> Crystals;
 
     /** AUGMENT STONES (slot-only; attach directly, no refined form), counted per
      *  (Type, Tier). Renamed from StoneItem in the gem-merge; behaviour unchanged. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Inventory|Crystals")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Crystals")
     TMap<FCrystalId, int32> Stones;
 
     // ==================== WRITE ====================
@@ -113,6 +118,9 @@ public:
 
     bool IsSharingItems() const { return SharedPool.IsValid(); }
     FName GetPouchCharacterKey() const { return PouchKey; }
+    /** B-313: the pool holding this member's pouch (null when unbound). Readers that mean the pouch go here
+     *  (UPoolSubsystem::GetPouch) rather than to this component's Crystals / Stones copy. */
+    UPoolSubsystem *GetPouchPool() const { return SharedPool.Get(); }
 
 protected:
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

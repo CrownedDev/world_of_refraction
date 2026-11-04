@@ -19,7 +19,8 @@ namespace SupportSkillRules
 		}
 		if (const USpellData *Spell = Cast<USpellData>(Skill))
 		{
-			if (Spell->School == ESpellSchool::Enhancement || Spell->School == ESpellSchool::Restoration)
+			const ESpellSchool School = Spell->GetSchool(); // B-356: a retired school reads as its mapped one
+			if (School == ESpellSchool::Enhancement || School == ESpellSchool::Restoration)
 			{
 				return true;
 			}

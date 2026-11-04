@@ -40,7 +40,25 @@ int32 FWeaponLoadoutEntry::GetCustomizableAbilityCount() const
 
 int32 FWeaponLoadoutEntry::GetSkillSlotCount() const
 {
-    return SkillSlotList::SlotCount(WeaponEntry.Tier, WeaponEntry.StoneSocket);
+    // The stone socket, else an authored stone still sitting in the element socket (pre-B-351 shape).
+    return SkillSlotList::SlotCount(WeaponEntry.Tier, WeaponEntry.GetStoneAttachment());
+}
+
+FString FWeaponLoadoutEntry::GetSkillSlotString() const
+{
+    const TArray<UAbilityData *> BuiltIns = WeaponEntry.Weapon ? WeaponEntry.Weapon->PresetAbilities : TArray<UAbilityData *>();
+    const TArray<UAbilityData *> Slots = GetSkillSlots();
+    FString Out = FString::Printf(TEXT("%s skill slots: %d (%s)"), *GetNameSafe(WeaponEntry.Weapon), Slots.Num(),
+                                  WeaponEntry.bSkillSlotsActive ? TEXT("one list, active") : TEXT("one list not edited yet: the old lists play"));
+    for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
+    {
+        const bool bReplaced = SkillSlotList::IsReplaced(WeaponEntry.SkillPicks, Slot);
+        const UAbilityData *BuiltIn = BuiltIns.IsValidIndex(Slot) ? BuiltIns[Slot] : nullptr;
+        Out += FString::Printf(TEXT("\n  [%d] %s%s"), Slot, Slots[Slot] ? *Slots[Slot]->Name : TEXT("-"),
+                               bReplaced ? (BuiltIn ? *FString::Printf(TEXT(" (pick; built-in %s restorable)"), *BuiltIn->Name) : TEXT(" (pick)"))
+                                         : (BuiltIn ? TEXT(" (built-in)") : TEXT("")));
+    }
+    return Out;
 }
 
 TArray<UAbilityData *> FWeaponLoadoutEntry::GetSkillSlots() const

@@ -97,6 +97,9 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     /** Bring back the built-in (or empty) Slot held before a replace; activates the list. False if nothing was replaced. */
     bool RestoreSkill(int32 Slot);
 
+    /** Debug: the list slot by slot, saying which are picks (and the built-in each one hides) and whether it is active. */
+    FString GetSkillSlotString() const;
+
     /** Get number of customizable ability slots. The cap keys on the weapon's own
      *  tier (CrystalEffectTable::SlotsForContainerTier); MAX_WEAPON_ABILITIES is the
      *  no-weapon fallback ceiling. Defined in the .cpp — keeps WeaponData +

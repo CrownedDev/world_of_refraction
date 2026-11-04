@@ -1,5 +1,8 @@
 // AIDecisionConstants.h
 // Constants for AI decision making
+// B-345 (D-136): the scoring weights, thresholds, Emerald factors and defence attempt chances are
+// read from UCombatTuningData (WoRTuning::Get(), "AI" category); the values here are its defaults,
+// so a missing asset changes nothing. Think times, parry chance and the defence aim stay C++.
 
 #pragma once
 
@@ -10,8 +13,8 @@ namespace AIConstants
 {
     // ==================== ALLIES ====================
 
-    // D-044: AI-controlled party members play at this fixed level whatever the
-    // encounter's difficulty (that drives the enemies only). Q-071. TODO: tune.
+    // OBSOLETE (B-346): an AI-played party member plays at its AI seat's setting (default Medium,
+    // Q-21-audit); nothing reads this. Was D-044 / Q-071: AI party members at a fixed level.
     constexpr EAIDifficulty ALLY_AI_DIFFICULTY = EAIDifficulty::Hard;
 
     // ==================== TARGET SCORING ====================
