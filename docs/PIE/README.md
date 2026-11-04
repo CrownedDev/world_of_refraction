@@ -15,7 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
-| [B-358](B-358.md) | `feature/B-358-one-physical-resistance` (UNBUILT) | One Physical resistance column; each physical subtype still picks its break | Not built |
+| [B-358](B-358.md) | `feature/B-358-one-physical-resistance` (in `dev`) | One Physical resistance column (buildup only, ED-27); each physical subtype still picks its break | Pending |
 | [B-350](B-350.md) | `chore/B-350-test-actors-out` (in `dev`) | Gap specs for the five legacy test actors (listed for an editor delete); test.sh slowest 10; balance sim nightly only | Pending |
 | [B-348](B-348.md) | `chore/B-348-one-save-version` (in `dev`) | One save version (D-138): older saves wiped; SaveGame tags gone | Pending |
 | [B-346](B-346.md) | `feature/B-346-party-seats` (in `dev`) | Seats: you command everyone; AI seats set before the fight stay AI (own difficulty, Medium); no takeover or Let AI Play; co-op rotation with B-232 | Pending |
