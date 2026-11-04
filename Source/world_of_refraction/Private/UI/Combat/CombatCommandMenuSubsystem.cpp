@@ -2,6 +2,7 @@
 // World of Refraction - Combat UI
 
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
+#include "Player/TurnStateComponent.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
@@ -20,7 +21,10 @@
 #include "Equipment/Crystals/CrystalType.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Combat/CombatOrchestrator.h"
+#include "Combat/CombatPlayerController.h"
 #include "Combat/Actions/ActionStructs.h"
+#include "Combat/Actions/CombatPickRequest.h"
+#include "WoRAuthority.h"
 #include "Infusion/InfusionVFXComponent.h"
 #include "Infusion/InfusionConstants.h"
 #include "Skills/Effects/SkillEffectManager.h"
@@ -29,6 +33,18 @@
 
 namespace
 {
+    // B-228: teams from the GameState's replicated turn state (every player sees them), else the server-only
+    // TurnManager (standalone, headless).
+    int32 TeamOf(const UTurnStateComponent *TurnState, UTurnManager *TM, AActor *Actor)
+    {
+        return TurnState ? TurnState->GetActorTeam(Actor) : (TM ? TM->GetActorTeam(Actor) : INDEX_NONE);
+    }
+
+    TArray<AActor *> MembersOf(const UTurnStateComponent *TurnState, UTurnManager *TM, int32 Team)
+    {
+        return TurnState ? TurnState->GetTeamMembers(Team) : (TM ? TM->GetTeamMembers(Team) : TArray<AActor *>());
+    }
+
     /** EPieMenuCategory::MoveRow's DataIndex: which way the step goes. */
     constexpr int32 MOVE_ROW_BACK_INDEX = 0;
     constexpr int32 MOVE_ROW_FORWARD_INDEX = 1;
@@ -1383,11 +1399,12 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
     {
         TM = GI->GetSubsystem<UTurnManager>();
     }
-    if (TM)
+    const UTurnStateComponent *TurnState = UTurnStateComponent::Find(GetGameInstance());
+    if (TM || TurnState)
     {
         if (AActor *User = CurrentActor.Get())
         {
-            UserTeam = TM->GetActorTeam(User);
+            UserTeam = TeamOf(TurnState, TM, User);
         }
     }
 
@@ -1427,9 +1444,9 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
             continue;
 
         FLinearColor Tint = AllyTint;
-        if (UserTeam >= 0 && TM)
+        if (UserTeam >= 0 && (TM || TurnState))
         {
-            const int32 TargetTeam = TM->GetActorTeam(Target);
+            const int32 TargetTeam = TeamOf(TurnState, TM, Target);
             if (TargetTeam >= 0 && TargetTeam != UserTeam)
             {
                 Tint = EnemyTint;
@@ -1614,10 +1631,11 @@ TArray<AActor *> UCombatCommandMenuSubsystem::ResolveTargets(ETargetType TargetT
         return Result;
 
     UTurnManager *TM = GI->GetSubsystem<UTurnManager>();
-    if (!TM)
+    const UTurnStateComponent *TurnState = UTurnStateComponent::Find(GI);
+    if (!TM && !TurnState)
         return Result;
 
-    int32 UserTeam = TM->GetActorTeam(User);
+    int32 UserTeam = TeamOf(TurnState, TM, User);
     if (UserTeam < 0)
         return Result;
 
@@ -1641,7 +1659,7 @@ TArray<AActor *> UCombatCommandMenuSubsystem::ResolveTargets(ETargetType TargetT
     case ETargetType::Enemy:
     {
         int32 EnemyTeam = (UserTeam == 0) ? 1 : 0;
-        for (AActor *Member : TM->GetTeamMembers(EnemyTeam))
+        for (AActor *Member : MembersOf(TurnState, TM, EnemyTeam))
         {
             if (IsAlive(Member))
             {
@@ -1652,7 +1670,7 @@ TArray<AActor *> UCombatCommandMenuSubsystem::ResolveTargets(ETargetType TargetT
     }
 
     case ETargetType::Ally:
-        for (AActor *Member : TM->GetTeamMembers(UserTeam))
+        for (AActor *Member : MembersOf(TurnState, TM, UserTeam))
         {
             if (IsAlive(Member))
             {
@@ -1662,12 +1680,12 @@ TArray<AActor *> UCombatCommandMenuSubsystem::ResolveTargets(ETargetType TargetT
         break;
 
     case ETargetType::Anyone:
-        for (AActor *Member : TM->GetTeamMembers(0))
+        for (AActor *Member : MembersOf(TurnState, TM, 0))
         {
             if (IsAlive(Member))
                 Result.Add(Member);
         }
-        for (AActor *Member : TM->GetTeamMembers(1))
+        for (AActor *Member : MembersOf(TurnState, TM, 1))
         {
             if (IsAlive(Member))
                 Result.Add(Member);
@@ -1898,6 +1916,21 @@ void UCombatCommandMenuSubsystem::SubmitConfirmedAction(
            static_cast<int32>(Action.SelectedSource),
            static_cast<int32>(Action.SpellSource));
 
+    // B-229: the pick goes through this machine's combat player controller. On a client it is sent to the
+    // server (the client's orchestrator runs no fight), and the menu closes: the server's turn state says what
+    // happens next (the client HUD is B-228b).
+    ACombatPlayerController *LocalController = ACombatPlayerController::FindLocal(GetGameInstance());
+    if (LocalController && !WoRAuthority::HasAuthority(LocalController))
+    {
+        if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
+        {
+            VFX->SetImmuneToInfusion(false);
+        }
+        LocalController->RequestMenuPick(FCombatPickRequest::FromAction(CurrentActor.Get(), Action));
+        Close();
+        return;
+    }
+
     ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get();
     if (!Orchestrator)
     {
@@ -1910,7 +1943,16 @@ void UCombatCommandMenuSubsystem::SubmitConfirmedAction(
         VFX->SetImmuneToInfusion(false);
     }
 
-    Orchestrator->SubmitActionAsync(Action);
+    if (LocalController)
+    {
+        // Authority (host, standalone): the same server-side check a client's pick gets, then the orchestrator.
+        LocalController->RequestMenuPick(FCombatPickRequest::FromAction(CurrentActor.Get(), Action));
+    }
+    else
+    {
+        // No combat player controller (headless specs, another controller class): straight to the orchestrator.
+        Orchestrator->SubmitActionAsync(Action);
+    }
 
     // B-110: a finished (sync) action was closed by HandleActionExecuted, and a refused one
     // re-requested this actor's turn, which reopened the menu; closing after either would shut a

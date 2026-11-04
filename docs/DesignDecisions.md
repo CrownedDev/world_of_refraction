@@ -1543,6 +1543,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** (2026-10-28)
 - The Generic typed essence (from dismantling Quartz crystals) is called **Quartz essence** in game (for now).
 - **A: Quartz essence buys Generic spells**, as each element's essence buys its spells (one rule). This replaces the note that Generic spells are priced like abilities with no typed essence (`Resources_Design.md` §5, `EconomySystem.md` cost table). Reality essence keeps its roles: wildcard substitute, the ½ upgrade companion cost, shop rerolls.
+**Changed by D-125 (2026-11-03, B-333):** Quartz essence folds into Elemental Essence; a Generic spell costs Skill + Elemental like any elemental spell (Q-333).
 **Notes for Claude:** `EEssenceType::Generic` stays (append-only); only its display name and the spell-cost rule change. Price Generic spells like elemental ones (same typed-essence amount at tier) in B-269's cluster or a follow-up; update `docs/Rules/05-economy-and-runs.md`.
 
 ### Q-267 — Energy Cost modifier: buff or debuff?
@@ -1647,6 +1648,230 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - `UPartyControlWidget::CycleRunGear` (B-221b's worn-elsewhere skip).
 - B-319's `FindDuplicateGear` counts the shared list each member sees; B-320's refill draws from it; Q-320b (dismantling gear another member wears) goes away once gear is per character.
 - B-203's carried slots are one party list (`wor.Inventory.PrintSlots`).
+
+### D-120 — Enemy HP: own HP × rank × Combat Tier power; zones place stronger enemies (audit §1)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** an enemy's max HP = its own HP × its rank × its Combat Tier power (D-118). The zone tier no longer adds HP; a harder zone places higher-tier enemies instead. Combat Tier keeps its HP boost.
+**What it changes:** B-186's zone strength on HP (`AEnemyZone::GetTierStrengthMultiplier` in `ABattleGameMode` and the balance sim); zone damage is a separate question (not ruled: keep as is). Note: B-327 found the zone was counted once, not twice (MaxHPBuff percents add); its spec is updated by the job.
+**Notes for Claude:** **widened the same day (Crown, via the brain): the zone adds no damage either**; a zone only decides which enemies are placed there, their strength is their Combat Tier. Applied in B-327 (desktop, 2026-11-03): `ABattleGameMode` and `FBalanceSimRunner` pass only the door's shares to `TrialGate::ApplyEnemyStrength`; `AEnemyZone::GetTierStrengthMultiplier` is OBSOLETE (kept for its log line until PIE); `WoR.Trial.ZoneHealthOnce` and `WoR.Trial.EnemyZone` pin it; Q-186 and ER-48 updated. What is left for B-328 is the placement half: harder zones place higher-tier enemies.
+
+### D-121 — Finish GAS stage 3, then delete the enum effect path; new effects GAS-only (audit §2)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** finish GAS stage 3 (B-042i, B-042j2, B-042f, B-042g), then delete the enum effect path. Until then every new effect goes in as a GAS effect only, and no feature job touches both paths.
+**What it changes:** B-042g is the deletion job (`FActiveSkillEffect` storage, the mirror, the sync and the enum branches); B-318 folds in.
+**Notes for Claude:** a standing rule for every job; the CLAUDE.md rules section should say it (Crown to approve that edit).
+
+### D-122 — Each character's inventory component is their store; the pool keeps only the home chest (audit §3; changes D-111's wording)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** each character's inventory component is their store; `UPoolSubsystem` keeps only the shared home chest. D-111's behaviour (GUIDs, references, the run layer) stays; its "one store per player" wording changes.
+**What it changes:** B-312b becomes "readers onto the member's component"; B-313 and B-314 stay; **B-315 is dropped** (the owner is the component); B-316 (give) is simpler; B-317 deletes the pool wearers and the copies.
+**Notes for Claude:** rows re-scoped in `Backlog.md`.
+
+### D-123 — The player picks pillars only; sub-stats come from the asset and gear; one Speed (audit §4)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** the player picks pillars only. Sub-stats come from the character asset and gear (WoW-like); the 3-points-per-level sub-stat pool retires. Action Speed and Spell Speed merge into one **Speed**.
+**What it changes:** the level-up sub-stat pool; D-088's Ice → Action Speed wording (now Speed); `StatModifierTable`, the defense window maths, a stone kind.
+**Notes for Claude:** jobs B-330 (pool retires) and B-331 (Speed merge).
+
+### D-124 — One PIE sweep checklist; deletes batched per milestone (audit §6)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** one combined checklist, `docs/PIE/Sweep.md`, covers every retire-after-PIE delete; from then on deletes are batched into one sweep per milestone. Otherwise unchanged: nothing is deleted before Crown's PIE.
+**Notes for Claude:** job B-332.
+
+### D-125 — Seven balances (audit §7; changes D-105)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** seven balances: **Gold, Prisms, Diamond, Gear Essence, Skill Essence, Elemental Essence, Pillar Essence**. The 14 typed essences retire. Elemental pays for anything with an element; Pillar pays for stat stones; Skill pays for spells, abilities and ability stones. A spell costs Skill + Elemental; a non-elemental ability costs Skill only. Quartz folds into Elemental (changes D-105). Pre-release saves may be wiped (D-060).
+**Notes for Claude:** job B-333.
+
+### D-126 — Infusion keeps the source choice; EP = base × charge level; HP cost only at level 2 (audit §8)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** keep choosing the infusion source. The EP cost is the base × the charge level; the HP cost applies only at level 2. (The audit recommended dropping the source choice; Crown kept it, so D-007 and D-035 stand.)
+**Notes for Claude:** job B-334.
+
+### D-127 — Per-instance random rolls retire (audit §9)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 1) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** delete per-instance random rolls: flag them OBSOLETE now, delete them in the sweep (D-124). They are already off, so nothing changes in play.
+**Notes for Claude:** job B-335.
+
+(Audit §5: **no change** — evolutions and fusions keep their wear. §10 is Q-293d.)
+### D-128 — Nothing is DONE without Crown's PIE; one running list (audit §12)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** no job is marked DONE without Crown's PIE pass. `docs/PIE/Sweep.md` keeps a running list of every job waiting on PIE, and Crown plans one sweep when ready. CLAUDE.md's Backlog-mode rule 6 is unchanged.
+**Notes for Claude:** folded into B-332 (the sweep file).
+
+### D-129 — Per-fight subsystems become world subsystems; co-op as one working two-player fight first (audit §13)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** the per-fight `UGameInstanceSubsystem`s move to `UWorldSubsystem`, one system per cluster (D-064). Co-op is built as one working two-player fight first: B-228 to B-232 are re-scoped into that slice. Host hand-over (D-103) stays, built last.
+**Notes for Claude:** job B-336 (world subsystems); the co-op rows re-scoped in `Backlog.md`.
+
+### D-130 — One condition vocabulary (audit §14)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** one shared `FWoRCondition` / `FWoRConditionSet` and one evaluator, on the deckbuilder's trigger → condition → effect model (`CrownedDev/wor-deckbuilder` `docs/design/WoR_TCG_Pivot_Design.md` and its `docs/reference/05-triggers-conditions.md`). Built beside the old ones, memories first. D-100 still holds (memories and boss triggers stay separate systems).
+**Notes for Claude:** job B-337.
+
+### D-131 — One placeholder inventory screen (audit §15)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** delete `wor.UI.ItemStorage` now. Then one placeholder inventory screen with verbs: **Give, Store, Take, Dismantle, Convert**, so the CommonUI screen (D-024) has one placeholder to replace.
+**Notes for Claude:** jobs B-338 (delete) and B-339 (the screen). Crown's ruling is the PIE exception for the delete.
+
+### D-132 — Docs: one rule source, archive the rest (audit §16)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** docs moves only, no rewrites. `docs/Rules/` is the single rule source; `docs/Mechanics/` folds in or goes to `docs/archive/`. The May overviews go to the archive. `DesignDecisions.md` splits into open and archive files. Finished backlog rows go to `Backlog_Done.md`; REVIEW rows waiting on PIE stay.
+**Notes for Claude:** job B-340.
+
+### D-133 — Keep the speed timeline; trim it (audit §17; closes D-088 for now)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** keep the speed timeline (D-088's latest). Trim the tie-break to 3 steps and make one bonus-turn rule. The reference is the deckbuilder's turn belt (`CrownedDev/wor-deckbuilder` `docs/design/WoR_TCG_Pivot_Design.md` §7c): round-robin; a bonus turn lands immediately after the current turn; a skip removes that player's next turn; death purges a player's turns, revive re-enters them.
+**Notes for Claude:** job B-341.
+
+### D-134 — Three rows, no columns, a bigger row effect (audit §18; changes D-042)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** three rows, no columns. Placeholder effect: the front row deals and takes +20%, the back row −20% (`// TODO: tune`). The D-096 row step stays. Changes D-042 (formation cells).
+**Notes for Claude:** job B-342.
+
+### D-135 — Guard and Dodge only (audit §19)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** only Guard and Dodge (D-084). Remove Parry and the left / right dodge split from the combat controller; removing the `.uasset` input actions is a later editor step. `docs/Design/InputMap.md` follows.
+**Notes for Claude:** job B-343.
+
+### Q-343 — Which dodge animation does the single Dodge play?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-343, desktop build) · **Blocks:** —
+**Question:** D-135 keeps one Dodge key. The loadout still has a left and a right dodge montage; which one does the player's press play?
+**Options:** **A** always the left dodge montage (the old Dodge Left key's); **B** alternate or pick at random; **C** a new single dodge montage per loadout.
+**Recommendation:** A. One button, one readable animation: Expedition 33 and Sekiro play a fixed dodge for a plain press (direction comes only from a held stick), so the player learns one timing cue. B hides the timing under animation variety; C is an asset job for no rule gain.
+**Answer:** A (approved by the reference-backed default). `CombatInputRouting::DODGE_MONTAGE_DIRECTION` = Left. The AI still rolls left or right for its own dodges (`AIDecisionManager.cpp`); B-345's one AI path drops the roll so AI dodges match. Renaming `DodgeLeftAction` is a D-124 sweep item (editor step).
+**Notes for Claude:** applied in B-343.
+
+### D-136 — Trial difficulty sets enemy damage and the AI tier; one AI path (audit §20)
+**Status:** DECIDED (Crown, 2026-11-03, simplicity audit round 2) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md`, branch `chore/simplicity-audit`) · **Blocks:** —
+**Answer (Crown):** the trial difficulty sets both enemy damage and the enemy AI tier; a per-encounter AI override stays (D-044). Spell and ability AI share one path, and the AI weights move into `UCombatTuningData`.
+**Notes for Claude:** jobs B-344 (difficulty → AI tier) and B-345 (one path, weights to data).
+
+### Q-344 — Do boss arenas follow the trial difficulty too?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-344, cloud) · **Blocks:** —
+**Question:** boss arenas (`ATrialMapFeature`) were authored Hard by default. Under D-136, do they follow the trial difficulty, or keep their own tier?
+**Options:** **A** follow the trial unless overridden (bosses still harden by phase, B-193); **B** keep each arena's own tier.
+**Recommendation:** A. Hades' Heat and Diablo's difficulty tiers change bosses with everything else, so one setting means one thing; set pieces stay special through their phases.
+**Answer:** A (approved by the reference-backed default). An arena that should stay Hard sets `bOverrideAIDifficulty`.
+**Notes for Claude:** applied in B-344.
+
+### Q-21-audit — Party control: the deckbuilder's seat rule (audit §21)
+**Status:** ANSWERED (Crown: follow the deckbuilder's rule) · **Raised:** 2026-11-03 (audit §21) · **Blocks:** —
+**Question:** who commands each party member, solo and in co-op?
+**Context:** PA-11 to PA-13 and PA-33 (`docs/Rules/`); the deckbuilder's seats: `CrownedDev/wor-deckbuilder` `docs/design/WoR_TCG_Pivot_Design.md` §8 items 23, 29 and 80.
+**The deckbuilder's rule:** each seat is a player or an AI. An AI seat exists only when the table's owner adds it, its settings are fixed for the match (item 23, 80), and nothing is auto-filled. An empty seat's turns are taken by its side's players, rotating in seat order (item 29).
+**This game's reading (as built):** a party member is commanded by its player. Solo, the player commands every member (Expedition 33 and Octopath do the same). In co-op, a member with no player of its own is commanded by its side's players in rotation. A member is AI only if the party leader sets it to AI before the fight; that setting is fixed during the fight. The per-member default Player / AI setting, the takeover rules and "Let AI finish" retire (flag obsolete); the switch command stays for debug. Ally AI difficulty becomes the AI seat's setting (default Medium, the deckbuilder's default).
+**Answer:** as read above (Crown, 2026-11-03: follow the deckbuilder). Touches pillar 7's "ally AI" and D-026's wording.
+**Notes for Claude:** job B-346.
+
+
+### D-137 — A run loadout is free (audit §22; changes D-021)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §22) · **Blocks:** —
+**Answer (Crown):** you bring whatever fits the D-110 slot budget, free, as Hades does. Players already pay to upgrade gear. Gold is run money for in-run vendors only. B-116 (buying the loadout at run start) is dropped.
+**What it changes:** D-021 and ER-16; Q-314's "every home piece goes on the run until B-116" becomes "the worn loadout within the slot budget goes on the run".
+**Notes for Claude:** job B-347.
+
+### D-138 — One save version while in dev (audit §23)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §23) · **Blocks:** —
+**Answer (Crown):** while in dev there is one save version. `MIN_SUPPORTED` rises to `LATEST`; every old-shape reader (v3 / v4 gear lists, the party pouch and the rest) is deleted; older saves are wiped with a warning (D-060). The 14 `SaveGame`-tagged fields move into `FWoRSaveData` (D-059). From now on a save-format change bumps the version and the minimum together, with no migration code until the first public build.
+**Notes for Claude:** job B-348. The CLAUDE.md Saves rule should carry the note (Crown to approve that edit).
+
+### D-139 — One console naming rule (audit §24)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §24) · **Blocks:** —
+**Answer (Crown):** every console command is `wor.<System>.<Verb>`, with one `Print` per system. Duplicates are removed outright, with no alias period. Every `docs/PIE/*.md` and Architecture doc naming an old command is updated, as is CLAUDE.md's debug-tools section (Crown to approve that edit).
+**Notes for Claude:** job B-349, split by system (≤3 files per commit).
+
+### D-140 — Legacy test actors go now; test-run hygiene (audit §25; changes D-067)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §25) · **Blocks:** —
+**Answer (Crown):** remove `CombatOrchestratorTestActor`, `TurnManagerTestActor`, `SkillEffectManagerTestActor`, `HUDTestActor` and `SkillProjectileTestActor` now, with no PIE gate. Where an actor covers something no spec covers, the spec comes first in the same job. Any actor placed in a map or referenced by a Blueprint is listed for an editor step instead of deleted blind. The GAS parity specs are deleted with the enum path (D-121, B-042g). `test.sh` prints the 10 slowest tests. The quick balance sim runs in the nightly preset only. CLAUDE.md's Tests rule changes (Crown to approve that edit).
+**Notes for Claude:** job B-350; the parity-spec delete rides with B-042g.
+
+### D-141 — Two sockets per weapon and adapter; fusions retire (audit round 3 §26; changes D-009, D-077)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §26, `chore/simplicity-audit` eb478300) · **Blocks:** —
+**Answer (Crown):** every weapon and adapter has two sockets: an **element socket** (a gem or an evolution) and a **stone socket** (a stone). Fusions retire: the fusion items, their bonus formula, `FFusionId`, fusion wear and pricing, and D-077's counting rule. Enums are append-only, so their values are marked retired. Fusion wear goes with fusions; evolution wear stays (this narrows round 1's "§5 no change" note).
+**What it changes:** D-009 (stones and fusions on rings), D-077 (what counts as "a crystal" for tier caps), the round-1 §5 note.
+**Notes for Claude:** jobs B-351 (the two sockets: slot struct, loadout costs, validation, save bump with wipe per D-138) and B-352 (fusions retire); B-299's rename follows D-138 (no migration: a pre-rename save is wiped).
+
+### D-142 — One stat stone kind (audit round 3 §27)
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §27) · **Blocks:** —
+**Answer (Crown):** one `StatStone` kind with a sub-stat field. The old single-stat stone members map to it on load (append-only: old values marked retired). Damage, Ability and Healing stones stay.
+**Notes for Claude:** job B-353, after B-351 / B-352.
+
+### D-143 — Crystal tier caps retire, except one S crystal per battle loadout (audit round 3 §28; changes D-072)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §28) · **Blocks:** —
+**Answer (Crown):** D-072's crystal tier caps retire. The only cap left: at most one S-tier crystal equipped in a battle loadout. Inventory, pouch, storage and owned crystals have no tier caps. Other limits stay: the D-110 point budget and item limit, skill slots by tier, the 10-slot pouch, D-115, D-116 and presets. Skills stay attached to gear; gear with built-in skills can be overridden (under review as audit §37).
+**Notes for Claude:** job B-354 (loadout validation, constants, Rules 01). B-313's per-fight band counts (Q-313(2)) follow it.
+
+### D-144 — Bosses: one rule list (audit round 3 §29)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §29) · **Blocks:** —
+**Answer (Crown):** a boss has one rule list instead of separate phases and triggers. Each rule is when → condition → result; "go to the next phase" is one of the results. It uses D-130's shared condition set, on the deckbuilder's model.
+**Notes for Claude:** job B-355, after B-337.
+
+### D-145 — One skill-slot list per weapon or crystal; built-ins replaceable (audit round 3 §37; changes CL-20)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §37) · **Blocks:** —
+**Answer (Crown):** each weapon or crystal has one skill-slot list (F 1 to S 6). Built-in skills pre-fill it and the player can replace any of them; a replaced built-in is remembered on the item and can be restored. An Ability Stone adds slots to the same list. The locked flags, the position merge and the separate stone list retire. Not the audit's "built-ins can't be replaced" version.
+**Notes for Claude:** combined with B-351 (the two sockets).
+
+### D-146 — Three spell schools: Destruction, Enhancement, Restoration (audit round 3 §31)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §31) · **Blocks:** —
+**Answer (Crown):** spell schools stay as exactly three: **Destruction**, **Enhancement**, **Restoration**. Existing schools map onto them (enum append-only: the others marked retired). Schools are player-facing labels shown on spells (LOCTEXT name table). The AI decides from a spell's actual effects, not its school (folded into B-345). Re-tagging the spell assets is an editor step.
+(Audit §30: **no change** — the class innate resistance table stays as class identity, D-005; the Resonator is the utility class with lower resistance; no class passives.)
+**Notes for Claude:** job B-356; the AI part rides with B-345.
+
+### D-147 — An evolution attaches to the character, a weapon or an adapter; one cost; one resolve path (audit round 3 §32; corrects the audit)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §32) · **Blocks:** —
+**Answer (Crown):** an evolution can attach to the **character**, a **weapon** or an **adapter**. It has one D-110 cost wherever it goes (the separate cost rows retire). In code, "standalone" becomes "attached to the character's own slot", so every reader resolves one thing: an evolution attached to X. On a weapon or adapter it gives only its passive skills, and only while that item is infused at **level 2** (corrected by Crown, 2026-11-04; nothing at L0 or L1); on a weapon it sits in the element socket (D-141).
+**The deckbuilder's rule (cited):** `CrownedDev/wor-deckbuilder` `docs/reference/02-enums.md:65` (an Evolution "attaching it to the Character costs 1 Action + its EN"), `:447` (`WhenAttached`: "an Evolution to a vessel or the Character … even on an Evolution on a vessel, whose other triggered rows stay off"), `:63` (an Evolution on the Character licenses spells of its element). The deckbuilder allows all three placements, which the audit missed.
+**Notes for Claude:** job B-357, after B-351 (sockets) and B-356.
+
+### D-148 — One Physical resistance column (audit round 3 §33)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §33) · **Blocks:** —
+**Answer (Crown):** one Physical resistance column. Slash, Pierce and Impact stay as subtypes (D-037); each subtype only picks its break (SB-19 to SB-21). Saves stay append-only.
+**Notes for Claude:** job B-358.
+
+### D-149 — Weather: one baseline (audit round 3 §34)
+**Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §34) · **Blocks:** —
+**Answer (Crown):** the trial's element sets the weather on the map and in battle (B-189); in combat a boss phase change steps it (D-098). The leader-HP tug-of-war in `UWeatherStateManager` retires (flag OBSOLETE).
+**Notes for Claude:** job B-359.
+
+(Audit round 3 closing notes, Crown 2026-11-04: **§36** — the item-strengthening routes are upgrade, attach and merge (crystals only), which follows from D-141 and D-147, so nothing new to build; **downgrade stays** (ER-27) for essence back and respeccing. **§35** (skins / outfits) is **parked**, not to be built. **§30** no change. Round 3 = D-141 to D-149.)
+
+### D-118 — Combat Tier: every combatant gets an F–S tier from its gear and skills
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
+**Answer (Crown):** every combatant, players and enemies alike, has a **Combat Tier** from F to S: the average tier of its equipped gear and skills, rounded to a letter, recomputed when its loadout changes. (1) Combat Tier changes nothing about Mind, Body and Spirit; every pillar benefit (HP, EP, scaling, requirements) stays as it is for everyone. (2) The tier-power HP boost applies only to enemies, as B-224b has it; on players and party members the tier is shown but adds no stats.
+**What it changes:** an enemy's tier-power HP (B-224b) and its level-drop tier (B-223) read its Combat Tier; `UCharacterData::EnemyTier` stays only as the fallback for an actor with no gear and no skills.
+**Defaults taken (reference-backed, Crown may change):** Q-325 (rounding).
+**Notes for Claude:** job B-325 (built 2026-11-03). D-120 / B-327 pair with it: enemy HP = own × rank × Combat Tier, the zone adds nothing. Existing enemy assets whose seed gear has no tier read F until the gear carries one (`EnemyTier` is the fallback only).
+
+### Q-325 — How does the average round to a letter?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-325, cloud) · **Blocks:** —
+**Question:** Combat Tier averages tier steps (F 0 .. S 6). Round to nearest, or down? Which items count?
+**Context:** `Public/Combat/Tier/CombatTier.h`.
+**Options:** **A** round down (C C B is C; B A is B); **B** round to nearest, a half up (B A is A). Counted: the gear that counts (B-306's `ForEachContributingGear`: the adapter in use and the weapon in hand, at their instance tiers), the primary evolution, and every ability and spell the loadout offers, each once.
+**Recommendation:** A. Destiny 2's Power level is the plain average of the equipped items, rounded down ([Destiny wiki](https://www.destinypedia.com/Power)): the next level shows only once it's earned, and one stray high item doesn't lift the whole tier. Counting gear by B-306's rule keeps one answer for "what counts" across stats and tier.
+**Answer:** A (approved by the reference-backed default).
+**Notes for Claude:** applied in B-325 (`feature/B-325-combat-tier`). Skills count at their asset tier (`USkillDataBase::Tier`); a levelled skill instance's tier (`FAbilityInstance` / `FSpellInstance::Tier`) is not read yet: a follow-up if skills level.
+
+### Q-330 — With the per-level pool gone, what bounds an asset's authored sub-stats?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-330, D-123) · **Blocks:** —
+**Question:** the sub-stat pool was 30 + 3 per pillar level, and it was also the check on an authored asset's spread. With pillar levels granting no sub-stat points (D-123), what ceiling does an asset's authored spread get?
+**Options:** A one fixed ceiling at every pillar level: the old 7/7/7 total, 93 (`StatConstants::MAX_AUTHORED_SUBSTAT_POINTS`), the same number the per-point maths already derives from (`CombatConstants::MAX_STAT_POINTS`) / B the old starting 30 for every asset / C no ceiling.
+**Recommendation:** A. In WoW and Expedition 33 a character's base stats are authored per character with a fixed design ceiling and gear adds the rest; no player-spent budget. 93 keeps every existing asset valid and the per-point values unchanged, so nothing moves in play. B would flag every levelled enemy over budget; C drops the authoring check.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it. `GetTotalPool` (the old pool) stays live only as the enemy caliber (WSP per kill, a team's strongest member) until the D-124 sweep gives the caliber its own read.
+
+### Q-334 — What is "the base" in D-126's infusion EP cost, and what does L1 cost?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-334, D-126) · **Blocks:** —
+**Question:** D-126 says the EP cost is the base × the charge level. Today it is base × charge tax (x1.5 / x2.0) × (1 + Raw / Spell Damage above x1.0) × Efficiency × own-tier power × tier-gap cost, and an infused ability's base is x1.5 (D-035). Which factors are "the base", and is L1 x1?
+**Options:** A "the base" is the action's own EP cost, the factors every action pays infused or not (base EP, D-035's x1.5 for an infused ability since D-035 stands, Efficiency, own-tier power, tier gap); the charge level replaces the x1.5 / x2.0 tax and the infusion-only stat surcharge retires; L1 x1, L2 x2 / B as A, but L1 x2 and L2 x3 (each level adds one base on top) / C keep x1.5 / x2.0, drop only the surcharge.
+**Recommendation:** A, Crown's words read literally. Octopath Traveler's Boost (the audit's reference) prices each boost level as one flat step that players read at a glance, and the factors that apply to every action stay where every action has them. Consequence for Crown to check in PIE: an L1 infusion now costs the same EP as no infusion for a spell (and pays no HP, D-126); its price is the source's wear or the ability's D-035 x1.5. If L1 should cost more, B is the change.
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
+
+### Q-335 — When the rolls are deleted, what happens to `bRandomGenerateOnPickup`, which also gates the Quality roll?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-335, D-127) · **Blocks:** —
+**Question:** the same toggle that turns on the per-instance stat / resistance roll also turns on the per-instance Quality roll (`EconomyYield::RollQuality`, `InventoryComponent.cpp` `AddGearEntry`, `EvolutionInventoryComponent.cpp` `AddInstance`). D-127 deletes the rolls and keeps tier + quality.
+**Options:** A keep the toggle; after the sweep it gates only the Quality roll (rename it then, e.g. `bRollQualityOnPickup`, with a redirect) / B delete it with the rolls and always roll Quality on a fresh pickup / C delete it and never roll Quality (always the C placeholder).
+**Recommendation:** A. It keeps D-127 to "nothing changes in play" (assets that opt in keep their Quality roll; the rest keep C), and the change is a delete, not a new rule. Expedition 33 and Hades ship gear with fixed stats per item; how often quality varies is a separate tuning call for the drop tables (TierOnInstance.md).
+**Answer:** **A**, by the reference-backed default (2026-11-03). Crown may change it.
 
 ### Q-321 — Can the shared home chest hold gear, or only items?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (D-117) · **Blocks:** —
@@ -2059,7 +2284,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **C** A zone swaps in a stronger version of each enemy.
 **Recommendation:** A. Dark Souls and Elden Ring set enemy strength by area and never scale to the player, and players praise how getting stronger shows and how you can wander into a hard area early (Enemies §4 asks for exactly that). Diablo II's fixed area levels work the same way. A few named tiers keep zones comparable and easy to tune. Not lore.
 **Answer (Crown):** **A, approved by the reference-backed default** (2026-10-26; Claude's recommendation, reference above). Crown may change it.
-**Notes for Claude:** applied (feature/B-186-enemy-zones): `AEnemyZone` (`FEncounterZoneInfo`), `AEnemyZone::FindZoneAt` from `UEncounterComponent`, `UTrialRunSubsystem::PendingZone` (the same transport exception to D-064 as `PendingRank` and `PendingFirstStrike`, moves with them for co-op, D-065), `ABattleGameMode` multiplies it in. The loot pool is not read yet (B-188 chests, B-073 drops).
+**Notes for Claude:** applied (feature/B-186-enemy-zones): `AEnemyZone` (`FEncounterZoneInfo`), `AEnemyZone::FindZoneAt` from `UEncounterComponent`, `UTrialRunSubsystem::PendingZone` (the same transport exception to D-064 as `PendingRank` and `PendingFirstStrike`, moves with them for co-op, D-065), `ABattleGameMode` multiplies it in. The loot pool is not read yet (B-188 chests, B-073 drops). **D-120 (2026-11-03, B-327) changes this:** the zone scales no stats; it only places enemies, whose strength is their own Combat Tier (enemy HP = own x rank x Combat Tier).
 
 ### Q-185 — Placeholder first strike: what counts as a hit, and how long is the head start?
 **Status:** DECIDED · **Raised:** 2026-10-26 (B-185) · **Blocks:** — (B-185 shipped with A)
@@ -2946,6 +3171,24 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A. Unreal's server-authoritative model only lets the server travel (`ServerTravel`). Co-op games with a host such as Deep Rock Galactic and Divinity: Original Sin 2 let clients vote or ready up, and the host's game moves the group. That keeps one source of truth for the run state. Not lore.
 **Notes for Claude:** applied (feature/B-227-seamless-travel, UNBUILT). The hub's Blueprint game mode still needs "Use Seamless Travel" and `AWoRGameState` set in the editor before hub <-> trial keeps clients.
 
+### Q-229 — Co-op: is the infusion commit its own server message, or part of the menu pick?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-229) · **Blocks:** —
+**Question:** B-229 sends defense presses, the infusion commit and the menu pick to the server. Today the infusion source and level are chosen in the target picker and stamped on the action at confirm (B-034); the hold-to-charge `UInfusionChargeManager` is not on any live path (`InfusionConstants.h:44`). Does the infusion commit need its own Server RPC?
+**Options:**
+- **A** (as built) the infusion commit rides inside the pick (`FCombatPickRequest::InfusionSource` / `InfusionLevel`); the server clamps the level to 0..2 and keeps it only on spells and abilities. One reliable message per command.
+- **B** a separate `Server_CommitInfusion` before the pick.
+**Recommendation:** A. The project's co-op network defaults (perf audit, Backlog co-op section) are "reliable server RPCs only for commands", and the usual Unreal shape is one validated server RPC per player order: the command carries everything needed to run it, so the server never holds half an order. Two messages could arrive with a stale level between them. If hold-to-charge comes back, its release becomes the level in the same pick. Not lore.
+**Notes for Claude:** applied in feature/B-229-input-rpcs (UNBUILT): `FCombatPickRequest`, `ACombatPlayerController::Server_SubmitMenuPick`.
+
+### Q-229b — Co-op before B-232: which characters may a player command?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-229) · **Blocks:** —
+**Question:** The server must check that a pick or a Guard comes from a player who controls that character. Characters aren't assigned to players until B-232. What does the check accept until then?
+**Options:**
+- **A** (as built) the player's own pawn, an actor it owns, or any player-driven combatant (shared party control). Enemies and AI allies (bot-driven pawns) are always refused, and the character must have the turn.
+- **B** only the player's possessed pawn (a client possesses nothing in battle, so a client could never act before B-232).
+**Recommendation:** A, as a stopgap. B-229's done-when needs a client's pick and Guard to work, and B would block both. Baldur's Gate 3 and Divinity: Original Sin 2 assign each party member to one player, which is what B-232 builds (`ControlsActor` then drops the shared rule). Not lore.
+**Notes for Claude:** `ACombatPlayerController::ControlsActor` (`TODO(B-232)`); the defense press uses the first open-window player defender (`UDefenseSystem::GetActiveDefenderForLocalPlayer`) until B-232 picks the sender's own.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
@@ -2981,6 +3224,16 @@ Moved here once applied. Newest first.
 | — | All gameplay logic in C++; BP for layout/visuals only | 2026-10-25 | `analysis/CodebaseReview_2026-10.md` §8 |
 | — | UI: Expedition 33 combat layout; deckbuilder art direction + layouts; gamepad yes; flat panels for now | 2026-10-25 | `Design/UI_ScreenInventory.md`, `Design/UI_DeckbuilderReuse.md` |
 | — | Source art: save what we use (LFS) | 2026-10-25 | `.gitattributes`, `UI_DeckbuilderReuse.md` §4 |
+### Q-333 — Seven balances: the prices D-125 left open
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-333, cloud) · **Blocks:** —
+**Question:** D-125 names the seven balances and which essence pays for what, but not: (1) whether buying a crystal or stone now costs its essence (stones were Prisms-only, and with spells no longer charging pillar essence per scaling grade, Pillar would have no use otherwise); (2) what a spell with no element (None) costs; (3) what replaces the half "Unknown" (Reality) co-cost on every upgrade, now that Reality essence retires; (4) what an evolution's purchase co-cost becomes; (5) conversion of old typed balances.
+**Context:** `Public/Currency/EconomyYield.h` (`GetCrystalEssence`, `SpellHasElement`, `GetElementalCoCost`, `ELEMENTAL_CO_COST_DIVISOR`); `Private/Currency/EconomyService.cpp` (`BuildCartCost`, `TryLevelUpEntry`).
+**Options / as built:** (1) **yes**: a crystal costs Prisms + its essence at tier (`TYPED_ESSENCE_BUY_*`): a gem (Quartz too) Elemental, a stat stone Pillar, an ability stone Skill. (2) **Skill only**, as D-125 rules for a non-elemental ability; Generic counts as elemental (it takes the caster's element). (3) the co-cost becomes **half the step in Elemental, charged only on items with an element** (evolutions; spells with an element). Weapons, adapters and abilities level on Gear / Skill alone. Downgrades still don't refund it. (4) **Elemental at tier + half again** (the old ½ Reality folded into Elemental). An element-agnostic evolution (None, e.g. Quartz) has no element: Prisms only to buy, Gear only to upgrade, and it dismantles into Gear essence (review fix). (5) **none**: the same numbers carry over (the typed ladders become the Elemental / Pillar / Skill ladders) and pre-B-333 saves are wiped (save version 11, D-060), so nothing converts.
+**Recommendation:** as built. Monster Hunter crafting costs zenny plus the material of the item's kind, and Genshin Impact's talent upgrades cost Mora plus an element/region-specific book while weapon levels use generic ore: an element-tied item takes the element material, generic gear doesn't. Elden Ring's weapon upgrades need smithing stones and runes, no element material. That is D-125's "Elemental pays for anything with an element" applied to buying and upgrading.
+**Answer (Crown, 2026-11-03, via the brain):** accept it until B-073 (approved by the reference-backed default): a pre-release build, `wor.Wallet.Add` covers testing, and run drops (B-073) become the essence source. **No starting grant.**
+**Note for Crown:** with (1), gems cost Elemental, and a fresh v11 save starts every balance at 0, so the first gem can only be bought after dismantling something (or with `wor.Wallet.Add` in testing). Say if a starting grant or Prisms-only gems are wanted.
+**Notes for Claude:** applied in B-333. This changes D-105 (Quartz essence now Elemental) and the old "crystals are Prisms-only" note (`EconomySystem.md`). To undo (1), drop the `AddEssence` line in `BuildCartCost`'s crystal branch; to put the co-cost back on every upgrade (3), pass `true` for `bHasElement` in every `TryLevelUpEntry` call. D-094's run drops of "the upgrade co-cost essence" (B-073, not built) now mean Elemental Essence.
+
 ### Q-307 — A broken evolution seat: still an infusion source?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-307) · **Blocks:** —
 **Question:** B-307 makes a broken crystal or evolution push no element (CL-24). A broken adapter crystal is also not offered as a source (Q-163 = B). Should a broken primary evolution likewise stop being offered, or stay offered as an elementless infusion?
@@ -3139,6 +3392,25 @@ Moved here once applied. Newest first.
 **Answer (Crown):** _write here_
 **Notes for Claude:** applied in B-224b. Authoring `EnemyTier` on the enemy assets is editor work (CC+UE).
 
+### Q-318 — How a co-op guest reads another character's effects from GAS
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-318, cloud) · **Blocks:** —
+**Question:** B-318 asks a client to read effects "from the replicated GAS state (its ASC's active GEs with their WoR context, and the tracker's turns left)". Player characters use the Mixed replication mode, in which other players' characters (simulated proxies) receive **no** GameplayEffects, only tags and cues; and active-GE handles differ between server and client, so the tracker's turns can't be keyed by them. How does a guest get the list?
+**Context:** `Private/Character/CombatCharacter.cpp` (`SetReplicationMode(Mixed)`); `Private/GAS/WoREffectMirrorComponent.cpp` (`ReadHeldEffects`, `BuildHeld`, `HeldSnapshot`).
+**Options / as built:** **A** the server replicates its own GAS read (`ReadHeldEffects`' answer, turns included) as a snapshot on the effect mirror; a client returns it. **B** switch every character to Full replication and replicate the tracker's turns keyed by effect identity, so a client rebuilds the list itself. **C** Mixed for owners, read the owner's own ASC, and the snapshot only for others.
+**Recommendation:** A. Epic's GAS guidance keeps Mixed for player characters and Minimal for AI to save bandwidth (Full is for single-player); Lyra shows other players' state through replicated tags / attributes, not their GEs. One snapshot is the same data on every client and keeps the server's read as the single truth until the stored list retires (B-042g).
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-318. The snapshot is refreshed by each sync; a guest's view is as fresh as the server's last sync.
+
+### Q-279c — Outfits: the details B-279c needed
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-279c, cloud) · **Blocks:** —
+**Question:** `CharacterCustomisation.md` leaves four details open for the build: (1) where outfit pieces may be swapped; (2) whether taking a skin off keeps its outfit; (3) what wearing an outfit with no skin does to the body; (4) slot names in player text.
+**Context:** `Private/Character/Forms/CharacterFormSubsystem.cpp` (`TryWearForm`, `TryWearOutfitPiece`); `Private/Player/WoRPlayerState.cpp` (`ApplyFormLook`); `Private/Character/Outfit/OutfitPieceData.cpp` (`GetSlotName`).
+**Options / as built:** (1) **where skins switch**: the hub or a rest spot, never in a fight; (2) **kept**: only putting a skin on replaces the outfit with its authored one; (3) the body becomes the player's base form (Manny / Quinn) under the outfit; (4) the design doc's names (Helmet, Jacket, Shirt, Waist, Trousers, Footwear) as `LOCTEXT` placeholders.
+**Recommendation:** as built. Monster Hunter changes equipment (and layered armour) only at the house or camp's box; Final Fantasy XIV's glamour plates too only work in towns / inns, so a rest-spot rule matches players' expectations. (4) is Crown's wording; the placeholders change in one table.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-279c.
+
+
 ### Q-293c — Balance tuning: what to move first (Expedition 33)
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-293c, cloud; Crown asked that it follow Expedition 33) · **Blocks:** —
 **Question:** The first nightly balance run failed 19 targets. Which values move, and which way?
@@ -3149,7 +3421,7 @@ Moved here once applied. Newest first.
 **Notes for Claude:** applied in B-293c. Re-run `WOR_BALANCE=nightly Scripts/ue/test.sh WoR.Balance.` before tuning further.
 
 ### Q-293d — Balance targets that clash with the Decided numbers
-**Status:** OPEN · **Raised:** 2026-11-03 (B-293c, cloud) · **Blocks:** B-293d
+**Status:** ANSWERED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (B-293c, cloud) · **Blocks:** B-293d
 **Question:** Three targets can't be met without changing a Decided number (BaselineNumbers.md). Which gives way?
 **Context:** `docs/analysis/Expedition33Balance.md` ("Not changed"); `Public/Combat/Tuning/CombatBaselineConstants.h` (rank HP); `Private/Balance/BalanceSimReport.cpp` (bands).
 **Options:**
@@ -3157,8 +3429,35 @@ Moved here once applied. Newest first.
 - **Pillar 6** (S gear under-levelled wins 92%, band 35–65%): **A** keep the floor 0.5 and move the band (e.g. 60–95%: gear leads, never certain); **B** harsher under-requirement penalty.
 - **Stacked reduction** (Defense 75% × Damage Taken Down 90% × Guard 50% lets 1.25% through): **A** an overall cap on damage taken (e.g. at most 90% off before Perfect Guard), as E33 capped stacking after Stendhal ([Destructoid](https://www.destructoid.com/expedition-33-stendhal-nerf-update-patch-notes/)); **B** leave the per-source caps.
 **Recommendation:** none taken by default: each changes a number Crown decided. C for bosses (E33's model), A for pillar 6 (BaselineNumbers §4 already expects S gear ~2.3x ahead), A for stacking.
-**Answer (Crown):** _write here_
+**Answer (Crown, 2026-11-03):** (1) rank HP: mini-boss x3 -> x4, boss x6 -> x8; (2) the requirement floor 0.5 -> 0.25 (under-levelled gear works at a quarter strength); (3) a damage floor: after Defense, Damage Taken Down and Guard a hit always deals at least 10% of itself (Elden Ring style), a named constant.
+**Notes for Claude:** applied in B-293d (`chore/B-293d-decided-balance`). The floor measures from the hit before the defender's Damage Taken Down, Defense and Guard (each impact's guarded share travels to the damage maths); a Perfect Guard or a dodge still takes the whole hit, since no damage reaches the maths. The pillar-6 band stays 35–65% (not moved by the answer); re-run the nightly. Details decided by default in the build (reviewer, 2026-11-03): the floor also undoes grid-position defense (the measurement comes before it); a net Damage Taken Up is not divided out, so it raises the floor with the hit; the floor rounds up (`CeilToInt`, less a 0.001 float slack) while normal hits round to nearest. **For Crown:** the 0.25 requirement floor doesn't bite yet: the ladder's lowest rung (gap +5) is 0.32, so under-levelled gear bottoms out at about a third, not a quarter. Add a rung (gap +6 → 0.25) if you want the quarter reached.
 
+
+### Q-293e — Mid/Late fights after B-293c: enemy HP stacking, or the sim?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-293d, cloud, from the second nightly) · **Blocks:** —
+**Question:** The second nightly lost Mid/Late normal fights at Medium (win rate 0.12 / 0.00) and ran their mini-boss and boss fights 18–21 rounds. Is that enemy HP stacking (tier power x2.2–x4.8 × rank x4/x8 × zone, about x38 for a late boss), and should it be capped?
+**Context:** `Private/Trial/TrialGate.cpp` (`ApplyEnemyRankHealth`), `Private/Balance/BalanceArchetypes.cpp`, `docs/analysis/BaselineNumbers.md` §2.9 and §3.
+**Finding:** mostly not. (1) The x38 is by design: §2.9's reference enemies (606 HP at C, 2,106 at S, boss about 12,600) already include tier power, sized against the §3 examples' 196 / 572 hits, and the sim's zone is tier 0 (x1). (2) Normal fights are rank x1, so rank stacking can't explain losing them. (3) The sim's `P-GenericC` / `P-GenericS`, two of the three Mid/Late members, were the early F build with only the weapon swapped: 7 HP points (~149 HP), 4 Defense, 6 Raw Damage, skill base 20. They dealt well under §3's numbers and an S enemy's basic hit (~265) one-shot them.
+**Options:** **A** fix the sim: those members take the same-tier enemy's HP / Defense / Body points and §3's Raw Damage and skill base; **B** cap rank × tier HP (changes a Decided number, Crown's); **C** flatten the enemy tier curve (also Decided, and B-325 would inherit it).
+**Recommendation:** A. Measure first, as B-293c did: E33's balance patches fixed outliers after measuring, not the base curve ([Destructoid](https://www.destructoid.com/expedition-33-stendhal-nerf-update-patch-notes/)).
+**Answer:** A (approved by the reference-backed default). B-325 is unaffected: an enemy's Combat Tier still feeds the same tier-power HP.
+**Notes for Claude:** applied in B-293d (`chore/B-293d-decided-balance`). **For Crown, still open after the re-run:** enemy damage rides tier power (an S weapon is Power 192) but a party member's HP doesn't (gear MaxHP per point is the same at every tier, and D-118 keeps a player's tier statless), so even tier-matched S members fall in about 2 enemy hits against about 3.5 at F. If the next nightly still loses Mid/Late normal fights, that is the lever (enemy damage tier power, or player HP growth), and it is Crown's call.
+
+### D-119 — One flat penalty for an unmet requirement (changes Q-293d (2))
+**Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (brain session) · **Blocks:** —
+**Answer (Crown):** the requirement penalty is a single penalty, Elden Ring style, not the gradual requirement-gap ladder. Any shortfall below a weapon's requirement, 1 level or 5, gives the weapon part x`REQUIREMENT_UNMET_DAMAGE_FACTOR` = **0.6** and **no pillar scaling** from that weapon; meeting it gives full power, as today. The 0.25 floor and the requirement-gap rungs retire. **Added the same day:** abilities and spells with an unmet requirement **still work** but take the same single penalty (x0.6, no pillar scaling); nothing becomes uncastable.
+**What it changes:** Q-293d (2) (the 0.25 floor), CL-39 / CL-40 / ED-14 / ED-43, BaselineNumbers' requirement lines.
+**Defaults taken (reference-backed, Crown may change):** Q-326.
+**Notes for Claude:** job B-326 (on `chore/B-293d-decided-balance`). The pillar-6 band (35–65%) is not moved.
+
+### Q-326 — D-119's details: what "met" keeps, and what "no pillar scaling" removes from a skill
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-326, cloud) · **Blocks:** —
+**Question:** (1) A met skill used to get the requirement-gap boost for being over (up to x1.40 at −5); does that stay? (2) For a skill, which scaling does "no pillar scaling" remove? (3) Do two unmet pillars stack?
+**Context:** `Private/Combat/Actions/ActionExecutor.cpp` (`GetSkillRequirementFactor`, `ComputeActionStatModifiers` step 4, `ApplyHit`); `Public/Skills/Definitions/WorldStatRequirements.h`.
+**Options / as built:** (1) **kept**: "met gives full power, as today", so a met skill still reads the ladder's met side (1.00 .. 1.40); weapons still get no bonus for being over (Q-146c). (2) **both** of a skill's scalings: its requirement-gap pillar percents and its authored `StatScaling` terms; the skill part is then x0.6. (3) **no**: one unmet pillar is enough, more don't stack.
+**Recommendation:** as built. Elden Ring: under any requirement the weapon or spell still works, its attack drops by a flat 40% and its attribute scaling is lost; one stat short is enough and more stats short don't add to it; over the requirement, scaling is what grows ([Fextralife](https://eldenring.wiki.fextralife.com/Attributes)).
+**Answer:** as built (approved by the reference-backed default).
+**Notes for Claude:** applied in B-326 (`chore/B-326-flat-requirement-penalty`). The ladder's under rungs (+1..+5) stay in code, unread, until Crown's PIE pass. `WEAPON_REQ_FACTOR_MIN` / `WeaponReqFactorMin` likewise.
 
 ### Q-223 — Level drops: the numbers, when you place them, and the save
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-223) · **Blocks:** —
@@ -3166,5 +3465,23 @@ Moved here once applied. Newest first.
 **Context:** `Public/Combat/Tuning/CombatBaselineConstants.h` (`LEVEL_DROP_CHANCE_BY_TIER`, `LEVEL_DROP_ELITE_CHANCE_FACTOR`, `MINIBOSS_LEVELS_BY_TIER`); `Private/Trial/TrialGate.cpp` (`RollLevelDrops`); `Private/Combat/CombatOrchestrator.cpp` (`FinishCombat`); `Private/Trial/LevelDropPlacement.cpp`.
 **Options / as built:** **odds** a normal enemy 10 % at F rising to 30 % at S, an elite double; **mini-boss and boss** guaranteed levels by tier: F/E/D 1, C/B 2, A/S 3 (a boss gives the same as a mini-boss of its tier); **rolled at the win** (the fight's own random draws don't shift); **placing** the drops wait in the run until you place them (`wor.UI.LevelDrop`), one press per level, any party member, refused at 7; **save** a run's levels and waiting drops are not saved yet (a reload mid-run loses them).
 **Recommendation:** as built. Hades' boons and Slay the Spire's card rewards come after the fight, chosen by the player, not mid-fight; low odds from normal enemies with guaranteed rewards from bosses is the Hades / Dead Cells pattern (elites as a better-odds middle step, as Slay the Spire's elites). Over a 3-floor run that's about 6-10 levels, under the 21 cap, with the vendor as backup. Every number is a tuning row (`LevelDropChance`, `MiniBossLevels`) for B-293c.
-**Answer (Crown):** _write here_
+**Answer (Crown, 2026-11-03): changed.** Level-ups are per character, not a shared pile: after a win each party member rolls its own drop at these odds, a mini-boss or boss gives each member its guaranteed levels, and each character places its levels on its own pillars (cap 7). Applied in B-223b.
 **Notes for Claude:** applied in B-223. The run's levels go into the save with the run-save work (the save version bump belongs there, not here); the placeholder prompt opens by console only (the real post-fight screen is D-024).
+
+### Q-223b — Per-character level drops: keep the odds?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-223b, cloud) · **Blocks:** —
+**Question:** With Crown's change to Q-223 every party member rolls its own drop, so a party gets about three times the levels it did. Do B-223's odds (10–30% per normal enemy, elites doubled; mini-boss / boss 1–3 by tier) need lowering to keep about 6–10 levels per character per run?
+**Context:** `Public/Combat/Tuning/CombatBaselineConstants.h` (`LEVEL_DROP_CHANCE_BY_TIER`, `MINIBOSS_LEVELS_BY_TIER`); `Private/Combat/CombatOrchestrator.cpp` (`FinishCombat`); Q-223's estimate of about 6–10 levels over a 3-floor run.
+**Options / as built:** **A** keep the odds: Q-223's 6–10 was the party's whole take; one roll per member at the same odds gives each character that same 6–10, the target. **B** lower them (each character would then get fewer than 6–10). **Also as built: a member who fell in the fight still rolls** (it was in the fight; the party won). The alternative is living members only.
+**Recommendation:** A, and fallen members roll: Expedition 33 and Octopath Traveler give the whole party its rewards after a win, fallen included, and players like that a bad fight doesn't also cost growth; Persona's living-only rule mostly punishes the healer's slip. The odds were set for one stream of levels; each character now has its own stream at that rate, which is exactly about 6–10 per character, under the 21 cap, with the vendor as backup. Diablo III's and Borderlands' instanced loot keep the per-player drop rates of single player for the same reason.
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-223b; the odds are tuning rows (`LevelDropChance`, `MiniBossLevels`) if the nightly sim shows otherwise. A fallen member still gets its roll after a win (it was in the fight).
+
+### Q-042i-b — B-042i: what is left once the mirror builds a trigger's GE in the same call?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-042i, desktop) · **Blocks:** —
+**Question:** B-042i says a trigger's payload "fires through the spec builder onto the ASC, not into `FActiveSkillEffect`". Since B-042h the mirror binds `OnEffectApplied`, so every `ApplyEffect` (a defender trigger's payload, a starting effect, a cast) already builds its GE through `FWoREffectSpecBuilder` in the same call; the stored copy is read-only under GAS. What does B-042i still do?
+**Context:** `Private/Skills/Effects/SkillEffectManager.cpp` (`OnDefenseResolvedHandler`, `ApplyEquipmentEffects`, `ApplyEffect`); `Private/GAS/WoREffectMirrorComponent.cpp` (`BindSources`, `SyncMirror`); `Private/Tests/GASTriggerParitySpec.cpp`.
+**Options / as built:** **A** B-042i proves the path with parity specs (`WoR.GAS.TriggerParity`: a defender trigger's payload and a starting effect land as one GE of their identity on both paths, a re-fire replaces, a removal ends the GE) and changes no code; the "no stored copy" half is B-042g's, when the enum store goes. **B** write a second apply path that skips the store now (a GAS-only effect the panel, AI and payouts can't see until B-042g).
+**Recommendation:** A. Fowler's ParallelChange: readers moved (B-042ye), payouts moved (B-042yd); the writer's copy is removed last, in one step (B-042g), not kept half-alive. Tag conditions already read GAS tags (B-042x).
+**Answer (Crown):** _write here_
+**Notes for Claude:** applied in B-042i. B-042g deletes the stored copies and the mirror's "Missing" rebuild with them; the `TODO` at `FWoREffectSpecBuilder::Apply` is retagged to B-042g. No authorable "if the target is Burning" condition exists in `ESkillTrigger`: B-042x's tag reads are the hit-time checks (`WoR.GAS.TagReads`), so this spec has no tag-condition case.
