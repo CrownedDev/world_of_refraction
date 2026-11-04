@@ -1,7 +1,8 @@
 // BuyForSpec.cpp
 // B-316 (D-111 buy-for, D-117, Q-316): one character's wallet buys for another party member. The bought weapon becomes
 // the receiver's (one instance, no copy), the bought gems go to the receiver's pouch, and a cart the receiver can't
-// take yet (a spell) or a receiver outside the party is refused with nothing spent. Review fixes: a receiver with no
+// take yet (an evolution, Q-323; a spell is bought for another member since B-316b) or a receiver outside the party is
+// refused with nothing spent. Review fixes: a receiver with no
 // room is refused before paying; a payer who owns a copy gets no duplicate prompt; gear bought in a run stays run-only.
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -15,6 +16,7 @@
 #include "Currency/EconomyService.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
@@ -22,7 +24,6 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
-#include "Skills/Definitions/SpellData.h"
 #include "InventoryChangeRecorder.h"
 
 namespace
@@ -173,12 +174,13 @@ void FBuyForSpec::Define()
 		TestEqual(TEXT("not the payer's"), Pool->GetCarriedCount(KeyOf(BUY_FOR_PAYER), BUY_FOR_GEM), 0);
 	});
 
-	It("refuses a spell for another member, and a receiver outside the party, with nothing spent", [this]()
+	It("refuses an evolution for another member, and a receiver outside the party, with nothing spent", [this]()
 	{
 		if (!Pool || !Economy || Inventories.Contains(nullptr) || !TestNotNull(TEXT("Wallet"), Wallet())) return;
-		FMerchantStockEntry Spell;
-		Spell.Asset = NewObject<USpellData>(GetTransientPackage());
-		TestFalse(TEXT("a spell for another member waits for B-316b"), Economy->PurchaseFor(Payer(), KeyOf(BUY_FOR_RECEIVER), {Spell}));
+		FMerchantStockEntry Evolution;
+		Evolution.Asset = NewObject<UEvolutionItemData>(GetTransientPackage());
+		TestFalse(TEXT("an evolution for another member waits for an evolution give (Q-323)"),
+				  Economy->PurchaseFor(Payer(), KeyOf(BUY_FOR_RECEIVER), {Evolution}));
 		TestFalse(TEXT("not a party member"), Economy->PurchaseFor(Payer(), FName(TEXT("NotInTheParty")), WeaponAndGems()));
 		TestEqual(TEXT("nothing spent"), Wallet()->GetBalance(ECurrencyType::Prisms), BUY_FOR_WALLET_PRISMS);
 		TestEqual(TEXT("nothing bought"), CountOfAsset(*Pool, Bought), 0);
