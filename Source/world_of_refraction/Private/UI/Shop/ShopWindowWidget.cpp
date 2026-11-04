@@ -28,6 +28,13 @@
 #include "UI/Shop/ShopRowWidget.h" // shared per-entry display ladder (NameFor/TierFor/DescriptionFor)
 #include "Skills/Definitions/SupportSkillRules.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Character/CharacterData.h"
+#include "Character/CharacterDataComponent.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
+#include "Pool/PoolSubsystem.h"
+#include "HAL/IConsoleManager.h"
+#include "UObject/UObjectIterator.h"
 #include "WoRGameNames.h"
 
 namespace ShopWindowConstants
@@ -209,6 +216,10 @@ void UShopWindowWidget::NativeConstruct()
     {
         DetailAddButton->OnClicked.AddUniqueDynamic(this, &UShopWindowWidget::HandleDetailAddClicked);
     }
+    if (BuyForButton)
+    {
+        BuyForButton->OnClicked.AddUniqueDynamic(this, &UShopWindowWidget::HandleBuyForClicked);
+    }
     if (ToastText)
     {
         ToastText->SetVisibility(ESlateVisibility::Collapsed);
@@ -252,6 +263,8 @@ void UShopWindowWidget::SetMerchant(UMerchantData *Merchant, APawn *PurchaserPaw
 
     ActiveMerchant = Merchant;
     Purchaser = PurchaserPawn;
+    BuyForKey = NAME_None;
+    RefreshBuyFor();
     PurchaserCurrency = CurrencyWallet::FindFor(PurchaserPawn); // D-046: the player's one wallet
 
     if (UCurrencyComponent *Currency = PurchaserCurrency.Get())
@@ -336,7 +349,7 @@ void UShopWindowWidget::HandleConfirmClicked()
         return;
     }
 
-    if (Economy->Purchase(Pawn, Cart))
+    if (Economy->PurchaseFor(Pawn, BuyForKey, Cart))
     {
         Cart.Reset();
         RefreshCartList();
@@ -633,11 +646,92 @@ void UShopWindowWidget::HandleCurrencyChanged(ECurrencyType /*Currency*/, uint8 
     RefreshTotals();
 }
 
+namespace
+{
+    /** B-316: buying for someone else needs the purchaser and at least one other member. */
+    constexpr int32 BUY_FOR_MIN_PARTY = 2;
+
+    /** B-316: the local party's members, in party order. */
+    TArray<const UCharacterData *> ShopPartyMembers(const UUserWidget &Widget)
+    {
+        TArray<const UCharacterData *> Members;
+        const UGameInstance *GI = Widget.GetGameInstance();
+        const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+        if (const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr)
+        {
+            for (const FPartyMember &Member : Party->Members)
+            {
+                if (Member.CharacterData)
+                {
+                    Members.Add(Member.CharacterData);
+                }
+            }
+        }
+        return Members;
+    }
+
+    FName ShopPurchaserKey(const APawn *Pawn)
+    {
+        const UCharacterDataComponent *CharComp = Pawn ? Pawn->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+        return UPoolSubsystem::GetCharacterKey(CharComp ? CharComp->CharacterData : nullptr);
+    }
+}
+
+void UShopWindowWidget::HandleBuyForClicked()
+{
+    // The cycle: each party member in order, the purchaser's own key standing for "yourself" (none).
+    const TArray<const UCharacterData *> Members = ShopPartyMembers(*this);
+    const FName Self = ShopPurchaserKey(Purchaser.Get());
+    TArray<FName> Keys;
+    for (const UCharacterData *Member : Members)
+    {
+        Keys.Add(UPoolSubsystem::GetCharacterKey(Member));
+    }
+    if (Keys.Num() < BUY_FOR_MIN_PARTY)
+    {
+        BuyForKey = NAME_None;
+    }
+    else
+    {
+        const FName Current = BuyForKey.IsNone() ? Self : BuyForKey;
+        const int32 Index = Keys.IndexOfByKey(Current);
+        const FName Next = Keys[(Index == INDEX_NONE ? 0 : Index + 1) % Keys.Num()];
+        BuyForKey = Next == Self ? NAME_None : Next;
+    }
+    RefreshBuyFor();
+    ShowToast(GetBuyForLabel());
+    UE_LOG(LogTemp, Log, TEXT("[ShopWindow] %s"), *GetBuyForLabel().ToString());
+}
+
+FText UShopWindowWidget::GetBuyForLabel() const
+{
+    if (!BuyForKey.IsNone())
+    {
+        for (const UCharacterData *Member : ShopPartyMembers(*this))
+        {
+            if (UPoolSubsystem::GetCharacterKey(Member) == BuyForKey)
+            {
+                // TODO: character names are FString assets; FText with B-127 (D-061).
+                return FText::Format(NSLOCTEXT("Shop", "BuyingFor", "Buying for: {0}"), FText::FromString(Member->Name));
+            }
+        }
+    }
+    return FText::Format(NSLOCTEXT("Shop", "BuyingFor", "Buying for: {0}"), WoRGameNames::GetYourselfWord());
+}
+
+void UShopWindowWidget::RefreshBuyFor()
+{
+    if (BuyForText)
+    {
+        BuyForText->SetText(GetBuyForLabel());
+    }
+}
+
 FString UShopWindowWidget::GetShopString() const
 {
-    FString Result = FString::Printf(TEXT("ShopWindow — merchant: %s, purchaser: %s"),
+    FString Result = FString::Printf(TEXT("ShopWindow — merchant: %s, purchaser: %s, %s"),
                                      ActiveMerchant ? *ActiveMerchant->GetName() : TEXT("<none>"),
-                                     Purchaser.IsValid() ? *Purchaser->GetName() : TEXT("<none>"));
+                                     Purchaser.IsValid() ? *Purchaser->GetName() : TEXT("<none>"), *GetBuyForLabel().ToString());
 
     UEconomyService *Economy = GetEconomyService();
     const FPurchaseCost Cost = Economy ? Economy->PreviewCartCost(Cart) : FPurchaseCost();
@@ -648,3 +742,22 @@ FString UShopWindowWidget::GetShopString() const
                               Currency && CanAffordCost(*Currency, Cost) ? TEXT("yes") : TEXT("no"));
     return Result;
 }
+
+#if !UE_BUILD_SHIPPING
+static FAutoConsoleCommandWithWorld GShopBuyForCommand(
+    TEXT("wor.Shop.BuyFor"),
+    TEXT("PLACEHOLDER (B-316): with a shop open, cycle who the cart is bought for (yourself, then each party member, AI included)."),
+    FConsoleCommandWithWorldDelegate::CreateLambda(
+        [](UWorld *World)
+        {
+            for (TObjectIterator<UShopWindowWidget> It; It; ++It)
+            {
+                if (It->GetWorld() == World && It->IsInViewport())
+                {
+                    It->HandleBuyForClicked();
+                    return;
+                }
+            }
+            UE_LOG(LogTemp, Warning, TEXT("[ShopWindow] wor.Shop.BuyFor: no shop window open"));
+        }));
+#endif // !UE_BUILD_SHIPPING

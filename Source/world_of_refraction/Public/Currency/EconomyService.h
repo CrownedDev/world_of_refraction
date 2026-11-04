@@ -246,6 +246,15 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Economy")
     bool Purchase(AActor *Owner, const TArray<FMerchantStockEntry> &Items);
 
+    /** B-316 (D-111 buy-for, D-117, Q-316): Payer's wallet buys the cart for the party member ForKey (a character key,
+     *  UPoolSubsystem::GetCharacterKey; AI-controlled members included). The goods arrive with ForKey: weapons and
+     *  adapters become its own (WoRGive::TryGiveGear, so its duplicate choice fires, D-115); crystals and stones go to
+     *  its pouch (what doesn't fit stays where the purchase put it: the payer's pouch or the shared storage, D-097).
+     *  ForKey none or the payer's own key = Purchase. Refused up front (nothing spent) when ForKey isn't in the local
+     *  party, or the cart holds a spell, ability or evolution (those wait for B-316b), or gear for a run-only recruit
+     *  (it owns nothing, Q-321). */
+    bool PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMerchantStockEntry> &Items);
+
     /** Price a cart WITHOUT purchasing — the exact per-currency totals Purchase would charge
      *  (same shared builder, so shop-UI display and the charge can never drift). Empty/unknown
      *  entries price at 0 (Purchase itself rejects them); spell/ability/evolution Count is

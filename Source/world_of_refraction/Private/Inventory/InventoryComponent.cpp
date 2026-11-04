@@ -657,7 +657,7 @@ bool UInventoryComponent::AddGearEntry(TArray<TEntry> &Gear, TEntry Entry, const
     Gear.Add(Entry);
     PushGearToPool(Entry.PersistentID);
     BroadcastInventoryChanged(EInventoryChangeType::Added);
-    if (OwnedID.IsValid())
+    if (OwnedID.IsValid() && !bSuppressDuplicateNotice)
     {
         // D-115: one copy per character; the choice (Gold or dismantle) is the player's.
         UE_LOG(LogTemp, Log, TEXT("[Inventory] %s: received a second %s - choose Gold or dismantle (wor.UI.Duplicates)"),
