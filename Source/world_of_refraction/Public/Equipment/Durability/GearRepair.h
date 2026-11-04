@@ -39,7 +39,8 @@ namespace GearRepair
 	/** Debug: each member's worn items with tier, durability and cost, then the total. */
 	WORLD_OF_REFRACTION_API FString GetRepairQuoteString(const UParty &Party);
 
-	/** Pays GetPartyRepairCost in Gold from Wallet and repairs everything to full. False (nothing
-	 *  paid or repaired) when there is nothing to repair or the wallet can't afford it. */
+	/** Pays GetPartyRepairCost from Wallet and repairs everything to full. B-366e (Q-366 extended): paid in the
+	 *  currency of the place (UEconomyService::GetPlaceCurrency: hub money at home, run money in a run). False
+	 *  (nothing paid or repaired) when there is nothing to repair or that balance can't afford it. */
 	WORLD_OF_REFRACTION_API bool RepairParty(UParty &Party, UCurrencyComponent &Wallet, int32 &OutGoldSpent);
 }

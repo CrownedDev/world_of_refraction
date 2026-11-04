@@ -13,6 +13,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Player/WoRPlayerState.h"
+#include "WoRGameNames.h"
 #include "WoRLog.h"
 
 namespace
@@ -89,19 +90,20 @@ namespace
 
 	FAutoConsoleCommandWithWorld GRepairQuoteCmd(
 		TEXT("wor.Party.RepairQuote"),
-		TEXT("DEBUG: the Gold a rest-spot repair of the party's carried gear costs (B-178)."),
+		TEXT("DEBUG: what a rest-spot repair of the party's carried gear costs, in the currency of the place (B-178, B-366e)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 		{
 			const UParty *Party = LocalPartyOf(World);
 			const UCurrencyComponent *Wallet = LocalWalletOf(World);
-			UE_LOG(LogWoR, Display, TEXT("%s\n  The wallet has %d Gold"),
+			const ECurrencyType Pays = UEconomyService::GetPlaceCurrency(World);
+			UE_LOG(LogWoR, Display, TEXT("%s\n  Paid in %s; the wallet has %d"),
 				   Party ? *GearRepair::GetRepairQuoteString(*Party) : TEXT("[GearRepair] No local party"),
-				   Wallet ? Wallet->GetBalance(ECurrencyType::Gold) : 0);
+				   *WoRGameNames::GetCurrencyName(Pays).ToString(), Wallet ? Wallet->GetBalance(Pays) : 0);
 		}));
 
 	FAutoConsoleCommandWithWorld GRepairCmd(
 		TEXT("wor.Party.Repair"),
-		TEXT("DEBUG: pay Gold and repair the party's carried gear to full, as at a rest spot (B-178)."),
+		TEXT("DEBUG: pay the currency of the place and repair the party's carried gear to full, as at a rest spot (B-178, B-366e)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 		{
 			UParty *Party = LocalPartyOf(World);
@@ -109,7 +111,7 @@ namespace
 			int32 Spent = 0;
 			if (!Party || !Wallet || !GearRepair::RepairParty(*Party, *Wallet, Spent))
 			{
-				UE_LOG(LogWoR, Display, TEXT("[GearRepair] wor.Party.Repair: nothing repaired (no party or wallet, nothing worn, or not enough Gold)"));
+				UE_LOG(LogWoR, Display, TEXT("[GearRepair] wor.Party.Repair: nothing repaired (no party or wallet, nothing worn, or not enough money)"));
 			}
 		}));
 }
@@ -163,7 +165,7 @@ FString GearRepair::GetRepairQuoteString(const UParty &Party)
 		{
 			if (const int32 Gold = GetRepairCost(Carried.Attached))
 			{
-				Out += FString::Printf(TEXT("\n  [%d] %s on %s, tier %s, %d/%d: %d Gold"), MemberIndex,
+				Out += FString::Printf(TEXT("\n  [%d] %s on %s, tier %s, %d/%d: costs %d"), MemberIndex,
 									   *UEnum::GetValueAsString(Carried.Attached.Kind), *GetNameSafe(Carried.Holder),
 									   *ItemIdentity::GetTierLetter(AttachmentTier(Carried.Attached)),
 									   Carried.Attached.GetCurrentDurability(), Carried.Attached.GetMaxDurability(), Gold);
@@ -171,12 +173,12 @@ FString GearRepair::GetRepairQuoteString(const UParty &Party)
 		}
 		if (const int32 Gold = Gear.bHasPrimaryEvolution ? GetRepairCost(Gear.PrimaryEvolution) : 0)
 		{
-			Out += FString::Printf(TEXT("\n  [%d] primary evolution %s, tier %s, %d/%d: %d Gold"), MemberIndex,
+			Out += FString::Printf(TEXT("\n  [%d] primary evolution %s, tier %s, %d/%d: costs %d"), MemberIndex,
 								   *GetNameSafe(Gear.PrimaryEvolution.Item), *ItemIdentity::GetTierLetter(Gear.PrimaryEvolution.Tier),
 								   Gear.PrimaryEvolution.CurrentDurability, EvolutionMax(Gear.PrimaryEvolution), Gold);
 		}
 	}
-	Out += FString::Printf(TEXT("\n  Total: %d Gold"), GetPartyRepairCost(Party));
+	Out += FString::Printf(TEXT("\n  Total: %d (in the currency of the place, B-366e)"), GetPartyRepairCost(Party));
 	return Out;
 }
 
@@ -209,12 +211,13 @@ bool GearRepair::RepairParty(UParty &Party, UCurrencyComponent &Wallet, int32 &O
 		return false;
 	}
 	const int32 Cost = GetPartyRepairCost(Party);
-	if (Cost <= 0 || !Wallet.Spend(ECurrencyType::Gold, Cost))
+	const ECurrencyType Pays = UEconomyService::GetPlaceCurrency(Wallet.GetOwner()); // B-366e (Q-366 extended)
+	if (Cost <= 0 || !Wallet.Spend(Pays, Cost))
 	{
 		return false;
 	}
 	OutGoldSpent = Cost;
 	const int32 Repaired = RepairAll(Party);
-	UE_LOG(LogWoR, Log, TEXT("[GearRepair] Repaired %d item(s) for %d Gold"), Repaired, Cost);
+	UE_LOG(LogWoR, Log, TEXT("[GearRepair] Repaired %d item(s) for %d %s"), Repaired, Cost, *WoRGameNames::GetCurrencyName(Pays).ToString());
 	return true;
 }
