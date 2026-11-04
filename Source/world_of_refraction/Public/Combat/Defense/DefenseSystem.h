@@ -373,12 +373,12 @@ public:
 	/**
 	 * Effective defense input window for this attacker→defender duel: the tuned base
 	 * DefenseInputWindow WIDENED by the defender's Reflex (CalculateReflexWindowBonus) and
-	 * NARROWED by the attacker's one Speed (CalculateSpeedWindowPenalty, Body × Speed for every attack
-	 * type since B-331 / D-123), floored at MINIMUM_DEFENSE_WINDOW.
+	 * NARROWED by the attacker's speed (CalculateSpeedWindowPenalty, type-aware: physical →
+	 * ActionSpeed/Body, spell → SpellSpeed/Mind), floored at MINIMUM_DEFENSE_WINDOW.
 	 *   window = max(MINIMUM_DEFENSE_WINDOW, base + defenderReflexBonus − attackerSpeedPenalty)
 	 * Base on the subsystem, per-character terms through CharacterData.
 	 * Null-safe on BOTH sides: a missing attacker / component / CharacterData simply drops that
-	 * side's term (no crash). Equal Reflex/Speed points + equal Body world level cancel to base.
+	 * side's term (no crash). Equal Reflex/ActionSpeed points + equal Body world level cancel to base.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Defense System")
 	float GetEffectiveDefenseInputWindow(AActor *Defender, AActor *Attacker, EActionType AttackType) const;
