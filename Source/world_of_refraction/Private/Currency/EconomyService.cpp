@@ -1117,10 +1117,17 @@ bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMer
     for (const FMerchantStockEntry &Entry : Items)
     {
         const UPrimaryDataAsset *Asset = Entry.IsAssetEntry() ? Entry.Asset.Get() : nullptr;
-        if (Cast<USpellData>(Asset) || Cast<UAbilityData>(Asset) || Cast<UEvolutionItemData>(Asset))
+        if (Cast<UEvolutionItemData>(Asset))
         {
-            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s can't be bought for another character yet (B-316b) - refused"),
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s can't be bought for another character yet (no evolution give, Q-323) - refused"),
                    *GetNameSafe(Asset));
+            return false;
+        }
+        const bool bSkill = Cast<USpellData>(Asset) || Cast<UAbilityData>(Asset);
+        if (bSkill && (Receiver->bRunOnly || !Pool->HasBankedSkills(ForKey)))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s can't learn %s for keeps (a run-only recruit, or not drawn yet, Q-316b) - refused"),
+                   *ForKey.ToString(), *GetNameSafe(Asset));
             return false;
         }
         if (Receiver->bRunOnly && (Cast<UWeaponData>(Asset) || Cast<URingData>(Asset)))
@@ -1145,7 +1152,7 @@ bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMer
     {
         PayerInv->bSuppressDuplicateNotice = true;
     }
-    const bool bBought = Purchase(Payer, Items);
+    const bool bBought = PurchaseImpl(Payer, Items, ForKey); // B-316b: skills are learned by ForKey
     if (PayerInv)
     {
         PayerInv->bSuppressDuplicateNotice = bWasQuiet;
@@ -1186,8 +1193,8 @@ bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMer
                    Bought - Moving, *ItemIdentity::GetDisplayName(Stack.Key), *ForKey.ToString());
         }
     }
-    UE_LOG(LogTemp, Log, TEXT("[EconomyService] %s bought for %s: %d piece(s) of gear and %d item(s) handed over"), *PayerKey.ToString(),
-           *ForKey.ToString(), GearMoved, ItemsMoved);
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] %s bought for %s: %d piece(s) of gear and %d item(s) handed over (skills learned by %s)"),
+           *PayerKey.ToString(), *ForKey.ToString(), GearMoved, ItemsMoved, *ForKey.ToString());
     return true;
 }
 
@@ -1197,6 +1204,11 @@ FPurchaseCost UEconomyService::PreviewCartCost(const TArray<FMerchantStockEntry>
 }
 
 bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> &Items)
+{
+    return PurchaseImpl(Owner, Items, NAME_None);
+}
+
+bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEntry> &Items, FName SkillReceiver)
 {
     if (Items.Num() == 0 || !EconomyMayAct(Owner, TEXT("Purchase")))
     {
@@ -1209,6 +1221,28 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
     {
         return false;
     }
+    // B-316b: skills bought for another member are checked against, and learned into, that character's store copy;
+    // it is written back only once the whole cart is granted.
+    UPoolSubsystem *ReceiverPool = nullptr;
+    FSpellCollection ReceiverSpells;
+    FAbilityCollection ReceiverAbilities;
+    if (!SkillReceiver.IsNone())
+    {
+        const UGameInstance *GI = Owner->GetWorld() ? Owner->GetWorld()->GetGameInstance() : nullptr;
+        ReceiverPool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+        const FPoolSkills *Skills = ReceiverPool ? ReceiverPool->FindSkills(SkillReceiver) : nullptr;
+        if (!Skills)
+        {
+            ReceiverPool = nullptr; // a cart without skills still goes ahead; a skill in it is refused by PurchaseFor
+        }
+        else
+        {
+            ReceiverSpells.LearnedSpells = Skills->Spells;
+            ReceiverAbilities.LearnedAbilities = Skills->Abilities;
+        }
+    }
+    const FSpellCollection &SpellLearner = ReceiverPool ? ReceiverSpells : Inv->Spells;
+    const FAbilityCollection &AbilityLearner = ReceiverPool ? ReceiverAbilities : Inv->Abilities;
     // Sibling pools — only REQUIRED when the cart carries their goods (checked in validation).
     UCrystalInventoryComponent *CrystalInv = Owner->FindComponentByClass<UCrystalInventoryComponent>();
     UEvolutionInventoryComponent *EvolutionInv = Owner->FindComponentByClass<UEvolutionInventoryComponent>();
@@ -1251,7 +1285,7 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
         }
         else if (USpellData *S = Cast<USpellData>(Asset))
         {
-            if (Inv->Spells.HasSpell(S) || CartSpells.Contains(S))
+            if (SpellLearner.HasSpell(S) || CartSpells.Contains(S))
             {
                 UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: spell %s already owned or duplicated in cart — aborting."), *S->GetName());
                 return false;
@@ -1261,7 +1295,7 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
         }
         else if (UAbilityData *A = Cast<UAbilityData>(Asset))
         {
-            if (Inv->Abilities.HasAbility(A) || CartAbilities.Contains(A))
+            if (AbilityLearner.HasAbility(A) || CartAbilities.Contains(A))
             {
                 UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: ability %s already owned or duplicated in cart — aborting."), *A->GetName());
                 return false;
@@ -1291,12 +1325,12 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s ring capacity short (need %d slots) — aborting."), *Owner->GetName(), RingDemand);
         return false;
     }
-    if (SpellDemand > 0 && Inv->Spells.GetRemainingCapacity() < SpellDemand)
+    if (SpellDemand > 0 && SpellLearner.GetRemainingCapacity() < SpellDemand)
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s spell capacity short (need %d) — aborting."), *Owner->GetName(), SpellDemand);
         return false;
     }
-    if (AbilityDemand > 0 && Inv->Abilities.GetRemainingCapacity() < AbilityDemand)
+    if (AbilityDemand > 0 && AbilityLearner.GetRemainingCapacity() < AbilityDemand)
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s ability capacity short (need %d) — aborting."), *Owner->GetName(), AbilityDemand);
         return false;
@@ -1437,9 +1471,12 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
         }
         else if (USpellData *S = Cast<USpellData>(Asset))
         {
-            if (Inv->LearnSpell(S))
+            if (ReceiverPool ? ReceiverSpells.LearnSpell(S) : Inv->LearnSpell(S))
             {
-                Undo.Add([Inv, S]() { Inv->UnlearnSpell(S); });
+                if (!ReceiverPool) // the receiver's copy is only written back on success
+                {
+                    Undo.Add([Inv, S]() { Inv->UnlearnSpell(S); });
+                }
             }
             else
             {
@@ -1449,9 +1486,12 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
         }
         else if (UAbilityData *A = Cast<UAbilityData>(Asset))
         {
-            if (Inv->LearnAbility(A))
+            if (ReceiverPool ? ReceiverAbilities.LearnAbility(A) : Inv->LearnAbility(A))
             {
-                Undo.Add([Inv, A]() { Inv->UnlearnAbility(A); });
+                if (!ReceiverPool)
+                {
+                    Undo.Add([Inv, A]() { Inv->UnlearnAbility(A); });
+                }
             }
             else
             {
@@ -1498,6 +1538,11 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
         return false;
     }
 
+    if (ReceiverPool && SpellDemand + AbilityDemand > 0)
+    {
+        // Fires OnPoolSkillsChanged: the receiver's spawned member reloads its skills.
+        ReceiverPool->SetSkills(SkillReceiver, ReceiverSpells.LearnedSpells, ReceiverAbilities.LearnedAbilities);
+    }
     UE_LOG(LogTemp, Log, TEXT("[EconomyService] Purchase: granted %d cart entries to %s for %d Prisms (+ essence)."),
            Items.Num(), *Owner->GetName(), Cost.Prisms);
     return true;
