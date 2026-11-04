@@ -216,6 +216,36 @@ void FAIOneSkillPathSpec::Define()
 		Tied.Add(Second);
 		TestTrue(TEXT("first wins"), AI->ChooseBestSkill(Attacker, Target, Tied, Score, UnaffordableBest, UnaffordableCost) == First);
 	});
+
+	It("builds a spell and an ability action through the one apply step: right fields, an affordable level, a source only when infused", [this]()
+	{
+		if (!AI) return;
+		UCharacterDataComponent *Char = Attacker->FindComponentByClass<UCharacterDataComponent>();
+		if (!TestNotNull(TEXT("Attacker character data"), Char)) return;
+
+		USpellData *Spell = NewSpell(ONE_PATH_TEST_STRONG_DAMAGE);
+		FAction SpellAction;
+		SpellAction.Targets.Add(Target);
+		AI->ApplySkillChoice(Attacker, Char, Spell, SpellAction);
+		TestTrue(TEXT("spell: type"), SpellAction.ActionType == EActionType::Spell);
+		TestTrue(TEXT("spell: data"), SpellAction.SpellData == Spell && SpellAction.SkillData == nullptr);
+		TestEqual(TEXT("spell: no ability level"), SpellAction.AbilityInfusionLevel, 0);
+		TestTrue(TEXT("spell: the level is affordable"), AI->CanAffordSkill(Attacker, Spell, SpellAction.SpellInfusionLevel));
+		TestTrue(TEXT("spell: a source only when infused"),
+				 (SpellAction.SpellInfusionLevel > 0) == (SpellAction.SelectedSource != EInfusionSourceOption::None));
+
+		UAbilityData *Ability = NewAbility(ONE_PATH_TEST_MID_DAMAGE, ONE_PATH_TEST_ATTACKER_EP);
+		FAction AbilityAction;
+		AbilityAction.Targets.Add(Target);
+		AI->ApplySkillChoice(Attacker, Char, Ability, AbilityAction);
+		TestTrue(TEXT("ability: type"), AbilityAction.ActionType != EActionType::Spell);
+		TestTrue(TEXT("ability: data"), AbilityAction.SkillData == Ability && AbilityAction.SpellData == nullptr);
+		TestEqual(TEXT("ability: no spell level"), AbilityAction.SpellInfusionLevel, 0);
+		TestTrue(TEXT("ability: the level is affordable"), AI->CanAffordSkill(Attacker, Ability, AbilityAction.AbilityInfusionLevel));
+		TestTrue(TEXT("ability: a source only when infused"),
+				 (AbilityAction.AbilityInfusionLevel > 0) == (AbilityAction.SelectedSource != EInfusionSourceOption::None));
+		TestEqual(TEXT("ability: the target is kept"), AbilityAction.Targets.Num(), 1);
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
