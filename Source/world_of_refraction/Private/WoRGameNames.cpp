@@ -428,6 +428,8 @@ FText GetCurrencyName(ECurrencyType Currency)
         return LOCTEXT("ECurrencyType_ElementalEssence", "Elemental Essence");
     case ECurrencyType::PillarEssence:
         return LOCTEXT("ECurrencyType_PillarEssence", "Pillar Essence");
+    case ECurrencyType::MentorTokens:
+        return LOCTEXT("ECurrencyType_MentorTokens", "Mentor Tokens");
     }
     return FText::GetEmpty();
 }
