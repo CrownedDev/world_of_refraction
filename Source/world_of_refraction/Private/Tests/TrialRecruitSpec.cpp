@@ -4,6 +4,8 @@
 // leaves when the run ends, and a saved run keeps it.
 // B-361 (D-152, D-153, Q-361, Q-361c): a recruit carries the host's pouch, banks and trades its skills like any
 // member, and leaves its skills with the host (one copy); skills never change hands between two players' members.
+// B-361c: a recruit and its skills survive a mid-run save; no item give inside the one pouch; gems bought for a
+// recruit land in the host's pouch; a leaving recruit's skills with a full host or no host ledger.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -12,6 +14,8 @@
 #include "Character/CharacterData.h"
 #include "Character/CombatCharacter.h"
 #include "Currency/CurrencyComponent.h"
+#include "Currency/CurrencyWallet.h"
+#include "Currency/EconomyService.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Rings/RingData.h"
@@ -22,6 +26,8 @@
 #include "Player/WoRPlayerState.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Inventory/InventoryComponent.h"
+#include "Inventory/InventoryConstants.h"
+#include "Merchant/MerchantData.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
@@ -34,6 +40,7 @@ namespace
 	constexpr int32 TRIAL_RECRUIT_PICKUP_COUNT = 2;
 	constexpr int32 TRIAL_RECRUIT_HOST_ID = 1;
 	constexpr int32 TRIAL_RECRUIT_JOINER_ID = 2;
+	constexpr int32 TRIAL_RECRUIT_WALLET = 100000; // B-361c: enough Prisms and essence for any gem
 	const FCrystalId TRIAL_RECRUIT_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
 
 	int32 TrialRecruitSpellCopies(const UPoolSubsystem &Pool, const USpellData *Spell)
@@ -381,6 +388,102 @@ void FTrialRecruitSpec::Define()
 		const FText Refusal = WoRGive::TryGiveGear(World, GuestKey, LeaderKey, RingID);
 		TestTrue(FString::Printf(TEXT("Gear still goes (%s)"), *Refusal.ToString()), Refusal.IsEmpty());
 		TestEqual(TEXT("The host's now, for good"), Pool->GetGearOwner(RingID), LeaderKey);
+	});
+	// ---- B-361c (B-361 review): the gaps its specs left ----
+
+	It("keeps a recruit and its skills through a mid-run save (B-361c)", [this]()
+	{
+		if (!Pool || !Spawn(Leader, false)) return;
+		PartySession->InviteRunMember(ACombatCharacter::StaticClass(), Recruit);
+		UInventoryComponent *Inventory = Spawn(Recruit, false);
+		if (!Inventory) return;
+		const FName RecruitKey = UPoolSubsystem::GetCharacterKey(Recruit);
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		if (!TestTrue(TEXT("The recruit learned it"), Inventory->LearnSpell(Spell))) return;
+		const FSavedParty SavedParty = USaveSubsystem::CaptureParty(PartySession->GetLocalParty(), true);
+		const FSavedPool SavedPool = USaveSubsystem::CapturePool(*Pool);
+
+		FWoRTestWorld After;
+		UPartySessionSubsystem *PartyAfter = After.Create() ? After.GetSubsystem<UPartySessionSubsystem>() : nullptr;
+		UPoolSubsystem *PoolAfter = After.GetSubsystem<UPoolSubsystem>();
+		if (!TestNotNull(TEXT("Party session after"), PartyAfter) || !TestNotNull(TEXT("Pool after"), PoolAfter)) return;
+		TestTrue(TEXT("Party restored"), USaveSubsystem::RestoreParty(SavedParty, *PartyAfter));
+		USaveSubsystem::RestorePool(SavedPool, *PoolAfter);
+		const UParty *Restored = PartyAfter->GetLocalParty();
+		if (!TestNotNull(TEXT("Restored party"), Restored) || !TestEqual(TEXT("Two members back"), Restored->Members.Num(), 2)) return;
+		TestTrue(TEXT("The recruit is back, run-only"), Restored->Members[TRIAL_RECRUIT_SLOT].bRunOnly);
+		TestTrue(TEXT("Its skills are still kept"), PoolAfter->HasBankedSkills(RecruitKey));
+		TestTrue(TEXT("And it still knows its spell"), PoolAfter->KnowsSpell(RecruitKey, Spell));
+	});
+
+	It("refuses an item give between a recruit and the host: one pouch (B-361c)", [this]()
+	{
+		if (!Pool || !Spawn(Leader, false)) return;
+		PartySession->InviteRunMember(ACombatCharacter::StaticClass(), Recruit);
+		UInventoryComponent *Inventory = Spawn(Recruit, false);
+		UCrystalInventoryComponent *Pouch = Inventory ? Inventory->GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+		if (!TestNotNull(TEXT("The recruit's crystal inventory"), Pouch)) return;
+		const FName LeaderKey = UPoolSubsystem::GetCharacterKey(Leader);
+		const FName RecruitKey = UPoolSubsystem::GetCharacterKey(Recruit);
+		TestTrue(TEXT("Picked up"), Pouch->AddCount(TRIAL_RECRUIT_GEM, TRIAL_RECRUIT_PICKUP_COUNT));
+		UWorld *World = TestWorld->GetWorld();
+		TestFalse(TEXT("Recruit to host refused"), WoRGive::TryGiveCarried(World, RecruitKey, LeaderKey, TRIAL_RECRUIT_GEM, 1).IsEmpty());
+		TestFalse(TEXT("Host to recruit refused"), WoRGive::TryGiveCarried(World, LeaderKey, RecruitKey, TRIAL_RECRUIT_GEM, 1).IsEmpty());
+		TestEqual(TEXT("The host still carries them all"), Pool->GetCarriedCount(LeaderKey, TRIAL_RECRUIT_GEM), TRIAL_RECRUIT_PICKUP_COUNT);
+		TestFalse(TEXT("No pouch of the recruit's own"), Pool->GetPouches().Contains(RecruitKey));
+	});
+
+	It("puts gems bought for a recruit in the host's pouch, and the host paying moves nothing (B-361c)", [this]()
+	{
+		UInventoryComponent *LeaderInventory = Pool ? Spawn(Leader, false) : nullptr;
+		if (!LeaderInventory) return;
+		PartySession->GetLocalParty()->Members[0].bPlayerControlled = true;
+		PartySession->InviteRunMember(ACombatCharacter::StaticClass(), Recruit);
+		if (!Spawn(Recruit, false)) return;
+		UEconomyService *Economy = TestWorld->GetSubsystem<UEconomyService>();
+		AActor *Host = LeaderInventory->GetOwner();
+		UCurrencyComponent *Wallet = CurrencyWallet::FindFor(Host);
+		if (!TestNotNull(TEXT("Economy"), Economy) || !TestNotNull(TEXT("Host wallet"), Wallet)) return;
+		Wallet->Add(ECurrencyType::Prisms, TRIAL_RECRUIT_WALLET);
+		Wallet->Add(ECurrencyType::ElementalEssence, TRIAL_RECRUIT_WALLET);
+		FMerchantStockEntry Gems;
+		Gems.Crystal = TRIAL_RECRUIT_GEM;
+		Gems.Count = TRIAL_RECRUIT_PICKUP_COUNT;
+		const FName LeaderKey = UPoolSubsystem::GetCharacterKey(Leader);
+		const FName RecruitKey = UPoolSubsystem::GetCharacterKey(Recruit);
+
+		TestTrue(TEXT("Bought for the recruit"), Economy->PurchaseFor(Host, RecruitKey, {Gems}));
+		TestTrue(TEXT("Paid from the host's wallet"), Wallet->GetBalance(ECurrencyType::Prisms) < TRIAL_RECRUIT_WALLET);
+		TestEqual(TEXT("The gems are in the host's pouch, once"), Pool->GetCarriedCount(LeaderKey, TRIAL_RECRUIT_GEM), TRIAL_RECRUIT_PICKUP_COUNT);
+		TestFalse(TEXT("No pouch of the recruit's own"), Pool->GetPouches().Contains(RecruitKey));
+	});
+
+	It("drops a recruit's skill the host has no room for, and keeps its skills when the host has none kept (B-361c)", [this]()
+	{
+		if (!Pool) return;
+		PartySession->InviteRunMember(ACombatCharacter::StaticClass(), Recruit);
+		UInventoryComponent *Inventory = Spawn(Recruit, false);
+		if (!Inventory) return;
+		const FName LeaderKey = UPoolSubsystem::GetCharacterKey(Leader);
+		const FName RecruitKey = UPoolSubsystem::GetCharacterKey(Recruit);
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		if (!TestTrue(TEXT("The recruit learned it"), Inventory->LearnSpell(Spell))) return;
+
+		TestFalse(TEXT("The host has no skills kept yet"), Pool->HasBankedSkills(LeaderKey));
+		TestEqual(TEXT("Nothing handed to a host with no ledger"), Pool->HandOverSkills(RecruitKey, LeaderKey), 0);
+		TestTrue(TEXT("The recruit keeps its spell"), Pool->KnowsSpell(RecruitKey, Spell));
+
+		if (!Spawn(Leader, false) || !TestTrue(TEXT("The host's skills are kept now"), Pool->HasBankedSkills(LeaderKey))) return;
+		TArray<FSpellInstance> Full;
+		for (int32 Index = 0; Index < InventoryConstants::MAX_LEARNED_SPELLS; ++Index)
+		{
+			Full.Emplace(NewObject<USpellData>(GetTransientPackage()));
+		}
+		Pool->SetSkills(LeaderKey, Full, {});
+		TestEqual(TEXT("Nothing fits a full host"), Pool->HandOverSkills(RecruitKey, LeaderKey), 0);
+		TestFalse(TEXT("The recruit's ledger is gone"), Pool->HasBankedSkills(RecruitKey));
+		TestFalse(TEXT("Its spell is dropped, not squeezed in"), Pool->KnowsSpell(LeaderKey, Spell));
+		TestEqual(TEXT("The host's list is unchanged"), Pool->FindSkills(LeaderKey)->Spells.Num(), InventoryConstants::MAX_LEARNED_SPELLS);
 	});
 }
 
