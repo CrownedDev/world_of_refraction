@@ -458,7 +458,9 @@ int32 UPartySessionSubsystem::DismissRunMembers()
 	UParty *Party = GetLocalParty();
 	if (UPoolSubsystem *Pool = Party ? GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr)
 	{
-		// What a leaver wore is free again, and its clash lines go with it.
+		const FName HostKey = GetHostKey();
+		// What a leaver wore is free again, and its clash lines go with it. B-361 (D-152): its skills stay with the
+		// host; a pouch of its own (a save from before B-361) goes to storage.
 		for (const FPartyMember &Member : Party->Members)
 		{
 			if (!Member.bRunOnly)
@@ -480,6 +482,7 @@ int32 UPartySessionSubsystem::DismissRunMembers()
 			}
 			Pool->NoteClashes(Key, {});
 			Pool->ReleasePouch(Key);
+			Pool->HandOverSkills(Key, HostKey);
 		}
 	}
 	const int32 Left = Party ? Party->Members.RemoveAll([](const FPartyMember &Member) { return Member.bRunOnly; }) : 0;
@@ -489,6 +492,24 @@ int32 UPartySessionSubsystem::DismissRunMembers()
 		OnPartyChanged.Broadcast(Party);
 	}
 	return Left;
+}
+
+FName UPartySessionSubsystem::GetHostKey() const
+{
+	const UParty *Party = GetLocalParty();
+	const FPartyMember *Host = Party ? Party->Members.FindByPredicate([](const FPartyMember &Member) { return !Member.bRunOnly && Member.CharacterData; })
+									 : nullptr;
+	return Host ? UPoolSubsystem::GetCharacterKey(*Host) : NAME_None;
+}
+
+FName UPartySessionSubsystem::GetPouchKey(FName Key) const
+{
+	const UParty *Party = GetLocalParty();
+	const FPartyMember *Member = Party && !Key.IsNone() ? Party->Members.FindByPredicate([Key](const FPartyMember &M)
+																						  { return M.CharacterData && UPoolSubsystem::GetCharacterKey(M) == Key; })
+														: nullptr;
+	const FName HostKey = Member && Member->bRunOnly ? GetHostKey() : NAME_None;
+	return HostKey.IsNone() ? Key : HostKey;
 }
 
 bool UPartySessionSubsystem::SetRunMemberGear(int32 SlotIndex, const FGuid &Weapon, const FGuid &Ring)

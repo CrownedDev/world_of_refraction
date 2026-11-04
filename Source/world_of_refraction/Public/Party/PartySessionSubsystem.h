@@ -130,9 +130,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	bool InviteRunMember(TSoftClassPtr<ACombatCharacter> PawnClass, UCharacterData *Data);
 
-	/** B-076: the run ended; every run-only member leaves. Returns how many left. */
+	/** B-076: the run ended; every run-only member leaves. Returns how many left. B-361 (D-152): its skills go to
+	 *  the host's character (UPoolSubsystem::HandOverSkills); its pickups and pouch were the host's all along. */
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	int32 DismissRunMembers();
+
+	/** B-361 (D-152, Q-361): the host's own character's pool key: the first member who isn't a run-only recruit (the
+	 *  party leader in solo play, the hosting player's character in co-op). None without a party. */
+	FName GetHostKey() const;
+	/** B-361 (D-152): whose pouch Key's member carries: a run-only recruit's is the host's, anyone else's its own. */
+	FName GetPouchKey(FName Key) const;
 
 	/** B-076: the shared-armoury weapon and ring a run-only member uses (an invalid ID: none).
 	 *  Applies the next time the member spawns. False for a member who isn't run-only. */
