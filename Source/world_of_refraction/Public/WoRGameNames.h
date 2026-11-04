@@ -41,6 +41,9 @@ namespace WoRGameNames
     /** "Guard", "Dodge" (the legacy Parry also reads "Guard"). */
     WORLD_OF_REFRACTION_API FText GetDefenseTypeName(EDefenseType DefenseType);
 
+    /** B-365 (D-158): "Flawless Parry" (every hit of one attack perfectly guarded or dodged). */
+    WORLD_OF_REFRACTION_API FText GetFlawlessParryName();
+
     /** "Front Row", "Middle Row", "Back Row". */
     WORLD_OF_REFRACTION_API FText GetCombatRowName(ECombatRow Row);
 

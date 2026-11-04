@@ -1988,7 +1988,8 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 		Match.bPerfect); // D-084: a Perfect Guard takes less
 
 	// Luck dodge (D-085): only a hit that would land, so timing still matters most.
-	if (!Result.bSuccess && TryLuckDodge(Defender))
+	const bool bLuckDodged = !Result.bSuccess && TryLuckDodge(Defender);
+	if (bLuckDodged)
 	{
 		Result = DefenseSys->CalculateDefenseResult(BaseSlice, EDefenseType::Dodge, true, false);
 		// B-198: show a dodge (over a missed Guard's block montage too), unless a mistimed Dodge
@@ -2059,6 +2060,14 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 	if (Match.bPerfect)
 	{
 		DefenseSys->OnDefensePerfect.Broadcast(Defender, Attacker, Result.DefenseType, Match.bPerfect, ImpactIndex);
+	}
+	// B-365 (D-158): every hit of this attack perfectly guarded or dodged is a Flawless Parry, reported at the last hit.
+	// A luck dodge is not the player's timing: it never counts, even after a Perfect-timed press that failed.
+	if (Ctx->FlawlessTally.AddHit(!bLuckDodged && FlawlessParry::IsPerfectHit(Result.DefenseType, Result.bSuccess, Match.bPerfect), HitCount))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Defense] Flawless Parry: %s against %s (%s)"), *GetNameSafe(Defender), *GetNameSafe(Attacker),
+			   *FlawlessParry::GetTallyString(Ctx->FlawlessTally, HitCount));
+		DefenseSys->OnFlawlessParry.Broadcast(Defender, Attacker);
 	}
 
 	UE_LOG(LogTemp, Verbose, TEXT("[Stage3] impact %d defense for %s — Type: %d, Slice: %d → %d, %s"),

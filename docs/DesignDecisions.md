@@ -2094,6 +2094,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Assumptions (flag for Crown):** (1) a **Perfect Guard** and a **Perfect Dodge** both count for a hit (any perfect defense, not only a parry); (2) **no built-in reward** comes with it: it is only the condition, and skills, reactions and hidden conditions give the payoff.
 **Notes for Claude:** job B-365 (after B-337b, which widens the condition context).
 
+### Q-365 — Flawless Parry as built: what counts as one attack, and where it can be read
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-365, desktop) · **Blocks:** —
+**Question:** D-158 makes the Flawless Parry a condition. Three things it leaves to the build: (1) what "every hit" is counted over; (2) which systems can read it now; (3) an attack cut short.
+**Options / as built:**
+- (1) **A** per defender per attack or spell: each hit judged for that defender counts; it fires at the attack's last hit when all were Perfect Guards or Perfect Dodges (a luck dodge is not perfect). A hit never judged (the defender fell first, a projectile dodged by moving, a multi-part spell resolved in one lump) means no Flawless Parry. **B** per hit streaks across attacks.
+- (2) **A** now: `UDefenseSystem::OnFlawlessParry` and the shared conditions (`EWoRConditionTrigger` / `EWoRConditionSubject::FlawlessParry`, `WoRConditions::MakeFlawlessParryContext`). Skill effects (`ESkillTrigger`) and reaction moments (`FFightMoment`) are not on the shared conditions yet, so they read it once B-337c moves them; until then nothing in the game reads it (the log line shows it). **B** add an `ESkillTrigger` and a fight moment now as a second path.
+- (3) **A** an attack that stops before its last hit (a perfect defense interrupts an interruptable attack) is not a Flawless Parry: the interrupt is that defense's own payoff. **B** report at the interrupt when every judged hit was perfect.
+**Recommendation:** A throughout. Sekiro's deflect and Expedition 33's parry both judge a whole combo (every hit) and are widely praised for it; one path through the shared conditions avoids the five-vocabulary problem D-130 fixes.
+**Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
+**Notes for Claude:** built in B-365. B-337c should wire `OnFlawlessParry` into the skill-effect triggers when it moves them.
+
 ### D-159 — The currency names swap: the run currency is Prisms, the hub currency is Gold
 **Status:** DECIDED (Crown, 2026-11-04, via the brain) · **Raised:** 2026-11-04 · **Blocks:** —
 **Answer (Crown):** the **run** currency (shown as "Gold" today) is called **Prisms**, and the **hub** currency (shown as "Prisms" today) is called **Gold**. Player-facing names only: the LOCTEXT name table, UI text and docs.
