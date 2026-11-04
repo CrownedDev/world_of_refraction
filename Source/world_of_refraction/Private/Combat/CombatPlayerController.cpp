@@ -388,9 +388,10 @@ bool ACombatPlayerController::ControlsActor(const AController *Sender, const AAc
 		return true;
 	}
 	// TODO(B-232): each player commands only their own characters. Until then the party is shared (Q-229b): any
-	// player-driven combatant. A non-pawn combatant (the test harness's) counts as player-driven, as in the orchestrator.
+	// player-driven combatant. A non-pawn combatant (the test harness's) counts as player-driven only for the local
+	// (host) controller, as in the orchestrator; a remote client may only name a pawn.
 	const APawn *Pawn = Cast<APawn>(Actor);
-	return !Pawn || CombatControl::IsPlayerDriven(Pawn);
+	return Pawn ? CombatControl::IsPlayerDriven(Pawn) : Sender->IsLocalController();
 }
 
 ACombatPlayerController *ACombatPlayerController::FindLocal(const UObject *WorldContext)
