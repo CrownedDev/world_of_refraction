@@ -928,6 +928,20 @@ namespace InventoryGearSync
     void CopyOwned(TEntry &Slot, const TEntry &Owned)
     {
         TArray<USpellData *> Picks = MoveTemp(Slot.AssignedSpells);
+        if constexpr (std::is_same_v<TEntry, FWeaponInventoryEntry>)
+        {
+            // B-351 (D-145): the loadout copy's skill picks lead until WriteLoadoutToOwned, like its spells;
+            // an unedited copy takes the owned item's (saved) list.
+            if (Slot.bSkillSlotsActive)
+            {
+                TArray<UAbilityData *> SkillPicks = MoveTemp(Slot.SkillPicks);
+                Slot = Owned;
+                Slot.AssignedSpells = MoveTemp(Picks);
+                Slot.SkillPicks = MoveTemp(SkillPicks);
+                Slot.bSkillSlotsActive = true;
+                return;
+            }
+        }
         Slot = Owned;
         Slot.AssignedSpells = MoveTemp(Picks);
     }
