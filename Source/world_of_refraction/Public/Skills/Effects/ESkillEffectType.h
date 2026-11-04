@@ -277,7 +277,18 @@ enum class ESkillEffectType : uint8
     // don't move. An authored keyed effect becomes the old per-element member where one exists
     // (SkillEffectClassification::ResolveKeyed); new content should use these.
     GrantElementImmunity UMETA(DisplayName = "Element Immunity (by element)"),
-    ApplyDOTOnHit UMETA(DisplayName = "Apply DoT on Hit (by element)")
+    ApplyDOTOnHit UMETA(DisplayName = "Apply DoT on Hit (by element)"),
+
+    // B-042j2 (D-092): the absorbing family as authored payloads. Not lasting effects: USkillEffectManager::ApplyEffect
+    // turns one into an absorber charge on the holder's UWoRTurnEffectTracker. Payload: Value = the damage it negates
+    // (per instance, or the whole budget for a "Total"), Charges = uses (0 = unlimited), Duration = turns (0 = until
+    // spent), Element = the Ward's element. "Negate", not "Absorb": AbsorbDamage above is the EP conversion.
+    NegateDamage UMETA(DisplayName = "Negate Damage (Barrier)"),
+    NegatePhysical UMETA(DisplayName = "Negate Physical Damage (Shield)"),
+    NegateElement UMETA(DisplayName = "Negate Element Damage (Ward, by element)"),
+    NegateElemental UMETA(DisplayName = "Negate Elemental Damage (Ward, every element)"),
+    NegateDamageTotal UMETA(DisplayName = "Negate Damage in Total (Barrier pool)"),
+    NegateElementTotal UMETA(DisplayName = "Negate Element Damage in Total (Ward pool, by element)")
 };
 
 /**
@@ -292,6 +303,20 @@ enum class ESkillEffectType : uint8
  */
 namespace SkillEffectClassification
 {
+    /** B-042j2: an absorber payload (Barrier / Shield / Ward), applied as a charge, never as a lasting effect. */
+    inline bool IsNegate(ESkillEffectType Type)
+    {
+        return Type == ESkillEffectType::NegateDamage || Type == ESkillEffectType::NegatePhysical
+               || Type == ESkillEffectType::NegateElement || Type == ESkillEffectType::NegateElemental
+               || Type == ESkillEffectType::NegateDamageTotal || Type == ESkillEffectType::NegateElementTotal;
+    }
+
+    /** B-042j2: a Negate whose number is one budget drawn down across hits (the deckbuilder's Pool). */
+    inline bool IsNegatePool(ESkillEffectType Type)
+    {
+        return Type == ESkillEffectType::NegateDamageTotal || Type == ESkillEffectType::NegateElementTotal;
+    }
+
     /** B-268: a legacy type with the same meaning as today's is stored as today's type, once, when applied. */
     inline ESkillEffectType ResolveLegacyAlias(ESkillEffectType Type)
     {
@@ -414,6 +439,13 @@ namespace SkillEffectClassification
         case ESkillEffectType::StatusDecrease:
         // recipient-side healing amplifier (HealBlock mirror)
         case ESkillEffectType::HealingReceivedBuff:
+        // B-042j2: the absorbing family is a buff on its holder.
+        case ESkillEffectType::NegateDamage:
+        case ESkillEffectType::NegatePhysical:
+        case ESkillEffectType::NegateElement:
+        case ESkillEffectType::NegateElemental:
+        case ESkillEffectType::NegateDamageTotal:
+        case ESkillEffectType::NegateElementTotal:
             return true;
         default:
             // Sign-aware types (see IsSignAware): +magnitude is a buff, exactly 0 is neither.
