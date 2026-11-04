@@ -12,6 +12,7 @@
 #include "LevelDropWidget.generated.h"
 
 class UCharacterData;
+struct FPartyMember;
 class UTextBlock;
 
 UCLASS()
@@ -34,8 +35,9 @@ protected:
 	virtual void NativeConstruct() override;
 
 private:
-	TArray<UCharacterData *> GatherMembers() const;
-	UCharacterData *SelectedMember() const;
+	/** B-360c: the local party's members (each copy of a character is its own); pointers into the live party. */
+	TArray<const FPartyMember *> GatherMembers() const;
+	const FPartyMember *SelectedMember() const;
 
 	void Place(EWorldPillar Pillar);
 

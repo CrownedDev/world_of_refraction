@@ -652,9 +652,10 @@ namespace
     constexpr int32 BUY_FOR_MIN_PARTY = 2;
 
     /** B-316: the local party's members, in party order. */
-    TArray<const UCharacterData *> ShopPartyMembers(const UUserWidget &Widget)
+    /** B-360c (Q-360c): each party member's own key (a later copy of a character is its own) and its name. */
+    TArray<TPair<FName, FString>> ShopPartyMembers(const UUserWidget &Widget)
     {
-        TArray<const UCharacterData *> Members;
+        TArray<TPair<FName, FString>> Members;
         const UGameInstance *GI = Widget.GetGameInstance();
         const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
         if (const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr)
@@ -663,7 +664,7 @@ namespace
             {
                 if (Member.CharacterData)
                 {
-                    Members.Add(Member.CharacterData);
+                    Members.Emplace(UPoolSubsystem::GetCharacterKey(Member), Member.CharacterData->Name);
                 }
             }
         }
@@ -680,12 +681,11 @@ namespace
 void UShopWindowWidget::HandleBuyForClicked()
 {
     // The cycle: each party member in order, the purchaser's own key standing for "yourself" (none).
-    const TArray<const UCharacterData *> Members = ShopPartyMembers(*this);
     const FName Self = ShopPurchaserKey(Purchaser.Get());
     TArray<FName> Keys;
-    for (const UCharacterData *Member : Members)
+    for (const TPair<FName, FString> &Member : ShopPartyMembers(*this))
     {
-        Keys.Add(UPoolSubsystem::GetCharacterKey(Member));
+        Keys.Add(Member.Key);
     }
     if (Keys.Num() < BUY_FOR_MIN_PARTY)
     {
@@ -707,12 +707,12 @@ FText UShopWindowWidget::GetBuyForLabel() const
 {
     if (!BuyForKey.IsNone())
     {
-        for (const UCharacterData *Member : ShopPartyMembers(*this))
+        for (const TPair<FName, FString> &Member : ShopPartyMembers(*this))
         {
-            if (UPoolSubsystem::GetCharacterKey(Member) == BuyForKey)
+            if (Member.Key == BuyForKey)
             {
                 // TODO: character names are FString assets; FText with B-127 (D-061).
-                return FText::Format(NSLOCTEXT("Shop", "BuyingFor", "Buying for: {0}"), FText::FromString(Member->Name));
+                return FText::Format(NSLOCTEXT("Shop", "BuyingFor", "Buying for: {0}"), FText::FromString(Member.Value));
             }
         }
     }
