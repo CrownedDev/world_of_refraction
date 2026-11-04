@@ -1,7 +1,7 @@
 // ChestSpec.cpp
 // B-324 (D-117, Q-321): the shared home chest holds gear. A puts a spare sword in the chest (it leaves A's
 // armoury, the chest owns it, every member's draw leaves it alone); B takes it and owns it; worn gear can't be put
-// away; the chest survives a save.
+// away; the chest survives a save. B-347b (Q-347): the chest stays at home while a run is open.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -174,6 +174,22 @@ void FChestSpec::Define()
 		if (!TestEqual(TEXT("One duplicate notice"), Recorder->NewIDs.Num(), 1)) return;
 		TestEqual(TEXT("The taken piece is the new one"), Recorder->NewIDs[0], PutID);
 		TestEqual(TEXT("Against B's own"), Recorder->OwnedIDs[0], KeptID);
+	});
+
+	It("stays at home during a run: no put, no take until it ends (B-347b, Q-347)", [this]()
+	{
+		if (!Pool) return;
+		UInventoryComponent *A = SpawnMember(0, true, false);
+		UInventoryComponent *B = SpawnMember(1, false, false);
+		if (!A || !B) return;
+		const FGuid DaggerID = OwnedID(A, Dagger);
+		TestTrue(TEXT("Put at home"), WoRGive::TryPutInChest(TestWorld->GetWorld(), KeyOf(0), DaggerID).IsEmpty());
+		Pool->BeginRunLayer();
+		TestFalse(TEXT("Take refused during the run"), WoRGive::TryTakeFromChest(TestWorld->GetWorld(), KeyOf(1), DaggerID).IsEmpty());
+		TestTrue(TEXT("Still in the chest"), Pool->IsInChest(DaggerID));
+		Pool->EndRunLayer();
+		TestTrue(TEXT("Take works after the run"), WoRGive::TryTakeFromChest(TestWorld->GetWorld(), KeyOf(1), DaggerID).IsEmpty());
+		TestEqual(TEXT("B owns it"), Pool->GetGearOwner(DaggerID), KeyOf(1));
 	});
 
 	It("refuses to put worn gear away", [this]()
