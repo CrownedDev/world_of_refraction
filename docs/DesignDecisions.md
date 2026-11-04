@@ -2124,7 +2124,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** **A** the currency of the place, as shops do (ER-21: hub buys use the hub currency, in-run buys the run currency): converting in the hub pays the hub currency (code `Prisms`, shown as Gold); converting in a run pays the run currency (code `Gold`, shown as Prisms). **B** always the hub currency. **C** as today.
 **Recommendation:** A. It matches the shop rule already in the game (ER-21), and the run currency is meant to be spent in the run (Hades' Charon's Obols vs Darkness: run money never leaks to the hub). The amounts stay the per-tier table (`GetDuplicateGoldForTier`) until tuning.
 **Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
-**Notes for Claude:** job B-366b. The brain's message cited "D-005" for the place rule; D-005 is about elements, so this cites ER-21 / D-002's notes instead.
+**Notes for Claude:** built in B-366b (`UEconomyService::GetPlaceCurrency`: a trial run under way = the run currency; rule ER-63). The brain's message cited "D-005" for the place rule; D-005 is about elements, so this cites ER-21 / D-002's notes instead.
 
 ### D-159 — The currency names swap: the run currency is Prisms, the hub currency is Gold
 **Status:** DECIDED (Crown, 2026-11-04, via the brain) · **Raised:** 2026-11-04 · **Blocks:** —
