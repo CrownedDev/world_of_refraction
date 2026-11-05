@@ -3617,6 +3617,41 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A, as a stopgap. B-229's done-when needs a client's pick and Guard to work, and B would block both. Baldur's Gate 3 and Divinity: Original Sin 2 assign each party member to one player, which is what B-232 builds (`ControlsActor` then drops the shared rule). Not lore.
 **Notes for Claude:** `ACombatPlayerController::ControlsActor` (`TODO(B-232)`); the defense press uses the first open-window player defender (`UDefenseSystem::GetActiveDefenderForLocalPlayer`) until B-232 picks the sender's own.
 
+### D-162 — Cinematic window, then a camera that lets you defend
+**Status:** ANSWERED (Crown, 2026-11-05, via the stand-in brain) · **Raised:** 2026-11-05 · **Blocks:** B-370, B-371
+**Answer (Crown):** a skill's montage carries a **cinematic notify with a range**: inside the range a cinematic camera plays; when it ends, the camera passes to a normal camera. The reason is co-op: the camera must leave each player **ready to retaliate** (defend in time).
+**As designed (`Design/SkillPresentationPipeline.md` §4):** the range is an anim notify state. At its end, every machine whose own character is a target gets the **Defence view** (behind that character, the attacker in front); machines with nothing to defend get the wide watch view. The window must end at least `MinDefenseReadSeconds` before the first defendable moment (first Impact or Cast, minus its Telegraph lead). A viewer with nothing to defend may keep the cinematic to the end. Changes `Design/CombatCamera.md` §2 "Defence: probably none, play-test first".
+**Reference check:** *deckbuilder*: no real-time defense, no rule. *Games*: Expedition 33's enemy-turn camera keeps the defending party member in front of the attacker, and its parry / dodge timing is widely praised as readable; its showy skill cameras play when nothing has to be defended.
+**Notes for Claude:** jobs B-370 (window and hand-off), B-368 (the rule as a spec). The per-viewer hand-off on a client needs the action replicated to it (B-228b).
+
+### Q-369 — Impact VFX: who chooses them, and what each outcome shows
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-05 (B-369) · **Blocks:** —
+**Question:** (1) Is the visual on a melee Impact frame placed by the animator (a VFX notify) or chosen by code from the outcome? (2) What does each outcome show?
+**Options:** (1) **A** code chooses by outcome; animators place timing only. **B** animators place a VFX notify per hit. (2) **A** Hit: element burst · Crit: larger · Guard: steel spark · Perfect Guard: the existing flash · Dodge: a small whiff or nothing. **B** one hit visual for every outcome.
+**Recommendation:** A / A. Lyra's GameplayCues pick an effect per result; Sekiro and Expedition 33 owe much of their feel to a distinct spark or flash per defense result. B needs work on every montage and can't know the outcome in advance.
+**Answer:** **A / A**, by the reference-backed default (2026-11-05). Crown may change either. Fallback: skill's Impact entry → element default → generic; spawned at the target's `HitPoint` socket.
+
+### Q-370 — Cinematic window details
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-05 (B-370) · **Blocks:** —
+**Question:** (1) The least time between the window's end and the first defendable moment. (2) A montage with no range placed. (3) Several of my characters targeted.
+**Options / defaults:** (1) **0.75 s**, `TODO: tune` in PIE. (2) **A** start to wind-up end, clamped by (1); **B** no cinematic. (3) **A** frame all my targeted characters and the attacker; **B** frame the first only.
+**Recommendation:** A where offered: a skipped reaction is worse than a shorter cinematic; seeing every one of your threatened characters is what lets you choose who to guard.
+**Answer:** **0.75 s / A / A**, by the reference-backed default (2026-11-05). Crown may change any.
+
+### Q-371 — Skill cameras: code-built shots instead of template sequences
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-05 (B-371) · **Blocks:** —
+**Question:** D-074 chose template sequences by skill type. Build those templates as code-built shot patterns timed by the notifies (no Level Sequence asset), keeping hand-made sequences for signature moves?
+**Options:** **A** code-built patterns plus per-skill tuning; sequences for signature moves only. **B** template Level Sequences, as B-157 planned.
+**Recommendation:** A. It keeps D-074's split (shared patterns, hand-made signatures) as Persona 5, Octopath Traveler and Honkai: Star Rail use it, but needs no editor work per pattern, fits any animation length, and can be checked by specs. It unblocks B-157.
+**Answer:** **A**, by the reference-backed default (2026-11-05). Crown approves the look of the patterns in PIE (B-157).
+
+### Q-373 — Notify placement tool
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-05 (B-373) · **Blocks:** —
+**Question:** Build automatic notify placement as Unreal Animation Modifiers or as an editor Python script?
+**Options:** **A** Python script under `Scripts/editor/`, run through unreal-mcp. **B** Animation Modifier classes (need a new editor module, or a Blueprint `.uasset`).
+**Recommendation:** A: plain text in git, re-runnable, no new module (the project has one runtime module). Move to B later if designers want it inside the animation editor.
+**Answer:** **A**, by the reference-backed default (2026-11-05). Crown may change it.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
