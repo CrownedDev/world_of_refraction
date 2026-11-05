@@ -18,7 +18,7 @@
 | **Turn** (choosing an action) | **Default: centred behind the acting character, a bit wider**, with the whole enemy team in view (D-074). Settings: close over-the-shoulder (Expedition 33) or wide tactical side-on |
 | **Action** (skill confirmed) | The skill's **Level Sequence** plays, bound at runtime to the caster and target(s) combat already knows |
 | **Not your turn** | Pan out wide |
-| **Defence** | Probably none: the defender sees the incoming hit through the attacker's Action sequence. **Play-test first**: if parry/dodge timing isn't readable, add a Defence mode |
+| **Defence** (D-162) | A skill's **cinematic window** (a notify range on the montage) plays the cinematic; when it ends, each machine whose own character is a target gets the Defence view (behind that character, attacker in front) at least 0.75 s (`TODO: tune`) before the first defendable moment; others get the wide watch view. `Design/SkillPresentationPipeline.md` §4 |
 
 **Settings:**
 - Turn-view style (centred-wide / over-the-shoulder / tactical).
@@ -36,7 +36,7 @@
 
 1. **Code (CC):** per-character camera component, the mode selector driven by combat events (turn start, action confirmed, action end), the settings, the skill → sequence field, and the play/bind/cleanup lifecycle. Debug: `wor.Camera` state print.
 2. **Content (CC+UE):** three template sequences (melee, ranged, spell) and the camera rig tuning, with screenshots for Crown.
-3. **Later:** more templates, signature sequences, and the Defence-mode play-test.
+3. **Later (changed 2026-11-05, D-162, Q-371):** code-built shot patterns replace the template sequences (B-371), the cinematic window and Defence view (B-370), framing checks (B-372); hand-made sequences for signature moves only. Step 2 becomes Crown's approval of the patterns (B-157).
 
 ## 5. Hub camera
 
