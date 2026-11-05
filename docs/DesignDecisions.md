@@ -1933,7 +1933,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** each weapon or crystal has one skill-slot list (F 1 to S 6). Built-in skills pre-fill it and the player can replace any of them; a replaced built-in is remembered on the item and can be restored. An Ability Stone adds slots to the same list. The locked flags, the position merge and the separate stone list retire. Not the audit's "built-ins can't be replaced" version.
 **Notes for Claude:** combined with B-351 (the two sockets).
 
-### D-146 — Three spell schools: Conjuration, Enhancement, Restoration (audit round 3 §31; corrected by Crown, 2026-11-04)
+### D-146 — Three spell schools: Conjuration, Enhancement, Restoration (audit round 3 §31; corrected by Crown, 2026-11-04) — **superseded by D-163 (six schools, 2026-11-05)**
 **Status:** DECIDED (Crown, 2026-11-04; corrected by Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §31) · **Blocks:** —
 **Answer (Crown, corrected 2026-11-04):** spell schools stay as exactly three: **Conjuration** (the damage school, in Destruction's place), **Enhancement**, **Restoration**. Existing schools map onto them (enum append-only: the others marked retired): old Destruction and old Conjuration both map to Conjuration; Enhancement and Restoration stay. Schools are player-facing labels shown on spells (LOCTEXT name table). The AI decides from a spell's actual effects, not its school (folded into B-345). Re-tagging the spell assets is an editor step.
 **Before the correction:** the three were Destruction, Enhancement, Restoration, and Conjuration was retired onto Enhancement (Q-356 as first built in B-356). B-356c applies the correction.
@@ -2149,6 +2149,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **What exists (code):** the marks are already there, several per skill: each hit entry's `bInterruptable` (`Skills/Definitions/SkillDataBase.h:72`, the per-hit list) and each spell cast entry's `bInterruptable` (`Skills/Definitions/SkillCastEntry.h:89`), resolved per impact into `FResolvedHitFlags` (`Combat/Actions/ActionStructs.h:275-281`). An interruptable hit stops the rest of the attack when **every** target stopped it (`UActionExecutor::AllInterruptSucceeded`, `ActionExecutor.cpp:2644`; the abort at `ActionExecutorMontage.cpp:436-442`; the return montage plays if authored). What stops it is `GuardRules::StopsInterruptableHit` (`Combat/Defense/GuardRules.h:48`): a **Perfect Guard or any successful Dodge** (Q-168).
 **Differences to build (B-367):** (1) D-161 says a **Perfect** Dodge; today any successful Dodge stops an interrupt point (Q-168). Built as D-161 reads (Perfect Dodge only); **flag for Crown**. (2) The Flawless Parry is reported when the attack ends through an interrupt point with every judged hit perfect (Q-365 (3)). (3) "Every target" stays: with several targets, the skill ends only when each of them stopped the point (Q-168, unchanged).
 **Reference check:** *deckbuilder*: no real-time defense. *Games*: Sekiro's deflects and Expedition 33's parries (a full perfect counter ends the enemy's combo with a counterattack) are the well-liked examples of a perfect defense cutting an attack short.
+**Corrected by Crown (2026-11-05, via the brain):** **only a Perfect Guard** stops an interrupt point; a Perfect Dodge does nothing there. Job B-367b. (Open: whether a Perfect Dodge still counts toward a Flawless Parry on ordinary hits, D-158.)
 **Notes for Claude:** job B-367. The player-facing word for an interrupt point, if one is shown, goes in the `WoRGameNames` table. Crown confirmed (2026-11-04, via the brain): Perfect Dodge only. Built in B-367 (`GuardRules::StopsInterruptableHit`; the Flawless Parry at an interrupt in `UActionExecutor::InterruptAsyncAction`; Q-367).
 
 ### Q-367 — Interrupt points: a luck dodge, and one report per attack
@@ -4061,3 +4062,17 @@ Moved here once applied. Newest first.
 **Recommendation:** A throughout. (1) is Diablo-style one-click moves with a split toggle (Diablo III / IV's stack handling; quick, no modal), (2) and (3) keep the screen a plain list of what each row can do, as Monster Hunter's item box does (a box row only comes out), (4) is the economy's existing contract, (5) waits on Q-323.
 **Answer:** **A, A, A, A, A**, by the reference-backed default (2026-11-04). Crown may change any of them.
 **Notes for Claude:** as built in B-339; the real CommonUI screen (D-024) inherits them unless Crown changes one. Convert's confirm carries D-016's equipped warning too (review fix).
+
+### D-163 — Six spell schools; the school is an identity, not a limit on effects (changes D-146)
+**Status:** DECIDED (Crown, 2026-11-05, with the senior engineer session; recorded by the brain) · **Raised:** 2026-11-05 · **Blocks:** —
+**Answer (Crown):** six schools, each a spell's main identity:
+- **Destruction**: damage (brought back; no longer retired onto Conjuration).
+- **Conjuration**: creation, e.g. a flame spear. It can deal damage, but its identity is the conjured thing (a trait such as high crit is not decided).
+- **Enhancement**: buffs.
+- **Restoration**: heals and cleanses.
+- **Impairment**: debuff control, weakening the target (stat debuffs and the like).
+- **Manipulation**: crowd and conceptual control: taunt, forcing a target onto someone else. It leans on status but doesn't own it.
+**Rules that stay:** the **6-per-school cap stays** and no total cap is added; the 24-point innate budget (cost = tier) is the real limit, and the cap only stops stacking one school. **Status can come from any school.** A support spell may carry a deliberate status **drawback** (e.g. a Fire heal leaving Overheat on the healed ally) as an authored `StatusIncrease` effect, which Q-174's support rule already allows; it only zeroes accidental generic buildup. The command menu lists only the schools a character has spells in (already built, `CombatCommandMenuSubsystem::BuildSchoolButtons`); six schools plus Back fit a gamepad radial.
+**Reference check:** *deckbuilder*: schools are labels and cost filters only (`02-enums.md` ESpellSchool). *Games*: Divinity: Original Sin 2's shared Memory pool and Baldur's Gate 3's shared spell slots keep schools as categories, not limits.
+**To verify when built:** a `StatusIncrease` payload can target the healed ally; "Overheat" may be Crown's word for the Fire buildup bar, not a new status (check). The Broken Darkness pool (6 Darkness spells) is separate.
+**Notes for Claude:** job B-374. Supersedes D-146's three-school list and Q-356's mapping of Destruction onto Conjuration. Re-tagging spell assets is an editor step; the effect classifier (Q-356c) proposes each spell's school.
