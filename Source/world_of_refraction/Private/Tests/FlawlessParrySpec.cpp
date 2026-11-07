@@ -35,13 +35,20 @@ END_DEFINE_SPEC(FFlawlessParrySpec)
 
 void FFlawlessParrySpec::Define()
 {
-	It("counts a Perfect Guard or a Perfect Dodge for a hit, nothing else", [this]()
+	It("counts only a Perfect Guard for a hit (B-367b), nothing else", [this]()
 	{
 		TestTrue(TEXT("Perfect Guard"), FlawlessParry::IsPerfectHit(EDefenseType::Block, true, true));
-		TestTrue(TEXT("Perfect Dodge"), FlawlessParry::IsPerfectHit(EDefenseType::Dodge, true, true));
+		TestTrue(TEXT("a Parry press, perfect"), FlawlessParry::IsPerfectHit(EDefenseType::Parry, true, true));
+		TestFalse(TEXT("a Perfect Dodge no longer"), FlawlessParry::IsPerfectHit(EDefenseType::Dodge, true, true));
 		TestFalse(TEXT("a normal Guard"), FlawlessParry::IsPerfectHit(EDefenseType::Block, true, false));
-		TestFalse(TEXT("a failed defense"), FlawlessParry::IsPerfectHit(EDefenseType::Dodge, false, true));
+		TestFalse(TEXT("a failed defense"), FlawlessParry::IsPerfectHit(EDefenseType::Block, false, true));
 		TestFalse(TEXT("undefended"), FlawlessParry::IsPerfectHit(EDefenseType::None, true, true));
+
+		// Perfect Guard, Perfect Dodge, Perfect Guard: the dodged hit breaks the Flawless Parry.
+		TestEqual(TEXT("one hit dodged perfectly: never"), FlawlessReports({
+			FlawlessParry::IsPerfectHit(EDefenseType::Block, true, true),
+			FlawlessParry::IsPerfectHit(EDefenseType::Dodge, true, true),
+			FlawlessParry::IsPerfectHit(EDefenseType::Block, true, true)}), 0);
 	});
 
 	It("fires once at the last hit when every hit is perfect, and not with one hit missed", [this]()
