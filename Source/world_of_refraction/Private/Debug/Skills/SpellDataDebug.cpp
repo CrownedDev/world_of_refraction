@@ -278,12 +278,12 @@ bool USpellDataDebug::ProposeSchool(const USpellData *Spell, ESpellSchool &OutSc
         OutSchool = ESpellSchool::Destruction; // a drain too (Q-356c: a drain is an attack)
         return true;
     }
-    if (UAIDecisionManager::IsHealPick(*Spell) || HasPayloadWhere(*Spell, IsCleansePayload))
+    if (UAIDecisionManager::IsHealPick(*Spell) || HasPayloadWhere(*Spell, [](ESkillEffectType Type) { return IsCleansePayload(Type); }))
     {
         OutSchool = ESpellSchool::Restoration;
         return true;
     }
-    if (bAimsAtEnemies && HasPayloadWhere(*Spell, IsControlPayload))
+    if (bAimsAtEnemies && HasPayloadWhere(*Spell, [](ESkillEffectType Type) { return IsControlPayload(Type); }))
     {
         OutSchool = ESpellSchool::Manipulation;
         return true;
@@ -329,14 +329,19 @@ FString USpellDataDebug::GetSchoolEffectMismatchString()
         {
             continue;
         }
-        if (!IsSchoolMismatch(Spell))
+        ESpellSchool Proposed = ESpellSchool::Destruction;
+        const bool bProposed = ProposeSchool(Spell, Proposed);
+        // B-374 review: Conjuration was the damage school until D-163, so a Conjuration damage spell may be a
+        // conjured one or an old Destruction one; it is listed as a question, never as a mismatch.
+        const bool bConjuredOrDestruction = bProposed && Spell->GetSchool() == ESpellSchool::Conjuration
+                                            && Proposed == ESpellSchool::Destruction;
+        if (!IsSchoolMismatch(Spell) && !bConjuredOrDestruction)
         {
             continue;
         }
-        ESpellSchool Proposed = ESpellSchool::Destruction;
-        ProposeSchool(Spell, Proposed);
-        Out += FString::Printf(TEXT("%s: %s, effects propose %s (target %s, damage %d, buildup %d, debuff %s, heal %s)\n"),
-                               *Asset.GetObjectPathString(), *GetSchoolString(Spell), *SchoolShortName(Proposed),
+        Out += FString::Printf(TEXT("%s: %s, %s %s (target %s, damage %d, buildup %d, debuff %s, heal %s)\n"),
+                               *Asset.GetObjectPathString(), *GetSchoolString(Spell),
+                               bConjuredOrDestruction ? TEXT("check: conjured, or") : TEXT("effects propose"), *SchoolShortName(Proposed),
                                *UEnum::GetValueAsString(Spell->TargetType), Spell->BaseDamage, Spell->StatusBuildup,
                                Spell->HasDebuffEffects() ? TEXT("yes") : TEXT("no"),
                                UAIDecisionManager::IsHealingSpell(*Spell) ? TEXT("yes") : TEXT("no"));

@@ -48,8 +48,8 @@ public:
     static bool IsSchoolMismatch(const USpellData *Spell);
 
     /** B-356b / B-374: every spell asset whose school disagrees with the school its effects propose
-     *  (IsSchoolMismatch). First line: how many assets were scanned; then one line per disagreement with the
-     *  proposal. Loads every USpellData asset: editor / test only. Re-tagging is an editor step. */
+     *  (IsSchoolMismatch), plus every Conjuration spell whose effects propose Destruction as "check: conjured, or
+     *  Destruction" (Conjuration was the damage school until D-163). First line: how many assets were scanned. Loads every USpellData asset: editor / test only. Re-tagging is an editor step. */
     UFUNCTION(BlueprintCallable, Category = "Spell Debug")
     static FString GetSchoolEffectMismatchString();
 };
