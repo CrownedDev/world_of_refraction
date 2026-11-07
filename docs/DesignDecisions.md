@@ -3633,6 +3633,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A / A. Lyra's GameplayCues pick an effect per result; Sekiro and Expedition 33 owe much of their feel to a distinct spark or flash per defense result. B needs work on every montage and can't know the outcome in advance.
 **Answer:** **A / A**, by the reference-backed default (2026-11-05). Crown may change either. Fallback: skill's Impact entry → element default → generic; spawned at the target's `HitPoint` socket.
 
+### Q-369b — Impact visuals as built: whose defaults, and a spell's own impact
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-07 (B-369, cloud) · **Blocks:** —
+**Question:** Q-369 puts the element and outcome defaults in `CosmeticsData`, but every character has its own. (1) Whose: the attacker's or the target's? (2) A projectile / AOE already draws the skill's Impact-role entry when it lands; does the outcome add a second hit visual? (3) A melee skill whose montage already plays its Impact entry through a VFX notify would now show it twice.
+**Options / as built (A):** (1) the **target's** CosmeticsData, where the Perfect Guard flash already lives (a Guard spark and a Dodge whiff belong to the defender); (2) no: a spell arrival's Hit / Crit adds nothing, its Guard / Dodge visual still shows; (3) flagged in `docs/PIE/B-369.md`: such a VFX notify should be removed (timing only, Q-369 (1)). **B** the attacker's CosmeticsData.
+**Recommendation:** A. Lyra's GameplayCues play hit and block effects on the receiving actor; Sekiro's deflect spark and Expedition 33's parry flash are the defender's. One impact visual per hit keeps it readable.
+**Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change it.
+**Notes for Claude:** built in B-369 (`ImpactVisuals::Choose`, `SpawnForImpact`, called from `UActionExecutor::ApplyOneImpact`).
+
 ### Q-370 — Cinematic window details
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-05 (B-370) · **Blocks:** —
 **Question:** (1) The least time between the window's end and the first defendable moment. (2) A montage with no range placed. (3) Several of my characters targeted.
