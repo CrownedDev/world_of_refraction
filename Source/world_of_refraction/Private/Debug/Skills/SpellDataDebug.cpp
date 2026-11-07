@@ -215,6 +215,102 @@ FString USpellDataDebug::GetSchoolString(const USpellData *Spell)
     return Shown;
 }
 
+namespace
+{
+    bool HasPayloadWhere(const USpellData &Spell, TFunctionRef<bool(ESkillEffectType)> Predicate)
+    {
+        for (const FSkillEffect &Effect : Spell.GetAllEffects())
+        {
+            for (const FSkillEffectPayload &Payload : Effect.Payloads)
+            {
+                if (Predicate(Payload.EffectType))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    bool IsCleansePayload(ESkillEffectType Type)
+    {
+        switch (Type)
+        {
+        case ESkillEffectType::Cleanse:
+        case ESkillEffectType::CleanseSelf:
+        case ESkillEffectType::CleanseAllies:
+        case ESkillEffectType::RemoveSpeedDebuff:
+        case ESkillEffectType::RemoveDamageDebuff:
+        case ESkillEffectType::RemoveDefenseDebuff:
+        case ESkillEffectType::StatusDecrease:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    /** Control over what the target does (D-163 Manipulation). No taunt / forced-target effect exists yet. */
+    bool IsControlPayload(ESkillEffectType Type)
+    {
+        switch (Type)
+        {
+        case ESkillEffectType::Stun:
+        case ESkillEffectType::ApplyStunToTarget:
+        case ESkillEffectType::SkipTurn:
+        case ESkillEffectType::Silenced:
+        case ESkillEffectType::RandomSkill:
+            return true;
+        default:
+            return false;
+        }
+    }
+}
+
+bool USpellDataDebug::ProposeSchool(const USpellData *Spell, ESpellSchool &OutSchool)
+{
+    if (!Spell)
+    {
+        return false;
+    }
+    const bool bAimsAtEnemies = Spell->TargetType == ETargetType::Enemy || Spell->TargetType == ETargetType::Anyone;
+    if (bAimsAtEnemies && Spell->BaseDamage > 0)
+    {
+        OutSchool = ESpellSchool::Destruction; // a drain too (Q-356c: a drain is an attack)
+        return true;
+    }
+    if (UAIDecisionManager::IsHealPick(*Spell) || HasPayloadWhere(*Spell, IsCleansePayload))
+    {
+        OutSchool = ESpellSchool::Restoration;
+        return true;
+    }
+    if (bAimsAtEnemies && HasPayloadWhere(*Spell, IsControlPayload))
+    {
+        OutSchool = ESpellSchool::Manipulation;
+        return true;
+    }
+    if (bAimsAtEnemies && (Spell->HasDebuffEffects() || SupportSkillRules::GetAuthoredStatusBuildup(Spell) > 0))
+    {
+        OutSchool = ESpellSchool::Impairment;
+        return true;
+    }
+    if (Spell->HasBuffEffects())
+    {
+        OutSchool = ESpellSchool::Enhancement;
+        return true;
+    }
+    return false;
+}
+
+bool USpellDataDebug::IsSchoolMismatch(const USpellData *Spell)
+{
+    ESpellSchool Proposed = ESpellSchool::Destruction;
+    if (!Spell || Spell->GetSchool() == ESpellSchool::Conjuration || !ProposeSchool(Spell, Proposed))
+    {
+        return false;
+    }
+    return Spell->GetSchool() != Proposed;
+}
+
 FString USpellDataDebug::GetSchoolEffectMismatchString()
 {
 #if !WITH_EDITOR
@@ -233,14 +329,14 @@ FString USpellDataDebug::GetSchoolEffectMismatchString()
         {
             continue;
         }
-        const bool bDamageSchool = Spell->GetSchool() == ESpellSchool::Conjuration;
-        const bool bOffensive = UAIDecisionManager::IsOffensiveSpell(*Spell);
-        if (bDamageSchool == bOffensive)
+        if (!IsSchoolMismatch(Spell))
         {
             continue;
         }
-        Out += FString::Printf(TEXT("%s: %s, %s (target %s, damage %d, buildup %d, debuff %s, heal %s)\n"), *Asset.GetObjectPathString(),
-                               *GetSchoolString(Spell), bOffensive ? TEXT("offensive by effects") : TEXT("NOT offensive by effects"),
+        ESpellSchool Proposed = ESpellSchool::Destruction;
+        ProposeSchool(Spell, Proposed);
+        Out += FString::Printf(TEXT("%s: %s, effects propose %s (target %s, damage %d, buildup %d, debuff %s, heal %s)\n"),
+                               *Asset.GetObjectPathString(), *GetSchoolString(Spell), *SchoolShortName(Proposed),
                                *UEnum::GetValueAsString(Spell->TargetType), Spell->BaseDamage, Spell->StatusBuildup,
                                Spell->HasDebuffEffects() ? TEXT("yes") : TEXT("no"),
                                UAIDecisionManager::IsHealingSpell(*Spell) ? TEXT("yes") : TEXT("no"));

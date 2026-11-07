@@ -37,9 +37,19 @@ public:
     UFUNCTION(BlueprintPure, Category = "Spell Debug")
     static FString GetSchoolString(const USpellData *Spell);
 
-    /** B-356b: every spell asset whose school disagrees with what the AI reads from its effects: a damage-school
-     *  (Conjuration) spell IsOffensiveSpell rejects, or a support-school spell it accepts. First line: how many
-     *  assets were scanned; then one line per disagreement. Loads every USpellData asset: editor / test only. */
+    /** B-374 (D-163, Q-374): the school a spell's main effect proposes, read from its effects the way the AI reads
+     *  them (Q-356c): damage at an enemy → Destruction; a heal (not a drain) or a cleanse → Restoration; control at
+     *  an enemy (stun, skip turn, silence, loss of control) → Manipulation; a debuff or status buildup at an enemy →
+     *  Impairment; a buff → Enhancement. False when the effects propose nothing (an empty spell). */
+    static bool ProposeSchool(const USpellData *Spell, ESpellSchool &OutSchool);
+
+    /** B-374: the spell's shown school differs from the proposed one. Conjuration is never flagged: its identity
+     *  is the conjured thing, which effects can't show (D-163; Q-374). A spell with no proposal is never flagged. */
+    static bool IsSchoolMismatch(const USpellData *Spell);
+
+    /** B-356b / B-374: every spell asset whose school disagrees with the school its effects propose
+     *  (IsSchoolMismatch). First line: how many assets were scanned; then one line per disagreement with the
+     *  proposal. Loads every USpellData asset: editor / test only. Re-tagging is an editor step. */
     UFUNCTION(BlueprintCallable, Category = "Spell Debug")
     static FString GetSchoolEffectMismatchString();
 };
