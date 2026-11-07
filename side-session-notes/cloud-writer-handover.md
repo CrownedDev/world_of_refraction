@@ -5,6 +5,7 @@ Overnight cloud writer, Crown asleep. Pre-writes only (UNBUILT); the desktop wri
 | Job | Branch | State | Q- defaults chosen |
 |---|---|---|---|
 | B-367b | `feature/B-367b-perfect-guard-only-cloud` | REVIEW (UNBUILT): `GuardRules::StopsInterruptableHit` and `FlawlessParry::IsPerfectHit` are Perfect Guard only; GuardSpec / FlawlessParrySpec updated; Rules ED-37/37b/37c, Q-168, Q-367, CombatOrchestrator changelog, PIE B-367b | none (Crown's correction, no question) |
+| B-374 | `feature/B-374-six-schools-cloud` | REVIEW (UNBUILT): six `ESpellSchool` values (Manipulation, Impairment appended; Destruction un-retired), menu enum + mapping, `BuildSchoolButtons` public static in school order, LOCTEXT names, `USpellDataDebug::ProposeSchool` / `IsSchoolMismatch`, SpellSchoolSpec rewritten; Rules CL-42, LoadoutSystem changelog, PIE B-374 (asset re-tagging is the editor step). Note: one docs commit says it carries Q-374 + changelog but only had CL-42; the next commit adds them | **Q-374 = A**: first-match damage → heal/cleanse → control (stun/silence/skip/random) → debuff/buildup → buff; Conjuration never flagged (D&D 5e Enchantment, Skyrim Illusion/Conjuration) |
 
 ---
 
