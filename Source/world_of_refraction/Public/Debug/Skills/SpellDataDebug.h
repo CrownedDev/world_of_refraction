@@ -33,7 +33,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Spell Debug")
     static void CompareSpellEffectiveness(USpellData *Spell, UCharacterData *Character1, UCharacterData *Character2);
 
-    /** B-356b: the school a spell shows, flagging a retired authored one: "Conjuration (authored Destruction, retired)". */
+    /** B-356b: the school a spell shows, flagging a retired authored one ("X (authored Y, retired)"; none since D-163). */
     UFUNCTION(BlueprintPure, Category = "Spell Debug")
     static FString GetSchoolString(const USpellData *Spell);
 
