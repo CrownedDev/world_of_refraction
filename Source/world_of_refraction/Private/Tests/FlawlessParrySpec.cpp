@@ -1,5 +1,5 @@
 // FlawlessParrySpec.cpp
-// B-365 (D-158): an attack whose every hit is perfectly guarded or dodged is a Flawless Parry, reported once at its
+// B-365 (D-158): an attack whose every hit is Perfect Guarded (B-367b: a dodge never counts) is a Flawless Parry, reported once at its
 // last hit; one hit not perfect and it is not; a one-hit attack counts; the condition reads true through WoRConditions.
 // B-367 (D-161): a perfect defense that ends the attack at an interrupt point, every hit so far perfect, reports one;
 // the debug print lists a skill's interrupt points.
