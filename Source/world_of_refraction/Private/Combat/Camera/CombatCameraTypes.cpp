@@ -2,6 +2,9 @@
 
 #include "Combat/Camera/CombatCameraTypes.h"
 #include "Skills/Definitions/SkillDataBase.h"
+#include "Combat/Camera/CombatCinematicWindow.h"
+#include "Combat/CombatNotify.h"
+#include "Animation/AnimMontage.h"
 
 namespace CombatCameraOffsets
 {
@@ -17,6 +20,16 @@ namespace CombatCameraOffsets
 	constexpr float NotYourTurnHeight = 750.0f;
 	constexpr float StaticBack = 1600.0f;
 	constexpr float StaticHeight = 950.0f;
+	constexpr float DefenceBack = 320.0f;
+	constexpr float DefenceSide = 110.0f;
+	constexpr float DefenceHeight = 170.0f;
+	/** Extra distance back per cm the defenders stand from their centre (several targeted, Q-370 (3)). */
+	constexpr float DefenceSpreadPullback = 1.2f;
+}
+
+namespace CombatCameraWindow
+{
+	constexpr float MinPlayRate = 0.1f; // the runner's own clamp (UActionExecutor::PlayActionMontageOnActor)
 }
 
 namespace
@@ -89,4 +102,101 @@ FTransform FCombatCameraRules::ComputeView(ECombatCameraMode Mode, ETurnViewStyl
 	default:
 		return LookFrom(Frame.Focus - Forward * CentredWideBack + FVector::UpVector * CentredWideHeight, Frame.EnemyCentre);
 	}
+}
+
+FCinematicWindowTiming FCombatCameraRules::ReadWindowTiming(const USkillDataBase *Skill)
+{
+	FCinematicWindowTiming Timing;
+	if (!Skill || !Skill->SkillMontage)
+	{
+		return Timing;
+	}
+	// TODO: the runner also scales the rate by stats (PendingMontagePlayRate); BaseAnimSpeed is the authored part.
+	const float Rate = FMath::Max(CombatCameraWindow::MinPlayRate, Skill->BaseAnimSpeed);
+	const UAnimMontage *Legs[] = {Skill->RitualCastMontage, Skill->SkillMontage, Skill->ReturnMontage};
+	float Offset = 0.0f;
+	for (const UAnimMontage *Leg : Legs)
+	{
+		if (!Leg)
+		{
+			continue;
+		}
+		for (const FAnimNotifyEvent &Event : Leg->Notifies)
+		{
+			if (!Timing.bHasAuthoredWindow && Cast<UCombatCinematicWindow>(Event.NotifyStateClass))
+			{
+				Timing.bHasAuthoredWindow = true;
+				Timing.AuthoredStart = Offset + Event.GetTriggerTime() / Rate;
+				Timing.AuthoredEnd = Offset + Event.GetEndTriggerTime() / Rate;
+			}
+			const UCombatNotify *Notify = Cast<UCombatNotify>(Event.Notify);
+			if (Notify && (Notify->Family == ECombatNotifyFamily::Impact || Notify->Family == ECombatNotifyFamily::Cast))
+			{
+				const float Defendable = FMath::Max(0.0f, Offset + Event.GetTriggerTime() / Rate - Notify->TelegraphLeadSeconds);
+				Timing.FirstDefendable = Timing.bHasDefendable ? FMath::Min(Timing.FirstDefendable, Defendable) : Defendable;
+				Timing.bHasDefendable = true;
+			}
+		}
+		Offset += Leg->GetPlayLength() / Rate;
+		if (Leg == Skill->RitualCastMontage)
+		{
+			Timing.bHasWindUpEnd = true;
+			Timing.WindUpEnd = Offset;
+		}
+	}
+	return Timing;
+}
+
+bool FCombatCameraRules::ResolveWindowEnd(const FCinematicWindowTiming &Timing, float &OutWindowEnd)
+{
+	if (!Timing.bHasAuthoredWindow && !Timing.bHasDefendable)
+	{
+		return false;
+	}
+	float End = Timing.bHasAuthoredWindow ? Timing.AuthoredEnd
+			  : Timing.bHasWindUpEnd	  ? Timing.WindUpEnd
+										  : Timing.FirstDefendable;
+	if (Timing.bHasDefendable)
+	{
+		End = FMath::Min(End, Timing.FirstDefendable - MinDefenseReadSeconds);
+	}
+	OutWindowEnd = FMath::Max(0.0f, End);
+	return true;
+}
+
+ECombatCameraMode FCombatCameraRules::SelectHandOffMode(bool bViewerDefends, bool bSequencePlaying, bool bMovementOff)
+{
+	if (bMovementOff)
+	{
+		return ECombatCameraMode::Static;
+	}
+	if (bViewerDefends)
+	{
+		return ECombatCameraMode::Defence;
+	}
+	return bSequencePlaying ? ECombatCameraMode::Action : ECombatCameraMode::NotYourTurn;
+}
+
+FTransform FCombatCameraRules::ComputeDefenceView(const TArray<FVector> &Defenders, const FVector &Attacker)
+{
+	using namespace CombatCameraOffsets;
+	if (Defenders.IsEmpty())
+	{
+		return LookFrom(Attacker - FVector::ForwardVector * DefenceBack + FVector::UpVector * DefenceHeight, Attacker);
+	}
+	FVector Centre = FVector::ZeroVector;
+	for (const FVector &Defender : Defenders)
+	{
+		Centre += Defender;
+	}
+	Centre /= Defenders.Num();
+	float Spread = 0.0f;
+	for (const FVector &Defender : Defenders)
+	{
+		Spread = FMath::Max(Spread, FVector::Dist2D(Defender, Centre));
+	}
+	const FVector Forward = (Attacker - Centre).GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
+	const FVector Right = FVector::CrossProduct(FVector::UpVector, Forward);
+	const float Back = DefenceBack + Spread * DefenceSpreadPullback;
+	return LookFrom(Centre - Forward * Back + Right * DefenceSide + FVector::UpVector * DefenceHeight, Attacker);
 }
