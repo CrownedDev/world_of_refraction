@@ -1,8 +1,8 @@
 // SpellSchoolSpec.cpp
-// B-356 / B-356c (D-146 as corrected, Q-356): three spell schools. Every ESpellSchool value maps onto
-// Conjuration, Enhancement or Restoration (a retired one is flagged and shows its mapped name), and the AI's
-// spell picks read a spell's effects, never its school: a spell tagged against its effects is judged
-// by the effects.
+// B-374 (D-163; was B-356 / B-356c, D-146): six spell schools, each a spell's identity. None is retired (Destruction
+// reads as itself again); every school has a name; the command menu lists only the schools a character has spells
+// in; a validator proposes each spell's school from its main effect and flags a mismatch (Q-374). The AI's spell
+// picks still read a spell's effects, never its school.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -16,6 +16,8 @@
 #include "Loadout/Entries/FSpellCollection.h"
 #include "Loadout/SpellPoolConstants.h"
 #include "Debug/Skills/SpellDataDebug.h"
+#include "UI/Combat/CombatCommandMenuSubsystem.h"
+#include "UI/Combat/PieMenuButtonData.h"
 
 namespace
 {
@@ -42,6 +44,30 @@ namespace
 		}
 		return Spell;
 	}
+
+	constexpr float SCHOOL_TEST_MAGNITUDE = 10.0f;
+	constexpr int32 SCHOOL_COUNT = 6;
+
+	/** A 0-damage spell of School at Target carrying one payload of Type. */
+	USpellData *SchoolTestEffectSpell(ESpellSchool School, ETargetType Target, ESkillEffectType Type)
+	{
+		USpellData *Spell = SchoolTestSpell(School, Target, 0, false);
+		UEffectDefinition *Def = NewObject<UEffectDefinition>(GetTransientPackage());
+		FSkillEffectPayload Payload;
+		Payload.EffectType = Type;
+		Payload.Magnitude = SCHOOL_TEST_MAGNITUDE;
+		FSkillEffect Effect;
+		Effect.Payloads.Add(Payload);
+		Def->Effects.Add(Effect);
+		Spell->ReferencedEffects.Add(Def);
+		return Spell;
+	}
+
+	bool Proposes(const USpellData *Spell, ESpellSchool Expected)
+	{
+		ESpellSchool Proposed = ESpellSchool::Conjuration;
+		return USpellDataDebug::ProposeSchool(Spell, Proposed) && Proposed == Expected;
+	}
 }
 
 BEGIN_DEFINE_SPEC(FSpellSchoolSpec, "WoR.Spells.Schools",
@@ -50,32 +76,25 @@ END_DEFINE_SPEC(FSpellSchoolSpec)
 
 void FSpellSchoolSpec::Define()
 {
-	It("maps every school onto one of the three; only a retired one moves", [this]()
+	It("lists six schools, each named, none retired; Destruction reads as itself (D-163)", [this]()
 	{
 		const UEnum *SchoolEnum = StaticEnum<ESpellSchool>();
 		if (!TestNotNull(TEXT("ESpellSchool"), SchoolEnum)) return;
-		const TSet<ESpellSchool> Three = {ESpellSchool::Conjuration, ESpellSchool::Enhancement, ESpellSchool::Restoration};
-		for (int32 Index = 0; Index < SchoolEnum->NumEnums() - 1; ++Index) // minus the generated _MAX
+		TestEqual(TEXT("six schools"), SchoolEnum->NumEnums() - 1, SCHOOL_COUNT); // minus the generated _MAX
+		for (int32 Index = 0; Index < SchoolEnum->NumEnums() - 1; ++Index)
 		{
 			const ESpellSchool School = static_cast<ESpellSchool>(SchoolEnum->GetValueByIndex(Index));
 			const FString Name = SchoolEnum->GetNameStringByIndex(Index);
-			const ESpellSchool Current = SpellSchools::ToCurrent(School);
-			TestTrue(Name + TEXT(" maps onto one of the three"), Three.Contains(Current));
-			TestTrue(Name + TEXT(" is retired exactly when it moves"), SpellSchools::IsRetired(School) == (Current != School));
+			TestTrue(Name + TEXT(" maps to itself"), SpellSchools::ToCurrent(School) == School);
+			TestFalse(Name + TEXT(" is not retired"), SpellSchools::IsRetired(School));
 			TestFalse(Name + TEXT(" has a name"), WoRGameNames::GetSpellSchoolName(School).IsEmpty());
-			TestTrue(Name + TEXT(" shows its mapped name"),
-					 WoRGameNames::GetSpellSchoolName(School).EqualTo(WoRGameNames::GetSpellSchoolName(Current)));
 		}
-		for (const ESpellSchool School : Three)
-		{
-			TestFalse(TEXT("the three stay"), SpellSchools::IsRetired(School));
-		}
-		TestTrue(TEXT("Destruction reads as Conjuration (Q-356, D-146 corrected)"),
-				 SpellSchools::ToCurrent(ESpellSchool::Destruction) == ESpellSchool::Conjuration);
-		TestTrue(TEXT("Conjuration maps to itself"),
-				 SpellSchools::ToCurrent(ESpellSchool::Conjuration) == ESpellSchool::Conjuration);
-		USpellData *Retired = SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false);
-		TestTrue(TEXT("a retired spell shows as Conjuration"), Retired->GetSchool() == ESpellSchool::Conjuration);
+		TestTrue(TEXT("Destruction's own name"), WoRGameNames::GetSpellSchoolName(ESpellSchool::Destruction).ToString() == TEXT("Destruction"));
+		TestFalse(TEXT("Destruction and Conjuration differ"),
+				  WoRGameNames::GetSpellSchoolName(ESpellSchool::Destruction).EqualTo(WoRGameNames::GetSpellSchoolName(ESpellSchool::Conjuration)));
+		USpellData *Destruction = SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false);
+		TestTrue(TEXT("a Destruction spell shows as Destruction"), Destruction->GetSchool() == ESpellSchool::Destruction);
+		TestEqual(TEXT("the menu enum mirrors the six"), StaticEnum<EPieMenuSpellSchool>()->NumEnums() - 1, SCHOOL_COUNT);
 	});
 
 	It("judges a spell's offence by its effects, not its school", [this]()
@@ -109,24 +128,69 @@ void FSpellSchoolSpec::Define()
 				 UAIDecisionManager::IsHealPick(*SchoolTestSpell(ESpellSchool::Restoration, ETargetType::Ally, 0, true)));
 	});
 
-	It("finds a school's spells whichever name the filter uses (B-356b)", [this]()
+	It("finds a school's spells by their own school; Destruction and Conjuration are apart (B-374)", [this]()
 	{
 		FSpellCollection Spells;
 		Spells.LearnedSpells.Add(FSpellInstance(SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false)));
 		Spells.LearnedSpells.Add(FSpellInstance(SchoolTestSpell(ESpellSchool::Conjuration, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false)));
 		Spells.LearnedSpells.Add(FSpellInstance(SchoolTestSpell(ESpellSchool::Restoration, ETargetType::Ally, 0, true)));
-		TestEqual(TEXT("asking for Conjuration finds both damage spells"), Spells.GetSpellsBySchool(ESpellSchool::Conjuration).Num(), 2);
-		TestEqual(TEXT("asking with the retired name finds the same two"), Spells.GetSpellsBySchool(ESpellSchool::Destruction).Num(), 2);
-		TestEqual(TEXT("by element and school too"),
-				  Spells.GetSpellsByElementAndSchool(ESpellElement::Fire, ESpellSchool::Destruction).Num(), 2);
+		TestEqual(TEXT("Conjuration: one"), Spells.GetSpellsBySchool(ESpellSchool::Conjuration).Num(), 1);
+		TestEqual(TEXT("Destruction: one"), Spells.GetSpellsBySchool(ESpellSchool::Destruction).Num(), 1);
+		TestEqual(TEXT("Manipulation: none"), Spells.GetSpellsBySchool(ESpellSchool::Manipulation).Num(), 0);
 	});
 
-	It("prints the shown school and flags a retired one (B-356b)", [this]()
+	It("prints the shown school (B-356b)", [this]()
 	{
-		TestEqual(TEXT("retired"), USpellDataDebug::GetSchoolString(SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false)),
-				  FString(TEXT("Conjuration (authored Destruction, retired)")));
-		TestEqual(TEXT("current"), USpellDataDebug::GetSchoolString(SchoolTestSpell(ESpellSchool::Enhancement, ETargetType::Ally, 0, false)),
+		TestEqual(TEXT("Destruction"), USpellDataDebug::GetSchoolString(SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false)),
+				  FString(TEXT("Destruction")));
+		TestEqual(TEXT("Enhancement"), USpellDataDebug::GetSchoolString(SchoolTestSpell(ESpellSchool::Enhancement, ETargetType::Ally, 0, false)),
 				  FString(TEXT("Enhancement")));
+	});
+
+	It("proposes a school from the main effect (B-374, Q-374)", [this]()
+	{
+		TestTrue(TEXT("damage at an enemy: Destruction"), Proposes(SchoolTestSpell(ESpellSchool::Conjuration, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false), ESpellSchool::Destruction));
+		TestTrue(TEXT("a drain: Destruction"), Proposes(SchoolTestSpell(ESpellSchool::Restoration, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, true), ESpellSchool::Destruction));
+		TestTrue(TEXT("a heal: Restoration"), Proposes(SchoolTestSpell(ESpellSchool::Enhancement, ETargetType::Ally, 0, true), ESpellSchool::Restoration));
+		TestTrue(TEXT("a cleanse: Restoration"), Proposes(SchoolTestEffectSpell(ESpellSchool::Enhancement, ETargetType::Ally, ESkillEffectType::CleanseAllies), ESpellSchool::Restoration));
+		TestTrue(TEXT("a stun: Manipulation"), Proposes(SchoolTestEffectSpell(ESpellSchool::Impairment, ETargetType::Enemy, ESkillEffectType::Stun), ESpellSchool::Manipulation));
+		TestTrue(TEXT("a silence: Manipulation"), Proposes(SchoolTestEffectSpell(ESpellSchool::Impairment, ETargetType::Enemy, ESkillEffectType::Silenced), ESpellSchool::Manipulation));
+		TestTrue(TEXT("a stat debuff: Impairment"), Proposes(SchoolTestEffectSpell(ESpellSchool::Manipulation, ETargetType::Enemy, ESkillEffectType::DefenseDebuff), ESpellSchool::Impairment));
+		USpellData *StatusAttack = SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Enemy, 0, false);
+		StatusAttack->StatusBuildup = SCHOOL_TEST_BUILDUP;
+		TestTrue(TEXT("a 0-damage status attack: Impairment"), Proposes(StatusAttack, ESpellSchool::Impairment));
+		TestTrue(TEXT("a buff: Enhancement"), Proposes(SchoolTestEffectSpell(ESpellSchool::Destruction, ETargetType::Ally, ESkillEffectType::DefenseBuff), ESpellSchool::Enhancement));
+		ESpellSchool Unused = ESpellSchool::Conjuration;
+		TestFalse(TEXT("an empty spell: no proposal"), USpellDataDebug::ProposeSchool(SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Ally, 0, false), Unused));
+	});
+
+	It("flags a Destruction-tagged buff; never a Conjuration spell or an agreeing one (B-374)", [this]()
+	{
+		TestTrue(TEXT("a Destruction-tagged buff"), USpellDataDebug::IsSchoolMismatch(SchoolTestEffectSpell(ESpellSchool::Destruction, ETargetType::Ally, ESkillEffectType::DefenseBuff)));
+		TestFalse(TEXT("an Enhancement-tagged buff"), USpellDataDebug::IsSchoolMismatch(SchoolTestEffectSpell(ESpellSchool::Enhancement, ETargetType::Ally, ESkillEffectType::DefenseBuff)));
+		TestFalse(TEXT("a Destruction-tagged attack"), USpellDataDebug::IsSchoolMismatch(SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false)));
+		TestFalse(TEXT("a conjured attack (D-163: it may deal damage)"), USpellDataDebug::IsSchoolMismatch(SchoolTestSpell(ESpellSchool::Conjuration, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false)));
+		TestFalse(TEXT("a conjured buff"), USpellDataDebug::IsSchoolMismatch(SchoolTestEffectSpell(ESpellSchool::Conjuration, ETargetType::Ally, ESkillEffectType::DefenseBuff)));
+		TestFalse(TEXT("an empty spell"), USpellDataDebug::IsSchoolMismatch(SchoolTestSpell(ESpellSchool::Impairment, ETargetType::Ally, 0, false)));
+		TestTrue(TEXT("a Restoration-tagged attack"), USpellDataDebug::IsSchoolMismatch(SchoolTestSpell(ESpellSchool::Restoration, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false)));
+	});
+
+	It("shows only the schools a character has spells in, in school order, then Back (B-374)", [this]()
+	{
+		const TArray<USpellData *> Spells = {
+			SchoolTestSpell(ESpellSchool::Restoration, ETargetType::Ally, 0, true),
+			SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false),
+			SchoolTestEffectSpell(ESpellSchool::Impairment, ETargetType::Enemy, ESkillEffectType::DefenseDebuff),
+			SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false)};
+		const TArray<FPieMenuButtonData> Buttons = UCombatCommandMenuSubsystem::BuildSchoolButtons(Spells);
+		if (!TestEqual(TEXT("three schools and Back"), Buttons.Num(), 4)) return;
+		TestTrue(TEXT("Destruction first"), Buttons[0].School == EPieMenuSpellSchool::Destruction);
+		TestEqual(TEXT("Destruction's own button"), Buttons[0].ButtonID, FString(TEXT("School_Destruction")));
+		TestTrue(TEXT("its two spells"), Buttons[0].Description.ToString().Contains(TEXT("2")));
+		TestTrue(TEXT("then Restoration"), Buttons[1].School == EPieMenuSpellSchool::Restoration);
+		TestTrue(TEXT("then Impairment"), Buttons[2].School == EPieMenuSpellSchool::Impairment);
+		TestEqual(TEXT("Impairment's name"), Buttons[2].DisplayName.ToString(), FString(TEXT("Impairment")));
+		TestTrue(TEXT("Back last"), Buttons[3].Category != EPieMenuCategory::School);
 	});
 
 	It("reports the authored spells whose school disagrees with their effects (B-356b, informational)", [this]()
@@ -135,7 +199,7 @@ void FSpellSchoolSpec::Define()
 		AddInfo(FString::Printf(TEXT("school vs effects (B-356b audit):\n%s"), *USpellDataDebug::GetSchoolEffectMismatchString()));
 	});
 
-	It("counts a retired spell under its mapped school's innate cap", [this]()
+	It("keeps the 6-per-school innate cap per school (D-163)", [this]()
 	{
 		FSavedLoadout Saved;
 		Saved.RequiredClass = ECharacterClass::Caster;
@@ -149,7 +213,9 @@ void FSpellSchoolSpec::Define()
 		};
 		TestFalse(TEXT("a full Conjuration pool passes"), Flagged());
 		Saved.InnateSpells.Add(FSpellRef(SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false)));
-		TestTrue(TEXT("one Destruction-tagged spell more is one Conjuration spell too many"), Flagged());
+		TestFalse(TEXT("a Destruction spell counts under its own school (B-374)"), Flagged());
+		Saved.InnateSpells.Add(FSpellRef(SchoolTestSpell(ESpellSchool::Conjuration, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, false)));
+		TestTrue(TEXT("a seventh Conjuration spell is one too many"), Flagged());
 	});
 }
 
