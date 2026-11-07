@@ -12,12 +12,23 @@
 #include "LevelSequence.h"
 #include "LevelSequenceActor.h"
 #include "LevelSequencePlayer.h"
+#include "TimerManager.h"
 #include "WoRLog.h"
 
 namespace CombatCameraTiming
 {
 	// TODO: tune in PIE (B-157).
 	constexpr float TurnBlendSeconds = 0.6f;
+	// TODO: tune in PIE (B-370). Short: the defender needs the view before the hit.
+	constexpr float DefenceBlendSeconds = 0.25f;
+}
+
+namespace
+{
+	const USkillDataBase *GetActionSkill(const FAction &Action)
+	{
+		return Action.ActionType == EActionType::Spell ? static_cast<const USkillDataBase *>(Action.SpellData) : Action.SkillData;
+	}
 }
 
 namespace CombatCameraBindings
@@ -77,6 +88,7 @@ void UCombatCameraDirector::EndCombat()
 		return;
 	}
 	bInCombat = false;
+	ClearDefenceHandOff();
 	StopSequence();
 
 	if (ACombatOrchestrator *Orchestrator = Cast<ACombatOrchestrator>(GetOwner()))
@@ -177,6 +189,7 @@ void UCombatCameraDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void UCombatCameraDirector::HandleActorTurnStarted(AActor *Actor, int32 TurnNumber)
 {
 	ViewedActor = Actor;
+	ClearDefenceHandOff();
 	StopSequence();
 	ShowTurnView();
 }
@@ -187,6 +200,9 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 	{
 		return;
 	}
+	ClearDefenceHandOff();
+	// B-370: whatever the cinematic, a viewer who must defend gets the Defence view at the window's end.
+	ScheduleDefenceHandOff(Executor, Action);
 	// An Execution turn (a ritual firing) has no turn-start broadcast: frame whoever acts.
 	const bool bNewActor = Executor && Executor != ViewedActor.Get();
 	if (bNewActor)
@@ -214,7 +230,7 @@ void UCombatCameraDirector::HandleSequenceFinished()
 	// Ends when its own sequence does, or when the next turn starts (which stops it). Not on action
 	// completion: that broadcast comes after the next turn may already have started a new sequence.
 	StopSequence(true);
-	if (bInCombat)
+	if (bInCombat && !DefenceHandOffTimer.IsValid())
 	{
 		ShowTurnView();
 	}
@@ -258,8 +274,7 @@ ULevelSequence *UCombatCameraDirector::ResolveSequence(const FAction &Action) co
 	{
 		return nullptr;
 	}
-	const USkillDataBase *Skill = Action.ActionType == EActionType::Spell ? static_cast<const USkillDataBase *>(Action.SpellData)
-																		  : Action.SkillData;
+	const USkillDataBase *Skill = GetActionSkill(Action);
 	TSoftObjectPtr<ULevelSequence> Soft;
 	if (Skill)
 	{
@@ -381,4 +396,108 @@ APlayerController *UCombatCameraDirector::GetViewer() const
 	// Same viewer the combat HUD uses (UCombatHUD). TODO: co-op/PvP (D-065).
 	UWorld *World = GetWorld();
 	return World ? World->GetFirstPlayerController() : nullptr;
+}
+
+void UCombatCameraDirector::ScheduleDefenceHandOff(AActor *Executor, const FAction &Action)
+{
+	bHasLastWindow = false;
+	LastHandOffMode = ECombatCameraMode::None;
+	// Only someone else's skill is defended: the attacker is not one of the viewer's characters.
+	if (!Executor || IsViewersCharacter(Executor))
+	{
+		return;
+	}
+	TArray<TWeakObjectPtr<AActor>> Defenders;
+	for (AActor *Target : Action.Targets)
+	{
+		if (IsValid(Target) && IsViewersCharacter(Target))
+		{
+			Defenders.Add(Target);
+		}
+	}
+	LastWindowTiming = FCombatCameraRules::ReadWindowTiming(GetActionSkill(Action));
+	bHasLastWindow = FCombatCameraRules::ResolveWindowEnd(LastWindowTiming, LastWindowEnd);
+	LastHandOffMode = FCombatCameraRules::SelectHandOffMode(!Defenders.IsEmpty(), false, bCameraMovementOff);
+	if (!bHasLastWindow || LastHandOffMode != ECombatCameraMode::Defence)
+	{
+		return; // nothing to defend, or the static view (D-078) stays
+	}
+
+	HandOffDefenders = MoveTemp(Defenders);
+	HandOffAttacker = Executor;
+	UWorld *World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	if (LastWindowEnd <= 0.0f)
+	{
+		HandleCinematicWindowEnd(); // the first hit comes too soon for any cinematic
+		return;
+	}
+	World->GetTimerManager().SetTimer(DefenceHandOffTimer, this, &UCombatCameraDirector::HandleCinematicWindowEnd, LastWindowEnd, false);
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s targets %d of the viewer's characters: Defence view in %.2f s"),
+		   *GetNameSafe(Executor), HandOffDefenders.Num(), LastWindowEnd);
+}
+
+void UCombatCameraDirector::HandleCinematicWindowEnd()
+{
+	DefenceHandOffTimer.Invalidate();
+	if (!bInCombat)
+	{
+		return;
+	}
+	StopSequence();
+	ShowDefenceView();
+}
+
+void UCombatCameraDirector::ClearDefenceHandOff()
+{
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(DefenceHandOffTimer);
+	}
+	DefenceHandOffTimer.Invalidate();
+	HandOffDefenders.Reset();
+	HandOffAttacker.Reset();
+}
+
+void UCombatCameraDirector::ShowDefenceView()
+{
+	AActor *Attacker = HandOffAttacker.Get();
+	TArray<FVector> Defenders;
+	UCombatCameraComponent *Camera = nullptr;
+	for (const TWeakObjectPtr<AActor> &Defender : HandOffDefenders)
+	{
+		if (AActor *Actor = Defender.Get())
+		{
+			Defenders.Add(Actor->GetActorLocation());
+			Camera = Camera ? Camera : Actor->FindComponentByClass<UCombatCameraComponent>();
+		}
+	}
+	APlayerController *Viewer = GetViewer();
+	if (!Viewer || !Camera || !Attacker)
+	{
+		return;
+	}
+	CurrentMode = ECombatCameraMode::Defence;
+	const FTransform View = FCombatCameraRules::ComputeDefenceView(Defenders, Attacker->GetActorLocation());
+	if (ACameraActor *CameraActor = Camera->ShowView(CurrentMode, View))
+	{
+		Viewer->SetViewTargetWithBlend(CameraActor, CombatCameraTiming::DefenceBlendSeconds);
+	}
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Defence view: %d defender(s) against %s"), Defenders.Num(), *GetNameSafe(Attacker));
+}
+
+FString UCombatCameraDirector::GetCinematicWindowString() const
+{
+	if (!bHasLastWindow)
+	{
+		return TEXT("window: none (nothing placed and nothing to defend, or no action yet)");
+	}
+	const FString Defendable = LastWindowTiming.bHasDefendable ? FString::Printf(TEXT("%.2f s"), LastWindowTiming.FirstDefendable) : TEXT("none");
+	const TCHAR *Source = LastWindowTiming.bHasAuthoredWindow ? TEXT("placed") : LastWindowTiming.bHasWindUpEnd ? TEXT("wind-up end") : TEXT("read time only");
+	return FString::Printf(TEXT("window ends %.2f s (%s; first defendable %s; read %.2f s) -> %s%s"), LastWindowEnd, Source, *Defendable,
+						   FCombatCameraRules::MinDefenseReadSeconds, *UEnum::GetValueAsString(LastHandOffMode),
+						   DefenceHandOffTimer.IsValid() ? TEXT(", pending") : TEXT(""));
 }
