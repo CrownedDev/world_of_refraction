@@ -1,0 +1,182 @@
+// ImpactVisuals.cpp
+// B-369: see ImpactVisuals.h.
+
+#include "Combat/Presentation/ImpactVisuals.h"
+#include "Character/CharacterData.h"
+#include "Character/CosmeticsData.h"
+#include "Combat/Defense/GuardRules.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "HAL/IConsoleManager.h"
+#include "Loadout/LoadoutComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
+#include "Skills/Definitions/SkillDataBase.h"
+#include "WoRLog.h"
+
+namespace
+{
+	TAutoConsoleVariable<bool> CVarImpactVFXLog(
+		TEXT("wor.ImpactVFX.Log"),
+		false,
+		TEXT("DEBUG (B-369): log the visual chosen for every impact (outcome, source, asset, scale)."));
+
+	const TCHAR *OutcomeName(EImpactOutcome Outcome)
+	{
+		switch (Outcome)
+		{
+		case EImpactOutcome::Hit:
+			return TEXT("Hit");
+		case EImpactOutcome::Crit:
+			return TEXT("Crit");
+		case EImpactOutcome::Guard:
+			return TEXT("Guard");
+		case EImpactOutcome::PerfectGuard:
+			return TEXT("Perfect Guard");
+		case EImpactOutcome::Dodge:
+			return TEXT("Dodge");
+		}
+		return TEXT("?");
+	}
+
+	const TCHAR *SourceName(EImpactVisualSource Source)
+	{
+		switch (Source)
+		{
+		case EImpactVisualSource::None:
+			return TEXT("none");
+		case EImpactVisualSource::SkillEntry:
+			return TEXT("skill Impact entry");
+		case EImpactVisualSource::ElementDefault:
+			return TEXT("element default");
+		case EImpactVisualSource::GenericDefault:
+			return TEXT("generic default");
+		case EImpactVisualSource::GuardSpark:
+			return TEXT("guard spark");
+		case EImpactVisualSource::DodgeWhiff:
+			return TEXT("dodge whiff");
+		case EImpactVisualSource::PerfectGuardFlash:
+			return TEXT("Perfect Guard flash (DefenseSystem)");
+		case EImpactVisualSource::SpellArrival:
+			return TEXT("spell arrival (projectile / AOE draws it)");
+		}
+		return TEXT("?");
+	}
+
+	FImpactVisualChoice Make(const TSoftObjectPtr<UNiagaraSystem> &VFX, EImpactVisualSource Source, float Scale = 1.0f)
+	{
+		FImpactVisualChoice Choice;
+		Choice.VFX = VFX;
+		Choice.Source = Source;
+		Choice.Scale = Scale;
+		return Choice;
+	}
+
+	const UCosmeticsData *GetCosmetics(const AActor *Actor)
+	{
+		const ULoadoutComponent *Loadout = Actor ? Actor->FindComponentByClass<ULoadoutComponent>() : nullptr;
+		const UCharacterData *CharData = Loadout ? Loadout->GetOwnerCharacterData() : nullptr;
+		return CharData ? CharData->Cosmetics : nullptr;
+	}
+}
+
+namespace ImpactVisuals
+{
+	EImpactOutcome OutcomeFor(EDefenseType DefenseType, bool bSuccess, bool bPerfect, bool bCritical)
+	{
+		if (bSuccess && DefenseType == EDefenseType::Dodge)
+		{
+			return EImpactOutcome::Dodge;
+		}
+		if (bSuccess && GuardRules::IsGuard(DefenseType))
+		{
+			return bPerfect ? EImpactOutcome::PerfectGuard : EImpactOutcome::Guard;
+		}
+		return bCritical ? EImpactOutcome::Crit : EImpactOutcome::Hit;
+	}
+
+	FImpactVisualChoice Choose(EImpactOutcome Outcome, const USkillDataBase *Skill, ESpellElement Element,
+							   const UCosmeticsData *Cosmetics, bool bIsSpellArrival)
+	{
+		switch (Outcome)
+		{
+		case EImpactOutcome::PerfectGuard:
+			return Make(TSoftObjectPtr<UNiagaraSystem>(), EImpactVisualSource::PerfectGuardFlash);
+		case EImpactOutcome::Guard:
+			return Cosmetics ? Make(Cosmetics->GuardSparkVFX, EImpactVisualSource::GuardSpark) : FImpactVisualChoice();
+		case EImpactOutcome::Dodge:
+			return Cosmetics ? Make(Cosmetics->DodgeWhiffVFX, EImpactVisualSource::DodgeWhiff) : FImpactVisualChoice();
+		case EImpactOutcome::Hit:
+		case EImpactOutcome::Crit:
+			break;
+		}
+
+		if (bIsSpellArrival)
+		{
+			return Make(TSoftObjectPtr<UNiagaraSystem>(), EImpactVisualSource::SpellArrival);
+		}
+		const float Scale = (Outcome == EImpactOutcome::Crit && Cosmetics) ? Cosmetics->CritImpactVFXScale : 1.0f;
+		if (Skill)
+		{
+			for (const FSkillVFXEntry &Entry : Skill->VFXArray)
+			{
+				if (Entry.Role == EVFXRole::Impact && !Entry.VFX.IsNull())
+				{
+					return Make(Entry.VFX, EImpactVisualSource::SkillEntry, Scale);
+				}
+			}
+		}
+		if (Cosmetics)
+		{
+			if (const TSoftObjectPtr<UNiagaraSystem> *ElementVFX = Cosmetics->ElementHitVFX.Find(Element); ElementVFX && !ElementVFX->IsNull())
+			{
+				return Make(*ElementVFX, EImpactVisualSource::ElementDefault, Scale);
+			}
+			if (!Cosmetics->GenericHitVFX.IsNull())
+			{
+				return Make(Cosmetics->GenericHitVFX, EImpactVisualSource::GenericDefault, Scale);
+			}
+		}
+		return FImpactVisualChoice();
+	}
+
+	FVector GetSpawnLocation(const AActor *Target)
+	{
+		if (!Target)
+		{
+			return FVector::ZeroVector;
+		}
+		if (const USkeletalMeshComponent *Mesh = Target->FindComponentByClass<USkeletalMeshComponent>(); Mesh && Mesh->DoesSocketExist(HIT_POINT_SOCKET))
+		{
+			return Mesh->GetSocketLocation(HIT_POINT_SOCKET);
+		}
+		return Target->GetActorLocation();
+	}
+
+	void SpawnForImpact(AActor *Target, EImpactOutcome Outcome, const USkillDataBase *Skill, ESpellElement Element, bool bIsSpellArrival)
+	{
+		if (!Target)
+		{
+			return;
+		}
+		const FImpactVisualChoice Choice = Choose(Outcome, Skill, Element, GetCosmetics(Target), bIsSpellArrival);
+		if (CVarImpactVFXLog.GetValueOnGameThread())
+		{
+			UE_LOG(LogWoR, Display, TEXT("[ImpactVFX] %s on %s"), *GetChoiceString(Outcome, Choice), *GetNameSafe(Target));
+		}
+		if (!Choice.ShouldSpawn())
+		{
+			return;
+		}
+		// Small assets, loaded on first use (as the Perfect Guard flash). TODO: preload with the fight's cosmetics if it hitches.
+		if (UNiagaraSystem *System = Choice.VFX.LoadSynchronous())
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(Target, System, GetSpawnLocation(Target), FRotator::ZeroRotator, FVector(Choice.Scale));
+		}
+	}
+
+	FString GetChoiceString(EImpactOutcome Outcome, const FImpactVisualChoice &Choice)
+	{
+		return FString::Printf(TEXT("%s: %s %s x%.2f"), OutcomeName(Outcome), SourceName(Choice.Source),
+							   Choice.VFX.IsNull() ? TEXT("(nothing)") : *Choice.VFX.GetAssetName(), Choice.Scale);
+	}
+}
