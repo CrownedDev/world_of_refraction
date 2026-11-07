@@ -2688,7 +2688,7 @@ bool UActionExecutor::RecordChokeAndShouldAbort(AActor *Target, bool bDefended)
 			return false; // some target failed to parry/dodge → no abort, the spell continues
 		}
 	}
-	return true; // every target resolved AND parried/dodged the choke point
+	return true; // every target resolved AND Perfect Guarded the choke point (B-367b)
 }
 
 void UActionExecutor::InterruptAsyncAction(AActor *Attacker, USkillDataBase *Skill)
@@ -3864,7 +3864,7 @@ void UActionExecutor::DispatchSpellCast(
 
 	// Hybrid B2 cross-target interrupt tally: a fresh all-targets round per interruptable cast entry (choke
 	// point, first-pass-wins). The per-defender resolve records each outcome (surviving the close-removal)
-	// and aborts when ALL targets parry/dodge. Burst (Count>1) is NOT a choke point — the by-target tally
+	// and aborts when ALL targets Perfect Guard. Burst (Count>1) is NOT a choke point — the by-target tally
 	// can't express per-arrival; only single-impact deliveries record (gated at the resolve site).
 	if (CurrentExecutionContext.IsSet() &&
 		CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
