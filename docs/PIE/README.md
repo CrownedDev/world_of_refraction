@@ -63,8 +63,8 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-355](B-355.md) | `feature/B-355-boss-rules` (in `dev`) | A boss's phases and triggers are one rule list (when → condition → result); old data reads across; `wor.Boss.Print` lists the rules | Pending |
 | [B-337](B-337.md) | `feature/B-337-conditions` (in `dev`) | One condition vocabulary (`FWoRCondition`, `WoRConditions`); memories evaluate through it; no gameplay change | Pending |
 | [B-343](B-343.md) | `chore/B-343-guard-dodge-only` (in `dev`) | Guard and Dodge only; Parry and Dodge Right unbound; the one Dodge plays the left montage (Q-343) | Pending |
-| [B-229](B-229.md) | `feature/B-229-input-rpcs` (in `dev`) | Co-op: a client's Guard / Dodge and menu pick (with its infusion) reach the server; `wor.Net.SendDefendPick`, `wor.Net.PrintInputs` | Not built |
-| [B-228](B-228.md) | `feature/B-228-turn-state-gamestate` (in `dev`) | Turn order on the GameState; client HUD and command menu read it | Not built |
+| [B-229](B-229.md) | `feature/B-229-input-rpcs` (in `dev`) | Co-op: a client's Guard / Dodge and menu pick (with its infusion) reach the server; `wor.Net.SendDefendPick`, `wor.Net.PrintInputs` | Pending |
+| [B-228](B-228.md) | `feature/B-228-turn-state-gamestate` (in `dev`) | Turn order on the GameState; client HUD and command menu read it | Pending |
 | [B-344](B-344.md) | `feature/B-344-difficulty-sets-ai` (in `dev`) | Trial difficulty sets the enemy AI tier; per-encounter override | Not built |
 | [B-338](B-338.md) | `chore/B-338-delete-item-storage` (in `dev`) | `wor.UI.ItemStorage` deleted (D-131); `wor.UI.Storage` covers pouch and storage moves | Pending |
 | [B-333](B-333.md) | `feature/B-333-seven-balances` (in `dev`) | Seven balances: Elemental / Pillar Essence, typed essences retire, prices and yields rerouted, save v11 wipes older saves | Not built |
