@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Engine/TimerHandle.h"
 #include "Combat/Camera/CombatCameraTypes.h"
 #include "CombatCameraDirector.generated.h"
 
@@ -90,8 +91,9 @@ private:
 	UFUNCTION()
 	void HandleDamageDealt(AActor *Attacker, AActor *Target, int32 Damage, bool bCritical);
 
-	/** B-370 (D-162): sets the window-end timer when one of the viewer's characters is targeted by someone else. */
-	void ScheduleDefenceHandOff(AActor *Executor, const FAction &Action);
+	/** B-370 (D-162): sets the window-end timer when one of the viewer's characters is targeted by someone else.
+	 *  True when the window ends at once and the Defence view is already showing (no cinematic then). */
+	bool ScheduleDefenceHandOff(AActor *Executor, const FAction &Action);
 	void HandleCinematicWindowEnd();
 	void ClearDefenceHandOff();
 	/** Behind the viewer's targeted characters, the attacker in front. */

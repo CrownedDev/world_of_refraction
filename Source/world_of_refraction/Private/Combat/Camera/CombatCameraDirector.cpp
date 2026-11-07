@@ -7,6 +7,7 @@
 #include "Combat/Actions/ActionStructs.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
+#include "Character/CharacterDataComponent.h"
 #include "Camera/CameraActor.h"
 #include "GameFramework/PlayerController.h"
 #include "LevelSequence.h"
@@ -140,6 +141,10 @@ void UCombatCameraDirector::SetTurnViewStyle(ETurnViewStyle NewStyle)
 void UCombatCameraDirector::SetCameraMovementOff(bool bOff)
 {
 	bCameraMovementOff = bOff;
+	if (bOff)
+	{
+		ClearDefenceHandOff(); // B-370: the static view stays (D-078)
+	}
 	StopCinematicIfNowSkipped();
 	// A cinematic still allowed keeps playing; the turn view picks up the new style after it.
 	if (bInCombat && !PlayingSequence)
@@ -201,13 +206,17 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 		return;
 	}
 	ClearDefenceHandOff();
-	// B-370: whatever the cinematic, a viewer who must defend gets the Defence view at the window's end.
-	ScheduleDefenceHandOff(Executor, Action);
 	// An Execution turn (a ritual firing) has no turn-start broadcast: frame whoever acts.
 	const bool bNewActor = Executor && Executor != ViewedActor.Get();
 	if (bNewActor)
 	{
 		ViewedActor = Executor;
+	}
+	// B-370: whatever the cinematic, a viewer who must defend gets the Defence view at the window's end. A hit
+	// too soon for any cinematic shows it now, and no cinematic plays over it.
+	if (ScheduleDefenceHandOff(Executor, Action))
+	{
+		return;
 	}
 	const bool bPlayCinematic = FCombatCameraRules::ShouldPlayCinematic(
 		SkillCinematics, bCameraMovementOff, OpposingCombatants.Contains(Executor), bEnemySkillCinematics);
@@ -398,14 +407,21 @@ APlayerController *UCombatCameraDirector::GetViewer() const
 	return World ? World->GetFirstPlayerController() : nullptr;
 }
 
-void UCombatCameraDirector::ScheduleDefenceHandOff(AActor *Executor, const FAction &Action)
+bool UCombatCameraDirector::ScheduleDefenceHandOff(AActor *Executor, const FAction &Action)
 {
 	bHasLastWindow = false;
 	LastHandOffMode = ECombatCameraMode::None;
 	// Only someone else's skill is defended: the attacker is not one of the viewer's characters.
-	if (!Executor || IsViewersCharacter(Executor))
+	const USkillDataBase *Skill = GetActionSkill(Action);
+	if (!Executor || IsViewersCharacter(Executor) || !Skill)
 	{
-		return;
+		return false;
+	}
+	// A ritual's arm turn plays the ritual leg only and lands nothing; its fire turn hands off (review fix).
+	const bool bArmTurn = Skill->ActivationDelay > 0 && !Action.bIsDeferredFire;
+	if (bArmTurn)
+	{
+		return false;
 	}
 	TArray<TWeakObjectPtr<AActor>> Defenders;
 	for (AActor *Target : Action.Targets)
@@ -415,12 +431,18 @@ void UCombatCameraDirector::ScheduleDefenceHandOff(AActor *Executor, const FActi
 			Defenders.Add(Target);
 		}
 	}
-	LastWindowTiming = FCombatCameraRules::ReadWindowTiming(GetActionSkill(Action));
+	// The rate the runner plays at (UActionExecutor::PlaySpellAnimation / PlayAbilityAnimation, before ActionMods).
+	float PlayRate = Skill->BaseAnimSpeed;
+	if (const UCharacterDataComponent *CasterComp = Executor->FindComponentByClass<UCharacterDataComponent>())
+	{
+		PlayRate *= Action.ActionType == EActionType::Spell ? CasterComp->GetEffectiveSpellSpeed() : CasterComp->GetEffectiveActionSpeed();
+	}
+	LastWindowTiming = FCombatCameraRules::ReadWindowTiming(Skill, PlayRate, Action.bIsDeferredFire);
 	bHasLastWindow = FCombatCameraRules::ResolveWindowEnd(LastWindowTiming, LastWindowEnd);
 	LastHandOffMode = FCombatCameraRules::SelectHandOffMode(!Defenders.IsEmpty(), false, bCameraMovementOff);
 	if (!bHasLastWindow || LastHandOffMode != ECombatCameraMode::Defence)
 	{
-		return; // nothing to defend, or the static view (D-078) stays
+		return false; // nothing to defend, or the static view (D-078) stays
 	}
 
 	HandOffDefenders = MoveTemp(Defenders);
@@ -428,16 +450,17 @@ void UCombatCameraDirector::ScheduleDefenceHandOff(AActor *Executor, const FActi
 	UWorld *World = GetWorld();
 	if (!World)
 	{
-		return;
+		return false;
 	}
 	if (LastWindowEnd <= 0.0f)
 	{
 		HandleCinematicWindowEnd(); // the first hit comes too soon for any cinematic
-		return;
+		return true;
 	}
 	World->GetTimerManager().SetTimer(DefenceHandOffTimer, this, &UCombatCameraDirector::HandleCinematicWindowEnd, LastWindowEnd, false);
 	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s targets %d of the viewer's characters: Defence view in %.2f s"),
 		   *GetNameSafe(Executor), HandOffDefenders.Num(), LastWindowEnd);
+	return false;
 }
 
 void UCombatCameraDirector::HandleCinematicWindowEnd()
