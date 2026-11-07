@@ -77,7 +77,7 @@ struct WORLD_OF_REFRACTION_API FCinematicWindowTiming
 	bool bHasAuthoredWindow = false;
 	float AuthoredStart = 0.0f;
 	float AuthoredEnd = 0.0f;
-	/** The wind-up's end: the end of the RitualCastMontage leg, when the skill has one (Q-370b). */
+	/** The wind-up's end: the end of the RitualCastMontage leg, when it plays (Q-370b). */
 	bool bHasWindUpEnd = false;
 	float WindUpEnd = 0.0f;
 	/** The first Impact or Cast notify, minus its telegraph lead. */
@@ -104,8 +104,10 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	 *  ComputeDefenceView. */
 	static FTransform ComputeView(ECombatCameraMode Mode, ETurnViewStyle Style, const FCombatCameraFrame &Frame);
 
-	/** B-370: the cinematic window's moments read from a skill's montages. Empty for a skill with no SkillMontage. */
-	static FCinematicWindowTiming ReadWindowTiming(const USkillDataBase *Skill);
+	/** B-370: the cinematic window's moments read from a skill's montages, as the runner plays them: the ritual and
+	 *  skill legs at PlayRate (BaseAnimSpeed × the caster's speed stat), the return leg at 1.0; a deferred fire
+	 *  skips the ritual leg (it played on the arm turn). Empty for a skill with no SkillMontage. */
+	static FCinematicWindowTiming ReadWindowTiming(const USkillDataBase *Skill, float PlayRate, bool bSkipRitualLeg);
 
 	/** B-370 (D-162, Q-370): when the window ends. The placed range's end, else the wind-up end, else the first
 	 *  defendable moment; then cut short so it ends MinDefenseReadSeconds before the first defendable moment, never

@@ -199,7 +199,7 @@ void FCombatCameraSpec::Define()
 
 		It("reads nothing from a skill without a montage", [this]()
 		{
-			const FCinematicWindowTiming Timing = FCombatCameraRules::ReadWindowTiming(NewObject<UAbilityData>(GetTransientPackage()));
+			const FCinematicWindowTiming Timing = FCombatCameraRules::ReadWindowTiming(NewObject<UAbilityData>(GetTransientPackage()), 1.0f, false);
 			TestFalse(TEXT("no window"), Timing.bHasAuthoredWindow);
 			TestFalse(TEXT("nothing to defend"), Timing.bHasDefendable);
 		});

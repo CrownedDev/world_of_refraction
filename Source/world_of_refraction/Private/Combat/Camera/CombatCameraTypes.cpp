@@ -30,6 +30,7 @@ namespace CombatCameraOffsets
 namespace CombatCameraWindow
 {
 	constexpr float MinPlayRate = 0.1f; // the runner's own clamp (UActionExecutor::PlayActionMontageOnActor)
+	constexpr float ReturnLegRate = 1.0f; // the runner plays the return leg unscaled (UActionExecutor::PlayReturnStep)
 }
 
 namespace
@@ -104,41 +105,48 @@ FTransform FCombatCameraRules::ComputeView(ECombatCameraMode Mode, ETurnViewStyl
 	}
 }
 
-FCinematicWindowTiming FCombatCameraRules::ReadWindowTiming(const USkillDataBase *Skill)
+FCinematicWindowTiming FCombatCameraRules::ReadWindowTiming(const USkillDataBase *Skill, float PlayRate, bool bSkipRitualLeg)
 {
 	FCinematicWindowTiming Timing;
 	if (!Skill || !Skill->SkillMontage)
 	{
 		return Timing;
 	}
-	// TODO: the runner also scales the rate by stats (PendingMontagePlayRate); BaseAnimSpeed is the authored part.
-	const float Rate = FMath::Max(CombatCameraWindow::MinPlayRate, Skill->BaseAnimSpeed);
-	const UAnimMontage *Legs[] = {Skill->RitualCastMontage, Skill->SkillMontage, Skill->ReturnMontage};
-	float Offset = 0.0f;
-	for (const UAnimMontage *Leg : Legs)
+	// TODO: per-action ActionMods also scale the runner's rate; the caller passes BaseAnimSpeed × the speed stat.
+	const float Rate = FMath::Max(CombatCameraWindow::MinPlayRate, PlayRate);
+	struct FLeg
 	{
-		if (!Leg)
+		const UAnimMontage *Montage;
+		float Rate;
+	};
+	const FLeg Legs[] = {{bSkipRitualLeg ? nullptr : Skill->RitualCastMontage, Rate},
+						 {Skill->SkillMontage, Rate},
+						 {Skill->ReturnMontage, CombatCameraWindow::ReturnLegRate}};
+	float Offset = 0.0f;
+	for (const FLeg &Leg : Legs)
+	{
+		if (!Leg.Montage)
 		{
 			continue;
 		}
-		for (const FAnimNotifyEvent &Event : Leg->Notifies)
+		for (const FAnimNotifyEvent &Event : Leg.Montage->Notifies)
 		{
 			if (!Timing.bHasAuthoredWindow && Cast<UCombatCinematicWindow>(Event.NotifyStateClass))
 			{
 				Timing.bHasAuthoredWindow = true;
-				Timing.AuthoredStart = Offset + Event.GetTriggerTime() / Rate;
-				Timing.AuthoredEnd = Offset + Event.GetEndTriggerTime() / Rate;
+				Timing.AuthoredStart = Offset + Event.GetTriggerTime() / Leg.Rate;
+				Timing.AuthoredEnd = Offset + Event.GetEndTriggerTime() / Leg.Rate;
 			}
 			const UCombatNotify *Notify = Cast<UCombatNotify>(Event.Notify);
 			if (Notify && (Notify->Family == ECombatNotifyFamily::Impact || Notify->Family == ECombatNotifyFamily::Cast))
 			{
-				const float Defendable = FMath::Max(0.0f, Offset + Event.GetTriggerTime() / Rate - Notify->TelegraphLeadSeconds);
+				const float Defendable = FMath::Max(0.0f, Offset + Event.GetTriggerTime() / Leg.Rate - Notify->TelegraphLeadSeconds);
 				Timing.FirstDefendable = Timing.bHasDefendable ? FMath::Min(Timing.FirstDefendable, Defendable) : Defendable;
 				Timing.bHasDefendable = true;
 			}
 		}
-		Offset += Leg->GetPlayLength() / Rate;
-		if (Leg == Skill->RitualCastMontage)
+		Offset += Leg.Montage->GetPlayLength() / Leg.Rate;
+		if (Leg.Montage == Skill->RitualCastMontage && !bSkipRitualLeg)
 		{
 			Timing.bHasWindUpEnd = true;
 			Timing.WindUpEnd = Offset;
