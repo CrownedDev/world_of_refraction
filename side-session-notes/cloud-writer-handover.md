@@ -1,11 +1,14 @@
 # Cloud writer handover (2026-11-08 night run) — IN PROGRESS
 
+wor-reviewer read B-367b and B-374 (no blockers); its fixes are pushed on both branches (stale comments; the school audit also lists Conjuration damage spells as "check: conjured, or Destruction"; PIE check for the new `School_Destruction` button id).
+
 Overnight cloud writer, Crown asleep. Pre-writes only (UNBUILT); the desktop writer builds, tests, reviews and merges. All branches cut from `origin/dev` at `ef63ea66`.
 
 | Job | Branch | State | Q- defaults chosen |
 |---|---|---|---|
 | B-367b | `feature/B-367b-perfect-guard-only-cloud` | REVIEW (UNBUILT): `GuardRules::StopsInterruptableHit` and `FlawlessParry::IsPerfectHit` are Perfect Guard only; GuardSpec / FlawlessParrySpec updated; Rules ED-37/37b/37c, Q-168, Q-367, CombatOrchestrator changelog, PIE B-367b | none (Crown's correction, no question) |
 | B-374 | `feature/B-374-six-schools-cloud` | REVIEW (UNBUILT): six `ESpellSchool` values (Manipulation, Impairment appended; Destruction un-retired), menu enum + mapping, `BuildSchoolButtons` public static in school order, LOCTEXT names, `USpellDataDebug::ProposeSchool` / `IsSchoolMismatch`, SpellSchoolSpec rewritten; Rules CL-42, LoadoutSystem changelog, PIE B-374 (asset re-tagging is the editor step). Note: one docs commit says it carries Q-374 + changelog but only had CL-42; the next commit adds them | **Q-374 = A**: first-match damage → heal/cleanse → control (stun/silence/skip/random) → debuff/buildup → buff; Conjuration never flagged (D&D 5e Enchantment, Skyrim Illusion/Conjuration) |
+| B-368 | `feature/B-368-notify-validator-cloud` | REVIEW (UNBUILT): new `Combat/Presentation/NotifyValidation.h/.cpp` (Impact 0..HitCount-1 in order, Cast/VFX ranges, `FirstDefendableSeconds`, `CinematicWindowFits`, `MIN_DEFENSE_READ_SECONDS` 0.75), `wor.Presentation.Validate` (`Debug/Combat/NotifyValidationDebug.cpp`), `NotifyValidationSpec`; Rules ED-37d, CombatCamera changelog, PIE B-368. Builder risk: the spec sets notify times with `FAnimNotifyEvent::SetTime` on an unlinked montage | none (no design question) |
 
 ---
 
