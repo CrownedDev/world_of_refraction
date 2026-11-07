@@ -52,6 +52,7 @@
 #include "Infusion/HybridSpellColors.h"
 #include "Combat/Projectile/SkillProjectile.h"
 #include "NiagaraFunctionLibrary.h"
+#include "Combat/Presentation/ImpactVisuals.h"
 #include "NiagaraComponent.h"
 #include "Infusion/EInfusionSourceOption.h"
 #include "Equipment/Rings/RingData.h"
@@ -2122,6 +2123,8 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 	// = base → falls through to a normal hit.
 	if (Context.bResolvedSuccess && Context.ResolvedDefenseType == EDefenseType::Dodge)
 	{
+		ImpactVisuals::SpawnForImpact(Target, EImpactOutcome::Dodge, GetCurrentSkillData(), Context.Element,
+									  Context.ActionType == EActionType::Spell); // B-369
 		return;
 	}
 
@@ -2183,7 +2186,14 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 	// Read before the hit: Context may be the PendingDefenses entry, which a death inside ApplyHit can remove.
 	const bool bTakeDamageOutcomePending = Context.bTakeDamageOutcomePending;
 	const float PendingAttackEnergyCost = Context.PendingAttackEnergyCost;
+	const EDefenseType ResolvedDefenseType = Context.ResolvedDefenseType; // B-369
+	const bool bResolvedSuccess = Context.bResolvedSuccess;
+	const bool bResolvedPerfect = Context.bResolvedPerfect;
 	const FCombatHitResult HitResult = ApplyHit(Input);
+
+	// B-369 (Q-369): the impact's visual from its outcome, now that the crit is known (Context read above).
+	ImpactVisuals::SpawnForImpact(Target, ImpactVisuals::OutcomeFor(ResolvedDefenseType, bResolvedSuccess, bResolvedPerfect, HitResult.bWasCritical),
+								  GetCurrentSkillData(), Input.Element, Input.ActionType == EActionType::Spell);
 
 	// B-042j3 (D-092 rule 8): the unguarded outcome fires once the hit is known: a hit the absorbers stopped
 	// entirely is a hit, not damage, so its On Take Damage conditionals stay quiet. Not on a corpse either (as On Guard).
