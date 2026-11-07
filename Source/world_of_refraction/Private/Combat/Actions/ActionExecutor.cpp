@@ -2063,7 +2063,7 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 	{
 		DefenseSys->OnDefensePerfect.Broadcast(Defender, Attacker, Result.DefenseType, Match.bPerfect, ImpactIndex);
 	}
-	// B-365 (D-158): every hit of this attack perfectly guarded or dodged is a Flawless Parry, reported at the last hit.
+	// B-365 (D-158): every hit of this attack Perfect Guarded is a Flawless Parry (a dodge never counts, B-367b), reported at the last hit.
 	// A luck dodge is not the player's timing: it never counts, even after a Perfect-timed press that failed.
 	if (Ctx->FlawlessTally.AddHit(!bLuckDodged && FlawlessParry::IsPerfectHit(Result.DefenseType, Result.bSuccess, Match.bPerfect), HitCount))
 	{
@@ -2666,7 +2666,7 @@ bool UActionExecutor::AllInterruptSucceeded() const
 			return false; // any defender without a perfect defense → no abort, the attack continues
 		}
 	}
-	return true; // every defender resolved AND perfectly guarded / dodged the interrupt point (D-161)
+	return true; // every defender resolved AND Perfect Guarded the interrupt point (D-161, B-367b)
 }
 
 bool UActionExecutor::RecordChokeAndShouldAbort(AActor *Target, bool bDefended)
