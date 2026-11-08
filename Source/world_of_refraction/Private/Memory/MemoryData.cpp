@@ -136,6 +136,9 @@ FString UMemoryData::GetConditionString(const FMemoryCondition &Condition)
 		return FString::Printf(TEXT("%s present (any player)"), *NameOf(Condition.Character)); // B-376
 	case EMemoryConditionKind::CurseHeld:
 		return FString::Printf(TEXT("holding the curse %s"), *Condition.CurseId.ToString()); // B-378
+	case EMemoryConditionKind::CounterReached:
+		return FString::Printf(TEXT("%s reached %d (%s)"), *Condition.CounterId.ToString(), Condition.CounterTarget,
+							   Condition.Character ? *NameOf(Condition.Character) : TEXT("all characters")); // B-379
 	}
 	return TEXT("<unknown>");
 }

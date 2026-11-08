@@ -28,6 +28,7 @@
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
 #include "Memory/MemoryUnlock.h"
+#include "Memory/HiddenCounterSubsystem.h"
 #include "Trial/TrialMapFeature.h"
 #include "UI/Hub/RestSpotWidget.h"
 #include "Trial/TrialRestSpot.h"
@@ -648,6 +649,14 @@ void AWoRPlayerState::ServerReportFoundMemory_Implementation(UMemoryData *Memory
 }
 
 #define LOCTEXT_NAMESPACE "WoRPlayerState"
+
+void AWoRPlayerState::Client_AddCounter_Implementation(FName Counter, UCharacterData *Character)
+{
+	if (UHiddenCounterSubsystem *Counters = GetGameInstance() ? GetGameInstance()->GetSubsystem<UHiddenCounterSubsystem>() : nullptr)
+	{
+		Counters->Add(Counter, Character);
+	}
+}
 
 void AWoRPlayerState::Client_UnlockMemory_Implementation(UMemoryData *Memory, EMemorySource Source)
 {

@@ -161,6 +161,7 @@ Maintain living system documents in `docs/Architecture/`. Each document covers o
 - `docs/Architecture/DamageCalculator.md`
 - `docs/Architecture/DuplicationAudit.md`
 - `docs/Architecture/EconomySystem.md`
+- `docs/Architecture/HiddenCounterSystem.md`
 - `docs/Architecture/HiddenQuestSystem.md`
 - `docs/Architecture/InfusionSystem.md`
 - `docs/Architecture/ItemSystem.md`

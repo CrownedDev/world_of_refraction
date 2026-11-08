@@ -55,6 +55,8 @@ struct FWoRConditionContext
 	/** B-378: the curses this player holds (UCurseSubsystem), for CurseHeld; MakeContext fills it from Journal's game
 	 *  instance. Null: no curse is held. */
 	const TSet<FName> *HeldCurses = nullptr;
+	/** B-379: this player's hidden counters, for CounterReached; MakeContext fills it like HeldCurses. Null: all 0. */
+	const class UHiddenCounterSubsystem *Counters = nullptr;
 	/** B-355: set when a boss's rules are checked (null: every Boss* subject fails). */
 	const FWoRBossState *Boss = nullptr;
 	/** B-337b: the opposing team's characters (FacingEnemy). */
