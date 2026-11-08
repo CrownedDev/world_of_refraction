@@ -71,6 +71,8 @@ void FHiddenCounterSpec::Define()
 		TestFalse(TEXT("one short"), MemoryConditions::AreMet(*Milestone, Event, Journal));
 		Counters->Add(Reached.CounterId, Sapphire);
 		TestTrue(TEXT("reached"), MemoryConditions::AreMet(*Milestone, Event, Journal));
+		TestFalse(TEXT("a friend's part on the host does not read this player's counters"),
+				  MemoryConditions::AreMet(*Milestone, Event, Journal, nullptr, /*bReadsThisPlayersState=*/false));
 	});
 
 	It("keeps counting across runs through its save struct (D-059)", [this]()

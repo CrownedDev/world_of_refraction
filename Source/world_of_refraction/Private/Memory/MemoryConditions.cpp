@@ -330,6 +330,7 @@ bool MemoryConditions::AreMet(const UMemoryData &Memory, const FMemoryEvent &Eve
 	if (!bReadsThisPlayersState)
 	{
 		Context.HeldCurses = nullptr; // TODO(B-377b): a friend's own curses, sent to the host
+		Context.Counters = nullptr; // B-379: likewise their counters (kept on their machine, Client_AddCounter)
 	}
 	return WoRConditions::IsAnyMet(Routes, Context);
 }
