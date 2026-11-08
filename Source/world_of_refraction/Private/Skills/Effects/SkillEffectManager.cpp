@@ -2286,7 +2286,7 @@ void USkillEffectManager::OnFlawlessParryHandler(AActor *Defender, AActor *Attac
 	{
 		return;
 	}
-	// Every hit was a Perfect Guard or Perfect Dodge; the last one's outcome already fired on its own.
+	// Every hit was a Perfect Guard (B-367b); the last one's outcome already fired on its own.
 	FireDefenseTriggerEffects(Defender, Attacker, {ESkillTrigger::OnFlawlessParry}, EDefenseType::None, /*bPerfect=*/true,
 							  /*AttackEnergyCost=*/0.0f);
 }
