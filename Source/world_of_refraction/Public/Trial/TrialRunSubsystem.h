@@ -198,6 +198,10 @@ public:
     /** B-073: what the run's end would pay now (the tally scaled by difficulty, boss bonus and multiplier). */
     FRunPayout GetRunEndPayout() const;
 
+    /** B-073: the run's end pays the tally to every player (ExitTrial calls it, win or lose; specs call it). Empties
+     *  the tally so it can't be paid twice. Returns how many players were paid. */
+    int32 PayRunEnd(UWorld *World);
+
     /** B-073 / B-096: the payout multiplier (passives raise it); BASE 1.0. */
     float GetPayoutMultiplier() const { return PayoutMultiplier; }
     void SetPayoutMultiplier(float Multiplier) { PayoutMultiplier = FMath::Max(Multiplier, 0.0f); }

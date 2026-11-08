@@ -182,7 +182,7 @@ void UTrialRunSubsystem::ExitTrial()
     }
 
     // B-073 (D-006): the run's tally is paid now, win or lose, to every player in full (D-103).
-    RunRewards::PayRunEndToPlayers(GetGameInstance()->GetWorld(), GetRunEndPayout());
+    PayRunEnd(GetGameInstance()->GetWorld());
 
     // B-361b (D-154, Q-361b): a finished co-op run (its boss beaten) pays every player; leaving early pays nothing.
     if (bRunBossBeaten)
@@ -769,6 +769,13 @@ void UTrialRunSubsystem::RecordChestReward()
     {
         RunTally += RunRewards::ChestTally();
     }
+}
+
+int32 UTrialRunSubsystem::PayRunEnd(UWorld *World)
+{
+    const int32 Paid = RunRewards::PayRunEndToPlayers(World, GetRunEndPayout());
+    RunTally = FRunPayout();
+    return Paid;
 }
 
 FRunPayout UTrialRunSubsystem::GetRunEndPayout() const
