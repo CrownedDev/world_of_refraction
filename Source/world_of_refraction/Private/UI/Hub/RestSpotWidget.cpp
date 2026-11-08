@@ -149,6 +149,7 @@ void URestSpotWidget::HandleLevelUpClicked()
 void URestSpotWidget::HandleInventoryClicked()
 {
 	APlayerController *PC = GetOwningPlayer();
+	WoRRestSpot::StepAway(GetWorld()); // review: the rest spot's levelling ends with its menu
 	CloseMenu();
 	UInventoryWidget::Open(PC);
 }
@@ -168,6 +169,7 @@ void URestSpotWidget::HandleConfirmLeaveClicked()
 
 void URestSpotWidget::HandleCloseClicked()
 {
+	WoRRestSpot::StepAway(GetWorld()); // review: closing the menu walks away from the rest spot
 	CloseMenu();
 }
 
