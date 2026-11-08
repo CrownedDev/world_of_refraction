@@ -690,6 +690,7 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
+    bAtRestSpot = false; // B-363 review: a resumed run starts away from a rest spot
     // B-314: a resumed run opens a fresh layer; B-314b: USaveSubsystem::RestoreRun then replaces it with the save's own
     // layer when the save has one (the run-only marks and home states as saved).
     UPoolSubsystem *Pool = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr;

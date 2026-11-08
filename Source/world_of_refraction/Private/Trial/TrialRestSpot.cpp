@@ -7,6 +7,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Character/Forms/CharacterFormSubsystem.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "UI/Hub/RestSpotWidget.h"
 #include "WoRLog.h"
@@ -26,8 +27,25 @@ int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId)
 	PartySession->SetAllMembersFull();
 	Run->NoteRestSpotUsed(RestSpotId); // a wipe sends the party back here (D-155)
 	Run->SetAtRestSpot(true); // B-363 (D-156): pillar points are placed and bought here
+	if (UCharacterFormSubsystem *Forms = GI->GetSubsystem<UCharacterFormSubsystem>())
+	{
+		Forms->SetAtRestSpot(true); // review: the skin switch's older rest-spot flag follows the run's
+	}
 	UE_LOG(LogWoR, Log, TEXT("[RestSpot] Rested at %s: every member full, %d revived"), *RestSpotId.ToString(), Revived);
 	return Revived;
+}
+
+void WoRRestSpot::StepAway(UWorld *World)
+{
+	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	if (UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr)
+	{
+		Run->SetAtRestSpot(false);
+	}
+	if (UCharacterFormSubsystem *Forms = GI ? GI->GetSubsystem<UCharacterFormSubsystem>() : nullptr)
+	{
+		Forms->SetAtRestSpot(false);
+	}
 }
 
 bool WoRRestSpot::LeaveRun(UWorld *World)

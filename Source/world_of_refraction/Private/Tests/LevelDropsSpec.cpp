@@ -13,6 +13,8 @@
 #include "Character/CombatCharacter.h"
 #include "Character/OverCapRules.h"
 #include "Combat/Tier/CombatTier.h"
+#include "Currency/CurrencyComponent.h"
+#include "Player/WoRPlayerState.h"
 #include "Combat/Tuning/CombatBaselineConstants.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
@@ -145,6 +147,31 @@ void FLevelDropsSpec::Define()
 		TestTrue(TEXT("the next costs more"), WoRLevelDrops::GetPointPrice(TestWorld->GetWorld(), PartyOf(Member)) > First);
 		TestEqual(TEXT("another character's price is its own"), WoRLevelDrops::GetPointPrice(TestWorld->GetWorld(), PartyOf(Absent)), First);
 		TestFalse(TEXT("no wallet here: buying refused"), WoRLevelDrops::TryBuyPoint(TestWorld->GetWorld(), PartyOf(Member)).IsEmpty());
+	});
+
+	It("a win banks the drop without placing it; buying spends the ladder price (B-363 review)", [this]()
+	{
+		AWoRPlayerState *Player = TestWorld->GetWorld()->SpawnActor<AWoRPlayerState>();
+		UCurrencyComponent *Wallet = Player ? Player->GetWallet() : nullptr;
+		if (!TestTrue(TEXT("setup"), Run && Member && Wallet))
+		{
+			return;
+		}
+		const int32 MindBefore = WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Mind);
+		Run->AddUnspentLevels(KeyOf(Member), 1); // what a won fight's drop does (CombatOrchestrator::FinishCombat)
+		TestEqual(TEXT("banked"), Run->GetUnspentLevels(KeyOf(Member)), 1);
+		TestEqual(TEXT("not placed"), WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Mind), MindBefore);
+
+		const int32 Price = WoRLevelDrops::GetPointPrice(TestWorld->GetWorld(), PartyOf(Member));
+		Wallet->Add(ECurrencyType::Gold, Price - 1); // the run currency (shown as Prisms, D-159)
+		TestFalse(TEXT("one short: refused"), WoRLevelDrops::TryBuyPoint(TestWorld->GetWorld(), PartyOf(Member), Wallet).IsEmpty());
+		TestEqual(TEXT("nothing spent"), Wallet->GetBalance(ECurrencyType::Gold), Price - 1);
+		Wallet->Add(ECurrencyType::Gold, 1);
+		TestTrue(TEXT("bought"), WoRLevelDrops::TryBuyPoint(TestWorld->GetWorld(), PartyOf(Member), Wallet).IsEmpty());
+		TestEqual(TEXT("the price spent"), Wallet->GetBalance(ECurrencyType::Gold), 0);
+		TestEqual(TEXT("one more to place"), Run->GetUnspentLevels(KeyOf(Member)), 2);
+		TestEqual(TEXT("one purchase"), Run->GetRunLevelPurchases(KeyOf(Member)), 1);
+		TestTrue(TEXT("the next costs more"), WoRLevelDrops::GetPointPrice(TestWorld->GetWorld(), PartyOf(Member)) > Price);
 	});
 
 	It("a member not in the level keeps the level in the run", [this]()

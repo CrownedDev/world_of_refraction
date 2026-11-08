@@ -16,6 +16,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Trial/LevelDropPlacement.h"
+#include "Trial/TrialRestSpot.h"
 #include "Pool/PoolSubsystem.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "Currency/CurrencyTypes.h"
@@ -243,6 +244,7 @@ void ULevelDropWidget::HandleBuyClicked()
 
 void ULevelDropWidget::HandleCloseClicked()
 {
+	WoRRestSpot::StepAway(GetWorld()); // B-363 review: placing and buying end with the rest spot's level screen
 	if (APlayerController *PC = GetOwningPlayer())
 	{
 		PC->SetInputMode(FInputModeGameOnly());
