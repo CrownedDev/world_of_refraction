@@ -91,7 +91,7 @@ int32 WoRLevelDrops::GetPointPrice(const UWorld *World, const FPartyMember &Memb
 	return EconomyYield::Constants::WORLDSTAT_BUY_BASE_COST + Bought * EconomyYield::Constants::WORLDSTAT_BUY_COST_STEP;
 }
 
-FText WoRLevelDrops::TryBuyPoint(UWorld *World, const FPartyMember &Member)
+FText WoRLevelDrops::TryBuyPoint(UWorld *World, const FPartyMember &Member, UCurrencyComponent *Wallet)
 {
 	UTrialRunSubsystem *Run = LevelDropRun(World);
 	if (!Run || !Run->IsRunActive() || !Member.CharacterData)
@@ -110,9 +110,13 @@ FText WoRLevelDrops::TryBuyPoint(UWorld *World, const FPartyMember &Member)
 	{
 		return FText::Format(LOCTEXT("BuyAllAtCap", "{0}'s pillars are all at {1}"), Name, FText::AsNumber(WorldStatConstants::LIVE_MAX));
 	}
-	const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
-	const AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr;
-	UCurrencyComponent *Wallet = Player ? Player->GetWallet() : nullptr;
+	if (!Wallet)
+	{
+		// TODO: co-op (D-103): the buying player's own wallet, not the first local player's.
+		const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
+		const AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr;
+		Wallet = Player ? Player->GetWallet() : nullptr;
+	}
 	const int32 Price = GetPointPrice(World, Member);
 	if (!Wallet || !Wallet->Spend(ECurrencyType::Gold, Price)) // the run currency (shown as Prisms, D-159)
 	{
