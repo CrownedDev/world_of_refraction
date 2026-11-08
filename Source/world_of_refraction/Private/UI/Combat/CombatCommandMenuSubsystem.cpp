@@ -12,6 +12,7 @@
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Combat/Grid/CombatGridSubsystem.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Combat/TurnManager.h"
@@ -840,7 +841,15 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateMoveRowButton(bool bForwar
     Button.bEnabled = true;
 
     const ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get();
-    const FText Reason = Orchestrator ? Orchestrator->GetRowMoveRefusedReason(CurrentActor.Get(), bForward) : FText::GetEmpty();
+    FText Reason = Orchestrator ? Orchestrator->GetRowMoveRefusedReason(CurrentActor.Get(), bForward) : FText::GetEmpty();
+    // B-230b: a client has no orchestrator; its member's replicated row greys the step it can't take (the server
+    // still checks the rest: the step already used, a stun).
+    FCombatGridPosition Position;
+    const UCombatGridSubsystem *Grid = Orchestrator ? nullptr : WoRFight::Get<UCombatGridSubsystem>(this);
+    if (Grid && Grid->GetActorPosition(CurrentActor.Get(), Position))
+    {
+        Reason = ACombatOrchestrator::GetRowEdgeRefusal(Position.Row, bForward); // review: one text for both
+    }
     if (!Reason.IsEmpty())
     {
         const FPieMenuButtonData Greyed = FPieMenuButtonData::MakeDisabledButton(Button.ButtonID, Button.DisplayName, Reason);
@@ -960,16 +969,22 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildItemsSubmenu() cons
 
 namespace
 {
-    /** B-356 (D-146): a spell's menu school from its shown school. The two enums' orders differ
-     *  (the old int cast put Enhancement spells under Conjuration). B-356c: Conjuration is the damage school. */
+    /** A spell's menu school from its shown school. The two enums' orders differ (the old int cast put
+     *  Enhancement spells under Conjuration, B-356); B-374 (D-163): one menu school per spell school. */
     EPieMenuSpellSchool ToPieMenuSchool(const USpellData &Spell)
     {
         switch (Spell.GetSchool())
         {
+        case ESpellSchool::Destruction:
+            return EPieMenuSpellSchool::Destruction;
         case ESpellSchool::Enhancement:
             return EPieMenuSpellSchool::Enhancement;
         case ESpellSchool::Restoration:
             return EPieMenuSpellSchool::Restoration;
+        case ESpellSchool::Manipulation:
+            return EPieMenuSpellSchool::Manipulation;
+        case ESpellSchool::Impairment:
+            return EPieMenuSpellSchool::Impairment;
         case ESpellSchool::Conjuration:
         default:
             return EPieMenuSpellSchool::Conjuration;
@@ -980,11 +995,16 @@ namespace
     {
         switch (School)
         {
+        case EPieMenuSpellSchool::Destruction:
+            return ESpellSchool::Destruction;
         case EPieMenuSpellSchool::Enhancement:
             return ESpellSchool::Enhancement;
         case EPieMenuSpellSchool::Restoration:
             return ESpellSchool::Restoration;
-        case EPieMenuSpellSchool::Destruction: // OBSOLETE (B-356c): retired, reads as Conjuration
+        case EPieMenuSpellSchool::Manipulation:
+            return ESpellSchool::Manipulation;
+        case EPieMenuSpellSchool::Impairment:
+            return ESpellSchool::Impairment;
         case EPieMenuSpellSchool::Conjuration:
         default:
             return ESpellSchool::Conjuration;
@@ -992,12 +1012,10 @@ namespace
     }
 }
 
-TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSchoolButtons(
-    const TArray<USpellData *> &Spells) const
+TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSchoolButtons(const TArray<USpellData *> &Spells)
 {
     TArray<FPieMenuButtonData> Buttons;
 
-    // Count spells per school
     TMap<EPieMenuSpellSchool, int32> SchoolCounts;
     for (USpellData *Spell : Spells)
     {
@@ -1006,13 +1024,18 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSchoolButtons(
         SchoolCounts.FindOrAdd(ToPieMenuSchool(*Spell))++;
     }
 
-    // Add a button for each school that has spells
-    for (auto &Pair : SchoolCounts)
+    // B-374: a button for each school that has spells, in the enum's order so the radial layout is stable.
+    const UEnum *SchoolEnum = StaticEnum<EPieMenuSpellSchool>();
+    for (int32 Index = 0; Index < SchoolEnum->NumEnums() - 1; ++Index) // minus the generated _MAX
     {
-        FPieMenuButtonData Button = FPieMenuButtonData::MakeSchoolButton(Pair.Key, Pair.Value);
+        const EPieMenuSpellSchool School = static_cast<EPieMenuSpellSchool>(SchoolEnum->GetValueByIndex(Index));
+        const int32 *Count = SchoolCounts.Find(School);
+        if (!Count)
+            continue;
+        FPieMenuButtonData Button = FPieMenuButtonData::MakeSchoolButton(School, *Count);
         // B-356: the school's name from the LOCTEXT name table (D-061 / D-062).
-        Button.DisplayName = WoRGameNames::GetSpellSchoolName(ToSpellSchool(Pair.Key));
-        Button.Description = FText::Format(NSLOCTEXT("CombatCommandMenu", "SchoolSpellCount", "{0} {0}|plural(one=spell,other=spells)"), Pair.Value);
+        Button.DisplayName = WoRGameNames::GetSpellSchoolName(ToSpellSchool(School));
+        Button.Description = FText::Format(NSLOCTEXT("CombatCommandMenu", "SchoolSpellCount", "{0} {0}|plural(one=spell,other=spells)"), *Count);
         Buttons.Add(Button);
     }
 

@@ -179,7 +179,7 @@ namespace ImpactVisuals
 
 	void SpawnForImpact(AActor *Target, EImpactOutcome Outcome, const USkillDataBase *Skill, ESpellElement Element, bool bIsProjectileArrival)
 	{
-		if (!Target)
+		if (!IsValid(Target)) // runs after the hit, which can kill the target
 		{
 			return;
 		}
