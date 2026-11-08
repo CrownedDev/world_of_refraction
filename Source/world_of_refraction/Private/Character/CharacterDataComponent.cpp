@@ -150,8 +150,11 @@ void UCharacterDataComponent::BeginPlay()
         // flag (read via IsBrokenDarkness()) is authoritative. The flag stays
         // true at rest, so the EP gates (ServerGainEnergy/ServerSetEP) keep
         // treating a born-BD as BD.
+        // B-348c (Q-348b, Crown 2026-11-08): a party member that broke earlier stays in Broken Darkness (its record,
+        // saved) until reverted; it seeds exactly as a born-BD does.
+        const FPartyMember *CarriedMember = FindCarriedPartyMember();
         if (HasServerAuthority() && CharacterData &&
-            CharacterData->bBrokenDarknessInnate)
+            (CharacterData->bBrokenDarknessInnate || (CarriedMember && CarriedMember->bBrokenDarkness)))
         {
             bIsBrokenDarkness = true;
 
@@ -181,6 +184,7 @@ void UCharacterDataComponent::BeginPlay()
                 if (const FPartyMember *Carried = FindCarriedPartyMember())
                 {
                     BDManager->ApplyCarriedAbsorption(Carried->CarriedAbsorption);
+                    BDManager->ApplyCarriedStrain(Carried->RunStrain); // B-348c: strain builds across the run
                 }
             }
 
