@@ -26,6 +26,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-365](B-365.md) | `feature/B-365-flawless-parry` (in `dev`) | Flawless Parry: every hit of one attack perfectly guarded or dodged logs one line at the last hit; a condition only | Pending |
 | [B-228b](B-228b.md) | `feature/B-228b-client-combat-hud-cloud` (UNBUILT) | 2-player PIE: the client builds its own combat HUD at fight start and removes it at the end | Pending |
 | [B-232b](B-232b.md) | `feature/B-232b-menu-on-commander-cloud` (UNBUILT, on B-228b) | 2-player PIE: each player's menu opens only for the members it commands | Pending |
+| [B-232c](B-232c.md) | `feature/B-232c-run-readers-cloud` (UNBUILT, on B-232b) | 2-player: a client's weapon switch, row step and "Let AI play" run on the host | Pending |
 | [B-366](B-366.md) | `feature/B-366-currency-names` (in `dev`) | Currency names: the run currency reads Prisms, the hub currency Gold (names only) | Pending |
 | [B-366d](B-366d.md) | `feature/B-366d-merge-place-currency` (in `dev`) | Merging crystals costs hub Gold at home and run Prisms in a run (console merge) | Pending |
 | [B-366e](B-366e.md) | `fix/B-366e-repair-place-currency` (in `dev`) | Gear repair costs the currency of the place | Pending |
