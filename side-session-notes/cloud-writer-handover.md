@@ -2,6 +2,14 @@
 
 The brain (Crown's coordinating session) widened the rules at 06:37 UTC: stack on my own UNBUILT branches where a job depends on one, pre-write the co-op jobs (headless specs + PIE sheet), write the CC part of CC+UE jobs; still skip B-340 and B-042f. Slicing L / M jobs into part 1 + a new row, as before.
 
+**Stacks (merge the base first; each later branch already contains its base):**
+- B-228b → B-232b → B-232c → B-232d → B-232e (B-232c's and B-232d's review fixes are merged forward into the next branch).
+- B-230 → B-231 → B-231b → B-231c → B-231c2 (B-231c2 also merges B-369: merge B-369 and B-231c first) ; B-231 → B-230b (a side branch off B-231).
+- B-233 → B-234.
+- B-235 → B-235b → B-235c → B-235d.
+- B-351b → B-351c. B-370 → B-371.
+- Merge notes: save versions v21 (B-348b) / v22 (B-351b) — renumber if dev moved; several branches append `docs/Rules/06-party.md` PA-37 rows and `docs/Architecture/TurnState.md` changelog rows (trivial conflicts); `AWoRPlayerState` gains RPCs on three stacks (B-232e, B-234, B-235b-d) in different spots; B-349 renames `wor.Camera` (B-370 / B-371 docs) and other commands.
+
 | Job | Branch | State | Q- defaults chosen |
 |---|---|---|---|
 | B-232b | `feature/B-232b-menu-on-commander-cloud` (**on** `feature/B-228b-client-combat-hud-cloud`) | REVIEW part 1 (UNBUILT): `CommandMenuRules::OpensHere`; the host's menu opens only for members it commands; a client opens its own member's menu from `OnRep_TurnState`; TurnStateSpec case; Rules PA-37c, PIE B-232b. The rest is new row **B-232c** (run readers on `URunStateComponent::Get*`, a recruit fills a spot) | none |
