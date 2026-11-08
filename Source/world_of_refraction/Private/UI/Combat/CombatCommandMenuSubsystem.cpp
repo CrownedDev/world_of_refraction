@@ -166,8 +166,10 @@ void UCombatCommandMenuSubsystem::HandlePlayerActionRequested(AActor *Actor)
     // machine whose player commands this member (a client's member opens on that client, UTurnStateComponent).
     const URunStateComponent *Run = URunStateComponent::Find(this);
     const UWorld *World = GetWorld();
-    const bool bCommandedHere = Run && World && Run->IsCommandedBy(Actor, World->GetFirstPlayerController());
-    if (!CommandMenuRules::OpensHere(Orchestrator->IsActorAIControlled(Actor), Run != nullptr, bCommandedHere))
+    // Review fix: only a roster member follows the seat rule; off the roster (a test actor, a guest) the host opens it.
+    const bool bOnRoster = Run && Run->FindRosterEntry(Actor);
+    const bool bCommandedHere = bOnRoster && World && Run->IsCommandedBy(Actor, World->GetFirstPlayerController());
+    if (!CommandMenuRules::OpensHere(Orchestrator->IsActorAIControlled(Actor), bOnRoster, bCommandedHere))
     {
         UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] %s is not commanded here - no menu on this machine"), *Actor->GetName());
         return;

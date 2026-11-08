@@ -6,6 +6,8 @@
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "Player/RunStateComponent.h"
 #include "Combat/WoRFightSubsystem.h"
+#include "Combat/CombatControl.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Player/WoRGameState.h"
 #include "Combat/TurnManager.h"
@@ -72,6 +74,7 @@ void UTurnStateComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		ClientHUD->Teardown();
 		bClientHUDBuilt = false;
 	}
+	CloseClientCommandMenu(); // B-232b
 	UnbindFromTurnManager();
 	Super::EndPlay(EndPlayReason);
 }
@@ -191,6 +194,21 @@ void UTurnStateComponent::OnRep_TurnState()
 	OnTurnStateChanged.Broadcast();
 }
 
+void UTurnStateComponent::CloseClientCommandMenu()
+{
+	if (UCombatCommandMenuSubsystem *Menu = ClientMenuTurn != INDEX_NONE ? WoRFight::Get<UCombatCommandMenuSubsystem>(this) : nullptr; Menu && Menu->IsOpen())
+	{
+		Menu->Close();
+	}
+	ClientMenuTurn = INDEX_NONE;
+}
+
+void UTurnStateComponent::ReopenClientCommandMenu()
+{
+	ClientMenuTurn = INDEX_NONE;
+	UpdateClientCommandMenu();
+}
+
 void UTurnStateComponent::UpdateClientCommandMenu()
 {
 	UWorld *World = GetWorld();
@@ -215,9 +233,14 @@ void UTurnStateComponent::UpdateClientCommandMenu()
 		return;
 	}
 	const URunStateComponent *Run = URunStateComponent::Find(this);
-	const bool bCommandedHere = Run && Run->IsCommandedBy(CurrentActor, World->GetFirstPlayerController());
-	// An AI seat or an enemy has no commander here (GetCommander says AI_COMMANDER / not on the roster).
-	if (!CommandMenuRules::OpensHere(/*bAIControlled=*/false, Run != nullptr, bCommandedHere) || !Run)
+	// Review fix: only a roster member follows the seat rule; off the roster (a test actor) the client never opens
+	// one (the server runs it). An AI seat has no commander (GetCommander: AI_COMMANDER); a member handed to the AI
+	// (D-026) is not player-driven.
+	const bool bOnRoster = Run && Run->FindRosterEntry(CurrentActor);
+	const bool bCommandedHere = bOnRoster && Run->IsCommandedBy(CurrentActor, World->GetFirstPlayerController());
+	const APawn *Pawn = Cast<APawn>(CurrentActor);
+	const bool bAIControlled = Pawn && !CombatControl::IsPlayerDriven(Pawn);
+	if (!bOnRoster || !CommandMenuRules::OpensHere(bAIControlled, /*bHasRunState=*/true, bCommandedHere))
 	{
 		return;
 	}
@@ -238,6 +261,7 @@ void UTurnStateComponent::UpdateClientCombatHUD()
 			ClientHUD->Teardown();
 		}
 		bClientHUDBuilt = false;
+		CloseClientCommandMenu(); // B-232b (review): nothing carries into the next fight
 		return;
 	}
 	if (Step != EClientHUDStep::Build)
