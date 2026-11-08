@@ -117,6 +117,7 @@ void ABattleGameMode::BootstrapCombat()
     TArray<AActor *> LocalParty;
     TArray<AActor *> OpposingParty;
     TArray<EEncounterRank> OpposingRanks; // B-224b: each spawned enemy's own rank for its HP, kept paired with OpposingParty
+    TArray<int32> OpposingTierSteps; // B-187b: each spawned enemy's tier steps (a revived mini-boss's team), paired the same way
 
     // Battle Party — the Trial Party members who were present when the join window
     // closed. Enemy roster still comes from the encounter, not the party.
@@ -219,6 +220,7 @@ void ABattleGameMode::BootstrapCombat()
         {
             OpposingParty.Add(Spawned);
             OpposingRanks.Add(TrialRun->GetPendingEnemyRank(i));
+            OpposingTierSteps.Add(TrialRun->GetPendingEnemyTierSteps(i)); // B-187b review: its own team's revivals
             const UCharacterFormData *Form = Forms ? Forms->FindFormForCharacter(OpposingPartyData[i]) : nullptr;
             const ACharacter *FormPawn = Cast<ACharacter>(Spawned);
             if (Form && FormPawn && FormPawn->GetMesh() && Form->DressMesh(*FormPawn->GetMesh()))
@@ -297,12 +299,14 @@ void ABattleGameMode::BootstrapCombat()
         // B-224 / B-224b: the enemy's own rank (its team's; Q-224c) and tier multiply max HP on top.
         const EEncounterRank EnemyRank = OpposingRanks.IsValidIndex(EnemyIndex) ? OpposingRanks[EnemyIndex] : TrialRun->GetPendingRank();
         SpawnedOrchestrator->SetEnemyRank(Enemy, EnemyRank); // B-223: its level drop
+        const int32 EnemyTierSteps = OpposingTierSteps.IsValidIndex(EnemyIndex) ? OpposingTierSteps[EnemyIndex] : 0;
+        SpawnedOrchestrator->SetEnemyTierSteps(Enemy, EnemyTierSteps); // B-187b review: its drops at the stepped-up tier
         if (!TrialGate::ApplyEnemyStrength(Enemy, EnemyHealth, EnemyStrength))
         {
             UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s: trial difficulty not applied (no character data or effect manager)"),
                    *GetNameSafe(Enemy));
         }
-        else if (!TrialGate::ApplyEnemyRankHealth(Enemy, EnemyHealth, EnemyRank))
+        else if (!TrialGate::ApplyEnemyRankHealth(Enemy, EnemyHealth, EnemyRank, EnemyTierSteps)) // B-187b: a revived mini-boss
         {
             UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s: rank health (%s) not applied"),
                    *GetNameSafe(Enemy), *UEnum::GetValueAsString(EnemyRank));

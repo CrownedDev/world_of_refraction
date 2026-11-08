@@ -46,6 +46,15 @@ class UTrialData;
 class UWorld;
 struct FActorsInitializedParams;
 
+namespace MiniBossRevival
+{
+	/** B-187b (Q-187b): how many times one mini-boss can be revived in a run. TODO: tune. */
+	constexpr int32 MAX_REVIVALS = 3;
+
+	/** B-187b (Q-187b): tier steps a revived mini-boss's team gets per revival (HP and level drops). */
+	constexpr int32 TIER_STEPS_PER_REVIVAL = 1;
+}
+
 UCLASS(Config = Game)
 class WORLD_OF_REFRACTION_API UTrialRunSubsystem : public UGameInstanceSubsystem
 {
@@ -177,10 +186,54 @@ public:
      *  (a rest spot doesn't bring them back). */
     void MarkPendingEncounterBeaten();
 
+    /** B-187b: marks one map encounter beaten in a fight of Rank (a mini-boss's leaves a rest spot). The pending
+     *  fight's sources go through here. */
+    void MarkEncounterBeaten(FName EncounterId, EEncounterRank Rank);
+
     /** True when the map encounter EncounterId was beaten earlier in this run. */
     bool IsEncounterBeaten(FName EncounterId) const { return BeatenEncounters.Contains(EncounterId); }
 
     int32 GetBeatenEncounterCount() const { return BeatenEncounters.Num(); }
+
+    // ==================== MINI-BOSS REST SPOTS (B-187b, RunStructure §4, Q-187b) ====================
+
+    /** B-187b: a mini-boss fight beaten this run (and not revived since) leaves a rest spot where it stood. */
+    bool IsBeatenMiniBoss(FName EncounterId) const { return BeatenMiniBosses.Contains(EncounterId); }
+
+    /** How many times the mini-boss EncounterId was revived this run. */
+    int32 GetEncounterRevivals(FName EncounterId) const { return EncounterRevivals.FindRef(EncounterId); }
+
+    /** A beaten mini-boss under MiniBossRevival::MAX_REVIVALS can be revived (the main boss is a map feature, never
+     *  an encounter, so it never is). */
+    bool CanReviveEncounter(FName EncounterId) const;
+
+    /** Brings the mini-boss EncounterId back, one revival stronger: it is no longer beaten (the next load of the map
+     *  places it again) and its revival count goes up. False when CanReviveEncounter is. */
+    bool ReviveEncounter(FName EncounterId);
+
+    /** Reloads the active trial's level (the server travels for everyone; a client can't). */
+    void ReloadTrialLevel();
+
+    /** B-187b: the most tier steps any of the pending fight's enemies gets (debug and specs). */
+    void SetPendingTierSteps(int32 Steps) { PendingTierSteps = FMath::Max(0, Steps); }
+    int32 GetPendingTierSteps() const { return PendingTierSteps; }
+
+    /** B-187b review: each opposing member's own tier steps (its team's revivals), parallel to the opposing party, as
+     *  SetPendingEnemyRanks. Call before EnterEncounter. */
+    void SetPendingEnemyTierSteps(const TArray<int32> &Steps);
+
+    /** The Index-th opposing member's tier steps; 0 when none were set for every member. */
+    int32 GetPendingEnemyTierSteps(int32 Index) const
+    {
+        return PendingEnemyTierSteps.Num() == PendingOpposingParty.Num() && PendingEnemyTierSteps.IsValidIndex(Index) ? PendingEnemyTierSteps[Index] : 0;
+    }
+
+    /** B-187b review: the pending fight's caught teams whose own rank is a mini-boss's (a win leaves a rest spot for
+     *  them only, not for an elite team caught with them). Call before EnterEncounter. */
+    void SetPendingMiniBossSources(const TArray<FName> &EncounterIds) { PendingMiniBossSources = EncounterIds; }
+
+    /** Debug: the beaten mini-bosses and their revivals. */
+    FString GetRevivalsString() const;
 
     /** B-361b (D-154): the trial's boss fell this run, so the run counts as finished: a co-op run that ends after it
      *  pays every player Mentor Tokens (ExitTrial). */
@@ -404,6 +457,17 @@ private:
 
     /** B-184: map encounters beaten this run. Run state like RunSeed; cleared on trial entry and exit. */
     TSet<FName> BeatenEncounters;
+
+    /** B-187b: the beaten encounters whose fight was a mini-boss's (each leaves a rest spot). */
+    TSet<FName> BeatenMiniBosses;
+
+    /** B-187b: revivals per mini-boss encounter this run. */
+    TMap<FName, int32> EncounterRevivals;
+
+    /** B-187b: tier steps for the pending fight's enemies (SetPendingTierSteps). */
+    int32 PendingTierSteps = 0;
+    TArray<int32> PendingEnemyTierSteps;
+    TArray<FName> PendingMiniBossSources;
 
     /** B-361b: run state like BeatenEncounters (cleared on trial entry and exit; moves with it for co-op, D-065).
      *  TODO: not in the save yet (a resumed run forgets it, as Q-223's run levels). */

@@ -96,6 +96,8 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
 
     ActiveTrial = Trial;
     BeatenEncounters.Reset();
+    BeatenMiniBosses.Reset(); // B-187b
+    EncounterRevivals.Reset();
     bRunBossBeaten = false;
     RunWipes = 0; // B-362
     RunMainBossLosses = 0;
@@ -116,6 +118,9 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
+    PendingTierSteps = 0; // B-187b
+    PendingEnemyTierSteps.Reset();
+    PendingMiniBossSources.Reset();
     const int32 ForcedSeed = CVarTrialSeed.GetValueOnGameThread();
     RunSeed = ForcedSeed != 0 ? ForcedSeed : MakeFreshRunSeed();
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Entering trial '%s' -> %s (run seed %d; replay with: wor.Trial.Seed %d)"),
@@ -201,6 +206,8 @@ void UTrialRunSubsystem::ExitTrial()
     VariationIndex = INDEX_NONE;
     TrialDifficulty = TrialGate::DEFAULT_DIFFICULTY;
     BeatenEncounters.Reset();
+    BeatenMiniBosses.Reset(); // B-187b
+    EncounterRevivals.Reset();
     bRunBossBeaten = false;
     RunWipes = 0; // B-362
     RunMainBossLosses = 0;
@@ -221,6 +228,9 @@ void UTrialRunSubsystem::ExitTrial()
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
+    PendingTierSteps = 0; // B-187b
+    PendingEnemyTierSteps.Reset();
+    PendingMiniBossSources.Reset();
     // B-362: a run ended by losses leaves from the battle level, with its fight's stash still set; the hub has no fight.
     PendingBattleParty.Reset();
     PendingOpposingParty.Reset();
@@ -309,6 +319,9 @@ void UTrialRunSubsystem::ExitEncounter()
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
+    PendingTierSteps = 0; // B-187b
+    PendingEnemyTierSteps.Reset();
+    PendingMiniBossSources.Reset();
     PendingFightSpot = FVector::ZeroVector; // B-362c
     bHasPendingFightSpot = false;
     EncounterReturnLevel = nullptr;
@@ -580,7 +593,8 @@ void UTrialRunSubsystem::MarkPendingEncounterBeaten()
 {
     for (const FName EncounterId : PendingEncounterSources)
     {
-        BeatenEncounters.Add(EncounterId);
+        // Review: the team's own rank, not the fight's (an elite caught in a mini-boss fight leaves no rest spot).
+        MarkEncounterBeaten(EncounterId, PendingMiniBossSources.Contains(EncounterId) ? EEncounterRank::MiniBoss : EEncounterRank::Normal);
     }
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] %d map encounter(s) beaten; %d beaten this run"),
            PendingEncounterSources.Num(), BeatenEncounters.Num());
@@ -690,6 +704,9 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     VariationIndex = InVariationIndex;
     TrialDifficulty = InDifficulty;
     BeatenEncounters = TSet<FName>(Beaten);
+    // TODO: B-187c: save the mini-boss marks and revivals with the run; a resumed run has no mini-boss rest spots yet.
+    BeatenMiniBosses.Reset();
+    EncounterRevivals.Reset();
     FoundFeatures = Found;
     RunMemories = TArray<TObjectPtr<UMemoryData>>(Memories);
     NotifyRunProgressChanged();
@@ -697,6 +714,9 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
+    PendingTierSteps = 0; // B-187b
+    PendingEnemyTierSteps.Reset();
+    PendingMiniBossSources.Reset();
     // B-073 desktop review: nothing of an earlier run's payout lingers (the save restores the tally and the boss mark).
     bRunBossBeaten = false;
     RunTally = FRunPayout();
@@ -759,6 +779,76 @@ FString UTrialRunSubsystem::GetTrialRunString() const
                            PendingBattleParty.Num(), PendingOpposingParty.Num(),
                            *UEnum::GetValueAsString(PendingRank), *EnemyRanks,
                            EncounterReturnLevel.IsNull() ? TEXT("<none>") : *EncounterReturnLevel.ToString());
+}
+
+void UTrialRunSubsystem::MarkEncounterBeaten(FName EncounterId, EEncounterRank Rank)
+{
+    if (EncounterId.IsNone())
+    {
+        return;
+    }
+    BeatenEncounters.Add(EncounterId);
+    if (Rank == EEncounterRank::MiniBoss)
+    {
+        BeatenMiniBosses.Add(EncounterId); // B-187b: a rest spot where it stood
+    }
+}
+
+void UTrialRunSubsystem::SetPendingEnemyTierSteps(const TArray<int32> &Steps)
+{
+    PendingEnemyTierSteps = Steps;
+    PendingTierSteps = 0;
+    for (const int32 Step : Steps)
+    {
+        PendingTierSteps = FMath::Max(PendingTierSteps, Step);
+    }
+}
+
+bool UTrialRunSubsystem::CanReviveEncounter(FName EncounterId) const
+{
+    return IsRunActive() && IsEncounterBeaten(EncounterId) && IsBeatenMiniBoss(EncounterId) &&
+           GetEncounterRevivals(EncounterId) < MiniBossRevival::MAX_REVIVALS;
+}
+
+bool UTrialRunSubsystem::ReviveEncounter(FName EncounterId)
+{
+    if (!CanReviveEncounter(EncounterId))
+    {
+        return false;
+    }
+    BeatenEncounters.Remove(EncounterId);
+    BeatenMiniBosses.Remove(EncounterId);
+    ++EncounterRevivals.FindOrAdd(EncounterId);
+    UE_LOG(LogTemp, Log, TEXT("[TrialRun] Revived mini-boss %s (revival %d of %d)"), *EncounterId.ToString(),
+           GetEncounterRevivals(EncounterId), MiniBossRevival::MAX_REVIVALS);
+    return true;
+}
+
+void UTrialRunSubsystem::ReloadTrialLevel()
+{
+    if (ActiveTrial && !ActiveTrial->Level.IsNull())
+    {
+        TravelTo(ActiveTrial->Level);
+    }
+}
+
+FString UTrialRunSubsystem::GetRevivalsString() const
+{
+    FString Out = FString::Printf(TEXT("[TrialRun] Mini-boss rest spots (B-187b): %d beaten, max %d revivals each"), BeatenMiniBosses.Num(),
+                                  MiniBossRevival::MAX_REVIVALS);
+    for (const FName Id : BeatenMiniBosses)
+    {
+        Out += FString::Printf(TEXT("\n  %s: beaten, %d revival(s)%s"), *FPaths::GetBaseFilename(Id.ToString()), GetEncounterRevivals(Id),
+                               CanReviveEncounter(Id) ? TEXT(", can be revived") : TEXT(""));
+    }
+    for (const TPair<FName, int32> &Pair : EncounterRevivals)
+    {
+        if (!BeatenMiniBosses.Contains(Pair.Key))
+        {
+            Out += FString::Printf(TEXT("\n  %s: revived %d time(s), waiting on the map"), *FPaths::GetBaseFilename(Pair.Key.ToString()), Pair.Value);
+        }
+    }
+    return Out;
 }
 
 void UTrialRunSubsystem::TravelTo(const TSoftObjectPtr<UWorld> &Level)
@@ -837,6 +927,16 @@ FRunPayout UTrialRunSubsystem::GetRunEndPayout() const
     const float Multiplier = bLeavingEarly ? PayoutMultiplier * RunRewards::LEAVE_EARLY_SHARE : PayoutMultiplier;
     return RunRewards::ScalePayout(RunTally, TrialDifficulty, bRunBossBeaten && !bLeavingEarly, Multiplier);
 }
+
+static FAutoConsoleCommandWithWorld GTrialPrintRevivalsCommand(
+    TEXT("wor.Trial.PrintRevivals"),
+    TEXT("B-187b: the beaten mini-bosses (each a rest spot), their revivals and whether they can be revived."),
+    FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+    {
+        const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+        const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+        UE_LOG(LogWoR, Display, TEXT("%s"), Run ? *Run->GetRevivalsString() : TEXT("[TrialRun] no run subsystem"));
+    }));
 
 static FAutoConsoleCommandWithWorld GTrialPrintRewardsCommand(
     TEXT("wor.Trial.PrintRewards"),
