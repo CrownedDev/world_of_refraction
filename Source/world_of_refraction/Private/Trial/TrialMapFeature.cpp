@@ -2,6 +2,10 @@
 
 #include "Trial/TrialMapFeature.h"
 #include "Player/RunStateComponent.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
+#include "Player/WoRPlayerState.h"
+#include "Trial/DefeatRules.h"
 #include "Player/WoRInteract.h"
 
 #include "Character/CharacterData.h"
@@ -87,6 +91,39 @@ FName ATrialMapFeature::GetFeatureId() const
 	return FName(*UWorld::RemovePIEPrefix(GetPathName()));
 }
 
+bool ATrialMapFeature::IsWithinReach(const APawn *Pawn) const
+{
+	return Pawn && InteractionTrigger && InteractionTrigger->IsOverlappingActor(Pawn);
+}
+
+FName ATrialMapFeature::GetFeatureIdFor(const APawn *Pawn) const
+{
+	// Review fix: keyed from the player state (a pawn whose controller is gone mid-travel still names its player).
+	const APlayerState *Player = Pawn ? Pawn->GetPlayerState() : nullptr;
+	const APlayerController *PC = Player ? Cast<APlayerController>(Player->GetOwner()) : nullptr;
+	if (!Player || (PC && PC->IsLocalController()))
+	{
+		return GetFeatureId(); // the host's or solo player's (or no player at all): unchanged
+	}
+	return FName(*FString::Printf(TEXT("%s@%s"), *GetFeatureId().ToString(), *WoRDefeat::PlayerDropKey(Player)));
+}
+
+void ATrialMapFeature::ShowMessageTo(const APawn *Pawn, const FText &Message)
+{
+	const APlayerController *PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
+	if (!Pawn || (PC && PC->IsLocalController()))
+	{
+		ShowMessage(Message);
+		return;
+	}
+	// Review: the pawn's player state, as GetFeatureIdFor reads it, so a controller missing mid-travel can't put
+	// another player's message on the host's screen.
+	if (AWoRPlayerState *Player = Pawn->GetPlayerState<AWoRPlayerState>())
+	{
+		Player->Client_ShowFeatureMessage(Message); // B-235c: on that player's own screen
+	}
+}
+
 UTrialRunSubsystem *ATrialMapFeature::GetTrialRun() const
 {
 	const UGameInstance *GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
@@ -132,22 +169,24 @@ FGameplayTag ATrialChest::GetLootPool() const
 void ATrialChest::Interact(APawn *Pawn)
 {
 	UTrialRunSubsystem *TrialRun = GetTrialRun();
-	if (!TrialRun || TrialRun->HasFound(GetFeatureId()))
+	// B-235c (D-103): loot is personal: each player opens the chest once for their own roll.
+	const FName PlayerFeatureId = GetFeatureIdFor(Pawn);
+	if (!TrialRun || TrialRun->HasFound(PlayerFeatureId))
 	{
 		return;
 	}
 	const FGameplayTag Pool = GetLootPool();
-	// The run seed and the chest's own id: the same chest gives the same item on a replayed seed.
-	// The id is hashed as text (an FName's hash changes between launches).
+	// The run seed and the chest's own id (the player's, B-235c): the same chest gives the same item on a replayed
+	// seed; the host's (and solo) roll is unchanged. The id is hashed as text (an FName's hash changes between launches).
 	const int32 Seed = static_cast<int32>(
-		HashCombine(GetTypeHash(TrialRun->GetRunSeed()), FCrc::StrCrc32(*GetFeatureId().ToString())));
+		HashCombine(GetTypeHash(TrialRun->GetRunSeed()), FCrc::StrCrc32(*PlayerFeatureId.ToString())));
 	UObject *Item = TrialLoot::PickFromPool(TrialLoot::GatherPool(Pool), Pool, Seed);
 	if (!Item)
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[TrialChest] %s - loot pool '%s' has no items; opened empty"), *GetName(),
 			   *Pool.ToString());
-		TrialRun->RecordFound(GetFeatureId(), LOCTEXT("ChestEmpty", "An empty chest"));
-		ShowMessage(LOCTEXT("ChestEmptyMessage", "The chest is empty."));
+		TrialRun->RecordFound(PlayerFeatureId, LOCTEXT("ChestEmpty", "An empty chest"));
+		ShowMessageTo(Pawn, LOCTEXT("ChestEmptyMessage", "The chest is empty."));
 		RefreshHint();
 		return;
 	}
@@ -156,20 +195,27 @@ void ATrialChest::Interact(APawn *Pawn)
 		// Left closed so the player can come back with room.
 		UE_LOG(LogWoR, Warning, TEXT("[TrialChest] %s - could not give %s to %s"), *GetName(), *Item->GetName(),
 			   Pawn ? *Pawn->GetName() : TEXT("<none>"));
-		ShowMessage(LOCTEXT("ChestNoRoom", "No room for what is in the chest."));
+		ShowMessageTo(Pawn, LOCTEXT("ChestNoRoom", "No room for what is in the chest."));
 		return;
 	}
 	const FText ItemName = TrialLoot::GetItemName(Item);
 	TrialRun->RecordChestReward(); // B-073 (D-094): chests add more to the run's tally
-	TrialRun->RecordFound(GetFeatureId(), FText::Format(LOCTEXT("ChestFound", "Chest: {0}"), ItemName));
-	ShowMessage(FText::Format(LOCTEXT("ChestFoundMessage", "Found {0}."), ItemName));
+	TrialRun->RecordFound(PlayerFeatureId, FText::Format(LOCTEXT("ChestFound", "Chest: {0}"), ItemName));
+	ShowMessageTo(Pawn, FText::Format(LOCTEXT("ChestFoundMessage", "Found {0}."), ItemName));
 	RefreshHint();
 }
 
 FString ATrialChest::GetHintText() const
 {
-	// B-232d: the run state's copy, so a client's hint follows the host's chest.
-	const bool bOpened = URunStateComponent::HasFoundFeature(this, GetFeatureId());
+	// B-232d: the run state's copy, so a client's hint follows the run. Merge B-232d + B-235c: a client reads its own
+	// copy's key ("<id>@<player key>", as GetFeatureIdFor records it on the host), not the host's.
+	FName OwnKey = GetFeatureId();
+	const APlayerController *LocalPC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	if (GetNetMode() == NM_Client && LocalPC && LocalPC->PlayerState)
+	{
+		OwnKey = FName(*FString::Printf(TEXT("%s@%s"), *GetFeatureId().ToString(), *WoRDefeat::PlayerDropKey(LocalPC->PlayerState)));
+	}
+	const bool bOpened = URunStateComponent::HasFoundFeature(this, OwnKey);
 	return (bOpened ? LOCTEXT("ChestOpenedHint", "Opened chest") : LOCTEXT("ChestHint", "Press E to open the chest"))
 		.ToString();
 }
