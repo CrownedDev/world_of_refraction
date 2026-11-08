@@ -3756,19 +3756,21 @@ int32 ULoadoutComponent::RepairActivePrimaryEvolution(int32 Amount)
 
 namespace LoadoutCarryInternal
 {
-    /** Every weapon and ring slot of Loadout that can hold an attachment, in a fixed order. */
+    /** Every weapon and ring slot of Loadout that can hold an attachment, in a fixed order: its element socket and
+     *  (B-351b) its stone socket. */
     template <typename TLoadout, typename FFunc>
     void ForEachAttachmentSlot(TLoadout &Loadout, FFunc &&Func)
     {
         Func(static_cast<UObject *>(Loadout.PrimaryWeapon.WeaponEntry.Weapon), Loadout.PrimaryWeapon.WeaponEntry.PersistentID,
-             Loadout.PrimaryWeapon.WeaponEntry.AttachedItem);
+             Loadout.PrimaryWeapon.WeaponEntry.AttachedItem, Loadout.PrimaryWeapon.WeaponEntry.StoneSocket);
         Func(static_cast<UObject *>(Loadout.SecondaryWeapon.WeaponEntry.Weapon), Loadout.SecondaryWeapon.WeaponEntry.PersistentID,
-             Loadout.SecondaryWeapon.WeaponEntry.AttachedItem);
+             Loadout.SecondaryWeapon.WeaponEntry.AttachedItem, Loadout.SecondaryWeapon.WeaponEntry.StoneSocket);
         Func(static_cast<UObject *>(Loadout.PrimaryRing.RingEntry.Ring), Loadout.PrimaryRing.RingEntry.PersistentID,
-             Loadout.PrimaryRing.RingEntry.AttachedItem);
+             Loadout.PrimaryRing.RingEntry.AttachedItem, Loadout.PrimaryRing.RingEntry.StoneSocket);
         for (auto &Entry : Loadout.RingLoadout)
         {
-            Func(static_cast<UObject *>(Entry.RingEntry.Ring), Entry.RingEntry.PersistentID, Entry.RingEntry.AttachedItem);
+            Func(static_cast<UObject *>(Entry.RingEntry.Ring), Entry.RingEntry.PersistentID, Entry.RingEntry.AttachedItem,
+                 Entry.RingEntry.StoneSocket);
         }
     }
 }
@@ -3783,7 +3785,8 @@ FCarriedGearState ULoadoutComponent::SnapshotCarriedGear() const
     }
 
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried](UObject *Holder, const FGuid &GearID, const FRuntimeAttachedItem &Attached)
+    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried](UObject *Holder, const FGuid &GearID, const FRuntimeAttachedItem &Attached,
+                                                                    const FRuntimeAttachedItem &StoneSocket)
     {
         if (Holder)
         {
@@ -3791,6 +3794,7 @@ FCarriedGearState ULoadoutComponent::SnapshotCarriedGear() const
             Entry.Holder = Holder;
             Entry.GearID = GearID;
             Entry.Attached = Attached;
+            Entry.StoneSocket = StoneSocket; // B-351b
         }
     });
     Carried.bHasPrimaryEvolution = Loadout.PrimarySlotType == EPrimarySlotType::Evolution;
@@ -3817,11 +3821,13 @@ int32 ULoadoutComponent::ApplyCarriedGear(const FCarriedGearState &Carried)
     // carried entry used once.
     TBitArray<> Used(false, Carried.Attachments.Num());
     int32 Restored = 0;
-    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried, &Used, &Restored](UObject *Holder, const FGuid &GearID, FRuntimeAttachedItem &Attached)
+    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried, &Used, &Restored](UObject *Holder, const FGuid &GearID, FRuntimeAttachedItem &Attached,
+                                                                                  FRuntimeAttachedItem &StoneSocket)
     {
         const auto Take = [&](int32 i)
         {
             Attached = Carried.Attachments[i].Attached;
+            StoneSocket = Carried.Attachments[i].StoneSocket; // B-351b
             Used[i] = true;
             ++Restored;
         };

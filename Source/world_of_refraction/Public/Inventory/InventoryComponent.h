@@ -329,7 +329,8 @@ public:
 
     /** Remove crystal from weapon. Returns true if an attachment was removed,
      *  false if the slot was already empty or the index was invalid. Refined
-     *  and evolution attachments are both destroyed on removal. */
+     *  and evolution attachments are both destroyed on removal, and (B-351b) the stone in
+     *  the stone socket with them. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
     bool RemoveCrystalFromWeapon(int32 WeaponIndex);
 
