@@ -1,6 +1,9 @@
 // TrialRunSubsystem.cpp
 
 #include "Trial/TrialRunSubsystem.h"
+#include "Trial/TrialMapLook.h"
+#include "Player/RunStateComponent.h"
+#include "Character/OverCapRules.h"
 #include "Memory/HiddenQuestSubsystem.h"
 #include "Memory/MemoryData.h"
 #include "Trial/DefeatRules.h"
@@ -95,11 +98,19 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
 
     ActiveTrial = Trial;
     BeatenEncounters.Reset();
+    BeatenMiniBosses.Reset(); // B-187b
+    EncounterRevivals.Reset();
+    bHasRestStand = false; // B-187c
+    bHasPendingReturnStand = false;
     bRunBossBeaten = false;
     RunWipes = 0; // B-362
     RunMainBossLosses = 0;
     LastRestSpot = NAME_None;
     DroppedPrisms = 0; // B-362b
+    RunTally = FRunPayout(); // B-073
+    bAtRestSpot = false; // B-363
+    bLeavingEarly = false; // B-187
+    PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     OtherPlayerDrops.Reset(); // B-235
     DropEncounters.Reset();
     DropSpot = FVector::ZeroVector; // B-362c
@@ -108,10 +119,14 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     UnspentLevels.Reset();
     FoundFeatures.Reset();
     RunMemories.Reset();
+    NotifyRunProgressChanged(); // B-232d (review): the copy clears too
     PendingEncounterSources.Reset();
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
+    PendingTierSteps = 0; // B-187b
+    PendingEnemyTierSteps.Reset();
+    PendingMiniBossSources.Reset();
     const int32 ForcedSeed = CVarTrialSeed.GetValueOnGameThread();
     RunSeed = ForcedSeed != 0 ? ForcedSeed : MakeFreshRunSeed();
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Entering trial '%s' -> %s (run seed %d; replay with: wor.Trial.Seed %d)"),
@@ -186,6 +201,9 @@ void UTrialRunSubsystem::ExitTrial()
         Save->ClearRunGold(GetGameInstance()->GetWorld());
     }
 
+    // B-073 (D-006): the run's tally is paid now, win or lose, to every player in full (D-103).
+    PayRunEnd(GetGameInstance()->GetWorld());
+
     // B-361b (D-154, Q-361b): a finished co-op run (its boss beaten) pays every player; leaving early pays nothing.
     if (bRunBossBeaten)
     {
@@ -199,11 +217,19 @@ void UTrialRunSubsystem::ExitTrial()
     VariationIndex = INDEX_NONE;
     TrialDifficulty = TrialGate::DEFAULT_DIFFICULTY;
     BeatenEncounters.Reset();
+    BeatenMiniBosses.Reset(); // B-187b
+    EncounterRevivals.Reset();
+    bHasRestStand = false; // B-187c
+    bHasPendingReturnStand = false;
     bRunBossBeaten = false;
     RunWipes = 0; // B-362
     RunMainBossLosses = 0;
     LastRestSpot = NAME_None;
     DroppedPrisms = 0; // B-362b
+    RunTally = FRunPayout(); // B-073
+    bAtRestSpot = false; // B-363
+    bLeavingEarly = false; // B-187
+    PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     OtherPlayerDrops.Reset(); // B-235
     DropEncounters.Reset();
     DropSpot = FVector::ZeroVector; // B-362c
@@ -212,10 +238,14 @@ void UTrialRunSubsystem::ExitTrial()
     UnspentLevels.Reset();
     FoundFeatures.Reset();
     RunMemories.Reset();
+    NotifyRunProgressChanged(); // B-232d (review): the copy clears too
     PendingEncounterSources.Reset();
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
+    PendingTierSteps = 0; // B-187b
+    PendingEnemyTierSteps.Reset();
+    PendingMiniBossSources.Reset();
     // B-362: a run ended by losses leaves from the battle level, with its fight's stash still set; the hub has no fight.
     PendingBattleParty.Reset();
     PendingOpposingParty.Reset();
@@ -250,6 +280,7 @@ void UTrialRunSubsystem::EnterEncounter(UTrialData *Trial, const TArray<UCharact
                                         const TArray<UCharacterData *> &OpposingParty, EAIDifficulty Difficulty,
                                         EEncounterRank Rank)
 {
+    bAtRestSpot = false; // B-363: a fight leaves the rest spot
     if (!Trial || Trial->EncounterLevel.IsNull())
     {
         UE_LOG(LogTemp, Warning, TEXT("[TrialRun] EnterEncounter: %s — ignored."),
@@ -304,6 +335,9 @@ void UTrialRunSubsystem::ExitEncounter()
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
+    PendingTierSteps = 0; // B-187b
+    PendingEnemyTierSteps.Reset();
+    PendingMiniBossSources.Reset();
     PendingFightSpot = FVector::ZeroVector; // B-362c
     bHasPendingFightSpot = false;
     EncounterReturnLevel = nullptr;
@@ -347,6 +381,22 @@ int32 UTrialRunSubsystem::GetRunLevelPurchases(FName CharacterKey) const
     return Levels ? Levels->Purchases : 0;
 }
 
+int32 UTrialRunSubsystem::GetRunOverCap(FName CharacterKey, EWorldPillar Pillar) const
+{
+    const FRunLevels *Levels = RunLevels.Find(CharacterKey);
+    return Levels ? Levels->GetOver(Pillar) : 0;
+}
+
+bool UTrialRunSubsystem::AddRunOverCap(FName CharacterKey, EWorldPillar Pillar)
+{
+    if (CharacterKey.IsNone() || GetRunOverCap(CharacterKey, Pillar) >= OverCapRules::MAX_PER_PILLAR)
+    {
+        return false;
+    }
+    ++RunLevels.FindOrAdd(CharacterKey).OverFor(Pillar);
+    return true;
+}
+
 void UTrialRunSubsystem::AddRunLevelPurchase(FName CharacterKey)
 {
     if (!CharacterKey.IsNone())
@@ -359,6 +409,7 @@ void UTrialRunSubsystem::ForgetRunLevels(FName CharacterKey)
 {
     RunLevels.Remove(CharacterKey);
     UnspentLevels.Remove(CharacterKey); // B-223b: its waiting levels go with its run
+    NotifyRunProgressChanged();
 }
 
 int32 UTrialRunSubsystem::GetUnspentLevels(FName CharacterKey) const
@@ -381,8 +432,9 @@ void UTrialRunSubsystem::AddUnspentLevels(FName CharacterKey, int32 Count)
     if (Count > 0 && !CharacterKey.IsNone())
     {
         const int32 Waiting = UnspentLevels.FindOrAdd(CharacterKey) += Count;
-        UE_LOG(LogTemp, Log, TEXT("[TrialRun] %s: +%d pillar level(s) to place (%d waiting): wor.UI.LevelDrop"),
+        UE_LOG(LogTemp, Log, TEXT("[TrialRun] %s: +%d pillar level(s) to place at a rest spot (%d waiting): wor.Trial.Rest, Level up"),
                *FPaths::GetBaseFilename(CharacterKey.ToString()), Count, Waiting);
+        NotifyRunProgressChanged();
     }
 }
 
@@ -397,6 +449,7 @@ bool UTrialRunSubsystem::TakeUnspentLevel(FName CharacterKey)
     {
         UnspentLevels.Remove(CharacterKey);
     }
+    NotifyRunProgressChanged();
     return true;
 }
 
@@ -548,8 +601,18 @@ void UTrialRunSubsystem::Deinitialize()
 void UTrialRunSubsystem::HandleWorldActorsInitialized(const FActorsInitializedParams &Params)
 {
     UWorld *World = Params.World;
+    if (!World || !World->IsGameWorld() || World->GetGameInstance() != GetGameInstance())
+    {
+        return;
+    }
+    // B-189: the trial's element tailors its map's look (sky, fog, sun). Cosmetic, so on every machine that knows
+    // the trial (a client's run copy is B-234).
+    if (IsRunActive() && ActiveTrial && IsActiveTrialWorld(World))
+    {
+        TrialMapLook::ApplyTo(World, ActiveTrial->Element);
+    }
     // The server places it (a client's map follows the server's; co-op per-player pickups are B-235).
-    if (!World || !World->IsGameWorld() || World->GetGameInstance() != GetGameInstance() || World->GetNetMode() == NM_Client)
+    if (World->GetNetMode() == NM_Client)
     {
         return;
     }
@@ -593,8 +656,9 @@ FString UTrialRunSubsystem::GetRunLevelsString() const
     FString Out = FString::Printf(TEXT("[TrialRun] Run pillar levels (B-223b, per character): %d unspent in all"), GetTotalUnspentLevels());
     for (const TPair<FName, FRunLevels> &Pair : RunLevels)
     {
-        Out += FString::Printf(TEXT("\n  %s: Mind +%d, Body +%d, Spirit +%d; bought %d; %d to place"), *FPaths::GetBaseFilename(Pair.Key.ToString()),
-                               Pair.Value.Mind, Pair.Value.Body, Pair.Value.Spirit, Pair.Value.Purchases, GetUnspentLevels(Pair.Key));
+        Out += FString::Printf(TEXT("\n  %s: Mind +%d, Body +%d, Spirit +%d; over-cap %d/%d/%d; bought %d; %d to place"),
+                               *FPaths::GetBaseFilename(Pair.Key.ToString()), Pair.Value.Mind, Pair.Value.Body, Pair.Value.Spirit,
+                               Pair.Value.OverMind, Pair.Value.OverBody, Pair.Value.OverSpirit, Pair.Value.Purchases, GetUnspentLevels(Pair.Key));
     }
     for (const TPair<FName, int32> &Pair : UnspentLevels)
     {
@@ -610,7 +674,8 @@ void UTrialRunSubsystem::MarkPendingEncounterBeaten()
 {
     for (const FName EncounterId : PendingEncounterSources)
     {
-        BeatenEncounters.Add(EncounterId);
+        // Review: the team's own rank, not the fight's (an elite caught in a mini-boss fight leaves no rest spot).
+        MarkEncounterBeaten(EncounterId, PendingMiniBossSources.Contains(EncounterId) ? EEncounterRank::MiniBoss : EEncounterRank::Normal);
     }
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] %d map encounter(s) beaten; %d beaten this run"),
            PendingEncounterSources.Num(), BeatenEncounters.Num());
@@ -625,6 +690,7 @@ bool UTrialRunSubsystem::CollectMemory(UMemoryData *Memory)
     RunMemories.Add(Memory);
     UE_LOG(LogWoR, Log, TEXT("[TrialRun] Memory %s collected (%d this run)"), *Memory->GetMemoryId().ToString(),
            RunMemories.Num());
+    NotifyRunProgressChanged();
     return true;
 }
 
@@ -633,6 +699,15 @@ void UTrialRunSubsystem::RecordFound(FName FeatureId, const FText &What)
     FoundFeatures.Add(FeatureId, What);
     UE_LOG(LogWoR, Log, TEXT("[TrialRun] Found %s: %s (%d found this run)"), *FeatureId.ToString(),
            *What.ToString(), FoundFeatures.Num());
+    NotifyRunProgressChanged();
+}
+
+void UTrialRunSubsystem::NotifyRunProgressChanged() const
+{
+    if (URunStateComponent *RunState = URunStateComponent::Find(GetGameInstance()))
+    {
+        RunState->PullRunProgress(); // B-232d: clients read found features, memories and waiting levels from it
+    }
 }
 
 TArray<FMerchantStockEntry> UTrialRunSubsystem::GetMerchantStock(const UMerchantData *Merchant) const
@@ -710,12 +785,26 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     VariationIndex = InVariationIndex;
     TrialDifficulty = InDifficulty;
     BeatenEncounters = TSet<FName>(Beaten);
+    // B-187c: USaveSubsystem::RestoreRun puts the saved marks and revivals back after this (RestoreMiniBossRevivals).
+    BeatenMiniBosses.Reset();
+    EncounterRevivals.Reset();
+    bHasRestStand = false;
+    bHasPendingReturnStand = false;
     FoundFeatures = Found;
     RunMemories = TArray<TObjectPtr<UMemoryData>>(Memories);
+    NotifyRunProgressChanged();
     PendingEncounterSources.Reset();
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
+    PendingTierSteps = 0; // B-187b
+    PendingEnemyTierSteps.Reset();
+    PendingMiniBossSources.Reset();
+    bAtRestSpot = false; // B-363 review: a resumed run starts away from a rest spot
+    // B-073 desktop review: nothing of an earlier run's payout lingers (the save restores the tally and the boss mark).
+    bRunBossBeaten = false;
+    RunTally = FRunPayout();
+    PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     // B-314: a resumed run opens a fresh layer; B-314b: USaveSubsystem::RestoreRun then replaces it with the save's own
     // layer when the save has one (the run-only marks and home states as saved).
     UPoolSubsystem *Pool = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr;
@@ -776,6 +865,104 @@ FString UTrialRunSubsystem::GetTrialRunString() const
                            EncounterReturnLevel.IsNull() ? TEXT("<none>") : *EncounterReturnLevel.ToString());
 }
 
+void UTrialRunSubsystem::MarkEncounterBeaten(FName EncounterId, EEncounterRank Rank)
+{
+    if (EncounterId.IsNone())
+    {
+        return;
+    }
+    BeatenEncounters.Add(EncounterId);
+    if (Rank == EEncounterRank::MiniBoss)
+    {
+        BeatenMiniBosses.Add(EncounterId); // B-187b: a rest spot where it stood
+    }
+}
+
+void UTrialRunSubsystem::SetPendingEnemyTierSteps(const TArray<int32> &Steps)
+{
+    PendingEnemyTierSteps = Steps;
+    PendingTierSteps = 0;
+    for (const int32 Step : Steps)
+    {
+        PendingTierSteps = FMath::Max(PendingTierSteps, Step);
+    }
+}
+
+bool UTrialRunSubsystem::CanReviveEncounter(FName EncounterId) const
+{
+    return IsRunActive() && IsEncounterBeaten(EncounterId) && IsBeatenMiniBoss(EncounterId) &&
+           GetEncounterRevivals(EncounterId) < MiniBossRevival::MAX_REVIVALS;
+}
+
+bool UTrialRunSubsystem::ReviveEncounter(FName EncounterId)
+{
+    if (!CanReviveEncounter(EncounterId))
+    {
+        return false;
+    }
+    BeatenEncounters.Remove(EncounterId);
+    BeatenMiniBosses.Remove(EncounterId);
+    ++EncounterRevivals.FindOrAdd(EncounterId);
+    UE_LOG(LogTemp, Log, TEXT("[TrialRun] Revived mini-boss %s (revival %d of %d)"), *EncounterId.ToString(),
+           GetEncounterRevivals(EncounterId), MiniBossRevival::MAX_REVIVALS);
+    return true;
+}
+
+void UTrialRunSubsystem::RestoreMiniBossRevivals(const TArray<FName> &MiniBosses, const TMap<FName, int32> &Revivals)
+{
+    BeatenMiniBosses.Reset();
+    for (const FName Id : MiniBosses)
+    {
+        if (IsEncounterBeaten(Id))
+        {
+            BeatenMiniBosses.Add(Id);
+        }
+    }
+    EncounterRevivals = Revivals;
+}
+
+bool UTrialRunSubsystem::ConsumePendingReturnStand(FTransform &OutStand)
+{
+    if (!bHasPendingReturnStand)
+    {
+        return false;
+    }
+    OutStand = PendingReturnStand;
+    bHasPendingReturnStand = false;
+    return true;
+}
+
+void UTrialRunSubsystem::ReloadTrialLevel()
+{
+    if (ActiveTrial && !ActiveTrial->Level.IsNull())
+    {
+        TravelTo(ActiveTrial->Level);
+    }
+}
+
+FString UTrialRunSubsystem::GetRevivalsString() const
+{
+    FString Out = FString::Printf(TEXT("[TrialRun] Mini-boss rest spots (B-187b): %d beaten, max %d revivals each"), BeatenMiniBosses.Num(),
+                                  MiniBossRevival::MAX_REVIVALS);
+    for (const FName Id : BeatenMiniBosses)
+    {
+        Out += FString::Printf(TEXT("\n  %s: beaten, %d revival(s)%s"), *FPaths::GetBaseFilename(Id.ToString()), GetEncounterRevivals(Id),
+                               CanReviveEncounter(Id) ? TEXT(", can be revived") : TEXT(""));
+    }
+    for (const TPair<FName, int32> &Pair : EncounterRevivals)
+    {
+        if (!BeatenMiniBosses.Contains(Pair.Key))
+        {
+            Out += FString::Printf(TEXT("\n  %s: revived %d time(s), waiting on the map"), *FPaths::GetBaseFilename(Pair.Key.ToString()), Pair.Value);
+        }
+    }
+    // B-187c review: where the party rested, and where the next load puts it.
+    Out += bHasRestStand ? FString::Printf(TEXT("\n  rest stand %s"), *RestStand.GetLocation().ToCompactString()) : FString(TEXT("\n  no rest stand yet"));
+    Out += bHasPendingReturnStand ? FString::Printf(TEXT("; pending return %s"), *PendingReturnStand.GetLocation().ToCompactString())
+                                  : FString(TEXT("; no pending return"));
+    return Out;
+}
+
 void UTrialRunSubsystem::TravelTo(const TSoftObjectPtr<UWorld> &Level)
 {
     UWorld *World = GetGameInstance()->GetWorld();
@@ -800,3 +987,81 @@ void UTrialRunSubsystem::TravelTo(const TSoftObjectPtr<UWorld> &Level)
     }
     UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), Level);
 }
+
+void UTrialRunSubsystem::RecordFightReward(UWorld *World, EEncounterRank Rank)
+{
+    if (!IsRunActive())
+    {
+        return; // a fight outside a run pays nothing
+    }
+    RunRewards::PayWinToPlayers(World, RunRewards::WinRunPrisms(Rank, TrialDifficulty));
+    RunTally += RunRewards::FightTally(Rank);
+    UE_LOG(LogWoR, Log, TEXT("[TrialRun] Run tally now %s"), *RunRewards::GetPayoutString(RunTally));
+}
+
+void UTrialRunSubsystem::RecordChestReward()
+{
+    if (IsRunActive())
+    {
+        RunTally += RunRewards::ChestTally();
+    }
+}
+
+void UTrialRunSubsystem::LeaveRunEarly()
+{
+    // Review fix: once only; the share is applied in GetRunEndPayout, so a second press can't cut it again.
+    if (!IsRunActive() || bLeavingEarly)
+    {
+        return;
+    }
+    if (HubLevel.IsNull())
+    {
+        // Desktop review: the run can't end without a hub, so its payout isn't cut either.
+        UE_LOG(LogWoR, Warning, TEXT("[TrialRun] Can't leave the run: no HubLevel (DefaultGame.ini)"));
+        return;
+    }
+    bLeavingEarly = true;
+    UE_LOG(LogWoR, Log, TEXT("[TrialRun] Leaving the run at a rest spot: the end pays %s"), *RunRewards::GetPayoutString(GetRunEndPayout()));
+    ExitTrialNextTick();
+}
+
+int32 UTrialRunSubsystem::PayRunEnd(UWorld *World)
+{
+    const int32 Paid = RunRewards::PayRunEndToPlayers(World, GetRunEndPayout());
+    RunTally = FRunPayout();
+    return Paid;
+}
+
+FRunPayout UTrialRunSubsystem::GetRunEndPayout() const
+{
+    // B-187 (Q-187): leaving at a rest spot pays the leave share, with no boss bonus (full rewards only for beating
+    // the boss or falling in battle).
+    const float Multiplier = bLeavingEarly ? PayoutMultiplier * RunRewards::LEAVE_EARLY_SHARE : PayoutMultiplier;
+    return RunRewards::ScalePayout(RunTally, TrialDifficulty, bRunBossBeaten && !bLeavingEarly, Multiplier);
+}
+
+static FAutoConsoleCommandWithWorld GTrialPrintRevivalsCommand(
+    TEXT("wor.Trial.PrintRevivals"),
+    TEXT("B-187b: the beaten mini-bosses (each a rest spot), their revivals and whether they can be revived."),
+    FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+    {
+        const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+        const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+        UE_LOG(LogWoR, Display, TEXT("%s"), Run ? *Run->GetRevivalsString() : TEXT("[TrialRun] no run subsystem"));
+    }));
+
+static FAutoConsoleCommandWithWorld GTrialPrintRewardsCommand(
+    TEXT("wor.Trial.PrintRewards"),
+    TEXT("B-073: the run's tally, what its end would pay now, and the payout multiplier."),
+    FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+    {
+        const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+        const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+        if (!Run)
+        {
+            return;
+        }
+        UE_LOG(LogWoR, Display, TEXT("[RunRewards] run %s; tally %s; the end would pay %s (x%.2f)"), Run->IsRunActive() ? TEXT("on") : TEXT("off"),
+               *RunRewards::GetPayoutString(Run->GetRunTally()), *RunRewards::GetPayoutString(Run->GetRunEndPayout()),
+               Run->GetRunPayoutMultiplier());
+    }));

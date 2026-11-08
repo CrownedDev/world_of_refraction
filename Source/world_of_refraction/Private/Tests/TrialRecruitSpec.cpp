@@ -173,6 +173,18 @@ void FTrialRecruitSpec::Define()
 		TestEqual(TEXT("Nobody else to dismiss"), PartySession->DismissRunMembers(), 0);
 	});
 
+	It("makes a recruit an AI seat only in multiplayer (B-232e, D-150 #3)", [this]()
+	{
+		TestFalse(TEXT("solo: you command it"), PartySeats::RecruitIsAISeat(NM_Standalone));
+		TestTrue(TEXT("hosting: an AI seat"), PartySeats::RecruitIsAISeat(NM_ListenServer));
+		TestTrue(TEXT("a dedicated host too"), PartySeats::RecruitIsAISeat(NM_DedicatedServer));
+		if (!Pool) return;
+		TestTrue(TEXT("Invited"), PartySession->InviteRunMember(ACombatCharacter::StaticClass(), Recruit));
+		const UParty *Party = PartySession->GetLocalParty();
+		if (!TestEqual(TEXT("Two members"), Party->Members.Num(), 2)) return;
+		TestFalse(TEXT("standalone: not an AI seat"), Party->Members[TRIAL_RECRUIT_SLOT].bAISeat);
+	});
+
 	It("brings none of the recruit's own gear into the armoury", [this]()
 	{
 		if (!Pool) return;

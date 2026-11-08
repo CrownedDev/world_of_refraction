@@ -53,9 +53,14 @@ public:
 
 	/** Toggle the owner's party membership: not rostered → invite (by owner
 	 *  class); rostered → dismiss (by slot). The hub controller's IA_Interact
-	 *  event calls this on the FindNearestInRange result. */
+	 *  event calls this on the FindNearestInRange result. B-232e: on a client the
+	 *  invite goes to the host (the party lives there). */
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	void Interact();
+
+	/** B-232e (server): a client asked to recruit this character (AWoRPlayerState::ServerRecruit). Invites only: the
+	 *  host's party is the host's to dismiss from. True when it joined. */
+	bool InviteForClient();
 
 	/** The nearest party-interactable whose trigger overlaps Pawn AND whose
 	 *  owner passes the view-cone filter, or null. One-node BP wiring for the
@@ -67,6 +72,10 @@ public:
 	/** True while a player pawn stands inside the interaction trigger. */
 	UFUNCTION(BlueprintPure, Category = "Party")
 	bool IsPawnInRange() const { return PawnInRange.IsValid(); }
+
+	/** B-232e (server): Pawn stands inside this character's interaction trigger (any player's pawn, not just the
+	 *  latest one PawnInRange remembers). */
+	bool IsWithinReach(const APawn *Pawn) const;
 
 protected:
 	virtual void BeginPlay() override;

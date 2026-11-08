@@ -128,6 +128,16 @@ BEGIN_DEFINE_SPEC(FWoRConditionsSpec, "WoR.Conditions",
 		Add(TEXT("Character Lord"), C);
 		C.Character = Other;
 		Add(TEXT("Character Other"), C);
+		// B-376: "party has" reads the whole team (Present), else the party, as Character does solo.
+		FMemoryCondition Has = Make(EMemoryConditionKind::PartyHas);
+		Has.Character = Lord;
+		Add(TEXT("PartyHas Lord"), Has);
+		Has.Character = Other;
+		Add(TEXT("PartyHas Other"), Has);
+		// B-378: the old evaluator has no curse state; with none held both say no (CurseSpec covers a held curse).
+		FMemoryCondition Curse = Make(EMemoryConditionKind::CurseHeld);
+		Curse.CurseId = TEXT("Curse.Parity");
+		Add(TEXT("CurseHeld, none held"), Curse);
 
 		for (const EMemoryRequirementFit Fit : {EMemoryRequirementFit::Any, EMemoryRequirementFit::Met, EMemoryRequirementFit::Under})
 		{

@@ -6,6 +6,8 @@
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
+#include "Character/CharacterData.h"
+#include "Memory/CurseData.h"
 #include "Memory/CurseSubsystem.h"
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
@@ -76,6 +78,25 @@ void FCurseSpec::Define()
 		TestTrue(TEXT("restored"), Curses->HasCurse(CURSE_TEST_ID));
 		TestFalse(TEXT("held twice: no"), Curses->AddCurse(CURSE_TEST_ID));
 		TestTrue(TEXT("the debug text names it"), Curses->GetCursesString().Contains(CURSE_TEST_ID.ToString()));
+	});
+
+	It("weakens its holder by its penalty while held, and only their own party characters (B-378b)", [this]()
+	{
+		UCurseData *Curse = NewObject<UCurseData>(GetTransientPackage());
+		Curse->CurseId = CURSE_TEST_ID;
+		Curse->StatPenalty.BonusMaxHP = -4;
+		Curse->StatPenalty.BonusDefense = -2;
+		Curse->ResistancePenalty.Fire = -5.0f;
+		Curses->SetCurseAssets({Curse});
+
+		TestEqual(TEXT("not held: no penalty"), Curses->GetStatPenalty().BonusMaxHP, 0);
+		Curses->AddCurse(CURSE_TEST_ID);
+		TestEqual(TEXT("held: HP"), Curses->GetStatPenalty().BonusMaxHP, -4);
+		TestEqual(TEXT("held: Defence"), Curses->GetStatPenalty().BonusDefense, -2);
+		TestEqual(TEXT("held: Fire resistance"), Curses->GetResistancePenalty().Fire, -5.0f);
+		TestFalse(TEXT("a character outside the party is not weakened (an enemy)"), Curses->IsCursedHere(FWoRTestWorld::NewCharacterData()));
+		Curses->RemoveCurse(CURSE_TEST_ID);
+		TestEqual(TEXT("lifted: no penalty"), Curses->GetStatPenalty().BonusMaxHP, 0);
 	});
 }
 
