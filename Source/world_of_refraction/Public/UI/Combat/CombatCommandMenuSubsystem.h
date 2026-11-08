@@ -18,6 +18,7 @@
 #include "CombatCommandMenuSubsystem.generated.h"
 
 class ULoadoutComponent;
+enum class ECombatFreeCommand : uint8;
 class UCharacterData;
 class USpellData;
 class UAbilityData;
@@ -143,7 +144,15 @@ public:
      *  plus Back, a gamepad radial's eight slots). Public and static for the headless spec (B-374). */
     static TArray<FPieMenuButtonData> BuildSchoolButtons(const TArray<USpellData *> &Spells);
 
+    /** B-232c (client): the server ran a free step for Actor (ACombatPlayerController::Client_FreeCommandApplied);
+     *  the open menu redraws from the stepped loadout. */
+    void HandleFreeCommandApplied(AActor *Actor, ECombatFreeCommand Command);
+
 private:
+    /** B-232c: on a client, a free step goes to the server (ACombatPlayerController::RequestFreeCommand) instead of
+     *  running here; true when it was sent. */
+    bool SendFreeCommandToServer(ECombatFreeCommand Command);
+
     // ==================== ORCHESTRATOR BINDING ====================
 
     UPROPERTY()
