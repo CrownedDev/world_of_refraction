@@ -1,11 +1,14 @@
 // RestSpotSpec.cpp
 // B-187 part 1: a rest spot rests the party only in a run and becomes the last rest spot; leaving there pays the
-// leave share of the tally. Healing and reviving members are UPartySessionSubsystem's (covered by its own specs);
+// leave share of the tally; Q-187d (Crown, 2026-11-08): only the presser's characters rest (RestsMember). Healing and
+// reviving members are UPartySessionSubsystem's (covered by its own specs);
 // the menu is the PIE sheet.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "Party/Party.h"
+#include "Player/WoRPlayerState.h"
 #include "Trial/RunRewards.h"
 #include "Trial/TrialData.h"
 #include "Trial/TrialGameMode.h"
@@ -68,6 +71,37 @@ void FRestSpotSpec::Define()
 		TestTrue(TEXT("less than the full payout"), Left.HubGold < Full.HubGold);
 		TestTrue(TEXT("but something"), Left.HubGold > 0);
 		TestFalse(TEXT("the confirm says how to get full rewards"), WoRRestSpot::GetLeaveConfirmText().IsEmpty());
+	});
+
+	It("rests only the presser's characters: a client its own, the host its own and the unclaimed, solo everyone (Q-187d)", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		AWoRPlayerState *Host = World ? World->SpawnActor<AWoRPlayerState>() : nullptr;
+		AWoRPlayerState *Friend = World ? World->SpawnActor<AWoRPlayerState>() : nullptr;
+		if (!TestNotNull(TEXT("host"), Host) || !TestNotNull(TEXT("friend"), Friend))
+		{
+			return;
+		}
+		FPartyMember HostsOwn, FriendsOwn, Unclaimed;
+		for (FPartyMember *Member : {&HostsOwn, &FriendsOwn, &Unclaimed})
+		{
+			Member->MemberId = FGuid::NewGuid();
+			Member->CharacterData = FWoRTestWorld::NewCharacterData();
+		}
+		Host->ClaimMember(HostsOwn.MemberId);
+		Friend->ClaimMember(FriendsOwn.MemberId);
+		const TArray<const AWoRPlayerState *> CoOp = {Host, Friend};
+
+		TestTrue(TEXT("a client's press: its own character"), WoRRestSpot::RestsMember(FriendsOwn, Friend, false, CoOp));
+		TestFalse(TEXT("a client's press: not the host's"), WoRRestSpot::RestsMember(HostsOwn, Friend, false, CoOp));
+		TestFalse(TEXT("a client's press: not the unclaimed"), WoRRestSpot::RestsMember(Unclaimed, Friend, false, CoOp));
+		TestTrue(TEXT("the host's press: its own"), WoRRestSpot::RestsMember(HostsOwn, Host, true, CoOp));
+		TestFalse(TEXT("the host's press: not the friend's"), WoRRestSpot::RestsMember(FriendsOwn, Host, true, CoOp));
+		TestTrue(TEXT("the host's press: the unclaimed (AI seats) too"), WoRRestSpot::RestsMember(Unclaimed, Host, true, CoOp));
+
+		const TArray<const AWoRPlayerState *> Solo = {Host};
+		TestTrue(TEXT("solo: the claimed one"), WoRRestSpot::RestsMember(HostsOwn, Host, true, Solo));
+		TestTrue(TEXT("solo: every other member too"), WoRRestSpot::RestsMember(Unclaimed, Host, true, Solo));
 	});
 }
 
