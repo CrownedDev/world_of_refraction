@@ -103,7 +103,7 @@ void FBrokenDarknessPersistSpec::Define()
 
 	It("a member that never broke spawns as itself", [this]()
 	{
-		if (!TestTrue(TEXT("setup"), Member)) return;
+		if (!TestNotNull(TEXT("setup"), Member)) return;
 		AActor *Pawn = TestWorld->SpawnCombatant(Member);
 		const UCharacterDataComponent *Comp = Pawn ? Pawn->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 		if (!TestNotNull(TEXT("spawned"), Comp)) return;
@@ -112,7 +112,7 @@ void FBrokenDarknessPersistSpec::Define()
 
 	It("banks the state and strain; the run's end clears only the strain", [this]()
 	{
-		if (!TestTrue(TEXT("setup"), PartySession)) return;
+		if (!TestNotNull(TEXT("setup"), PartySession)) return;
 		TestTrue(TEXT("banked"), PartySession->SetMemberBrokenDarkness(0, true, BD_PERSIST_TEST_STRAIN));
 		TestFalse(TEXT("an invalid slot"), PartySession->SetMemberBrokenDarkness(5, true, 0.0f));
 		const FPartyMember &Record = PartySession->GetLocalParty()->Members[0];
