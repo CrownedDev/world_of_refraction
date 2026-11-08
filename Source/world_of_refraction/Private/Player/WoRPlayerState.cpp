@@ -17,6 +17,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Party/PartyInteractionComponent.h"
 #include "Player/RunStateComponent.h"
 #include "Save/SaveSubsystem.h"
 #include "Save/CoopCheckpoint.h"
@@ -383,6 +384,25 @@ bool AWoRPlayerState::IsLocalPlayerWallet() const
 	return PC && PC->IsLocalController();
 }
 
+void AWoRPlayerState::ServerRecruit_Implementation(AActor *RecruitOwner)
+{
+	// B-232e: the recruit must still be there and within reach of this player's pawn (the client's trigger said so).
+	UPartyInteractionComponent *Recruit = RecruitOwner ? RecruitOwner->FindComponentByClass<UPartyInteractionComponent>() : nullptr;
+	const APawn *Pawn = GetPawn();
+	if (!Recruit)
+	{
+		// Review: a recruit actor that does not replicate arrives here as null.
+		UE_LOG(LogWoR, Warning, TEXT("[PartyInteraction] %s's recruit refused: the recruit did not reach the server (%s)"),
+			   *GetPlayerName(), RecruitOwner ? TEXT("no party interaction") : TEXT("not replicated?"));
+		return;
+	}
+	if (!Pawn || !Recruit->IsWithinReach(Pawn))
+	{
+		UE_LOG(LogWoR, Log, TEXT("[PartyInteraction] %s's recruit of %s refused: out of reach"), *GetPlayerName(), *GetNameSafe(RecruitOwner));
+		return;
+	}
+	Recruit->InviteForClient();
+}
 void AWoRPlayerState::SendCheckpoint(int32 CheckpointId, const TArray<uint8> &Compressed, int32 UncompressedSize)
 {
 	if (!HasAuthority())

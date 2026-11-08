@@ -87,6 +87,21 @@ namespace
 	}
 }
 
+#if WITH_EDITOR
+void UReactionTriggerData::PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent)
+{
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+	for (FReactionTrigger &Trigger : Triggers)
+	{
+		for (FSkillEffect &Effect : Trigger.Effects)
+		{
+			Effect.SyncThresholdFlags();
+			Effect.MigrateConditionGroup(/*bRebuild=*/true);
+		}
+	}
+}
+#endif
+
 void UReactionTriggerData::PrintTriggers() const
 {
 	for (const FReactionTrigger &Trigger : Triggers)
