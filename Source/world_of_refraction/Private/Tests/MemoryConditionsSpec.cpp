@@ -428,6 +428,28 @@ void FMemoryConditionsSpec::Define()
 		TestFalse(TEXT("Not the lord's"), Journal->HasMemory(ForLord));
 		TestTrue(TEXT("Debug string marks it"), MemoryConditions::GetConditionsString(*ForLord, Pickup, Journal).Contains(TEXT("[not yet]")));
 	});
+
+	It("a pair memory needs both characters present, solo or across players (B-376, MemoryCatalogue 3.7)", [this]()
+	{
+		UCharacterData *Other = FWoRTestWorld::NewCharacterData();
+		FMemoryCondition HasLord = Condition(EMemoryConditionKind::PartyHas);
+		HasLord.Character = Lord;
+		FMemoryCondition HasOther = Condition(EMemoryConditionKind::PartyHas);
+		HasOther.Character = Other;
+		UMemoryData *Pair = NewMemory({HasLord, HasOther});
+
+		FMemoryEvent Both = EventWithLord();
+		Both.Party.Add({Other, {}});
+		TestTrue(TEXT("solo: both in the party"), MemoryConditions::AreMet(*Pair, Both, Journal));
+		TestFalse(TEXT("solo: one missing"), MemoryConditions::AreMet(*Pair, EventWithLord(), Journal));
+
+		// Co-op: one player's part holds only their character, yet both stay present.
+		const FMemoryEvent LordsPart = MemoryConditions::FilterParty(Both, {Lord}, /*bKeep=*/true);
+		TestTrue(TEXT("a player's part: both present"), MemoryConditions::AreMet(*Pair, LordsPart, Journal));
+		FMemoryCondition InParty = Condition(EMemoryConditionKind::Character);
+		InParty.Character = Other;
+		TestFalse(TEXT("but Character reads only their own"), MemoryConditions::AreMet(*NewMemory({InParty}), LordsPart, Journal));
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

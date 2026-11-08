@@ -132,7 +132,7 @@ namespace
 	}
 
 	FAutoConsoleCommandWithWorld GGrantPendingWorldStatsCmd(
-		TEXT("wor.GrantPendingWorldStats"),
+		TEXT("wor.WorldStat.GrantPending"),
 		TEXT("DEBUG: apply the combat's pending World Stat pool into the player team's Mind (placeholder for the deferred draft UI)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
@@ -143,7 +143,7 @@ namespace
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] wor.GrantPendingWorldStats: no orchestrator in world."));
+					UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] wor.WorldStat.GrantPending: no orchestrator in world."));
 				}
 			}));
 
@@ -180,7 +180,7 @@ namespace
 			}));
 
 	FAutoConsoleCommandWithWorld GPrintWorldStatsCmd(
-		TEXT("wor.PrintWorldStats"),
+		TEXT("wor.WorldStat.PrintPending"),
 		TEXT("DEBUG: print the pending World Stat pool + each player-team member's live Mind/Body/Spirit."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
@@ -191,7 +191,7 @@ namespace
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] wor.PrintWorldStats: no orchestrator in world."));
+					UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] wor.WorldStat.PrintPending: no orchestrator in world."));
 				}
 			}));
 }

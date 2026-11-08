@@ -26,6 +26,7 @@
 #include "Equipment/FResistanceBonus.h"
 #include "Combat/TargetType.h"
 #include "GameplayTagContainer.h" // SourceTags — loot/draft source-tag layer (§7.9 C1)
+#include "Memory/BoundQuest.h" // B-381
 #include "EvolutionItemData.generated.h"
 
 class USpellData;
@@ -49,6 +50,11 @@ class WORLD_OF_REFRACTION_API UEvolutionItemData : public UPrimaryDataAsset
         GENERATED_BODY()
 
 public:
+        /** B-381 (D-165): hidden quests this evolution carries; each starts while it is equipped and its conditions
+         *  hold. */
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
+        TArray<FBoundQuest> BoundQuests;
+
         // ==================== SOURCE (loot/draft tags) ====================
 
         /** GameplayTag sources this evolution can drop from (e.g. Source.Floor.2, Source.Vendor.X).

@@ -38,12 +38,12 @@ namespace
 		{ESkillEffectType::RestoreHPPercent, TEXT("can't be healed by percent")}};
 
 	FAutoConsoleCommand GDumpTagsCmd(
-		TEXT("wor.DumpTags"),
+		TEXT("wor.Tags.Print"),
 		TEXT("DEBUG: print every enum value and its gameplay tag (B-040)."),
 		FConsoleCommandDelegate::CreateLambda([]() { UE_LOG(LogWoREffects, Display, TEXT("[TagDebug]\n%s"), *UWoRTagDebug::GetTagMapString()); }));
 
 	FAutoConsoleCommandWithWorld GCompareTagsCmd(
-		TEXT("wor.CompareTags"),
+		TEXT("wor.Tags.Compare"),
 		TEXT("DEBUG: check every combatant's tag queries give the same answers as the enum queries (B-040)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World) { UWoRTagDebug::CompareTags(World); }));
 
@@ -190,7 +190,7 @@ int32 UWoRTagDebug::CompareTags(const UObject *WorldContextObject)
 		++Disagreeing;
 		UE_LOG(LogWoREffects, Warning, TEXT("[TagDebug] %s: tags DISAGREE\n%s"), *It->GetName(), *Mismatches);
 	}
-	const FString Summary = FString::Printf(TEXT("wor.CompareTags: %d of %d combatant(s) disagree"), Disagreeing, Checked);
+	const FString Summary = FString::Printf(TEXT("wor.Tags.Compare: %d of %d combatant(s) disagree"), Disagreeing, Checked);
 	UE_LOG(LogWoREffects, Display, TEXT("[TagDebug] %s"), *Summary);
 	if (GEngine)
 	{

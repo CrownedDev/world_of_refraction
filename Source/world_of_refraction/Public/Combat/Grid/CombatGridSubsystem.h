@@ -68,6 +68,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat Grid")
     bool GetActorPosition(AActor *Actor, FCombatGridPosition &OutPosition) const;
 
+    /** B-230b: whether position reads fall back to an actor's replicated slot: only on a client, whose grid is
+     *  empty (the fight runs on the server). */
+    static bool ReadsReplicatedSlots(ENetMode NetMode) { return NetMode == NM_Client; }
+
     /**
      * Check if a grid position is occupied
      * @param Position The position to check
@@ -193,12 +197,12 @@ public:
 
     // ==================== DEBUG ====================
 
-    /** Log all current positions. Console trigger: wor.GridPositions (in the .cpp).
+    /** Log all current positions. Console trigger: wor.Grid.Print (in the .cpp).
      *  No CallInEditor — a subsystem has no Details panel to host a button. */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid|Debug")
     void DebugLogAllPositions() const;
 
-    /** Log modifiers for all actors. Console trigger: wor.GridModifiers (in the .cpp).
+    /** Log modifiers for all actors. Console trigger: wor.Grid.PrintModifiers (in the .cpp).
      *  No CallInEditor — a subsystem has no Details panel to host a button. */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid|Debug")
     void DebugLogModifiers() const;
