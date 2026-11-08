@@ -3,6 +3,7 @@
 #include "Online/HostSuccession.h"
 #include "Online/WoRSessionSubsystem.h"
 #include "Save/SaveSubsystem.h"
+#include "Player/WoRGameState.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
@@ -26,6 +27,11 @@ FString WoRHostSuccession::PickNextHost(const TArray<FString> &Order, const FStr
 bool WoRHostSuccession::IsHostLoss(ENetworkFailure::Type FailureType)
 {
 	return FailureType == ENetworkFailure::ConnectionLost || FailureType == ENetworkFailure::ConnectionTimeout;
+}
+
+bool WoRHostSuccession::CanHandOverFrom(ENetMode NetMode, int32 PlayersKnown)
+{
+	return NetMode == NM_ListenServer && PlayersKnown >= 2;
 }
 
 void UWoRHostHandOverSubsystem::Initialize(FSubsystemCollectionBase &Collection)
@@ -261,6 +267,53 @@ void UWoRHostHandOverSubsystem::HandleSessionJoined(bool bSucceeded)
 	}
 	UE_LOG(LogWoR, Warning, TEXT("[HandOver] Joining %s failed; searching again"), *NextHost);
 	StartRejoinTimer();
+}
+
+bool UWoRHostHandOverSubsystem::BeginPlannedHandOver(UWorld *World)
+{
+	if (!World || !WoRHostSuccession::CanHandOverFrom(World->GetNetMode(), KnownOrder.Num()) ||
+		(Step != EHostHandOverStep::None && Step != EHostHandOverStep::GaveUp))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[HandOver] Planned hand-over: only a host with another player, and not mid-hand-over"));
+		return false;
+	}
+	OldHost = GetLocalPlayerId();
+	NextHost = WoRHostSuccession::PickNextHost(KnownOrder, OldHost);
+	if (NextHost.IsEmpty())
+	{
+		return false;
+	}
+	// 1. Everyone gets this moment as their checkpoint copy (sync, so it is written before it is sent).
+	if (USaveSubsystem *Save = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr)
+	{
+		Save->SaveNow(World, /*bAsync=*/false);
+	}
+	// 2. Every client starts its hand-over and leaves (the next one hosts from that copy).
+	if (AWoRGameState *GameState = World->GetGameState<AWoRGameState>())
+	{
+		GameState->Multicast_BeginPlannedHandOver();
+	}
+	// 3. This machine leaves once those calls are out, then looks for the next host like any client.
+	Step = EHostHandOverStep::Rejoining;
+	RejoinTries = 0;
+	UE_LOG(LogWoR, Display, TEXT("[HandOver] Planned: %s hosts next; leaving in %.1f s"), *NextHost, WoRHostSuccession::PLANNED_LEAVE_DELAY_SECONDS);
+	World->GetTimerManager().SetTimer(RetryTimer, FTimerDelegate::CreateWeakLambda(this, [this, World]()
+	{
+		FWorldDelegates::OnWorldInitializedActors.Remove(WorldInitHandle);
+		WorldInitHandle = FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &UWoRHostHandOverSubsystem::HandleWorldActorsInitialized);
+		GEngine->Exec(World, TEXT("disconnect"));
+	}), WoRHostSuccession::PLANNED_LEAVE_DELAY_SECONDS, false);
+	return true;
+}
+
+void UWoRHostHandOverSubsystem::HandlePlannedHandOver(UWorld *World)
+{
+	if (!World || World->GetNetMode() != NM_Client || !BeginHandOver())
+	{
+		return;
+	}
+	// Not inside the RPC: leave on the next tick, as a lost connection would.
+	World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [World]() { GEngine->Exec(World, TEXT("disconnect")); }));
 }
 
 FString UWoRHostHandOverSubsystem::GetSuccessionString() const

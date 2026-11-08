@@ -6,7 +6,8 @@
 // session; the successor then hosts (UWoRSessionSubsystem::HostSession) and, once hosting works, adopts its copy
 // (USaveSubsystem::AdoptCheckpoint; the hub's run resume reopens the trial at the last checkpoint, so the fight is
 // exited); the others search for its session and join it. A planned hand-over at a rest spot
-// is B-234c. The old host's claimed seats are AI until it rejoins (the copy's party has no claims).
+// (B-234c) runs the same path: the host saves, tells everyone, leaves and rejoins the next host as a client. The
+// old host's claimed seats are AI until it rejoins (the copy's party has no claims).
 // Debug: wor.Coop.PrintSuccession (GetSuccessionString), wor.Coop.SimulateHostDrop.
 
 #pragma once
@@ -28,6 +29,13 @@ namespace WoRHostSuccession
 
 	/** Q-234b (2): a short wait between leaving the old session and hosting the new one (a destroy can finish late). */
 	constexpr float TAKE_OVER_DELAY_SECONDS = 1.0f;
+
+	/** B-234c: how long the host waits, after saving and telling everyone, before it leaves (its copy's chunks and the
+	 *  hand-over call are reliable RPCs that must arrive first). */
+	constexpr float PLANNED_LEAVE_DELAY_SECONDS = 2.0f;
+
+	/** B-234c: a planned hand-over needs a listen server with at least one other player. */
+	WORLD_OF_REFRACTION_API bool CanHandOverFrom(ENetMode NetMode, int32 PlayersKnown);
 
 	/** Q-234b (1): the player who hosts after OldHost: the first in Order who isn't OldHost. Empty when nobody is left. */
 	WORLD_OF_REFRACTION_API FString PickNextHost(const TArray<FString> &Order, const FString &OldHost);
@@ -74,6 +82,14 @@ public:
 	/** Starts the hand-over as if the host had just dropped (also the network failure's path). False when there is no
 	 *  known order, this machine was the host, or nobody is left. */
 	bool BeginHandOver();
+
+	/** B-234c (host, at a rest spot): hand the run over on purpose. Saves (every player gets the copy), tells every
+	 *  client to hand over (AWoRGameState::Multicast_BeginPlannedHandOver), then leaves after
+	 *  PLANNED_LEAVE_DELAY_SECONDS and rejoins the next host as a client. False when CanHandOverFrom says no. */
+	bool BeginPlannedHandOver(UWorld *World);
+
+	/** B-234c (client): the host is handing over: start the hand-over now and leave, as on a drop. */
+	void HandlePlannedHandOver(UWorld *World);
 
 	/** Debug: the known order, this player's id, the next host and the step. */
 	FString GetSuccessionString() const;
