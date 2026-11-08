@@ -13,6 +13,8 @@
 #include "Combat/Damage/DamageCalculator.h"
 #include "Debug/Combat/AmpDebug.h"
 #include "Equipment/FAmpBonus.h"
+#include "Equipment/FCrystalAttachment.h"
+#include "Equipment/Crystals/FCrystalId.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
@@ -217,6 +219,42 @@ void FAmpSpec::Define()
 					  HitWithBuff(ESpellElement::None, ESpellElement::Fire));
 			TestTrue(TEXT("and above a Fire-keyed buff's Water hit"),
 					 HitWithBuff(ESpellElement::None, ESpellElement::Water) > HitWithBuff(ESpellElement::Fire, ESpellElement::Water));
+		});
+	});
+
+	Describe("crystal Amp by tier (B-387, Q-387)", [this]()
+	{
+		It("follows the deckbuilder's ladder F0 E0 D1 C1 B2 A2 S3", [this]()
+		{
+			const int32 Expected[] = {0, 0, 1, 1, 2, 2, 3};
+			for (int32 Index = 0; Index < UE_ARRAY_COUNT(Expected); ++Index)
+			{
+				TestEqual(*FString::Printf(TEXT("tier %d"), Index), AmpRules::GetCrystalTierAmp(static_cast<EItemTier>(Index)), Expected[Index]);
+			}
+		});
+
+		BeforeEach([this]()
+		{
+			TestWorld = MakeUnique<FWoRTestWorld>();
+			TestTrue(TEXT("test world created"), TestWorld->Create());
+		});
+
+		AfterEach([this]() { TestWorld.Reset(); });
+
+		It("a D-tier Garnet in the worn weapon's socket gives +1 Fire Amp, and nothing to Water", [this]()
+		{
+			ULoadoutComponent *Loadout = SpawnWithWeaponAmp(FAmpBonus());
+			if (!TestNotNull(TEXT("loadout"), Loadout))
+			{
+				return;
+			}
+			FRuntimeAttachedItem Gem;
+			Gem.Kind = EAttachedItemKind::Crystal;
+			Gem.Crystal = FCrystalAttachment(FCrystalId(ECrystalType::Garnet, EItemTier::D_Tier), 1);
+			ActiveOf(Loadout).PrimaryWeapon.WeaponEntry.AttachedItem = Gem;
+			const FAmpBonus Amp = Loadout->GetActiveStatBonus(Loadout->GetOwner()).Amp;
+			TestEqual(TEXT("Fire"), Amp.GetTotalFor(ESpellElement::Fire, true), AmpRules::GetCrystalTierAmp(EItemTier::D_Tier));
+			TestEqual(TEXT("Water"), Amp.GetTotalFor(ESpellElement::Water, true), 0);
 		});
 	});
 }
