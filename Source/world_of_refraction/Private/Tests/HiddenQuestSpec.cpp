@@ -8,6 +8,7 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
+#include "Equipment/Weapons/WeaponData.h"
 #include "Memory/HiddenQuestData.h"
 #include "Memory/HiddenQuestSubsystem.h"
 #include "Memory/MemoryConditions.h"
@@ -122,6 +123,33 @@ void FHiddenQuestSpec::Define()
 		TestEqual(TEXT("restored: step 1 done"), Quests->GetStepsDone(Quest->GetQuestId()), 1);
 		TestFalse(TEXT("restored: not finished"), Quests->IsFinished(Quest->GetQuestId()));
 		TestFalse(TEXT("the debug text names it"), Quests->GetQuestsString().IsEmpty());
+	});
+
+	It("starts a quest a worn item carries while its conditions hold (B-381, D-165)", [this]()
+	{
+		UWeaponData *Sword = NewObject<UWeaponData>(GetTransientPackage());
+		UCharacterData *Wearer = FWoRTestWorld::NewCharacterData();
+		FBoundQuest Carried;
+		Carried.Quest = Quest;
+		FWoRCondition There;
+		There.Subject = EWoRConditionSubject::AtLocation;
+		There.LocationId = QUEST_TEST_LOCATION;
+		Carried.Conditions.Conditions.Add(There);
+		Sword->BoundQuests.Add(Carried);
+
+		FMemoryEvent NotWorn = AtLocation();
+		NotWorn.Party.Add({Wearer, {}});
+		TestEqual(TEXT("not worn: nothing starts"), Quests->StartGearQuests(NotWorn), 0);
+
+		FMemoryEvent WornElsewhere;
+		WornElsewhere.Party.Add({Wearer, {{Sword, EItemTier::F_Tier}}});
+		TestEqual(TEXT("worn, conditions unmet: nothing starts"), Quests->StartGearQuests(WornElsewhere), 0);
+
+		FMemoryEvent Worn = AtLocation();
+		Worn.Party.Add({Wearer, {{Sword, EItemTier::F_Tier}}});
+		TestEqual(TEXT("worn and met: it starts"), Quests->StartGearQuests(Worn), 1);
+		TestTrue(TEXT("started"), Quests->IsStarted(Quest->GetQuestId()));
+		TestEqual(TEXT("once"), Quests->StartGearQuests(Worn), 0);
 	});
 }
 
