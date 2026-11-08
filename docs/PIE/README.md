@@ -366,6 +366,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-372](B-372.md) | `feature/B-372-camera-framing-checks-cloud` (UNBUILT, on B-371) | Camera framing checks; screenshots per shot pattern for Crown | Pending |
 | [B-348c](B-348c.md) | `feature/B-348c-broken-darkness-persists-cloud` (UNBUILT, on B-348b) | Broken Darkness stays across fights, runs and the save; strain builds across the run | Pending |
 | [B-351d](B-351d.md) | `feature/B-351d-crystal-spell-lists-cloud` (UNBUILT, on B-351c) | A crystal's one spell list: replace / restore, saved on the item | Pending |
+| [B-357b](B-357b.md) | `feature/B-357b-evolution-resolve-path-cloud` (UNBUILT, on B-357) | One list of attached evolutions (character, weapon, adapter); no change in play | Pending |
 
 Move rows to **Done** when every check passes.
 
