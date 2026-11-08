@@ -16,6 +16,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
 #include "Character/Forms/CharacterFormData.h"
+#include "Memory/MemoryJournalSubsystem.h" // EMemorySource (B-235d)
 #include "WoRPlayerState.generated.h"
 
 class UCurrencyComponent;
@@ -79,6 +80,11 @@ public:
 	 *  player's pawn, if it stands in the feature's trigger. */
 	UFUNCTION(Server, Reliable)
 	void ServerInteractFeature(class ATrialMapFeature *Feature);
+
+	/** B-235d: the host's run unlocked Memory and it qualifies for this player: their own journal records it and only
+	 *  they see the notice (D-103: hidden unlocks are private). */
+	UFUNCTION(Client, Reliable)
+	void Client_UnlockMemory(class UMemoryData *Memory, EMemorySource Source);
 	const TArray<TObjectPtr<UCharacterData>> &GetClaimedCharacters() const { return ClaimedCharacters; }
 
 private:

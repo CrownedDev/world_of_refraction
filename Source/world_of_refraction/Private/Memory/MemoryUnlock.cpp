@@ -2,6 +2,9 @@
 
 #include "Memory/MemoryUnlock.h"
 
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/GameStateBase.h"
+#include "Player/WoRPlayerState.h"
 #include "Character/CharacterDataComponent.h"
 #include "Conditions/WoRConditions.h"
 #include "Memory/MemoryConditions.h"
@@ -34,7 +37,12 @@ bool MemoryUnlock::Unlock(UGameInstance *GameInstance, UMemoryData *Memory, EMem
 {
 	UTrialRunSubsystem *TrialRun = GameInstance ? GameInstance->GetSubsystem<UTrialRunSubsystem>() : nullptr;
 	UMemoryJournalSubsystem *Journal = GameInstance ? GameInstance->GetSubsystem<UMemoryJournalSubsystem>() : nullptr;
-	if (!Memory || !TrialRun || !Journal || Journal->HasMemory(Memory))
+	if (!Memory || !TrialRun || !Journal)
+	{
+		return false;
+	}
+	ShareWithPlayers(GameInstance, Memory, Source); // B-235d: each friend's own journal, whether or not the host has it
+	if (Journal->HasMemory(Memory))
 	{
 		return false;
 	}
@@ -52,6 +60,52 @@ bool MemoryUnlock::Unlock(UGameInstance *GameInstance, UMemoryData *Memory, EMem
 			   *UMemoryData::GetRewardString(Reward));
 	}
 	return true;
+}
+
+bool MemoryUnlock::QualifiesFor(const UMemoryData *Memory, const TArray<UCharacterData *> &PlayerCharacters)
+{
+	if (!Memory)
+	{
+		return false;
+	}
+	if (Memory->CharacterDepth.IsEmpty())
+	{
+		return true; // a memory about no one in particular: the whole party's
+	}
+	return PlayerCharacters.ContainsByPredicate([Memory](const UCharacterData *Character)
+	{
+		return Character && Memory->CharacterDepth.FindRef(Character) != EMemoryDepth::None;
+	});
+}
+
+int32 MemoryUnlock::ShareWithPlayers(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source)
+{
+	const UWorld *World = GameInstance ? GameInstance->GetWorld() : nullptr;
+	const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
+	if (!Memory || !GameState || World->GetNetMode() != NM_ListenServer)
+	{
+		return 0; // solo: the host's journal is the only one
+	}
+	int32 Shared = 0;
+	for (APlayerState *Player : GameState->PlayerArray)
+	{
+		AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player);
+		const APlayerController *PC = WoRPlayer ? Cast<APlayerController>(WoRPlayer->GetOwner()) : nullptr;
+		if (!PC || PC->IsLocalController())
+		{
+			continue;
+		}
+		if (QualifiesFor(Memory, TArray<UCharacterData *>(WoRPlayer->GetClaimedCharacters())))
+		{
+			WoRPlayer->Client_UnlockMemory(Memory, Source);
+			++Shared;
+		}
+	}
+	if (Shared > 0)
+	{
+		UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s shared with %d friend(s)"), *Memory->GetMemoryId().ToString(), Shared);
+	}
+	return Shared;
 }
 
 bool MemoryUnlock::IsCollected(const UGameInstance *GameInstance, const UMemoryData *Memory)
