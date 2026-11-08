@@ -94,6 +94,23 @@ bool ATrialMapFeature::IsWithinReach(const APawn *Pawn) const
 	return Pawn && InteractionTrigger && InteractionTrigger->IsOverlappingActor(Pawn);
 }
 
+namespace
+{
+	/** Q-187d: some player already opened this chest (the host's key is the feature id; a friend's is "id@player"). */
+	bool IsOpenedByAnyone(const UTrialRunSubsystem &TrialRun, FName FeatureId)
+	{
+		const FString FriendPrefix = FeatureId.ToString() + TEXT("@");
+		for (const TPair<FName, FText> &Found : TrialRun.GetFoundFeatures())
+		{
+			if (Found.Key == FeatureId || Found.Key.ToString().StartsWith(FriendPrefix))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+}
+
 FName ATrialMapFeature::GetFeatureIdFor(const APawn *Pawn) const
 {
 	// Review fix: keyed from the player state (a pawn whose controller is gone mid-travel still names its player).
@@ -195,8 +212,12 @@ void ATrialChest::Interact(APawn *Pawn)
 		return;
 	}
 	const FText ItemName = TrialLoot::GetItemName(Item);
-	// Merge B-187c + B-235c: B-073's chest tally (each player's own open of their instance counts) and B-235c's per-player key / message.
-	TrialRun->RecordChestReward(); // B-073 (D-094): chests add more to the run's tally
+	// Merge B-187c + B-235c, Q-187d: B-073's chest tally counts a chest once (its first open by anyone: the run-end
+	// payout already pays every player in full), then B-235c's per-player key and message.
+	if (!IsOpenedByAnyone(*TrialRun, GetFeatureId()))
+	{
+		TrialRun->RecordChestReward(); // B-073 (D-094): chests add more to the run's tally
+	}
 	TrialRun->RecordFound(PlayerFeatureId, FText::Format(LOCTEXT("ChestFound", "Chest: {0}"), ItemName));
 	ShowMessageTo(Pawn, FText::Format(LOCTEXT("ChestFoundMessage", "Found {0}."), ItemName));
 	RefreshHint();

@@ -45,9 +45,20 @@ void ATrialGameMode::RestartPlayer(AController *NewPlayer)
     }
     if (bHasReturnStand && NewPlayer)
     {
-        const FTransform Where = TrialReturn::GetReturnStand(ReturnStand, PlayersReturned++);
+        FTransform Where = TrialReturn::GetReturnStand(ReturnStand, PlayersReturned++);
+        // B-187d review: a side spot behind a wall (or off the floor's edge line) falls back to the stand itself.
+        FHitResult Blocked;
+        if (GetWorld() && GetWorld()->LineTraceSingleByChannel(Blocked, ReturnStand.GetLocation(), Where.GetLocation(), ECC_Visibility))
+        {
+            Where = ReturnStand;
+        }
         UE_LOG(LogTemp, Log, TEXT("[TrialGameMode] %s back at the rest spot (%s)"), *NewPlayer->GetName(), *Where.GetLocation().ToString());
         RestartPlayerAtTransform(NewPlayer, Where);
+        // Once every player who travelled here is placed, later restarts (a joiner, a respawn) use player starts.
+        if (NumTravellingPlayers == 0 && PlayersReturned >= GetNumPlayers())
+        {
+            bHasReturnStand = false;
+        }
         return;
     }
     Super::RestartPlayer(NewPlayer);
