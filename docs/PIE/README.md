@@ -32,6 +32,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-230b](B-230b.md) | `feature/B-230b-grid-slot-replicated-cloud` (UNBUILT, on B-231) | 2-player: the client sees every combatant's row; its menu greys the row step it can't take | Pending |
 | [B-231b](B-231b.md) | `feature/B-231b-cosmetic-projectiles-cloud` (UNBUILT, on B-231) | 2-player: the client sees the host's projectiles fly and burst | Pending |
 | [B-231c](B-231c.md) | `feature/B-231c-client-telegraphs-cloud` (UNBUILT, on B-231b) | 2-player: the client sees the host's skill effects and telegraph tells | Pending |
+| [B-228b](B-228b.md) | `feature/B-228b-client-combat-hud-cloud` (UNBUILT) | 2-player PIE: the client builds its own combat HUD at fight start and removes it at the end | Pending |
 | [B-366](B-366.md) | `feature/B-366-currency-names` (in `dev`) | Currency names: the run currency reads Prisms, the hub currency Gold (names only) | Pending |
 | [B-366d](B-366d.md) | `feature/B-366d-merge-place-currency` (in `dev`) | Merging crystals costs hub Gold at home and run Prisms in a run (console merge) | Pending |
 | [B-366e](B-366e.md) | `fix/B-366e-repair-place-currency` (in `dev`) | Gear repair costs the currency of the place | Pending |

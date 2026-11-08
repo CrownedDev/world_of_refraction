@@ -92,6 +92,15 @@ void FTurnStateSpec::Define()
 		TestNull(TEXT("no current actor"), TurnState->GetCurrentActor());
 		TestEqual(TEXT("no teams"), TurnState->GetActorTeam(Hero), static_cast<int32>(INDEX_NONE));
 	});
+
+	It("builds a client's combat HUD once when combat turns on and tears it down once at the end (B-228b)", [this]()
+	{
+		TestTrue(TEXT("client, combat on, nothing built: build"), ClientCombatHUD::Next(true, true, false) == EClientHUDStep::Build);
+		TestTrue(TEXT("client, combat on, built: nothing"), ClientCombatHUD::Next(true, true, true) == EClientHUDStep::None);
+		TestTrue(TEXT("client, combat off, built: tear down"), ClientCombatHUD::Next(true, false, true) == EClientHUDStep::Teardown);
+		TestTrue(TEXT("client, combat off, nothing built: nothing"), ClientCombatHUD::Next(true, false, false) == EClientHUDStep::None);
+		TestTrue(TEXT("the server builds its own elsewhere"), ClientCombatHUD::Next(false, true, false) == EClientHUDStep::None);
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
