@@ -262,6 +262,9 @@ bool MemoryConditions::IsMet(const FMemoryCondition &Condition, const FMemoryEve
 	case EMemoryConditionKind::FinishingBlow:
 		return Condition.Item &&
 			   AnyMember(Condition, Event, [&](const FMemoryEventMember &Member) { return Member.Used.FinishingWeapons.Contains(Condition.Item.Get()); });
+	case EMemoryConditionKind::PartyHas:
+		// B-376: the parity reference reads as the new subject does (FMemoryEvent::Present, else the party).
+		return Condition.Character && (Event.Present.IsEmpty() ? IsInParty(Condition.Character, Event) : Event.Present.Contains(Condition.Character.Get()));
 	}
 	return false;
 }
