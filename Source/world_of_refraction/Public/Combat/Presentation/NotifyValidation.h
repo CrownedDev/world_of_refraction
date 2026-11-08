@@ -13,6 +13,7 @@
 
 #include "CoreMinimal.h"
 #include "Combat/CombatNotify.h"
+#include "Combat/Camera/CombatCameraTypes.h"
 
 class UAnimMontage;
 class USkillDataBase;
@@ -20,8 +21,8 @@ class USkillDataBase;
 namespace NotifyValidation
 {
 	/** The least time a defender gets between the end of a cinematic window and the first defendable moment
-	 *  (D-162). TODO: tune in PIE (first guess 0.75 s). B-370's camera window reads this same value. */
-	constexpr float MIN_DEFENSE_READ_SECONDS = 0.75f;
+	 *  (D-162). One source: B-370's FCombatCameraRules (tune it there). */
+	constexpr float MIN_DEFENSE_READ_SECONDS = FCombatCameraRules::MinDefenseReadSeconds;
 
 	/** One UCombatNotify on the chain's timeline, in wall-clock seconds from the chain's start. */
 	struct FNotifyMark
