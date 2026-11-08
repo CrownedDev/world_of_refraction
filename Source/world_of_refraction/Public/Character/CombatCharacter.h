@@ -118,6 +118,10 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
     TObjectPtr<class UStatusBarStateComponent> StatusBarState;
 
+    /** B-231: the server's montages and hits, multicast to the clients (the executor runs on the server only). */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+    TObjectPtr<class UCombatPresentationComponent> CombatPresentation;
+
 private:
     /** Default subobjects, so the ASC finds them at InitializeComponent on every machine (the
      *  replicated sets, never a client-made copy). Read through the ASC, not these pointers. */
