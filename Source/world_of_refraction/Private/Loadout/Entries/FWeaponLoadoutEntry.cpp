@@ -172,8 +172,62 @@ int32 FWeaponLoadoutEntry::GetSpellsOverCap() const
     return FMath::Max(0, GetAllSpellsUncapped().Num() - GetSpellSlotCap());
 }
 
+TArray<USpellData *> FWeaponLoadoutEntry::GetSpellSlots() const
+{
+    if (!WeaponEntry.AttachedItem.CanProvideSpells())
+    {
+        return TArray<USpellData *>();
+    }
+    return SkillSlotList::Resolve(WeaponEntry.AssignedSpells, WeaponEntry.SpellPicks, GetSpellSlotCap());
+}
+
+bool FWeaponLoadoutEntry::ReplaceSpell(int32 Slot, USpellData *Spell)
+{
+    if (!WeaponEntry.AttachedItem.CanProvideSpells() || Slot >= GetSpellSlotCap() || !SkillSlotList::Replace(WeaponEntry.SpellPicks, Slot, Spell))
+    {
+        return false;
+    }
+    WeaponEntry.bSpellSlotsActive = true;
+    return true;
+}
+
+bool FWeaponLoadoutEntry::RestoreSpell(int32 Slot)
+{
+    if (!SkillSlotList::Restore(WeaponEntry.SpellPicks, Slot))
+    {
+        return false;
+    }
+    WeaponEntry.bSpellSlotsActive = true;
+    return true;
+}
+
+FString FWeaponLoadoutEntry::GetSpellSlotString() const
+{
+    const TArray<USpellData *> Slots = GetSpellSlots();
+    FString Out = FString::Printf(TEXT("%s spell slots: %d (%s)"), *GetNameSafe(WeaponEntry.Weapon), Slots.Num(),
+                                  WeaponEntry.bSpellSlotsActive ? TEXT("one list, active") : TEXT("one list not edited yet: the old merge plays"));
+    for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
+    {
+        const USpellData *BuiltIn = WeaponEntry.AssignedSpells.IsValidIndex(Slot) ? WeaponEntry.AssignedSpells[Slot] : nullptr;
+        const bool bReplaced = SkillSlotList::IsReplaced(WeaponEntry.SpellPicks, Slot);
+        Out += FString::Printf(TEXT("\n  [%d] %s%s"), Slot, *GetNameSafe(Slots[Slot]),
+                               bReplaced ? (BuiltIn ? *FString::Printf(TEXT(" (pick; built-in %s restorable)"), *GetNameSafe(BuiltIn)) : TEXT(" (pick)"))
+                                         : (BuiltIn ? TEXT(" (built-in)") : TEXT("")));
+    }
+    return Out;
+}
+
 TArray<USpellData *> FWeaponLoadoutEntry::GetAllSpellsUncapped() const
 {
+    // B-351d (D-145): once the player has edited the crystal's one list, it is the list (the loadout's AssignedSpells
+    // override is OBSOLETE then).
+    if (WeaponEntry.bSpellSlotsActive)
+    {
+        TArray<USpellData *> Spells = GetSpellSlots();
+        Spells.RemoveAll([](const USpellData *Spell) { return Spell == nullptr; });
+        return Spells;
+    }
+
     // Inventory-entry spells form the base list; AssignedSpells override them.
     const TArray<USpellData *> Presets = WeaponEntry.GetSpells();
 
