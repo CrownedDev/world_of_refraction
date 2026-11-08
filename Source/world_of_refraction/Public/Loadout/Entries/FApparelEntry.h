@@ -1,13 +1,15 @@
 // FApparelEntry.h
 // B-380 (D-164): one apparel piece in a loadout: the asset, its owned identity and level, its own crystal socket and
 // its instance stat roll. Apparel sits outside the loadout budget (ApparelRules), in at most MAX_APPAREL_SLOTS slots
-// (Q-380: the deckbuilder caps apparel at 2). Its socket takes a refined crystal only (Q-380: no evolution or augment
-// stone): the crystal keys the piece (GetElement) and powers no skill. The owned store and save are B-380b.
+// (Crown, D-164: the deckbuilder's 2). Its socket takes a refined crystal only (Q-380: no evolution or augment stone):
+// the crystal keys the piece (GetElement), adds resistance to its element (Crown) and powers no skill. The asset's
+// effects count (Crown). The owned store and save are B-380b.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/FResistanceBonus.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Inventory/ItemQuality.h"
 #include "Inventory/ItemTier.h"
@@ -51,6 +53,9 @@ struct WORLD_OF_REFRACTION_API FApparelEntry
 
 	/** The asset's HP and Defence plus the instance roll's (nothing else counts). */
 	FEquipmentStatBonus GetStatLines() const;
+
+	/** D-164 (Crown): the asset's resistance, plus ApparelRules::CRYSTAL_ELEMENT_RESISTANCE to its crystal's element. */
+	FResistanceBonus GetResistance() const;
 };
 
 namespace ApparelRules
@@ -60,6 +65,10 @@ namespace ApparelRules
 
 	/** Apparel never takes loadout budget or an item limit (D-164). */
 	constexpr int32 BUDGET_COST = 0;
+
+	/** D-164 (Crown, 2026-11-08): a crystal on apparel adds resistance to its element (status buildup, percent like
+	 *  FResistanceBonus). TODO: tune with the resistance pass; a third of the per-column cap for now. */
+	constexpr float CRYSTAL_ELEMENT_RESISTANCE = 5.0f;
 
 	/** Only a refined crystal sits in an apparel socket (Q-380). */
 	WORLD_OF_REFRACTION_API bool CanSocket(const FRuntimeAttachedItem &Attachment);

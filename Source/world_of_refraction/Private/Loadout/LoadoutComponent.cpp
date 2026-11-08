@@ -4424,6 +4424,15 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
         Combined.Accumulate(EvoResist);
     }
 
+    // B-380 (D-164): every apparel piece's resistance, with its crystal's element added (Crown).
+    for (const FApparelEntry &Piece : Loadout.Apparel)
+    {
+        if (Piece.Apparel)
+        {
+            Combined.Accumulate(Piece.GetResistance());
+        }
+    }
+
     return Combined;
 }
 
@@ -4456,6 +4465,14 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
     {
         Result.Append(Loadout.PrimaryEvolution.Item->GetStartingEffects());
     }
+    // B-380 (D-164, Crown): apparel carries effects like the deckbuilder's vessels.
+    for (const FApparelEntry &Piece : Loadout.Apparel)
+    {
+        if (Piece.Apparel)
+        {
+            Result.Append(Piece.Apparel->GetStartingEffects());
+        }
+    }
 
     return Result;
 }
@@ -4485,6 +4502,13 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
     {
         Result.Append(Loadout.PrimaryEvolution.Item->GetStartingEffectsGathered());
     }
+    for (const FApparelEntry &Piece : Loadout.Apparel) // B-380 (D-164)
+    {
+        if (Piece.Apparel)
+        {
+            Result.Append(Piece.Apparel->GetStartingEffectsGathered(Wearer, WornSkin));
+        }
+    }
 
     return Result;
 }
@@ -4513,6 +4537,13 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
     {
         Result.Append(Loadout.PrimaryEvolution.Item->GetConditionalEffectsGathered());
+    }
+    for (const FApparelEntry &Piece : Loadout.Apparel) // B-380 (D-164): its trigger-gated rows
+    {
+        if (Piece.Apparel)
+        {
+            Result.Append(Piece.Apparel->GetConditionalEffectsGathered(Wearer, WornSkin));
+        }
     }
 
     return Result;

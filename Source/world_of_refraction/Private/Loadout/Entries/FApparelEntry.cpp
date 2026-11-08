@@ -4,6 +4,8 @@
 
 #include "Equipment/Apparel/ApparelData.h"
 #include "Loadout/FCombatLoadout.h"
+#include "Combat/Resistance/EWoRDamageType.h"
+#include "Combat/Resistance/ResistanceColumns.h"
 
 FApparelEntry FApparelEntry::CreateFromApparel(UApparelData *InApparel)
 {
@@ -25,6 +27,18 @@ FEquipmentStatBonus FApparelEntry::GetStatLines() const
 	Lines.BonusMaxHP += StatBonus.BonusMaxHP;
 	Lines.BonusDefense += StatBonus.BonusDefense;
 	return Lines;
+}
+
+FResistanceBonus FApparelEntry::GetResistance() const
+{
+	FResistanceBonus Resistance = Apparel ? Apparel->BaseResistance : FResistanceBonus();
+	const ESpellElement Element = GetElement();
+	if (Element != ESpellElement::None && Element != ESpellElement::Generic)
+	{
+		const EWoRDamageType Type = WoRDamageType::ElementToDamageType(Element);
+		ResistanceColumns::Set(Resistance, Type, ResistanceColumns::Get(Resistance, Type) + ApparelRules::CRYSTAL_ELEMENT_RESISTANCE);
+	}
+	return Resistance;
 }
 
 bool ApparelRules::CanSocket(const FRuntimeAttachedItem &Attachment)
