@@ -103,7 +103,7 @@ FString UCombatCameraDebug::GetCameraStateString(const UCombatCameraDirector *Di
 	{
 		return TEXT("No combat camera (no combat orchestrator in this world)");
 	}
-	return FString::Printf(TEXT("%s | mode %s | viewing %s | style %s | movement %s | cinematics %s, enemy %s, skip after hit %s | sequence %s | %d cameras | %s"),
+	return FString::Printf(TEXT("%s | mode %s | viewing %s | style %s | movement %s | cinematics %s, enemy %s, skip after hit %s | sequence %s | %s | %d cameras | %s"),
 						   Director->IsInCombat() ? TEXT("In combat") : TEXT("Not in combat"),
 						   *UEnum::GetValueAsString(Director->GetCurrentMode()),
 						   *GetNameSafe(Director->GetViewedActor()),
@@ -113,6 +113,7 @@ FString UCombatCameraDebug::GetCameraStateString(const UCombatCameraDirector *Di
 						   Director->bEnemySkillCinematics ? TEXT("on") : TEXT("off"),
 						   Director->bSkipCinematicAfterHit ? TEXT("on") : TEXT("off"),
 						   Director->GetPlayingSequence() ? *Director->GetPlayingSequence()->GetName() : TEXT("none"),
+						   *Director->GetShotString(), // B-371
 						   Director->GetCameraCount(),
 						   *Director->GetCinematicWindowString()); // B-370
 }

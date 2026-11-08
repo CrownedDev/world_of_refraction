@@ -115,6 +115,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnActionDeferredArmed, AActor *,
  *  Stage 2's per-impact resolver binds this. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnImpactFrame, AActor *, Executor, int32, ImpactIndex);
 
+/** B-371: a skill's projectile has just launched (the camera's Cast shot can follow it). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnProjectileLaunched, AActor *, Caster, AActor *, Projectile);
+
 /** Callback for async action completion */
 DECLARE_DELEGATE_OneParam(FOnActionComplete, const FActionResult &);
 
@@ -461,6 +464,10 @@ public:
 	/** Fires at each melee impact frame (Impact-family Combat Notify), once per impact. */
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
 	FOnImpactFrame OnImpactFrame;
+
+	/** B-371: fires when a skill's projectile launches, once per projectile. */
+	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
+	FOnProjectileLaunched OnProjectileLaunched;
 
 	/** Broadcast when async action fully completes (after all defense windows) */
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")

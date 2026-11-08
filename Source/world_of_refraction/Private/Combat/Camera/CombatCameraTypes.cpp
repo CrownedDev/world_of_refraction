@@ -27,6 +27,36 @@ namespace CombatCameraOffsets
 	constexpr float DefenceSpreadPullback = 1.2f;
 }
 
+namespace CombatCameraShots
+{
+	// TODO: tune in PIE (B-157: Crown approves the patterns' look). Distances in cm, times in s, angles in degrees.
+	constexpr float WindUpStartBack = 300.0f;
+	constexpr float WindUpEndBack = 200.0f;
+	constexpr float WindUpSide = 80.0f;
+	constexpr float WindUpHeight = 120.0f;
+	constexpr float WindUpSeconds = 1.2f;
+	constexpr float CastBack = 380.0f;
+	constexpr float CastHeight = 180.0f;
+	constexpr float CastSide = 140.0f;
+	constexpr float CastBlendSeconds = 0.35f;
+	constexpr float ImpactBack = 330.0f;
+	constexpr float ImpactSide = 160.0f;
+	constexpr float ImpactHeight = 140.0f;
+	constexpr float ImpactBlendSeconds = 0.15f;
+	constexpr float ImpactFovPunch = 8.0f;
+	constexpr float CritFovPunch = 14.0f;
+	constexpr float ImpactShake = 0.6f;
+	constexpr float CritShake = 1.0f;
+	constexpr float SpreadBack = 600.0f;
+	constexpr float SpreadHeight = 380.0f;
+	/** Extra distance back per cm the targets stand from their centre, so every one stays in frame. */
+	constexpr float SpreadPullback = 1.6f;
+	constexpr float SpreadBlendSeconds = 0.4f;
+	constexpr float CloseScale = 0.75f;
+	constexpr float WideScale = 1.4f;
+	constexpr float BlendEaseExponent = 2.0f;
+}
+
 namespace CombatCameraWindow
 {
 	constexpr float MinPlayRate = 0.1f; // the runner's own clamp (UActionExecutor::PlayActionMontageOnActor)
@@ -207,4 +237,92 @@ FTransform FCombatCameraRules::ComputeDefenceView(const TArray<FVector> &Defende
 	const FVector Right = FVector::CrossProduct(FVector::UpVector, Forward);
 	const float Back = DefenceBack + Spread * DefenceSpreadPullback;
 	return LookFrom(Centre - Forward * Back + Right * DefenceSide + FVector::UpVector * DefenceHeight, Attacker);
+}
+
+bool FCombatCameraRules::UsesShotPatterns(const USkillDataBase *Skill)
+{
+	return Skill && Skill->CameraSequence.IsNull();
+}
+
+ECameraShotMoment FCombatCameraRules::ImpactMomentFor(int32 TargetCount)
+{
+	return TargetCount > 1 ? ECameraShotMoment::Spread : ECameraShotMoment::Impact;
+}
+
+FCameraShot FCombatCameraRules::ComputeShot(ECameraShotMoment Moment, const FCameraShotContext &Context, const FSkillCameraTuning &Tuning)
+{
+	using namespace CombatCameraShots;
+	FVector TargetCentre = Context.Caster + FVector::ForwardVector;
+	if (!Context.Targets.IsEmpty())
+	{
+		TargetCentre = FVector::ZeroVector;
+		for (const FVector &Target : Context.Targets)
+		{
+			TargetCentre += Target;
+		}
+		TargetCentre /= Context.Targets.Num();
+	}
+	const FVector Forward = (TargetCentre - Context.Caster).GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
+	const FVector Right = FVector::CrossProduct(FVector::UpVector, Forward);
+	const float SideSign = Tuning.Side == ECameraShotSide::Left ? -1.0f : 1.0f;
+	const bool bWide = Tuning.Style == ECameraShotStyle::Wide || (Tuning.Style == ECameraShotStyle::Default && Context.bRanged);
+	const float StyleScale = Tuning.Style == ECameraShotStyle::Close ? CloseScale : bWide ? WideScale : 1.0f;
+	const float Scale = FMath::Max(Tuning.DistanceScale, UE_KINDA_SMALL_NUMBER) * StyleScale;
+
+	FCameraShot Shot;
+	Shot.FieldOfView = DefaultFieldOfView;
+	switch (Moment)
+	{
+	case ECameraShotMoment::WindUp:
+	{
+		const FVector Shoulder = Right * WindUpSide * SideSign * Scale + FVector::UpVector * WindUpHeight;
+		Shot.Start = LookFrom(Context.Caster - Forward * WindUpStartBack * Scale + Shoulder, TargetCentre);
+		Shot.End = LookFrom(Context.Caster - Forward * WindUpEndBack * Scale + Shoulder, TargetCentre);
+		Shot.BlendSeconds = WindUpSeconds;
+		break;
+	}
+	case ECameraShotMoment::Cast:
+	{
+		const FVector LookAt = Tuning.bFollowProjectile && Context.Projectile.IsSet() ? Context.Projectile.GetValue() : TargetCentre;
+		Shot.End = LookFrom(Context.Caster - Forward * CastBack * Scale + Right * CastSide * SideSign * Scale + FVector::UpVector * CastHeight, LookAt);
+		Shot.Start = Shot.End;
+		Shot.BlendSeconds = CastBlendSeconds;
+		break;
+	}
+	case ECameraShotMoment::Impact:
+	{
+		const FVector Target = Context.Targets.IsEmpty() ? TargetCentre : Context.Targets[0];
+		// From the caster's side of the target, beside it, so the hit reads toward the camera.
+		Shot.End = LookFrom(Target - Forward * ImpactBack * Scale + Right * ImpactSide * SideSign * Scale + FVector::UpVector * ImpactHeight, Target);
+		Shot.Start = Shot.End;
+		Shot.BlendSeconds = ImpactBlendSeconds;
+		Shot.FieldOfView = DefaultFieldOfView - (Context.bCritical ? CritFovPunch : ImpactFovPunch) * Tuning.ShakeScale;
+		Shot.ShakeScale = (Context.bCritical ? CritShake : ImpactShake) * Tuning.ShakeScale;
+		break;
+	}
+	case ECameraShotMoment::Spread:
+	default:
+	{
+		float Spread = 0.0f;
+		for (const FVector &Target : Context.Targets)
+		{
+			Spread = FMath::Max(Spread, FVector::Dist2D(Target, TargetCentre));
+		}
+		const float Back = (SpreadBack + Spread * SpreadPullback) * Scale;
+		Shot.End = LookFrom(TargetCentre - Forward * Back + FVector::UpVector * SpreadHeight * Scale, TargetCentre);
+		Shot.Start = Shot.End;
+		Shot.BlendSeconds = SpreadBlendSeconds;
+		Shot.ShakeScale = (Context.bCritical ? CritShake : ImpactShake) * Tuning.ShakeScale;
+		break;
+	}
+	}
+	return Shot;
+}
+
+FTransform FCombatCameraRules::BlendShot(const FCameraShot &Shot, float Alpha)
+{
+	const float Eased = FMath::InterpEaseInOut(0.0f, 1.0f, FMath::Clamp(Alpha, 0.0f, 1.0f), CombatCameraShots::BlendEaseExponent);
+	FTransform Out;
+	Out.Blend(Shot.Start, Shot.End, Eased);
+	return Out;
 }

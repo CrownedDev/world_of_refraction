@@ -3673,6 +3673,7 @@ void UActionExecutor::SpawnProjectileActor(
 
 		// 4. Launch (activates VFX and starts movement)
 		Projectile->Launch();
+		OnProjectileLaunched.Broadcast(Caster, Projectile); // B-371: the camera's Cast shot
 
 		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Spawned projectile toward %s (Type=%d, Speed=%.1f)"),
 			   *Target->GetName(), (int32)(Entry ? Entry->DeliveryType : Skill->DeliveryType),
