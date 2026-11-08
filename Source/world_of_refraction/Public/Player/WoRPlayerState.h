@@ -78,6 +78,9 @@ public:
 	 *  host's UPartyInteractionComponent::InviteForClient runs it, invites only). */
 	UFUNCTION(Server, Reliable)
 	void ServerRecruit(AActor *RecruitOwner);
+	/** B-235b: a map feature's message for this player alone (a Prism pickup), shown on their own screen. */
+	UFUNCTION(Client, Reliable)
+	void Client_ShowFeatureMessage(const FText &Message);
 	const TArray<TObjectPtr<UCharacterData>> &GetClaimedCharacters() const { return ClaimedCharacters; }
 
 	/** B-234 (host): sends this remote player the host's compressed save as checkpoint CheckpointId, in chunks. */

@@ -290,6 +290,21 @@ void FDefeatSpec::Define()
 		Run->DropPrismsForPlayer(Friend, DEFEAT_RUN_PRISMS);
 		TestEqual(TEXT("a newer drop loses the earlier one for good"), Run->DropPrismsForPlayer(Friend, 1), DEFEAT_RUN_PRISMS);
 	});
+
+	It("counts only the players here toward keeping the pickup up (B-235b)", [this]()
+	{
+		if (!TestNotNull(TEXT("run"), Run))
+		{
+			return;
+		}
+		Run->SetPendingFightSpot(DEFEAT_FALL_SPOT);
+		Run->DropPrisms(DEFEAT_RUN_PRISMS);
+		Run->DropPrismsForPlayer(TEXT("FriendWhoLeft"), DEFEAT_RUN_PRISMS + 1); // no such player in this world
+		TestEqual(TEXT("the local player's drop counts"), WoRDefeat::GetPresentDroppedPrisms(TestWorld->GetWorld()), DEFEAT_RUN_PRISMS);
+		Run->TakeDrop();
+		TestEqual(TEXT("nobody here has a drop"), WoRDefeat::GetPresentDroppedPrisms(TestWorld->GetWorld()), 0);
+		TestEqual(TEXT("the absent player's drop is still recorded"), Run->GetDroppedPrismsForPlayer(TEXT("FriendWhoLeft")), DEFEAT_RUN_PRISMS + 1);
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

@@ -1,6 +1,7 @@
 // PrismDropPickup.cpp
 
 #include "Trial/PrismDropPickup.h"
+#include "Player/WoRPlayerState.h"
 
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -59,21 +60,22 @@ bool APrismDropPickup::PickUp(APawn *Pawn)
 		UE_LOG(LogWoR, Verbose, TEXT("[PrismDrop] %s: nothing taken (no drop of this player's, or no wallet)"), *GetName());
 		return false;
 	}
-	// B-235 (review): the message is for the player who picked up; the server shows it only for its own player.
-	// TODO: a client's own pickup message (a Client RPC on its controller) is B-235b.
+	// B-235 / B-235b: the message is for the player who picked up, on their own screen.
+	const FText Message = FText::Format(LOCTEXT("PickedUp", "You pick up your {0} {1}."), FText::AsNumber(Taken),
+										WoRGameNames::GetCurrencyName(ECurrencyType::Gold));
 	if (!Pawn || Pawn->IsLocallyControlled())
 	{
-		ShowMessage(FText::Format(LOCTEXT("PickedUp", "You pick up your {0} {1}."), FText::AsNumber(Taken),
-								  WoRGameNames::GetCurrencyName(ECurrencyType::Gold)));
+		ShowMessage(Message);
 	}
-	else
+	else if (AWoRPlayerState *Player = Pawn->GetPlayerState<AWoRPlayerState>())
 	{
+		Player->Client_ShowFeatureMessage(Message);
 		UE_LOG(LogWoR, Log, TEXT("[PrismDrop] %s picked up their %d Prism(s)"), *Pawn->GetName(), Taken);
 	}
-	const UTrialRunSubsystem *Run = GetTrialRun();
-	if (!Run || Run->GetTotalDroppedPrisms() <= 0)
+	// B-235b: it stays while a player here still has a drop; a player who left doesn't keep it up.
+	if (WoRDefeat::GetPresentDroppedPrisms(GetWorld()) <= 0)
 	{
-		Destroy(); // B-235: it stays while another player's drop still lies here
+		Destroy();
 	}
 	return true;
 }
@@ -89,7 +91,10 @@ APrismDropPickup *APrismDropPickup::PlaceForRun(UWorld *World, UTrialRunSubsyste
 	{
 		It->Destroy();
 	}
-	if (Run.GetTotalDroppedPrisms() <= 0) // B-235: anyone's drop
+	// B-235: anyone's drop. Not only the present players' (B-235b's removal rule): at level load the clients may
+	// still be travelling. A drop of a player who left can place an untakeable pickup; forgetting it when they
+	// leave is B-235c.
+	if (Run.GetTotalDroppedPrisms() <= 0)
 	{
 		return nullptr;
 	}

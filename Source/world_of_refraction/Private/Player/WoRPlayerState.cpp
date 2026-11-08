@@ -25,6 +25,7 @@
 #include "Save/CoopCheckpoint.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/LocalPlayer.h"
+#include "Trial/TrialMapFeature.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "WoRLog.h"
@@ -480,3 +481,7 @@ static FAutoConsoleCommandWithWorld GCoopPrintCheckpointCommand(
 		UE_LOG(LogWoR, Display, TEXT("[Checkpoint] %s; on disk: %s"), Player ? *Player->GetCheckpointString() : TEXT("no player state"),
 			   bOnDisk ? TEXT("yes") : TEXT("no"));
 	}));
+void AWoRPlayerState::Client_ShowFeatureMessage_Implementation(const FText &Message)
+{
+	ATrialMapFeature::ShowMessage(Message); // B-235b
+}
