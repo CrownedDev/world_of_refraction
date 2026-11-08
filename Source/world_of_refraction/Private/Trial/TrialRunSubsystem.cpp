@@ -107,6 +107,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     UnspentLevels.Reset();
     FoundFeatures.Reset();
     RunMemories.Reset();
+    NotifyRunProgressChanged(); // B-232d (review): the copy clears too
     PendingEncounterSources.Reset();
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
@@ -205,6 +206,7 @@ void UTrialRunSubsystem::ExitTrial()
     UnspentLevels.Reset();
     FoundFeatures.Reset();
     RunMemories.Reset();
+    NotifyRunProgressChanged(); // B-232d (review): the copy clears too
     PendingEncounterSources.Reset();
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;

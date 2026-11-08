@@ -77,6 +77,14 @@ FString AMemoryFragment::GetHintText() const
 			   : LOCTEXT("FragmentHint", "Press E to pick up the memory fragment").ToString();
 }
 
+void AMemoryFragment::RefreshFromRun()
+{
+	if (IsTaken())
+	{
+		RemoveFromMap();
+	}
+}
+
 void AMemoryFragment::RemoveFromMap()
 {
 	SetActorHiddenInGame(true);
