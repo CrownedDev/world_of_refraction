@@ -15,25 +15,61 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
-| [B-380d](B-380d.md) | `feature/B-380d-apparel-lore-socket-cloud` (unbuilt) | Apparel socket swap: the old crystal goes back to storage; an evolution must be owned and free | Pending |
+| [B-380d](B-380d.md) | `feature/B-380d-apparel-lore-socket-cloud` (in dev) | Apparel socket swap: the old crystal goes back to storage; an evolution must be owned and free | Pending |
 | [B-386](B-386.md) | `feature/B-386-apparel-amp-cloud` (unbuilt) | Apparel carries Amp lines (the deckbuilder's HP · Amp · Def) | Pending |
 | [B-382](B-382.md) | `feature/B-382-amp-lines-cloud` (unbuilt) | Amp lines on gear: All / Physical / one element, added to the action's base; damage buffs keyed by element; `wor.Damage.Amp` | Pending |
 | [B-383](B-383.md) | `feature/B-383-damage-scopes-cloud` (unbuilt) | Every damage / defence boost has a scope (All, Physical, Spell, one element; default All); `wor.Damage.Scopes` | Pending |
-| [B-384](B-384.md) | `feature/B-384-one-damage-channel-cloud` (unbuilt) | The four all-damage % channels add into one; **stacked builds hit a little lower** (before / after numbers in the sheet); `wor.Damage.FoldAllDamage` | Pending |
-| [B-385](B-385.md) | `feature/B-385-scope-gas-followups-cloud` (unbuilt) | Damage scopes hold at `wor.Effects.UseGAS 1` (Defense, the mirror, `wor.Damage.Scopes`) | Pending |
+| [B-384](B-384.md) | `feature/B-384-one-damage-channel-cloud` (in dev) | The four all-damage % channels add into one; **stacked builds hit a little lower** (before / after numbers in the sheet); `wor.Damage.FoldAllDamage` | Pending |
+| [B-385](B-385.md) | `feature/B-385-scope-gas-followups-cloud` (in dev) | Damage scopes hold at `wor.Effects.UseGAS 1` (Defense, the mirror, `wor.Damage.Scopes`) | Pending |
 | [B-360c](B-360c.md) | `feature/B-360c-copies-by-member` (in `dev`) | A later copy of a character places its own victory levels and is bought for under its own key | Pending |
 | [B-336](B-336.md) | `refactor/B-336-world-subsystems` (in `dev`) | The ten fight systems live on the level's world (one per PIE window and per level); `wor.Fight.Subsystems` lists them | Pending |
 | [B-361c](B-361c.md) | `test/B-361c-recruit-inventory-specs` (in `dev`) | Tests only: a recruit through a mid-run save, the one-pouch give refusal, buying for a recruit, a full or missing host ledger at hand-over | Pending |
 | [B-337b](B-337b.md) | `feature/B-337b-conditions-part2` (in `dev`) | Reactions match through the shared conditions (no gameplay change); `wor.Reaction.Print` shows the condition list | Pending |
 | [B-337c](B-337c.md) | `feature/B-337c-bound-memory-conditions` (in `dev`) | Bound-item memories check through the shared conditions; skill trigger On Flawless Parry | Pending |
 | [B-337d](B-337d.md) | `refactor/B-337d-skill-conditions` (in `dev`) | Skill-effect conditions check through the shared conditions (HP / EP percent) | Pending |
+| [B-337e](B-337e.md) | `feature/B-337e-condition-migration-cloud` (in `dev`) | Skill-effect conditions convert on load; `wor.Conditions.ListOld` lists assets to resave (editor step); effects fire as before | Pending |
 | [B-362b](B-362b.md) | `feature/B-362b-wipe-drops-prisms` (in `dev`) | A wipe drops the run's Prisms at the fight instead of taking pillar points; beating that team gets them back; a second wipe loses the first drop | Pending |
 | [B-362c](B-362c.md) | `feature/B-362c-prism-pickup` (in `dev`) | The Prism drop lies as a pickup where the party stood when the fight started; walking into it gives it back; a win no longer does | Pending |
 | [B-365](B-365.md) | `feature/B-365-flawless-parry` (in `dev`) | Flawless Parry: every hit of one attack perfectly guarded or dodged logs one line at the last hit; a condition only | Pending |
+| [B-349](B-349.md) | `chore/B-349-console-names-cloud` (in `dev`) | Every console command is `wor.<System>.<Verb>`; old names gone (table in the sheet) | Pending |
+| [B-355b](B-355b.md) | `feature/B-355b-boss-moment-rules-cloud` (in `dev`) | A boss's "at moment" rules fire from its one rule list, conditions read at the moment | Pending |
+| [B-230](B-230.md) | `feature/B-230-replicated-status-bars-cloud` (in `dev`) | 2-player PIE: the client's status bars follow the host's | Pending |
+| [B-231](B-231.md) | `feature/B-231-actions-server-multicast-cloud` (UNBUILT, on B-230) | 2-player PIE: the client sees the host's swings, guards and hits (montages and hits by multicast) | Pending |
+| [B-230b](B-230b.md) | `feature/B-230b-grid-slot-replicated-cloud` (UNBUILT, on B-231) | 2-player: the client sees every combatant's row; its menu greys the row step it can't take | Pending |
+| [B-231b](B-231b.md) | `feature/B-231b-cosmetic-projectiles-cloud` (UNBUILT, on B-231) | 2-player: the client sees the host's projectiles fly and burst | Pending |
+| [B-231c](B-231c.md) | `feature/B-231c-client-telegraphs-cloud` (UNBUILT, on B-231b) | 2-player: the client sees the host's skill effects and telegraph tells | Pending |
+| [B-228b](B-228b.md) | `feature/B-228b-client-combat-hud-cloud` (in `dev`) | 2-player PIE: the client builds its own combat HUD at fight start and removes it at the end | Pending |
+| [B-232b](B-232b.md) | `feature/B-232b-menu-on-commander-cloud` (UNBUILT, on B-228b) | 2-player PIE: each player's menu opens only for the members it commands | Pending |
+| [B-232c](B-232c.md) | `feature/B-232c-run-readers-cloud` (UNBUILT, on B-232b) | 2-player: a client's weapon switch, row step and "Let AI play" run on the host | Pending |
+| [B-232d](B-232d.md) | `feature/B-232d-run-readers-cloud` (UNBUILT, on B-232c) | 2-player: the client sees opened chests, spent memory spots and its waiting pillar levels | Pending |
+| [B-232e](B-232e.md) | `feature/B-232e-recruit-ai-seat-cloud` (UNBUILT, on B-232d) | 2-player: a client's recruit joins through the host as an AI seat | Pending |
+| [B-233](B-233.md) | `feature/B-233-sessions-null-cloud` (in `dev`) | Two instances: host, find and join a LAN session with `wor.Session.*` | Pending |
+| [B-234](B-234.md) | `feature/B-234-checkpoint-copies-cloud` (UNBUILT, on B-233) | 2-player: each save the host makes is copied to the client's checkpoint slot (`wor.Coop.PrintCheckpoint`) | Pending |
+| [B-234b](B-234b.md) | `feature/B-234b-host-hand-over-cloud` (UNBUILT, on B-234) | The next player hosts from its copy when the host drops; the others rejoin | Pending |
+| [B-348b](B-348b.md) | `feature/B-348b-save-head-starts-cloud` (in `dev`) | A member's head-start pillars survive save / load (save v21) | Pending |
+| [B-351b](B-351b.md) | `feature/B-351b-stone-socket-carry-cloud` (in `dev`) | Removing crystals takes the stone off too; no second stone over an authored one; the stone socket carries through a run and its save (v22) | Pending |
+| [B-351c](B-351c.md) | `feature/B-351c-one-list-readers-cloud` (UNBUILT, on B-351b) | `wor.Loadout.Print` shows both sockets and the one skill list; a stone slot's pick reaches the fight | |
+| [B-357](B-357.md) | `feature/B-357-evolution-one-cost-cloud` (in `dev`) | An evolution costs 2 wherever it goes: an evolved adapter now costs 3 | Pending |
+| [B-235](B-235.md) | `feature/B-235-personal-prism-drops-cloud` (in `dev`) | 2-player PIE: a wipe drops each player's own Prisms; each picks up only theirs | Pending |
+| [B-235b](B-235b.md) | `feature/B-235b-personal-rewards-cloud` (UNBUILT, on B-235) | 2-player: the pickup message on the picker's screen; a player who left doesn't keep the pickup up | Pending |
+| [B-235c](B-235c.md) | `feature/B-235c-instanced-chests-cloud` (UNBUILT, on B-235b) | 2-player: each player opens a chest for their own item; a client's presses run on the host | Pending |
+| [B-235d](B-235d.md) | `feature/B-235d-private-memories-cloud` (UNBUILT, on B-235c) | 2-player: a friend's qualifying memories land in their own journal, privately | Pending |
 | [B-366](B-366.md) | `feature/B-366-currency-names` (in `dev`) | Currency names: the run currency reads Prisms, the hub currency Gold (names only) | Pending |
 | [B-366d](B-366d.md) | `feature/B-366d-merge-place-currency` (in `dev`) | Merging crystals costs hub Gold at home and run Prisms in a run (console merge) | Pending |
 | [B-366e](B-366e.md) | `fix/B-366e-repair-place-currency` (in `dev`) | Gear repair costs the currency of the place | Pending |
 | [B-367](B-367.md) | `feature/B-367-interrupt-points` (in `dev`) | Only a Perfect Guard / Perfect Dodge stops an interrupt point; Flawless Parry at an interrupt | Pending |
+| [B-189](B-189.md) | `feature/B-189-element-map-look-cloud` (in `dev`) | A trial's element sets its map's sky, fog and sun (placeholder colours); `wor.Trial.Look <Element>` previews | Pending |
+| [B-278](B-278.md) | `feature/B-278-asset-manager-rules-cloud` (in `dev`) | A packaged Development build has every data asset; first fights don't stutter (PSO steps) | Pending |
+| [B-367b](B-367b.md) | `feature/B-367b-perfect-guard-only-cloud` (in `dev`) | Only a Perfect Guard stops an interrupt point or counts toward a Flawless Parry; a Perfect Dodge does neither | Pending |
+| [B-374](B-374.md) | `feature/B-374-six-schools-cloud` (in `dev`) | Six spell schools: the menu lists held schools in order; Destruction is its own school; a validator lists assets to re-tag (editor step) | Pending |
+| [B-368](B-368.md) | `feature/B-368-notify-validator-cloud` (in `dev`) | Checks only: `wor.Presentation.Validate` lists skills whose montage notifies don't fit their arrays; fix the listed data | Pending |
+| [B-369](B-369.md) | `feature/B-369-impact-vfx-outcome-cloud` (in `dev`) | Each impact shows its outcome's visual (hit / crit / guard spark / dodge whiff); set the defaults on a CosmeticsData first | Pending |
+| [B-370](B-370.md) | `feature/B-370-cinematic-window-cloud` (in `dev`) | An enemy attack on your character moves the camera behind it (the Defence view) 0.75 s before the first hit; movement off keeps the static view | Pending |
+| [B-371](B-371.md) | `feature/B-371-shot-patterns-cloud` (UNBUILT, on B-370) | Skills without a sequence get code-built cameras: shoulder push-in, projectile follow, impact punch, pull-out for several targets (Crown approves the look, B-157) | |
+| [B-073](B-073.md) | `feature/B-073-run-rewards-cloud` (in `dev`) | A win pays run Prisms now; hub Gold and essences are tallied and paid at the run's end, win or lose; save v23 | Pending |
+| [B-187](B-187.md) | `feature/B-187-rest-spot-cloud` (UNBUILT, on B-073) | A rest spot heals, revives and becomes the last rest spot; leaving there pays half; placeholder rest menu | Pending |
+| [B-363](B-363.md) | `feature/B-363-levelling-at-rest-spots-cloud` (UNBUILT, on B-187) | Pillar points are placed and bought (run Prisms) only at rest spots | Pending |
+| [B-364](B-364.md) | `feature/B-364-over-the-pillar-cap-cloud` (UNBUILT, on B-363) | Past 7 a pillar point becomes an over-cap point (3 per pillar, +5 % each) | Pending |
 | [B-347b](B-347b.md) | `feature/B-347b-run-armoury` (in `dev`) | During a run a member sees and equips only what the run brought or found; left-home gear and loadouts come back intact; the chest waits until the run ends | Pending |
 | [B-366c](B-366c.md) | `feature/B-366c-shop-place-currency` (in `dev`) | Shops charge the hub currency (Gold) at home and the run currency (Prisms) in a run; cost lines, totals and Confirm follow it | Pending |
 | [B-366b](B-366b.md) | `fix/B-366b-convert-place-currency` (in `dev`) | Converting a duplicate pays the hub currency (Gold) at home and the run currency (Prisms) in a run; the texts name it | Pending |
@@ -118,15 +154,15 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-046](B-046.md) | `docs/B-046-rules-reference` (in `dev`) | Game rules reference in `docs/Rules/` (254 rules) + 23 new questions D-034..D-056. Read on the phone | Not tested |
 | [B-047](B-047.md) | `docs/B-047-best-practice-audit` (in `dev`) | Best-practice audit vs Epic/Lyra; 25 jobs B-118..B-142, questions D-057..D-068. Read on the phone | Not tested |
 | [B-010](B-010.md) | `feature/B-010-battle-random-stream` (in `dev`) | One random seed per battle, logged; `wor.Battle.Seed` replays a fight | Not tested |
-| [B-020](B-020.md) | `refactor/B-020-stat-modifier-table` (in `dev`) | Stat buffs/debuffs read from one table (same numbers); `wor.CompareStats`, `wor.PrintStatModifiers` | Not tested |
-| [B-021](B-021.md) | `refactor/B-021-stone-row-table` (in `dev`) | Stat stones read from one row table (same effects); `wor.PrintStoneRows` | Not tested |
+| [B-020](B-020.md) | `refactor/B-020-stat-modifier-table` (in `dev`) | Stat buffs/debuffs read from one table (same numbers); `wor.Stats.Compare`, `wor.Stats.Print` | Not tested |
+| [B-021](B-021.md) | `refactor/B-021-stone-row-table` (in `dev`) | Stat stones read from one row table (same effects); `wor.Stones.Print` | Not tested |
 | [B-022](B-022.md) | `refactor/B-022-loadout-getters` (in `dev`) | Loadout read without copying; class from CharacterData; no gameplay change | Not tested |
 | [B-023](B-023.md) | `fix/B-023-ai-live-enums` (in `dev`) | AI sees Stun (not Wind's delay) and finds Cleanse Self spells | Not tested |
 | [B-024](B-024.md) | `refactor/B-024-fold-weapon-ring-managers` (in `dev`) | Ring/weapon managers folded into the loadout; ring auto-switch on break; no gameplay change | Not tested |
 | [B-025](B-025.md) | `refactor/B-025-economy-preamble` (in `dev`) | Economy actions share one owner/authority/component check; no gameplay change | Not tested |
 | [B-030](B-030.md) | `fix/B-030-reset-for-combat` (in `dev`) | Nothing from one fight carries into the next (defense, charge, status bars, turn order, menu) | Not tested |
 | [B-003](B-003.md) | `chore/B-003-bp-cpp-cutover` (in `dev`) | Combat HUD, panel effects list and turn slots run on C++ (BP overrides deleted); hub unchanged (D-076) | Not tested |
-| [B-156](B-156.md) | `feature/B-156-combat-camera` (in `dev`) | Combat camera: turn view behind the acting character, pan-out on enemy turns, `wor.Camera` style / movement-off commands (no cinematics until B-157) | Not tested |
+| [B-156](B-156.md) | `feature/B-156-combat-camera` (in `dev`) | Combat camera: turn view behind the acting character, pan-out on enemy turns, `wor.Camera.Print` style / movement-off commands (no cinematics until B-157) | Not tested |
 | [B-028](B-028.md) | `refactor/B-028-one-loadout-validator` (in `dev`) | One loadout rule set for the editor and the fight (D-073); `wor.Loadout.CompareRules` shows the difference | Not tested |
 | [B-031](B-031.md) | `refactor/B-031-async-only` (in `dev`) | Rituals fire through the async path; old sync router obsolete | Not tested |
 | [B-155](B-155.md) | `feature/B-155-utility-crystal-caps` (in `dev`) | Utility crystal tier caps reported in loadout checks | Not tested |
@@ -137,10 +173,10 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-004](B-004.md) | `chore/B-004-enable-plugins` (in `dev`) | GameplayAbilities plugin enabled (CommonUI already on) | Not tested |
 | [B-181](B-181.md) | `fix/B-181-ai-skips-greyed-spells` (in `dev`) | The AI skips spells greyed by a broken source | Not tested |
 | [B-182](B-182.md) | `fix/B-182-perfect-guard-parry-anim` (in `dev`) | A Perfect Guard plays the parry animation | Not tested |
-| [B-040](B-040.md) | `feature/B-040-gas-tags` (in `dev`) | Gameplay tags for elements, classes and statuses (`wor.CompareTags`) | Not tested |
+| [B-040](B-040.md) | `feature/B-040-gas-tags` (in `dev`) | Gameplay tags for elements, classes and statuses (`wor.Tags.Compare`) | Not tested |
 | [B-060](B-060.md) | `fix/B-060-item-use-success` (in `dev`) | A failed item use keeps its charge | Not tested |
 | [B-110](B-110.md) | `fix/B-110-menu-close-after-refusal` (in `dev`) | A refused pick keeps the command menu open | Not tested |
-| [B-041](B-041.md) | `feature/B-041-gas-attributes` (in `dev`) | GAS attributes mirror the stats (`wor.CompareAttributes`) | Not tested |
+| [B-041](B-041.md) | `feature/B-041-gas-attributes` (in `dev`) | GAS attributes mirror the stats (`wor.Attributes.Compare`) | Not tested |
 | [B-062](B-062.md) | `feature/B-062-effect-identity` (in `dev`) | An effect belongs to its source: same source refreshes, another adds | Not tested |
 | [B-063](B-063.md) | `feature/B-063-status-breaks` (in `dev`) | Every full bar lasts one holder turn; Water slows, Wind delays, BD drains | Not tested |
 | [B-112](B-112.md) | `fix/B-112-light-break` (in `dev`) | A full Light bar stops crits for one turn | Not tested |
@@ -213,7 +249,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-042t](B-042t.md) | `feature/B-042t-gas-last-stats` (in `dev`) | GAS stage 3, part 5j: Mind, Body and Spirit built on GAS from their world base and layers | Not tested |
 | [B-042s](B-042s.md) | `feature/B-042s-gas-derived-stats` (in `dev`) | GAS stage 3, part 5i: crit chance and Efficiency derived on GAS from Luck and the cost reduction | Not tested |
 | [B-042r](B-042r.md) | `feature/B-042r-gas-luck-reflex` (in `dev`) | GAS stage 3, part 5h: Luck and the Reflex window factor composed on GAS | Not tested |
-| [B-042q](B-042q.md) | `feature/B-042q-gas-stat-sources-rest` (in `dev`) | GAS stage 3, part 5g: status multiplier, Defense and crit damage composed on GAS; `wor.CompareAttributes` checks the composed bases | Not tested |
+| [B-042q](B-042q.md) | `feature/B-042q-gas-stat-sources-rest` (in `dev`) | GAS stage 3, part 5g: status multiplier, Defense and crit damage composed on GAS; `wor.Attributes.Compare` checks the composed bases | Not tested |
 | [B-042p](B-042p.md) | `feature/B-042p-gas-stat-sources` (in `dev`) | GAS stage 3, part 5f: spell / raw damage and action / spell speed composed on GAS from their gear, stone and buff layers | Not tested |
 | [B-042m](B-042m.md) | `feature/B-042m-ignore-defense-amount` (in `dev`) | Ignore Defense is an amount per skill (D-086); IgnoreDefense effects ignore their value | Not tested |
 | [B-042l](B-042l.md) | `feature/B-042l-gas-buildup-execution` (in `dev`) | GAS stage 3, part 5b: status buildup maths as one core; buildup execution on GAS (not used in play yet) | Not tested |
@@ -341,6 +377,25 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-291](B-291.md) | `feature/B-291-headless-seams` (in `dev`) | Balance-sim seams: InstantImpacts / AI think-delay console variables (off by default), round and bar-break events | Not tested |
 | [B-294](B-294.md) | `feature/B-294-element-palette` (in `dev`) | Colour-blind element palette: new element colours in bars, tints and glows | Not tested |
 | [B-292](B-292.md) | `feature/B-292-sim-runner` (in `dev`) | Balance sim runner, recorder, archetypes (tests only; nothing in play changes) | Not tested |
+| [B-372](B-372.md) | `feature/B-372-camera-framing-checks-cloud` (UNBUILT, on B-371) | Camera framing checks; screenshots per shot pattern for Crown | Pending |
+| [B-348c](B-348c.md) | `feature/B-348c-broken-darkness-persists-cloud` (UNBUILT, on B-348b) | Broken Darkness stays across fights, runs and the save; strain builds across the run | Pending |
+| [B-351d](B-351d.md) | `feature/B-351d-crystal-spell-lists-cloud` (UNBUILT, on B-351c) | A crystal's one spell list: replace / restore, saved on the item | Pending |
+| [B-357b](B-357b.md) | `feature/B-357b-evolution-resolve-path-cloud` (UNBUILT, on B-357) | One list of attached evolutions (character, weapon, adapter); no change in play | Pending |
+| [B-357c](B-357c.md) | `feature/B-357c-gear-evolutions-passives-only-cloud` (UNBUILT, on B-357b) | An evolution on gear gives no stats or resistance (D-147 play change) | Pending |
+| [B-187b](B-187b.md) | `feature/B-187b-mini-boss-rest-spots-cloud` (UNBUILT, on B-187) | A rest spot where a mini-boss fell; revive it one tier stronger (3 times) | Pending |
+| [B-187c](B-187c.md) | `feature/B-187c-revive-return-and-save-cloud` (UNBUILT, on B-187b) | Back at the rest spot after a revive; revivals saved (save v24) | Pending |
+| [B-234c](B-234c.md) | `feature/B-234c-planned-host-hand-over-cloud` (UNBUILT, on B-234b + B-187) | Hand the host over at a rest spot; the old host rejoins | Pending |
+| [B-187d](B-187d.md) | `feature/B-187d-co-op-rest-cloud` (UNBUILT, on B-187c + B-235c, merge-resolved without a compiler) | 2-player: a client rests the party; everyone returns beside the spot after a revive | Pending |
+| [B-187e](B-187e.md) | `feature/B-187e-client-rest-menu-cloud` (UNBUILT, on B-187d) | 2-player: a client's Revive asks the host; Leave leaves the session | Pending |
+| [B-235e](B-235e.md) | `feature/B-235e-own-memory-finds-cloud` (UNBUILT, on B-235d) | 2-player: the client's own spot, fragment, gear and reaction memories are theirs; a friend's PriorMemory reads their own memories | Pending |
+| [B-375](B-375.md) | `feature/B-375-memory-debug-cloud` (UNBUILT, on B-235e) | `wor.Memory.Why <Id>`: each condition met / not yet per player, who would get it | Pending |
+| [B-376](B-376.md) | `feature/B-376-party-has-cloud` (UNBUILT, on B-375) | Pair memories: both characters present, solo or across players | Pending |
+| [B-377](B-377.md) | `feature/B-377-hidden-quests-cloud` (UNBUILT, on B-376, save v25) | Hidden quests: start, steps across runs, end memory | Pending |
+| [B-378](B-378.md) | `feature/B-378-curses-cloud` (UNBUILT, on B-377, save v26) | Curses: given by a memory, a key, lifted, kept across runs | Pending |
+| [B-378b](B-378b.md) | `feature/B-378b-curse-penalty-cloud` (UNBUILT, on B-378) | A held curse weakens your own characters by its penalty | Pending |
+| [B-379](B-379.md) | `feature/B-379-hidden-counters-cloud` (UNBUILT, on B-378, save v27) | Hidden counters: parries and kills across runs, a milestone memory | Pending |
+| [B-381](B-381.md) | `feature/B-381-gear-quests-cloud` (UNBUILT, on B-379) | A worn item's hidden quest starts while its condition holds | Pending |
+| [B-377b](B-377b.md) | `feature/B-377b-coop-quests-journal-save-cloud` (UNBUILT, on B-381, save v28) | The journal saved; a friend's quests move on the host's events | Pending |
 | [B-380](B-380.md) | `feature/B-380-apparel-cloud` (UNBUILT, from dev) | Apparel adds HP and Defence outside the budget; `wor.Loadout.Print` | Pending |
 | [B-380b](B-380b.md) | `feature/B-380b-apparel-store-save-cloud` (UNBUILT, on B-380) | Owned apparel in the store, saved with its socket | Pending |
 | [B-380c](B-380c.md) | `feature/B-380c-apparel-slots-saved-cloud` (UNBUILT, on B-380b, save v29) | Worn apparel saved; a crystal set in play | Pending |

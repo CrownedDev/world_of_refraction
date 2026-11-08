@@ -32,7 +32,7 @@
 #include "Character/CharacterDataComponent.h"   // UCharacterDataComponent::CharacterData
 #include "Party/Party.h"                        // FPartyMember (B-360b: the member's key)
 #include "Party/PartySessionSubsystem.h"        // the pawn's member (B-360b)
-#include "Inventory/InventoryComponent.h"       // wor.DrawFromPool target (step 2)
+#include "Inventory/InventoryComponent.h"       // wor.Pool.Draw target (step 2)
 
 namespace
 {
@@ -1191,7 +1191,7 @@ namespace
     }
 
     static FAutoConsoleCommandWithWorld GPopulatePoolCmd(
-        TEXT("wor.PopulatePool"),
+        TEXT("wor.Pool.Populate"),
         TEXT("Populate the account pool from the played character's authored inventory, then print it (PIE debug)."),
         FConsoleCommandWithWorldDelegate::CreateLambda(
             [](UWorld *World)
@@ -1199,7 +1199,7 @@ namespace
                 UPoolSubsystem *Pool = ResolvePoolFromWorld(World);
                 if (!Pool)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[Pool] wor.PopulatePool: no pool subsystem (no PIE world?)."));
+                    UE_LOG(LogTemp, Warning, TEXT("[Pool] wor.Pool.Populate: no pool subsystem (no PIE world?)."));
                     return;
                 }
 
@@ -1214,7 +1214,7 @@ namespace
                 if (!Inventory)
                 {
                     UE_LOG(LogTemp, Warning,
-                           TEXT("[Pool] wor.PopulatePool: could not resolve a played character's Inventory asset (pawn / CharacterData / Inventory missing)."));
+                           TEXT("[Pool] wor.Pool.Populate: could not resolve a played character's Inventory asset (pawn / CharacterData / Inventory missing)."));
                     return;
                 }
 
@@ -1247,7 +1247,7 @@ namespace
             }));
 
     static FAutoConsoleCommandWithWorld GPrintPoolCmd(
-        TEXT("wor.PrintPool"),
+        TEXT("wor.Pool.Print"),
         TEXT("Dump the account pool (per-category counts, crystal stacks, wallet) to log + screen (PIE debug)."),
         FConsoleCommandWithWorldDelegate::CreateLambda(
             [](UWorld *World)
@@ -1255,7 +1255,7 @@ namespace
                 UPoolSubsystem *Pool = ResolvePoolFromWorld(World);
                 if (!Pool)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[Pool] wor.PrintPool: no pool subsystem (no PIE world?)."));
+                    UE_LOG(LogTemp, Warning, TEXT("[Pool] wor.Pool.Print: no pool subsystem (no PIE world?)."));
                     return;
                 }
                 Pool->PrintPoolState();
@@ -1263,9 +1263,9 @@ namespace
 
     // Step 2 — the first NON-INERT flip: DRAW the run inventory from the pool. Uncalled-first
     // (not wired into InitializeFromCharacterData), so this debug command is the ONLY way to
-    // trigger a pool draw. PIE stays byte-identical until you type wor.DrawFromPool manually.
+    // trigger a pool draw. PIE stays byte-identical until you type wor.Pool.Draw manually.
     static FAutoConsoleCommandWithWorld GDrawFromPoolCmd(
-        TEXT("wor.DrawFromPool"),
+        TEXT("wor.Pool.Draw"),
         TEXT("Draw the played character's RUN inventory FROM the account pool (whole-entry, preserves instance identity), then print the pool (PIE debug). Owned inventory only — SavedLoadouts stay authored."),
         FConsoleCommandWithWorldDelegate::CreateLambda(
             [](UWorld *World)
@@ -1273,7 +1273,7 @@ namespace
                 UPoolSubsystem *Pool = ResolvePoolFromWorld(World);
                 if (!Pool)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[Pool] wor.DrawFromPool: no pool subsystem (no PIE world?)."));
+                    UE_LOG(LogTemp, Warning, TEXT("[Pool] wor.Pool.Draw: no pool subsystem (no PIE world?)."));
                     return;
                 }
 
@@ -1283,7 +1283,7 @@ namespace
                 if (!Inv)
                 {
                     UE_LOG(LogTemp, Warning,
-                           TEXT("[Pool] wor.DrawFromPool: could not resolve a played character's InventoryComponent (pawn / component missing)."));
+                           TEXT("[Pool] wor.Pool.Draw: could not resolve a played character's InventoryComponent (pawn / component missing)."));
                     return;
                 }
 
@@ -1292,10 +1292,10 @@ namespace
             }));
 
     // The DIFF tool: dump the played character's RUN inventory per-INSTANCE (tiers / quality /
-    // attached crystals). Run after wor.PopulatePool + wor.DrawFromPool and compare against
-    // wor.PrintPool — matching tiers/crystals prove the whole-entry draw was lossless.
+    // attached crystals). Run after wor.Pool.Populate + wor.Pool.Draw and compare against
+    // wor.Pool.Print — matching tiers/crystals prove the whole-entry draw was lossless.
     static FAutoConsoleCommandWithWorld GPrintInventoryCmd(
-        TEXT("wor.PrintInventory"),
+        TEXT("wor.Inventory.Print"),
         TEXT("Dump the played character's run inventory per-instance (PersistentID/InstanceID, tier, quality, attached crystal) to log + screen (PIE debug)."),
         FConsoleCommandWithWorldDelegate::CreateLambda(
             [](UWorld *World)
@@ -1306,7 +1306,7 @@ namespace
                 if (!Inv)
                 {
                     UE_LOG(LogTemp, Warning,
-                           TEXT("[Pool] wor.PrintInventory: could not resolve a played character's InventoryComponent (pawn / component missing)."));
+                           TEXT("[Pool] wor.Inventory.Print: could not resolve a played character's InventoryComponent (pawn / component missing)."));
                     return;
                 }
 

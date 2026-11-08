@@ -14,6 +14,7 @@
 #include "Memory/MemoryJournalSubsystem.h"
 
 class AActor;
+class AWoRPlayerState;
 class UCharacterData;
 class UEquipmentDataBase;
 class UEvolutionItemData;
@@ -68,6 +69,16 @@ struct FMemoryEvent
 	const UCharacterData *UpgradedBy = nullptr;
 	/** Memories the source itself names; checked even with no conditions (none: always met). */
 	TArray<UMemoryData *> Named;
+	/** B-376: every character present (all players'), kept when FilterParty narrows Party to one player's part, so a
+	 *  "party has" condition reads the whole team. Empty: Party is the whole team. */
+	TArray<const UCharacterData *> Present;
+};
+
+/** B-235d (Q-235d, Crown): who a memory a conditions event unlocked goes to. */
+struct FMemoryReceivers
+{
+	bool bHost = true;
+	TArray<AWoRPlayerState *> Friends;
 };
 
 namespace MemoryConditions
@@ -97,15 +108,37 @@ namespace MemoryConditions
 	WORLD_OF_REFRACTION_API bool FitsRequirements(const FMemoryCondition &Condition, const FWorldStatRequirements *Requirements,
 												  const UCharacterData *Wearer);
 
-	/** Any one of Memory's condition sets holds (none: true), through WoRConditions (B-337). */
-	WORLD_OF_REFRACTION_API bool AreMet(const UMemoryData &Memory, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal);
+	/** Any one of Memory's condition sets holds (none: true), through WoRConditions (B-337). B-235e: KnownMemoryIds
+	 *  (a friend's memories) stands in for Journal's when set. B-378 (review): !bReadsThisPlayersState for a co-op
+	 *  friend's part on the host: this machine's curses (and counters) are not theirs, so those conditions fail. */
+	WORLD_OF_REFRACTION_API bool AreMet(const UMemoryData &Memory, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal,
+										const TSet<FName> *KnownMemoryIds = nullptr, bool bReadsThisPlayersState = true);
 
 	/** Every authored memory with unlock conditions (the asset registry, sorted by path). TODO: loads
 	 *  every memory asset per event; cache it once authored memories make that slow. */
 	WORLD_OF_REFRACTION_API TArray<UMemoryData *> GatherConditional();
 
+	/** B-235d: Event with its party kept to (bKeep) or rid of (!bKeep) Characters' members; a level-up by someone
+	 *  left out drops its upgraded item. What one player met is read on their part of the event. */
+	WORLD_OF_REFRACTION_API FMemoryEvent FilterParty(const FMemoryEvent &Event, const TArray<UCharacterData *> &Characters, bool bKeep);
+
+	/** B-235e (Crown, MemoryCatalogue §3.5): the team's memories by id: the host's journal and each friend's known
+	 *  memories. In co-op a PriorMemory condition reads this (any present player's memory counts). */
+	WORLD_OF_REFRACTION_API TSet<FName> GetTeamMemoryIds(const UMemoryJournalSubsystem *Journal, const TArray<const TSet<FName> *> &FriendsKnown);
+
+	/** B-235d (Q-235d, Crown, after Shangri-La Frontier's unique scenarios): Memory goes to each player whose own
+	 *  characters met its conditions and who plays a character it is for; to everyone when it lists no character;
+	 *  to the host when no friend gets it (MemoryUnlock::ShouldFriendReceive / ShouldHostReceive). */
+	WORLD_OF_REFRACTION_API FMemoryReceivers PickReceivers(const UGameInstance *GameInstance, const UMemoryData &Memory,
+														   const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal);
+
+	/** B-235d: PickReceivers, then MemoryUnlock::UnlockFor. */
+	WORLD_OF_REFRACTION_API bool UnlockForFinders(UGameInstance *GameInstance, UMemoryData *Memory, const FMemoryEvent &Event,
+												  const UMemoryJournalSubsystem *Journal);
+
 	/** Unlock every memory among Conditional and Event.Named whose conditions hold, repeating so
-	 *  one earned now can unlock the next. Returns how many were new. */
+	 *  one earned now can unlock the next. Returns how many were new. B-235d: in co-op a
+	 *  memory the host already has is checked again for friends who have not had it. */
 	WORLD_OF_REFRACTION_API int32 CheckEvent(UGameInstance *GameInstance, const FMemoryEvent &Event,
 											 const TArray<UMemoryData *> &Conditional);
 

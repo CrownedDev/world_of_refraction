@@ -17,8 +17,26 @@
 #include "Net/UnrealNetwork.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Party/PartyInteractionComponent.h"
 #include "Player/RunStateComponent.h"
+#include "Player/WoRGameState.h"
+#include "Online/HostSuccession.h"
 #include "Save/SaveSubsystem.h"
+#include "Save/CoopCheckpoint.h"
+#include "Kismet/GameplayStatics.h"
+#include "Engine/LocalPlayer.h"
+#include "Memory/MemoryData.h"
+#include "Memory/MemoryJournalSubsystem.h"
+#include "Memory/MemoryUnlock.h"
+#include "Memory/HiddenCounterSubsystem.h"
+#include "Memory/HiddenQuestSubsystem.h"
+#include "Trial/TrialMapFeature.h"
+#include "UI/Hub/RestSpotWidget.h"
+#include "Trial/TrialRestSpot.h"
+#include "Trial/TrialRunSubsystem.h"
+#include "Combat/TurnManager.h"
+#include "Combat/WoRFightSubsystem.h"
+#include "GameFramework/Pawn.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "WoRLog.h"
@@ -46,6 +64,27 @@ namespace
 					return;
 				}
 				Player->RequestJoin(Character);
+			}));
+
+	FAutoConsoleCommandWithWorld GMemorySentCmd(
+		TEXT("wor.Memory.Sent"),
+		TEXT("B-235d (host): each player's own characters and the memories they have (reported, found or sent; B-235e)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
+				if (!GameState)
+				{
+					UE_LOG(LogWoR, Display, TEXT("[PlayerState] wor.Memory.Sent: no game state"));
+					return;
+				}
+				for (const APlayerState *Player : GameState->PlayerArray)
+				{
+					if (const AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player))
+					{
+						UE_LOG(LogWoR, Display, TEXT("[PlayerState] %s"), *WoRPlayer->GetSharedMemoriesString());
+					}
+				}
 			}));
 }
 
@@ -79,6 +118,26 @@ void AWoRPlayerState::ClientInitialize(AController *Controller)
 	Super::ClientInitialize(Controller);
 	// On a client the owner may arrive after BeginPlay; follow the local form once it does.
 	FollowLocalForm();
+	// B-235e: the host reads this player's own memories (PriorMemory conditions, nothing sent twice).
+	const UWorld *World = GetWorld();
+	const UGameInstance *GI = GetGameInstance();
+	const UMemoryJournalSubsystem *Journal = GI ? GI->GetSubsystem<UMemoryJournalSubsystem>() : nullptr;
+	if (Journal && World && World->GetNetMode() == NM_Client)
+	{
+		TArray<FName> MemoryIds;
+		for (const UMemoryData *Memory : Journal->GetMemories())
+		{
+			if (Memory)
+			{
+				MemoryIds.Add(Memory->GetMemoryId());
+			}
+		}
+		ServerReportJournal(MemoryIds);
+		if (const UHiddenQuestSubsystem *Quests = GI->GetSubsystem<UHiddenQuestSubsystem>())
+		{
+			ServerReportQuests(Quests->Capture().Quests); // B-377b
+		}
+	}
 }
 
 void AWoRPlayerState::FollowLocalForm()
@@ -120,6 +179,9 @@ void AWoRPlayerState::CopyProperties(APlayerState *PlayerState)
 	if (Next)
 	{
 		Next->SetForm(WornForm, BaseForm);
+		Next->KnownMemoryIds = KnownMemoryIds; // B-235d: before the claims below, so nothing is sent again
+		Next->ReportedQuests = ReportedQuests; // B-377b
+		Next->OfferedQuests = OfferedQuests;
 		// B-232: the player keeps commanding its characters in the next level.
 		for (UCharacterData *Character : ClaimedCharacters)
 		{
@@ -168,6 +230,42 @@ void AWoRPlayerState::ClaimMember(const FGuid &MemberId)
 	}
 	ClaimedMembers.Add(MemberId);
 	UE_LOG(LogWoR, Log, TEXT("[PlayerState] %s claims member %s (B-360b)"), *GetPlayerName(), *MemberId.ToString(EGuidFormats::Short));
+}
+
+TArray<UCharacterData *> AWoRPlayerState::GetOwnCharacters() const
+{
+	TArray<UCharacterData *> Own(ClaimedCharacters);
+	const UGameInstance *GI = GetGameInstance();
+	const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	if (const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr)
+	{
+		for (const FPartyMember &Member : Party->Members)
+		{
+			if (Member.CharacterData && ClaimedMembers.Contains(Member.MemberId))
+			{
+				Own.AddUnique(Member.CharacterData);
+			}
+		}
+	}
+	Own.Remove(nullptr);
+	return Own;
+}
+
+FString AWoRPlayerState::GetSharedMemoriesString() const
+{
+	TArray<FString> Characters;
+	for (const UCharacterData *Character : GetOwnCharacters())
+	{
+		Characters.Add(GetNameSafe(Character));
+	}
+	TArray<FString> Sent;
+	for (const FName &MemoryId : KnownMemoryIds)
+	{
+		Sent.Add(MemoryId.ToString());
+	}
+	Sent.Sort();
+	return FString::Printf(TEXT("%s: characters [%s], memories known [%s]"), *GetPlayerName(), *FString::Join(Characters, TEXT(", ")),
+						   *FString::Join(Sent, TEXT(", ")));
 }
 
 void AWoRPlayerState::ReleaseMember(const FGuid &MemberId)
@@ -379,3 +477,281 @@ bool AWoRPlayerState::IsLocalPlayerWallet() const
 	const APlayerController *PC = Cast<APlayerController>(GetOwner());
 	return PC && PC->IsLocalController();
 }
+
+void AWoRPlayerState::ServerRecruit_Implementation(AActor *RecruitOwner)
+{
+	// B-232e: the recruit must still be there and within reach of this player's pawn (the client's trigger said so).
+	UPartyInteractionComponent *Recruit = RecruitOwner ? RecruitOwner->FindComponentByClass<UPartyInteractionComponent>() : nullptr;
+	const APawn *Pawn = GetPawn();
+	if (!Recruit)
+	{
+		// Review: a recruit actor that does not replicate arrives here as null.
+		UE_LOG(LogWoR, Warning, TEXT("[PartyInteraction] %s's recruit refused: the recruit did not reach the server (%s)"),
+			   *GetPlayerName(), RecruitOwner ? TEXT("no party interaction") : TEXT("not replicated?"));
+		return;
+	}
+	if (!Pawn || !Recruit->IsWithinReach(Pawn))
+	{
+		UE_LOG(LogWoR, Log, TEXT("[PartyInteraction] %s's recruit of %s refused: out of reach"), *GetPlayerName(), *GetNameSafe(RecruitOwner));
+		return;
+	}
+	Recruit->InviteForClient();
+}
+void AWoRPlayerState::SendCheckpoint(int32 CheckpointId, const TArray<uint8> &Compressed, int32 UncompressedSize)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	const TArray<TArray<uint8>> Chunks = WoRCheckpoint::Split(Compressed);
+	for (int32 Index = 0; Index < Chunks.Num(); ++Index)
+	{
+		Client_ReceiveCheckpointChunk(CheckpointId, Index, Chunks.Num(), UncompressedSize, Chunks[Index]);
+	}
+}
+
+void AWoRPlayerState::Client_ReceiveCheckpointChunk_Implementation(int32 CheckpointId, int32 ChunkIndex, int32 ChunkCount, int32 UncompressedSize,
+																	const TArray<uint8> &Chunk)
+{
+	if (!CheckpointAssembler.Add(CheckpointId, ChunkIndex, ChunkCount, Chunk))
+	{
+		return;
+	}
+	TArray<uint8> Bytes;
+	if (UncompressedSize <= 0 || !WoRCheckpoint::Decompress(CheckpointAssembler.GetBytes(), UncompressedSize, Bytes))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Checkpoint] Copy %d did not decompress (%d bytes, expected %d); not kept"), CheckpointId,
+			   CheckpointAssembler.GetBytes().Num(), UncompressedSize);
+		return;
+	}
+	// Review fix: only a copy that loads as a save replaces the kept one.
+	if (!UGameplayStatics::LoadGameFromMemory(Bytes))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Checkpoint] Copy %d is not a save (%d bytes); not kept"), CheckpointId, Bytes.Num());
+		return;
+	}
+	const APlayerController *PC = Cast<APlayerController>(GetOwner());
+	const ULocalPlayer *Local = PC ? PC->GetLocalPlayer() : nullptr;
+	const int32 UserIndex = Local ? Local->GetPlatformUserIndex() : 0;
+	if (!UGameplayStatics::SaveDataToSlot(Bytes, WoRCheckpoint::SLOT_NAME, UserIndex))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Checkpoint] Could not keep copy %d (%d bytes) in '%s'"), CheckpointId, Bytes.Num(), WoRCheckpoint::SLOT_NAME);
+		return;
+	}
+	KeptCheckpointId = CheckpointId;
+	KeptCheckpointBytes = Bytes.Num();
+	KeptCheckpointTime = FDateTime::Now();
+	UE_LOG(LogWoR, Log, TEXT("[Checkpoint] Kept the host's copy %d (%d bytes) in '%s'"), CheckpointId, Bytes.Num(), WoRCheckpoint::SLOT_NAME);
+}
+
+void AWoRPlayerState::OnSetUniqueId()
+{
+	Super::OnSetUniqueId();
+	if (AWoRGameState *GameState = GetWorld() ? GetWorld()->GetGameState<AWoRGameState>() : nullptr)
+	{
+		GameState->UpdateHostOrder(this, /*bJoined=*/true); // server only (UpdateHostOrder checks)
+	}
+}
+
+void AWoRPlayerState::Client_BeginPlannedHandOver_Implementation()
+{
+	UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	if (UWoRHostHandOverSubsystem *HandOver = GI ? GI->GetSubsystem<UWoRHostHandOverSubsystem>() : nullptr)
+	{
+		HandOver->HandlePlannedHandOver(GetWorld());
+	}
+}
+
+FString AWoRPlayerState::GetCheckpointString() const
+{
+	if (KeptCheckpointId == INDEX_NONE)
+	{
+		return FString::Printf(TEXT("%s: no checkpoint copy kept this session (receiving %d / %d of copy %d)"), *GetPlayerName(),
+							   CheckpointAssembler.GetReceivedCount(), CheckpointAssembler.GetChunkCount(), CheckpointAssembler.GetCheckpointId());
+	}
+	return FString::Printf(TEXT("%s: copy %d kept (%d bytes) at %s in '%s'"), *GetPlayerName(), KeptCheckpointId, KeptCheckpointBytes,
+						   *KeptCheckpointTime.ToString(TEXT("%H:%M:%S")), WoRCheckpoint::SLOT_NAME);
+}
+
+static FAutoConsoleCommandWithWorld GCoopPrintCheckpointCommand(
+	TEXT("wor.Coop.PrintCheckpoint"),
+	TEXT("B-234: the host's last checkpoint copy this machine kept (a client), and whether one is on disk."),
+	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+	{
+		const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
+		const AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr;
+		const ULocalPlayer *Local = PC ? PC->GetLocalPlayer() : nullptr;
+		const bool bOnDisk = UGameplayStatics::DoesSaveGameExist(WoRCheckpoint::SLOT_NAME, Local ? Local->GetPlatformUserIndex() : 0);
+		UE_LOG(LogWoR, Display, TEXT("[Checkpoint] %s; on disk: %s"), Player ? *Player->GetCheckpointString() : TEXT("no player state"),
+			   bOnDisk ? TEXT("yes") : TEXT("no"));
+	}));
+void AWoRPlayerState::Client_ShowFeatureMessage_Implementation(const FText &Message)
+{
+	ATrialMapFeature::ShowMessage(Message); // B-235b
+}
+
+void AWoRPlayerState::Client_OpenRestMenu_Implementation(bool bCanRevive, int32 RevivalNumber)
+{
+	APlayerController *PC = Cast<APlayerController>(GetOwner());
+	if (URestSpotWidget *Menu = PC && PC->IsLocalController() ? URestSpotWidget::Open(PC) : nullptr)
+	{
+		Menu->SetHostRevive(bCanRevive, RevivalNumber);
+	}
+}
+
+void AWoRPlayerState::ServerReviveMiniBoss_Implementation()
+{
+	UWorld *World = GetWorld();
+	// B-187e review: the client's menu has closed, so a refusal says why on its screen.
+	const FText Refused = NSLOCTEXT("WoRPlayerState", "ReviveRefused", "The mini-boss can't be revived from here right now.");
+	if (!WoRRestSpot::CanReviveHere(World))
+	{
+		UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s's revive refused: no revivable mini-boss at the last rest spot"), *GetPlayerName());
+		Client_ShowFeatureMessage(Refused);
+		return;
+	}
+	// Review: never mid-fight (a menu left open while the host walked into one), and only from beside the rest stand.
+	const UTurnManager *Turns = WoRFight::Get<UTurnManager>(this);
+	if (Turns && Turns->IsCombatActive())
+	{
+		UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s's revive refused: a fight is on"), *GetPlayerName());
+		Client_ShowFeatureMessage(Refused);
+		return;
+	}
+	const UGameInstance *GI = GetGameInstance();
+	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	FTransform Stand;
+	const APawn *Pawn = GetPawn();
+	if (!Pawn || !Run || !Run->GetRestStand(Stand) ||
+		FVector::Dist(Pawn->GetActorLocation(), Stand.GetLocation()) > WoRRestSpot::CLIENT_REVIVE_REACH_CM)
+	{
+		UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s's revive refused: not at the rest spot"), *GetPlayerName());
+		Client_ShowFeatureMessage(Refused);
+		return;
+	}
+	UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s revives the mini-boss (B-187e)"), *GetPlayerName());
+	WoRRestSpot::ReviveMiniBoss(World);
+}
+
+void AWoRPlayerState::ServerInteractFeature_Implementation(ATrialMapFeature *Feature)
+{
+	APawn *Pawn = GetPawn();
+	if (!Feature || !Pawn || !Feature->IsWithinReach(Pawn))
+	{
+		UE_LOG(LogWoR, Log, TEXT("[TrialMapFeature] %s's use of %s refused: out of reach"), *GetPlayerName(), *GetNameSafe(Feature));
+		return;
+	}
+	Feature->Interact(Pawn); // B-235c: the host runs it; per-player features key it to this player
+}
+
+void AWoRPlayerState::ServerReportJournal_Implementation(const TArray<FName> &MemoryIds)
+{
+	// B-235e review: a bounded report, so one message can't grow the host's list without end.
+	constexpr int32 MaxJournalReport = 4096; // TODO: tune to the authored memory count once the catalogue is in
+	const int32 Taken = FMath::Min(MemoryIds.Num(), MaxJournalReport);
+	for (int32 Index = 0; Index < Taken; ++Index)
+	{
+		KnownMemoryIds.Add(MemoryIds[Index]);
+	}
+	UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s reported %d memory(ies) in their journal (B-235e)%s"), *GetPlayerName(), Taken,
+		   Taken < MemoryIds.Num() ? TEXT(", the rest dropped (over the cap)") : TEXT(""));
+}
+
+void AWoRPlayerState::ServerReportQuests_Implementation(const TArray<FSavedQuestProgress> &Quests)
+{
+	ReportedQuests.Reset();
+	// B-377b review: a bounded report, as ServerReportJournal's.
+	constexpr int32 MaxQuestReport = 1024; // TODO: tune to the authored quest count once the catalogue is in
+	const int32 Taken = FMath::Min(Quests.Num(), MaxQuestReport);
+	if (Taken < Quests.Num())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[HiddenQuest] %s reported %d quests; the %d over the cap are dropped"), *GetPlayerName(), Quests.Num(),
+			   Quests.Num() - Taken);
+	}
+	for (int32 Index = 0; Index < Taken; ++Index)
+	{
+		const FSavedQuestProgress &Quest = Quests[Index];
+		if (Quest.QuestId.IsNone())
+		{
+			continue;
+		}
+		if (!Quest.bFinished)
+		{
+			ReportedQuests.Add(Quest.QuestId, Quest.StepsDone);
+			OfferedQuests.Remove(Quest.QuestId); // reported: started on their side
+		}
+		else
+		{
+			OfferedQuests.Add(Quest.QuestId); // finished: never offered again
+		}
+	}
+}
+
+void AWoRPlayerState::Client_QuestStepMet_Implementation(FName QuestId, int32 StepIndex)
+{
+	if (UHiddenQuestSubsystem *Quests = GetGameInstance() ? GetGameInstance()->GetSubsystem<UHiddenQuestSubsystem>() : nullptr)
+	{
+		Quests->ApplyStepMetFromHost(QuestId, StepIndex);
+	}
+}
+
+void AWoRPlayerState::Client_StartQuest_Implementation(UHiddenQuestData *Quest)
+{
+	if (UHiddenQuestSubsystem *Quests = GetGameInstance() ? GetGameInstance()->GetSubsystem<UHiddenQuestSubsystem>() : nullptr)
+	{
+		Quests->StartQuest(Quest);
+	}
+}
+
+void AWoRPlayerState::ServerReportFoundMemory_Implementation(UMemoryData *Memory, EMemorySource Source)
+{
+	if (!Memory)
+	{
+		return;
+	}
+	// B-235e review: a character's memory only from a player who plays that character.
+	if (!MemoryUnlock::QualifiesFor(Memory, GetOwnCharacters()))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[MemoryUnlock] %s's find of %s refused: none of their characters has it"), *GetPlayerName(),
+			   *Memory->GetMemoryId().ToString());
+		return;
+	}
+	AddMemoryId(Memory->GetMemoryId());
+	if (!Memory->CharacterDepth.IsEmpty())
+	{
+		// Their character's own find (Q-235d rule 1): into the run like a friend's find on the host (UnlockFor), not
+		// into the host's journal.
+		const UGameInstance *GI = GetGameInstance();
+		if (UTrialRunSubsystem *TrialRun = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr)
+		{
+			TrialRun->CollectMemory(Memory);
+		}
+		return;
+	}
+	TArray<AWoRPlayerState *> Others = MemoryUnlock::GetRemotePlayers(GetGameInstance());
+	Others.Remove(this);
+	MemoryUnlock::UnlockFor(GetGameInstance(), Memory, Source, /*bHostReceives=*/true, Others);
+}
+
+#define LOCTEXT_NAMESPACE "WoRPlayerState"
+
+void AWoRPlayerState::Client_AddCounter_Implementation(FName Counter, UCharacterData *Character)
+{
+	if (UHiddenCounterSubsystem *Counters = GetGameInstance() ? GetGameInstance()->GetSubsystem<UHiddenCounterSubsystem>() : nullptr)
+	{
+		Counters->Add(Counter, Character);
+	}
+}
+
+void AWoRPlayerState::Client_UnlockMemory_Implementation(UMemoryData *Memory, EMemorySource Source)
+{
+	UMemoryJournalSubsystem *Journal = GetGameInstance() ? GetGameInstance()->GetSubsystem<UMemoryJournalSubsystem>() : nullptr;
+	if (!Memory || !Journal || !Journal->RecordMemory(Memory, Source))
+	{
+		return; // already in this player's journal
+	}
+	ATrialMapFeature::ShowMessage(FText::Format(LOCTEXT("MemoryUnlocked", "New memory: {0}"), Memory->Title)); // private
+	UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s recorded in this player's journal"), *Memory->GetMemoryId().ToString());
+}
+
+#undef LOCTEXT_NAMESPACE

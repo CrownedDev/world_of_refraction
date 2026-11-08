@@ -1,7 +1,8 @@
 // TwoSocketsSpec.cpp
 // B-351 (D-141): every weapon and adapter has an element socket (a gem or an evolution) and a stone socket (a stone).
 // A gem and a stone sit together; a second gem is refused; an adapter takes a stone; a save below the minimum version
-// (one from before the two sockets) is wiped (D-138).
+// (one from before the two sockets) is wiped (D-138). B-351b: removing a crystal takes the stone off too; a stone
+// authored in the element socket blocks a second; the carry and the run save keep the stone socket.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -15,6 +16,8 @@
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Loadout/CarriedGearState.h"
+#include "Save/WoRSaveTypes.h"
 #include "Save/WoRSaveGame.h"
 #include "UObject/UnrealType.h"
 
@@ -117,6 +120,44 @@ void FTwoSocketsSpec::Define()
 		TestTrue(TEXT("gem on the adapter"), Inventory->AttachCrystalToRing(RingId, SOCKET_TEST_GEM));
 		TestTrue(TEXT("stone on the adapter"), Inventory->AttachCrystalToRing(RingId, SOCKET_TEST_STONE));
 		TestTrue(TEXT("the stone in the adapter's stone socket"), Inventory->Rings[0].StoneSocket.IsAugmentStone());
+	});
+
+	It("takes a socketed stone off with the gem (B-351b)", [this]()
+	{
+		if (!Inventory) return;
+		TestTrue(TEXT("gem"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_GEM));
+		TestTrue(TEXT("stone"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_STONE));
+		TestTrue(TEXT("removed"), Inventory->RemoveCrystalFromWeapon(0));
+		TestTrue(TEXT("element socket empty"), Inventory->Weapons[0].AttachedItem.IsEmpty());
+		TestTrue(TEXT("stone socket empty"), Inventory->Weapons[0].StoneSocket.IsEmpty());
+		TestTrue(TEXT("a new stone fits again"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_OTHER_STONE));
+	});
+
+	It("refuses a second stone over one authored in the element socket (B-351b)", [this]()
+	{
+		if (!Inventory) return;
+		FRuntimeAttachedItem Authored; // the pre-B-351 shape: a stone in the element socket
+		Authored.Kind = EAttachedItemKind::AugmentStone;
+		Authored.Crystal.Id = SOCKET_TEST_STONE;
+		Inventory->Weapons[0].AttachedItem = Authored;
+		TestFalse(TEXT("second stone refused"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_OTHER_STONE));
+		TestEqual(TEXT("not debited"), Crystals->GetCount(SOCKET_TEST_OTHER_STONE), SOCKET_TEST_STACK);
+	});
+
+	It("carries the stone socket from fight to fight and through the run save (B-351b)", [this]()
+	{
+		FCarriedGearState Carried;
+		Carried.bCarried = true;
+		FCarriedAttachment &Entry = Carried.Attachments.AddDefaulted_GetRef();
+		Entry.Holder = NewObject<UWeaponData>(GetTransientPackage());
+		Entry.GearID = FGuid::NewGuid();
+		Entry.StoneSocket.Kind = EAttachedItemKind::AugmentStone;
+		Entry.StoneSocket.Crystal.Id = SOCKET_TEST_STONE;
+		const FSavedCarriedGear Saved = FSavedCarriedGear::Make(Carried);
+		if (!TestEqual(TEXT("one saved row"), Saved.Attachments.Num(), 1)) return;
+		TestTrue(TEXT("saved"), Saved.Attachments[0].StoneSocket.IsAugmentStone() && Saved.Attachments[0].StoneSocket.Crystal.Id == SOCKET_TEST_STONE);
+		// Restore resolves the holder by asset path; a transient weapon has none, so read the saved row directly.
+		TestTrue(TEXT("the element socket stays empty"), Saved.Attachments[0].Attached.IsEmpty());
 	});
 
 	It("wipes a save from before the two sockets", [this]()

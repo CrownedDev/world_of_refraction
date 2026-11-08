@@ -37,6 +37,7 @@ void UEffectDefinition::PostEditChangeChainProperty(FPropertyChangedChainEvent &
     for (FSkillEffect &Effect : Effects)
     {
         Effect.SyncThresholdFlags();
+        Effect.MigrateConditionGroup(/*bRebuild=*/true); // B-337e: the group follows the edited old rows
     }
 }
 
