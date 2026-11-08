@@ -152,8 +152,9 @@ void URestSpotWidget::Refresh()
 		const bool bCanHandOver = HandOver && World && WoRHostSuccession::CanHandOverFrom(World->GetNetMode(), HandOver->GetKnownOrder().Num());
 		HandOverButton->SetVisibility(bCanHandOver ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
-	// B-187b: only at a mini-boss's rest spot that can still be revived.
-	const bool bCanRevive = WoRRestSpot::CanReviveHere(GetWorld());
+	// B-187b: only at a mini-boss's rest spot that can still be revived. B-187d review: not on a client, whose own
+	// run is empty and whose ReviveMiniBoss is refused (the host revives).
+	const bool bCanRevive = !bOnClient && WoRRestSpot::CanReviveHere(GetWorld());
 	if (ReviveButton)
 	{
 		ReviveButton->SetVisibility(bCanRevive ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);

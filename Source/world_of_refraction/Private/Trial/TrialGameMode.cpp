@@ -52,7 +52,8 @@ void ATrialGameMode::RestartPlayer(AController *NewPlayer)
         {
             Where = ReturnStand;
         }
-        UE_LOG(LogTemp, Log, TEXT("[TrialGameMode] %s back at the rest spot (%s)"), *NewPlayer->GetName(), *Where.GetLocation().ToString());
+        UE_LOG(LogTemp, Log, TEXT("[TrialGameMode] %s back at the rest spot (%s), %d of %d placed"), *NewPlayer->GetName(),
+               *Where.GetLocation().ToString(), PlayersReturned, GetNumPlayers());
         RestartPlayerAtTransform(NewPlayer, Where);
         // Once every player who travelled here is placed, later restarts (a joiner, a respawn) use player starts.
         // Merge fix: NumTravellingPlayers is AGameMode-only; seamless travel keeps every travelling controller and its
