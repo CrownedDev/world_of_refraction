@@ -8,6 +8,7 @@
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
 #include "Equipment/Apparel/ApparelData.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/FCrystalAttachment.h"
 #include "Skills/Effects/EffectDefinition.h"
@@ -29,6 +30,7 @@ namespace
 	constexpr int32 APPAREL_TEST_LUCK = 4;
 	const FCrystalId APPAREL_TEST_FIRE_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
 	constexpr int32 APPAREL_TEST_DURABILITY = 5;
+	const FCrystalId APPAREL_TEST_WATER_GEM(ECrystalType::Sapphire, EItemTier::F_Tier);
 
 	UApparelData *ApparelTestPiece()
 	{
@@ -210,6 +212,33 @@ void FApparelSpec::Define()
 		TestEqual(TEXT("one piece back"), Back.Apparel.Num(), 1);
 		TestTrue(TEXT("the owned piece"), Back.Apparel.Num() == 1 && Back.Apparel[0].PersistentID == Piece.PersistentID);
 		TestTrue(TEXT("with its crystal"), Back.Apparel.Num() == 1 && Back.Apparel[0].GetElement() == ESpellElement::Fire);
+	});
+
+	It("gives the old crystal back when the socket changes, and refuses an evolution it doesn't own (B-380d)", [this]()
+	{
+		UPoolSubsystem *Pool = TestWorld->GetSubsystem<UPoolSubsystem>();
+		if (!TestNotNull(TEXT("Pool"), Pool))
+		{
+			return;
+		}
+		FApparelEntry Piece = FApparelEntry::CreateFromApparel(ApparelTestPiece());
+		Piece.PersistentID = Pool->AddApparelToPool(Piece);
+		FRuntimeAttachedItem Fire;
+		Fire.Kind = EAttachedItemKind::Crystal;
+		Fire.Crystal = FCrystalAttachment(APPAREL_TEST_FIRE_GEM, APPAREL_TEST_DURABILITY);
+		FRuntimeAttachedItem Water = Fire;
+		Water.Crystal = FCrystalAttachment(APPAREL_TEST_WATER_GEM, APPAREL_TEST_DURABILITY);
+		TestTrue(TEXT("Fire in"), Pool->AttachToApparel(Piece.PersistentID, Fire));
+		const int32 StoredBefore = Pool->GetStoredCount(APPAREL_TEST_FIRE_GEM);
+		TestTrue(TEXT("Water in"), Pool->AttachToApparel(Piece.PersistentID, Water));
+		TestEqual(TEXT("the Fire crystal went back to storage"), Pool->GetStoredCount(APPAREL_TEST_FIRE_GEM), StoredBefore + 1);
+
+		FRuntimeAttachedItem Evolution;
+		Evolution.Kind = EAttachedItemKind::Evolution;
+		Evolution.Evolution.Item = NewObject<UEvolutionItemData>(GetTransientPackage());
+		Evolution.Evolution.InstanceID = FGuid::NewGuid();
+		TestFalse(TEXT("an evolution not in the store is refused"), Pool->AttachToApparel(Piece.PersistentID, Evolution));
+		TestEqual(TEXT("and the socket keeps its crystal"), Pool->FindApparelInPool(Piece.PersistentID)->GetElement(), ESpellElement::Water);
 	});
 }
 
