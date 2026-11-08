@@ -138,6 +138,8 @@ void FEvolutionPlacementSpec::Define()
 			const float MindBare = Char->GetEvolutionModifiedMind();
 			const float FireBare = Loadout->GetActiveResistanceBonus(Loadout->GetOwner()).Fire;
 			L.PrimaryWeapon.WeaponEntry.AttachedItem = EvolutionPlacementTestSocket(Evolution);
+			const TArray<FAttachedEvolution> OnWeapon = Loadout->GatherAttachedEvolutions(); // review: the weapon's is really seen
+			TestTrue(TEXT("weapon: its evolution is attached there"), OnWeapon.Num() == 1 && OnWeapon[0].Place == EEvolutionPlace::Weapon);
 			TestEqual(TEXT("weapon: no resistance"), Loadout->GetActiveResistanceBonus(Loadout->GetOwner()).Fire, FireBare, EVOLUTION_PLACEMENT_TEST_TOLERANCE);
 			TestEqual(TEXT("weapon: no pillar percent"), Char->GetEvolutionModifiedMind(), MindBare, EVOLUTION_PLACEMENT_TEST_TOLERANCE);
 			L.PrimarySlotType = EPrimarySlotType::Evolution;
@@ -145,7 +147,14 @@ void FEvolutionPlacementSpec::Define()
 			L.PrimaryWeapon.WeaponEntry.AttachedItem = FRuntimeAttachedItem();
 			TestEqual(TEXT("character slot: its resistance"), Loadout->GetActiveResistanceBonus(Loadout->GetOwner()).Fire, FireBare + EVOLUTION_PLACEMENT_TEST_RESIST,
 					  EVOLUTION_PLACEMENT_TEST_TOLERANCE);
-			TestTrue(TEXT("character slot: its pillar percent"), MindBare <= 0.0f || Char->GetEvolutionModifiedMind() > MindBare);
+			if (MindBare > 0.0f)
+			{
+				TestTrue(TEXT("character slot: its pillar percent"), Char->GetEvolutionModifiedMind() > MindBare);
+			}
+			else
+			{
+				AddWarning(TEXT("bare Mind is 0: the pillar percent can't be seen here")); // review: say so rather than pass silently
+			}
 		});
 
 		It("a weapon's evolution is resolved on the weapon and gives nothing at fight start", [this]()
