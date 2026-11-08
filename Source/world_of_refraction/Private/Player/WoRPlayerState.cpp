@@ -17,6 +17,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Party/PartyInteractionComponent.h"
 #include "Player/RunStateComponent.h"
 #include "Save/SaveSubsystem.h"
 #include "HAL/IConsoleManager.h"
@@ -378,4 +379,17 @@ bool AWoRPlayerState::IsLocalPlayerWallet() const
 {
 	const APlayerController *PC = Cast<APlayerController>(GetOwner());
 	return PC && PC->IsLocalController();
+}
+
+void AWoRPlayerState::ServerRecruit_Implementation(AActor *RecruitOwner)
+{
+	// B-232e: the recruit must still be there and within reach of this player's pawn (the client's trigger said so).
+	UPartyInteractionComponent *Recruit = RecruitOwner ? RecruitOwner->FindComponentByClass<UPartyInteractionComponent>() : nullptr;
+	const APawn *Pawn = GetPawn();
+	if (!Recruit || !Pawn || !Recruit->IsWithinReach(Pawn))
+	{
+		UE_LOG(LogWoR, Log, TEXT("[PartyInteraction] %s's recruit of %s refused: out of reach"), *GetPlayerName(), *GetNameSafe(RecruitOwner));
+		return;
+	}
+	Recruit->InviteForClient();
 }
