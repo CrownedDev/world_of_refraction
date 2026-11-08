@@ -34,4 +34,4 @@
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-04 | Created from Crown's feel interview | docs/feel-guide |
-| 2026-11-08 | Camera reference (Maelle vs Painted Maelle) and optional sequences (Crown, via the brain; B-370) |
+| 2026-11-08 | Camera reference (Maelle vs Painted Maelle) and optional sequences (Crown, via the brain) | feature/B-370-cinematic-window-cloud |
