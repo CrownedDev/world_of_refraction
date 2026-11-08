@@ -19,6 +19,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Player/RunStateComponent.h"
 #include "Save/SaveSubsystem.h"
+#include "Memory/MemoryData.h"
 #include "Trial/TrialMapFeature.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
@@ -396,3 +397,18 @@ void AWoRPlayerState::ServerInteractFeature_Implementation(ATrialMapFeature *Fea
 	}
 	Feature->Interact(Pawn); // B-235c: the host runs it; per-player features key it to this player
 }
+
+#define LOCTEXT_NAMESPACE "WoRPlayerState"
+
+void AWoRPlayerState::Client_UnlockMemory_Implementation(UMemoryData *Memory, EMemorySource Source)
+{
+	UMemoryJournalSubsystem *Journal = GetGameInstance() ? GetGameInstance()->GetSubsystem<UMemoryJournalSubsystem>() : nullptr;
+	if (!Memory || !Journal || !Journal->RecordMemory(Memory, Source))
+	{
+		return; // already in this player's journal
+	}
+	ATrialMapFeature::ShowMessage(FText::Format(LOCTEXT("MemoryUnlocked", "New memory: {0}"), Memory->Title)); // private
+	UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s recorded in this player's journal"), *Memory->GetMemoryId().ToString());
+}
+
+#undef LOCTEXT_NAMESPACE
