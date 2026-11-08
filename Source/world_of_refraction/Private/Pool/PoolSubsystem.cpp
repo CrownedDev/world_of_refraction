@@ -372,8 +372,9 @@ void UPoolSubsystem::RemoveGear(const FGuid &GearID)
     const auto MatchesWeapon = [&GearID](const FWeaponInventoryEntry &E) { return E.PersistentID == GearID; };
     const auto MatchesRing = [&GearID](const FRingInventoryEntry &E) { return E.PersistentID == GearID; };
     const auto MatchesEvolution = [&GearID](const FEvolutionInventoryEntry &E) { return E.InstanceID == GearID; };
+    const auto MatchesApparel = [&GearID](const FApparelEntry &E) { return E.PersistentID == GearID; }; // B-380b
     const int32 Removed = OwnedWeapons.RemoveAll(MatchesWeapon) + OwnedRings.RemoveAll(MatchesRing) +
-                          OwnedEvolutions.RemoveAll(MatchesEvolution);
+                          OwnedEvolutions.RemoveAll(MatchesEvolution) + OwnedApparel.RemoveAll(MatchesApparel);
     MarkGearIndexDirty();
     Wearers.Remove(GearID);
     GearOwners.Remove(GearID);

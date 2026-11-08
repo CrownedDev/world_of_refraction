@@ -924,6 +924,13 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 			Entry.Quality = In.Quality;
 			Entry.AttachedItem = In.Gear.Attached;
 			Entry.AttachedItem.Evolution.Item = In.Gear.EvolutionItem.ResolveAs<UEvolutionItemData>();
+			// Review: a socket apparel cannot hold (a corrupt or retired attachment) loads empty.
+			if (!Entry.AttachedItem.IsEmpty() && (!ApparelRules::CanSocket(Entry.AttachedItem) ||
+												  (Entry.AttachedItem.IsEvolution() && !Entry.AttachedItem.Evolution.Item)))
+			{
+				UE_LOG(LogWoR, Warning, TEXT("[Save] apparel %s: its socket could not be restored - left empty"), *Apparel->GetName());
+				Entry.AttachedItem = FRuntimeAttachedItem();
+			}
 			Entry.StatBonus = In.Gear.StatBonus;
 			Pool.AddApparelToPool(Entry);
 			++Restored;
