@@ -39,6 +39,9 @@ namespace RunRewards
 	/** The payout multiplier with no passives (B-096 raises it). */
 	constexpr float BASE_PAYOUT_MULTIPLIER = 1.0f;
 
+	/** B-187 (RunStructure §6, Q-187): leaving at a rest spot pays this share of the tally. TODO: tune. */
+	constexpr float LEAVE_EARLY_SHARE = 0.5f;
+
 	/** Run Prisms a win pays at once (D-048: what in-run shops charge). */
 	WORLD_OF_REFRACTION_API int32 WinRunPrisms(EEncounterRank Rank, ETrialDifficulty Difficulty);
 
