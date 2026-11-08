@@ -36,8 +36,16 @@
 #include "Engine/Engine.h"
 
 #include "Skills/Definitions/SkillDataBase.h"
+#include "HAL/IConsoleManager.h"
+#include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "LoadoutComponent"
+
+namespace
+{
+    /** B-357b: fight-start reads see every evolution as not infused (charge level 0). */
+    constexpr int32 FIGHT_START_CHARGE_LEVEL = 0;
+}
 
 namespace
 {
@@ -4429,7 +4437,6 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
     // evolution does (the deliberate exception).
     TArray<FSkillEffect> Result;
 
-    const FCombatLoadout &Loadout = GetActiveLoadout();
 
     // B-306 (Q-244): the gear that counts, one rule for stats, resistances and effects.
     ForEachContributingGear([&Result](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
@@ -4439,12 +4446,11 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
         Result.Append(Asset->GetStartingEffects());
     });
 
-    // Innate (primary-slot) evolution starting effects. ATTACHED evolutions are
-    // deliberately excluded — same two-branch exclusivity on PrimarySlotType as
-    // ApplyEvolutionPillarModifier and the stat sum above.
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+    // B-357b (D-147): the attached evolutions whose passives act at fight start (charge 0): the character's own
+    // slot. Gear evolutions give theirs only to an action charged at L2 (B-357c), so none here, as before.
+    for (const FAttachedEvolution &Evolution : WoREvolutionPlacement::FilterPassives(GatherAttachedEvolutions(), FIGHT_START_CHARGE_LEVEL))
     {
-        Result.Append(Loadout.PrimaryEvolution.Item->GetStartingEffects());
+        Result.Append(Evolution.Attachment.Item->GetStartingEffects());
     }
 
     return Result;
@@ -4458,7 +4464,6 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
     // calls the ...Gathered() accessors so each effect carries its def id + bundle index.
     TArray<FGatheredEffect> Result;
 
-    const FCombatLoadout &Loadout = GetActiveLoadout();
     // B-192: bound gear adds its bonus only on its owner (B-279b: or in the owner's skin).
     const UCharacterData *Wearer = GetOwnerCharacterData();
     const UCharacterData *WornSkin = LoadoutBoundSkin::GetWornSkinFor(*this, Wearer);
@@ -4471,9 +4476,10 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
         Result.Append(Asset->GetStartingEffectsGathered(Wearer, WornSkin));
     });
 
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+    // B-357b: the one resolve path, at fight start (charge 0).
+    for (const FAttachedEvolution &Evolution : WoREvolutionPlacement::FilterPassives(GatherAttachedEvolutions(), FIGHT_START_CHARGE_LEVEL))
     {
-        Result.Append(Loadout.PrimaryEvolution.Item->GetStartingEffectsGathered());
+        Result.Append(Evolution.Attachment.Item->GetStartingEffectsGathered());
     }
 
     return Result;
@@ -4487,7 +4493,6 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
     // subset (effects gated by a trigger, fired on impact rather than at combat start).
     TArray<FGatheredEffect> Result;
 
-    const FCombatLoadout &Loadout = GetActiveLoadout();
     // B-192: bound gear adds its bonus only on its owner (B-279b: or in the owner's skin).
     const UCharacterData *Wearer = GetOwnerCharacterData();
     const UCharacterData *WornSkin = LoadoutBoundSkin::GetWornSkinFor(*this, Wearer);
@@ -4500,13 +4505,65 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
         Result.Append(Asset->GetConditionalEffectsGathered(Wearer, WornSkin));
     });
 
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+    // B-357b: the one resolve path, armed at fight start (charge 0).
+    for (const FAttachedEvolution &Evolution : WoREvolutionPlacement::FilterPassives(GatherAttachedEvolutions(), FIGHT_START_CHARGE_LEVEL))
     {
-        Result.Append(Loadout.PrimaryEvolution.Item->GetConditionalEffectsGathered());
+        Result.Append(Evolution.Attachment.Item->GetConditionalEffectsGathered());
     }
 
     return Result;
 }
+
+TArray<FAttachedEvolution> ULoadoutComponent::GatherAttachedEvolutions() const
+{
+    TArray<FAttachedEvolution> Attached;
+    const FCombatLoadout &Loadout = GetActiveLoadout();
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
+    {
+        WoREvolutionPlacement::AppendCharacterSlot(Loadout.PrimaryEvolution, Attached);
+    }
+    ForEachContributingGear([&Attached](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
+    {
+        if (Weapon)
+        {
+            WoREvolutionPlacement::AppendFrom(Weapon->WeaponEntry.AttachedItem, EEvolutionPlace::Weapon, Attached);
+        }
+        else if (Adapter)
+        {
+            WoREvolutionPlacement::AppendFrom(Adapter->RingEntry.AttachedItem, EEvolutionPlace::Adapter, Attached);
+        }
+    });
+    return Attached;
+}
+
+FString ULoadoutComponent::GetAttachedEvolutionsString() const
+{
+    const TArray<FAttachedEvolution> Attached = GatherAttachedEvolutions();
+    FString Out = FString::Printf(TEXT("[Evolutions] %s: %d attached"), *GetNameSafe(GetOwner()), Attached.Num());
+    for (const FAttachedEvolution &Evolution : Attached)
+    {
+        Out += FString::Printf(TEXT("\n  %s on the %s: passives at charge 0 %s, at charge %d %s"), *GetNameSafe(Evolution.Attachment.Item),
+                               WoREvolutionPlacement::GetPlaceName(Evolution.Place),
+                               WoREvolutionPlacement::GivesPassives(Evolution.Place, FIGHT_START_CHARGE_LEVEL) ? TEXT("yes") : TEXT("no"),
+                               WoREvolutionPlacement::GEAR_PASSIVES_CHARGE_LEVEL,
+                               WoREvolutionPlacement::GivesPassives(Evolution.Place, WoREvolutionPlacement::GEAR_PASSIVES_CHARGE_LEVEL) ? TEXT("yes") : TEXT("no"));
+    }
+    return Out;
+}
+
+static FAutoConsoleCommandWithWorld GLoadoutPrintEvolutionsCommand(
+    TEXT("wor.Loadout.PrintEvolutions"),
+    TEXT("B-357b: every combatant's attached evolutions (character slot, weapon, adapter) and when their passives act."),
+    FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+    {
+        for (TObjectIterator<ULoadoutComponent> It; It; ++It)
+        {
+            if (!It->IsTemplate() && It->GetWorld() == World)
+            {
+                UE_LOG(LogTemp, Display, TEXT("%s"), *It->GetAttachedEvolutionsString());
+            }
+        }
+    }));
 
 UEvolutionItemData *ULoadoutComponent::GetActivePrimaryEvolutionCrystal(AActor *Actor) const
 {
