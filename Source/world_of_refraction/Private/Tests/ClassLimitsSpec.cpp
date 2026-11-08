@@ -103,6 +103,9 @@ void FClassLimitsSpec::Define()
 		TwoEvolved.SecondaryWeapon = ClassLimitsTestWeapon(ClassLimitsTestEvolution());
 		TestTrue(TEXT("Generic: two evolved weapons (3 + 3) over 5"),
 				 ClassLimitsHasBudgetFinding(FLoadoutRules::CollectClassLimitFindings(TwoEvolved, ECharacterClass::Generic)));
+		TestTrue(TEXT("... cleared by dropping the secondary weapon (review)"),
+				 FLoadoutRules::CollectClassLimitFindings(TwoEvolved, ECharacterClass::Generic).ContainsByPredicate([](const FInvalidSlotFinding &F)
+				 { return F.bClearable && F.SlotType == ELoadoutSlotType::SecondaryWeapon; }));
 
 		FCombatLoadout WithCrystalWeapon = Refractor;
 		WithCrystalWeapon.SecondarySlotType = ESecondarySlotType::Weapon;

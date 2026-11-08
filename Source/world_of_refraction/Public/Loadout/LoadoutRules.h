@@ -147,7 +147,7 @@ namespace LoadoutClassTable
 	constexpr FLoadoutClassLimits REFRACTOR{3, 1, 1, 1};
 	/** Generic: budget 5 (Crown 2026-11-08, was 6: at most one evolved weapon), two items: up to two weapons, and it
 	 *  keeps one adapter (D-110 B). */
-	constexpr FLoadoutClassLimits GENERIC{5, 2, 2, 1};
+	constexpr FLoadoutClassLimits GENERIC{LoadoutConstants::LOADOUT_TOTAL_BUDGET, 2, 2, 1}; // 5, as the Resonator
 	/** Resonator: budget 5 (CL-10), one weapon, any number of adapters. */
 	constexpr FLoadoutClassLimits RESONATOR{LoadoutConstants::LOADOUT_TOTAL_BUDGET, NO_LIMIT, 1, NO_LIMIT};
 
