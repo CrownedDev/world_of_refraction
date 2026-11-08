@@ -59,6 +59,10 @@ struct WORLD_OF_REFRACTION_API FDamageMathInputs
 	/** The defender's resistance to the hit's element (fraction, + resists, - weak; uncapped).
 	 *  0 for non-elemental hits (D-005, D-036, Q-145). */
 	float ElementResistance = 0.0f;
+	/** B-389 (D-168): the defender's Physical or Spell damage line for this hit (fraction; WoRResistance::
+	 *  GetScopeLineResistance). Step 3 adds it to ElementResistance under the same cap; the GAS execution, which puts the
+	 *  synced element attribute in ElementResistance's place, keeps it. 0 for old data, so old numbers are unchanged. */
+	float ResistanceScopeLine = 0.0f;
 	/** Ignore Defense as a fraction, 0-1 (D-086): the skill's amount plus the attacker's IgnoreDefense
 	 *  effects. It scales down Defense and positive element resistance alike; weaknesses stay
 	 *  (Q-146b A). 1 = today's full ignore: the Defense step is skipped. */

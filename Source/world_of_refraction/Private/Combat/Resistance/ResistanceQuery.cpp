@@ -133,6 +133,13 @@ namespace WoRResistance
 		return GetHitDamageResistance(Target, FWoRHitKind::FromPair(Element, EPhysicalDamageType::None));
 	}
 
+	float GetScopeLineResistance(AActor *Target, bool bHitIsSpell)
+	{
+		const ULoadoutComponent *Loadout = Target ? Target->FindComponentByClass<ULoadoutComponent>() : nullptr;
+		return Loadout ? Loadout->GetActiveResistanceBonus(Target).GetScopeLine(bHitIsSpell) / ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR
+					   : 0.0f;
+	}
+
 	float GetHitDamageResistance(AActor *Target, const FWoRHitKind &Hit)
 	{
 		const EWoRDamageType ElementType = Hit.ElementType();
