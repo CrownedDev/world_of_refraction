@@ -22,8 +22,8 @@ namespace TrialLoot
 	 *  registry, loaded on demand), sorted by path so a seeded roll repeats. Empty for an invalid Pool.
 	 *  TODO: this loads every equipment and skill asset to read its tags; filter on searchable
 	 *  asset-registry tags (or cache per pool) once the item count grows.
-	 *  TODO: a packaged build cooks only referenced assets; add them to the Asset Manager's
-	 *  primary asset rules before the first public build. */
+	 *  B-278: the Asset Manager's equipment and skill rules (DefaultGame.ini) are AlwaysCook, so a packaged
+	 *  build has every one of them. */
 	TArray<UObject *> GatherPool(const FGameplayTag &Pool);
 
 	/** Debug: the pool's item count and names (console: wor.Trial.Pool <tag>). */

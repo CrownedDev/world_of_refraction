@@ -144,6 +144,22 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     /** Spells the cap drops. */
     int32 GetSpellsOverCap() const;
 
+    // ==================== ONE SPELL-SLOT LIST (B-351d, D-145) ====================
+
+    /** The crystal's one spell list slot by slot (null = an empty slot): the pick, else the built-in (the item's crystal
+     *  spells) at that position; GetSpellSlotCap slots. Empty without a crystal that can give spells. */
+    TArray<USpellData *> GetSpellSlots() const;
+
+    /** Replace what Slot holds with Spell; activates the list (the loadout's AssignedSpells then stop playing). False
+     *  without a spell-giving crystal or past the cap. */
+    bool ReplaceSpell(int32 Slot, USpellData *Spell);
+
+    /** Bring back the built-in (or empty) Slot held before a replace; activates the list. False if nothing was replaced. */
+    bool RestoreSpell(int32 Slot);
+
+    /** Debug: the spell list slot by slot (picks, the built-in each hides) and whether it is active. */
+    FString GetSpellSlotString() const;
+
     /** Get spell count (delegates to inventory entry) */
     int32 GetSpellCount() const
     {

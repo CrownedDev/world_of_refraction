@@ -65,6 +65,19 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense")
 	TSoftObjectPtr<USoundBase> PerfectGuardSound{FSoftObjectPath(CosmeticsPlaceholders::PERFECT_GUARD_SOUND)};
 
+	// ==================== DEFENCE VISUALS (B-369, Q-369b changed by Crown 2026-11-08) ====================
+	// The defence outcome is a cosmetic slot of the defender (a cosmetic can swap it, e.g. a transmutation circle when
+	// you land a parry; the parked skins / cosmetics work). Hit / Crit visuals are the skill's (ImpactVisuals.h).
+	// TODO: art; empty plays nothing.
+
+	/** A normal Guard's steel spark (a Perfect Guard plays PerfectGuardFlashVFX instead). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defence Visuals")
+	TSoftObjectPtr<UNiagaraSystem> GuardSparkVFX;
+
+	/** A successful Dodge's small whiff; empty plays nothing. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defence Visuals")
+	TSoftObjectPtr<UNiagaraSystem> DodgeWhiffVFX;
+
 	// ==================== COSMETICS ====================
 
 	/** Default unarmed stance */

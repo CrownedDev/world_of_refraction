@@ -47,11 +47,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     ESpellElement Element = ESpellElement::Fire;
 
-    /** Authored school. Read GetSchool(): a retired school (B-356) maps onto one of the three. */
+    /** Authored school (D-163: one of six). Read GetSchool(). The default stays Conjuration: changing it would
+     *  silently re-tag every asset saved at the default (B-374). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     ESpellSchool School = ESpellSchool::Conjuration;
 
-    /** B-356 / B-356c (D-146 corrected): the school shown and grouped by: Conjuration, Enhancement or Restoration. */
+    /** The school shown and grouped by (B-374, D-163: six schools, none retired). */
     ESpellSchool GetSchool() const { return SpellSchools::ToCurrent(School); }
 
     /** Required evolution crystal to use this spell (nullptr = no requirement, only for evolution spells) */
