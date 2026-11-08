@@ -15,10 +15,13 @@ Curses (MemoryCatalogue §3.8; Shangri-La Frontier's curses, D-100) are rewards 
 
 ## Known Limitations / TODOs
 - What a curse weakens in a fight, and its name and text (`UCurseData`): B-378b.
-- On the host, a co-op friend's curses are not known for conditions read on their part (with B-377b).
+- On the host, a co-op friend's part never reads the host's curses (`AreMet(..., bReadsThisPlayersState = false)`): their CurseHeld fails there until their own curses reach the host (B-377b).
+- A lifted curse is never given again (`LiftedCurses`, saved): the journal is not saved yet, so its memory could be recorded again after a restart.
+- CurseHeld reads memory contexts only; fight contexts (bosses, skills, reactions) do not set `HeldCurses` yet (B-378b).
 - Which curses exist is Crown's.
 
 ## Changelog
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-08 | Created (B-378): held curses, Curse / RemoveCurse rewards, the CurseHeld condition, save v26, `wor.Curse.Print`, CurseSpec. | `feature/B-378-curses-cloud` (UNBUILT) |
+| 2026-11-08 | Review: a friend's part never reads the host's curses; a lifted curse stays lifted (`FSavedCurses::Lifted`). | `feature/B-378-curses-cloud` (UNBUILT) |
