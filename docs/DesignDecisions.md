@@ -1896,12 +1896,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 
 
 ### Q-349 — Console names: what "one Print per system" allows, and the system names
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-07 (B-349, cloud) · **Blocks:** —
+**Status:** ANSWERED (confirmed by Crown, 2026-11-08) · **Raised:** 2026-11-07 (B-349, cloud) · **Blocks:** —
 **Question:** D-139 wants `wor.<System>.<Verb>` and one `Print` per system. (1) Are verbs like `PrintState` / `PrintTiers` (already in the form, e.g. `wor.Combat.PrintState`) allowed beside a `Print`? (2) Which system names do the forty old flat names (`wor.PrintPool`, `wor.CompareStats`, `WoR.StrainSnapshot`…) go under?
 **Options / as built (A):** (1) yes: one plain `Print` per system, other reads get their own verb (`PrintAll`, `PrintStarting`, `ShowStrain`, `Compare`); a true duplicate is removed (`wor.PrintCombatTuning`, the same print as `wor.Tuning.Print`). (2) the owning system's existing name where one exists (`Tuning`, `WorldStat`, `Elements`, `Pool`, `Inventory`, `Economy`, `Camera`, `Effects`, `Combat`, `UI`), else the class's subject (`BrokenDarkness`, `Scaling`, `Crystal`, `Attributes`, `Resistance`, `Stats`, `Tags`, `StatusBars`, `Grid`, `Turn`, `Stones`, `Weather`). Table in `docs/PIE/B-349.md`. **B** fold every `PrintX` into the system's one `Print` with arguments.
 **Recommendation:** A. Unreal's own console groups by system with several verbs per group (`r.`, `stat`, `ShowDebug` sub-commands, `ai.debug.*`), and Lyra keeps `Lyra.<System>.<Verb>` with more than one read per system; merging reads behind arguments would change behaviour, which B-349 must not.
 **Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change any name.
 **Notes for Claude:** built in B-349.
+**Confirmed by Crown, 2026-11-08:** kept as built.
+
 ### D-140 — Legacy test actors go now; test-run hygiene (audit §25; changes D-067)
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §25) · **Blocks:** —
 **Answer (Crown):** remove `CombatOrchestratorTestActor`, `TurnManagerTestActor`, `SkillEffectManagerTestActor`, `HUDTestActor` and `SkillProjectileTestActor` now, with no PIE gate. Where an actor covers something no spec covers, the spec comes first in the same job. Any actor placed in a map or referenced by a Blueprint is listed for an editor step instead of deleted blind. The GAS parity specs are deleted with the enum path (D-121, B-042g). `test.sh` prints the 10 slowest tests. The quick balance sim runs in the nightly preset only. CLAUDE.md's Tests rule changes (Crown to approve that edit).
