@@ -376,6 +376,10 @@ public:
 	 *  without one uses the fight's rank. */
 	void SetEnemyRank(const AActor *Enemy, EEncounterRank Rank) { EnemyRanks.Add(Enemy, Rank); }
 
+	/** B-187b: Enemy's tier steps (a revived mini-boss's team, Q-187b) for its level drop; set by the battle mode at
+	 *  spawn, as SetEnemyRank. 0 when unset. */
+	void SetEnemyTierSteps(const AActor *Enemy, int32 Steps) { EnemyTierSteps.Add(Enemy, FMath::Max(0, Steps)); }
+
 	/** DEBUG-ONLY: dump the entire pending pool into the player team's Mind via AddEarnedWorldStat,
 	 *  then clear the pool. NOT the real draft (that's the deferred 5-pick-3 UI on
 	 *  OnWorldStatDraftReady) — this just proves the pool→grant pipe end-to-end in PIE. */
@@ -544,6 +548,9 @@ private:
 
 	/** B-223: each spawned enemy's own rank (SetEnemyRank); two enemies of one asset can differ. */
 	TMap<TWeakObjectPtr<const AActor>, EEncounterRank> EnemyRanks;
+
+	/** B-187b: each spawned enemy's tier steps (SetEnemyTierSteps). */
+	TMap<TWeakObjectPtr<const AActor>, int32> EnemyTierSteps;
 
 	/** Death listener bound per-combatant in StartCombat (both teams), unbound at combat end —
 	 *  mirrors TurnManager's OnDied lifecycle. Enemy (OpposingParty) deaths add caliber WSP to the pool;

@@ -211,9 +211,23 @@ public:
     /** Reloads the active trial's level (the server travels for everyone; a client can't). */
     void ReloadTrialLevel();
 
-    /** B-187b: the tier steps the pending fight's enemies get (a revived mini-boss's). Call before EnterEncounter. */
+    /** B-187b: the most tier steps any of the pending fight's enemies gets (debug and specs). */
     void SetPendingTierSteps(int32 Steps) { PendingTierSteps = FMath::Max(0, Steps); }
     int32 GetPendingTierSteps() const { return PendingTierSteps; }
+
+    /** B-187b review: each opposing member's own tier steps (its team's revivals), parallel to the opposing party, as
+     *  SetPendingEnemyRanks. Call before EnterEncounter. */
+    void SetPendingEnemyTierSteps(const TArray<int32> &Steps);
+
+    /** The Index-th opposing member's tier steps; 0 when none were set for every member. */
+    int32 GetPendingEnemyTierSteps(int32 Index) const
+    {
+        return PendingEnemyTierSteps.Num() == PendingOpposingParty.Num() && PendingEnemyTierSteps.IsValidIndex(Index) ? PendingEnemyTierSteps[Index] : 0;
+    }
+
+    /** B-187b review: the pending fight's caught teams whose own rank is a mini-boss's (a win leaves a rest spot for
+     *  them only, not for an elite team caught with them). Call before EnterEncounter. */
+    void SetPendingMiniBossSources(const TArray<FName> &EncounterIds) { PendingMiniBossSources = EncounterIds; }
 
     /** Debug: the beaten mini-bosses and their revivals. */
     FString GetRevivalsString() const;
@@ -466,6 +480,8 @@ private:
 
     /** B-187b: tier steps for the pending fight's enemies (SetPendingTierSteps). */
     int32 PendingTierSteps = 0;
+    TArray<int32> PendingEnemyTierSteps;
+    TArray<FName> PendingMiniBossSources;
 
     /** B-187c: where the party last rested, and where the next trial load puts it after a revive. */
     FTransform RestStand;
