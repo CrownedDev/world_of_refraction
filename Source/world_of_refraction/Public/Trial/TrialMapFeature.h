@@ -35,9 +35,19 @@ public:
 	 *  message arrives through AWoRPlayerState::Client_ShowFeatureMessage. */
 	static void ShowMessage(const FText &Message);
 
+	/** B-235c: Message on Pawn's player's own screen (the host's here, a client's by Client RPC). */
+	static void ShowMessageTo(const APawn *Pawn, const FText &Message);
+
 	/** The key the run records it under: the placed actor's path, PIE prefix removed (stable across
 	 *  the trial level's reloads). */
 	FName GetFeatureId() const;
+
+	/** B-235c (server): Pawn stands in this feature's trigger (any player's pawn; the host's overlap). */
+	bool IsWithinReach(const APawn *Pawn) const;
+
+	/** B-235c (D-103: personal loot): the key a per-player feature records for Pawn's player: the feature id for
+	 *  the host's (or solo) player, so solo and saves are unchanged; "<id>@<player key>" for another player. */
+	FName GetFeatureIdFor(const APawn *Pawn) const;
 
 protected:
 	virtual void BeginPlay() override;
