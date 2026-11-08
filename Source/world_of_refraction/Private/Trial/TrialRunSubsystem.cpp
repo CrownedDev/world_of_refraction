@@ -570,11 +570,7 @@ void UTrialRunSubsystem::MarkPendingEncounterBeaten()
 {
     for (const FName EncounterId : PendingEncounterSources)
     {
-        BeatenEncounters.Add(EncounterId);
-        if (PendingRank == EEncounterRank::MiniBoss)
-        {
-            BeatenMiniBosses.Add(EncounterId); // B-187b: a rest spot where it stood
-        }
+        MarkEncounterBeaten(EncounterId, PendingRank);
     }
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] %d map encounter(s) beaten; %d beaten this run"),
            PendingEncounterSources.Num(), BeatenEncounters.Num());
@@ -742,6 +738,19 @@ FString UTrialRunSubsystem::GetTrialRunString() const
                            PendingBattleParty.Num(), PendingOpposingParty.Num(),
                            *UEnum::GetValueAsString(PendingRank), *EnemyRanks,
                            EncounterReturnLevel.IsNull() ? TEXT("<none>") : *EncounterReturnLevel.ToString());
+}
+
+void UTrialRunSubsystem::MarkEncounterBeaten(FName EncounterId, EEncounterRank Rank)
+{
+    if (EncounterId.IsNone())
+    {
+        return;
+    }
+    BeatenEncounters.Add(EncounterId);
+    if (Rank == EEncounterRank::MiniBoss)
+    {
+        BeatenMiniBosses.Add(EncounterId); // B-187b: a rest spot where it stood
+    }
 }
 
 bool UTrialRunSubsystem::CanReviveEncounter(FName EncounterId) const

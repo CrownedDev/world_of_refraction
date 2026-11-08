@@ -183,6 +183,10 @@ public:
      *  (a rest spot doesn't bring them back). */
     void MarkPendingEncounterBeaten();
 
+    /** B-187b: marks one map encounter beaten in a fight of Rank (a mini-boss's leaves a rest spot). The pending
+     *  fight's sources go through here. */
+    void MarkEncounterBeaten(FName EncounterId, EEncounterRank Rank);
+
     /** True when the map encounter EncounterId was beaten earlier in this run. */
     bool IsEncounterBeaten(FName EncounterId) const { return BeatenEncounters.Contains(EncounterId); }
 
