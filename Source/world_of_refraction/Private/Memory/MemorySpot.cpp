@@ -86,6 +86,14 @@ void AMemorySpot::OnSpotBeginOverlap(UPrimitiveComponent * /*OverlappedComponent
 	}
 }
 
+void AMemorySpot::RefreshFromRun()
+{
+	if (URunStateComponent::HasFoundFeature(this, GetFeatureId()) || MemoryUnlock::IsCollected(GetGameInstance(), Memory))
+	{
+		Spend();
+	}
+}
+
 void AMemorySpot::Spend()
 {
 	InteractionTrigger->SetCollisionEnabled(ECollisionEnabled::NoCollision);
