@@ -109,9 +109,10 @@ namespace MemoryConditions
 												  const UCharacterData *Wearer);
 
 	/** Any one of Memory's condition sets holds (none: true), through WoRConditions (B-337). B-235e: KnownMemoryIds
-	 *  (a friend's memories) stands in for Journal's when set. */
+	 *  (a friend's memories) stands in for Journal's when set. B-378 (review): !bReadsThisPlayersState for a co-op
+	 *  friend's part on the host: this machine's curses (and counters) are not theirs, so those conditions fail. */
 	WORLD_OF_REFRACTION_API bool AreMet(const UMemoryData &Memory, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal,
-										const TSet<FName> *KnownMemoryIds = nullptr);
+										const TSet<FName> *KnownMemoryIds = nullptr, bool bReadsThisPlayersState = true);
 
 	/** Every authored memory with unlock conditions (the asset registry, sorted by path). TODO: loads
 	 *  every memory asset per event; cache it once authored memories make that slow. */

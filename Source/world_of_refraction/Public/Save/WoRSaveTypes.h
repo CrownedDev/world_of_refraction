@@ -691,6 +691,20 @@ struct WORLD_OF_REFRACTION_API FSavedHiddenQuests
 	TArray<FSavedQuestProgress> Quests;
 };
 
+/** B-378: the curses this player holds (save v26); they last across runs until removed. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCurses
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FName> Held;
+
+	/** Lifted before: never given again. */
+	UPROPERTY()
+	TArray<FName> Lifted;
+};
+
 /** Everything one save slot holds. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FWoRSaveData
@@ -714,4 +728,7 @@ struct WORLD_OF_REFRACTION_API FWoRSaveData
 
 	UPROPERTY()
 	FSavedHiddenQuests HiddenQuests; // B-377
+
+	UPROPERTY()
+	FSavedCurses Curses; // B-378
 };

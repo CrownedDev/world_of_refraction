@@ -80,6 +80,7 @@ FString UMemoryData::GetRewardString(const FMemoryReward &Reward)
 		return FString::Printf(TEXT("%s %s"), *Kind, Reward.Skill ? *Reward.Skill->GetName() : TEXT("<none>"));
 	case EMemoryRewardKind::Title:
 	case EMemoryRewardKind::Curse:
+	case EMemoryRewardKind::RemoveCurse: // B-378
 		return FString::Printf(TEXT("%s %s"), *Kind, *Reward.RewardId.ToString());
 	}
 	return Kind;
@@ -133,6 +134,8 @@ FString UMemoryData::GetConditionString(const FMemoryCondition &Condition)
 		return FString::Printf(TEXT("finishing blow with %s by %s"), *NameOf(Condition.Item), *Whose);
 	case EMemoryConditionKind::PartyHas:
 		return FString::Printf(TEXT("%s present (any player)"), *NameOf(Condition.Character)); // B-376
+	case EMemoryConditionKind::CurseHeld:
+		return FString::Printf(TEXT("holding the curse %s"), *Condition.CurseId.ToString()); // B-378
 	}
 	return TEXT("<unknown>");
 }
