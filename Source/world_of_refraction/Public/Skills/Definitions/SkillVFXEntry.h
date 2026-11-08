@@ -35,7 +35,10 @@ enum class EVFXRole : uint8
     /** Hit/landing burst on the target — doubles as the melee hit visual. */
     Impact,
     /** Auras, charge glows, ambient visuals; no mechanical tie. */
-    Cosmetic
+    Cosmetic,
+    /** B-369 (Q-369b, Crown 2026-11-08): the skill's critical-hit burst; a crit without one plays the Impact entry
+     *  larger. Appended (the enum is saved by value). */
+    CritImpact
 };
 
 /**

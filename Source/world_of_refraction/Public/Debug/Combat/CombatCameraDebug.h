@@ -1,6 +1,6 @@
 // CombatCameraDebug.h
 // Debug utilities for the combat camera (UCombatCameraDirector, B-156). Console:
-// wor.Camera (state), wor.Camera.Style 0|1|2 (centred-wide / over-the-shoulder / tactical),
+// wor.Camera.Print (state), wor.Camera.Style 0|1|2 (centred-wide / over-the-shoulder / tactical),
 // wor.Camera.MovementOff 0|1.
 
 #pragma once

@@ -1,6 +1,8 @@
 // TrialRunSubsystem.cpp
 
 #include "Trial/TrialRunSubsystem.h"
+#include "Trial/TrialMapLook.h"
+#include "Player/RunStateComponent.h"
 #include "Memory/MemoryData.h"
 #include "Trial/DefeatRules.h"
 #include "WoRLog.h"
@@ -108,6 +110,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     UnspentLevels.Reset();
     FoundFeatures.Reset();
     RunMemories.Reset();
+    NotifyRunProgressChanged(); // B-232d (review): the copy clears too
     PendingEncounterSources.Reset();
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
@@ -211,6 +214,7 @@ void UTrialRunSubsystem::ExitTrial()
     UnspentLevels.Reset();
     FoundFeatures.Reset();
     RunMemories.Reset();
+    NotifyRunProgressChanged(); // B-232d (review): the copy clears too
     PendingEncounterSources.Reset();
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
@@ -358,6 +362,7 @@ void UTrialRunSubsystem::ForgetRunLevels(FName CharacterKey)
 {
     RunLevels.Remove(CharacterKey);
     UnspentLevels.Remove(CharacterKey); // B-223b: its waiting levels go with its run
+    NotifyRunProgressChanged();
 }
 
 int32 UTrialRunSubsystem::GetUnspentLevels(FName CharacterKey) const
@@ -382,6 +387,7 @@ void UTrialRunSubsystem::AddUnspentLevels(FName CharacterKey, int32 Count)
         const int32 Waiting = UnspentLevels.FindOrAdd(CharacterKey) += Count;
         UE_LOG(LogTemp, Log, TEXT("[TrialRun] %s: +%d pillar level(s) to place (%d waiting): wor.UI.LevelDrop"),
                *FPaths::GetBaseFilename(CharacterKey.ToString()), Count, Waiting);
+        NotifyRunProgressChanged();
     }
 }
 
@@ -396,6 +402,7 @@ bool UTrialRunSubsystem::TakeUnspentLevel(FName CharacterKey)
     {
         UnspentLevels.Remove(CharacterKey);
     }
+    NotifyRunProgressChanged();
     return true;
 }
 
@@ -499,8 +506,18 @@ void UTrialRunSubsystem::Deinitialize()
 void UTrialRunSubsystem::HandleWorldActorsInitialized(const FActorsInitializedParams &Params)
 {
     UWorld *World = Params.World;
+    if (!World || !World->IsGameWorld() || World->GetGameInstance() != GetGameInstance())
+    {
+        return;
+    }
+    // B-189: the trial's element tailors its map's look (sky, fog, sun). Cosmetic, so on every machine that knows
+    // the trial (a client's run copy is B-234).
+    if (IsRunActive() && ActiveTrial && IsActiveTrialWorld(World))
+    {
+        TrialMapLook::ApplyTo(World, ActiveTrial->Element);
+    }
     // The server places it (a client's map follows the server's; co-op per-player pickups are B-235).
-    if (!World || !World->IsGameWorld() || World->GetGameInstance() != GetGameInstance() || World->GetNetMode() == NM_Client)
+    if (World->GetNetMode() == NM_Client)
     {
         return;
     }
@@ -576,6 +593,7 @@ bool UTrialRunSubsystem::CollectMemory(UMemoryData *Memory)
     RunMemories.Add(Memory);
     UE_LOG(LogWoR, Log, TEXT("[TrialRun] Memory %s collected (%d this run)"), *Memory->GetMemoryId().ToString(),
            RunMemories.Num());
+    NotifyRunProgressChanged();
     return true;
 }
 
@@ -584,6 +602,15 @@ void UTrialRunSubsystem::RecordFound(FName FeatureId, const FText &What)
     FoundFeatures.Add(FeatureId, What);
     UE_LOG(LogWoR, Log, TEXT("[TrialRun] Found %s: %s (%d found this run)"), *FeatureId.ToString(),
            *What.ToString(), FoundFeatures.Num());
+    NotifyRunProgressChanged();
+}
+
+void UTrialRunSubsystem::NotifyRunProgressChanged() const
+{
+    if (URunStateComponent *RunState = URunStateComponent::Find(GetGameInstance()))
+    {
+        RunState->PullRunProgress(); // B-232d: clients read found features, memories and waiting levels from it
+    }
 }
 
 TArray<FMerchantStockEntry> UTrialRunSubsystem::GetMerchantStock(const UMerchantData *Merchant) const
@@ -663,6 +690,7 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     BeatenEncounters = TSet<FName>(Beaten);
     FoundFeatures = Found;
     RunMemories = TArray<TObjectPtr<UMemoryData>>(Memories);
+    NotifyRunProgressChanged();
     PendingEncounterSources.Reset();
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;

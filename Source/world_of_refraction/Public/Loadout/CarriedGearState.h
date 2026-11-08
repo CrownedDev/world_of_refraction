@@ -28,6 +28,10 @@ struct WORLD_OF_REFRACTION_API FCarriedAttachment
 
 	UPROPERTY()
 	FRuntimeAttachedItem Attached;
+
+	/** B-351b (D-141): the item's stone socket, carried the same way (empty: none). */
+	UPROPERTY()
+	FRuntimeAttachedItem StoneSocket;
 };
 
 USTRUCT()
