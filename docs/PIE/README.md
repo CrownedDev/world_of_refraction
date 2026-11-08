@@ -382,6 +382,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-187d](B-187d.md) | `feature/B-187d-co-op-rest-cloud` (UNBUILT, on B-187c + B-235c, merge-resolved without a compiler) | 2-player: a client rests the party; everyone returns beside the spot after a revive | Pending |
 | [B-187e](B-187e.md) | `feature/B-187e-client-rest-menu-cloud` (UNBUILT, on B-187d) | 2-player: a client's Revive asks the host; Leave leaves the session | Pending |
 | [B-235e](B-235e.md) | `feature/B-235e-own-memory-finds-cloud` (UNBUILT, on B-235d) | 2-player: the client's own spot, fragment, gear and reaction memories are theirs; a friend's PriorMemory reads their own memories | Pending |
+| [B-375](B-375.md) | `feature/B-375-memory-debug-cloud` (UNBUILT, on B-235e) | `wor.Memory.Why <Id>`: each condition met / not yet per player, who would get it | Pending |
 
 Move rows to **Done** when every check passes.
 
