@@ -96,7 +96,8 @@ public:
 	void AddMemoryId(FName MemoryId) { KnownMemoryIds.Add(MemoryId); }
 	const TSet<FName> &GetKnownMemoryIds() const { return KnownMemoryIds; }
 
-	/** B-235e: a client tells the host which memories its own journal holds (sent once it owns this state). */
+	/** B-235e: a client tells the host which memories its own journal holds (sent once it owns this state).
+	 *  TODO: trusted co-op only: no WithValidation and no cap on the list's size (add both before public matchmaking). */
 	UFUNCTION(Server, Reliable)
 	void ServerReportJournal(const TArray<FName> &MemoryIds);
 

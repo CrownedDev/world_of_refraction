@@ -23,6 +23,7 @@
 #include "Memory/MemoryJournalSubsystem.h"
 #include "Memory/MemoryUnlock.h"
 #include "Trial/TrialMapFeature.h"
+#include "Trial/TrialRunSubsystem.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "WoRLog.h"
@@ -489,7 +490,14 @@ void AWoRPlayerState::ServerReportFoundMemory_Implementation(UMemoryData *Memory
 	AddMemoryId(Memory->GetMemoryId());
 	if (!Memory->CharacterDepth.IsEmpty())
 	{
-		return; // their character's own find (Q-235d rule 1)
+		// Their character's own find (Q-235d rule 1): into the run like a friend's find on the host (UnlockFor), not
+		// into the host's journal.
+		const UGameInstance *GI = GetGameInstance();
+		if (UTrialRunSubsystem *TrialRun = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr)
+		{
+			TrialRun->CollectMemory(Memory);
+		}
+		return;
 	}
 	TArray<AWoRPlayerState *> Others = MemoryUnlock::GetRemotePlayers(GetGameInstance());
 	Others.Remove(this);
