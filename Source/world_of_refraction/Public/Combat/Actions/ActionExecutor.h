@@ -496,7 +496,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Debug")
 	void DebugAsyncState();
 
-	// Console trigger is wor.ForceReset (in the .cpp) — a subsystem
+	// Console trigger is wor.Combat.ForceReset (in the .cpp) — a subsystem
 	// is not on the engine's Exec dispatch chain.
 	void DebugForceResetAsync();
 
@@ -933,12 +933,12 @@ private:
 	 *  to the one defender's outcome. Read between the melee resolve and close loops (contexts still present). */
 	bool AllInterruptSucceeded() const;
 
-	/** B2 spell tally — record a target's choke outcome (parried/dodged) for the current interruptable cast
+	/** B2 spell tally — record a target's choke outcome (Perfect Guarded, B-367b) for the current interruptable cast
 	 *  entry; returns true once EVERY target has resolved AND all parried/dodged (→ caller aborts). Survives
 	 *  the per-defender close that removes contexts (vs AllInterruptSucceeded's live-context iteration). */
 	bool RecordChokeAndShouldAbort(AActor *Target, bool bDefended);
 
-	/** B2 interrupt — abort the rest of the action after an interruptable hit was parried/dodged by all
+	/** B2 interrupt — abort the rest of the action after an interruptable hit was Perfect Guarded by all
 	 *  targets: stop pending spawns/timers, clear+close the pending defense windows (no tail apply), mark the
 	 *  result interrupted, then play the ReturnMontage (warp back to origin) if authored, else hard-stop the
 	 *  montage and finalize. Skill is the chain skill (UWeaponAttackData / spell — both USkillDataBase). */
