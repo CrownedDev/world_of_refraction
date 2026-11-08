@@ -96,6 +96,8 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     BeatenEncounters.Reset();
     BeatenMiniBosses.Reset(); // B-187b
     EncounterRevivals.Reset();
+    bHasRestStand = false; // B-187c
+    bHasPendingReturnStand = false;
     bRunBossBeaten = false;
     RunWipes = 0; // B-362
     RunMainBossLosses = 0;
@@ -203,6 +205,8 @@ void UTrialRunSubsystem::ExitTrial()
     BeatenEncounters.Reset();
     BeatenMiniBosses.Reset(); // B-187b
     EncounterRevivals.Reset();
+    bHasRestStand = false; // B-187c
+    bHasPendingReturnStand = false;
     bRunBossBeaten = false;
     RunWipes = 0; // B-362
     RunMainBossLosses = 0;
@@ -670,9 +674,11 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     VariationIndex = InVariationIndex;
     TrialDifficulty = InDifficulty;
     BeatenEncounters = TSet<FName>(Beaten);
-    // TODO: B-187c: save the mini-boss marks and revivals with the run; a resumed run has no mini-boss rest spots yet.
+    // B-187c: USaveSubsystem::RestoreRun puts the saved marks and revivals back after this (RestoreMiniBossRevivals).
     BeatenMiniBosses.Reset();
     EncounterRevivals.Reset();
+    bHasRestStand = false;
+    bHasPendingReturnStand = false;
     FoundFeatures = Found;
     RunMemories = TArray<TObjectPtr<UMemoryData>>(Memories);
     PendingEncounterSources.Reset();
@@ -770,6 +776,30 @@ bool UTrialRunSubsystem::ReviveEncounter(FName EncounterId)
     ++EncounterRevivals.FindOrAdd(EncounterId);
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Revived mini-boss %s (revival %d of %d)"), *EncounterId.ToString(),
            GetEncounterRevivals(EncounterId), MiniBossRevival::MAX_REVIVALS);
+    return true;
+}
+
+void UTrialRunSubsystem::RestoreMiniBossRevivals(const TArray<FName> &MiniBosses, const TMap<FName, int32> &Revivals)
+{
+    BeatenMiniBosses.Reset();
+    for (const FName Id : MiniBosses)
+    {
+        if (IsEncounterBeaten(Id))
+        {
+            BeatenMiniBosses.Add(Id);
+        }
+    }
+    EncounterRevivals = Revivals;
+}
+
+bool UTrialRunSubsystem::ConsumePendingReturnStand(FTransform &OutStand)
+{
+    if (!bHasPendingReturnStand)
+    {
+        return false;
+    }
+    OutStand = PendingReturnStand;
+    bHasPendingReturnStand = false;
     return true;
 }
 
