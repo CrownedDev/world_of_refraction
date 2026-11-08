@@ -517,9 +517,12 @@ void AWoRPlayerState::Client_OpenRestMenu_Implementation(bool bCanRevive, int32 
 void AWoRPlayerState::ServerReviveMiniBoss_Implementation()
 {
 	UWorld *World = GetWorld();
+	// B-187e review: the client's menu has closed, so a refusal says why on its screen.
+	const FText Refused = NSLOCTEXT("WoRPlayerState", "ReviveRefused", "The mini-boss can't be revived from here right now.");
 	if (!WoRRestSpot::CanReviveHere(World))
 	{
 		UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s's revive refused: no revivable mini-boss at the last rest spot"), *GetPlayerName());
+		Client_ShowFeatureMessage(Refused);
 		return;
 	}
 	// Review: never mid-fight (a menu left open while the host walked into one), and only from beside the rest stand.
@@ -527,6 +530,7 @@ void AWoRPlayerState::ServerReviveMiniBoss_Implementation()
 	if (Turns && Turns->IsCombatActive())
 	{
 		UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s's revive refused: a fight is on"), *GetPlayerName());
+		Client_ShowFeatureMessage(Refused);
 		return;
 	}
 	const UGameInstance *GI = GetGameInstance();
@@ -537,6 +541,7 @@ void AWoRPlayerState::ServerReviveMiniBoss_Implementation()
 		FVector::Dist(Pawn->GetActorLocation(), Stand.GetLocation()) > WoRRestSpot::CLIENT_REVIVE_REACH_CM)
 	{
 		UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s's revive refused: not at the rest spot"), *GetPlayerName());
+		Client_ShowFeatureMessage(Refused);
 		return;
 	}
 	UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s revives the mini-boss (B-187e)"), *GetPlayerName());
