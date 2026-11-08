@@ -139,6 +139,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat Command Menu")
     void RefreshMenu();
 
+    /** The Schools sub-menu: one button per school the spells hold, in school order, then Back (D-163: up to six
+     *  plus Back, a gamepad radial's eight slots). Public and static for the headless spec (B-374). */
+    static TArray<FPieMenuButtonData> BuildSchoolButtons(const TArray<USpellData *> &Spells);
+
 private:
     // ==================== ORCHESTRATOR BINDING ====================
 
@@ -219,7 +223,6 @@ private:
     TArray<FPieMenuButtonData> BuildSpellSubmenu(EPieMenuCategory Source) const;
     TArray<FPieMenuButtonData> BuildAbilitySubmenu() const;
     TArray<FPieMenuButtonData> BuildAbilityButtonsFrom(const TArray<UAbilityData *> &Abilities) const;
-    TArray<FPieMenuButtonData> BuildSchoolButtons(const TArray<USpellData *> &Spells) const;
     TArray<FPieMenuButtonData> BuildSpellButtons(const TArray<USpellData *> &Spells,
                                                  EPieMenuSpellSchool School) const;
     TArray<FPieMenuButtonData> BuildItemsSubmenu() const;

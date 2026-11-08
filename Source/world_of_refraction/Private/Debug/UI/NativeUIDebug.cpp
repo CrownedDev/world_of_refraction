@@ -63,6 +63,6 @@ void NativeUIDebug::PrintNativeUIState(UWorld *World)
 }
 
 static FAutoConsoleCommandWithWorld GNativeUIStateCommand(
-    TEXT("wor.UIState"),
+    TEXT("wor.UI.Print"),
     TEXT("Print native UI state: combat HUD widgets per orchestrator + exploration-controller interact candidates."),
     FConsoleCommandWithWorldDelegate::CreateStatic(&NativeUIDebug::PrintNativeUIState));

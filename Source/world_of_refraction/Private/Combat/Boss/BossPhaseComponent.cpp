@@ -45,19 +45,14 @@ void UBossPhaseComponent::Setup(UBossData *Data)
 	OwnTurnsTaken = 0;
 	StatusBreakCount = 0;
 	RuleState = FBossFightState();
-	// B-355: the authored state-change rules; fight-start rules fire from BossTriggers, moments from UFightTriggers.
+	// B-355: the authored state-change rules; fight-start rules fire from BossTriggers, moments from UFightTriggers
+	// (B-355b: from the one list too).
 	AuthoredRules.Reset();
 	for (const FBossRule &Rule : Data ? Data->Rules : TArray<FBossRule>())
 	{
 		if (Rule.When == EBossRuleWhen::StateChange)
 		{
 			AuthoredRules.Add(Rule);
-		}
-		else if (Rule.When == EBossRuleWhen::AtMoment)
-		{
-			// TODO(B-355b): UFightTriggers still fires moments from the old trigger list only.
-			UE_LOG(LogWoR, Warning, TEXT("[BossPhase] %s: rule %s is AtMoment, which nothing fires yet (B-355b); author it as a Trigger for now"),
-				   *GetNameSafe(Data), *Rule.RuleId.ToString());
 		}
 	}
 	AuthoredRuleFired.Init(false, AuthoredRules.Num());
@@ -367,13 +362,25 @@ FString UBossPhaseComponent::GetBossPhaseString() const
 	{
 		Out += FString::Printf(TEXT("\n  rule %s"), *BossRules::GetRuleString(Rule));
 	}
+	// B-355b: the fight-start and moment rules of the one list (UFightTriggers says which have fired).
+	if (BossData)
+	{
+		for (const FBossRule &Rule : BossRules::GetRules(*BossData))
+		{
+			if (Rule.When != EBossRuleWhen::StateChange)
+			{
+				Out += FString::Printf(TEXT("\n  %s rule %s"), Rule.When == EBossRuleWhen::FightStart ? TEXT("fight-start") : TEXT("moment"),
+									   *BossRules::GetRuleString(Rule));
+			}
+		}
+	}
 	return Out;
 }
 
 #if !UE_BUILD_SHIPPING
 static FAutoConsoleCommandWithWorld GBossPrintCommand(
 	TEXT("wor.Boss.Print"),
-	TEXT("Print every boss in the fight: its phases (reached or not), turns, status breaks, AI steps and weather (B-193)."),
+	TEXT("Print every boss in the fight: its phases (reached or not), turns, status breaks, AI steps, weather (B-193) and its rules (B-355b)."),
 	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 	{
 		int32 Bosses = 0;
