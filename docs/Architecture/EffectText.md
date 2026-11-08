@@ -33,7 +33,7 @@ Item and skill descriptions are **generated from the effect data**, never hand-w
 
 ## Debug
 
-- `wor.DescribeEffects`: every combatant's gear effects as text, each condition tagged `[held]` / `[not held]`.
+- `wor.Effects.Describe`: every combatant's gear effects as text, each condition tagged `[held]` / `[not held]`.
 - `UEffectDefinition` Details panel: **Log Effect Text**.
 - `UEffectTextDebug::GetEffectTextString` / `GetActorEffectTextString`.
 - Spec: `WoR.Text.Effects`. Its "every effect kind has a sentence" case fails until a new `ESkillEffectType` value is worded.
@@ -51,4 +51,4 @@ Item and skill descriptions are **generated from the effect data**, never hand-w
 
 | Date | Change | Branch |
 |---|---|---|
-| 2026-10-27 | Created (B-045): `EffectText` tree, short form, lighting; `IsConditionHeld`; `wor.DescribeEffects`; `WoR.Text.Effects`. | feature/B-045-effect-text |
+| 2026-10-27 | Created (B-045): `EffectText` tree, short form, lighting; `IsConditionHeld`; `wor.Effects.Describe`; `WoR.Text.Effects`. | feature/B-045-effect-text |

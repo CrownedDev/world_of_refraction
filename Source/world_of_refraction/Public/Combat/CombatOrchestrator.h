@@ -273,6 +273,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat|Row")
 	FText GetRowMoveRefusedReason(AActor *Actor, bool bForward) const;
 
+	/** B-230b: the refusal for a step off the grid's edge (forward from the front row, back from the back row), empty
+	 *  otherwise. Shared with a client's menu, which has no orchestrator but reads the replicated row. */
+	static FText GetRowEdgeRefusal(ECombatRow Row, bool bForward);
+
 	/** D-096: free, once per turn: step one row, into any free slot of that row (B-342, D-134: an ally
 	 *  never blocks; only a full row refuses). Row bonuses apply from the new row at once (the grid is
 	 *  read per hit). */

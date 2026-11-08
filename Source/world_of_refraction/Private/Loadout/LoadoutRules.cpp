@@ -604,13 +604,18 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectClassLimitFindings(const FComb
 		Finding.Reason = Reason;
 	};
 
-	// The Resonator's budget finding keeps its shape and words (ClearInvalidSlots drops adapters for it). The other
-	// classes can't exceed theirs with today's slots, so theirs are diagnostics, not auto-cleared.
+	// The Resonator's budget finding keeps its shape and words (ClearInvalidSlots drops adapters for it). B-357 review:
+	// a Generic can exceed its 5 now (two evolved weapons, or an evolution alone + an evolved weapon, cost 6; a saved
+	// loadout from the budget-6 days), so its finding is cleared by dropping the secondary weapon. A Refractor's single
+	// item never exceeds 3, so its finding stays a diagnostic.
 	const bool bResonator = Class == ECharacterClass::Resonator;
+	const bool bGenericSecondary = Class == ECharacterClass::Generic && Mirror.SecondarySlotType == ESecondarySlotType::Weapon &&
+								   Mirror.SecondaryWeapon.IsValid();
 	const int32 TotalCost = GearCost + AdapterCost;
 	if (TotalCost > Limits.Budget)
 	{
-		Add(bResonator ? ELoadoutSlotType::RingOverflow : ELoadoutSlotType::None, bResonator,
+		const ELoadoutSlotType Clears = bResonator ? ELoadoutSlotType::RingOverflow : bGenericSecondary ? ELoadoutSlotType::SecondaryWeapon : ELoadoutSlotType::None;
+		Add(Clears, bResonator || bGenericSecondary,
 			FString::Printf(TEXT("Loadout exceeds budget: primary (cost %d) + adapters (cost %d) = %d, max is %d"), GearCost,
 							AdapterCost, TotalCost, Limits.Budget));
 	}

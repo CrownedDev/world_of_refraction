@@ -65,7 +65,9 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         // greyed out (BlockedSpellReasons below).
         if (ActiveWeapon->WeaponEntry.AttachedItem.IsSpellSource())
         {
-            Out.WeaponCrystalSpells = ActiveWeapon->WeaponEntry.AssignedSpells;
+            // B-351d desktop review: once the crystal's one list is edited, it is what combat offers.
+            Out.WeaponCrystalSpells = ActiveWeapon->WeaponEntry.bSpellSlotsActive ? ActiveWeapon->GetAllSpells()
+                                                                                 : ActiveWeapon->WeaponEntry.AssignedSpells;
             Out.bHasWeaponCrystal = true;
             Out.WeaponCrystalColor = GetElementColorFn(
                 static_cast<int32>(ActiveWeapon->WeaponEntry.GetElement()));
@@ -148,7 +150,8 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
             // D-083: a broken crystal's spells stay listed; only F-tier ones stay usable.
             if (PrimaryRing->RingEntry.AttachedItem.IsSpellSource())
             {
-                Out.RingSpells = PrimaryRing->RingEntry.AssignedSpells;
+                Out.RingSpells = PrimaryRing->RingEntry.bSpellSlotsActive ? PrimaryRing->GetAllSpells(/*bAsIfIntact=*/true) // B-351d
+                                                                          : PrimaryRing->RingEntry.AssignedSpells;
             }
             Out.bRingHasBreakChance = !PrimaryRing->RingEntry.IsEvolved();
             Out.RingColor = GetElementColorFn(
@@ -181,7 +184,8 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
             // D-083: a broken crystal's spells stay listed; only F-tier ones stay usable.
             if (ActiveRing->RingEntry.AttachedItem.IsSpellSource())
             {
-                Out.RingSpells = ActiveRing->RingEntry.AssignedSpells;
+                Out.RingSpells = ActiveRing->RingEntry.bSpellSlotsActive ? ActiveRing->GetAllSpells(/*bAsIfIntact=*/true) // B-351d
+                                                                         : ActiveRing->RingEntry.AssignedSpells;
             }
             Out.bRingHasBreakChance = !ActiveRing->RingEntry.IsEvolved();
             Out.RingColor = GetElementColorFn(

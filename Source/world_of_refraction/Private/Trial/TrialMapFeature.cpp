@@ -1,7 +1,9 @@
 // TrialMapFeature.cpp
 
 #include "Trial/TrialMapFeature.h"
+#include "Player/RunStateComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
 #include "Player/WoRPlayerState.h"
 #include "Trial/DefeatRules.h"
 #include "Player/WoRInteract.h"
@@ -126,12 +128,14 @@ FName ATrialMapFeature::GetFeatureIdFor(const APawn *Pawn) const
 void ATrialMapFeature::ShowMessageTo(const APawn *Pawn, const FText &Message)
 {
 	const APlayerController *PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
-	if (!PC || PC->IsLocalController())
+	if (!Pawn || (PC && PC->IsLocalController()))
 	{
 		ShowMessage(Message);
 		return;
 	}
-	if (AWoRPlayerState *Player = PC->GetPlayerState<AWoRPlayerState>())
+	// Review: the pawn's player state, as GetFeatureIdFor reads it, so a controller missing mid-travel can't put
+	// another player's message on the host's screen.
+	if (AWoRPlayerState *Player = Pawn->GetPlayerState<AWoRPlayerState>())
 	{
 		Player->Client_ShowFeatureMessage(Message); // B-235c: on that player's own screen
 	}
@@ -225,8 +229,15 @@ void ATrialChest::Interact(APawn *Pawn)
 
 FString ATrialChest::GetHintText() const
 {
-	const UTrialRunSubsystem *TrialRun = GetTrialRun();
-	const bool bOpened = TrialRun && TrialRun->HasFound(GetFeatureId());
+	// B-232d: the run state's copy, so a client's hint follows the run. Merge B-232d + B-235c: a client reads its own
+	// copy's key ("<id>@<player key>", as GetFeatureIdFor records it on the host), not the host's.
+	FName OwnKey = GetFeatureId();
+	const APlayerController *LocalPC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	if (GetNetMode() == NM_Client && LocalPC && LocalPC->PlayerState)
+	{
+		OwnKey = FName(*FString::Printf(TEXT("%s@%s"), *GetFeatureId().ToString(), *WoRDefeat::PlayerDropKey(LocalPC->PlayerState)));
+	}
+	const bool bOpened = URunStateComponent::HasFoundFeature(this, OwnKey);
 	return (bOpened ? LOCTEXT("ChestOpenedHint", "Opened chest") : LOCTEXT("ChestHint", "Press E to open the chest"))
 		.ToString();
 }

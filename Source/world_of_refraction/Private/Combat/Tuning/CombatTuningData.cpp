@@ -18,7 +18,7 @@
 
 namespace
 {
-	// TODO: cook rule for this path (Asset Manager primary asset type) before the first packaged build.
+	// B-278: cooked by the Asset Manager's CombatTuningData rule (DefaultGame.ini, AlwaysCook).
 	const TCHAR *COMBAT_TUNING_ASSET_PATH = TEXT("/Game/Data/Combat/DA_CombatTuning_Default.DA_CombatTuning_Default");
 
 	/** Float noise allowed when comparing asset values with the C++ constants. */

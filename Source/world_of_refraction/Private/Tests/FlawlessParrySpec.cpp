@@ -1,5 +1,5 @@
 // FlawlessParrySpec.cpp
-// B-365 (D-158): an attack whose every hit is perfectly guarded or dodged is a Flawless Parry, reported once at its
+// B-365 (D-158): an attack whose every hit is Perfect Guarded (B-367b: a dodge never counts) is a Flawless Parry, reported once at its
 // last hit; one hit not perfect and it is not; a one-hit attack counts; the condition reads true through WoRConditions.
 // B-367 (D-161): a perfect defense that ends the attack at an interrupt point, every hit so far perfect, reports one;
 // the debug print lists a skill's interrupt points.
@@ -35,13 +35,20 @@ END_DEFINE_SPEC(FFlawlessParrySpec)
 
 void FFlawlessParrySpec::Define()
 {
-	It("counts a Perfect Guard or a Perfect Dodge for a hit, nothing else", [this]()
+	It("counts only a Perfect Guard for a hit (B-367b), nothing else", [this]()
 	{
 		TestTrue(TEXT("Perfect Guard"), FlawlessParry::IsPerfectHit(EDefenseType::Block, true, true));
-		TestTrue(TEXT("Perfect Dodge"), FlawlessParry::IsPerfectHit(EDefenseType::Dodge, true, true));
+		TestTrue(TEXT("a Parry press, perfect"), FlawlessParry::IsPerfectHit(EDefenseType::Parry, true, true));
+		TestFalse(TEXT("a Perfect Dodge no longer"), FlawlessParry::IsPerfectHit(EDefenseType::Dodge, true, true));
 		TestFalse(TEXT("a normal Guard"), FlawlessParry::IsPerfectHit(EDefenseType::Block, true, false));
-		TestFalse(TEXT("a failed defense"), FlawlessParry::IsPerfectHit(EDefenseType::Dodge, false, true));
+		TestFalse(TEXT("a failed defense"), FlawlessParry::IsPerfectHit(EDefenseType::Block, false, true));
 		TestFalse(TEXT("undefended"), FlawlessParry::IsPerfectHit(EDefenseType::None, true, true));
+
+		// Perfect Guard, Perfect Dodge, Perfect Guard: the dodged hit breaks the Flawless Parry.
+		TestEqual(TEXT("one hit dodged perfectly: never"), FlawlessReports({
+			FlawlessParry::IsPerfectHit(EDefenseType::Block, true, true),
+			FlawlessParry::IsPerfectHit(EDefenseType::Dodge, true, true),
+			FlawlessParry::IsPerfectHit(EDefenseType::Block, true, true)}), 0);
 	});
 
 	It("fires once at the last hit when every hit is perfect, and not with one hit missed", [this]()

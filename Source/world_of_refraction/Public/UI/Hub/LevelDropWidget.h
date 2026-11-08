@@ -1,5 +1,6 @@
 // LevelDropWidget.h
-// PLACEHOLDER UI (B-223, D-102): place the pillar levels a won fight dropped. Pick a party member, then Mind,
+// PLACEHOLDER UI (B-223, D-102): place the pillar levels a won fight dropped. B-363 (D-156): at a rest spot, with a
+// Purchase point button (run Prisms, Q-156's ladder); the rest menu opens it. Pick a party member, then Mind,
 // Body or Spirit; each press places one waiting level. Plain buttons built in C++, opened with the console
 // command wor.UI.LevelDrop (Backlog rule 4). Replaced by the CommonUI screen (D-024). Rules: WoRLevelDrops
 // (Trial/LevelDropPlacement.h).
@@ -53,6 +54,10 @@ private:
 	UFUNCTION()
 	void HandleSpiritClicked();
 
+	/** B-363 (D-156): buy the member one point for run Prisms (at a rest spot). */
+	UFUNCTION()
+	void HandleBuyClicked();
+
 	UFUNCTION()
 	void HandleCloseClicked();
 
@@ -68,4 +73,8 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> StatusLine;
+
+	/** B-363: the Purchase point button's label (its price follows the member). */
+	UPROPERTY()
+	TObjectPtr<UTextBlock> BuyLabel;
 };

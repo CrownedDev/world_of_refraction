@@ -500,6 +500,8 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
                     PartySession->SetMemberCarriedState(SlotIndex,
                                                         Loadout ? Loadout->SnapshotCarriedGear() : FCarriedGearState(),
                                                         BDManager ? BDManager->SnapshotCarriedAbsorption() : FCarriedAbsorptionState());
+                    // B-348c (Q-348b): Broken Darkness stays on the member until reverted; strain carries through the run.
+                    PartySession->SetMemberBrokenDarkness(SlotIndex, CharComp->IsBrokenDarkness(), BDManager ? BDManager->GetAccruedStrain() : 0.0f);
                     ++BankedCount;
                 }
             }
