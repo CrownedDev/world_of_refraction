@@ -124,7 +124,7 @@ void FClassLimitsSpec::Define()
 		TestEqual(TEXT("the weapon is charged"), FLoadoutRules::NonAdapterCost(Resonator, ECharacterClass::Resonator),
 				  InventoryConstants::WEAPON_CRYSTAL_SLOT_COST);
 		Resonator.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 2: 4
-		Resonator.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 2: 6
+		Resonator.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 3: 8
 		TestTrue(TEXT("6 is refused"), ClassLimitsHasBudgetFinding(FLoadoutRules::CollectClassLimitFindings(Resonator, ECharacterClass::Resonator)));
 	});
 
@@ -146,8 +146,8 @@ void FClassLimitsSpec::Define()
 	{
 		FCombatLoadout Resonator;
 		Resonator.PrimarySlotType = EPrimarySlotType::Evolution; // seat 2
-		Resonator.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 2
-		Resonator.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 2: 6
+		Resonator.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 3 (B-357)
+		Resonator.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 3: 8
 		const FString Expected = FString::Printf(TEXT("Loadout exceeds budget: primary (cost %d) + adapters (cost %d) = %d, max is %d"),
 												 LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST, 2 * InventoryConstants::RING_EVOLUTION_SLOT_COST,
 												 LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST + 2 * InventoryConstants::RING_EVOLUTION_SLOT_COST,
