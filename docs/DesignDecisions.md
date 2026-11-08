@@ -4315,10 +4315,12 @@ Moved here once applied. Newest first.
 **Crown (2026-11-08):** kept as built, and added **activations** (MemoryCatalogue §3.11): a gear quest's start can need the item in a certain state: a crystal of a given element in its socket (e.g. an apparel piece with a Fire crystal), an evolution attached, an augment stone, an upgrade level or tier. Built on B-381 (WornItemState condition).
 
 ### Q-380 — Apparel: slots, what its crystal gives, evolutions on it
-**Status:** ANSWERED (Crown, 2026-11-08; tier scaling by the reference-backed default) · **Raised:** 2026-11-08 (B-380, cloud) · **Blocks:** —
+**Status:** ANSWERED (Crown, 2026-11-08; (4) tier scaling confirmed by Crown) · **Raised:** 2026-11-08 (B-380, cloud) · **Blocks:** —
 **Question:** D-164 left open: (1) how many apparel slots; (2) what an apparel crystal gives beyond its element; (3) whether an evolution can sit in an apparel socket, and what it gives; also (4) whether apparel's lines scale with its tier.
 **Answer (Crown, 2026-11-08):** (1) **two** (the deckbuilder's `MaxApparelSeated` 2). (2) **resistance to its element**, on top of the piece's own lines; apparel also **carries effects** like the deckbuilder's vessels. (3) **yes**: as on other gear it gives its passive effects (D-147 / B-357c), keys the piece to its element and adds that element's resistance like a crystal, and powers no skill; its cost does not matter (outside the budget). No augment stone. (4) **yes**, as every gear line (HP raw), by the reference-backed default; Crown may change it.
 **Notes for Claude:** B-380: `ApparelRules::MAX_APPAREL_SLOTS`, `CRYSTAL_ELEMENT_RESISTANCE` (5, TODO tune), `CanSocket`, `FApparelEntry::GetEvolution`; the effects through the loadout's effect gatherers. At merge with B-357b, gate the apparel evolution's passives as gear evolutions are (charge level 2).
+**Crown (2026-11-08):** (4) kept: apparel lines scale with the piece's tier, as built.
+
 ### Q-387 — Crystals grant Amp of their element by tier (Q-164b's "later question")
 **Status:** Answered (approved by the reference-backed default: the deckbuilder rule) · **Raised:** 2026-11-08 (brain) · **Blocks:** —
 **Question:** In the deckbuilder a Crystal's and an Evolution's Amp come from their tier, to their own element. Should socketed crystals here grant Amp the same way?
