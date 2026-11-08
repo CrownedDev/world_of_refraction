@@ -88,4 +88,6 @@ int32 FResistanceBonus::RerollResistance(int32 Budget)
 void FResistanceBonus::Accumulate(const FResistanceBonus &Other)
 {
 	ResistanceColumns::Add(*this, Other);
+	PhysicalDamage += Other.PhysicalDamage; // B-389: the damage scope lines sum like the columns
+	SpellDamage += Other.SpellDamage;
 }
