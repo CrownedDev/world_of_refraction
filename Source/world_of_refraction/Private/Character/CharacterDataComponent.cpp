@@ -374,9 +374,11 @@ bool UCharacterDataComponent::SetHeadStartAllocation(int32 M, int32 B, int32 S)
     HeadStartMind = M;
     HeadStartBody = B;
     HeadStartSpirit = S;
-    // B-348b: a rostered member keeps it on its party record, which the save writes.
+    // B-348b: a rostered member keeps it on its party record, which the save writes. Only a pawn stamped with its
+    // member id writes back: an enemy that merely shares a member's character asset must not overwrite the record.
     const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-    if (UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr)
+    UPartySessionSubsystem *PartySession = GI && PartyMemberId.IsValid() ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+    if (PartySession)
     {
         const int32 Slot = PartySession->GetMemberSlotOf(this);
         if (Slot != INDEX_NONE)
