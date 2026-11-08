@@ -1,3 +1,14 @@
+# Cloud writer handover (2026-11-08, fifth part: the brain's merge list) — WORKING: the damage / defence comparison (Q-164b) is in progress
+
+**The brain (13:05 UTC), in order:** (1) B-380c; (2) a merge plan; (3) a trial integration branch; (4) Amp, Q-164b. **14:03 UTC:** Crown reshaped (4) into a comparison, `docs/analysis/DamageAndDefenceSources_2026-11-08.md`, which covers damage and defence sources against the deckbuilder's Amp / Def lines, with a recommendation in Q-164b.
+
+| Item | Branch | State |
+|---|---|---|
+| B-380c | `feature/B-380c-apparel-slots-saved-cloud` (**on** B-380b) | REVIEW (UNBUILT, save **v29**), reviewed and fixed. Apparel is saved in loadouts and custom loadouts; inventories draw worn apparel (`HandlePoolGearChanged`); a crystal can be attached in play (`AttachToApparel`, `wor.Loadout.SocketApparel`); `NotifyApparelChanged` re-syncs stats; lore loadouts refuse apparel. The gear screen is left to the PIE sheet; new row **B-380d** |
+| Merge plan | `docs/cloud-merge-plan-2026-11-08` | `docs/Merge/CloudBranches-2026-11-08.md`: 60 branches top to bottom, each with base, save version, expected conflicts and how to resolve them; the save table (21-29 already rise in order, so no renumbering); the B-368 / B-370 constants; the B-232d + B-235c chest hint; the fixes the merges need (from wor-reviewer); follow-ups. Skip B-361b (already in dev) |
+| Trial merge | `integration/cloud-2026-11-08` (from origin/dev `dba4a0f5`) | **Trial only: never merge into dev.** All 60 merged `--no-ff` with conflicts resolved, plus fix commits: the save-version comment written once; FCombatCameraRules as the one source of the read-time constants; a client's chest hint key; doubled Backlog / Rules rows dropped (CL-28b clash → CL-28c); two compile errors that only appear when branches meet (ReviveMiniBoss's brace; B-357c + B-380's `Loadout` local); the doubled EvolutionItemData scan; a client's rest no longer leaves the host at a rest spot; Level up hidden on a client. wor-reviewer ran and its must-fixes are applied. Not compiled |
+| Q-164b | `docs/Q-164b-amp-cloud` (an OPEN entry with options A-D), comparison next | in progress |
+
 # Cloud writer handover (2026-11-08, fourth part: the brain sent more) — STOPPED: the brain's list is written; what is left wants a compiler
 
 **Why it stopped (13:40 UTC):** every row the brain sent is written, reviewed with wor-reviewer and fixed, and the split rows are written too (B-377b, B-378b, B-380b, B-187e). Left: **B-380c** (apparel loadout slots saved, inventories drawing worn apparel, attaching a crystal in play, stat re-sync, gear screen: deep in the loadout / inventory sync code, better with a compiler), plus the older desktop jobs (B-234d, B-357d, B-351e, B-233b, B-107-109, editor / VRoid / profiler). Every branch is UNBUILT: build, run the specs, then PIE.
