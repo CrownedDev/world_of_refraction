@@ -8,7 +8,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Class.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "Skills/Effects/ESkillEffectType.h"
 #include "EDamageScope.generated.h"
 
 UENUM(BlueprintType)
@@ -23,6 +25,28 @@ enum class EDamageScope : uint8
 
 namespace WoRDamageScope
 {
+	/** The effect types that read a damage scope (attacker and defender boosts); every other type ignores it. */
+	inline bool IsScopedType(ESkillEffectType Type)
+	{
+		switch (Type)
+		{
+		case ESkillEffectType::DamageBuff:
+		case ESkillEffectType::DamageDebuff:
+		case ESkillEffectType::ModifyDamageDealt:
+		case ESkillEffectType::RawDamageBuff:
+		case ESkillEffectType::RawDamageDebuff:
+		case ESkillEffectType::SpellDamageBuff:
+		case ESkillEffectType::SpellDamageDebuff:
+		case ESkillEffectType::DefenseBuff:
+		case ESkillEffectType::DefenseDebuff:
+		case ESkillEffectType::ReduceDamageTaken:
+		case ESkillEffectType::IncreaseDamageTaken:
+			return true;
+		default:
+			return false;
+		}
+	}
+
 	/** Whether an effect of Scope (keyed to EffectElement when Scope is Element) counts for a hit of HitElement
 	 *  from a spell (bHitIsSpell) or not. An Element scope with no real element counts for nothing. */
 	inline bool Matches(EDamageScope Scope, ESpellElement EffectElement, ESpellElement HitElement, bool bHitIsSpell)

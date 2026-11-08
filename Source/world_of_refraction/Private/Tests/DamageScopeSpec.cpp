@@ -23,6 +23,8 @@ namespace
 	constexpr int32 SCOPE_TEST_TURNS = 2;
 	/** Some Defense, so a DefenseBuff has something to multiply. */
 	constexpr int32 SCOPE_TEST_DEFENSE_POINTS = 50;
+	/** Far past the RawDamage cap, so the stat-cap correction is active. */
+	constexpr int32 SCOPE_TEST_OVERCAP_POINTS = 500;
 
 	struct FScopedBoost
 	{
@@ -45,7 +47,8 @@ BEGIN_DEFINE_SPEC(FDamageScopeSpec, "WoR.Damage.Scope", EAutomationTestFlags_App
 	}
 
 	/** One hit's final damage, with an optional boost on the attacker and one on the defender (Type None = none). */
-	int32 Hit(EActionType ActionType, ESpellElement HitElement, const FScopedBoost &OnAttacker, const FScopedBoost &OnDefender = FScopedBoost())
+	int32 Hit(EActionType ActionType, ESpellElement HitElement, const FScopedBoost &OnAttacker, const FScopedBoost &OnDefender = FScopedBoost(),
+			  int32 AttackerRawPoints = 0)
 	{
 		UDamageCalculator *Calculator = TestWorld->GetSubsystem<UDamageCalculator>();
 		USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
@@ -56,7 +59,9 @@ BEGIN_DEFINE_SPEC(FDamageScopeSpec, "WoR.Damage.Scope", EAutomationTestFlags_App
 		}
 		UCharacterData *DefenderData = FWoRTestWorld::NewCharacterData();
 		DefenderData->Defense = SCOPE_TEST_DEFENSE_POINTS;
-		AActor *Attacker = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		UCharacterData *AttackerData = FWoRTestWorld::NewCharacterData();
+		AttackerData->RawDamage = AttackerRawPoints;
+		AActor *Attacker = TestWorld->SpawnCombatant(AttackerData);
 		AActor *Defender = TestWorld->SpawnCombatant(DefenderData);
 		if (OnAttacker.Type != ESkillEffectType::None)
 		{
@@ -156,6 +161,27 @@ void FDamageScopeSpec::Define()
 					 Hit(EActionType::Ability, ESpellElement::None, PhysicalOnly) > Hit(EActionType::Ability, ESpellElement::None, FScopedBoost()));
 			TestEqual(TEXT("spell not"), Hit(EActionType::Spell, ESpellElement::Fire, PhysicalOnly),
 					  Hit(EActionType::Spell, ESpellElement::Fire, FScopedBoost()));
+		});
+
+		It("a Spell-scoped damage buff raises spells only", [this]()
+		{
+			const FScopedBoost SpellOnly = Boost(ESkillEffectType::DamageBuff, EDamageScope::Spell);
+			TestTrue(TEXT("spell raised"),
+					 Hit(EActionType::Spell, ESpellElement::Water, SpellOnly) > Hit(EActionType::Spell, ESpellElement::Water, FScopedBoost()));
+			TestEqual(TEXT("ability not"), Hit(EActionType::Ability, ESpellElement::None, SpellOnly),
+					  Hit(EActionType::Ability, ESpellElement::None, FScopedBoost()));
+		});
+
+		It("a Fire-scoped Raw damage buff leaves a Water physical hit alone, below and at the stat cap", [this]()
+		{
+			const FScopedBoost FireRaw = Boost(ESkillEffectType::RawDamageBuff, EDamageScope::Element, ESpellElement::Fire);
+			TestEqual(TEXT("below the cap"), Hit(EActionType::Ability, ESpellElement::Water, FireRaw),
+					  Hit(EActionType::Ability, ESpellElement::Water, FScopedBoost()));
+			TestEqual(TEXT("at the cap (the cap correction reads the same scoped factor)"),
+					  Hit(EActionType::Ability, ESpellElement::Water, FireRaw, FScopedBoost(), SCOPE_TEST_OVERCAP_POINTS),
+					  Hit(EActionType::Ability, ESpellElement::Water, FScopedBoost(), FScopedBoost(), SCOPE_TEST_OVERCAP_POINTS));
+			TestTrue(TEXT("a Fire physical hit is raised"),
+					 Hit(EActionType::Ability, ESpellElement::Fire, FireRaw) > Hit(EActionType::Ability, ESpellElement::Fire, FScopedBoost()));
 		});
 
 		It("a Fire-scoped defence buff and damage-taken cut reduce Fire damage taken only", [this]()

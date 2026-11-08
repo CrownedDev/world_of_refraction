@@ -336,9 +336,17 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		Effect.Charges = P.Charges;
 		// B-042j3: a reflect's element is its scope (the payload's own, authored one); the cast element never scopes it.
 		// B-383 (D-166): a damage or defence boost counts by its authored DamageScope; with the Element scope it keys
-		// to the payload's own element, else to the caller's (a spell's cast element). Any other scope ignores Element.
-		Effect.DamageScope = P.DamageScope;
-		const bool bElementScoped = P.DamageScope == EDamageScope::Element;
+		// to the payload's own element, else to the caller's (a spell's cast element). Any other scope ignores Element,
+		// and every other effect type ignores the scope (its element is resolved as before).
+		const bool bScopedType = WoRDamageScope::IsScopedType(Effect.EffectType);
+		Effect.DamageScope = bScopedType ? P.DamageScope : EDamageScope::All;
+		const bool bElementScoped = bScopedType && P.DamageScope == EDamageScope::Element;
+		if (bElementScoped && (KeyElement == ESpellElement::None || KeyElement == ESpellElement::Generic))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FActiveSkillEffect] '%s' is scoped to one element but has none (payload and caller both "
+										  "None / Generic): it counts for no hit. Set the payload's Element."),
+				   *Effect.EffectName);
+		}
 		Effect.Element = Effect.EffectType == ESkillEffectType::ApplyDOTOnHit ? KeyElement
 						 : SkillEffectClassification::IsReflect(Effect.EffectType) ? (bPayloadKeysElement ? P.Element : ESpellElement::None)
 						 : bElementScoped ? KeyElement

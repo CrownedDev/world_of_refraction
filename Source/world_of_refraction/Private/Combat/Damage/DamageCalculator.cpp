@@ -63,7 +63,9 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 		Inputs.bHasAttackerStats = true;
 		Inputs.EquipmentTerm = Inputs.bIsSpell ? AttackerComp->GetEquipmentSpellDamageTerm() : AttackerComp->GetEquipmentRawDamageTerm();
 		Inputs.StoneFactor = Inputs.bIsSpell ? AttackerComp->GetStoneSpellDamageFactor() : AttackerComp->GetStoneRawDamageFactor();
-		Inputs.TransientFactor = Inputs.bIsSpell ? AttackerComp->GetTransientSpellDamageFactor() : AttackerComp->GetTransientRawDamageFactor();
+		// B-383 review: the same scoped Raw / Spell net the status factor applies, so the stat-cap correction (which
+		// divides by it) still cancels it below the caps and caps the same value at them.
+		Inputs.TransientFactor = GetScopedTransientDamageFactor(Attacker, Inputs.bIsSpell, Input.Element);
 		Inputs.EvolutionModifiedStat = Inputs.bIsSpell ? AttackerComp->GetEvolutionModifiedSpellDamage() : AttackerComp->GetEvolutionModifiedRawDamage();
 		// The gear term joins the attacker multiplier only with a loadout (as before B-219).
 		if (Attacker->FindComponentByClass<ULoadoutComponent>())
@@ -309,6 +311,20 @@ float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 	return Layers.Compose();
 }
 
+float UDamageCalculator::GetScopedTransientDamageFactor(AActor *Attacker, bool bIsSpell, ESpellElement HitElement) const
+{
+	const USkillEffectManager *StatusManager = GetSkillEffectManager();
+	if (!Attacker || !StatusManager)
+	{
+		return 1.0f;
+	}
+	const ESkillEffectType Buff = bIsSpell ? ESkillEffectType::SpellDamageBuff : ESkillEffectType::RawDamageBuff;
+	const ESkillEffectType Debuff = bIsSpell ? ESkillEffectType::SpellDamageDebuff : ESkillEffectType::RawDamageDebuff;
+	return 1.0f + (StatusManager->GetTotalStatModifierForHit(Attacker, Buff, HitElement, bIsSpell) -
+				   StatusManager->GetTotalStatModifierForHit(Attacker, Debuff, HitElement, bIsSpell)) /
+					  CombatConstants::STAT_PERCENT_DIVISOR;
+}
+
 float UDamageCalculator::GetDefenderDefenseForHit(AActor *Defender, ESpellElement HitElement, bool bHitIsSpell) const
 {
 	UCharacterDataComponent *DefenderComp = Defender ? Defender->FindComponentByClass<UCharacterDataComponent>() : nullptr;
@@ -494,10 +510,6 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 	{
 		return StatusManager->GetTotalStatModifierForHit(Actor, Type, HitElement, bHitIsSpell);
 	};
-	auto NetFactor = [&ForHit](AActor *Actor, ESkillEffectType Buff, ESkillEffectType Debuff)
-	{
-		return 1.0f + (ForHit(Actor, Buff) - ForHit(Actor, Debuff)) / CombatConstants::STAT_PERCENT_DIVISOR;
-	};
 
 	// Attacker damage buffs/debuffs
 	if (Attacker)
@@ -518,10 +530,10 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 		// same actor. Same multiplicative op, same spot/order (symmetric with the spell arm
 		// below). The Amethyst gamble is the only live producer; spell actions are unaffected.
 		// B-383: the same net as GetTransientRawDamageFactor (Buff - Debuff, StatModifierTable's RawDamage row), read
-		// through each effect's scope for this hit.
+		// through each effect's scope for this hit (GetScopedTransientDamageFactor, shared with the cap correction).
 		if (ActionType != EActionType::Spell)
 		{
-			Modifier *= NetFactor(Attacker, ESkillEffectType::RawDamageBuff, ESkillEffectType::RawDamageDebuff);
+			Modifier *= GetScopedTransientDamageFactor(Attacker, false, HitElement);
 		}
 
 		// SpellDamageBuff/Debuff: the magical mirror — whole-number-percent boost to
@@ -535,7 +547,7 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 		// B-383: the same net as GetTransientSpellDamageFactor, read through each effect's scope for this hit.
 		if (ActionType == EActionType::Spell)
 		{
-			Modifier *= NetFactor(Attacker, ESkillEffectType::SpellDamageBuff, ESkillEffectType::SpellDamageDebuff);
+			Modifier *= GetScopedTransientDamageFactor(Attacker, true, HitElement);
 		}
 	}
 
