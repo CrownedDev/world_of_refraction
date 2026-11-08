@@ -592,7 +592,7 @@ float UActionExecutor::GetWeaponRequirementFactor(AActor *Actor, const FAction &
 
 int32 UActionExecutor::GetActionAmp(AActor *Actor, ESpellElement ResolvedElement) const
 {
-	const ULoadoutComponent *Loadout = Actor ? Actor->FindComponentByClass<ULoadoutComponent>() : nullptr;
+	const ULoadoutComponent *Loadout = GetLoadoutComponent(Actor);
 	return Loadout ? Loadout->GetActiveStatBonus(Actor).Amp.GetTotalFor(ResolvedElement) : 0;
 }
 

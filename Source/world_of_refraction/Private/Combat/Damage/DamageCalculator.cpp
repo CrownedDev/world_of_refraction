@@ -470,7 +470,7 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 	{
 		// B-382 (Q-164b): the unkeyed (None) layer counts for every hit; an element-keyed layer only for a hit of
 		// that element. Two exact-element reads, as status buildup does, so a layer is never counted twice. Skill
-		// payloads stamp DamageBuff with None (ActionExecutor's per-payload element), so authored buffs are unchanged.
+		// payloads key DamageBuff by their own authored element only (None by default, BuildRuntimeFromPayload), so unkeyed authored buffs are unchanged.
 		auto KeyedTotal = [StatusManager, Attacker, HitElement](ESkillEffectType Type)
 		{
 			// Generic ("inherit") is never a hit's element; an effect stamped with it counts as unkeyed, as before.
