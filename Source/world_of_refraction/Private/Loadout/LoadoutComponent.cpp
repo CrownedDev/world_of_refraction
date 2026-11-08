@@ -4360,6 +4360,16 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         AddScaled(EvoBonus, Loadout.PrimaryEvolution.Tier);
     }
 
+    // B-380 (D-164): every apparel piece worn adds its HP and Defence lines (nothing else), tier-scaled like gear;
+    // outside the budget, so it sits beside whatever ForEachContributingGear visits.
+    for (const FApparelEntry &Piece : Loadout.Apparel)
+    {
+        if (Piece.Apparel)
+        {
+            AddScaled(Piece.GetStatLines(), Piece.Tier);
+        }
+    }
+
     // Round the tier-scaled substat accumulators ONCE into Combined (BonusCritDamage is a float
     // field — store directly). Pools + pillar percents were accumulated raw inside AddScaled.
     Combined.BonusRawDamage        = FMath::RoundToInt(AccRawDamage);

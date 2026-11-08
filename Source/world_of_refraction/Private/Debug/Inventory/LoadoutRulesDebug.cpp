@@ -12,6 +12,8 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "Loadout/FCombatLoadout.h"
+#include "Loadout/Entries/FApparelEntry.h"
+#include "UObject/UObjectIterator.h"
 #include "HAL/IConsoleManager.h"
 #include "WoRLog.h"
 
@@ -161,6 +163,43 @@ namespace
 			GEngine->AddOnScreenDebugMessage(INDEX_NONE, LOADOUT_RULES_SCREEN_SECONDS, FColor::Cyan, Line);
 		}
 	}
+
+	/** B-380: one combatant's loadout in a line: weapons, adapters, apparel (outside the budget) and gear HP / Defence. */
+	FString GetLoadoutPrintString(const ULoadoutComponent &Loadout)
+	{
+		const FCombatLoadout &Active = Loadout.GetActiveLoadout();
+		TArray<FString> Adapters;
+		if (Active.PrimaryRing.RingEntry.Ring)
+		{
+			Adapters.Add(Active.PrimaryRing.RingEntry.Ring->GetName());
+		}
+		for (const FRingLoadoutEntry &Ring : Active.RingLoadout)
+		{
+			Adapters.Add(GetNameSafe(Ring.RingEntry.Ring));
+		}
+		const FEquipmentStatBonus Gear = Loadout.GetActiveStatBonus(Loadout.GetOwner());
+		return FString::Printf(TEXT("%s: weapons %s / %s; adapters [%s]; %s; gear HP %+d Def %+d"), *GetNameSafe(Loadout.GetOwner()),
+							   *GetNameSafe(Active.PrimaryWeapon.WeaponEntry.Weapon), *GetNameSafe(Active.SecondaryWeapon.WeaponEntry.Weapon),
+							   *FString::Join(Adapters, TEXT(", ")), *ApparelRules::GetApparelString(Active), Gear.BonusMaxHP, Gear.BonusDefense);
+	}
+
+	FAutoConsoleCommandWithWorld GPrintLoadoutCmd(
+		TEXT("wor.Loadout.Print"),
+		TEXT("DEBUG: wor.Loadout.Print - every combatant's active loadout: weapons, adapters, apparel and gear HP / Defence (B-380)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				int32 Printed = 0;
+				for (TObjectIterator<ULoadoutComponent> It; It; ++It)
+				{
+					if (!It->IsTemplate() && It->GetWorld() == World)
+					{
+						UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] %s"), *GetLoadoutPrintString(**It));
+						++Printed;
+					}
+				}
+				UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] %d loadout(s)"), Printed);
+			}));
 
 	FAutoConsoleCommandWithWorldAndArgs GPrintSkillSlotsCmd(
 		TEXT("wor.Loadout.PrintSkillSlots"),
