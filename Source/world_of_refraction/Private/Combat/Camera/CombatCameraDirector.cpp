@@ -613,7 +613,20 @@ bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShot
 {
 	if (CVarCheckFraming.GetValueOnGameThread() != 0)
 	{
-		const CameraFraming::FFramingReport Report = CameraFraming::CheckShot(GetWorld(), Moment, Shot, BuildShotContext(false), {});
+		// Review: the caster's and targets' own meshes and weapons don't count as blocking the view of them.
+		TArray<const AActor *> Ignored;
+		if (const AActor *Caster = ShotCaster.Get())
+		{
+			Ignored.Add(Caster);
+		}
+		for (const TWeakObjectPtr<AActor> &Target : ShotTargets)
+		{
+			if (const AActor *Actor = Target.Get())
+			{
+				Ignored.Add(Actor);
+			}
+		}
+		const CameraFraming::FFramingReport Report = CameraFraming::CheckShot(GetWorld(), Moment, Shot, BuildShotContext(false), Ignored);
 		UE_LOG(LogWoR, Display, TEXT("[CameraFraming] %s: %s"), *UEnum::GetValueAsString(Moment), *Report.ToString());
 	}
 	APlayerController *Viewer = GetViewer();
