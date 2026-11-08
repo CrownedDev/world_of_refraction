@@ -237,6 +237,22 @@ void FMemorySourcesSpec::Define()
 		TestTrue(TEXT("Recorded as found"), TrialRun->HasFound(Spot->GetFeatureId()));
 		TestFalse(TEXT("Spent for the run"), Spot->Reach());
 	});
+
+	It("goes to a friend when it means something to one of their characters, or lists no one (B-235d, Q-235d)", [this]()
+	{
+		UMemoryData *Shared = NewObject<UMemoryData>(GetTransientPackage());
+		UMemoryData *Personal = NewObject<UMemoryData>(GetTransientPackage());
+		UCharacterData *Mine = NewObject<UCharacterData>(GetTransientPackage());
+		UCharacterData *Theirs = NewObject<UCharacterData>(GetTransientPackage());
+		Personal->CharacterDepth.Add(Mine, EMemoryDepth::Deep);
+		Personal->CharacterDepth.Add(Theirs, EMemoryDepth::None);
+		TestTrue(TEXT("no character listed: everyone's"), MemoryUnlock::QualifiesFor(Shared, {Theirs}));
+		TestTrue(TEXT("it means something to my character"), MemoryUnlock::QualifiesFor(Personal, {Mine}));
+		TestFalse(TEXT("listed as None: not theirs"), MemoryUnlock::QualifiesFor(Personal, {Theirs}));
+		TestFalse(TEXT("no characters"), MemoryUnlock::QualifiesFor(Personal, {}));
+		TestFalse(TEXT("no memory"), MemoryUnlock::QualifiesFor(nullptr, {Mine}));
+		TestEqual(TEXT("standalone: shared with nobody"), MemoryUnlock::ShareWithPlayers(TestWorld->GetWorld()->GetGameInstance(), Shared, EMemorySource::Boss), 0);
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
