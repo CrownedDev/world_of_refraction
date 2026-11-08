@@ -175,18 +175,18 @@ namespace
 				}
 			}));
 
-	FAutoConsoleCommandWithWorldAndArgs GPrintActiveLoadoutCmd(
-		TEXT("wor.Loadout.PrintActive"),
-		TEXT("DEBUG: wor.Loadout.PrintActive - the player's active loadout: gear, both sockets, the one skill-slot list, spells, items (B-351c)."),
+	FAutoConsoleCommandWithWorldAndArgs GPrintLoadoutCmd(
+		TEXT("wor.Loadout.Print"),
+		TEXT("DEBUG: wor.Loadout.Print - the player's active loadout: gear, both sockets, the one skill-slot list, spells, items (B-351c)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
 			[](const TArray<FString> &, UWorld *World)
 			{
-				const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
-				const APawn *Pawn = PC ? PC->GetPawn() : nullptr;
-				ULoadoutComponent *Loadout = Pawn ? Pawn->FindComponentByClass<ULoadoutComponent>() : nullptr;
+				// Review fix: the same character the *Skill commands edit (the pawn, else the first with an inventory).
+				const UInventoryComponent *Inventory = PlayerInventory(World);
+				ULoadoutComponent *Loadout = Inventory && Inventory->GetOwner() ? Inventory->GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;
 				if (!Loadout)
 				{
-					UE_LOG(LogWoR, Warning, TEXT("[LoadoutDebug] PrintActive: the player's pawn has no loadout"));
+					UE_LOG(LogWoR, Warning, TEXT("[LoadoutDebug] Print: no character with a loadout"));
 					return;
 				}
 				UInventoryDebug::LogActiveLoadout(Loadout);
