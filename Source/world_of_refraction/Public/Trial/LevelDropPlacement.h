@@ -1,5 +1,6 @@
 // LevelDropPlacement.h
-// B-223 (D-102): the player places a dropped pillar level on a party member's chosen pillar. Dropped levels
+// B-223 (D-102): the player places a dropped pillar level on a party member's chosen pillar. B-363 (D-156): only at a
+// rest spot, where a point can also be bought for run Prisms (TryBuyPoint). Dropped levels
 // wait in the trial run (UTrialRunSubsystem::GetUnspentLevels); placing one raises that member's live level
 // (a spawned member at once, else at its next spawn), clamped at 7 (B-222). Placeholder screen:
 // wor.UI.LevelDrop (ULevelDropWidget). Debug: wor.WorldStat.Print.
@@ -12,6 +13,7 @@
 #include "Character/EWorldPillar.h"
 
 class UCharacterDataComponent;
+class UCurrencyComponent;
 struct FPartyMember;
 class UWorld;
 
@@ -27,8 +29,23 @@ namespace WoRLevelDrops
 	 *  (head-start lives on the spawned component). */
 	WORLD_OF_REFRACTION_API int32 GetLiveLevel(const UWorld *World, const FPartyMember &Member, EWorldPillar Pillar);
 
-	/** Places one unspent level on Member's Pillar. Empty on success, else why not (none waiting, at the cap). */
+	/** B-364: Member's over-cap points on Pillar this run (0-3, OverCapRules). */
+	WORLD_OF_REFRACTION_API int32 GetOverCap(const UWorld *World, const FPartyMember &Member, EWorldPillar Pillar);
+
+	/** B-364: Pillar is at 7 with every over-cap point used, so it takes no more points. */
+	WORLD_OF_REFRACTION_API bool IsPillarFull(const UWorld *World, const FPartyMember &Member, EWorldPillar Pillar);
+
+	/** Places one unspent level on Member's Pillar; at 7 it becomes an over-cap point (B-364, D-157). Empty on success,
+	 *  else why not (not at a rest spot (B-363, D-156), none waiting, 7 with 3 over-cap points). */
 	WORLD_OF_REFRACTION_API FText TryPlaceLevel(UWorld *World, const FPartyMember &Member, EWorldPillar Pillar);
+
+	/** B-363 (Q-156): the run Prisms Member's next bought point costs: ER-24's ladder per character this run. */
+	WORLD_OF_REFRACTION_API int32 GetPointPrice(const UWorld *World, const FPartyMember &Member);
+
+	/** B-363 (D-156, Q-156): buys Member one unspent point with run Prisms from Wallet (null: the first local player's),
+	 *  at a rest spot. Empty on success, else why not (not at a rest spot, every pillar full (7 and 3 over-cap), too few
+	 *  Prisms). */
+	WORLD_OF_REFRACTION_API FText TryBuyPoint(UWorld *World, const FPartyMember &Member, UCurrencyComponent *Wallet = nullptr);
 
 	/** Debug: the run's levels, the unspent count and each party member's live pillars. */
 	WORLD_OF_REFRACTION_API FString GetLevelDropString(const UWorld *World);
